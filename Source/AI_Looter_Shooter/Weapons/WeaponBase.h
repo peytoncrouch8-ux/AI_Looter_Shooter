@@ -168,10 +168,6 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	/** Override in Blueprint for recoil, camera shake, anim montages, etc. */
-	UFUNCTION(BlueprintImplementableEvent, Category = "Weapon", meta = (DisplayName = "On Shot Fired"))
-	void K2_OnShotFired();
-
 	/** Root. Collides with the world only while the weapon is loot. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<USphereComponent> Collision;

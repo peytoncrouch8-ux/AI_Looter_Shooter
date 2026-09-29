@@ -26,9 +26,6 @@ class AI_LOOTER_SHOOTER_API UHealthComponent : public UActorComponent
 public:
 	UHealthComponent();
 
-	UFUNCTION(BlueprintCallable, Category = "Health")
-	void Heal(float Amount);
-
 	/** Restores full health and clears the dead state. */
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void ResetHealth();

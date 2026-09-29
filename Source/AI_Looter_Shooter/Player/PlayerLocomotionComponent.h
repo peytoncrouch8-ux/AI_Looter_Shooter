@@ -38,9 +38,6 @@ public:
 	UPlayerLocomotionComponent();
 
 	UFUNCTION(BlueprintPure, Category = "Locomotion")
-	bool IsSprinting() const { return bSprinting; }
-
-	UFUNCTION(BlueprintPure, Category = "Locomotion")
 	bool IsCrouching() const;
 
 	/** 0..1, eased. How far into the sprint pose the body and weapon are. */

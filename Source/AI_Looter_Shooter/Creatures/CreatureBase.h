@@ -45,9 +45,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Creature")
 	bool IsDead() const { return State == ECreatureState::Dead; }
 
-	UFUNCTION(BlueprintPure, Category = "Creature")
-	APawn* GetTarget() const { return Target.Get(); }
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature")
 	FText DisplayName;
 

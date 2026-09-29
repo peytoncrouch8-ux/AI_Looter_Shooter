@@ -38,12 +38,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void QuitGame();
 
-	UFUNCTION(BlueprintPure, Category = "HUD")
-	bool IsInventoryOpen() const { return bInventoryOpen; }
-
-	UFUNCTION(BlueprintPure, Category = "HUD")
-	bool IsPauseMenuOpen() const { return bPauseMenuOpen; }
-
 protected:
 	virtual void BeginPlay() override;
 

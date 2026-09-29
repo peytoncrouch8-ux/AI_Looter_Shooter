@@ -25,12 +25,6 @@ ULootTable* ULootLibrary::GetDefaultLootTable()
 	return Default.LoadSynchronous();
 }
 
-UWeaponDefinition* ULootLibrary::PickWeapon(const ULootTable* LootTable)
-{
-	FRandomStream Random(FMath::Rand());
-	return PickWeaponWith(LootTable, Random);
-}
-
 UWeaponDefinition* ULootLibrary::PickWeaponWith(const ULootTable* LootTable, FRandomStream& Random)
 {
 	if (!LootTable)

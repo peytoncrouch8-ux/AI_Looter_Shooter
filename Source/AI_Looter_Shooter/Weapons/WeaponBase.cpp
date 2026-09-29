@@ -293,7 +293,6 @@ void AWeaponBase::HandleFiring()
 
 	BroadcastAmmo();
 	OnFired.Broadcast();
-	K2_OnShotFired();
 
 	if (CurrentMagazine <= 0)
 	{

@@ -504,11 +504,6 @@ namespace
 	}
 }
 
-float LooterUI::GetBackgroundOpacity()
-{
-	return GBackgroundOpacity;
-}
-
 void LooterUI::SetBackgroundOpacity(float Opacity)
 {
 	GBackgroundOpacity = FMath::Clamp(Opacity, 0.f, 1.f);
@@ -536,11 +531,6 @@ void LooterUI::MarkBackground(UWidget* Widget)
 	}
 	List.Add(Widget);
 	ApplyBackgroundOpacity(Widget, GBackgroundOpacity);
-}
-
-FLinearColor LooterUI::BackgroundColor(const FLinearColor& Color)
-{
-	return FLinearColor(Color.R, Color.G, Color.B, Color.A * GBackgroundOpacity);
 }
 
 // ---------------------------------------------------------------------------

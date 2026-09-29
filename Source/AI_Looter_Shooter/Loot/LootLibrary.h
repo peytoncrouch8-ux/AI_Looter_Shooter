@@ -51,9 +51,6 @@ public:
 	static FLootRoll RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random);
 
 	/** Picks one weapon definition from the table by weight. */
-	UFUNCTION(BlueprintCallable, Category = "Loot")
-	static UWeaponDefinition* PickWeapon(const ULootTable* LootTable);
-
 	static UWeaponDefinition* PickWeaponWith(const ULootTable* LootTable, FRandomStream& Random);
 
 	/** Picks one ammo class from the table by weight (every class, equally, if the table lists none). */

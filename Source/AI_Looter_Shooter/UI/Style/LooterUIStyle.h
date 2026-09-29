@@ -116,13 +116,10 @@ namespace LooterUI
 	// --- UI transparency (the settings menu's slider) ---
 
 	/**
-	 * How solid panel backgrounds are drawn: 1 = as designed, 0 = fully see-through. Only backgrounds fade (glass,
-	 * frames, rows, plates, screen dimming); text, outlines, bars, icons and buttons stay as they are, so every UI stays
-	 * readable at any setting.
+	 * Sets how solid panel backgrounds are drawn, for every UI at once and live: 1 = as designed, 0 = fully see-through.
+	 * Only backgrounds registered with MarkBackground fade (glass, frames, rows, plates, screen dimming); text, outlines,
+	 * bars, icons and buttons stay as they are, so every UI stays readable at any setting.
 	 */
-	float GetBackgroundOpacity();
-
-	/** Changes it for every UI at once, live: backgrounds registered with MarkBackground update immediately. */
 	void SetBackgroundOpacity(float Opacity);
 
 	/**
@@ -130,9 +127,6 @@ namespace LooterUI
 	 * fades only its own brush, never its content. The kit's builders mark their backgrounds themselves.
 	 */
 	void MarkBackground(UWidget* Widget);
-
-	/** A background color with its alpha scaled by the setting, for widgets that tint their own backgrounds per state. */
-	FLinearColor BackgroundColor(const FLinearColor& Color);
 
 	// --- Widget builders (construct inside the given widget tree) ---
 

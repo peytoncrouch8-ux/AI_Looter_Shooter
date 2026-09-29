@@ -65,9 +65,6 @@ public:
 	/** The gun's kick rotation right now (pitch up = muzzle climbing), in the gun's own frame. */
 	FRotator GetKickRotation() const { return FRotator(Pitch.Value, Yaw.Value, RollSpring.Value); }
 
-	/** Aim kick currently added to the view (degrees), still to be recovered. */
-	FRotator GetAimOffset() const { return AimApplied; }
-
 	bool IsSettled() const;
 	void Reset();
 

@@ -59,16 +59,6 @@ void UHealthComponent::HandleAnyDamage(AActor* DamagedActor, float Damage, const
 	}
 }
 
-void UHealthComponent::Heal(float Amount)
-{
-	if (bDead || Amount <= 0.f)
-	{
-		return;
-	}
-	Health = FMath::Min(Health + Amount, MaxHealth);
-	OnHealthChanged.Broadcast(Health, MaxHealth);
-}
-
 void UHealthComponent::ResetHealth()
 {
 	bDead = false;
