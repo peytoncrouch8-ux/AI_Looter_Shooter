@@ -1,7 +1,8 @@
 # Code map
 
-One line per file (a `.h`/`.cpp` pair counts as one) in `Source/AI_Looter_Shooter`, grouped by game area. Keep it current
-when you add, move or delete a file. A big class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
+One line per file (a `.h`/`.cpp` pair counts as one), grouped by game area: the game module `Source/AI_Looter_Shooter`
+first, then the editor-only module `Source/LooterEditor`. Keep it current when you add, move or delete a file. A big
+class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Module root
 - `AI_Looter_Shooter.h/.cpp`: the module, the `LogLooter` log category, and moving Play-In-Editor's Stop key to F10 so
@@ -71,13 +72,9 @@ when you add, move or delete a file. A big class can spread its `.cpp` over a fe
 - `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime.
 - `World/FallRecoverySubsystem`: brings the player back when they fall off an island.
 
-## Environment (runtime-generated props; baked into assets in phase 2)
-- `Environment/StylizedProp`: `AStylizedProp` and `EStylizedPropShape`, every procedural prop.
-- `Environment/StylizedMeshKit`: `StylizedMesh`, GeometryScript helpers for building chunky props.
-- `Environment/StylizedSurface`: `FStylizedSurface`, `StylizedColors`, `StylizedSurfaces`, how each material slot is painted.
-- `Environment/EnvironmentLayout`: `AEnvironmentLayout`, spawns a level's saved layout on BeginPlay.
-- `Environment/EnvironmentPalette`: `UEnvironmentPalette`, everything a layout can spawn, by id.
-- `Environment/LevelLayoutData.h`: `ULevelLayoutData`, a level's saved layout records.
+## Procedural (code-built meshes: the spider, guns, ammo boxes, and the editor's props)
+- `Procedural/StylizedMeshKit`: `StylizedMesh`, GeometryScript helpers for building chunky shapes.
+- `Procedural/StylizedSurface`: `FStylizedSurface`, `StylizedColors`, `StylizedSurfaces`, how each material slot is painted.
 
 ## Settings
 - `Settings/KeyBindingSubsystem`: key rebinding, the global pause/inventory actions and the character actions.
@@ -110,3 +107,11 @@ when you add, move or delete a file. A big class can spread its `.cpp` over a fe
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `CreatureTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`,
   `MinimapTests.cpp`, `WeaponTests.cpp`: the `Looter.*` automation tests, one file per area.
+
+## LooterEditor (editor-only module; nothing here ships)
+- `LooterEditor.Build.cs`: module dependencies (GeometryScript editor functions for creating assets).
+- `LooterEditorModule.cpp`: the module and the `Looter.BakeLevelProps` console command.
+- `StylizedProp`: `AStylizedProp` and `EStylizedPropShape`, procedural props for building levels in the editor.
+- `PropBaker`: `FPropBaker`, turns a level's props into Nanite static mesh assets, material instances and placed actors.
+- `Tests/StylizedPropTests.cpp`: the `Looter.Editor.*` tests (every prop shape generates, paints its slots, and tags
+  itself for the minimap).

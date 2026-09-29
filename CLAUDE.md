@@ -1,7 +1,8 @@
 # AI_Looter_Shooter
 
-A stylized first/third-person looter shooter in Unreal Engine 5.8, written C++-first. One runtime module,
-`Source/AI_Looter_Shooter`. The playable level is `/Game/Maps/Lvl_Skyreach` (floating sky islands).
+A stylized first/third-person looter shooter in Unreal Engine 5.8, written C++-first. The game is the runtime module
+`Source/AI_Looter_Shooter`; `Source/LooterEditor` is an editor-only module of level-building tools that never ships. The
+playable level is `/Game/Maps/Lvl_Skyreach` (floating sky islands).
 
 The C++ `ALooterGameMode` (project default) gives each player an `ALooterPlayerController`, the `ALooterHUD` and
 `/Game/Player/BP_LooterCharacter`: a data-only child of `ALooterCharacter` that holds the meshes, animation, camera
@@ -64,5 +65,11 @@ placement and gameplay component settings.
 - Name prefixes: `SM_` static mesh, `SK_` skeletal mesh, `M_`/`MI_` materials, `T_` textures, `DA_` data assets,
   `BP_` Blueprints, `UCX_` collision hulls, `SOCKET_` attach points.
 - Do not generate meshes while the game runs. Bake generated models into assets (see `Docs/Plan.md`).
+- Levels are built in the editor. Procedural props are `StylizedProp` actors (shape, seed, two colors). Before
+  committing a level, run `Looter.BakeLevelProps` in the editor console. It swaps them for static mesh actors and saves
+  their meshes and materials under `/Game/Environment/Props`.
+- The minimap reads actor tags. Its extent comes from actors tagged `Ground` (walkable terrain). Actors tagged
+  `Obstacle` (solid things standing on the ground) are drawn as obstacles, and anything untagged is drawn as ground.
+  Props and baked props tag themselves; tag other meshes you place.
 - Performance target: 60 fps at 1080p on the Medium preset on the reference PC (Radeon RX 580, i7-8700, 16 GB). Lumen
   lighting is for the High and Epic presets only.

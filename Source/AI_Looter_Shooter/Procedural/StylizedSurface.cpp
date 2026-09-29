@@ -1,4 +1,4 @@
-#include "Environment/StylizedSurface.h"
+#include "Procedural/StylizedSurface.h"
 #include "Components/DynamicMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"

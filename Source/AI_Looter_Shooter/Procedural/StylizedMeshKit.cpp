@@ -1,4 +1,4 @@
-#include "Environment/StylizedMeshKit.h"
+#include "Procedural/StylizedMeshKit.h"
 #include "UDynamicMesh.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"

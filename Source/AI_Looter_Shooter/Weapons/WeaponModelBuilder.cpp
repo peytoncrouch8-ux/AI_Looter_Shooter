@@ -1,6 +1,6 @@
 #include "Weapons/WeaponModelBuilder.h"
-#include "Environment/StylizedMeshKit.h"
-#include "Environment/StylizedSurface.h"
+#include "Procedural/StylizedMeshKit.h"
+#include "Procedural/StylizedSurface.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Components/DynamicMeshComponent.h"

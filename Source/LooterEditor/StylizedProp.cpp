@@ -1,6 +1,7 @@
-#include "Environment/StylizedProp.h"
-#include "Environment/StylizedMeshKit.h"
-#include "Environment/StylizedSurface.h"
+#include "StylizedProp.h"
+#include "Procedural/StylizedMeshKit.h"
+#include "Procedural/StylizedSurface.h"
+#include "World/MinimapSubsystem.h"
 #include "Components/DynamicMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -368,8 +369,11 @@ namespace
 			FCollisionObjectQueryParams(ECC_WorldStatic), Params);
 		for (const FHitResult& Hit : Hits)
 		{
-			const AStylizedProp* Prop = Cast<AStylizedProp>(Hit.GetActor());
-			if (!Prop || IsTerrainShape(Prop->Shape))
+			// A prop's shape says whether it's terrain; once baked, its minimap tag does.
+			const AActor* Actor = Hit.GetActor();
+			const AStylizedProp* Prop = Cast<AStylizedProp>(Actor);
+			const bool bTerrain = Prop ? IsTerrainShape(Prop->Shape) : !(Actor && Actor->ActorHasTag(MinimapTags::Obstacle));
+			if (bTerrain)
 			{
 				OutLocalZ = static_cast<float>(Build.Transform.InverseTransformPosition(Hit.ImpactPoint).Z);
 				return true;
@@ -1122,6 +1126,15 @@ bool AStylizedProp::IsGroundShape(EStylizedPropShape InShape)
 		|| InShape == EStylizedPropShape::Hill || InShape == EStylizedPropShape::Cliff;
 }
 
+FName AStylizedProp::MinimapTag(EStylizedPropShape InShape)
+{
+	if (IsGroundShape(InShape))
+	{
+		return MinimapTags::Ground;
+	}
+	return IsSoftShape(InShape) ? NAME_None : MinimapTags::Obstacle;
+}
+
 FStylizedPropLook AStylizedProp::Generate(EStylizedPropShape InShape, int32 InSeed, const FLinearColor& Primary, const FLinearColor& Secondary,
 	const FTransform& Placement, const AActor* ProbeActor, UDynamicMesh* OutMesh)
 {
@@ -1207,6 +1220,14 @@ void AStylizedProp::Rebuild()
 	MeshComponent->SetRenderCustomDepth(IsSoft());
 	MeshComponent->SetCustomDepthStencilValue(IsSoft() ? 1 : 0);
 	MeshComponent->SetCullDistance(Look.CullDistance);
+
+	Tags.Remove(MinimapTags::Ground);
+	Tags.Remove(MinimapTags::Obstacle);
+	const FName Tag = MinimapTag(Shape);
+	if (!Tag.IsNone())
+	{
+		Tags.Add(Tag);
+	}
 
 	const bool bBeam = Look.BeamHeight > 0.f;
 	BeamComponent->SetVisibility(bBeam);

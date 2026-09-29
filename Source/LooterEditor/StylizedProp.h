@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Environment/StylizedSurface.h"
+#include "Procedural/StylizedSurface.h"
 #include "StylizedProp.generated.h"
 
 class UDynamicMesh;
@@ -10,7 +10,7 @@ class UDynamicMeshComponent;
 class UPointLightComponent;
 class UStaticMeshComponent;
 
-/** Every procedural prop the game can generate. Saved in palettes by name, so only append or rename carefully. */
+/** Every procedural prop the generator can make. Saved in levels by name, so only append or rename carefully. */
 UENUM(BlueprintType)
 enum class EStylizedPropShape : uint8
 {
@@ -68,13 +68,14 @@ struct FStylizedPropLook
 };
 
 /**
- * Hand-crafted-looking, low-poly environment prop generated entirely from code (no art assets).
- * Shape + Seed fully determine the mesh, so layouts only store those. Colors come from the palette,
- * everything else about the look (moss, gradients, wind, glow) is painted by M_StylizedSurface.
- * Rebuilds in the editor whenever a property changes, so it can also be placed by hand.
+ * Hand-crafted-looking, low-poly environment prop generated entirely from code, for building levels in the editor.
+ * Shape + Seed fully determine the mesh; the colors are yours, and everything else about the look (moss, gradients,
+ * wind, glow) is painted by M_StylizedSurface. It rebuilds whenever a property changes. Editor-only: run
+ * Looter.BakeLevelProps before shipping and each one becomes a static mesh actor with baked assets. The class doesn't
+ * exist in a packaged game, so an unbaked prop simply isn't there.
  */
 UCLASS(Blueprintable)
-class AI_LOOTER_SHOOTER_API AStylizedProp : public AActor
+class LOOTEREDITOR_API AStylizedProp : public AActor
 {
 	GENERATED_BODY()
 
@@ -96,6 +97,9 @@ public:
 
 	/** Terrain the player walks on (and the minimap maps): the island tops, terrain tiles, hills and cliffs. */
 	static bool IsGroundShape(EStylizedPropShape InShape);
+
+	/** The minimap tag it carries, before and after baking: ground, something standing on it, or none (soft cover). */
+	static FName MinimapTag(EStylizedPropShape InShape);
 
 	/**
 	 * Builds a prop's mesh into OutMesh and returns how to paint and render it. The result depends only on the shape,

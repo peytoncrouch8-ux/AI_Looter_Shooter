@@ -1,8 +1,5 @@
 #include "PropBaker.h"
-#include "Environment/EnvironmentLayout.h"
-#include "Environment/EnvironmentPalette.h"
-#include "Environment/LevelLayoutData.h"
-#include "Environment/StylizedSurface.h"
+#include "Procedural/StylizedSurface.h"
 #include "World/MinimapSubsystem.h"
 #include "AssetToolsModule.h"
 #include "Components/PointLightComponent.h"
@@ -32,22 +29,8 @@ namespace
 	const TCHAR* GlowMaterialPath = TEXT("/Game/Environment/Materials/M_StylizedGlow.M_StylizedGlow");
 	const TCHAR* BeamMeshPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 
-	/** Kinds placed more often than this share a few baked variants; rarer ones keep each placement's exact shape. */
-	constexpr int32 MaxExactPlacements = 8;
-
 	/** How much a beacon's light pillar glows (the runtime prop used the same). */
 	constexpr float BeamGlow = 2.5f;
-
-	int32 VariantCount(int32 Placements)
-	{
-		return Placements > 30 ? 6 : 4;
-	}
-
-	/** Fixed seeds, so baking again makes the same variants. */
-	int32 VariantSeed(int32 Variant)
-	{
-		return 7919 * (Variant + 1);
-	}
 
 	template <typename T>
 	T* LoadExisting(const FString& PackagePath)
@@ -83,6 +66,27 @@ namespace
 	{
 		return StaticEnum<EStylizedPropShape>()->GetNameStringByValue(static_cast<int64>(Shape));
 	}
+
+	/** Everything the generated mesh depends on, so identical props share one asset and baking again finds it. */
+	uint32 HashProp(const AStylizedProp& Prop)
+	{
+		const int32 Settings[] = { static_cast<int32>(Prop.Shape), Prop.Seed };
+		const FLinearColor Colors[] = { Prop.PrimaryColor, Prop.SecondaryColor };
+		uint32 Hash = FCrc::MemCrc32(Settings, sizeof(Settings));
+		Hash = FCrc::MemCrc32(Colors, sizeof(Colors), Hash);
+		if (Prop.Shape == EStylizedPropShape::Hill)
+		{
+			// Hills fit the ground where they stand, so each placement is a mesh of its own.
+			const FTransform Placement = Prop.GetActorTransform();
+			const FVector Location = Placement.GetLocation();
+			const FQuat Rotation = Placement.GetRotation();
+			const FVector Scale = Placement.GetScale3D();
+			Hash = FCrc::MemCrc32(&Location, sizeof(Location), Hash);
+			Hash = FCrc::MemCrc32(&Rotation, sizeof(Rotation), Hash);
+			Hash = FCrc::MemCrc32(&Scale, sizeof(Scale), Hash);
+		}
+		return Hash;
+	}
 }
 
 FPropBaker::FPropBaker(UWorld* InWorld)
@@ -92,148 +96,47 @@ FPropBaker::FPropBaker(UWorld* InWorld)
 
 int32 FPropBaker::ConvertLevel()
 {
-	int32 Placed = 0;
-
-	// Hand-placed props first, ground before the rest: the island terrain among them is what the layout's hills fit to.
-	TArray<AStylizedProp*> HandPlaced;
+	// Hills first: each one fits the ground under it, so it's baked while the world is as it was when the editor made it.
+	TArray<AStylizedProp*> Props;
 	for (TActorIterator<AStylizedProp> It(World); It; ++It)
 	{
-		HandPlaced.Add(*It);
+		Props.Add(*It);
 	}
-	HandPlaced.Sort([](const AStylizedProp& A, const AStylizedProp& B)
+	Props.Sort([](const AStylizedProp& A, const AStylizedProp& B)
 	{
-		return AStylizedProp::IsGroundShape(A.Shape) && !AStylizedProp::IsGroundShape(B.Shape);
+		return A.Shape == EStylizedPropShape::Hill && B.Shape != EStylizedPropShape::Hill;
 	});
-	for (AStylizedProp* Prop : HandPlaced)
-	{
-		Placed += ConvertHandPlaced(Prop);
-	}
 
-	TArray<AEnvironmentLayout*> Layouts;
-	for (TActorIterator<AEnvironmentLayout> It(World); It; ++It)
+	int32 Converted = 0;
+	for (AStylizedProp* Prop : Props)
 	{
-		Layouts.Add(*It);
+		Converted += ConvertProp(Prop) ? 1 : 0;
 	}
-	for (AEnvironmentLayout* Layout : Layouts)
-	{
-		Placed += ConvertLayout(Layout);
-	}
-	return Placed;
+	return Converted;
 }
 
-int32 FPropBaker::ConvertHandPlaced(AStylizedProp* Prop)
+bool FPropBaker::ConvertProp(AStylizedProp* Prop)
 {
-	// Hand-placed props are one-offs (the island itself), so each keeps its exact shape.
-	const FString Kind = ShapeName(Prop->Shape);
-	const FString Name = FString::Printf(TEXT("SM_%s_Placed%02d"), *Kind, ++HandPlacedCounts.FindOrAdd(Kind));
-	const FBaked* Baked = FindOrBake(FString(PropRoot) / Kind, Name, Prop->Shape, Prop->Seed, Prop->PrimaryColor, Prop->SecondaryColor,
-		Prop->GetActorTransform(), Prop);
+	const FBaked* Baked = FindOrBake(*Prop);
 	if (!Baked)
 	{
-		return 0;
+		return false;
 	}
 
 	const EStylizedPropShape Shape = Prop->Shape;
 	const FTransform Transform = Prop->GetActorTransform();
 	const FString Label = Prop->GetActorLabel();
 	const FName FolderPath = Prop->GetFolderPath();
-	const FString Folder = FolderPath.IsNone() ? FString::Printf(TEXT("Props/%s"), *Kind) : FolderPath.ToString();
+	const FString Folder = FolderPath.IsNone() ? FString::Printf(TEXT("Props/%s"), *ShapeName(Shape)) : FolderPath.ToString();
 	World->EditorDestroyActor(Prop, true);
-	return PlaceProp(*Baked, Shape, Transform, Label, Folder) ? 1 : 0;
+	return PlaceProp(*Baked, Shape, Transform, Label, Folder) != nullptr;
 }
 
-int32 FPropBaker::ConvertLayout(AEnvironmentLayout* Layout)
-{
-	const UEnvironmentPalette* Palette = Layout->Palette;
-	const ULevelLayoutData* Data = Layout->LayoutData;
-	if (!Palette || !Data)
-	{
-		UE_LOG(LogPropBaker, Warning, TEXT("%s has no palette or layout data; left as it is."), *Layout->GetActorLabel());
-		return 0;
-	}
-
-	TMap<FName, int32> Placements;
-	for (const FPlacedObjectRecord& Record : Data->Objects)
-	{
-		++Placements.FindOrAdd(Record.EntryId);
-	}
-
-	int32 Placed = 0;
-	TMap<FName, int32> Counters;
-	for (const FPlacedObjectRecord& Record : Data->Objects)
-	{
-		const FEnvironmentPaletteEntry* Entry = Palette->FindEntry(Record.EntryId);
-		if (!Entry)
-		{
-			UE_LOG(LogPropBaker, Warning, TEXT("Layout entry '%s' isn't in the palette; skipped."), *Record.EntryId.ToString());
-			continue;
-		}
-		const FString Kind = Record.EntryId.ToString();
-		const int32 Number = ++Counters.FindOrAdd(Record.EntryId);
-		const FString Label = FString::Printf(TEXT("%s_%02d"), *Kind, Number);
-		const FString Folder = FString::Printf(TEXT("Props/%s"), *Kind);
-
-		FActorSpawnParameters Params;
-		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		// Creatures, dummies and anything else with a class of its own is placed as that actor.
-		if (UClass* ActorClass = Entry->ActorClass.LoadSynchronous())
-		{
-			if (AActor* Actor = World->SpawnActor<AActor>(ActorClass, Record.Transform, Params))
-			{
-				Actor->SetActorLabel(Label);
-				Actor->SetFolderPath(*FString::Printf(TEXT("Creatures/%s"), *Kind));
-				++Placed;
-			}
-			continue;
-		}
-		if (UStaticMesh* StaticMesh = Entry->StaticMesh.LoadSynchronous())
-		{
-			if (AStaticMeshActor* Actor = World->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Record.Transform, Params))
-			{
-				Actor->GetStaticMeshComponent()->SetStaticMesh(StaticMesh);
-				Actor->SetActorLabel(Label);
-				Actor->SetFolderPath(*Folder);
-				++Placed;
-			}
-			continue;
-		}
-
-		// Kinds placed many times share a few variants; the rest, and hills (they fit the ground where they stand), keep
-		// each placement's exact shape.
-		const int32 Count = Placements[Record.EntryId];
-		const bool bExact = Entry->Shape == EStylizedPropShape::Hill || Count <= MaxExactPlacements;
-		FString Name;
-		int32 Seed = Record.Seed;
-		if (bExact)
-		{
-			Name = FString::Printf(TEXT("SM_%s_%02d"), *Kind, Number);
-		}
-		else
-		{
-			const int32 Variant = static_cast<int32>(static_cast<uint32>(Record.Seed) % static_cast<uint32>(VariantCount(Count)));
-			Name = FString::Printf(TEXT("SM_%s_V%d"), *Kind, Variant + 1);
-			Seed = VariantSeed(Variant);
-		}
-
-		const FBaked* Baked = FindOrBake(FString(PropRoot) / Kind, Name, Entry->Shape, Seed, Entry->PrimaryColor, Entry->SecondaryColor,
-			Record.Transform, Layout);
-		if (Baked && PlaceProp(*Baked, Entry->Shape, Record.Transform, Label, Folder))
-		{
-			++Placed;
-		}
-	}
-
-	UE_LOG(LogPropBaker, Log, TEXT("%s: placed %d of %d objects; removing the layout actor."), *Layout->GetActorLabel(), Placed, Data->Objects.Num());
-	World->EditorDestroyActor(Layout, true);
-	return Placed;
-}
-
-const FPropBaker::FBaked* FPropBaker::FindOrBake(const FString& Folder, const FString& Name, EStylizedPropShape Shape, int32 Seed,
-	const FLinearColor& Primary, const FLinearColor& Secondary, const FTransform& Placement, const AActor* ProbeActor)
+const FPropBaker::FBaked* FPropBaker::FindOrBake(const AStylizedProp& Prop)
 {
 	// The returned pointer is only good until the next call (the map may grow).
-	const FString PackagePath = Folder / Name;
+	const FString Kind = ShapeName(Prop.Shape);
+	const FString PackagePath = FString(PropRoot) / Kind / FString::Printf(TEXT("SM_%s_%08X"), *Kind, HashProp(Prop));
 	if (const FBaked* Found = BakedMeshes.Find(PackagePath))
 	{
 		return Found;
@@ -241,7 +144,7 @@ const FPropBaker::FBaked* FPropBaker::FindOrBake(const FString& Folder, const FS
 
 	UDynamicMesh* Generated = NewObject<UDynamicMesh>(GetTransientPackage(), NAME_None, RF_Transient);
 	FBaked Baked;
-	Baked.Look = AStylizedProp::Generate(Shape, Seed, Primary, Secondary, Placement, ProbeActor, Generated);
+	Baked.Look = AStylizedProp::Generate(Prop.Shape, Prop.Seed, Prop.PrimaryColor, Prop.SecondaryColor, Prop.GetActorTransform(), &Prop, Generated);
 
 	Baked.Mesh = LoadExisting<UStaticMesh>(PackagePath);
 	if (!Baked.Mesh)
@@ -317,14 +220,10 @@ AStaticMeshActor* FPropBaker::PlaceProp(const FBaked& Baked, EStylizedPropShape 
 	Mesh->SetCustomDepthStencilValue(bSoft ? 1 : 0);
 	Mesh->SetCullDistance(Baked.Look.CullDistance);
 
-	// What the minimap draws: ground, or something standing on it. Soft cover isn't drawn.
-	if (AStylizedProp::IsGroundShape(Shape))
+	const FName MinimapTag = AStylizedProp::MinimapTag(Shape);
+	if (!MinimapTag.IsNone())
 	{
-		Actor->Tags.Add(MinimapTags::Ground);
-	}
-	else if (!bSoft)
-	{
-		Actor->Tags.Add(MinimapTags::Obstacle);
+		Actor->Tags.Add(MinimapTag);
 	}
 
 	const FStylizedPropLook& Look = Baked.Look;

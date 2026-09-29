@@ -8,7 +8,7 @@
 #include "UI/World/WeaponLabelWidget.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Weapons/WeaponModelBuilder.h"
-#include "Environment/StylizedSurface.h"
+#include "Procedural/StylizedSurface.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraTypes.h"
 #include "Components/DynamicMeshComponent.h"

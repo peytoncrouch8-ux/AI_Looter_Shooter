@@ -1,6 +1,5 @@
 #include "World/MinimapSubsystem.h"
 #include "AI_Looter_Shooter.h"
-#include "Environment/StylizedProp.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -17,18 +16,16 @@ namespace
 	/** Height between contour lines (cm). */
 	constexpr float ContourInterval = 200.f;
 
-	/** Terrain the map is made of: placed meshes tagged Ground, and ground-shaped procedural props. */
+	/** Terrain the map is made of. */
 	bool IsGroundActor(const AActor* Actor)
 	{
-		const AStylizedProp* Prop = Cast<AStylizedProp>(Actor);
-		return Actor && (Actor->ActorHasTag(MinimapTags::Ground) || (Prop && AStylizedProp::IsGroundShape(Prop->Shape)));
+		return Actor && Actor->ActorHasTag(MinimapTags::Ground);
 	}
 
-	/** Something standing on the ground (rocks, walls, trees): placed meshes tagged Obstacle, and other procedural props. */
+	/** Something standing on the ground (rocks, walls, trees). */
 	bool IsObstacleActor(const AActor* Actor)
 	{
-		const AStylizedProp* Prop = Cast<AStylizedProp>(Actor);
-		return Actor && (Actor->ActorHasTag(MinimapTags::Obstacle) || (Prop && !AStylizedProp::IsGroundShape(Prop->Shape)));
+		return Actor && Actor->ActorHasTag(MinimapTags::Obstacle);
 	}
 
 	// The map's palette: the HUD's dark glass and cyan lines. Land is kept low-contrast so markers stand out.

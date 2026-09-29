@@ -42,16 +42,19 @@ Target layout of `Source/AI_Looter_Shooter`:
 | `Loot/` | Loot tables, drops, pickups, toss physics |
 | `Creatures/` | Mob base and AI, spider, spawning |
 | `World/` | Minimap, fall recovery, level runtime pieces |
+| `Procedural/` | The mesh kit and surface paint behind code-built models (spider, guns, ammo boxes, editor props) |
 | `UI/Style`, `UI/HUD`, `UI/Menus`, `UI/Inventory`, `UI/World` | The UI kit and every screen |
 | `Settings/` | Graphics and key-binding settings, quality presets |
 | `Tests/` | Automation tests, one file per area |
 
 ## Phase 2: Assets and levels
-- [ ] Editor-only module `LooterEditor` with a prop baker: generators become static mesh assets with Nanite, a few
-      variants per shape.
+- [x] Editor-only module `LooterEditor` with a prop baker: generators become static mesh assets with Nanite, a few
+      variants per shape. The generator stays in the editor as `StylizedProp`, and `Looter.BakeLevelProps` bakes a
+      level's props.
 - [ ] Blender export and Unreal import scripts with fixed settings (scale, axes, names, collision).
-- [ ] Convert Lvl_Skyreach: placed and instanced meshes, plus PCG scatter for grass and flowers. Retire the runtime
-      layout, palette and prop code.
+- [x] Convert Lvl_Skyreach to placed static meshes (418 actors). Load time fell from 5.1 s to 0.9 s. Retire the runtime
+      layout, palette and prop code; the minimap reads only actor tags.
+- [ ] PCG scatter for grass and flowers (instanced, in place of the placed patches).
 
 ## Phase 3: Rendering budget
 - [ ] Low, Medium, High and Epic presets in the settings menu. They cover GI (Lumen only on High and Epic),
