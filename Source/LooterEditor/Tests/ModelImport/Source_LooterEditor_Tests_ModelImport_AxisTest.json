@@ -1,0 +1,104 @@
+{
+  "source": "Source/LooterEditor/Tests/ModelImport/AxisTest.py",
+  "category": "ModelImport",
+  "models": [
+    {
+      "name": "SM_AxisTest",
+      "fbx": "SM_AxisTest.fbx",
+      "collision": "hulls",
+      "nanite": true,
+      "materials": [
+        "AxisTestGrey",
+        "AxisTestRed"
+      ],
+      "sockets": [
+        {
+          "name": "PlusX",
+          "location": [
+            -0.0,
+            -120.00000476837158,
+            25.0
+          ],
+          "forward": [
+            1.0,
+            -0.0,
+            0.0
+          ],
+          "up": [
+            -0.0,
+            -0.0,
+            1.0
+          ]
+        },
+        {
+          "name": "TurnLeft",
+          "location": [
+            -0.0,
+            -0.0,
+            50.0
+          ],
+          "forward": [
+            -4.371138828673793e-08,
+            -1.0,
+            0.0
+          ],
+          "up": [
+            -0.0,
+            -0.0,
+            1.0
+          ]
+        }
+      ]
+    }
+  ],
+  "materials": {
+    "AxisTestGrey": {
+      "Kind": "Surface",
+      "Color": [
+        0.2158605009317398,
+        0.2158605009317398,
+        0.2158605009317398,
+        1.0
+      ],
+      "TopColor": [
+        0.2,
+        0.35,
+        0.1,
+        1.0
+      ],
+      "TopBlend": 0.0,
+      "TopThreshold": 0.72,
+      "GradHeight": 0.0,
+      "GradDark": 0.0,
+      "Strata": 0.0,
+      "Wind": 0.0,
+      "Glow": 0.0,
+      "Variation": 0.12,
+      "UpNormal": 0.0
+    },
+    "AxisTestRed": {
+      "Kind": "Surface",
+      "Color": [
+        1.0,
+        0.014443843625485897,
+        0.014443843625485897,
+        1.0
+      ],
+      "TopColor": [
+        0.2,
+        0.35,
+        0.1,
+        1.0
+      ],
+      "TopBlend": 0.0,
+      "TopThreshold": 0.72,
+      "GradHeight": 0.0,
+      "GradDark": 0.0,
+      "Strata": 0.0,
+      "Wind": 0.0,
+      "Glow": 0.0,
+      "Variation": 0.12,
+      "UpNormal": 0.0
+    }
+  }
+}

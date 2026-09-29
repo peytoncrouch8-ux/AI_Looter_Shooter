@@ -109,9 +109,13 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `MinimapTests.cpp`, `WeaponTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)
-- `LooterEditor.Build.cs`: module dependencies (GeometryScript editor functions for creating assets).
-- `LooterEditorModule.cpp`: the module and the `Looter.BakeLevelProps` console command.
+- `LooterEditor.Build.cs`: module dependencies (GeometryScript editor functions, asset tools, FBX import, JSON).
+- `LooterEditorModule.cpp`: the module and its console commands: `Looter.BakeLevelProps`, `Looter.ImportModels`,
+  `Looter.FixStylizedMaterials`.
 - `StylizedProp`: `AStylizedProp` and `EStylizedPropShape`, procedural props for building levels in the editor.
 - `PropBaker`: `FPropBaker`, turns a level's props into Nanite static mesh assets, material instances and placed actors.
-- `Tests/StylizedPropTests.cpp`: the `Looter.Editor.*` tests (every prop shape generates, paints its slots, and tags
-  itself for the minimap).
+- `ModelImporter`: `FModelImporter`, imports the Blender models `Tools/models.ps1` exported (fixed FBX settings,
+  stylized material instances, hull collision, sockets).
+- `SurfaceMaterials`: `SurfaceMaterials`, stylized material instance assets and the parents' usage flags.
+- `Tests/StylizedPropTests.cpp`, `ModelImportTests.cpp`, `SurfaceMaterialTests.cpp`: the `Looter.Editor.*` tests (prop
+  shapes, the Blender import settings against `Tests/ModelImport/AxisTest`, the stylized materials' usage flags).

@@ -51,7 +51,10 @@ Target layout of `Source/AI_Looter_Shooter`:
 - [x] Editor-only module `LooterEditor` with a prop baker: generators become static mesh assets with Nanite, a few
       variants per shape. The generator stays in the editor as `StylizedProp`, and `Looter.BakeLevelProps` bakes a
       level's props.
-- [ ] Blender export and Unreal import scripts with fixed settings (scale, axes, names, collision).
+- [x] Blender export and Unreal import scripts with fixed settings (scale, axes, names, collision): `Tools/models.ps1`,
+      `Tools/Blender/`, `Looter.ImportModels`; rules in `Art/README.md`. The first scripted model is
+      `Art/Models/Props/LanternPost.py`. The stylized materials now allow Nanite and instancing, so their instances share
+      the parents' shaders.
 - [x] Convert Lvl_Skyreach to placed static meshes (418 actors). Load time fell from 5.1 s to 0.9 s. Retire the runtime
       layout, palette and prop code; the minimap reads only actor tags.
 - [ ] PCG scatter for grass and flowers (instanced, in place of the placed patches).

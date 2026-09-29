@@ -1,7 +1,7 @@
 #include "PropBaker.h"
+#include "SurfaceMaterials.h"
 #include "Procedural/StylizedSurface.h"
 #include "World/MinimapSubsystem.h"
-#include "AssetToolsModule.h"
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
@@ -10,12 +10,10 @@
 #include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
-#include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "FileHelpers.h"
 #include "GeometryScript/CreateNewAssetUtilityFunctions.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Misc/Crc.h"
-#include "Misc/PackageName.h"
 #include "UDynamicMesh.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPropBaker, Log, All);
@@ -24,23 +22,12 @@ namespace
 {
 	const TCHAR* PropRoot = TEXT("/Game/Environment/Props");
 	const TCHAR* MaterialFolder = TEXT("/Game/Environment/Props/Materials");
-	const TCHAR* SurfaceMaterialPath = TEXT("/Game/Environment/Materials/M_StylizedSurface.M_StylizedSurface");
-	const TCHAR* FoliageMaterialPath = TEXT("/Game/Environment/Materials/M_StylizedFoliage.M_StylizedFoliage");
-	const TCHAR* GlowMaterialPath = TEXT("/Game/Environment/Materials/M_StylizedGlow.M_StylizedGlow");
 	const TCHAR* BeamMeshPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 
 	/** How much a beacon's light pillar glows (the runtime prop used the same). */
 	constexpr float BeamGlow = 2.5f;
 
-	template <typename T>
-	T* LoadExisting(const FString& PackagePath)
-	{
-		if (!FPackageName::DoesPackageExist(PackagePath))
-		{
-			return nullptr;
-		}
-		return LoadObject<T>(nullptr, *(PackagePath + TEXT(".") + FPackageName::GetShortName(PackagePath)));
-	}
+	using SurfaceMaterials::LoadExisting;
 
 	/** Every parameter the runtime material instance set, so equal surfaces share one material instance. */
 	uint32 HashSurface(const FStylizedSurface& Surface)
@@ -52,14 +39,6 @@ namespace
 			Surface.Wind, Surface.Glow, Surface.Variation, Surface.UpNormal,
 			Surface.bAdditive ? 1.f : 0.f, Surface.bTwoSided ? 1.f : 0.f };
 		return FCrc::MemCrc32(Values, sizeof(Values));
-	}
-
-	UMaterialInstanceConstant* CreateMaterialInstance(const FString& Name, UMaterialInterface* Parent)
-	{
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
-		UMaterialInstanceConstantFactoryNew* Factory = NewObject<UMaterialInstanceConstantFactoryNew>();
-		Factory->InitialParent = Parent;
-		return Cast<UMaterialInstanceConstant>(AssetTools.CreateAsset(Name, MaterialFolder, UMaterialInstanceConstant::StaticClass(), Factory));
 	}
 
 	FString ShapeName(EStylizedPropShape Shape)
@@ -107,6 +86,10 @@ int32 FPropBaker::ConvertLevel()
 		return A.Shape == EStylizedPropShape::Hill && B.Shape != EStylizedPropShape::Hill;
 	});
 
+	for (UPackage* Package : SurfaceMaterials::PrepareParents())
+	{
+		NewPackages.AddUnique(Package);
+	}
 	int32 Converted = 0;
 	for (AStylizedProp* Prop : Props)
 	{
@@ -280,31 +263,11 @@ UMaterialInterface* FPropBaker::FindOrCreateSurfaceMaterial(const FStylizedSurfa
 	UMaterialInterface* Material = LoadExisting<UMaterialInstanceConstant>(FString(MaterialFolder) / Name);
 	if (!Material)
 	{
-		const TCHAR* ParentPath = Surface.bAdditive ? GlowMaterialPath : (Surface.bTwoSided ? FoliageMaterialPath : SurfaceMaterialPath);
-		UMaterialInterface* Parent = LoadObject<UMaterialInterface>(nullptr, ParentPath);
-		UMaterialInstanceConstant* Instance = Parent ? CreateMaterialInstance(Name, Parent) : nullptr;
+		UMaterialInterface* Parent = SurfaceMaterials::ParentFor(Surface);
+		UMaterialInstanceConstant* Instance = Parent ? SurfaceMaterials::Create(MaterialFolder, Name, Parent) : nullptr;
 		if (Instance)
 		{
-			auto Vector = [Instance](const TCHAR* Param, const FLinearColor& Value)
-			{
-				Instance->SetVectorParameterValueEditorOnly(FMaterialParameterInfo(Param), Value);
-			};
-			auto Scalar = [Instance](const TCHAR* Param, float Value)
-			{
-				Instance->SetScalarParameterValueEditorOnly(FMaterialParameterInfo(Param), Value);
-			};
-			Vector(TEXT("Color"), Surface.Color);
-			Vector(TEXT("TopColor"), Surface.TopColor);
-			Scalar(TEXT("TopBlend"), Surface.TopBlend);
-			Scalar(TEXT("TopThreshold"), Surface.TopThreshold);
-			Scalar(TEXT("GradHeight"), Surface.GradHeight);
-			Scalar(TEXT("GradDark"), Surface.GradDark);
-			Scalar(TEXT("Strata"), Surface.Strata);
-			Scalar(TEXT("Wind"), Surface.Wind);
-			Scalar(TEXT("Glow"), Surface.Glow);
-			Scalar(TEXT("Variation"), Surface.Variation);
-			Scalar(TEXT("UpNormal"), Surface.UpNormal);
-			Instance->PostEditChange();
+			SurfaceMaterials::Apply(Instance, Surface);
 			NewPackages.Add(Instance->GetPackage());
 		}
 		Material = Instance ? static_cast<UMaterialInterface*>(Instance) : Parent;
@@ -325,8 +288,10 @@ UMaterialInterface* FPropBaker::FindOrCreateBeamMaterial(const FLinearColor& Col
 	UMaterialInterface* Material = LoadExisting<UMaterialInstanceConstant>(FString(MaterialFolder) / Name);
 	if (!Material)
 	{
-		UMaterialInterface* Parent = LoadObject<UMaterialInterface>(nullptr, GlowMaterialPath);
-		UMaterialInstanceConstant* Instance = Parent ? CreateMaterialInstance(Name, Parent) : nullptr;
+		FStylizedSurface Glow;
+		Glow.bAdditive = true;
+		UMaterialInterface* Parent = SurfaceMaterials::ParentFor(Glow);
+		UMaterialInstanceConstant* Instance = Parent ? SurfaceMaterials::Create(MaterialFolder, Name, Parent) : nullptr;
 		if (Instance)
 		{
 			// The same three settings the runtime beam used; the rest stay at the material's defaults.

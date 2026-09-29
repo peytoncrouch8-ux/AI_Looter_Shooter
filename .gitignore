@@ -20,9 +20,10 @@ Content/Developers/
 *.VC.db
 *.VC.opendb
 
-# Blender autosave backups.
+# Blender autosave backups, and Python caches from the Blender scripts.
 *.blend1
 *.blend2
+__pycache__/
 
 # OS clutter.
 Thumbs.db

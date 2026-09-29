@@ -22,6 +22,8 @@ placement and gameplay component settings.
   - `Tools\mcp.ps1 <toolset> <tool> '<json>'` calls one tool.
   - `Tools\runscript.ps1 <file.py>` runs sandboxed Python: define `run()` and call tools with `execute_tool`.
   - `Tools\describe.ps1 <toolset>` lists a toolset's tools.
+  - `Tools\console.ps1 "<command>" [-Until <log regex>]` runs an editor console command through the Slate inspector
+    (no window focus or simulated keys) and prints the log lines it wrote.
   - `Tools\pie.ps1 -Commands ...` starts a play session.
   - `Tools\input.ps1` sends keys and the mouse. `Tools\grab.ps1` takes screenshots into `Saved\Screenshots\Tools`.
 - The module builds without unity (`bUseUnity = false`), so every `.cpp` compiles on its own: include what you use, and
@@ -65,6 +67,11 @@ placement and gameplay component settings.
 - Name prefixes: `SM_` static mesh, `SK_` skeletal mesh, `M_`/`MI_` materials, `T_` textures, `DA_` data assets,
   `BP_` Blueprints, `UCX_` collision hulls, `SOCKET_` attach points.
 - Do not generate meshes while the game runs. Bake generated models into assets (see `Docs/Plan.md`).
+- Blender models live in `Art/Models/<Category>/` (hand-made `.blend` or scripted `.py`). `Tools\models.ps1` exports and
+  imports them into `/Game/Art/<Category>` with fixed settings; `Art/README.md` has the authoring rules. Change a model
+  in Blender and import it again, never edit the imported mesh.
+- Every surface uses the stylized materials (`M_StylizedSurface`, `M_StylizedFoliage`, `M_StylizedGlow`) through
+  material instances. Nanite can't draw the additive glow; use an emissive surface (Glow setting) on Nanite meshes.
 - Levels are built in the editor. Procedural props are `StylizedProp` actors (shape, seed, two colors). Before
   committing a level, run `Looter.BakeLevelProps` in the editor console. It swaps them for static mesh actors and saves
   their meshes and materials under `/Game/Environment/Props`.
