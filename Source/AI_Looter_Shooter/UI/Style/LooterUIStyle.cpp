@@ -142,28 +142,9 @@ namespace
 		return Scanlines;
 	}
 
-	UImage* MakeImage(UWidgetTree* Tree, const FSlateBrush& Brush)
-	{
-		UImage* Image = Tree->ConstructWidget<UImage>(UImage::StaticClass());
-		Image->SetBrush(Brush);
-		Image->SetVisibility(ESlateVisibility::HitTestInvisible);
-		return Image;
-	}
-
-	void FillOverlaySlot(UOverlaySlot* Slot, const FMargin& Padding = FMargin(0.f))
-	{
-		Slot->SetHorizontalAlignment(HAlign_Fill);
-		Slot->SetVerticalAlignment(VAlign_Fill);
-		Slot->SetPadding(Padding);
-	}
-
 	UWidget* MakeSizedRect(UWidgetTree* Tree, float Width, float Height, const FSlateBrush& Brush)
 	{
-		USizeBox* Size = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		Size->SetWidthOverride(Width);
-		Size->SetHeightOverride(Height);
-		Size->SetContent(MakeImage(Tree, Brush));
-		return Size;
+		return LooterUI::MakeSized(Tree, LooterUI::MakeImage(Tree, Brush), Width, Height);
 	}
 }
 
@@ -199,6 +180,7 @@ namespace LooterUI::Color
 	FLinearColor Danger()     { return Hex(122, 34, 25); }
 	FLinearColor Health()     { return Hex(255, 91, 74); }
 	FLinearColor Backdrop()   { return Hex(2, 8, 14, 190); }
+	FLinearColor Outline()    { return Hex(0, 39, 56, 217); }
 }
 
 // ---------------------------------------------------------------------------
@@ -240,17 +222,6 @@ FSlateFontInfo LooterUI::Font(int32 Size, bool bBold, int32 LetterSpacing)
 	FSlateFontInfo FontInfo = UIFont.IsValid() ? FSlateFontInfo(UIFont, Size, Typeface) : FCoreStyle::GetDefaultFontStyle(Typeface, Size);
 	FontInfo.LetterSpacing = LetterSpacing;
 	return FontInfo;
-}
-
-void LooterUI::StyleText(UTextBlock* Text, int32 Size, const FLinearColor& TextColor, bool bBold, int32 LetterSpacing)
-{
-	FSlateFontInfo FontInfo = Font(Size, bBold, LetterSpacing);
-	// A thin dark outline keeps world-space text (damage numbers, loot labels) readable anywhere.
-	FontInfo.OutlineSettings.OutlineSize = FMath::Max(1, Size / 14);
-	FontInfo.OutlineSettings.OutlineColor = FLinearColor(0.f, 0.f, 0.f, 0.85f);
-	Text->SetFont(FontInfo);
-	Text->SetColorAndOpacity(FSlateColor(TextColor));
-	Text->SetJustification(ETextJustify::Center);
 }
 
 FSlateBrush LooterUI::ShapeBrush(EShape Shape, bool bOutline, const FLinearColor& Tint)
@@ -547,6 +518,53 @@ UTextBlock* LooterUI::MakeText(UWidgetTree* Tree, const FString& Text, int32 Siz
 	Block->SetJustification(ETextJustify::Left);
 	Block->SetText(FText::FromString(bUpper ? Text.ToUpper() : Text));
 	return Block;
+}
+
+void LooterUI::StyleFloatingText(UTextBlock* Text, int32 Size, const FLinearColor& TextColor, int32 LetterSpacing, ETextJustify::Type Justify)
+{
+	FSlateFontInfo FontInfo = Font(Size, true, LetterSpacing);
+	FontInfo.OutlineSettings.OutlineSize = FMath::Max(1, Size / 14);
+	FontInfo.OutlineSettings.OutlineColor = Color::Outline();
+	Text->SetFont(FontInfo);
+	Text->SetColorAndOpacity(FSlateColor(TextColor));
+	Text->SetJustification(Justify);
+}
+
+UTextBlock* LooterUI::MakeFloatingText(UWidgetTree* Tree, int32 Size, const FLinearColor& TextColor, int32 LetterSpacing, ETextJustify::Type Justify)
+{
+	UTextBlock* Text = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+	StyleFloatingText(Text, Size, TextColor, LetterSpacing, Justify);
+	return Text;
+}
+
+UImage* LooterUI::MakeImage(UWidgetTree* Tree, const FSlateBrush& Brush)
+{
+	UImage* Image = Tree->ConstructWidget<UImage>(UImage::StaticClass());
+	Image->SetBrush(Brush);
+	Image->SetVisibility(ESlateVisibility::HitTestInvisible);
+	return Image;
+}
+
+USizeBox* LooterUI::MakeSized(UWidgetTree* Tree, UWidget* Content, float Width, float Height)
+{
+	USizeBox* Box = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+	if (Width > 0.f)
+	{
+		Box->SetWidthOverride(Width);
+	}
+	if (Height > 0.f)
+	{
+		Box->SetHeightOverride(Height);
+	}
+	Box->SetContent(Content);
+	return Box;
+}
+
+void LooterUI::FillOverlaySlot(UOverlaySlot* Slot, const FMargin& Padding)
+{
+	Slot->SetHorizontalAlignment(HAlign_Fill);
+	Slot->SetVerticalAlignment(VAlign_Fill);
+	Slot->SetPadding(Padding);
 }
 
 UWidget* LooterUI::MakeShapeBox(UWidgetTree* Tree, EShape Shape, const FLinearColor& Fill, const FLinearColor& Line, UWidget* Content, const FMargin& Padding)

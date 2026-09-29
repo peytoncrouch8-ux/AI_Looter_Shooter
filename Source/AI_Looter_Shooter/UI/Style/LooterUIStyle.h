@@ -2,11 +2,15 @@
 
 #include "CoreMinimal.h"
 #include "Fonts/SlateFontInfo.h"
+#include "Framework/Text/TextLayout.h"
 #include "Layout/Margin.h"
 #include "Styling/SlateBrush.h"
 #include "Styling/SlateTypes.h"
 
+class UImage;
+class UOverlaySlot;
 class UScrollBox;
+class USizeBox;
 class UTextBlock;
 class UWidget;
 class UWidgetTree;
@@ -46,6 +50,8 @@ namespace LooterUI
 		FLinearColor Danger();
 		FLinearColor Health();
 		FLinearColor Backdrop();
+		/** The thin dark edge on text and shapes drawn with no panel behind them. */
+		FLinearColor Outline();
 	}
 
 	enum class EShape : uint8
@@ -68,9 +74,6 @@ namespace LooterUI
 	};
 
 	FSlateFontInfo Font(int32 Size, bool bBold = true, int32 LetterSpacing = 0);
-
-	/** Bold, outlined text in the kit's typography. Kept for older call sites. */
-	void StyleText(UTextBlock* Text, int32 Size, const FLinearColor& Color, bool bBold = true, int32 LetterSpacing = 0);
 
 	/** One of the generated chamfer shapes (fill or 1-2px outline), tinted. Draws as a 9-slice box. */
 	FSlateBrush ShapeBrush(EShape Shape, bool bOutline, const FLinearColor& Tint);
@@ -132,6 +135,26 @@ namespace LooterUI
 
 	/** Text in the kit style. bUpper uppercases the string (labels, headers). */
 	UTextBlock* MakeText(UWidgetTree* Tree, const FString& Text, int32 Size, const FLinearColor& Color, bool bUpper = false, int32 LetterSpacing = 0);
+
+	/**
+	 * Styles text drawn with no panel behind it (the gameplay HUD, damage numbers, loot labels): bold, with a thin dark
+	 * outline so it reads against sky, snow or grass. Call it again to restyle (a label growing when focused).
+	 */
+	void StyleFloatingText(UTextBlock* Text, int32 Size, const FLinearColor& Color, int32 LetterSpacing = 0,
+		ETextJustify::Type Justify = ETextJustify::Center);
+
+	/** A new text block styled by StyleFloatingText. */
+	UTextBlock* MakeFloatingText(UWidgetTree* Tree, int32 Size, const FLinearColor& Color, int32 LetterSpacing = 0,
+		ETextJustify::Type Justify = ETextJustify::Left);
+
+	/** An image of Brush that ignores the mouse. */
+	UImage* MakeImage(UWidgetTree* Tree, const FSlateBrush& Brush);
+
+	/** Content in a size box. A Width or Height of 0 leaves that side to the content. */
+	USizeBox* MakeSized(UWidgetTree* Tree, UWidget* Content, float Width, float Height = 0.f);
+
+	/** Makes an overlay child fill the whole overlay, inset by Padding. */
+	void FillOverlaySlot(UOverlaySlot* Slot, const FMargin& Padding = FMargin(0.f));
 
 	/** A chamfered box: shape fill + outline, with Content padded inside. */
 	UWidget* MakeShapeBox(UWidgetTree* Tree, EShape Shape, const FLinearColor& Fill, const FLinearColor& Line, UWidget* Content, const FMargin& Padding);

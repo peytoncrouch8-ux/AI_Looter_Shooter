@@ -33,11 +33,11 @@ void UDamageNumberWidget::ApplyDamageText()
 	{
 		// Headshots: bigger, accent orange, with a "!" so they read instantly in a fight.
 		DamageText->SetText(FText::Format(NSLOCTEXT("Looter", "CritDamage", "{0}!"), Number));
-		LooterUI::StyleText(DamageText, 32, LooterUI::Color::Accent());
+		LooterUI::StyleFloatingText(DamageText, 32, LooterUI::Color::Accent());
 	}
 	else
 	{
 		DamageText->SetText(Number);
-		LooterUI::StyleText(DamageText, 22, LooterUI::Color::Text());
+		LooterUI::StyleFloatingText(DamageText, 22, LooterUI::Color::Text());
 	}
 }

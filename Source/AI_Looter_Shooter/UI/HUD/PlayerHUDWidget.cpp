@@ -1,13 +1,10 @@
 #include "UI/HUD/PlayerHUDWidget.h"
+#include "UI/HUD/HudMinimapWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
 #include "Combat/HealthComponent.h"
-#include "Creatures/CreatureBase.h"
-#include "World/MinimapSubsystem.h"
-#include "Loot/AmmoPickup.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerViewComponent.h"
-#include "Settings/GraphicsSettingsSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Weapons/WeaponBase.h"
 #include "Inventory/WeaponManagerComponent.h"
@@ -25,8 +22,6 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Engine/LocalPlayer.h"
-#include "Engine/Texture2D.h"
-#include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 
@@ -46,14 +41,6 @@ namespace
 	/** Parallelogram slant of the bars, in degrees (mirrored left/right, like the reference). */
 	constexpr float BarSlant = 16.f;
 
-	// Minimap: how much of the world it shows (radius, cm, at any size), and how many things it can mark at once. Its size on
-	// screen is UPlayerHUDWidget::MinimapDiameter, scaled by the player's setting.
-	constexpr float MinimapRange = 3500.f;
-	constexpr int32 MaxMinimapMarkers = 32;
-	constexpr float MinimapArrowSize = 22.f;
-
-	const FLinearColor Outline(0.f, 0.02f, 0.04f, 0.85f);
-
 	UCanvasPanelSlot* PlaceOnCanvas(UCanvasPanel* Canvas, UWidget* Widget, const FAnchors& Anchors, const FVector2D& Alignment, const FVector2D& Position)
 	{
 		UCanvasPanelSlot* CanvasSlot = Canvas->AddChildToCanvas(Widget);
@@ -64,33 +51,15 @@ namespace
 		return CanvasSlot;
 	}
 
-	/** HUD text: no panel behind it, so it carries its own dark outline to read against sky, snow or grass. */
-	UTextBlock* HudText(UWidgetTree* Tree, int32 Size, const FLinearColor& TextColor, int32 Spacing = 0, ETextJustify::Type Justify = ETextJustify::Left)
+	/** A white rectangle, tinted per use (segments, pips). */
+	UImage* TintableRect(UWidgetTree* Tree)
 	{
-		UTextBlock* Text = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		FSlateFontInfo FontInfo = Font(Size, true, Spacing);
-		FontInfo.OutlineSettings.OutlineSize = FMath::Max(1, Size / 14);
-		FontInfo.OutlineSettings.OutlineColor = Outline;
-		Text->SetFont(FontInfo);
-		Text->SetColorAndOpacity(FSlateColor(TextColor));
-		Text->SetJustification(Justify);
-		return Text;
-	}
-
-	/** A white, dark-edged rectangle tinted per use (segments, ticks, pips). */
-	UImage* TintedRect(UWidgetTree* Tree)
-	{
-		UImage* Image = Tree->ConstructWidget<UImage>(UImage::StaticClass());
-		Image->SetBrush(RectBrush(FLinearColor::White));
-		return Image;
+		return MakeImage(Tree, RectBrush(FLinearColor::White));
 	}
 
 	/** Slim segmented bar, sheared into a parallelogram, on a faint dark backing. */
 	UWidget* MakeSlantBar(UWidgetTree* Tree, int32 Count, float Width, float Height, float Shear, TArray<TObjectPtr<UImage>>& OutSegments)
 	{
-		USizeBox* Size = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		Size->SetWidthOverride(Width);
-		Size->SetHeightOverride(Height);
 		UBorder* Backing = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
 		Backing->SetBrush(RectBrush(FLinearColor(0.f, 0.02f, 0.04f, 0.45f)));
 		MarkBackground(Backing);
@@ -98,7 +67,7 @@ namespace
 		UHorizontalBox* Bar = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
-			UImage* Segment = TintedRect(Tree);
+			UImage* Segment = TintableRect(Tree);
 			Segment->SetColorAndOpacity(Color::SegmentOff());
 			UHorizontalBoxSlot* SegmentSlot = Bar->AddChildToHorizontalBox(Segment);
 			SegmentSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -106,7 +75,7 @@ namespace
 			OutSegments.Add(Segment);
 		}
 		Backing->SetContent(Bar);
-		Size->SetContent(Backing);
+		USizeBox* Size = MakeSized(Tree, Backing, Width, Height);
 		Size->SetRenderShear(FVector2D(Shear, 0.f));
 		return Size;
 	}
@@ -121,13 +90,9 @@ namespace
 			{ HAlign_Left, VAlign_Center, false }, { HAlign_Right, VAlign_Center, false } };
 		for (const FTick& Tick : Ticks)
 		{
-			USizeBox* Box = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-			Box->SetWidthOverride(Tick.bVertical ? Thickness : Length);
-			Box->SetHeightOverride(Tick.bVertical ? Length : Thickness);
-			UImage* Image = Tree->ConstructWidget<UImage>(UImage::StaticClass());
-			Image->SetBrush(RectBrush(FLinearColor::White, Outline, 1.f));
+			UImage* Image = MakeImage(Tree, RectBrush(FLinearColor::White, Color::Outline(), 1.f));
 			Image->SetColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.9f));
-			Box->SetContent(Image);
+			UWidget* Box = MakeSized(Tree, Image, Tick.bVertical ? Thickness : Length, Tick.bVertical ? Length : Thickness);
 			UOverlaySlot* TickSlot = Overlay->AddChildToOverlay(Box);
 			TickSlot->SetHorizontalAlignment(Tick.H);
 			TickSlot->SetVerticalAlignment(Tick.V);
@@ -148,7 +113,6 @@ namespace
 		return FText::AsNumber(Value, &Options).ToString();
 	}
 
-	/** "DAMAGE  19.2  (+1.3)" with green/red depending on whether the new value is an upgrade. */
 	/** "LABEL  value (+delta)", colored better/worse against the weapon in hand. ShownValue replaces the formatted number when set. */
 	void SetCompareLine(UTextBlock* Text, const TCHAR* Label, float NewValue, float OldValue, bool bHigherIsBetter,
 		int32 Decimals, const TCHAR* Prefix, const TCHAR* Suffix, bool bHasCurrent, const FString& ShownValue = FString())
@@ -188,29 +152,18 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 		{
 			// 4px ticks with a 1px dark edge leave a 2px white core that reads on any background.
 			UOverlay* Ticks = MakeTicks(WidgetTree, 9.f, 4.f);
-			USizeBox* Dot = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-			Dot->SetWidthOverride(3.f);
-			Dot->SetHeightOverride(3.f);
-			UImage* DotImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-			DotImage->SetBrush(RectBrush(FLinearColor(1.f, 1.f, 1.f, 0.8f)));
-			Dot->SetContent(DotImage);
+			UWidget* Dot = MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(FLinearColor(1.f, 1.f, 1.f, 0.8f))), 3.f, 3.f);
 			UOverlaySlot* DotSlot = Ticks->AddChildToOverlay(Dot);
 			DotSlot->SetHorizontalAlignment(HAlign_Center);
 			DotSlot->SetVerticalAlignment(VAlign_Center);
 
-			CrosshairBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-			CrosshairBox->SetWidthOverride(20.f);
-			CrosshairBox->SetHeightOverride(20.f);
-			CrosshairBox->SetContent(Ticks);
+			CrosshairBox = MakeSized(WidgetTree, Ticks, 20.f, 20.f);
 			PlaceOnCanvas(Root, CrosshairBox, Center, FVector2D(0.5f, 0.5f), FVector2D::ZeroVector);
 		}
 
 		// Hit marker: the same ticks turned 45 degrees into an X.
 		{
-			USizeBox* MarkerBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-			MarkerBox->SetWidthOverride(34.f);
-			MarkerBox->SetHeightOverride(34.f);
-			MarkerBox->SetContent(MakeTicks(WidgetTree, 11.f, 4.f, &HitMarkerTicks));
+			USizeBox* MarkerBox = MakeSized(WidgetTree, MakeTicks(WidgetTree, 11.f, 4.f, &HitMarkerTicks), 34.f, 34.f);
 			MarkerBox->SetRenderTransformAngle(45.f);
 			MarkerBox->SetVisibility(ESlateVisibility::Hidden);
 			HitMarker = MarkerBox;
@@ -228,26 +181,23 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 
 			UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			USizeBox* IconSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-			IconSize->SetWidthOverride(22.f);
-			IconSize->SetHeightOverride(18.f);
 			UBorder* Icon = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-			Icon->SetBrush(RectBrush(Color::Health(), Outline, 1.f));
+			Icon->SetBrush(RectBrush(Color::Health(), Color::Outline(), 1.f));
 			Icon->SetHorizontalAlignment(HAlign_Center);
 			Icon->SetVerticalAlignment(VAlign_Center);
 			Icon->SetPadding(FMargin(0.f));
-			UTextBlock* Cross = HudText(WidgetTree, 15, FLinearColor(0.06f, 0.01f, 0.01f), 0, ETextJustify::Center);
+			UTextBlock* Cross = MakeFloatingText(WidgetTree, 15, FLinearColor(0.06f, 0.01f, 0.01f), 0, ETextJustify::Center);
 			Cross->SetText(FText::FromString(TEXT("+")));
 			Icon->SetContent(Cross);
-			IconSize->SetContent(Icon);
+			USizeBox* IconSize = MakeSized(WidgetTree, Icon, 22.f, 18.f);
 			IconSize->SetRenderShear(FVector2D(-BarSlant, 0.f));
 			Row->AddChildToHorizontalBox(IconSize)->SetVerticalAlignment(VAlign_Center);
 
-			HealthValue = HudText(WidgetTree, 24, Color::Text());
+			HealthValue = MakeFloatingText(WidgetTree, 24, Color::Text());
 			UHorizontalBoxSlot* ValueSlot = Row->AddChildToHorizontalBox(HealthValue);
 			ValueSlot->SetVerticalAlignment(VAlign_Bottom);
 			ValueSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
-			HealthMax = HudText(WidgetTree, 12, Color::TextDim());
+			HealthMax = MakeFloatingText(WidgetTree, 12, Color::TextDim());
 			UHorizontalBoxSlot* MaxSlot = Row->AddChildToHorizontalBox(HealthMax);
 			MaxSlot->SetVerticalAlignment(VAlign_Bottom);
 			MaxSlot->SetPadding(FMargin(4.f, 0.f, 0.f, 4.f));
@@ -271,13 +221,13 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			};
 
 			UHorizontalBox* AmmoRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			StatusText = HudText(WidgetTree, 12, Color::Accent(), 200, ETextJustify::Right);
+			StatusText = MakeFloatingText(WidgetTree, 12, Color::Accent(), 200, ETextJustify::Right);
 			UHorizontalBoxSlot* StatusSlot = AmmoRow->AddChildToHorizontalBox(StatusText);
 			StatusSlot->SetVerticalAlignment(VAlign_Center);
 			StatusSlot->SetPadding(FMargin(0.f, 0.f, 12.f, 0.f));
-			AmmoText = HudText(WidgetTree, 34, Color::Text(), 0, ETextJustify::Right);
+			AmmoText = MakeFloatingText(WidgetTree, 34, Color::Text(), 0, ETextJustify::Right);
 			AmmoRow->AddChildToHorizontalBox(AmmoText)->SetVerticalAlignment(VAlign_Bottom);
-			ReserveText = HudText(WidgetTree, 15, Color::TextDim(), 0, ETextJustify::Left);
+			ReserveText = MakeFloatingText(WidgetTree, 15, Color::TextDim(), 0, ETextJustify::Left);
 			UHorizontalBoxSlot* ReserveSlot = AmmoRow->AddChildToHorizontalBox(ReserveText);
 			ReserveSlot->SetVerticalAlignment(VAlign_Bottom);
 			ReserveSlot->SetPadding(FMargin(4.f, 0.f, 0.f, 6.f));
@@ -286,17 +236,13 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			AddRight(MakeSlantBar(WidgetTree, AmmoSegmentCount, 260.f, 10.f, BarSlant, AmmoSegments), 2.f);
 
 			UHorizontalBox* NameRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			WeaponName = HudText(WidgetTree, 13, Color::Text(), 120, ETextJustify::Right);
+			WeaponName = MakeFloatingText(WidgetTree, 13, Color::Text(), 120, ETextJustify::Right);
 			NameRow->AddChildToHorizontalBox(WeaponName)->SetVerticalAlignment(VAlign_Center);
 			UHorizontalBox* Pips = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			for (int32 Index = 0; Index < MaxSlotPips; ++Index)
 			{
-				USizeBox* PipSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-				PipSize->SetWidthOverride(12.f);
-				PipSize->SetHeightOverride(6.f);
-				UImage* Pip = TintedRect(WidgetTree);
-				PipSize->SetContent(Pip);
-				Pips->AddChildToHorizontalBox(PipSize)->SetPadding(FMargin(3.f, 0.f, 0.f, 0.f));
+				UImage* Pip = TintableRect(WidgetTree);
+				Pips->AddChildToHorizontalBox(MakeSized(WidgetTree, Pip, 12.f, 6.f))->SetPadding(FMargin(3.f, 0.f, 0.f, 0.f));
 				SlotPips.Add(Pip);
 			}
 			Pips->SetRenderShear(FVector2D(BarSlant, 0.f));
@@ -326,86 +272,16 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			PickupHint = MakeText(WidgetTree, TEXT(""), 13, Color::Accent(), false, 150);
 			Box->AddChildToVerticalBox(PickupHint)->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
 
-			USizeBox* CardSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+			USizeBox* CardSize = MakeSized(WidgetTree, Box, 0.f);
 			CardSize->SetMinDesiredWidth(320.f);
-			CardSize->SetContent(Box);
 			PickupCard = MakePlate(WidgetTree, CardSize, FMargin(16.f, 12.f));
 			PickupCard->SetVisibility(ESlateVisibility::Collapsed);
 			PlaceOnCanvas(Root, PickupCard, FAnchors(1.f, 0.5f), FVector2D(1.f, 0.5f), FVector2D(-32.f, 0.f));
 		}
 
-		// Top-right: round minimap that turns with the view. Layers, bottom to top: dark glass disc, the map (clipped
-		// to the circle), loot/hostile markers and the player arrow, the rim, then the facing notch and the N.
-		{
-			const float Radius = MinimapDiameter * 0.5f;
-			USizeBox* Size = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-			Size->SetWidthOverride(MinimapDiameter);
-			Size->SetHeightOverride(MinimapDiameter);
-			UOverlay* Stack = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-			Size->SetContent(Stack);
-			auto AddLayer = [Stack](UWidget* Layer)
-			{
-				UOverlaySlot* LayerSlot = Stack->AddChildToOverlay(Layer);
-				LayerSlot->SetHorizontalAlignment(HAlign_Fill);
-				LayerSlot->SetVerticalAlignment(VAlign_Fill);
-			};
-			auto MakeImageWith = [this](const FSlateBrush& Brush)
-			{
-				UImage* Image = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-				Image->SetBrush(Brush);
-				return Image;
-			};
-			auto AddToCanvas = [](UCanvasPanel* Canvas, UWidget* Widget, const FVector2D& Position, const FVector2D& WidgetSize)
-			{
-				UCanvasPanelSlot* CanvasSlot = Canvas->AddChildToCanvas(Widget);
-				CanvasSlot->SetAlignment(FVector2D(0.5f, 0.5f));
-				CanvasSlot->SetPosition(Position);
-				CanvasSlot->SetAutoSize(WidgetSize.IsZero());
-				if (!WidgetSize.IsZero())
-				{
-					CanvasSlot->SetSize(WidgetSize);
-				}
-			};
-
-			const FLinearColor Glass = Color::ScreenBg();
-			UImage* GlassDisc = MakeImageWith(CircleBrush(FLinearColor(Glass.R, Glass.G, Glass.B, 0.62f)));
-			MarkBackground(GlassDisc);
-			AddLayer(GlassDisc);
-
-			MinimapBrush = CircleBrush(FLinearColor::White);
-			MinimapMap = MakeImageWith(MinimapBrush);
-			MinimapMap->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
-			MinimapMap->SetVisibility(ESlateVisibility::Hidden);
-			AddLayer(MinimapMap);
-
-			UCanvasPanel* Markers = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
-			AddLayer(Markers);
-			for (int32 Index = 0; Index < MaxMinimapMarkers; ++Index)
-			{
-				UImage* Marker = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-				Marker->SetVisibility(ESlateVisibility::Hidden);
-				AddToCanvas(Markers, Marker, FVector2D(Radius), FVector2D(10.f));
-				MinimapMarkers.Add(Marker);
-				MinimapMarkerKeys.Add(0);
-			}
-			// You: an arrow in the middle that always points up (the map turns under it).
-			MinimapArrow = MakeImageWith(MarkerBrush(EMarker::Arrow, FLinearColor::White));
-			AddToCanvas(Markers, MinimapArrow, FVector2D(Radius), FVector2D(MinimapArrowSize));
-
-			AddLayer(MakeImageWith(CircleBrush(FLinearColor::Transparent, Color::ScreenLine(), 2.f)));
-
-			UCanvasPanel* Rim = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
-			AddLayer(Rim);
-			MinimapNotch = MakeImageWith(RectBrush(Color::Accent()));
-			AddToCanvas(Rim, MinimapNotch, FVector2D(Radius, 5.f), FVector2D(3.f, 10.f));
-			MinimapNorth = HudText(WidgetTree, 12, Color::Accent(), 0, ETextJustify::Center);
-			MinimapNorth->SetText(FText::FromString(TEXT("N")));
-			AddToCanvas(Rim, MinimapNorth, FVector2D(Radius, 12.f), FVector2D::ZeroVector);
-
-			MinimapSize = Size;
-			MinimapCluster = Size;
-			PlaceOnCanvas(Root, Size, FAnchors(1.f, 0.f), FVector2D(1.f, 0.f), FVector2D(-MinimapMargin, MinimapMargin));
-		}
+		// Top-right: the minimap.
+		UHudMinimapWidget* Minimap = WidgetTree->ConstructWidget<UHudMinimapWidget>(UHudMinimapWidget::StaticClass());
+		PlaceOnCanvas(Root, Minimap, FAnchors(1.f, 0.f), FVector2D(1.f, 0.f), FVector2D(-UHudMinimapWidget::Margin, UHudMinimapWidget::Margin));
 	}
 	return Super::RebuildWidget();
 }
@@ -431,7 +307,6 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 	UpdateWeaponCluster(Manager, InDeltaTime);
 	UpdateVitals(Health, InDeltaTime);
 	UpdatePickupCard(Manager);
-	UpdateMinimap(Pawn);
 
 	if (HitMarkerTime > 0.f)
 	{
@@ -711,138 +586,6 @@ void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager)
 	const bool bBackpackFull = Manager->GetBackpack().Num() >= Manager->BackpackCapacity;
 	const TCHAR* Action = !bSlotsFull ? TEXT("PICK UP") : (!bBackpackFull ? TEXT("SEND TO BACKPACK") : TEXT("SWAP WITH WEAPON IN HAND"));
 	PickupHint->SetText(FText::FromString(FString::Printf(TEXT("[%s] %s"), *BoundKeyName(TEXT("Interact"), TEXT("E")), Action)));
-}
-
-void UPlayerHUDWidget::UpdateMinimap(const APawn* Pawn)
-{
-	UWorld* World = GetWorld();
-	UMinimapSubsystem* Minimap = World ? World->GetSubsystem<UMinimapSubsystem>() : nullptr;
-	if (!MinimapCluster)
-	{
-		return;
-	}
-	if (!Minimap || !Pawn)
-	{
-		MinimapCluster->SetVisibility(ESlateVisibility::Hidden);
-		return;
-	}
-	MinimapCluster->SetVisibility(ESlateVisibility::HitTestInvisible);
-
-	// The player's size setting, live (the settings menu changes it while the game is paused).
-	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	const UGraphicsSettingsSubsystem* Settings = LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
-	const float WantedScale = Settings ? Settings->GetMinimapScale() : 1.f;
-	if (!FMath::IsNearlyEqual(WantedScale, MinimapScale))
-	{
-		ApplyMinimapScale(WantedScale);
-	}
-
-	const FVector Location = Pawn->GetActorLocation();
-	const float Yaw = Pawn->GetControlRotation().Yaw;
-	const float Radius = GetMinimapDiameter() * 0.5f;
-	const float PixelsPerCm = (Radius - 4.f) / MinimapRange;
-	// Markers grow more gently than the map, so a small map stays readable and a big one uncluttered.
-	const float MarkerScale = FMath::Sqrt(MinimapScale);
-
-	// The island: the part of the baked picture around you, turned so the way you look points up.
-	UTexture2D* Map = Minimap->GetMapTexture();
-	if (Map != MinimapTexture)
-	{
-		MinimapTexture = Map;
-		MinimapBrush.SetResourceObject(Map);
-		MinimapMap->SetVisibility(Map ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
-	}
-	if (Map)
-	{
-		const FVector2D Center = Minimap->WorldToMapUV(Location);
-		const double Half = MinimapRange / FMath::Max(Minimap->GetMapBounds().GetSize().X, 1.0);
-		MinimapBrush.SetUVRegion(FBox2d(Center - FVector2D(Half), Center + FVector2D(Half)));
-		MinimapMap->SetBrush(MinimapBrush);
-		MinimapMap->SetRenderTransformAngle(-Yaw);
-	}
-
-	// Markers: ammo and loot first, hostiles last so they draw on top. Anything past the rim is left off.
-	int32 Used = 0;
-	auto Mark = [&](const FVector& Where, EMarker Kind, const FLinearColor& Tint, float BaseSize)
-	{
-		if (Used >= MinimapMarkers.Num())
-		{
-			return;
-		}
-		const float Size = BaseSize * MarkerScale;
-		const FVector2D Offset = UMinimapSubsystem::ViewOffset(Where - Location, Yaw, PixelsPerCm);
-		if (Offset.Size() > Radius - Size * 0.5f - 3.f)
-		{
-			return;
-		}
-		UImage* Marker = MinimapMarkers[Used];
-		const uint32 Key = HashCombine(GetTypeHash(static_cast<uint8>(Kind)), GetTypeHash(Tint.ToFColor(true))) | 1u;
-		if (MinimapMarkerKeys[Used] != Key)
-		{
-			Marker->SetBrush(MarkerBrush(Kind, Tint));
-			MinimapMarkerKeys[Used] = Key;
-		}
-		if (UCanvasPanelSlot* MarkerSlot = Cast<UCanvasPanelSlot>(Marker->Slot))
-		{
-			MarkerSlot->SetSize(FVector2D(Size));
-			MarkerSlot->SetPosition(FVector2D(Radius) + Offset);
-		}
-		Marker->SetVisibility(ESlateVisibility::HitTestInvisible);
-		++Used;
-	};
-	const FLinearColor AmmoColor(FColor(230, 220, 192));
-	for (TActorIterator<AAmmoPickup> It(World); It; ++It)
-	{
-		Mark(It->GetActorLocation(), EMarker::Dot, AmmoColor, 6.f);
-	}
-	for (TActorIterator<AWeaponBase> It(World); It; ++It)
-	{
-		if (It->IsPickup())
-		{
-			Mark(It->GetActorLocation(), EMarker::Dot, LooterWeaponText::Color(It->GetInstance()), 9.f);
-		}
-	}
-	for (TActorIterator<ACreatureBase> It(World); It; ++It)
-	{
-		if (!It->IsDead())
-		{
-			Mark(It->GetActorLocation(), EMarker::Diamond, Color::Health(), 12.f);
-		}
-	}
-	for (int32 Index = Used; Index < MinimapMarkers.Num(); ++Index)
-	{
-		MinimapMarkers[Index]->SetVisibility(ESlateVisibility::Hidden);
-	}
-
-	// North circles the rim as you turn.
-	if (UCanvasPanelSlot* NorthSlot = Cast<UCanvasPanelSlot>(MinimapNorth->Slot))
-	{
-		const FVector2D North = UMinimapSubsystem::ViewOffset(FVector::ForwardVector, Yaw, 1.f).GetSafeNormal() * (Radius - 13.f);
-		NorthSlot->SetPosition(FVector2D(Radius) + North);
-	}
-}
-
-void UPlayerHUDWidget::ApplyMinimapScale(float Scale)
-{
-	MinimapScale = Scale;
-	if (!MinimapSize)
-	{
-		return;
-	}
-	// The glass, the map and the rim fill the box, so they follow it; the arrow and the notch are placed by hand.
-	const float Diameter = GetMinimapDiameter();
-	const float Radius = Diameter * 0.5f;
-	MinimapSize->SetWidthOverride(Diameter);
-	MinimapSize->SetHeightOverride(Diameter);
-	if (UCanvasPanelSlot* ArrowSlot = Cast<UCanvasPanelSlot>(MinimapArrow->Slot))
-	{
-		ArrowSlot->SetPosition(FVector2D(Radius));
-		ArrowSlot->SetSize(FVector2D(MinimapArrowSize * FMath::Sqrt(Scale)));
-	}
-	if (UCanvasPanelSlot* NotchSlot = Cast<UCanvasPanelSlot>(MinimapNotch->Slot))
-	{
-		NotchSlot->SetPosition(FVector2D(Radius, 5.f));
-	}
 }
 
 void UPlayerHUDWidget::HandleHit(const FHitResult& Hit, float Damage, bool bCritical)

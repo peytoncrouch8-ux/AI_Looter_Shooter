@@ -25,7 +25,7 @@ approved it the same day.
 - [x] Build without unity, so file-private names can't collide between merged files.
 - [x] Retire Build Mode: the editor component, camera pawn, widget, hotkey and its HUD hooks.
 - [ ] Merge copied UI helpers into the style kit; split the long files (loadout, HUD minimap, weapon manager, weapon).
-- [ ] Delete dead code and template leftovers: the rifle locomotion clips, Quinn, touch controls, prototype assets,
+- [x] Delete dead code and template leftovers: the rifle locomotion clips, Quinn, touch controls, prototype assets,
       the StateTree plugin and config leftovers.
 - [ ] `CODEMAP.md`: one line per file.
 

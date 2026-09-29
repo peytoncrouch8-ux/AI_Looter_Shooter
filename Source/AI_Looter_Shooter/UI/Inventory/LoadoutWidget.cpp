@@ -220,36 +220,6 @@ namespace
 		return Block;
 	}
 
-	UImage* MakePicture(UWidgetTree* Tree, const FSlateBrush& Brush)
-	{
-		UImage* Image = Tree->ConstructWidget<UImage>(UImage::StaticClass());
-		Image->SetBrush(Brush);
-		Image->SetVisibility(ESlateVisibility::HitTestInvisible);
-		return Image;
-	}
-
-	UWidget* Sized(UWidgetTree* Tree, UWidget* Content, float Width, float Height)
-	{
-		USizeBox* Box = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		if (Width > 0.f)
-		{
-			Box->SetWidthOverride(Width);
-		}
-		if (Height > 0.f)
-		{
-			Box->SetHeightOverride(Height);
-		}
-		Box->SetContent(Content);
-		return Box;
-	}
-
-	void FillSlot(UOverlaySlot* OverlaySlot, const FMargin& Padding = FMargin(0.f))
-	{
-		OverlaySlot->SetHorizontalAlignment(HAlign_Fill);
-		OverlaySlot->SetVerticalAlignment(VAlign_Fill);
-		OverlaySlot->SetPadding(Padding);
-	}
-
 	/**
 	 * A chamfered card: fill and outline shapes, white and tinted per state, around padded content. Scale grows the corner
 	 * cut and the outline with the card (2 = the slot cards' 14 px cut and 2 px line).
@@ -260,16 +230,16 @@ namespace
 		{
 			FSlateBrush Brush = ShapeBrush(EShape::Control, bOutline, FLinearColor::White);
 			Brush.ImageSize *= Scale;
-			return MakePicture(Tree, Brush);
+			return MakeImage(Tree, Brush);
 		};
 		UOverlay* Box = Tree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
 		OutFill = Shape(false);
 		// The fill is background: the UI transparency setting fades it, on top of its state tint.
 		MarkBackground(OutFill);
-		FillSlot(Box->AddChildToOverlay(OutFill));
+		FillOverlaySlot(Box->AddChildToOverlay(OutFill));
 		OutLine = Shape(true);
-		FillSlot(Box->AddChildToOverlay(OutLine));
-		FillSlot(Box->AddChildToOverlay(Content), Padding);
+		FillOverlaySlot(Box->AddChildToOverlay(OutLine));
+		FillOverlaySlot(Box->AddChildToOverlay(Content), Padding);
 		return Box;
 	}
 
@@ -279,10 +249,10 @@ namespace
 	{
 		const EWeaponModel Model = Item.Definition ? Item.Definition->ProceduralModel : EWeaponModel::Rifle;
 		UOverlay* Picture = Tree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-		Picture->AddChildToOverlay(MakePicture(Tree, IconBrush(GunIconName(Model, false), GunIcon(Model, false), PixelsPerUnit, Size, BodyColor)));
+		Picture->AddChildToOverlay(MakeImage(Tree, IconBrush(GunIconName(Model, false), GunIcon(Model, false), PixelsPerUnit, Size, BodyColor)));
 		if (bStrip)
 		{
-			Picture->AddChildToOverlay(MakePicture(Tree, IconBrush(GunIconName(Model, true), GunIcon(Model, true), PixelsPerUnit, Size,
+			Picture->AddChildToOverlay(MakeImage(Tree, IconBrush(GunIconName(Model, true), GunIcon(Model, true), PixelsPerUnit, Size,
 				LooterWeaponText::Color(Item))));
 		}
 		return Picture;
@@ -302,7 +272,7 @@ namespace
 		Cap->SetPadding(FMargin(6.f, 2.f));
 		Cap->SetHorizontalAlignment(HAlign_Center);
 		Cap->SetContent(KeyText);
-		Hint->AddChildToHorizontalBox(Sized(Tree, Cap, 0.f, 22.f))->SetVerticalAlignment(VAlign_Center);
+		Hint->AddChildToHorizontalBox(MakeSized(Tree, Cap, 0.f, 22.f))->SetVerticalAlignment(VAlign_Center);
 		UHorizontalBoxSlot* TextSlot = Hint->AddChildToHorizontalBox(Label(Tree, Text, 9, bPrimary ? Color::Text() : Color::TextDim(), 140));
 		TextSlot->SetVerticalAlignment(VAlign_Center);
 		TextSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
@@ -565,14 +535,14 @@ TSharedRef<SWidget> ULoadoutWidget::RebuildWidget()
 		UImage* Backdrop = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("Backdrop"));
 		Backdrop->SetBrush(RectBrush(Colors::Dim()));
 		MarkBackground(Backdrop);
-		FillSlot(Root->AddChildToOverlay(Backdrop));
+		FillOverlaySlot(Root->AddChildToOverlay(Backdrop));
 
 		// Laid out at 1600 x 900, scaled to fit the screen.
 		UScaleBox* Scale = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass());
 		Scale->SetStretch(EStretch::ScaleToFit);
-		FillSlot(Root->AddChildToOverlay(Scale));
+		FillOverlaySlot(Root->AddChildToOverlay(Scale));
 		UCanvasPanel* Canvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Page"));
-		Scale->SetContent(Sized(WidgetTree, Canvas, 1600.f, 900.f));
+		Scale->SetContent(MakeSized(WidgetTree, Canvas, 1600.f, 900.f));
 
 		auto Place = [Canvas](UWidget* Widget, const FVector2D& Position, const FVector2D& Size, const FVector2D& Alignment = FVector2D::ZeroVector)
 		{
@@ -651,7 +621,7 @@ TSharedRef<SWidget> ULoadoutWidget::RebuildWidget()
 			UHorizontalBox* ListHead = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			ListHeader = Label(WidgetTree, TEXT(""), 8, Color::TextDim(), 220);
 			ListHead->AddChildToHorizontalBox(ListHeader)->SetVerticalAlignment(VAlign_Center);
-			UHorizontalBoxSlot* RuleSlot = ListHead->AddChildToHorizontalBox(Sized(WidgetTree, MakePicture(WidgetTree, RectBrush(Hex(90, 200, 255, 61))), 0.f, 1.f));
+			UHorizontalBoxSlot* RuleSlot = ListHead->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Hex(90, 200, 255, 61))), 0.f, 1.f));
 			RuleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 			RuleSlot->SetVerticalAlignment(VAlign_Center);
 			RuleSlot->SetPadding(FMargin(10.f, 0.f));
@@ -761,7 +731,7 @@ ULoadoutWidget::FCard ULoadoutWidget::MakeSlotCard(int32 SlotIndex)
 	Badge->SetHorizontalAlignment(HAlign_Center);
 	Badge->SetVerticalAlignment(VAlign_Center);
 	Badge->SetContent(Label(WidgetTree, FString::FromInt(SlotIndex + 1), 12, Color::Title()));
-	Top->AddChildToHorizontalBox(Sized(WidgetTree, Badge, 28.f, 28.f))->SetVerticalAlignment(VAlign_Center);
+	Top->AddChildToHorizontalBox(MakeSized(WidgetTree, Badge, 28.f, 28.f))->SetVerticalAlignment(VAlign_Center);
 	UHorizontalBoxSlot* CarrySlot = Top->AddChildToHorizontalBox(Label(WidgetTree, LoadoutCarry::Label(Carry), 8,
 		Carry == ELoadoutCarry::InHand ? Color::Accent() : Color::TextDim(), 180));
 	CarrySlot->SetVerticalAlignment(VAlign_Center);
@@ -805,7 +775,7 @@ ULoadoutWidget::FCard ULoadoutWidget::MakeSlotCard(int32 SlotIndex)
 	ChipSlot->SetPadding(FMargin(0.f, 0.f, 18.f, 0.f));
 
 	Card.Button = WidgetTree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
-	Card.Button->SetupContent(Sized(WidgetTree, Box, 0.f, SlotCardHeight), ActionSlot, SlotIndex);
+	Card.Button->SetupContent(MakeSized(WidgetTree, Box, 0.f, SlotCardHeight), ActionSlot, SlotIndex);
 	Card.Button->OnButtonClicked.BindUObject(this, &ULoadoutWidget::HandleCardClicked);
 	Card.Button->OnButtonHovered.BindUObject(this, &ULoadoutWidget::HandleCardHovered);
 	return Card;
@@ -864,7 +834,7 @@ ULoadoutWidget::FCard ULoadoutWidget::MakeListCard(int32 Row)
 	const FLinearColor Rarity = LooterWeaponText::Color(*Item);
 	UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 
-	Line->AddChildToHorizontalBox(Sized(WidgetTree, MakeGunPicture(WidgetTree, *Item, FVector2D(84.f, 28.f), 1.5f,
+	Line->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeGunPicture(WidgetTree, *Item, FVector2D(84.f, 28.f), 1.5f,
 		Rarity * FLinearColor(1.f, 1.f, 1.f, 0.9f), false), 84.f, 28.f))->SetVerticalAlignment(VAlign_Center);
 
 	UVerticalBox* Text = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
@@ -886,7 +856,7 @@ ULoadoutWidget::FCard ULoadoutWidget::MakeListCard(int32 Row)
 		UHorizontalBox* Mark = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		if (!bSimilar)
 		{
-			Mark->AddChildToHorizontalBox(MakePicture(WidgetTree, IconBrush(bUpgrade ? TEXT("ArrowUp") : TEXT("ArrowDown"), ArrowIcon(bUpgrade), 4.f,
+			Mark->AddChildToHorizontalBox(MakeImage(WidgetTree, IconBrush(bUpgrade ? TEXT("ArrowUp") : TEXT("ArrowDown"), ArrowIcon(bUpgrade), 4.f,
 				FVector2D(10.f, 8.f), VerdictColor)))->SetVerticalAlignment(VAlign_Center);
 		}
 		UHorizontalBoxSlot* WordSlot = Mark->AddChildToHorizontalBox(Label(WidgetTree, bSimilar ? TEXT("Similar") : (bUpgrade ? TEXT("Upgrade") : TEXT("Weaker")), 10, VerdictColor, 60));
@@ -897,7 +867,7 @@ ULoadoutWidget::FCard ULoadoutWidget::MakeListCard(int32 Row)
 
 	UOverlay* Box = MakeCard(WidgetTree, Line, FMargin(12.f, 7.f), 1.3f, Card.Fill, Card.Line);
 	Card.Button = WidgetTree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
-	Card.Button->SetupContent(Sized(WidgetTree, Box, 0.f, ListCardHeight), ActionBackpack, Row);
+	Card.Button->SetupContent(MakeSized(WidgetTree, Box, 0.f, ListCardHeight), ActionBackpack, Row);
 	Card.Button->OnButtonClicked.BindUObject(this, &ULoadoutWidget::HandleCardClicked);
 	Card.Button->OnButtonHovered.BindUObject(this, &ULoadoutWidget::HandleCardHovered);
 	return Card;
@@ -981,13 +951,13 @@ void ULoadoutWidget::RefreshDetails()
 	auto AddStat = [this, B](const TCHAR* StatName, float Rating, const FString& Value, float New, float Old, bool bHigherIsBetter, int32 Decimals)
 	{
 		UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		Line->AddChildToHorizontalBox(Sized(WidgetTree, Label(WidgetTree, StatName, 8, Color::TextDim(), 120), 92.f, 0.f))->SetVerticalAlignment(VAlign_Center);
+		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, Label(WidgetTree, StatName, 8, Color::TextDim(), 120), 92.f, 0.f))->SetVerticalAlignment(VAlign_Center);
 		UHorizontalBoxSlot* BarSlot = Line->AddChildToHorizontalBox(MakeSegmentBar(WidgetTree, 8, Rating, Color::SegmentOn(), 7.f));
 		BarSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		BarSlot->SetVerticalAlignment(VAlign_Center);
 		UTextBlock* ValueText = MakeText(WidgetTree, Value, 11, Color::Text());
 		ValueText->SetJustification(ETextJustify::Right);
-		Line->AddChildToHorizontalBox(Sized(WidgetTree, ValueText, 60.f, 0.f))->SetVerticalAlignment(VAlign_Center);
+		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, ValueText, 60.f, 0.f))->SetVerticalAlignment(VAlign_Center);
 		// The change from the chosen slot's gun, green when it's an upgrade.
 		UTextBlock* DeltaText = MakeText(WidgetTree, TEXT(""), 9, Color::TextDim());
 		DeltaText->SetJustification(ETextJustify::Right);
@@ -996,8 +966,8 @@ void ULoadoutWidget::RefreshDetails()
 			DeltaText->SetText(FText::FromString(FormatDelta(New - Old, Decimals)));
 			DeltaText->SetColorAndOpacity(FSlateColor(((New > Old) == bHigherIsBetter) ? Color::Better() : Color::Worse()));
 		}
-		Line->AddChildToHorizontalBox(Sized(WidgetTree, DeltaText, 46.f, 0.f))->SetVerticalAlignment(VAlign_Center);
-		DetailsBox->AddChildToVerticalBox(Sized(WidgetTree, Line, 0.f, 24.f))->SetPadding(FMargin(0.f, 2.f));
+		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, DeltaText, 46.f, 0.f))->SetVerticalAlignment(VAlign_Center);
+		DetailsBox->AddChildToVerticalBox(MakeSized(WidgetTree, Line, 0.f, 24.f))->SetPadding(FMargin(0.f, 2.f));
 	};
 	// Damage compares the whole shot, so shotguns and rifles line up fairly.
 	AddStat(TEXT("Damage"), LooterWeaponText::DamageRating(S), LooterWeaponText::DamageString(S), S.Damage * S.PelletsPerShot,
@@ -1028,19 +998,19 @@ void ULoadoutWidget::RefreshAmmo()
 
 		// A vertical bar filling up from the bottom.
 		UOverlay* Bar = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-		FillSlot(Bar->AddChildToOverlay(MakePicture(WidgetTree, RectBrush(Color::SegmentOff()))));
+		FillOverlaySlot(Bar->AddChildToOverlay(MakeImage(WidgetTree, RectBrush(Color::SegmentOff()))));
 		const float Level = 44.f * FMath::Clamp(static_cast<float>(Carried) / Max, 0.f, 1.f);
 		if (Level > 0.5f)
 		{
-			UOverlaySlot* LevelSlot = Bar->AddChildToOverlay(Sized(WidgetTree, MakePicture(WidgetTree, RectBrush(Color::SegmentOn())), 0.f, Level));
+			UOverlaySlot* LevelSlot = Bar->AddChildToOverlay(MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Color::SegmentOn())), 0.f, Level));
 			LevelSlot->SetHorizontalAlignment(HAlign_Fill);
 			LevelSlot->SetVerticalAlignment(VAlign_Bottom);
 		}
-		UVerticalBoxSlot* BarSlot = Gauge->AddChildToVerticalBox(Sized(WidgetTree, Bar, 10.f, 44.f));
+		UVerticalBoxSlot* BarSlot = Gauge->AddChildToVerticalBox(MakeSized(WidgetTree, Bar, 10.f, 44.f));
 		BarSlot->SetHorizontalAlignment(HAlign_Center);
 		BarSlot->SetPadding(FMargin(0.f, 4.f));
 
-		UVerticalBoxSlot* IconSlot = Gauge->AddChildToVerticalBox(MakePicture(WidgetTree, IconBrush(*FString::Printf(TEXT("Ammo%d"), Index), AmmoIcon(Type), 2.f,
+		UVerticalBoxSlot* IconSlot = Gauge->AddChildToVerticalBox(MakeImage(WidgetTree, IconBrush(*FString::Printf(TEXT("Ammo%d"), Index), AmmoIcon(Type), 2.f,
 			FVector2D(18.f, 18.f), Carried > 0 ? Color::Title() : Hex(143, 179, 204, 128))));
 		IconSlot->SetHorizontalAlignment(HAlign_Center);
 

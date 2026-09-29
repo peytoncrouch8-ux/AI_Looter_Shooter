@@ -94,16 +94,16 @@ void UWeaponLabelWidget::ApplyContent()
 	PlateLine->SetVisibility(bIsFocused ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
 
 	NameText->SetText(Name);
-	StyleText(NameText, bIsFocused ? 17 : 14, NameColor, true, 80);
+	StyleFloatingText(NameText, bIsFocused ? 17 : 14, NameColor, 80);
 
 	StatsText->SetText(Stats);
-	StyleText(StatsText, 11, Color::TextDim(), true, 60);
+	StyleFloatingText(StatsText, 11, Color::TextDim(), 60);
 	StatsText->SetVisibility(Detail);
 
 	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 	const UKeyBindingSubsystem* Bindings = LocalPlayer ? LocalPlayer->GetSubsystem<UKeyBindingSubsystem>() : nullptr;
 	const FString Key = Bindings ? Bindings->GetKey(TEXT("Interact")).GetDisplayName().ToString().ToUpper() : FString(TEXT("E"));
 	PromptText->SetText(FText::FromString(FString::Printf(TEXT("[%s] PICK UP"), *Key)));
-	StyleText(PromptText, 13, Color::Accent(), true, 150);
+	StyleFloatingText(PromptText, 13, Color::Accent(), 150);
 	PromptText->SetVisibility(Detail);
 }

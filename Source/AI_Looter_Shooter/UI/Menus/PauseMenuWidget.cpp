@@ -2,7 +2,7 @@
 #include "UI/Style/LooterButton.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Style/LooterUIStyle.h"
-#include "UI/HUD/PlayerHUDWidget.h"
+#include "UI/HUD/HudMinimapWidget.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Blueprint/WidgetTree.h"
@@ -171,15 +171,10 @@ TSharedRef<SWidget> UPauseMenuWidget::RebuildWidget()
 		Add(Footer, 10.f);
 
 		// Close button in the frame corner does the same as Resume.
-		USizeBox* CloseSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		CloseSize->SetWidthOverride(34.f);
-		CloseSize->SetHeightOverride(34.f);
-		CloseSize->SetContent(MakeButton(ActionResume, 0, TEXT("X"), 15, EButtonKind::Normal));
+		UWidget* CloseSize = MakeSized(WidgetTree, MakeButton(ActionResume, 0, TEXT("X"), 15, EButtonKind::Normal), 34.f, 34.f);
 
-		USizeBox* Size = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		Size->SetWidthOverride(640.f);
+		USizeBox* Size = MakeSized(WidgetTree, MakePanel(WidgetTree, TEXT("Settings"), Column, CloseSize), 640.f);
 		Size->SetMaxDesiredHeight(860.f);
-		Size->SetContent(MakePanel(WidgetTree, TEXT("Settings"), Column, CloseSize));
 		Backdrop->SetContent(Size);
 
 		// On top, in the HUD minimap's corner: its outline, shown while its size is being set.
@@ -193,7 +188,7 @@ TSharedRef<SWidget> UPauseMenuWidget::RebuildWidget()
 		UCanvasPanelSlot* MinimapSlot = PreviewLayer->AddChildToCanvas(MinimapPreview);
 		MinimapSlot->SetAnchors(FAnchors(1.f, 0.f));
 		MinimapSlot->SetAlignment(FVector2D(1.f, 0.f));
-		MinimapSlot->SetPosition(FVector2D(-UPlayerHUDWidget::MinimapMargin, UPlayerHUDWidget::MinimapMargin));
+		MinimapSlot->SetPosition(FVector2D(-UHudMinimapWidget::Margin, UHudMinimapWidget::Margin));
 		MinimapSlot->SetAutoSize(true);
 
 		RebuildControls();
@@ -226,8 +221,7 @@ UWidget* UPauseMenuWidget::MakeMinimapPreview()
 	CaptionSlot->SetHorizontalAlignment(HAlign_Center);
 	CaptionSlot->SetVerticalAlignment(VAlign_Top);
 
-	MinimapPreviewSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-	MinimapPreviewSize->SetContent(Stack);
+	MinimapPreviewSize = MakeSized(WidgetTree, Stack, 0.f);
 	return MinimapPreviewSize;
 }
 
@@ -252,15 +246,10 @@ UWidget* UPauseMenuWidget::MakeToggleRow(const FString& Label, const FString& Fi
 	Switch->AddChildToHorizontalBox(OutSecond)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 	// Same width as the key buttons; in the key list it sits in their column, above an empty "Default" column.
-	USizeBox* SwitchSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-	SwitchSize->SetWidthOverride(KeyColumnWidth);
-	SwitchSize->SetContent(Switch);
-	Line->AddChildToHorizontalBox(SwitchSize)->SetPadding(bKeyListRow ? FMargin(8.f, 0.f) : FMargin(8.f, 0.f, 0.f, 0.f));
+	Line->AddChildToHorizontalBox(MakeSized(WidgetTree, Switch, KeyColumnWidth))->SetPadding(bKeyListRow ? FMargin(8.f, 0.f) : FMargin(8.f, 0.f, 0.f, 0.f));
 	if (bKeyListRow)
 	{
-		USizeBox* Spacer = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		Spacer->SetWidthOverride(DefaultColumnWidth);
-		Line->AddChildToHorizontalBox(Spacer);
+		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, nullptr, DefaultColumnWidth));
 	}
 	return MakeRow(WidgetTree, Line);
 }
@@ -298,18 +287,11 @@ UWidget* UPauseMenuWidget::MakeSliderRow(const FString& Label, float MinValue, f
 	OutSlider->IsFocusable = false;
 	OutSlider->bPreventThrottling = true;
 
-	USizeBox* SliderSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-	SliderSize->SetWidthOverride(KeyColumnWidth);
-	SliderSize->SetHeightOverride(30.f);
-	SliderSize->SetContent(OutSlider);
-	Line->AddChildToHorizontalBox(SliderSize)->SetPadding(FMargin(8.f, 0.f));
+	Line->AddChildToHorizontalBox(MakeSized(WidgetTree, OutSlider, KeyColumnWidth, 30.f))->SetPadding(FMargin(8.f, 0.f));
 
 	OutValue = MakeText(WidgetTree, TEXT(""), 14, Color::Title());
 	OutValue->SetJustification(ETextJustify::Right);
-	USizeBox* ValueSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-	ValueSize->SetWidthOverride(48.f);
-	ValueSize->SetContent(OutValue);
-	Line->AddChildToHorizontalBox(ValueSize)->SetVerticalAlignment(VAlign_Center);
+	Line->AddChildToHorizontalBox(MakeSized(WidgetTree, OutValue, 48.f))->SetVerticalAlignment(VAlign_Center);
 	return MakeRow(WidgetTree, Line);
 }
 
@@ -346,7 +328,7 @@ void UPauseMenuWidget::ShowMinimapScale(float Scale)
 	}
 	if (MinimapPreviewSize)
 	{
-		const float Diameter = UPlayerHUDWidget::MinimapDiameter * Scale;
+		const float Diameter = UHudMinimapWidget::Diameter * Scale;
 		MinimapPreviewSize->SetWidthOverride(Diameter);
 		MinimapPreviewSize->SetHeightOverride(Diameter);
 		if (UOverlaySlot* CaptionSlot = MinimapPreviewCaption ? Cast<UOverlaySlot>(MinimapPreviewCaption->Slot) : nullptr)
@@ -441,17 +423,11 @@ void UPauseMenuWidget::RebuildControls()
 		NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		NameSlot->SetVerticalAlignment(VAlign_Center);
 
-		USizeBox* KeySize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		KeySize->SetWidthOverride(KeyColumnWidth);
 		ULooterButton* KeyButton = MakeButton(ActionRebind, Index, TEXT(""), 13, EButtonKind::Key);
-		KeySize->SetContent(KeyButton);
-		Line->AddChildToHorizontalBox(KeySize)->SetPadding(FMargin(8.f, 0.f));
+		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, KeyButton, KeyColumnWidth))->SetPadding(FMargin(8.f, 0.f));
 		KeyButtons.Add(KeyButton);
 
-		USizeBox* DefaultSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		DefaultSize->SetWidthOverride(DefaultColumnWidth);
-		DefaultSize->SetContent(MakeButton(ActionResetOne, Index, TEXT("Default"), 10, EButtonKind::Mini));
-		Line->AddChildToHorizontalBox(DefaultSize);
+		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeButton(ActionResetOne, Index, TEXT("Default"), 10, EButtonKind::Mini), DefaultColumnWidth));
 
 		if (UScrollBoxSlot* RowSlot = Cast<UScrollBoxSlot>(ControlsList->AddChild(MakeRow(WidgetTree, Line))))
 		{
