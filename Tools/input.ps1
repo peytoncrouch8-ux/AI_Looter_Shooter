@@ -19,6 +19,8 @@ public static class Inp {
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
     [DllImport("user32.dll")] public static extern short VkKeyScan(char ch);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
     [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
 
     public static void Key(ushort vk, bool up) {
@@ -44,23 +46,51 @@ function Get-EditorWindow {
     Get-Process UnrealEditor -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
 }
 
+# True when the window that would receive input belongs to the Unreal Editor.
+function Test-EditorForeground {
+    $fg = [Inp]::GetForegroundWindow()
+    if ($fg -eq [IntPtr]::Zero) { return $false }
+    $procId = [uint32]0; [Inp]::GetWindowThreadProcessId($fg, [ref]$procId) | Out-Null
+    $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
+    return [bool]($proc -and $proc.ProcessName -eq 'UnrealEditor')
+}
+
+# Keys and clicks go to whatever window is in front. If that isn't the editor (it crashed, closed, or lost focus), stop:
+# on 2026-09-29 a crashed editor let a console command get typed and sent in the Claude chat window.
+function Stop-IfNotEditor([string]$Step) {
+    if (-not (Test-EditorForeground)) {
+        Write-Error "input.ps1: the Unreal Editor is not the foreground window; stopped before '$Step' so no input reaches another app."
+        exit 1
+    }
+}
+
 foreach ($step in $Steps) {
     # Delete and Ctrl reach the level editor whenever the game has not got focus (Ctrl+A, Delete wiped a level once).
     # They only go through when the step is forced with a leading "!".
     $forced = $step.StartsWith('!'); if ($forced) { $step = $step.Substring(1) }
     if (-not $forced -and $step -match '(?i)^(key|down|hold)\s+(DELETE|CTRL)\b') { Write-Warning "input.ps1: refusing '$step' (prefix with ! to force)"; continue }
     $parts = $step -split '\s+'
-    switch ($parts[0].ToLower()) {
+    $action = $parts[0].ToLower()
+    if ($action -ne 'focus' -and $action -ne 'wait') { Stop-IfNotEditor $step }
+    switch ($action) {
         'focus' {
             $p = Get-EditorWindow
+            if (-not $p) { Write-Error "input.ps1: the Unreal Editor is not running; no input sent."; exit 1 }
             if ([Inp]::IsIconic($p.MainWindowHandle)) { [Inp]::ShowWindow($p.MainWindowHandle, 9) | Out-Null }
             # A shrunken editor window puts clicks outside the game viewport: maximize it.
             $wr = New-Object Inp+RECT; [Inp]::GetWindowRect($p.MainWindowHandle, [ref]$wr) | Out-Null
             if (($wr.Right - $wr.Left) -lt 1200 -or ($wr.Bottom - $wr.Top) -lt 700) { [Inp]::ShowWindow($p.MainWindowHandle, 3) | Out-Null; Start-Sleep -Milliseconds 500 }
-            # Tap Alt so Windows allows the foreground change, then focus the editor.
-            [Inp]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero); [Inp]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
-            [Inp]::SetForegroundWindow($p.MainWindowHandle) | Out-Null
-            Start-Sleep -Milliseconds 300
+            # Tap Alt so Windows allows the foreground change, then focus the editor. The switch can take a moment, so
+            # wait for it (asking again now and then) before anything is typed.
+            for ($try = 0; $try -lt 20 -and -not (Test-EditorForeground); $try++) {
+                if ($try % 5 -eq 0) {
+                    [Inp]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero); [Inp]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
+                    [Inp]::SetForegroundWindow($p.MainWindowHandle) | Out-Null
+                }
+                Start-Sleep -Milliseconds 100
+            }
+            Start-Sleep -Milliseconds 200
+            Stop-IfNotEditor $step
         }
         'clickat' {
             # Click at a fraction of the editor window (to give the PIE viewport focus).
@@ -94,6 +124,7 @@ foreach ($step in $Steps) {
         # Types the rest of the step as text (letters, digits, punctuation on the US layout).
         'type'  {
             foreach ($ch in ($step.Substring(5)).ToCharArray()) {
+                Stop-IfNotEditor $step
                 $code = [Inp]::VkKeyScan($ch); $vkc = [byte]($code -band 0xFF); $shift = ($code -band 0x100) -ne 0
                 if ($shift) { [Inp]::keybd_event(0xA0, 0, 0, [UIntPtr]::Zero) }
                 [Inp]::keybd_event($vkc, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 15; [Inp]::keybd_event($vkc, 0, 2, [UIntPtr]::Zero)

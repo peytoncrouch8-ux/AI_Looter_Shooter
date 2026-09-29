@@ -6,6 +6,10 @@ public class AI_Looter_Shooter : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
+		// Compile every .cpp on its own. Unity builds merge files, so private names and file-wide `using` directives
+		// clash with whatever lands in the same merged file, and every added file reshuffles the groups.
+		bUseUnity = false;
+
 		PublicIncludePaths.Add(ModuleDirectory);
 
 		PublicDependencyModuleNames.AddRange(new string[]

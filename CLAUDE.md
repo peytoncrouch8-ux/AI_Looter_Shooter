@@ -3,6 +3,10 @@
 A stylized first/third-person looter shooter in Unreal Engine 5.8, written C++-first. One runtime module,
 `Source/AI_Looter_Shooter`. The playable level is `/Game/Maps/Lvl_Skyreach` (floating sky islands).
 
+The C++ `ALooterGameMode` (project default) gives each player an `ALooterPlayerController`, the `ALooterHUD` and
+`/Game/Player/BP_LooterCharacter`: a data-only child of `ALooterCharacter` that holds the meshes, animation, camera
+placement and gameplay component settings.
+
 - `Docs/Plan.md`: the pipeline cleanup plan and where it stands.
 - `Docs/Performance.md`: measured performance history.
 
@@ -19,14 +23,17 @@ A stylized first/third-person looter shooter in Unreal Engine 5.8, written C++-f
   - `Tools\describe.ps1 <toolset>` lists a toolset's tools.
   - `Tools\pie.ps1 -Commands ...` starts a play session.
   - `Tools\input.ps1` sends keys and the mouse. `Tools\grab.ps1` takes screenshots into `Saved\Screenshots\Tools`.
-- Unity builds merge several `.cpp` files into one compile unit. Names in anonymous namespaces must be unique across the
-  whole module: put a file's private constants in a named inner namespace (e.g. `GunSlot::Body`) or give them specific
-  names. Never add file-wide `using` of short, common names.
+- The module builds without unity (`bUseUnity = false`), so every `.cpp` compiles on its own: include what you use, and
+  file-private names in anonymous namespaces can't clash between files. A full rebuild takes about two and a half minutes.
 
 ## Safety
 
 - Never send Ctrl+key or Delete through `Tools\input.ps1` unless a text box verifiably has focus. They reach the level
   editor otherwise (this once deleted every actor in the loaded level).
+- `Tools\input.ps1` stops before any step when the Unreal Editor isn't the foreground window. Keep that guard: once, a
+  crashed editor let a play-test's console command get typed into the Claude chat window and sent.
+- A modal editor dialog (save prompt, "transfer interface functions?") blocks every MCP call until it's answered. Find
+  it by listing the editor's top-level windows.
 - Stop play-in-editor before closing the editor. Check what an asset tool will overwrite before running it.
 - Commit after every working step. Messages end with the co-author trailer the session asks for.
 

@@ -19,8 +19,10 @@ approved it the same day.
 
 ## Phase 1: Reorganize (no behavior change)
 - [x] Move files into area folders, listed below.
-- [ ] A C++ game mode, player controller and character replace the template Blueprints' logic. Move/look/jump input goes
-      to C++, and the Blueprint becomes data only.
+- [x] A C++ game mode, player controller and character replace the template Blueprints' logic. Move/look/jump input goes
+      to C++, and the Blueprint becomes data only. The character Blueprint is now `/Game/Player/BP_LooterCharacter`; the
+      template game mode, controller, camera manager, touch controls and the empty `BP_WeaponBase` are gone.
+- [x] Build without unity, so file-private names can't collide between merged files.
 - [x] Retire Build Mode: the editor component, camera pawn, widget, hotkey and its HUD hooks.
 - [ ] Merge copied UI helpers into the style kit; split the long files (loadout, HUD minimap, weapon manager, weapon).
 - [ ] Delete dead code and template leftovers: the rifle locomotion clips, Quinn, touch controls, prototype assets,
@@ -31,7 +33,7 @@ Target layout of `Source/AI_Looter_Shooter`:
 
 | Folder | Owns |
 |---|---|
-| `Core/` | Module, log categories, game mode, player controller, character |
+| `Core/` | Game mode, player controller, character (the module file and log category stay at the module root) |
 | `Player/` | Movement (locomotion, stance), camera and view, player animation, input binding |
 | `Combat/` | Health, damage types, critical hits, bullets, impacts, player vitals, target dummy |
 | `Weapons/` | Weapon actor, definitions, rolls, firing, recoil, reload, muzzle flash, models or parts |
