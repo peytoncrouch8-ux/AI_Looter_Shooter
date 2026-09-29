@@ -1,4 +1,4 @@
-#include "Game/MinimapSubsystem.h"
+#include "World/MinimapSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Environment/StylizedProp.h"
 #include "Engine/Texture2D.h"

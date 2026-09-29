@@ -2,12 +2,12 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-#include "UI/LoadoutStage.h"
-#include "UI/LoadoutWidget.h"
+#include "UI/Inventory/LoadoutStage.h"
+#include "UI/Inventory/LoadoutWidget.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
-#include "Weapons/WeaponManagerComponent.h"
-#include "Weapons/WeaponRollLibrary.h"
+#include "Inventory/WeaponManagerComponent.h"
+#include "Affixes/WeaponRollLibrary.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Tests/AutomationCommon.h"

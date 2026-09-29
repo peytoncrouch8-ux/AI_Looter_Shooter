@@ -2,8 +2,8 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-#include "UI/WeaponText.h"
-#include "Weapons/BulletSubsystem.h"
+#include "UI/Style/WeaponText.h"
+#include "Combat/BulletSubsystem.h"
 #include "Weapons/ReloadMotion.h"
 #include "Weapons/WeaponRecoil.h"
 #include "Components/BoxComponent.h"

@@ -1,6 +1,6 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/LooterDamageTypes.h"
-#include "UI/DamageNumberActor.h"
+#include "UI/World/DamageNumberActor.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerController.h"

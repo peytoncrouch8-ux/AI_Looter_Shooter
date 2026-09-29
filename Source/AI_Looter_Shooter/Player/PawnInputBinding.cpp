@@ -1,4 +1,4 @@
-#include "Settings/PawnInputBinding.h"
+#include "Player/PawnInputBinding.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Engine/LocalPlayer.h"
 #include "EnhancedInputComponent.h"

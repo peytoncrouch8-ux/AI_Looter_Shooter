@@ -3,7 +3,7 @@
 #include "Loot/LootTable.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
-#include "Weapons/WeaponRollLibrary.h"
+#include "Affixes/WeaponRollLibrary.h"
 #include "AI_Looter_Shooter.h"
 #include "Engine/World.h"
 

@@ -5,7 +5,7 @@
 #include "Loot/LootLibrary.h"
 #include "Loot/LootTable.h"
 #include "Weapons/WeaponDefinition.h"
-#include "Weapons/WeaponManagerComponent.h"
+#include "Inventory/WeaponManagerComponent.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Modules/ModuleManager.h"
 

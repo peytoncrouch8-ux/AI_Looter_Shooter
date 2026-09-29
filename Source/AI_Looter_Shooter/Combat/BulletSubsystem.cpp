@@ -1,4 +1,4 @@
-#include "Weapons/BulletSubsystem.h"
+#include "Combat/BulletSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Combat/CombatRules.h"
 #include "Combat/CriticalSpotTarget.h"

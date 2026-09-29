@@ -1,5 +1,5 @@
-#include "UI/DamageNumberWidget.h"
-#include "UI/LooterUIStyle.h"
+#include "UI/World/DamageNumberWidget.h"
+#include "UI/Style/LooterUIStyle.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/TextBlock.h"
 

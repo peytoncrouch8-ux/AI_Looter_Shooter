@@ -1,4 +1,4 @@
-#include "Game/PlayerVitalsSubsystem.h"
+#include "Combat/PlayerVitalsSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Combat/HealthComponent.h"
 #include "Camera/PlayerCameraManager.h"

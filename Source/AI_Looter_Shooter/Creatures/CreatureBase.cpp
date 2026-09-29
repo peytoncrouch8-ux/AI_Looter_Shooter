@@ -5,7 +5,7 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/LooterDamageTypes.h"
 #include "Loot/LootDropComponent.h"
-#include "UI/CreatureHealthBarWidget.h"
+#include "UI/World/CreatureHealthBarWidget.h"
 #include "AIController.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"

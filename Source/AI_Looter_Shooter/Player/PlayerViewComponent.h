@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Settings/PawnInputBinding.h"
+#include "Player/PawnInputBinding.h"
 #include "Weapons/WeaponRecoil.h"
 #include "PlayerViewComponent.generated.h"
 

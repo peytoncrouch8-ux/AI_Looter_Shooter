@@ -2,7 +2,7 @@
 #include "Environment/StylizedMeshKit.h"
 #include "Environment/StylizedSurface.h"
 #include "Weapons/WeaponDefinition.h"
-#include "Weapons/WeaponRollLibrary.h"
+#include "Affixes/WeaponRollLibrary.h"
 #include "Components/DynamicMeshComponent.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "UDynamicMesh.h"

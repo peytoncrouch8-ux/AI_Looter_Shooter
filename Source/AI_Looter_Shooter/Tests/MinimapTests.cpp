@@ -2,7 +2,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-#include "Game/MinimapSubsystem.h"
+#include "World/MinimapSubsystem.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMinimapMappingTest, "Looter.UI.Minimap.Mapping",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)

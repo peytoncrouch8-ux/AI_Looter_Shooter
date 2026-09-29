@@ -5,8 +5,8 @@
 #if !UE_BUILD_SHIPPING
 
 #include "Weapons/WeaponDefinition.h"
-#include "Weapons/WeaponManagerComponent.h"
-#include "Weapons/WeaponRollLibrary.h"
+#include "Inventory/WeaponManagerComponent.h"
+#include "Affixes/WeaponRollLibrary.h"
 #include "AI_Looter_Shooter.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Engine.h"

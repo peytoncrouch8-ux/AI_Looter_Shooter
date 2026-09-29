@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Weapons/WeaponDefinition.h"
-#include "Weapons/WeaponRollLibrary.h"
+#include "Affixes/WeaponRollLibrary.h"
 #include "Weapons/WeaponTypes.h"
 
 /** Shared formatting for weapon names/stats across the HUD, loot labels and inventory. */

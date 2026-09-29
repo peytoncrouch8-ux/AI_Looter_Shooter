@@ -1,5 +1,5 @@
-#include "UI/DamageNumberActor.h"
-#include "UI/DamageNumberWidget.h"
+#include "UI/World/DamageNumberActor.h"
+#include "UI/World/DamageNumberWidget.h"
 #include "Components/WidgetComponent.h"
 
 ADamageNumberActor::ADamageNumberActor()

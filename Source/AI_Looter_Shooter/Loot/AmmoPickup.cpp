@@ -2,7 +2,7 @@
 #include "Loot/LootTossComponent.h"
 #include "Environment/StylizedMeshKit.h"
 #include "Environment/StylizedSurface.h"
-#include "Weapons/WeaponManagerComponent.h"
+#include "Inventory/WeaponManagerComponent.h"
 #include "AI_Looter_Shooter.h"
 #include "Components/DynamicMeshComponent.h"
 #include "Components/PointLightComponent.h"

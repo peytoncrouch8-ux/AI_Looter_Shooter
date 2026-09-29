@@ -3,7 +3,7 @@
 #include "Player/PlayerLocomotionComponent.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Weapons/WeaponBase.h"
-#include "Weapons/WeaponManagerComponent.h"
+#include "Inventory/WeaponManagerComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"

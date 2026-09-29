@@ -4,7 +4,7 @@
 #include "Settings/KeyBindingSubsystem.h"
 #include "Weapons/ReloadMotion.h"
 #include "Weapons/WeaponBase.h"
-#include "Weapons/WeaponManagerComponent.h"
+#include "Inventory/WeaponManagerComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/Engine.h"

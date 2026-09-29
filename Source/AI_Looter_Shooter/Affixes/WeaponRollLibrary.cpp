@@ -1,4 +1,4 @@
-#include "Weapons/WeaponRollLibrary.h"
+#include "Affixes/WeaponRollLibrary.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
 #include "AI_Looter_Shooter.h"

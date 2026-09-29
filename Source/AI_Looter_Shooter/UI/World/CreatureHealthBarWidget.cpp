@@ -1,5 +1,5 @@
-#include "UI/CreatureHealthBarWidget.h"
-#include "UI/LooterUIStyle.h"
+#include "UI/World/CreatureHealthBarWidget.h"
+#include "UI/Style/LooterUIStyle.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"

@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Player/StanceIntent.h"
-#include "Settings/PawnInputBinding.h"
+#include "Player/PawnInputBinding.h"
 #include "PlayerLocomotionComponent.generated.h"
 
 class AController;

@@ -4,7 +4,7 @@
 #include "Environment/EnvironmentLayout.h"
 #include "Environment/EnvironmentPalette.h"
 #include "Environment/StylizedProp.h"
-#include "Game/MinimapSubsystem.h"
+#include "World/MinimapSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "DrawDebugHelpers.h"
 #include "EnhancedInputComponent.h"

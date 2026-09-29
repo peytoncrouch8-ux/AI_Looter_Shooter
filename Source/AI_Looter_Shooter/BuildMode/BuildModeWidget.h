@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "UI/LooterUIStyle.h"
+#include "UI/Style/LooterUIStyle.h"
 #include "BuildModeWidget.generated.h"
 
 class UBorder;
