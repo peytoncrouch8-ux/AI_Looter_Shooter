@@ -6,6 +6,13 @@
 
 class UTexture2D;
 
+/** Actor tags the minimap reads: walkable terrain, and solid things standing on it. Untagged static geometry counts as ground. */
+namespace MinimapTags
+{
+	inline const FName Ground(TEXT("Ground"));
+	inline const FName Obstacle(TEXT("Obstacle"));
+}
+
 /**
  * A top-down picture of the playable world for the HUD minimap, baked at runtime by tracing straight down over the
  * islands (a few milliseconds per frame, so it never hitches): land shaded by height, coastlines and cliff edges drawn

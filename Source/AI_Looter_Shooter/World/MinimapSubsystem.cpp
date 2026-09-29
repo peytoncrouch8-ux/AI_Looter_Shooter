@@ -17,10 +17,18 @@ namespace
 	/** Height between contour lines (cm). */
 	constexpr float ContourInterval = 200.f;
 
-	bool IsGroundShape(EStylizedPropShape Shape)
+	/** Terrain the map is made of: placed meshes tagged Ground, and ground-shaped procedural props. */
+	bool IsGroundActor(const AActor* Actor)
 	{
-		return Shape == EStylizedPropShape::Terrain || Shape == EStylizedPropShape::IslandTerrain
-			|| Shape == EStylizedPropShape::Hill || Shape == EStylizedPropShape::Cliff;
+		const AStylizedProp* Prop = Cast<AStylizedProp>(Actor);
+		return Actor && (Actor->ActorHasTag(MinimapTags::Ground) || (Prop && AStylizedProp::IsGroundShape(Prop->Shape)));
+	}
+
+	/** Something standing on the ground (rocks, walls, trees): placed meshes tagged Obstacle, and other procedural props. */
+	bool IsObstacleActor(const AActor* Actor)
+	{
+		const AStylizedProp* Prop = Cast<AStylizedProp>(Actor);
+		return Actor && (Actor->ActorHasTag(MinimapTags::Obstacle) || (Prop && !AStylizedProp::IsGroundShape(Prop->Shape)));
 	}
 
 	// The map's palette: the HUD's dark glass and cyan lines. Land is kept low-contrast so markers stand out.
@@ -87,11 +95,11 @@ void UMinimapSubsystem::StartBake()
 		return;
 	}
 
-	// Map the ground you can walk on: the terrain props that make up the islands.
+	// Map the ground you can walk on: the terrain that makes up the islands.
 	FBox GroundBox(ForceInit);
-	for (TActorIterator<AStylizedProp> It(World); It; ++It)
+	for (TActorIterator<AActor> It(World); It; ++It)
 	{
-		if (IsGroundShape(It->Shape))
+		if (IsGroundActor(*It))
 		{
 			GroundBox += It->GetComponentsBoundingBox();
 		}
@@ -140,8 +148,7 @@ void UMinimapSubsystem::TraceRows(double TimeBudgetSeconds)
 			{
 				const int32 Index = V * Resolution + U;
 				Heights[Index] = Hit.ImpactPoint.Z;
-				const AStylizedProp* Prop = Cast<AStylizedProp>(Hit.GetActor());
-				Kinds[Index] = Prop && !IsGroundShape(Prop->Shape) ? Obstacle : Ground;
+				Kinds[Index] = IsObstacleActor(Hit.GetActor()) ? Obstacle : Ground;
 			}
 		}
 	}

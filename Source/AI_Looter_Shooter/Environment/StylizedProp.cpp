@@ -1116,21 +1116,25 @@ void AStylizedProp::Configure(EStylizedPropShape InShape, int32 InSeed, FLinearC
 	Rebuild();
 }
 
-void AStylizedProp::Rebuild()
+bool AStylizedProp::IsGroundShape(EStylizedPropShape InShape)
 {
-	// Build into a scratch mesh so the component (and its render/collision data) only updates once.
-	UDynamicMesh* Scratch = NewObject<UDynamicMesh>(this, NAME_None, RF_Transient);
+	return InShape == EStylizedPropShape::Terrain || InShape == EStylizedPropShape::IslandTerrain
+		|| InShape == EStylizedPropShape::Hill || InShape == EStylizedPropShape::Cliff;
+}
 
+FStylizedPropLook AStylizedProp::Generate(EStylizedPropShape InShape, int32 InSeed, const FLinearColor& Primary, const FLinearColor& Secondary,
+	const FTransform& Placement, const AActor* ProbeActor, UDynamicMesh* OutMesh)
+{
 	FPropBuild Build;
-	Build.Mesh = Scratch;
-	Build.Owner = this;
-	Build.Transform = GetActorTransform();
-	Build.Random = FRandomStream(Seed);
-	Build.Primary = PrimaryColor;
-	Build.Secondary = SecondaryColor;
-	Build.NoiseSeed = static_cast<float>(FMath::Abs(Seed) % 997) * 0.731f;
+	Build.Mesh = OutMesh;
+	Build.Owner = ProbeActor;
+	Build.Transform = Placement;
+	Build.Random = FRandomStream(InSeed);
+	Build.Primary = Primary;
+	Build.Secondary = Secondary;
+	Build.NoiseSeed = static_cast<float>(FMath::Abs(InSeed) % 997) * 0.731f;
 
-	switch (Shape)
+	switch (InShape)
 	{
 	case EStylizedPropShape::Terrain:        BuildTerrain(Build); break;
 	case EStylizedPropShape::IslandTerrain:  BuildIslandTerrain(Build); break;
@@ -1157,13 +1161,32 @@ void AStylizedProp::Rebuild()
 	case EStylizedPropShape::Cloud:          BuildCloud(Build); break;
 	case EStylizedPropShape::Beacon:         BuildBeacon(Build); break;
 	}
+	FinishNormals(OutMesh, Build.SmoothAngle);
 
-	FinishNormals(Scratch, Build.SmoothAngle);
+	FStylizedPropLook Look;
+	Look.Surfaces = MoveTemp(Build.Surfaces);
+	Look.CullDistance = Build.CullDistance;
+	Look.bCastShadow = Build.bCastShadow;
+	Look.BeamHeight = Build.BeamHeight;
+	Look.BeamRadius = Build.BeamRadius;
+	Look.BeamColor = Build.BeamColor;
+	Look.LightIntensity = Build.LightIntensity;
+	Look.LightRadius = Build.LightRadius;
+	Look.LightOffset = Build.LightOffset;
+	Look.LightColor = Build.LightColor;
+	return Look;
+}
+
+void AStylizedProp::Rebuild()
+{
+	// Build into a scratch mesh so the component (and its render/collision data) only updates once.
+	UDynamicMesh* Scratch = NewObject<UDynamicMesh>(this, NAME_None, RF_Transient);
+	const FStylizedPropLook Look = Generate(Shape, Seed, PrimaryColor, SecondaryColor, GetActorTransform(), this, Scratch);
 
 	FDynamicMesh3 Result;
 	Scratch->ProcessMesh([&Result](const FDynamicMesh3& Built) { Result = Built; });
 	MeshComponent->SetMesh(MoveTemp(Result));
-	StylizedSurfaces::Apply(MeshComponent, Build.Surfaces);
+	StylizedSurfaces::Apply(MeshComponent, Look.Surfaces);
 
 	if (IsSoft())
 	{
@@ -1178,27 +1201,27 @@ void AStylizedProp::Rebuild()
 		MeshComponent->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	}
 	MeshComponent->EnableComplexAsSimpleCollision();
-	MeshComponent->SetCastShadow(Build.bCastShadow);
+	MeshComponent->SetCastShadow(Look.bCastShadow);
 	// Ground cover is tagged in the custom stencil so the post process leaves it free of ink lines (outlining
 	// every blade of grass reads as scribble, not foliage).
 	MeshComponent->SetRenderCustomDepth(IsSoft());
 	MeshComponent->SetCustomDepthStencilValue(IsSoft() ? 1 : 0);
-	MeshComponent->SetCullDistance(Build.CullDistance);
+	MeshComponent->SetCullDistance(Look.CullDistance);
 
-	const bool bBeam = Build.BeamHeight > 0.f;
+	const bool bBeam = Look.BeamHeight > 0.f;
 	BeamComponent->SetVisibility(bBeam);
 	if (bBeam)
 	{
-		StylizedSurfaces::SetupBeam(BeamComponent, Build.BeamColor, 2.5f, Build.BeamHeight, Build.BeamRadius);
+		StylizedSurfaces::SetupBeam(BeamComponent, Look.BeamColor, 2.5f, Look.BeamHeight, Look.BeamRadius);
 	}
 
-	const bool bLight = Build.LightIntensity > 0.f;
+	const bool bLight = Look.LightIntensity > 0.f;
 	GlowLight->SetVisibility(bLight);
 	if (bLight)
 	{
-		GlowLight->SetRelativeLocation(Build.LightOffset);
-		GlowLight->SetIntensity(Build.LightIntensity);
-		GlowLight->SetAttenuationRadius(Build.LightRadius);
-		GlowLight->SetLightColor(Build.LightColor);
+		GlowLight->SetRelativeLocation(Look.LightOffset);
+		GlowLight->SetIntensity(Look.LightIntensity);
+		GlowLight->SetAttenuationRadius(Look.LightRadius);
+		GlowLight->SetLightColor(Look.LightColor);
 	}
 }

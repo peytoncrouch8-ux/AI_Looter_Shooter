@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Environment/StylizedSurface.h"
 #include "StylizedProp.generated.h"
 
 class UDynamicMesh;
@@ -44,6 +45,28 @@ enum class EStylizedPropShape : uint8
 	Beacon
 };
 
+/** Everything about a generated prop besides its triangles: how its material slots are painted and how it renders. */
+struct FStylizedPropLook
+{
+	/** One per material slot, in slot order. */
+	TArray<FStylizedSurface> Surfaces;
+
+	/** Distance (cm) past which it isn't drawn. 0 = always drawn. */
+	float CullDistance = 0.f;
+	bool bCastShadow = true;
+
+	/** Optional light pillar standing on the prop's origin (sky beacons). */
+	float BeamHeight = 0.f;
+	float BeamRadius = 0.f;
+	FLinearColor BeamColor = FLinearColor::White;
+
+	/** Optional soft glow light (crystals, beacons). */
+	float LightIntensity = 0.f;
+	float LightRadius = 0.f;
+	FVector LightOffset = FVector::ZeroVector;
+	FLinearColor LightColor = FLinearColor::White;
+};
+
 /**
  * Hand-crafted-looking, low-poly environment prop generated entirely from code (no art assets).
  * Shape + Seed fully determine the mesh, so layouts only store those. Colors come from the palette,
@@ -70,6 +93,17 @@ public:
 	/** Ground cover and clouds: you walk and shoot through them, and the ink outline skips them. */
 	static bool IsSoftShape(EStylizedPropShape InShape);
 	bool IsSoft() const { return IsSoftShape(Shape); }
+
+	/** Terrain the player walks on (and the minimap maps): the island tops, terrain tiles, hills and cliffs. */
+	static bool IsGroundShape(EStylizedPropShape InShape);
+
+	/**
+	 * Builds a prop's mesh into OutMesh and returns how to paint and render it. The result depends only on the shape,
+	 * seed and colors, except for hills: they fit the ground under Placement, tracing the world ProbeActor is in (and
+	 * ignoring ProbeActor itself).
+	 */
+	static FStylizedPropLook Generate(EStylizedPropShape InShape, int32 InSeed, const FLinearColor& Primary, const FLinearColor& Secondary,
+		const FTransform& Placement, const AActor* ProbeActor, UDynamicMesh* OutMesh);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stylized Prop")
 	EStylizedPropShape Shape = EStylizedPropShape::Rock;

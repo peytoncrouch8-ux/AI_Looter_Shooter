@@ -8,5 +8,6 @@ public class AI_Looter_ShooterEditorTarget : TargetRules
 		DefaultBuildSettings = BuildSettingsVersion.Latest;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		ExtraModuleNames.Add("AI_Looter_Shooter");
+		ExtraModuleNames.Add("LooterEditor");
 	}
 }
