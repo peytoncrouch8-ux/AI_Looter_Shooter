@@ -1,0 +1,45 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "Weapons/WeaponTypes.h"
+#include "WeaponRollLibrary.generated.h"
+
+class AWeaponBase;
+class UWeaponDefinition;
+
+UCLASS()
+class AI_LOOTER_SHOOTER_API UWeaponRollLibrary : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+
+public:
+	/**
+	 * Picks a rarity using the definition's weights. Luck shifts the odds toward
+	 * higher tiers: 0 = default odds, 1 = each tier above Common has its weight doubled per tier.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Loot")
+	static EWeaponRarity RollRarity(const UWeaponDefinition* Definition, float Luck = 0.f);
+
+	/** RollRarity from a given random stream (seeded rolls, tests). */
+	static EWeaponRarity RollRarityWith(const UWeaponDefinition* Definition, float Luck, FRandomStream& Random);
+
+	/** Deterministically computes stats for a definition + rarity + level + seed. */
+	UFUNCTION(BlueprintPure, Category = "Weapons|Loot")
+	static FWeaponStats ComputeStats(const UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level, int32 Seed);
+
+	/** Rolls a brand-new weapon instance with a random seed and rarity. */
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Loot")
+	static FWeaponInstanceData RollWeapon(UWeaponDefinition* Definition, int32 Level = 1, float Luck = 0.f);
+
+	/** Same as RollWeapon but with a fixed rarity (quest rewards, testing). */
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Loot")
+	static FWeaponInstanceData RollWeaponWithRarity(UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level = 1);
+
+	/** Spawns the actor for a rolled instance. The weapon starts unowned and visible in the world. */
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Loot", meta = (WorldContext = "WorldContextObject"))
+	static AWeaponBase* SpawnWeapon(UObject* WorldContextObject, const FWeaponInstanceData& Instance, const FTransform& Transform);
+
+	UFUNCTION(BlueprintPure, Category = "Weapons|Loot")
+	static FLinearColor GetRarityColor(const UWeaponDefinition* Definition, EWeaponRarity Rarity);
+};

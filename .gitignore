@@ -1,0 +1,30 @@
+# Unreal regenerates all of these (build output, caches, logs, local settings and saves).
+Binaries/
+Intermediate/
+DerivedDataCache/
+Saved/
+Plugins/**/Binaries/
+Plugins/**/Intermediate/
+
+# Per-developer content folders.
+Content/Developers/
+
+# IDE and generated project files.
+.vs/
+.vscode/
+.idea/
+*.sln
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+
+# Blender autosave backups.
+*.blend1
+*.blend2
+
+# OS clutter.
+Thumbs.db
+Desktop.ini
+.DS_Store
