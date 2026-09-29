@@ -24,10 +24,10 @@ approved it the same day.
       template game mode, controller, camera manager, touch controls and the empty `BP_WeaponBase` are gone.
 - [x] Build without unity, so file-private names can't collide between merged files.
 - [x] Retire Build Mode: the editor component, camera pawn, widget, hotkey and its HUD hooks.
-- [ ] Merge copied UI helpers into the style kit; split the long files (loadout, HUD minimap, weapon manager, weapon).
+- [x] Merge copied UI helpers into the style kit; split the long files (loadout, HUD minimap, weapon manager, weapon).
 - [x] Delete dead code and template leftovers: the rifle locomotion clips, Quinn, touch controls, prototype assets,
       the StateTree plugin and config leftovers.
-- [ ] `CODEMAP.md`: one line per file.
+- [x] `CODEMAP.md`: one line per file.
 
 Target layout of `Source/AI_Looter_Shooter`:
 

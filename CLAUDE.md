@@ -40,7 +40,9 @@ placement and gameplay component settings.
 ## Code rules
 
 - C++ first. Blueprints and data assets only hold data and configuration, never gameplay logic.
-- One class per file, and aim for under ~500 lines per file. Private helpers go in the `.cpp`.
+- One class per file, and aim for under ~500 lines per file. Private helpers go in the `.cpp`. A class that outgrows
+  that spreads its `.cpp` over files named by topic (`WeaponBaseFiring.cpp`, `WeaponManagerSlots.cpp`).
+- `CODEMAP.md` lists every source file in one line. Read it first to find where something lives.
 - Organize code by game area; the planned layout is in `Docs/Plan.md`. Update `CODEMAP.md` when you add, move or delete
   a file.
 - Comments explain why, in plain words. Match the surrounding style (tabs, UE naming, `F`/`U`/`A`/`E` prefixes).
