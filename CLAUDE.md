@@ -33,7 +33,7 @@ placement and gameplay component settings.
 - `Tools\input.ps1` stops before any step when the Unreal Editor isn't the foreground window. Keep that guard: once, a
   crashed editor let a play-test's console command get typed into the Claude chat window and sent.
 - A modal editor dialog (save prompt, "transfer interface functions?") blocks every MCP call until it's answered. Find
-  it by listing the editor's top-level windows.
+  it with `Tools\editorwindows.ps1`, which lists the editor's top-level windows.
 - Stop play-in-editor before closing the editor. Check what an asset tool will overwrite before running it.
 - Commit after every working step. Messages end with the co-author trailer the session asks for.
 
