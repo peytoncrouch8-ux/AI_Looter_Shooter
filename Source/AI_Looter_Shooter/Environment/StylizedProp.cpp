@@ -1101,15 +1101,6 @@ bool AStylizedProp::IsSoftShape(EStylizedPropShape InShape)
 		|| InShape == EStylizedPropShape::Bush || InShape == EStylizedPropShape::Cloud;
 }
 
-void AStylizedProp::RefreshAfterMove()
-{
-	// Terrain-conforming shapes re-fit themselves to the ground at their new spot.
-	if (Shape == EStylizedPropShape::Hill)
-	{
-		Rebuild();
-	}
-}
-
 void AStylizedProp::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
@@ -1176,7 +1167,7 @@ void AStylizedProp::Rebuild()
 
 	if (IsSoft())
 	{
-		// Walk and shoot straight through it, but Build Mode can still find it to select and delete.
+		// Walk and shoot straight through it; visibility queries still see it as an overlap.
 		MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		MeshComponent->SetCollisionObjectType(ECC_WorldDynamic);
 		MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);

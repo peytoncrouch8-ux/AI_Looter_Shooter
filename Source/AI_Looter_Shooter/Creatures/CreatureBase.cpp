@@ -1,6 +1,5 @@
 #include "Creatures/CreatureBase.h"
 #include "AI_Looter_Shooter.h"
-#include "BuildMode/BuildModeComponent.h"
 #include "Combat/CombatRules.h"
 #include "Combat/HealthComponent.h"
 #include "Combat/LooterDamageTypes.h"
@@ -96,7 +95,7 @@ void ACreatureBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 }
 
 // ---------------------------------------------------------------------------
-// Critical spots and layout
+// Critical spots
 // ---------------------------------------------------------------------------
 
 bool ACreatureBase::IsCriticalSpot(const FHitResult& Hit) const
@@ -116,13 +115,6 @@ bool ACreatureBase::IsCriticalSpot(const FHitResult& Hit) const
 	return false;
 }
 
-FTransform ACreatureBase::GetLayoutTransform() const
-{
-	// Layouts store ground points; the capsule center sits half its height above that.
-	const float HalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-	return FTransform(Home.GetRotation(), Home.GetLocation() - FVector(0.f, 0.f, HalfHeight), FVector::OneVector);
-}
-
 // ---------------------------------------------------------------------------
 // Brain
 // ---------------------------------------------------------------------------
@@ -131,19 +123,7 @@ void ACreatureBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (UBuildModeComponent::IsActiveInWorld(GetWorld()))
-	{
-		TickFrozen();
-	}
-	else
-	{
-		if (State == ECreatureState::Frozen)
-		{
-			SetState(ECreatureState::Idle);
-			IdleDuration = 1.5f;
-		}
-		TickBrain(DeltaSeconds);
-	}
+	TickBrain(DeltaSeconds);
 	UpdateHealthBar(DeltaSeconds);
 }
 
@@ -160,43 +140,12 @@ void ACreatureBase::SetState(ECreatureState NewState)
 	EscapeTime = 0.f;
 	SteerTimer = 0.f;
 
-	UCharacterMovementComponent* Movement = GetCharacterMovement();
-	if (OldState == ECreatureState::Frozen && NewState != ECreatureState::Frozen)
-	{
-		Movement->SetMovementMode(MOVE_Walking);
-	}
-	if (NewState == ECreatureState::Frozen)
-	{
-		Movement->StopMovementImmediately();
-		Movement->DisableMovement();
-	}
 	if (NewState == ECreatureState::Attack)
 	{
 		bStruck = false;
-		Movement->StopMovementImmediately();
+		GetCharacterMovement()->StopMovementImmediately();
 		OnAttackStarted();
 	}
-}
-
-void ACreatureBase::TickFrozen()
-{
-	if (State == ECreatureState::Dead)
-	{
-		return; // corpse and respawn timers keep running
-	}
-	if (State != ECreatureState::Frozen)
-	{
-		// Go home and hold still so Build Mode edits the creature where it lives, not mid-chase.
-		Target.Reset();
-		SetActorLocationAndRotation(Home.GetLocation(), Home.GetRotation(), false, nullptr, ETeleportType::TeleportPhysics);
-		SetState(ECreatureState::Frozen);
-	}
-	// Build Mode may move or turn it: keep it standing on the ground there and make that its new home.
-	if (!GetActorLocation().Equals(Home.GetLocation(), 1.f))
-	{
-		SnapToGround();
-	}
-	Home = FTransform(FRotator(0.f, GetActorRotation().Yaw, 0.f), GetActorLocation());
 }
 
 void ACreatureBase::TickBrain(float DeltaSeconds)
@@ -327,7 +276,7 @@ APawn* ACreatureBase::FindVisibleTarget() const
 
 bool ACreatureBase::IsValidTarget(const APawn* Pawn) const
 {
-	// Only living characters (not the Build Mode camera, not other creatures).
+	// Only living characters (not spectator cameras, not other creatures).
 	if (!Pawn || !Pawn->IsA<ACharacter>() || Pawn->IsA<ACreatureBase>())
 	{
 		return false;
@@ -563,7 +512,7 @@ void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocat
 	HealthBarTime = 6.f;
 	OnHurt(bCritical, HitLocation);
 
-	if (State == ECreatureState::Dead || State == ECreatureState::Frozen)
+	if (State == ECreatureState::Dead)
 	{
 		return;
 	}
@@ -618,7 +567,7 @@ void ACreatureBase::Respawn()
 void ACreatureBase::UpdateHealthBar(float DeltaSeconds)
 {
 	HealthBarTime = FMath::Max(0.f, HealthBarTime - DeltaSeconds);
-	const bool bShow = State != ECreatureState::Dead && State != ECreatureState::Frozen && (HealthBarTime > 0.f || Target.IsValid());
+	const bool bShow = State != ECreatureState::Dead && (HealthBarTime > 0.f || Target.IsValid());
 	HealthBar->SetVisibility(bShow);
 	if (bShow)
 	{

@@ -48,7 +48,7 @@ public:
 /**
  * Player key rebinding without touching input assets. Every mapping context the game uses is swapped
  * for a runtime copy with the player's keys applied; overrides are saved to the "KeyBindings" slot.
- * Also owns the always-on global actions (pause menu, inventory, build mode) and the code-built character actions
+ * Also owns the always-on global actions (pause menu, inventory) and the code-built character actions
  * (sprint, crouch, toggle camera view).
  */
 UCLASS()
@@ -81,7 +81,6 @@ public:
 
 	const UInputAction* GetPauseAction() const { return PauseAction; }
 	const UInputAction* GetInventoryAction() const { return InventoryAction; }
-	const UInputAction* GetBuildModeAction() const { return BuildModeAction; }
 	const UInputAction* GetSprintAction() const { return SprintAction; }
 	const UInputAction* GetCrouchAction() const { return CrouchAction; }
 	const UInputAction* GetToggleViewAction() const { return ToggleViewAction; }
@@ -118,7 +117,6 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UInputAction> PauseAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> InventoryAction;
-	UPROPERTY(Transient) TObjectPtr<UInputAction> BuildModeAction;
 
 	/** Character-only controls live in their own context so they only work while the player's character is possessed. */
 	UPROPERTY(Transient) TObjectPtr<UInputMappingContext> CharacterContext;

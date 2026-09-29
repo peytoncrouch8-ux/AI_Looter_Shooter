@@ -67,9 +67,15 @@ void UKeyBindingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	AddBinding(TEXT("Inventory"), TEXT("Inventory"), TEXT("Menus"), GlobalContext, InventoryAction, EKeys::Tab);
 	AddBinding(TEXT("InventoryAlt"), TEXT("Inventory (alternate)"), TEXT("Menus"), GlobalContext, InventoryAction, EKeys::I);
-#if !UE_BUILD_SHIPPING
-	AddBinding(TEXT("BuildMode"), TEXT("Build Mode (dev)"), TEXT("Menus"), GlobalContext, BuildModeAction, EKeys::F1);
-#endif
+
+	// Forget saved keys for controls that no longer exist, so old saves don't carry them forever.
+	for (auto It = SaveData->Overrides.CreateIterator(); It; ++It)
+	{
+		if (!Bindings.ContainsByPredicate([&It](const FRebindableKey& B) { return B.Id == It->Key; }))
+		{
+			It.RemoveCurrent();
+		}
+	}
 }
 
 void UKeyBindingSubsystem::BuildGlobalContext()
@@ -77,7 +83,6 @@ void UKeyBindingSubsystem::BuildGlobalContext()
 	// Built in code so these always exist, no matter which level or pawn is active.
 	PauseAction = NewObject<UInputAction>(this, TEXT("IA_Pause"));
 	InventoryAction = NewObject<UInputAction>(this, TEXT("IA_Inventory"));
-	BuildModeAction = NewObject<UInputAction>(this, TEXT("IA_ToggleBuildMode"));
 
 	GlobalContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Global"));
 	// Escape always opens the menu (not rebindable) so players can never lock themselves out.
@@ -86,9 +91,6 @@ void UKeyBindingSubsystem::BuildGlobalContext()
 	GlobalContext->MapKey(InventoryAction, EKeys::Tab);
 	GlobalContext->MapKey(InventoryAction, EKeys::I);
 	GlobalContext->MapKey(InventoryAction, EKeys::Gamepad_Special_Left);
-#if !UE_BUILD_SHIPPING
-	GlobalContext->MapKey(BuildModeAction, EKeys::F1);
-#endif
 }
 
 void UKeyBindingSubsystem::BuildCharacterContext()

@@ -10,7 +10,7 @@ class UPlayerHUDWidget;
 
 /**
  * Owns the player HUD, inventory screen and pause/settings menu, plus the always-on menu hotkeys.
- * Set as the HUD Class on the game mode. Hides itself while Build Mode is active.
+ * Set as the HUD Class on the game mode. The gameplay HUD hides while a menu is open.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ALooterHUD : public AHUD
@@ -51,11 +51,8 @@ private:
 	void BindMenuInput();
 	void HandlePausePressed();
 	void HandleInventoryPressed();
-	void HandleBuildModePressed();
 
-	bool IsBuildModeActive() const;
-
-	/** Puts input back the way the current mode needs it after closing a menu. */
+	/** Gives input back to the game after closing a menu. */
 	void RestoreGameInput();
 
 	UPROPERTY(Transient)

@@ -26,7 +26,7 @@ class UWeaponManagerComponent;
  *  - center: thin tick crosshair sized by the weapon's spread, diagonal hit marker
  * No backing panels; both corner clusters fade back when nothing is happening and come forward on
  * activity (firing, reloading, switching, taking damage). The loot comparison card and messages only
- * appear when relevant. Reads the possessed pawn every frame, so it survives respawns and Build Mode.
+ * appear when relevant. Reads the possessed pawn every frame, so it survives respawns.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UPlayerHUDWidget : public UUserWidget

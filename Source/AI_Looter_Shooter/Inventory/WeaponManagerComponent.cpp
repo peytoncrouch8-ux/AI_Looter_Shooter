@@ -753,7 +753,7 @@ void UWeaponManagerComponent::SetupInput(AController* Controller)
 
 void UWeaponManagerComponent::TeardownInput()
 {
-	// Losing input (Build Mode, unpossess) means the release event may never arrive.
+	// Losing input (death, unpossess) means the release event may never arrive.
 	StopFire();
 	InputBinding.Teardown();
 

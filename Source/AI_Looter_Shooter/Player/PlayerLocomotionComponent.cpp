@@ -213,7 +213,7 @@ void UPlayerLocomotionComponent::TeardownInput()
 {
 	InputBinding.Teardown();
 
-	// Losing control (Build Mode, death, unpossess) means release events may never arrive: stand up and walk.
+	// Losing control (death, unpossess) means release events may never arrive: stand up and walk.
 	Intent.Reset();
 	bSprinting = false;
 	if (UCharacterMovementComponent* Move = Movement.Get())

@@ -28,7 +28,7 @@ void UPlayerVitalsSubsystem::Tick(float DeltaTime)
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
 		APlayerController* PC = It->Get();
-		// Only the player's own character (Build Mode possesses a camera pawn without health).
+		// Only the player's own character (a spectator or camera pawn has no health).
 		const ACharacter* Character = PC ? Cast<ACharacter>(PC->GetPawn()) : nullptr;
 		UHealthComponent* Health = Character ? Character->FindComponentByClass<UHealthComponent>() : nullptr;
 		if (!Health || !PC->IsLocalController())

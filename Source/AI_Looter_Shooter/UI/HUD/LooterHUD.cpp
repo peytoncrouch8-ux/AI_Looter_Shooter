@@ -2,7 +2,6 @@
 #include "UI/Inventory/LoadoutWidget.h"
 #include "UI/Menus/PauseMenuWidget.h"
 #include "UI/HUD/PlayerHUDWidget.h"
-#include "BuildMode/BuildModeComponent.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Blueprint/UserWidget.h"
@@ -45,15 +44,6 @@ void ALooterHUD::BeginPlay()
 	InventoryWidget = CreateWidget<ULoadoutWidget>(PC, ULoadoutWidget::StaticClass());
 	PauseMenuWidget = CreateWidget<UPauseMenuWidget>(PC, UPauseMenuWidget::StaticClass());
 
-#if !UE_BUILD_SHIPPING
-	// Dev-only environment editor. Never exists in shipping builds.
-	if (!PC->FindComponentByClass<UBuildModeComponent>())
-	{
-		UBuildModeComponent* BuildMode = NewObject<UBuildModeComponent>(PC, TEXT("BuildMode"));
-		BuildMode->RegisterComponent();
-	}
-#endif
-
 	BindMenuInput();
 }
 
@@ -68,21 +58,13 @@ void ALooterHUD::BindMenuInput()
 
 	Bindings->SyncContexts();
 
-	// Our own input component on the controller, so menu keys work with any pawn (including Build Mode's camera).
+	// Our own input component on the controller, so menu keys work whatever pawn is possessed (or none, while dead).
 	EnableInput(PC);
 	if (UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(InputComponent))
 	{
 		Input->BindAction(Bindings->GetPauseAction(), ETriggerEvent::Started, this, &ALooterHUD::HandlePausePressed);
 		Input->BindAction(Bindings->GetInventoryAction(), ETriggerEvent::Started, this, &ALooterHUD::HandleInventoryPressed);
-		Input->BindAction(Bindings->GetBuildModeAction(), ETriggerEvent::Started, this, &ALooterHUD::HandleBuildModePressed);
 	}
-}
-
-bool ALooterHUD::IsBuildModeActive() const
-{
-	const APlayerController* PC = GetOwningPlayerController();
-	const UBuildModeComponent* BuildMode = PC ? PC->FindComponentByClass<UBuildModeComponent>() : nullptr;
-	return BuildMode && BuildMode->IsBuildMode();
 }
 
 void ALooterHUD::Tick(float DeltaSeconds)
@@ -101,13 +83,7 @@ void ALooterHUD::Tick(float DeltaSeconds)
 		Bindings->SyncContexts();
 	}
 
-	const bool bBuildMode = IsBuildModeActive();
-	if (bBuildMode && bInventoryOpen)
-	{
-		CloseInventory();
-	}
-
-	const bool bHideHUD = bBuildMode || bInventoryOpen || bPauseMenuOpen;
+	const bool bHideHUD = bInventoryOpen || bPauseMenuOpen;
 	HUDWidget->SetVisibility(bHideHUD ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 }
 
@@ -126,36 +102,15 @@ void ALooterHUD::HandlePausePressed()
 
 void ALooterHUD::HandleInventoryPressed()
 {
-	if (!IsBuildModeActive() && !bPauseMenuOpen && !bInventoryOpen)
+	if (!bPauseMenuOpen && !bInventoryOpen)
 	{
 		OpenInventory();
 	}
 }
 
-void ALooterHUD::HandleBuildModePressed()
-{
-	APlayerController* PC = GetOwningPlayerController();
-	UBuildModeComponent* BuildMode = PC ? PC->FindComponentByClass<UBuildModeComponent>() : nullptr;
-	if (BuildMode && !bPauseMenuOpen && !bInventoryOpen)
-	{
-		BuildMode->SetBuildMode(!BuildMode->IsBuildMode());
-	}
-}
-
 void ALooterHUD::RestoreGameInput()
 {
-	APlayerController* PC = GetOwningPlayerController();
-	if (!PC)
-	{
-		return;
-	}
-
-	UBuildModeComponent* BuildMode = PC->FindComponentByClass<UBuildModeComponent>();
-	if (BuildMode && BuildMode->IsBuildMode())
-	{
-		BuildMode->ApplyInputMode();
-	}
-	else
+	if (APlayerController* PC = GetOwningPlayerController())
 	{
 		PC->SetInputMode(FInputModeGameOnly());
 		PC->SetShowMouseCursor(false);

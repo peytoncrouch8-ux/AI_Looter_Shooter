@@ -11,7 +11,7 @@ class UKeyBindingSubsystem;
 
 /**
  * A gameplay component's own input: an Enhanced Input component pushed onto the local player's controller plus the
- * mapping context that feeds it. Setup and Teardown always come in pairs, so possession changes (Build Mode, respawn)
+ * mapping context that feeds it. Setup and Teardown always come in pairs, so possession changes (death, respawn)
  * never leave stale bindings behind, and the character Blueprint needs no input wiring.
  */
 class AI_LOOTER_SHOOTER_API FPawnInputBinding

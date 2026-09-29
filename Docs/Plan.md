@@ -15,13 +15,13 @@ approved it the same day.
 - [x] Make the clean build work. Unity builds had hidden duplicate private names.
 - [x] `Tools/` scripts in the repo; `CLAUDE.md`.
 - [ ] Private GitHub remote (the user creates the repository; then push).
-- [ ] Performance baseline in `Docs/Performance.md`.
+- [x] Performance baseline in `Docs/Performance.md`.
 
 ## Phase 1: Reorganize (no behavior change)
-- [ ] Move files into area folders, listed below.
+- [x] Move files into area folders, listed below.
 - [ ] A C++ game mode, player controller and character replace the template Blueprints' logic. Move/look/jump input goes
       to C++, and the Blueprint becomes data only.
-- [ ] Retire Build Mode: the editor component, camera pawn, widget, hotkey and its HUD hooks.
+- [x] Retire Build Mode: the editor component, camera pawn, widget, hotkey and its HUD hooks.
 - [ ] Merge copied UI helpers into the style kit; split the long files (loadout, HUD minimap, weapon manager, weapon).
 - [ ] Delete dead code and template leftovers: the rifle locomotion clips, Quinn, touch controls, prototype assets,
       the StateTree plugin and config leftovers.

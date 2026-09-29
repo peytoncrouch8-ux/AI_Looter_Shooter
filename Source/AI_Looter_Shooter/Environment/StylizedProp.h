@@ -67,10 +67,7 @@ public:
 
 	virtual void OnConstruction(const FTransform& Transform) override;
 
-	/** Call after moving/rotating/scaling at runtime (Build Mode) so terrain-conforming shapes re-fit. */
-	void RefreshAfterMove();
-
-	/** Ground cover, clouds and light beams: no physical collision, and Build Mode places "through" them. */
+	/** Ground cover and clouds: you walk and shoot through them, and the ink outline skips them. */
 	static bool IsSoftShape(EStylizedPropShape InShape);
 	bool IsSoft() const { return IsSoftShape(Shape); }
 

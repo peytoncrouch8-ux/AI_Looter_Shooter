@@ -9,7 +9,7 @@ class UTexture2D;
 /**
  * A top-down picture of the playable world for the HUD minimap, baked at runtime by tracing straight down over the
  * islands (a few milliseconds per frame, so it never hitches): land shaded by height, coastlines and cliff edges drawn
- * bright, rocks, walls and trees marked, the void left clear. Build Mode re-bakes it after edits.
+ * bright, rocks, walls and trees marked, the void left clear.
  *
  * Map space: U runs east (world +Y) and V runs south (world -X), so north (world +X) is up.
  */
@@ -34,9 +34,6 @@ public:
 	 * yaw in degrees, points up), in pixels from the center (+X right, +Y down).
 	 */
 	static FVector2D ViewOffset(const FVector& WorldDelta, float ViewYaw, float PixelsPerCm);
-
-	/** The layout changed: bake again on next use. The old map stays up until the new one is done. */
-	void Invalidate() { bBaked = false; }
 
 	/** Texels per side of the baked map. */
 	static constexpr int32 Resolution = 256;

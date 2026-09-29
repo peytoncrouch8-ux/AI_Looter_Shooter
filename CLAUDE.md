@@ -41,7 +41,7 @@ A stylized first/third-person looter shooter in Unreal Engine 5.8, written C++-f
 
 ## UI rules (the user requires these)
 
-- Every UI is built in C++ with the `LooterUI` style kit (`UI/LooterUIStyle.h`). This is "Concept C": dark glass panels
+- Every UI is built in C++ with the `LooterUI` style kit (`UI/Style/LooterUIStyle.h`). This is "Concept C": dark glass panels
   with orange accents, cyan lines and the Chakra Petch font. Never use ad-hoc colors or plain UMG styling. Use
   `LooterUI::Hex` and the `LooterUI::Color` palette.
 - The gameplay HUD is the exception: no backing panels, only floating outlined text and slim slanted bars.

@@ -33,7 +33,7 @@ namespace
 
 	void SetupHitVolume(UPrimitiveComponent* Shape, FName Tag)
 	{
-		// Only weapon traces (and Build Mode's picking/visibility traces) see the body parts; they never
+		// Only weapon and visibility traces see the body parts; they never
 		// block movement, loot, or anything else.
 		Shape->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		Shape->SetCollisionObjectType(ECC_WorldDynamic);
@@ -542,7 +542,7 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 			const float Offset = FVector::Dist2D(Leg.Foot, Rest);
 			if (Offset > 450.f)
 			{
-				Leg.Foot = GroundUnder(Rest); // teleported (respawn, Build Mode move)
+				Leg.Foot = GroundUnder(Rest); // teleported (respawn)
 			}
 			else
 			{

@@ -151,7 +151,7 @@ void AAmmoPickup::TryCollect()
 	const LooterAmmo::FInfo& Info = LooterAmmo::GetInfo(AmmoType);
 	for (AActor* Actor : Overlapping)
 	{
-		// Only a player actually controlling their character collects (not one parked while in Build Mode).
+		// Only a pawn a player is actually controlling collects.
 		const APawn* Pawn = Cast<APawn>(Actor);
 		UWeaponManagerComponent* Inventory = Pawn && Pawn->IsPlayerControlled() ? Pawn->FindComponentByClass<UWeaponManagerComponent>() : nullptr;
 		if (!Inventory)

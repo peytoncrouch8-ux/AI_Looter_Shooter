@@ -27,7 +27,7 @@ class UWeaponManagerComponent;
  *    component). Sprint also widens the FOV a little (via GetFieldOfViewOffset).
  *
  * Firing ends a sprint (the gun comes up immediately). Everything resets when the character loses its controller
- * (Build Mode, death), so no key can get stuck.
+ * (death, unpossess), so no key can get stuck.
  */
 UCLASS(ClassGroup = (Looter), meta = (BlueprintSpawnableComponent))
 class AI_LOOTER_SHOOTER_API UPlayerLocomotionComponent : public UActorComponent

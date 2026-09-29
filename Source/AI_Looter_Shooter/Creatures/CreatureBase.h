@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Combat/CriticalSpotTarget.h"
-#include "Environment/LayoutPlaceable.h"
 #include "CreatureBase.generated.h"
 
 class UHealthComponent;
@@ -18,8 +17,7 @@ enum class ECreatureState : uint8
 	Chase,    // closing in on its target
 	Attack,   // wind-up, strike, recovery
 	Return,   // lost its target, walking home
-	Dead,
-	Frozen    // Build Mode is open: holds still at home so it can be edited
+	Dead
 };
 
 /**
@@ -29,7 +27,7 @@ enum class ECreatureState : uint8
  * the On* hooks; critical spots are data (CriticalSpotTags) matched against the tags on the subclass's hit shapes.
  */
 UCLASS(Abstract)
-class AI_LOOTER_SHOOTER_API ACreatureBase : public ACharacter, public ICriticalSpotTarget, public ILayoutPlaceable
+class AI_LOOTER_SHOOTER_API ACreatureBase : public ACharacter, public ICriticalSpotTarget
 {
 	GENERATED_BODY()
 
@@ -40,9 +38,6 @@ public:
 
 	// ICriticalSpotTarget: hits on shapes tagged with CriticalSpotTags are critical (x1.5, see LooterCombat).
 	virtual bool IsCriticalSpot(const FHitResult& Hit) const override;
-
-	// ILayoutPlaceable: save where it lives, not where it wandered.
-	virtual FTransform GetLayoutTransform() const override;
 
 	UFUNCTION(BlueprintPure, Category = "Creature")
 	ECreatureState GetCreatureState() const { return State; }
@@ -141,7 +136,6 @@ protected:
 private:
 	void SetState(ECreatureState NewState);
 	void TickBrain(float DeltaSeconds);
-	void TickFrozen();
 	void TickAttack(float DeltaSeconds);
 	void Strike();
 	void UpdatePerception();
