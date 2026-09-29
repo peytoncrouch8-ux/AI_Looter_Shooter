@@ -24,6 +24,9 @@ placement and gameplay component settings.
   - `Tools\describe.ps1 <toolset>` lists a toolset's tools.
   - `Tools\console.ps1 "<command>" [-Until <log regex>]` runs an editor console command through the Slate inspector
     (no window focus or simulated keys) and prints the log lines it wrote.
+  - Unreal Python runs through it too: `Tools\console.ps1 "py <absolute path to a .py file>"`. Use it for properties
+    the MCP object tools refuse to write (editor-only ones such as a mesh descriptor, `bUseDefaultCollision` or
+    material usage flags): `set_editor_property`, with bool names written without the `b` (`cast_shadow`).
   - `Tools\pie.ps1 -Commands ...` starts a play session.
   - `Tools\input.ps1` sends keys and the mouse. `Tools\grab.ps1` takes screenshots into `Saved\Screenshots\Tools`.
 - The module builds without unity (`bUseUnity = false`), so every `.cpp` compiles on its own: include what you use, and
@@ -75,6 +78,10 @@ placement and gameplay component settings.
 - Levels are built in the editor. Procedural props are `StylizedProp` actors (shape, seed, two colors). Before
   committing a level, run `Looter.BakeLevelProps` in the editor console. It swaps them for static mesh actors and saves
   their meshes and materials under `/Game/Environment/Props`.
+- Grass and flowers come from the `Meadow` PCG volume (`/Game/Environment/PCG/PCG_Meadow`). It raycasts onto actors
+  tagged `Ground` and avoids actors tagged `Obstacle`. After changing terrain, select the volume and press Generate,
+  then save the level. Ground cover never collides; a placed static mesh actor takes its mesh's collision unless
+  `bUseDefaultCollision` is off.
 - The minimap reads actor tags. Its extent comes from actors tagged `Ground` (walkable terrain). Actors tagged
   `Obstacle` (solid things standing on the ground) are drawn as obstacles, and anything untagged is drawn as ground.
   Props and baked props tag themselves; tag other meshes you place.

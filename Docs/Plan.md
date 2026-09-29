@@ -57,7 +57,10 @@ Target layout of `Source/AI_Looter_Shooter`:
       the parents' shaders.
 - [x] Convert Lvl_Skyreach to placed static meshes (418 actors). Load time fell from 5.1 s to 0.9 s. Retire the runtime
       layout, palette and prop code; the minimap reads only actor tags.
-- [ ] PCG scatter for grass and flowers (instanced, in place of the placed patches).
+- [x] PCG scatter for grass and flowers (instanced, in place of the placed patches). The `Meadow` volume runs
+      `/Game/Environment/PCG/PCG_Meadow` (built by `Tools/Unreal/build_meadow.py`). It covers the island with 604
+      instances (the 199 placed patches are gone) for about 1 ms more GPU time; every instance scales with
+      `foliage.DensityScale`, for the presets.
 
 ## Phase 3: Rendering budget
 - [ ] Low, Medium, High and Epic presets in the settings menu. They cover GI (Lumen only on High and Epic),
