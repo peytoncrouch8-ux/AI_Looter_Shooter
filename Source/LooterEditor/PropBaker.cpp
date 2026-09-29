@@ -1,7 +1,6 @@
 #include "PropBaker.h"
 #include "SurfaceMaterials.h"
 #include "Procedural/StylizedSurface.h"
-#include "World/MinimapSubsystem.h"
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
@@ -14,6 +13,7 @@
 #include "GeometryScript/CreateNewAssetUtilityFunctions.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Misc/Crc.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "UDynamicMesh.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPropBaker, Log, All);
@@ -137,7 +137,9 @@ const FPropBaker::FBaked* FPropBaker::FindOrBake(const AStylizedProp& Prop)
 		Options.bEnableRecomputeTangents = true;
 		Options.bEnableNanite = true;
 		Options.NaniteSettings.bEnabled = true;
-		Options.bEnableCollision = true;
+		// Ground cover and clouds never collide, so they carry no collision data.
+		const bool bSoft = AStylizedProp::IsSoftShape(Prop.Shape);
+		Options.bEnableCollision = !bSoft;
 		Options.CollisionMode = ECollisionTraceFlag::CTF_UseComplexAsSimple;
 		EGeometryScriptOutcomePins Outcome = EGeometryScriptOutcomePins::Failure;
 		Baked.Mesh = UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewStaticMeshAssetFromMesh(Generated, PackagePath, Options, Outcome);
@@ -162,6 +164,12 @@ const FPropBaker::FBaked* FPropBaker::FindOrBake(const AStylizedProp& Prop)
 				Slots.Add(FStaticMaterial(Material, *FString::Printf(TEXT("Surface%d"), Index)));
 			}
 		}
+		UBodySetup* Body = Baked.Mesh->GetBodySetup();
+		if (bSoft && Body)
+		{
+			// Actors placed with the mesh's own collision (dragged into a level by hand) don't collide either.
+			Body->DefaultInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+		}
 		Baked.Mesh->PostEditChange();
 		NewPackages.Add(Baked.Mesh->GetPackage());
 		UE_LOG(LogPropBaker, Log, TEXT("Baked %s: %d surfaces."), *PackagePath, Baked.Look.Surfaces.Num());
@@ -183,20 +191,13 @@ AStaticMeshActor* FPropBaker::PlaceProp(const FBaked& Baked, EStylizedPropShape 
 	Actor->SetFolderPath(*Folder);
 
 	UStaticMeshComponent* Mesh = Actor->GetStaticMeshComponent();
+	// A placed static mesh actor takes its collision from the mesh unless told otherwise. Turn that off before the mesh
+	// is set: while it's on, setting a profile the mesh already names changes nothing on the component itself.
+	Mesh->bUseDefaultCollision = false;
 	Mesh->SetStaticMesh(Baked.Mesh);
 	const bool bSoft = AStylizedProp::IsSoftShape(Shape);
-	if (bSoft)
-	{
-		// Walk and shoot straight through it; visibility queries still see it as an overlap.
-		Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		Mesh->SetCollisionObjectType(ECC_WorldDynamic);
-		Mesh->SetCollisionResponseToAllChannels(ECR_Ignore);
-		Mesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Overlap);
-	}
-	else
-	{
-		Mesh->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
-	}
+	// Walk and shoot straight through ground cover and clouds.
+	Mesh->SetCollisionProfileName(bSoft ? UCollisionProfile::NoCollision_ProfileName : UCollisionProfile::BlockAll_ProfileName);
 	Mesh->SetCastShadow(Baked.Look.bCastShadow);
 	// Ground cover is marked in the custom stencil so the post process leaves it free of ink lines.
 	Mesh->SetRenderCustomDepth(bSoft);
@@ -216,9 +217,10 @@ AStaticMeshActor* FPropBaker::PlaceProp(const FBaked& Baked, EStylizedPropShape 
 		if (AStaticMeshActor* Beam = World->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Transform, Params))
 		{
 			UStaticMeshComponent* BeamMesh = Beam->GetStaticMeshComponent();
+			BeamMesh->bUseDefaultCollision = false;
 			BeamMesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, BeamMeshPath));
 			BeamMesh->SetMaterial(0, FindOrCreateBeamMaterial(Look.BeamColor, Look.BeamHeight));
-			BeamMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			BeamMesh->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 			BeamMesh->SetCastShadow(false);
 			BeamMesh->bReceivesDecals = false;
 			Beam->AttachToActor(Actor, FAttachmentTransformRules::KeepRelativeTransform);

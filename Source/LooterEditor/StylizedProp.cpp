@@ -1203,11 +1203,8 @@ void AStylizedProp::Rebuild()
 
 	if (IsSoft())
 	{
-		// Walk and shoot straight through it; visibility queries still see it as an overlap.
-		MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		MeshComponent->SetCollisionObjectType(ECC_WorldDynamic);
-		MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-		MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Overlap);
+		// Walk and shoot straight through ground cover and clouds (the baked version has no collision either).
+		MeshComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 	}
 	else
 	{
