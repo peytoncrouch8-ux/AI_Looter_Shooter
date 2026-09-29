@@ -89,6 +89,9 @@ public:
 	/** The player's copy of the character controls (sprint, crouch, camera view). Added while the character is possessed. */
 	UInputMappingContext* GetCharacterContext() { return GetRuntimeContext(CharacterContext); }
 
+	/** Input priority the character components add GetCharacterContext() with. */
+	static constexpr int32 CharacterContextPriority = 1;
+
 	/** True if Key currently opens/closes the inventory. */
 	bool IsInventoryKey(const FKey& Key) const;
 

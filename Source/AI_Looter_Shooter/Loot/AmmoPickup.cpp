@@ -21,11 +21,14 @@ namespace
 	constexpr float RetryInterval = 0.25f;
 
 	// Material slots of the box model.
-	constexpr int32 SlotBody = 0;
-	constexpr int32 SlotBand = 1;
-	constexpr int32 SlotBrass = 2;
-	constexpr int32 SlotTip = 3;
-	constexpr int32 SlotHull = 4;
+	namespace AmmoBoxSlot
+	{
+		constexpr int32 Body = 0;
+		constexpr int32 Band = 1;
+		constexpr int32 Brass = 2;
+		constexpr int32 Tip = 3;
+		constexpr int32 Hull = 4;
+	}
 
 	// Every class shares one look, an olive can with a stenciled band, so no box reads as a rarity color.
 	// Only the rounds on top tell the classes apart.
@@ -186,10 +189,10 @@ void AAmmoPickup::BuildModel()
 	UDynamicMesh* Scratch = NewObject<UDynamicMesh>(this, NAME_None, RF_Transient);
 
 	// A small ammo can: body, a stenciled band around the middle, lid, and the class's cartridges standing on top.
-	Box(Scratch, SlotBody, FVector(0.f, 0.f, 6.f), FVector(20.f, 13.f, 12.f));
-	Box(Scratch, SlotBand, FVector(0.f, 0.f, 6.5f), FVector(20.6f, 13.6f, 3.2f));
-	Box(Scratch, SlotBody, FVector(0.f, 0.f, 12.4f), FVector(21.f, 14.f, 1.2f));
-	Box(Scratch, SlotBody, FVector(0.f, 0.f, 13.6f), FVector(8.f, 2.f, 1.2f)); // handle
+	Box(Scratch, AmmoBoxSlot::Body, FVector(0.f, 0.f, 6.f), FVector(20.f, 13.f, 12.f));
+	Box(Scratch, AmmoBoxSlot::Band, FVector(0.f, 0.f, 6.5f), FVector(20.6f, 13.6f, 3.2f));
+	Box(Scratch, AmmoBoxSlot::Body, FVector(0.f, 0.f, 12.4f), FVector(21.f, 14.f, 1.2f));
+	Box(Scratch, AmmoBoxSlot::Body, FVector(0.f, 0.f, 13.6f), FVector(8.f, 2.f, 1.2f)); // handle
 
 	const int32 Count = FMath::Max(Info.CartridgeCount, 1);
 	const float Spacing = FMath::Min(Info.CartridgeRadius * 2.6f, 16.f / FMath::Max(Count - 1, 1));
@@ -200,15 +203,15 @@ void AAmmoPickup::BuildModel()
 		const float X = (Index - (Count - 1) * 0.5f) * Spacing;
 		const FVector Base(X, 3.2f, 13.f);
 		// Shotgun shells: red plastic hull on a brass base. Everything else: brass case with a copper tip.
-		Cylinder(Scratch, SlotBrass, FTransform(Base), Info.CartridgeRadius, bShells ? Info.CartridgeHeight * 0.25f : CaseHeight, 8);
+		Cylinder(Scratch, AmmoBoxSlot::Brass, FTransform(Base), Info.CartridgeRadius, bShells ? Info.CartridgeHeight * 0.25f : CaseHeight, 8);
 		if (bShells)
 		{
-			Cylinder(Scratch, SlotHull, FTransform(Base + FVector(0.f, 0.f, Info.CartridgeHeight * 0.25f)), Info.CartridgeRadius * 0.95f,
+			Cylinder(Scratch, AmmoBoxSlot::Hull, FTransform(Base + FVector(0.f, 0.f, Info.CartridgeHeight * 0.25f)), Info.CartridgeRadius * 0.95f,
 				Info.CartridgeHeight * 0.75f, 8);
 		}
 		else
 		{
-			Cone(Scratch, SlotTip, FTransform(Base + FVector(0.f, 0.f, CaseHeight)), Info.CartridgeRadius, Info.CartridgeRadius * 0.3f,
+			Cone(Scratch, AmmoBoxSlot::Tip, FTransform(Base + FVector(0.f, 0.f, CaseHeight)), Info.CartridgeRadius, Info.CartridgeRadius * 0.3f,
 				Info.CartridgeHeight - CaseHeight, 8);
 		}
 	}

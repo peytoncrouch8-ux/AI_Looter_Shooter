@@ -17,7 +17,6 @@
 
 namespace
 {
-	constexpr int32 CharacterInputPriority = 1;
 	/** The gun in the body's hands flips this much harder than the first-person gun, so the kick reads from behind. */
 	constexpr float ThirdPersonKickScale = 1.35f;
 
@@ -230,7 +229,7 @@ void UPlayerViewComponent::SetupInput(AController* Controller)
 	{
 		return;
 	}
-	if (UEnhancedInputComponent* Input = InputBinding.Setup(GetOwner(), Controller, Bindings->GetCharacterContext(), CharacterInputPriority))
+	if (UEnhancedInputComponent* Input = InputBinding.Setup(GetOwner(), Controller, Bindings->GetCharacterContext(), UKeyBindingSubsystem::CharacterContextPriority))
 	{
 		Input->BindAction(Bindings->GetToggleViewAction(), ETriggerEvent::Started, this, &UPlayerViewComponent::CycleViewMode);
 	}

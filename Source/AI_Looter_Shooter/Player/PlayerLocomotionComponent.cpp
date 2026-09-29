@@ -22,7 +22,6 @@ namespace
 
 	const FName SprintId(TEXT("Sprint"));
 	const FName CrouchId(TEXT("Crouch"));
-	constexpr int32 CharacterInputPriority = 1;
 
 	// View-model tuning (camera space: X forward, Y right, Z up; cm and degrees).
 	const FVector SprintPoseOffset(-4.f, -5.f, -7.f);
@@ -196,7 +195,7 @@ void UPlayerLocomotionComponent::SetupInput(AController* Controller)
 	{
 		return;
 	}
-	UEnhancedInputComponent* Input = InputBinding.Setup(GetOwner(), Controller, Bindings->GetCharacterContext(), CharacterInputPriority);
+	UEnhancedInputComponent* Input = InputBinding.Setup(GetOwner(), Controller, Bindings->GetCharacterContext(), UKeyBindingSubsystem::CharacterContextPriority);
 	if (!Input)
 	{
 		return;

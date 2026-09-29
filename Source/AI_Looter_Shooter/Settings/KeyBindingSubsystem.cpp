@@ -8,7 +8,7 @@
 
 namespace
 {
-	const TCHAR* SaveSlot = TEXT("KeyBindings");
+	const TCHAR* KeyBindingsSaveSlot = TEXT("KeyBindings");
 	constexpr int32 GlobalContextPriority = 100;
 
 	template <typename T>
@@ -27,7 +27,7 @@ void UKeyBindingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	SaveData = Cast<ULooterKeyBindingsSave>(UGameplayStatics::LoadGameFromSlot(SaveSlot, 0));
+	SaveData = Cast<ULooterKeyBindingsSave>(UGameplayStatics::LoadGameFromSlot(KeyBindingsSaveSlot, 0));
 	if (!SaveData)
 	{
 		SaveData = NewObject<ULooterKeyBindingsSave>(this);
@@ -317,5 +317,5 @@ bool UKeyBindingSubsystem::IsInventoryKey(const FKey& Key) const
 
 void UKeyBindingSubsystem::Save()
 {
-	UGameplayStatics::SaveGameToSlot(SaveData, SaveSlot, 0);
+	UGameplayStatics::SaveGameToSlot(SaveData, KeyBindingsSaveSlot, 0);
 }

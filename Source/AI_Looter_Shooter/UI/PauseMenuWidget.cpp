@@ -39,9 +39,6 @@ namespace
 	constexpr float KeyColumnWidth = 180.f;
 	constexpr float DefaultColumnWidth = 96.f;
 
-	FLinearColor Accent() { return LooterUI::Color::Accent(); }
-	FLinearColor Muted() { return LooterUI::Color::TextDim(); }
-	FLinearColor Warning() { return LooterUI::Color::Worse(); }
 }
 
 void UPauseMenuWidget::Open(ALooterHUD* InHUD)
@@ -51,7 +48,7 @@ void UPauseMenuWidget::Open(ALooterHUD* InHUD)
 	SetIsFocusable(true);
 	RefreshKeyLabels();
 	RefreshGraphics();
-	SetStatus(TEXT(""), Muted());
+	SetStatus(TEXT(""), LooterUI::Color::TextDim());
 
 	bMinimapSliderHeld = false;
 	PreviewLinger = 0.f;
@@ -381,7 +378,7 @@ void UPauseMenuWidget::HandleMinimapSizeReleased()
 	if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
 	{
 		Graphics->SaveSettings();
-		SetStatus(FString::Printf(TEXT("Minimap size %d%%."), FMath::RoundToInt(Graphics->GetMinimapScale() * 100.f)), Muted());
+		SetStatus(FString::Printf(TEXT("Minimap size %d%%."), FMath::RoundToInt(Graphics->GetMinimapScale() * 100.f)), LooterUI::Color::TextDim());
 	}
 	// Dragging handed focus to the slider's window; take it back so Esc still closes the menu.
 	SetKeyboardFocus();
@@ -405,7 +402,7 @@ void UPauseMenuWidget::HandleTransparencyReleased()
 	if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
 	{
 		Graphics->SaveSettings();
-		SetStatus(FString::Printf(TEXT("UI transparency %d%%."), FMath::RoundToInt(Graphics->GetUITransparency() * 100.f)), Muted());
+		SetStatus(FString::Printf(TEXT("UI transparency %d%%."), FMath::RoundToInt(Graphics->GetUITransparency() * 100.f)), LooterUI::Color::TextDim());
 	}
 	// Dragging handed focus to the slider's window; take it back so Esc still closes the menu.
 	SetKeyboardFocus();
@@ -421,7 +418,7 @@ void UPauseMenuWidget::RebuildControls()
 	const UKeyBindingSubsystem* Bindings = GetBindings();
 	if (!Bindings)
 	{
-		ControlsList->AddChild(MakeText(WidgetTree, TEXT("Key bindings unavailable."), 13, Warning()));
+		ControlsList->AddChild(MakeText(WidgetTree, TEXT("Key bindings unavailable."), 13, LooterUI::Color::Worse()));
 		return;
 	}
 
@@ -545,7 +542,7 @@ void UPauseMenuWidget::HandleButton(ULooterButton* Button)
 		{
 			const bool bBlur = Button->Action == ActionMotionBlurOn;
 			Graphics->SetMotionBlurEnabled(bBlur);
-			SetStatus(bBlur ? TEXT("Motion blur on.") : TEXT("Motion blur off."), Muted());
+			SetStatus(bBlur ? TEXT("Motion blur on.") : TEXT("Motion blur off."), LooterUI::Color::TextDim());
 		}
 		RefreshGraphics();
 		RefreshKeyLabels();
@@ -564,19 +561,19 @@ void UPauseMenuWidget::HandleButton(ULooterButton* Button)
 		const bool bToggle = Button->Action == ActionToggleMode;
 		Bindings->SetToggleMode(Binding.Id, bToggle);
 		const FString Name = Binding.DisplayName.ToString();
-		SetStatus(bToggle ? FString::Printf(TEXT("%s: press to turn on or off."), *Name) : FString::Printf(TEXT("%s: hold the key."), *Name), Muted());
+		SetStatus(bToggle ? FString::Printf(TEXT("%s: press to turn on or off."), *Name) : FString::Printf(TEXT("%s: hold the key."), *Name), LooterUI::Color::TextDim());
 	}
 	else if (Button->Action == ActionResetOne && Bindings && Bindings->GetBindings().IsValidIndex(Button->Index))
 	{
 		StopListening();
 		Bindings->ResetKey(Bindings->GetBindings()[Button->Index].Id);
-		SetStatus(TEXT("Restored default key."), Muted());
+		SetStatus(TEXT("Restored default key."), LooterUI::Color::TextDim());
 	}
 	else if (Button->Action == ActionResetAll && Bindings)
 	{
 		StopListening();
 		Bindings->ResetAll();
-		SetStatus(TEXT("All controls reset to defaults."), Muted());
+		SetStatus(TEXT("All controls reset to defaults."), LooterUI::Color::TextDim());
 	}
 
 	RefreshKeyLabels();
@@ -589,7 +586,7 @@ void UPauseMenuWidget::StartListening(int32 BindingIndex)
 	ListeningIndex = BindingIndex;
 	// Let the mouse wheel be captured as a key instead of scrolling the list.
 	ControlsList->SetConsumeMouseWheel(EConsumeMouseWheel::Never);
-	SetStatus(TEXT("Press the new key (Esc to cancel)."), Accent());
+	SetStatus(TEXT("Press the new key (Esc to cancel)."), LooterUI::Color::Accent());
 	RefreshKeyLabels();
 }
 
@@ -616,7 +613,7 @@ void UPauseMenuWidget::AssignKey(const FKey& Key)
 
 	if (Key.IsGamepadKey())
 	{
-		SetStatus(TEXT("Gamepad buttons can't be assigned here; use a keyboard key or mouse button."), Warning());
+		SetStatus(TEXT("Gamepad buttons can't be assigned here; use a keyboard key or mouse button."), LooterUI::Color::Worse());
 	}
 	else
 	{
@@ -624,12 +621,12 @@ void UPauseMenuWidget::AssignKey(const FKey& Key)
 		const FName Conflict = Bindings->FindConflict(Id, Key);
 		if (Conflict.IsNone())
 		{
-			SetStatus(FString::Printf(TEXT("%s is now %s."), *Bindings->GetDisplayName(Id).ToString(), *Key.GetDisplayName().ToString()), Muted());
+			SetStatus(FString::Printf(TEXT("%s is now %s."), *Bindings->GetDisplayName(Id).ToString(), *Key.GetDisplayName().ToString()), LooterUI::Color::TextDim());
 		}
 		else
 		{
 			SetStatus(FString::Printf(TEXT("Warning: %s is also bound to %s."), *Key.GetDisplayName().ToString(),
-				*Bindings->GetDisplayName(Conflict).ToString()), Warning());
+				*Bindings->GetDisplayName(Conflict).ToString()), LooterUI::Color::Worse());
 		}
 	}
 	RefreshKeyLabels();
@@ -644,7 +641,7 @@ FReply UPauseMenuWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, con
 		if (Key == EKeys::Escape)
 		{
 			StopListening();
-			SetStatus(TEXT("Cancelled."), Muted());
+			SetStatus(TEXT("Cancelled."), LooterUI::Color::TextDim());
 			RefreshKeyLabels();
 		}
 		else

@@ -19,11 +19,6 @@
 
 namespace
 {
-	FLinearColor Hex(uint8 R, uint8 G, uint8 B, uint8 A = 255)
-	{
-		return FLinearColor::FromSRGBColor(FColor(R, G, B, A));
-	}
-
 	/** A generated 9-slice shape: white fill/outline textures that get tinted per use. */
 	struct FShapeTextures
 	{
@@ -175,6 +170,11 @@ namespace
 // ---------------------------------------------------------------------------
 // Palette
 // ---------------------------------------------------------------------------
+
+FLinearColor LooterUI::Hex(uint8 R, uint8 G, uint8 B, uint8 A)
+{
+	return FLinearColor::FromSRGBColor(FColor(R, G, B, A));
+}
 
 namespace LooterUI::Color
 {

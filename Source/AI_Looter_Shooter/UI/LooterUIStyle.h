@@ -19,6 +19,9 @@ class UWidgetTree;
  */
 namespace LooterUI
 {
+	/** A color from sRGB bytes, as written in a design mockup, converted to linear. */
+	FLinearColor Hex(uint8 R, uint8 G, uint8 B, uint8 A = 255);
+
 	/** Palette. Change a color here and every UI updates. */
 	namespace Color
 	{

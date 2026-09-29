@@ -7,14 +7,14 @@
 
 namespace
 {
-	const TCHAR* SaveSlot = TEXT("GraphicsSettings");
+	const TCHAR* GraphicsSaveSlot = TEXT("GraphicsSettings");
 }
 
 void UGraphicsSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	SaveData = Cast<ULooterGraphicsSave>(UGameplayStatics::LoadGameFromSlot(SaveSlot, 0));
+	SaveData = Cast<ULooterGraphicsSave>(UGameplayStatics::LoadGameFromSlot(GraphicsSaveSlot, 0));
 	if (!SaveData)
 	{
 		SaveData = NewObject<ULooterGraphicsSave>(this);
@@ -83,7 +83,7 @@ void UGraphicsSettingsSubsystem::SaveSettings() const
 {
 	if (SaveData)
 	{
-		UGameplayStatics::SaveGameToSlot(SaveData, SaveSlot, 0);
+		UGameplayStatics::SaveGameToSlot(SaveData, GraphicsSaveSlot, 0);
 	}
 }
 

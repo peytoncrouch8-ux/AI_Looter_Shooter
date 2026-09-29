@@ -14,10 +14,13 @@ using StylizedColors::Hex;
 namespace
 {
 	// Material slots shared by every body part.
-	constexpr int32 SlotBody = 0;
-	constexpr int32 SlotMark = 1;
-	constexpr int32 SlotBelly = 2;
-	constexpr int32 SlotEye = 3;
+	namespace SpiderSlot
+	{
+		constexpr int32 Body = 0;
+		constexpr int32 Mark = 1;
+		constexpr int32 Belly = 2;
+		constexpr int32 Eye = 3;
+	}
 
 	// Leg layout per pair, front (0) to back (3). Angles are degrees from straight ahead.
 	constexpr float HipAngle[4] = { 38.f, 72.f, 106.f, 140.f };
@@ -77,26 +80,26 @@ namespace
 			const float Around = FMath::DegreesToRadians(Random.FRandRange(-110.f, 110.f)); // mostly top and sides
 			const FVector Normal(0.f, FMath::Sin(Around), FMath::Cos(Around));
 			const FVector Direction = Normal * 0.6f + FVector(0.75f, 0.f, 0.f);
-			Cone(Mesh, SlotMark, FTransform(PointZ(Direction), FVector(X, 0.f, 0.f) + Normal * Radius * 0.85f), 1.3f, 0.f, Random.FRandRange(7.f, 11.f), 3, 0);
+			Cone(Mesh, SpiderSlot::Mark, FTransform(PointZ(Direction), FVector(X, 0.f, 0.f) + Normal * Radius * 0.85f), 1.3f, 0.f, Random.FRandRange(7.f, 11.f), 3, 0);
 		}
 	}
 
 	void BuildFemur(UDynamicMesh* Mesh, float Length, FRandomStream& Random)
 	{
-		Ball(Mesh, SlotBelly, FTransform(FVector::ZeroVector), 9.5f, 4, 6);
-		Cone(Mesh, SlotBody, FTransform(AlongX()), 8.5f, 6.5f, Length, 7, 2);
-		Cylinder(Mesh, SlotMark, FTransform(AlongX(), FVector(Length * 0.62f, 0.f, 0.f)), 7.6f, Length * 0.14f, 7);
+		Ball(Mesh, SpiderSlot::Belly, FTransform(FVector::ZeroVector), 9.5f, 4, 6);
+		Cone(Mesh, SpiderSlot::Body, FTransform(AlongX()), 8.5f, 6.5f, Length, 7, 2);
+		Cylinder(Mesh, SpiderSlot::Mark, FTransform(AlongX(), FVector(Length * 0.62f, 0.f, 0.f)), 7.6f, Length * 0.14f, 7);
 		AddBristles(Mesh, Random, Length, 7.5f, 6);
 	}
 
 	void BuildTibia(UDynamicMesh* Mesh, float Length, FRandomStream& Random)
 	{
 		const float Shaft = Length * 0.92f;
-		Ball(Mesh, SlotBelly, FTransform(FVector::ZeroVector), 8.f, 4, 6);
-		Cone(Mesh, SlotBody, FTransform(AlongX()), 6.5f, 2.6f, Shaft, 7, 2);
-		Cylinder(Mesh, SlotMark, FTransform(AlongX(), FVector(Length * 0.3f, 0.f, 0.f)), 6.1f, Length * 0.1f, 7);
-		Cylinder(Mesh, SlotMark, FTransform(AlongX(), FVector(Length * 0.65f, 0.f, 0.f)), 4.6f, Length * 0.08f, 7);
-		Cone(Mesh, SlotMark, FTransform(AlongX(), FVector(Shaft, 0.f, 0.f)), 2.6f, 0.4f, Length - Shaft, 5, 0);
+		Ball(Mesh, SpiderSlot::Belly, FTransform(FVector::ZeroVector), 8.f, 4, 6);
+		Cone(Mesh, SpiderSlot::Body, FTransform(AlongX()), 6.5f, 2.6f, Shaft, 7, 2);
+		Cylinder(Mesh, SpiderSlot::Mark, FTransform(AlongX(), FVector(Length * 0.3f, 0.f, 0.f)), 6.1f, Length * 0.1f, 7);
+		Cylinder(Mesh, SpiderSlot::Mark, FTransform(AlongX(), FVector(Length * 0.65f, 0.f, 0.f)), 4.6f, Length * 0.08f, 7);
+		Cone(Mesh, SpiderSlot::Mark, FTransform(AlongX(), FVector(Shaft, 0.f, 0.f)), 2.6f, 0.4f, Length - Shaft, 5, 0);
 		AddBristles(Mesh, Random, Length * 0.8f, 5.5f, 5);
 	}
 
@@ -265,18 +268,18 @@ void ASpiderCreature::BuildMeshes()
 
 	BuildPart(this, ThoraxMesh, 60.f, [&](UDynamicMesh* Geometry)
 	{
-		Ball(Geometry, SlotBody, FTransform(FRotator::ZeroRotator, FVector::ZeroVector, FVector(1.3f, 1.05f, 0.62f)), 34.f, 7, 12);
-		Ball(Geometry, SlotMark, FTransform(FRotator::ZeroRotator, FVector(-2.f, 0.f, 15.f), FVector(1.25f, 0.32f, 0.28f)), 28.f, 5, 8);
+		Ball(Geometry, SpiderSlot::Body, FTransform(FRotator::ZeroRotator, FVector::ZeroVector, FVector(1.3f, 1.05f, 0.62f)), 34.f, 7, 12);
+		Ball(Geometry, SpiderSlot::Mark, FTransform(FRotator::ZeroRotator, FVector(-2.f, 0.f, 15.f), FVector(1.25f, 0.32f, 0.28f)), 28.f, 5, 8);
 		for (const float Side : { -1.f, 1.f })
 		{
-			Ball(Geometry, SlotBelly, FTransform(FRotator(0.f, Side * 8.f, 0.f), FVector(-4.f, Side * 22.f, 6.f), FVector(1.1f, 0.25f, 0.3f)), 26.f, 4, 8);
+			Ball(Geometry, SpiderSlot::Belly, FTransform(FRotator(0.f, Side * 8.f, 0.f), FVector(-4.f, Side * 22.f, 6.f), FVector(1.1f, 0.25f, 0.3f)), 26.f, 4, 8);
 		}
 	});
 
 	BuildPart(this, HeadMesh, 60.f, [&](UDynamicMesh* Geometry)
 	{
-		Ball(Geometry, SlotBody, FTransform(FRotator(-8.f, 0.f, 0.f), FVector(36.f, 0.f, 9.f), FVector(0.95f, 1.f, 0.8f)), 25.f, 6, 10);
-		Ball(Geometry, SlotMark, FTransform(FRotator::ZeroRotator, FVector(34.f, 0.f, 24.f), FVector(1.f, 0.35f, 0.2f)), 16.f, 4, 6);
+		Ball(Geometry, SpiderSlot::Body, FTransform(FRotator(-8.f, 0.f, 0.f), FVector(36.f, 0.f, 9.f), FVector(0.95f, 1.f, 0.8f)), 25.f, 6, 10);
+		Ball(Geometry, SpiderSlot::Mark, FTransform(FRotator::ZeroRotator, FVector(34.f, 0.f, 24.f), FVector(1.f, 0.35f, 0.2f)), 16.f, 4, 6);
 
 		// Wolf-spider eyes: a big forward pair, a row of four small ones below, a pair on top.
 		struct FEye { FVector Location; float Radius; };
@@ -287,7 +290,7 @@ void ASpiderCreature::BuildMeshes()
 			{ FVector(46.f, 11.f, 25.f), 4.f }, { FVector(46.f, -11.f, 25.f), 4.f } };
 		for (const FEye& Eye : EyeLayout)
 		{
-			Ball(Geometry, SlotEye, FTransform(Eye.Location), Eye.Radius, 4, 6);
+			Ball(Geometry, SpiderSlot::Eye, FTransform(Eye.Location), Eye.Radius, 4, 6);
 		}
 
 		// Pedipalps: short two-part feelers reaching forward and down.
@@ -297,9 +300,9 @@ void ASpiderCreature::BuildMeshes()
 			const FVector First = FVector(0.8f, Side * 0.25f, -0.55f).GetSafeNormal();
 			const FVector Elbow = Start + First * 26.f;
 			const FVector Second = FVector(0.5f, Side * 0.1f, -0.85f).GetSafeNormal();
-			Cone(Geometry, SlotBody, FTransform(PointZ(First), Start), 4.5f, 3.f, 26.f, 6, 0);
-			Cone(Geometry, SlotBody, FTransform(PointZ(Second), Elbow), 3.f, 2.2f, 22.f, 6, 0);
-			Ball(Geometry, SlotMark, FTransform(Elbow + Second * 22.f), 3.2f, 3, 5);
+			Cone(Geometry, SpiderSlot::Body, FTransform(PointZ(First), Start), 4.5f, 3.f, 26.f, 6, 0);
+			Cone(Geometry, SpiderSlot::Body, FTransform(PointZ(Second), Elbow), 3.f, 2.2f, 22.f, 6, 0);
+			Ball(Geometry, SpiderSlot::Mark, FTransform(Elbow + Second * 22.f), 3.2f, 3, 5);
 		}
 	});
 
@@ -308,8 +311,8 @@ void ASpiderCreature::BuildMeshes()
 		BuildPart(this, Fang, 60.f, [&](UDynamicMesh* Geometry)
 		{
 			// Chelicera with a curved fang hooking inward underneath.
-			Ball(Geometry, SlotBody, FTransform(FRotator::ZeroRotator, FVector(2.f, 0.f, -6.f), FVector(0.9f, 0.85f, 1.35f)), 8.f, 5, 8);
-			Cone(Geometry, SlotMark, FTransform(PointZ(FVector(0.35f, 0.f, -1.f)), FVector(4.f, 0.f, -15.f)), 3.2f, 0.3f, 13.f, 5, 0);
+			Ball(Geometry, SpiderSlot::Body, FTransform(FRotator::ZeroRotator, FVector(2.f, 0.f, -6.f), FVector(0.9f, 0.85f, 1.35f)), 8.f, 5, 8);
+			Cone(Geometry, SpiderSlot::Mark, FTransform(PointZ(FVector(0.35f, 0.f, -1.f)), FVector(4.f, 0.f, -15.f)), 3.2f, 0.3f, 13.f, 5, 0);
 		});
 	}
 
@@ -317,8 +320,8 @@ void ASpiderCreature::BuildMeshes()
 	{
 		const FVector Center(-52.f, 0.f, 12.f);
 		const FVector Radii(46.f * 1.35f, 46.f, 46.f * 0.88f);
-		Ball(Geometry, SlotBody, FTransform(FRotator::ZeroRotator, Center, FVector(1.35f, 1.f, 0.88f)), 46.f, 9, 14);
-		Ball(Geometry, SlotBelly, FTransform(FRotator::ZeroRotator, FVector(-50.f, 0.f, -4.f), FVector(1.2f, 0.78f, 0.5f)), 42.f, 6, 10);
+		Ball(Geometry, SpiderSlot::Body, FTransform(FRotator::ZeroRotator, Center, FVector(1.35f, 1.f, 0.88f)), 46.f, 9, 14);
+		Ball(Geometry, SpiderSlot::Belly, FTransform(FRotator::ZeroRotator, FVector(-50.f, 0.f, -4.f), FVector(1.2f, 0.78f, 0.5f)), 42.f, 6, 10);
 
 		// Chevrons: pairs of dark marks angled down the back, shrinking toward the spinnerets.
 		for (int32 Index = 0; Index < 4; ++Index)
@@ -329,12 +332,12 @@ void ASpiderCreature::BuildMeshes()
 			const float Size = 14.f - Index * 2.2f;
 			for (const float Side : { -1.f, 1.f })
 			{
-				Ball(Geometry, SlotMark, FTransform(FRotator(0.f, Side * 35.f, 0.f), FVector(X, Side * Size * 0.55f, TopZ - 3.f), FVector(1.2f, 0.35f, 0.22f)), Size, 4, 6);
+				Ball(Geometry, SpiderSlot::Mark, FTransform(FRotator(0.f, Side * 35.f, 0.f), FVector(X, Side * Size * 0.55f, TopZ - 3.f), FVector(1.2f, 0.35f, 0.22f)), Size, 4, 6);
 			}
 		}
 		// Heart mark up front, spinnerets at the back.
-		Ball(Geometry, SlotMark, FTransform(FRotator::ZeroRotator, FVector(-14.f, 0.f, 44.f), FVector(1.1f, 0.3f, 0.2f)), 14.f, 4, 6);
-		Cone(Geometry, SlotMark, FTransform(PointZ(FVector(-1.f, 0.f, -0.2f)), FVector(-110.f, 0.f, 8.f)), 6.f, 1.5f, 10.f, 6, 0);
+		Ball(Geometry, SpiderSlot::Mark, FTransform(FRotator::ZeroRotator, FVector(-14.f, 0.f, 44.f), FVector(1.1f, 0.3f, 0.2f)), 14.f, 4, 6);
+		Cone(Geometry, SpiderSlot::Mark, FTransform(PointZ(FVector(-1.f, 0.f, -0.2f)), FVector(-110.f, 0.f, 8.f)), 6.f, 1.5f, 10.f, 6, 0);
 		Displace(Geometry, 0, 1.2f, 1.f / 25.f, 7.f);
 	});
 

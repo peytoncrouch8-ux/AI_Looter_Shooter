@@ -67,11 +67,6 @@ namespace
 	constexpr float DragTurnRate = 0.45f;
 	constexpr float StickTurnRate = 160.f;
 
-	FLinearColor Hex(uint8 R, uint8 G, uint8 B, uint8 A = 255)
-	{
-		return FLinearColor::FromSRGBColor(FColor(R, G, B, A));
-	}
-
 	namespace Colors
 	{
 		FLinearColor Dim()          { return Hex(2, 8, 14, 204); }
