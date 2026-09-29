@@ -2,8 +2,11 @@
 # Docs\Performance.md so every change can be compared with the baseline. The editor must be closed (it would compete for
 # the GPU). The first frames (loading, the minimap bake, settling) are skipped.
 # Usage: perf.ps1 -Label "what changed" [-Frames 900] [-Skip 300] [-ResX 1920] [-ResY 1080] [-NoRecord]
+#        perf.ps1 -Label "..." -GpuStats -Exec "r.Nanite 0" -NoRecord   (per-pass GPU timings; console commands at start)
 #        perf.ps1 -Label "..." -CsvPath <existing capture.csv>   (analyze a capture without running the game)
-param([string]$Label = 'run', [int]$Frames = 900, [int]$Skip = 300, [int]$ResX = 1920, [int]$ResY = 1080, [switch]$NoRecord, [string]$CsvPath = '')
+# Compare two captures pass by pass with Tools\perfdiff.ps1.
+param([string]$Label = 'run', [int]$Frames = 900, [int]$Skip = 300, [int]$ResX = 1920, [int]$ResY = 1080, [switch]$NoRecord, [string]$CsvPath = '',
+    [switch]$GpuStats, [string]$Exec = '')
 
 $root = Split-Path $PSScriptRoot -Parent
 $engine = "C:\Program Files\Epic Games\UE_5.8"
@@ -17,6 +20,10 @@ if ($CsvPath) {
     if (Get-Process UnrealEditor -ErrorAction SilentlyContinue) { "Close the editor first (Tools\close.ps1)."; exit 1 }
     $before = @($csvDirs | Where-Object { Test-Path $_ } | ForEach-Object { Get-ChildItem $_ -Filter *.csv | ForEach-Object FullName })
     $gameArgs = "`"$root\AI_Looter_Shooter.uproject`" -game -windowed -ResX=$ResX -ResY=$ResY -nosplash -csvCaptureFrames=$($Frames + $Skip) -ExitAfterCsvProfiling -log=Perf.log"
+    $commands = @()
+    if ($GpuStats) { $commands += 'r.GPUCsvStatsEnabled 1' }
+    if ($Exec) { $commands += $Exec.Split(',') | ForEach-Object { $_.Trim() } }
+    if ($commands) { $gameArgs += " -ExecCmds=`"$($commands -join ',')`"" }
     $proc = Start-Process "$engine\Engine\Binaries\Win64\UnrealEditor.exe" -ArgumentList $gameArgs -PassThru
     if (-not $proc.WaitForExit(900000)) { $proc.Kill(); "The game did not exit in time."; exit 2 }
     $csv = $csvDirs | Where-Object { Test-Path $_ } | ForEach-Object { Get-ChildItem $_ -Filter *.csv } | Where-Object { $before -notcontains $_.FullName } | Sort-Object LastWriteTime | Select-Object -Last 1
