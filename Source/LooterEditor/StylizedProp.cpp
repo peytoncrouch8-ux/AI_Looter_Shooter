@@ -2,6 +2,7 @@
 #include "Procedural/StylizedMeshKit.h"
 #include "Procedural/StylizedSurface.h"
 #include "World/MinimapSubsystem.h"
+#include "World/WorldQueries.h"
 #include "Components/DynamicMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -363,7 +364,7 @@ namespace
 			return false;
 		}
 		const FVector WorldPoint = Build.Transform.TransformPosition(FVector(LocalXY, 0.f));
-		FCollisionQueryParams Params(SCENE_QUERY_STAT(PropTerrainProbe), true, Build.Owner);
+		const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("PropTerrainProbe"), Build.Owner);
 		TArray<FHitResult> Hits;
 		World->LineTraceMultiByObjectType(Hits, WorldPoint + FVector(0.f, 0.f, 2500.f), WorldPoint - FVector(0.f, 0.f, 2500.f),
 			FCollisionObjectQueryParams(ECC_WorldStatic), Params);

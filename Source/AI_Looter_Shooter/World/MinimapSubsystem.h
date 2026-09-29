@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CollisionQueryParams.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "MinimapSubsystem.generated.h"
 
@@ -67,6 +68,8 @@ private:
 	int32 NextRow = 0;
 	float TraceTop = 0.f;
 	float TraceBottom = 0.f;
+	/** Skips the level's volumes (see LooterWorld::StaticGeometryParams), found once per bake. */
+	FCollisionQueryParams TraceParams;
 	double BakeStartTime = 0.0;
 	/** Ground height per texel (lowest float = nothing there). */
 	TArray<float> Heights;

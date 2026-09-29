@@ -1,5 +1,6 @@
 #include "World/MinimapSubsystem.h"
 #include "AI_Looter_Shooter.h"
+#include "World/WorldQueries.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -112,6 +113,7 @@ void UMinimapSubsystem::StartBake()
 	Bounds = FBox2D(Center - FVector2D(Half), Center + FVector2D(Half));
 	TraceTop = GroundBox.Max.Z + 1000.f;
 	TraceBottom = GroundBox.Min.Z - 1000.f;
+	TraceParams = LooterWorld::StaticGeometryParams(World, TEXT("MinimapBake"), nullptr, false);
 
 	Heights.Init(TNumericLimits<float>::Lowest(), Resolution * Resolution);
 	Kinds.Init(Void, Resolution * Resolution);
@@ -130,7 +132,6 @@ void UMinimapSubsystem::TraceRows(double TimeBudgetSeconds)
 	}
 
 	const double Deadline = FPlatformTime::Seconds() + TimeBudgetSeconds;
-	const FCollisionQueryParams Params(SCENE_QUERY_STAT(MinimapBake), false);
 	const FCollisionObjectQueryParams Objects(ECC_WorldStatic);
 	const FVector2D Size = Bounds.GetSize();
 	while (NextRow < Resolution && FPlatformTime::Seconds() < Deadline)
@@ -141,7 +142,7 @@ void UMinimapSubsystem::TraceRows(double TimeBudgetSeconds)
 		{
 			const double Y = Bounds.Min.Y + (U + 0.5) / Resolution * Size.Y;
 			FHitResult Hit;
-			if (World->LineTraceSingleByObjectType(Hit, FVector(X, Y, TraceTop), FVector(X, Y, TraceBottom), Objects, Params))
+			if (World->LineTraceSingleByObjectType(Hit, FVector(X, Y, TraceTop), FVector(X, Y, TraceBottom), Objects, TraceParams))
 			{
 				const int32 Index = V * Resolution + U;
 				Heights[Index] = Hit.ImpactPoint.Z;

@@ -5,6 +5,7 @@
 #include "Combat/LooterDamageTypes.h"
 #include "Loot/LootDropComponent.h"
 #include "UI/World/CreatureHealthBarWidget.h"
+#include "World/WorldQueries.h"
 #include "AIController.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -479,8 +480,8 @@ bool ACreatureBase::PickWanderGoal()
 
 bool ACreatureBase::FindGround(const FVector& Point, float Above, float Below, FVector& OutGround) const
 {
-	// World-static only: terrain and solid props, never grass, pawns or loot.
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(CreatureGround), true, this);
+	// World-static only: terrain and solid props, never grass, pawns, loot or volumes.
+	const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(GetWorld(), TEXT("CreatureGround"), this);
 	FHitResult Hit;
 	if (GetWorld()->LineTraceSingleByObjectType(Hit, Point + FVector(0.f, 0.f, Above), Point - FVector(0.f, 0.f, Below),
 		FCollisionObjectQueryParams(ECC_WorldStatic), Params))

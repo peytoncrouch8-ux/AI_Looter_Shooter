@@ -71,6 +71,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 ## World
 - `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime.
 - `World/FallRecoverySubsystem`: brings the player back when they fall off an island.
+- `World/WorldQueries`: `LooterWorld`, trace params that see only real static geometry (skipping volumes).
 
 ## Procedural (code-built meshes: the spider, guns, ammo boxes, and the editor's props)
 - `Procedural/StylizedMeshKit`: `StylizedMesh`, GeometryScript helpers for building chunky shapes.
