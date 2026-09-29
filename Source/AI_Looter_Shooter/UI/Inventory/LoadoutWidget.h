@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Components/Widget.h"
 #include "Weapons/AmmoTypes.h"
 #include "LoadoutWidget.generated.h"
 
@@ -12,6 +11,7 @@ class FSlateWindowElementList;
 class UBorder;
 class UHorizontalBox;
 class UImage;
+class ULoadoutPaintLayer;
 class ULooterButton;
 class UMaterialInstanceDynamic;
 class UScrollBox;
@@ -20,49 +20,6 @@ class UVerticalBox;
 class UWeaponDefinition;
 class UWeaponManagerComponent;
 struct FWeaponInstanceData;
-
-/** Rules behind the loadout screen's backpack list, kept apart so they can be tested. */
-namespace LoadoutRules
-{
-	enum class EVerdict : uint8
-	{
-		/** Not compared (a different kind of gun, or nothing to compare with). */
-		None,
-		Upgrade,
-		Similar,
-		Weaker
-	};
-
-	/** How a backpack gun compares with the gun in a slot. Only guns of the same kind are compared, on damage per second. */
-	AI_LOOTER_SHOOTER_API EVerdict Compare(const FWeaponInstanceData& Candidate, const FWeaponInstanceData* Current);
-
-	/**
-	 * The backpack in the order the swap list shows it: guns of the given kind first, then the rest, each in backpack
-	 * order. Returns how many are of that kind (none when Kind is null).
-	 */
-	AI_LOOTER_SHOOTER_API int32 SortForSwap(const TArray<FWeaponInstanceData>& Backpack, const UWeaponDefinition* Kind, TArray<int32>& OutOrder);
-}
-
-/** A see-through layer that its owner draws lines and shapes on (the loadout screen's ring and callouts). */
-UCLASS()
-class AI_LOOTER_SHOOTER_API ULoadoutPaintLayer : public UWidget
-{
-	GENERATED_BODY()
-
-public:
-	using FPainter = TFunction<void(const FGeometry& Geometry, FSlateWindowElementList& Elements, int32 LayerId)>;
-
-	void SetPainter(FPainter InPainter) { Painter = MoveTemp(InPainter); }
-	void Paint(const FGeometry& Geometry, FSlateWindowElementList& Elements, int32 LayerId) const;
-
-protected:
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
-
-private:
-	FPainter Painter;
-	TSharedPtr<SWidget> Layer;
-};
 
 /**
  * The inventory, as a loadout screen: your character stands in the middle, live and turnable (drag it), carrying your guns

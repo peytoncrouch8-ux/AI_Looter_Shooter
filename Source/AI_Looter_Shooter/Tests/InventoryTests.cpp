@@ -3,7 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "UI/Inventory/LoadoutStage.h"
-#include "UI/Inventory/LoadoutWidget.h"
+#include "UI/Inventory/LoadoutRules.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Inventory/WeaponManagerComponent.h"
