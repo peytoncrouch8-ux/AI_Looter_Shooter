@@ -87,6 +87,8 @@ placement and gameplay component settings.
 - The minimap reads actor tags. Its extent comes from actors tagged `Ground` (walkable terrain). Actors tagged
   `Obstacle` (solid things standing on the ground) are drawn as obstacles, and anything untagged is drawn as ground.
   Props and baked props tag themselves; tag other meshes you place.
+- Volumes (the meadow's PCG volume, triggers) answer world-static object queries. A trace that looks for the
+  ground or other real geometry that way must use `LooterWorld::StaticGeometryParams`, which skips them.
 - Performance target: 60 fps at 1080p on the Medium preset on the reference PC (Radeon RX 580, i7-8700, 16 GB); it
   runs about 80. Lumen lighting and Nanite are for the High and Epic presets only
   (`UGraphicsSettingsSubsystem::QualitySettings`), so everything must also look right without them: every mesh
