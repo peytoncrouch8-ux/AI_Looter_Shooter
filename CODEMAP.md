@@ -78,7 +78,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Settings
 - `Settings/KeyBindingSubsystem`: key rebinding, the global pause/inventory actions and the character actions.
-- `Settings/GraphicsSettingsSubsystem`: saved display options (motion blur, UI transparency, minimap size).
+- `Settings/GraphicsSettingsSubsystem`: saved display options (quality preset, motion blur, UI transparency, minimap size) and the `Looter.Quality` command.
 
 ## UI
 - `UI/Style/LooterUIStyle`: `LooterUI`, the style kit every UI is built with (palette, shapes, icons, text, builders,
@@ -106,7 +106,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `CreatureTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`,
-  `MinimapTests.cpp`, `WeaponTests.cpp`: the `Looter.*` automation tests, one file per area.
+  `MinimapTests.cpp`, `SettingsTests.cpp`, `WeaponTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)
 - `LooterEditor.Build.cs`: module dependencies (GeometryScript editor functions, asset tools, FBX import, JSON).

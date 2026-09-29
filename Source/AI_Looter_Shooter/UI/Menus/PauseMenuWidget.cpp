@@ -30,6 +30,7 @@ namespace
 	const FName ActionResetOne(TEXT("ResetOne"));
 	const FName ActionResetAll(TEXT("ResetAll"));
 	const FName ActionQuit(TEXT("Quit"));
+	const FName ActionQuality(TEXT("Quality"));
 	const FName ActionMotionBlurOn(TEXT("MotionBlurOn"));
 	const FName ActionMotionBlurOff(TEXT("MotionBlurOff"));
 	const FName ActionHoldMode(TEXT("HoldMode"));
@@ -38,7 +39,22 @@ namespace
 	// Columns of the key list, shared by the key rows and the hold/toggle rows under them.
 	constexpr float KeyColumnWidth = 180.f;
 	constexpr float DefaultColumnWidth = 96.f;
+	constexpr float QualityColumnWidth = 340.f;
 
+	const EGraphicsQuality Qualities[] = { EGraphicsQuality::Low, EGraphicsQuality::Medium, EGraphicsQuality::High, EGraphicsQuality::Epic };
+
+	/** What a preset gives, for the status line when it's picked. */
+	const TCHAR* QualityHint(EGraphicsQuality Quality)
+	{
+		switch (Quality)
+		{
+		case EGraphicsQuality::Low:    return TEXT("Fastest: no Lumen or Nanite, simple shadows, thinner grass.");
+		case EGraphicsQuality::Medium: return TEXT("60 fps at 1080p on a Radeon RX 580.");
+		case EGraphicsQuality::High:   return TEXT("Lumen lighting and Nanite detail.");
+		case EGraphicsQuality::Epic:   return TEXT("Everything at its best, with TSR anti-aliasing.");
+		}
+		return TEXT("");
+	}
 }
 
 void UPauseMenuWidget::Open(ALooterHUD* InHUD)
@@ -127,6 +143,17 @@ TSharedRef<SWidget> UPauseMenuWidget::RebuildWidget()
 		Add(MakeButton(ActionResume, 0, TEXT("Resume"), 16, EButtonKind::Primary), 10.f);
 
 		Add(MakeSection(WidgetTree, TEXT("Graphics")), 18.f);
+		TArray<FString> QualityNames;
+		for (const EGraphicsQuality Quality : Qualities)
+		{
+			QualityNames.Add(UGraphicsSettingsSubsystem::QualityName(Quality));
+		}
+		TArray<ULooterButton*> Quality;
+		Add(MakeChoiceRow(TEXT("Quality"), QualityNames, ActionQuality, QualityColumnWidth, Quality), 4.f);
+		for (ULooterButton* Button : Quality)
+		{
+			QualityButtons.Add(Button);
+		}
 		ULooterButton* BlurOn = nullptr;
 		ULooterButton* BlurOff = nullptr;
 		Add(MakeToggleRow(TEXT("Motion blur"), TEXT("On"), TEXT("Off"), ActionMotionBlurOn, ActionMotionBlurOff, 0, false, BlurOn, BlurOff), 4.f);
@@ -254,6 +281,29 @@ UWidget* UPauseMenuWidget::MakeToggleRow(const FString& Label, const FString& Fi
 	return MakeRow(WidgetTree, Line);
 }
 
+UWidget* UPauseMenuWidget::MakeChoiceRow(const FString& Label, const TArray<FString>& Choices, FName Action, float Width,
+	TArray<ULooterButton*>& OutButtons)
+{
+	using namespace LooterUI;
+	UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	UHorizontalBoxSlot* NameSlot = Line->AddChildToHorizontalBox(MakeText(WidgetTree, Label, 14, Color::Text()));
+	NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	NameSlot->SetVerticalAlignment(VAlign_Center);
+
+	// Segments like the two-way switch's, the chosen one highlighted like a selected tab.
+	UHorizontalBox* Segments = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	for (int32 Index = 0; Index < Choices.Num(); ++Index)
+	{
+		ULooterButton* Button = MakeButton(Action, Index, Choices[Index], 12, EButtonKind::Tab);
+		UHorizontalBoxSlot* SegmentSlot = Segments->AddChildToHorizontalBox(Button);
+		SegmentSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		SegmentSlot->SetPadding(FMargin(0.f, 0.f, Index + 1 < Choices.Num() ? 4.f : 0.f, 0.f));
+		OutButtons.Add(Button);
+	}
+	Line->AddChildToHorizontalBox(MakeSized(WidgetTree, Segments, Width))->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
+	return MakeRow(WidgetTree, Line);
+}
+
 UWidget* UPauseMenuWidget::MakeSliderRow(const FString& Label, float MinValue, float MaxValue, USlider*& OutSlider, UTextBlock*& OutValue)
 {
 	using namespace LooterUI;
@@ -305,6 +355,10 @@ void UPauseMenuWidget::RefreshGraphics()
 	const bool bBlur = Graphics->IsMotionBlurEnabled();
 	MotionBlurOn->SetHighlighted(bBlur);
 	MotionBlurOff->SetHighlighted(!bBlur);
+	for (int32 Index = 0; Index < QualityButtons.Num(); ++Index)
+	{
+		QualityButtons[Index]->SetHighlighted(static_cast<int32>(Graphics->GetQuality()) == Index);
+	}
 
 	if (TransparencySlider && TransparencyValue)
 	{
@@ -509,6 +563,21 @@ void UPauseMenuWidget::HandleButton(ULooterButton* Button)
 	if (Button->Action == ActionQuit)
 	{
 		if (HUD) { HUD->QuitGame(); }
+		return;
+	}
+	if (Button->Action == ActionQuality && Button->Index >= 0 && Button->Index < UE_ARRAY_COUNT(Qualities))
+	{
+		StopListening();
+		if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
+		{
+			const EGraphicsQuality Quality = Qualities[Button->Index];
+			Graphics->SetQuality(Quality);
+			SetStatus(FString::Printf(TEXT("Quality: %s. %s"), *UGraphicsSettingsSubsystem::QualityName(Quality), QualityHint(Quality)),
+				LooterUI::Color::TextDim());
+		}
+		RefreshGraphics();
+		RefreshKeyLabels();
+		SetKeyboardFocus();
 		return;
 	}
 	if (Button->Action == ActionMotionBlurOn || Button->Action == ActionMotionBlurOff)

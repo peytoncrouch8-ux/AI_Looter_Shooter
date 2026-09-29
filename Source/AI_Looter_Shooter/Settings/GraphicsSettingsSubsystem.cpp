@@ -3,11 +3,58 @@
 #include "UI/Style/LooterUIStyle.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 
 namespace
 {
 	const TCHAR* GraphicsSaveSlot = TEXT("GraphicsSettings");
+
+	/**
+	 * The presets' own settings, by level (Low, Medium, High, Epic). Measured at 1080p on the reference card (RX 580):
+	 * Low runs about 7 ms a frame, Medium 12, High 22 and Epic 38 (Docs/Performance.md).
+	 */
+	struct FQualityVariable
+	{
+		const TCHAR* Name;
+		int32 Values[4];
+	};
+	const FQualityVariable QualityVariables[] = {
+		// Lumen lighting and reflections. Even with its lighting off, Lumen's upkeep costs over 2 ms.
+		{ TEXT("r.DynamicGlobalIlluminationMethod"), { 0, 0, 1, 1 } },
+		{ TEXT("r.ReflectionMethod"), { 0, 0, 1, 1 } },
+		// TSR costs about 5 ms at 1080p; TAA about half a millisecond.
+		{ TEXT("r.AntiAliasingMethod"), { 2, 2, 2, 4 } },
+		// Nanite costs about 2.5 ms; without it every mesh draws its fallback.
+		{ TEXT("r.Nanite"), { 0, 0, 1, 1 } },
+	};
+
+	/** Looter.Quality Low|Medium|High|Epic: sets and saves the preset, as the settings menu does (handy for perf runs). */
+	void SetQualityCommand(const TArray<FString>& Args, UWorld* World)
+	{
+		ULocalPlayer* Player = World ? World->GetFirstLocalPlayerFromController() : nullptr;
+		UGraphicsSettingsSubsystem* Graphics = Player ? Player->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
+		if (!Graphics || Args.Num() != 1)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Usage (in a game): Looter.Quality Low|Medium|High|Epic"));
+			return;
+		}
+		for (const EGraphicsQuality Quality : { EGraphicsQuality::Low, EGraphicsQuality::Medium, EGraphicsQuality::High, EGraphicsQuality::Epic })
+		{
+			if (Args[0].Equals(UGraphicsSettingsSubsystem::QualityName(Quality), ESearchCase::IgnoreCase))
+			{
+				Graphics->SetQuality(Quality);
+				return;
+			}
+		}
+		UE_LOG(LogLooter, Warning, TEXT("Unknown quality '%s'. Use Low, Medium, High or Epic."), *Args[0]);
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs SetQualityCommandRegistration(
+		TEXT("Looter.Quality"),
+		TEXT("Sets and saves the graphics quality preset: Looter.Quality Low|Medium|High|Epic"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SetQualityCommand));
 }
 
 void UGraphicsSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -22,6 +69,97 @@ void UGraphicsSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection
 
 	// The local player gets its viewport before its subsystems initialize, so this takes effect from the first frame.
 	Apply();
+	ApplyQuality();
+}
+
+void UGraphicsSettingsSubsystem::Deinitialize()
+{
+	// Play-in-editor shares the editor's rendering settings: give the editor back its own.
+	if (EditorRendering.IsSet())
+	{
+		Scalability::SetQualityLevels(EditorRendering->Levels);
+		for (const TPair<FString, FString>& Variable : EditorRendering->Variables)
+		{
+			if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*Variable.Key))
+			{
+				CVar->Set(*Variable.Value, ECVF_SetByGameOverride);
+			}
+		}
+		EditorRendering.Reset();
+	}
+	Super::Deinitialize();
+}
+
+EGraphicsQuality UGraphicsSettingsSubsystem::GetQuality() const
+{
+	return SaveData ? SaveData->Quality : EGraphicsQuality::Medium;
+}
+
+void UGraphicsSettingsSubsystem::SetQuality(EGraphicsQuality Quality)
+{
+	if (!SaveData || SaveData->Quality == Quality)
+	{
+		return;
+	}
+	SaveData->Quality = Quality;
+	ApplyQuality();
+	SaveSettings();
+	UE_LOG(LogLooter, Log, TEXT("Graphics quality %s"), *QualityName(Quality));
+}
+
+FString UGraphicsSettingsSubsystem::QualityName(EGraphicsQuality Quality)
+{
+	switch (Quality)
+	{
+	case EGraphicsQuality::Low:    return TEXT("Low");
+	case EGraphicsQuality::Medium: return TEXT("Medium");
+	case EGraphicsQuality::High:   return TEXT("High");
+	case EGraphicsQuality::Epic:   return TEXT("Epic");
+	}
+	return TEXT("Medium");
+}
+
+TMap<FString, int32> UGraphicsSettingsSubsystem::QualitySettings(EGraphicsQuality Quality)
+{
+	const int32 Level = static_cast<int32>(Quality);
+	TMap<FString, int32> Settings;
+	for (const FQualityVariable& Variable : QualityVariables)
+	{
+		Settings.Add(Variable.Name, Variable.Values[Level]);
+	}
+	return Settings;
+}
+
+void UGraphicsSettingsSubsystem::ApplyQuality()
+{
+	if (GIsEditor && !EditorRendering.IsSet())
+	{
+		FEditorRendering Saved;
+		Saved.Levels = Scalability::GetQualityLevels();
+		for (const FQualityVariable& Variable : QualityVariables)
+		{
+			if (const IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(Variable.Name))
+			{
+				Saved.Variables.Add(Variable.Name, CVar->GetString());
+			}
+		}
+		EditorRendering = MoveTemp(Saved);
+	}
+
+	const EGraphicsQuality Quality = GetQuality();
+	Scalability::FQualityLevels Levels = Scalability::GetQualityLevels();
+	Levels.SetFromSingleQualityLevel(static_cast<int32>(Quality));
+	// Always full resolution (the engine's own levels render Medium at 71%): Medium still has time to spare at 1080p.
+	Levels.ResolutionQuality = 100.f;
+	Scalability::SetQualityLevels(Levels);
+	for (const TPair<FString, int32>& Setting : QualitySettings(Quality))
+	{
+		if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*Setting.Key))
+		{
+			// Above the project settings, which set some of these (the command line and console still win, for testing).
+			CVar->Set(Setting.Value, ECVF_SetByGameOverride);
+		}
+	}
 }
 
 bool UGraphicsSettingsSubsystem::IsMotionBlurEnabled() const

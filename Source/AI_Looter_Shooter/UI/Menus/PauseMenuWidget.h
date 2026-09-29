@@ -42,6 +42,8 @@ private:
 	/** A labelled two-way switch (On/Off, Hold/Toggle). bKeyListRow indents it under a key binding and aligns it to that list's columns. */
 	UWidget* MakeToggleRow(const FString& Label, const FString& FirstText, const FString& SecondText, FName FirstAction, FName SecondAction,
 		int32 Index, bool bKeyListRow, ULooterButton*& OutFirst, ULooterButton*& OutSecond);
+	/** A labelled row of choices, one highlighted at a time; each button's Index is its choice. */
+	UWidget* MakeChoiceRow(const FString& Label, const TArray<FString>& Choices, FName Action, float Width, TArray<ULooterButton*>& OutButtons);
 	/** A labelled slider in 5% steps, with its value as a percentage beside it. */
 	UWidget* MakeSliderRow(const FString& Label, float MinValue, float MaxValue, USlider*& OutSlider, UTextBlock*& OutValue);
 	/** The outline of the HUD's minimap, in the same corner, for previewing its size. */
@@ -80,6 +82,8 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<ULooterButton>> KeyButtons;
 	/** Hold/Toggle switch halves; Index is the binding, Action says which half. */
 	UPROPERTY(Transient) TArray<TObjectPtr<ULooterButton>> ModeButtons;
+	/** Low, Medium, High, Epic, in order. */
+	UPROPERTY(Transient) TArray<TObjectPtr<ULooterButton>> QualityButtons;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> MotionBlurOn;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> MotionBlurOff;
 	UPROPERTY(Transient) TObjectPtr<USlider> TransparencySlider;
