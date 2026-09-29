@@ -63,10 +63,16 @@ Target layout of `Source/AI_Looter_Shooter`:
       `foliage.DensityScale`, for the presets.
 
 ## Phase 3: Rendering budget
-- [ ] Low, Medium, High and Epic presets in the settings menu. They cover GI (Lumen only on High and Epic),
+- [x] Low, Medium, High and Epic presets in the settings menu. They cover GI (Lumen only on High and Epic),
       shadows, anti-aliasing (TSR on Epic, TAA otherwise), outline quality, clouds and resolution scale.
-- [ ] Hardware ray tracing off; decide on Substrate; optimize the outline post material.
-- [ ] Verify 60 fps at 1080p Medium on the RX 580 with `Tools/perf.ps1`.
+      Each preset is the engine's scalability level plus Lumen, the anti-aliasing method and Nanite (off below
+      High; it costs the RX 580 about 2.5 ms). All render at full resolution; the engine's own Medium renders at
+      71%. The outline (0.18 ms) and the clouds (0.4 ms) are cheap enough to keep on every preset. A fresh install
+      starts on Medium.
+- [x] Hardware ray tracing off; decide on Substrate; optimize the outline post material. Substrate is off: the
+      same frame time, and fewer shaders to compile. The outline needs no optimizing.
+- [x] Verify 60 fps at 1080p Medium on the RX 580 with `Tools/perf.ps1`: 12.1-12.5 ms (80-82 fps). Low runs 7.4 ms,
+      High 22.0 and Epic 38.1.
 
 ## Phase 4: Creatures, weapons, affixes
 - [ ] The spider becomes a rigged skeletal mesh from Blender, with physics-asset hit zones and our procedural leg IK.

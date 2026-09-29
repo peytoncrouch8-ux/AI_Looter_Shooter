@@ -12,3 +12,5 @@ Target: 60 fps at 1080p on the Medium preset on the reference PC (Radeon RX 580,
 | 2026-09-29 | Quality preset High (the presets commit, measured on top of e99da87) | e99da87 | 1920x1080 | 22.0 | 45 | 23.3 | 7.2 | 22.0 | 2.5 | 19.7 | 1649 | 186871 | 0.80 |
 | 2026-09-29 | Quality preset Low (the presets commit, measured on top of e99da87) | e99da87 | 1920x1080 | 7.4 | 134 | 9.0 | 7.4 | 4.6 | 1.8 | 5.1 | 1602 | 219279 | 0.80 |
 | 2026-09-29 | Quality preset Medium (the presets commit, measured on top of e99da87) | e99da87 | 1920x1080 | 12.3 | 81 | 13.4 | 6.3 | 12.3 | 2.0 | 10.9 | 1703 | 223596 | 0.78 |
+| 2026-09-29 | Quality preset Medium, no Substrate or ray tracing | 7e88635 | 1920x1080 | 12.5 | 80 | 13.5 | 6.3 | 12.4 | 2.0 | 10.8 | 1729 | 225499 | 0.77 |
+| 2026-09-29 | Quality preset Epic, no Substrate or ray tracing | 7e88635 | 1920x1080 | 38.1 | 26 | 39.4 | 7.3 | 38.1 | 2.7 | 35.3 | 1950 | 186900 | 0.78 |

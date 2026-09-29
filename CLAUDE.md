@@ -16,8 +16,10 @@ placement and gameplay component settings.
 - The editor must be closed to build: `Tools\launch.ps1 -Build` closes it cleanly, builds, reopens it and waits for the
   MCP server. The double-click launcher `Launch AI_Looter_Shooter.bat` does the same for people.
 - Tests: `Tools\runtests.ps1` runs every `Looter.*` automation test (the editor must be open). Keep them all passing.
-- Performance: `Tools\perf.ps1 -Label "what changed"`, with the editor closed. It measures a standalone 1080p window and
-  appends the result to `Docs/Performance.md`. Measure before and after anything that could change cost.
+- Performance: `Tools\perf.ps1 -Label "what changed" -Exec "Looter.Quality Medium"`, with the editor closed. It
+  measures a standalone 1080p window and appends the result to `Docs/Performance.md`. Measure before and after
+  anything that could change cost, on Medium (the minimum spec). `-GpuStats` records each pass; compare two captures
+  with `Tools\perfdiff.ps1`.
 - Editor automation goes over MCP on port 8000:
   - `Tools\mcp.ps1 <toolset> <tool> '<json>'` calls one tool.
   - `Tools\runscript.ps1 <file.py>` runs sandboxed Python: define `run()` and call tools with `execute_tool`.
@@ -85,5 +87,7 @@ placement and gameplay component settings.
 - The minimap reads actor tags. Its extent comes from actors tagged `Ground` (walkable terrain). Actors tagged
   `Obstacle` (solid things standing on the ground) are drawn as obstacles, and anything untagged is drawn as ground.
   Props and baked props tag themselves; tag other meshes you place.
-- Performance target: 60 fps at 1080p on the Medium preset on the reference PC (Radeon RX 580, i7-8700, 16 GB). Lumen
-  lighting is for the High and Epic presets only.
+- Performance target: 60 fps at 1080p on the Medium preset on the reference PC (Radeon RX 580, i7-8700, 16 GB); it
+  runs about 80. Lumen lighting and Nanite are for the High and Epic presets only
+  (`UGraphicsSettingsSubsystem::QualitySettings`), so everything must also look right without them: every mesh
+  draws its Nanite fallback on Medium and Low.
