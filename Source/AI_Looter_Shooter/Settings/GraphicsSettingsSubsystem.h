@@ -6,7 +6,7 @@
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "GraphicsSettingsSubsystem.generated.h"
 
-/** Overall graphics quality. Medium is the minimum spec: 60 fps at 1080p on a Radeon RX 580. */
+/** Overall graphics quality. Medium is the minimum spec: 120 fps at 1080p on a Radeon RX 580. */
 UENUM()
 enum class EGraphicsQuality : uint8
 {
@@ -22,11 +22,18 @@ class AI_LOOTER_SHOOTER_API ULooterGraphicsSave : public USaveGame
 	GENERATED_BODY()
 
 public:
+	/** Saves older than CurrentVersion get its changed defaults once (see UGraphicsSettingsSubsystem::Initialize). */
+	static constexpr int32 CurrentVersion = 1;
+
+	UPROPERTY()
+	int32 Version = 0;
+
 	UPROPERTY()
 	EGraphicsQuality Quality = EGraphicsQuality::Medium;
 
+	/** Off by default: it costs Medium about 0.4 ms. */
 	UPROPERTY()
-	bool bMotionBlur = true;
+	bool bMotionBlur = false;
 
 	/** How see-through UI panel backgrounds are: 0 = solid, 1 = fully clear. */
 	UPROPERTY()

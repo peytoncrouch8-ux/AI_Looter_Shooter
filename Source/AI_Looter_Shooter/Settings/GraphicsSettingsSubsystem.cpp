@@ -12,8 +12,8 @@ namespace
 	const TCHAR* GraphicsSaveSlot = TEXT("GraphicsSettings");
 
 	/**
-	 * The presets' own settings, by level (Low, Medium, High, Epic). Measured at 1080p on the reference card (RX 580):
-	 * Low runs about 7 ms a frame, Medium 12, High 22 and Epic 38 (Docs/Performance.md).
+	 * The presets' own settings, by level (Low, Medium, High, Epic), on top of the engine's scalability level of the
+	 * same name. Medium has to hold 120 fps at 1080p on the reference card (RX 580); Docs/Performance.md has the history.
 	 */
 	struct FQualityVariable
 	{
@@ -28,6 +28,15 @@ namespace
 		{ TEXT("r.AntiAliasingMethod"), { 2, 2, 2, 4 } },
 		// Nanite costs about 2.5 ms; without it every mesh draws its fallback.
 		{ TEXT("r.Nanite"), { 0, 0, 1, 1 } },
+		// Virtual shadow maps are only cheap with Nanite: without it they cost Medium 2.5 ms, where two 2048 cascades
+		// (the engine's Medium has one of 1024, too coarse to show a person's shadow) cost 0.35.
+		{ TEXT("r.Shadow.Virtual.Enable"), { 0, 0, 1, 1 } },
+		{ TEXT("r.Shadow.CSM.MaxCascades"), { 1, 2, 4, 10 } },
+		{ TEXT("r.Shadow.MaxCSMResolution"), { 512, 2048, 2048, 2048 } },
+		// Screen-space and distance field ambient occlusion cost Medium 1.7 and 0.7 ms. The textured art bakes its
+		// occlusion into the meshes instead; High and Epic get Lumen's.
+		{ TEXT("r.AmbientOcclusionLevels"), { 0, 0, -1, -1 } },
+		{ TEXT("r.DistanceFieldAO"), { 0, 0, 1, 1 } },
 	};
 
 	/** Looter.Quality Low|Medium|High|Epic: sets and saves the preset, as the settings menu does (handy for perf runs). */
@@ -65,6 +74,13 @@ void UGraphicsSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection
 	if (!SaveData)
 	{
 		SaveData = NewObject<ULooterGraphicsSave>(this);
+	}
+	if (SaveData->Version < ULooterGraphicsSave::CurrentVersion)
+	{
+		// Version 1 turned motion blur off by default, for the 120 fps budget; older saves still hold the old default.
+		SaveData->bMotionBlur = false;
+		SaveData->Version = ULooterGraphicsSave::CurrentVersion;
+		SaveSettings();
 	}
 
 	// The local player gets its viewport before its subsystems initialize, so this takes effect from the first frame.
