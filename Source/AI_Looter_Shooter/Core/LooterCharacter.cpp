@@ -1,6 +1,7 @@
 #include "Core/LooterCharacter.h"
 #include "AI_Looter_Shooter.h"
 #include "EnhancedInputComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "UObject/ConstructorHelpers.h"
@@ -16,6 +17,9 @@ ALooterCharacter::ALooterCharacter()
 	LookAction = LookAsset.Object;
 	MouseLookAction = MouseLookAsset.Object;
 	JumpAction = JumpAsset.Object;
+
+	// Jumps 15% higher than the engine's 420 cm/s: height grows with the speed squared (v^2 / 2g), 90 cm -> 103.5 cm.
+	GetCharacterMovement()->JumpZVelocity = 420.f * FMath::Sqrt(1.15f);
 }
 
 void ALooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

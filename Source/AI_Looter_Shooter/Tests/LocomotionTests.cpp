@@ -4,6 +4,9 @@
 
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/StanceIntent.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "PhysicsEngine/PhysicsSettings.h"
 
 namespace
 {
@@ -116,6 +119,16 @@ bool FLocomotionDefaultsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Crouching tightens spread"), Defaults->CrouchSpreadMultiplier < 1.f);
 	TestTrue(TEXT("Crouched head stays under the crouched capsule top"), Defaults->GetCrouchedHeadHeight() < Defaults->CrouchedHalfHeight * 2.f);
 	TestEqual(TEXT("Standing spread is untouched"), Defaults->GetSpreadMultiplier(), 1.f);
+
+	// The player jumps 15% higher than the engine's default jump (420 cm/s under 980 cm/s^2 gravity: 90 cm).
+	const UClass* Player = LoadClass<ACharacter>(nullptr, TEXT("/Game/Player/BP_LooterCharacter.BP_LooterCharacter_C"));
+	const ACharacter* Character = Player ? Player->GetDefaultObject<ACharacter>() : nullptr;
+	if (TestNotNull(TEXT("Player character"), Character))
+	{
+		const UCharacterMovementComponent* Movement = Character->GetCharacterMovement();
+		const float Gravity = FMath::Abs(UPhysicsSettings::Get()->DefaultGravityZ) * Movement->GravityScale;
+		TestEqual(TEXT("Jump height (cm)"), FMath::Square(Movement->JumpZVelocity) / (2.f * Gravity), 90.f * 1.15f, 0.5f);
+	}
 	return true;
 }
 
