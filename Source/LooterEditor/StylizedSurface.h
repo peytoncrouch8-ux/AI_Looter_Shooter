@@ -3,9 +3,7 @@
 #include "CoreMinimal.h"
 
 class UMaterialInterface;
-class UMeshComponent;
 class UDynamicMeshComponent;
-class UStaticMeshComponent;
 
 /**
  * How one material slot of a procedural mesh is painted by M_StylizedSurface (or M_StylizedGlow).
@@ -74,14 +72,8 @@ namespace StylizedColors
 namespace StylizedSurfaces
 {
 	/** One material instance per surface, in slot order. Share the result across components that use the same look. */
-	AI_LOOTER_SHOOTER_API TArray<UMaterialInterface*> CreateMaterials(UObject* Outer, const TArray<FStylizedSurface>& Surfaces);
+	TArray<UMaterialInterface*> CreateMaterials(UObject* Outer, const TArray<FStylizedSurface>& Surfaces);
 
 	/** Creates one material instance per surface and assigns them to the component's slots in order. */
-	AI_LOOTER_SHOOTER_API void Apply(UDynamicMeshComponent* Component, const TArray<FStylizedSurface>& Surfaces);
-
-	/**
-	 * Turns a static mesh component into a soft vertical light beam standing on its parent's origin
-	 * (sky beacons, loot pillars). No collision, no shadows; fades out toward the top.
-	 */
-	AI_LOOTER_SHOOTER_API void SetupBeam(UStaticMeshComponent* Beam, const FLinearColor& Color, float Glow, float Height, float Radius);
+	void Apply(UDynamicMeshComponent* Component, const TArray<FStylizedSurface>& Surfaces);
 }

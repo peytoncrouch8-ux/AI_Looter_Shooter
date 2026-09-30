@@ -1,6 +1,6 @@
 #include "ModelImporter.h"
 #include "SurfaceMaterials.h"
-#include "Procedural/StylizedSurface.h"
+#include "StylizedSurface.h"
 #include "AssetImportTask.h"
 #include "AssetToolsModule.h"
 #include "Dom/JsonObject.h"

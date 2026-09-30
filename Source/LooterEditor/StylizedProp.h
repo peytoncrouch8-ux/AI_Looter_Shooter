@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Procedural/StylizedSurface.h"
+#include "StylizedSurface.h"
 #include "StylizedProp.generated.h"
 
 class UDynamicMesh;

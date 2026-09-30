@@ -23,10 +23,7 @@ public class AI_Looter_Shooter : ModuleRules
 			"Niagara",
 			"UMG",
 			"Slate",
-			"SlateCore",
-			"GeometryCore",
-			"GeometryFramework",
-			"GeometryScriptingCore"
+			"SlateCore"
 		});
 
 		// Tests scan every weapon definition asset.

@@ -1,5 +1,5 @@
 #include "SurfaceMaterials.h"
-#include "Procedural/StylizedSurface.h"
+#include "StylizedSurface.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"

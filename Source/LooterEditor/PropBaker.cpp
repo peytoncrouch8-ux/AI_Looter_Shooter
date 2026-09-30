@@ -1,6 +1,6 @@
 #include "PropBaker.h"
 #include "SurfaceMaterials.h"
-#include "Procedural/StylizedSurface.h"
+#include "StylizedSurface.h"
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"

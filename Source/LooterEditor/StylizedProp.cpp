@@ -1,6 +1,7 @@
 #include "StylizedProp.h"
-#include "Procedural/StylizedMeshKit.h"
-#include "Procedural/StylizedSurface.h"
+#include "StylizedMeshKit.h"
+#include "StylizedSurface.h"
+#include "World/LightBeam.h"
 #include "World/MinimapSubsystem.h"
 #include "World/WorldQueries.h"
 #include "Components/DynamicMeshComponent.h"
@@ -1231,7 +1232,7 @@ void AStylizedProp::Rebuild()
 	BeamComponent->SetVisibility(bBeam);
 	if (bBeam)
 	{
-		StylizedSurfaces::SetupBeam(BeamComponent, Look.BeamColor, 2.5f, Look.BeamHeight, Look.BeamRadius);
+		LightBeams::Setup(BeamComponent, Look.BeamColor, 2.5f, Look.BeamHeight, Look.BeamRadius);
 	}
 
 	const bool bLight = Look.LightIntensity > 0.f;

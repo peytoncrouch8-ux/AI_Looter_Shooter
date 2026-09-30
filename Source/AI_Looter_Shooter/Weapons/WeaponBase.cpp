@@ -8,7 +8,7 @@
 #include "UI/World/WeaponLabelWidget.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Weapons/WeaponModelComponent.h"
-#include "Procedural/StylizedSurface.h"
+#include "World/LightBeam.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraTypes.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -321,7 +321,7 @@ void AWeaponBase::RefreshLootBeam()
 	LootBeam->SetVisibility(bShow);
 	if (bShow)
 	{
-		StylizedSurfaces::SetupBeam(LootBeam, UWeaponRollLibrary::GetRarityColor(Instance.Definition, Instance.Rarity),
+		LightBeams::Setup(LootBeam, UWeaponRollLibrary::GetRarityColor(Instance.Definition, Instance.Rarity),
 			Instance.Rarity >= EWeaponRarity::Epic ? 3.f : 2.f, Height, Instance.Rarity >= EWeaponRarity::Epic ? 9.f : 6.f);
 	}
 }

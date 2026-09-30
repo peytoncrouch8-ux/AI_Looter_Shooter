@@ -80,10 +80,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime.
 - `World/FallRecoverySubsystem`: brings the player back when they fall off an island.
 - `World/WorldQueries`: `LooterWorld`, trace params that see only real static geometry (skipping volumes).
-
-## Procedural (code-built meshes: the spider, guns, ammo boxes, and the editor's props)
-- `Procedural/StylizedMeshKit`: `StylizedMesh`, GeometryScript helpers for building chunky shapes.
-- `Procedural/StylizedSurface`: `FStylizedSurface`, `StylizedColors`, `StylizedSurfaces`, how each material slot is painted.
+- `World/LightBeam`: `LightBeams`, a soft glowing light pillar (sky beacons, the rarity-colored beam over loot).
 
 ## Settings
 - `Settings/KeyBindingSubsystem`: key rebinding, the global pause/inventory actions and the character actions.
@@ -123,6 +120,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `LooterEditorModule.cpp`: the module and its console commands: `Looter.BakeLevelProps`, `Looter.ImportModels`,
   `Looter.FixStylizedMaterials`.
 - `StylizedProp`: `AStylizedProp` and `EStylizedPropShape`, procedural props for building levels in the editor.
+- `StylizedMeshKit`: `StylizedMesh`, GeometryScript helpers the props are built with.
+- `StylizedSurface`: `FStylizedSurface`, `StylizedColors`, `StylizedSurfaces`, how each material slot is painted.
 - `PropBaker`: `FPropBaker`, turns a level's props into Nanite static mesh assets, material instances and placed actors.
 - `ModelImporter`: `FModelImporter`, imports the Blender models `Tools/models.ps1` exported (fixed FBX settings,
   stylized material instances, hull collision, sockets). `ModelImporterRig.cpp` imports rigged models as skeletal

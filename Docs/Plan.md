@@ -42,7 +42,6 @@ Target layout of `Source/AI_Looter_Shooter`:
 | `Loot/` | Loot tables, drops, pickups, toss physics |
 | `Creatures/` | Mob base and AI, spider, spawning |
 | `World/` | Minimap, fall recovery, level runtime pieces |
-| `Procedural/` | The mesh kit and surface paint behind code-built models (spider, guns, ammo boxes, editor props) |
 | `UI/Style`, `UI/HUD`, `UI/Menus`, `UI/Inventory`, `UI/World` | The UI kit and every screen |
 | `Settings/` | Graphics and key-binding settings, quality presets |
 | `Tests/` | Automation tests, one file per area |
@@ -81,5 +80,10 @@ Target layout of `Source/AI_Looter_Shooter`:
       `USpiderAnimInstance`; crits are by bone. The gait's two groups now take turns (one used to starve the other).
       Rigged models go through the Blender pipeline like any other (`Art/README.md`). Medium: 11.9 ms, was 12.5; 487
       draw calls, was 1729.
-- [ ] A weapon parts system: baked or Blender parts, chosen by the roll's seed.
+- [x] A weapon parts system: baked or Blender parts, chosen by the roll's seed. Guns are Blender part meshes
+      (`Art/Models/Weapons`); each definition lists part slots and paints, `WeaponParts::Pick` chooses by the seed (rarity
+      only adds rarity parts) and `UWeaponModelComponent` assembles, paints and animates them.
+- [x] No game code builds meshes at runtime: the ammo boxes are baked too, and the mesh kit moved to the editor module,
+      which still builds the level props with it. FBX imports always use the classic importer (Interchange re-imported
+      models with its own settings).
 - [ ] Affix design on top of parts and rarity.
