@@ -28,7 +28,8 @@ namespace
 		{
 			return ETextureRole::Normal;
 		}
-		return Stem.EndsWith(TEXT("_ORM")) ? ETextureRole::Masks : ETextureRole::Color;
+		// _ORM: occlusion, roughness, metallic; _M: any other linear mask (a noise, a blend map).
+		return Stem.EndsWith(TEXT("_ORM")) || Stem.EndsWith(TEXT("_M")) ? ETextureRole::Masks : ETextureRole::Color;
 	}
 
 	/** Color maps are sRGB; normal maps are already in Unreal's (DirectX) convention; masks hold AO, roughness, metallic. */
