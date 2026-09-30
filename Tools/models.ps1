@@ -15,10 +15,14 @@ $sourceRoot = if ($Source) { (Resolve-Path $Source).Path } else { Join-Path $roo
 $sources = @(Get-ChildItem $sourceRoot -Recurse -File -Include *.blend, *.py | Where-Object { -not $Only -or $Only -contains $_.BaseName })
 if (-not $sources) { "No models found under $sourceRoot."; exit 1 }
 
-$exportDir = if ($Out) { [IO.Path]::GetFullPath((Join-Path (Get-Location) $Out)) } else { Join-Path $root 'Intermediate\ArtExport' }
-New-Item -ItemType Directory -Force -Path $exportDir | Out-Null
-# Only this run's models get imported.
-Get-ChildItem $exportDir -File -Recurse -Include *.fbx, *.json | Remove-Item
+# The export folder is cleared of the last run's files (so only this run's models get imported): only its own .fbx and
+# .json files, never its subfolders. A bad -Out once made this clear every such file in the project, so the folder is
+# checked first and anything odd stops the script.
+$exportDir = if (-not $Out) { Join-Path $root 'Intermediate\ArtExport' } elseif ([IO.Path]::IsPathRooted($Out)) { $Out } else { Join-Path (Get-Location).Path $Out }
+$exportDir = [IO.Path]::GetFullPath($exportDir).TrimEnd('\')
+if ($exportDir -eq $root -or $root.StartsWith("$exportDir\") -or $exportDir.Length -le 3) { "Won't export into ${exportDir}: give the export a folder of its own."; exit 1 }
+New-Item -ItemType Directory -Force -Path $exportDir -ErrorAction Stop | Out-Null
+Get-ChildItem -LiteralPath $exportDir -File -ErrorAction Stop | Where-Object { $_.Extension -in '.fbx', '.json' } | Remove-Item -ErrorAction Stop
 
 $exporter = Join-Path $PSScriptRoot 'Blender\looter_export.py'
 $helpers = (Join-Path $PSScriptRoot 'Blender').Replace('\', '/')
