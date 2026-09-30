@@ -82,6 +82,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `World/FallRecoverySubsystem`: brings the player back when they fall off an island.
 - `World/WorldQueries`: `LooterWorld`, trace params that see only real static geometry (skipping volumes).
 - `World/LightBeam`: `LightBeams`, a soft glowing light pillar (sky beacons, the rarity-colored beam over loot).
+- `World/Windmill`: `AWindmill`, a water-pump windmill whose fan (a separate model on the tower's Fan socket) turns in gusts.
 - `World/PCGGroundFitFilter`: `UPCGGroundFitFilterSettings`, the meadow's PCG node that drops ground cover patches
   hanging off an edge and presses ones floating over a bump into the ground (editor-time; the graph ships with the level).
 

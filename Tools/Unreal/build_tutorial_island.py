@@ -194,8 +194,17 @@ def models(layout, meshes):
         if name not in meshes:
             warn(f'no SM_{name} yet (placement {key})')
             continue
-        place(unreal.load_asset(meshes[name]), spot['location'], spot['yaw'], label=key, folder='Buildings',
-              tags=('Obstacle',))
+        if kind == 'Windmill':
+            # The fan turns: AWindmill hangs it from the tower's Fan socket.
+            windmill = place(unreal.load_class(None, '/Script/AI_Looter_Shooter.Windmill'), spot['location'],
+                             spot['yaw'], label=key, folder='Buildings', tags=('Obstacle',))
+            windmill.get_editor_property('tower').set_static_mesh(unreal.load_asset(meshes[name]))
+            if 'WindmillFan' in meshes:
+                windmill.get_editor_property('fan').set_static_mesh(unreal.load_asset(meshes['WindmillFan']))
+            windmill.rerun_construction_scripts()
+        else:
+            place(unreal.load_asset(meshes[name]), spot['location'], spot['yaw'], label=key, folder='Buildings',
+                  tags=('Obstacle',))
         placed += 1
 
     bridge = layout.get('bridge')
