@@ -2,8 +2,9 @@
 
 The graph scatters grass, poppy fields and marigold patches over Ground-tagged terrain:
   grid of ray origins above the volume -> jitter -> raycast down onto actors tagged Ground -> flat enough (slope)
-  -> not inside anything tagged Obstacle -> Perlin fields split poppies / marigolds / grass -> upright, random yaw
-  and size -> spawn instanced meshes (no collision, no shadow, outline-free stencil, density scaling on).
+  -> not inside anything tagged Obstacle -> Perlin fields split poppies / marigolds / grass -> lying on the slope, random yaw
+  and size -> fit to the ground (drop patches hanging off an edge, press ones floating over a bump down) -> spawn
+  instanced meshes (no collision, no shadow, outline-free stencil, density scaling on).
 
 The graph asset is what levels use; this rebuilds it from scratch (edits made in the PCG editor are lost) and
 regenerates the volume labeled Meadow. Run it in the open editor with Unreal Python:
@@ -16,8 +17,9 @@ GRAPH_FOLDER = '/Game/Environment/PCG'
 GRAPH_NAME = 'PCG_Meadow'
 PROPS = '/Game/Environment/Props'
 
-# Spacing of the ray grid (cm) and how much of the plain grass survives thinning.
-CELL = 450.0
+# Spacing of the ray grid (cm) and how much of the plain grass survives thinning. The patches are about 3.5 m across
+# (small enough to follow the ground as it curves), so the grid is dense.
+CELL = 225.0
 GRASS_KEEP = 0.62
 # Noise scale 1 = features about 100 m across.
 POPPY_NOISE_SCALE = 3.5
@@ -91,11 +93,18 @@ def noise(b, title, x, y, scale, offset):
 
 
 def look(b, title, x, y, scale_min, scale_max):
-    # Upright (the raycast tilts points to the slope), any heading, a little size variation.
+    # Lying on the slope (the raycast turns each point to the ground's normal and this spins it around that), any heading,
+    # a little size variation. Upright patches would float on the downhill side.
     return b.node(unreal.PCGTransformPointsSettings, title, x, y,
                   rotation_min=unreal.Rotator(0.0, 0.0, 0.0), rotation_max=unreal.Rotator(0.0, 0.0, 360.0),
-                  absolute_rotation=True, scale_min=unreal.Vector(scale_min, scale_min, scale_min),
+                  absolute_rotation=False, scale_min=unreal.Vector(scale_min, scale_min, scale_min),
                   scale_max=unreal.Vector(scale_max, scale_max, scale_max), uniform_scale=True)[0]
+
+
+def ground_fit(b, title, x, y, radius):
+    # World/PCGGroundFitFilter: a patch is one rigid mesh, so it drops the ones whose edge would hang off a cliff top or
+    # the island's rim, and presses the ones floating a little over a bump into the ground. Radius is the patch's own.
+    return b.node(unreal.PCGGroundFitFilterSettings, title, x, y, radius=radius, max_sink=30.0)[0]
 
 
 def spawner(b, title, x, y, entries):
@@ -150,6 +159,9 @@ def build_graph():
     poppy_look = look(b, 'Poppy look', 12, -1, 0.9, 1.35)
     marigold_look = look(b, 'Marigold look', 12, 0, 0.9, 1.3)
     grass_look = look(b, 'Grass look', 12, 2, 0.85, 1.35)
+    poppy_fit = ground_fit(b, 'Poppies fit the ground', 12.5, -1, 190.0)
+    marigold_fit = ground_fit(b, 'Marigolds fit the ground', 12.5, 0, 190.0)
+    grass_fit = ground_fit(b, 'Grass fits the ground', 12.5, 2, 170.0)
 
     spawn_poppies = spawner(b, 'Spawn poppies', 13, -1, [entry(load_mesh('PoppyField', v), 1, 14000) for v in range(1, 7)])
     spawn_marigolds = spawner(b, 'Spawn marigolds', 13, 0, [entry(load_mesh('Marigolds', v), 1, 14000) for v in range(1, 5)])
@@ -168,16 +180,19 @@ def build_graph():
     b.link(fields, poppies)
     b.link(fields, not_poppies)
     b.link(poppies, poppy_look)
-    b.link(poppy_look, spawn_poppies)
+    b.link(poppy_look, poppy_fit)
+    b.link(poppy_fit, spawn_poppies)
     b.link(not_poppies, marigold_noise)
     b.link(marigold_noise, marigolds)
     b.link(marigold_noise, rest)
     b.link(marigolds, marigold_look)
-    b.link(marigold_look, spawn_marigolds)
+    b.link(marigold_look, marigold_fit)
+    b.link(marigold_fit, spawn_marigolds)
     b.link(rest, thin)
     b.link(thin, keep)
     b.link(keep, grass_look)
-    b.link(grass_look, spawn_grass)
+    b.link(grass_look, grass_fit)
+    b.link(grass_fit, spawn_grass)
 
     unreal.EditorAssetLibrary.save_loaded_asset(graph)
     return graph

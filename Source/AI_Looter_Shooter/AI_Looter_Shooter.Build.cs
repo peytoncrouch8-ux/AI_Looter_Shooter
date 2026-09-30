@@ -28,5 +28,8 @@ public class AI_Looter_Shooter : ModuleRules
 
 		// Tests scan every weapon definition asset.
 		PrivateDependencyModuleNames.Add("AssetRegistry");
+
+		// The meadow's ground fit filter is a PCG node, and the meadow's graph ships with the level.
+		PrivateDependencyModuleNames.Add("PCG");
 	}
 }

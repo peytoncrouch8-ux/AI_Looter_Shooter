@@ -80,10 +80,17 @@ placement and gameplay component settings.
 - Levels are built in the editor. Procedural props are `StylizedProp` actors (shape, seed, two colors). Before
   committing a level, run `Looter.BakeLevelProps` in the editor console. It swaps them for static mesh actors and saves
   their meshes and materials under `/Game/Environment/Props`.
+- After placing props or changing terrain, run `Looter.SettleProps` (`Looter.SettleProps selected` for just the
+  selection): it seats every prop on the ground so no edge hovers, leaning low, wide ones with the slope. Save the level.
+  After changing terrain, first run `Tools/Unreal/conform_hills.py`: it fits the hills' rims back under the ground.
+- Terrain meshes (island, hills, cliffs) keep every triangle in their Nanite fallback: Medium draws the fallback and
+  collision is cooked from it, so a reduced one makes everything placed by traces float over the ground High draws.
 - Grass and flowers come from the `Meadow` PCG volume (`/Game/Environment/PCG/PCG_Meadow`). It raycasts onto actors
   tagged `Ground` and avoids actors tagged `Obstacle`. After changing terrain, select the volume and press Generate,
   then save the level. Ground cover never collides; a placed static mesh actor takes its mesh's collision unless
-  `bUseDefaultCollision` is off.
+  `bUseDefaultCollision` is off. The patches are small (about 3.5 m) and lie on the slope so they follow the ground,
+  and a ground fit filter (`World/PCGGroundFitFilter`) drops the ones that would hang off an edge;
+  `Looter.BakeGroundCover` bakes their meshes again from the generator.
 - The minimap reads actor tags. Its extent comes from actors tagged `Ground` (walkable terrain). Actors tagged
   `Obstacle` (solid things standing on the ground) are drawn as obstacles, and anything untagged is drawn as ground.
   Props and baked props tag themselves; tag other meshes you place.

@@ -623,9 +623,14 @@ namespace
 		}
 	}
 
+	/*
+	 * Ground cover patches are small (about 3.5 m across) because each one is a single rigid mesh: a wide patch can't
+	 * follow the ground where it curves, and its edges float. The meadow scatters them densely instead.
+	 */
+
 	void BuildGrassPatch(FPropBuild& Build)
 	{
-		AppendBlades(Build, 520, 340.f, 26.f, 62.f, 0);
+		AppendBlades(Build, 130, 170.f, 26.f, 62.f, 0);
 		Build.Surfaces.Add(FoliageSurface(Build.Primary, 60.f, 7.f, 0.35f, 0.85f));
 		Build.bCastShadow = false;
 		Build.CullDistance = 9000.f;
@@ -668,10 +673,10 @@ namespace
 		// Lush, knee-to-waist-high grass: dense clumps of arcing ribbons that splay out from their roots,
 		// with an occasional wildflower spike in the accent color.
 		FRandomStream& Random = Build.Random;
-		const float Radius = 330.f;
+		const float Radius = 165.f;
 		EditRaw(Build.Mesh, [&](FRawBuilder& Raw)
 		{
-			const int32 Clumps = Random.RandRange(30, 40);
+			const int32 Clumps = Random.RandRange(8, 10);
 			for (int32 Clump = 0; Clump < Clumps; ++Clump)
 			{
 				const FVector2D Center = RandomInDisc(Random, Radius);
@@ -692,9 +697,9 @@ namespace
 			}
 		});
 
-		if (Random.FRand() < 0.55f)
+		if (Random.FRand() < 0.35f)
 		{
-			const int32 Spikes = Random.RandRange(2, 6);
+			const int32 Spikes = Random.RandRange(1, 2);
 			for (int32 Spike = 0; Spike < Spikes; ++Spike)
 			{
 				const FVector Base(RandomInDisc(Random, Radius * 0.85f), -4.f);
@@ -727,9 +732,9 @@ namespace
 	void BuildFlowerPatch(FPropBuild& Build)
 	{
 		FRandomStream& Random = Build.Random;
-		const float Radius = 380.f;
-		AppendBlades(Build, 260, Radius, 22.f, 50.f, 0);
-		const int32 Flowers = 170;
+		const float Radius = 190.f;
+		AppendBlades(Build, 65, Radius, 22.f, 50.f, 0);
+		const int32 Flowers = 43;
 		for (int32 Flower = 0; Flower < Flowers; ++Flower)
 		{
 			const FVector Spot(RandomInDisc(Random, Radius), -4.f);

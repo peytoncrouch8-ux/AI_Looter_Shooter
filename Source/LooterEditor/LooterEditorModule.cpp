@@ -1,5 +1,6 @@
 #include "ModelImporter.h"
 #include "PropBaker.h"
+#include "PropSettler.h"
 #include "SurfaceMaterials.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/World.h"
@@ -24,6 +25,28 @@ namespace
 		const int32 Placed = Baker.ConvertLevel();
 		const bool bSaved = Baker.SaveAll();
 		UE_LOG(LogLooterEditor, Display, TEXT("Looter.BakeLevelProps: placed %d actors; %s."), Placed, bSaved ? TEXT("saved") : TEXT("SAVING FAILED"));
+	}
+
+	void SettleProps(const TArray<FString>& Args, UWorld* World)
+	{
+		if (!World || World->WorldType != EWorldType::Editor)
+		{
+			UE_LOG(LogLooterEditor, Warning, TEXT("Looter.SettleProps works on the level open in the editor: stop the play session first."));
+			return;
+		}
+		const bool bSelectedOnly = Args.Contains(TEXT("selected"));
+		const int32 Moved = PropSettler::SettleWorld(World, bSelectedOnly);
+		UE_LOG(LogLooterEditor, Display, TEXT("Looter.SettleProps: seated %d %sprops on the ground. Save the level to keep them there."), Moved,
+			bSelectedOnly ? TEXT("selected ") : TEXT(""));
+	}
+
+	void BakeGroundCover(const TArray<FString>& Args, UWorld* World)
+	{
+		FPropBaker Baker(World);
+		const int32 Baked = Baker.BakeGroundCover();
+		const bool bSaved = Baker.SaveAll(/*bIncludeLevel*/ false);
+		UE_LOG(LogLooterEditor, Display, TEXT("Looter.BakeGroundCover: baked %d ground cover meshes; %s. Generate the Meadow volume again to scatter them."),
+			Baked, bSaved ? TEXT("saved") : TEXT("SAVING FAILED"));
 	}
 
 	void ImportModels(const TArray<FString>& Args)
@@ -66,6 +89,16 @@ namespace
 		TEXT("Looter.BakeLevelProps"),
 		TEXT("Bakes the open level's procedural props into static mesh assets, puts placed actors in their place, and saves."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&BakeLevelProps));
+
+	FAutoConsoleCommandWithWorldAndArgs SettlePropsCommand(
+		TEXT("Looter.SettleProps"),
+		TEXT("Seats every prop standing on the open level's terrain on the ground (no gaps under their edges; low, wide ones lean with the slope). Argument 'selected': only the selected actors. Undoable; save the level after."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SettleProps));
+
+	FAutoConsoleCommandWithWorldAndArgs BakeGroundCoverCommand(
+		TEXT("Looter.BakeGroundCover"),
+		TEXT("Bakes the meadow's grass and flower meshes again from the prop generator, keeping their materials and settings, and saves them."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&BakeGroundCover));
 
 	FAutoConsoleCommand ImportModelsCommand(
 		TEXT("Looter.ImportModels"),

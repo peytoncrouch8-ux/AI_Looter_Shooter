@@ -67,6 +67,35 @@ bool FStylizedPropGenerateTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStylizedPropGroundCoverTest, "Looter.Editor.StylizedProp.GroundCoverSize",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FStylizedPropGroundCoverTest::RunTest(const FString& Parameters)
+{
+	// A ground cover patch is one rigid mesh laid on the slope under its middle: on ground that curves, its edges float
+	// by more the wider it is. About 4 m across keeps them within a few centimeters on the island's rolling ground.
+	for (const EStylizedPropShape Shape : { EStylizedPropShape::GrassPatch, EStylizedPropShape::TallGrass, EStylizedPropShape::FlowerPatch })
+	{
+		for (const int32 Seed : { 7919, 15838, 23757 })
+		{
+			UDynamicMesh* Mesh = NewObject<UDynamicMesh>();
+			AStylizedProp::Generate(Shape, Seed, FLinearColor::Gray, FLinearColor::Green, FTransform::Identity, nullptr, Mesh);
+			FBox Bounds(ForceInit);
+			Mesh->ProcessMesh([&Bounds](const UE::Geometry::FDynamicMesh3& Geometry)
+			{
+				for (const int32 Vertex : Geometry.VertexIndicesItr())
+				{
+					Bounds += Geometry.GetVertex(Vertex);
+				}
+			});
+			const FVector Size = Bounds.GetSize();
+			TestTrue(FString::Printf(TEXT("%s (seed %d) is at most 4.2 m across (%.0f x %.0f cm)"), *UEnum::GetValueAsString(Shape), Seed, Size.X, Size.Y),
+				Size.X <= 420.0 && Size.Y <= 420.0);
+		}
+	}
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStylizedPropMinimapTagsTest, "Looter.Editor.StylizedProp.MinimapTags",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 

@@ -16,3 +16,4 @@ Target: 60 fps at 1080p on the Medium preset on the reference PC (Radeon RX 580,
 | 2026-09-29 | Quality preset Epic, no Substrate or ray tracing | 7e88635 | 1920x1080 | 38.1 | 26 | 39.4 | 7.3 | 38.1 | 2.7 | 35.3 | 1950 | 186900 | 0.78 |
 | 2026-09-29 | Skeletal spider, Medium | c540328 | 1920x1080 | 11.9 | 84 | 13.2 | 5.3 | 11.9 | 2.0 | 10.4 | 487 | 209196 | 0.79 |
 | 2026-09-30 | Guns from parts, baked ammo boxes, Medium | 886339d | 1920x1080 | 11.8 | 85 | 12.4 | 4.8 | 11.8 | 2.0 | 10.3 | 498 | 208386 | 0.66 |
+| 2026-09-30 | Ground fixes: full terrain fallback, 3.5 m meadow patches fitted to the ground, props settled, Medium | 3402b1b | 1920x1080 | 12.1 | 83 | 12.9 | 4.9 | 12.1 | 2.0 | 10.6 | 489 | 238332 | 0.50 |

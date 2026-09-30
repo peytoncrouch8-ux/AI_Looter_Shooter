@@ -23,8 +23,14 @@ public:
 	/** Converts every StylizedProp in the world. Returns the number of props converted. */
 	int32 ConvertLevel();
 
-	/** Saves the new assets and the level. */
-	bool SaveAll();
+	/**
+	 * Bakes the meadow's ground cover meshes (grass, tall grass, flower patches) again from the generator, in place:
+	 * each asset keeps its materials and settings and takes the generator's current triangles. Returns how many.
+	 */
+	int32 BakeGroundCover();
+
+	/** Saves the new assets, and the level unless told not to. */
+	bool SaveAll(bool bIncludeLevel = true);
 
 private:
 	struct FBaked

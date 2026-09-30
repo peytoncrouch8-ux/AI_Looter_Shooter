@@ -11,6 +11,7 @@
 #include "EngineUtils.h"
 #include "FileHelpers.h"
 #include "GeometryScript/CreateNewAssetUtilityFunctions.h"
+#include "GeometryScript/MeshAssetFunctions.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Misc/Crc.h"
 #include "PhysicsEngine/BodySetup.h"
@@ -44,6 +45,34 @@ namespace
 	FString ShapeName(EStylizedPropShape Shape)
 	{
 		return StaticEnum<EStylizedPropShape>()->GetNameStringByValue(static_cast<int64>(Shape));
+	}
+
+	/** The meadow's ground cover (Tools/Unreal/build_meadow.py scatters it): SM_<Kind>_V<n> under PropRoot/<Kind>. */
+	struct FGroundCoverKind
+	{
+		const TCHAR* Kind;
+		EStylizedPropShape Shape;
+		int32 Variants;
+		/**
+		 * Its Nanite fallback's triangle percentage (the fallback is what Medium and Low draw). Fixed rather than
+		 * automatic, which keeps more of a small mesh: these give each kind the triangles per square meter it had when
+		 * the patches were four times the size (about 312, 310 and 1470 per patch), and the meadow draws thousands.
+		 */
+		float FallbackShare;
+	};
+
+	constexpr FGroundCoverKind GroundCoverKinds[] = {
+		{ TEXT("GrassPatch"), EStylizedPropShape::GrassPatch, 6, 0.4f },
+		{ TEXT("TallGrass"), EStylizedPropShape::TallGrass, 6, 0.36f },
+		{ TEXT("WildGrass"), EStylizedPropShape::TallGrass, 4, 0.36f },
+		{ TEXT("PoppyField"), EStylizedPropShape::FlowerPatch, 6, 0.76f },
+		{ TEXT("Marigolds"), EStylizedPropShape::FlowerPatch, 4, 0.76f },
+	};
+
+	/** The seeds the variants were first baked with, so baking again keeps each variant's layout. */
+	int32 VariantSeed(int32 Variant)
+	{
+		return 7919 * Variant;
 	}
 
 	/** Everything the generated mesh depends on, so identical props share one asset and baking again finds it. */
@@ -137,6 +166,14 @@ const FPropBaker::FBaked* FPropBaker::FindOrBake(const AStylizedProp& Prop)
 		Options.bEnableRecomputeTangents = true;
 		Options.bEnableNanite = true;
 		Options.NaniteSettings.bEnabled = true;
+		if (AStylizedProp::IsGroundShape(Prop.Shape))
+		{
+			// The ground keeps every triangle in its fallback: Medium and Low draw the fallback, and the collision is cooked
+			// from it, so anything set on the ground by a trace (props, the meadow, the player) sits on the drawn surface
+			// on every preset. Reduced, it strayed up to 1.9 m from what High and Epic draw.
+			Options.NaniteSettings.FallbackTarget = ENaniteFallbackTarget::PercentTriangles;
+			Options.NaniteSettings.FallbackPercentTriangles = 1.f;
+		}
 		// Ground cover and clouds never collide, so they carry no collision data.
 		const bool bSoft = AStylizedProp::IsSoftShape(Prop.Shape);
 		Options.bEnableCollision = !bSoft;
@@ -253,6 +290,47 @@ AStaticMeshActor* FPropBaker::PlaceProp(const FBaked& Baked, EStylizedPropShape 
 	return Actor;
 }
 
+int32 FPropBaker::BakeGroundCover()
+{
+	int32 Baked = 0;
+	for (const FGroundCoverKind& Cover : GroundCoverKinds)
+	{
+		for (int32 Variant = 1; Variant <= Cover.Variants; ++Variant)
+		{
+			const FString PackagePath = FString(PropRoot) / Cover.Kind / FString::Printf(TEXT("SM_%s_V%d"), Cover.Kind, Variant);
+			UStaticMesh* Mesh = LoadExisting<UStaticMesh>(PackagePath);
+			if (!Mesh)
+			{
+				UE_LOG(LogPropBaker, Warning, TEXT("%s doesn't exist; ground cover is only baked again, never created."), *PackagePath);
+				continue;
+			}
+
+			// The triangles and the fallback change: the slots are painted in the generator's slot order, so the asset
+			// keeps its materials and (lack of) collision.
+			UDynamicMesh* Generated = NewObject<UDynamicMesh>(GetTransientPackage(), NAME_None, RF_Transient);
+			AStylizedProp::Generate(Cover.Shape, VariantSeed(Variant), FLinearColor::White, FLinearColor::White, FTransform::Identity, nullptr, Generated);
+			FGeometryScriptCopyMeshToAssetOptions Options;
+			Options.bEnableRecomputeNormals = false; // the generator sets its own hard and soft edges
+			Options.bEnableRecomputeTangents = true;
+			Options.bApplyNaniteSettings = true;
+			Options.NewNaniteSettings = Mesh->GetNaniteSettings();
+			Options.NewNaniteSettings.FallbackTarget = ENaniteFallbackTarget::PercentTriangles;
+			Options.NewNaniteSettings.FallbackPercentTriangles = Cover.FallbackShare;
+			EGeometryScriptOutcomePins Outcome = EGeometryScriptOutcomePins::Failure;
+			UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(Generated, Mesh, Options, FGeometryScriptMeshWriteLOD(), Outcome,
+				/*bUseSectionMaterials*/ false);
+			if (Outcome != EGeometryScriptOutcomePins::Success)
+			{
+				UE_LOG(LogPropBaker, Error, TEXT("Couldn't bake %s again."), *PackagePath);
+				continue;
+			}
+			NewPackages.AddUnique(Mesh->GetPackage());
+			++Baked;
+		}
+	}
+	return Baked;
+}
+
 UMaterialInterface* FPropBaker::FindOrCreateSurfaceMaterial(const FStylizedSurface& Surface)
 {
 	const TCHAR* Kind = Surface.bAdditive ? TEXT("Glow") : (Surface.bTwoSided ? TEXT("Foliage") : TEXT("Surface"));
@@ -309,9 +387,12 @@ UMaterialInterface* FPropBaker::FindOrCreateBeamMaterial(const FLinearColor& Col
 	return Material;
 }
 
-bool FPropBaker::SaveAll()
+bool FPropBaker::SaveAll(bool bIncludeLevel)
 {
 	TArray<UPackage*> Packages = NewPackages;
-	Packages.AddUnique(World->GetPackage());
+	if (bIncludeLevel)
+	{
+		Packages.AddUnique(World->GetPackage());
+	}
 	return UEditorLoadingAndSavingUtils::SavePackages(Packages, false);
 }

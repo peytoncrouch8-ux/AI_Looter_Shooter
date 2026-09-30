@@ -82,6 +82,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `World/FallRecoverySubsystem`: brings the player back when they fall off an island.
 - `World/WorldQueries`: `LooterWorld`, trace params that see only real static geometry (skipping volumes).
 - `World/LightBeam`: `LightBeams`, a soft glowing light pillar (sky beacons, the rarity-colored beam over loot).
+- `World/PCGGroundFitFilter`: `UPCGGroundFitFilterSettings`, the meadow's PCG node that drops ground cover patches
+  hanging off an edge and presses ones floating over a bump into the ground (editor-time; the graph ships with the level).
 
 ## Settings
 - `Settings/KeyBindingSubsystem`: key rebinding, the global pause/inventory actions and the character actions.
@@ -113,21 +115,24 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `CreatureTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`,
-  `MinimapTests.cpp`, `SettingsTests.cpp`, `WeaponTests.cpp`, `WeaponPartsTests.cpp`: the `Looter.*` automation tests,
-  one file per area.
+  `MinimapTests.cpp`, `SettingsTests.cpp`, `WeaponTests.cpp`, `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*`
+  automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)
 - `LooterEditor.Build.cs`: module dependencies (GeometryScript editor functions, asset tools, FBX import, JSON).
-- `LooterEditorModule.cpp`: the module and its console commands: `Looter.BakeLevelProps`, `Looter.ImportModels`,
-  `Looter.FixStylizedMaterials`.
+- `LooterEditorModule.cpp`: the module and its console commands: `Looter.BakeLevelProps`, `Looter.SettleProps`,
+  `Looter.BakeGroundCover`, `Looter.ImportModels`, `Looter.FixStylizedMaterials`.
 - `StylizedProp`: `AStylizedProp` and `EStylizedPropShape`, procedural props for building levels in the editor.
 - `StylizedMeshKit`: `StylizedMesh`, GeometryScript helpers the props are built with.
 - `StylizedSurface`: `FStylizedSurface`, `StylizedColors`, `StylizedSurfaces`, how each material slot is painted.
-- `PropBaker`: `FPropBaker`, turns a level's props into Nanite static mesh assets, material instances and placed actors.
+- `PropBaker`: `FPropBaker`, turns a level's props into Nanite static mesh assets, material instances and placed actors,
+  and bakes the meadow's ground cover meshes again.
+- `PropSettler`: `PropSettler`, seats a level's props on the terrain (no hovering edges; low, wide props lean with the slope).
 - `ModelImporter`: `FModelImporter`, imports the Blender models `Tools/models.ps1` exported (fixed FBX settings,
   stylized material instances, hull collision, sockets). `ModelImporterRig.cpp` imports rigged models as skeletal
   meshes and turns their hit zones into a physics asset.
 - `SurfaceMaterials`: `SurfaceMaterials`, stylized material instance assets and the parents' usage flags.
-- `Tests/StylizedPropTests.cpp`, `ModelImportTests.cpp`, `RigImportTests.cpp`, `SurfaceMaterialTests.cpp`: the
-  `Looter.Editor.*` tests (prop shapes, the Blender import settings against `Tests/ModelImport/AxisTest` and
+- `Tests/StylizedPropTests.cpp`, `PropSettlerTests.cpp`, `ModelImportTests.cpp`, `RigImportTests.cpp`,
+  `SurfaceMaterialTests.cpp`: the `Looter.Editor.*` tests (prop shapes and ground cover size, settling on the ground
+  and the terrain's full fallback, the Blender import settings against `Tests/ModelImport/AxisTest` and
   `Tests/RigImport/RigTest`, the stylized materials' usage flags).
