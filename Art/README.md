@@ -99,6 +99,13 @@ materials in hex colors, hulls, sockets; for rigs: an armature, bones, skin and 
 Models ported from the game's old code-built meshes (the spider, the gun parts) are built in Unreal's space and units
 with `Tools/Blender/looter_port.py`, so their numbers read like the C++ they came from.
 
+Buildings (`Art/Models/Buildings/`) are built with `Tools/Blender/looter_buildings.py`: walls with openings, roofs of
+tin or shakes, logs, stone, windows and doors mapped onto the house trim sheet, with hulls, sockets and baked occlusion.
+
+Vegetation (`Art/Models/Vegetation/`) is built with `Tools/Blender/looter_plants.py`: bark tubes, leaf-cluster cards
+and opaque blades, seeded so every run gives the same mesh, and `finish()`, which adds the foliage vertex colors
+(wind, variation, occlusion), a trunk hull or no collision, Nanite off and the LODs.
+
 ## Gun parts
 
 A gun is built from parts: `Art/Models/Weapons/<Gun>.py` makes each part as its own model (`SM_RifleBody`,
