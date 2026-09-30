@@ -14,7 +14,7 @@ approved it the same day.
 - [x] Git and LFS, with an ignore list, and a snapshot commit of the untouched project.
 - [x] Make the clean build work. Unity builds had hidden duplicate private names.
 - [x] `Tools/` scripts in the repo; `CLAUDE.md`.
-- [ ] Private GitHub remote (the user creates the repository; then push).
+- [x] Private GitHub remote (github.com/peytoncrouch8-ux/AI_Looter_Shooter); every commit is pushed.
 - [x] Performance baseline in `Docs/Performance.md`.
 
 ## Phase 1: Reorganize (no behavior change)
@@ -75,6 +75,11 @@ Target layout of `Source/AI_Looter_Shooter`:
       High 22.0 and Epic 38.1.
 
 ## Phase 4: Creatures, weapons, affixes
-- [ ] The spider becomes a rigged skeletal mesh from Blender, with physics-asset hit zones and our procedural leg IK.
+- [x] The spider becomes a rigged skeletal mesh from Blender, with physics-asset hit zones and our procedural leg IK.
+      `SK_Spider` comes from `Art/Models/Creatures/Spider.py` (a port of the old code-built body): 31 bones and a convex
+      hit zone around every part (`PA_Spider`). `ASpiderCreature` keeps its gait and IK and poses the bones through
+      `USpiderAnimInstance`; crits are by bone. The gait's two groups now take turns (one used to starve the other).
+      Rigged models go through the Blender pipeline like any other (`Art/README.md`). Medium: 11.9 ms, was 12.5; 487
+      draw calls, was 1729.
 - [ ] A weapon parts system: baked or Blender parts, chosen by the roll's seed.
 - [ ] Affix design on top of parts and rarity.

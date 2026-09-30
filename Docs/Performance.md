@@ -14,3 +14,4 @@ Target: 60 fps at 1080p on the Medium preset on the reference PC (Radeon RX 580,
 | 2026-09-29 | Quality preset Medium (the presets commit, measured on top of e99da87) | e99da87 | 1920x1080 | 12.3 | 81 | 13.4 | 6.3 | 12.3 | 2.0 | 10.9 | 1703 | 223596 | 0.78 |
 | 2026-09-29 | Quality preset Medium, no Substrate or ray tracing | 7e88635 | 1920x1080 | 12.5 | 80 | 13.5 | 6.3 | 12.4 | 2.0 | 10.8 | 1729 | 225499 | 0.77 |
 | 2026-09-29 | Quality preset Epic, no Substrate or ray tracing | 7e88635 | 1920x1080 | 38.1 | 26 | 39.4 | 7.3 | 38.1 | 2.7 | 35.3 | 1950 | 186900 | 0.78 |
+| 2026-09-29 | Skeletal spider, Medium | c540328 | 1920x1080 | 11.9 | 84 | 13.2 | 5.3 | 11.9 | 2.0 | 10.4 | 487 | 209196 | 0.79 |
