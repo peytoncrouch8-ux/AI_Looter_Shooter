@@ -2,12 +2,17 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Loot/AmmoPickup.h"
 #include "Loot/LootLibrary.h"
 #include "Loot/LootTable.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/World.h"
 #include "Modules/ModuleManager.h"
+#include "Tests/AutomationCommon.h"
 
 namespace
 {
@@ -190,6 +195,35 @@ bool FLootWeaponRarityOrderTest::RunTest(const FString& Parameters)
 		}
 		TestTrue(FString::Printf(TEXT("%s: Legendary possible"), *Asset.AssetName.ToString()), TierWeight(*Definition, NumTiers - 1) > 0.f);
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLootAmmoBoxesTest, "Looter.Loot.AmmoBoxes",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FLootAmmoBoxesTest::RunTest(const FString& Parameters)
+{
+	// Every ammo type drops in its own box model (SM_AmmoBox<Type>, from Art/Models/Loot/AmmoBox.py): the same can,
+	// with that type's cartridges on top.
+	FTestWorldWrapper WorldWrapper;
+	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	TSet<const UStaticMesh*> Seen;
+	for (const EAmmoType Type : LooterAmmo::AllTypes())
+	{
+		const FString Name = StaticEnum<EAmmoType>()->GetNameStringByValue(static_cast<int64>(Type));
+		const AAmmoPickup* Box = AAmmoPickup::SpawnAmmo(WorldWrapper.GetTestWorld(), Type, 10, FVector::ZeroVector);
+		const UStaticMeshComponent* Model = Box ? Box->FindComponentByClass<UStaticMeshComponent>() : nullptr;
+		const UStaticMesh* Mesh = Model ? Model->GetStaticMesh() : nullptr;
+		if (TestNotNull(FString::Printf(TEXT("%s box model"), *Name), Mesh))
+		{
+			TestEqual(FString::Printf(TEXT("%s box"), *Name), Mesh->GetName(), FString::Printf(TEXT("SM_AmmoBox%s"), *Name));
+			Seen.Add(Mesh);
+		}
+	}
+	TestEqual(TEXT("A box per ammo type"), Seen.Num(), LooterAmmo::NumTypes);
 	return true;
 }
 

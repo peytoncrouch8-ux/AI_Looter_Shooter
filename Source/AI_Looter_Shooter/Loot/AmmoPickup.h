@@ -5,12 +5,13 @@
 #include "Weapons/AmmoTypes.h"
 #include "AmmoPickup.generated.h"
 
-class UDynamicMeshComponent;
 class ULootTossComponent;
 class UPointLightComponent;
 class UPrimitiveComponent;
 class URotatingMovementComponent;
 class USphereComponent;
+class UStaticMesh;
+class UStaticMeshComponent;
 
 /**
  * A box of one ammo class dropped as loot. Walk over it to collect: it goes into the player's shared pool for that
@@ -44,6 +45,7 @@ public:
 	float CollectDelay = 0.5f;
 
 protected:
+	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
 
 private:
@@ -56,7 +58,6 @@ private:
 
 	/** Gives ammo to any player standing in the pickup radius. Runs on overlap and every so often while someone is inside. */
 	void TryCollect();
-	void BuildModel();
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<USphereComponent> Collision;
@@ -65,7 +66,11 @@ private:
 	TObjectPtr<USphereComponent> Trigger;
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
-	TObjectPtr<UDynamicMeshComponent> Model;
+	TObjectPtr<UStaticMeshComponent> Model;
+
+	/** The box of each ammo type (SM_AmmoBox<Type>, from Art/Models/Loot/AmmoBox.py), in EAmmoType order. */
+	UPROPERTY()
+	TArray<TObjectPtr<UStaticMesh>> BoxModels;
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UPointLightComponent> Glow;

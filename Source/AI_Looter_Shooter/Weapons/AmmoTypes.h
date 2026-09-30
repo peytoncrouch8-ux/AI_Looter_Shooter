@@ -32,10 +32,6 @@ namespace LooterAmmo
 		const TCHAR* Name;         // "AR Ammo"
 		int32 MaxCarried;          // pool cap
 		int32 BoxAmount;           // one dropped box
-		// Look of the cartridges on top of the box.
-		float CartridgeRadius;
-		float CartridgeHeight;
-		int32 CartridgeCount;
 	};
 
 	AI_LOOTER_SHOOTER_API const FInfo& GetInfo(EAmmoType Type);

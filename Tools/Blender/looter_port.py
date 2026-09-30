@@ -164,6 +164,12 @@ class Part:
             sample = vert.co * frequency + offset
             vert.co += (octave(sample) + octave(sample * 2.3 + Vector((3.3, 3.3, 3.3))) * 0.5) * 1.5 * magnitude
 
+    def scale(self, factor):
+        """Scales everything built so far (and its sockets) about the origin, like the component scale a code-built
+        model was shown at."""
+        bmesh.ops.scale(self.bm, vec=(factor, factor, factor), verts=self.bm.verts)
+        self.sockets = [(name, location * factor, rotation) for name, location, rotation in self.sockets]
+
     def socket(self, name, location, rotation=None):
         """An attach point on this model, in the model's own space: relative to build's frame when it has one."""
         self.sockets.append((name, Vector(location), rotation))

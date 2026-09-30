@@ -1,38 +1,35 @@
 #include "Loot/AmmoPickup.h"
 #include "Loot/LootTossComponent.h"
-#include "Procedural/StylizedMeshKit.h"
-#include "Procedural/StylizedSurface.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "AI_Looter_Shooter.h"
-#include "Components/DynamicMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SphereComponent.h"
-#include "DynamicMesh/DynamicMesh3.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/RotatingMovementComponent.h"
 #include "TimerManager.h"
-#include "UDynamicMesh.h"
+#include "UObject/ConstructorHelpers.h"
 
 namespace
 {
 	constexpr float PickupRadius = 110.f;
-	constexpr float ModelScale = 1.6f;
 	constexpr float RetryInterval = 0.25f;
-
-	// Material slots of the box model.
-	namespace AmmoBoxSlot
-	{
-		constexpr int32 Body = 0;
-		constexpr int32 Band = 1;
-		constexpr int32 Brass = 2;
-		constexpr int32 Tip = 3;
-		constexpr int32 Hull = 4;
-	}
-
-	// Every class shares one look, an olive can with a stenciled band, so no box reads as a rarity color.
-	// Only the rounds on top tell the classes apart.
 	const FLinearColor LightColor(1.f, 0.9f, 0.75f);
+
+	/** The box model of each ammo type, in EAmmoType order. */
+	TArray<UStaticMesh*> FindBoxModels()
+	{
+		TArray<UStaticMesh*> Models;
+		for (const EAmmoType Type : LooterAmmo::AllTypes())
+		{
+			const FString Name = StaticEnum<EAmmoType>()->GetNameStringByValue(static_cast<int64>(Type));
+			const ConstructorHelpers::FObjectFinder<UStaticMesh> Model(*FString::Printf(TEXT("/Game/Art/Loot/SM_AmmoBox%s.SM_AmmoBox%s"), *Name, *Name));
+			Models.Add(Model.Object);
+		}
+		return Models;
+	}
 }
 
 AAmmoPickup::AAmmoPickup()
@@ -58,11 +55,12 @@ AAmmoPickup::AAmmoPickup()
 	Trigger->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	Trigger->SetGenerateOverlapEvents(true);
 
-	Model = CreateDefaultSubobject<UDynamicMeshComponent>(TEXT("Model"));
+	Model = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Model"));
 	Model->SetupAttachment(Collision);
 	Model->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-	Model->SetRelativeScale3D(FVector(ModelScale));
 	Model->SetRelativeLocation(FVector(0.f, 0.f, -8.f));
+	static const TArray<UStaticMesh*> Boxes = FindBoxModels();
+	BoxModels.Append(Boxes);
 
 	Glow = CreateDefaultSubobject<UPointLightComponent>(TEXT("Glow"));
 	Glow->SetupAttachment(Collision);
@@ -99,13 +97,19 @@ AAmmoPickup* AAmmoPickup::SpawnAmmo(UWorld* World, EAmmoType Type, int32 Amount,
 	return Pickup;
 }
 
+void AAmmoPickup::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+	const int32 Type = static_cast<int32>(AmmoType);
+	Model->SetStaticMesh(BoxModels.IsValidIndex(Type) ? BoxModels[Type] : nullptr);
+}
+
 void AAmmoPickup::BeginPlay()
 {
 	Super::BeginPlay();
 	SpawnTime = GetWorld()->GetTimeSeconds();
 	SetLifeSpan(LifeSeconds);
 
-	BuildModel();
 	Glow->SetLightColor(LightColor);
 
 	Trigger->OnComponentBeginOverlap.AddDynamic(this, &AAmmoPickup::HandleTriggerOverlap);
@@ -179,55 +183,4 @@ void AAmmoPickup::TryCollect()
 			return;
 		}
 	}
-}
-
-void AAmmoPickup::BuildModel()
-{
-	using namespace StylizedMesh;
-	const LooterAmmo::FInfo& Info = LooterAmmo::GetInfo(AmmoType);
-
-	UDynamicMesh* Scratch = NewObject<UDynamicMesh>(this, NAME_None, RF_Transient);
-
-	// A small ammo can: body, a stenciled band around the middle, lid, and the class's cartridges standing on top.
-	Box(Scratch, AmmoBoxSlot::Body, FVector(0.f, 0.f, 6.f), FVector(20.f, 13.f, 12.f));
-	Box(Scratch, AmmoBoxSlot::Band, FVector(0.f, 0.f, 6.5f), FVector(20.6f, 13.6f, 3.2f));
-	Box(Scratch, AmmoBoxSlot::Body, FVector(0.f, 0.f, 12.4f), FVector(21.f, 14.f, 1.2f));
-	Box(Scratch, AmmoBoxSlot::Body, FVector(0.f, 0.f, 13.6f), FVector(8.f, 2.f, 1.2f)); // handle
-
-	const int32 Count = FMath::Max(Info.CartridgeCount, 1);
-	const float Spacing = FMath::Min(Info.CartridgeRadius * 2.6f, 16.f / FMath::Max(Count - 1, 1));
-	const float CaseHeight = Info.CartridgeHeight * 0.65f;
-	const bool bShells = AmmoType == EAmmoType::Shotgun;
-	for (int32 Index = 0; Index < Count; ++Index)
-	{
-		const float X = (Index - (Count - 1) * 0.5f) * Spacing;
-		const FVector Base(X, 3.2f, 13.f);
-		// Shotgun shells: red plastic hull on a brass base. Everything else: brass case with a copper tip.
-		Cylinder(Scratch, AmmoBoxSlot::Brass, FTransform(Base), Info.CartridgeRadius, bShells ? Info.CartridgeHeight * 0.25f : CaseHeight, 8);
-		if (bShells)
-		{
-			Cylinder(Scratch, AmmoBoxSlot::Hull, FTransform(Base + FVector(0.f, 0.f, Info.CartridgeHeight * 0.25f)), Info.CartridgeRadius * 0.95f,
-				Info.CartridgeHeight * 0.75f, 8);
-		}
-		else
-		{
-			Cone(Scratch, AmmoBoxSlot::Tip, FTransform(Base + FVector(0.f, 0.f, CaseHeight)), Info.CartridgeRadius, Info.CartridgeRadius * 0.3f,
-				Info.CartridgeHeight - CaseHeight, 8);
-		}
-	}
-	FinishNormals(Scratch, 0.f);
-
-	UE::Geometry::FDynamicMesh3 Built;
-	Scratch->ProcessMesh([&Built](const UE::Geometry::FDynamicMesh3& Source) { Built = Source; });
-	Model->SetMesh(MoveTemp(Built));
-
-	TArray<FStylizedSurface> Surfaces;
-	Surfaces.Add(FStylizedSurface::Solid(StylizedColors::Hex(0x4d5a38), 0.06f)); // olive drab
-	FStylizedSurface Band = FStylizedSurface::Solid(StylizedColors::Hex(0xe6dcc0), 0.f);
-	Band.Glow = 0.35f; // a faint glow so boxes catch the eye in the grass
-	Surfaces.Add(Band);
-	Surfaces.Add(FStylizedSurface::Solid(StylizedColors::Hex(0xd6a64c), 0.05f));
-	Surfaces.Add(FStylizedSurface::Solid(StylizedColors::Hex(0xb8683a), 0.05f));
-	Surfaces.Add(FStylizedSurface::Solid(StylizedColors::Hex(0xb8392c), 0.05f));
-	StylizedSurfaces::Apply(Model, Surfaces);
 }

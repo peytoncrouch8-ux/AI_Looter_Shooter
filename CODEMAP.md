@@ -66,7 +66,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Loot/LootLibrary`: `ULootLibrary`, rolling a loot table and spawning the results.
 - `Loot/LootDropComponent`: drops its owner's loot when it dies.
 - `Loot/LootTossComponent`: `ULootTossComponent`, throws loot so it pops out, lands and settles.
-- `Loot/AmmoPickup`: `AAmmoPickup`, an ammo box you walk over to collect.
+- `Loot/AmmoPickup`: `AAmmoPickup`, an ammo box you walk over to collect (its model per type from
+  `Art/Models/Loot/AmmoBox.py`).
 
 ## Creatures
 - `Creatures/CreatureBase`: `ACreatureBase`, a hostile creature's brain and life cycle (senses, chase, attack, death,
