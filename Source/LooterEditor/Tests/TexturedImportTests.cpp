@@ -58,6 +58,10 @@ bool FTexturedImportTest::RunTest(const FString& Parameters)
 		}
 		float UVScale = 0.f;
 		TestTrue(TEXT("UV scale"), Look->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("UVScale")), UVScale) && FMath::IsNearlyEqual(UVScale, 2.f));
+		float Moss = 0.f;
+		TestTrue(TEXT("Other scalar parameters by name"), Look->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("MossAmount")), Moss) && FMath::IsNearlyEqual(Moss, 0.5f));
+		FLinearColor MossColor;
+		TestTrue(TEXT("Other color parameters by name"), Look->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("MossColor")), MossColor) && MossColor.Equals(FLinearColor(1.f, 0.2159f, 0.0513f, 1.f), 0.001f));
 
 		// LODs on a mesh without Nanite; no collision on the ghost.
 		const UStaticMesh* Lod = LoadObject<UStaticMesh>(nullptr, TEXT("/Temp/LooterTests/TexturedImport/SM_LodBlock.SM_LodBlock"));

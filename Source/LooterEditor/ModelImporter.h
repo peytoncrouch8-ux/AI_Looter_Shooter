@@ -112,6 +112,9 @@ private:
 		TMap<FString, FString> Textures;
 		FLinearColor Tint = FLinearColor::White;
 		float UVScale = 1.f;
+		/** Any other parameters of the master the Blender material sets (MossAmount, WindStrength, ...). */
+		TMap<FString, float> Scalars;
+		TMap<FString, FLinearColor> Colors;
 	};
 	static bool ReadTexturedLook(const class FJsonObject& Json, FTexturedLook& OutLook);
 	UMaterialInterface* UpdateTexturedMaterial(const FString& Name, const FTexturedLook& Look);

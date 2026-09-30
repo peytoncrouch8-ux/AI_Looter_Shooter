@@ -239,4 +239,5 @@ def run():
     log('built and saved')
 
 
-run()
+if __name__ == '__main__':
+    run()

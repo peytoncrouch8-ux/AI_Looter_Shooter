@@ -1,6 +1,6 @@
 """Fixture for the Looter.Editor.TexturedImport test: the textured art style's import path.
 - TexturedBlock: a box whose material names the World master and the TexturedTest set (the three PNGs beside this file),
-  with a tint and a UV scale.
+  with a tint, a UV scale and two more of the master's parameters (MossAmount, MossColor).
 - LodBlock: Nanite off, with LODs at 50% (screen size 0.4).
 - GhostBlock: no collision at all.
 After changing it, export it again:
@@ -28,6 +28,9 @@ def textured(name, set_name):
     material['TextureSet'] = set_name
     material['Tint'] = '#FF8040'
     material['UVScale'] = 2.0
+    # Any other parameter of the master, by name.
+    material['MossAmount'] = 0.5
+    material['MossColor'] = '#FF8040'
     return material
 
 

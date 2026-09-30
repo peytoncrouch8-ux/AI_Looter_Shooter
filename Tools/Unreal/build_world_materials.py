@@ -2,9 +2,11 @@
 
   M_World         opaque: BaseColorMap, NormalMap, ORMMap (ambient occlusion, roughness, metallic), Tint, UVScale.
                   The vertex color alpha is baked ambient occlusion (SSAO is off on Medium), and DiffuseAO lets some of
-                  it darken the base color too, so contact shading shows in direct light.
-  M_WorldFoliage  masked, two-sided, the same maps (opacity from the base color's alpha) plus wind: vertex color R is
-                  how far a vertex sways, G offsets its phase; WindStrength (cm), WindSpeed, WindDirection.
+                  it darken the base color too, so contact shading shows in direct light. MossAmount (0 = off) grows
+                  moss on upward faces, in MossColor, above the MossThreshold slope.
+  M_WorldFoliage  masked, two-sided (back faces keep the front's normal), the same maps (opacity from the base
+                  color's alpha) plus wind: vertex color R is how far a vertex sways, G offsets its phase;
+                  WindStrength (cm), WindSpeed, WindDirection.
   M_Terrain       MacroMap on UV 0 covers the whole island (its alpha picks the detail: 0 grass/soil, 1 rock); the
                   Grass* and Rock* maps tile on UV 1 (meters) and only modulate the macro color's brightness.
   M_Water         opaque, cheap: a color, glossy, procedural ripples.
@@ -127,13 +129,41 @@ def shaded_color(g, bc, ao):
     return g.mul(tinted, '', lerp, '', -500, -300)
 
 
+MOSS_MASK = """float Luma = dot(Color, float3(0.299, 0.587, 0.114));
+float Up = saturate((Normal.z - Threshold + (Luma - 0.25) * 0.8) / 0.2);
+return Up * Amount;"""
+
+
+def moss(g, bc, color, roughness):
+    """Moss and grass settling on upward faces (rock ledges, boulder tops, old roofs): MossAmount 0 (off) to 1, above
+    the MossThreshold slope (the vertex normal's up component), broken up by the texture's light and dark."""
+    mask = g.custom(MOSS_MASK, [
+        ('Color', bc, 'RGB'),
+        ('Normal', g.node(unreal.MaterialExpressionVertexNormalWS, -800, -700), ''),
+        ('Threshold', g.scalar('MossThreshold', 0.55, -800, -800), ''),
+        ('Amount', g.scalar('MossAmount', 0.0, -800, -900), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -500, -700, 'Moss mask')
+    moss_color = g.mul(g.vector('MossColor', (0.11, 0.19, 0.035, 1.0), -500, -900), '', bc, 'RGB', -300, -850)
+    # The moss color carries the texture's light and dark (x2: the maps average about half brightness).
+    moss_color = g.mul(moss_color, '', g.node(unreal.MaterialExpressionConstant, -300, -950, r=2.0), '', -150, -850)
+    blended = g.node(unreal.MaterialExpressionLinearInterpolate, 0, -600)
+    g.link(color, '', blended, 'A')
+    g.link(moss_color, '', blended, 'B')
+    g.link(mask, '', blended, 'Alpha')
+    rough = g.node(unreal.MaterialExpressionLinearInterpolate, 0, -400, const_b=0.9)
+    g.link(roughness, 'G', rough, 'A')
+    g.link(mask, '', rough, 'Alpha')
+    return blended, rough
+
+
 def build_world(orm_default):
     mat = material('M_World')
     g = Graph(mat)
     bc, nrm, orm, vc, ao = textured_inputs(g, orm_default)
-    g.out(shaded_color(g, bc, ao), '', unreal.MaterialProperty.MP_BASE_COLOR)
+    color, rough = moss(g, bc, shaded_color(g, bc, ao), orm)
+    g.out(color, '', unreal.MaterialProperty.MP_BASE_COLOR)
     g.out(nrm, 'RGB', unreal.MaterialProperty.MP_NORMAL)
-    g.out(orm, 'G', unreal.MaterialProperty.MP_ROUGHNESS)
+    g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
     g.out(orm, 'B', unreal.MaterialProperty.MP_METALLIC)
     g.out(ao, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
     finish(mat, [unreal.MaterialUsage.MATUSAGE_NANITE, unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES,
@@ -154,7 +184,14 @@ def build_foliage(orm_default):
     g = Graph(mat)
     bc, nrm, orm, vc, ao = textured_inputs(g, orm_default)
     g.out(shaded_color(g, bc, ao), '', unreal.MaterialProperty.MP_BASE_COLOR)
-    g.out(nrm, 'RGB', unreal.MaterialProperty.MP_NORMAL)
+    # A two-sided material turns the normal around on back faces. Leaf cards and blades carry normals that point out of
+    # the crown or up from the ground, which both sides should keep, or half the cards shade dark: undo the turn.
+    # The engine multiplies the whole world normal by TwoSidedSign, so the tangent normal is multiplied by it first.
+    facing = g.custom('return Normal * Sign;', [
+        ('Normal', nrm, 'RGB'),
+        ('Sign', g.node(unreal.MaterialExpressionTwoSidedSign, -800, 100), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -500, 50, 'Keep back faces on the authored normal')
+    g.out(facing, '', unreal.MaterialProperty.MP_NORMAL)
     g.out(orm, 'G', unreal.MaterialProperty.MP_ROUGHNESS)
     g.out(ao, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
     g.out(bc, 'A', unreal.MaterialProperty.MP_OPACITY_MASK)

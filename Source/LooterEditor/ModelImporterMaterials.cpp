@@ -88,6 +88,27 @@ bool FModelImporter::ReadTexturedLook(const FJsonObject& Json, FTexturedLook& Ou
 	{
 		OutLook.UVScale = static_cast<float>(UVScale);
 	}
+	const TSharedPtr<FJsonObject>* Scalars = nullptr;
+	if (Json.TryGetObjectField(TEXT("Scalars"), Scalars))
+	{
+		for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : (*Scalars)->Values)
+		{
+			OutLook.Scalars.Add(Entry.Key, static_cast<float>(Entry.Value->AsNumber()));
+		}
+	}
+	const TSharedPtr<FJsonObject>* Colors = nullptr;
+	if (Json.TryGetObjectField(TEXT("Colors"), Colors))
+	{
+		for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : (*Colors)->Values)
+		{
+			const TArray<TSharedPtr<FJsonValue>>& Channels = Entry.Value->AsArray();
+			if (Channels.Num() >= 3)
+			{
+				OutLook.Colors.Add(Entry.Key, FLinearColor(static_cast<float>(Channels[0]->AsNumber()), static_cast<float>(Channels[1]->AsNumber()),
+					static_cast<float>(Channels[2]->AsNumber()), Channels.Num() > 3 ? static_cast<float>(Channels[3]->AsNumber()) : 1.f));
+			}
+		}
+	}
 	return true;
 }
 
@@ -139,7 +160,8 @@ UTexture2D* FModelImporter::ImportTexture(const FString& ProjectRelativeFile)
 		ApplyRole(Texture, Role);
 		Texture->MarkPackageDirty();
 		ChangedPackages.AddUnique(Texture->GetPackage());
-		UE_LOG(LogModelImporter, Display, TEXT("Imported %s (%dx%d)."), *Texture->GetPathName(), Texture->GetSizeX(), Texture->GetSizeY());
+		// The source size: the built texture is still compiling here and reports a placeholder.
+		UE_LOG(LogModelImporter, Display, TEXT("Imported %s (%dx%d)."), *Texture->GetPathName(), static_cast<int32>(Texture->Source.GetSizeX()), static_cast<int32>(Texture->Source.GetSizeY()));
 	}
 	else if (ApplyRole(Texture, Role))
 	{
@@ -191,6 +213,27 @@ UMaterialInterface* FModelImporter::UpdateTexturedMaterial(const FString& Name, 
 	}
 	Instance->SetVectorParameterValueEditorOnly(FMaterialParameterInfo(TEXT("Tint")), Look.Tint);
 	Instance->SetScalarParameterValueEditorOnly(FMaterialParameterInfo(TEXT("UVScale")), Look.UVScale);
+	// The rest by name. A name the master doesn't have is most likely a typo in Blender, so say so.
+	for (const TPair<FString, float>& Scalar : Look.Scalars)
+	{
+		float Default = 0.f;
+		if (!Parent->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(*Scalar.Key), Default))
+		{
+			UE_LOG(LogModelImporter, Warning, TEXT("%s: %s has no scalar parameter %s."), *Name, *Parent->GetName(), *Scalar.Key);
+			continue;
+		}
+		Instance->SetScalarParameterValueEditorOnly(FMaterialParameterInfo(*Scalar.Key), Scalar.Value);
+	}
+	for (const TPair<FString, FLinearColor>& Color : Look.Colors)
+	{
+		FLinearColor Default;
+		if (!Parent->GetVectorParameterDefaultValue(FHashedMaterialParameterInfo(*Color.Key), Default))
+		{
+			UE_LOG(LogModelImporter, Warning, TEXT("%s: %s has no color parameter %s."), *Name, *Parent->GetName(), *Color.Key);
+			continue;
+		}
+		Instance->SetVectorParameterValueEditorOnly(FMaterialParameterInfo(*Color.Key), Color.Value);
+	}
 	Instance->BasePropertyOverrides.bOverride_UsageFlags = 0;
 	Instance->PostEditChange();
 	Instance->MarkPackageDirty();

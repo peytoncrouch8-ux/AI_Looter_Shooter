@@ -122,6 +122,9 @@ def set_files(material, set_name):
     return found
 
 
+TEXTURED_PROPERTIES = {'Master', 'TextureSet', 'DetailSets', 'Tint', 'UVScale'}
+
+
 def textured_look(material, master):
     """A material of the new art style: its master, the textures for the master's map parameters, a tint and a UV
     scale. Terrain materials also take their detail sets (property DetailSets = 'GroundGrass,RockCliff': the first
@@ -139,7 +142,16 @@ def textured_look(material, master):
     if set_name and not textures:
         log(f'warning: material {material.name}: no textures found for the set {set_name}')
     look = {'Master': master, 'Textures': textures, 'Tint': hex_color(material.get('Tint', [1.0, 1.0, 1.0, 1.0])),
-            'UVScale': float(material.get('UVScale', 1.0))}
+            'UVScale': float(material.get('UVScale', 1.0)), 'Scalars': {}, 'Colors': {}}
+    # Any other number or '#RRGGBB' property sets the master's parameter of that name (MossAmount, WindStrength, ...).
+    for key in material.keys():
+        value = material[key]
+        if key in TEXTURED_PROPERTIES or key.startswith('_'):
+            continue
+        if isinstance(value, str) and value.startswith('#'):
+            look['Colors'][key] = hex_color(value)
+        elif isinstance(value, (int, float)) and not isinstance(value, bool):
+            look['Scalars'][key] = float(value)
     return look
 
 
