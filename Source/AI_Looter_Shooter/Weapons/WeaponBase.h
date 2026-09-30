@@ -8,7 +8,6 @@
 #include "Weapons/WeaponTypes.h"
 #include "WeaponBase.generated.h"
 
-class UDynamicMeshComponent;
 class UInstancedStaticMeshComponent;
 class USphereComponent;
 class USkeletalMeshComponent;
@@ -17,6 +16,7 @@ class UPrimitiveComponent;
 class UPointLightComponent;
 class ULootTossComponent;
 class URotatingMovementComponent;
+class UWeaponModelComponent;
 class UWidgetComponent;
 class UWeaponManagerComponent;
 
@@ -60,10 +60,10 @@ public:
 	void AttachToHolder(USceneComponent* AttachTo, FName Socket, const FTransform& AttachOffset);
 
 	/** Where the right hand holds the gun, in the weapon's own space. */
-	FVector GetGripPoint() const { return ModelGrip; }
+	FVector GetGripPoint() const;
 
 	/** Where the left hand holds the gun, in the weapon's own space. */
-	FVector GetForegripPoint() const { return ModelForegrip; }
+	FVector GetForegripPoint() const;
 	void OnHolstered();
 	void OnDropped();
 
@@ -113,8 +113,8 @@ public:
 	/** How strongly reload animation should show right now: eases in at the start of a reload and out at the end. */
 	float GetReloadBlend() const;
 
-	/** What a reload visibly works on (magazine or pump), for animating it. None for guns without a code-built model. */
-	EWeaponReloadPart GetReloadPart() const { return bUsingModel ? ReloadPart : EWeaponReloadPart::None; }
+	/** What a reload visibly works on (magazine or pump), for animating it. None for guns that aren't built from parts. */
+	EWeaponReloadPart GetReloadPart() const;
 
 	/** True while the trigger is held (even between shots or during a reload). */
 	UFUNCTION(BlueprintPure, Category = "Weapon")
@@ -178,13 +178,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> StaticMesh;
 
-	/** Code-built model, used when the definition asks for a procedural model. */
+	/** The gun assembled from its definition's parts, used when the definition has parts. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<UDynamicMeshComponent> ModelMesh;
-
-	/** The code-built model's moving part (magazine or pump), which reloads animate. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<UDynamicMeshComponent> ModelPartMesh;
+	TObjectPtr<UWeaponModelComponent> Model;
 
 	/** Built-in muzzle flash: a hot core, a spiky star and three flame tongues at the muzzle, shown for a moment after each shot. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
@@ -215,7 +211,9 @@ protected:
 
 private:
 	void ApplyDefinitionVisuals();
-	UPrimitiveComponent* GetActiveMesh() const;
+	USceneComponent* GetActiveMesh() const;
+	/** Whether the gun is drawn like first-person arms (own field of view and scale). */
+	bool IsDrawnFirstPerson() const;
 	FVector GetMuzzleLocation() const;
 	void GetAimViewPoint(FVector& OutLocation, FRotator& OutRotation) const;
 
@@ -249,13 +247,6 @@ private:
 	bool bIsPickup = false;
 	bool bUsingModel = false;
 
-	/** Key points of the procedural model, in ModelMesh space (which is weapon space while held). */
-	FVector ModelMuzzle = FVector::ZeroVector;
-	FVector ModelGrip = FVector::ZeroVector;
-	FVector ModelForegrip = FVector(30.f, 0.f, -3.f);
-	EWeaponReloadPart ReloadPart = EWeaponReloadPart::None;
-	/** Direction the part slides out (magazine) or back (pump), in ModelMesh space. */
-	FVector ReloadPartAxis = FVector::ZeroVector;
 	double LastFireTime = -1000.0;
 
 	/** Seconds the muzzle flash still shows, and how strong this shot's flash is. */

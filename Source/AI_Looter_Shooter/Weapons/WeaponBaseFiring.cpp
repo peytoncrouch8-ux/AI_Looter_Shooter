@@ -7,7 +7,7 @@
 #include "Player/PlayerViewComponent.h"
 #include "UI/World/WeaponLabelWidget.h"
 #include "Inventory/WeaponManagerComponent.h"
-#include "Weapons/WeaponModelBuilder.h"
+#include "Weapons/WeaponModelComponent.h"
 #include "Procedural/StylizedSurface.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraTypes.h"
@@ -185,8 +185,8 @@ void AWeaponBase::FireShot()
 	{
 		if (bUsingModel)
 		{
-			UNiagaraFunctionLibrary::SpawnSystemAttached(Definition->MuzzleFlashFX, ModelMesh, NAME_None,
-				ModelMuzzle, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+			UNiagaraFunctionLibrary::SpawnSystemAttached(Definition->MuzzleFlashFX, Model, NAME_None,
+				Model->GetMuzzle(), FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
 		}
 		else
 		{
@@ -215,9 +215,8 @@ const FWeaponRecoilProfile& AWeaponBase::GetRecoilProfile() const
 FVector AWeaponBase::GetVisibleMuzzleLocation() const
 {
 	const FVector Muzzle = GetMuzzleLocation();
-	const UPrimitiveComponent* Mesh = GetActiveMesh();
 	const UCameraComponent* Camera = UPlayerViewComponent::FindFirstPersonCamera(GetOwner());
-	if (!Mesh || !Camera || Mesh->FirstPersonPrimitiveType != EFirstPersonPrimitiveType::FirstPerson)
+	if (!Camera || !IsDrawnFirstPerson())
 	{
 		return Muzzle;
 	}
@@ -240,7 +239,7 @@ FVector AWeaponBase::GetVisibleMuzzleLocation() const
 void AWeaponBase::SetupMuzzleFlash()
 {
 	const UWeaponDefinition* Definition = Instance.Definition;
-	UPrimitiveComponent* Mesh = GetActiveMesh();
+	USceneComponent* Mesh = GetActiveMesh();
 	if (!Definition || !Mesh)
 	{
 		return;
@@ -249,7 +248,7 @@ void AWeaponBase::SetupMuzzleFlash()
 	// Sit on the muzzle of whichever model shows, pointing down the barrel (+X).
 	const bool bSocket = !bUsingModel && Mesh->DoesSocketExist(Definition->MuzzleSocket);
 	const FName Socket = bSocket ? Definition->MuzzleSocket : NAME_None;
-	const FVector Offset = bUsingModel ? ModelMuzzle : FVector::ZeroVector;
+	const FVector Offset = bUsingModel ? Model->GetMuzzle() : FVector::ZeroVector;
 	MuzzleFlash->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
 	MuzzleFlash->SetRelativeLocation(Offset);
 	MuzzleLight->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);

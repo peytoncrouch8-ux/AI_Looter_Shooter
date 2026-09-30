@@ -3,11 +3,11 @@
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/WeaponBase.h"
 #include "Inventory/WeaponManagerComponent.h"
-#include "Weapons/WeaponModelBuilder.h"
-#include "Components/DynamicMeshComponent.h"
+#include "Weapons/WeaponModelComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "GameFramework/Character.h"
 
@@ -205,7 +205,7 @@ void ALoadoutStage::ShowLoadout(const ACharacter* Character, const UWeaponManage
 			continue;
 		}
 		const FWeaponInstanceData& Instance = Equipped[Slot]->GetInstance();
-		if (!Gun.Mesh || !IsSameGun(Gun.Instance, Instance))
+		if (!Gun.Model || !IsSameGun(Gun.Instance, Instance))
 		{
 			DestroyGun(Gun);
 			BuildGun(Gun, Instance);
@@ -220,40 +220,32 @@ void ALoadoutStage::BuildGun(FLoadoutStageGun& Gun, const FWeaponInstanceData& I
 	Gun = FLoadoutStageGun();
 	Gun.Instance = Instance;
 
-	UDynamicMeshComponent* Mesh = NewObject<UDynamicMeshComponent>(this);
-	UDynamicMeshComponent* Part = NewObject<UDynamicMeshComponent>(this);
-	SetupStagePrimitive(Mesh);
-	SetupStagePrimitive(Part);
-	WeaponModels::FPoints Points;
-	if (!WeaponModels::BuildInto(Instance, Mesh, Part, Points))
+	UWeaponModelComponent* Model = NewObject<UWeaponModelComponent>(this);
+	Model->SetupAttachment(Root);
+	Model->RegisterComponent();
+	if (!Model->Assemble(Instance))
 	{
-		// Only code-built guns can be copied; a gun with its own mesh asset isn't shown on the stand-in.
-		Mesh->MarkAsGarbage();
-		Part->MarkAsGarbage();
+		// Only guns built from parts can be copied; a gun with its own mesh asset isn't shown on the stand-in.
+		Model->DestroyComponent();
 		return;
 	}
-	Mesh->SetupAttachment(Root);
-	Part->SetupAttachment(Mesh);
-	Mesh->RegisterComponent();
-	Part->RegisterComponent();
+	for (UStaticMeshComponent* Part : Model->GetParts())
+	{
+		SetupStagePrimitive(Part);
+	}
 
-	Gun.Mesh = Mesh;
-	Gun.Part = Part;
-	Gun.Grip = Points.Grip;
-	Gun.Foregrip = Points.Foregrip;
-	Gun.Muzzle = Points.Muzzle;
-	Gun.Center = Mesh->GetLocalBounds().Origin;
+	Gun.Model = Model;
+	Gun.Grip = Model->GetGrip();
+	Gun.Foregrip = Model->GetForegrip();
+	Gun.Muzzle = Model->GetMuzzle();
+	Gun.Center = Model->GetCenter();
 }
 
 void ALoadoutStage::DestroyGun(FLoadoutStageGun& Gun)
 {
-	if (Gun.Part)
+	if (Gun.Model)
 	{
-		Gun.Part->DestroyComponent();
-	}
-	if (Gun.Mesh)
-	{
-		Gun.Mesh->DestroyComponent();
+		Gun.Model->DestroyComponent();
 	}
 	Gun = FLoadoutStageGun();
 }
@@ -312,7 +304,7 @@ FQuat ALoadoutStage::GetFacing() const
 
 const FLoadoutStageGun* ALoadoutStage::GetGunInHand() const
 {
-	return Guns.FindByPredicate([](const FLoadoutStageGun& Gun) { return Gun.Mesh && Gun.Carry == ELoadoutCarry::InHand; });
+	return Guns.FindByPredicate([](const FLoadoutStageGun& Gun) { return Gun.Model && Gun.Carry == ELoadoutCarry::InHand; });
 }
 
 void ALoadoutStage::UpdateHold()
@@ -345,7 +337,7 @@ void ALoadoutStage::PlaceGuns()
 	const FQuat Facing = GetFacing();
 	for (FLoadoutStageGun& Gun : Guns)
 	{
-		if (!Gun.Mesh)
+		if (!Gun.Model)
 		{
 			continue;
 		}
@@ -367,11 +359,11 @@ void ALoadoutStage::PlaceGuns()
 			break;
 		}
 		default:
-			Gun.Mesh->SetVisibility(false, true);
+			Gun.Model->SetVisibility(false, true);
 			continue;
 		}
-		Gun.Mesh->SetVisibility(true, true);
-		Gun.Mesh->SetWorldLocationAndRotation(Location, Rotation);
+		Gun.Model->SetVisibility(true, true);
+		Gun.Model->SetWorldLocationAndRotation(Location, Rotation);
 	}
 }
 
@@ -398,12 +390,12 @@ bool ALoadoutStage::ProjectToImage(const FVector& WorldLocation, FVector2D& OutU
 
 bool ALoadoutStage::GetSlotAnchor(int32 Slot, FVector& OutWorldLocation) const
 {
-	if (!Guns.IsValidIndex(Slot) || !Guns[Slot].Mesh || Guns[Slot].Carry == ELoadoutCarry::None)
+	if (!Guns.IsValidIndex(Slot) || !Guns[Slot].Model || Guns[Slot].Carry == ELoadoutCarry::None)
 	{
 		return false;
 	}
 	const FLoadoutStageGun& Gun = Guns[Slot];
-	const FTransform& GunTransform = Gun.Mesh->GetComponentTransform();
+	const FTransform& GunTransform = Gun.Model->GetComponentTransform();
 	OutWorldLocation = GunTransform.TransformPosition(Gun.Center);
 	FVector2D Spine;
 	if (Gun.Carry != ELoadoutCarry::Back || !ProjectToImage(Body->GetBoneLocation(BackBone), Spine))

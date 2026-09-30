@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Weapons/AmmoTypes.h"
+#include "Weapons/WeaponParts.h"
 #include "Weapons/WeaponRecoil.h"
 #include "Weapons/WeaponTypes.h"
 #include "WeaponDefinition.generated.h"
@@ -94,14 +95,33 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Firing")
 	FWeaponRecoilProfile Recoil;
 
-	/**
-	 * Generate a stylized model in code (varied per rolled weapon, accent-lit in its rarity color).
-	 * Takes priority over the meshes below; set to None to use them instead.
-	 */
+	/** What kind of gun it is (its icons). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals")
-	EWeaponModel ProceduralModel = EWeaponModel::None;
+	EWeaponKind Kind = EWeaponKind::None;
 
-	/** Use either a skeletal or static mesh. Skeletal wins if both are set. */
+	/**
+	 * The gun's parts, in order: each rolled gun picks its own by its seed (UWeaponModelComponent assembles them).
+	 * Takes priority over the meshes below. Sockets the gun reads from its parts: Muzzle, Grip and Foregrip.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Parts")
+	TArray<FWeaponPartSlot> Parts;
+
+	/** Materials the parts share that each rolled gun colors its own way. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Parts")
+	TArray<FWeaponPaint> Paints;
+
+	/** The parts' material slot that glows in the gun's rarity color. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Parts")
+	FName RarityGlowSlot = TEXT("GunAccent");
+
+	/** The part slot a reload moves: a magazine slides out along the part's -Z, a pump back along its -X. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Parts")
+	FName ReloadSlot;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Parts")
+	EWeaponReloadPart ReloadPart = EWeaponReloadPart::None;
+
+	/** Without parts: either a skeletal or static mesh. Skeletal wins if both are set. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals")
 	TObjectPtr<USkeletalMesh> SkeletalMesh;
 

@@ -46,7 +46,7 @@ namespace
 namespace LoadoutParts
 {
 	/** A gun's side view (120 x 40), or just the strip on it that's lit in the gun's rarity color. */
-	const FVectorIcon& GunIcon(EWeaponModel Model, bool bStrip)
+	const FVectorIcon& GunIcon(EWeaponKind Kind, bool bStrip)
 	{
 		static const FVectorIcon Rifle = MakeGunIcon({
 			{ { 2, 14 }, { 22, 12 }, { 30, 14 }, { 30, 24 }, { 22, 26 }, { 4, 30 }, { 2, 28 } },
@@ -63,17 +63,17 @@ namespace LoadoutParts
 			{ { 34, 21 }, { 40, 21 }, { 38, 32 }, { 32, 32 } },
 			RectPoints(114, 11.2, 116.5, 13) });
 		static const FVectorIcon ShotgunStrip = MakeGunIcon({ RectPoints(33, 15, 52, 17) });
-		if (Model == EWeaponModel::Shotgun)
+		if (Kind == EWeaponKind::Shotgun)
 		{
 			return bStrip ? ShotgunStrip : Shotgun;
 		}
 		return bStrip ? RifleStrip : Rifle;
 	}
 
-	FName GunIconName(EWeaponModel Model, bool bStrip)
+	FName GunIconName(EWeaponKind Kind, bool bStrip)
 	{
-		const TCHAR* Kind = Model == EWeaponModel::Shotgun ? TEXT("Shotgun") : TEXT("Rifle");
-		return FName(*FString::Printf(TEXT("Gun%s%s"), Kind, bStrip ? TEXT("Strip") : TEXT("")));
+		const TCHAR* Name = Kind == EWeaponKind::Shotgun ? TEXT("Shotgun") : TEXT("Rifle");
+		return FName(*FString::Printf(TEXT("Gun%s%s"), Name, bStrip ? TEXT("Strip") : TEXT("")));
 	}
 
 	/** Outlined cartridges (24 x 24), one per ammo type, in EAmmoType order. */
@@ -182,12 +182,12 @@ namespace LoadoutParts
 	UWidget* MakeGunPicture(UWidgetTree* Tree, const FWeaponInstanceData& Item, const FVector2D& Size, float PixelsPerUnit,
 		const FLinearColor& BodyColor, bool bStrip)
 	{
-		const EWeaponModel Model = Item.Definition ? Item.Definition->ProceduralModel : EWeaponModel::Rifle;
+		const EWeaponKind Kind = Item.Definition ? Item.Definition->Kind : EWeaponKind::Rifle;
 		UOverlay* Picture = Tree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-		Picture->AddChildToOverlay(MakeImage(Tree, IconBrush(GunIconName(Model, false), GunIcon(Model, false), PixelsPerUnit, Size, BodyColor)));
+		Picture->AddChildToOverlay(MakeImage(Tree, IconBrush(GunIconName(Kind, false), GunIcon(Kind, false), PixelsPerUnit, Size, BodyColor)));
 		if (bStrip)
 		{
-			Picture->AddChildToOverlay(MakeImage(Tree, IconBrush(GunIconName(Model, true), GunIcon(Model, true), PixelsPerUnit, Size,
+			Picture->AddChildToOverlay(MakeImage(Tree, IconBrush(GunIconName(Kind, true), GunIcon(Kind, true), PixelsPerUnit, Size,
 				LooterWeaponText::Color(Item))));
 		}
 		return Picture;

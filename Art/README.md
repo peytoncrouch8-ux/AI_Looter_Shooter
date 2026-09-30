@@ -33,7 +33,8 @@ command after opening it. Importing again updates the assets in place, so placed
   - meshes named `UCX_...` are its collision. Each must be convex (boxes and simple hulls); use several for other
     shapes. Without any, Unreal uses the mesh itself as collision.
   - empties named `SOCKET_<Name>` become sockets (attach points). A socket's front is the empty's -Y and its top the
-    empty's +Z, like a model's.
+    empty's +Z, like a model's. Models in one file can share socket names: Blender's numbering (`SOCKET_Muzzle.001`)
+    is dropped.
 - Objects whose names start with `_` are skipped (references, helpers). A file may hold several models; each becomes
   its own asset. The mesh asset is named `SM_` plus the object name.
 - **Materials**: every face needs a material. Its name names the Unreal material instance (`MI_<name>` in
@@ -76,3 +77,19 @@ A top-level **armature** is a rigged model: a skeletal mesh whose code moves its
 A `.py` model builds itself in an empty scene with the helpers in `Tools/Blender/looter_model.py` (boxes, cylinders,
 materials in hex colors, hulls, sockets; for rigs: an armature, bones, skin and hit zones). See
 `Art/Models/Props/LanternPost.py`, and `Source/LooterEditor/Tests/RigImport/RigTest.py` for a small rig.
+
+Models ported from the game's old code-built meshes (the spider, the gun parts) are built in Unreal's space and units
+with `Tools/Blender/looter_port.py`, so their numbers read like the C++ they came from.
+
+## Gun parts
+
+A gun is built from parts: `Art/Models/Weapons/<Gun>.py` makes each part as its own model (`SM_RifleBody`,
+`SM_RifleBarrel14`, ...), in the gun's own space: the origin at the back of the receiver, +X toward the muzzle. A part
+that hangs from another part's socket (a magazine, a pump) is modeled around its own origin instead. The weapon
+definition (`/Game/Weapons/Data/DA_*`) lists the part slots and their options, and each rolled gun picks one per slot
+by its seed; `Tools/Unreal/setup_gun_parts.py` fills those lists, so run it after adding or renaming a part.
+
+- Sockets the game reads: `Muzzle`, `Grip` (right hand) and `Foregrip` (left hand), on whichever part has them.
+- Material slots named `GunPaint` and `GunGrip` are recolored per gun (the definition's paints), and `GunAccent`
+  glows in the gun's rarity color.
+- Parts are small and held close: set the model's `Nanite` property to 0.

@@ -6,13 +6,13 @@
 #include "LoadoutStage.generated.h"
 
 class ACharacter;
-class UDynamicMeshComponent;
 class UPointLightComponent;
 class UPrimitiveComponent;
 class USceneCaptureComponent2D;
 class USkeletalMeshComponent;
 class UTextureRenderTarget2D;
 class UWeaponManagerComponent;
+class UWeaponModelComponent;
 
 /** Where an equipped gun is carried on the character. */
 enum class ELoadoutCarry : uint8
@@ -45,10 +45,7 @@ struct FLoadoutStageGun
 	FWeaponInstanceData Instance;
 
 	UPROPERTY()
-	TObjectPtr<UDynamicMeshComponent> Mesh;
-
-	UPROPERTY()
-	TObjectPtr<UDynamicMeshComponent> Part;
+	TObjectPtr<UWeaponModelComponent> Model;
 
 	ELoadoutCarry Carry = ELoadoutCarry::None;
 	/** Key points in the gun's own space. */

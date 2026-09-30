@@ -23,13 +23,24 @@ enum class EWeaponFireMode : uint8
 	Burst
 };
 
-/** Procedurally built weapon body, used when a definition has no mesh of its own. */
+/** What kind of gun it is: picks its icons. */
 UENUM(BlueprintType)
-enum class EWeaponModel : uint8
+enum class EWeaponKind : uint8
 {
 	None,
 	Rifle,
 	Shotgun
+};
+
+/** The part of a gun a reload visibly works on. */
+UENUM(BlueprintType)
+enum class EWeaponReloadPart : uint8
+{
+	None,
+	/** Rifles: the old magazine slides out and drops away, a fresh one goes in, then the charging handle. */
+	Magazine,
+	/** Shotguns: shells are pushed in one at a time, then the pump is racked. */
+	Pump,
 };
 
 /** The final numbers a weapon fires with. Produced by rolling a UWeaponDefinition. */

@@ -7,7 +7,7 @@
 #include "Player/PlayerViewComponent.h"
 #include "UI/World/WeaponLabelWidget.h"
 #include "Inventory/WeaponManagerComponent.h"
-#include "Weapons/WeaponModelBuilder.h"
+#include "Weapons/WeaponModelComponent.h"
 #include "Procedural/StylizedSurface.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraTypes.h"
@@ -124,8 +124,7 @@ void AWeaponBase::UpdateReloadPart()
 	{
 		Travel = Part == EWeaponReloadPart::Magazine ? LooterReload::MagazineTravel(Progress, bVisible) : LooterReload::PumpTravel(Progress);
 	}
-	ModelPartMesh->SetRelativeLocation(ReloadPartAxis * Travel);
-	ModelPartMesh->SetVisibility(bVisible);
+	Model->SetReloadTravel(Travel, bVisible);
 }
 
 void AWeaponBase::BroadcastAmmo()

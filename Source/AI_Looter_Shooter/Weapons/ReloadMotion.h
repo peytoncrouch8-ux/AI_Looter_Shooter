@@ -1,16 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-/** The part of a gun a reload visibly works on. */
-enum class EWeaponReloadPart : uint8
-{
-	None,
-	/** Rifles: the old magazine slides out and drops away, a fresh one goes in, then the charging handle. */
-	Magazine,
-	/** Shotguns: shells are pushed in one at a time, then the pump is racked. */
-	Pump,
-};
+#include "Weapons/WeaponTypes.h"
 
 /**
  * One reload, choreographed over its progress (0 = started, 1 = done). The weapon moves its part from this and the

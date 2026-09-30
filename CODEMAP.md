@@ -39,10 +39,15 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Weapons/WeaponBaseFiring.cpp`: `AWeaponBase` firing (fire modes, shots, aim point) and the muzzle flash.
 - `Weapons/WeaponBaseReload.cpp`: `AWeaponBase` magazine and reload (progress, the moving magazine or pump).
 - `Weapons/WeaponBase.h`: the weapon actor's declaration.
-- `Weapons/WeaponDefinition`: `UWeaponDefinition`, the data asset for one kind of gun (stats, rarity table, looks).
-- `Weapons/WeaponTypes.h`: `EWeaponModel`, `FWeaponStats`, `FWeaponRarityInfo`, `FWeaponInstanceData` (a rolled gun).
+- `Weapons/WeaponDefinition`: `UWeaponDefinition`, the data asset for one kind of gun (stats, rarity table, parts,
+  looks).
+- `Weapons/WeaponTypes.h`: `EWeaponKind`, `EWeaponReloadPart`, `FWeaponStats`, `FWeaponRarityInfo`,
+  `FWeaponInstanceData` (a rolled gun).
 - `Weapons/AmmoTypes`: `EAmmoType` and `LooterAmmo`, ammo classes, carry limits and box sizes.
-- `Weapons/WeaponModelBuilder`: `WeaponModels`, the procedural rifle and shotgun meshes.
+- `Weapons/WeaponParts`: `FWeaponPartSlot` and `FWeaponPaint` (a gun's part and color options) and `WeaponParts::Pick`,
+  which picks a rolled gun's parts and colors by its seed.
+- `Weapons/WeaponModelComponent`: `UWeaponModelComponent`, a rolled gun assembled from its parts (Blender meshes from
+  `Art/Models/Weapons`), painted, with its muzzle, grips and moving reload part.
 - `Weapons/WeaponRecoil`: `FWeaponRecoil` and `FWeaponRecoilProfile`, spring recoil on the gun and the aim.
 - `Weapons/ReloadMotion`: `LooterReload`, the choreography of a reload over its progress.
 - `Weapons/WeaponFX`: `FWeaponFX`, code-drawn tracers, impact sparks, dust and chips.
@@ -109,7 +114,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `CreatureTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`,
-  `MinimapTests.cpp`, `SettingsTests.cpp`, `WeaponTests.cpp`: the `Looter.*` automation tests, one file per area.
+  `MinimapTests.cpp`, `SettingsTests.cpp`, `WeaponTests.cpp`, `WeaponPartsTests.cpp`: the `Looter.*` automation tests,
+  one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)
 - `LooterEditor.Build.cs`: module dependencies (GeometryScript editor functions, asset tools, FBX import, JSON).

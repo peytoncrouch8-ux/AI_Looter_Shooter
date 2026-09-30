@@ -61,8 +61,8 @@ namespace LoadoutParts
 	}
 
 	/** A gun's side view (120 x 40), or just the strip on it that's lit in the gun's rarity color. */
-	const LooterUI::FVectorIcon& GunIcon(EWeaponModel Model, bool bStrip);
-	FName GunIconName(EWeaponModel Model, bool bStrip);
+	const LooterUI::FVectorIcon& GunIcon(EWeaponKind Kind, bool bStrip);
+	FName GunIconName(EWeaponKind Kind, bool bStrip);
 
 	/** Outlined cartridges (24 x 24), one per ammo type, in EAmmoType order. */
 	const LooterUI::FVectorIcon& AmmoIcon(EAmmoType Type);

@@ -7,11 +7,10 @@
 #include "Player/PlayerViewComponent.h"
 #include "UI/World/WeaponLabelWidget.h"
 #include "Inventory/WeaponManagerComponent.h"
-#include "Weapons/WeaponModelBuilder.h"
+#include "Weapons/WeaponModelComponent.h"
 #include "Procedural/StylizedSurface.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraTypes.h"
-#include "Components/DynamicMeshComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -48,16 +47,8 @@ AWeaponBase::AWeaponBase()
 	StaticMesh->SetupAttachment(Collision);
 	StaticMesh->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 
-	ModelMesh = CreateDefaultSubobject<UDynamicMeshComponent>(TEXT("ModelMesh"));
-	ModelMesh->SetupAttachment(Collision);
-	ModelMesh->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-	ModelMesh->SetVisibility(false);
-
-	// Built in the model's own space, so at rest it sits exactly in place and a reload only offsets it.
-	ModelPartMesh = CreateDefaultSubobject<UDynamicMeshComponent>(TEXT("ModelPartMesh"));
-	ModelPartMesh->SetupAttachment(ModelMesh);
-	ModelPartMesh->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-	ModelPartMesh->SetVisibility(false);
+	Model = CreateDefaultSubobject<UWeaponModelComponent>(TEXT("Model"));
+	Model->SetupAttachment(Collision);
 
 	LootBeam = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LootBeam"));
 	LootBeam->SetupAttachment(Collision);
@@ -218,7 +209,7 @@ void AWeaponBase::OnEquipped(APawn* NewOwner, USceneComponent* AttachTo, FName S
 	// Undo any loot spin so the gun points forward in hand.
 	SkeletalMesh->SetRelativeRotation(FRotator::ZeroRotator);
 	StaticMesh->SetRelativeRotation(FRotator::ZeroRotator);
-	ModelMesh->SetRelativeRotation(FRotator::ZeroRotator);
+	Model->SetRelativeRotation(FRotator::ZeroRotator);
 
 	AttachToHolder(AttachTo, Socket, AttachOffset);
 	SetActorHiddenInGame(false);
@@ -241,8 +232,7 @@ void AWeaponBase::AttachToHolder(USceneComponent* AttachTo, FName Socket, const 
 		? EFirstPersonPrimitiveType::FirstPerson : EFirstPersonPrimitiveType::None;
 	SkeletalMesh->SetFirstPersonPrimitiveType(Type);
 	StaticMesh->SetFirstPersonPrimitiveType(Type);
-	ModelMesh->SetFirstPersonPrimitiveType(Type);
-	ModelPartMesh->SetFirstPersonPrimitiveType(Type);
+	Model->SetFirstPersonPrimitiveType(Type);
 	MuzzleFlash->SetFirstPersonPrimitiveType(Type);
 }
 
@@ -268,8 +258,7 @@ void AWeaponBase::OnDropped()
 
 	SkeletalMesh->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::None);
 	StaticMesh->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::None);
-	ModelMesh->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::None);
-	ModelPartMesh->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::None);
+	Model->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::None);
 	MuzzleFlash->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::None);
 
 	SetActorHiddenInGame(false);
@@ -314,10 +303,10 @@ void AWeaponBase::SetPickupState(bool bPickup)
 		SetLabelState(false, false);
 	}
 
-	// Code-built models have their origin at the back of the receiver; spin loot around the middle of the gun.
-	const FVector ModelCenter(bUsingModel ? ModelMuzzle.X * 0.45f : 0.f, 0.f, 0.f);
+	// Guns built from parts have their origin at the back of the receiver; spin loot around the middle of the gun.
+	const FVector ModelCenter(bUsingModel ? Model->GetMuzzle().X * 0.45f : 0.f, 0.f, 0.f);
 	SpinMovement->PivotTranslation = bPickup ? ModelCenter : FVector::ZeroVector;
-	ModelMesh->SetRelativeLocationAndRotation(bPickup ? -ModelCenter : FVector::ZeroVector, FRotator::ZeroRotator);
+	Model->SetRelativeLocationAndRotation(bPickup ? -ModelCenter : FVector::ZeroVector, FRotator::ZeroRotator);
 
 	RarityLight->SetVisibility(bPickup);
 	RefreshLootBeam();
@@ -349,7 +338,7 @@ void AWeaponBase::SetLabelState(bool bVisible, bool bFocused)
 void AWeaponBase::ApplyDefinitionVisuals()
 {
 	const UWeaponDefinition* Definition = Instance.Definition;
-	bUsingModel = Definition && Definition->ProceduralModel != EWeaponModel::None;
+	bUsingModel = Model->Assemble(Instance);
 	const bool bUseSkeletal = !bUsingModel && Definition && Definition->SkeletalMesh;
 	const bool bUseStatic = !bUsingModel && !bUseSkeletal;
 
@@ -359,19 +348,6 @@ void AWeaponBase::ApplyDefinitionVisuals()
 	StaticMesh->SetStaticMesh(bUseStatic && Definition ? Definition->StaticMesh.Get() : nullptr);
 	StaticMesh->SetVisibility(bUseStatic);
 
-	ModelMesh->SetVisibility(bUsingModel);
-	ReloadPart = EWeaponReloadPart::None;
-	if (bUsingModel)
-	{
-		WeaponModels::FPoints Points;
-		WeaponModels::BuildInto(Instance, ModelMesh, ModelPartMesh, Points);
-		ModelMuzzle = Points.Muzzle;
-		ModelGrip = Points.Grip;
-		ModelForegrip = Points.Foregrip;
-		ReloadPart = Points.ReloadPart;
-		ReloadPartAxis = Points.ReloadPartAxis;
-	}
-	ModelPartMesh->SetVisibility(ReloadPart != EWeaponReloadPart::None);
 	UpdateReloadPart();
 	SetupMuzzleFlash();
 	RefreshLootBeam();
@@ -387,11 +363,11 @@ void AWeaponBase::ApplyDefinitionVisuals()
 	}
 }
 
-UPrimitiveComponent* AWeaponBase::GetActiveMesh() const
+USceneComponent* AWeaponBase::GetActiveMesh() const
 {
 	if (bUsingModel)
 	{
-		return ModelMesh;
+		return Model;
 	}
 	if (SkeletalMesh->GetSkeletalMeshAsset())
 	{
@@ -400,13 +376,35 @@ UPrimitiveComponent* AWeaponBase::GetActiveMesh() const
 	return StaticMesh;
 }
 
+bool AWeaponBase::IsDrawnFirstPerson() const
+{
+	const EFirstPersonPrimitiveType Type = bUsingModel ? Model->GetFirstPersonPrimitiveType()
+		: CastChecked<UPrimitiveComponent>(GetActiveMesh())->FirstPersonPrimitiveType;
+	return Type == EFirstPersonPrimitiveType::FirstPerson;
+}
+
+FVector AWeaponBase::GetGripPoint() const
+{
+	return bUsingModel ? Model->GetGrip() : FVector::ZeroVector;
+}
+
+FVector AWeaponBase::GetForegripPoint() const
+{
+	return bUsingModel ? Model->GetForegrip() : FVector(30.f, 0.f, -3.f);
+}
+
+EWeaponReloadPart AWeaponBase::GetReloadPart() const
+{
+	return bUsingModel ? Model->GetReloadPart() : EWeaponReloadPart::None;
+}
+
 FVector AWeaponBase::GetMuzzleLocation() const
 {
 	if (bUsingModel)
 	{
-		return ModelMesh->GetComponentTransform().TransformPosition(ModelMuzzle);
+		return Model->GetComponentTransform().TransformPosition(Model->GetMuzzle());
 	}
-	const UPrimitiveComponent* Mesh = GetActiveMesh();
+	const USceneComponent* Mesh = GetActiveMesh();
 	const FName Socket = Instance.Definition ? Instance.Definition->MuzzleSocket : NAME_None;
 	if (Mesh && Mesh->DoesSocketExist(Socket))
 	{
