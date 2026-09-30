@@ -240,22 +240,33 @@ bool FModelImporter::ReadManifest(const FString& Path, TArray<FModel>& OutModels
 			{
 				const TSharedPtr<FJsonObject>* ShapeJson = nullptr;
 				FString Bone;
+				FString Kind;
 				double Radius = 0.0;
-				if (!ShapeValue->TryGetObject(ShapeJson) || !(*ShapeJson)->TryGetStringField(TEXT("bone"), Bone)
-					|| !(*ShapeJson)->TryGetNumberField(TEXT("radius"), Radius))
+				const TArray<TSharedPtr<FJsonValue>>* Points = nullptr;
+				const bool bValid = ShapeValue->TryGetObject(ShapeJson) && (*ShapeJson)->TryGetStringField(TEXT("bone"), Bone)
+					&& (*ShapeJson)->TryGetStringField(TEXT("shape"), Kind)
+					&& (Kind == TEXT("convex") ? (*ShapeJson)->TryGetArrayField(TEXT("points"), Points) : (*ShapeJson)->TryGetNumberField(TEXT("radius"), Radius));
+				if (!bValid)
 				{
-					UE_LOG(LogModelImporter, Warning, TEXT("%s: a hit zone without a bone or radius; skipped."), *Model.Name);
+					UE_LOG(LogModelImporter, Warning, TEXT("%s: a hit zone without a bone, shape or size; skipped."), *Model.Name);
 					continue;
 				}
 				FModelHitShape& Shape = Model.HitShapes.AddDefaulted_GetRef();
 				Shape.Bone = *Bone;
+				Shape.Kind = Kind == TEXT("convex") ? FModelHitShape::EKind::Convex
+					: Kind == TEXT("capsule") ? FModelHitShape::EKind::Capsule : FModelHitShape::EKind::Sphere;
 				Shape.Radius = static_cast<float>(Radius);
-				FString Kind;
-				(*ShapeJson)->TryGetStringField(TEXT("shape"), Kind);
-				Shape.bCapsule = Kind == TEXT("capsule");
 				Shape.Center = ReadVector(**ShapeJson, TEXT("center"), Shape.Center);
 				Shape.Start = ReadVector(**ShapeJson, TEXT("start"), Shape.Start);
 				Shape.End = ReadVector(**ShapeJson, TEXT("end"), Shape.End);
+				for (int32 Index = 0; Points && Index < Points->Num(); ++Index)
+				{
+					const TArray<TSharedPtr<FJsonValue>>* Point = nullptr;
+					if ((*Points)[Index]->TryGetArray(Point) && Point->Num() == 3)
+					{
+						Shape.Points.Emplace((*Point)[0]->AsNumber(), (*Point)[1]->AsNumber(), (*Point)[2]->AsNumber());
+					}
+				}
 			}
 		}
 		OutModels.Add(Model);

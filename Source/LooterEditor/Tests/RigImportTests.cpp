@@ -94,11 +94,19 @@ bool FRigImportTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("Kinematic"), Body->PhysicsType == PhysType_Kinematic);
 		}
 		const USkeletalBodySetup* Top = BodyOf(TEXT("top"));
-		if (TestNotNull(TEXT("top's hit zone"), Top) && TestEqual(TEXT("top spheres"), Top->AggGeom.SphereElems.Num(), 1))
+		if (TestNotNull(TEXT("top's hit zone"), Top) && TestEqual(TEXT("top hulls"), Top->AggGeom.ConvexElems.Num(), 1))
 		{
-			const FKSphereElem& Sphere = Top->AggGeom.SphereElems[0];
-			TestTrue(TEXT("top sphere center"), BoneTransform(TEXT("top")).TransformPosition(Sphere.Center).Equals(FVector(0.0, 0.0, 115.0), 0.1));
-			TestEqual(TEXT("top sphere radius"), Sphere.Radius, 20.f, 0.01f);
+			// The hull around the top box: its eight corners.
+			const FKConvexElem& Hull = Top->AggGeom.ConvexElems[0];
+			FBox Box(ForceInit);
+			for (const FVector& Point : Hull.VertexData)
+			{
+				Box += BoneTransform(TEXT("top")).TransformPosition(Point);
+			}
+			TestEqual(TEXT("top hull points"), Hull.VertexData.Num(), 8);
+			TestTrue(FString::Printf(TEXT("top hull around the box (is %s)"), *Box.ToString()),
+				Box.Min.Equals(FVector(-10.0, -10.0, 100.0), 0.1) && Box.Max.Equals(FVector(10.0, 10.0, 130.0), 0.1));
+			TestTrue(TEXT("top hull cooked"), Hull.GetChaosConvexMesh().IsValid());
 		}
 		const USkeletalBodySetup* Side = BodyOf(TEXT("side"));
 		if (TestNotNull(TEXT("side's hit zone"), Side) && TestEqual(TEXT("side capsules"), Side->AggGeom.SphylElems.Num(), 1))

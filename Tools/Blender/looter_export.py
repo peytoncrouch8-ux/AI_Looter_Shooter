@@ -7,8 +7,8 @@ A model is every top-level mesh whose name doesn't start with '_', 'UCX_' or 'SO
 goes with it: UCX_ meshes are its collision hulls, SOCKET_ empties become sockets, and other meshes merge into it.
 
 A rigged model (a skeletal mesh in Unreal) is every top-level armature. The meshes under it are its skin, and the meshes
-named USP_ (sphere) or UCP_ (capsule along its own Z) are its hit zones: each belongs to the bone it's parented to (or
-named in its Bone property) and becomes a body of the model's physics asset.
+named USP_ (sphere), UCP_ (capsule along its own Z) or UCX_ (convex hull) are its hit zones: each belongs to the bone
+it's parented to (or named in its Bone property) and becomes a body of the model's physics asset.
 
 The scene is never saved, so the renames and moves below don't touch the source file.
 """
@@ -39,7 +39,7 @@ SURFACE_DEFAULTS = {
 METER_SETTINGS = ('GradHeight', 'Wind')
 KINDS = ('Surface', 'Foliage', 'Glow')
 SKIPPED_PREFIXES = ('_', 'UCX_', 'SOCKET_')
-HIT_PREFIXES = ('USP_', 'UCP_')
+HIT_PREFIXES = ('USP_', 'UCP_', 'UCX_')
 
 
 def log(message):
@@ -166,13 +166,15 @@ def select_only(objects, active):
 
 
 def hit_shape_entry(obj, bones):
-    """A hit zone in the model's Unreal space (cm): a sphere (center, radius) or a capsule (start, end, radius), the
-    centers of its round ends. The importer turns it into a physics-asset body on its bone."""
+    """A hit zone in the model's Unreal space (cm): a sphere (center, radius), a capsule (start, end: the centers of its
+    round ends; radius) or a convex hull (its points). The importer turns it into a physics-asset body on its bone."""
     bone = obj.parent_bone if obj.parent_type == 'BONE' and obj.parent_bone else str(obj.get('Bone', ''))
     if bone not in bones:
         fail(f"hit zone {obj.name} names no bone of the rig (parent it to a bone or set its Bone property)")
     matrix = obj.matrix_world
     size = obj.dimensions
+    if obj.name.startswith('UCX_'):
+        return {'bone': bone, 'shape': 'convex', 'points': [to_unreal(matrix @ v.co, 100.0) for v in obj.data.vertices]}
     if obj.name.startswith('USP_'):
         return {'bone': bone, 'shape': 'sphere', 'center': to_unreal(matrix.translation, 100.0), 'radius': max(size) * 50.0}
     radius = max(size.x, size.y) * 0.5

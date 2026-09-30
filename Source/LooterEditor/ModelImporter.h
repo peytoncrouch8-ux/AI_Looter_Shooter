@@ -43,15 +43,21 @@ private:
 		FVector Up = FVector::UpVector;
 	};
 
-	/** A rig's hit zone, in the model's space: a sphere (Center) or a capsule whose round ends center on Start and End. */
+	/**
+	 * A rig's hit zone, in the model's space: a sphere (Center, Radius), a capsule whose round ends center on Start and
+	 * End (Radius), or the convex hull of Points.
+	 */
 	struct FModelHitShape
 	{
+		enum class EKind : uint8 { Sphere, Capsule, Convex };
+
 		FName Bone;
-		bool bCapsule = false;
+		EKind Kind = EKind::Sphere;
 		FVector Center = FVector::ZeroVector;
 		FVector Start = FVector::ZeroVector;
 		FVector End = FVector::ZeroVector;
 		float Radius = 0.f;
+		TArray<FVector> Points;
 	};
 
 	struct FModel

@@ -64,10 +64,11 @@ A top-level **armature** is a rigged model: a skeletal mesh whose code moves its
   with it: `SK_<Name>_Skeleton` and `PA_<Name>`.
 - The armature itself becomes the root bone, called `root`, so no bone may have that name. Unreal keeps only where each
   bone starts: where a chain's tip matters (a foot), end it with a small bone of its own.
-- **Hit zones** are what shots hit: meshes under the armature named `USP_<Name>` (a sphere; its size is the diameter)
-  or `UCP_<Name>` (a capsule along its own Z; its width is the diameter, its height the full length). Each belongs to
-  the bone it's parented to, or the one named in its custom property `Bone`, and the game reads which bone was hit.
-  Shapes on the same bone make one body. Every visible part must lie inside a hit zone, or shots pass through it.
+- **Hit zones** are what shots hit: meshes under the armature named `USP_<Name>` (a sphere; its size is the diameter),
+  `UCP_<Name>` (a capsule along its own Z; its width is the diameter, its height the full length) or `UCX_<Name>` (a
+  convex hull, which fits a part closely; the script helper `hit_hull` makes one around meshes). Each belongs to the
+  bone it's parented to, or the one named in its custom property `Bone`, and the game reads which bone was hit. Shapes
+  on the same bone make one body. Every visible part must lie inside a hit zone, or shots pass through it.
 - Units, facing and materials follow the rules above. The pivot is the armature's origin.
 
 ## Scripted models

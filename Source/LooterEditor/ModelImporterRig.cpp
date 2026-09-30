@@ -163,7 +163,17 @@ UPhysicsAsset* FModelImporter::MakeHitZones(USkeletalMesh* Mesh, const FModel& M
 			Body->PhysicsType = PhysType_Kinematic;
 			Physics->SkeletalBodySetups.Add(Body);
 		}
-		if (Shape.bCapsule)
+		if (Shape.Kind == FModelHitShape::EKind::Convex)
+		{
+			FKConvexElem Hull;
+			for (const FVector& Point : Shape.Points)
+			{
+				Hull.VertexData.Add(Bone.InverseTransformPosition(Point));
+			}
+			Hull.UpdateElemBox();
+			Body->AggGeom.ConvexElems.Add(Hull);
+		}
+		else if (Shape.Kind == FModelHitShape::EKind::Capsule)
 		{
 			const FVector Start = Bone.InverseTransformPosition(Shape.Start);
 			const FVector End = Bone.InverseTransformPosition(Shape.End);
@@ -180,6 +190,12 @@ UPhysicsAsset* FModelImporter::MakeHitZones(USkeletalMesh* Mesh, const FModel& M
 		}
 	}
 
+	// Hulls become physics shapes when cooked.
+	for (USkeletalBodySetup* Body : Physics->SkeletalBodySetups)
+	{
+		Body->InvalidatePhysicsData();
+		Body->CreatePhysicsMeshes();
+	}
 	Physics->UpdateBodySetupIndexMap();
 	Physics->UpdateBoundsBodiesArray();
 	Physics->SetPreviewMesh(Mesh);

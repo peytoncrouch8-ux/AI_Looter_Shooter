@@ -5,7 +5,7 @@ Distances are meters. Colors are sRGB hex (0xRRGGBB), as picked, like the game's
 world origin: the model's origin is its pivot in Unreal, and its front faces -Y (Blender's Front view).
 
 A rigged model (a skeletal mesh in Unreal) is an armature() with bones(), its parts joined by skin(), and hit zones
-from hit_sphere() and hit_capsule().
+from hit_sphere(), hit_capsule() and hit_hull().
 """
 import math
 
@@ -169,3 +169,16 @@ def hit_capsule(arm, bone, start, end, radius):
     bmesh.ops.create_cone(bm, cap_ends=True, segments=12, radius1=radius, radius2=radius, depth=(end - start).length + 2.0 * radius)
     rotation = Vector((0.0, 0.0, 1.0)).rotation_difference(end - start)
     return _hit_shape('UCP_', arm, bone, bm, Matrix.LocRotScale((start + end) * 0.5, rotation, None))
+
+
+def hit_hull(arm, bone, objects):
+    """A convex hit zone moving with bone: the hull around these meshes. Make it from a part's own meshes before skin()
+    merges them, and it covers exactly what's drawn (and a little more where the part curves inward)."""
+    bm = bmesh.new()
+    for obj in objects:
+        for vertex in obj.data.vertices:
+            bm.verts.new(obj.matrix_world @ vertex.co)
+    hull = bmesh.ops.convex_hull(bm, input=bm.verts)
+    inside = [v for v in hull['geom_interior'] + hull['geom_unused'] if isinstance(v, bmesh.types.BMVert)]
+    bmesh.ops.delete(bm, geom=list(set(inside)), context='VERTS')
+    return _hit_shape('UCX_', arm, bone, bm, Matrix.Identity(4))
