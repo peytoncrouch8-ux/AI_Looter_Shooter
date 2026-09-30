@@ -5,6 +5,7 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogModelImporter, Log, All);
 
 struct FStylizedSurface;
+class UFbxAssetImportData;
 class UMaterialInterface;
 class UPackage;
 class UPhysicsAsset;
@@ -80,6 +81,12 @@ private:
 
 	UStaticMesh* ImportModel(const FModel& Model);
 	static void SetSockets(UStaticMesh* Mesh, const TArray<FModelSocket>& Sockets);
+
+	/**
+	 * Importing onto an existing asset re-imports it, and a re-import uses the settings stored on the asset (from its
+	 * last import, or whatever the editor last used): store ours there first.
+	 */
+	static void KeepSettings(UObject* Existing, const UFbxAssetImportData* Settings, const FString& FbxPath);
 	UMaterialInterface* UpdateMaterial(const FString& Name, const FStylizedSurface& Surface);
 
 	// ModelImporterRig.cpp

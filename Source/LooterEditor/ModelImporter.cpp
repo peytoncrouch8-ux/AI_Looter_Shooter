@@ -4,8 +4,10 @@
 #include "AssetImportTask.h"
 #include "AssetToolsModule.h"
 #include "Dom/JsonObject.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshSocket.h"
+#include "Factories/FbxAssetImportData.h"
 #include "Factories/FbxFactory.h"
 #include "Factories/FbxImportUI.h"
 #include "Factories/FbxStaticMeshImportData.h"
@@ -329,7 +331,9 @@ UStaticMesh* FModelImporter::ImportModel(const FModel& Model)
 	Task->bSave = false;
 	// An explicit factory keeps the import on these fixed settings instead of the Interchange defaults.
 	Task->Factory = NewObject<UFbxFactory>();
-	Task->Options = MakeImportOptions(Model.bNanite);
+	UFbxImportUI* Options = MakeImportOptions(Model.bNanite);
+	Task->Options = Options;
+	KeepSettings(SurfaceMaterials::LoadExisting<UStaticMesh>(Task->DestinationPath / Model.Name), Options->StaticMeshImportData, Model.FbxPath);
 	FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get().ImportAssetTasks({ Task });
 
 	UStaticMesh* Mesh = nullptr;
@@ -406,6 +410,24 @@ void FModelImporter::SetSockets(UStaticMesh* Mesh, const TArray<FModelSocket>& S
 		// RemoveSocket only takes it off the list; move it out of the package so it isn't saved with the mesh.
 		Mesh->RemoveSocket(Socket);
 		Socket->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional);
+	}
+}
+
+void FModelImporter::KeepSettings(UObject* Existing, const UFbxAssetImportData* Settings, const FString& FbxPath)
+{
+	if (!Existing || !Settings)
+	{
+		return;
+	}
+	UFbxAssetImportData* Kept = DuplicateObject(Settings, Existing);
+	Kept->UpdateFilenameOnly(FbxPath);
+	if (UStaticMesh* Mesh = Cast<UStaticMesh>(Existing))
+	{
+		Mesh->SetAssetImportData(Kept);
+	}
+	else if (USkeletalMesh* Rig = Cast<USkeletalMesh>(Existing))
+	{
+		Rig->SetAssetImportData(Kept);
 	}
 }
 

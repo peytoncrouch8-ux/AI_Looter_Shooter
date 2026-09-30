@@ -108,11 +108,12 @@ def to_unreal(vector, scale=1.0):
 
 def socket_entry(empty):
     """A socket, in the model's Unreal space. Its front is the empty's -Y and its top the empty's +Z, like a model's.
-    (FBX sockets come in with the wrong rotation: Blender's and Unreal's axes differ in handedness.)"""
+    (FBX sockets come in with the wrong rotation: Blender's and Unreal's axes differ in handedness.) Blender numbers
+    names that repeat across models (a second SOCKET_Muzzle becomes SOCKET_Muzzle.001); the number is dropped."""
     matrix = empty.matrix_world
     rotation = matrix.to_3x3().normalized()
     return {
-        'name': clean_name(empty.name[len('SOCKET_'):]),
+        'name': clean_name(re.sub(r'\.\d+$', '', empty.name[len('SOCKET_'):])),
         'location': to_unreal(matrix.translation, 100.0),
         'forward': to_unreal(rotation @ Vector((0.0, -1.0, 0.0))),
         'up': to_unreal(rotation @ Vector((0.0, 0.0, 1.0))),

@@ -76,7 +76,9 @@ USkeletalMesh* FModelImporter::ImportRig(const FModel& Model)
 	Task->bSave = false;
 	// An explicit factory keeps the import on these fixed settings instead of the Interchange defaults.
 	Task->Factory = NewObject<UFbxFactory>();
-	Task->Options = MakeRigImportOptions();
+	UFbxImportUI* Options = MakeRigImportOptions();
+	Task->Options = Options;
+	KeepSettings(SurfaceMaterials::LoadExisting<USkeletalMesh>(Task->DestinationPath / Model.Name), Options->SkeletalMeshImportData, Model.FbxPath);
 	FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get().ImportAssetTasks({ Task });
 
 	USkeletalMesh* Mesh = nullptr;
