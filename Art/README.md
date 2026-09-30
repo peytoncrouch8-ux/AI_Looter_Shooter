@@ -55,7 +55,23 @@ command after opening it. Importing again updates the assets in place, so placed
 - **Nanite** is on by default. Set a custom property `Nanite` = 0 on the model object to turn it off.
 - Modifiers are applied on export. Hard and soft edges come through as shaded in Blender.
 
+## Rigged models (skeletal meshes)
+
+A top-level **armature** is a rigged model: a skeletal mesh whose code moves its bones (creatures).
+
+- The meshes under the armature are its **skin**, merged into one skeletal mesh named `SK_` plus the first mesh's name.
+  Weight every vertex to its bones (vertex groups, with an Armature modifier). The skeleton and a physics asset come
+  with it: `SK_<Name>_Skeleton` and `PA_<Name>`.
+- The armature itself becomes the root bone, called `root`, so no bone may have that name. Unreal keeps only where each
+  bone starts: where a chain's tip matters (a foot), end it with a small bone of its own.
+- **Hit zones** are what shots hit: meshes under the armature named `USP_<Name>` (a sphere; its size is the diameter)
+  or `UCP_<Name>` (a capsule along its own Z; its width is the diameter, its height the full length). Each belongs to
+  the bone it's parented to, or the one named in its custom property `Bone`, and the game reads which bone was hit.
+  Shapes on the same bone make one body. Every visible part must lie inside a hit zone, or shots pass through it.
+- Units, facing and materials follow the rules above. The pivot is the armature's origin.
+
 ## Scripted models
 
 A `.py` model builds itself in an empty scene with the helpers in `Tools/Blender/looter_model.py` (boxes, cylinders,
-materials in hex colors, hulls, sockets). See `Art/Models/Props/LanternPost.py`.
+materials in hex colors, hulls, sockets; for rigs: an armature, bones, skin and hit zones). See
+`Art/Models/Props/LanternPost.py`, and `Source/LooterEditor/Tests/RigImport/RigTest.py` for a small rig.

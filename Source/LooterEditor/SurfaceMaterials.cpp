@@ -41,7 +41,7 @@ TArray<UPackage*> SurfaceMaterials::PrepareParents()
 			continue;
 		}
 		bool bChanged = false;
-		for (const EMaterialUsage Usage : { MATUSAGE_Nanite, MATUSAGE_InstancedStaticMeshes })
+		for (const EMaterialUsage Usage : { MATUSAGE_Nanite, MATUSAGE_InstancedStaticMeshes, MATUSAGE_SkeletalMesh })
 		{
 			const bool bAllowed = Usage != MATUSAGE_Nanite || IsOpaqueOrMaskedBlendMode(*Material);
 			if (bAllowed && !Material->GetUsageByFlag(Usage))

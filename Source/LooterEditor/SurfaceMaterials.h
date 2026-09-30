@@ -19,7 +19,7 @@ namespace SurfaceMaterials
 
 	/**
 	 * Makes sure the stylized materials allow what our meshes need: Nanite (not for the additive glow, which Nanite can't
-	 * draw) and instancing. Without a flag, every instance sets it on itself and compiles shaders of its own, and a
+	 * draw), instancing and skinning (rigged models). Without a flag, every instance sets it on itself and compiles shaders of its own, and a
 	 * packaged game draws the default material. Returns the materials it changed, for saving.
 	 */
 	TArray<UPackage*> PrepareParents();

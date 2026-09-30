@@ -3,6 +3,9 @@ then exports it; see Art/README.md.
 
 Distances are meters. Colors are sRGB hex (0xRRGGBB), as picked, like the game's code. Build every part around the
 world origin: the model's origin is its pivot in Unreal, and its front faces -Y (Blender's Front view).
+
+A rigged model (a skeletal mesh in Unreal) is an armature() with bones(), its parts joined by skin(), and hit zones
+from hit_sphere() and hit_capsule().
 """
 import math
 
@@ -95,3 +98,74 @@ def socket(parent, name, location=(0.0, 0.0, 0.0), rotation=(0.0, 0.0, 0.0)):
     empty.location = location
     empty.rotation_euler = [math.radians(a) for a in rotation]
     return empty
+
+
+# --- Rigged models (skeletal meshes) ---
+
+def armature(name='root'):
+    """The skeleton of a rigged model. Unreal takes the armature object itself as the root bone, hence the name."""
+    arm = bpy.data.objects.new(name, bpy.data.armatures.new(name))
+    bpy.context.scene.collection.objects.link(arm)
+    return arm
+
+
+def bones(arm, specs):
+    """Adds bones to arm: specs is a list of (name, head, tail, parent name or None), positions in meters."""
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.context.view_layer.objects.active = arm
+    arm.select_set(True)
+    bpy.ops.object.mode_set(mode='EDIT')
+    edit = arm.data.edit_bones
+    for name, head, tail, parent in specs:
+        bone = edit.new(name)
+        bone.head = head
+        bone.tail = tail
+        bone.use_connect = False
+        if parent is not None:
+            bone.parent = edit[parent]
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+
+def skin(arm, name, parts):
+    """Joins parts ({bone name: [mesh objects]}) into one mesh called name, each part moving rigidly with its bone."""
+    objects = []
+    for bone, meshes in parts.items():
+        for obj in meshes:
+            group = obj.vertex_groups.new(name=bone)
+            group.add(range(len(obj.data.vertices)), 1.0, 'REPLACE')
+            objects.append(obj)
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in objects:
+        obj.select_set(True)
+    bpy.context.view_layer.objects.active = objects[0]
+    bpy.ops.object.join()
+    body = bpy.context.view_layer.objects.active
+    body.name = name
+    body.data.name = name
+    body.parent = arm
+    body.modifiers.new('Armature', 'ARMATURE').object = arm
+    return body
+
+
+def _hit_shape(prefix, arm, bone, bm, matrix):
+    obj = _link(f'{prefix}{bone}', bm, None, arm)
+    obj.matrix_world = matrix
+    obj.display_type = 'WIRE'
+    obj['Bone'] = bone
+    return obj
+
+
+def hit_sphere(arm, bone, center, radius):
+    """A sphere hit zone moving with bone (a physics-asset body in Unreal: what shots hit)."""
+    bm = bmesh.new()
+    bmesh.ops.create_icosphere(bm, subdivisions=2, radius=radius)
+    return _hit_shape('USP_', arm, bone, bm, Matrix.Translation(Vector(center)))
+
+
+def hit_capsule(arm, bone, start, end, radius):
+    """A capsule hit zone around the segment start-end (the centers of its round ends), moving with bone."""
+    start, end = Vector(start), Vector(end)
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=12, radius1=radius, radius2=radius, depth=(end - start).length + 2.0 * radius)
+    rotation = Vector((0.0, 0.0, 1.0)).rotation_difference(end - start)
+    return _hit_shape('UCP_', arm, bone, bm, Matrix.LocRotScale((start + end) * 0.5, rotation, None))

@@ -1,0 +1,102 @@
+{
+  "source": "Source/LooterEditor/Tests/RigImport/RigTest.py",
+  "category": "RigImport",
+  "models": [
+    {
+      "name": "SK_RigTest",
+      "fbx": "SK_RigTest.fbx",
+      "skeletal": true,
+      "materials": [
+        "RigTestGrey",
+        "RigTestRed"
+      ],
+      "hitShapes": [
+        {
+          "bone": "side",
+          "shape": "capsule",
+          "radius": 11.999999731779099,
+          "start": [
+            -0.0,
+            -50.0,
+            49.99999701976776
+          ],
+          "end": [
+            -0.0,
+            -89.99999761581421,
+            50.0
+          ]
+        },
+        {
+          "bone": "body",
+          "shape": "sphere",
+          "center": [
+            -0.0,
+            -0.0,
+            50.0
+          ],
+          "radius": 34.99999940395355
+        },
+        {
+          "bone": "top",
+          "shape": "sphere",
+          "center": [
+            -0.0,
+            -0.0,
+            114.99999761581421
+          ],
+          "radius": 20.000001788139343
+        }
+      ]
+    }
+  ],
+  "materials": {
+    "RigTestGrey": {
+      "Kind": "Surface",
+      "Color": [
+        0.2158605009317398,
+        0.2158605009317398,
+        0.2158605009317398,
+        1.0
+      ],
+      "TopColor": [
+        0.2,
+        0.35,
+        0.1,
+        1.0
+      ],
+      "TopBlend": 0.0,
+      "TopThreshold": 0.72,
+      "GradHeight": 0.0,
+      "GradDark": 0.0,
+      "Strata": 0.0,
+      "Wind": 0.0,
+      "Glow": 0.0,
+      "Variation": 0.12,
+      "UpNormal": 0.0
+    },
+    "RigTestRed": {
+      "Kind": "Surface",
+      "Color": [
+        1.0,
+        0.014443843625485897,
+        0.014443843625485897,
+        1.0
+      ],
+      "TopColor": [
+        0.2,
+        0.35,
+        0.1,
+        1.0
+      ],
+      "TopBlend": 0.0,
+      "TopThreshold": 0.72,
+      "GradHeight": 0.0,
+      "GradDark": 0.0,
+      "Strata": 0.0,
+      "Wind": 0.0,
+      "Glow": 0.0,
+      "Variation": 0.12,
+      "UpNormal": 0.0
+    }
+  }
+}

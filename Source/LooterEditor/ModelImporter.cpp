@@ -18,7 +18,7 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogModelImporter, Log, All);
+DEFINE_LOG_CATEGORY(LogModelImporter);
 
 namespace
 {
@@ -144,7 +144,8 @@ int32 FModelImporter::ImportFolder(const FString& Folder)
 		}
 		for (const FModel& Model : Models)
 		{
-			Imported += ImportModel(Model) ? 1 : 0;
+			const bool bImported = Model.bSkeletal ? ImportRig(Model) != nullptr : ImportModel(Model) != nullptr;
+			Imported += bImported ? 1 : 0;
 		}
 	}
 	return Imported;
@@ -229,6 +230,32 @@ bool FModelImporter::ReadManifest(const FString& Path, TArray<FModel>& OutModels
 					Socket.Forward = ReadVector(**SocketJson, TEXT("forward"), Socket.Forward);
 					Socket.Up = ReadVector(**SocketJson, TEXT("up"), Socket.Up);
 				}
+			}
+		}
+		(*Json)->TryGetBoolField(TEXT("skeletal"), Model.bSkeletal);
+		const TArray<TSharedPtr<FJsonValue>>* HitShapes = nullptr;
+		if ((*Json)->TryGetArrayField(TEXT("hitShapes"), HitShapes))
+		{
+			for (const TSharedPtr<FJsonValue>& ShapeValue : *HitShapes)
+			{
+				const TSharedPtr<FJsonObject>* ShapeJson = nullptr;
+				FString Bone;
+				double Radius = 0.0;
+				if (!ShapeValue->TryGetObject(ShapeJson) || !(*ShapeJson)->TryGetStringField(TEXT("bone"), Bone)
+					|| !(*ShapeJson)->TryGetNumberField(TEXT("radius"), Radius))
+				{
+					UE_LOG(LogModelImporter, Warning, TEXT("%s: a hit zone without a bone or radius; skipped."), *Model.Name);
+					continue;
+				}
+				FModelHitShape& Shape = Model.HitShapes.AddDefaulted_GetRef();
+				Shape.Bone = *Bone;
+				Shape.Radius = static_cast<float>(Radius);
+				FString Kind;
+				(*ShapeJson)->TryGetStringField(TEXT("shape"), Kind);
+				Shape.bCapsule = Kind == TEXT("capsule");
+				Shape.Center = ReadVector(**ShapeJson, TEXT("center"), Shape.Center);
+				Shape.Start = ReadVector(**ShapeJson, TEXT("start"), Shape.Start);
+				Shape.End = ReadVector(**ShapeJson, TEXT("end"), Shape.End);
 			}
 		}
 		OutModels.Add(Model);

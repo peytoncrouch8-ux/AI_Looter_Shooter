@@ -2,9 +2,13 @@
 
 #include "CoreMinimal.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogModelImporter, Log, All);
+
 struct FStylizedSurface;
 class UMaterialInterface;
 class UPackage;
+class UPhysicsAsset;
+class USkeletalMesh;
 class UStaticMesh;
 
 /**
@@ -14,6 +18,9 @@ class UStaticMesh;
  * (or else the mesh itself) are the collision, and SOCKET_ empties become sockets. Each material slot gets the stylized
  * material instance /Game/Art/Materials/MI_<slot name>, made or updated from the Blender material. Importing again
  * updates the assets in place, so placed actors keep their meshes.
+ *
+ * A rigged model becomes a skeletal mesh (SK_) with its own skeleton, and its hit zones become the bodies of a physics
+ * asset (PA_): what shots hit, each telling which bone it belongs to.
  */
 class FModelImporter
 {
@@ -36,6 +43,17 @@ private:
 		FVector Up = FVector::UpVector;
 	};
 
+	/** A rig's hit zone, in the model's space: a sphere (Center) or a capsule whose round ends center on Start and End. */
+	struct FModelHitShape
+	{
+		FName Bone;
+		bool bCapsule = false;
+		FVector Center = FVector::ZeroVector;
+		FVector Start = FVector::ZeroVector;
+		FVector End = FVector::ZeroVector;
+		float Radius = 0.f;
+	};
+
 	struct FModel
 	{
 		FString Name;
@@ -46,6 +64,9 @@ private:
 		bool bHulls = false;
 		/** In the model's space. They come through the manifest: FBX sockets arrive with the wrong rotation. */
 		TArray<FModelSocket> Sockets;
+		/** A rigged model: a skeletal mesh whose hit zones make its physics asset. */
+		bool bSkeletal = false;
+		TArray<FModelHitShape> HitShapes;
 	};
 
 	/** Reads one manifest: updates its materials and returns its models. */
@@ -54,6 +75,10 @@ private:
 	UStaticMesh* ImportModel(const FModel& Model);
 	static void SetSockets(UStaticMesh* Mesh, const TArray<FModelSocket>& Sockets);
 	UMaterialInterface* UpdateMaterial(const FString& Name, const FStylizedSurface& Surface);
+
+	// ModelImporterRig.cpp
+	USkeletalMesh* ImportRig(const FModel& Model);
+	UPhysicsAsset* MakeHitZones(USkeletalMesh* Mesh, const FModel& Model);
 
 	FString ContentRoot;
 	TMap<FString, UMaterialInterface*> Materials;

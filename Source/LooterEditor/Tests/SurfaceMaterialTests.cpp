@@ -13,9 +13,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStylizedMaterialUsageTest, "Looter.Editor.Styl
 
 bool FStylizedMaterialUsageTest::RunTest(const FString& Parameters)
 {
-	// The stylized materials must allow Nanite (except the additive glow, which Nanite can't draw) and instancing. A
-	// missing flag makes a packaged game draw the default material, and in the editor every instance sets it on itself
-	// and compiles shaders of its own.
+	// The stylized materials must allow Nanite (except the additive glow, which Nanite can't draw), instancing and
+	// skinning. A missing flag makes a packaged game draw the default material, and in the editor every instance sets it
+	// on itself and compiles shaders of its own.
 	for (const TCHAR* Name : { TEXT("M_StylizedSurface"), TEXT("M_StylizedFoliage"), TEXT("M_StylizedGlow") })
 	{
 		const UMaterial* Material = LoadObject<UMaterial>(nullptr, *FString::Printf(TEXT("/Game/Environment/Materials/%s.%s"), Name, Name));
@@ -25,6 +25,7 @@ bool FStylizedMaterialUsageTest::RunTest(const FString& Parameters)
 		}
 		TestEqual(FString(Name) + TEXT(" allows Nanite"), Material->GetUsageByFlag(MATUSAGE_Nanite), IsOpaqueOrMaskedBlendMode(*Material));
 		TestTrue(FString(Name) + TEXT(" allows instancing"), Material->GetUsageByFlag(MATUSAGE_InstancedStaticMeshes));
+		TestTrue(FString(Name) + TEXT(" allows skinning"), Material->GetUsageByFlag(MATUSAGE_SkeletalMesh));
 	}
 
 	// No instance of them sets usage flags of its own (Looter.FixStylizedMaterials clears them).

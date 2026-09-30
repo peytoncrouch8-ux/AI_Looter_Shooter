@@ -116,7 +116,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `StylizedProp`: `AStylizedProp` and `EStylizedPropShape`, procedural props for building levels in the editor.
 - `PropBaker`: `FPropBaker`, turns a level's props into Nanite static mesh assets, material instances and placed actors.
 - `ModelImporter`: `FModelImporter`, imports the Blender models `Tools/models.ps1` exported (fixed FBX settings,
-  stylized material instances, hull collision, sockets).
+  stylized material instances, hull collision, sockets). `ModelImporterRig.cpp` imports rigged models as skeletal
+  meshes and turns their hit zones into a physics asset.
 - `SurfaceMaterials`: `SurfaceMaterials`, stylized material instance assets and the parents' usage flags.
-- `Tests/StylizedPropTests.cpp`, `ModelImportTests.cpp`, `SurfaceMaterialTests.cpp`: the `Looter.Editor.*` tests (prop
-  shapes, the Blender import settings against `Tests/ModelImport/AxisTest`, the stylized materials' usage flags).
+- `Tests/StylizedPropTests.cpp`, `ModelImportTests.cpp`, `RigImportTests.cpp`, `SurfaceMaterialTests.cpp`: the
+  `Looter.Editor.*` tests (prop shapes, the Blender import settings against `Tests/ModelImport/AxisTest` and
+  `Tests/RigImport/RigTest`, the stylized materials' usage flags).
