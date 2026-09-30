@@ -24,7 +24,8 @@ enum class ECreatureState : uint8
  * Shared brain and life cycle for hostile creatures: senses the player, chases, telegraphs and lands melee
  * attacks, dies (dropping loot), and respawns at home. Movement is local steering that avoids obstacles and
  * never walks off an island edge, so it needs no navmesh. Subclasses provide the body and animation through
- * the On* hooks; critical spots are data (CriticalSpotTags) matched against the tags on the subclass's hit shapes.
+ * the On* hooks. The mesh's physics asset holds the hit zones, and critical spots are data (CriticalSpotBones) matched
+ * against the bone a shot hit.
  */
 UCLASS(Abstract)
 class AI_LOOTER_SHOOTER_API ACreatureBase : public ACharacter, public ICriticalSpotTarget
@@ -36,7 +37,7 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
-	// ICriticalSpotTarget: hits on shapes tagged with CriticalSpotTags are critical (x1.5, see LooterCombat).
+	// ICriticalSpotTarget: hits on the mesh's CriticalSpotBones are critical (x1.5, see LooterCombat).
 	virtual bool IsCriticalSpot(const FHitResult& Hit) const override;
 
 	UFUNCTION(BlueprintPure, Category = "Creature")
@@ -48,9 +49,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature")
 	FText DisplayName;
 
-	/** Hit shapes carrying any of these component tags are critical spots. Everything else takes base damage. */
+	/** Hits on these bones' hit zones are critical. Everything else takes base damage. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature")
-	TArray<FName> CriticalSpotTags;
+	TArray<FName> CriticalSpotBones;
 
 	/** Notices a visible player within this distance. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Senses", meta = (ClampMin = "0"))

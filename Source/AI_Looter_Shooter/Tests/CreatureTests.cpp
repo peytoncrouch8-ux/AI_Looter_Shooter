@@ -6,46 +6,18 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/TargetDummy.h"
 #include "Creatures/SpiderCreature.h"
-#include "Components/CapsuleComponent.h"
-#include "Components/DynamicMeshComponent.h"
-#include "Components/PrimitiveComponent.h"
-#include "DynamicMesh/DynamicMesh3.h"
+#include "AnimationRuntime.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
+#include "PhysicsEngine/PhysicsAsset.h"
+#include "PhysicsEngine/SkeletalBodySetup.h"
 #include "Tests/AutomationCommon.h"
 #include "UObject/UObjectHash.h"
-
-namespace
-{
-	TArray<UPrimitiveComponent*> FindTaggedShapes(const UObject* Owner, FName Tag)
-	{
-		TArray<UObject*> Subobjects;
-		GetObjectsWithOuter(Owner, Subobjects, EGetObjectsFlags::None);
-		TArray<UPrimitiveComponent*> Shapes;
-		for (UObject* Subobject : Subobjects)
-		{
-			UPrimitiveComponent* Shape = Cast<UPrimitiveComponent>(Subobject);
-			if (Shape && Shape->ComponentHasTag(Tag))
-			{
-				Shapes.Add(Shape);
-			}
-		}
-		return Shapes;
-	}
-
-	/** True if a world-space point lies inside a capsule hit shape (with a hair of slack for round-off). */
-	bool IsInsideCapsule(const UPrimitiveComponent* Shape, const FVector& Point)
-	{
-		const UCapsuleComponent* Capsule = Cast<UCapsuleComponent>(Shape);
-		if (!Capsule)
-		{
-			return false;
-		}
-		const FVector Local = Capsule->GetComponentTransform().InverseTransformPosition(Point);
-		const double Segment = Capsule->GetUnscaledCapsuleHalfHeight_WithoutHemisphere();
-		const FVector OnAxis(0.0, 0.0, FMath::Clamp(Local.Z, -Segment, Segment));
-		return FVector::Dist(Local, OnAxis) <= Capsule->GetUnscaledCapsuleRadius() + 0.01;
-	}
-}
+#if WITH_EDITOR
+#include "Rendering/SkeletalMeshLODModel.h"
+#include "Rendering/SkeletalMeshModel.h"
+#endif
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCriticalHitRuleTest, "Looter.Combat.CriticalHitRule",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -122,37 +94,25 @@ bool FSpiderCriticalSpotTest::RunTest(const FString& Parameters)
 {
 	const ASpiderCreature* Spider = GetDefault<ASpiderCreature>();
 
-	// Design: the head is the critical spot; legs, thorax, abdomen ("butt") and fangs are not.
-	struct FCase
+	// Design: the head is the critical spot; legs, thorax, abdomen ("butt"), fangs and feelers are not.
+	const TPair<const TCHAR*, bool> Cases[] = {
+		{ TEXT("head"), true }, { TEXT("body"), false }, { TEXT("abdomen"), false }, { TEXT("fang_l"), false },
+		{ TEXT("fang_r"), false }, { TEXT("palp_l"), false }, { TEXT("femur_0_l"), false }, { TEXT("tibia_3_r"), false } };
+	for (const TPair<const TCHAR*, bool>& Case : Cases)
 	{
-		const TCHAR* Tag;
-		bool bCritical;
-	};
-	const FCase Cases[] = {
-		{ TEXT("Head"), true },
-		{ TEXT("Body"), false },
-		{ TEXT("Abdomen"), false },
-		{ TEXT("Leg"), false },
-		{ TEXT("Fang"), false } };
-
-	for (const FCase& Case : Cases)
-	{
-		const TArray<UPrimitiveComponent*> Shapes = FindTaggedShapes(Spider, Case.Tag);
-		TestTrue(FString::Printf(TEXT("%s has hit shapes"), Case.Tag), Shapes.Num() > 0);
-		for (UPrimitiveComponent* Shape : Shapes)
-		{
-			FHitResult Hit;
-			Hit.Component = Shape;
-			TestEqual(FString::Printf(TEXT("%s (%s) critical"), Case.Tag, *Shape->GetName()), Spider->IsCriticalSpot(Hit), Case.bCritical);
-		}
+		FHitResult Hit;
+		Hit.Component = Spider->GetMesh();
+		Hit.BoneName = Case.Key;
+		TestEqual(FString::Printf(TEXT("%s critical"), Case.Key), Spider->IsCriticalSpot(Hit), Case.Value);
 	}
 
-	// Two segments per leg, eight legs; one shape per fang.
-	TestEqual(TEXT("Leg hit shapes"), FindTaggedShapes(Spider, TEXT("Leg")).Num(), 16);
-	TestEqual(TEXT("Fang hit shapes"), FindTaggedShapes(Spider, TEXT("Fang")).Num(), 2);
-
-	// A hit with no component (or an untagged one) is never critical.
-	TestFalse(TEXT("Untagged is not critical"), Spider->IsCriticalSpot(FHitResult()));
+	// Only the spider's own mesh counts: a hit without a component or bone is never critical.
+	FHitResult NoBone;
+	NoBone.Component = Spider->GetMesh();
+	TestFalse(TEXT("No bone is not critical"), Spider->IsCriticalSpot(NoBone));
+	FHitResult NoComponent;
+	NoComponent.BoneName = TEXT("head");
+	TestFalse(TEXT("No component is not critical"), Spider->IsCriticalSpot(NoComponent));
 
 	TArray<UObject*> Subobjects;
 	GetObjectsWithOuter(Spider, Subobjects, EGetObjectsFlags::None);
@@ -168,52 +128,131 @@ bool FSpiderCriticalSpotTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSpiderFangHitShapesTest, "Looter.Creatures.Spider.FangHitShapes",
+#if WITH_EDITOR
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSpiderHitZonesTest, "Looter.Creatures.Spider.HitZones",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
-bool FSpiderFangHitShapesTest::RunTest(const FString& Parameters)
+bool FSpiderHitZonesTest::RunTest(const FString& Parameters)
 {
-	// Shots at the chelicerae and fangs used to pass straight through them. Every vertex of both fang meshes has to sit
-	// inside a Fang hit shape, whether the fangs are closed or spread for a bite.
+	// Shots at a part without a hit zone pass straight through it (they once did at the fangs). Every vertex of the
+	// spider must lie inside the hit zone of the bone it moves with; then every part is covered in every pose.
+	const USkeletalMesh* Model = GetDefault<ASpiderCreature>()->GetMesh()->GetSkeletalMeshAsset();
+	if (!TestNotNull(TEXT("Spider model"), Model))
+	{
+		return false;
+	}
+	UPhysicsAsset* Physics = Model->GetPhysicsAsset();
+	if (!TestNotNull(TEXT("Spider hit zones (physics asset)"), Physics))
+	{
+		return false;
+	}
+	TestEqual(TEXT("Hit zones (one per drawn part)"), Physics->SkeletalBodySetups.Num(), 23);
+
+	// Hulls are measured with their physics shapes.
+	for (USkeletalBodySetup* Body : Physics->SkeletalBodySetups)
+	{
+		if (Body->AggGeom.ConvexElems.ContainsByPredicate([](const FKConvexElem& Hull) { return !Hull.GetChaosConvexMesh().IsValid(); }))
+		{
+			Body->CreatePhysicsMeshes();
+		}
+	}
+
+	const FReferenceSkeleton& Skeleton = Model->GetRefSkeleton();
+	int32 Vertices = 0;
+	TMap<FName, int32> Outside;
+	float Farthest = 0.f;
+	for (const FSkelMeshSection& Section : Model->GetImportedModel()->LODModels[0].Sections)
+	{
+		for (const FSoftSkinVertex& Vertex : Section.SoftVertices)
+		{
+			++Vertices;
+			uint16 SectionBone = 0;
+			const FName Bone = Vertex.GetRigidWeightBone(SectionBone) ? Skeleton.GetBoneName(Section.BoneMap[SectionBone]) : NAME_None;
+			const int32 Body = Bone.IsNone() ? INDEX_NONE : Physics->FindBodyIndex(Bone);
+			const float Distance = Body == INDEX_NONE ? UE_BIG_NUMBER : Physics->SkeletalBodySetups[Body]->GetShortestDistanceToPoint(
+				FVector(Vertex.Position), FAnimationRuntime::GetComponentSpaceTransformRefPose(Skeleton, Skeleton.FindBoneIndex(Bone)), true);
+			if (Distance > 0.5f)
+			{
+				++Outside.FindOrAdd(Bone);
+				Farthest = FMath::Max(Farthest, Distance);
+			}
+		}
+	}
+	TestTrue(TEXT("The model has vertices"), Vertices > 1000);
+	for (const TPair<FName, int32>& Part : Outside)
+	{
+		AddError(FString::Printf(TEXT("%d vertices on %s lie outside its hit zone (farthest %.1f cm)"), Part.Value, *Part.Key.ToString(), Farthest));
+	}
+	return true;
+}
+#endif
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSpiderShotsTest, "Looter.Creatures.Spider.Shots",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FSpiderShotsTest::RunTest(const FString& Parameters)
+{
+	// Shots report the part they hit: a spider facing +X, standing at the origin in its resting pose.
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
 		return false;
 	}
-	// Spawning runs the construction script, which builds the meshes.
-	ASpiderCreature* Spider = WorldWrapper.GetTestWorld()->SpawnActor<ASpiderCreature>();
+	ASpiderCreature* Spider = WorldWrapper.GetTestWorld()->SpawnActor<ASpiderCreature>(FVector::ZeroVector, FRotator::ZeroRotator);
 	if (!TestNotNull(TEXT("Spider spawned"), Spider))
 	{
 		return false;
 	}
+	USkeletalMeshComponent* Mesh = Spider->GetMesh();
 
-	const TArray<UPrimitiveComponent*> FangShapes = FindTaggedShapes(Spider, TEXT("Fang"));
-	TArray<UDynamicMeshComponent*> Fangs;
-	Spider->GetComponents(Fangs);
-	Fangs.RemoveAll([](const UDynamicMeshComponent* Part) { return !Part->GetName().StartsWith(TEXT("Fang")); });
-	TestEqual(TEXT("Fang meshes"), Fangs.Num(), 2);
-
-	// Closed, spread for a bite (the attack opens them to 30 degrees), and wider still.
-	for (const float Spread : { 0.f, 30.f, 45.f })
+	// Bullets trace the weapon channel: the hit zones block it, and nothing ever bumps into them. A skeletal mesh's
+	// bodies collide as the mesh says (FBodyInstance::BuildBodyFilterData), unless a body's own collision is off. (A
+	// preview world's scene doesn't pick up new bodies for world traces, so the shots below trace the mesh itself.)
+	TestTrue(TEXT("Hit zones are only for queries"), Mesh->GetCollisionEnabled() == ECollisionEnabled::QueryOnly);
+	TestTrue(TEXT("Hit zones block shots"), Mesh->GetCollisionResponseToChannel(ECC_GameTraceChannel2) == ECR_Block);
+	TestTrue(TEXT("Hit zones let pawns through"), Mesh->GetCollisionResponseToChannel(ECC_Pawn) == ECR_Ignore);
+	TestTrue(TEXT("Hit zones let the camera through"), Mesh->GetCollisionResponseToChannel(ECC_Camera) == ECR_Ignore);
+	TestEqual(TEXT("Hit zones"), Mesh->Bodies.Num(), 23);
+	for (const FBodyInstance* Zone : Mesh->Bodies)
 	{
-		for (UDynamicMeshComponent* Fang : Fangs)
+		const UBodySetup* Setup = Zone ? Zone->GetBodySetup() : nullptr;
+		if (TestNotNull(TEXT("Hit zone setup"), Setup))
 		{
-			const float Outward = Fang->GetRelativeLocation().Y < 0.f ? -1.f : 1.f;
-			Fang->SetRelativeRotation(FRotator(Spread * 0.4f, Outward * Spread, 0.f));
-			const FTransform FangToWorld = Fang->GetComponentTransform();
-			int32 Vertices = 0;
-			int32 Outside = 0;
-			Fang->ProcessMesh([&](const UE::Geometry::FDynamicMesh3& Geometry)
-			{
-				for (const int32 Vertex : Geometry.VertexIndicesItr())
-				{
-					const FVector Point = FangToWorld.TransformPosition(Geometry.GetVertex(Vertex));
-					++Vertices;
-					Outside += FangShapes.ContainsByPredicate([&Point](const UPrimitiveComponent* Shape) { return IsInsideCapsule(Shape, Point); }) ? 0 : 1;
-				}
-			});
-			TestTrue(FString::Printf(TEXT("%s mesh is built"), *Fang->GetName()), Vertices > 0);
-			TestEqual(FString::Printf(TEXT("%s vertices outside the fang hit shapes (spread %.0f)"), *Fang->GetName(), Spread), Outside, 0);
+			TestTrue(FString::Printf(TEXT("%s collides"), *Setup->BoneName.ToString()), Setup->CollisionReponse != EBodyCollisionResponse::BodyCollision_Disabled);
+		}
+	}
+
+	const FVector Body = Mesh->GetBoneLocation(TEXT("body"));
+	const FVector FemurMiddle = (Mesh->GetBoneLocation(TEXT("femur_0_r")) + Mesh->GetBoneLocation(TEXT("tibia_0_r"))) * 0.5;
+	struct FShot
+	{
+		const TCHAR* What;
+		FVector From;
+		FVector To;
+		const TCHAR* Bone;  // nullptr: a miss
+		bool bCritical;
+	};
+	// From the thorax's center: the head is ahead of it, the abdomen behind, the fangs below the head.
+	const FShot Shots[] = {
+		{ TEXT("head-on"), Body + FVector(400.0, 0.0, 10.0), Body + FVector(0.0, 0.0, 10.0), TEXT("head"), true },
+		{ TEXT("thorax from above"), Body + FVector(0.0, 0.0, 200.0), Body - FVector(0.0, 0.0, 100.0), TEXT("body"), false },
+		{ TEXT("abdomen from behind"), Body + FVector(-400.0, 0.0, 15.0), Body + FVector(-50.0, 0.0, 15.0), TEXT("abdomen"), false },
+		{ TEXT("left fang"), Body + FVector(400.0, -8.0, -20.0), Body + FVector(0.0, -8.0, -20.0), TEXT("fang_l"), false },
+		{ TEXT("front right femur from above"), FemurMiddle + FVector(0.0, 0.0, 150.0), FemurMiddle - FVector(0.0, 0.0, 150.0), TEXT("femur_0_r"), false },
+		{ TEXT("well over it"), Body + FVector(400.0, 0.0, 150.0), Body + FVector(-400.0, 0.0, 150.0), nullptr, false } };
+	for (const FShot& Shot : Shots)
+	{
+		FHitResult Hit;
+		const bool bHit = Mesh->LineTraceComponent(Hit, Shot.From, Shot.To, FCollisionQueryParams());
+		if (!Shot.Bone)
+		{
+			TestFalse(FString::Printf(TEXT("%s misses"), Shot.What), bHit);
+			continue;
+		}
+		if (TestTrue(FString::Printf(TEXT("%s hits"), Shot.What), bHit))
+		{
+			TestEqual(FString::Printf(TEXT("%s: bone"), Shot.What), Hit.BoneName, FName(Shot.Bone));
+			TestEqual(FString::Printf(TEXT("%s: critical"), Shot.What), Spider->IsCriticalSpot(Hit), Shot.bCritical);
 		}
 	}
 	return true;

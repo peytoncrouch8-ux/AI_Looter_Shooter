@@ -2,22 +2,18 @@
 
 #include "CoreMinimal.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/SpiderAnimInstance.h"
 #include "SpiderCreature.generated.h"
 
-class UCapsuleComponent;
-class UDynamicMeshComponent;
-class UMaterialInterface;
-class USceneComponent;
-class USphereComponent;
-
 /**
- * Human-sized brown hunting spider (wolf-spider look, not a black widow). 150 health; the head is the
- * critical spot (x1.5 per the game-wide rule), legs, thorax, abdomen and fangs take base damage.
+ * Human-sized brown hunting spider (wolf-spider look, not a black widow). 150 health; the head is the critical spot
+ * (x1.5 per the game-wide rule), and every other part takes base damage.
  *
- * Everything is procedural: the body is generated with the stylized mesh kit, and the eight legs are
- * two-bone IK chains driven by a stepping gait (alternating tetrapod groups, feet planted on the ground,
- * steps triggered by distance from each foot's rest spot and led by velocity). Attacks rear up and lunge,
- * hits make it flinch, and death curls the legs in.
+ * The body is SK_Spider, made in Blender (Art/Models/Creatures/Spider.py), and its physics asset holds a hit zone
+ * around every part: shots report the bone they hit. The motion is all code: the eight legs are two-bone IK chains
+ * driven by a stepping gait (two tetrapod groups taking turns, feet planted on the ground, steps triggered by distance
+ * from each foot's rest spot and led by velocity). Attacks rear up and lunge, hits make it flinch, and death curls the legs
+ * in. The legs' layout and lengths are read from the skeleton.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ASpiderCreature : public ACreatureBase
@@ -27,21 +23,13 @@ class AI_LOOTER_SHOOTER_API ASpiderCreature : public ACreatureBase
 public:
 	ASpiderCreature();
 
-	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void Tick(float DeltaSeconds) override;
 
-	/** Thorax height above the ground when standing. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spider")
-	float RideHeight = 62.f;
+	/** This frame's pose of the bones the code moves, for USpiderAnimInstance. */
+	const TArray<FSpiderBonePose>& GetBonePose() const { return BonePose; }
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spider")
-	FLinearColor BodyColor;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spider")
-	FLinearColor MarkingColor;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spider")
-	FLinearColor BellyColor;
+	/** Where knees bend: up from the body and a little outward. Spider.py bent the model's resting legs the same way. */
+	static FVector KneePole(const FVector& Up, const FVector& Outward) { return Up + Outward * 0.4f; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -58,9 +46,14 @@ private:
 		int32 Pair = 0;            // 0 = front ... 3 = back
 		int32 Group = 0;           // gait group (alternating tetrapod)
 		FVector Hip;               // body space
-		FVector Rest;              // resting foot, body space (Z ignored; feet sit on the ground)
+		FVector Rest;              // resting foot, actor space (Z ignored; feet sit on the ground)
 		float FemurLength = 90.f;
 		float TibiaLength = 115.f;
+		FName Femur;
+		FName Tibia;
+		/** Each bone relative to its segment's frame (from its root joint, X toward the next, Z toward the pole). */
+		FTransform FemurInSegment;
+		FTransform TibiaInSegment;
 
 		FVector Foot = FVector::ZeroVector;  // world
 		FVector StepFrom = FVector::ZeroVector;
@@ -71,59 +64,43 @@ private:
 		float LastStepTime = 0.f;
 	};
 
-	void BuildMeshes();
+	/** A bone the code turns about its resting position, in the body's frame. */
+	struct FPivotBone
+	{
+		FName Bone;
+		FVector Pivot = FVector::ZeroVector;  // body space
+		FTransform BoneInPivot;
+	};
+
+	/** Reads the rig: the bones it moves and the legs' layout. False when the mesh isn't the spider's. */
+	bool SetupRig();
 	void PlantLegs();
 	void AnimateBody(float DeltaSeconds);
 	void AnimateLegs(float DeltaSeconds);
-	void PoseSegment(int32 Segment, const FVector& From, const FVector& To, const FVector& Pole, float Radius);
+	/** Puts pose slot Index's bone where it sits (InSegment) in a frame that is now at SegmentToWorld. */
+	void SetBone(int32 Index, const FTransform& InSegment, const FTransform& SegmentToWorld);
+	/** Turns (and scales) a pivot bone about its resting position, in the body's frame. */
+	void PosePivot(int32 Index, const FPivotBone& Pivot, const FRotator& Rotation, const FVector& Scale);
 	FVector GroundUnder(const FVector& Point) const;
 
-	UPROPERTY(VisibleAnywhere, Category = "Spider")
-	TObjectPtr<USceneComponent> BodyRoot;
-
-	UPROPERTY(VisibleAnywhere, Category = "Spider")
-	TObjectPtr<UDynamicMeshComponent> ThoraxMesh;
-
-	UPROPERTY(VisibleAnywhere, Category = "Spider")
-	TObjectPtr<UDynamicMeshComponent> HeadMesh;
-
-	UPROPERTY(VisibleAnywhere, Category = "Spider")
-	TObjectPtr<USceneComponent> AbdomenPivot;
-
-	UPROPERTY(VisibleAnywhere, Category = "Spider")
-	TObjectPtr<UDynamicMeshComponent> AbdomenMesh;
-
-	UPROPERTY(VisibleAnywhere, Category = "Spider")
-	TObjectPtr<UDynamicMeshComponent> FangLeft;
-
-	UPROPERTY(VisibleAnywhere, Category = "Spider")
-	TObjectPtr<UDynamicMeshComponent> FangRight;
-
-	UPROPERTY(VisibleAnywhere, Category = "Spider|Hit Zones")
-	TObjectPtr<USphereComponent> HeadHit;
-
-	UPROPERTY(VisibleAnywhere, Category = "Spider|Hit Zones")
-	TObjectPtr<USphereComponent> ThoraxHit;
-
-	UPROPERTY(VisibleAnywhere, Category = "Spider|Hit Zones")
-	TObjectPtr<UCapsuleComponent> AbdomenHit;
-
-	/** Left then right; each rides on its fang mesh, so it follows the fangs as they spread and snap shut. */
-	UPROPERTY(VisibleAnywhere, Category = "Spider|Hit Zones")
-	TArray<TObjectPtr<UCapsuleComponent>> FangHits;
-
-	/** Two per leg: femur then tibia. */
-	UPROPERTY(VisibleAnywhere, Category = "Spider")
-	TArray<TObjectPtr<UDynamicMeshComponent>> LegMeshes;
-
-	UPROPERTY(VisibleAnywhere, Category = "Spider|Hit Zones")
-	TArray<TObjectPtr<UCapsuleComponent>> LegHits;
-
-	/** One shared material set for every body part. */
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UMaterialInterface>> BodyMaterials;
-
 	TArray<FLeg> Legs;
+	/** The gait group whose turn it is to step (INDEX_NONE while all feet are down), and the group that stepped last. */
+	int32 SteppingGroup = INDEX_NONE;
+	int32 LastGroup = 1;
+	FPivotBone FangLeft;
+	FPivotBone FangRight;
+	FPivotBone Abdomen;
+	/** The thorax bone relative to the body's frame (level, at the thorax's resting position). */
+	FTransform BodyInFrame;
+	/** Thorax height above the ground when standing: the model's. */
+	float RideHeight = 62.f;
+	bool bRigReady = false;
+
+	/** The body's frame this frame, in the world: the old spider's BodyRoot. */
+	FTransform BodyFrame;
+	FTransform ComponentToWorld;
+	TArray<FSpiderBonePose> BonePose;
+
 	float AnimTime = 0.f;
 	float BodyZ = 0.f;
 	float BodyPitch = 0.f;

@@ -170,8 +170,10 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 	const bool bCritical = Target && Target->IsCriticalSpot(Hit);
 	const float Roll = FMath::FRand();
 	const float Damage = LooterCombat::HitDamage(Shot.Damage, bCritical, Roll);
+	const FString Part = Hit.BoneName.IsNone() ? GetNameSafe(Hit.GetComponent())
+		: FString::Printf(TEXT("%s bone %s"), *GetNameSafe(Hit.GetComponent()), *Hit.BoneName.ToString());
 	UE_LOG(LogLooter, Verbose, TEXT("Hit %s on %s after %.0f cm: %.1f (range %.1f-%.1f, roll %.2f) x%.2f = %.1f%s"), *GetNameSafe(HitActor),
-		*GetNameSafe(Hit.GetComponent()), Bullet.Traveled, Shot.Damage, LooterCombat::MinHitDamage(Shot.Damage),
+		*Part, Bullet.Traveled, Shot.Damage, LooterCombat::MinHitDamage(Shot.Damage),
 		LooterCombat::MaxHitDamage(Shot.Damage), Roll, bCritical ? LooterCombat::CriticalHitMultiplier : 1.f, Damage,
 		bCritical ? TEXT(" CRIT") : TEXT(""));
 

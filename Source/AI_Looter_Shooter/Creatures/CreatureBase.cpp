@@ -39,7 +39,7 @@ ACreatureBase::ACreatureBase()
 	Movement->SetWalkableFloorAngle(50.f);
 	Movement->MaxStepHeight = 55.f;
 
-	// Shots are taken by the subclass's body-part shapes (hit zones), never by the movement capsule.
+	// Shots are taken by the hit zones on the subclass's mesh, never by the movement capsule.
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Ignore);
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
@@ -101,19 +101,7 @@ void ACreatureBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 bool ACreatureBase::IsCriticalSpot(const FHitResult& Hit) const
 {
-	const UPrimitiveComponent* Component = Hit.GetComponent();
-	if (!Component)
-	{
-		return false;
-	}
-	for (const FName& Tag : CriticalSpotTags)
-	{
-		if (Component->ComponentHasTag(Tag))
-		{
-			return true;
-		}
-	}
-	return false;
+	return Hit.GetComponent() == GetMesh() && !Hit.BoneName.IsNone() && CriticalSpotBones.Contains(Hit.BoneName);
 }
 
 // ---------------------------------------------------------------------------

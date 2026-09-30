@@ -66,7 +66,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 ## Creatures
 - `Creatures/CreatureBase`: `ACreatureBase`, a hostile creature's brain and life cycle (senses, chase, attack, death,
   respawn, steering without a navmesh).
-- `Creatures/SpiderCreature`: `ASpiderCreature`, the brown spider: procedural body, leg IK, hit shapes.
+- `Creatures/SpiderCreature`: `ASpiderCreature`, the brown spider: SK_Spider (from `Art/Models/Creatures/Spider.py`)
+  posed by code (stepping gait, leg IK, attack and death motion); its physics asset holds the hit zones.
+- `Creatures/SpiderAnimInstance`: `USpiderAnimInstance`, applies the pose `ASpiderCreature` works out to the skeleton.
 
 ## World
 - `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime.
