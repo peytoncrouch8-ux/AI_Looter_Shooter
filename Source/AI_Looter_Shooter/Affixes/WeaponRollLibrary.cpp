@@ -1,6 +1,7 @@
 #include "Affixes/WeaponRollLibrary.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
+#include "Weapons/WeaponParts.h"
 #include "AI_Looter_Shooter.h"
 #include "Engine/World.h"
 
@@ -61,14 +62,16 @@ FWeaponStats UWeaponRollLibrary::ComputeStats(const UWeaponDefinition* Definitio
 	const FWeaponRarityInfo& RarityInfo = Definition->GetRarityInfo(Rarity);
 	const FWeaponStats& Base = Definition->BaseStats;
 	const float LevelScale = 1.f + Definition->DamagePerLevel * FMath::Max(Level - 1, 0);
+	// The gun's parts (picked by the same seed) shift its stats: a long barrel hits harder, a scope shoots tighter.
+	const FWeaponPartStats Parts = WeaponParts::CombinedStats(WeaponParts::Pick(*Definition, Seed, Rarity));
 
 	// Roll order is fixed so a given seed always produces the same weapon.
 	FWeaponStats Stats;
-	Stats.Damage = Vary(Base.Damage) * RarityInfo.DamageMultiplier * LevelScale;
-	Stats.FireRate = Vary(Base.FireRate) * RarityInfo.FireRateMultiplier;
-	Stats.MagazineSize = FMath::Max(1, FMath::RoundToInt(Vary(static_cast<float>(Base.MagazineSize)) * RarityInfo.MagazineMultiplier));
-	Stats.ReloadTime = Vary(Base.ReloadTime) * RarityInfo.ReloadTimeMultiplier;
-	Stats.Spread = Vary(Base.Spread) * RarityInfo.SpreadMultiplier;
+	Stats.Damage = Vary(Base.Damage) * RarityInfo.DamageMultiplier * LevelScale * Parts.Damage;
+	Stats.FireRate = Vary(Base.FireRate) * RarityInfo.FireRateMultiplier * Parts.FireRate;
+	Stats.MagazineSize = FMath::Max(1, FMath::RoundToInt(Vary(static_cast<float>(Base.MagazineSize)) * RarityInfo.MagazineMultiplier * Parts.MagazineSize));
+	Stats.ReloadTime = Vary(Base.ReloadTime) * RarityInfo.ReloadTimeMultiplier * Parts.ReloadTime;
+	Stats.Spread = Vary(Base.Spread) * RarityInfo.SpreadMultiplier * Parts.Spread;
 	Stats.Range = Base.Range;
 	Stats.PelletsPerShot = Base.PelletsPerShot;
 	return Stats;

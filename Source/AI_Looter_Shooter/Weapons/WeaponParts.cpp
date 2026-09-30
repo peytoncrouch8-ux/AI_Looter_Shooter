@@ -38,7 +38,9 @@ namespace
 FWeaponLook WeaponParts::Pick(const UWeaponDefinition& Definition, int32 Seed, EWeaponRarity Rarity)
 {
 	FWeaponLook Look;
-	FRandomStream Random(Seed);
+	// A stream of its own from the same seed: the stats' variance draws from FRandomStream(Seed), and sharing its
+	// numbers would tie each part's odds to a stat's roll.
+	FRandomStream Random(static_cast<int32>(HashCombine(static_cast<uint32>(Seed), 0x9E3779B9u)));
 	for (const FWeaponPartSlot& Slot : Definition.Parts)
 	{
 		const float Roll = Random.FRand();
@@ -56,6 +58,37 @@ FWeaponLook WeaponParts::Pick(const UWeaponDefinition& Definition, int32 Seed, E
 		}
 	}
 	return Look;
+}
+
+FWeaponPartStats WeaponParts::CombinedStats(const FWeaponLook& Look)
+{
+	FWeaponPartStats Combined;
+	for (const FWeaponPartOption* Part : Look.Parts)
+	{
+		if (Part)
+		{
+			Combined.Damage *= Part->Stats.Damage;
+			Combined.FireRate *= Part->Stats.FireRate;
+			Combined.MagazineSize *= Part->Stats.MagazineSize;
+			Combined.ReloadTime *= Part->Stats.ReloadTime;
+			Combined.Spread *= Part->Stats.Spread;
+		}
+	}
+	return Combined;
+}
+
+FText WeaponParts::NamePrefix(const FWeaponLook& Look)
+{
+	const FWeaponPartOption* Namer = nullptr;
+	for (const FWeaponPartOption* Part : Look.Parts)
+	{
+		// The earlier slot wins a tie.
+		if (Part && !Part->NamePrefix.IsEmpty() && (!Namer || Part->NamePriority > Namer->NamePriority))
+		{
+			Namer = Part;
+		}
+	}
+	return Namer ? Namer->NamePrefix : FText::GetEmpty();
 }
 
 float WeaponParts::RarityGlow(EWeaponRarity Rarity)

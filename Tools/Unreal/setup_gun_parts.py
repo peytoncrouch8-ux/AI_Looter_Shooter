@@ -22,8 +22,11 @@ def mesh(name):
     return asset
 
 
-def option(name, weight=1.0, min_rarity=Rarity.COMMON):
-    return unreal.WeaponPartOption(mesh=mesh(name), weight=weight, min_rarity=min_rarity)
+def option(name, weight=1.0, min_rarity=Rarity.COMMON, prefix='', priority=0, **stats):
+    """A part option. stats: multipliers by stat (damage, fire_rate, magazine_size, reload_time, spread); prefix is the word
+    it gives the gun's name, and the gun's part with the highest priority names it."""
+    return unreal.WeaponPartOption(mesh=mesh(name), weight=weight, min_rarity=min_rarity, stats=unreal.WeaponPartStats(**stats),
+                                   name_prefix=unreal.Text(prefix), name_priority=priority)
 
 
 def slot(name, options, socket=None):
@@ -57,19 +60,34 @@ def setup(asset, kind, parts, paints, reload_slot, reload_part):
 
 panel = paint('GunPaint', [(color, 1.0) for color in PANEL_PAINTS])
 
+# Parts carry the stats (Borderlands-style): each trades one strength for another, names the gun, and rarity unlocks the
+# better ones. Sights and rarity parts name a gun before barrels do.
 setup('DA_AssaultRifle', unreal.WeaponKind.RIFLE, [
     slot('Body', [option('RifleBody')]),
-    slot('Barrel', [option('RifleBarrel10'), option('RifleBarrel14'), option('RifleBarrel18')]),
-    slot('Sight', [option('RifleSightIron'), option('RifleSightRedDot'), option('RifleSightScope')]),
+    slot('Barrel', [
+        option('RifleBarrel10', prefix='Compact', priority=1, fire_rate=1.1, spread=1.15, damage=0.95),
+        option('RifleBarrel14', weight=1.2),
+        option('RifleBarrel18', min_rarity=Rarity.UNCOMMON, prefix='Marksman', priority=1, damage=1.1, spread=0.85, fire_rate=0.92),
+    ]),
+    slot('Sight', [
+        option('RifleSightIron', weight=1.2),
+        option('RifleSightRedDot', prefix='Reflex', priority=2, spread=0.9),
+        option('RifleSightScope', min_rarity=Rarity.RARE, prefix='Scoped', priority=2, spread=0.75, fire_rate=0.95),
+    ]),
     slot('Magazine', [option('RifleMagazine')], socket='Magazine'),
-    slot('Fins', [option('RifleFins', min_rarity=Rarity.LEGENDARY)]),
+    slot('Fins', [option('RifleFins', min_rarity=Rarity.LEGENDARY, prefix='Radiant', priority=3, damage=1.1, reload_time=0.9)]),
 ], [panel], 'Magazine', unreal.WeaponReloadPart.MAGAZINE)
 
 setup('DA_PumpShotgun', unreal.WeaponKind.SHOTGUN, [
     slot('Body', [option('ShotgunBody')]),
-    slot('Barrel', [option('ShotgunBarrel30'), option('ShotgunBarrel34'), option('ShotgunBarrel38')]),
+    slot('Barrel', [
+        option('ShotgunBarrel30', prefix='Sawed-Off', priority=1, damage=1.05, spread=1.2, reload_time=0.95),
+        option('ShotgunBarrel34', weight=1.2),
+        option('ShotgunBarrel38', min_rarity=Rarity.UNCOMMON, prefix='Choked', priority=1, spread=0.8, damage=0.97, fire_rate=0.95),
+    ]),
     slot('Pump', [option('ShotgunPump')], socket='Pump'),
-    slot('Shroud', [option('ShotgunShroud', min_rarity=Rarity.EPIC)], socket='Shroud'),
+    slot('Shroud', [option('ShotgunShroud', min_rarity=Rarity.EPIC, prefix='Scorching', priority=3, damage=1.08, fire_rate=1.08)],
+         socket='Shroud'),
 ], [panel, paint('GunGrip', [(WOOD, 0.6), (RUBBER, 0.4)])], 'Pump', unreal.WeaponReloadPart.PUMP)
 
 unreal.log('GUNPARTS done')

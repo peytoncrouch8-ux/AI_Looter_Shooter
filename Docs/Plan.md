@@ -86,4 +86,6 @@ Target layout of `Source/AI_Looter_Shooter`:
 - [x] No game code builds meshes at runtime: the ammo boxes are baked too, and the mesh kit moved to the editor module,
       which still builds the level props with it. FBX imports always use the classic importer (Interchange re-imported
       models with its own settings).
-- [ ] Affix design on top of parts and rarity.
+- [x] Affix design on top of parts and rarity. The user chose Borderlands-style: parts carry the stats (each trades one
+      strength for another) and name the gun ("Epic Scoped Assault Rifle"), rarity unlocks the better parts, stats only
+      for now (elements later), and legendaries are the top tier of the same system.

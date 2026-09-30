@@ -7,7 +7,31 @@
 class UStaticMesh;
 class UWeaponDefinition;
 
-/** One way a part slot can look. */
+/** How a part changes a gun's rolled stats: multipliers, 1 = no change. */
+USTRUCT(BlueprintType)
+struct AI_LOOTER_SHOOTER_API FWeaponPartStats
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part", meta = (ClampMin = "0"))
+	float Damage = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part", meta = (ClampMin = "0"))
+	float FireRate = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part", meta = (ClampMin = "0"))
+	float MagazineSize = 1.f;
+
+	/** Below 1 reloads faster. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part", meta = (ClampMin = "0"))
+	float ReloadTime = 1.f;
+
+	/** Below 1 shoots tighter. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part", meta = (ClampMin = "0"))
+	float Spread = 1.f;
+};
+
+/** One way a part slot can look: its mesh, how it changes the gun's stats, and the word it can give the gun's name. */
 USTRUCT(BlueprintType)
 struct AI_LOOTER_SHOOTER_API FWeaponPartOption
 {
@@ -24,9 +48,19 @@ struct AI_LOOTER_SHOOTER_API FWeaponPartOption
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part", meta = (ClampMin = "0"))
 	float Weight = 1.f;
 
-	/** Only guns of this rarity and better can have it. */
+	/** Only guns of this rarity and better can have it: rarity unlocks the better parts. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
 	EWeaponRarity MinRarity = EWeaponRarity::Common;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
+	FWeaponPartStats Stats;
+
+	/** The word it puts before the gun's name ("Scoped"), if its NamePriority is the highest among the gun's parts. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
+	FText NamePrefix;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
+	int32 NamePriority = 0;
 };
 
 /** A place on the gun that one part fills: the roll's seed picks one of the options the gun's rarity allows. */
@@ -88,10 +122,17 @@ struct FWeaponLook
 namespace WeaponParts
 {
 	/**
-	 * Picks a rolled gun's parts and paint from its seed. Every slot and paint takes one draw from the seed whatever its
-	 * rarity allows, so guns that differ only in rarity differ only in their rarity parts.
+	 * Picks a rolled gun's parts and paint from its seed, among the options its rarity allows. Every slot and paint takes
+	 * one draw whatever it allows, so a slot's pick never shifts the ones after it. The draws are their own, apart from
+	 * the stats' random variance (see UWeaponRollLibrary::ComputeStats).
 	 */
 	AI_LOOTER_SHOOTER_API FWeaponLook Pick(const UWeaponDefinition& Definition, int32 Seed, EWeaponRarity Rarity);
+
+	/** The picked parts' stat changes, all multiplied together. */
+	AI_LOOTER_SHOOTER_API FWeaponPartStats CombinedStats(const FWeaponLook& Look);
+
+	/** The word the gun's parts put before its name (empty when none does). */
+	AI_LOOTER_SHOOTER_API FText NamePrefix(const FWeaponLook& Look);
 
 	/** How strongly a gun's rarity parts glow: commons faintly. */
 	AI_LOOTER_SHOOTER_API float RarityGlow(EWeaponRarity Rarity);

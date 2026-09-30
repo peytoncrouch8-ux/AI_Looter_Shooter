@@ -24,7 +24,10 @@ public:
 	/** RollRarity from a given random stream (seeded rolls, tests). */
 	static EWeaponRarity RollRarityWith(const UWeaponDefinition* Definition, float Luck, FRandomStream& Random);
 
-	/** Deterministically computes stats for a definition + rarity + level + seed. */
+	/**
+	 * Deterministically computes stats for a definition + rarity + level + seed: the base stats with random variance, the
+	 * rarity's multipliers, the level's damage, and the changes of the parts the seed picks.
+	 */
 	UFUNCTION(BlueprintPure, Category = "Weapons|Loot")
 	static FWeaponStats ComputeStats(const UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level, int32 Seed);
 

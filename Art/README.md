@@ -87,7 +87,9 @@ A gun is built from parts: `Art/Models/Weapons/<Gun>.py` makes each part as its 
 `SM_RifleBarrel14`, ...), in the gun's own space: the origin at the back of the receiver, +X toward the muzzle. A part
 that hangs from another part's socket (a magazine, a pump) is modeled around its own origin instead. The weapon
 definition (`/Game/Weapons/Data/DA_*`) lists the part slots and their options, and each rolled gun picks one per slot
-by its seed; `Tools/Unreal/setup_gun_parts.py` fills those lists, so run it after adding or renaming a part.
+by its seed. Each option also carries its stat changes (the game's affixes), the word it can give the gun's name and
+the rarity it needs. `Tools/Unreal/setup_gun_parts.py` fills those lists, so run it after adding, renaming or
+retuning a part.
 
 - Sockets the game reads: `Muzzle`, `Grip` (right hand) and `Foregrip` (left hand), on whichever part has them.
 - Material slots named `GunPaint` and `GunGrip` are recolored per gun (the definition's paints), and `GunAccent`

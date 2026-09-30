@@ -12,6 +12,8 @@
 #include "GameFramework/Actor.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Tests/AutomationCommon.h"
+#include "UI/Style/WeaponText.h"
+#include "UObject/Package.h"
 
 namespace
 {
@@ -36,8 +38,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponPartPicksTest, "Looter.Weapons.Parts.Pic
 
 bool FWeaponPartPicksTest::RunTest(const FString& Parameters)
 {
-	// Each gun is made of parts its seed picks: the same seed always makes the same gun, every option turns up, and
-	// rarity parts (the rifle's fins, the shotgun's shroud) come only with their rarity.
+	// Each gun is made of parts its seed picks: the same seed always makes the same gun, every option turns up, a part
+	// never comes below its rarity (rarity unlocks the better ones), and the rarity parts (the rifle's fins, the shotgun's
+	// shroud) come with every gun of their rarity.
 	struct FCase
 	{
 		const TCHAR* Asset;
@@ -62,7 +65,6 @@ bool FWeaponPartPicksTest::RunTest(const FString& Parameters)
 		TSet<const UStaticMesh*> Seen;
 		for (int32 Seed = 0; Seed < 300; ++Seed)
 		{
-			const FWeaponLook Common = WeaponParts::Pick(*Definition, Seed, EWeaponRarity::Common);
 			for (const EWeaponRarity Rarity : Rarities)
 			{
 				const FWeaponLook Look = WeaponParts::Pick(*Definition, Seed, Rarity);
@@ -82,11 +84,6 @@ bool FWeaponPartPicksTest::RunTest(const FString& Parameters)
 					if (Look.Parts[Slot] && Look.Parts[Slot]->MinRarity > Rarity)
 					{
 						AddError(FString::Printf(TEXT("%s seed %d: a part above its rarity"), Case.Asset, Seed));
-					}
-					// Rarity changes only the rarity parts.
-					if (Slot != RaritySlot && PickedMesh(Common, Slot) != Mesh)
-					{
-						AddError(FString::Printf(TEXT("%s seed %d: slot %d changed with rarity"), Case.Asset, Seed, Slot));
 					}
 					if (Slot == RaritySlot && (Mesh != nullptr) != (Rarity >= Case.RaritySlotFrom))
 					{
@@ -193,6 +190,64 @@ bool FWeaponPartAssemblyTest::RunTest(const FString& Parameters)
 	}
 	Model->Clear();
 	TestFalse(TEXT("Cleared"), Model->IsAssembled());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponPartStatsTest, "Looter.Weapons.Parts.Stats",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FWeaponPartStatsTest::RunTest(const FString& Parameters)
+{
+	// A gun's parts carry its affixes: its stats are the roll it would get without parts, changed by every picked part,
+	// and its highest-priority named part names it ("Legendary Radiant Assault Rifle").
+	const EWeaponRarity Rarities[] = { EWeaponRarity::Common, EWeaponRarity::Uncommon, EWeaponRarity::Rare, EWeaponRarity::Epic, EWeaponRarity::Legendary };
+	auto Near = [](float A, float B) { return FMath::IsNearlyEqual(A, B, FMath::Abs(B) * 1.e-4f + 1.e-4f); };
+	for (const TCHAR* Asset : { TEXT("DA_AssaultRifle"), TEXT("DA_PumpShotgun") })
+	{
+		const UWeaponDefinition* Definition = LoadGun(Asset);
+		if (!TestNotNull(Asset, Definition))
+		{
+			continue;
+		}
+		// The same gun without parts: the same variance, rarity and level, nothing from parts.
+		UWeaponDefinition* Bare = DuplicateObject(Definition, GetTransientPackage());
+		Bare->Parts.Reset();
+		bool bPartsMatter = false;
+		for (int32 Seed = 0; Seed < 100; ++Seed)
+		{
+			for (const EWeaponRarity Rarity : Rarities)
+			{
+				const FWeaponStats Stats = UWeaponRollLibrary::ComputeStats(Definition, Rarity, 1, Seed);
+				const FWeaponStats Plain = UWeaponRollLibrary::ComputeStats(Bare, Rarity, 1, Seed);
+				const FWeaponPartStats Parts = WeaponParts::CombinedStats(WeaponParts::Pick(*Definition, Seed, Rarity));
+				if (!Near(Stats.Damage, Plain.Damage * Parts.Damage) || !Near(Stats.FireRate, Plain.FireRate * Parts.FireRate)
+					|| !Near(Stats.ReloadTime, Plain.ReloadTime * Parts.ReloadTime) || !Near(Stats.Spread, Plain.Spread * Parts.Spread)
+					|| FMath::Abs(Stats.MagazineSize - Plain.MagazineSize * Parts.MagazineSize) > 1.f)
+				{
+					AddError(FString::Printf(TEXT("%s seed %d: the stats aren't the part-less roll changed by the parts"), Asset, Seed));
+				}
+				bPartsMatter |= !Near(Parts.Damage, 1.f) || !Near(Parts.Spread, 1.f);
+			}
+		}
+		TestTrue(FString::Printf(TEXT("%s: parts change stats"), Asset), bPartsMatter);
+		Bare->MarkAsGarbage();
+	}
+
+	// Names: every legendary rifle is Radiant (its fins outrank its other parts), and none below legendary is.
+	UWeaponDefinition* Rifle = const_cast<UWeaponDefinition*>(LoadGun(TEXT("DA_AssaultRifle")));
+	if (TestNotNull(TEXT("Rifle"), Rifle))
+	{
+		for (int32 Seed = 0; Seed < 50; ++Seed)
+		{
+			FWeaponInstanceData Gun;
+			Gun.Definition = Rifle;
+			Gun.Seed = Seed;
+			Gun.Rarity = EWeaponRarity::Legendary;
+			TestEqual(TEXT("Legendary rifle name"), LooterWeaponText::Name(Gun), FString(TEXT("Legendary Radiant Assault Rifle")));
+			Gun.Rarity = EWeaponRarity::Epic;
+			TestFalse(TEXT("An epic rifle isn't Radiant"), LooterWeaponText::Name(Gun).Contains(TEXT("Radiant")));
+		}
+	}
 	return true;
 }
 
