@@ -163,6 +163,8 @@ UPhysicsAsset* FModelImporter::MakeHitZones(USkeletalMesh* Mesh, const FModel& M
 			Body->BoneName = Shape.Bone;
 			// Moved by the animation, never simulated.
 			Body->PhysicsType = PhysType_Kinematic;
+			// Bullets trace complex collision, and a hit zone has only simple shapes: they have to answer both.
+			Body->CollisionTraceFlag = CTF_UseSimpleAsComplex;
 			Physics->SkeletalBodySetups.Add(Body);
 		}
 		if (Shape.Kind == FModelHitShape::EKind::Convex)

@@ -219,11 +219,15 @@ bool FSpiderShotsTest::RunTest(const FString& Parameters)
 		if (TestNotNull(TEXT("Hit zone setup"), Setup))
 		{
 			TestTrue(FString::Printf(TEXT("%s collides"), *Setup->BoneName.ToString()), Setup->CollisionReponse != EBodyCollisionResponse::BodyCollision_Disabled);
+			// Bullets trace complex collision (UBulletSubsystem), and the zones are simple shapes: they must answer both.
+			TestTrue(FString::Printf(TEXT("%s answers complex traces"), *Setup->BoneName.ToString()), Setup->CollisionTraceFlag == CTF_UseSimpleAsComplex);
 		}
 	}
 
 	const FVector Body = Mesh->GetBoneLocation(TEXT("body"));
 	const FVector FemurMiddle = (Mesh->GetBoneLocation(TEXT("femur_0_r")) + Mesh->GetBoneLocation(TEXT("tibia_0_r"))) * 0.5;
+	// Traced the way bullets are: complex collision.
+	const FCollisionQueryParams BulletQuery(SCENE_QUERY_STAT(SpiderShotsTest), /*bTraceComplex*/ true);
 	struct FShot
 	{
 		const TCHAR* What;
@@ -243,7 +247,7 @@ bool FSpiderShotsTest::RunTest(const FString& Parameters)
 	for (const FShot& Shot : Shots)
 	{
 		FHitResult Hit;
-		const bool bHit = Mesh->LineTraceComponent(Hit, Shot.From, Shot.To, FCollisionQueryParams());
+		const bool bHit = Mesh->LineTraceComponent(Hit, Shot.From, Shot.To, BulletQuery);
 		if (!Shot.Bone)
 		{
 			TestFalse(FString::Printf(TEXT("%s misses"), Shot.What), bHit);

@@ -97,6 +97,7 @@ bool FRigImportTest::RunTest(const FString& Parameters)
 				TestTrue(TEXT("body sphere center"), BoneTransform(TEXT("body")).TransformPosition(Sphere.Center).Equals(FVector(0.0, 0.0, 50.0), 0.1));
 				TestEqual(TEXT("body sphere radius"), Sphere.Radius, 35.f, 0.01f);
 				TestTrue(TEXT("Kinematic"), Body->PhysicsType == PhysType_Kinematic);
+				TestTrue(TEXT("Answers complex traces (bullets use them)"), Body->CollisionTraceFlag == CTF_UseSimpleAsComplex);
 			}
 			const USkeletalBodySetup* Top = BodyOf(TEXT("top"));
 			if (TestNotNull(TEXT("top's hit zone"), Top) && TestEqual(TEXT("top hulls"), Top->AggGeom.ConvexElems.Num(), 1))
