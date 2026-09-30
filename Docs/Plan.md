@@ -89,3 +89,16 @@ Target layout of `Source/AI_Looter_Shooter`:
 - [x] Affix design on top of parts and rarity. The user chose Borderlands-style: parts carry the stats (each trades one
       strength for another) and name the gun ("Epic Scoped Assault Rifle"), rarity unlocks the better parts, stats only
       for now (elements later), and legendaries are the top tier of the same system.
+
+## Phase 5: Tutorial island in the new style
+The user chose textured "stylized realism" (`Docs/Art/StyleTarget_Outpost.png`) for the whole game. Skyreach becomes
+the tutorial island, a grassy meadow rebuilt in that style; other areas come later. `Docs/TutorialIsland.md` holds the
+art bible, the asset list, the island layout and the performance plan. The target is 120 fps at 1080p Medium.
+- [x] The pipeline takes textured models: master materials (`Tools/Unreal/build_world_materials.py`), texture sets
+      imported by suffix, LODs and Nanite fallback shares per model, models without collision
+      (`Looter.Editor.TexturedImport`).
+- [ ] Texture library and the house trim sheet (`Art/Textures`, `Tools/Blender/looter_textures.py`).
+- [ ] Buildings, vegetation, rocks, cliffs and props (`Art/Models/Buildings`, `Vegetation`, `Rocks`, `Props`).
+- [ ] The island terrain from `Art/Levels/TutorialIsland/layout.json`: tiles, cliffs, roads, pond and creek.
+- [ ] Place the level from the layout; new scatter for grass, flowers, trees and rocks; lighting and post for the style.
+- [ ] Medium at 8.3 ms or less from every viewpoint.

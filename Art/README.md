@@ -52,8 +52,26 @@ command after opening it. Importing again updates the assets in place, so placed
   | `Variation` | painterly color jitter (0 to 1, default 0.12) |
   | `UpNormal` | light it like the ground below (grass, flowers) |
 
-  No textures: the look is painted by the material.
+  These flat-colored materials are the old style. **The textured style** (Docs/TutorialIsland.md) names a master
+  material instead, with these custom properties (`Tools/Blender/looter_textures.py`'s `material()` sets them):
+
+  | Property | Meaning |
+  |---|---|
+  | `Master` | `World` (opaque), `WorldFoliage` (masked, two-sided, wind), `Terrain` or `Water` |
+  | `TextureSet` | the folder `Art/Textures/<set>` holding `T_<set>_BC.png` (color), `_N.png` (DirectX normal map), `_ORM.png` (occlusion, roughness, metallic). For `Terrain`, the set's color map is the island's macro map |
+  | `DetailSets` | `Terrain` only: `'GroundGrass,RockCliff'`, the tiled detail sets for grass/soil and rock |
+  | `Tint` | `'#RRGGBB'`, multiplies the color (default white) |
+  | `UVScale` | multiplies UV 0 (default 1) |
+
+  The importer brings the textures to `/Game/Art/Textures/<set>` (color, normal-map or mask settings from the file's
+  suffix; only again when a file changes) and makes `MI_<name>` an instance of `/Game/Art/Materials/Masters/M_<Master>`
+  (built by `Tools/Unreal/build_world_materials.py`). Vertex color alpha is baked ambient occlusion; on foliage, R is
+  the wind sway weight and G a phase offset. These models export their vertex colors linear.
 - **Nanite** is on by default. Set a custom property `Nanite` = 0 on the model object to turn it off.
+- Other model properties: `Fallback` = the percentage of triangles Nanite's fallback keeps (what Medium and Low draw;
+  terrain always keeps 100), `LODs` = `'40,12'` (LOD1, LOD2 ... as percentages; for models without Nanite) with
+  `LODScreens` = `'0.45,0.15'`, and `Collision` = `'None'` for no collision at all. Vegetation without Nanite gets LODs
+  of 40% and 12% by default, and vegetation without `UCX_` hulls gets no collision.
 - Modifiers are applied on export. Hard and soft edges come through as shaded in Blender.
 
 ## Rigged models (skeletal meshes)

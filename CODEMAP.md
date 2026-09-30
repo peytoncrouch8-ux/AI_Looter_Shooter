@@ -129,10 +129,12 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   and bakes the meadow's ground cover meshes again.
 - `PropSettler`: `PropSettler`, seats a level's props on the terrain (no hovering edges; low, wide props lean with the slope).
 - `ModelImporter`: `FModelImporter`, imports the Blender models `Tools/models.ps1` exported (fixed FBX settings,
-  stylized material instances, hull collision, sockets). `ModelImporterRig.cpp` imports rigged models as skeletal
-  meshes and turns their hit zones into a physics asset.
+  material instances, hull collision or none, sockets, LODs, Nanite fallback shares). `ModelImporterMaterials.cpp`
+  imports texture sets and makes instances of the textured masters; `ModelImporterRig.cpp` imports rigged models as
+  skeletal meshes and turns their hit zones into a physics asset.
 - `SurfaceMaterials`: `SurfaceMaterials`, stylized material instance assets and the parents' usage flags.
-- `Tests/StylizedPropTests.cpp`, `PropSettlerTests.cpp`, `ModelImportTests.cpp`, `RigImportTests.cpp`,
-  `SurfaceMaterialTests.cpp`: the `Looter.Editor.*` tests (prop shapes and ground cover size, settling on the ground
-  and the terrain's full fallback, the Blender import settings against `Tests/ModelImport/AxisTest` and
+- `Tests/StylizedPropTests.cpp`, `PropSettlerTests.cpp`, `ModelImportTests.cpp`, `TexturedImportTests.cpp`,
+  `RigImportTests.cpp`, `SurfaceMaterialTests.cpp`: the `Looter.Editor.*` tests (prop shapes and ground cover size,
+  settling on the ground and the terrain's full fallback, the Blender import settings against
+  `Tests/ModelImport/AxisTest`, textured materials, LODs and no-collision against `Tests/TexturedImport/TexturedTest`,
   `Tests/RigImport/RigTest`, the stylized materials' usage flags).

@@ -5,6 +5,7 @@
 #include "AssetToolsModule.h"
 #include "Dom/JsonObject.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshSocket.h"
 #include "Factories/FbxAssetImportData.h"
@@ -171,14 +172,21 @@ bool FModelImporter::ReadManifest(const FString& Path, TArray<FModel>& OutModels
 		for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : (*MaterialLooks)->Values)
 		{
 			const TSharedPtr<FJsonObject>* Look = nullptr;
-			if (Entry.Value->TryGetObject(Look))
+			if (!Entry.Value->TryGetObject(Look))
 			{
-				const FStylizedSurface Surface = ReadSurface(**Look);
-				UpdateMaterial(Entry.Key, Surface);
-				if (Surface.bAdditive)
-				{
-					AdditiveMaterials.Add(Entry.Key);
-				}
+				continue;
+			}
+			FTexturedLook Textured;
+			if (ReadTexturedLook(**Look, Textured))
+			{
+				UpdateTexturedMaterial(Entry.Key, Textured);
+				continue;
+			}
+			const FStylizedSurface Surface = ReadSurface(**Look);
+			UpdateMaterial(Entry.Key, Surface);
+			if (Surface.bAdditive)
+			{
+				AdditiveMaterials.Add(Entry.Key);
 			}
 		}
 	}
@@ -217,6 +225,36 @@ bool FModelImporter::ReadManifest(const FString& Path, TArray<FModel>& OutModels
 		FString Collision;
 		(*Json)->TryGetStringField(TEXT("collision"), Collision);
 		Model.bHulls = Collision == TEXT("hulls");
+		// Vegetation without hulls is walk-through (grass, flowers, bushes); trees and logs bring hulls.
+		Model.bNoCollision = Collision == TEXT("none") || (!Model.bHulls && Category == TEXT("Vegetation"));
+		auto Numbers = [&Json](const TCHAR* Field, float Scale, TArray<float>& Out)
+		{
+			const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
+			if ((*Json)->TryGetArrayField(Field, Values))
+			{
+				for (const TSharedPtr<FJsonValue>& Value : *Values)
+				{
+					Out.Add(static_cast<float>(Value->AsNumber()) * Scale);
+				}
+			}
+		};
+		Numbers(TEXT("lods"), 0.01f, Model.LODShares);
+		Numbers(TEXT("lodScreens"), 1.f, Model.LODScreenSizes);
+		double FallbackPercent = 0.0;
+		if ((*Json)->TryGetNumberField(TEXT("fallbackPercent"), FallbackPercent))
+		{
+			Model.FallbackShare = static_cast<float>(FallbackPercent) * 0.01f;
+		}
+		// Defaults by category (Docs/TutorialIsland.md): vegetation gets LODs, terrain keeps every triangle in its fallback
+		// so its collision matches what every preset draws.
+		if (!Model.bNanite && Model.LODShares.IsEmpty() && Category == TEXT("Vegetation"))
+		{
+			Model.LODShares = { 0.4f, 0.12f };
+		}
+		if (Model.bNanite && !Model.FallbackShare.IsSet() && Category == TEXT("Terrain"))
+		{
+			Model.FallbackShare = 1.f;
+		}
 		const TArray<TSharedPtr<FJsonValue>>* Sockets = nullptr;
 		if ((*Json)->TryGetArrayField(TEXT("sockets"), Sockets))
 		{
@@ -364,23 +402,55 @@ UStaticMesh* FModelImporter::ImportModel(const FModel& Model)
 		Body->Modify();
 		if (!Model.bHulls)
 		{
-			// No hulls: collide with the mesh itself (reimporting keeps old hulls otherwise).
+			// No hulls: collide with the mesh itself, or with nothing (reimporting keeps old hulls otherwise).
 			Body->RemoveSimpleCollision();
 		}
-		Body->CollisionTraceFlag = Model.bHulls ? CTF_UseDefault : CTF_UseComplexAsSimple;
+		// With no simple shapes, "simple as complex" leaves nothing to collide with.
+		Body->CollisionTraceFlag = Model.bNoCollision ? CTF_UseSimpleAsComplex : (Model.bHulls ? CTF_UseDefault : CTF_UseComplexAsSimple);
+		// Placed actors that take the mesh's own collision don't collide either.
+		Body->DefaultInstance.SetCollisionProfileName(Model.bNoCollision ? UCollisionProfile::NoCollision_ProfileName : UCollisionProfile::BlockAll_ProfileName);
 		Body->InvalidatePhysicsData();
 		Body->CreatePhysicsMeshes();
 	}
 	SetSockets(Mesh, Model.Sockets);
+	ApplyMeshSettings(Mesh, Model);
 	Mesh->PostEditChange();
 	Mesh->MarkPackageDirty();
 	ChangedPackages.AddUnique(Mesh->GetPackage());
 
 	const FBox Bounds = Mesh->GetBoundingBox();
-	UE_LOG(LogModelImporter, Display, TEXT("Imported %s: %d slots, %d sockets, %s, bounds min %s max %s."), *Mesh->GetPathName(),
-		Mesh->GetStaticMaterials().Num(), Mesh->Sockets.Num(), Model.bHulls ? TEXT("hull collision") : TEXT("mesh collision"),
+	UE_LOG(LogModelImporter, Display, TEXT("Imported %s: %d slots, %d sockets, %d LODs, %s, bounds min %s max %s."), *Mesh->GetPathName(),
+		Mesh->GetStaticMaterials().Num(), Mesh->Sockets.Num(), Mesh->GetNumSourceModels(),
+		Model.bNoCollision ? TEXT("no collision") : (Model.bHulls ? TEXT("hull collision") : TEXT("mesh collision")),
 		*Bounds.Min.ToCompactString(), *Bounds.Max.ToCompactString());
 	return Mesh;
+}
+
+void FModelImporter::ApplyMeshSettings(UStaticMesh* Mesh, const FModel& Model)
+{
+	if (Model.bNanite && Model.FallbackShare.IsSet())
+	{
+		FMeshNaniteSettings Nanite = Mesh->GetNaniteSettings();
+		Nanite.FallbackTarget = ENaniteFallbackTarget::PercentTriangles;
+		Nanite.FallbackPercentTriangles = FMath::Clamp(*Model.FallbackShare, 0.01f, 1.f);
+		Mesh->SetNaniteSettings(Nanite);
+	}
+
+	// LOD0 is the model; LOD1 and on are reductions of it, switched by screen size (defaults: each a third of the last).
+	const int32 LODCount = Model.bNanite ? 1 : 1 + Model.LODShares.Num();
+	Mesh->SetNumSourceModels(LODCount);
+	Mesh->bAutoComputeLODScreenSize = false;
+	Mesh->GetSourceModel(0).ScreenSize.Default = 1.f;
+	float ScreenSize = 1.f;
+	for (int32 LOD = 1; LOD < LODCount; ++LOD)
+	{
+		ScreenSize = Model.LODScreenSizes.IsValidIndex(LOD - 1) ? Model.LODScreenSizes[LOD - 1] : ScreenSize * (LOD == 1 ? 0.45f : 0.35f);
+		FStaticMeshSourceModel& Source = Mesh->GetSourceModel(LOD);
+		Source.BuildSettings = Mesh->GetSourceModel(0).BuildSettings;
+		Source.ReductionSettings.PercentTriangles = FMath::Clamp(Model.LODShares[LOD - 1], 0.01f, 1.f);
+		Source.ReductionSettings.PercentVertices = Source.ReductionSettings.PercentTriangles;
+		Source.ScreenSize.Default = ScreenSize;
+	}
 }
 
 void FModelImporter::SetSockets(UStaticMesh* Mesh, const TArray<FModelSocket>& Sockets)

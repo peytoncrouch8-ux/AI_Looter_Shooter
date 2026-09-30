@@ -11,6 +11,7 @@ class UPackage;
 class UPhysicsAsset;
 class USkeletalMesh;
 class UStaticMesh;
+class UTexture2D;
 
 /**
  * Imports the models Tools/models.ps1 exported from Blender. Each manifest (*.json) in the export folder lists FBX files
@@ -19,6 +20,11 @@ class UStaticMesh;
  * (or else the mesh itself) are the collision, and SOCKET_ empties become sockets. Each material slot gets the stylized
  * material instance /Game/Art/Materials/MI_<slot name>, made or updated from the Blender material. Importing again
  * updates the assets in place, so placed actors keep their meshes.
+ *
+ * Materials of the textured art style (Docs/TutorialIsland.md) name a master (/Game/Art/Materials/Masters/M_<Master>)
+ * and the texture files for its map parameters; the textures land in /Game/Art/Textures/<Set> with settings chosen by
+ * their suffix (_BC color, _N normal map, _ORM masks), and are imported again only when their file changes. Meshes
+ * without Nanite can get LODs, Nanite meshes an explicit fallback share, and models can have no collision at all.
  *
  * A rigged model becomes a skeletal mesh (SK_) with its own skeleton, and its hit zones become the bodies of a physics
  * asset (PA_): what shots hit, each telling which bone it belongs to.
@@ -69,6 +75,13 @@ private:
 		bool bNanite = true;
 		/** UCX_ hulls came with the model; without them the mesh is its own collision. */
 		bool bHulls = false;
+		/** No collision at all: ground cover, bushes, clutter. */
+		bool bNoCollision = false;
+		/** Meshes without Nanite: LOD1 and on, as a share of the triangles (0..1), and the screen sizes they start at. */
+		TArray<float> LODShares;
+		TArray<float> LODScreenSizes;
+		/** Nanite meshes: the share of triangles the fallback keeps (what Medium and Low draw), or the engine's choice. */
+		TOptional<float> FallbackShare;
 		/** In the model's space. They come through the manifest: FBX sockets arrive with the wrong rotation. */
 		TArray<FModelSocket> Sockets;
 		/** A rigged model: a skeletal mesh whose hit zones make its physics asset. */
@@ -88,6 +101,22 @@ private:
 	 */
 	static void KeepSettings(UObject* Existing, const UFbxAssetImportData* Settings, const FString& FbxPath);
 	UMaterialInterface* UpdateMaterial(const FString& Name, const FStylizedSurface& Surface);
+	/** LODs, the Nanite fallback and no-collision, before the mesh builds. */
+	static void ApplyMeshSettings(UStaticMesh* Mesh, const FModel& Model);
+
+	// ModelImporterMaterials.cpp
+	/** A material of the textured style: its master, texture files by parameter (project-relative), tint and UV scale. */
+	struct FTexturedLook
+	{
+		FString Master;
+		TMap<FString, FString> Textures;
+		FLinearColor Tint = FLinearColor::White;
+		float UVScale = 1.f;
+	};
+	static bool ReadTexturedLook(const class FJsonObject& Json, FTexturedLook& OutLook);
+	UMaterialInterface* UpdateTexturedMaterial(const FString& Name, const FTexturedLook& Look);
+	/** Imports (or finds, when its file hasn't changed) a texture; its settings come from the file name's suffix. */
+	UTexture2D* ImportTexture(const FString& ProjectRelativeFile);
 
 	// ModelImporterRig.cpp
 	USkeletalMesh* ImportRig(const FModel& Model);
@@ -95,5 +124,6 @@ private:
 
 	FString ContentRoot;
 	TMap<FString, UMaterialInterface*> Materials;
+	TMap<FString, UTexture2D*> Textures;
 	TArray<UPackage*> ChangedPackages;
 };

@@ -1,0 +1,59 @@
+{
+  "source": "Source/LooterEditor/Tests/TexturedImport/TexturedTest.py",
+  "category": "TexturedImport",
+  "models": [
+    {
+      "name": "SM_TexturedBlock",
+      "fbx": "SM_TexturedBlock.fbx",
+      "collision": "hulls",
+      "nanite": true,
+      "materials": [
+        "TexturedTestLook"
+      ],
+      "sockets": []
+    },
+    {
+      "name": "SM_LodBlock",
+      "fbx": "SM_LodBlock.fbx",
+      "collision": "mesh",
+      "nanite": false,
+      "materials": [
+        "TexturedTestLook"
+      ],
+      "sockets": [],
+      "lods": [
+        50.0
+      ],
+      "lodScreens": [
+        0.4
+      ]
+    },
+    {
+      "name": "SM_GhostBlock",
+      "fbx": "SM_GhostBlock.fbx",
+      "collision": "none",
+      "nanite": true,
+      "materials": [
+        "TexturedTestLook"
+      ],
+      "sockets": []
+    }
+  ],
+  "materials": {
+    "TexturedTestLook": {
+      "Master": "World",
+      "Textures": {
+        "BaseColorMap": "Source/LooterEditor/Tests/TexturedImport/T_TexturedTest_BC.png",
+        "NormalMap": "Source/LooterEditor/Tests/TexturedImport/T_TexturedTest_N.png",
+        "ORMMap": "Source/LooterEditor/Tests/TexturedImport/T_TexturedTest_ORM.png"
+      },
+      "Tint": [
+        1.0,
+        0.21586050011389926,
+        0.05126945837404324,
+        1.0
+      ],
+      "UVScale": 2.0
+    }
+  }
+}

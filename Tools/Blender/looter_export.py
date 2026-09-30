@@ -40,6 +40,11 @@ METER_SETTINGS = ('GradHeight', 'Wind')
 KINDS = ('Surface', 'Foliage', 'Glow')
 SKIPPED_PREFIXES = ('_', 'UCX_', 'SOCKET_')
 HIT_PREFIXES = ('USP_', 'UCP_', 'UCX_')
+# Textured materials (the art style of Docs/TutorialIsland.md) name one of these masters in their Master property.
+MASTERS = ('World', 'WorldFoliage', 'Terrain', 'Water')
+# A texture set's files, by the material parameter that takes them.
+SET_MAPS = (('BaseColorMap', '_BC'), ('NormalMap', '_N'), ('ORMMap', '_ORM'))
+PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 
 def log(message):
@@ -82,7 +87,66 @@ def base_color(material):
     return [float(c) for c in material.diffuse_color]
 
 
+def hex_color(value):
+    """'#RRGGBB' (sRGB, as painters give colors) or a list, to a linear RGBA list."""
+    if isinstance(value, str):
+        text = value.lstrip('#')
+        channels = [int(text[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
+        linear = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+        return linear + [1.0]
+    values = [float(v) for v in (value.to_list() if hasattr(value, 'to_list') else value)]
+    return values + [1.0] * (4 - len(values))
+
+
+def project_path(path):
+    """A path relative to the project root, with forward slashes (what the importer reads)."""
+    return os.path.relpath(os.path.normpath(path), PROJECT_ROOT).replace('\\', '/')
+
+
+def set_files(material, set_name):
+    """The texture set's files, by map parameter: the material's own image nodes when they belong to the set, else
+    Art/Textures/<set>/T_<set><suffix>.png if it exists."""
+    found = {}
+    if material.use_nodes and material.node_tree:
+        for node in material.node_tree.nodes:
+            if node.type == 'TEX_IMAGE' and node.image is not None:
+                path = bpy.path.abspath(node.image.filepath)
+                stem = os.path.splitext(os.path.basename(path))[0]
+                for param, suffix in SET_MAPS:
+                    if stem == f'T_{set_name}{suffix}' and os.path.exists(path):
+                        found[param] = project_path(path)
+    for param, suffix in SET_MAPS:
+        path = os.path.join(PROJECT_ROOT, 'Art', 'Textures', set_name, f'T_{set_name}{suffix}.png')
+        if param not in found and os.path.exists(path):
+            found[param] = project_path(path)
+    return found
+
+
+def textured_look(material, master):
+    """A material of the new art style: its master, the textures for the master's map parameters, a tint and a UV
+    scale. Terrain materials also take their detail sets (property DetailSets = 'GroundGrass,RockCliff': the first
+    fills the Grass maps, the second the Rock maps) and name their macro map through TextureSet."""
+    if master not in MASTERS:
+        fail(f"material {material.name}: Master must be one of {', '.join(MASTERS)}, not {master}")
+    set_name = str(material.get('TextureSet', ''))
+    textures = set_files(material, set_name) if set_name else {}
+    if master == 'Terrain':
+        textures = {'MacroMap': textures['BaseColorMap']} if 'BaseColorMap' in textures else {}
+        details = [s.strip() for s in str(material.get('DetailSets', '')).split(',') if s.strip()]
+        for prefix, detail in zip(('Grass', 'Rock'), details):
+            for param, path in set_files(material, detail).items():
+                textures[prefix + param] = path
+    if set_name and not textures:
+        log(f'warning: material {material.name}: no textures found for the set {set_name}')
+    look = {'Master': master, 'Textures': textures, 'Tint': hex_color(material.get('Tint', [1.0, 1.0, 1.0, 1.0])),
+            'UVScale': float(material.get('UVScale', 1.0))}
+    return look
+
+
 def material_look(material):
+    master = material.get('Master')
+    if master is not None:
+        return textured_look(material, str(master))
     kind = str(material.get('Kind', 'Surface'))
     if kind not in KINDS:
         fail(f"material {material.name}: Kind must be one of {', '.join(KINDS)}, not {kind}")
@@ -254,6 +318,13 @@ def export_rig(arm, out_dir, materials):
     return {'name': name, 'fbx': name + '.fbx', 'skeletal': True, 'materials': used, 'hitShapes': shapes}
 
 
+def number_list(value):
+    """'40,12' or a list, to a list of floats."""
+    if isinstance(value, str):
+        return [float(v) for v in value.split(',') if v.strip()]
+    return [float(v) for v in (value.to_list() if hasattr(value, 'to_list') else value)]
+
+
 def export_model(root, out_dir, materials):
     name = model_name(root)
     parts = descendants(root)
@@ -267,6 +338,8 @@ def export_model(root, out_dir, materials):
         rename(hull, f'UCX_{name}_{index:02d}')
 
     used = collect_materials(name, meshes, materials)
+    # Textured models keep their vertex colors as authored (wind weights, baked occlusion): no sRGB conversion.
+    textured = any('Master' in materials[m] for m in used)
 
     # The model's origin becomes its pivot: move it to the world origin (rotation and scale stay and get baked in).
     root.location = (0.0, 0.0, 0.0)
@@ -282,7 +355,7 @@ def export_model(root, out_dir, materials):
         use_triangles=False,
         use_tspace=False,
         use_custom_props=False,
-        colors_type='SRGB',
+        colors_type='LINEAR' if textured else 'SRGB',
         add_leaf_bones=False,
         bake_anim=False,
         # 1 Blender unit = 1 m = 100 Unreal cm, carried in the object transforms Unreal bakes into the vertices.
@@ -298,14 +371,22 @@ def export_model(root, out_dir, materials):
         embed_textures=False,
     )
     log(f"{name}: {len(meshes)} meshes, {len(hulls)} hulls, {len(sockets)} sockets, materials {', '.join(used)}")
-    return {
+    entry = {
         'name': name,
         'fbx': name + '.fbx',
-        'collision': 'hulls' if hulls else 'mesh',
+        'collision': 'hulls' if hulls else ('none' if str(root.get('Collision', '')).lower() == 'none' else 'mesh'),
         'nanite': bool(root.get('Nanite', True)),
         'materials': used,
         'sockets': [socket_entry(empty) for empty in sockets],
     }
+    # Optional: LOD1.. triangle percentages and screen sizes (meshes without Nanite), and Nanite's fallback share.
+    if root.get('LODs') is not None:
+        entry['lods'] = number_list(root['LODs'])
+    if root.get('LODScreens') is not None:
+        entry['lodScreens'] = number_list(root['LODScreens'])
+    if root.get('Fallback') is not None:
+        entry['fallbackPercent'] = float(root['Fallback'])
+    return entry
 
 
 def main():

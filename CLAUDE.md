@@ -75,8 +75,12 @@ placement and gameplay component settings.
 - Blender models live in `Art/Models/<Category>/` (hand-made `.blend` or scripted `.py`). `Tools\models.ps1` exports and
   imports them into `/Game/Art/<Category>` with fixed settings; `Art/README.md` has the authoring rules. Change a model
   in Blender and import it again, never edit the imported mesh.
-- Every surface uses the stylized materials (`M_StylizedSurface`, `M_StylizedFoliage`, `M_StylizedGlow`) through
-  material instances. Nanite can't draw the additive glow; use an emissive surface (Glow setting) on Nanite meshes.
+- The art style is moving to textured "stylized realism" (`Docs/TutorialIsland.md`, the tutorial island first). New
+  models use the textured masters in `/Game/Art/Materials/Masters` (`M_World`, `M_WorldFoliage`, `M_Terrain`,
+  `M_Water`, built by `Tools/Unreal/build_world_materials.py`) with texture sets from `Art/Textures/<Set>`. Older
+  surfaces use the flat stylized materials (`M_StylizedSurface`, `M_StylizedFoliage`, `M_StylizedGlow`). Always go
+  through material instances. Nanite can't draw the additive glow; use an emissive surface (Glow setting) on Nanite
+  meshes.
 - Levels are built in the editor. Procedural props are `StylizedProp` actors (shape, seed, two colors). Before
   committing a level, run `Looter.BakeLevelProps` in the editor console. It swaps them for static mesh actors and saves
   their meshes and materials under `/Game/Environment/Props`.
@@ -96,7 +100,7 @@ placement and gameplay component settings.
   Props and baked props tag themselves; tag other meshes you place.
 - Volumes (the meadow's PCG volume, triggers) answer world-static object queries. A trace that looks for the
   ground or other real geometry that way must use `LooterWorld::StaticGeometryParams`, which skips them.
-- Performance target: 60 fps at 1080p on the Medium preset on the reference PC (Radeon RX 580, i7-8700, 16 GB); it
-  runs about 80. Lumen lighting and Nanite are for the High and Epic presets only
+- Performance target: 120 fps (8.3 ms) at 1080p on the Medium preset on the reference PC (Radeon RX 580, i7-8700,
+  16 GB), at the heaviest view of the level; the budgets are in `Docs/TutorialIsland.md`. Lumen lighting and Nanite are for the High and Epic presets only
   (`UGraphicsSettingsSubsystem::QualitySettings`), so everything must also look right without them: every mesh
   draws its Nanite fallback on Medium and Low.
