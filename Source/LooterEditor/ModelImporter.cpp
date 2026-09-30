@@ -213,6 +213,7 @@ bool FModelImporter::ReadManifest(const FString& Path, TArray<FModel>& OutModels
 		(*Json)->TryGetBoolField(TEXT("nanite"), Model.bNanite);
 		TArray<FString> ModelMaterials;
 		(*Json)->TryGetStringArrayField(TEXT("materials"), ModelMaterials);
+		Model.MaterialSlots = ModelMaterials;
 		for (const FString& Material : ModelMaterials)
 		{
 			if (Model.bNanite && AdditiveMaterials.Contains(Material))
@@ -255,6 +256,7 @@ bool FModelImporter::ReadManifest(const FString& Path, TArray<FModel>& OutModels
 		{
 			Model.FallbackShare = 1.f;
 		}
+		Model.bFullPrecisionUVs = Category == TEXT("Terrain");
 		const TArray<TSharedPtr<FJsonValue>>* Sockets = nullptr;
 		if ((*Json)->TryGetArrayField(TEXT("sockets"), Sockets))
 		{
@@ -371,7 +373,9 @@ UStaticMesh* FModelImporter::ImportModel(const FModel& Model)
 	Task->Factory = NewObject<UFbxFactory>();
 	UFbxImportUI* Options = MakeImportOptions(Model.bNanite);
 	Task->Options = Options;
-	KeepSettings(SurfaceMaterials::LoadExisting<UStaticMesh>(Task->DestinationPath / Model.Name), Options->StaticMeshImportData, Model.FbxPath);
+	UStaticMesh* Existing = SurfaceMaterials::LoadExisting<UStaticMesh>(Task->DestinationPath / Model.Name);
+	KeepSettings(Existing, Options->StaticMeshImportData, Model.FbxPath);
+	ForgetStaleSlots(Existing, Model);
 	FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get().ImportAssetTasks({ Task });
 
 	UStaticMesh* Mesh = nullptr;
@@ -436,6 +440,8 @@ void FModelImporter::ApplyMeshSettings(UStaticMesh* Mesh, const FModel& Model)
 		Mesh->SetNaniteSettings(Nanite);
 	}
 
+	Mesh->GetSourceModel(0).BuildSettings.bUseFullPrecisionUVs = Model.bFullPrecisionUVs;
+
 	// LOD0 is the model; LOD1 and on are reductions of it, switched by screen size (defaults: each a third of the last).
 	const int32 LODCount = Model.bNanite ? 1 : 1 + Model.LODShares.Num();
 	Mesh->SetNumSourceModels(LODCount);
@@ -498,6 +504,26 @@ void FModelImporter::KeepSettings(UObject* Existing, const UFbxAssetImportData* 
 	else if (USkeletalMesh* Rig = Cast<USkeletalMesh>(Existing))
 	{
 		Rig->SetAssetImportData(Kept);
+	}
+}
+
+void FModelImporter::ForgetStaleSlots(UStaticMesh* Existing, const FModel& Model)
+{
+	if (!Existing)
+	{
+		return;
+	}
+	TArray<FString> Slots;
+	for (const FStaticMaterial& Slot : Existing->GetStaticMaterials())
+	{
+		Slots.Add(Slot.MaterialSlotName.ToString());
+	}
+	if (Slots != Model.MaterialSlots)
+	{
+		UE_LOG(LogModelImporter, Display, TEXT("%s: material slots changed (%s -> %s); they are rebuilt."), *Model.Name,
+			*FString::Join(Slots, TEXT(", ")), *FString::Join(Model.MaterialSlots, TEXT(", ")));
+		Existing->Modify();
+		Existing->GetStaticMaterials().Empty();
 	}
 }
 

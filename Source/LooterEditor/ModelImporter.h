@@ -77,11 +77,15 @@ private:
 		bool bHulls = false;
 		/** No collision at all: ground cover, bushes, clutter. */
 		bool bNoCollision = false;
+		/** The material slots, in the FBX's order. */
+		TArray<FString> MaterialSlots;
 		/** Meshes without Nanite: LOD1 and on, as a share of the triangles (0..1), and the screen sizes they start at. */
 		TArray<float> LODShares;
 		TArray<float> LODScreenSizes;
 		/** Nanite meshes: the share of triangles the fallback keeps (what Medium and Low draw), or the engine's choice. */
 		TOptional<float> FallbackShare;
+		/** Terrain: its detail UVs are in meters across the whole island, which half precision would make swim. */
+		bool bFullPrecisionUVs = false;
 		/** In the model's space. They come through the manifest: FBX sockets arrive with the wrong rotation. */
 		TArray<FModelSocket> Sockets;
 		/** A rigged model: a skeletal mesh whose hit zones make its physics asset. */
@@ -100,6 +104,11 @@ private:
 	 * last import, or whatever the editor last used): store ours there first.
 	 */
 	static void KeepSettings(UObject* Existing, const UFbxAssetImportData* Settings, const FString& FbxPath);
+	/**
+	 * A re-import keeps the mesh's old material slots and matches the new sections to them by index, so a slot renamed
+	 * in Blender would keep the old slot's name (and material). When the slots changed, start them over from the FBX.
+	 */
+	static void ForgetStaleSlots(UStaticMesh* Existing, const FModel& Model);
 	UMaterialInterface* UpdateMaterial(const FString& Name, const FStylizedSurface& Surface);
 	/** LODs, the Nanite fallback and no-collision, before the mesh builds. */
 	static void ApplyMeshSettings(UStaticMesh* Mesh, const FModel& Model);

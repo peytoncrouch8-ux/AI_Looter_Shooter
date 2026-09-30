@@ -4,6 +4,8 @@
 # editor (Looter.ImportModels); with the editor closed, run that command after opening it.
 # Usage: models.ps1 [-Only LanternPost,Crate] [-Source <file or folder>] [-Out <folder>] [-NoImport]
 param([string[]]$Only = @(), [string]$Source = '', [string]$Out = '', [switch]$NoImport)
+# Called with -File, a comma list arrives as one string: split it here too.
+$Only = @($Only | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $root = Split-Path $PSScriptRoot -Parent
 $blender = $env:BLENDER
 if (-not $blender) {
