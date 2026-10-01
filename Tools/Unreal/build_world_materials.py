@@ -359,13 +359,13 @@ def build_sky_clouds():
 
 # Effects: unlit and translucent, scrolling the macro noise. Their models carry the shape in vertex colors (A opacity,
 # R foam) and UV 0 (V along the flow, in meters for the waterfall, 0..1 up the cards for smoke).
-FALL_STREAKS = """float2 P = float2(UV.x * 1.3, UV.y * 0.22 - Time * Speed);
+FALL_STREAKS = """float2 P = float2(UV.x * 4.0, UV.y * 0.06 - Time * Speed);
 float Streak = Texture2DSample(Noise, NoiseSampler, P).r * 0.65
              + Texture2DSample(Noise, NoiseSampler, P * float2(2.7, 1.9) + 0.31).r * 0.35;
 """
 FALL_COLOR = FALL_STREAKS + """float Foam = saturate(VertexColor.r + (Streak - 0.45) * 1.4);
 return lerp(WaterColor, FoamColor, Foam);"""
-FALL_OPACITY = FALL_STREAKS + """return saturate(VertexColor.a * (0.55 + Streak * 0.9)) * Opacity;"""
+FALL_OPACITY = FALL_STREAKS + """return saturate(Alpha * (0.35 + Streak * 1.1)) * Opacity;"""
 
 SMOKE_NOISE = """float2 P = float2(UV.x * 0.8, UV.y * 0.5 - Time * Speed);
 float Puff = Texture2DSample(Noise, NoiseSampler, P).r * 0.7
@@ -373,7 +373,7 @@ float Puff = Texture2DSample(Noise, NoiseSampler, P).r * 0.7
 """
 SMOKE_OPACITY = SMOKE_NOISE + """// Soft card edges, thinning as it rises.
 float Edge = sin(saturate(UV.x) * 3.14159);
-return saturate((Puff - 0.3) * 2.0) * Edge * VertexColor.a * (1.0 - UV.y * 0.6) * Opacity;"""
+return saturate((Puff - 0.42) * 2.6) * Edge * Edge * Alpha * (1.0 - UV.y * 0.6) * Opacity;"""
 
 
 def effect(name, inputs_extra, color_code, color_inputs, opacity_code, opacity_inputs):
@@ -383,9 +383,12 @@ def effect(name, inputs_extra, color_code, color_inputs, opacity_code, opacity_i
     mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
     mat.set_editor_property('two_sided', True)
     g = Graph(mat)
+    # The vertex color's plain output is RGB only: its alpha comes in on a pin of its own.
+    vertex = g.node(unreal.MaterialExpressionVertexColor, -900, -100)
     shared = [
         ('UV', g.node(unreal.MaterialExpressionTextureCoordinate, -900, -200, coordinate_index=0), ''),
-        ('VertexColor', g.node(unreal.MaterialExpressionVertexColor, -900, -100), ''),
+        ('VertexColor', vertex, ''),
+        ('Alpha', vertex, 'A'),
         ('Noise', g.node(unreal.MaterialExpressionTextureObjectParameter, -900, 0, parameter_name='Noise',
                          texture=import_mask(MACRO_NOISE_FILE, MACRO_NOISE)), ''),
         ('Time', g.node(unreal.MaterialExpressionTime, -900, 100), ''),
@@ -403,10 +406,11 @@ def effect(name, inputs_extra, color_code, color_inputs, opacity_code, opacity_i
 def build_waterfall():
     """M_Waterfall: foam streaks falling down a water sheet (Speed in sheet-V units a second)."""
     return effect('M_Waterfall',
-                  [('Speed', lambda g: g.scalar('Speed', 0.9, -900, 200))],
+                  [('Speed', lambda g: g.scalar('Speed', 0.5, -900, 200))],
                   FALL_COLOR,
-                  [('WaterColor', lambda g: g.vector('WaterColor', (0.35, 0.55, 0.6, 1.0), -900, 300)),
-                   ('FoamColor', lambda g: g.vector('FoamColor', (2.4, 2.5, 2.55, 1.0), -900, 400))],
+                  # Unlit, so as bright as the sunlit scene around it (the clouds are about 3).
+                  [('WaterColor', lambda g: g.vector('WaterColor', (1.1, 1.45, 1.6, 1.0), -900, 300)),
+                   ('FoamColor', lambda g: g.vector('FoamColor', (3.2, 3.3, 3.4, 1.0), -900, 400))],
                   FALL_OPACITY,
                   [('Opacity', lambda g: g.scalar('Opacity', 0.85, -900, 500))])
 
@@ -416,9 +420,9 @@ def build_smoke():
     return effect('M_Smoke',
                   [('Speed', lambda g: g.scalar('Speed', 0.12, -900, 200))],
                   'return SmokeColor;',
-                  [('SmokeColor', lambda g: g.vector('SmokeColor', (1.5, 1.5, 1.55, 1.0), -900, 300))],
+                  [('SmokeColor', lambda g: g.vector('SmokeColor', (1.25, 1.27, 1.33, 1.0), -900, 300))],
                   SMOKE_OPACITY,
-                  [('Opacity', lambda g: g.scalar('Opacity', 0.55, -900, 400))])
+                  [('Opacity', lambda g: g.scalar('Opacity', 0.4, -900, 400))])
 
 
 orm = default_orm()

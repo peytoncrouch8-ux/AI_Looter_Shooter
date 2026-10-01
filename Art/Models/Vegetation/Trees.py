@@ -1,6 +1,6 @@
-"""The island's broadleaf trees (Docs/TutorialIsland.md): Oak_A, Oak_B, Birch_A, Birch_B and Apple_A (the conifers
-are in Pines.py, the dead tree in DeadTree.py). Scripted models (Art/README.md) built with
-Tools/Blender/looter_plants.py: a tree's origin is where its trunk meets the ground, and one convex hull around the
+"""The island's broadleaf trees (Docs/TutorialIsland.md): Oak_A, Oak_B, Oak_C (the lone meadow landmark), Birch_A,
+Birch_B and Apple_A (the conifers are in Pines.py, the dead tree in DeadTree.py). Scripted models (Art/README.md) built
+with Tools/Blender/looter_plants.py: a tree's origin is where its trunk meets the ground, and one convex hull around the
 trunk is its collision. They aren't Nanite: the importer gives them classic LODs.
 
 A tree is laid out crown first. Its crown is a few leaf clumps (spheres) in a readable, slightly stylized silhouette;
@@ -124,6 +124,16 @@ def oak_b():
         gnarl_amount=0.35, flare=0.9)])
 
 
+def oak_c():
+    """The landmark: a big lone field oak, about 13 m, on a massive short trunk whose limbs spread low and wide into a
+    crown broader than it is tall."""
+    return broadleaf('Oak_C', 29, [dict(
+        bark=lt.material('BarkOak'), leaves=lt.material('LeavesOak'), fork=2.8, radius=0.68, fork_radius=0.5,
+        lean=(0.25, -0.1), crown_center=(0.2, -0.1, 8.3), crown_radii=(7.0, 6.6, 3.6), clumps=14,
+        clump_size=(2.1, 2.8), card_size=(2.2, 2.8), cards_per_clump=17, limb_rise=0.3, limb_low=0.7,
+        gnarl_amount=0.34, flare=1.1, lobes=6, trunk_sides=10, limb_sides=6, side_branches=2)], hull_height=3.0)
+
+
 def birch(name, seed, stems):
     return broadleaf(name, seed, [dict(
         bark=lt.material('BarkBirch'), leaves=lt.material('LeavesBirch'), flare=0.35, lobes=4, trunk_sides=8,
@@ -171,7 +181,7 @@ def apple_a():
 
 
 if __name__ == '__main__':
-    models = [oak_a(), oak_b(), birch_a(), birch_b(), apple_a()]
+    models = [oak_a(), oak_b(), birch_a(), birch_b(), apple_a(), oak_c()]
     report(models)
     if '--overview' in sys.argv:
         # Every tree side by side for scale (Saved/ArtPreviews/Vegetation/overview.png).
@@ -180,7 +190,7 @@ if __name__ == '__main__':
         import DeadTree
         import Pines
         others = [Pines.pine_a(), Pines.pine_b(), DeadTree.dead_tree_a()]
-        lineup([models[4], models[0], models[1], models[2], models[3]] + others,
+        lineup([models[4], models[0], models[1], models[5], models[2], models[3]] + others,
                lt.preview_path('Vegetation', 'overview'))
     else:
         preview_all(models)
