@@ -131,8 +131,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/HUD/HudPickupFeedWidget`: ammo pickups over the ammo count, in big outlined white type that stacks, rises and fades.
 - `UI/Menus/PauseMenuWidget`: the pause and settings menu (graphics, interface, key bindings).
 - `UI/Inventory/LoadoutWidget.cpp`: the loadout screen: opening, layout and contents.
-- `UI/Inventory/LoadoutWidgetInput.cpp`: its cursor, actions (swap, hold, drop) and turning the stand-in.
-- `UI/Inventory/LoadoutWidgetPaint.cpp`: its stand ring and the callouts from slot cards to guns.
+- `UI/Inventory/LoadoutWidgetInput.cpp`: its cursor, actions (swap, hold, drop), mouse handling and turning the stand-in.
+- `UI/Inventory/LoadoutWidgetDrag.cpp`: dragging guns between slots, the backpack and the character.
+- `UI/Inventory/LoadoutWidgetInspect.cpp`: the stats card that floats beside the gun under the cursor.
+- `UI/Inventory/LoadoutWidgetPaint.cpp`: the stand's ring under the stand-in.
 - `UI/Inventory/LoadoutWidget.h`: the loadout screen's declaration.
 - `UI/Inventory/LoadoutRules`: `LoadoutRules`, the backpack list's compare and sort rules.
 - `UI/Inventory/LoadoutParts`: `LoadoutParts`, the inventory pages' layout, colors, vector art, card builders and title

@@ -31,6 +31,7 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
+#include "Framework/Application/SlateApplication.h"
 #include "GameFramework/Character.h"
 #include "InputCoreTypes.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -95,8 +96,10 @@ void ULoadoutWidget::Open(ALooterHUD* InHUD, UWeaponManagerComponent* InManager)
 		StagePtr->SetActive(true);
 	}
 
-	// Start on the weapon in hand, with nothing picked up.
+	// Start on the weapon in hand, with nothing picked up or dragged.
 	PickedSlot.Reset();
+	bPressPending = bItemDrag = false;
+	bKeyboardCursor = false;
 	Zone = EZone::Slots;
 	ChosenSlot = CursorIndex = InManager ? FMath::Max(InManager->GetActiveSlot(), 0) : 0;
 	Refresh();
@@ -115,6 +118,7 @@ void ULoadoutWidget::NativeDestruct()
 {
 	// Off screen: the stand-in stops animating and rendering.
 	bDragging = false;
+	bPressPending = bItemDrag = false;
 	TurnInput = 0.f;
 	if (ALoadoutStage* StagePtr = Stage.Get())
 	{
@@ -126,6 +130,19 @@ void ULoadoutWidget::NativeDestruct()
 void ULoadoutWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	// Moving the mouse hands the stats card back to hovering.
+	if (FSlateApplication::IsInitialized())
+	{
+		const FVector2D Mouse = FSlateApplication::Get().GetCursorPos();
+		if (!Mouse.Equals(LastMousePosition, 1.f))
+		{
+			LastMousePosition = Mouse;
+			bKeyboardCursor = false;
+		}
+	}
+	PlaceInspect();
+
 	ALoadoutStage* StagePtr = Stage.Get();
 	if (!StagePtr)
 	{
@@ -164,6 +181,7 @@ TSharedRef<SWidget> ULoadoutWidget::RebuildWidget()
 		FillOverlaySlot(Root->AddChildToOverlay(Scale));
 		UCanvasPanel* Canvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Page"));
 		Scale->SetContent(MakeSized(WidgetTree, Canvas, 1600.f, 900.f));
+		Page = Canvas;
 
 		auto Place = [Canvas](UWidget* Widget, const FVector2D& Position, const FVector2D& Size, const FVector2D& Alignment = FVector2D::ZeroVector)
 		{
@@ -226,36 +244,64 @@ TSharedRef<SWidget> ULoadoutWidget::RebuildWidget()
 			Place(Ammo, FVector2D(LeftX, 712.f), FVector2D(LeftWidth, 125.f));
 		}
 
-		// Right: the chosen slot's gun, over the backpack guns that could go in its place.
+		// Right: the backpack, all of it. (The equipped guns are on the left; a gun's stats float beside it.)
 		{
 			UVerticalBox* Right = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-			DetailsHeader = Label(WidgetTree, TEXT(""), 10, Color::Accent(), 300);
-			Right->AddChildToVerticalBox(DetailsHeader);
-			DetailsBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-			UImage* DetailsFill = nullptr;
-			UImage* DetailsLine = nullptr;
-			UOverlay* DetailsCard = MakeCard(WidgetTree, DetailsBox, FMargin(16.f, 14.f), 1.7f, DetailsFill, DetailsLine);
-			DetailsFill->SetColorAndOpacity(Colors::CardFill());
-			DetailsLine->SetColorAndOpacity(Hex(90, 200, 255, 102));
-			Right->AddChildToVerticalBox(DetailsCard)->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
-
 			UHorizontalBox* ListHead = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			ListHeader = Label(WidgetTree, TEXT(""), 8, Color::TextDim(), 220);
-			ListHead->AddChildToHorizontalBox(ListHeader)->SetVerticalAlignment(VAlign_Center);
+			ListHead->AddChildToHorizontalBox(Label(WidgetTree, TEXT("Backpack"), 10, Color::Accent(), 300))->SetVerticalAlignment(VAlign_Center);
+			ListCount = Label(WidgetTree, TEXT(""), 10, Color::TextDim(), 200);
+			ListHead->AddChildToHorizontalBox(ListCount)->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
 			UHorizontalBoxSlot* RuleSlot = ListHead->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Hex(90, 200, 255, 61))), 0.f, 1.f));
 			RuleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 			RuleSlot->SetVerticalAlignment(VAlign_Center);
 			RuleSlot->SetPadding(FMargin(10.f, 0.f));
-			ListCount = Label(WidgetTree, TEXT(""), 8, Color::TextDim(), 150);
-			ListHead->AddChildToHorizontalBox(ListCount)->SetVerticalAlignment(VAlign_Center);
-			Right->AddChildToVerticalBox(ListHead)->SetPadding(FMargin(0.f, 18.f, 0.f, 0.f));
+			ListHeader = Label(WidgetTree, TEXT(""), 8, Color::TextDim(), 220);
+			ListHead->AddChildToHorizontalBox(ListHeader)->SetVerticalAlignment(VAlign_Center);
+			Right->AddChildToVerticalBox(ListHead);
 
 			ListBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
 			StyleScrollBox(ListBox);
 			UVerticalBoxSlot* ListSlot = Right->AddChildToVerticalBox(ListBox);
 			ListSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			ListSlot->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
+			ListSlot->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
 			Place(Right, FVector2D(RightX, ColumnTop), FVector2D(RightWidth, 685.f));
+		}
+
+		// The stats card for the gun under the cursor, floating beside its card (placed every frame it shows).
+		{
+			UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+			InspectHeader = Label(WidgetTree, TEXT(""), 8, Color::Accent(), 220);
+			Content->AddChildToVerticalBox(InspectHeader);
+			InspectBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+			Content->AddChildToVerticalBox(InspectBox)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+			UImage* InspectFill = nullptr;
+			UImage* InspectLine = nullptr;
+			UOverlay* Card = MakeCard(WidgetTree, Content, FMargin(16.f, 12.f), 1.7f, InspectFill, InspectLine);
+			InspectFill->SetColorAndOpacity(Colors::InspectFill());
+			InspectLine->SetColorAndOpacity(Hex(90, 200, 255, 140));
+			InspectCard = MakeSized(WidgetTree, Card, InspectWidth, 0.f);
+			InspectCard->SetVisibility(ESlateVisibility::Collapsed);
+			InspectSlot = Canvas->AddChildToCanvas(InspectCard);
+			InspectSlot->SetAutoSize(true);
+		}
+
+		// The gun being dragged, following the mouse: its picture and name, and what letting go here would do.
+		{
+			UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+			GhostBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+			Content->AddChildToVerticalBox(GhostBox);
+			GhostAction = Label(WidgetTree, TEXT(""), 8, Color::Accent(), 150);
+			Content->AddChildToVerticalBox(GhostAction)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+			UImage* GhostFill = nullptr;
+			UImage* GhostLine = nullptr;
+			UOverlay* Card = MakeCard(WidgetTree, Content, FMargin(12.f, 8.f), 1.3f, GhostFill, GhostLine);
+			GhostFill->SetColorAndOpacity(Colors::InspectFill());
+			GhostLine->SetColorAndOpacity(Color::Accent());
+			DragGhost = MakeSized(WidgetTree, Card, GhostWidth, 0.f);
+			DragGhost->SetVisibility(ESlateVisibility::Collapsed);
+			DragGhost->SetRenderOpacity(0.92f);
+			GhostSlot = Canvas->AddChildToCanvas(DragGhost);
+			GhostSlot->SetAutoSize(true);
 		}
 
 		// Bottom: what the keys do right now.
@@ -309,7 +355,7 @@ void ULoadoutWidget::Refresh()
 	}
 	CursorIndex = FMath::Clamp(CursorIndex, 0, FMath::Max((Zone == EZone::Slots ? SlotCards.Num() : ListCards.Num()) - 1, 0));
 	Restyle();
-	RefreshDetails();
+	RefreshInspect();
 	RefreshAmmo();
 	RefreshPrompts();
 
@@ -413,9 +459,7 @@ void ULoadoutWidget::RebuildList()
 	const FWeaponInstanceData* SlotGun = SlotItem(ChosenSlot);
 	NumSameKind = LoadoutRules::SortForSwap(Inventory->GetBackpack(), SlotGun ? SlotGun->Definition.Get() : nullptr, ListOrder);
 
-	const FString Header = !SlotGun ? TEXT("Backpack · equip into slot")
-		: NumSameKind > 0 ? FString::Printf(TEXT("Backpack · %s first"), *KindName(*SlotGun))
-		: FString(TEXT("Backpack · swap with slot"));
+	const FString Header = SlotGun && NumSameKind > 0 ? FString::Printf(TEXT("%s first"), *KindName(*SlotGun)) : FString();
 	ListHeader->SetText(FText::FromString(Header.ToUpper()));
 	ListCount->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), Inventory->GetBackpack().Num(), Inventory->BackpackCapacity)));
 
@@ -535,87 +579,44 @@ void ULoadoutWidget::Restyle()
 			Fill = Colors::PickedFill();
 			Line = Color::Accent();
 		}
+		// Dragging: the gun's own card stays marked, and the one it would land on lights up.
+		if (bItemDrag)
+		{
+			Fill = PressZone == EZone::Slots && PressIndex == SlotIndex ? Colors::PickedFill() : (bItem ? Colors::CardFill() : Colors::EmptyFill());
+			Line = Colors::CardLine();
+			if (DropTarget.Kind == EDropKind::Slot && DropTarget.Index == SlotIndex && !DropActionText(DropTarget).IsEmpty())
+			{
+				Fill = Colors::DropFill();
+				Line = Color::Accent();
+			}
+		}
 		Card.Fill->SetColorAndOpacity(Fill);
 		Card.Line->SetColorAndOpacity(Line);
 		Card.Chip->SetVisibility(bPicked ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
+	// Stored anywhere on the backpack, a gun lands in its first free row: that's the row that lights up.
+	const bool bDropValid = bItemDrag && !DropActionText(DropTarget).IsEmpty();
+	const int32 DropRow = !bDropValid ? INDEX_NONE : DropTarget.Kind == EDropKind::BackpackRow ? DropTarget.Index
+		: DropTarget.Kind == EDropKind::Backpack ? ListOrder.Num() : INDEX_NONE;
 	for (int32 Row = 0; Row < ListCards.Num(); ++Row)
 	{
-		const bool bCursor = Zone == EZone::Backpack && CursorIndex == Row;
+		const bool bCursor = Zone == EZone::Backpack && CursorIndex == Row && !bItemDrag;
 		const bool bFree = !ListOrder.IsValidIndex(Row);
-		ListCards[Row].Fill->SetColorAndOpacity(bCursor ? Color::Tile() : (bFree ? Colors::EmptyFill() : Colors::CardFill()));
-		ListCards[Row].Line->SetColorAndOpacity(bCursor ? Color::Accent() : (bFree ? Colors::CardLine() * FLinearColor(1.f, 1.f, 1.f, 0.5f) : Colors::CardLine()));
-	}
-}
-
-void ULoadoutWidget::RefreshDetails()
-{
-	DetailsBox->ClearChildren();
-	const FWeaponInstanceData* SlotGun = SlotItem(ChosenSlot);
-	// Browsing the backpack shows that gun against the one in the chosen slot.
-	const FWeaponInstanceData* Candidate = Zone == EZone::Backpack ? ListItem(CursorIndex) : nullptr;
-	const FWeaponInstanceData* Shown = Candidate ? Candidate : SlotGun;
-	const FWeaponInstanceData* Baseline = Candidate ? SlotGun : nullptr;
-
-	const ELoadoutCarry Carry = LoadoutCarry::ForSlot(ChosenSlot, NumWeapons(), GetActiveSlot());
-	const FString Header = Candidate
-		? (SlotGun ? FString::Printf(TEXT("Backpack · vs slot %d"), ChosenSlot + 1) : FString::Printf(TEXT("Backpack · for slot %d"), ChosenSlot + 1))
-		: FString::Printf(TEXT("Slot %d · %s"), ChosenSlot + 1, LoadoutCarry::Label(Carry));
-	DetailsHeader->SetText(FText::FromString(Header.ToUpper()));
-
-	if (!Shown)
-	{
-		DetailsBox->AddChildToVerticalBox(Label(WidgetTree, TEXT("Empty slot"), 17, Color::TextDim(), 40));
-		UTextBlock* Help = MakeText(WidgetTree, ListOrder.IsEmpty()
-			? TEXT("Nothing in the backpack to equip here. The next gun you pick up fills this slot.")
-			: TEXT("Pick a gun from the backpack below to equip it in this slot."), 10, Color::TextDim());
-		Help->SetAutoWrapText(true);
-		DetailsBox->AddChildToVerticalBox(Help)->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
-		return;
-	}
-
-	UTextBlock* NameText = Label(WidgetTree, LooterWeaponText::Name(*Shown), 17, LooterWeaponText::Color(*Shown), 40);
-	NameText->SetAutoWrapText(true);
-	DetailsBox->AddChildToVerticalBox(NameText);
-	DetailsBox->AddChildToVerticalBox(Label(WidgetTree, FString::Printf(TEXT("Lv %d · %s · %s"), Shown->Level,
-		*LooterWeaponText::FireModeName(*Shown), *AmmoName(*Shown)), 9, Color::TextDim(), 140))->SetPadding(FMargin(0.f, 4.f, 0.f, 10.f));
-
-	const FWeaponStats& S = Shown->Stats;
-	const FWeaponStats* B = Baseline ? &Baseline->Stats : nullptr;
-	auto AddStat = [this, B](const TCHAR* StatName, float Rating, const FString& Value, float New, float Old, bool bHigherIsBetter, int32 Decimals)
-	{
-		UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, Label(WidgetTree, StatName, 8, Color::TextDim(), 120), 92.f, 0.f))->SetVerticalAlignment(VAlign_Center);
-		UHorizontalBoxSlot* BarSlot = Line->AddChildToHorizontalBox(MakeSegmentBar(WidgetTree, 8, Rating, Color::SegmentOn(), 7.f));
-		BarSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		BarSlot->SetVerticalAlignment(VAlign_Center);
-		UTextBlock* ValueText = MakeText(WidgetTree, Value, 11, Color::Text());
-		ValueText->SetJustification(ETextJustify::Right);
-		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, ValueText, 60.f, 0.f))->SetVerticalAlignment(VAlign_Center);
-		// The change from the chosen slot's gun, green when it's an upgrade.
-		UTextBlock* DeltaText = MakeText(WidgetTree, TEXT(""), 9, Color::TextDim());
-		DeltaText->SetJustification(ETextJustify::Right);
-		if (B && !FMath::IsNearlyEqual(New, Old, 0.01f))
+		const bool bSource = bItemDrag && PressZone == EZone::Backpack && ListOrder.IsValidIndex(Row) && ListOrder[Row] == PressIndex;
+		FLinearColor Fill = bCursor ? Color::Tile() : (bFree ? Colors::EmptyFill() : Colors::CardFill());
+		FLinearColor Line = bCursor ? Color::Accent() : (bFree ? Colors::CardLine() * FLinearColor(1.f, 1.f, 1.f, 0.5f) : Colors::CardLine());
+		if (bSource)
 		{
-			DeltaText->SetText(FText::FromString(FormatDelta(New - Old, Decimals)));
-			DeltaText->SetColorAndOpacity(FSlateColor(((New > Old) == bHigherIsBetter) ? Color::Better() : Color::Worse()));
+			Fill = Colors::PickedFill();
 		}
-		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, DeltaText, 46.f, 0.f))->SetVerticalAlignment(VAlign_Center);
-		// Nine stats: kept compact so the backpack list below still shows a few rows.
-		DetailsBox->AddChildToVerticalBox(MakeSized(WidgetTree, Line, 0.f, 20.f))->SetPadding(FMargin(0.f, 1.f));
-	};
-	// Damage compares the whole shot, so shotguns and rifles line up fairly.
-	AddStat(TEXT("Damage"), LooterWeaponText::DamageRating(S), LooterWeaponText::DamageString(S), S.Damage * S.PelletsPerShot,
-		B ? B->Damage * B->PelletsPerShot : 0.f, true, 1);
-	AddStat(TEXT("Fire rate"), LooterWeaponText::FireRateRating(S), FString::Printf(TEXT("%.0f"), S.FireRate), S.FireRate, B ? B->FireRate : 0.f, true, 0);
-	AddStat(TEXT("Magazine"), LooterWeaponText::MagazineRating(S), FString::FromInt(S.MagazineSize), S.MagazineSize, B ? B->MagazineSize : 0.f, true, 0);
-	AddStat(TEXT("Reload"), LooterWeaponText::ReloadRating(S), FString::Printf(TEXT("%.2fs"), S.ReloadTime), S.ReloadTime, B ? B->ReloadTime : 0.f, false, 2);
-	AddStat(TEXT("Accuracy"), LooterWeaponText::AccuracyRating(S), FString::Printf(TEXT("%.1f°"), S.Spread), S.Spread, B ? B->Spread : 0.f, false, 1);
-	// Range is where the damage starts to fall off; recoil and handling are against a plain gun of its kind.
-	AddStat(TEXT("Range"), LooterWeaponText::RangeRating(S), FString::Printf(TEXT("%.0f m"), S.Range / 100.f), S.Range / 100.f, B ? B->Range / 100.f : 0.f, true, 0);
-	AddStat(TEXT("Recoil"), LooterWeaponText::RecoilRating(S), FString::Printf(TEXT("%.0f%%"), S.Recoil * 100.f), S.Recoil * 100.f, B ? B->Recoil * 100.f : 0.f, false, 0);
-	AddStat(TEXT("Handling"), LooterWeaponText::HandlingRating(S), FString::Printf(TEXT("%.0f%%"), S.Handling * 100.f), S.Handling * 100.f, B ? B->Handling * 100.f : 0.f, true, 0);
-	AddStat(TEXT("Zoom"), LooterWeaponText::ZoomRating(S), LooterWeaponText::ZoomString(S), S.Zoom, B ? B->Zoom : 0.f, true, 2);
+		if (Row == DropRow)
+		{
+			Fill = Colors::DropFill();
+			Line = Color::Accent();
+		}
+		ListCards[Row].Fill->SetColorAndOpacity(Fill);
+		ListCards[Row].Line->SetColorAndOpacity(Line);
+	}
 }
 
 void ULoadoutWidget::RefreshAmmo()
@@ -676,7 +677,15 @@ void ULoadoutWidget::RefreshPrompts()
 	};
 	TArray<FPrompt, TInlineAllocator<8>> Prompts;
 	const bool bBackpack = !ListCards.IsEmpty();
-	if (Zone == EZone::Slots)
+	if (bItemDrag)
+	{
+		// Dragging: what letting go here does.
+		const FString Action = DropActionText(DropTarget);
+		DragPromptText = Action.IsEmpty() ? FString(TEXT("Put back")) : Action;
+		Prompts.Add({ TEXT("Let go"), *DragPromptText });
+		Prompts.Add({ TEXT("Esc"), TEXT("Cancel") });
+	}
+	else if (Zone == EZone::Slots)
 	{
 		const bool bItem = SlotItem(CursorIndex) != nullptr;
 		if (PickedSlot.IsSet())
@@ -693,7 +702,7 @@ void ULoadoutWidget::RefreshPrompts()
 		{
 			if (bItem)
 			{
-				Prompts.Add({ TEXT("E"), TEXT("Move") });
+				Prompts.Add({ TEXT("E / Drag"), TEXT("Move") });
 				if (CursorIndex != GetActiveSlot())
 				{
 					Prompts.Add({ TEXT("F"), TEXT("Hold") });
@@ -713,7 +722,7 @@ void ULoadoutWidget::RefreshPrompts()
 	}
 	else if (ListItem(CursorIndex))
 	{
-		Prompts.Add({ TEXT("E"), SlotItem(ChosenSlot) ? TEXT("Swap in") : TEXT("Equip") });
+		Prompts.Add({ TEXT("E / Drag"), SlotItem(ChosenSlot) ? TEXT("Swap in") : TEXT("Equip") });
 		Prompts.Add({ TEXT("F"), TEXT("Hold") });
 		Prompts.Add({ TEXT("Q"), TEXT("Drop") });
 		Prompts.Add({ TEXT("W / S"), TEXT("Browse") });
@@ -729,7 +738,7 @@ void ULoadoutWidget::RefreshPrompts()
 		Prompts.Add({ TEXT("W / S"), TEXT("Browse") });
 		Prompts.Add({ TEXT("A"), TEXT("Slots") });
 	}
-	if (!PickedSlot.IsSet())
+	if (!PickedSlot.IsSet() && !bItemDrag)
 	{
 		const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 		const UKeyBindingSubsystem* Bindings = LocalPlayer ? LocalPlayer->GetSubsystem<UKeyBindingSubsystem>() : nullptr;

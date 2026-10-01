@@ -47,6 +47,8 @@ using namespace LoadoutParts;
 
 void ULoadoutWidget::MoveCursor(int32 Columns, int32 Rows)
 {
+	// Moved by keys or a gamepad: the stats card follows the cursor (the mouse shows it by hovering).
+	bKeyboardCursor = true;
 	if (Columns < 0 && Zone == EZone::Backpack)
 	{
 		MoveCursorTo(EZone::Slots, ChosenSlot, false);
@@ -80,7 +82,7 @@ void ULoadoutWidget::MoveCursorTo(EZone NewZone, int32 NewIndex, bool bScrollInt
 		RebuildList();
 	}
 	Restyle();
-	RefreshDetails();
+	RefreshInspect();
 	RefreshPrompts();
 	if (bScrollIntoView && Zone == EZone::Backpack && ListCards.IsValidIndex(CursorIndex))
 	{
@@ -122,7 +124,7 @@ void ULoadoutWidget::Activate()
 			PickedSlot = SlotIndex;
 			ChosenSlot = SlotIndex;
 			Restyle();
-			RefreshDetails();
+			RefreshInspect();
 			RefreshPrompts();
 		}
 		else if (!ListCards.IsEmpty())
@@ -246,7 +248,7 @@ void ULoadoutWidget::CancelPick()
 	{
 		PickedSlot.Reset();
 		Restyle();
-		RefreshDetails();
+		RefreshInspect();
 		RefreshPrompts();
 	}
 }
@@ -286,6 +288,12 @@ FReply ULoadoutWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEv
 	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 	const UKeyBindingSubsystem* Bindings = LocalPlayer ? LocalPlayer->GetSubsystem<UKeyBindingSubsystem>() : nullptr;
 
+	if (bPressPending && (Key == EKeys::Escape || Key == EKeys::Gamepad_FaceButton_Right))
+	{
+		// Esc lets go of a dragged gun where it was.
+		CancelItemDrag();
+		return FReply::Handled().ReleaseMouseCapture();
+	}
 	if (Key == EKeys::Escape || Key == EKeys::Gamepad_FaceButton_Right)
 	{
 		// Esc puts down a picked-up slot first, then closes.
@@ -349,11 +357,36 @@ FReply ULoadoutWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEv
 }
 
 // ---------------------------------------------------------------------------
-// Turning the stand-in
+// The mouse: dragging guns (LoadoutWidgetDrag.cpp) and turning the stand-in
 // ---------------------------------------------------------------------------
+
+FReply ULoadoutWidget::NativeOnPreviewMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	// A press on a gun is ours rather than its card button's: a click if the mouse lets go where it pressed, a drag once
+	// it moves (NativeOnMouseMove), and a drop where it's let go (NativeOnMouseButtonUp).
+	EZone CardZone = EZone::Slots;
+	int32 CardIndex = INDEX_NONE;
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && !bPressPending && !bDragging
+		&& FindGunCard(InMouseEvent.GetScreenSpacePosition(), CardZone, CardIndex))
+	{
+		bPressPending = true;
+		bItemDrag = false;
+		PressZone = CardZone;
+		PressIndex = CardZone == EZone::Slots ? CardIndex : ListOrder[CardIndex];
+		PressPosition = InMouseEvent.GetScreenSpacePosition();
+		return FReply::Handled().CaptureMouse(TakeWidget());
+	}
+	return Super::NativeOnPreviewMouseButtonDown(InGeometry, InMouseEvent);
+}
 
 FReply ULoadoutWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
+	if (bPressPending && InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+	{
+		// Right-click lets go of a dragged gun where it was.
+		CancelItemDrag();
+		return FReply::Handled().ReleaseMouseCapture();
+	}
 	if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton && PickedSlot.IsSet())
 	{
 		CancelPick();
@@ -370,6 +403,19 @@ FReply ULoadoutWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, cons
 
 FReply ULoadoutWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
+	if (bPressPending)
+	{
+		const FVector2D Position = InMouseEvent.GetScreenSpacePosition();
+		if (!bItemDrag && FVector2D::Distance(Position, PressPosition) >= DragStartDistance)
+		{
+			BeginItemDrag();
+		}
+		if (bItemDrag)
+		{
+			UpdateItemDrag(Position);
+		}
+		return FReply::Handled();
+	}
 	if (bDragging)
 	{
 		// Dragging right turns the stand-in's front to the right.
@@ -384,6 +430,25 @@ FReply ULoadoutWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPoi
 
 FReply ULoadoutWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
+	if (bPressPending && InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		if (bItemDrag)
+		{
+			FinishItemDrag(InMouseEvent.GetScreenSpacePosition());
+		}
+		else
+		{
+			// It never moved: a click on the card it was pressed on.
+			bPressPending = false;
+			const int32 Row = PressZone == EZone::Slots ? PressIndex : ListOrder.IndexOfByKey(PressIndex);
+			const TArray<FCard>& Cards = PressZone == EZone::Slots ? SlotCards : ListCards;
+			if (Cards.IsValidIndex(Row))
+			{
+				HandleCardClicked(Cards[Row].Button);
+			}
+		}
+		return FReply::Handled().ReleaseMouseCapture();
+	}
 	if (bDragging && InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
 		bDragging = false;
@@ -396,6 +461,10 @@ FReply ULoadoutWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const 
 void ULoadoutWidget::NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent)
 {
 	bDragging = false;
+	if (bPressPending)
+	{
+		CancelItemDrag();
+	}
 	Super::NativeOnMouseCaptureLost(CaptureLostEvent);
 }
 

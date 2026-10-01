@@ -43,6 +43,12 @@ namespace LoadoutParts
 	inline constexpr float OuterRingRadius = 46.f;
 	inline constexpr float InnerRingRadius = 32.f;
 	inline constexpr float PillarHeight = 110.f;
+	/** The stats card that floats beside the gun under the cursor, how far from its card, and the dragged gun's card. */
+	inline constexpr float InspectWidth = 330.f;
+	inline constexpr float InspectGap = 16.f;
+	inline constexpr float GhostWidth = 250.f;
+	/** How far (screen pixels) a pressed gun must move before it's a drag rather than a click. */
+	inline constexpr float DragStartDistance = 8.f;
 	/** Drag speed (degrees per pixel) and stick speed (degrees per second) for turning the stand-in. */
 	inline constexpr float DragTurnRate = 0.45f;
 	inline constexpr float StickTurnRate = 160.f;
@@ -51,6 +57,10 @@ namespace LoadoutParts
 	{
 		inline FLinearColor Dim() { return LooterUI::Hex(2, 8, 14, 204); }
 		inline FLinearColor CardFill() { return LooterUI::Hex(7, 26, 40, 230); }
+		/** Floating cards (the stats card, the dragged gun) sit over the stand-in: nearly solid so they read over it. */
+		inline FLinearColor InspectFill() { return LooterUI::Hex(5, 18, 29, 242); }
+		/** A slot or row a dragged gun would land in. */
+		inline FLinearColor DropFill() { return LooterUI::Hex(255, 159, 28, 46); }
 		inline FLinearColor EmptyFill() { return LooterUI::Hex(7, 26, 40, 140); }
 		inline FLinearColor InHandFill() { return LooterUI::Hex(46, 30, 8, 235); }
 		inline FLinearColor InHandCursor() { return LooterUI::Hex(74, 47, 10, 240); }
