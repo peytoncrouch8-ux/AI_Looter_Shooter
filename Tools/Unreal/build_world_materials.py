@@ -14,11 +14,17 @@
   M_Smoke         chimney smoke. Vertex color A is opacity (R foam on the waterfall).
   M_Water         opaque, cheap: a dark color (the sky's reflection does the rest), glossy, procedural ripples on
                   UV 0 in meters.
+  M_Glass         unlit, translucent: lenses and sight windows. Mostly clear (Opacity) facing the eye, so a sight can
+                  be aimed through, tinted (Tint) and brighter and denser toward grazing edges (RimBrightness,
+                  EdgeOpacity), which reads as glass without reflections.
 
 The model importer (FModelImporter) makes MI_<material> instances of these from the Blender materials. Re-running this
-keeps each material asset (so instances stay linked) and rebuilds its graph. Run in the open editor:
-  Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_world_materials.py"
+keeps each material asset (so instances stay linked) and rebuilds its graph. Run in the open editor, optionally with the
+names of the masters to build (the rest are left alone):
+  Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_world_materials.py [M_Glass ...]"
 """
+import sys
+
 import unreal
 
 FOLDER = '/Game/Art/Materials/Masters'
@@ -376,6 +382,26 @@ float Edge = sin(saturate(UV.x) * 3.14159);
 return saturate((Puff - 0.42) * 2.6) * Edge * Edge * Alpha * (1.0 - UV.y * 0.6) * Opacity;"""
 
 
+def build_glass():
+    mat = material('M_Glass')
+    mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_TRANSLUCENT)
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
+    g = Graph(mat)
+    fresnel = g.node(unreal.MaterialExpressionFresnel, -900, 200, exponent=3.0, base_reflect_fraction=0.0)
+    brightness = g.node(unreal.MaterialExpressionLinearInterpolate, -600, -100, const_a=1.0)
+    g.link(g.scalar('RimBrightness', 4.0, -900, 0), '', brightness, 'B')
+    g.link(fresnel, '', brightness, 'Alpha')
+    g.out(g.mul(g.vector('Tint', (0.05, 0.09, 0.12, 1.0), -900, -200), '', brightness, '', -300, -150), '',
+          unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    opacity = g.node(unreal.MaterialExpressionLinearInterpolate, -600, 300)
+    g.link(g.scalar('Opacity', 0.15, -900, 350), '', opacity, 'A')
+    g.link(g.scalar('EdgeOpacity', 0.6, -900, 450), '', opacity, 'B')
+    g.link(fresnel, '', opacity, 'Alpha')
+    g.out(opacity, '', unreal.MaterialProperty.MP_OPACITY)
+    finish(mat, [])
+    return mat
+
+
 def effect(name, inputs_extra, color_code, color_inputs, opacity_code, opacity_inputs):
     """An unlit, translucent, two-sided master whose color and opacity come from two Custom nodes over shared inputs."""
     mat = material(name)
@@ -425,7 +451,10 @@ def build_smoke():
                   [('Opacity', lambda g: g.scalar('Opacity', 0.4, -900, 400))])
 
 
+BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'M_WorldFoliage': lambda: build_foliage(DEFAULT_ORM),
+            'M_Terrain': build_terrain, 'M_Water': build_water, 'M_SkyClouds': build_sky_clouds,
+            'M_Waterfall': build_waterfall, 'M_Smoke': build_smoke, 'M_Glass': build_glass}
+wanted = [name for name in sys.argv[1:] if name in BUILDERS] or list(BUILDERS)
 orm = default_orm()
-built = [build_world(DEFAULT_ORM), build_foliage(DEFAULT_ORM), build_terrain(), build_water(), build_sky_clouds(),
-         build_waterfall(), build_smoke()]
+built = [BUILDERS[name]() for name in wanted]
 unreal.log('LOOTER world materials: ' + ', '.join(m.get_path_name() for m in built))

@@ -28,12 +28,22 @@ namespace
 	const FRotator SprintPoseRotation(-12.f, -32.f, -22.f);
 	const FVector CrouchPoseOffset(-1.f, -1.5f, -1.f);
 	constexpr float CrouchPoseRoll = -6.f;
-	/** Point on the gun (its own space) that the stance poses rotate around: roughly the grip. */
-	const FVector GripPivot(14.f, 0.f, -3.f);
+	/** The point the stance poses turn the gun around, from its grip: a little ahead of and above the hand. */
+	const FVector GripPivotFromGrip(9.f, 0.f, 2.f);
 	constexpr float WalkStepLength = 190.f;
 	constexpr float SprintStepLength = 250.f;
 	constexpr float KickStiffness = 170.f;
 	constexpr float KickDamping = 18.f;
+	/** Where a freshly drawn gun starts, low and tipped, before it comes up over its ready time. */
+	const FVector DrawPoseOffset(-3.f, 2.f, -16.f);
+	const FRotator DrawPoseRotation(-35.f, 8.f, 18.f);
+	/** Aiming: how far in front of the eye the sight's aim point sits, and how far below the line of sight. */
+	constexpr float AimSightDistance = 22.f;
+	constexpr float AimSightClearance = 0.6f;
+	/** How much of the walking bob and look sway aiming takes out. */
+	constexpr float AimSteadiness = 0.85f;
+	/** Walk speed while aiming, as a share of the normal walk. */
+	constexpr float AimWalkSpeedMultiplier = 0.65f;
 
 	TAutoConsoleVariable<bool> CVarDebugStance(TEXT("Looter.DebugStance"), false,
 		TEXT("Print the player's stance each frame: sprint/crouch alphas, speed, and head/camera heights above the feet."));
@@ -320,6 +330,13 @@ void UPlayerLocomotionComponent::UpdateStance(float DeltaTime)
 		LastFiringTime = Now;
 		Intent.CancelSprintToggle();
 	}
+	// Raising the sight ends a sprint the same way shooting does.
+	const UPlayerViewComponent* View = PlayerView.Get();
+	const bool bWantsAim = View && View->WantsToAim();
+	if (bWantsAim)
+	{
+		Intent.CancelSprintToggle();
+	}
 
 	// Crouch: the character's built-in crouch owns the capsule; we only say what we want.
 	const bool bWantsCrouch = Intent.WantsCrouch();
@@ -343,15 +360,21 @@ void UPlayerLocomotionComponent::UpdateStance(float DeltaTime)
 		Intent.CancelSprintToggle();
 	}
 
-	const bool bCanSprint = Intent.WantsSprint() && bMovingForward && !Owner->bIsCrouched && !bFiring
+	const bool bCanSprint = Intent.WantsSprint() && bMovingForward && !Owner->bIsCrouched && !bFiring && !bWantsAim
 		&& Now - LastFiringTime >= SprintResumeDelay && (bSprinting || Move->IsMovingOnGround());
 
 	if (bCanSprint != bSprinting)
 	{
 		bSprinting = bCanSprint;
-		bSprintInterrupted = !bSprinting && bFiring;
-		Move->MaxWalkSpeed = bSprinting ? BaseWalkSpeed * SprintSpeedMultiplier : BaseWalkSpeed;
-		UE_LOG(LogLooter, Verbose, TEXT("Sprint %s%s"), bSprinting ? TEXT("on") : TEXT("off"), bSprintInterrupted ? TEXT(" (fired)") : TEXT(""));
+		bSprintInterrupted = !bSprinting && (bFiring || bWantsAim);
+		UE_LOG(LogLooter, Verbose, TEXT("Sprint %s%s"), bSprinting ? TEXT("on") : TEXT("off"), bSprintInterrupted ? TEXT(" (fired or aimed)") : TEXT(""));
+	}
+	// Aiming slows the walk as the sight comes up.
+	const float WalkSpeed = bSprinting ? BaseWalkSpeed * SprintSpeedMultiplier
+		: BaseWalkSpeed * FMath::Lerp(1.f, AimWalkSpeedMultiplier, View ? View->GetAimAlpha() : 0.f);
+	if (!FMath::IsNearlyEqual(Move->MaxWalkSpeed, WalkSpeed))
+	{
+		Move->MaxWalkSpeed = WalkSpeed;
 	}
 
 	if (Owner->bIsCrouched != bWasCrouched)
@@ -513,8 +536,28 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 		Rotation += ViewComponent->GetKickRotation();
 	}
 
-	const FTransform& Hold = Manager->AttachOffset;
+	// A freshly drawn gun comes up from below over its ready time (quicker with better handling).
+	const float Ready = FMath::InterpEaseOut(0.f, 1.f, Weapon->GetReadyAlpha(), 2.f);
+	Offset += DrawPoseOffset * (1.f - Ready);
+	Rotation += DrawPoseRotation * (1.f - Ready);
+
+	// Aiming: the hold moves from the hip to straight in front of the eye, with the sight's aim point on the line of
+	// sight; walking bob and look sway mostly settle so the sight stays on target.
+	const float Aim = PlayerView.IsValid() ? PlayerView->GetAimAlpha() : 0.f;
+	FTransform Hold = Manager->GetFirstPersonHold(Weapon);
+	if (Aim > 0.f)
+	{
+		const FVector AimLocation = FVector(AimSightDistance, 0.f, -AimSightClearance) - Weapon->GetAimPoint() * Hold.GetScale3D();
+		Hold.SetLocation(FMath::Lerp(Hold.GetLocation(), AimLocation, Aim));
+		Hold.SetRotation(FQuat::Slerp(Hold.GetRotation(), FQuat::Identity, Aim));
+		const float Settle = 1.f - AimSteadiness * Aim;
+		Offset *= Settle;
+		Rotation *= Settle;
+	}
+
 	const FQuat FinalRotation = Rotation.Quaternion() * Hold.GetRotation();
-	const FVector FinalLocation = Hold.GetLocation() + Offset + Hold.GetRotation().RotateVector(GripPivot) - FinalRotation.RotateVector(GripPivot);
+	// The stance poses turn the gun around (roughly) its grip, wherever this gun has it.
+	const FVector Pivot = (Weapon->GetGripPoint().IsZero() ? Manager->AttachGrip : Weapon->GetGripPoint()) + GripPivotFromGrip;
+	const FVector FinalLocation = Hold.GetLocation() + Offset + Hold.GetRotation().RotateVector(Pivot) - FinalRotation.RotateVector(Pivot);
 	Weapon->SetActorRelativeTransform(FTransform(FinalRotation, FinalLocation, Hold.GetScale3D()));
 }

@@ -89,6 +89,30 @@ public:
 	/** How the gun in hand is kicked right now, in its own frame (pitch up = muzzle climbing). */
 	FRotator GetKickRotation() const { return Recoil.GetKickRotation(); }
 
+	/**
+	 * How far the gun is raised to the eye (0 = hip, 1 = looking through the sight), eased. Aiming narrows the view by
+	 * the gun's Zoom, tightens its spread and slows the look; the gun's Handling sets how fast it comes up.
+	 */
+	float GetAimAlpha() const;
+
+	bool IsAiming() const { return AimAlpha > 0.f; }
+
+	/** The aim key is down (or toggled on) with a gun in hand; sprinting gives way to it. */
+	bool WantsToAim() const { return bAimWanted; }
+
+	/** Spread is multiplied by this: 1 from the hip, AimSpreadMultiplier through the sight. */
+	float GetAimSpreadMultiplier() const;
+
+	/** Look input is multiplied by this, so zoomed aim turns no faster across the target than unzoomed. */
+	float GetLookSensitivityMultiplier() const;
+
+	/** Seconds a Handling 1 gun takes to come up to the eye (better handling is quicker). */
+	static constexpr float BaseAimSeconds = 0.2f;
+	/** Spread through the sight, as a share of the hip spread. */
+	static constexpr float AimSpreadMultiplier = 0.5f;
+	/** Even iron sights zoom a little, so aiming always reads as aiming. */
+	static constexpr float MinAimZoom = 1.2f;
+
 	/** The body's animation with or without a gun in hand (the character switches between the two as weapons change). */
 	TSubclassOf<UAnimInstance> GetBodyAnimClass(bool bArmed) const { return bArmed && LoadedArmedAnimClass ? LoadedArmedAnimClass : UnarmedAnimClass; }
 
@@ -148,6 +172,10 @@ private:
 
 	/** Listens to the gun in hand's shots (and stops listening to the last one). */
 	void BindFiringWeapon(AWeaponBase* Weapon);
+	void HandleAimPressed();
+	void HandleAimReleased();
+	/** Raises or lowers the gun toward the sight. */
+	void UpdateAim(float DeltaTime);
 	/** Advances the recoil and adds its aim kick to the view. */
 	void UpdateRecoil(float DeltaTime);
 
@@ -190,4 +218,12 @@ private:
 	/** The view's pitch right after our own recoil change last tick, to tell the player's mouse movement apart from ours. */
 	float LastViewPitch = 0.f;
 	bool bHaveLastViewPitch = false;
+
+	/** Linear 0..1 (GetAimAlpha eases it). */
+	float AimAlpha = 0.f;
+	/** The magnification of the gun in hand's sight. */
+	float AimZoom = MinAimZoom;
+	bool bAimWanted = false;
+	/** The Aim binding is set to toggle rather than hold. */
+	bool bAimToggle = false;
 };

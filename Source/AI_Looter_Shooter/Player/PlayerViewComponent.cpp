@@ -162,10 +162,63 @@ void UPlayerViewComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 	{
 		return;
 	}
+	UpdateAim(DeltaTime);
 	UpdateRecoil(DeltaTime);
 	UpdateBoom(DeltaTime);
 	UpdateFieldOfView();
 	UpdateHeldWeapon();
+}
+
+// ---------------------------------------------------------------------------
+// Aiming down the sights
+// ---------------------------------------------------------------------------
+
+void UPlayerViewComponent::HandleAimPressed()
+{
+	// Toggle mode: press to aim, press again to stop; hold mode: aim while held.
+	bAimWanted = bAimToggle ? !bAimWanted : true;
+}
+
+void UPlayerViewComponent::HandleAimReleased()
+{
+	if (!bAimToggle)
+	{
+		bAimWanted = false;
+	}
+}
+
+void UPlayerViewComponent::UpdateAim(float DeltaTime)
+{
+	// Only with a gun in hand, and not while it's being reloaded or carried low in a sprint (aiming stops a sprint first).
+	const UWeaponManagerComponent* Manager = WeaponManager.Get();
+	const AWeaponBase* Weapon = Manager ? Manager->GetActiveWeapon() : nullptr;
+	const bool bSprinting = Locomotion.IsValid() && Locomotion->GetSprintAlpha() > 0.5f;
+	const bool bCanAim = Weapon && !Weapon->IsReloading() && !bSprinting && Mode != EPlayerViewMode::ThirdPersonFront;
+	if (!Weapon)
+	{
+		bAimWanted = false;
+	}
+	// Quicker with better handling: a Handling 1 gun takes BaseAimSeconds to come up to the eye.
+	const float Speed = (Weapon ? Weapon->GetStats().Handling : 1.f) / BaseAimSeconds;
+	AimAlpha = FMath::FInterpConstantTo(AimAlpha, bAimWanted && bCanAim ? 1.f : 0.f, DeltaTime, Speed);
+	AimZoom = Weapon ? FMath::Max(Weapon->GetStats().Zoom, MinAimZoom) : AimZoom;
+}
+
+float UPlayerViewComponent::GetAimSpreadMultiplier() const
+{
+	return FMath::Lerp(1.f, AimSpreadMultiplier, GetAimAlpha());
+}
+
+float UPlayerViewComponent::GetLookSensitivityMultiplier() const
+{
+	// Through a sight the view turns slower, so the crosshair moves across the target as it did unzoomed.
+	return FMath::Lerp(1.f, 1.f / AimZoom, GetAimAlpha());
+}
+
+float UPlayerViewComponent::GetAimAlpha() const
+{
+	// Eased, so the gun settles into the sight instead of stopping dead.
+	return FMath::InterpEaseInOut(0.f, 1.f, AimAlpha, 2.f);
 }
 
 // ---------------------------------------------------------------------------
@@ -232,7 +285,15 @@ void UPlayerViewComponent::SetupInput(AController* Controller)
 	if (UEnhancedInputComponent* Input = InputBinding.Setup(GetOwner(), Controller, Bindings->GetCharacterContext(), UKeyBindingSubsystem::CharacterContextPriority))
 	{
 		Input->BindAction(Bindings->GetToggleViewAction(), ETriggerEvent::Started, this, &UPlayerViewComponent::CycleViewMode);
+		if (Bindings->GetAimAction())
+		{
+			Input->BindAction(Bindings->GetAimAction(), ETriggerEvent::Started, this, &UPlayerViewComponent::HandleAimPressed);
+			Input->BindAction(Bindings->GetAimAction(), ETriggerEvent::Completed, this, &UPlayerViewComponent::HandleAimReleased);
+			Input->BindAction(Bindings->GetAimAction(), ETriggerEvent::Canceled, this, &UPlayerViewComponent::HandleAimReleased);
+		}
+		bAimToggle = Bindings->IsToggleMode(TEXT("Aim"));
 	}
+	bAimWanted = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -359,7 +420,10 @@ void UPlayerViewComponent::UpdateFieldOfView()
 {
 	const float Offset = Locomotion.IsValid() ? Locomotion->GetFieldOfViewOffset() : 0.f;
 	UCameraComponent* Active = IsFirstPerson() ? FirstPersonCamera.Get() : ThirdPersonCamera.Get();
-	const float Wanted = (IsFirstPerson() ? FirstPersonFieldOfView : ThirdPersonFieldOfView) + Offset;
+	// Aiming narrows the view by the sight's magnification (2x shows half as wide).
+	const float Unzoomed = (IsFirstPerson() ? FirstPersonFieldOfView : ThirdPersonFieldOfView) + Offset;
+	const float Zoomed = FMath::RadiansToDegrees(2.f * FMath::Atan(FMath::Tan(FMath::DegreesToRadians(Unzoomed) * 0.5f) / AimZoom));
+	const float Wanted = FMath::Lerp(Unzoomed, Zoomed, GetAimAlpha());
 	if (Active && !FMath::IsNearlyEqual(Active->FieldOfView, Wanted, 0.01f))
 	{
 		Active->SetFieldOfView(Wanted);

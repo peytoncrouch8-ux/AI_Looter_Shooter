@@ -68,15 +68,43 @@ struct FWeaponStats
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "0"))
 	float Spread = 1.f;
 
-	/** Max trace distance in cm. */
+	/**
+	 * How far (cm) it does full damage. Past it the damage falls off, to RangeFalloffFloor at RangeFalloffEnd times the
+	 * range, and bullets are gone at MaxRangeFactor times the range.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "0"))
-	float Range = 10000.f;
+	float Range = 4000.f;
 
 	/** Traces per shot. >1 for shotguns. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "1"))
 	int32 PelletsPerShot = 1;
 
+	/** How hard each shot kicks: 1 = the weapon's recoil profile as it is, below 1 kicks less. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "0"))
+	float Recoil = 1.f;
+
+	/** How quickly it's aimed and comes up after a swap: 1 = normal, above 1 quicker. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "0.1"))
+	float Handling = 1.f;
+
+	/** Magnification while aiming down the sights (1 = none). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "1"))
+	float Zoom = 1.f;
+
 	float GetSecondsBetweenShots() const { return 60.f / FMath::Max(FireRate, 1.f); }
+
+	/** Bullets fly up to this many times the range. */
+	static constexpr float MaxRangeFactor = 3.f;
+	/** Damage falls off linearly from the range to this many times the range, down to the floor. */
+	static constexpr float RangeFalloffEnd = 2.f;
+	static constexpr float RangeFalloffFloor = 0.5f;
+
+	/** The share of its damage a bullet still does after flying Distance cm. */
+	float DamageAtDistance(float Distance) const
+	{
+		const float Over = (Distance - Range) / FMath::Max(Range * (RangeFalloffEnd - 1.f), 1.f);
+		return FMath::Lerp(1.f, RangeFalloffFloor, FMath::Clamp(Over, 0.f, 1.f));
+	}
 };
 
 /** How a rarity tier modifies the base stats. Multipliers are applied after random variance. */
@@ -130,6 +158,14 @@ struct FWeaponInstanceData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
 	int32 Seed = 0;
+
+	/**
+	 * The parts it was built with, by key, one per part slot (none for an empty slot). Kept with the gun so parts added to
+	 * the lists later never change guns already found; their numbers are still read from the parts, so balance changes
+	 * reach every gun. Empty: picked from the seed.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	TArray<FName> Parts;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	FWeaponStats Stats;

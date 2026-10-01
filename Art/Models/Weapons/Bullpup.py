@@ -1,6 +1,6 @@
 """The bullpup assault rifle the user chose (2026-09-30) as the base of every non-legendary AR, with interchangeable
-parts: 8 bodies, 8 barrels, 8 muzzle devices, 8 magazines, 8 sights and 8 stocks. Kept for later in Art/Backlog (see its
-README): nothing in the game uses it yet. Legendary ARs will get their own unique models and names later.
+parts: 8 bodies, 8 barrels, 8 muzzle devices, 8 magazines, 8 sights and 8 stocks. Every assault rifle in the game is
+built from them (DA_AssaultRifle). Legendary ARs will get their own unique models and names later.
 
 How the parts fit (gun space, cm: u along the gun from the back of the butt, v up from the bore; see looter_guns):
 
@@ -13,22 +13,24 @@ How the parts fit (gun space, cm: u along the gun from the back of the butt, v u
   BullpupMuzzle_<Key>    origin at its back face (screws onto a barrel's SOCKET_Muzzle); SOCKET_Muzzle at its own
                          tip, where the flash comes from.
   BullpupMagazine_<Key>  origin where it seats.
-  BullpupSight_<Key>     origin on top of the rail, at its middle.
+  BullpupSight_<Key>     origin on top of the rail, at its middle; SOCKET_Aim on its line of sight (the dot, the
+                         eyepiece, or the irons' front post), which aiming down sights puts before the eye.
   BullpupStock_<Key>     origin at the middle of the butt face; extends backward (and, for cheek risers, forward
                          over the shell).
 
-A rolled AR picks one option per slot from PARTS below: each carries a display name, the word it can lend the gun's
-name, the lowest rarity it appears on, and its stat changes in percent. Damage, accuracy (the game's Spread, inverted),
-fire rate, magazine size and reload map onto FWeaponPartStats today; range, recoil, handling (aim and swap speed) and
-zoom would be new stats. Nothing reads PARTS yet: it's the design, kept next to the models it belongs to.
+A rolled AR picks one option per slot. Each option's display name, the word it can lend the gun's name, the lowest
+rarity it appears on and its stat ranges live in Bullpup.parts.csv beside this file, which
+Tools/Unreal/setup_gun_parts.py reads into DA_AssaultRifle. PARTS below was its first draft and now only lays the parts
+out in the scene: a new part needs a model here and a row there, under the same key.
 
-    blender -b --factory-startup --python Art/Backlog/Weapons/Bullpup.py -- --preview
+    blender -b --factory-startup --python Art/Models/Weapons/Bullpup.py -- --preview
 """
 import math
 
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 import looter_guns as lg
+import looter_props as lp
 import looter_textures as lt
 
 ACCENT = lg.glow('GunAccentGlow', 0xe8e8e8, 2.0)   # glows in the gun's rarity color in the game
@@ -381,6 +383,34 @@ def magazines():
         g.add(m, lg.pin(14.0, -14.5, cap, cap + 0.4, 2.2, segments=20, mat=lg.STEEL))
 
 
+# --- See-through sights: aiming down sights puts the eye 22 cm behind SOCKET_Aim, looking along the axis ---
+
+WALL = 0.12   # cm: thin tube walls keep the clear opening as wide as the tube
+
+
+def hollow(profile, u0, v, segments, mat, wall=WALL):
+    """A tube turned round an axis along u (profile [(du, r), ...] as lg.turned) but open at both ends: a thin wall
+    that follows the outline inside, so the eye looks down the tube instead of at an end cap."""
+    outer = [(r * lg.CM, du * lg.CM) for du, r in profile]
+    inner = [((r - wall) * lg.CM, du * lg.CM) for du, r in reversed(profile)]
+    obj = lp.lathe(outer + inner, segments=segments, closed=True)[0]
+    obj.data.transform(Matrix.Translation(lg.at(u0, v)) @ Matrix.Rotation(math.radians(90.0), 4, 'X'))
+    return lg.mapped(obj, mat)
+
+
+def optics(m, u_eye, u_obj, v, r_eye, r_obj, dot, wall=WALL):
+    """A tube sight's glass: a lens just inside the eyepiece and one inside the objective, and the reticle just
+    behind the objective lens, a dot (dot=True) or a fine cross, tiny because it sits over the screen's crosshair."""
+    g.add(m, lg.tube(u_eye + 0.15, u_eye + 0.25, r_eye - wall - 0.03, v=v, segments=20, mat=lg.LENS))
+    g.add(m, lg.tube(u_obj - 0.25, u_obj - 0.15, r_obj - wall - 0.03, v=v, segments=24, mat=lg.LENS))
+    u = u_obj - 0.4
+    if dot:
+        g.add(m, lg.pin(u, v, -0.06, 0.06, 0.06, mat=RETICLE, segments=10))
+    else:
+        g.add(m, lg.box(u, u + 0.02, v - 0.075, v + 0.075, 0.02, bevel=0.0, mat=RETICLE))
+        g.add(m, lg.box(u, u + 0.02, v - 0.01, v + 0.01, 0.15, bevel=0.0, mat=RETICLE))
+
+
 # --- Sights: around the middle of the rail ---
 
 def sights():
@@ -388,16 +418,19 @@ def sights():
     S = lambda key: model('Sight', key, SIGHT_AT)
 
     m = S('Iron')                                                # flip-up rear aperture and front post
-    g.add(m, lg.slab([(15, v0), (18, v0), (17.6, v0 + 2.2), (16.0, v0 + 2.2)], 2.0, bevel=0.15, mat=lg.BLACK, round=0.3))
-    g.add(m, lg.tube(16.5, 17.1, 0.55, v=v0 + 1.7, segments=12, mat=lg.BLACK))
+    blade = lg.slab([(15, v0), (18, v0), (17.6, v0 + 3.2), (16.0, v0 + 3.2)], 2.0, bevel=0.15, mat=lg.BLACK, round=0.3)
+    g.add(m, lg.cut(blade, [lg.tube(14.0, 19.0, 0.35, v=v0 + 2.6, segments=16)]))   # the peep hole
+    g.add(m, hollow([(0.0, 0.55), (0.6, 0.55)], 16.5, v0 + 2.6, 16, lg.BLACK, wall=0.2))   # the aperture ring
     g.add(m, lg.slab([(29.6, v0), (32, v0), (31.6, v0 + 2.6), (30.2, v0 + 2.6)], 1.8, bevel=0.15, mat=lg.BLACK, round=0.3))
+    g.socket(m, 'Aim', (16.8, v0 + 2.6))   # the rear aperture's center: the front post's tip shows in it
 
     m = S('RedDot')                                              # a 1x tube
     g.add(m, lg.box(19.4, 26.6, v0, v0 + 1.3, 2.2, bevel=0.25, mat=lg.BLACK))
-    g.add(m, lg.turned([(0, 1.45), (1.0, 1.45), (1.4, 1.25), (6.6, 1.25), (7.0, 1.45), (8.0, 1.45)], 19.0,
-                       v=v0 + 2.8, segments=20, mat=lg.BLACK))
+    g.add(m, hollow([(0, 1.45), (1.0, 1.45), (1.4, 1.25), (6.6, 1.25), (7.0, 1.45), (8.0, 1.45)], 19.0, v0 + 2.8, 20,
+                    lg.BLACK))
     g.add(m, lg.pin(23.0, v0 + 2.8, -2.0, -1.2, 0.55, mat=lg.BLACK))
-    g.add(m, lg.tube(26.85, 26.95, 1.3, v=v0 + 2.8, segments=20, mat=lg.LENS))
+    optics(m, 19.0, 27.0, v0 + 2.8, 1.45, 1.45, dot=True)
+    g.socket(m, 'Aim', (19.2, v0 + 2.8))   # the eyepiece lens
 
     m = S('Reflex')                                              # an open window
     g.add(m, lg.box(19.5, 26.5, v0, v0 + 1.0, 2.6, bevel=0.25, mat=lg.BLACK))
@@ -406,6 +439,7 @@ def sights():
     g.add(m, lg.cut(frame, [lg.cbox(20.0, 27.4, v0 + 1.6, v0 + 4.6, -0.95, 0.95)]))
     g.add(m, lg.box(25.6, 25.75, v0 + 1.6, v0 + 4.6, 1.9, bevel=0.0, mat=lg.LENS))
     g.add(m, lg.pin(25.5, v0 + 3.1, -0.1, 0.1, 0.1, mat=RETICLE))
+    g.socket(m, 'Aim', (25.5, v0 + 3.1))   # the dot
 
     m = S('Holo')                                                # a holographic box with a hood
     g.add(m, lg.box(17.5, 28.5, v0, v0 + 1.3, 3.0, bevel=0.25, mat=lg.BLACK))
@@ -414,43 +448,51 @@ def sights():
     g.add(m, lg.cut(hood, [lg.cbox(16.5, 29.5, v0 + 1.9, v0 + 5.5, -1.25, 1.25)]))
     g.add(m, lg.box(27.0, 27.15, v0 + 1.9, v0 + 5.5, 2.5, bevel=0.0, mat=lg.LENS))
     g.add(m, lg.pin(26.9, v0 + 3.7, -0.12, 0.12, 0.12, mat=RETICLE))
+    g.socket(m, 'Aim', (26.9, v0 + 3.7))   # the dot
 
     m = S('Prism')                                               # a compact 2x prism sight
-    g.add(m, lg.slab([(18, v0), (28, v0), (28, v0 + 4.0), (26.5, v0 + 4.6), (19.5, v0 + 4.6), (18, v0 + 4.0)], 3.0,
-                     bevel=0.35, segments=3, mat=lg.BLACK, round=0.5))
+    body = lg.slab([(18, v0), (28, v0), (28, v0 + 4.0), (26.5, v0 + 4.6), (19.5, v0 + 4.6), (18, v0 + 4.0)], 3.0,
+                   bevel=0.35, segments=3, mat=lg.BLACK, round=0.5)
+    g.add(m, lg.cut(body, [lg.tube(17.0, 29.0, 1.05, v=v0 + 2.6, segments=20)]))   # the bore
+    g.add(m, lg.box(27.55, 27.57, v0 + 2.525, v0 + 2.675, 0.02, bevel=0.0, mat=RETICLE))   # a fine cross
+    g.add(m, lg.box(27.55, 27.57, v0 + 2.59, v0 + 2.61, 0.15, bevel=0.0, mat=RETICLE))
     for u in (17.9, 28.0):
         g.add(m, lg.tube(u, u + 0.12, 1.1, v=v0 + 2.6, segments=20, mat=lg.LENS))
     g.add(m, lg.upright(23.0, v0 + 4.5, v0 + 5.4, 0.7, mat=lg.BLACK, segments=14))
+    g.socket(m, 'Aim', (17.9, v0 + 2.6))   # the rear lens
 
     m = S('ACOG')                                                # a 4x combat optic, tapered to its objective
     g.add(m, lg.box(18.0, 26.0, v0, v0 + 1.4, 2.4, bevel=0.25, mat=lg.BLACK))
-    g.add(m, lg.turned([(0, 1.35), (2.4, 1.35), (3.0, 1.15), (6.0, 1.15), (7.0, 1.6), (11.0, 1.75)], 17.0,
-                       v=v0 + 2.7, segments=20, mat=lg.BLACK))
+    g.add(m, hollow([(0, 1.35), (2.4, 1.35), (3.0, 1.15), (6.0, 1.15), (7.0, 1.6), (11.0, 1.75)], 17.0, v0 + 2.7, 20,
+                    lg.BLACK))
     g.add(m, lg.box(19.5, 25.0, v0 + 3.9, v0 + 4.6, 1.0, bevel=0.15, mat=lg.BLACK))
     g.add(m, lg.box(20.0, 24.5, v0 + 4.5, v0 + 4.7, 0.5, bevel=0.0, mat=lg.POLY_OLIVE))   # fiber-optic strip
-    g.add(m, lg.tube(27.9, 28.0, 1.6, v=v0 + 2.7, segments=20, mat=lg.LENS))
+    optics(m, 17.0, 28.0, v0 + 2.7, 1.35, 1.75, dot=False)
+    g.socket(m, 'Aim', (17.2, v0 + 2.7))   # the eyepiece lens
 
     m = S('Variable')                                            # a 3-9x scope on two rings
-    g.add(m, lg.turned([(0, 1.8), (4.0, 1.8), (5.5, 1.25), (13.5, 1.25), (15.5, 2.0), (19.5, 2.0)], 13.5,
-                       v=v0 + 3.9, segments=24, mat=lg.BLACK))
-    for u in (18.5, 27.0):
-        g.add(m, lg.tube(u - 0.6, u + 0.6, 1.45, v=v0 + 3.9, segments=20, mat=lg.BLACK))
-        g.add(m, lg.box(u - 0.9, u + 0.9, v0, v0 + 2.8, 2.0, bevel=0.2, mat=lg.BLACK))
-    g.add(m, lg.upright(23.0, v0 + 5.0, v0 + 6.4, 0.85, mat=lg.BLACK, segments=16))
-    g.add(m, lg.pin(23.0, v0 + 3.9, -2.6, -1.1, 0.85, mat=lg.BLACK, segments=16))
-    g.add(m, lg.tube(32.9, 33.0, 1.85, v=v0 + 3.9, segments=24, mat=lg.LENS))
+    g.add(m, hollow([(0, 1.8), (4.0, 1.8), (5.5, 1.25), (13.5, 1.25), (15.5, 2.0), (19.5, 2.0)], 13.5, v0 + 3.9, 24,
+                    lg.BLACK))
+    for u in (18.5, 27.0):   # rings round the tube, open in the middle like it
+        g.add(m, hollow([(0.0, 1.45), (1.2, 1.45)], u - 0.6, v0 + 3.9, 20, lg.BLACK, wall=0.2))
+        g.add(m, lg.box(u - 0.9, u + 0.9, v0, v0 + 2.7, 2.0, bevel=0.2, mat=lg.BLACK))
+    g.add(m, lg.upright(23.0, v0 + 5.1, v0 + 6.4, 0.85, mat=lg.BLACK, segments=16))
+    g.add(m, lg.pin(23.0, v0 + 3.9, -2.6, -1.18, 0.85, mat=lg.BLACK, segments=16))
+    optics(m, 13.5, 33.0, v0 + 3.9, 1.8, 2.0, dot=False)
+    g.socket(m, 'Aim', (13.7, v0 + 3.9))   # the eyepiece lens
 
     m = S('LongRange')                                           # an 8x scope with a sunshade and an offset dot
-    g.add(m, lg.turned([(0, 1.9), (4.5, 1.9), (6.0, 1.35), (14.0, 1.35), (16.5, 2.6), (26.0, 2.6)], 11.0,
-                       v=v0 + 4.6, segments=28, mat=lg.BLACK))
-    for u in (17.0, 27.5):
-        g.add(m, lg.tube(u - 0.7, u + 0.7, 1.55, v=v0 + 4.6, segments=20, mat=lg.BLACK))
-        g.add(m, lg.box(u - 1.0, u + 1.0, v0, v0 + 3.4, 2.2, bevel=0.2, mat=lg.BLACK))
-    g.add(m, lg.upright(22.0, v0 + 5.8, v0 + 7.6, 1.0, mat=lg.BLACK, segments=16))
-    g.add(m, lg.pin(22.0, v0 + 4.6, -3.0, -1.2, 1.0, mat=lg.BLACK, segments=16))
-    g.add(m, lg.tube(36.9, 37.0, 2.45, v=v0 + 4.6, segments=28, mat=lg.LENS))
+    g.add(m, hollow([(0, 1.9), (4.5, 1.9), (6.0, 1.35), (14.0, 1.35), (16.5, 2.6), (26.0, 2.6)], 11.0, v0 + 4.6, 28,
+                    lg.BLACK))
+    for u in (17.0, 27.5):   # rings round the tube, open in the middle like it
+        g.add(m, hollow([(0.0, 1.55), (1.4, 1.55)], u - 0.7, v0 + 4.6, 20, lg.BLACK, wall=0.2))
+        g.add(m, lg.box(u - 1.0, u + 1.0, v0, v0 + 3.3, 2.2, bevel=0.2, mat=lg.BLACK))
+    g.add(m, lg.upright(22.0, v0 + 5.9, v0 + 7.6, 1.0, mat=lg.BLACK, segments=16))
+    g.add(m, lg.pin(22.0, v0 + 4.6, -3.0, -1.28, 1.0, mat=lg.BLACK, segments=16))
+    optics(m, 11.0, 37.0, v0 + 4.6, 1.9, 2.6, dot=False)
     g.add(m, lg.box(13.0, 15.8, v0 + 6.1, v0 + 7.3, 1.6, bevel=0.2, mat=lg.BLACK))   # the offset red dot
     g.add(m, lg.box(15.2, 15.3, v0 + 6.4, v0 + 7.1, 1.2, bevel=0.0, mat=lg.LENS))
+    g.socket(m, 'Aim', (11.2, v0 + 4.6))   # the eyepiece lens (the offset dot on top is a backup, not aimed)
 
 
 # --- Stocks: on the butt face, backward ---

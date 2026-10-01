@@ -41,7 +41,7 @@ KINDS = ('Surface', 'Foliage', 'Glow')
 SKIPPED_PREFIXES = ('_', 'UCX_', 'SOCKET_')
 HIT_PREFIXES = ('USP_', 'UCP_', 'UCX_')
 # Textured materials (the art style of Docs/TutorialIsland.md) name one of these masters in their Master property.
-MASTERS = ('World', 'WorldFoliage', 'Terrain', 'Water', 'Waterfall', 'Smoke')
+MASTERS = ('World', 'WorldFoliage', 'Terrain', 'Water', 'Waterfall', 'Smoke', 'Glass')
 # A texture set's files, by the material parameter that takes them.
 SET_MAPS = (('BaseColorMap', '_BC'), ('NormalMap', '_N'), ('ORMMap', '_ORM'))
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))

@@ -84,6 +84,7 @@ public:
 	const UInputAction* GetSprintAction() const { return SprintAction; }
 	const UInputAction* GetCrouchAction() const { return CrouchAction; }
 	const UInputAction* GetToggleViewAction() const { return ToggleViewAction; }
+	const UInputAction* GetAimAction() const { return AimAction; }
 
 	/** The player's copy of the character controls (sprint, crouch, camera view). Added while the character is possessed. */
 	UInputMappingContext* GetCharacterContext() { return GetRuntimeContext(CharacterContext); }
@@ -123,4 +124,5 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UInputAction> SprintAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> CrouchAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> ToggleViewAction;
+	UPROPERTY(Transient) TObjectPtr<UInputAction> AimAction;
 };

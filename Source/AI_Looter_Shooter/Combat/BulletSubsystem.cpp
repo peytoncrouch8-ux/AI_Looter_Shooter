@@ -169,7 +169,9 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 	const ICriticalSpotTarget* Target = Cast<ICriticalSpotTarget>(HitActor);
 	const bool bCritical = Target && Target->IsCriticalSpot(Hit);
 	const float Roll = FMath::FRand();
-	const float Damage = LooterCombat::HitDamage(Shot.Damage, bCritical, Roll);
+	// Past the gun's range the damage falls off with the distance flown.
+	const float Falloff = Shot.FalloffStats.IsSet() ? Shot.FalloffStats->DamageAtDistance(Bullet.Traveled) : 1.f;
+	const float Damage = LooterCombat::HitDamage(Shot.Damage * Falloff, bCritical, Roll);
 	const FString Part = Hit.BoneName.IsNone() ? GetNameSafe(Hit.GetComponent())
 		: FString::Printf(TEXT("%s bone %s"), *GetNameSafe(Hit.GetComponent()), *Hit.BoneName.ToString());
 	UE_LOG(LogLooter, Verbose, TEXT("Hit %s on %s after %.0f cm: %.1f (range %.1f-%.1f, roll %.2f) x%.2f = %.1f%s"), *GetNameSafe(HitActor),

@@ -64,7 +64,26 @@ POLY_OLIVE = material('GunPolymerOlive', 'Polymer', 0x6f7550)
 TAPE = material('GunTape', 'Polymer', 0x8a765a)
 RUBBER = material('GunRubber', 'Polymer', 0x262626)
 SALVAGE = material('GunSalvage', 'MetalRust', 0x93aaa6, uv_scale=2.0)
-LENS = lm.material('GunLens', 0x14202a, Glow=0.15, Variation=0.0)
+def glass(name, tint, opacity=0.15):
+    """See-through glass (lenses, sight windows) on the Glass master, so a sight can be aimed through."""
+    mat = bpy.data.materials.get(name) or bpy.data.materials.new(name)
+    mat.use_nodes = True
+    rgba = lm.hex_color(tint)
+    bsdf = next(node for node in mat.node_tree.nodes if node.type == 'BSDF_PRINCIPLED')
+    bsdf.inputs['Base Color'].default_value = rgba
+    bsdf.inputs['Alpha'].default_value = opacity
+    mat.diffuse_color = rgba[:3] + [opacity]
+    if hasattr(mat, 'surface_render_method'):
+        mat.surface_render_method = 'BLENDED'
+    for key in [k for k in mat.keys() if not k.startswith('_')]:
+        del mat[key]
+    mat['Master'] = 'Glass'
+    mat['Tint'] = f'#{tint:06x}'
+    mat['Opacity'] = opacity
+    return mat
+
+
+LENS = glass('GunLens', 0x3d5868)
 
 
 def mapped(obj, mat):

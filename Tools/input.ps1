@@ -117,6 +117,9 @@ foreach ($step in $Steps) {
         'mdown' { [Inp]::Mouse(0, 0, 0x2, 0) }
         'mup'   { [Inp]::Mouse(0, 0, 0x4, 0) }
         'rclick' { [Inp]::Mouse(0, 0, 0x8, 0); Start-Sleep -Milliseconds 60; [Inp]::Mouse(0, 0, 0x10, 0) }
+        # Press/release the right button (aim down sights is held on it).
+        'rdown' { [Inp]::Mouse(0, 0, 0x8, 0) }
+        'rup'   { [Inp]::Mouse(0, 0, 0x10, 0) }
         # Hold the left button for N ms (full-auto bursts).
         'fire'  { [Inp]::Mouse(0, 0, 0x2, 0); Start-Sleep -Milliseconds ([int]$parts[1]); [Inp]::Mouse(0, 0, 0x4, 0) }
         'wheel' { [Inp]::Mouse(0, 0, 0x800, [BitConverter]::ToUInt32([BitConverter]::GetBytes([int]$parts[1] * 120), 0)) }

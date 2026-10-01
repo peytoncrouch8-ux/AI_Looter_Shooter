@@ -8,6 +8,7 @@
 #include "UI/World/WeaponLabelWidget.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Weapons/WeaponModelComponent.h"
+#include "Weapons/WeaponParts.h"
 #include "World/LightBeam.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraTypes.h"
@@ -106,8 +107,13 @@ void AWeaponBase::InitializeFromInstance(const FWeaponInstanceData& InInstance)
 {
 	Instance = InInstance;
 	Instance.Level = FMath::Max(Instance.Level, 1);
-	// Always rebuild stats from the seed so saved instances can't drift from their definition.
-	Instance.Stats = UWeaponRollLibrary::ComputeStats(Instance.Definition, Instance.Rarity, Instance.Level, Instance.Seed);
+	// A gun saved before parts were kept gets the parts its seed picks now, and keeps them from here on.
+	if (Instance.Parts.IsEmpty() && Instance.Definition && !Instance.Definition->Parts.IsEmpty())
+	{
+		Instance.Parts = WeaponParts::PartKeys(WeaponParts::Pick(*Instance.Definition, Instance.Seed, Instance.Rarity));
+	}
+	// Always rebuild stats from the seed and parts so saved instances can't drift from their definition.
+	Instance.Stats = UWeaponRollLibrary::ComputeStatsWithParts(Instance.Definition, Instance.Rarity, Instance.Level, Instance.Seed, Instance.Parts);
 
 	CurrentMagazine = Instance.SavedMagazine >= 0 ? FMath::Min(Instance.SavedMagazine, Instance.Stats.MagazineSize) : Instance.Stats.MagazineSize;
 	bAmmoInitialized = true;
@@ -214,6 +220,14 @@ void AWeaponBase::OnEquipped(APawn* NewOwner, USceneComponent* AttachTo, FName S
 	AttachToHolder(AttachTo, Socket, AttachOffset);
 	SetActorHiddenInGame(false);
 	BroadcastAmmo();
+
+	// Drawn: it fires once it's up, quicker the better its handling (a held trigger fires as soon as it's ready).
+	if (const UWorld* World = GetWorld())
+	{
+		DrawnTime = World->GetTimeSeconds();
+		ReadySeconds = BaseReadySeconds / FMath::Max(Instance.Stats.Handling, 0.1f);
+		LastFireTime = FMath::Max(LastFireTime, DrawnTime + ReadySeconds - Instance.Stats.GetSecondsBetweenShots());
+	}
 }
 
 void AWeaponBase::AttachToHolder(USceneComponent* AttachTo, FName Socket, const FTransform& AttachOffset)

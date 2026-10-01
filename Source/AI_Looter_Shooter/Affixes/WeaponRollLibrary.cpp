@@ -47,6 +47,12 @@ EWeaponRarity UWeaponRollLibrary::RollRarityWith(const UWeaponDefinition* Defini
 
 FWeaponStats UWeaponRollLibrary::ComputeStats(const UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level, int32 Seed)
 {
+	return ComputeStatsWithParts(Definition, Rarity, Level, Seed, {});
+}
+
+FWeaponStats UWeaponRollLibrary::ComputeStatsWithParts(const UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level, int32 Seed,
+	TConstArrayView<FName> Parts)
+{
 	if (!Definition)
 	{
 		return FWeaponStats();
@@ -62,18 +68,25 @@ FWeaponStats UWeaponRollLibrary::ComputeStats(const UWeaponDefinition* Definitio
 	const FWeaponRarityInfo& RarityInfo = Definition->GetRarityInfo(Rarity);
 	const FWeaponStats& Base = Definition->BaseStats;
 	const float LevelScale = 1.f + Definition->DamagePerLevel * FMath::Max(Level - 1, 0);
-	// The gun's parts (picked by the same seed) shift its stats: a long barrel hits harder, a scope shoots tighter.
-	const FWeaponPartStats Parts = WeaponParts::CombinedStats(WeaponParts::Pick(*Definition, Seed, Rarity));
+	// The gun's parts shift its stats: their percentages add up (capped), each rolled within its range from the seed.
+	const FWeaponPartTotals Part = WeaponParts::CombinedStats(WeaponParts::Pick(*Definition, Seed, Rarity, Parts), Seed);
+	auto Scale = [](float Percent) { return FMath::Max(1.f + Percent * 0.01f, 0.05f); };
 
-	// Roll order is fixed so a given seed always produces the same weapon.
+	// Roll order is fixed so a given seed always produces the same weapon (the magazine's variance is drawn even when a
+	// part sets the capacity, so the draws after it don't move).
 	FWeaponStats Stats;
-	Stats.Damage = Vary(Base.Damage) * RarityInfo.DamageMultiplier * LevelScale * Parts.Damage;
-	Stats.FireRate = Vary(Base.FireRate) * RarityInfo.FireRateMultiplier * Parts.FireRate;
-	Stats.MagazineSize = FMath::Max(1, FMath::RoundToInt(Vary(static_cast<float>(Base.MagazineSize)) * RarityInfo.MagazineMultiplier * Parts.MagazineSize));
-	Stats.ReloadTime = Vary(Base.ReloadTime) * RarityInfo.ReloadTimeMultiplier * Parts.ReloadTime;
-	Stats.Spread = Vary(Base.Spread) * RarityInfo.SpreadMultiplier * Parts.Spread;
-	Stats.Range = Base.Range;
+	Stats.Damage = Vary(Base.Damage) * RarityInfo.DamageMultiplier * LevelScale * Scale(Part.Damage);
+	Stats.FireRate = Vary(Base.FireRate) * RarityInfo.FireRateMultiplier * Scale(Part.FireRate);
+	const float BaseMagazine = Vary(static_cast<float>(Base.MagazineSize));
+	Stats.MagazineSize = FMath::Max(1, FMath::RoundToInt((Part.Magazine > 0 ? Part.Magazine : BaseMagazine) * RarityInfo.MagazineMultiplier));
+	Stats.ReloadTime = Vary(Base.ReloadTime) * RarityInfo.ReloadTimeMultiplier * Scale(Part.Reload);
+	// +40% accuracy shoots 1/1.4 as wide.
+	Stats.Spread = Vary(Base.Spread) * RarityInfo.SpreadMultiplier / Scale(Part.Accuracy);
+	Stats.Range = Base.Range * Scale(Part.Range);
 	Stats.PelletsPerShot = Base.PelletsPerShot;
+	Stats.Recoil = Base.Recoil * Scale(Part.Recoil);
+	Stats.Handling = Base.Handling * Scale(Part.Handling);
+	Stats.Zoom = FMath::Max(Part.Zoom > 0.f ? Part.Zoom : Base.Zoom, 1.f);
 	return Stats;
 }
 
@@ -89,7 +102,12 @@ FWeaponInstanceData UWeaponRollLibrary::RollWeaponWithRarity(UWeaponDefinition* 
 	Instance.Rarity = Rarity;
 	Instance.Level = FMath::Max(Level, 1);
 	Instance.Seed = FMath::Rand();
-	Instance.Stats = ComputeStats(Definition, Instance.Rarity, Instance.Level, Instance.Seed);
+	// The parts are picked once, here, and kept with the gun: parts added later never change it.
+	if (Definition)
+	{
+		Instance.Parts = WeaponParts::PartKeys(WeaponParts::Pick(*Definition, Instance.Seed, Instance.Rarity));
+	}
+	Instance.Stats = ComputeStatsWithParts(Definition, Instance.Rarity, Instance.Level, Instance.Seed, Instance.Parts);
 	return Instance;
 }
 

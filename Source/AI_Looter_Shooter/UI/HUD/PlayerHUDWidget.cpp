@@ -32,7 +32,7 @@ using namespace LooterUI;
 
 namespace
 {
-	constexpr int32 NumCompareStats = 5;
+	constexpr int32 NumCompareStats = 9;
 	constexpr int32 HealthSegmentCount = 20;
 	constexpr int32 AmmoSegmentCount = 24;
 	constexpr int32 MaxSlotPips = 4;
@@ -606,6 +606,10 @@ void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager)
 	SetCompareLine(PickupStatTexts[2], TEXT("MAGAZINE"), S.MagazineSize, Old.MagazineSize, true, 0, TEXT(""), TEXT(""), bHasCurrent);
 	SetCompareLine(PickupStatTexts[3], TEXT("RELOAD"), S.ReloadTime, Old.ReloadTime, false, 2, TEXT(""), TEXT("S"), bHasCurrent);
 	SetCompareLine(PickupStatTexts[4], TEXT("SPREAD"), S.Spread, Old.Spread, false, 2, TEXT(""), TEXT(" DEG"), bHasCurrent);
+	SetCompareLine(PickupStatTexts[5], TEXT("RANGE"), S.Range / 100.f, Old.Range / 100.f, true, 0, TEXT(""), TEXT(" M"), bHasCurrent);
+	SetCompareLine(PickupStatTexts[6], TEXT("RECOIL"), S.Recoil * 100.f, Old.Recoil * 100.f, false, 0, TEXT(""), TEXT("%"), bHasCurrent);
+	SetCompareLine(PickupStatTexts[7], TEXT("HANDLING"), S.Handling * 100.f, Old.Handling * 100.f, true, 0, TEXT(""), TEXT("%"), bHasCurrent);
+	SetCompareLine(PickupStatTexts[8], TEXT("ZOOM"), S.Zoom, Old.Zoom, true, 2, TEXT(""), TEXT(""), bHasCurrent, LooterWeaponText::ZoomString(S).ToUpper());
 
 	// A tap and a hold only differ when every slot is full: the tap stashes the loot, the hold takes it in hand.
 	const FString Key = BoundKeyName(TEXT("Interact"), TEXT("E"));

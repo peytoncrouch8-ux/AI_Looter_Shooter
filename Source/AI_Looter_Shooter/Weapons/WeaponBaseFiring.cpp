@@ -158,7 +158,8 @@ void AWeaponBase::FireShot()
 		Shot.Start = ViewLocation;
 		Shot.VisualStart = GetVisibleMuzzleLocation();
 		Shot.Speed = Definition->BulletSpeed;
-		Shot.Range = Instance.Stats.Range;
+		Shot.Range = Instance.Stats.Range * FWeaponStats::MaxRangeFactor;
+		Shot.FalloffStats = Instance.Stats;
 		Shot.Damage = Instance.Stats.Damage;
 		Shot.HitImpulse = Definition->HitImpulse;
 		Shot.Channel = TraceChannel;
@@ -204,10 +205,18 @@ void AWeaponBase::NotifyBulletHit(const FHitResult& Hit, float Damage, bool bCri
 	OnHit.Broadcast(Hit, Damage, bCritical);
 }
 
-const FWeaponRecoilProfile& AWeaponBase::GetRecoilProfile() const
+FWeaponRecoilProfile AWeaponBase::GetRecoilProfile() const
 {
-	static const FWeaponRecoilProfile Default;
-	return Instance.Definition ? Instance.Definition->Recoil : Default;
+	FWeaponRecoilProfile Profile = Instance.Definition ? Instance.Definition->Recoil : FWeaponRecoilProfile();
+	// The gun's Recoil stat (its parts) scales every kick, on the gun and on the aim alike; the springs stay the same.
+	const float Kick = Instance.Stats.Recoil;
+	Profile.KickBack *= Kick;
+	Profile.MuzzleFlip *= Kick;
+	Profile.MuzzleTwist *= Kick;
+	Profile.Roll *= Kick;
+	Profile.AimKick *= Kick;
+	Profile.AimKickSide *= Kick;
+	return Profile;
 }
 
 FVector AWeaponBase::GetVisibleMuzzleLocation() const
@@ -333,5 +342,17 @@ float AWeaponBase::GetEffectiveSpread() const
 {
 	const AActor* Holder = GetOwner();
 	const UPlayerLocomotionComponent* Locomotion = Holder ? Holder->FindComponentByClass<UPlayerLocomotionComponent>() : nullptr;
-	return Instance.Stats.Spread * (Locomotion ? Locomotion->GetSpreadMultiplier() : 1.f);
+	const UPlayerViewComponent* View = Holder ? Holder->FindComponentByClass<UPlayerViewComponent>() : nullptr;
+	return Instance.Stats.Spread * (Locomotion ? Locomotion->GetSpreadMultiplier() : 1.f) * (View ? View->GetAimSpreadMultiplier() : 1.f);
+}
+
+float AWeaponBase::GetReadyAlpha() const
+{
+	const UWorld* World = GetWorld();
+	return World && ReadySeconds > 0.f ? FMath::Clamp(static_cast<float>(World->GetTimeSeconds() - DrawnTime) / ReadySeconds, 0.f, 1.f) : 1.f;
+}
+
+FVector AWeaponBase::GetAimPoint() const
+{
+	return bUsingModel ? Model->GetRelativeTransform().TransformPosition(Model->GetAimPoint()) : FVector(30.f, 0.f, 8.f);
 }

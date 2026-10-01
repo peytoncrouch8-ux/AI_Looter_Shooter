@@ -601,7 +601,8 @@ void ULoadoutWidget::RefreshDetails()
 			DeltaText->SetColorAndOpacity(FSlateColor(((New > Old) == bHigherIsBetter) ? Color::Better() : Color::Worse()));
 		}
 		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, DeltaText, 46.f, 0.f))->SetVerticalAlignment(VAlign_Center);
-		DetailsBox->AddChildToVerticalBox(MakeSized(WidgetTree, Line, 0.f, 24.f))->SetPadding(FMargin(0.f, 2.f));
+		// Nine stats: kept compact so the backpack list below still shows a few rows.
+		DetailsBox->AddChildToVerticalBox(MakeSized(WidgetTree, Line, 0.f, 20.f))->SetPadding(FMargin(0.f, 1.f));
 	};
 	// Damage compares the whole shot, so shotguns and rifles line up fairly.
 	AddStat(TEXT("Damage"), LooterWeaponText::DamageRating(S), LooterWeaponText::DamageString(S), S.Damage * S.PelletsPerShot,
@@ -610,6 +611,11 @@ void ULoadoutWidget::RefreshDetails()
 	AddStat(TEXT("Magazine"), LooterWeaponText::MagazineRating(S), FString::FromInt(S.MagazineSize), S.MagazineSize, B ? B->MagazineSize : 0.f, true, 0);
 	AddStat(TEXT("Reload"), LooterWeaponText::ReloadRating(S), FString::Printf(TEXT("%.2fs"), S.ReloadTime), S.ReloadTime, B ? B->ReloadTime : 0.f, false, 2);
 	AddStat(TEXT("Accuracy"), LooterWeaponText::AccuracyRating(S), FString::Printf(TEXT("%.1f°"), S.Spread), S.Spread, B ? B->Spread : 0.f, false, 1);
+	// Range is where the damage starts to fall off; recoil and handling are against a plain gun of its kind.
+	AddStat(TEXT("Range"), LooterWeaponText::RangeRating(S), FString::Printf(TEXT("%.0f m"), S.Range / 100.f), S.Range / 100.f, B ? B->Range / 100.f : 0.f, true, 0);
+	AddStat(TEXT("Recoil"), LooterWeaponText::RecoilRating(S), FString::Printf(TEXT("%.0f%%"), S.Recoil * 100.f), S.Recoil * 100.f, B ? B->Recoil * 100.f : 0.f, false, 0);
+	AddStat(TEXT("Handling"), LooterWeaponText::HandlingRating(S), FString::Printf(TEXT("%.0f%%"), S.Handling * 100.f), S.Handling * 100.f, B ? B->Handling * 100.f : 0.f, true, 0);
+	AddStat(TEXT("Zoom"), LooterWeaponText::ZoomRating(S), LooterWeaponText::ZoomString(S), S.Zoom, B ? B->Zoom : 0.f, true, 2);
 }
 
 void ULoadoutWidget::RefreshAmmo()

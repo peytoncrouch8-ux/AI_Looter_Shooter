@@ -31,6 +31,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapons|Loot")
 	static FWeaponStats ComputeStats(const UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level, int32 Seed);
 
+	/**
+	 * ComputeStats with the parts a gun was saved with (Parts, one key per slot; empty = picked from the seed):
+	 *   stat = base (+-variance) x rarity x level (damage) x (1 + the parts' percentages, added and capped)
+	 * Accuracy divides the spread instead; magazines and sights set capacity (then scaled by rarity) and zoom outright.
+	 */
+	static FWeaponStats ComputeStatsWithParts(const UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level, int32 Seed,
+		TConstArrayView<FName> Parts);
+
 	/** Rolls a brand-new weapon instance with a random seed and rarity. */
 	UFUNCTION(BlueprintCallable, Category = "Weapons|Loot")
 	static FWeaponInstanceData RollWeapon(UWeaponDefinition* Definition, int32 Level = 1, float Luck = 0.f);

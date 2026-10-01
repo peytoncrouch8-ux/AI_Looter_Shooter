@@ -1,6 +1,6 @@
 """The Ranchhand pump shotgun the user chose (2026-10-01) as the base of every non-legendary shotgun, with
-interchangeable parts: 8 bodies (receivers), barrels, muzzle devices, magazines, sights and stocks. Kept for later in
-Art/Backlog (see its README): nothing in the game uses it yet. Legendary shotguns will get their own models later.
+interchangeable parts: 8 bodies (receivers), barrels, muzzle devices, magazines, sights and stocks. Every pump shotgun
+in the game is built from them (DA_PumpShotgun). Legendary shotguns will get their own models later.
 
 How the parts fit (gun space, cm: u along the gun from the back of the receiver, v up from the bore; see looter_guns):
 
@@ -14,22 +14,25 @@ How the parts fit (gun space, cm: u along the gun from the back of the receiver,
   RanchhandMuzzle_<Key>    origin at its back face (on a barrel's SOCKET_Muzzle); SOCKET_Muzzle at its own tip.
   RanchhandMagazine_<Key>  origin under the barrel nut: tubes run forward under the barrel (the longer ones clamp to it),
                            box and drum magazines hang in a well in front of the trigger guard.
-  RanchhandSight_<Key>     origin on top of the rail, at its middle (sights stay within its shortest rail).
+  RanchhandSight_<Key>     origin on top of the rail, at its middle (sights stay within its shortest rail);
+                           SOCKET_Aim on its line of sight (the dot, the eyepiece, or the rear ring), which
+                           aiming down sights puts before the eye.
   RanchhandStock_<Key>     origin at the back of the receiver on the bore line; each brings its own pistol grip.
 
-PARTS lists each option's display name, the word it can lend the gun's name, the lowest rarity it appears on and its
-stat changes in percent (shells for magazines, zoom for sights); barrels give their length (cm), and the 8-shell tube
-needs a barrel of at least 46 cm to clamp to (needs). Damage, accuracy (pellet spread, inverted), fire rate, magazine
-and reload exist in FWeaponPartStats today; range, recoil, handling and zoom would be new stats. Nothing reads PARTS
-yet: it's the design.
+Each option's display name, the word it can lend the gun's name, the lowest rarity it appears on and its stat ranges
+(shells for magazines, zoom for sights) live in Ranchhand.parts.csv beside this file, which
+Tools/Unreal/setup_gun_parts.py reads into DA_PumpShotgun; barrels give their length (cm) there, and the 8-shell tube
+needs a barrel of at least 46 cm to clamp to (Needs). PARTS below was its first draft and now only lays the parts out
+in the scene: a new part needs a model here and a row there, under the same key.
 
-    blender -b --factory-startup --python Art/Backlog/Weapons/Ranchhand.py -- --preview
+    blender -b --factory-startup --python Art/Models/Weapons/Ranchhand.py -- --preview
 """
 import math
 
 from mathutils import Matrix, Vector
 
 import looter_guns as lg
+import looter_props as lp
 import looter_textures as lt
 
 ACCENT = lg.glow('GunAccentGlow', 0xe8e8e8, 2.0)   # glows in the gun's rarity color in the game
@@ -435,6 +438,34 @@ def magazines():
                               mat=lg.STEEL))
 
 
+# --- See-through sights: aiming down sights puts the eye 22 cm behind SOCKET_Aim, looking along the axis ---
+
+WALL = 0.12   # cm: thin tube walls keep the clear opening as wide as the tube
+
+
+def hollow(profile, u0, v, segments, mat, wall=WALL):
+    """A tube turned round an axis along u (profile [(du, r), ...] as lg.turned) but open at both ends: a thin wall
+    that follows the outline inside, so the eye looks down the tube instead of at an end cap."""
+    outer = [(r * lg.CM, du * lg.CM) for du, r in profile]
+    inner = [((r - wall) * lg.CM, du * lg.CM) for du, r in reversed(profile)]
+    obj = lp.lathe(outer + inner, segments=segments, closed=True)[0]
+    obj.data.transform(Matrix.Translation(lg.at(u0, v)) @ Matrix.Rotation(math.radians(90.0), 4, 'X'))
+    return lg.mapped(obj, mat)
+
+
+def optics(m, u_eye, u_obj, v, r_eye, r_obj, dot, wall=WALL):
+    """A tube sight's glass: a lens just inside the eyepiece and one inside the objective, and the reticle just
+    behind the objective lens, a dot (dot=True) or a fine cross, tiny because it sits over the screen's crosshair."""
+    g.add(m, lg.tube(u_eye + 0.15, u_eye + 0.25, r_eye - wall - 0.03, v=v, segments=20, mat=lg.LENS))
+    g.add(m, lg.tube(u_obj - 0.25, u_obj - 0.15, r_obj - wall - 0.03, v=v, segments=24, mat=lg.LENS))
+    u = u_obj - 0.4
+    if dot:
+        g.add(m, lg.pin(u, v, -0.06, 0.06, 0.06, mat=RETICLE, segments=10))
+    else:
+        g.add(m, lg.box(u, u + 0.02, v - 0.075, v + 0.075, 0.02, bevel=0.0, mat=RETICLE))
+        g.add(m, lg.box(u, u + 0.02, v - 0.01, v + 0.01, 0.15, bevel=0.0, mat=RETICLE))
+
+
 # --- Sights: on the rail, within its shortest stretch (u 3..17.5) ---
 
 def sights():
@@ -442,23 +473,26 @@ def sights():
     S = lambda key: model('Sight', key, SIGHT_AT)
 
     m = S('Flip')                                              # the Ranchhand's flip-up rear
-    g.add(m, lg.slab([(3.4, v0), (6.4, v0), (6.0, v0 + 2.05), (4.4, v0 + 2.05)], 2.0, bevel=0.15, mat=lg.BLACK,
-                     round=0.3))
-    g.add(m, lg.tube(4.9, 5.5, 0.5, v=v0 + 1.6, segments=12, mat=lg.BLACK))
+    leaf = lg.slab([(3.4, v0), (6.4, v0), (6.0, v0 + 2.05), (4.4, v0 + 2.05)], 2.0, bevel=0.15, mat=lg.BLACK, round=0.3)
+    g.add(m, lg.cut(leaf, [lg.tube(2.4, 7.4, 0.3, v=v0 + 1.6, segments=16)]))   # the peep hole
+    g.add(m, hollow([(0.0, 0.5), (0.6, 0.5)], 4.9, v0 + 1.6, 16, lg.BLACK, wall=0.2))   # the aperture ring
+    g.socket(m, 'Aim', (5.2, v0 + 1.6))   # the aperture: the front bead is on the barrel, so the ring sets the eye
 
     m = S('GhostRing')                                         # a big aperture between protective wings
     g.add(m, lg.box(3.4, 8.0, v0, v0 + 0.9, 2.6, bevel=0.2, mat=lg.BLACK))
     for side in (-1.0, 1.0):
         g.add(m, lg.slab([(3.6, v0 + 0.9), (7.6, v0 + 0.9), (7.0, v0 + 3.4), (4.2, v0 + 3.4)], 0.5, w=side * 1.05,
                          bevel=0.1, mat=lg.BLACK, round=0.3))
-    g.add(m, lg.turned([(0, 0.85), (0.5, 0.85)], 5.4, v=v0 + 2.2, segments=16, mat=lg.BLACK))
+    g.add(m, hollow([(0, 0.85), (0.5, 0.85)], 5.4, v0 + 2.2, 20, lg.BLACK, wall=0.3))
+    g.socket(m, 'Aim', (5.65, v0 + 2.2))   # the ring: the front post is on the barrel
 
     m = S('RedDot')
     g.add(m, lg.box(6.6, 13.8, v0, v0 + 1.3, 2.2, bevel=0.25, mat=lg.BLACK))
-    g.add(m, lg.turned([(0, 1.45), (1.0, 1.45), (1.4, 1.25), (6.6, 1.25), (7.0, 1.45), (8.0, 1.45)], 6.2,
-                       v=v0 + 2.8, segments=20, mat=lg.BLACK))
+    g.add(m, hollow([(0, 1.45), (1.0, 1.45), (1.4, 1.25), (6.6, 1.25), (7.0, 1.45), (8.0, 1.45)], 6.2, v0 + 2.8, 20,
+                    lg.BLACK))
     g.add(m, lg.pin(10.2, v0 + 2.8, -2.0, -1.2, 0.55, mat=lg.BLACK))
-    g.add(m, lg.tube(14.05, 14.15, 1.3, v=v0 + 2.8, segments=20, mat=lg.LENS))
+    optics(m, 6.2, 14.2, v0 + 2.8, 1.45, 1.45, dot=True)
+    g.socket(m, 'Aim', (6.4, v0 + 2.8))   # the eyepiece lens
 
     m = S('Reflex')
     g.add(m, lg.box(6.8, 13.8, v0, v0 + 1.0, 2.6, bevel=0.25, mat=lg.BLACK))
@@ -467,6 +501,7 @@ def sights():
     g.add(m, lg.cut(frame, [lg.cbox(7.2, 14.6, v0 + 1.6, v0 + 4.6, -0.95, 0.95)]))
     g.add(m, lg.box(12.8, 12.95, v0 + 1.6, v0 + 4.6, 1.9, bevel=0.0, mat=lg.LENS))
     g.add(m, lg.pin(12.7, v0 + 3.1, -0.1, 0.1, 0.1, mat=RETICLE))
+    g.socket(m, 'Aim', (12.7, v0 + 3.1))   # the dot
 
     m = S('Holo')
     g.add(m, lg.box(4.75, 15.75, v0, v0 + 1.3, 3.0, bevel=0.25, mat=lg.BLACK))
@@ -475,32 +510,39 @@ def sights():
     g.add(m, lg.cut(hood, [lg.cbox(3.75, 16.75, v0 + 1.9, v0 + 5.5, -1.25, 1.25)]))
     g.add(m, lg.box(14.25, 14.4, v0 + 1.9, v0 + 5.5, 2.5, bevel=0.0, mat=lg.LENS))
     g.add(m, lg.pin(14.15, v0 + 3.7, -0.12, 0.12, 0.12, mat=RETICLE))
+    g.socket(m, 'Aim', (14.15, v0 + 3.7))   # the dot
 
     m = S('Prism')                                             # a compact 1.5x prism
-    g.add(m, lg.slab([(5.25, v0), (15.25, v0), (15.25, v0 + 4.0), (13.75, v0 + 4.6), (6.75, v0 + 4.6), (5.25, v0 + 4.0)],
-                     3.0, bevel=0.35, segments=3, mat=lg.BLACK, round=0.5))
+    body = lg.slab([(5.25, v0), (15.25, v0), (15.25, v0 + 4.0), (13.75, v0 + 4.6), (6.75, v0 + 4.6), (5.25, v0 + 4.0)],
+                   3.0, bevel=0.35, segments=3, mat=lg.BLACK, round=0.5)
+    g.add(m, lg.cut(body, [lg.tube(4.25, 16.25, 1.05, v=v0 + 2.6, segments=20)]))   # the bore
+    g.add(m, lg.box(14.8, 14.82, v0 + 2.525, v0 + 2.675, 0.02, bevel=0.0, mat=RETICLE))   # a fine cross
+    g.add(m, lg.box(14.8, 14.82, v0 + 2.59, v0 + 2.61, 0.15, bevel=0.0, mat=RETICLE))
     for u in (5.15, 15.25):
         g.add(m, lg.tube(u, u + 0.12, 1.1, v=v0 + 2.6, segments=20, mat=lg.LENS))
     g.add(m, lg.upright(10.25, v0 + 4.5, v0 + 5.4, 0.7, mat=lg.BLACK, segments=14))
+    g.socket(m, 'Aim', (5.15, v0 + 2.6))   # the rear lens
 
     m = S('Scout')                                             # a long, low 2.5x scout scope
-    g.add(m, lg.turned([(0, 1.5), (3.0, 1.5), (4.2, 1.1), (16.0, 1.1), (17.6, 1.6), (21.0, 1.6)], 0.5, v=v0 + 2.6,
-                       segments=20, mat=lg.BLACK))
-    for u in (5.0, 15.5):
-        g.add(m, lg.tube(u - 0.6, u + 0.6, 1.3, v=v0 + 2.6, segments=20, mat=lg.BLACK))
-        g.add(m, lg.box(u - 0.9, u + 0.9, v0, v0 + 1.6, 2.0, bevel=0.2, mat=lg.BLACK))
-    g.add(m, lg.upright(10.25, v0 + 3.5, v0 + 4.6, 0.75, mat=lg.BLACK, segments=14))
-    g.add(m, lg.tube(21.4, 21.5, 1.45, v=v0 + 2.6, segments=20, mat=lg.LENS))
+    g.add(m, hollow([(0, 1.5), (3.0, 1.5), (4.2, 1.1), (16.0, 1.1), (17.6, 1.6), (21.0, 1.6)], 0.5, v0 + 2.6, 20,
+                    lg.BLACK))
+    for u in (5.0, 15.5):   # rings round the tube, open in the middle like it
+        g.add(m, hollow([(0.0, 1.3), (1.2, 1.3)], u - 0.6, v0 + 2.6, 20, lg.BLACK, wall=0.2))
+        g.add(m, lg.box(u - 0.9, u + 0.9, v0, v0 + 1.55, 2.0, bevel=0.2, mat=lg.BLACK))
+    g.add(m, lg.upright(10.25, v0 + 3.65, v0 + 4.6, 0.75, mat=lg.BLACK, segments=14))
+    optics(m, 0.5, 21.5, v0 + 2.6, 1.5, 1.6, dot=False)
+    g.socket(m, 'Aim', (0.7, v0 + 2.6))   # the eyepiece lens
 
     m = S('Variable')                                          # a 1-4x scope on two rings
-    g.add(m, lg.turned([(0, 1.8), (4.0, 1.8), (5.4, 1.25), (12.0, 1.25), (13.6, 1.75), (17.0, 1.75)], 1.8,
-                       v=v0 + 3.6, segments=24, mat=lg.BLACK))
-    for u in (6.0, 14.5):
-        g.add(m, lg.tube(u - 0.6, u + 0.6, 1.45, v=v0 + 3.6, segments=20, mat=lg.BLACK))
-        g.add(m, lg.box(u - 0.9, u + 0.9, v0, v0 + 2.5, 2.0, bevel=0.2, mat=lg.BLACK))
-    g.add(m, lg.upright(10.25, v0 + 4.7, v0 + 6.0, 0.85, mat=lg.BLACK, segments=16))
-    g.add(m, lg.pin(10.25, v0 + 3.6, -2.6, -1.1, 0.85, mat=lg.BLACK, segments=16))
-    g.add(m, lg.tube(18.75, 18.85, 1.6, v=v0 + 3.6, segments=24, mat=lg.LENS))
+    g.add(m, hollow([(0, 1.8), (4.0, 1.8), (5.4, 1.25), (12.0, 1.25), (13.6, 1.75), (17.0, 1.75)], 1.8, v0 + 3.6, 24,
+                    lg.BLACK))
+    for u in (6.0, 14.5):   # rings round the tube, open in the middle like it
+        g.add(m, hollow([(0.0, 1.45), (1.2, 1.45)], u - 0.6, v0 + 3.6, 20, lg.BLACK, wall=0.2))
+        g.add(m, lg.box(u - 0.9, u + 0.9, v0, v0 + 2.4, 2.0, bevel=0.2, mat=lg.BLACK))
+    g.add(m, lg.upright(10.25, v0 + 4.8, v0 + 6.0, 0.85, mat=lg.BLACK, segments=16))
+    g.add(m, lg.pin(10.25, v0 + 3.6, -2.6, -1.18, 0.85, mat=lg.BLACK, segments=16))
+    optics(m, 1.8, 18.8, v0 + 3.6, 1.8, 1.75, dot=False)
+    g.socket(m, 'Aim', (2.0, v0 + 3.6))   # the eyepiece lens
 
 
 # --- Stocks: behind the receiver, each with its pistol grip ---

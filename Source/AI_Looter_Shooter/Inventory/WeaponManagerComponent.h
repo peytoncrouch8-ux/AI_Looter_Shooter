@@ -207,9 +207,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Attachment")
 	FName AttachSocket = TEXT("HandGrip_R");
 
-	/** Offset from the attach point, e.g. to place a camera-attached gun in the lower right of the view. */
+	/**
+	 * Offset from the attach point, e.g. to place a camera-attached gun in the lower right of the view. It places a gun
+	 * whose grip is at AttachGrip; guns with their grip elsewhere are shifted so every grip lands in the same spot.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Attachment")
 	FTransform AttachOffset;
+
+	/** The grip point (in the gun's own space) AttachOffset was set for: the first rifle's. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Attachment")
+	FVector AttachGrip = FVector(5.f, 0.f, -5.f);
+
+	/** The first-person hold for this gun: AttachOffset, moved so the gun's grip is where AttachGrip would be. */
+	FTransform GetFirstPersonHold(const AWeaponBase* Weapon) const;
 
 	/** Socket on the character's body mesh (in the right hand) that holds the gun by its grip in third person. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Attachment")

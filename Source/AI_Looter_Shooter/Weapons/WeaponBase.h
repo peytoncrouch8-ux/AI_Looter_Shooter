@@ -124,8 +124,20 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	float GetEffectiveSpread() const;
 
-	/** How this gun kicks when it fires (from its definition). */
-	const FWeaponRecoilProfile& GetRecoilProfile() const;
+	/** How this gun kicks when it fires: its definition's profile, scaled by its Recoil stat. */
+	FWeaponRecoilProfile GetRecoilProfile() const;
+
+	/**
+	 * 0 when it was just drawn, 1 once it's up and can fire: a swap takes BaseReadySeconds divided by the gun's Handling
+	 * (the first-person view raises the gun over that time).
+	 */
+	float GetReadyAlpha() const;
+
+	/** Seconds to bring a gun of Handling 1 up after drawing it. */
+	static constexpr float BaseReadySeconds = 0.35f;
+
+	/** Where the eye lines up when aiming down the sights, in the weapon's own space. */
+	FVector GetAimPoint() const;
 
 	/** The muzzle where the player sees it: first-person guns are drawn with their own field of view and scale. */
 	FVector GetVisibleMuzzleLocation() const;
@@ -248,6 +260,9 @@ private:
 	bool bUsingModel = false;
 
 	double LastFireTime = -1000.0;
+	/** When it was last drawn, and how long it takes to come up (see GetReadyAlpha). */
+	double DrawnTime = -1000.0;
+	float ReadySeconds = 0.f;
 
 	/** Seconds the muzzle flash still shows, and how strong this shot's flash is. */
 	float FlashTimeLeft = 0.f;

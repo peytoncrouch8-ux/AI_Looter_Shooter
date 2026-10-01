@@ -82,6 +82,11 @@ placement and gameplay component settings.
 - Blender models live in `Art/Models/<Category>/` (hand-made `.blend` or scripted `.py`). `Tools\models.ps1` exports and
   imports them into `/Game/Art/<Category>` with fixed settings; `Art/README.md` has the authoring rules. Change a model
   in Blender and import it again, never edit the imported mesh.
+- Guns are assembled from parts when they drop. `Art/Models/Weapons/<Gun>.py` models the parts (sockets chain them;
+  sights carry `SOCKET_Aim` for aiming down sights), and `<Gun>.parts.csv` beside it lists each part's key, name, name
+  word, rarity and stat ranges in percent (capped per stat, `Weapons/WeaponParts.h`). After importing, run
+  `Tools/Unreal/setup_gun_parts.py` in the editor: it fills the gun's definition from the spreadsheet. A dropped gun
+  saves its parts by key, so never rename or reuse a key.
 - The art style is moving to textured "stylized realism" (`Docs/TutorialIsland.md`, the tutorial island first). New
   models use the textured masters in `/Game/Art/Materials/Masters` (`M_World`, `M_WorldFoliage`, `M_Terrain`,
   `M_Water`, built by `Tools/Unreal/build_world_materials.py`) with texture sets from `Art/Textures/<Set>`. Older

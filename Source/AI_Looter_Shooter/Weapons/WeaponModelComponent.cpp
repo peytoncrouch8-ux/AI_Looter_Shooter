@@ -16,7 +16,7 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 	{
 		return false;
 	}
-	const FWeaponLook Look = WeaponParts::Pick(*Definition, Instance.Seed, Instance.Rarity);
+	const FWeaponLook Look = WeaponParts::Pick(Instance);
 
 	// The parts share their materials; the ones this gun colors become one dynamic instance each, shared by every part.
 	TMap<FName, UMaterialInterface*> Painted;
@@ -40,7 +40,9 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 		}
 		else
 		{
+			// The flat stylized materials take a Color, the textured world materials tint their texture with Tint.
 			Instanced->SetVectorParameterValue(TEXT("Color"), *Color);
+			Instanced->SetVectorParameterValue(TEXT("Tint"), *Color);
 		}
 		Paints.Add(Instanced);
 		Painted.Add(Slot, Instanced);
@@ -56,17 +58,18 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 			continue;
 		}
 
-		// Hang it from its socket on an earlier part, or at the gun's origin.
+		// Hang it from its socket on an earlier part (the latest that has it: a muzzle device hangs from the barrel's
+		// Muzzle, not the body's), or at the gun's origin.
 		USceneComponent* Parent = this;
 		if (!Slot.Socket.IsNone())
 		{
-			const TObjectPtr<UStaticMeshComponent>* Holder = Parts.FindByPredicate([&Slot](const UStaticMeshComponent* Placed)
+			const int32 Holder = Parts.FindLastByPredicate([&Slot](const UStaticMeshComponent* Placed)
 			{
 				return Placed->DoesSocketExist(Slot.Socket);
 			});
-			if (Holder)
+			if (Holder != INDEX_NONE)
 			{
-				Parent = *Holder;
+				Parent = Parts[Holder];
 			}
 			else
 			{
@@ -94,12 +97,38 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 			ReloadPartMesh = Part;
 			ReloadPart = Definition->ReloadPart;
 		}
+		if (Slot.Socket == SightSocket || Slot.Name == SightSocket)
+		{
+			SightPart = Part;
+		}
 	}
 
 	FindSocket(TEXT("Muzzle"), Muzzle);
 	FindSocket(TEXT("Grip"), Grip);
 	FindSocket(TEXT("Foregrip"), Foregrip);
+	FindAimPoint();
 	return !Parts.IsEmpty();
+}
+
+void UWeaponModelComponent::FindAimPoint()
+{
+	// The sight's own line of sight (its SOCKET_Aim: the dot, the optic's center, the notch of the irons) when it has one.
+	if (SightPart && SightPart->DoesSocketExist(AimSocket))
+	{
+		AimPoint = SightPart->GetSocketTransform(AimSocket, RTS_World).GetRelativeTransform(GetComponentTransform()).GetLocation();
+		return;
+	}
+	// Otherwise just over the top of the sight, at its middle, on the gun's center line; without a sight, over the whole gun.
+	FBox Box(ForceInit);
+	for (const UStaticMeshComponent* Part : Parts)
+	{
+		const UStaticMesh* Mesh = Part->GetStaticMesh();
+		if (Mesh && (!SightPart || Part == SightPart))
+		{
+			Box += Mesh->GetBoundingBox().TransformBy(Part->GetComponentTransform().GetRelativeTransform(GetComponentTransform()));
+		}
+	}
+	AimPoint = Box.IsValid ? FVector(Box.GetCenter().X, 0.0, Box.Max.Z) : FVector::ZeroVector;
 }
 
 void UWeaponModelComponent::Clear()
@@ -114,6 +143,8 @@ void UWeaponModelComponent::Clear()
 	Parts.Reset();
 	Paints.Reset();
 	ReloadPartMesh = nullptr;
+	SightPart = nullptr;
+	AimPoint = FVector::ZeroVector;
 	ReloadPart = EWeaponReloadPart::None;
 	Muzzle = FVector::ZeroVector;
 	Grip = FVector::ZeroVector;
@@ -128,8 +159,10 @@ void UWeaponModelComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 
 bool UWeaponModelComponent::FindSocket(FName Socket, FVector& OutLocation) const
 {
-	for (const UStaticMeshComponent* Part : Parts)
+	// The latest part that has it: the muzzle device's tip, not the barrel's it hangs from.
+	for (int32 Index = Parts.Num() - 1; Index >= 0; --Index)
 	{
+		const UStaticMeshComponent* Part = Parts[Index];
 		if (Part->DoesSocketExist(Socket))
 		{
 			OutLocation = GetComponentTransform().InverseTransformPosition(Part->GetSocketLocation(Socket));

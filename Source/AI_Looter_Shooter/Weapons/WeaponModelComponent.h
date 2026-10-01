@@ -33,6 +33,8 @@ public:
 	FVector GetMuzzle() const { return Muzzle; }
 	FVector GetGrip() const { return Grip; }
 	FVector GetForegrip() const { return Foregrip; }
+	/** Where the eye lines up when aiming down the sights: just over the sight (the gun's top without one), along its middle. */
+	FVector GetAimPoint() const { return AimPoint; }
 
 	/** The middle of the gun's parts, in its space. */
 	FVector GetCenter() const;
@@ -55,12 +57,21 @@ protected:
 private:
 	/** A socket of any part, in the gun's space; false if no part has it. */
 	bool FindSocket(FName Socket, FVector& OutLocation) const;
+	void FindAimPoint();
+
+	/** The slot (or the socket it hangs from) whose part is the sight. */
+	const FName SightSocket = TEXT("Sight");
+	/** On a sight: the point the eye lines up with when aiming (the dot, an optic's center, the irons' notch). */
+	const FName AimSocket = TEXT("Aim");
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> Parts;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UStaticMeshComponent> ReloadPartMesh;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> SightPart;
 
 	/** This gun's colors of the parts' shared materials. */
 	UPROPERTY(Transient)
@@ -70,5 +81,6 @@ private:
 	FVector Muzzle = FVector::ZeroVector;
 	FVector Grip = FVector::ZeroVector;
 	FVector Foregrip = FVector::ZeroVector;
+	FVector AimPoint = FVector::ZeroVector;
 	EFirstPersonPrimitiveType FirstPersonType = EFirstPersonPrimitiveType::None;
 };

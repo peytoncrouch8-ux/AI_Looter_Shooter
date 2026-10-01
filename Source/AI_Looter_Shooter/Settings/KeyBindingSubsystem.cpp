@@ -57,6 +57,7 @@ void UKeyBindingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	AddBinding(TEXT("Crouch"), TEXT("Crouch"), TEXT("Movement"), CharacterContext, CrouchAction, EKeys::LeftControl, true);
 
 	AddBinding(TEXT("Fire"), TEXT("Fire"), TEXT("Combat"), WeaponContext, Fire, EKeys::LeftMouseButton);
+	AddBinding(TEXT("Aim"), TEXT("Aim down sights"), TEXT("Combat"), CharacterContext, AimAction, EKeys::RightMouseButton, true);
 	AddBinding(TEXT("Reload"), TEXT("Reload"), TEXT("Combat"), WeaponContext, Reload, EKeys::R);
 	AddBinding(TEXT("NextWeapon"), TEXT("Next weapon"), TEXT("Combat"), WeaponContext, Next, EKeys::MouseScrollUp);
 	AddBinding(TEXT("PreviousWeapon"), TEXT("Previous weapon"), TEXT("Combat"), WeaponContext, Previous, EKeys::MouseScrollDown);
@@ -98,15 +99,19 @@ void UKeyBindingSubsystem::BuildCharacterContext()
 	SprintAction = NewObject<UInputAction>(this, TEXT("IA_Sprint"));
 	CrouchAction = NewObject<UInputAction>(this, TEXT("IA_Crouch"));
 	ToggleViewAction = NewObject<UInputAction>(this, TEXT("IA_ToggleView"));
+	AimAction = NewObject<UInputAction>(this, TEXT("IA_Aim"));
 
 	CharacterContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Character"));
 	CharacterContext->MapKey(SprintAction, EKeys::LeftShift);
 	CharacterContext->MapKey(CrouchAction, EKeys::LeftControl);
 	CharacterContext->MapKey(ToggleViewAction, EKeys::F5);
+	CharacterContext->MapKey(AimAction, EKeys::RightMouseButton);
 	// Gamepad keeps fixed defaults: click the left stick to sprint, B to crouch, click the right stick to change view.
 	CharacterContext->MapKey(SprintAction, EKeys::Gamepad_LeftThumbstick);
 	CharacterContext->MapKey(CrouchAction, EKeys::Gamepad_FaceButton_Right);
 	CharacterContext->MapKey(ToggleViewAction, EKeys::Gamepad_RightThumbstick);
+	// Gamepads aim with the left trigger, as shooters do.
+	CharacterContext->MapKey(AimAction, EKeys::Gamepad_LeftTrigger);
 }
 
 void UKeyBindingSubsystem::AddBinding(FName Id, const TCHAR* Name, const TCHAR* Category, UInputMappingContext* Context, const UInputAction* Action,

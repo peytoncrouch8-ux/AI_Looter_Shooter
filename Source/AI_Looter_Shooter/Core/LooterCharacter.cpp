@@ -4,6 +4,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
+#include "Player/PlayerViewComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 ALooterCharacter::ALooterCharacter()
@@ -51,7 +52,9 @@ void ALooterCharacter::Move(const FInputActionValue& Value)
 
 void ALooterCharacter::Look(const FInputActionValue& Value)
 {
-	const FVector2D Input = Value.Get<FVector2D>();
+	// Slower through a zoomed sight, so the crosshair crosses a target at the same pace as unzoomed.
+	const UPlayerViewComponent* View = FindComponentByClass<UPlayerViewComponent>();
+	const FVector2D Input = Value.Get<FVector2D>() * (View ? View->GetLookSensitivityMultiplier() : 1.f);
 	AddControllerYawInput(Input.X);
 	AddControllerPitchInput(Input.Y);
 }

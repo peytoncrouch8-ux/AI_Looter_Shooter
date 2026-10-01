@@ -424,7 +424,18 @@ void UWeaponManagerComponent::GetHold(const AWeaponBase* Weapon, USceneComponent
 	}
 	OutParent = FindAttachComponent();
 	OutSocket = AttachSocket;
-	OutOffset = AttachOffset;
+	OutOffset = GetFirstPersonHold(Weapon);
+}
+
+FTransform UWeaponManagerComponent::GetFirstPersonHold(const AWeaponBase* Weapon) const
+{
+	// Guns are modeled around different origins (the bullpup's is its butt), so line them up by where the hand holds them.
+	FTransform Hold = AttachOffset;
+	if (Weapon && !Weapon->GetGripPoint().IsZero())
+	{
+		Hold.AddToTranslation(Hold.TransformVector(AttachGrip - Weapon->GetGripPoint()));
+	}
+	return Hold;
 }
 
 USceneComponent* UWeaponManagerComponent::FindAttachComponent() const

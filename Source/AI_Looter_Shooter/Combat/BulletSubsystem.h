@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Weapons/WeaponFX.h"
+#include "Weapons/WeaponTypes.h"
 #include "BulletSubsystem.generated.h"
 
 class AController;
@@ -25,6 +26,8 @@ struct FBulletShot
 	float Range = 10000.f;
 	/** Damage before the per-hit roll and the critical multiplier. */
 	float Damage = 10.f;
+	/** The gun's stats, for its damage falloff with distance (FWeaponStats::DamageAtDistance); none = no falloff. */
+	TOptional<FWeaponStats> FalloffStats;
 	/** Push given to physics objects it hits. */
 	float HitImpulse = 0.f;
 	ECollisionChannel Channel = ECC_Visibility;
