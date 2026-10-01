@@ -6,6 +6,7 @@
 #include "Weapons/WeaponTypes.h"
 
 class FSlateWindowElementList;
+class ULooterButton;
 class UImage;
 class UOverlay;
 class UTextBlock;
@@ -13,11 +14,16 @@ class UWidget;
 class UWidgetTree;
 struct FGeometry;
 
-/** The loadout screen's shared parts: page layout, colors, vector art and card builders. Only the screen's files use them. */
+/**
+ * The inventory's shared parts: page layout, colors, vector art and card builders. The loadout screen and the bestiary
+ * (the inventory's two pages) use them, so both look alike.
+ */
 namespace LoadoutParts
 {
 	inline const FName ActionSlot(TEXT("Slot"));
 	inline const FName ActionBackpack(TEXT("Backpack"));
+	/** A title tab: its index is the page (EInventoryPage). */
+	inline const FName ActionPage(TEXT("Page"));
 	inline const TCHAR* const StageMaterialPath = TEXT("/Game/UI/Loadout/M_UI_LoadoutStage.M_UI_LoadoutStage");
 
 	// The page is laid out at 1600 x 900 and scaled to fit the screen.
@@ -91,6 +97,13 @@ namespace LoadoutParts
 
 	/** A key cap and what the key does: [E] SWAP. The first (main) action's cap is lit. */
 	UWidget* MakeKeyHint(UWidgetTree* Tree, const FString& Key, const FString& Text, bool bPrimary);
+
+	/**
+	 * The inventory's title tabs, one per page in EInventoryPage order (Loadout, Bestiary): the shown page lit as the
+	 * title, the others dimmer. Each tab is a button with ActionPage and its page's index; centered at the top of the page.
+	 */
+	UWidget* MakePageTabs(UWidgetTree* Tree, int32 ShownPage, TArray<ULooterButton*>& OutTabs);
+	inline const FVector2D PageTabsPosition(800.f, 36.f);
 
 	/** A stat change, signed, with fewer decimals for big changes. */
 	FString FormatDelta(float Delta, int32 Decimals);

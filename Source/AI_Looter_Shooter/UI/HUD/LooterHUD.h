@@ -4,9 +4,18 @@
 #include "GameFramework/HUD.h"
 #include "LooterHUD.generated.h"
 
+class UBestiaryWidget;
 class ULoadoutWidget;
 class UPauseMenuWidget;
 class UPlayerHUDWidget;
+class UUserWidget;
+
+/** The inventory's pages, in the order of their tabs. */
+enum class EInventoryPage : uint8
+{
+	Loadout,
+	Bestiary,
+};
 
 /**
  * Owns the player HUD, inventory screen and pause/settings menu, plus the always-on menu hotkeys.
@@ -27,6 +36,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void CloseInventory();
+
+	/** Switches the open inventory to another page (its tabs), or opens the inventory on it. */
+	void ShowInventoryPage(EInventoryPage Page);
+
+	/** The page the inventory shows, or opens on next (the one last shown). */
+	EInventoryPage GetInventoryPage() const { return InventoryPage; }
 
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void OpenPauseMenu();
@@ -54,12 +69,22 @@ private:
 	/** Gives input back to the game after closing a menu. */
 	void RestoreGameInput();
 
+	/** Puts the current inventory page on screen with the keyboard on it. False when it can't open (no player). */
+	bool OpenInventoryPage();
+	UUserWidget* GetInventoryPageWidget() const;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UPlayerHUDWidget> HUDWidget;
 
-	/** The inventory screen (the loadout: your character with your guns, and the backpack). */
+	/** The inventory's first page (the loadout: your character with your guns, and the backpack). */
 	UPROPERTY(Transient)
 	TObjectPtr<ULoadoutWidget> InventoryWidget;
+
+	/** The inventory's second page: every creature, enemy, NPC and friend. */
+	UPROPERTY(Transient)
+	TObjectPtr<UBestiaryWidget> BestiaryWidget;
+
+	EInventoryPage InventoryPage = EInventoryPage::Loadout;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPauseMenuWidget> PauseMenuWidget;

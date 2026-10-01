@@ -1,6 +1,7 @@
 #include "Combat/TargetDummy.h"
 #include "Combat/HealthComponent.h"
 #include "Loot/LootDropComponent.h"
+#include "Progression/PlayerProgressionSubsystem.h"
 #include "Animation/AnimationAsset.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
@@ -91,7 +92,9 @@ void ATargetDummy::UpdateHitFlash()
 
 void ATargetDummy::HandleDeath(AController* Killer)
 {
-	// LootDropComponent drops loot on its own from the same death event.
+	// LootDropComponent drops loot on its own from the same death event. A dummy gives no experience, but the bestiary
+	// counts it.
+	UPlayerProgressionSubsystem::AwardKill(Killer, this);
 	GetWorldTimerManager().ClearTimer(HealTimer);
 	SetPresent(false);
 	GetWorldTimerManager().SetTimer(RespawnTimer, this, &ATargetDummy::Respawn, FMath::Max(RespawnDelay, 0.01f), false);

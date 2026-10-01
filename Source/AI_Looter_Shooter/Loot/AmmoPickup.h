@@ -14,8 +14,8 @@ class UStaticMesh;
 class UStaticMeshComponent;
 
 /**
- * A box of one ammo class dropped as loot. Walk over it to collect: it goes into the player's shared pool for that
- * class, up to the carry limit. If you can't carry all of it, the rest stays in the box. Every class is the same olive
+ * A box of one ammo class dropped as loot. Run past it to collect (anything within CollectRadius of the box): it goes
+ * into the player's shared pool for that class, up to the carry limit. If you can't carry all of it, the rest stays in the box. Every class is the same olive
  * ammo can (no rarity-like colors); the cartridges on top tell them apart (fat red shells, long sniper rounds, ...).
  * Despawns after a while.
  */
@@ -43,6 +43,13 @@ public:
 	/** Seconds after spawning before it can be collected (so it visibly pops out of the body first). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = "0"))
 	float CollectDelay = 0.5f;
+
+	/**
+	 * How close the player must come to the box to collect it (cm, from the box to the edge of the player's capsule):
+	 * running past within about two meters is enough, so nobody has to stop and step onto it.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = "0"))
+	float CollectRadius = 180.f;
 
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;

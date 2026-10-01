@@ -1,4 +1,5 @@
 #include "UI/Inventory/LoadoutStage.h"
+#include "UI/Inventory/StageStudio.h"
 #include "Player/Animation/LooterCharacterAnimInstance.h"
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/WeaponBase.h"
@@ -13,21 +14,6 @@
 
 namespace
 {
-	/** Far outside any level, so nothing there shadows or lights it, and the minimap's top-down bake never sees it. */
-	const FVector StageLocation(400000.0, 400000.0, 50000.0);
-
-	/** Seen only by the stage's camera, lit only by its studio lights (lighting channel 1), and never in the way of anything. */
-	void SetupStagePrimitive(UPrimitiveComponent* Primitive)
-	{
-		Primitive->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		Primitive->SetGenerateOverlapEvents(false);
-		Primitive->SetCanEverAffectNavigation(false);
-		Primitive->bVisibleInSceneCaptureOnly = true;
-		Primitive->bReceivesDecals = false;
-		Primitive->LightingChannels.bChannel0 = false;
-		Primitive->LightingChannels.bChannel1 = true;
-	}
-
 	bool IsSameGun(const FWeaponInstanceData& A, const FWeaponInstanceData& B)
 	{
 		return A.Definition == B.Definition && A.Seed == B.Seed && A.Rarity == B.Rarity && A.Level == B.Level;
@@ -92,69 +78,25 @@ ALoadoutStage::ALoadoutStage()
 	// Only the stage's camera ever sees it, so it must animate whether or not the main view renders it.
 	Body->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 	Body->PrimaryComponentTick.bStartWithTickEnabled = false;
-	SetupStagePrimitive(Body);
+	StageStudio::SetupPrimitive(Body);
 
 	Capture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("Capture"));
 	Capture->SetupAttachment(Root);
-	Capture->bCaptureEveryFrame = false;
-	Capture->bCaptureOnMovement = false;
-	Capture->bAlwaysPersistRenderingState = false;
-	// Scene color, with inverse opacity in alpha so the screen can cut the stand-in out (it tone maps the color itself).
-	Capture->CaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
-	Capture->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
-	Capture->bExcludeFromSceneTextureExtents = true;
-	FEngineShowFlags& Show = Capture->ShowFlags;
-	Show.SetAtmosphere(false);
-	Show.SetFog(false);
-	Show.SetVolumetricFog(false);
-	Show.SetCloud(false);
-	Show.SetLightShafts(false);
-	Show.SetDistanceFieldAO(false);
-	Show.SetLumenGlobalIllumination(false);
-	Show.SetLumenReflections(false);
-	Show.SetScreenSpaceReflections(false);
-	Show.SetMotionBlur(false);
-	Show.SetBloom(false);
-	Show.SetDecals(false);
-	Show.SetParticles(false);
+	StageStudio::SetupCapture(Capture);
 
 	// Studio lighting, fixed around the camera: a warm key from the front left, a cool fill from the right and a cyan rim
 	// from behind. Channel 1 only, so they light nothing but the stand-in and its guns.
-	auto MakeLight = [this](const TCHAR* Name, const FVector& Location, const FLinearColor& Color, float Candelas, bool bShadows)
-	{
-		UPointLightComponent* Light = CreateDefaultSubobject<UPointLightComponent>(Name);
-		Light->SetupAttachment(Root);
-		Light->SetRelativeLocation(Location);
-		Light->SetIntensityUnits(ELightUnits::Candelas);
-		Light->SetIntensity(Candelas);
-		Light->SetLightColor(Color);
-		Light->SetAttenuationRadius(1200.f);
-		Light->SetCastShadows(bShadows);
-		Light->LightingChannels.bChannel0 = false;
-		Light->LightingChannels.bChannel1 = true;
-		Light->SetVisibility(false);
-		return Light;
-	};
-	KeyLight = MakeLight(TEXT("KeyLight"), FVector(-300.f, -220.f, 280.f), FLinearColor(1.f, 0.93f, 0.84f), 60.f, true);
-	FillLight = MakeLight(TEXT("FillLight"), FVector(-260.f, 260.f, 110.f), FLinearColor(0.72f, 0.84f, 1.f), 14.f, false);
-	RimLight = MakeLight(TEXT("RimLight"), FVector(180.f, 120.f, 230.f), FLinearColor(0.45f, 0.8f, 1.f), 90.f, false);
+	KeyLight = StageStudio::MakeLight(this, Root, TEXT("KeyLight"), FVector(-300.f, -220.f, 280.f), FLinearColor(1.f, 0.93f, 0.84f), 60.f, true);
+	FillLight = StageStudio::MakeLight(this, Root, TEXT("FillLight"), FVector(-260.f, 260.f, 110.f), FLinearColor(0.72f, 0.84f, 1.f), 14.f, false);
+	RimLight = StageStudio::MakeLight(this, Root, TEXT("RimLight"), FVector(180.f, 120.f, 230.f), FLinearColor(0.45f, 0.8f, 1.f), 90.f, false);
 }
 
 void ALoadoutStage::BeginPlay()
 {
 	Super::BeginPlay();
-	SetActorLocation(StageLocation);
+	SetActorLocation(StageStudio::Location(0));
 
-	RenderTarget = NewObject<UTextureRenderTarget2D>(this, TEXT("LoadoutStageImage"));
-	RenderTarget->RenderTargetFormat = RTF_RGBA16f;
-	// Nothing drawn reads as see-through (alpha is inverse opacity).
-	RenderTarget->ClearColor = FLinearColor(0.f, 0.f, 0.f, 1.f);
-	// Rendered larger than it's shown: mips keep the downsized picture smooth.
-	RenderTarget->bAutoGenerateMips = true;
-	RenderTarget->Filter = TF_Trilinear;
-	RenderTarget->InitAutoFormat(ImageWidth, ImageHeight);
-	RenderTarget->UpdateResourceImmediate(true);
-
+	RenderTarget = StageStudio::MakeRenderTarget(this, TEXT("LoadoutStageImage"), ImageWidth, ImageHeight);
 	Capture->TextureTarget = RenderTarget;
 	Capture->ShowOnlyActors.Add(this);
 	ResetTurn();
@@ -231,7 +173,7 @@ void ALoadoutStage::BuildGun(FLoadoutStageGun& Gun, const FWeaponInstanceData& I
 	}
 	for (UStaticMeshComponent* Part : Model->GetParts())
 	{
-		SetupStagePrimitive(Part);
+		StageStudio::SetupPrimitive(Part);
 	}
 
 	Gun.Model = Model;
@@ -373,19 +315,7 @@ void ALoadoutStage::PlaceGuns()
 
 bool ALoadoutStage::ProjectToImage(const FVector& WorldLocation, FVector2D& OutUV) const
 {
-	// View space: X ahead, Y right, Z up.
-	const FVector Local = Capture->GetComponentTransform().InverseTransformPositionNoScale(WorldLocation);
-	if (Local.X <= 1.0)
-	{
-		return false;
-	}
-	// Scene captures spread the field of view across the width; the height follows from the aspect ratio.
-	const double TanHalf = FMath::Tan(FMath::DegreesToRadians(Capture->FOVAngle * 0.5));
-	const double Aspect = static_cast<double>(ImageWidth) / ImageHeight;
-	const double X = Local.Y / (Local.X * TanHalf);
-	const double Y = Local.Z * Aspect / (Local.X * TanHalf);
-	OutUV = FVector2D(0.5 + 0.5 * X, 0.5 - 0.5 * Y);
-	return true;
+	return StageStudio::ProjectToImage(Capture, ImageWidth, ImageHeight, WorldLocation, OutUV);
 }
 
 bool ALoadoutStage::GetSlotAnchor(int32 Slot, FVector& OutWorldLocation) const

@@ -31,7 +31,7 @@ struct FWeaponInstanceData;
  * The cursor follows the mouse, or arrows / WASD / D-pad: up and down within a column, left and right between the slots and
  * the backpack list. E (or a click) on a backpack gun swaps it into the chosen slot. On a slot it picks that gun up, to put
  * it on another slot (swapping or moving) or swap it with a backpack gun. F holds a gun, Q drops it, Esc backs out of a
- * pick, then closes; Tab and I close.
+ * pick, then closes; Tab and I close. 2 (or the right shoulder, or its title tab) turns to the bestiary page.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ULoadoutWidget : public UUserWidget
@@ -97,6 +97,8 @@ private:
 
 	void HandleCardClicked(ULooterButton* Button);
 	void HandleCardHovered(ULooterButton* Button);
+	/** A title tab: go to that page of the inventory. */
+	void HandleTabClicked(ULooterButton* Button);
 
 	/** Behind the stand-in: the far half of the ring it stands on, its glow and the stand's pillars. */
 	void PaintBack(const FGeometry& Geometry, FSlateWindowElementList& Elements, int32 LayerId) const;

@@ -199,13 +199,13 @@ TSharedRef<SWidget> ULoadoutWidget::RebuildWidget()
 		// Under the ring the stand-in stands on.
 		Place(Label(WidgetTree, TEXT("Drag to turn"), 8, Hex(143, 179, 204, 204), 220), FVector2D(800.f, 786.f), FVector2D::ZeroVector, FVector2D(0.5f, 0.f));
 
-		// Title tab.
-		UBorder* TitlePlate = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		TitlePlate->SetBrush(RectBrush(Color::Plate(), Hex(90, 200, 255, 140), 1.f));
-		TitlePlate->SetPadding(FMargin(30.f, 5.f));
-		TitlePlate->SetContent(Label(WidgetTree, TEXT("Loadout"), 14, Color::Title(), 350));
-		Place(MakeShapeBox(WidgetTree, EShape::Tab, Color::FrameFill(), Color::FrameEdge(), TitlePlate, FMargin(18.f, 5.f, 18.f, 3.f)),
-			FVector2D(800.f, 36.f), FVector2D::ZeroVector, FVector2D(0.5f, 0.f));
+		// Title tabs: this page and the bestiary.
+		TArray<ULooterButton*> Tabs;
+		Place(MakePageTabs(WidgetTree, static_cast<int32>(EInventoryPage::Loadout), Tabs), PageTabsPosition, FVector2D::ZeroVector, FVector2D(0.5f, 0.f));
+		for (ULooterButton* Tab : Tabs)
+		{
+			Tab->OnButtonClicked.BindUObject(this, &ULoadoutWidget::HandleTabClicked);
+		}
 
 		// Left: a card per weapon slot, over the ammo.
 		{
@@ -704,6 +704,7 @@ void ULoadoutWidget::RefreshPrompts()
 	{
 		const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 		const UKeyBindingSubsystem* Bindings = LocalPlayer ? LocalPlayer->GetSubsystem<UKeyBindingSubsystem>() : nullptr;
+		Prompts.Add({ TEXT("2"), TEXT("Bestiary") });
 		Prompts.Add({ Bindings ? Bindings->GetKey(TEXT("Inventory")).GetDisplayName().ToString() : FString(TEXT("Tab")), TEXT("Close") });
 	}
 	for (int32 Index = 0; Index < Prompts.Num(); ++Index)

@@ -110,6 +110,10 @@ placement and gameplay component settings.
 - The minimap reads actor tags. Its extent comes from actors tagged `Ground` (walkable terrain). Actors tagged
   `Obstacle` (solid things standing on the ground) are drawn as obstacles, and anything untagged is drawn as ground.
   Props and baked props tag themselves; tag other meshes you place.
+- Every new creature, enemy, NPC or friend gets a bestiary page: a `UBestiaryEntry` data asset in `/Game/Data/Bestiary`
+  (`DA_Bestiary_<Name>`; duplicate one). Write its name, section, description and field notes, and set `ActorClass`:
+  its level, health, attack, experience, defeat count and stand model come from that class. `Looter.Bestiary.Entries`
+  checks every page.
 - Volumes (the meadow's PCG volume, triggers) answer world-static object queries. A trace that looks for the
   ground or other real geometry that way must use `LooterWorld::StaticGeometryParams`, which skips them.
 - Performance target: 120 fps (8.3 ms) at 1080p on the Medium preset on the reference PC (Radeon RX 580, i7-8700,

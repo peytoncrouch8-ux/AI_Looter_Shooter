@@ -14,7 +14,6 @@
 
 namespace
 {
-	constexpr float PickupRadius = 110.f;
 	constexpr float RetryInterval = 0.25f;
 	const FLinearColor LightColor(1.f, 0.9f, 0.75f);
 
@@ -48,7 +47,7 @@ AAmmoPickup::AAmmoPickup()
 	// Walk-over pickup radius: overlaps pawns only.
 	Trigger = CreateDefaultSubobject<USphereComponent>(TEXT("Trigger"));
 	Trigger->SetupAttachment(Collision);
-	Trigger->InitSphereRadius(PickupRadius);
+	Trigger->InitSphereRadius(CollectRadius);
 	Trigger->SetCollisionObjectType(ECC_WorldDynamic);
 	Trigger->SetCollisionResponseToAllChannels(ECR_Ignore);
 	Trigger->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);

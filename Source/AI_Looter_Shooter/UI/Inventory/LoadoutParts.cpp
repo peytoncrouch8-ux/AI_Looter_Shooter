@@ -1,4 +1,5 @@
 #include "UI/Inventory/LoadoutParts.h"
+#include "UI/Style/LooterButton.h"
 #include "UI/Style/WeaponText.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Blueprint/WidgetTree.h"
@@ -212,6 +213,32 @@ namespace LoadoutParts
 		TextSlot->SetVerticalAlignment(VAlign_Center);
 		TextSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
 		return Hint;
+	}
+
+	UWidget* MakePageTabs(UWidgetTree* Tree, int32 ShownPage, TArray<ULooterButton*>& OutTabs)
+	{
+		static const TCHAR* const Pages[] = { TEXT("Loadout"), TEXT("Bestiary") };
+		UHorizontalBox* Strip = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		OutTabs.Reset();
+		for (int32 Page = 0; Page < UE_ARRAY_COUNT(Pages); ++Page)
+		{
+			// The page on screen is the title, as bright as the old single title tab; the other waits, dimmer, beside it.
+			const bool bShown = Page == ShownPage;
+			UBorder* Plate = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
+			Plate->SetBrush(bShown ? RectBrush(Color::Plate(), Hex(90, 200, 255, 140), 1.f) : RectBrush(Hex(7, 26, 40, 120), Hex(90, 200, 255, 60), 1.f));
+			Plate->SetPadding(FMargin(26.f, 5.f));
+			Plate->SetContent(Label(Tree, Pages[Page], bShown ? 14 : 12, bShown ? Color::Title() : Color::TextDim(), 350));
+			UWidget* Tab = MakeShapeBox(Tree, EShape::Tab, bShown ? Color::FrameFill() : Color::FrameFill() * FLinearColor(1.f, 1.f, 1.f, 0.55f),
+				bShown ? Color::FrameEdge() : Color::FrameEdge() * FLinearColor(1.f, 1.f, 1.f, 0.5f), Plate, FMargin(18.f, 5.f, 18.f, 3.f));
+
+			ULooterButton* Button = Tree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
+			Button->SetupContent(Tab, ActionPage, Page);
+			UHorizontalBoxSlot* TabSlot = Strip->AddChildToHorizontalBox(Button);
+			TabSlot->SetVerticalAlignment(VAlign_Bottom);
+			TabSlot->SetPadding(FMargin(Page > 0 ? 12.f : 0.f, 0.f, 0.f, 0.f));
+			OutTabs.Add(Button);
+		}
+		return Strip;
 	}
 
 	FString FormatDelta(float Delta, int32 Decimals)

@@ -1,0 +1,127 @@
+#include "Bestiary/BestiaryEntry.h"
+#include "Combat/HealthComponent.h"
+#include "Creatures/CreatureBase.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "GameFramework/Actor.h"
+#include "Modules/ModuleManager.h"
+
+FBestiaryStats UBestiaryEntry::ReadStats() const
+{
+	FBestiaryStats Stats;
+	const UClass* Class = ActorClass.LoadSynchronous();
+	const AActor* Defaults = Class ? Class->GetDefaultObject<AActor>() : nullptr;
+	if (!Defaults)
+	{
+		return Stats;
+	}
+	if (const UHealthComponent* Health = Defaults->FindComponentByClass<UHealthComponent>())
+	{
+		Stats.bHasHealth = true;
+		Stats.Health = Health->MaxHealth;
+	}
+	if (const ACreatureBase* Creature = Cast<ACreatureBase>(Defaults))
+	{
+		Stats.Level = Creature->Level;
+		Stats.AttackDamage = Creature->AttackDamage;
+		Stats.XPReward = Creature->XPReward;
+		Stats.bAttacks = Creature->AttackDamage > 0.f;
+	}
+	return Stats;
+}
+
+namespace
+{
+	/** The actor's body: the first skeletal mesh component on its defaults that has a mesh (not always the main one). */
+	const USkeletalMeshComponent* FindBody(const TSoftClassPtr<AActor>& ActorClass)
+	{
+		const UClass* Class = ActorClass.LoadSynchronous();
+		const AActor* Defaults = Class ? Class->GetDefaultObject<AActor>() : nullptr;
+		if (!Defaults)
+		{
+			return nullptr;
+		}
+		TInlineComponentArray<USkeletalMeshComponent*> Meshes(Defaults);
+		for (const USkeletalMeshComponent* Component : Meshes)
+		{
+			if (Component->GetSkeletalMeshAsset())
+			{
+				return Component;
+			}
+		}
+		return nullptr;
+	}
+}
+
+USkeletalMesh* UBestiaryEntry::LoadPreviewMesh() const
+{
+	if (USkeletalMesh* Mesh = PreviewMesh.LoadSynchronous())
+	{
+		return Mesh;
+	}
+	const USkeletalMeshComponent* Body = FindBody(ActorClass);
+	return Body ? Body->GetSkeletalMeshAsset() : nullptr;
+}
+
+TArray<UMaterialInterface*> UBestiaryEntry::GetPreviewMaterials(const USkeletalMesh* Mesh) const
+{
+	TArray<UMaterialInterface*> Materials;
+	const USkeletalMeshComponent* Body = FindBody(ActorClass);
+	if (Body && Mesh && Body->GetSkeletalMeshAsset() == Mesh)
+	{
+		for (int32 Slot = 0; Slot < Body->GetNumMaterials(); ++Slot)
+		{
+			Materials.Add(Body->GetMaterial(Slot));
+		}
+	}
+	return Materials;
+}
+
+bool UBestiaryEntry::Describes(const UClass* ActorType) const
+{
+	const UClass* Class = ActorClass.Get();
+	return Class && ActorType && ActorType->IsChildOf(Class);
+}
+
+TArray<UBestiaryEntry*> UBestiaryEntry::LoadAll()
+{
+	// Every entry asset wherever it lives, so a new page is just a new data asset.
+	IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+	TArray<FAssetData> Assets;
+	Registry.GetAssetsByClass(StaticClass()->GetClassPathName(), Assets, true);
+
+	TArray<UBestiaryEntry*> Entries;
+	for (const FAssetData& Asset : Assets)
+	{
+		if (UBestiaryEntry* Entry = Cast<UBestiaryEntry>(Asset.GetAsset()))
+		{
+			Entries.Add(Entry);
+		}
+	}
+	Entries.Sort([](const UBestiaryEntry& A, const UBestiaryEntry& B)
+	{
+		if (A.Category != B.Category)
+		{
+			return A.Category < B.Category;
+		}
+		if (A.SortOrder != B.SortOrder)
+		{
+			return A.SortOrder < B.SortOrder;
+		}
+		return A.DisplayName.CompareTo(B.DisplayName) < 0;
+	});
+	return Entries;
+}
+
+FText UBestiaryEntry::CategoryName(EBestiaryCategory Category)
+{
+	switch (Category)
+	{
+	case EBestiaryCategory::Creature: return NSLOCTEXT("Bestiary", "Creatures", "Creatures");
+	case EBestiaryCategory::Enemy:    return NSLOCTEXT("Bestiary", "Enemies", "Enemies");
+	case EBestiaryCategory::NPC:      return NSLOCTEXT("Bestiary", "NPCs", "NPCs");
+	case EBestiaryCategory::Friend:   return NSLOCTEXT("Bestiary", "Friends", "Friends");
+	}
+	return FText::GetEmpty();
+}

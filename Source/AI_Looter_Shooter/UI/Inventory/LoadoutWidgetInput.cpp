@@ -242,6 +242,19 @@ void ULoadoutWidget::HandleCardClicked(ULooterButton* Button)
 	SetKeyboardFocus();
 }
 
+void ULoadoutWidget::HandleTabClicked(ULooterButton* Button)
+{
+	ALooterHUD* HUD = OwningHUD.Get();
+	if (HUD && Button && Button->Index != static_cast<int32>(EInventoryPage::Loadout))
+	{
+		HUD->ShowInventoryPage(static_cast<EInventoryPage>(Button->Index));
+	}
+	else
+	{
+		SetKeyboardFocus();
+	}
+}
+
 void ULoadoutWidget::HandleCardHovered(ULooterButton* Button)
 {
 	if (Button)
@@ -272,6 +285,14 @@ FReply ULoadoutWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEv
 	if (Bindings ? Bindings->IsInventoryKey(Key) : (Key == EKeys::Tab || Key == EKeys::I))
 	{
 		Close();
+		return FReply::Handled();
+	}
+	if ((Key == EKeys::Two || Key == EKeys::Gamepad_RightShoulder) && !PickedSlot.IsSet())
+	{
+		if (ALooterHUD* HUD = OwningHUD.Get())
+		{
+			HUD->ShowInventoryPage(EInventoryPage::Bestiary);
+		}
 		return FReply::Handled();
 	}
 

@@ -4,6 +4,8 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -13,7 +15,21 @@ using namespace LooterUI;
 
 namespace
 {
-	constexpr int32 SegmentCount = 12;
+	constexpr float BarHeight = 5.f;
+	/** The same lean as the HUD's bars. */
+	constexpr float BarSlant = 16.f;
+	/** How long the chip of lost health stays before it drains, and how fast it drains (bar lengths per second). */
+	constexpr float ChipHold = 0.4f;
+	constexpr float ChipDrainRate = 0.8f;
+
+	USizeBox* MakeFill(UWidgetTree* Tree, UOverlay* Bar, const FLinearColor& FillColor)
+	{
+		USizeBox* Fill = MakeSized(Tree, MakeImage(Tree, RectBrush(FillColor)), 0.f, BarHeight);
+		UOverlaySlot* FillSlot = Bar->AddChildToOverlay(Fill);
+		FillSlot->SetHorizontalAlignment(HAlign_Left);
+		FillSlot->SetVerticalAlignment(VAlign_Fill);
+		return Fill;
+	}
 }
 
 TSharedRef<SWidget> UCreatureHealthBarWidget::RebuildWidget()
@@ -22,35 +38,33 @@ TSharedRef<SWidget> UCreatureHealthBarWidget::RebuildWidget()
 	{
 		UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 
-		// "LV 1  BROWN SPIDER": the level in the accent color, so it reads at a glance.
+		// "LV 1  Brown Spider": a small dim level, then the name as it's written, centered over the bar.
 		UHorizontalBox* Label = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		LevelText = MakeText(WidgetTree, TEXT(""), 11, Color::Accent(), true, 120);
-		Label->AddChildToHorizontalBox(LevelText)->SetPadding(FMargin(0.f, 0.f, 6.f, 0.f));
-		NameText = MakeText(WidgetTree, TEXT(""), 11, Color::Text(), true, 120);
-		Label->AddChildToHorizontalBox(NameText);
+		LevelText = MakeFloatingText(WidgetTree, 10, Color::TextDim(), 80);
+		UHorizontalBoxSlot* LevelSlot = Label->AddChildToHorizontalBox(LevelText);
+		LevelSlot->SetVerticalAlignment(VAlign_Bottom);
+		LevelSlot->SetPadding(FMargin(0.f, 0.f, 6.f, 1.f));
+		NameText = MakeFloatingText(WidgetTree, 13, Color::Text(), 20);
+		Label->AddChildToHorizontalBox(NameText)->SetVerticalAlignment(VAlign_Bottom);
 		Box->AddChildToVerticalBox(Label)->SetHorizontalAlignment(HAlign_Center);
 		ApplyLabel();
 
-		USizeBox* BarSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		BarSize->SetWidthOverride(150.f);
-		BarSize->SetHeightOverride(7.f);
-		UHorizontalBox* Bar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		Segments.Reset();
-		for (int32 Index = 0; Index < SegmentCount; ++Index)
-		{
-			UImage* Segment = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-			Segment->SetBrush(RectBrush(Color::Health()));
-			UHorizontalBoxSlot* SegmentSlot = Bar->AddChildToHorizontalBox(Segment);
-			SegmentSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			SegmentSlot->SetPadding(FMargin(0.f, 0.f, Index + 1 < SegmentCount ? 2.f : 0.f, 0.f));
-			Segments.Add(Segment);
-		}
-		BarSize->SetContent(Bar);
-		Box->AddChildToVerticalBox(BarSize)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
+		// The bar: a faint dark track (faded by the UI transparency setting), the chip, then the health on top.
+		UOverlay* Bar = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		UImage* Track = MakeImage(WidgetTree, RectBrush(FLinearColor(0.f, 0.02f, 0.04f, 0.5f)));
+		MarkBackground(Track);
+		FillOverlaySlot(Bar->AddChildToOverlay(Track));
+		ChipFill = MakeFill(WidgetTree, Bar, FLinearColor(1.f, 0.82f, 0.72f, 0.85f));
+		HealthFill = MakeFill(WidgetTree, Bar, Color::Health());
+		USizeBox* BarSize = MakeSized(WidgetTree, Bar, BarWidth, BarHeight);
+		BarSize->SetRenderShear(FVector2D(BarSlant, 0.f));
+		UVerticalBoxSlot* BarSlot = Box->AddChildToVerticalBox(BarSize);
+		BarSlot->SetHorizontalAlignment(HAlign_Center);
+		BarSlot->SetPadding(FMargin(0.f, 3.f, 0.f, 0.f));
 
-		WidgetTree->RootWidget = MakePlate(WidgetTree, Box, FMargin(10.f, 5.f, 10.f, 7.f));
-		ShownLit = INDEX_NONE;
-		ApplyHealth();
+		Box->SetVisibility(ESlateVisibility::HitTestInvisible);
+		WidgetTree->RootWidget = Box;
+		ApplyBar();
 	}
 	return Super::RebuildWidget();
 }
@@ -70,27 +84,48 @@ void UCreatureHealthBarWidget::ApplyLabel()
 	if (LevelText && NameText)
 	{
 		LevelText->SetText(FText::FromString(FString::Printf(TEXT("LV %d"), CreatureLevel)));
-		NameText->SetText(FText::FromString(CreatureName.ToString().ToUpper()));
+		NameText->SetText(CreatureName);
 	}
 }
 
 void UCreatureHealthBarWidget::SetHealthFraction(float InFraction)
 {
-	Fraction = FMath::Clamp(InFraction, 0.f, 1.f);
-	ApplyHealth();
-}
-
-void UCreatureHealthBarWidget::ApplyHealth()
-{
-	// Any damage at all takes a segment, so a single chip shot still reads as progress.
-	const int32 Lit = FMath::Clamp(FMath::CeilToInt(Fraction * SegmentCount), 0, SegmentCount);
-	if (Lit == ShownLit || Segments.Num() != SegmentCount)
+	const float NewFraction = FMath::Clamp(InFraction, 0.f, 1.f);
+	if (FMath::IsNearlyEqual(NewFraction, Fraction))
 	{
 		return;
 	}
-	ShownLit = Lit;
-	for (int32 Index = 0; Index < Segments.Num(); ++Index)
+	if (NewFraction < Fraction)
 	{
-		Segments[Index]->SetBrush(RectBrush(Index < Lit ? Color::Health() : Color::SegmentOff()));
+		// A hit: what it took lingers as the chip for a moment.
+		GhostHold = ChipHold;
+	}
+	Fraction = NewFraction;
+	GhostFraction = FMath::Max(GhostFraction, Fraction);
+	ApplyBar();
+}
+
+void UCreatureHealthBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	if (GhostFraction <= Fraction)
+	{
+		return;
+	}
+	if (GhostHold > 0.f)
+	{
+		GhostHold -= InDeltaTime;
+		return;
+	}
+	GhostFraction = FMath::Max(Fraction, GhostFraction - ChipDrainRate * InDeltaTime);
+	ApplyBar();
+}
+
+void UCreatureHealthBarWidget::ApplyBar()
+{
+	if (HealthFill && ChipFill)
+	{
+		HealthFill->SetWidthOverride(BarWidth * Fraction);
+		ChipFill->SetWidthOverride(BarWidth * GhostFraction);
 	}
 }

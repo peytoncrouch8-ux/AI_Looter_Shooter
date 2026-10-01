@@ -72,8 +72,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Loot/LootTossComponent`: `ULootTossComponent`, throws loot so it pops out, lands and settles.
 - `Loot/WeaponRack`: `AWeaponRack`, a rack with a weapon lying on it as loot and ammo beside it; restocks when the
   weapon is gone and the player has none (the tutorial's first rifle).
-- `Loot/AmmoPickup`: `AAmmoPickup`, an ammo box you walk over to collect (its model per type from
-  `Art/Models/Loot/AmmoBox.py`).
+- `Loot/AmmoPickup`: `AAmmoPickup`, an ammo box collected by running past it (within `CollectRadius`; its model per
+  type from `Art/Models/Loot/AmmoBox.py`).
 
 ## Creatures
 - `Creatures/CreatureBase`: `ACreatureBase`, a hostile creature's brain and life cycle (senses, chase, attack, death,
@@ -81,6 +81,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Creatures/SpiderCreature`: `ASpiderCreature`, the brown spider: SK_Spider (from `Art/Models/Creatures/Spider.py`)
   posed by code (stepping gait, leg IK, attack and death motion); its physics asset holds the hit zones.
 - `Creatures/SpiderAnimInstance`: `USpiderAnimInstance`, applies the pose `ASpiderCreature` works out to the skeleton.
+
+## Bestiary
+- `Bestiary/BestiaryEntry`: `UBestiaryEntry` and `EBestiaryCategory`, one bestiary page as a data asset (in
+  `/Game/Data/Bestiary`): words and stand model, with level, health, attack and experience read from its actor class.
 
 ## Tutorial
 - `Tutorial/TutorialDirector`: `ATutorialDirector`, the tutorial island's steps (move, reach the village, take the rifle,
@@ -91,10 +95,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   maximum level.
 - `Progression/ProgressionSettings`: `UProgressionSettings`, the curve's numbers in Project Settings > Game > Progression
   (`DefaultGame.ini`).
-- `Progression/LooterProgressSave.h`: `ULooterProgressSave`, the player's level and experience in the "PlayerProgress"
-  save slot.
+- `Progression/LooterProgressSave.h`: `ULooterProgressSave`, the player's level, experience and defeat counts in the
+  "PlayerProgress" save slot.
 - `Progression/PlayerProgressionSubsystem`: `UPlayerProgressionSubsystem`, the player's level and experience (adding,
-  saving, level-up events) and the experience a kill gives.
+  saving, level-up events), the experience a kill gives, and how many of each kind the player has defeated.
 
 ## World
 - `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime, trees as crowns.
@@ -114,7 +118,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   transparency).
 - `UI/Style/LooterButton`: `ULooterButton`, the kit's button.
 - `UI/Style/WeaponText`: `LooterWeaponText`, weapon names, rarity colors and stat strings.
-- `UI/HUD/LooterHUD`: `ALooterHUD`, owns the HUD, inventory and pause menu and their hotkeys.
+- `UI/HUD/LooterHUD`: `ALooterHUD`, owns the HUD, the inventory's pages (loadout, bestiary) and the pause menu, and
+  their hotkeys.
 - `UI/HUD/PlayerHUDWidget`: the gameplay HUD (health, ammo, crosshair, hit marker, loot card, messages).
 - `UI/HUD/HudMinimapWidget`: the round minimap that turns with the view (size and zoom from the settings).
 - `UI/HUD/TutorialPromptWidget`: the tutorial's current instruction near the top of the screen.
@@ -126,11 +131,18 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/Inventory/LoadoutWidgetPaint.cpp`: its stand ring and the callouts from slot cards to guns.
 - `UI/Inventory/LoadoutWidget.h`: the loadout screen's declaration.
 - `UI/Inventory/LoadoutRules`: `LoadoutRules`, the backpack list's compare and sort rules.
-- `UI/Inventory/LoadoutParts`: `LoadoutParts`, the screen's page layout, colors, vector art and card builders.
+- `UI/Inventory/LoadoutParts`: `LoadoutParts`, the inventory pages' layout, colors, vector art, card builders and title
+  tabs.
 - `UI/Inventory/LoadoutPaintLayer`: `ULoadoutPaintLayer`, a see-through layer the screen draws on.
 - `UI/Inventory/LoadoutStage`: `ALoadoutStage`, the off-screen stand-in of the character and its capture.
+- `UI/Inventory/StageStudio`: `StageStudio`, what the inventory's off-screen stands share (spot, capture, studio lights,
+  picture, projection).
+- `UI/Bestiary/BestiaryWidget.cpp`: the bestiary, the inventory's second page: opening, layout and contents.
+- `UI/Bestiary/BestiaryWidgetInput.cpp`: its keys, turning the model, and the ring it stands on.
+- `UI/Bestiary/BestiaryWidget.h`: the bestiary's declaration.
+- `UI/Bestiary/BestiaryStage`: `ABestiaryStage`, the off-screen stand that shows an entry's model, framed to its size.
 - `UI/World/WeaponLabelWidget`: the label over loot guns.
-- `UI/World/CreatureHealthBarWidget`: the level, name and bar over a hurt or hunting creature.
+- `UI/World/CreatureHealthBarWidget`: the tag over a hurt or hunting creature: floating level and name over a slim bar.
 - `UI/World/DamageNumberActor`, `UI/World/DamageNumberWidget`: floating damage numbers.
 
 ## Dev
@@ -140,7 +152,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`).
 
 ## Tests (run with `Tools\runtests.ps1`)
-- `Tests/AnimationTests.cpp`, `CreatureTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`,
+- `Tests/AnimationTests.cpp`, `BestiaryTests.cpp`, `CreatureTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`,
   `MinimapTests.cpp`, `ProgressionTests.cpp`, `SettingsTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 

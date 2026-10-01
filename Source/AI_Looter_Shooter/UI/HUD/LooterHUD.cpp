@@ -1,4 +1,5 @@
 #include "UI/HUD/LooterHUD.h"
+#include "UI/Bestiary/BestiaryWidget.h"
 #include "UI/Inventory/LoadoutWidget.h"
 #include "UI/Menus/PauseMenuWidget.h"
 #include "UI/HUD/PlayerHUDWidget.h"
@@ -42,6 +43,7 @@ void ALooterHUD::BeginPlay()
 		HUDWidget->AddToViewport(0);
 	}
 	InventoryWidget = CreateWidget<ULoadoutWidget>(PC, ULoadoutWidget::StaticClass());
+	BestiaryWidget = CreateWidget<UBestiaryWidget>(PC, UBestiaryWidget::StaticClass());
 	PauseMenuWidget = CreateWidget<UPauseMenuWidget>(PC, UPauseMenuWidget::StaticClass());
 
 	BindMenuInput();
@@ -123,24 +125,12 @@ void ALooterHUD::RestoreGameInput()
 
 void ALooterHUD::OpenInventory()
 {
-	APlayerController* PC = GetOwningPlayerController();
-	const APawn* Pawn = PC ? PC->GetPawn() : nullptr;
-	UWeaponManagerComponent* Manager = Pawn ? Pawn->FindComponentByClass<UWeaponManagerComponent>() : nullptr;
-	if (!InventoryWidget || !Manager || bInventoryOpen)
+	if (bInventoryOpen)
 	{
 		return;
 	}
-
-	Manager->StopFire();
-	InventoryWidget->Open(this, Manager);
-	InventoryWidget->AddToViewport(20);
-
-	FInputModeUIOnly InputMode;
-	InputMode.SetWidgetToFocus(InventoryWidget->TakeWidget());
-	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	PC->SetInputMode(InputMode);
-	PC->SetShowMouseCursor(true);
-	bInventoryOpen = true;
+	// It opens on the page it was last closed on.
+	bInventoryOpen = OpenInventoryPage();
 }
 
 void ALooterHUD::CloseInventory()
@@ -149,12 +139,71 @@ void ALooterHUD::CloseInventory()
 	{
 		return;
 	}
-	if (InventoryWidget)
+	if (UUserWidget* Page = GetInventoryPageWidget())
 	{
-		InventoryWidget->RemoveFromParent();
+		Page->RemoveFromParent();
 	}
 	bInventoryOpen = false;
 	RestoreGameInput();
+}
+
+void ALooterHUD::ShowInventoryPage(EInventoryPage Page)
+{
+	if (!bInventoryOpen)
+	{
+		InventoryPage = Page;
+		OpenInventory();
+		return;
+	}
+	if (Page == InventoryPage)
+	{
+		return;
+	}
+	if (UUserWidget* Old = GetInventoryPageWidget())
+	{
+		Old->RemoveFromParent();
+	}
+	InventoryPage = Page;
+	if (!OpenInventoryPage())
+	{
+		bInventoryOpen = false;
+		RestoreGameInput();
+	}
+}
+
+bool ALooterHUD::OpenInventoryPage()
+{
+	APlayerController* PC = GetOwningPlayerController();
+	const APawn* Pawn = PC ? PC->GetPawn() : nullptr;
+	UWeaponManagerComponent* Manager = Pawn ? Pawn->FindComponentByClass<UWeaponManagerComponent>() : nullptr;
+	UUserWidget* Page = GetInventoryPageWidget();
+	if (!Page || !Manager)
+	{
+		return false;
+	}
+
+	Manager->StopFire();
+	if (InventoryPage == EInventoryPage::Bestiary)
+	{
+		BestiaryWidget->Open(this);
+	}
+	else
+	{
+		InventoryWidget->Open(this, Manager);
+	}
+	Page->AddToViewport(20);
+
+	FInputModeUIOnly InputMode;
+	InputMode.SetWidgetToFocus(Page->TakeWidget());
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	PC->SetInputMode(InputMode);
+	PC->SetShowMouseCursor(true);
+	return true;
+}
+
+UUserWidget* ALooterHUD::GetInventoryPageWidget() const
+{
+	return InventoryPage == EInventoryPage::Bestiary ? static_cast<UUserWidget*>(BestiaryWidget.Get()) : static_cast<UUserWidget*>(InventoryWidget.Get());
 }
 
 // ---------------------------------------------------------------------------

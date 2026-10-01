@@ -69,7 +69,7 @@ public:
 	/** Puts the player at the start of Level (testing). Fires OnXPChanged but not OnLevelUp: nothing was earned. */
 	void SetLevel(int32 Level);
 
-	/** Back to a new game: level 1, no experience, the tutorial not done. */
+	/** Back to a new game: level 1, no experience, the tutorial not done, nothing defeated. */
 	void ResetProgress();
 
 	/** Whether the tutorial's prompts have been completed (or skipped); a new game starts without. */
@@ -79,8 +79,17 @@ public:
 	/** Experience for killing this actor: a creature's XPReward. Anything else (target dummies, props) gives none. */
 	static int64 KillXP(const AActor* Victim);
 
-	/** Gives the kill's experience to the local player whose controller landed the killing blow; nothing for AI kills. */
+	/**
+	 * Credits a kill to the local player whose controller landed the killing blow: its experience, and one more of its
+	 * kind defeated (the bestiary). Nothing for AI kills.
+	 */
 	static void AwardKill(const AController* Killer, const AActor* Victim);
+
+	/** Counts one more of the victim's kind defeated. */
+	void RecordDefeat(const AActor* Victim);
+
+	/** How many actors of this class (or classes derived from it) the player has defeated. */
+	int32 GetDefeated(const UClass* ActorType) const;
 
 	FOnPlayerXPChanged OnXPChanged;
 	FOnPlayerLevelUp OnLevelUp;

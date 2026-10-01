@@ -131,6 +131,7 @@ void UPlayerProgressionSubsystem::ResetProgress()
 	if (SaveData)
 	{
 		SaveData->bTutorialDone = false;
+		SaveData->Defeated.Reset();
 	}
 	SetLevel(1);
 }
@@ -157,15 +158,47 @@ int64 UPlayerProgressionSubsystem::KillXP(const AActor* Victim)
 
 void UPlayerProgressionSubsystem::AwardKill(const AController* Killer, const AActor* Victim)
 {
-	// Only a local player has progress to add to (creatures killing each other, or a kill with no instigator, give none).
+	// Only a local player has progress to add to (creatures killing each other, or a kill with no instigator, count for
+	// nothing). Anything can be defeated (a target dummy too), but only creatures give experience.
 	const APlayerController* Player = Cast<APlayerController>(Killer);
 	const ULocalPlayer* LocalPlayer = Player ? Player->GetLocalPlayer() : nullptr;
 	UPlayerProgressionSubsystem* Progression = LocalPlayer ? LocalPlayer->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
+	if (!Progression)
+	{
+		return;
+	}
+	Progression->RecordDefeat(Victim);
 	const int64 XP = KillXP(Victim);
-	if (Progression && XP > 0)
+	if (XP > 0)
 	{
 		Progression->AddXP(XP, EXPSource::Kill);
 	}
+}
+
+void UPlayerProgressionSubsystem::RecordDefeat(const AActor* Victim)
+{
+	if (!SaveData || !Victim)
+	{
+		return;
+	}
+	++SaveData->Defeated.FindOrAdd(Victim->GetClass()->GetPathName());
+	ScheduleSave();
+}
+
+int32 UPlayerProgressionSubsystem::GetDefeated(const UClass* ActorType) const
+{
+	if (!SaveData || !ActorType)
+	{
+		return 0;
+	}
+	// Kills are kept per exact class, so a Blueprint child of a creature counts toward its parent's entry too.
+	int32 Count = 0;
+	for (const TPair<FString, int32>& Pair : SaveData->Defeated)
+	{
+		const UClass* Killed = FSoftClassPath(Pair.Key).TryLoadClass<AActor>();
+		Count += Killed && Killed->IsChildOf(ActorType) ? Pair.Value : 0;
+	}
+	return Count;
 }
 
 void UPlayerProgressionSubsystem::SaveProgress()
