@@ -242,7 +242,7 @@ bool FSpiderShotsTest::RunTest(const FString& Parameters)
 		{ TEXT("head-on"), Body + FVector(400.0, 0.0, 10.0), Body + FVector(0.0, 0.0, 10.0), TEXT("head"), true },
 		{ TEXT("thorax from above"), Body + FVector(0.0, 0.0, 200.0), Body - FVector(0.0, 0.0, 100.0), TEXT("body"), false },
 		{ TEXT("abdomen from behind"), Body + FVector(-400.0, 0.0, 15.0), Body + FVector(-50.0, 0.0, 15.0), TEXT("abdomen"), false },
-		{ TEXT("left fang"), Body + FVector(400.0, -8.0, -20.0), Body + FVector(0.0, -8.0, -20.0), TEXT("fang_l"), false },
+		{ TEXT("left fang"), Body + FVector(400.0, -6.0, -8.0), Body + FVector(0.0, -6.0, -8.0), TEXT("fang_l"), false },
 		{ TEXT("front right femur from above"), FemurMiddle + FVector(0.0, 0.0, 150.0), FemurMiddle - FVector(0.0, 0.0, 150.0), TEXT("femur_0_r"), false },
 		{ TEXT("well over it"), Body + FVector(400.0, 0.0, 150.0), Body + FVector(-400.0, 0.0, 150.0), nullptr, false } };
 	for (const FShot& Shot : Shots)

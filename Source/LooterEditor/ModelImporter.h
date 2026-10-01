@@ -109,6 +109,10 @@ private:
 	 * in Blender would keep the old slot's name (and material). When the slots changed, start them over from the FBX.
 	 */
 	static void ForgetStaleSlots(UStaticMesh* Existing, const FModel& Model);
+	/** The same for a rig: a remodeled creature that drops slots would otherwise keep them, empty, after the re-import. */
+	static void ForgetStaleSlots(USkeletalMesh* Existing, const FModel& Model);
+	/** A rig's LODs: reductions of the model by the armature's LODs shares, switched at its LODScreens sizes. */
+	static void MakeRigLODs(USkeletalMesh* Mesh, const FModel& Model);
 	UMaterialInterface* UpdateMaterial(const FString& Name, const FStylizedSurface& Surface);
 	/** LODs, the Nanite fallback and no-collision, before the mesh builds. */
 	static void ApplyMeshSettings(UStaticMesh* Mesh, const FModel& Model);

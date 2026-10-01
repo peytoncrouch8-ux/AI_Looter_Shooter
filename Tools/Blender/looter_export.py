@@ -327,7 +327,13 @@ def export_rig(arm, out_dir, materials):
         embed_textures=False,
     )
     log(f"{name}: rig of {len(bone_names)} bones, {len(skins)} meshes, {len(shapes)} hit zones, materials {', '.join(used)}")
-    return {'name': name, 'fbx': name + '.fbx', 'skeletal': True, 'materials': used, 'hitShapes': shapes}
+    entry = {'name': name, 'fbx': name + '.fbx', 'skeletal': True, 'materials': used, 'hitShapes': shapes}
+    # Optional, on the armature: LOD1.. triangle percentages and the screen sizes they start at (the importer reduces).
+    if arm.get('LODs') is not None:
+        entry['lods'] = number_list(arm['LODs'])
+    if arm.get('LODScreens') is not None:
+        entry['lodScreens'] = number_list(arm['LODScreens'])
+    return entry
 
 
 def number_list(value):

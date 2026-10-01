@@ -8,6 +8,9 @@
 #include "Factories/FbxFactory.h"
 #include "Factories/FbxImportUI.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "LODUtilities.h"
+#include "Engine/SkeletalMeshLODSettings.h"
 #include "Animation/Skeleton.h"
 #include "Misc/Paths.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -78,7 +81,9 @@ USkeletalMesh* FModelImporter::ImportRig(const FModel& Model)
 	Task->Factory = NewObject<UFbxFactory>();
 	UFbxImportUI* Options = MakeRigImportOptions();
 	Task->Options = Options;
-	KeepSettings(SurfaceMaterials::LoadExisting<USkeletalMesh>(Task->DestinationPath / Model.Name), Options->SkeletalMeshImportData, Model.FbxPath);
+	USkeletalMesh* Existing = SurfaceMaterials::LoadExisting<USkeletalMesh>(Task->DestinationPath / Model.Name);
+	KeepSettings(Existing, Options->SkeletalMeshImportData, Model.FbxPath);
+	ForgetStaleSlots(Existing, Model);
 	FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get().ImportAssetTasks({ Task });
 
 	USkeletalMesh* Mesh = nullptr;
@@ -105,6 +110,7 @@ USkeletalMesh* FModelImporter::ImportRig(const FModel& Model)
 		}
 	}
 	UPhysicsAsset* Physics = MakeHitZones(Mesh, Model);
+	MakeRigLODs(Mesh, Model);
 	Mesh->PostEditChange();
 	Mesh->MarkPackageDirty();
 	ChangedPackages.AddUnique(Mesh->GetPackage());
@@ -118,6 +124,56 @@ USkeletalMesh* FModelImporter::ImportRig(const FModel& Model)
 		Mesh->GetRefSkeleton().GetNum(), Mesh->GetMaterials().Num(), Physics ? Physics->SkeletalBodySetups.Num() : 0,
 		*Bounds.Min.ToCompactString(), *Bounds.Max.ToCompactString());
 	return Mesh;
+}
+
+void FModelImporter::MakeRigLODs(USkeletalMesh* Mesh, const FModel& Model)
+{
+	// LOD0 is the model; LOD1 and on are reductions of it (the armature's LODs and LODScreens), switched by screen size.
+	const int32 LODCount = 1 + Model.LODShares.Num();
+	const ITargetPlatform* Platform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+	if (LODCount <= 1)
+	{
+		if (Mesh->GetLODNum() > 1)
+		{
+			FLODUtilities::RegenerateLOD(Mesh, Platform, 1);
+		}
+		return;
+	}
+	// The engine makes the new LOD entries with its own settings first; then they get ours and are reduced again.
+	FLODUtilities::RegenerateLOD(Mesh, Platform, LODCount);
+	float ScreenSize = 1.f;
+	for (int32 LOD = 1; LOD < LODCount && LOD < Mesh->GetLODNum(); ++LOD)
+	{
+		FSkeletalMeshLODInfo* Info = Mesh->GetLODInfo(LOD);
+		ScreenSize = Model.LODScreenSizes.IsValidIndex(LOD - 1) ? Model.LODScreenSizes[LOD - 1] : ScreenSize * (LOD == 1 ? 0.45f : 0.35f);
+		Info->ScreenSize = FPerPlatformFloat(ScreenSize);
+		Info->ReductionSettings.BaseLOD = 0;
+		Info->ReductionSettings.TerminationCriterion = SMTC_NumOfTriangles;
+		Info->ReductionSettings.NumOfTrianglesPercentage = FMath::Clamp(Model.LODShares[LOD - 1], 0.01f, 1.f);
+	}
+	FLODUtilities::RegenerateLOD(Mesh, Platform, 0, true);
+	UE_LOG(LogModelImporter, Display, TEXT("%s: %d LODs (triangles %s)."), *Model.Name, Mesh->GetLODNum(),
+		*FString::JoinBy(Model.LODShares, TEXT(", "), [](float Share) { return FString::Printf(TEXT("%.0f%%"), Share * 100.f); }));
+}
+
+void FModelImporter::ForgetStaleSlots(USkeletalMesh* Existing, const FModel& Model)
+{
+	if (!Existing)
+	{
+		return;
+	}
+	TArray<FString> Slots;
+	for (const FSkeletalMaterial& Slot : Existing->GetMaterials())
+	{
+		Slots.Add(Slot.MaterialSlotName.ToString());
+	}
+	if (Slots != Model.MaterialSlots)
+	{
+		UE_LOG(LogModelImporter, Display, TEXT("%s: material slots changed (%s -> %s); they are rebuilt."), *Model.Name,
+			*FString::Join(Slots, TEXT(", ")), *FString::Join(Model.MaterialSlots, TEXT(", ")));
+		Existing->Modify();
+		Existing->GetMaterials().Empty();
+	}
 }
 
 UPhysicsAsset* FModelImporter::MakeHitZones(USkeletalMesh* Mesh, const FModel& Model)

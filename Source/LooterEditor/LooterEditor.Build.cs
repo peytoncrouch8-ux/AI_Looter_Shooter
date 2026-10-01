@@ -27,6 +27,8 @@ public class LooterEditor : ModuleRules
 			"GeometryFramework",
 			"GeometryScriptingCore",
 			"GeometryScriptingEditor",
+			"SkeletalMeshUtilitiesCommon",
+			"TargetPlatform",
 			"AI_Looter_Shooter"
 		});
 	}
