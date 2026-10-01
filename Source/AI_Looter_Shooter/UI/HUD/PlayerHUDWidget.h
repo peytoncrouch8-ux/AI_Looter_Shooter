@@ -100,6 +100,8 @@ private:
 	int32 LastReserve = INDEX_NONE;
 	/** How many ticks the ammo strip shows (one per round, up to MaxAmmoTicks). */
 	int32 ShownTickCount = INDEX_NONE;
+	/** The lit count and reload / low state the ticks were last colored for. */
+	int32 ShownTickState = INDEX_NONE;
 	float WeaponActivity = 0.f;
 	float ReloadDuration = 0.f;
 	float ReloadElapsed = 0.f;

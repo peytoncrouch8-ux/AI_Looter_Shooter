@@ -24,3 +24,5 @@ Target: 120 fps (8.3 ms) at 1080p on the Medium preset on the reference PC (Rade
 | 2026-10-01 | Bestiary page, slim creature tags, ammo pickup radius | e8a6e4d | 1920x1080 | 5.6 | 179 | 6.0 | 3.9 | 5.6 | 1.6 | 4.6 | 456 | 616177 | 0.76 |
 | 2026-10-01 | Ammo pickup feed, divided creature bars, bestiary unknown pages | ba7cff7 | 1920x1080 | 5.7 | 176 | 6.4 | 4.3 | 5.6 | 1.7 | 4.6 | 457 | 617539 | 0.76 |
 | 2026-10-01 | Guns from Bullpup/Ranchhand parts (rifle in hand), Meadow Wolf spider with LODs, Medium | a5d9770 | 1920x1080 | 5.6 | 179 | 6.0 | 4.2 | 5.6 | 1.5 | 4.6 | 461 | 643017 | 0.82 |
+| 2026-10-01 | New HUD (hex weapon slots), drag-and-drop inventory, per-gun wear (rifle in hand), Medium | 30f0d97 | 1920x1080 | 5.6 | 179 | 6.0 | 4.7 | 5.6 | 1.6 | 4.5 | 449 | 622828 | 0.82 |
+| 2026-10-01 | HUD ammo ticks repaint only on change (rifle in hand), Medium | 30f0d97 | 1920x1080 | 5.6 | 178 | 6.2 | 4.8 | 5.5 | 1.6 | 4.6 | 443 | 621581 | 0.80 |

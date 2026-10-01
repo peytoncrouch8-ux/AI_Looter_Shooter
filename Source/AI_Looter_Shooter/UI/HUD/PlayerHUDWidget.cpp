@@ -442,6 +442,7 @@ void UPlayerHUDWidget::UpdateWeaponCluster(UWeaponManagerComponent* Manager, flo
 	if (TickCount != ShownTickCount)
 	{
 		ShownTickCount = TickCount;
+		ShownTickState = INDEX_NONE;
 		for (int32 Index = 0; Index < AmmoSegments.Num(); ++Index)
 		{
 			AmmoSegments[Index]->SetVisibility(Index < TickCount ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
@@ -451,19 +452,15 @@ void UPlayerHUDWidget::UpdateWeaponCluster(UWeaponManagerComponent* Manager, flo
 			}
 		}
 	}
-	if (bReloading)
+	// Reloading: the ticks fill with progress in the accent color; otherwise lit for the rounds left (orange when low).
+	const float Progress = ReloadDuration > 0.f ? FMath::Clamp(ReloadElapsed / ReloadDuration, 0.f, 1.f) : 0.f;
+	const int32 Lit = bReloading ? FMath::FloorToInt(Progress * TickCount) : FMath::Clamp(FMath::CeilToInt(MagazineFraction * TickCount), 0, TickCount);
+	const int32 TickState = (Lit << 2) | (bReloading ? 2 : 0) | (bLow ? 1 : 0);
+	if (TickState != ShownTickState)
 	{
-		const float Progress = ReloadDuration > 0.f ? FMath::Clamp(ReloadElapsed / ReloadDuration, 0.f, 1.f) : 0.f;
-		const int32 Filled = FMath::FloorToInt(Progress * TickCount);
-		for (int32 Index = 0; Index < TickCount; ++Index)
-		{
-			AmmoSegments[Index]->SetColorAndOpacity(Index < Filled ? Color::Accent() : Color::SegmentOff());
-		}
-	}
-	else
-	{
-		const int32 Lit = FMath::Clamp(FMath::CeilToInt(MagazineFraction * TickCount), 0, TickCount);
-		const FLinearColor On = bLow ? Color::Accent() : Color::SegmentOn();
+		// Only when something shows differently: up to 40 ticks would otherwise be recolored every frame.
+		ShownTickState = TickState;
+		const FLinearColor On = bReloading || bLow ? Color::Accent() : Color::SegmentOn();
 		for (int32 Index = 0; Index < TickCount; ++Index)
 		{
 			AmmoSegments[Index]->SetColorAndOpacity(Index < Lit ? On : Color::SegmentOff());

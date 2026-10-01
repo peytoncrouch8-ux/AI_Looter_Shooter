@@ -271,7 +271,7 @@ void UHudWeaponSlotsWidget::Paint(FSlotWidgets& Cell, int32 Index, const UWeapon
 
 	if (!Weapon)
 	{
-		// Empty: a dashed outline, a faint fill, and the key.
+		// Empty: a dark socket with a dashed outline, and the key (it reads on grass and sky alike).
 		Show(Cell.Glow, false);
 		Show(Cell.Stripe, false);
 		Show(Cell.Outline, false);
@@ -279,8 +279,8 @@ void UHudWeaponSlotsWidget::Paint(FSlotWidgets& Cell, int32 Index, const UWeapon
 		Show(Cell.Gun, false);
 		Show(Cell.GunShadow, false);
 		Show(Cell.Dashed, true);
-		Cell.Dashed->SetColorAndOpacity(Color::TextDim() * FLinearColor(1.f, 1.f, 1.f, 0.35f));
-		Cell.Fill->SetColorAndOpacity(Hex(7, 26, 40, 60));
+		Cell.Dashed->SetColorAndOpacity(Color::TextDim() * FLinearColor(1.f, 1.f, 1.f, 0.6f));
+		Cell.Fill->SetColorAndOpacity(Hex(7, 26, 40, 128));
 		Cell.Tab->SetBrush(RectBrush(Color::Plate(), Hex(90, 200, 255, 90), 1.f));
 		Cell.TabNumber->SetColorAndOpacity(FSlateColor(Color::TextDim()));
 		Cell.AmmoClass->SetText(FText::GetEmpty());
@@ -307,7 +307,8 @@ void UHudWeaponSlotsWidget::Paint(FSlotWidgets& Cell, int32 Index, const UWeapon
 	Show(Cell.BoldOutline, bInHand);
 	Show(Cell.Outline, !bInHand);
 	Cell.Glow->SetColorAndOpacity(Color::Accent() * FLinearColor(1.f, 1.f, 1.f, 0.35f));
-	Cell.BoldOutline->SetColorAndOpacity(Color::Accent());
+	// A legendary's rarity edge is orange too: its ring goes light so the two don't merge.
+	Cell.BoldOutline->SetColorAndOpacity(Item.Rarity == EWeaponRarity::Legendary ? Color::Text() : Color::Accent());
 	Cell.Outline->SetColorAndOpacity(Rarity);
 	Cell.Fill->SetColorAndOpacity(bInHand ? Rarity * FLinearColor(1.f, 1.f, 1.f, 0.33f) : Hex(7, 26, 40, 107));
 	Cell.Gun->SetColorAndOpacity(bInHand ? Color::Text() : Rarity);
