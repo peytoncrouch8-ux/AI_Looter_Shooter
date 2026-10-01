@@ -22,33 +22,60 @@ using namespace LooterUI;
 
 namespace
 {
-	// A slot's hexagon (reference pixels), its points at the sides; the slots sit this far apart, center to center.
-	constexpr float HexWidth = 68.f;
-	constexpr float HexHeight = 52.f;
-	constexpr float SlotSpacing = 84.f;
-	/** The glow ring reaches past the hex, so its picture is this much bigger on every side. */
+	// A slot's circle (reference pixels); the slots sit this far apart, center to center, leaving room for the one in
+	// hand to grow.
+	constexpr float SlotDiameter = 60.f;
+	constexpr float SlotSpacing = 76.f;
+	/** Points round a whole circle: at the drawn size (twice that in the texture) the facets stay well under a pixel. */
+	constexpr int32 CircleSegments = 64;
+	/** The glow ring reaches past the circle, so its picture is this much bigger on every side. */
 	constexpr float GlowMargin = 6.f;
+	/** The rarity edge runs along the circle's bottom, this many degrees of it (centered on the bottom). */
+	constexpr float StripeSweep = 100.f;
 	/** The slot in hand: raised and grown, eased over LiftTime seconds. */
 	constexpr float LiftHeight = 6.f;
 	constexpr float LiftScale = 1.14f;
 	constexpr float LiftTime = 0.12f;
-	/** The box a slot's gun icon fits in (keeping its shape): the rifle fills its height, the long shotgun its width. */
-	const FVector2D GunBox(52.f, 26.f);
+	/**
+	 * The box a slot's gun icon fits in (keeping its shape): the rifle fills its height, the long shotgun its width. A
+	 * circle is short across its middle, so the icon tilts up by GunTilt degrees and lies along the rising diagonal,
+	 * where a long gun gets more room and still clears the ring and the rarity arc.
+	 */
+	const FVector2D GunBox(52.f, 24.f);
+	constexpr float GunTilt = -22.f;
 
 	/** A gun icon in a slot that isn't in hand: dimmed a little. */
 	const FLinearColor RestingGun(0.72f, 0.72f, 0.72f, 0.9f);
 	const FVector2D TabSize(20.f, 16.f);
 
-	/** The hexagon's corners, Inset in from its box, starting at the left point and going clockwise. */
-	TArray<FVector2D> HexPoints(float Inset, const FVector2D& Offset = FVector2D::ZeroVector)
+	/**
+	 * Points along the slot's circle, Inset in from its edge, from angle From to To in degrees (clockwise on screen from
+	 * the right, so 90 is the bottom: the order fills and strokes take), both ends included. Offset moves the circle
+	 * within a bigger picture.
+	 */
+	TArray<FVector2D> ArcPoints(float Inset, float From, float To, int32 Segments, const FVector2D& Offset = FVector2D::ZeroVector)
 	{
-		const float W = HexWidth;
-		const float H = HexHeight;
-		const float Quarter = W * 0.25f;
-		return {
-			Offset + FVector2D(Inset, H * 0.5f), Offset + FVector2D(Quarter + Inset * 0.5f, Inset),
-			Offset + FVector2D(W - Quarter - Inset * 0.5f, Inset), Offset + FVector2D(W - Inset, H * 0.5f),
-			Offset + FVector2D(W - Quarter - Inset * 0.5f, H - Inset), Offset + FVector2D(Quarter + Inset * 0.5f, H - Inset) };
+		const float Radius = SlotDiameter * 0.5f - Inset;
+		const FVector2D Center = Offset + FVector2D(SlotDiameter * 0.5f, SlotDiameter * 0.5f);
+		TArray<FVector2D> Points;
+		Points.Reserve(Segments + 1);
+		for (int32 Index = 0; Index <= Segments; ++Index)
+		{
+			const float Angle = FMath::DegreesToRadians(FMath::Lerp(From, To, static_cast<float>(Index) / static_cast<float>(Segments)));
+			Points.Add(Center + FVector2D(FMath::Cos(Angle), FMath::Sin(Angle)) * Radius);
+		}
+		return Points;
+	}
+
+	/**
+	 * The whole circle, Inset in from the slot's edge, as a convex polygon. The last point (back at the start) is dropped:
+	 * a fill's edge of almost no length has no direction, which would spoil the polygon's coverage.
+	 */
+	TArray<FVector2D> CirclePoints(float Inset, const FVector2D& Offset = FVector2D::ZeroVector)
+	{
+		TArray<FVector2D> Points = ArcPoints(Inset, 0.f, 360.f, CircleSegments, Offset);
+		Points.Pop();
+		return Points;
 	}
 
 	TArray<FVector2D> Closed(TArray<FVector2D> Points)
@@ -59,76 +86,71 @@ namespace
 		return Points;
 	}
 
-	FVectorIcon HexIcon(bool bFill, float StrokeWidth)
+	/** The disc (a fill) or a ring StrokeWidth wide that stays inside the slot's box (a stroke). */
+	FVectorIcon CircleIcon(bool bFill, float StrokeWidth)
 	{
 		FVectorIcon Icon;
-		Icon.ViewBox = FVector2D(HexWidth, HexHeight);
+		Icon.ViewBox = FVector2D(SlotDiameter, SlotDiameter);
 		Icon.StrokeWidth = StrokeWidth;
 		if (bFill)
 		{
-			Icon.Fills.Add(HexPoints(1.f));
+			Icon.Fills.Add(CirclePoints(1.f));
 		}
 		else
 		{
-			Icon.Strokes.Add(Closed(HexPoints(StrokeWidth * 0.5f + 0.5f)));
+			Icon.Strokes.Add(Closed(CirclePoints(StrokeWidth * 0.5f + 0.5f)));
 		}
 		return Icon;
 	}
 
-	const FVectorIcon& HexFill() { static const FVectorIcon Icon = HexIcon(true, 0.f); return Icon; }
-	const FVectorIcon& HexOutline() { static const FVectorIcon Icon = HexIcon(false, 1.5f); return Icon; }
-	const FVectorIcon& HexBoldOutline() { static const FVectorIcon Icon = HexIcon(false, 2.5f); return Icon; }
+	const FVectorIcon& DiscFill() { static const FVectorIcon Icon = CircleIcon(true, 0.f); return Icon; }
+	const FVectorIcon& RingOutline() { static const FVectorIcon Icon = CircleIcon(false, 1.5f); return Icon; }
+	const FVectorIcon& RingBoldOutline() { static const FVectorIcon Icon = CircleIcon(false, 2.5f); return Icon; }
 
-	/** A wide, soft ring around the hex (drawn faint, in the accent color). */
-	const FVectorIcon& HexGlow()
+	/** A wide, soft ring round the circle (drawn faint, in the accent color). */
+	const FVectorIcon& RingGlow()
 	{
 		static const FVectorIcon Icon = []()
 		{
 			FVectorIcon Ring;
-			Ring.ViewBox = FVector2D(HexWidth + GlowMargin * 2.f, HexHeight + GlowMargin * 2.f);
+			Ring.ViewBox = FVector2D(SlotDiameter + GlowMargin * 2.f, SlotDiameter + GlowMargin * 2.f);
 			Ring.StrokeWidth = 7.f;
-			Ring.Strokes.Add(Closed(HexPoints(0.5f, FVector2D(GlowMargin, GlowMargin))));
+			Ring.Strokes.Add(Closed(CirclePoints(0.5f, FVector2D(GlowMargin, GlowMargin))));
 			return Ring;
 		}();
 		return Icon;
 	}
 
-	/** The rarity edge: a band along the two lower edges and the bottom, just inside the outline. */
-	const FVectorIcon& HexStripe()
+	/** The rarity edge: a thick arc along the circle's bottom, just inside the ring. */
+	const FVectorIcon& RarityArc()
 	{
 		static const FVectorIcon Icon = []()
 		{
 			FVectorIcon Band;
-			Band.ViewBox = FVector2D(HexWidth, HexHeight);
+			Band.ViewBox = FVector2D(SlotDiameter, SlotDiameter);
 			Band.StrokeWidth = 4.f;
-			const TArray<FVector2D> Inner = HexPoints(3.5f);
-			Band.Strokes.Add({ Inner[0], Inner[5], Inner[4], Inner[3] });
+			Band.Strokes.Add(ArcPoints(3.5f, 90.f - StripeSweep * 0.5f, 90.f + StripeSweep * 0.5f, 32));
 			return Band;
 		}();
 		return Icon;
 	}
 
-	/** An empty slot's outline: short dashes around the hex. */
-	const FVectorIcon& HexDashed()
+	/** An empty slot's outline: short dashes evenly round the circle, one centered on the bottom (so it's symmetric). */
+	const FVectorIcon& RingDashed()
 	{
 		static const FVectorIcon Icon = []()
 		{
 			FVectorIcon Dashes;
-			Dashes.ViewBox = FVector2D(HexWidth, HexHeight);
+			Dashes.ViewBox = FVector2D(SlotDiameter, SlotDiameter);
 			Dashes.StrokeWidth = 1.5f;
-			const TArray<FVector2D> Corners = Closed(HexPoints(1.25f));
-			constexpr float Dash = 5.f;
-			constexpr float Gap = 4.f;
-			for (int32 Edge = 0; Edge + 1 < Corners.Num(); ++Edge)
+			// About 5 pixels of dash to 4 of gap round the ring.
+			constexpr int32 DashCount = 20;
+			constexpr float Step = 360.f / DashCount;
+			constexpr float Sweep = Step * 5.f / 9.f;
+			for (int32 Index = 0; Index < DashCount; ++Index)
 			{
-				const FVector2D From = Corners[Edge];
-				const FVector2D Along = Corners[Edge + 1] - From;
-				const float Length = Along.Size();
-				const FVector2D Direction = Along / Length;
-				for (float Start = 0.f; Start < Length; Start += Dash + Gap)
-				{
-					Dashes.Strokes.Add({ From + Direction * Start, From + Direction * FMath::Min(Start + Dash, Length) });
-				}
+				const float Middle = 90.f + Step * Index;
+				Dashes.Strokes.Add(ArcPoints(1.25f, Middle - Sweep * 0.5f, Middle + Sweep * 0.5f, 3));
 			}
 			return Dashes;
 		}();
@@ -160,24 +182,28 @@ TSharedRef<SWidget> UHudWeaponSlotsWidget::RebuildWidget()
 		Row->SetVisibility(ESlateVisibility::HitTestInvisible);
 		WidgetTree->RootWidget = Row;
 		Slots.Reset();
-		const FVector2D HexSize(HexWidth, HexHeight);
+		const FVector2D CircleSize(SlotDiameter, SlotDiameter);
 		for (int32 Index = 0; Index < MaxSlots; ++Index)
 		{
 			FSlotWidgets Cell;
-			// The hex: glow, fill, rarity edge, outline (plain, bold or dashed), then the gun's icon (its own ink line
+			// The circle: glow, fill, rarity edge, ring (plain, bold or dashed), then the gun's icon (its own ink line
 			// carries it over any background).
 			UOverlay* Layers = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-			// The glow ring reaches past the hex: drawn at the hex's size and scaled up so its hex lands on the slot's.
-			Cell.Glow = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudHexGlow"), HexGlow(), 2.f, HexSize, FLinearColor::White));
-			Cell.Glow->SetRenderScale(FVector2D((HexWidth + GlowMargin * 2.f) / HexWidth, (HexHeight + GlowMargin * 2.f) / HexHeight));
-			Cell.Fill = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudHexFill"), HexFill(), 2.f, HexSize, FLinearColor::White));
+			// The glow ring reaches past the circle: drawn at the circle's size and scaled up so its ring lands on the slot's.
+			Cell.Glow = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudSlotGlow"), RingGlow(), 2.f, CircleSize, FLinearColor::White));
+			const float GlowScale = (SlotDiameter + GlowMargin * 2.f) / SlotDiameter;
+			Cell.Glow->SetRenderScale(FVector2D(GlowScale, GlowScale));
+			Cell.Fill = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudSlotFill"), DiscFill(), 2.f, CircleSize, FLinearColor::White));
 			// The fills fade with the UI transparency setting; outlines, silhouettes and text don't.
 			MarkBackground(Cell.Fill);
-			Cell.Stripe = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudHexStripe"), HexStripe(), 2.f, HexSize, FLinearColor::White));
-			Cell.Outline = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudHexOutline"), HexOutline(), 2.f, HexSize, FLinearColor::White));
-			Cell.BoldOutline = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudHexBold"), HexBoldOutline(), 2.f, HexSize, FLinearColor::White));
-			Cell.Dashed = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudHexDashed"), HexDashed(), 2.f, HexSize, FLinearColor::White));
+			Cell.Stripe = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudSlotStripe"), RarityArc(), 2.f, CircleSize, FLinearColor::White));
+			Cell.Outline = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudSlotOutline"), RingOutline(), 2.f, CircleSize, FLinearColor::White));
+			Cell.BoldOutline = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudSlotBold"), RingBoldOutline(), 2.f, CircleSize, FLinearColor::White));
+			Cell.Dashed = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudSlotDashed"), RingDashed(), 2.f, CircleSize, FLinearColor::White));
 			Cell.Gun = AddLayer(WidgetTree, Layers, FSlateBrush());
+			// Tilted about its middle: the brush changes with the gun, the tilt stays.
+			Cell.Gun->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+			Cell.Gun->SetRenderTransformAngle(GunTilt);
 
 			// The key number, in a tab straddling the top edge.
 			Cell.TabNumber = MakeFloatingText(WidgetTree, 11, Color::TextDim(), 0, ETextJustify::Center);
@@ -195,13 +221,13 @@ TSharedRef<SWidget> UHudWeaponSlotsWidget::RebuildWidget()
 			TabSlot->SetHorizontalAlignment(HAlign_Center);
 			TabSlot->SetVerticalAlignment(VAlign_Top);
 
-			USizeBox* HexBox = MakeSized(WidgetTree, Layers, HexWidth, HexHeight);
-			HexBox->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
-			Cell.Lifted = HexBox;
+			USizeBox* CircleBox = MakeSized(WidgetTree, Layers, SlotDiameter, SlotDiameter);
+			CircleBox->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+			Cell.Lifted = CircleBox;
 
 			// Under it, its ammo class.
 			UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-			Column->AddChildToVerticalBox(HexBox)->SetHorizontalAlignment(HAlign_Center);
+			Column->AddChildToVerticalBox(CircleBox)->SetHorizontalAlignment(HAlign_Center);
 			Cell.AmmoClass = MakeFloatingText(WidgetTree, 13, Color::TextDim(), 40, ETextJustify::Center);
 			UVerticalBoxSlot* ClassSlot = Column->AddChildToVerticalBox(Cell.AmmoClass);
 			ClassSlot->SetHorizontalAlignment(HAlign_Center);
@@ -274,7 +300,7 @@ void UHudWeaponSlotsWidget::Paint(FSlotWidgets& Cell, int32 Index, const UWeapon
 
 	if (!Weapon)
 	{
-		// Empty: a dark socket with a dashed outline, and the key (it reads on grass and sky alike).
+		// Empty: a dark socket with a dashed ring, and the key (it reads on grass and sky alike).
 		Show(Cell.Glow, false);
 		Show(Cell.Stripe, false);
 		Show(Cell.Outline, false);
@@ -300,7 +326,7 @@ void UHudWeaponSlotsWidget::Paint(FSlotWidgets& Cell, int32 Index, const UWeapon
 	Cell.AmmoClass->SetText(FText::FromString(Item.Definition && LooterAmmo::IsValid(Item.Definition->AmmoType)
 		? LooterAmmo::GetInfo(Item.Definition->AmmoType).Short : TEXT("")));
 
-	// In hand: an accent outline with a soft glow, tinted with its rarity, the gun at full strength; otherwise outlined in
+	// In hand: an accent ring with a soft glow, tinted with its rarity, the gun at full strength; otherwise ringed in
 	// its rarity, the gun a little dimmed.
 	Show(Cell.Glow, bInHand);
 	Show(Cell.BoldOutline, bInHand);

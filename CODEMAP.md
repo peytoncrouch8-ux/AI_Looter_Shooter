@@ -146,7 +146,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/HUD/HudMinimapWidget`: the round minimap that turns with the view (size and zoom from the settings).
 - `UI/HUD/TutorialPromptWidget`: the tutorial's current instruction near the top of the screen.
 - `UI/HUD/HudXPBarWidget`: the level and experience bar at the bottom center: a hairline ticked at every tenth.
-- `UI/HUD/HudWeaponSlotsWidget`: the weapon slots over the ammo, as hexagons in the guns' rarity colors with their Inked icons.
+- `UI/HUD/HudWeaponSlotsWidget`: the weapon slots over the ammo, as circles in the guns' rarity colors with their Inked icons (tilted up).
 - `UI/HUD/HudFrameRateWidget`: the frame rate counter in the top-left corner.
 - `UI/HUD/HudPickupFeedWidget`: ammo pickups over the ammo count, in big outlined white type that stacks, rises and fades.
 - `UI/Menus/SettingsMenuWidget`: `USettingsMenuWidget`, the settings menu (graphics, interface, key bindings), over the

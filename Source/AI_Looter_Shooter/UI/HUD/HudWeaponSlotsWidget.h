@@ -11,13 +11,13 @@ class UWeaponManagerComponent;
 class UWidget;
 
 /**
- * The HUD's weapon slots, a row of hexagons over the ammo (bottom-right), one per slot, numbered by their keys:
- *  - a carried gun: outlined in its rarity color, the slot's lower edge striped in it, the gun's Inked icon inside
- *    (dimmed a little), and its ammo class under the hex ("AR")
- *  - the gun in hand: raised and a little larger, outlined in the accent color with a soft glow, tinted with its rarity,
+ * The HUD's weapon slots, a row of circles over the ammo (bottom-right), one per slot, numbered by their keys:
+ *  - a carried gun: ringed in its rarity color, an arc along the circle's bottom striped in it, the gun's Inked icon
+ *    inside, tilted up a little (dimmed a little), and its ammo class under the circle ("AR")
+ *  - the gun in hand: raised and a little larger, ringed in the accent color with a soft glow, tinted with its rarity,
  *    the icon at full strength; switching eases the new slot up
- *  - an empty slot: a dashed outline
- * No backing panels; the hexes' fills fade with the UI transparency setting, the outlines and text stay. The hexes are
+ *  - an empty slot: a dashed ring
+ * No backing panels; the circles' fills fade with the UI transparency setting, the rings and text stay. The circles are
  * vector icons drawn once into shared textures; per frame it only checks whether anything changed and eases the lift.
  */
 UCLASS()
@@ -39,7 +39,7 @@ private:
 	struct FSlotWidgets
 	{
 		UWidget* Root = nullptr;
-		/** The hex and its tab, which rise and grow when the slot is in hand. */
+		/** The circle and its tab, which rise and grow when the slot is in hand. */
 		UWidget* Lifted = nullptr;
 		UImage* Glow = nullptr;
 		UImage* Fill = nullptr;
@@ -47,7 +47,7 @@ private:
 		UImage* Outline = nullptr;
 		UImage* BoldOutline = nullptr;
 		UImage* Dashed = nullptr;
-			UImage* Gun = nullptr;
+		UImage* Gun = nullptr;
 		UBorder* Tab = nullptr;
 		UTextBlock* TabNumber = nullptr;
 		UTextBlock* AmmoClass = nullptr;
