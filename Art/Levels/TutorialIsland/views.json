@@ -1,0 +1,12 @@
+{
+  "about": "Where a player looks from in each area of the tutorial island, for screenshots and per-area performance (Looter.Tour in the game, Tools/tour.ps1; Tools/Unreal/island_views.py in the editor). x and y in cm (X north, Y east); height in cm above the ground under the view; yaw 0 looks north, 90 east; pitch up is positive.",
+  "views": [
+    {"name": "Spawn", "x": -5930, "y": -4230, "height": 170, "yaw": 35, "pitch": -3, "fov": 80},
+    {"name": "Village", "x": -1600, "y": -2600, "height": 170, "yaw": 40, "pitch": -2, "fov": 80},
+    {"name": "Meadow", "x": 3600, "y": -900, "height": 170, "yaw": -40, "pitch": 0, "fov": 80},
+    {"name": "Pond", "x": 1400, "y": 3200, "height": 170, "yaw": 60, "pitch": -3, "fov": 80},
+    {"name": "Grove", "x": 4200, "y": 4600, "height": 170, "yaw": 35, "pitch": 0, "fov": 80},
+    {"name": "Lookout", "x": -6200, "y": 6000, "height": 800, "yaw": -40, "pitch": -8, "fov": 80},
+    {"name": "Aerial", "x": -15000, "y": -10500, "height": 9000, "yaw": 35, "pitch": -28, "fov": 60}
+  ]
+}

@@ -113,6 +113,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Dev
 - `Dev/WeaponDevCommands.cpp`: console commands for testing (`Looter.GiveWeapon`).
+- `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`).
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `CreatureTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`,

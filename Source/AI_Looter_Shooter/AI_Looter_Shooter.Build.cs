@@ -31,5 +31,8 @@ public class AI_Looter_Shooter : ModuleRules
 
 		// The meadow's ground fit filter is a PCG node, and the meadow's graph ships with the level.
 		PrivateDependencyModuleNames.Add("PCG");
+
+		// Looter.Tour reads its viewpoints from JSON and the frame timings from the renderer.
+		PrivateDependencyModuleNames.AddRange(new string[] { "Json", "RHI", "RenderCore" });
 	}
 }
