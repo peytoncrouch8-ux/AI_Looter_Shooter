@@ -14,7 +14,8 @@ placement and gameplay component settings.
 ## Build, run, test
 
 - The editor must be closed to build: `Tools\launch.ps1 -Build` closes it cleanly, builds, reopens it and waits for the
-  MCP server. The double-click launcher `Launch AI_Looter_Shooter.bat` does the same for people.
+  MCP server. For people, double-clicking `Launch AI_Looter_Shooter.bat` plays the game standalone (it compiles first
+  when Unreal is closed), and `Launch AI_Looter_Shooter Editor (backup).bat` builds and opens the editor.
 - Tests: `Tools\runtests.ps1` runs every `Looter.*` automation test (the editor must be open). Keep them all passing.
 - Performance: `Tools\perf.ps1 -Label "what changed" -Exec "Looter.Quality Medium"`, with the editor closed. It
   measures a standalone 1080p window and appends the result to `Docs/Performance.md`. Measure before and after
