@@ -18,7 +18,7 @@ class AI_LOOTER_SHOOTER_API ULootDropComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	/** Rolls the table and spawns what it gives (weapons and ammo boxes). */
+	/** Rolls the table and spawns what it gives (weapons and ammo). */
 	UFUNCTION(BlueprintCallable, Category = "Loot")
 	TArray<AActor*> DropLoot();
 

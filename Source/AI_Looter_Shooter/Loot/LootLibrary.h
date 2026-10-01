@@ -40,11 +40,11 @@ class AI_LOOTER_SHOOTER_API ULootLibrary : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 
 public:
-	/** Rolls a loot table and spawns the results (weapons and ammo boxes) tossed out around Location. */
+	/** Rolls a loot table and spawns the results (weapons and ammo) tossed out around Location. */
 	UFUNCTION(BlueprintCallable, Category = "Loot", meta = (WorldContext = "WorldContextObject"))
 	static TArray<AActor*> SpawnLoot(UObject* WorldContextObject, const ULootTable* LootTable, FVector Location, int32 Level = 1, float ExtraLuck = 0.f);
 
-	/** SpawnLoot for a kill: the ammo boxes lean toward KillAmmo, the ammo class of the gun that made it, when set. */
+	/** SpawnLoot for a kill: the ammo drops lean toward KillAmmo, the ammo class of the gun that made it, when set. */
 	static TArray<AActor*> SpawnKillLoot(UObject* WorldContextObject, const ULootTable* LootTable, FVector Location, int32 Level,
 		float ExtraLuck, TOptional<EAmmoType> KillAmmo);
 

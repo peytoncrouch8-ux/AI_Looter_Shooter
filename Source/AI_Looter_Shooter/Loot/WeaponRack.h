@@ -11,8 +11,8 @@ class UStaticMeshComponent;
 class UWeaponDefinition;
 
 /**
- * A table or rack with a weapon lying on it as ordinary loot (look at it and press the interact key), and a few boxes
- * of its ammo beside it. On the tutorial island it hands the player their first gun. When the weapon has been taken and
+ * A table or rack with a weapon lying on it as ordinary loot (look at it and press the interact key), and its ammo
+ * lying beside it. On the tutorial island it hands the player their first gun. When the weapon has been taken and
  * the player no longer carries one (dropped, lost), a fresh one appears after a moment, so the tutorial can't run out.
  */
 UCLASS()
@@ -39,7 +39,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Weapon Rack", meta = (ClampMin = "1"))
 	int32 Level = 1;
 
-	/** Magazines' worth of ammo in the boxes beside it. */
+	/** Magazines' worth of ammo in the pickups beside it. */
 	UPROPERTY(EditAnywhere, Category = "Weapon Rack", meta = (ClampMin = "0"))
 	int32 AmmoMagazines = 4;
 
@@ -76,6 +76,6 @@ private:
 	bool PlayerHasWeapon() const;
 
 	TWeakObjectPtr<AWeaponBase> Offered;
-	TArray<TWeakObjectPtr<AAmmoPickup>> AmmoBoxes;
+	TArray<TWeakObjectPtr<AAmmoPickup>> AmmoPickups;
 	float RestockTimer = 0.f;
 };

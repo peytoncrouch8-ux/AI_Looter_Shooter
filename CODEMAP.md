@@ -71,15 +71,15 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Affixes/WeaponRollLibrary`: `UWeaponRollLibrary`, rolling rarity and stats from a seed, and spawning rolled guns.
 
 ## Loot
-- `Loot/LootTable`: `ULootTable`, what a kill drops (ammo boxes and their lean toward the kill weapon's ammo, weapon
+- `Loot/LootTable`: `ULootTable`, what a kill drops (ammo pickups and their lean toward the kill weapon's ammo, weapon
   odds, luck).
 - `Loot/LootLibrary`: `ULootLibrary`, rolling a loot table and spawning the results.
 - `Loot/LootDropComponent`: drops its owner's loot when it dies.
 - `Loot/LootTossComponent`: `ULootTossComponent`, throws loot so it pops out, lands and settles.
 - `Loot/WeaponRack`: `AWeaponRack`, a rack with a weapon lying on it as loot and ammo beside it; restocks when the
   weapon is gone and the player has none (the tutorial's first rifle).
-- `Loot/AmmoPickup`: `AAmmoPickup`, an ammo box collected by running past it (within `CollectRadius`; its model per
-  type from `Art/Models/Loot/AmmoBox.py`).
+- `Loot/AmmoPickup`: `AAmmoPickup`, dropped ammo: a spinning bundle of rounds, the ammo's icon modeled in 3D (per type,
+  from `Art/Models/Loot/Ammo.py`), collected by running past it (within `CollectRadius`).
 
 ## Creatures
 - `Creatures/CreatureBase`: `ACreatureBase`, a hostile creature's brain and life cycle (senses, chase, attack, death,
@@ -175,7 +175,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/World/DamageNumberActor`, `UI/World/DamageNumberWidget`: floating damage numbers.
 
 ## Dev
-- `Dev/WeaponDevCommands.cpp`: console commands for testing (`Looter.GiveWeapon`).
+- `Dev/WeaponDevCommands.cpp`: console commands for testing (`Looter.GiveWeapon`, `Looter.SpawnAmmo`).
 - `Dev/ProgressionDevCommands.cpp`: console commands for levels (`Looter.GiveXP`, `Looter.SetLevel`,
   `Looter.ResetProgress`) and the bestiary (`Looter.ForgetBestiary`).
 - `Dev/SessionDevCommands.cpp`: `Looter.Session.Play <1-3>`, `Looter.Session.Save`, `Looter.Session.Menu`,

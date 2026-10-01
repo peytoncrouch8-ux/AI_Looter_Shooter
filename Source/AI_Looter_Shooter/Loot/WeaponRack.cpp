@@ -15,7 +15,7 @@ namespace
 {
 	/** The weapon is dropped from a hand's width above the socket so it settles onto the table, not into it. */
 	constexpr float DropHeight = 12.f;
-	/** How far along the table from the weapon each ammo box sits (cm): clear of a rifle, still on a 2 m table. */
+	/** How far along the table from the weapon each ammo pickup sits (cm): clear of a rifle, still on a 2 m table. */
 	constexpr float AmmoOffset = 75.f;
 	/** Checking for a taken weapon a few times a second is plenty. */
 	constexpr float CheckInterval = 0.5f;
@@ -85,20 +85,20 @@ void AWeaponRack::Restock()
 		Offered = Spawned;
 	}
 
-	// Ammo boxes at either end of the table, if the last ones were collected.
-	AmmoBoxes.RemoveAll([](const TWeakObjectPtr<AAmmoPickup>& Box) { return !Box.IsValid(); });
-	if (AmmoBoxes.IsEmpty() && AmmoMagazines > 0)
+	// Ammo at either end of the table, if the last was collected.
+	AmmoPickups.RemoveAll([](const TWeakObjectPtr<AAmmoPickup>& Ammo) { return !Ammo.IsValid(); });
+	if (AmmoPickups.IsEmpty() && AmmoMagazines > 0)
 	{
 		const int32 Rounds = Instance.Stats.MagazineSize * AmmoMagazines;
 		for (const float Side : { -1.f, 1.f })
 		{
-			const FVector BoxSpot = Spot + Along * Side * AmmoOffset + FVector::UpVector * DropHeight;
-			if (AAmmoPickup* Box = AAmmoPickup::SpawnAmmo(World, Weapon->AmmoType, FMath::Max(Rounds / 2, 1), BoxSpot))
+			const FVector AmmoSpot = Spot + Along * Side * AmmoOffset + FVector::UpVector * DropHeight;
+			if (AAmmoPickup* Ammo = AAmmoPickup::SpawnAmmo(World, Weapon->AmmoType, FMath::Max(Rounds / 2, 1), AmmoSpot))
 			{
-				Box->Toss(FVector::ZeroVector);
-				// It stays until it's taken (loose loot boxes disappear after a while).
-				Box->SetLifeSpan(0.f);
-				AmmoBoxes.Add(Box);
+				Ammo->Toss(FVector::ZeroVector);
+				// It stays until it's taken (loose loot disappears after a while).
+				Ammo->SetLifeSpan(0.f);
+				AmmoPickups.Add(Ammo);
 			}
 		}
 	}
@@ -111,7 +111,7 @@ bool AWeaponRack::IsWeaponOffered() const
 
 int32 AWeaponRack::GetAmmoPickupsLeft() const
 {
-	return AmmoBoxes.FilterByPredicate([](const TWeakObjectPtr<AAmmoPickup>& Box) { return Box.IsValid() && Box->GetAmount() > 0; }).Num();
+	return AmmoPickups.FilterByPredicate([](const TWeakObjectPtr<AAmmoPickup>& Ammo) { return Ammo.IsValid() && Ammo->GetAmount() > 0; }).Num();
 }
 
 bool AWeaponRack::Offers(const AActor* Loot) const
@@ -121,7 +121,7 @@ bool AWeaponRack::Offers(const AActor* Loot) const
 		return false;
 	}
 	return (Offered.Get() == Loot && IsWeaponOffered())
-		|| AmmoBoxes.ContainsByPredicate([Loot](const TWeakObjectPtr<AAmmoPickup>& Box) { return Box.Get() == Loot; });
+		|| AmmoPickups.ContainsByPredicate([Loot](const TWeakObjectPtr<AAmmoPickup>& Ammo) { return Ammo.Get() == Loot; });
 }
 
 void AWeaponRack::RestoreOffer(bool bWeaponOffered, int32 AmmoPickupsLeft)
@@ -131,10 +131,10 @@ void AWeaponRack::RestoreOffer(bool bWeaponOffered, int32 AmmoPickupsLeft)
 		Offered->Destroy();
 		Offered.Reset();
 	}
-	AmmoBoxes.RemoveAll([](const TWeakObjectPtr<AAmmoPickup>& Box) { return !Box.IsValid(); });
-	while (AmmoBoxes.Num() > FMath::Max(AmmoPickupsLeft, 0))
+	AmmoPickups.RemoveAll([](const TWeakObjectPtr<AAmmoPickup>& Ammo) { return !Ammo.IsValid(); });
+	while (AmmoPickups.Num() > FMath::Max(AmmoPickupsLeft, 0))
 	{
-		AmmoBoxes.Pop()->Destroy();
+		AmmoPickups.Pop()->Destroy();
 	}
 	// The restock wait starts over, as if the weapon had just been taken.
 	RestockTimer = 0.f;

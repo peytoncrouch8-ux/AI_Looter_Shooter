@@ -20,7 +20,7 @@ enum class EAmmoType : uint8
 };
 
 /**
- * Game-wide ammo rules: names, how much the player can carry and how much one ammo box holds. Ammo deliberately has no
+ * Game-wide ammo rules: names, how much the player can carry and how much one ammo pickup holds. Ammo deliberately has no
  * class colors: the rarity colors are the game's only color code, so colored ammo read as rarity tiers.
  */
 namespace LooterAmmo
@@ -31,7 +31,7 @@ namespace LooterAmmo
 	{
 		const TCHAR* Name;         // "AR Ammo"
 		int32 MaxCarried;          // pool cap
-		int32 BoxAmount;           // one dropped box
+		int32 PickupAmount;        // one dropped pickup
 		const TCHAR* Short;        // "AR": the ammo class on the HUD
 	};
 

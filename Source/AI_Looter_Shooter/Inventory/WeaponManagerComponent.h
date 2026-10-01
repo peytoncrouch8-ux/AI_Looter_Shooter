@@ -163,7 +163,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Weapons|Ammo")
 	FOnAmmoPoolChanged OnAmmoChanged;
 
-	/** An ammo box gave the player Amount rounds (the HUD's pickup feed); Amount is 0 when that class was already full. */
+	/** An ammo pickup gave the player Amount rounds (the HUD's pickup feed); Amount is 0 when that class was already full. */
 	UPROPERTY(BlueprintAssignable, Category = "Weapons|Ammo")
 	FOnAmmoPickedUp OnAmmoPickedUp;
 

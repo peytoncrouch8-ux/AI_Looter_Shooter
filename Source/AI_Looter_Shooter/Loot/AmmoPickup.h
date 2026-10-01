@@ -14,10 +14,11 @@ class UStaticMesh;
 class UStaticMeshComponent;
 
 /**
- * A box of one ammo class dropped as loot. Run past it to collect (anything within CollectRadius of the box): it goes
- * into the player's shared pool for that class, up to the carry limit. If you can't carry all of it, the rest stays in the box. Every class is the same olive
- * ammo can (no rarity-like colors); the cartridges on top tell them apart (fat red shells, long sniper rounds, ...).
- * Despawns after a while.
+ * Ammo of one class dropped as loot: a spinning bundle of its rounds, the class's HUD icon modeled in 3D with the same
+ * ink line (SM_Ammo<Type>, from Art/Models/Loot/Ammo.py). Run past it to collect (anything within CollectRadius of it):
+ * it goes into the player's shared pool for that class, up to the carry limit. If you can't carry all of it, the rest
+ * stays on the ground. The rounds themselves tell the classes apart (brass rifle rounds, oxblood shells, long sniper
+ * rounds...), never colors, which belong to rarity. Despawns after a while.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AAmmoPickup : public AActor
@@ -27,16 +28,16 @@ class AI_LOOTER_SHOOTER_API AAmmoPickup : public AActor
 public:
 	AAmmoPickup();
 
-	/** Spawns a box of Amount rounds of Type at Location (not yet tossed). */
+	/** Spawns Amount rounds of Type at Location (not yet tossed). */
 	static AAmmoPickup* SpawnAmmo(UWorld* World, EAmmoType Type, int32 Amount, const FVector& Location);
 
-	/** Throws the box with the given velocity; it bounces and settles on whatever is below. */
+	/** Throws the pickup with the given velocity; it bounces and settles on whatever is below. */
 	void Toss(const FVector& Velocity);
 
 	EAmmoType GetAmmoType() const { return AmmoType; }
 	int32 GetAmount() const { return Amount; }
 
-	/** Seconds before an uncollected box disappears. */
+	/** Seconds before an uncollected pickup disappears. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = "0"))
 	float LifeSeconds = 300.f;
 
@@ -45,7 +46,7 @@ public:
 	float CollectDelay = 0.5f;
 
 	/**
-	 * How close the player must come to the box to collect it (cm, from the box to the edge of the player's capsule):
+	 * How close the player must come to the pickup to collect it (cm, from the pickup to the edge of the player's capsule):
 	 * running past within about two meters is enough, so nobody has to stop and step onto it.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = "0"))
@@ -75,9 +76,9 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> Model;
 
-	/** The box of each ammo type (SM_AmmoBox<Type>, from Art/Models/Loot/AmmoBox.py), in EAmmoType order. */
+	/** The bundle of each ammo type (SM_Ammo<Type>, from Art/Models/Loot/Ammo.py), in EAmmoType order. */
 	UPROPERTY()
-	TArray<TObjectPtr<UStaticMesh>> BoxModels;
+	TArray<TObjectPtr<UStaticMesh>> TypeModels;
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UPointLightComponent> Glow;
@@ -91,7 +92,7 @@ private:
 	EAmmoType AmmoType = EAmmoType::AssaultRifle;
 	int32 Amount = 0;
 	double SpawnTime = 0.0;
-	/** Players already told "full" during their current visit, so standing on a box doesn't spam the message. */
+	/** Players already told "full" during their current visit, so standing on a pickup doesn't spam the message. */
 	TSet<TWeakObjectPtr<AActor>> ToldFull;
 	FTimerHandle RetryTimer;
 };

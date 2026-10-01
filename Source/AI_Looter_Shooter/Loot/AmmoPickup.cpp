@@ -17,14 +17,14 @@ namespace
 	constexpr float RetryInterval = 0.25f;
 	const FLinearColor LightColor(1.f, 0.9f, 0.75f);
 
-	/** The box model of each ammo type, in EAmmoType order. */
-	TArray<UStaticMesh*> FindBoxModels()
+	/** The bundle of rounds of each ammo type, in EAmmoType order. */
+	TArray<UStaticMesh*> FindTypeModels()
 	{
 		TArray<UStaticMesh*> Models;
 		for (const EAmmoType Type : LooterAmmo::AllTypes())
 		{
 			const FString Name = StaticEnum<EAmmoType>()->GetNameStringByValue(static_cast<int64>(Type));
-			const ConstructorHelpers::FObjectFinder<UStaticMesh> Model(*FString::Printf(TEXT("/Game/Art/Loot/SM_AmmoBox%s.SM_AmmoBox%s"), *Name, *Name));
+			const ConstructorHelpers::FObjectFinder<UStaticMesh> Model(*FString::Printf(TEXT("/Game/Art/Loot/SM_Ammo%s.SM_Ammo%s"), *Name, *Name));
 			Models.Add(Model.Object);
 		}
 		return Models;
@@ -35,7 +35,7 @@ AAmmoPickup::AAmmoPickup()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	// Root: a small sphere that only bounces off world geometry (not other loot) while the box is tossed.
+	// Root: a small sphere that only bounces off world geometry (not other loot) while the pickup is tossed.
 	Collision = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
 	Collision->InitSphereRadius(10.f);
 	Collision->SetCollisionObjectType(ECC_WorldDynamic);
@@ -58,8 +58,8 @@ AAmmoPickup::AAmmoPickup()
 	Model->SetupAttachment(Collision);
 	Model->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 	Model->SetRelativeLocation(FVector(0.f, 0.f, -8.f));
-	static const TArray<UStaticMesh*> Boxes = FindBoxModels();
-	BoxModels.Append(Boxes);
+	static const TArray<UStaticMesh*> Models = FindTypeModels();
+	TypeModels.Append(Models);
 
 	Glow = CreateDefaultSubobject<UPointLightComponent>(TEXT("Glow"));
 	Glow->SetupAttachment(Collision);
@@ -100,7 +100,7 @@ void AAmmoPickup::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 	const int32 Type = static_cast<int32>(AmmoType);
-	Model->SetStaticMesh(BoxModels.IsValidIndex(Type) ? BoxModels[Type] : nullptr);
+	Model->SetStaticMesh(TypeModels.IsValidIndex(Type) ? TypeModels[Type] : nullptr);
 }
 
 void AAmmoPickup::BeginPlay()
@@ -168,7 +168,7 @@ void AAmmoPickup::TryCollect()
 			Amount -= Taken;
 			// Shown in the HUD's pickup feed, not its message plate.
 			Inventory->OnAmmoPickedUp.Broadcast(AmmoType, Taken);
-			UE_LOG(LogLooter, Verbose, TEXT("%s picked up %d %s (now %d / %d, %d left in the box)"), *Pawn->GetName(), Taken, Info.Name,
+			UE_LOG(LogLooter, Verbose, TEXT("%s picked up %d %s (now %d / %d, %d left on the ground)"), *Pawn->GetName(), Taken, Info.Name,
 				Inventory->GetAmmo(AmmoType), Inventory->GetMaxAmmo(AmmoType), Amount);
 		}
 		else if (!ToldFull.Contains(Actor))

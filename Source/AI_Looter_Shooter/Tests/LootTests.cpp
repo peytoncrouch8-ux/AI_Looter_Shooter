@@ -48,10 +48,10 @@ bool FLootDropOddsTest::RunTest(const FString& Parameters)
 	int32 KillsWithWeapons = 0;
 	int32 KillsWithoutAmmo = 0;
 	int32 Weapons = 0;
-	int32 Boxes = 0;
+	int32 AmmoDrops = 0;
 	int32 Tiers[NumTiers] = {};
 	int32 AmmoTypes[LooterAmmo::NumTypes] = {};
-	bool bBoxesFull = true;
+	bool bDropsFull = true;
 	for (int32 Kill = 0; Kill < Kills; ++Kill)
 	{
 		const FLootRoll Roll = ULootLibrary::RollLoot(Table, 1, 0.f, Random);
@@ -65,8 +65,8 @@ bool FLootDropOddsTest::RunTest(const FString& Parameters)
 		for (const FAmmoDrop& Drop : Roll.Ammo)
 		{
 			++AmmoTypes[static_cast<int32>(Drop.Type)];
-			++Boxes;
-			bBoxesFull &= Drop.Amount == LooterAmmo::GetInfo(Drop.Type).BoxAmount;
+			++AmmoDrops;
+			bDropsFull &= Drop.Amount == LooterAmmo::GetInfo(Drop.Type).PickupAmount;
 		}
 	}
 
@@ -96,15 +96,15 @@ bool FLootDropOddsTest::RunTest(const FString& Parameters)
 
 	// Ammo: every kill, every class, each box a full box of its class.
 	TestEqual(TEXT("Every kill drops ammo"), KillsWithoutAmmo, 0);
-	TestTrue(TEXT("Each box holds its class's box amount"), bBoxesFull);
+	TestTrue(TEXT("Each pickup holds its class's pickup amount"), bDropsFull);
 	for (const EAmmoType Type : LooterAmmo::AllTypes())
 	{
-		const float Share = static_cast<float>(AmmoTypes[static_cast<int32>(Type)]) / FMath::Max(Boxes, 1);
-		TestNearlyEqual(FString::Printf(TEXT("%s share of ammo boxes"), LooterAmmo::GetInfo(Type).Name), Share, 1.f / LooterAmmo::NumTypes, 0.02f);
+		const float Share = static_cast<float>(AmmoTypes[static_cast<int32>(Type)]) / FMath::Max(AmmoDrops, 1);
+		TestNearlyEqual(FString::Printf(TEXT("%s share of ammo drops"), LooterAmmo::GetInfo(Type).Name), Share, 1.f / LooterAmmo::NumTypes, 0.02f);
 	}
 
-	AddInfo(FString::Printf(TEXT("%d kills: weapons on %.1f%% (C/U/R/E/L %d/%d/%d/%d/%d), %.2f ammo boxes per kill"), Kills, WeaponRate * 100.f,
-		Tiers[0], Tiers[1], Tiers[2], Tiers[3], Tiers[4], static_cast<float>(Boxes) / Kills));
+	AddInfo(FString::Printf(TEXT("%d kills: weapons on %.1f%% (C/U/R/E/L %d/%d/%d/%d/%d), %.2f ammo drops per kill"), Kills, WeaponRate * 100.f,
+		Tiers[0], Tiers[1], Tiers[2], Tiers[3], Tiers[4], static_cast<float>(AmmoDrops) / Kills));
 	return true;
 }
 
@@ -113,7 +113,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLootKillWeaponAmmoTest, "Looter.Loot.KillWeapo
 
 bool FLootKillWeaponAmmoTest::RunTest(const FString& Parameters)
 {
-	// Boxes from shotgun kills: shells come up KillWeaponAmmoBias times as often as each other class, and every other
+	// Ammo from shotgun kills: shells come up KillWeaponAmmoBias times as often as each other class, and every other
 	// class still drops.
 	ULootTable* Table = NewObject<ULootTable>();
 	const float Bias = Table->KillWeaponAmmoBias;
@@ -158,14 +158,14 @@ bool FLootAmmoPoolTest::RunTest(const FString& Parameters)
 {
 	UWeaponManagerComponent* Inventory = NewObject<UWeaponManagerComponent>();
 	const EAmmoType Type = EAmmoType::Shotgun;
-	const int32 Box = LooterAmmo::GetInfo(Type).BoxAmount;
+	const int32 Pickup = LooterAmmo::GetInfo(Type).PickupAmount;
 	const int32 Max = Inventory->GetMaxAmmo(Type);
 
 	TestEqual(TEXT("Starts empty"), Inventory->GetAmmo(Type), 0);
-	TestEqual(TEXT("A box goes in whole"), Inventory->AddAmmo(Type, Box), Box);
-	TestEqual(TEXT("Only fills up to the carry limit"), Inventory->AddAmmo(Type, Max), Max - Box);
+	TestEqual(TEXT("A pickup goes in whole"), Inventory->AddAmmo(Type, Pickup), Pickup);
+	TestEqual(TEXT("Only fills up to the carry limit"), Inventory->AddAmmo(Type, Max), Max - Pickup);
 	TestEqual(TEXT("Full"), Inventory->GetAmmo(Type), Max);
-	TestEqual(TEXT("Nothing fits when full"), Inventory->AddAmmo(Type, Box), 0);
+	TestEqual(TEXT("Nothing fits when full"), Inventory->AddAmmo(Type, Pickup), 0);
 	TestEqual(TEXT("Other classes have their own pool"), Inventory->GetAmmo(EAmmoType::AssaultRifle), 0);
 
 	TestEqual(TEXT("Takes what a reload asks for"), Inventory->TakeAmmo(Type, 5), 5);
@@ -174,7 +174,7 @@ bool FLootAmmoPoolTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Nothing from an empty pool"), Inventory->TakeAmmo(Type, 1), 0);
 
 	TestEqual(TEXT("Negative amounts are ignored"), Inventory->AddAmmo(Type, -10), 0);
-	TestEqual(TEXT("Invalid ammo class is ignored"), Inventory->AddAmmo(EAmmoType::Count, Box), 0);
+	TestEqual(TEXT("Invalid ammo class is ignored"), Inventory->AddAmmo(EAmmoType::Count, Pickup), 0);
 	return true;
 }
 
@@ -243,13 +243,13 @@ bool FLootWeaponRarityOrderTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLootAmmoBoxesTest, "Looter.Loot.AmmoBoxes",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLootAmmoModelsTest, "Looter.Loot.AmmoModels",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
-bool FLootAmmoBoxesTest::RunTest(const FString& Parameters)
+bool FLootAmmoModelsTest::RunTest(const FString& Parameters)
 {
-	// Every ammo type drops in its own box model (SM_AmmoBox<Type>, from Art/Models/Loot/AmmoBox.py): the same can,
-	// with that type's cartridges on top.
+	// Every ammo type drops as its own bundle of rounds (SM_Ammo<Type>, from Art/Models/Loot/Ammo.py): its HUD icon
+	// modeled in 3D.
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -259,16 +259,16 @@ bool FLootAmmoBoxesTest::RunTest(const FString& Parameters)
 	for (const EAmmoType Type : LooterAmmo::AllTypes())
 	{
 		const FString Name = StaticEnum<EAmmoType>()->GetNameStringByValue(static_cast<int64>(Type));
-		const AAmmoPickup* Box = AAmmoPickup::SpawnAmmo(WorldWrapper.GetTestWorld(), Type, 10, FVector::ZeroVector);
-		const UStaticMeshComponent* Model = Box ? Box->FindComponentByClass<UStaticMeshComponent>() : nullptr;
+		const AAmmoPickup* Pickup = AAmmoPickup::SpawnAmmo(WorldWrapper.GetTestWorld(), Type, 10, FVector::ZeroVector);
+		const UStaticMeshComponent* Model = Pickup ? Pickup->FindComponentByClass<UStaticMeshComponent>() : nullptr;
 		const UStaticMesh* Mesh = Model ? Model->GetStaticMesh() : nullptr;
-		if (TestNotNull(FString::Printf(TEXT("%s box model"), *Name), Mesh))
+		if (TestNotNull(FString::Printf(TEXT("%s model"), *Name), Mesh))
 		{
-			TestEqual(FString::Printf(TEXT("%s box"), *Name), Mesh->GetName(), FString::Printf(TEXT("SM_AmmoBox%s"), *Name));
+			TestEqual(FString::Printf(TEXT("%s bundle"), *Name), Mesh->GetName(), FString::Printf(TEXT("SM_Ammo%s"), *Name));
 			Seen.Add(Mesh);
 		}
 	}
-	TestEqual(TEXT("A box per ammo type"), Seen.Num(), LooterAmmo::NumTypes);
+	TestEqual(TEXT("A bundle per ammo type"), Seen.Num(), LooterAmmo::NumTypes);
 	return true;
 }
 

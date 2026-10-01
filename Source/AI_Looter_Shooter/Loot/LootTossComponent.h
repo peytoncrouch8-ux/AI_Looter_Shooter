@@ -5,7 +5,7 @@
 #include "LootTossComponent.generated.h"
 
 /**
- * Throws loot (dropped weapons, ammo boxes) so it pops out, lands and stays near where it dropped. It bounces off walls
+ * Throws loot (dropped weapons, ammo) so it pops out, lands and stays near where it dropped. It bounces off walls
  * and steep rock like any projectile, but once it touches walkable ground it hops at most once more and then settles,
  * so loot never slides down a hillside. Give the thrown body collision that blocks only WorldStatic, so loot from one
  * drop doesn't land on each other.

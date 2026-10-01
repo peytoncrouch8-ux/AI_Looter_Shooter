@@ -123,16 +123,16 @@ FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float
 		return Roll;
 	}
 
-	// Ammo: most kills leave a box or two, each of a random class (more often the kill weapon's).
+	// Ammo: most kills leave a pickup or two, each of a random class (more often the kill weapon's).
 	if (Random.FRand() < LootTable->AmmoDropChance)
 	{
-		const int32 MinBoxes = FMath::Max(LootTable->MinAmmoDrops, 0);
-		const int32 Boxes = Random.RandRange(MinBoxes, FMath::Max(LootTable->MaxAmmoDrops, MinBoxes));
-		for (int32 Index = 0; Index < Boxes; ++Index)
+		const int32 MinDrops = FMath::Max(LootTable->MinAmmoDrops, 0);
+		const int32 Drops = Random.RandRange(MinDrops, FMath::Max(LootTable->MaxAmmoDrops, MinDrops));
+		for (int32 Index = 0; Index < Drops; ++Index)
 		{
 			FAmmoDrop& Drop = Roll.Ammo.AddDefaulted_GetRef();
 			Drop.Type = PickAmmoType(LootTable, Random, KillAmmo);
-			Drop.Amount = LooterAmmo::GetInfo(Drop.Type).BoxAmount;
+			Drop.Amount = LooterAmmo::GetInfo(Drop.Type).PickupAmount;
 		}
 	}
 

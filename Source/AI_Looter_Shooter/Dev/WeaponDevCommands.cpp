@@ -6,6 +6,7 @@
 
 #include "Weapons/WeaponDefinition.h"
 #include "Inventory/WeaponManagerComponent.h"
+#include "Loot/AmmoPickup.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "AI_Looter_Shooter.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -115,6 +116,43 @@ namespace
 		UE_LOG(LogLooter, Log, TEXT("Looter.GiveWeapon: %s %s (level %d) %s."), *StaticEnum<EWeaponRarity>()->GetNameStringByValue(static_cast<int64>(Instance.Rarity)),
 			*Definition->GetName(), Level, bGiven ? TEXT("given") : TEXT("did not fit"));
 	}
+
+	void SpawnAmmo(const TArray<FString>& Args, UWorld* World)
+	{
+		UWorld* GameWorld = FindGameWorld(World);
+		const APlayerController* Controller = GameWorld ? GameWorld->GetFirstPlayerController() : nullptr;
+		const APawn* Pawn = Controller ? Controller->GetPawn() : nullptr;
+		if (!Pawn)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.SpawnAmmo: no player (start the game first)."));
+			return;
+		}
+		// One pickup of each class (or just the one named) in an arc a few meters ahead, dropped onto the ground.
+		const int64 Only = Args.Num() > 0 ? StaticEnum<EAmmoType>()->GetValueByNameString(Args[0]) : INDEX_NONE;
+		const FVector Ahead = Pawn->GetActorForwardVector().GetSafeNormal2D();
+		const FVector Side = FVector::CrossProduct(FVector::UpVector, Ahead);
+		int32 Spawned = 0;
+		for (const EAmmoType Type : LooterAmmo::AllTypes())
+		{
+			if (Only != INDEX_NONE && static_cast<int64>(Type) != Only)
+			{
+				continue;
+			}
+			const float Offset = (static_cast<float>(static_cast<int32>(Type)) - (LooterAmmo::NumTypes - 1) * 0.5f) * 90.f;
+			const FVector Spot = Pawn->GetActorLocation() + Ahead * 350.f + Side * (Only != INDEX_NONE ? 0.f : Offset) + FVector::UpVector * 40.f;
+			if (AAmmoPickup* Pickup = AAmmoPickup::SpawnAmmo(GameWorld, Type, LooterAmmo::GetInfo(Type).PickupAmount, Spot))
+			{
+				Pickup->Toss(FVector::ZeroVector);
+				++Spawned;
+			}
+		}
+		UE_LOG(LogLooter, Log, TEXT("Looter.SpawnAmmo: %d pickups dropped ahead of the player."), Spawned);
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs SpawnAmmoCommand(
+		TEXT("Looter.SpawnAmmo"),
+		TEXT("Looter.SpawnAmmo [AssaultRifle|Shotgun|Pistol|SMG|Sniper]: drops an ammo pickup of every class (or the one named) a few meters ahead of the player."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SpawnAmmo));
 
 	FAutoConsoleCommandWithWorldAndArgs GiveWeaponCommand(
 		TEXT("Looter.GiveWeapon"),
