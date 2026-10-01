@@ -21,6 +21,8 @@ LAYOUT = os.path.join(PROJECT, 'Art/Levels/TutorialIsland/layout_computed.json')
 LEVEL = '/Game/Maps/Lvl_TutorialIsland'
 ART = '/Game/Art'
 DUMMY = '/Game/Combat/Blueprints/BP_TargetDummy'
+# The weapon the village's gun rack offers.
+RACK_WEAPON = '/Game/Weapons/Data/DA_AssaultRifle'
 TAG = 'IslandBuild'
 
 # Where the spiders live, and how many.
@@ -40,6 +42,11 @@ CLIFF_OVERLAP = 250.0
 SKY_DOME = '/Engine/EngineSky/SM_SkySphere'
 SKY_CLOUDS = '/Game/Art/Materials/Masters/M_SkyClouds'
 SKY_RADIUS = 100000.0
+
+# Zones the scatter's trees stay out of (layout.json zone id, share of its bounding box), and the way smoke leans
+# (the foliage master's default WindDirection, 1 : 0.35).
+NO_TREE_ZONES = (('range', 1.0), ('village', 0.7))
+WIND_YAW = 19.0
 
 # Placement kinds whose model name differs from the kind (the rest are SM_<kind>).
 KIND_MODELS = {
@@ -188,13 +195,16 @@ def inside(point, polygon):
 
 
 def gameplay(layout, source):
-    """The spawn, the target dummies and the spiders."""
+    """The spawn (with the tutorial's director), the target dummies and the spiders."""
     dummy = unreal.EditorAssetLibrary.load_blueprint_class(DUMMY)
     spider = unreal.load_class(None, '/Script/AI_Looter_Shooter.SpiderCreature')
     for key, spot in layout['placements'].items():
         x, y, z = spot['location']
         if spot['kind'] == 'PlayerStart':
             place(unreal.PlayerStart, (x, y, z + 100.0), spot['yaw'], label='PlayerStart', folder='Gameplay')
+            # The tutorial's prompts (ATutorialDirector: its steps are in C++).
+            place(unreal.load_class(None, '/Script/AI_Looter_Shooter.TutorialDirector'), (x, y, z + 300.0),
+                  label='TutorialDirector', folder='Gameplay')
         elif spot['kind'] == 'TargetDummy':
             place(dummy, (x, y, z), spot['yaw'], label=f'TargetDummy_{key[-1]}', folder='Gameplay')
 
@@ -237,6 +247,12 @@ def models(layout, meshes):
                 # Attaching doesn't move it in the editor until its transform changes (setting the same one is skipped).
                 fan.set_relative_location(unreal.Vector(0.0, 0.0, 1.0), False, True)
                 fan.set_relative_location(unreal.Vector(0.0, 0.0, 0.0), False, True)
+        elif kind == 'GunRack':
+            # AWeaponRack lays the tutorial's first rifle on itself, with ammo beside it.
+            rack = place(unreal.load_class(None, '/Script/AI_Looter_Shooter.WeaponRack'), spot['location'],
+                         spot['yaw'], label=key, folder='Gameplay', tags=('Obstacle',))
+            rack.get_editor_property('rack').set_static_mesh(unreal.load_asset(meshes[name]))
+            rack.set_editor_property('weapon', unreal.load_asset(RACK_WEAPON))
         else:
             place(unreal.load_asset(meshes[name]), spot['location'], spot['yaw'], label=key, folder='Buildings',
                   tags=('Obstacle',))
@@ -258,7 +274,7 @@ def models(layout, meshes):
         for t, tree in enumerate(row['trees']):
             if apple:
                 place(apple, tree, rng.uniform(-180.0, 180.0), label=f'AppleTree_{r + 1}_{t + 1}', folder='Orchard',
-                      tags=('Obstacle',))
+                      tags=('Obstacle', 'Tree'))
                 placed += 1
     log(f'placed {placed} models')
 
@@ -320,6 +336,49 @@ def cliffs(layout, meshes):
     log(f'placed {placed} cliff pieces')
 
 
+def no_tree_zones(source):
+    """Invisible boxes tagged NoTrees over the zones that must stay open (the scatter's tree layers avoid them): the
+    target range, so trees never block a shot at the dummies, and the village square."""
+    for zone_id, shrink in NO_TREE_ZONES:
+        polygon = next(z for z in source['zones'] if z['id'] == zone_id)['polygon']
+        xs, ys = [p[0] for p in polygon], [p[1] for p in polygon]
+        size = ((max(xs) - min(xs)) * shrink, (max(ys) - min(ys)) * shrink)
+        box = place(unreal.TriggerBox, ((min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2, 0.0),
+                    label=f'NoTrees_{zone_id}', folder='Scatter', tags=('NoTrees',),
+                    # The box is 64 cm across; it reaches 100 m up and down so every ray's hit is inside it.
+                    scale=(size[0] / 64.0, size[1] / 64.0, 20000.0 / 64.0))
+        box.set_actor_enable_collision(False)
+
+
+def effects(layout, meshes):
+    """The waterfall off the creek's lip, and smoke from every chimney (the buildings' Smoke sockets), leaning
+    downwind. Each waits for its model."""
+    fall = layout.get('waterfall')
+    if fall and 'Waterfall' in meshes:
+        place(unreal.load_asset(meshes['Waterfall']), fall['location'], fall['yaw'], label='Waterfall',
+              folder='Effects')
+        if 'WaterfallMist' in meshes:
+            place(unreal.load_asset(meshes['WaterfallMist']), fall['location'], fall['yaw'], label='WaterfallMist',
+                  folder='Effects')
+    if 'SmokePlume' not in meshes:
+        warn('no SM_SmokePlume yet')
+        return
+    plume = unreal.load_asset(meshes['SmokePlume'])
+    count = 0
+    for building in actors.get_all_level_actors():
+        if unreal.Name(TAG) not in building.tags or not isinstance(building, unreal.StaticMeshActor):
+            continue
+        component = building.static_mesh_component
+        mesh = component.static_mesh
+        if mesh is None or mesh.find_socket('Smoke') is None:
+            continue
+        where = component.get_socket_transform('Smoke', unreal.RelativeTransformSpace.RTS_WORLD).translation
+        place(plume, (where.x, where.y, where.z), WIND_YAW, label=f'Smoke_{building.get_actor_label()}',
+              folder='Effects')
+        count += 1
+    log(f'placed {count} chimney smoke plumes')
+
+
 def run():
     with open(LAYOUT) as f:
         layout = json.load(f)
@@ -331,6 +390,8 @@ def run():
     terrain(meshes)
     cliffs(layout, meshes)
     models(layout, meshes)
+    effects(layout, meshes)
+    no_tree_zones(source)
     gameplay(layout, source)
     sky_light.recapture_sky()
     levels.save_current_level()

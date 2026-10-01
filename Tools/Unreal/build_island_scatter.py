@@ -1,5 +1,6 @@
-"""Builds /Game/Environment/PCG/PCG_IslandScatter and runs it over the tutorial island: grass, flowers, trees, bushes,
-forest undergrowth, rocks and pebbles.
+"""Builds /Game/Environment/PCG/PCG_IslandScatter and runs it over the tutorial island: grass, flowers, trees (in stands
+and lone in the meadows), bushes, forest undergrowth, rocks, pebbles, and reeds and lily pads on the pond and creek
+(placed from the layout).
 
 Where things grow comes from the island's scatter mask, T_TutorialIslandScatter (painted from the layout by
 Art/Models/Terrain/TutorialIsland.py, so it agrees with the roads, water and buildings): R trees, G grass, B flowers,
@@ -13,7 +14,10 @@ The graph is rebuilt from scratch (edits in the PCG editor are lost). Run it in 
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_island_scatter.py"
 Then save the level. After changing the terrain or the mask, select the IslandScatter volume and press Generate.
 """
+import json
+import math
 import os
+import random
 
 import unreal
 
@@ -50,12 +54,60 @@ def import_mask():
     return mask
 
 
-def mesh(folder, name):
+def mesh(folder, name, required=True):
     path = f'{folder}/SM_{name}'
-    asset = unreal.load_asset(path)
-    if asset is None:
+    asset = unreal.load_asset(path) if unreal.EditorAssetLibrary.does_asset_exist(path) else None
+    if asset is None and required:
         raise RuntimeError(f'missing {path}')
     return asset
+
+
+def layout():
+    project = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
+    with open(os.path.join(project, 'Art/Levels/TutorialIsland/layout_computed.json')) as f:
+        return json.load(f)
+
+
+def point(x, y, z, seed):
+    p = unreal.PCGPoint()
+    p.set_editor_property('transform', unreal.Transform(location=unreal.Vector(x, y, z)))
+    p.set_editor_property('seed', seed)
+    return p
+
+
+def shore_points(data):
+    """Reed clumps around the pond's edge (a little into the shallows) and along both creek banks, clear of the bridge
+    and the waterfall's lip; lily pads in a few drifts on the pond. Deterministic, from the computed layout."""
+    rng = random.Random(41)
+    pond = data['pond']
+    (cx, cy), (rx, ry) = pond['center'], pond['radii']
+    bridge = data['bridge']['location'][:2]
+    lip = data['waterfall']['location'][:2]
+    reeds = []
+    steps = 64
+    for i in range(steps):
+        angle = 2 * math.pi * (i + rng.random() * 0.6) / steps
+        if rng.random() < 0.3:
+            continue
+        f = rng.uniform(0.9, 1.0)
+        reeds.append((cx + rx * f * math.cos(angle), cy + ry * f * math.sin(angle)))
+    creek = data['creek']['points']
+    half = data['creek']['waterWidth'] / 2
+    for (x0, y0, _), (x1, y1, _) in zip(creek, creek[1:]):
+        length = math.hypot(x1 - x0, y1 - y0) or 1.0
+        nx, ny = -(y1 - y0) / length, (x1 - x0) / length
+        for side in (-1, 1):
+            if rng.random() < 0.55:
+                offset = side * (half + rng.uniform(30, 90))
+                reeds.append((x0 + nx * offset, y0 + ny * offset))
+    reeds = [p for p in reeds if math.dist(p, bridge) > 600 and math.dist(p, lip) > 400]
+    pads = []
+    for _ in range(3):
+        angle, f = rng.uniform(0, 2 * math.pi), rng.uniform(0.3, 0.7)
+        px, py = cx + rx * f * math.cos(angle), cy + ry * f * math.sin(angle)
+        for _ in range(rng.randint(3, 6)):
+            pads.append((px + rng.uniform(-220, 220), py + rng.uniform(-220, 220)))
+    return reeds, pads, pond['waterZ']
 
 
 class Builder:
@@ -77,7 +129,7 @@ class Builder:
         self.graph.add_edge(a, a_pin, b, b_pin)
 
 
-def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=False, wind=True):
+def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=False, wind=True, tree=False):
     d = unreal.PCGSoftISMComponentDescriptor()
     d.set_editor_property('static_mesh', asset)
     if not collide:
@@ -92,6 +144,9 @@ def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=Fals
     if wind:
         d.set_editor_property('world_position_offset_disable_distance', WIND_DISTANCE)
     d.set_editor_property('can_ever_affect_navigation', collide)
+    if tree:
+        # The minimap draws a crown for every component tagged Tree.
+        d.set_editor_property('component_tags', [unreal.Name('Tree')])
     e = unreal.PCGMeshSelectorWeightedEntry()
     e.set_editor_property('descriptor', d)
     e.set_editor_property('weight', weight)
@@ -112,6 +167,15 @@ class Scatter:
         selector.set_editor_property('actor_selection_tag', 'Obstacle')
         selector.set_editor_property('select_multiple', True)
         settings.set_editor_property('actor_selector', selector)
+        # Boxes the island builder puts where no tree may stand (the target range, the village square).
+        self.no_trees, settings = b.node(unreal.PCGDataFromActorSettings, 'No trees', 3, -3.5,
+                                         mode=unreal.PCGGetDataFromActorMode.GET_SINGLE_POINT)
+        selector = settings.get_editor_property('actor_selector')
+        selector.set_editor_property('actor_filter', unreal.PCGActorFilter.ALL_WORLD_ACTORS)
+        selector.set_editor_property('actor_selection', unreal.PCGActorSelection.BY_TAG)
+        selector.set_editor_property('actor_selection_tag', 'NoTrees')
+        selector.set_editor_property('select_multiple', True)
+        settings.set_editor_property('actor_selector', selector)
         # Texture space runs -1..1 across the mask. Its columns follow world Y and its rows run from north (+X) at
         # the top to south: a quarter turn and the island's half size.
         transform = unreal.Transform(location=unreal.Vector(0, 0, 0), rotation=unreal.Rotator(roll=0, pitch=0, yaw=90),
@@ -122,7 +186,7 @@ class Scatter:
                                             texture=mask, transform=transform, use_absolute_transform=True,
                                             color_channel=channel, filter=unreal.PCGTextureFilter.BILINEAR)
 
-    def layer(self, title, cell, channel, keep, flat=0.85):
+    def layer(self, title, cell, channel, keep, flat=0.85, trees=False):
         """Points on the ground every `cell` cm where the mask's channel wins a random draw against `keep`."""
         b, y = self.b, self.row * 3
         self.row += 1
@@ -156,11 +220,33 @@ class Scatter:
         b.link(slope, level)
         b.link(level, clear, b_pin='Source')
         b.link(self.obstacles, clear, b_pin='Differences')
+        if trees:
+            b.link(self.no_trees, clear, b_pin='Differences')
         b.link(clear, sample, b_pin='Point')
         b.link(self.channels[channel], sample, b_pin='BaseTexture')
         b.link(sample, draw)
         b.link(draw, kept)
         return kept, y
+
+    def listed(self, title, points, onto_ground=True):
+        """Points the script worked out itself (x, y, z), dropped onto the ground when onto_ground."""
+        b, y = self.b, self.row * 3
+        self.row += 1
+        made, _ = b.node(unreal.PCGCreatePointsSettings, f'{title}: points', 0, y,
+                         points_to_create=[point(x, yy, z, i + 1) for i, (x, yy, z) in enumerate(points)],
+                         coordinate_space=unreal.PCGCoordinateSpace.WORLD)
+        if not onto_ground:
+            return made, y
+        ray, ray_settings = b.node(unreal.PCGWorldRaycastElementSettings, 'Onto Ground', 2, y,
+                                   raycast_mode=unreal.PCGWorldRaycastMode.NORMALIZED_WITH_LENGTH,
+                                   ray_direction=unreal.Vector(0.0, 0.0, -1.0), ray_length=12000.0)
+        query = ray_settings.get_editor_property('world_query_params')
+        query.set_editor_property('actor_tag_filter', unreal.PCGWorldQueryFilter.INCLUDE)
+        query.set_editor_property('actor_tags_list', 'Ground')
+        query.set_editor_property('ignore_pcg_hits', True)
+        ray_settings.set_editor_property('world_query_params', query)
+        b.link(made, ray, b_pin='Origins')
+        return ray, y
 
     def split(self, source, y, scale, offset, threshold):
         """Two outputs by spatial noise: stands of one kind and of the other."""
@@ -204,17 +290,33 @@ def build_graph(mask):
                                                                     unreal.PCGGraphFactory())
     b = Builder(graph)
     s = Scatter(b, mask)
-    veg = lambda name: mesh(VEGETATION, name)  # noqa: E731
+    veg = lambda name, required=True: mesh(VEGETATION, name, required)  # noqa: E731
     rock = lambda name: mesh(ROCKS, name)  # noqa: E731
 
     # Trees: stands of pines and of broadleaf trees, upright, colliding, shadowed, never culled.
-    trees, y = s.layer('Trees', 600.0, 'R', 0.12, flat=0.8)
+    trees, y = s.layer('Trees', 600.0, 'R', 0.12, flat=0.8, trees=True)
     pines, broadleaf = s.split(trees, y, 2.5, 311.0, 0.5)
-    s.spawn(pines, 'Pines', 11, y - 0.5, [entry(veg('Pine_A'), 1, 0, collide=True, shadow=True),
-                                          entry(veg('Pine_B'), 1, 0, collide=True, shadow=True)], sink=15.0)
-    s.spawn(broadleaf, 'Broadleaf', 11, y + 0.5, [entry(veg(n), w, 0, collide=True, shadow=True)
+    s.spawn(pines, 'Pines', 11, y - 0.5, [entry(veg('Pine_A'), 1, 0, collide=True, shadow=True, tree=True),
+                                          entry(veg('Pine_B'), 1, 0, collide=True, shadow=True, tree=True)], sink=15.0)
+    s.spawn(broadleaf, 'Broadleaf', 11, y + 0.5, [entry(veg(n), w, 0, collide=True, shadow=True, tree=True)
                                                   for n, w in (('Oak_A', 3), ('Oak_B', 3), ('Birch_A', 3),
                                                                ('Birch_B', 2), ('DeadTree_A', 0.4))], sink=15.0)
+
+    # Lone trees and the odd pair out in the meadows, where the grass grows; the big field oak when it exists.
+    meadow, y = s.layer('Meadow trees', 1300.0, 'G', 0.8, flat=0.85, trees=True)
+    lone = [(veg(n, False), w) for n, w in (('Oak_A', 3), ('Oak_B', 3), ('Birch_A', 2), ('Birch_B', 1), ('Pine_A', 1),
+                                            ('Oak_C', 3))]
+    s.spawn(meadow, 'Meadow trees', 11, y, [entry(m, w, 0, collide=True, shadow=True, tree=True) for m, w in lone if m],
+            scale=(0.9, 1.25), sink=15.0)
+
+    # Reeds along the pond and the creek, lily pads on the pond.
+    reeds, pads, water = shore_points(layout())
+    reed_points, y = s.listed('Reeds', [(x, yy, 2000.0) for x, yy in reeds])
+    reed_meshes = [m for m in (veg('Reeds_A', False), veg('Reeds_B', False)) if m]
+    s.spawn(reed_points, 'Reeds', 11, y, [entry(m, 1, 5000) for m in reed_meshes], scale=(0.8, 1.3))
+    if veg('LilyPads_A', False):
+        pad_points, y = s.listed('Lily pads', [(x, yy, water + 1.0) for x, yy in pads], onto_ground=False)
+        s.spawn(pad_points, 'Lily pads', 11, y, [entry(veg('LilyPads_A'), 1, 4000)], scale=(0.8, 1.2))
 
     # Bushes at the forest's edges and in its gaps, and a few out in the meadow.
     bushes, y = s.layer('Bushes', 420.0, 'R', 0.1)

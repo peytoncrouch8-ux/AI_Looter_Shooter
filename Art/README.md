@@ -60,7 +60,7 @@ command after opening it. Importing again updates the assets in place, so placed
 
   | Property | Meaning |
   |---|---|
-  | `Master` | `World` (opaque), `WorldFoliage` (masked, two-sided, wind), `Terrain` or `Water` |
+  | `Master` | `World` (opaque), `WorldFoliage` (masked, two-sided, wind), `Terrain`, `Water`, or the effects `Waterfall` and `Smoke` (translucent, scrolling; vertex color A is opacity, R foam) |
   | `TextureSet` | the folder `Art/Textures/<set>` holding `T_<set>_BC.png` (color), `_N.png` (DirectX normal map), `_ORM.png` (occlusion, roughness, metallic). For `Terrain`, the set's color map is the island's macro map |
   | `DetailSets` | `Terrain` only: `'GroundGrass,RockCliff'`, the tiled detail sets for grass/soil and rock |
   | `Tint` | `'#RRGGBB'`, multiplies the color (default white) |

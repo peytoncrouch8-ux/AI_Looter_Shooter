@@ -10,6 +10,8 @@
   M_Terrain       MacroMap on UV 0 covers the whole island (its alpha picks the detail: 0 grass/soil, 1 rock); the
                   Grass* and Rock* maps tile on UV 1 (meters) and only modulate the macro color's brightness.
   M_SkyClouds     unlit, translucent: painted clouds on a sky dome (Coverage, Softness, Scale, wind, colors).
+  M_Waterfall,    unlit, translucent effects scrolling the macro noise: a falling water sheet's foam streaks, and
+  M_Smoke         chimney smoke. Vertex color A is opacity (R foam on the waterfall).
   M_Water         opaque, cheap: a dark color (the sky's reflection does the rest), glossy, procedural ripples on
                   UV 0 in meters.
 
@@ -355,6 +357,71 @@ def build_sky_clouds():
     return mat
 
 
+# Effects: unlit and translucent, scrolling the macro noise. Their models carry the shape in vertex colors (A opacity,
+# R foam) and UV 0 (V along the flow, in meters for the waterfall, 0..1 up the cards for smoke).
+FALL_STREAKS = """float2 P = float2(UV.x * 1.3, UV.y * 0.22 - Time * Speed);
+float Streak = Texture2DSample(Noise, NoiseSampler, P).r * 0.65
+             + Texture2DSample(Noise, NoiseSampler, P * float2(2.7, 1.9) + 0.31).r * 0.35;
+"""
+FALL_COLOR = FALL_STREAKS + """float Foam = saturate(VertexColor.r + (Streak - 0.45) * 1.4);
+return lerp(WaterColor, FoamColor, Foam);"""
+FALL_OPACITY = FALL_STREAKS + """return saturate(VertexColor.a * (0.55 + Streak * 0.9)) * Opacity;"""
+
+SMOKE_NOISE = """float2 P = float2(UV.x * 0.8, UV.y * 0.5 - Time * Speed);
+float Puff = Texture2DSample(Noise, NoiseSampler, P).r * 0.7
+           + Texture2DSample(Noise, NoiseSampler, P * 2.3 + 0.57).r * 0.3;
+"""
+SMOKE_OPACITY = SMOKE_NOISE + """// Soft card edges, thinning as it rises.
+float Edge = sin(saturate(UV.x) * 3.14159);
+return saturate((Puff - 0.3) * 2.0) * Edge * VertexColor.a * (1.0 - UV.y * 0.6) * Opacity;"""
+
+
+def effect(name, inputs_extra, color_code, color_inputs, opacity_code, opacity_inputs):
+    """An unlit, translucent, two-sided master whose color and opacity come from two Custom nodes over shared inputs."""
+    mat = material(name)
+    mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_TRANSLUCENT)
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
+    mat.set_editor_property('two_sided', True)
+    g = Graph(mat)
+    shared = [
+        ('UV', g.node(unreal.MaterialExpressionTextureCoordinate, -900, -200, coordinate_index=0), ''),
+        ('VertexColor', g.node(unreal.MaterialExpressionVertexColor, -900, -100), ''),
+        ('Noise', g.node(unreal.MaterialExpressionTextureObjectParameter, -900, 0, parameter_name='Noise',
+                         texture=import_mask(MACRO_NOISE_FILE, MACRO_NOISE)), ''),
+        ('Time', g.node(unreal.MaterialExpressionTime, -900, 100), ''),
+    ] + [(n, make(g), '') for n, make in inputs_extra]
+    color = g.custom(color_code, shared + [(n, make(g), '') for n, make in color_inputs],
+                     unreal.CustomMaterialOutputType.CMOT_FLOAT3, -400, -100, f'{name} color')
+    opacity = g.custom(opacity_code, shared + [(n, make(g), '') for n, make in opacity_inputs],
+                       unreal.CustomMaterialOutputType.CMOT_FLOAT1, -400, 200, f'{name} opacity')
+    g.out(color, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    g.out(opacity, '', unreal.MaterialProperty.MP_OPACITY)
+    finish(mat, [])
+    return mat
+
+
+def build_waterfall():
+    """M_Waterfall: foam streaks falling down a water sheet (Speed in sheet-V units a second)."""
+    return effect('M_Waterfall',
+                  [('Speed', lambda g: g.scalar('Speed', 0.9, -900, 200))],
+                  FALL_COLOR,
+                  [('WaterColor', lambda g: g.vector('WaterColor', (0.35, 0.55, 0.6, 1.0), -900, 300)),
+                   ('FoamColor', lambda g: g.vector('FoamColor', (2.4, 2.5, 2.55, 1.0), -900, 400))],
+                  FALL_OPACITY,
+                  [('Opacity', lambda g: g.scalar('Opacity', 0.85, -900, 500))])
+
+
+def build_smoke():
+    """M_Smoke: soft chimney smoke drifting up its cards."""
+    return effect('M_Smoke',
+                  [('Speed', lambda g: g.scalar('Speed', 0.12, -900, 200))],
+                  'return SmokeColor;',
+                  [('SmokeColor', lambda g: g.vector('SmokeColor', (1.5, 1.5, 1.55, 1.0), -900, 300))],
+                  SMOKE_OPACITY,
+                  [('Opacity', lambda g: g.scalar('Opacity', 0.55, -900, 400))])
+
+
 orm = default_orm()
-built = [build_world(DEFAULT_ORM), build_foliage(DEFAULT_ORM), build_terrain(), build_water(), build_sky_clouds()]
+built = [build_world(DEFAULT_ORM), build_foliage(DEFAULT_ORM), build_terrain(), build_water(), build_sky_clouds(),
+         build_waterfall(), build_smoke()]
 unreal.log('LOOTER world materials: ' + ', '.join(m.get_path_name() for m in built))
