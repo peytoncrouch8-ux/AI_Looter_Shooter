@@ -384,10 +384,46 @@ bool FWeaponPartAssemblyTest::RunTest(const FString& Parameters)
 			}
 			TestTrue(FString::Printf(TEXT("%s is painted"), Case.Asset), !Painted.IsEmpty());
 			TestTrue(FString::Printf(TEXT("%s glows"), Case.Asset), Glowing > 0);
+
+			// Every part carries the gun's wear for the gun master.
+			const float Wear = WeaponParts::Wear(Instance);
+			for (const UStaticMeshComponent* Part : Model->GetParts())
+			{
+				const TArray<float>& Data = Part->GetCustomPrimitiveData().Data;
+				TestTrue(FString::Printf(TEXT("%s part carries its wear"), Case.Asset), Data.IsValidIndex(WeaponParts::WearDataIndex)
+					&& FMath::IsNearlyEqual(Data[WeaponParts::WearDataIndex], Wear));
+			}
 		}
 	}
 	Model->Clear();
 	TestFalse(TEXT("Cleared"), Model->IsAssembled());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponWearTest, "Looter.Weapons.Parts.Wear",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FWeaponWearTest::RunTest(const FString& Parameters)
+{
+	// Each gun rolls how worn it looks from its seed: the same gun always the same, commons scuffed, legendaries nearly clean.
+	double CommonTotal = 0.0;
+	double LegendaryTotal = 0.0;
+	const int32 NumGuns = 200;
+	for (int32 Seed = 0; Seed < NumGuns; ++Seed)
+	{
+		FWeaponInstanceData Gun;
+		Gun.Seed = Seed;
+		Gun.Rarity = EWeaponRarity::Common;
+		const float Common = WeaponParts::Wear(Gun);
+		TestEqual(TEXT("The same gun wears the same"), WeaponParts::Wear(Gun), Common);
+		TestTrue(TEXT("Commons are worn"), Common >= 0.45f && Common <= 1.f);
+		Gun.Rarity = EWeaponRarity::Legendary;
+		const float Legendary = WeaponParts::Wear(Gun);
+		TestTrue(TEXT("Legendaries are nearly clean"), Legendary >= 0.f && Legendary <= 0.25f);
+		CommonTotal += Common;
+		LegendaryTotal += Legendary;
+	}
+	TestTrue(TEXT("Commons are more worn than legendaries"), CommonTotal / NumGuns > LegendaryTotal / NumGuns + 0.4);
 	return true;
 }
 

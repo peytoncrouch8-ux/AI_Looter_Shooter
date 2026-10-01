@@ -124,6 +124,8 @@ rename or reuse one.
   `Aim` on sights: the point the eye lines up with when aiming down the sights.
 - Material slots `GunPolymerSand` (the main color) and `GunPolymerGrey` (fittings) are tinted per gun (the
   definition's paints), and `GunAccentGlow` glows in the gun's rarity color.
+- Gun materials (`lg.material`) use the `Gun` master: the World master's look plus per-gun wear (scuffs and grime),
+  which each gun rolls from its seed (commons worn, legendaries nearly clean).
 - Lenses and sight windows use `lg.LENS` (glass on the Glass master), and optics are open tubes, so they can be aimed
   through.
 - Parts are small and held close: set the model's `Nanite` property to 0.

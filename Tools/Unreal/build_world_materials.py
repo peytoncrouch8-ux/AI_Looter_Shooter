@@ -4,6 +4,9 @@
                   The vertex color alpha is baked ambient occlusion (SSAO is off on Medium), and DiffuseAO lets some of
                   it darken the base color too, so contact shading shows in direct light. MossAmount (0 = off) grows
                   moss on upward faces, in MossColor, above the MossThreshold slope.
+  M_Gun           M_World's maps for gun parts, plus per-gun wear: Wear (0 fresh to 1 battered) comes from each part's
+                  custom primitive data 0 (set by UWeaponModelComponent, no material copies per gun): scuffs where the
+                  finish is rubbed through to a paler layer, grime in the creases, a duller finish. No moss.
   M_WorldFoliage  masked, two-sided (back faces keep the front's normal), the same maps (opacity from the base
                   color's alpha) plus wind: vertex color R is how far a vertex sways, G offsets its phase;
                   WindStrength (cm), WindSpeed, WindDirection.
@@ -186,6 +189,49 @@ def build_world(orm_default):
     g.out(ao, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
     finish(mat, [unreal.MaterialUsage.MATUSAGE_NANITE, unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES,
                  unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH])
+    return mat
+
+
+WEAR_CODE = """// Scuffs: small specks from two fine scales of the macro noise, where the finish is rubbed through to bare grey metal
+// (darker on light paint, lighter on dark); the more worn the gun, the more of them.
+float N = Texture2DSample(Noise, NoiseSampler, UV * 23.0).r * 0.6 + Texture2DSample(Noise, NoiseSampler, UV * 61.0 + 0.37).r * 0.4;
+float Scuff = saturate((N - (1.0 - Wear * 0.26)) * 12.0);
+float3 C = lerp(Color, float3(0.42, 0.42, 0.44), Scuff * 0.45);
+// Grime settles in the creases, and the whole finish dulls a little.
+C *= lerp(1.0, 0.7, Wear * saturate(1.0 - Occlusion));
+C *= 1.0 - Wear * 0.08;
+return float4(C, Scuff);"""
+
+
+def build_gun(orm_default):
+    mat = material('M_Gun')
+    g = Graph(mat)
+    bc, nrm, orm, vc, ao = textured_inputs(g, orm_default)
+    color = shaded_color(g, bc, ao)
+    wear = g.node(unreal.MaterialExpressionScalarParameter, -800, 600, parameter_name='Wear', default_value=0.0,
+                  use_custom_primitive_data=True, primitive_data_index=0)
+    coords = g.node(unreal.MaterialExpressionTextureCoordinate, -800, 800, coordinate_index=0)
+    worn = g.custom(WEAR_CODE, [
+        ('Color', color, ''),
+        ('Occlusion', ao, ''),
+        ('Wear', wear, ''),
+        ('UV', coords, ''),
+        ('Noise', g.node(unreal.MaterialExpressionTextureObjectParameter, -800, 900, parameter_name='WearNoise',
+                         texture=import_mask(MACRO_NOISE_FILE, MACRO_NOISE)), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, -200, 'Wear')
+    rgb = g.node(unreal.MaterialExpressionComponentMask, 0, -300, r=True, g=True, b=True, a=False)
+    g.link(worn, '', rgb, '')
+    scuff = g.node(unreal.MaterialExpressionComponentMask, 0, 0, r=False, g=False, b=False, a=True)
+    g.link(worn, '', scuff, '')
+    rough = g.custom('return saturate(Roughness + Wear * 0.12 + Scuff * 0.15);', [
+        ('Roughness', orm, 'G'), ('Wear', wear, ''), ('Scuff', scuff, ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, 200, 100, 'Worn roughness')
+    g.out(rgb, '', unreal.MaterialProperty.MP_BASE_COLOR)
+    g.out(nrm, 'RGB', unreal.MaterialProperty.MP_NORMAL)
+    g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
+    g.out(orm, 'B', unreal.MaterialProperty.MP_METALLIC)
+    g.out(ao, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
+    finish(mat, [])
     return mat
 
 
@@ -492,7 +538,8 @@ def build_smoke():
                   [('Opacity', lambda g: g.scalar('Opacity', 0.4, -900, 400))])
 
 
-BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'M_WorldFoliage': lambda: build_foliage(DEFAULT_ORM),
+BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'M_Gun': lambda: build_gun(DEFAULT_ORM),
+            'M_WorldFoliage': lambda: build_foliage(DEFAULT_ORM),
             'M_Terrain': build_terrain, 'M_Water': build_water, 'M_SkyClouds': build_sky_clouds,
             'M_Waterfall': build_waterfall, 'M_Smoke': build_smoke, 'M_Glass': build_glass, 'M_Gel': build_gel}
 wanted = [name for name in sys.argv[1:] if name in BUILDERS] or list(BUILDERS)

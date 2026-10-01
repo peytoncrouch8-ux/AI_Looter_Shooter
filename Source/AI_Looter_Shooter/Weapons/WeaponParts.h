@@ -243,6 +243,13 @@ namespace WeaponParts
 	/** The word the gun's parts put before its name (empty when none does). */
 	AI_LOOTER_SHOOTER_API FText NamePrefix(const FWeaponLook& Look);
 
+	/**
+	 * How worn a gun looks, 0 (factory fresh) to 1 (battered), rolled from its seed: commons come scuffed and grimy,
+	 * legendaries nearly clean. The gun master (M_Gun) reads it from the parts' custom primitive data WearDataIndex.
+	 */
+	AI_LOOTER_SHOOTER_API float Wear(const FWeaponInstanceData& Instance);
+	inline constexpr int32 WearDataIndex = 0;
+
 	/** How strongly a gun's rarity parts glow: commons faintly. */
 	AI_LOOTER_SHOOTER_API float RarityGlow(EWeaponRarity Rarity);
 }

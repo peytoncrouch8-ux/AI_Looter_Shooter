@@ -17,6 +17,7 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 		return false;
 	}
 	const FWeaponLook Look = WeaponParts::Pick(Instance);
+	const float Wear = WeaponParts::Wear(Instance);
 
 	// The parts share their materials; the ones this gun colors become one dynamic instance each, shared by every part.
 	TMap<FName, UMaterialInterface*> Painted;
@@ -84,6 +85,8 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 		Part->SetCanEverAffectNavigation(false);
 		Part->SetFirstPersonPrimitiveType(FirstPersonType);
 		Part->SetupAttachment(Parent, Parent == this ? NAME_None : Slot.Socket);
+		// How battered this gun is, for the gun master's scuffs and grime (custom primitive data: no material copies).
+		Part->SetCustomPrimitiveDataFloat(WeaponParts::WearDataIndex, Wear);
 		const TArray<FName> MaterialSlots = Part->GetMaterialSlotNames();
 		for (int32 Material = 0; Material < MaterialSlots.Num(); ++Material)
 		{

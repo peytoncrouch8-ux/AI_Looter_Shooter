@@ -33,7 +33,8 @@
    material(set_name, name=None, master=None, tint=None, uv_scale=1.0, **props)
        The material for a texture set; its name (default: the set's) names the Unreal instance, MI_<name>. It previews
        the textures in Blender and carries the custom properties the exporter reads:
-         Master      'World' (opaque; most things), 'WorldFoliage' (masked, two-sided, wind) or 'Terrain'.
+         Master      'World' (opaque; most things), 'Gun' (World plus per-gun wear, for gun parts), 'WorldFoliage'
+                     (masked, two-sided, wind) or 'Terrain'.
                      Default: the set's own (WorldFoliage for LeavesOak, LeavesBirch, NeedlesPine, FoliagePalette).
          TextureSet  the set, e.g. 'HouseTrim': the textures are /Art/Textures/<Set>/T_<Set>_BC|N|ORM.png.
          Tint        (only if given) '#RRGGBB' sRGB, multiplies the base color. Give it as 0xRRGGBB or '#RRGGBB'.
@@ -142,7 +143,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 TEXTURE_DIR = os.path.join(REPO, 'Art', 'Textures')
 PREVIEW_DIR = os.path.join(REPO, 'Saved', 'ArtPreviews')
 
-MASTERS = ('World', 'WorldFoliage', 'Terrain')
+MASTERS = ('World', 'Gun', 'WorldFoliage', 'Terrain')
 
 # Every texture set: size in px, the master it's made for, texel density (px per meter), and a placeholder look
 # (sRGB color, roughness, metallic) for materials made before the textures exist.

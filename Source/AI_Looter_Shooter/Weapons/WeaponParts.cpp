@@ -166,6 +166,15 @@ FText WeaponParts::NamePrefix(const FWeaponLook& Look)
 	return Namer ? Namer->NamePrefix : FText::GetEmpty();
 }
 
+float WeaponParts::Wear(const FWeaponInstanceData& Instance)
+{
+	// From least to most worn by rarity; a stream of its own, so it never shifts the parts' or the stats' rolls.
+	static const FVector2f Ranges[] = { { 0.45f, 1.f }, { 0.3f, 0.85f }, { 0.15f, 0.65f }, { 0.05f, 0.45f }, { 0.f, 0.25f } };
+	const FVector2f Range = Ranges[FMath::Clamp(static_cast<int32>(Instance.Rarity), 0, static_cast<int32>(UE_ARRAY_COUNT(Ranges)) - 1)];
+	FRandomStream Random(static_cast<int32>(HashCombine(static_cast<uint32>(Instance.Seed), 0x57EA7u)));
+	return FMath::Lerp(Range.X, Range.Y, Random.FRand());
+}
+
 float WeaponParts::RarityGlow(EWeaponRarity Rarity)
 {
 	return Rarity == EWeaponRarity::Common ? 0.6f : 2.5f;

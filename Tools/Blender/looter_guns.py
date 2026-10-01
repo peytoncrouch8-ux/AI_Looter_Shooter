@@ -41,7 +41,8 @@ SET_OF = {}
 
 
 def material(name, set_name, tint=None, uv_scale=1.0):
-    mat = lt.material(set_name, name=name, tint=tint, uv_scale=uv_scale)
+    # The Gun master: the World master's look plus per-gun wear (each gun rolls how battered it is).
+    mat = lt.material(set_name, name=name, tint=tint, uv_scale=uv_scale, master='Gun')
     SET_OF[mat.name] = set_name
     return mat
 
