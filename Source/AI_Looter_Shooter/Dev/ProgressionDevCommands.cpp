@@ -30,6 +30,11 @@ namespace
 
 	void LogProgress(const TCHAR* Command, const UPlayerProgressionSubsystem& Progression)
 	{
+		if (Progression.IsMaxLevel())
+		{
+			UE_LOG(LogLooter, Log, TEXT("%s: level %d (the maximum)"), Command, Progression.GetLevel());
+			return;
+		}
 		UE_LOG(LogLooter, Log, TEXT("%s: level %d, %lld / %lld XP"), Command, Progression.GetLevel(), Progression.GetXP(),
 			Progression.GetXPToNextLevel());
 	}
@@ -50,7 +55,8 @@ namespace
 	void SetLevel(const TArray<FString>& Args, UWorld* World)
 	{
 		UPlayerProgressionSubsystem* Progression = FindProgression(World);
-		if (!Progression || Args.Num() != 1)
+		// A typo must not read as 0 and quietly send the player back to level 1.
+		if (!Progression || Args.Num() != 1 || !Args[0].IsNumeric())
 		{
 			UE_LOG(LogLooter, Warning, TEXT("Usage (in a game): Looter.SetLevel <level>"));
 			return;
