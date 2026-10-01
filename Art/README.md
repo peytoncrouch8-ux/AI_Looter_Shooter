@@ -10,6 +10,9 @@ Art/Models/<Category>/<Name>.py      a scripted model (Blender Python)
 
 The category folder names the Unreal folder: `Art/Models/Props/LanternPost.py` becomes `/Game/Art/Props/SM_LanternPost`.
 
+`Art/Backlog/<Category>/` holds finished models kept for later; `Tools\models.ps1` doesn't read it, so they stay out of
+the game until moved here (`Art/Backlog/README.md`).
+
 ## Export and import
 
 ```
