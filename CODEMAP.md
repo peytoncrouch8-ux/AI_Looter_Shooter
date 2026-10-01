@@ -143,6 +143,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/HUD/LooterHUD`: `ALooterHUD`, owns the HUD, the inventory's pages (loadout, bestiary) and the pause menu (the
   settings menu with Save & Quit), and their hotkeys.
 - `UI/HUD/PlayerHUDWidget`: the gameplay HUD (health, ammo, crosshair, hit marker, loot card, messages).
+- `UI/HUD/HudMagazineWidget`: the magazine gauge in the ammo row: a cartridge whose inside drains from the nose as the
+  gun fires (the reload bar while reloading), the count inside by the base.
 - `UI/HUD/HudMinimapWidget`: the round minimap that turns with the view (size and zoom from the settings).
 - `UI/HUD/TutorialPromptWidget`: the tutorial's current instruction near the top of the screen.
 - `UI/HUD/HudXPBarWidget`: the level and experience bar at the bottom center: a hairline ticked at every tenth.

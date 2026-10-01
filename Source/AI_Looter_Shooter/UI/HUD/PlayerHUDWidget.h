@@ -6,6 +6,7 @@
 
 class AWeaponBase;
 class UHealthComponent;
+class UHudMagazineWidget;
 class UHudWeaponSlotsWidget;
 class UImage;
 class USizeBox;
@@ -16,8 +17,9 @@ class UWeaponManagerComponent;
 /**
  * In-game HUD in the shared UI style, built to stay out of the way while playing:
  *  - bottom-left: a health cross, the number and a slim slanted segmented bar (with a trailing "damage chip")
- *  - bottom-right: the weapon slots as hexagons (UHudWeaponSlotsWidget) over the ammo: the magazine count with its
- *    ammo class and reserve, one tick per round (doubling as reload progress), and the fire mode and gun's name under it
+ *  - bottom-right: the weapon slots as circles (UHudWeaponSlotsWidget) over the ammo: its status and ammo class, the
+ *    magazine as a cartridge that drains as the gun fires and fills with reload progress (UHudMagazineWidget), the
+ *    reserve, and the fire mode and gun's name under it
  *  - top-right: the minimap (UHudMinimapWidget)
  *  - top-left: the frame rate (UHudFrameRateWidget)
  *  - bottom-right, over the ammo: the ammo pickup feed (UHudPickupFeedWidget)
@@ -66,10 +68,9 @@ private:
 
 	// Bottom-right: weapon
 	UPROPERTY(Transient) TObjectPtr<UWidget> WeaponCluster;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> AmmoText;
+	UPROPERTY(Transient) TObjectPtr<UHudMagazineWidget> MagazineGauge;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> ReserveText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusText;
-	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> AmmoSegments;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeaponName;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> AmmoClassText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FireModeText;
@@ -98,10 +99,6 @@ private:
 	// Weapon display state
 	int32 LastMagazine = INDEX_NONE;
 	int32 LastReserve = INDEX_NONE;
-	/** How many ticks the ammo strip shows (one per round, up to MaxAmmoTicks). */
-	int32 ShownTickCount = INDEX_NONE;
-	/** The lit count and reload / low state the ticks were last colored for. */
-	int32 ShownTickState = INDEX_NONE;
 	float WeaponActivity = 0.f;
 	float ReloadDuration = 0.f;
 	float ReloadElapsed = 0.f;

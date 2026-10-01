@@ -1,5 +1,6 @@
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/HUD/HudFrameRateWidget.h"
+#include "UI/HUD/HudMagazineWidget.h"
 #include "UI/HUD/HudMinimapWidget.h"
 #include "UI/HUD/HudPickupFeedWidget.h"
 #include "UI/HUD/HudWeaponSlotsWidget.h"
@@ -37,10 +38,11 @@ namespace
 {
 	constexpr int32 NumCompareStats = 9;
 	constexpr int32 HealthSegmentCount = 20;
-	/** The ammo strip has a tick per round in the magazine, up to this many (bigger magazines share ticks). */
-	constexpr int32 MaxAmmoTicks = 40;
-	/** The ammo strip's width, which the fire mode and gun's name under it line up with. */
-	constexpr float AmmoStripWidth = 420.f;
+	/** The reserve count's room beside the magazine, and the gap between them. A fixed width keeps the cartridge still. */
+	constexpr float ReserveWidth = 56.f;
+	constexpr float ReserveGap = 10.f;
+	/** The fire mode and gun's name under the ammo span from the cartridge's base to the reserve's end. */
+	constexpr float NameRowWidth = UHudMagazineWidget::Width + ReserveGap + ReserveWidth;
 	constexpr int32 PickupHoldSegmentCount = 16;
 
 	/** Opacity of a corner cluster when nothing is happening. */
@@ -211,8 +213,8 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			PlaceOnCanvas(Root, Box, FAnchors(0.f, 1.f), FVector2D(0.f, 1.f), FVector2D(60.f, -62.f));
 		}
 
-		// Bottom-right: the weapon slots over the ammo: the count with its ammo class and reserve, a tick per round, and the
-		// fire mode and gun's name under that.
+		// Bottom-right: the weapon slots over the ammo: its status and ammo class, the magazine as a cartridge that drains
+		// as the gun fires, the reserve, and the fire mode and gun's name under that.
 		{
 			UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 			auto AddRight = [Box](UWidget* Child, float Top)
@@ -225,26 +227,25 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			WeaponSlots = WidgetTree->ConstructWidget<UHudWeaponSlotsWidget>(UHudWeaponSlotsWidget::StaticClass());
 			AddRight(WeaponSlots, 0.f);
 
+			// The ammo row, everything centered on the cartridge: [status] [ammo class] [magazine] [reserve].
 			UHorizontalBox* AmmoRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			StatusText = MakeFloatingText(WidgetTree, 12, Color::Accent(), 200, ETextJustify::Right);
 			UHorizontalBoxSlot* StatusSlot = AmmoRow->AddChildToHorizontalBox(StatusText);
-			StatusSlot->SetVerticalAlignment(VAlign_Bottom);
-			StatusSlot->SetPadding(FMargin(0.f, 0.f, 14.f, 10.f));
+			StatusSlot->SetVerticalAlignment(VAlign_Center);
+			StatusSlot->SetPadding(FMargin(0.f, 0.f, 14.f, 0.f));
 			AmmoClassText = MakeFloatingText(WidgetTree, 14, Color::SegmentOn(), 60, ETextJustify::Right);
 			UHorizontalBoxSlot* ClassSlot = AmmoRow->AddChildToHorizontalBox(AmmoClassText);
-			ClassSlot->SetVerticalAlignment(VAlign_Bottom);
-			ClassSlot->SetPadding(FMargin(0.f, 0.f, 12.f, 9.f));
-			AmmoText = MakeFloatingText(WidgetTree, 46, Color::Text(), 0, ETextJustify::Right);
-			AmmoRow->AddChildToHorizontalBox(AmmoText)->SetVerticalAlignment(VAlign_Bottom);
+			ClassSlot->SetVerticalAlignment(VAlign_Center);
+			ClassSlot->SetPadding(FMargin(0.f, 0.f, 10.f, 0.f));
+			MagazineGauge = WidgetTree->ConstructWidget<UHudMagazineWidget>(UHudMagazineWidget::StaticClass());
+			AmmoRow->AddChildToHorizontalBox(MagazineGauge)->SetVerticalAlignment(VAlign_Center);
 			ReserveText = MakeFloatingText(WidgetTree, 20, Color::TextDim(), 0, ETextJustify::Left);
-			UHorizontalBoxSlot* ReserveSlot = AmmoRow->AddChildToHorizontalBox(ReserveText);
-			ReserveSlot->SetVerticalAlignment(VAlign_Bottom);
-			ReserveSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 8.f));
+			UHorizontalBoxSlot* ReserveSlot = AmmoRow->AddChildToHorizontalBox(MakeSized(WidgetTree, ReserveText, ReserveWidth));
+			ReserveSlot->SetVerticalAlignment(VAlign_Center);
+			ReserveSlot->SetPadding(FMargin(ReserveGap, 0.f, 0.f, 0.f));
 			AddRight(AmmoRow, 4.f);
 
-			AddRight(MakeSlantBar(WidgetTree, MaxAmmoTicks, AmmoStripWidth, 14.f, BarSlant, AmmoSegments), 2.f);
-
-			// Under the strip: the fire mode at its start, the gun's name at its end.
+			// Under the ammo: the fire mode under the cartridge's base, the gun's name ending under the reserve.
 			UHorizontalBox* NameRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			FireModeText = MakeFloatingText(WidgetTree, 12, Color::TextDim(), 60, ETextJustify::Left);
 			NameRow->AddChildToHorizontalBox(FireModeText)->SetVerticalAlignment(VAlign_Center);
@@ -259,7 +260,7 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			NameSlot->SetHorizontalAlignment(HAlign_Right);
 			NameSlot->SetVerticalAlignment(VAlign_Center);
 			NameSlot->SetPadding(FMargin(14.f, 0.f, 0.f, 0.f));
-			AddRight(MakeSized(WidgetTree, NameRow, AmmoStripWidth, 0.f), 6.f);
+			AddRight(MakeSized(WidgetTree, NameRow, NameRowWidth, 0.f), 4.f);
 
 			WeaponCluster = Box;
 			PlaceOnCanvas(Root, Box, FAnchors(1.f, 1.f), FVector2D(1.f, 1.f), FVector2D(-48.f, -26.f));
@@ -413,6 +414,8 @@ void UPlayerHUDWidget::UpdateWeaponCluster(UWeaponManagerComponent* Manager, flo
 	const int32 Magazine = Active->GetCurrentMagazine();
 	const int32 Reserve = Active->GetReserveAmmo();
 	const int32 MagazineSize = FMath::Max(1, Active->GetStats().MagazineSize);
+	// BindToPawn forgets the count when another gun comes into hand: its magazine shows at once instead of easing there.
+	const bool bSwitchedWeapon = LastMagazine == INDEX_NONE;
 	if (Magazine != LastMagazine || Reserve != LastReserve)
 	{
 		WeaponActivity = ActivityHold;
@@ -428,46 +431,17 @@ void UPlayerHUDWidget::UpdateWeaponCluster(UWeaponManagerComponent* Manager, flo
 	WeaponActivity = FMath::Max(0.f, WeaponActivity - DeltaTime);
 
 	const float MagazineFraction = static_cast<float>(Magazine) / MagazineSize;
-	const bool bLow = MagazineFraction <= 0.25f;
+	const bool bLow = MagazineFraction <= UHudMagazineWidget::LowFraction;
 	const float Pulse = 0.5f + 0.5f * FMath::Sin(PulseTime * 8.f);
 
-	// Numbers: magazine turns orange when running low, red when empty.
-	SetTextIfChanged(AmmoText, FString::FromInt(Magazine));
-	AmmoText->SetColorAndOpacity(FSlateColor(Magazine == 0 ? Color::Worse() : (bLow ? Color::Accent() : Color::Text())));
+	// The magazine: a cartridge that drains as the gun fires and, while reloading, fills with the reload's progress. It
+	// colors itself orange when low and red when empty, its outline beating with the reload prompt.
+	const float ReloadProgress = ReloadDuration > 0.f ? FMath::Clamp(ReloadElapsed / ReloadDuration, 0.f, 1.f) : 0.f;
+	MagazineGauge->SetMagazine(Magazine, MagazineSize, bReloading, ReloadProgress, bSwitchedWeapon, Pulse, DeltaTime);
 	SetTextIfChanged(ReserveText, FString::FromInt(Reserve));
 	ReserveText->SetColorAndOpacity(FSlateColor(Reserve == 0 ? Color::Worse() : Color::TextDim()));
 
-	// One tick per round in the magazine (big magazines share ticks), which doubles as reload progress.
-	const int32 TickCount = FMath::Clamp(MagazineSize, 1, MaxAmmoTicks);
-	if (TickCount != ShownTickCount)
-	{
-		ShownTickCount = TickCount;
-		ShownTickState = INDEX_NONE;
-		for (int32 Index = 0; Index < AmmoSegments.Num(); ++Index)
-		{
-			AmmoSegments[Index]->SetVisibility(Index < TickCount ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-			if (UHorizontalBoxSlot* TickSlot = Cast<UHorizontalBoxSlot>(AmmoSegments[Index]->Slot))
-			{
-				TickSlot->SetPadding(FMargin(0.f, 0.f, Index + 1 < TickCount ? 2.f : 0.f, 0.f));
-			}
-		}
-	}
-	// Reloading: the ticks fill with progress in the accent color; otherwise lit for the rounds left (orange when low).
-	const float Progress = ReloadDuration > 0.f ? FMath::Clamp(ReloadElapsed / ReloadDuration, 0.f, 1.f) : 0.f;
-	const int32 Lit = bReloading ? FMath::FloorToInt(Progress * TickCount) : FMath::Clamp(FMath::CeilToInt(MagazineFraction * TickCount), 0, TickCount);
-	const int32 TickState = (Lit << 2) | (bReloading ? 2 : 0) | (bLow ? 1 : 0);
-	if (TickState != ShownTickState)
-	{
-		// Only when something shows differently: up to 40 ticks would otherwise be recolored every frame.
-		ShownTickState = TickState;
-		const FLinearColor On = bReloading || bLow ? Color::Accent() : Color::SegmentOn();
-		for (int32 Index = 0; Index < TickCount; ++Index)
-		{
-			AmmoSegments[Index]->SetColorAndOpacity(Index < Lit ? On : Color::SegmentOff());
-		}
-	}
-
-	// Status beside the count: reloading, a prompt when dry, or nothing.
+	// Status beside the magazine: reloading, a prompt when dry, or nothing.
 	if (bReloading)
 	{
 		SetTextIfChanged(StatusText, TEXT("RELOADING"));
