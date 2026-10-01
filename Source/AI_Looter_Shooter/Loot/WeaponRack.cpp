@@ -6,6 +6,7 @@
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/CollisionProfile.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
@@ -14,6 +15,8 @@ namespace
 {
 	/** The weapon is dropped from a hand's width above the socket so it settles onto the table, not into it. */
 	constexpr float DropHeight = 12.f;
+	/** How far along the table from the weapon each ammo box sits (cm): clear of a rifle, still on a 2 m table. */
+	constexpr float AmmoOffset = 75.f;
 	/** Checking for a taken weapon a few times a second is plenty. */
 	constexpr float CheckInterval = 0.5f;
 }
@@ -23,7 +26,11 @@ AWeaponRack::AWeaponRack()
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.TickInterval = CheckInterval;
 
+	// World static, like placed scenery: loot settles only on static geometry, so a dynamic rack let its own rifle fall
+	// through the table.
 	Rack = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Rack"));
+	Rack->SetMobility(EComponentMobility::Static);
+	Rack->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	RootComponent = Rack;
 }
 
@@ -66,9 +73,11 @@ void AWeaponRack::Restock()
 		return;
 	}
 
-	const FTransform Socket = Rack->DoesSocketExist(WeaponSocket) ? Rack->GetSocketTransform(WeaponSocket) : GetActorTransform();
+	// Lengthwise along the table, muzzle to the right as you face the rack (whose front is the actor's forward).
+	const FVector Spot = Rack->DoesSocketExist(WeaponSocket) ? Rack->GetSocketLocation(WeaponSocket) : GetActorLocation();
+	const FVector Along = -GetActorRightVector();
 	const FWeaponInstanceData Instance = UWeaponRollLibrary::RollWeaponWithRarity(Weapon, Rarity, Level);
-	const FTransform Where(Socket.GetRotation(), Socket.GetLocation() + FVector::UpVector * DropHeight);
+	const FTransform Where(Along.Rotation(), Spot + FVector::UpVector * DropHeight);
 	if (AWeaponBase* Spawned = UWeaponRollLibrary::SpawnWeapon(this, Instance, Where))
 	{
 		// Loot like any other: it settles on the table, shows its label and can be picked up.
@@ -76,16 +85,15 @@ void AWeaponRack::Restock()
 		Offered = Spawned;
 	}
 
-	// Ammo boxes beside the weapon, along the rack, if the last ones were collected.
+	// Ammo boxes at either end of the table, if the last ones were collected.
 	AmmoBoxes.RemoveAll([](const TWeakObjectPtr<AAmmoPickup>& Box) { return !Box.IsValid(); });
 	if (AmmoBoxes.IsEmpty() && AmmoMagazines > 0)
 	{
-		const FVector Along = Socket.GetRotation().GetRightVector();
 		const int32 Rounds = Instance.Stats.MagazineSize * AmmoMagazines;
 		for (const float Side : { -1.f, 1.f })
 		{
-			const FVector Spot = Socket.GetLocation() + Along * Side * 55.f + FVector::UpVector * DropHeight;
-			if (AAmmoPickup* Box = AAmmoPickup::SpawnAmmo(World, Weapon->AmmoType, FMath::Max(Rounds / 2, 1), Spot))
+			const FVector BoxSpot = Spot + Along * Side * AmmoOffset + FVector::UpVector * DropHeight;
+			if (AAmmoPickup* Box = AAmmoPickup::SpawnAmmo(World, Weapon->AmmoType, FMath::Max(Rounds / 2, 1), BoxSpot))
 			{
 				Box->Toss(FVector::ZeroVector);
 				// It stays until it's taken (loose loot boxes disappear after a while).

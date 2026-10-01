@@ -7,8 +7,10 @@ AWindmill::AWindmill()
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
 
+	// World static like placed scenery, so traces that look for the ground and solid things (the minimap, loot) see it.
 	Tower = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Tower"));
 	Tower->SetMobility(EComponentMobility::Static);
+	Tower->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	RootComponent = Tower;
 
 	// The fan moves every frame: without collision it costs no physics updates, and it spins high above anyone's head.
