@@ -651,9 +651,11 @@ void ULoadoutWidget::RefreshAmmo()
 		BarSlot->SetHorizontalAlignment(HAlign_Center);
 		BarSlot->SetPadding(FMargin(0.f, 4.f));
 
-		// The ammo's icon, faded while none is carried.
+		// The ammo's icon, faded while none is carried. The five share one view box sized for the tall sniper round (equal
+		// scale keeps the sniper tall and the SMG short, part of telling them apart), so the box is 26 px for the small
+		// rounds to read.
 		UVerticalBoxSlot* IconSlot = Gauge->AddChildToVerticalBox(MakeImage(WidgetTree, InkedIconBrush(AmmoIconName(Type), AmmoIcon(Type),
-			FVector2D(18.f, 18.f), Carried > 0 ? FLinearColor::White : FLinearColor(1.f, 1.f, 1.f, 0.5f))));
+			FVector2D(26.f, 26.f), Carried > 0 ? FLinearColor::White : FLinearColor(1.f, 1.f, 1.f, 0.5f))));
 		IconSlot->SetHorizontalAlignment(HAlign_Center);
 
 		UWidget* Box = MakeShapeBox(WidgetTree, EShape::Control, Hex(7, 26, 40, 217), Hex(90, 200, 255, 71), Gauge, FMargin(0.f, 6.f));
