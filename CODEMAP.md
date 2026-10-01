@@ -97,7 +97,12 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Tutorial
 - `Tutorial/TutorialDirector`: `ATutorialDirector`, the tutorial island's steps (move, reach the village, take the rifle,
-  shoot the dummies, hunt spiders, open the loadout), each finished by doing it; `Looter.Tutorial restart|skip`.
+  shoot the dummies, hunt spiders, open the loadout), each finished by doing it, and while it runs the tracked mission
+  with a waypoint per step; `Looter.Tutorial restart|skip`.
+
+## Missions
+- `Missions/MissionSubsystem`: `UMissionSubsystem`, the missions going on in the world (title, objective, waypoint) and
+  which one is tracked, the one the minimap's compass arrow points to; `FMissionBook` is its bookkeeping.
 
 ## Progression
 - `Progression/XPCurve`: `FXPCurve`, the experience each level takes (exponential), level-ups from a gain, and the
@@ -145,7 +150,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/HUD/PlayerHUDWidget`: the gameplay HUD (health, ammo, crosshair, hit marker, loot card, messages).
 - `UI/HUD/HudMagazineWidget`: the magazine gauge in the ammo row: a cartridge whose inside drains from the nose as the
   gun fires (the reload bar while reloading), the count inside by the base.
-- `UI/HUD/HudMinimapWidget`: the round minimap that turns with the view (size and zoom from the settings).
+- `UI/HUD/HudMinimapWidget`: the round minimap that turns with the view (size and zoom from the settings), with the
+  tracked mission's waypoint on it, or a compass arrow and its distance on the rim.
 - `UI/HUD/TutorialPromptWidget`: the tutorial's current instruction near the top of the screen.
 - `UI/HUD/HudXPBarWidget`: the level and experience bar at the bottom center: a hairline ticked at every tenth.
 - `UI/HUD/HudWeaponSlotsWidget`: the weapon slots over the ammo, as circles in the guns' rarity colors with their Inked icons (tilted up).
@@ -190,7 +196,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `BestiaryTests.cpp`, `CreatureTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`,
-  `MinimapTests.cpp`, `ProgressionTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SlimeTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
+  `MinimapTests.cpp`, `MissionTests.cpp`, `ProgressionTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SlimeTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)

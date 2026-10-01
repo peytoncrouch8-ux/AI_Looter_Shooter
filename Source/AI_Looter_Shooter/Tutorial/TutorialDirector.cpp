@@ -4,12 +4,15 @@
 #include "Combat/TargetDummy.h"
 #include "Core/LooterMenuGameMode.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/SpiderCreature.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Loot/WeaponRack.h"
+#include "Missions/MissionSubsystem.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/HUD/TutorialPromptWidget.h"
+#include "Weapons/WeaponBase.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
@@ -30,6 +33,29 @@ namespace
 		const ULocalPlayer* Player = Controller ? Controller->GetLocalPlayer() : nullptr;
 		return Player ? Player->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
 	}
+
+	UMissionSubsystem* GetMissions(const UWorld* World)
+	{
+		return World ? World->GetSubsystem<UMissionSubsystem>() : nullptr;
+	}
+
+	/** The living creature of kind T nearest to Where (on the map, so height doesn't count), or null. */
+	template <typename T>
+	const T* NearestLiving(const UWorld* World, const FVector& Where)
+	{
+		const T* Nearest = nullptr;
+		double NearestDistance = TNumericLimits<double>::Max();
+		for (TActorIterator<T> It(World); It; ++It)
+		{
+			const double Distance = FVector::DistSquared2D(It->GetActorLocation(), Where);
+			if (!It->IsDead() && Distance < NearestDistance)
+			{
+				Nearest = *It;
+				NearestDistance = Distance;
+			}
+		}
+		return Nearest;
+	}
 }
 
 ATutorialDirector::ATutorialDirector()
@@ -46,6 +72,7 @@ ATutorialDirector::ATutorialDirector()
 		{ TEXT("Press {Inventory} to see your loadout and your weapons' stats."), ETutorialGoal::OpenInventory, 1.f },
 	};
 	DoneText = TEXT("You're ready. Explore the island, and climb to the lookout on the plateau for the view.");
+	MissionTitle = TEXT("Welcome to Skyreach");
 }
 
 void ATutorialDirector::BeginPlay()
@@ -74,6 +101,7 @@ void ATutorialDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		Prompt->RemoveFromParent();
 		Prompt = nullptr;
 	}
+	EndMission();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -101,6 +129,8 @@ void ATutorialDirector::Tick(float DeltaSeconds)
 	{
 		StartStep(Current + 1);
 	}
+	// The waypoint follows its target (a spider on the move, the rifle once it's taken), and the text the key bindings.
+	SyncMission();
 }
 
 void ATutorialDirector::Restart()
@@ -145,6 +175,7 @@ void ATutorialDirector::StartStep(int32 Index)
 		StepStart = Pawn->GetActorLocation();
 	}
 	UE_LOG(LogLooter, Log, TEXT("Tutorial step %d/%d"), Index + 1, Steps.Num());
+	SyncMission();
 }
 
 bool ATutorialDirector::IsStepDone(const FTutorialStep& Step) const
@@ -187,6 +218,7 @@ void ATutorialDirector::Finish(bool bShowDone)
 {
 	Current = INDEX_NONE;
 	SetActorTickEnabled(false);
+	EndMission();
 	if (UPlayerProgressionSubsystem* Progression = GetProgression(GetWorld()))
 	{
 		Progression->SetTutorialDone(true);
@@ -239,6 +271,95 @@ void ATutorialDirector::HandleCreatureDeath(AController* Killer)
 	{
 		++Kills;
 	}
+}
+
+void ATutorialDirector::SyncMission()
+{
+	UMissionSubsystem* Missions = GetMissions(GetWorld());
+	if (!Missions || !Steps.IsValidIndex(Current))
+	{
+		return;
+	}
+	if (MissionId == INDEX_NONE)
+	{
+		// Behind the main menu no one plays, so there's no mission to guide them (a restart from the console there too).
+		if (ALooterMenuGameMode::IsMenuWorld(GetWorld()))
+		{
+			return;
+		}
+		MissionId = Missions->AddMission(FText::FromString(MissionTitle));
+	}
+	// Unchanged text and a waypoint that only moved don't wake the mission's listeners, so this is cheap to repeat.
+	const FTutorialStep& Step = Steps[Current];
+	Missions->SetObjective(MissionId, FText::FromString(ResolveKeys(Step.Text)), FindWaypoint(Step));
+}
+
+void ATutorialDirector::EndMission()
+{
+	if (MissionId == INDEX_NONE)
+	{
+		return;
+	}
+	if (UMissionSubsystem* Missions = GetMissions(GetWorld()))
+	{
+		Missions->RemoveMission(MissionId);
+	}
+	MissionId = INDEX_NONE;
+}
+
+TOptional<FVector> ATutorialDirector::FindWaypoint(const FTutorialStep& Step) const
+{
+	const UWorld* World = GetWorld();
+	switch (Step.Goal)
+	{
+	case ETutorialGoal::Move:
+	case ETutorialGoal::ReachRack:
+	{
+		// The road leads to the village and its gun rack, so the first steps already point that way.
+		TActorIterator<AWeaponRack> Rack(World);
+		return Rack ? TOptional<FVector>(Rack->GetActorLocation()) : TOptional<FVector>();
+	}
+	case ETutorialGoal::HoldWeapon:
+	{
+		// The rifle itself while it lies there; once it's gone (taken, restocking), the rack.
+		TActorIterator<AWeaponRack> Rack(World);
+		if (!Rack)
+		{
+			return TOptional<FVector>();
+		}
+		const AWeaponBase* Offered = Rack->IsWeaponOffered() ? Rack->GetOfferedWeapon() : nullptr;
+		return Offered ? Offered->GetActorLocation() : Rack->GetActorLocation();
+	}
+	case ETutorialGoal::HitDummies:
+	{
+		// The middle of the training ground, not one dummy: any of them counts.
+		FVector Sum = FVector::ZeroVector;
+		int32 Count = 0;
+		for (TActorIterator<ATargetDummy> It(World); It; ++It)
+		{
+			Sum += It->GetActorLocation();
+			++Count;
+		}
+		return Count > 0 ? TOptional<FVector>(Sum / Count) : TOptional<FVector>();
+	}
+	case ETutorialGoal::KillCreatures:
+	{
+		// The step asks for spiders, so the nearest one; any creature counts, so with no spider left, the nearest of those.
+		const APlayerController* Controller = World ? World->GetFirstPlayerController() : nullptr;
+		const APawn* Pawn = Controller ? Controller->GetPawn() : nullptr;
+		if (!Pawn)
+		{
+			return TOptional<FVector>();
+		}
+		const FVector From = Pawn->GetActorLocation();
+		const ACreatureBase* Target = NearestLiving<ASpiderCreature>(World, From);
+		Target = Target ? Target : NearestLiving<ACreatureBase>(World, From);
+		return Target ? TOptional<FVector>(Target->GetActorLocation()) : TOptional<FVector>();
+	}
+	case ETutorialGoal::OpenInventory:
+		break;
+	}
+	return TOptional<FVector>();
 }
 
 UTutorialPromptWidget* ATutorialDirector::GetPrompt()
