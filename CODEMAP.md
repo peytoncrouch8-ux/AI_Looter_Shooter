@@ -77,6 +77,16 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   posed by code (stepping gait, leg IK, attack and death motion); its physics asset holds the hit zones.
 - `Creatures/SpiderAnimInstance`: `USpiderAnimInstance`, applies the pose `ASpiderCreature` works out to the skeleton.
 
+## Progression
+- `Progression/XPCurve`: `FXPCurve`, the experience each level takes (exponential), level-ups from a gain, and the
+  maximum level.
+- `Progression/ProgressionSettings`: `UProgressionSettings`, the curve's numbers in Project Settings > Game > Progression
+  (`DefaultGame.ini`).
+- `Progression/LooterProgressSave.h`: `ULooterProgressSave`, the player's level and experience in the "PlayerProgress"
+  save slot.
+- `Progression/PlayerProgressionSubsystem`: `UPlayerProgressionSubsystem`, the player's level and experience (adding,
+  saving, level-up events) and the experience a kill gives.
+
 ## World
 - `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime.
 - `World/FallRecoverySubsystem`: brings the player back when they fall off an island.
@@ -98,6 +108,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/HUD/LooterHUD`: `ALooterHUD`, owns the HUD, inventory and pause menu and their hotkeys.
 - `UI/HUD/PlayerHUDWidget`: the gameplay HUD (health, ammo, crosshair, hit marker, loot card, messages).
 - `UI/HUD/HudMinimapWidget`: the round minimap that turns with the view.
+- `UI/HUD/HudXPBarWidget`: the level and experience bar at the bottom center.
 - `UI/Menus/PauseMenuWidget`: the pause and settings menu (graphics, interface, key bindings).
 - `UI/Inventory/LoadoutWidget.cpp`: the loadout screen: opening, layout and contents.
 - `UI/Inventory/LoadoutWidgetInput.cpp`: its cursor, actions (swap, hold, drop) and turning the stand-in.
@@ -108,17 +119,19 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/Inventory/LoadoutPaintLayer`: `ULoadoutPaintLayer`, a see-through layer the screen draws on.
 - `UI/Inventory/LoadoutStage`: `ALoadoutStage`, the off-screen stand-in of the character and its capture.
 - `UI/World/WeaponLabelWidget`: the label over loot guns.
-- `UI/World/CreatureHealthBarWidget`: the bar over a hurt or hunting creature.
+- `UI/World/CreatureHealthBarWidget`: the level, name and bar over a hurt or hunting creature.
 - `UI/World/DamageNumberActor`, `UI/World/DamageNumberWidget`: floating damage numbers.
 
 ## Dev
 - `Dev/WeaponDevCommands.cpp`: console commands for testing (`Looter.GiveWeapon`).
+- `Dev/ProgressionDevCommands.cpp`: console commands for levels (`Looter.GiveXP`, `Looter.SetLevel`,
+  `Looter.ResetProgress`).
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`).
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `CreatureTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`,
-  `MinimapTests.cpp`, `SettingsTests.cpp`, `WeaponTests.cpp`, `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*`
-  automation tests, one file per area.
+  `MinimapTests.cpp`, `ProgressionTests.cpp`, `SettingsTests.cpp`, `WeaponTests.cpp`, `WeaponPartsTests.cpp`,
+  `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)
 - `LooterEditor.Build.cs`: module dependencies (GeometryScript editor functions, asset tools, FBX import, JSON).

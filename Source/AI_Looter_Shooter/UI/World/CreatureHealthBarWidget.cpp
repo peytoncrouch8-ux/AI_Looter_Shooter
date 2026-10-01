@@ -22,9 +22,14 @@ TSharedRef<SWidget> UCreatureHealthBarWidget::RebuildWidget()
 	{
 		UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 
-		NameText = MakeText(WidgetTree, CreatureName.ToString(), 11, Color::Text(), true, 120);
-		NameText->SetJustification(ETextJustify::Center);
-		Box->AddChildToVerticalBox(NameText)->SetHorizontalAlignment(HAlign_Center);
+		// "LV 1  BROWN SPIDER": the level in the accent color, so it reads at a glance.
+		UHorizontalBox* Label = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		LevelText = MakeText(WidgetTree, TEXT(""), 11, Color::Accent(), true, 120);
+		Label->AddChildToHorizontalBox(LevelText)->SetPadding(FMargin(0.f, 0.f, 6.f, 0.f));
+		NameText = MakeText(WidgetTree, TEXT(""), 11, Color::Text(), true, 120);
+		Label->AddChildToHorizontalBox(NameText);
+		Box->AddChildToVerticalBox(Label)->SetHorizontalAlignment(HAlign_Center);
+		ApplyLabel();
 
 		USizeBox* BarSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
 		BarSize->SetWidthOverride(150.f);
@@ -50,15 +55,22 @@ TSharedRef<SWidget> UCreatureHealthBarWidget::RebuildWidget()
 	return Super::RebuildWidget();
 }
 
-void UCreatureHealthBarWidget::SetCreatureName(const FText& InName)
+void UCreatureHealthBarWidget::SetCreature(const FText& InName, int32 InLevel)
 {
-	if (!CreatureName.EqualTo(InName))
+	if (!CreatureName.EqualTo(InName) || CreatureLevel != InLevel)
 	{
 		CreatureName = InName;
-		if (NameText)
-		{
-			NameText->SetText(FText::FromString(CreatureName.ToString().ToUpper()));
-		}
+		CreatureLevel = InLevel;
+		ApplyLabel();
+	}
+}
+
+void UCreatureHealthBarWidget::ApplyLabel()
+{
+	if (LevelText && NameText)
+	{
+		LevelText->SetText(FText::FromString(FString::Printf(TEXT("LV %d"), CreatureLevel)));
+		NameText->SetText(FText::FromString(CreatureName.ToString().ToUpper()));
 	}
 }
 

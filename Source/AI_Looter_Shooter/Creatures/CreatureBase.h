@@ -49,6 +49,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature")
 	FText DisplayName;
 
+	/**
+	 * The creature's level, shown on its health bar. Tutorial island creatures are level 1; later areas set their own.
+	 * Nothing scales with it yet (health, damage and loot will).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Progression", meta = (ClampMin = "1"))
+	int32 Level = 1;
+
+	/**
+	 * Experience the player who kills it earns, once per kill (UPlayerProgressionSubsystem::AwardKill). 10 on the
+	 * tutorial island for now; it drops to 0 there once later areas have their own creatures.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Progression", meta = (ClampMin = "0"))
+	int32 XPReward = 10;
+
 	/** Hits on these bones' hit zones are critical. Everything else takes base damage. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature")
 	TArray<FName> CriticalSpotBones;

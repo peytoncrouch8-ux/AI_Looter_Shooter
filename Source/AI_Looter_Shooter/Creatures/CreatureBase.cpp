@@ -4,6 +4,7 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/LooterDamageTypes.h"
 #include "Loot/LootDropComponent.h"
+#include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/World/CreatureHealthBarWidget.h"
 #include "World/WorldQueries.h"
 #include "AIController.h"
@@ -519,7 +520,9 @@ void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocat
 
 void ACreatureBase::HandleDeath(AController* Killer)
 {
-	// Loot drops on its own (ULootDropComponent listens to the same death event).
+	// Loot drops on its own (ULootDropComponent listens to the same death event). The health component reports a death
+	// once until the respawn resets it, so each kill gives its experience once.
+	UPlayerProgressionSubsystem::AwardKill(Killer, this);
 	Target.Reset();
 	SetState(ECreatureState::Dead);
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
@@ -562,7 +565,7 @@ void ACreatureBase::UpdateHealthBar(float DeltaSeconds)
 	{
 		if (UCreatureHealthBarWidget* Bar = Cast<UCreatureHealthBarWidget>(HealthBar->GetUserWidgetObject()))
 		{
-			Bar->SetCreatureName(DisplayName);
+			Bar->SetCreature(DisplayName, Level);
 			Bar->SetHealthFraction(Health->GetHealthPercent());
 		}
 	}
