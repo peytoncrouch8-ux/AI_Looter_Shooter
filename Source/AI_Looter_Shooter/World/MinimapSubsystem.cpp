@@ -1,6 +1,8 @@
 #include "World/MinimapSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "World/WorldQueries.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -36,6 +38,11 @@ namespace
 	const FColor ObstacleColor(176, 218, 232, 235);
 	const FColor CoastColor(108, 212, 255, 255);
 	const FColor CliffColor(150, 206, 224, 240);
+	// Tree crowns: a deeper green-teal than the land, with a darker rim so neighbouring crowns stay apart.
+	const FColor TreeColor(46, 120, 96, 240);
+	const FColor TreeRimColor(26, 78, 66, 240);
+	/** Share of a tree mesh's footprint its crown covers on the map. */
+	constexpr float CrownShare = 0.8f;
 
 	FColor Shade(const FColor& Color, float Amount)
 	{
@@ -156,6 +163,63 @@ void UMinimapSubsystem::TraceRows(double TimeBudgetSeconds)
 	}
 }
 
+void UMinimapSubsystem::PaintTrees(TArray<FColor>& Colors) const
+{
+	const int32 N = Resolution;
+	const FVector2D Size = Bounds.GetSize();
+	const double CmPerTexel = FMath::Max(Size.X, 1.0) / N;
+	auto Paint = [&](const FVector& Where, double CrownRadius)
+	{
+		const FVector2D UV = WorldToMapUV(Where) * N;
+		const double Radius = FMath::Clamp(CrownRadius / CmPerTexel, 1.5, 12.0);
+		const int32 R = FMath::CeilToInt(Radius);
+		for (int32 V = FMath::FloorToInt(UV.Y) - R; V <= FMath::FloorToInt(UV.Y) + R; ++V)
+		{
+			for (int32 U = FMath::FloorToInt(UV.X) - R; U <= FMath::FloorToInt(UV.X) + R; ++U)
+			{
+				const double Distance = FVector2D::Distance(FVector2D(U + 0.5, V + 0.5), UV);
+				if (U < 0 || V < 0 || U >= N || V >= N || Distance > Radius || Colors[V * N + U].A == 0)
+				{
+					continue;
+				}
+				Colors[V * N + U] = Distance > Radius - 1.0 ? TreeRimColor : TreeColor;
+			}
+		}
+	};
+
+	int32 Trees = 0;
+	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+	{
+		const AActor* Actor = *It;
+		if (Actor->ActorHasTag(MinimapTags::Tree))
+		{
+			const FBox Box = Actor->GetComponentsBoundingBox();
+			Paint(Box.GetCenter(), FMath::Max(Box.GetExtent().X, Box.GetExtent().Y) * CrownShare);
+			++Trees;
+			continue;
+		}
+		TInlineComponentArray<UInstancedStaticMeshComponent*> Instanced(Actor);
+		for (const UInstancedStaticMeshComponent* Component : Instanced)
+		{
+			const UStaticMesh* Mesh = Component->GetStaticMesh();
+			if (!Mesh || !Component->ComponentHasTag(MinimapTags::Tree))
+			{
+				continue;
+			}
+			const FVector Extent = Mesh->GetBoundingBox().GetExtent();
+			const double Footprint = FMath::Max(Extent.X, Extent.Y) * CrownShare;
+			for (int32 Index = 0; Index < Component->GetInstanceCount(); ++Index)
+			{
+				FTransform Instance;
+				Component->GetInstanceTransform(Index, Instance, /*bWorldSpace*/ true);
+				Paint(Instance.GetLocation(), Footprint * Instance.GetScale3D().X);
+				++Trees;
+			}
+		}
+	}
+	UE_LOG(LogLooter, Log, TEXT("Minimap: %d trees"), Trees);
+}
+
 void UMinimapSubsystem::FinishBake()
 {
 	bBaking = false;
@@ -230,6 +294,8 @@ void UMinimapSubsystem::FinishBake()
 			Colors[Index] = Shade(Base, FMath::Clamp(Slope, -0.1f, 0.1f));
 		}
 	}
+
+	PaintTrees(Colors);
 
 	// FColor is laid out B, G, R, A in memory, which is exactly PF_B8G8R8A8.
 	const TArrayView<const uint8> Bytes(reinterpret_cast<const uint8*>(Colors.GetData()), Colors.Num() * sizeof(FColor));

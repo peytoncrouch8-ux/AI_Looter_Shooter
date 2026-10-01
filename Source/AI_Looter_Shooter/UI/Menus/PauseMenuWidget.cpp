@@ -177,6 +177,14 @@ TSharedRef<SWidget> UPauseMenuWidget::RebuildWidget()
 		MinimapSlider->OnValueChanged.AddDynamic(this, &UPauseMenuWidget::HandleMinimapSizeChanged);
 		MinimapSlider->OnMouseCaptureBegin.AddDynamic(this, &UPauseMenuWidget::HandleMinimapSizeGrabbed);
 		MinimapSlider->OnMouseCaptureEnd.AddDynamic(this, &UPauseMenuWidget::HandleMinimapSizeReleased);
+		USlider* MinimapZoom = nullptr;
+		UTextBlock* MinimapZoomText = nullptr;
+		Add(MakeSliderRow(TEXT("Minimap zoom"), UGraphicsSettingsSubsystem::MinMinimapZoom, UGraphicsSettingsSubsystem::MaxMinimapZoom,
+			MinimapZoom, MinimapZoomText), 4.f);
+		MinimapZoomSlider = MinimapZoom;
+		MinimapZoomValue = MinimapZoomText;
+		MinimapZoomSlider->OnValueChanged.AddDynamic(this, &UPauseMenuWidget::HandleMinimapZoomChanged);
+		MinimapZoomSlider->OnMouseCaptureEnd.AddDynamic(this, &UPauseMenuWidget::HandleMinimapZoomReleased);
 
 		Add(MakeSection(WidgetTree, TEXT("Controls")), 18.f);
 		UTextBlock* Hint = MakeText(WidgetTree, TEXT("Click a key to change it, then press the new key or mouse button. Esc cancels."), 11, Color::TextDim());
@@ -372,6 +380,12 @@ void UPauseMenuWidget::RefreshGraphics()
 		MinimapSlider->SetValue(Scale);
 		ShowMinimapScale(Scale);
 	}
+	if (MinimapZoomSlider && MinimapZoomValue)
+	{
+		const float Zoom = Graphics->GetMinimapZoom();
+		MinimapZoomSlider->SetValue(Zoom);
+		MinimapZoomValue->SetText(FText::FromString(FString::Printf(TEXT("%.1fx"), Zoom)));
+	}
 }
 
 void UPauseMenuWidget::ShowMinimapScale(float Scale)
@@ -415,6 +429,30 @@ void UPauseMenuWidget::HandleMinimapSizeReleased()
 	{
 		Graphics->SaveSettings();
 		SetStatus(FString::Printf(TEXT("Minimap size %d%%."), FMath::RoundToInt(Graphics->GetMinimapScale() * 100.f)), LooterUI::Color::TextDim());
+	}
+	// Dragging handed focus to the slider's window; take it back so Esc still closes the menu.
+	SetKeyboardFocus();
+}
+
+void UPauseMenuWidget::HandleMinimapZoomChanged(float Value)
+{
+	// The HUD's map follows the moment the menu closes.
+	if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
+	{
+		Graphics->SetMinimapZoom(Value, /*bSave*/ false);
+	}
+	if (MinimapZoomValue)
+	{
+		MinimapZoomValue->SetText(FText::FromString(FString::Printf(TEXT("%.1fx"), Value)));
+	}
+}
+
+void UPauseMenuWidget::HandleMinimapZoomReleased()
+{
+	if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
+	{
+		Graphics->SaveSettings();
+		SetStatus(FString::Printf(TEXT("Minimap zoom %.1fx."), Graphics->GetMinimapZoom()), LooterUI::Color::TextDim());
 	}
 	// Dragging handed focus to the slider's window; take it back so Esc still closes the menu.
 	SetKeyboardFocus();

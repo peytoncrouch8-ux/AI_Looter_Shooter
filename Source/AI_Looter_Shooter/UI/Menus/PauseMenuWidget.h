@@ -69,6 +69,12 @@ private:
 
 	UFUNCTION()
 	void HandleMinimapSizeReleased();
+
+	UFUNCTION()
+	void HandleMinimapZoomChanged(float Value);
+
+	UFUNCTION()
+	void HandleMinimapZoomReleased();
 	void HandleButton(ULooterButton* Button);
 	void StartListening(int32 BindingIndex);
 	void StopListening();
@@ -90,6 +96,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TransparencyValue;
 	UPROPERTY(Transient) TObjectPtr<USlider> MinimapSlider;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> MinimapValue;
+	UPROPERTY(Transient) TObjectPtr<USlider> MinimapZoomSlider;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> MinimapZoomValue;
 	UPROPERTY(Transient) TObjectPtr<UWidget> MinimapPreview;
 	UPROPERTY(Transient) TObjectPtr<USizeBox> MinimapPreviewSize;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> MinimapPreviewCaption;

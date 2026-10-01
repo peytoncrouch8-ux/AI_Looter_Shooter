@@ -7,11 +7,16 @@
 
 class UTexture2D;
 
-/** Actor tags the minimap reads: walkable terrain, and solid things standing on it. Untagged static geometry counts as ground. */
+/**
+ * Tags the minimap reads: walkable terrain and solid things standing on it (actor tags; untagged static geometry
+ * counts as ground), and trees (an actor tag, or a component tag on instanced trees such as the scatter's), which are
+ * drawn as crowns since only their trunks are solid.
+ */
 namespace MinimapTags
 {
 	inline const FName Ground(TEXT("Ground"));
 	inline const FName Obstacle(TEXT("Obstacle"));
+	inline const FName Tree(TEXT("Tree"));
 }
 
 /**
@@ -56,6 +61,8 @@ private:
 	void StartBake();
 	void TraceRows(double TimeBudgetSeconds);
 	void FinishBake();
+	/** Paints a crown for every tree onto the baked picture. */
+	void PaintTrees(TArray<FColor>& Colors) const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> Texture;

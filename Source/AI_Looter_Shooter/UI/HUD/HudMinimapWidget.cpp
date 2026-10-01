@@ -23,8 +23,8 @@ using namespace LooterUI;
 
 namespace
 {
-	/** How much of the world the minimap shows (radius, cm), at any size. */
-	constexpr float Range = 3500.f;
+	/** How much of the world the minimap shows (radius, cm) at zoom 1, at any size. */
+	constexpr float BaseRange = 3500.f;
 	/** How many things it can mark at once. */
 	constexpr int32 MaxMarkers = 32;
 	constexpr float ArrowSize = 22.f;
@@ -120,6 +120,7 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 	const UGraphicsSettingsSubsystem* Settings = LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
 	const float WantedScale = Settings ? Settings->GetMinimapScale() : 1.f;
+	const float Range = BaseRange / (Settings ? Settings->GetMinimapZoom() : 1.f);
 	if (!FMath::IsNearlyEqual(WantedScale, Scale))
 	{
 		ApplyScale(WantedScale);

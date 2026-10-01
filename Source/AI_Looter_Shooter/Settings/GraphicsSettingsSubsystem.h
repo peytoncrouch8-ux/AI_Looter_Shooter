@@ -42,6 +42,10 @@ public:
 	/** The HUD minimap's size, relative to its standard size. */
 	UPROPERTY()
 	float MinimapScale = 1.f;
+
+	/** How far the HUD minimap is zoomed in: 1 shows 35 m around the player, 2 half that. */
+	UPROPERTY()
+	float MinimapZoom = 1.f;
 };
 
 /**
@@ -50,7 +54,7 @@ public:
  * the reference card can't afford below High (see QualitySettings). Motion blur uses the viewport's show flag, so
  * scalability changes and post process volumes can't switch it back on behind the player's back. UI transparency
  * fades every UI's panel backgrounds (see LooterUI::SetBackgroundOpacity), live. The HUD reads the minimap size
- * every frame.
+ * and zoom every frame.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UGraphicsSettingsSubsystem : public ULocalPlayerSubsystem
@@ -93,6 +97,17 @@ public:
 
 	/** The HUD follows on its next frame. bSave as for SetUITransparency. */
 	void SetMinimapScale(float Scale, bool bSave = true);
+
+	/**
+	 * How far the HUD minimap is zoomed in, from the island at a glance to the street around you (the baked map's
+	 * texels start to show past 2.5).
+	 */
+	static constexpr float MinMinimapZoom = 0.5f;
+	static constexpr float MaxMinimapZoom = 2.5f;
+	float GetMinimapZoom() const;
+
+	/** The HUD follows on its next frame. bSave as for SetUITransparency. */
+	void SetMinimapZoom(float Zoom, bool bSave = true);
 
 	void SaveSettings() const;
 

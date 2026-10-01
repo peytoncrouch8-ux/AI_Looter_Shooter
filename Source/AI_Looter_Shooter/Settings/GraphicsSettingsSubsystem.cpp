@@ -237,6 +237,24 @@ void UGraphicsSettingsSubsystem::SetMinimapScale(float Scale, bool bSave)
 	}
 }
 
+float UGraphicsSettingsSubsystem::GetMinimapZoom() const
+{
+	return SaveData ? FMath::Clamp(SaveData->MinimapZoom, MinMinimapZoom, MaxMinimapZoom) : 1.f;
+}
+
+void UGraphicsSettingsSubsystem::SetMinimapZoom(float Zoom, bool bSave)
+{
+	if (!SaveData)
+	{
+		return;
+	}
+	SaveData->MinimapZoom = FMath::Clamp(Zoom, MinMinimapZoom, MaxMinimapZoom);
+	if (bSave)
+	{
+		SaveSettings();
+	}
+}
+
 void UGraphicsSettingsSubsystem::SaveSettings() const
 {
 	if (SaveData)
