@@ -18,3 +18,4 @@ Target: 120 fps (8.3 ms) at 1080p on the Medium preset on the reference PC (Rade
 | 2026-09-30 | Guns from parts, baked ammo boxes, Medium | 886339d | 1920x1080 | 11.8 | 85 | 12.4 | 4.8 | 11.8 | 2.0 | 10.3 | 498 | 208386 | 0.66 |
 | 2026-09-30 | Ground fixes: full terrain fallback, 3.5 m meadow patches fitted to the ground, props settled, Medium | 3402b1b | 1920x1080 | 12.1 | 83 | 12.9 | 4.9 | 12.1 | 2.0 | 10.6 | 489 | 238332 | 0.50 |
 | 2026-09-30 | Medium for 120 fps: cascaded shadows, no SSAO/DFAO, motion blur off by default | 48dccdc | 1920x1080 | 6.7 | 148 | 7.3 | 5.2 | 6.7 | 1.9 | 5.6 | 490 | 315514 | 0.59 |
+| 2026-09-30 | Tutorial island (new style), spawn view, Medium; tour.ps1: 139-182 fps at all 7 viewpoints | c536389 | 1920x1080 | 6.2 | 162 | 7.3 | 3.3 | 6.0 | 1.6 | 4.6 | 363 | 606664 | 0.85 |
