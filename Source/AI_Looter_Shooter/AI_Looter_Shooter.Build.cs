@@ -37,5 +37,8 @@ public class AI_Looter_Shooter : ModuleRules
 
 		// The experience curve is tuned in Project Settings (UProgressionSettings).
 		PrivateDependencyModuleNames.Add("DeveloperSettings");
+
+		// Sessions open the default map and the main menu from the project's map settings (UGameMapsSettings).
+		PrivateDependencyModuleNames.Add("EngineSettings");
 	}
 }

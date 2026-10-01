@@ -1,31 +1,32 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Containers/Ticker.h"
+#include "Progression/PlayerProgressData.h"
 #include "Progression/XPCurve.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "PlayerProgressionSubsystem.generated.h"
 
 class AActor;
 class AController;
-class ULooterProgressSave;
 
 /** Where experience came from, so later systems (rewards, stats, bonuses) can tell kills from quests and the like. */
 UENUM()
 enum class EXPSource : uint8
 {
 	Kill,   // a creature the player killed
-	Debug   // the console commands (Looter.GiveXP, Looter.SetLevel, Looter.ResetProgress)
+	Debug,  // the console commands (Looter.GiveXP, Looter.SetLevel, Looter.ResetProgress)
+	Loaded  // a session's progress was loaded (nothing earned)
 };
 
-/** Gained is 0 when the level was set directly (a console command or a reset) rather than earned. */
+/** Gained is 0 when the level was set directly (a console command, a reset, a session loaded) rather than earned. */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerXPChanged, int64 /*Gained*/, EXPSource /*Source*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlayerLevelUp, int32 /*NewLevel*/);
 
 /**
- * The player's level and experience. A local player subsystem, so it lives as long as the player does and carries
- * across level changes. Kept in the "PlayerProgress" save slot (ULooterProgressSave): a new game starts at level 1.
- * The curve comes from UProgressionSettings.
+ * The player's level and experience, the tutorial done or not, and the bestiary's kinds met and defeated. A local player
+ * subsystem, so it lives as long as the player does and carries across level changes. The session being played gives
+ * it its progress and saves it (USessionSubsystem); without a session it's a new game's, kept for that play only. The
+ * curve comes from UProgressionSettings.
  *
  * Other systems hook in through the two events: OnLevelUp is where level rewards (skill points, unlocks, stat scaling)
  * go, and OnXPChanged keeps displays like the HUD's experience bar current without polling.
@@ -36,8 +37,11 @@ class AI_LOOTER_SHOOTER_API UPlayerProgressionSubsystem : public ULocalPlayerSub
 	GENERATED_BODY()
 
 public:
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	/** Takes a session's progress (USessionSubsystem, as a level starts). Fires OnXPChanged; not OnLevelUp. */
+	void SetProgress(const FPlayerProgressData& InProgress);
+
+	/** Everything a session saves of it. */
+	const FPlayerProgressData& GetProgress() const { return Progress; }
 
 	UFUNCTION(BlueprintPure, Category = "Progression")
 	int32 GetLevel() const;
@@ -107,17 +111,8 @@ public:
 	FOnPlayerLevelUp OnLevelUp;
 
 private:
-	/** Writes the save now. */
-	void SaveProgress();
+	/** Has the session being played saved a few seconds from now, so a fight's worth of kills makes one write. */
+	void RequestSave() const;
 
-	/** Saves a few seconds from now, so a fight's worth of kills makes one write, not one per kill. */
-	void ScheduleSave();
-
-	bool HandleSaveDue(float DeltaTime);
-
-	UPROPERTY(Transient)
-	TObjectPtr<ULooterProgressSave> SaveData;
-
-	FTSTicker::FDelegateHandle PendingSave;
-	bool bUnsaved = false;
+	FPlayerProgressData Progress;
 };

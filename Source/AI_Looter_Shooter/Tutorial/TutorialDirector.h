@@ -52,8 +52,8 @@ struct FTutorialStep
  * Walks a new player through the tutorial island: one instruction at a time at the top of the screen, each finished
  * by doing it (move, reach the village, take the rifle from the rack, shoot the dummies, hunt spiders, open the
  * loadout). Steps already done are passed at once. Placed once in the level (Tools/Unreal/build_tutorial_island.py);
- * once finished or skipped it stays quiet in later games (the player's progress save remembers). Looter.Tutorial
- * restart|skip for testing.
+ * once finished or skipped it stays quiet in later games (the session's progress remembers), and a saved session goes
+ * on from its step. Behind the main menu it waits. Looter.Tutorial restart|skip for testing.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ATutorialDirector : public AActor
@@ -82,6 +82,9 @@ public:
 
 	/** Ends it now and remembers it as done. */
 	void Skip();
+
+	/** Goes on from step Index (a saved session's), the steps before it done. Nothing when it isn't running. */
+	void ResumeAtStep(int32 Index);
 
 	/** The step being shown, or INDEX_NONE when the tutorial isn't running. */
 	int32 GetCurrentStep() const { return Current; }

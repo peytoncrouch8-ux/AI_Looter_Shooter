@@ -1,57 +1,18 @@
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Creatures/CreatureBase.h"
-#include "Progression/LooterProgressSave.h"
 #include "Progression/ProgressionSettings.h"
+#include "Session/SessionSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
-#include "Kismet/GameplayStatics.h"
 
-namespace
+void UPlayerProgressionSubsystem::SetProgress(const FPlayerProgressData& InProgress)
 {
-	const TCHAR* ProgressSaveSlot = TEXT("PlayerProgress");
-
-	/** Seconds between earning experience and writing it, at most: losing that much to a crash is fine. */
-	constexpr float SaveDelay = 5.f;
-}
-
-void UPlayerProgressionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
-{
-	Super::Initialize(Collection);
-
-	SaveData = Cast<ULooterProgressSave>(UGameplayStatics::LoadGameFromSlot(ProgressSaveSlot, 0));
-	if (!SaveData)
-	{
-		// A new game: level 1. Nothing is written until the player earns something.
-		SaveData = NewObject<ULooterProgressSave>(this);
-		SaveData->Version = ULooterProgressSave::CurrentVersion;
-	}
-	if (SaveData->Version < ULooterProgressSave::CurrentVersion)
-	{
-		// Older saves: whatever the player defeated, they have met.
-		for (const TPair<FString, int32>& Pair : SaveData->Defeated)
-		{
-			SaveData->Encountered.Add(Pair.Key);
-		}
-		SaveData->Version = ULooterProgressSave::CurrentVersion;
-		bUnsaved = true;
-	}
-	GetCurve().Clamp(SaveData->Level, SaveData->XP);
+	Progress = InProgress;
+	GetCurve().Clamp(Progress.Level, Progress.XP);
 	UE_LOG(LogLooter, Log, TEXT("Player progress: level %d, %lld / %lld XP"), GetLevel(), GetXP(), GetXPToNextLevel());
-}
-
-void UPlayerProgressionSubsystem::Deinitialize()
-{
-	if (bUnsaved)
-	{
-		SaveProgress();
-	}
-	if (PendingSave.IsValid())
-	{
-		FTSTicker::RemoveTicker(PendingSave);
-		PendingSave.Reset();
-	}
-	Super::Deinitialize();
+	OnXPChanged.Broadcast(0, EXPSource::Loaded);
 }
 
 FXPCurve UPlayerProgressionSubsystem::GetCurve()
@@ -61,12 +22,12 @@ FXPCurve UPlayerProgressionSubsystem::GetCurve()
 
 int32 UPlayerProgressionSubsystem::GetLevel() const
 {
-	return SaveData ? SaveData->Level : 1;
+	return Progress.Level;
 }
 
 int64 UPlayerProgressionSubsystem::GetXP() const
 {
-	return SaveData ? SaveData->XP : 0;
+	return Progress.XP;
 }
 
 int64 UPlayerProgressionSubsystem::GetXPToNextLevel() const
@@ -87,71 +48,55 @@ bool UPlayerProgressionSubsystem::IsMaxLevel() const
 int32 UPlayerProgressionSubsystem::AddXP(int64 Amount, EXPSource Source)
 {
 	const FXPCurve Curve = GetCurve();
-	if (!SaveData || Amount <= 0 || Curve.IsMaxLevel(SaveData->Level))
+	if (Amount <= 0 || Curve.IsMaxLevel(Progress.Level))
 	{
 		return 0;
 	}
 
-	const int32 OldLevel = SaveData->Level;
-	const int32 LevelsGained = Curve.ApplyXP(SaveData->Level, SaveData->XP, Amount);
+	const int32 OldLevel = Progress.Level;
+	const int32 LevelsGained = Curve.ApplyXP(Progress.Level, Progress.XP, Amount);
 	UE_LOG(LogLooter, Verbose, TEXT("+%lld XP (%s): level %d, %lld / %lld"), Amount, *UEnum::GetValueAsString(Source),
-		SaveData->Level, SaveData->XP, Curve.XPToNextLevel(SaveData->Level));
+		Progress.Level, Progress.XP, Curve.XPToNextLevel(Progress.Level));
 
-	for (int32 NewLevel = OldLevel + 1; NewLevel <= SaveData->Level; ++NewLevel)
+	for (int32 NewLevel = OldLevel + 1; NewLevel <= Progress.Level; ++NewLevel)
 	{
 		UE_LOG(LogLooter, Log, TEXT("Level up: %d"), NewLevel);
 		OnLevelUp.Broadcast(NewLevel);
 	}
 	OnXPChanged.Broadcast(Amount, Source);
-
-	// A new level is saved at once (after the level-up events, so whatever they grant goes into the same write).
-	if (LevelsGained > 0)
-	{
-		SaveProgress();
-	}
-	else
-	{
-		ScheduleSave();
-	}
+	RequestSave();
 	return LevelsGained;
 }
 
 void UPlayerProgressionSubsystem::SetLevel(int32 Level)
 {
-	if (!SaveData)
-	{
-		return;
-	}
-	SaveData->Level = Level;
-	SaveData->XP = 0;
-	GetCurve().Clamp(SaveData->Level, SaveData->XP);
-	UE_LOG(LogLooter, Log, TEXT("Player level set to %d"), SaveData->Level);
+	Progress.Level = Level;
+	Progress.XP = 0;
+	GetCurve().Clamp(Progress.Level, Progress.XP);
+	UE_LOG(LogLooter, Log, TEXT("Player level set to %d"), Progress.Level);
 	OnXPChanged.Broadcast(0, EXPSource::Debug);
-	SaveProgress();
+	RequestSave();
 }
 
 void UPlayerProgressionSubsystem::ResetProgress()
 {
-	if (SaveData)
-	{
-		SaveData->bTutorialDone = false;
-		SaveData->Defeated.Reset();
-		SaveData->Encountered.Reset();
-	}
+	Progress.bTutorialDone = false;
+	Progress.Defeated.Reset();
+	Progress.Encountered.Reset();
 	SetLevel(1);
 }
 
 bool UPlayerProgressionSubsystem::IsTutorialDone() const
 {
-	return SaveData && SaveData->bTutorialDone;
+	return Progress.bTutorialDone;
 }
 
 void UPlayerProgressionSubsystem::SetTutorialDone(bool bDone)
 {
-	if (SaveData && SaveData->bTutorialDone != bDone)
+	if (Progress.bTutorialDone != bDone)
 	{
-		SaveData->bTutorialDone = bDone;
-		SaveProgress();
+		Progress.bTutorialDone = bDone;
+		RequestSave();
 	}
 }
 
@@ -182,14 +127,14 @@ void UPlayerProgressionSubsystem::AwardKill(const AController* Killer, const AAc
 
 void UPlayerProgressionSubsystem::RecordDefeat(const AActor* Victim)
 {
-	if (!SaveData || !Victim)
+	if (!Victim)
 	{
 		return;
 	}
 	const FString Kind = Victim->GetClass()->GetPathName();
-	++SaveData->Defeated.FindOrAdd(Kind);
-	SaveData->Encountered.Add(Kind);
-	ScheduleSave();
+	++Progress.Defeated.FindOrAdd(Kind);
+	Progress.Encountered.Add(Kind);
+	RequestSave();
 }
 
 void UPlayerProgressionSubsystem::RecordEncounter(const AController* Player, const AActor* Actor)
@@ -197,38 +142,35 @@ void UPlayerProgressionSubsystem::RecordEncounter(const AController* Player, con
 	const APlayerController* PlayerController = Cast<APlayerController>(Player);
 	const ULocalPlayer* LocalPlayer = PlayerController ? PlayerController->GetLocalPlayer() : nullptr;
 	UPlayerProgressionSubsystem* Progression = LocalPlayer ? LocalPlayer->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
-	if (!Progression || !Progression->SaveData || !Actor)
+	if (!Progression || !Actor)
 	{
 		return;
 	}
-	// Most calls are for kinds already met (every hit lands here): only a first meeting writes the save.
+	// Most calls are for kinds already met (every hit lands here): only a first meeting asks for a save.
 	bool bAlreadyMet = false;
-	Progression->SaveData->Encountered.Add(Actor->GetClass()->GetPathName(), &bAlreadyMet);
+	Progression->Progress.Encountered.Add(Actor->GetClass()->GetPathName(), &bAlreadyMet);
 	if (!bAlreadyMet)
 	{
 		UE_LOG(LogLooter, Log, TEXT("Bestiary: met %s for the first time"), *Actor->GetClass()->GetName());
-		Progression->ScheduleSave();
+		Progression->RequestSave();
 	}
 }
 
 void UPlayerProgressionSubsystem::ForgetBestiary()
 {
-	if (SaveData)
-	{
-		SaveData->Encountered.Reset();
-		SaveData->Defeated.Reset();
-		SaveProgress();
-	}
+	Progress.Encountered.Reset();
+	Progress.Defeated.Reset();
+	RequestSave();
 }
 
 bool UPlayerProgressionSubsystem::HasEncountered(const UClass* ActorType) const
 {
-	if (!SaveData || !ActorType)
+	if (!ActorType)
 	{
 		return false;
 	}
 	// Met per exact class, so meeting a Blueprint child of a creature opens its parent's page too.
-	for (const FString& Kind : SaveData->Encountered)
+	for (const FString& Kind : Progress.Encountered)
 	{
 		const UClass* Met = FSoftClassPath(Kind).TryLoadClass<AActor>();
 		if (Met && Met->IsChildOf(ActorType))
@@ -241,13 +183,13 @@ bool UPlayerProgressionSubsystem::HasEncountered(const UClass* ActorType) const
 
 int32 UPlayerProgressionSubsystem::GetDefeated(const UClass* ActorType) const
 {
-	if (!SaveData || !ActorType)
+	if (!ActorType)
 	{
 		return 0;
 	}
 	// Kills are kept per exact class, so a Blueprint child of a creature counts toward its parent's entry too.
 	int32 Count = 0;
-	for (const TPair<FString, int32>& Pair : SaveData->Defeated)
+	for (const TPair<FString, int32>& Pair : Progress.Defeated)
 	{
 		const UClass* Killed = FSoftClassPath(Pair.Key).TryLoadClass<AActor>();
 		Count += Killed && Killed->IsChildOf(ActorType) ? Pair.Value : 0;
@@ -255,33 +197,13 @@ int32 UPlayerProgressionSubsystem::GetDefeated(const UClass* ActorType) const
 	return Count;
 }
 
-void UPlayerProgressionSubsystem::SaveProgress()
+void UPlayerProgressionSubsystem::RequestSave() const
 {
-	if (PendingSave.IsValid())
+	// Nothing happens without a session (the main menu, or a level played straight from the editor).
+	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
+	const UGameInstance* GameInstance = LocalPlayer ? LocalPlayer->GetGameInstance() : nullptr;
+	if (USessionSubsystem* Sessions = GameInstance ? GameInstance->GetSubsystem<USessionSubsystem>() : nullptr)
 	{
-		FTSTicker::RemoveTicker(PendingSave);
-		PendingSave.Reset();
+		Sessions->SaveSoon();
 	}
-	if (SaveData)
-	{
-		UGameplayStatics::SaveGameToSlot(SaveData, ProgressSaveSlot, 0);
-	}
-	bUnsaved = false;
-}
-
-void UPlayerProgressionSubsystem::ScheduleSave()
-{
-	bUnsaved = true;
-	if (!PendingSave.IsValid())
-	{
-		PendingSave = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UPlayerProgressionSubsystem::HandleSaveDue), SaveDelay);
-	}
-}
-
-bool UPlayerProgressionSubsystem::HandleSaveDue(float DeltaTime)
-{
-	// The ticker drops this one-shot when it returns false; forget the handle first so SaveProgress doesn't remove it.
-	PendingSave.Reset();
-	SaveProgress();
-	return false;
 }

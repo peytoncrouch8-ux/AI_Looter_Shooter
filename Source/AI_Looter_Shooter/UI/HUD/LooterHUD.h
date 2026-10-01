@@ -6,8 +6,8 @@
 
 class UBestiaryWidget;
 class ULoadoutWidget;
-class UPauseMenuWidget;
 class UPlayerHUDWidget;
+class USettingsMenuWidget;
 class UUserWidget;
 
 /** The inventory's pages, in the order of their tabs. */
@@ -18,8 +18,8 @@ enum class EInventoryPage : uint8
 };
 
 /**
- * Owns the player HUD, inventory screen and pause/settings menu, plus the always-on menu hotkeys.
- * Set as the HUD Class on the game mode. The gameplay HUD hides while a menu is open.
+ * Owns the player HUD, inventory screen and pause menu (the settings menu over the paused game), plus the always-on menu
+ * hotkeys. Set as the HUD Class on the game mode. The gameplay HUD hides while a menu is open.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ALooterHUD : public AHUD
@@ -54,9 +54,9 @@ public:
 	/** The inventory or the pause menu is up (the gameplay HUD is hidden). */
 	bool IsMenuOpen() const { return bInventoryOpen || bPauseMenuOpen; }
 
-	/** Ends the play session in the editor, or exits the app in a packaged build. */
+	/** Saves the session being played and goes back to the main menu (the pause menu's Save & Quit). */
 	UFUNCTION(BlueprintCallable, Category = "HUD")
-	void QuitGame();
+	void SaveAndQuit();
 
 protected:
 	virtual void BeginPlay() override;
@@ -90,8 +90,9 @@ private:
 
 	EInventoryPage InventoryPage = EInventoryPage::Loadout;
 
+	/** The pause menu: the settings menu, over the paused game. */
 	UPROPERTY(Transient)
-	TObjectPtr<UPauseMenuWidget> PauseMenuWidget;
+	TObjectPtr<USettingsMenuWidget> PauseMenuWidget;
 
 	bool bInventoryOpen = false;
 	bool bPauseMenuOpen = false;

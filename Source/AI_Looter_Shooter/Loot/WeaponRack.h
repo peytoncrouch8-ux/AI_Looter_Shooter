@@ -54,6 +54,23 @@ public:
 	/** The weapon lying on the rack now, if any. */
 	AWeaponBase* GetOfferedWeapon() const { return Offered.Get(); }
 
+	// --- For saved sessions (USessionSubsystem) ---
+
+	/** Its weapon is still lying on it. */
+	bool IsWeaponOffered() const;
+
+	/** How many of the ammo pickups it laid out are left. */
+	int32 GetAmmoPickupsLeft() const;
+
+	/** This loot is the rack's own: its weapon, or one of its ammo pickups. */
+	bool Offers(const AActor* Loot) const;
+
+	/**
+	 * Takes back what the player had already taken when the session was saved: the weapon unless bWeaponOffered, and
+	 * the ammo pickups beyond AmmoPickupsLeft. The rack stocked itself as the level began.
+	 */
+	void RestoreOffer(bool bWeaponOffered, int32 AmmoPickupsLeft);
+
 private:
 	void Restock();
 	bool PlayerHasWeapon() const;

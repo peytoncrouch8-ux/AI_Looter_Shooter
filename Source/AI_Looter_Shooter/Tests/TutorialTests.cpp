@@ -3,7 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Loot/WeaponRack.h"
-#include "Progression/LooterProgressSave.h"
+#include "Progression/PlayerProgressData.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
 #include "Tutorial/TutorialDirector.h"
 
@@ -27,7 +27,7 @@ bool FTutorialStepsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The player takes a weapon from the rack"), bTakesWeapon);
 
 	// A new game hasn't done the tutorial.
-	TestFalse(TEXT("New game: tutorial not done"), GetDefault<ULooterProgressSave>()->bTutorialDone);
+	TestFalse(TEXT("New game: tutorial not done"), FPlayerProgressData().bTutorialDone);
 	return true;
 }
 

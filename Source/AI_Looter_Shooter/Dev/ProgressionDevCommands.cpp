@@ -101,7 +101,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs SetLevelCommand(
 		TEXT("Looter.SetLevel"),
-		TEXT("Puts the player at the start of a level (1 to the maximum), and saves it: Looter.SetLevel <level>"),
+		TEXT("Puts the player at the start of a level (1 to the maximum): Looter.SetLevel <level>"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SetLevel));
 
 	FAutoConsoleCommandWithWorldAndArgs ResetProgressCommand(

@@ -9,6 +9,14 @@ The C++ `ALooterGameMode` (project default) gives each player an `ALooterPlayerC
 `/Game/Player/BP_LooterCharacter`: a data-only child of `ALooterCharacter` that holds the meshes, animation, camera
 placement and gameplay component settings.
 
+The game starts at the main menu: the default map opened with `?game=Menu` (DefaultEngine.ini's `LocalMapOptions`), so
+`ALooterMenuGameMode` shows the menu over the island. Single Player picks one of three sessions (`USessionSubsystem`),
+which opens the level with `?Session=N`. The session saves the player and the world, and the pause menu's Save & Quit goes back
+to the menu. Play-In-Editor on a level, or a map named on the command line (`perf.ps1`, `tour.ps1`), plays it without
+a session: a new game, and nothing is saved. `Looter.Session.Play <1-3>` plays a session from the console. The
+standalone game (the launcher) and Play-In-Editor share the saves in `Saved\SaveGames`. Runs that name a map on the
+command line keep theirs under `%LOCALAPPDATA%\UnrealEngine\5.8\Saved`.
+
 - `Docs/Plan.md`: the pipeline cleanup plan and where it stands.
 - `Docs/Performance.md`: measured performance history.
 

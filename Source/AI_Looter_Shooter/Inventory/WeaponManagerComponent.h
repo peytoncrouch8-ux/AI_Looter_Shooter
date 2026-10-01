@@ -14,6 +14,7 @@ class UInputAction;
 class UInputMappingContext;
 class USceneComponent;
 class UWeaponDefinition;
+struct FWeaponInventorySave;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActiveWeaponChanged, AWeaponBase*, NewWeapon, AWeaponBase*, OldWeapon);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWeaponInventoryChanged);
@@ -146,6 +147,17 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Weapons|Ammo")
 	int32 GetMaxAmmo(EAmmoType Type) const;
+
+	// --- Saved sessions (WeaponManagerSave.cpp) ---
+
+	/** What it carries, for a saved session: the guns in their slots with their magazines, the one in hand, the backpack and the ammo. */
+	void SaveInventory(FWeaponInventorySave& OutSave) const;
+
+	/** Carries what a saved session had, in place of whatever it carries now. */
+	void RestoreInventory(const FWeaponInventorySave& Save);
+
+	/** Empties it without dropping anything: the guns are gone, and the backpack and the ammo. */
+	void ClearInventory();
 
 	/** Carried ammo of a class changed (pickups, reloads). */
 	UPROPERTY(BlueprintAssignable, Category = "Weapons|Ammo")

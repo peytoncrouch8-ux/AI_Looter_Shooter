@@ -104,6 +104,42 @@ void AWeaponRack::Restock()
 	}
 }
 
+bool AWeaponRack::IsWeaponOffered() const
+{
+	return Offered.IsValid() && Offered->IsPickup();
+}
+
+int32 AWeaponRack::GetAmmoPickupsLeft() const
+{
+	return AmmoBoxes.FilterByPredicate([](const TWeakObjectPtr<AAmmoPickup>& Box) { return Box.IsValid() && Box->GetAmount() > 0; }).Num();
+}
+
+bool AWeaponRack::Offers(const AActor* Loot) const
+{
+	if (!Loot)
+	{
+		return false;
+	}
+	return (Offered.Get() == Loot && IsWeaponOffered())
+		|| AmmoBoxes.ContainsByPredicate([Loot](const TWeakObjectPtr<AAmmoPickup>& Box) { return Box.Get() == Loot; });
+}
+
+void AWeaponRack::RestoreOffer(bool bWeaponOffered, int32 AmmoPickupsLeft)
+{
+	if (!bWeaponOffered && Offered.IsValid() && Offered->IsPickup())
+	{
+		Offered->Destroy();
+		Offered.Reset();
+	}
+	AmmoBoxes.RemoveAll([](const TWeakObjectPtr<AAmmoPickup>& Box) { return !Box.IsValid(); });
+	while (AmmoBoxes.Num() > FMath::Max(AmmoPickupsLeft, 0))
+	{
+		AmmoBoxes.Pop()->Destroy();
+	}
+	// The restock wait starts over, as if the weapon had just been taken.
+	RestockTimer = 0.f;
+}
+
 bool AWeaponRack::PlayerHasWeapon() const
 {
 	const APlayerController* Controller = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;

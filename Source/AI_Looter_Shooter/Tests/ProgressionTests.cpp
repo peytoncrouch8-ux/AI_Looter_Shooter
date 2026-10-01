@@ -119,19 +119,20 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProgressSaveTest, "Looter.Progression.Save",
 bool FProgressSaveTest::RunTest(const FString& Parameters)
 {
 	// A new game starts at level 1 with no experience.
-	const ULooterProgressSave* Fresh = GetDefault<ULooterProgressSave>();
-	TestEqual(TEXT("New game level"), Fresh->Level, 1);
-	TestEqual(TEXT("New game XP"), Fresh->XP, int64(0));
-	TestTrue(TEXT("New game: nothing met or defeated (every bestiary page reads ???)"), Fresh->Encountered.IsEmpty() && Fresh->Defeated.IsEmpty());
+	const FPlayerProgressData Fresh;
+	TestEqual(TEXT("New game level"), Fresh.Level, 1);
+	TestEqual(TEXT("New game XP"), Fresh.XP, int64(0));
+	TestTrue(TEXT("New game: nothing met or defeated (every bestiary page reads ???)"), Fresh.Encountered.IsEmpty() && Fresh.Defeated.IsEmpty());
 
-	// Round trip through the save format, in memory (the player's real save slot stays untouched).
+	// The save from before sessions still reads, and becomes a session's progress; one older than version 3 has met
+	// whatever it defeated (in memory: the player's real save stays untouched).
 	const FString Spider = TEXT("/Script/AI_Looter_Shooter.SpiderCreature");
 	ULooterProgressSave* Save = NewObject<ULooterProgressSave>();
-	Save->Version = ULooterProgressSave::CurrentVersion;
+	Save->Version = 2;
 	Save->Level = 42;
 	Save->XP = 123456;
+	Save->bTutorialDone = true;
 	Save->Defeated.Add(Spider, 3);
-	Save->Encountered.Add(Spider);
 	TArray<uint8> Bytes;
 	if (!TestTrue(TEXT("Saved"), UGameplayStatics::SaveGameToMemory(Save, Bytes)))
 	{
@@ -142,12 +143,12 @@ bool FProgressSaveTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	TestEqual(TEXT("Version"), Loaded->Version, ULooterProgressSave::CurrentVersion);
-	TestEqual(TEXT("Level"), Loaded->Level, 42);
-	TestEqual(TEXT("XP"), Loaded->XP, int64(123456));
-	TestEqual(TEXT("Defeat counts"), Loaded->Defeated.FindRef(Spider), 3);
-	TestTrue(TEXT("Kinds met"), Loaded->Encountered.Contains(Spider));
-	AddInfo(FString::Printf(TEXT("Save size: %d bytes"), Bytes.Num()));
+	const FPlayerProgressData Progress = Loaded->ToProgress();
+	TestEqual(TEXT("Level"), Progress.Level, 42);
+	TestEqual(TEXT("XP"), Progress.XP, int64(123456));
+	TestTrue(TEXT("Tutorial done"), Progress.bTutorialDone);
+	TestEqual(TEXT("Defeat counts"), Progress.Defeated.FindRef(Spider), 3);
+	TestTrue(TEXT("Kinds met (from the defeats of an old save)"), Progress.Encountered.Contains(Spider));
 	return true;
 }
 

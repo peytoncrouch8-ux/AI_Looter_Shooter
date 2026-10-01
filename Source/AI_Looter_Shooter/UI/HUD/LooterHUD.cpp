@@ -1,8 +1,9 @@
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Bestiary/BestiaryWidget.h"
 #include "UI/Inventory/LoadoutWidget.h"
-#include "UI/Menus/PauseMenuWidget.h"
+#include "UI/Menus/SettingsMenuWidget.h"
 #include "UI/HUD/PlayerHUDWidget.h"
+#include "Session/SessionSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Blueprint/UserWidget.h"
@@ -12,7 +13,6 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "Slate/SGameLayerManager.h"
 
 namespace
@@ -46,7 +46,12 @@ void ALooterHUD::BeginPlay()
 	}
 	InventoryWidget = CreateWidget<ULoadoutWidget>(PC, ULoadoutWidget::StaticClass());
 	BestiaryWidget = CreateWidget<UBestiaryWidget>(PC, UBestiaryWidget::StaticClass());
-	PauseMenuWidget = CreateWidget<UPauseMenuWidget>(PC, UPauseMenuWidget::StaticClass());
+	PauseMenuWidget = CreateWidget<USettingsMenuWidget>(PC, USettingsMenuWidget::StaticClass());
+	if (PauseMenuWidget)
+	{
+		PauseMenuWidget->OnClose.BindUObject(this, &ALooterHUD::ClosePauseMenu);
+		PauseMenuWidget->OnSaveAndQuit.BindUObject(this, &ALooterHUD::SaveAndQuit);
+	}
 
 	BindMenuInput();
 }
@@ -251,7 +256,7 @@ void ALooterHUD::OpenPauseMenu()
 		}
 	}
 
-	PauseMenuWidget->Open(this);
+	PauseMenuWidget->Open(ESettingsMenuMode::Pause);
 	PauseMenuWidget->AddToViewport(40);
 
 	FInputModeUIOnly InputMode;
@@ -281,7 +286,11 @@ void ALooterHUD::ClosePauseMenu()
 	RestoreGameInput();
 }
 
-void ALooterHUD::QuitGame()
+void ALooterHUD::SaveAndQuit()
 {
-	UKismetSystemLibrary::QuitGame(this, GetOwningPlayerController(), EQuitPreference::Quit, false);
+	// The game stays paused until the main menu replaces the level, so nothing changes after the save.
+	if (USessionSubsystem* Sessions = USessionSubsystem::Get(this))
+	{
+		Sessions->SaveAndQuitToMenu();
+	}
 }

@@ -6,6 +6,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Engine/World.h"
 
 using namespace LooterUI;
 
@@ -103,7 +104,10 @@ void UTutorialPromptWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 		bPending = false;
 	}
 
-	const bool bShow = bWanted && !bSuppressed && !bPending;
+	// The pause menu pauses the game (and with it the tutorial's checks), so the prompt sees to that one itself.
+	const UWorld* World = GetWorld();
+	const bool bPaused = World && World->IsPaused();
+	const bool bShow = bWanted && !bSuppressed && !bPending && !bPaused;
 	const float Target = bShow ? 1.f : 0.f;
 	if (Opacity == Target)
 	{

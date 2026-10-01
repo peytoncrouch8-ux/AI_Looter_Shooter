@@ -71,6 +71,13 @@ void UHealthComponent::ResetHealth()
 	OnHealthChanged.Broadcast(Health, MaxHealth);
 }
 
+void UHealthComponent::SetHealth(float NewHealth)
+{
+	bDead = false;
+	Health = FMath::Clamp(NewHealth, FMath::Min(1.f, MaxHealth), MaxHealth);
+	OnHealthChanged.Broadcast(Health, MaxHealth);
+}
+
 void UHealthComponent::SpawnDamageNumber(float Damage, bool bCritical, const FVector& Location, AController* InstigatedBy) const
 {
 	if (!bShowDamageNumbers || !DamageNumberClass)

@@ -3,9 +3,8 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "UI/Style/LooterUIStyle.h"
-#include "PauseMenuWidget.generated.h"
+#include "SettingsMenuWidget.generated.h"
 
-class ALooterHUD;
 class UGraphicsSettingsSubsystem;
 class UKeyBindingSubsystem;
 class ULooterButton;
@@ -14,18 +13,41 @@ class USizeBox;
 class USlider;
 class UTextBlock;
 
+/** Where the settings menu is open. */
+enum class ESettingsMenuMode : uint8
+{
+	/** Over the game, which is paused under it: Resume, and Save & Quit back to the main menu. */
+	Pause,
+	/** From the main menu: Back. */
+	MainMenu,
+};
+
+DECLARE_DELEGATE(FOnSettingsMenuAction);
+
 /**
- * Escape menu: resume, graphics and interface options, rebind keys, quit game. Pauses the game while open.
- * The HUD hides under it, so while the minimap size is being set an outline of the minimap shows where it sits, at the
- * size chosen.
+ * The settings menu: graphics and interface options and key bindings. Escape opens it over the game (ALooterHUD, which
+ * pauses the game) and the main menu's Settings opens it there. The HUD hides under it, so while the minimap size is
+ * being set an outline of the minimap shows where it sits, at the size chosen.
+ *
+ * SettingsMenuWidget.cpp builds and fills it; SettingsMenuRows.cpp makes its rows and the key list;
+ * SettingsMenuInput.cpp handles its buttons, sliders and keys.
  */
 UCLASS()
-class AI_LOOTER_SHOOTER_API UPauseMenuWidget : public UUserWidget
+class AI_LOOTER_SHOOTER_API USettingsMenuWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
 public:
-	void Open(ALooterHUD* InHUD);
+	/** Shows it fresh (settings read again, status cleared) for Mode. Add it to the viewport after. */
+	void Open(ESettingsMenuMode InMode);
+
+	ESettingsMenuMode GetMode() const { return Mode; }
+
+	/** Resume (over the game) or Back (main menu), the corner's X, or Escape. */
+	FOnSettingsMenuAction OnClose;
+
+	/** Save & Quit, over the game. */
+	FOnSettingsMenuAction OnSaveAndQuit;
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -51,6 +73,8 @@ private:
 	void RebuildControls();
 	void RefreshKeyLabels();
 	void RefreshGraphics();
+	/** Shows the parts that differ between the pause menu and the main menu's settings. */
+	void ApplyMode();
 	/** The size shown beside the minimap slider and by the preview outline. */
 	void ShowMinimapScale(float Scale);
 
@@ -81,10 +105,17 @@ private:
 	void AssignKey(const FKey& Key);
 	void SetStatus(const FString& Message, const FLinearColor& Color);
 
-	TWeakObjectPtr<ALooterHUD> OwningHUD;
+	ESettingsMenuMode Mode = ESettingsMenuMode::Pause;
 
 	UPROPERTY(Transient) TObjectPtr<UScrollBox> ControlsList;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusText;
+	/** "Game paused | Esc: resume" or "Esc: back". */
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> HeaderText;
+	/** Resume and Save & Quit, over the game only. */
+	UPROPERTY(Transient) TObjectPtr<ULooterButton> ResumeButton;
+	UPROPERTY(Transient) TObjectPtr<ULooterButton> SaveQuitButton;
+	/** Back, in the main menu only. */
+	UPROPERTY(Transient) TObjectPtr<ULooterButton> BackButton;
 	UPROPERTY(Transient) TArray<TObjectPtr<ULooterButton>> KeyButtons;
 	/** Hold/Toggle switch halves; Index is the binding, Action says which half. */
 	UPROPERTY(Transient) TArray<TObjectPtr<ULooterButton>> ModeButtons;

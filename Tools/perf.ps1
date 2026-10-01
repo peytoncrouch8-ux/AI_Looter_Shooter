@@ -6,7 +6,7 @@
 #        perf.ps1 -Label "..." -CsvPath <existing capture.csv>   (analyze a capture without running the game)
 # Compare two captures pass by pass with Tools\perfdiff.ps1.
 param([string]$Label = 'run', [int]$Frames = 900, [int]$Skip = 300, [int]$ResX = 1920, [int]$ResY = 1080, [switch]$NoRecord, [string]$CsvPath = '',
-    [switch]$GpuStats, [string]$Exec = '', [string]$Map = '')
+    [switch]$GpuStats, [string]$Exec = '', [string]$Map = '/Game/Maps/Lvl_TutorialIsland')
 
 $root = Split-Path $PSScriptRoot -Parent
 $engine = "C:\Program Files\Epic Games\UE_5.8"

@@ -13,6 +13,18 @@ ALooterPlayerController::ALooterPlayerController()
 	DefaultContexts.Add(MouseLook.Object);
 }
 
+void ALooterPlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+	// The game window keeps the main menu's input mode (the mouse free, the game ignoring keys) across the level change:
+	// play takes the keyboard and mouse back.
+	if (IsLocalController())
+	{
+		SetInputMode(FInputModeGameOnly());
+		SetShowMouseCursor(false);
+	}
+}
+
 void ALooterPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();

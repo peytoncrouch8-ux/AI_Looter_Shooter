@@ -2,12 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
+#include "Progression/PlayerProgressData.h"
 #include "LooterProgressSave.generated.h"
 
 /**
- * The player's progress, in the "PlayerProgress" save slot (about 2 KB, mostly the engine's header). No save means a
- * new game: level 1 with no experience. It starts with experience only and grows into the full player save (rewards,
- * skill points, unlocks), so it carries a version for upgrading older saves (see UPlayerProgressionSubsystem::Initialize).
+ * The player's progress from before sessions existed: one save for the whole game, in the "PlayerProgress" slot. The
+ * first time the game starts with sessions it becomes session 1 (USessionSubsystem); the file is left as it was. New
+ * progress is saved with its session (ULooterSessionSave).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ULooterProgressSave : public USaveGame
@@ -21,7 +22,10 @@ public:
 	 */
 	static constexpr int32 CurrentVersion = 3;
 
-	/** 0 for a save written before versions existed; new saves get CurrentVersion. */
+	/** The slot it lived in. */
+	static constexpr const TCHAR* SlotName = TEXT("PlayerProgress");
+
+	/** 0 for a save written before versions existed. */
 	UPROPERTY()
 	int32 Version = 0;
 
@@ -43,4 +47,24 @@ public:
 	/** Every kind of actor the player has met (been hunted by, hurt or defeated), by class path: its bestiary page is open. */
 	UPROPERTY()
 	TSet<FString> Encountered;
+
+	/** Its progress as a session holds it, older versions brought up to date. */
+	FPlayerProgressData ToProgress() const
+	{
+		FPlayerProgressData Progress;
+		Progress.Level = Level;
+		Progress.XP = XP;
+		Progress.bTutorialDone = bTutorialDone;
+		Progress.Defeated = Defeated;
+		Progress.Encountered = Encountered;
+		if (Version < 3)
+		{
+			// Before version 3 nothing recorded meetings: whatever the player defeated, they have met.
+			for (const TPair<FString, int32>& Pair : Defeated)
+			{
+				Progress.Encountered.Add(Pair.Key);
+			}
+		}
+		return Progress;
+	}
 };

@@ -16,6 +16,7 @@ public:
 	ALooterPlayerController();
 
 protected:
+	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
 	virtual void SpawnPlayerCameraManager() override;
 

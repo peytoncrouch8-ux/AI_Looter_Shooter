@@ -10,7 +10,11 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `AI_Looter_Shooter.Build.cs`: module dependencies; builds without unity.
 
 ## Core
-- `Core/LooterGameMode`: `ALooterGameMode`, the project's default game mode: character, controller and HUD classes.
+- `Core/LooterGameMode`: `ALooterGameMode`, the project's default game mode: character, controller and HUD classes, and
+  loading the session its URL names (`?Session=N`) as the level starts.
+- `Core/LooterMenuGameMode`: `ALooterMenuGameMode`, the main menu's game mode (`?game=Menu`, which the game starts
+  with): no character, the menu over the level.
+- `Core/LooterMenuPlayerController`: `ALooterMenuPlayerController`, the main menu's camera, slowly circling the island.
 - `Core/LooterPlayerController`: `ALooterPlayerController`, which adds the always-on input contexts and sets the view's
   look limits.
 - `Core/LooterCharacter`: `ALooterCharacter`, the player character: walking, looking and jumping. Its data-only child is
@@ -60,6 +64,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Inventory/WeaponManagerSlots.cpp`: slots and backpack (give, equip, drop, stash, swap, move) and where guns are held.
 - `Inventory/WeaponManagerPickups.cpp`: which loot the player is looking at, and picking it up (a tap of the interact
   key) or equipping it in place of the gun in hand (a hold).
+- `Inventory/WeaponManagerSave.cpp`: what the player carries into a saved session and back, and emptying it.
+- `Inventory/WeaponInventorySave.h`: `FWeaponInventorySave`, the guns, backpack and ammo as a session saves them.
 
 ## Affixes
 - `Affixes/WeaponRollLibrary`: `UWeaponRollLibrary`, rolling rarity and stats from a seed, and spawning rolled guns.
@@ -98,10 +104,20 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   maximum level.
 - `Progression/ProgressionSettings`: `UProgressionSettings`, the curve's numbers in Project Settings > Game > Progression
   (`DefaultGame.ini`).
-- `Progression/LooterProgressSave.h`: `ULooterProgressSave`, the player's level, experience, kinds met and defeat counts in the
-  "PlayerProgress" save slot.
+- `Progression/PlayerProgressData.h`: `FPlayerProgressData`, the player's level, experience, tutorial, kinds met and
+  defeat counts, as a session saves them.
+- `Progression/LooterProgressSave.h`: `ULooterProgressSave`, the one progress save from before sessions ("PlayerProgress"
+  slot), read once to become session 1.
 - `Progression/PlayerProgressionSubsystem`: `UPlayerProgressionSubsystem`, the player's level and experience (adding,
-  saving, level-up events), the experience a kill gives, and which kinds the player has met and how many defeated.
+  level-up events), the experience a kill gives, and which kinds the player has met and how many defeated; the session
+  being played gives it its progress and saves it.
+
+## Session
+- `Session/SessionSubsystem.h`, `Session/SessionSubsystem.cpp`: `USessionSubsystem`, the three save sessions: the main
+  menu's summaries, playing, deleting, autosaves, Save & Quit, and carrying the old progress save into session 1.
+- `Session/SessionSubsystemWorld.cpp`: what a session keeps of the player and the world (where the player stands, health,
+  guns, loot on the ground, the gun racks, the tutorial's step) and putting it back.
+- `Session/SessionSave.h`: `ULooterSessionSave`, one session's save ("Session1" to "Session3" slots).
 
 ## World
 - `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime, trees as crowns.
@@ -121,8 +137,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   transparency).
 - `UI/Style/LooterButton`: `ULooterButton`, the kit's button.
 - `UI/Style/WeaponText`: `LooterWeaponText`, weapon names, rarity colors and stat strings.
-- `UI/HUD/LooterHUD`: `ALooterHUD`, owns the HUD, the inventory's pages (loadout, bestiary) and the pause menu, and
-  their hotkeys.
+- `UI/HUD/LooterHUD`: `ALooterHUD`, owns the HUD, the inventory's pages (loadout, bestiary) and the pause menu (the
+  settings menu with Save & Quit), and their hotkeys.
 - `UI/HUD/PlayerHUDWidget`: the gameplay HUD (health, ammo, crosshair, hit marker, loot card, messages).
 - `UI/HUD/HudMinimapWidget`: the round minimap that turns with the view (size and zoom from the settings).
 - `UI/HUD/TutorialPromptWidget`: the tutorial's current instruction near the top of the screen.
@@ -130,7 +146,12 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/HUD/HudWeaponSlotsWidget`: the weapon slots over the ammo, as hexagons in the guns' rarity colors.
 - `UI/HUD/HudFrameRateWidget`: the frame rate counter in the top-left corner.
 - `UI/HUD/HudPickupFeedWidget`: ammo pickups over the ammo count, in big outlined white type that stacks, rises and fades.
-- `UI/Menus/PauseMenuWidget`: the pause and settings menu (graphics, interface, key bindings).
+- `UI/Menus/SettingsMenuWidget`: `USettingsMenuWidget`, the settings menu (graphics, interface, key bindings), over the
+  paused game or from the main menu: its layout. `SettingsMenuRows.cpp` makes its rows and key list,
+  `SettingsMenuInput.cpp` handles its buttons, sliders and keys, `SettingsMenuParts.h` holds what they share.
+- `UI/Menus/MainMenuHUD`: `AMainMenuHUD`, the main menu's HUD: the menu and its settings.
+- `UI/Menus/MainMenuWidget`: `UMainMenuWidget`, the main menu (Single Player, Multiplayer, Settings, Quit Game);
+  `MainMenuSessions.cpp` is its session picker and the delete confirmation.
 - `UI/Inventory/LoadoutWidget.cpp`: the loadout screen: opening, layout and contents.
 - `UI/Inventory/LoadoutWidgetInput.cpp`: its cursor, actions (swap, hold, drop), mouse handling and turning the stand-in.
 - `UI/Inventory/LoadoutWidgetDrag.cpp`: dragging guns between slots, the backpack and the character.
@@ -157,12 +178,14 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Dev/WeaponDevCommands.cpp`: console commands for testing (`Looter.GiveWeapon`).
 - `Dev/ProgressionDevCommands.cpp`: console commands for levels (`Looter.GiveXP`, `Looter.SetLevel`,
   `Looter.ResetProgress`) and the bestiary (`Looter.ForgetBestiary`).
+- `Dev/SessionDevCommands.cpp`: `Looter.Session.Play <1-3>`, `Looter.Session.Save`, `Looter.Session.Menu`,
+  `Looter.Session.List`.
 - `Dev/CreatureDevCommands.cpp`: `Looter.CreatureHealth`, gives the nearest creatures chosen health (to compare their bars).
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`).
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `BestiaryTests.cpp`, `CreatureTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`,
-  `MinimapTests.cpp`, `ProgressionTests.cpp`, `SettingsTests.cpp`, `SlimeTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
+  `MinimapTests.cpp`, `ProgressionTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SlimeTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)

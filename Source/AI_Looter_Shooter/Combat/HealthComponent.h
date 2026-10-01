@@ -30,6 +30,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void ResetHealth();
 
+	/** Puts health at NewHealth, alive (a saved session's health); at least 1, so it never kills. */
+	void SetHealth(float NewHealth);
+
 	UFUNCTION(BlueprintPure, Category = "Health")
 	float GetHealth() const { return Health; }
 

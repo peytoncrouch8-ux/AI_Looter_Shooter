@@ -26,3 +26,4 @@ Target: 120 fps (8.3 ms) at 1080p on the Medium preset on the reference PC (Rade
 | 2026-10-01 | Guns from Bullpup/Ranchhand parts (rifle in hand), Meadow Wolf spider with LODs, Medium | a5d9770 | 1920x1080 | 5.6 | 179 | 6.0 | 4.2 | 5.6 | 1.5 | 4.6 | 461 | 643017 | 0.82 |
 | 2026-10-01 | New HUD (hex weapon slots), drag-and-drop inventory, per-gun wear (rifle in hand), Medium | 30f0d97 | 1920x1080 | 5.6 | 179 | 6.0 | 4.7 | 5.6 | 1.6 | 4.5 | 449 | 622828 | 0.82 |
 | 2026-10-01 | HUD ammo ticks repaint only on change (rifle in hand), Medium | 30f0d97 | 1920x1080 | 5.6 | 178 | 6.2 | 4.8 | 5.5 | 1.6 | 4.6 | 443 | 621581 | 0.80 |
+| 2026-10-01 | Main menu + save sessions (dev play, no session), Medium | 79ac9f2 | 1920x1080 | 5.6 | 180 | 6.0 | 4.2 | 5.6 | 1.5 | 4.6 | 395 | 601805 | 0.81 |

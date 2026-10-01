@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Combat/HealthComponent.h"
 #include "Combat/TargetDummy.h"
+#include "Core/LooterMenuGameMode.h"
 #include "Creatures/CreatureBase.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Loot/WeaponRack.h"
@@ -50,6 +51,12 @@ ATutorialDirector::ATutorialDirector()
 void ATutorialDirector::BeginPlay()
 {
 	Super::BeginPlay();
+	// Behind the main menu there's no one to teach.
+	if (ALooterMenuGameMode::IsMenuWorld(GetWorld()))
+	{
+		SetActorTickEnabled(false);
+		return;
+	}
 	BindTargets();
 	const UPlayerProgressionSubsystem* Progression = GetProgression(GetWorld());
 	if (Progression && Progression->IsTutorialDone())
@@ -109,6 +116,14 @@ void ATutorialDirector::Restart()
 void ATutorialDirector::Skip()
 {
 	Finish(/*bShowDone*/ false);
+}
+
+void ATutorialDirector::ResumeAtStep(int32 Index)
+{
+	if (Current != INDEX_NONE && Steps.IsValidIndex(Index))
+	{
+		StartStep(Index);
+	}
 }
 
 void ATutorialDirector::StartStep(int32 Index)
