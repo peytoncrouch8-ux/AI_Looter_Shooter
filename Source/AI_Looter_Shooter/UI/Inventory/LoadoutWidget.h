@@ -25,11 +25,12 @@ struct FWeaponInstanceData;
  * The inventory, as a loadout screen: your character stands in the middle, live and turnable (drag it), carrying your guns
  * where they are, in hand, on the back and at the hip.
  *  - left: EQUIPPED, one card per weapon slot, over the ammo you carry
- *  - right: the chosen slot's gun and its stats, over the backpack's guns to swap into that slot (the same kind of gun
- *    first, each marked as an upgrade or not)
+ *  - right: the chosen slot's gun and its stats, over every slot of the backpack (scrolling when they don't fit): its guns
+ *    to swap into that slot (the same kind of gun first, each marked as an upgrade or not), then its free slots
  *  - bottom: what the keys do right now
  * The cursor follows the mouse, or arrows / WASD / D-pad: up and down within a column, left and right between the slots and
- * the backpack list. E (or a click) on a backpack gun swaps it into the chosen slot. On a slot it picks that gun up, to put
+ * the backpack list. E (or a click) on a backpack gun swaps it into the chosen slot; on a free backpack slot it stores the
+ * chosen slot's gun there. On a slot it picks that gun up, to put
  * it on another slot (swapping or moving) or swap it with a backpack gun. F holds a gun, Q drops it, Esc backs out of a
  * pick, then closes; Tab and I close. 2 (or the right shoulder, or its title tab) turns to the bestiary page.
  */
@@ -80,6 +81,8 @@ private:
 	/** The backpack list, for the chosen slot (its kind of gun first). */
 	void RebuildList();
 	FCard MakeListCard(int32 Row);
+	/** A free backpack slot, after the guns: E stores the chosen slot's gun in it. */
+	FCard MakeFreeListCard(int32 Row);
 	void Restyle();
 	void RefreshDetails();
 	void RefreshAmmo();

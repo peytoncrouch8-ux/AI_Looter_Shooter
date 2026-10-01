@@ -133,11 +133,28 @@ void ULoadoutWidget::Activate()
 		return;
 	}
 
-	// A backpack gun goes into the chosen slot, trading places with the gun there.
+	// A free backpack slot: the chosen slot's gun is stored there, and the cursor follows it into the list.
 	if (!ListOrder.IsValidIndex(CursorIndex))
 	{
+		if (SlotItem(ChosenSlot) && ListCards.IsValidIndex(CursorIndex))
+		{
+			PickedSlot.Reset();
+			bool bStored = false;
+			{
+				TGuardValue<bool> RefreshAfter(bApplyingAction, true);
+				bStored = Inventory->StashSlot(ChosenSlot);
+			}
+			Refresh();
+			const int32 Row = bStored ? ListOrder.IndexOfByKey(Inventory->GetBackpack().Num() - 1) : INDEX_NONE;
+			if (Row != INDEX_NONE)
+			{
+				MoveCursorTo(EZone::Backpack, Row, true);
+			}
+		}
 		return;
 	}
+
+	// A backpack gun goes into the chosen slot, trading places with the gun there.
 	const int32 BackpackIndex = ListOrder[CursorIndex];
 	const bool bSlotFilled = SlotItem(ChosenSlot) != nullptr;
 	PickedSlot.Reset();

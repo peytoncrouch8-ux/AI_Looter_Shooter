@@ -413,37 +413,50 @@ void ULoadoutWidget::RebuildList()
 	const FWeaponInstanceData* SlotGun = SlotItem(ChosenSlot);
 	NumSameKind = LoadoutRules::SortForSwap(Inventory->GetBackpack(), SlotGun ? SlotGun->Definition.Get() : nullptr, ListOrder);
 
-	const FString Header = !SlotGun ? TEXT("Equip from backpack")
-		: NumSameKind > 0 ? FString::Printf(TEXT("Swap with · %s in backpack"), *KindName(*SlotGun))
-		: FString(TEXT("Swap with · backpack"));
+	const FString Header = !SlotGun ? TEXT("Backpack · equip into slot")
+		: NumSameKind > 0 ? FString::Printf(TEXT("Backpack · %s first"), *KindName(*SlotGun))
+		: FString(TEXT("Backpack · swap with slot"));
 	ListHeader->SetText(FText::FromString(Header.ToUpper()));
 	ListCount->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), Inventory->GetBackpack().Num(), Inventory->BackpackCapacity)));
 
-	if (ListOrder.IsEmpty())
-	{
-		if (UScrollBoxSlot* EmptySlot = Cast<UScrollBoxSlot>(ListBox->AddChild(Label(WidgetTree, TEXT("Backpack empty"), 8, Hex(143, 179, 204, 150), 200))))
-		{
-			EmptySlot->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
-		}
-		return;
-	}
-	for (int32 Row = 0; Row < ListOrder.Num(); ++Row)
+	// Every slot the backpack has, full or not (the list scrolls when they don't all fit): its guns, the chosen slot's
+	// kind first, then the free slots, where the chosen slot's gun can be stored.
+	const int32 NumRows = FMath::Max(Inventory->BackpackCapacity, ListOrder.Num());
+	for (int32 Row = 0; Row < NumRows; ++Row)
 	{
 		// Other kinds of gun follow the chosen slot's kind, under their own heading.
-		if (Row == NumSameKind && NumSameKind > 0)
+		if (Row == NumSameKind && NumSameKind > 0 && NumSameKind < ListOrder.Num())
 		{
 			if (UScrollBoxSlot* HeadingSlot = Cast<UScrollBoxSlot>(ListBox->AddChild(Label(WidgetTree, TEXT("Other weapons"), 8, Color::TextDim(), 220))))
 			{
 				HeadingSlot->SetPadding(FMargin(0.f, 14.f, 0.f, 0.f));
 			}
 		}
-		const FCard Card = MakeListCard(Row);
+		const FCard Card = Row < ListOrder.Num() ? MakeListCard(Row) : MakeFreeListCard(Row);
 		if (UScrollBoxSlot* CardSlot = Cast<UScrollBoxSlot>(ListBox->AddChild(Card.Button)))
 		{
-			CardSlot->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
+			CardSlot->SetPadding(FMargin(0.f, 8.f, 6.f, 0.f));
 		}
 		ListCards.Add(Card);
 	}
+}
+
+ULoadoutWidget::FCard ULoadoutWidget::MakeFreeListCard(int32 Row)
+{
+	// A free backpack slot: the same size as a gun's row, quieter, saying what it's for.
+	FCard Card;
+	UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	UHorizontalBoxSlot* LabelSlot = Line->AddChildToHorizontalBox(Label(WidgetTree, TEXT("Empty"), 9, Hex(143, 179, 204, 150), 200));
+	LabelSlot->SetVerticalAlignment(VAlign_Center);
+	LabelSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	Line->AddChildToHorizontalBox(Label(WidgetTree, FString::FromInt(Row + 1), 9, Hex(143, 179, 204, 110), 60))->SetVerticalAlignment(VAlign_Center);
+
+	UOverlay* Box = MakeCard(WidgetTree, Line, FMargin(16.f, 7.f), 1.3f, Card.Fill, Card.Line);
+	Card.Button = WidgetTree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
+	Card.Button->SetupContent(MakeSized(WidgetTree, Box, 0.f, ListCardHeight), ActionBackpack, Row);
+	Card.Button->OnButtonClicked.BindUObject(this, &ULoadoutWidget::HandleCardClicked);
+	Card.Button->OnButtonHovered.BindUObject(this, &ULoadoutWidget::HandleCardHovered);
+	return Card;
 }
 
 ULoadoutWidget::FCard ULoadoutWidget::MakeListCard(int32 Row)
@@ -529,8 +542,9 @@ void ULoadoutWidget::Restyle()
 	for (int32 Row = 0; Row < ListCards.Num(); ++Row)
 	{
 		const bool bCursor = Zone == EZone::Backpack && CursorIndex == Row;
-		ListCards[Row].Fill->SetColorAndOpacity(bCursor ? Color::Tile() : Colors::CardFill());
-		ListCards[Row].Line->SetColorAndOpacity(bCursor ? Color::Accent() : Colors::CardLine());
+		const bool bFree = !ListOrder.IsValidIndex(Row);
+		ListCards[Row].Fill->SetColorAndOpacity(bCursor ? Color::Tile() : (bFree ? Colors::EmptyFill() : Colors::CardFill()));
+		ListCards[Row].Line->SetColorAndOpacity(bCursor ? Color::Accent() : (bFree ? Colors::CardLine() * FLinearColor(1.f, 1.f, 1.f, 0.5f) : Colors::CardLine()));
 	}
 }
 
@@ -655,7 +669,7 @@ void ULoadoutWidget::RefreshPrompts()
 		const TCHAR* Text;
 	};
 	TArray<FPrompt, TInlineAllocator<8>> Prompts;
-	const bool bBackpack = !ListOrder.IsEmpty();
+	const bool bBackpack = !ListCards.IsEmpty();
 	if (Zone == EZone::Slots)
 	{
 		const bool bItem = SlotItem(CursorIndex) != nullptr;
@@ -691,11 +705,21 @@ void ULoadoutWidget::RefreshPrompts()
 			}
 		}
 	}
-	else
+	else if (ListItem(CursorIndex))
 	{
 		Prompts.Add({ TEXT("E"), SlotItem(ChosenSlot) ? TEXT("Swap in") : TEXT("Equip") });
 		Prompts.Add({ TEXT("F"), TEXT("Hold") });
 		Prompts.Add({ TEXT("Q"), TEXT("Drop") });
+		Prompts.Add({ TEXT("W / S"), TEXT("Browse") });
+		Prompts.Add({ TEXT("A"), TEXT("Slots") });
+	}
+	else
+	{
+		// A free backpack slot: the chosen slot's gun can be stored in it.
+		if (SlotItem(ChosenSlot))
+		{
+			Prompts.Add({ TEXT("E"), TEXT("Store here") });
+		}
 		Prompts.Add({ TEXT("W / S"), TEXT("Browse") });
 		Prompts.Add({ TEXT("A"), TEXT("Slots") });
 	}
