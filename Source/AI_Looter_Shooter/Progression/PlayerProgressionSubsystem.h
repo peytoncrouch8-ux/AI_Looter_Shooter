@@ -69,8 +69,12 @@ public:
 	/** Puts the player at the start of Level (testing). Fires OnXPChanged but not OnLevelUp: nothing was earned. */
 	void SetLevel(int32 Level);
 
-	/** Back to a new game: level 1, no experience. */
+	/** Back to a new game: level 1, no experience, the tutorial not done. */
 	void ResetProgress();
+
+	/** Whether the tutorial's prompts have been completed (or skipped); a new game starts without. */
+	bool IsTutorialDone() const;
+	void SetTutorialDone(bool bDone);
 
 	/** Experience for killing this actor: a creature's XPReward. Anything else (target dummies, props) gives none. */
 	static int64 KillXP(const AActor* Victim);

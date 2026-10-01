@@ -27,4 +27,8 @@ public:
 	/** Experience earned into the current level (not in total), so a change to the curve never changes the level. */
 	UPROPERTY()
 	int64 XP = 0;
+
+	/** The tutorial island's prompts have been followed to the end (or skipped). */
+	UPROPERTY()
+	bool bTutorialDone = false;
 };

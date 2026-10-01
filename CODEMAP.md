@@ -67,6 +67,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Loot/LootLibrary`: `ULootLibrary`, rolling a loot table and spawning the results.
 - `Loot/LootDropComponent`: drops its owner's loot when it dies.
 - `Loot/LootTossComponent`: `ULootTossComponent`, throws loot so it pops out, lands and settles.
+- `Loot/WeaponRack`: `AWeaponRack`, a rack with a weapon lying on it as loot and ammo beside it; restocks when the
+  weapon is gone and the player has none (the tutorial's first rifle).
 - `Loot/AmmoPickup`: `AAmmoPickup`, an ammo box you walk over to collect (its model per type from
   `Art/Models/Loot/AmmoBox.py`).
 
@@ -76,6 +78,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Creatures/SpiderCreature`: `ASpiderCreature`, the brown spider: SK_Spider (from `Art/Models/Creatures/Spider.py`)
   posed by code (stepping gait, leg IK, attack and death motion); its physics asset holds the hit zones.
 - `Creatures/SpiderAnimInstance`: `USpiderAnimInstance`, applies the pose `ASpiderCreature` works out to the skeleton.
+
+## Tutorial
+- `Tutorial/TutorialDirector`: `ATutorialDirector`, the tutorial island's steps (move, reach the village, take the rifle,
+  shoot the dummies, hunt spiders, open the loadout), each finished by doing it; `Looter.Tutorial restart|skip`.
 
 ## Progression
 - `Progression/XPCurve`: `FXPCurve`, the experience each level takes (exponential), level-ups from a gain, and the
@@ -88,7 +94,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   saving, level-up events) and the experience a kill gives.
 
 ## World
-- `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime.
+- `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime, trees as crowns.
 - `World/FallRecoverySubsystem`: brings the player back when they fall off an island.
 - `World/WorldQueries`: `LooterWorld`, trace params that see only real static geometry (skipping volumes).
 - `World/LightBeam`: `LightBeams`, a soft glowing light pillar (sky beacons, the rarity-colored beam over loot).
@@ -98,7 +104,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Settings
 - `Settings/KeyBindingSubsystem`: key rebinding, the global pause/inventory actions and the character actions.
-- `Settings/GraphicsSettingsSubsystem`: saved display options (quality preset, motion blur, UI transparency, minimap size) and the `Looter.Quality` command.
+- `Settings/GraphicsSettingsSubsystem`: saved display options (quality preset, motion blur, UI transparency, minimap size and zoom) and the `Looter.Quality` command.
 
 ## UI
 - `UI/Style/LooterUIStyle`: `LooterUI`, the style kit every UI is built with (palette, shapes, icons, text, builders,
@@ -107,7 +113,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/Style/WeaponText`: `LooterWeaponText`, weapon names, rarity colors and stat strings.
 - `UI/HUD/LooterHUD`: `ALooterHUD`, owns the HUD, inventory and pause menu and their hotkeys.
 - `UI/HUD/PlayerHUDWidget`: the gameplay HUD (health, ammo, crosshair, hit marker, loot card, messages).
-- `UI/HUD/HudMinimapWidget`: the round minimap that turns with the view.
+- `UI/HUD/HudMinimapWidget`: the round minimap that turns with the view (size and zoom from the settings).
+- `UI/HUD/TutorialPromptWidget`: the tutorial's current instruction near the top of the screen.
 - `UI/HUD/HudXPBarWidget`: the level and experience bar at the bottom center.
 - `UI/Menus/PauseMenuWidget`: the pause and settings menu (graphics, interface, key bindings).
 - `UI/Inventory/LoadoutWidget.cpp`: the loadout screen: opening, layout and contents.
@@ -130,8 +137,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `CreatureTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`,
-  `MinimapTests.cpp`, `ProgressionTests.cpp`, `SettingsTests.cpp`, `WeaponTests.cpp`, `WeaponPartsTests.cpp`,
-  `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
+  `MinimapTests.cpp`, `ProgressionTests.cpp`, `SettingsTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
+  `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)
 - `LooterEditor.Build.cs`: module dependencies (GeometryScript editor functions, asset tools, FBX import, JSON).

@@ -34,6 +34,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void ClosePauseMenu();
 
+	bool IsInventoryOpen() const { return bInventoryOpen; }
+
+	/** The inventory or the pause menu is up (the gameplay HUD is hidden). */
+	bool IsMenuOpen() const { return bInventoryOpen || bPauseMenuOpen; }
+
 	/** Ends the play session in the editor, or exits the app in a packaged build. */
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void QuitGame();

@@ -128,7 +128,25 @@ void UPlayerProgressionSubsystem::SetLevel(int32 Level)
 
 void UPlayerProgressionSubsystem::ResetProgress()
 {
+	if (SaveData)
+	{
+		SaveData->bTutorialDone = false;
+	}
 	SetLevel(1);
+}
+
+bool UPlayerProgressionSubsystem::IsTutorialDone() const
+{
+	return SaveData && SaveData->bTutorialDone;
+}
+
+void UPlayerProgressionSubsystem::SetTutorialDone(bool bDone)
+{
+	if (SaveData && SaveData->bTutorialDone != bDone)
+	{
+		SaveData->bTutorialDone = bDone;
+		SaveProgress();
+	}
 }
 
 int64 UPlayerProgressionSubsystem::KillXP(const AActor* Victim)
