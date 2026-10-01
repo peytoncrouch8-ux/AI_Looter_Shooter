@@ -181,6 +181,9 @@ namespace LooterUI::Color
 	FLinearColor Health()     { return Hex(255, 91, 74); }
 	FLinearColor Backdrop()   { return Hex(2, 8, 14, 190); }
 	FLinearColor Outline()    { return Hex(0, 39, 56, 217); }
+	FLinearColor IconInk()    { return Hex(10, 18, 24); }
+	FLinearColor IconLight()  { return Hex(244, 239, 230); }
+	FLinearColor IconShade()  { return Hex(142, 163, 180); }
 }
 
 // ---------------------------------------------------------------------------

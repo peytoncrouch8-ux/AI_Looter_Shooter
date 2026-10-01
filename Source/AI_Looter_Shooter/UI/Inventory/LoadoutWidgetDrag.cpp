@@ -144,7 +144,7 @@ void ULoadoutWidget::BeginItemDrag()
 	DropTarget = { EDropKind::Slot, INDEX_NONE - 1 };
 
 	GhostBox->ClearChildren();
-	GhostBox->AddChildToVerticalBox(MakeGunPicture(WidgetTree, *Item, FVector2D(120.f, 40.f), 2.f, Colors::GunBody(), true))
+	GhostBox->AddChildToVerticalBox(MakeGunPicture(WidgetTree, *Item, FVector2D(120.f, 40.f)))
 		->SetHorizontalAlignment(HAlign_Center);
 	GhostBox->AddChildToVerticalBox(FittedLabel(WidgetTree, LooterWeaponText::Name(*Item), 10, LooterWeaponText::Color(*Item), 50))
 		->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));

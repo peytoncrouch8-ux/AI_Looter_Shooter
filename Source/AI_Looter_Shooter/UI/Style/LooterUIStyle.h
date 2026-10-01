@@ -52,6 +52,10 @@ namespace LooterUI
 		FLinearColor Backdrop();
 		/** The thin dark edge on text and shapes drawn with no panel behind them. */
 		FLinearColor Outline();
+		/** The weapon and ammo icons (FInkedIcon): the ink line, the light top and the shaded underside. */
+		FLinearColor IconInk();
+		FLinearColor IconLight();
+		FLinearColor IconShade();
 	}
 
 	enum class EShape : uint8
@@ -111,6 +115,42 @@ namespace LooterUI
 	 * the given size tinted with Tint. PixelsPerUnit sets the texture's resolution: aim for about twice the drawn size.
 	 */
 	FSlateBrush IconBrush(FName Name, const FVectorIcon& Icon, float PixelsPerUnit, const FVector2D& Size, const FLinearColor& Tint);
+
+	/**
+	 * An icon in the Inked style, the game's weapon and ammo icons (the user's pick): a light top and a shaded underside
+	 * inside a thick dark ink line, so it reads over any background. Made in Art/Icons/InkedIcons.py, which generates them
+	 * as C++ (UI/Style/InkedIconData.inl) and whose docstring defines these fields; coordinates are x right, y down.
+	 */
+	struct FInkedIcon
+	{
+		FVector2D ViewBox = FVector2D(24.f, 24.f);
+		/** Filled outlines, any simple polygon either way round; overlapping ones fill their union. */
+		TArray<TArray<FVector2D>> Shapes;
+		/** Polygons cut through the shapes. */
+		TArray<TArray<FVector2D>> Holes;
+		/** Open polylines drawn as part of the shape, StrokeWidth wide. */
+		TArray<TArray<FVector2D>> Strokes;
+		/** Detail lines drawn in ink across the fill, CutWidth wide. */
+		TArray<TArray<FVector2D>> Cuts;
+		float StrokeWidth = 0.6f;
+		float CutWidth = 0.35f;
+		/** The fill is light above this line and shaded below it. */
+		float ShadeY = 0.f;
+		/** The ink line round the shape; drawn small it grows to stay readable, up to MaxOutlineWidth. */
+		float OutlineWidth = 1.f;
+		float MaxOutlineWidth = 1.f;
+	};
+
+	/**
+	 * The icon drawn in its own colors into a texture (made once per name and resolution, then shared), as a brush of the
+	 * given size: keep the tint white, grey to dim it, alpha to fade it. PixelsPerUnit sets the texture's resolution: aim
+	 * for about twice the drawn size.
+	 */
+	FSlateBrush InkedIconBrush(FName Name, const FInkedIcon& Icon, float PixelsPerUnit, const FVector2D& Size,
+		const FLinearColor& Tint = FLinearColor::White);
+
+	/** The icon as large as fits inside Box (keeping its shape), drawn at twice that size. */
+	FSlateBrush InkedIconBrush(FName Name, const FInkedIcon& Icon, const FVector2D& Box, const FLinearColor& Tint = FLinearColor::White);
 
 	FButtonStyle ButtonStyle(EButtonKind Kind, bool bHighlighted);
 	FLinearColor ButtonTextColor(EButtonKind Kind, bool bHighlighted);

@@ -12,10 +12,10 @@ class UWidget;
 
 /**
  * The HUD's weapon slots, a row of hexagons over the ammo (bottom-right), one per slot, numbered by their keys:
- *  - a carried gun: outlined in its rarity color, the slot's lower edge striped in it, the gun's silhouette inside, and its
- *    ammo class under the hex ("AR")
+ *  - a carried gun: outlined in its rarity color, the slot's lower edge striped in it, the gun's Inked icon inside
+ *    (dimmed a little), and its ammo class under the hex ("AR")
  *  - the gun in hand: raised and a little larger, outlined in the accent color with a soft glow, tinted with its rarity,
- *    the silhouette white; switching eases the new slot up
+ *    the icon at full strength; switching eases the new slot up
  *  - an empty slot: a dashed outline
  * No backing panels; the hexes' fills fade with the UI transparency setting, the outlines and text stay. The hexes are
  * vector icons drawn once into shared textures; per frame it only checks whether anything changed and eases the lift.
@@ -47,8 +47,7 @@ private:
 		UImage* Outline = nullptr;
 		UImage* BoldOutline = nullptr;
 		UImage* Dashed = nullptr;
-		UImage* GunShadow = nullptr;
-		UImage* Gun = nullptr;
+			UImage* Gun = nullptr;
 		UBorder* Tab = nullptr;
 		UTextBlock* TabNumber = nullptr;
 		UTextBlock* AmmoClass = nullptr;

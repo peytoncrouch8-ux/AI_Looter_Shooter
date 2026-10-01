@@ -411,8 +411,8 @@ ULoadoutWidget::FCard ULoadoutWidget::MakeSlotCard(int32 SlotIndex)
 	SubSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
 	Content->AddChildToVerticalBox(Top);
 
-	// Middle: the gun's silhouette, its rarity strip lit.
-	UWidget* Middle = Item ? MakeGunPicture(WidgetTree, *Item, FVector2D(186.f, 62.f), 3.f, Colors::GunBody(), true)
+	// Middle: the gun's icon.
+	UWidget* Middle = Item ? MakeGunPicture(WidgetTree, *Item, FVector2D(186.f, 62.f))
 		: Label(WidgetTree, TEXT("Empty slot"), 9, Hex(143, 179, 204, 150), 200);
 	UVerticalBoxSlot* MiddleSlot = Content->AddChildToVerticalBox(Middle);
 	MiddleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -511,8 +511,8 @@ ULoadoutWidget::FCard ULoadoutWidget::MakeListCard(int32 Row)
 	const FLinearColor Rarity = LooterWeaponText::Color(*Item);
 	UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 
-	Line->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeGunPicture(WidgetTree, *Item, FVector2D(84.f, 28.f), 1.5f,
-		Rarity * FLinearColor(1.f, 1.f, 1.f, 0.9f), false), 84.f, 28.f))->SetVerticalAlignment(VAlign_Center);
+	Line->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeGunPicture(WidgetTree, *Item, FVector2D(84.f, 28.f)), 84.f, 28.f))
+		->SetVerticalAlignment(VAlign_Center);
 
 	UVerticalBox* Text = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Text->AddChildToVerticalBox(FittedLabel(WidgetTree, LooterWeaponText::Name(*Item), 10, Rarity, 50));
@@ -651,8 +651,9 @@ void ULoadoutWidget::RefreshAmmo()
 		BarSlot->SetHorizontalAlignment(HAlign_Center);
 		BarSlot->SetPadding(FMargin(0.f, 4.f));
 
-		UVerticalBoxSlot* IconSlot = Gauge->AddChildToVerticalBox(MakeImage(WidgetTree, IconBrush(*FString::Printf(TEXT("Ammo%d"), Index), AmmoIcon(Type), 2.f,
-			FVector2D(18.f, 18.f), Carried > 0 ? Color::Title() : Hex(143, 179, 204, 128))));
+		// The ammo's icon, faded while none is carried.
+		UVerticalBoxSlot* IconSlot = Gauge->AddChildToVerticalBox(MakeImage(WidgetTree, InkedIconBrush(AmmoIconName(Type), AmmoIcon(Type),
+			FVector2D(18.f, 18.f), Carried > 0 ? FLinearColor::White : FLinearColor(1.f, 1.f, 1.f, 0.5f))));
 		IconSlot->SetHorizontalAlignment(HAlign_Center);
 
 		UWidget* Box = MakeShapeBox(WidgetTree, EShape::Control, Hex(7, 26, 40, 217), Hex(90, 200, 255, 71), Gauge, FMargin(0.f, 6.f));

@@ -80,6 +80,8 @@ command line keep theirs under `%LOCALAPPDATA%\UnrealEngine\5.8\Saved`.
 - Every background a widget paints must call `LooterUI::MarkBackground` so the UI transparency setting fades it. Text,
   outlines and bars stay solid.
 - Vector art from mockups (icons, silhouettes) goes through `LooterUI::IconBrush`, never through new texture assets.
+- Weapon and ammo icons are Inked icons (the user's pick). Their outlines live in `Art/Icons/InkedIcons.py`, which
+  generates `UI/Style/InkedIconData.inl`. Draw them with `LooterUI::InkedIconBrush`, tinted white (grey dims them).
 
 ## Assets
 

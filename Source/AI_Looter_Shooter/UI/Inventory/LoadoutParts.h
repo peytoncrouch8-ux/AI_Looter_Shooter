@@ -70,15 +70,15 @@ namespace LoadoutParts
 		inline FLinearColor InnerRing() { return LooterUI::Hex(92, 202, 255, 115); }
 		inline FLinearColor RingGlow() { return LooterUI::Hex(92, 202, 255, 30); }
 		inline FLinearColor Pillar() { return LooterUI::Hex(92, 202, 255, 36); }
-		inline FLinearColor GunBody() { return LooterUI::Hex(191, 234, 255, 224); }
 	}
 
-	/** A gun's side view (120 x 40), or just the strip on it that's lit in the gun's rarity color. */
-	const LooterUI::FVectorIcon& GunIcon(EWeaponKind Kind, bool bStrip);
-	FName GunIconName(EWeaponKind Kind, bool bStrip);
+	/** A gun's side view in the Inked style (UI/Style/InkedIconData.inl), and the name its textures are kept under. */
+	const LooterUI::FInkedIcon& GunIcon(EWeaponKind Kind);
+	FName GunIconName(EWeaponKind Kind);
 
-	/** Outlined cartridges (24 x 24), one per ammo type, in EAmmoType order. */
-	const LooterUI::FVectorIcon& AmmoIcon(EAmmoType Type);
+	/** An ammo type's cartridges in the Inked style, and the name its textures are kept under. */
+	const LooterUI::FInkedIcon& AmmoIcon(EAmmoType Type);
+	FName AmmoIconName(EAmmoType Type);
 
 	/** Small solid triangles for upgrade / weaker (10 x 8). */
 	const LooterUI::FVectorIcon& ArrowIcon(bool bUp);
@@ -98,9 +98,12 @@ namespace LoadoutParts
 	 */
 	UOverlay* MakeCard(UWidgetTree* Tree, UWidget* Content, const FMargin& Padding, float Scale, UImage*& OutFill, UImage*& OutLine);
 
-	/** A gun's silhouette, optionally with its rarity strip lit. */
-	UWidget* MakeGunPicture(UWidgetTree* Tree, const FWeaponInstanceData& Item, const FVector2D& Size, float PixelsPerUnit,
-		const FLinearColor& BodyColor, bool bStrip);
+	/**
+	 * A gun's Inked icon, as large as fits in Size and centered there. Its colors are its own: keep Tint white, grey it to
+	 * dim it. Rarity shows in the name and the card around it, not on the icon.
+	 */
+	UWidget* MakeGunPicture(UWidgetTree* Tree, const FWeaponInstanceData& Item, const FVector2D& Size,
+		const FLinearColor& Tint = FLinearColor::White);
 
 	/** A key cap and what the key does: [E] SWAP. The first (main) action's cap is lit. */
 	UWidget* MakeKeyHint(UWidgetTree* Tree, const FString& Key, const FString& Text, bool bPrimary);

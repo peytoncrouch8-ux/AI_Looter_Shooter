@@ -1,5 +1,7 @@
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterButton.h"
+#include "UI/Style/LooterUIStyle.h"
+#include "UI/Style/InkedIconData.inl"
 #include "UI/Style/WeaponText.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Blueprint/WidgetTree.h"
@@ -15,97 +17,36 @@
 
 using namespace LooterUI;
 
-namespace
-{
-	// --- Vector art from the mockup ---
-
-	TArray<FVector2D> RectPoints(double X0, double Y0, double X1, double Y1)
-	{
-		return { { X0, Y0 }, { X1, Y0 }, { X1, Y1 }, { X0, Y1 } };
-	}
-
-	FVectorIcon MakeGunIcon(TArray<TArray<FVector2D>> Fills)
-	{
-		FVectorIcon Icon;
-		Icon.ViewBox = FVector2D(120.f, 40.f);
-		Icon.Fills = MoveTemp(Fills);
-		return Icon;
-	}
-
-	/** Appends a quadratic curve from the last point, as a few straight steps. */
-	void AddCurve(TArray<FVector2D>& Points, const FVector2D& Control, const FVector2D& End)
-	{
-		const FVector2D Start = Points.Last();
-		for (int32 Step = 1; Step <= 4; ++Step)
-		{
-			const double T = Step / 4.0;
-			Points.Add(Start * FMath::Square(1.0 - T) + Control * (2.0 * (1.0 - T) * T) + End * (T * T));
-		}
-	}
-}
-
 namespace LoadoutParts
 {
-	/** A gun's side view (120 x 40), or just the strip on it that's lit in the gun's rarity color. */
-	const FVectorIcon& GunIcon(EWeaponKind Kind, bool bStrip)
+	const FInkedIcon& GunIcon(EWeaponKind Kind)
 	{
-		static const FVectorIcon Rifle = MakeGunIcon({
-			{ { 2, 14 }, { 22, 12 }, { 30, 14 }, { 30, 24 }, { 22, 26 }, { 4, 30 }, { 2, 28 } },
-			{ { 30, 12 }, { 70, 12 }, { 72, 14 }, { 72, 22 }, { 30, 24 } },
-			RectPoints(72, 13, 96, 21), RectPoints(96, 15.5, 116, 18.5), RectPoints(114, 14, 119, 20),
-			{ { 50, 22 }, { 58, 22 }, { 62, 36 }, { 54, 36 } },
-			{ { 36, 22 }, { 42, 22 }, { 40, 34 }, { 34, 34 } },
-			RectPoints(44, 8, 54, 12) });
-		static const FVectorIcon RifleStrip = MakeGunIcon({ RectPoints(34, 16, 62, 18), RectPoints(74, 15, 92, 16.5) });
-		static const FVectorIcon Shotgun = MakeGunIcon({
-			{ { 2, 16 }, { 20, 13 }, { 30, 14 }, { 30, 22 }, { 4, 30 }, { 2, 28 } },
-			{ { 30, 12 }, { 54, 12 }, { 56, 14 }, { 56, 22 }, { 30, 22 } },
-			RectPoints(56, 13, 118, 16.5), RectPoints(56, 17.5, 108, 20.5), RectPoints(66, 16.5, 88, 23.5),
-			{ { 34, 21 }, { 40, 21 }, { 38, 32 }, { 32, 32 } },
-			RectPoints(114, 11.2, 116.5, 13) });
-		static const FVectorIcon ShotgunStrip = MakeGunIcon({ RectPoints(33, 15, 52, 17) });
-		if (Kind == EWeaponKind::Shotgun)
-		{
-			return bStrip ? ShotgunStrip : Shotgun;
-		}
-		return bStrip ? RifleStrip : Rifle;
+		static const FInkedIcon Rifle = InkedIconData::Rifle();
+		static const FInkedIcon Shotgun = InkedIconData::Shotgun();
+		return Kind == EWeaponKind::Shotgun ? Shotgun : Rifle;
 	}
 
-	FName GunIconName(EWeaponKind Kind, bool bStrip)
+	FName GunIconName(EWeaponKind Kind)
 	{
-		const TCHAR* Name = Kind == EWeaponKind::Shotgun ? TEXT("Shotgun") : TEXT("Rifle");
-		return FName(*FString::Printf(TEXT("Gun%s%s"), Name, bStrip ? TEXT("Strip") : TEXT("")));
+		return Kind == EWeaponKind::Shotgun ? FName(TEXT("InkedShotgun")) : FName(TEXT("InkedRifle"));
 	}
 
-	/** Outlined cartridges (24 x 24), one per ammo type, in EAmmoType order. */
-	const FVectorIcon& AmmoIcon(EAmmoType Type)
+	const FInkedIcon& AmmoIcon(EAmmoType Type)
 	{
-		auto Make = [](TArray<TArray<FVector2D>> Strokes)
-		{
-			FVectorIcon Icon;
-			Icon.ViewBox = FVector2D(24.f, 24.f);
-			Icon.Strokes = MoveTemp(Strokes);
-			Icon.StrokeWidth = 1.8f;
-			return Icon;
+		static const FInkedIcon Icons[] = {
+			InkedIconData::AmmoAssaultRifle(),
+			InkedIconData::AmmoShotgun(),
+			InkedIconData::AmmoPistol(),
+			InkedIconData::AmmoSMG(),
+			InkedIconData::AmmoSniper(),
 		};
-		static const FVectorIcon Icons[] = {
-			Make({ { { 9, 21 }, { 9, 9 }, { 12, 3 }, { 15, 9 }, { 15, 21 }, { 9, 21 } }, { { 9, 17 }, { 15, 17 } } }),
-			[&Make]
-			{
-				TArray<FVector2D> Shell = { { 7, 21 }, { 7, 7 } };
-				AddCurve(Shell, { 7, 4 }, { 10, 4 });
-				Shell.Add({ 14, 4 });
-				AddCurve(Shell, { 17, 4 }, { 17, 7 });
-				Shell.Add({ 17, 21 });
-				Shell.Add({ 7, 21 });
-				return Make({ Shell, { { 7, 17 }, { 17, 17 } } });
-			}(),
-			Make({ { { 9, 21 }, { 9, 12 }, { 12, 7 }, { 15, 12 }, { 15, 21 }, { 9, 21 } }, { { 9, 18 }, { 15, 18 } } }),
-			Make({ { { 5, 21 }, { 5, 12 }, { 7.5, 8 }, { 10, 12 }, { 10, 21 }, { 5, 21 } },
-				{ { 14, 21 }, { 14, 12 }, { 16.5, 8 }, { 19, 12 }, { 19, 21 }, { 14, 21 } } }),
-			Make({ { { 10, 22 }, { 10, 8 }, { 12, 2 }, { 14, 8 }, { 14, 22 }, { 10, 22 } }, { { 10, 18 }, { 14, 18 } } }),
-		};
+		static_assert(static_cast<int32>(UE_ARRAY_COUNT(Icons)) == LooterAmmo::NumTypes, "An Inked icon for every ammo type, in EAmmoType order.");
 		return Icons[FMath::Clamp(static_cast<int32>(Type), 0, static_cast<int32>(UE_ARRAY_COUNT(Icons)) - 1)];
+	}
+
+	FName AmmoIconName(EAmmoType Type)
+	{
+		return FName(*FString::Printf(TEXT("InkedAmmo%d"), static_cast<int32>(Type)));
 	}
 
 	/** Small solid triangles for upgrade / weaker (10 x 8). */
@@ -179,18 +120,14 @@ namespace LoadoutParts
 		return Box;
 	}
 
-	/** A gun's silhouette, optionally with its rarity strip lit. */
-	UWidget* MakeGunPicture(UWidgetTree* Tree, const FWeaponInstanceData& Item, const FVector2D& Size, float PixelsPerUnit,
-		const FLinearColor& BodyColor, bool bStrip)
+	UWidget* MakeGunPicture(UWidgetTree* Tree, const FWeaponInstanceData& Item, const FVector2D& Size, const FLinearColor& Tint)
 	{
 		const EWeaponKind Kind = Item.Definition ? Item.Definition->Kind : EWeaponKind::Rifle;
 		UOverlay* Picture = Tree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-		Picture->AddChildToOverlay(MakeImage(Tree, IconBrush(GunIconName(Kind, false), GunIcon(Kind, false), PixelsPerUnit, Size, BodyColor)));
-		if (bStrip)
-		{
-			Picture->AddChildToOverlay(MakeImage(Tree, IconBrush(GunIconName(Kind, true), GunIcon(Kind, true), PixelsPerUnit, Size,
-				LooterWeaponText::Color(Item))));
-		}
+		// Centered at its own shape, so a box of any proportions around it never stretches it.
+		UOverlaySlot* ImageSlot = Picture->AddChildToOverlay(MakeImage(Tree, InkedIconBrush(GunIconName(Kind), GunIcon(Kind), Size, Tint)));
+		ImageSlot->SetHorizontalAlignment(HAlign_Center);
+		ImageSlot->SetVerticalAlignment(VAlign_Center);
 		return Picture;
 	}
 

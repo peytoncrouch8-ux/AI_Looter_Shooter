@@ -32,7 +32,11 @@ namespace
 	constexpr float LiftHeight = 6.f;
 	constexpr float LiftScale = 1.14f;
 	constexpr float LiftTime = 0.12f;
-	const FVector2D GunSize(44.f, 15.f);
+	/** The box a slot's gun icon fits in (keeping its shape): the rifle fills its height, the long shotgun its width. */
+	const FVector2D GunBox(52.f, 26.f);
+
+	/** A gun icon in a slot that isn't in hand: dimmed a little. */
+	const FLinearColor RestingGun(0.72f, 0.72f, 0.72f, 0.9f);
 	const FVector2D TabSize(20.f, 16.f);
 
 	/** The hexagon's corners, Inset in from its box, starting at the left point and going clockwise. */
@@ -160,7 +164,8 @@ TSharedRef<SWidget> UHudWeaponSlotsWidget::RebuildWidget()
 		for (int32 Index = 0; Index < MaxSlots; ++Index)
 		{
 			FSlotWidgets Cell;
-			// The hex: glow, fill, rarity edge, outline (plain, bold or dashed), then the gun's silhouette over a dark copy.
+			// The hex: glow, fill, rarity edge, outline (plain, bold or dashed), then the gun's icon (its own ink line
+			// carries it over any background).
 			UOverlay* Layers = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
 			// The glow ring reaches past the hex: drawn at the hex's size and scaled up so its hex lands on the slot's.
 			Cell.Glow = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudHexGlow"), HexGlow(), 2.f, HexSize, FLinearColor::White));
@@ -172,8 +177,6 @@ TSharedRef<SWidget> UHudWeaponSlotsWidget::RebuildWidget()
 			Cell.Outline = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudHexOutline"), HexOutline(), 2.f, HexSize, FLinearColor::White));
 			Cell.BoldOutline = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudHexBold"), HexBoldOutline(), 2.f, HexSize, FLinearColor::White));
 			Cell.Dashed = AddLayer(WidgetTree, Layers, IconBrush(TEXT("HudHexDashed"), HexDashed(), 2.f, HexSize, FLinearColor::White));
-			Cell.GunShadow = AddLayer(WidgetTree, Layers, FSlateBrush());
-			Cell.GunShadow->SetRenderTranslation(FVector2D(1.5f, 1.5f));
 			Cell.Gun = AddLayer(WidgetTree, Layers, FSlateBrush());
 
 			// The key number, in a tab straddling the top edge.
@@ -277,7 +280,6 @@ void UHudWeaponSlotsWidget::Paint(FSlotWidgets& Cell, int32 Index, const UWeapon
 		Show(Cell.Outline, false);
 		Show(Cell.BoldOutline, false);
 		Show(Cell.Gun, false);
-		Show(Cell.GunShadow, false);
 		Show(Cell.Dashed, true);
 		Cell.Dashed->SetColorAndOpacity(Color::TextDim() * FLinearColor(1.f, 1.f, 1.f, 0.6f));
 		Cell.Fill->SetColorAndOpacity(Hex(7, 26, 40, 128));
@@ -290,19 +292,16 @@ void UHudWeaponSlotsWidget::Paint(FSlotWidgets& Cell, int32 Index, const UWeapon
 	const FWeaponInstanceData& Item = Weapon->GetInstance();
 	const FLinearColor Rarity = LooterWeaponText::Color(Item);
 	const EWeaponKind Kind = KindOf(Item);
-	const FSlateBrush GunBrush = IconBrush(LoadoutParts::GunIconName(Kind, false), LoadoutParts::GunIcon(Kind, false), 1.f, GunSize, FLinearColor::White);
-	Cell.Gun->SetBrush(GunBrush);
-	Cell.GunShadow->SetBrush(GunBrush);
+	Cell.Gun->SetBrush(InkedIconBrush(LoadoutParts::GunIconName(Kind), LoadoutParts::GunIcon(Kind), GunBox));
 	Show(Cell.Gun, true);
-	Show(Cell.GunShadow, true);
 	Show(Cell.Dashed, false);
 	Show(Cell.Stripe, true);
 	Cell.Stripe->SetColorAndOpacity(Rarity);
-	Cell.GunShadow->SetColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.55f));
 	Cell.AmmoClass->SetText(FText::FromString(Item.Definition && LooterAmmo::IsValid(Item.Definition->AmmoType)
 		? LooterAmmo::GetInfo(Item.Definition->AmmoType).Short : TEXT("")));
 
-	// In hand: an accent outline with a soft glow, tinted with its rarity, the gun white; otherwise outlined in its rarity.
+	// In hand: an accent outline with a soft glow, tinted with its rarity, the gun at full strength; otherwise outlined in
+	// its rarity, the gun a little dimmed.
 	Show(Cell.Glow, bInHand);
 	Show(Cell.BoldOutline, bInHand);
 	Show(Cell.Outline, !bInHand);
@@ -311,7 +310,7 @@ void UHudWeaponSlotsWidget::Paint(FSlotWidgets& Cell, int32 Index, const UWeapon
 	Cell.BoldOutline->SetColorAndOpacity(Item.Rarity == EWeaponRarity::Legendary ? Color::Text() : Color::Accent());
 	Cell.Outline->SetColorAndOpacity(Rarity);
 	Cell.Fill->SetColorAndOpacity(bInHand ? Rarity * FLinearColor(1.f, 1.f, 1.f, 0.33f) : Hex(7, 26, 40, 107));
-	Cell.Gun->SetColorAndOpacity(bInHand ? Color::Text() : Rarity);
+	Cell.Gun->SetColorAndOpacity(bInHand ? FLinearColor::White : RestingGun);
 	Cell.Tab->SetBrush(bInHand ? RectBrush(Color::Accent()) : RectBrush(Color::Plate(), Hex(90, 200, 255, 140), 1.f));
 	Cell.TabNumber->SetColorAndOpacity(FSlateColor(bInHand ? Color::AccentDark() : Color::TextDim()));
 	Cell.AmmoClass->SetColorAndOpacity(FSlateColor(bInHand ? Color::Text() : Color::TextDim()));
