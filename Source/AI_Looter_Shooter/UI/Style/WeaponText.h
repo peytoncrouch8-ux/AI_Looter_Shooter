@@ -9,18 +9,19 @@
 /** Shared formatting for weapon names/stats across the HUD, loot labels and inventory. */
 namespace LooterWeaponText
 {
-	/** "Epic Scoped Assault Rifle": the rarity, the word the gun's parts give it (if any) and the kind of gun. */
+	/**
+	 * "Scoped Assault Rifle": the word the gun's parts give it (if any) and the kind of gun. No rarity word: every name is
+	 * shown in its rarity's color (Color below), which says it at a glance (the user's call).
+	 */
 	inline FString Name(const FWeaponInstanceData& Instance)
 	{
-		const FString Rarity = UEnum::GetDisplayValueAsText(Instance.Rarity).ToString();
 		if (!Instance.Definition)
 		{
-			return FString::Printf(TEXT("%s Unknown"), *Rarity);
+			return TEXT("Unknown");
 		}
 		const FText Prefix = WeaponParts::NamePrefix(WeaponParts::Pick(Instance));
 		const FString Weapon = Instance.Definition->DisplayName.ToString();
-		return Prefix.IsEmpty() ? FString::Printf(TEXT("%s %s"), *Rarity, *Weapon)
-			: FString::Printf(TEXT("%s %s %s"), *Rarity, *Prefix.ToString(), *Weapon);
+		return Prefix.IsEmpty() ? Weapon : FString::Printf(TEXT("%s %s"), *Prefix.ToString(), *Weapon);
 	}
 
 	inline FLinearColor Color(const FWeaponInstanceData& Instance)

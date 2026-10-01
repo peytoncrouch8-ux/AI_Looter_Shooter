@@ -472,7 +472,7 @@ bool FWeaponPartStatsTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("%s: some sights magnify"), Asset), bZooms);
 		Bare->MarkAsGarbage();
 
-		// Names: the word of the gun's highest-priority part, after its rarity.
+		// Names: the word of the gun's highest-priority part, then the kind of gun; never the rarity (its color says it).
 		for (int32 Seed = 0; Seed < 50; ++Seed)
 		{
 			FWeaponInstanceData Gun;
@@ -487,6 +487,7 @@ bool FWeaponPartStatsTest::RunTest(const FString& Parameters)
 			}
 			const FString Name = LooterWeaponText::Name(Gun);
 			TestTrue(FString::Printf(TEXT("%s is named by its parts"), *Name), !Namer || Name.Contains(Namer->NamePrefix.ToString()));
+			TestFalse(FString::Printf(TEXT("%s has no rarity word"), *Name), Name.Contains(UEnum::GetDisplayValueAsText(Gun.Rarity).ToString()));
 		}
 	}
 	return true;
