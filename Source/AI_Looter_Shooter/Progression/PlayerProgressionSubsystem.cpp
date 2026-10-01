@@ -28,7 +28,11 @@ void UPlayerProgressionSubsystem::Initialize(FSubsystemCollectionBase& Collectio
 	}
 	if (SaveData->Version < ULooterProgressSave::CurrentVersion)
 	{
-		// Nothing to upgrade yet; later versions convert older saves here.
+		// Older saves: whatever the player defeated, they have met.
+		for (const TPair<FString, int32>& Pair : SaveData->Defeated)
+		{
+			SaveData->Encountered.Add(Pair.Key);
+		}
 		SaveData->Version = ULooterProgressSave::CurrentVersion;
 		bUnsaved = true;
 	}
@@ -132,6 +136,7 @@ void UPlayerProgressionSubsystem::ResetProgress()
 	{
 		SaveData->bTutorialDone = false;
 		SaveData->Defeated.Reset();
+		SaveData->Encountered.Reset();
 	}
 	SetLevel(1);
 }
@@ -181,8 +186,57 @@ void UPlayerProgressionSubsystem::RecordDefeat(const AActor* Victim)
 	{
 		return;
 	}
-	++SaveData->Defeated.FindOrAdd(Victim->GetClass()->GetPathName());
+	const FString Kind = Victim->GetClass()->GetPathName();
+	++SaveData->Defeated.FindOrAdd(Kind);
+	SaveData->Encountered.Add(Kind);
 	ScheduleSave();
+}
+
+void UPlayerProgressionSubsystem::RecordEncounter(const AController* Player, const AActor* Actor)
+{
+	const APlayerController* PlayerController = Cast<APlayerController>(Player);
+	const ULocalPlayer* LocalPlayer = PlayerController ? PlayerController->GetLocalPlayer() : nullptr;
+	UPlayerProgressionSubsystem* Progression = LocalPlayer ? LocalPlayer->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
+	if (!Progression || !Progression->SaveData || !Actor)
+	{
+		return;
+	}
+	// Most calls are for kinds already met (every hit lands here): only a first meeting writes the save.
+	bool bAlreadyMet = false;
+	Progression->SaveData->Encountered.Add(Actor->GetClass()->GetPathName(), &bAlreadyMet);
+	if (!bAlreadyMet)
+	{
+		UE_LOG(LogLooter, Log, TEXT("Bestiary: met %s for the first time"), *Actor->GetClass()->GetName());
+		Progression->ScheduleSave();
+	}
+}
+
+void UPlayerProgressionSubsystem::ForgetBestiary()
+{
+	if (SaveData)
+	{
+		SaveData->Encountered.Reset();
+		SaveData->Defeated.Reset();
+		SaveProgress();
+	}
+}
+
+bool UPlayerProgressionSubsystem::HasEncountered(const UClass* ActorType) const
+{
+	if (!SaveData || !ActorType)
+	{
+		return false;
+	}
+	// Met per exact class, so meeting a Blueprint child of a creature opens its parent's page too.
+	for (const FString& Kind : SaveData->Encountered)
+	{
+		const UClass* Met = FSoftClassPath(Kind).TryLoadClass<AActor>();
+		if (Met && Met->IsChildOf(ActorType))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 int32 UPlayerProgressionSubsystem::GetDefeated(const UClass* ActorType) const

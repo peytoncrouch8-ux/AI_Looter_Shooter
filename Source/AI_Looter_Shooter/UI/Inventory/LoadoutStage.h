@@ -51,7 +51,6 @@ struct FLoadoutStageGun
 	/** Key points in the gun's own space. */
 	FVector Grip = FVector::ZeroVector;
 	FVector Foregrip = FVector::ZeroVector;
-	FVector Muzzle = FVector::ZeroVector;
 	FVector Center = FVector::ZeroVector;
 };
 
@@ -85,9 +84,6 @@ public:
 
 	/** Where a world point shows in the picture, as 0..1 across and down. False when it's behind the camera. */
 	bool ProjectToImage(const FVector& WorldLocation, FVector2D& OutUV) const;
-
-	/** The point a callout from a slot points at: the middle of the gun in hand or at the hip, the top end of one on the back. */
-	bool GetSlotAnchor(int32 Slot, FVector& OutWorldLocation) const;
 
 	/** The floor under the stand-in's feet. */
 	FVector GetFloorCenter() const;

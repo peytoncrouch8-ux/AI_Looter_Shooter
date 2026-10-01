@@ -1,5 +1,6 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/LooterDamageTypes.h"
+#include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/World/DamageNumberActor.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -43,6 +44,8 @@ void UHealthComponent::HandleAnyDamage(AActor* DamagedActor, float Damage, const
 
 	const bool bCritical = DamageType && DamageType->IsA<UWeaponCritDamageType>();
 	LastDamageCauser = DamageCauser;
+	// Hurting something counts as meeting it (the bestiary's unknown pages); only the player's hits count.
+	UPlayerProgressionSubsystem::RecordEncounter(InstigatedBy, GetOwner());
 
 	if (!bInvulnerable)
 	{

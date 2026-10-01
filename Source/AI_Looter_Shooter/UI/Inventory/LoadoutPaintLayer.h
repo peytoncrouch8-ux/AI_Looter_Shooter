@@ -6,7 +6,7 @@
 
 class FSlateWindowElementList;
 
-/** A see-through layer that its owner draws lines and shapes on (the loadout screen's ring and callouts). */
+/** A see-through layer that its owner draws lines and shapes on (the inventory stands' rings). */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ULoadoutPaintLayer : public UWidget
 {

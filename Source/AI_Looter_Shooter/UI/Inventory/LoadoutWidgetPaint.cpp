@@ -42,7 +42,7 @@ using namespace LooterUI;
 using namespace LoadoutParts;
 
 // ---------------------------------------------------------------------------
-// The stand's ring and the callouts
+// The stand's ring
 // ---------------------------------------------------------------------------
 
 bool ULoadoutWidget::ProjectToPage(const FVector& WorldLocation, FVector2f& OutPoint) const
@@ -123,32 +123,8 @@ void ULoadoutWidget::PaintFront(const FGeometry& Geometry, FSlateWindowElementLi
 	}
 	auto Project = [this](const FVector& World, FVector2f& Out) { return ProjectToPage(World, Out); };
 
-	// The near halves of the rings, in front of the feet.
+	// The near halves of the rings, in front of the feet. (No lines from the slot cards to the guns: the user found them
+	// odd as the stand-in turns, 2026-10-01; each card's "In hand / On back / On hip" says where its gun is.)
 	DrawLines(Elements, LayerId, Geometry, RingArc(*StagePtr, OuterRingRadius, -90.f, 90.f, Project), Colors::Ring(), 2.f);
 	DrawLines(Elements, LayerId, Geometry, RingArc(*StagePtr, InnerRingRadius, -90.f, 90.f, Project), Colors::InnerRing(), 1.5f);
-
-	// Callouts: from each slot card, level to the elbow, then to where its gun is carried. The gun in hand's is orange.
-	const int32 ActiveSlot = GetActiveSlot();
-	for (int32 SlotIndex = 0; SlotIndex < SlotCards.Num(); ++SlotIndex)
-	{
-		FVector Anchor;
-		FVector2f End;
-		if (!StagePtr->GetSlotAnchor(SlotIndex, Anchor) || !ProjectToPage(Anchor, End))
-		{
-			continue;
-		}
-		const FGeometry& CardGeometry = SlotCards[SlotIndex].Button->GetCachedGeometry();
-		const FVector2f CardSize(CardGeometry.GetLocalSize());
-		if (CardSize.X <= 0.f)
-		{
-			continue;
-		}
-		const FVector2f Start(Geometry.AbsoluteToLocal(CardGeometry.LocalToAbsolute(FVector2f(CardSize.X, CardSize.Y * 0.5f))));
-		const bool bInHand = SlotIndex == ActiveSlot;
-		const FLinearColor LineColor = bInHand ? Color::Accent() : (SlotIndex == ChosenSlot ? Color::TileLine() : Colors::Callout());
-		DrawLines(Elements, LayerId, Geometry, { Start, FVector2f(CalloutElbowX, Start.Y), End }, LineColor, bInHand ? 2.f : 1.5f);
-		const float Radius = bInHand ? 6.f : 5.f;
-		DrawBox(Elements, LayerId + 1, Geometry, End - FVector2f(Radius), FVector2f(Radius * 2.f), &DotBrush,
-			bInHand ? Color::Accent() : Color::SegmentOn());
-	}
 }

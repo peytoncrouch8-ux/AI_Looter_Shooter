@@ -1,6 +1,7 @@
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/HUD/HudFrameRateWidget.h"
 #include "UI/HUD/HudMinimapWidget.h"
+#include "UI/HUD/HudPickupFeedWidget.h"
 #include "UI/HUD/HudXPBarWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
@@ -295,6 +296,12 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 		// Top-left: the frame rate, the same distance in from the corner as the minimap.
 		UHudFrameRateWidget* FrameRate = WidgetTree->ConstructWidget<UHudFrameRateWidget>(UHudFrameRateWidget::StaticClass());
 		PlaceOnCanvas(Root, FrameRate, FAnchors(0.f, 0.f), FVector2D(0.f, 0.f), FVector2D(UHudMinimapWidget::Margin, UHudMinimapWidget::Margin));
+
+		// Bottom-right, over the ammo count: what was just picked up, rising out of the corner.
+		UHudPickupFeedWidget* PickupFeed = WidgetTree->ConstructWidget<UHudPickupFeedWidget>(UHudPickupFeedWidget::StaticClass());
+		UCanvasPanelSlot* FeedSlot = PlaceOnCanvas(Root, PickupFeed, FAnchors(1.f, 1.f), FVector2D(1.f, 1.f), FVector2D(-44.f, -150.f));
+		FeedSlot->SetAutoSize(false);
+		FeedSlot->SetSize(FVector2D(UHudPickupFeedWidget::Width, UHudPickupFeedWidget::Height));
 
 		// Bottom-center: level and experience, its bar level with the health bar. Level-ups show in the message plate.
 		UHudXPBarWidget* XPBar = WidgetTree->ConstructWidget<UHudXPBarWidget>(UHudXPBarWidget::StaticClass());

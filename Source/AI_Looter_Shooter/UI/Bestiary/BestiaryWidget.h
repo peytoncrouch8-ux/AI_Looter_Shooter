@@ -31,6 +31,8 @@ class UVerticalBox;
  *  - middle: the chosen entry's model on a stand, turnable (drag it)
  *  - right: what it is, where it lives, its level, health, attack, experience and how many you've defeated, then a
  *    description and field notes
+ * Until the player has met one (been hunted by it, hurt it or defeated it), an entry reads "???" and its model stands as
+ * a dark silhouette.
  *  - bottom: what the keys do
  * W / S, the arrows or the D-pad choose an entry (so does the mouse); 1, the left shoulder or the Loadout tab go back to
  * the loadout; Esc, Tab and I close.
@@ -84,6 +86,8 @@ private:
 
 	const UBestiaryEntry* GetSelected() const;
 	int32 GetDefeated(const UBestiaryEntry& Entry) const;
+	/** The player has met one: its page is open. Until then it reads "???" and its model stands as a silhouette. */
+	bool IsKnown(const UBestiaryEntry& Entry) const;
 
 	TWeakObjectPtr<ALooterHUD> OwningHUD;
 	TWeakObjectPtr<ABestiaryStage> Stage;
@@ -106,6 +110,8 @@ private:
 	/** One per entry, by index into Entries. */
 	TArray<FCard> Cards;
 	int32 Selected = 0;
+	/** The chosen entry has been met (checked when the details are rebuilt, not every frame). */
+	bool bSelectedKnown = true;
 
 	bool bDragging = false;
 	/** Gamepad right stick, turning the model. */

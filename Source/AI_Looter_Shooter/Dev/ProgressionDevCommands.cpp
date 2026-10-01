@@ -77,6 +77,23 @@ namespace
 		LogProgress(TEXT("Looter.ResetProgress"), *Progression);
 	}
 
+	void ForgetBestiary(const TArray<FString>& Args, UWorld* World)
+	{
+		UPlayerProgressionSubsystem* Progression = FindProgression(World);
+		if (!Progression)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.ForgetBestiary: no player (start the game first)."));
+			return;
+		}
+		Progression->ForgetBestiary();
+		UE_LOG(LogLooter, Log, TEXT("Looter.ForgetBestiary: nothing met or defeated; every bestiary page reads ??? again."));
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs ForgetBestiaryCommand(
+		TEXT("Looter.ForgetBestiary"),
+		TEXT("Forgets every kind of creature or character met and defeated, so every bestiary page reads ??? again (level and experience stay)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ForgetBestiary));
+
 	FAutoConsoleCommandWithWorldAndArgs GiveXPCommand(
 		TEXT("Looter.GiveXP"),
 		TEXT("Gives the player experience (leveling up as it covers): Looter.GiveXP <amount>"),

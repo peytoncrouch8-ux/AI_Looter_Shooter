@@ -23,7 +23,7 @@ struct FWeaponInstanceData;
 
 /**
  * The inventory, as a loadout screen: your character stands in the middle, live and turnable (drag it), carrying your guns
- * where they are, in hand, on the back and at the hip, with a callout from each slot's card to its gun.
+ * where they are, in hand, on the back and at the hip.
  *  - left: EQUIPPED, one card per weapon slot, over the ammo you carry
  *  - right: the chosen slot's gun and its stats, over the backpack's guns to swap into that slot (the same kind of gun
  *    first, each marked as an upgrade or not)
@@ -102,7 +102,7 @@ private:
 
 	/** Behind the stand-in: the far half of the ring it stands on, its glow and the stand's pillars. */
 	void PaintBack(const FGeometry& Geometry, FSlateWindowElementList& Elements, int32 LayerId) const;
-	/** In front of it: the near half of the ring and a callout from each slot card to where its gun is carried. */
+	/** In front of it: the near half of the ring. */
 	void PaintFront(const FGeometry& Geometry, FSlateWindowElementList& Elements, int32 LayerId) const;
 	/** A point on the stand-in, in the paint layers' space (the page's). */
 	bool ProjectToPage(const FVector& WorldLocation, FVector2f& OutPoint) const;
@@ -152,6 +152,5 @@ private:
 	/** Gamepad right stick, turning the stand-in. */
 	float TurnInput = 0.f;
 
-	FSlateBrush DotBrush;
 	FSlateBrush DiscBrush;
 };

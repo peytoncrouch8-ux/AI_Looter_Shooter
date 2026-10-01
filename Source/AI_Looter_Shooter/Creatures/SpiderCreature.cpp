@@ -51,7 +51,7 @@ namespace
 ASpiderCreature::ASpiderCreature()
 {
 	DisplayName = FText::FromString(TEXT("Brown Spider"));
-	Health->MaxHealth = 150.f;
+	Health->MaxHealth = 300.f;
 	// The head is the critical spot; legs, thorax, abdomen, fangs and feelers take base damage.
 	CriticalSpotBones = { TEXT("head") };
 

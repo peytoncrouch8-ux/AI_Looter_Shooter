@@ -69,7 +69,7 @@ public:
 	/** Puts the player at the start of Level (testing). Fires OnXPChanged but not OnLevelUp: nothing was earned. */
 	void SetLevel(int32 Level);
 
-	/** Back to a new game: level 1, no experience, the tutorial not done, nothing defeated. */
+	/** Back to a new game: level 1, no experience, the tutorial not done, nothing met or defeated. */
 	void ResetProgress();
 
 	/** Whether the tutorial's prompts have been completed (or skipped); a new game starts without. */
@@ -90,6 +90,18 @@ public:
 
 	/** How many actors of this class (or classes derived from it) the player has defeated. */
 	int32 GetDefeated(const UClass* ActorType) const;
+
+	/**
+	 * Notes that the local player behind Player has met this actor's kind: it hunted them, they hurt it, or they
+	 * defeated it. Its bestiary page opens from then on. Nothing when Player isn't a local player.
+	 */
+	static void RecordEncounter(const AController* Player, const AActor* Actor);
+
+	/** The player has met an actor of this class (or a class derived from it). */
+	bool HasEncountered(const UClass* ActorType) const;
+
+	/** Forgets every kind met and defeated: every bestiary page reads "???" again (Looter.ForgetBestiary, for testing). */
+	void ForgetBestiary();
 
 	FOnPlayerXPChanged OnXPChanged;
 	FOnPlayerLevelUp OnLevelUp;

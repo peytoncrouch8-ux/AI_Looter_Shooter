@@ -6,7 +6,7 @@
 #include "SpiderCreature.generated.h"
 
 /**
- * Human-sized brown hunting spider (wolf-spider look, not a black widow). 150 health; the head is the critical spot
+ * Human-sized brown hunting spider (wolf-spider look, not a black widow). 300 health; the head is the critical spot
  * (x1.5 per the game-wide rule), and every other part takes base damage.
  *
  * The body is SK_Spider, made in Blender (Art/Models/Creatures/Spider.py), and its physics asset holds a hit zone

@@ -245,6 +245,8 @@ void ACreatureBase::UpdatePerception()
 	{
 		Target = Seen;
 		SetState(ECreatureState::Chase);
+		// Being hunted counts as meeting it: its bestiary page opens.
+		UPlayerProgressionSubsystem::RecordEncounter(Seen->GetController(), this);
 	}
 }
 
@@ -566,7 +568,7 @@ void ACreatureBase::UpdateHealthBar(float DeltaSeconds)
 		if (UCreatureHealthBarWidget* Bar = Cast<UCreatureHealthBarWidget>(HealthBar->GetUserWidgetObject()))
 		{
 			Bar->SetCreature(DisplayName, Level);
-			Bar->SetHealthFraction(Health->GetHealthPercent());
+			Bar->SetHealth(Health->GetHealth(), Health->GetMaxHealth());
 		}
 	}
 }

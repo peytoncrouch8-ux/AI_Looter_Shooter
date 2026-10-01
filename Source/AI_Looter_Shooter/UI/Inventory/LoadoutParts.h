@@ -35,8 +35,6 @@ namespace LoadoutParts
 	inline constexpr float RightX = 1110.f;
 	inline constexpr float RightWidth = 430.f;
 	inline constexpr float ColumnTop = 150.f;
-	/** Callouts leave a slot card level, and turn toward the gun here. */
-	inline constexpr float CalloutElbowX = 600.f;
 	inline constexpr float SlotCardHeight = 140.f;
 	inline constexpr float ListCardHeight = 61.f;
 	/** Room above each slot card; the SELECTED chip straddles the card's top edge in it. */
@@ -58,7 +56,6 @@ namespace LoadoutParts
 		inline FLinearColor InHandCursor() { return LooterUI::Hex(74, 47, 10, 240); }
 		inline FLinearColor PickedFill() { return LooterUI::Hex(255, 159, 28, 72); }
 		inline FLinearColor CardLine() { return LooterUI::Hex(90, 200, 255, 89); }
-		inline FLinearColor Callout() { return LooterUI::Hex(90, 200, 255, 153); }
 		inline FLinearColor Ring() { return LooterUI::Hex(92, 202, 255, 191); }
 		inline FLinearColor InnerRing() { return LooterUI::Hex(92, 202, 255, 115); }
 		inline FLinearColor RingGlow() { return LooterUI::Hex(92, 202, 255, 30); }

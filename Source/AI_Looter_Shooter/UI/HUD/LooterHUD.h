@@ -69,6 +69,10 @@ private:
 	/** Gives input back to the game after closing a menu. */
 	void RestoreGameInput();
 
+	/** Shows or hides the labels drawn over the world (creature tags, loot labels, damage numbers), which sit over menus. */
+	void SetWorldLabelsVisible(bool bVisible);
+	bool bWorldLabelsVisible = true;
+
 	/** Puts the current inventory page on screen with the keyboard on it. False when it can't open (no player). */
 	bool OpenInventoryPage();
 	UUserWidget* GetInventoryPageWidget() const;

@@ -95,10 +95,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   maximum level.
 - `Progression/ProgressionSettings`: `UProgressionSettings`, the curve's numbers in Project Settings > Game > Progression
   (`DefaultGame.ini`).
-- `Progression/LooterProgressSave.h`: `ULooterProgressSave`, the player's level, experience and defeat counts in the
+- `Progression/LooterProgressSave.h`: `ULooterProgressSave`, the player's level, experience, kinds met and defeat counts in the
   "PlayerProgress" save slot.
 - `Progression/PlayerProgressionSubsystem`: `UPlayerProgressionSubsystem`, the player's level and experience (adding,
-  saving, level-up events), the experience a kill gives, and how many of each kind the player has defeated.
+  saving, level-up events), the experience a kill gives, and which kinds the player has met and how many defeated.
 
 ## World
 - `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime, trees as crowns.
@@ -125,6 +125,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/HUD/TutorialPromptWidget`: the tutorial's current instruction near the top of the screen.
 - `UI/HUD/HudXPBarWidget`: the level and experience bar at the bottom center.
 - `UI/HUD/HudFrameRateWidget`: the frame rate counter in the top-left corner.
+- `UI/HUD/HudPickupFeedWidget`: ammo pickups over the ammo count, in big outlined white type that stacks, rises and fades.
 - `UI/Menus/PauseMenuWidget`: the pause and settings menu (graphics, interface, key bindings).
 - `UI/Inventory/LoadoutWidget.cpp`: the loadout screen: opening, layout and contents.
 - `UI/Inventory/LoadoutWidgetInput.cpp`: its cursor, actions (swap, hold, drop) and turning the stand-in.
@@ -142,13 +143,15 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/Bestiary/BestiaryWidget.h`: the bestiary's declaration.
 - `UI/Bestiary/BestiaryStage`: `ABestiaryStage`, the off-screen stand that shows an entry's model, framed to its size.
 - `UI/World/WeaponLabelWidget`: the label over loot guns.
-- `UI/World/CreatureHealthBarWidget`: the tag over a hurt or hunting creature: floating level and name over a slim bar.
+- `UI/World/CreatureHealthBarWidget`: the tag over a hurt or hunting creature: floating level and name over a slim bar
+  of fixed width, divided every 100 health.
 - `UI/World/DamageNumberActor`, `UI/World/DamageNumberWidget`: floating damage numbers.
 
 ## Dev
 - `Dev/WeaponDevCommands.cpp`: console commands for testing (`Looter.GiveWeapon`).
 - `Dev/ProgressionDevCommands.cpp`: console commands for levels (`Looter.GiveXP`, `Looter.SetLevel`,
-  `Looter.ResetProgress`).
+  `Looter.ResetProgress`) and the bestiary (`Looter.ForgetBestiary`).
+- `Dev/CreatureDevCommands.cpp`: `Looter.CreatureHealth`, gives the nearest creatures chosen health (to compare their bars).
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`).
 
 ## Tests (run with `Tools\runtests.ps1`)

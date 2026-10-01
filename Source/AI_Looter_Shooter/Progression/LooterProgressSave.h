@@ -15,8 +15,11 @@ class AI_LOOTER_SHOOTER_API ULooterProgressSave : public USaveGame
 	GENERATED_BODY()
 
 public:
-	/** 2: defeat counts for the bestiary (older saves start them at 0). */
-	static constexpr int32 CurrentVersion = 2;
+	/**
+	 * 2: defeat counts for the bestiary (older saves start them at 0).
+	 * 3: kinds met, for the bestiary's unknown pages (older saves have met whatever they defeated).
+	 */
+	static constexpr int32 CurrentVersion = 3;
 
 	/** 0 for a save written before versions existed; new saves get CurrentVersion. */
 	UPROPERTY()
@@ -36,4 +39,8 @@ public:
 	/** How many of each kind of actor the player has defeated, by class path (the bestiary's counts). */
 	UPROPERTY()
 	TMap<FString, int32> Defeated;
+
+	/** Every kind of actor the player has met (been hunted by, hurt or defeated), by class path: its bestiary page is open. */
+	UPROPERTY()
+	TSet<FString> Encountered;
 };

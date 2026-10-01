@@ -7,11 +7,13 @@
 #include "Inventory/WeaponManagerComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "EnhancedInputComponent.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Slate/SGameLayerManager.h"
 
 namespace
 {
@@ -87,6 +89,28 @@ void ALooterHUD::Tick(float DeltaSeconds)
 
 	const bool bHideHUD = bInventoryOpen || bPauseMenuOpen;
 	HUDWidget->SetVisibility(bHideHUD ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	SetWorldLabelsVisible(!bHideHUD);
+}
+
+void ALooterHUD::SetWorldLabelsVisible(bool bVisible)
+{
+	if (bWorldLabelsVisible == bVisible)
+	{
+		return;
+	}
+	// Creature tags, loot labels and damage numbers are widget components drawn in screen space: the engine puts them on
+	// one layer of their own, in front of every menu. A menu covers the game, so the layer goes with it. The layer only
+	// exists once the first of them has been shown; until then there's nothing to hide (and this tries again).
+	APlayerController* PC = GetOwningPlayerController();
+	ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
+	const UGameViewportClient* Viewport = LocalPlayer ? LocalPlayer->ViewportClient.Get() : nullptr;
+	const TSharedPtr<IGameLayerManager> LayerManager = Viewport ? Viewport->GetGameLayerManager() : nullptr;
+	const TSharedPtr<IGameLayer> Layer = LayerManager.IsValid() ? LayerManager->FindLayerForPlayer(LocalPlayer, TEXT("WidgetComponentScreenLayer")) : nullptr;
+	if (Layer.IsValid())
+	{
+		Layer->AsWidget()->SetVisibility(bVisible ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed);
+		bWorldLabelsVisible = bVisible;
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -238,6 +262,8 @@ void ALooterHUD::OpenPauseMenu()
 
 	UGameplayStatics::SetGamePaused(this, true);
 	bPauseMenuOpen = true;
+	// The HUD doesn't tick while the game is paused, so the world's labels go now (Tick brings them back after).
+	SetWorldLabelsVisible(false);
 }
 
 void ALooterHUD::ClosePauseMenu()

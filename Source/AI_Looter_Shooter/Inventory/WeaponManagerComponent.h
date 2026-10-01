@@ -20,6 +20,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWeaponInventoryChanged);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFocusedPickupChanged, AWeaponBase*, FocusedPickup);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWeaponMessage, const FText&, Message);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAmmoPoolChanged, EAmmoType, Type, int32, Carried);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAmmoPickedUp, EAmmoType, Type, int32, Amount);
 
 USTRUCT(BlueprintType)
 struct FStartingWeapon
@@ -149,6 +150,10 @@ public:
 	/** Carried ammo of a class changed (pickups, reloads). */
 	UPROPERTY(BlueprintAssignable, Category = "Weapons|Ammo")
 	FOnAmmoPoolChanged OnAmmoChanged;
+
+	/** An ammo box gave the player Amount rounds (the HUD's pickup feed); Amount is 0 when that class was already full. */
+	UPROPERTY(BlueprintAssignable, Category = "Weapons|Ammo")
+	FOnAmmoPickedUp OnAmmoPickedUp;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Inventory", meta = (ClampMin = "0"))
 	int32 BackpackCapacity = 12;

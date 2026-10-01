@@ -1,6 +1,8 @@
 #include "UI/World/CreatureHealthBarWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
@@ -21,6 +23,15 @@ namespace
 	/** How long the chip of lost health stays before it drains, and how fast it drains (bar lengths per second). */
 	constexpr float ChipHold = 0.4f;
 	constexpr float ChipDrainRate = 0.8f;
+
+	/**
+	 * A divider: a thin dark cut through the bar, 2 px where they're far apart and down to 1 px where they crowd, so a
+	 * tough creature's bar stays mostly red. Dividers never come closer than MinDividerSpacing pixels.
+	 */
+	constexpr float MaxDividerWidth = 2.f;
+	constexpr float MinDividerWidth = 1.f;
+	constexpr float MinDividerSpacing = 4.f;
+	const FLinearColor DividerColor(0.f, 0.01f, 0.02f, 0.9f);
 
 	USizeBox* MakeFill(UWidgetTree* Tree, UOverlay* Bar, const FLinearColor& FillColor)
 	{
@@ -56,6 +67,10 @@ TSharedRef<SWidget> UCreatureHealthBarWidget::RebuildWidget()
 		FillOverlaySlot(Bar->AddChildToOverlay(Track));
 		ChipFill = MakeFill(WidgetTree, Bar, FLinearColor(1.f, 0.82f, 0.72f, 0.85f));
 		HealthFill = MakeFill(WidgetTree, Bar, Color::Health());
+		// The dividers lie over everything, leaning with the bar.
+		Dividers = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
+		FillOverlaySlot(Bar->AddChildToOverlay(Dividers));
+		RebuildDividers();
 		USizeBox* BarSize = MakeSized(WidgetTree, Bar, BarWidth, BarHeight);
 		BarSize->SetRenderShear(FVector2D(BarSlant, 0.f));
 		UVerticalBoxSlot* BarSlot = Box->AddChildToVerticalBox(BarSize);
@@ -88,9 +103,52 @@ void UCreatureHealthBarWidget::ApplyLabel()
 	}
 }
 
-void UCreatureHealthBarWidget::SetHealthFraction(float InFraction)
+TArray<float> UCreatureHealthBarWidget::DividerPositions(float MaxHealth)
 {
-	const float NewFraction = FMath::Clamp(InFraction, 0.f, 1.f);
+	TArray<float> Positions;
+	if (MaxHealth <= HealthPerDivider)
+	{
+		return Positions;
+	}
+	float Step = HealthPerDivider;
+	while (BarWidth * Step / MaxHealth < MinDividerSpacing)
+	{
+		Step *= 10.f;
+	}
+	// No line on the bar's end: 300 health is three parts, two lines.
+	for (float At = Step; At < MaxHealth - 0.5f; At += Step)
+	{
+		Positions.Add(At / MaxHealth);
+	}
+	return Positions;
+}
+
+void UCreatureHealthBarWidget::RebuildDividers()
+{
+	if (!Dividers)
+	{
+		return;
+	}
+	Dividers->ClearChildren();
+	const TArray<float> Positions = DividerPositions(ShownMaxHealth);
+	const float Spacing = Positions.IsEmpty() ? BarWidth : BarWidth * Positions[0];
+	const float Width = FMath::Clamp(Spacing * 0.15f, MinDividerWidth, MaxDividerWidth);
+	for (const float Position : Positions)
+	{
+		UCanvasPanelSlot* LineSlot = Dividers->AddChildToCanvas(MakeImage(WidgetTree, RectBrush(DividerColor)));
+		LineSlot->SetPosition(FVector2D(BarWidth * Position - Width * 0.5f, 0.f));
+		LineSlot->SetSize(FVector2D(Width, BarHeight));
+	}
+}
+
+void UCreatureHealthBarWidget::SetHealth(float Health, float MaxHealth)
+{
+	if (!FMath::IsNearlyEqual(MaxHealth, ShownMaxHealth))
+	{
+		ShownMaxHealth = MaxHealth;
+		RebuildDividers();
+	}
+	const float NewFraction = MaxHealth > 0.f ? FMath::Clamp(Health / MaxHealth, 0.f, 1.f) : 0.f;
 	if (FMath::IsNearlyEqual(NewFraction, Fraction))
 	{
 		return;

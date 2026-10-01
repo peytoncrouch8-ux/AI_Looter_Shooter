@@ -166,14 +166,15 @@ void AAmmoPickup::TryCollect()
 		if (Taken > 0)
 		{
 			Amount -= Taken;
-			Inventory->OnMessage.Broadcast(FText::FromString(FString::Printf(TEXT("+%d %s"), Taken, Info.Name)));
+			// Shown in the HUD's pickup feed, not its message plate.
+			Inventory->OnAmmoPickedUp.Broadcast(AmmoType, Taken);
 			UE_LOG(LogLooter, Verbose, TEXT("%s picked up %d %s (now %d / %d, %d left in the box)"), *Pawn->GetName(), Taken, Info.Name,
 				Inventory->GetAmmo(AmmoType), Inventory->GetMaxAmmo(AmmoType), Amount);
 		}
 		else if (!ToldFull.Contains(Actor))
 		{
 			ToldFull.Add(Actor);
-			Inventory->OnMessage.Broadcast(FText::FromString(FString::Printf(TEXT("%s full"), Info.Name)));
+			Inventory->OnAmmoPickedUp.Broadcast(AmmoType, 0);
 		}
 
 		if (Amount <= 0)

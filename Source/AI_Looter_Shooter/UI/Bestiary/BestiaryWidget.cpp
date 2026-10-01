@@ -36,6 +36,10 @@ namespace
 {
 	const FName ActionEntry(TEXT("Entry"));
 
+	/** The stand's brightness for something not met yet: a near-black silhouette with just a hint of its shape. */
+	constexpr float SilhouetteExposure = 0.02f;
+	const TCHAR* const Unknown = TEXT("???");
+
 	constexpr float ColumnHeight = 690.f;
 
 	const EBestiaryCategory Sections[] = { EBestiaryCategory::Creature, EBestiaryCategory::Enemy, EBestiaryCategory::NPC, EBestiaryCategory::Friend };
@@ -157,7 +161,8 @@ void UBestiaryWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	}
 	if (StageMaterial)
 	{
-		StageMaterial->SetScalarParameterValue(TEXT("Exposure"), StagePtr->GetExposure());
+		// Something not met yet stands as a dark silhouette: the picture's brightness all but off, its outline kept.
+		StageMaterial->SetScalarParameterValue(TEXT("Exposure"), bSelectedKnown ? StagePtr->GetExposure() : SilhouetteExposure);
 	}
 }
 
@@ -351,11 +356,13 @@ UBestiaryWidget::FCard UBestiaryWidget::MakeEntryCard(int32 Index)
 	const FBestiaryStats Stats = Entry.ReadStats();
 	UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 
-	// The name over what it is and its level.
+	// The name over what it is and its level; "???" until the player has met one.
+	const bool bKnown = IsKnown(Entry);
 	UVerticalBox* Text = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	Text->AddChildToVerticalBox(FittedLabel(WidgetTree, Entry.DisplayName.ToString(), 10, Color::Text(), 50));
-	FString Sub = Entry.Kind.ToString();
-	if (Stats.Level > 0)
+	Text->AddChildToVerticalBox(FittedLabel(WidgetTree, bKnown ? Entry.DisplayName.ToString() : FString(Unknown), 10,
+		bKnown ? Color::Text() : Color::TextDim(), 50));
+	FString Sub = bKnown ? Entry.Kind.ToString() : FString(TEXT("Not met yet"));
+	if (bKnown && Stats.Level > 0)
 	{
 		Sub += FString::Printf(TEXT("%sLv %d"), Sub.IsEmpty() ? TEXT("") : TEXT(" · "), Stats.Level);
 	}
@@ -435,15 +442,19 @@ void UBestiaryWidget::RefreshDetails()
 		return;
 	}
 
-	const FString Kind = Entry->Kind.ToString();
+	// Not met yet: only its section is known, and the page says how to fill it in.
+	const bool bKnown = IsKnown(*Entry);
+	bSelectedKnown = bKnown;
+	const FString Kind = bKnown ? Entry->Kind.ToString() : FString();
 	DetailsHeader->SetText(FText::FromString((Kind.IsEmpty() ? CategoryWord(Entry->Category) : CategoryWord(Entry->Category) + TEXT(" · ") + Kind).ToUpper()));
 
-	UTextBlock* NameText = Label(WidgetTree, Entry->DisplayName.ToString(), 17, Color::Text(), 40);
+	UTextBlock* NameText = Label(WidgetTree, bKnown ? Entry->DisplayName.ToString() : FString(Unknown), 17, bKnown ? Color::Text() : Color::TextDim(), 40);
 	NameText->SetAutoWrapText(true);
 	DetailsBox->AddChildToVerticalBox(NameText);
-	if (!Entry->Habitat.IsEmpty())
+	const FString Habitat = bKnown ? Entry->Habitat.ToString() : FString(TEXT("Not met yet"));
+	if (!Habitat.IsEmpty())
 	{
-		DetailsBox->AddChildToVerticalBox(Label(WidgetTree, Entry->Habitat.ToString(), 9, Color::TextDim(), 140))->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
+		DetailsBox->AddChildToVerticalBox(Label(WidgetTree, Habitat, 9, Color::TextDim(), 140))->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
 	}
 
 	// The numbers, read from the actor itself.
@@ -460,6 +471,19 @@ void UBestiaryWidget::RefreshDetails()
 		DetailsBox->AddChildToVerticalBox(MakeSized(WidgetTree, Line, 0.f, 24.f))->SetPadding(FMargin(0.f, 2.f));
 	};
 	DetailsBox->AddChildToVerticalBox(MakeSized(WidgetTree, nullptr, 0.f, 8.f));
+	if (!bKnown)
+	{
+		for (const TCHAR* StatName : { TEXT("Level"), TEXT("Health"), TEXT("Attack"), TEXT("Experience") })
+		{
+			AddStat(StatName, Unknown, false);
+		}
+		AddStat(TEXT("Defeated"), TEXT("0"), false);
+		UTextBlock* Help = MakeText(WidgetTree, TEXT("You haven't met one yet. Find it out in the world, or let it find you, to fill in this page."),
+			10, Color::TextDim());
+		Help->SetAutoWrapText(true);
+		NotesBox->AddChildToVerticalBox(Help);
+		return;
+	}
 	if (Stats.Level > 0)
 	{
 		AddStat(TEXT("Level"), FString::FromInt(Stats.Level), true);
@@ -530,6 +554,15 @@ void UBestiaryWidget::RefreshPrompts()
 const UBestiaryEntry* UBestiaryWidget::GetSelected() const
 {
 	return Entries.IsValidIndex(Selected) ? Entries[Selected].Get() : nullptr;
+}
+
+bool UBestiaryWidget::IsKnown(const UBestiaryEntry& Entry) const
+{
+	// A page about no actor in particular has nothing to meet, so it's always open.
+	const UClass* ActorType = Entry.ActorClass.LoadSynchronous();
+	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
+	const UPlayerProgressionSubsystem* Progression = LocalPlayer ? LocalPlayer->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
+	return !ActorType || !Progression || Progression->HasEncountered(ActorType);
 }
 
 int32 UBestiaryWidget::GetDefeated(const UBestiaryEntry& Entry) const

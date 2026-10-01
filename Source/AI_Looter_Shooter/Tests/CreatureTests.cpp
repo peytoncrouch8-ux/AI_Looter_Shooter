@@ -6,6 +6,7 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/TargetDummy.h"
 #include "Creatures/SpiderCreature.h"
+#include "UI/World/CreatureHealthBarWidget.h"
 #include "AnimationRuntime.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -123,7 +124,7 @@ bool FSpiderCriticalSpotTest::RunTest(const FString& Parameters)
 	}
 	if (TestNotNull(TEXT("Spider has health"), Health))
 	{
-		TestEqual(TEXT("Spider max health"), Health->MaxHealth, 150.f);
+		TestEqual(TEXT("Spider max health"), Health->MaxHealth, 300.f);
 	}
 	return true;
 }
@@ -259,6 +260,43 @@ bool FSpiderShotsTest::RunTest(const FString& Parameters)
 			TestEqual(FString::Printf(TEXT("%s: critical"), Shot.What), Spider->IsCriticalSpot(Hit), Shot.bCritical);
 		}
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCreatureHealthBarDividersTest, "Looter.Creatures.HealthBarDividers",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FCreatureHealthBarDividersTest::RunTest(const FString& Parameters)
+{
+	// A creature's bar is the same length whatever its health; a line divides it every 100 health, so more health means
+	// more lines, closer together.
+	using UBar = UCreatureHealthBarWidget;
+	TestEqual(TEXT("100 health: one part, no lines"), UBar::DividerPositions(100.f).Num(), 0);
+	const TArray<float> Spider = UBar::DividerPositions(300.f);
+	if (TestEqual(TEXT("300 health: three parts, two lines"), Spider.Num(), 2))
+	{
+		TestNearlyEqual(TEXT("First line a third of the way"), Spider[0], 1.f / 3.f, 0.001f);
+		TestNearlyEqual(TEXT("Second line two thirds of the way"), Spider[1], 2.f / 3.f, 0.001f);
+	}
+	const TArray<float> Odd = UBar::DividerPositions(150.f);
+	TestTrue(TEXT("150 health: a line at 100, a short last part"), Odd.Num() == 1 && FMath::IsNearlyEqual(Odd[0], 100.f / 150.f, 0.001f));
+
+	for (const float Health : { 300.f, 600.f, 1000.f, 2500.f })
+	{
+		const TArray<float> Lines = UBar::DividerPositions(Health);
+		TestEqual(FString::Printf(TEXT("%.0f health: a line every 100"), Health), Lines.Num(), FMath::CeilToInt(Health / 100.f) - 1);
+		for (int32 Index = 0; Index < Lines.Num(); ++Index)
+		{
+			// Evenly spread across the same bar: the k-th line at k x 100 / health of its length.
+			TestNearlyEqual(TEXT("Line on its 100"), Lines[Index], (Index + 1) * 100.f / Health, 0.001f);
+		}
+	}
+
+	// So much health that lines every 100 would blur into one: one every 1000 (or 10000, ...) instead, never closer than
+	// a few pixels on the bar.
+	const TArray<float> Boss = UBar::DividerPositions(100000.f);
+	TestTrue(TEXT("Huge health: lines still apart"), Boss.Num() > 0 && Boss[0] * UBar::BarWidth >= 4.f);
+	TestTrue(TEXT("Huge health: on round thousands"), Boss.Num() > 0 && FMath::IsNearlyEqual(FMath::Fmod(Boss[0] * 100000.f, 1000.f), 0.f, 0.5f));
 	return true;
 }
 

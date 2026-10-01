@@ -19,6 +19,7 @@ class UWeaponManagerComponent;
  *    underneath in its rarity color, and slot pips
  *  - top-right: the minimap (UHudMinimapWidget)
  *  - top-left: the frame rate (UHudFrameRateWidget)
+ *  - bottom-right, over the ammo: the ammo pickup feed (UHudPickupFeedWidget)
  *  - bottom-center: the level and experience bar (UHudXPBarWidget)
  *  - center: thin tick crosshair sized by the weapon's spread, diagonal hit marker
  * No backing panels; both corner clusters fade back when nothing is happening and come forward on

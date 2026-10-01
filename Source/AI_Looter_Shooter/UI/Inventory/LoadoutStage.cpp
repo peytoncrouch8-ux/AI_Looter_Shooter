@@ -179,7 +179,6 @@ void ALoadoutStage::BuildGun(FLoadoutStageGun& Gun, const FWeaponInstanceData& I
 	Gun.Model = Model;
 	Gun.Grip = Model->GetGrip();
 	Gun.Foregrip = Model->GetForegrip();
-	Gun.Muzzle = Model->GetMuzzle();
 	Gun.Center = Model->GetCenter();
 }
 
@@ -316,39 +315,6 @@ void ALoadoutStage::PlaceGuns()
 bool ALoadoutStage::ProjectToImage(const FVector& WorldLocation, FVector2D& OutUV) const
 {
 	return StageStudio::ProjectToImage(Capture, ImageWidth, ImageHeight, WorldLocation, OutUV);
-}
-
-bool ALoadoutStage::GetSlotAnchor(int32 Slot, FVector& OutWorldLocation) const
-{
-	if (!Guns.IsValidIndex(Slot) || !Guns[Slot].Model || Guns[Slot].Carry == ELoadoutCarry::None)
-	{
-		return false;
-	}
-	const FLoadoutStageGun& Gun = Guns[Slot];
-	const FTransform& GunTransform = Gun.Model->GetComponentTransform();
-	OutWorldLocation = GunTransform.TransformPosition(Gun.Center);
-	FVector2D Spine;
-	if (Gun.Carry != ELoadoutCarry::Back || !ProjectToImage(Body->GetBoneLocation(BackBone), Spine))
-	{
-		return true;
-	}
-
-	// A gun on the back only shows past the body at one end, which one depends on how the stand-in is turned: point at the
-	// end that sticks out sideways furthest (the muzzle end when it's a tie, as that one shows over the shoulder).
-	double Furthest = -1.0;
-	const FVector Ends[] = { FMath::Lerp(Gun.Center, Gun.Muzzle, 0.85), FMath::Lerp(Gun.Center, Gun.Center * 2.0 - Gun.Muzzle, 0.85) };
-	for (const FVector& End : Ends)
-	{
-		const FVector World = GunTransform.TransformPosition(End);
-		FVector2D Point;
-		const double Sideways = ProjectToImage(World, Point) ? FMath::Abs(Point.X - Spine.X) : -1.0;
-		if (Sideways > Furthest + 0.01)
-		{
-			Furthest = Sideways;
-			OutWorldLocation = World;
-		}
-	}
-	return true;
 }
 
 FVector ALoadoutStage::GetFloorCenter() const

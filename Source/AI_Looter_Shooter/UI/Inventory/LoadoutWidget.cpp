@@ -180,7 +180,7 @@ TSharedRef<SWidget> ULoadoutWidget::RebuildWidget()
 			}
 		};
 
-		// The stand: the far half of its ring behind the stand-in, the picture, then the near half and the callouts.
+		// The stand: the far half of its ring behind the stand-in, the picture, then the near half.
 		BackLayer = WidgetTree->ConstructWidget<ULoadoutPaintLayer>(ULoadoutPaintLayer::StaticClass());
 		BackLayer->SetPainter([this](const FGeometry& Geometry, FSlateWindowElementList& Elements, int32 LayerId) { PaintBack(Geometry, Elements, LayerId); });
 		BackLayer->SetVisibility(ESlateVisibility::HitTestInvisible);
@@ -262,7 +262,6 @@ TSharedRef<SWidget> ULoadoutWidget::RebuildWidget()
 		PromptBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		Place(PromptBar, FVector2D(800.f, 852.f), FVector2D::ZeroVector, FVector2D(0.5f, 0.f));
 
-		DotBrush = CircleBrush(FLinearColor::White);
 		DiscBrush = IconBrush(TEXT("LoadoutDisc"), DiscIcon(), 2.f, FVector2D(64.f, 64.f), FLinearColor::White);
 
 		// Opened before it was first shown: the picture and contents can go in now.
