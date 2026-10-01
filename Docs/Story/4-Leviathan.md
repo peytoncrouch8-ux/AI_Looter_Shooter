@@ -38,8 +38,8 @@ afternoon. A cup of water on the sill trembles, all by itself.
 - **The Listeners** were the old priests who could hear titan-song and guide the beasts. Their order is all but gone;
   their monasteries are ruins.
 - **The Spear** began as whalers, harvesting amber from dead titans. Forty-five years ago, a titan named **Bellwether**
-  woke beneath the city of **Harrowgate** and rolled over. Ten thousand people fell. Since then the Spear has been a
-  crusade: kill every titan before it wakes, even if people live on its back. *A quick fall is a mercy next to a
+  woke beneath the city of **Harrowgate** and rolled over. Ten thousand people fell. Since Ysolde took command, the Spear
+  has been a crusade: kill every titan before it wakes, even if people live on its back. *A quick fall is a mercy next to a
   waking.*
 - **The secret.** The titans are waking because **the Migration** has come. Once every few centuries they travel to the
   **Calving Grounds** at the edge of the sky to give birth and to die. A titan that wakes gently keeps its back level
@@ -237,7 +237,7 @@ Sloane.
 
 | System | In this story |
 |---|---|
-| Falling off an island | Biscuit dives after Sloane and floats them back up (before Act I's end, the usual recovery) |
+| Falling off an island | Biscuit dives after Sloane and floats them back up |
 | Death and respawn | The titans' song carries Sloane back to the last Listener stone |
 | Loot beams | Amber flaring in a freed gun |
 | Bestiary | Dr. Quist's *Field Guide to the Living Sky*: scholarly, opinionated, full of exclamation marks |

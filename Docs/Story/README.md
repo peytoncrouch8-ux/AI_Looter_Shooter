@@ -8,8 +8,8 @@ Every file has the same shape, so they're easy to compare:
 - how Skyreach's tutorial plays in that story;
 - the areas with level bands, and the plot in three acts with its ending;
 - sample side quests;
-- the loot fiction (who makes the guns, what rarity and the beams are, the chests, elements, five legendaries);
-- how the game's own systems (respawn, falling, the HUD, the bestiary, levels) are explained in the fiction;
+- the loot fiction (who makes the guns, what rarity and the beams are, the chests, elements, and the legendaries);
+- how the game's own systems (respawn, falling, the bestiary, levels and, in most, the HUD) are explained in the fiction;
 - the endgame, the signature moments, production notes, and why to pick it.
 
 To skim, read the table below, then the *Cold open* and *Plot* of the ones that catch your eye.
@@ -25,16 +25,16 @@ To skim, read the table below, then the *Cold open* and *Plot* of the ones that 
 | 5 | [Warden](5-Warden.md) | Sci-fi mystery | Ward, a synthetic who thinks they're human | The Marshal, then Chairwoman Lucienne Adair | The frontier is a museum, and its owners are waking up | The green surface as a new frontier |
 | 6 | [Below](6-Below.md) | Cosmic-horror descent | Low Fenn, a salvage diver | Father Quaile and the Sounding; the Fathom | Everything that fell is coming back up, including your mother | Dives: endless descents into the clouds |
 | 7 | [The Long Dusk](7-TheLongDusk.md) | Mythic fable | Wren Tolliver, who bears a cinder of the sun | Saint Corvina, who caged the sun | The sun is a lamp at the top of the sky, and it's going out | The Stair Unending: a procedural climb |
-| 8 | [Boomtown](8-Boomtown.md) | Comedy | Sunny Pickett, a farmhand heir | Mortimer Vandersloot, the Gun King | A legendary gunsmith hid her twelve masterpieces in her will | Craft your own masterpieces; proving grounds |
+| 8 | [Boomtown](8-Boomtown.md) | Comedy | Sunny Pickett, a farmhand heir | Mortimer Vandersloot, the Gun King | A legendary gunsmith hid twelve masterpieces across the sky and left a will | Craft your own masterpieces; proving grounds |
 
 ## What every story keeps
 
 The game that's built is canon, and all eight respect it:
 - **Skyreach** ("Welcome to Skyreach"): the farmstead spawn and orchard, the village crossroads with the gun rack, the
   target meadow under the windmill, the creek, pond and footbridge, the waterfall off the rim, the spider grove, and
-  the plateau with the ruined lookout facing the other islands. The tutorial's six steps play as built in every story;
-  only the words change (Warden also hides the HUD until the range). Each story ends the tutorial at the lookout with
-  its inciting incident.
+  the plateau with the ruined lookout facing the other islands. The tutorial's six steps keep their goals in every
+  story; the words, a few props and the lookout scene change. Each story ends the tutorial at the lookout with its
+  inciting incident. Three stage it at dusk, which needs a dusk lighting version of the island.
 - **The look**: rustic, harsh, lived-in frontier in stylized realism.
 - **The loot**: guns built from parts, five rarities with colored beams, shared ammo pools, elements to come. Every
   story explains in its own fiction why guns come in parts and what the beams are.
@@ -42,10 +42,10 @@ The game that's built is canon, and all eight respect it:
   runes and floating crystal. Every story gives the Reliquary a meaning, and in most it's central to the plot.
 - **The creature concepts**: the Meadow Wolf (your pick), MossBack, Cliff Huntsman, Ember Tarantula and Sky Jumper.
   Every story uses all five as regional variants.
-- **The gun designs**: the Kestrel bullpup and the Ranchhand shotgun, with Homestead, Regulator, Scrapjack, Zephyr,
-  Farmhand, Coachman, Breacher and Thunderdrum as makers or legendary bases.
-- **The bestiary's sections**: Creatures, Enemies, NPCs and Friends. Every cast table says which section each
-  character belongs in.
+- **The gun designs**: the concept names (Kestrel, Homestead, Regulator, Scrapjack, Zephyr, Coachman, Breacher and
+  Thunderdrum) become the gun makers in each story's loot section.
+- **The bestiary's sections**: Creatures, Enemies, NPCs and Friends. The cast tables say which section each character
+  would go in.
 - **Level 70**: each campaign ends near level 50 and the post-game climbs to the cap.
 
 ## Side by side
@@ -64,7 +64,7 @@ The game that's built is canon, and all eight respect it:
 ## My recommendation
 
 **If I had to pick one: Revenant.**
-- It's built like a looter shooter. Seven names on a list from the first hour, and each one is an island, a boss and a
+- It's built like a looter shooter. Seven names on a list from the first hour, and each one is a place, a boss and a
   legendary. The player always knows what's next and why.
 - It fits the art you've built. It's a western, and its supernatural layer (the Unpaid, Grave Sight) adds a whole
   enemy family without a second art kit.
@@ -94,10 +94,10 @@ systems. **The Long Dusk** gets the most visual variety for the least art.
 
 ## Ideas that work in any of them
 
-- **Re-skin the tutorial.** The six steps stay as built; only their prompt text changes, and the lookout gets the
-  inciting incident.
-- **A hub that changes.** Every story damages, darkens or transforms Skyreach at the end of Act II (burned, sunk, dusk,
-  occupied, sailing). Those can be swappable versions of the same level.
+- **Re-skin the tutorial.** The six steps keep their goals; their prompt text and a few props change, and the lookout
+  gets the inciting incident.
+- **A hub that changes.** Five of the eight change Skyreach late in the story: it burns and sinks, wakes, goes dark, is
+  raided, or sets sail. Those can be swappable versions of the same level.
 - **The spider concepts by region:** the Meadow Wolf on meadows, the MossBack in the damp, the Cliff Huntsman on
   cliffs, the Ember Tarantula in heat, the Sky Jumper up high.
 - **The gun concepts as makers.** The unused AR designs (Homestead, Regulator, Scrapjack, Zephyr) make good legendary

@@ -144,7 +144,7 @@ the map, and she'll sell anyone, Tam included, to finally get what she's owed. T
    nobody Tam has ever seen.
 3. The *Sweet Persistence* swoops out of the clouds and blasts the *Gallows Bird*. Captain Margo Sable charms
    everyone, admires the map, and offers Tam a berth: *"That map's worth a fortune, and you're worth more alive."*
-   Granny is strangely stiff around her, but lets Tam go: *"Keep your powder dry, and your captain closer."* Admiral
+   Granny goes very still when she sees Margo's face, says nothing, and lets Tam go: *"Keep your powder dry, and your captain closer."* Admiral
    Feathers squawks *"Captain!"* as Granny speaks. Tam assumes he means Margo.
 4. **Port Gallant.** The legend of the Calico Queen in every tavern; Bash signs on. The half-map's marks point to the
    Queen's old haunts. A brawl with the Red Wake ends with Cleaver Moll.
@@ -160,15 +160,16 @@ the map, and she'll sell anyone, Tam included, to finally get what she's owed. T
 8. **The Brass Cemetery.** The Calico crew's graves, the scavenger clans and Crale's last stand aboard a crashed
    galleon. Dying, he sneers: *"Ask your captain who she was before. Ask her about the Queen's cabin girl."*
 9. Margo tells Tam the truth, or most of it: the cabin girl, the capture, eleven years on a prison barge, the Queen
-   who never came back for her. She shows Tam the other half of the map. Together the halves point through the
-   Tempest Wall. Tam trusts her.
+   who never came back for her. She shows Tam the other half of the map. Together the halves chart a course through
+   the Tempest Wall, then trail off into a blank: the last mark only shows under the Calico Key's lens. Tam trusts her.
 10. **The Tempest Wall.** Storm islands, lightning, the eye of the storm, and the Admiralty fleet waiting in it.
     Margo has traded Tam, the map and the Key for a full pardon and a share. The crew is captured. Holt is courteous
     about it.
-11. **The *Penance*.** A prison break. Admiral Feathers steals the keys, and the Calico Key with them, and the crew
-    escapes on a stolen launch. On the way out Tam sees the joined map spread on Holt's desk. The X is Skyreach. Doc
-    Pembrook goes pale: thirty years ago he watched the Queen's flagship fly into a cloud and come out an island. Tam
-    finally hears the shanty Granny hums, and knows.
+11. **The *Penance*.** A prison break. Admiral Feathers steals the cell keys. On the way out, in Holt's cabin, the
+    joined map lies under the Calico Key's lens, and the X is Skyreach. Feathers takes the Key too, and the crew
+    escapes on a stolen launch. Doc Pembrook goes pale: thirty years ago he watched the Queen's flagship fly into a
+    cloud and come out an island. Then he hums the Calico Queen's battle shanty, the one Granny hums over her peas, and
+    Tam knows.
 
 ### Act III: The Lantern (levels 40–50)
 
@@ -190,10 +191,10 @@ the map, and she'll sell anyone, Tam included, to finally get what she's owed. T
 
 The *Inexorable* breaks and falls. Tam can pull Holt from the wreck to stand trial, or leave him to his ship. With the
 Helm, Tam does what Isadora never dared: one turn of the wheel and the Meridian's chains snap, and every island the
-Admiralty held drifts free. Then Tam locks the Helm for good.
+Admiralty held drifts free. Then Tam locks the Helm's hold on other islands for good.
 
-On the deck, Isadora and Margo face each other for the first time in thirty years. *"I thought you were dead, Margo.
-I'd have come back. I'd have torn the sky apart."* Margo laughs, cries a little, and takes exactly one small chest from
+On the deck, Isadora and Margo face each other as themselves for the first time in thirty years. *"For thirty years I
+thought the Admiralty hanged you, Margo. If I'd known, I'd have torn the sky apart."* Margo laughs, cries a little, and takes exactly one small chest from
 the Hoard before sailing off with a salute. *"She always did take the small chest,"* Isadora says. Then she hands Tam
 the wheel. *"She's yours now. Try not to sink her."*
 

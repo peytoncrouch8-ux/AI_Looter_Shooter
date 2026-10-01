@@ -22,7 +22,7 @@ fed her chickens.
 
 The barn on Skyreach, at night. A tiny old woman in welding goggles tightens one last bolt on something with too many
 barrels. *"Mr. Pockets, take notes. Prototype forty-two. If this works, I'll be famous. If it doesn't, I'll be famous
-and dead."* The training dummy in the corner sighs. KA-BOOM. The roof lifts off and settles back, mostly. A chicken
+and dead."* The training dummy in the corner says nothing, as always. KA-BOOM. The roof lifts off and settles back, mostly. A chicken
 lands on the weathervane.
 
 Next morning: a funeral in the orchard. Sunny Pickett in a borrowed suit. The coffin is closed. *"Obviously,"* murmurs
@@ -39,7 +39,7 @@ the lawyer.
   sense, every gun in the sky is a Bellweather.
 - **Hettie** herself: inventor, war hero, prankster, five times married ("four husbands and one very confused rival"),
   and the only gunsmith who ever made a gun that fires preserves. She lived and worked on Skyreach. The barn is her
-  workshop, the windmill drives her lathe, the target meadow is her test range, and the dummies are her prototypes.
+  workshop, the windmill drives the lathe in the shed beneath it, the target meadow is her test range, and the dummies are her prototypes.
 - **The Masterworks.** Twelve legendary guns built across her life, each one hidden inside a trial she built (puzzles,
   traps, a guardian), each themed on a chapter of her life. Rumor says there's a thirteenth, **the Last Word**: a gun
   to end all guns.
@@ -105,10 +105,11 @@ exactly one gunmaker in the sky. He's a comic villain with a real, very modern m
 1. **Move.** The morning after the funeral. The farm is very quiet. The chickens still need feeding.
 2. **Follow the road to the village.** The Crossing, where everyone has an opinion on who gets the farm.
 3. **The gun rack.** The rack holds Hettie's "chore gun," the rifle she handed Sunny for every errand.
-4. **The dummies.** Sunny hits the old dummy on the range and it hits back verbally: *"Ow. Sloppy. She'd have hated
-   that grouping."* Meet Mr. Pockets.
+4. **The dummies.** Sunny hits the old dummy, back on the range where it belongs, and for the first time in six years
+   it talks: *"Ow. Sloppy. She'd have hated that grouping."* Meet Mr. Pockets, properly.
 5. **The spiders.** They've gotten into the blasting powder again.
-6. **The loadout.** Hettie's goggles hang on a nail. Put them on, and suddenly you can see every gun's stats.
+6. **The loadout.** Hettie's goggles are in Sunny's coat pocket, a gift from the week before she died. Put them on, and
+   every gun's stats appear.
 7. **The lookout.** Airships are coming from every direction: every relative, gun nut and opportunist in the sky,
    arriving for the reading of the will.
 
@@ -136,7 +137,7 @@ The main quest is twelve legendary guns, each a chapter of Hettie's life.
 
 | Area | Levels | What it is | Enemies | Boss |
 |---|---|---|---|---|
-| Skyreach | 1–5 | Hettie's farm and workshop; the will reading in the barn | Everyone at once | The barn brawl |
+| Skyreach | 1–5 | Hettie's farm and workshop; the will reading in the barn | Everyone at once | The brawl at the windmill |
 | The County Fair | 5–12 | A fairground island: Ferris wheel, shooting galleries, prize tents, the trial as a carnival game | The Calibre gang | Big Mama Calibre |
 | Honeymoon Falls | 10–17 | A romantic resort gone to seed: waterfalls, a grand hotel, a wedding chapel | The cousins' mercenaries | Percival and Prudence in their walking contraption |
 | The Front | 15–23 | An old war island: trenches, bunkers, rusting artillery | Mercenaries, Vanderslootin' Boys | Ol' Bessie, Hettie's walking cannon |
@@ -154,7 +155,7 @@ The main quest is twelve legendary guns, each a chapter of Hettie's life.
 2. **The reading of the will.** The barn. Quill reads. The cousins sneer. Vandersloot shows up uninvited with a
    marching band. Then the will names Sunny, and the room explodes. Hettie's phonograph recording plays: *"If you're
    hearing this, I'm dead, or hiding from the Auditor. Either way..."* She lays out the hunt, and the first clue sends
-   everyone running for the windmill. First Love is under it. So is a barn-wide brawl.
+   everyone running for the windmill. First Love is under it, and the brawl follows everyone out of the barn and up the hill.
 3. **The County Fair.** The trial is a carnival: trick shooting galleries, a hall of mirrors, a Ferris wheel. Big Mama
    Calibre and her boys want the prize. Blue Ribbon.
 4. **Honeymoon Falls.** The honeymoon suite holds two Masterworks and a lot of feelings. Percival and Prudence attack
@@ -189,16 +190,16 @@ The main quest is twelve legendary guns, each a chapter of Hettie's life.
 12. **Vandersloot City.** Take the Masterworks back from the factory island, with the Auditor and a turncoat Prudence
     alongside. The fireworks plant goes up spectacularly. Colonel Catherine Wheel commands the Fireworks Division, and
     the Rival is in Vandersloot's trophy vault.
-13. **The Expo.** Vandersloot unveils the Last Word, dug up from where Hettie hid it, at the Grand Gun Exposition, to
-    an audience of every gunmaker in the sky. The final battle runs through halls of every gun ever made. Encore was in
+13. **The Expo.** Read together, the engravings on the stolen Masterworks give the Last Word's hiding place, and
+    Vandersloot read them first. He unveils it at the Grand Gun Exposition, to an audience of every gunmaker in the sky. The final battle runs through halls of every gun ever made. Encore was in
     a display case the whole time. Vandersloot climbs into the **Mk. Infinity**, a walking suit built from a thousand of
     his own cheap guns. Hettie fights beside Sunny in a prototype of her own. It explodes, as her prototypes do.
 
 ### Ending
 
 Sunny ends up holding the Last Word. Fire it at Vandersloot's factories and his empire of cheap guns jams forever.
-Lock it away, as Hettie did. Or fire it straight up, and every gun in the hall jams, Hettie's included. She laughs
-until she cries: *"Well. That's one way to retire."*
+Lock it away, as Hettie did. Or fire it straight up, and every gun in the hall jams, Hettie's and Sunny's included
+(Rosa has a crate of spares). Hettie laughs until she cries: *"Well. That's one way to retire."*
 
 Vandersloot is arrested by the Auditor for tax fraud, which hurts him more than any bullet. Hettie names Sunny the head
 of Bellweather Arms. Sunny's first act: rebuild the barn and give Mr. Pockets a new body, with better stitching.
@@ -245,7 +246,7 @@ of Bellweather Arms. Sunny's first act: rebuild the barn and give Mr. Pockets a 
 
 ## Signature moments
 
-- The will reading turning into a barn-wide brawl.
+- The will reading turning into a brawl that spills out of the barn.
 - A carnival shooting gallery where the prize is a legendary.
 - The courtroom shooting gallery in the divorce court.
 - Mr. Pockets holding the door.

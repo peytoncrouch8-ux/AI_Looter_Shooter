@@ -20,16 +20,16 @@ homesteaders in a range war for the sky itself.
 
 Black screen. An old man's voice, courteous and unhurried: *"When I was nine years old, my island fell."* A boy
 clings to a glowing orange stone in an endless white sea of cloud. The light changes from noon to night to noon again.
-A mail skiff's horn sounds somewhere far off. Cut to sixty years later: the same stone sits under a glass dome on a
+A mail skiff's horn sounds somewhere far off. Cut to nearly sixty years later: the same stone sits under a glass dome on a
 desk in Concord, and Augustin Vane signs a map of the Rim with a fountain pen. Cut to a mail skiff dropping out of the
-clouds onto Skyreach's little dock, a passenger asleep on the mail sacks. The pilot kicks their boot. *"Wake up,
+clouds into Skyreach's farmyard, a passenger asleep on the mail sacks. The pilot kicks their boot. *"Wake up,
 Hale. You're home."*
 
 ## The world
 
 - **The Reaches** are hundreds of islands drifting above **the Shroud**, a sea of cloud with no known bottom. The old,
   rich islands near the middle are the Inner Reaches, with the capital, **Concord**. The outer islands are **the Rim**,
-  opened to homesteaders forty years ago by the **Homestead Charter**: work a claim for five years and it's yours.
+  opened to homesteaders eighty years ago by the **Homestead Charter**: work a claim for five years and it's yours.
   Skyreach is a Rim island, about as far out as anyone farms.
 - **Lodestone** keeps the islands up. It's an amber-orange crystal that weighs less than nothing: it falls upward.
   Every island has a lodestone heart, with roots running through the rock like veins. Cut lodestone lifts airships,
@@ -63,7 +63,7 @@ train is guarded, and they climb cables and handle explosives like other people 
 
 Vane is sixty-eight, the president of the Company and the richest man in the Reaches. He was born on **Little Calder**,
 a Rim island that sank when he was nine. His parents and sister went down with it. He survived by clinging to a chunk
-of lodestone in the Shroud for two days until a mail skiff found him. The lesson he took has run his whole life: the
+of lodestone in the Shroud for a day and a night until a mail skiff found him. The lesson he took has run his whole life: the
 sky doesn't care, only stone keeps you up, and whoever owns the stone owns the sky.
 
 He built the Company from a single salvage barge. He is brilliant, patient, personally kind (he funds orphanages in
@@ -83,7 +83,7 @@ Pell died in an accident a month later. Vane never asked his Chief Regulator how
 |---|---|---|
 | Marisol Ybarra | Skyreach's sheriff, a widow with a dry wit; Rowan's first ally and the voice of the Rim | Friend |
 | Abel Dunmore | Blacksmith and gunsmith at the Crossing; rebuilds guns from parts ("every gun on the Rim is three other guns") | NPC (vendor) |
-| Theo Lark | A young Company surveyor who deserts after watching Tallow Flats sink with families on it; maps and gadgets | Friend |
+| Theo Lark | A young Company surveyor who deserts after watching Tallow Flats drop with families still on it; maps and gadgets | Friend |
 | "Gully" Pike | The old mail-skiff pilot, the Rim's lifeline; tells tall tales; flies Rowan between islands | NPC (travel) |
 | Granny June Tallow | Eighty years old, matriarch of Tallow Flats, still the best rifle on the Rim | Friend |
 | Odessa Hale | Rowan's aunt, dead before the story starts. Her **Settling Book**, thirty years of island heights, is the story's key | — |
@@ -117,7 +117,7 @@ Pell died in an accident a month later. Vane never asked his Chief Regulator how
 
 The tutorial plays as written, with the story's words:
 
-1. **Move.** Rowan steps off Gully's skiff at the farmstead dock with a suitcase and the deed. The house is shut up.
+1. **Move.** Rowan climbs out of Gully's skiff in the farmyard with a suitcase and the deed. The house is shut up.
    Odessa's grave is in the orchard, the dirt still fresh.
 2. **Follow the road to the village.** The Crossing: a dozen families, a sheriff's office, a blacksmith.
 3. **The gun rack.** The Crossing keeps a town rifle on the rack in the square "for whoever needs it." Marisol tells
@@ -126,7 +126,7 @@ The tutorial plays as written, with the story's words:
    turning. Odessa used to say that."*
 5. **The spiders.** Spiders have been boiling up out of the island's underside since the Company started blasting next
    door. *"They're running from something."*
-6. **The loadout.** Abel Dunmore looks the rifle over and shows Rowan its parts.
+6. **The loadout.** Rowan checks the town rifle's parts: three other guns' worth, as Abel will say later.
 7. **The lookout.** The Cinder Gang burned it last spring. From the top, Rowan watches the Company's mining rig on
    **Tallow Flats**, the neighboring island, and sees the whole island lurch and drop a dozen meters, its windmill
    toppling into the clouds. That night the Cinder Gang rides on the Crossing.
@@ -249,7 +249,7 @@ year's height, a few meters higher than last year's.
 
 | System | In this story |
 |---|---|
-| Falling off an island | Odessa's lodestone charm won't let its wearer fall; it lifts Rowan back to solid ground. In Act III it turns out to be a seed of living lodestone, and Rowan plants it in Skyreach's rebuilt well |
+| Falling off an island | Odessa's lodestone charm won't let its wearer fall; it lifts Rowan back to solid ground. In Act III it turns out to be a chip of living lodestone, the same stone the wells feed, which is why it works |
 | Death and respawn | Left as a game convention: Rowan wakes at the last Alliance camp |
 | Loot beams | The lodestone sliver in a freed gun flares in its grade's color |
 | Bestiary | The back half of Odessa's Settling Book, a naturalist's notes that Rowan keeps adding to |

@@ -77,14 +77,14 @@ them.
 ### Hierarch Lucan Mordaunt
 
 The head of the Lamplit Church: silver-haired, serene and a hundred and fifteen years old in a forty-year-old's body,
-thanks to Corvina. He has sent the Low's children up the Stair to die, and has preached the Dusk as their punishment,
-for decades. He fears death more than any sin.
+thanks to Corvina. He chose Corvina and sent her up the Stair, and for decades he has preached the Dusk as the Low's
+punishment. He fears death more than any sin.
 
 ### Aurelian Aquila, "the Eagle"
 
 The Church's champion: high-born, honorable, trained since birth to escort the next Lamplighter, and the finest flyer
 on the Stair on his great glider-wings. His orders are to cut the Cinder out of Wren's hand. He's Wren's rival for
-two acts and three duels, and he slowly realizes his Church is a lie. In the end he carries Wren up through the Glare,
+two acts and two duels, and he slowly realizes his Church is a lie. In the end he carries Wren up through the Glare,
 like the eagle in the fable.
 
 > *"My oath was to the Light, Hierarch. Not to you."*
@@ -187,8 +187,7 @@ Each tier has its own light, which is the cheapest strong variety a level can ha
 
 Wren refuses both answers: burning in the Lamp like every Lamplighter before, or hoarding it like Corvina. With the
 Cinder they break the cage and scatter the Lamp's fire across the Stair, into the Reliquary on every island. Each
-island's stone wakes as its own small sun: **the Thousand Lamps**. No more Lamplighters, no more Stair, no more light by
-rank.
+island's stone wakes as its own small sun: **the Thousand Lamps**. No more Lamplighters, and no more light by rank.
 
 Corvina's stolen fire leaves her, and seventy-seven years arrive all at once. *"It's so cold,"* she says, almost
 smiling. *"I'd forgotten."* Wren sits with her until the end.
@@ -224,7 +223,7 @@ telling Bram the fable of the wren and the eagle, and changing the ending.
 | Seventy-Seven | Corvina's rifle | Each shot costs a sliver of your health and deals triple damage | *Nobody asks the candle.* |
 | Halo | Mordaunt's shotgun | Pellets that hit stagger | *Kneel.* |
 | Eagle's Talon | Aurelian's carbine | Shots fired while gliding deal bonus damage | *My oath was to the Light.* |
-| Larkspur | A frosted rifle from the first island lost | Shots chill and slow | *Remember the lamps going on.* |
+| Larkspur | A frosted rifle from the last island lost | Shots chill and slow | *Remember the lamps going on.* |
 
 ## The game's systems, explained
 
@@ -242,7 +241,7 @@ telling Bram the fable of the wren and the eagle, and changing the ending.
 - **The Stair Unending.** A procedural climb. Rung after rung of islands assembled from tier kits, a boss every ten
   rungs, modifiers that stack, and legendaries that scale with the height reached.
 - **Night Hunts.** Deep in the Gloaming, where the Dusk still lingers: elite Duskborn and the moths' hives.
-- **Lamp Vigils.** A newly lit island lamp draws the Duskborn. Hold it through the night in waves.
+- **Lamp Vigils.** A newly lit island lamp draws the Duskborn. Hold it in waves until the Duskborn give up.
 - **Eagle's Trials.** Aurelian's duels and glide courses, against the clock.
 
 ## Signature moments
@@ -258,7 +257,8 @@ telling Bram the fable of the wren and the eagle, and changing the ending.
 
 - **Lighting is the variety:** each tier is one sun angle and color, one sky, one fog. That's cheap to build and cheap
   to run, and every tier looks distinct. The Gloaming and the darkened Skyreach are the existing meadow kit with frost
-  and twilight. There's no day-night cycle; each tier keeps its hour.
+  and twilight. There's no day-night cycle in play: each tier keeps its own fixed light, and the story,
+  not the sky, tells the days passing.
 - **New:** gliding on updrafts; mirror-shield enemies; a light-radius mechanic (the Cinder keeps the Duskborn back);
   the procedural climb for the endgame.
 - **Risk:** medium. The mythic voice needs strong writing, and the "sun is a lamp" myth has to be committed to fully.

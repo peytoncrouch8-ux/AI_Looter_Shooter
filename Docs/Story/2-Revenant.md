@@ -26,8 +26,8 @@ A week later: birdsong, a bright blue afternoon, bees in the orchard. A hand bre
 
 ## The world
 
-- In the Reaches the dead are **given to the wind**. Bodies are laid on a burial board at an island's edge, and at dusk
-  the **Gravewind**, a cold wind that blows only then, carries their souls past the edge of the sky to **the Far
+- In the Reaches the dead are **given to the wind**. Farm families bury their dead for seven days to say goodbye, then
+  lay them on a burial board at the island's edge, and at dusk the **Gravewind**, a cold wind that blows only then, carries their souls past the edge of the sky to **the Far
   Shore**.
 - Every island has a **saint**: its first settler, laid in a granite **Reliquary** banded in gold, whose soul stays
   behind as an **ember** of orange light floating over the lid. The saints are lighthouses. Their light shows the dead
@@ -36,8 +36,9 @@ A week later: birdsong, a bright blue afternoon, bees in the orchard. A hand bre
   and angry, and the living there sicken and go strange.
 - Six months ago the **Dunne Gang**, eight outlaws led by a defrocked preacher, was hired by a stranger who paid in old
   gold to rob seven Reliquaries on seven islands and take the embers. Seven of them ended up carrying one apiece (Ellis
-  never would; something about the embers felt wrong), and each ember changed its carrier. They became **the Hollow**:
-  a saint's power soured inside a living sinner. No living hand can kill a Hollow. It takes someone already dead.
+  never would; something about the embers felt wrong), and each ember changed its carrier. Six of them became **the
+  Hollow**: a saint's power soured inside a living sinner. (The Deacon fought his ember, and it's killing him instead.)
+  No living hand can kill a Hollow. It takes someone already dead.
 - The seventh job was Skyreach, Ellis's home. Ellis balked, and the Deacon shot them.
 
 ## Protagonist: Ellis Ransom
@@ -94,7 +95,7 @@ has been sick about it every day since. He's the last name on the list and the h
 | Name | Who they are | Bestiary |
 |---|---|---|
 | Tilly Bright | The undertaker's daughter on Skyreach, who dressed Ellis for burial and is the first to see them walk. Knows the old rites; sells grave goods (charms, salts, consumables) | Friend (vendor) |
-| Hob | A one-eyed crow, Sexton's messenger, whom only Ellis can hear. Sardonic and secretly kind. He was a Revenant once and failed his debt | Friend |
+| Hob | A one-eyed crow, Sexton's messenger, whom only Ellis can hear. Sardonic and secretly kind. He was a Revenant once; he paid his debt, and Sexton made him a crow | Friend |
 | Ranger Ruth Calder | A Rim Ranger hunting the Dunne Gang. She shoots at Ellis on sight in Act I and rides beside them by Act III | Friend |
 | Grandma Delia Ransom | Buried her grandchild, now has them back cold. Heartbroken, stubborn, and still sets a plate | NPC (quest giver) |
 | Father Moses Aldana | Skyreach's preacher, terrified of Ellis, then the first to help | NPC |
@@ -108,7 +109,7 @@ has been sick about it every day since. He's the last name on the list and the h
   Constance's flock of zealots, Barrels's furnace men, Lena's spotters, Tobias's quarry crew. One rig set, seven
   costumes.
 - **Bounty hunters**: there's a price on the walking corpse, and the living come to claim it in Act II.
-- **The Mourners**: Sexton's servants in Act III, murders of crows that fold into figures in black.
+- **The Mourners**: Sexton's servants from the end of Act II, murders of crows that fold into figures in black.
 - **Creatures**, drawn to the dead:
   - Meadow Wolf spiders nest in graveyards.
   - MossBacks in Saint Agnes Mire.
@@ -125,7 +126,7 @@ has been sick about it every day since. He's the last name on the list and the h
    Ellis takes it back.
 4. **The dummies.** Tilly wants to know whether a dead hand can still shoot. It can.
 5. **The spiders.** The spiders in the woods have gone strange, and they come for Ellis like moths to a lamp.
-6. **The loadout.** Ozias the blind gunsmith runs his fingers over the rifle and says it remembers being dropped.
+6. **The loadout.** Ellis checks the rifle. Somebody cleaned it for the memorial, which Ellis never once did.
 7. **The lookout.** Where Ellis died. The boards are still stained. Mister Sexton sits on the railing in the sunset with
    a crow on his shoulder: *"Shall we talk business?"*
 
@@ -213,7 +214,8 @@ yet."* Hob settles on their shoulder. Grandma Delia sets a plate.
 - **Rarity and the beams.** Everything a dead hand held keeps a little of its owner, and Ellis sees it burn. The loot
   beam is that leftover soul-light, and its color is how much of the owner's will stayed in the gun.
 - **Chests.** Supply Crates are Ranger caches. Strongboxes are safes from the gang's old bank jobs. Reliquaries are the
-  saints themselves: each opens for Ellis only after its ember comes home, as the saint's thanks.
+  saints themselves: each opens for Ellis the moment its ember is pried out of a Hollow, as the saint's thanks,
+  before the ember has to be handed on.
 - **Elements (when they come).** **Ember** (fire), **Grave** (rot over time, with bonus damage against the Hollow),
   **Wind** (knockback toward edges) and **Spirit** (the only damage that hurts the Unpaid; passes through thin cover).
 
@@ -223,6 +225,9 @@ yet."* Hob settles on their shoulder. Grandma Delia sets a plate.
 | Dead Man's Hand | Ned's pistol | Every eighth shot is a guaranteed critical | *Aces and eights. Always.* |
 | Whistler | Ira's carbine | Shots carry gusts that push targets toward edges | *You'll hear it. Once.* |
 | Mercy | Constance's rifle | Kills raise a friendly Unpaid for a few seconds | *And they shall rise.* |
+| Forge-Hand | Barrels Kessler's shotgun | After a kill, the next shell is molten slag that burns | *Hot enough to hurt the dead.* |
+| Iris | Lena Okoro's sniper | Aiming marks every enemy in view, through walls | *I see you, Ellis. I always did.* |
+| Millstone | Tobias Grant's heavy shotgun | Each hit makes the target heavier: slower, and it falls faster | *He didn't want to fight. Neither does this.* |
 | Toll | Sexton's long rifle (post-game) | Each kill adds a stacking damage bonus that the next miss resets | *Everyone pays.* |
 
 ## The game's systems, explained
@@ -230,7 +235,7 @@ yet."* Hob settles on their shoulder. Grandma Delia sets a plate.
 | System | In this story |
 |---|---|
 | Death and respawn | Ellis can't stay dead until the debt is paid. They wake in the nearest grave: respawn points are grave markers. Hob comments every time |
-| Falling off an island | The Gravewind won't take Ellis yet; it throws them back onto the island |
+| Falling off an island | Hob and his crows catch Ellis and drop them back on solid ground. Hob complains about the weight |
 | The HUD | The cyan lines are **Grave Sight**: Ellis sees souls, weak points and the Unpaid |
 | Loot beams | Soul-light left in a dead owner's gun |
 | Bestiary | Sexton's **Ledger**, every page in his copperplate hand, until Act III, when Ellis starts writing in it |
@@ -260,15 +265,15 @@ yet."* Hob settles on their shoulder. Grandma Delia sets a plate.
 - **Reuses:** the western art kit as it is; graves, crosses and burial boards are cheap props; the Reliquary is the
   story's centerpiece.
 - **New:** ghost enemies (translucent, phasing: emissive and dithered, priced on Medium before anything else); a Grave
-  Sight vision mode (a post-process pass, measured); night lighting for some areas; seven bespoke boss fights, the main
-  cost.
+  Sight vision mode (a post-process pass, measured); night lighting for some areas; eight bespoke boss fights (the seven and
+  Sexton), the main cost.
 - **Risk:** medium. The boss roster is big, but each boss anchors one area and one set of enemies, so the work comes in
   clean pieces.
 
 ## Why pick it, and what to watch
 
-Pick it for the crispest structure of the eight: seven names on a list from the first hour, each one an island, a boss
-and a legendary. It's a western that fits the art already built, with a supernatural layer that triples the enemy
+Pick it for the crispest structure of the eight: seven names on a list from the first hour, each one a place, a boss and
+a legendary. It's a western that fits the art already built, with a supernatural layer that triples the enemy
 variety without a second art kit, and an endgame (the Ledger) the story hands you directly. Watch out: it's darker than
-the sunny meadow suggests (that contrast is the hook, so own it). Seven bosses need seven distinct fights. And "the
+the sunny meadow suggests (that contrast is the hook, so own it). Eight bosses need eight distinct fights. And "the
 patron is the villain" has to be seeded fairly, through Hob, Constance and Lena, so the turn feels earned.

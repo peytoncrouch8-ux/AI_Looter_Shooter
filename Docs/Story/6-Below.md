@@ -117,12 +117,13 @@ ambiguous (sometimes an enemy, sometimes a guide) to the one who makes the final
 
 1. **Move.** Low's morning on the Fenn farm; Zeke coughing on the porch.
 2. **Follow the road to the village.** The Crossing's divers, winches and talk of things coming up.
-3. **The gun rack.** The Guild's **fendgun**: every diver must carry one. Low takes the village's.
+3. **The gun rack.** The Guild's **fendgun**: every diver must carry one. Low's own is at the Guild for repairs, so they
+   take the village's spare.
 4. **The dummies.** Practice on the range under the windmill.
 5. **The spiders.** The woods past the pond. *"They're coming up from below. Spiders never come up."*
 6. **The loadout.** Check the gun before the evening dive.
-7. **The lookout.** The ruined lookout is the Fenn family's old diving gantry, where Imogen made her last dive. At dusk
-   Low goes up to watch the clouds, as they do every night. Far below, the Shroud glows orange. Something is climbing
+7. **The lookout.** The ruined lookout is the Fenn family's old diving tower. Its long boom once reached out past the
+   cliff edge, and Imogen made her last dive from the end of it. At dusk Low goes up to watch the clouds, as they do every night. Far below, the Shroud glows orange. Something is climbing
    the gantry's old dive line. A woman in a brass rig steps onto the boards, dripping cloud. *"Low? You got tall."*
 
 ## Areas
@@ -159,8 +160,9 @@ The world is built in layers, and depth is difficulty.
 ### Act II: The Descent (levels 15–35)
 
 7. **The Fallfield.** Low's first truly deep dive, with Tub on the line. Lowtown, the town that fell eighty years ago,
-   lies on the cloudcrust with its lamps lit. The Wreck-Queen Dagny Sorrel claims it. In the wreck of Imogen's diving
-   bell, Low finds her logbook. Its last pages are written in a steadier hand than any frightened diver's.
+   lies on the cloudcrust with its lamps lit. The Wreck-Queen Dagny Sorrel claims it. In Lowtown's inn, Imogen's
+   logbook lies on a table, as if someone set it down on the way up. Its last pages are written in a steadier hand than
+   any frightened diver's.
 8. **The Hushwood.** Bloom trees, total silence, Hushmoths. Sound fails and the HUD stutters. In a Sounding camp,
    Sister Vey defects.
 9. **Saint Ebba's.** Quaile preaches to the faithful and the Returned, with Imogen at his side. The Choir rises to stop
@@ -199,8 +201,8 @@ at dusk, Low on the gantry. Far below, the clouds glow a faint, slow orange, lik
 
 ## Loot in this world
 
-- **Who makes the guns.** Everything that falls comes back eventually, so the Fallfield is full of three centuries of
-  guns: old Homestead, Regulator and Coachman pieces, rebuilt by Guild armorers. The Guild makes its own Kestrel dive
+- **Who makes the guns.** Much of what falls comes to rest on the cloudcrust, so the Fallfield is full of three
+  centuries of guns: old Homestead, Regulator and Coachman pieces, rebuilt by Guild armorers. The Guild makes its own Kestrel dive
   carbines and Breacher close-quarters shotguns; Scrapjack is the Wreckers' brand.
 - **Rarity and the beams.** Rarity is **depth**: the deeper a gun lay, the more Bloom it soaked up, and Bloom shines.
   The loot beam is that light leaking out of salvage.

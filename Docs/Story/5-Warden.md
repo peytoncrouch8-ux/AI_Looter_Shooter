@@ -36,8 +36,8 @@ of the falls. *"Hattie! HATTIE! There's a person in the creek!"*
   folk. They know nothing. Their laws, their almanacs and the **Charter** read in church every Sunday were written by
   the Consortium.
 - **The Wardens** are synthetic guardians built to look and live human. They maintain the engines, keep the peace and
-  protect the vaults. Most were shut down over the centuries. One never was: **the Marshal**, the legendary lawman of
-  the Reaches. Folk think "the Marshal" is a title passed down. It's the same man, four hundred years old.
+  protect the vaults. Most were shut down over the centuries. A few never were, and the best known is **the
+  Marshal**, the legendary lawman of the Reaches. Folk think "the Marshal" is a title passed down. It's the same man, four hundred years old.
 - **The secret.** The Grey burned itself out a hundred and fifty years ago. The surface is green again. The
   Consortium's systems saw it and started the **Dawn Protocol** to wake the Sleepers, and the Marshal has been holding
   it back ever since. Now it has started on its own.
@@ -81,7 +81,7 @@ islands, sinking the ones she doesn't need and sending their people down to the 
 cities.
 
 The thing she won't say: of forty thousand Sleepers, three hundred survived. The vaults failed a century ago. Her
-nation is a ghost, but three hundred people with every machine in the sky answering to them can still do anything.
+nation is a ghost, but whoever holds the vault holds every machine in the sky.
 
 > *"Thank you for your service. Your employment is concluded."*
 
@@ -173,7 +173,8 @@ the range, as Ward's systems wake.
    real showdown, then a long fight when his skin splits and the old frame underneath keeps coming. Dying, he holds out
    his star, the master key to everything: *"I kept them safe four hundred years by keeping them small. Maybe you'll do
    better."*
-10. The Dawn Protocol completes. Lucienne Adair opens her eyes.
+10. The Dawn Protocol completes. Lucienne Adair opens her eyes. The other survivors stay in their pods, waiting on her
+    order.
 
 ### Act III: Elysium (levels 42–50)
 
@@ -204,8 +205,8 @@ world below for the first time, and Clem at the edge, grinning at Ward: *"Race y
 ## Loot in this world
 
 - **Who makes the guns.** Frontier gunsmiths have built the same Consortium blueprints for four hundred years:
-  Homestead, Regulator, Coachman and Breacher are all Heritage designs. That's why every part fits every gun: they
-  were standardized on purpose. Consortium weapons, with orange lattice accents, are the top tiers.
+  Homestead, Regulator, Coachman and Breacher are all Heritage designs, and Kestrel bullpups were the Wardens' own
+  issue. That's why every part fits every gun: they were standardized on purpose. Consortium weapons, with orange lattice accents, are the top tiers.
 - **Rarity and the beams.** Every Consortium-made part carries a recovery beacon. When a gun is dropped it pings the
   network, and Ward sees the ping as a beam, colored by **clearance level**, which is the rarity.
 - **Chests.** Supply Crates are Consortium caches with stenciled serials. Strongboxes are Heritage bank safes.
