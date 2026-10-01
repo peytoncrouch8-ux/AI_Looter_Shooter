@@ -3,7 +3,8 @@ segmented bodies with a painted pattern texture, banded jointed legs, bristles, 
 Art/Backlog (see its README): nothing in the game changes, and SK_Spider (Art/Models/Creatures/Spider.py) stays as it is.
 
   MeadowWolf     the current brown wolf spider, refined: a light stripe down the carapace, a heart mark and chevrons
-                 on the abdomen, ringed legs, short bristles.
+                 on the abdomen, ringed legs, short bristles, small eyes seated on the face. The user's pick
+                 (2026-10-01).
   MossBack       a garden-spider shape whose humped abdomen grows moss and grass, a leaf (folium) pattern in bark
                  brown, lichen spots, long olive-banded legs.
   CliffHuntsman  a flat, wide huntsman with very long sideways legs, granite grey with dark speckles and orange
@@ -275,7 +276,17 @@ def build(c, name):
     # Eyes, chelicerae with their fangs, palps.
     for x, y, z, r in c['eyes']:
         for side in ((-1, 1) if y else (1,)):
-            ellipsoid(m, (x, side * y, ride + z), (r, r, r), 'misc', mat=EYE, segs=14, rings=10)
+            center = Vector((x, side * y, ride + z))
+            if c.get('seat_eyes'):
+                # Seated on the head: moved onto its surface along the line from the head's middle, then pushed out a
+                # little, so each eye is a low dome on the face rather than a ball stuck to it.
+                hc = Vector((hd['x'], 0.0, ride + hd['z']))
+                rel = center - hc
+                rx, ry, rz = hd['radii']
+                rel = rel / math.sqrt((rel.x / rx) ** 2 + (rel.y / ry) ** 2 + (rel.z / rz) ** 2)
+                normal = Vector((rel.x / rx ** 2, rel.y / ry ** 2, rel.z / rz ** 2)).normalized()
+                center = hc + rel + normal * r * c['seat_eyes']
+            ellipsoid(m, center, (r, r, r), 'misc', mat=EYE, segs=14, rings=10)
     ch = c['chel']
     chel_mat = ACCENT if ch.get('accent') else BODY
     for side in (-1, 1):
@@ -807,7 +818,8 @@ CONCEPTS = {
         carapace=dict(x=0, z=2, radii=(46, 36, 22), deform=taper(0.15, 0.6)),
         head=dict(x=34, z=8, radii=(24, 22, 17), deform=flat_bottom(0.6)),
         abdomen=dict(x=-72, z=10, radii=(62, 44, 38), fwd=(1, 0, 0.12), deform=egg(0.12, 0.8)),
-        eyes=[(54, 7.5, 18, 6.0), (58, 3.6, 10, 2.8), (56, 10.5, 10, 2.5), (45, 11, 24, 4.2)],
+        # Eyes at about 60% of the first concept's, seated on the face (user, 2026-10-01: "make its eyes smaller").
+        eyes=[(54, 6.8, 18, 3.6), (58, 3.4, 10, 1.7), (56, 10.0, 10, 1.5), (45, 10.5, 24, 2.5)], seat_eyes=0.2,
         chel=dict(x=55, y=7, z=-2, radii=(10, 7, 7)), palp=dict(x=50, y=12, z=0, len=40, r=4.0),
         hip_angle=(35, 70, 108, 142), rest_angle=(38, 72, 110, 148), rest_radius=(175, 155, 152, 178),
         hip_radius=(32, 27, -2), femur=(100, 90, 90, 104), tibia=(130, 116, 116, 134), leg_radius=7.8,
