@@ -112,7 +112,7 @@ public:
 
 	/** The parts' material slot that glows in the gun's rarity color. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Parts")
-	FName RarityGlowSlot = TEXT("GunAccent");
+	FName RarityGlowSlot = TEXT("GunAccentGlow");
 
 	/** The part slot a reload moves: a magazine slides out along the part's -Z, a pump back along its -X. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Parts")

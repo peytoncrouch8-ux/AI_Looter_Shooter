@@ -1,6 +1,6 @@
 """Five shotgun designs for the user to choose from (2026-10-01), in the stylized-realism style of the AR concepts:
-real proportions and parts, softened edges, worn textured materials. Kept for later in Art/Backlog (see its README):
-nothing in the game uses them, and the game's current shotgun (Art/Models/Weapons/Shotgun.py) is unchanged.
+real proportions and parts, softened edges, worn textured materials. Kept for reference in Art/Backlog (see its
+README): nothing in the game uses them (the game's shotgun is the Ranchhand, Art/Models/Weapons/Ranchhand.py).
 
   Farmhand     a walnut-and-blued-steel pump-action: vent-rib barrel over a tube magazine, a grooved walnut pump,
                a pistol-grip stock with a leather shell cuff holding four shells. The rustic one.

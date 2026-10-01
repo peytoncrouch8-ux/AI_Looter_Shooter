@@ -1,7 +1,7 @@
 """Five assault rifle designs for the user to choose from (2026-09-30), in the stylized-realism style: real proportions
 and parts, softened edges, worn textured materials. The user picked Kestrel, which became the modular base of every
-non-legendary AR in Bullpup.py; the other four are kept for reference. Kept for later in Art/Backlog (see its README): nothing in the
-game uses them, and the game's current rifle (Art/Models/Weapons/Rifle.py) is unchanged.
+non-legendary AR in Art/Models/Weapons/Bullpup.py; the other four are kept for reference in Art/Backlog (see its
+README): nothing in the game uses them.
 
   Homestead   a wood-and-blued-steel frontier carbine: stamped receiver, walnut stock, grip and handguard, curved
               steel magazine, slanted muzzle brake. The rustic one.

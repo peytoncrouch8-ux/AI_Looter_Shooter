@@ -111,15 +111,19 @@ and opaque blades, seeded so every run gives the same mesh, and `finish()`, whic
 
 ## Gun parts
 
-A gun is built from parts: `Art/Models/Weapons/<Gun>.py` makes each part as its own model (`SM_RifleBody`,
-`SM_RifleBarrel14`, ...), in the gun's own space: the origin at the back of the receiver, +X toward the muzzle. A part
-that hangs from another part's socket (a magazine, a pump) is modeled around its own origin instead. The weapon
-definition (`/Game/Weapons/Data/DA_*`) lists the part slots and their options, and each rolled gun picks one per slot
-by its seed. Each option also carries its stat changes (the game's affixes), the word it can give the gun's name and
-the rarity it needs. `Tools/Unreal/setup_gun_parts.py` fills those lists, so run it after adding, renaming or
-retuning a part.
+A gun is built from parts: `Art/Models/Weapons/<Gun>.py` (the Bullpup AR, the Ranchhand shotgun) makes each part as
+its own model (`SM_BullpupBody_Standard`, `SM_BullpupBarrel_Heavy`, ...) with `Tools/Blender/looter_guns.py`, +X
+toward the muzzle. The body sits at the gun's origin; every other part hangs from a socket on an earlier part (the
+body's `Barrel`, `Magazine`, `Sight`, `Stock`; a barrel's `Muzzle` for muzzle devices) and is modeled around its own
+origin there, so any part fits any body. `<Gun>.parts.csv` beside the script lists each part's key, name, name word,
+lowest rarity, weight and stat ranges, and `Tools/Unreal/setup_gun_parts.py` reads it into the weapon definition
+(`/Game/Weapons/Data/DA_*`): run it after adding or retuning a part. A dropped gun saves its parts by key, so never
+rename or reuse one.
 
-- Sockets the game reads: `Muzzle`, `Grip` (right hand) and `Foregrip` (left hand), on whichever part has them.
-- Material slots named `GunPaint` and `GunGrip` are recolored per gun (the definition's paints), and `GunAccent`
-  glows in the gun's rarity color.
+- Sockets the game reads: `Muzzle` (on the last part that has one), `Grip` (right hand), `Foregrip` (left hand), and
+  `Aim` on sights: the point the eye lines up with when aiming down the sights.
+- Material slots `GunPolymerSand` (the main color) and `GunPolymerGrey` (fittings) are tinted per gun (the
+  definition's paints), and `GunAccentGlow` glows in the gun's rarity color.
+- Lenses and sight windows use `lg.LENS` (glass on the Glass master), and optics are open tubes, so they can be aimed
+  through.
 - Parts are small and held close: set the model's `Nanite` property to 0.
