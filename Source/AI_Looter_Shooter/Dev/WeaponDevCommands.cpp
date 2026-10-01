@@ -49,8 +49,39 @@ namespace
 		return nullptr;
 	}
 
-	void GiveWeapon(const TArray<FString>& Args, UWorld* World)
+	/** Puts the named parts ("Sight=Variable") on a rolled gun in place of the ones it rolled, and rolls its stats again. */
+	void ForceParts(FWeaponInstanceData& Instance, const TArray<FString>& Overrides)
 	{
+		const UWeaponDefinition* Definition = Instance.Definition;
+		for (const FString& Override : Overrides)
+		{
+			FString SlotName;
+			FString Key;
+			Override.Split(TEXT("="), &SlotName, &Key);
+			const int32 Slot = Definition->Parts.IndexOfByPredicate([&SlotName](const FWeaponPartSlot& Part) { return Part.Name.ToString().Equals(SlotName, ESearchCase::IgnoreCase); });
+			const FWeaponPartOption* Option = Slot != INDEX_NONE ? Definition->Parts[Slot].Options.FindByPredicate([&Key](const FWeaponPartOption& Part)
+				{
+					return Part.Key.ToString().Equals(Key, ESearchCase::IgnoreCase);
+				}) : nullptr;
+			if (!Option || !Instance.Parts.IsValidIndex(Slot))
+			{
+				UE_LOG(LogLooter, Warning, TEXT("Looter.GiveWeapon: %s has no part %s."), *Definition->GetName(), *Override);
+				continue;
+			}
+			Instance.Parts[Slot] = Option->Key;
+		}
+		Instance.Stats = UWeaponRollLibrary::ComputeStatsWithParts(Definition, Instance.Rarity, Instance.Level, Instance.Seed, Instance.Parts);
+	}
+
+	void GiveWeapon(const TArray<FString>& AllArgs, UWorld* World)
+	{
+		// Slot=Key arguments pick parts; the rest are the weapon, rarity and level in order.
+		TArray<FString> Args;
+		TArray<FString> Overrides;
+		for (const FString& Arg : AllArgs)
+		{
+			(Arg.Contains(TEXT("=")) ? Overrides : Args).Add(Arg);
+		}
 		UWorld* GameWorld = FindGameWorld(World);
 		const APlayerController* Controller = GameWorld ? GameWorld->GetFirstPlayerController() : nullptr;
 		const APawn* Pawn = Controller ? Controller->GetPawn() : nullptr;
@@ -69,9 +100,13 @@ namespace
 		}
 		const int32 Level = Args.Num() > 2 ? FMath::Max(FCString::Atoi(*Args[2]), 1) : 1;
 		const int64 Rarity = Args.Num() > 1 ? StaticEnum<EWeaponRarity>()->GetValueByNameString(Args[1]) : INDEX_NONE;
-		const FWeaponInstanceData Instance = Rarity != INDEX_NONE
+		FWeaponInstanceData Instance = Rarity != INDEX_NONE
 			? UWeaponRollLibrary::RollWeaponWithRarity(Definition, static_cast<EWeaponRarity>(Rarity), Level)
 			: UWeaponRollLibrary::RollWeapon(Definition, Level);
+		if (!Overrides.IsEmpty())
+		{
+			ForceParts(Instance, Overrides);
+		}
 
 		// Into a free slot if there is one, otherwise the backpack (never swapping out the weapon in hand).
 		const bool bGiven = Inventory->GetWeapons().Num() < Inventory->MaxWeapons
@@ -83,8 +118,8 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs GiveWeaponCommand(
 		TEXT("Looter.GiveWeapon"),
-		TEXT("Looter.GiveWeapon <weapon, e.g. Rifle or Shotgun> [Common|Uncommon|Rare|Epic|Legendary] [level]: gives the player a weapon, ")
-		TEXT("into a free slot or else the backpack. The rarity is rolled when it's left out."),
+		TEXT("Looter.GiveWeapon <weapon, e.g. Rifle or Shotgun> [Common|Uncommon|Rare|Epic|Legendary] [level] [Slot=Key ...]: gives the player ")
+		TEXT("a weapon, into a free slot or else the backpack. The rarity is rolled when it's left out; Slot=Key (Sight=Variable) picks a part."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GiveWeapon));
 }
 

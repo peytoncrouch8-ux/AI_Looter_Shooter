@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Player/PlayerViewComponent.h"
 #include "Settings/KeyBindingSubsystem.h"
+#include "UI/HUD/LooterHUD.h"
 #include "Weapons/ReloadMotion.h"
 #include "Weapons/WeaponBase.h"
 #include "Inventory/WeaponManagerComponent.h"
@@ -37,13 +38,20 @@ namespace
 	/** Where a freshly drawn gun starts, low and tipped, before it comes up over its ready time. */
 	const FVector DrawPoseOffset(-3.f, 2.f, -16.f);
 	const FRotator DrawPoseRotation(-35.f, 8.f, 18.f);
-	/** Aiming: how far in front of the eye the sight's aim point sits, and how far below the line of sight. */
+	/**
+	 * Aiming: how far in front of the eye the sight's aim point sits. The point goes exactly on the line of sight: the
+	 * first-person render (its own field of view and scale) moves anything off the camera's axis, so only points on
+	 * it stay on the crosshair, and a scope's reticle lines up only when its axis is the camera's.
+	 */
 	constexpr float AimSightDistance = 22.f;
-	constexpr float AimSightClearance = 0.6f;
 	/** How much of the walking bob and look sway aiming takes out. */
 	constexpr float AimSteadiness = 0.85f;
 	/** Walk speed while aiming, as a share of the normal walk. */
 	constexpr float AimWalkSpeedMultiplier = 0.65f;
+	/** While the inventory or pause menu is open the gun is lowered out of view, so it doesn't show through the panels. */
+	const FVector MenuPoseOffset(-4.f, 3.f, -30.f);
+	const FRotator MenuPoseRotation(-30.f, 0.f, 10.f);
+	constexpr float MenuBlendTime = 0.2f;
 
 	TAutoConsoleVariable<bool> CVarDebugStance(TEXT("Looter.DebugStance"), false,
 		TEXT("Print the player's stance each frame: sprint/crouch alphas, speed, and head/camera heights above the feet."));
@@ -536,6 +544,14 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 		Rotation += ViewComponent->GetKickRotation();
 	}
 
+	// Lowered while a menu is open.
+	const APlayerController* Player = Cast<APlayerController>(Owner->GetController());
+	const ALooterHUD* Hud = Player ? Player->GetHUD<ALooterHUD>() : nullptr;
+	MenuLinear = FMath::FInterpConstantTo(MenuLinear, Hud && Hud->IsMenuOpen() ? 1.f : 0.f, Dt, 1.f / MenuBlendTime);
+	const float Menu = FMath::SmoothStep(0.f, 1.f, MenuLinear);
+	Offset += MenuPoseOffset * Menu;
+	Rotation += MenuPoseRotation * Menu;
+
 	// A freshly drawn gun comes up from below over its ready time (quicker with better handling).
 	const float Ready = FMath::InterpEaseOut(0.f, 1.f, Weapon->GetReadyAlpha(), 2.f);
 	Offset += DrawPoseOffset * (1.f - Ready);
@@ -547,7 +563,7 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	FTransform Hold = Manager->GetFirstPersonHold(Weapon);
 	if (Aim > 0.f)
 	{
-		const FVector AimLocation = FVector(AimSightDistance, 0.f, -AimSightClearance) - Weapon->GetAimPoint() * Hold.GetScale3D();
+		const FVector AimLocation = FVector(AimSightDistance, 0.f, 0.f) - Weapon->GetAimPoint() * Hold.GetScale3D();
 		Hold.SetLocation(FMath::Lerp(Hold.GetLocation(), AimLocation, Aim));
 		Hold.SetRotation(FQuat::Slerp(Hold.GetRotation(), FQuat::Identity, Aim));
 		const float Settle = 1.f - AimSteadiness * Aim;

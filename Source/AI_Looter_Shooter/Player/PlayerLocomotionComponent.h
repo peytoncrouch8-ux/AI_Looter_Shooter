@@ -178,4 +178,6 @@ private:
 	bool bWasFalling = false;
 	bool bWasCrouched = false;
 	float FallSpeed = 0.f;
+	/** 0..1 toward the lowered pose while a menu is open. */
+	float MenuLinear = 0.f;
 };
