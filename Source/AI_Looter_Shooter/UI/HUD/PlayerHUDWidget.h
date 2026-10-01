@@ -6,6 +6,7 @@
 
 class AWeaponBase;
 class UHealthComponent;
+class UHudWeaponSlotsWidget;
 class UImage;
 class USizeBox;
 class UTextBlock;
@@ -14,13 +15,13 @@ class UWeaponManagerComponent;
 
 /**
  * In-game HUD in the shared UI style, built to stay out of the way while playing:
- *  - bottom-left: health number + slim slanted segmented bar (with a trailing "damage chip")
- *  - bottom-right: magazine / reserve, slanted magazine bar (doubles as reload progress), weapon name
- *    underneath in its rarity color, and slot pips
+ *  - bottom-left: a health cross, the number and a slim slanted segmented bar (with a trailing "damage chip")
+ *  - bottom-right: the weapon slots as hexagons (UHudWeaponSlotsWidget) over the ammo: the magazine count with its
+ *    ammo class and reserve, one tick per round (doubling as reload progress), and the fire mode and gun's name under it
  *  - top-right: the minimap (UHudMinimapWidget)
  *  - top-left: the frame rate (UHudFrameRateWidget)
  *  - bottom-right, over the ammo: the ammo pickup feed (UHudPickupFeedWidget)
- *  - bottom-center: the level and experience bar (UHudXPBarWidget)
+ *  - bottom-center: the level and experience bar (UHudXPBarWidget), the only place the level shows
  *  - center: thin tick crosshair sized by the weapon's spread, diagonal hit marker
  * No backing panels; both corner clusters fade back when nothing is happening and come forward on
  * activity (firing, reloading, switching, taking damage). The loot comparison card and messages only
@@ -70,7 +71,9 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusText;
 	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> AmmoSegments;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeaponName;
-	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> SlotPips;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> AmmoClassText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> FireModeText;
+	UPROPERTY(Transient) TObjectPtr<UHudWeaponSlotsWidget> WeaponSlots;
 
 	// Loot card and messages
 	UPROPERTY(Transient) TObjectPtr<UWidget> PickupCard;
@@ -95,6 +98,8 @@ private:
 	// Weapon display state
 	int32 LastMagazine = INDEX_NONE;
 	int32 LastReserve = INDEX_NONE;
+	/** How many ticks the ammo strip shows (one per round, up to MaxAmmoTicks). */
+	int32 ShownTickCount = INDEX_NONE;
 	float WeaponActivity = 0.f;
 	float ReloadDuration = 0.f;
 	float ReloadElapsed = 0.f;

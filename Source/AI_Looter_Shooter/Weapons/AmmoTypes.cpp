@@ -4,11 +4,11 @@ namespace
 {
 	//                                       Name              Max  Box
 	const LooterAmmo::FInfo Infos[] = {
-		/* AssaultRifle */ { TEXT("AR Ammo"),        280, 36 },
-		/* Shotgun      */ { TEXT("Shotgun Shells"),  48,  8 },
-		/* Pistol       */ { TEXT("Pistol Ammo"),    200, 24 },
-		/* SMG          */ { TEXT("SMG Ammo"),       360, 48 },
-		/* Sniper       */ { TEXT("Sniper Rounds"),   36,  6 },
+		/* AssaultRifle */ { TEXT("AR Ammo"),        280, 36, TEXT("AR") },
+		/* Shotgun      */ { TEXT("Shotgun Shells"),  48,  8, TEXT("SG") },
+		/* Pistol       */ { TEXT("Pistol Ammo"),    200, 24, TEXT("PS") },
+		/* SMG          */ { TEXT("SMG Ammo"),       360, 48, TEXT("SMG") },
+		/* Sniper       */ { TEXT("Sniper Rounds"),   36,  6, TEXT("SR") },
 	};
 	static_assert(UE_ARRAY_COUNT(Infos) == LooterAmmo::NumTypes, "One entry per ammo type");
 

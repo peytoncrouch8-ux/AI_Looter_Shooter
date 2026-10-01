@@ -32,6 +32,7 @@ namespace LooterAmmo
 		const TCHAR* Name;         // "AR Ammo"
 		int32 MaxCarried;          // pool cap
 		int32 BoxAmount;           // one dropped box
+		const TCHAR* Short;        // "AR": the ammo class on the HUD
 	};
 
 	AI_LOOTER_SHOOTER_API const FInfo& GetInfo(EAmmoType Type);

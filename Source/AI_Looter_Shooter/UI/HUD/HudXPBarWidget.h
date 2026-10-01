@@ -13,8 +13,8 @@ enum class EXPSource : uint8;
 DECLARE_DELEGATE_OneParam(FOnHudAnnouncement, const FText& /*Message*/);
 
 /**
- * The HUD's experience bar, bottom center: the player's level, a slim slanted bar in ten sections (each a tenth of the
- * level, the one being filled filling along its length) of the way through it, and
+ * The HUD's experience bar, bottom center: the player's level, a hairline of the way through it with a faint tick at
+ * every tenth of the level, and
  * "XP 40 / 100" ("MAX" at the top level). No backing panel, like the rest of the gameplay HUD. On a gain the bar eases
  * up to the new amount and "+10 XP" rises beside it; on a level-up it fills, wraps, the level number flashes and the HUD
  * announces the new level. Driven by UPlayerProgressionSubsystem's events: it builds strings only when experience
@@ -27,7 +27,7 @@ class AI_LOOTER_SHOOTER_API UHudXPBarWidget : public UUserWidget
 
 public:
 	/** The bar's length on screen. */
-	static constexpr float BarWidth = 440.f;
+	static constexpr float BarWidth = 600.f;
 
 	/** A level-up to announce ("LEVEL UP! LEVEL 2"); the HUD shows it in its message plate. */
 	FOnHudAnnouncement OnAnnouncement;
@@ -55,10 +55,9 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> LevelValue;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> XPText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> GainText;
-	/** Per section: its filled part, and the slots that share its width between the filled part and the rest. */
-	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> SectionFills;
-	UPROPERTY(Transient) TArray<TObjectPtr<UHorizontalBoxSlot>> FilledSlots;
-	UPROPERTY(Transient) TArray<TObjectPtr<UHorizontalBoxSlot>> EmptySlots;
+	/** The slots that share the line's width between the filled part and the rest. */
+	UPROPERTY(Transient) TObjectPtr<UHorizontalBoxSlot> FilledSlot;
+	UPROPERTY(Transient) TObjectPtr<UHorizontalBoxSlot> RestSlot;
 
 	TWeakObjectPtr<UPlayerProgressionSubsystem> Progression;
 
@@ -73,8 +72,8 @@ private:
 	/** The highest level gained but not yet announced; announced when the bar gets there. */
 	int32 PendingAnnouncement = 0;
 
-	/** Per section, how full it is (0-1), so only the ones that change get repainted. */
-	TArray<float> SectionFill;
+	/** How full the line is drawn (0-1), so it only repaints when that changes. */
+	float ShownFill = -1.f;
 
 	int64 ShownGain = 0;
 	float GainTime = 0.f;

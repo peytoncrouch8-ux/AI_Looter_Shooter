@@ -2,6 +2,7 @@
 #include "UI/HUD/HudFrameRateWidget.h"
 #include "UI/HUD/HudMinimapWidget.h"
 #include "UI/HUD/HudPickupFeedWidget.h"
+#include "UI/HUD/HudWeaponSlotsWidget.h"
 #include "UI/HUD/HudXPBarWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
@@ -20,7 +21,9 @@
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
+#include "Components/ScaleBox.h"
 #include "Components/SizeBox.h"
+#include "Components/Spacer.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -34,8 +37,10 @@ namespace
 {
 	constexpr int32 NumCompareStats = 9;
 	constexpr int32 HealthSegmentCount = 20;
-	constexpr int32 AmmoSegmentCount = 24;
-	constexpr int32 MaxSlotPips = 4;
+	/** The ammo strip has a tick per round in the magazine, up to this many (bigger magazines share ticks). */
+	constexpr int32 MaxAmmoTicks = 40;
+	/** The ammo strip's width, which the fire mode and gun's name under it line up with. */
+	constexpr float AmmoStripWidth = 420.f;
 	constexpr int32 PickupHoldSegmentCount = 16;
 
 	/** Opacity of a corner cluster when nothing is happening. */
@@ -62,7 +67,8 @@ namespace
 	}
 
 	/** Slim segmented bar, sheared into a parallelogram, on a faint dark backing. */
-	UWidget* MakeSlantBar(UWidgetTree* Tree, int32 Count, float Width, float Height, float Shear, TArray<TObjectPtr<UImage>>& OutSegments)
+	UWidget* MakeSlantBar(UWidgetTree* Tree, int32 Count, float Width, float Height, float Shear, TArray<TObjectPtr<UImage>>& OutSegments,
+		float Gap = 2.f)
 	{
 		UBorder* Backing = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
 		Backing->SetBrush(RectBrush(FLinearColor(0.f, 0.02f, 0.04f, 0.45f)));
@@ -75,7 +81,7 @@ namespace
 			Segment->SetColorAndOpacity(Color::SegmentOff());
 			UHorizontalBoxSlot* SegmentSlot = Bar->AddChildToHorizontalBox(Segment);
 			SegmentSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			SegmentSlot->SetPadding(FMargin(0.f, 0.f, Index + 1 < Count ? 2.f : 0.f, 0.f));
+			SegmentSlot->SetPadding(FMargin(0.f, 0.f, Index + 1 < Count ? Gap : 0.f, 0.f));
 			OutSegments.Add(Segment);
 		}
 		Backing->SetContent(Bar);
@@ -180,41 +186,33 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 		MessagePlate->SetVisibility(ESlateVisibility::Hidden);
 		PlaceOnCanvas(Root, MessagePlate, FAnchors(0.5f, 0.72f), FVector2D(0.5f, 0.5f), FVector2D::ZeroVector);
 
-		// Bottom-left: health icon + number, slim slanted bar underneath.
+		// Bottom-left: a health cross and the number over a slanted bar. (The level shows only by the experience bar.)
 		{
 			UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 
 			UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			UBorder* Icon = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-			Icon->SetBrush(RectBrush(Color::Health(), Color::Outline(), 1.f));
-			Icon->SetHorizontalAlignment(HAlign_Center);
-			Icon->SetVerticalAlignment(VAlign_Center);
-			Icon->SetPadding(FMargin(0.f));
-			UTextBlock* Cross = MakeFloatingText(WidgetTree, 15, FLinearColor(0.06f, 0.01f, 0.01f), 0, ETextJustify::Center);
+			UTextBlock* Cross = MakeFloatingText(WidgetTree, 34, Color::Health(), 0, ETextJustify::Center);
 			Cross->SetText(FText::FromString(TEXT("+")));
-			Icon->SetContent(Cross);
-			USizeBox* IconSize = MakeSized(WidgetTree, Icon, 22.f, 18.f);
-			IconSize->SetRenderShear(FVector2D(-BarSlant, 0.f));
-			Row->AddChildToHorizontalBox(IconSize)->SetVerticalAlignment(VAlign_Center);
-
-			HealthValue = MakeFloatingText(WidgetTree, 24, Color::Text());
-			UHorizontalBoxSlot* ValueSlot = Row->AddChildToHorizontalBox(HealthValue);
-			ValueSlot->SetVerticalAlignment(VAlign_Bottom);
-			ValueSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
-			HealthMax = MakeFloatingText(WidgetTree, 12, Color::TextDim());
+			UHorizontalBoxSlot* CrossSlot = Row->AddChildToHorizontalBox(Cross);
+			CrossSlot->SetVerticalAlignment(VAlign_Bottom);
+			CrossSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 6.f));
+			HealthValue = MakeFloatingText(WidgetTree, 46, Color::Text());
+			Row->AddChildToHorizontalBox(HealthValue)->SetVerticalAlignment(VAlign_Bottom);
+			HealthMax = MakeFloatingText(WidgetTree, 20, Color::TextDim());
 			UHorizontalBoxSlot* MaxSlot = Row->AddChildToHorizontalBox(HealthMax);
 			MaxSlot->SetVerticalAlignment(VAlign_Bottom);
-			MaxSlot->SetPadding(FMargin(4.f, 0.f, 0.f, 4.f));
+			MaxSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 8.f));
 			Box->AddChildToVerticalBox(Row);
 
-			UVerticalBoxSlot* BarSlot = Box->AddChildToVerticalBox(MakeSlantBar(WidgetTree, HealthSegmentCount, 260.f, 12.f, -BarSlant, HealthSegments));
-			BarSlot->SetPadding(FMargin(4.f, 4.f, 0.f, 0.f));
+			UVerticalBoxSlot* BarSlot = Box->AddChildToVerticalBox(MakeSlantBar(WidgetTree, HealthSegmentCount, 400.f, 14.f, -BarSlant, HealthSegments, 3.f));
+			BarSlot->SetPadding(FMargin(4.f, 2.f, 0.f, 0.f));
 
 			VitalsCluster = Box;
-			PlaceOnCanvas(Root, Box, FAnchors(0.f, 1.f), FVector2D(0.f, 1.f), FVector2D(44.f, -38.f));
+			PlaceOnCanvas(Root, Box, FAnchors(0.f, 1.f), FVector2D(0.f, 1.f), FVector2D(60.f, -62.f));
 		}
 
-		// Bottom-right: ammo count, magazine bar, and the weapon's name underneath.
+		// Bottom-right: the weapon slots over the ammo: the count with its ammo class and reserve, a tick per round, and the
+		// fire mode and gun's name under that.
 		{
 			UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 			auto AddRight = [Box](UWidget* Child, float Top)
@@ -224,39 +222,47 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 				ChildSlot->SetPadding(FMargin(0.f, Top, 0.f, 0.f));
 			};
 
+			WeaponSlots = WidgetTree->ConstructWidget<UHudWeaponSlotsWidget>(UHudWeaponSlotsWidget::StaticClass());
+			AddRight(WeaponSlots, 0.f);
+
 			UHorizontalBox* AmmoRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			StatusText = MakeFloatingText(WidgetTree, 12, Color::Accent(), 200, ETextJustify::Right);
 			UHorizontalBoxSlot* StatusSlot = AmmoRow->AddChildToHorizontalBox(StatusText);
-			StatusSlot->SetVerticalAlignment(VAlign_Center);
-			StatusSlot->SetPadding(FMargin(0.f, 0.f, 12.f, 0.f));
-			AmmoText = MakeFloatingText(WidgetTree, 34, Color::Text(), 0, ETextJustify::Right);
+			StatusSlot->SetVerticalAlignment(VAlign_Bottom);
+			StatusSlot->SetPadding(FMargin(0.f, 0.f, 14.f, 10.f));
+			AmmoClassText = MakeFloatingText(WidgetTree, 14, Color::SegmentOn(), 60, ETextJustify::Right);
+			UHorizontalBoxSlot* ClassSlot = AmmoRow->AddChildToHorizontalBox(AmmoClassText);
+			ClassSlot->SetVerticalAlignment(VAlign_Bottom);
+			ClassSlot->SetPadding(FMargin(0.f, 0.f, 12.f, 9.f));
+			AmmoText = MakeFloatingText(WidgetTree, 46, Color::Text(), 0, ETextJustify::Right);
 			AmmoRow->AddChildToHorizontalBox(AmmoText)->SetVerticalAlignment(VAlign_Bottom);
-			ReserveText = MakeFloatingText(WidgetTree, 15, Color::TextDim(), 0, ETextJustify::Left);
+			ReserveText = MakeFloatingText(WidgetTree, 20, Color::TextDim(), 0, ETextJustify::Left);
 			UHorizontalBoxSlot* ReserveSlot = AmmoRow->AddChildToHorizontalBox(ReserveText);
 			ReserveSlot->SetVerticalAlignment(VAlign_Bottom);
-			ReserveSlot->SetPadding(FMargin(4.f, 0.f, 0.f, 6.f));
-			AddRight(AmmoRow, 0.f);
+			ReserveSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 8.f));
+			AddRight(AmmoRow, 4.f);
 
-			AddRight(MakeSlantBar(WidgetTree, AmmoSegmentCount, 260.f, 10.f, BarSlant, AmmoSegments), 2.f);
+			AddRight(MakeSlantBar(WidgetTree, MaxAmmoTicks, AmmoStripWidth, 14.f, BarSlant, AmmoSegments), 2.f);
 
+			// Under the strip: the fire mode at its start, the gun's name at its end.
 			UHorizontalBox* NameRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			WeaponName = MakeFloatingText(WidgetTree, 13, Color::Text(), 120, ETextJustify::Right);
-			NameRow->AddChildToHorizontalBox(WeaponName)->SetVerticalAlignment(VAlign_Center);
-			UHorizontalBox* Pips = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			for (int32 Index = 0; Index < MaxSlotPips; ++Index)
-			{
-				UImage* Pip = TintableRect(WidgetTree);
-				Pips->AddChildToHorizontalBox(MakeSized(WidgetTree, Pip, 12.f, 6.f))->SetPadding(FMargin(3.f, 0.f, 0.f, 0.f));
-				SlotPips.Add(Pip);
-			}
-			Pips->SetRenderShear(FVector2D(BarSlant, 0.f));
-			UHorizontalBoxSlot* PipsSlot = NameRow->AddChildToHorizontalBox(Pips);
-			PipsSlot->SetVerticalAlignment(VAlign_Center);
-			PipsSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
-			AddRight(NameRow, 5.f);
+			FireModeText = MakeFloatingText(WidgetTree, 12, Color::TextDim(), 60, ETextJustify::Left);
+			NameRow->AddChildToHorizontalBox(FireModeText)->SetVerticalAlignment(VAlign_Center);
+			// The name takes the rest of the row, shrinking to fit when it's long, so it never runs into the fire mode.
+			WeaponName = MakeFloatingText(WidgetTree, 16, Color::Text(), 20, ETextJustify::Right);
+			UScaleBox* NameFit = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass());
+			NameFit->SetStretch(EStretch::ScaleToFit);
+			NameFit->SetStretchDirection(EStretchDirection::DownOnly);
+			NameFit->SetContent(WeaponName);
+			UHorizontalBoxSlot* NameSlot = NameRow->AddChildToHorizontalBox(NameFit);
+			NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			NameSlot->SetHorizontalAlignment(HAlign_Right);
+			NameSlot->SetVerticalAlignment(VAlign_Center);
+			NameSlot->SetPadding(FMargin(14.f, 0.f, 0.f, 0.f));
+			AddRight(MakeSized(WidgetTree, NameRow, AmmoStripWidth, 0.f), 6.f);
 
 			WeaponCluster = Box;
-			PlaceOnCanvas(Root, Box, FAnchors(1.f, 1.f), FVector2D(1.f, 1.f), FVector2D(-44.f, -34.f));
+			PlaceOnCanvas(Root, Box, FAnchors(1.f, 1.f), FVector2D(1.f, 1.f), FVector2D(-48.f, -26.f));
 		}
 
 		// Right-middle: comparison card for the loot you're looking at.
@@ -299,14 +305,14 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 
 		// Bottom-right, over the ammo count: what was just picked up, rising out of the corner.
 		UHudPickupFeedWidget* PickupFeed = WidgetTree->ConstructWidget<UHudPickupFeedWidget>(UHudPickupFeedWidget::StaticClass());
-		UCanvasPanelSlot* FeedSlot = PlaceOnCanvas(Root, PickupFeed, FAnchors(1.f, 1.f), FVector2D(1.f, 1.f), FVector2D(-44.f, -150.f));
+		UCanvasPanelSlot* FeedSlot = PlaceOnCanvas(Root, PickupFeed, FAnchors(1.f, 1.f), FVector2D(1.f, 1.f), FVector2D(-48.f, -270.f));
 		FeedSlot->SetAutoSize(false);
 		FeedSlot->SetSize(FVector2D(UHudPickupFeedWidget::Width, UHudPickupFeedWidget::Height));
 
-		// Bottom-center: level and experience, its bar level with the health bar. Level-ups show in the message plate.
+		// Bottom-center: level and experience, a hairline along the bottom. Level-ups show in the message plate.
 		UHudXPBarWidget* XPBar = WidgetTree->ConstructWidget<UHudXPBarWidget>(UHudXPBarWidget::StaticClass());
 		XPBar->OnAnnouncement.BindUObject(this, &UPlayerHUDWidget::HandleMessage);
-		PlaceOnCanvas(Root, XPBar, FAnchors(0.5f, 1.f), FVector2D(0.5f, 1.f), FVector2D(0.f, -38.f));
+		PlaceOnCanvas(Root, XPBar, FAnchors(0.5f, 1.f), FVector2D(0.5f, 1.f), FVector2D(0.f, -32.f));
 	}
 	return Super::RebuildWidget();
 }
@@ -428,24 +434,37 @@ void UPlayerHUDWidget::UpdateWeaponCluster(UWeaponManagerComponent* Manager, flo
 	// Numbers: magazine turns orange when running low, red when empty.
 	SetTextIfChanged(AmmoText, FString::FromInt(Magazine));
 	AmmoText->SetColorAndOpacity(FSlateColor(Magazine == 0 ? Color::Worse() : (bLow ? Color::Accent() : Color::Text())));
-	SetTextIfChanged(ReserveText, FString::Printf(TEXT("/ %d"), Reserve));
+	SetTextIfChanged(ReserveText, FString::FromInt(Reserve));
 	ReserveText->SetColorAndOpacity(FSlateColor(Reserve == 0 ? Color::Worse() : Color::TextDim()));
 
-	// The magazine bar doubles as reload progress.
+	// One tick per round in the magazine (big magazines share ticks), which doubles as reload progress.
+	const int32 TickCount = FMath::Clamp(MagazineSize, 1, MaxAmmoTicks);
+	if (TickCount != ShownTickCount)
+	{
+		ShownTickCount = TickCount;
+		for (int32 Index = 0; Index < AmmoSegments.Num(); ++Index)
+		{
+			AmmoSegments[Index]->SetVisibility(Index < TickCount ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+			if (UHorizontalBoxSlot* TickSlot = Cast<UHorizontalBoxSlot>(AmmoSegments[Index]->Slot))
+			{
+				TickSlot->SetPadding(FMargin(0.f, 0.f, Index + 1 < TickCount ? 2.f : 0.f, 0.f));
+			}
+		}
+	}
 	if (bReloading)
 	{
 		const float Progress = ReloadDuration > 0.f ? FMath::Clamp(ReloadElapsed / ReloadDuration, 0.f, 1.f) : 0.f;
-		const int32 Filled = FMath::FloorToInt(Progress * AmmoSegmentCount);
-		for (int32 Index = 0; Index < AmmoSegments.Num(); ++Index)
+		const int32 Filled = FMath::FloorToInt(Progress * TickCount);
+		for (int32 Index = 0; Index < TickCount; ++Index)
 		{
 			AmmoSegments[Index]->SetColorAndOpacity(Index < Filled ? Color::Accent() : Color::SegmentOff());
 		}
 	}
 	else
 	{
-		const int32 Lit = FMath::Clamp(FMath::CeilToInt(MagazineFraction * AmmoSegmentCount), 0, AmmoSegmentCount);
+		const int32 Lit = FMath::Clamp(FMath::CeilToInt(MagazineFraction * TickCount), 0, TickCount);
 		const FLinearColor On = bLow ? Color::Accent() : Color::SegmentOn();
-		for (int32 Index = 0; Index < AmmoSegments.Num(); ++Index)
+		for (int32 Index = 0; Index < TickCount; ++Index)
 		{
 			AmmoSegments[Index]->SetColorAndOpacity(Index < Lit ? On : Color::SegmentOff());
 		}
@@ -472,24 +491,14 @@ void UPlayerHUDWidget::UpdateWeaponCluster(UWeaponManagerComponent* Manager, flo
 		SetTextIfChanged(StatusText, TEXT(""));
 	}
 
-	SetTextIfChanged(WeaponName, LooterWeaponText::Name(Active->GetInstance()).ToUpper());
-	WeaponName->SetColorAndOpacity(FSlateColor(LooterWeaponText::Color(Active->GetInstance())));
+	const FWeaponInstanceData& Instance = Active->GetInstance();
+	SetTextIfChanged(WeaponName, LooterWeaponText::Name(Instance).ToUpper());
+	WeaponName->SetColorAndOpacity(FSlateColor(LooterWeaponText::Color(Instance)));
+	SetTextIfChanged(FireModeText, LooterWeaponText::FireModeName(Instance).ToUpper());
+	SetTextIfChanged(AmmoClassText, Instance.Definition && LooterAmmo::IsValid(Instance.Definition->AmmoType)
+		? FString(LooterAmmo::GetInfo(Instance.Definition->AmmoType).Short) : FString());
 
-	// Slot pips: filled for each carried weapon, orange for the one in hand.
-	const TArray<AWeaponBase*> Weapons = Manager->GetWeapons();
-	for (int32 Index = 0; Index < SlotPips.Num(); ++Index)
-	{
-		UImage* Pip = SlotPips[Index];
-		if (Index >= Manager->MaxWeapons)
-		{
-			Pip->SetVisibility(ESlateVisibility::Collapsed);
-			continue;
-		}
-		Pip->SetVisibility(ESlateVisibility::HitTestInvisible);
-		const bool bHasWeapon = Weapons.IsValidIndex(Index) && Weapons[Index];
-		const bool bInHand = bHasWeapon && Weapons[Index] == Active;
-		Pip->SetColorAndOpacity(bInHand ? Color::Accent() : (bHasWeapon ? Color::Text() : Color::SegmentOff()));
-	}
+	WeaponSlots->Update(Manager, DeltaTime);
 
 	// Fade back when idle; stay up while there's something to act on.
 	const bool bNeedsAttention = WeaponActivity > 0.f || bLow || Reserve == 0;
