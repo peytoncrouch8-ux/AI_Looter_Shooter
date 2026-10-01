@@ -60,41 +60,62 @@ UWeaponDefinition* ULootLibrary::PickWeaponWith(const ULootTable* LootTable, FRa
 	return Last;
 }
 
-EAmmoType ULootLibrary::PickAmmoType(const ULootTable* LootTable, FRandomStream& Random)
+EAmmoType ULootLibrary::PickAmmoType(const ULootTable* LootTable, FRandomStream& Random, TOptional<EAmmoType> KillAmmo)
 {
+	// Each class's weight: what the table gives it (a class listed twice counts twice), or 1 each when it lists none.
+	float Weights[LooterAmmo::NumTypes] = {};
 	float Total = 0.f;
 	if (LootTable)
 	{
 		for (const FAmmoLootEntry& Entry : LootTable->AmmoTypes)
 		{
-			Total += LooterAmmo::IsValid(Entry.Type) ? FMath::Max(Entry.Weight, 0.f) : 0.f;
+			if (LooterAmmo::IsValid(Entry.Type))
+			{
+				const float Weight = FMath::Max(Entry.Weight, 0.f);
+				Weights[static_cast<int32>(Entry.Type)] += Weight;
+				Total += Weight;
+			}
 		}
 	}
 	if (Total <= 0.f)
 	{
-		const TConstArrayView<EAmmoType> Types = LooterAmmo::AllTypes();
-		return Types[Random.RandHelper(Types.Num())];
+		for (float& Weight : Weights)
+		{
+			Weight = 1.f;
+		}
 	}
 
+	// The gun that made the kill finds its own ammo more often. Multiplying keeps a class the table never drops at zero.
+	if (KillAmmo.IsSet() && LooterAmmo::IsValid(KillAmmo.GetValue()))
+	{
+		Weights[static_cast<int32>(KillAmmo.GetValue())] *= FMath::Max(LootTable ? LootTable->KillWeaponAmmoBias : 1.f, 1.f);
+	}
+
+	Total = 0.f;
+	for (const float Weight : Weights)
+	{
+		Total += Weight;
+	}
 	float Pick = Random.FRand() * Total;
 	EAmmoType Last = EAmmoType::AssaultRifle;
-	for (const FAmmoLootEntry& Entry : LootTable->AmmoTypes)
+	for (const EAmmoType Type : LooterAmmo::AllTypes())
 	{
-		if (!LooterAmmo::IsValid(Entry.Type) || Entry.Weight <= 0.f)
+		const float Weight = Weights[static_cast<int32>(Type)];
+		if (Weight <= 0.f)
 		{
 			continue;
 		}
-		Last = Entry.Type;
-		Pick -= Entry.Weight;
+		Last = Type;
+		Pick -= Weight;
 		if (Pick <= 0.f)
 		{
-			return Entry.Type;
+			return Type;
 		}
 	}
 	return Last;
 }
 
-FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random)
+FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random, TOptional<EAmmoType> KillAmmo)
 {
 	FLootRoll Roll;
 	if (!LootTable)
@@ -102,7 +123,7 @@ FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float
 		return Roll;
 	}
 
-	// Ammo: most kills leave a box or two, each of a random class.
+	// Ammo: most kills leave a box or two, each of a random class (more often the kill weapon's).
 	if (Random.FRand() < LootTable->AmmoDropChance)
 	{
 		const int32 MinBoxes = FMath::Max(LootTable->MinAmmoDrops, 0);
@@ -110,7 +131,7 @@ FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float
 		for (int32 Index = 0; Index < Boxes; ++Index)
 		{
 			FAmmoDrop& Drop = Roll.Ammo.AddDefaulted_GetRef();
-			Drop.Type = PickAmmoType(LootTable, Random);
+			Drop.Type = PickAmmoType(LootTable, Random, KillAmmo);
 			Drop.Amount = LooterAmmo::GetInfo(Drop.Type).BoxAmount;
 		}
 	}
@@ -134,6 +155,12 @@ FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float
 
 TArray<AActor*> ULootLibrary::SpawnLoot(UObject* WorldContextObject, const ULootTable* LootTable, FVector Location, int32 Level, float ExtraLuck)
 {
+	return SpawnKillLoot(WorldContextObject, LootTable, Location, Level, ExtraLuck, {});
+}
+
+TArray<AActor*> ULootLibrary::SpawnKillLoot(UObject* WorldContextObject, const ULootTable* LootTable, FVector Location, int32 Level,
+	float ExtraLuck, TOptional<EAmmoType> KillAmmo)
+{
 	TArray<AActor*> Spawned;
 	UWorld* World = WorldContextObject ? WorldContextObject->GetWorld() : nullptr;
 	if (!World || !LootTable)
@@ -142,7 +169,7 @@ TArray<AActor*> ULootLibrary::SpawnLoot(UObject* WorldContextObject, const ULoot
 	}
 
 	FRandomStream Random(FMath::Rand());
-	const FLootRoll Roll = RollLoot(LootTable, Level, ExtraLuck, Random);
+	const FLootRoll Roll = RollLoot(LootTable, Level, ExtraLuck, Random, KillAmmo);
 	const FVector SpawnLocation = Location + FVector(0.f, 0.f, 60.f);
 
 	if (UE_LOG_ACTIVE(LogLooter, Verbose))

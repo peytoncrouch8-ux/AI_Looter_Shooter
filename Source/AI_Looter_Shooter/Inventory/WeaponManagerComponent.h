@@ -74,11 +74,22 @@ public:
 	AWeaponBase* DropActiveWeapon();
 
 	/**
-	 * Picks up the loot weapon the player is looking at: into a free equip slot, else the backpack,
-	 * else it swaps with the weapon in hand.
+	 * Picks up the loot weapon the player is looking at (a tap of the interact key): into a free equip slot, else the
+	 * backpack, else it swaps with the weapon in hand.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Weapons|Pickup")
 	bool TryPickup();
+
+	/**
+	 * Picks up a loot weapon and takes it in hand (holding the interact key): into a free equip slot when there is one,
+	 * else in place of the weapon in hand, which goes to the backpack, or onto the ground when the backpack is full.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Weapons|Pickup")
+	bool EquipPickup(AWeaponBase* Pickup);
+
+	/** How far through the hold that equips the focused pickup (0-1); 0 while the interact key isn't held on one. */
+	UFUNCTION(BlueprintPure, Category = "Weapons|Pickup")
+	float GetPickupHoldProgress() const;
 
 	// --- Inventory ---
 
@@ -221,6 +232,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Pickup", meta = (ClampMin = "-1", ClampMax = "1"))
 	float PickupAimThreshold = 0.8f;
 
+	/** Seconds the interact key is held on loot to equip it; a shorter press picks it up. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Pickup", meta = (ClampMin = "0.1"))
+	float PickupHoldSeconds = 0.4f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Input")
 	TObjectPtr<UInputMappingContext> InputMappingContext;
 
@@ -256,7 +271,11 @@ private:
 	void SetupInput(AController* Controller);
 	void TeardownInput();
 	void HandleDropInput();
-	void HandleInteractInput();
+
+	/** The interact key: a tap picks up the focused loot (on release), a hold of PickupHoldSeconds equips it. */
+	void HandleInteractPressed();
+	void HandleInteractReleased();
+	void HandleInteractHeld();
 
 	/** Runs a few times a second for the local player: updates loot labels and the focused pickup. */
 	void UpdatePickupFocus();
@@ -266,6 +285,9 @@ private:
 	void GetHold(const AWeaponBase* Weapon, USceneComponent*& OutParent, FName& OutSocket, FTransform& OutOffset) const;
 	void SetActiveSlot(int32 NewSlot);
 	void TossWeaponAway(AWeaponBase* Weapon) const;
+
+	/** Attaches a weapon that just joined the slots where it's held, put away until it's taken in hand. */
+	void AttachHolstered(AWeaponBase* Weapon);
 
 	/** Takes a weapon out of the equip slots (fixing up the active slot) without destroying it. */
 	AWeaponBase* RemoveFromSlots(int32 SlotIndex);
@@ -284,6 +306,10 @@ private:
 	TWeakObjectPtr<AWeaponBase> FocusedPickup;
 	TArray<TWeakObjectPtr<AWeaponBase>> LabeledPickups;
 	FTimerHandle PickupFocusTimer;
+
+	/** The loot the interact key went down on, and the hold that equips it (running while the key is down). */
+	TWeakObjectPtr<AWeaponBase> PressedPickup;
+	FTimerHandle PickupHoldTimer;
 
 	int32 ActiveSlot = INDEX_NONE;
 	bool bThirdPersonHold = false;

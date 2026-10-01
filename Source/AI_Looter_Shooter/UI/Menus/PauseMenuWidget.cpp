@@ -33,6 +33,8 @@ namespace
 	const FName ActionQuality(TEXT("Quality"));
 	const FName ActionMotionBlurOn(TEXT("MotionBlurOn"));
 	const FName ActionMotionBlurOff(TEXT("MotionBlurOff"));
+	const FName ActionFrameRateOn(TEXT("FrameRateOn"));
+	const FName ActionFrameRateOff(TEXT("FrameRateOff"));
 	const FName ActionHoldMode(TEXT("HoldMode"));
 	const FName ActionToggleMode(TEXT("ToggleMode"));
 
@@ -185,6 +187,11 @@ TSharedRef<SWidget> UPauseMenuWidget::RebuildWidget()
 		MinimapZoomValue = MinimapZoomText;
 		MinimapZoomSlider->OnValueChanged.AddDynamic(this, &UPauseMenuWidget::HandleMinimapZoomChanged);
 		MinimapZoomSlider->OnMouseCaptureEnd.AddDynamic(this, &UPauseMenuWidget::HandleMinimapZoomReleased);
+		ULooterButton* RateOn = nullptr;
+		ULooterButton* RateOff = nullptr;
+		Add(MakeToggleRow(TEXT("FPS counter"), TEXT("On"), TEXT("Off"), ActionFrameRateOn, ActionFrameRateOff, 0, false, RateOn, RateOff), 4.f);
+		FrameRateOn = RateOn;
+		FrameRateOff = RateOff;
 
 		Add(MakeSection(WidgetTree, TEXT("Controls")), 18.f);
 		UTextBlock* Hint = MakeText(WidgetTree, TEXT("Click a key to change it, then press the new key or mouse button. Esc cancels."), 11, Color::TextDim());
@@ -363,6 +370,12 @@ void UPauseMenuWidget::RefreshGraphics()
 	const bool bBlur = Graphics->IsMotionBlurEnabled();
 	MotionBlurOn->SetHighlighted(bBlur);
 	MotionBlurOff->SetHighlighted(!bBlur);
+	if (FrameRateOn && FrameRateOff)
+	{
+		const bool bFrameRate = Graphics->IsFrameRateShown();
+		FrameRateOn->SetHighlighted(bFrameRate);
+		FrameRateOff->SetHighlighted(!bFrameRate);
+	}
 	for (int32 Index = 0; Index < QualityButtons.Num(); ++Index)
 	{
 		QualityButtons[Index]->SetHighlighted(static_cast<int32>(Graphics->GetQuality()) == Index);
@@ -626,6 +639,20 @@ void UPauseMenuWidget::HandleButton(ULooterButton* Button)
 			const bool bBlur = Button->Action == ActionMotionBlurOn;
 			Graphics->SetMotionBlurEnabled(bBlur);
 			SetStatus(bBlur ? TEXT("Motion blur on.") : TEXT("Motion blur off."), LooterUI::Color::TextDim());
+		}
+		RefreshGraphics();
+		RefreshKeyLabels();
+		SetKeyboardFocus();
+		return;
+	}
+	if (Button->Action == ActionFrameRateOn || Button->Action == ActionFrameRateOff)
+	{
+		StopListening();
+		if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
+		{
+			const bool bFrameRate = Button->Action == ActionFrameRateOn;
+			Graphics->SetFrameRateShown(bFrameRate);
+			SetStatus(bFrameRate ? TEXT("FPS counter on.") : TEXT("FPS counter off."), LooterUI::Color::TextDim());
 		}
 		RefreshGraphics();
 		RefreshKeyLabels();

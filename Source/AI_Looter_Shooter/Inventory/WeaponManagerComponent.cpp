@@ -186,7 +186,9 @@ void UWeaponManagerComponent::SetupInput(AController* Controller)
 	}
 	if (InteractAction)
 	{
-		Input->BindAction(InteractAction, ETriggerEvent::Started, this, &UWeaponManagerComponent::HandleInteractInput);
+		Input->BindAction(InteractAction, ETriggerEvent::Started, this, &UWeaponManagerComponent::HandleInteractPressed);
+		Input->BindAction(InteractAction, ETriggerEvent::Completed, this, &UWeaponManagerComponent::HandleInteractReleased);
+		Input->BindAction(InteractAction, ETriggerEvent::Canceled, this, &UWeaponManagerComponent::HandleInteractReleased);
 	}
 
 	// Loot labels and pickup focus only matter to the local player.
@@ -202,7 +204,9 @@ void UWeaponManagerComponent::TeardownInput()
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(PickupFocusTimer);
+		World->GetTimerManager().ClearTimer(PickupHoldTimer);
 	}
+	PressedPickup.Reset();
 	for (const TWeakObjectPtr<AWeaponBase>& Weapon : LabeledPickups)
 	{
 		if (Weapon.IsValid())
@@ -217,9 +221,4 @@ void UWeaponManagerComponent::TeardownInput()
 void UWeaponManagerComponent::HandleDropInput()
 {
 	DropActiveWeapon();
-}
-
-void UWeaponManagerComponent::HandleInteractInput()
-{
-	TryPickup();
 }

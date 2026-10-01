@@ -48,6 +48,102 @@ bool UWeaponManagerComponent::TryPickup()
 	return true;
 }
 
+bool UWeaponManagerComponent::EquipPickup(AWeaponBase* Pickup)
+{
+	if (!IsValid(Pickup) || !Pickup->IsPickup())
+	{
+		return false;
+	}
+	if (FocusedPickup.Get() == Pickup)
+	{
+		FocusedPickup.Reset();
+		OnFocusedPickupChanged.Broadcast(nullptr);
+	}
+
+	// A free slot takes it, the same as a tap.
+	if (Weapons.Num() < MaxWeapons)
+	{
+		if (!AddWeapon(Pickup))
+		{
+			return false;
+		}
+		EquipSlot(Weapons.IndexOfByKey(Pickup));
+		return true;
+	}
+
+	// Every slot is full: it takes the slot in use, and the weapon that was in it goes to the backpack, or onto the
+	// ground when the backpack is full too.
+	const int32 Slot = FMath::Max(ActiveSlot, 0);
+	if (AWeaponBase* Outgoing = Weapons[Slot])
+	{
+		const FString OutgoingName = Outgoing->GetDisplayName().ToString();
+		if (Backpack.Num() < BackpackCapacity)
+		{
+			Outgoing->OnHolstered();
+			Backpack.Add(Outgoing->GetInstanceForStorage());
+			Outgoing->Destroy();
+			SendMessage(FString::Printf(TEXT("%s sent to backpack"), *OutgoingName));
+		}
+		else
+		{
+			Outgoing->OnDropped();
+			TossWeaponAway(Outgoing);
+			SendMessage(FString::Printf(TEXT("Backpack full: %s dropped"), *OutgoingName));
+		}
+	}
+	Weapons[Slot] = Pickup;
+	AttachHolstered(Pickup);
+	ActiveSlot = INDEX_NONE; // the weapon that was in hand is gone; SetActiveSlot takes out the new one
+	SetActiveSlot(Slot);
+	OnInventoryChanged.Broadcast();
+	return true;
+}
+
+float UWeaponManagerComponent::GetPickupHoldProgress() const
+{
+	const UWorld* World = GetWorld();
+	if (!World || !PressedPickup.IsValid() || !World->GetTimerManager().IsTimerActive(PickupHoldTimer))
+	{
+		return 0.f;
+	}
+	return FMath::Clamp(World->GetTimerManager().GetTimerElapsed(PickupHoldTimer) / PickupHoldSeconds, 0.f, 1.f);
+}
+
+void UWeaponManagerComponent::HandleInteractPressed()
+{
+	// Nothing happens until the key comes up (a tap) or has been held long enough (equip).
+	PressedPickup = FocusedPickup;
+	if (PressedPickup.IsValid())
+	{
+		GetWorld()->GetTimerManager().SetTimer(PickupHoldTimer, this, &UWeaponManagerComponent::HandleInteractHeld, PickupHoldSeconds, false);
+	}
+}
+
+void UWeaponManagerComponent::HandleInteractReleased()
+{
+	FTimerManager& Timers = GetWorld()->GetTimerManager();
+	const bool bTap = Timers.IsTimerActive(PickupHoldTimer);
+	Timers.ClearTimer(PickupHoldTimer);
+	AWeaponBase* Pickup = PressedPickup.Get();
+	PressedPickup.Reset();
+
+	// Only if the player still looks at what they pressed on: a tap never grabs something else.
+	if (bTap && Pickup && Pickup == FocusedPickup.Get())
+	{
+		TryPickup();
+	}
+}
+
+void UWeaponManagerComponent::HandleInteractHeld()
+{
+	AWeaponBase* Pickup = PressedPickup.Get();
+	PressedPickup.Reset();
+	if (Pickup && Pickup == FocusedPickup.Get())
+	{
+		EquipPickup(Pickup);
+	}
+}
+
 void UWeaponManagerComponent::UpdatePickupFocus()
 {
 	APlayerController* PC = InputBinding.GetController();

@@ -108,6 +108,49 @@ bool FLootDropOddsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLootKillWeaponAmmoTest, "Looter.Loot.KillWeaponAmmo",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FLootKillWeaponAmmoTest::RunTest(const FString& Parameters)
+{
+	// Boxes from shotgun kills: shells come up KillWeaponAmmoBias times as often as each other class, and every other
+	// class still drops.
+	ULootTable* Table = NewObject<ULootTable>();
+	const float Bias = Table->KillWeaponAmmoBias;
+	TestTrue(FString::Printf(TEXT("A slight lean (%.1fx)"), Bias), Bias > 1.f && Bias <= 3.f);
+
+	constexpr int32 Picks = 30000;
+	FRandomStream Random(20261001);
+	int32 Counts[LooterAmmo::NumTypes] = {};
+	for (int32 Pick = 0; Pick < Picks; ++Pick)
+	{
+		++Counts[static_cast<int32>(ULootLibrary::PickAmmoType(Table, Random, EAmmoType::Shotgun))];
+	}
+	const float TotalWeight = LooterAmmo::NumTypes - 1 + Bias;
+	for (const EAmmoType Type : LooterAmmo::AllTypes())
+	{
+		const float Share = static_cast<float>(Counts[static_cast<int32>(Type)]) / Picks;
+		const float Expected = (Type == EAmmoType::Shotgun ? Bias : 1.f) / TotalWeight;
+		TestNearlyEqual(FString::Printf(TEXT("%s share after shotgun kills"), LooterAmmo::GetInfo(Type).Name), Share, Expected, 0.015f);
+	}
+
+	// A class the table never drops stays out, even when its gun made the kill.
+	Table->AmmoTypes.Reset();
+	for (const EAmmoType Type : { EAmmoType::AssaultRifle, EAmmoType::Pistol })
+	{
+		FAmmoLootEntry& Entry = Table->AmmoTypes.AddDefaulted_GetRef();
+		Entry.Type = Type;
+	}
+	bool bOnlyListed = true;
+	for (int32 Pick = 0; Pick < 1000; ++Pick)
+	{
+		const EAmmoType Type = ULootLibrary::PickAmmoType(Table, Random, EAmmoType::Sniper);
+		bOnlyListed &= Type == EAmmoType::AssaultRifle || Type == EAmmoType::Pistol;
+	}
+	TestTrue(TEXT("Only the table's classes drop"), bOnlyListed);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLootAmmoPoolTest, "Looter.Loot.AmmoPool",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
@@ -152,6 +195,8 @@ bool FLootDefaultTableTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("One weapon per weapon drop"), Table->MinWeaponDrops == 1 && Table->MaxWeaponDrops == 1);
 	TestEqual(TEXT("No luck bonus, so rarity follows each weapon's own odds"), Table->Luck, 0.f);
 	TestTrue(TEXT("Every kill drops ammo"), Table->AmmoDropChance >= 1.f && Table->MinAmmoDrops >= 1);
+	TestTrue(FString::Printf(TEXT("Ammo leans slightly toward the kill weapon's class (%.1fx)"), Table->KillWeaponAmmoBias),
+		Table->KillWeaponAmmoBias > 1.f && Table->KillWeaponAmmoBias <= 3.f);
 
 	int32 Weapons = 0;
 	for (const FLootTableEntry& Entry : Table->Entries)

@@ -1,4 +1,5 @@
 #include "UI/HUD/PlayerHUDWidget.h"
+#include "UI/HUD/HudFrameRateWidget.h"
 #include "UI/HUD/HudMinimapWidget.h"
 #include "UI/HUD/HudXPBarWidget.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -34,6 +35,7 @@ namespace
 	constexpr int32 HealthSegmentCount = 20;
 	constexpr int32 AmmoSegmentCount = 24;
 	constexpr int32 MaxSlotPips = 4;
+	constexpr int32 PickupHoldSegmentCount = 16;
 
 	/** Opacity of a corner cluster when nothing is happening. */
 	constexpr float IdleOpacity = 0.6f;
@@ -272,6 +274,12 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			}
 			PickupHint = MakeText(WidgetTree, TEXT(""), 13, Color::Accent(), false, 150);
 			Box->AddChildToVerticalBox(PickupHint)->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
+			// Fills while the interact key is held to equip; hidden (keeping its space, so the card doesn't jump) otherwise.
+			PickupHoldBar = MakeSlantBar(WidgetTree, PickupHoldSegmentCount, 200.f, 6.f, BarSlant, PickupHoldSegments);
+			PickupHoldBar->SetVisibility(ESlateVisibility::Hidden);
+			UVerticalBoxSlot* HoldSlot = Box->AddChildToVerticalBox(PickupHoldBar);
+			HoldSlot->SetHorizontalAlignment(HAlign_Left);
+			HoldSlot->SetPadding(FMargin(4.f, 6.f, 0.f, 0.f));
 
 			USizeBox* CardSize = MakeSized(WidgetTree, Box, 0.f);
 			CardSize->SetMinDesiredWidth(320.f);
@@ -283,6 +291,10 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 		// Top-right: the minimap.
 		UHudMinimapWidget* Minimap = WidgetTree->ConstructWidget<UHudMinimapWidget>(UHudMinimapWidget::StaticClass());
 		PlaceOnCanvas(Root, Minimap, FAnchors(1.f, 0.f), FVector2D(1.f, 0.f), FVector2D(-UHudMinimapWidget::Margin, UHudMinimapWidget::Margin));
+
+		// Top-left: the frame rate, the same distance in from the corner as the minimap.
+		UHudFrameRateWidget* FrameRate = WidgetTree->ConstructWidget<UHudFrameRateWidget>(UHudFrameRateWidget::StaticClass());
+		PlaceOnCanvas(Root, FrameRate, FAnchors(0.f, 0.f), FVector2D(0.f, 0.f), FVector2D(UHudMinimapWidget::Margin, UHudMinimapWidget::Margin));
 
 		// Bottom-center: level and experience, its bar level with the health bar. Level-ups show in the message plate.
 		UHudXPBarWidget* XPBar = WidgetTree->ConstructWidget<UHudXPBarWidget>(UHudXPBarWidget::StaticClass());
@@ -588,10 +600,35 @@ void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager)
 	SetCompareLine(PickupStatTexts[3], TEXT("RELOAD"), S.ReloadTime, Old.ReloadTime, false, 2, TEXT(""), TEXT("S"), bHasCurrent);
 	SetCompareLine(PickupStatTexts[4], TEXT("SPREAD"), S.Spread, Old.Spread, false, 2, TEXT(""), TEXT(" DEG"), bHasCurrent);
 
+	// A tap and a hold only differ when every slot is full: the tap stashes the loot, the hold takes it in hand.
+	const FString Key = BoundKeyName(TEXT("Interact"), TEXT("E"));
 	const bool bSlotsFull = Manager->GetWeapons().Num() >= Manager->MaxWeapons;
 	const bool bBackpackFull = Manager->GetBackpack().Num() >= Manager->BackpackCapacity;
-	const TCHAR* Action = !bSlotsFull ? TEXT("PICK UP") : (!bBackpackFull ? TEXT("SEND TO BACKPACK") : TEXT("SWAP WITH WEAPON IN HAND"));
-	PickupHint->SetText(FText::FromString(FString::Printf(TEXT("[%s] %s"), *BoundKeyName(TEXT("Interact"), TEXT("E")), Action)));
+	FString Hint;
+	if (!bSlotsFull)
+	{
+		Hint = FString::Printf(TEXT("[%s] PICK UP"), *Key);
+	}
+	else if (!bBackpackFull)
+	{
+		Hint = FString::Printf(TEXT("[%s] SEND TO BACKPACK\nHOLD [%s] EQUIP, WEAPON IN HAND TO BACKPACK"), *Key, *Key);
+	}
+	else
+	{
+		Hint = FString::Printf(TEXT("[%s] SWAP WITH WEAPON IN HAND\nBACKPACK FULL: IT DROPS"), *Key);
+	}
+	SetTextIfChanged(PickupHint, Hint);
+
+	const float Hold = Manager->GetPickupHoldProgress();
+	PickupHoldBar->SetVisibility(Hold > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	if (Hold > 0.f)
+	{
+		const int32 Lit = FMath::Clamp(FMath::CeilToInt(Hold * PickupHoldSegmentCount), 0, PickupHoldSegmentCount);
+		for (int32 Index = 0; Index < PickupHoldSegments.Num(); ++Index)
+		{
+			PickupHoldSegments[Index]->SetColorAndOpacity(Index < Lit ? Color::Accent() : Color::SegmentOff());
+		}
+	}
 }
 
 void UPlayerHUDWidget::HandleHit(const FHitResult& Hit, float Damage, bool bCritical)

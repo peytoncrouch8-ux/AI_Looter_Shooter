@@ -34,9 +34,7 @@ bool UWeaponManagerComponent::AddWeapon(AWeaponBase* Weapon)
 		return false;
 	}
 
-	APawn* Pawn = Cast<APawn>(GetOwner());
 	int32 Slot = INDEX_NONE;
-
 	if (Weapons.Num() >= MaxWeapons)
 	{
 		// Full: swap out the weapon in hand.
@@ -54,14 +52,7 @@ bool UWeaponManagerComponent::AddWeapon(AWeaponBase* Weapon)
 		Slot = Weapons.Add(Weapon);
 	}
 
-	// Attach now so the weapon follows the owner even while holstered.
-	USceneComponent* HoldParent = nullptr;
-	FName HoldSocket;
-	FTransform HoldOffset;
-	GetHold(Weapon, HoldParent, HoldSocket, HoldOffset);
-	Weapon->OnEquipped(Pawn, HoldParent, HoldSocket, HoldOffset);
-	Weapon->OnHolstered();
-
+	AttachHolstered(Weapon);
 	OnInventoryChanged.Broadcast();
 
 	if (ActiveSlot == INDEX_NONE)
@@ -281,12 +272,7 @@ bool UWeaponManagerComponent::SwapSlotWithBackpack(int32 SlotIndex, int32 Backpa
 	}
 
 	Weapons[SlotIndex] = Incoming;
-	USceneComponent* HoldParent = nullptr;
-	FName HoldSocket;
-	FTransform HoldOffset;
-	GetHold(Incoming, HoldParent, HoldSocket, HoldOffset);
-	Incoming->OnEquipped(Cast<APawn>(Owner), HoldParent, HoldSocket, HoldOffset);
-	Incoming->OnHolstered();
+	AttachHolstered(Incoming);
 	if (bWasInHand)
 	{
 		ActiveSlot = INDEX_NONE; // force SetActiveSlot to take out the new weapon
@@ -375,6 +361,17 @@ void UWeaponManagerComponent::SetActiveSlot(int32 NewSlot)
 	}
 
 	OnActiveWeaponChanged.Broadcast(NewWeapon, OldWeapon);
+}
+
+void UWeaponManagerComponent::AttachHolstered(AWeaponBase* Weapon)
+{
+	// Attached now so it follows the owner even while put away.
+	USceneComponent* HoldParent = nullptr;
+	FName HoldSocket;
+	FTransform HoldOffset;
+	GetHold(Weapon, HoldParent, HoldSocket, HoldOffset);
+	Weapon->OnEquipped(Cast<APawn>(GetOwner()), HoldParent, HoldSocket, HoldOffset);
+	Weapon->OnHolstered();
 }
 
 void UWeaponManagerComponent::TossWeaponAway(AWeaponBase* Weapon) const

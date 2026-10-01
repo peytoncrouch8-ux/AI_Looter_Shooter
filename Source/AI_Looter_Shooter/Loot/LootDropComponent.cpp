@@ -1,6 +1,7 @@
 #include "Loot/LootDropComponent.h"
 #include "Loot/LootLibrary.h"
 #include "Combat/HealthComponent.h"
+#include "Weapons/WeaponBase.h"
 #include "GameFramework/Actor.h"
 
 void ULootDropComponent::BeginPlay()
@@ -24,7 +25,11 @@ void ULootDropComponent::BeginPlay()
 
 void ULootDropComponent::HandleOwnerDeath(AController* Killer)
 {
-	DropLoot();
+	// The ammo leans toward the class of the gun that landed the killing shot, so the gun in use keeps itself fed.
+	const UHealthComponent* Health = GetOwner()->FindComponentByClass<UHealthComponent>();
+	const AWeaponBase* KillWeapon = Health ? Cast<AWeaponBase>(Health->GetLastDamageCauser()) : nullptr;
+	const TOptional<EAmmoType> KillAmmo = KillWeapon ? TOptional<EAmmoType>(KillWeapon->GetAmmoType()) : TOptional<EAmmoType>();
+	ULootLibrary::SpawnKillLoot(this, LootTable, GetOwner()->GetActorLocation(), Level, ExtraLuck, KillAmmo);
 }
 
 TArray<AActor*> ULootDropComponent::DropLoot()

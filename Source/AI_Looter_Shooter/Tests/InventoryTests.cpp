@@ -107,6 +107,77 @@ bool FInventorySwapsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInventoryEquipPickupTest, "Looter.Inventory.EquipPickup",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FInventoryEquipPickupTest::RunTest(const FString& Parameters)
+{
+	// Holding the pickup key on loot: a free slot takes it; with every slot full it takes the slot in use, and the gun
+	// that was there goes to the backpack, or onto the ground when the backpack is full.
+	FTestWorldWrapper WorldWrapper;
+	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = WorldWrapper.GetTestWorld();
+	UWeaponDefinition* Rifle = LoadObject<UWeaponDefinition>(nullptr, TEXT("/Game/Weapons/Data/DA_AssaultRifle.DA_AssaultRifle"));
+	UWeaponDefinition* Shotgun = LoadObject<UWeaponDefinition>(nullptr, TEXT("/Game/Weapons/Data/DA_PumpShotgun.DA_PumpShotgun"));
+	if (!TestNotNull(TEXT("Rifle loads"), Rifle) || !TestNotNull(TEXT("Shotgun loads"), Shotgun))
+	{
+		return false;
+	}
+
+	APawn* Holder = World->SpawnActor<APawn>();
+	UWeaponManagerComponent* Inventory = NewObject<UWeaponManagerComponent>(Holder);
+	Inventory->RegisterComponent();
+	Inventory->MaxWeapons = 2;
+	Inventory->BackpackCapacity = 1;
+
+	auto Loot = [World](UWeaponDefinition* Definition, EWeaponRarity Rarity)
+	{
+		AWeaponBase* Weapon = UWeaponRollLibrary::SpawnWeapon(World, UWeaponRollLibrary::RollWeaponWithRarity(Definition, Rarity, 1), FTransform::Identity);
+		if (Weapon)
+		{
+			Weapon->OnDropped();
+		}
+		return Weapon;
+	};
+	auto InHand = [Inventory](const UWeaponDefinition* Definition, EWeaponRarity Rarity)
+	{
+		const AWeaponBase* Active = Inventory->GetActiveWeapon();
+		return Active && Active->GetInstance().Definition == Definition && Active->GetRarity() == Rarity;
+	};
+
+	TestTrue(TEXT("Given a rifle"), Inventory->GiveWeapon(UWeaponRollLibrary::RollWeaponWithRarity(Rifle, EWeaponRarity::Common, 1)) != nullptr);
+
+	// A free slot: the loot goes there and into the hand.
+	TestTrue(TEXT("Shotgun equipped"), Inventory->EquipPickup(Loot(Shotgun, EWeaponRarity::Common)));
+	TestEqual(TEXT("Into the free slot"), Inventory->GetActiveSlot(), 1);
+	TestTrue(TEXT("Shotgun in hand"), InHand(Shotgun, EWeaponRarity::Common));
+	TestEqual(TEXT("Backpack untouched"), Inventory->GetBackpack().Num(), 0);
+
+	// Slots full, backpack has room: the rifle in hand goes to the backpack and the loot takes its slot.
+	Inventory->EquipSlot(0);
+	AWeaponBase* RareRifle = Loot(Rifle, EWeaponRarity::Rare);
+	TestTrue(TEXT("Rare rifle equipped"), Inventory->EquipPickup(RareRifle));
+	TestEqual(TEXT("Same slot"), Inventory->GetActiveSlot(), 0);
+	TestTrue(TEXT("Rare rifle in hand"), InHand(Rifle, EWeaponRarity::Rare));
+	TestTrue(TEXT("Common rifle in the backpack"), Inventory->GetBackpack().Num() == 1 && Inventory->GetBackpack()[0].Rarity == EWeaponRarity::Common);
+	TestTrue(TEXT("Shotgun still in slot 2"), Inventory->GetWeapons().Num() == 2 && Inventory->GetWeapons()[1]->GetInstance().Definition == Shotgun);
+
+	// Slots and backpack full: the rifle in hand is dropped and the loot takes its slot.
+	TestTrue(TEXT("Epic rifle equipped"), Inventory->EquipPickup(Loot(Rifle, EWeaponRarity::Epic)));
+	TestTrue(TEXT("Epic rifle in hand"), InHand(Rifle, EWeaponRarity::Epic));
+	TestEqual(TEXT("Still in slot 1"), Inventory->GetActiveSlot(), 0);
+	TestTrue(TEXT("Backpack unchanged"), Inventory->GetBackpack().Num() == 1 && Inventory->GetBackpack()[0].Rarity == EWeaponRarity::Common);
+	TestTrue(TEXT("Rare rifle dropped as loot"), IsValid(RareRifle) && RareRifle->IsPickup() && RareRifle->GetOwner() == nullptr);
+
+	// Only loot can be equipped this way.
+	TestFalse(TEXT("A carried weapon is refused"), Inventory->EquipPickup(Inventory->GetWeapons()[1]));
+	TestFalse(TEXT("Nothing is refused"), Inventory->EquipPickup(nullptr));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInventoryLoadoutTest, "Looter.Inventory.Loadout",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 

@@ -37,7 +37,8 @@ struct FAmmoLootEntry
  * What an enemy, chest or boss drops when it dies. Create via Content Browser > Miscellaneous > Data Asset > LootTable.
  *
  * Every kill rolls two things independently:
- *  - Ammo: a few boxes, each of a random ammo class (weighted by AmmoTypes).
+ *  - Ammo: a few boxes, each of a random ammo class (weighted by AmmoTypes), leaning toward the class of the gun
+ *    that made the kill (KillWeaponAmmoBias).
  *  - Weapons: only WeaponDropChance of kills drop one. Its rarity comes from the weapon's own rarity table
  *    (Common most often, Legendary least), shifted up by Luck.
  */
@@ -85,4 +86,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Ammo", meta = (ClampMin = "0"))
 	int32 MaxAmmoDrops = 2;
+
+	/**
+	 * How many times its usual weight the ammo class of the gun that made the kill gets, per box. With five classes
+	 * equally likely, 2 makes it one box in three instead of one in five: the gun in use keeps itself fed while the
+	 * other classes still drop. 1 = no lean.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Ammo", meta = (ClampMin = "1"))
+	float KillWeaponAmmoBias = 2.f;
 };

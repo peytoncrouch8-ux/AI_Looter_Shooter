@@ -18,6 +18,7 @@ class UWeaponManagerComponent;
  *  - bottom-right: magazine / reserve, slanted magazine bar (doubles as reload progress), weapon name
  *    underneath in its rarity color, and slot pips
  *  - top-right: the minimap (UHudMinimapWidget)
+ *  - top-left: the frame rate (UHudFrameRateWidget)
  *  - bottom-center: the level and experience bar (UHudXPBarWidget)
  *  - center: thin tick crosshair sized by the weapon's spread, diagonal hit marker
  * No backing panels; both corner clusters fade back when nothing is happening and come forward on
@@ -76,6 +77,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupLevel;
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> PickupStatTexts;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupHint;
+	UPROPERTY(Transient) TObjectPtr<UWidget> PickupHoldBar;
+	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> PickupHoldSegments;
 	UPROPERTY(Transient) TObjectPtr<UWidget> MessagePlate;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> MessageText;
 

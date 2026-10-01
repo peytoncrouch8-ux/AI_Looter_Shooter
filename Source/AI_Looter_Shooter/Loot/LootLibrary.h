@@ -44,17 +44,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Loot", meta = (WorldContext = "WorldContextObject"))
 	static TArray<AActor*> SpawnLoot(UObject* WorldContextObject, const ULootTable* LootTable, FVector Location, int32 Level = 1, float ExtraLuck = 0.f);
 
+	/** SpawnLoot for a kill: the ammo boxes lean toward KillAmmo, the ammo class of the gun that made it, when set. */
+	static TArray<AActor*> SpawnKillLoot(UObject* WorldContextObject, const ULootTable* LootTable, FVector Location, int32 Level,
+		float ExtraLuck, TOptional<EAmmoType> KillAmmo);
+
 	/**
 	 * Decides what one kill drops, without spawning anything. What drops (counts, weapons, rarities, ammo classes) comes
-	 * from Random, so a seeded stream repeats it; each weapon still gets its own fresh stat seed.
+	 * from Random, so a seeded stream repeats it; each weapon still gets its own fresh stat seed. KillAmmo, when set,
+	 * is the ammo class of the gun that made the kill: each box leans toward it (the table's KillWeaponAmmoBias).
 	 */
-	static FLootRoll RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random);
+	static FLootRoll RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random,
+		TOptional<EAmmoType> KillAmmo = {});
 
 	/** Picks one weapon definition from the table by weight. */
 	static UWeaponDefinition* PickWeaponWith(const ULootTable* LootTable, FRandomStream& Random);
 
-	/** Picks one ammo class from the table by weight (every class, equally, if the table lists none). */
-	static EAmmoType PickAmmoType(const ULootTable* LootTable, FRandomStream& Random);
+	/**
+	 * Picks one ammo class from the table by weight (every class, equally, if the table lists none). KillAmmo's weight
+	 * is multiplied by the table's KillWeaponAmmoBias; a class the table never drops stays out.
+	 */
+	static EAmmoType PickAmmoType(const ULootTable* LootTable, FRandomStream& Random, TOptional<EAmmoType> KillAmmo = {});
 
 	/** The loot table creatures, dummies and anything else with a loot drop component use unless given their own. */
 	static ULootTable* GetDefaultLootTable();

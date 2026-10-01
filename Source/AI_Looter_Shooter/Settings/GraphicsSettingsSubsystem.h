@@ -46,6 +46,10 @@ public:
 	/** How far the HUD minimap is zoomed in: 1 shows 35 m around the player, 2 half that. */
 	UPROPERTY()
 	float MinimapZoom = 1.f;
+
+	/** The frame rate counter in the HUD's top-left corner. Saves from before it existed load with it on. */
+	UPROPERTY()
+	bool bShowFrameRate = true;
 };
 
 /**
@@ -54,7 +58,7 @@ public:
  * the reference card can't afford below High (see QualitySettings). Motion blur uses the viewport's show flag, so
  * scalability changes and post process volumes can't switch it back on behind the player's back. UI transparency
  * fades every UI's panel backgrounds (see LooterUI::SetBackgroundOpacity), live. The HUD reads the minimap size
- * and zoom every frame.
+ * and zoom every frame, and whether to show the frame rate twice a second.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UGraphicsSettingsSubsystem : public ULocalPlayerSubsystem
@@ -108,6 +112,10 @@ public:
 
 	/** The HUD follows on its next frame. bSave as for SetUITransparency. */
 	void SetMinimapZoom(float Zoom, bool bSave = true);
+
+	/** The HUD's frame rate counter (it follows within half a second). */
+	bool IsFrameRateShown() const;
+	void SetFrameRateShown(bool bShown);
 
 	void SaveSettings() const;
 

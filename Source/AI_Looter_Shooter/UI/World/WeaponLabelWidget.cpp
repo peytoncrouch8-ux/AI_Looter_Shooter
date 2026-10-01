@@ -103,7 +103,7 @@ void UWeaponLabelWidget::ApplyContent()
 	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 	const UKeyBindingSubsystem* Bindings = LocalPlayer ? LocalPlayer->GetSubsystem<UKeyBindingSubsystem>() : nullptr;
 	const FString Key = Bindings ? Bindings->GetKey(TEXT("Interact")).GetDisplayName().ToString().ToUpper() : FString(TEXT("E"));
-	PromptText->SetText(FText::FromString(FString::Printf(TEXT("[%s] PICK UP"), *Key)));
+	PromptText->SetText(FText::FromString(FString::Printf(TEXT("[%s] PICK UP  |  HOLD EQUIP"), *Key)));
 	StyleFloatingText(PromptText, 13, Color::Accent(), 150);
 	PromptText->SetVisibility(Detail);
 }

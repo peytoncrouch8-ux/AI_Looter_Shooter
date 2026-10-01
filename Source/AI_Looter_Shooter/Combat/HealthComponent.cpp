@@ -42,6 +42,7 @@ void UHealthComponent::HandleAnyDamage(AActor* DamagedActor, float Damage, const
 	}
 
 	const bool bCritical = DamageType && DamageType->IsA<UWeaponCritDamageType>();
+	LastDamageCauser = DamageCauser;
 
 	if (!bInvulnerable)
 	{
@@ -63,6 +64,7 @@ void UHealthComponent::ResetHealth()
 {
 	bDead = false;
 	Health = MaxHealth;
+	LastDamageCauser.Reset();
 	OnHealthChanged.Broadcast(Health, MaxHealth);
 }
 

@@ -26,7 +26,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   pose and holds guns in the loadout stand-in's hands.
 
 ## Combat
-- `Combat/HealthComponent`: `UHealthComponent`, health, damage events and floating damage numbers.
+- `Combat/HealthComponent`: `UHealthComponent`, health, damage events, floating damage numbers, and what dealt the
+  latest damage (the kill weapon).
 - `Combat/CombatRules.h`: `LooterCombat`, game-wide rules (critical hit multiplier, damage variance).
 - `Combat/CriticalSpotTarget.h`: `ICriticalSpotTarget`, targets that have a critical spot.
 - `Combat/LooterDamageTypes.h`: weapon, critical-hit and creature-attack damage types.
@@ -57,13 +58,15 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Inventory/WeaponManagerComponent.h`: `UWeaponManagerComponent`, the player's weapons, backpack and ammo.
 - `Inventory/WeaponManagerComponent.cpp`: its lifecycle, ammo pools, firing passthrough and input.
 - `Inventory/WeaponManagerSlots.cpp`: slots and backpack (give, equip, drop, stash, swap, move) and where guns are held.
-- `Inventory/WeaponManagerPickups.cpp`: which loot the player is looking at, and picking it up.
+- `Inventory/WeaponManagerPickups.cpp`: which loot the player is looking at, and picking it up (a tap of the interact
+  key) or equipping it in place of the gun in hand (a hold).
 
 ## Affixes
 - `Affixes/WeaponRollLibrary`: `UWeaponRollLibrary`, rolling rarity and stats from a seed, and spawning rolled guns.
 
 ## Loot
-- `Loot/LootTable`: `ULootTable`, what a kill drops (ammo boxes, weapon odds, luck).
+- `Loot/LootTable`: `ULootTable`, what a kill drops (ammo boxes and their lean toward the kill weapon's ammo, weapon
+  odds, luck).
 - `Loot/LootLibrary`: `ULootLibrary`, rolling a loot table and spawning the results.
 - `Loot/LootDropComponent`: drops its owner's loot when it dies.
 - `Loot/LootTossComponent`: `ULootTossComponent`, throws loot so it pops out, lands and settles.
@@ -104,7 +107,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Settings
 - `Settings/KeyBindingSubsystem`: key rebinding, the global pause/inventory actions and the character actions.
-- `Settings/GraphicsSettingsSubsystem`: saved display options (quality preset, motion blur, UI transparency, minimap size and zoom) and the `Looter.Quality` command.
+- `Settings/GraphicsSettingsSubsystem`: saved display options (quality preset, motion blur, UI transparency, minimap size and zoom, FPS counter) and the `Looter.Quality` command.
 
 ## UI
 - `UI/Style/LooterUIStyle`: `LooterUI`, the style kit every UI is built with (palette, shapes, icons, text, builders,
@@ -116,6 +119,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/HUD/HudMinimapWidget`: the round minimap that turns with the view (size and zoom from the settings).
 - `UI/HUD/TutorialPromptWidget`: the tutorial's current instruction near the top of the screen.
 - `UI/HUD/HudXPBarWidget`: the level and experience bar at the bottom center.
+- `UI/HUD/HudFrameRateWidget`: the frame rate counter in the top-left corner.
 - `UI/Menus/PauseMenuWidget`: the pause and settings menu (graphics, interface, key bindings).
 - `UI/Inventory/LoadoutWidget.cpp`: the loadout screen: opening, layout and contents.
 - `UI/Inventory/LoadoutWidgetInput.cpp`: its cursor, actions (swap, hold, drop) and turning the stand-in.

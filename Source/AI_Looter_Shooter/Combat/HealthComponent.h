@@ -42,6 +42,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Health")
 	bool IsDead() const { return bDead; }
 
+	/** What dealt the latest damage (the gun, for shots), so death handlers can tell what made the kill. */
+	UFUNCTION(BlueprintPure, Category = "Health")
+	AActor* GetLastDamageCauser() const { return LastDamageCauser.Get(); }
+
 	UPROPERTY(BlueprintAssignable, Category = "Health")
 	FOnHealthDamaged OnDamaged;
 
@@ -79,6 +83,7 @@ private:
 
 	float Health = 0.f;
 	bool bDead = false;
+	TWeakObjectPtr<AActor> LastDamageCauser;
 
 	// The engine broadcasts point damage right before "any damage" in the same TakeDamage call,
 	// so the point handler stashes the hit location for the any-damage handler to use.
