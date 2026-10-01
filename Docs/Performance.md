@@ -22,3 +22,4 @@ Target: 120 fps (8.3 ms) at 1080p on the Medium preset on the reference PC (Rade
 | 2026-10-01 | Finished tutorial island (waterfall, smoke, pond plants, meadow trees, tutorial, XP bar), spawn, Medium; tour 151-201 fps | 32673d6 | 1920x1080 | 5.6 | 179 | 6.0 | 3.9 | 5.6 | 1.6 | 4.6 | 452 | 614310 | 0.77 |
 | 2026-10-01 | FPS counter on the HUD, hold-to-equip, kill-weapon ammo | 4284e2c | 1920x1080 | 5.6 | 177 | 6.0 | 3.9 | 5.6 | 1.6 | 4.6 | 455 | 615448 | 0.77 |
 | 2026-10-01 | Bestiary page, slim creature tags, ammo pickup radius | e8a6e4d | 1920x1080 | 5.6 | 179 | 6.0 | 3.9 | 5.6 | 1.6 | 4.6 | 456 | 616177 | 0.76 |
+| 2026-10-01 | Ammo pickup feed, divided creature bars, bestiary unknown pages | ba7cff7 | 1920x1080 | 5.7 | 176 | 6.4 | 4.3 | 5.6 | 1.7 | 4.6 | 457 | 617539 | 0.76 |
