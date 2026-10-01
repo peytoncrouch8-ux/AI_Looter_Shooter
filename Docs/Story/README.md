@@ -12,7 +12,9 @@ Every file has the same shape, so they're easy to compare:
 - how the game's own systems (respawn, falling, the bestiary, levels and, in most, the HUD) are explained in the fiction;
 - the endgame, the signature moments, production notes, and why to pick it.
 
-To skim, read the table below, then the *Cold open* and *Plot* of the ones that catch your eye.
+To skim, read the table below, then the *Cold open* and *Plot* of the ones that catch your eye. For pictures, open
+[`Atlas/StoryAtlas.html`](Atlas/StoryAtlas.html) in a browser: key art for each story, diagrams, plotlines by level, the
+legendaries, and a 3D model of Skyreach with every story's tutorial beats pinned on it.
 
 ## The eight at a glance
 
