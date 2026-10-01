@@ -41,6 +41,7 @@ Target layout of `Source/AI_Looter_Shooter`:
 | `Affixes/` | Rarity and roll rules now; affixes and parts later |
 | `Loot/` | Loot tables, drops, pickups, toss physics |
 | `Creatures/` | Mob base and AI, spider, spawning |
+| `Progression/` | Experience, levels and the curve, the player's progress save, level-up rewards later |
 | `World/` | Minimap, fall recovery, level runtime pieces |
 | `UI/Style`, `UI/HUD`, `UI/Menus`, `UI/Inventory`, `UI/World` | The UI kit and every screen |
 | `Settings/` | Graphics and key-binding settings, quality presets |

@@ -7,14 +7,15 @@
 class UImage;
 class UTextBlock;
 
-/** Small floating plate over a creature in combat: name and a segmented health bar (LooterUI kit). */
+/** Small floating plate over a creature in combat: its level, name and a segmented health bar (LooterUI kit). */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UCreatureHealthBarWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
 public:
-	void SetCreatureName(const FText& InName);
+	/** Cheap to call every frame: the texts only change when the name or level does. */
+	void SetCreature(const FText& InName, int32 InLevel);
 	void SetHealthFraction(float InFraction);
 
 protected:
@@ -22,6 +23,10 @@ protected:
 
 private:
 	void ApplyHealth();
+	void ApplyLabel();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> LevelText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> NameText;
@@ -30,6 +35,7 @@ private:
 	TArray<TObjectPtr<UImage>> Segments;
 
 	FText CreatureName;
+	int32 CreatureLevel = 1;
 	float Fraction = 1.f;
 	int32 ShownLit = INDEX_NONE;
 };

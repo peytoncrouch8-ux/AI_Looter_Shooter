@@ -18,6 +18,7 @@ class UWeaponManagerComponent;
  *  - bottom-right: magazine / reserve, slanted magazine bar (doubles as reload progress), weapon name
  *    underneath in its rarity color, and slot pips
  *  - top-right: the minimap (UHudMinimapWidget)
+ *  - bottom-center: the level and experience bar (UHudXPBarWidget)
  *  - center: thin tick crosshair sized by the weapon's spread, diagonal hit marker
  * No backing panels; both corner clusters fade back when nothing is happening and come forward on
  * activity (firing, reloading, switching, taking damage). The loot comparison card and messages only

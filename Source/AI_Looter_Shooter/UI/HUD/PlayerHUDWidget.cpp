@@ -1,5 +1,6 @@
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/HUD/HudMinimapWidget.h"
+#include "UI/HUD/HudXPBarWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
 #include "Combat/HealthComponent.h"
@@ -282,6 +283,11 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 		// Top-right: the minimap.
 		UHudMinimapWidget* Minimap = WidgetTree->ConstructWidget<UHudMinimapWidget>(UHudMinimapWidget::StaticClass());
 		PlaceOnCanvas(Root, Minimap, FAnchors(1.f, 0.f), FVector2D(1.f, 0.f), FVector2D(-UHudMinimapWidget::Margin, UHudMinimapWidget::Margin));
+
+		// Bottom-center: level and experience, its bar level with the health bar. Level-ups show in the message plate.
+		UHudXPBarWidget* XPBar = WidgetTree->ConstructWidget<UHudXPBarWidget>(UHudXPBarWidget::StaticClass());
+		XPBar->OnAnnouncement.BindUObject(this, &UPlayerHUDWidget::HandleMessage);
+		PlaceOnCanvas(Root, XPBar, FAnchors(0.5f, 1.f), FVector2D(0.5f, 1.f), FVector2D(0.f, -38.f));
 	}
 	return Super::RebuildWidget();
 }

@@ -34,5 +34,8 @@ public class AI_Looter_Shooter : ModuleRules
 
 		// Looter.Tour reads its viewpoints from JSON and the frame timings from the renderer.
 		PrivateDependencyModuleNames.AddRange(new string[] { "Json", "RHI", "RenderCore" });
+
+		// The experience curve is tuned in Project Settings (UProgressionSettings).
+		PrivateDependencyModuleNames.Add("DeveloperSettings");
 	}
 }
