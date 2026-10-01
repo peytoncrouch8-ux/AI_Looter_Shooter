@@ -268,35 +268,19 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCreatureHealthBarDividersTest, "Looter.Creatur
 
 bool FCreatureHealthBarDividersTest::RunTest(const FString& Parameters)
 {
-	// A creature's bar is the same length whatever its health; a line divides it every 100 health, so more health means
-	// more lines, closer together.
+	// Every creature's bar is the same length and cut into the same quarters, whatever its health: a 100 000-health
+	// boss's bar is as clean as a spider's, and the lines say how much of its health is left, not how many hundreds.
 	using UBar = UCreatureHealthBarWidget;
-	TestEqual(TEXT("100 health: one part, no lines"), UBar::DividerPositions(100.f).Num(), 0);
-	const TArray<float> Spider = UBar::DividerPositions(300.f);
-	if (TestEqual(TEXT("300 health: three parts, two lines"), Spider.Num(), 2))
+	const TArray<float> Lines = UBar::DividerPositions();
+	if (TestEqual(TEXT("Three lines: quarters"), Lines.Num(), UBar::Parts - 1))
 	{
-		TestNearlyEqual(TEXT("First line a third of the way"), Spider[0], 1.f / 3.f, 0.001f);
-		TestNearlyEqual(TEXT("Second line two thirds of the way"), Spider[1], 2.f / 3.f, 0.001f);
-	}
-	const TArray<float> Odd = UBar::DividerPositions(150.f);
-	TestTrue(TEXT("150 health: a line at 100, a short last part"), Odd.Num() == 1 && FMath::IsNearlyEqual(Odd[0], 100.f / 150.f, 0.001f));
-
-	for (const float Health : { 300.f, 600.f, 1000.f, 2500.f })
-	{
-		const TArray<float> Lines = UBar::DividerPositions(Health);
-		TestEqual(FString::Printf(TEXT("%.0f health: a line every 100"), Health), Lines.Num(), FMath::CeilToInt(Health / 100.f) - 1);
 		for (int32 Index = 0; Index < Lines.Num(); ++Index)
 		{
-			// Evenly spread across the same bar: the k-th line at k x 100 / health of its length.
-			TestNearlyEqual(TEXT("Line on its 100"), Lines[Index], (Index + 1) * 100.f / Health, 0.001f);
+			TestNearlyEqual(TEXT("Line on its quarter"), Lines[Index], (Index + 1) / static_cast<float>(UBar::Parts), 0.001f);
+			TestTrue(TEXT("Inside the bar, never on its ends"), Lines[Index] > 0.f && Lines[Index] < 1.f);
 		}
 	}
-
-	// So much health that lines every 100 would blur into one: one every 1000 (or 10000, ...) instead, never closer than
-	// a few pixels on the bar.
-	const TArray<float> Boss = UBar::DividerPositions(100000.f);
-	TestTrue(TEXT("Huge health: lines still apart"), Boss.Num() > 0 && Boss[0] * UBar::BarWidth >= 4.f);
-	TestTrue(TEXT("Huge health: on round thousands"), Boss.Num() > 0 && FMath::IsNearlyEqual(FMath::Fmod(Boss[0] * 100000.f, 1000.f), 0.f, 0.5f));
+	TestEqual(TEXT("Quarters"), UBar::Parts, 4);
 	return true;
 }
 

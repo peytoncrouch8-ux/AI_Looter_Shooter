@@ -144,7 +144,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/Bestiary/BestiaryStage`: `ABestiaryStage`, the off-screen stand that shows an entry's model, framed to its size.
 - `UI/World/WeaponLabelWidget`: the label over loot guns.
 - `UI/World/CreatureHealthBarWidget`: the tag over a hurt or hunting creature: floating level and name over a slim bar
-  of fixed width, divided every 100 health.
+  of fixed width, cut into quarters whatever the health.
 - `UI/World/DamageNumberActor`, `UI/World/DamageNumberWidget`: floating damage numbers.
 
 ## Dev

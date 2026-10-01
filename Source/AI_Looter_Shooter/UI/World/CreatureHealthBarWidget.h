@@ -10,9 +10,10 @@ class UTextBlock;
 
 /**
  * The tag over a creature in combat, in the gameplay HUD's style: no backing plate, just floating outlined text ("LV 1
- * Brown Spider") over a slim slanted health bar. The bar is the same width over every creature, so tags look alike
- * whatever the name or health: thin lines divide it every 100 health, so a tougher creature shows more, closer lines
- * rather than a longer bar. A hit leaves a pale chip of the health it took that drains away a moment later.
+ * Brown Spider") over a slim slanted health bar with a dark rim and a lit top edge. The bar is the same over every
+ * creature whatever its name or health: solid dark lines cut it into quarters, so a glance says how far gone it is
+ * without a tough creature's bar turning into noise. A hit leaves a pale chip of the health it took that drains away a
+ * moment later.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UCreatureHealthBarWidget : public UUserWidget
@@ -23,20 +24,17 @@ public:
 	/** Cheap to call every frame: the texts only change when the name or level does. */
 	void SetCreature(const FText& InName, int32 InLevel);
 
-	/** Cheap to call every frame: the dividers are only rebuilt when the maximum changes. */
+	/** Cheap to call every frame: the bar only moves when the share of health left changes. */
 	void SetHealth(float Health, float MaxHealth);
 
 	/** The bar's length on screen, whatever the creature's health. */
 	static constexpr float BarWidth = 120.f;
 
-	/** Health between two dividers. */
-	static constexpr float HealthPerDivider = 100.f;
+	/** How many parts the dividers cut the bar into, at any health (4 = a line at every quarter). */
+	static constexpr int32 Parts = 4;
 
-	/**
-	 * Where the dividers go across the bar (0-1), one every HealthPerDivider. A creature with so much health that they'd
-	 * crowd closer than a few pixels gets one every ten times as much instead, and so on.
-	 */
-	static TArray<float> DividerPositions(float MaxHealth);
+	/** Where the dividers go across the bar (0-1): at every 1 / Parts of it, the same for every creature. */
+	static TArray<float> DividerPositions();
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -45,7 +43,6 @@ protected:
 private:
 	void ApplyLabel();
 	void ApplyBar();
-	void RebuildDividers();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> LevelText;
@@ -60,12 +57,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<USizeBox> ChipFill;
 
-	/** The dividers, laid over the bar. */
-	UPROPERTY(Transient)
-	TObjectPtr<UCanvasPanel> Dividers;
-
 	FText CreatureName;
-	float ShownMaxHealth = 0.f;
 	int32 CreatureLevel = 1;
 	float Fraction = 1.f;
 	/** The chip's end: snaps up with healing, holds a moment after a hit, then drains down to the health. */

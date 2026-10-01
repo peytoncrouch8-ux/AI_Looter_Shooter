@@ -17,25 +17,24 @@ using namespace LooterUI;
 
 namespace
 {
-	constexpr float BarHeight = 5.f;
+	constexpr float BarHeight = 6.f;
 	/** The same lean as the HUD's bars. */
 	constexpr float BarSlant = 16.f;
 	/** How long the chip of lost health stays before it drains, and how fast it drains (bar lengths per second). */
 	constexpr float ChipHold = 0.4f;
 	constexpr float ChipDrainRate = 0.8f;
 
-	/**
-	 * A divider: a thin dark cut through the bar, 2 px where they're far apart and down to 1 px where they crowd, so a
-	 * tough creature's bar stays mostly red. Dividers never come closer than MinDividerSpacing pixels.
-	 */
-	constexpr float MaxDividerWidth = 2.f;
-	constexpr float MinDividerWidth = 1.f;
-	constexpr float MinDividerSpacing = 4.f;
-	const FLinearColor DividerColor(0.f, 0.01f, 0.02f, 0.9f);
+	/** The dividers: solid near-black cuts, clear against the red and the empty track alike. */
+	constexpr float DividerWidth = 2.f;
+	const FLinearColor DividerColor(0.01f, 0.01f, 0.015f, 1.f);
 
-	USizeBox* MakeFill(UWidgetTree* Tree, UOverlay* Bar, const FLinearColor& FillColor)
+	/** A dark rim round the whole bar so it holds its shape over bright sky and grass, and a lit strip along the red's top. */
+	const FLinearColor RimColor(0.f, 0.f, 0.f, 0.8f);
+	constexpr float HighlightHeight = 1.5f;
+
+	USizeBox* AddFill(UWidgetTree* Tree, UOverlay* Bar, UWidget* Content)
 	{
-		USizeBox* Fill = MakeSized(Tree, MakeImage(Tree, RectBrush(FillColor)), 0.f, BarHeight);
+		USizeBox* Fill = MakeSized(Tree, Content, 0.f, BarHeight);
 		UOverlaySlot* FillSlot = Bar->AddChildToOverlay(Fill);
 		FillSlot->SetHorizontalAlignment(HAlign_Left);
 		FillSlot->SetVerticalAlignment(VAlign_Fill);
@@ -60,17 +59,32 @@ TSharedRef<SWidget> UCreatureHealthBarWidget::RebuildWidget()
 		Box->AddChildToVerticalBox(Label)->SetHorizontalAlignment(HAlign_Center);
 		ApplyLabel();
 
-		// The bar: a faint dark track (faded by the UI transparency setting), the chip, then the health on top.
+		// The bar, back to front: a dark track (faded by the UI transparency setting), the chip, the health with its lit
+		// top edge, the quarter lines, then the rim.
 		UOverlay* Bar = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-		UImage* Track = MakeImage(WidgetTree, RectBrush(FLinearColor(0.f, 0.02f, 0.04f, 0.5f)));
+		UImage* Track = MakeImage(WidgetTree, RectBrush(FLinearColor(0.01f, 0.015f, 0.02f, 0.65f)));
 		MarkBackground(Track);
 		FillOverlaySlot(Bar->AddChildToOverlay(Track));
-		ChipFill = MakeFill(WidgetTree, Bar, FLinearColor(1.f, 0.82f, 0.72f, 0.85f));
-		HealthFill = MakeFill(WidgetTree, Bar, Color::Health());
-		// The dividers lie over everything, leaning with the bar.
-		Dividers = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
+		ChipFill = AddFill(WidgetTree, Bar, MakeImage(WidgetTree, RectBrush(FLinearColor(1.f, 0.82f, 0.72f, 0.85f))));
+
+		UOverlay* Health = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		FillOverlaySlot(Health->AddChildToOverlay(MakeImage(WidgetTree, RectBrush(Color::Health()))));
+		UOverlaySlot* HighlightSlot = Health->AddChildToOverlay(MakeSized(WidgetTree,
+			MakeImage(WidgetTree, RectBrush(FMath::Lerp(Color::Health(), FLinearColor::White, 0.45f))), 0.f, HighlightHeight));
+		HighlightSlot->SetHorizontalAlignment(HAlign_Fill);
+		HighlightSlot->SetVerticalAlignment(VAlign_Top);
+		HealthFill = AddFill(WidgetTree, Bar, Health);
+
+		UCanvasPanel* Dividers = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
+		for (const float Position : DividerPositions())
+		{
+			UCanvasPanelSlot* LineSlot = Dividers->AddChildToCanvas(MakeImage(WidgetTree, RectBrush(DividerColor)));
+			LineSlot->SetPosition(FVector2D(BarWidth * Position - DividerWidth * 0.5f, 0.f));
+			LineSlot->SetSize(FVector2D(DividerWidth, BarHeight));
+		}
 		FillOverlaySlot(Bar->AddChildToOverlay(Dividers));
-		RebuildDividers();
+		FillOverlaySlot(Bar->AddChildToOverlay(MakeImage(WidgetTree, RectBrush(FLinearColor::Transparent, RimColor, 1.f))));
+
 		USizeBox* BarSize = MakeSized(WidgetTree, Bar, BarWidth, BarHeight);
 		BarSize->SetRenderShear(FVector2D(BarSlant, 0.f));
 		UVerticalBoxSlot* BarSlot = Box->AddChildToVerticalBox(BarSize);
@@ -103,51 +117,18 @@ void UCreatureHealthBarWidget::ApplyLabel()
 	}
 }
 
-TArray<float> UCreatureHealthBarWidget::DividerPositions(float MaxHealth)
+TArray<float> UCreatureHealthBarWidget::DividerPositions()
 {
 	TArray<float> Positions;
-	if (MaxHealth <= HealthPerDivider)
+	for (int32 Part = 1; Part < Parts; ++Part)
 	{
-		return Positions;
-	}
-	float Step = HealthPerDivider;
-	while (BarWidth * Step / MaxHealth < MinDividerSpacing)
-	{
-		Step *= 10.f;
-	}
-	// No line on the bar's end: 300 health is three parts, two lines.
-	for (float At = Step; At < MaxHealth - 0.5f; At += Step)
-	{
-		Positions.Add(At / MaxHealth);
+		Positions.Add(static_cast<float>(Part) / Parts);
 	}
 	return Positions;
 }
 
-void UCreatureHealthBarWidget::RebuildDividers()
-{
-	if (!Dividers)
-	{
-		return;
-	}
-	Dividers->ClearChildren();
-	const TArray<float> Positions = DividerPositions(ShownMaxHealth);
-	const float Spacing = Positions.IsEmpty() ? BarWidth : BarWidth * Positions[0];
-	const float Width = FMath::Clamp(Spacing * 0.15f, MinDividerWidth, MaxDividerWidth);
-	for (const float Position : Positions)
-	{
-		UCanvasPanelSlot* LineSlot = Dividers->AddChildToCanvas(MakeImage(WidgetTree, RectBrush(DividerColor)));
-		LineSlot->SetPosition(FVector2D(BarWidth * Position - Width * 0.5f, 0.f));
-		LineSlot->SetSize(FVector2D(Width, BarHeight));
-	}
-}
-
 void UCreatureHealthBarWidget::SetHealth(float Health, float MaxHealth)
 {
-	if (!FMath::IsNearlyEqual(MaxHealth, ShownMaxHealth))
-	{
-		ShownMaxHealth = MaxHealth;
-		RebuildDividers();
-	}
 	const float NewFraction = MaxHealth > 0.f ? FMath::Clamp(Health / MaxHealth, 0.f, 1.f) : 0.f;
 	if (FMath::IsNearlyEqual(NewFraction, Fraction))
 	{
