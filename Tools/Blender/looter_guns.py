@@ -239,16 +239,30 @@ def cpin(u, v, w0, w1, r, segments=12):
 
 
 def cut(obj, cutters):
-    """Boolean-subtracts the cutters from obj (they're removed), then maps obj again."""
-    mods = []
-    for c in cutters:
-        m = obj.modifiers.new('cut', 'BOOLEAN')
-        m.operation, m.solver, m.object = 'DIFFERENCE', 'EXACT', c
-        c.hide_render = c.hide_viewport = True
-        mods.append(m)
-    with bpy.context.temp_override(object=obj, active_object=obj, selected_objects=[obj], selected_editable_objects=[obj]):
-        for m in mods:
-            bpy.ops.object.modifier_apply(modifier=m.name)
+    """Boolean-subtracts the cutters from obj (they're removed), then maps obj again. The exact solver now and then
+    returns nothing for a heavily beveled part; then the fast solver is tried, and if that fails too the part stays
+    uncut (with a warning) rather than vanishing."""
+    original = obj.data.copy()
+    count = len(original.vertices)
+    for solver in ('EXACT', 'FAST'):
+        mods = []
+        for c in cutters:
+            m = obj.modifiers.new('cut', 'BOOLEAN')
+            m.operation, m.solver, m.object = 'DIFFERENCE', solver, c
+            c.hide_render = c.hide_viewport = True
+            mods.append(m)
+        with bpy.context.temp_override(object=obj, active_object=obj, selected_objects=[obj],
+                                       selected_editable_objects=[obj]):
+            for m in mods:
+                bpy.ops.object.modifier_apply(modifier=m.name)
+        if len(obj.data.vertices) >= count * 0.6:
+            break
+        broken = obj.data
+        obj.data = original.copy()
+        bpy.data.meshes.remove(broken)
+    else:
+        lt._log(f'warning: a cut on {obj.name} failed with both solvers; the part stays uncut')
+    bpy.data.meshes.remove(original)
     for c in cutters:
         mesh = c.data
         bpy.data.objects.remove(c)
