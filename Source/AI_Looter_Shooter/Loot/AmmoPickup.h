@@ -6,7 +6,6 @@
 #include "AmmoPickup.generated.h"
 
 class ULootTossComponent;
-class UPointLightComponent;
 class UPrimitiveComponent;
 class URotatingMovementComponent;
 class USphereComponent;
@@ -79,9 +78,6 @@ private:
 	/** The bundle of each ammo type (SM_Ammo<Type>, from Art/Models/Loot/Ammo.py), in EAmmoType order. */
 	UPROPERTY()
 	TArray<TObjectPtr<UStaticMesh>> TypeModels;
-
-	UPROPERTY(VisibleAnywhere, Category = "Components")
-	TObjectPtr<UPointLightComponent> Glow;
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<ULootTossComponent> TossMovement;

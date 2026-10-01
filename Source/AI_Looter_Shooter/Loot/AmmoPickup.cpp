@@ -2,7 +2,6 @@
 #include "Loot/LootTossComponent.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "AI_Looter_Shooter.h"
-#include "Components/PointLightComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -15,7 +14,6 @@
 namespace
 {
 	constexpr float RetryInterval = 0.25f;
-	const FLinearColor LightColor(1.f, 0.9f, 0.75f);
 
 	/** The bundle of rounds of each ammo type, in EAmmoType order. */
 	TArray<UStaticMesh*> FindTypeModels()
@@ -61,14 +59,8 @@ AAmmoPickup::AAmmoPickup()
 	static const TArray<UStaticMesh*> Models = FindTypeModels();
 	TypeModels.Append(Models);
 
-	Glow = CreateDefaultSubobject<UPointLightComponent>(TEXT("Glow"));
-	Glow->SetupAttachment(Collision);
-	// High enough above the cartridges not to blow them out; mostly it paints a pool of the class color on the ground.
-	Glow->SetRelativeLocation(FVector(0.f, 0.f, 45.f));
-	Glow->SetIntensityUnits(ELightUnits::Candelas);
-	Glow->SetIntensity(3.f);
-	Glow->SetAttenuationRadius(130.f);
-	Glow->SetCastShadows(false);
+	// No light of its own (the user's call): the spin, the ink line and the brass highlights carry it, and a light per
+	// drop painted pale pools on the ground and cost a light each.
 
 	TossMovement = CreateDefaultSubobject<ULootTossComponent>(TEXT("TossMovement"));
 	TossMovement->SetUpdatedComponent(Collision);
@@ -108,8 +100,6 @@ void AAmmoPickup::BeginPlay()
 	Super::BeginPlay();
 	SpawnTime = GetWorld()->GetTimeSeconds();
 	SetLifeSpan(LifeSeconds);
-
-	Glow->SetLightColor(LightColor);
 
 	Trigger->OnComponentBeginOverlap.AddDynamic(this, &AAmmoPickup::HandleTriggerOverlap);
 	TossMovement->OnProjectileStop.AddDynamic(this, &AAmmoPickup::HandleTossStopped);
