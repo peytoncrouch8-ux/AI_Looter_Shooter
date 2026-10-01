@@ -9,7 +9,9 @@
                   WindStrength (cm), WindSpeed, WindDirection.
   M_Terrain       MacroMap on UV 0 covers the whole island (its alpha picks the detail: 0 grass/soil, 1 rock); the
                   Grass* and Rock* maps tile on UV 1 (meters) and only modulate the macro color's brightness.
-  M_Water         opaque, cheap: a color, glossy, procedural ripples.
+  M_SkyClouds     unlit, translucent: painted clouds on a sky dome (Coverage, Softness, Scale, wind, colors).
+  M_Water         opaque, cheap: a dark color (the sky's reflection does the rest), glossy, procedural ripples on
+                  UV 0 in meters.
 
 The model importer (FModelImporter) makes MI_<material> instances of these from the Blender materials. Re-running this
 keeps each material asset (so instances stay linked) and rebuilds its graph. Run in the open editor:
@@ -23,6 +25,8 @@ WHITE = '/Engine/EngineResources/WhiteSquareTexture.WhiteSquareTexture'
 FLAT_NORMAL = '/Engine/EngineMaterials/DefaultNormal.DefaultNormal'
 DEFAULT_ORM_FILE = 'C:/Dev/AI_Looter_Shooter/Art/Textures/Default/T_DefaultORM.png'
 DEFAULT_ORM = '/Game/Art/Textures/Default/T_DefaultORM'
+MACRO_NOISE_FILE = 'C:/Dev/AI_Looter_Shooter/Art/Textures/MacroNoise/T_MacroNoise_M.png'
+MACRO_NOISE = '/Game/Art/Textures/MacroNoise/T_MacroNoise_M'
 
 
 def default_orm():
@@ -143,9 +147,12 @@ def moss(g, bc, color, roughness):
         ('Threshold', g.scalar('MossThreshold', 0.55, -800, -800), ''),
         ('Amount', g.scalar('MossAmount', 0.0, -800, -900), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -500, -700, 'Moss mask')
-    moss_color = g.mul(g.vector('MossColor', (0.11, 0.19, 0.035, 1.0), -500, -900), '', bc, 'RGB', -300, -850)
-    # The moss color carries the texture's light and dark (x2: the maps average about half brightness).
-    moss_color = g.mul(moss_color, '', g.node(unreal.MaterialExpressionConstant, -300, -950, r=2.0), '', -150, -850)
+    # Moss keeps its own brightness and takes only a little of the texture's light and dark (0.7 to 1.3 of MossColor):
+    # multiplying by the rock's color as well made moss on dark stone nearly black.
+    moss_color = g.custom('return Moss * (0.7 + 0.6 * saturate(dot(Color, float3(0.299, 0.587, 0.114)) * 2.0));', [
+        ('Moss', g.vector('MossColor', (0.13, 0.21, 0.05, 1.0), -500, -900), ''),
+        ('Color', bc, 'RGB'),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -250, -850, 'Moss color')
     blended = g.node(unreal.MaterialExpressionLinearInterpolate, 0, -600)
     g.link(color, '', blended, 'A')
     g.link(moss_color, '', blended, 'B')
@@ -204,7 +211,8 @@ def build_foliage(orm_default):
         ('Speed', g.scalar('WindSpeed', 1.3, -800, 1200), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -400, 900, 'Wind')
     g.out(wind, '', unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET)
-    finish(mat, [unreal.MaterialUsage.MATUSAGE_NANITE, unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES])
+    # Foliage is never Nanite (it has LODs instead), and the Nanite permutation of this material doesn't compile on SM6.
+    finish(mat, [unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES])
     return mat
 
 
@@ -254,27 +262,99 @@ def build_terrain():
     return mat
 
 
-WATER_CODE = """float2 P = UV * 6.2831;
-float2 G = 0.10 * float2(cos(P.x * 1.7 + Time * 1.1), cos(P.y * 1.3 - Time * 0.9))
-         + 0.06 * float2(cos((P.x + P.y) * 3.1 + Time * 1.7), cos((P.x - P.y) * 2.7 - Time * 1.4));
+WATER_CODE = """// Four waves at odd angles and lengths (meters), over a slowly warped surface, so no grid lines up.
+float2 Q = UV + 0.35 * float2(sin(UV.y * 0.9 + Time * 0.30), sin(UV.x * 0.7 - Time * 0.25));
+float2 D1 = float2(0.80, 0.60), D2 = float2(-0.45, 0.89), D3 = float2(0.95, -0.31), D4 = float2(-0.71, -0.71);
+float2 G = D1 * cos(dot(Q, D1) * 2.73 + Time * 1.3) * 0.050
+         + D2 * cos(dot(Q, D2) * 4.49 + Time * 1.7) * 0.035
+         + D3 * cos(dot(Q, D3) * 6.98 + Time * 2.2) * 0.025
+         + D4 * cos(dot(Q, D4) * 11.4 + Time * 2.9) * 0.015;
 return normalize(float3(-G.x, -G.y, 1.0));"""
 
 
 def build_water():
     mat = material('M_Water')
     g = Graph(mat)
-    g.out(g.vector('WaterColor', (0.05, 0.12, 0.11, 1.0), -600, -200), '', unreal.MaterialProperty.MP_BASE_COLOR)
+    g.out(g.vector('WaterColor', (0.012, 0.032, 0.03, 1.0), -600, -200), '', unreal.MaterialProperty.MP_BASE_COLOR)
     coords = g.node(unreal.MaterialExpressionTextureCoordinate, -1000, 200, coordinate_index=0)
     uv = g.mul(coords, '', g.scalar('RippleScale', 1.0, -1000, 320), '', -800, 200)
     ripples = g.custom(WATER_CODE, [('UV', uv, ''), ('Time', g.node(unreal.MaterialExpressionTime, -800, 400), '')],
                        unreal.CustomMaterialOutputType.CMOT_FLOAT3, -500, 200, 'Ripples')
     g.out(ripples, '', unreal.MaterialProperty.MP_NORMAL)
-    g.out(g.scalar('Roughness', 0.06, -600, 500), '', unreal.MaterialProperty.MP_ROUGHNESS)
-    g.out(g.scalar('Specular', 0.6, -600, 600), '', unreal.MaterialProperty.MP_SPECULAR)
-    finish(mat, [unreal.MaterialUsage.MATUSAGE_NANITE])
+    g.out(g.scalar('Roughness', 0.1, -600, 500), '', unreal.MaterialProperty.MP_ROUGHNESS)
+    g.out(g.scalar('Specular', 0.5, -600, 600), '', unreal.MaterialProperty.MP_SPECULAR)
+    # Water meshes aren't Nanite, and the Nanite permutation of this material doesn't compile on SM6.
+    finish(mat, [])
+    return mat
+
+
+# The cloud layer, shared by the color and the opacity: an overhead plane seen through the dome, so far clouds crowd
+# toward the horizon as a real layer does; three octaves of the macro noise drifting with the wind.
+CLOUD_DENSITY = """float3 D = -CameraVector;
+float Up = D.z;
+float2 P = D.xy / (max(Up, 0.0) + 0.3) * Scale;
+float2 Drift = WindDirection.xy * Time * WindSpeed;
+float A = Texture2DSample(Noise, NoiseSampler, P + Drift).r;
+float B = Texture2DSample(Noise, NoiseSampler, P * 2.31 + float2(0.37, 0.71) + Drift * 1.6).r;
+float C = Texture2DSample(Noise, NoiseSampler, P * 5.13 + float2(0.11, 0.53) + Drift * 2.4).r;
+float Density = A * 0.6 + B * 0.3 + C * 0.1 - Coverage;
+"""
+CLOUD_COLOR = CLOUD_DENSITY + """// Lit tops, greyer bellies where the cloud is thick.
+return lerp(LitColor, ShadeColor, saturate(Density / (Softness * 3.0)) * 0.7);"""
+CLOUD_OPACITY = CLOUD_DENSITY + """// Soft edges, and the layer fades into the haze toward the horizon.
+return saturate(Density / Softness) * saturate((Up - 0.04) * 3.0) * Opacity;"""
+
+
+def import_mask(file, path):
+    """A linear single-channel texture from the library (here the macro noise for the clouds)."""
+    if not unreal.EditorAssetLibrary.does_asset_exist(path):
+        task = unreal.AssetImportTask()
+        task.set_editor_property('filename', file)
+        task.set_editor_property('destination_path', path.rsplit('/', 1)[0])
+        task.set_editor_property('automated', True)
+        task.set_editor_property('save', False)
+        unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+    texture = unreal.load_asset(path)
+    texture.set_editor_property('srgb', False)
+    texture.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_MASKS)
+    unreal.EditorAssetLibrary.save_loaded_asset(texture)
+    return texture
+
+
+def build_sky_clouds():
+    """M_SkyClouds: painted clouds on a sky dome around the level. Unlit and translucent over the sky atmosphere; one
+    cheap draw instead of volumetric clouds (which cost Medium 2 ms or more looking up through their layer)."""
+    mat = material('M_SkyClouds')
+    mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_TRANSLUCENT)
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
+    mat.set_editor_property('two_sided', True)
+    g = Graph(mat)
+    noise = g.node(unreal.MaterialExpressionTextureObjectParameter, -900, 0, parameter_name='Noise',
+                   texture=import_mask(MACRO_NOISE_FILE, MACRO_NOISE))
+    # One set of inputs feeds both nodes.
+    inputs = [
+        ('CameraVector', g.node(unreal.MaterialExpressionCameraVectorWS, -900, -200), ''),
+        ('Noise', noise, ''),
+        ('Time', g.node(unreal.MaterialExpressionTime, -900, 150), ''),
+        ('WindDirection', g.vector('WindDirection', (1.0, 0.4, 0.0, 0.0), -900, 250), ''),
+        ('WindSpeed', g.scalar('WindSpeed', 0.004, -900, 350), ''),
+        ('Scale', g.scalar('Scale', 0.45, -900, 450), ''),
+        ('Coverage', g.scalar('Coverage', 0.58, -900, 550), ''),
+        ('Softness', g.scalar('Softness', 0.22, -900, 650), ''),
+    ]
+    color = g.custom(CLOUD_COLOR, inputs + [
+        ('LitColor', g.vector('LitColor', (3.0, 2.95, 2.85, 1.0), -900, 750), ''),
+        ('ShadeColor', g.vector('ShadeColor', (1.35, 1.45, 1.65, 1.0), -900, 850), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -400, -100, 'Cloud color')
+    opacity = g.custom(CLOUD_OPACITY, inputs + [
+        ('Opacity', g.scalar('Opacity', 0.9, -900, 950), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -400, 200, 'Cloud opacity')
+    g.out(color, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    g.out(opacity, '', unreal.MaterialProperty.MP_OPACITY)
+    finish(mat, [])
     return mat
 
 
 orm = default_orm()
-built = [build_world(DEFAULT_ORM), build_foliage(DEFAULT_ORM), build_terrain(), build_water()]
+built = [build_world(DEFAULT_ORM), build_foliage(DEFAULT_ORM), build_terrain(), build_water(), build_sky_clouds()]
 unreal.log('LOOTER world materials: ' + ', '.join(m.get_path_name() for m in built))

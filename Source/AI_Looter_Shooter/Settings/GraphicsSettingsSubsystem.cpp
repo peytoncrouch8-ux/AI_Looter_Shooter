@@ -28,11 +28,15 @@ namespace
 		{ TEXT("r.AntiAliasingMethod"), { 2, 2, 2, 4 } },
 		// Nanite costs about 2.5 ms; without it every mesh draws its fallback.
 		{ TEXT("r.Nanite"), { 0, 0, 1, 1 } },
-		// Virtual shadow maps are only cheap with Nanite: without it they cost Medium 2.5 ms, where two 2048 cascades
-		// (the engine's Medium has one of 1024, too coarse to show a person's shadow) cost 0.35.
+		// Virtual shadow maps are only cheap with Nanite: without it they cost Medium 2.5 ms, where two cascades (the
+		// engine's Medium has one of 1024, too coarse to show a person's shadow) cost 0.35 on open ground. Under trees
+		// every leaf card is drawn into them: 1536 instead of 2048 saves the forest 0.5 ms.
 		{ TEXT("r.Shadow.Virtual.Enable"), { 0, 0, 1, 1 } },
 		{ TEXT("r.Shadow.CSM.MaxCascades"), { 1, 2, 4, 10 } },
-		{ TEXT("r.Shadow.MaxCSMResolution"), { 512, 2048, 2048, 2048 } },
+		{ TEXT("r.Shadow.MaxCSMResolution"), { 512, 1536, 2048, 2048 } },
+		// Swaying foliage (world position offset) writing motion vectors costs the forest 0.4 ms on Medium; TAA copes
+		// without them. 2 is the engine's default.
+		{ TEXT("r.Velocity.EnableVertexDeformation"), { 0, 0, 2, 2 } },
 		// Screen-space and distance field ambient occlusion cost Medium 1.7 and 0.7 ms. The textured art bakes its
 		// occlusion into the meshes instead; High and Epic get Lumen's.
 		{ TEXT("r.AmbientOcclusionLevels"), { 0, 0, -1, -1 } },

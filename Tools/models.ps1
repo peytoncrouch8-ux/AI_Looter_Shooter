@@ -49,5 +49,6 @@ if ($failed) { "$failed of $($sources.Count) sources failed; nothing imported.";
 
 if ($NoImport) { "Exported to $exportDir. Import with Looter.ImportModels in the editor."; exit 0 }
 if (-not (Get-Process UnrealEditor -ErrorAction SilentlyContinue)) { "Exported to $exportDir. Open the editor and run Looter.ImportModels."; exit 0 }
-& "$PSScriptRoot\console.ps1" 'Looter.ImportModels' -Until 'Looter\.ImportModels: imported' |
+# From this run's folder: with -Out, the default folder still holds some earlier run's models.
+& "$PSScriptRoot\console.ps1" "Looter.ImportModels $($exportDir.Replace('\', '/'))" -Until 'Looter\.ImportModels: imported' |
     Where-Object { $_ -match 'LogModelImporter|LogLooterEditor|LogFbx.*(Warning|Error)|Error' }

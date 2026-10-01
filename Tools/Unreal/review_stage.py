@@ -32,7 +32,8 @@ GROUND_SET = 'GroundGrass'
 # The presets' own variables (UGraphicsSettingsSubsystem::QualityVariables) on top of the engine's levels.
 QUALITY = {
     'Medium': (1, {'r.DynamicGlobalIlluminationMethod': 0, 'r.ReflectionMethod': 0, 'r.Nanite': 0,
-                   'r.Shadow.Virtual.Enable': 0, 'r.Shadow.CSM.MaxCascades': 2, 'r.Shadow.MaxCSMResolution': 2048,
+                   'r.Shadow.Virtual.Enable': 0, 'r.Shadow.CSM.MaxCascades': 2, 'r.Shadow.MaxCSMResolution': 1536,
+                   'r.Velocity.EnableVertexDeformation': 0,
                    'r.AmbientOcclusionLevels': 0, 'r.DistanceFieldAO': 0}),
     'High': (2, {'r.DynamicGlobalIlluminationMethod': 1, 'r.ReflectionMethod': 1, 'r.Nanite': 1,
                  'r.Shadow.Virtual.Enable': 1, 'r.AmbientOcclusionLevels': -1, 'r.DistanceFieldAO': 1}),

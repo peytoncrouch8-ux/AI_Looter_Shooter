@@ -27,6 +27,20 @@ TAG = 'IslandBuild'
 SPIDER_ZONE = 'forest'
 SPIDER_COUNT = 8
 
+# The terrain's models are SM_TutorialIsland_<part> (Art/Models/Terrain/TutorialIsland.py).
+TERRAIN_PREFIX = 'TutorialIsland_'
+# The cliff kit (Art/Models/Rocks/Cliffs.py), and how the pieces sit on the terrain's walls (cm): how far inside the
+# wall's foot a piece stands, how far over the top it reaches, and how much neighbours overlap.
+CLIFF_PIECES = ('CliffFace_A', 'CliffFace_B', 'CliffFace_C', 'CliffFace_D')
+CLIFF_INSET = 120.0
+CLIFF_OVERTOP = 20.0
+CLIFF_OVERLAP = 250.0
+
+# The sky's clouds: a dome of this radius (cm) around the island with the painted cloud material.
+SKY_DOME = '/Engine/EngineSky/SM_SkySphere'
+SKY_CLOUDS = '/Game/Art/Materials/Masters/M_SkyClouds'
+SKY_RADIUS = 100000.0
+
 # Placement kinds whose model name differs from the kind (the rest are SM_<kind>).
 KIND_MODELS = {
     'GunRack': 'GunRack',
@@ -58,10 +72,14 @@ def open_level():
     """Opens (or makes) the level and removes what the last build placed. Stops if another level has unsaved edits."""
     world = unreal.EditorLevelLibrary.get_editor_world()
     if world.get_path_name().split('.')[0] != LEVEL:
-        if unreal.EditorLoadingAndSavingUtils.get_dirty_map_packages():
-            raise RuntimeError('the open level has unsaved changes: save or discard them first')
+        # Untitled scratch maps (/Temp, such as review_stage.py's) are never saved, so they don't count.
+        unsaved = [p.get_name() for p in unreal.EditorLoadingAndSavingUtils.get_dirty_map_packages()
+                   if not p.get_name().startswith('/Temp/')]
+        if unsaved:
+            raise RuntimeError(f'unsaved changes in {unsaved}: save or discard them first')
         if unreal.EditorAssetLibrary.does_asset_exist(LEVEL):
-            levels.load_level(LEVEL)
+            # Loads without asking about the scratch maps.
+            unreal.EditorLoadingAndSavingUtils.load_map(LEVEL)
         else:
             levels.new_level(LEVEL)
     built = [a for a in actors.get_all_level_actors() if unreal.Name(TAG) in a.tags]
@@ -122,14 +140,24 @@ def environment():
                         ('fog_inscattering_luminance', unreal.LinearColor(0.20, 0.29, 0.44, 1.0))):
         fog_component.set_editor_property(name, value)
 
-    place(unreal.VolumetricCloud, (0, 0, 0), label='Clouds', folder='Environment')
+    # Painted clouds on a dome 1 km around the island (M_SkyClouds). Volumetric clouds cost Medium 2 ms and more,
+    # looking up through their layer, and thinned out enough to be cheap they vanished.
+    dome_mesh = unreal.load_asset(SKY_DOME)
+    radius = max(dome_mesh.get_bounding_box().max.x, 1.0)
+    dome = place(dome_mesh, (0, 0, 0), label='SkyClouds', folder='Environment', scale=(SKY_RADIUS / radius,) * 3)
+    sky_mesh = dome.static_mesh_component
+    sky_mesh.set_material(0, unreal.load_asset(SKY_CLOUDS))
+    sky_mesh.set_editor_property('cast_shadow', False)
+    sky_mesh.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
 
     post = place(unreal.PostProcessVolume, (0, 0, 0), label='IslandPost', folder='Environment')
     post.set_editor_property('unbound', True)
     settings = post.get_editor_property('settings')
     # No outline material: the new style draws no ink lines.
     for name, value in (('auto_exposure_method', unreal.AutoExposureMethod.AEM_HISTOGRAM), ('auto_exposure_bias', 0.4),
-                        ('auto_exposure_min_brightness', -10.0), ('auto_exposure_max_brightness', 20.0),
+                        # Exposure adapts only a little (EV100 0.3 to 1): shade under the trees stays
+                        # shade instead of brightening to look like the open meadow.
+                        ('auto_exposure_min_brightness', 0.3), ('auto_exposure_max_brightness', 1.0),
                         ('bloom_intensity', 0.6), ('vignette_intensity', 0.3), ('film_slope', 0.88), ('film_toe', 0.55),
                         ('color_saturation', unreal.Vector4(1.05, 1.05, 1.05, 1.0))):
         settings.set_editor_property(name, value)
@@ -198,19 +226,30 @@ def models(layout, meshes):
             # The fan turns: AWindmill hangs it from the tower's Fan socket.
             windmill = place(unreal.load_class(None, '/Script/AI_Looter_Shooter.Windmill'), spot['location'],
                              spot['yaw'], label=key, folder='Buildings', tags=('Obstacle',))
-            windmill.get_editor_property('tower').set_static_mesh(unreal.load_asset(meshes[name]))
+            tower = windmill.get_editor_property('tower')
+            tower.set_static_mesh(unreal.load_asset(meshes[name]))
             if 'WindmillFan' in meshes:
-                windmill.get_editor_property('fan').set_static_mesh(unreal.load_asset(meshes['WindmillFan']))
-            windmill.rerun_construction_scripts()
+                fan = windmill.get_editor_property('fan')
+                fan.set_static_mesh(unreal.load_asset(meshes['WindmillFan']))
+                # The socket exists only now that the tower has its mesh.
+                snap = unreal.AttachmentRule.SNAP_TO_TARGET
+                fan.attach_to_component(tower, 'Fan', snap, snap, unreal.AttachmentRule.KEEP_RELATIVE, False)
+                # Attaching doesn't move it in the editor until its transform changes (setting the same one is skipped).
+                fan.set_relative_location(unreal.Vector(0.0, 0.0, 1.0), False, True)
+                fan.set_relative_location(unreal.Vector(0.0, 0.0, 0.0), False, True)
         else:
             place(unreal.load_asset(meshes[name]), spot['location'], spot['yaw'], label=key, folder='Buildings',
                   tags=('Obstacle',))
         placed += 1
 
+    # The bridge's ramps end at its pivot's height, which the layout gives as the road on both banks; it stretches to
+    # the span. Untagged, so the minimap draws it as ground but the scatter doesn't grow grass on it.
     bridge = layout.get('bridge')
-    if bridge and 'Footbridge' in meshes:
-        place(unreal.load_asset(meshes['Footbridge']), bridge['location'], bridge['yaw'], label='Footbridge',
-              folder='Buildings', tags=('Ground',))
+    if bridge and 'Bridge' in meshes:
+        deck = unreal.load_asset(meshes['Bridge'])
+        box = deck.get_bounding_box()
+        stretch = bridge['span'] / max(box.max.x - box.min.x, 1.0)
+        place(deck, bridge['location'], bridge['yaw'], label='Bridge', folder='Buildings', scale=(stretch, 1.0, 1.0))
         placed += 1
 
     apple = unreal.load_asset(meshes['Apple_A']) if 'Apple_A' in meshes else None
@@ -224,6 +263,63 @@ def models(layout, meshes):
     log(f'placed {placed} models')
 
 
+def terrain(meshes):
+    """The terrain tiles (walkable, tagged Ground for the minimap and the scatter), the rock underside and the water.
+    They are all modeled in island space, so they sit at the origin."""
+    count = 0
+    for name, path in sorted(meshes.items()):
+        if not name.startswith(TERRAIN_PREFIX):
+            continue
+        part = name[len(TERRAIN_PREFIX):]
+        place(unreal.load_asset(path), (0, 0, 0), label=part, folder='Terrain',
+              tags=('Ground',) if part.startswith('Tile_') else ())
+        count += 1
+    if not count:
+        warn(f'no SM_{TERRAIN_PREFIX}* terrain yet')
+    log(f'placed {count} terrain pieces')
+
+
+def cliffs(layout, meshes):
+    """Cliff faces over the terrain's steep walls: the plateau's edge, the ramp's cut walls and the island's rim.
+
+    Each dressing point is where a wall meets the ground below it (the rim: the rim's top, with the drop below it),
+    facing out. A piece stands a little inside that line so it covers the wall and its lip; it reaches just over the
+    top, is widened to overlap its neighbours, and is chosen among the kit's pieces by how little it must stretch."""
+    pieces = []
+    for name in CLIFF_PIECES:
+        if name in meshes:
+            mesh = unreal.load_asset(meshes[name])
+            box = mesh.get_bounding_box()
+            pieces.append((mesh, box.max.z, box.max.y - box.min.y))
+    if not pieces:
+        warn('no cliff pieces yet')
+        return
+    rng = random.Random(23)
+    placed = 0
+    for group, points in layout.get('cliffs', {}).items():
+        for i, point in enumerate(points):
+            x, y, z = point['location']
+            if group == 'rim':
+                bottom, height = z - point['drop'], point['drop']
+            else:
+                bottom, height = z, point.get('height', point.get('top', z) - z)
+            height += CLIFF_OVERTOP
+            # Neighbours along the wall set the width (the points run along it in order).
+            gaps = [math.dist(point['location'][:2], points[j]['location'][:2]) for j in (i - 1, i + 1)
+                    if 0 <= j < len(points)]
+            gap = min(gaps) if gaps else 1000.0
+            choices = sorted(pieces, key=lambda p: abs(math.log(height / p[1])) + rng.uniform(0.0, 0.25))
+            mesh, piece_height, piece_width = choices[0]
+            yaw = point['yaw']
+            inward = (-math.cos(math.radians(yaw)) * CLIFF_INSET, -math.sin(math.radians(yaw)) * CLIFF_INSET)
+            width = min(max((gap + CLIFF_OVERLAP) / piece_width, 0.75), 1.6)
+            place(mesh, (x + inward[0], y + inward[1], bottom), yaw + rng.uniform(-4.0, 4.0),
+                  label=f'Cliff_{group}_{i + 1:02d}', folder=f'Cliffs/{group}',
+                  scale=(1.0, width, height / piece_height), tags=('Obstacle',))
+            placed += 1
+    log(f'placed {placed} cliff pieces')
+
+
 def run():
     with open(LAYOUT) as f:
         layout = json.load(f)
@@ -232,6 +328,8 @@ def run():
     open_level()
     meshes = mesh_index()
     sky_light = environment()
+    terrain(meshes)
+    cliffs(layout, meshes)
     models(layout, meshes)
     gameplay(layout, source)
     sky_light.recapture_sky()

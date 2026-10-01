@@ -2,7 +2,8 @@
 
 A stylized first/third-person looter shooter in Unreal Engine 5.8, written C++-first. The game is the runtime module
 `Source/AI_Looter_Shooter`; `Source/LooterEditor` is an editor-only module of level-building tools that never ships. The
-playable level is `/Game/Maps/Lvl_Skyreach` (floating sky islands).
+playable level is the tutorial island, `/Game/Maps/Lvl_TutorialIsland` (`Docs/TutorialIsland.md`); the older
+`/Game/Maps/Lvl_Skyreach` (floating sky islands, the previous art style) is kept for reference.
 
 The C++ `ALooterGameMode` (project default) gives each player an `ALooterPlayerController`, the `ALooterHUD` and
 `/Game/Player/BP_LooterCharacter`: a data-only child of `ALooterCharacter` that holds the meshes, animation, camera
@@ -20,7 +21,12 @@ placement and gameplay component settings.
 - Performance: `Tools\perf.ps1 -Label "what changed" -Exec "Looter.Quality Medium"`, with the editor closed. It
   measures a standalone 1080p window and appends the result to `Docs/Performance.md`. Measure before and after
   anything that could change cost, on Medium (the minimum spec). `-GpuStats` records each pass; compare two captures
-  with `Tools\perfdiff.ps1`.
+  with `Tools\perfdiff.ps1`. `-Map` measures another level.
+- Per area: `Tools	our.ps1 [-Quality Medium]` runs the game through the level's viewpoints
+  (`Art/Levels/TutorialIsland/views.json`, the in-game `Looter.Tour` command) and prints each one's frame, game, render
+  and GPU time, with a screenshot of each in `Saved\Screenshots\Tour`. The budget holds at every viewpoint, not just
+  the spawn. To see which passes cost what at each one, capture a tour with `perf.ps1 -GpuStats` and split it with
+  `Tools\perfviews.ps1` (its header has the command).
 - Editor automation goes over MCP on port 8000:
   - `Tools\mcp.ps1 <toolset> <tool> '<json>'` calls one tool.
   - `Tools\runscript.ps1 <file.py>` runs sandboxed Python: define `run()` and call tools with `execute_tool`.
@@ -82,7 +88,12 @@ placement and gameplay component settings.
   surfaces use the flat stylized materials (`M_StylizedSurface`, `M_StylizedFoliage`, `M_StylizedGlow`). Always go
   through material instances. Nanite can't draw the additive glow; use an emissive surface (Glow setting) on Nanite
   meshes.
-- Levels are built in the editor. Procedural props are `StylizedProp` actors (shape, seed, two colors). Before
+- The tutorial island is built by scripts from `Art/Levels/TutorialIsland/layout_computed.json` (which the terrain
+  model writes): `Tools/Unreal/build_tutorial_island.py` places the terrain, cliffs, buildings, lighting and gameplay
+  actors, and `Tools/Unreal/build_island_scatter.py` scatters grass, flowers, trees and rocks with PCG from the
+  terrain's scatter mask. Rebuilding replaces only what they placed. `Tools/Unreal/review_stage.py` photographs new
+  models under the island's lighting.
+- Older levels are built in the editor. Procedural props are `StylizedProp` actors (shape, seed, two colors). Before
   committing a level, run `Looter.BakeLevelProps` in the editor console. It swaps them for static mesh actors and saves
   their meshes and materials under `/Game/Environment/Props`.
 - After placing props or changing terrain, run `Looter.SettleProps` (`Looter.SettleProps selected` for just the
@@ -90,7 +101,7 @@ placement and gameplay component settings.
   After changing terrain, first run `Tools/Unreal/conform_hills.py`: it fits the hills' rims back under the ground.
 - Terrain meshes (island, hills, cliffs) keep every triangle in their Nanite fallback: Medium draws the fallback and
   collision is cooked from it, so a reduced one makes everything placed by traces float over the ground High draws.
-- Grass and flowers come from the `Meadow` PCG volume (`/Game/Environment/PCG/PCG_Meadow`). It raycasts onto actors
+- In Lvl_Skyreach, grass and flowers come from the `Meadow` PCG volume (`/Game/Environment/PCG/PCG_Meadow`). It raycasts onto actors
   tagged `Ground` and avoids actors tagged `Obstacle`. After changing terrain, select the volume and press Generate,
   then save the level. Ground cover never collides; a placed static mesh actor takes its mesh's collision unless
   `bUseDefaultCollision` is off. The patches are small (about 3.5 m) and lie on the slope so they follow the ground,

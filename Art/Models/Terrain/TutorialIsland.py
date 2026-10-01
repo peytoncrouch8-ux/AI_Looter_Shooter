@@ -296,6 +296,8 @@ def build_water(island):
     obj = make_object('TutorialIsland_Water', verts, tris, water_material(), uvs={'UVMap': uv}, normals=normals)
     # Players wade through the pond and the creek: the water has no collision (their beds do).
     obj['Collision'] = 'None'
+    # A flat surface gains nothing from Nanite (and M_Water has no Nanite permutation).
+    obj['Nanite'] = 0
     vb = island_mesh.to_blender(verts)
     a, b, c = vb[tris[:, 0]], vb[tris[:, 1]], vb[tris[:, 2]]
     if np.mean(np.cross(b - a, c - a)[:, 2]) < 0.0:

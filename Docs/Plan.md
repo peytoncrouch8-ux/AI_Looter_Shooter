@@ -97,8 +97,16 @@ art bible, the asset list, the island layout and the performance plan. The targe
 - [x] The pipeline takes textured models: master materials (`Tools/Unreal/build_world_materials.py`), texture sets
       imported by suffix, LODs and Nanite fallback shares per model, models without collision
       (`Looter.Editor.TexturedImport`).
-- [ ] Texture library and the house trim sheet (`Art/Textures`, `Tools/Blender/looter_textures.py`).
-- [ ] Buildings, vegetation, rocks, cliffs and props (`Art/Models/Buildings`, `Vegetation`, `Rocks`, `Props`).
-- [ ] The island terrain from `Art/Levels/TutorialIsland/layout.json`: tiles, cliffs, roads, pond and creek.
-- [ ] Place the level from the layout; new scatter for grass, flowers, trees and rocks; lighting and post for the style.
-- [ ] Medium at 8.3 ms or less from every viewpoint.
+- [x] Texture library and the house trim sheet (`Art/Textures`, `Tools/Blender/looter_textures.py`): 18 sets.
+- [x] Buildings, vegetation, rocks, cliffs and props (`Art/Models/Buildings`, `Vegetation`, `Rocks`, `Props`): 10
+      buildings and the windmill's fan, 23 plants, 12 rocks and cliff pieces, 20 props. Shared Blender code in
+      `Tools/Blender/looter_buildings.py`, `looter_plants.py`, `looter_props.py`.
+- [x] The island terrain from `Art/Levels/TutorialIsland/layout.json`: 16 tiles (133k triangles), the underside, roads
+      painted and carved, pond and creek, the macro color map and the scatter mask.
+- [x] Place the level from the layout (`build_tutorial_island.py`), the PCG scatter (`build_island_scatter.py`: 25k
+      grass patches, 1.5k flower drifts, trees, bushes, rocks), afternoon light, painted sky-dome clouds, no outlines.
+      Lvl_TutorialIsland is the game's map.
+- [x] Medium at 8.3 ms or less from every viewpoint: 5.5 to 7.2 ms (139 to 182 fps) on `Tools/tour.ps1`. Volumetric
+      clouds were the big cost (9.5 ms with the engine's layer, 2 ms thinned); the dome costs almost nothing.
+- [ ] Next: a waterfall and chimney smoke, reeds at the pond, more trees in the meadows, the gun rack's weapon, and the
+      tutorial itself (prompts along the road).
