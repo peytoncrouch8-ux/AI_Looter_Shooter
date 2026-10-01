@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "HudXPBarWidget.generated.h"
 
+class UHorizontalBoxSlot;
 class UImage;
 class UTextBlock;
 class UPlayerProgressionSubsystem;
@@ -12,7 +13,8 @@ enum class EXPSource : uint8;
 DECLARE_DELEGATE_OneParam(FOnHudAnnouncement, const FText& /*Message*/);
 
 /**
- * The HUD's experience bar, bottom center: the player's level, a slim slanted bar of the way through it, and
+ * The HUD's experience bar, bottom center: the player's level, a slim slanted bar in ten sections (each a tenth of the
+ * level, the one being filled filling along its length) of the way through it, and
  * "XP 40 / 100" ("MAX" at the top level). No backing panel, like the rest of the gameplay HUD. On a gain the bar eases
  * up to the new amount and "+10 XP" rises beside it; on a level-up it fills, wraps, the level number flashes and the HUD
  * announces the new level. Driven by UPlayerProgressionSubsystem's events: it builds strings only when experience
@@ -53,7 +55,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> LevelValue;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> XPText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> GainText;
-	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> Segments;
+	/** Per section: its filled part, and the slots that share its width between the filled part and the rest. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> SectionFills;
+	UPROPERTY(Transient) TArray<TObjectPtr<UHorizontalBoxSlot>> FilledSlots;
+	UPROPERTY(Transient) TArray<TObjectPtr<UHorizontalBoxSlot>> EmptySlots;
 
 	TWeakObjectPtr<UPlayerProgressionSubsystem> Progression;
 
@@ -68,8 +73,8 @@ private:
 	/** The highest level gained but not yet announced; announced when the bar gets there. */
 	int32 PendingAnnouncement = 0;
 
-	/** Per segment, how lit it is (0-1), so only the ones that change get repainted. */
-	TArray<float> SegmentFill;
+	/** Per section, how full it is (0-1), so only the ones that change get repainted. */
+	TArray<float> SectionFill;
 
 	int64 ShownGain = 0;
 	float GainTime = 0.f;

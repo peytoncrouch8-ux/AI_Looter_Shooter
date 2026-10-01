@@ -6,6 +6,8 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/SizeBox.h"
 #include "Components/Spacer.h"
 #include "Components/TextBlock.h"
@@ -17,7 +19,9 @@ using namespace LooterUI;
 
 namespace
 {
-	constexpr int32 SegmentCount = 40;
+	/** Ten sections, each a tenth of the way to the next level. */
+	constexpr int32 SectionCount = 10;
+	constexpr float SectionGap = 4.f;
 	constexpr float BarHeight = 8.f;
 	/** The same lean as the HUD's health and magazine bars. */
 	constexpr float BarSlant = 16.f;
@@ -67,23 +71,50 @@ TSharedRef<SWidget> UHudXPBarWidget::RebuildWidget()
 		XPSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 3.f));
 		Box->AddChildToVerticalBox(MakeSized(WidgetTree, Row, BarWidth));
 
-		// The bar: slim segments sheared into a parallelogram, on a faint dark backing (faded by the UI transparency).
+		// The bar: ten sections sheared into a parallelogram, on a faint dark backing (faded by the UI transparency). Each
+		// section fills from its left end, so the one being filled shows how far along it is.
 		UBorder* Backing = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 		Backing->SetBrush(RectBrush(FLinearColor(0.f, 0.02f, 0.04f, 0.45f)));
 		MarkBackground(Backing);
 		Backing->SetPadding(FMargin(2.f));
 		UHorizontalBox* Bar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		Segments.Reset();
-		for (int32 Index = 0; Index < SegmentCount; ++Index)
+		SectionFills.Reset();
+		FilledSlots.Reset();
+		EmptySlots.Reset();
+		for (int32 Index = 0; Index < SectionCount; ++Index)
 		{
-			UImage* Segment = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
-			Segment->SetColorAndOpacity(Color::SegmentOff());
-			UHorizontalBoxSlot* SegmentSlot = Bar->AddChildToHorizontalBox(Segment);
-			SegmentSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			SegmentSlot->SetPadding(FMargin(0.f, 0.f, Index + 1 < SegmentCount ? 2.f : 0.f, 0.f));
-			Segments.Add(Segment);
+			UOverlay* Section = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+			UImage* Empty = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
+			Empty->SetColorAndOpacity(Color::SegmentOff());
+			UOverlaySlot* EmptyImageSlot = Section->AddChildToOverlay(Empty);
+			EmptyImageSlot->SetHorizontalAlignment(HAlign_Fill);
+			EmptyImageSlot->SetVerticalAlignment(VAlign_Fill);
+
+			// The filled part and the rest share the section's width in proportion to how full it is.
+			UHorizontalBox* Split = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			UImage* Filled = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
+			Filled->SetColorAndOpacity(Color::Accent());
+			Filled->SetVisibility(ESlateVisibility::Hidden);
+			UHorizontalBoxSlot* FilledSlot = Split->AddChildToHorizontalBox(Filled);
+			FSlateChildSize NoWidth(ESlateSizeRule::Fill);
+			NoWidth.Value = 0.f;
+			FilledSlot->SetSize(NoWidth);
+			UHorizontalBoxSlot* EmptySlot = Split->AddChildToHorizontalBox(WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass()));
+			FSlateChildSize Rest(ESlateSizeRule::Fill);
+			Rest.Value = 1.f;
+			EmptySlot->SetSize(Rest);
+			UOverlaySlot* SplitSlot = Section->AddChildToOverlay(Split);
+			SplitSlot->SetHorizontalAlignment(HAlign_Fill);
+			SplitSlot->SetVerticalAlignment(VAlign_Fill);
+
+			UHorizontalBoxSlot* SectionSlot = Bar->AddChildToHorizontalBox(Section);
+			SectionSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			SectionSlot->SetPadding(FMargin(0.f, 0.f, Index + 1 < SectionCount ? SectionGap : 0.f, 0.f));
+			SectionFills.Add(Filled);
+			FilledSlots.Add(FilledSlot);
+			EmptySlots.Add(EmptySlot);
 		}
-		SegmentFill.Init(0.f, SegmentCount);
+		SectionFill.Init(0.f, SectionCount);
 		Backing->SetContent(Bar);
 		USizeBox* BarSize = MakeSized(WidgetTree, Backing, BarWidth, BarHeight);
 		BarSize->SetRenderShear(FVector2D(BarSlant, 0.f));
@@ -268,20 +299,24 @@ void UHudXPBarWidget::SetShownLevel(int32 Level)
 
 void UHudXPBarWidget::PaintBar(float Fraction)
 {
-	// Whole segments light up in the accent color; the one being filled glows in proportion, so small gains still show.
-	const float Lit = FMath::Clamp(Fraction, 0.f, 1.f) * SegmentCount;
-	for (int32 Index = 0; Index < Segments.Num(); ++Index)
+	// Each section is a tenth of the level: full ones are solid, and the one being filled fills along its length.
+	const float Lit = FMath::Clamp(Fraction, 0.f, 1.f) * SectionCount;
+	for (int32 Index = 0; Index < SectionFills.Num(); ++Index)
 	{
-		// In sixteenths: easing only repaints a segment when it visibly changes.
-		const float Fill = FMath::RoundToFloat(FMath::Clamp(Lit - Index, 0.f, 1.f) * 16.f) / 16.f;
-		if (Fill == SegmentFill[Index])
+		// In 64ths of a section: easing only repaints a section when it visibly changes.
+		const float Fill = FMath::RoundToFloat(FMath::Clamp(Lit - Index, 0.f, 1.f) * 64.f) / 64.f;
+		if (Fill == SectionFill[Index])
 		{
 			continue;
 		}
-		SegmentFill[Index] = Fill;
-		const FLinearColor SegmentColor = Fill <= 0.f ? Color::SegmentOff()
-			: Color::Accent().CopyWithNewOpacity(FMath::Lerp(0.2f, 1.f, Fill));
-		Segments[Index]->SetColorAndOpacity(SegmentColor);
+		SectionFill[Index] = Fill;
+		FSlateChildSize Filled(ESlateSizeRule::Fill);
+		Filled.Value = Fill;
+		FilledSlots[Index]->SetSize(Filled);
+		FSlateChildSize Rest(ESlateSizeRule::Fill);
+		Rest.Value = 1.f - Fill;
+		EmptySlots[Index]->SetSize(Rest);
+		SectionFills[Index]->SetVisibility(Fill > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
 	}
 }
 
