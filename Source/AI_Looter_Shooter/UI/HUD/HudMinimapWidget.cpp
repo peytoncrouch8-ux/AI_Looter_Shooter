@@ -109,16 +109,17 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	{
 		return;
 	}
-	if (!Minimap || !Pawn)
+	// The player's settings, live (the settings menu changes them while the game is paused). Turned off, the map
+	// hides and skips all its work below.
+	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
+	const UGraphicsSettingsSubsystem* Settings = LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
+	if (!Minimap || !Pawn || (Settings && !Settings->IsMinimapShown()))
 	{
 		SizeBox->SetVisibility(ESlateVisibility::Hidden);
 		return;
 	}
 	SizeBox->SetVisibility(ESlateVisibility::HitTestInvisible);
 
-	// The player's size setting, live (the settings menu changes it while the game is paused).
-	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	const UGraphicsSettingsSubsystem* Settings = LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
 	const float WantedScale = Settings ? Settings->GetMinimapScale() : 1.f;
 	const float Range = BaseRange / (Settings ? Settings->GetMinimapZoom() : 1.f);
 	if (!FMath::IsNearlyEqual(WantedScale, Scale))

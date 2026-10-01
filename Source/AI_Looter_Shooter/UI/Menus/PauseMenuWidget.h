@@ -92,6 +92,8 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<ULooterButton>> QualityButtons;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> MotionBlurOn;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> MotionBlurOff;
+	UPROPERTY(Transient) TObjectPtr<ULooterButton> MinimapOn;
+	UPROPERTY(Transient) TObjectPtr<ULooterButton> MinimapOff;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> FrameRateOn;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> FrameRateOff;
 	UPROPERTY(Transient) TObjectPtr<USlider> TransparencySlider;

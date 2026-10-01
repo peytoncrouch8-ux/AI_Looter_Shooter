@@ -26,10 +26,11 @@ bool FQualityPresetsTest::RunTest(const FString& Parameters)
 		TestEqual(Name + TEXT(" distance field AO"), Settings.FindRef(TEXT("r.DistanceFieldAO")), bHighOrEpic ? 1 : 0);
 	}
 
-	// A fresh install starts on the minimum spec, without motion blur, with the FPS counter showing.
+	// A fresh install starts on the minimum spec, without motion blur, with the minimap and the FPS counter showing.
 	TestTrue(TEXT("Starts on Medium"), GetDefault<ULooterGraphicsSave>()->Quality == EGraphicsQuality::Medium);
 	TestFalse(TEXT("Starts without motion blur"), GetDefault<ULooterGraphicsSave>()->bMotionBlur);
 	TestTrue(TEXT("Starts with the FPS counter"), GetDefault<ULooterGraphicsSave>()->bShowFrameRate);
+	TestTrue(TEXT("Starts with the minimap"), GetDefault<ULooterGraphicsSave>()->bShowMinimap);
 	return true;
 }
 

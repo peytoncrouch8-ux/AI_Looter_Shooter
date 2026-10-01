@@ -255,6 +255,21 @@ void UGraphicsSettingsSubsystem::SetMinimapZoom(float Zoom, bool bSave)
 	}
 }
 
+bool UGraphicsSettingsSubsystem::IsMinimapShown() const
+{
+	return !SaveData || SaveData->bShowMinimap;
+}
+
+void UGraphicsSettingsSubsystem::SetMinimapShown(bool bShown)
+{
+	if (!SaveData || SaveData->bShowMinimap == bShown)
+	{
+		return;
+	}
+	SaveData->bShowMinimap = bShown;
+	SaveSettings();
+}
+
 bool UGraphicsSettingsSubsystem::IsFrameRateShown() const
 {
 	return !SaveData || SaveData->bShowFrameRate;

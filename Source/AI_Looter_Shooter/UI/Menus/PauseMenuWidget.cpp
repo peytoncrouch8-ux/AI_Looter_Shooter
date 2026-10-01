@@ -33,6 +33,8 @@ namespace
 	const FName ActionQuality(TEXT("Quality"));
 	const FName ActionMotionBlurOn(TEXT("MotionBlurOn"));
 	const FName ActionMotionBlurOff(TEXT("MotionBlurOff"));
+	const FName ActionMinimapOn(TEXT("MinimapOn"));
+	const FName ActionMinimapOff(TEXT("MinimapOff"));
 	const FName ActionFrameRateOn(TEXT("FrameRateOn"));
 	const FName ActionFrameRateOff(TEXT("FrameRateOff"));
 	const FName ActionHoldMode(TEXT("HoldMode"));
@@ -170,6 +172,11 @@ TSharedRef<SWidget> UPauseMenuWidget::RebuildWidget()
 		TransparencyValue = TransparencyText;
 		TransparencySlider->OnValueChanged.AddDynamic(this, &UPauseMenuWidget::HandleTransparencyChanged);
 		TransparencySlider->OnMouseCaptureEnd.AddDynamic(this, &UPauseMenuWidget::HandleTransparencyReleased);
+		ULooterButton* MapOn = nullptr;
+		ULooterButton* MapOff = nullptr;
+		Add(MakeToggleRow(TEXT("Minimap"), TEXT("On"), TEXT("Off"), ActionMinimapOn, ActionMinimapOff, 0, false, MapOn, MapOff), 4.f);
+		MinimapOn = MapOn;
+		MinimapOff = MapOff;
 		USlider* MinimapSize = nullptr;
 		UTextBlock* MinimapText = nullptr;
 		Add(MakeSliderRow(TEXT("Minimap size"), UGraphicsSettingsSubsystem::MinMinimapScale, UGraphicsSettingsSubsystem::MaxMinimapScale,
@@ -370,6 +377,12 @@ void UPauseMenuWidget::RefreshGraphics()
 	const bool bBlur = Graphics->IsMotionBlurEnabled();
 	MotionBlurOn->SetHighlighted(bBlur);
 	MotionBlurOff->SetHighlighted(!bBlur);
+	if (MinimapOn && MinimapOff)
+	{
+		const bool bMinimap = Graphics->IsMinimapShown();
+		MinimapOn->SetHighlighted(bMinimap);
+		MinimapOff->SetHighlighted(!bMinimap);
+	}
 	if (FrameRateOn && FrameRateOff)
 	{
 		const bool bFrameRate = Graphics->IsFrameRateShown();
@@ -639,6 +652,20 @@ void UPauseMenuWidget::HandleButton(ULooterButton* Button)
 			const bool bBlur = Button->Action == ActionMotionBlurOn;
 			Graphics->SetMotionBlurEnabled(bBlur);
 			SetStatus(bBlur ? TEXT("Motion blur on.") : TEXT("Motion blur off."), LooterUI::Color::TextDim());
+		}
+		RefreshGraphics();
+		RefreshKeyLabels();
+		SetKeyboardFocus();
+		return;
+	}
+	if (Button->Action == ActionMinimapOn || Button->Action == ActionMinimapOff)
+	{
+		StopListening();
+		if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
+		{
+			const bool bMinimap = Button->Action == ActionMinimapOn;
+			Graphics->SetMinimapShown(bMinimap);
+			SetStatus(bMinimap ? TEXT("Minimap on.") : TEXT("Minimap off."), LooterUI::Color::TextDim());
 		}
 		RefreshGraphics();
 		RefreshKeyLabels();

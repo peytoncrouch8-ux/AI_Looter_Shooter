@@ -114,7 +114,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Settings
 - `Settings/KeyBindingSubsystem`: key rebinding, the global pause/inventory actions and the character actions.
-- `Settings/GraphicsSettingsSubsystem`: saved display options (quality preset, motion blur, UI transparency, minimap size and zoom, FPS counter) and the `Looter.Quality` command.
+- `Settings/GraphicsSettingsSubsystem`: saved display options (quality preset, motion blur, UI transparency, minimap on/off, size and zoom, FPS counter) and the `Looter.Quality` command.
 
 ## UI
 - `UI/Style/LooterUIStyle`: `LooterUI`, the style kit every UI is built with (palette, shapes, icons, text, builders,

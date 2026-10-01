@@ -39,6 +39,10 @@ public:
 	UPROPERTY()
 	float UITransparency = 0.f;
 
+	/** The HUD minimap. Saves from before it could be turned off load with it on. */
+	UPROPERTY()
+	bool bShowMinimap = true;
+
 	/** The HUD minimap's size, relative to its standard size. */
 	UPROPERTY()
 	float MinimapScale = 1.f;
@@ -112,6 +116,10 @@ public:
 
 	/** The HUD follows on its next frame. bSave as for SetUITransparency. */
 	void SetMinimapZoom(float Zoom, bool bSave = true);
+
+	/** The HUD minimap (it follows on its next frame, and does no work while off). */
+	bool IsMinimapShown() const;
+	void SetMinimapShown(bool bShown);
 
 	/** The HUD's frame rate counter (it follows within half a second). */
 	bool IsFrameRateShown() const;
