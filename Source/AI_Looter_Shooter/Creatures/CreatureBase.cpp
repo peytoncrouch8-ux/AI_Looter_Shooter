@@ -12,6 +12,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -188,7 +189,7 @@ void ACreatureBase::TickBrain(float DeltaSeconds)
 			break;
 		}
 		const float Distance = FVector::Dist2D(GetActorLocation(), Victim->GetActorLocation());
-		if (Distance <= AttackRange && CooldownRemaining <= 0.f)
+		if (Distance <= AttackRange && CooldownRemaining <= 0.f && CanStartAttack())
 		{
 			SetState(ECreatureState::Attack);
 		}
@@ -323,21 +324,26 @@ void ACreatureBase::Strike()
 		const bool bInFront = FVector::DotProduct(GetActorForwardVector(), ToVictim.GetSafeNormal2D()) > 0.4f;
 		if (bInReach && bInFront)
 		{
-			// Bites roll in the same damage range as player weapons.
-			const float Damage = LooterCombat::RollHitDamage(AttackDamage, false);
-			UGameplayStatics::ApplyDamage(Victim, Damage, GetController(), this, UCreatureAttackDamageType::StaticClass());
-			UE_LOG(LogLooter, Verbose, TEXT("%s bit %s for %.1f"), *GetName(), *GetNameSafe(Victim), Damage);
-			// Shove the victim back so the hit is felt, not just read on the health bar.
-			if (ACharacter* VictimCharacter = Cast<ACharacter>(Victim))
-			{
-				VictimCharacter->LaunchCharacter(ToVictim.GetSafeNormal2D() * 450.f + FVector(0.f, 0.f, 180.f), true, false);
-			}
+			HitWithAttack(Victim, ToVictim.GetSafeNormal2D());
 			bConnected = true;
 		}
 	}
 	// The lunge is purely visual (the subclass animates it); a physical shove would push the creature into
 	// and past a target standing in melee range.
 	OnAttackStrike(bConnected);
+}
+
+void ACreatureBase::HitWithAttack(APawn* Victim, const FVector& Push)
+{
+	// Attacks roll in the same damage range as player weapons.
+	const float Damage = LooterCombat::RollHitDamage(AttackDamage, false);
+	UGameplayStatics::ApplyDamage(Victim, Damage, GetController(), this, UCreatureAttackDamageType::StaticClass());
+	UE_LOG(LogLooter, Verbose, TEXT("%s hit %s for %.1f"), *GetName(), *GetNameSafe(Victim), Damage);
+	// Shove the victim back so the hit is felt, not just read on the health bar.
+	if (ACharacter* VictimCharacter = Cast<ACharacter>(Victim))
+	{
+		VictimCharacter->LaunchCharacter(Push * 450.f + FVector(0.f, 0.f, 180.f), true, false);
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -373,7 +379,7 @@ void ACreatureBase::MoveToward(const FVector& Goal, float Speed, float DeltaSeco
 	}
 
 	// Wedged against something the probes didn't see: take a short detour in a random clear direction.
-	StuckTime = GetVelocity().Size2D() < Speed * 0.15f ? StuckTime + DeltaSeconds : 0.f;
+	StuckTime = IsStuck(Speed) ? StuckTime + DeltaSeconds : 0.f;
 	if (StuckTime > 0.8f)
 	{
 		StuckTime = 0.f;
@@ -388,6 +394,11 @@ void ACreatureBase::MoveToward(const FVector& Goal, float Speed, float DeltaSeco
 			}
 		}
 	}
+}
+
+bool ACreatureBase::IsStuck(float Speed) const
+{
+	return GetVelocity().Size2D() < Speed * 0.15f;
 }
 
 FVector ACreatureBase::ChooseDirection(const FVector& Desired)
@@ -518,6 +529,32 @@ void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocat
 			SetState(ECreatureState::Chase);
 		}
 	}
+	// A pack turns on whoever hurts one of them.
+	if (PackAlertRadius > 0.f && IsValidTarget(Attacker))
+	{
+		for (TActorIterator<ACreatureBase> It(GetWorld()); It; ++It)
+		{
+			if (*It != this && It->GetClass() == GetClass()
+				&& FVector::DistSquared(It->GetActorLocation(), GetActorLocation()) <= FMath::Square(PackAlertRadius))
+			{
+				It->AlertTo(Attacker);
+			}
+		}
+	}
+}
+
+void ACreatureBase::AlertTo(APawn* Attacker)
+{
+	if (State == ECreatureState::Dead || Target.IsValid() || !IsValidTarget(Attacker))
+	{
+		return;
+	}
+	Target = Attacker;
+	if (State != ECreatureState::Attack)
+	{
+		SetState(ECreatureState::Chase);
+	}
+	UPlayerProgressionSubsystem::RecordEncounter(Attacker->GetController(), this);
 }
 
 void ACreatureBase::HandleDeath(AController* Killer)

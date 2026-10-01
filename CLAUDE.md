@@ -96,7 +96,8 @@ placement and gameplay component settings.
 - The tutorial island is built by scripts from `Art/Levels/TutorialIsland/layout_computed.json` (which the terrain
   model writes): `Tools/Unreal/build_tutorial_island.py` places the terrain, cliffs, buildings, lighting and gameplay
   actors, and `Tools/Unreal/build_island_scatter.py` scatters grass, flowers, trees and rocks with PCG from the
-  terrain's scatter mask. Rebuilding replaces only what they placed. `Tools/Unreal/review_stage.py` photographs new
+  terrain's scatter mask. Rebuilding replaces only what they placed (`build_tutorial_island.py gameplay` places just
+  the gameplay actors again: spawn, dummies, spiders, slimes). `Tools/Unreal/review_stage.py` photographs new
   models under the island's lighting.
 - Older levels are built in the editor. Procedural props are `StylizedProp` actors (shape, seed, two colors). Before
   committing a level, run `Looter.BakeLevelProps` in the editor console. It swaps them for static mesh actors and saves

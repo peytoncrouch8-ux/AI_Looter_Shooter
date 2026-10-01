@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "Creatures/CreatureBase.h"
-#include "Creatures/SpiderAnimInstance.h"
 #include "SpiderCreature.generated.h"
 
 /**
@@ -24,9 +23,6 @@ public:
 	ASpiderCreature();
 
 	virtual void Tick(float DeltaSeconds) override;
-
-	/** This frame's pose of the bones the code moves, for USpiderAnimInstance. */
-	const TArray<FSpiderBonePose>& GetBonePose() const { return BonePose; }
 
 	/** Where knees bend: up from the body and a little outward. Spider.py bent the model's resting legs the same way. */
 	static FVector KneePole(const FVector& Up, const FVector& Outward) { return Up + Outward * 0.4f; }
@@ -99,7 +95,6 @@ private:
 	/** The body's frame this frame, in the world: the old spider's BodyRoot. */
 	FTransform BodyFrame;
 	FTransform ComponentToWorld;
-	TArray<FSpiderBonePose> BonePose;
 
 	float AnimTime = 0.f;
 	float BodyZ = 0.f;

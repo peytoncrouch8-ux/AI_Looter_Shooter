@@ -77,10 +77,13 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Creatures
 - `Creatures/CreatureBase`: `ACreatureBase`, a hostile creature's brain and life cycle (senses, chase, attack, death,
-  respawn, steering without a navmesh).
+  respawn, steering without a navmesh, a pack turning on its attacker).
 - `Creatures/SpiderCreature`: `ASpiderCreature`, the brown spider: SK_Spider (from `Art/Models/Creatures/Spider.py`)
   posed by code (stepping gait, leg IK, attack and death motion); its physics asset holds the hit zones.
-- `Creatures/SpiderAnimInstance`: `USpiderAnimInstance`, applies the pose `ASpiderCreature` works out to the skeleton.
+- `Creatures/SlimeCreature`: `ASlimeCreature`, the meadow slime: SK_Slime (from `Art/Models/Creatures/Slime.py`) that
+  only hops, squashing and stretching on springs, with a leap attack and crits through the gel at its core.
+- `Creatures/CreaturePoseAnimInstance`: `UCreaturePoseAnimInstance`, applies the pose a creature's code works out
+  (`ACreatureBase::GetBonePose`) to its skeleton.
 
 ## Bestiary
 - `Bestiary/BestiaryEntry`: `UBestiaryEntry` and `EBestiaryCategory`, one bestiary page as a data asset (in
@@ -156,7 +159,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `BestiaryTests.cpp`, `CreatureTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`,
-  `MinimapTests.cpp`, `ProgressionTests.cpp`, `SettingsTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
+  `MinimapTests.cpp`, `ProgressionTests.cpp`, `SettingsTests.cpp`, `SlimeTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)

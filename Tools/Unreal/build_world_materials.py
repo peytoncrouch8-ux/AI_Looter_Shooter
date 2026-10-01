@@ -14,6 +14,9 @@
   M_Smoke         chimney smoke. Vertex color A is opacity (R foam on the waterfall).
   M_Water         opaque, cheap: a dark color (the sky's reflection does the rest), glossy, procedural ripples on
                   UV 0 in meters.
+  M_Gel           lit translucent gel (the slime): Tint, mostly clear facing the eye (Opacity) and denser at grazing
+                  edges (EdgeOpacity), a faint inner glow, and a sun highlight worked out in the material (the sky
+                  atmosphere's sun direction), so the cheapest translucent lighting does. Casts a solid shadow.
   M_Glass         unlit, translucent: lenses and sight windows. Mostly clear (Opacity) facing the eye, so a sight can
                   be aimed through, tinted (Tint) and brighter and denser toward grazing edges (RimBrightness,
                   EdgeOpacity), which reads as glass without reflections.
@@ -220,7 +223,8 @@ def build_foliage(orm_default):
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -400, 900, 'Wind')
     g.out(wind, '', unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET)
     # Foliage is never Nanite (it has LODs instead), and the Nanite permutation of this material doesn't compile on SM6.
-    finish(mat, [unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES])
+    # Skeletal too: creatures (the slime's core and pebbles) take their colors from the foliage palette.
+    finish(mat, [unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES, unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH])
     return mat
 
 
@@ -382,6 +386,43 @@ float Edge = sin(saturate(UV.x) * 3.14159);
 return saturate((Puff - 0.42) * 2.6) * Edge * Edge * Alpha * (1.0 - UV.y * 0.6) * Opacity;"""
 
 
+SUN_HIGHLIGHT = """float3 R = reflect(-CameraVector, Normal);
+return pow(saturate(dot(R, normalize(LightDirection + 1e-5))), Sharpness) * Strength;"""
+
+
+def build_gel():
+    mat = material('M_Gel')
+    mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_TRANSLUCENT)
+    mat.set_editor_property('translucency_lighting_mode', unreal.TranslucencyLightingMode.TLM_VOLUMETRIC_NON_DIRECTIONAL)
+    # A solid shadow under it (its opacity is over the clip value everywhere) keeps it on the ground.
+    mat.set_editor_property('cast_dynamic_shadow_as_masked', True)
+    g = Graph(mat)
+    tint = g.vector('Tint', (0.48, 0.87, 0.25, 1.0), -900, -300)
+    g.out(tint, '', unreal.MaterialProperty.MP_BASE_COLOR)
+    g.out(g.scalar('Roughness', 0.15, -600, 0), '', unreal.MaterialProperty.MP_ROUGHNESS)
+    fresnel = g.node(unreal.MaterialExpressionFresnel, -900, 300, exponent=2.5, base_reflect_fraction=0.0)
+    highlight = g.custom(SUN_HIGHLIGHT, [
+        ('Normal', g.node(unreal.MaterialExpressionPixelNormalWS, -900, 500), ''),
+        ('CameraVector', g.node(unreal.MaterialExpressionCameraVectorWS, -900, 600), ''),
+        ('LightDirection', g.node(unreal.MaterialExpressionSkyAtmosphereLightDirection, -900, 700), ''),
+        ('Sharpness', g.scalar('HighlightSharpness', 60.0, -900, 800), ''),
+        ('Strength', g.scalar('HighlightStrength', 2.0, -900, 900), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -500, 600, 'Sun highlight')
+    # Emissive: a faint glow of its own color (light passing through gel) plus the highlight.
+    glow = g.mul(tint, '', g.scalar('InnerGlow', 0.12, -900, -150), '', -600, -200)
+    emissive = g.node(unreal.MaterialExpressionAdd, -300, 0)
+    g.link(glow, '', emissive, 'A')
+    g.link(highlight, '', emissive, 'B')
+    g.out(emissive, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    opacity = g.node(unreal.MaterialExpressionLinearInterpolate, -600, 300)
+    g.link(g.scalar('Opacity', 0.35, -900, 150), '', opacity, 'A')
+    g.link(g.scalar('EdgeOpacity', 0.85, -900, 220), '', opacity, 'B')
+    g.link(fresnel, '', opacity, 'Alpha')
+    g.out(opacity, '', unreal.MaterialProperty.MP_OPACITY)
+    finish(mat, [unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH])
+    return mat
+
+
 def build_glass():
     mat = material('M_Glass')
     mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_TRANSLUCENT)
@@ -453,7 +494,7 @@ def build_smoke():
 
 BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'M_WorldFoliage': lambda: build_foliage(DEFAULT_ORM),
             'M_Terrain': build_terrain, 'M_Water': build_water, 'M_SkyClouds': build_sky_clouds,
-            'M_Waterfall': build_waterfall, 'M_Smoke': build_smoke, 'M_Glass': build_glass}
+            'M_Waterfall': build_waterfall, 'M_Smoke': build_smoke, 'M_Glass': build_glass, 'M_Gel': build_gel}
 wanted = [name for name in sys.argv[1:] if name in BUILDERS] or list(BUILDERS)
 orm = default_orm()
 built = [BUILDERS[name]() for name in wanted]

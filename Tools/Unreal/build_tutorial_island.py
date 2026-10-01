@@ -3,16 +3,17 @@
 Art/Models/Terrain/TutorialIsland.py turns Art/Levels/TutorialIsland/layout.json into the terrain and into
 layout_computed.json: where every building, cliff piece, road, the bridge and the water go, at the built terrain's
 heights. This script places all of that in the level, with the new style's lighting and the gameplay actors (spawn,
-target dummies, spiders). Run it in the open editor:
-  Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_tutorial_island.py"
+target dummies, spiders, slimes). Run it in the open editor:
+  Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_tutorial_island.py [gameplay]"
 Everything it places carries the IslandBuild tag and sits under the Island outliner folder. Building again replaces
-those actors, so actors placed by hand survive. Models that aren't imported yet are skipped with a warning. The level
+those actors, so actors placed by hand survive; with "gameplay" it only places the gameplay actors again. Models that aren't imported yet are skipped with a warning. The level
 is saved at the end. Grass, flowers, trees and rocks come from the scatter (build_island_scatter.py).
 """
 import json
 import math
 import os
 import random
+import sys
 
 import unreal
 
@@ -28,6 +29,10 @@ TAG = 'IslandBuild'
 # Where the spiders live, and how many.
 SPIDER_ZONE = 'forest'
 SPIDER_COUNT = 8
+# The meadow slimes: one loose group in the open grass west of the target meadow, off the tutorial's road.
+SLIME_CENTER = (2400.0, -5600.0)
+SLIME_COUNT = 5
+SLIME_SPREAD = 450.0
 
 # The terrain's models are SM_TutorialIsland_<part> (Art/Models/Terrain/TutorialIsland.py).
 TERRAIN_PREFIX = 'TutorialIsland_'
@@ -75,8 +80,9 @@ def mesh_index():
     return index
 
 
-def open_level():
-    """Opens (or makes) the level and removes what the last build placed. Stops if another level has unsaved edits."""
+def open_level(folder=None):
+    """Opens (or makes) the level and removes what the last build placed (only in the outliner folder Island/<folder> when
+    given). Stops if another level has unsaved edits."""
     world = unreal.EditorLevelLibrary.get_editor_world()
     if world.get_path_name().split('.')[0] != LEVEL:
         # Untitled scratch maps (/Temp, such as review_stage.py's) are never saved, so they don't count.
@@ -89,7 +95,8 @@ def open_level():
             unreal.EditorLoadingAndSavingUtils.load_map(LEVEL)
         else:
             levels.new_level(LEVEL)
-    built = [a for a in actors.get_all_level_actors() if unreal.Name(TAG) in a.tags]
+    built = [a for a in actors.get_all_level_actors() if unreal.Name(TAG) in a.tags
+             and (folder is None or str(a.get_folder_path()) == f'Island/{folder}')]
     if built:
         actors.destroy_actors(built)
         log(f'removed {len(built)} actors from the last build')
@@ -219,6 +226,17 @@ def gameplay(layout, source):
     for i, (x, y) in enumerate(spots):
         place(spider, (x, y, ground_height(x, y, 0.0) + 60.0), rng.uniform(-180.0, 180.0),
               label=f'Spider_{i + 1:02d}', folder='Gameplay')
+
+    # The slimes: close enough to wander as a group (each strolls around its own spot), not on top of each other.
+    slime = unreal.load_class(None, '/Script/AI_Looter_Shooter.SlimeCreature')
+    spots = []
+    while len(spots) < SLIME_COUNT:
+        point = (SLIME_CENTER[0] + rng.uniform(-SLIME_SPREAD, SLIME_SPREAD), SLIME_CENTER[1] + rng.uniform(-SLIME_SPREAD, SLIME_SPREAD))
+        if all(math.dist(point, s) > 250.0 for s in spots):
+            spots.append(point)
+    for i, (x, y) in enumerate(spots):
+        place(slime, (x, y, ground_height(x, y, 0.0) + 60.0), rng.uniform(-180.0, 180.0),
+              label=f'Slime_{i + 1:02d}', folder='Gameplay')
 
 
 def models(layout, meshes):
@@ -379,11 +397,17 @@ def effects(layout, meshes):
     log(f'placed {count} chimney smoke plumes')
 
 
-def run():
+def run(only_gameplay=False):
     with open(LAYOUT) as f:
         layout = json.load(f)
     with open(os.path.join(os.path.dirname(LAYOUT), 'layout.json')) as f:
         source = json.load(f)
+    if only_gameplay:
+        open_level('Gameplay')
+        gameplay(layout, source)
+        levels.save_current_level()
+        log('gameplay actors placed and saved')
+        return
     open_level()
     meshes = mesh_index()
     sky_light = environment()
@@ -399,4 +423,4 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
+    run(only_gameplay='gameplay' in sys.argv[1:])

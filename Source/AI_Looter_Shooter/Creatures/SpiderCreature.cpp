@@ -1,4 +1,5 @@
 #include "Creatures/SpiderCreature.h"
+#include "Creatures/CreaturePoseAnimInstance.h"
 #include "AI_Looter_Shooter.h"
 #include "Combat/HealthComponent.h"
 #include "AnimationRuntime.h"
@@ -69,7 +70,7 @@ ASpiderCreature::ASpiderCreature()
 	// The model's origin is the ground under the thorax: the foot of the capsule.
 	Body->SetRelativeLocation(FVector(0.f, 0.f, -62.f));
 	Body->SetAnimationMode(EAnimationMode::AnimationBlueprint);
-	Body->SetAnimInstanceClass(USpiderAnimInstance::StaticClass());
+	Body->SetAnimInstanceClass(UCreaturePoseAnimInstance::StaticClass());
 	// The hit zones follow the bones even while the spider is off screen.
 	Body->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 	// Posed after this actor works out the frame's pose (see BeginPlay), from this frame's movement.

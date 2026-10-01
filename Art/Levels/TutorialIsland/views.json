@@ -6,6 +6,7 @@
     {"name": "Meadow", "x": 3600, "y": -900, "height": 170, "yaw": -40, "pitch": 0, "fov": 80},
     {"name": "Pond", "x": 1400, "y": 3200, "height": 170, "yaw": 60, "pitch": -3, "fov": 80},
     {"name": "Grove", "x": 4200, "y": 4600, "height": 170, "yaw": 35, "pitch": 0, "fov": 80},
+    {"name": "Slimes", "x": 2400, "y": -3400, "height": 170, "yaw": -90, "pitch": -4, "fov": 80},
     {"name": "Lookout", "x": -6200, "y": 6000, "height": 800, "yaw": -40, "pitch": -8, "fov": 80},
     {"name": "Waterfall", "x": 8500, "y": 11500, "height": 600, "yaw": -125, "pitch": -18, "fov": 70},
     {"name": "Aerial", "x": -15000, "y": -10500, "height": 9000, "yaw": 35, "pitch": -28, "fov": 60}

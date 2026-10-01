@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Combat/CriticalSpotTarget.h"
+#include "Creatures/CreaturePoseAnimInstance.h"
 #include "CreatureBase.generated.h"
 
 class UHealthComponent;
@@ -46,6 +47,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Creature")
 	bool IsDead() const { return State == ECreatureState::Dead; }
 
+	/** This frame's pose of the bones the code moves (component space), for UCreaturePoseAnimInstance. */
+	const TArray<FCreatureBonePose>& GetBonePose() const { return BonePose; }
+
+	/** Turns on Attacker as if it had been hurt by it (its pack heard the fight). Nothing changes if it's busy already. */
+	void AlertTo(APawn* Attacker);
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature")
 	FText DisplayName;
 
@@ -70,6 +77,10 @@ public:
 	/** Notices a visible player within this distance. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Senses", meta = (ClampMin = "0"))
 	float AggroRadius = 2600.f;
+
+	/** When it's hurt, every creature of its kind within this distance turns on the attacker too (0 = only itself). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Senses", meta = (ClampMin = "0"))
+	float PackAlertRadius = 0.f;
 
 	/** Gives up and walks home when its target gets this far away. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Senses", meta = (ClampMin = "0"))
@@ -127,6 +138,27 @@ protected:
 	/** Turn the creature's shootable shapes on or off (off while dead). */
 	virtual void SetHitVolumesEnabled(bool bEnabled) {}
 
+	/**
+	 * The attack lands, AttackWindup into it: bites whatever is in reach in front (and calls OnAttackStrike). A creature
+	 * whose attack works differently (the slime's leap) overrides it.
+	 */
+	virtual void Strike();
+
+	/** Deals one attack's damage to Victim (rolled like a weapon hit) and shoves it along Push. */
+	void HitWithAttack(APawn* Victim, const FVector& Push);
+
+	/** Moving toward a goal at Speed but not getting anywhere (it then takes a detour). Hoppers stand still between hops. */
+	virtual bool IsStuck(float Speed) const;
+
+	/** Whether it can begin an attack right now (in range and off cooldown); a hopper waits until it's on the ground. */
+	virtual bool CanStartAttack() const { return true; }
+
+	/** The pawn it's after, if any. */
+	APawn* GetTarget() const { return Target.Get(); }
+
+	/** A living player character it could go after. */
+	bool IsValidTarget(const APawn* Pawn) const;
+
 	/** Seconds spent in the current state; drives attack and death animation. */
 	float GetStateTime() const { return StateTime; }
 
@@ -145,14 +177,15 @@ protected:
 	/** Height above the capsule center where the health bar floats. */
 	float HealthBarHeight = 130.f;
 
+	/** The bones the code moves, set by the subclass every frame. */
+	TArray<FCreatureBonePose> BonePose;
+
 private:
 	void SetState(ECreatureState NewState);
 	void TickBrain(float DeltaSeconds);
 	void TickAttack(float DeltaSeconds);
-	void Strike();
 	void UpdatePerception();
 	APawn* FindVisibleTarget() const;
-	bool IsValidTarget(const APawn* Pawn) const;
 	bool HasLineOfSight(const AActor* Other) const;
 	void MoveToward(const FVector& Goal, float Speed, float DeltaSeconds);
 	FVector ChooseDirection(const FVector& Desired);

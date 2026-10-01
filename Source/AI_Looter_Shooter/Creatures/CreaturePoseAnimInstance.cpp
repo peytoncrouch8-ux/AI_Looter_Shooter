@@ -1,28 +1,28 @@
-#include "Creatures/SpiderAnimInstance.h"
-#include "Creatures/SpiderCreature.h"
+#include "Creatures/CreaturePoseAnimInstance.h"
+#include "Creatures/CreatureBase.h"
 #include "Animation/AnimNodeBase.h"
 #include "BoneContainer.h"
 #include "BonePose.h"
 
-FAnimInstanceProxy* USpiderAnimInstance::CreateAnimInstanceProxy()
+FAnimInstanceProxy* UCreaturePoseAnimInstance::CreateAnimInstanceProxy()
 {
-	return new FSpiderAnimInstanceProxy(this);
+	return new FCreaturePoseAnimInstanceProxy(this);
 }
 
-void USpiderAnimInstance::DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy)
+void UCreaturePoseAnimInstance::DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy)
 {
-	delete static_cast<FSpiderAnimInstanceProxy*>(InProxy);
+	delete static_cast<FCreaturePoseAnimInstanceProxy*>(InProxy);
 }
 
-void FSpiderAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds)
+void FCreaturePoseAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds)
 {
 	FAnimInstanceProxy::PreUpdate(InAnimInstance, DeltaSeconds);
-	// Still on the game thread, after the spider ticked: copy its pose for the evaluation (which may run on a worker).
-	const ASpiderCreature* Spider = Cast<ASpiderCreature>(InAnimInstance->GetOwningActor());
-	Pose = Spider ? Spider->GetBonePose() : TArray<FSpiderBonePose>();
+	// Still on the game thread, after the creature ticked: copy its pose for the evaluation (which may run on a worker).
+	const ACreatureBase* Creature = Cast<ACreatureBase>(InAnimInstance->GetOwningActor());
+	Pose = Creature ? Creature->GetBonePose() : TArray<FCreatureBonePose>();
 }
 
-bool FSpiderAnimInstanceProxy::Evaluate(FPoseContext& Output)
+bool FCreaturePoseAnimInstanceProxy::Evaluate(FPoseContext& Output)
 {
 	Output.ResetToRefPose();
 	if (Pose.IsEmpty())
@@ -32,7 +32,7 @@ bool FSpiderAnimInstanceProxy::Evaluate(FPoseContext& Output)
 
 	const FBoneContainer& Bones = Output.Pose.GetBoneContainer();
 	TArray<FBoneTransform, TInlineAllocator<32>> Transforms;
-	for (const FSpiderBonePose& Bone : Pose)
+	for (const FCreatureBonePose& Bone : Pose)
 	{
 		FBoneReference Reference(Bone.Bone);
 		Reference.Initialize(Bones);
