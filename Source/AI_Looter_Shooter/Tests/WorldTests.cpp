@@ -2,7 +2,15 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Combat/TargetDummy.h"
+#include "Creatures/SlimeCreature.h"
+#include "Creatures/SpiderCreature.h"
+#include "Loot/WeaponRack.h"
+#include "Tutorial/TutorialDirector.h"
 #include "World/PCGGroundFitFilter.h"
+#include "Engine/Level.h"
+#include "Engine/World.h"
+#include "GameFramework/PlayerStart.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGroundFitTest, "Looter.World.GroundFit",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -41,6 +49,46 @@ bool FGroundFitTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Dropped at a cliff top's edge"), SinkToFit(FTransform::Identity, Radius, MaxSink, Step).IsSet());
 	TestFalse(TEXT("Dropped at the island's rim"), SinkToFit(FTransform::Identity, Radius, MaxSink, Rim).IsSet());
 	TestTrue(TEXT("Kept a patch clear of the edge"), SinkToFit(FTransform(FVector(-100.0, 0.0, 0.0)), Radius, MaxSink, Step).IsSet());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialIslandGameplayTest, "Looter.World.TutorialIslandGameplay",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FTutorialIslandGameplayTest::RunTest(const FString& Parameters)
+{
+	// The tutorial island has everything its tutorial walks through. A rebuild of only its gameplay actors once left it
+	// without the gun rack, so the tutorial waited forever at "grab the rifle".
+	const UWorld* Island = LoadObject<UWorld>(nullptr, TEXT("/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland"));
+	if (!TestNotNull(TEXT("The tutorial island loads"), Island) || !TestNotNull(TEXT("It has a level"), Island->PersistentLevel.Get()))
+	{
+		return false;
+	}
+	int32 Starts = 0, Directors = 0, Racks = 0, Dummies = 0, Spiders = 0, Slimes = 0;
+	for (const AActor* Actor : Island->PersistentLevel->Actors)
+	{
+		if (!Actor)
+		{
+			continue;
+		}
+		Starts += Actor->IsA<APlayerStart>() ? 1 : 0;
+		Directors += Actor->IsA<ATutorialDirector>() ? 1 : 0;
+		Dummies += Actor->IsA<ATargetDummy>() ? 1 : 0;
+		Spiders += Actor->IsA<ASpiderCreature>() ? 1 : 0;
+		Slimes += Actor->IsA<ASlimeCreature>() ? 1 : 0;
+		if (const AWeaponRack* Rack = Cast<AWeaponRack>(Actor))
+		{
+			++Racks;
+			TestNotNull(TEXT("The gun rack has a weapon to offer"), Rack->Weapon.Get());
+		}
+	}
+	TestEqual(TEXT("One player start"), Starts, 1);
+	TestEqual(TEXT("One tutorial director"), Directors, 1);
+	TestEqual(TEXT("One gun rack (the tutorial's first rifle)"), Racks, 1);
+	TestTrue(TEXT("Target dummies to shoot"), Dummies > 0);
+	TestTrue(TEXT("Spiders to hunt"), Spiders > 0);
+	TestTrue(TEXT("Slimes in the meadow"), Slimes > 0);
+	AddInfo(FString::Printf(TEXT("%d dummies, %d spiders, %d slimes"), Dummies, Spiders, Slimes));
 	return true;
 }
 

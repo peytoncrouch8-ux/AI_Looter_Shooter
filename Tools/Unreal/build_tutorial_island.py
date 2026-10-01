@@ -3,7 +3,7 @@
 Art/Models/Terrain/TutorialIsland.py turns Art/Levels/TutorialIsland/layout.json into the terrain and into
 layout_computed.json: where every building, cliff piece, road, the bridge and the water go, at the built terrain's
 heights. This script places all of that in the level, with the new style's lighting and the gameplay actors (spawn,
-target dummies, spiders, slimes). Run it in the open editor:
+the tutorial's director and gun rack, target dummies, spiders, slimes). Run it in the open editor:
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_tutorial_island.py [gameplay]"
 Everything it places carries the IslandBuild tag and sits under the Island outliner folder. Building again replaces
 those actors, so actors placed by hand survive; with "gameplay" it only places the gameplay actors again. Models that aren't imported yet are skipped with a warning. The level
@@ -52,11 +52,6 @@ SKY_RADIUS = 100000.0
 # (the foliage master's default WindDirection, 1 : 0.35).
 NO_TREE_ZONES = (('range', 1.0), ('village', 0.7))
 WIND_YAW = 19.0
-
-# Placement kinds whose model name differs from the kind (the rest are SM_<kind>).
-KIND_MODELS = {
-    'GunRack': 'GunRack',
-}
 
 actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 levels = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
@@ -201,13 +196,25 @@ def inside(point, polygon):
     return result
 
 
-def gameplay(layout, source):
-    """The spawn (with the tutorial's director), the target dummies and the spiders."""
+def gameplay(layout, source, meshes):
+    """The spawn (with the tutorial's director), the gun rack, the target dummies, the spiders and the slimes.
+
+    Everything here sits in the Island/Gameplay folder, which a "gameplay" build clears first: whatever lives there must
+    be placed here (the rack once lived in models() and a gameplay build left the island without it)."""
     dummy = unreal.EditorAssetLibrary.load_blueprint_class(DUMMY)
     spider = unreal.load_class(None, '/Script/AI_Looter_Shooter.SpiderCreature')
     for key, spot in layout['placements'].items():
         x, y, z = spot['location']
-        if spot['kind'] == 'PlayerStart':
+        if spot['kind'] == 'GunRack':
+            if 'GunRack' not in meshes:
+                warn(f'no SM_GunRack yet (placement {key})')
+                continue
+            # AWeaponRack lays the tutorial's first rifle on itself, with ammo beside it.
+            rack = place(unreal.load_class(None, '/Script/AI_Looter_Shooter.WeaponRack'), spot['location'],
+                         spot['yaw'], label=key, folder='Gameplay', tags=('Obstacle',))
+            rack.get_editor_property('rack').set_static_mesh(unreal.load_asset(meshes['GunRack']))
+            rack.set_editor_property('weapon', unreal.load_asset(RACK_WEAPON))
+        elif spot['kind'] == 'PlayerStart':
             place(unreal.PlayerStart, (x, y, z + 100.0), spot['yaw'], label='PlayerStart', folder='Gameplay')
             # The tutorial's prompts (ATutorialDirector: its steps are in C++).
             place(unreal.load_class(None, '/Script/AI_Looter_Shooter.TutorialDirector'), (x, y, z + 300.0),
@@ -244,9 +251,10 @@ def models(layout, meshes):
     placed = 0
     for key, spot in layout['placements'].items():
         kind = spot['kind']
-        if kind in ('PlayerStart', 'TargetDummy'):
+        # Gameplay actors are gameplay()'s, so placing only those again ("gameplay") brings them all back.
+        if kind in ('PlayerStart', 'TargetDummy', 'GunRack'):
             continue
-        name = KIND_MODELS.get(kind, kind)
+        name = kind
         if name not in meshes:
             warn(f'no SM_{name} yet (placement {key})')
             continue
@@ -265,12 +273,6 @@ def models(layout, meshes):
                 # Attaching doesn't move it in the editor until its transform changes (setting the same one is skipped).
                 fan.set_relative_location(unreal.Vector(0.0, 0.0, 1.0), False, True)
                 fan.set_relative_location(unreal.Vector(0.0, 0.0, 0.0), False, True)
-        elif kind == 'GunRack':
-            # AWeaponRack lays the tutorial's first rifle on itself, with ammo beside it.
-            rack = place(unreal.load_class(None, '/Script/AI_Looter_Shooter.WeaponRack'), spot['location'],
-                         spot['yaw'], label=key, folder='Gameplay', tags=('Obstacle',))
-            rack.get_editor_property('rack').set_static_mesh(unreal.load_asset(meshes[name]))
-            rack.set_editor_property('weapon', unreal.load_asset(RACK_WEAPON))
         else:
             place(unreal.load_asset(meshes[name]), spot['location'], spot['yaw'], label=key, folder='Buildings',
                   tags=('Obstacle',))
@@ -404,7 +406,7 @@ def run(only_gameplay=False):
         source = json.load(f)
     if only_gameplay:
         open_level('Gameplay')
-        gameplay(layout, source)
+        gameplay(layout, source, mesh_index())
         levels.save_current_level()
         log('gameplay actors placed and saved')
         return
@@ -416,7 +418,7 @@ def run(only_gameplay=False):
     models(layout, meshes)
     effects(layout, meshes)
     no_tree_zones(source)
-    gameplay(layout, source)
+    gameplay(layout, source, meshes)
     sky_light.recapture_sky()
     levels.save_current_level()
     log('built and saved')
