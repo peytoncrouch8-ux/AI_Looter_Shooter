@@ -1,13 +1,14 @@
 """The bullpup assault rifle the user chose (2026-09-30) as the base of every non-legendary AR, with interchangeable
-parts: 8 barrels, 8 muzzle devices, 8 magazines, 8 sights and 8 stocks. Kept for later in Art/Backlog (see its
+parts: 8 bodies, 8 barrels, 8 muzzle devices, 8 magazines, 8 sights and 8 stocks. Kept for later in Art/Backlog (see its
 README): nothing in the game uses it yet. Legendary ARs will get their own unique models and names later.
 
 How the parts fit (gun space, cm: u along the gun from the back of the butt, v up from the bore; see looter_guns):
 
-  BullpupBody            the molded shell: receiver, thumbhole grip loop, trigger, charging handle, side plates, a
-                         Picatinny rail on the optic mount, a rarity accent line on each side (GunAccentGlow).
-                         Sockets: Stock (the butt face), Barrel (the barrel nut on the nose), Magazine (the well
-                         behind the grip), Sight (the rail's middle), Grip, Foregrip.
+  BullpupBody_<Key>      the shell: receiver, thumbhole grip loop, trigger, charging handle, a Picatinny rail on the
+                         optic mount, a rarity accent line on each side (GunAccentGlow); the styles differ in shape,
+                         materials and fittings (plates, armor, windows). Sockets: Stock (the butt face), Barrel (the
+                         barrel nut on the nose), Magazine (the well behind the grip), Sight (the rail's middle), Grip,
+                         Foregrip, in the same place on every body, so every part fits every body.
   BullpupBarrel_<Key>    origin at the barrel nut; SOCKET_Muzzle at its tip (barrels differ in length).
   BullpupMuzzle_<Key>    origin at its back face (screws onto a barrel's SOCKET_Muzzle); SOCKET_Muzzle at its own
                          tip, where the flash comes from.
@@ -51,41 +52,146 @@ def model(slot, key, at):
     return name
 
 
-# --- The base body ---
+# --- Bodies: the shell and its fittings, all with the same sockets ---
 
-def body():
-    B = 'Body'
-    shell = lg.slab([(1.2, -9.6), (0, -8.6), (0, 2.0), (2, 3.4), (40, 3.2), (47, 2.4), (51, 0.6), (51.5, -1.8),
-                     (49, -3.2), (38.5, -3.5), (37, -4.6), (19, -5.2), (18.6, -5.8), (9.5, -5.8), (3, -8.6)], 5.0,
-                    bevel=1.1, segments=3, mat=SHELL, round=1.0)
-    vents = []
-    for w0, w1 in ((-3.0, -2.1), (2.1, 3.0)):
-        vents += [lg.cslab([(u, -1.6), (u + 0.9, -1.6), (u + 2.2, 1.2), (u + 1.3, 1.2)], w0, w1, round=0.3)
-                  for u in (40.6, 42.8, 45.0)]
-    g.add(B, lg.cut(shell, vents + [lg.cbox(2.6, 7.4, -1.0, 1.0, -3.0, -2.0)]))
-    loop = lg.slab([(36.8, -3.8), (37.6, -12.0), (36.4, -14.0), (34, -14.8), (25, -15.2), (22.0, -14.8), (20.6, -12.5),
-                    (19.6, -7.0), (19.4, -3.8)], 3.6, bevel=0.9, segments=3, mat=SHELL, round=1.0)
-    g.add(B, lg.cut(loop, [lg.cslab([(25.0, -5.8), (34.4, -5.8), (35.4, -7.0), (35.6, -11.8), (34.2, -13.0),
-                                     (27.0, -13.0), (25.4, -11.8), (24.2, -7.2)], -3.0, 3.0, round=1.0)]))
-    g.add(B, lg.box(2.8, 7.2, -0.9, 0.9, 4.2, bevel=0.1, mat=lg.BLACK))      # the bolt, through the port
+SHELL_OUTLINE = [(1.2, -9.6), (0, -8.6), (0, 2.0), (2, 3.4), (40, 3.2), (47, 2.4), (51, 0.6), (51.5, -1.8), (49, -3.2),
+                 (38.5, -3.5), (37, -4.6), (19, -5.2), (18.6, -5.8), (9.5, -5.8), (3, -8.6)]
+LOOP_OUTLINE = [(36.8, -3.8), (37.6, -12.0), (36.4, -14.0), (34, -14.8), (25, -15.2), (22.0, -14.8), (20.6, -12.5),
+                (19.6, -7.0), (19.4, -3.8)]
+LOOP_HOLE = [(25.0, -5.8), (34.4, -5.8), (35.4, -7.0), (35.6, -11.8), (34.2, -13.0), (27.0, -13.0), (25.4, -11.8),
+             (24.2, -7.2)]
+WALNUT_DARK = lg.material('GunWalnutDark', 'GunWood', 0xa48670)
+OLIVE = lg.material('GunOlivePaint', 'PaintWorn', 0x6f7550)
+
+
+def shell(m, mat, outline=SHELL_OUTLINE, width=5.0, round=1.0, bevel=1.1, vents=True, extra_cuts=()):
+    obj = lg.slab(outline, width, bevel=bevel, segments=3, mat=mat, round=round)
+    cuts = [lg.cbox(2.6, 7.4, -1.0, 1.0, -3.0, -2.0)] + list(extra_cuts)
+    if vents:
+        for w0, w1 in ((-3.0, -2.1), (2.1, 3.0)):
+            cuts += [lg.cslab([(u, -1.6), (u + 0.9, -1.6), (u + 2.2, 1.2), (u + 1.3, 1.2)], w0, w1, round=0.3)
+                     for u in (40.6, 42.8, 45.0)]
+    g.add(m, lg.cut(obj, cuts))
+
+
+def grip_loop(m, mat, outline=LOOP_OUTLINE, round=1.0, bevel=0.9):
+    loop = lg.slab(outline, 3.6, bevel=bevel, segments=3, mat=mat, round=round)
+    g.add(m, lg.cut(loop, [lg.cslab(LOOP_HOLE, -3.0, 3.0, round=1.0)]))
+
+
+def side_plates(m, mat, rivet_mat, outline=((8, -4.8), (18.2, -4.8), (19.4, 1.6), (9.4, 1.6)), round=0.8, w=2.55):
     for side in (-1.0, 1.0):
-        g.add(B, lg.slab([(8, -4.8), (18.2, -4.8), (19.4, 1.6), (9.4, 1.6)], 0.3, w=side * 2.55, bevel=0.1,
-                         mat=lg.POLY_GREY, round=0.8))
+        g.add(m, lg.slab(list(outline), 0.3, w=side * w, bevel=0.1, mat=mat, round=round))
         for u, v in ((9.6, -4.0), (17.6, -4.0), (10.6, 0.8), (18.2, 0.8)):
-            g.add(B, lg.rivet(u, v, side * 2.72, side, r=0.28, mat=lg.BLACK))
-        g.add(B, lg.box(21.0, 37.0, -2.75, -2.5, 0.08, w=side * 2.53, bevel=0.0, mat=ACCENT))
-    g.add(B, lg.box(-0.3, 0.3, -8.4, 1.8, 4.4, bevel=0.15, mat=lg.BLACK))    # the stock's mounting plate
-    g.add(B, lg.slab([(26.4, -5.8), (27.4, -5.8), (27.2, -7.0), (26.8, -8.0), (26.2, -8.2), (26.5, -7.0)], 0.6,
-                     bevel=0.12, mat=lg.BLACK))                                 # trigger
-    g.add(B, lg.slab([(38.8, 2.9), (44.0, 2.6), (44.0, 3.6), (39.6, 3.9)], 1.0, w=1.9, bevel=0.2, mat=lg.BLACK))
-    g.add(B, lg.slab([(12, 3.0), (34, 3.0), (34, 4.4), (32.5, 5.2), (13.5, 5.2), (12, 4.4)], 3.6, bevel=0.6,
-                     segments=3, mat=SHELL, round=0.5))                         # optic mount
-    g.add(B, lg.rail(14, 32, 5.2, mat=lg.BLACK))
-    g.add(B, lg.tube(50.6, BARREL_AT[0], 1.25, segments=20, mat=lg.BLACK))     # barrel nut
-    g.add(B, lg.pipe([(43.0, -3.0), (43.6, -4.6), (45.6, -4.6), (46.2, -3.0)], 0.25, mat=lg.BLACK))   # sling loop
+            g.add(m, lg.rivet(u, v, side * (w + 0.17), side, r=0.28, mat=rivet_mat))
+
+
+def fittings(m, bolt=lg.BLACK, mount=SHELL, rail=lg.BLACK, accent=(21.0, 37.0, -2.75), accent_w=2.53):
+    """What every body has: the bolt in the port, the accent line, the stock plate, trigger, charging handle, the optic
+    mount and rail, the barrel nut and sling loop, and the sockets."""
+    g.add(m, lg.box(2.8, 7.2, -0.9, 0.9, 4.2, bevel=0.1, mat=bolt))
+    u0, u1, v = accent
+    for side in (-1.0, 1.0):
+        g.add(m, lg.box(u0, u1, v, v + 0.25, 0.08, w=side * accent_w, bevel=0.0, mat=ACCENT))
+    g.add(m, lg.box(-0.3, 0.3, -8.4, 1.8, 4.4, bevel=0.15, mat=lg.BLACK))
+    g.add(m, lg.slab([(26.4, -5.8), (27.4, -5.8), (27.2, -7.0), (26.8, -8.0), (26.2, -8.2), (26.5, -7.0)], 0.6,
+                     bevel=0.12, mat=lg.BLACK))
+    g.add(m, lg.slab([(38.8, 2.9), (44.0, 2.6), (44.0, 3.6), (39.6, 3.9)], 1.0, w=1.9, bevel=0.2, mat=lg.BLACK))
+    if mount is not None:
+        g.add(m, lg.slab([(12, 3.0), (34, 3.0), (34, 4.4), (32.5, 5.2), (13.5, 5.2), (12, 4.4)], 3.6, bevel=0.6,
+                         segments=3, mat=mount, round=0.5))
+    g.add(m, lg.rail(14, 32, 5.2, mat=rail))
+    g.add(m, lg.tube(50.6, BARREL_AT[0], 1.25, segments=20, mat=lg.BLACK))
+    g.add(m, lg.pipe([(43.0, -3.0), (43.6, -4.6), (45.6, -4.6), (46.2, -3.0)], 0.25, mat=lg.BLACK))
     for name, uv in (('Stock', STOCK_AT), ('Barrel', BARREL_AT), ('Magazine', MAG_AT), ('Sight', SIGHT_AT),
                      ('Grip', (22.5, -10.0)), ('Foregrip', (44.0, -4.5))):
-        g.socket(B, name, uv)
+        g.socket(m, name, uv)
+
+
+def bodies():
+    B = lambda key: model('Body', key, (0.0, 0.0))
+
+    m = B('Standard')                                          # the white shell the user picked
+    shell(m, SHELL)
+    grip_loop(m, SHELL)
+    side_plates(m, lg.POLY_GREY, lg.BLACK)
+    fittings(m)
+
+    m = B('Heritage')                                          # oiled walnut, blued plates, brass rivets
+    shell(m, WALNUT_DARK)
+    grip_loop(m, WALNUT_DARK)
+    side_plates(m, lg.BLUED, lg.BRASS)
+    fittings(m, mount=WALNUT_DARK, rail=lg.BLUED)
+
+    m = B('Carbon')                                            # black and angular, tan plates
+    angular = [(0.8, -9.6), (0, -8.8), (0, 2.4), (2.6, 3.4), (39, 3.4), (49.4, 1.0), (51.6, -0.6), (51.6, -2.2),
+               (49.4, -3.4), (38.5, -3.6), (37, -4.6), (19, -5.2), (18.6, -5.8), (9.5, -5.8), (3, -8.8)]
+    shell(m, lg.POLY_BLACK, outline=angular, round=0.3, bevel=0.5)
+    grip_loop(m, lg.POLY_BLACK, outline=[(36.8, -3.8), (37.8, -12.6), (35.6, -14.8), (22.6, -15.2), (20.4, -13.0),
+                                         (19.4, -3.8)], round=0.4, bevel=0.5)
+    side_plates(m, lg.POLY_TAN, lg.BLACK, outline=((7.4, -5.0), (19.0, -5.0), (20.6, 1.8), (10.4, 1.8)), round=0.2)
+    for side in (-1.0, 1.0):
+        g.add(m, lg.slab([(38, 1.2), (48.4, 0.6), (49.6, -0.6), (38, -0.2)], 0.3, w=side * 2.55, bevel=0.05,
+                         mat=lg.POLY_TAN))
+    fittings(m, mount=lg.POLY_BLACK)
+
+    m = B('Salvager')                                          # welded rusty panels, a pipe trigger guard
+    shell(m, lg.SALVAGE, round=0.3, bevel=0.2, vents=False)
+    for side in (-1.0, 1.0):
+        w = side * 2.55
+        for u0, u1 in ((1.0, 18.0), (21.0, 46.0)):
+            g.add(m, lg.slab([(u0, -3.6), (u1, -3.6), (u1, 2.4), (u0, 2.4)], 0.3, w=w, bevel=0.05, mat=lg.SALVAGE))
+            for u in range(int(u0) + 1, int(u1), 4):
+                for v in (-2.9, 1.7):
+                    g.add(m, lg.rivet(u, v, w + side * 0.17, side, r=0.3, mat=lg.STEEL))
+        g.add(m, lg.pipe([(0.6, 3.0, w * 0.98), (25, 3.1, w * 0.98), (48, 2.4, w * 0.98)], 0.2, mat=lg.STEEL, sides=6))
+    g.add(m, lg.slab([(19.6, -5.2), (24.4, -5.2), (23.0, -15.4), (21.6, -16.2), (18.4, -15.8), (17.8, -14.6)], 3.4,
+                     bevel=0.8, segments=3, mat=lg.TAPE, round=0.6))           # taped grip
+    g.add(m, lg.pipe([(24.6, -5.4), (26.0, -13.2), (34.6, -13.2), (36.4, -4.6)], 0.45, mat=lg.STEEL))   # guard
+    fittings(m, bolt=lg.STEEL, mount=lg.SALVAGE)
+
+    m = B('Armored')                                           # olive paint, bolted-on plates, a nose guard
+    shell(m, OLIVE)
+    grip_loop(m, OLIVE)
+    for side in (-1.0, 1.0):
+        g.add(m, lg.slab([(5, -5.4), (20.0, -5.0), (21.0, 2.6), (6.0, 2.6)], 0.7, w=side * 2.75, bevel=0.15, mat=OLIVE,
+                         round=0.5))
+        g.add(m, lg.slab([(38, -3.0), (49.8, -2.2), (50.6, 0.0), (38, 2.4)], 0.7, w=side * 2.75, bevel=0.15, mat=OLIVE,
+                         round=0.5))
+        for u, v in ((6.6, -4.4), (19.2, -4.0), (7.0, 1.8), (19.8, 1.8), (39.4, -2.2), (39.4, 1.6), (48.6, -1.4)):
+            g.add(m, lg.rivet(u, v, side * 3.12, side, r=0.34, mat=lg.STEEL))
+    fittings(m, mount=OLIVE, accent=(22.0, 36.5, -2.75))
+
+    m = B('Skeleton')                                          # windows onto the action
+    windows = [lg.cslab([(9.0, -4.0), (19.0, -4.0), (19.0, 1.4), (9.0, 1.4)], -3.0, 3.0, round=1.0),
+               lg.cslab([(39.0, -2.4), (47.4, -2.0), (47.4, 1.0), (39.0, 1.6)], -3.0, 3.0, round=0.8)]
+    shell(m, SHELL, vents=False, extra_cuts=windows)
+    g.add(m, lg.box(8.6, 19.4, -3.6, 1.0, 1.8, bevel=0.2, mat=lg.BRASS))      # the bolt carrier
+    g.add(m, lg.tube(38.6, 48.0, 0.9, v=-0.4, mat=lg.STEEL))                   # recoil spring guide
+    for u in range(39, 48):
+        g.add(m, lg.tube(u, u + 0.35, 1.05, v=-0.4, segments=12, mat=lg.BLACK))
+    grip_loop(m, SHELL)
+    fittings(m)
+
+    m = B('Sleek')                                             # a longer, smoother two-tone shell, no plates
+    sleek = [(1.6, -9.4), (0, -8.0), (0, 1.6), (3.0, 3.4), (36, 3.6), (45, 2.8), (50.4, 1.0), (51.8, -1.2), (50.0, -3.0),
+             (38.5, -3.6), (37, -4.6), (19, -5.2), (18.6, -5.8), (9.5, -5.8), (3.6, -8.4)]
+    shell(m, SHELL, outline=sleek, round=2.0, bevel=1.4, vents=False)
+    g.add(m, lg.slab([(1.4, -9.2), (3.6, -8.4), (9.5, -5.8), (37, -4.6), (38.6, -3.4), (49.6, -2.8), (50, -1.6),
+                      (38, -2.0), (10, -3.6), (1.0, -7.0)], 5.2, bevel=1.0, segments=3, mat=lg.POLY_GREY, round=1.2))
+    grip_loop(m, lg.POLY_GREY, round=1.6)
+    fittings(m, accent=(6.0, 47.0, -2.35), accent_w=2.6)
+
+    m = B('Marksman')                                          # a built-in cheek rest and a bipod rail under the nose
+    shell(m, SHELL)
+    grip_loop(m, SHELL)
+    side_plates(m, lg.POLY_GREY, lg.BLACK)
+    g.add(m, lg.slab([(0.2, 2.0), (11.0, 3.0), (11.6, 4.8), (0.6, 4.6)], 4.4, bevel=0.6, segments=3, mat=lg.POLY_GREY,
+                     round=0.9))
+    g.add(m, lg.rail(39.5, 49.0, -3.3, width=2.0, mat=lg.BLACK, down=True))
+    g.add(m, lg.slab([(36.6, -3.6), (39.0, -3.6), (39.0, -6.4), (37.8, -6.8), (36.8, -5.6)], 3.0, bevel=0.5,
+                     segments=3, mat=SHELL, round=0.5))                         # a thumb rest ahead of the loop
+    fittings(m)
 
 
 # --- Barrels: from the barrel nut forward ---
@@ -414,6 +520,16 @@ def p(key, name, word, rarity, **stats):
 
 
 PARTS = {
+    'Body': [
+        p('Standard', 'Standard shell', '', R_COMMON),
+        p('Heritage', 'Heritage shell', 'Heirloom', R_UNCOMMON, accuracy=4, damage=3),
+        p('Carbon', 'Carbon shell', 'Carbon', R_UNCOMMON, handling=8, recoil=4),
+        p('Salvager', 'Salvager shell', 'Scrapped', R_UNCOMMON, damage=6, accuracy=-4),
+        p('Skeleton', 'Skeleton shell', 'Light', R_RARE, handling=12, recoil=6),
+        p('Sleek', 'Sleek shell', 'Sleek', R_RARE, fire_rate=6, handling=6),
+        p('Marksman', 'Marksman shell', 'Marksman', R_RARE, accuracy=10, recoil=-6, handling=-6),
+        p('Armored', 'Armored shell', 'Armored', R_EPIC, recoil=-15, damage=5, handling=-10),
+    ],
     'Barrel': [
         p('Stub', 'Stub barrel', 'Compact', R_COMMON, damage=-8, accuracy=-10, range=-25, fire_rate=8, handling=15),
         p('Carbine', 'Carbine barrel', '', R_COMMON),
@@ -467,10 +583,10 @@ PARTS = {
         p('Plate', 'Butt plate', 'Slung', R_RARE, handling=8, recoil=-6),
     ],
 }
-DEFAULT = {'Barrel': 'Carbine', 'Muzzle': 'Birdcage', 'Magazine': '30', 'Sight': 'RedDot', 'Stock': 'Pad'}
+DEFAULT = {'Body': 'Standard', 'Barrel': 'Carbine', 'Muzzle': 'Birdcage', 'Magazine': '30', 'Sight': 'RedDot', 'Stock': 'Pad'}
 
 
-body()
+bodies()
 barrels()
 muzzles()
 magazines()
@@ -486,7 +602,7 @@ def socket_at(obj, name):
 
 def assemble(choice, at=Vector()):
     """Puts the body at `at` and the chosen parts (slot -> key) on its sockets; returns the objects."""
-    body_obj = built['Body']
+    body_obj = built['Body_' + choice.get('Body', 'Standard')]
     body_obj.location = Vector(at)
     shown = [body_obj]
     barrel = built['Barrel_' + choice['Barrel']]
@@ -504,7 +620,7 @@ def assemble(choice, at=Vector()):
 
 # In the scene: the default rifle assembled, every other part laid out in rows behind it by slot.
 assemble(DEFAULT)
-for row, slot in enumerate(('Barrel', 'Muzzle', 'Magazine', 'Sight', 'Stock')):
+for row, slot in enumerate(('Body', 'Barrel', 'Muzzle', 'Magazine', 'Sight', 'Stock')):
     for k, part in enumerate(PARTS[slot]):
         obj = built[f'{slot}_{part["key"]}']
         if part['key'] != DEFAULT[slot]:
