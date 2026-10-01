@@ -158,7 +158,8 @@ SETS = {
     # Neutral sets meant to be tinted: one texture serves gold, brass, gunmetal, or paint of any color.
     'MetalWorn':      dict(size=1024, density=320, color=0xc4c3c0, roughness=0.4, metallic=1.0),
     'PaintWorn':      dict(size=1024, density=320, color=0xd2d0ca, roughness=0.55),
-    'Polymer':        dict(size=1024, density=1024, color=0x8a8a8a, roughness=0.6),
+    'Polymer':        dict(size=1024, density=1024, color=0xcbcbcb, roughness=0.6),
+    'GunWood':        dict(size=1024, density=1024, color=0x6e4a30, roughness=0.5),
     'Hay':            dict(size=1024, density=320, color=0xbfa060, roughness=0.9),
     'BarkOak':        dict(size=1024, density=320, color=0x5b4f43, roughness=0.95),
     'BarkBirch':      dict(size=1024, density=320, color=0xd6d0c3, roughness=0.75),
@@ -2527,10 +2528,10 @@ def make_metal_worn():
     scratch = np.clip(crack_lines(shape, 304, 40.0, 60.0, 0.6, 0.18) +
                       crack_lines(shape, 305, 55.0, 45.0, 0.5, 0.12, along_y=True), 0.0, 1.0)
     pits = specks(shape, 306, 0.025, 0.8)
-    color = mix(rgb(0xc2c1be), rgb(0xe0dfdc), np.clip(smooth(-1.0, 1.0, brushed) * 0.45 + polish * 0.35, 0.0, 1.0))
+    color = mix(rgb(0xc2c1be), rgb(0xe0dfdc), np.clip(smooth(-1.0, 1.0, brushed) * 0.2 + polish * 0.35, 0.0, 1.0))
     color = color * (1.0 + 0.04 * noise(shape, 307, 6.0, 6.0))[..., None]
     color = mix(color, rgb(0x6a665f), grime * 0.3)
-    color = mix(color, rgb(0xf2f1ee), scratch * 0.45)
+    color = mix(color, rgb(0xf2f1ee), scratch * 0.25)
     color = mix(color, rgb(0x3d3a36), pits * 0.7)
     height = 0.0003 * brushed - 0.0004 * scratch - 0.0006 * pits + 0.0018 * noise(shape, 308, 60.0, 60.0)
     ao = occlusion(height, px_m, (2, 6), 0.6)
@@ -2567,7 +2568,7 @@ def make_paint_worn():
 
 @generator('Polymer')
 def make_polymer():
-    """Molded polymer for gun furniture and grips, in a neutral mid grey to be tinted: a fine stipple, faint mold-flow
+    """Molded polymer for gun furniture and grips, in a neutral light grey to be tinted (black to sand): a fine stipple, faint mold-flow
     mottling, a satin sheen rubbed smoother where hands hold it. Non-metallic. 1024 px/m (guns are seen up close)."""
     shape = (TILE, TILE)
     px_m = 1.0 / 1024.0
@@ -2575,12 +2576,35 @@ def make_polymer():
     mottle = noise(shape, 322, 80.0, 80.0, octaves=2)
     polish = smooth(0.6, 1.8, noise(shape, 323, 70.0, 70.0, octaves=2))
     scuff = np.clip(crack_lines(shape, 324, 70.0, 50.0, 0.5, 0.08), 0.0, 1.0)
-    color = rgb(0x8a8a8a) * (1.0 + 0.035 * mottle + 0.03 * stipple + 0.05 * polish)[..., None]
-    color = mix(color, rgb(0xa3a3a3), scuff * 0.4)
-    height = 0.00008 * stipple * (1.0 - 0.6 * polish) - 0.00005 * scuff
-    ao = occlusion(height, px_m, (2, 4), 0.4)
+    color = rgb(0xcbcbcb) * (1.0 + 0.035 * mottle + 0.012 * stipple + 0.05 * polish)[..., None]
+    color = mix(color, rgb(0xe2e2e2), scuff * 0.4)
+    height = 0.00004 * stipple * (1.0 - 0.6 * polish) - 0.00005 * scuff
+    ao = occlusion(height, px_m, (2, 4), 0.2)
     rough = 0.64 + 0.06 * stipple - 0.22 * polish
     save_set('Polymer', color, height, px_m, np.clip(rough, 0.0, 1.0), None, ao=ao, normal_strength=0.8)
+
+
+@generator('GunWood')
+def make_gun_wood():
+    """Oiled walnut for gun stocks and handguards: fine growth rings and pores along U, warm brown with darker
+    streaks, worn lighter and glossier where hands rub, small dings. Tint it for lighter or redder woods. 1024 px/m
+    (guns are seen up close)."""
+    shape = (TILE, TILE)
+    px_m = 1.0 / 1024.0
+    rings, streaks, fibers, knot = wood_grain(shape, 341, period=9.0, warp=1.4, knots=2, knot_size=10.0)
+    pores = specks(shape, 342, 0.06, 0.6) * (1.0 - rings * 0.5)
+    wear = smooth(0.4, 1.8, noise(shape, 343, 110.0, 70.0, octaves=2))
+    dings = specks(shape, 344, 0.004, 2.0)
+    base = mix(rgb(0x7a5236), rgb(0x8f6340), smooth(-1.0, 1.0, noise(shape, 345, 200.0, 40.0)))
+    color = mix(base, rgb(0x4a2e1d), np.clip(rings * 0.7 + 0.3 * np.maximum(streaks, 0.0), 0.0, 1.0))
+    color = color * (1.0 + 0.05 * fibers)[..., None]
+    color = mix(color, rgb(0x3a2416), np.maximum(knot * 0.8, pores * 0.5))
+    color = mix(color, rgb(0xa77a52), wear * 0.25)
+    color = mix(color, rgb(0x2f1d12), dings * 0.6)
+    height = 0.00012 * rings - 0.00015 * pores + 0.00005 * fibers - 0.0002 * dings
+    ao = occlusion(height, px_m, (2, 5), 0.5)
+    rough = 0.48 + 0.08 * rings + 0.1 * pores - 0.18 * wear
+    save_set('GunWood', color, height, px_m, np.clip(rough, 0.0, 1.0), None, ao=ao, normal_strength=0.8)
 
 
 @generator('Hay')
