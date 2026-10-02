@@ -364,20 +364,33 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `Tests/RigImport/RigTest`, the stylized materials' usage flags).
 
 ## Terrain generator and level scripts (Python)
-- `Art/Levels/area_shape.py`: `Area`, an area's shape from `Art/Levels/<Area>/layout.json`: map square and raster sizes,
-  features as lists by type, the height raster and water surface.
+- `Art/Levels/area_shape.py`: `Area`, an area's shape from `Art/Levels/<Area>/layout.json` (`TutorialIsland` is the
+  island fixture, `TerrainTest` the grounded one): map square and raster sizes, features as lists by type, the height
+  raster and water surface.
 - `Art/Levels/area_math.py`: noise, rasters over the map square, curves and distance fields.
+- `Art/Levels/area_region.py`: the grounded setting: the regional height field around the core (valley floor, ridges,
+  an escarpment and its canyon), the core's edge, the playable boundary and the seam band.
+- `Art/Levels/area_features.py`: the feature types that came with Ransom's Rest (ridge, scarp, pit, mesa, knob, gully,
+  and a creek's falls into a gorge) as steps of `Area.build()`.
 - `Art/Levels/area_mesh.py`: the top's triangulation, terrain AO, the island's underside, the water mesh.
 - `Art/Levels/area_macro.py`: the macro color map `T_<Area>Macro_BC`. `Art/Levels/area_scatter.py`: the PCG scatter
   mask `T_<Area>Scatter_BC`.
 - `Art/Levels/area_computed.py`: `layout_computed.json`: placements at terrain height, cliff groups per feature, bridge,
   waterfall, orchard rows, the squares the maps cover.
+- `Art/Levels/area_cliffs.py`: cliff dressing for those features and the grounded setting: a group per feature, walls
+  over 12 m in stacked courses, a knob's outcrop, a gully's banks.
+- `Art/Levels/area_open.py`: the open-ground metric: how far each walkable meter inside the boundary is from its
+  nearest break (cover), in `layout_computed.json` and the plan preview.
+- `Art/Levels/area_beyond.py`: what lies past a grounded area's core: the surround ring, the canyon wall and the
+  backdrop's silhouettes.
 - `Art/Levels/area_preview.py`: Blender preview renders and the annotated plan.
 - `Art/Levels/area_model.py`: the Blender side (tile, underside and water objects and their materials);
   `Art/Models/Terrain/<Area>.py` wrappers call it.
-- `Tools/Unreal/build_area.py`: `AreaBuild`, builds an area's level (`build_area.py <Area> [gameplay]`);
-  `build_tutorial_island.py` wraps it for the tutorial island.
+- `Tools/Unreal/build_area.py`: `AreaBuild`, builds an area's level (`build_area.py <Area> [gameplay]`), a grounded
+  area's ring, canyon wall and backdrop tagged Beyond; `build_tutorial_island.py` wraps it for the tutorial island.
 - `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`).
   `Tools/Unreal/island_views.py`: an area's viewpoints as editor cameras and shots.
 - `Tools/terrain_identity.ps1`, `.py`: checks an area regenerates exactly as committed (headless Blender, no editor);
   `Tools/Blender/terrain_fingerprint.py` fingerprints its meshes.
+- `Tools/terrain_check.ps1`, `.py`: checks an area's layout and computed layout before anything is built (feature rules,
+  ramp grades, cliff courses of at most 12 m, the seam band, the boundary, open ground).

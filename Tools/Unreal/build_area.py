@@ -12,6 +12,12 @@ Everything it places carries the area's tag (IslandBuild on the tutorial island)
 (Island). Building again replaces those actors, so actors placed by hand survive; with "gameplay" it only places the
 gameplay actors again. Models that aren't imported yet are skipped with a warning. The level is saved at the end.
 Grass, flowers, trees and rocks come from the scatter (build_island_scatter.py <Area>).
+
+A grounded area's terrain also has what lies past its core (Art/Levels/area_beyond.py): the surround ring
+(SM_<Area>_Ring_<n>), the canyon wall (_CanyonWall_<n>) and the backdrop (_Backdrop_<n>). They go in the Beyond
+folder, tagged Beyond (Looter.Perf.HideTag measures them by difference); only the core's tiles are tagged Ground, so the
+minimap covers the valley alone. Cliff points with stacked courses get one piece per course; a knob's point places the
+outcrop kit's piece it names (SM_Outcrop_<piece>), and a gully's sloped banks get no faces.
 """
 import json
 import math
@@ -34,6 +40,12 @@ CLIFF_PIECES = ('CliffFace_A', 'CliffFace_B', 'CliffFace_C', 'CliffFace_D')
 CLIFF_INSET = 120.0
 CLIFF_OVERTOP = 20.0
 CLIFF_OVERLAP = 250.0
+CLIFF_COURSE_OVERLAP = 30.0  # a lower course reaches this far up behind the one stacked on it
+# What lies past a grounded area's core: its terrain parts by name, none of them Ground.
+BEYOND_PARTS = ('Ring_', 'CanyonWall_', 'Backdrop_')
+# Drops the waterfall model (made for the tutorial island's rim, its strands thinning out 40-58 m down) is shortened
+# for: a falls into a gorge is squashed to fit (cm).
+WATERFALL_LENGTH = 4800.0
 
 # The sky's clouds: a dome of this radius (cm) around the level with the painted cloud material.
 SKY_DOME = '/Engine/EngineSky/SM_SkySphere'
@@ -315,14 +327,20 @@ class AreaBuild:
 
     def terrain(self, meshes):
         """The terrain tiles (walkable, tagged Ground for the minimap and the scatter), the rock underside and the
-        water. They are all modeled in the area's space, so they sit at the origin."""
+        water; and a grounded area's ring, canyon wall and backdrop (tagged Beyond, in their own folder; only the
+        ring casts shadows). They are all modeled in the area's space, so they sit at the origin."""
         count = 0
         for name, path in sorted(meshes.items()):
             if not name.startswith(self.prefix):
                 continue
             part = name[len(self.prefix):]
-            self.place(unreal.load_asset(path), (0, 0, 0), label=part, folder='Terrain',
-                       tags=('Ground',) if part.startswith('Tile_') else ())
+            if part.startswith(BEYOND_PARTS):
+                actor = self.place(unreal.load_asset(path), (0, 0, 0), label=part, folder='Beyond', tags=('Beyond',))
+                if not part.startswith('Ring_'):
+                    actor.static_mesh_component.set_editor_property('cast_shadow', False)
+            else:
+                self.place(unreal.load_asset(path), (0, 0, 0), label=part, folder='Terrain',
+                           tags=('Ground',) if part.startswith('Tile_') else ())
             count += 1
         if not count:
             self.warn(f'no SM_{self.prefix}* terrain yet')
@@ -349,26 +367,52 @@ class AreaBuild:
         placed = 0
         for group, points in self.layout.get('cliffs', {}).items():
             for i, point in enumerate(points):
+                kind = point.get('kind')
+                if kind == 'bank':
+                    continue  # a sloped bank: no face
+                if kind == 'outcrop':
+                    placed += self.outcrop(meshes, group, point)
+                    continue
                 x, y, z = point['location']
                 if 'drop' in point:
                     bottom, height = z - point['drop'], point['drop']
                 else:
                     bottom, height = z, point.get('height', point.get('top', z) - z)
-                height += CLIFF_OVERTOP
+                # A wall taller than the kit's tallest piece comes in stacked courses, bottom first, each standing on
+                # its own foot; the top one reaches just over the wall, the others a little up behind the next.
+                courses = point.get('courses') or [{'location': (x, y, bottom), 'height': height}]
                 # Neighbours along the wall set the width (the points run along it in order).
                 gaps = [math.dist(point['location'][:2], points[j]['location'][:2]) for j in (i - 1, i + 1)
                         if 0 <= j < len(points)]
                 gap = min(gaps) if gaps else 1000.0
-                choices = sorted(pieces, key=lambda p: abs(math.log(height / p[1])) + rng.uniform(0.0, 0.25))
-                mesh, piece_height, piece_width = choices[0]
                 yaw = point['yaw']
-                inward = (-math.cos(math.radians(yaw)) * CLIFF_INSET, -math.sin(math.radians(yaw)) * CLIFF_INSET)
-                width = min(max((gap + CLIFF_OVERLAP) / piece_width, 0.75), 1.6)
-                self.place(mesh, (x + inward[0], y + inward[1], bottom), yaw + rng.uniform(-4.0, 4.0),
-                           label=f'Cliff_{group}_{i + 1:02d}', folder=f'Cliffs/{group}',
-                           scale=(1.0, width, height / piece_height), tags=('Obstacle',))
-                placed += 1
+                for k, course in enumerate(courses):
+                    cx, cy, cz = course['location']
+                    reach = course['height'] + (CLIFF_OVERTOP if k == len(courses) - 1 else CLIFF_COURSE_OVERLAP)
+                    choices = sorted(pieces, key=lambda p: abs(math.log(reach / p[1])) + rng.uniform(0.0, 0.25))
+                    mesh, piece_height, piece_width = choices[0]
+                    inward = (-math.cos(math.radians(yaw)) * CLIFF_INSET, -math.sin(math.radians(yaw)) * CLIFF_INSET)
+                    width = min(max((gap + CLIFF_OVERLAP) / piece_width, 0.75), 1.6)
+                    suffix = f'_{k + 1}' if len(courses) > 1 else ''
+                    self.place(mesh, (cx + inward[0], cy + inward[1], cz), yaw + rng.uniform(-4.0, 4.0),
+                               label=f'Cliff_{group}_{i + 1:02d}{suffix}', folder=f'Cliffs/{group}',
+                               scale=(1.0, width, reach / piece_height), tags=('Obstacle',))
+                    placed += 1
         self.log(f'placed {placed} cliff pieces')
+
+    def outcrop(self, meshes, group, point):
+        """A knob's freestanding rock: the outcrop kit's piece (Art/Models/Rocks/Outcrops.py), scaled to the height
+        the layout asks for, on the knob's level seat. Waits for the kit's import."""
+        name = 'Outcrop_' + point.get('piece', 'TorA')
+        if name not in meshes:
+            self.warn(f'no SM_{name} yet (knob {group})')
+            return 0
+        mesh = unreal.load_asset(meshes[name])
+        box = mesh.get_bounding_box()
+        scale = point['height'] / max(box.max.z, 1.0)
+        self.place(mesh, point['location'], point.get('yaw', 0.0), label=f'Outcrop_{group}', folder='Outcrops',
+                   scale=(scale, scale, scale), tags=('Obstacle',))
+        return 1
 
     def no_tree_zones(self):
         """Invisible boxes tagged NoTrees over the zones that must stay open (layout.json level.noTreeZones: a zone's
@@ -387,13 +431,20 @@ class AreaBuild:
     def effects(self, meshes):
         """The waterfall off the creek's lip, and smoke from every chimney (the buildings' Smoke sockets), leaning
         downwind. Each waits for its model."""
-        fall = self.layout.get('waterfall')
-        if fall and 'Waterfall' in meshes:
-            self.place(unreal.load_asset(meshes['Waterfall']), fall['location'], fall['yaw'], label='Waterfall',
-                       folder='Effects')
+        falls = self.layout.get('waterfalls') or ({'waterfall': self.layout['waterfall']}
+                                                  if self.layout.get('waterfall') else {})
+        for n, (key, fall) in enumerate(falls.items()):
+            if 'Waterfall' not in meshes:
+                break
+            # The model falls about 48 m; a shorter falls (into a gorge) gets it squashed to its drop.
+            drop = fall['location'][2] - fall.get('dropTo', fall['location'][2] - WATERFALL_LENGTH)
+            squash = (1.0, 1.0, max(min(drop / WATERFALL_LENGTH, 1.0), 0.15))
+            label = 'Waterfall' if n == 0 else f'Waterfall_{key}'
+            self.place(unreal.load_asset(meshes['Waterfall']), fall['location'], fall['yaw'], label=label,
+                       folder='Effects', scale=squash if squash[2] < 1.0 else None)
             if 'WaterfallMist' in meshes:
                 self.place(unreal.load_asset(meshes['WaterfallMist']), fall['location'], fall['yaw'],
-                           label='WaterfallMist', folder='Effects')
+                           label=label.replace('Waterfall', 'WaterfallMist'), folder='Effects')
         if 'SmokePlume' not in meshes:
             self.warn('no SM_SmokePlume yet')
             return

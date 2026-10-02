@@ -8,6 +8,12 @@ Alpha picks the detail texture: 0 grass and soil, 1 rock (roads about 0.4, footp
 reaches exactly 0 (the lowest value is 1/255), so an importer that treats zero-alpha pixels as empty (Unreal's PNG
 infill) keeps the color. The image has north up; UV 0 of the terrain tiles maps the map square onto it (on the tutorial
 island U = (Y + 10240) / 20480, V = (X + 10240) / 20480, Unreal cm; layout_computed.json macroMap).
+
+A grounded area's core treats the escarpment's lip as the island treats its rim (sun-dried turf, a band of rock at the
+edge), and its colors blend into the surround ring's map across the seam band. paint_ring() paints that map,
+T_<Area>RingMacro_BC.png, over the ring's square from the same palette and noise: ridges with dark pine floors and
+rock bands, the canyon's ochre floor with its river, the plains past the far wall. Pits, gullies and knobs get their
+own ground (_features).
 """
 import math
 import os
@@ -15,9 +21,9 @@ import os
 import numpy as np
 
 import area_computed
-from area_math import Grid, blur, catmull_rom, cells, fbm, fbm_raster, polyline_field, signed_distance
+from area_math import Grid, blur, catmull_rom, cells, fbm, fbm_raster, polyline_field, resize, sample, signed_distance
 from area_mesh import extend_nan
-from area_shape import to_m
+from area_shape import BUILDINGS, to_m
 
 
 def _c(value):
@@ -36,11 +42,6 @@ MUD, MUD_WET, SAND, POND_BED = _c(0x54463a), _c(0x3d3329), _c(0xa3936f), _c(0x3b
 ROCK, ROCK_LIGHT, ROCK_DARK, LICHEN, SCREE = _c(0x88806f), _c(0xa39b8b), _c(0x5d564b), _c(0x8e8b5a), _c(0x8f8878)
 PLATEAU_GRASS = _c(0x7f834a)
 
-BUILDINGS = {  # kind: (length along its front, width) in meters, for the worn ground around and in front of it
-    'Farmhouse': (9.0, 11.0), 'Barn': (12.0, 9.0), 'LogCabin': (6.5, 8.0), 'Cottage': (6.5, 8.0),
-    'Outhouse': (1.3, 1.3), 'Well': (1.8, 1.8), 'Windmill': (3.0, 3.0), 'LookoutTower': (4.0, 4.0),
-    'GunRack': (0.6, 2.0),
-}
 # The worn discs of a yard (layout.json "yards"), by its kind: (radius, color, strength, alpha, soft edge) in meters,
 # painted in order.
 YARDS = {
@@ -95,7 +96,11 @@ def paint(area, out_path, preview_dir=None, log=print):
     lap = np.gradient(np.gradient(h_fields, axis=0), axis=0) + np.gradient(np.gradient(h_fields, axis=1), axis=1)
     convex = area.resized(-lap / pf ** 2, n)
     ao = area.resized(area.ao, n) if getattr(area, 'ao', None) is not None else np.ones((n, n), np.float32)
-    edge = area.resized(area.edge, n)
+    if area.setting == 'grounded':
+        # The escarpment's lip stands in for the island's rim (and there's none without an escarpment).
+        edge = area.resized(area.dl, n) if area.dl is not None else np.full((n, n), 1e3, np.float32)
+    else:
+        edge = area.resized(area.edge, n)
     surface = area.water_surface()
     wet_fields = area.resized(np.where(np.isfinite(surface) & (surface > area.h), 1.0, 0.0).astype(np.float32), nf)
     near_water = area.resized(np.clip(blur(wet_fields, cells(2.4, pf)) * 3.0, 0.0, 1.0), n)  # about 5 m around water
@@ -128,6 +133,7 @@ def paint(area, out_path, preview_dir=None, log=print):
 
     _forest(area, grid, canvas, n_mid, n_fine)
     _plateau_tops(area, grid, canvas, n_fine)
+    _features(area, grid, canvas, n_fine, n_grain)
     _range(area, grid, canvas)
     _orchard(area, grid, canvas)
     _yards(area, grid, canvas, n_fine)
@@ -143,6 +149,15 @@ def paint(area, out_path, preview_dir=None, log=print):
     rgba = np.empty((n, n, 4), dtype=np.float32)
     rgba[..., :3] = np.clip(canvas.rgb, 0.0, 1.0)
     rgba[..., 3] = np.clip(canvas.alpha, 1.0 / 255.0, 1.0)
+    if getattr(area, 'ring_rgba', None) is not None:
+        # Across the seam band the core's colors fade into the ring's, which they meet exactly at the square's edge.
+        import area_region
+        x, y = grid.mesh()
+        w = area_region.seam_weight(area, x, y).astype(np.float32)
+        for c in range(4):
+            ring = sample(area.ring_rgba[..., c], x, y, area.region.half).astype(np.float32)
+            rgba[..., c] = ring + (rgba[..., c] - ring) * w
+        del x, y, w
     _save(rgba, out_path)
     written = out_path
     if preview_dir:
@@ -199,6 +214,30 @@ def _forest(area, grid, canvas, n_mid, n_fine):
     cover = w * (0.35 + 0.3 * _ss(-0.3, 0.4, n_mid))
     canvas.paint(floor, cover * _ss(-0.5, 0.2, litter + 0.3 * n_fine))
     canvas.paint(MOSS, 0.35 * w * _ss(0.35, 0.6, fbm_raster(grid, 2.0, seed=113, octaves=2)))
+
+
+def _features(area, grid, canvas, n_fine, n_grain):
+    """The ground of step 3b's features: a pit's damp, dark floor and the scree at its wall's foot, a gully's gravel
+    bed and earthen banks, the trampled soil a knob's rock stands on."""
+    for p in getattr(area, 'pits', []):
+        sink = area.resized(p['rise'], grid.n)
+        canvas.paint(_mix(SOIL_DARK, LITTER, 0.5 + 0.8 * n_fine), 0.75 * _ss(0.9, 0.99, sink), alpha=0.15)
+        foot = _ss(0.55, 0.85, sink) * (1.0 - _ss(0.95, 0.995, sink))
+        canvas.paint(_mix(SCREE, ROCK_DARK, 0.4 + 0.6 * n_grain), 0.8 * foot, alpha=0.65)
+    for g in getattr(area, 'gullies', []):
+        reach = g['half'] + (g['depth'] + 3.0) / g['bank'] + 1.0
+        dist, along, _ = polyline_field(grid, g['pts'], reach)
+        near = np.isfinite(dist)
+        if not near.any():
+            continue
+        d = np.where(near, dist, 1e3) + 0.3 * n_fine
+        bed = 1.0 - _ss(g['half'] - 0.4, g['half'] + 0.3, d)
+        bank = (1.0 - _ss(reach - 2.0, reach, d)) * (1.0 - bed)
+        canvas.paint(_mix(SOIL, SOIL_DARK, 0.5 + n_fine), 0.45 * bank, alpha=0.2)
+        canvas.paint(_mix(SAND, PEBBLE_LIGHT, 0.5 + 0.9 * n_grain), 0.85 * bed, alpha=0.55)
+        canvas.paint(PEBBLE_DARK, 0.5 * bed * _ss(0.55, 0.7, n_grain), alpha=0.6)
+    for k in getattr(area, 'knobs', []):
+        _disc(grid, canvas, np.asarray(k['center']), max(k['radius'] * 0.8, 1.2), SOIL, 0.7, 0.2, soft=1.0)
 
 
 def _plateau_tops(area, grid, canvas, n_fine):
@@ -386,3 +425,79 @@ def _rock(area, grid, canvas, slope, ao, edge, depth, n_fine, n_grain, earthy):
     rock = _mix(ROCK_DARK, ROCK_LIGHT, shade)
     canvas.paint(rock, rockw, alpha=1.0)
     canvas.paint(LICHEN, 0.35 * rockw * _ss(0.45, 0.6, fbm_raster(grid, 1.6, seed=152, octaves=2)))
+
+
+# --- The surround ring's map (grounded) ---
+
+def paint_ring(area, out_path, preview_dir=None, log=print):
+    """T_<Area>RingMacro_BC.png over the ring's square (layout.json region.ring.macro px, 2048 by default), from the
+    regional field on the ring's raster: the same meadow as the core's (the same noise, so they agree at the seam),
+    pines darkening the ridges' slopes, rock where it's steep, the canyon's ochre floor with its river, and the dry
+    plains past the far wall. Keeps the map on the area (ring_rgba) for the core's seam blend."""
+    region = area.region
+    n = area.layout['region'].get('ring', {}).get('macro', 2048)
+    grid = Grid(n, region.half)
+    log(f'macro: the ring, {n} px over {2.0 * region.half:g} m')
+    src_px = area.ring_grid.px
+    h = resize(area.ring_h, n, region.half)
+    gx, gy = np.gradient(area.ring_h.astype(np.float32), src_px)
+    slope = resize(np.degrees(np.arctan(np.hypot(gx, gy))).astype(np.float32), n, region.half)
+    del gx, gy
+    h_fields = blur(area.ring_h, cells(2.4, src_px))
+    lap = np.gradient(np.gradient(h_fields, axis=0), axis=0) + np.gradient(np.gradient(h_fields, axis=1), axis=1)
+    convex = resize((-lap / src_px ** 2).astype(np.float32), n, region.half)
+    ao = resize(area.ring_ao, n, region.half)
+    dl = resize(area.ring_dl, n, region.half) if area.ring_dl is not None else np.full((n, n), 1e3, np.float32)
+    canvas = Canvas(n)
+    n_large = fbm_raster(grid, 38.0, seed=101, octaves=2)
+    n_mid = fbm_raster(grid, 13.0, seed=102, octaves=2)
+    n_patch = fbm_raster(grid, 7.0, seed=103, octaves=3)
+    n_fine = fbm_raster(grid, 2.2, seed=104, octaves=2)
+    canvas.rgb[:] = _mix(GREEN_DEEP, GREEN_MID, 0.5 + 0.8 * n_large)
+    canvas.paint(GREEN_WARM, 0.55 * _ss(-0.1, 0.6, n_mid))
+    rim_dry = (1.0 - _ss(1.0, 7.0, dl)) * _ss(-0.3, 0.4, n_mid + 0.5 * n_patch)
+    dryness = np.clip(0.6 * _ss(0.004, 0.045, convex) + 0.4 * _ss(0.1, 0.7, n_patch) + 0.35 * rim_dry
+                      - 0.4 * (1.0 - _ss(0.72, 0.95, ao)) + 0.15 * fbm_raster(grid, 4.0, seed=108, octaves=2), 0.0, 1.0)
+    canvas.paint(DRY, 0.8 * _ss(0.35, 0.85, dryness))
+    canvas.paint(STRAW, 0.55 * _ss(0.75, 1.0, dryness))
+    del dryness, rim_dry
+    # The ridges' slopes: a pine floor, thickest on the steeper ground well up from the valley.
+    ridge = _ss(12.0, 24.0, slope) * _ss(3.0, 8.0, h) * _ss(0.0, 2.0, dl)
+    canvas.paint(_mix(FOREST_FLOOR, MOSS, 0.5 + n_mid), 0.75 * ridge)
+    canvas.paint(LITTER, 0.3 * ridge * _ss(0.2, 0.6, n_patch))
+    if region.lip is not None:
+        # The canyon: ochre soil and dry grass on its floor, sand and the river's water along it, the plains beyond.
+        floor = 1.0 - _ss(-region.wall - 2.0, -region.wall + 2.0, dl)
+        canvas.paint(_mix(DRY, SOIL, 0.45 + 0.7 * n_mid), 0.8 * floor)
+        canvas.paint(STRAW, 0.35 * floor * _ss(0.0, 0.6, n_patch))
+        canvas.paint(GREEN_DEEP, 0.35 * floor * _ss(0.3, 0.6, n_patch))  # scrub
+        river = resize(region.river_distance, n, region.half)
+        half = region.river_width * 0.5
+        canvas.paint(_mix(GREEN_MID, GREEN_LUSH, 0.5 + n_mid), 0.7 * floor * (1.0 - _ss(half + 3.0, half + 22.0, river)))
+        canvas.paint(_mix(SAND, PEBBLE_LIGHT, 0.5 + n_fine), floor * (1.0 - _ss(half, half + 4.0, river)), alpha=0.5)
+        canvas.paint(_mix(POND_BED, _c(0x506a72), 0.6), floor * (1.0 - _ss(half - 1.0, half, river)), alpha=0.08)
+    # Rock where it's steep: the ridges' bands, the escarpment's wall, the far wall; the lip's own edge.
+    jitter = 7.0 * fbm_raster(grid, 3.0, seed=151, octaves=2)
+    rockw = _ss(34.0, 46.0, slope + jitter)
+    wall = getattr(region, 'wall', 12.0)
+    lip = (1.0 - _ss(0.15, 1.1, dl + 0.4 * n_fine)) * _ss(-wall - 2.0, -wall, dl)  # not the canyon past the wall
+    canvas.paint(_mix(SOIL_DARK, ROCK_DARK, 0.5 + n_fine), lip, alpha=0.7)
+    shade = np.clip(0.55 + 0.9 * (ao - 0.8) + 0.35 * n_fine, 0.0, 1.0)
+    canvas.paint(_mix(ROCK_DARK, ROCK_LIGHT, shade), rockw, alpha=1.0)
+    canvas.paint(LICHEN, 0.35 * rockw * _ss(0.45, 0.6, fbm_raster(grid, 1.6, seed=152, octaves=2)))
+    canvas.rgb *= (1.0 + 0.05 * n_fine)[..., None]
+    rgba = np.empty((n, n, 4), dtype=np.float32)
+    rgba[..., :3] = np.clip(canvas.rgb, 0.0, 1.0)
+    rgba[..., 3] = np.clip(canvas.alpha, 1.0 / 255.0, 1.0)
+    area.ring_rgba = rgba
+    _save(rgba, out_path)
+    written = out_path
+    if preview_dir:
+        preview = os.path.join(preview_dir, 'ring_macro.png')
+        p = min(n, 1024)
+        small = rgba.reshape(p, n // p, p, n // p, 4).mean(axis=(1, 3))
+        small[..., 3] = 1.0
+        os.makedirs(os.path.dirname(preview), exist_ok=True)
+        _save(small, preview)
+        written += ' and ' + preview
+    log(f'macro: wrote {written}')

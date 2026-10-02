@@ -10,6 +10,12 @@ wrapper that calls main('<Area>'). It builds:
   color alpha is baked ambient occlusion (RGB white).
 - <Area>_Underside_<n>: the rock under the rim (RockCliff), in four sectors (island setting).
 - <Area>_Water: the ponds' and creeks' surface (material Water, master Water; UV 0 in world meters).
+- Grounded (area_beyond.py): <Area>_Ring_<n>, the surround ring in sectors (material <Area>RingMacro, master Terrain,
+  UV 0 over the ring's square onto T_<Area>RingMacro_BC; the upland's sectors collide, the canyon's don't);
+  <Area>_CanyonWall_<n>, the generated wall under the escarpment's lip (RockCliff, no collision); <Area>_Backdrop_<n>,
+  the unlit silhouettes (material Backdrop<layer>, master Backdrop; no collision, no Nanite). The core's tiles share
+  their seam vertices with the ring exactly; the log prints the seam's gap and normal difference and each piece's
+  triangles against its budget.
 
     blender -b --factory-startup --python Art/Models/Terrain/<Area>.py -- [--macro] [--computed] [--preview]
                                                                          [--save-to DIR]
@@ -47,6 +53,12 @@ DETAIL_SETS = ('GroundGrass', 'RockCliff')  # M_Terrain's detail textures: grass
 TILES = 4               # the top's tiles a side, unless the layout's mesh.tiles says otherwise
 TOP_TRIANGLES = 118000  # the top's triangle budget, unless the layout's mesh.triangles says otherwise
 UNDERSIDE_REPEAT = 9.6  # meters per RockCliff repeat under the island: a third of the usual density, seen from afar
+# Triangle budgets per piece (Docs/Areas/RansomsRest.md, the performance plan): the core's tiles, the ring, the canyon
+# wall, the backdrop.
+BUDGETS = {'core': 150000, 'ring': 40000, 'canyon wall': 20000, 'backdrop': 6000}
+# The backdrop's layers, nearest first: tints that fade toward the sky's haze (a material parameter collection takes
+# over in the game, step 13).
+BACKDROP_TINTS = (0x5b6b5e, 0x7d8a8f, 0xa3adb5)
 STARTED = time.time()
 
 
@@ -102,9 +114,17 @@ def macro_path(area):
     return os.path.join(REPO, *area.macro_texture.split('/'))
 
 
-def macro_material(area):
-    """The top's material: M_Terrain's macro map and detail sets. Its Blender nodes preview what M_Terrain does."""
-    name = area.name + 'Macro'
+def ring_macro_path(area):
+    return os.path.join(REPO, *area.ring_macro_texture.split('/'))
+
+
+def macro_material(area, ring=False):
+    """The top's material (or the ring's): M_Terrain's macro map and detail sets. Its Blender nodes preview what
+    M_Terrain does."""
+    name = area.name + ('RingMacro' if ring else 'Macro')
+    # The map this run painted (--save-to puts it elsewhere), else the repository's.
+    texture = getattr(area, 'painted', {}).get('ring' if ring else 'core') or (
+        ring_macro_path(area) if ring else macro_path(area))
     mat = bpy.data.materials.get(name) or bpy.data.materials.new(name)
     mat.use_nodes = True
     nodes, links = mat.node_tree.nodes, mat.node_tree.links
@@ -115,11 +135,11 @@ def macro_material(area):
     links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
     bsdf.inputs['Base Color'].default_value = lt.hex_color(0x6b7a3e)
     mat.diffuse_color = lt.hex_color(0x6b7a3e)
-    if os.path.exists(macro_path(area)):
+    if os.path.exists(texture):
         uv0 = nodes.new('ShaderNodeUVMap')
         uv0.uv_map = 'UVMap'
         macro = nodes.new('ShaderNodeTexImage')
-        macro.image = bpy.data.images.load(macro_path(area), check_existing=True)
+        macro.image = bpy.data.images.load(texture, check_existing=True)
         macro.image.colorspace_settings.name = 'sRGB'
         macro.image.alpha_mode = 'CHANNEL_PACKED'
         macro.interpolation = 'Linear'
@@ -239,6 +259,11 @@ def build_top(area):
     if np.mean(normals[:, 2]) < 0.0:  # the triangulation runs counter-clockwise; make sure the top faces up
         tris = tris[:, [0, 2, 1]]
         normals = -normals
+    geometric = normals.copy()
+    if area.setting == 'grounded':
+        # The seam's normals come from the regional field's gradient, as the ring's do: no light crease between them.
+        seam = ring[area.loop_kinds >= 1]
+        normals[seam] = area_mesh.to_blender(area.region.gradient_normals(verts[seam, 0], verts[seam, 1]))
     ao_raster = area_mesh.terrain_ao(area)
     area.ao = ao_raster
     ao = area.at(ao_raster, verts[:, 0], verts[:, 1])
@@ -267,6 +292,8 @@ def build_top(area):
                               normals=normals[used], colors=colors[used])
             tiles.append((obj.name, len(local)))
     log('terrain: tiles ' + ', '.join(f'{n[len(prefix):]} {c}' for n, c in tiles))
+    area.top = dict(verts=verts, tris=tris, ring=ring, kinds=area.loop_kinds, normals=normals, geometric=geometric,
+                    ao=np.clip(ao, 0.0, 1.0))
     return verts, tris, ring, tiles
 
 
@@ -298,9 +325,9 @@ def _wrap_uv(verts, tris, wrap, repeat=UNDERSIDE_REPEAT):
     return (np.stack([along, up], axis=2) / repeat).reshape(-1, 2)
 
 
-def _underside_ao(obj, rim_drop, depth):
+def _underside_ao(obj, rim_drop, depth, top=0.0):
     """Baked occlusion (its own crevices and spires), darkening toward the bottom: the sky light reaches the
-    underside mostly from the side."""
+    underside mostly from the side. (top: the height the darkening starts below, plus rim_drop.)"""
     baked = True
     try:
         lt.bake_vertex_ao(obj, samples=16, distance=6.0, ground=False)
@@ -318,7 +345,7 @@ def _underside_ao(obj, rim_drop, depth):
     co = np.empty(3 * len(mesh.vertices), dtype=np.float32)
     mesh.vertices.foreach_get('co', co)
     z = co.reshape(-1, 3)[loop_vert, 2]
-    down = np.clip(-(z + rim_drop) / (depth - rim_drop), 0.0, 1.0)
+    down = np.clip(-(z - top + rim_drop) / (depth - rim_drop), 0.0, 1.0)
     raw[:, :3] = 1.0
     raw[:, 3] = np.clip(raw[:, 3] * (1.0 - 0.3 * down), 0.0, 1.0)
     col.data.foreach_set('color_srgb', raw.ravel())
@@ -343,6 +370,117 @@ def build_water(area):
     return obj
 
 
+# --- Past the core (grounded) ---
+
+def backdrop_material(index):
+    """An unlit silhouette layer: a flat tint (emission, in Blender's preview), Master Backdrop for the game."""
+    name = f'Backdrop{index}'
+    mat = bpy.data.materials.get(name) or bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    nodes.clear()
+    out = nodes.new('ShaderNodeOutputMaterial')
+    emit = nodes.new('ShaderNodeEmission')
+    color = lt.hex_color(BACKDROP_TINTS[min(index, len(BACKDROP_TINTS) - 1)])
+    emit.inputs['Color'].default_value = color
+    emit.inputs['Strength'].default_value = 1.0
+    links.new(emit.outputs['Emission'], out.inputs['Surface'])
+    mat.diffuse_color = color
+    mat['Master'] = 'Backdrop'
+    mat['Tint'] = '#%06x' % BACKDROP_TINTS[min(index, len(BACKDROP_TINTS) - 1)]
+    mat['Kind'] = 'Surface'
+    return mat
+
+
+def build_beyond(area):
+    """The ring, the canyon wall and the backdrop of a grounded area, with the seam's check and the budgets.
+    Returns (pieces by kind: [(name, triangles)], the seam's numbers)."""
+    import area_beyond
+    started = time.time()
+    spec = area.layout['region']
+    area_beyond.ring_raster(area, log=log)
+    area_beyond.ring_ao(area)
+    top = area.top
+    ring_spec = spec.get('ring', {})
+    upland, canyon, seam = area_beyond.ring(area, top['verts'], top['ring'], top['kinds'], top['normals'], top['ao'],
+                                            ring_spec.get('triangles', area_beyond.RING_TRIANGLES), log=log)
+    count = ring_spec.get('sectors', 8)
+    shares = [('upland', upland, count - (2 if canyon else 0))] + ([('canyon', canyon, 2)] if canyon else [])
+    mat = macro_material(area, ring=True)
+    made = {'ring': [], 'canyon wall': [], 'backdrop': []}
+    index = 0
+    for kind, piece, sectors in shares:
+        for chosen in area_beyond.sectors(piece['verts'], piece['tris'], sectors):
+            if not len(chosen):
+                continue
+            used, inverse = np.unique(piece['tris'][chosen].ravel(), return_inverse=True)
+            v = piece['verts'][used]
+            obj = make_object(f'{area.name}_Ring_{index}', v, inverse.reshape(-1, 3), mat,
+                              uvs={'UVMap': (np.column_stack([v[:, 1], v[:, 0]]) + area.region.half)
+                                   / (2.0 * area.region.half), 'UVDetail': np.column_stack([v[:, 1], v[:, 0]])},
+                              normals=piece['normals'][used],
+                              colors=np.column_stack([np.ones((len(v), 3)), piece['ao'][used]]))
+            if kind == 'canyon':
+                obj['Collision'] = 'None'  # nothing past the lip collides: a fall off it ends in the canyon's haze
+            made['ring'].append((obj.name, len(chosen), kind))
+            index += 1
+    # The canyon wall hangs from the whole lip: the ring's south run, the core's lip, the ring's north run.
+    if canyon is not None:
+        kinds = top['kinds']
+        core_lip = top['ring'][:int(np.nonzero(kinds == 2)[0][-1]) + 1]
+        lip_xyz = np.vstack([upland['verts'][seam['south_ids']], top['verts'][core_lip],
+                             upland['verts'][seam['north_ids']]])
+        rock = lt.material('RockCliff', MossAmount=0.6)
+        wall_spec = spec.get('canyonWall', {})
+        walls = []
+        for n, (verts, tris, extra) in enumerate(area_beyond.canyon_wall(area, lip_xyz, wall_spec.get('sectors', 4))):
+            obj = make_object(f'{area.name}_CanyonWall_{n}', verts, tris, rock,
+                              uvs={'UVMap': _wrap_uv(verts, tris, extra[:, :2])}, normals=extra[:, 2:5])
+            obj['Collision'] = 'None'
+            walls.append(obj)
+            made['canyon wall'].append((obj.name, len(tris), 'wall'))
+        for obj in walls:
+            _underside_ao(obj, 0.0, area.region.drop, top=float(np.max(lip_xyz[:, 2])))
+    for li, sct, verts, tris, extra in area_beyond.backdrop(area):
+        obj = make_object(f'{area.name}_Backdrop_{li * spec.get("backdrop", {}).get("sectors", 4) + sct}', verts, tris,
+                          backdrop_material(li), uvs={'UVMap': np.column_stack([extra[:, 1], extra[:, 0]])},
+                          colors=np.column_stack([np.ones((len(verts), 3)), extra[:, 0]]))
+        obj['Collision'] = 'None'
+        obj['Nanite'] = 0
+        obj.visible_shadow = False
+        made['backdrop'].append((obj.name, len(tris), f'layer {li}'))
+    numbers = area_beyond.seam(top['verts'], top['tris'], top['normals'], top['geometric'], seam, upland, area.region)
+    for kind, pieces in made.items():
+        log(f'terrain: {kind} ' + ', '.join(f'{n[len(area.name) + 1:]} {c}' for n, c, _ in pieces))
+    log(f'terrain: past the core in {time.time() - started:.0f} s')
+    return made, numbers
+
+
+def report_grounded(area, tiles, made, numbers):
+    """Prints the seam's check and each piece's triangles against its budget; returns whether all passed."""
+    totals = {'core': sum(c for _, c in tiles)}
+    for kind, pieces in made.items():
+        totals[kind] = sum(c for _, c, _ in pieces)
+    passed = True
+    gap_ok = numbers['gap_mm'] == 0.0 and numbers['missing_edges'] == 0
+    normal_ok = numbers['normal_deg'] < 1.0
+    passed &= gap_ok and normal_ok
+    log(f"check: seam over {numbers['vertices']} shared vertices: gap {numbers['gap_mm']:.3f} mm, "
+        f"{'no T-junctions' if numbers['missing_edges'] == 0 else str(numbers['missing_edges']) + ' seam edges missing'}"
+        f" - {'PASS' if gap_ok else 'FAIL'}")
+    log(f"check: seam normals: the core's and the ring's differ by at most {numbers['normal_deg']:.3f} degrees (both "
+        f"from the regional field's gradient) - {'PASS' if normal_ok else 'FAIL'}; each side's own geometric normal "
+        f"is within {numbers['core_geometric_deg']:.2f} (core) and {numbers['ring_geometric_deg']:.2f} (ring) degrees "
+        f"of it, {numbers['core_geometric_mean']:.2f} and {numbers['ring_geometric_mean']:.2f} on average, "
+        f"{numbers['core_geometric_p95']:.2f} and {numbers['ring_geometric_p95']:.2f} for 95% of the seam (the most "
+        f"at x {numbers['worst'][0]:.1f}, y {numbers['worst'][1]:.1f} m)")
+    for kind, budget in BUDGETS.items():
+        ok = totals.get(kind, 0) <= budget
+        passed &= ok
+        log(f'check: {kind} {totals.get(kind, 0)} triangles of {budget} - {"PASS" if ok else "FAIL"}')
+    return passed
+
+
 def main(name=None):
     """Builds an area's terrain (its layout, or --layout) and, with the flags, its computed layout, maps and
     previews. Returns the area."""
@@ -358,6 +496,9 @@ def main(name=None):
     build_water(area)
     total = sum(c for _, c in tiles) + sum(len(o.data.polygons) for o in underside)
     log(f'terrain: {total} triangles in the tiles and the underside')
+    if area.setting == 'grounded':
+        made, numbers = build_beyond(area)
+        area.checks_passed = report_grounded(area, tiles, made, numbers)
     save_to = os.path.abspath(args.save_to) if args.save_to else ''
     if save_to:
         os.makedirs(save_to, exist_ok=True)
@@ -370,7 +511,14 @@ def main(name=None):
         import area_macro
         import area_scatter
         out = save_to or os.path.dirname(macro_path(area))
-        area_macro.paint(area, os.path.join(out, os.path.basename(area.macro_texture)), previews, log=log)
+        area.painted = {'core': os.path.join(out, os.path.basename(area.macro_texture))}
+        if area.setting == 'grounded':
+            # The ring's map first: the core's blends into it across the seam band.
+            ring_out = save_to or os.path.dirname(ring_macro_path(area))
+            area.painted['ring'] = os.path.join(ring_out, os.path.basename(area.ring_macro_texture))
+            area_macro.paint_ring(area, area.painted['ring'], previews, log=log)
+            macro_material(area, ring=True)
+        area_macro.paint(area, area.painted['core'], previews, log=log)
         area_scatter.paint(area, os.path.join(out, os.path.basename(area.scatter_texture)), previews, log=log)
         macro_material(area)  # now with the texture
     if args.preview:

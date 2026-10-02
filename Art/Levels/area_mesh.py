@@ -2,8 +2,11 @@
 in layout meters (x north, y east, z up); area_model.py turns them into Blender objects.
 
 - top_surface(): the walkable top as one triangulation: vertices packed where the ground bends (cliff lips, road
-  shoulders, the rim) and spread about a meter apart elsewhere, sized to a triangle budget.
-- terrain_ao(): ambient occlusion from the height raster (valleys, cliff feet and the creek's insides go dark).
+  shoulders, the rim) and spread about a meter apart elsewhere, sized to a triangle budget. Its edge is the rim, or
+  (grounded) the escarpment's lip and the core square's edge, whose seam vertices stand exactly on the regional field
+  so the surround ring can share them (area_beyond.py).
+- terrain_ao(): ambient occlusion from the height raster (valleys, cliff feet and the creek's insides go dark); past
+  the rim is open sky, past a grounded core's edge the regional field.
 - underside(): the rock below the rim (island setting): a wall under the top's edge, a tapering mass and hanging spires.
 - water(): the ponds' and creeks' surface.
 """
@@ -16,12 +19,24 @@ from mathutils.geometry import delaunay_2d_cdt
 from area_math import Grid, blur, cells, gradient_noise, points_in_polygon, resample, sample
 
 LEVELS = (1.2, 0.6, 0.3)  # quadtree cell sizes (m): the spacing of the top's vertices
+# A grounded core is larger and much of it lies past the playable boundary (the ridges' slopes, the seam band): there
+# its vertices may spread to 2.4 and 4.8 m, so a 400 m core fits its triangle budget. The playable ground keeps the
+# island's levels.
+GROUNDED_LEVELS = (4.8, 2.4) + LEVELS
+
+
+def _levels(area):
+    return GROUNDED_LEVELS if area.setting == 'grounded' else LEVELS
 
 
 def _spacing(area, eps):
     """Target vertex spacing (m) per shape cell for a height error eps (m): a linear triangle of size s over ground
     of curvature k misses it by about k s^2 / 8."""
-    spacing = np.clip(np.sqrt(8.0 * eps / np.maximum(area._curvature, 1e-6)), LEVELS[-1], LEVELS[0])
+    levels = _levels(area)
+    spacing = np.clip(np.sqrt(8.0 * eps / np.maximum(area._curvature, 1e-6)), levels[-1], levels[0])
+    if area.setting == 'grounded':
+        # The coarser levels only past the boundary, and not next to the core's edge (its vertices are 1.2 m apart).
+        spacing = np.where(area._dense, np.minimum(spacing, LEVELS[0]), spacing)
     # Waterlines stay crisp: where the water meets a gentle shore, a centimeter of height moves it a hand's width.
     return np.where(area._waterline, np.minimum(spacing, LEVELS[-1]), spacing).astype(np.float32)
 
@@ -39,21 +54,21 @@ def _curvature(area):
     return area.resized(blur(k, cells(0.4, px)), area.grid.n)
 
 
-def _quadtree(spacing, edge, half):
+def _quadtree(spacing, edge, half, levels=LEVELS):
     """Jittered points on the quadtree leaves: a cell is a leaf when the spacing wanted anywhere in it is at least
     its size."""
     n = spacing.shape[0]
     px = 2.0 * half / n
     # The finest level spans a whole number of raster cells and each coarser one twice the next (12, 6 and 3 cells
     # at 10 cm), so the levels nest exactly whatever the cell size.
-    finest = cells(LEVELS[-1], px)
-    steps = [finest * 2 ** (len(LEVELS) - 1 - level) for level in range(len(LEVELS))]
+    finest = cells(levels[-1], px)
+    steps = [finest * 2 ** (len(levels) - 1 - level) for level in range(len(levels))]
     size = int(math.ceil(n / steps[0]) * steps[0])
     padded = np.pad(spacing, ((0, size - n), (0, size - n)), mode='edge')
     rng = np.random.default_rng(5)
     points = []
     taken = np.zeros((size // steps[-1],) * 2, dtype=bool)  # finest-level cells already covered
-    for level, (nominal, step) in enumerate(zip(LEVELS, steps)):
+    for level, (nominal, step) in enumerate(zip(levels, steps)):
         # The level's cell in meters: its nominal size when the raster divides it (as 10 cm cells do), else what
         # its whole number of raster cells spans.
         cell = nominal if abs(step * px - nominal) < 1e-9 else step * px
@@ -61,7 +76,7 @@ def _quadtree(spacing, edge, half):
         pooled = padded.reshape(m, step, m, step).min(axis=(1, 3))
         ratio = step // steps[-1]
         covered = taken.reshape(m, ratio, m, ratio).any(axis=(1, 3))
-        leaf = ~covered & ((pooled >= cell - 1e-4) | (level == len(LEVELS) - 1))
+        leaf = ~covered & ((pooled >= cell - 1e-4) | (level == len(levels) - 1))
         ii, jj = np.nonzero(leaf)
         jitter = rng.uniform(-0.18, 0.18, (len(ii), 2)) * cell
         x = -half + (ii + 0.5) * cell + jitter[:, 0]
@@ -107,19 +122,24 @@ def top_surface(area, max_triangles, boundary_step=0.7, log=print):
     surface = area.water_surface()
     gap = area.h - np.nan_to_num(surface, nan=-100.0)
     area._waterline = np.isfinite(surface) & (gap > -0.2) & (gap < 0.4)
-    boundary = resample(area.outline, boundary_step, closed=True)
+    # The edge loop: the rim (island setting), or the lip and the square's edge, the seam (grounded).
+    boundary, kinds = area.mesh_boundary(boundary_step)
+    area.loop_kinds = kinds
     shore = waterline_points(area, surface)
+    levels = _levels(area)
+    if area.setting == 'grounded':
+        area._dense = (area.play_edge > -8.0) | (area.edge < 3.0)
     # Pick the height error that fills the budget (triangles ~ 2 x interior points + boundary points).
-    lo, hi = math.log(1e-4), math.log(1.0)
+    lo, hi = math.log(1e-4), math.log(1.0 if area.setting != 'grounded' else 4.0)
     for _ in range(14):
         mid = 0.5 * (lo + hi)
-        count = len(_quadtree(_spacing(area, math.exp(mid)), area.edge, area.half))
+        count = len(_quadtree(_spacing(area, math.exp(mid)), area.edge, area.half, levels))
         if 2 * (count + len(shore)) + len(boundary) > max_triangles:
             lo = mid
         else:
             hi = mid
     eps = math.exp(hi)
-    interior = _quadtree(_spacing(area, eps), area.edge, area.half)
+    interior = _quadtree(_spacing(area, eps), area.edge, area.half, levels)
     # Vertices exactly on the waterlines, so the water meets the shore along a smooth line (on a gentle shore a
     # centimeter between triangles moves the waterline a hand's width). Interior points too close to them go.
     if len(shore):
@@ -152,6 +172,10 @@ def top_surface(area, max_triangles, boundary_step=0.7, log=print):
             index_of[o] = out_index
     ring = np.array([index_of[k] for k in range(len(boundary))], dtype=np.int64)
     z = area.height(x, y)
+    if kinds is not None:
+        # The seam's vertices stand on the regional field exactly: the surround ring shares them.
+        seam = ring[kinds >= 1]
+        z[seam] = area.region.height(x[seam], y[seam])
     return np.column_stack([x, y, z]), tris, ring
 
 
@@ -167,11 +191,13 @@ def vertex_normals(verts_b, tris):
 
 def terrain_ao(area, directions=16, reach=18.0):
     """Ambient occlusion per AO raster cell (1 open, 0 closed) from the heights: the average sine of the horizon over
-    directions. Beyond the rim is open sky (island setting)."""
+    directions. Beyond the rim is open sky (island setting); a grounded area's core is padded with the regional
+    field around it, so the ridges past the square shade its edge as they will in the game."""
     n = area.sizes['ao']
     h = area.resized(area.h, n).astype(np.float64)
-    inside = area.resized(area.edge, n) > -0.5
-    h[~inside] = -500.0
+    if area.setting != 'grounded':
+        inside = area.resized(area.edge, n) > -0.5
+        h[~inside] = -500.0
     px = 2.0 * area.half / n
     distances = []
     r = px * 1.5
@@ -179,7 +205,11 @@ def terrain_ao(area, directions=16, reach=18.0):
         distances.append(r)
         r *= 1.22
     pad = int(math.ceil(reach / px)) + 2
-    hp = np.pad(h, pad, mode='constant', constant_values=-500.0)
+    if area.setting == 'grounded':
+        hp = area.region.raster(Grid(n + 2 * pad, area.half + pad * px)).astype(np.float64)
+        hp[pad:pad + n, pad:pad + n] = h
+    else:
+        hp = np.pad(h, pad, mode='constant', constant_values=-500.0)
     total = np.zeros_like(h)
     for d in range(directions):
         angle = 2.0 * math.pi * (d + 0.5) / directions

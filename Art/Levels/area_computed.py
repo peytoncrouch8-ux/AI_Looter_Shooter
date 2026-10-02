@@ -3,16 +3,21 @@ it is Unreal world centimeters (X north, Y east, Z up) and yaw in degrees (0 = +
 compute() returns the dictionary, write() saves it.
 
 The squares the macro map and the scatter mask cover are macroMap.covers and macroMap.scatterMap.covers
-(Tools/Unreal/build_island_scatter.py reads the mask's). Cliff dressing comes in groups, one per feature with cliffs
-(a plateau's cliff, its ramp's walls) plus the island's rim; Tools/Unreal/build_area.py dresses every group. The pond,
-creek, ramp, bridge and waterfall entries describe the area's first of each (all the tutorial island has); step 3b
-writes the others.
+(Tools/Unreal/build_island_scatter.py reads the mask's); a grounded area's ring has its own map, ringMap. Cliff dressing
+comes in groups, one per feature with cliffs (a plateau's or mesa's cliff, a pit's wall, a ramp's walls, a ridge's or
+scarp's face, a knob's rock, a gully's banks, a gorge's walls, a regional ridge's band, the escarpment's lip) plus the
+island's rim; area_cliffs.py has the points' format (stacked courses above 12 m) and Tools/Unreal/build_area.py dresses
+every group. ponds, creeks, ramps, bridges, gullies and waterfalls hold every one by id; the singular pond, creek, ramp,
+bridge and waterfall describe the first of each, as before. A grounded area's playable boundary is "boundary" (corners
+and open edges, as APlayableArea takes them), and every area gets the open-ground metric, "openGround" (area_open.py).
 """
+import hashlib
 import json
 import math
 
 import numpy as np
 
+import area_cliffs
 from area_math import arc_length, points_in_polygon
 from area_shape import CREEK_WATER_HALF, to_m
 
@@ -60,14 +65,22 @@ def _road(area, road_id):
 
 
 def _creek(area, creek_id):
-    return next((c for c in area.creeks if c['id'] == creek_id), None)
+    found = next((c for c in area.creeks if c['id'] == creek_id), None)
+    if found is None:
+        # A gully (a dry creek): its bed stands in for the water.
+        gully = next((g for g in getattr(area, 'gullies', []) if g['id'] == creek_id), None)
+        if gully is not None:
+            found = dict(gully, water=gully['bed'])
+    return found
 
 
 def bridge(area):
-    """The layout's first bridge (layout.json "bridges": where a road crosses a creek)."""
+    """The layout's first bridge (layout.json "bridges": where a road crosses a creek or a gully)."""
     spec = next(iter(area.layout.get('bridges', [])), None)
-    if spec is None:
-        return None
+    return bridge_of(area, spec) if spec is not None else None
+
+
+def bridge_of(area, spec):
     road = _road(area, spec['road'])
     creek = _creek(area, spec['creek'])
     if road is None or creek is None:
@@ -106,7 +119,9 @@ def _along(curve, point):
 
 def waterfall(area):
     """Where the first creek that ends in a waterfall runs off the rim (island setting: it falls to the underside's
-    depth)."""
+    depth), or else the first falls into a gorge."""
+    if area.setting == 'grounded':
+        return next(iter(waterfalls(area).values()), None)
     creek = next((c for c in area.creeks if c['feature'].get('waterfallAtEnd')), None)
     if creek is None:
         return None
@@ -123,6 +138,21 @@ def waterfall(area):
         'dropTo': _cm(water - area.island['undersideDepth'] / 100.0),
         'note': 'the lip: where the creek runs off the rim, at the water surface; yaw is the flow direction',
     }
+
+
+def waterfalls(area):
+    """Every creek's falls into its gorge, by the creek's id: the lip at the water surface, the way the water goes,
+    and dropTo, the stream on the gorge's floor below."""
+    found = {}
+    for g in getattr(area, 'gorges', []):
+        lip, direction = g['lip'], g['direction']
+        found[g['creek']] = {
+            'location': [_cm(lip[0]), _cm(lip[1]), _cm(g['lip_water'])], 'yaw': _yaw(*direction),
+            'width': _cm(2.0 * CREEK_WATER_HALF), 'bedZ': _cm(area.height(*lip)),
+            'dropTo': _cm(g['floor'][0] + 0.25), 'gorge': g['id'],
+            'note': 'the lip: where the creek falls into its gorge, at the water surface; yaw is the flow direction',
+        }
+    return found
 
 
 def plateau_cliffs(area, p):
@@ -155,8 +185,8 @@ def plateau_cliffs(area, p):
         base = c + out * (p['width'] * 0.5 + 1.2)
         top = c - out * (p['width'] * 0.5 + 1.0)
         zb, zt = float(area.height(*base)), float(area.height(*top))
-        points.append({'location': [_cm(c[0]), _cm(c[1]), _cm(zb)], 'top': _cm(zt), 'height': _cm(zt - zb),
-                       'yaw': _yaw(*out)})
+        points.append(area_cliffs.plateau_courses(area, p, {
+            'location': [_cm(c[0]), _cm(c[1]), _cm(zb)], 'top': _cm(zt), 'height': _cm(zt - zb), 'yaw': _yaw(*out)}))
     return points
 
 
@@ -217,8 +247,10 @@ def rim_points(area):
 
 
 def cliff_groups(area):
-    """Every cliff group in order: each plateau's cliff and then its ramp's walls, then the rim (island setting). A
-    group is named by its feature's cliffGroup (the plateau's id, or the ramp's own id, when not given)."""
+    """Every cliff group in order: each plateau's (and mesa's) cliff and then its ramp's walls, each pit's wall and its
+    ramp's, the ridges' and scarps' faces, the knobs' rocks, the gullies' banks, the gorges' walls, then the rim
+    (island setting) or the regional ridges' bands and the escarpment's lip (grounded). A group is named by its
+    feature's cliffGroup (the feature's id, or the ramp's own id, when not given)."""
     groups = {}
 
     def add(name, points):
@@ -230,7 +262,29 @@ def cliff_groups(area):
         for r in area.ramps:
             if r['plateau'] == p['id']:
                 add(r['cliff_group'], ramp_walls(area, r))
-    add('rim', rim_points(area))
+    for p in getattr(area, 'pits', []):
+        add(p['cliff_group'], area_cliffs.pit_cliffs(area, p, _near_ramp))
+        for r in area.ramps:
+            if r['plateau'] == p['id']:
+                add(r['cliff_group'], ramp_walls(area, r))
+    for sp in getattr(area, 'spines', []):
+        add(sp['cliff_group'], area_cliffs.spine_cliffs(area, sp))
+    for sc in getattr(area, 'scarps', []):
+        add(sc['cliff_group'], area_cliffs.scarp_cliffs(area, sc))
+    for kn in getattr(area, 'knobs', []):
+        add(kn['cliff_group'], area_cliffs.knob_points(area, kn))
+    for g in getattr(area, 'gullies', []):
+        add(g['cliff_group'], area_cliffs.gully_walls(area, g))
+    for g in getattr(area, 'gorges', []):
+        add(g['cliff_group'], area_cliffs.gorge_walls(area, g))
+    if area.setting == 'grounded':
+        for r in area.region.ridges:
+            add(r['id'], area_cliffs.ridge_bands(area, r))
+        if area.region.lip is not None:
+            loop, kinds = area.mesh_boundary()
+            add('escarpment', area_cliffs.escarpment_points(area, loop[kinds != 1]))
+    else:
+        add('rim', rim_points(area))
     return groups
 
 
@@ -259,7 +313,7 @@ def _orchard_rows(area, poly):
                     keep &= points_in_polygon(cand[:, 0] + dx, cand[:, 1] + dy, poly)
                 for lane in lanes:
                     keep &= np.min(np.linalg.norm(cand[:, None, :] - lane[None, :, :], axis=2), axis=1) > 3.2
-                keep &= area.at(area.edge, cand[:, 0], cand[:, 1]) > 3.5  # island setting: clear of the rim
+                keep &= area.at(area.play_edge, cand[:, 0], cand[:, 1]) > 3.5  # clear of the rim (or boundary)
                 if keep.sum() >= 2:
                     rows.append(cand[keep])
             if sum(len(r) for r in rows) > sum(len(r) for r in best):
@@ -330,7 +384,94 @@ def compute(area):
         data['ramp'] = {'width': _cm(r['width']),
                         'points': [[_cm(r['pts'][i][0]), _cm(r['pts'][i][1]), _cm(r['z'][i])] for i in idx]}
     data['orchardRows'] = orchard_rows(area)
+    # The top mesh's lowest and highest ground (the scatter's rays start above the one and reach below the other).
+    on_top = area.h[area.inside]
+    data['heightRange'] = [_cm(on_top.min()), _cm(on_top.max())]
+    _all_of_each(area, data)
+    if area.setting == 'grounded':
+        _grounded(area, data)
+    import area_open
+    data['openGround'] = area_open.measure(area)[0]
+    with open(area.path, 'rb') as file:
+        data['layoutSha1'] = hashlib.sha1(file.read()).hexdigest()
     return data
+
+
+def _all_of_each(area, data):
+    """Every pond, creek, ramp, bridge, gully and waterfall by id (the singular keys keep the first of each)."""
+    data['ponds'] = {}
+    for p in area.ponds:
+        cx, cy = p['center']
+        data['ponds'][p['id']] = {'center': [_cm(cx), _cm(cy)], 'radii': [_cm(r) for r in p['radii']],
+                                  'waterZ': _cm(p['level']), 'bottomZ': _cm(p['bottom'])}
+    data['creeks'] = {}
+    for c in area.creeks:
+        keep = c['s'] <= c['s_lip']
+        pts = c['pts'][keep][::4]
+        data['creeks'][c['id']] = {
+            'points': [[_cm(x), _cm(y), _cm(z)] for (x, y), z in
+                       zip(pts, np.interp(c['s'][keep][::4], c['s'], c['water']))],
+            'waterWidth': _cm(2.0 * CREEK_WATER_HALF)}
+    data['ramps'] = {}
+    for r in area.ramps:
+        idx = np.arange(0, len(r['pts']), 4)
+        data['ramps'][r['id']] = {'of': r['plateau'], 'width': _cm(r['width']),
+                                  'points': [[_cm(r['pts'][i][0]), _cm(r['pts'][i][1]), _cm(r['z'][i])] for i in idx]}
+    data['bridges'] = {}
+    for spec in area.layout.get('bridges', []):
+        found = bridge_of(area, spec)
+        if found:
+            data['bridges'][spec['id']] = found
+    data['gullies'] = {}
+    for g in getattr(area, 'gullies', []):
+        idx = np.arange(0, len(g['pts']), 4)
+        data['gullies'][g['id']] = {'width': _cm(2.0 * g['half']), 'depth': _cm(g['depth']), 'walls': g['walls'],
+                                    'points': [[_cm(g['pts'][i][0]), _cm(g['pts'][i][1]), _cm(g['bed'][i])]
+                                               for i in idx],
+                                    'note': 'points run along the bed (z is the bed), down to its end'}
+    if area.setting == 'grounded':
+        data['waterfalls'] = waterfalls(area)
+    else:
+        creek = next((c for c in area.creeks if c['feature'].get('waterfallAtEnd')), None)
+        data['waterfalls'] = {creek['id']: data['waterfall']} if creek and data.get('waterfall') else {}
+
+
+def _grounded(area, data):
+    """A grounded area's extra entries: the ring's macro map, the seam band and the playable boundary."""
+    region = area.region
+    ring = [[-region.half * 100.0, -region.half * 100.0], [region.half * 100.0, region.half * 100.0]]
+    half, side = _number(region.half * 100.0), _number(region.half * 200.0)
+    data['ringMap'] = {'texture': area.ring_macro_texture, 'covers': ring,
+                       'uv0': f'U = (Y + {half}) / {side}, V = (X + {half}) / {side}, like the macro map\'s',
+                       'note': "the surround ring's macro color map (its meshes' UV 0); the core's blends into it "
+                               'across the seam band'}
+    data['region'] = {'seamBand': _cm(region.seam), 'core': data['macroMap']['covers'], 'ring': ring,
+                      'note': "the core is the map square; its outer seamBand fades into the regional field, so the "
+                              'core meets the surround ring there without a crack'}
+    if area.boundary is not None:
+        flags = area.open_edges
+        corners = [[_cm(x), _cm(y), _cm(_ground_near(area, x, y, flags[i] or flags[i - 1]))]
+                   for i, (x, y) in enumerate(area.boundary)]
+        data['boundary'] = {
+            'corners': corners, 'openEdges': [bool(f) for f in area.open_edges],
+            'note': "APlayableArea's corners (world cm; Z is the ground at the corner, or the nearest ground on the "
+                    "core within 2 m for a corner on an open edge, which stands out over a drop) and open_edges (edge i runs from corner i to corner "
+                    "i + 1, the last back to corner 0; true where a drop is part of play)"}
+
+
+def _ground_near(area, x, y, open_edge):
+    """The ground's height at a boundary corner. A corner on an open edge stands just past a drop (the lip, a gorge's
+    rim), so it takes the highest core ground within 2 m: the edge it looks over."""
+    if not open_edge and area.at(area.edge, x, y) > 0.3:
+        return float(area.height(x, y))
+    gx, gy = np.meshgrid(np.linspace(x - 2.0, x + 2.0, 9), np.linspace(y - 2.0, y + 2.0, 9), indexing='ij')
+    on_core = area.at(area.edge, gx, gy) > 0.2
+    if on_core.any():
+        return float(np.max(area.height(gx[on_core], gy[on_core])))
+    pts = area.outline
+    k = int(np.argmin(np.hypot(pts[:, 0] - x, pts[:, 1] - y)))
+    inward = -pts[k] / max(float(np.linalg.norm(pts[k])), 1e-9)
+    return float(area.height(*(pts[k] + inward * 0.5)))
 
 
 def write(area, path=None, log=print):

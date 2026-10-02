@@ -12,6 +12,10 @@ built area so it agrees with the terrain:
   A  pebbles and small rocks: a thin band just outside road edges, the feet of cliffs, the island's rim, the creeks'
      banks.
 Edges are softened by a few pixels, so density filters give natural transitions.
+
+A grounded area has no rim: things grow on the core up to 10 m past the playable boundary (the macro map paints their
+color beyond), with no pebble band along an edge; a gully's bed is gravel (pebbles, no grass or trees), and a pit's
+floor grows little.
 """
 import os
 
@@ -58,6 +62,8 @@ def paint(area, out_path, preview_dir=None, log=print):
     grid = Grid(n, area.half)
     inside = area.resized(area.edge, n)
     land = _ss(0.0, 0.8, inside)  # island setting: nothing grows past the rim
+    if area.setting == 'grounded':
+        land = land * _ss(-10.5, -9.5, area.resized(area.play_edge, n))  # nor 10 m past the boundary
     gx, gy = np.gradient(area.h.astype(np.float32), area.grid.px)
     slope = area.resized(np.degrees(np.arctan(np.hypot(gx, gy))).astype(np.float32), n)
     h = area.resized(area.h, n)
@@ -125,13 +131,27 @@ def paint(area, out_path, preview_dir=None, log=print):
     flowers = drifts * _ss(0.35, 0.8, grass) * (1.0 - 0.8 * forest)
 
     rim = (1.0 - _ss(0.5, 2.5, inside)) * land  # island setting
+    if area.setting == 'grounded':
+        rim = np.zeros((n, n), np.float32)
+    gravel = np.zeros((n, n), np.float32)
+    for g in getattr(area, 'gullies', []):
+        dist, _, _ = polyline_field(grid, g['pts'], g['half'] + 2.0)
+        gravel = np.maximum(gravel, 1.0 - _ss(g['half'] - 0.5, g['half'] + 0.5, np.where(np.isfinite(dist), dist,
+                                                                                            1e3)))
+    for p in getattr(area, 'pits', []):
+        floor = _ss(0.9, 0.99, area.resized(p['rise'], n))
+        grass = grass * (1.0 - 0.6 * floor)
+        trees = trees * (1.0 - floor)
+    grass = grass * (1.0 - gravel)
+    flowers = flowers * (1.0 - gravel)
+    trees = trees * (1.0 - gravel)
     creek_bank = None
     for c in area.creeks:
         cd = area.resized(np.where(np.isfinite(c['dist']), c['dist'], 99.0).astype(np.float32), n)
         creek_bank = _union(creek_bank, _ss(0.8, 1.4, cd) * (1.0 - _ss(3.5, 5.0, cd)) * (1.0 - wet))
     if creek_bank is None:
         creek_bank = np.zeros((n, n), np.float32)
-    pebbles = np.maximum.reduce([0.7 * shoulder * (1.0 - bare * 0.5), scree, rim, 0.8 * creek_bank])
+    pebbles = np.maximum.reduce([0.7 * shoulder * (1.0 - bare * 0.5), scree, rim, 0.8 * creek_bank, 0.9 * gravel])
     pebbles *= land
 
     rgba = np.stack([trees, grass, flowers, pebbles], axis=-1)

@@ -1,0 +1,112 @@
+{
+  "about": "The terrain generator's grounded test area (Docs/Areas/RansomsRest.md, steps 3b and 3c): one of each feature type on a 150 m square, set in a regional field with ridges on the north, east and south and an escarpment on the west. Coordinates are Unreal world centimeters: X is north (+), Y east (+), Z up; heights relative to the valley's base (Z = 0). Built by Art/Models/Terrain/TerrainTest.py; checked by Tools/terrain_check.ps1 TerrainTest. Its computed outputs are a fixture: compare them after every generator change.",
+  "name": "TerrainTest",
+  "setting": "grounded",
+  "map": {
+    "about": "The core square (half its side, cm) and the cell size (cm) each raster aims at; see the tutorial island's layout.",
+    "half": 7500,
+    "cells": { "shape": 10, "curvature": 20, "ao": 20, "scatter": 40, "macro": 5 }
+  },
+  "mesh": { "tiles": 4, "triangles": 80000 },
+  "region": {
+    "about": "The regional height field around the core (Art/Levels/area_region.py), in cm: the valley floor's noise and tilt (meters of rise per meter north and east), the ridges (each from its foot: height, crest = how far behind the foot the crest is, back = the outer slope's reach, band = the cliff band at the foot), the escarpment (its lip, the drop to the canyon floor, how deep the cliff kit's stacked courses reach, the far wall), the surround ring and the backdrop. The core's outer seamBand fades into the field; no feature may enter it.",
+    "seamBand": 2500,
+    "noise": { "amplitude": 120, "wavelength": 7000 },
+    "microNoise": { "amplitude": 22, "wavelength": 600 },
+    "tilt": [0.0, 0.008],
+    "ridges": [
+      { "id": "northRidge", "foot": [[4700,-40000],[4750,-4000],[4600,0],[4750,4000],[4700,40000]], "height": 3200, "crest": 2600, "back": 6000, "band": 1000 },
+      { "id": "eastRidge", "foot": [[-40000,4700],[-4000,4750],[0,4650],[4000,4750],[40000,4700]], "height": 2800, "crest": 2400, "back": 5500, "band": 800 },
+      { "id": "southRidge", "foot": [[-4700,-40000],[-4750,-4000],[-4650,0],[-4750,4000],[-4700,40000]], "height": 2400, "crest": 2400, "back": 5000, "band": 600 }
+    ],
+    "escarpment": {
+      "lip": [[-40000,-4700],[-4000,-4750],[0,-4850],[4000,-4700],[40000,-4750]],
+      "drop": 7000,
+      "kit": 2000,
+      "floorNoise": { "amplitude": 250, "wavelength": 12000 },
+      "farWall": { "distance": 22000, "height": 3000, "width": 4000 },
+      "river": { "width": 600 }
+    },
+    "ring": { "half": 35000, "cell": 100, "levels": [1000, 500, 250], "triangles": 38000, "sectors": 8, "macro": 2048 },
+    "canyonWall": { "sectors": 4, "triangles": 18000 },
+    "backdrop": {
+      "sectors": 4,
+      "triangles": 6000,
+      "layers": [
+        { "distance": 300000, "base": -40000, "north": [6000, 16000], "east": [3000, 9000], "south": [3000, 10000], "west": [-4500, -2000], "mesas": [[-90, 3, 9000], [-70, 2, 6000], [-118, 2.5, 7000]] },
+        { "distance": 600000, "base": -60000, "north": [15000, 32000], "east": [8000, 18000], "south": [9000, 20000], "west": [-3500, 1000], "mesas": [[-100, 2.5, 12000], [-80, 1.5, 9000]] },
+        { "distance": 1200000, "base": -100000, "north": [40000, 80000], "east": [25000, 45000], "south": [25000, 50000], "west": [5000, 20000] }
+      ]
+    }
+  },
+  "boundary": {
+    "about": "The playable boundary, corners [X, Y] in cm in order; open lists runs of open edges (from corner a to corner b), where a drop is part of play: the lip, the gorge's rims and its falls. The other edges run along the foot of rock too steep to climb.",
+    "polygon": [[-4550,-4900],[-2550,-4900],[-2500,-3400],[-2420,-2500],[-2050,-1900],[-1650,-2300],[-1720,-3400],[-1780,-4900],[2550,-4900],[2550,-1500],[4550,-1100],[4550,4550],[-4550,4550]],
+    "open": [ { "from": 0, "to": 8, "note": "the escarpment's lip, with the gorge's rims and its falls between" } ]
+  },
+  "openGround": {
+    "about": "The open-ground metric (Art/Levels/area_open.py): every walkable meter inside the boundary is measured to its nearest break (a building, wall, fence, outcrop or boulder group, tree stand, cliff, or a 1.5 m rise within 6 m). target is the most it should be (cm); open marks ground left open on purpose, which isn't measured.",
+    "target": 1000,
+    "open": [ { "id": "testField", "polygon": [[-1200,1600],[-1200,2200],[-1800,2200],[-1800,1600]], "note": "a field kept open on purpose, to show the marking" } ]
+  },
+  "obstacles": [
+    { "id": "eastFence", "kind": "fence", "path": [[-3800,4000],[-2600,3800],[-1400,4100]], "height": 140 },
+    { "id": "middleWall", "kind": "wall", "path": [[600,-1400],[1400,-600]], "height": 120 },
+    { "id": "southBoulders", "kind": "boulders", "polygon": [[-3500,-1800],[-3100,-1500],[-3300,-1000],[-3800,-1200]], "height": 300 },
+    { "id": "westStand", "kind": "trees", "polygon": [[-1000,-4400],[-500,-4400],[-400,-3700],[-1100,-3600]], "height": 1200 },
+    { "id": "northRuin", "kind": "ruin", "polygon": [[1500,1500],[1900,1500],[1900,2000],[1500,2000]], "height": 300 }
+  ],
+  "features": [
+    { "id": "bluff", "type": "ridge", "path": [[3400,-4400],[3500,-2900],[3400,-1500]], "height": 2000, "cliffs": "right", "width": 1100, "crestWidth": 400, "cliffWidth": 600, "taper": [0, 900], "note": "a 20 m bluff whose south face is a cliff in two stacked courses; its north side slopes into the north ridge" },
+    { "id": "sink", "type": "pit", "polygon": [[4100,2900],[3900,3700],[3100,4100],[2300,3800],[1900,3000],[2100,2200],[2900,1800],[3700,2100]], "depth": 800, "cliffWidth": 300,
+      "ramp": { "path": [[1000,1500],[1600,1800],[2200,2250],[2800,2200],[3300,2450],[3500,3000]], "width": 400, "grade": "even" } },
+    { "id": "knobNorth", "type": "knob", "center": [2500,600], "radius": 300, "height": 60, "rock": { "piece": "TorA", "height": 460, "yaw": 20 } },
+    { "id": "westPlateau", "type": "plateau", "height": 500, "cliffWidth": 300,
+      "polygon": [[1900,-4100],[2000,-3000],[1500,-2300],[800,-2400],[500,-3300],[1000,-4200]],
+      "ramp": { "path": [[2600,-700],[2200,-1300],[1850,-1850],[1500,-2600]], "width": 400, "grade": "even" } },
+    { "id": "fin", "type": "ridge", "path": [[200,200],[900,1100]], "height": 600, "cliffs": "both", "crestWidth": 200, "cliffWidth": 200, "taper": [300, 300] },
+    { "id": "eastPlateau", "type": "plateau", "height": 420, "cliffWidth": 300,
+      "polygon": [[900,2800],[1000,3700],[300,4200],[-400,3800],[-500,2900],[200,2500]],
+      "ramp": { "path": [[-1800,2400],[-1200,2800],[-600,3100],[-100,3300]], "width": 400, "grade": "even" } },
+    { "id": "scarp", "type": "scarp", "path": [[-400,-4400],[-200,-3200],[-500,-2200]], "height": 400, "side": "right", "back": 800, "cliffWidth": 150, "taper": 500 },
+    { "id": "creek", "type": "creek", "path": [[-800,-800],[-1200,-1400],[-1600,-1900],[-2000,-2200]], "width": 350, "depth": 120,
+      "falls": { "drop": 1000, "gorge": { "path": [[-2000,-2200],[-2100,-3400],[-2200,-5200]], "width": 700, "fall": 200 } } },
+    { "id": "coffinRock", "type": "mesa", "height": 900, "cliffWidth": 250,
+      "polygon": [[-1600,200],[-1600,1400],[-2200,1800],[-2800,1400],[-2800,300],[-2200,-100]] },
+    { "id": "knobSouth", "type": "knob", "center": [-2700,3000], "radius": 350, "height": 80, "rock": { "piece": "TorB", "height": 980, "yaw": -30 } },
+    { "id": "dryWash", "type": "gully", "path": [[-3400,3800],[-3800,2200],[-3900,600],[-3800,-1200],[-3900,-3000],[-3900,-5200]], "width": 500, "depth": 180, "bank": 1.0 }
+  ],
+  "roads": [],
+  "zones": [],
+  "placements": [
+    { "id": "spawn", "kind": "PlayerStart", "location": [-600,1800], "yaw": 0 }
+  ],
+  "level": {
+    "about": "How Tools/Unreal/build_area.py builds the test level (step 3d): the map, the tag and outliner folder of everything it places, the scatter's PCG graph and volume (Tools/Unreal/build_island_scatter.py TerrainTest).",
+    "map": "/Game/Maps/Dev/Lvl_TerrainTest",
+    "tag": "TerrainTestBuild",
+    "folder": "TerrainTest",
+    "scatterGraph": "PCG_TerrainTestScatter",
+    "scatterVolume": "TerrainTestScatter"
+  },
+  "gameplay": { "about": "No creatures or director: the test level only needs the spawn (placements)." },
+  "preview": {
+    "about": "The terrain model's --preview renders (Art/Levels/area_preview.py): each view's eye and target as [X, Y, height above the ground] (an eye outside the map square takes its height as absolute) and its lens (mm); the plan's labels at [X, Y].",
+    "views": {
+      "inside_north": { "eye": [-1200,600,170], "target": [6000,600,1500], "lens": 24 },
+      "inside_east": { "eye": [-600,-1200,170], "target": [-600,6000,1200], "lens": 24 },
+      "inside_south": { "eye": [1200,2200,170], "target": [-6000,2200,1000], "lens": 24 },
+      "inside_west": { "eye": [-500,2600,250], "target": [-500,-16000,-3000], "lens": 24 },
+      "highest_point": { "eye": [3450,-2900,180], "target": [-2500,2000,0], "lens": 22 },
+      "highest_point_west": { "eye": [3450,-2900,180], "target": [2000,-20000,-4500], "lens": 22 },
+      "escarpment_edge": { "eye": [-4200,-4350,900], "target": [12000,-5000,-3500], "lens": 24 },
+      "escarpment_from_canyon": { "eye": [-2500,-16000,1500], "target": [500,-4300,-300], "lens": 28 },
+      "seam_north": { "eye": [11000,-2000,6000], "target": [4000,3000,0], "lens": 24 }
+    },
+    "labels": {
+      "Bluff (20 m)": [3800,-2800], "Sink (pit)": [3000,3000], "West plateau": [1300,-3300], "East plateau": [300,3400],
+      "Fin": [600,800], "Scarp": [-700,-3600], "Creek": [-1100,-1300], "Falls": [-2000,-2000], "Gorge": [-2500,-4000],
+      "Coffin Rock (mesa)": [-2200,800], "Dry wash": [-4200,0], "Knob": [2500,600], "Knob ": [-2700,3000]
+    }
+  }
+}

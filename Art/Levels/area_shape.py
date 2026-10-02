@@ -2,19 +2,23 @@
 
 Area(path).build() fills one height raster over the area's map square (the layout's "map": half the square's side and
 the cell size of each raster, 10 cm for the heights on the tutorial island) in this order, each step working on the
-result of the one before: base noise and hills, plateaus and their cliffs, pads, building footprints, ponds, creek
-valleys, roads, plateau ramps, creek channels, easing unplanned banks, and the rim rolling over the island's edge. It
-keeps what the macro painter and the mesh builder need: the heights, the water surface, the outline, and the curves of
-the roads, creeks and ramps.
+result of the one before: base noise and hills, ridges and scarps, plateaus and mesas and their cliffs, pits, pads,
+building footprints, knobs, ponds, creek valleys, roads, ramps, creek channels, dry gullies, the gorges below falls,
+easing unplanned banks, and last the rim rolling over the island's edge (or, grounded, the seam band). It keeps what the
+macro painter and the mesh builder need: the heights, the water surface, the outline, and the curves of the roads,
+creeks, gullies and ramps.
 
-Features are lists by type (FEATURE_TYPES), in layout order, each with its id: area.plateaus, area.ramps, area.ponds,
-area.creeks; hills and pads only change the heights. A feature with cliffs names its cliff group in
-layout_computed.json (its cliffGroup, else its id; a ramp's walls are its own group). A new type (step 3b: scarps,
-ridges, knobs, pits, mesas, gullies, rail beds) gets its own step in build(), its own list and its own cliff group.
+Features are lists by type (FEATURE_TYPES), in layout order, each with its id: area.plateaus (mesas too), area.pits,
+area.ramps, area.ponds, area.creeks, area.spines (ridge features), area.scarps, area.knobs, area.gullies,
+area.gorges; hills and pads only change the heights. A feature with cliffs names its cliff group in
+layout_computed.json (its cliffGroup, else its id; a ramp's walls are its own group). area_features.py has the types
+that came with step 3b (ridges, scarps, pits, mesas, knobs, gullies, falls into gorges).
 
 The setting is layout.json's "setting": "island" (the default) is the floating island with a rim, an outline and an
-underside. Everything that assumes the rim is marked "island setting" here and in the other area_*.py modules; that is
-where step 3c's "grounded" setting branches off, and the island keeps today's code path.
+underside; everything that assumes the rim is marked "island setting" here and in the other area_*.py modules, and the
+island keeps that code path exactly. "grounded" (area_region.py) sets the core square in a regional height field: no
+rim or underside, the core's edge is the square and the escarpment's lip, a playable boundary with open edges, and a
+seam band where the core fades into the surround ring.
 """
 import json
 import math
@@ -22,13 +26,15 @@ import os
 
 import numpy as np
 
+from area_features import GORGE_STREAM, FeatureSteps, seam_conflicts
 from area_math import (Grid, arc_length, blur, catmull_rom, cells, fbm, fbm_raster, gauss_smooth_1d, normals_of,
                        points_in_polygon, polygon_area, polyline_field, raster_size, resample, resize, sample,
                        signed_distance, smax, smin, smoothstep)
+from area_region import SEAM_STEP, Region, boundary, seam_weight
 
 LEVELS = os.path.dirname(os.path.abspath(__file__))
-FEATURE_TYPES = ('hill', 'plateau', 'pad', 'pond', 'creek')
-SETTINGS = ('island',)  # step 3c adds 'grounded'
+FEATURE_TYPES = ('hill', 'plateau', 'pad', 'pond', 'creek', 'mesa', 'pit', 'ridge', 'scarp', 'knob', 'gully')
+SETTINGS = ('island', 'grounded')
 # The rasters, by the name layout.json's map.cells uses: the cell size (cm) when the layout gives none, the largest
 # size (cells across), and whether it's a texture (a power of two, so Unreal can mip and stream it). A 400 m square
 # keeps 12.5 cm heights; the macro map stops at 4096 px (about 10 cm per pixel there).
@@ -46,6 +52,13 @@ FOOTPRINTS = {
     'Farmhouse': (7.0, 4.0), 'Barn': (8.0, 4.0), 'LogCabin': (5.5, 3.5), 'Cottage': (5.5, 3.5),
     'Outhouse': (2.0, 3.0), 'Well': (2.5, 2.5), 'Windmill': (3.0, 4.5), 'LookoutTower': (4.0, 3.0),
     'GunRack': (2.0, 2.0),
+}
+# Buildings' sizes (length along the front, width) in meters: the worn ground around and in front of each (the macro
+# map) and the breaks they make in open ground (area_open.py).
+BUILDINGS = {
+    'Farmhouse': (9.0, 11.0), 'Barn': (12.0, 9.0), 'LogCabin': (6.5, 8.0), 'Cottage': (6.5, 8.0),
+    'Outhouse': (1.3, 1.3), 'Well': (1.8, 1.8), 'Windmill': (3.0, 3.0), 'LookoutTower': (4.0, 4.0),
+    'GunRack': (0.6, 2.0),
 }
 ROAD_STYLE = {  # how deep a road is carved and how wide its soft shoulders are (m), by kind
     'dirt': dict(carve=0.12, shoulder=2.2),
@@ -73,7 +86,7 @@ def load_layout(path):
         return json.load(file)
 
 
-class Area:
+class Area(FeatureSteps):
     def __init__(self, path, layout=None):
         self.path = os.path.abspath(path)
         self.folder = os.path.dirname(self.path)
@@ -81,9 +94,8 @@ class Area:
         self.name = self.layout.get('name') or os.path.basename(self.folder)
         self.setting = self.layout.get('setting', 'island')
         if self.setting not in SETTINGS:
-            raise ValueError(f"{self.path}: setting {self.setting!r} isn't one of {', '.join(SETTINGS)} (the grounded "
-                             f"setting comes with step 3c)")
-        self.island = self.layout['island']
+            raise ValueError(f"{self.path}: setting {self.setting!r} isn't one of {', '.join(SETTINGS)}")
+        self.island = self.layout.get('island', {})
         self._map_square()
         self.grid = Grid(self.sizes['shape'], self.half)
         unknown = [f['id'] for f in self.layout['features'] if f['type'] not in FEATURE_TYPES]
@@ -91,6 +103,9 @@ class Area:
             raise ValueError(f"{self.path}: features of no known type ({', '.join(FEATURE_TYPES)}): "
                              f"{', '.join(unknown)}")
         self.by_type = {t: [f for f in self.layout['features'] if f['type'] == t] for t in FEATURE_TYPES}
+        # The regional field's geometry (its rasters come with build()); the island setting has none.
+        self.region = Region(self) if self.setting == 'grounded' else None
+        self.boundary = self.open_edges = None
 
     def _map_square(self):
         """The map square and each raster's size, from the layout's map (in cm: the sizes come out exact, as 20480 cm
@@ -124,6 +139,11 @@ class Area:
     def scatter_texture(self):
         return f'Art/Textures/{self.name}Macro/T_{self.name}Scatter_BC.png'
 
+    @property
+    def ring_macro_texture(self):
+        """A grounded area's surround ring's macro color map (its own texture set, Art/Textures/<Area>RingMacro)."""
+        return f'Art/Textures/{self.name}RingMacro/T_{self.name}RingMacro_BC.png'
+
     def zones_of(self, kind):
         """The zones of a kind (a zone's kind, else its id): forest, orchard, range, village, ..."""
         return [z for z in self.layout['zones'] if z.get('kind', z['id']) == kind]
@@ -151,36 +171,105 @@ class Area:
         grid = self.grid
         x, y = grid.mesh()
         self.x, self.y = x, y
-        self._outline()
+        # Steep ground the features design (cliffs, walls): _relax() leaves it alone.
+        self.designed = np.zeros((grid.n, grid.n), dtype=bool)
+        if self.setting == 'grounded':
+            self._grounded(log)
+        else:
+            self._outline()
         log('terrain: meadow and hills')
         h = self._meadow(x, y)
         self.h_natural = h.astype(np.float32)
+        h = self._spines(h)
+        h = self._scarps(h)
         log('terrain: plateaus')
         h = self._plateaus(h)
+        h = self._pits(h)
         log('terrain: pads and footprints')
         h = self._pads(x, y, h)
         h = self._footprints(h)
+        h = self._knobs(h)
         # The ponds and the creeks' valleys come before the roads (a road passing a pond keeps its shoulders, and
         # the forest road follows the valley down to the bridge); the creeks' channels after them (they run under
-        # bridges).
+        # bridges), and the dry gullies and gorges with them.
         log('terrain: ponds, roads, ramps and creeks')
         h = self._ponds(x, y, h)
         h = self._creek_valleys(x, y, h)
         h = self._roads(h)
         h = self._ramps(h)
         h = self._creeks(h)
+        h = self._gullies(h)
+        h = self._gorges(h)
         h = self._relax(h)
-        log('terrain: rim')
-        h = self._rim(h)  # island setting
+        if self.setting == 'grounded':
+            log('terrain: seam band')
+            h = self._seam(h)
+        else:
+            log('terrain: rim')
+            h = self._rim(h)  # island setting
         self.h = h.astype(np.float32)
-        del self.x, self.y
+        del self.x, self.y, self.designed
         return self
+
+    def _grounded(self, log):
+        """The grounded setting's frame: the regional field, the core's edge (the square on the upland side of the
+        lip) and the playable boundary. Stops on any feature in the seam band."""
+        conflicts = seam_conflicts(self)
+        if conflicts:
+            raise ValueError(f'{self.path}: features in the seam band:\n  ' + '\n  '.join(conflicts))
+        self.region.build_fields(log)
+        self.core_polygon, self.core_on_lip = self.region.core_outline()
+        self.outline = resample(self.core_polygon, 0.5, closed=True)
+        self.edge = -signed_distance(self.grid, self.outline, 14.0)  # meters inside the core's edge
+        self.inside = self.edge > 0.0
+        self.boundary, self.open_edges = boundary(self)
+        if self.boundary is not None:
+            self.play_edge = -signed_distance(self.grid, self.boundary, 30.0)  # meters inside the playable boundary
+        else:
+            self.play_edge = self.edge
+        self.h_region = self.region.raster(self.grid)
+        self.dl = self.region.lip_distance(self.grid) if self.region.lip is not None else None
+
+    def _seam(self, h):
+        """The seam band: the core's own shape fades into the regional field toward the square's edge, where the core
+        is the field exactly."""
+        return self.h_region + (h - self.h_region) * seam_weight(self, self.x, self.y)
+
+    def mesh_boundary(self, step=0.7):
+        """The top mesh's edge loop (N, 2) and what each point is (None on an island: the rim all round; grounded: 0
+        on the lip, 1 on the square's edge, the seam, and 2 where the lip meets the square). The lip's points are step
+        meters apart and the seam's SEAM_STEP, with the square's corners kept."""
+        if self.setting != 'grounded':
+            return resample(self.outline, step, closed=True), None
+        poly, on_lip = self.core_polygon, self.core_on_lip
+
+        def edges(run):
+            """A run of the polygon resampled edge by edge (corners kept), at most SEAM_STEP apart."""
+            out = [run[:1]]
+            for a, b in zip(run[:-1], run[1:]):
+                count = max(1, int(math.ceil(np.linalg.norm(b - a) / SEAM_STEP - 1e-9)))
+                t = np.linspace(0.0, 1.0, count + 1)[1:, None]
+                out.append(a + (b - a) * t)
+            return np.vstack(out)
+        if not on_lip.any():
+            loop = edges(np.vstack([poly, poly[:1]]))[:-1]
+            return loop, np.ones(len(loop), dtype=np.int8)
+        k = int(next(i for i in range(len(poly)) if on_lip[i] and not on_lip[i - 1]))
+        poly, on_lip = np.roll(poly, -k, axis=0), np.roll(on_lip, -k)
+        m = int(on_lip.sum())
+        lip = resample(poly[:m], step)
+        square = edges(np.vstack([poly[m - 1:], poly[:1]]))
+        loop = np.vstack([lip, square[1:-1]])
+        kinds = np.concatenate([np.zeros(len(lip), np.int8), np.ones(len(square) - 2, np.int8)])
+        kinds[0] = kinds[len(lip) - 1] = 2
+        return loop, kinds
 
     def _relax(self, h, limit=30.0, passes=4):
         """Eases banks steeper than about limit degrees that no feature asked for (where a pad, a footprint and a
         path's cut meet on a hillside) toward a blurred copy of the ground. Designed steep ground is left alone:
-        the plateaus' cliffs, the ramps' walls, the creeks' channels, road surfaces and the rim."""
-        keep = np.zeros(h.shape, dtype=bool)
+        the plateaus' cliffs, the ramps' walls, the creeks' channels, road surfaces, the features' cliffs and walls,
+        and the rim (or, grounded, everything outside the playable boundary)."""
+        keep = self.designed.copy()
         for p in self.plateaus:
             keep |= (p['rise'] > 0.01) & (p['rise'] < 0.995)
             keep |= p['sd'] < p['width'] * 0.5 + 3.0
@@ -190,7 +279,12 @@ class Area:
         for c in self.creeks:
             keep |= np.isfinite(c['dist']) & (c['dist'] < 3.5)
         keep |= self.road_gap < 0.3
-        keep |= self.edge < RIM_ROLL + 1.0  # island setting
+        if self.setting == 'grounded':
+            keep |= self.play_edge < 0.5  # the ridges' bands and slopes past the boundary
+            if self.dl is not None:
+                keep |= self.dl < 1.5     # the escarpment's lip and drop
+        else:
+            keep |= self.edge < RIM_ROLL + 1.0  # island setting
         px = self.grid.px
         free = 1.0 - blur(keep.astype(np.float32), cells(0.5, px))  # fades in over half a meter from protected ground
         for _ in range(passes):
@@ -213,12 +307,18 @@ class Area:
         self.outline = resample(pts, 0.5, closed=True)
         self.edge = -signed_distance(self.grid, self.outline, 14.0)  # meters inside the rim (negative outside)
         self.inside = self.edge > 0.0
+        self.play_edge = self.edge  # the rim is the island's playable edge
 
     def _meadow(self, x, y):
+        if self.setting == 'grounded':
+            return self._valley(x, y)
         base, micro = self.island['baseNoise'], self.island['microNoise']
         # Each noise is the layout's amplitude at its wavelength (the base with a faint second octave).
         h = base['amplitude'] / 100.0 * fbm_raster(self.grid, base['wavelength'] / 100.0, seed=1, octaves=2, gain=0.35)
         h += micro['amplitude'] / 100.0 * fbm_raster(self.grid, micro['wavelength'] / 100.0, seed=2, octaves=1)
+        return self._hills(x, y, h)
+
+    def _hills(self, x, y, h):
         # Hills, their outlines bent by a warp so none is a perfect dome. The warp fades out toward the top, so the
         # summit stays at the hill's center (the windmill stands there).
         wx = 4.0 * fbm_raster(self.grid, 24.0, seed=7, octaves=1)
@@ -231,10 +331,20 @@ class Area:
             h += f['height'] / 100.0 * (0.5 + 0.5 * np.cos(np.pi * np.minimum(r, 1.0)))
         return h
 
+    def _valley(self, x, y):
+        """The grounded core's ground: the regional field, with the core's own small noise and its hills on the
+        upland (they fade out across the seam band at the end of build())."""
+        micro = self.region.spec.get('microNoise', {'amplitude': 25, 'wavelength': 600})
+        own = micro['amplitude'] / 100.0 * fbm_raster(self.grid, micro['wavelength'] / 100.0, seed=2, octaves=1)
+        own = self._hills(x, y, own)
+        if self.dl is not None:
+            own = own * smoothstep(0.0, 2.0, self.dl)
+        return self.h_region + own
+
     def _plateaus(self, h):
-        """Each plateau: a top raised over the ground inside its polygon, with a cliff around it."""
+        """Each plateau and mesa: a top raised over the ground inside its polygon, with a cliff around it."""
         self.plateaus = []
-        for f in self.by_type['plateau']:
+        for f in self.by_type['plateau'] + self.by_type['mesa']:
             top = f['height'] / 100.0
             width = f.get('cliffWidth', 350) / 100.0
             poly = catmull_rom(to_m(f['polygon']), closed=True, step=0.5)
@@ -249,8 +359,9 @@ class Area:
             top_h += 0.12 * fbm_raster(self.grid, 3.0, seed=14)
             talus = 0.9 * np.exp(-np.maximum(sd - width * 0.5, 0.0) / 2.2)
             foot = h + talus
-            self.plateaus.append(dict(id=f['id'], feature=f, cliff_group=f.get('cliffGroup', f['id']), poly=poly,
-                                      sd=sd.astype(np.float32), rise=rise.astype(np.float32), top=top, width=width))
+            self.plateaus.append(dict(id=f['id'], feature=f, kind=f['type'], cliff_group=f.get('cliffGroup', f['id']),
+                                      poly=poly, sd=sd.astype(np.float32), rise=rise.astype(np.float32), top=top,
+                                      width=width))
             h = foot + (top_h - foot) * rise
         return h
 
@@ -313,21 +424,28 @@ class Area:
         return h
 
     def _ramps(self, h):
-        """Each plateau's ramp: a path climbing at an even grade, on an embankment outside the cliff and in a cut
-        through it (steep rock walls on both sides)."""
+        """Each plateau's ramp, and each pit's: a path climbing (or descending) along its length, on an embankment
+        where the ground is lower and in a cut where it's higher (steep rock walls on both sides). Its grade eases in
+        and out; "grade": "even" keeps it constant but for 3 m at each end."""
         self.ramps = []
-        for p in self.plateaus:
+        for p in self.plateaus + self.pits:
             ramp = p['feature'].get('ramp')
             if ramp is None:
                 continue
             pts = catmull_rom(to_m(ramp['path']), step=0.5)
             s = arc_length(pts)
             z0 = float(sample(h, *pts[0], self.half))
-            # The top end: the plateau's height a little past the end of the path.
+            # The top end: the plateau's height a little past the end of the path (a pit's floor).
             end_dir = (pts[-1] - pts[-4]) / max(np.linalg.norm(pts[-1] - pts[-4]), 1e-6)
             z1 = float(sample(h, *(pts[-1] + end_dir * 3.0), self.half))
             t = s / s[-1]
-            z = z0 + (z1 - z0) * (0.5 * t + 0.5 * t * t * (3.0 - 2.0 * t))
+            if ramp.get('grade') == 'even':
+                ease = min(3.0, 0.2 * s[-1])
+                weight = smoothstep(0.0, ease, s) * smoothstep(0.0, ease, s[-1] - s) + 1e-6
+                climb = np.concatenate([[0.0], np.cumsum(0.5 * (weight[1:] + weight[:-1]) * np.diff(s))])
+                z = z0 + (z1 - z0) * climb / climb[-1]
+            else:
+                z = z0 + (z1 - z0) * (0.5 * t + 0.5 * t * t * (3.0 - 2.0 * t))
             half = ramp['width'] / 200.0
             dist, along, _ = polyline_field(self.grid, pts, 26.0)
             near = np.isfinite(dist)
@@ -340,6 +458,13 @@ class Area:
             hn = smax(hn, zr - 0.62 * e, 0.5)                                                 # the embankment's sides
             w = 1.0 - smoothstep(half - 0.3, half + 0.4, d)
             hn = hn + (zr - hn) * w
+            if self.setting == 'grounded':
+                # The cut and the embankment stay near the ramp: their cones past its ends would otherwise reach a
+                # ridge or the escarpment's drop.
+                reach = 1.0 - smoothstep(half + 9.0, half + 12.0, d)
+                if self.dl is not None:
+                    reach = reach * smoothstep(0.0, 1.0, self.dl[near])
+                hn = h[near] + (hn - h[near]) * reach
             h[near] = hn
             ramp_id = ramp.get('id', p['id'] + '_ramp')
             self.ramps.append(dict(id=ramp_id, plateau=p['id'], cliff_group=ramp.get('cliffGroup', ramp_id), pts=pts,
@@ -402,9 +527,17 @@ class Area:
             s_exit = float(s[np.argmax(~in_pond)]) if in_pond.any() else 0.0
             outside = ~points_in_polygon(pts[:, 0], pts[:, 1], self.outline)
             k_lip = int(np.argmax(outside)) if (f.get('waterfallAtEnd') and outside.any()) else len(pts) - 1
+            if f.get('falls'):
+                k_lip = len(pts) - 1  # a falls is at the creek's end, where its gorge starts
             s_lip = float(s[k_lip])
             run = np.maximum(s - s_exit, 0.0)
-            water = level - 0.011 * run - 0.035 * np.maximum(s - (s_lip - 9.0), 0.0)
+            if pond is None and self.setting == 'grounded':
+                # A spring: the water follows the ground down from where it rises, always falling.
+                ground = sample(h, pts[:, 0], pts[:, 1], self.half)
+                water = np.minimum.accumulate(gauss_smooth_1d(ground, 12.0) - 0.55 - 0.004 * s)
+                water = water - 0.035 * np.maximum(s - (s_lip - 9.0), 0.0)
+            else:
+                water = level - 0.011 * run - 0.035 * np.maximum(s - (s_lip - 9.0), 0.0)
             dist, along, side = polyline_field(self.grid, pts, 16.0)
             near = np.isfinite(dist)
             d = dist[near] + 0.25 * fbm(x[near], y[near], 3.0, seed=31)
@@ -468,5 +601,19 @@ class Area:
             w[wet] = p['level']
         for c in self.creeks:
             reach = np.isfinite(c['dist']) & (c['dist'] < 3.2) & (c['along'] <= c['s_lip'] + 1.0)
+            if c.get('gorge'):
+                # The water stops at the falls' lip: none hangs over the gorge past the creek's end.
+                ii, jj = np.nonzero(reach & (c['along'] >= c['s_lip'] - 1e-3))
+                end, direction = c['pts'][-1], c['gorge']['direction']
+                past = ((self.grid.c[ii] - end[0]) * direction[0] + (self.grid.c[jj] - end[1]) * direction[1]) > 0.0
+                reach[ii[past], jj[past]] = False
             w[reach] = np.interp(c['along'][reach], c['s'], c['water'])
+        for g in getattr(self, 'gorges', []):
+            # A shallow stream on the gorge's floor, from the falls' foot on.
+            dist, along, _ = polyline_field(self.grid, g['pts'], g['half'])
+            ii, jj = np.nonzero(np.isfinite(dist) & (dist < g['half'] - 0.3))
+            lip, direction = g['lip'], g['direction']
+            past = ((self.grid.c[ii] - lip[0]) * direction[0] + (self.grid.c[jj] - lip[1]) * direction[1]) > 0.2
+            ii, jj = ii[past], jj[past]
+            w[ii, jj] = np.interp(along[ii, jj], g['s'], g['floor']) + GORGE_STREAM
         return w

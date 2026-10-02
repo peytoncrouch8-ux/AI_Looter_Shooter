@@ -54,6 +54,12 @@ class Area:
         if abs(x0 + x1) > 1.0 or abs(y0 + y1) > 1.0 or abs((x1 - x0) - (y1 - y0)) > 1.0:
             raise ValueError(f'{name}: the scatter mask covers {[[x0, y0], [x1, y1]]}, not a square around the origin')
         self.half = (x1 - x0) / 2.0
+        # The rays start above the area's highest ground and reach below its lowest (layout_computed.json heightRange:
+        # a grounded area's ridges stand far higher than anything on the tutorial island); never less than the
+        # island's 40 m lift and 120 m reach.
+        low, high = self.data.get('heightRange', [-8000.0, 3000.0])
+        self.lift = max(4000.0, high + 1000.0)
+        self.ray = max(12000.0, self.lift - low + 1000.0)
         self.graph = level.get('scatterGraph', f'PCG_{name}Scatter')
         self.volume = level.get('scatterVolume', f'{name}Scatter')
         self.folder = level.get('folder', name)
@@ -176,9 +182,10 @@ def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=Fals
 class Scatter:
     """The shared inputs (obstacles, the mask's channels) and one chain per layer."""
 
-    def __init__(self, b, mask, half):
+    def __init__(self, b, mask, half, lift=4000.0, ray=12000.0):
         self.b = b
         self.half = half
+        self.lift, self.ray = lift, ray  # how high over the ground the rays start, and how far down they reach (cm)
         self.row = 0
         self.obstacles, settings = b.node(unreal.PCGDataFromActorSettings, 'Obstacles', 3, -3,
                                           mode=unreal.PCGGetDataFromActorMode.GET_SINGLE_POINT)
@@ -217,11 +224,11 @@ class Scatter:
                          coordinate_space=unreal.PCGCoordinateSpace.WORLD,
                          point_position=unreal.PCGPointPosition.CELL_CENTER)
         lift, _ = b.node(unreal.PCGTransformPointsSettings, 'Jitter, lift', 1, y,
-                         offset_min=unreal.Vector(-cell / 2, -cell / 2, 4000.0),
-                         offset_max=unreal.Vector(cell / 2, cell / 2, 4000.0))
+                         offset_min=unreal.Vector(-cell / 2, -cell / 2, self.lift),
+                         offset_max=unreal.Vector(cell / 2, cell / 2, self.lift))
         ray, ray_settings = b.node(unreal.PCGWorldRaycastElementSettings, 'Onto Ground', 2, y,
                                    raycast_mode=unreal.PCGWorldRaycastMode.NORMALIZED_WITH_LENGTH,
-                                   ray_direction=unreal.Vector(0.0, 0.0, -1.0), ray_length=12000.0)
+                                   ray_direction=unreal.Vector(0.0, 0.0, -1.0), ray_length=self.ray)
         query = ray_settings.get_editor_property('world_query_params')
         query.set_editor_property('actor_tag_filter', unreal.PCGWorldQueryFilter.INCLUDE)
         query.set_editor_property('actor_tags_list', 'Ground')
@@ -311,7 +318,7 @@ def build_graph(area, mask):
     graph = unreal.AssetToolsHelpers.get_asset_tools().create_asset(area.graph, GRAPH_FOLDER, unreal.PCGGraph,
                                                                     unreal.PCGGraphFactory())
     b = Builder(graph)
-    s = Scatter(b, mask, area.half)
+    s = Scatter(b, mask, area.half, area.lift, area.ray)
     veg = lambda name, required=True: mesh(VEGETATION, name, required)  # noqa: E731
     rock = lambda name: mesh(ROCKS, name)  # noqa: E731
 
@@ -392,7 +399,7 @@ def place_volume(area, graph):
         volume.set_actor_label(area.volume)
         volume.set_folder_path(f'{area.folder}/Scatter')
     # The brush is 200 cm across: cover the mask's square and the area's heights.
-    volume.set_actor_scale3d(unreal.Vector(area.half / 100.0, area.half / 100.0, 60.0))
+    volume.set_actor_scale3d(unreal.Vector(area.half / 100.0, area.half / 100.0, max(60.0, area.lift / 100.0 + 10.0)))
     component = volume.get_component_by_class(unreal.PCGComponent)
     component.set_editor_property('generation_trigger', unreal.PCGComponentGenerationTrigger.GENERATE_ON_DEMAND)
     component.set_graph(graph)
