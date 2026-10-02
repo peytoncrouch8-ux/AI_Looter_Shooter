@@ -1,5 +1,6 @@
 #include "Combat/PlayerVitalsSubsystem.h"
 #include "AI_Looter_Shooter.h"
+#include "Areas/AreaLandings.h"
 #include "Combat/HealthComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/World.h"
@@ -93,6 +94,11 @@ void UPlayerVitalsSubsystem::Respawn(APlayerController* PC, FPlayerVitals& Vital
 	FRotator Rotation = Character->GetActorRotation();
 	for (TActorIterator<APlayerStart> Start(GetWorld()); Start; ++Start)
 	{
+		// The level's own start, never a trip's landing (a depot's or a jetty's player start).
+		if (AreaLandings::IsLanding(*Start))
+		{
+			continue;
+		}
 		Location = Start->GetActorLocation();
 		Rotation = FRotator(0.f, Start->GetActorRotation().Yaw, 0.f);
 		break;

@@ -37,7 +37,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Combat/CriticalSpotTarget.h`: `ICriticalSpotTarget`, targets that have a critical spot.
 - `Combat/LooterDamageTypes.h`: weapon, critical-hit and creature-attack damage types.
 - `Combat/BulletSubsystem`: `UBulletSubsystem`, every bullet in flight: travel, hits, damage, impact effects.
-- `Combat/PlayerVitalsSubsystem`: red flash when hurt; fade out and respawn on death.
+- `Combat/PlayerVitalsSubsystem`: red flash when hurt; fade out and respawn on death at the level's own start (never a
+  trip's landing).
 - `Combat/TargetDummy`: `ATargetDummy`, a training dummy that takes hits and flashes.
 
 ## Weapons
