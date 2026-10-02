@@ -1,0 +1,2255 @@
+{
+ "width_m": 309,
+ "height_m": 205,
+ "boundary": [
+  [
+   146,
+   -4
+  ],
+  [
+   146,
+   10
+  ],
+  [
+   127,
+   14
+  ],
+  [
+   121,
+   37
+  ],
+  [
+   104,
+   67
+  ],
+  [
+   76,
+   88
+  ],
+  [
+   42,
+   93
+  ],
+  [
+   34,
+   93
+  ],
+  [
+   32,
+   100
+  ],
+  [
+   8,
+   100
+  ],
+  [
+   6,
+   92
+  ],
+  [
+   -2,
+   90
+  ],
+  [
+   -33,
+   93
+  ],
+  [
+   -65,
+   86
+  ],
+  [
+   -93,
+   65
+  ],
+  [
+   -110,
+   39
+  ],
+  [
+   -121,
+   28
+  ],
+  [
+   -141,
+   24
+  ],
+  [
+   -156,
+   21
+  ],
+  [
+   -163,
+   21
+  ],
+  [
+   -163,
+   3
+  ],
+  [
+   -155,
+   1
+  ],
+  [
+   -133,
+   -2
+  ],
+  [
+   -114,
+   -8
+  ],
+  [
+   -116,
+   -40
+  ],
+  [
+   -118,
+   -68
+  ],
+  [
+   -111,
+   -94
+  ],
+  [
+   -109,
+   -104
+  ],
+  [
+   -96,
+   -105
+  ],
+  [
+   -84,
+   -101
+  ],
+  [
+   -50,
+   -99
+  ],
+  [
+   -15,
+   -95
+  ],
+  [
+   20,
+   -96
+  ],
+  [
+   55,
+   -94
+  ],
+  [
+   69,
+   -90
+  ],
+  [
+   81,
+   -90
+  ],
+  [
+   87,
+   -80
+  ],
+  [
+   106,
+   -62
+  ],
+  [
+   120,
+   -36
+  ],
+  [
+   126,
+   -14
+  ],
+  [
+   128,
+   -6
+  ]
+ ],
+ "beyond": "West: the Rim. The valley ends at a 70 m drop into Gravewind Canyon. Past it the player sees the canyon floor in blue haze with a thin river, the lower far wall about 300 m off, and the plains of Teropa running to the sunset with a few far mesas. The Rimrock stands about 3 m inside the lip beside the farm, with two gaps onto the sunset. The lip is open on Gravewind Point and at Ransom's Point, where the Mooring Notch, a cleft of the canyon, cuts in under the bluff's south face. Locals call the wind that climbs the canyon at dusk the Gravewind.\n\nNorth: Larkspur Ridge. Steep pines over an 8–12 m cliff band, with the crest 40–60 m up and the Old Quarry cut into its foot at (20, 95). Past it are higher forested ridges and a far blue range.\n\nEast: the East Ridge, about 35 m, with a rock band at its foot. Stage Gap, a saddle 16–20 m wide between 12 m rock walls at x 128–146, is the railroad's cut through the ridge. The line comes up out of the wooded valley past the gap on a short timber trestle, runs west through the cut along its south side and ends at a buffer stop by the depot, at the east end of town. The platform runs beside the track from the depot to a water tower in the gap. The train stands at the platform with its locomotive at the gap's mouth, facing out. Past the gap the ground falls away to a wooded valley and blue hills. A rockslide buried the old stage road down that side, and its broken slabs bank the cut on both sides of the locomotive, which is why nobody walks out east.\n\nSouth: the Hogback, a grass ridge about 30 m high with a 6–10 m rock band at its foot and dead trees along its dry crest against the sky. Ransom's Point is its west end and the Nose is a spur off it. Mill Gorge cuts through it at (75, −90), where Mill Creek drops 14 m over Mill Falls.\n\nNone of the ground past the boundary can be walked: cliff bands, slopes too steep to climb, the canyon drop (Hob catches a fall, as everywhere in the story), and in Stage Gap the parked train and the rockslide. Invisible walls behind the ridge feet are only a backstop. The ridges' outer slopes, the canyon wall below the Rim's cliff kit, the canyon floor and its far wall are cheap generated meshes, and the plains and far ranges are unlit silhouettes. The line down the far side of the gap is a few track pieces with no collision. Nothing past the Rim has collision. They replace the planned backdrop islands around Ransom's Rest (Skyreach keeps its own). Only the valley's own terrain is tagged Ground, so the minimap covers the valley and the ridge feet, dims everything past the boundary and never shows the canyon.",
+ "zones": [
+  {
+   "name": "Ransom Farm, Orchard and Family Plot (spawn, +4 m terrace)",
+   "x": -70,
+   "y": -38,
+   "radius_m": 28,
+   "kind": "home"
+  },
+  {
+   "name": "Ransom's Point (+20 m bluff on the Rim, top about 40 m across)",
+   "x": -92,
+   "y": -80,
+   "radius_m": 20,
+   "kind": "lookout"
+  },
+  {
+   "name": "Main Street",
+   "x": 28,
+   "y": 0,
+   "radius_m": 36,
+   "kind": "town"
+  },
+  {
+   "name": "Boot Hill (+5 m)",
+   "x": 0,
+   "y": 32,
+   "radius_m": 9,
+   "kind": "graveyard"
+  },
+  {
+   "name": "Undertaker's Yard and the Depot",
+   "x": 100,
+   "y": 2,
+   "radius_m": 20,
+   "kind": "travel"
+  },
+  {
+   "name": "Chapel of Saint Ada (+10 m knoll)",
+   "x": -19,
+   "y": 60,
+   "radius_m": 24,
+   "kind": "chapel"
+  },
+  {
+   "name": "The Sink (-12 m, 36 m across)",
+   "x": 65,
+   "y": 46,
+   "radius_m": 18,
+   "kind": "pit"
+  },
+  {
+   "name": "Whitlock Fields and Mill Creek",
+   "x": 60,
+   "y": -58,
+   "radius_m": 28,
+   "kind": "fields"
+  },
+  {
+   "name": "Gravewind Point (boss arena, a promontory of the Rim)",
+   "x": -150,
+   "y": 13,
+   "radius_m": 18,
+   "kind": "boss_arena"
+  }
+ ],
+ "paths": [
+  [
+   [
+    -58,
+    -40
+   ],
+   [
+    -45,
+    -28
+   ],
+   [
+    -26,
+    -13
+   ],
+   [
+    -11,
+    0
+   ]
+  ],
+  [
+   [
+    -11,
+    0
+   ],
+   [
+    70,
+    0
+   ]
+  ],
+  [
+   [
+    70,
+    0
+   ],
+   [
+    93,
+    2
+   ],
+   [
+    120,
+    3
+   ],
+   [
+    140,
+    3
+   ]
+  ],
+  [
+   [
+    -86,
+    -36
+   ],
+   [
+    -72,
+    -38
+   ],
+   [
+    -58,
+    -40
+   ]
+  ],
+  [
+   [
+    -86,
+    -36
+   ],
+   [
+    -100,
+    -40
+   ],
+   [
+    -108,
+    -46
+   ],
+   [
+    -74,
+    -55
+   ],
+   [
+    -66,
+    -70
+   ],
+   [
+    -73,
+    -80
+   ],
+   [
+    -100,
+    -86
+   ]
+  ],
+  [
+   [
+    19,
+    2
+   ],
+   [
+    17,
+    23
+   ],
+   [
+    5,
+    42
+   ],
+   [
+    -14,
+    54
+   ]
+  ],
+  [
+   [
+    17,
+    23
+   ],
+   [
+    37,
+    36
+   ],
+   [
+    47,
+    44
+   ],
+   [
+    48,
+    38
+   ],
+   [
+    52,
+    32
+   ],
+   [
+    62,
+    29
+   ],
+   [
+    72,
+    32
+   ],
+   [
+    76,
+    40
+   ],
+   [
+    68,
+    46
+   ]
+  ],
+  [
+   [
+    -19,
+    54
+   ],
+   [
+    -51,
+    47
+   ],
+   [
+    -84,
+    33
+   ],
+   [
+    -112,
+    19
+   ],
+   [
+    -138,
+    13
+   ],
+   [
+    -150,
+    12
+   ]
+  ],
+  [
+   [
+    -70,
+    -30
+   ],
+   [
+    -86,
+    -9
+   ],
+   [
+    -102,
+    10
+   ],
+   [
+    -112,
+    19
+   ]
+  ],
+  [
+   [
+    44,
+    0
+   ],
+   [
+    48,
+    -19
+   ],
+   [
+    54,
+    -42
+   ],
+   [
+    51,
+    -60
+   ]
+  ],
+  [
+   [
+    8,
+    38
+   ],
+   [
+    6,
+    60
+   ],
+   [
+    10,
+    80
+   ],
+   [
+    18,
+    90
+   ]
+  ],
+  [
+   [
+    170,
+    6
+   ],
+   [
+    158,
+    1
+   ],
+   [
+    146,
+    -1
+   ],
+   [
+    128,
+    -1
+   ],
+   [
+    110,
+    -1
+   ]
+  ]
+ ],
+ "rail": [
+  [
+   170,
+   6
+  ],
+  [
+   158,
+   1
+  ],
+  [
+   146,
+   -1
+  ],
+  [
+   128,
+   -1
+  ],
+  [
+   110,
+   -1
+  ]
+ ],
+ "pois": [
+  {
+   "name": "Ellis's grave and Abel's frosted grave (spawn, family plot)",
+   "x": -86,
+   "y": -36,
+   "kind": "spawn"
+  },
+  {
+   "name": "Ransom farmhouse (Grandma Delia's screen door)",
+   "x": -58,
+   "y": -40,
+   "kind": "npc"
+  },
+  {
+   "name": "Barn",
+   "x": -64,
+   "y": -22,
+   "kind": "building"
+  },
+  {
+   "name": "Bluff path foot (64 m ramp, about 25%), between the Rimrock and the family plot's west gate",
+   "x": -108,
+   "y": -46,
+   "kind": "landmark"
+  },
+  {
+   "name": "Spider nest on the bluff top (Main 2, Restless spider)",
+   "x": -84,
+   "y": -74,
+   "kind": "fight"
+  },
+  {
+   "name": "Ransom's Point lookout (cold open, Sexton's deal), facing the sunset over Gravewind Canyon",
+   "x": -100,
+   "y": -86,
+   "kind": "landmark"
+  },
+  {
+   "name": "The Mooring Ledge: the gang's old mooring post under the bluff's south face, over the Mooring Notch (lookout's cliff stairs)",
+   "x": -102,
+   "y": -101,
+   "kind": "landmark"
+  },
+  {
+   "name": "Town gate (Main 3 fight)",
+   "x": -11,
+   "y": 0,
+   "kind": "fight"
+  },
+  {
+   "name": "Sheriff's office and Rim Rangers' notice board",
+   "x": 12,
+   "y": 8,
+   "kind": "building"
+  },
+  {
+   "name": "Town memorial",
+   "x": 24,
+   "y": 0,
+   "kind": "landmark"
+  },
+  {
+   "name": "Pruitt's General Store",
+   "x": 30,
+   "y": -8,
+   "kind": "building"
+  },
+  {
+   "name": "Gilt Spur saloon (closed for mourning)",
+   "x": 34,
+   "y": 8,
+   "kind": "building"
+  },
+  {
+   "name": "Bright & Daughter, Undertakers (Tilly's window)",
+   "x": 60,
+   "y": -8,
+   "kind": "npc"
+  },
+  {
+   "name": "Coffin shed",
+   "x": 92,
+   "y": -4,
+   "kind": "building"
+  },
+  {
+   "name": "The depot and its station board, at the east end of town (exit: every trip arrives and leaves here)",
+   "x": 114,
+   "y": 9,
+   "kind": "travel"
+  },
+  {
+   "name": "The platform, with the train at it: Tilly's hearse car by the depot, the locomotive at the gap's mouth (Main 7)",
+   "x": 126,
+   "y": 3,
+   "kind": "travel"
+  },
+  {
+   "name": "The water tower, at the platform's east end in Stage Gap",
+   "x": 140,
+   "y": 7,
+   "kind": "landmark"
+  },
+  {
+   "name": "Boot hill respawn grave",
+   "x": 0,
+   "y": 32,
+   "kind": "respawn"
+  },
+  {
+   "name": "Chapel of Saint Ada (bell tower, smashed Reliquary, Aldana's door)",
+   "x": -19,
+   "y": 66,
+   "kind": "landmark"
+  },
+  {
+   "name": "Chapel yard respawn grave",
+   "x": -6,
+   "y": 56,
+   "kind": "respawn"
+  },
+  {
+   "name": "Sink floor: the Keeper's Lantern and egg sacs",
+   "x": 66,
+   "y": 48,
+   "kind": "objective"
+  },
+  {
+   "name": "The Gravemother's den (separate mesh under Den Rock's overhang, the Sink's east wall)",
+   "x": 82,
+   "y": 48,
+   "kind": "legendary_monster"
+  },
+  {
+   "name": "Amos Whitlock, on his fence by the gate",
+   "x": 51,
+   "y": -38,
+   "kind": "npc"
+  },
+  {
+   "name": "Whitlock barn and windmill",
+   "x": 36,
+   "y": -68,
+   "kind": "building"
+  },
+  {
+   "name": "Mill Creek spring, in the springhouse",
+   "x": 84,
+   "y": -16,
+   "kind": "landmark"
+  },
+  {
+   "name": "Mill Falls: the creek drops 14 m into Mill Gorge (the existing waterfall)",
+   "x": 75,
+   "y": -88,
+   "kind": "landmark"
+  },
+  {
+   "name": "Keeper's grave (respawn for the boss)",
+   "x": -112,
+   "y": 17,
+   "kind": "respawn"
+  },
+  {
+   "name": "Burial boards deck (Abel, the Keeper): on the tip of Gravewind Point, its west end 3 m out over the canyon",
+   "x": -150,
+   "y": 12,
+   "kind": "boss"
+  },
+  {
+   "name": "Keeper's Bridge: the footbridge where the keeper's path crosses the Dry Wash",
+   "x": -95,
+   "y": 2,
+   "kind": "landmark"
+  },
+  {
+   "name": "The Keeper's Gate: two rocks at Gravewind Point's neck; the boss fight's fog wall",
+   "x": -128,
+   "y": 13,
+   "kind": "landmark"
+  },
+  {
+   "name": "The Pour-off: the Dry Wash spills over the Rim",
+   "x": -115,
+   "y": -6,
+   "kind": "landmark"
+  },
+  {
+   "name": "The Old Quarry and its fallen derrick",
+   "x": 20,
+   "y": 95,
+   "kind": "landmark"
+  },
+  {
+   "name": "The Gap rockslide: it buried the old stage road east, and its slabs bank the rail cut on both sides of the locomotive",
+   "x": 145,
+   "y": 6,
+   "kind": "landmark"
+  }
+ ],
+ "obstacles": [
+  {
+   "type": "cliff",
+   "name": "The Rim",
+   "points": [
+    [
+     -109,
+     -104
+    ],
+    [
+     -111,
+     -94
+    ],
+    [
+     -118,
+     -68
+    ],
+    [
+     -116,
+     -40
+    ],
+    [
+     -114,
+     -8
+    ],
+    [
+     -133,
+     -2
+    ],
+    [
+     -155,
+     1
+    ],
+    [
+     -159,
+     3
+    ],
+    [
+     -159,
+     19
+    ],
+    [
+     -156,
+     21
+    ],
+    [
+     -141,
+     24
+    ],
+    [
+     -121,
+     28
+    ],
+    [
+     -110,
+     39
+    ],
+    [
+     -93,
+     65
+    ]
+   ],
+   "closed": false,
+   "height_m": -70,
+   "note": "The valley's west edge: a 70 m escarpment down to Gravewind Canyon (height is the drop). The top 12-20 m are stacked cliff kit; below that a generated canyon wall with no collision. The lip is open on Gravewind Point and at Ransom's Point; beside the farm the Rimrock stands about 3 m inside it. A fall is caught by Hob, as everywhere in the story."
+  },
+  {
+   "type": "cliff",
+   "name": "Ransom's Point, north and east faces",
+   "points": [
+    [
+     -112,
+     -60
+    ],
+    [
+     -77,
+     -60
+    ],
+    [
+     -71,
+     -65
+    ]
+   ],
+   "closed": false,
+   "height_m": 16,
+   "note": "The bluff's faces over the farm terrace, two stacked courses (16 m). The bluff path is a ledge cut along them and is unchanged: 64 m, 16 m climb, about 25% (14 degrees), two wide bends."
+  },
+  {
+   "type": "cliff",
+   "name": "Ransom's Point, south face over the Mooring Notch",
+   "points": [
+    [
+     -73,
+     -85
+    ],
+    [
+     -74,
+     -98
+    ],
+    [
+     -90,
+     -102
+    ],
+    [
+     -108,
+     -100
+    ]
+   ],
+   "closed": false,
+   "height_m": 20,
+   "note": "A 20 m face down to the Mooring Ledge (-102, -101), where the gang tied up their skiff out of sight of town. Reached only by the lookout's cliff stairs; the Tumble closes the ledge's east end."
+  },
+  {
+   "type": "ridge",
+   "name": "Larkspur Ridge",
+   "points": [
+    [
+     -93,
+     67
+    ],
+    [
+     -65,
+     89
+    ],
+    [
+     -33,
+     96
+    ],
+    [
+     -2,
+     93
+    ],
+    [
+     6,
+     95
+    ]
+   ],
+   "closed": false,
+   "height_m": 45,
+   "note": "The north wall, west of the quarry: an 8-12 m cliff band at its foot, then steep pines to a crest 40-60 m up. Points trace its foot, just outside the boundary."
+  },
+  {
+   "type": "cliff",
+   "name": "The Old Quarry faces",
+   "points": [
+    [
+     6,
+     92
+    ],
+    [
+     8,
+     100
+    ],
+    [
+     32,
+     100
+    ],
+    [
+     34,
+     93
+    ]
+   ],
+   "closed": false,
+   "height_m": 10,
+   "note": "Where the chapel's stone came from: three 10 m cut faces around a flat floor at the end of the quarry track. A dead-end pocket with a view back over boot hill."
+  },
+  {
+   "type": "ridge",
+   "name": "Larkspur Ridge, east",
+   "points": [
+    [
+     34,
+     96
+    ],
+    [
+     42,
+     96
+    ],
+    [
+     76,
+     91
+    ],
+    [
+     104,
+     70
+    ]
+   ],
+   "closed": false,
+   "height_m": 45,
+   "note": "The north wall east of the quarry, curving into the East Ridge behind the Webwood."
+  },
+  {
+   "type": "ridge",
+   "name": "East Ridge, north of Stage Gap",
+   "points": [
+    [
+     104,
+     69
+    ],
+    [
+     123,
+     37
+    ],
+    [
+     128,
+     16
+    ]
+   ],
+   "closed": false,
+   "height_m": 35,
+   "note": "About 35 m, rock band at its foot; Hearse Rock is a spur off it."
+  },
+  {
+   "type": "cliff",
+   "name": "Stage Gap, north wall",
+   "points": [
+    [
+     127,
+     14
+    ],
+    [
+     146,
+     11
+    ]
+   ],
+   "closed": false,
+   "height_m": 12,
+   "note": "One side of the saddle the railroad cut through: 12 m rock walls 16-20 m apart. The platform's east end and the water tower stand at its foot."
+  },
+  {
+   "type": "cliff",
+   "name": "Stage Gap, south wall",
+   "points": [
+    [
+     128,
+     -6
+    ],
+    [
+     146,
+     -5
+    ]
+   ],
+   "closed": false,
+   "height_m": 12,
+   "note": "The other side of the saddle. The track runs along its foot."
+  },
+  {
+   "type": "boulders",
+   "name": "The Gap rockslide, north bank",
+   "points": [
+    [
+     143,
+     1
+    ],
+    [
+     146,
+     1
+    ],
+    [
+     146,
+     10
+    ],
+    [
+     143,
+     9
+    ]
+   ],
+   "closed": true,
+   "height_m": 4,
+   "note": "Where the old stage road dropped out of the gap, a slide buried it. The railroad cut through the slide at the gap's mouth, and its broken slabs bank the cut on both sides: too steep and loose to climb, falling away down the old road's line outside. This bank fills the mouth from the north wall to within half a metre of the parked locomotive, so nobody squeezes past. With the train in the cut it closes the boundary's east edge with real rock and a real train, not an invisible wall, and says why nobody walks out east: the train is the only way out."
+  },
+  {
+   "type": "boulders",
+   "name": "The Gap rockslide, south bank",
+   "points": [
+    [
+     141,
+     -5
+    ],
+    [
+     146,
+     -4
+    ],
+    [
+     146,
+     -3
+    ],
+    [
+     141,
+     -3
+    ]
+   ],
+   "closed": true,
+   "height_m": 3,
+   "note": "The slide's bank between the south wall and the track, also ending half a metre from the parked locomotive."
+  },
+  {
+   "type": "ridge",
+   "name": "East Ridge, south of Stage Gap",
+   "points": [
+    [
+     129,
+     -7
+    ],
+    [
+     127,
+     -15
+    ],
+    [
+     122,
+     -37
+    ],
+    [
+     108,
+     -63
+    ],
+    [
+     89,
+     -81
+    ],
+    [
+     83,
+     -93
+    ]
+   ],
+   "closed": false,
+   "height_m": 35,
+   "note": "About 35 m, rock band at its foot, closing the fields and the Stone Teeth on the east and meeting the Hogback at Mill Gorge."
+  },
+  {
+   "type": "ridge",
+   "name": "The Hogback",
+   "points": [
+    [
+     -84,
+     -103
+    ],
+    [
+     -50,
+     -101
+    ],
+    [
+     -15,
+     -97
+    ],
+    [
+     20,
+     -98
+    ],
+    [
+     55,
+     -96
+    ],
+    [
+     68,
+     -93
+    ]
+   ],
+   "closed": false,
+   "height_m": 30,
+   "note": "The south wall: a long grass ridge about 30 m high with a 6-10 m rock band at its foot. Ransom's Point is its west end; the Nose is a spur off it."
+  },
+  {
+   "type": "gully",
+   "name": "Mill Gorge and Mill Falls",
+   "points": [
+    [
+     75,
+     -91
+    ],
+    [
+     75,
+     -98
+    ],
+    [
+     77,
+     -112
+    ]
+   ],
+   "closed": false,
+   "height_m": -14,
+   "note": "Mill Creek leaves the valley here: the existing waterfall drops 14 m off a rock lip into a slot gorge through the Hogback (height is the drop). A rail fence on the lip; the gorge walls are stacked cliff kit."
+  },
+  {
+   "type": "outcrop",
+   "name": "Rimrock, south",
+   "points": [
+    [
+     -114,
+     -58
+    ],
+    [
+     -114,
+     -49
+    ]
+   ],
+   "closed": false,
+   "height_m": 7,
+   "note": "Broken rock standing about 3 m inside the Rim's lip, so none of it hangs over the canyon, beside the bluff path's foot. With the other two pieces, the farm's west edge reads as rock rather than a bare drop. Kept at 6-7 m so the lookout looks over it."
+  },
+  {
+   "type": "outcrop",
+   "name": "Rimrock, middle",
+   "points": [
+    [
+     -113,
+     -36
+    ],
+    [
+     -112,
+     -26
+    ]
+   ],
+   "closed": false,
+   "height_m": 6,
+   "note": "About 3 m inside the lip, like the other two pieces. The gaps either side (y -49 to -36 and -26 to -20) are windows on the sunset and the canyon from the family plot."
+  },
+  {
+   "type": "outcrop",
+   "name": "Rimrock, north",
+   "points": [
+    [
+     -112,
+     -20
+    ],
+    [
+     -111,
+     -12
+    ]
+   ],
+   "closed": false,
+   "height_m": 6,
+   "note": "Frames the Pour-off on its south side. Kept at 6 m: taller, it hid the west road's end from the lookout."
+  },
+  {
+   "type": "outcrop",
+   "name": "Keeper's Gate, south rock",
+   "points": [
+    [
+     -127,
+     -1
+    ],
+    [
+     -129,
+     6
+    ]
+   ],
+   "closed": false,
+   "height_m": 4,
+   "note": "With the north rock, frames the west road (a 17 m opening) and the deck beyond. The boss fight's fog wall seals this gap. Kept at 4 m so the lookout still sees the whole deck."
+  },
+  {
+   "type": "outcrop",
+   "name": "Keeper's Gate, north rock",
+   "points": [
+    [
+     -127,
+     23
+    ],
+    [
+     -131,
+     25
+    ]
+   ],
+   "closed": false,
+   "height_m": 7,
+   "note": "The tall side of the gate, on the promontory's north lip."
+  },
+  {
+   "type": "gully",
+   "name": "The Dry Wash",
+   "points": [
+    [
+     -28,
+     30
+    ],
+    [
+     -44,
+     25
+    ],
+    [
+     -60,
+     19
+    ],
+    [
+     -76,
+     12
+    ],
+    [
+     -90,
+     5
+    ],
+    [
+     -103,
+     -1
+    ],
+    [
+     -115,
+     -6
+    ]
+   ],
+   "closed": false,
+   "height_m": -3,
+   "note": "A dry creek bed 8 m wide and 3 m deep (height is the depth) with sloped banks, from the low ground west of boot hill and south of the chapel knoll west to the Pour-off, where it spills over the Rim. It splits the old map's biggest blank into the farm's side and the west road's side. The keeper's path crosses it on Keeper's Bridge (-95, 2); elsewhere you scramble across. No fight uses it: its head is 34 m from the town gate."
+  },
+  {
+   "type": "treeline",
+   "name": "Wash willows",
+   "points": [
+    [
+     -101,
+     0
+    ],
+    [
+     -88,
+     7
+    ],
+    [
+     -74,
+     14
+    ],
+    [
+     -64,
+     18
+    ]
+   ],
+   "closed": false,
+   "height_m": 5,
+   "note": "Willow and chokecherry scrub along the wash's lower half. Kept under 5 m so the lookout sees the west road over it, and stopped at x = -64 so the grave keeps its view of the chapel tower."
+  },
+  {
+   "type": "outcrop",
+   "name": "The Three Widows",
+   "points": [
+    [
+     -85,
+     1
+    ],
+    [
+     -77,
+     4
+    ],
+    [
+     -69,
+     1
+    ]
+   ],
+   "closed": false,
+   "height_m": 7,
+   "note": "Three leaning slabs (cliff-kit buttresses stood on end) between the salt line and the wash: the farm's own landmark, seen from the family plot, and cover beside the keeper's path. Far enough south of the west road that their shadow from the lookout falls short of it."
+  },
+  {
+   "type": "ruin",
+   "name": "The sheep fold",
+   "points": [
+    [
+     -84,
+     17
+    ],
+    [
+     -74,
+     17
+    ],
+    [
+     -74,
+     25
+    ],
+    [
+     -84,
+     25
+    ]
+   ],
+   "closed": true,
+   "height_m": 1.5,
+   "note": "A roofless dry-stone fold between the wash and the west road: low cover that breaks up the field without hiding the road from the lookout."
+  },
+  {
+   "type": "treeline",
+   "name": "Widow's Pines",
+   "points": [
+    [
+     -106,
+     42
+    ],
+    [
+     -92,
+     40
+    ],
+    [
+     -78,
+     47
+    ],
+    [
+     -64,
+     54
+    ],
+    [
+     -53,
+     63
+    ],
+    [
+     -50,
+     76
+    ],
+    [
+     -56,
+     87
+    ],
+    [
+     -66,
+     86
+    ],
+    [
+     -93,
+     65
+    ],
+    [
+     -108,
+     41
+    ]
+   ],
+   "closed": true,
+   "height_m": 13,
+   "note": "A dark pine wood filling the north-west between the west road and Larkspur Ridge, 10 m or more off the road. It closes a big blank, hides the ridge's foot, and makes the road a corridor between the wood and the wash."
+  },
+  {
+   "type": "ruin",
+   "name": "The Burnt Homestead",
+   "points": [
+    [
+     -77,
+     45
+    ],
+    [
+     -67,
+     45
+    ],
+    [
+     -67,
+     53
+    ],
+    [
+     -77,
+     53
+    ]
+   ],
+   "closed": true,
+   "height_m": 4,
+   "note": "A farmhouse burnt in the fever winter, its stone chimney standing, in a clearing at the wood's edge 7 m off the west road. Cover and something to look at on the walk to the boss."
+  },
+  {
+   "type": "boulders",
+   "name": "Keeper's cairns",
+   "points": [
+    [
+     -115,
+     13
+    ],
+    [
+     -120,
+     12
+    ],
+    [
+     -125,
+     11
+    ]
+   ],
+   "closed": false,
+   "height_m": 1.5,
+   "note": "Knee-high stone cairns lining the last stretch of the west road from the keeper's grave to the Keeper's Gate: waymarks to the boards. The crossroads at the keeper's grave stays clear so the respawn and the junction read."
+  },
+  {
+   "type": "ruin",
+   "name": "The old lantern house",
+   "points": [
+    [
+     -106,
+     32
+    ],
+    [
+     -98,
+     32
+    ],
+    [
+     -98,
+     38
+    ],
+    [
+     -106,
+     38
+    ]
+   ],
+   "closed": true,
+   "height_m": 4,
+   "note": "A roofless stone hut beside the west road just east of the keeper's grave, where the keepers trimmed their lanterns. Cover at the root of Gravewind Point."
+  },
+  {
+   "type": "treeline",
+   "name": "The Orchard",
+   "points": [
+    [
+     -50,
+     -24
+    ],
+    [
+     -42,
+     -12
+    ],
+    [
+     -30,
+     -6
+    ],
+    [
+     -24,
+     -14
+    ],
+    [
+     -26,
+     -32
+    ],
+    [
+     -36,
+     -48
+    ],
+    [
+     -48,
+     -48
+    ]
+   ],
+   "closed": true,
+   "height_m": 5,
+   "note": "The amber orchard, drawn in: apple rows down the farm terrace's east edge on both sides of the farm road (an avenue through it). It hides the town from the grave; apples stay low (5 m) so the lookout sees over it."
+  },
+  {
+   "type": "fence",
+   "name": "Delia's salt line",
+   "points": [
+    [
+     -113,
+     -15
+    ],
+    [
+     -104,
+     -14
+    ],
+    [
+     -84,
+     -10
+    ],
+    [
+     -60,
+     -5
+    ],
+    [
+     -36,
+     -3
+    ],
+    [
+     -22,
+     -12
+    ],
+    [
+     -23,
+     -34
+    ],
+    [
+     -34,
+     -52
+    ],
+    [
+     -52,
+     -62
+    ],
+    [
+     -60,
+     -72
+    ]
+   ],
+   "closed": false,
+   "height_m": 1.4,
+   "note": "The farm's fence with the salt line along it and blue larkspur, from the Rimrock round the orchard to the Tumble: the edge of the safe zone. Gates where the farm road (-24, -11) and the keeper's path (-84, -10) cross."
+  },
+  {
+   "type": "boulders",
+   "name": "Nest rocks",
+   "points": [
+    [
+     -92,
+     -66
+    ],
+    [
+     -82,
+     -64
+    ],
+    [
+     -78,
+     -70
+    ],
+    [
+     -84,
+     -76
+    ],
+    [
+     -92,
+     -74
+    ]
+   ],
+   "closed": true,
+   "height_m": 1.2,
+   "note": "A waist-high ring of broken rock round the spider nest on the bluff top: cover for Main 2 on the top's one level. Kept under 1.2 m because the lookout's lines to town pass over it."
+  },
+  {
+   "type": "outcrop",
+   "name": "Bluff-top rocks",
+   "points": [
+    [
+     -93,
+     -92
+    ],
+    [
+     -80,
+     -92
+    ]
+   ],
+   "closed": false,
+   "height_m": 3,
+   "note": "Two 3 m rocks on the top's south half, out of the lookout's lines to the valley: the Main 2 fight's hard cover, so the top is something to fight around rather than a bare table."
+  },
+  {
+   "type": "boulders",
+   "name": "Gate Stones",
+   "points": [
+    [
+     -44,
+     8
+    ],
+    [
+     -34,
+     16
+    ],
+    [
+     -26,
+     12
+    ],
+    [
+     -30,
+     2
+    ],
+    [
+     -40,
+     0
+    ]
+   ],
+   "closed": true,
+   "height_m": 3,
+   "note": "Boulders in the field west of the gate, 20-35 m out: cover for the Main 3 fight on its flat ground. Off the grave's line to the chapel."
+  },
+  {
+   "type": "fence",
+   "name": "The old pound wall",
+   "points": [
+    [
+     -16,
+     8
+    ],
+    [
+     -20,
+     18
+    ],
+    [
+     -26,
+     24
+    ]
+   ],
+   "closed": false,
+   "height_m": 1.2,
+   "note": "A broken dry-stone wall on the gate's north flank: low cover for the Main 3 fight."
+  },
+  {
+   "type": "ruin",
+   "name": "Burnt freight wagons",
+   "points": [
+    [
+     -20,
+     -20
+    ],
+    [
+     -14,
+     -18
+    ]
+   ],
+   "closed": false,
+   "height_m": 3,
+   "note": "Two burnt wagons pulled off the farm road against the farm fence: cover on the gate's south flank."
+  },
+  {
+   "type": "boulders",
+   "name": "The Tumble",
+   "points": [
+    [
+     -60,
+     -74
+    ],
+    [
+     -46,
+     -70
+    ],
+    [
+     -34,
+     -78
+    ],
+    [
+     -36,
+     -92
+    ],
+    [
+     -48,
+     -99
+    ],
+    [
+     -72,
+     -100
+    ],
+    [
+     -70,
+     -90
+    ]
+   ],
+   "closed": true,
+   "height_m": 4,
+   "note": "Rockfall from the bluff's crumbling east face: boulders and a few 4-5 m fallen blocks filling the corner between the bluff and the Hogback. It closes the Mooring Ledge's east end and keeps 5 m clear of the ramp."
+  },
+  {
+   "type": "mesa",
+   "name": "Coffin Rock",
+   "points": [
+    [
+     -26,
+     -56
+    ],
+    [
+     -14,
+     -52
+    ],
+    [
+     -4,
+     -58
+    ],
+    [
+     -6,
+     -66
+    ],
+    [
+     -20,
+     -68
+    ]
+   ],
+   "closed": true,
+   "height_m": 8,
+   "note": "A lone flat-topped butte about 22 x 16 m, cliff kit all round (unclimbable), one dead tree on top. It breaks the old map's second-biggest blank, hides Whitlock Fields from the farm, and is a landmark from the farm road. Placed south of the lookout's lines to the town and the fields."
+  },
+  {
+   "type": "ridge",
+   "name": "The Nose",
+   "points": [
+    [
+     2,
+     -97
+    ],
+    [
+     4,
+     -88
+    ],
+    [
+     8,
+     -80
+    ]
+   ],
+   "closed": false,
+   "height_m": 8,
+   "note": "A spur of the Hogback running 17 m into the valley, its crest falling from 8 m to 4 m, with a rock band on its east face. It splits the south edge into the farm's side and the fields' side."
+  },
+  {
+   "type": "ruin",
+   "name": "The burnt livery",
+   "points": [
+    [
+     8,
+     -26
+    ],
+    [
+     22,
+     -26
+    ],
+    [
+     22,
+     -36
+    ],
+    [
+     8,
+     -36
+    ]
+   ],
+   "closed": true,
+   "height_m": 3,
+   "note": "The town's livery stable, burnt to its stone footing and charred posts, in the backlot south of the street. Low, so it doesn't hide the street from the lookout."
+  },
+  {
+   "type": "fence",
+   "name": "Amos's fence",
+   "points": [
+    [
+     24,
+     -38
+    ],
+    [
+     50,
+     -38
+    ],
+    [
+     76,
+     -34
+    ]
+   ],
+   "closed": false,
+   "height_m": 1.4,
+   "note": "The hayfields' north fence. Amos sits by the gate where the fields path passes (53, -38)."
+  },
+  {
+   "type": "fence",
+   "name": "Barn yard fence",
+   "points": [
+    [
+     22,
+     -54
+    ],
+    [
+     48,
+     -54
+    ],
+    [
+     48,
+     -82
+    ],
+    [
+     22,
+     -84
+    ]
+   ],
+   "closed": true,
+   "height_m": 1.4,
+   "note": "Around the Whitlock barn and windmill. The Side 2 hands live inside it and give up at it. Gate at (48, -60), where the fields path ends."
+  },
+  {
+   "type": "fence",
+   "name": "Field wall",
+   "points": [
+    [
+     57,
+     -38
+    ],
+    [
+     60,
+     -60
+    ],
+    [
+     58,
+     -86
+    ]
+   ],
+   "closed": false,
+   "height_m": 1.2,
+   "note": "A low stone wall with larkspur splitting the hay into two fields; Side 2's hay bales lie in them."
+  },
+  {
+   "type": "water",
+   "name": "Mill Creek",
+   "points": [
+    [
+     84,
+     -16
+    ],
+    [
+     86,
+     -30
+    ],
+    [
+     82,
+     -48
+    ],
+    [
+     78,
+     -66
+    ],
+    [
+     75,
+     -86
+    ]
+   ],
+   "closed": false,
+   "height_m": -2,
+   "note": "From the springhouse south to Mill Falls: a 4 m stream in a bottom 10 m wide and 2 m deep (height is the depth). The slimes live in the bottom and stop at the banks."
+  },
+  {
+   "type": "treeline",
+   "name": "Creek willows",
+   "points": [
+    [
+     88,
+     -22
+    ],
+    [
+     88,
+     -36
+    ],
+    [
+     84,
+     -54
+    ],
+    [
+     80,
+     -74
+    ]
+   ],
+   "closed": false,
+   "height_m": 10,
+   "note": "Willows and cottonwoods on the creek's east bank. They close the fields' east side and hide Mill Falls from the undertaker's yard until you reach the fields."
+  },
+  {
+   "type": "outcrop",
+   "name": "The Stone Teeth",
+   "points": [
+    [
+     98,
+     -26
+    ],
+    [
+     103,
+     -38
+    ],
+    [
+     101,
+     -50
+    ],
+    [
+     106,
+     -58
+    ]
+   ],
+   "closed": false,
+   "height_m": 9,
+   "note": "A row of rock fins, a broken spur of the East Ridge, between the creek and the ridge: the end of the blank east strip."
+  },
+  {
+   "type": "outcrop",
+   "name": "Hearse Rock",
+   "points": [
+    [
+     121,
+     30
+    ],
+    [
+     111,
+     27
+    ],
+    [
+     103,
+     24
+    ]
+   ],
+   "closed": false,
+   "height_m": 8,
+   "note": "A rock spur off the East Ridge walling the undertaker's yard on the north and framing the gap."
+  },
+  {
+   "type": "outcrop",
+   "name": "Den Rock",
+   "points": [
+    [
+     84,
+     40
+    ],
+    [
+     92,
+     38
+    ],
+    [
+     98,
+     46
+    ],
+    [
+     95,
+     56
+    ],
+    [
+     86,
+     57
+    ],
+    [
+     83,
+     50
+    ]
+   ],
+   "closed": true,
+   "height_m": 7,
+   "note": "A dome of fractured rock on the Sink's east rim. Its west face is the Sink's east wall, with the Gravemother's den under its overhang: the den mesh sits in it."
+  },
+  {
+   "type": "treeline",
+   "name": "The Webwood",
+   "points": [
+    [
+     46,
+     68
+    ],
+    [
+     62,
+     72
+    ],
+    [
+     78,
+     69
+    ],
+    [
+     92,
+     63
+    ],
+    [
+     104,
+     55
+    ]
+   ],
+   "closed": false,
+   "height_m": 6,
+   "note": "Dead, webbed trees along the Sink's north side up to the East Ridge: the spiders' sign from a distance, and the end of the blank north of the Sink."
+  },
+  {
+   "type": "fence",
+   "name": "Sink rim fence, south",
+   "points": [
+    [
+     46,
+     36
+    ],
+    [
+     54,
+     27
+    ],
+    [
+     65,
+     24
+    ],
+    [
+     76,
+     27
+    ],
+    [
+     84,
+     36
+    ]
+   ],
+   "closed": false,
+   "height_m": 1.2,
+   "note": "An old warning fence round the rim, broken in places. The ramp head (47, 44) is its gap. Nothing lives on the rim."
+  },
+  {
+   "type": "fence",
+   "name": "Sink rim fence, north",
+   "points": [
+    [
+     83,
+     58
+    ],
+    [
+     76,
+     65
+    ],
+    [
+     65,
+     68
+    ],
+    [
+     54,
+     65
+    ],
+    [
+     45,
+     54
+    ]
+   ],
+   "closed": false,
+   "height_m": 1.2,
+   "note": "The fence's north half, from Den Rock round to the ramp head."
+  },
+  {
+   "type": "boulders",
+   "name": "Sink floor blocks",
+   "points": [
+    [
+     54,
+     48
+    ],
+    [
+     58,
+     55
+    ],
+    [
+     66,
+     58
+    ],
+    [
+     72,
+     55
+    ],
+    [
+     62,
+     52
+    ]
+   ],
+   "closed": true,
+   "height_m": 3,
+   "note": "Collapsed blocks and old coffins on the Sink floor: cover for Main 5 and the Gravemother on the floor's one level, clear of the ramp's foot (68, 46)."
+  },
+  {
+   "type": "boulders",
+   "name": "The Spoil Bank",
+   "points": [
+    [
+     18,
+     60
+    ],
+    [
+     32,
+     56
+    ],
+    [
+     42,
+     62
+    ],
+    [
+     38,
+     74
+    ],
+    [
+     24,
+     76
+    ],
+    [
+     16,
+     68
+    ]
+   ],
+   "closed": true,
+   "height_m": 5,
+   "note": "The quarry's waste tip: a 5 m heap of squared blocks and rubble north of boot hill. It fills the blank between the chapel knoll and the Sink, and is cover just off the north road."
+  },
+  {
+   "type": "fence",
+   "name": "Stock pens",
+   "points": [
+    [
+     -12,
+     -26
+    ],
+    [
+     2,
+     -26
+    ],
+    [
+     4,
+     -40
+    ],
+    [
+     -12,
+     -42
+    ]
+   ],
+   "closed": true,
+   "height_m": 1.5,
+   "note": "Empty stock pens behind the south side of Main Street: the town's edge toward the farm."
+  },
+  {
+   "type": "boulders",
+   "name": "The Scatter",
+   "points": [
+    [
+     2,
+     -46
+    ],
+    [
+     14,
+     -44
+    ],
+    [
+     18,
+     -54
+    ],
+    [
+     8,
+     -60
+    ],
+    [
+     0,
+     -54
+    ]
+   ],
+   "closed": true,
+   "height_m": 3,
+   "note": "Boulders between Coffin Rock and the barn yard. Kept to 3 m because the lookout's line to Amos's fence passes over them."
+  },
+  {
+   "type": "fence",
+   "name": "The fallen glebe wall",
+   "points": [
+    [
+     -62,
+     28
+    ],
+    [
+     -52,
+     33
+    ],
+    [
+     -44,
+     41
+    ]
+   ],
+   "closed": false,
+   "height_m": 1.2,
+   "note": "The old wall of the chapel's glebe field, mostly down: a fallen wall in the field between the wash and the west road, low cover beside the road."
+  },
+  {
+   "type": "boulders",
+   "name": "The hanging tree",
+   "points": [
+    [
+     14,
+     42
+    ],
+    [
+     24,
+     42
+    ],
+    [
+     26,
+     50
+    ],
+    [
+     16,
+     52
+    ]
+   ],
+   "closed": true,
+   "height_m": 3,
+   "note": "A dead cottonwood with a frayed rope, ringed by boulders, beside the north road: cover on the roaming Unpaid's stretch after Main 4, and a landmark between boot hill and the Sink."
+  },
+  {
+   "type": "ruin",
+   "name": "The springhouse",
+   "points": [
+    [
+     81,
+     -13
+    ],
+    [
+     87,
+     -13
+    ],
+    [
+     87,
+     -19
+    ],
+    [
+     81,
+     -19
+    ]
+   ],
+   "closed": true,
+   "height_m": 1.5,
+   "note": "A roofless stone springhouse covering Mill Creek's spring, south-west of the undertaker's yard. Low (1.5 m) so it doesn't hide the yard from the lookout."
+  },
+  {
+   "type": "treeline",
+   "name": "Sink road cottonwoods",
+   "points": [
+    [
+     64,
+     12
+    ],
+    [
+     74,
+     16
+    ],
+    [
+     82,
+     18
+    ]
+   ],
+   "closed": false,
+   "height_m": 11,
+   "note": "A stand of cottonwoods behind the east end of Main Street. It hides the Sink's south rim from the street's east end, so the Sink stays a hole you see only from its rim."
+  },
+  {
+   "type": "boulders",
+   "name": "Hogback talus",
+   "points": [
+    [
+     -24,
+     -90
+    ],
+    [
+     -12,
+     -86
+    ],
+    [
+     -6,
+     -92
+    ],
+    [
+     -20,
+     -96
+    ]
+   ],
+   "closed": true,
+   "height_m": 3,
+   "note": "Fallen rock at the Hogback's foot between the Tumble and the Nose."
+  },
+  {
+   "type": "ruin",
+   "name": "The quarry derrick",
+   "points": [
+    [
+     14,
+     94
+    ],
+    [
+     24,
+     96
+    ]
+   ],
+   "closed": false,
+   "height_m": 9,
+   "note": "A fallen timber derrick and dressed blocks on the quarry floor, at the end of the quarry track."
+  }
+ ],
+ "layout_text": "## Size and shape\nRansom's Rest is not an island. It is a high valley on Teropa, the earth-like world where the story takes place. Ridges close the basin on the north, east and south. On the west it ends at the Rim, a 70 m escarpment over Gravewind Canyon, with the sunset beyond. The valley floor is about 245 m east to west and 205 m north to south. Gravewind Point reaches 45 m west off the Rim, and Stage Gap cuts 18 m into the east ridge. In all it is about 309 × 205 m and 42,800 m², roughly 1.5× the tutorial island. Coordinates are unchanged. Heights are measured from the ground a thing stands on, and a negative height is a drop.\n\n**What closes it in:**\n- **West, the Rim:** a 70 m drop into Gravewind Canyon. Past it the player sees the canyon floor in blue haze with a thin river, its lower far wall about 300 m off, and the plains of Teropa running to the sunset with a few far mesas. The Rimrock stands about 3 m inside the lip beside the farm, and the lip is open on Gravewind Point and at Ransom's Point. Locals call the wind that climbs the canyon at dusk the Gravewind.\n- **North, Larkspur Ridge:** steep pines over an 8–12 m cliff band, with the crest 40–60 m up. The Old Quarry is cut into its foot at (20, 95). Higher forested ridges and a far blue range stand behind it.\n- **East, the East Ridge:** about 35 m high, with a rock band at its foot. Stage Gap, at x 128–146 and y −5 to 11, is a saddle 16–20 m wide between 12 m rock walls, and the railroad's cut through the ridge. The line comes up out of the wooded valley past the gap, runs west through the cut along its south side and ends at a buffer stop by the depot, at the east end of town. The platform runs beside the track from the depot to a water tower in the gap. The train stands at the platform with its locomotive at the gap's mouth, facing out. Past the gap the ground falls away to the wooded valley, and the line runs down into it on a short timber trestle. A rockslide buried the old stage road down that side, and its broken slabs bank the cut on both sides of the locomotive, so nobody walks out east.\n- **South, the Hogback:** a grass ridge about 30 m high with a 6–10 m rock band at its foot and dead trees along its crest. Ransom's Point is its west end. Mill Creek leaves through Mill Gorge at (75, −90).\n\nNothing past the boundary can be walked: cliff bands, slopes too steep to climb, the canyon drop (Hob catches a fall), and in Stage Gap the parked train and the rockslide. Invisible walls behind the ridge feet are only a backstop. The ridges' outer slopes, the canyon wall below the Rim's cliff kit, the canyon floor and its far wall are cheap generated meshes. The plains and far ranges are unlit silhouettes. The line down the far side of the gap is a few track pieces with no collision, which the train runs on only in its arrival and departure shots. Nothing past the Rim has collision. Together they replace the backdrop islands here (Skyreach keeps its own). Only the valley's own terrain is tagged `Ground`, so the minimap covers the valley and the ridge feet, dims everything past the boundary and never shows the canyon.\n\n**Features and heights:**\n- **Ransom's Point** (+20 m): a bluff in the south-west corner, where the Hogback meets the Rim. Its top is about 40 m across, centred at (−92, −80).\n  - Its west face is the Rim, and its north and east faces stand 16 m over the farm terrace.\n  - Its south face drops 20 m to **the Mooring Ledge** (−102, −101), a rock shelf over the Mooring Notch, a cleft of the canyon. The gang's skiff came up the canyon and tied up there, out of sight of town.\n  - The lookout tower stands on the top facing the sunset, with stairs down the cliff to the ledge.\n- **The bluff path** (unchanged): a 64 m ramp climbing about 16 m at about 25% (14°). It starts at the family plot's west gate (−108, −46), runs east along the bluff's north face, bends south along its east face and comes onto the top from the east. It has two wide bends and no hairpins.\n- **The farm terrace** (+4 m) in the south-west reaches from the Rim east to about x = −40 and north to about y = −6, and the orchard runs down its east edge. **The town** is on the flat valley floor.\n- **The chapel knoll** (+10 m) in the north, and **boot hill** (+5 m) behind Main Street.\n- **The Sink** (−12 m): a collapsed sinkhole 36 m across at (65, 46), with a 45 m ramp curving down its south wall. The Gravemother's den is a cave mouth on the east wall, under the overhang of Den Rock.\n- **Mill Creek** runs from a spring at (84, −16) south through the fields to **Mill Falls** (75, −88), where the existing waterfall drops 14 m into Mill Gorge.\n- **The Dry Wash:** a dry creek bed 8 m wide and 3 m deep. It runs from the low ground west of boot hill and south of the knoll (−28, 30) west to the Pour-off (−115, −6), where it spills over the Rim. The keeper's path crosses it on Keeper's Bridge (−95, 2).\n- **Gravewind Point:** a promontory of the Rim reaching 45 m west, 70 m above the canyon floor.\n  - The burial boards deck (25 × 18 m, centred at (−150, 12)) covers its flat tip, and its west end is built 3 m out over the drop.\n  - Two rocks at its neck, **the Keeper's Gate** (−128, 13), frame the road. The boss fight's fog wall seals the gap between them.\n\n**What breaks up the open ground.** Every stretch that was blank on the step 2 map now has rock, trees, a wall or a ruin in it. Outside the zones no gap is wider than about 19 m, except the crossroads at the keeper's grave, which stays clear on purpose. Everything comes from kits, instanced: the cliff kit, a new freestanding outcrop kit for rocks seen from every side, boulders, pines, oaks and dead trees, fences, new stone walls, and the house trim sheet. It adds instances rather than draws. Exact outlines go into `layout.json` at step 4.\n- *The farm side:*\n  - The Rimrock (6–7 m): three pieces about 3 m inside the lip from (−114, −58) to (−111, −12), with two gaps onto the sunset.\n  - The orchard, an avenue on both sides of the farm road.\n  - Delia's salt line, the farm's fence, from the Rimrock round the orchard to the Tumble.\n  - The Three Widows: three 7 m slabs at x −85 to −69, y 1 to 4.\n  - The Tumble: rockfall below the bluff's east face, which closes off the Mooring Ledge.\n  - On the bluff top, a waist-high nest ring and two 3 m rocks south of the path.\n- *The west road:*\n  - The Dry Wash, with 5 m willows on its lower half.\n  - The sheep fold (−79, 21) and the fallen glebe wall, both low cover.\n  - Widow's Pines (13 m) filling the north-west, at least 10 m off the road.\n  - The Burnt Homestead (−72, 49) and the old lantern house (−102, 35), roofless ruins by the road.\n  - Knee-high cairns from the keeper's grave to the Keeper's Gate.\n- *The middle:*\n  - The Gate Stones, the old pound wall and two burnt wagons around the town gate.\n  - The stock pens and the burnt livery behind Main Street's south side.\n  - The hanging tree (20, 46) by the north road.\n  - The Spoil Bank (5 m) of quarry rubble at x 16 to 42, y 56 to 76, and the quarry track up to the Old Quarry.\n- *The south:*\n  - Coffin Rock, an 8 m flat-topped butte at (−15, −60).\n  - The Nose, a spur of the Hogback at x 2 to 8, y −97 to −80.\n  - The Hogback talus and the Scatter, boulders between them.\n- *The east:*\n  - The hayfields, split by Amos's fence, the barn yard fence and a stone field wall.\n  - Mill Creek's bottom, with 10 m willows along its east bank and a springhouse at the spring.\n  - The Stone Teeth: 9 m rock fins at x 98 to 106, y −26 to −58.\n  - The Sink road cottonwoods behind the east end of Main Street.\n  - Hearse Rock, a spur walling the undertaker's yard on the north.\n  - Den Rock over the den.\n  - The Webwood: dead, webbed trees north of the Sink.\n  - The Sink's broken rim fence, and collapsed blocks and coffins on its floor.\n\n**Open ground, before and after:** the widest empty circle outside the zones in each open stretch of the step 2 map.\n\n| Stretch | Before | Now |\n|---|---|---|\n| The west field, between the farm, the west road and the chapel | 76 m | 19 m |\n| South of the orchard | 70 m | 17 m |\n| West of the town gate | 55 m | 19 m |\n| Between the chapel and the Sink | 45 m | 18 m |\n| Between the farm road and the town | 40 m | 15 m |\n| East of Ransom's Point | 39 m | 17 m |\n| The root of Gravewind Point | 38 m | 24 m |\n| Between Mill Creek and the East Ridge | 35 m | 15 m |\n| North of the undertaker's yard | 34 m | 16 m |\n| The north-west corner | 34 m | 8 m |\n| The south edge west of the barn | 30 m | 14 m |\n| North of the Sink | 29 m | 15 m |\n\nThe two 19 m gaps are one gap, at (−57, 5): the grave's line to the bell tower, kept open on purpose. The 24 m one is the crossroads at the keeper's grave.\n\nNone of this changes a fight's ground. Inside every fight's area it is cover standing on that ground, and the wash, the gorge, Coffin Rock and the Nose are outside all of them (see *Encounters stay on one level of ground*).\n\n**The route** is a loop of about 1 km on foot that passes through town in the middle and at the end:\n1. The grave and the farm (south-west).\n2. Up the bluff path to Ransom's Point.\n3. Along the farm road through the orchard into town (centre).\n4. North to the chapel, then north-east into the Sink.\n5. The west road to Gravewind Point, between the wash and the pines.\n6. Home to the farm by the keeper's path over Keeper's Bridge.\n7. East through town to the depot, where the line comes in through Stage Gap.\n\n**Landmarks guide it.** From the grave the player sees the bluff above, where Ellis died, and the chapel's bell tower over the orchard. The Three Widows mark the keeper's path and Coffin Rock marks the south. At the end of the west road the Keeper's Gate frames the deck. Down Main Street, the water tower in Stage Gap marks the depot.\n\n**Sightlines are blocked on purpose.**\n- The orchard and the farm terrace hide the town from the grave. The orchard and Coffin Rock hide Whitlock Fields from the farm.\n- The chapel knoll and boot hill hide the north-east.\n- The Sink is a hole you see only from its rim, and the cottonwoods behind Main Street keep it that way from the street.\n- The creek willows hide Mill Falls until you reach the fields.\n- Only Ransom's Point sees the whole valley, and nothing new spoils that.\n  - Tall rock and trees stand where their shadow from the tower falls on nothing that matters.\n  - Whatever stands on the tower's lines stays low: the nest ring under 1.2 m, the springhouse 1.5 m, the burnt livery and the Scatter 3 m, the gate's south rock 4 m, the wash willows 5 m.\n  - The tower sees every landmark, all of Main Street, the deck and 90% of the west road.\n  - It is the planned heaviest view, now with the canyon and the horizon in it as well, and it is measured on the greybox at steps 5a and 5b, before any art.\n- The grave keeps its view of the bell tower. The willows stop short of that line, and the Three Widows stand to one side of it, well under it.\n\n**The palette** sets it apart from Skyreach's green midday: golden grass, ochre soil, an amber orchard, blue larkspur along the fences, dark pines on Larkspur Ridge, the canyon's blue haze to the west and a low warm sun.\n\nIt is one level, with no streaming.\n\n**What the terrain generator needs** (steps 3a–3c; how it changes is under *Tech needs*). Today it handles one island: an outline with a rim drop and an underside, exactly one plateau with one ramp, one pond and one creek, each found by a fixed id, and three fixed cliff groups. Ransom's Rest needs:\n- a valley instead of an island, with raised terrain outside the boundary in place of the rim drop and the underside:\n  - ridges with cliff bands on the north, east and south, cut by a saddle for Stage Gap (its floor graded for the track) and a gorge for Mill Creek;\n  - on the west, an escarpment edge down to a backdrop canyon;\n- the playable boundary as a polygon, with its open edges marked;\n- features as lists by type: two plateaus (Ransom's Point with its ramp, the farm terrace), two hills (the chapel knoll and boot hill) and a mesa (Coffin Rock: a plateau with a cliff ring and no ramp);\n- a new pit type for the Sink: the plateau turned upside down, with an inward-facing cliff ring and a ramp;\n- dry gullies (the Dry Wash) as creeks without water, and a creek that ends in a falls into a gorge;\n- cliff groups per feature, and stacked cliff courses for the 20 m bluff, the Rim's lip and the ridges' bands, since the tallest cliff piece is 12 m;\n- outcrops, boulder fields, tree lines, walls and ruins as placements and scatter areas.\n\nThe den can't come from a heightfield, so it is a separate mesh set into the Sink's wall under Den Rock. The minimap's top-down bake won't show under it, which is fine for a cave.\n",
+ "open_space_review": "Measured on the approved map: the largest empty circle outside the zones in each open stretch, before and after, as diameters.\n\n1. The west field between the farm, the west road and the chapel, centred (−72, 28): 76 m before, now 19 m. The one gap left, at (−57, 5), is the grave's line to the chapel tower, kept open on purpose. The Dry Wash splits the field in two, and Keeper's Bridge takes the keeper's path over it at (−95, 2). North of the wash, the sheep fold and the fallen glebe wall give low cover by the west road. South of it, the Three Widows stand beside the keeper's path. Everything here is low or sits far enough south that the lookout still sees 90% of the west road.\n2. South of the orchard, centred (−10, −60): 70 m before, now 17 m. Coffin Rock, an 8 m butte, stands in the middle. The Nose comes off the Hogback, and the Hogback talus and the Scatter fill the ground between. Coffin Rock and the orchard hide Whitlock Fields from the farm, so the fields open up only as you pass the rock or come from town.\n3. West of the town gate, centred (−36, 6): 55 m before, now 19 m (the same deliberate gap as stretch 1). The Gate Stones, the old pound wall and two burnt wagons ring the gate's flat ground, giving cover for Main 3 on one level. The wash's head stays 34 m from the gate, outside the fight.\n4. Between the chapel and the Sink, centred (28, 63): 45 m before, now 18 m. The Spoil Bank (5 m) and the hanging tree fill it, and the quarry track leads up to the Old Quarry pocket. The hanging tree is cover on the roaming Unpaid's stretch of the north road.\n5. Between the farm road and the town's south-west, centred (−23, −23): 40 m before, now 15 m. The orchard now spans the farm road as an avenue, with Delia's salt line, the stock pens and the burnt wagons east of it. The orchard still hides the town from the grave.\n6. East of Ransom's Point, centred (−46, −79): 39 m before, now 17 m. The Tumble fills the corner under the bluff's east face and closes off the Mooring Ledge, so the ledge is reached only by the lookout's stairs.\n7. The root of Gravewind Point, centred (−111, 12): 38 m before, now 24 m. The remaining gap is the crossroads at the keeper's grave, where three paths meet. It is kept clear so the respawn and the junction read.\n   - The old lantern house and Widow's Pines close it on the north, and the Rimrock and the Pour-off on the south.\n   - The cairns lead west to the Keeper's Gate, which frames the deck through a 17 m opening. The fog wall seals the boss fight there.\n8. Between Mill Creek and the East Ridge, centred (100, −36): 35 m before, now 15 m. The Stone Teeth, a row of 9 m rock fins, and the creek willows. The willows also hide Mill Falls until you reach the fields.\n9. North of the undertaker's yard, centred (100, 39): 34 m before, now 16 m. Den Rock over the Gravemother's den, Hearse Rock walling the yard, and the tail of the Webwood.\n10. The north-west corner, centred (−59, 69): 34 m before, now 8 m. Widow's Pines, with the Burnt Homestead at its edge 7 m off the west road.\n11. The south edge west of the barn, centred (23, −81): 30 m before, now 14 m. The Nose, and the barn yard fence, which is where the Side 2 hands give up.\n12. North of the Sink, centred (52, 76): 29 m before, now 15 m. The Webwood and the Sink's broken rim fence.\n\nInside the zones: the hayfields get Amos's fence, a stone field wall and the hay bales. The Sink floor gets collapsed blocks and coffins. The bluff top gets a low nest ring and two 3 m rocks south of the path.\n\nSightlines kept:\n- **The lookout.** On a rough height model, with the eye about 28 m up on the tower deck, it still sees every zone's landmarks: Main Street's buildings, the chapel, boot hill, the barn and windmill, the platform and the water tower, and the whole deck. Visible ground per zone:\n  - town 94%\n  - boot hill 95%\n  - chapel knoll 83% (unchanged)\n  - fields 89%\n  - undertaker's yard 86%\n  - Gravewind Point 95%\n  - the west road 90%\n\n  Three things were changed for this: the Three Widows moved south of the wash, the wash trees became 5 m willows, and the nest ring, the springhouse, the livery and the gate's south rock were lowered.\n- **The bell tower from the grave.** The line stays clear. The tallest thing near it is the Three Widows, 7 m tall and 3 m to one side, where the line is 12 m up.\n\nFights stay on one level:\n- Everything inside a fight's ground is cover standing on it: boulders, low walls, wagons, a fence ring, blocks on the Sink floor.\n- Every new change of level is outside all fights: the wash, the gorge, Coffin Rock and the Nose.\n- The bluff path is unchanged, and nothing new stands within 5 m of it.\n\nOne existing issue, not changed: from the grave, the bluff's north edge hides the lookout tower, which stands 26 m back from that edge at (−100, −86). The grave sees the cliffs and the top, and the tower shows from the town. Moving the tower to the top's north-west corner, at about (−106, −66), would put it in view from the grave, if you want that."
+}
