@@ -83,7 +83,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Creatures
 - `Creatures/CreatureBase`: `ACreatureBase`, a hostile creature's brain and life cycle (senses, chase, attack, death,
-  respawn, steering without a navmesh, a pack turning on its attacker).
+  respawn, steering without a navmesh, a pack turning on its attacker). `CreatureBaseUpdateRate.cpp` slows the
+  ones far from the player or out of sight (`Looter.Creatures.UpdateRates 0` turns that off).
+- `Creatures/CreatureUpdateRate`: `FCreatureUpdateRate`, how often a creature updates by its distance and whether it
+  is in view (zoom through a sight counts as nearer).
 - `Creatures/SpiderCreature`: `ASpiderCreature`, the brown spider: SK_Spider (from `Art/Models/Creatures/Spider.py`)
   posed by code (stepping gait, leg IK, attack and death motion); its physics asset holds the hit zones.
 - `Creatures/SlimeCreature`: `ASlimeCreature`, the meadow slime: SK_Slime (from `Art/Models/Creatures/Slime.py`) that

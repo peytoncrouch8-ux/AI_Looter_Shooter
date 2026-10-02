@@ -78,6 +78,12 @@ void ACreatureBase::BeginPlay()
 	SetState(ECreatureState::Idle);
 	IdleDuration = FMath::FRandRange(1.f, 3.f);
 	PerceptionTimer = FMath::FRandRange(0.f, PerceptionInterval);
+
+	// Update rate: starts at every frame and picks its band at the first check, spread out so the creatures don't all
+	// check on the same frame. The mesh's own animation settings are what it goes back to after a frozen spell.
+	AwakeAnimTickOption = GetMesh()->VisibilityBasedAnimTickOption;
+	bAwakeUsesScreenRenderState = GetMesh()->bUseScreenRenderStateForUpdate != 0;
+	UpdateRateCheckTime = FMath::FRandRange(0.f, UpdateRate.CheckInterval);
 }
 
 void ACreatureBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -114,6 +120,8 @@ void ACreatureBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	// First, so the subclass knows whether to pose its body this update.
+	TickUpdateRate(DeltaSeconds);
 	TickBrain(DeltaSeconds);
 	UpdateHealthBar(DeltaSeconds);
 }
@@ -130,6 +138,12 @@ void ACreatureBase::SetState(ECreatureState NewState)
 	StuckTime = 0.f;
 	EscapeTime = 0.f;
 	SteerTimer = 0.f;
+
+	// Hunting and attacking always run every frame, wherever it is.
+	if (NewState == ECreatureState::Chase || NewState == ECreatureState::Attack)
+	{
+		WakeUpdateRate();
+	}
 
 	if (NewState == ECreatureState::Attack)
 	{
@@ -513,6 +527,10 @@ void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocat
 	UE_LOG(LogLooter, Verbose, TEXT("%s took %.1f%s (%.0f / %.0f)"), *GetName(), Damage, bCritical ? TEXT(" CRIT") : TEXT(""),
 		Health->GetHealth(), Health->GetMaxHealth());
 	HealthBarTime = 6.f;
+	// A hurt creature updates every frame for a while, wherever it is, so its flinch (and death) plays smoothly. Before
+	// OnHurt: a frozen body is set up afresh first.
+	FullRateTime = UpdateRate.HurtFullRateTime;
+	WakeUpdateRate();
 	OnHurt(bCritical, HitLocation);
 
 	if (State == ECreatureState::Dead)

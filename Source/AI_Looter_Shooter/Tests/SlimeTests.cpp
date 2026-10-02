@@ -3,6 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Combat/HealthComponent.h"
+#include "Creatures/CreatureUpdateRate.h"
 #include "Creatures/SlimeCreature.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
@@ -103,6 +104,70 @@ bool FSlimeShotsTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Slime max health"), Health->MaxHealth, 120.f);
 	}
 	TestTrue(TEXT("Slimes alert their group"), Slime->PackAlertRadius > 0.f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSlimeSlowUpdateTest, "Looter.Creatures.Slime.SlowUpdates",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FSlimeSlowUpdateTest::RunTest(const FString& Parameters)
+{
+	// A distant slime updates only five times a second. Its springs sub-step, so a landing's splat and wobble play out
+	// the same in a few long updates as in many short ones (60 fps here), and never blow up or jitter.
+	using FSpring = ASlimeCreature::FSquashSpring;
+	struct FSlimeSprings
+	{
+		FSpring Squash;
+		FVector CoreOffset = FVector::ZeroVector;
+		FVector CoreVelocity = FVector::ZeroVector;
+
+		void Land()
+		{
+			// A landing: a quick squash down, then the spring back up; the core kicked up and back.
+			Squash.Ramp(0.6f, 0.06f);
+			CoreVelocity = FVector(-60.0, 0.0, 110.0);
+		}
+		void Step(float DeltaSeconds) { ASlimeCreature::StepSprings(Squash, CoreOffset, CoreVelocity, DeltaSeconds); }
+	};
+
+	const float SlowDelta = FCreatureUpdateRate().VeryFarInterval;
+	constexpr int32 FramesPerUpdate = 12;
+	FSlimeSprings Slow;
+	FSlimeSprings Fast;
+	Slow.Land();
+	Fast.Land();
+	float Lowest = 1.f;
+	float Highest = 1.f;
+	float FarthestCore = 0.f;
+	for (int32 Update = 0; Update < 10; ++Update)
+	{
+		Slow.Step(SlowDelta);
+		for (int32 Frame = 0; Frame < FramesPerUpdate; ++Frame)
+		{
+			Fast.Step(SlowDelta / FramesPerUpdate);
+		}
+		if (!TestTrue(TEXT("The springs stay finite"), FMath::IsFinite(Slow.Squash.Value) && !Slow.CoreOffset.ContainsNaN()))
+		{
+			return false;
+		}
+		TestNearlyEqual(FString::Printf(TEXT("Update %d squashes like twelve frames"), Update), Slow.Squash.Value, Fast.Squash.Value, 0.005f);
+		TestTrue(FString::Printf(TEXT("Update %d: the core lags like twelve frames"), Update), FVector::Dist(Slow.CoreOffset, Fast.CoreOffset) < 0.5);
+		Lowest = FMath::Min(Lowest, Slow.Squash.Value);
+		Highest = FMath::Max(Highest, Slow.Squash.Value);
+		FarthestCore = FMath::Max(FarthestCore, static_cast<float>(Slow.CoreOffset.Size()));
+	}
+	TestTrue(TEXT("Never squashed past the splat"), Lowest >= 0.59f);
+	TestTrue(TEXT("Overshoots no more than a landing should (about 1.1)"), Highest <= 1.2f);
+	TestTrue(TEXT("The core stays inside the gel"), FarthestCore < 15.f);
+	TestNearlyEqual(TEXT("Settled at rest after two seconds"), Slow.Squash.Value, 1.f, 0.01f);
+	TestTrue(TEXT("The core settled too"), Slow.CoreOffset.Size() < 0.5);
+
+	// A long hitch moves the springs on at most FCreatureUpdateRate::MaxInterval, and leaves them sane.
+	FSlimeSprings Hitch;
+	Hitch.Land();
+	Hitch.Step(5.f);
+	TestTrue(TEXT("A hitch leaves the squash sane"), FMath::IsFinite(Hitch.Squash.Value) && Hitch.Squash.Value > 0.5f && Hitch.Squash.Value < 1.3f);
+	TestTrue(TEXT("A hitch leaves the core sane"), !Hitch.CoreOffset.ContainsNaN() && Hitch.CoreOffset.Size() < 15.0);
 	return true;
 }
 

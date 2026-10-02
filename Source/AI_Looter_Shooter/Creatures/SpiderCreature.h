@@ -33,6 +33,7 @@ protected:
 	virtual void OnHurt(bool bCritical, const FVector& HitLocation) override;
 	virtual void OnDied() override;
 	virtual void OnRespawned() override;
+	virtual void OnPoseThawed() override;
 	virtual void SetHitVolumesEnabled(bool bEnabled) override;
 
 private:

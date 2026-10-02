@@ -3,7 +3,9 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Combat/CriticalSpotTarget.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "Creatures/CreaturePoseAnimInstance.h"
+#include "Creatures/CreatureUpdateRate.h"
 #include "CreatureBase.generated.h"
 
 class UHealthComponent;
@@ -26,7 +28,8 @@ enum class ECreatureState : uint8
  * attacks, dies (dropping loot), and respawns at home. Movement is local steering that avoids obstacles and
  * never walks off an island edge, so it needs no navmesh. Subclasses provide the body and animation through
  * the On* hooks. The mesh's physics asset holds the hit zones, and critical spots are data (CriticalSpotBones) matched
- * against the bone a shot hit.
+ * against the bone a shot hit. Distant creatures update less often, and stop posing their bodies while off screen
+ * (UpdateRate); ones busy with a player always update every frame.
  */
 UCLASS(Abstract)
 class AI_LOOTER_SHOOTER_API ACreatureBase : public ACharacter, public ICriticalSpotTarget
@@ -52,6 +55,18 @@ public:
 
 	/** Turns on Attacker as if it had been hurt by it (its pack heard the fight). Nothing changes if it's busy already. */
 	void AlertTo(APawn* Attacker);
+
+	/** Seconds between its updates right now (0 = every frame); see UpdateRate. */
+	float GetUpdateInterval() const { return UpdateInterval; }
+
+	/** Whether it has stopped posing its body for now (far away and out of every player's view); see UpdateRate. */
+	bool IsPoseFrozen() const { return bPoseFrozen; }
+
+	/**
+	 * Whether a creature must update every frame wherever it is: it's after a player (chasing, attacking, or alerted, which
+	 * gives it a target) or was hurt a moment ago. Slow updates there would show in the fight and in its timing.
+	 */
+	static bool NeedsFullRate(ECreatureState CreatureState, bool bHasTarget, bool bRecentlyHurt);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature")
 	FText DisplayName;
@@ -124,6 +139,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Life")
 	bool bRespawns = true;
 
+	/** How often it updates by its distance from the players and the camera: every frame up close, less often far away. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Update Rate")
+	FCreatureUpdateRate UpdateRate;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -137,6 +156,13 @@ protected:
 
 	/** Turn the creature's shootable shapes on or off (off while dead). */
 	virtual void SetHitVolumesEnabled(bool bEnabled) {}
+
+	/**
+	 * Its body is posed again after a spell frozen far away out of view (IsPoseFrozen), during which it kept moving: set it
+	 * up where it stands now, changing as little of the pose it was last drawn in as possible (a quick turn can show it).
+	 * Subclasses skip their pose work while it's frozen.
+	 */
+	virtual void OnPoseThawed() {}
 
 	/**
 	 * The attack lands, AttackWindup into it: bites whatever is in reach in front (and calls OnAttackStrike). A creature
@@ -196,6 +222,28 @@ private:
 	void Respawn();
 	void UpdateHealthBar(float DeltaSeconds);
 
+	// --- Update rate (CreatureBaseUpdateRate.cpp) ---
+	void TickUpdateRate(float DeltaSeconds);
+	/** Picks the update rate for where it is and what it's doing, and applies it. */
+	void RefreshUpdateRate();
+	/** Picks the rate again at once if it's updating slowly or frozen (it just got busy with a player). */
+	void WakeUpdateRate();
+	void ApplyUpdateInterval(float Interval);
+	void SetPoseFrozen(bool bFrozen);
+
+	/** How the local players see it, for picking its update rate. */
+	struct FViewerMeasure
+	{
+		/**
+		 * Distance (cm) to the nearest local player's pawn or camera, divided by the camera's zoom when it's in that camera's
+		 * zoomed view (a scope shows it that much nearer); the largest float when there is no player.
+		 */
+		float Distance = TNumericLimits<float>::Max();
+		/** In a local player's view, or drawn on screen lately. Behind a wall or a rock still counts. */
+		bool bOnScreen = false;
+	};
+	FViewerMeasure MeasureViewers() const;
+
 	UFUNCTION()
 	void HandleDamaged(float Damage, bool bCritical, FVector HitLocation, AController* InstigatedBy, AActor* DamageCauser);
 
@@ -223,4 +271,14 @@ private:
 	float HealthBarTime = 0.f;
 	FTimerHandle RespawnTimer;
 	FTimerHandle HideTimer;
+
+	// Update rate
+	float UpdateInterval = 0.f;
+	float UpdateRateCheckTime = 0.f;
+	/** Seconds left of updating every frame after a hurt. */
+	float FullRateTime = 0.f;
+	bool bPoseFrozen = false;
+	/** The mesh's own settings, for while its pose isn't frozen. */
+	EVisibilityBasedAnimTickOption AwakeAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	bool bAwakeUsesScreenRenderState = false;
 };

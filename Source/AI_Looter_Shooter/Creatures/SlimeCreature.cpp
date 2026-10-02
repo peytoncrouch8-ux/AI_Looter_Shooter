@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreaturePoseAnimInstance.h"
+#include "Creatures/CreatureUpdateRate.h"
 #include "AnimationRuntime.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -54,6 +55,8 @@ namespace
 	/** The core's spring: a little quicker and looser, so it jiggles inside the gel. */
 	constexpr float CoreStiffness = 632.f;
 	constexpr float CoreDamping = 12.6f;
+	/** The springs' longest step (s): small enough for both to stay steady. */
+	constexpr float SpringStep = 1.f / 120.f;
 
 	// Death: it flattens into a puddle, lies there for the creature's CorpseTime, then dries up.
 	constexpr float FlattenTime = 0.4f;
@@ -196,7 +199,11 @@ void ASlimeCreature::Tick(float DeltaSeconds)
 	{
 		TickHops(Wanted, DeltaSeconds);
 	}
-	AnimateBody(DeltaSeconds);
+	// Far away out of view it hops on unposed (OnPoseThawed settles its springs again).
+	if (!IsPoseFrozen())
+	{
+		AnimateBody(DeltaSeconds);
+	}
 }
 
 void ASlimeCreature::TickHops(const FVector& Wanted, float DeltaSeconds)
@@ -372,6 +379,18 @@ void ASlimeCreature::OnRespawned()
 	AnimateBody(0.f);
 }
 
+void ASlimeCreature::OnPoseThawed()
+{
+	// The springs stood still while it hopped on unposed, but every hop still kicked the core and started a squash. Carry on
+	// from the shape it was last drawn in, with the springs at rest, so it doesn't pop if it's in view: the squashes and
+	// kicks of hops long over are dropped, and the springs ease it back to shape. (It's never frozen mid-attack, so no
+	// telegraph squash is lost.)
+	Squash.Velocity = 0.f;
+	Squash.RampTime = Squash.RampLength = 0.f;
+	CoreVelocity = FVector::ZeroVector;
+	AnimateBody(0.f);
+}
+
 void ASlimeCreature::SetHitVolumesEnabled(bool bEnabled)
 {
 	GetMesh()->SetCollisionEnabled(bEnabled ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
@@ -401,6 +420,25 @@ void ASlimeCreature::FSquashSpring::Tick(float DeltaSeconds)
 	}
 	Velocity += (SquashStiffness * (Target - Value) - SquashDamping * Velocity) * DeltaSeconds;
 	Value += Velocity * DeltaSeconds;
+}
+
+void ASlimeCreature::StepSprings(FSquashSpring& SquashSpring, FVector& CoreLag, FVector& CoreLagSpeed, float DeltaSeconds)
+{
+	const float Seconds = FMath::Min(DeltaSeconds, FCreatureUpdateRate::MaxInterval);
+	if (Seconds <= 0.f)
+	{
+		return;
+	}
+	// Even steps no longer than SpringStep: short enough for both springs to stay steady, and a long update takes the
+	// same steps as the short ones it stands in for (a slow-ticking slime wobbles like a near one).
+	const int32 Steps = FMath::Max(1, FMath::CeilToInt32(Seconds / SpringStep - 0.01f));
+	const float Step = Seconds / Steps;
+	for (int32 Index = 0; Index < Steps; ++Index)
+	{
+		SquashSpring.Tick(Step);
+		CoreLagSpeed += (-CoreStiffness * CoreLag - CoreDamping * CoreLagSpeed) * Step;
+		CoreLag += CoreLagSpeed * Step;
+	}
 }
 
 void ASlimeCreature::AnimateBody(float DeltaSeconds)
@@ -434,14 +472,7 @@ void ASlimeCreature::AnimateBody(float DeltaSeconds)
 		{
 			Squash.Target = 1.f + IdleWobble * FMath::Sin(2.f * UE_PI * IdleWobbleHz * AnimTime + IdlePhase);
 		}
-		// Small steps keep the springs steady through a slow frame.
-		for (float Left = FMath::Min(DeltaSeconds, 0.1f); Left > 0.f; Left -= 1.f / 120.f)
-		{
-			const float Step = FMath::Min(Left, 1.f / 120.f);
-			Squash.Tick(Step);
-			CoreVelocity += (-CoreStiffness * CoreOffset - CoreDamping * CoreVelocity) * Step;
-			CoreOffset += CoreVelocity * Step;
-		}
+		StepSprings(Squash, CoreOffset, CoreVelocity, DeltaSeconds);
 		BodyScale = SquashScale(Squash.Value);
 	}
 

@@ -5,6 +5,8 @@
 #include "Combat/CombatRules.h"
 #include "Combat/HealthComponent.h"
 #include "Combat/TargetDummy.h"
+#include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureUpdateRate.h"
 #include "Creatures/SpiderCreature.h"
 #include "UI/World/CreatureHealthBarWidget.h"
 #include "AnimationRuntime.h"
@@ -281,6 +283,131 @@ bool FCreatureHealthBarDividersTest::RunTest(const FString& Parameters)
 		}
 	}
 	TestEqual(TEXT("Quarters"), UBar::Parts, 4);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCreatureUpdateRateTest, "Looter.Creatures.UpdateRate",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FCreatureUpdateRateTest::RunTest(const FString& Parameters)
+{
+	// Distant creatures update less often: every frame up close, then twenty, ten and five times a second farther out.
+	// Creatures busy with a player, and ones on screen nearby, always update every frame.
+	const FCreatureUpdateRate Rate;
+	TestEqual(TEXT("Near: every frame"), Rate.IntervalFor(1000.f, false, false), 0.f);
+	TestEqual(TEXT("Just inside near"), Rate.IntervalFor(Rate.NearDistance - 1.f, false, false), 0.f);
+	TestEqual(TEXT("Mid band"), Rate.IntervalFor(Rate.NearDistance + 1.f, false, false), Rate.MidInterval);
+	TestEqual(TEXT("Far band"), Rate.IntervalFor(Rate.MidDistance + 1.f, false, false), Rate.FarInterval);
+	TestEqual(TEXT("Very far"), Rate.IntervalFor(Rate.FarDistance + 1.f, false, false), Rate.VeryFarInterval);
+	TestEqual(TEXT("Beyond every band: the slowest"), Rate.IntervalFor(1.0e7f, false, false), Rate.VeryFarInterval);
+
+	// The user's bands: within 25 m every frame, about 1/20 s to 60 m, 1/10 s to 120 m, 1/5 s beyond.
+	TestNearlyEqual(TEXT("Near band ends at 25 m"), Rate.NearDistance, 2500.f, 1.f);
+	TestNearlyEqual(TEXT("Mid band ends at 60 m"), Rate.MidDistance, 6000.f, 1.f);
+	TestNearlyEqual(TEXT("Far band ends at 120 m"), Rate.FarDistance, 12000.f, 1.f);
+	TestNearlyEqual(TEXT("Mid: 20 a second"), Rate.MidInterval, 1.f / 20.f, 0.001f);
+	TestNearlyEqual(TEXT("Far: 10 a second"), Rate.FarInterval, 1.f / 10.f, 0.001f);
+	TestNearlyEqual(TEXT("Very far: 5 a second"), Rate.VeryFarInterval, 1.f / 5.f, 0.001f);
+
+	// Busy with a player (hunting, attacking, alerted or just hurt): every frame, however far.
+	for (const float Distance : { 3000.f, 9000.f, 50000.f })
+	{
+		TestEqual(FString::Printf(TEXT("Engaged at %.0f m: every frame"), Distance / 100.f), Rate.IntervalFor(Distance, true, false), 0.f);
+		TestFalse(FString::Printf(TEXT("Engaged at %.0f m: posed"), Distance / 100.f), Rate.ShouldFreezePose(Distance, true, false));
+	}
+	TestTrue(TEXT("Chasing needs every frame"), ACreatureBase::NeedsFullRate(ECreatureState::Chase, false, false));
+	TestTrue(TEXT("Attacking needs every frame"), ACreatureBase::NeedsFullRate(ECreatureState::Attack, false, false));
+	TestTrue(TEXT("Alerted (a target) needs every frame"), ACreatureBase::NeedsFullRate(ECreatureState::Return, true, false));
+	TestTrue(TEXT("Just hurt needs every frame"), ACreatureBase::NeedsFullRate(ECreatureState::Idle, false, true));
+	TestTrue(TEXT("Just killed needs every frame (its death plays)"), ACreatureBase::NeedsFullRate(ECreatureState::Dead, false, true));
+	for (const ECreatureState Calm : { ECreatureState::Idle, ECreatureState::Wander, ECreatureState::Return, ECreatureState::Dead })
+	{
+		TestFalse(FString::Printf(TEXT("%s alone can slow down"), *UEnum::GetValueAsString(Calm)), ACreatureBase::NeedsFullRate(Calm, false, false));
+	}
+
+	// On screen nearby: every frame (choppy motion would show); farther out on screen, the bands again.
+	TestEqual(TEXT("On screen at 30 m: every frame"), Rate.IntervalFor(3000.f, false, true), 0.f);
+	TestEqual(TEXT("Off screen at 30 m: mid band"), Rate.IntervalFor(3000.f, false, false), Rate.MidInterval);
+	TestEqual(TEXT("On screen at 90 m: far band"), Rate.IntervalFor(9000.f, false, true), Rate.FarInterval);
+
+	// The pose stops only off screen, far enough away, and never while busy.
+	TestFalse(TEXT("Near: posed"), Rate.ShouldFreezePose(1000.f, false, false));
+	TestTrue(TEXT("Off screen and far: frozen"), Rate.ShouldFreezePose(9000.f, false, false));
+	TestFalse(TEXT("On screen and far: posed"), Rate.ShouldFreezePose(9000.f, false, true));
+
+	// Farther never updates more often, and no band is slower than the bodies' animation takes in one step.
+	float Previous = 0.f;
+	for (float Distance = 0.f; Distance <= 20000.f; Distance += 250.f)
+	{
+		const float Interval = Rate.IntervalFor(Distance, false, false);
+		if (Interval < Previous)
+		{
+			AddError(FString::Printf(TEXT("%.0f m updates more often (%.2f s) than nearer (%.2f s)"), Distance / 100.f, Interval, Previous));
+		}
+		TestTrue(TEXT("Within what the animation takes"), Interval <= FCreatureUpdateRate::MaxInterval);
+		Previous = Interval;
+	}
+	FCreatureUpdateRate Mistyped;
+	Mistyped.VeryFarInterval = 3.f;
+	TestEqual(TEXT("A mistyped interval is clamped"), Mistyped.IntervalFor(50000.f, false, false), FCreatureUpdateRate::MaxInterval);
+
+	// Switched off: every frame, always posed.
+	FCreatureUpdateRate Off;
+	Off.bEnabled = false;
+	TestEqual(TEXT("Off: every frame"), Off.IntervalFor(50000.f, false, false), 0.f);
+	TestFalse(TEXT("Off: always posed"), Off.ShouldFreezePose(50000.f, false, false));
+
+	// Every creature starts from these defaults.
+	TestEqual(TEXT("Spiders use the default bands"), GetDefault<ASpiderCreature>()->UpdateRate.FarDistance, Rate.FarDistance);
+	TestTrue(TEXT("Spiders' update rates are on"), GetDefault<ASpiderCreature>()->UpdateRate.bEnabled);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCreatureUpdateRateViewTest, "Looter.Creatures.UpdateRateView",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FCreatureUpdateRateViewTest::RunTest(const FString& Parameters)
+{
+	// On screen means in a player's view, walls and all: drawn-on-screen time stops behind cover, and a body frozen behind
+	// a rock would pop as it stepped out. A camera at the origin looks along +X, 90 degrees across (corners at about 49).
+	const FCreatureUpdateRate Rate;
+	const FVector Eye = FVector::ZeroVector;
+	const FVector Ahead = FVector::ForwardVector;
+	auto Around = [](float Degrees, float Distance)
+	{
+		const float Radians = FMath::DegreesToRadians(Degrees);
+		return FVector(FMath::Cos(Radians), FMath::Sin(Radians), 0.f) * Distance;
+	};
+	auto Seen = [&Eye, &Ahead](float FieldOfView, const FVector& Point, float Radius, float Margin)
+	{
+		return FCreatureUpdateRate::IsInView(Eye, Ahead, FieldOfView, Point, Radius, Margin);
+	};
+	TestTrue(TEXT("Straight ahead"), Seen(90.f, Around(0.f, 5000.f), 100.f, 0.f));
+	TestTrue(TEXT("Near the side of the screen"), Seen(90.f, Around(40.f, 5000.f), 0.f, 0.f));
+	TestFalse(TEXT("Past the screen's corners"), Seen(90.f, Around(55.f, 5000.f), 0.f, 0.f));
+	TestTrue(TEXT("Past the corners, within the margin (a turning view reaches it next)"), Seen(90.f, Around(55.f, 5000.f), 0.f, Rate.ViewMargin));
+	TestTrue(TEXT("A big body reaching into view"), Seen(90.f, Around(55.f, 2000.f), 600.f, 0.f));
+	TestFalse(TEXT("Off to the side"), Seen(90.f, Around(90.f, 5000.f), 150.f, Rate.ViewMargin));
+	TestFalse(TEXT("Behind"), Seen(90.f, Around(180.f, 5000.f), 150.f, Rate.ViewMargin));
+	TestTrue(TEXT("A camera inside the body sees it"), Seen(90.f, Around(180.f, 50.f), 100.f, 0.f));
+
+	// Through a scope a creature looks nearer by the zoom, and updates as if it were that near. A sight narrows the view
+	// in tangents (UPlayerViewComponent): through 2x, it shows half as wide.
+	auto SightView = [&Rate](float Sight)
+	{
+		return FMath::RadiansToDegrees(2.f * FMath::Atan(FMath::Tan(FMath::DegreesToRadians(Rate.ReferenceFieldOfView) * 0.5f) / Sight));
+	};
+	TestNearlyEqual(TEXT("No zoom at the bands' own view"), Rate.ZoomFor(Rate.ReferenceFieldOfView), 1.f, 0.001f);
+	TestNearlyEqual(TEXT("A wide view never slows the bands"), Rate.ZoomFor(110.f), 1.f, 0.001f);
+	for (const float Sight : { 1.25f, 2.f, 4.f, 8.f })
+	{
+		TestNearlyEqual(FString::Printf(TEXT("A %.2fx sight zooms %.2fx"), Sight, Sight), Rate.ZoomFor(SightView(Sight)), Sight, 0.01f);
+	}
+	const float FourTimes = SightView(4.f);
+	TestEqual(TEXT("100 m through a 4x scope looks 25 m away: every frame"), Rate.IntervalFor(10000.f / Rate.ZoomFor(FourTimes), false, true), 0.f);
+	TestEqual(TEXT("100 m unzoomed: the far band"), Rate.IntervalFor(10000.f / Rate.ZoomFor(Rate.ReferenceFieldOfView), false, true), Rate.FarInterval);
+	TestTrue(TEXT("In the scope's view"), Seen(FourTimes, Around(0.f, 10000.f), 100.f, 0.f));
+	TestFalse(TEXT("Beside the scope's view: not magnified"), Seen(FourTimes, Around(30.f, 10000.f), 100.f, 0.f));
 	return true;
 }
 

@@ -47,6 +47,12 @@ namespace
 	{
 		return FTransform(FRotationMatrix::MakeFromXZ(To - From, Pole).ToQuat(), From);
 	}
+
+	/** How far (cm) a foot may get from its spot before its group steps it back: farther at speed (longer strides). */
+	float StepThresholdAt(float Speed)
+	{
+		return 32.f + Speed * 0.07f;
+	}
 }
 
 ASpiderCreature::ASpiderCreature()
@@ -197,7 +203,8 @@ void ASpiderCreature::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	AnimTime += DeltaSeconds;
-	if (bRigReady)
+	// Far away out of view it walks on unposed (OnPoseThawed puts its feet back under it).
+	if (bRigReady && !IsPoseFrozen())
 	{
 		AnimateBody(DeltaSeconds);
 		AnimateLegs(DeltaSeconds);
@@ -335,15 +342,18 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 
 	// Faster = quicker, longer, higher steps.
 	const float StepDuration = FMath::Clamp(0.26f - Speed * 0.00018f, 0.12f, 0.26f);
-	const float StepThreshold = 32.f + Speed * 0.07f;
+	const float StepThreshold = StepThresholdAt(Speed);
 	const float StepHeight = 18.f + Speed * 0.025f;
+	// A distant spider updates only a few times a second. When an update is over half a step long, a step lasts just one
+	// update: rounded up to two, each step would take twice as long while the body walks on, and the feet would trail.
+	const float StepTime = DeltaSeconds > StepDuration * 0.5f ? DeltaSeconds : StepDuration;
 
 	// Feet mid-step carry on.
 	for (FLeg& Leg : Legs)
 	{
 		if (Leg.bStepping)
 		{
-			Leg.StepAlpha = FMath::Min(1.f, Leg.StepAlpha + DeltaSeconds / StepDuration);
+			Leg.StepAlpha = FMath::Min(1.f, Leg.StepAlpha + DeltaSeconds / StepTime);
 			const float Eased = FMath::InterpEaseInOut(0.f, 1.f, Leg.StepAlpha, 2.f);
 			Leg.Foot = FMath::Lerp(Leg.StepFrom, Leg.StepTo, Eased) + FVector(0.f, 0.f, FMath::Sin(Leg.StepAlpha * UE_PI) * StepHeight);
 			if (Leg.StepAlpha >= 1.f)
@@ -473,6 +483,40 @@ void ASpiderCreature::OnRespawned()
 		AnimateBody(0.f);
 		AnimateLegs(0.f);
 	}
+}
+
+void ASpiderCreature::OnPoseThawed()
+{
+	if (!bRigReady)
+	{
+		return;
+	}
+	// Its feet stayed where they last stood while it walked on unposed. This usually happens just before a view reaches
+	// it, but a quick turn can show it, so only what's out of place moves: a step half taken lands, feet it walked away
+	// from are put down under it afresh, and feet still near their spots stay down for the gait to step in as it walks.
+	const FVector ActorLocation = GetActorLocation();
+	const FQuat Yaw = FRotator(0.f, GetActorRotation().Yaw, 0.f).Quaternion();
+	const float StepThreshold = StepThresholdAt(static_cast<float>(GetVelocity().Size2D()));
+	for (FLeg& Leg : Legs)
+	{
+		if (Leg.bStepping)
+		{
+			Leg.Foot = Leg.StepTo;
+			Leg.bStepping = false;
+			Leg.StepAlpha = 1.f;
+		}
+		const FVector Rest = ActorLocation + Yaw.RotateVector(Leg.Rest);
+		if (Leg.bNeedsReset || FVector::Dist2D(Leg.Foot, Rest) > StepThreshold)
+		{
+			Leg.Foot = GroundUnder(Rest);
+			Leg.bNeedsReset = false;
+		}
+	}
+	SteppingGroup = INDEX_NONE;
+	// The body settles over its feet at once: it may have walked up or down a slope since it was last posed.
+	bBodyInitialized = false;
+	AnimateBody(0.f);
+	AnimateLegs(0.f);
 }
 
 void ASpiderCreature::SetHitVolumesEnabled(bool bEnabled)

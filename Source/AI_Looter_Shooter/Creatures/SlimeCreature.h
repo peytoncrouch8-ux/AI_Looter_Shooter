@@ -44,18 +44,6 @@ public:
 	/** The current height scale of the body (1 at rest), for tests and effects. */
 	float GetSquash() const { return Squash.Value; }
 
-protected:
-	virtual void BeginPlay() override;
-	virtual void OnAttackStarted() override;
-	virtual void Strike() override;
-	virtual void OnHurt(bool bCritical, const FVector& HitLocation) override;
-	virtual void OnDied() override;
-	virtual void OnRespawned() override;
-	virtual void SetHitVolumesEnabled(bool bEnabled) override;
-	virtual bool IsStuck(float Speed) const override;
-	virtual bool CanStartAttack() const override;
-
-private:
 	/** The squash: a spring toward Target, or a quick forced move (Ramp) for the snappy beats of a hop. */
 	struct FSquashSpring
 	{
@@ -72,6 +60,27 @@ private:
 		void Tick(float DeltaSeconds);
 	};
 
+	/**
+	 * Moves the squash and the core's lag behind the body (cm in the mesh's space, and its speed) on by DeltaSeconds, in
+	 * short even steps: a distant slime updates only a few times a second, and its springs must go as far in one long
+	 * update as in many short ones, without blowing up. An update longer than FCreatureUpdateRate::MaxInterval (a hitch)
+	 * moves them that far.
+	 */
+	static void StepSprings(FSquashSpring& SquashSpring, FVector& CoreLag, FVector& CoreLagSpeed, float DeltaSeconds);
+
+protected:
+	virtual void BeginPlay() override;
+	virtual void OnAttackStarted() override;
+	virtual void Strike() override;
+	virtual void OnHurt(bool bCritical, const FVector& HitLocation) override;
+	virtual void OnDied() override;
+	virtual void OnRespawned() override;
+	virtual void OnPoseThawed() override;
+	virtual void SetHitVolumesEnabled(bool bEnabled) override;
+	virtual bool IsStuck(float Speed) const override;
+	virtual bool CanStartAttack() const override;
+
+private:
 	enum class EHop : uint8
 	{
 		Ground,
