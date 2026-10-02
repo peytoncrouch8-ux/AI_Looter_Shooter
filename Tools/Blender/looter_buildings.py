@@ -281,7 +281,8 @@ def _prism(loops, depth):
     # Corners in a line (two windows' tops level across a wall) can come out of the fill as flat triangles, which have
     # no tangent frame: edges between the fill's triangles are turned until every triangle has some shape.
     triangles = [f for f in tb.faces if len(f.verts) == 3]
-    inner = [e for e in {e for f in triangles for e in f.edges}
+    # In mesh order, not a set (memory-address order): the fill then comes out the same on every run.
+    inner = [e for e in dict.fromkeys(e for f in triangles for e in f.edges)
              if len(e.link_faces) == 2 and all(len(f.verts) == 3 for f in e.link_faces)]
     bmesh.ops.beautify_fill(tb, faces=triangles, edges=inner, method='ANGLE')
     bmesh.ops.join_triangles(tb, faces=[f for f in tb.faces if len(f.verts) == 3], angle_face_threshold=0.02,

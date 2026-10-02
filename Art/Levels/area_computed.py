@@ -200,26 +200,45 @@ def _near_ramp(area, point, margin):
 
 def ramp_walls(area, r, step=5.0):
     """Both walls of a ramp's cut through the cliff, where they're more than 1.5 m high: the wall's foot, its
-    height and the direction it faces (toward the path)."""
-    walls = []
+    height and the direction it faces (toward the path). A ramp whose side drops as a cliff ("drop") gets that face
+    too, after the cut's walls: a standing face from the ground below up to the ramp's edge, facing away from it."""
+    walls, drops = [], []
     pts, s = r['pts'], r['s']
     half = r['width'] * 0.5
     for target in np.arange(step * 0.5, s[-1], step):
         k = int(np.searchsorted(s, target))
         tangent = pts[min(k + 1, len(pts) - 1)] - pts[max(k - 1, 0)]
         tangent /= np.linalg.norm(tangent)
-        side = np.array([-tangent[1], tangent[0]])
+        side = np.array([-tangent[1], tangent[0]])  # the right of travel, as seen on the plan
         zr = float(np.interp(target, s, r['z']))
         for sign in (-1.0, 1.0):
             d = np.arange(half, half + 9.0, 0.2)
             line = pts[k][None, :] + sign * d[:, None] * side[None, :]
-            rise = area.height(line[:, 0], line[:, 1]) - zr
+            ground = area.height(line[:, 0], line[:, 1])
+            rise = ground - zr
+            if sign in r.get('drop', ()):
+                point = _ramp_drop(area, line, ground, sign * side)
+                if point:
+                    drops.append(point)
             if rise.max() < 1.5:
                 continue
             foot = line[int(np.argmax(rise > 0.25))]
             walls.append({'location': [_cm(foot[0]), _cm(foot[1]), _cm(zr)], 'height': _cm(rise.max()),
                           'yaw': _yaw(*(-sign * side))})
-    return walls
+    return walls + drops
+
+
+def _ramp_drop(area, line, ground, out):
+    """The face where a ramp's side drops as a cliff, from the samples of a line running out from its edge: from
+    where the ground starts falling steeply to where it stops. None when it's lower than a face needs."""
+    steep = np.gradient(ground, 0.2) < -1.5
+    if not steep.any():
+        return None
+    first = int(np.argmax(steep))
+    last = first + int(np.argmax(~steep[first:])) if (~steep[first:]).any() else len(line) - 1
+    top, foot = line[first], line[last]
+    reach = float(np.linalg.norm(foot - top)) * 0.5 + 0.3
+    return area_cliffs.face(area, (top + foot) * 0.5, out, reach, reach)
 
 
 def rim_points(area):

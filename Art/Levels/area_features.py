@@ -58,6 +58,20 @@ def control_arcs(pts, s, ctrl):
     return np.array([s[int(np.argmin(np.linalg.norm(pts - c, axis=1)))] for c in ctrl])
 
 
+DROP_SIDES = {'left': [-1], 'right': [1], 'both': [-1, 1]}
+
+
+def ramp_drop_sides(ramp):
+    """The sides of a ramp whose embankment drops as a cliff (its "drop": left, right or both), as polyline_field()'s
+    side values (+1 on the right, as seen on the plan); empty when it has none."""
+    drop = ramp.get('drop')
+    if drop is None:
+        return []
+    if drop not in DROP_SIDES:
+        raise ValueError(f"a ramp's drop must be left, right or both, not {drop!r}")
+    return DROP_SIDES[drop]
+
+
 class FeatureSteps:
     """The new feature types' steps of Area.build(), mixed into Area. Each fills its list on the area and marks the
     steep ground it designs in area.designed, which _relax() leaves alone."""

@@ -371,7 +371,9 @@ def netting(k, shape, nose_y, length, radius, cz, rope):
     for t in (0.2, 0.38, 0.62, 0.8):
         d = length * t
         ring = [point(d, 360.0 * i / 28) for i in range(29)]
-        k.tube(ring, 0.022, rope, sides=3)
+        # Oriented round the bag's axis: with the default up (+Z) the rope's section turned over where the ring runs
+        # straight down its side, and that twisted segment mapped with no UV area.
+        k.tube(ring, 0.022, rope, sides=3, up=(0.0, 1.0, 0.0))
     for a in (90.0, 38.0, 142.0, -22.0, -158.0):
         k.tube([point(length * (0.04 + 0.92 * i / 17), a) for i in range(18)], 0.022, rope, sides=3)
     # Each load point fans down to two gunwale eyes; none lands in the gangplank's opening (+X, y 0.1..1.1).

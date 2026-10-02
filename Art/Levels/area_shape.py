@@ -26,7 +26,7 @@ import os
 
 import numpy as np
 
-from area_features import GORGE_STREAM, FeatureSteps, seam_conflicts
+from area_features import GORGE_STREAM, GORGE_WALL, FeatureSteps, ramp_drop_sides, seam_conflicts
 from area_math import (Grid, arc_length, blur, catmull_rom, cells, fbm, fbm_raster, gauss_smooth_1d, normals_of,
                        points_in_polygon, polygon_area, polyline_field, raster_size, resample, resize, sample,
                        signed_distance, smax, smin, smoothstep)
@@ -52,6 +52,10 @@ FOOTPRINTS = {
     'Farmhouse': (7.0, 4.0), 'Barn': (8.0, 4.0), 'LogCabin': (5.5, 3.5), 'Cottage': (5.5, 3.5),
     'Outhouse': (2.0, 3.0), 'Well': (2.5, 2.5), 'Windmill': (3.0, 4.5), 'LookoutTower': (4.0, 3.0),
     'GunRack': (2.0, 2.0),
+    # Ransom's Rest's buildings (Docs/Areas/RansomsRest.md).
+    'Lookout': (4.0, 3.0), 'Chapel': (8.5, 4.0), 'WaterTower': (3.0, 2.0), 'CoffinShed': (2.5, 2.0),
+    'FalseFront_Undertaker': (6.5, 3.0), 'FalseFront_Saloon': (7.0, 3.0), 'FalseFront_Store': (7.0, 3.0),
+    'FalseFront_Sheriff': (5.5, 3.0),
 }
 # Buildings' sizes (length along the front, width) in meters: the worn ground around and in front of each (the macro
 # map) and the breaks they make in open ground (area_open.py).
@@ -59,10 +63,15 @@ BUILDINGS = {
     'Farmhouse': (9.0, 11.0), 'Barn': (12.0, 9.0), 'LogCabin': (6.5, 8.0), 'Cottage': (6.5, 8.0),
     'Outhouse': (1.3, 1.3), 'Well': (1.8, 1.8), 'Windmill': (3.0, 3.0), 'LookoutTower': (4.0, 4.0),
     'GunRack': (0.6, 2.0),
+    'Lookout': (6.6, 6.6), 'Chapel': (14.4, 9.6), 'Depot': (6.0, 10.0), 'WaterTower': (4.0, 4.0),
+    'CoffinShed': (2.4, 3.2), 'FalseFront_Undertaker': (12.0, 7.0), 'FalseFront_Saloon': (14.0, 8.4),
+    'FalseFront_Store': (13.0, 9.4), 'FalseFront_Sheriff': (10.0, 6.6),
+    'Locomotive_B': (8.8, 2.8), 'PassengerCar': (12.3, 2.9), 'HearseCar': (10.3, 2.9),
 }
 ROAD_STYLE = {  # how deep a road is carved and how wide its soft shoulders are (m), by kind
     'dirt': dict(carve=0.12, shoulder=2.2),
     'path': dict(carve=0.07, shoulder=2.0),
+    'rail': dict(carve=0.0, shoulder=1.5),   # a rail bed: graded to its "level" (cm), not carved
 }
 RIM_ROLL = 3.2          # the meadow rolls over the island's edge within this distance of the rim...
 RIM_ROLL_DROP = 1.2     # ...dropping this far before the rock wall (the underside's rim) starts
@@ -401,7 +410,8 @@ class Area(FeatureSteps):
         return h
 
     def _roads(self, h):
-        """Roads follow the ground, smoothed along their length, flat across and carved a little."""
+        """Roads follow the ground, smoothed along their length, flat across and carved a little. A road with a
+        "level" (cm; a rail bed) is graded flat at that height instead."""
         self.roads = []
         self.road_gap = np.full(h.shape, np.inf, dtype=np.float32)  # meters past the nearest road's edge
         for road in self.layout['roads']:
@@ -409,7 +419,10 @@ class Area(FeatureSteps):
             pts = catmull_rom(to_m(road['path']), step=0.5)
             s = arc_length(pts)
             ground = sample(h, pts[:, 0], pts[:, 1], self.half)
-            z = gauss_smooth_1d(ground, 10.0) - style['carve']
+            if 'level' in road:
+                z = np.full(len(pts), road['level'] / 100.0 - style['carve'])
+            else:
+                z = gauss_smooth_1d(ground, 10.0) - style['carve']
             half = road['width'] / 200.0
             margin = half + style['shoulder'] + 0.5
             dist, along, _ = polyline_field(self.grid, pts, margin)
@@ -426,7 +439,9 @@ class Area(FeatureSteps):
     def _ramps(self, h):
         """Each plateau's ramp, and each pit's: a path climbing (or descending) along its length, on an embankment
         where the ground is lower and in a cut where it's higher (steep rock walls on both sides). Its grade eases in
-        and out; "grade": "even" keeps it constant but for 3 m at each end."""
+        and out; "grade": "even" keeps it constant but for 3 m at each end. "drop": "left", "right" or "both" makes
+        that side's embankment a cliff (a ledge along a face: the bluff path, the Sink's ramp), as steep as a gorge's
+        walls, dressed with the ramp's own cliff group."""
         self.ramps = []
         for p in self.plateaus + self.pits:
             ramp = p['feature'].get('ramp')
@@ -447,7 +462,7 @@ class Area(FeatureSteps):
             else:
                 z = z0 + (z1 - z0) * (0.5 * t + 0.5 * t * t * (3.0 - 2.0 * t))
             half = ramp['width'] / 200.0
-            dist, along, _ = polyline_field(self.grid, pts, 26.0)
+            dist, along, side = polyline_field(self.grid, pts, 26.0)
             near = np.isfinite(dist)
             d = dist[near]
             zr = np.interp(along[near], s, z)
@@ -455,7 +470,13 @@ class Area(FeatureSteps):
             rough = 0.35 * fbm(self.x[near], self.y[near], 2.5, seed=18)
             hn = h[near]
             hn = smin(hn, zr + 2.0 * e + np.maximum(rough, 0.0) * np.minimum(e, 1.0), 0.35)  # the cut's walls
-            hn = smax(hn, zr - 0.62 * e, 0.5)                                                 # the embankment's sides
+            drop = ramp_drop_sides(ramp)
+            if drop:
+                # A side that drops as a cliff: polyline_field's side is +1 on the right (as seen on the plan).
+                steep = np.isin(side[near], drop)
+                hn = smax(hn, zr - np.where(steep, GORGE_WALL, 0.62) * e, 0.5)
+            else:
+                hn = smax(hn, zr - 0.62 * e, 0.5)                                             # the embankment's sides
             w = 1.0 - smoothstep(half - 0.3, half + 0.4, d)
             hn = hn + (zr - hn) * w
             if self.setting == 'grounded':
@@ -468,7 +489,7 @@ class Area(FeatureSteps):
             h[near] = hn
             ramp_id = ramp.get('id', p['id'] + '_ramp')
             self.ramps.append(dict(id=ramp_id, plateau=p['id'], cliff_group=ramp.get('cliffGroup', ramp_id), pts=pts,
-                                   s=s, z=z, width=ramp['width'] / 100.0))
+                                   s=s, z=z, width=ramp['width'] / 100.0, drop=drop))
         return h
 
     def _ponds(self, x, y, h):
@@ -516,6 +537,15 @@ class Area(FeatureSteps):
         for f in self.by_type['creek']:
             pts = catmull_rom(to_m(f['path']), step=0.5)
             s = arc_length(pts)
+            bottom = f.get('bottom')
+            if bottom:
+                # A flat bottom the creek runs in (Mill Creek's, where the slimes live), cut first with sloped banks,
+                # always falling toward the creek's end: the water then follows its floor.
+                depth = bottom['depth'] / 100.0
+                ground = sample(h, pts[:, 0], pts[:, 1], self.half)
+                bed = np.minimum.accumulate(gauss_smooth_1d(ground, 16.0) - depth)
+                h = self._channel(h, pts, s, bed, bottom['width'] / 200.0, bottom.get('bank', 0.8), seed=121,
+                                  depth=depth)
             # The pond the creek starts in sets its water level.
             pond = self._pond_at(pts[0])
             level = pond['level'] if pond else 0.0
@@ -541,10 +571,11 @@ class Area(FeatureSteps):
             dist, along, side = polyline_field(self.grid, pts, 16.0)
             near = np.isfinite(dist)
             d = dist[near] + 0.25 * fbm(x[near], y[near], 3.0, seed=31)
-            bank = np.interp(along[near], s, water) + 0.8
-            valley = (1.0 - smoothstep(2.5, 14.0, d)) * 0.85
-            hn = h[near]
-            h[near] = np.where(hn > bank, hn - (hn - bank) * valley, hn)
+            if not bottom:  # a creek with a bottom keeps its banks
+                bank = np.interp(along[near], s, water) + 0.8
+                valley = (1.0 - smoothstep(2.5, 14.0, d)) * 0.85
+                hn = h[near]
+                h[near] = np.where(hn > bank, hn - (hn - bank) * valley, hn)
             self.creeks.append(dict(id=f['id'], feature=f, pts=pts, s=s, water=water, s_exit=s_exit, s_lip=s_lip,
                                     k_lip=k_lip, width=f['width'] / 100.0, dist=dist, along=along, side=side,
                                     wander=d - dist[near]))

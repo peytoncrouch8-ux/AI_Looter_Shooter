@@ -89,7 +89,10 @@ FMissionActorFilter UMissionTalkObjective::GetTargets() const
 
 FString UMissionTalkObjective::DescribeRule() const
 {
-	return TEXT("Talk to ") + FName::NameToDisplayString(SpeakerTag.ToString(), /*bIsBool*/ false);
+	// Speakers are tagged Speaker_<Name>; the tracker says the name ("Talk to Delia").
+	FString Name = SpeakerTag.ToString();
+	Name.RemoveFromStart(TEXT("Speaker_"));
+	return TEXT("Talk to ") + FName::NameToDisplayString(Name, /*bIsBool*/ false);
 }
 
 // --- Scene ---

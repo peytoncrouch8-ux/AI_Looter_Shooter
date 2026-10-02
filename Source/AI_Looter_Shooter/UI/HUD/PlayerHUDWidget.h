@@ -37,8 +37,8 @@ class UWeaponManagerComponent;
  * activity (firing, reloading, switching, taking damage). The loot comparison card and messages only
  * appear when relevant. Reads the possessed pawn every frame, so it survives respawns.
  *
- * PlayerHUDWidget.cpp builds it and runs the corners and crosshair; PlayerHUDWidgetPickupCard.cpp fills the loot card
- * and the interaction prompt from the player's interaction component.
+ * PlayerHUDWidgetLayout.cpp builds it; PlayerHUDWidget.cpp runs the corners and crosshair; PlayerHUDWidgetPickupCard.cpp
+ * fills the loot card and the interaction prompt from the player's interaction component.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UPlayerHUDWidget : public UUserWidget
@@ -84,6 +84,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeaponName;
 	/** The ammo the gun in hand takes, as its Inked icon. */
 	UPROPERTY(Transient) TObjectPtr<UImage> AmmoClassIcon;
+	/** The box that icon fits in, beside the magazine. */
+	static const FVector2D AmmoClassBox;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FireModeText;
 	UPROPERTY(Transient) TObjectPtr<UHudWeaponSlotsWidget> WeaponSlots;
 

@@ -3,9 +3,11 @@ height field the core square sits in, the core's edge, the playable boundary and
 
 A grounded area is not an island: it has no rim, no underside and no outline. Its map square is the core, and a regional
 height field R (layout.json "region") is defined all around it, out to the surround ring's square:
-- a valley floor: large-scale noise on a gentle tilt;
+- a valley floor: large-scale noise on a gentle tilt, raised or lowered by benches (a terrace, a lowland past a ridge:
+  "benches", each a polygon whose ground stands "height" above or below the floor, easing out over "blend" outside it);
 - ridges, each rising from its foot (a polyline, on the side away from the area's center): a cliff band at the foot,
-  a slope up to the crest, and an outer slope back down;
+  a slope up to the crest, and an outer slope back down; a saddle ("saddles": a center, a radius and the crest's
+  "height" there) brings the crest down near a pass without lowering the band;
 - an escarpment: a lip (a polyline) past which the ground drops into a canyon, with the canyon's floor, its river and
   its far wall below.
 R is worked out on one raster over the ring's square (the region grid, 1 m cells): its smooth parts (noise, the canyon
@@ -26,7 +28,7 @@ import math
 import numpy as np
 
 from area_math import (Grid, catmull_rom, fbm, normals_of, points_in_polygon, polygon_mask, polyline_field,
-                       raster_size, resample, sample, smoothstep)
+                       raster_size, resample, sample, signed_distance, smoothstep)
 
 LIP_STEP = 0.5        # meters between the lip's points
 LIP_NEAR = 40.0       # how far (m) the lip's exact distance field reaches; past it a coarse one is enough
@@ -84,6 +86,7 @@ class Region:
             raise ValueError(f'{area.path}: region.ring.half must reach well past the core square')
         self.seam = spec.get('seamBand', 2500) / 100.0
         self.ridges = [self._ridge(r) for r in spec.get('ridges', [])]
+        self.benches = [self._bench(b) for b in spec.get('benches', [])]
         self.escarpment = spec.get('escarpment')
         self.lip = self.lip_coarse = self.canyon_polygon = self.river = None
         if self.escarpment:
@@ -108,7 +111,23 @@ class Region:
         far = 12.0 * self.half
         ridge['polygon'] = np.vstack([ridge['foot'], ridge['foot'][-1:] + out[-1:] * far,
                                       ridge['foot'][:1] + out[:1] * far])
+        # Saddles: (center, radius, the crest's height at the center), meters.
+        ridge['saddles'] = [(_to_m(s['center']), s['radius'] / 100.0, s['height'] / 100.0)
+                            for s in spec.get('saddles', [])]
+        for _, radius, height in ridge['saddles']:
+            if height < 1.3 * ridge['band'] or height > ridge['height'] or radius <= 0.0:
+                raise ValueError(f"ridge {spec['id']}: a saddle's height must lie between 1.3 times the band and the "
+                                 'ridge\'s height, and its radius be positive')
         return ridge
+
+    def _bench(self, spec):
+        """A bench: the valley floor raised (a terrace) or lowered (a lowland) inside a polygon, easing out over its
+        blend outside it."""
+        poly = catmull_rom(_to_m(spec['polygon']), closed=True, step=2.0)
+        bench = dict(id=spec['id'], polygon=poly, height=spec['height'] / 100.0, blend=spec.get('blend', 1000) / 100.0)
+        if bench['blend'] <= 0.0:
+            raise ValueError(f"bench {spec['id']}: its blend must be positive")
+        return bench
 
     def _lip(self, area):
         esc = self.escarpment
@@ -118,6 +137,12 @@ class Region:
         normal = normals_of(dense)
         wobble = (1.4 * fbm(dense[:, 0], dense[:, 1], 18.0, seed=311, octaves=2)
                   + 0.45 * fbm(dense[:, 0], dense[:, 1], 5.0, seed=312))
+        for spot in esc.get('calm', []):
+            # Calm stretches (a center and a radius, cm): the lip runs where the layout draws it, for a model fitted to
+            # it (the burial deck's bearers on the rim); the wobble fades back in toward the radius.
+            center, radius = _to_m(spot['center']), spot['radius'] / 100.0
+            wobble = wobble * smoothstep(0.7 * radius, radius, np.hypot(dense[:, 0] - center[0],
+                                                                       dense[:, 1] - center[1]))
         self.lip = resample(dense + normal * wobble[:, None], LIP_STEP)
         self.lip_coarse = resample(ctrl, 8.0)
         self.lip_up = side_at(self.lip_coarse, (0.0, 0.0))  # the upland's side: the area's center is on it
@@ -207,6 +232,10 @@ class Region:
         f['base'] = (noise.get('amplitude', 0.0) / 100.0 * fbm(x, y, noise.get('wavelength', 6000) / 100.0, seed=301,
                                                                 octaves=2, gain=0.35)
                      + tilt[0] * x + tilt[1] * y)
+        for bench in self.benches:
+            # Inside the polygon the bench's full height; outside it, easing out over the blend.
+            outside = np.maximum(signed_distance(g, bench['polygon'], bench['blend'] + 2.0), 0.0)
+            f['base'] += bench['height'] * (1.0 - smoothstep(0.0, bench['blend'], outside))
         f['var'] = fbm(x, y, 45.0, seed=302, octaves=2)
         for i, r in enumerate(self.ridges):
             # Meters past the foot, into the ridge (negative on the valley's side), kept to the range the profile
@@ -274,7 +303,7 @@ class Region:
             for i, r in enumerate(self.ridges):
                 s = f[f'ridge{i}']
                 zi = self._ridge_height(r, s + wob * (1.0 - smoothstep(r['depth'] - 6.0, r['depth'], s)), f['var'],
-                                        fine, fade)
+                                        fine, fade, self._saddle_top(r, x, y))
                 z = zi if i == 0 else _soft_max(z, zi, 3.0)
         upland = f['base'] + z
         if self.lip is None:
@@ -286,11 +315,23 @@ class Region:
         return upland - (upland - f['canyon']) * drop
 
     @staticmethod
-    def _ridge_height(r, s, var, fine, fade):
+    def _saddle_top(r, x, y):
+        """A ridge's crest height (m) at points, lowered toward each saddle's center; None without saddles."""
+        if not r['saddles']:
+            return None
+        top = np.full(np.shape(x), r['height'])
+        for (cx, cy), radius, height in r['saddles']:
+            w = 1.0 - smoothstep(0.3 * radius, radius, np.hypot(x - cx, y - cy))
+            top = top + (height - top) * w
+        return top
+
+    @staticmethod
+    def _ridge_height(r, s, var, fine, fade, top=None):
         """A ridge's height (m) at s meters past its foot (negative on the valley's side): a cliff band at the foot,
         then a slope that eases out of the band's top and over the crest (no crease where the band fades out near the
-        core square's edge: the slope then starts at the foot), then the outer slope down to the valley's level."""
-        height = r['height'] * (1.0 + 0.08 * var)
+        core square's edge: the slope then starts at the foot), then the outer slope down to the valley's level. top
+        is the crest's height per point where a saddle lowers it (else the ridge's own)."""
+        height = (r['height'] if top is None else top) * (1.0 + 0.08 * var)
         band = r['band'] * (1.0 + 0.2 * fine) * fade
         depth = r['depth']
         wb = r['band_width'] * fade

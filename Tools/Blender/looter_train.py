@@ -124,13 +124,47 @@ def loft(sections, uvs=None, caps=(True, True)):
                 face = bm.faces.new(ring)
                 if uvs is not None:
                     row = uvs[0] if end == 0 else uvs[-1]
-                    for loop in face.loops:
-                        loop[layer].uv = row[ring.index(loop.vert)]
+                    cap_uv(face, layer, [row[ring.index(loop.vert)] for loop in face.loops])
             except ValueError:
                 pass
     bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     return lp.mesh_object(bm)
+
+
+def cap_uv(face, layer, row):
+    """Maps a loft's end cap with its section's UVs (row, one per corner in the face's loop order). A section whose
+    UVs run in a line (a plank's: one U across its whole end) would leave the cap with no UV area, and Unreal's
+    MikkTSpace leaves such a face's corners its default tangent (+X): along an end facing the front that is a
+    degenerate tangent basis, along one facing back a zero binormal. So the coordinate that doesn't change is spread
+    across the cap, at the density the other one has along the section."""
+    uv = [Vector(t) for t in row]
+    area = sum(uv[i].x * uv[i - 1].y - uv[i - 1].x * uv[i].y for i in range(len(uv)))
+    loops = list(face.loops)
+    if abs(area) > 1e-9:
+        for loop, t in zip(loops, uv):
+            loop[layer].uv = t
+        return
+    face.normal_update()
+    k = 0 if max(t.x for t in uv) - min(t.x for t in uv) >= max(t.y for t in uv) - min(t.y for t in uv) else 1
+    lo = min(range(len(uv)), key=lambda i: uv[i][k])
+    hi = max(range(len(uv)), key=lambda i: uv[i][k])
+    run = loops[hi].vert.co - loops[lo].vert.co
+    if abs(uv[hi][k] - uv[lo][k]) < 1e-9 or run.length < 1e-9:
+        # One UV for the whole section: the cap gets a flat map at WoodPlanks' scale round it.
+        run = face.normal.orthogonal()
+        density = 320.0 / 1024.0
+        for loop, t in zip(loops, uv):
+            d = loop.vert.co - loops[lo].vert.co
+            loop[layer].uv = (t.x + d.dot(run.normalized()) * density,
+                              t.y + d.dot(face.normal.cross(run).normalized()) * density)
+        return
+    density = abs(uv[hi][k] - uv[lo][k]) / run.length
+    across = face.normal.cross(run).normalized()
+    for loop, t in zip(loops, uv):
+        value = t.copy()
+        value[1 - k] = t[1 - k] + (loop.vert.co - loops[lo].vert.co).dot(across) * density
+        loop[layer].uv = value
 
 
 def board_uv(obj, width=BOARD, seed=0, upright=True):
@@ -394,9 +428,10 @@ class Kit:
         profile = ([(0.0, 0.0)] if caps[0] else []) + [(r, 0.0), (r1, length)] + ([(0.0, length)] if caps[1] else [])
         return self.lathe(profile, mat, p0, p1, sides, strip=strip, grain=grain, spin=spin)
 
-    def tube(self, points, r, mat, sides=6, strip=None):
-        """A round bar along a polyline (handrails, pipes, rods)."""
-        part = lp.sweep(points, lp.ngon(r, sides, start=math.pi / sides))
+    def tube(self, points, r, mat, sides=6, strip=None, up=(0.0, 0.0, 1.0)):
+        """A round bar along a polyline (handrails, pipes, rods). up orients its cross-section; a path that turns
+        through up's direction (a ring standing upright) needs another, or the section twists where it passes."""
+        part = lp.sweep(points, lp.ngon(r, sides, start=math.pi / sides), up=up)
         if mat == 'trim':
             lp.grain(part, strip, axis=Vector(points[-1]) - Vector(points[0]), seed=self.seed())
             self.parts.append(part)

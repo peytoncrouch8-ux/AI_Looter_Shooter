@@ -3,6 +3,7 @@
 #include "UI/Inventory/LoadoutWidget.h"
 #include "UI/Inventory/MissionsWidget.h"
 #include "UI/Menus/SettingsMenuWidget.h"
+#include "UI/HUD/HudCaptionWidget.h"
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "Session/SessionSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
@@ -44,6 +45,13 @@ void ALooterHUD::BeginPlay()
 	if (HUDWidget)
 	{
 		HUDWidget->AddToViewport(0);
+	}
+	// The captions are a widget of their own over the HUD's: they keep ticking while the HUD is collapsed under a menu, so
+	// they can hold their lines until it closes.
+	CaptionWidget = CreateWidget<UHudCaptionWidget>(PC, UHudCaptionWidget::StaticClass());
+	if (CaptionWidget)
+	{
+		CaptionWidget->AddToViewport(UHudCaptionWidget::ViewportZOrder);
 	}
 	InventoryWidget = CreateWidget<ULoadoutWidget>(PC, ULoadoutWidget::StaticClass());
 	BestiaryWidget = CreateWidget<UBestiaryWidget>(PC, UBestiaryWidget::StaticClass());

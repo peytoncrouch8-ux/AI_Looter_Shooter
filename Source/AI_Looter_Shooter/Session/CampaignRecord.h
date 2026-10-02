@@ -5,9 +5,10 @@
 
 /**
  * The story so far, as a session saves it (ULooterSessionSave, from version 2): the missions finished and the one being
- * played, the areas open to travel, the bosses beaten, and the moments that happen once (leaving Skyreach for the first
- * time, the cold open). Missions, areas (UAreaDefinition::GetAreaId) and bosses are named by id. The record is kept from
- * step 8 on; the missions, the skiff and the station board fill it in later steps.
+ * played, the areas open to travel, the bosses beaten, the respawn graves opened, and the moments that happen once
+ * (leaving Skyreach for the first time, the cold open). Missions, areas (UAreaDefinition::GetAreaId), bosses and graves
+ * (ARespawnMarker::MarkerId) are named by id. The record is kept from step 8 on; the missions, the skiff and the station
+ * board fill it in later steps.
  */
 USTRUCT()
 struct AI_LOOTER_SHOOTER_API FCampaignRecord
@@ -40,6 +41,14 @@ struct AI_LOOTER_SHOOTER_API FCampaignRecord
 	/** The cold open has played (once, on the first cast-off). */
 	UPROPERTY()
 	bool bColdOpenSeen = false;
+
+	/**
+	 * Respawn graves opened, by marker id, in the order they opened: a death wakes the player at the nearest open one. A
+	 * grave open from the start, or whose mission is finished, is open whether or not it's listed. New within version 2:
+	 * a save from before it reads as none opened, which is right, so it needs no upgrade.
+	 */
+	UPROPERTY()
+	TArray<FName> ActiveRespawns;
 
 	bool HasCompleted(FName Mission) const { return !Mission.IsNone() && CompletedMissions.Contains(Mission); }
 
@@ -79,6 +88,19 @@ struct AI_LOOTER_SHOOTER_API FCampaignRecord
 			return false;
 		}
 		DefeatedBosses.Add(Boss);
+		return true;
+	}
+
+	bool IsRespawnActive(FName Marker) const { return !Marker.IsNone() && ActiveRespawns.Contains(Marker); }
+
+	/** Records a respawn grave opened. False when it already was. */
+	bool ActivateRespawn(FName Marker)
+	{
+		if (Marker.IsNone() || ActiveRespawns.Contains(Marker))
+		{
+			return false;
+		}
+		ActiveRespawns.Add(Marker);
 		return true;
 	}
 };

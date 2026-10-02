@@ -6,6 +6,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogModelImporter, Log, All);
 
 struct FStylizedSurface;
 class UFbxAssetImportData;
+class UMaterialInstanceConstant;
 class UMaterialInterface;
 class UPackage;
 class UPhysicsAsset;
@@ -138,6 +139,16 @@ private:
 	UMaterialInterface* UpdateTexturedMaterial(const FString& Name, const FTexturedLook& Look);
 	/** Imports (or finds, when its file hasn't changed) a texture; its settings come from the file name's suffix. */
 	UTexture2D* ImportTexture(const FString& ProjectRelativeFile);
+
+	/**
+	 * Saves a material instance only if this import changed it. Before is its look before the update (DescribeInstance),
+	 * empty for one made now. An unchanged one is left as it is on disk, so a re-import doesn't re-save every shared
+	 * instance its models use.
+	 */
+	void KeepIfChanged(UMaterialInstanceConstant* Instance, const FString& Before, bool bWasDirty);
+
+	/** An instance's look as text: its parent, every parameter value and its usage override. */
+	static FString DescribeInstance(const UMaterialInstanceConstant& Instance);
 
 	// ModelImporterRig.cpp
 	USkeletalMesh* ImportRig(const FModel& Model);

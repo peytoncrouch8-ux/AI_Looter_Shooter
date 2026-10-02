@@ -78,7 +78,7 @@ namespace
 	}
 
 	/** The project's fixed FBX settings (see the class comment). */
-	UFbxImportUI* MakeImportOptions(bool bNanite)
+	UFbxImportUI* MakeImportOptions()
 	{
 		UFbxImportUI* Options = NewObject<UFbxImportUI>();
 		Options->bIsObjImport = false;
@@ -112,7 +112,9 @@ namespace
 		Data->bGenerateLightmapUVs = false;
 		Data->bAutoGenerateCollision = false;
 		Data->bOneConvexHullPerUCX = true;
-		Data->bBuildNanite = bNanite;
+		// Nanite goes on afterwards with its fallback (ApplyMeshSettings). Built here, it would build once with Unreal's
+		// default fallback first: a wasted build, whose tangent warnings were about a mesh the game never draws.
+		Data->bBuildNanite = false;
 		Data->bReorderMaterialToFbxOrder = true;
 		return Options;
 	}
@@ -331,12 +333,16 @@ UMaterialInterface* FModelImporter::UpdateMaterial(const FString& Name, const FS
 	const FString AssetName = TEXT("MI_") + Name;
 	const FString MaterialFolder = ContentRoot / TEXT("Materials");
 	UMaterialInstanceConstant* Instance = SurfaceMaterials::LoadExisting<UMaterialInstanceConstant>(MaterialFolder / AssetName);
+	FString Before;
+	bool bWasDirty = false;
 	if (!Instance)
 	{
 		Instance = SurfaceMaterials::Create(MaterialFolder, AssetName, Parent);
 	}
 	else
 	{
+		Before = DescribeInstance(*Instance);
+		bWasDirty = Instance->GetPackage()->IsDirty();
 		Instance->Modify();
 		if (Instance->Parent != Parent)
 		{
@@ -349,8 +355,7 @@ UMaterialInterface* FModelImporter::UpdateMaterial(const FString& Name, const FS
 		return nullptr;
 	}
 	SurfaceMaterials::Apply(Instance, Surface);
-	Instance->MarkPackageDirty();
-	ChangedPackages.AddUnique(Instance->GetPackage());
+	KeepIfChanged(Instance, Before, bWasDirty);
 	Materials.Add(Name, Instance);
 	return Instance;
 }
@@ -373,7 +378,7 @@ UStaticMesh* FModelImporter::ImportModel(const FModel& Model)
 	Task->bSave = false;
 	// An explicit factory keeps the import on these fixed settings instead of the Interchange defaults.
 	Task->Factory = NewObject<UFbxFactory>();
-	UFbxImportUI* Options = MakeImportOptions(Model.bNanite);
+	UFbxImportUI* Options = MakeImportOptions();
 	Task->Options = Options;
 	UStaticMesh* Existing = SurfaceMaterials::LoadExisting<UStaticMesh>(Task->DestinationPath / Model.Name);
 	KeepSettings(Existing, Options->StaticMeshImportData, Model.FbxPath);
@@ -436,13 +441,15 @@ UStaticMesh* FModelImporter::ImportModel(const FModel& Model)
 
 void FModelImporter::ApplyMeshSettings(UStaticMesh* Mesh, const FModel& Model)
 {
+	// Nanite with its fallback in one go, so the mesh builds once with the fallback the game draws on Medium.
+	FMeshNaniteSettings Nanite = Mesh->GetNaniteSettings();
+	Nanite.bEnabled = Model.bNanite;
 	if (Model.bNanite && Model.FallbackShare.IsSet())
 	{
-		FMeshNaniteSettings Nanite = Mesh->GetNaniteSettings();
 		Nanite.FallbackTarget = ENaniteFallbackTarget::PercentTriangles;
 		Nanite.FallbackPercentTriangles = FMath::Clamp(*Model.FallbackShare, 0.01f, 1.f);
-		Mesh->SetNaniteSettings(Nanite);
 	}
+	Mesh->SetNaniteSettings(Nanite);
 
 	Mesh->GetSourceModel(0).BuildSettings.bUseFullPrecisionUVs = Model.bFullPrecisionUVs;
 
