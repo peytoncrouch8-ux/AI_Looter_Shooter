@@ -111,3 +111,18 @@ art bible, the asset list, the island layout and the performance plan. The targe
       clouds were the big cost (9.5 ms with the engine's layer, 2 ms thinned); the dome costs almost nothing.
 - [ ] Next: a waterfall and chimney smoke, reeds at the pond, more trees in the meadows, the gun rack's weapon, and the
       tutorial itself (prompts along the road).
+
+## Phase 6: Screen Print Wash
+The user found stylized realism bland and, from an exploration of eight styles and six mixes
+(`Docs/Art/StyleExploration/`), chose **Screen Print Wash** on 2026-10-02: flat palette fills, a hard violet two-tone
+light with pigment granulation, pencil-under-ink lines, a misregistered color plate and cream paper, with a pastel sky
+(`Docs/Art/ScreenPrintWash.md`, target `Docs/Art/StyleTarget_ScreenPrintWash.png`). The transition starts in the next
+session; its steps are listed in that document. Nothing in the game has changed yet.
+- [ ] Docs: the art bible, `CLAUDE.md`, this phase's boxes.
+- [ ] The post-process material (two-tone light, ink and pencil lines, misregistration, granulation, paper, distance
+      fade), applied from C++, within 0.8 ms on Medium.
+- [ ] Flat texture plates for every set (`looter_textures.py --style print`) and the masters' `Print` switch.
+- [ ] Foliage and terrain as flat tones, with the edge pass excluding leaf cards.
+- [ ] Light, fog and sky dome in the pastel palette.
+- [ ] Guns, creatures and loot; the UI checked over the new world.
+- [ ] Retire the realism texture mode; tour and performance recorded.

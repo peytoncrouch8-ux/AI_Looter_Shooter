@@ -98,6 +98,9 @@ command line keep theirs under `%LOCALAPPDATA%\UnrealEngine\5.8\Saved`.
   word, rarity and stat ranges in percent (capped per stat, `Weapons/WeaponParts.h`). After importing, run
   `Tools/Unreal/setup_gun_parts.py` in the editor: it fills the gun's definition from the spreadsheet. A dropped gun
   saves its parts by key, so never rename or reuse a key.
+- The user chose the game's next look on 2026-10-02: **Screen Print Wash** (`Docs/Art/ScreenPrintWash.md`, target
+  `Docs/Art/StyleTarget_ScreenPrintWash.png`, transition plan inside). The transition has not started, so the rules
+  below still describe what is in the game.
 - The art style is moving to textured "stylized realism" (`Docs/TutorialIsland.md`, the tutorial island first). New
   models use the textured masters in `/Game/Art/Materials/Masters` (`M_World`, `M_Gun` for gun parts with per-gun
   wear, `M_WorldFoliage`, `M_Terrain`, `M_Water`, built by `Tools/Unreal/build_world_materials.py`) with texture sets from `Art/Textures/<Set>`. Older

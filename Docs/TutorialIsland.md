@@ -1,5 +1,9 @@
 # Tutorial island: the new look
 
+> **Superseded on 2026-10-02.** The user chose the Screen Print Wash look (`Docs/Art/ScreenPrintWash.md`, target
+> `Docs/Art/StyleTarget_ScreenPrintWash.png`) to replace stylized realism. The transition starts in the next session;
+> until then this document describes the game as it is.
+
 The user approved a new art style on 2026-09-30 (mock-up: `Docs/Art/StyleTarget_Outpost.png`) and asked to rebuild the
 tutorial island in it: Skyreach stays a grassy meadow floating in the sky, with rustic houses, roads, varied trees,
 reshaped terrain (hills, cliffs, a road network) and an experience worth remembering. Other areas come later.

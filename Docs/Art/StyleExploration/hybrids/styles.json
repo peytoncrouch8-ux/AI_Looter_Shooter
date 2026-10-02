@@ -1,0 +1,44 @@
+[
+ {
+  "number": 9,
+  "name": "Storybook ink",
+  "reference": "mix of 1 and 4 (balanced)",
+  "note": "Two-tone shade with a short soft edge over gouache fills, brown ink over a pencil sketch, pastel sky with outlined wash clouds.",
+  "file": "09_storybook_ink.png"
+ },
+ {
+  "number": 10,
+  "name": "Screen Print Wash",
+  "reference": "mix of 1 and 4 (ink-leaning)",
+  "note": "Flat quantized fills with a hard violet shade that granulates like pigment, misregistered from a pencil-under-ink line pair, on cream paper with a flat pastel sky.",
+  "file": "10_screen_print_wash.png"
+ },
+ {
+  "number": 11,
+  "name": "Moebius Watercolor",
+  "reference": "mix of 1 and 4 (balanced)",
+  "note": "Clean uniform ink over pale luminous watercolor washes that grade softly from lit to a cooler shade; Moebius gradient sky with soft, unlined clouds.",
+  "file": "11_moebius_watercolor.png"
+ },
+ {
+  "number": 12,
+  "name": "Inked Wash",
+  "reference": "mix of 1 and 4 (ink-leaning)",
+  "note": "Sable ink lines and hard violet shade over granulated watercolor washes that pool at the lines and bleed past them; the pastel sky is a wash with soft blooms and flat outlined clouds.",
+  "file": "12_inked_wash.png"
+ },
+ {
+  "number": 13,
+  "name": "Inked Gouache",
+  "reference": "mix of 1 and 4 (wash-leaning)",
+  "note": "Gouache washes, wet-edge two-tone violet shade and pencil interiors; bold Sable ink only on silhouettes and depth edges; pastel sky as a pale wash.",
+  "file": "13_inked_gouache.png"
+ },
+ {
+  "number": 14,
+  "name": "Pastel flat gouache",
+  "reference": "mix of 1 and 4 (wash-leaning)",
+  "note": "Ten-color flat fills with soft wet-edge wash boundaries, a three-tone violet shade ramp, paper grain and a faint pencil line; Sable pastel sky with soft-edged flat clouds. No ink.",
+  "file": "14_pastel_flat_gouache.png"
+ }
+]
