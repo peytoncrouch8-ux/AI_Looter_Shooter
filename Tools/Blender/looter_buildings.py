@@ -581,19 +581,24 @@ def _triangulate(bm):
         slivers = [f for f in bm.faces if flat(f)]
         if not slivers:
             return
-        short = {e for f in slivers for e in f.edges if e.calc_length() < 1e-3}
+        # Lists in mesh order, never sets of mesh elements: a set of them iterates in memory-address order, which
+        # changes from run to run, and these operations give a different mesh for a different order, so the same
+        # source exported a different mesh each time (lettered signs changed by hundreds of KB).
+        short = []
+        for f in slivers:
+            short.extend(e for e in f.edges if e.calc_length() < 1e-3 and e not in short)
         if short:
-            bmesh.ops.dissolve_degenerate(bm, dist=1e-3, edges=list(short))
+            bmesh.ops.dissolve_degenerate(bm, dist=1e-3, edges=short)
             bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3], quad_method='BEAUTY',
                                   ngon_method='BEAUTY')
-        turn = set()
+        turn = []
         for face in (f for f in bm.faces if flat(f)):
             longest = max(face.edges, key=lambda e: e.calc_length())
             if len(longest.link_faces) == 2 and not any(e in turn for e in face.edges) and same_uvs(longest):
-                turn.add(longest)
+                turn.append(longest)
         if not turn:
             break
-        bmesh.ops.rotate_edges(bm, edges=list(turn), use_ccw=False)
+        bmesh.ops.rotate_edges(bm, edges=turn, use_ccw=False)
     bmesh.ops.delete(bm, geom=[f for f in bm.faces if flat(f)], context='FACES_ONLY')
 
 
