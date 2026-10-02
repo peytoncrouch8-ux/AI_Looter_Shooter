@@ -18,9 +18,9 @@ namespace
 {
 	constexpr float RetryInterval = 0.25f;
 
-	// The beam over every ammo drop: about two thirds the height and width of the smallest gun beam (an Uncommon's, 350
-	// by 6) and fainter, so a field of ammo reads from afar without outshining the guns, whose beams carry rarity.
-	constexpr float AmmoBeamHeight = 230.f;
+	// The beam over every ammo drop: small (1.5 m, under half the height of the smallest gun beam, an Uncommon's 350 by
+	// 6), thinner and fainter, so a field of ammo reads from afar without outshining the guns, whose beams carry rarity.
+	constexpr float AmmoBeamHeight = 150.f;
 	constexpr float AmmoBeamRadius = 4.f;
 	constexpr float AmmoBeamGlow = 1.2f;
 

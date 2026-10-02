@@ -354,7 +354,7 @@ bool FLootAmmoModelsTest::RunTest(const FString& Parameters)
 		}
 
 		// The beam: a glowing mesh on the root (so it doesn't spin with the bundle), standing above the bundle, small
-		// next to a gun's (the shortest is 350 cm tall), never in the way of anything.
+		// (the user asked for 1.5 m; a gun's shortest is 350 cm tall), never in the way of anything.
 		const UStaticMeshComponent* Beam = Pickup ? Pickup->GetBeam() : nullptr;
 		if (TestNotNull(FString::Printf(TEXT("%s beam"), *Name), Beam) && Model)
 		{
@@ -367,7 +367,7 @@ bool FLootAmmoModelsTest::RunTest(const FString& Parameters)
 			const FBox BeamBox = Beam->Bounds.GetBox();
 			const FBox BundleBox = Model->Bounds.GetBox();
 			const double BeamHeight = BeamBox.Max.Z - BeamBox.Min.Z;
-			TestTrue(FString::Printf(TEXT("%s beam is short next to a gun's (%.0f cm)"), *Name, BeamHeight), BeamHeight > 100.0 && BeamHeight < 350.0);
+			TestTrue(FString::Printf(TEXT("%s beam is about 1.5 m tall (%.0f cm)"), *Name, BeamHeight), FMath::IsNearlyEqual(BeamHeight, 150.0, 10.0));
 			TestTrue(FString::Printf(TEXT("%s beam starts above the bundle (%.0f over %.0f)"), *Name, BeamBox.Min.Z, BundleBox.Max.Z),
 				BeamBox.Min.Z >= BundleBox.Max.Z - 2.0);
 		}
