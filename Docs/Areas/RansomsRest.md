@@ -639,9 +639,9 @@ Concept renders come before any human costume. Sexton is first, because he sets 
   - Promotions of 8% and 2% on Ransom's Rest, with Legendaries hand-placed.
   - +8% max health per level as the first level-up reward.
 - **Step 8:** the 20-minute cooldown on rerolled promotions and the Legendary monster.
-- **Step 9:**
-  - The train's look (the locomotive, the passenger car and Tilly's hearse car), the depot's and the water tower's, and the tutorial skiff's.
-  - How the train arrives and departs: a short shot, then a fade (the default), or a fade alone.
+- **Step 9 (decided on 2026-10-02, except the skiff):**
+  - The train's look (the locomotive, the passenger car and Tilly's hearse car), the depot's and the water tower's: approved from the look sheet, with **locomotive B** (the balloon stack, bell and cowcatcher). The ruins, the lookout with its cliff stairs, the burial deck and the Keeper's Lantern were approved the same day. Still to choose: the tutorial skiff (two options).
+  - How the train arrives and departs: **a short shot, then a fade** (the default).
 - **Step 10:** the first cast-off's ride and its length (12 s); practice trips as plain fades with no cutscene (the default); and whether Skyreach's creatures keep dropping only ammo on return visits (the default).
 - **Step 12:** talking doors and captions only for this area.
 - **Step 14:** Hob's look.
