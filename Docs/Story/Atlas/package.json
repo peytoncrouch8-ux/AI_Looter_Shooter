@@ -1,0 +1,8 @@
+{
+  "name": "skyreach-story-atlas",
+  "private": true,
+  "type": "module",
+  "description": "Builds Docs/Story/Atlas/StoryAtlas.html from the story docs and the tutorial island's layout.",
+  "scripts": { "build": "node build.mjs" },
+  "dependencies": { "marked": "12.0.2" }
+}
