@@ -1,4 +1,7 @@
 #include "World/FallRecoverySubsystem.h"
+#include "AI_Looter_Shooter.h"
+#include "World/PlayableArea.h"
+#include "World/PlayableBoundary.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
@@ -23,6 +26,13 @@ void UFallRecoverySubsystem::Tick(float DeltaTime)
 		return;
 	}
 
+	// The level's playable area, if it has one: safe spots only inside it, and its open edges bring a fall back early.
+	const APlayableArea* PlayableArea = APlayableArea::Find(World);
+	const FPlayableBoundary* Boundary = PlayableArea ? &PlayableArea->GetBoundary() : nullptr;
+	FFallRecoveryTracker::FRules Rules;
+	Rules.LongDrop = RecoverDropHeight;
+	Rules.OpenEdgeDrop = OpenEdgeDropHeight;
+
 	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
 	{
 		APlayerController* PC = It->Get();
@@ -33,41 +43,49 @@ void UFallRecoverySubsystem::Tick(float DeltaTime)
 			continue;
 		}
 
-		FSafeSpot& Spot = SafeSpots.FindOrAdd(Character);
-
-		// Sample while standing on walkable ground, a few times a second, so the spot is recent but not the
-		// exact frame the player stepped off an edge.
-		if (Movement->IsMovingOnGround() && Movement->CurrentFloor.IsWalkableFloor())
+		FFallRecoveryTracker& Tracker = Trackers.FindOrAdd(Character);
+		const bool bOnWalkableGround = Movement->IsMovingOnGround() && Movement->CurrentFloor.IsWalkableFloor();
+		const TOptional<EFallRecoveryReason> Reason = Tracker.Update(DeltaTime, Character->GetActorLocation(), PC->GetControlRotation(),
+			bOnWalkableGround, Boundary, Rules);
+		if (Reason.IsSet())
 		{
-			Spot.SampleTimer -= DeltaTime;
-			if (Spot.SampleTimer <= 0.f || !Spot.bValid)
-			{
-				Spot.Location = Character->GetActorLocation();
-				Spot.Rotation = PC->GetControlRotation();
-				Spot.bValid = true;
-				Spot.SampleTimer = 0.5f;
-			}
-			continue;
-		}
-
-		if (Spot.bValid && Character->GetActorLocation().Z < Spot.Location.Z - RecoverDropHeight)
-		{
-			Movement->StopMovementImmediately();
-			Character->TeleportTo(Spot.Location + FVector(0.f, 0.f, 30.f), FRotator(0.f, Spot.Rotation.Yaw, 0.f), false, true);
-			PC->SetControlRotation(FRotator(0.f, Spot.Rotation.Yaw, 0.f));
-			if (PC->PlayerCameraManager)
-			{
-				PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, 0.6f, FLinearColor(0.75f, 0.88f, 1.f), false, false);
-			}
+			Recover(*PC, *Character, Tracker, Reason.GetValue());
 		}
 	}
 
 	// Forget pawns that no longer exist.
-	for (auto It = SafeSpots.CreateIterator(); It; ++It)
+	for (auto It = Trackers.CreateIterator(); It; ++It)
 	{
 		if (!It.Key().IsValid())
 		{
 			It.RemoveCurrent();
 		}
 	}
+}
+
+void UFallRecoverySubsystem::Recover(APlayerController& PC, ACharacter& Character, FFallRecoveryTracker& Tracker, EFallRecoveryReason Reason)
+{
+	FFallRecoveryEvent Event;
+	Event.Pawn = &Character;
+	Event.Reason = Reason;
+	Event.From = Character.GetActorLocation();
+	Event.To = Tracker.GetSafeLocation();
+	Event.Edge = Tracker.GetExitEdge();
+
+	const FRotator Facing(0.0, Tracker.GetSafeRotation().Yaw, 0.0);
+	if (UCharacterMovementComponent* Movement = Character.GetCharacterMovement())
+	{
+		Movement->StopMovementImmediately();
+	}
+	Character.TeleportTo(Event.To + FVector(0.0, 0.0, 30.0), Facing, false, true);
+	PC.SetControlRotation(Facing);
+	if (PC.PlayerCameraManager)
+	{
+		PC.PlayerCameraManager->StartCameraFade(1.f, 0.f, 0.6f, FLinearColor(0.75f, 0.88f, 1.f), false, false);
+	}
+	Tracker.MarkRecovered();
+
+	UE_LOG(LogLooter, Log, TEXT("Fall recovery: %s brought back %s (%.0f m below the safe spot, edge %d)."), *Character.GetName(),
+		Reason == EFallRecoveryReason::OffOpenEdge ? TEXT("off an open edge") : TEXT("after a long fall"), (Event.To.Z - Event.From.Z) / 100.0, Event.Edge);
+	OnRecovered.Broadcast(Event);
 }

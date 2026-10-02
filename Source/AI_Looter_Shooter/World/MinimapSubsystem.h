@@ -3,8 +3,10 @@
 #include "CoreMinimal.h"
 #include "CollisionQueryParams.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "World/MinimapPaint.h"
 #include "MinimapSubsystem.generated.h"
 
+class APlayableArea;
 class UTexture2D;
 
 /**
@@ -21,8 +23,10 @@ namespace MinimapTags
 
 /**
  * A top-down picture of the playable world for the HUD minimap, baked at runtime by tracing straight down over the
- * islands (a few milliseconds per frame, so it never hitches): land shaded by height, coastlines and cliff edges drawn
- * bright, rocks, walls and trees marked, the void left clear.
+ * ground (a few milliseconds per frame, so it never hitches), about a meter per texel: land shaded by height,
+ * coastlines and cliff edges drawn bright, rocks, walls and trees marked, the void left clear (MinimapPaint has the
+ * rules). With a playable area in the level (APlayableArea), what lies outside it is dimmed, its closed edges are drawn
+ * as the boundary line, and the land's tint spans only the heights inside it.
  *
  * Map space: U runs east (world +Y) and V runs south (world -X), so north (world +X) is up.
  */
@@ -48,8 +52,14 @@ public:
 	 */
 	static FVector2D ViewOffset(const FVector& WorldDelta, float ViewYaw, float PixelsPerCm);
 
-	/** Texels per side of the baked map. */
-	static constexpr int32 Resolution = 256;
+	/** Texels per side of the baked map: ResolutionFor the ground's size, set as a bake starts. */
+	int32 GetResolution() const { return Resolution; }
+
+	/**
+	 * Texels per side for a map this wide (cm): about a meter each, in steps of 64, never fewer than 256 (so the
+	 * tutorial island's 209 m keeps its 256) and never more than 1024 (memory and bake time).
+	 */
+	static int32 ResolutionFor(double MapSize);
 
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UMinimapSubsystem, STATGROUP_Tickables); }
@@ -68,6 +78,8 @@ private:
 	TObjectPtr<UTexture2D> Texture;
 
 	FBox2D Bounds = FBox2D(FVector2D(-10000.f), FVector2D(10000.f));
+	/** Texels per side of the map being baked, or last baked. */
+	int32 Resolution = 256;
 	bool bBaked = false;
 	bool bBaking = false;
 
@@ -75,11 +87,12 @@ private:
 	int32 NextRow = 0;
 	float TraceTop = 0.f;
 	float TraceBottom = 0.f;
-	/** Skips the level's volumes (see LooterWorld::StaticGeometryParams), found once per bake. */
+	/** Skips the level's volumes and its playable area (see LooterWorld::StaticGeometryParams), found once per bake. */
 	FCollisionQueryParams TraceParams;
 	double BakeStartTime = 0.0;
+	/** The level's playable area, if it has one, found as the bake starts. */
+	TWeakObjectPtr<APlayableArea> PlayableArea;
 	/** Ground height per texel (lowest float = nothing there). */
 	TArray<float> Heights;
-	/** 0 = void, 1 = ground, 2 = obstacle (rocks, walls, trees, props). */
-	TArray<uint8> Kinds;
+	TArray<EMinimapTexel> Kinds;
 };

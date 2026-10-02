@@ -128,10 +128,22 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Session/SessionSave.h`: `ULooterSessionSave`, one session's save ("Session1" to "Session3" slots).
 
 ## World
-- `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime, trees as crowns.
-- `World/FallRecoverySubsystem`: brings the player back when they fall off an island.
-- `World/WorldQueries`: `LooterWorld`, trace params for finding the ground (skipping volumes, and with the PCG volume
-  what it scattered).
+- `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime at about a meter per texel,
+  trees as crowns.
+- `World/MinimapPaint`: `MinimapPaint`, the map picture's rules texel by texel (land, coasts, cliffs, contours; with a
+  playable area, the outside dimmed and the closed edges drawn as its boundary line).
+- `World/FallRecoverySubsystem`: brings the player back after a fall: off a playable area's open edge after 5 m,
+  anywhere after 30 m; `OnRecovered` says who, why and from where.
+- `World/FallRecoveryTracker`: `FFallRecoveryTracker`, one player's safe spot (taken only inside the playable area),
+  how they left it, and when to bring them back.
+- `World/PlayableArea`: `APlayableArea`, a level's playable boundary (corners and open edges, set by the area's build
+  script): `Contains()`, the invisible walls the game builds behind the closed edges (the `PlayableBounds` collision
+  profile blocks only walking pawns), and its `Looter.World.Bounds` drawing.
+- `World/PlayableBoundary`: `FPlayableBoundary`, a playable boundary as plain XY geometry (inside, crossings, the edge
+  a path leaves over, the nearest edge, where the walls stand), shared by the area, fall recovery, the minimap and the
+  tests.
+- `World/WorldQueries`: `LooterWorld`, trace params for finding the ground (skipping volumes and the playable area's
+  walls, and with the PCG volume what it scattered).
 - `World/LightBeam`: `LightBeams`, a soft glowing light pillar (sky beacons, the rarity-colored beam over loot).
 - `World/Windmill`: `AWindmill`, a water-pump windmill whose fan (a separate model on the tower's Fan socket) turns in gusts.
 - `World/PCGGroundFitFilter`: `UPCGGroundFitFilterSettings`, the meadow's PCG node that drops ground cover patches
@@ -203,12 +215,13 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `Looter.Session.List`.
 - `Dev/CreatureDevCommands.cpp`: `Looter.CreatureHealth`, gives the nearest creatures chosen health (to compare their bars).
 - `Dev/WorldDevCommands.cpp`: `Looter.InstanceCollision`, whether the world's instanced meshes (the scattered trees and
-  rocks) have collision bodies.
+  rocks) have collision bodies; `Looter.World.Bounds`, draws the playable area's boundary and walls;
+  `Looter.Perf.HideTag <tag> [1|0]`, hides a tagged group to measure its cost by the difference.
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`).
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `BestiaryTests.cpp`, `CreatureTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`,
-  `MinimapTests.cpp`, `MissionTests.cpp`, `ProgressionTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SlimeTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
+  `MinimapTests.cpp`, `MissionTests.cpp`, `PlayableAreaTests.cpp`, `ProgressionTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SlimeTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)

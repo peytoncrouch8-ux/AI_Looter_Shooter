@@ -1,5 +1,6 @@
 #include "World/MinimapSubsystem.h"
 #include "AI_Looter_Shooter.h"
+#include "World/PlayableArea.h"
 #include "World/WorldQueries.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -10,14 +11,11 @@
 
 namespace
 {
-	enum : uint8 { Void = 0, Ground = 1, Obstacle = 2 };
-
 	/** Seconds of tracing per frame while baking. */
 	constexpr double BakeBudget = 0.003;
-	/** Height step (cm) between neighboring texels that reads as a cliff edge. */
-	constexpr float CliffStep = 70.f;
-	/** Height between contour lines (cm). */
-	constexpr float ContourInterval = 200.f;
+	/** The map's texel size the resolution aims for (cm), and the steps it moves in. */
+	constexpr double TexelAim = 100.0;
+	constexpr int32 ResolutionStep = 64;
 
 	/** Terrain the map is made of. */
 	bool IsGroundActor(const AActor* Actor)
@@ -31,24 +29,11 @@ namespace
 		return Actor && Actor->ActorHasTag(MinimapTags::Obstacle);
 	}
 
-	// The map's palette: the HUD's dark glass and cyan lines. Land is kept low-contrast so markers stand out.
-	const FColor LandLow(32, 82, 96, 225);
-	const FColor LandHigh(66, 124, 138, 230);
-	const FColor ContourColor(92, 156, 170, 235);
-	const FColor ObstacleColor(176, 218, 232, 235);
-	const FColor CoastColor(108, 212, 255, 255);
-	const FColor CliffColor(150, 206, 224, 240);
 	// Tree crowns: a deeper green-teal than the land, with a darker rim so neighbouring crowns stay apart.
 	const FColor TreeColor(46, 120, 96, 240);
 	const FColor TreeRimColor(26, 78, 66, 240);
 	/** Share of a tree mesh's footprint its crown covers on the map. */
 	constexpr float CrownShare = 0.8f;
-
-	FColor Shade(const FColor& Color, float Amount)
-	{
-		auto Channel = [Amount](uint8 Value) { return static_cast<uint8>(FMath::Clamp(Value * (1.f + Amount), 0.f, 255.f)); };
-		return FColor(Channel(Color.R), Channel(Color.G), Channel(Color.B), Color.A);
-	}
 }
 
 bool UMinimapSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
@@ -71,6 +56,12 @@ FVector2D UMinimapSubsystem::ViewOffset(const FVector& WorldDelta, float ViewYaw
 	const float Ahead = WorldDelta.X * Cos + WorldDelta.Y * Sin;
 	const float Right = -WorldDelta.X * Sin + WorldDelta.Y * Cos;
 	return FVector2D(Right, -Ahead) * PixelsPerCm;
+}
+
+int32 UMinimapSubsystem::ResolutionFor(double MapSize)
+{
+	const int32 Steps = FMath::RoundToInt32(FMath::Max(MapSize, 0.0) / TexelAim / ResolutionStep);
+	return FMath::Clamp(Steps * ResolutionStep, 256, 1024);
 }
 
 UTexture2D* UMinimapSubsystem::GetMapTexture()
@@ -100,7 +91,7 @@ void UMinimapSubsystem::StartBake()
 		return;
 	}
 
-	// Map the ground you can walk on: the terrain that makes up the islands.
+	// Map the ground you can walk on: the terrain that makes up the islands, or the valley and its ridge feet.
 	FBox GroundBox(ForceInit);
 	for (TActorIterator<AActor> It(World); It; ++It)
 	{
@@ -118,12 +109,14 @@ void UMinimapSubsystem::StartBake()
 	const FVector2D Center(GroundBox.GetCenter().X, GroundBox.GetCenter().Y);
 	const double Half = FMath::Max(GroundBox.GetExtent().X, GroundBox.GetExtent().Y) * 1.05;
 	Bounds = FBox2D(Center - FVector2D(Half), Center + FVector2D(Half));
+	Resolution = ResolutionFor(Bounds.GetSize().X);
 	TraceTop = GroundBox.Max.Z + 1000.f;
 	TraceBottom = GroundBox.Min.Z - 1000.f;
 	TraceParams = LooterWorld::StaticGeometryParams(World, TEXT("MinimapBake"), nullptr, false);
+	PlayableArea = APlayableArea::Find(World);
 
 	Heights.Init(TNumericLimits<float>::Lowest(), Resolution * Resolution);
-	Kinds.Init(Void, Resolution * Resolution);
+	Kinds.Init(EMinimapTexel::Void, Resolution * Resolution);
 	NextRow = 0;
 	bBaking = true;
 	BakeStartTime = FPlatformTime::Seconds();
@@ -153,7 +146,7 @@ void UMinimapSubsystem::TraceRows(double TimeBudgetSeconds)
 			{
 				const int32 Index = V * Resolution + U;
 				Heights[Index] = Hit.ImpactPoint.Z;
-				Kinds[Index] = IsObstacleActor(Hit.GetActor()) ? Obstacle : Ground;
+				Kinds[Index] = IsObstacleActor(Hit.GetActor()) ? EMinimapTexel::Obstacle : EMinimapTexel::Ground;
 			}
 		}
 	}
@@ -225,77 +218,33 @@ void UMinimapSubsystem::FinishBake()
 	bBaking = false;
 	const int32 N = Resolution;
 
-	float MinZ = TNumericLimits<float>::Max();
-	float MaxZ = TNumericLimits<float>::Lowest();
-	for (int32 Index = 0; Index < N * N; ++Index)
+	// With a playable area, which texels lie inside it and which carry its boundary line; the land's tint then spans
+	// only the heights inside (the ridges around would squash it), unless nothing inside was found.
+	TArray<uint8> Inside;
+	TArray<uint8> Line;
+	if (const APlayableArea* Area = PlayableArea.Get())
 	{
-		if (Kinds[Index] == Ground)
-		{
-			MinZ = FMath::Min(MinZ, Heights[Index]);
-			MaxZ = FMath::Max(MaxZ, Heights[Index]);
-		}
+		MinimapPaint::RasterizeBoundary(Area->GetBoundary(), Bounds, N, Inside, Line);
 	}
-	const float Range = FMath::Max(MaxZ - MinZ, 1.f);
-
-	auto KindAt = [this, N](int32 U, int32 V) { return (U < 0 || V < 0 || U >= N || V >= N) ? static_cast<uint8>(Void) : Kinds[V * N + U]; };
-	auto HeightAt = [this, N](int32 U, int32 V, float Fallback) { return (U < 0 || V < 0 || U >= N || V >= N || Kinds[V * N + U] == Void) ? Fallback : Heights[V * N + U]; };
+	float MinZ = 0.f;
+	float MaxZ = 0.f;
+	if (!MinimapPaint::HeightRange(Kinds, Heights, Inside, MinZ, MaxZ) && Inside.Num() > 0)
+	{
+		MinimapPaint::HeightRange(Kinds, Heights, TConstArrayView<uint8>(), MinZ, MaxZ);
+	}
 
 	TArray<FColor> Colors;
-	Colors.Init(FColor(0, 0, 0, 0), N * N);
-	for (int32 V = 0; V < N; ++V)
+	MinimapPaint::Terrain(N, Kinds, Heights, MinZ, MaxZ, Colors);
+	if (Colors.Num() != N * N)
 	{
-		for (int32 U = 0; U < N; ++U)
-		{
-			const int32 Index = V * N + U;
-			const uint8 Kind = Kinds[Index];
-			if (Kind == Void)
-			{
-				continue;
-			}
-			const float Height = Heights[Index];
-			const bool bCoast = KindAt(U - 1, V) == Void || KindAt(U + 1, V) == Void || KindAt(U, V - 1) == Void || KindAt(U, V + 1) == Void;
-			if (bCoast)
-			{
-				Colors[Index] = CoastColor;
-				continue;
-			}
-			if (Kind == Obstacle)
-			{
-				Colors[Index] = ObstacleColor;
-				continue;
-			}
-			float Steepest = 0.f;
-			bool bContour = false;
-			const int32 Band = FMath::FloorToInt(Height / ContourInterval);
-			for (const FIntPoint Step : { FIntPoint(1, 0), FIntPoint(-1, 0), FIntPoint(0, 1), FIntPoint(0, -1) })
-			{
-				if (KindAt(U + Step.X, V + Step.Y) == Ground)
-				{
-					const float Neighbor = HeightAt(U + Step.X, V + Step.Y, Height);
-					Steepest = FMath::Max(Steepest, FMath::Abs(Neighbor - Height));
-					// Draw each contour once, on its uphill side.
-					bContour |= FMath::FloorToInt(Neighbor / ContourInterval) < Band;
-				}
-			}
-			if (Steepest > CliffStep)
-			{
-				Colors[Index] = CliffColor;
-				continue;
-			}
-			if (bContour)
-			{
-				Colors[Index] = ContourColor;
-				continue;
-			}
-			// Height tint, plus a touch of hillshade lit from the north-west so slopes read.
-			const FLinearColor Low(LandLow), High(LandHigh);
-			const FColor Base = FLinearColor::LerpUsingHSV(Low, High, (Height - MinZ) / Range).ToFColor(true);
-			const float Slope = (Height - HeightAt(U - 1, V - 1, Height)) / 80.f;
-			Colors[Index] = Shade(Base, FMath::Clamp(Slope, -0.1f, 0.1f));
-		}
+		Colors.Init(FColor(0, 0, 0, 0), N * N);
 	}
-
 	PaintTrees(Colors);
+	// Last, so the trees outside are dimmed too and none covers the line.
+	if (Inside.Num() > 0)
+	{
+		MinimapPaint::ApplyBoundary(Inside, Line, Colors);
+	}
 
 	// FColor is laid out B, G, R, A in memory, which is exactly PF_B8G8R8A8.
 	const TArrayView<const uint8> Bytes(reinterpret_cast<const uint8*>(Colors.GetData()), Colors.Num() * sizeof(FColor));
@@ -312,5 +261,6 @@ void UMinimapSubsystem::FinishBake()
 	}
 	Heights.Empty();
 	Kinds.Empty();
-	UE_LOG(LogLooter, Log, TEXT("Minimap baked: %dx%d over %.0f m in %.2f s"), N, N, Bounds.GetSize().X / 100.0, FPlatformTime::Seconds() - BakeStartTime);
+	UE_LOG(LogLooter, Log, TEXT("Minimap baked: %dx%d over %.0f m in %.2f s%s"), N, N, Bounds.GetSize().X / 100.0,
+		FPlatformTime::Seconds() - BakeStartTime, Inside.Num() > 0 ? TEXT(", with the playable area's boundary") : TEXT(""));
 }
