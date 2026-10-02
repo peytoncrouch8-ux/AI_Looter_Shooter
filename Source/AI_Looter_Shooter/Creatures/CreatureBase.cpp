@@ -247,6 +247,16 @@ void ACreatureBase::UpdatePerception()
 	{
 		return;
 	}
+	// Held back (a boss under a spell): it lets go of whoever it was after and hunts nobody.
+	if (bPassive)
+	{
+		if (Target.IsValid())
+		{
+			Target.Reset();
+			SetState(ECreatureState::Return);
+		}
+		return;
+	}
 
 	if (const APawn* Current = Target.Get())
 	{
@@ -386,7 +396,7 @@ void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocat
 	}
 	// Getting shot always gets its attention, even from beyond its sight range.
 	APawn* Attacker = InstigatedBy ? InstigatedBy->GetPawn() : nullptr;
-	if (!Target.IsValid() && IsValidTarget(Attacker))
+	if (!bPassive && !Target.IsValid() && IsValidTarget(Attacker))
 	{
 		Target = Attacker;
 		if (State != ECreatureState::Attack)
@@ -412,7 +422,7 @@ void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocat
 
 void ACreatureBase::AlertTo(APawn* Attacker)
 {
-	if (State == ECreatureState::Dead || Target.IsValid() || !IsValidTarget(Attacker))
+	if (bPassive || State == ECreatureState::Dead || Target.IsValid() || !IsValidTarget(Attacker))
 	{
 		return;
 	}
@@ -476,7 +486,7 @@ void ACreatureBase::Respawn()
 void ACreatureBase::UpdateHealthBar(float DeltaSeconds)
 {
 	HealthBarTime = FMath::Max(0.f, HealthBarTime - DeltaSeconds);
-	const bool bShow = State != ECreatureState::Dead && (HealthBarTime > 0.f || Target.IsValid());
+	const bool bShow = bShowsHealthTag && State != ECreatureState::Dead && (HealthBarTime > 0.f || Target.IsValid());
 	HealthBar->SetVisibility(bShow);
 	if (bShow)
 	{

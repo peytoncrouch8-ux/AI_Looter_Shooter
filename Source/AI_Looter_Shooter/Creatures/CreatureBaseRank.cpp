@@ -9,6 +9,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "TimerManager.h"
 
 // ---------------------------------------------------------------------------
 // Rank and level
@@ -210,6 +211,11 @@ ACreatureBase* ACreatureBase::SpawnAtRuntime(UWorld* World, TSubclassOf<ACreatur
 	}
 	Creature->StartingRank = Spawn.Rank;
 	Creature->BodyScale = StartScale;
+	// Before play begins, so its base health (what its level and rank multiply, CaptureBaseStats) includes it.
+	if (!FMath::IsNearlyEqual(Spawn.HealthScale, 1.f))
+	{
+		Creature->Health->MaxHealth = FMath::Max(1.f, Creature->Health->MaxHealth * FMath::Max(Spawn.HealthScale, 0.01f));
+	}
 	if (Spawn.Level > 0)
 	{
 		// A level asked for is kept; otherwise the area's band gives it one, as it gives a placed creature.
@@ -221,4 +227,41 @@ ACreatureBase* ACreatureBase::SpawnAtRuntime(UWorld* World, TSubclassOf<ACreatur
 	Creature->bSpawnedAtRuntime = true;
 	Creature->FinishSpawning(SpawnTransform);
 	return Creature;
+}
+
+// ---------------------------------------------------------------------------
+// Boss fights: holding back and going home
+// ---------------------------------------------------------------------------
+
+void ACreatureBase::SetPassive(bool bInPassive)
+{
+	bPassive = bInPassive;
+	// It lets go at once, unless it's mid-attack: the attack plays out, then its senses let go (UpdatePerception).
+	if (bPassive && Target.IsValid() && State != ECreatureState::Attack && State != ECreatureState::Dead)
+	{
+		Target.Reset();
+		SetState(ECreatureState::Return);
+	}
+}
+
+void ACreatureBase::ResetToHome()
+{
+	// As Respawn brings it back, but at once and with its rank and level as they are: a boss fight starting over.
+	FTimerManager& Timers = GetWorldTimerManager();
+	Timers.ClearTimer(HideTimer);
+	Timers.ClearTimer(RespawnTimer);
+	Target.Reset();
+	SetActorLocationAndRotation(Home.GetLocation(), Home.GetRotation(), false, nullptr, ETeleportType::ResetPhysics);
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	UCharacterMovementComponent* Movement = GetCharacterMovement();
+	Movement->StopMovementImmediately();
+	Movement->SetMovementMode(MOVE_Walking);
+	Health->ResetHealth();
+	SetHitVolumesEnabled(true);
+	SetActorHiddenInGame(false);
+	CooldownRemaining = 0.f;
+	HealthBarTime = 0.f;
+	SetState(ECreatureState::Idle);
+	IdleDuration = 2.f;
+	OnRespawned();
 }

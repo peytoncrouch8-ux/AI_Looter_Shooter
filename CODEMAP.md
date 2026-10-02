@@ -40,6 +40,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Combat/PlayerVitalsSubsystem`: red flash when hurt; fade out and respawn on death at the level's own start (never a
   trip's landing).
 - `Combat/TargetDummy`: `ATargetDummy`, a training dummy that takes hits and flashes.
+- `Combat/EnemyProjectileSubsystem`: `UEnemyProjectileSubsystem`, pellets creatures fire (a boss's spectral buckshot) as
+  plain data: volleys and their tell, flight, hits on players' capsules; `EnemyProjectileSubsystemDraw.cpp` draws them on
+  instanced meshes.
+- `Combat/EnemyShotDamageType.h`: `UEnemyShotDamageType`, a creature's pellet (still a creature's attack).
 
 ## Weapons
 - `Weapons/WeaponBase.cpp`: `AWeaponBase` construction, lifecycle, equip and holster, loot state and looks.
@@ -108,7 +112,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   respawn, a pack turning on its attacker). `CreatureBaseSteering.cpp` is its steering without a navmesh (obstacle and
   ledge probes, wander goals, the ground); `CreatureBaseRank.cpp` its rank, its level (from its area's band, with health and damage growing with it) and
   size (`BodyScale`), which
-  creatures come back after a death, pack tags, and spawning creatures in play (`SpawnAtRuntime`);
+  creatures come back after a death, pack tags, spawning creatures in play (`SpawnAtRuntime`) and what a boss fight
+  asks of one (held back, put home);
   `CreatureBaseUpdateRate.cpp` slows the ones far from the player or out of sight (`Looter.Creatures.UpdateRates 0`
   turns that off).
 - `Creatures/CreatureRank.h`: `ECreatureRank`, a creature's rank (Basic, Rare "Restless", Epic "Gravebound", Legendary
@@ -127,6 +132,20 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   only hops, squashing and stretching on springs, with a leap attack and crits through the gel at its core.
 - `Creatures/CreaturePoseAnimInstance`: `UCreaturePoseAnimInstance`, applies the pose a creature's code works out
   (`ACreatureBase::GetBonePose`) to its skeleton.
+
+## Bosses
+- `Bosses/BossComponent`: `UBossComponent`, makes a creature a boss: the fight around it (started by a hit, a player near
+  its spot or `StartFight`; until then it waits, hunting nobody), its phases, the player's death starting it over, its
+  death winning it. `BossComponentPhases.cpp` runs the phases' events (untargetable spells, volleys),
+  `BossComponentAdds.cpp` the waves of adds, `BossComponentArena.cpp` the fog wall and the bar.
+- `Bosses/BossTypes.h`: a boss fight as data: `FBossPhase` and its events (`FBossPhaseEvent`: `FBossAddWave`,
+  `FBossUntargetable`, `FBossVolley`, custom moments).
+- `Bosses/BossRules`: `BossRules`, the fight's rules as plain functions (the phase for a share of health, how many adds a
+  wave raises, when a spell ends, where adds rise).
+- `Bosses/BossSeal`: `ABossSeal`, a fight's fog wall (a ring round the boss's spot, or a placed gate): it stops walking
+  pawns only, drawn as rising ghost-light.
+- `Bosses/BossTestSpider`: `BossTestSpider`, the test boss (`Looter.Boss.Test` and the boss tests): a big Boss-rank
+  spider with a brood at 50%, venom volleys from 25% and a 15 m wall.
 
 ## Bestiary
 - `Bestiary/BestiaryEntry`: `UBestiaryEntry` and `EBestiaryCategory`, one bestiary page as a data asset (in
@@ -260,6 +279,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   and paints it.
 - `UI/HUD/HudWeaponSlotsWidget`: the weapon slots over the ammo, as circles in the guns' rarity colors with their Inked icons (tilted up) and their ammo's icon under each.
 - `UI/HUD/HudFrameRateWidget`: the frame rate counter in the top-left corner.
+- `UI/HUD/HudBossBarWidget`: `UHudBossBarWidget`, a boss's bar at the top of the screen: level, name, phase ticks, a
+  lingering chip, grey while it can't be hurt, the phase's name under it.
 - `UI/HUD/HudPickupFeedWidget`: ammo pickups left of the crosshair, in outlined white type that stacks, rises and fades.
 - `UI/HUD/HudInteractPromptWidget`: what the Interact key does to the thing looked at, under the crosshair ("[E] OPEN
   THE DOOR", "HOLD [E] RING THE BELL" over a bar that fills while held); loot has its card instead.
@@ -305,6 +326,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Dev/CreatureDevCommands.cpp`: `Looter.CreatureHealth`, gives the nearest creatures chosen health (to compare their
   bars); `Looter.SpawnCreature <kind> [rank] [count] [chase] [size=] [level=]`, spawns ranked creatures in front of the
   player (gone for good once killed).
+- `Dev/BossDevCommands.cpp`: `Looter.Boss.Test [phases]`, the test boss in front of the player with its fight started;
+  `Looter.Boss.Reset`, `Looter.Boss.Kill`.
 - `Dev/LootDevCommands.cpp`: `Looter.Loot.SimulateDrops <rank> [kills]`, rolls a rank's loot table and prints its odds.
 - `Dev/InteractionDevCommands.cpp`: `Looter.Interaction.Spawn <door|bell|lantern>`, a greybox interactable in front of
   the player; `Looter.Interaction.Focus`, what the player would use now.
@@ -314,7 +337,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`).
 
 ## Tests (run with `Tools\runtests.ps1`)
-- `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `CreatureTests.cpp`, `CreatureRankTests.cpp`, `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
+- `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
   `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `ProgressionTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SlimeTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 

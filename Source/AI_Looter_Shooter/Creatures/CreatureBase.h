@@ -64,6 +64,28 @@ public:
 	/** Turns on Attacker as if it had been hurt by it (its pack heard the fight). Nothing changes if it's busy already. */
 	void AlertTo(APawn* Attacker);
 
+	// --- Boss fights (UBossComponent; CreatureBaseRank.cpp) ---
+
+	/**
+	 * Holds it back from fighting (a boss under a spell, withdrawn to its spot): while passive it hunts nobody, lets go of
+	 * whoever it was after and walks home, and neither hits nor pack calls set it on anyone. Off: it notices players again.
+	 */
+	void SetPassive(bool bInPassive);
+	bool IsPassive() const { return bPassive; }
+
+	/**
+	 * Puts it back at its spot as a boss fight's reset wants it: alive at full health, calm, nobody targeted, at its rank and
+	 * level (unlike a respawn, nothing is rolled again).
+	 */
+	void ResetToHome();
+
+	/** Where it stands when calm: its spot as play began (a boss fight's arena centers on it). */
+	const FTransform& GetHome() const { return Home; }
+
+	/** Whether its tag shows over it when it's hurt or hunting. A boss turns it off while its bar shows at the top of the screen. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Creature")
+	bool bShowsHealthTag = true;
+
 	// --- Rank, level and size (CreatureBaseRank.cpp) ---
 
 	/** Its rank now: StartingRank, or a promotion, which lasts until it dies. */
@@ -128,6 +150,8 @@ public:
 		int32 Level = 0;
 		/** Its BodyScale; 0 keeps the class's. */
 		float BodyScale = 0.f;
+		/** Its health against its class's, before its level and rank multiply it (the test boss is twelve spiders tough). */
+		float HealthScale = 1.f;
 	};
 
 	/**
@@ -398,6 +422,8 @@ private:
 	float PerceptionTimer = 0.f;
 	float CooldownRemaining = 0.f;
 	bool bStruck = false;
+	/** Held back from fighting (SetPassive). */
+	bool bPassive = false;
 
 	// Steering
 	FVector SteerDirection = FVector::ZeroVector;

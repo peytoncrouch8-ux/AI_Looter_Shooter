@@ -14,17 +14,19 @@ void ULootDropComponent::BeginPlay()
 		LootTable = ULootLibrary::GetDefaultLootTable();
 	}
 
-	if (bDropOnDeath)
+	if (UHealthComponent* Health = GetOwner()->FindComponentByClass<UHealthComponent>())
 	{
-		if (UHealthComponent* Health = GetOwner()->FindComponentByClass<UHealthComponent>())
-		{
-			Health->OnDeath.AddDynamic(this, &ULootDropComponent::HandleOwnerDeath);
-		}
+		Health->OnDeath.AddDynamic(this, &ULootDropComponent::HandleOwnerDeath);
 	}
 }
 
 void ULootDropComponent::HandleOwnerDeath(AController* Killer)
 {
+	// Asked at the death rather than when play began, so turning the drop off after its owner has spawned still counts.
+	if (!bDropOnDeath)
+	{
+		return;
+	}
 	// The ammo leans toward the class of the gun that landed the killing shot, so the gun in use keeps itself fed.
 	const UHealthComponent* Health = GetOwner()->FindComponentByClass<UHealthComponent>();
 	const AWeaponBase* KillWeapon = Health ? Cast<AWeaponBase>(Health->GetLastDamageCauser()) : nullptr;
