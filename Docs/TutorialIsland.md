@@ -68,7 +68,10 @@ U repeats every 2048 px = 6.4 m at 320 px/m. Faces that need vertical boards rot
   draws). Walkable surfaces (terrain, floors, decks) keep a full fallback so collision matches what's drawn.
 - **Trees, bushes and ground cover** are not Nanite: classic LODs (the importer generates them), cull distances, and
   the masked leaves only where needed.
-- Collision: simple `UCX_` hulls for everything except the terrain (mesh collision). Clutter has none.
+- Collision: simple `UCX_` hulls for everything except the terrain (mesh collision). Clutter has none. A tree's trunk
+  hull is all of its collision (bullets too). The scatter's trees, rocks, stumps and logs block with their hulls: PCG's
+  instances only collide when the scatter says so (`build_island_scatter.py`), and `Looter.World.TutorialIslandObstacles`
+  checks it.
 - Budgets (triangles, fallback / LOD0 on Medium): house 4-8k, shed or windmill 2-4k, tree 3-6k (LOD1 40%, LOD2 12%),
   bush 600-1.5k, rock 300-1k, cliff piece 1-3k, prop 100-1.5k, grass clump 50-200. Terrain at most 150k in total,
   split into tiles so off-screen ones are culled.

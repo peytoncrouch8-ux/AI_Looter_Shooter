@@ -74,7 +74,8 @@ command after opening it. Importing again updates the assets in place, so placed
 - Other model properties: `Fallback` = the percentage of triangles Nanite's fallback keeps (what Medium and Low draw;
   terrain always keeps 100), `LODs` = `'40,12'` (LOD1, LOD2 ... as percentages; for models without Nanite) with
   `LODScreens` = `'0.45,0.15'`, and `Collision` = `'None'` for no collision at all. Vegetation without Nanite gets LODs
-  of 40% and 12% by default, and vegetation without `UCX_` hulls gets no collision.
+  of 40% and 12% by default, and vegetation without `UCX_` hulls gets no collision. A plant's hulls are all of its
+  collision, for bullets too: they meet a tree's trunk, never its leaf cards.
 - Modifiers are applied on export. Hard and soft edges come through as shaded in Blender.
 
 ## Rigged models (skeletal meshes)

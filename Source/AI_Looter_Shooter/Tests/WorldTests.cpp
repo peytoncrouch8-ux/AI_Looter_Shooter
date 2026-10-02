@@ -8,9 +8,14 @@
 #include "Loot/WeaponRack.h"
 #include "Tutorial/TutorialDirector.h"
 #include "World/PCGGroundFitFilter.h"
+#include "Algo/AnyOf.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/Level.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerStart.h"
+#include "PhysicsEngine/BodySetup.h"
+#include "UObject/UObjectHash.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGroundFitTest, "Looter.World.GroundFit",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -89,6 +94,57 @@ bool FTutorialIslandGameplayTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Spiders to hunt"), Spiders > 0);
 	TestTrue(TEXT("Slimes in the meadow"), Slimes > 0);
 	AddInfo(FString::Printf(TEXT("%d dummies, %d spiders, %d slimes"), Dummies, Spiders, Slimes));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialIslandObstaclesTest, "Looter.World.TutorialIslandObstacles",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FTutorialIslandObstaclesTest::RunTest(const FString& Parameters)
+{
+	// The island's scattered trees, rocks, stumps and logs block whoever walks into them, the player and the creatures
+	// alike, with their hulls; the ground cover (grass, flowers, ferns, bushes, reeds, pebbles) never collides. PCG's
+	// instances don't collide unless told to, and for a while the trees and rocks were walk-through: spiders walked
+	// straight through them.
+	const UWorld* Island = LoadObject<UWorld>(nullptr, TEXT("/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland"));
+	if (!TestNotNull(TEXT("The tutorial island loads"), Island) || !TestNotNull(TEXT("It has a level"), Island->PersistentLevel.Get()))
+	{
+		return false;
+	}
+	static const TCHAR* const SolidPrefixes[] = { TEXT("SM_Rock_"), TEXT("SM_Boulder_"), TEXT("SM_Stump_"), TEXT("SM_Log_") };
+	int32 Trees = 0, Solids = 0, GroundCover = 0;
+	ForEachObjectWithOuter(Island->PersistentLevel.Get(), [&](UObject* Object)
+	{
+		const UInstancedStaticMeshComponent* Instances = Cast<UInstancedStaticMeshComponent>(Object);
+		const UStaticMesh* Mesh = Instances ? Instances->GetStaticMesh().Get() : nullptr;
+		if (!Mesh || Instances->GetInstanceCount() == 0)
+		{
+			return;
+		}
+		const FString Name = Mesh->GetName();
+		const bool bTree = Instances->ComponentHasTag(TEXT("Tree"));
+		const bool bSolid = bTree || Algo::AnyOf(SolidPrefixes, [&Name](const TCHAR* Prefix) { return Name.StartsWith(Prefix); });
+		if (!bSolid)
+		{
+			++GroundCover;
+			TestTrue(Name + TEXT(" (ground cover) never collides"), Instances->GetCollisionEnabled() == ECollisionEnabled::NoCollision);
+			return;
+		}
+		(bTree ? Trees : Solids) += Instances->GetInstanceCount();
+		TestTrue(Name + TEXT(" collides"), Instances->GetCollisionEnabled() == ECollisionEnabled::QueryAndPhysics);
+		TestTrue(Name + TEXT(" blocks a walking pawn"), Instances->GetCollisionResponseToChannel(ECC_Pawn) == ECR_Block);
+		const UBodySetup* Body = Mesh->GetBodySetup();
+		TestTrue(Name + TEXT(" has hulls to collide with"), Body && Body->AggGeom.GetElementCount() > 0);
+		if (bTree && Body)
+		{
+			// A tree's trunk hull is all of it a bullet meets; never the see-through parts of its leaf cards.
+			TestTrue(Name + TEXT(" collides with its hull only"), Body->CollisionTraceFlag == CTF_UseSimpleAsComplex);
+		}
+	}, /*bIncludeNestedObjects*/ true);
+	TestTrue(TEXT("Trees on the island"), Trees > 0);
+	TestTrue(TEXT("Rocks, stumps and logs on the island"), Solids > 0);
+	TestTrue(TEXT("Ground cover on the island"), GroundCover > 0);
+	AddInfo(FString::Printf(TEXT("%d trees, %d rocks, stumps and logs, %d ground cover meshes"), Trees, Solids, GroundCover));
 	return true;
 }
 

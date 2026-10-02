@@ -226,8 +226,10 @@ bool FModelImporter::ReadManifest(const FString& Path, TArray<FModel>& OutModels
 		FString Collision;
 		(*Json)->TryGetStringField(TEXT("collision"), Collision);
 		Model.bHulls = Collision == TEXT("hulls");
-		// Vegetation without hulls is walk-through (grass, flowers, bushes); trees and logs bring hulls.
+		// Vegetation without hulls is walk-through (grass, flowers, bushes); trees and logs bring hulls, and those hulls are
+		// all they collide with.
 		Model.bNoCollision = Collision == TEXT("none") || (!Model.bHulls && Category == TEXT("Vegetation"));
+		Model.bHullsOnly = Model.bHulls && Category == TEXT("Vegetation");
 		auto Numbers = [&Json](const TCHAR* Field, float Scale, TArray<float>& Out)
 		{
 			const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
@@ -409,8 +411,10 @@ UStaticMesh* FModelImporter::ImportModel(const FModel& Model)
 			// No hulls: collide with the mesh itself, or with nothing (reimporting keeps old hulls otherwise).
 			Body->RemoveSimpleCollision();
 		}
-		// With no simple shapes, "simple as complex" leaves nothing to collide with.
-		Body->CollisionTraceFlag = Model.bNoCollision ? CTF_UseSimpleAsComplex : (Model.bHulls ? CTF_UseDefault : CTF_UseComplexAsSimple);
+		// With no simple shapes, "simple as complex" leaves nothing to collide with; with hulls only, the hulls answer
+		// complex traces (bullets) as well.
+		Body->CollisionTraceFlag = Model.bNoCollision || Model.bHullsOnly ? CTF_UseSimpleAsComplex
+			: (Model.bHulls ? CTF_UseDefault : CTF_UseComplexAsSimple);
 		// Placed actors that take the mesh's own collision don't collide either.
 		Body->DefaultInstance.SetCollisionProfileName(Model.bNoCollision ? UCollisionProfile::NoCollision_ProfileName : UCollisionProfile::BlockAll_ProfileName);
 		Body->InvalidatePhysicsData();
@@ -425,7 +429,7 @@ UStaticMesh* FModelImporter::ImportModel(const FModel& Model)
 	const FBox Bounds = Mesh->GetBoundingBox();
 	UE_LOG(LogModelImporter, Display, TEXT("Imported %s: %d slots, %d sockets, %d LODs, %s, bounds min %s max %s."), *Mesh->GetPathName(),
 		Mesh->GetStaticMaterials().Num(), Mesh->Sockets.Num(), Mesh->GetNumSourceModels(),
-		Model.bNoCollision ? TEXT("no collision") : (Model.bHulls ? TEXT("hull collision") : TEXT("mesh collision")),
+		Model.bNoCollision ? TEXT("no collision") : (Model.bHullsOnly ? TEXT("hull-only collision") : (Model.bHulls ? TEXT("hull collision") : TEXT("mesh collision"))),
 		*Bounds.Min.ToCompactString(), *Bounds.Max.ToCompactString());
 	return Mesh;
 }

@@ -75,6 +75,11 @@ private:
 		bool bNanite = true;
 		/** UCX_ hulls came with the model; without them the mesh is its own collision. */
 		bool bHulls = false;
+		/**
+		 * The hulls are all of its collision, for traces too: vegetation, so bullets and sight lines meet a tree's trunk,
+		 * never the see-through parts of its leaf cards.
+		 */
+		bool bHullsOnly = false;
 		/** No collision at all: ground cover, bushes, clutter. */
 		bool bNoCollision = false;
 		/** The material slots, in the FBX's order. */

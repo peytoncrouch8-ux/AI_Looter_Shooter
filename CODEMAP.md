@@ -130,7 +130,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 ## World
 - `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime, trees as crowns.
 - `World/FallRecoverySubsystem`: brings the player back when they fall off an island.
-- `World/WorldQueries`: `LooterWorld`, trace params that see only real static geometry (skipping volumes).
+- `World/WorldQueries`: `LooterWorld`, trace params for finding the ground (skipping volumes, and with the PCG volume
+  what it scattered).
 - `World/LightBeam`: `LightBeams`, a soft glowing light pillar (sky beacons, the rarity-colored beam over loot).
 - `World/Windmill`: `AWindmill`, a water-pump windmill whose fan (a separate model on the tower's Fan socket) turns in gusts.
 - `World/PCGGroundFitFilter`: `UPCGGroundFitFilterSettings`, the meadow's PCG node that drops ground cover patches
@@ -201,6 +202,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Dev/SessionDevCommands.cpp`: `Looter.Session.Play <1-3>`, `Looter.Session.Save`, `Looter.Session.Menu`,
   `Looter.Session.List`.
 - `Dev/CreatureDevCommands.cpp`: `Looter.CreatureHealth`, gives the nearest creatures chosen health (to compare their bars).
+- `Dev/WorldDevCommands.cpp`: `Looter.InstanceCollision`, whether the world's instanced meshes (the scattered trees and
+  rocks) have collision bodies.
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`).
 
 ## Tests (run with `Tools\runtests.ps1`)
@@ -219,7 +222,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   and bakes the meadow's ground cover meshes again.
 - `PropSettler`: `PropSettler`, seats a level's props on the terrain (no hovering edges; low, wide props lean with the slope).
 - `ModelImporter`: `FModelImporter`, imports the Blender models `Tools/models.ps1` exported (fixed FBX settings,
-  material instances, hull collision or none, sockets, LODs, Nanite fallback shares). `ModelImporterMaterials.cpp`
+  material instances, hull collision or none (a plant's hulls are all of its collision), sockets, LODs, Nanite
+  fallback shares). `ModelImporterMaterials.cpp`
   imports texture sets and makes instances of the textured masters; `ModelImporterRig.cpp` imports rigged models as
   skeletal meshes and turns their hit zones into a physics asset.
 - `SurfaceMaterials`: `SurfaceMaterials`, stylized material instance assets and the parents' usage flags.

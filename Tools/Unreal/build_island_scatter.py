@@ -132,12 +132,14 @@ class Builder:
 def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=False, wind=True, tree=False):
     d = unreal.PCGSoftISMComponentDescriptor()
     d.set_editor_property('static_mesh', asset)
-    if not collide:
-        d.set_editor_property('use_default_collision', False)
-        body = d.get_editor_property('body_instance')
-        body.set_editor_property('collision_profile_name', 'NoCollision')
-        body.set_editor_property('collision_enabled', unreal.CollisionEnabled.NO_COLLISION)
-        d.set_editor_property('body_instance', body)
+    # PCG's instances don't collide unless told to: say which way, both ways. Colliding ones block like the buildings
+    # (BlockAll) with their mesh's hulls (a tree's trunk, a rock); without this, trees and rocks were walk-through.
+    d.set_editor_property('use_default_collision', False)
+    body = d.get_editor_property('body_instance')
+    body.set_editor_property('collision_profile_name', 'BlockAll' if collide else 'NoCollision')
+    body.set_editor_property('collision_enabled', unreal.CollisionEnabled.QUERY_AND_PHYSICS if collide
+                             else unreal.CollisionEnabled.NO_COLLISION)
+    d.set_editor_property('body_instance', body)
     d.set_editor_property('cast_shadow', shadow)
     d.set_editor_property('instance_end_cull_distance', cull)
     d.set_editor_property('enable_density_scaling', density_scaling)
