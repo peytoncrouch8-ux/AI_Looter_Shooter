@@ -14,10 +14,11 @@ DECLARE_DELEGATE_OneParam(FOnHudAnnouncement, const FText& /*Message*/);
 
 /**
  * The HUD's experience bar, bottom center, the only place the level shows:
- *  - the level number in a small circle at the bar's left end, ringed in the accent color (the HUD's circles, like the
- *    round weapon slots)
- *  - the bar running out of the circle: slim, leaning like the HUD's other bars, a faint track inside a thin dark edge,
- *    the earned part in the accent color with a lighter leading edge, and quiet notches at every tenth of the level
+ *  - the level number in a circle in the bar's middle, ringed in the accent color (the HUD's circles, like the round
+ *    weapon slots), at the screen's center line
+ *  - the bar in two halves passing behind the circle, filling left to right through it: slim, leaning like the HUD's
+ *    other bars, a faint track inside a thin dark edge, the earned part in the accent color with a lighter leading
+ *    edge, and quiet notches at every tenth of the level (the circle marks the half)
  *  - "40 / 100 XP" ("MAX" at the top level), small and dim over the bar's right end
  * No backing panel, like the rest of the gameplay HUD: only the bar's dark edge and the circle's inside fade with the UI
  * transparency setting. On a gain the newly earned stretch lights up at once, holds a moment, and the bar catches up to
@@ -32,8 +33,9 @@ class AI_LOOTER_SHOOTER_API UHudXPBarWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	/** The bar's length on screen, from the level circle to its right end. */
-	static constexpr float BarWidth = 720.f;
+	/** The bar's length on screen, both halves together (the level circle sits between them). A multiple of ten, so the
+	 *  tenths fall on whole pixels. */
+	static constexpr float BarWidth = 780.f;
 
 	/** A level-up to announce ("LEVEL UP! LEVEL 2"); the HUD shows it in its message plate. */
 	FOnHudAnnouncement OnAnnouncement;
@@ -53,7 +55,10 @@ private:
 
 	/** Draws ShownProgress: the level number and the bar, with the stretch still to catch up to. */
 	void ShowProgress();
-	/** The earned part up to Fraction and the just-earned stretch from there to GainEnd, both 0-1 of the bar. */
+	/**
+	 * The earned part up to Fraction and the just-earned stretch from there to GainEnd, both 0-1 of the whole bar: the
+	 * left half shows the first half of it, the right half the rest.
+	 */
 	void PaintBar(float Fraction, float GainEnd);
 	/** Colors each tenth's notch by whether it sits on the lit part of the bar, which runs up to LitEnd (0-1). */
 	void PaintTicks(float LitEnd);
@@ -71,14 +76,14 @@ private:
 	/** The level circle's ring, and the ring that spreads out of it on a level-up. */
 	UPROPERTY(Transient) TObjectPtr<UImage> BadgeRing;
 	UPROPERTY(Transient) TObjectPtr<UImage> BadgePulse;
-	/** The light line at the earned part's leading edge. */
-	UPROPERTY(Transient) TObjectPtr<UImage> FillEdge;
-	/** The notches between the bar's tenths, left to right. */
+	/** The light line at the earned part's leading edge, one per half, left then right; only the half it ends in shows it. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> FillEdges;
+	/** The notches between the bar's tenths, left to right (none in the middle, where the circle is). */
 	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> TickMarks;
-	/** The slots that share the bar's width: the earned part, the just-earned stretch and the rest. */
-	UPROPERTY(Transient) TObjectPtr<UHorizontalBoxSlot> FilledSlot;
-	UPROPERTY(Transient) TObjectPtr<UHorizontalBoxSlot> GainedSlot;
-	UPROPERTY(Transient) TObjectPtr<UHorizontalBoxSlot> RestSlot;
+	/** Per half, left then right, the slots that share its width: the earned part, the just-earned stretch and the rest. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UHorizontalBoxSlot>> FilledSlots;
+	UPROPERTY(Transient) TArray<TObjectPtr<UHorizontalBoxSlot>> GainedSlots;
+	UPROPERTY(Transient) TArray<TObjectPtr<UHorizontalBoxSlot>> RestSlots;
 
 	TWeakObjectPtr<UPlayerProgressionSubsystem> Progression;
 

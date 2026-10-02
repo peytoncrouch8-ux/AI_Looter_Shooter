@@ -160,8 +160,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/HUD/HudMinimapWidget`: the round minimap that turns with the view (size and zoom from the settings), with the
   tracked mission's waypoint on it, or a compass arrow and its distance on the rim.
 - `UI/HUD/TutorialPromptWidget`: the tutorial's current instruction near the top of the screen.
-- `UI/HUD/HudXPBarWidget`: the level and experience bar at the bottom center: a level badge and a slanted bar ticked
-  at every tenth that flashes what was just gained; `HudXPBarWidgetLayout.cpp` builds and paints it.
+- `UI/HUD/HudXPBarWidget`: the level and experience bar at the bottom center: the level in a circle in the middle of a
+  slanted bar (two halves) ticked at every tenth that flashes what was just gained; `HudXPBarWidgetLayout.cpp` builds
+  and paints it.
 - `UI/HUD/HudWeaponSlotsWidget`: the weapon slots over the ammo, as circles in the guns' rarity colors with their Inked icons (tilted up) and their ammo's icon under each.
 - `UI/HUD/HudFrameRateWidget`: the frame rate counter in the top-left corner.
 - `UI/HUD/HudPickupFeedWidget`: ammo pickups left of the crosshair, in outlined white type that stacks, rises and fades.

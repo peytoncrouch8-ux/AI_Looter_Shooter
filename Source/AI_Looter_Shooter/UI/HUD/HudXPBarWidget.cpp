@@ -278,19 +278,29 @@ void UHudXPBarWidget::SetShownLevel(int32 Level)
 
 void UHudXPBarWidget::PaintBar(float Fraction, float GainEnd)
 {
-	// The earned part, the just-earned stretch and the rest share the bar's width.
 	const float Fill = ToBarStep(Fraction);
 	const float Gained = FMath::Max(Fill, ToBarStep(GainEnd));
-	if ((Fill == ShownFill && Gained == ShownGainEnd) || !FilledSlot || !GainedSlot || !RestSlot)
+	const int32 Halves = FilledSlots.Num();
+	if ((Fill == ShownFill && Gained == ShownGainEnd) || Halves == 0 || GainedSlots.Num() != Halves || RestSlots.Num() != Halves
+		|| FillEdges.Num() != Halves)
 	{
 		return;
 	}
 	ShownFill = Fill;
 	ShownGainEnd = Gained;
-	FilledSlot->SetSize(ShareOfBar(Fill));
-	GainedSlot->SetSize(ShareOfBar(Gained - Fill));
-	RestSlot->SetSize(ShareOfBar(1.f - Gained));
-	FillEdge->SetVisibility(Fill > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	for (int32 Half = 0; Half < Halves; ++Half)
+	{
+		// Each half shows its share of the bar (the left one 0 to 0.5, the right one 0.5 to 1) as its own 0-1, in which the
+		// earned part, the just-earned stretch and the rest share its width.
+		const float HalfFill = FMath::Clamp(Fill * Halves - Half, 0.f, 1.f);
+		const float HalfGained = FMath::Clamp(Gained * Halves - Half, 0.f, 1.f);
+		FilledSlots[Half]->SetSize(ShareOfBar(HalfFill));
+		GainedSlots[Half]->SetSize(ShareOfBar(HalfGained - HalfFill));
+		RestSlots[Half]->SetSize(ShareOfBar(1.f - HalfGained));
+		// The leading edge shows where the earned part ends: in the last half it reaches into.
+		const bool bLeads = HalfFill > 0.f && (Half + 1 == Halves || Fill * Halves <= Half + 1);
+		FillEdges[Half]->SetVisibility(bLeads ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	}
 	// The just-earned stretch is light too, so the notches over it cut dark like those over the earned part.
 	PaintTicks(Gained);
 }
@@ -307,7 +317,11 @@ void UHudXPBarWidget::PaintBadge(float Flash)
 void UHudXPBarWidget::PaintEdge(float Glow)
 {
 	// A lighter accent at rest, white while the bar takes in a gain.
-	FillEdge->SetColorAndOpacity(FMath::Lerp(Hex(255, 214, 150), FLinearColor::White, FMath::Clamp(Glow, 0.f, 1.f)));
+	const FLinearColor EdgeColor = FMath::Lerp(Hex(255, 214, 150), FLinearColor::White, FMath::Clamp(Glow, 0.f, 1.f));
+	for (UImage* Edge : FillEdges)
+	{
+		Edge->SetColorAndOpacity(EdgeColor);
+	}
 }
 
 void UHudXPBarWidget::UpdateXPText()
