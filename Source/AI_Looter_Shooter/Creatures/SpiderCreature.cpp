@@ -1,8 +1,6 @@
 #include "Creatures/SpiderCreature.h"
 #include "Creatures/CreaturePoseAnimInstance.h"
-#include "AI_Looter_Shooter.h"
 #include "Combat/HealthComponent.h"
-#include "AnimationRuntime.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -10,7 +8,10 @@
 
 namespace
 {
-	/** Slots in the pose: the bones the code moves. Each leg has two, femur then tibia. */
+	/**
+	 * Slots in the pose: the bones the code moves. Each leg has two, femur then tibia. SetupRig (SpiderCreatureRig.cpp)
+	 * lays the pose out in this order.
+	 */
 	namespace SpiderBones
 	{
 		constexpr int32 Body = 0;
@@ -42,16 +43,19 @@ namespace
 		OutKnee = Hip + Direction * Along + Bend * Height;
 	}
 
-	/** A leg segment's frame: at its root joint, X along the segment, Z toward the pole. */
-	FTransform SegmentFrame(const FVector& From, const FVector& To, const FVector& Pole)
-	{
-		return FTransform(FRotationMatrix::MakeFromXZ(To - From, Pole).ToQuat(), From);
-	}
+	// The gait at full size. A spider of another size takes the same gait scaled in space and in time (multiply both by its
+	// size): at the same speed, a big one strides long and slow, a small one scurries.
 
 	/** How far (cm) a foot may get from its spot before its group steps it back: farther at speed (longer strides). */
 	float StepThresholdAt(float Speed)
 	{
 		return 32.f + Speed * 0.07f;
+	}
+
+	/** Seconds one step takes: quicker at speed. */
+	float StepDurationAt(float Speed)
+	{
+		return FMath::Clamp(0.26f - Speed * 0.00018f, 0.12f, 0.26f);
 	}
 }
 
@@ -67,6 +71,8 @@ ASpiderCreature::ASpiderCreature()
 	AttackRange = 220.f;
 	AttackDamage = 12.f;
 	HealthBarHeight = 120.f;
+	// Every spider answers every other's call (spiderlings, the Gravemother), whatever its class.
+	PackTag = TEXT("Spider");
 
 	GetCapsuleComponent()->InitCapsuleSize(62.f, 62.f);
 
@@ -108,93 +114,6 @@ void ASpiderCreature::BeginPlay()
 	}
 }
 
-bool ASpiderCreature::SetupRig()
-{
-	const USkeletalMesh* Model = GetMesh()->GetSkeletalMeshAsset();
-	if (!Model)
-	{
-		UE_LOG(LogLooter, Error, TEXT("%s has no model; import SK_Spider (Art/Models/Creatures/Spider.py)."), *GetName());
-		return false;
-	}
-	const FReferenceSkeleton& Skeleton = Model->GetRefSkeleton();
-	bool bComplete = true;
-	auto RestPose = [&Skeleton, &bComplete](FName Bone)
-	{
-		const int32 Index = Skeleton.FindBoneIndex(Bone);
-		bComplete &= Index != INDEX_NONE;
-		return Index != INDEX_NONE ? FAnimationRuntime::GetComponentSpaceTransformRefPose(Skeleton, Index) : FTransform::Identity;
-	};
-
-	// The body's frame at rest is level, at the thorax. The code places everything from it, like the old spider's
-	// BodyRoot, so each bone is kept relative to the frame it moves with.
-	const FTransform Thorax = RestPose(TEXT("body"));
-	const FTransform FrameAtRest(Thorax.GetLocation());
-	BodyInFrame = Thorax.GetRelativeTransform(FrameAtRest);
-	RideHeight = Thorax.GetLocation().Z;
-
-	auto MakePivot = [&RestPose, &FrameAtRest](FName Bone)
-	{
-		const FTransform Rest = RestPose(Bone);
-		FPivotBone Pivot;
-		Pivot.Bone = Bone;
-		Pivot.Pivot = FrameAtRest.InverseTransformPosition(Rest.GetLocation());
-		Pivot.BoneInPivot = Rest.GetRelativeTransform(FTransform(Rest.GetLocation()));
-		return Pivot;
-	};
-	FangLeft = MakePivot(TEXT("fang_l"));
-	FangRight = MakePivot(TEXT("fang_r"));
-	Abdomen = MakePivot(TEXT("abdomen"));
-
-	// The legs as the model stands: each foot resting on the ground, knees bent toward the pole.
-	Legs.Reset();
-	for (int32 Pair = 0; Pair < 4; ++Pair)
-	{
-		for (const float Side : { -1.f, 1.f })
-		{
-			const FString Suffix = FString::Printf(TEXT("%d_%s"), Pair, Side < 0.f ? TEXT("l") : TEXT("r"));
-			FLeg Leg;
-			Leg.Side = Side;
-			Leg.Pair = Pair;
-			// Alternating tetrapod: L0 R1 L2 R3 move together, then R0 L1 R2 L3.
-			Leg.Group = (Pair + (Side > 0.f ? 1 : 0)) % 2;
-			Leg.Femur = *(TEXT("femur_") + Suffix);
-			Leg.Tibia = *(TEXT("tibia_") + Suffix);
-			const FTransform Femur = RestPose(Leg.Femur);
-			const FTransform Tibia = RestPose(Leg.Tibia);
-			const FVector Hip = Femur.GetLocation();
-			const FVector Knee = Tibia.GetLocation();
-			const FVector Foot = RestPose(*(TEXT("foot_") + Suffix)).GetLocation();
-			Leg.Hip = FrameAtRest.InverseTransformPosition(Hip);
-			// The model's origin is under the capsule's center, so its resting feet are around the actor too.
-			Leg.Rest = FVector(Foot.X, Foot.Y, 0.f);
-			Leg.FemurLength = FVector::Dist(Hip, Knee);
-			Leg.TibiaLength = FVector::Dist(Knee, Foot);
-			const FVector Pole = KneePole(FVector::UpVector, (Hip - Thorax.GetLocation()).GetSafeNormal2D());
-			Leg.FemurInSegment = Femur.GetRelativeTransform(SegmentFrame(Hip, Knee, Pole));
-			Leg.TibiaInSegment = Tibia.GetRelativeTransform(SegmentFrame(Knee, Foot, Pole));
-			Legs.Add(Leg);
-		}
-	}
-	if (!bComplete)
-	{
-		UE_LOG(LogLooter, Error, TEXT("%s: %s lacks bones the spider moves; it stays in its resting pose."), *GetName(), *Model->GetName());
-		Legs.Reset();
-		return false;
-	}
-
-	BonePose.Reset();
-	for (const FName Bone : { FName(TEXT("body")), FangLeft.Bone, FangRight.Bone, Abdomen.Bone })
-	{
-		BonePose.Add({ Bone, FTransform::Identity });
-	}
-	for (const FLeg& Leg : Legs)
-	{
-		BonePose.Add({ Leg.Femur, FTransform::Identity });
-		BonePose.Add({ Leg.Tibia, FTransform::Identity });
-	}
-	return true;
-}
-
 // ---------------------------------------------------------------------------
 // Procedural animation
 // ---------------------------------------------------------------------------
@@ -224,8 +143,9 @@ void ASpiderCreature::PosePivot(int32 Index, const FPivotBone& Pivot, const FRot
 FVector ASpiderCreature::GroundUnder(const FVector& Point) const
 {
 	// Search only a little above the body: feet find footing on bumps and steps, but never climb walls.
+	const float Scale = GetSizeScale();
 	FVector Ground;
-	if (FindGround(Point, 60.f, 400.f, Ground))
+	if (FindGround(Point, 60.f * Scale, 400.f * Scale, Ground))
 	{
 		return Ground;
 	}
@@ -236,9 +156,10 @@ FVector ASpiderCreature::GroundUnder(const FVector& Point) const
 void ASpiderCreature::PlantLegs()
 {
 	const FQuat Yaw = FRotator(0.f, GetActorRotation().Yaw, 0.f).Quaternion();
+	const float Scale = GetSizeScale();
 	for (FLeg& Leg : Legs)
 	{
-		Leg.Foot = GroundUnder(GetActorLocation() + Yaw.RotateVector(Leg.Rest));
+		Leg.Foot = GroundUnder(GetActorLocation() + Yaw.RotateVector(Leg.Rest * Scale));
 		Leg.bStepping = false;
 		Leg.bNeedsReset = false;
 		Leg.StepAlpha = 1.f;
@@ -254,6 +175,9 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 	const float GroundZ = ActorLocation.Z - GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 	const ECreatureState CurrentState = GetCreatureState();
 	const float Time = GetStateTime();
+	// Every distance below is the full-size spider's, times its size.
+	const float Scale = GetSizeScale();
+	const float Ride = RideHeight * Scale;
 
 	// The body settles over its planted feet: their average sets the height, the differences tilt it.
 	float Sum = 0.f, Front = 0.f, Back = 0.f, Left = 0.f, Right = 0.f;
@@ -264,9 +188,9 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 		(Leg.Side > 0.f ? Right : Left) += Leg.Foot.Z;
 	}
 	const float Half = FMath::Max(1.f, Legs.Num() * 0.5f);
-	float TargetZ = FMath::Clamp(Sum / (Half * 2.f) + RideHeight, GroundZ + 25.f, GroundZ + RideHeight + 45.f);
-	float TargetPitch = FMath::RadiansToDegrees(FMath::Atan2((Front - Back) / Half, 200.f));
-	float TargetRoll = FMath::RadiansToDegrees(FMath::Atan2((Left - Right) / Half, 220.f));
+	float TargetZ = FMath::Clamp(Sum / (Half * 2.f) + Ride, GroundZ + 25.f * Scale, GroundZ + Ride + 45.f * Scale);
+	float TargetPitch = FMath::RadiansToDegrees(FMath::Atan2((Front - Back) / Half, 200.f * Scale));
+	float TargetRoll = FMath::RadiansToDegrees(FMath::Atan2((Left - Right) / Half, 220.f * Scale));
 	float Lunge = 0.f;
 	float TargetFang = 3.f + FMath::Max(0.f, FMath::Sin(AnimTime * 3.1f)) * 4.f;
 
@@ -277,26 +201,27 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 		const float Strike = FMath::Clamp((Time - AttackWindup) / AttackRecovery, 0.f, 1.f);
 		const float Rear = FMath::InterpEaseInOut(0.f, 1.f, Windup, 2.f) * (1.f - Strike);
 		TargetPitch += 24.f * Rear - 12.f * FMath::Sin(Strike * UE_PI);
-		TargetZ += 16.f * Rear;
-		Lunge = -14.f * Rear + 30.f * FMath::Sin(Strike * UE_PI);
+		TargetZ += 16.f * Scale * Rear;
+		Lunge = (-14.f * Rear + 30.f * FMath::Sin(Strike * UE_PI)) * Scale;
 		TargetFang = Strike > 0.f ? 0.f : 30.f * Windup;
 	}
 	else if (CurrentState == ECreatureState::Dead)
 	{
-		// Collapse, then sink out of sight after the corpse time.
+		// Collapse, then sink out of sight after the corpse time (a big body sinks as much faster as it is bigger, so it's
+		// gone by the time it's hidden).
 		const float Collapse = FMath::Clamp(Time / 0.6f, 0.f, 1.f);
-		TargetZ = FMath::Lerp(TargetZ, GroundZ + 20.f, Collapse);
+		TargetZ = FMath::Lerp(TargetZ, GroundZ + 20.f * Scale, Collapse);
 		TargetPitch = FMath::Lerp(TargetPitch, -5.f, Collapse);
 		TargetRoll += 10.f * Collapse;
 		TargetFang = 25.f;
 		if (Time > CorpseTime)
 		{
-			TargetZ -= (Time - CorpseTime) * 45.f;
+			TargetZ -= (Time - CorpseTime) * 45.f * Scale;
 		}
 	}
 	else
 	{
-		TargetZ += FMath::Sin(AnimTime * 2.2f) * 1.5f; // breathing
+		TargetZ += FMath::Sin(AnimTime * 2.2f) * 1.5f * Scale; // breathing
 	}
 
 	if (!bBodyInitialized || DeltaSeconds <= 0.f)
@@ -316,7 +241,8 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 
 	const FQuat Yaw = FRotator(0.f, GetActorRotation().Yaw, 0.f).Quaternion();
 	const FVector Location = FVector(ActorLocation.X, ActorLocation.Y, BodyZ) + Yaw.RotateVector(FVector(Lunge, 0.f, 0.f)) + HurtOffset;
-	BodyFrame = FTransform(Yaw * FRotator(BodyPitch, 0.f, BodyRoll).Quaternion(), Location);
+	// The frame carries the size like the mesh does: hips, pivots and poses set in it scale with the spider.
+	BodyFrame = FTransform(Yaw * FRotator(BodyPitch, 0.f, BodyRoll).Quaternion(), Location, FVector(Scale));
 	SetBone(SpiderBones::Body, BodyInFrame, BodyFrame);
 
 	// Abdomen: slow breathing sway plus a jolt when hit.
@@ -339,11 +265,12 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 	const float Speed = Velocity.Size();
 	const ECreatureState CurrentState = GetCreatureState();
 	const float Time = GetStateTime();
+	const float Scale = GetSizeScale();
 
-	// Faster = quicker, longer, higher steps.
-	const float StepDuration = FMath::Clamp(0.26f - Speed * 0.00018f, 0.12f, 0.26f);
-	const float StepThreshold = StepThresholdAt(Speed);
-	const float StepHeight = 18.f + Speed * 0.025f;
+	// Faster = quicker, longer, higher steps. At another size the full-size gait is scaled in space and time alike.
+	const float StepDuration = StepDurationAt(Speed) * Scale;
+	const float StepThreshold = StepThresholdAt(Speed) * Scale;
+	const float StepHeight = (18.f + Speed * 0.025f) * Scale;
 	// A distant spider updates only a few times a second. When an update is over half a step long, a step lasts just one
 	// update: rounded up to two, each step would take twice as long while the body walks on, and the feet would trail.
 	const float StepTime = DeltaSeconds > StepDuration * 0.5f ? DeltaSeconds : StepDuration;
@@ -376,18 +303,18 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 	bool bGroupWants[2] = { false, false };
 	for (FLeg& Leg : Legs)
 	{
-		const FVector Rest = RestSpots.Add_GetRef(ActorLocation + Yaw.RotateVector(Leg.Rest) + Velocity * (StepDuration * 0.9f));
+		const FVector Rest = RestSpots.Add_GetRef(ActorLocation + Yaw.RotateVector(Leg.Rest * Scale) + Velocity * (StepDuration * 0.9f));
 		if (IsHeld(Leg) || Leg.bStepping)
 		{
 			continue;
 		}
 		const float Offset = FVector::Dist2D(Leg.Foot, Rest);
-		if (Offset > 450.f)
+		if (Offset > 450.f * Scale)
 		{
 			Leg.Foot = GroundUnder(Rest); // teleported (respawn)
 			continue;
 		}
-		const bool bSettle = Speed < 10.f && Offset > 12.f && AnimTime - Leg.LastStepTime > 0.6f;
+		const bool bSettle = Speed < 10.f && Offset > 12.f * Scale && AnimTime - Leg.LastStepTime > 0.6f;
 		bGroupWants[Leg.Group] |= Offset > StepThreshold || bSettle || Leg.bNeedsReset;
 	}
 
@@ -405,7 +332,7 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 		for (int32 Index = 0; Index < Legs.Num(); ++Index)
 		{
 			FLeg& Leg = Legs[Index];
-			if (Leg.Group == SteppingGroup && !IsHeld(Leg) && (Leg.bNeedsReset || FVector::Dist2D(Leg.Foot, RestSpots[Index]) > 8.f))
+			if (Leg.Group == SteppingGroup && !IsHeld(Leg) && (Leg.bNeedsReset || FVector::Dist2D(Leg.Foot, RestSpots[Index]) > 8.f * Scale))
 			{
 				Leg.StepFrom = Leg.Foot;
 				Leg.StepTo = GroundUnder(RestSpots[Index]);
@@ -433,10 +360,10 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 		}
 		else if (CurrentState == ECreatureState::Attack && Leg.Pair == 0)
 		{
-			// Front legs rise with the body, then slam down ahead of it on the strike.
+			// Front legs rise with the body, then slam down ahead of it on the strike. (The body's frame carries the size.)
 			const float Strike = FMath::Clamp((Time - AttackWindup) / (AttackRecovery * 0.5f), 0.f, 1.f);
 			const FVector Raised = Body.TransformPosition(FVector(Leg.Hip.X + 80.f, Leg.Hip.Y * 1.5f, 50.f));
-			const FVector Slam = GroundUnder(ActorLocation + Yaw.RotateVector(FVector(150.f, Leg.Side * 50.f, 0.f)));
+			const FVector Slam = GroundUnder(ActorLocation + Yaw.RotateVector(FVector(150.f, Leg.Side * 50.f, 0.f) * Scale));
 			Leg.Foot = DeltaSeconds > 0.f ? FMath::VInterpTo(Leg.Foot, FMath::Lerp(Raised, Slam, Strike), DeltaSeconds, 16.f) : Leg.Foot;
 			Leg.bStepping = false;
 			Leg.bNeedsReset = true;
@@ -444,9 +371,9 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 
 		FVector Knee;
 		FVector Foot;
-		SolveTwoBone(Hip, Leg.Foot, Leg.FemurLength, Leg.TibiaLength, Pole, Knee, Foot);
-		SetBone(SpiderBones::FirstLeg + Index * 2, Leg.FemurInSegment, SegmentFrame(Hip, Knee, Pole));
-		SetBone(SpiderBones::FirstLeg + Index * 2 + 1, Leg.TibiaInSegment, SegmentFrame(Knee, Foot, Pole));
+		SolveTwoBone(Hip, Leg.Foot, Leg.FemurLength * Scale, Leg.TibiaLength * Scale, Pole, Knee, Foot);
+		SetBone(SpiderBones::FirstLeg + Index * 2, Leg.FemurInSegment, SegmentFrame(Hip, Knee, Pole, Scale));
+		SetBone(SpiderBones::FirstLeg + Index * 2 + 1, Leg.TibiaInSegment, SegmentFrame(Knee, Foot, Pole, Scale));
 	}
 }
 
@@ -462,7 +389,7 @@ void ASpiderCreature::OnAttackStarted()
 void ASpiderCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 {
 	// Flinch away from the hit; headshots rock it harder.
-	HurtOffset = (BodyFrame.GetLocation() - HitLocation).GetSafeNormal() * (bCritical ? 14.f : 7.f);
+	HurtOffset = (BodyFrame.GetLocation() - HitLocation).GetSafeNormal() * ((bCritical ? 14.f : 7.f) * GetSizeScale());
 	AbdomenKick = bCritical ? 10.f : 6.f;
 }
 
@@ -496,7 +423,8 @@ void ASpiderCreature::OnPoseThawed()
 	// from are put down under it afresh, and feet still near their spots stay down for the gait to step in as it walks.
 	const FVector ActorLocation = GetActorLocation();
 	const FQuat Yaw = FRotator(0.f, GetActorRotation().Yaw, 0.f).Quaternion();
-	const float StepThreshold = StepThresholdAt(static_cast<float>(GetVelocity().Size2D()));
+	const float Scale = GetSizeScale();
+	const float StepThreshold = StepThresholdAt(static_cast<float>(GetVelocity().Size2D())) * Scale;
 	for (FLeg& Leg : Legs)
 	{
 		if (Leg.bStepping)
@@ -505,7 +433,7 @@ void ASpiderCreature::OnPoseThawed()
 			Leg.bStepping = false;
 			Leg.StepAlpha = 1.f;
 		}
-		const FVector Rest = ActorLocation + Yaw.RotateVector(Leg.Rest);
+		const FVector Rest = ActorLocation + Yaw.RotateVector(Leg.Rest * Scale);
 		if (Leg.bNeedsReset || FVector::Dist2D(Leg.Foot, Rest) > StepThreshold)
 		{
 			Leg.Foot = GroundUnder(Rest);
@@ -517,6 +445,17 @@ void ASpiderCreature::OnPoseThawed()
 	bBodyInitialized = false;
 	AnimateBody(0.f);
 	AnimateLegs(0.f);
+}
+
+void ASpiderCreature::OnSizeChanged()
+{
+	// Promoted (or resized) in play: its feet go down where the new size puts them, and the body settles over them at once.
+	if (bRigReady)
+	{
+		PlantLegs();
+		AnimateBody(0.f);
+		AnimateLegs(0.f);
+	}
 }
 
 void ASpiderCreature::SetHitVolumesEnabled(bool bEnabled)

@@ -34,6 +34,13 @@ struct FLootRoll
 	TArray<FAmmoDrop> Ammo;
 };
 
+/** One gun a roll drops, before its stats are rolled: which kind and how rare. */
+struct FLootWeaponPick
+{
+	UWeaponDefinition* Definition = nullptr;
+	EWeaponRarity Rarity = EWeaponRarity::Common;
+};
+
 UCLASS()
 class AI_LOOTER_SHOOTER_API ULootLibrary : public UBlueprintFunctionLibrary
 {
@@ -55,6 +62,15 @@ public:
 	 */
 	static FLootRoll RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random,
 		TOptional<EAmmoType> KillAmmo = {});
+
+	/** RollLoot's first half: the ammo pickups one kill drops (how many, each one's class and rounds). */
+	static TArray<FAmmoDrop> RollAmmo(const ULootTable* LootTable, FRandomStream& Random, TOptional<EAmmoType> KillAmmo = {});
+
+	/**
+	 * RollLoot's second half, drawn right after RollAmmo: the guns one kill drops (whether any, how many, which and how
+	 * rare), without rolling their stats. Cheap enough to simulate a million kills (LootOdds).
+	 */
+	static TArray<FLootWeaponPick> RollWeaponPicks(const ULootTable* LootTable, float ExtraLuck, FRandomStream& Random);
 
 	/**
 	 * Rounds in one ammo pickup from the table: a random amount from its AmmoAmountMin to AmmoAmountMax, both included,

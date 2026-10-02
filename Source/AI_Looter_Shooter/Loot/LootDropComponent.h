@@ -22,11 +22,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Loot")
 	TArray<AActor*> DropLoot();
 
-	/** Leave empty to use the default loot table. */
+	/** Leave empty to use the default loot table. A ranked creature carries its rank's here (UCreatureRankSettings). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
 	TObjectPtr<ULootTable> LootTable;
 
-	/** Item level of dropped weapons. */
+	/** Item level of dropped weapons. A creature keeps it at its own level (ACreatureBase::SetLevel). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot", meta = (ClampMin = "1"))
 	int32 Level = 1;
 

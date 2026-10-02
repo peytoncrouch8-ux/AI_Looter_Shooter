@@ -129,22 +129,47 @@ FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float
 	{
 		return Roll;
 	}
+	// Ammo first, then the guns, from the same stream: a seeded roll repeats. Each gun's stats come from its own seed, and
+	// its level is the killer's (a creature passes its own to its loot).
+	Roll.Ammo = RollAmmo(LootTable, Random, KillAmmo);
+	for (const FLootWeaponPick& Pick : RollWeaponPicks(LootTable, ExtraLuck, Random))
+	{
+		Roll.Weapons.Add(UWeaponRollLibrary::RollWeaponWithRarity(Pick.Definition, Pick.Rarity, Level));
+	}
+	return Roll;
+}
 
-	// Ammo: most kills leave a pickup or two, each of a random class (more often the kill weapon's) and a random amount
-	// from the table's range, the same range for every class.
+TArray<FAmmoDrop> ULootLibrary::RollAmmo(const ULootTable* LootTable, FRandomStream& Random, TOptional<EAmmoType> KillAmmo)
+{
+	TArray<FAmmoDrop> Ammo;
+	if (!LootTable)
+	{
+		return Ammo;
+	}
+	// Most kills leave a pickup or two (ranked creatures more), each of a random class (more often the kill weapon's) and a
+	// random amount from the table's range, the same range for every class.
 	if (Random.FRand() < LootTable->AmmoDropChance)
 	{
 		const int32 MinDrops = FMath::Max(LootTable->MinAmmoDrops, 0);
 		const int32 Drops = Random.RandRange(MinDrops, FMath::Max(LootTable->MaxAmmoDrops, MinDrops));
 		for (int32 Index = 0; Index < Drops; ++Index)
 		{
-			FAmmoDrop& Drop = Roll.Ammo.AddDefaulted_GetRef();
+			FAmmoDrop& Drop = Ammo.AddDefaulted_GetRef();
 			Drop.Type = PickAmmoType(LootTable, Random, KillAmmo);
 			Drop.Amount = RollAmmoAmount(LootTable, Random);
 		}
 	}
+	return Ammo;
+}
 
-	// Weapons: only some kills. Rarity follows each weapon's own odds (Common most, Legendary least), shifted by luck.
+TArray<FLootWeaponPick> ULootLibrary::RollWeaponPicks(const ULootTable* LootTable, float ExtraLuck, FRandomStream& Random)
+{
+	TArray<FLootWeaponPick> Picks;
+	if (!LootTable)
+	{
+		return Picks;
+	}
+	// Only some kills. Rarity follows each weapon's own odds (Common most, Legendary least), shifted by luck.
 	if (Random.FRand() < LootTable->WeaponDropChance)
 	{
 		const int32 MinWeapons = FMath::Max(LootTable->MinWeaponDrops, 0);
@@ -153,12 +178,13 @@ FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float
 		{
 			if (UWeaponDefinition* Definition = PickWeaponWith(LootTable, Random))
 			{
-				const EWeaponRarity Rarity = UWeaponRollLibrary::RollRarityWith(Definition, LootTable->Luck + ExtraLuck, Random);
-				Roll.Weapons.Add(UWeaponRollLibrary::RollWeaponWithRarity(Definition, Rarity, Level));
+				FLootWeaponPick& Pick = Picks.AddDefaulted_GetRef();
+				Pick.Definition = Definition;
+				Pick.Rarity = UWeaponRollLibrary::RollRarityWith(Definition, LootTable->Luck + ExtraLuck, Random);
 			}
 		}
 	}
-	return Roll;
+	return Picks;
 }
 
 TArray<AActor*> ULootLibrary::SpawnLoot(UObject* WorldContextObject, const ULootTable* LootTable, FVector Location, int32 Level, float ExtraLuck)

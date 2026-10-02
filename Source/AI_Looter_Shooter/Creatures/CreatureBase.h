@@ -5,11 +5,13 @@
 #include "Combat/CriticalSpotTarget.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Creatures/CreaturePoseAnimInstance.h"
+#include "Creatures/CreatureRank.h"
 #include "Creatures/CreatureUpdateRate.h"
 #include "CreatureBase.generated.h"
 
 class UHealthComponent;
 class ULootDropComponent;
+class ULootTable;
 class UWidgetComponent;
 
 UENUM(BlueprintType)
@@ -30,6 +32,11 @@ enum class ECreatureState : uint8
  * the On* hooks. The mesh's physics asset holds the hit zones, and critical spots are data (CriticalSpotBones) matched
  * against the bone a shot hit. Distant creatures update less often, and stop posing their bodies while off screen
  * (UpdateRate); ones busy with a player always update every frame.
+ *
+ * Each creature has a rank (ECreatureRank: its tag's word and color, size, stats, loot and pack call) and a size
+ * (BodyScale times its rank's): the whole actor is scaled, so the capsule, the model, its hit zones and the health bar
+ * follow, and every distance the code works in (attack reach, steering probes, the subclass's gait or hops) is multiplied
+ * by GetSizeScale(). CreatureBaseRank.cpp holds the rank, level and size, and which creatures come back after a death.
  */
 UCLASS(Abstract)
 class AI_LOOTER_SHOOTER_API ACreatureBase : public ACharacter, public ICriticalSpotTarget
@@ -56,6 +63,73 @@ public:
 	/** Turns on Attacker as if it had been hurt by it (its pack heard the fight). Nothing changes if it's busy already. */
 	void AlertTo(APawn* Attacker);
 
+	// --- Rank, level and size (CreatureBaseRank.cpp) ---
+
+	/** Its rank now: StartingRank, or a promotion, which lasts until it dies. */
+	UFUNCTION(BlueprintPure, Category = "Creature|Rank")
+	ECreatureRank GetRank() const { return CurrentRank; }
+
+	/**
+	 * Promotes (or demotes) it until it dies: its tag, size, health, damage, experience, level, loot table and pack call
+	 * follow the rank (UCreatureRankSettings), and a hurt creature keeps its share of health. Before play starts, this is
+	 * the rank it starts with.
+	 */
+	void SetRank(ECreatureRank NewRank);
+
+	/** Sets its level, which its tag shows and the guns it drops take (passed to its loot drop component). */
+	void SetLevel(int32 NewLevel);
+
+	/** Its size against its model right now: BodyScale times its rank's size. Every distance it works in is multiplied by it. */
+	UFUNCTION(BlueprintPure, Category = "Creature|Rank")
+	float GetSizeScale() const { return SizeScale; }
+
+	/** Sets BodyScale and resizes it at once, its feet staying where they stand. */
+	void SetBodyScale(float NewBodyScale);
+
+	/** Whether it comes back after a death: placed creatures do, unless placed as a Legendary monster or a boss. */
+	bool WillRespawn() const;
+
+	/** Whether it answers Other's pack call: the same PackTag, or without one, the same class. */
+	bool SharesPackWith(const ACreatureBase& Other) const;
+
+	/** How far its pack call reaches when it's hurt: its PackAlertRadius, or its rank's call if that's farther. */
+	float GetPackCallRadius() const;
+
+	/** Distance (capsule center to target center, flat) from which it starts an attack, at its size. */
+	float GetAttackRange() const { return AttackRange * SizeScale; }
+
+	/** How far its strike lands (flat): a little past where it starts the attack, at its size. */
+	float GetStrikeReach() const;
+
+	/** What its steering looks ahead with (IsDirectionClear), at its size. */
+	struct FSteerProbes
+	{
+		/** A sphere this wide swept this far ahead finds anything too steep to walk up. */
+		float SweepLength = 0.f;
+		float SweepRadius = 0.f;
+		/** It looks for ground this far ahead, at most this far below its middle: it never walks off a higher drop. */
+		float LedgeDistance = 0.f;
+		float LedgeDrop = 0.f;
+	};
+	FSteerProbes GetSteerProbes() const;
+
+	/** How a creature spawned in play (by a spawner, an egg sac or a command) starts. */
+	struct FRuntimeSpawn
+	{
+		ECreatureRank Rank = ECreatureRank::Basic;
+		/** Its level before its rank's; 0 keeps the class's. */
+		int32 Level = 0;
+		/** Its BodyScale; 0 keeps the class's. */
+		float BodyScale = 0.f;
+	};
+
+	/**
+	 * Spawns a creature in play, standing on Feet (the ground) and facing Yaw. Only placed creatures come back: this one is
+	 * gone for good once killed, and its body is removed after it sinks away.
+	 */
+	static ACreatureBase* SpawnAtRuntime(UWorld* World, TSubclassOf<ACreatureBase> Class, const FVector& Feet, float Yaw,
+		const FRuntimeSpawn& Spawn);
+
 	/** Seconds between its updates right now (0 = every frame); see UpdateRate. */
 	float GetUpdateInterval() const { return UpdateInterval; }
 
@@ -72,18 +146,41 @@ public:
 	FText DisplayName;
 
 	/**
-	 * The creature's level, shown on its health bar. Tutorial island creatures are level 1; later areas set their own.
-	 * Nothing scales with it yet (health, damage and loot will).
+	 * The creature's level, shown on its health bar; the guns it drops take it. Placed, it's the level before its rank's,
+	 * which play adds (a Restless one placed at 3 is level 4). In play, set it with SetLevel, which passes it to the loot.
+	 * Tutorial island creatures are level 1; later areas set their own. Health and damage don't grow with it yet.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Progression", meta = (ClampMin = "1"))
 	int32 Level = 1;
 
 	/**
 	 * Experience the player who kills it earns, once per kill (UPlayerProgressionSubsystem::AwardKill). 10 on the
-	 * tutorial island for now; it drops to 0 there once later areas have their own creatures.
+	 * tutorial island for now; it drops to 0 there once later areas have their own creatures. In play it includes its
+	 * rank's multiplier (a Restless one gives twice this).
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Progression", meta = (ClampMin = "0"))
 	int32 XPReward = 10;
+
+	/**
+	 * The rank it starts with, and comes back as after a death (a promotion lasts one life). A Legendary monster or a boss
+	 * doesn't come back on its own (UCreatureRankSettings).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Rank", meta = (DisplayName = "Rank"))
+	ECreatureRank StartingRank = ECreatureRank::Basic;
+
+	/**
+	 * Its size against its model (0.45 makes a spiderling, 1.8 a giant), before its rank makes it a little bigger. The
+	 * actor's own scale in the level is ignored: creatures always start from their model's size.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Rank", meta = (ClampMin = "0.1", ClampMax = "5"))
+	float BodyScale = 1.f;
+
+	/**
+	 * Creatures with the same pack tag answer each other's pack calls (PackAlertRadius, and a rank's wider call): every
+	 * spider, spiderlings and the Gravemother too. None: only its own class.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Senses")
+	FName PackTag;
 
 	/** Hits on these bones' hit zones are critical. Everything else takes base damage. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature")
@@ -93,7 +190,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Senses", meta = (ClampMin = "0"))
 	float AggroRadius = 2600.f;
 
-	/** When it's hurt, every creature of its kind within this distance turns on the attacker too (0 = only itself). */
+	/**
+	 * When it's hurt, every creature of its pack (PackTag) within this distance turns on the attacker too (0 = only itself).
+	 * Its rank can call farther (GetPackCallRadius).
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Senses", meta = (ClampMin = "0"))
 	float PackAlertRadius = 0.f;
 
@@ -136,6 +236,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Life", meta = (ClampMin = "0"))
 	float RespawnDelay = 25.f;
 
+	/**
+	 * Whether it comes back at home after a death, as its StartingRank. Off for anything spawned in play (SpawnAtRuntime);
+	 * a Legendary monster or a boss doesn't come back either way (WillRespawn).
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Life")
 	bool bRespawns = true;
 
@@ -163,6 +267,9 @@ protected:
 	 * Subclasses skip their pose work while it's frozen.
 	 */
 	virtual void OnPoseThawed() {}
+
+	/** Its size changed in play (a promotion, or SetBodyScale): put the body's pose back under it at the new size. */
+	virtual void OnSizeChanged() {}
 
 	/**
 	 * The attack lands, AttackWindup into it: bites whatever is in reach in front (and calls OnAttackStrike). A creature
@@ -200,7 +307,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UWidgetComponent> HealthBar;
 
-	/** Height above the capsule center where the health bar floats. */
+	/** Height above the capsule center where the health bar floats, at size 1 (it rises with the scaled actor). */
 	float HealthBarHeight = 130.f;
 
 	/** The bones the code moves, set by the subclass every frame. */
@@ -221,6 +328,14 @@ private:
 	void SnapToGround();
 	void Respawn();
 	void UpdateHealthBar(float DeltaSeconds);
+
+	// --- Rank, level and size (CreatureBaseRank.cpp) ---
+	/** Applies CurrentRank: stats from the base ones, loot table, and size. */
+	void ApplyRank();
+	/** Scales the actor to BodyScale times its rank's size, its feet staying put, and what the scale doesn't reach. */
+	void ApplySize();
+	/** Keeps what the class or the level gave it, once, before any rank changes it. */
+	void CaptureBaseStats();
 
 	// --- Update rate (CreatureBaseUpdateRate.cpp) ---
 	void TickUpdateRate(float DeltaSeconds);
@@ -271,6 +386,21 @@ private:
 	float HealthBarTime = 0.f;
 	FTimerHandle RespawnTimer;
 	FTimerHandle HideTimer;
+
+	// Rank and size
+	ECreatureRank CurrentRank = ECreatureRank::Basic;
+	float SizeScale = 1.f;
+	/** Spawned in play (SpawnAtRuntime): never comes back, and its body is removed once it has sunk away. */
+	bool bSpawnedAtRuntime = false;
+	/** What the class or the level gave it, which ranks multiply (CaptureBaseStats). */
+	bool bBaseCaptured = false;
+	float BaseMaxHealth = 100.f;
+	float BaseAttackDamage = 0.f;
+	int32 BaseXPReward = 0;
+	float BaseStepHeight = 0.f;
+	/** Its own loot table, for Basic (none: the default one). */
+	UPROPERTY(Transient)
+	TObjectPtr<ULootTable> BaseLootTable;
 
 	// Update rate
 	float UpdateInterval = 0.f;

@@ -10,10 +10,11 @@ class UTextBlock;
 
 /**
  * The tag over a creature in combat, in the gameplay HUD's style: no backing plate, just floating outlined text ("LV 1
- * Brown Spider") over a slim slanted health bar with a dark rim and a lit top edge. The bar is the same over every
- * creature whatever its name or health: solid dark lines cut it into quarters, so a glance says how far gone it is
- * without a tough creature's bar turning into noise. A hit leaves a pale chip of the health it took that drains away a
- * moment later.
+ * Brown Spider") over a slim slanted health bar with a dark rim and a lit top edge. A ranked creature's word comes before
+ * its name in its rank's color ("LV 2 Restless Brown Spider", the word blue), and a rank with no word (a boss) colors the
+ * name instead. The bar is the same over every creature whatever its name or health: solid dark lines cut it into
+ * quarters, so a glance says how far gone it is without a tough creature's bar turning into noise. A hit leaves a pale
+ * chip of the health it took that drains away a moment later.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UCreatureHealthBarWidget : public UUserWidget
@@ -21,8 +22,11 @@ class AI_LOOTER_SHOOTER_API UCreatureHealthBarWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	/** Cheap to call every frame: the texts only change when the name or level does. */
-	void SetCreature(const FText& InName, int32 InLevel);
+	/**
+	 * Cheap to call every frame: the texts only change when one of these does. InRankWord is empty for Basic; InRankColor
+	 * colors the word, or the name when there's no word (Basic's is the plain text color).
+	 */
+	void SetCreature(const FText& InName, int32 InLevel, const FText& InRankWord, const FLinearColor& InRankColor);
 
 	/** Cheap to call every frame: the bar only moves when the share of health left changes. */
 	void SetHealth(float Health, float MaxHealth);
@@ -47,6 +51,10 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> LevelText;
 
+	/** The rank's word ("Restless"), hidden for Basic. */
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> RankText;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> NameText;
 
@@ -59,6 +67,8 @@ private:
 
 	FText CreatureName;
 	int32 CreatureLevel = 1;
+	FText RankWord;
+	FLinearColor RankColor = FLinearColor::White;
 	float Fraction = 1.f;
 	/** The chip's end: snaps up with healing, holds a moment after a hit, then drains down to the health. */
 	float GhostFraction = 1.f;

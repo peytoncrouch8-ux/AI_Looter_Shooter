@@ -103,6 +103,8 @@ ASlimeCreature::ASlimeCreature()
 	AttackCooldown = 1.6f;
 	CorpseTime = 2.5f;
 	HealthBarHeight = 75.f;
+	// A hurt slime's call reaches every slime near it (PackAlertRadius), whatever its class.
+	PackTag = TEXT("Slime");
 
 	GetCapsuleComponent()->InitCapsuleSize(CapsuleRadius, CapsuleRadius);
 
@@ -178,11 +180,13 @@ bool ASlimeCreature::IsCriticalSpot(const FHitResult& Hit) const
 	{
 		return false;
 	}
-	// A shot stops at the gel's surface: it's a crit when the line it was on would have gone on through the core.
+	// A shot stops at the gel's surface: it's a crit when the line it was on would have gone on through the core (which
+	// is as much bigger as the slime is).
 	const FVector Direction = (Hit.TraceEnd - Hit.TraceStart).GetSafeNormal();
 	const FVector Core = GetMesh()->GetBoneLocation(CoreBone);
-	const float Reach = CapsuleRadius * 4.f;
-	return !Direction.IsZero() && FMath::PointDistToSegment(Core, Hit.ImpactPoint, Hit.ImpactPoint + Direction * Reach) <= CoreRadius;
+	const float Reach = CapsuleRadius * 4.f * GetSizeScale();
+	return !Direction.IsZero()
+		&& FMath::PointDistToSegment(Core, Hit.ImpactPoint, Hit.ImpactPoint + Direction * Reach) <= CoreRadius * GetSizeScale();
 }
 
 // ---------------------------------------------------------------------------
@@ -234,16 +238,18 @@ void ASlimeCreature::TickHops(const FVector& Wanted, float DeltaSeconds)
 
 void ASlimeCreature::Launch()
 {
+	// Hops are the full-size slime's, times its size: a big one bounds farther and higher (and so a little slower).
+	const float Scale = GetSizeScale();
 	const bool bHunting = GetCreatureState() == ECreatureState::Chase || GetCreatureState() == ECreatureState::Return;
-	float Length = RandomIn(bHunting ? ChaseHopLength : WanderHopLength);
-	const float Height = RandomIn(bHunting ? ChaseHopHeight : WanderHopHeight);
+	float Length = RandomIn(bHunting ? ChaseHopLength : WanderHopLength) * Scale;
+	const float Height = RandomIn(bHunting ? ChaseHopHeight : WanderHopHeight) * Scale;
 	// Never hop off an edge: shorten the hop until it lands on ground, or stay put.
 	FVector Ground;
-	while (Length > 60.f && !FindGround(GetActorLocation() + HopDirection * Length, 300.f, 600.f, Ground))
+	while (Length > 60.f * Scale && !FindGround(GetActorLocation() + HopDirection * Length, 300.f * Scale, 600.f * Scale, Ground))
 	{
 		Length *= 0.5f;
 	}
-	if (Length <= 60.f)
+	if (Length <= 60.f * Scale)
 	{
 		Hop = EHop::Ground;
 		HopTime = 0.f;
@@ -275,12 +281,13 @@ void ASlimeCreature::Landed(const FHitResult& Hit)
 	{
 		bLeaping = false;
 		Squash.Ramp(LeapLandSquash, LandTime);
-		// The leap hurts whoever it lands on.
+		// The leap hurts whoever it lands on (up and down, a small slime still reaches a player, as a full-size one does).
 		APawn* Victim = GetTarget();
 		if (IsValidTarget(Victim))
 		{
+			const float Scale = GetSizeScale();
 			const FVector ToVictim = Victim->GetActorLocation() - GetActorLocation();
-			if (ToVictim.Size2D() <= LeapHitRadius && FMath::Abs(ToVictim.Z) < 200.f)
+			if (ToVictim.Size2D() <= LeapHitRadius * Scale && FMath::Abs(ToVictim.Z) < 200.f * FMath::Max(Scale, 1.f))
 			{
 				HitWithAttack(Victim, ToVictim.GetSafeNormal2D());
 			}
@@ -315,12 +322,13 @@ void ASlimeCreature::OnAttackStarted()
 void ASlimeCreature::Strike()
 {
 	bTelegraph = false;
+	const float Scale = GetSizeScale();
 	const APawn* Victim = GetTarget();
-	FVector ToVictim = Victim ? Victim->GetActorLocation() - GetActorLocation() : GetActorForwardVector() * LeapLength;
+	FVector ToVictim = Victim ? Victim->GetActorLocation() - GetActorLocation() : GetActorForwardVector() * (LeapLength * Scale);
 	ToVictim.Z = 0.f;
-	const float Length = FMath::Clamp(ToVictim.Size() - LeapShortOf, 80.f, LeapLength);
+	const float Length = FMath::Clamp(static_cast<float>(ToVictim.Size()) - LeapShortOf * Scale, 80.f * Scale, LeapLength * Scale);
 	HopDirection = ToVictim.GetSafeNormal();
-	LaunchCharacter(HopVelocity(HopDirection, Length, LeapHeight, -GetCharacterMovement()->GetGravityZ()), true, true);
+	LaunchCharacter(HopVelocity(HopDirection, Length, LeapHeight * Scale, -GetCharacterMovement()->GetGravityZ()), true, true);
 	Hop = EHop::Air;
 	HopTime = 0.f;
 	bLeaping = true;
@@ -359,7 +367,8 @@ void ASlimeCreature::OnDied()
 	FVector Ground;
 	if (FindGround(GetActorLocation(), 0.f, 1000.f, Ground))
 	{
-		SetActorLocation(Ground + FVector(0.f, 0.f, CapsuleRadius), false, nullptr, ETeleportType::TeleportPhysics);
+		SetActorLocation(Ground + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight()), false, nullptr,
+			ETeleportType::TeleportPhysics);
 	}
 }
 
@@ -448,23 +457,25 @@ void ASlimeCreature::AnimateBody(float DeltaSeconds)
 		return;
 	}
 	AnimTime += DeltaSeconds;
-	FVector BodyScale;
+	// The body bone's scale (the mesh's, against the model; the actor's size is on top).
+	FVector Shape;
 	if (IsDead())
 	{
 		// A puddle, then nothing.
 		const float Time = GetStateTime();
 		const float Flat = FMath::InterpEaseOut(0.f, 1.f, FMath::Min(Time / FlattenTime, 1.f), 2.f);
 		const float Dry = FMath::Clamp((Time - FlattenTime - CorpseTime) / DryUpTime, 0.f, 1.f);
-		BodyScale = FMath::Lerp(SquashScale(Squash.Value), FVector(PuddleWidth, PuddleWidth, PuddleHeight), Flat) * FMath::Max(1.f - Dry, 0.01f);
-		BodyScale.Z = FMath::Max(BodyScale.Z, 0.01f);
+		Shape = FMath::Lerp(SquashScale(Squash.Value), FVector(PuddleWidth, PuddleWidth, PuddleHeight), Flat) * FMath::Max(1.f - Dry, 0.01f);
+		Shape.Z = FMath::Max(Shape.Z, 0.01f);
 	}
 	else
 	{
 		// What the spring heads for between the hop's forced beats: a slow wobble at rest; in the air, stretched on the
-		// way up, round at the top and a little stretched again coming down.
+		// way up, round at the top and a little stretched again coming down. (A hop's speed grows with the root of its
+		// height, so a bigger slime's launch counts as the same stretch.)
 		if (Hop == EHop::Air)
 		{
-			const float Vertical = GetVelocity().Z / 400.f;
+			const float Vertical = GetVelocity().Z / (400.f * FMath::Sqrt(GetSizeScale()));
 			Squash.Target = Vertical > 0.f ? ApexSquash + (LaunchStretch - ApexSquash) * FMath::Min(Vertical, 1.f)
 				: ApexSquash + (FallStretch - ApexSquash) * FMath::Min(-Vertical, 1.f);
 		}
@@ -473,14 +484,15 @@ void ASlimeCreature::AnimateBody(float DeltaSeconds)
 			Squash.Target = 1.f + IdleWobble * FMath::Sin(2.f * UE_PI * IdleWobbleHz * AnimTime + IdlePhase);
 		}
 		StepSprings(Squash, CoreOffset, CoreVelocity, DeltaSeconds);
-		BodyScale = SquashScale(Squash.Value);
+		Shape = SquashScale(Squash.Value);
 	}
 
 	// The body bone carries everything but the core: scaling it squashes the slime against the ground. The core rides
-	// with it (half as squashed: it's firmer), offset by its lag.
-	const FVector CoreScale = FMath::Lerp(FVector::OneVector, BodyScale, 0.5f);
-	const FVector CoreLocation = CoreRest.GetLocation() * BodyScale + CoreOffset;
+	// with it (half as squashed: it's firmer), offset by its lag. All of it is in the mesh's space, so a slime of another
+	// size squashes and wobbles the same, scaled.
+	const FVector CoreScale = FMath::Lerp(FVector::OneVector, Shape, 0.5f);
+	const FVector CoreLocation = CoreRest.GetLocation() * Shape + CoreOffset;
 	BonePose.SetNum(2);
-	BonePose[0] = { BodyBone, FTransform(BodyRest.GetRotation(), BodyRest.GetLocation(), BoneScale(BodyRest.GetRotation(), BodyScale)) };
+	BonePose[0] = { BodyBone, FTransform(BodyRest.GetRotation(), BodyRest.GetLocation(), BoneScale(BodyRest.GetRotation(), Shape)) };
 	BonePose[1] = { CoreBone, FTransform(CoreRest.GetRotation(), CoreLocation, BoneScale(CoreRest.GetRotation(), CoreScale)) };
 }

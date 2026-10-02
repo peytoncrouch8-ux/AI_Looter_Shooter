@@ -16,7 +16,8 @@
  * The body is SK_Slime (Art/Models/Creatures/Slime.py), two bones: "body" at the ground, which every part but the core
  * is weighted to, so scaling it squashes the slime; and "core". All motion is code (UCreaturePoseAnimInstance applies it):
  * the squash is a spring, volume kept (sides scale by 1 / sqrt of the height's scale), and the core lags behind the
- * body's moves on a spring of its own.
+ * body's moves on a spring of its own. The pose is in the mesh's space, so it holds at any size (GetSizeScale); the hops,
+ * the leap and the core's crit radius are the full-size slime's times its size.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ASlimeCreature : public ACreatureBase
@@ -38,7 +39,7 @@ public:
 	/** The body's scale for a height scale of Z, keeping its volume. */
 	static FVector SquashScale(float Z);
 
-	/** How far from the core's middle a shot's line may pass and still count as hitting it (cm). */
+	/** How far from the core's middle a shot's line may pass and still count as hitting it (cm, times the slime's size). */
 	static constexpr float CoreRadius = 12.f;
 
 	/** The current height scale of the body (1 at rest), for tests and effects. */

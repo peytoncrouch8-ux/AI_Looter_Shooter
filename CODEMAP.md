@@ -73,7 +73,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 ## Loot
 - `Loot/LootTable`: `ULootTable`, what a kill drops (ammo pickups of 18-36 rounds and their lean toward the kill
   weapon's ammo, weapon odds, luck) and `LooterLoot`, the ammo amounts (a chest's fixed 36).
-- `Loot/LootLibrary`: `ULootLibrary`, rolling a loot table and spawning the results.
+- `Loot/LootLibrary`: `ULootLibrary`, rolling a loot table (`RollAmmo` then `RollWeaponPicks`, as a kill draws them)
+  and spawning the results.
+- `Loot/LootOdds`: `LootOdds`, a loot table's odds worked out exactly and counted over many kills from a seed
+  (`Looter.Loot.SimulateDrops`, the `Looter.Loot.RankOdds` test).
 - `Loot/LootDropComponent`: drops its owner's loot when it dies.
 - `Loot/LootTossComponent`: `ULootTossComponent`, throws loot so it pops out, lands and settles.
 - `Loot/WeaponRack`: `AWeaponRack`, a rack with a weapon lying on it as loot and ammo beside it; restocks when the
@@ -83,12 +86,23 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Creatures
 - `Creatures/CreatureBase`: `ACreatureBase`, a hostile creature's brain and life cycle (senses, chase, attack, death,
-  respawn, steering without a navmesh, a pack turning on its attacker). `CreatureBaseUpdateRate.cpp` slows the
-  ones far from the player or out of sight (`Looter.Creatures.UpdateRates 0` turns that off).
+  respawn, a pack turning on its attacker). `CreatureBaseSteering.cpp` is its steering without a navmesh (obstacle and
+  ledge probes, wander goals, the ground); `CreatureBaseRank.cpp` its rank, level and size (`BodyScale`), which
+  creatures come back after a death, pack tags, and spawning creatures in play (`SpawnAtRuntime`);
+  `CreatureBaseUpdateRate.cpp` slows the ones far from the player or out of sight (`Looter.Creatures.UpdateRates 0`
+  turns that off).
+- `Creatures/CreatureRank.h`: `ECreatureRank`, a creature's rank (Basic, Rare "Restless", Epic "Gravebound", Legendary
+  "Soulfed", Boss).
+- `Creatures/CreatureRankSettings`: `UCreatureRankSettings` and `FCreatureRankInfo`, what each rank does (its tag's
+  word and color, size, health, damage, experience and levels, loot table, pack call, whether it comes back), in
+  Project Settings > Game > Creature Ranks. The rank loot tables (`DA_LootTable_Rare`, `_Epic`, `_Legendary`, `_Boss`)
+  are made by `Tools/Unreal/create_rank_assets.py`.
 - `Creatures/CreatureUpdateRate`: `FCreatureUpdateRate`, how often a creature updates by its distance and whether it
   is in view (zoom through a sight counts as nearer).
 - `Creatures/SpiderCreature`: `ASpiderCreature`, the brown spider: SK_Spider (from `Art/Models/Creatures/Spider.py`)
-  posed by code (stepping gait, leg IK, attack and death motion); its physics asset holds the hit zones.
+  posed by code (stepping gait, leg IK, attack and death motion) at any size; its physics asset holds the hit zones.
+  `SpiderCreatureRig.cpp` reads its rig from the skeleton (the bones it moves, the legs' layout) and builds the leg
+  segments' frames.
 - `Creatures/SlimeCreature`: `ASlimeCreature`, the meadow slime: SK_Slime (from `Art/Models/Creatures/Slime.py`) that
   only hops, squashing and stretching on springs, with a leap attack and crits through the gel at its core.
 - `Creatures/CreaturePoseAnimInstance`: `UCreaturePoseAnimInstance`, applies the pose a creature's code works out
@@ -203,8 +217,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/Bestiary/BestiaryWidget.h`: the bestiary's declaration.
 - `UI/Bestiary/BestiaryStage`: `ABestiaryStage`, the off-screen stand that shows an entry's model, framed to its size.
 - `UI/World/WeaponLabelWidget`: the label over loot guns.
-- `UI/World/CreatureHealthBarWidget`: the tag over a hurt or hunting creature: floating level and name over a slim bar
-  of fixed width, cut into quarters whatever the health.
+- `UI/World/CreatureHealthBarWidget`: the tag over a hurt or hunting creature: floating level, rank word (in its rank's
+  color) and name over a slim bar of fixed width, cut into quarters whatever the health.
 - `UI/World/DamageNumberActor`, `UI/World/DamageNumberWidget`: floating damage numbers.
 
 ## Dev
@@ -213,14 +227,17 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `Looter.ResetProgress`) and the bestiary (`Looter.ForgetBestiary`).
 - `Dev/SessionDevCommands.cpp`: `Looter.Session.Play <1-3>`, `Looter.Session.Save`, `Looter.Session.Menu`,
   `Looter.Session.List`.
-- `Dev/CreatureDevCommands.cpp`: `Looter.CreatureHealth`, gives the nearest creatures chosen health (to compare their bars).
+- `Dev/CreatureDevCommands.cpp`: `Looter.CreatureHealth`, gives the nearest creatures chosen health (to compare their
+  bars); `Looter.SpawnCreature <kind> [rank] [count] [chase] [size=] [level=]`, spawns ranked creatures in front of the
+  player (gone for good once killed).
+- `Dev/LootDevCommands.cpp`: `Looter.Loot.SimulateDrops <rank> [kills]`, rolls a rank's loot table and prints its odds.
 - `Dev/WorldDevCommands.cpp`: `Looter.InstanceCollision`, whether the world's instanced meshes (the scattered trees and
   rocks) have collision bodies; `Looter.World.Bounds`, draws the playable area's boundary and walls;
   `Looter.Perf.HideTag <tag> [1|0]`, hides a tagged group to measure its cost by the difference.
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`).
 
 ## Tests (run with `Tools\runtests.ps1`)
-- `Tests/AnimationTests.cpp`, `BestiaryTests.cpp`, `CreatureTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`,
+- `Tests/AnimationTests.cpp`, `BestiaryTests.cpp`, `CreatureTests.cpp`, `CreatureRankTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
   `MinimapTests.cpp`, `MissionTests.cpp`, `PlayableAreaTests.cpp`, `ProgressionTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SlimeTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 

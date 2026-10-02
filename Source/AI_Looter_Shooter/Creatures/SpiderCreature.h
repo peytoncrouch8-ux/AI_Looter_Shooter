@@ -12,7 +12,11 @@
  * around every part: shots report the bone they hit. The motion is all code: the eight legs are two-bone IK chains
  * driven by a stepping gait (two tetrapod groups taking turns, feet planted on the ground, steps triggered by distance
  * from each foot's rest spot and led by velocity). Attacks rear up and lunge, hits make it flinch, and death curls the legs
- * in. The legs' layout and lengths are read from the skeleton.
+ * in. The legs' layout and lengths are read from the skeleton (SpiderCreatureRig.cpp).
+ *
+ * At any size (GetSizeScale: a 0.45x spiderling, a 1.8x giant) the pose is the full-size spider's, scaled: the body frame
+ * and leg segments carry the size, so the bones' pose against the model is the same, and the gait's distances and step
+ * times grow with it (a big spider takes long, slow strides at the same speed).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ASpiderCreature : public ACreatureBase
@@ -34,6 +38,7 @@ protected:
 	virtual void OnDied() override;
 	virtual void OnRespawned() override;
 	virtual void OnPoseThawed() override;
+	virtual void OnSizeChanged() override;
 	virtual void SetHitVolumesEnabled(bool bEnabled) override;
 
 private:
@@ -42,9 +47,9 @@ private:
 		float Side = 1.f;          // +1 right, -1 left
 		int32 Pair = 0;            // 0 = front ... 3 = back
 		int32 Group = 0;           // gait group (alternating tetrapod)
-		FVector Hip;               // body space
-		FVector Rest;              // resting foot, actor space (Z ignored; feet sit on the ground)
-		float FemurLength = 90.f;
+		FVector Hip;               // body space (at size 1; the body's frame carries the size)
+		FVector Rest;              // resting foot, actor space at size 1 (Z ignored; feet sit on the ground)
+		float FemurLength = 90.f;  // at size 1
 		float TibiaLength = 115.f;
 		FName Femur;
 		FName Tibia;
@@ -69,8 +74,16 @@ private:
 		FTransform BoneInPivot;
 	};
 
-	/** Reads the rig: the bones it moves and the legs' layout. False when the mesh isn't the spider's. */
+	/** Reads the rig: the bones it moves and the legs' layout. False when the mesh isn't the spider's (SpiderCreatureRig.cpp). */
 	bool SetupRig();
+
+	/**
+	 * A leg segment's frame: at its root joint, X along the segment, Z toward the pole, scaled by the spider's size (Scale)
+	 * like the mesh, so the bone keeps its own scale against the model. The rig measures each leg bone in it at rest and the
+	 * gait poses the bone in it every frame, so both build it here, the same way.
+	 */
+	static FTransform SegmentFrame(const FVector& From, const FVector& To, const FVector& Pole, float Scale);
+
 	void PlantLegs();
 	void AnimateBody(float DeltaSeconds);
 	void AnimateLegs(float DeltaSeconds);
@@ -89,11 +102,11 @@ private:
 	FPivotBone Abdomen;
 	/** The thorax bone relative to the body's frame (level, at the thorax's resting position). */
 	FTransform BodyInFrame;
-	/** Thorax height above the ground when standing: the model's. */
+	/** Thorax height above the ground when standing: the model's (at size 1). */
 	float RideHeight = 62.f;
 	bool bRigReady = false;
 
-	/** The body's frame this frame, in the world: the old spider's BodyRoot. */
+	/** The body's frame this frame, in the world: the old spider's BodyRoot. Scaled by the spider's size. */
 	FTransform BodyFrame;
 	FTransform ComponentToWorld;
 

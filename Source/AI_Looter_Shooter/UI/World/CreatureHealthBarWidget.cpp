@@ -48,12 +48,17 @@ TSharedRef<SWidget> UCreatureHealthBarWidget::RebuildWidget()
 	{
 		UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 
-		// "LV 1  Brown Spider": a small dim level, then the name as it's written, centered over the bar.
+		// "LV 1  Brown Spider": a small dim level, then the name as it's written, centered over the bar. A ranked creature's
+		// word goes between them in its rank's color ("LV 2  Restless Brown Spider").
 		UHorizontalBox* Label = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		LevelText = MakeFloatingText(WidgetTree, 10, Color::TextDim(), 80);
 		UHorizontalBoxSlot* LevelSlot = Label->AddChildToHorizontalBox(LevelText);
 		LevelSlot->SetVerticalAlignment(VAlign_Bottom);
 		LevelSlot->SetPadding(FMargin(0.f, 0.f, 6.f, 1.f));
+		RankText = MakeFloatingText(WidgetTree, 13, Color::Text(), 20);
+		UHorizontalBoxSlot* RankSlot = Label->AddChildToHorizontalBox(RankText);
+		RankSlot->SetVerticalAlignment(VAlign_Bottom);
+		RankSlot->SetPadding(FMargin(0.f, 0.f, 5.f, 0.f));
 		NameText = MakeFloatingText(WidgetTree, 13, Color::Text(), 20);
 		Label->AddChildToHorizontalBox(NameText)->SetVerticalAlignment(VAlign_Bottom);
 		Box->AddChildToVerticalBox(Label)->SetHorizontalAlignment(HAlign_Center);
@@ -98,22 +103,31 @@ TSharedRef<SWidget> UCreatureHealthBarWidget::RebuildWidget()
 	return Super::RebuildWidget();
 }
 
-void UCreatureHealthBarWidget::SetCreature(const FText& InName, int32 InLevel)
+void UCreatureHealthBarWidget::SetCreature(const FText& InName, int32 InLevel, const FText& InRankWord, const FLinearColor& InRankColor)
 {
-	if (!CreatureName.EqualTo(InName) || CreatureLevel != InLevel)
+	if (!CreatureName.EqualTo(InName) || CreatureLevel != InLevel || !RankWord.EqualTo(InRankWord) || !RankColor.Equals(InRankColor))
 	{
 		CreatureName = InName;
 		CreatureLevel = InLevel;
+		RankWord = InRankWord;
+		RankColor = InRankColor;
 		ApplyLabel();
 	}
 }
 
 void UCreatureHealthBarWidget::ApplyLabel()
 {
-	if (LevelText && NameText)
+	if (LevelText && RankText && NameText)
 	{
 		LevelText->SetText(FText::FromString(FString::Printf(TEXT("LV %d"), CreatureLevel)));
+		// The rank shows in its color: on its word, or on the name when the rank has none (a boss). Basic's color is the
+		// plain text color, so a basic creature's tag looks as it always did.
+		const bool bHasWord = !RankWord.IsEmpty();
+		RankText->SetText(RankWord);
+		RankText->SetColorAndOpacity(FSlateColor(RankColor));
+		RankText->SetVisibility(bHasWord ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 		NameText->SetText(CreatureName);
+		NameText->SetColorAndOpacity(FSlateColor(bHasWord ? Color::Text() : RankColor));
 	}
 }
 
