@@ -1,6 +1,7 @@
 #include "Loot/AmmoPickup.h"
 #include "Loot/LootTossComponent.h"
 #include "Inventory/WeaponManagerComponent.h"
+#include "World/LightBeam.h"
 #include "AI_Looter_Shooter.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -8,12 +9,41 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/RotatingMovementComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/Package.h"
 
 namespace
 {
 	constexpr float RetryInterval = 0.25f;
+
+	// The beam over every ammo drop: about two thirds the height and width of the smallest gun beam (an Uncommon's, 350
+	// by 6) and fainter, so a field of ammo reads from afar without outshining the guns, whose beams carry rarity.
+	constexpr float AmmoBeamHeight = 230.f;
+	constexpr float AmmoBeamRadius = 4.f;
+	constexpr float AmmoBeamGlow = 1.2f;
+
+	/**
+	 * Every ammo beam looks the same, so they all share one material instance rather than each drop making its own (a long
+	 * fight leaves dozens of drops). It sits in the transient package, kept alive by the beams that use it, and is made
+	 * again after the last of them is gone and collected. Transient so a pickup saved in a level never writes it out:
+	 * building the pickup sets it again.
+	 */
+	UMaterialInterface* SharedAmmoBeamMaterial()
+	{
+		static TWeakObjectPtr<UMaterialInstanceDynamic> SharedInstance;
+		if (!SharedInstance.IsValid())
+		{
+			UMaterialInstanceDynamic* Instance = LightBeams::CreateMaterial(GetTransientPackage(), FLinearColor::White, AmmoBeamGlow, AmmoBeamHeight);
+			if (Instance)
+			{
+				Instance->SetFlags(RF_Transient);
+			}
+			SharedInstance = Instance;
+		}
+		return SharedInstance.Get();
+	}
 
 	/** The bundle of rounds of each ammo type, in EAmmoType order. */
 	TArray<UStaticMesh*> FindTypeModels()
@@ -60,7 +90,14 @@ AAmmoPickup::AAmmoPickup()
 	TypeModels.Append(Models);
 
 	// No light of its own (the user's call): the spin, the ink line and the brass highlights carry it, and a light per
-	// drop painted pale pools on the ground and cost a light each.
+	// drop painted pale pools on the ground and cost a light each. The beam is a glowing mesh, not a light, so it lights
+	// nothing around it. It hangs off the root rather than the model so it stays upright and still while the bundle spins;
+	// its look is set when the pickup is built (OnConstruction), where it takes the material every ammo beam shares.
+	Beam = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Beam"));
+	Beam->SetupAttachment(Collision);
+	Beam->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+	Beam->SetCastShadow(false);
+	Beam->SetCanEverAffectNavigation(false);
 
 	TossMovement = CreateDefaultSubobject<ULootTossComponent>(TEXT("TossMovement"));
 	TossMovement->SetUpdatedComponent(Collision);
@@ -93,6 +130,13 @@ void AAmmoPickup::OnConstruction(const FTransform& Transform)
 	Super::OnConstruction(Transform);
 	const int32 Type = static_cast<int32>(AmmoType);
 	Model->SetStaticMesh(TypeModels.IsValidIndex(Type) ? TypeModels[Type] : nullptr);
+
+	// White for every class: colors on loot mean rarity. The beam rises from the top of the bundle rather than through
+	// it, where its glow would wash out the rounds and their ink line.
+	LightBeams::Setup(Beam, SharedAmmoBeamMaterial(), AmmoBeamHeight, AmmoBeamRadius);
+	const UStaticMesh* Mesh = Model->GetStaticMesh();
+	const double BundleTop = Model->GetRelativeLocation().Z + (Mesh ? Mesh->GetBounds().GetBox().Max.Z : 0.0);
+	Beam->SetRelativeLocation(FVector(0.0, 0.0, BundleTop + AmmoBeamHeight * 0.5));
 }
 
 void AAmmoPickup::BeginPlay()

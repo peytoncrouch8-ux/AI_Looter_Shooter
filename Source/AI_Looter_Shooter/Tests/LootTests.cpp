@@ -51,7 +51,14 @@ bool FLootDropOddsTest::RunTest(const FString& Parameters)
 	int32 AmmoDrops = 0;
 	int32 Tiers[NumTiers] = {};
 	int32 AmmoTypes[LooterAmmo::NumTypes] = {};
-	bool bDropsFull = true;
+	// The fewest and most rounds seen in one pickup of each class.
+	int32 FewestRounds[LooterAmmo::NumTypes];
+	int32 MostRounds[LooterAmmo::NumTypes];
+	for (int32 Index = 0; Index < LooterAmmo::NumTypes; ++Index)
+	{
+		FewestRounds[Index] = MAX_int32;
+		MostRounds[Index] = 0;
+	}
 	for (int32 Kill = 0; Kill < Kills; ++Kill)
 	{
 		const FLootRoll Roll = ULootLibrary::RollLoot(Table, 1, 0.f, Random);
@@ -64,9 +71,11 @@ bool FLootDropOddsTest::RunTest(const FString& Parameters)
 		}
 		for (const FAmmoDrop& Drop : Roll.Ammo)
 		{
-			++AmmoTypes[static_cast<int32>(Drop.Type)];
+			const int32 TypeIndex = static_cast<int32>(Drop.Type);
+			++AmmoTypes[TypeIndex];
 			++AmmoDrops;
-			bDropsFull &= Drop.Amount == LooterAmmo::GetInfo(Drop.Type).PickupAmount;
+			FewestRounds[TypeIndex] = FMath::Min(FewestRounds[TypeIndex], Drop.Amount);
+			MostRounds[TypeIndex] = FMath::Max(MostRounds[TypeIndex], Drop.Amount);
 		}
 	}
 
@@ -94,13 +103,16 @@ bool FLootDropOddsTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("Legendaries still drop"), Tiers[NumTiers - 1] > 0);
 
-	// Ammo: every kill, every class, each box a full box of its class.
+	// Ammo: every kill, every class, each pickup 18 to 36 rounds whatever its class (the user's rule), both ends reached.
 	TestEqual(TEXT("Every kill drops ammo"), KillsWithoutAmmo, 0);
-	TestTrue(TEXT("Each pickup holds its class's pickup amount"), bDropsFull);
 	for (const EAmmoType Type : LooterAmmo::AllTypes())
 	{
-		const float Share = static_cast<float>(AmmoTypes[static_cast<int32>(Type)]) / FMath::Max(AmmoDrops, 1);
-		TestNearlyEqual(FString::Printf(TEXT("%s share of ammo drops"), LooterAmmo::GetInfo(Type).Name), Share, 1.f / LooterAmmo::NumTypes, 0.02f);
+		const int32 TypeIndex = static_cast<int32>(Type);
+		const TCHAR* Name = LooterAmmo::GetInfo(Type).Name;
+		const float Share = static_cast<float>(AmmoTypes[TypeIndex]) / FMath::Max(AmmoDrops, 1);
+		TestNearlyEqual(FString::Printf(TEXT("%s share of ammo drops"), Name), Share, 1.f / LooterAmmo::NumTypes, 0.02f);
+		TestEqual(FString::Printf(TEXT("Fewest %s in a kill's pickup"), Name), FewestRounds[TypeIndex], 18);
+		TestEqual(FString::Printf(TEXT("Most %s in a kill's pickup"), Name), MostRounds[TypeIndex], 36);
 	}
 
 	AddInfo(FString::Printf(TEXT("%d kills: weapons on %.1f%% (C/U/R/E/L %d/%d/%d/%d/%d), %.2f ammo drops per kill"), Kills, WeaponRate * 100.f,
@@ -151,6 +163,77 @@ bool FLootKillWeaponAmmoTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLootAmmoAmountsTest, "Looter.Loot.AmmoAmounts",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FLootAmmoAmountsTest::RunTest(const FString& Parameters)
+{
+	// The user's rules: a kill's ammo pickup holds 18 to 36 rounds, a loot chest's exactly 36.
+	TestEqual(TEXT("Kill pickups hold at least 18"), LooterLoot::KillAmmoAmountMin, 18);
+	TestEqual(TEXT("Kill pickups hold at most 36"), LooterLoot::KillAmmoAmountMax, 36);
+	TestEqual(TEXT("Chest pickups hold 36"), LooterLoot::ChestAmmoAmount, 36);
+
+	// A new table drops a kill's range, every amount in it possible.
+	ULootTable* Table = NewObject<ULootTable>();
+	TestTrue(TEXT("A new table drops a kill's range"), Table->AmmoAmountMin == 18 && Table->AmmoAmountMax == 36);
+	FRandomStream Random(20261002);
+	TSet<int32> Seen;
+	bool bInRange = true;
+	for (int32 Pick = 0; Pick < 5000; ++Pick)
+	{
+		const int32 Amount = ULootLibrary::RollAmmoAmount(Table, Random);
+		bInRange &= Amount >= 18 && Amount <= 36;
+		Seen.Add(Amount);
+	}
+	TestTrue(TEXT("Every kill pickup holds 18 to 36"), bInRange);
+	TestEqual(TEXT("Every amount from 18 to 36 comes up"), Seen.Num(), 36 - 18 + 1);
+
+	// The same stream gives the same amounts, so a seeded loot roll repeats.
+	FRandomStream First(7);
+	FRandomStream Second(7);
+	bool bRepeats = true;
+	for (int32 Pick = 0; Pick < 100; ++Pick)
+	{
+		bRepeats &= ULootLibrary::RollAmmoAmount(Table, First) == ULootLibrary::RollAmmoAmount(Table, Second);
+	}
+	TestTrue(TEXT("A seeded stream repeats the amounts"), bRepeats);
+
+	// A chest's table: always 36, every pickup of every roll.
+	ULootTable* Chest = NewObject<ULootTable>();
+	Chest->UseChestAmmoAmount();
+	Chest->MinAmmoDrops = 3;
+	Chest->MaxAmmoDrops = 3;
+	int32 ChestDrops = 0;
+	bool bChestFixed = true;
+	for (int32 Open = 0; Open < 500; ++Open)
+	{
+		const FLootRoll Roll = ULootLibrary::RollLoot(Chest, 1, 0.f, Random);
+		for (const FAmmoDrop& Drop : Roll.Ammo)
+		{
+			bChestFixed &= Drop.Amount == LooterLoot::ChestAmmoAmount;
+			++ChestDrops;
+		}
+	}
+	TestEqual(TEXT("Every chest opening drops its ammo"), ChestDrops, 500 * 3);
+	TestTrue(TEXT("Every chest pickup holds 36"), bChestFixed);
+
+	// Odd settings stay sane: no table means a kill's range, a backwards range drops its Min, never less than a round.
+	bool bNoTableInRange = true;
+	for (int32 Pick = 0; Pick < 200; ++Pick)
+	{
+		const int32 Amount = ULootLibrary::RollAmmoAmount(nullptr, Random);
+		bNoTableInRange &= Amount >= 18 && Amount <= 36;
+	}
+	TestTrue(TEXT("No table: a kill's range"), bNoTableInRange);
+	Table->AmmoAmountMin = 30;
+	Table->AmmoAmountMax = 20;
+	TestEqual(TEXT("A backwards range drops its Min"), ULootLibrary::RollAmmoAmount(Table, Random), 30);
+	Table->AmmoAmountMin = 0;
+	Table->AmmoAmountMax = 0;
+	TestEqual(TEXT("At least one round"), ULootLibrary::RollAmmoAmount(Table, Random), 1);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLootAmmoPoolTest, "Looter.Loot.AmmoPool",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
@@ -197,6 +280,8 @@ bool FLootDefaultTableTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Every kill drops ammo"), Table->AmmoDropChance >= 1.f && Table->MinAmmoDrops >= 1);
 	TestTrue(FString::Printf(TEXT("Ammo leans slightly toward the kill weapon's class (%.1fx)"), Table->KillWeaponAmmoBias),
 		Table->KillWeaponAmmoBias > 1.f && Table->KillWeaponAmmoBias <= 3.f);
+	TestTrue(FString::Printf(TEXT("Each ammo pickup holds 18 to 36 rounds (%d to %d)"), Table->AmmoAmountMin, Table->AmmoAmountMax),
+		Table->AmmoAmountMin == LooterLoot::KillAmmoAmountMin && Table->AmmoAmountMax == LooterLoot::KillAmmoAmountMax);
 
 	int32 Weapons = 0;
 	for (const FLootTableEntry& Entry : Table->Entries)
@@ -249,7 +334,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLootAmmoModelsTest, "Looter.Loot.AmmoModels",
 bool FLootAmmoModelsTest::RunTest(const FString& Parameters)
 {
 	// Every ammo type drops as its own bundle of rounds (SM_Ammo<Type>, from Art/Models/Loot/Ammo.py): its HUD icon
-	// modeled in 3D.
+	// modeled in 3D, under a small white beam.
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -260,12 +345,31 @@ bool FLootAmmoModelsTest::RunTest(const FString& Parameters)
 	{
 		const FString Name = StaticEnum<EAmmoType>()->GetNameStringByValue(static_cast<int64>(Type));
 		const AAmmoPickup* Pickup = AAmmoPickup::SpawnAmmo(WorldWrapper.GetTestWorld(), Type, 10, FVector::ZeroVector);
-		const UStaticMeshComponent* Model = Pickup ? Pickup->FindComponentByClass<UStaticMeshComponent>() : nullptr;
+		const UStaticMeshComponent* Model = Pickup ? Pickup->GetModel() : nullptr;
 		const UStaticMesh* Mesh = Model ? Model->GetStaticMesh() : nullptr;
 		if (TestNotNull(FString::Printf(TEXT("%s model"), *Name), Mesh))
 		{
 			TestEqual(FString::Printf(TEXT("%s bundle"), *Name), Mesh->GetName(), FString::Printf(TEXT("SM_Ammo%s"), *Name));
 			Seen.Add(Mesh);
+		}
+
+		// The beam: a glowing mesh on the root (so it doesn't spin with the bundle), standing above the bundle, small
+		// next to a gun's (the shortest is 350 cm tall), never in the way of anything.
+		const UStaticMeshComponent* Beam = Pickup ? Pickup->GetBeam() : nullptr;
+		if (TestNotNull(FString::Printf(TEXT("%s beam"), *Name), Beam) && Model)
+		{
+			TestNotNull(FString::Printf(TEXT("%s beam has its mesh"), *Name), Beam->GetStaticMesh().Get());
+			TestTrue(FString::Printf(TEXT("%s beam hangs off the root, not the spinning bundle"), *Name),
+				Beam->GetAttachParent() == Pickup->GetRootComponent());
+			TestTrue(FString::Printf(TEXT("%s beam is visible"), *Name), Beam->IsVisible());
+			TestTrue(FString::Printf(TEXT("%s beam has no collision"), *Name), Beam->GetCollisionEnabled() == ECollisionEnabled::NoCollision);
+			TestFalse(FString::Printf(TEXT("%s beam casts no shadow"), *Name), Beam->CastShadow != 0);
+			const FBox BeamBox = Beam->Bounds.GetBox();
+			const FBox BundleBox = Model->Bounds.GetBox();
+			const double BeamHeight = BeamBox.Max.Z - BeamBox.Min.Z;
+			TestTrue(FString::Printf(TEXT("%s beam is short next to a gun's (%.0f cm)"), *Name, BeamHeight), BeamHeight > 100.0 && BeamHeight < 350.0);
+			TestTrue(FString::Printf(TEXT("%s beam starts above the bundle (%.0f over %.0f)"), *Name, BeamBox.Min.Z, BundleBox.Max.Z),
+				BeamBox.Min.Z >= BundleBox.Max.Z - 2.0);
 		}
 	}
 	TestEqual(TEXT("A bundle per ammo type"), Seen.Num(), LooterAmmo::NumTypes);

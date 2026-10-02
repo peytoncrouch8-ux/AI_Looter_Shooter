@@ -9,3 +9,10 @@ ULootTable::ULootTable()
 		AmmoTypes.Add(Entry);
 	}
 }
+
+void ULootTable::UseChestAmmoAmount()
+{
+	// No range: a chest always pays out the same, unlike a kill.
+	AmmoAmountMin = LooterLoot::ChestAmmoAmount;
+	AmmoAmountMax = LooterLoot::ChestAmmoAmount;
+}

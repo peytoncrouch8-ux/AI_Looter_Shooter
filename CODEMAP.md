@@ -71,15 +71,15 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Affixes/WeaponRollLibrary`: `UWeaponRollLibrary`, rolling rarity and stats from a seed, and spawning rolled guns.
 
 ## Loot
-- `Loot/LootTable`: `ULootTable`, what a kill drops (ammo pickups and their lean toward the kill weapon's ammo, weapon
-  odds, luck).
+- `Loot/LootTable`: `ULootTable`, what a kill drops (ammo pickups of 18-36 rounds and their lean toward the kill
+  weapon's ammo, weapon odds, luck) and `LooterLoot`, the ammo amounts (a chest's fixed 36).
 - `Loot/LootLibrary`: `ULootLibrary`, rolling a loot table and spawning the results.
 - `Loot/LootDropComponent`: drops its owner's loot when it dies.
 - `Loot/LootTossComponent`: `ULootTossComponent`, throws loot so it pops out, lands and settles.
 - `Loot/WeaponRack`: `AWeaponRack`, a rack with a weapon lying on it as loot and ammo beside it; restocks when the
   weapon is gone and the player has none (the tutorial's first rifle).
 - `Loot/AmmoPickup`: `AAmmoPickup`, dropped ammo: a spinning bundle of rounds, the ammo's icon modeled in 3D (per type,
-  from `Art/Models/Loot/Ammo.py`), collected by running past it (within `CollectRadius`).
+  from `Art/Models/Loot/Ammo.py`) under a small white beam, collected by running past it (within `CollectRadius`).
 
 ## Creatures
 - `Creatures/CreatureBase`: `ACreatureBase`, a hostile creature's brain and life cycle (senses, chase, attack, death,

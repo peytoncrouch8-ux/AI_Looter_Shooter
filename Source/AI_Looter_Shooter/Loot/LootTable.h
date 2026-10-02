@@ -34,13 +34,29 @@ struct FAmmoLootEntry
 };
 
 /**
+ * How many rounds one dropped ammo pickup holds (the user's rules), the same for every ammo class. Each class's carry
+ * limit still caps what the player takes from it.
+ */
+namespace LooterLoot
+{
+	/** A kill's ammo pickups hold a random amount from Min to Max, both included. */
+	inline constexpr int32 KillAmmoAmountMin = 18;
+	inline constexpr int32 KillAmmoAmountMax = 36;
+
+	/** A loot chest's ammo pickups always hold this many, the most a kill's can. */
+	inline constexpr int32 ChestAmmoAmount = 36;
+}
+
+/**
  * What an enemy, chest or boss drops when it dies. Create via Content Browser > Miscellaneous > Data Asset > LootTable.
  *
  * Every kill rolls two things independently:
  *  - Ammo: a few pickups, each of a random ammo class (weighted by AmmoTypes), leaning toward the class of the gun
- *    that made the kill (KillWeaponAmmoBias).
+ *    that made the kill (KillWeaponAmmoBias), each holding AmmoAmountMin to AmmoAmountMax rounds.
  *  - Weapons: only WeaponDropChance of kills drop one. Its rarity comes from the weapon's own rarity table
  *    (Common most often, Legendary least), shifted up by Luck.
+ *
+ * A loot chest's table drops a fixed amount of ammo per pickup instead: see UseChestAmmoAmount.
  */
 UCLASS(BlueprintType)
 class AI_LOOTER_SHOOTER_API ULootTable : public UPrimaryDataAsset
@@ -94,4 +110,22 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Ammo", meta = (ClampMin = "1"))
 	float KillWeaponAmmoBias = 2.f;
+
+	/**
+	 * Rounds in each ammo pickup: a random amount from AmmoAmountMin to AmmoAmountMax, both included, whatever the class.
+	 * Kills drop 18 to 36 (the user's rule); set both the same for a fixed amount. The player takes what fits under the
+	 * carry limit and the rest stays on the ground.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Ammo", meta = (ClampMin = "1"))
+	int32 AmmoAmountMin = LooterLoot::KillAmmoAmountMin;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Ammo", meta = (ClampMin = "1"))
+	int32 AmmoAmountMax = LooterLoot::KillAmmoAmountMax;
+
+	/**
+	 * Makes this a loot chest's table as far as ammo goes: every pickup holds exactly LooterLoot::ChestAmmoAmount rounds
+	 * (the user's rule) rather than a kill's random amount. For the chests to come; a chest's table asset gets the same by
+	 * setting both amounts to 36.
+	 */
+	void UseChestAmmoAmount();
 };

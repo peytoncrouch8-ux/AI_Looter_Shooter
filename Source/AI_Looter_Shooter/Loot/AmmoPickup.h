@@ -14,10 +14,11 @@ class UStaticMeshComponent;
 
 /**
  * Ammo of one class dropped as loot: a spinning bundle of its rounds, the class's HUD icon modeled in 3D with the same
- * ink line (SM_Ammo<Type>, from Art/Models/Loot/Ammo.py). Run past it to collect (anything within CollectRadius of it):
- * it goes into the player's shared pool for that class, up to the carry limit. If you can't carry all of it, the rest
- * stays on the ground. The rounds themselves tell the classes apart (brass rifle rounds, oxblood shells, long sniper
- * rounds...), never colors, which belong to rarity. Despawns after a while.
+ * ink line (SM_Ammo<Type>, from Art/Models/Loot/Ammo.py), under a small white light beam so it can be found in the
+ * grass from a distance. Run past it to collect (anything within CollectRadius of it): it goes into the player's shared
+ * pool for that class, up to the carry limit. If you can't carry all of it, the rest stays on the ground. The rounds
+ * themselves tell the classes apart (brass rifle rounds, oxblood shells, long sniper rounds...), never colors, which
+ * belong to rarity: hence the plain white beam, shorter and fainter than any gun's. Despawns after a while.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AAmmoPickup : public AActor
@@ -35,6 +36,10 @@ public:
 
 	EAmmoType GetAmmoType() const { return AmmoType; }
 	int32 GetAmount() const { return Amount; }
+
+	/** The spinning bundle of rounds, and the beam standing over it. */
+	UStaticMeshComponent* GetModel() const { return Model; }
+	UStaticMeshComponent* GetBeam() const { return Beam; }
 
 	/** Seconds before an uncollected pickup disappears. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = "0"))
@@ -74,6 +79,10 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> Model;
+
+	/** A thin white light beam on the root, so it stands still while the bundle spins. */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> Beam;
 
 	/** The bundle of each ammo type (SM_Ammo<Type>, from Art/Models/Loot/Ammo.py), in EAmmoType order. */
 	UPROPERTY()

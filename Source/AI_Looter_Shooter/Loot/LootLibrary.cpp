@@ -115,6 +115,13 @@ EAmmoType ULootLibrary::PickAmmoType(const ULootTable* LootTable, FRandomStream&
 	return Last;
 }
 
+int32 ULootLibrary::RollAmmoAmount(const ULootTable* LootTable, FRandomStream& Random)
+{
+	const int32 MinAmount = FMath::Max(LootTable ? LootTable->AmmoAmountMin : LooterLoot::KillAmmoAmountMin, 1);
+	const int32 MaxAmount = FMath::Max(LootTable ? LootTable->AmmoAmountMax : LooterLoot::KillAmmoAmountMax, MinAmount);
+	return Random.RandRange(MinAmount, MaxAmount);
+}
+
 FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random, TOptional<EAmmoType> KillAmmo)
 {
 	FLootRoll Roll;
@@ -123,7 +130,8 @@ FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float
 		return Roll;
 	}
 
-	// Ammo: most kills leave a pickup or two, each of a random class (more often the kill weapon's).
+	// Ammo: most kills leave a pickup or two, each of a random class (more often the kill weapon's) and a random amount
+	// from the table's range, the same range for every class.
 	if (Random.FRand() < LootTable->AmmoDropChance)
 	{
 		const int32 MinDrops = FMath::Max(LootTable->MinAmmoDrops, 0);
@@ -132,7 +140,7 @@ FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float
 		{
 			FAmmoDrop& Drop = Roll.Ammo.AddDefaulted_GetRef();
 			Drop.Type = PickAmmoType(LootTable, Random, KillAmmo);
-			Drop.Amount = LooterAmmo::GetInfo(Drop.Type).PickupAmount;
+			Drop.Amount = RollAmmoAmount(LootTable, Random);
 		}
 	}
 

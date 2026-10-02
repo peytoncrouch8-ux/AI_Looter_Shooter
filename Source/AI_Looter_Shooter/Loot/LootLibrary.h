@@ -49,12 +49,18 @@ public:
 		float ExtraLuck, TOptional<EAmmoType> KillAmmo);
 
 	/**
-	 * Decides what one kill drops, without spawning anything. What drops (counts, weapons, rarities, ammo classes) comes
-	 * from Random, so a seeded stream repeats it; each weapon still gets its own fresh stat seed. KillAmmo, when set,
-	 * is the ammo class of the gun that made the kill: each box leans toward it (the table's KillWeaponAmmoBias).
+	 * Decides what one kill drops, without spawning anything. What drops (counts, weapons, rarities, ammo classes and
+	 * amounts) comes from Random, so a seeded stream repeats it; each weapon still gets its own fresh stat seed. KillAmmo,
+	 * when set, is the ammo class of the gun that made the kill: each box leans toward it (the table's KillWeaponAmmoBias).
 	 */
 	static FLootRoll RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random,
 		TOptional<EAmmoType> KillAmmo = {});
+
+	/**
+	 * Rounds in one ammo pickup from the table: a random amount from its AmmoAmountMin to AmmoAmountMax, both included,
+	 * whatever the class (a kill's 18 to 36 without a table). Never below 1; a Max below Min drops exactly Min.
+	 */
+	static int32 RollAmmoAmount(const ULootTable* LootTable, FRandomStream& Random);
 
 	/** Picks one weapon definition from the table by weight. */
 	static UWeaponDefinition* PickWeaponWith(const ULootTable* LootTable, FRandomStream& Random);
