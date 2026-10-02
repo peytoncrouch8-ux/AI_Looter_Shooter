@@ -137,7 +137,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   hanging off an edge and presses ones floating over a bump into the ground (editor-time; the graph ships with the level).
 
 ## Settings
-- `Settings/KeyBindingSubsystem`: key rebinding, the global pause/inventory actions and the character actions.
+- `Settings/KeyBindingSubsystem`: key rebinding, the global pause/inventory actions and the character actions
+  (weapon slots 1-3 among them).
 - `Settings/GraphicsSettingsSubsystem`: saved display options (quality preset, motion blur, UI transparency, minimap on/off, size and zoom, FPS counter) and the `Looter.Quality` command.
 
 ## UI

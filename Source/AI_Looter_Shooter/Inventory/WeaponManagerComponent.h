@@ -330,6 +330,8 @@ private:
 	TArray<TObjectPtr<AWeaponBase>> Weapons;
 
 	FPawnInputBinding InputBinding;
+	/** The number keys that take a slot in hand (UKeyBindingSubsystem's weapon slot context). */
+	FPawnInputBinding SlotInputBinding;
 	TWeakObjectPtr<AWeaponBase> FocusedPickup;
 	TArray<TWeakObjectPtr<AWeaponBase>> LabeledPickups;
 	FTimerHandle PickupFocusTimer;

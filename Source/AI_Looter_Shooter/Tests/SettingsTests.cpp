@@ -3,6 +3,11 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Settings/GraphicsSettingsSubsystem.h"
+#include "Settings/KeyBindingSubsystem.h"
+#include "Inventory/WeaponManagerComponent.h"
+#include "InputAction.h"
+#include "InputCoreTypes.h"
+#include "InputMappingContext.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FQualityPresetsTest, "Looter.Settings.QualityPresets",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -31,6 +36,41 @@ bool FQualityPresetsTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Starts without motion blur"), GetDefault<ULooterGraphicsSave>()->bMotionBlur);
 	TestTrue(TEXT("Starts with the FPS counter"), GetDefault<ULooterGraphicsSave>()->bShowFrameRate);
 	TestTrue(TEXT("Starts with the minimap"), GetDefault<ULooterGraphicsSave>()->bShowMinimap);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponSlotKeysTest, "Looter.Settings.WeaponSlotKeys",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FWeaponSlotKeysTest::RunTest(const FString& Parameters)
+{
+	// One key per equip slot, the number keys above the letters by default.
+	TestEqual(TEXT("A key for every slot"), UKeyBindingSubsystem::NumWeaponSlotKeys, GetDefault<UWeaponManagerComponent>()->MaxWeapons);
+	const FKey Expected[] = { EKeys::One, EKeys::Two, EKeys::Three };
+	TestEqual(TEXT("Three slot keys"), UKeyBindingSubsystem::NumWeaponSlotKeys, static_cast<int32>(UE_ARRAY_COUNT(Expected)));
+	TestFalse(TEXT("No key past the last slot"), UKeyBindingSubsystem::DefaultWeaponSlotKey(UKeyBindingSubsystem::NumWeaponSlotKeys).IsValid());
+
+	// The context the player gets: the settings menu rebinds each slot's mapping to its default key, so it has to be there.
+	// A fresh outer, so repeated runs never share object names.
+	TArray<TObjectPtr<UInputAction>> Actions;
+	const UInputMappingContext* Context = UKeyBindingSubsystem::BuildWeaponSlotContext(NewObject<ULooterKeyBindingsSave>(), Actions);
+	if (!TestNotNull(TEXT("Context built"), Context) || !TestEqual(TEXT("One action per slot"), Actions.Num(), UKeyBindingSubsystem::NumWeaponSlotKeys))
+	{
+		return false;
+	}
+	for (int32 SlotIndex = 0; SlotIndex < UKeyBindingSubsystem::NumWeaponSlotKeys; ++SlotIndex)
+	{
+		const FString Name = FString::Printf(TEXT("Slot %d"), SlotIndex + 1);
+		const FKey Key = Expected[SlotIndex];
+		TestTrue(Name + TEXT(" binding id"), UKeyBindingSubsystem::WeaponSlotBindingId(SlotIndex) == FName(*FString::Printf(TEXT("WeaponSlot%d"), SlotIndex + 1)));
+		TestTrue(Name + TEXT(" default key"), UKeyBindingSubsystem::DefaultWeaponSlotKey(SlotIndex) == Key);
+		const UInputAction* Action = Actions[SlotIndex];
+		TestTrue(Name + TEXT(" mapped to its key"), Action && Context->GetMappings().ContainsByPredicate([Action, &Key](const FEnhancedActionKeyMapping& Mapping)
+		{
+			return Mapping.Action == Action && Mapping.Key == Key;
+		}));
+	}
+	TestTrue(TEXT("A different action per slot"), Actions[0] != Actions[1] && Actions[1] != Actions[2] && Actions[0] != Actions[2]);
 	return true;
 }
 

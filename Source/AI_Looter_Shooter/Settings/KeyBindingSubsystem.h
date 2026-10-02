@@ -48,8 +48,8 @@ public:
 /**
  * Player key rebinding without touching input assets. Every mapping context the game uses is swapped
  * for a runtime copy with the player's keys applied; overrides are saved to the "KeyBindings" slot.
- * Also owns the always-on global actions (pause menu, inventory) and the code-built character actions
- * (sprint, crouch, toggle camera view).
+ * Also owns the always-on global actions (pause menu, inventory), the code-built character actions
+ * (sprint, crouch, aim, toggle camera view) and the number keys that take a weapon slot in hand.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UKeyBindingSubsystem : public ULocalPlayerSubsystem
@@ -92,6 +92,29 @@ public:
 	/** Input priority the character components add GetCharacterContext() with. */
 	static constexpr int32 CharacterContextPriority = 1;
 
+	// --- Weapon slot keys: 1, 2 and 3 take that slot's weapon in hand (UWeaponManagerComponent binds them) ---
+
+	/** One key per equip slot (UWeaponManagerComponent::MaxWeapons). */
+	static constexpr int32 NumWeaponSlotKeys = 3;
+
+	/** The rebindable binding of slot SlotIndex (from 0): "WeaponSlot1" for the first. */
+	static FName WeaponSlotBindingId(int32 SlotIndex);
+
+	/** The number key above the letters that matches the slot: One for the first. Invalid past NumWeaponSlotKeys. */
+	static FKey DefaultWeaponSlotKey(int32 SlotIndex);
+
+	/**
+	 * Builds the weapon slot keys' mapping context in Outer: one action per slot (in OutActions, by slot), each mapped to
+	 * its default key. Static so tests can check the mapping the settings menu rebinds.
+	 */
+	static UInputMappingContext* BuildWeaponSlotContext(UObject* Outer, TArray<TObjectPtr<UInputAction>>& OutActions);
+
+	/** The action that takes slot SlotIndex (from 0) in hand, or null. */
+	const UInputAction* GetWeaponSlotAction(int32 SlotIndex) const;
+
+	/** The player's copy of the weapon slot keys, with their rebound keys. Added while a weapon carrier is possessed. */
+	UInputMappingContext* GetWeaponSlotContext() { return GetRuntimeContext(WeaponSlotContext); }
+
 	/** True if Key currently opens/closes the inventory. */
 	bool IsInventoryKey(const FKey& Key) const;
 
@@ -125,4 +148,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UInputAction> CrouchAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> ToggleViewAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> AimAction;
+
+	/** The weapon slot keys get their own context: the weapon carrier adds it, whatever the weapon controls asset holds. */
+	UPROPERTY(Transient) TObjectPtr<UInputMappingContext> WeaponSlotContext;
+	UPROPERTY(Transient) TArray<TObjectPtr<UInputAction>> WeaponSlotActions;
 };

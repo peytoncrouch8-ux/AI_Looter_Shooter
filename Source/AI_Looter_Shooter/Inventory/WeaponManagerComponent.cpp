@@ -191,6 +191,17 @@ void UWeaponManagerComponent::SetupInput(AController* Controller)
 		Input->BindAction(InteractAction, ETriggerEvent::Canceled, this, &UWeaponManagerComponent::HandleInteractReleased);
 	}
 
+	// The number keys take a slot's weapon in hand (an empty slot, or the one in hand, does nothing). They come from the
+	// key bindings' own context, which this adds and removes with the rest of the weapon controls.
+	UEnhancedInputComponent* SlotInput = Bindings ? SlotInputBinding.Setup(GetOwner(), Controller, Bindings->GetWeaponSlotContext(), InputMappingPriority) : nullptr;
+	for (int32 SlotIndex = 0; SlotInput && SlotIndex < UKeyBindingSubsystem::NumWeaponSlotKeys; ++SlotIndex)
+	{
+		if (const UInputAction* SlotAction = Bindings->GetWeaponSlotAction(SlotIndex))
+		{
+			SlotInput->BindAction(SlotAction, ETriggerEvent::Started, this, &UWeaponManagerComponent::EquipSlot, SlotIndex);
+		}
+	}
+
 	// Loot labels and pickup focus only matter to the local player.
 	GetWorld()->GetTimerManager().SetTimer(PickupFocusTimer, this, &UWeaponManagerComponent::UpdatePickupFocus, 0.1f, true);
 }
@@ -200,6 +211,7 @@ void UWeaponManagerComponent::TeardownInput()
 	// Losing input (death, unpossess) means the release event may never arrive.
 	StopFire();
 	InputBinding.Teardown();
+	SlotInputBinding.Teardown();
 
 	if (UWorld* World = GetWorld())
 	{

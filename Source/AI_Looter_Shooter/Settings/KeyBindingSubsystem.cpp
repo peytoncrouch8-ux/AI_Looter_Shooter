@@ -35,6 +35,7 @@ void UKeyBindingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	BuildGlobalContext();
 	BuildCharacterContext();
+	WeaponSlotContext = BuildWeaponSlotContext(this, WeaponSlotActions);
 
 	UInputMappingContext* DefaultContext = LoadAsset<UInputMappingContext>(TEXT("/Game/Input/IMC_Default.IMC_Default"));
 	UInputMappingContext* WeaponContext = LoadAsset<UInputMappingContext>(TEXT("/Game/Input/IMC_Weapons.IMC_Weapons"));
@@ -61,6 +62,11 @@ void UKeyBindingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	AddBinding(TEXT("Reload"), TEXT("Reload"), TEXT("Combat"), WeaponContext, Reload, EKeys::R);
 	AddBinding(TEXT("NextWeapon"), TEXT("Next weapon"), TEXT("Combat"), WeaponContext, Next, EKeys::MouseScrollUp);
 	AddBinding(TEXT("PreviousWeapon"), TEXT("Previous weapon"), TEXT("Combat"), WeaponContext, Previous, EKeys::MouseScrollDown);
+	for (int32 SlotIndex = 0; SlotIndex < WeaponSlotActions.Num(); ++SlotIndex)
+	{
+		AddBinding(WeaponSlotBindingId(SlotIndex), *FString::Printf(TEXT("Weapon slot %d"), SlotIndex + 1), TEXT("Combat"), WeaponSlotContext,
+			WeaponSlotActions[SlotIndex], DefaultWeaponSlotKey(SlotIndex));
+	}
 	AddBinding(TEXT("DropWeapon"), TEXT("Drop weapon"), TEXT("Combat"), WeaponContext, Drop, EKeys::G);
 	AddBinding(TEXT("Interact"), TEXT("Pick up / interact"), TEXT("Combat"), WeaponContext, Interact, EKeys::E);
 
@@ -112,6 +118,42 @@ void UKeyBindingSubsystem::BuildCharacterContext()
 	CharacterContext->MapKey(ToggleViewAction, EKeys::Gamepad_RightThumbstick);
 	// Gamepads aim with the left trigger, as shooters do.
 	CharacterContext->MapKey(AimAction, EKeys::Gamepad_LeftTrigger);
+}
+
+FName UKeyBindingSubsystem::WeaponSlotBindingId(int32 SlotIndex)
+{
+	// Slots count from 0, people (and the keys) from 1.
+	return FName(*FString::Printf(TEXT("WeaponSlot%d"), SlotIndex + 1));
+}
+
+FKey UKeyBindingSubsystem::DefaultWeaponSlotKey(int32 SlotIndex)
+{
+	switch (SlotIndex)
+	{
+	case 0: return EKeys::One;
+	case 1: return EKeys::Two;
+	case 2: return EKeys::Three;
+	default: return EKeys::Invalid;
+	}
+}
+
+UInputMappingContext* UKeyBindingSubsystem::BuildWeaponSlotContext(UObject* Outer, TArray<TObjectPtr<UInputAction>>& OutActions)
+{
+	// Built in code like the character actions, so the number keys work without touching the weapon controls asset.
+	UInputMappingContext* Context = NewObject<UInputMappingContext>(Outer, TEXT("IMC_WeaponSlots"));
+	OutActions.Reset();
+	for (int32 SlotIndex = 0; SlotIndex < NumWeaponSlotKeys; ++SlotIndex)
+	{
+		UInputAction* Action = NewObject<UInputAction>(Outer, FName(*FString::Printf(TEXT("IA_WeaponSlot%d"), SlotIndex + 1)));
+		Context->MapKey(Action, DefaultWeaponSlotKey(SlotIndex));
+		OutActions.Add(Action);
+	}
+	return Context;
+}
+
+const UInputAction* UKeyBindingSubsystem::GetWeaponSlotAction(int32 SlotIndex) const
+{
+	return WeaponSlotActions.IsValidIndex(SlotIndex) ? WeaponSlotActions[SlotIndex].Get() : nullptr;
 }
 
 void UKeyBindingSubsystem::AddBinding(FName Id, const TCHAR* Name, const TCHAR* Category, UInputMappingContext* Context, const UInputAction* Action,
