@@ -13,11 +13,12 @@ class UWidget;
 /**
  * The HUD's weapon slots, a row of circles over the ammo (bottom-right), one per slot, numbered by their keys:
  *  - a carried gun: ringed in its rarity color, an arc along the circle's bottom striped in it, the gun's Inked icon
- *    inside, tilted up a little (dimmed a little), and its ammo class under the circle ("AR")
+ *    inside, tilted up a little (dimmed a little), and under the circle the Inked icon of the ammo it takes (dimmed the
+ *    same), so each slot shows which ammo pool it draws from
  *  - the gun in hand: raised and a little larger, ringed in the accent color with a soft glow, tinted with its rarity,
- *    the icon at full strength; switching eases the new slot up
- *  - an empty slot: a dashed ring
- * No backing panels; the circles' fills fade with the UI transparency setting, the rings and text stay. The circles are
+ *    both icons at full strength; switching eases the new slot up
+ *  - an empty slot: a dashed ring, and no ammo icon
+ * No backing panels; the circles' fills fade with the UI transparency setting, the rings and icons stay. The circles are
  * vector icons drawn once into shared textures; per frame it only checks whether anything changed and eases the lift.
  */
 UCLASS()
@@ -50,7 +51,8 @@ private:
 		UImage* Gun = nullptr;
 		UBorder* Tab = nullptr;
 		UTextBlock* TabNumber = nullptr;
-		UTextBlock* AmmoClass = nullptr;
+		/** The Inked icon of the gun's ammo type, under the circle. */
+		UImage* Ammo = nullptr;
 		/** 0 resting, 1 raised (in hand), eased. */
 		float Lift = 0.f;
 		/** What it shows, to repaint only on change (nothing yet: the first update always paints). */

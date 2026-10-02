@@ -3,15 +3,19 @@
 #include "UI/HUD/HudMagazineWidget.h"
 #include "UI/HUD/HudMinimapWidget.h"
 #include "UI/HUD/HudPickupFeedWidget.h"
+#include "UI/HUD/HudVitalsWidget.h"
 #include "UI/HUD/HudWeaponSlotsWidget.h"
 #include "UI/HUD/HudXPBarWidget.h"
+#include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
 #include "Combat/HealthComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Settings/KeyBindingSubsystem.h"
+#include "Weapons/AmmoTypes.h"
 #include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponDefinition.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -37,13 +41,17 @@ using namespace LooterUI;
 namespace
 {
 	constexpr int32 NumCompareStats = 9;
-	constexpr int32 HealthSegmentCount = 20;
 	/** The reserve count's room beside the magazine, and the gap between them. A fixed width keeps the cartridge still. */
 	constexpr float ReserveWidth = 56.f;
 	constexpr float ReserveGap = 10.f;
 	/** The fire mode and gun's name under the ammo span from the cartridge's base to the reserve's end. */
 	constexpr float NameRowWidth = UHudMagazineWidget::Width + ReserveGap + ReserveWidth;
 	constexpr int32 PickupHoldSegmentCount = 16;
+	/**
+	 * The box the ammo icon beside the magazine fits in: a little bigger than the slots' (the icons share one square
+	 * view box sized for the tall sniper round), so the round stands about as tall as the cartridge's numbers.
+	 */
+	const FVector2D AmmoClassBox(30.f, 30.f);
 
 	/** Opacity of a corner cluster when nothing is happening. */
 	constexpr float IdleOpacity = 0.6f;
@@ -51,6 +59,16 @@ namespace
 	constexpr float ActivityHold = 3.f;
 	/** Parallelogram slant of the bars, in degrees (mirrored left/right, like the reference). */
 	constexpr float BarSlant = 16.f;
+	/**
+	 * How far the gun is raised toward the sight (GetAimAlpha) when the crosshair is gone: it fades out over the first
+	 * part of the raise, so it never shows beside the sight's own reticle.
+	 */
+	constexpr float CrosshairGoneAtAim = 0.6f;
+	/**
+	 * How far left of the screen's middle the pickup feed's lines end: past half the widest crosshair (80 px) with room
+	 * to spare, so a line never covers the crosshair or the hit marker.
+	 */
+	constexpr float PickupFeedGap = 76.f;
 
 	UCanvasPanelSlot* PlaceOnCanvas(UCanvasPanel* Canvas, UWidget* Widget, const FAnchors& Anchors, const FVector2D& Alignment, const FVector2D& Position)
 	{
@@ -116,31 +134,6 @@ namespace
 		return Overlay;
 	}
 
-	FString FormatNumber(float Value, int32 Decimals)
-	{
-		FNumberFormattingOptions Options;
-		Options.UseGrouping = false;
-		Options.MinimumFractionalDigits = Decimals;
-		Options.MaximumFractionalDigits = Decimals;
-		return FText::AsNumber(Value, &Options).ToString();
-	}
-
-	/** "LABEL  value (+delta)", colored better/worse against the weapon in hand. ShownValue replaces the formatted number when set. */
-	void SetCompareLine(UTextBlock* Text, const TCHAR* Label, float NewValue, float OldValue, bool bHigherIsBetter,
-		int32 Decimals, const TCHAR* Prefix, const TCHAR* Suffix, bool bHasCurrent, const FString& ShownValue = FString())
-	{
-		FString Line = FString::Printf(TEXT("%-10s "), Label) + Prefix + (ShownValue.IsEmpty() ? FormatNumber(NewValue, Decimals) : ShownValue) + Suffix;
-		FLinearColor LineColor = Color::Text();
-		if (bHasCurrent && !FMath::IsNearlyEqual(NewValue, OldValue, 0.01f))
-		{
-			const float Delta = NewValue - OldValue;
-			Line += FString::Printf(TEXT("   (%s%s)"), Delta > 0.f ? TEXT("+") : TEXT(""), *FormatNumber(Delta, FMath::Max(Decimals, 1)));
-			LineColor = ((Delta > 0.f) == bHigherIsBetter) ? Color::Better() : Color::Worse();
-		}
-		Text->SetText(FText::FromString(Line));
-		Text->SetColorAndOpacity(FSlateColor(LineColor));
-	}
-
 	void SetTextIfChanged(UTextBlock* Text, const FString& Value)
 	{
 		if (!Text->GetText().ToString().Equals(Value))
@@ -188,30 +181,10 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 		MessagePlate->SetVisibility(ESlateVisibility::Hidden);
 		PlaceOnCanvas(Root, MessagePlate, FAnchors(0.5f, 0.72f), FVector2D(0.5f, 0.5f), FVector2D::ZeroVector);
 
-		// Bottom-left: a health cross and the number over a slanted bar. (The level shows only by the experience bar.)
-		{
-			UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-
-			UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			UTextBlock* Cross = MakeFloatingText(WidgetTree, 34, Color::Health(), 0, ETextJustify::Center);
-			Cross->SetText(FText::FromString(TEXT("+")));
-			UHorizontalBoxSlot* CrossSlot = Row->AddChildToHorizontalBox(Cross);
-			CrossSlot->SetVerticalAlignment(VAlign_Bottom);
-			CrossSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 6.f));
-			HealthValue = MakeFloatingText(WidgetTree, 46, Color::Text());
-			Row->AddChildToHorizontalBox(HealthValue)->SetVerticalAlignment(VAlign_Bottom);
-			HealthMax = MakeFloatingText(WidgetTree, 20, Color::TextDim());
-			UHorizontalBoxSlot* MaxSlot = Row->AddChildToHorizontalBox(HealthMax);
-			MaxSlot->SetVerticalAlignment(VAlign_Bottom);
-			MaxSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 8.f));
-			Box->AddChildToVerticalBox(Row);
-
-			UVerticalBoxSlot* BarSlot = Box->AddChildToVerticalBox(MakeSlantBar(WidgetTree, HealthSegmentCount, 400.f, 14.f, -BarSlant, HealthSegments, 3.f));
-			BarSlot->SetPadding(FMargin(4.f, 2.f, 0.f, 0.f));
-
-			VitalsCluster = Box;
-			PlaceOnCanvas(Root, Box, FAnchors(0.f, 1.f), FVector2D(0.f, 1.f), FVector2D(60.f, -62.f));
-		}
+		// Bottom-left: health, a ring with the number inside and a solid bar out of its lower side, as far in from the
+		// corner as the weapon cluster. (The level shows only by the experience bar.)
+		Vitals = WidgetTree->ConstructWidget<UHudVitalsWidget>(UHudVitalsWidget::StaticClass());
+		PlaceOnCanvas(Root, Vitals, FAnchors(0.f, 1.f), FVector2D(0.f, 1.f), FVector2D(48.f, -32.f));
 
 		// Bottom-right: the weapon slots over the ammo: its status and ammo class, the magazine as a cartridge that drains
 		// as the gun fires, the reserve, and the fire mode and gun's name under that.
@@ -227,14 +200,17 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			WeaponSlots = WidgetTree->ConstructWidget<UHudWeaponSlotsWidget>(UHudWeaponSlotsWidget::StaticClass());
 			AddRight(WeaponSlots, 0.f);
 
-			// The ammo row, everything centered on the cartridge: [status] [ammo class] [magazine] [reserve].
+			// The ammo row, everything centered on the cartridge: [status] [ammo icon] [magazine] [reserve].
 			UHorizontalBox* AmmoRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			StatusText = MakeFloatingText(WidgetTree, 12, Color::Accent(), 200, ETextJustify::Right);
 			UHorizontalBoxSlot* StatusSlot = AmmoRow->AddChildToHorizontalBox(StatusText);
 			StatusSlot->SetVerticalAlignment(VAlign_Center);
 			StatusSlot->SetPadding(FMargin(0.f, 0.f, 14.f, 0.f));
-			AmmoClassText = MakeFloatingText(WidgetTree, 14, Color::SegmentOn(), 60, ETextJustify::Right);
-			UHorizontalBoxSlot* ClassSlot = AmmoRow->AddChildToHorizontalBox(AmmoClassText);
+			FSlateBrush NoAmmo;
+			NoAmmo.DrawAs = ESlateBrushDrawType::NoDrawType;
+			NoAmmo.ImageSize = AmmoClassBox;
+			AmmoClassIcon = MakeImage(WidgetTree, NoAmmo);
+			UHorizontalBoxSlot* ClassSlot = AmmoRow->AddChildToHorizontalBox(AmmoClassIcon);
 			ClassSlot->SetVerticalAlignment(VAlign_Center);
 			ClassSlot->SetPadding(FMargin(0.f, 0.f, 10.f, 0.f));
 			MagazineGauge = WidgetTree->ConstructWidget<UHudMagazineWidget>(UHudMagazineWidget::StaticClass());
@@ -304,13 +280,15 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 		UHudFrameRateWidget* FrameRate = WidgetTree->ConstructWidget<UHudFrameRateWidget>(UHudFrameRateWidget::StaticClass());
 		PlaceOnCanvas(Root, FrameRate, FAnchors(0.f, 0.f), FVector2D(0.f, 0.f), FVector2D(UHudMinimapWidget::Margin, UHudMinimapWidget::Margin));
 
-		// Bottom-right, over the ammo count: what was just picked up, rising out of the corner.
+		// Left of the crosshair: what was just picked up, where the eyes already are. The feed's lines end at its right
+		// edge, the newest level with the crosshair and the older ones rising above it.
 		UHudPickupFeedWidget* PickupFeed = WidgetTree->ConstructWidget<UHudPickupFeedWidget>(UHudPickupFeedWidget::StaticClass());
-		UCanvasPanelSlot* FeedSlot = PlaceOnCanvas(Root, PickupFeed, FAnchors(1.f, 1.f), FVector2D(1.f, 1.f), FVector2D(-48.f, -270.f));
+		UCanvasPanelSlot* FeedSlot = PlaceOnCanvas(Root, PickupFeed, Center, FVector2D(1.f, 1.f),
+			FVector2D(-PickupFeedGap, UHudPickupFeedWidget::LineSpacing * 0.5f));
 		FeedSlot->SetAutoSize(false);
 		FeedSlot->SetSize(FVector2D(UHudPickupFeedWidget::Width, UHudPickupFeedWidget::Height));
 
-		// Bottom-center: level and experience, a hairline along the bottom. Level-ups show in the message plate.
+		// Bottom-center: the level badge and the experience bar. Level-ups show in the message plate.
 		UHudXPBarWidget* XPBar = WidgetTree->ConstructWidget<UHudXPBarWidget>(UHudXPBarWidget::StaticClass());
 		XPBar->OnAnnouncement.BindUObject(this, &UPlayerHUDWidget::HandleMessage);
 		PlaceOnCanvas(Root, XPBar, FAnchors(0.5f, 1.f), FVector2D(0.5f, 1.f), FVector2D(0.f, -32.f));
@@ -466,8 +444,18 @@ void UPlayerHUDWidget::UpdateWeaponCluster(UWeaponManagerComponent* Manager, flo
 	SetTextIfChanged(WeaponName, LooterWeaponText::Name(Instance).ToUpper());
 	WeaponName->SetColorAndOpacity(FSlateColor(LooterWeaponText::Color(Instance)));
 	SetTextIfChanged(FireModeText, LooterWeaponText::FireModeName(Instance).ToUpper());
-	SetTextIfChanged(AmmoClassText, Instance.Definition && LooterAmmo::IsValid(Instance.Definition->AmmoType)
-		? FString(LooterAmmo::GetInfo(Instance.Definition->AmmoType).Short) : FString());
+	// The ammo it takes, as the same Inked icon the slots and the inventory show.
+	const TOptional<EAmmoType> AmmoType = Instance.Definition && LooterAmmo::IsValid(Instance.Definition->AmmoType)
+		? TOptional<EAmmoType>(Instance.Definition->AmmoType) : TOptional<EAmmoType>();
+	if (AmmoType != ShownAmmoType)
+	{
+		ShownAmmoType = AmmoType;
+		if (AmmoType.IsSet())
+		{
+			AmmoClassIcon->SetBrush(InkedIconBrush(LoadoutParts::AmmoIconName(*AmmoType), LoadoutParts::AmmoIcon(*AmmoType), AmmoClassBox));
+		}
+		AmmoClassIcon->SetVisibility(AmmoType.IsSet() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	}
 
 	WeaponSlots->Update(Manager, DeltaTime);
 
@@ -479,60 +467,12 @@ void UPlayerHUDWidget::UpdateWeaponCluster(UWeaponManagerComponent* Manager, flo
 
 void UPlayerHUDWidget::UpdateVitals(UHealthComponent* Health, float DeltaTime)
 {
-	VitalsCluster->SetVisibility(Health ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-	if (!Health)
+	Vitals->SetVisibility(Health ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	if (Health)
 	{
-		return;
+		// The readout keeps its own damage chip, low-health beat and idle fade.
+		Vitals->SetHealth(Health->GetHealth(), Health->GetMaxHealth(), DeltaTime);
 	}
-
-	const float Fraction = FMath::Clamp(Health->GetHealthPercent(), 0.f, 1.f);
-	if (ShownHealthFraction < 0.f)
-	{
-		ShownHealthFraction = Fraction;
-		GhostHealthFraction = Fraction;
-	}
-	if (Fraction < ShownHealthFraction - KINDA_SMALL_NUMBER)
-	{
-		// Took damage: the lost chunk lingers as a light "chip", then drains away.
-		GhostHoldTime = 0.45f;
-		VitalsActivity = ActivityHold;
-	}
-	else if (Fraction > ShownHealthFraction + KINDA_SMALL_NUMBER)
-	{
-		GhostHealthFraction = Fraction;
-		VitalsActivity = ActivityHold;
-	}
-	ShownHealthFraction = Fraction;
-	if (GhostHoldTime > 0.f)
-	{
-		GhostHoldTime -= DeltaTime;
-	}
-	else
-	{
-		GhostHealthFraction = FMath::FInterpConstantTo(GhostHealthFraction, Fraction, DeltaTime, 0.6f);
-	}
-	GhostHealthFraction = FMath::Max(GhostHealthFraction, Fraction);
-	VitalsActivity = FMath::Max(0.f, VitalsActivity - DeltaTime);
-
-	SetTextIfChanged(HealthValue, FString::FromInt(FMath::CeilToInt(Health->GetHealth())));
-	SetTextIfChanged(HealthMax, FString::Printf(TEXT("/ %d"), FMath::RoundToInt(Health->GetMaxHealth())));
-
-	const bool bLow = Fraction <= 0.3f;
-	const float Pulse = 0.5f + 0.5f * FMath::Sin(PulseTime * 6.f);
-	const FLinearColor Bar = bLow ? FMath::Lerp(Color::Health(), FLinearColor(1.f, 0.75f, 0.7f), Pulse * 0.6f) : Color::Health();
-	const FLinearColor Chip(1.f, 0.82f, 0.72f, 0.9f);
-	const int32 Lit = Fraction <= 0.f ? 0 : FMath::Clamp(FMath::CeilToInt(Fraction * HealthSegmentCount), 1, HealthSegmentCount);
-	const int32 Ghost = FMath::Clamp(FMath::CeilToInt(GhostHealthFraction * HealthSegmentCount), Lit, HealthSegmentCount);
-	for (int32 Index = 0; Index < HealthSegments.Num(); ++Index)
-	{
-		HealthSegments[Index]->SetColorAndOpacity(Index < Lit ? Bar : (Index < Ghost ? Chip : Color::SegmentOff()));
-	}
-	HealthValue->SetColorAndOpacity(FSlateColor(bLow ? FMath::Lerp(Color::Health(), Color::Text(), Pulse) : Color::Text()));
-
-	// Full health and nothing happening: step back. Hurt, low, or just hit: full strength.
-	const bool bNeedsAttention = VitalsActivity > 0.f || Fraction < 0.999f;
-	const float Target = bNeedsAttention ? 1.f : IdleOpacity;
-	VitalsCluster->SetRenderOpacity(FMath::FInterpTo(VitalsCluster->GetRenderOpacity(), Target, DeltaTime, 5.f));
 }
 
 void UPlayerHUDWidget::UpdateCrosshair(const AWeaponBase* Active, float DeltaTime)
@@ -552,73 +492,15 @@ void UPlayerHUDWidget::UpdateCrosshair(const AWeaponBase* Active, float DeltaTim
 	const UPlayerLocomotionComponent* Locomotion = Holder ? Holder->FindComponentByClass<UPlayerLocomotionComponent>() : nullptr;
 	const UPlayerViewComponent* View = Holder ? Holder->FindComponentByClass<UPlayerViewComponent>() : nullptr;
 	const bool bFacingCamera = View && View->GetViewMode() == EPlayerViewMode::ThirdPersonFront;
-	const float Opacity = bFacingCamera ? 0.f : 1.f - (Locomotion ? Locomotion->GetSprintAlpha() : 0.f);
+	// Looking through the sight in first person, the sight's reticle is the aim point: the crosshair fades as the gun
+	// comes up and returns as it's lowered, so only one shows. Third-person aiming only zooms (no sight is seen), so the
+	// crosshair stays there.
+	const float SightAim = View && View->IsFirstPerson() ? View->GetAimAlpha() : 0.f;
+	const float SightFade = FMath::Clamp(1.f - SightAim / CrosshairGoneAtAim, 0.f, 1.f);
+	const float Opacity = bFacingCamera ? 0.f : (1.f - (Locomotion ? Locomotion->GetSprintAlpha() : 0.f)) * SightFade;
 	if (!FMath::IsNearlyEqual(CrosshairBox->GetRenderOpacity(), Opacity, 0.01f))
 	{
 		CrosshairBox->SetRenderOpacity(Opacity);
-	}
-}
-
-void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager)
-{
-	const AWeaponBase* Pickup = Manager ? Manager->GetFocusedPickup() : nullptr;
-	if (!Pickup)
-	{
-		PickupCard->SetVisibility(ESlateVisibility::Collapsed);
-		return;
-	}
-	PickupCard->SetVisibility(ESlateVisibility::HitTestInvisible);
-
-	const FWeaponInstanceData& New = Pickup->GetInstance();
-	const AWeaponBase* Current = Manager->GetActiveWeapon();
-	const FWeaponStats Old = Current ? Current->GetStats() : FWeaponStats();
-	const bool bHasCurrent = Current != nullptr;
-	const FWeaponStats& S = New.Stats;
-
-	PickupName->SetText(FText::FromString(LooterWeaponText::Name(New).ToUpper()));
-	PickupName->SetColorAndOpacity(FSlateColor(LooterWeaponText::Color(New)));
-	PickupLevel->SetText(FText::FromString(FString::Printf(TEXT("LV %d  |  %s  |  VS WEAPON IN HAND"), New.Level, *LooterWeaponText::FireModeName(New).ToUpper())));
-
-	// Damage shows the weapon's damage, compared on total per-shot damage so shotguns and rifles line up fairly.
-	SetCompareLine(PickupStatTexts[0], TEXT("DAMAGE"), S.Damage * S.PelletsPerShot, Old.Damage * Old.PelletsPerShot, true, 1, TEXT(""), TEXT(""), bHasCurrent,
-		LooterWeaponText::DamageString(S));
-	SetCompareLine(PickupStatTexts[1], TEXT("FIRE RATE"), S.FireRate, Old.FireRate, true, 0, TEXT(""), TEXT(" RPM"), bHasCurrent);
-	SetCompareLine(PickupStatTexts[2], TEXT("MAGAZINE"), S.MagazineSize, Old.MagazineSize, true, 0, TEXT(""), TEXT(""), bHasCurrent);
-	SetCompareLine(PickupStatTexts[3], TEXT("RELOAD"), S.ReloadTime, Old.ReloadTime, false, 2, TEXT(""), TEXT("S"), bHasCurrent);
-	SetCompareLine(PickupStatTexts[4], TEXT("SPREAD"), S.Spread, Old.Spread, false, 2, TEXT(""), TEXT(" DEG"), bHasCurrent);
-	SetCompareLine(PickupStatTexts[5], TEXT("RANGE"), S.Range / 100.f, Old.Range / 100.f, true, 0, TEXT(""), TEXT(" M"), bHasCurrent);
-	SetCompareLine(PickupStatTexts[6], TEXT("RECOIL"), S.Recoil * 100.f, Old.Recoil * 100.f, false, 0, TEXT(""), TEXT("%"), bHasCurrent);
-	SetCompareLine(PickupStatTexts[7], TEXT("HANDLING"), S.Handling * 100.f, Old.Handling * 100.f, true, 0, TEXT(""), TEXT("%"), bHasCurrent);
-	SetCompareLine(PickupStatTexts[8], TEXT("ZOOM"), S.Zoom, Old.Zoom, true, 2, TEXT(""), TEXT(""), bHasCurrent, LooterWeaponText::ZoomString(S).ToUpper());
-
-	// A tap and a hold only differ when every slot is full: the tap stashes the loot, the hold takes it in hand.
-	const FString Key = BoundKeyName(TEXT("Interact"), TEXT("E"));
-	const bool bSlotsFull = Manager->GetWeapons().Num() >= Manager->MaxWeapons;
-	const bool bBackpackFull = Manager->GetBackpack().Num() >= Manager->BackpackCapacity;
-	FString Hint;
-	if (!bSlotsFull)
-	{
-		Hint = FString::Printf(TEXT("[%s] PICK UP"), *Key);
-	}
-	else if (!bBackpackFull)
-	{
-		Hint = FString::Printf(TEXT("[%s] SEND TO BACKPACK\nHOLD [%s] EQUIP, WEAPON IN HAND TO BACKPACK"), *Key, *Key);
-	}
-	else
-	{
-		Hint = FString::Printf(TEXT("[%s] SWAP WITH WEAPON IN HAND\nBACKPACK FULL: IT DROPS"), *Key);
-	}
-	SetTextIfChanged(PickupHint, Hint);
-
-	const float Hold = Manager->GetPickupHoldProgress();
-	PickupHoldBar->SetVisibility(Hold > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
-	if (Hold > 0.f)
-	{
-		const int32 Lit = FMath::Clamp(FMath::CeilToInt(Hold * PickupHoldSegmentCount), 0, PickupHoldSegmentCount);
-		for (int32 Index = 0; Index < PickupHoldSegments.Num(); ++Index)
-		{
-			PickupHoldSegments[Index]->SetColorAndOpacity(Index < Lit ? Color::Accent() : Color::SegmentOff());
-		}
 	}
 }
 

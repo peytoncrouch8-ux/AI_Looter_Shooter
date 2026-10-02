@@ -11,17 +11,16 @@
 namespace
 {
 	constexpr int32 MaxLines = 6;
-	constexpr int32 FontSize = 22;
-	/** Room each line takes in the stack. */
-	constexpr float LineSpacing = 34.f;
+	/** Smaller than the corner's big numbers: beside the crosshair it should read at a glance, not crowd the aim. */
+	constexpr int32 FontSize = 17;
 	/** How fast the whole stack drifts up (pixels per second). */
-	constexpr float DriftSpeed = 20.f;
+	constexpr float DriftSpeed = 16.f;
 	/** A new line pops in slightly large and settles over PopSeconds. */
 	constexpr float PopSeconds = 0.18f;
 	constexpr float PopScale = 1.3f;
-	/** Fully visible until FadeStart seconds, gone at LifeSeconds. */
-	constexpr float FadeStart = 2.f;
-	constexpr float LifeSeconds = 3.2f;
+	/** Fully visible until FadeStart seconds, gone at LifeSeconds: brief, since it sits by the crosshair. */
+	constexpr float FadeStart = 1.4f;
+	constexpr float LifeSeconds = 2.2f;
 
 	/**
 	 * The engine's heaviest UI typeface (Roboto Black, shipped with every build), white, in a thick round-jointed black
@@ -30,7 +29,7 @@ namespace
 	FSlateFontInfo PickupFont()
 	{
 		FSlateFontInfo Font = FCoreStyle::GetDefaultFontStyle(TEXT("Black"), FontSize);
-		Font.OutlineSettings.OutlineSize = 3;
+		Font.OutlineSettings.OutlineSize = 2;
 		Font.OutlineSettings.OutlineColor = FLinearColor::Black;
 		Font.OutlineSettings.bSeparateFillAlpha = true;
 		return Font;
@@ -50,7 +49,7 @@ TSharedRef<SWidget> UHudPickupFeedWidget::RebuildWidget()
 			UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 			Text->SetFont(Font);
 			Text->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-			Text->SetShadowOffset(FVector2D(0.f, 3.f));
+			Text->SetShadowOffset(FVector2D(0.f, 2.f));
 			Text->SetShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.45f));
 			Text->SetJustification(ETextJustify::Right);
 			Text->SetRenderTransformPivot(FVector2D(1.f, 0.5f));

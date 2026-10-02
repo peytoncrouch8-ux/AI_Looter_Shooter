@@ -5,8 +5,10 @@
 #include "PlayerHUDWidget.generated.h"
 
 class AWeaponBase;
+enum class EAmmoType : uint8;
 class UHealthComponent;
 class UHudMagazineWidget;
+class UHudVitalsWidget;
 class UHudWeaponSlotsWidget;
 class UImage;
 class USizeBox;
@@ -16,18 +18,22 @@ class UWeaponManagerComponent;
 
 /**
  * In-game HUD in the shared UI style, built to stay out of the way while playing:
- *  - bottom-left: a health cross, the number and a slim slanted segmented bar (with a trailing "damage chip")
- *  - bottom-right: the weapon slots as circles (UHudWeaponSlotsWidget) over the ammo: its status and ammo class, the
+ *  - bottom-left: health as a ring with the number inside and a solid bar running out of its lower side, with a
+ *    trailing "damage chip" (UHudVitalsWidget)
+ *  - bottom-right: the weapon slots as circles (UHudWeaponSlotsWidget) over the ammo: its status and ammo icon, the
  *    magazine as a cartridge that drains as the gun fires and fills with reload progress (UHudMagazineWidget), the
  *    reserve, and the fire mode and gun's name under it
  *  - top-right: the minimap (UHudMinimapWidget)
  *  - top-left: the frame rate (UHudFrameRateWidget)
- *  - bottom-right, over the ammo: the ammo pickup feed (UHudPickupFeedWidget)
+ *  - left of the crosshair: the ammo pickup feed (UHudPickupFeedWidget)
  *  - bottom-center: the level and experience bar (UHudXPBarWidget), the only place the level shows
- *  - center: thin tick crosshair sized by the weapon's spread, diagonal hit marker
+ *  - center: thin tick crosshair sized by the weapon's spread (it fades out while aiming through a sight in first
+ *    person, where the sight's reticle is the aim point), diagonal hit marker
  * No backing panels; both corner clusters fade back when nothing is happening and come forward on
  * activity (firing, reloading, switching, taking damage). The loot comparison card and messages only
  * appear when relevant. Reads the possessed pawn every frame, so it survives respawns.
+ *
+ * PlayerHUDWidget.cpp builds it and runs the corners and crosshair; PlayerHUDWidgetPickupCard.cpp fills the loot card.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UPlayerHUDWidget : public UUserWidget
@@ -61,10 +67,7 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> HitMarkerTicks;
 
 	// Bottom-left: vitals
-	UPROPERTY(Transient) TObjectPtr<UWidget> VitalsCluster;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> HealthValue;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> HealthMax;
-	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> HealthSegments;
+	UPROPERTY(Transient) TObjectPtr<UHudVitalsWidget> Vitals;
 
 	// Bottom-right: weapon
 	UPROPERTY(Transient) TObjectPtr<UWidget> WeaponCluster;
@@ -72,7 +75,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> ReserveText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeaponName;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> AmmoClassText;
+	/** The ammo the gun in hand takes, as its Inked icon. */
+	UPROPERTY(Transient) TObjectPtr<UImage> AmmoClassIcon;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FireModeText;
 	UPROPERTY(Transient) TObjectPtr<UHudWeaponSlotsWidget> WeaponSlots;
 
@@ -90,15 +94,11 @@ private:
 	TWeakObjectPtr<UWeaponManagerComponent> BoundManager;
 	TWeakObjectPtr<AWeaponBase> BoundWeapon;
 
-	// Health display state
-	float ShownHealthFraction = -1.f;  // what the bar shows (snaps down on damage)
-	float GhostHealthFraction = -1.f;  // trailing chip that drains after a hit
-	float GhostHoldTime = 0.f;
-	float VitalsActivity = 0.f;
-
 	// Weapon display state
 	int32 LastMagazine = INDEX_NONE;
 	int32 LastReserve = INDEX_NONE;
+	/** The ammo icon drawn now, so it is only set again when the gun in hand takes another ammo. */
+	TOptional<EAmmoType> ShownAmmoType;
 	float WeaponActivity = 0.f;
 	float ReloadDuration = 0.f;
 	float ReloadElapsed = 0.f;

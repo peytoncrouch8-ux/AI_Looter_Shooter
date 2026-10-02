@@ -1,30 +1,17 @@
 #include "UI/HUD/HudXPBarWidget.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/Style/LooterUIStyle.h"
-#include "Blueprint/WidgetTree.h"
-#include "Components/Border.h"
-#include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
-#include "Components/Overlay.h"
-#include "Components/OverlaySlot.h"
-#include "Components/SizeBox.h"
-#include "Components/Spacer.h"
 #include "Components/TextBlock.h"
-#include "Components/VerticalBox.h"
-#include "Components/VerticalBoxSlot.h"
 #include "Engine/LocalPlayer.h"
+
+// The widget tree and its shapes are built in HudXPBarWidgetLayout.cpp; this file follows the player's progress.
 
 using namespace LooterUI;
 
 namespace
 {
-	/** Ten sections, each a tenth of the way to the next level, marked by faint ticks on a hairline. */
-	constexpr int32 SectionCount = 10;
-	constexpr float LineHeight = 3.f;
-	constexpr float TickWidth = 1.5f;
-	constexpr float TickHeight = 9.f;
-
 	/** Opacity when nothing is happening, and how long it stays fully visible after a gain (as the HUD's corners do). */
 	constexpr float IdleOpacity = 0.6f;
 	constexpr float ActivityHold = 3.f;
@@ -32,84 +19,37 @@ namespace
 	/** How fast the bar eases to a new amount (per second, of the remaining gap), and its slowest speed in levels per second. */
 	constexpr double EaseRate = 5.0;
 	constexpr double MinEaseSpeed = 0.25;
+	/** After a gain, the just-earned stretch shows on its own this long before the bar starts catching up to it. */
+	constexpr float GainHold = 0.35f;
+	/** Seconds the leading edge's glow takes to settle once the bar has caught up. */
+	constexpr float EdgeGlowFade = 0.6f;
 
-	/** Seconds the "+10 XP" stays up, and the level number glows after a level-up. */
+	/** Seconds the "+10 XP" stays up, and the ring and number flash after a level-up. */
 	constexpr float GainDuration = 1.8f;
 	constexpr float FlashDuration = 1.5f;
+	/** Seconds the level-up pulse takes to spread, and how far it gets (times the circle's size). */
+	constexpr float PulseDuration = 0.7f;
+	constexpr float PulseScale = 1.8f;
+
+	/** The bar is drawn in steps of about a pixel, so easing only repaints when it visibly moves. */
+	constexpr float BarSteps = UHudXPBarWidget::BarWidth;
 
 	FString FormatXP(int64 Value)
 	{
 		return FText::AsNumber(Value).ToString();
 	}
-}
 
-TSharedRef<SWidget> UHudXPBarWidget::RebuildWidget()
-{
-	if (WidgetTree && !WidgetTree->RootWidget)
+	float ToBarStep(float Fraction)
 	{
-		UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-
-		// Top row: "LV 12" on the left, "+10 XP" and "XP 40 / 100" on the right, over the bar's ends.
-		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		UTextBlock* LevelLabel = MakeFloatingText(WidgetTree, 15, Color::Accent(), 100);
-		LevelLabel->SetText(FText::FromString(TEXT("LV")));
-		UHorizontalBoxSlot* LabelSlot = Row->AddChildToHorizontalBox(LevelLabel);
-		LabelSlot->SetVerticalAlignment(VAlign_Bottom);
-		LabelSlot->SetPadding(FMargin(0.f, 0.f, 6.f, 0.f));
-		LevelValue = MakeFloatingText(WidgetTree, 15, Color::Accent());
-		Row->AddChildToHorizontalBox(LevelValue)->SetVerticalAlignment(VAlign_Bottom);
-		Row->AddChildToHorizontalBox(WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass()))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		GainText = MakeFloatingText(WidgetTree, 13, Color::Accent(), 60, ETextJustify::Right);
-		GainText->SetVisibility(ESlateVisibility::Hidden);
-		UHorizontalBoxSlot* GainSlot = Row->AddChildToHorizontalBox(GainText);
-		GainSlot->SetVerticalAlignment(VAlign_Bottom);
-		GainSlot->SetPadding(FMargin(0.f, 0.f, 12.f, 3.f));
-		XPText = MakeFloatingText(WidgetTree, 14, Color::TextDim(), 60, ETextJustify::Right);
-		UHorizontalBoxSlot* XPSlot = Row->AddChildToHorizontalBox(XPText);
-		XPSlot->SetVerticalAlignment(VAlign_Bottom);
-		XPSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 3.f));
-		Box->AddChildToVerticalBox(MakeSized(WidgetTree, Row, BarWidth));
-
-		// The bar: a hairline along the bottom of the screen with a faint tick at every tenth of the level. The filled part
-		// and the rest share its width (FilledSlot / RestSlot).
-		UOverlay* Bar = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-		UOverlaySlot* TrackSlot = Bar->AddChildToOverlay(MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Hex(90, 200, 255, 64))), 0.f, LineHeight));
-		TrackSlot->SetHorizontalAlignment(HAlign_Fill);
-		TrackSlot->SetVerticalAlignment(VAlign_Center);
-		UHorizontalBox* Split = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		FilledSlot = Split->AddChildToHorizontalBox(MakeImage(WidgetTree, RectBrush(Color::Accent())));
-		FSlateChildSize NoWidth(ESlateSizeRule::Fill);
-		NoWidth.Value = 0.f;
-		FilledSlot->SetSize(NoWidth);
-		RestSlot = Split->AddChildToHorizontalBox(WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass()));
-		RestSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		UOverlaySlot* SplitSlot = Bar->AddChildToOverlay(MakeSized(WidgetTree, Split, 0.f, LineHeight));
-		SplitSlot->SetHorizontalAlignment(HAlign_Fill);
-		SplitSlot->SetVerticalAlignment(VAlign_Center);
-		// The ticks: ten equal cells, each with a tick at its right end but the last.
-		UHorizontalBox* Ticks = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		for (int32 Index = 0; Index < SectionCount; ++Index)
-		{
-			UOverlay* Cell = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-			if (Index + 1 < SectionCount)
-			{
-				UOverlaySlot* TickSlot = Cell->AddChildToOverlay(MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Color::TextDim() * FLinearColor(1.f, 1.f, 1.f, 0.4f))), TickWidth, TickHeight));
-				TickSlot->SetHorizontalAlignment(HAlign_Right);
-				TickSlot->SetVerticalAlignment(VAlign_Center);
-			}
-			Ticks->AddChildToHorizontalBox(Cell)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		}
-		UOverlaySlot* TicksSlot = Bar->AddChildToOverlay(Ticks);
-		TicksSlot->SetHorizontalAlignment(HAlign_Fill);
-		TicksSlot->SetVerticalAlignment(VAlign_Fill);
-		Box->AddChildToVerticalBox(MakeSized(WidgetTree, Bar, BarWidth, TickHeight))->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
-
-		Box->SetVisibility(ESlateVisibility::HitTestInvisible);
-		Box->SetRenderOpacity(IdleOpacity);
-		Cluster = Box;
-		WidgetTree->RootWidget = Box;
+		return FMath::RoundToFloat(FMath::Clamp(Fraction, 0.f, 1.f) * BarSteps) / BarSteps;
 	}
-	return Super::RebuildWidget();
+
+	FSlateChildSize ShareOfBar(float Share)
+	{
+		FSlateChildSize Size(ESlateSizeRule::Fill);
+		Size.Value = Share;
+		return Size;
+	}
 }
 
 void UHudXPBarWidget::NativeConstruct()
@@ -133,6 +73,7 @@ void UHudXPBarWidget::NativeConstruct()
 		Progression = Subsystem;
 	}
 	Cluster->SetVisibility(Subsystem ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	Cluster->SetRenderOpacity(Activity > 0.f ? 1.f : IdleOpacity);
 	Retarget(true);
 }
 
@@ -164,8 +105,21 @@ void UHudXPBarWidget::HandleXPChanged(int64 Gained, EXPSource Source)
 		GainTime = GainDuration;
 	}
 	Activity = ActivityHold;
+
 	// Earned experience eases in; a level set directly (console, reset) jumps there.
+	const bool bWasResting = ShownProgress >= TargetProgress;
 	Retarget(Gained <= 0);
+	if (Gained > 0 && ShownProgress < TargetProgress)
+	{
+		EdgeGlow = 1.f;
+		PaintEdge(EdgeGlow);
+		// A bar at rest lets the new stretch show on its own for a moment; one already catching up keeps going, so a
+		// burst of kills never stalls it.
+		if (bWasResting)
+		{
+			GainHoldTime = GainHold;
+		}
+	}
 }
 
 void UHudXPBarWidget::Retarget(bool bSnap)
@@ -183,6 +137,7 @@ void UHudXPBarWidget::Retarget(bool bSnap)
 	{
 		ShownProgress = TargetProgress;
 		PendingAnnouncement = 0;
+		GainHoldTime = 0.f;
 	}
 	else if (TargetProgress - ShownProgress > 2.0)
 	{
@@ -191,7 +146,7 @@ void UHudXPBarWidget::Retarget(bool bSnap)
 	}
 
 	// The numbers follow at once unless the bar still has to fill up to the new level.
-	bXPTextPending = FMath::FloorToInt(ShownProgress) != Level;
+	bXPTextPending = FMath::FloorToInt32(ShownProgress) != Level;
 	if (!bXPTextPending)
 	{
 		UpdateXPText();
@@ -206,17 +161,27 @@ void UHudXPBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	const bool bEasing = ShownProgress < TargetProgress;
 	const float WantedOpacity = Activity > 0.f ? 1.f : IdleOpacity;
 	const bool bFading = !FMath::IsNearlyEqual(Cluster->GetRenderOpacity(), WantedOpacity, 0.005f);
-	if (!bEasing && !bFading && GainTime <= 0.f && FlashTime <= 0.f && Activity <= 0.f)
+	if (!bEasing && !bFading && GainTime <= 0.f && FlashTime <= 0.f && PulseTime <= 0.f && EdgeGlow <= 0.f && Activity <= 0.f)
 	{
 		return;
 	}
 
-	if (bEasing)
+	if (GainHoldTime > 0.f)
+	{
+		GainHoldTime = FMath::Max(0.f, GainHoldTime - InDeltaTime);
+	}
+	else if (bEasing)
 	{
 		const double Gap = TargetProgress - ShownProgress;
 		const double Step = FMath::Max(Gap * EaseRate, MinEaseSpeed) * InDeltaTime;
 		ShownProgress = Gap <= Step ? TargetProgress : ShownProgress + Step;
 		ShowProgress();
+	}
+	else if (EdgeGlow > 0.f)
+	{
+		// Caught up: the leading edge's glow settles back to its resting light.
+		EdgeGlow = FMath::Max(0.f, EdgeGlow - InDeltaTime / EdgeGlowFade);
+		PaintEdge(EdgeGlow);
 	}
 
 	if (GainTime > 0.f)
@@ -235,7 +200,21 @@ void UHudXPBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	if (FlashTime > 0.f)
 	{
 		FlashTime = FMath::Max(0.f, FlashTime - InDeltaTime);
-		LevelValue->SetColorAndOpacity(FSlateColor(FMath::Lerp(Color::Accent(), Color::Text(), FlashTime / FlashDuration)));
+		PaintBadge(FlashTime / FlashDuration);
+	}
+
+	if (PulseTime > 0.f)
+	{
+		// The ring spreads quickly, slowing as it fades out.
+		PulseTime = FMath::Max(0.f, PulseTime - InDeltaTime);
+		const float Age = 1.f - PulseTime / PulseDuration;
+		const float Spread = FMath::InterpEaseOut(0.f, 1.f, Age, 2.f);
+		BadgePulse->SetRenderScale(FVector2D(FMath::Lerp(1.f, PulseScale, Spread)));
+		BadgePulse->SetRenderOpacity(1.f - Age);
+		if (PulseTime <= 0.f)
+		{
+			BadgePulse->SetVisibility(ESlateVisibility::Hidden);
+		}
 	}
 
 	Activity = FMath::Max(0.f, Activity - InDeltaTime);
@@ -252,7 +231,17 @@ void UHudXPBarWidget::ShowProgress()
 	const bool bFull = bMaxLevel && ShownProgress >= TargetProgress;
 	const double Level = FMath::FloorToDouble(ShownProgress);
 	SetShownLevel(static_cast<int32>(Level));
-	PaintBar(bFull ? 1.f : static_cast<float>(ShownProgress - Level));
+	const float Fraction = bFull ? 1.f : static_cast<float>(ShownProgress - Level);
+
+	// The stretch still to catch up to runs ahead to the target, or to the bar's end while the target is in a later level
+	// (after the wrap it starts again from the left).
+	float GainEnd = Fraction;
+	if (ShownProgress < TargetProgress)
+	{
+		const double TargetLevel = FMath::FloorToDouble(TargetProgress);
+		GainEnd = TargetLevel > Level ? 1.f : static_cast<float>(TargetProgress - TargetLevel);
+	}
+	PaintBar(Fraction, GainEnd);
 }
 
 void UHudXPBarWidget::SetShownLevel(int32 Level)
@@ -267,7 +256,13 @@ void UHudXPBarWidget::SetShownLevel(int32 Level)
 
 	if (bWrapped)
 	{
+		// The ring sends out a pulse, and the ring and number flash.
 		FlashTime = FlashDuration;
+		PaintBadge(1.f);
+		PulseTime = PulseDuration;
+		BadgePulse->SetRenderScale(FVector2D(1.f));
+		BadgePulse->SetRenderOpacity(1.f);
+		BadgePulse->SetVisibility(ESlateVisibility::HitTestInvisible);
 		if (PendingAnnouncement > 0 && Level >= PendingAnnouncement)
 		{
 			OnAnnouncement.ExecuteIfBound(FText::FromString(FString::Printf(TEXT("Level up! Level %d"), PendingAnnouncement)));
@@ -281,21 +276,38 @@ void UHudXPBarWidget::SetShownLevel(int32 Level)
 	}
 }
 
-void UHudXPBarWidget::PaintBar(float Fraction)
+void UHudXPBarWidget::PaintBar(float Fraction, float GainEnd)
 {
-	// The filled part and the rest share the line's width; in 1/500ths, so easing only repaints when it visibly moves.
-	const float Fill = FMath::RoundToFloat(FMath::Clamp(Fraction, 0.f, 1.f) * 500.f) / 500.f;
-	if (Fill == ShownFill || !FilledSlot || !RestSlot)
+	// The earned part, the just-earned stretch and the rest share the bar's width.
+	const float Fill = ToBarStep(Fraction);
+	const float Gained = FMath::Max(Fill, ToBarStep(GainEnd));
+	if ((Fill == ShownFill && Gained == ShownGainEnd) || !FilledSlot || !GainedSlot || !RestSlot)
 	{
 		return;
 	}
 	ShownFill = Fill;
-	FSlateChildSize Filled(ESlateSizeRule::Fill);
-	Filled.Value = Fill;
-	FilledSlot->SetSize(Filled);
-	FSlateChildSize Rest(ESlateSizeRule::Fill);
-	Rest.Value = 1.f - Fill;
-	RestSlot->SetSize(Rest);
+	ShownGainEnd = Gained;
+	FilledSlot->SetSize(ShareOfBar(Fill));
+	GainedSlot->SetSize(ShareOfBar(Gained - Fill));
+	RestSlot->SetSize(ShareOfBar(1.f - Gained));
+	FillEdge->SetVisibility(Fill > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	// The just-earned stretch is light too, so the notches over it cut dark like those over the earned part.
+	PaintTicks(Gained);
+}
+
+void UHudXPBarWidget::PaintBadge(float Flash)
+{
+	// At rest a light number in an accent ring; just after a level-up the two swap (a light ring round an orange number)
+	// and ease back.
+	const float Amount = FMath::Clamp(Flash, 0.f, 1.f);
+	LevelValue->SetColorAndOpacity(FSlateColor(FMath::Lerp(Color::Text(), Color::Accent(), Amount)));
+	BadgeRing->SetColorAndOpacity(FMath::Lerp(Color::Accent(), Color::Text(), Amount));
+}
+
+void UHudXPBarWidget::PaintEdge(float Glow)
+{
+	// A lighter accent at rest, white while the bar takes in a gain.
+	FillEdge->SetColorAndOpacity(FMath::Lerp(Hex(255, 214, 150), FLinearColor::White, FMath::Clamp(Glow, 0.f, 1.f)));
 }
 
 void UHudXPBarWidget::UpdateXPText()
@@ -306,6 +318,6 @@ void UHudXPBarWidget::UpdateXPText()
 		return;
 	}
 	XPText->SetText(FText::FromString(Subsystem->IsMaxLevel() ? FString(TEXT("MAX"))
-		: FString::Printf(TEXT("XP %s / %s"), *FormatXP(Subsystem->GetXP()), *FormatXP(Subsystem->GetXPToNextLevel()))));
+		: FString::Printf(TEXT("%s / %s XP"), *FormatXP(Subsystem->GetXP()), *FormatXP(Subsystem->GetXPToNextLevel()))));
 	XPText->SetColorAndOpacity(FSlateColor(Subsystem->IsMaxLevel() ? Color::Accent() : Color::TextDim()));
 }

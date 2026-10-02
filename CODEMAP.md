@@ -151,16 +151,20 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/Style/WeaponText`: `LooterWeaponText`, weapon names, rarity colors and stat strings.
 - `UI/HUD/LooterHUD`: `ALooterHUD`, owns the HUD, the inventory's pages (loadout, bestiary) and the pause menu (the
   settings menu with Save & Quit), and their hotkeys.
-- `UI/HUD/PlayerHUDWidget`: the gameplay HUD (health, ammo, crosshair, hit marker, loot card, messages).
+- `UI/HUD/PlayerHUDWidget`: the gameplay HUD (health, ammo, crosshair, hit marker, loot card, messages);
+  `PlayerHUDWidgetPickupCard.cpp` fills the loot comparison card.
+- `UI/HUD/HudVitalsWidget`: health at the bottom left: a ring with the number inside and a solid bar out of its lower
+  side, with a damage chip, a hit flash and a low-health beat.
 - `UI/HUD/HudMagazineWidget`: the magazine gauge in the ammo row: a cartridge whose inside drains from the nose as the
   gun fires (the reload bar while reloading), the count inside by the base.
 - `UI/HUD/HudMinimapWidget`: the round minimap that turns with the view (size and zoom from the settings), with the
   tracked mission's waypoint on it, or a compass arrow and its distance on the rim.
 - `UI/HUD/TutorialPromptWidget`: the tutorial's current instruction near the top of the screen.
-- `UI/HUD/HudXPBarWidget`: the level and experience bar at the bottom center: a hairline ticked at every tenth.
-- `UI/HUD/HudWeaponSlotsWidget`: the weapon slots over the ammo, as circles in the guns' rarity colors with their Inked icons (tilted up).
+- `UI/HUD/HudXPBarWidget`: the level and experience bar at the bottom center: a level badge and a slanted bar ticked
+  at every tenth that flashes what was just gained; `HudXPBarWidgetLayout.cpp` builds and paints it.
+- `UI/HUD/HudWeaponSlotsWidget`: the weapon slots over the ammo, as circles in the guns' rarity colors with their Inked icons (tilted up) and their ammo's icon under each.
 - `UI/HUD/HudFrameRateWidget`: the frame rate counter in the top-left corner.
-- `UI/HUD/HudPickupFeedWidget`: ammo pickups over the ammo count, in big outlined white type that stacks, rises and fades.
+- `UI/HUD/HudPickupFeedWidget`: ammo pickups left of the crosshair, in outlined white type that stacks, rises and fades.
 - `UI/Menus/SettingsMenuWidget`: `USettingsMenuWidget`, the settings menu (graphics, interface, key bindings), over the
   paused game or from the main menu: its layout. `SettingsMenuRows.cpp` makes its rows and key list,
   `SettingsMenuInput.cpp` handles its buttons, sliders and keys, `SettingsMenuParts.h` holds what they share.

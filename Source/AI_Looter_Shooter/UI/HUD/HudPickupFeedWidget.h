@@ -10,10 +10,10 @@ class UTextBlock;
 class UWeaponManagerComponent;
 
 /**
- * What the player just picked up, over the ammo counter: "+36 AR Ammo" in big white rounded type with a thick black
- * outline, deliberately not in the menus' style (the user's call: it should feel like a game pickup, not a UI message).
- * Each pickup adds a line under the last; the stack drifts slowly upward and each line fades away a couple of seconds
- * after it came. A handful of text blocks are reused, so a stream of pickups costs nothing new.
+ * What the player just picked up, left of the crosshair where the eyes already are: "+36 AR Ammo" in bold white rounded
+ * type with a black outline, deliberately not in the menus' style (the user's call: it should feel like a game pickup,
+ * not a UI message). Each pickup adds a line under the last; the stack drifts slowly upward and each line fades away a
+ * second or two after it came. A handful of text blocks are reused, so a stream of pickups costs nothing new.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UHudPickupFeedWidget : public UUserWidget
@@ -24,9 +24,12 @@ public:
 	/** Adds a line at the bottom of the stack. */
 	void AddLine(const FString& Text);
 
-	/** The feed's box; lines start at its bottom right and rise. */
-	static constexpr float Width = 380.f;
-	static constexpr float Height = 210.f;
+	/** The feed's box; lines end at its right edge, start at its bottom and rise. */
+	static constexpr float Width = 300.f;
+	static constexpr float Height = 160.f;
+
+	/** Room each line takes in the stack (the newest line's middle is half this above the box's bottom). */
+	static constexpr float LineSpacing = 26.f;
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;

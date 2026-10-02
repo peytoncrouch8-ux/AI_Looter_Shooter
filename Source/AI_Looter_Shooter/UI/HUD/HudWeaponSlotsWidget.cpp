@@ -43,9 +43,15 @@ namespace
 	 */
 	const FVector2D GunBox(52.f, 24.f);
 	constexpr float GunTilt = -22.f;
+	/**
+	 * The box the ammo icon under a slot fits in. The ammo icons share one square view box sized for the tall sniper
+	 * round, so every type draws at this size and the rounds inside come out about 15-21 px: they keep their sizes
+	 * relative to each other, as in the inventory, and the row under the circles stays the same height.
+	 */
+	const FVector2D AmmoBox(26.f, 26.f);
 
-	/** A gun icon in a slot that isn't in hand: dimmed a little. */
-	const FLinearColor RestingGun(0.72f, 0.72f, 0.72f, 0.9f);
+	/** A gun or ammo icon in a slot that isn't in hand: dimmed a little. */
+	const FLinearColor RestingIcon(0.72f, 0.72f, 0.72f, 0.9f);
 	const FVector2D TabSize(20.f, 16.f);
 
 	/**
@@ -225,13 +231,18 @@ TSharedRef<SWidget> UHudWeaponSlotsWidget::RebuildWidget()
 			CircleBox->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
 			Cell.Lifted = CircleBox;
 
-			// Under it, its ammo class.
+			// Under it, its ammo's icon. Until a gun shows it draws nothing, but it already takes the icon's room, so the
+			// row doesn't change height when the first gun arrives (an empty slot hides it the same way).
 			UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 			Column->AddChildToVerticalBox(CircleBox)->SetHorizontalAlignment(HAlign_Center);
-			Cell.AmmoClass = MakeFloatingText(WidgetTree, 13, Color::TextDim(), 40, ETextJustify::Center);
-			UVerticalBoxSlot* ClassSlot = Column->AddChildToVerticalBox(Cell.AmmoClass);
-			ClassSlot->SetHorizontalAlignment(HAlign_Center);
-			ClassSlot->SetPadding(FMargin(0.f, 3.f, 0.f, 0.f));
+			FSlateBrush NoAmmo;
+			NoAmmo.DrawAs = ESlateBrushDrawType::NoDrawType;
+			NoAmmo.ImageSize = AmmoBox;
+			Cell.Ammo = MakeImage(WidgetTree, NoAmmo);
+			Cell.Ammo->SetVisibility(ESlateVisibility::Hidden);
+			UVerticalBoxSlot* AmmoSlot = Column->AddChildToVerticalBox(Cell.Ammo);
+			AmmoSlot->SetHorizontalAlignment(HAlign_Center);
+			AmmoSlot->SetPadding(FMargin(0.f, 3.f, 0.f, 0.f));
 
 			Cell.Root = MakeSized(WidgetTree, Column, SlotSpacing, 0.f);
 			Row->AddChildToHorizontalBox(Cell.Root);
@@ -262,12 +273,14 @@ void UHudWeaponSlotsWidget::Update(const UWeaponManagerComponent* Manager, float
 		const AWeaponBase* Weapon = Weapons.IsValidIndex(Index) ? Weapons[Index] : nullptr;
 		const bool bInHand = Weapon && Weapon == Active;
 
-		// Repaint only when the slot's gun or whether it's in hand changed.
+		// Repaint only when the slot's gun, its ammo type or whether it's in hand changed.
 		uint32 Shown = bInHand ? 1u : 0u;
 		if (Weapon)
 		{
 			const FWeaponInstanceData& Item = Weapon->GetInstance();
-			Shown = HashCombine(Shown, HashCombine(GetTypeHash(Item.Definition.Get()), HashCombine(GetTypeHash(Item.Seed), static_cast<uint32>(Item.Rarity) + 2u)));
+			const uint32 AmmoKey = Item.Definition ? static_cast<uint32>(Item.Definition->AmmoType) : MAX_uint8;
+			Shown = HashCombine(Shown, HashCombine(GetTypeHash(Item.Definition.Get()), HashCombine(GetTypeHash(Item.Seed),
+				HashCombine(static_cast<uint32>(Item.Rarity) + 2u, AmmoKey))));
 		}
 		if (Shown != Cell.Shown)
 		{
@@ -306,12 +319,12 @@ void UHudWeaponSlotsWidget::Paint(FSlotWidgets& Cell, int32 Index, const UWeapon
 		Show(Cell.Outline, false);
 		Show(Cell.BoldOutline, false);
 		Show(Cell.Gun, false);
+		Show(Cell.Ammo, false);
 		Show(Cell.Dashed, true);
 		Cell.Dashed->SetColorAndOpacity(Color::TextDim() * FLinearColor(1.f, 1.f, 1.f, 0.6f));
 		Cell.Fill->SetColorAndOpacity(Hex(7, 26, 40, 128));
 		Cell.Tab->SetBrush(RectBrush(Color::Plate(), Hex(90, 200, 255, 90), 1.f));
 		Cell.TabNumber->SetColorAndOpacity(FSlateColor(Color::TextDim()));
-		Cell.AmmoClass->SetText(FText::GetEmpty());
 		return;
 	}
 
@@ -323,8 +336,14 @@ void UHudWeaponSlotsWidget::Paint(FSlotWidgets& Cell, int32 Index, const UWeapon
 	Show(Cell.Dashed, false);
 	Show(Cell.Stripe, true);
 	Cell.Stripe->SetColorAndOpacity(Rarity);
-	Cell.AmmoClass->SetText(FText::FromString(Item.Definition && LooterAmmo::IsValid(Item.Definition->AmmoType)
-		? LooterAmmo::GetInfo(Item.Definition->AmmoType).Short : TEXT("")));
+	// The ammo it takes, as the same Inked icon the inventory's ammo gauges show.
+	const bool bHasAmmo = Item.Definition && LooterAmmo::IsValid(Item.Definition->AmmoType);
+	if (bHasAmmo)
+	{
+		const EAmmoType AmmoType = Item.Definition->AmmoType;
+		Cell.Ammo->SetBrush(InkedIconBrush(LoadoutParts::AmmoIconName(AmmoType), LoadoutParts::AmmoIcon(AmmoType), AmmoBox));
+	}
+	Show(Cell.Ammo, bHasAmmo);
 
 	// In hand: an accent ring with a soft glow, tinted with its rarity, the gun at full strength; otherwise ringed in
 	// its rarity, the gun a little dimmed.
@@ -336,8 +355,8 @@ void UHudWeaponSlotsWidget::Paint(FSlotWidgets& Cell, int32 Index, const UWeapon
 	Cell.BoldOutline->SetColorAndOpacity(Item.Rarity == EWeaponRarity::Legendary ? Color::Text() : Color::Accent());
 	Cell.Outline->SetColorAndOpacity(Rarity);
 	Cell.Fill->SetColorAndOpacity(bInHand ? Rarity * FLinearColor(1.f, 1.f, 1.f, 0.33f) : Hex(7, 26, 40, 107));
-	Cell.Gun->SetColorAndOpacity(bInHand ? FLinearColor::White : RestingGun);
+	Cell.Gun->SetColorAndOpacity(bInHand ? FLinearColor::White : RestingIcon);
+	Cell.Ammo->SetColorAndOpacity(bInHand ? FLinearColor::White : RestingIcon);
 	Cell.Tab->SetBrush(bInHand ? RectBrush(Color::Accent()) : RectBrush(Color::Plate(), Hex(90, 200, 255, 140), 1.f));
 	Cell.TabNumber->SetColorAndOpacity(FSlateColor(bInHand ? Color::AccentDark() : Color::TextDim()));
-	Cell.AmmoClass->SetColorAndOpacity(FSlateColor(bInHand ? Color::Text() : Color::TextDim()));
 }
