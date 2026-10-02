@@ -1,25 +1,23 @@
-"""The tutorial island's macro color map, T_TutorialIslandMacro_BC.png: 4096 px over the map square (5 cm per pixel),
-painted from the built island: meadow greens with sun-dried patches and clover, the forest floor, the farmyard, the
-village square, the orchard rows, mowed stripes on the target meadow, dirt roads (ragged edges, wheel ruts, a grassy
-middle, pebbles), footpaths, mud and sand at the water, rock on cliffs and steep banks, the drier plateau.
+"""An area's macro color map, T_<Area>Macro_BC.png: the layout's macro cells over the map square (4096 px at 5 cm on
+the tutorial island), painted from the built area: meadow greens with sun-dried patches and clover, the forest floor,
+farmyards and squares, the orchard rows, mowed stripes on the target meadow, dirt roads (ragged edges, wheel ruts, a
+grassy middle, pebbles), footpaths, mud and sand at the water, rock on cliffs and steep banks, the drier plateaus.
 
 RGB is the ground's average color (sRGB): M_Terrain only modulates its brightness with the detail textures.
 Alpha picks the detail texture: 0 grass and soil, 1 rock (roads about 0.4, footpaths 0.25, scree 0.6). It never
 reaches exactly 0 (the lowest value is 1/255), so an importer that treats zero-alpha pixels as empty (Unreal's PNG
-infill) keeps the color. The image has north up; UV 0 of the terrain tiles maps it: U = (Y + 10240) / 20480,
-V = (X + 10240) / 20480 (Unreal cm).
+infill) keeps the color. The image has north up; UV 0 of the terrain tiles maps the map square onto it (on the tutorial
+island U = (Y + 10240) / 20480, V = (X + 10240) / 20480, Unreal cm; layout_computed.json macroMap).
 """
 import math
 import os
 
 import numpy as np
 
-import island_computed
-from island_math import MAP_HALF, Grid, blur, fbm, fbm_raster, polyline_field, resize, signed_distance
-from island_mesh import extend_nan
-from island_shape import to_m
-
-SIZE = 4096
+import area_computed
+from area_math import Grid, blur, catmull_rom, cells, fbm, fbm_raster, polyline_field, signed_distance
+from area_mesh import extend_nan
+from area_shape import to_m
 
 
 def _c(value):
@@ -43,10 +41,12 @@ BUILDINGS = {  # kind: (length along its front, width) in meters, for the worn g
     'Outhouse': (1.3, 1.3), 'Well': (1.8, 1.8), 'Windmill': (3.0, 3.0), 'LookoutTower': (4.0, 4.0),
     'GunRack': (0.6, 2.0),
 }
-TRAILS = [  # worn trails (painted only), between placements (id) or points (layout meters)
-    ('farmhouse', 'well'), ('barn', 'well'), ('log_cabin', 'outhouse'),
-    ('cottage', (0.0, 0.0)), ('log_cabin', (0.0, 0.0)), ('gun_rack', (0.0, 0.0)),
-]
+# The worn discs of a yard (layout.json "yards"), by its kind: (radius, color, strength, alpha, soft edge) in meters,
+# painted in order.
+YARDS = {
+    'farmyard': ((9.0, SOIL, 0.55, 0.15, 4.0), (6.0, DIRT, 0.5, 0.2, 3.0)),
+    'square': ((10.0, DRY, 0.5, None, 4.0), (7.5, DIRT_LIGHT, 0.75, 0.35, 2.5)),
+}
 
 
 class Canvas:
@@ -79,31 +79,27 @@ def _mix(a, b, t):
     return (a + (b - a) * np.clip(t, 0.0, 1.0)[..., None]).astype(np.float32)
 
 
-def _place(island, ref):
-    if isinstance(ref, tuple):
-        return np.array(ref, dtype=np.float64)
-    p = next(p for p in island.layout['placements'] if p['id'] == ref)
-    return np.asarray(p['location'], dtype=np.float64) / 100.0
-
-
-def paint(island, out_path, size=SIZE, log=print):
-    grid = Grid(size)
-    n = size
+def paint(area, out_path, preview_dir=None, log=print):
+    n = area.sizes['macro']
+    grid = Grid(n, area.half)
     log('macro: fields')
-    h = resize(island.h, n)
-    gx, gy = np.gradient(island.h.astype(np.float32), island.grid.px)
-    slope = resize(np.degrees(np.arctan(np.hypot(gx, gy))).astype(np.float32), n)
+    h = area.resized(area.h, n)
+    gx, gy = np.gradient(area.h.astype(np.float32), area.grid.px)
+    slope = area.resized(np.degrees(np.arctan(np.hypot(gx, gy))).astype(np.float32), n)
     del gx, gy
-    # Convexity at the scale of hills (about 4 m of blur), so small bumps don't count: > 0 on crowns and ridges.
-    h1k = blur(resize(island.h, 1024), 12)
-    lap = np.gradient(np.gradient(h1k, axis=0), axis=0) + np.gradient(np.gradient(h1k, axis=1), axis=1)
-    convex = resize(-lap / (2.0 * MAP_HALF / 1024) ** 2, n)
-    ao = resize(island.ao, n) if getattr(island, 'ao', None) is not None else np.ones((n, n), np.float32)
-    edge = resize(island.edge, n)
-    surface = island.water_surface()
-    wet_1k = resize(np.where(np.isfinite(surface) & (surface > island.h), 1.0, 0.0).astype(np.float32), 1024)
-    near_water = resize(np.clip(blur(wet_1k, 12) * 3.0, 0.0, 1.0), n)  # about 5 m around the water
-    water = resize(np.nan_to_num(extend_nan(surface, 40), nan=-100.0), n)
+    # Convexity at the scale of hills (about 4 m of blur), so small bumps don't count: > 0 on crowns and ridges. It
+    # and the wetness are worked out on the curvature raster (20 cm on the tutorial island).
+    nf = area.sizes['curvature']
+    pf = 2.0 * area.half / nf
+    h_fields = blur(area.resized(area.h, nf), cells(2.4, pf))
+    lap = np.gradient(np.gradient(h_fields, axis=0), axis=0) + np.gradient(np.gradient(h_fields, axis=1), axis=1)
+    convex = area.resized(-lap / pf ** 2, n)
+    ao = area.resized(area.ao, n) if getattr(area, 'ao', None) is not None else np.ones((n, n), np.float32)
+    edge = area.resized(area.edge, n)
+    surface = area.water_surface()
+    wet_fields = area.resized(np.where(np.isfinite(surface) & (surface > area.h), 1.0, 0.0).astype(np.float32), nf)
+    near_water = area.resized(np.clip(blur(wet_fields, cells(2.4, pf)) * 3.0, 0.0, 1.0), n)  # about 5 m around water
+    water = area.resized(np.nan_to_num(extend_nan(surface, cells(4.0, area.grid.px)), nan=-100.0), n)
     depth = water - h  # > 0 under water
 
     canvas = Canvas(n)
@@ -117,7 +113,7 @@ def paint(island, out_path, size=SIZE, log=print):
     canvas.paint(GREEN_WARM, 0.55 * _ss(-0.1, 0.6, n_mid))
     # Sun-dried: crowns, the rim, dry patches; wetter ground (hollows, near water) stays lush.
     n_dry = fbm_raster(grid, 4.0, seed=108, octaves=2)
-    rim_dry = (1.0 - _ss(1.0, 7.0, edge)) * _ss(-0.3, 0.4, n_mid + 0.5 * n_patch)
+    rim_dry = (1.0 - _ss(1.0, 7.0, edge)) * _ss(-0.3, 0.4, n_mid + 0.5 * n_patch)  # island setting
     dryness = (0.6 * _ss(0.004, 0.045, convex) + 0.4 * _ss(0.1, 0.7, n_patch) + 0.35 * rim_dry
                - 0.6 * near_water - 0.4 * (1.0 - _ss(0.72, 0.95, ao)) + 0.15 * n_dry + 0.04 * n_fine)
     dryness = np.clip(dryness, 0.0, 1.0)
@@ -130,17 +126,17 @@ def paint(island, out_path, size=SIZE, log=print):
     canvas.paint(SOIL, 0.6 * soil_spots)
     del dryness, clover, soil_spots, n_patch
 
-    _forest(island, grid, canvas, n_mid, n_fine)
-    _plateau_top(island, grid, canvas, h, n_fine)
-    _range(island, grid, canvas)
-    _orchard(island, grid, canvas)
-    _yards(island, grid, canvas, n_fine)
+    _forest(area, grid, canvas, n_mid, n_fine)
+    _plateau_tops(area, grid, canvas, n_fine)
+    _range(area, grid, canvas)
+    _orchard(area, grid, canvas)
+    _yards(area, grid, canvas, n_fine)
     log('macro: roads')
-    _roads(island, grid, canvas, h, n_fine, n_grain)
+    _roads(area, grid, canvas, h, n_fine, n_grain)
     log('macro: water and rock')
     _water(canvas, depth, near_water, n_mid, n_fine)
-    road_near = 1.0 - _ss(1.5, 4.0, resize(np.minimum(island.road_gap, 50.0), n))
-    _rock(island, grid, canvas, slope, ao, edge, depth, n_fine, n_grain, np.maximum(near_water, road_near))
+    road_near = 1.0 - _ss(1.5, 4.0, area.resized(np.minimum(area.road_gap, 50.0), n))
+    _rock(area, grid, canvas, slope, ao, edge, depth, n_fine, n_grain, np.maximum(near_water, road_near))
 
     # Grain everywhere: a little brightness noise at 35 cm and 1 m, so no area is flat.
     canvas.rgb *= (1.0 + 0.05 * n_grain + 0.05 * n_fine)[..., None]
@@ -148,13 +144,17 @@ def paint(island, out_path, size=SIZE, log=print):
     rgba[..., :3] = np.clip(canvas.rgb, 0.0, 1.0)
     rgba[..., 3] = np.clip(canvas.alpha, 1.0 / 255.0, 1.0)
     _save(rgba, out_path)
-    preview = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
-        out_path))))), 'Saved', 'ArtPreviews', 'Terrain', 'macro.png')
-    small = rgba.reshape(1024, n // 1024, 1024, n // 1024, 4).mean(axis=(1, 3))
-    small[..., 3] = 1.0
-    os.makedirs(os.path.dirname(preview), exist_ok=True)
-    _save(small, preview)
-    log(f'macro: wrote {out_path} and {preview}')
+    written = out_path
+    if preview_dir:
+        # A preview for people, at most 1024 px (the map is a power of two, so it scales down evenly).
+        preview = os.path.join(preview_dir, 'macro.png')
+        p = min(n, 1024)
+        small = rgba.reshape(p, n // p, p, n // p, 4).mean(axis=(1, 3))
+        small[..., 3] = 1.0
+        os.makedirs(os.path.dirname(preview), exist_ok=True)
+        _save(small, preview)
+        written += ' and ' + preview
+    log(f'macro: wrote {written}')
 
 
 def _save(rgba, path):
@@ -177,24 +177,21 @@ def _save(rgba, path):
             other.reload()
 
 
-def _zone(island, zone_id):
-    z = next((z for z in island.layout['zones'] if z['id'] == zone_id), None)
-    return None if z is None else to_m(z['polygon'])
+def _zones_weight(area, grid, kind, soft, wobble):
+    """1 inside the zones of a kind, fading out over soft meters across their edges (pushed about by wobble); None
+    when the area has no such zone."""
+    weights = []
+    for zone in area.zones_of(kind):
+        poly = to_m(zone['polygon'])
+        sd = area.resized(signed_distance(area.grid, catmull_rom(poly, closed=True, step=0.5), soft + 8.0), grid.n)
+        weights.append(1.0 - _ss(-soft, soft, sd + wobble))
+    return np.maximum.reduce(weights) if weights else None
 
 
-def _zone_weight(island, grid, zone_id, soft, wobble):
-    poly = _zone(island, zone_id)
-    if poly is None:
-        return None
-    from island_math import catmull_rom
-    sd = resize(signed_distance(island.grid, catmull_rom(poly, closed=True, step=0.5), soft + 8.0), grid.n)
-    return 1.0 - _ss(-soft, soft, sd + wobble)
-
-
-def _forest(island, grid, canvas, n_mid, n_fine):
-    """The grove's floor: darker olive, leaf litter and moss in patches, clearings between."""
+def _forest(area, grid, canvas, n_mid, n_fine):
+    """The groves' floor: darker olive, leaf litter and moss in patches, clearings between."""
     wobble = 4.0 * fbm_raster(grid, 12.0, seed=111, octaves=2)
-    w = _zone_weight(island, grid, 'forest', 6.0, wobble)
+    w = _zones_weight(area, grid, 'forest', 6.0, wobble)
     if w is None:
         return
     litter = fbm_raster(grid, 3.5, seed=112, octaves=2)
@@ -204,30 +201,29 @@ def _forest(island, grid, canvas, n_mid, n_fine):
     canvas.paint(MOSS, 0.35 * w * _ss(0.35, 0.6, fbm_raster(grid, 2.0, seed=113, octaves=2)))
 
 
-def _plateau_top(island, grid, canvas, h, n_fine):
-    """Drier grass on the plateau, thin soil and rock breaking through."""
-    p = island.plateau
-    if p is None:
-        return
-    top = resize(p['rise'], grid.n)
-    canvas.paint(PLATEAU_GRASS, 0.4 * _ss(0.85, 0.99, top))
-    thin = _ss(0.25, 0.5, fbm_raster(grid, 5.0, seed=121, octaves=2) + 0.3 * n_fine) * _ss(0.9, 0.99, top)
-    canvas.paint(SOIL, 0.55 * thin)
-    outcrop = _ss(0.42, 0.52, fbm_raster(grid, 6.5, seed=122, octaves=3)) * _ss(0.9, 0.99, top)
-    rock = _mix(ROCK, ROCK_LIGHT, 0.5 + n_fine)
-    canvas.paint(rock, outcrop, alpha=1.0)
+def _plateau_tops(area, grid, canvas, n_fine):
+    """Drier grass on each plateau, thin soil and rock breaking through."""
+    for p in area.plateaus:
+        top = area.resized(p['rise'], grid.n)
+        canvas.paint(PLATEAU_GRASS, 0.4 * _ss(0.85, 0.99, top))
+        thin = _ss(0.25, 0.5, fbm_raster(grid, 5.0, seed=121, octaves=2) + 0.3 * n_fine) * _ss(0.9, 0.99, top)
+        canvas.paint(SOIL, 0.55 * thin)
+        outcrop = _ss(0.42, 0.52, fbm_raster(grid, 6.5, seed=122, octaves=3)) * _ss(0.9, 0.99, top)
+        rock = _mix(ROCK, ROCK_LIGHT, 0.5 + n_fine)
+        canvas.paint(rock, outcrop, alpha=1.0)
 
 
-def _range(island, grid, canvas):
-    """Mowed stripes across the target meadow (the player shoots along them, northward)."""
-    w = _zone_weight(island, grid, 'range', 1.5, 0.0)
+def _range(area, grid, canvas):
+    """Mowed stripes across the target meadow (the player shoots along them, northward), and worn ground under
+    the target dummies."""
+    w = _zones_weight(area, grid, 'range', 1.5, 0.0)
     if w is None:
         return
     x, _ = grid.mesh()
     stripes = 0.5 + 0.5 * np.sin(x * (2.0 * math.pi / 6.0)).astype(np.float32)
     canvas.paint(GREEN_WARM * 1.05, 0.16 * w * _ss(0.3, 0.7, stripes))
     canvas.paint(GREEN_MID * 0.96, 0.12 * w * (1.0 - _ss(0.3, 0.7, stripes)))
-    for p in island.layout['placements']:
+    for p in area.layout['placements']:
         if p['kind'] == 'TargetDummy':
             _disc(grid, canvas, np.asarray(p['location']) / 100.0, 1.3, SOIL, 0.8, 0.1)
 
@@ -247,9 +243,9 @@ def _disc(grid, canvas, center, radius, color, strength, alpha, soft=0.8):
     sub.paint(color, w, alpha=alpha)
 
 
-def _orchard(island, grid, canvas):
+def _orchard(area, grid, canvas):
     """Along each tree row: a darker mowed strip and bare soil around every trunk."""
-    for row in island_computed.orchard_rows(island):
+    for row in area_computed.orchard_rows(area):
         pts = np.array([t[:2] for t in row['trees']]) / 100.0
         if len(pts) < 2:
             continue
@@ -262,10 +258,10 @@ def _orchard(island, grid, canvas):
             _disc(grid, canvas, t, 1.0, SOIL_DARK, 0.75, 0.05)
 
 
-def _yards(island, grid, canvas, n_fine):
-    """Worn ground around buildings: trampled grass all around, bare dirt in front, the farmyard and the village
-    square, and trails between doors."""
-    for p in island.layout['placements']:
+def _yards(area, grid, canvas, n_fine):
+    """Worn ground around buildings: trampled grass all around, bare dirt in front; the layout's yards (a farmyard,
+    a village square); and its trails between doors (layout.json "trails": placement ids or [X, Y] in cm)."""
+    for p in area.layout['placements']:
         if p['kind'] not in BUILDINGS:
             continue
         length, width = BUILDINGS[p['kind']]
@@ -275,13 +271,14 @@ def _yards(island, grid, canvas, n_fine):
         reach = max(length, width) * 0.5 + 3.0
         _disc(grid, canvas, c, reach, DRY, 0.45, None, soft=2.5)
         _disc(grid, canvas, c + fwd * (length * 0.5 + 1.4), max(1.2, width * 0.3), SOIL, 0.8, 0.12, soft=1.2)
-    farm = np.mean([_place(island, k) for k in ('farmhouse', 'barn', 'well', 'spawn')], axis=0)
-    _disc(grid, canvas, farm, 9.0, SOIL, 0.55, 0.15, soft=4.0)
-    _disc(grid, canvas, farm, 6.0, DIRT, 0.5, 0.2, soft=3.0)
-    _disc(grid, canvas, np.zeros(2), 10.0, DRY, 0.5, None, soft=4.0)
-    _disc(grid, canvas, np.zeros(2), 7.5, DIRT_LIGHT, 0.75, 0.35, soft=2.5)
-    for a, b in TRAILS:
-        pts = np.array([_place(island, a), _place(island, b)])
+    for yard in area.layout.get('yards', []):
+        center = area.yard_center(yard)
+        if center is None:
+            continue
+        for radius, color, strength, alpha, soft in YARDS[yard['kind']]:
+            _disc(grid, canvas, center, radius, color, strength, alpha, soft=soft)
+    for a, b in area.layout.get('trails', []):
+        pts = np.array([area.point(a), area.point(b)])
         dist, _, _ = polyline_field(grid, pts, 2.0)
         near = np.isfinite(dist)
         w = np.zeros(dist.shape, np.float32)
@@ -289,13 +286,11 @@ def _yards(island, grid, canvas, n_fine):
         canvas.paint(SOIL, 0.6 * w, alpha=0.1)
 
 
-def _roads(island, grid, canvas, h, n_fine, n_grain):
+def _roads(area, grid, canvas, h, n_fine, n_grain):
     edge_noise = 0.35 * fbm_raster(grid, 2.5, seed=141, octaves=2)
     pebbles = fbm_raster(grid, 0.22, seed=142, octaves=1)
     tufts = fbm_raster(grid, 0.6, seed=143, octaves=2)
-    curves = [dict(r) for r in island.roads]
-    if island.ramp is not None:
-        curves.append(dict(island.ramp, kind='ramp', id='ramp'))
+    curves = [dict(r) for r in area.roads] + [dict(r, kind='ramp') for r in area.ramps]
     for road in curves:
         half = road['width'] * 0.5
         dist, along, side = polyline_field(grid, road['pts'], half + 3.0)
@@ -354,7 +349,7 @@ def _blend(rgb, alpha, color, weight, a=None):
 
 
 def _water(canvas, depth, near_water, n_mid, n_fine):
-    """The pond and creek: a dark bed under water, wet mud at the waterline, sand on some shores."""
+    """The ponds and creeks: a dark bed under water, wet mud at the waterline, sand on some shores."""
     under = _ss(0.0, 0.08, depth)
     canvas.paint(_mix(MUD, POND_BED, _ss(0.1, 0.8, depth)), under, alpha=0.08)
     line = (1.0 - _ss(0.05, 0.35, -depth)) * (1.0 - under)
@@ -364,8 +359,8 @@ def _water(canvas, depth, near_water, n_mid, n_fine):
     canvas.paint(MUD, 0.35 * damp * (1.0 - sandy))
 
 
-def _rock(island, grid, canvas, slope, ao, edge, depth, n_fine, n_grain, earthy):
-    """Rock on cliffs and steep banks (by slope, with a ragged boundary), scree below the plateau's cliffs, and
+def _rock(area, grid, canvas, slope, ao, edge, depth, n_fine, n_grain, earthy):
+    """Rock on cliffs and steep banks (by slope, with a ragged boundary), scree below each plateau's cliffs, and
     the island's edge where the turf rolls over into the rock wall."""
     jitter = 7.0 * fbm_raster(grid, 3.0, seed=151, octaves=2)
     # Beside water and roads, steep ground is earth (cut banks), not bare rock.
@@ -374,9 +369,8 @@ def _rock(island, grid, canvas, slope, ao, edge, depth, n_fine, n_grain, earthy)
     bank = _mix(SOIL_DARK, SOIL, 0.55 + n_fine) * (1.0 - 0.12 * earthy[..., None])
     canvas.paint(bank, 0.8 * _ss(24.0, 34.0, slope + jitter) * _ss(-0.2, 0.3, -depth),
                  alpha=0.2)
-    p = island.plateau
-    if p is not None:
-        sd = resize(p['sd'], grid.n)
+    for p in area.plateaus:
+        sd = area.resized(p['sd'], grid.n)
         width = p['width']
         scree = (1.0 - _ss(width * 0.5, width * 0.5 + 3.5, sd + 1.2 * n_fine)) * _ss(width * 0.2, width * 0.5, sd)
         canvas.paint(_mix(SCREE, ROCK_DARK, 0.4 + 0.6 * n_grain), 0.85 * scree, alpha=0.65)
@@ -384,6 +378,7 @@ def _rock(island, grid, canvas, slope, ao, edge, depth, n_fine, n_grain, earthy)
         inset = -(sd + width * 0.5) + 0.5 * n_fine
         lip = _ss(-0.4, 0.1, inset) * (1.0 - _ss(0.9, 1.8, inset))
         rockw = np.maximum(rockw, lip * _ss(0.2, 0.6, 0.5 + n_fine))
+    # The island's rim: turf rolling over into the rock wall (island setting).
     rim = 1.0 - _ss(0.15, 1.1, edge + 0.4 * n_fine)
     canvas.paint(_mix(SOIL_DARK, ROCK_DARK, 0.5 + n_fine), rim, alpha=0.7)
     # Rock itself: lighter on crowns and faces, darker in crevices (the occlusion), a little lichen.

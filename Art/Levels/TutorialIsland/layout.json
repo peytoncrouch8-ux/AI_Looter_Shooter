@@ -1,5 +1,13 @@
 {
-  "about": "Tutorial island layout. Coordinates are Unreal world centimeters: X is north (+), Y is east (+), Z up. In Blender (meters): x_b = -Y/100, y_b = -X/100, z_b = Z/100. Heights are relative to the meadow base (Z = 0). See Docs/TutorialIsland.md.",
+  "about": "Tutorial island layout. Coordinates are Unreal world centimeters: X is north (+), Y is east (+), Z up. In Blender (meters): x_b = -Y/100, y_b = -X/100, z_b = Z/100. Heights are relative to the meadow base (Z = 0). See Docs/TutorialIsland.md. The terrain comes from the area generator (Art/Levels/area_*.py, through Art/Models/Terrain/TutorialIsland.py) and the level from Tools/Unreal/build_area.py TutorialIsland.",
+  "name": "TutorialIsland",
+  "setting": "island",
+  "map": {
+    "about": "The square the terrain's rasters and maps cover, centered on the origin: half its side (cm), and the cell size (cm) each raster aims at. A raster's size is the side over its cell, capped (shape 4096, curvature and ao 2048, scatter 1024, macro 4096); the scatter and macro maps take the nearest power of two.",
+    "half": 10240,
+    "cells": { "shape": 10, "curvature": 20, "ao": 20, "scatter": 40, "macro": 5 }
+  },
+  "mesh": { "tiles": 4, "triangles": 118000 },
   "outline": [[10000,0],[9000,3500],[7600,6800],[5000,8600],[1500,9300],[-2000,9000],[-5200,8200],[-7800,6200],[-9400,3000],[-9800,-500],[-9000,-4000],[-7200,-6800],[-4200,-8600],[-800,-9000],[2600,-8600],[5600,-7200],[8000,-4800],[9400,-2200]],
   "island": {
     "rimDrop": 600,
@@ -10,7 +18,7 @@
   "features": [
     { "id": "plateau", "type": "plateau", "height": 900, "cliff": true, "cliffWidth": 350,
       "polygon": [[-2800,3200],[-3200,6800],[-5000,8800],[-8200,6600],[-9700,3000],[-6400,2400],[-4200,2200]],
-      "ramp": { "path": [[-2600,2600],[-3300,3300],[-3900,4300],[-4500,5000]], "width": 450 } },
+      "ramp": { "path": [[-2600,2600],[-3300,3300],[-3900,4300],[-4500,5000]], "width": 450, "cliffGroup": "rampWalls" } },
     { "id": "windmill_hill", "type": "hill", "center": [6200,-3800], "radius": 2600, "height": 500 },
     { "id": "forest_rise", "type": "hill", "center": [5800,5600], "radius": 3200, "height": 260 },
     { "id": "south_rise", "type": "hill", "center": [-2600,-7000], "radius": 2200, "height": 220 },
@@ -39,6 +47,11 @@
     { "id": "forest", "polygon": [[7600,3200],[8400,6000],[6600,7800],[4200,8400],[3400,6800],[4200,4600],[5600,3400]] },
     { "id": "plateau", "polygon": [[-2800,3200],[-3200,6800],[-5000,8800],[-8200,6600],[-9700,3000],[-6400,2400],[-4200,2200]] }
   ],
+  "yards": [
+    { "id": "farmyard", "kind": "farmyard", "note": "bare dirt between the farm's buildings and the spawn", "around": ["farmhouse", "barn", "well", "spawn"] },
+    { "id": "village_square", "kind": "square", "center": [0,0] }
+  ],
+  "trails": [["farmhouse", "well"], ["barn", "well"], ["log_cabin", "outhouse"], ["cottage", [0,0]], ["log_cabin", [0,0]], ["gun_rack", [0,0]]],
   "placements": [
     { "id": "spawn", "kind": "PlayerStart", "location": [-5600,-4000], "yaw": 35 },
     { "id": "farmhouse", "kind": "Farmhouse", "location": [-5600,-5400], "yaw": 90 },
@@ -53,5 +66,41 @@
     { "id": "dummy_1", "kind": "TargetDummy", "location": [5600,-1000], "yaw": 180 },
     { "id": "dummy_2", "kind": "TargetDummy", "location": [5800,-1600], "yaw": 180 },
     { "id": "dummy_3", "kind": "TargetDummy", "location": [5500,-2200], "yaw": 180 }
-  ]
+  ],
+  "preview": {
+    "about": "The terrain model's --preview renders (Art/Levels/area_preview.py): each view's eye and target as [X, Y, height above the ground] (an eye outside the map square takes its height as absolute) and its lens (mm); the plan's labels at [X, Y].",
+    "views": {
+      "view_spawn_to_village": { "eye": [-6100,-4400,320], "target": [0,0,200], "lens": 24 },
+      "view_village_to_plateau": { "eye": [-1600,0,400], "target": [-4200,4000,500], "lens": 24 },
+      "view_overview": { "eye": [-19000,-15000,15000], "target": [0,800,-1200], "lens": 38 },
+      "extra_bridge_and_pond": { "eye": [2000,3800,400], "target": [4100,6000,50], "lens": 24 },
+      "extra_range_and_windmill": { "eye": [2800,-400,400], "target": [6200,-3800,400], "lens": 26 },
+      "extra_forest_and_waterfall": { "eye": [3000,5000,900], "target": [6200,8200,-200], "lens": 24 },
+      "extra_plateau_top": { "eye": [-4000,6000,300], "target": [-7000,5500,100], "lens": 24 },
+      "extra_underside": { "eye": [-2000,19000,-3000], "target": [-1000,4000,-2200], "lens": 30 }
+    },
+    "labels": {
+      "Farmstead (spawn)": [-4400,-5200], "Orchard": [-6600,-7000], "Village": [-600,0], "Target meadow": [5400,-1400],
+      "Windmill": [7000,-3800], "Pond": [1800,5600], "Forest grove": [7000,5000], "Plateau": [-5800,4400], "Lookout": [-6700,6000]
+    }
+  },
+  "level": {
+    "about": "How Tools/Unreal/build_area.py builds the level: the map; the tag and outliner folder of everything it places (a rebuild replaces only those); the zones scattered trees keep out of ([zone id, share of its bounding box]); the scatter's PCG graph and volume (Tools/Unreal/build_island_scatter.py). The terrain's meshes are SM_<name>_<part>.",
+    "map": "/Game/Maps/Lvl_TutorialIsland",
+    "tag": "IslandBuild",
+    "folder": "Island",
+    "noTreeZones": [["range", 1.0], ["village", 0.7]],
+    "scatterGraph": "PCG_IslandScatter",
+    "scatterVolume": "IslandScatter"
+  },
+  "gameplay": {
+    "about": "The gameplay actors build_area.py places (its gameplay mode places only these): the director that comes with the PlayerStart, the gun rack's weapon, and creature groups in order, each in a zone (its id) or around a center [X, Y] within spread, spacing apart (cm); the groups share one random stream (seed).",
+    "director": "TutorialDirector",
+    "rackWeapon": "/Game/Weapons/Data/DA_AssaultRifle",
+    "seed": 7,
+    "creatures": [
+      { "class": "SpiderCreature", "label": "Spider", "count": 8, "zone": "forest", "spacing": 900 },
+      { "class": "SlimeCreature", "label": "Slime", "count": 5, "center": [2400,-5600], "spread": 450, "spacing": 250, "note": "one loose group in the open grass west of the target meadow, off the tutorial's road" }
+    ]
+  }
 }

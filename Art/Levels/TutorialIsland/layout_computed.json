@@ -17,6 +17,16 @@
   "scatterMap": {
    "texture": "Art/Textures/TutorialIslandMacro/T_TutorialIslandScatter_BC.png",
    "size": 512,
+   "covers": [
+    [
+     -10240.0,
+     -10240.0
+    ],
+    [
+     10240.0,
+     10240.0
+    ]
+   ],
    "uv0": "same square and mapping as the macro map",
    "values": "linear (no sRGB), 0..255",
    "R": "tree density: high in the forest grove, a few lone trees in open meadow; 0 on roads and paths (+1.5 m), water, rock, building footprints, the village square, the farmyard, the target meadow and the orchard (its trees go on orchardRows)",

@@ -282,3 +282,22 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   settling on the ground and the terrain's full fallback, the Blender import settings against
   `Tests/ModelImport/AxisTest`, textured materials, LODs and no-collision against `Tests/TexturedImport/TexturedTest`,
   `Tests/RigImport/RigTest`, the stylized materials' usage flags).
+
+## Terrain generator and level scripts (Python)
+- `Art/Levels/area_shape.py`: `Area`, an area's shape from `Art/Levels/<Area>/layout.json`: map square and raster sizes,
+  features as lists by type, the height raster and water surface.
+- `Art/Levels/area_math.py`: noise, rasters over the map square, curves and distance fields.
+- `Art/Levels/area_mesh.py`: the top's triangulation, terrain AO, the island's underside, the water mesh.
+- `Art/Levels/area_macro.py`: the macro color map `T_<Area>Macro_BC`. `Art/Levels/area_scatter.py`: the PCG scatter
+  mask `T_<Area>Scatter_BC`.
+- `Art/Levels/area_computed.py`: `layout_computed.json`: placements at terrain height, cliff groups per feature, bridge,
+  waterfall, orchard rows, the squares the maps cover.
+- `Art/Levels/area_preview.py`: Blender preview renders and the annotated plan.
+- `Art/Levels/area_model.py`: the Blender side (tile, underside and water objects and their materials);
+  `Art/Models/Terrain/<Area>.py` wrappers call it.
+- `Tools/Unreal/build_area.py`: `AreaBuild`, builds an area's level (`build_area.py <Area> [gameplay]`);
+  `build_tutorial_island.py` wraps it for the tutorial island.
+- `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`).
+  `Tools/Unreal/island_views.py`: an area's viewpoints as editor cameras and shots.
+- `Tools/terrain_identity.ps1`, `.py`: checks an area regenerates exactly as committed (headless Blender, no editor);
+  `Tools/Blender/terrain_fingerprint.py` fingerprints its meshes.

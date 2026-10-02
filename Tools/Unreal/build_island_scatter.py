@@ -1,34 +1,33 @@
-"""Builds /Game/Environment/PCG/PCG_IslandScatter and runs it over the tutorial island: grass, flowers, trees (in stands
-and lone in the meadows), bushes, forest undergrowth, rocks, pebbles, and reeds and lily pads on the pond and creek
-(placed from the layout).
+"""Builds an area's PCG scatter graph (/Game/Environment/PCG/PCG_IslandScatter on the tutorial island; layout.json
+level.scatterGraph) and runs it over the area: grass, flowers, trees (in stands and lone in the meadows), bushes, forest
+undergrowth, rocks, pebbles, and reeds and lily pads on the pond and creek (placed from the layout).
 
-Where things grow comes from the island's scatter mask, T_TutorialIslandScatter (painted from the layout by
-Art/Models/Terrain/TutorialIsland.py, so it agrees with the roads, water and buildings): R trees, G grass, B flowers,
-A pebbles and rocks. Each layer is its own chain:
+Where things grow comes from the area's scatter mask, T_<Area>Scatter (painted from the layout by
+Art/Models/Terrain/<Area>.py, so it agrees with the roads, water and buildings): R trees, G grass, B flowers, A pebbles
+and rocks. layout_computed.json macroMap.scatterMap names it and the square it covers. Each layer is its own chain:
   grid of ray origins -> jitter -> raycast onto actors tagged Ground -> flat enough -> not inside an Obstacle
   -> density = its mask channel -> x random -> keep above a threshold -> look (size, heading, slope) -> spawn instances
 A higher threshold thins a layer everywhere, and the mask's soft edges fade it out. Spatial noise splits the trees
 into stands of pines and of broadleaf trees.
 
-The graph is rebuilt from scratch (edits in the PCG editor are lost). Run it in the open editor with the island open:
-  Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_island_scatter.py"
-Then save the level. After changing the terrain or the mask, select the IslandScatter volume and press Generate.
+The graph is rebuilt from scratch (edits in the PCG editor are lost). Run it in the open editor with the area's level
+open (the area defaults to TutorialIsland):
+  Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_island_scatter.py [Area]"
+Then save the level. After changing the terrain or the mask, select the scatter volume (IslandScatter on the tutorial
+island; layout.json level.scatterVolume) and press Generate.
 """
 import json
 import math
 import os
 import random
+import sys
 
 import unreal
 
+PROJECT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
 GRAPH_FOLDER = '/Game/Environment/PCG'
-GRAPH_NAME = 'PCG_IslandScatter'
 VEGETATION = '/Game/Art/Vegetation'
 ROCKS = '/Game/Art/Rocks'
-MASK_FILE = 'Art/Textures/TutorialIslandMacro/T_TutorialIslandScatter_BC.png'
-MASK = '/Game/Art/Textures/TutorialIslandMacro/T_TutorialIslandScatter_BC'
-# The mask covers this square around the island's center (layout_computed.json macroMap.covers).
-HALF = 10240.0
 # Beyond this distance (cm) foliage stops swaying (saves vertex work far away).
 WIND_DISTANCE = 4000
 
@@ -36,17 +35,40 @@ CHANNELS = {'R': unreal.PCGTextureColorChannel.RED, 'G': unreal.PCGTextureColorC
             'B': unreal.PCGTextureColorChannel.BLUE, 'A': unreal.PCGTextureColorChannel.ALPHA}
 
 
-def import_mask():
+class Area:
+    """What the scatter needs to know about an area: its layout_computed.json, the scatter mask (its file, its asset
+    under /Game/Art/Textures, the square it covers) and, from layout.json's level, the graph and volume names."""
+
+    def __init__(self, name):
+        folder = os.path.join(PROJECT, 'Art', 'Levels', name)
+        with open(os.path.join(folder, 'layout.json')) as f:
+            level = json.load(f).get('level', {})
+        with open(os.path.join(folder, 'layout_computed.json')) as f:
+            self.data = json.load(f)
+        scatter = self.data['macroMap']['scatterMap']
+        self.mask_file = scatter['texture']
+        # Art/Textures/<Set>/<File>.png is imported as /Game/Art/Textures/<Set>/<File>.
+        self.mask = '/Game/' + os.path.splitext(self.mask_file)[0]
+        (x0, y0), (x1, y1) = scatter.get('covers', self.data['macroMap']['covers'])
+        # The grid of ray origins spreads around the world origin, so the square must be centered there.
+        if abs(x0 + x1) > 1.0 or abs(y0 + y1) > 1.0 or abs((x1 - x0) - (y1 - y0)) > 1.0:
+            raise ValueError(f'{name}: the scatter mask covers {[[x0, y0], [x1, y1]]}, not a square around the origin')
+        self.half = (x1 - x0) / 2.0
+        self.graph = level.get('scatterGraph', f'PCG_{name}Scatter')
+        self.volume = level.get('scatterVolume', f'{name}Scatter')
+        self.folder = level.get('folder', name)
+
+
+def import_mask(area):
     """The mask as exact, uncompressed values without mips (PCG reads it on the CPU; it never renders)."""
-    if not unreal.EditorAssetLibrary.does_asset_exist(MASK):
-        project = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
+    if not unreal.EditorAssetLibrary.does_asset_exist(area.mask):
         task = unreal.AssetImportTask()
-        task.set_editor_property('filename', os.path.join(project, MASK_FILE))
-        task.set_editor_property('destination_path', MASK.rsplit('/', 1)[0])
+        task.set_editor_property('filename', os.path.join(PROJECT, area.mask_file))
+        task.set_editor_property('destination_path', area.mask.rsplit('/', 1)[0])
         task.set_editor_property('automated', True)
         task.set_editor_property('replace_existing', True)
         unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
-    mask = unreal.load_asset(MASK)
+    mask = unreal.load_asset(area.mask)
     mask.set_editor_property('srgb', False)
     mask.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_VECTOR_DISPLACEMENTMAP)
     mask.set_editor_property('mip_gen_settings', unreal.TextureMipGenSettings.TMGS_NO_MIPMAPS)
@@ -62,12 +84,6 @@ def mesh(folder, name, required=True):
     return asset
 
 
-def layout():
-    project = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
-    with open(os.path.join(project, 'Art/Levels/TutorialIsland/layout_computed.json')) as f:
-        return json.load(f)
-
-
 def point(x, y, z, seed):
     p = unreal.PCGPoint()
     p.set_editor_property('transform', unreal.Transform(location=unreal.Vector(x, y, z)))
@@ -77,37 +93,39 @@ def point(x, y, z, seed):
 
 def shore_points(data):
     """Reed clumps around the pond's edge (a little into the shallows) and along both creek banks, clear of the bridge
-    and the waterfall's lip; lily pads in a few drifts on the pond. Deterministic, from the computed layout."""
+    and the waterfall's lip; lily pads in a few drifts on the pond. Deterministic, from the computed layout; an area
+    without a pond or a creek gets none there."""
     rng = random.Random(41)
-    pond = data['pond']
-    (cx, cy), (rx, ry) = pond['center'], pond['radii']
-    bridge = data['bridge']['location'][:2]
-    lip = data['waterfall']['location'][:2]
+    pond, creek = data.get('pond'), data.get('creek')
+    away = [(p['location'][:2], clear) for p, clear in ((data.get('bridge'), 600), (data.get('waterfall'), 400)) if p]
     reeds = []
-    steps = 64
-    for i in range(steps):
-        angle = 2 * math.pi * (i + rng.random() * 0.6) / steps
-        if rng.random() < 0.3:
-            continue
-        f = rng.uniform(0.9, 1.0)
-        reeds.append((cx + rx * f * math.cos(angle), cy + ry * f * math.sin(angle)))
-    creek = data['creek']['points']
-    half = data['creek']['waterWidth'] / 2
-    for (x0, y0, _), (x1, y1, _) in zip(creek, creek[1:]):
-        length = math.hypot(x1 - x0, y1 - y0) or 1.0
-        nx, ny = -(y1 - y0) / length, (x1 - x0) / length
-        for side in (-1, 1):
-            if rng.random() < 0.55:
-                offset = side * (half + rng.uniform(30, 90))
-                reeds.append((x0 + nx * offset, y0 + ny * offset))
-    reeds = [p for p in reeds if math.dist(p, bridge) > 600 and math.dist(p, lip) > 400]
+    if pond:
+        (cx, cy), (rx, ry) = pond['center'], pond['radii']
+        steps = 64
+        for i in range(steps):
+            angle = 2 * math.pi * (i + rng.random() * 0.6) / steps
+            if rng.random() < 0.3:
+                continue
+            f = rng.uniform(0.9, 1.0)
+            reeds.append((cx + rx * f * math.cos(angle), cy + ry * f * math.sin(angle)))
+    if creek:
+        half = creek['waterWidth'] / 2
+        for (x0, y0, _), (x1, y1, _) in zip(creek['points'], creek['points'][1:]):
+            length = math.hypot(x1 - x0, y1 - y0) or 1.0
+            nx, ny = -(y1 - y0) / length, (x1 - x0) / length
+            for side in (-1, 1):
+                if rng.random() < 0.55:
+                    offset = side * (half + rng.uniform(30, 90))
+                    reeds.append((x0 + nx * offset, y0 + ny * offset))
+    reeds = [p for p in reeds if all(math.dist(p, where) > clear for where, clear in away)]
     pads = []
-    for _ in range(3):
-        angle, f = rng.uniform(0, 2 * math.pi), rng.uniform(0.3, 0.7)
-        px, py = cx + rx * f * math.cos(angle), cy + ry * f * math.sin(angle)
-        for _ in range(rng.randint(3, 6)):
-            pads.append((px + rng.uniform(-220, 220), py + rng.uniform(-220, 220)))
-    return reeds, pads, pond['waterZ']
+    if pond:
+        for _ in range(3):
+            angle, f = rng.uniform(0, 2 * math.pi), rng.uniform(0.3, 0.7)
+            px, py = cx + rx * f * math.cos(angle), cy + ry * f * math.sin(angle)
+            for _ in range(rng.randint(3, 6)):
+                pads.append((px + rng.uniform(-220, 220), py + rng.uniform(-220, 220)))
+    return reeds, pads, pond['waterZ'] if pond else 0.0
 
 
 class Builder:
@@ -158,8 +176,9 @@ def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=Fals
 class Scatter:
     """The shared inputs (obstacles, the mask's channels) and one chain per layer."""
 
-    def __init__(self, b, mask):
+    def __init__(self, b, mask, half):
         self.b = b
+        self.half = half
         self.row = 0
         self.obstacles, settings = b.node(unreal.PCGDataFromActorSettings, 'Obstacles', 3, -3,
                                           mode=unreal.PCGGetDataFromActorMode.GET_SINGLE_POINT)
@@ -179,9 +198,9 @@ class Scatter:
         selector.set_editor_property('select_multiple', True)
         settings.set_editor_property('actor_selector', selector)
         # Texture space runs -1..1 across the mask. Its columns follow world Y and its rows run from north (+X) at
-        # the top to south: a quarter turn and the island's half size.
+        # the top to south: a quarter turn and half the side of the square the mask covers.
         transform = unreal.Transform(location=unreal.Vector(0, 0, 0), rotation=unreal.Rotator(roll=0, pitch=0, yaw=90),
-                                     scale=unreal.Vector(HALF, HALF, 1))
+                                     scale=unreal.Vector(half, half, 1))
         self.channels = {}
         for i, (name, channel) in enumerate(CHANNELS.items()):
             self.channels[name], _ = b.node(unreal.PCGTextureSamplerSettings, f'Mask {name}', 3, -2 + i * 0.5,
@@ -193,7 +212,8 @@ class Scatter:
         b, y = self.b, self.row * 3
         self.row += 1
         grid, _ = b.node(unreal.PCGCreatePointsGridSettings, f'{title}: ray origins', 0, y,
-                         grid_extents=unreal.Vector(HALF, HALF, 0.0), cell_size=unreal.Vector(cell, cell, 100.0),
+                         grid_extents=unreal.Vector(self.half, self.half, 0.0),
+                         cell_size=unreal.Vector(cell, cell, 100.0),
                          coordinate_space=unreal.PCGCoordinateSpace.WORLD,
                          point_position=unreal.PCGPointPosition.CELL_CENTER)
         lift, _ = b.node(unreal.PCGTransformPointsSettings, 'Jitter, lift', 1, y,
@@ -284,14 +304,14 @@ class Scatter:
         b.link(last, spawner)
 
 
-def build_graph(mask):
-    path = f'{GRAPH_FOLDER}/{GRAPH_NAME}'
+def build_graph(area, mask):
+    path = f'{GRAPH_FOLDER}/{area.graph}'
     if unreal.EditorAssetLibrary.does_asset_exist(path):
         unreal.EditorAssetLibrary.delete_asset(path)
-    graph = unreal.AssetToolsHelpers.get_asset_tools().create_asset(GRAPH_NAME, GRAPH_FOLDER, unreal.PCGGraph,
+    graph = unreal.AssetToolsHelpers.get_asset_tools().create_asset(area.graph, GRAPH_FOLDER, unreal.PCGGraph,
                                                                     unreal.PCGGraphFactory())
     b = Builder(graph)
-    s = Scatter(b, mask)
+    s = Scatter(b, mask, area.half)
     veg = lambda name, required=True: mesh(VEGETATION, name, required)  # noqa: E731
     rock = lambda name: mesh(ROCKS, name)  # noqa: E731
 
@@ -312,7 +332,7 @@ def build_graph(mask):
             scale=(0.9, 1.25), sink=15.0)
 
     # Reeds along the pond and the creek, lily pads on the pond.
-    reeds, pads, water = shore_points(layout())
+    reeds, pads, water = shore_points(area.data)
     reed_points, y = s.listed('Reeds', [(x, yy, 2000.0) for x, yy in reeds])
     reed_meshes = [m for m in (veg('Reeds_A', False), veg('Reeds_B', False)) if m]
     s.spawn(reed_points, 'Reeds', 11, y, [entry(m, 1, 5000) for m in reed_meshes], scale=(0.8, 1.3))
@@ -363,16 +383,16 @@ def build_graph(mask):
     return graph
 
 
-def place_volume(graph):
+def place_volume(area, graph):
     actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     volume = next((a for a in actors.get_all_level_actors()
-                   if isinstance(a, unreal.PCGVolume) and a.get_actor_label() == 'IslandScatter'), None)
+                   if isinstance(a, unreal.PCGVolume) and a.get_actor_label() == area.volume), None)
     if volume is None:
         volume = actors.spawn_actor_from_class(unreal.PCGVolume, unreal.Vector(0.0, 0.0, 0.0))
-        volume.set_actor_label('IslandScatter')
-        volume.set_folder_path('Island/Scatter')
-    # The brush is 200 cm across: cover the mask's square and the island's heights.
-    volume.set_actor_scale3d(unreal.Vector(HALF / 100.0, HALF / 100.0, 60.0))
+        volume.set_actor_label(area.volume)
+        volume.set_folder_path(f'{area.folder}/Scatter')
+    # The brush is 200 cm across: cover the mask's square and the area's heights.
+    volume.set_actor_scale3d(unreal.Vector(area.half / 100.0, area.half / 100.0, 60.0))
     component = volume.get_component_by_class(unreal.PCGComponent)
     component.set_editor_property('generation_trigger', unreal.PCGComponentGenerationTrigger.GENERATE_ON_DEMAND)
     component.set_graph(graph)
@@ -381,6 +401,7 @@ def place_volume(graph):
 
 
 if __name__ == '__main__':
-    graph = build_graph(import_mask())
-    volume = place_volume(graph)
+    AREA = Area(sys.argv[1] if len(sys.argv) > 1 else 'TutorialIsland')
+    graph = build_graph(AREA, import_mask(AREA))
+    volume = place_volume(AREA, graph)
     unreal.log(f'Island scatter: graph {graph.get_path_name()}, volume {volume.get_path_name()}; generating')

@@ -1,6 +1,9 @@
-"""Preview renders of the tutorial island (Eevee) into Saved/ArtPreviews/Terrain: three views (from the spawn toward
-the village, from the village toward the plateau, an overview from high above), a few extra views, and plan.png (top
-down, annotated). Clay blocks stand in for the buildings, for scale. Everything added is removed afterwards.
+"""Preview renders of an area (Eevee) into a folder (Saved/ArtPreviews/Terrain/<Area> by default): the layout's views
+(layout.json preview.views) and plan.png (top down, annotated with the zones, preview.labels and the computed points).
+Clay blocks stand in for the buildings, for scale. Everything added is removed afterwards.
+
+A view is an eye and a target, each [X, Y, height above the ground] in cm (an eye outside the map square takes its
+height as absolute), and a lens in mm.
 """
 import math
 import os
@@ -9,27 +12,12 @@ import bpy
 import numpy as np
 from mathutils import Vector
 
-import island_computed
+import area_computed
 
-VIEWS = {  # name: (eye x, y, height above the ground; target x, y, height above the ground; lens mm), layout meters
-    'view_spawn_to_village': ((-61.0, -44.0, 3.2), (0.0, 0.0, 2.0), 24.0),
-    'view_village_to_plateau': ((-16.0, 0.0, 4.0), (-42.0, 40.0, 5.0), 24.0),
-    'view_overview': ((-190.0, -150.0, 150.0), (0.0, 8.0, -12.0), 38.0),
-    'extra_bridge_and_pond': ((20.0, 38.0, 4.0), (41.0, 60.0, 0.5), 24.0),
-    'extra_range_and_windmill': ((28.0, -4.0, 4.0), (62.0, -38.0, 4.0), 26.0),
-    'extra_forest_and_waterfall': ((30.0, 50.0, 9.0), (62.0, 82.0, -2.0), 24.0),
-    'extra_plateau_top': ((-40.0, 60.0, 3.0), (-70.0, 55.0, 1.0), 24.0),
-    'extra_underside': ((-20.0, 190.0, -30.0), (-10.0, 40.0, -22.0), 30.0),
-}
 STAND_INS = {  # kind: length along the actor's forward, width, height (m)
     'Farmhouse': (9.0, 11.0, 6.5), 'Barn': (12.0, 9.0, 8.0), 'Well': (1.8, 1.8, 1.4), 'LogCabin': (6.5, 8.0, 5.0),
     'Cottage': (6.5, 8.0, 5.5), 'Outhouse': (1.3, 1.3, 2.4), 'GunRack': (0.5, 2.0, 1.6), 'Windmill': (2.5, 2.5, 11.0),
     'LookoutTower': (4.0, 4.0, 10.0), 'TargetDummy': (0.5, 0.6, 1.8),
-}
-LABELS = {  # text: layout meters
-    'Farmstead (spawn)': (-44.0, -52.0), 'Orchard': (-66.0, -70.0), 'Village': (-6.0, 0.0),
-    'Target meadow': (54.0, -14.0), 'Windmill': (70.0, -38.0), 'Pond': (18.0, 56.0), 'Forest grove': (70.0, 50.0),
-    'Plateau': (-58.0, 44.0), 'Lookout': (-67.0, 60.0),
 }
 
 
@@ -119,14 +107,14 @@ def _sun(forward, added, strength=4.2, side=0.85, ahead=0.3, elevation=36.0):
     return sun
 
 
-def _stand_ins(island, added):
+def _stand_ins(area, added):
     clay = _material('_Clay', (0.55, 0.52, 0.47, 1.0))
-    for p in island.layout['placements']:
+    for p in area.layout['placements']:
         if p['kind'] not in STAND_INS:
             continue
         length, width, height = STAND_INS[p['kind']]
         x, y = np.asarray(p['location']) / 100.0
-        z = float(island.height(x, y))
+        z = float(area.height(x, y))
         mesh = bpy.data.meshes.new('_Stand')
         hx, hy = width * 0.5, length * 0.5
         mesh.from_pydata([(-hx, -hy, 0), (hx, -hy, 0), (hx, hy, 0), (-hx, hy, 0),
@@ -184,18 +172,20 @@ def _cleanup(added):
                 break
 
 
-def render_views(island, out_dir, log=print, only=None):
+def render_views(area, out_dir, log=print, only=None):
     scene = bpy.context.scene
     world = _world(scene)
     _haze(scene, True)
-    for name, ((ex, ey, eh), (tx, ty, th), lens) in VIEWS.items():
+    for name, view in area.layout.get('preview', {}).get('views', {}).items():
         if only and name not in only:
             continue
+        (ex, ey, eh), (tx, ty, th) = (np.asarray(view[k], dtype=np.float64) / 100.0 for k in ('eye', 'target'))
         added = []
-        _stand_ins(island, added)
-        eye = _to_b(ex, ey, float(island.height(ex, ey)) + eh if abs(ex) < 100 and abs(ey) < 100 else eh)
-        target = _to_b(tx, ty, float(island.height(tx, ty)) + th)
-        _camera(eye, target, lens, added)
+        _stand_ins(area, added)
+        inside = abs(ex) < area.half and abs(ey) < area.half
+        eye = _to_b(ex, ey, float(area.height(ex, ey)) + eh if inside else eh)
+        target = _to_b(tx, ty, float(area.height(tx, ty)) + th)
+        _camera(eye, target, view['lens'], added)
         _sun((target - eye).normalized(), added)
         path = os.path.join(out_dir, name + '.png')
         _render(path, (1600, 900))
@@ -212,7 +202,7 @@ def _text(body, x, y, size, color, added, z=40.0):
     curve.align_x = 'CENTER'
     curve.align_y = 'CENTER'
     obj = bpy.data.objects.new('_Label', curve)
-    obj.visible_shadow = False  # annotations float above the island: no shadows on it
+    obj.visible_shadow = False  # annotations float above the terrain: no shadows on it
     obj.location = _to_b(x, y, z)
     obj.rotation_euler = (0.0, 0.0, math.pi)
     obj.data.materials.append(_material('_Label' + str(color), color, emission=3.0))
@@ -238,42 +228,46 @@ def _line(points, width, color, added, z=30.0, closed=False):
     added.append(obj)
 
 
-def render_plan(island, out_dir, log=print):
-    """Top down: the island in its macro colors, zones outlined, labels, and the computed points (cliff dressing,
-    rim, bridge, waterfall)."""
+def render_plan(area, out_dir, log=print):
+    """Top down over the map square: the area in its macro colors, zones outlined, labels, and the computed points
+    (cliff dressing, hanging rim cliffs, the bridge, the waterfall)."""
     scene = bpy.context.scene
     world = _world(scene)
     added = []
-    _stand_ins(island, added)
-    _camera(Vector((0.0, 0.0, 300.0)), None, 50.0, added, ortho=206.0)
+    _stand_ins(area, added)
+    _camera(Vector((0.0, 0.0, 300.0)), None, 50.0, added, ortho=2.0 * area.half + 1.2)
     _sun(Vector((0.0, -1.0, -0.3)), added, strength=3.6, side=0.8, ahead=-0.6, elevation=40.0)
     white, dark = (1.0, 1.0, 1.0, 1.0), (0.02, 0.02, 0.03, 1.0)
     zone_color = (1.0, 0.45, 0.9, 1.0)
-    for zone in island.layout['zones']:
+    for zone in area.layout['zones']:
         pts = np.asarray(zone['polygon']) / 100.0
         _line([tuple(p) for p in pts], 0.12, zone_color, added, closed=True)
-    for text, (x, y) in LABELS.items():
+    for text, (x, y) in area.layout.get('preview', {}).get('labels', {}).items():
+        x, y = x / 100.0, y / 100.0
         _text(text, x - 0.5, y + 0.5, 3.4, dark, added, z=39.0)
         _text(text, x, y, 3.4, white, added)
-    data = island_computed.compute(island)
+    data = area_computed.compute(area)
     orange, cyan, red = (1.0, 0.5, 0.1, 1.0), (0.2, 0.9, 1.0, 1.0), (1.0, 0.1, 0.1, 1.0)
-    for point in data['cliffs']['plateau']:
-        x, y = point['location'][0] / 100.0, point['location'][1] / 100.0
-        a = math.radians(point['yaw'])
-        _line([(x, y), (x + 3.0 * math.cos(a), y + 3.0 * math.sin(a))], 0.35, orange, added)
-    for point in data['cliffs']['rim']:
-        x, y = point['location'][0] / 100.0, point['location'][1] / 100.0
-        a = math.radians(point['yaw'])
-        _line([(x, y), (x + 2.5 * math.cos(a), y + 2.5 * math.sin(a))], 0.25, cyan, added)
+    for points in data['cliffs'].values():
+        for point in points:
+            x, y = point['location'][0] / 100.0, point['location'][1] / 100.0
+            a = math.radians(point['yaw'])
+            # Hanging cliffs (the rim, with its drop below) in cyan, standing ones in orange.
+            hanging = 'drop' in point
+            length = 2.5 if hanging else 3.0
+            _line([(x, y), (x + length * math.cos(a), y + length * math.sin(a))], 0.25 if hanging else 0.35,
+                  cyan if hanging else orange, added)
     b = data['bridge']
-    bx, by = b['location'][0] / 100.0, b['location'][1] / 100.0
-    a = math.radians(b['yaw'])
-    half = b['span'] / 200.0
-    _line([(bx - half * math.cos(a), by - half * math.sin(a)), (bx + half * math.cos(a), by + half * math.sin(a))],
-          0.9, red, added)
-    _text('Bridge', bx + 4.0, by + 8.0, 2.6, white, added)
+    if b:
+        bx, by = b['location'][0] / 100.0, b['location'][1] / 100.0
+        a = math.radians(b['yaw'])
+        half = b['span'] / 200.0
+        _line([(bx - half * math.cos(a), by - half * math.sin(a)), (bx + half * math.cos(a), by + half * math.sin(a))],
+              0.9, red, added)
+        _text('Bridge', bx + 4.0, by + 8.0, 2.6, white, added)
     w = data['waterfall']
-    _text('Waterfall', w['location'][0] / 100.0 - 4.0, w['location'][1] / 100.0 - 6.0, 2.6, white, added)
+    if w:
+        _text('Waterfall', w['location'][0] / 100.0 - 4.0, w['location'][1] / 100.0 - 6.0, 2.6, white, added)
     path = os.path.join(out_dir, 'plan.png')
     _render(path, (2048, 2048), samples=16)
     _cleanup(added)
@@ -281,8 +275,7 @@ def render_plan(island, out_dir, log=print):
     log(f'terrain: preview {path}')
 
 
-def render_all(island, repo, macro_path, log=print):
-    out_dir = os.path.join(repo, 'Saved', 'ArtPreviews', 'Terrain')
+def render_all(area, out_dir, log=print):
     os.makedirs(out_dir, exist_ok=True)
-    render_plan(island, out_dir, log)
-    render_views(island, out_dir, log)
+    render_plan(area, out_dir, log)
+    render_views(area, out_dir, log)

@@ -1,16 +1,30 @@
-"""Math for the tutorial island's generator (numpy only, so it runs in Blender's Python): noise, rasters over the map
-square, curves and distance fields. island_shape.py builds the island with it.
+"""Math for the area terrain generator (numpy only, so it runs in Blender's Python): noise, rasters over an area's map
+square, curves and distance fields. area_shape.py builds an area with it.
 
-Everything works in "layout meters": x = X / 100 (north), y = Y / 100 (east), heights in meters above the meadow base.
-The rasters cover the square the macro color map covers: 204.8 m on a side, centered on the world origin (Unreal X and
-Y from -10240 to 10240 cm); raster cell [i, j] is at x = c[i], y = c[j].
+Everything works in "layout meters": x = X / 100 (north), y = Y / 100 (east), heights in meters above the area's base.
+Each raster covers its area's map square, centered on the world origin: half its side is the layout's map.half (the
+tutorial island's 10240 cm makes it 204.8 m, Unreal X and Y from -10240 to 10240 cm). Raster cell [i, j] of an n x n
+raster is at x = c[i], y = c[j] (see Grid). The functions that need the square take its half side in meters.
 """
 import math
 
 import numpy as np
 
-MAP_HALF = 102.4      # meters: the rasters and the macro map cover -MAP_HALF..MAP_HALF on both axes
-RASTER = 2048         # the shape raster: 10 cm cells
+
+# --- Raster sizes ---
+
+def raster_size(side, cell, cap, power_of_two=False):
+    """Cells across a square of side meters at about cell meters each, at most cap. Textures (the macro and scatter
+    maps) take the nearest power of two, so Unreal can mip and stream them."""
+    n = side / cell
+    n = 2 ** int(round(math.log2(n))) if power_of_two else int(round(n))
+    return int(max(1, min(cap, n)))
+
+
+def cells(meters, px):
+    """A distance in meters as a whole number of raster cells of px meters (at least one): blur radii and fill
+    widths are designed in meters, so they keep their size when an area's cells are larger or smaller."""
+    return int(max(1, round(meters / px)))
 
 
 # --- Noise ---
@@ -74,9 +88,10 @@ def fbm_raster(grid, wavelength, seed=0, octaves=3, gain=0.5):
 # --- Rasters ---
 
 class Grid:
-    """A square raster over the map square: cell (i, j) is at x (north) = xs[i], y (east) = ys[j]."""
+    """An n x n raster over the map square of half side half (m): cell (i, j) is at x (north) = c[i], y (east) =
+    c[j]."""
 
-    def __init__(self, n=RASTER, half=MAP_HALF):
+    def __init__(self, n, half):
         self.n, self.half = n, half
         self.px = 2.0 * half / n
         self.c = -half + (np.arange(n) + 0.5) * self.px
@@ -92,8 +107,8 @@ class Grid:
         return a, b
 
 
-def sample(raster, x, y, half=MAP_HALF):
-    """Bilinear sample of a raster over the map square at points (x north, y east) in meters."""
+def sample(raster, x, y, half):
+    """Bilinear sample of a raster over the map square (half side half m) at points (x north, y east) in meters."""
     n = raster.shape[0]
     px = 2.0 * half / n
     fi = np.clip((np.asarray(x) + half) / px - 0.5, 0.0, n - 1.000001)
@@ -106,7 +121,7 @@ def sample(raster, x, y, half=MAP_HALF):
     return top * (1 - ti) + bottom * ti
 
 
-def resize(raster, n, half=MAP_HALF):
+def resize(raster, n, half):
     """A raster resampled (bilinear) to n x n over the same square."""
     grid = Grid(n, half)
     out = np.empty((n, n), dtype=np.float32)

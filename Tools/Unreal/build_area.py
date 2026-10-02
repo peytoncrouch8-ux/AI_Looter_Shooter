@@ -1,0 +1,446 @@
+"""Builds an area's level from its layout: build_area.py <Area> [gameplay].
+
+Art/Models/Terrain/<Area>.py turns Art/Levels/<Area>/layout.json into the terrain and into layout_computed.json: where
+every building, cliff piece, road, the bridge and the water go, at the built terrain's heights. This script places all
+of that in the area's level, with the new style's lighting and the gameplay actors. Run it in the open editor:
+  Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_area.py TutorialIsland [gameplay]"
+What differs per area comes from layout.json: "level" (the map, the tag and outliner folder of everything placed, the
+zones kept free of scattered trees) and "gameplay" (the director that comes with the PlayerStart, the gun rack's weapon,
+creature groups). The terrain's meshes are SM_<Area>_<part> (level.meshPrefix overrides <Area>_).
+
+Everything it places carries the area's tag (IslandBuild on the tutorial island) and sits under its outliner folder
+(Island). Building again replaces those actors, so actors placed by hand survive; with "gameplay" it only places the
+gameplay actors again. Models that aren't imported yet are skipped with a warning. The level is saved at the end.
+Grass, flowers, trees and rocks come from the scatter (build_island_scatter.py <Area>).
+"""
+import json
+import math
+import os
+import random
+import sys
+
+import unreal
+
+PROJECT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
+ART = '/Game/Art'
+DUMMY = '/Game/Combat/Blueprints/BP_TargetDummy'
+CLASSES = '/Script/AI_Looter_Shooter.'
+# The weapon a gun rack offers when the layout names none.
+RACK_WEAPON = '/Game/Weapons/Data/DA_AssaultRifle'
+
+# The cliff kit (Art/Models/Rocks/Cliffs.py), and how the pieces sit on the terrain's walls (cm): how far inside the
+# wall's foot a piece stands, how far over the top it reaches, and how much neighbours overlap.
+CLIFF_PIECES = ('CliffFace_A', 'CliffFace_B', 'CliffFace_C', 'CliffFace_D')
+CLIFF_INSET = 120.0
+CLIFF_OVERTOP = 20.0
+CLIFF_OVERLAP = 250.0
+
+# The sky's clouds: a dome of this radius (cm) around the level with the painted cloud material.
+SKY_DOME = '/Engine/EngineSky/SM_SkySphere'
+SKY_CLOUDS = '/Game/Art/Materials/Masters/M_SkyClouds'
+SKY_RADIUS = 100000.0
+
+# The way smoke leans (the foliage master's default WindDirection, 1 : 0.35).
+WIND_YAW = 19.0
+
+actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+levels = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
+
+
+def mesh_index():
+    """Every static mesh under /Game/Art by its name without SM_."""
+    index = {}
+    for path in unreal.EditorAssetLibrary.list_assets(ART, recursive=True, include_folder=False):
+        name = path.rsplit('/', 1)[-1].split('.')[0]
+        if name.startswith('SM_'):
+            index[name[3:]] = path.split('.')[0]
+    return index
+
+
+def component(actor, cls):
+    return actor.get_component_by_class(cls)
+
+
+def ground_height(x, y, default):
+    """The terrain's height under (x, y), by a trace onto the placed terrain."""
+    world = unreal.EditorLevelLibrary.get_editor_world()
+    hit = unreal.SystemLibrary.line_trace_single(world, unreal.Vector(x, y, 20000.0), unreal.Vector(x, y, -20000.0),
+                                                 unreal.TraceTypeQuery.TRACE_TYPE_QUERY1, True, [],
+                                                 unreal.DrawDebugTrace.NONE, True)
+    if hit is None:
+        return default
+    return hit.to_tuple()[5].z
+
+
+def inside(point, polygon):
+    x, y = point
+    result = False
+    for i in range(len(polygon)):
+        (x1, y1), (x2, y2) = polygon[i], polygon[i - 1]
+        if (y1 > y) != (y2 > y) and x < (x2 - x1) * (y - y1) / (y2 - y1) + x1:
+            result = not result
+    return result
+
+
+class AreaBuild:
+    """One area's level build: its settings from Art/Levels/<name>/layout.json, and the steps that place it."""
+
+    def __init__(self, name):
+        self.name = name
+        folder = os.path.join(PROJECT, 'Art', 'Levels', name)
+        with open(os.path.join(folder, 'layout.json')) as f:
+            self.source = json.load(f)
+        self.computed_path = os.path.join(folder, 'layout_computed.json')
+        level = self.source.get('level', {})
+        self.level = level.get('map', f'/Game/Maps/Lvl_{name}')
+        self.tag = level.get('tag', f'{name}Build')
+        self.folder = level.get('folder', name)
+        self.prefix = level.get('meshPrefix', f'{name}_')
+        self.tree_free_zones = level.get('noTreeZones', [])
+        self.settings = self.source.get('gameplay', {})
+        self.layout = None  # layout_computed.json, read by run()
+
+    def log(self, message):
+        unreal.log(f'{self.folder}: {message}')
+
+    def warn(self, message):
+        unreal.log_warning(f'{self.folder}: {message}')
+
+    def open_level(self, folder=None):
+        """Opens (or makes) the level and removes what the last build placed (only in the outliner folder
+        <area folder>/<folder> when given). Stops if another level has unsaved edits."""
+        world = unreal.EditorLevelLibrary.get_editor_world()
+        if world.get_path_name().split('.')[0] != self.level:
+            # Untitled scratch maps (/Temp, such as review_stage.py's) are never saved, so they don't count.
+            unsaved = [p.get_name() for p in unreal.EditorLoadingAndSavingUtils.get_dirty_map_packages()
+                       if not p.get_name().startswith('/Temp/')]
+            if unsaved:
+                raise RuntimeError(f'unsaved changes in {unsaved}: save or discard them first')
+            if unreal.EditorAssetLibrary.does_asset_exist(self.level):
+                # Loads without asking about the scratch maps.
+                unreal.EditorLoadingAndSavingUtils.load_map(self.level)
+            else:
+                levels.new_level(self.level)
+        built = [a for a in actors.get_all_level_actors() if unreal.Name(self.tag) in a.tags
+                 and (folder is None or str(a.get_folder_path()) == f'{self.folder}/{folder}')]
+        if built:
+            actors.destroy_actors(built)
+            self.log(f'removed {len(built)} actors from the last build')
+
+    def place(self, what, location, yaw=0.0, label=None, folder='', scale=None, tags=()):
+        """Spawns an actor class or a static mesh (as a static mesh actor) and tags it as built."""
+        loc = unreal.Vector(*location)
+        rot = unreal.Rotator(roll=0.0, pitch=0.0, yaw=yaw)
+        if isinstance(what, unreal.StaticMesh):
+            actor = actors.spawn_actor_from_object(what, loc, rot)
+        else:
+            actor = actors.spawn_actor_from_class(what, loc, rot)
+        if scale is not None:
+            actor.set_actor_scale3d(unreal.Vector(*scale))
+        actor.set_editor_property('tags', [unreal.Name(self.tag)] + [unreal.Name(t) for t in tags])
+        actor.set_folder_path(f'{self.folder}/{folder}' if folder else self.folder)
+        if label:
+            actor.set_actor_label(label)
+        return actor
+
+    def environment(self):
+        """Warm afternoon light from the west-northwest, so the tutorial island's view from the spawn (looking
+        northeast) is lit from the side. Every area has this light for now; Ransom's Rest gets its own at step 13."""
+        sun = self.place(unreal.DirectionalLight, (0, 0, 3000), label='Sun', folder='Environment')
+        sun.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=-38.0, yaw=112.0), False)
+        light = component(sun, unreal.DirectionalLightComponent)
+        light.set_mobility(unreal.ComponentMobility.MOVABLE)
+        for name, value in (('intensity', 7.0), ('use_temperature', True), ('temperature', 5300.0),
+                            ('atmosphere_sun_light', True), ('cast_cloud_shadows', False),
+                            # Cascaded shadows (Low and Medium) reach 100 m before the preset's scale (70 m on Medium).
+                            ('dynamic_shadow_distance_movable_light', 10000.0), ('dynamic_shadow_cascades', 2)):
+            light.set_editor_property(name, value)
+
+        sky = self.place(unreal.SkyLight, (0, 0, 2000), label='SkyLight', folder='Environment')
+        sky_light = component(sky, unreal.SkyLightComponent)
+        sky_light.set_mobility(unreal.ComponentMobility.MOVABLE)
+        # Captured once when the level loads rather than every frame (0.12 ms on Medium): the sun never moves.
+        for name, value in (('real_time_capture', False),
+                            ('source_type', unreal.SkyLightSourceType.SLS_CAPTURED_SCENE),
+                            ('intensity', 1.2), ('lower_hemisphere_is_black', False),
+                            # Light bouncing off the meadow.
+                            ('lower_hemisphere_color', unreal.LinearColor(0.26, 0.30, 0.18, 1.0))):
+            sky_light.set_editor_property(name, value)
+
+        self.place(unreal.SkyAtmosphere, (0, 0, 0), label='SkyAtmosphere', folder='Environment')
+
+        fog = self.place(unreal.ExponentialHeightFog, (0, 0, -2000), label='HeightFog', folder='Environment')
+        fog_component = component(fog, unreal.ExponentialHeightFogComponent)
+        for name, value in (('fog_density', 0.03), ('fog_height_falloff', 0.12), ('start_distance', 3000.0),
+                            ('fog_max_opacity', 0.85),
+                            ('fog_inscattering_luminance', unreal.LinearColor(0.20, 0.29, 0.44, 1.0))):
+            fog_component.set_editor_property(name, value)
+
+        # Painted clouds on a dome 1 km around the level (M_SkyClouds). Volumetric clouds cost Medium 2 ms and more,
+        # looking up through their layer, and thinned out enough to be cheap they vanished.
+        dome_mesh = unreal.load_asset(SKY_DOME)
+        radius = max(dome_mesh.get_bounding_box().max.x, 1.0)
+        dome = self.place(dome_mesh, (0, 0, 0), label='SkyClouds', folder='Environment',
+                          scale=(SKY_RADIUS / radius,) * 3)
+        sky_mesh = dome.static_mesh_component
+        sky_mesh.set_material(0, unreal.load_asset(SKY_CLOUDS))
+        sky_mesh.set_editor_property('cast_shadow', False)
+        sky_mesh.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
+
+        post = self.place(unreal.PostProcessVolume, (0, 0, 0), label=f'{self.folder}Post', folder='Environment')
+        post.set_editor_property('unbound', True)
+        settings = post.get_editor_property('settings')
+        # No outline material: the new style draws no ink lines.
+        for name, value in (('auto_exposure_method', unreal.AutoExposureMethod.AEM_HISTOGRAM),
+                            ('auto_exposure_bias', 0.4),
+                            # Exposure adapts only a little (EV100 0.3 to 1): shade under the trees stays
+                            # shade instead of brightening to look like the open meadow.
+                            ('auto_exposure_min_brightness', 0.3), ('auto_exposure_max_brightness', 1.0),
+                            ('bloom_intensity', 0.6), ('vignette_intensity', 0.3), ('film_slope', 0.88),
+                            ('film_toe', 0.55), ('color_saturation', unreal.Vector4(1.05, 1.05, 1.05, 1.0))):
+            settings.set_editor_property(name, value)
+            settings.set_editor_property(f'override_{name}', True)
+        post.set_editor_property('settings', settings)
+        return sky_light
+
+    def gameplay(self, meshes):
+        """The spawn (with the area's director, the tutorial's on the tutorial island), the gun rack, the target
+        dummies and the creature groups (layout.json gameplay.creatures, in order).
+
+        Everything here sits in the <area>/Gameplay folder, which a "gameplay" build clears first: whatever lives
+        there must be placed here (the rack once lived in models() and a gameplay build left the island without
+        it)."""
+        dummy = unreal.EditorAssetLibrary.load_blueprint_class(DUMMY)
+        for key, spot in self.layout['placements'].items():
+            x, y, z = spot['location']
+            if spot['kind'] == 'GunRack':
+                if 'GunRack' not in meshes:
+                    self.warn(f'no SM_GunRack yet (placement {key})')
+                    continue
+                # AWeaponRack lays its rifle on itself, with ammo beside it.
+                rack = self.place(unreal.load_class(None, CLASSES + 'WeaponRack'), spot['location'], spot['yaw'],
+                                  label=key, folder='Gameplay', tags=('Obstacle',))
+                rack.get_editor_property('rack').set_static_mesh(unreal.load_asset(meshes['GunRack']))
+                rack.set_editor_property('weapon', unreal.load_asset(self.settings.get('rackWeapon', RACK_WEAPON)))
+            elif spot['kind'] == 'PlayerStart':
+                self.place(unreal.PlayerStart, (x, y, z + 100.0), spot['yaw'], label='PlayerStart', folder='Gameplay')
+                director = self.settings.get('director')
+                if director:
+                    # The tutorial's prompts (ATutorialDirector: its steps are in C++).
+                    self.place(unreal.load_class(None, CLASSES + director), (x, y, z + 300.0), label=director,
+                               folder='Gameplay')
+            elif spot['kind'] == 'TargetDummy':
+                self.place(dummy, (x, y, z), spot['yaw'], label=f'TargetDummy_{key[-1]}', folder='Gameplay')
+
+        # The groups draw from one random stream, in order, so each lands where it did last time.
+        rng = random.Random(self.settings.get('seed', 7))
+        for group in self.settings.get('creatures', []):
+            creature = unreal.load_class(None, CLASSES + group['class'])
+            for i, (x, y) in enumerate(self.creature_spots(group, rng)):
+                self.place(creature, (x, y, ground_height(x, y, 0.0) + 60.0), rng.uniform(-180.0, 180.0),
+                           label=f"{group['label']}_{i + 1:02d}", folder='Gameplay')
+
+    def creature_spots(self, group, rng):
+        """Where a group's creatures start: anywhere in a zone (the zone's id), or around a center within spread
+        (cm), at least spacing apart. A loose group wanders together: each strolls around its own spot."""
+        spots = []
+        if 'zone' in group:
+            zone = next(z for z in self.source['zones'] if z['id'] == group['zone'])['polygon']
+            xs, ys = [p[0] for p in zone], [p[1] for p in zone]
+            while len(spots) < group['count']:
+                point = (rng.uniform(min(xs), max(xs)), rng.uniform(min(ys), max(ys)))
+                if inside(point, zone) and all(math.dist(point, s) > group['spacing'] for s in spots):
+                    spots.append(point)
+        else:
+            (cx, cy), spread = group['center'], group['spread']
+            while len(spots) < group['count']:
+                point = (cx + rng.uniform(-spread, spread), cy + rng.uniform(-spread, spread))
+                if all(math.dist(point, s) > group['spacing'] for s in spots):
+                    spots.append(point)
+        return spots
+
+    def models(self, meshes):
+        """Buildings, structures and props at their placements, and the orchards' apple trees."""
+        placed = 0
+        for key, spot in self.layout['placements'].items():
+            kind = spot['kind']
+            # Gameplay actors are gameplay()'s, so placing only those again ("gameplay") brings them all back.
+            if kind in ('PlayerStart', 'TargetDummy', 'GunRack'):
+                continue
+            name = kind
+            if name not in meshes:
+                self.warn(f'no SM_{name} yet (placement {key})')
+                continue
+            if kind == 'Windmill':
+                # The fan turns: AWindmill hangs it from the tower's Fan socket.
+                windmill = self.place(unreal.load_class(None, CLASSES + 'Windmill'), spot['location'], spot['yaw'],
+                                      label=key, folder='Buildings', tags=('Obstacle',))
+                tower = windmill.get_editor_property('tower')
+                tower.set_static_mesh(unreal.load_asset(meshes[name]))
+                if 'WindmillFan' in meshes:
+                    fan = windmill.get_editor_property('fan')
+                    fan.set_static_mesh(unreal.load_asset(meshes['WindmillFan']))
+                    # The socket exists only now that the tower has its mesh.
+                    snap = unreal.AttachmentRule.SNAP_TO_TARGET
+                    fan.attach_to_component(tower, 'Fan', snap, snap, unreal.AttachmentRule.KEEP_RELATIVE, False)
+                    # Attaching doesn't move it in the editor until its transform changes (setting the same one is
+                    # skipped).
+                    fan.set_relative_location(unreal.Vector(0.0, 0.0, 1.0), False, True)
+                    fan.set_relative_location(unreal.Vector(0.0, 0.0, 0.0), False, True)
+            else:
+                self.place(unreal.load_asset(meshes[name]), spot['location'], spot['yaw'], label=key,
+                           folder='Buildings', tags=('Obstacle',))
+            placed += 1
+
+        # The bridge's ramps end at its pivot's height, which the layout gives as the road on both banks; it
+        # stretches to the span. Untagged, so the minimap draws it as ground but the scatter doesn't grow grass on it.
+        bridge = self.layout.get('bridge')
+        if bridge and 'Bridge' in meshes:
+            deck = unreal.load_asset(meshes['Bridge'])
+            box = deck.get_bounding_box()
+            stretch = bridge['span'] / max(box.max.x - box.min.x, 1.0)
+            self.place(deck, bridge['location'], bridge['yaw'], label='Bridge', folder='Buildings',
+                       scale=(stretch, 1.0, 1.0))
+            placed += 1
+
+        apple = unreal.load_asset(meshes['Apple_A']) if 'Apple_A' in meshes else None
+        rng = random.Random(11)
+        for r, row in enumerate(self.layout.get('orchardRows', [])):
+            for t, tree in enumerate(row['trees']):
+                if apple:
+                    self.place(apple, tree, rng.uniform(-180.0, 180.0), label=f'AppleTree_{r + 1}_{t + 1}',
+                               folder='Orchard', tags=('Obstacle', 'Tree'))
+                    placed += 1
+        self.log(f'placed {placed} models')
+
+    def terrain(self, meshes):
+        """The terrain tiles (walkable, tagged Ground for the minimap and the scatter), the rock underside and the
+        water. They are all modeled in the area's space, so they sit at the origin."""
+        count = 0
+        for name, path in sorted(meshes.items()):
+            if not name.startswith(self.prefix):
+                continue
+            part = name[len(self.prefix):]
+            self.place(unreal.load_asset(path), (0, 0, 0), label=part, folder='Terrain',
+                       tags=('Ground',) if part.startswith('Tile_') else ())
+            count += 1
+        if not count:
+            self.warn(f'no SM_{self.prefix}* terrain yet')
+        self.log(f'placed {count} terrain pieces')
+
+    def cliffs(self, meshes):
+        """Cliff faces over the terrain's steep walls, one group per feature in layout_computed.json (a plateau's
+        edge, its ramp's cut walls) and the island's rim.
+
+        Each dressing point is where a wall meets the ground below it (a hanging cliff such as the rim: the wall's
+        top, with the drop below it), facing out. A piece stands a little inside that line so it covers the wall and
+        its lip; it reaches just over the top, is widened to overlap its neighbours, and is chosen among the kit's
+        pieces by how little it must stretch."""
+        pieces = []
+        for name in CLIFF_PIECES:
+            if name in meshes:
+                mesh = unreal.load_asset(meshes[name])
+                box = mesh.get_bounding_box()
+                pieces.append((mesh, box.max.z, box.max.y - box.min.y))
+        if not pieces:
+            self.warn('no cliff pieces yet')
+            return
+        rng = random.Random(23)
+        placed = 0
+        for group, points in self.layout.get('cliffs', {}).items():
+            for i, point in enumerate(points):
+                x, y, z = point['location']
+                if 'drop' in point:
+                    bottom, height = z - point['drop'], point['drop']
+                else:
+                    bottom, height = z, point.get('height', point.get('top', z) - z)
+                height += CLIFF_OVERTOP
+                # Neighbours along the wall set the width (the points run along it in order).
+                gaps = [math.dist(point['location'][:2], points[j]['location'][:2]) for j in (i - 1, i + 1)
+                        if 0 <= j < len(points)]
+                gap = min(gaps) if gaps else 1000.0
+                choices = sorted(pieces, key=lambda p: abs(math.log(height / p[1])) + rng.uniform(0.0, 0.25))
+                mesh, piece_height, piece_width = choices[0]
+                yaw = point['yaw']
+                inward = (-math.cos(math.radians(yaw)) * CLIFF_INSET, -math.sin(math.radians(yaw)) * CLIFF_INSET)
+                width = min(max((gap + CLIFF_OVERLAP) / piece_width, 0.75), 1.6)
+                self.place(mesh, (x + inward[0], y + inward[1], bottom), yaw + rng.uniform(-4.0, 4.0),
+                           label=f'Cliff_{group}_{i + 1:02d}', folder=f'Cliffs/{group}',
+                           scale=(1.0, width, height / piece_height), tags=('Obstacle',))
+                placed += 1
+        self.log(f'placed {placed} cliff pieces')
+
+    def no_tree_zones(self):
+        """Invisible boxes tagged NoTrees over the zones that must stay open (layout.json level.noTreeZones: a zone's
+        id and the share of its bounding box), which the scatter's tree layers avoid: on the tutorial island the
+        target range, so trees never block a shot at the dummies, and the village square."""
+        for zone_id, shrink in self.tree_free_zones:
+            polygon = next(z for z in self.source['zones'] if z['id'] == zone_id)['polygon']
+            xs, ys = [p[0] for p in polygon], [p[1] for p in polygon]
+            size = ((max(xs) - min(xs)) * shrink, (max(ys) - min(ys)) * shrink)
+            box = self.place(unreal.TriggerBox, ((min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2, 0.0),
+                             label=f'NoTrees_{zone_id}', folder='Scatter', tags=('NoTrees',),
+                             # The box is 64 cm across; it reaches 100 m up and down so every ray's hit is inside it.
+                             scale=(size[0] / 64.0, size[1] / 64.0, 20000.0 / 64.0))
+            box.set_actor_enable_collision(False)
+
+    def effects(self, meshes):
+        """The waterfall off the creek's lip, and smoke from every chimney (the buildings' Smoke sockets), leaning
+        downwind. Each waits for its model."""
+        fall = self.layout.get('waterfall')
+        if fall and 'Waterfall' in meshes:
+            self.place(unreal.load_asset(meshes['Waterfall']), fall['location'], fall['yaw'], label='Waterfall',
+                       folder='Effects')
+            if 'WaterfallMist' in meshes:
+                self.place(unreal.load_asset(meshes['WaterfallMist']), fall['location'], fall['yaw'],
+                           label='WaterfallMist', folder='Effects')
+        if 'SmokePlume' not in meshes:
+            self.warn('no SM_SmokePlume yet')
+            return
+        plume = unreal.load_asset(meshes['SmokePlume'])
+        count = 0
+        for building in actors.get_all_level_actors():
+            if unreal.Name(self.tag) not in building.tags or not isinstance(building, unreal.StaticMeshActor):
+                continue
+            mesh_component = building.static_mesh_component
+            mesh = mesh_component.static_mesh
+            if mesh is None or mesh.find_socket('Smoke') is None:
+                continue
+            where = mesh_component.get_socket_transform('Smoke', unreal.RelativeTransformSpace.RTS_WORLD).translation
+            self.place(plume, (where.x, where.y, where.z), WIND_YAW, label=f'Smoke_{building.get_actor_label()}',
+                       folder='Effects')
+            count += 1
+        self.log(f'placed {count} chimney smoke plumes')
+
+    def run(self, only_gameplay=False):
+        with open(self.computed_path) as f:
+            self.layout = json.load(f)
+        if only_gameplay:
+            self.open_level('Gameplay')
+            self.gameplay(mesh_index())
+            levels.save_current_level()
+            self.log('gameplay actors placed and saved')
+            return
+        self.open_level()
+        meshes = mesh_index()
+        sky_light = self.environment()
+        self.terrain(meshes)
+        self.cliffs(meshes)
+        self.models(meshes)
+        self.effects(meshes)
+        self.no_tree_zones()
+        self.gameplay(meshes)
+        sky_light.recapture_sky()
+        levels.save_current_level()
+        self.log('built and saved')
+
+
+def run(name, only_gameplay=False):
+    AreaBuild(name).run(only_gameplay)
+
+
+if __name__ == '__main__':
+    args = sys.argv[1:]
+    if not args or args[0] == 'gameplay':
+        raise SystemExit('usage: build_area.py <Area> [gameplay] (the area is a folder under Art/Levels)')
+    run(args[0], only_gameplay='gameplay' in args[1:])

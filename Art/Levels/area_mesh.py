@@ -1,11 +1,11 @@
-"""Mesh geometry for the tutorial island (numpy, plus Blender's mathutils for the triangulation). It returns plain
-arrays in layout meters (x north, y east, z up); Art/Models/Terrain/TutorialIsland.py turns them into Blender objects.
+"""Mesh geometry for an area's terrain (numpy, plus Blender's mathutils for the triangulation). It returns plain arrays
+in layout meters (x north, y east, z up); area_model.py turns them into Blender objects.
 
 - top_surface(): the walkable top as one triangulation: vertices packed where the ground bends (cliff lips, road
   shoulders, the rim) and spread about a meter apart elsewhere, sized to a triangle budget.
 - terrain_ao(): ambient occlusion from the height raster (valleys, cliff feet and the creek's insides go dark).
-- underside(): the rock below the rim: a wall under the top's edge, a tapering mass and hanging spires.
-- water(): the pond and the creek's surface.
+- underside(): the rock below the rim (island setting): a wall under the top's edge, a tapering mass and hanging spires.
+- water(): the ponds' and creeks' surface.
 """
 import math
 
@@ -13,42 +13,50 @@ import numpy as np
 from mathutils import Vector
 from mathutils.geometry import delaunay_2d_cdt
 
-from island_math import MAP_HALF, Grid, blur, gradient_noise, resize, resample, sample, points_in_polygon
+from area_math import Grid, blur, cells, gradient_noise, points_in_polygon, resample, sample
 
 LEVELS = (1.2, 0.6, 0.3)  # quadtree cell sizes (m): the spacing of the top's vertices
 
 
-def _spacing(island, eps):
-    """Target vertex spacing (m) per 10 cm cell for a height error eps (m): a linear triangle of size s over ground
+def _spacing(area, eps):
+    """Target vertex spacing (m) per shape cell for a height error eps (m): a linear triangle of size s over ground
     of curvature k misses it by about k s^2 / 8."""
-    spacing = np.clip(np.sqrt(8.0 * eps / np.maximum(island._curvature, 1e-6)), LEVELS[-1], LEVELS[0])
+    spacing = np.clip(np.sqrt(8.0 * eps / np.maximum(area._curvature, 1e-6)), LEVELS[-1], LEVELS[0])
     # Waterlines stay crisp: where the water meets a gentle shore, a centimeter of height moves it a hand's width.
-    return np.where(island._waterline, np.minimum(spacing, LEVELS[-1]), spacing).astype(np.float32)
+    return np.where(area._waterline, np.minimum(spacing, LEVELS[-1]), spacing).astype(np.float32)
 
 
-def _curvature(island):
-    """|Hessian| of the heights, measured over 20 cm and blurred a little (on the 10 cm raster)."""
-    h = resize(island.h, 1024)
-    px = 2.0 * MAP_HALF / 1024
+def _curvature(area):
+    """|Hessian| of the heights, measured on the curvature raster (20 cm on the tutorial island) and blurred a
+    little, on the shape raster."""
+    n = area.sizes['curvature']
+    h = area.resized(area.h, n)
+    px = 2.0 * area.half / n
     gx, gy = np.gradient(h, px)
     gxx, gxy = np.gradient(gx, px)
     _, gyy = np.gradient(gy, px)
     k = np.sqrt(gxx * gxx + 2.0 * gxy * gxy + gyy * gyy)
-    return resize(blur(k, 2), island.grid.n)
+    return area.resized(blur(k, cells(0.4, px)), area.grid.n)
 
 
-def _quadtree(spacing, edge):
+def _quadtree(spacing, edge, half):
     """Jittered points on the quadtree leaves: a cell is a leaf when the spacing wanted anywhere in it is at least
     its size."""
     n = spacing.shape[0]
-    px = 2.0 * MAP_HALF / n
-    steps = [int(round(c / px)) for c in LEVELS]  # 12, 6, 3 cells
+    px = 2.0 * half / n
+    # The finest level spans a whole number of raster cells and each coarser one twice the next (12, 6 and 3 cells
+    # at 10 cm), so the levels nest exactly whatever the cell size.
+    finest = cells(LEVELS[-1], px)
+    steps = [finest * 2 ** (len(LEVELS) - 1 - level) for level in range(len(LEVELS))]
     size = int(math.ceil(n / steps[0]) * steps[0])
     padded = np.pad(spacing, ((0, size - n), (0, size - n)), mode='edge')
     rng = np.random.default_rng(5)
     points = []
     taken = np.zeros((size // steps[-1],) * 2, dtype=bool)  # finest-level cells already covered
-    for level, (cell, step) in enumerate(zip(LEVELS, steps)):
+    for level, (nominal, step) in enumerate(zip(LEVELS, steps)):
+        # The level's cell in meters: its nominal size when the raster divides it (as 10 cm cells do), else what
+        # its whole number of raster cells spans.
+        cell = nominal if abs(step * px - nominal) < 1e-9 else step * px
         m = size // step
         pooled = padded.reshape(m, step, m, step).min(axis=(1, 3))
         ratio = step // steps[-1]
@@ -56,62 +64,62 @@ def _quadtree(spacing, edge):
         leaf = ~covered & ((pooled >= cell - 1e-4) | (level == len(LEVELS) - 1))
         ii, jj = np.nonzero(leaf)
         jitter = rng.uniform(-0.18, 0.18, (len(ii), 2)) * cell
-        x = -MAP_HALF + (ii + 0.5) * cell + jitter[:, 0]
-        y = -MAP_HALF + (jj + 0.5) * cell + jitter[:, 1]
+        x = -half + (ii + 0.5) * cell + jitter[:, 0]
+        y = -half + (jj + 0.5) * cell + jitter[:, 1]
         # Keep clear of the rim (the boundary has its own points).
-        keep = sample(edge, x, y) > 0.45 * cell
+        keep = sample(edge, x, y, half) > 0.45 * cell
         points.append(np.column_stack([x[keep], y[keep]]))
         taken |= np.repeat(np.repeat(leaf, ratio, axis=0), ratio, axis=1)
     return np.vstack(points)
 
 
-def waterline_points(island, surface, step=0.25):
+def waterline_points(area, surface, step=0.25):
     """Points on the waterlines (where the ground meets the water surface), about step meters apart: marching squares
     on the height raster, one crossing kept per step-sized cell."""
-    level = extend_nan(surface, 6)
-    f = island.h - np.nan_to_num(level, nan=1e3)
-    c = island.grid.c
+    level = extend_nan(surface, cells(0.6, area.grid.px))
+    f = area.h - np.nan_to_num(level, nan=1e3)
+    c = area.grid.c
     points = []
     for axis in (0, 1):
         a = f[:-1, :] if axis == 0 else f[:, :-1]
         b = f[1:, :] if axis == 0 else f[:, 1:]
         ii, jj = np.nonzero((np.sign(a) != np.sign(b)) & (np.abs(a) < 5.0) & (np.abs(b) < 5.0))
         t = a[ii, jj] / (a[ii, jj] - b[ii, jj])
-        x = c[ii] + (t * island.grid.px if axis == 0 else 0.0)
-        y = c[jj] + (t * island.grid.px if axis == 1 else 0.0)
+        x = c[ii] + (t * area.grid.px if axis == 0 else 0.0)
+        y = c[jj] + (t * area.grid.px if axis == 1 else 0.0)
         points.append(np.column_stack([x, y]))
     pts = np.vstack(points)
-    pts = pts[sample(island.edge, pts[:, 0], pts[:, 1]) > 1.0]
+    pts = pts[area.at(area.edge, pts[:, 0], pts[:, 1]) > 1.0]
     _, first = np.unique(np.floor(pts / step).astype(np.int64), axis=0, return_index=True)
     return pts[np.sort(first)]
 
 
 def _cell_keys(points, cell):
     """One integer per cell of a square grid (cell meters) that each point falls in."""
-    cells = np.floor(points / cell).astype(np.int64)
-    return cells[:, 0] * 100003 + cells[:, 1]
+    cells_ = np.floor(points / cell).astype(np.int64)
+    return cells_[:, 0] * 100003 + cells_[:, 1]
 
 
-def top_surface(island, max_triangles=118000, boundary_step=0.7, log=print):
+def top_surface(area, max_triangles, boundary_step=0.7, log=print):
     """The top's vertices (N, 3) and triangles (T, 3), counter-clockwise seen from above in Blender's axes, and the
-    boundary loop's vertex indices (in order around the island)."""
-    island._curvature = _curvature(island)
-    surface = island.water_surface()
-    gap = island.h - np.nan_to_num(surface, nan=-100.0)
-    island._waterline = np.isfinite(surface) & (gap > -0.2) & (gap < 0.4)
-    boundary = resample(island.outline, boundary_step, closed=True)
-    shore = waterline_points(island, surface)
+    boundary loop's vertex indices (in order around the outline)."""
+    area._curvature = _curvature(area)
+    surface = area.water_surface()
+    gap = area.h - np.nan_to_num(surface, nan=-100.0)
+    area._waterline = np.isfinite(surface) & (gap > -0.2) & (gap < 0.4)
+    boundary = resample(area.outline, boundary_step, closed=True)
+    shore = waterline_points(area, surface)
     # Pick the height error that fills the budget (triangles ~ 2 x interior points + boundary points).
     lo, hi = math.log(1e-4), math.log(1.0)
     for _ in range(14):
         mid = 0.5 * (lo + hi)
-        count = len(_quadtree(_spacing(island, math.exp(mid)), island.edge))
+        count = len(_quadtree(_spacing(area, math.exp(mid)), area.edge, area.half))
         if 2 * (count + len(shore)) + len(boundary) > max_triangles:
             lo = mid
         else:
             hi = mid
     eps = math.exp(hi)
-    interior = _quadtree(_spacing(island, eps), island.edge)
+    interior = _quadtree(_spacing(area, eps), area.edge, area.half)
     # Vertices exactly on the waterlines, so the water meets the shore along a smooth line (on a gentle shore a
     # centimeter between triangles moves the waterline a hand's width). Interior points too close to them go.
     if len(shore):
@@ -143,7 +151,7 @@ def top_surface(island, max_triangles=118000, boundary_step=0.7, log=print):
         for o in originals:
             index_of[o] = out_index
     ring = np.array([index_of[k] for k in range(len(boundary))], dtype=np.int64)
-    z = island.height(x, y)
+    z = area.height(x, y)
     return np.column_stack([x, y, z]), tris, ring
 
 
@@ -157,13 +165,14 @@ def vertex_normals(verts_b, tris):
     return normals / np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)
 
 
-def terrain_ao(island, n=1024, directions=16, reach=18.0):
-    """Ambient occlusion per raster cell (1 open, 0 closed) from the heights: the average sine of the horizon over
-    directions. Beyond the rim is open sky."""
-    h = resize(island.h, n).astype(np.float64)
-    inside = resize(island.edge, n) > -0.5
+def terrain_ao(area, directions=16, reach=18.0):
+    """Ambient occlusion per AO raster cell (1 open, 0 closed) from the heights: the average sine of the horizon over
+    directions. Beyond the rim is open sky (island setting)."""
+    n = area.sizes['ao']
+    h = area.resized(area.h, n).astype(np.float64)
+    inside = area.resized(area.edge, n) > -0.5
     h[~inside] = -500.0
-    px = 2.0 * MAP_HALF / n
+    px = 2.0 * area.half / n
     distances = []
     r = px * 1.5
     while r < reach:
@@ -185,7 +194,7 @@ def terrain_ao(island, n=1024, directions=16, reach=18.0):
     return np.clip(1.0 - 1.25 * (1.0 - ao), 0.3, 1.0).astype(np.float32)
 
 
-# --- The underside ---
+# --- The underside (island setting) ---
 
 def _zipper(a_start, a_count, a_u, b_start, b_count, b_u):
     """Triangles joining two closed loops of vertices (indices start..start+count, parameter u in 0..1 around the
@@ -208,7 +217,7 @@ def _zipper(a_start, a_count, a_u, b_start, b_count, b_u):
     return tris
 
 
-def underside(island, ring_xyz, rim_drop, depth, sectors=4, seed=61):
+def underside(area, ring_xyz, rim_drop, depth, sectors=4, seed=61):
     """The rock under the island. ring_xyz is the top's boundary (layout meters, in order). Returns a list of
     (vertices (N, 3), triangles, extra (N, 5)) per sector, with the spires hanging under each sector merged in. extra
     holds each vertex's place around its loop (0..1) and that loop's length in meters (for a cylindrical mapping that
@@ -371,20 +380,19 @@ def _spires(verts, tris, rng, seed, count=7):
 
 # --- Water ---
 
-def water(island, spacing=0.6):
-    """The water surface (layout meters): the pond and the creek down to its lip, reaching a little under the banks.
-    Returns vertices (N, 3) and triangles."""
-    surface = island.water_surface()
-    grid = island.grid
-    wet = np.isfinite(surface) & (surface > island.h - 0.35) & island.inside
+def water(area, spacing=0.6):
+    """The water surface (layout meters): the ponds and the creeks down to their lips, reaching a little under the
+    banks. Returns vertices (N, 3) and triangles."""
+    surface = area.water_surface()
+    wet = np.isfinite(surface) & (surface > area.h - 0.35) & area.inside
     # Points on a jittered lattice where it's wet, plus the lip across the creek at the rim.
-    n = int(2.0 * MAP_HALF / spacing)
-    lattice = Grid(n)
+    n = int(2.0 * area.half / spacing)
+    lattice = Grid(n, area.half)
     x, y = lattice.mesh()
     rng = np.random.default_rng(9)
     x = x + rng.uniform(-0.12, 0.12, x.shape) * spacing
     y = y + rng.uniform(-0.12, 0.12, y.shape) * spacing
-    keep = sample(wet.astype(np.float32), x, y) > 0.2
+    keep = area.at(wet.astype(np.float32), x, y) > 0.2
     pts = np.column_stack([x[keep], y[keep]])
     verts = [Vector((float(-b), float(-a))) for a, b in pts]
     out_verts, _, out_faces, _, _, _ = delaunay_2d_cdt(verts, [], [], 0, 1e-6, False)
@@ -395,9 +403,9 @@ def water(island, spacing=0.6):
     a = np.column_stack([px, py])[tris]
     longest = np.max(np.linalg.norm(a - np.roll(a, 1, axis=1), axis=2), axis=1)
     cx, cy = a[:, :, 0].mean(axis=1), a[:, :, 1].mean(axis=1)
-    inside = points_in_polygon(cx, cy, island.outline)
+    inside = points_in_polygon(cx, cy, area.outline)
     tris = tris[(longest < spacing * 2.2) & inside]
-    z = sample(extend_nan(surface, 20), px, py)
+    z = area.at(extend_nan(surface, cells(2.0, area.grid.px)), px, py)
     used, inverse = np.unique(tris.ravel(), return_inverse=True)
     return np.column_stack([px, py, np.nan_to_num(z, nan=0.0)])[used], inverse.reshape(-1, 3)
 
