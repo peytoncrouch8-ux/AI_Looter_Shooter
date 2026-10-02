@@ -33,6 +33,12 @@ public:
 	/** Puts health at NewHealth, alive (a saved session's health); at least 1, so it never kills. */
 	void SetHealth(float NewHealth);
 
+	/**
+	 * Changes the most health it can have (the player's level reward). A living one gains or loses as much health as the
+	 * maximum moved, never dying of it; before play it starts full anyway, and a dead one stays dead until it's reset.
+	 */
+	void SetMaxHealth(float NewMaxHealth);
+
 	UFUNCTION(BlueprintPure, Category = "Health")
 	float GetHealth() const { return Health; }
 

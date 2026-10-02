@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Progression/LevelRules.h"
 #include "Progression/PlayerProgressData.h"
 #include "Progression/XPCurve.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
@@ -8,14 +9,18 @@
 
 class AActor;
 class AController;
+class APawn;
+class APlayerController;
+class UHealthComponent;
 
 /** Where experience came from, so later systems (rewards, stats, bonuses) can tell kills from quests and the like. */
 UENUM()
 enum class EXPSource : uint8
 {
-	Kill,   // a creature the player killed
-	Debug,  // the console commands (Looter.GiveXP, Looter.SetLevel, Looter.ResetProgress)
-	Loaded  // a session's progress was loaded (nothing earned)
+	Kill,    // a creature the player killed
+	Debug,   // the console commands (Looter.GiveXP, Looter.SetLevel, Looter.ResetProgress)
+	Loaded,  // a session's progress was loaded (nothing earned)
+	Mission  // a mission's reward (a share of the current level's experience)
 };
 
 /** Gained is 0 when the level was set directly (a console command, a reset, a session loaded) rather than earned. */
@@ -30,6 +35,10 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlayerLevelUp, int32 /*NewLevel*/);
  *
  * Other systems hook in through the two events: OnLevelUp is where level rewards (skill points, unlocks, stat scaling)
  * go, and OnXPChanged keeps displays like the HUD's experience bar current without polling.
+ *
+ * The first level reward is health: the player's character has +8% of its own max health for every level above 1
+ * (FLevelRules::PlayerHealthScale), given as it's possessed and again whenever the level changes. It comes from the level
+ * alone, so the level the session saves carries it, and an older save gets it for the level it has.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UPlayerProgressionSubsystem : public ULocalPlayerSubsystem
@@ -37,6 +46,9 @@ class AI_LOOTER_SHOOTER_API UPlayerProgressionSubsystem : public ULocalPlayerSub
 	GENERATED_BODY()
 
 public:
+	/** The player's controller in a new level: its character takes the health of the player's level as it's possessed. */
+	virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
+
 	/** Takes a session's progress (USessionSubsystem, as a level starts). Fires OnXPChanged; not OnLevelUp. */
 	void SetProgress(const FPlayerProgressData& InProgress);
 
@@ -64,6 +76,9 @@ public:
 	/** The curve in use (UProgressionSettings), read fresh so tuning in the editor applies at once. */
 	static FXPCurve GetCurve();
 
+	/** What a level is worth (UProgressionSettings): kill experience, enemy growth and the player's health. */
+	static FLevelRules GetLevelRules();
+
 	/**
 	 * Adds experience, leveling up as many times as it covers; nothing at the maximum level. Fires OnLevelUp for each
 	 * level gained, in order, then OnXPChanged once. Returns the levels gained.
@@ -80,8 +95,18 @@ public:
 	bool IsTutorialDone() const;
 	void SetTutorialDone(bool bDone);
 
-	/** Experience for killing this actor: a creature's XPReward. Anything else (target dummies, props) gives none. */
-	static int64 KillXP(const AActor* Victim);
+	/**
+	 * Experience for killing this actor, for a player at PlayerLevel: a creature's XPReward (its rank's multiplier is in
+	 * it already) grown 8% for each level of the creature's above 1, less when it's below the player (FLevelRules::KillXP).
+	 * Anything else (target dummies, props) gives none.
+	 */
+	static int64 KillXP(const AActor* Victim, int32 PlayerLevel);
+
+	/**
+	 * Gives the player's health the reward of Level: the most health the character was made with (its Blueprint's), times
+	 * FLevelRules::PlayerHealthScale. From the authored value every time, so it never compounds.
+	 */
+	static void ApplyLevelHealth(UHealthComponent& Health, int32 Level);
 
 	/**
 	 * Credits a kill to the local player whose controller landed the killing blow: its experience, and one more of its
@@ -113,6 +138,15 @@ public:
 private:
 	/** Has the session being played saved a few seconds from now, so a fight's worth of kills makes one write. */
 	void RequestSave() const;
+
+	/** The local player's character, or null (none yet, or the main menu's camera). */
+	APawn* GetPlayerPawn() const;
+
+	/** Gives Pawn the rewards of the player's level (its health); nothing for a pawn without health. */
+	void ApplyLevelRewards(APawn* Pawn) const;
+
+	UFUNCTION()
+	void HandlePossessedPawnChanged(APawn* OldPawn, APawn* NewPawn);
 
 	FPlayerProgressData Progress;
 };

@@ -78,6 +78,19 @@ void UHealthComponent::SetHealth(float NewHealth)
 	OnHealthChanged.Broadcast(Health, MaxHealth);
 }
 
+void UHealthComponent::SetMaxHealth(float NewMaxHealth)
+{
+	const float OldMaxHealth = MaxHealth;
+	MaxHealth = FMath::Max(NewMaxHealth, 1.f);
+	if (!HasBegunPlay() || bDead || FMath::IsNearlyEqual(MaxHealth, OldMaxHealth))
+	{
+		return;
+	}
+	// A level-up's extra health comes with it, so the wound stays the same size; a smaller maximum takes as much away.
+	Health = FMath::Clamp(Health + (MaxHealth - OldMaxHealth), FMath::Min(1.f, MaxHealth), MaxHealth);
+	OnHealthChanged.Broadcast(Health, MaxHealth);
+}
+
 void UHealthComponent::SpawnDamageNumber(float Damage, bool bCritical, const FVector& Location, AController* InstigatedBy) const
 {
 	if (!bShowDamageNumbers || !DamageNumberClass)

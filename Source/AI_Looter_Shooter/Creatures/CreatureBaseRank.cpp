@@ -1,9 +1,11 @@
 #include "Creatures/CreatureBase.h"
+#include "Areas/AreaRulesSubsystem.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Loot/LootDropComponent.h"
 #include "Loot/LootLibrary.h"
 #include "Loot/LootTable.h"
+#include "Progression/ProgressionSettings.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -11,6 +13,43 @@
 // ---------------------------------------------------------------------------
 // Rank and level
 // ---------------------------------------------------------------------------
+
+void ACreatureBase::BeginRankAndLevel()
+{
+	// The level it was placed or spawned at is its own until its area says otherwise (and where the area has no band).
+	GivenLevel = FMath::Max(Level, 1);
+	const ECreatureRank ArrivalRank = RollArrivalRank();
+	TakeRankAndLevel(ArrivalRank, RollOwnLevel(ArrivalRank));
+}
+
+void ACreatureBase::RespawnRankAndLevel()
+{
+	TakeRankAndLevel(StartingRank, RollOwnLevel(StartingRank));
+}
+
+ECreatureRank ACreatureBase::RollArrivalRank() const
+{
+	// Only placed Basic creatures are promoted on arrival: a placed rank is the level designer's, and spawners roll their own.
+	if (StartingRank != ECreatureRank::Basic || bSpawnedAtRuntime)
+	{
+		return StartingRank;
+	}
+	UAreaRulesSubsystem* Rules = GetWorld() ? GetWorld()->GetSubsystem<UAreaRulesSubsystem>() : nullptr;
+	return Rules ? Rules->RollPromotion() : StartingRank;
+}
+
+int32 ACreatureBase::RollOwnLevel(ECreatureRank Rank) const
+{
+	UAreaRulesSubsystem* Rules = !bKeepsGivenLevel && GetWorld() ? GetWorld()->GetSubsystem<UAreaRulesSubsystem>() : nullptr;
+	return Rules ? Rules->RollLevel(GivenLevel, Rank) : GivenLevel;
+}
+
+void ACreatureBase::TakeRankAndLevel(ECreatureRank Rank, int32 OwnLevel)
+{
+	CurrentRank = Rank;
+	SetLevel(OwnLevel + UCreatureRankSettings::Get(Rank).LevelOffset);
+	ApplyRank();
+}
 
 void ACreatureBase::SetRank(ECreatureRank NewRank)
 {
@@ -35,6 +74,11 @@ void ACreatureBase::SetLevel(int32 NewLevel)
 	{
 		Loot->Level = Level;
 	}
+	// In play its health and damage follow; before play, BeginPlay applies them with its rank.
+	if (bBaseCaptured)
+	{
+		ApplyStats();
+	}
 }
 
 void ACreatureBase::CaptureBaseStats()
@@ -51,22 +95,30 @@ void ACreatureBase::CaptureBaseStats()
 	BaseStepHeight = GetCharacterMovement()->MaxStepHeight;
 }
 
-void ACreatureBase::ApplyRank()
+void ACreatureBase::ApplyStats()
 {
-	CaptureBaseStats();
 	const FCreatureRankInfo& Info = UCreatureRankSettings::Get(CurrentRank);
 
-	// Tougher, harder-hitting and worth more than what its class or the level gave it. Promoted while hurt, it keeps its
-	// share of health; a dead one gets its full health back as it respawns.
+	// Its level grows its health and damage linearly from what its class or the level designer gave it (as a gun's damage
+	// grows with the gun's level, so a gun of its level always takes the same hits); its rank multiplies that again. Its
+	// experience is its rank's share here; the kill adds its level's growth (FLevelRules::KillXP). Changed while hurt, it
+	// keeps its share of health; a dead one gets its full health back as it respawns.
+	const float LevelScale = GetDefault<UProgressionSettings>()->GetLevelRules().EnemyScale(Level);
 	const bool bKeepShare = Health->HasBegunPlay() && !Health->IsDead();
 	const float HealthShare = Health->GetHealthPercent();
-	Health->MaxHealth = FMath::Max(1.f, BaseMaxHealth * Info.HealthMultiplier);
+	Health->MaxHealth = FMath::Max(1.f, BaseMaxHealth * LevelScale * Info.HealthMultiplier);
 	if (bKeepShare)
 	{
 		Health->SetHealth(HealthShare * Health->MaxHealth);
 	}
-	AttackDamage = BaseAttackDamage * Info.DamageMultiplier;
+	AttackDamage = BaseAttackDamage * LevelScale * Info.DamageMultiplier;
 	XPReward = FMath::Max(0, FMath::RoundToInt32(BaseXPReward * Info.XPMultiplier));
+}
+
+void ACreatureBase::ApplyRank()
+{
+	CaptureBaseStats();
+	ApplyStats();
 
 	// Its own table as Basic (the default one, unless it was given another); a ranked creature carries its rank's.
 	ULootTable* OwnTable = BaseLootTable ? BaseLootTable.Get() : ULootLibrary::GetDefaultLootTable();
@@ -160,7 +212,9 @@ ACreatureBase* ACreatureBase::SpawnAtRuntime(UWorld* World, TSubclassOf<ACreatur
 	Creature->BodyScale = StartScale;
 	if (Spawn.Level > 0)
 	{
+		// A level asked for is kept; otherwise the area's band gives it one, as it gives a placed creature.
 		Creature->Level = Spawn.Level;
+		Creature->bKeepsGivenLevel = true;
 	}
 	// Everything spawners, egg sacs and commands make is gone for good once killed: only placed creatures come back.
 	Creature->bRespawns = false;

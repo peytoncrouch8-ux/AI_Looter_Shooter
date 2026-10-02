@@ -14,3 +14,14 @@ FXPCurve UProgressionSettings::GetCurve() const
 	Curve.Growth = Growth;
 	return Curve;
 }
+
+FLevelRules UProgressionSettings::GetLevelRules() const
+{
+	FLevelRules Rules;
+	Rules.KillXPGrowth = KillXPGrowth;
+	Rules.KillXPFalloff = KillXPFalloff;
+	Rules.KillXPFloor = KillXPFloor;
+	Rules.EnemyGrowth = EnemyGrowthPerLevel;
+	Rules.HealthPerLevel = HealthPerLevel;
+	return Rules;
+}

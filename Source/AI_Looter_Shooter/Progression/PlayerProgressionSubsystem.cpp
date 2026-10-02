@@ -1,23 +1,49 @@
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "AI_Looter_Shooter.h"
+#include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Progression/ProgressionSettings.h"
 #include "Session/SessionSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+
+void UPlayerProgressionSubsystem::PlayerControllerChanged(APlayerController* NewPlayerController)
+{
+	Super::PlayerControllerChanged(NewPlayerController);
+	if (IsValid(NewPlayerController))
+	{
+		// As a level starts the controller possesses the character before anything begins play, so the character starts
+		// full at its level's health and the session's saved health fits inside it.
+		NewPlayerController->OnPossessedPawnChanged.AddUniqueDynamic(this, &UPlayerProgressionSubsystem::HandlePossessedPawnChanged);
+		ApplyLevelRewards(NewPlayerController->GetPawn());
+	}
+}
+
+void UPlayerProgressionSubsystem::HandlePossessedPawnChanged(APawn* OldPawn, APawn* NewPawn)
+{
+	ApplyLevelRewards(NewPawn);
+}
 
 void UPlayerProgressionSubsystem::SetProgress(const FPlayerProgressData& InProgress)
 {
 	Progress = InProgress;
 	GetCurve().Clamp(Progress.Level, Progress.XP);
 	UE_LOG(LogLooter, Log, TEXT("Player progress: level %d, %lld / %lld XP"), GetLevel(), GetXP(), GetXPToNextLevel());
+	// Usually there's no character yet (a level is starting); it gets its health as it's possessed.
+	ApplyLevelRewards(GetPlayerPawn());
 	OnXPChanged.Broadcast(0, EXPSource::Loaded);
 }
 
 FXPCurve UPlayerProgressionSubsystem::GetCurve()
 {
 	return GetDefault<UProgressionSettings>()->GetCurve();
+}
+
+FLevelRules UPlayerProgressionSubsystem::GetLevelRules()
+{
+	return GetDefault<UProgressionSettings>()->GetLevelRules();
 }
 
 int32 UPlayerProgressionSubsystem::GetLevel() const
@@ -58,6 +84,11 @@ int32 UPlayerProgressionSubsystem::AddXP(int64 Amount, EXPSource Source)
 	UE_LOG(LogLooter, Verbose, TEXT("+%lld XP (%s): level %d, %lld / %lld"), Amount, *UEnum::GetValueAsString(Source),
 		Progress.Level, Progress.XP, Curve.XPToNextLevel(Progress.Level));
 
+	if (LevelsGained > 0)
+	{
+		// The new level's rewards first, so whoever hears of the level-up finds them in place.
+		ApplyLevelRewards(GetPlayerPawn());
+	}
 	for (int32 NewLevel = OldLevel + 1; NewLevel <= Progress.Level; ++NewLevel)
 	{
 		UE_LOG(LogLooter, Log, TEXT("Level up: %d"), NewLevel);
@@ -74,6 +105,7 @@ void UPlayerProgressionSubsystem::SetLevel(int32 Level)
 	Progress.XP = 0;
 	GetCurve().Clamp(Progress.Level, Progress.XP);
 	UE_LOG(LogLooter, Log, TEXT("Player level set to %d"), Progress.Level);
+	ApplyLevelRewards(GetPlayerPawn());
 	OnXPChanged.Broadcast(0, EXPSource::Debug);
 	RequestSave();
 }
@@ -100,10 +132,35 @@ void UPlayerProgressionSubsystem::SetTutorialDone(bool bDone)
 	}
 }
 
-int64 UPlayerProgressionSubsystem::KillXP(const AActor* Victim)
+int64 UPlayerProgressionSubsystem::KillXP(const AActor* Victim, int32 PlayerLevel)
 {
+	// Its XPReward has its rank's multiplier in it already: the kill adds only its level's growth, and the falloff when
+	// it's below the player.
 	const ACreatureBase* Creature = Cast<ACreatureBase>(Victim);
-	return Creature ? FMath::Max(Creature->XPReward, 0) : 0;
+	return Creature ? GetLevelRules().KillXP(Creature->XPReward, Creature->Level, PlayerLevel) : 0;
+}
+
+void UPlayerProgressionSubsystem::ApplyLevelHealth(UHealthComponent& Health, int32 Level)
+{
+	// The character's own max health is its archetype's (its Blueprint's template), which nothing changes in play.
+	const UHealthComponent* Authored = Cast<UHealthComponent>(Health.GetArchetype());
+	const float AuthoredMaxHealth = Authored ? Authored->MaxHealth : Health.MaxHealth;
+	Health.SetMaxHealth(AuthoredMaxHealth * GetLevelRules().PlayerHealthScale(Level));
+}
+
+APawn* UPlayerProgressionSubsystem::GetPlayerPawn() const
+{
+	const ULocalPlayer* LocalPlayer = GetLocalPlayer();
+	const APlayerController* Controller = LocalPlayer ? LocalPlayer->GetPlayerController(nullptr) : nullptr;
+	return IsValid(Controller) ? Controller->GetPawn() : nullptr;
+}
+
+void UPlayerProgressionSubsystem::ApplyLevelRewards(APawn* Pawn) const
+{
+	if (UHealthComponent* Health = IsValid(Pawn) ? Pawn->FindComponentByClass<UHealthComponent>() : nullptr)
+	{
+		ApplyLevelHealth(*Health, GetLevel());
+	}
 }
 
 void UPlayerProgressionSubsystem::AwardKill(const AController* Killer, const AActor* Victim)
@@ -118,7 +175,7 @@ void UPlayerProgressionSubsystem::AwardKill(const AController* Killer, const AAc
 		return;
 	}
 	Progression->RecordDefeat(Victim);
-	const int64 XP = KillXP(Victim);
+	const int64 XP = KillXP(Victim, Progression->GetLevel());
 	if (XP > 0)
 	{
 		Progression->AddXP(XP, EXPSource::Kill);

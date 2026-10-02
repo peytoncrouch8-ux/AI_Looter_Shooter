@@ -9,6 +9,7 @@
 #include "Creatures/SpiderCreature.h"
 #include "Loot/LootDropComponent.h"
 #include "Loot/LootTable.h"
+#include "Progression/ProgressionSettings.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -232,12 +233,17 @@ bool FCreatureRanksTest::RunTest(const FString& Parameters)
 	const int32 FullLevel = Placed->Level;
 	const ULootTable* OwnTable = Loot->LootTable.Get();
 	const FCreatureRankInfo& Epic = UCreatureRankSettings::Get(ECreatureRank::Epic);
+	// Its rank's levels are levels like any other: health and damage grow with them too, under the rank's multipliers.
+	const FLevelRules LevelRules = GetDefault<UProgressionSettings>()->GetLevelRules();
+	const float RankLevelGrowth = LevelRules.EnemyScale(FullLevel + Epic.LevelOffset) / LevelRules.EnemyScale(FullLevel);
 	Placed->SetRank(ECreatureRank::Epic);
 	TestTrue(TEXT("Promoted to Gravebound"), Placed->GetRank() == ECreatureRank::Epic);
 	TestNearlyEqual(TEXT("Gravebound: its rank's size"), Placed->GetSizeScale(), Epic.Size, 0.0001f);
-	TestNearlyEqual(TEXT("Gravebound: its rank's health"), Health->MaxHealth, FullHealth * Epic.HealthMultiplier, 0.01f);
+	TestNearlyEqual(TEXT("Gravebound: its rank's health, at its rank's level"), Health->MaxHealth,
+		FullHealth * Epic.HealthMultiplier * RankLevelGrowth, 0.01f);
 	TestNearlyEqual(TEXT("Gravebound: promoted unhurt, it's at full health"), Health->GetHealth(), Health->MaxHealth, 0.01f);
-	TestNearlyEqual(TEXT("Gravebound: its rank's bite"), Placed->AttackDamage, FullDamage * Epic.DamageMultiplier, 0.001f);
+	TestNearlyEqual(TEXT("Gravebound: its rank's bite, at its rank's level"), Placed->AttackDamage,
+		FullDamage * Epic.DamageMultiplier * RankLevelGrowth, 0.001f);
 	TestEqual(TEXT("Gravebound: its rank's experience"), Placed->XPReward, FMath::RoundToInt32(FullXP * Epic.XPMultiplier));
 	TestEqual(TEXT("Gravebound: its rank's level"), Placed->Level, FullLevel + Epic.LevelOffset);
 	TestTrue(TEXT("Gravebound: its rank's loot"), Loot->LootTable.Get() == UCreatureRankSettings::GetLootTable(ECreatureRank::Epic));

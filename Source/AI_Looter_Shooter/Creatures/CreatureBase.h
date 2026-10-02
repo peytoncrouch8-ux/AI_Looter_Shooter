@@ -36,7 +36,8 @@ enum class ECreatureState : uint8
  * Each creature has a rank (ECreatureRank: its tag's word and color, size, stats, loot and pack call) and a size
  * (BodyScale times its rank's): the whole actor is scaled, so the capsule, the model, its hit zones and the health bar
  * follow, and every distance the code works in (attack reach, steering probes, the subclass's gait or hops) is multiplied
- * by GetSizeScale(). CreatureBaseRank.cpp holds the rank, level and size, and which creatures come back after a death.
+ * by GetSizeScale(). CreatureBaseRank.cpp holds the rank, level and size, and which creatures come back after a death;
+ * the area being played gives a creature its level and may promote it (UAreaRulesSubsystem).
  */
 UCLASS(Abstract)
 class AI_LOOTER_SHOOTER_API ACreatureBase : public ACharacter, public ICriticalSpotTarget
@@ -76,7 +77,10 @@ public:
 	 */
 	void SetRank(ECreatureRank NewRank);
 
-	/** Sets its level, which its tag shows and the guns it drops take (passed to its loot drop component). */
+	/**
+	 * Sets its level, which its tag shows and the guns it drops take (passed to its loot drop component). In play its
+	 * health and damage follow at once (FLevelRules::EnemyScale, its rank's multipliers on top), a hurt one keeping its share.
+	 */
 	void SetLevel(int32 NewLevel);
 
 	/** Its size against its model right now: BodyScale times its rank's size. Every distance it works in is multiplied by it. */
@@ -117,7 +121,10 @@ public:
 	struct FRuntimeSpawn
 	{
 		ECreatureRank Rank = ECreatureRank::Basic;
-		/** Its level before its rank's; 0 keeps the class's. */
+		/**
+		 * Its level before its rank's, kept whatever the area's band. 0: as a placed creature's, from the area's band and the
+		 * player's level, or the class's where the area has no band.
+		 */
 		int32 Level = 0;
 		/** Its BodyScale; 0 keeps the class's. */
 		float BodyScale = 0.f;
@@ -146,17 +153,19 @@ public:
 	FText DisplayName;
 
 	/**
-	 * The creature's level, shown on its health bar; the guns it drops take it. Placed, it's the level before its rank's,
-	 * which play adds (a Restless one placed at 3 is level 4). In play, set it with SetLevel, which passes it to the loot.
-	 * Tutorial island creatures are level 1; later areas set their own. Health and damage don't grow with it yet.
+	 * The creature's level, shown on its health bar; the guns it drops take it, and its health and damage grow with it
+	 * (8% of their level 1 values a level, as guns' damage does). Placed in an area with a level band (UAreaDefinition),
+	 * play gives it one from the band around the player's level; elsewhere it keeps the level it was placed at. Its
+	 * rank's levels come on top (a Restless one placed at 3, with no band, is level 4). In play, set it with SetLevel.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Progression", meta = (ClampMin = "1"))
 	int32 Level = 1;
 
 	/**
-	 * Experience the player who kills it earns, once per kill (UPlayerProgressionSubsystem::AwardKill). 10 on the
-	 * tutorial island for now; it drops to 0 there once later areas have their own creatures. In play it includes its
-	 * rank's multiplier (a Restless one gives twice this).
+	 * Experience for a kill at level 1, once per kill (UPlayerProgressionSubsystem::AwardKill): a kill gives it grown 8%
+	 * for each level above 1, and less when the creature is below the player (FLevelRules::KillXP). 10 on the tutorial
+	 * island for now; it drops to 0 there once later areas have their own creatures. In play it includes its rank's
+	 * multiplier (a Restless one's is twice this), so the kill counts the rank once.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Progression", meta = (ClampMin = "0"))
 	int32 XPReward = 10;
@@ -330,8 +339,23 @@ private:
 	void UpdateHealthBar(float DeltaSeconds);
 
 	// --- Rank, level and size (CreatureBaseRank.cpp) ---
+	/**
+	 * As play begins: a promotion its area may give a placed Basic creature for this arrival, a level from the area's band
+	 * (or the one it was placed or spawned at), and the stats, loot and size of both.
+	 */
+	void BeginRankAndLevel();
+	/** Coming back: as its StartingRank (a promotion lasts one life), at a level its area rolls again for the player's now. */
+	void RespawnRankAndLevel();
+	/** The rank it begins play with: StartingRank, or for a placed Basic creature its area's promotion this arrival. */
+	ECreatureRank RollArrivalRank() const;
+	/** Its own level before its rank's: from its area's band and the player's level, or GivenLevel (no band, or spawned at one). */
+	int32 RollOwnLevel(ECreatureRank Rank) const;
+	/** Takes Rank with OwnLevel plus the rank's levels, and applies them (ApplyRank). */
+	void TakeRankAndLevel(ECreatureRank Rank, int32 OwnLevel);
 	/** Applies CurrentRank: stats from the base ones, loot table, and size. */
 	void ApplyRank();
+	/** Health, damage and experience from the base ones: grown for its level, then times its rank's multipliers. */
+	void ApplyStats();
 	/** Scales the actor to BodyScale times its rank's size, its feet staying put, and what the scale doesn't reach. */
 	void ApplySize();
 	/** Keeps what the class or the level gave it, once, before any rank changes it. */
@@ -387,9 +411,13 @@ private:
 	FTimerHandle RespawnTimer;
 	FTimerHandle HideTimer;
 
-	// Rank and size
+	// Rank, level and size
 	ECreatureRank CurrentRank = ECreatureRank::Basic;
 	float SizeScale = 1.f;
+	/** The level it was placed or spawned at, before any band or rank: what it keeps where its area has no band. */
+	int32 GivenLevel = 1;
+	/** Spawned at a level of its own (FRuntimeSpawn::Level): it keeps it whatever the area's band. */
+	bool bKeepsGivenLevel = false;
 	/** Spawned in play (SpawnAtRuntime): never comes back, and its body is removed once it has sunk away. */
 	bool bSpawnedAtRuntime = false;
 	/** What the class or the level gave it, which ranks multiply (CaptureBaseStats). */

@@ -29,6 +29,36 @@ FName UAreaDefinition::GetDefaultLanding() const
 	return Landings.Num() > 0 ? Landings[0] : NAME_None;
 }
 
+int32 UAreaDefinition::LevelFor(int32 PlayerLevel, int32 Spread, int32 OwnLevel) const
+{
+	if (!HasLevelBand())
+	{
+		return FMath::Max(OwnLevel, 1);
+	}
+	return FMath::Clamp(PlayerLevel + Spread, MinLevel, GetBandTop());
+}
+
+bool UAreaDefinition::HasPromotions() const
+{
+	return RarePromotionChance > 0.f || EpicPromotionChance > 0.f;
+}
+
+ECreatureRank UAreaDefinition::PickPromotion(float Roll) const
+{
+	// The rarer rank first, so chances that add up past 1 still give it its share.
+	const float EpicChance = FMath::Clamp(EpicPromotionChance, 0.f, 1.f);
+	const float RareChance = FMath::Clamp(RarePromotionChance, 0.f, 1.f);
+	if (Roll < EpicChance)
+	{
+		return ECreatureRank::Epic;
+	}
+	if (Roll < EpicChance + RareChance)
+	{
+		return ECreatureRank::Rare;
+	}
+	return ECreatureRank::Basic;
+}
+
 bool UAreaDefinition::IsNamed(const FString& Words) const
 {
 	FString Asked = Words.TrimStartAndEnd();

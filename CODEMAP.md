@@ -88,7 +88,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 ## Creatures
 - `Creatures/CreatureBase`: `ACreatureBase`, a hostile creature's brain and life cycle (senses, chase, attack, death,
   respawn, a pack turning on its attacker). `CreatureBaseSteering.cpp` is its steering without a navmesh (obstacle and
-  ledge probes, wander goals, the ground); `CreatureBaseRank.cpp` its rank, level and size (`BodyScale`), which
+  ledge probes, wander goals, the ground); `CreatureBaseRank.cpp` its rank, its level (from its area's band, with health and damage growing with it) and
+  size (`BodyScale`), which
   creatures come back after a death, pack tags, and spawning creatures in play (`SpawnAtRuntime`);
   `CreatureBaseUpdateRate.cpp` slows the ones far from the player or out of sight (`Looter.Creatures.UpdateRates 0`
   turns that off).
@@ -125,15 +126,19 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 ## Progression
 - `Progression/XPCurve`: `FXPCurve`, the experience each level takes (exponential), level-ups from a gain, and the
   maximum level.
-- `Progression/ProgressionSettings`: `UProgressionSettings`, the curve's numbers in Project Settings > Game > Progression
-  (`DefaultGame.ini`).
+- `Progression/ProgressionSettings`: `UProgressionSettings`, the curve's and the level rules' numbers in Project
+  Settings > Game > Progression (`DefaultGame.ini`).
+- `Progression/LevelRules`: `FLevelRules`, what a level is worth: enemy health and damage growing 8% of their level 1
+  values a level, kill experience (8% more a level, 15 points less for each level below the player, at least 10%) and
+  the player's +8% health a level.
 - `Progression/PlayerProgressData.h`: `FPlayerProgressData`, the player's level, experience, tutorial, kinds met and
   defeat counts, as a session saves them.
 - `Progression/LooterProgressSave.h`: `ULooterProgressSave`, the one progress save from before sessions ("PlayerProgress"
   slot), read once to become session 1.
 - `Progression/PlayerProgressionSubsystem`: `UPlayerProgressionSubsystem`, the player's level and experience (adding,
-  level-up events), the experience a kill gives, and which kinds the player has met and how many defeated; the session
-  being played gives it its progress and saves it.
+  level-up events), the experience a kill gives (the creature's level and the falloff), the player's health for their
+  level (the first level reward), and which kinds the player has met and how many defeated; the session being played
+  gives it its progress and saves it.
 
 ## Session
 - `Session/SessionSubsystem.h`, `Session/SessionSubsystem.cpp`: `USessionSubsystem`, the three save sessions: the main
@@ -152,13 +157,18 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   opened, bosses beaten, the first cast-off, the cold open.
 - `Session/SessionSaveGate`: `FSessionSaveGate`, when the session may save: nothing from a trip's save until its
   destination begins; autosaves held during rides and fades.
+- `Session/SessionSubsystemPromotions.cpp`: when a map's creatures are promoted on arrival: at most once per 20 minutes
+  of play, the time saved with the map's world.
 
 ## Areas
 - `Areas/AreaDefinition`: `UAreaDefinition`, one area as a data asset in `/Game/Data/Areas` (`DA_Area_<Id>`, made by
-  `Tools/Unreal/create_area_assets.py`): its name, level (which may not be built yet), landings, practice flag and
-  opening mission, with room for step 7's band and promotion chances; finding areas by name or level.
+  `Tools/Unreal/create_area_assets.py`): its name, level (which may not be built yet), landings, practice flag,
+  opening mission, level band and promotion chances; finding areas by name or level.
 - `Areas/AreaLandings`: `AreaLandings`, where trips arrive: an actor or player start tagged `Landing_<Place>`, found in
   a level; a level's own start is never one.
+- `Areas/AreaRulesSubsystem`: `UAreaRulesSubsystem`, the area being played's rules for its creatures: each one's level
+  from the area's band around the player's (bosses not rolled), and placed Basic creatures' promotions rolled as the
+  player arrives (at most once per 20 minutes of play per map).
 
 ## World
 - `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime at about a meter per texel,
@@ -243,7 +253,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 ## Dev
 - `Dev/WeaponDevCommands.cpp`: console commands for testing (`Looter.GiveWeapon`, `Looter.SpawnAmmo`).
 - `Dev/ProgressionDevCommands.cpp`: console commands for levels (`Looter.GiveXP`, `Looter.SetLevel`,
-  `Looter.ResetProgress`) and the bestiary (`Looter.ForgetBestiary`).
+  `Looter.ResetProgress`, `Looter.XP.Table`) and the bestiary (`Looter.ForgetBestiary`).
 - `Dev/SessionDevCommands.cpp`: `Looter.Session.Play <1-3>`, `.Save`, `.Menu`, `.List`, `.CheckSave [1-3 | file]` (a
   save's upgrade checked on a copy), `.Copy <from> <to>` (into an empty slot only), `Looter.Travel <area or level>
   [landing]`, `Looter.Area.List`.
@@ -257,7 +267,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`).
 
 ## Tests (run with `Tools\runtests.ps1`)
-- `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `CreatureTests.cpp`, `CreatureRankTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
+- `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `CreatureTests.cpp`, `CreatureRankTests.cpp`, `InventoryTests.cpp`, `LevelBandTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
   `MinimapTests.cpp`, `MissionTests.cpp`, `PlayableAreaTests.cpp`, `ProgressionTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SlimeTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 

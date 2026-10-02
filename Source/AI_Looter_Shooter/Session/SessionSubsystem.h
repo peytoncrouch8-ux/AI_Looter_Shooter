@@ -148,6 +148,22 @@ public:
 	/** The landing the player arrives at in the level starting now (None: its start); the game mode spawns them there. */
 	FName GetArrivalLanding() const { return ArrivalLanding; }
 
+	// --- Promotions (SessionSubsystemPromotions.cpp) ---
+
+	/** Time played between two promotion rolls on one map (20 minutes). */
+	static constexpr double PromotionCooldown = 20.0 * 60.0;
+
+	/**
+	 * Whether World's placed creatures may be promoted as it starts (UAreaRulesSubsystem asks once per level start). In a
+	 * session a map rolls at most once per PromotionCooldown of time played, saved with its world (PromotionsRolledAt),
+	 * so Save & Quit then Continue doesn't reroll; the roll is noted once the level has begun. Without a session every
+	 * start rolls (noted in memory when a trip carries the worlds along).
+	 */
+	bool ClaimPromotionRoll(UWorld* World);
+
+	/** Whether a map whose promotions last rolled at RolledAt (time played; negative: never) rolls again at PlayedSeconds. */
+	static bool IsPromotionRollDue(double RolledAt, double PlayedSeconds);
+
 	// --- For the game modes ---
 
 	/**

@@ -61,14 +61,12 @@ void ACreatureBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Creatures are authored at their real size and always stand upright, whatever the placement tool did. Their rank
-	// then sets their stats, loot and size (BodyScale times the rank's), before they settle on the ground. The level they
-	// were placed at is before the rank's, and the result goes to their loot.
+	// Creatures are authored at their real size and always stand upright, whatever the placement tool did. Their area
+	// then gives them their level and may promote them for this arrival, and their rank sets their stats, loot and size
+	// (BodyScale times the rank's), before they settle on the ground.
 	SetActorScale3D(FVector::OneVector);
 	SetActorRotation(FRotator(0.f, GetActorRotation().Yaw, 0.f));
-	CurrentRank = StartingRank;
-	SetLevel(Level + UCreatureRankSettings::Get(CurrentRank).LevelOffset);
-	ApplyRank();
+	BeginRankAndLevel();
 	SnapToGround();
 	Home = GetActorTransform();
 
@@ -460,9 +458,9 @@ void ACreatureBase::HandleDeath(AController* Killer)
 
 void ACreatureBase::Respawn()
 {
-	// It comes back as it started: a promotion lasts one life. (Before the move home: the size it comes back at is the one
-	// its home spot was found for.)
-	SetRank(StartingRank);
+	// It comes back as it started (a promotion lasts one life), at a level that follows the player's now. (Before the move
+	// home: the size it comes back at is the one its home spot was found for.)
+	RespawnRankAndLevel();
 	SetActorLocationAndRotation(Home.GetLocation(), Home.GetRotation(), false, nullptr, ETeleportType::ResetPhysics);
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	GetCharacterMovement()->SetMovementMode(MOVE_Walking);

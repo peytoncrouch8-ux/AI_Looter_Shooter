@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Creatures/CreatureRank.h"
 #include "Engine/DataAsset.h"
 #include "UObject/SoftObjectPath.h"
 #include "AreaDefinition.generated.h"
@@ -58,9 +59,51 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area")
 	int32 SortOrder = 0;
 
-	// --- Creatures (step 7) ---
-	// The area's level band (its creatures' lowest and highest level) and the chances of a creature being promoted to
-	// each rank go here, in an "Area|Creatures" category, for the level roll and the promotions rolled on arrival.
+	// --- Creatures: the level band and promotions (UAreaRulesSubsystem plays them) ---
+
+	/**
+	 * The lowest level of the area's creatures, before their rank's levels (1 on Ransom's Rest). Their level follows the
+	 * player's inside the band, give or take one: a player who rushes meets the floor, one who comes back strong the
+	 * ceiling. 0: no band, and creatures keep the level they were placed at (an area asset made before bands read so).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area|Creatures", meta = (ClampMin = "0"))
+	int32 MinLevel = 0;
+
+	/** The highest level of the area's creatures, before their rank's (10 on Ransom's Rest); below MinLevel reads as it. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area|Creatures", meta = (ClampMin = "0"))
+	int32 MaxLevel = 0;
+
+	/**
+	 * The chance a placed Basic creature is Restless (Rare) when the area's promotions roll on an arrival (8% on Ransom's
+	 * Rest). A promotion lasts one life: it comes back as Basic.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area|Creatures", meta = (ClampMin = "0", ClampMax = "1"))
+	float RarePromotionChance = 0.f;
+
+	/** The chance it's Gravebound (Epic) instead (2% on Ransom's Rest). Legendary monsters are hand-placed. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area|Creatures", meta = (ClampMin = "0", ClampMax = "1"))
+	float EpicPromotionChance = 0.f;
+
+	/** Its creatures take their levels from a band (MinLevel is set). */
+	bool HasLevelBand() const { return MinLevel >= 1; }
+
+	/** The band's highest level: MaxLevel, or MinLevel when that's below it. */
+	int32 GetBandTop() const { return FMath::Max(MaxLevel, MinLevel); }
+
+	/**
+	 * A creature's level here before its rank's: the player's level moved by Spread (-1, 0 or +1, rolled; a boss's is 0),
+	 * kept inside the band. Without a band, OwnLevel: the level it was placed or spawned at.
+	 */
+	int32 LevelFor(int32 PlayerLevel, int32 Spread, int32 OwnLevel) const;
+
+	/** An arrival here can promote creatures. */
+	bool HasPromotions() const;
+
+	/**
+	 * The rank a placed Basic creature takes when the area's promotions roll, from Roll (uniform in 0 to 1): Epic below
+	 * EpicPromotionChance, Rare in the RarePromotionChance after it, else Basic.
+	 */
+	ECreatureRank PickPromotion(float Roll) const;
 
 	/** The area's id: the asset's name without its prefix ("RansomsRest"). */
 	FName GetAreaId() const;
