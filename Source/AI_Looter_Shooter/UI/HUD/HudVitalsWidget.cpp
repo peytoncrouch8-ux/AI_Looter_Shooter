@@ -224,8 +224,8 @@ TSharedRef<SWidget> UHudVitalsWidget::RebuildWidget()
 			FVector2D(Width, Height), FLinearColor::White));
 		OutlineImage->SetColorAndOpacity(RestingLine());
 
-		// In the ring: the number, shrinking to fit if it ever gets long, over a small "HP". Chakra Petch's digits sit in
-		// the middle of their line, so the pair centered in the ring puts the number just above its middle.
+		// In the ring: the number, shrinking to fit if it ever gets long. Chakra Petch's digits sit in the middle of their
+		// line, so centering the line in the ring centers the number.
 		UVerticalBox* Readout = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		HealthText = MakeFloatingText(WidgetTree, NumberSize, Color::Text(), 0, ETextJustify::Center);
 		UScaleBox* NumberFit = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass());
@@ -235,11 +235,6 @@ TSharedRef<SWidget> UHudVitalsWidget::RebuildWidget()
 		USizeBox* NumberBox = MakeSized(WidgetTree, NumberFit, 0.f);
 		NumberBox->SetMaxDesiredWidth(NumberMaxWidth);
 		Readout->AddChildToVerticalBox(NumberBox)->SetHorizontalAlignment(HAlign_Center);
-		UTextBlock* Label = MakeFloatingText(WidgetTree, 10, Color::TextDim(), 150, ETextJustify::Center);
-		Label->SetText(FText::FromString(TEXT("HP")));
-		UVerticalBoxSlot* LabelSlot = Readout->AddChildToVerticalBox(Label);
-		LabelSlot->SetHorizontalAlignment(HAlign_Center);
-		LabelSlot->SetPadding(FMargin(0.f, -4.f, 0.f, 0.f));
 		UOverlaySlot* ReadoutSlot = Layers->AddChildToOverlay(MakeSized(WidgetTree, Readout, RingDiameter));
 		ReadoutSlot->SetHorizontalAlignment(HAlign_Left);
 		ReadoutSlot->SetVerticalAlignment(VAlign_Center);

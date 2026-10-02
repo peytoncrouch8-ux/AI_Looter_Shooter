@@ -10,9 +10,9 @@ class UTextBlock;
 class UWidget;
 
 /**
- * The HUD's health readout (bottom-left): a ring with the health number inside and a small "HP" under it, and a solid bar
- * running right out of the ring's lower side, so ring and bar read as one outlined shape. The bar's near end follows the
- * ring, its far end leans like the HUD's other bars.
+ * The HUD's health readout (bottom-left): a ring with the health number inside, and a solid bar running right out of
+ * the ring's lower side, so ring and bar read as one outlined shape. The bar's near end follows the ring, its far end
+ * leans like the HUD's other bars.
  *  - damage: the bar drops at once, the lost part lingers as a light chip and then drains, and the ring flashes red
  *  - low health (30% or less): the ring, the fill and the number beat between red and a lighter red, the disc throbs red
  *  - full health and nothing happening: the whole readout steps back to the HUD's idle opacity
