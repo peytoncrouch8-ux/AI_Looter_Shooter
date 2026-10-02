@@ -1,8 +1,12 @@
 #include "Core/LooterGameMode.h"
+#include "Areas/AreaLandings.h"
 #include "Core/LooterPlayerController.h"
 #include "Session/SessionSubsystem.h"
 #include "UI/HUD/LooterHUD.h"
 #include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "EngineUtils.h"
+#include "GameFramework/PlayerStart.h"
 #include "UObject/ConstructorHelpers.h"
 
 ALooterGameMode::ALooterGameMode()
@@ -35,4 +39,31 @@ void ALooterGameMode::StartPlay()
 	{
 		Sessions->RestorePlayWorld(GetWorld());
 	}
+}
+
+AActor* ALooterGameMode::ChoosePlayerStart_Implementation(AController* Player)
+{
+	UWorld* World = GetWorld();
+	// A trip arrives at its landing. A player start there is where the player is made; any other landing gets them
+	// moved onto it once the level has begun (USessionSubsystem::RestorePlayWorld).
+	if (const USessionSubsystem* Sessions = GetGameInstance() ? GetGameInstance()->GetSubsystem<USessionSubsystem>() : nullptr)
+	{
+		if (APlayerStart* Arrival = Cast<APlayerStart>(AreaLandings::Find(World, Sessions->GetArrivalLanding())))
+		{
+			return Arrival;
+		}
+	}
+
+	AActor* Chosen = Super::ChoosePlayerStart_Implementation(Player);
+	if (AreaLandings::IsLanding(Chosen))
+	{
+		for (TActorIterator<APlayerStart> It(World); It; ++It)
+		{
+			if (!AreaLandings::IsLanding(*It))
+			{
+				return *It;
+			}
+		}
+	}
+	return Chosen;
 }

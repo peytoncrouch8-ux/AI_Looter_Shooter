@@ -167,8 +167,8 @@ UWidget* UMainMenuWidget::MakeSessionCard(int32 Index, const FSessionSummary& Su
 	UVerticalBox* Info = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	if (bSaved)
 	{
-		// The session, its level (large), where the player is and the guns they carry, how long it's been played and
-		// when it was saved.
+		// The session, its level (large), the area the player is in (Skyreach, Ransom's Rest) and the guns they carry,
+		// how long it's been played and when it was saved.
 		Info->AddChildToVerticalBox(MakeSection(WidgetTree, SessionName(Index)));
 		Info->AddChildToVerticalBox(MakeText(WidgetTree, FString::Printf(TEXT("Level %d"), Summary.Level), 20, Color::Title(), true, 80))
 			->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
@@ -273,8 +273,9 @@ void UMainMenuWidget::OpenDeleteConfirm(int32 Index)
 	const FString SessionLabel = SessionName(Index);
 
 	UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	UTextBlock* Body = MakeText(WidgetTree, FString::Printf(TEXT("Everything saved in %s will be deleted for good: level %d, %s, %s played."),
-		*SessionLabel, Summary.Level, *GunsText(Summary.Weapons), *USessionSubsystem::FormatPlayTime(Summary.PlayedSeconds)), 13, Color::Text());
+	const FString Where = Summary.Place.IsEmpty() ? FString() : FString::Printf(TEXT(" in %s"), *Summary.Place);
+	UTextBlock* Body = MakeText(WidgetTree, FString::Printf(TEXT("Everything saved in %s will be deleted for good: level %d%s, %s, %s played."),
+		*SessionLabel, Summary.Level, *Where, *GunsText(Summary.Weapons), *USessionSubsystem::FormatPlayTime(Summary.PlayedSeconds)), 13, Color::Text());
 	Body->SetAutoWrapText(true);
 	Content->AddChildToVerticalBox(Body);
 	Content->AddChildToVerticalBox(MakeText(WidgetTree, TEXT("This can't be undone."), 13, Color::Worse()))->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));

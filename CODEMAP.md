@@ -10,8 +10,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `AI_Looter_Shooter.Build.cs`: module dependencies; builds without unity.
 
 ## Core
-- `Core/LooterGameMode`: `ALooterGameMode`, the project's default game mode: character, controller and HUD classes, and
-  loading the session its URL names (`?Session=N`) as the level starts.
+- `Core/LooterGameMode`: `ALooterGameMode`, the project's default game mode: character, controller and HUD classes,
+  loading the session its URL names (`?Session=N`) as the level starts, and the player's start (a trip's landing;
+  never a landing otherwise).
 - `Core/LooterMenuGameMode`: `ALooterMenuGameMode`, the main menu's game mode (`?game=Menu`, which the game starts
   with): no character, the menu over the level.
 - `Core/LooterMenuPlayerController`: `ALooterMenuPlayerController`, the main menu's camera, slowly circling the island.
@@ -136,10 +137,28 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Session
 - `Session/SessionSubsystem.h`, `Session/SessionSubsystem.cpp`: `USessionSubsystem`, the three save sessions: the main
-  menu's summaries, playing, deleting, autosaves, Save & Quit, and carrying the old progress save into session 1.
-- `Session/SessionSubsystemWorld.cpp`: what a session keeps of the player and the world (where the player stands, health,
-  guns, loot on the ground, the gun racks, the tutorial's step) and putting it back.
-- `Session/SessionSave.h`: `ULooterSessionSave`, one session's save ("Session1" to "Session3" slots).
+  menu's summaries, playing, deleting, reading saves (brought up to date), autosaves and save holds, Save & Quit, and
+  carrying the old progress save into session 1.
+- `Session/SessionSubsystemWorld.cpp`: what a session keeps of the player and each map's world (where the player
+  stands, health, guns, loot on the ground, the gun racks, the tutorial's step) and putting it back.
+- `Session/SessionSubsystemTravel.cpp`: travel between maps (`TravelToArea`, `TravelToMap`): the world left kept under
+  its map, the trip's save, the destination opened with the session, and arriving at the trip's landing.
+- `Session/SessionSubsystemWords.cpp`: the session picker's words: play time, when saved, and places by area name or
+  level file.
+- `Session/SessionSave`: `ULooterSessionSave`, one session's save ("Session1" to "Session3"), version 2: the player, a
+  world per map (`FSavedMapWorld`), the campaign record and where a trip arrives; the version 1 upgrade and a trip's
+  bookkeeping.
+- `Session/CampaignRecord.h`: `FCampaignRecord`, the story so far: missions finished and the one being played, areas
+  opened, bosses beaten, the first cast-off, the cold open.
+- `Session/SessionSaveGate`: `FSessionSaveGate`, when the session may save: nothing from a trip's save until its
+  destination begins; autosaves held during rides and fades.
+
+## Areas
+- `Areas/AreaDefinition`: `UAreaDefinition`, one area as a data asset in `/Game/Data/Areas` (`DA_Area_<Id>`, made by
+  `Tools/Unreal/create_area_assets.py`): its name, level (which may not be built yet), landings, practice flag and
+  opening mission, with room for step 7's band and promotion chances; finding areas by name or level.
+- `Areas/AreaLandings`: `AreaLandings`, where trips arrive: an actor or player start tagged `Landing_<Place>`, found in
+  a level; a level's own start is never one.
 
 ## World
 - `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime at about a meter per texel,
@@ -198,7 +217,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `SettingsMenuInput.cpp` handles its buttons, sliders and keys, `SettingsMenuParts.h` holds what they share.
 - `UI/Menus/MainMenuHUD`: `AMainMenuHUD`, the main menu's HUD: the menu and its settings.
 - `UI/Menus/MainMenuWidget`: `UMainMenuWidget`, the main menu (Single Player, Multiplayer, Settings, Quit Game);
-  `MainMenuSessions.cpp` is its session picker and the delete confirmation.
+  `MainMenuSessions.cpp` is its session picker (each session's area by name) and the delete confirmation.
 - `UI/Inventory/LoadoutWidget.cpp`: the loadout screen: opening, layout and contents.
 - `UI/Inventory/LoadoutWidgetInput.cpp`: its cursor, actions (swap, hold, drop), mouse handling and turning the stand-in.
 - `UI/Inventory/LoadoutWidgetDrag.cpp`: dragging guns between slots, the backpack and the character.
@@ -225,8 +244,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Dev/WeaponDevCommands.cpp`: console commands for testing (`Looter.GiveWeapon`, `Looter.SpawnAmmo`).
 - `Dev/ProgressionDevCommands.cpp`: console commands for levels (`Looter.GiveXP`, `Looter.SetLevel`,
   `Looter.ResetProgress`) and the bestiary (`Looter.ForgetBestiary`).
-- `Dev/SessionDevCommands.cpp`: `Looter.Session.Play <1-3>`, `Looter.Session.Save`, `Looter.Session.Menu`,
-  `Looter.Session.List`.
+- `Dev/SessionDevCommands.cpp`: `Looter.Session.Play <1-3>`, `.Save`, `.Menu`, `.List`, `.CheckSave [1-3 | file]` (a
+  save's upgrade checked on a copy), `.Copy <from> <to>` (into an empty slot only), `Looter.Travel <area or level>
+  [landing]`, `Looter.Area.List`.
 - `Dev/CreatureDevCommands.cpp`: `Looter.CreatureHealth`, gives the nearest creatures chosen health (to compare their
   bars); `Looter.SpawnCreature <kind> [rank] [count] [chase] [size=] [level=]`, spawns ranked creatures in front of the
   player (gone for good once killed).
@@ -237,7 +257,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`).
 
 ## Tests (run with `Tools\runtests.ps1`)
-- `Tests/AnimationTests.cpp`, `BestiaryTests.cpp`, `CreatureTests.cpp`, `CreatureRankTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
+- `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `CreatureTests.cpp`, `CreatureRankTests.cpp`, `InventoryTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
   `MinimapTests.cpp`, `MissionTests.cpp`, `PlayableAreaTests.cpp`, `ProgressionTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SlimeTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 

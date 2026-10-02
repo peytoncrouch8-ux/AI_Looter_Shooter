@@ -15,8 +15,9 @@ struct FSessionSummary;
 /**
  * The main menu, drawn over the tutorial island (a camera circles it behind the menu). A tall glass column on the left
  * holds the game's title and the menu; the rest of the screen is left to the island.
- *  - Single Player shows the session picker in place of the main buttons: a card per session (USessionSubsystem), each
- *    continued or started from its card, and a saved one deleted after a confirmation popup.
+ *  - Single Player shows the session picker in place of the main buttons: a card per session (USessionSubsystem) naming
+ *    the area it's in (Skyreach, Ransom's Rest), each continued or started from its card, and a saved one deleted after
+ *    a confirmation popup.
  *  - Multiplayer doesn't exist yet: it shows dimmed, with a SOON tag, and does nothing.
  *  - Settings opens the settings menu over this one (AMainMenuHUD owns both).
  *  - Quit Game closes the game.

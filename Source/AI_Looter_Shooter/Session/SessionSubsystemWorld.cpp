@@ -1,4 +1,4 @@
-// USessionSubsystem: what a session keeps of the player and the world, and putting it back.
+// USessionSubsystem: what a session keeps of the player and each map's world, and putting it back.
 
 #include "Session/SessionSubsystem.h"
 #include "AI_Looter_Shooter.h"
@@ -14,6 +14,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "Misc/PackageName.h"
 
 namespace
 {
@@ -40,9 +41,11 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 	{
 		return;
 	}
+	const FString MapPackage = MapOf(World);
 
-	// The player: where they stand and look, their health and what they carry. Saved while dead, they come back at the
-	// level's start with full health, as a respawn would bring them.
+	// The player: the level they're in, where they stand and look, their health and what they carry. Saved while dead,
+	// they come back at the level's start with full health, as a respawn would bring them.
+	Save.Map = MapPackage;
 	APlayerController* Controller = World->GetFirstPlayerController();
 	APawn* Pawn = Controller ? Controller->GetPawn() : nullptr;
 	const UHealthComponent* Health = Pawn ? Pawn->FindComponentByClass<UHealthComponent>() : nullptr;
@@ -60,33 +63,35 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 		Save.bHasInventory = true;
 	}
 
-	// The world: what the racks still offer, and every other gun and ammo pickup lying around.
-	Save.bHasWorld = true;
+	// This map's world, filed under its own name so every other map's stays as it was left: what the racks still offer,
+	// every other gun and ammo pickup lying around, and the tutorial's step. When its creatures were promoted and its
+	// Legendary monsters beaten is kept as it was.
+	FSavedMapWorld& Here = Save.FindOrAddWorld(MapPackage);
 	const TArray<AWeaponRack*> Racks = FindRacks(World);
-	Save.Racks.Reset();
+	Here.Racks.Reset();
 	for (const AWeaponRack* Rack : Racks)
 	{
-		FSavedWeaponRack& State = Save.Racks.AddDefaulted_GetRef();
+		FSavedWeaponRack& State = Here.Racks.AddDefaulted_GetRef();
 		State.Rack = Rack->GetFName();
 		State.bWeaponOffered = Rack->IsWeaponOffered();
 		State.AmmoPickupsLeft = Rack->GetAmmoPickupsLeft();
 	}
-	Save.LootWeapons.Reset();
+	Here.LootWeapons.Reset();
 	for (TActorIterator<AWeaponBase> It(World); It; ++It)
 	{
 		if (It->IsPickup() && !It->IsActorBeingDestroyed() && It->GetInstance().Definition && !IsRackLoot(Racks, *It))
 		{
-			FSavedLootWeapon& Loot = Save.LootWeapons.AddDefaulted_GetRef();
+			FSavedLootWeapon& Loot = Here.LootWeapons.AddDefaulted_GetRef();
 			Loot.Weapon = It->GetInstanceForStorage();
 			Loot.Transform = It->GetActorTransform();
 		}
 	}
-	Save.AmmoPickups.Reset();
+	Here.AmmoPickups.Reset();
 	for (TActorIterator<AAmmoPickup> It(World); It; ++It)
 	{
 		if (It->GetAmount() > 0 && !It->IsActorBeingDestroyed() && !IsRackLoot(Racks, *It))
 		{
-			FSavedAmmoPickup& Ammo = Save.AmmoPickups.AddDefaulted_GetRef();
+			FSavedAmmoPickup& Ammo = Here.AmmoPickups.AddDefaulted_GetRef();
 			Ammo.Type = It->GetAmmoType();
 			Ammo.Amount = It->GetAmount();
 			Ammo.Location = It->GetActorLocation();
@@ -94,7 +99,7 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 	}
 
 	TActorIterator<ATutorialDirector> Director(World);
-	Save.TutorialStep = Director ? Director->GetCurrentStep() : INDEX_NONE;
+	Here.TutorialStep = Director ? Director->GetCurrentStep() : INDEX_NONE;
 }
 
 void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Save)
@@ -103,15 +108,18 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 	{
 		return;
 	}
+	const FString MapPackage = MapOf(World);
 
-	if (Save.bHasWorld)
+	// This map's world, when the session has been here before; on a first visit the level starts as it was built.
+	const FSavedMapWorld* Here = Save.FindWorld(MapPackage);
+	if (Here)
 	{
 		// The racks laid out their loot as the level began; what the player had already taken goes again.
 		const TArray<AWeaponRack*> Racks = FindRacks(World);
 		for (AWeaponRack* Rack : Racks)
 		{
 			const FName RackName = Rack->GetFName();
-			if (const FSavedWeaponRack* State = Save.Racks.FindByPredicate([RackName](const FSavedWeaponRack& Saved) { return Saved.Rack == RackName; }))
+			if (const FSavedWeaponRack* State = Here->Racks.FindByPredicate([RackName](const FSavedWeaponRack& Saved) { return Saved.Rack == RackName; }))
 			{
 				Rack->RestoreOffer(State->bWeaponOffered, State->AmmoPickupsLeft);
 			}
@@ -137,7 +145,7 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 		{
 			Actor->Destroy();
 		}
-		for (const FSavedLootWeapon& Loot : Save.LootWeapons)
+		for (const FSavedLootWeapon& Loot : Here->LootWeapons)
 		{
 			// A gun whose kind no longer exists (its data asset gone) can't come back.
 			if (Loot.Weapon.Definition)
@@ -149,7 +157,7 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 				}
 			}
 		}
-		for (const FSavedAmmoPickup& Ammo : Save.AmmoPickups)
+		for (const FSavedAmmoPickup& Ammo : Here->AmmoPickups)
 		{
 			if (AAmmoPickup* Pickup = AAmmoPickup::SpawnAmmo(World, Ammo.Type, Ammo.Amount, Ammo.Location))
 			{
@@ -158,12 +166,13 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 		}
 	}
 
-	// The player, who has just been put at the level's start.
+	// The player, who has just been put at the level's start (or a trip's landing). Their spot is only good in the level
+	// it was saved in.
 	APlayerController* Controller = World->GetFirstPlayerController();
 	APawn* Pawn = Controller ? Controller->GetPawn() : nullptr;
 	if (Pawn)
 	{
-		if (Save.bHasPlayerSpot)
+		if (Save.HasPlayerSpotOn(MapPackage))
 		{
 			// Upright, facing the saved way; the view takes the saved pitch too.
 			Pawn->TeleportTo(Save.PlayerLocation, FRotator(0.f, Save.PlayerView.Yaw, 0.f), /*bIsATest*/ false, /*bNoCheck*/ true);
@@ -186,13 +195,13 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 	}
 
 	// The tutorial picks up at the step it was on (its first steps would otherwise ask again for what was done).
-	if (!Save.Progress.bTutorialDone && Save.TutorialStep > 0)
+	if (!Save.Progress.bTutorialDone && Here && Here->TutorialStep > 0)
 	{
 		for (TActorIterator<ATutorialDirector> It(World); It; ++It)
 		{
-			It->ResumeAtStep(Save.TutorialStep);
+			It->ResumeAtStep(Here->TutorialStep);
 		}
 	}
-	UE_LOG(LogLooter, Log, TEXT("Session restored: %d guns carried, %d guns and %d ammo pickups on the ground"),
-		Save.Inventory.Equipped.Num() + Save.Inventory.Backpack.Num(), Save.LootWeapons.Num(), Save.AmmoPickups.Num());
+	UE_LOG(LogLooter, Log, TEXT("Session restored in %s: %d guns carried, %d guns and %d ammo pickups on the ground"),
+		*FPackageName::GetShortName(MapPackage), Save.CountGuns(), Here ? Here->LootWeapons.Num() : 0, Here ? Here->AmmoPickups.Num() : 0);
 }

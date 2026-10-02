@@ -55,8 +55,8 @@ USessionSubsystem* USessionSubsystem::Get(const UObject* WorldContextObject)
 void USessionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	// Saved as each level starts to tear down, while its actors are all still there: quitting the game, travelling to
-	// another level, or stopping Play-In-Editor.
+	// Saved as each level starts to tear down, while its actors are all still there: quitting the game, or stopping
+	// Play-In-Editor. A trip has saved already, and the gate keeps the level it leaves from saving over it.
 	TearDownHandle = FWorldDelegates::OnWorldBeginTearDown.AddUObject(this, &USessionSubsystem::HandleWorldBeginTearDown);
 	ImportLegacyProgress();
 }
@@ -83,10 +83,33 @@ ULooterSessionSave* USessionSubsystem::LoadSlot(int32 Index) const
 	{
 		return nullptr;
 	}
-	ULooterSessionSave* Save = Cast<ULooterSessionSave>(UGameplayStatics::LoadGameFromSlot(SlotName(Index), 0));
+	TArray<uint8> Bytes;
+	ULooterSessionSave* Save = UGameplayStatics::LoadDataFromSlot(Bytes, SlotName(Index), 0) ? ReadSave(Bytes) : nullptr;
 	if (!Save)
 	{
 		UE_LOG(LogLooter, Warning, TEXT("Session %d's save couldn't be read."), Index + 1);
+	}
+	return Save;
+}
+
+ULooterSessionSave* USessionSubsystem::ReadSave(const TArray<uint8>& Bytes)
+{
+	ULooterSessionSave* Save = Cast<ULooterSessionSave>(UGameplayStatics::LoadGameFromMemory(Bytes));
+	if (!Save)
+	{
+		return nullptr;
+	}
+	// Every read goes through here, so an older save is brought up to date before anything can save it again.
+	const int32 ReadVersion = Save->Upgrade();
+	if (ReadVersion < ULooterSessionSave::CurrentVersion)
+	{
+		UE_LOG(LogLooter, Log, TEXT("Session save read as version %d and brought up to version %d: %d guns, %d maps' worlds"), ReadVersion,
+			ULooterSessionSave::CurrentVersion, Save->CountGuns(), Save->Worlds.Num());
+	}
+	else if (ReadVersion > ULooterSessionSave::CurrentVersion)
+	{
+		UE_LOG(LogLooter, Warning, TEXT("Session save is version %d, newer than this game's %d: read as it is."), ReadVersion,
+			ULooterSessionSave::CurrentVersion);
 	}
 	return Save;
 }
@@ -103,10 +126,11 @@ FSessionSummary USessionSubsystem::GetSummary(int32 Index) const
 	}
 	Summary.bExists = true;
 	Summary.Level = Save->Progress.Level;
-	Summary.Weapons = Save->Inventory.Equipped.Num() + Save->Inventory.Backpack.Num();
+	Summary.Weapons = Save->CountGuns();
 	Summary.PlayedSeconds = Save->PlayedSeconds;
 	Summary.Saved = Save->Saved;
-	Summary.Place = PlaceName(Save->Map.IsEmpty() ? NewGameMap() : Save->Map);
+	// Where Continue goes, by the area's name.
+	Summary.Place = AreaName(ContinueMap(Save->Map));
 	Summary.bTutorialDone = Save->Progress.bTutorialDone;
 	return Summary;
 }
@@ -120,10 +144,11 @@ bool USessionSubsystem::PlaySession(int32 Index)
 	}
 	// It continues in the level it was saved in, when that still exists.
 	const ULooterSessionSave* Save = LoadSlot(Index);
-	FString Map = Save ? Save->Map : FString();
-	if (Map.IsEmpty() || !FPackageName::DoesPackageExist(Map))
+	const FString Map = ContinueMap(Save ? Save->Map : FString());
+	if (Save && !Save->Map.IsEmpty() && !Save->Map.Equals(Map, ESearchCase::IgnoreCase))
 	{
-		Map = NewGameMap();
+		UE_LOG(LogLooter, Warning, TEXT("Session %d was saved in %s, which isn't in the game: it continues in %s, at the level's start."),
+			Index + 1, *Save->Map, *Map);
 	}
 	UE_LOG(LogLooter, Log, TEXT("Session %d: %s in %s"), Index + 1, Save ? TEXT("continuing") : TEXT("new game"), *Map);
 	UGameplayStatics::OpenLevel(World, FName(*Map), /*bAbsolute*/ true, FString::Printf(TEXT("Session=%d"), Index + 1));
@@ -165,13 +190,40 @@ FString USessionSubsystem::NewGameMap()
 	return FPackageName::ObjectPathToPackageName(DefaultMap);
 }
 
+FString USessionSubsystem::ContinueMap(const FString& SavedMap)
+{
+	if (!SavedMap.IsEmpty() && FPackageName::IsValidLongPackageName(SavedMap) && FPackageName::DoesPackageExist(SavedMap))
+	{
+		return SavedMap;
+	}
+	return NewGameMap();
+}
+
+FString USessionSubsystem::MapOf(const UWorld* World)
+{
+	// Play-In-Editor plays a copy named "/Game/Maps/UEDPIE_0_Lvl_X": sessions name the level itself.
+	return World ? UWorld::RemovePIEPrefix(World->GetOutermost()->GetName()) : FString();
+}
+
 // ---------------------------------------------------------------------------
 // The session being played
 // ---------------------------------------------------------------------------
 
+ULooterSessionSave* USessionSubsystem::NewSave()
+{
+	ULooterSessionSave* Save = NewObject<ULooterSessionSave>(this);
+	Save->Version = ULooterSessionSave::CurrentVersion;
+	Save->Created = FDateTime::Now();
+	return Save;
+}
+
 void USessionSubsystem::BeginPlayWorld(UWorld* World, const FString& Options)
 {
 	StopTimers();
+	// A trip ends as its destination begins, and whatever held saves in the level it left is over with it.
+	const bool bFromTrip = SaveGate.IsTravelling();
+	SaveGate.Reset();
+	bSaveWanted = false;
 	PlayWorld = World;
 	bWorldRestored = false;
 	PlayClock = World ? World->GetTimeSeconds() : 0.0;
@@ -179,24 +231,31 @@ void USessionSubsystem::BeginPlayWorld(UWorld* World, const FString& Options)
 	const FString Option = UGameplayStatics::ParseOption(Options, TEXT("Session"));
 	const int32 Number = Option.IsEmpty() ? 0 : FCString::Atoi(*Option);
 	ActiveIndex = Number >= 1 && Number <= MaxSessions ? Number - 1 : INDEX_NONE;
-	Current = nullptr;
 	if (ActiveIndex != INDEX_NONE)
 	{
+		// After a trip this reads the trip's own save, which points here.
 		Current = LoadSlot(ActiveIndex);
-		if (!Current)
+		const bool bLoaded = Current != nullptr;
+		if (!bLoaded)
 		{
 			// A new game in this slot. Nothing is written until it is first saved.
-			Current = NewObject<ULooterSessionSave>(this);
-			Current->Version = ULooterSessionSave::CurrentVersion;
-			Current->Created = FDateTime::Now();
+			Current = NewSave();
 		}
 		AutosaveTicker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &USessionSubsystem::HandleAutosave), AutosaveInterval);
-		UE_LOG(LogLooter, Log, TEXT("Playing session %d (%s)"), ActiveIndex + 1, Current->bHasWorld ? TEXT("saved") : TEXT("new game"));
+		UE_LOG(LogLooter, Log, TEXT("Playing session %d (%s)"), ActiveIndex + 1, bLoaded ? TEXT("saved") : TEXT("new game"));
+	}
+	else if (bFromTrip && Current)
+	{
+		UE_LOG(LogLooter, Log, TEXT("Playing without a session: nothing is saved, but the player and the worlds came along on the trip."));
 	}
 	else
 	{
+		Current = nullptr;
 		UE_LOG(LogLooter, Log, TEXT("Playing without a session: nothing is saved."));
 	}
+
+	// After a trip the player arrives at its landing, unless the session has a spot for them on this level.
+	ArrivalLanding = Current ? Current->GetArrivalOn(MapOf(World)) : NAME_None;
 	SetPlayerProgress(Current ? Current->Progress : FPlayerProgressData());
 }
 
@@ -209,6 +268,13 @@ void USessionSubsystem::RestorePlayWorld(UWorld* World)
 	if (Current)
 	{
 		RestoreWorld(World, *Current);
+		// Whatever trip brought the player here is over: from now on the session keeps where they stand.
+		Current->ArrivalTag = NAME_None;
+	}
+	if (!ArrivalLanding.IsNone())
+	{
+		PlaceAtLanding(World, ArrivalLanding);
+		ArrivalLanding = NAME_None;
 	}
 	bWorldRestored = true;
 }
@@ -216,6 +282,9 @@ void USessionSubsystem::RestorePlayWorld(UWorld* World)
 void USessionSubsystem::BeginMenuWorld(UWorld* World)
 {
 	StopTimers();
+	SaveGate.Reset();
+	bSaveWanted = false;
+	ArrivalLanding = NAME_None;
 	ActiveIndex = INDEX_NONE;
 	Current = nullptr;
 	PlayWorld = nullptr;
@@ -226,9 +295,21 @@ void USessionSubsystem::BeginMenuWorld(UWorld* World)
 
 bool USessionSubsystem::SaveNow()
 {
+	return SaveFor(ESessionSaveReason::Asked);
+}
+
+bool USessionSubsystem::SaveFor(ESessionSaveReason Reason)
+{
 	UWorld* World = PlayWorld.Get();
 	if (!IsPlayingSession() || !Current || !World || !bWorldRestored)
 	{
+		return false;
+	}
+	if (!SaveGate.Allows(Reason))
+	{
+		// Held for a ride or a fade: it saves once the holds end. During a trip nothing waits, as the trip's own save has
+		// everything and the level it leaves is going.
+		bSaveWanted = bSaveWanted || !SaveGate.IsTravelling();
 		return false;
 	}
 	if (PendingSave.IsValid())
@@ -236,27 +317,45 @@ bool USessionSubsystem::SaveNow()
 		FTSTicker::RemoveTicker(PendingSave);
 		PendingSave.Reset();
 	}
+	bSaveWanted = false;
+	CaptureSession(*World);
+	return WriteSession();
+}
 
-	const double Now = World->GetTimeSeconds();
+void USessionSubsystem::CaptureSession(UWorld& World)
+{
+	const double Now = World.GetTimeSeconds();
 	Current->PlayedSeconds += FMath::Max(Now - PlayClock, 0.0);
 	PlayClock = Now;
 	Current->Version = ULooterSessionSave::CurrentVersion;
-	Current->Saved = FDateTime::Now();
-	Current->Map = UWorld::RemovePIEPrefix(World->GetOutermost()->GetName());
 	GetPlayerProgress(Current->Progress);
-	CaptureWorld(World, *Current);
+	CaptureWorld(&World, *Current);
+}
 
+bool USessionSubsystem::WriteSession()
+{
+	Current->Saved = FDateTime::Now();
 	const bool bSaved = UGameplayStatics::SaveGameToSlot(Current, SlotName(ActiveIndex), 0);
-	UE_LOG(LogLooter, Log, TEXT("Session %d %s: level %d, %d guns, %d loot on the ground, %.0f s played"), ActiveIndex + 1,
-		bSaved ? TEXT("saved") : TEXT("FAILED to save"), Current->Progress.Level,
-		Current->Inventory.Equipped.Num() + Current->Inventory.Backpack.Num(), Current->LootWeapons.Num() + Current->AmmoPickups.Num(),
-		Current->PlayedSeconds);
+	const FSavedMapWorld* Here = Current->FindWorld(Current->Map);
+	UE_LOG(LogLooter, Log, TEXT("Session %d %s: level %d, %d guns, in %s with %d loot on the ground, %.0f s played"), ActiveIndex + 1,
+		bSaved ? TEXT("saved") : TEXT("FAILED to save"), Current->Progress.Level, Current->CountGuns(), *FPackageName::GetShortName(Current->Map),
+		Here ? Here->LootWeapons.Num() + Here->AmmoPickups.Num() : 0, Current->PlayedSeconds);
 	return bSaved;
 }
 
 void USessionSubsystem::SaveSoon()
 {
-	if (IsPlayingSession() && !PendingSave.IsValid())
+	// During a trip nothing new is wanted: its own save has everything.
+	if (!IsPlayingSession() || SaveGate.IsTravelling())
+	{
+		return;
+	}
+	if (!SaveGate.Allows(ESessionSaveReason::Soon))
+	{
+		bSaveWanted = true;
+		return;
+	}
+	if (!PendingSave.IsValid())
 	{
 		PendingSave = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &USessionSubsystem::HandleSaveDue), SaveSoonDelay);
 	}
@@ -272,11 +371,37 @@ void USessionSubsystem::SaveAndQuitToMenu()
 	OpenMainMenu();
 }
 
+void USessionSubsystem::HoldSaves(FName Reason)
+{
+	SaveGate.Hold(Reason);
+}
+
+void USessionSubsystem::ReleaseSaves(FName Reason)
+{
+	if (SaveGate.Release(Reason) && bSaveWanted)
+	{
+		// What waited saves now, a few seconds on like any save-soon.
+		bSaveWanted = false;
+		SaveSoon();
+	}
+}
+
+FCampaignRecord* USessionSubsystem::GetCampaign()
+{
+	// Played without a session, the story is kept in memory for this play (and its trips) only, like everything else.
+	if (!Current && PlayWorld.IsValid())
+	{
+		Current = NewSave();
+	}
+	return Current ? &Current->Campaign : nullptr;
+}
+
 void USessionSubsystem::HandleWorldBeginTearDown(UWorld* World)
 {
 	if (World && World == PlayWorld.Get())
 	{
-		SaveNow();
+		// Refused while a trip is under way: the level being left would file itself as the one the session continues in.
+		SaveFor(ESessionSaveReason::LevelEnd);
 		StopTimers();
 		PlayWorld = nullptr;
 		bWorldRestored = false;
@@ -285,15 +410,15 @@ void USessionSubsystem::HandleWorldBeginTearDown(UWorld* World)
 
 bool USessionSubsystem::HandleAutosave(float DeltaTime)
 {
-	SaveNow();
+	SaveFor(ESessionSaveReason::Autosave);
 	return true;
 }
 
 bool USessionSubsystem::HandleSaveDue(float DeltaTime)
 {
-	// The ticker drops this one-shot when it returns false; forget the handle first so SaveNow doesn't remove it.
+	// The ticker drops this one-shot when it returns false; forget the handle first so SaveFor doesn't remove it.
 	PendingSave.Reset();
-	SaveNow();
+	SaveFor(ESessionSaveReason::Soon);
 	return false;
 }
 
@@ -348,9 +473,7 @@ void USessionSubsystem::ImportLegacyProgress()
 	{
 		if (const ULooterProgressSave* Legacy = LoadLegacyProgress())
 		{
-			ULooterSessionSave* Save = NewObject<ULooterSessionSave>(this);
-			Save->Version = ULooterSessionSave::CurrentVersion;
-			Save->Created = FDateTime::Now();
+			ULooterSessionSave* Save = NewSave();
 			Save->Saved = Save->Created;
 			Save->Map = NewGameMap();
 			Save->Progress = Legacy->ToProgress();
@@ -364,47 +487,4 @@ void USessionSubsystem::ImportLegacyProgress()
 	}
 	GConfig->SetBool(ConfigSection, ImportedKey, true, GGameUserSettingsIni);
 	GConfig->Flush(false, GGameUserSettingsIni);
-}
-
-// ---------------------------------------------------------------------------
-// Words for people
-// ---------------------------------------------------------------------------
-
-FString USessionSubsystem::FormatPlayTime(double Seconds)
-{
-	const int64 Total = FMath::Max<int64>(FMath::FloorToInt64(Seconds), 0);
-	if (Total < 60)
-	{
-		return FString::Printf(TEXT("%lld s"), Total);
-	}
-	const int64 Minutes = Total / 60;
-	if (Minutes < 60)
-	{
-		return FString::Printf(TEXT("%lld min"), Minutes);
-	}
-	return FString::Printf(TEXT("%lld h %02lld min"), Minutes / 60, Minutes % 60);
-}
-
-FString USessionSubsystem::FormatSavedTime(const FDateTime& Saved, const FDateTime& Now)
-{
-	const FString Clock = FString::Printf(TEXT("%02d:%02d"), Saved.GetHour(), Saved.GetMinute());
-	if (Saved.GetDate() == Now.GetDate())
-	{
-		return TEXT("Today ") + Clock;
-	}
-	if (Saved.GetDate() == (Now - FTimespan::FromDays(1.0)).GetDate())
-	{
-		return TEXT("Yesterday ") + Clock;
-	}
-	static const TCHAR* Months[] = { TEXT("Jan"), TEXT("Feb"), TEXT("Mar"), TEXT("Apr"), TEXT("May"), TEXT("Jun"), TEXT("Jul"),
-		TEXT("Aug"), TEXT("Sep"), TEXT("Oct"), TEXT("Nov"), TEXT("Dec") };
-	return FString::Printf(TEXT("%s %d, %d"), Months[FMath::Clamp(Saved.GetMonth(), 1, 12) - 1], Saved.GetDay(), Saved.GetYear());
-}
-
-FString USessionSubsystem::PlaceName(const FString& Map)
-{
-	// "/Game/Maps/Lvl_TutorialIsland" -> "TutorialIsland" -> "Tutorial Island".
-	FString Name = FPackageName::GetShortName(Map);
-	Name.RemoveFromStart(TEXT("Lvl_"));
-	return FName::NameToDisplayString(Name, false);
 }
