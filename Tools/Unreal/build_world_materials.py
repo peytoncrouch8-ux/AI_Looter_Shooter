@@ -23,6 +23,8 @@
   M_Glass         unlit, translucent: lenses and sight windows. Mostly clear (Opacity) facing the eye, so a sight can
                   be aimed through, tinted (Tint) and brighter and denser toward grazing edges (RimBrightness,
                   EdgeOpacity), which reads as glass without reflections.
+  M_Backdrop      unlit, opaque, one-sided: the far silhouettes past a grounded area (Art/Levels/area_beyond.py), a flat
+                  Tint times Brightness (about what sunlit ground of that color shows); the height fog hazes them.
 
 The model importer (FModelImporter) makes MI_<material> instances of these from the Blender materials. Re-running this
 keeps each material asset (so instances stay linked) and rebuilds its graph. Run in the open editor, optionally with the
@@ -489,6 +491,20 @@ def build_glass():
     return mat
 
 
+def build_backdrop():
+    """M_Backdrop: a few cheap draws for the ranges and plains kilometers out. Unlit, so their color doesn't depend on
+    how the low sun happens to strike them; opaque and one-sided, since they're only ever seen from inside."""
+    mat = material('M_Backdrop')
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
+    g = Graph(mat)
+    # A lit surface of albedo A shows about 2.5 A in the island's sun and sky (the unlit clouds' white is about 3).
+    color = g.mul(g.vector('Tint', (0.11, 0.15, 0.11, 1.0), -600, -100), '', g.scalar('Brightness', 2.5, -600, 50), '',
+                  -300, -50)
+    g.out(color, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    finish(mat, [])
+    return mat
+
+
 def effect(name, inputs_extra, color_code, color_inputs, opacity_code, opacity_inputs):
     """An unlit, translucent, two-sided master whose color and opacity come from two Custom nodes over shared inputs."""
     mat = material(name)
@@ -541,7 +557,8 @@ def build_smoke():
 BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'M_Gun': lambda: build_gun(DEFAULT_ORM),
             'M_WorldFoliage': lambda: build_foliage(DEFAULT_ORM),
             'M_Terrain': build_terrain, 'M_Water': build_water, 'M_SkyClouds': build_sky_clouds,
-            'M_Waterfall': build_waterfall, 'M_Smoke': build_smoke, 'M_Glass': build_glass, 'M_Gel': build_gel}
+            'M_Waterfall': build_waterfall, 'M_Smoke': build_smoke, 'M_Glass': build_glass, 'M_Gel': build_gel,
+            'M_Backdrop': build_backdrop}
 wanted = [name for name in sys.argv[1:] if name in BUILDERS] or list(BUILDERS)
 orm = default_orm()
 built = [BUILDERS[name]() for name in wanted]

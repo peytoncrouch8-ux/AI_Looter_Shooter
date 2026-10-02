@@ -17,8 +17,10 @@ A grounded area's terrain also has what lies past its core (Art/Levels/area_beyo
 (SM_<Area>_Ring_<n>), the canyon wall (_CanyonWall_<n>) and the backdrop (_Backdrop_<n>). They go in the Beyond
 folder, tagged Beyond (Looter.Perf.HideTag measures them by difference); only the core's tiles are tagged Ground, so the
 minimap covers the valley alone. Cliff points with stacked courses get one piece per course; a knob's point places the
-outcrop kit's piece it names (SM_Outcrop_<piece>), and a gully's sloped banks get no faces.
+outcrop kit's piece it names (SM_Outcrop_<piece>), and a gully's sloped banks get no faces. Its playable area, KillZ
+and cull distance volume come from build_area_bounds.py.
 """
+import importlib
 import json
 import math
 import os
@@ -26,6 +28,9 @@ import random
 import sys
 
 import unreal
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import build_area_bounds  # noqa: E402
 
 PROJECT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
 ART = '/Game/Art'
@@ -481,6 +486,8 @@ class AreaBuild:
         self.effects(meshes)
         self.no_tree_zones()
         self.gameplay(meshes)
+        # Reloaded, as the editor keeps modules between runs, so an edited one takes effect.
+        importlib.reload(build_area_bounds).place(self)
         sky_light.recapture_sky()
         levels.save_current_level()
         self.log('built and saved')

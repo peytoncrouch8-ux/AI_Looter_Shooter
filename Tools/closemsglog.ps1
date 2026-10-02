@@ -1,5 +1,7 @@
-# Closes the editor's floating "Message Log" window (it pops up with automation results and steals keyboard input).
-# Clicks nothing if the window isn't open.
+# Closes the editor's floating "Message Log" window (it pops up with automation results and steals keyboard input), or
+# another floating editor window by its title (a "Content Browser" an asset script opened over the game).
+# Usage: closemsglog.ps1 [-Title "Content Browser"]. Clicks nothing if no such window is open.
+param([string]$Title = 'Message Log')
 Add-Type @"
 using System; using System.Text; using System.Runtime.InteropServices;
 public static class MsgLogWnd {
@@ -14,7 +16,7 @@ public static class MsgLogWnd {
 "@ -ErrorAction SilentlyContinue
 $found = New-Object System.Collections.ArrayList
 [MsgLogWnd]::EnumWindows({ param($h, $l)
-    if ([MsgLogWnd]::IsWindowVisible($h)) { $sb = New-Object Text.StringBuilder 256; [void][MsgLogWnd]::GetWindowText($h, $sb, 256); if ($sb.ToString() -eq 'Message Log') { [void]$found.Add($h) } }
+    if ([MsgLogWnd]::IsWindowVisible($h)) { $sb = New-Object Text.StringBuilder 256; [void][MsgLogWnd]::GetWindowText($h, $sb, 256); if ($sb.ToString() -eq $Title) { [void]$found.Add($h) } }
     $true }, [IntPtr]::Zero) | Out-Null
 foreach ($h in $found) { [void][MsgLogWnd]::PostMessage($h, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) }  # WM_CLOSE
-"closed $($found.Count) Message Log window(s)"
+"closed $($found.Count) $Title window(s)"
