@@ -19,6 +19,7 @@ command line keep theirs under `%LOCALAPPDATA%\UnrealEngine\5.8\Saved`.
 
 - `Docs/Plan.md`: the pipeline cleanup plan and where it stands.
 - `Docs/Performance.md`: measured performance history.
+- `Docs/Story.md`: the campaign's story; `Docs/Areas/` holds one design per area.
 
 ## Build, run, test
 
