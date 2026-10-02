@@ -130,8 +130,7 @@ class Model(kit.Model):
         bpy.data.objects.remove(self._obj)
         bpy.data.meshes.remove(self._mesh)
         mesh = bpy.data.meshes.new(self.name)
-        kit._triangulate(self.bm)
-        self.bm.normal_update()
+        triangulate_clean(self.bm)
         self.bm.to_mesh(mesh)
         self.bm.free()
         by_index = {index: mat for index, mat in self.slots.values()}
@@ -170,6 +169,174 @@ class Model(kit.Model):
         if preview and lt.want_preview():
             lt.preview([obj], out or lt.preview_path('Buildings', self.name), view=view, fit=fit, lens=lens)
         return obj
+
+
+def triangulate_clean(bm, min_height=0.0015, crumb=0.008):
+    """Cuts the model into triangles the same way on every run, then mends its slivers, which Unreal's tangent build
+    chokes on ("nearly zero tangents"). kit._triangulate does the first part, but walks Python sets of mesh elements,
+    whose order follows memory, so some meshes changed from run to run; here every list is in index order. A sliver is
+    a triangle under min_height across: corners in a line where a band or slice cut met a straight side, a cut that
+    passed a hair from a corner, an outline corner that is nearly straight. Each is mended without moving anything
+    further than it already was from its neighbors:
+      - a needle (two corners closer than crumb) merges one corner into the other, the one whose faces stay in their
+        planes (and none turns over or becomes a sliver); its UVs follow its faces' mapping;
+      - a cap (a corner a hair from its long side) turns that side toward the face beyond it, when the two lie in one
+        plane, share their UVs there and the turn leaves two better triangles (a cap folded over its neighbor too);
+      - any other cap splits its long side under its corner and welds the split onto it (on a crease, the face beyond
+        bends by the cap's height there).
+    Small parts that are simply small (wires, rings, rope strands) are well shaped and left alone."""
+    bmesh.ops.triangulate(bm, faces=bm.faces[:], quad_method='BEAUTY', ngon_method='BEAUTY')
+    uv = bm.loops.layers.uv.active
+
+    def refresh():
+        bm.verts.index_update()
+        bm.edges.index_update()
+        bm.faces.index_update()
+        bm.normal_update()
+
+    def across(cos):
+        a, b, c = cos
+        longest = max((b - a).length, (c - b).length, (a - c).length)
+        return (b - a).cross(c - a).length / max(longest, 1e-12)
+
+    def height(face):
+        return across([v.co for v in face.verts])
+
+    def move(w, u):
+        """Moving w onto u: how far u lies from the planes of w's faces that stay, or None if one would turn over or
+        become a sliver."""
+        worst = 0.0
+        for f in w.link_faces:
+            if u in f.verts:
+                continue
+            cos = [u.co if v is w else v.co for v in f.verts]
+            n = (cos[1] - cos[0]).cross(cos[2] - cos[0])
+            if n.length < 1e-12 or n.normalized().dot(f.normal) < 0.5:
+                return None
+            if across(cos) < min(height(f), min_height) * 0.999:
+                return None
+            worst = max(worst, abs((u.co - w.co).dot(f.normal)))
+        return worst
+
+    def weld(w, u):
+        """Merges w into u. The corners w had in faces that stay take the UVs their mapping gives at u: those the faces
+        on the edge w-u have at u where the UVs match there, else extrapolated along the face (exact for the flat
+        projections the trims use)."""
+        pairs = []
+        for f in w.link_faces:
+            if u in f.verts:
+                lw = next(l for l in f.loops if l.vert is w)
+                lu = next(l for l in f.loops if l.vert is u)
+                pairs.append((lw[uv].uv.copy(), lu[uv].uv.copy()))
+        for f in w.link_faces:
+            if u in f.verts:
+                continue
+            loop = next(l for l in f.loops if l.vert is w)
+            t = loop[uv].uv.copy()
+            match = next((tu for tw, tu in pairs if (tw - t).length < 1e-6), None)
+            if match is not None:
+                loop[uv].uv = match
+                continue
+            la, lb = loop.link_loop_next, loop.link_loop_prev
+            e1, e2, d = la.vert.co - w.co, lb.vert.co - w.co, u.co - w.co
+            g11, g12, g22 = e1.dot(e1), e1.dot(e2), e2.dot(e2)
+            det = g11 * g22 - g12 * g12
+            if det > 1e-6 * g11 * g22:
+                r1, r2 = e1.dot(d), e2.dot(d)
+                s1, s2 = (r1 * g22 - r2 * g12) / det, (r2 * g11 - r1 * g12) / det
+                loop[uv].uv = t + (la[uv].uv - t) * s1 + (lb[uv].uv - t) * s2
+        bmesh.ops.weld_verts(bm, targetmap={w: u})
+
+    def apex(face, edge):
+        return next(v for v in face.verts if v not in edge.verts)
+
+    def side(p, q, r, n):
+        return (q - p).cross(r - p).dot(n)
+
+    def turnable(f, e, p):
+        """The cap f can turn its long side e toward the face beyond: one plane, the same UVs along e, and two better
+        triangles after (p's line to the far corner parts e's ends)."""
+        if len(e.link_faces) != 2:
+            return False
+        other = e.link_faces[0] if e.link_faces[1] is f else e.link_faces[1]
+        q = apex(other, e)
+        n = other.normal
+        if q is p or abs((p.co - q.co).dot(n)) > 1e-5 or f.material_index != other.material_index:
+            return False
+        corners = [{l.vert: l[uv].uv for l in g.loops} for g in (f, other)]
+        if any((corners[0][v] - corners[1][v]).length > 1e-6 for v in e.verts):
+            return False
+        a, b = e.verts
+        if side(p.co, q.co, a.co, n) * side(p.co, q.co, b.co, n) >= 0.0:
+            return False
+        better = min(across([a.co, p.co, q.co]), across([b.co, p.co, q.co]))
+        return better > height(f) * 1.01 and better >= min(min_height, height(other)) * 0.999
+
+    def split(e, p):
+        """Splits e under p and welds the split onto p; the face beyond is cut from p to its far corner."""
+        a, b = e.verts
+        ab = b.co - a.co
+        fac = (p.co - a.co).dot(ab) / max(ab.length_squared, 1e-18)
+        if not 0.01 < fac < 0.99:
+            return False
+        beyond = [apex(g, e) for g in e.link_faces if p not in g.verts]
+        _, mid = bmesh.utils.edge_split(e, a, fac)
+        bmesh.ops.weld_verts(bm, targetmap={mid: p})
+        for q in beyond:
+            quad = next((g for g in p.link_faces if q in g.verts and len(g.verts) == 4), None)
+            if quad is not None:
+                bmesh.utils.face_split(quad, p, q)
+        return True
+
+    for _ in range(32):
+        refresh()
+        slivers = [f for f in bm.faces if height(f) < min_height]
+        if not slivers:
+            break
+        # Needles first: merging a crumb edge's corners mends every sliver on it at once.
+        welds, used = [], set()
+        for f in slivers:
+            e = min(f.edges, key=lambda x: (x.calc_length(), x.index))
+            if e.calc_length() >= crumb or any(v.index in used for v in e.verts):
+                continue
+            a, b = e.verts
+            options = [(err, w.index, w, u) for w, u in ((a, b), (b, a)) for err in (move(w, u),) if err is not None]
+            if not options:
+                continue
+            _, _, w, u = min(options, key=lambda o: (o[0], o[1]))
+            welds.append((w, u))
+            used.update(v.index for x in (w, u) for g in x.link_faces for v in g.verts)
+        if welds:
+            for w, u in welds:
+                weld(w, u)
+            continue
+        # Caps: each with the faces round its long side to itself (they don't touch another cap's).
+        caps, used = [], set()
+        for f in slivers:
+            e = max(f.edges, key=lambda x: (x.calc_length(), x.index))
+            near = {v.index for g in e.link_faces for v in g.verts}
+            if near & used:
+                continue
+            caps.append((f, e, apex(f, e)))
+            used |= near
+        changed = False
+        for f, e, p in caps:
+            if turnable(f, e, p) and bmesh.utils.edge_rotate(e, False) is not None:
+                changed = True
+            elif split(e, p):
+                changed = True
+        if not changed:
+            break
+        bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3], quad_method='BEAUTY',
+                              ngon_method='BEAUTY')
+    refresh()
+    flat = [f for f in bm.faces if f.calc_area() < 1e-12]
+    if flat:
+        bmesh.ops.delete(bm, geom=flat, context='FACES_ONLY')
+        refresh()
+    left = sum(1 for f in bm.faces if height(f) < min_height)
+    if left:
+        print(f'RUINS:   {left} slivers left under {min_height * 1000:.1f} mm', flush=True)
 
 
 def darken(obj, weight, strength=0.6):
@@ -443,8 +610,34 @@ def lathe(profile, segments, key, strip=None, set_name=None, grain='around', see
     part, bands = lp.lathe(profile, segments=segments, closed=closed)
     lt.assign(part, material(key))
     lp.lathe_uv(part, set_name or strip, grain=grain, seed=seed)
+    split_poles(part, grain)
     lp.place(part, center, rotation)
     return part, bands
+
+
+def split_poles(part, grain):
+    """A profile end on the axis is a pole: one corner shared by a fan of faces whose UVs run round it, so their
+    tangents cancel there and Unreal can find a zero tangent (a lantern hood's peak did). Each face gets its own pole
+    corner instead, in the middle of its sector: the coordinate that runs round (U, or V for grain 'up' on a slope)
+    takes the mean of the face's other corners. Use it in the part's own frame, before lp.place."""
+    mesh = part.data
+    uv = mesh.uv_layers.active.data
+
+    def off_axis(li):
+        co = mesh.vertices[mesh.loops[li].vertex_index].co
+        return math.hypot(co.x, co.y) > 1e-6
+
+    for p in mesh.polygons:
+        rim = [li for li in p.loop_indices if off_axis(li)]
+        if len(rim) == len(p.loop_indices) or not rim:
+            continue
+        k = 0 if grain == 'around' or abs(p.normal.z) > 0.9 else 1
+        middle = sum(uv[li].uv[k] for li in rim) / len(rim)
+        for li in p.loop_indices:
+            if not off_axis(li):
+                value = uv[li].uv.copy()
+                value[k] = middle
+                uv[li].uv = value
 
 
 def wheel(radius, width, spokes, seed, hub=0.1, felloe=0.075, tyre=0.014, wood='charcoal', burnt=0.0, gap=None):
@@ -492,14 +685,38 @@ def wheel(radius, width, spokes, seed, hub=0.1, felloe=0.075, tyre=0.014, wood='
         lt.assign(part, material(key))
         return part
 
+    def end_caps(part, strip):
+        """lathe_uv maps by the angle round the wheel, which a burnt gap's flat end doesn't change: its UVs would
+        collapse to a line. Each end is mapped flat instead: across the ring along U, across its width along V."""
+        v_lo, v_hi = lt.TRIM_STRIPS[lt.TRIM_ALIASES.get(strip, strip)]
+        scale = lt.TRIM_DENSITY / lt.TRIM_SIZE
+        inset = 1.0 / lt.TRIM_SIZE
+        mesh = part.data
+        layer = mesh.uv_layers.active.data
+        for p in mesh.polygons:
+            radial = Vector((p.center.x, p.center.y, 0.0))
+            if radial.length < 1e-6 or abs(p.normal.dot(radial.normalized())) > 0.3 or abs(p.normal.z) > 0.3:
+                continue
+            zs = [mesh.vertices[mesh.loops[li].vertex_index].co.z for li in p.loop_indices]
+            z0, z1 = min(zs), max(zs)
+            for li in p.loop_indices:
+                co = mesh.vertices[mesh.loops[li].vertex_index].co
+                r = math.hypot(co.x, co.y)
+                t = (co.z - z0) / max(z1 - z0, 1e-6)
+                layer[li].uv = (r * scale, v_lo + inset + t * (min(v_hi - v_lo, (z1 - z0) * scale) - 2.0 * inset))
+
     if wood == 'charcoal':
         parts.append(ring(inner, radius - tyre, -width * 0.5, width * 0.5, 'charcoal', 'BarkOak', 1))
     else:
         felloe_part = ring(inner, radius - tyre, -width * 0.5, width * 0.5, 'trim', 'BarkOak', 1)
         lp.lathe_uv(felloe_part, 'Beams', grain='around', seed=seed)
+        if gap is not None:
+            end_caps(felloe_part, 'Beams')
         parts.append(felloe_part)
     tyre_part = ring(radius - tyre, radius, -width * 0.56, width * 0.56, 'trim', 'MetalRust', 3)
     lp.lathe_uv(tyre_part, 'Iron', grain='around', seed=seed + 7)
+    if gap is not None:
+        end_caps(tyre_part, 'Iron')
     parts.append(tyre_part)
     # The hub: a turned block with an iron band at each end.
     burnt_wood = wood == 'charcoal'

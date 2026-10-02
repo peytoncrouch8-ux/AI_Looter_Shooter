@@ -74,6 +74,7 @@ def material(key):
                 # Canvas for gas-bags, sails and rope (the skiff), and plain deck planks (the jetty).
                 'canvas': ('Polymer', 'Canvas', CANVAS_TINTS['Canvas']),
                 'canvasdark': ('Polymer', 'CanvasDark', CANVAS_TINTS['CanvasDark']),
+                'canvasdarkpatch': ('Polymer', 'CanvasDarkPatch', CANVAS_TINTS['CanvasDarkPatch']),
                 'planks': ('WoodPlanks', 'WoodPlanks', None),
             }[key]
             mat = lt.material(spec[0], name=spec[1], tint=spec[2]) if spec[2] is not None else lt.material(spec[0])
@@ -88,7 +89,7 @@ WOOD_TINTS = {'WoodTeal': 0x7cbcc4, 'WoodCream': 0xfffcf6, 'WoodBlack': 0x48423c
 WOOD = ('wteal', 'wcream', 'wblack', 'woxide', 'planks')
 BOARD = 0.11                         # painted tongue-and-groove boards' width
 # The shared canvas tints (this family tunes them).
-CANVAS_TINTS = {'Canvas': 0xd6c9a8, 'CanvasDark': 0x3c3833}
+CANVAS_TINTS = {'Canvas': 0xd6c9a8, 'CanvasDark': 0x3c3833, 'CanvasDarkPatch': 0x4e4438}
 
 
 def tileable(key):
@@ -96,7 +97,7 @@ def tileable(key):
     return {'iron': 'MetalWorn', 'brass': 'MetalWorn', 'black': 'PaintWorn', 'cream': 'PaintWorn',
             'oxide': 'PaintWorn', 'teal': 'PaintWorn', 'crepe': 'Polymer', 'rust': 'MetalRust',
             'wteal': 'WoodPlanks', 'wcream': 'WoodPlanks', 'wblack': 'WoodPlanks', 'woxide': 'WoodPlanks',
-            'planks': 'WoodPlanks', 'canvas': 'Polymer', 'canvasdark': 'Polymer'}.get(key)
+            'planks': 'WoodPlanks', 'canvas': 'Polymer', 'canvasdark': 'Polymer', 'canvasdarkpatch': 'Polymer'}.get(key)
 
 
 def loft(sections, uvs=None, caps=(True, True)):
@@ -458,7 +459,7 @@ class Kit:
         self.hulls.append([Vector(p) for p in points])
 
     def finish(self, lods='50,20,6', screens='0.5,0.22,0.07', ao=0.6, ground=True, collision=True, smooth=35.0,
-               nanite=False):
+               nanite=False, ao_strength=1.0):
         """Joins the parts into the model: triangulated (the same way on every export), soft-shaded with hard edges
         past smooth degrees, its ambient occlusion baked into the vertex colour alpha, Nanite off with its LODs (or
         nanite=True: Nanite on with a full fallback), its hulls (or no collision) and its sockets. Returns the object."""
@@ -470,7 +471,7 @@ class Kit:
         bm.to_mesh(obj.data)
         bm.free()
         lm.smooth(obj, smooth)
-        lt.bake_vertex_ao(obj, distance=ao, ground=ground)
+        lt.bake_vertex_ao(obj, distance=ao, ground=ground, strength=ao_strength)
         if nanite:
             obj['Fallback'] = 100.0
         else:
