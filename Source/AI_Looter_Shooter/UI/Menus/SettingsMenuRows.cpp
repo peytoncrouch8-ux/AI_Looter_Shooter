@@ -99,7 +99,8 @@ UWidget* USettingsMenuWidget::MakeChoiceRow(const FString& Label, const TArray<F
 	return MakeRow(WidgetTree, Line);
 }
 
-UWidget* USettingsMenuWidget::MakeSliderRow(const FString& Label, float MinValue, float MaxValue, USlider*& OutSlider, UTextBlock*& OutValue)
+UWidget* USettingsMenuWidget::MakeSliderRow(const FString& Label, float MinValue, float MaxValue, USlider*& OutSlider, UTextBlock*& OutValue,
+	float StepSize)
 {
 	using namespace LooterUI;
 	UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -107,7 +108,7 @@ UWidget* USettingsMenuWidget::MakeSliderRow(const FString& Label, float MinValue
 	NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	NameSlot->SetVerticalAlignment(VAlign_Center);
 
-	// A thin cyan track with an orange handle, in 5% steps.
+	// A thin cyan track with an orange handle that snaps to its steps.
 	FSliderStyle Style;
 	const FSlateBrush Track = RectBrush(Color::SegmentOff(), Color::RowLine(), 1.f);
 	Style.SetNormalBarImage(Track);
@@ -126,7 +127,7 @@ UWidget* USettingsMenuWidget::MakeSliderRow(const FString& Label, float MinValue
 	OutSlider->SetWidgetStyle(Style);
 	OutSlider->SetMinValue(MinValue);
 	OutSlider->SetMaxValue(MaxValue);
-	OutSlider->SetStepSize(0.05f);
+	OutSlider->SetStepSize(StepSize);
 	OutSlider->MouseUsesStep = true;
 	// The menu keeps keyboard focus (Esc closes it); and the world behind keeps redrawing while the handle is dragged.
 	OutSlider->IsFocusable = false;

@@ -68,6 +68,29 @@ namespace
 		TEXT("Looter.Quality"),
 		TEXT("Sets and saves the graphics quality preset: Looter.Quality Low|Medium|High|Epic"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SetQualityCommand));
+
+	/**
+	 * Looter.FieldOfView <degrees>: sets and saves the first-person field of view, as the settings menu's slider does (a
+	 * wider view draws more, so perf runs can measure it).
+	 */
+	void SetFieldOfViewCommand(const TArray<FString>& Args, UWorld* World)
+	{
+		ULocalPlayer* Player = World ? World->GetFirstLocalPlayerFromController() : nullptr;
+		UGraphicsSettingsSubsystem* Graphics = Player ? Player->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
+		if (!Graphics || Args.Num() != 1 || !Args[0].IsNumeric())
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Usage (in a game): Looter.FieldOfView <%d-%d>"),
+				FMath::RoundToInt32(UGraphicsSettingsSubsystem::MinFieldOfView), FMath::RoundToInt32(UGraphicsSettingsSubsystem::MaxFieldOfView));
+			return;
+		}
+		Graphics->SetFirstPersonFieldOfView(FCString::Atof(*Args[0]));
+		UE_LOG(LogLooter, Display, TEXT("First-person field of view: %d degrees."), FMath::RoundToInt32(Graphics->GetFirstPersonFieldOfView()));
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs SetFieldOfViewCommandRegistration(
+		TEXT("Looter.FieldOfView"),
+		TEXT("Sets and saves the first-person field of view in degrees: Looter.FieldOfView 70-110"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SetFieldOfViewCommand));
 }
 
 void UGraphicsSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -198,6 +221,31 @@ void UGraphicsSettingsSubsystem::SetMotionBlurEnabled(bool bEnabled)
 	Apply();
 	SaveSettings();
 	UE_LOG(LogLooter, Log, TEXT("Motion blur %s"), bEnabled ? TEXT("on") : TEXT("off"));
+}
+
+float UGraphicsSettingsSubsystem::ClampFieldOfView(float Degrees)
+{
+	// Whole degrees, so the menu's label and the saved value always agree.
+	return FMath::Clamp(FMath::RoundToFloat(Degrees), MinFieldOfView, MaxFieldOfView);
+}
+
+float UGraphicsSettingsSubsystem::GetFirstPersonFieldOfView() const
+{
+	// Clamped on the way out too, so a hand-edited or damaged save can't turn the view inside out.
+	return SaveData ? ClampFieldOfView(SaveData->FirstPersonFieldOfView) : DefaultFieldOfView;
+}
+
+void UGraphicsSettingsSubsystem::SetFirstPersonFieldOfView(float Degrees, bool bSave)
+{
+	if (!SaveData)
+	{
+		return;
+	}
+	SaveData->FirstPersonFieldOfView = ClampFieldOfView(Degrees);
+	if (bSave)
+	{
+		SaveSettings();
+	}
 }
 
 float UGraphicsSettingsSubsystem::GetUITransparency() const

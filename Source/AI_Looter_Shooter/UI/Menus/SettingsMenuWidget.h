@@ -66,8 +66,12 @@ private:
 		int32 Index, bool bKeyListRow, ULooterButton*& OutFirst, ULooterButton*& OutSecond);
 	/** A labelled row of choices, one highlighted at a time; each button's Index is its choice. */
 	UWidget* MakeChoiceRow(const FString& Label, const TArray<FString>& Choices, FName Action, float Width, TArray<ULooterButton*>& OutButtons);
-	/** A labelled slider in 5% steps, with its value as a percentage beside it. */
-	UWidget* MakeSliderRow(const FString& Label, float MinValue, float MaxValue, USlider*& OutSlider, UTextBlock*& OutValue);
+	/**
+	 * A labelled slider that moves in steps of StepSize (5% of a 0-1 range by default), with a text for its value beside
+	 * it (the caller writes it: a percentage, a zoom, degrees).
+	 */
+	UWidget* MakeSliderRow(const FString& Label, float MinValue, float MaxValue, USlider*& OutSlider, UTextBlock*& OutValue,
+		float StepSize = 0.05f);
 	/** The outline of the HUD's minimap, in the same corner, for previewing its size. */
 	UWidget* MakeMinimapPreview();
 	void RebuildControls();
@@ -99,6 +103,12 @@ private:
 
 	UFUNCTION()
 	void HandleMinimapZoomReleased();
+
+	UFUNCTION()
+	void HandleFieldOfViewChanged(float Value);
+
+	UFUNCTION()
+	void HandleFieldOfViewReleased();
 	void HandleButton(ULooterButton* Button);
 	void StartListening(int32 BindingIndex);
 	void StopListening();
@@ -123,6 +133,9 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<ULooterButton>> QualityButtons;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> MotionBlurOn;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> MotionBlurOff;
+	/** The first-person field of view, in degrees. */
+	UPROPERTY(Transient) TObjectPtr<USlider> FieldOfViewSlider;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> FieldOfViewValue;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> MinimapOn;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> MinimapOff;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> FrameRateOn;

@@ -23,8 +23,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 ## Player
 - `Player/PlayerLocomotionComponent`: sprint and crouch, and the first-person motion that goes with them.
 - `Player/StanceIntent.h`: `FStanceIntent`, what the sprint and crouch keys ask for (hold or toggle, the latest press wins).
-- `Player/PlayerViewComponent`: first/third-person camera (F5 cycle), field of view, recoil on the aim, armed body
-  animation.
+- `Player/PlayerViewComponent`: first/third-person camera (F5 cycle), field of view (the player's first-person setting
+  for the world, a fixed one for the gun), recoil on the aim, armed body animation.
 - `Player/PawnInputBinding`: `FPawnInputBinding`, a gameplay component's own input component and mapping context.
 - `Player/Animation/LooterCharacterAnimInstance`: parent of the character's Anim Blueprints; layers the procedural stance
   pose and holds guns in the loadout stand-in's hands.
@@ -139,7 +139,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 ## Settings
 - `Settings/KeyBindingSubsystem`: key rebinding, the global pause/inventory actions and the character actions
   (weapon slots 1-3 among them).
-- `Settings/GraphicsSettingsSubsystem`: saved display options (quality preset, motion blur, UI transparency, minimap on/off, size and zoom, FPS counter) and the `Looter.Quality` command.
+- `Settings/GraphicsSettingsSubsystem`: saved display options (quality preset, motion blur, first-person field of view, UI transparency, minimap on/off, size and zoom, FPS counter) and the `Looter.Quality` and `Looter.FieldOfView` commands.
 
 ## UI
 - `UI/Style/LooterUIStyle`: `LooterUI`, the style kit every UI is built with (palette, shapes, icons, text, builders,

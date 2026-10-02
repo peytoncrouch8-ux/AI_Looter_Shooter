@@ -36,8 +36,9 @@ enum class EPlayerViewMode : uint8
  *    visible and holds the gun in its hands; shots still go exactly where the crosshair points.
  *  - First person: the original camera and camera-held gun.
  *
- * Also owns the camera field of view (sprinting widens it in every view) and gives the body the armed animation
- * set whenever a weapon is in hand, so the third-person body and the first-person shadow match what you hold.
+ * Also owns the camera field of view (first person's is the player's setting, UGraphicsSettingsSubsystem; sprinting
+ * widens it in every view) and gives the body the armed animation set whenever a weapon is in hand, so the
+ * third-person body and the first-person shadow match what you hold.
  *
  * Recoil lives here too: every shot of the gun in hand kicks the aim up (it settles back once you stop, and pulling down
  * against it counts) and kicks the gun on springs. The first-person view model and the third-person arms and chest
@@ -210,6 +211,10 @@ private:
 	EPlayerViewMode Mode = EPlayerViewMode::FirstPerson;
 	/** 0 = camera at the head, 1 = fully out on the arm. */
 	float PullOut = 1.f;
+	/**
+	 * The first-person camera's field of view as authored: the view a character no local player controls keeps (players
+	 * use their setting), and the angle the first-person view model is drawn at whatever the setting.
+	 */
 	float FirstPersonFieldOfView = 90.f;
 
 	FWeaponRecoil Recoil;

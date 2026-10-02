@@ -54,6 +54,13 @@ public:
 	/** The frame rate counter in the HUD's top-left corner. Saves from before it existed load with it on. */
 	UPROPERTY()
 	bool bShowFrameRate = true;
+
+	/**
+	 * The first-person view's horizontal field of view, in degrees. Saves from before it existed load with 90, the view
+	 * the game was made with (UGraphicsSettingsSubsystem::DefaultFieldOfView).
+	 */
+	UPROPERTY()
+	float FirstPersonFieldOfView = 90.f;
 };
 
 /**
@@ -62,7 +69,8 @@ public:
  * the reference card can't afford below High (see QualitySettings). Motion blur uses the viewport's show flag, so
  * scalability changes and post process volumes can't switch it back on behind the player's back. UI transparency
  * fades every UI's panel backgrounds (see LooterUI::SetBackgroundOpacity), live. The HUD reads the minimap size
- * and zoom every frame, and whether to show the frame rate twice a second.
+ * and zoom every frame, and whether to show the frame rate twice a second; the player's view (UPlayerViewComponent)
+ * reads the first-person field of view every frame.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UGraphicsSettingsSubsystem : public ULocalPlayerSubsystem
@@ -88,6 +96,23 @@ public:
 
 	bool IsMotionBlurEnabled() const;
 	void SetMotionBlurEnabled(bool bEnabled);
+
+	/**
+	 * The first-person view's horizontal field of view, in whole degrees: from a closer look that makes distant targets
+	 * bigger to a wide one that shows more around you. 90 is the view the game was made with. Sprinting widens it a
+	 * little and a sight narrows it by its zoom, from wherever it's set; third person keeps its own.
+	 */
+	static constexpr float MinFieldOfView = 70.f;
+	static constexpr float MaxFieldOfView = 110.f;
+	static constexpr float DefaultFieldOfView = 90.f;
+
+	/** Degrees rounded to a whole degree and kept within MinFieldOfView..MaxFieldOfView. */
+	static float ClampFieldOfView(float Degrees);
+
+	float GetFirstPersonFieldOfView() const;
+
+	/** The first-person camera follows on its next frame (the moment the game resumes). bSave as for SetUITransparency. */
+	void SetFirstPersonFieldOfView(float Degrees, bool bSave = true);
 
 	/** 0 = solid panels, 1 = fully see-through. */
 	float GetUITransparency() const;

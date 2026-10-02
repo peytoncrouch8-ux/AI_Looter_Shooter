@@ -142,6 +142,15 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		Add(MakeToggleRow(TEXT("Motion blur"), TEXT("On"), TEXT("Off"), ActionMotionBlurOn, ActionMotionBlurOff, 0, false, BlurOn, BlurOff), 4.f);
 		MotionBlurOn = BlurOn;
 		MotionBlurOff = BlurOff;
+		// The first-person view only: third person keeps its own over-the-shoulder framing.
+		USlider* FovSlider = nullptr;
+		UTextBlock* FovText = nullptr;
+		Add(MakeSliderRow(TEXT("Field of view (1st person)"), UGraphicsSettingsSubsystem::MinFieldOfView, UGraphicsSettingsSubsystem::MaxFieldOfView,
+			FovSlider, FovText, FieldOfViewStep), 4.f);
+		FieldOfViewSlider = FovSlider;
+		FieldOfViewValue = FovText;
+		FieldOfViewSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleFieldOfViewChanged);
+		FieldOfViewSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleFieldOfViewReleased);
 
 		Add(MakeSection(WidgetTree, TEXT("Interface")), 18.f);
 		USlider* Transparency = nullptr;
@@ -257,6 +266,12 @@ void USettingsMenuWidget::RefreshGraphics()
 		QualityButtons[Index]->SetHighlighted(static_cast<int32>(Graphics->GetQuality()) == Index);
 	}
 
+	if (FieldOfViewSlider && FieldOfViewValue)
+	{
+		const float Degrees = Graphics->GetFirstPersonFieldOfView();
+		FieldOfViewSlider->SetValue(Degrees);
+		FieldOfViewValue->SetText(FText::FromString(DegreesText(Degrees)));
+	}
 	if (TransparencySlider && TransparencyValue)
 	{
 		const float Transparency = Graphics->GetUITransparency();

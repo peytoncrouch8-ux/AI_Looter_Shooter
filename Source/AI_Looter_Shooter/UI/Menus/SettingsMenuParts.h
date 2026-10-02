@@ -29,4 +29,13 @@ namespace SettingsMenu
 
 	/** The quality presets, in the order of their buttons. */
 	inline constexpr EGraphicsQuality Qualities[] = { EGraphicsQuality::Low, EGraphicsQuality::Medium, EGraphicsQuality::High, EGraphicsQuality::Epic };
+
+	/** The field of view slider moves a whole degree at a time. */
+	inline constexpr float FieldOfViewStep = 1.f;
+
+	/** "90°": an angle as the field of view slider shows it. */
+	inline FString DegreesText(float Degrees)
+	{
+		return FString::Printf(TEXT("%d°"), FMath::RoundToInt32(Degrees));
+	}
 }

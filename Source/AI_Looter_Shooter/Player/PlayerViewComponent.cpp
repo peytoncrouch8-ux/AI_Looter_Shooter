@@ -1,6 +1,7 @@
 #include "Player/PlayerViewComponent.h"
 #include "AI_Looter_Shooter.h"
 #include "Player/PlayerLocomotionComponent.h"
+#include "Settings/GraphicsSettingsSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Weapons/WeaponBase.h"
 #include "Inventory/WeaponManagerComponent.h"
@@ -8,10 +9,12 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/LocalPlayer.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "HAL/IConsoleManager.h"
 
@@ -29,6 +32,22 @@ namespace
 	{
 		const float Override = Variable.GetValueOnGameThread();
 		return Override >= 0.f ? Override : Value;
+	}
+
+	/** The player's first-person field of view from the settings menu, or Fallback for a character no local player controls. */
+	float FirstPersonFieldOfViewSetting(const ACharacter* Owner, float Fallback)
+	{
+		const APlayerController* OwnerController = Owner ? Cast<APlayerController>(Owner->GetController()) : nullptr;
+		const ULocalPlayer* LocalPlayer = OwnerController ? OwnerController->GetLocalPlayer() : nullptr;
+		const UGraphicsSettingsSubsystem* Graphics = LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
+		return Graphics ? Graphics->GetFirstPersonFieldOfView() : Fallback;
+	}
+
+	/** Unzoomed narrowed by a sight's magnification (2x shows half as wide), Aim of the way to the eye. */
+	float SightFieldOfView(float Unzoomed, float Zoom, float Aim)
+	{
+		const float Zoomed = FMath::RadiansToDegrees(2.f * FMath::Atan(FMath::Tan(FMath::DegreesToRadians(Unzoomed) * 0.5f) / Zoom));
+		return FMath::Lerp(Unzoomed, Zoomed, Aim);
 	}
 }
 
@@ -420,13 +439,30 @@ void UPlayerViewComponent::UpdateFieldOfView()
 {
 	const float Offset = Locomotion.IsValid() ? Locomotion->GetFieldOfViewOffset() : 0.f;
 	UCameraComponent* Active = IsFirstPerson() ? FirstPersonCamera.Get() : ThirdPersonCamera.Get();
-	// Aiming narrows the view by the sight's magnification (2x shows half as wide).
-	const float Unzoomed = (IsFirstPerson() ? FirstPersonFieldOfView : ThirdPersonFieldOfView) + Offset;
-	const float Zoomed = FMath::RadiansToDegrees(2.f * FMath::Atan(FMath::Tan(FMath::DegreesToRadians(Unzoomed) * 0.5f) / AimZoom));
-	const float Wanted = FMath::Lerp(Unzoomed, Zoomed, GetAimAlpha());
+	// First person uses the player's setting, read every frame so a change in the settings menu shows without a restart.
+	// Aiming narrows the view by the sight's magnification (2x shows half as wide) from there, so a sight zooms the same
+	// whatever the setting; its aim point sits on the camera's axis, which no field of view moves, so it stays true.
+	const float Aim = GetAimAlpha();
+	const float Unzoomed = (IsFirstPerson() ? FirstPersonFieldOfViewSetting(Character.Get(), FirstPersonFieldOfView) : ThirdPersonFieldOfView) + Offset;
+	const float Wanted = SightFieldOfView(Unzoomed, AimZoom, Aim);
 	if (Active && !FMath::IsNearlyEqual(Active->FieldOfView, Wanted, 0.01f))
 	{
 		Active->SetFieldOfView(Wanted);
+	}
+
+	// The setting widens the world, not the gun: what the camera draws as first person (its view model, through the
+	// engine's first-person rendering) keeps the angle the view had before the setting existed, sprint and sight zoom
+	// included, so the gun keeps its size and still grows through a sight as it always has. Only meshes drawn as first
+	// person follow it (AWeaponBase::AttachToHolder decides that for the gun).
+	UCameraComponent* Camera = FirstPersonCamera.Get();
+	if (Camera && IsFirstPerson())
+	{
+		const float ViewModel = SightFieldOfView(FirstPersonFieldOfView + Offset, AimZoom, Aim);
+		Camera->SetEnableFirstPersonFieldOfView(true);
+		if (!FMath::IsNearlyEqual(Camera->FirstPersonFieldOfView, ViewModel, 0.01f))
+		{
+			Camera->SetFirstPersonFieldOfView(ViewModel);
+		}
 	}
 }
 

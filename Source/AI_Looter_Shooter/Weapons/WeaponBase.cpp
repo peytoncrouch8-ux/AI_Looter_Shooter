@@ -239,11 +239,13 @@ void AWeaponBase::AttachToHolder(USceneComponent* AttachTo, FName Socket, const 
 	AttachToComponent(AttachTo, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
 	SetActorRelativeTransform(AttachOffset);
 
-	// Render like the holder: first-person arms get first-person rendering (no clipping, own FOV); a camera or a
-	// third-person body gets normal world rendering.
+	// Render like the holder: first-person arms, or the first-person camera, get first-person rendering (no clipping,
+	// the view model's own FOV, so the player's field of view setting doesn't grow or shrink the gun); a third-person
+	// body gets normal world rendering.
 	const UPrimitiveComponent* ParentPrimitive = Cast<UPrimitiveComponent>(AttachTo);
-	const EFirstPersonPrimitiveType Type = ParentPrimitive && ParentPrimitive->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::FirstPerson
-		? EFirstPersonPrimitiveType::FirstPerson : EFirstPersonPrimitiveType::None;
+	const bool bFirstPerson = (ParentPrimitive && ParentPrimitive->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::FirstPerson)
+		|| AttachTo->IsA<UCameraComponent>();
+	const EFirstPersonPrimitiveType Type = bFirstPerson ? EFirstPersonPrimitiveType::FirstPerson : EFirstPersonPrimitiveType::None;
 	SkeletalMesh->SetFirstPersonPrimitiveType(Type);
 	StaticMesh->SetFirstPersonPrimitiveType(Type);
 	Model->SetFirstPersonPrimitiveType(Type);

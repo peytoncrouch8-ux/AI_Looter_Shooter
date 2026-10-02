@@ -81,6 +81,30 @@ void USettingsMenuWidget::HandleMinimapZoomReleased()
 	SetKeyboardFocus();
 }
 
+void USettingsMenuWidget::HandleFieldOfViewChanged(float Value)
+{
+	// The first-person view follows on the game's next frame (as soon as it resumes, under the pause menu).
+	if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
+	{
+		Graphics->SetFirstPersonFieldOfView(Value, /*bSave*/ false);
+	}
+	if (FieldOfViewValue)
+	{
+		FieldOfViewValue->SetText(FText::FromString(DegreesText(UGraphicsSettingsSubsystem::ClampFieldOfView(Value))));
+	}
+}
+
+void USettingsMenuWidget::HandleFieldOfViewReleased()
+{
+	if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
+	{
+		Graphics->SaveSettings();
+		SetStatus(FString::Printf(TEXT("First-person field of view %s."), *DegreesText(Graphics->GetFirstPersonFieldOfView())), LooterUI::Color::TextDim());
+	}
+	// Dragging handed focus to the slider's window; take it back so Esc still closes the menu.
+	SetKeyboardFocus();
+}
+
 void USettingsMenuWidget::HandleTransparencyChanged(float Value)
 {
 	// Every UI follows at once, this menu included, so the effect shows while dragging.

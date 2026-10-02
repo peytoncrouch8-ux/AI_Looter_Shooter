@@ -39,6 +39,29 @@ bool FQualityPresetsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFieldOfViewSettingTest, "Looter.Settings.FieldOfView",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FFieldOfViewSettingTest::RunTest(const FString& Parameters)
+{
+	using Graphics = UGraphicsSettingsSubsystem;
+
+	// A fresh install, and a save from before the setting, keep the view the game was made with.
+	TestEqual(TEXT("Defaults to 90 degrees"), Graphics::DefaultFieldOfView, 90.f);
+	TestEqual(TEXT("A fresh save starts at the default"), GetDefault<ULooterGraphicsSave>()->FirstPersonFieldOfView, Graphics::DefaultFieldOfView);
+
+	// The slider runs from 70 to 110 in whole degrees, and anything outside (a hand-edited save) is pulled back in.
+	TestEqual(TEXT("Narrowest is 70"), Graphics::MinFieldOfView, 70.f);
+	TestEqual(TEXT("Widest is 110"), Graphics::MaxFieldOfView, 110.f);
+	TestEqual(TEXT("Too narrow clamps to 70"), Graphics::ClampFieldOfView(40.f), 70.f);
+	TestEqual(TEXT("Too wide clamps to 110"), Graphics::ClampFieldOfView(170.f), 110.f);
+	TestEqual(TEXT("The ends are kept"), Graphics::ClampFieldOfView(70.f), 70.f);
+	TestEqual(TEXT("Inside the range is kept"), Graphics::ClampFieldOfView(103.f), 103.f);
+	TestEqual(TEXT("Whole degrees"), Graphics::ClampFieldOfView(84.6f), 85.f);
+	TestEqual(TEXT("The default is in range"), Graphics::ClampFieldOfView(Graphics::DefaultFieldOfView), Graphics::DefaultFieldOfView);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponSlotKeysTest, "Looter.Settings.WeaponSlotKeys",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
