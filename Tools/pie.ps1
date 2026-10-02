@@ -1,4 +1,4 @@
-# Starts PIE, focuses the game viewport, and optionally runs console commands first (typed into the editor console).
+# Starts PIE, optionally runs console commands (through console.ps1, which types nothing), then focuses the game viewport.
 # Usage: pie.ps1 [-Commands "Looter.DebugStance 1","..."]
 # Sends no input unless the editor is running and the play session really started (input.ps1 also refuses to type into
 # any window that isn't the editor).
@@ -9,9 +9,10 @@ if (-not (Get-Process UnrealEditor -ErrorAction SilentlyContinue)) { "editor not
 Start-Sleep 6
 $running = & "$PSScriptRoot\mcp.ps1" 'EditorToolset.EditorAppToolset' 'IsPIERunning' '{}' 2>$null
 if ($running -notmatch 'true' -or -not (Get-Process UnrealEditor -ErrorAction SilentlyContinue)) { "PIE did not start (editor crashed or refused); no input sent"; exit 1 }
-$steps = @("focus")
-foreach ($c in $Commands) { $steps += @("clickat 0.25 0.984", "wait 300", "type $c", "key ENTER", "wait 300") }
-$steps += @("clickat 0.43 0.7", "wait 800")
+# Commands go through the Slate inspector, not typed keys: a click meant for the console box once missed it and the
+# command was typed into the game instead (letters are game keys there).
+foreach ($c in $Commands) { & "$PSScriptRoot\console.ps1" $c | Out-Null }
+$steps = @("focus", "clickat 0.43 0.7", "wait 800")
 $sent = & "$PSScriptRoot\input.ps1" @steps 2>$null
 if ($sent -notcontains 'done') { "input stopped: the editor was not in front"; exit 1 }
 "pie started"
