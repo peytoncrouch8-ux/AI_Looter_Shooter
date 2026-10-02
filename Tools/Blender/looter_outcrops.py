@@ -597,19 +597,40 @@ def _sliver(face):
     return face.calc_area() < max(1e-4 * longest * longest, 1e-9)
 
 
-def clean(obj):
-    """Welds duplicates and removes zero-area faces (they have no tangents in Unreal); slivers get their long edge turned."""
+def _thin(face, ratio):
+    longest = max(e.calc_length() for e in face.edges)
+    return face.calc_area() < ratio * longest * longest
+
+
+def clean(obj, min_edge=0.015, thin=0.006):
+    """Welds duplicates, collapses edges shorter than min_edge and reshapes thin triangles (area under thin times the
+    longest edge squared): the reduction leaves crumbs and slivers, and their near-zero tangents trouble Unreal's
+    import ("nearly zero tangents"). Thin triangles first get their long edge turned (two better triangles); what stays
+    thin has its shortest edge collapsed, and anything of no area goes."""
     bm = bmesh.new()
     bm.from_mesh(obj.data)
     bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-4)
-    bmesh.ops.dissolve_degenerate(bm, dist=1e-4, edges=bm.edges[:])
+    for _ in range(4):
+        short = [e for e in bm.edges if e.calc_length() < min_edge]
+        if not short:
+            break
+        bmesh.ops.collapse(bm, edges=short, uvs=False)
+        bmesh.ops.dissolve_degenerate(bm, dist=1e-4, edges=bm.edges[:])
     bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3])
-    for _ in range(6):
-        slivers = [f for f in bm.faces if _sliver(f)]
+    for _ in range(8):
+        slivers = [f for f in bm.faces if _thin(f, thin)]
         if not slivers:
             break
         edges = {max(f.edges, key=lambda e: e.calc_length()) for f in slivers}
         bmesh.ops.rotate_edges(bm, edges=[e for e in edges if len(e.link_faces) == 2], use_ccw=False)
+        bmesh.ops.dissolve_degenerate(bm, dist=1e-4, edges=bm.edges[:])
+        bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3])
+    for _ in range(4):
+        slivers = [f for f in bm.faces if f.is_valid and _thin(f, thin)]
+        if not slivers:
+            break
+        edges = list({min(f.edges, key=lambda e: e.calc_length()) for f in slivers})
+        bmesh.ops.collapse(bm, edges=[e for e in edges if e.is_valid], uvs=False)
         bmesh.ops.dissolve_degenerate(bm, dist=1e-4, edges=bm.edges[:])
         bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3])
     flat = [f for f in bm.faces if _sliver(f)]
