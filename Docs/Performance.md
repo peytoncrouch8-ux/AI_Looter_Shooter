@@ -29,3 +29,4 @@ Target: 120 fps (8.3 ms) at 1080p on the Medium preset on the reference PC (Rade
 | 2026-10-01 | Main menu + save sessions (dev play, no session), Medium | 79ac9f2 | 1920x1080 | 5.6 | 180 | 6.0 | 4.2 | 5.6 | 1.5 | 4.6 | 395 | 601805 | 0.81 |
 | 2026-10-01 | Round slots, magazine gauge, minimap compass, no ammo light, Medium | 45260c4 | 1920x1080 | 5.7 | 176 | 6.9 | 5.0 | 4.9 | 1.8 | 4.5 | 428 | 627705 | 0.95 |
 | 2026-10-01 | Round 2: distant creatures update less often, health ring, XP bar, FOV setting (90), ammo beams | 0175bcd | 1920x1080 | 5.6 | 179 | 6.0 | 3.0 | 5.6 | 1.4 | 4.6 | 445 | 629243 | 1.00 |
+| 2026-10-01 | Scattered trees, rocks, stumps and logs collide; XP bar with the level in the middle; 1.5 m ammo beams | 52c06af | 1920x1080 | 5.7 | 176 | 6.1 | 3.0 | 5.7 | 1.5 | 4.5 | 449 | 630955 | 1.10 |
