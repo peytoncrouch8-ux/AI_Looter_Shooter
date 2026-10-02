@@ -68,8 +68,9 @@ const FMission* FMissionBook::Find(int32 Id) const
 
 bool UMissionSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
-	// Only played worlds have missions (the editor's own world and previews never do).
-	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE;
+	// Played worlds have missions, and editor preview worlds for the automated tests (the mission runner's test feeds
+	// it); the editor's own world never does.
+	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE || WorldType == EWorldType::EditorPreview;
 }
 
 int32 UMissionSubsystem::AddMission(const FText& Title)

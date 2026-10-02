@@ -37,7 +37,8 @@ struct FWeaponInstanceData;
  * the backpack list. E (or a click) on a backpack gun swaps it into the chosen slot; on a free backpack slot it stores the
  * chosen slot's gun there. On a slot it picks that gun up, to put
  * it on another slot (swapping or moving) or swap it with a backpack gun. F holds a gun, Q drops it, Esc backs out of a
- * drag or a pick, then closes; Tab and I close. 2 (or the right shoulder, or its title tab) turns to the bestiary page.
+ * drag or a pick, then closes; Tab and I close. 2 (or the right shoulder, or its title tab) turns to the bestiary page,
+ * 3 (or its title tab) to the missions page.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ULoadoutWidget : public UUserWidget

@@ -56,9 +56,10 @@ private:
 /**
  * The missions active in this world, and which one is tracked (the player's "equipped" mission): the minimap's compass
  * arrow points to the tracked mission's waypoint. Whoever runs a mission adds it, keeps its objective current and
- * removes it when it's over (the tutorial is the first: ATutorialDirector). A mission log can list GetMissions() and
- * pick one with TrackMission, and hear about changes from OnMissionsChanged. Nothing is saved yet: a mission lasts as long
- * as the world, and its owner adds it again in the next one.
+ * removes it when it's over: the mission runner (UMissionRunner) does it for every mission that is data, the tutorial's
+ * among them. A mission log can list GetMissions() and pick one with TrackMission, and hear about changes from
+ * OnMissionsChanged. Nothing here is saved: the runner keeps the campaign record, and adds its missions again in the
+ * next level.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UMissionSubsystem : public UWorldSubsystem

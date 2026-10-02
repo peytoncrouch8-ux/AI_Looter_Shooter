@@ -35,7 +35,7 @@ class UVerticalBox;
  * a dark silhouette.
  *  - bottom: what the keys do
  * W / S, the arrows or the D-pad choose an entry (so does the mouse); 1, the left shoulder or the Loadout tab go back to
- * the loadout; Esc, Tab and I close.
+ * the loadout, 3, the right shoulder or the Missions tab on to the missions; Esc, Tab and I close.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UBestiaryWidget : public UUserWidget

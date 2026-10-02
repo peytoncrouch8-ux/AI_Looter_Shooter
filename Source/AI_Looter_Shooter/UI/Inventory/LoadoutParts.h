@@ -15,8 +15,8 @@ class UWidgetTree;
 struct FGeometry;
 
 /**
- * The inventory's shared parts: page layout, colors, vector art and card builders. The loadout screen and the bestiary
- * (the inventory's two pages) use them, so both look alike.
+ * The inventory's shared parts: page layout, colors, vector art and card builders. The loadout screen, the bestiary and
+ * the missions (the inventory's three pages) use them, so they look alike.
  */
 namespace LoadoutParts
 {
@@ -109,7 +109,7 @@ namespace LoadoutParts
 	UWidget* MakeKeyHint(UWidgetTree* Tree, const FString& Key, const FString& Text, bool bPrimary);
 
 	/**
-	 * The inventory's title tabs, one per page in EInventoryPage order (Loadout, Bestiary): the shown page lit as the
+	 * The inventory's title tabs, one per page in EInventoryPage order (Loadout, Bestiary, Missions): the shown page lit as the
 	 * title, the others dimmer. Each tab is a button with ActionPage and its page's index; centered at the top of the page.
 	 */
 	UWidget* MakePageTabs(UWidgetTree* Tree, int32 ShownPage, TArray<ULooterButton*>& OutTabs);

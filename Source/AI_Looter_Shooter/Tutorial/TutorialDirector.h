@@ -4,7 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "TutorialDirector.generated.h"
 
-class AController;
+class UMissionDefinition;
+class UMissionRunner;
 class UTutorialPromptWidget;
 
 /** What finishes a tutorial step. */
@@ -55,9 +56,13 @@ struct FTutorialStep
  * once finished or skipped it stays quiet in later games (the session's progress remembers), and a saved session goes
  * on from its step. Behind the main menu it waits. Looter.Tutorial restart|skip for testing.
  *
- * While it runs, the tutorial is also the player's mission (UMissionSubsystem, named MissionTitle): its objective is
- * the current step's text, and its waypoint, which the minimap's compass arrow points to, is where that step happens
- * (the gun rack, the rifle on it, the dummies, the nearest spider). The mission goes when the tutorial ends.
+ * The tutorial is a mission as data: DA_Mission_Tutorial (UMissionDefinition, id MissionId) holds its steps as
+ * objectives, and the level's mission runner (UMissionRunner) plays it like any mission: it checks the objectives,
+ * moves from step to step, and shows the tutorial as the tracked mission (UMissionSubsystem, the minimap's arrow) with a
+ * waypoint per step (the gun rack, the rifle on it, the dummies, the nearest spider). The director starts it, shows
+ * each step's instruction as its prompt, keeps the progress's tutorial-done flag and the saved step, and finishes with
+ * its closing line. Without the asset, Steps become the same mission (MakeBuiltInMission): they're the tutorial's
+ * built-in copy, and the asset is made from them (Tools/Unreal/create_mission_assets.py).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ATutorialDirector : public AActor
@@ -71,6 +76,7 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaSeconds) override;
 
+	/** The built-in steps: the mission when DA_Mission_Tutorial is missing, and what the asset is made from. */
 	UPROPERTY(EditAnywhere, Category = "Tutorial")
 	TArray<FTutorialStep> Steps;
 
@@ -81,9 +87,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Tutorial", meta = (ClampMin = "1"))
 	float DoneSeconds = 8.f;
 
-	/** The tutorial's name as a mission, while it runs. */
+	/** The tutorial's name as a mission, while it runs (the built-in mission's title; the asset has its own). */
 	UPROPERTY(EditAnywhere, Category = "Tutorial")
 	FString MissionTitle;
+
+	/** The id of the tutorial's mission asset (UMissionDefinition::GetMissionId). */
+	UPROPERTY(EditAnywhere, Category = "Tutorial")
+	FName MissionId = TEXT("Tutorial");
 
 	/** From the first step again, even if it was finished before. */
 	void Restart();
@@ -100,25 +110,29 @@ public:
 	/** The text with each {Action} replaced by the key the player has bound to it, in brackets. */
 	FString ResolveKeys(const FString& Text) const;
 
+	/**
+	 * The built-in steps as a mission, what DA_Mission_Tutorial holds: each goal becomes the objective that finishes it,
+	 * with the waypoint the tutorial has always shown for it (TutorialDirectorMission.cpp).
+	 */
+	UMissionDefinition* MakeBuiltInMission(UObject* Outer) const;
+
 private:
 	void StartStep(int32 Index);
-	bool IsStepDone(const FTutorialStep& Step) const;
 	void Finish(bool bShowDone);
-	void BindTargets();
 	UTutorialPromptWidget* GetPrompt();
 
-	/** Adds the tutorial's mission if it has none yet, and sets its objective and waypoint to the current step's. */
-	void SyncMission();
-	/** Removes the tutorial's mission, if it has one. */
-	void EndMission();
-	/** Where the step happens, for the minimap's arrow; unset when it isn't anywhere in particular. */
-	TOptional<FVector> FindWaypoint(const FTutorialStep& Step) const;
+	UMissionRunner* GetRunner() const;
 
-	UFUNCTION()
-	void HandleDummyDamaged(float Damage, bool bCritical, FVector HitLocation, AController* InstigatedBy, AActor* DamageCauser);
+	/** The tutorial's mission as the runner knows it: the asset, or else the built-in steps, made into one once. */
+	const UMissionDefinition* GetMission();
 
-	UFUNCTION()
-	void HandleCreatureDeath(AController* Killer);
+	/** The instruction of step Index: its first objective's words. */
+	FString GetStepText(const UMissionDefinition& Mission, int32 Index) const;
+
+	/** Step Index asks for the inventory, so the prompt stays up while it's open. */
+	bool IsInventoryStep(const UMissionDefinition& Mission, int32 Index) const;
+
+	void HandleMissionFinished(const UMissionDefinition& Mission, bool bRewarded);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTutorialPromptWidget> Prompt;
@@ -126,10 +140,5 @@ private:
 	int32 Current = INDEX_NONE;
 	/** The current step's text is on screen (the prompt is made once the player controller exists). */
 	bool bStepShown = false;
-	/** Where the player stood when the step began, once there was a pawn to ask. */
-	TOptional<FVector> StepStart;
-	int32 Hits = 0;
-	int32 Kills = 0;
-	/** The tutorial's mission in UMissionSubsystem, or INDEX_NONE while it has none. */
-	int32 MissionId = INDEX_NONE;
+	FDelegateHandle FinishedHandle;
 };

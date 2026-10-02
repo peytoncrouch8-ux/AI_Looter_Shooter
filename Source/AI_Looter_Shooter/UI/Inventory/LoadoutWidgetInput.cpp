@@ -320,6 +320,14 @@ FReply ULoadoutWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEv
 		}
 		return FReply::Handled();
 	}
+	if (Key == EKeys::Three && !PickedSlot.IsSet())
+	{
+		if (ALooterHUD* HUD = OwningHUD.Get())
+		{
+			HUD->ShowInventoryPage(EInventoryPage::Missions);
+		}
+		return FReply::Handled();
+	}
 
 	struct FMove { FKey Keys[3]; int32 Columns; int32 Rows; };
 	const FMove Moves[] = {

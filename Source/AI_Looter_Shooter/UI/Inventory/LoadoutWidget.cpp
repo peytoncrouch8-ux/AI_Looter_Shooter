@@ -746,6 +746,7 @@ void ULoadoutWidget::RefreshPrompts()
 		const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 		const UKeyBindingSubsystem* Bindings = LocalPlayer ? LocalPlayer->GetSubsystem<UKeyBindingSubsystem>() : nullptr;
 		Prompts.Add({ TEXT("2"), TEXT("Bestiary") });
+		Prompts.Add({ TEXT("3"), TEXT("Missions") });
 		Prompts.Add({ Bindings ? Bindings->GetKey(TEXT("Inventory")).GetDisplayName().ToString() : FString(TEXT("Tab")), TEXT("Close") });
 	}
 	for (int32 Index = 0; Index < Prompts.Num(); ++Index)

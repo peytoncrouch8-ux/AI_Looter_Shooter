@@ -6,6 +6,7 @@
 
 class UBestiaryWidget;
 class ULoadoutWidget;
+class UMissionsWidget;
 class UPlayerHUDWidget;
 class USettingsMenuWidget;
 class UUserWidget;
@@ -15,6 +16,7 @@ enum class EInventoryPage : uint8
 {
 	Loadout,
 	Bestiary,
+	Missions,
 };
 
 /**
@@ -87,6 +89,10 @@ private:
 	/** The inventory's second page: every creature, enemy, NPC and friend. */
 	UPROPERTY(Transient)
 	TObjectPtr<UBestiaryWidget> BestiaryWidget;
+
+	/** The inventory's third page: the missions, active, available and finished. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMissionsWidget> MissionsWidget;
 
 	EInventoryPage InventoryPage = EInventoryPage::Loadout;
 

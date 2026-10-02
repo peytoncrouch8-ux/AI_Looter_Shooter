@@ -1,6 +1,7 @@
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Bestiary/BestiaryWidget.h"
 #include "UI/Inventory/LoadoutWidget.h"
+#include "UI/Inventory/MissionsWidget.h"
 #include "UI/Menus/SettingsMenuWidget.h"
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "Session/SessionSubsystem.h"
@@ -46,6 +47,7 @@ void ALooterHUD::BeginPlay()
 	}
 	InventoryWidget = CreateWidget<ULoadoutWidget>(PC, ULoadoutWidget::StaticClass());
 	BestiaryWidget = CreateWidget<UBestiaryWidget>(PC, UBestiaryWidget::StaticClass());
+	MissionsWidget = CreateWidget<UMissionsWidget>(PC, UMissionsWidget::StaticClass());
 	PauseMenuWidget = CreateWidget<USettingsMenuWidget>(PC, USettingsMenuWidget::StaticClass());
 	if (PauseMenuWidget)
 	{
@@ -212,13 +214,17 @@ bool ALooterHUD::OpenInventoryPage()
 	}
 
 	Manager->StopFire();
-	if (InventoryPage == EInventoryPage::Bestiary)
+	switch (InventoryPage)
 	{
+	case EInventoryPage::Bestiary:
 		BestiaryWidget->Open(this);
-	}
-	else
-	{
+		break;
+	case EInventoryPage::Missions:
+		MissionsWidget->Open(this);
+		break;
+	case EInventoryPage::Loadout:
 		InventoryWidget->Open(this, Manager);
+		break;
 	}
 	Page->AddToViewport(20);
 
@@ -232,7 +238,13 @@ bool ALooterHUD::OpenInventoryPage()
 
 UUserWidget* ALooterHUD::GetInventoryPageWidget() const
 {
-	return InventoryPage == EInventoryPage::Bestiary ? static_cast<UUserWidget*>(BestiaryWidget.Get()) : static_cast<UUserWidget*>(InventoryWidget.Get());
+	switch (InventoryPage)
+	{
+	case EInventoryPage::Bestiary: return BestiaryWidget.Get();
+	case EInventoryPage::Missions: return MissionsWidget.Get();
+	case EInventoryPage::Loadout:  break;
+	}
+	return InventoryWidget.Get();
 }
 
 // ---------------------------------------------------------------------------

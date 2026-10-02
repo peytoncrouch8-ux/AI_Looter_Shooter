@@ -33,9 +33,10 @@ void UBestiaryWidget::HandleCardHovered(ULooterButton* Button)
 
 void UBestiaryWidget::HandleTabClicked(ULooterButton* Button)
 {
-	if (Button && Button->Index == static_cast<int32>(EInventoryPage::Loadout))
+	ALooterHUD* HUD = OwningHUD.Get();
+	if (HUD && Button && Button->Index != static_cast<int32>(EInventoryPage::Bestiary))
 	{
-		GoToLoadout();
+		HUD->ShowInventoryPage(static_cast<EInventoryPage>(Button->Index));
 	}
 	else
 	{
@@ -57,6 +58,14 @@ FReply UBestiaryWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyE
 	if (Key == EKeys::One || Key == EKeys::Gamepad_LeftShoulder)
 	{
 		GoToLoadout();
+		return FReply::Handled();
+	}
+	if (Key == EKeys::Three || Key == EKeys::Gamepad_RightShoulder)
+	{
+		if (ALooterHUD* HUD = OwningHUD.Get())
+		{
+			HUD->ShowInventoryPage(EInventoryPage::Missions);
+		}
 		return FReply::Handled();
 	}
 	if (Key == EKeys::Up || Key == EKeys::W || Key == EKeys::Gamepad_DPad_Up)

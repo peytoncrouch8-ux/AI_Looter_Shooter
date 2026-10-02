@@ -154,7 +154,7 @@ namespace LoadoutParts
 
 	UWidget* MakePageTabs(UWidgetTree* Tree, int32 ShownPage, TArray<ULooterButton*>& OutTabs)
 	{
-		static const TCHAR* const Pages[] = { TEXT("Loadout"), TEXT("Bestiary") };
+		static const TCHAR* const Pages[] = { TEXT("Loadout"), TEXT("Bestiary"), TEXT("Missions") };
 		UHorizontalBox* Strip = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		OutTabs.Reset();
 		for (int32 Page = 0; Page < UE_ARRAY_COUNT(Pages); ++Page)
