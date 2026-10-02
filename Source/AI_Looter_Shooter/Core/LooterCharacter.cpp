@@ -4,6 +4,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
+#include "Interaction/InteractionComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -21,6 +22,9 @@ ALooterCharacter::ALooterCharacter()
 
 	// Jumps 15% higher than the engine's 420 cm/s: height grows with the speed squared (v^2 / 2g), 90 cm -> 103.5 cm.
 	GetCharacterMovement()->JumpZVelocity = 420.f * FMath::Sqrt(1.15f);
+
+	// Made in C++ so every character has it without touching the Blueprint; the weapon manager offers it the loot.
+	Interaction = CreateDefaultSubobject<UInteractionComponent>(TEXT("Interaction"));
 }
 
 void ALooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

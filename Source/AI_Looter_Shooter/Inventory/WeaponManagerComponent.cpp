@@ -1,4 +1,5 @@
 #include "Inventory/WeaponManagerComponent.h"
+#include "Interaction/InteractionComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
@@ -184,12 +185,8 @@ void UWeaponManagerComponent::SetupInput(AController* Controller)
 	{
 		Input->BindAction(DropWeaponAction, ETriggerEvent::Started, this, &UWeaponManagerComponent::HandleDropInput);
 	}
-	if (InteractAction)
-	{
-		Input->BindAction(InteractAction, ETriggerEvent::Started, this, &UWeaponManagerComponent::HandleInteractPressed);
-		Input->BindAction(InteractAction, ETriggerEvent::Completed, this, &UWeaponManagerComponent::HandleInteractReleased);
-		Input->BindAction(InteractAction, ETriggerEvent::Canceled, this, &UWeaponManagerComponent::HandleInteractReleased);
-	}
+	// The interact key (mapped in these controls) is the interaction component's: it finds the loot looked at and hands
+	// a tap or a hold on it back here (UseOffer).
 
 	// The number keys take a slot's weapon in hand (an empty slot, or the one in hand, does nothing). They come from the
 	// key bindings' own context, which this adds and removes with the rest of the weapon controls.
@@ -202,8 +199,13 @@ void UWeaponManagerComponent::SetupInput(AController* Controller)
 		}
 	}
 
-	// Loot labels and pickup focus only matter to the local player.
-	GetWorld()->GetTimerManager().SetTimer(PickupFocusTimer, this, &UWeaponManagerComponent::UpdatePickupFocus, 0.1f, true);
+	// Loot labels only matter to the local player. The focused one's label follows the interaction component's focus.
+	GetWorld()->GetTimerManager().SetTimer(LootLabelTimer, this, &UWeaponManagerComponent::UpdateLootLabels, 0.1f, true);
+	if (UInteractionComponent* Interaction = GetOwner()->FindComponentByClass<UInteractionComponent>())
+	{
+		Interaction->OnFocusChanged.AddUniqueDynamic(this, &UWeaponManagerComponent::HandleInteractionFocusChanged);
+		LabelFocus = Interaction;
+	}
 }
 
 void UWeaponManagerComponent::TeardownInput()
@@ -215,10 +217,13 @@ void UWeaponManagerComponent::TeardownInput()
 
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().ClearTimer(PickupFocusTimer);
-		World->GetTimerManager().ClearTimer(PickupHoldTimer);
+		World->GetTimerManager().ClearTimer(LootLabelTimer);
 	}
-	PressedPickup.Reset();
+	if (UInteractionComponent* Interaction = LabelFocus.Get())
+	{
+		Interaction->OnFocusChanged.RemoveDynamic(this, &UWeaponManagerComponent::HandleInteractionFocusChanged);
+	}
+	LabelFocus.Reset();
 	for (const TWeakObjectPtr<AWeaponBase>& Weapon : LabeledPickups)
 	{
 		if (Weapon.IsValid())
@@ -227,7 +232,6 @@ void UWeaponManagerComponent::TeardownInput()
 		}
 	}
 	LabeledPickups.Reset();
-	FocusedPickup.Reset();
 }
 
 void UWeaponManagerComponent::HandleDropInput()

@@ -18,8 +18,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Core/LooterMenuPlayerController`: `ALooterMenuPlayerController`, the main menu's camera, slowly circling the island.
 - `Core/LooterPlayerController`: `ALooterPlayerController`, which adds the always-on input contexts and sets the view's
   look limits.
-- `Core/LooterCharacter`: `ALooterCharacter`, the player character: walking, looking and jumping. Its data-only child is
-  `/Game/Player/BP_LooterCharacter`.
+- `Core/LooterCharacter`: `ALooterCharacter`, the player character: walking, looking and jumping, and its interaction
+  component. Its data-only child is `/Game/Player/BP_LooterCharacter`.
 
 ## Player
 - `Player/PlayerLocomotionComponent`: sprint and crouch, and the first-person motion that goes with them.
@@ -64,10 +64,27 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Inventory/WeaponManagerComponent.h`: `UWeaponManagerComponent`, the player's weapons, backpack and ammo.
 - `Inventory/WeaponManagerComponent.cpp`: its lifecycle, ammo pools, firing passthrough and input.
 - `Inventory/WeaponManagerSlots.cpp`: slots and backpack (give, equip, drop, stash, swap, move) and where guns are held.
-- `Inventory/WeaponManagerPickups.cpp`: which loot the player is looking at, and picking it up (a tap of the interact
-  key) or equipping it in place of the gun in hand (a hold).
+- `Inventory/WeaponManagerPickups.cpp`: the loot it offers the player's interaction component (`IInteractionSource`),
+  picking it up (a tap of the interact key) or equipping it in place of the gun in hand (a hold), and the loot labels.
 - `Inventory/WeaponManagerSave.cpp`: what the player carries into a saved session and back, and emptying it.
 - `Inventory/WeaponInventorySave.h`: `FWeaponInventorySave`, the guns, backpack and ammo as a session saves them.
+
+## Interaction
+- `Interaction/Interactable.h`: `IInteractable`, something the player uses with the Interact key (a door, a headboard,
+  the bell, a lantern post, the skiff's gangplank): its prompt, tap or hold, whether it can be used now, and the use.
+- `Interaction/InteractionTypes.h`: `FInteractionOptions` (how the key uses a thing now: a tap, a hold and its time, the
+  prompt's words), `FInteractionView` and `FInteractionCandidate` (what the component looks around with).
+- `Interaction/InteractionComponent`: `UInteractionComponent`, the player's Interact key for everything it uses: the
+  key's tap and hold, the use and its mission event; `InteractionComponentFocus.cpp` finds what the player means to use
+  (the crosshair's line, else a forgiving cone in reach and in sight).
+- `Interaction/InteractionFocus`: `InteractionFocus`, choosing among the candidates (the most directly looked at, nearer
+  winning near-ties), apart from the world so the tests feed it candidates.
+- `Interaction/InteractionSource.h`: `IInteractionSource`, a player component that offers things by its own rules (the
+  weapon manager offers loot: a tap picks it up, a hold equips it).
+- `Interaction/InteractionSubsystem`: `UInteractionSubsystem`, the level's interactables (each joins as its play
+  begins), so the component looks among a few dozen.
+- `Interaction/InteractableProp`: `AInteractableProp`, the greybox interactable for tests and greybox levels (a door
+  that swings, a bell held to ring, a lantern post held to light), tagged for missions to find.
 
 ## Affixes
 - `Affixes/WeaponRollLibrary`: `UWeaponRollLibrary`, rolling rarity and stats from a seed, and spawning rolled guns.
@@ -229,8 +246,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/Style/WeaponText`: `LooterWeaponText`, weapon names, rarity colors and stat strings.
 - `UI/HUD/LooterHUD`: `ALooterHUD`, owns the HUD, the inventory's pages (loadout, bestiary, missions) and the pause menu (the
   settings menu with Save & Quit), and their hotkeys.
-- `UI/HUD/PlayerHUDWidget`: the gameplay HUD (health, ammo, crosshair, hit marker, loot card, messages);
-  `PlayerHUDWidgetPickupCard.cpp` fills the loot comparison card.
+- `UI/HUD/PlayerHUDWidget`: the gameplay HUD (health, ammo, crosshair, hit marker, loot card, interaction prompt,
+  messages); `PlayerHUDWidgetPickupCard.cpp` fills the loot comparison card and the interaction prompt.
 - `UI/HUD/HudVitalsWidget`: health at the bottom left: a ring with the number inside and a solid bar out of its lower
   side, with a damage chip, a hit flash and a low-health beat.
 - `UI/HUD/HudMagazineWidget`: the magazine gauge in the ammo row: a cartridge whose inside drains from the nose as the
@@ -244,6 +261,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/HUD/HudWeaponSlotsWidget`: the weapon slots over the ammo, as circles in the guns' rarity colors with their Inked icons (tilted up) and their ammo's icon under each.
 - `UI/HUD/HudFrameRateWidget`: the frame rate counter in the top-left corner.
 - `UI/HUD/HudPickupFeedWidget`: ammo pickups left of the crosshair, in outlined white type that stacks, rises and fades.
+- `UI/HUD/HudInteractPromptWidget`: what the Interact key does to the thing looked at, under the crosshair ("[E] OPEN
+  THE DOOR", "HOLD [E] RING THE BELL" over a bar that fills while held); loot has its card instead.
 - `UI/Menus/SettingsMenuWidget`: `USettingsMenuWidget`, the settings menu (graphics, interface, key bindings), over the
   paused game or from the main menu: its layout. `SettingsMenuRows.cpp` makes its rows and key list,
   `SettingsMenuInput.cpp` handles its buttons, sliders and keys, `SettingsMenuParts.h` holds what they share.
@@ -287,13 +306,15 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   bars); `Looter.SpawnCreature <kind> [rank] [count] [chase] [size=] [level=]`, spawns ranked creatures in front of the
   player (gone for good once killed).
 - `Dev/LootDevCommands.cpp`: `Looter.Loot.SimulateDrops <rank> [kills]`, rolls a rank's loot table and prints its odds.
+- `Dev/InteractionDevCommands.cpp`: `Looter.Interaction.Spawn <door|bell|lantern>`, a greybox interactable in front of
+  the player; `Looter.Interaction.Focus`, what the player would use now.
 - `Dev/WorldDevCommands.cpp`: `Looter.InstanceCollision`, whether the world's instanced meshes (the scattered trees and
   rocks) have collision bodies; `Looter.World.Bounds`, draws the playable area's boundary and walls;
   `Looter.Perf.HideTag <tag> [1|0]`, hides a tagged group to measure its cost by the difference.
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`).
 
 ## Tests (run with `Tools\runtests.ps1`)
-- `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `CreatureTests.cpp`, `CreatureRankTests.cpp`, `InventoryTests.cpp`, `LevelBandTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
+- `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `CreatureTests.cpp`, `CreatureRankTests.cpp`, `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
   `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `ProgressionTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SlimeTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 

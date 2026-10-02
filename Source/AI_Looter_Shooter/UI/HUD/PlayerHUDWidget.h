@@ -7,10 +7,12 @@
 class AWeaponBase;
 enum class EAmmoType : uint8;
 class UHealthComponent;
+class UHudInteractPromptWidget;
 class UHudMagazineWidget;
 class UHudVitalsWidget;
 class UHudWeaponSlotsWidget;
 class UImage;
+class UInteractionComponent;
 class USizeBox;
 class UTextBlock;
 class UWidget;
@@ -29,11 +31,14 @@ class UWeaponManagerComponent;
  *  - bottom-center: the level and experience bar (UHudXPBarWidget), the only place the level shows
  *  - center: thin tick crosshair sized by the weapon's spread (it fades out while aiming through a sight in first
  *    person, where the sight's reticle is the aim point), diagonal hit marker
+ *  - under the crosshair: what the Interact key does to the thing looked at (UHudInteractPromptWidget), for everything
+ *    but loot, which has the comparison card
  * No backing panels; both corner clusters fade back when nothing is happening and come forward on
  * activity (firing, reloading, switching, taking damage). The loot comparison card and messages only
  * appear when relevant. Reads the possessed pawn every frame, so it survives respawns.
  *
- * PlayerHUDWidget.cpp builds it and runs the corners and crosshair; PlayerHUDWidgetPickupCard.cpp fills the loot card.
+ * PlayerHUDWidget.cpp builds it and runs the corners and crosshair; PlayerHUDWidgetPickupCard.cpp fills the loot card
+ * and the interaction prompt from the player's interaction component.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UPlayerHUDWidget : public UUserWidget
@@ -49,7 +54,9 @@ private:
 	void UpdateWeaponCluster(UWeaponManagerComponent* Manager, float DeltaTime);
 	void UpdateVitals(UHealthComponent* Health, float DeltaTime);
 	void UpdateCrosshair(const AWeaponBase* Active, float DeltaTime);
-	void UpdatePickupCard(UWeaponManagerComponent* Manager);
+
+	/** The loot card when the player looks at loot, the interaction prompt for anything else they could use. */
+	void UpdatePickupCard(UWeaponManagerComponent* Manager, const UInteractionComponent* Interaction, float DeltaTime);
 	FString BoundKeyName(FName BindingId, const TCHAR* Fallback) const;
 
 	UFUNCTION()
@@ -90,6 +97,9 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> PickupHoldSegments;
 	UPROPERTY(Transient) TObjectPtr<UWidget> MessagePlate;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> MessageText;
+
+	// The interaction prompt under the crosshair
+	UPROPERTY(Transient) TObjectPtr<UHudInteractPromptWidget> InteractPrompt;
 
 	TWeakObjectPtr<UWeaponManagerComponent> BoundManager;
 	TWeakObjectPtr<AWeaponBase> BoundWeapon;

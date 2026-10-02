@@ -5,12 +5,13 @@
 #include "LooterCharacter.generated.h"
 
 class UInputAction;
+class UInteractionComponent;
 struct FInputActionValue;
 
 /**
  * The player's character: walking, looking and jumping. Everything else lives in components (view, locomotion,
- * health, weapons). The Blueprint child, BP_LooterCharacter, holds only data: meshes, animation, camera placement and
- * the component settings.
+ * health, weapons, interaction). The Blueprint child, BP_LooterCharacter, holds only data: meshes, animation, camera
+ * placement and the component settings.
  */
 UCLASS(Abstract)
 class AI_LOOTER_SHOOTER_API ALooterCharacter : public ACharacter
@@ -22,6 +23,10 @@ public:
 
 protected:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+
+	/** The Interact key and everything it uses: loot, doors, the bell, lantern posts (made here, not in the Blueprint). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UInteractionComponent> Interaction;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> MoveAction;

@@ -1,12 +1,15 @@
 #include "UI/HUD/PlayerHUDWidget.h"
+#include "UI/HUD/HudInteractPromptWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
+#include "Interaction/InteractionComponent.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Weapons/WeaponBase.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 
-// The loot comparison card: the weapon looked at, stat by stat against the one in hand, and how to take it.
+// What the interact key would do to the thing looked at: the loot comparison card for loot (the weapon, stat by stat
+// against the one in hand, and how to take it), the interaction prompt under the crosshair for anything else.
 
 using namespace LooterUI;
 
@@ -38,9 +41,20 @@ namespace
 	}
 }
 
-void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager)
+void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager, const UInteractionComponent* Interaction, float DeltaTime)
 {
-	const AWeaponBase* Pickup = Manager ? Manager->GetFocusedPickup() : nullptr;
+	// The interaction component knows what's looked at; loot (offered by the weapon manager) gets the card.
+	const AWeaponBase* Pickup = Interaction ? Cast<AWeaponBase>(Interaction->GetFocusedActor()) : nullptr;
+	if (Pickup && (!Pickup->IsPickup() || !Manager))
+	{
+		Pickup = nullptr;
+	}
+	// The key's name is only needed while something is looked at (a fading prompt keeps its words).
+	const FString Key = Interaction && Interaction->GetFocusedActor() ? BoundKeyName(TEXT("Interact"), TEXT("E")) : FString();
+	if (InteractPrompt)
+	{
+		InteractPrompt->Update(Pickup ? nullptr : Interaction, Key, DeltaTime);
+	}
 	if (!Pickup)
 	{
 		PickupCard->SetVisibility(ESlateVisibility::Collapsed);
@@ -71,7 +85,6 @@ void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager)
 	SetCompareLine(PickupStatTexts[8], TEXT("ZOOM"), S.Zoom, Old.Zoom, true, 2, TEXT(""), TEXT(""), bHasCurrent, LooterWeaponText::ZoomString(S).ToUpper());
 
 	// A tap and a hold only differ when every slot is full: the tap stashes the loot, the hold takes it in hand.
-	const FString Key = BoundKeyName(TEXT("Interact"), TEXT("E"));
 	const bool bSlotsFull = Manager->GetWeapons().Num() >= Manager->MaxWeapons;
 	const bool bBackpackFull = Manager->GetBackpack().Num() >= Manager->BackpackCapacity;
 	FString Hint;
@@ -92,7 +105,8 @@ void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager)
 		PickupHint->SetText(FText::FromString(Hint));
 	}
 
-	const float Hold = Manager->GetPickupHoldProgress();
+	// The hold that equips it (looking away cancels a hold, so a hold under way is always on the loot looked at).
+	const float Hold = Interaction->GetHoldProgress();
 	PickupHoldBar->SetVisibility(Hold > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
 	if (Hold > 0.f)
 	{

@@ -1,32 +1,24 @@
+// UWeaponManagerComponent: picking loot up (a tap of the interact key) or equipping it in place of the gun in hand (a
+// hold), the loot it offers the player's interaction component, and the loot labels.
+
 #include "Inventory/WeaponManagerComponent.h"
-#include "Player/PlayerViewComponent.h"
+#include "Interaction/InteractionComponent.h"
 #include "Weapons/WeaponBase.h"
-#include "Weapons/WeaponDefinition.h"
-#include "Affixes/WeaponRollLibrary.h"
-#include "Settings/KeyBindingSubsystem.h"
-#include "AI_Looter_Shooter.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "EnhancedInputComponent.h"
 #include "EnhancedPlayerInput.h"
 #include "EngineUtils.h"
-#include "TimerManager.h"
-#include "GameFramework/Character.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 
 // ---------------------------------------------------------------------------
 // Pickups
 // ---------------------------------------------------------------------------
 
-bool UWeaponManagerComponent::TryPickup()
+bool UWeaponManagerComponent::TryPickup(AWeaponBase* Pickup)
 {
-	AWeaponBase* Pickup = FocusedPickup.Get();
-	if (!Pickup || !Pickup->IsPickup())
+	if (!IsValid(Pickup) || !Pickup->IsPickup())
 	{
 		return false;
 	}
-
-	FocusedPickup.Reset();
-	OnFocusedPickupChanged.Broadcast(nullptr);
 
 	// Slots full but backpack has room: stash it like Borderlands does.
 	if (Weapons.Num() >= MaxWeapons && Backpack.Num() < BackpackCapacity)
@@ -53,11 +45,6 @@ bool UWeaponManagerComponent::EquipPickup(AWeaponBase* Pickup)
 	if (!IsValid(Pickup) || !Pickup->IsPickup())
 	{
 		return false;
-	}
-	if (FocusedPickup.Get() == Pickup)
-	{
-		FocusedPickup.Reset();
-		OnFocusedPickupChanged.Broadcast(nullptr);
 	}
 
 	// A free slot takes it, the same as a tap.
@@ -99,52 +86,71 @@ bool UWeaponManagerComponent::EquipPickup(AWeaponBase* Pickup)
 	return true;
 }
 
-float UWeaponManagerComponent::GetPickupHoldProgress() const
+// ---------------------------------------------------------------------------
+// Loot as things to use (IInteractionSource)
+// ---------------------------------------------------------------------------
+
+void UWeaponManagerComponent::GatherInteractions(const FInteractionView& View, TArray<FInteractionCandidate>& OutCandidates) const
 {
-	const UWorld* World = GetWorld();
-	if (!World || !PressedPickup.IsValid() || !World->GetTimerManager().IsTimerActive(PickupHoldTimer))
+	UWorld* World = GetWorld();
+	if (!World)
 	{
-		return 0.f;
+		return;
 	}
-	return FMath::Clamp(World->GetTimerManager().GetTimerElapsed(PickupHoldTimer) / PickupHoldSeconds, 0.f, 1.f);
-}
-
-void UWeaponManagerComponent::HandleInteractPressed()
-{
-	// Nothing happens until the key comes up (a tap) or has been held long enough (equip).
-	PressedPickup = FocusedPickup;
-	if (PressedPickup.IsValid())
+	const double RangeSquared = FMath::Square(static_cast<double>(PickupRange));
+	for (TActorIterator<AWeaponBase> It(World); It; ++It)
 	{
-		GetWorld()->GetTimerManager().SetTimer(PickupHoldTimer, this, &UWeaponManagerComponent::HandleInteractHeld, PickupHoldSeconds, false);
-	}
-}
-
-void UWeaponManagerComponent::HandleInteractReleased()
-{
-	FTimerManager& Timers = GetWorld()->GetTimerManager();
-	const bool bTap = Timers.IsTimerActive(PickupHoldTimer);
-	Timers.ClearTimer(PickupHoldTimer);
-	AWeaponBase* Pickup = PressedPickup.Get();
-	PressedPickup.Reset();
-
-	// Only if the player still looks at what they pressed on: a tap never grabs something else.
-	if (bTap && Pickup && Pickup == FocusedPickup.Get())
-	{
-		TryPickup();
+		AWeaponBase* Weapon = *It;
+		if (!Weapon->IsPickup() || FVector::DistSquared(Weapon->GetActorLocation(), View.ReachOrigin) > RangeSquared)
+		{
+			continue;
+		}
+		FInteractionCandidate& Candidate = OutCandidates.AddDefaulted_GetRef();
+		Candidate.Actor = Weapon;
+		Candidate.Location = Weapon->GetActorLocation();
+		Candidate.Options = GetOfferOptions(*Weapon);
+		Candidate.Reach = PickupRange;
+		// Loot never needed a clear line from the eyes (it lies in the grass, on tables), and still doesn't.
+		Candidate.bCheckSight = false;
 	}
 }
 
-void UWeaponManagerComponent::HandleInteractHeld()
+FInteractionOptions UWeaponManagerComponent::GetOfferOptions(const AActor& Offer) const
 {
-	AWeaponBase* Pickup = PressedPickup.Get();
-	PressedPickup.Reset();
-	if (Pickup && Pickup == FocusedPickup.Get())
-	{
-		EquipPickup(Pickup);
-	}
+	// A tap picks it up and a hold of PickupHoldSeconds takes it in hand; they differ only when every slot is full, and
+	// the HUD's loot card spells out what each does then.
+	const AWeaponBase* Weapon = Cast<AWeaponBase>(&Offer);
+	FInteractionOptions Options;
+	Options.bUsable = Weapon && Weapon->IsPickup();
+	Options.bTap = true;
+	Options.bHold = true;
+	Options.HoldSeconds = PickupHoldSeconds;
+	Options.TapPrompt = FText::FromString(TEXT("Pick up"));
+	Options.HoldPrompt = FText::FromString(TEXT("Equip"));
+	Options.Reach = PickupRange;
+	return Options;
 }
 
-void UWeaponManagerComponent::UpdatePickupFocus()
+bool UWeaponManagerComponent::UseOffer(AActor& Offer, bool bHeld)
+{
+	AWeaponBase* Weapon = Cast<AWeaponBase>(&Offer);
+	if (!Weapon)
+	{
+		return false;
+	}
+	return bHeld ? EquipPickup(Weapon) : TryPickup(Weapon);
+}
+
+// ---------------------------------------------------------------------------
+// Loot labels
+// ---------------------------------------------------------------------------
+
+void UWeaponManagerComponent::HandleInteractionFocusChanged(AActor* Focused)
+{
+	UpdateLootLabels();
+}
+
+void UWeaponManagerComponent::UpdateLootLabels()
 {
 	APlayerController* PC = InputBinding.GetController();
 	UWorld* World = GetWorld();
@@ -162,47 +168,19 @@ void UWeaponManagerComponent::UpdatePickupFocus()
 		}
 	}
 
-	// Aim like the gun does (the crosshair in first/third person, the eyes in the front view); reach is measured
-	// from the character, since a third-person camera sits a couple of meters behind them.
-	FVector ViewLocation;
-	FRotator ViewRotation;
+	// Labels show over loot within LabelRange of the eyes; the loot the interaction component focuses (looked at, in
+	// reach) shows its stats and the prompt.
 	const APawn* Pawn = Cast<APawn>(GetOwner());
-	if (const UPlayerViewComponent* View = Pawn ? Pawn->FindComponentByClass<UPlayerViewComponent>() : nullptr)
-	{
-		View->GetAimViewPoint(ViewLocation, ViewRotation);
-	}
-	else
-	{
-		PC->GetPlayerViewPoint(ViewLocation, ViewRotation);
-	}
-	const FVector ViewDirection = ViewRotation.Vector();
-	const FVector ReachOrigin = Pawn ? Pawn->GetPawnViewLocation() : ViewLocation;
-
-	AWeaponBase* BestPickup = nullptr;
-	float BestAim = PickupAimThreshold;
+	const FVector Eyes = Pawn ? Pawn->GetPawnViewLocation() : PC->GetFocalLocation();
+	const UInteractionComponent* Interaction = LabelFocus.Get();
+	const AActor* Focused = Interaction ? Interaction->GetFocusedActor() : nullptr;
 	TArray<TWeakObjectPtr<AWeaponBase>> NowLabeled;
-
 	for (TActorIterator<AWeaponBase> It(World); It; ++It)
 	{
 		AWeaponBase* Weapon = *It;
-		if (!Weapon->IsPickup())
+		if (Weapon->IsPickup() && FVector::Dist(Weapon->GetActorLocation(), Eyes) <= LabelRange)
 		{
-			continue;
-		}
-
-		const FVector ToWeapon = Weapon->GetActorLocation() - ViewLocation;
-		const float Distance = FVector::Dist(Weapon->GetActorLocation(), ReachOrigin);
-		if (Distance > LabelRange)
-		{
-			continue;
-		}
-		NowLabeled.Add(Weapon);
-
-		const float Aim = FVector::DotProduct(ToWeapon.GetSafeNormal(), ViewDirection);
-		if (Distance <= PickupRange && Aim > BestAim)
-		{
-			BestAim = Aim;
-			BestPickup = Weapon;
+			NowLabeled.Add(Weapon);
 		}
 	}
 
@@ -216,13 +194,7 @@ void UWeaponManagerComponent::UpdatePickupFocus()
 	}
 	for (const TWeakObjectPtr<AWeaponBase>& Weapon : NowLabeled)
 	{
-		Weapon->SetLabelState(true, Weapon.Get() == BestPickup);
+		Weapon->SetLabelState(true, Weapon.Get() == Focused);
 	}
 	LabeledPickups = MoveTemp(NowLabeled);
-
-	if (FocusedPickup.Get() != BestPickup)
-	{
-		FocusedPickup = BestPickup;
-		OnFocusedPickupChanged.Broadcast(BestPickup);
-	}
 }

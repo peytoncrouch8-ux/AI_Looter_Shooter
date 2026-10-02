@@ -1,5 +1,6 @@
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/HUD/HudFrameRateWidget.h"
+#include "UI/HUD/HudInteractPromptWidget.h"
 #include "UI/HUD/HudMagazineWidget.h"
 #include "UI/HUD/HudMinimapWidget.h"
 #include "UI/HUD/HudPickupFeedWidget.h"
@@ -10,6 +11,7 @@
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
 #include "Combat/HealthComponent.h"
+#include "Interaction/InteractionComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Settings/KeyBindingSubsystem.h"
@@ -272,6 +274,10 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			PlaceOnCanvas(Root, PickupCard, FAnchors(1.f, 0.5f), FVector2D(1.f, 0.5f), FVector2D(-32.f, 0.f));
 		}
 
+		// Under the crosshair: what the Interact key does to the thing looked at (loot has the card above instead).
+		InteractPrompt = WidgetTree->ConstructWidget<UHudInteractPromptWidget>(UHudInteractPromptWidget::StaticClass());
+		PlaceOnCanvas(Root, InteractPrompt, Center, FVector2D(0.5f, 0.f), FVector2D(0.f, UHudInteractPromptWidget::Gap));
+
 		// Top-right: the minimap.
 		UHudMinimapWidget* Minimap = WidgetTree->ConstructWidget<UHudMinimapWidget>(UHudMinimapWidget::StaticClass());
 		PlaceOnCanvas(Root, Minimap, FAnchors(1.f, 0.f), FVector2D(1.f, 0.f), FVector2D(-UHudMinimapWidget::Margin, UHudMinimapWidget::Margin));
@@ -312,11 +318,12 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 	const APawn* Pawn = PC ? PC->GetPawn() : nullptr;
 	UWeaponManagerComponent* Manager = Pawn ? Pawn->FindComponentByClass<UWeaponManagerComponent>() : nullptr;
 	UHealthComponent* Health = Pawn ? Pawn->FindComponentByClass<UHealthComponent>() : nullptr;
+	const UInteractionComponent* Interaction = Pawn ? Pawn->FindComponentByClass<UInteractionComponent>() : nullptr;
 
 	BindToPawn(Manager);
 	UpdateWeaponCluster(Manager, InDeltaTime);
 	UpdateVitals(Health, InDeltaTime);
-	UpdatePickupCard(Manager);
+	UpdatePickupCard(Manager, Interaction, InDeltaTime);
 
 	if (HitMarkerTime > 0.f)
 	{

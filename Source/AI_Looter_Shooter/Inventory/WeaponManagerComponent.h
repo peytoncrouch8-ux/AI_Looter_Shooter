@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Interaction/InteractionSource.h"
 #include "Player/PawnInputBinding.h"
 #include "Weapons/AmmoTypes.h"
 #include "Weapons/WeaponTypes.h"
@@ -12,13 +13,13 @@ class APawn;
 class AWeaponBase;
 class UInputAction;
 class UInputMappingContext;
+class UInteractionComponent;
 class USceneComponent;
 class UWeaponDefinition;
 struct FWeaponInventorySave;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActiveWeaponChanged, AWeaponBase*, NewWeapon, AWeaponBase*, OldWeapon);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWeaponInventoryChanged);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFocusedPickupChanged, AWeaponBase*, FocusedPickup);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWeaponMessage, const FText&, Message);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAmmoPoolChanged, EAmmoType, Type, int32, Carried);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAmmoPickedUp, EAmmoType, Type, int32, Amount);
@@ -45,9 +46,12 @@ struct FStartingWeapon
 /**
  * Add to any pawn to let it carry and use weapons. Handles slots, equipping, swapping, dropping,
  * and (for players) binds its own Enhanced Input actions so the character Blueprint needs no wiring.
+ *
+ * Loot lying in the world is offered to the player's interaction component (IInteractionSource): that finds the gun
+ * looked at and owns the Interact key, and a tap or a hold on loot comes back here (TryPickup, EquipPickup).
  */
 UCLASS(ClassGroup = (Looter), meta = (BlueprintSpawnableComponent))
-class AI_LOOTER_SHOOTER_API UWeaponManagerComponent : public UActorComponent
+class AI_LOOTER_SHOOTER_API UWeaponManagerComponent : public UActorComponent, public IInteractionSource
 {
 	GENERATED_BODY()
 
@@ -76,11 +80,11 @@ public:
 	AWeaponBase* DropActiveWeapon();
 
 	/**
-	 * Picks up the loot weapon the player is looking at (a tap of the interact key): into a free equip slot, else the
-	 * backpack, else it swaps with the weapon in hand.
+	 * Picks up a loot weapon (a tap of the interact key on it): into a free equip slot, else the backpack, else it swaps
+	 * with the weapon in hand.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Weapons|Pickup")
-	bool TryPickup();
+	bool TryPickup(AWeaponBase* Pickup);
 
 	/**
 	 * Picks up a loot weapon and takes it in hand (holding the interact key): into a free equip slot when there is one,
@@ -89,9 +93,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapons|Pickup")
 	bool EquipPickup(AWeaponBase* Pickup);
 
-	/** How far through the hold that equips the focused pickup (0-1); 0 while the interact key isn't held on one. */
-	UFUNCTION(BlueprintPure, Category = "Weapons|Pickup")
-	float GetPickupHoldProgress() const;
+	// --- Loot as things to use (IInteractionSource; WeaponManagerPickups.cpp) ---
+
+	/** The loot lying within PickupRange of the player's eyes. */
+	virtual void GatherInteractions(const FInteractionView& View, TArray<FInteractionCandidate>& OutCandidates) const override;
+
+	/** Loot takes a tap (TryPickup) and a hold of PickupHoldSeconds (EquipPickup); the HUD's loot card spells out what each does. */
+	virtual FInteractionOptions GetOfferOptions(const AActor& Offer) const override;
+
+	virtual bool UseOffer(AActor& Offer, bool bHeld) override;
 
 	// --- Inventory ---
 
@@ -174,10 +184,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Weapons")
 	FOnWeaponMessage OnMessage;
 
-	/** The loot weapon that would be picked up by TryPickup right now, if any. */
-	UFUNCTION(BlueprintPure, Category = "Weapons|Pickup")
-	AWeaponBase* GetFocusedPickup() const { return FocusedPickup.Get(); }
-
 	UFUNCTION(BlueprintCallable, Category = "Weapons")
 	void StartFire();
 
@@ -201,9 +207,6 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Weapons")
 	FOnWeaponInventoryChanged OnInventoryChanged;
-
-	UPROPERTY(BlueprintAssignable, Category = "Weapons|Pickup")
-	FOnFocusedPickupChanged OnFocusedPickupChanged;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons", meta = (ClampMin = "1"))
 	int32 MaxWeapons = 3;
@@ -247,17 +250,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapons|Attachment")
 	bool IsThirdPersonHold() const { return bThirdPersonHold; }
 
-	/** How close (cm) loot must be to pick it up. */
+	/**
+	 * How close (cm) loot must be to the player's eyes to pick it up (the loot's reach in the interaction component, whose
+	 * cone, AimThreshold, says how directly it must be looked at).
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Pickup", meta = (ClampMin = "0"))
 	float PickupRange = 250.f;
 
 	/** Loot labels are shown within this distance (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Pickup", meta = (ClampMin = "0"))
 	float LabelRange = 1500.f;
-
-	/** How directly the player must look at loot to focus it (cosine of the angle; 0.8 = ~37 degrees). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Pickup", meta = (ClampMin = "-1", ClampMax = "1"))
-	float PickupAimThreshold = 0.8f;
 
 	/** Seconds the interact key is held on loot to equip it; a shorter press picks it up. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Pickup", meta = (ClampMin = "0.1"))
@@ -284,8 +286,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Input")
 	TObjectPtr<UInputAction> DropWeaponAction;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Input")
-	TObjectPtr<UInputAction> InteractAction;
+	// The interact key belongs to the interaction component (UInteractionComponent), which hands loot back here.
 
 protected:
 	virtual void BeginPlay() override;
@@ -295,17 +296,19 @@ private:
 	UFUNCTION()
 	void HandleControllerChanged(APawn* Pawn, AController* OldController, AController* NewController);
 
+	/** The interaction component's focus moved: the loot labels follow at once. */
+	UFUNCTION()
+	void HandleInteractionFocusChanged(AActor* Focused);
+
 	void SetupInput(AController* Controller);
 	void TeardownInput();
 	void HandleDropInput();
 
-	/** The interact key: a tap picks up the focused loot (on release), a hold of PickupHoldSeconds equips it. */
-	void HandleInteractPressed();
-	void HandleInteractReleased();
-	void HandleInteractHeld();
-
-	/** Runs a few times a second for the local player: updates loot labels and the focused pickup. */
-	void UpdatePickupFocus();
+	/**
+	 * Runs a few times a second for the local player: loot labels within LabelRange (the one the interaction component
+	 * focuses shows its stats), and the fire key's safety net.
+	 */
+	void UpdateLootLabels();
 
 	USceneComponent* FindAttachComponent() const;
 	/** Where a weapon is held right now: the first-person attach point, or the body's hand in third person. */
@@ -332,13 +335,11 @@ private:
 	FPawnInputBinding InputBinding;
 	/** The number keys that take a slot in hand (UKeyBindingSubsystem's weapon slot context). */
 	FPawnInputBinding SlotInputBinding;
-	TWeakObjectPtr<AWeaponBase> FocusedPickup;
 	TArray<TWeakObjectPtr<AWeaponBase>> LabeledPickups;
-	FTimerHandle PickupFocusTimer;
+	FTimerHandle LootLabelTimer;
 
-	/** The loot the interact key went down on, and the hold that equips it (running while the key is down). */
-	TWeakObjectPtr<AWeaponBase> PressedPickup;
-	FTimerHandle PickupHoldTimer;
+	/** The owner's interaction component, whose focus the labels follow. */
+	TWeakObjectPtr<UInteractionComponent> LabelFocus;
 
 	int32 ActiveSlot = INDEX_NONE;
 	bool bThirdPersonHold = false;
