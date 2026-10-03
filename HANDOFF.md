@@ -1,9 +1,9 @@
-# Handoff: the chosen art style and the chosen tutorial island
+# Handoff: the chosen art style, tutorial island and HUD
 
-The user made two decisions in a cloud session on 2026-10-02 and 2026-10-03, and plans to have them built starting
-Monday, 2026-10-05, when their usage resets. Nothing in `Content/`, the materials or the level has changed for either
-yet. `CLAUDE.md` imports this file, so every session starts with it. When both are built, delete this file and that
-import, and record the outcome in `Docs/Plan.md`.
+The user made three decisions in a cloud session on 2026-10-02 and 2026-10-03, and plans to have them built starting
+Monday, 2026-10-05, when their usage resets. Nothing in `Content/`, the materials, the level or the HUD's code has
+changed for any of them yet. `CLAUDE.md` imports this file, so every session starts with it. When all three are built,
+delete this file and that import, and record the outcome in `Docs/Plan.md`.
 
 ## The decisions
 
@@ -16,11 +16,17 @@ import, and record the outcome in `Docs/Plan.md`.
    `Docs/TutorialIslandConcepts.md`. The user had found the island bland and lonely. The crossroads grows into a small
    town, the slimes and spiders get grounds of their own, and the roads get brick kerbs, cover and planting. The user
    liked the 3D model as it is: build what it shows, fixing only the overlaps listed under "Fix while building".
+3. **The HUD upgrade** (chosen 2026-10-03). The user found the gameplay HUD simple and bland. They asked for a more
+   personable HUD that wows, keeping the key concepts of the earlier HUD rounds, and gave a reference: an RPG unit
+   frame with a portrait in an ornate diamond, the name, a thick health bar with numbers, a level gem and an
+   experience bar. The user liked the mockup and asked for two changes, both made in it: the ammo cartridge 15%
+   smaller and the gun icons about 20% bigger.
 
 ## Where everything is
 
 - **Branch `claude/island-concepts`** holds all of it: the art-style docs and the scripts that rendered the styles,
-  the concept viewer, the concept doc, the exact placements and this file. It sits on top of `main` at `cf34a3c`:
+  the concept viewer, the concept doc, the exact placements, the HUD mockup's sources, the portrait's art and this
+  file. It sits on top of `main` at `cf34a3c`:
   `git fetch origin claude/island-concepts`, then `git merge origin/claude/island-concepts`. It already contains
   `claude/art-style-exploration-text`; there is nothing else to merge.
 - **The images are not on GitHub.** The cloud session's network policy blocks the Git LFS host, so the PNGs (the
@@ -36,6 +42,11 @@ import, and record the outcome in `Docs/Plan.md`.
   ground patches, pools, slime trails, webs, chimneys, vegetation rules and the viewer's camera views. Small, numerous
   things are counted, not listed: 4,135 grass tufts, 4,123 cobbles, 1,083 kerb bricks, 478 cabbages and 421 flowers.
   Its `about` field explains the conventions.
+- **The HUD mockup** is <https://claude.ai/artifact/MjHmSiZunHXm2MqxCqhmJ1>, private to the user's account. Press Play
+  on the new HUD and the buttons under the screen trigger every state. Beside it are the current HUD, redrawn at the
+  same moment, and the portrait's reactions side by side. Its sources are in `Docs/HudMockup/`: `NewHud.dc.html`
+  holds every size, colour and timing below. `__BG__`, `__RIFLE__` and the like stand for the backdrop render and
+  the Inked icons. The portrait's art is `Art/Icons/HudPortrait.svg`.
 
 ## Screen Print Wash in brief
 
@@ -154,7 +165,7 @@ The concept has these mistakes. The JSON keeps them as the viewer drew them.
 3. **Check in the game.** The saloon's hitch rail and trough sit at the edge of its porch. The north-east corner lamp
    stands at the edge of the forest road.
 
-## Building it in the game
+## Building the town in the game
 
 Today the island is built in four steps:
 
@@ -213,17 +224,141 @@ giving them more behavior.
 and after with `perf.ps1`, and with `tour.ps1` including the new Square view. The budgets are in
 `Docs/TutorialIsland.md`: 8.3 ms at the heaviest view, and 4k to 8k triangles a house.
 
+## The HUD upgrade in brief
+
+It keeps every gameplay-HUD rule in `CLAUDE.md`:
+
+- built in C++ with the `LooterUI` kit, in its orange, cyan and Chakra Petch;
+- no backing panels, only floating outlined text and slanted bars;
+- `MarkBackground` on every background, so the UI transparency setting fades only those;
+- vector art drawn by the kit, the portrait included, and the Inked weapon and ammo icons;
+- the corner clusters' idle fade.
+
+Sizes are in pixels at 1080p, measured from the screen's top-left.
+
+**The player frame** (bottom-left) replaces the health ring and the experience bar at the bottom centre, which stays
+empty:
+
+- **Medallion.** A diamond 172 px tip to tip, centred at (130, 960).
+  - A gunmetal bezel lit from the top-left: the upper half `#76818e` to `#2c333b`, the lower half `#2e353d` to
+    `#111418`, a 3.2 px `#0e1116` edge, a light line inside the upper edges and a dark one inside the lower.
+  - A window 150 px tip to tip, edged in `#0e1116`, with a 1.6 px cyan (`#5ac8ff`) hairline inside.
+  - Orange (`#ff9f1c`) chevron clamps over the top tip and under the bottom tip, and a gunmetal horn on the left tip
+    with an orange chevron inlay.
+- **Portrait** in the window, at 0.75 px a unit of `Art/Icons/HudPortrait.svg`: a masked gunslinger in the Inked
+  style, with eyes glowing cyan under the hat brim and a red bandana, on dark glass with faint scanlines.
+- **Name.** "ELLIS RANSOM" over the health bar, in the accent orange, bold 28 px, letter-spaced 2.5, from (188, 874).
+  Skyreach can't show it: see the questions.
+- **Health bar.** 540 × 32 px from (150, 920), leaning 16° like every HUD bar, its left end tucked behind the medallion.
+  - A 2 px `#0e1116` rim, and a gunmetal bezel (`#66717e` to `#15191e`) with a lit top line.
+  - A dark track (`#051018` at 88%, a background) inset 4 px. It starts 40 px in, so an empty bar still begins at the
+    medallion's edge.
+  - The fill in Health red, in three flat bands: the top 36% `#ff8f80`, then `#ff5b4a`, the bottom 28% `#c63e2f`. Over
+    it a 45° hatch (black at 13%, 6 px apart) and a light leading edge (`#fff3ef`).
+  - The pale chip (`#ffe1db`), dark cuts at the quarters as on creature bars, and an orange "]" clamp over the far end.
+  - The number in the middle: the health in white 21 px, then "/ 100" in `#d6e4ee` 14 px.
+- **Level gem.** A diamond 44 px tip to tip, centred on the medallion's lower-right edge at (186, 990). It is cyan in
+  two flat halves (`#bdeeff` over `#4ab5ee`), with a 2.8 px ink edge and the level in ink, 18 px.
+- **Experience bar.** 380 × 12 px from (214, 983), in ten sections 3 px apart, each a tenth of the level as now. The
+  sections are cyan halves (`#b9ecff` over `#45b4ee`) on a `#051018` track with a `#0e1116` edge, and "1,240 / 2,000 XP"
+  sits at (606, 978). The fill is cyan now, not orange, so the orange belongs to the name.
+
+**Reactions** (timings from the mockup):
+
+- **Calm.** Blinks every 5.2 s (the eyes squash to 8% for about 0.15 s) and breathes (the bust bobs 1.6 px over 4.2 s).
+- **Hit.**
+  - The portrait shakes ±5 px for 0.32 s, the window flashes red (`#ff3b2e`, from 60% to nothing over 0.45 s), and
+    the eyes squint for 0.6 s.
+  - The bar drops at once. The lost part stays as the chip for 0.45 s, then drains in 0.6 s.
+  - The screen's edges flash red over 0.55 s.
+- **Low health** (30% or less, as now). The squint holds. On a 0.9 s beat, the window pulses red (10% to 34%), the
+  fill brightens and the screen's edges pulse. The number turns `#ffd9d3`.
+- **Heal.** The fill rises over 0.5 s with a pale green shine sweeping along it, and "+30" in `#6dff7a` rises at the
+  bar's end.
+- **Experience.** As now: the stretch just earned shows white, holds, then fades (1.5 s), and "+160 XP" rises over the
+  numbers.
+- **Level up.**
+  - The eyes flare, then fade over 1.8 s. The gem flashes, and a ring spreads out of it (to 2.6 times its size over
+    1.1 s).
+  - A **banner** replaces the message plate's "LEVEL UP!", centred 170 px from the top. A 92 px cyan gem holds the new
+    level, with a soft glow and eight orange rays behind it.
+  - Under the gem, "LEVEL UP" in orange 46 px, letter-spaced 12, between fading cyan rules, and "MAX HEALTH +8%" in
+    `#9fe0ff`.
+  - It pops in, holds and fades over 2.8 s.
+
+**Weapons** (bottom-right, laid out as now):
+
+- **Slots.** The same 64 px circles, now built in layers: a `#0e1116` rim, a gunmetal ring 2.5 px wide, the inner disc
+  (a background), a cyan hairline and the rarity arc along the bottom 100°. The gun in hand rises and grows as now,
+  with its accent ring and a soft orange glow. The key tabs are small chamfered plates, orange with a dark number for
+  the gun in hand.
+- **Gun icons about 20% bigger** (the user's request). The rifle is 56 px wide instead of 46, the shotgun 58 instead of
+  48, still tilted 22° up; their ends now reach the ring.
+- **Cartridge 15% smaller** (the user's request). It is 196 × 51 px instead of 230 × 60 (`UHudMagazineWidget::Width`
+  and `Height`), its right end still beside the reserve, so the ammo icon, status and fire mode move right with its
+  base.
+  - Its outline is doubled, dark under light, and the fill has two tones, the hatch and a light leading edge.
+  - The colour rules stay: cyan, orange at a quarter left, a red count and a beating outline when empty, and an orange
+    reload fill.
+- **Name** in its rarity's colour, 18 px, right-aligned under the reserve and ending in a small rarity gem. The fire
+  mode sits under the cartridge's base.
+
+**Elsewhere:**
+
+- **Minimap.** The same map and size, in a gunmetal bezel (radius 86 to 95 px).
+  - Ticks every 30° (longer at 90°) turn with the view, and the N sits in an orange-ringed disc on the bezel.
+  - A fixed orange notch marks the top, and a cyan hairline runs inside the bezel.
+  - Under the map are the place (15 px) and the island (10.5 px, dim), for example CROSSROADS over SKYREACH.
+- **Tutorial prompt.** "TUTORIAL 4 / 6" between cyan rules with orange diamonds, and key names as keycaps (a chamfered
+  dark plate with a cyan edge).
+- **Boss bar.** 640 × 30 px, built like the health bar: bezel, red fill, chip and end clamp.
+  - The boss's level sits in a gem of its rank's colour.
+  - The phase cuts light up once passed, and the phase name flashes orange when a new phase starts.
+- **Crosshair.** It kicks to 1.45 times its size for 0.16 s on each shot. The hit marker, pickup feed and interaction
+  prompt stay as they are.
+
+## Building the HUD
+
+- **Player frame.** `UHudVitalsWidget` becomes the player frame (`UHudPlayerFrameWidget`): medallion, name, health
+  bar, gem and experience bar. It keeps its chip, flash and low-health logic. `UHudXPBarWidget`'s gain flash,
+  catch-up and level-up announcement move into the frame's experience bar.
+- **Portrait.** A new `UHudPortraitWidget` draws the portrait and its reactions.
+  - The art becomes vector data drawn into textures once, like the Inked icons: an `Art/Icons/HudPortrait.py` beside
+    `InkedIcons.py`, flattening the SVG's cubic curves.
+  - `FInkedIcon` has three tones, but the portrait needs a colour per shape: either give the rasterizer a colour per
+    shape, or stack single-colour `IconBrush` layers.
+  - The three eye layers swap by opacity, and the glows are soft round brushes.
+- **Level-up banner.** A new banner widget takes over the level-up line from the message plate (`OnAnnouncement`).
+- **Other widgets that change:**
+  - `UHudWeaponSlotsWidget`: the ring layers and the bigger gun icons;
+  - `UHudMagazineWidget`: 196 × 51;
+  - `UHudMinimapWidget`: the bezel, ticks, notch and place name;
+  - `UTutorialPromptWidget`: the keycaps;
+  - `UHudBossBarWidget`: built like the health bar.
+
+  `PlayerHUDWidget.cpp` places them all.
+- **Colours.** New colours go into `LooterUI::Color` (the gunmetal tones, the gem's cyans, the health bands), never as
+  literals in a widget.
+- **Performance and tests.** Measure on Medium with `perf.ps1` before and after: the frame adds a handful of cached
+  vector images and a few animated layers. Keep the `Looter.*` tests passing.
+- **Docs.** When it's done, update `CLAUDE.md`'s UI rules to describe the player frame and the portrait.
+
 ## Suggested order
 
 1. Merge `claude/island-concepts`, then regenerate the style images.
 2. Screen Print Wash steps 0 to 2: before pictures, docs, then the post-process. The whole game takes the new look at
    once, and the town is then built under it.
 3. Crossroads Town with the models that exist: placements, roads, gameplay groups, scatter and tour views. Measure.
-4. Screen Print Wash steps 3 to 7: flat plates, masters, foliage and terrain, light, then guns and creatures.
-5. The new models, in the print style, then the sheep, hens and townsfolk with their bestiary pages.
-6. Screen Print Wash steps 8 to 10, with the final tour and performance record.
+4. The HUD upgrade: the player frame and portrait first, then the weapons, minimap, banner and boss bar. It doesn't
+   depend on the rest; building it after step 2 means its colours are checked over the new pastel world.
+5. Screen Print Wash steps 3 to 7: flat plates, masters, foliage and terrain, light, then guns and creatures.
+6. The new models, in the print style, then the sheep, hens and townsfolk with their bestiary pages.
+7. Screen Print Wash steps 8 to 10, with the final tour and performance record.
 
 ## Questions for the user
 
 - Should all eight spiders live in Web Hollow, as the concept shows, or stay spread through the woods?
 - Should the townsfolk and livestock start as set dressing that stands and idles, or as living characters?
+- What should the HUD's name plate say on Skyreach? `Docs/Story.md` keeps story names off Skyreach, so "ELLIS
+  RANSOM" can only show once the story starts. The choices: the player's own name, or no name there. The portrait is
+  masked, so it can stay either way.
