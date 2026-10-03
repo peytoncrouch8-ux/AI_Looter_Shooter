@@ -109,12 +109,23 @@ svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 .map{position:absolute;left:1712px;top:36px;width:172px;height:172px;border-radius:50%}
 .area{position:absolute;left:1648px;width:300px;text-align:center;white-space:nowrap}
 
-/* tutorial prompt */
-.tut{position:absolute;left:460px;top:38px;width:1000px;text-align:center}
-.tut .step{font-size:13px;letter-spacing:4px;color:#ff9f1c;line-height:18px}
-.tut .rule{display:inline-block;vertical-align:middle;width:68px;height:1px;background:rgba(90,200,255,.75)}
-.tut .dia{display:inline-block;vertical-align:middle;width:7px;height:7px;margin:0 10px;background:#ff9f1c;transform:rotate(45deg);box-shadow:0 0 0 1.2px #0a1218}
-.tut .text{margin-top:8px;font-size:21px;color:#fff;line-height:28px}
+/* the tracked mission, on the left: its name on a strip that fades out, then the objective and a key hint */
+.track{position:absolute;left:36px;top:286px;width:480px;height:110px}
+.trackstrip{position:absolute;left:6px;top:0;width:420px;height:34px;transform:skewX(-16deg);background:linear-gradient(90deg,rgba(5,16,24,.82) 0,rgba(5,16,24,.55) 55%,rgba(5,16,24,0) 100%)}
+.trackline{position:absolute;left:0;bottom:0;width:100%;height:2px;background:linear-gradient(90deg,#ff9f1c 0,rgba(255,159,28,.6) 45%,rgba(255,159,28,0) 85%)}
+.trackbadge{position:absolute;left:0;top:2px;width:30px;height:30px;overflow:visible;filter:drop-shadow(0 2px 2px rgba(0,10,18,.5))}
+.tracktitle{position:absolute;left:42px;top:2px;font-size:20px;color:#fff;line-height:30px;white-space:nowrap}
+.trackstep{position:absolute;left:350px;top:8px;font-size:13px;letter-spacing:1.5px;color:#8fb3cc;line-height:18px}
+.trackobj{position:absolute;left:40px;top:44px;display:flex;align-items:center;gap:10px;font-size:18px;color:#fff;line-height:24px;white-space:nowrap}
+.trackobj svg{width:18px;height:18px;overflow:visible;flex:none}
+.trackobj.done .txt{color:#8fb3cc}
+.trackobj.inA{animation:objInA .45s ease-out}
+.trackobj.inB{animation:objInB .45s ease-out}
+.trackcount{color:#9fe0ff}
+.trackcount.pulseA{animation:countA .3s ease-out}
+.trackcount.pulseB{animation:countB .3s ease-out}
+.trackhint{position:absolute;left:62px;top:74px;display:flex;align-items:center;gap:2px;font-size:14px;color:#8fb3cc;line-height:26px;white-space:nowrap}
+.trackhint .key{height:22px;min-width:22px;font-size:13px;line-height:22px;margin:0 8px 0 0}
 .key{display:inline-block;min-width:24px;height:26px;margin:0 6px;padding:0 4px;box-sizing:border-box;vertical-align:1px;font-size:15px;line-height:26px;text-align:center;color:#fff;text-shadow:none;background:linear-gradient(#24465e,#0e2433);box-shadow:inset 0 0 0 1.4px #5ac8ff,0 2px 0 #0a1218;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
 
 /* boss */
@@ -198,6 +209,10 @@ svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 @keyframes vigA{0%{opacity:.85}100%{opacity:0}}
 @keyframes vigB{0%{opacity:.85}100%{opacity:0}}
 @keyframes vigLow{0%,100%{opacity:.25}50%{opacity:.6}}
+@keyframes objInA{0%{opacity:0;transform:translateX(-14px)}100%{opacity:1;transform:translateX(0)}}
+@keyframes objInB{0%{opacity:0;transform:translateX(-14px)}100%{opacity:1;transform:translateX(0)}}
+@keyframes countA{0%{transform:scale(1.35);color:#ffffff}100%{transform:scale(1);color:#9fe0ff}}
+@keyframes countB{0%{transform:scale(1.35);color:#ffffff}100%{transform:scale(1);color:#9fe0ff}}
 </style>
 </helmet>
 <div class="hud">
@@ -432,13 +447,31 @@ svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 <div class="area ol" style="top: 224px; font-size: 15px; letter-spacing: 2.5px; color: #dcefff; line-height: 20px;">CROSSROADS</div>
 <div class="area ol" style="top: 244px; font-size: 10.5px; letter-spacing: 3.5px; color: #8fb3cc; line-height: 14px;">SKYREACH</div>
 
-<!-- tutorial prompt, or the boss's bar during a fight -->
-<sc-if value="{{tut.show}}" hint-placeholder-val="{{ true }}">
-<div class="tut">
-<div class="step ol"><span class="rule"></span><span class="dia"></span>TUTORIAL 4 / 6<span class="dia"></span><span class="rule"></span></div>
-<div class="text ol">Shoot the target dummies in the meadow under the windmill.<span class="key">R</span>reloads.</div>
+<!-- the tracked mission (the tutorial, on Skyreach), on the left -->
+<div class="track">
+<div class="trackstrip"><div class="trackline"></div></div>
+<svg class="trackbadge" viewBox="-15 -15 30 30" aria-hidden="true">
+<polygon points="0,-13 13,0 0,13 -13,0" fill="#ff9f1c" stroke="#0a1218" stroke-width="2.2" stroke-linejoin="round"></polygon>
+<polyline points="-8,0 0,-8 8,0" fill="none" stroke="#ffffff" stroke-opacity="0.65" stroke-width="1.2"></polyline>
+<polygon points="0,-5 5,0 0,5 -5,0" fill="#0a1218"></polygon>
+</svg>
+<div class="tracktitle ol">Welcome to Skyreach</div>
+<div class="trackstep ol">{{track.step}}</div>
+<div class="trackobj {{track.objCls}}">
+<svg viewBox="0 0 18 18" aria-hidden="true">
+<rect x="1.5" y="1.5" width="15" height="15" fill="rgba(5,16,24,0.6)" stroke="#0a1218" stroke-width="3.4"></rect>
+<rect x="1.5" y="1.5" width="15" height="15" fill="{{track.boxFill}}" stroke="#dcefff" stroke-width="1.6"></rect>
+<path d="M4.6 9.4 L7.8 12.4 L13.6 5.6" fill="none" stroke="#0a1218" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity="{{track.check}}"></path>
+</svg>
+<span class="txt ol">{{track.text}}</span>
+<span class="trackcount ol {{track.countCls}}">{{track.count}}</span>
 </div>
+<sc-if value="{{track.hasHint}}" hint-placeholder-val="{{ true }}">
+<div class="trackhint ol"><span class="key">{{track.key}}</span>{{track.hint}}</div>
 </sc-if>
+</div>
+
+<!-- the boss's bar during a fight -->
 <sc-if value="{{boss.show}}" hint-placeholder-val="{{ false }}">
 <div class="boss">
 <svg class="a" style="left: 4px; top: 22px; overflow: visible;" width="52" height="52" viewBox="-26 -26 52 52">
@@ -524,6 +557,15 @@ const GUNS = [
   { name: 'GILDED RANCHHAND', color: '#ffcb00', mode: 'PUMP', cap: 6, reloadMs: 2200, ammo: 'SHOTGUN SHELLS', pickup: 8 }
 ];
 const PHASES = ['THE BROOD STIRS', 'OLD HUNGER', 'UNDER SILK'];
+// The tutorial's six steps as the tracker words them: a short objective, a count where it has one, and a key hint.
+const STEPS = [
+  { text: 'Move and look around', key: 'W A S D', hint: 'Move' },
+  { text: 'Follow the road to the village', key: 'Shift', hint: 'Hold to run' },
+  { text: 'Grab the rifle from the gun rack', key: 'E', hint: 'Take it' },
+  { text: 'Shoot the target dummies', count: 5, key: 'R', hint: 'Reload' },
+  { text: 'Hunt spiders past the pond', count: 2 },
+  { text: 'Check your loadout', key: 'Tab', hint: 'Inventory' }
+];
 const LOW = 0.3;
 const pick = (n, a, b) => (n === 0 ? '' : n % 2 ? a : b);
 
@@ -535,7 +577,8 @@ class Component extends DCLogic {
       level: 12, xp: 1240, xpMax: 2000, gainFrom: 1240, gainTo: 1240, gained: 0, gainN: 0, levelN: 0, banner: false,
       slot: 0, mags: [18, 5], reserves: [120, 24], reloading: false, reloadN: 0, kickN: 0, hitN: 0,
       feed: [], feedId: 0,
-      boss: false, bossHp: 1, bossChip: 1, bossDraining: false, phaseN: 0
+      boss: false, bossHp: 1, bossChip: 1, bossDraining: false, phaseN: 0,
+      step: 3, progress: 2, stepDone: false, stepN: 0, countN: 0
     };
     this.timers = [];
   }
@@ -575,6 +618,21 @@ class Component extends DCLogic {
     if (mags[s.slot] <= 0) return;
     mags[s.slot] -= 1;
     const next = { mags, kickN: s.kickN + 1, hitN: s.hitN + 1 };
+    // Out of a boss fight the shots hit the dummies, which the tutorial's step counts; the last one ticks the box and
+    // the next step slides in a moment later.
+    const goal = STEPS[s.step].count;
+    if (!s.boss && goal && !s.stepDone && s.progress < goal) {
+      const progress = s.progress + 1;
+      Object.assign(next, { progress, countN: s.countN + 1, stepDone: progress >= goal });
+      if (progress >= goal) {
+        const at = s.step;
+        this.later(1400, () => {
+          if (this.state.step === at && at + 1 < STEPS.length) {
+            this.setState({ step: at + 1, progress: 0, stepDone: false, stepN: this.state.stepN + 1 });
+          }
+        });
+      }
+    }
     if (s.boss) {
       const bossHp = Math.max(0.04, s.bossHp - (s.slot === 0 ? 0.03 : 0.08));
       const phase = bossHp > 0.7 ? 0 : bossHp > 0.4 ? 1 : 2;
@@ -656,7 +714,13 @@ class Component extends DCLogic {
         status: s.reloading ? 'RELOADING' : mag === 0 ? (reserve > 0 ? 'PRESS R' : 'NO AMMO') : '',
         arOpacity: s.slot === 0 ? 1 : 0, sgOpacity: s.slot === 1 ? 1 : 0
       },
-      tut: { show: !s.boss },
+      track: {
+        step: (s.step + 1) + ' / ' + STEPS.length, text: STEPS[s.step].text,
+        count: STEPS[s.step].count ? s.progress + ' / ' + STEPS[s.step].count : '',
+        hasHint: !!STEPS[s.step].key, key: STEPS[s.step].key || '', hint: STEPS[s.step].hint || '',
+        objCls: (s.stepDone ? 'done ' : '') + pick(s.stepN, 'inA', 'inB'), countCls: pick(s.countN, 'pulseA', 'pulseB'),
+        boxFill: s.stepDone ? '#ff9f1c' : 'none', check: s.stepDone ? 1 : 0
+      },
       boss: {
         show: s.boss, pct: (s.bossHp * 100).toFixed(2), chipPct: (s.bossChip * 100).toFixed(2),
         chipTrans: s.bossDraining ? 'width 0.6s ease-in' : 'none', phase: PHASES[phase], phaseCls: pick(s.phaseN, 'phA', 'phB'),

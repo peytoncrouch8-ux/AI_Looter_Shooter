@@ -20,7 +20,10 @@ delete this file and that import, and record the outcome in `Docs/Plan.md`.
    personable HUD that wows, keeping the key concepts of the earlier HUD rounds, and gave a reference: an RPG unit
    frame with a portrait in an ornate diamond, the name, a thick health bar with numbers, a level gem and an
    experience bar. The user liked the mockup and asked for two changes, both made in it: the ammo cartridge 15%
-   smaller and the gun icons about 20% bigger.
+   smaller and the gun icons about 20% bigger. Their last change, also made in it, moved the tutorial prompt off the
+   top of the screen, where its long sentence read badly. It becomes a mission tracker on the left, after a second
+   reference, Borderlands 4's quest tracker: the mission's name beside a diamond badge on a strip that fades out, and
+   under it one short objective with a checkbox.
 
 ## Where everything is
 
@@ -43,10 +46,11 @@ delete this file and that import, and record the outcome in `Docs/Plan.md`.
   things are counted, not listed: 4,135 grass tufts, 4,123 cobbles, 1,083 kerb bricks, 478 cabbages and 421 flowers.
   Its `about` field explains the conventions.
 - **The HUD mockup** is <https://claude.ai/artifact/MjHmSiZunHXm2MqxCqhmJ1>, private to the user's account. Press Play
-  on the new HUD and the buttons under the screen trigger every state. Beside it are the current HUD, redrawn at the
-  same moment, and the portrait's reactions side by side. Its sources are in `Docs/HudMockup/`: `NewHud.dc.html`
-  holds every size, colour and timing below. `__BG__`, `__RIFLE__` and the like stand for the backdrop render and
-  the Inked icons. The portrait's art is `Art/Icons/HudPortrait.svg`.
+  on the new HUD and the buttons under the screen trigger every state; Fire also counts the tracker's objective, so
+  its tick and the next step show too. Beside it are the current HUD, redrawn at the same moment, and the portrait's
+  reactions side by side. Its sources are in `Docs/HudMockup/`: `NewHud.dc.html` holds every size, colour and timing
+  below. `__BG__`, `__RIFLE__` and the like stand for the backdrop render and the Inked icons. The portrait's art is
+  `Art/Icons/HudPortrait.svg`.
 
 ## Screen Print Wash in brief
 
@@ -303,15 +307,56 @@ empty:
 - **Name** in its rarity's colour, 18 px, right-aligned under the reserve and ending in a small rarity gem. The fire
   mode sits under the cartridge's base.
 
+**Mission tracker** (left, the user's last change). It replaces the tutorial prompt at the top centre, so the top of
+the screen stays clear except for the boss bar. It shows the tracked mission (`UMissionSubsystem::GetTracked`), so it
+serves every mission, not just the tutorial, and it stays up during boss fights. Its block starts at (36, 286), about
+a quarter of the way down, clear of the minimap and the pickup feed.
+
+- **Title row.**
+  - A strip 420 × 34 px from (42, 286), leaning 16° like the bars: `#051018` at 82%, 55% halfway along and nothing at
+    its right end (a background). A 2 px orange underline fades out by 85% of its length.
+  - A badge on its left end: an orange diamond 26 px tip to tip, centred at (51, 303), with a 2.2 px ink (`#0a1218`)
+    edge, a white line at 65% inside its upper edges and a dark diamond 10 px tip to tip in the middle.
+  - The mission's name in white, 20 px, from (78, 288), and the step, "4 / 6", in `#8fb3cc` 13 px, letter-spaced 1.5,
+    at (386, 294). The step shows only for missions of more than one step.
+- **Objective row** from (76, 330): a checkbox 15 px square (a 3.4 px ink edge under a 1.6 px `#dcefff` one, over
+  `#051018` at 60%), then one short line in white 18 px, 10 px after the box, and the count after it in `#9fe0ff`
+  ("2 / 5") when the objective counts more than one.
+- **Key hint** from (98, 360), for steps that teach a key: the key as a keycap, then what it does in `#8fb3cc` 14 px
+  ("[R] Reload"). A keycap is a dark plate (`#24465e` to `#0e2433`, a background) with the top-right and bottom-left
+  corners cut 6 px, a 1.4 px cyan (`#5ac8ff`) edge and the key in white, here 22 px high. It shows the key the player
+  bound, like the prompt's `{Reload}` does today.
+- **Behaviour** (timings from the mockup):
+  - On a count the number pops: 1.35 times its size and white, settling over 0.3 s.
+  - When the objective is done, the box fills orange with an ink tick and the words dim to `#8fb3cc`. After 1.4 s the
+    next objective slides in from 14 px to the left, fading in over 0.45 s, and the step number moves on.
+  - The tutorial's closing line ("You're ready. Explore the island...") shows as a last, ticked objective for as long
+    as the prompt shows it today. Then the tracker fades out, or shows the next tracked mission.
+  - It steps aside while a menu is open, as the prompt does, except on the inventory step. It takes no part in the
+    idle fade.
+- **Short lines.** The tracker gives each tutorial step a short line, like the reference's "Reach Carcadia
+  outskirts", and the key moves into the hint. The mission's title, "Welcome to Skyreach", sits in the title row.
+
+  | Step | Today's prompt | Tracker line | Hint |
+  |---|---|---|---|
+  | 1 | Welcome to Skyreach. Move with {Move} and look around with the mouse. | Move and look around | {Move} Move |
+  | 2 | Hold {Sprint} to run. Follow the road to the village. | Follow the road to the village | {Sprint} Hold to run |
+  | 3 | Grab the rifle on the gun rack: look at it and press {Interact}. | Grab the rifle from the gun rack | {Interact} Take it |
+  | 4 | Shoot the target dummies in the meadow under the windmill. {Reload} reloads. | Shoot the target dummies, 0 / 5 | {Reload} Reload |
+  | 5 | Spiders nest in the woods past the pond. Hunt down two of them. | Hunt spiders past the pond, 0 / 2 | none |
+  | 6 | Press {Inventory} to see your loadout and your weapons' stats. | Check your loadout | {Inventory} Inventory |
+
+  `Docs/Story.md` says Skyreach "keeps its six neutral steps and their wording". The six steps and their neutral words
+  stay: the full sentences remain the objectives' text, which the Missions page shows, and only the tracker shortens
+  them. Update that line of `Docs/Story.md` when building it.
+
 **Elsewhere:**
 
 - **Minimap.** The same map and size, in a gunmetal bezel (radius 86 to 95 px).
   - Ticks every 30° (longer at 90°) turn with the view, and the N sits in an orange-ringed disc on the bezel.
   - A fixed orange notch marks the top, and a cyan hairline runs inside the bezel.
   - Under the map are the place (15 px) and the island (10.5 px, dim), for example CROSSROADS over SKYREACH.
-- **Tutorial prompt.** "TUTORIAL 4 / 6" between cyan rules with orange diamonds, and key names as keycaps (a chamfered
-  dark plate with a cyan edge).
-- **Boss bar.** 640 × 30 px, built like the health bar: bezel, red fill, chip and end clamp.
+- **Boss bar.** 640 × 30 px at the top centre, built like the health bar: bezel, red fill, chip and end clamp.
   - The boss's level sits in a gem of its rank's colour.
   - The phase cuts light up once passed, and the phase name flashes orange when a new phase starts.
 - **Crosshair.** It kicks to 1.45 times its size for 0.16 s on each shot. The hit marker, pickup feed and interaction
@@ -329,11 +374,29 @@ empty:
     shape, or stack single-colour `IconBrush` layers.
   - The three eye layers swap by opacity, and the glows are soft round brushes.
 - **Level-up banner.** A new banner widget takes over the level-up line from the message plate (`OnAnnouncement`).
+- **Mission tracker.** A new `UHudMissionTrackerWidget` replaces `UTutorialPromptWidget`, which `ATutorialDirector`
+  adds to the viewport itself today. Delete the prompt and update `CODEMAP.md`.
+  - It reads the tracked mission from `UMissionSubsystem` and listens to `OnMissionsChanged`.
+  - `FMission` holds one string for the objective today: the words with "(2/4)" appended by `GetTrackerText`. The
+    tracker needs the parts: the short line, the count and how many are needed (`FormatProgress` gives "2 / 5"), the
+    step and the number of steps, and the hint. `UMissionRunner` fills them where it writes the line now
+    (`MissionRunnerEvents.cpp`).
+  - `UMissionObjective` gets two optional fields: the tracker's short line (empty: its `Text`), and the hint, an
+    action whose bound key shows as a keycap plus its words.
+  - The tutorial plays `DA_Mission_Tutorial`, which `Tools/Unreal/create_mission_assets.py` makes to match
+    `ATutorialDirector`'s built-in steps, and `Looter.Missions.TutorialMission` compares the two objective by
+    objective. Give both the short lines and hints from the table above (`FTutorialStep` gets the two fields, and
+    `TutorialDirectorMission.cpp` copies them), and turn the count on for the dummies and the spiders, which hide it
+    today (`bShowCount` off). Extend the test's comparison to the new fields, and run the script in the editor to
+    rebuild the asset.
+  - `ATutorialDirector` stops making the prompt. It hands its closing line to the tracker through `ALooterHUD`, and
+    the tracker keeps the prompt's menu rule (`SetSuppressed`).
+  - The strip, the box's dark fill and the keycaps' plates call `MarkBackground`. The text, badge, edges and tick stay
+    solid.
 - **Other widgets that change:**
   - `UHudWeaponSlotsWidget`: the ring layers and the bigger gun icons;
   - `UHudMagazineWidget`: 196 × 51;
   - `UHudMinimapWidget`: the bezel, ticks, notch and place name;
-  - `UTutorialPromptWidget`: the keycaps;
   - `UHudBossBarWidget`: built like the health bar.
 
   `PlayerHUDWidget.cpp` places them all.
@@ -341,7 +404,8 @@ empty:
   literals in a widget.
 - **Performance and tests.** Measure on Medium with `perf.ps1` before and after: the frame adds a handful of cached
   vector images and a few animated layers. Keep the `Looter.*` tests passing.
-- **Docs.** When it's done, update `CLAUDE.md`'s UI rules to describe the player frame and the portrait.
+- **Docs.** When it's done, update `CLAUDE.md`'s UI rules to describe the player frame, the portrait and the mission
+  tracker, and `Docs/Story.md`'s line on the tutorial's wording.
 
 ## Suggested order
 
@@ -349,8 +413,9 @@ empty:
 2. Screen Print Wash steps 0 to 2: before pictures, docs, then the post-process. The whole game takes the new look at
    once, and the town is then built under it.
 3. Crossroads Town with the models that exist: placements, roads, gameplay groups, scatter and tour views. Measure.
-4. The HUD upgrade: the player frame and portrait first, then the weapons, minimap, banner and boss bar. It doesn't
-   depend on the rest; building it after step 2 means its colours are checked over the new pastel world.
+4. The HUD upgrade: the player frame and portrait first, then the mission tracker, the weapons, minimap, banner and
+   boss bar. It doesn't depend on the rest; building it after step 2 means its colours are checked over the new
+   pastel world.
 5. Screen Print Wash steps 3 to 7: flat plates, masters, foliage and terrain, light, then guns and creatures.
 6. The new models, in the print style, then the sheep, hens and townsfolk with their bestiary pages.
 7. Screen Print Wash steps 8 to 10, with the final tour and performance record.
