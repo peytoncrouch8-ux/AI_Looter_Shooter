@@ -19,11 +19,13 @@ delete this file and that import, and record the outcome in `Docs/Plan.md`.
 3. **The HUD upgrade** (chosen 2026-10-03). The user found the gameplay HUD simple and bland. They asked for a more
    personable HUD that wows, keeping the key concepts of the earlier HUD rounds, and gave a reference: an RPG unit
    frame with a portrait in an ornate diamond, the name, a thick health bar with numbers, a level gem and an
-   experience bar. The user liked the mockup and asked for two changes, both made in it: the ammo cartridge 15%
-   smaller and the gun icons about 20% bigger. Their last change, also made in it, moved the tutorial prompt off the
-   top of the screen, where its long sentence read badly. It becomes a mission tracker on the left, after a second
-   reference, Borderlands 4's quest tracker: the mission's name beside a diamond badge on a strip that fades out, and
-   under it one short objective with a checkbox.
+   experience bar. The user liked the mockup and asked for these changes over three rounds, all made in it:
+   - the ammo cartridge 15% smaller and the gun icons about 20% bigger;
+   - the tutorial prompt moved off the top of the screen, where its long sentence read badly, into a mission tracker
+     on the left after a second reference, Borderlands 4's quest tracker. The first version followed it too closely,
+     so the tracker is now drawn in the HUD's own metalwork;
+   - the cartridge moved right, under the weapon slots, with the ammo counts inside it, and the slots a little higher;
+   - the player frame 15% smaller, and the player's own name on its name plate.
 
 ## Where everything is
 
@@ -47,10 +49,11 @@ delete this file and that import, and record the outcome in `Docs/Plan.md`.
   Its `about` field explains the conventions.
 - **The HUD mockup** is <https://claude.ai/artifact/MjHmSiZunHXm2MqxCqhmJ1>, private to the user's account. Press Play
   on the new HUD and the buttons under the screen trigger every state; Fire also counts the tracker's objective, so
-  its tick and the next step show too. Beside it are the current HUD, redrawn at the same moment, and the portrait's
-  reactions side by side. Its sources are in `Docs/HudMockup/`: `NewHud.dc.html` holds every size, colour and timing
-  below. `__BG__`, `__RIFLE__` and the like stand for the backdrop render and the Inked icons. The portrait's art is
-  `Art/Icons/HudPortrait.svg`.
+  its tick and the next step show too. The buttons only demonstrate the HUD and are not part of it. Beside it are the
+  current HUD, redrawn at the same moment, and the portrait's reactions side by side. Its sources are in
+  `Docs/HudMockup/`: `NewHud.dc.html` holds every size, colour and timing below, except that its player frame is drawn
+  at 85% of the sizes its rules give (the numbers here are the final ones). `__BG__`, `__RIFLE__` and the like stand
+  for the backdrop render and the Inked icons. The portrait's art is `Art/Icons/HudPortrait.svg`.
 
 ## Screen Print Wash in brief
 
@@ -241,37 +244,40 @@ It keeps every gameplay-HUD rule in `CLAUDE.md`:
 Sizes are in pixels at 1080p, measured from the screen's top-left.
 
 **The player frame** (bottom-left) replaces the health ring and the experience bar at the bottom centre, which stays
-empty:
+empty. The user had it drawn 15% smaller than at first, and the sizes below are the final ones. It shrank toward its
+bottom-left corner, so the horn's point stays 18 px from the left edge and the lower clamp's tip 27 px from the bottom.
 
-- **Medallion.** A diamond 172 px tip to tip, centred at (130, 960).
+- **Medallion.** A diamond 146 px tip to tip, centred at (113, 974).
   - A gunmetal bezel lit from the top-left: the upper half `#76818e` to `#2c333b`, the lower half `#2e353d` to
-    `#111418`, a 3.2 px `#0e1116` edge, a light line inside the upper edges and a dark one inside the lower.
-  - A window 150 px tip to tip, edged in `#0e1116`, with a 1.6 px cyan (`#5ac8ff`) hairline inside.
+    `#111418`, a 2.7 px `#0e1116` edge, a light line inside the upper edges and a dark one inside the lower.
+  - A window 128 px tip to tip, edged in `#0e1116`, with a 1.4 px cyan (`#5ac8ff`) hairline inside.
   - Orange (`#ff9f1c`) chevron clamps over the top tip and under the bottom tip, and a gunmetal horn on the left tip
     with an orange chevron inlay.
-- **Portrait** in the window, at 0.75 px a unit of `Art/Icons/HudPortrait.svg`: a masked gunslinger in the Inked
+- **Portrait** in the window, at 0.64 px a unit of `Art/Icons/HudPortrait.svg`: a masked gunslinger in the Inked
   style, with eyes glowing cyan under the hat brim and a red bandana, on dark glass with faint scanlines.
-- **Name.** "ELLIS RANSOM" over the health bar, in the accent orange, bold 28 px, letter-spaced 2.5, from (188, 874).
-  Skyreach can't show it: see the questions.
-- **Health bar.** 540 × 32 px from (150, 920), leaning 16° like every HUD bar, its left end tucked behind the medallion.
-  - A 2 px `#0e1116` rim, and a gunmetal bezel (`#66717e` to `#15191e`) with a lit top line.
-  - A dark track (`#051018` at 88%, a background) inset 4 px. It starts 40 px in, so an empty bar still begins at the
-    medallion's edge.
+- **Name.** The player's own name (the user's answer, 2026-10-03), over the health bar, in the accent orange, bold
+  24 px, letter-spaced 2, from (162, 901). The game can't name players yet; the user will add that later in
+  development. The frame reads the name from the player state (`APlayerState::GetPlayerName`), so whatever names the
+  player then shows here. Until then it shows "PLAYER", not the engine's default name. The mockup shows "PLAYER NAME".
+- **Health bar.** 459 × 27 px from (130, 940), leaning 16° like every HUD bar, its left end tucked behind the medallion.
+  - A 1.7 px `#0e1116` rim, and a gunmetal bezel (`#66717e` to `#15191e`) with a lit top line.
+  - A dark track (`#051018` at 88%, a background) inset 3.4 px. It starts 34 px in, so an empty bar still begins at
+    the medallion's edge.
   - The fill in Health red, in three flat bands: the top 36% `#ff8f80`, then `#ff5b4a`, the bottom 28% `#c63e2f`. Over
-    it a 45° hatch (black at 13%, 6 px apart) and a light leading edge (`#fff3ef`).
+    it a 45° hatch (black at 13%, 5 px apart) and a light leading edge (`#fff3ef`).
   - The pale chip (`#ffe1db`), dark cuts at the quarters as on creature bars, and an orange "]" clamp over the far end.
-  - The number in the middle: the health in white 21 px, then "/ 100" in `#d6e4ee` 14 px.
-- **Level gem.** A diamond 44 px tip to tip, centred on the medallion's lower-right edge at (186, 990). It is cyan in
-  two flat halves (`#bdeeff` over `#4ab5ee`), with a 2.8 px ink edge and the level in ink, 18 px.
-- **Experience bar.** 380 × 12 px from (214, 983), in ten sections 3 px apart, each a tenth of the level as now. The
+  - The number in the middle: the health in white 18 px, then "/ 100" in `#d6e4ee` 12 px.
+- **Level gem.** A diamond 37 px tip to tip, centred on the medallion's lower-right edge at (161, 999). It is cyan in
+  two flat halves (`#bdeeff` over `#4ab5ee`), with a 2.4 px ink edge and the level in ink, 15 px.
+- **Experience bar.** 323 × 10 px from (185, 994), in ten sections 2.5 px apart, each a tenth of the level as now. The
   sections are cyan halves (`#b9ecff` over `#45b4ee`) on a `#051018` track with a `#0e1116` edge, and "1,240 / 2,000 XP"
-  sits at (606, 978). The fill is cyan now, not orange, so the orange belongs to the name.
+  sits at (518, 989). The fill is cyan now, not orange, so the orange belongs to the name.
 
 **Reactions** (timings from the mockup):
 
-- **Calm.** Blinks every 5.2 s (the eyes squash to 8% for about 0.15 s) and breathes (the bust bobs 1.6 px over 4.2 s).
+- **Calm.** Blinks every 5.2 s (the eyes squash to 8% for about 0.15 s) and breathes (the bust bobs 1.4 px over 4.2 s).
 - **Hit.**
-  - The portrait shakes ±5 px for 0.32 s, the window flashes red (`#ff3b2e`, from 60% to nothing over 0.45 s), and
+  - The portrait shakes ±4 px for 0.32 s, the window flashes red (`#ff3b2e`, from 60% to nothing over 0.45 s), and
     the eyes squint for 0.6 s.
   - The bar drops at once. The lost part stays as the chip for 0.45 s, then drains in 0.6 s.
   - The screen's edges flash red over 0.55 s.
@@ -290,52 +296,62 @@ empty:
     `#9fe0ff`.
   - It pops in, holds and fades over 2.8 s.
 
-**Weapons** (bottom-right, laid out as now):
+**Weapons** (bottom-right, laid out as now except for the ammo row):
 
 - **Slots.** The same 64 px circles, now built in layers: a `#0e1116` rim, a gunmetal ring 2.5 px wide, the inner disc
   (a background), a cyan hairline and the rarity arc along the bottom 100°. The gun in hand rises and grows as now,
   with its accent ring and a soft orange glow. The key tabs are small chamfered plates, orange with a dark number for
-  the gun in hand.
+  the gun in hand. The slots sit 16 px higher (the user's request), so their ammo icons clear the cartridge: the gap
+  over the ammo row grows from 4 to 20 px.
 - **Gun icons about 20% bigger** (the user's request). The rifle is 56 px wide instead of 46, the shotgun 58 instead of
   48, still tilted 22° up; their ends now reach the ring.
-- **Cartridge 15% smaller** (the user's request). It is 196 × 51 px instead of 230 × 60 (`UHudMagazineWidget::Width`
-  and `Height`), its right end still beside the reserve, so the ammo icon, status and fire mode move right with its
-  base.
+- **Cartridge** 15% smaller, 196 × 51 px instead of 230 × 60 (`UHudMagazineWidget::Width` and `Height`), moved right
+  and holding the ammo counts, all at the user's request.
+  - It sits under the slots, its tip at the cluster's right edge, where the reserve count stood: from (1672, 968).
+  - Inside, by the base, the rounds in the magazine and then the reserve: "18 / 120". The count is white 23 px, the
+    reserve `#cfe2ef` 14.5 px, both outlined dark, and the reserve turns red at 0 as now. Nothing stands right of the
+    cartridge any more.
   - Its outline is doubled, dark under light, and the fill has two tones, the hatch and a light leading edge.
   - The colour rules stay: cyan, orange at a quarter left, a red count and a beating outline when empty, and an orange
     reload fill.
-- **Name** in its rarity's colour, 18 px, right-aligned under the reserve and ending in a small rarity gem. The fire
-  mode sits under the cartridge's base.
+  - Left of its base is the ammo icon (30 px). Left of that the status ("RELOADING", "[R] RELOAD") sits over the fire
+    mode, both right-aligned.
+- **Name** in its rarity's colour, 18 px, right-aligned under the cartridge's tip and ending in a small rarity gem.
 
-**Mission tracker** (left, the user's last change). It replaces the tutorial prompt at the top centre, so the top of
-the screen stays clear except for the boss bar. It shows the tracked mission (`UMissionSubsystem::GetTracked`), so it
-serves every mission, not just the tutorial, and it stays up during boss fights. Its block starts at (36, 286), about
-a quarter of the way down, clear of the minimap and the pickup feed.
+**Mission tracker** (left). It replaces the tutorial prompt at the top centre, so the top of the screen stays clear
+except for the boss bar. It shows the tracked mission (`UMissionSubsystem::GetTracked`), so it serves every mission,
+not just the tutorial, and it stays up during boss fights. Its block starts at (36, 286), about a quarter of the way
+down, clear of the minimap and the pickup feed. The user's first version followed Borderlands 4's tracker too closely
+(a diamond badge, a dark strip fading out, a checkbox), so this one is drawn in the HUD's own metalwork.
 
-- **Title row.**
-  - A strip 420 × 34 px from (42, 286), leaning 16° like the bars: `#051018` at 82%, 55% halfway along and nothing at
-    its right end (a background). A 2 px orange underline fades out by 85% of its length.
-  - A badge on its left end: an orange diamond 26 px tip to tip, centred at (51, 303), with a 2.2 px ink (`#0a1218`)
-    edge, a white line at 65% inside its upper edges and a dark diamond 10 px tip to tip in the middle.
-  - The mission's name in white, 20 px, from (78, 288), and the step, "4 / 6", in `#8fb3cc` 13 px, letter-spaced 1.5,
-    at (386, 294). The step shows only for missions of more than one step.
-- **Objective row** from (76, 330): a checkbox 15 px square (a 3.4 px ink edge under a 1.6 px `#dcefff` one, over
-  `#051018` at 60%), then one short line in white 18 px, 10 px after the box, and the count after it in `#9fe0ff`
-  ("2 / 5") when the objective counts more than one.
-- **Key hint** from (98, 360), for steps that teach a key: the key as a keycap, then what it does in `#8fb3cc` 14 px
+- **Medal.** A ranger's star in a ring, 32 px across, centred at (53, 303): a `#0e1116` rim, a gunmetal ring, a dark
+  glass disc (a background) with a cyan hairline, and an orange five-point star (10.4 px to its points, 4.5 px to its
+  inner corners) with a 1.5 px ink edge and a light line along its upper-left edges.
+- **Title.** The mission's name in caps, white, bold 17 px, letter-spaced 1.6, from (80, 283).
+- **Step bar.** Under the title, 208 × 10 px from (83, 310), leaning 16° like the bars, with a section for each step,
+  3 px apart: the steps done in the experience bar's cyan halves, the current one in orange halves (`#ffc06a` over
+  `#ff9f1c`), the rest dark. Its track is `#051018` at 80% (a background) with a `#0e1116` edge. The step, "4 / 6",
+  follows it in `#8fb3cc` 12 px at (298, 305). Missions of one step show no bar.
+- **Route line.** A 1.2 px cyan (`#5ac8ff` at 80%) line over a dark one runs down from under the medal, from (53, 321)
+  to (53, 344), and turns right to end 8 px before the objective.
+- **Objective row** from (82, 332): an orange chevron 16 px across with a 1.6 px ink edge, then one short line in white
+  18 px, 9 px after it, and the count after that in `#9fe0ff` ("2 / 5") when the objective counts more than one.
+- **Key hint** from (107, 362), for steps that teach a key: the key as a keycap, then what it does in `#8fb3cc` 14 px
   ("[R] Reload"). A keycap is a dark plate (`#24465e` to `#0e2433`, a background) with the top-right and bottom-left
   corners cut 6 px, a 1.4 px cyan (`#5ac8ff`) edge and the key in white, here 22 px high. It shows the key the player
   bound, like the prompt's `{Reload}` does today.
 - **Behaviour** (timings from the mockup):
   - On a count the number pops: 1.35 times its size and white, settling over 0.3 s.
-  - When the objective is done, the box fills orange with an ink tick and the words dim to `#8fb3cc`. After 1.4 s the
-    next objective slides in from 14 px to the left, fading in over 0.45 s, and the step number moves on.
+  - When the objective is done, its chevron becomes a cyan tick over a dark line, the words dim to `#8fb3cc` and the
+    step's section turns cyan. After 1.4 s the next objective slides in from 14 px to the left, fading in over 0.45 s,
+    and the next section turns orange.
   - The tutorial's closing line ("You're ready. Explore the island...") shows as a last, ticked objective for as long
     as the prompt shows it today. Then the tracker fades out, or shows the next tracked mission.
   - It steps aside while a menu is open, as the prompt does, except on the inventory step. It takes no part in the
     idle fade.
 - **Short lines.** The tracker gives each tutorial step a short line, like the reference's "Reach Carcadia
-  outskirts", and the key moves into the hint. The mission's title, "Welcome to Skyreach", sits in the title row.
+  outskirts", and the key moves into the hint. The mission's name, "Welcome to Skyreach", is the tracker's title, in
+  caps, so step 1 drops it.
 
   | Step | Today's prompt | Tracker line | Hint |
   |---|---|---|---|
@@ -365,8 +381,8 @@ a quarter of the way down, clear of the minimap and the pickup feed.
 ## Building the HUD
 
 - **Player frame.** `UHudVitalsWidget` becomes the player frame (`UHudPlayerFrameWidget`): medallion, name, health
-  bar, gem and experience bar. It keeps its chip, flash and low-health logic. `UHudXPBarWidget`'s gain flash,
-  catch-up and level-up announcement move into the frame's experience bar.
+  bar, gem and experience bar, at the final sizes above. It keeps its chip, flash and low-health logic.
+  `UHudXPBarWidget`'s gain flash, catch-up and level-up announcement move into the frame's experience bar.
 - **Portrait.** A new `UHudPortraitWidget` draws the portrait and its reactions.
   - The art becomes vector data drawn into textures once, like the Inked icons: an `Art/Icons/HudPortrait.py` beside
     `InkedIcons.py`, flattening the SVG's cubic curves.
@@ -391,15 +407,18 @@ a quarter of the way down, clear of the minimap and the pickup feed.
     rebuild the asset.
   - `ATutorialDirector` stops making the prompt. It hands its closing line to the tracker through `ALooterHUD`, and
     the tracker keeps the prompt's menu rule (`SetSuppressed`).
-  - The strip, the box's dark fill and the keycaps' plates call `MarkBackground`. The text, badge, edges and tick stay
-    solid.
+  - The medal, chevron and tick are vector art drawn by the kit (`IconBrush`). The step bar's track, the medal's glass
+    disc and the keycaps' plates call `MarkBackground`; the text, star, ring, route line, chevron, tick and the
+    sections' fills stay solid.
 - **Other widgets that change:**
   - `UHudWeaponSlotsWidget`: the ring layers and the bigger gun icons;
-  - `UHudMagazineWidget`: 196 × 51;
+  - `UHudMagazineWidget`: 196 × 51, with the reserve drawn inside after the count (`SetMagazine` takes it);
   - `UHudMinimapWidget`: the bezel, ticks, notch and place name;
   - `UHudBossBarWidget`: built like the health bar.
 
-  `PlayerHUDWidget.cpp` places them all.
+  `PlayerHUDWidget.cpp` places them all. Its ammo row loses `ReserveText` (and `ReserveWidth` and `ReserveGap`), stacks
+  the status over the fire mode left of the ammo icon, makes the name row as wide as the cartridge, and opens 20 px
+  over the ammo row instead of 4.
 - **Colours.** New colours go into `LooterUI::Color` (the gunmetal tones, the gem's cyans, the health bands), never as
   literals in a widget.
 - **Performance and tests.** Measure on Medium with `perf.ps1` before and after: the frame adds a handful of cached
@@ -424,6 +443,3 @@ a quarter of the way down, clear of the minimap and the pickup feed.
 
 - Should all eight spiders live in Web Hollow, as the concept shows, or stay spread through the woods?
 - Should the townsfolk and livestock start as set dressing that stands and idles, or as living characters?
-- What should the HUD's name plate say on Skyreach? `Docs/Story.md` keeps story names off Skyreach, so "ELLIS
-  RANSOM" can only show once the story starts. The choices: the player's own name, or no name there. The portrait is
-  masked, so it can stay either way.

@@ -20,6 +20,10 @@ body{margin:0;background:#05080b}
 .sh{filter:drop-shadow(0 2px 3px rgba(0,10,18,.55))}
 svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 
+/* The player frame is drawn at 85% of the sizes in its rules (the user's request, 2026-10-03), shrinking toward its
+   bottom-left corner (18, 1053), where the horn and the lower clamp end. */
+.frame{position:absolute;left:0;top:0;width:1920px;height:1080px;transform:scale(.85);transform-origin:18px 1053px}
+
 /* health bar: slanted like every HUD bar, a gunmetal bezel, quarter cuts, a chip that lingers after a hit */
 .hpbar{position:absolute;left:150px;top:920px;width:540px;height:32px;transform:skewX(-16deg);background:#0e1116;padding:2px;box-sizing:border-box;filter:drop-shadow(0 2px 3px rgba(0,10,18,.55))}
 .hpbez{position:relative;width:100%;height:100%;background:linear-gradient(#66717e 0,#3a434d 30%,#232a31 70%,#15191e 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -1px 0 rgba(0,0,0,.5)}
@@ -80,7 +84,7 @@ svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 .gemcore.lvA{animation:gemA .9s ease-out}
 .gemcore.lvB{animation:gemB .9s ease-out}
 
-/* weapon slots, magazine cartridge, gun name */
+/* weapon slots, then the magazine cartridge under them with the rounds in it and the reserve, then the gun's name */
 .slot{position:absolute;width:64px;height:64px;transition:transform .2s ease-out}
 .slot.on{transform:translateY(-9px) scale(1.14)}
 .slot svg{position:absolute;left:0;top:0;overflow:visible}
@@ -99,9 +103,8 @@ svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 .reloadbar.rlA{animation-name:reloadA;animation-timing-function:linear;animation-fill-mode:forwards}
 .reloadbar.rlB{animation-name:reloadB;animation-timing-function:linear;animation-fill-mode:forwards}
 .magline.empty{animation:emptyBeat .6s ease-in-out infinite}
-.reserve{position:absolute;left:1806px;top:977px;font-size:22px;color:#8fb3cc;line-height:28px}
-.status{position:absolute;left:1334px;top:985px;width:212px;text-align:right;font-size:12px;letter-spacing:2.4px;color:#ff9f1c;line-height:18px}
-.firemode{position:absolute;left:1598px;top:1027px;font-size:13px;letter-spacing:2px;color:#8fb3cc;line-height:20px}
+.status{position:absolute;left:1414px;top:976px;width:212px;text-align:right;font-size:12px;letter-spacing:2.4px;color:#ff9f1c;line-height:18px}
+.firemode{position:absolute;left:1414px;top:996px;width:212px;text-align:right;font-size:13px;letter-spacing:2px;color:#8fb3cc;line-height:20px}
 .gunname{position:absolute;left:1650px;top:1024px;width:202px;text-align:right;font-size:18px;letter-spacing:1px;line-height:24px;white-space:nowrap}
 .raritygem{position:absolute;left:1858px;top:1031px;width:10px;height:10px;transform:rotate(45deg);box-shadow:0 0 0 1.6px #0a1218}
 
@@ -109,22 +112,27 @@ svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 .map{position:absolute;left:1712px;top:36px;width:172px;height:172px;border-radius:50%}
 .area{position:absolute;left:1648px;width:300px;text-align:center;white-space:nowrap}
 
-/* the tracked mission, on the left: its name on a strip that fades out, then the objective and a key hint */
+/* the tracked mission, on the left, in the HUD's own metalwork: a ranger's star in a gunmetal ring, the mission's name
+   in caps over a slanted bar of its steps (cyan done, orange now), a cyan route line down to the objective, whose
+   orange chevron turns into a cyan tick when it's done, and a key hint */
 .track{position:absolute;left:36px;top:286px;width:480px;height:110px}
-.trackstrip{position:absolute;left:6px;top:0;width:420px;height:34px;transform:skewX(-16deg);background:linear-gradient(90deg,rgba(5,16,24,.82) 0,rgba(5,16,24,.55) 55%,rgba(5,16,24,0) 100%)}
-.trackline{position:absolute;left:0;bottom:0;width:100%;height:2px;background:linear-gradient(90deg,#ff9f1c 0,rgba(255,159,28,.6) 45%,rgba(255,159,28,0) 85%)}
-.trackbadge{position:absolute;left:0;top:2px;width:30px;height:30px;overflow:visible;filter:drop-shadow(0 2px 2px rgba(0,10,18,.5))}
-.tracktitle{position:absolute;left:42px;top:2px;font-size:20px;color:#fff;line-height:30px;white-space:nowrap}
-.trackstep{position:absolute;left:350px;top:8px;font-size:13px;letter-spacing:1.5px;color:#8fb3cc;line-height:18px}
-.trackobj{position:absolute;left:40px;top:44px;display:flex;align-items:center;gap:10px;font-size:18px;color:#fff;line-height:24px;white-space:nowrap}
-.trackobj svg{width:18px;height:18px;overflow:visible;flex:none}
+.trackroute{position:absolute;left:0;top:0;width:48px;height:70px;overflow:visible}
+.trackmedal{position:absolute;left:0;top:0;width:34px;height:34px;overflow:visible;filter:drop-shadow(0 2px 2px rgba(0,10,18,.5))}
+.tracktitle{position:absolute;left:44px;top:-3px;font-size:17px;letter-spacing:1.6px;color:#fff;line-height:24px;white-space:nowrap}
+.tracksteps{position:absolute;left:47px;top:24px;width:204px;height:6px;transform:skewX(-16deg);display:flex;gap:3px;padding:2px;background:rgba(5,16,24,.8);box-shadow:0 0 0 1.5px #0e1116;filter:drop-shadow(0 2px 3px rgba(0,10,18,.5))}
+.trackseg{flex:1 1 0;background:rgba(90,200,255,.17)}
+.trackseg.done{background:linear-gradient(#c9f1ff 0,#b9ecff 50%,#45b4ee 50%,#45b4ee 100%)}
+.trackseg.now{background:linear-gradient(#ffd49a 0,#ffc06a 50%,#ff9f1c 50%,#e2850f 100%)}
+.trackstep{position:absolute;left:262px;top:19px;font-size:12px;letter-spacing:1.5px;color:#8fb3cc;line-height:16px}
+.trackobj{position:absolute;left:46px;top:46px;display:flex;align-items:center;gap:9px;font-size:18px;color:#fff;line-height:24px;white-space:nowrap}
+.trackobj svg{width:16px;height:16px;overflow:visible;flex:none}
 .trackobj.done .txt{color:#8fb3cc}
 .trackobj.inA{animation:objInA .45s ease-out}
 .trackobj.inB{animation:objInB .45s ease-out}
 .trackcount{color:#9fe0ff}
 .trackcount.pulseA{animation:countA .3s ease-out}
 .trackcount.pulseB{animation:countB .3s ease-out}
-.trackhint{position:absolute;left:62px;top:74px;display:flex;align-items:center;gap:2px;font-size:14px;color:#8fb3cc;line-height:26px;white-space:nowrap}
+.trackhint{position:absolute;left:71px;top:76px;display:flex;align-items:center;gap:2px;font-size:14px;color:#8fb3cc;line-height:26px;white-space:nowrap}
 .trackhint .key{height:22px;min-width:22px;font-size:13px;line-height:22px;margin:0 8px 0 0}
 .key{display:inline-block;min-width:24px;height:26px;margin:0 6px;padding:0 4px;box-sizing:border-box;vertical-align:1px;font-size:15px;line-height:26px;text-align:center;color:#fff;text-shadow:none;background:linear-gradient(#24465e,#0e2433);box-shadow:inset 0 0 0 1.4px #5ac8ff,0 2px 0 #0a1218;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
 
@@ -299,7 +307,8 @@ svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 </defs>
 </svg>
 
-<!-- player frame: bars under the medallion -->
+<!-- player frame, at 85%: bars under the medallion -->
+<div class="frame">
 <div class="hpbar">
 <div class="hpbez">
 <div class="hptrack">
@@ -314,7 +323,7 @@ svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 </div>
 <div class="hpnum ol {{hp.lowCls}}">{{hp.text}}<span>/ {{hp.max}}</span></div>
 <div class="healfloat ol {{hp.healCls}}">+{{hp.healAmt}}</div>
-<div class="pname ol">ELLIS RANSOM</div>
+<div class="pname ol">PLAYER NAME</div>
 
 <div class="xpbar">
 <sc-for list="{{xp.sections}}" as="sec" hint-placeholder-count="10">
@@ -360,9 +369,10 @@ svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 <text x="0" y="6.5" text-anchor="middle" fill="#0a1218" font-size="18">{{xp.level}}</text>
 </g>
 </svg>
+</div>
 
 <!-- weapon cluster: slots over the ammo -->
-<div class="slot {{slotA.cls}}" style="left: 1650px; top: 884px;">
+<div class="slot {{slotA.cls}}" style="left: 1650px; top: 868px;">
 <div class="glow"></div>
 <svg width="64" height="64" viewBox="-32 -32 64 64">
 <circle r="32" fill="#0e1116"></circle>
@@ -376,7 +386,7 @@ svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 <div class="tab">1</div>
 <img class="ammo" src="__AMMO_AR_S__" alt="Rifle rounds">
 </div>
-<div class="slot {{slotB.cls}}" style="left: 1730px; top: 884px;">
+<div class="slot {{slotB.cls}}" style="left: 1730px; top: 868px;">
 <div class="glow"></div>
 <svg width="64" height="64" viewBox="-32 -32 64 64">
 <circle r="32" fill="#0e1116"></circle>
@@ -390,7 +400,7 @@ svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 <div class="tab">2</div>
 <img class="ammo" src="__AMMO_SG_S__" alt="Shotgun shells">
 </div>
-<div class="slot" style="left: 1808px; top: 884px;">
+<div class="slot" style="left: 1808px; top: 868px;">
 <svg width="64" height="64" viewBox="-32 -32 64 64">
 <circle r="32" fill="#0e1116" opacity="0.55"></circle>
 <circle r="26" fill="rgba(7,26,40,0.6)"></circle>
@@ -400,9 +410,9 @@ svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 </div>
 
 <div class="status ol">{{mag.status}}</div>
-<img class="a" src="__AMMO_AR__" alt="" style="left: 1560px; top: 979px; width: 30px; height: 30px; opacity: {{mag.arOpacity}};">
-<img class="a" src="__AMMO_SG__" alt="" style="left: 1560px; top: 979px; width: 30px; height: 30px; opacity: {{mag.sgOpacity}};">
-<svg class="a sh" style="left: 1598px; top: 968.5px; overflow: visible;" width="196" height="51" viewBox="0 0 230 60" aria-label="Magazine">
+<img class="a" src="__AMMO_AR__" alt="" style="left: 1634px; top: 979px; width: 30px; height: 30px; opacity: {{mag.arOpacity}};">
+<img class="a" src="__AMMO_SG__" alt="" style="left: 1634px; top: 979px; width: 30px; height: 30px; opacity: {{mag.sgOpacity}};">
+<svg class="a sh" style="left: 1672px; top: 968.5px; overflow: visible;" width="196" height="51" viewBox="0 0 230 60" aria-label="Magazine: rounds in it, then the reserve">
 <path d="M2 2 L9 2 L9 9 L15 9 L15 5 L176 5 L186 10 C206 12 222 20 230 30 C222 40 206 48 186 50 L176 55 L15 55 L15 51 L9 51 L9 58 L2 58 L0 56 L0 4 Z" fill="rgba(5,16,24,0.76)"></path>
 <g clip-path="url(#magClip)">
 <rect class="magfill" x="15" y="0" width="{{mag.width}}" height="60" fill="{{mag.fill}}" opacity="{{mag.fillOpacity}}"></rect>
@@ -412,9 +422,8 @@ svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 <g stroke="#dcefff" stroke-width="1.2" opacity="0.4"><line x1="120.5" y1="9" x2="120.5" y2="51"></line><line x1="173.2" y1="9" x2="173.2" y2="51"></line></g>
 <path class="magline {{mag.emptyCls}}" d="M2 2 L9 2 L9 9 L15 9 L15 5 L176 5 L186 10 C206 12 222 20 230 30 C222 40 206 48 186 50 L176 55 L15 55 L15 51 L9 51 L9 58 L2 58 L0 56 L0 4 Z" fill="none" stroke="#0e1116" stroke-width="4.6" stroke-linejoin="round"></path>
 <path d="M2 2 L9 2 L9 9 L15 9 L15 5 L176 5 L186 10 C206 12 222 20 230 30 C222 40 206 48 186 50 L176 55 L15 55 L15 51 L9 51 L9 58 L2 58 L0 56 L0 4 Z" fill="none" stroke="#e6f3ff" stroke-width="1.8" stroke-linejoin="round"></path>
-<text x="25" y="40" fill="{{mag.countColor}}" font-size="27" stroke="#00182a" stroke-width="4.5" paint-order="stroke fill" stroke-linejoin="round">{{mag.count}}</text>
+<text x="25" y="40" fill="{{mag.countColor}}" font-size="27" stroke="#00182a" stroke-width="4.5" paint-order="stroke fill" stroke-linejoin="round">{{mag.count}}<tspan dx="7" font-size="17" fill="#cfe2ef">/ {{mag.reserve}}</tspan></text>
 </svg>
-<div class="reserve ol">{{mag.reserve}}</div>
 <div class="firemode ol">{{gun.mode}}</div>
 <div class="gunname ol" style="color: {{gun.color}};">{{gun.name}}</div>
 <div class="raritygem" style="background: {{gun.color}};"></div>
@@ -449,19 +458,28 @@ svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 
 <!-- the tracked mission (the tutorial, on Skyreach), on the left -->
 <div class="track">
-<div class="trackstrip"><div class="trackline"></div></div>
-<svg class="trackbadge" viewBox="-15 -15 30 30" aria-hidden="true">
-<polygon points="0,-13 13,0 0,13 -13,0" fill="#ff9f1c" stroke="#0a1218" stroke-width="2.2" stroke-linejoin="round"></polygon>
-<polyline points="-8,0 0,-8 8,0" fill="none" stroke="#ffffff" stroke-opacity="0.65" stroke-width="1.2"></polyline>
-<polygon points="0,-5 5,0 0,5 -5,0" fill="#0a1218"></polygon>
+<svg class="trackroute" viewBox="0 0 48 70" aria-hidden="true">
+<path d="M17 35 L17 58 L38 58" fill="none" stroke="#0a1218" stroke-width="3" stroke-opacity="0.45" stroke-linejoin="round"></path>
+<path d="M17 35 L17 58 L38 58" fill="none" stroke="#5ac8ff" stroke-width="1.2" stroke-opacity="0.8" stroke-linejoin="round"></path>
 </svg>
-<div class="tracktitle ol">Welcome to Skyreach</div>
+<svg class="trackmedal" viewBox="-17 -17 34 34" aria-hidden="true">
+<circle r="16" fill="#0e1116"></circle>
+<circle r="14.6" fill="url(#gmRing)"></circle>
+<circle r="12" fill="rgba(7,26,40,0.9)"></circle>
+<circle r="12.4" fill="none" stroke="#5ac8ff" stroke-width="1" opacity="0.6"></circle>
+<polygon points="0.00,-10.40 2.65,-3.64 9.89,-3.21 4.28,1.39 6.11,8.41 0.00,4.50 -6.11,8.41 -4.28,1.39 -9.89,-3.21 -2.65,-3.64" fill="#ff9f1c" stroke="#0a1218" stroke-width="1.5" stroke-linejoin="round"></polygon>
+<polyline points="-7.6,-2.6 -2.1,-2.9 0,-8.1" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="1"></polyline>
+</svg>
+<div class="tracktitle ol">WELCOME TO SKYREACH</div>
+<div class="tracksteps">
+<sc-for list="{{track.segs}}" as="seg" hint-placeholder-count="6"><div class="trackseg {{seg.cls}}"></div></sc-for>
+</div>
 <div class="trackstep ol">{{track.step}}</div>
 <div class="trackobj {{track.objCls}}">
-<svg viewBox="0 0 18 18" aria-hidden="true">
-<rect x="1.5" y="1.5" width="15" height="15" fill="rgba(5,16,24,0.6)" stroke="#0a1218" stroke-width="3.4"></rect>
-<rect x="1.5" y="1.5" width="15" height="15" fill="{{track.boxFill}}" stroke="#dcefff" stroke-width="1.6"></rect>
-<path d="M4.6 9.4 L7.8 12.4 L13.6 5.6" fill="none" stroke="#0a1218" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity="{{track.check}}"></path>
+<svg viewBox="0 0 16 16" aria-hidden="true">
+<polygon points="2,1.5 8,1.5 14.5,8 8,14.5 2,14.5 8.5,8" fill="#ff9f1c" stroke="#0a1218" stroke-width="1.6" stroke-linejoin="round" opacity="{{track.chevron}}"></polygon>
+<path d="M2.5 8.5 L6.5 12.5 L14 4" fill="none" stroke="#0a1218" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="{{track.tick}}"></path>
+<path d="M2.5 8.5 L6.5 12.5 L14 4" fill="none" stroke="#5ac8ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity="{{track.tick}}"></path>
 </svg>
 <span class="txt ol">{{track.text}}</span>
 <span class="trackcount ol {{track.countCls}}">{{track.count}}</span>
@@ -537,7 +555,7 @@ svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
 </div>
 
 <div class="controls">
-<span class="lab">TRY IT</span>
+<span class="lab">DEMO CONTROLS (NOT PART OF THE HUD)</span>
 <button class="btn" onClick="{{act.hit}}">Take a hit</button>
 <button class="btn" onClick="{{act.heal}}">Heal</button>
 <button class="btn" onClick="{{act.low}}">Low health</button>
@@ -718,8 +736,9 @@ class Component extends DCLogic {
         step: (s.step + 1) + ' / ' + STEPS.length, text: STEPS[s.step].text,
         count: STEPS[s.step].count ? s.progress + ' / ' + STEPS[s.step].count : '',
         hasHint: !!STEPS[s.step].key, key: STEPS[s.step].key || '', hint: STEPS[s.step].hint || '',
+        segs: STEPS.map((_, i) => ({ cls: i < s.step || (i === s.step && s.stepDone) ? 'done' : i === s.step ? 'now' : '' })),
         objCls: (s.stepDone ? 'done ' : '') + pick(s.stepN, 'inA', 'inB'), countCls: pick(s.countN, 'pulseA', 'pulseB'),
-        boxFill: s.stepDone ? '#ff9f1c' : 'none', check: s.stepDone ? 1 : 0
+        chevron: s.stepDone ? 0 : 1, tick: s.stepDone ? 1 : 0
       },
       boss: {
         show: s.boss, pct: (s.bossHp * 100).toFixed(2), chipPct: (s.bossChip * 100).toFixed(2),
