@@ -19,13 +19,14 @@ delete this file and that import, and record the outcome in `Docs/Plan.md`.
 3. **The HUD upgrade** (chosen 2026-10-03). The user found the gameplay HUD simple and bland. They asked for a more
    personable HUD that wows, keeping the key concepts of the earlier HUD rounds, and gave a reference: an RPG unit
    frame with a portrait in an ornate diamond, the name, a thick health bar with numbers, a level gem and an
-   experience bar. The user liked the mockup and asked for these changes over three rounds, all made in it:
+   experience bar. The user liked the mockup and asked for these changes over four rounds, all made in it:
    - the ammo cartridge 15% smaller and the gun icons about 20% bigger;
    - the tutorial prompt moved off the top of the screen, where its long sentence read badly, into a mission tracker
      on the left after a second reference, Borderlands 4's quest tracker. The first version followed it too closely,
      so the tracker is now drawn in the HUD's own metalwork;
-   - the cartridge moved right, under the weapon slots, with the ammo counts inside it, and the slots a little higher;
-   - the player frame 15% smaller, and the player's own name on its name plate.
+   - the ammo counts inside the cartridge, and the cartridge standing upright on the right of the weapon slots, which
+     stack in a column with slot 1 on top;
+   - the player frame 15% smaller, with no name on it.
 
 ## Where everything is
 
@@ -246,6 +247,7 @@ Sizes are in pixels at 1080p, measured from the screen's top-left.
 **The player frame** (bottom-left) replaces the health ring and the experience bar at the bottom centre, which stays
 empty. The user had it drawn 15% smaller than at first, and the sizes below are the final ones. It shrank toward its
 bottom-left corner, so the horn's point stays 18 px from the left edge and the lower clamp's tip 27 px from the bottom.
+It shows no name: the user had a name plate over the health bar removed.
 
 - **Medallion.** A diamond 146 px tip to tip, centred at (113, 974).
   - A gunmetal bezel lit from the top-left: the upper half `#76818e` to `#2c333b`, the lower half `#2e353d` to
@@ -255,10 +257,6 @@ bottom-left corner, so the horn's point stays 18 px from the left edge and the l
     with an orange chevron inlay.
 - **Portrait** in the window, at 0.64 px a unit of `Art/Icons/HudPortrait.svg`: a masked gunslinger in the Inked
   style, with eyes glowing cyan under the hat brim and a red bandana, on dark glass with faint scanlines.
-- **Name.** The player's own name (the user's answer, 2026-10-03), over the health bar, in the accent orange, bold
-  24 px, letter-spaced 2, from (162, 901). The game can't name players yet; the user will add that later in
-  development. The frame reads the name from the player state (`APlayerState::GetPlayerName`), so whatever names the
-  player then shows here. Until then it shows "PLAYER", not the engine's default name. The mockup shows "PLAYER NAME".
 - **Health bar.** 459 × 27 px from (130, 940), leaning 16° like every HUD bar, its left end tucked behind the medallion.
   - A 1.7 px `#0e1116` rim, and a gunmetal bezel (`#66717e` to `#15191e`) with a lit top line.
   - A dark track (`#051018` at 88%, a background) inset 3.4 px. It starts 34 px in, so an empty bar still begins at
@@ -271,7 +269,7 @@ bottom-left corner, so the horn's point stays 18 px from the left edge and the l
   two flat halves (`#bdeeff` over `#4ab5ee`), with a 2.4 px ink edge and the level in ink, 15 px.
 - **Experience bar.** 323 × 10 px from (185, 994), in ten sections 2.5 px apart, each a tenth of the level as now. The
   sections are cyan halves (`#b9ecff` over `#45b4ee`) on a `#051018` track with a `#0e1116` edge, and "1,240 / 2,000 XP"
-  sits at (518, 989). The fill is cyan now, not orange, so the orange belongs to the name.
+  sits at (518, 989). The fill is cyan now, not orange.
 
 **Reactions** (timings from the mockup):
 
@@ -296,27 +294,31 @@ bottom-left corner, so the horn's point stays 18 px from the left edge and the l
     `#9fe0ff`.
   - It pops in, holds and fades over 2.8 s.
 
-**Weapons** (bottom-right, laid out as now except for the ammo row):
+**Weapons** (bottom-right), rebuilt as a column at the user's request: the slots stack with slot 1 on top, and the
+cartridge stands upright on their right. The cluster keeps its corner, 48 px from the right edge.
 
 - **Slots.** The same 64 px circles, now built in layers: a `#0e1116` rim, a gunmetal ring 2.5 px wide, the inner disc
-  (a background), a cyan hairline and the rarity arc along the bottom 100°. The gun in hand rises and grows as now,
-  with its accent ring and a soft orange glow. The key tabs are small chamfered plates, orange with a dark number for
-  the gun in hand. The slots sit 16 px higher (the user's request), so their ammo icons clear the cartridge: the gap
-  over the ammo row grows from 4 to 20 px.
+  (a background), a cyan hairline and the rarity arc along the bottom 100°. They stack 76 px apart, centred on x 1775
+  at y 812, 888 and 964.
+  - Each has its key tab, a small chamfered plate 22 × 16 px, 8 px to its left: orange with a dark number for the gun
+    in hand. The Inked icon of the ammo the gun takes (20 px) sits 8 px left of the tab, dimmed like the gun unless it's
+    in hand.
+  - The gun in hand moves 9 px left, toward the screen's centre, instead of up. It still grows 1.14 times, with its
+    accent ring and a soft orange glow.
 - **Gun icons about 20% bigger** (the user's request). The rifle is 56 px wide instead of 46, the shotgun 58 instead of
   48, still tilted 22° up; their ends now reach the ring.
-- **Cartridge** 15% smaller, 196 × 51 px instead of 230 × 60 (`UHudMagazineWidget::Width` and `Height`), moved right
-  and holding the ammo counts, all at the user's request.
-  - It sits under the slots, its tip at the cluster's right edge, where the reserve count stood: from (1672, 968).
-  - Inside, by the base, the rounds in the magazine and then the reserve: "18 / 120". The count is white 23 px, the
-    reserve `#cfe2ef` 14.5 px, both outlined dark, and the reserve turns red at 0 as now. Nothing stands right of the
-    cartridge any more.
+- **Cartridge** 15% smaller than today's and standing upright, tip up: 51 × 196 px from (1821, 800), 14 px right of the
+  slots, its base level with slot 3's bottom (`UHudMagazineWidget::Width` and `Height` become 51 and 196).
+  - The fill drains from the tip down as the gun fires, with faint marks across it at a half and three quarters.
+  - Inside, by the base, the counts stack, centred: the rounds in the magazine in white 23 px, and under them the
+    reserve, "/120", in `#cfe2ef` 14 px, both outlined dark. The reserve turns red at 0, as now.
   - Its outline is doubled, dark under light, and the fill has two tones, the hatch and a light leading edge.
   - The colour rules stay: cyan, orange at a quarter left, a red count and a beating outline when empty, and an orange
-    reload fill.
-  - Left of its base is the ammo icon (30 px). Left of that the status ("RELOADING", "[R] RELOAD") sits over the fire
-    mode, both right-aligned.
-- **Name** in its rarity's colour, 18 px, right-aligned under the cartridge's tip and ending in a small rarity gem.
+    reload fill rising from the base.
+  - The big ammo icon beside the cartridge goes: the slot in hand shows its ammo at full strength.
+- **Under it**, right-aligned to the cluster's edge: the fire mode in `#8fb3cc` 13 px at y 1000, with the status
+  ("RELOADING", "[R] RELOAD", "NO AMMO") in orange 12 px on the same line to its left. Below them is the gun's name in
+  its rarity's colour, 18 px, ending in a small rarity gem at the edge.
 
 **Mission tracker** (left). It replaces the tutorial prompt at the top centre, so the top of the screen stays clear
 except for the boss bar. It shows the tracked mission (`UMissionSubsystem::GetTracked`), so it serves every mission,
@@ -380,8 +382,8 @@ down, clear of the minimap and the pickup feed. The user's first version followe
 
 ## Building the HUD
 
-- **Player frame.** `UHudVitalsWidget` becomes the player frame (`UHudPlayerFrameWidget`): medallion, name, health
-  bar, gem and experience bar, at the final sizes above. It keeps its chip, flash and low-health logic.
+- **Player frame.** `UHudVitalsWidget` becomes the player frame (`UHudPlayerFrameWidget`): medallion, health bar, gem
+  and experience bar, at the final sizes above, with no name. It keeps its chip, flash and low-health logic.
   `UHudXPBarWidget`'s gain flash, catch-up and level-up announcement move into the frame's experience bar.
 - **Portrait.** A new `UHudPortraitWidget` draws the portrait and its reactions.
   - The art becomes vector data drawn into textures once, like the Inked icons: an `Art/Icons/HudPortrait.py` beside
@@ -411,14 +413,16 @@ down, clear of the minimap and the pickup feed. The user's first version followe
     disc and the keycaps' plates call `MarkBackground`; the text, star, ring, route line, chevron, tick and the
     sections' fills stay solid.
 - **Other widgets that change:**
-  - `UHudWeaponSlotsWidget`: the ring layers and the bigger gun icons;
-  - `UHudMagazineWidget`: 196 × 51, with the reserve drawn inside after the count (`SetMagazine` takes it);
+  - `UHudWeaponSlotsWidget`: the ring layers, the bigger gun icons, and a column instead of a row (slot 1 on top),
+    with the tab and ammo icon on each slot's left and the gun in hand moving left instead of up;
+  - `UHudMagazineWidget`: 51 × 196 and upright, its vector shapes drawn turned a quarter, with the counts stacked
+    inside by the base (`SetMagazine` takes the reserve);
   - `UHudMinimapWidget`: the bezel, ticks, notch and place name;
   - `UHudBossBarWidget`: built like the health bar.
 
-  `PlayerHUDWidget.cpp` places them all. Its ammo row loses `ReserveText` (and `ReserveWidth` and `ReserveGap`), stacks
-  the status over the fire mode left of the ammo icon, makes the name row as wide as the cartridge, and opens 20 px
-  over the ammo row instead of 4.
+  `PlayerHUDWidget.cpp` places them all. Its weapon cluster becomes the slots' column and the cartridge side by side,
+  over a line with the status and fire mode and the gun's name under that. `ReserveText` (with `ReserveWidth` and
+  `ReserveGap`) and the big `AmmoClassIcon` go.
 - **Colours.** New colours go into `LooterUI::Color` (the gunmetal tones, the gem's cyans, the health bands), never as
   literals in a widget.
 - **Performance and tests.** Measure on Medium with `perf.ps1` before and after: the frame adds a handful of cached

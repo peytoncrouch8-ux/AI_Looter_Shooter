@@ -144,16 +144,16 @@ in the level has changed yet.
 ## Phase 8: HUD upgrade
 The user found the gameplay HUD simple and bland and asked for a more personable one that wows, after an RPG unit
 frame as the reference. On 2026-10-03 they approved the mockup (<https://claude.ai/artifact/MjHmSiZunHXm2MqxCqhmJ1>,
-sources in `Docs/HudMockup/`) after three rounds of changes: a smaller ammo cartridge that holds the ammo counts,
-bigger gun icons, higher weapon slots, a smaller player frame with the player's own name, and the tutorial prompt
-moved off the top of the screen. A player frame replaces the health ring and the bottom experience bar: an inked
-portrait of the player character in a gunmetal diamond that blinks, flinches, squints at low health and flares on a
-level-up, with the player's name, a thick health bar with its number, a level gem and the experience bar. A mission
-tracker on the left replaces the tutorial prompt: a ranger's star, the tracked mission's name over a bar of its steps,
-one short objective and a key hint. The weapons, minimap and boss bar get the same metalwork, and a banner announces
-each level. `HANDOFF.md` has the full spec. Nothing in the code has changed yet.
+sources in `Docs/HudMockup/`) after four rounds of changes: a smaller ammo cartridge that holds the ammo counts and
+stands upright beside the weapon slots, now a column, bigger gun icons, a smaller player frame with no name, and the
+tutorial prompt moved off the top of the screen. A player frame replaces the health ring and the bottom experience
+bar: an inked portrait of the player character in a gunmetal diamond that blinks, flinches, squints at low health and
+flares on a level-up, with a thick health bar with its number, a level gem and the experience bar. A mission tracker
+on the left replaces the tutorial prompt: a ranger's star, the tracked mission's name over a bar of its steps, one
+short objective and a key hint. The weapons, minimap and boss bar get the same metalwork, and a banner announces each
+level. `HANDOFF.md` has the full spec. Nothing in the code has changed yet.
 - [ ] The player frame and the portrait (`Art/Icons/HudPortrait.svg` as vector data), with its reactions.
 - [ ] The level-up banner; the experience bar's logic moved into the frame.
 - [ ] The mission tracker in place of the tutorial prompt, with the tutorial's short lines and key hints.
-- [ ] Weapon slots, the cartridge with the ammo counts inside, minimap and boss bar in the new style.
+- [ ] The weapon slots as a column with the upright cartridge, then the minimap and boss bar, in the new style.
 - [ ] Measured on Medium, tests passing, `CLAUDE.md`'s UI rules updated.
