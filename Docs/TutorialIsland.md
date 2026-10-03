@@ -4,8 +4,8 @@
 > `Docs/Art/StyleTarget_ScreenPrintWash.png`) to replace stylized realism. The transition starts in the next session;
 > until then this document describes the game as it is.
 >
-> Four layout concepts for a livelier island, in that style, are in `Docs/TutorialIslandConcepts.md`. The user has not
-> picked one yet.
+> Four layout concepts for a livelier island, in that style, are in `Docs/TutorialIslandConcepts.md`. The user picked
+> concept 1, Crossroads Town, on 2026-10-03; `HANDOFF.md` has the plan for building it.
 
 The user approved a new art style on 2026-09-30 (mock-up: `Docs/Art/StyleTarget_Outpost.png`) and asked to rebuild the
 tutorial island in it: Skyreach stays a grassy meadow floating in the sky, with rustic houses, roads, varied trees,

@@ -126,3 +126,17 @@ session; its steps are listed in that document. Nothing in the game has changed 
 - [ ] Light, fog and sky dome in the pastel palette.
 - [ ] Guns, creatures and loot; the UI checked over the new world.
 - [ ] Retire the realism texture mode; tour and performance recorded.
+
+## Phase 7: Crossroads Town
+The user found the tutorial island bland and lonely and, from four 3D layout concepts in the new look
+(`Docs/TutorialIslandConcepts.md`), chose **Crossroads Town** on 2026-10-03. The crossroads grows into a small town
+round a cobbled square, the slimes get a bog and the spiders a webbed hollow, and the roads get brick kerbs, lamps and
+cover, with far more trees, hedges, flowers and life. Every placement is in
+`Art/Levels/TutorialIsland/crossroads_town.json`; `HANDOFF.md` has the plan and the concept's mistakes to fix. Nothing
+in the level has changed yet.
+- [ ] The town with the models that exist: placements, kerbed roads and the cobbled square, the creature groups, the
+      scatter and new tour views; measured on Medium.
+- [ ] New models in the print style: stalls, sheds, coop, haystacks, scarecrows, picket fences, hedges, barricades,
+      sandbags, targets, the dock, garden crops, kerbs and cobbles, and the creature grounds' dressing.
+- [ ] Sheep, hens and townsfolk: models, actors and bestiary pages.
+- [ ] Tour and performance recorded at every viewpoint.

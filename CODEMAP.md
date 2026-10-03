@@ -398,4 +398,5 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   ramp grades, cliff courses of at most 12 m, the seam band, the boundary, open ground).
 - `Tools/ConceptViewer/`: the island concept viewer, a web page (`README.md`). `web_export.py` and `export_all.sh` export
   the scripted models and the terrain for it; `assemble.py` builds the page from `web/` (engine, procedural kit, the
-  four concepts, the interface); `test/` takes screenshots and drives the interface.
+  four concepts, the interface); `test/` takes screenshots and drives the interface, and `test/dump.js` writes a
+  concept's placements as JSON (`Art/Levels/TutorialIsland/crossroads_town.json`, the chosen concept).

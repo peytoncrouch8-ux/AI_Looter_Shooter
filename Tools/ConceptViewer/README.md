@@ -3,11 +3,13 @@
 A web page that shows layout concepts for the tutorial island (Skyreach) in the Screen Print Wash style
 (`Docs/Art/ScreenPrintWash.md`). Concepts can be explored in 3D before anything is built in Unreal: fly over the island,
 walk its roads, and compare all four concepts from the same viewpoint. It draws the game's own scripted models and the
-island's real terrain. Trees, flowers, fences, livestock and other small things that have no model yet come from a
-procedural kit in the page.
+island's real terrain. A procedural kit in the page draws the rest: plants, because the page bakes one flat color per
+face and cannot show the game's textured leaf cards, and things that have no model yet, such as market stalls, picket
+fences, livestock and townsfolk.
 
 The published page is <https://claude.ai/artifact/NoY9cGCEDzz4yB1ZwPb49e>. It is private to its owner until shared. The
-concepts themselves are described in `Docs/TutorialIslandConcepts.md`.
+concepts themselves are described in `Docs/TutorialIslandConcepts.md`. The user chose concept 1, Crossroads Town, on
+2026-10-03; its placements are in `Art/Levels/TutorialIsland/crossroads_town.json`, and `HANDOFF.md` has the plan.
 
 ## Files
 
@@ -29,6 +31,9 @@ concepts themselves are described in `Docs/TutorialIslandConcepts.md`.
 - `web/ui.js`: the camera from above and on foot, views and flights, the tour, compare, labels, the minimap and boot.
 - `test/shots.js`: screenshots of views. `test/interact.js` drives the interface like a person would and reports
   console errors.
+- `test/dump.js`: writes one concept's scene as JSON in Unreal units, as the page builds it: every placed model, the
+  creatures, roads, fences, fields, ground patches and vegetation rules. Grass, flowers, cobbles, kerb bricks and
+  crops are only counted.
 
 ## Rebuild
 
@@ -39,6 +44,7 @@ python3 Tools/ConceptViewer/assemble.py
 cd Tools/ConceptViewer/test && npm install
 node shots.js ../../../Saved/ConceptViewer/web /tmp/shots 0,1,2,3 all 1280x720 clean labels
 node interact.js ../../../Saved/ConceptViewer/web /tmp/interact
+node dump.js ../../../Saved/ConceptViewer/web 0 ../../../Art/Levels/TutorialIsland/crossroads_town.json
 ```
 
 The exporter runs under plain Python with the `bpy` module, not inside Blender. Publish

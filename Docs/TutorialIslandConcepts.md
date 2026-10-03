@@ -7,7 +7,10 @@ and other vegetation, all in the Screen Print Wash style (`Docs/Art/ScreenPrintW
 
 The four concepts can be explored in the concept viewer, <https://claude.ai/artifact/NoY9cGCEDzz4yB1ZwPb49e>
 (`Tools/ConceptViewer`). The viewer draws the game's own models on the island's real terrain. Use "Compare all 4" to see
-one viewpoint in every concept. The user has not picked one yet.
+one viewpoint in every concept.
+
+**The user picked concept 1, Crossroads Town, on 2026-10-03.** `HANDOFF.md` has the plan for building it and the
+mistakes to fix on the way; `Art/Levels/TutorialIsland/crossroads_town.json` has every placement the viewer draws.
 
 ## What every concept keeps
 
@@ -80,14 +83,16 @@ with sheet webs.
 
 ## Building the chosen concept
 
-- **New models.** The viewer draws these from its procedural kit, and none of them is a game model yet: oak, birch, pine,
-  dead pine and apple trees; bushes and hedges; flowers, grass tufts, wheat, cabbages, reeds and mushrooms; picket
-  fences, barricades and sandbags; market stalls, sheds, coops, haystacks and scarecrows; cobbles and brick kerbs;
-  burrows, egg sacs, cocoons, webs and slime trails; sheep, cows, hens and townsfolk. Each needs a real model made by the
-  rules in `Art/README.md`.
+- **Plants.** The viewer's own oak, birch, pine and apple trees, bushes, reeds, grass and flowers are stand-ins for the
+  game's (`Art/Models/Vegetation`): the viewer bakes one flat color per face and cannot draw textured leaf cards. Build
+  with the game's.
+- **New models.** The rest of the viewer's procedural kit has no game model yet: dead pines, hedges, wheat, cabbages and
+  mushrooms; picket fences, barricades, sandbags and practice targets; market stalls, sheds, coops, haystacks,
+  scarecrows and a pond dock; cobbles and brick kerbs; burrows, egg sacs, cocoons, webs and slime trails; sheep, cows,
+  hens and townsfolk. Each needs a real model made by the rules in `Art/README.md`.
 - **Placement.** The layout moves into `Art/Levels/TutorialIsland/layout.json` and the build scripts
-  (`build_tutorial_island.py`, `build_island_scatter.py`). The viewer's `concepts.js` has every position in Unreal
-  centimeters.
+  (`build_area.py`, `build_island_scatter.py`). The viewer's `concepts.js` has every position in Unreal centimeters,
+  and `Tools/ConceptViewer/test/dump.js` writes a concept's resolved placements as JSON.
 - **Bestiary.** Livestock and townsfolk that become actors each need a bestiary page (`UBestiaryEntry`).
 - **Performance.** The town concepts add buildings, and the Hollow Way adds a great many trees. Measure the chosen one
   with `perf.ps1` and `tour.ps1` against the budget in `Docs/TutorialIsland.md`.

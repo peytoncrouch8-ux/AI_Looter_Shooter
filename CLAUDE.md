@@ -20,6 +20,9 @@ command line keep theirs under `%LOCALAPPDATA%\UnrealEngine\5.8\Saved`.
 - `Docs/Plan.md`: the pipeline cleanup plan and where it stands.
 - `Docs/Performance.md`: measured performance history.
 - `Docs/Story.md`: the campaign's story; `Docs/Areas/` holds one design per area.
+- `HANDOFF.md`: two decisions waiting to be built, the Screen Print Wash look (2026-10-02) and the Crossroads Town
+  layout for the tutorial island (2026-10-03), with the plan for building them. Read it before working on the art or
+  the island. It is imported here so every session has it: @HANDOFF.md
 
 ## Build, run, test
 
