@@ -1,0 +1,131 @@
+<title>Skyreach Concepts</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap">
+<style>
+/* Layout: one full-screen 3D view; the game's own UI kit floats over it (Concept C: dark glass, orange accent, cyan
+   hairlines, Chakra Petch). A single dark look by choice: it frames the pastel island the same in any theme. */
+:root { --bg:#0e1116; --glass:rgba(13,16,21,.82); --glass2:rgba(13,16,21,.62); --fg:#ece8df; --muted:#9ea8b2; --accent:#ff9640;
+        --line:#39d3e0; --dim:rgba(57,211,224,.32); --slime:#7fd494; --spider:#d79be8;
+        --font:'Chakra Petch','Segoe UI',system-ui,sans-serif; color-scheme:dark; }
+html, body { height:100%; }
+body { margin:0; background:var(--bg); color:var(--fg); font-family:var(--font); overflow:hidden; font-size:14px; -webkit-tap-highlight-color:transparent; }
+#view { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; outline:none; }
+.panel { position:fixed; background:var(--glass); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+         border:1px solid var(--dim); border-radius:6px; box-shadow:0 4px 18px rgba(0,0,0,.35); box-sizing:border-box; z-index:3; }
+button { font:inherit; color:inherit; }
+button:focus-visible, canvas:focus-visible { outline:2px solid var(--line); outline-offset:2px; }
+
+#top { top:calc(env(safe-area-inset-top,0px) + 16px); left:16px; width:min(400px, calc(100vw - 32px)); padding:10px 12px 11px; }
+.head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.head h1 { margin:0; font-size:16px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); line-height:1.1; }
+.head .sub { display:block; color:var(--muted); font-size:11.5px; letter-spacing:.02em; margin-top:2px; }
+#fold { background:none; border:1px solid var(--dim); color:var(--line); border-radius:4px; font-size:12px; padding:3px 9px; cursor:pointer; white-space:nowrap; }
+.tabs { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:5px; margin:10px 0 8px; }
+.tab { background:rgba(255,255,255,.04); border:1px solid var(--dim); font-size:11.5px; font-weight:600; padding:6px 3px; border-radius:4px; cursor:pointer;
+       letter-spacing:.02em; line-height:1.15; min-width:0; }
+.tab b { display:block; font-size:15px; color:var(--accent); }
+.tab[aria-pressed="true"] { background:var(--accent); color:#1a1208; border-color:var(--accent); }
+.tab[aria-pressed="true"] b { color:#1a1208; }
+#name { font-size:15px; font-weight:700; margin:2px 0 3px; }
+#tagline { color:var(--muted); margin:0; line-height:1.4; font-size:13px; }
+#bullets { margin:8px 0 0; padding-left:16px; line-height:1.42; font-size:13px; max-height:38vh; overflow:auto; }
+#bullets li { margin:3px 0; }
+#bullets b { color:var(--line); font-weight:600; }
+
+#bottom { left:16px; bottom:calc(env(safe-area-inset-bottom,0px) + 16px); width:min(620px, calc(100vw - 222px)); padding:8px 10px; display:grid; gap:6px; }
+.row { display:flex; align-items:center; gap:6px; min-width:0; }
+.row .rl { flex:0 0 58px; color:var(--muted); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; }
+.chips { display:flex; gap:5px; overflow-x:auto; scrollbar-width:none; min-width:0; padding-bottom:1px; }
+.chips::-webkit-scrollbar { display:none; }
+.chip { flex:0 0 auto; background:rgba(255,255,255,.05); border:1px solid var(--dim); font-size:12.5px; padding:6px 10px; border-radius:999px; cursor:pointer; white-space:nowrap; }
+.chip:hover { border-color:var(--line); }
+.chip.on { border-color:var(--accent); color:var(--accent); }
+.chip[aria-pressed="true"] { border-color:var(--accent); color:var(--accent); }
+.chip.tool { border-radius:4px; }
+.chip.go { background:var(--accent); color:#1a1208; border-color:var(--accent); font-weight:600; }
+
+#mapwrap { right:16px; bottom:calc(env(safe-area-inset-bottom,0px) + 16px); padding:6px; }
+#map { display:block; width:176px; height:176px; cursor:crosshair; border-radius:3px; }
+#mapwrap small { display:block; text-align:center; color:var(--muted); font-size:10.5px; margin-top:4px; }
+
+#labels { position:fixed; inset:0; pointer-events:none; overflow:hidden; }
+.lbl { position:absolute; left:0; top:0; transform:translate(-50%, -100%); white-space:nowrap; pointer-events:none; display:flex; flex-direction:column; align-items:center; }
+.lbl span { background:var(--glass2); border:1px solid var(--dim); border-radius:3px; padding:2px 7px; font-size:12px; font-weight:600; letter-spacing:.02em; }
+.lbl i { display:block; width:1px; height:16px; background:var(--line); opacity:.8; }
+.lbl.slime span { color:var(--slime); border-color:rgba(127,212,148,.5); }
+.lbl.spider span { color:var(--spider); border-color:rgba(215,155,232,.5); }
+.lbl.town span { color:var(--accent); border-color:rgba(255,150,64,.55); }
+
+#toast { position:fixed; left:50%; top:calc(env(safe-area-inset-top,0px) + 14px); transform:translateX(-50%); padding:6px 12px; font-size:13px; color:var(--accent); display:none; z-index:4; }
+#hint { position:fixed; right:16px; top:calc(env(safe-area-inset-top,0px) + 16px); max-width:260px; padding:8px 10px; font-size:12px; color:var(--muted); line-height:1.4; }
+#hint b { color:var(--fg); font-weight:600; }
+
+#compare { position:fixed; inset:0; background:rgba(10,12,16,.94); z-index:6; display:flex; flex-direction:column; padding:14px 16px calc(env(safe-area-inset-bottom,0px) + 14px); box-sizing:border-box; gap:10px; }
+#compare header { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+#compare h2 { margin:0; font-size:15px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); }
+#compare .grid { flex:1; min-height:0; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:10px; }
+#compare figure { margin:0; position:relative; border:1px solid var(--dim); border-radius:5px; overflow:hidden; cursor:pointer; background:#000; min-height:0; }
+#compare figure img { width:100%; height:100%; object-fit:cover; display:block; }
+#compare figcaption { position:absolute; left:8px; top:8px; background:var(--glass); border:1px solid var(--dim); border-radius:3px; padding:3px 8px; font-weight:600; font-size:13px; }
+#compare figure:hover { border-color:var(--accent); }
+
+#loading { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; background:var(--bg); z-index:8; padding:0 16px; text-align:center; }
+#loading .bar { width:min(320px, 70vw); height:6px; background:rgba(255,255,255,.08); border:1px solid var(--dim); border-radius:3px; overflow:hidden; }
+#loading .bar i { display:block; height:100%; width:0; background:var(--accent); transition:width .2s; }
+#loading p { margin:0; color:var(--muted); font-size:13px; }
+#loading h2 { margin:0; color:var(--accent); font-size:17px; text-transform:uppercase; letter-spacing:.08em; }
+
+#stick { position:fixed; left:0; bottom:0; width:45vw; height:46vh; touch-action:none; display:none; z-index:2; }
+#stick .base { position:absolute; width:110px; height:110px; border:1px solid var(--dim); border-radius:50%; background:rgba(14,17,22,.35); transform:translate(-50%,-50%); display:none; }
+#stick .knob { position:absolute; width:44px; height:44px; border-radius:50%; background:var(--accent); transform:translate(-50%,-50%); display:none; opacity:.85; }
+
+body.clean .panel, body.clean #hint { display:none !important; }
+[hidden] { display:none !important; }
+
+@media (max-width:700px) {
+  #top { padding:8px 10px; }
+  .head h1 { font-size:14px; }
+  .tab { font-size:10.5px; padding:5px 2px; }
+  .tab b { font-size:13px; }
+  #tagline { font-size:12px; display:none; }
+  body.details #tagline { display:block; }
+  #bottom { width:calc(100vw - 32px); bottom:calc(env(safe-area-inset-bottom,0px) + 16px); }
+  #mapwrap { bottom:auto; top:calc(env(safe-area-inset-top,0px) + 16px); right:16px; display:none; }
+  #hint { display:none; }
+  .row .rl { flex-basis:46px; font-size:9.5px; }
+  .chip { font-size:12px; padding:6px 9px; }
+}
+@media (max-height:520px) and (orientation:landscape) {
+  #top { width:min(330px, 42vw); }
+  #tagline, #bullets { display:none; }
+  #bottom { width:calc(100vw - 222px); }
+  #map { width:130px; height:130px; }
+  #hint { display:none; }
+}
+@media (prefers-reduced-motion: reduce) { #loading .bar i { transition:none; } }
+</style>
+<canvas id="view" tabindex="0" aria-label="3D view of the tutorial island concept"></canvas>
+<div id="labels" aria-hidden="true"></div>
+<div id="stick"><div class="base"></div><div class="knob"></div></div>
+<section id="top" class="panel" aria-label="Concepts">
+  <div class="head"><div><h1>Skyreach Concepts</h1><span class="sub">Tutorial island · Screen Print Wash</span></div><button id="fold" aria-expanded="false">Details</button></div>
+  <nav class="tabs" id="tabs" aria-label="Concept"></nav>
+  <div id="name"></div>
+  <p id="tagline"></p>
+  <ul id="bullets" hidden></ul>
+</section>
+<section id="bottom" class="panel" aria-label="Views">
+  <div class="row"><span class="rl">Above</span><div class="chips" id="above"></div></div>
+  <div class="row"><span class="rl">On foot</span><div class="chips" id="foot"></div></div>
+  <div class="row"><span class="rl">Tools</span><div class="chips">
+    <button class="chip tool go" id="tour">Tour</button>
+    <button class="chip tool" id="compareBtn">Compare all 4</button>
+    <button class="chip tool" id="mode">Walk here</button>
+    <button class="chip tool" id="labelsBtn" aria-pressed="true">Labels</button>
+    <button class="chip tool" id="lines" aria-pressed="true">Ink</button>
+  </div></div>
+</section>
+<aside id="mapwrap" class="panel"><canvas id="map" width="352" height="352" aria-label="Map of the island; tap to walk there"></canvas><small>north up · tap to walk there</small></aside>
+<div id="hint" class="panel"><b>From above:</b> drag to turn, scroll or pinch to zoom, right-drag or two fingers to pan. <b>On foot:</b> W A S D to walk, drag to look, Shift to run. Keys 1 to 4 switch concepts.</div>
+<div id="toast" class="panel"></div>
+<div id="compare" hidden><header><h2>Same view, four concepts</h2><button class="chip tool" id="compareClose">Close</button></header><div class="grid" id="compareGrid"></div></div>
+<div id="loading"><h2>Skyreach Concepts</h2><div class="bar"><i id="prog"></i></div><p id="progtext">Loading the island…</p></div>

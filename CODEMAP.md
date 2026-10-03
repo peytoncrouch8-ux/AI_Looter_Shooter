@@ -396,3 +396,6 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `Tools/Blender/terrain_fingerprint.py` fingerprints its meshes.
 - `Tools/terrain_check.ps1`, `.py`: checks an area's layout and computed layout before anything is built (feature rules,
   ramp grades, cliff courses of at most 12 m, the seam band, the boundary, open ground).
+- `Tools/ConceptViewer/`: the island concept viewer, a web page (`README.md`). `web_export.py` and `export_all.sh` export
+  the scripted models and the terrain for it; `assemble.py` builds the page from `web/` (engine, procedural kit, the
+  four concepts, the interface); `test/` takes screenshots and drives the interface.
