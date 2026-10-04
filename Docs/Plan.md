@@ -168,3 +168,19 @@ code has changed yet.
 - [ ] Cursed irons: the curse table, the roll, the effects, how they show, and lifting.
 - [ ] Part swapping: the bench, scrapping into the parts box, fitting by the rules, the bench screen.
 - [ ] Tests for all three, `CODEMAP.md` updated.
+
+## Phase 10: Ember powers
+On 2026-10-04 the user played a demo of six ember powers (<https://claude.ai/artifact/MeXAwqdJdX4SYGDzhEy4xR>, sources
+in `Docs/EmberDemo/`). They kept four, for the main session to revise:
+- Lucky Streak: ricochets and critical hits.
+- Dust Devil: a dash that flings creatures aside.
+- Slag Bomb: a burning pool.
+- Spyglass: marks creatures through walls.
+
+Each comes from an outlaw's ember, and Ellis carries two, on Q and F. `HANDOFF.md` has the full spec. Nothing in the
+code has changed yet.
+- [ ] The ember component, definitions, keys and saving.
+- [ ] The creatures' knocked, dizzy, burning and marked states.
+- [ ] The four powers and their effects, in the print look.
+- [ ] The HUD's two ember sockets and the inventory's ember page.
+- [ ] Tests, measured on Medium, `CODEMAP.md` updated.

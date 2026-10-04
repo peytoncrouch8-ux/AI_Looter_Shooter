@@ -1,9 +1,9 @@
-# Handoff: the chosen art style, tutorial island, HUD and gun ideas
+# Handoff: the chosen art style, tutorial island, HUD, gun ideas and ember powers
 
-The user made four decisions in a cloud session from 2026-10-02 to 2026-10-04, and plans to have them built starting
-Monday, 2026-10-05, when their usage resets. Nothing in `Content/`, the materials, the level, the HUD's code or the
-weapons' code has changed for any of them yet. `CLAUDE.md` imports this file, so every session starts with it. When all
-four are built, delete this file and that import, and record the outcome in `Docs/Plan.md`.
+The user made five decisions in a cloud session from 2026-10-02 to 2026-10-04, and plans to have them built starting
+Monday, 2026-10-05, when their usage resets. Nothing in `Content/`, the materials, the level, the HUD's code, the
+weapons' code or the character's has changed for any of them yet. `CLAUDE.md` imports this file, so every session
+starts with it. When all five are built, delete this file and that import, and record the outcome in `Docs/Plan.md`.
 
 ## The decisions
 
@@ -29,14 +29,16 @@ four are built, delete this file and that import, and record the outcome in `Doc
    - the player frame 15% smaller, with no name on it.
 4. **Three gun ideas** (chosen 2026-10-04). Asked for ideas the game doesn't have yet, the user picked three of thirteen
    for the loot: **notches** (each gun counts its kills and wakes at milestones), **part swapping** at a gunsmith's
-   bench, and **cursed irons** (a strong perk with a real drawback). See "Three gun ideas". Another idea from the same
-   list, ember powers, waits on a demo the user asked to see first.
+   bench, and **cursed irons** (a strong perk with a real drawback). See "Three gun ideas".
+5. **Four ember powers** (chosen 2026-10-04). Another idea from the same list: each outlaw's ember leaves Ellis a
+   power. The user played a demo of six and kept **Lucky Streak**, **Dust Devil**, **Slag Bomb** and **Spyglass**, for
+   the main session to revise. See "Ember powers".
 
 ## Where everything is
 
 - **Branch `claude/island-concepts`** holds all of it: the art-style docs and the scripts that rendered the styles,
-  the concept viewer, the concept doc, the exact placements, the HUD mockup's sources, the portrait's art and this
-  file. It sits on top of `main` at `cf34a3c`:
+  the concept viewer, the concept doc, the exact placements, the HUD mockup's sources, the portrait's art, the ember
+  demo's sources and this file. It sits on top of `main` at `cf34a3c`:
   `git fetch origin claude/island-concepts`, then `git merge origin/claude/island-concepts`. It already contains
   `claude/art-style-exploration-text`; there is nothing else to merge.
 - **The images are not on GitHub.** The cloud session's network policy blocks the Git LFS host, so the PNGs (the
@@ -59,6 +61,12 @@ four are built, delete this file and that import, and record the outcome in `Doc
   `Docs/HudMockup/`: `NewHud.dc.html` holds every size, colour and timing below, except that its player frame is drawn
   at 85% of the sizes its rules give (the numbers here are the final ones). `__BG__`, `__RIFLE__` and the like stand
   for the backdrop render and the Inked icons. The portrait's art is `Art/Icons/HudPortrait.svg`.
+- **The ember powers demo** is <https://claude.ai/artifact/MeXAwqdJdX4SYGDzhEy4xR>, private to the user's account. It
+  is playable in Crossroads Town with the game's models, the print look and the new HUD: "Watch all six" shows each
+  power, and "Play" starts a spider raid. Its sources are in `Docs/EmberDemo/`: `game.js` holds the powers' numbers,
+  timings and effects, and `ui.html` the sockets, the ember page and the HUD around them (`__RIFLE__` and the like
+  stand for the Inked icons). They run on the concept viewer's engine (`Tools/ConceptViewer/web`). The demo also has
+  the two powers the user passed on, Raise the Flock and Landslide.
 
 ## Screen Print Wash in brief
 
@@ -501,6 +509,88 @@ numbers are starting points to tune in play.
   seeds, the effects, lifting) and `Looter.Weapons.PartSwap` (the rules, names and seeds, and the box surviving a save).
 - Update `CODEMAP.md` for new files, and tick the boxes in Phase 9 of `Docs/Plan.md`.
 
+## Ember powers
+
+**The idea.** Every outlaw's ember passes through Ellis's hand before it is paid to Sexton, and each one leaves a power
+behind. Ellis earns a power from each outlaw who falls and carries two at a time, on Q and F. Each power comes from
+its outlaw's fight in `Docs/Story.md`. The numbers are the demo's, starting points to revise in play. The demo's rifle
+deals 14 a shot, so the powers' damage below is against that, and it grows with the player's level the way a gun's
+does (`UWeaponDefinition::DamagePerLevel`).
+
+**The four powers.**
+- **Lucky Streak**, Lucky Ned's ember (Fortune, the *Gilded Lily*). Cooldown 22 s.
+  - For 8 s, every shot that hits ricochets into the nearest other creature within 12 m, for 10.
+  - One shot in three is a critical hit wherever it lands (x1.5, `LooterCombat`).
+  - On use a fan of playing cards bursts in front of the player. The ricochets draw gold tracers, and a card flicks off
+    each hit.
+- **Dust Devil**, Whistling Ira's ember (Wind, Dustwater Mesa). Cooldown 7 s.
+  - A dash of 9 m in 0.3 s the way the player is moving, or forward when standing still. Nothing hurts the player
+    during it.
+  - Creatures within 2.6 m of the path take 15, are flung 4 to 5 m to the side and left behind, and stay dizzy for
+    1 s once they land.
+  - Speed lines, the field of view widening 14 degrees and settling, a ring of dust where the dash starts and a smaller
+    one where it ends. Flung creatures tumble and show dizzy sparks.
+- **Slag Bomb**, Barrels Kessler's ember (Forge, Furnace Hollow). Cooldown 12 s.
+  - A bomb lobbed onto the creature under the crosshair, or else where the crosshair meets the ground, at most 20 m
+    away.
+  - It bursts for 34 within 2.5 m and 18 within 4.5 m.
+  - It leaves a pool of slag 4.5 m in radius for 6 s. Whatever stands in it burns for 7 every 0.5 s, and for 0.6 s
+    after it leaves.
+  - The bomb trails sparks, and the burst is a flash, a ring and flying clods. The pool is orange with hot yellow blobs
+    and a cooling crust, under rising sparks and pale smoke. Burning creatures are tinted orange.
+- **Spyglass**, Lena Okoro's ember (Sight, the Needles). Cooldown 18 s.
+  - For 10 s, every creature within 60 m is marked, through walls: an orange silhouette and a marker over it with its
+    distance.
+  - Marked creatures take 30% more damage.
+  - A cyan ring sweeps out over the ground to 60 m with a lens vignette, and each creature is marked as the ring
+    reaches it.
+
+**The HUD.** Two ember sockets sit at the bottom centre, the spot the HUD upgrade leaves empty.
+- Each socket is a 92 px gunmetal ring, built like the weapon slots, around the power's glyph (vector art through
+  `IconBrush`). The sockets stand 188 px apart, with the key's tab under each and the power's name under that.
+- While a power cools down, a dark pie covers its socket and drains, with the seconds left in white. While a power
+  lasts, an arc in its colour runs down round the ring. When it's ready, the socket gets an orange ring and a slow glow
+  in its colour. Pressing the key too early shakes the socket.
+- On use, the power's name pops up over the sockets in its colour.
+- The colours go into `LooterUI::Color`: Lucky Streak `#ffcf4a`, Dust Devil `#e8f6ff`, Slag Bomb `#ff8a1c`, Spyglass
+  `#ffb24d`.
+
+**The ember page.** It is a fourth inventory page after Missions (`EInventoryPage::Embers`), in the LooterUI kit. It
+shows a card for each ember earned, with:
+- its glyph, nature, name, and whose ember it is and where from;
+- what it does and its cooldown;
+- two buttons to put it on Q or on F. Putting it on the key the other one holds swaps them.
+
+**Keys.** Q and F are free in play. The loadout screen uses them for its own drop and hold, but only while it is open.
+- Add two rebindable actions, "Ember 1" and "Ember 2", to `UKeyBindingSubsystem` under Combat, on Q and F.
+- On a gamepad, use two buttons the weapon context leaves free.
+
+**Building them.**
+- **The component.** A `UEmberComponent` on the character holds the two sockets, the cooldowns and what is active,
+  and uses the powers. It binds its keys with `FPawnInputBinding`.
+- **The data.** A `UEmberDefinition` data asset per power (`DA_Ember_<Id>`) holds its key, name, outlaw, nature, glyph,
+  colour, cooldown, duration and numbers. Each power's behaviour is in C++.
+- **Saving.** The session saves the embers earned and the two on Q and F (`ULooterSessionSave`). Ember keys never
+  change, like part keys.
+- **Creatures.** `ACreatureBase` needs four new states:
+  - knocked: flung through the air like the slime's launch, landing with `FindGround`;
+  - dizzy;
+  - burning: the slag's ticks and an orange tint;
+  - marked: the silhouette and 30% more damage taken.
+- **Lucky Streak's ricochet** goes through `UBulletSubsystem`. While the streak lasts, a hit on a creature sends a
+  second bullet from the hit to the nearest other creature.
+- **Spyglass's silhouette** draws the creature's custom depth with a stencil value of its own, because the print
+  look's stencil keeps leaf cards out of its line pass. The post-process draws the silhouette where the creature is
+  hidden behind something. The marker goes over the creature's tag (`UCreatureHealthBarWidget`).
+- **Damage** uses a new `UEmberDamageType`. A power's kills give experience (`AwardKill`) but count for no gun's
+  notches.
+- **Testing before the outlaws exist.** `Looter.Embers.Grant <id|all>` gives powers.
+- **Tests.** `Looter.Embers.*` covers cooldowns, the sockets and swapping, saving, and each power's effect on a test
+  creature.
+- **Performance.** The effects are particles, rings and one stencil silhouette. Measure on Medium with `perf.ps1`.
+- **Docs.** Add to `Docs/Story.md` that each ember leaves Ellis its power when it is paid. Update `CODEMAP.md`, and
+  tick the boxes in Phase 10 of `Docs/Plan.md`.
+
 ## Suggested order
 
 1. Merge `claude/island-concepts`, then regenerate the style images.
@@ -517,9 +607,15 @@ numbers are starting points to tune in play.
 The gun ideas don't depend on any of these. Build notches first (curses lift by them), then cursed irons, then part
 swapping, which needs its bench and screen; their cards use the new HUD's look, so after step 4 is best.
 
+The ember powers also come after step 4, because their sockets sit in the new HUD's empty bottom centre. Their effects
+should be made in the print look.
+
 ## Questions for the user
 
 - Should all eight spiders live in Web Hollow, as the concept shows, or stay spread through the woods?
 - Should the townsfolk and livestock start as set dressing that stands and idles, or as living characters?
 - Should part swapping wait for Ozias, who joins after the *Gilded Lily*, or should a plain workbench offer it from
   the start?
+- Constance's and Tobias's embers have no power yet, because the user passed on Raise the Flock and Landslide. Should
+  they get new powers, or none?
+- The first power comes from Ned on the *Gilded Lily*, so Ransom's Rest has none. Should Ellis have one sooner?

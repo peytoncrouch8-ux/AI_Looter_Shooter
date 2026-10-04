@@ -20,10 +20,17 @@ command line keep theirs under `%LOCALAPPDATA%\UnrealEngine\5.8\Saved`.
 - `Docs/Plan.md`: the pipeline cleanup plan and where it stands.
 - `Docs/Performance.md`: measured performance history.
 - `Docs/Story.md`: the campaign's story; `Docs/Areas/` holds one design per area.
-- `HANDOFF.md`: four decisions waiting to be built, the Screen Print Wash look (2026-10-02), the Crossroads Town
-  layout for the tutorial island and the HUD upgrade (both 2026-10-03), and three gun ideas (2026-10-04), with the plan
-  for building them. Read it before working on the art, the island, the HUD or the guns. It is imported here so every
-  session has it: @HANDOFF.md
+- `HANDOFF.md`: five decisions waiting to be built: the Screen Print Wash look (2026-10-02), the Crossroads Town
+  layout for the tutorial island and the HUD upgrade (both 2026-10-03), and three gun ideas and four ember powers (both
+  2026-10-04), with the plan for building them. Read it before working on the art, the island, the HUD, the guns or the
+  powers. It is imported here so every session has it: @HANDOFF.md
+
+## Working with the user
+
+The user asked for these in every session:
+- If my request is ambiguous, ask me any questions needed to clarify the project.
+- When you report information to me, be concise and summarize.
+- If you fail two times, don't retry a third time; ask for clarity before continuing.
 
 ## Build, run, test
 
