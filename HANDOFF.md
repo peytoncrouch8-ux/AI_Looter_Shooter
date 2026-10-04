@@ -1,9 +1,9 @@
-# Handoff: the chosen art style, tutorial island and HUD
+# Handoff: the chosen art style, tutorial island, HUD and gun ideas
 
-The user made three decisions in a cloud session on 2026-10-02 and 2026-10-03, and plans to have them built starting
-Monday, 2026-10-05, when their usage resets. Nothing in `Content/`, the materials, the level or the HUD's code has
-changed for any of them yet. `CLAUDE.md` imports this file, so every session starts with it. When all three are built,
-delete this file and that import, and record the outcome in `Docs/Plan.md`.
+The user made four decisions in a cloud session from 2026-10-02 to 2026-10-04, and plans to have them built starting
+Monday, 2026-10-05, when their usage resets. Nothing in `Content/`, the materials, the level, the HUD's code or the
+weapons' code has changed for any of them yet. `CLAUDE.md` imports this file, so every session starts with it. When all
+four are built, delete this file and that import, and record the outcome in `Docs/Plan.md`.
 
 ## The decisions
 
@@ -27,6 +27,10 @@ delete this file and that import, and record the outcome in `Docs/Plan.md`.
    - the ammo counts inside the cartridge, and the cartridge standing upright on the right of the weapon slots, which
      stack in a column with slot 1 on top;
    - the player frame 15% smaller, with no name on it.
+4. **Three gun ideas** (chosen 2026-10-04). Asked for ideas the game doesn't have yet, the user picked three of thirteen
+   for the loot: **notches** (each gun counts its kills and wakes at milestones), **part swapping** at a gunsmith's
+   bench, and **cursed irons** (a strong perk with a real drawback). See "Three gun ideas". Another idea from the same
+   list, ember powers, waits on a demo the user asked to see first.
 
 ## Where everything is
 
@@ -430,6 +434,73 @@ down, clear of the minimap and the pickup feed. The user's first version followe
 - **Docs.** When it's done, update `CLAUDE.md`'s UI rules to describe the player frame, the portrait and the mission
   tracker, and `Docs/Story.md`'s line on the tutorial's wording.
 
+## Three gun ideas
+
+All three work on `FWeaponInstanceData`, the rolled gun that a session saves (the loadout and backpack in
+`FWeaponInventorySave`, and loot on the ground with each map's world), so every new field travels with its gun. The
+numbers are starting points to tune in play.
+
+**Notches.** Every gun counts its kills, and they show as notches cut into it.
+- A creature's death counts for the gun that dealt the killing blow (`UHealthComponent::GetLastDamageCauser`), where
+  `UPlayerProgressionSubsystem::AwardKill` already gives the kill's experience. Like experience, only creatures count, so
+  the dummies can't be farmed. The count is a new `Kills` field on `FWeaponInstanceData` and stays with the gun when
+  it's dropped, stashed or picked up again.
+- The stock shows them as tally marks, four cuts and a slash, one cut per 5 kills, until the row is full at 25 marks.
+  `M_Gun` draws them from a `Notches` parameter through a mask strip on the stock parts' UVs (the body on a gun whose
+  stock slot is empty), so no new meshes.
+- At milestones the gun wakes:
+  - 50 kills, **Blooded**: +3% damage.
+  - 250, **Named**: +3% more, and a nickname from a list for its kind, in quotes after its name (WHISPER BULLPUP
+    "WIDOWMAKER").
+  - 1,000, **Soul-forged**: +4% more (10% in all), and a faint soul-light in its rarity's colour stays on it in the hand.
+  - A message says so as it happens ("WHISPER BULLPUP IS BLOODED · +3% DAMAGE"). The loot card and the loadout's stats
+    card show the count ("137 NOTCHES").
+
+**Part swapping.** At a gunsmith's bench the player scraps guns for parts and fits parts onto guns of the same kind.
+- **Where.** Ozias Penhallow's bench in the hub. He joins after the *Gilded Lily* (`Docs/Story.md`), so the bench opens
+  then; see the questions.
+- **Scrapping.** Scrapping a gun keeps one part of the player's choice in a parts box, saved with the session as (gun
+  kind, slot, key). The rest of the gun is gone.
+- **Fitting.** A part from the box goes onto a gun of the same kind, in the same slot, and the part it replaces goes
+  into the box, so trying parts costs nothing but the guns scrapped. Once grave gold exists, a fitting costs a small
+  fee.
+- **Rules.**
+  - The gun's rarity must allow the part (`MinRarity`), and the part's needs must be met (`Requires`). A new barrel
+    moves the muzzle by its `Length`, as on a rolled gun.
+  - The gun keeps its seed, rarity, level, paint and notches. The new part's numbers fall where the gun's seed puts them
+    in the part's range, as for the parts it rolled with, so moving a part back and forth never rerolls it.
+  - The word in the gun's name follows the parts' `NamePriority`, so a swap can rename the gun.
+  - Named guns (Heirloom) and the Hollow's signature legendaries have fixed parts: they can't be scrapped or changed.
+- **Saving.** `FWeaponInstanceData::Parts` already holds a gun's parts by key, so fitting a part changes one key. Never
+  rename or reuse a key (`CLAUDE.md`).
+- **The screen.** A bench screen in the LooterUI kit: the gun on a stand as in the loadout, its slots down one side,
+  and for the chosen slot the box's parts that fit, each with its stat changes against the current part.
+
+**Cursed irons.** A few guns drop cursed: a strong perk with a real drawback.
+- **How often.** 6% of the Rare, Epic and Legendary guns that drop roll a curse, from the gun's seed with its rarity
+  (`UWeaponRollLibrary`). Common and Uncommon guns, named guns and signature legendaries are never cursed.
+- **How it shows.** The rarity colour stays the game's one colour code. A cursed gun's label and cards add a
+  cracked-coin glyph and the curse's name, the cards spell out both the perk and the drawback, and its loot beam
+  gutters like a dying flame.
+- **The curses** (perk; drawback). They live in a table of their own, a CSV beside the parts lists, keyed by names that
+  never change, like part keys.
+  - **Hungry**: +30% damage; each reload costs 3% of max health.
+  - **Greedy**: kills with it roll their loot at +0.5 luck; each shot spends 2 rounds.
+  - **Restless**: +40% fire rate; recoil doubles.
+  - **Cold**: +20% damage and +25% critical damage; no sprinting with it in hand.
+  - **Grasping**: kills heal 5% of max health; max health is 15% lower with it in hand.
+  - **Unlucky**: critical hits deal triple damage; one shot in eight misfires.
+- **Lifting a curse.** The drawback goes and the perk stays, so a cursed iron is worth carrying through its curse. It
+  lifts by itself at 100 notches, or at once with Tilly's grave salt once her shop and grave gold exist.
+- **Saving.** Two new fields on `FWeaponInstanceData`: `Curse` (its key, none when uncursed) and `bCurseLifted`.
+
+**Building them.**
+- Perks and drawbacks that are plain numbers change the gun's `FWeaponStats`. The others hook in where they act: firing
+  (misfires, rounds per shot), reloading (the health cost), sprinting, health and the loot roll.
+- Tests: `Looter.Weapons.Notches` (counting, milestones, saving), `Looter.Weapons.Curses` (the roll's rate over many
+  seeds, the effects, lifting) and `Looter.Weapons.PartSwap` (the rules, names and seeds, and the box surviving a save).
+- Update `CODEMAP.md` for new files, and tick the boxes in Phase 9 of `Docs/Plan.md`.
+
 ## Suggested order
 
 1. Merge `claude/island-concepts`, then regenerate the style images.
@@ -443,7 +514,12 @@ down, clear of the minimap and the pickup feed. The user's first version followe
 6. The new models, in the print style, then the sheep, hens and townsfolk with their bestiary pages.
 7. Screen Print Wash steps 8 to 10, with the final tour and performance record.
 
+The gun ideas don't depend on any of these. Build notches first (curses lift by them), then cursed irons, then part
+swapping, which needs its bench and screen; their cards use the new HUD's look, so after step 4 is best.
+
 ## Questions for the user
 
 - Should all eight spiders live in Web Hollow, as the concept shows, or stay spread through the woods?
 - Should the townsfolk and livestock start as set dressing that stands and idles, or as living characters?
+- Should part swapping wait for Ozias, who joins after the *Gilded Lily*, or should a plain workbench offer it from
+  the start?

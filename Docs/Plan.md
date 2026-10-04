@@ -157,3 +157,14 @@ level. `HANDOFF.md` has the full spec. Nothing in the code has changed yet.
 - [ ] The mission tracker in place of the tutorial prompt, with the tutorial's short lines and key hints.
 - [ ] The weapon slots as a column with the upright cartridge, then the minimap and boss bar, in the new style.
 - [ ] Measured on Medium, tests passing, `CLAUDE.md`'s UI rules updated.
+
+## Phase 9: Gun ideas
+On 2026-10-04 the user picked three ideas for the loot from a brainstorm: notches (each gun counts its kills, cut into
+its stock, and wakes at 50, 250 and 1,000 with small bonuses and a nickname), part swapping at Ozias's bench (scrap a
+gun to keep one part, fit parts onto guns of the same kind) and cursed irons (6% of Rare-or-better drops: a strong perk
+with a real drawback, lifted at 100 notches or with Tilly's grave salt). `HANDOFF.md` has the full spec. Nothing in the
+code has changed yet.
+- [ ] Notches: the kill count on `FWeaponInstanceData`, the tally on the stock, the milestones and their messages.
+- [ ] Cursed irons: the curse table, the roll, the effects, how they show, and lifting.
+- [ ] Part swapping: the bench, scrapping into the parts box, fitting by the rules, the bench screen.
+- [ ] Tests for all three, `CODEMAP.md` updated.
