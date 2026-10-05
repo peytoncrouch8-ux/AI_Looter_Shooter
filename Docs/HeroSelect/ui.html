@@ -1,0 +1,121 @@
+<title>Ember Heroes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* A game screen over a 3D stage, so one deliberate dark look: the game's LooterUI kit (dark glass, orange accents,
+   cyan hairlines, Chakra Petch). */
+:root {
+  --ink: #0e1116; --glass: rgba(6, 18, 27, .86); --orange: #ff9f1c; --orange-hi: #ffc06a; --cyan: #5ac8ff;
+  --cyan-hi: #9fe0ff; --text: #dcefff; --dim: #8fb3cc; --white: #ffffff;
+  --font: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; background: #05080b; overflow: hidden; }
+body { font-family: var(--font); color: var(--text); -webkit-font-smoothing: antialiased; }
+#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; outline: none; touch-action: none; cursor: grab; }
+#view.dragging { cursor: grabbing; }
+button { font-family: var(--font); }
+.ol { text-shadow: 0 0 1px #00182a, 1.5px 0 0 #00182a, -1.5px 0 0 #00182a, 0 1.5px 0 #00182a, 0 -1.5px 0 #00182a,
+  1.1px 1.1px 0 #00182a, -1.1px -1.1px 0 #00182a, 1.1px -1.1px 0 #00182a, -1.1px 1.1px 0 #00182a, 0 2px 6px rgba(0, 8, 14, .5); }
+.ui { position: fixed; inset: 0; pointer-events: none; }
+.ui > * { pointer-events: auto; }
+
+/* the header, top left */
+.head { position: absolute; left: clamp(16px, 3vw, 40px); top: clamp(14px, 3vh, 34px); pointer-events: none; }
+.eyebrow { font-size: 13px; letter-spacing: 4px; color: var(--cyan-hi); font-weight: 600; }
+.head h1 { margin: 2px 0 0; font-size: clamp(30px, 4.4vw, 54px); letter-spacing: .14em; line-height: 1.05; color: var(--orange); font-weight: 700; }
+.head .sub { margin-top: 6px; font-size: 15px; color: var(--white); max-width: 46ch; line-height: 1.45; font-weight: 500; }
+.head .eyebrow, .head .sub, .foot { text-shadow: 0 0 1px #00182a, 1.3px 0 0 #00182a, -1.3px 0 0 #00182a, 0 1.3px 0 #00182a, 0 -1.3px 0 #00182a, 0 2px 8px rgba(0,8,14,.55); }
+.head h1 { text-shadow: 0 0 1px #2a1400, 2px 0 0 #2a1400, -2px 0 0 #2a1400, 0 2px 0 #2a1400, 0 -2px 0 #2a1400, 0 3px 10px rgba(0,8,14,.45); }
+
+/* the five cards along the bottom */
+.roster { position: absolute; left: 50%; bottom: clamp(12px, 2.6vh, 28px); transform: translateX(-50%); display: flex; gap: 10px;
+  max-width: calc(100vw - 32px); overflow-x: auto; padding: 6px 4px; scrollbar-width: none; }
+.roster::-webkit-scrollbar { display: none; }
+.rcard { position: relative; flex: none; width: 150px; height: 64px; padding: 9px 12px 0 16px; box-sizing: border-box; border: 0; text-align: left;
+  cursor: pointer; color: var(--text); background: linear-gradient(180deg, rgba(14,34,50,.9), rgba(6,18,27,.9));
+  box-shadow: inset 0 0 0 1.2px rgba(90,200,255,.45); clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px)); }
+.rcard::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--c, var(--cyan)); }
+.rcard .k { position: absolute; right: 12px; top: 9px; font-size: 11px; color: var(--dim); letter-spacing: 1px; }
+.rcard .n { font-size: 16px; font-weight: 700; letter-spacing: 1.5px; }
+.rcard .r { font-size: 12px; color: var(--cyan-hi); margin-top: 2px; letter-spacing: 1px; }
+.rcard:hover { background: linear-gradient(180deg, rgba(22,52,74,.95), rgba(10,28,42,.95)); }
+.rcard[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--orange), 0 0 18px rgba(255,159,28,.25); }
+.rcard[aria-pressed="true"] .n { color: var(--orange); }
+.rcard:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+
+/* the hero's panel, right */
+.panel { position: absolute; right: clamp(12px, 2.4vw, 34px); top: clamp(12px, 3vh, 34px); width: min(430px, calc(100vw - 32px));
+  max-height: calc(100vh - 140px); overflow-y: auto; box-sizing: border-box; padding: 20px 22px 18px;
+  background: linear-gradient(180deg, rgba(10,22,32,.92), rgba(5,13,20,.92)); box-shadow: inset 0 0 0 1px rgba(90,200,255,.45), 0 18px 60px rgba(0,0,0,.45);
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px)); transition: opacity .25s, transform .25s; }
+.panel[hidden] { display: block !important; opacity: 0; transform: translateX(14px); pointer-events: none; }
+.panel::before { content: ''; position: absolute; left: 0; top: 0; width: 120px; height: 3px; background: var(--orange); }
+.panel .role { font-size: 13px; letter-spacing: 4px; color: var(--cyan-hi); font-weight: 600; }
+.panel h2 { margin: 2px 0 0; font-size: 34px; letter-spacing: .1em; color: var(--orange); line-height: 1.05; }
+.panel .bio { margin: 10px 0 0; font-size: 15px; line-height: 1.5; color: var(--text); }
+.panel .facts { margin-top: 8px; font-size: 12.5px; color: var(--dim); letter-spacing: .5px; }
+.panel h3 { margin: 16px 0 6px; font-size: 13px; letter-spacing: 3px; color: var(--cyan-hi); font-weight: 600; }
+.power { display: grid; grid-template-columns: 58px 1fr; gap: 2px 12px; align-items: center; padding: 9px 0; border-top: 1px solid rgba(90,200,255,.16); }
+.power svg { width: 58px; height: 58px; grid-row: span 2; }
+.power .pn { font-size: 17px; font-weight: 700; letter-spacing: 1.2px; color: var(--white); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.power .tag { font-size: 10.5px; letter-spacing: 2px; color: var(--dim); font-weight: 600; }
+.power .ok { font-size: 10px; letter-spacing: 1.6px; color: #140a02; background: var(--orange); padding: 1px 6px; font-weight: 700;
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 5px 100%, 0 calc(100% - 5px)); }
+.power .pd { font-size: 14px; line-height: 1.42; color: var(--text); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
+.seg { height: 36px; padding: 0 14px; border: 0; cursor: pointer; font-weight: 700; font-size: 13px; letter-spacing: 1.5px; color: var(--text);
+  background: linear-gradient(#173a52, #0b2131); box-shadow: inset 0 0 0 1.3px rgba(90,200,255,.8);
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px)); }
+.seg:hover { background: linear-gradient(#20506f, #10304a); }
+.seg[aria-pressed="true"] { color: #140a02; background: linear-gradient(#ffb54d, #ff9f1c); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.seg:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.hint { font-size: 12.5px; color: var(--dim); margin-left: 4px; }
+.note { margin-top: 12px; font-size: 12px; line-height: 1.5; color: var(--dim); }
+
+/* lineup hint, bottom left */
+.foot { position: absolute; left: clamp(16px, 3vw, 40px); bottom: 100px; font-size: 14px; color: var(--white); font-weight: 500; pointer-events: none; max-width: 34ch; line-height: 1.5; }
+
+.head, .foot { transition: opacity .3s; }
+body.focus .head, body.focus .foot { opacity: 0; }
+#loading { position: fixed; inset: 0; display: grid; place-items: center; background: #0a0f14; transition: opacity .4s; }
+#loading.done { opacity: 0; pointer-events: none; }
+#loading .box { width: min(360px, calc(100vw - 48px)); }
+#loading .bar { margin-top: 14px; height: 5px; background: rgba(90,200,255,.15); box-shadow: inset 0 0 0 1px rgba(90,200,255,.4); }
+#loading .bar i { display: block; height: 100%; width: 4%; background: var(--orange); transition: width .3s; }
+
+@media (max-width: 860px) {
+  .head .sub, .foot { display: none; }
+  .panel { top: auto; bottom: 92px; right: 50%; transform: translateX(50%); max-height: 46vh; }
+  .panel[hidden] { transform: translateX(50%) translateY(14px); }
+  .rcard { width: 124px; }
+}
+@media (prefers-reduced-motion: reduce) { .panel { transition: none; } }
+</style>
+<canvas id="view" tabindex="0" aria-label="Five playable heroes standing on a stage"></canvas>
+<div class="ui" id="ui">
+  <div class="head">
+    <div class="eyebrow">PLAYABLE HEROES · CONCEPT</div>
+    <h1>CHOOSE YOUR HERO</h1>
+    <div class="sub">Five heroes, each with three ember powers to choose from. Every one is rigged on the mannequin's skeleton, so the game's animations can drive them.</div>
+  </div>
+  <div class="foot">Click a hero, or use 1–5. Drag to turn them.</div>
+  <section class="panel" id="panel" hidden aria-live="polite">
+    <div class="role" id="pRole"></div>
+    <h2 id="pName"></h2>
+    <p class="bio" id="pBio"></p>
+    <div class="facts" id="pFacts"></div>
+    <h3>EMBER POWERS · PICK ONE</h3>
+    <div id="pPowers"></div>
+    <div class="controls" role="group" aria-label="Pose">
+      <button class="seg" data-mode="idle" aria-pressed="true">IDLE</button>
+      <button class="seg" data-mode="walk" aria-pressed="false">WALK</button>
+      <button class="seg" data-mode="apose" aria-pressed="false">A-POSE</button>
+      <button class="seg" id="allBtn">ALL FIVE</button>
+    </div>
+    <div class="note">A-pose is the rig's rest pose, the mannequin's. Unreal's IK retargeter can map the game's animations onto it.</div>
+  </section>
+  <nav class="roster" id="roster" aria-label="Heroes"></nav>
+</div>
+<div id="loading"><div class="box"><div class="eyebrow">LOADING THE HEROES</div><div class="bar"><i id="prog"></i></div></div></div>

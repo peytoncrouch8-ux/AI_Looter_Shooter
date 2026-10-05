@@ -1,9 +1,10 @@
-# Handoff: the chosen art style, tutorial island, HUD, gun ideas and ember powers
+# Handoff: the art style, tutorial island, HUD, gun ideas, ember powers and heroes
 
-The user made five decisions in a cloud session from 2026-10-02 to 2026-10-04, and plans to have them built starting
+The user made six decisions in a cloud session from 2026-10-02 to 2026-10-05, and plans to have them built starting
 Monday, 2026-10-05, when their usage resets. Nothing in `Content/`, the materials, the level, the HUD's code, the
-weapons' code or the character's has changed for any of them yet. `CLAUDE.md` imports this file, so every session
-starts with it. When all five are built, delete this file and that import, and record the outcome in `Docs/Plan.md`.
+weapons' code or the character's has changed for any of them yet; the heroes' models exist only as Blender scripts in
+the backlog. `CLAUDE.md` imports this file, so every session starts with it. When all six are built, delete this file
+and that import, and record the outcome in `Docs/Plan.md`.
 
 ## The decisions
 
@@ -32,13 +33,20 @@ starts with it. When all five are built, delete this file and that import, and r
    bench, and **cursed irons** (a strong perk with a real drawback). See "Three gun ideas".
 5. **Four ember powers** (chosen 2026-10-04). Another idea from the same list: each outlaw's ember leaves Ellis a
    power. The user played a demo of six and kept **Lucky Streak**, **Dust Devil**, **Slag Bomb** and **Spyglass**, for
-   the main session to revise. See "Ember powers".
+   the main session to revise. With decision 6 they became four of the heroes' powers, and the outlaws' embers stopped
+   giving powers. See "Ember powers".
+6. **Five playable heroes** (chosen 2026-10-05). The user asked for five playable characters to choose from, like
+   Borderlands' Vault Hunters, each unique and with three ember powers to choose from, modeled to replace the
+   mannequin. Asked first, they chose Ellis plus four new heroes (the story stays Ellis's, and the four get their own
+   reasons to hunt the gang), the four kept powers spread among the heroes with eleven new ones, and a mixed cast. They
+   approved all of it: **Ellis Ransom** the Revenant, **Odessa Lark** the Cardsharp, **Hollis Crane** the Unpaid,
+   **Gauge** the Iron Hand and **Wendell Pike** the Surveyor, with their looks, stories and powers. See "Five heroes".
 
 ## Where everything is
 
 - **Branch `claude/island-concepts`** holds all of it: the art-style docs and the scripts that rendered the styles,
   the concept viewer, the concept doc, the exact placements, the HUD mockup's sources, the portrait's art, the ember
-  demo's sources and this file. It sits on top of `main` at `cf34a3c`:
+  demo's sources, the heroes' models, the hero page's sources and this file. It sits on top of `main` at `cf34a3c`:
   `git fetch origin claude/island-concepts`, then `git merge origin/claude/island-concepts`. It already contains
   `claude/art-style-exploration-text`; there is nothing else to merge.
 - **The images are not on GitHub.** The cloud session's network policy blocks the Git LFS host, so the PNGs (the
@@ -67,6 +75,12 @@ starts with it. When all five are built, delete this file and that import, and r
   timings and effects, and `ui.html` the sockets, the ember page and the HUD around them (`__RIFLE__` and the like
   stand for the Inked icons). They run on the concept viewer's engine (`Tools/ConceptViewer/web`). The demo also has
   the two powers the user passed on, Raise the Flock and Landslide.
+- **The hero page** is <https://claude.ai/artifact/5NVdW7yTzReFkP3wvaxbyg>, private to the user's account: the five
+  heroes on stands, in the print look. Click one, or press 1 to 5, and they step forward with their story and powers;
+  drag to turn them; Idle, Walk and A-pose show the rig at work. Its sources are in `Docs/HeroSelect/`: `heroes.js`
+  holds the stories, the fifteen powers with their glyphs (SVG, vector art for `IconBrush`) and the poses, `ui.html`
+  the screen's layout, and `build.py` exports the heroes from their scripts and assembles the page on the concept
+  viewer's engine, in a few seconds (`python3 Docs/HeroSelect/build.py`, with the `bpy` module).
 
 ## Screen Print Wash in brief
 
@@ -511,26 +525,28 @@ numbers are starting points to tune in play.
 
 ## Ember powers
 
-**The idea.** Every outlaw's ember passes through Ellis's hand before it is paid to Sexton, and each one leaves a power
-behind. Ellis earns a power from each outlaw who falls and carries two at a time, on Q and F. Each power comes from
-its outlaw's fight in `Docs/Story.md`. The numbers are the demo's, starting points to revise in play. The demo's rifle
+**Where they come from.** In the demo, Ellis earned a power from each outlaw's ember and carried two, on Q and F. With
+the heroes (decision 6), each hero has three powers of their own instead, and the outlaws' embers no longer give
+powers. The four powers kept from the demo went to four heroes: Dust Devil to Ellis, Lucky Streak to Odessa, Slag Bomb
+to Gauge and Spyglass to Pike. This section holds those four's numbers and what all fifteen powers share; the eleven
+new ones are under "Five heroes". The numbers are the demo's, starting points to revise in play. The demo's rifle
 deals 14 a shot, so the powers' damage below is against that, and it grows with the player's level the way a gun's
 does (`UWeaponDefinition::DamagePerLevel`).
 
-**The four powers.**
-- **Lucky Streak**, Lucky Ned's ember (Fortune, the *Gilded Lily*). Cooldown 22 s.
+**The four powers kept from the demo.**
+- **Lucky Streak**, Odessa's (Fortune). Cooldown 22 s.
   - For 8 s, every shot that hits ricochets into the nearest other creature within 12 m, for 10.
   - One shot in three is a critical hit wherever it lands (x1.5, `LooterCombat`).
   - On use a fan of playing cards bursts in front of the player. The ricochets draw gold tracers, and a card flicks off
     each hit.
-- **Dust Devil**, Whistling Ira's ember (Wind, Dustwater Mesa). Cooldown 7 s.
+- **Dust Devil**, Ellis's (Wind). Cooldown 7 s.
   - A dash of 9 m in 0.3 s the way the player is moving, or forward when standing still. Nothing hurts the player
     during it.
   - Creatures within 2.6 m of the path take 15, are flung 4 to 5 m to the side and left behind, and stay dizzy for
     1 s once they land.
   - Speed lines, the field of view widening 14 degrees and settling, a ring of dust where the dash starts and a smaller
     one where it ends. Flung creatures tumble and show dizzy sparks.
-- **Slag Bomb**, Barrels Kessler's ember (Forge, Furnace Hollow). Cooldown 12 s.
+- **Slag Bomb**, Gauge's (Forge), lobbed from its firebox. Cooldown 12 s.
   - A bomb lobbed onto the creature under the crosshair, or else where the crosshair meets the ground, at most 20 m
     away.
   - It bursts for 34 within 2.5 m and 18 within 4.5 m.
@@ -538,45 +554,48 @@ does (`UWeaponDefinition::DamagePerLevel`).
     after it leaves.
   - The bomb trails sparks, and the burst is a flash, a ring and flying clods. The pool is orange with hot yellow blobs
     and a cooling crust, under rising sparks and pale smoke. Burning creatures are tinted orange.
-- **Spyglass**, Lena Okoro's ember (Sight, the Needles). Cooldown 18 s.
+- **Spyglass**, Pike's (Sight). Cooldown 18 s.
   - For 10 s, every creature within 60 m is marked, through walls: an orange silhouette and a marker over it with its
     distance.
   - Marked creatures take 30% more damage.
   - A cyan ring sweeps out over the ground to 60 m with a lens vignette, and each creature is marked as the ring
     reaches it.
 
-**The HUD.** Two ember sockets sit at the bottom centre, the spot the HUD upgrade leaves empty.
+**The HUD.** The power sockets sit at the bottom centre, the spot the HUD upgrade leaves empty: one for each power the
+hero carries (the demo showed two; see the questions).
 - Each socket is a 92 px gunmetal ring, built like the weapon slots, around the power's glyph (vector art through
-  `IconBrush`). The sockets stand 188 px apart, with the key's tab under each and the power's name under that.
+  `IconBrush`). Two sockets stand 188 px apart, with the key's tab under each and the power's name under that.
 - While a power cools down, a dark pie covers its socket and drains, with the seconds left in white. While a power
   lasts, an arc in its colour runs down round the ring. When it's ready, the socket gets an orange ring and a slow glow
   in its colour. Pressing the key too early shakes the socket.
 - On use, the power's name pops up over the sockets in its colour.
 - The colours go into `LooterUI::Color`: Lucky Streak `#ffcf4a`, Dust Devil `#e8f6ff`, Slag Bomb `#ff8a1c`, Spyglass
-  `#ffb24d`.
+  `#ffb24d`, and one for each new power.
 
 **The ember page.** It is a fourth inventory page after Missions (`EInventoryPage::Embers`), in the LooterUI kit. It
-shows a card for each ember earned, with:
-- its glyph, nature, name, and whose ember it is and where from;
-- what it does and its cooldown;
-- two buttons to put it on Q or on F. Putting it on the key the other one holds swaps them.
+shows the hero's three powers, each with its glyph, name, nature, what it does and its cooldown, and lets the player
+choose the power, or powers, the hero carries.
 
 **Keys.** Q and F are free in play. The loadout screen uses them for its own drop and hold, but only while it is open.
-- Add two rebindable actions, "Ember 1" and "Ember 2", to `UKeyBindingSubsystem` under Combat, on Q and F.
+- Add a rebindable action, "Ember 1", to `UKeyBindingSubsystem` under Combat, on Q, and "Ember 2" on F if a hero
+  carries two.
 - On a gamepad, use two buttons the weapon context leaves free.
 
 **Building them.**
-- **The component.** A `UEmberComponent` on the character holds the two sockets, the cooldowns and what is active,
-  and uses the powers. It binds its keys with `FPawnInputBinding`.
-- **The data.** A `UEmberDefinition` data asset per power (`DA_Ember_<Id>`) holds its key, name, outlaw, nature, glyph,
+- **The component.** A `UEmberComponent` on the character holds the powers carried, the cooldowns and what is
+  active, and uses the powers. It binds its keys with `FPawnInputBinding`.
+- **The data.** A `UEmberDefinition` data asset per power (`DA_Ember_<Id>`) holds its key, name, hero, nature, glyph,
   colour, cooldown, duration and numbers. Each power's behaviour is in C++.
-- **Saving.** The session saves the embers earned and the two on Q and F (`ULooterSessionSave`). Ember keys never
-  change, like part keys.
-- **Creatures.** `ACreatureBase` needs four new states:
+- **Saving.** The session saves the hero and the powers chosen (`ULooterSessionSave`). Ember keys never change, like
+  part keys.
+- **Creatures.** For the four, `ACreatureBase` needs four new states:
   - knocked: flung through the air like the slime's launch, landing with `FindGround`;
   - dizzy;
   - burning: the slag's ticks and an orange tint;
   - marked: the silhouette and 30% more damage taken.
+- **The new powers** add slowed creatures (Sundown, Grave Ward), a drag (Toll Chain), a trip (Tripwire: a short knock,
+  then dizzy), a cone of card shots (Fifty-Two Pickup), a piercing spike (Rail Spike), delayed damage on the player
+  (Borrowed Time) and shot modifiers in `UBulletSubsystem` (Double or Nothing, Long Shot).
 - **Lucky Streak's ricochet** goes through `UBulletSubsystem`. While the streak lasts, a hit on a creature sends a
   second bullet from the hit to the nearest other creature.
 - **Spyglass's silhouette** draws the creature's custom depth with a stencil value of its own, because the print
@@ -584,12 +603,97 @@ shows a card for each ember earned, with:
   hidden behind something. The marker goes over the creature's tag (`UCreatureHealthBarWidget`).
 - **Damage** uses a new `UEmberDamageType`. A power's kills give experience (`AwardKill`) but count for no gun's
   notches.
-- **Testing before the outlaws exist.** `Looter.Embers.Grant <id|all>` gives powers.
-- **Tests.** `Looter.Embers.*` covers cooldowns, the sockets and swapping, saving, and each power's effect on a test
-  creature.
+- **Testing.** `Looter.Hero <id>` switches the hero, and `Looter.Embers.Use <id>` fires any power.
+- **Tests.** `Looter.Embers.*` covers cooldowns, choosing, saving, and each power's effect on a test creature.
 - **Performance.** The effects are particles, rings and one stencil silhouette. Measure on Medium with `perf.ps1`.
-- **Docs.** Add to `Docs/Story.md` that each ember leaves Ellis its power when it is paid. Update `CODEMAP.md`, and
-  tick the boxes in Phase 10 of `Docs/Plan.md`.
+- **Docs.** `Docs/Story.md` changes with the heroes (see "Five heroes"). Update `CODEMAP.md`, and tick the boxes in
+  Phase 10 of `Docs/Plan.md`.
+
+## Five heroes
+
+**The idea.** The player picks one of five heroes, as in Borderlands, and each hero has three ember powers to choose
+from. The user's answers before the models were made: Ellis plus four new heroes, Sexton raising five (the story stays
+Ellis's, and the other four get their own reasons to hunt the gang); the four powers kept from the demo go into the
+heroes' sets, with eleven new ones; a mixed cast, mostly human, with stranger ones that fit the world. Ellis is "they"
+in all text, as `Docs/Story.md` says.
+
+**The five.**
+
+| Hero | Height, build | Look |
+|---|---|---|
+| Ellis Ransom, the Revenant | 1.80 m, medium | A cattleman hat; a red bandana over nose and mouth, eyes burning cyan in the brim's shadow; a long dusty duster open over a dark waistcoat; a belt of brass cartridges with a cross-draw holster; Pa's lantern at the right hip |
+| Odessa Lark, the Cardsharp | 1.72 m, slight | A flat-crowned gambler hat with a playing card in its band; a wine-red tailcoat cut away at the waist with long tails; a gold brocade waistcoat with a watch chain; a white high collar and a black cravat; black gloves; tall heeled riding boots; a card case; gold earrings |
+| Hollis Crane, the Unpaid | 1.95 m, gaunt and stooped | A marshal dead forty years: grey-green skin, a tarnished coin over the left eye and cyan light in the right socket, a drooping white mustache, long white hair under a battered slouch hat; an ember glowing through a tear in his shirt; a long tattered slate coat and a ragged shoulder cape; a tin star; the toll chain from shoulder to hip, with its hook |
+| Gauge, the Iron Hand | 1.92 m, massive | The railroad's clockwork track-layer: iron plates and brass bands, a boiler chest with a pressure gauge for a heart, a firebox glowing in its belly, two smoking stacks, domed pauldrons, one headlamp eye, a grille mouth and a steam whistle, three-fingered riveted hands |
+| Wendell Pike, the Surveyor | 1.68 m, stocky | A brown bowler with brass goggles; round spectacles; grey mutton chops joined to a big mustache; a teal neckerchief; a khaki field coat full of pockets under a cartridge belt; puttees; a huge pack with a folded tripod, a map tube and a bedroll, and a scoped rifle beside it; a brass spyglass at the hip |
+
+**Their stories**, as the page tells them:
+- **Ellis:** shot on Ransom's Point by the Dunne Gang and raised by Sexton to bring the stolen embers home. Pa's
+  lantern still burns at the hip.
+- **Odessa:** a riverboat gambler who caught Lucky Ned dealing seconds, and caught his bullet for it. Sexton bought her
+  marker.
+- **Crane:** marshal of a town whose saint went dark, forty years walking. One eye still wears the ferryman's coin.
+  Sexton promised him a fare.
+- **Gauge:** the railroad's track-laying engine, woken in the wreck the gang left behind by a spark of ember sealed in
+  its firebox.
+- **Pike:** he walked every mile the railroad will ever run, until the gang left him at the bottom of a ravine. He
+  still knows the way.
+
+**Their powers.** ★ marks the four from the demo, whose numbers are in "Ember powers". The new powers' numbers are
+starting points, and their cooldowns are set in play.
+- **Ellis:** ★Dust Devil (Wind); **Sundown** (Dusk): for 6 s the world slows to a crawl round Ellis, who moves and
+  shoots at full speed; **Borrowed Time** (Debt): for 8 s the damage Ellis takes goes into Sexton's ledger instead, to
+  be paid back afterwards, and every kill strikes some off.
+- **Odessa:** ★Lucky Streak (Fortune); **Fifty-Two Pickup** (Fortune): she flings the whole deck, a cone of razor cards
+  that cut whatever they meet; **Double or Nothing** (Risk): for 6 s every shot deals double damage or misses entirely,
+  at even odds.
+- **Crane:** **Toll Chain** (Debt): the chain hooks a creature and drags it to his feet, stunned; **Grave Ward**
+  (Mercy): he plants his lantern, and for 8 s creatures in its light are slowed while he mends inside it; **Last
+  Rites** (Judgment): he marks a creature; if it dies within 8 s its soul bursts on its pack, and if not, the mark
+  strikes it hard.
+- **Gauge:** ★Slag Bomb (Forge), lobbed from its firebox; **Iron Hide** (Forge): its plates lock, for 60% less damage
+  over 6 s at a slower pace, and biters burn their teeth; **Rail Spike** (Steam): a spike driven from the forearm
+  through every creature in a line.
+- **Pike:** ★Spyglass (Sight); **Tripwire** (Craft): a wire strung between two stakes; whatever crosses it trips,
+  takes a hit and lies stunned; **Long Shot** (Sight): for 8 s his shots hit harder the farther they fly, and marked
+  creatures are always critically hit.
+
+**The models.**
+- Each hero is a Blender script in `Art/Backlog/Characters/` (`Ellis.py`, `Odessa.py`, `Crane.py`, `Gauge.py`,
+  `Pike.py`) built on `Tools/Blender/looter_heroes.py`; each docstring holds the hero's look and powers. The backlog
+  keeps them out of the game. To bring one in, move its file to `Art/Models/Characters/` and run
+  `Tools\models.ps1 -Only <Name>`.
+- Each exports through `looter_export.py` as `SK_Hero_<Name>`: one skinned mesh of 17k to 22k triangles.
+- **The rig** has the UE5 mannequin's deform bones by name and hierarchy, 63 of them, in its A-pose: pelvis, spine_01
+  to spine_05, neck_01, neck_02, head, the clavicles, arms and hands with every finger, the thighs, calves, feet and
+  balls. It has no twist or IK bones.
+- **Animation.** Each hero has its own skeleton. Make an IK Rig for it (Unreal builds one from the mannequin's names)
+  and an IK Retargeter from the mannequin. Then either drive the hero at runtime from the hidden mannequin that already
+  plays the game's animations (`Retarget Pose From Mesh`), or retarget the animations once into each hero. Give each
+  skeleton the mannequin's weapon socket, and check the hands on the guns.
+- **Facing.** Like every model, a hero faces Blender's -Y, which becomes Unreal's +X. The mannequin faces +Y, so a
+  hero's mesh doesn't take the mannequin's -90° yaw on the character's mesh component.
+- **Materials.** One flat-colored material per palette color, 10 to 19 per hero. Merge each hero's into one when
+  bringing it in, and give it the print look with everything else (Screen Print Wash).
+- **First person.** The view shows the hero's own arms, so check each hero's sleeves and hands in first person.
+- **Portraits.** The HUD upgrade's player-frame portrait (`Art/Icons/HudPortrait.svg`) is Ellis's. The other four each
+  need one in the same Inked style.
+
+**In the game.**
+- **Choosing.** A new session starts at a hero select screen in the LooterUI kit, laid out like the page: the five on
+  stands, a roster of cards, and a panel with the hero's name, role, story and powers. A session keeps its hero, so
+  playing another hero means another session.
+- **The data.** A `UHeroDefinition` data asset per hero (`DA_Hero_<Id>`) holds the mesh and its retargeter, the name,
+  role, story, colour, portrait and three powers (`UEmberDefinition`). `ALooterCharacter` takes its mesh and powers
+  from the session's hero. Hero keys never change, like part keys.
+- **Saving.** The session saves the hero's key with the powers chosen (`ULooterSessionSave`).
+- **Tests.** `Looter.Heroes.*` checks that every definition is complete, its mesh and retargeter load, its powers
+  exist, and the choice survives a save.
+- **Story.** Add the five to `Docs/Story.md`: their stories, Gauge's waking, and how the story speaks to a hero who
+  isn't Ellis (see the questions).
+- **Performance.** A hero replaces the mannequin at about the same cost once its materials are merged. Measure on
+  Medium with `perf.ps1`.
+- Update `CODEMAP.md`, and tick the boxes in Phase 11 of `Docs/Plan.md`.
 
 ## Suggested order
 
@@ -607,8 +711,10 @@ shows a card for each ember earned, with:
 The gun ideas don't depend on any of these. Build notches first (curses lift by them), then cursed irons, then part
 swapping, which needs its bench and screen; their cards use the new HUD's look, so after step 4 is best.
 
-The ember powers also come after step 4, because their sockets sit in the new HUD's empty bottom centre. Their effects
-should be made in the print look.
+The heroes and their powers also come after step 4: the player frame shows the hero's portrait, and the power sockets
+sit in the new HUD's empty bottom centre. Bring the five in and retarget them first, then the hero select and saving,
+then the powers: the shared systems with the four from the demo, then the eleven new ones. Make their effects in the
+print look.
 
 ## Questions for the user
 
@@ -616,6 +722,8 @@ should be made in the print look.
 - Should the townsfolk and livestock start as set dressing that stands and idles, or as living characters?
 - Should part swapping wait for Ozias, who joins after the *Gilded Lily*, or should a plain workbench offer it from
   the start?
-- Constance's and Tobias's embers have no power yet, because the user passed on Raise the Flock and Landslide. Should
-  they get new powers, or none?
-- The first power comes from Ned on the *Gilded Lily*, so Ransom's Rest has none. Should Ellis have one sooner?
+- Does a hero carry one of their three powers at a time, as the hero page shows, or two, on Q and F, as the ember demo
+  had?
+- Are all three of a hero's powers open from the start, or do they unlock as the hero levels?
+- When the player picks someone other than Ellis, how does the story speak to them? Ellis could stay its centre as a
+  companion, or its lines could change for each hero.

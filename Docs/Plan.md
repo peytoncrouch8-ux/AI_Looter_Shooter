@@ -177,10 +177,21 @@ in `Docs/EmberDemo/`). They kept four, for the main session to revise:
 - Slag Bomb: a burning pool.
 - Spyglass: marks creatures through walls.
 
-Each comes from an outlaw's ember, and Ellis carries two, on Q and F. `HANDOFF.md` has the full spec. Nothing in the
-code has changed yet.
+With the heroes (Phase 11) they became four of the heroes' fifteen powers, and the outlaws' embers no longer give
+powers. `HANDOFF.md` has the full spec. Nothing in the code has changed yet.
 - [ ] The ember component, definitions, keys and saving.
 - [ ] The creatures' knocked, dizzy, burning and marked states.
-- [ ] The four powers and their effects, in the print look.
-- [ ] The HUD's two ember sockets and the inventory's ember page.
+- [ ] The fifteen powers and their effects, in the print look, the four from the demo first.
+- [ ] The HUD's ember sockets and the inventory's ember page.
 - [ ] Tests, measured on Medium, `CODEMAP.md` updated.
+
+## Phase 11: Playable heroes
+On 2026-10-05 the user approved five playable heroes to choose from, as in Borderlands, each with three ember powers
+(<https://claude.ai/artifact/5NVdW7yTzReFkP3wvaxbyg>, sources in `Docs/HeroSelect/`): Ellis Ransom the Revenant,
+Odessa Lark the Cardsharp, Hollis Crane the Unpaid, Gauge the Iron Hand and Wendell Pike the Surveyor. Their models are
+Blender scripts in `Art/Backlog/Characters/`, rigged on the mannequin's skeleton. `HANDOFF.md` has the full spec.
+Nothing in the game has changed yet.
+- [ ] The five brought in and retargeted from the mannequin, materials merged, checked in first and third person.
+- [ ] Hero definitions, the hero select screen, and the session's hero and its saving.
+- [ ] Four new portraits for the player frame.
+- [ ] `Docs/Story.md` updated for the five; tests; `CODEMAP.md` updated.
