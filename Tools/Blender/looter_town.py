@@ -39,6 +39,7 @@ FALLBACK_FONT = 'C:/Windows/Fonts/georgiab.ttf'
 DECK_TOP = 0.38          # the boardwalk's walking surface: under the character's step height
 PLANK = 0.2              # one plank of WoodPlanks (16 across its 3.2 m), and the deck's plank pitch
 WALK_DEPTH = 3.0         # the boardwalk from a building's front to the street
+GLASS = ('+y', '-x', '+x', '-z', '+z')   # a pane shows only its face: its edges and back are in the frame
 
 # --- Materials ---
 
@@ -204,7 +205,7 @@ def panel(m, outline, holes=(), thick=0.14, uv=None, mat='trim', space=None, sli
 
 def trim_board(m, space, p0, p1, width, look, thick=0.04, out=0.0):
     """A casing or trim board on a wall face (the face at y = -out)."""
-    board(m, p0, p1, width, thick, look=look, space=space, lift=out + thick * 0.5)
+    board(m, p0, p1, width, thick, look=look, space=space, lift=out + thick * 0.5, drop=('+y',))
 
 
 def prism(m, outline, depth, look='C', space=None, matrix=None, y=0.0):
@@ -494,7 +495,7 @@ def clapboards(m, space, outline, z0, z1, keep_out=(), look='cream', exposure=0.
                 spans = subtract(spans, (x0, x1))
         for a, b in spans:
             box(m, (b - a, thick, h + 0.014), at=((a + b) * 0.5, -(out + thick) * 0.5 + 0.003, z + h * 0.5),
-                rot=(tilt, 0.0, 0.0), look=look, space=space, drop=('+y',))
+                rot=(tilt, 0.0, 0.0), look=look, space=space, drop=('+y', '+z', '-x', '+x'))
         z += exposure
     return out
 
@@ -611,25 +612,30 @@ def window(m, space, o, depth, out=0.0):
     if style == 'open':
         # The upper sash stays; the lower one is pushed up in front of it, so the window's lower half is open.
         half = h * 0.5
-        box(m, (w, 0.02, half), at=(x0 + w * 0.5, glass_y, z0 + half * 1.5), look='H4', space=space)
-        box(m, (w, 0.02, half), at=(x0 + w * 0.5, glass_y - 0.05, z0 + half * 1.5 - 0.02), look='H4', space=space)
+        box(m, (w, 0.02, half), at=(x0 + w * 0.5, glass_y, z0 + half * 1.5), look='H4', space=space, drop=GLASS)
+        box(m, (w, 0.02, half), at=(x0 + w * 0.5, glass_y - 0.05, z0 + half * 1.5 - 0.02), look='H4', space=space,
+            drop=GLASS)
         frame = 0.05
         for zc, yc in ((z0 + half, glass_y - 0.05), (z0 + h - frame * 0.5 - 0.02, glass_y - 0.05),
                        (z0 + half + frame * 0.5, glass_y)):
-            board(m, (x0, yc, zc), (x0 + w, yc, zc), frame + 0.02, 0.045, look=sash, space=space)
+            board(m, (x0, yc, zc), (x0 + w, yc, zc), frame + 0.02, 0.045, look=sash, space=space, drop=('+y',))
         for i in range(1, cols):
             x = x0 + w * i / cols
-            board(m, (x, glass_y - 0.08, z0 + half), (x, glass_y - 0.08, z0 + h), 0.04, 0.035, look=sash, space=space)
+            board(m, (x, glass_y - 0.08, z0 + half), (x, glass_y - 0.08, z0 + h), 0.04, 0.035, look=sash, space=space,
+                  drop=('+y',))
         for x in (x0 + 0.025, x0 + w - 0.025):
-            board(m, (x, glass_y - 0.05, z0 + half), (x, glass_y - 0.05, z0 + h), 0.05, 0.045, look=sash, space=space)
+            board(m, (x, glass_y - 0.05, z0 + half), (x, glass_y - 0.05, z0 + h), 0.05, 0.045, look=sash, space=space,
+                  drop=('+y',))
     else:
-        box(m, (w, 0.02, h), at=(x0 + w * 0.5, glass_y, z0 + h * 0.5), look='H4', space=space)
+        box(m, (w, 0.02, h), at=(x0 + w * 0.5, glass_y, z0 + h * 0.5), look='H4', space=space, drop=GLASS)
         for i in range(1, cols):
             x = x0 + w * i / cols
-            board(m, (x, glass_y - 0.03, z0), (x, glass_y - 0.03, z0 + h), 0.045, 0.04, look=sash, space=space)
+            board(m, (x, glass_y - 0.03, z0), (x, glass_y - 0.03, z0 + h), 0.045, 0.04, look=sash, space=space,
+                  drop=('+y',))
         for j in range(1, rows):
             z = z0 + h * j / rows
-            board(m, (x0, glass_y - 0.035, z), (x0 + w, glass_y - 0.035, z), 0.045, 0.04, look=sash, space=space)
+            board(m, (x0, glass_y - 0.035, z), (x0 + w, glass_y - 0.035, z), 0.045, 0.04, look=sash, space=space,
+                  drop=('+y',))
     if style == 'boarded':
         board_up(m, space, x0, z0, w, h, o.opts.get('boards', 'A'), out=out + ct)
     elif style == 'barred':
@@ -646,7 +652,7 @@ def board_up(m, space, x0, z0, w, h, look='A', out=0.045, level=True, extra=0.16
         a = sign * angle + math.radians(rng.uniform(-5.0, 5.0))
         d = Vector((math.cos(a), 0.0, math.sin(a))) * reach
         board(m, (cx - d.x, 0.0, cz - d.z), (cx + d.x, 0.0, cz + d.z), rng.uniform(0.17, 0.21), 0.035, look=look,
-              space=space, lift=out + 0.02 + k * 0.036)
+              space=space, lift=out + 0.02 + k * 0.036, drop=('+y',))
         p = Vector((cx, 0.0, cz)) + d * (0.85 if k else -0.85)
         box(m, (0.032, 0.012, 0.032), at=(p.x, -out - 0.06 - k * 0.036, p.z), look='H3', space=space, drop=('+y',))
     if level:
@@ -654,7 +660,7 @@ def board_up(m, space, x0, z0, w, h, look='A', out=0.045, level=True, extra=0.16
         half = (w + extra) * 0.5
         zc = cz + rng.uniform(-0.2, 0.15) * h
         board(m, (cx - half, 0.0, zc - half * math.sin(a)), (cx + half, 0.0, zc + half * math.sin(a)),
-              rng.uniform(0.18, 0.22), 0.035, look=look, space=space, lift=out + 0.1)
+              rng.uniform(0.18, 0.22), 0.035, look=look, space=space, lift=out + 0.1, drop=('+y',))
         for end in (-1.0, 1.0):
             box(m, (0.032, 0.012, 0.032), at=(cx + end * (half - 0.08), -out - 0.13,
                 zc + end * (half - 0.08) * math.sin(a)), look='H3', space=space, drop=('+y',))
@@ -687,7 +693,8 @@ def door(m, space, o, depth, out=0.0):
     leaf_h = h - transom - (0.06 if transom else 0.0)
     y = depth * 0.3
     if transom:
-        box(m, (w, 0.02, transom), at=(x0 + w * 0.5, depth * 0.5, leaf_h + 0.06 + transom * 0.5), look='H4', space=space)
+        box(m, (w, 0.02, transom), at=(x0 + w * 0.5, depth * 0.5, leaf_h + 0.06 + transom * 0.5), look='H4', space=space,
+            drop=GLASS)
         board(m, (x0, depth * 0.45 - 0.03, leaf_h + 0.03), (x0 + w, depth * 0.45 - 0.03, leaf_h + 0.03), 0.08, 0.06,
               look=casing, space=space)
         mid = x0 + w * 0.5
@@ -701,29 +708,33 @@ def door(m, space, o, depth, out=0.0):
             for k in range(boards):
                 x = lx + bw * (k + 0.5)
                 board(m, (x, y, 0.0), (x, y, leaf_h - rng.uniform(0.0, 0.025)), bw - 0.006, 0.05, look=look,
-                      space=space)
+                      space=space, drop=('+y',))
             for z in (0.3, leaf_h - 0.35):
-                board(m, (lx + 0.06, y - 0.04, z), (lx + lw - 0.06, y - 0.04, z), 0.16, 0.035, look=look, space=space)
+                board(m, (lx + 0.06, y - 0.04, z), (lx + lw - 0.06, y - 0.04, z), 0.16, 0.035, look=look, space=space,
+                      drop=('+y',))
             low, high = (lx + 0.1, lx + lw - 0.1) if left else (lx + lw - 0.1, lx + 0.1)
-            board(m, (high, y - 0.04, 0.4), (low, y - 0.04, leaf_h - 0.45), 0.13, 0.03, look=look, space=space)
+            board(m, (high, y - 0.04, 0.4), (low, y - 0.04, leaf_h - 0.45), 0.13, 0.03, look=look, space=space,
+                  drop=('+y',))
             hinge_x = lx if left else lx + lw
             reach = lw * 0.72
             for z in (0.3, leaf_h - 0.35):
                 end = hinge_x + reach if left else hinge_x - reach
                 board(m, (hinge_x - (0.09 if left else -0.09), y - 0.065, z), (end, y - 0.065, z), 0.07, 0.014,
-                      look='H3', space=space)
+                      look='H3', space=space, drop=('+y',))
                 box(m, (0.05, 0.05, 0.11), at=(hinge_x - (0.1 if left else -0.1), -out - 0.03, z), look='H3',
                     space=space)
         else:
             # A framed leaf: stiles and rails round raised panels (or glass in the upper pair).
-            box(m, (lw - 0.01, 0.045, leaf_h), at=(lx + lw * 0.5, y + 0.01, leaf_h * 0.5), look=look, space=space)
+            box(m, (lw - 0.01, 0.045, leaf_h), at=(lx + lw * 0.5, y + 0.01, leaf_h * 0.5), look=look, space=space,
+                drop=('+y',))
             stile = 0.12 if lw > 0.7 else 0.09
             for x in (lx + stile * 0.5, lx + lw - stile * 0.5):
-                board(m, (x, y - 0.025, 0.0), (x, y - 0.025, leaf_h), stile, 0.03, look=look, space=space)
+                board(m, (x, y - 0.025, 0.0), (x, y - 0.025, leaf_h), stile, 0.03, look=look, space=space,
+                      drop=('+y',))
             rails = (0.12, leaf_h * 0.42, leaf_h - 0.08)
             for z in rails:
                 board(m, (lx + stile, y - 0.025, z), (lx + lw - stile, y - 0.025, z), 0.14 if z < 1.0 else 0.1, 0.03,
-                      look=look, space=space)
+                      look=look, space=space, drop=('+y',))
             glass = o.opts.get('glass', style == 'double')
             panels = o.opts.get('panels', look)
             pane_w = (lw - 2.0 * stile - 0.06) * (0.5 if lw > 0.7 else 1.0)
@@ -732,10 +743,11 @@ def door(m, space, o, depth, out=0.0):
                 px = lx + stile + 0.03 + pane_w * (c + 0.5) + (0.06 * c if columns == 2 else 0.0)
                 for z0, z1, glazed in ((0.22, leaf_h * 0.42 - 0.08, False), (leaf_h * 0.42 + 0.08, leaf_h - 0.15, glass)):
                     if glazed:
-                        box(m, (pane_w, 0.02, z1 - z0), at=(px, y - 0.005, (z0 + z1) * 0.5), look='H4', space=space)
+                        box(m, (pane_w, 0.02, z1 - z0), at=(px, y - 0.005, (z0 + z1) * 0.5), look='H4', space=space,
+                            drop=GLASS)
                     else:
                         box(m, (pane_w - 0.04, 0.03, z1 - z0 - 0.04), at=(px, y - 0.03, (z0 + z1) * 0.5), look=panels,
-                            space=space, bevel=0.012)
+                            space=space, bevel=0.012, drop=('+y',))
         # The knob or latch, on the side away from the hinge.
         kx = lx + lw - 0.09 if left else lx + 0.09
         if knob == 'brass':
@@ -848,6 +860,130 @@ def deck(m, x0, x1, y0, y1, top=DECK_TOP, posts=(), front=True, back=True, sill=
               face=face, lift=-0.0225, drop=('+y',))
 
 
+# --- Roofs and foundations: the kit's, without the faces nobody sees ---
+# Each draws the same random values in the same order as the kit function it copies, so a building keeps its look.
+
+def plinth(m, x0, x1, y0, y1, height, out=0.08):
+    """kit.plinth with its inside and bottom faces left out and a vertex row every 2.4 m instead of every 1.1 m."""
+    rng = m.rng
+    deep = 0.3
+    specs = [((x0 - out, y0 - out), (x1 + out, y0 - out), 0.0), ((x1 + out, y0 - out), (x1 + out, y1 + out), deep),
+             ((x1 + out, y1 + out), (x0 - out, y1 + out), 0.0), ((x0 - out, y1 + out), (x0 - out, y0 - out), deep)]
+    for p0, p1, inset in specs:
+        space = kit.wall_space(p0, p1, 0.0)
+        length = (Vector(p1) - Vector(p0)).length - 2.0 * inset
+        m.box((length, deep, height + 0.1), at=(inset + length * 0.5, deep * 0.5, height * 0.5 - 0.05),
+              uv=Trim('D', world=True, u=rng.uniform(0.0, kit.U_REPEAT)), space=space,
+              cuts=max(0, int(length / 2.4)), drop=('+y', '-z'))
+
+
+def roof_deck(m, slope, deck=0.12, uv='A', rake_boards=True, rake_sides=(True, True)):
+    """kit.roof_deck, cut every 3 m along the eave (enough to follow the sag) instead of every 1.2 m."""
+    m.box((slope.width, slope.length, deck), at=(slope.width * 0.5, slope.length * 0.5, -deck * 0.5),
+          uv=Trim(uv, world=True), space=slope, cuts=max(1, int(slope.width / 3.0)))
+    if rake_boards:
+        for side, x in enumerate((-0.025, slope.width + 0.025)):
+            if rake_sides[side]:
+                face = (-1.0, 0.0, 0.0) if side == 0 else (1.0, 0.0, 0.0)
+                mid = (0.06 - deck - 0.05) * 0.5
+                m.board((x, -0.02, mid), (x, slope.length - 0.02, mid), deck + 0.11, 0.05, face=face, uv='C',
+                        space=slope)
+
+
+def gable(m, x0, x1, y0, y1, eave_z, pitch, overhang=0.4, rake=0.3, deck=0.12, sag=0.0, deck_uv='A',
+          rake_boards=True, ends=(True, True), frame=None):
+    """kit.gable on this module's roof_deck."""
+    theta = math.radians(pitch)
+    half = (y1 - y0) * 0.5
+    run = half + overhang
+    length = run / math.cos(theta) + deck * math.tan(theta)
+    width = x1 - x0 + 2.0 * rake
+    normal_f = Vector((0.0, -math.sin(theta), math.cos(theta)))
+    eave_f = Vector((x0 - rake, y0 - overhang, eave_z - overhang * math.tan(theta))) + normal_f * deck
+    front = kit.Slope(eave_f, (1.0, 0.0, 0.0), (0.0, math.cos(theta), math.sin(theta)), width, length, sag, frame)
+    normal_b = Vector((0.0, math.sin(theta), math.cos(theta)))
+    eave_b = Vector((x1 + rake, y1 + overhang, eave_z - overhang * math.tan(theta))) + normal_b * deck
+    back = kit.Slope(eave_b, (-1.0, 0.0, 0.0), (0.0, -math.cos(theta), math.sin(theta)), width, length, sag, frame)
+    roof_deck(m, front, deck, deck_uv, rake_boards, (ends[0], ends[1]))
+    roof_deck(m, back, deck, deck_uv, rake_boards, (ends[1], ends[0]))
+    return front, back
+
+
+def ridge_cap(m, front, back, uv='F', width=0.22, thick=0.025, lift=0.03):
+    """kit.ridge_cap without its underside (it lies on the covering), cut every 3 m instead of every metre."""
+    for slope in (front, back):
+        m.box((slope.width + 0.06, width, thick),
+              matrix=place((slope.width * 0.5, slope.length - width * 0.5 + 0.02, lift + thick * 0.5), (-2.0, 0.0, 0.0)),
+              uv=Trim(uv, lane=0) if uv in kit.LANES else uv, space=slope, cuts=max(1, int(slope.width / 3.0)),
+              drop=('-z',))
+
+
+def _outside(a, b, y, skip, step=0.05):
+    """The parts of [a, b] (along a course at y) that skip leaves alone."""
+    parts, start = [], None
+    n = max(1, int(math.ceil((b - a) / step)))
+    for i in range(n + 1):
+        x = a + (b - a) * i / n
+        inside = skip(x, y)
+        if not inside and start is None:
+            start = x
+        elif inside and start is not None:
+            parts.append((start, x - (b - a) / n * 0.5))
+            start = None
+    if start is not None:
+        parts.append((start, b))
+    return [(p, q) for p, q in parts if q - p > 0.05]
+
+
+def shakes(m, slope, course=0.2, butt=0.03, piece=(1.4, 2.6), start=-0.08, top=None, missing=0.02, skip=None):
+    """kit.shingles, the same courses and the same random choices, made cheaper and tidier: a piece's two end faces
+    (hidden against its neighbours, and at the slope's sides under the rake boards) are left out, except beside a
+    missing shake, and a piece crossing the skip area (a chimney) is cut round it instead of left out whole, which
+    with long pieces left bare deck metres long beside a stack."""
+    rng = m.rng
+    top = slope.length + 0.02 if top is None else top
+    exposure = course - 0.02
+    y = start
+    k = 0
+    while y < top - 0.04:
+        h = min(course, top - y)
+        x = -0.05 + rng.uniform(-0.3, 0.0)
+        while x < slope.width + 0.05 - 1e-3:
+            w = rng.uniform(*piece)
+            if slope.width + 0.05 - (x + w) < 0.6:
+                w = slope.width + 0.05 - x
+            x_lo = max(x, -0.05)
+            spans = [(x_lo, x + w, False, False)]           # (from, to, keep its low end, keep its high end)
+            if k >= 2 and w > 0.9 and rng.random() < missing * 3.0:
+                gap = rng.uniform(0.2, 0.45)
+                at = rng.uniform(x_lo + 0.3, x + w - 0.3 - gap)
+                spans = [(x_lo, at, False, True), (at + gap, x + w, True, False)]
+            cy = y + h * 0.5
+            tilt = -math.degrees(math.atan2(butt, h))
+            for a, b, keep_lo, keep_hi in spans:
+                cx = (a + b) * 0.5
+                if skip is not None and skip(cx, cy):
+                    # The kit left this piece out and drew nothing for it: what's left beside the stack goes in plain.
+                    jitter, roll, u = 0.0, 0.0, (cx * 0.37) % kit.U_REPEAT
+                else:
+                    jitter = rng.uniform(-0.012, 0.012)
+                    roll = rng.uniform(-0.4, 0.4)
+                    u = rng.uniform(0.0, kit.U_REPEAT)           # what the kit's Trim drew for the piece's U
+                parts = _outside(a, b, cy, skip) if skip is not None else [(a, b)]
+                for pa, pb in parts:
+                    drop = ['-z', '+y']
+                    if not (keep_lo or pa > a + 1e-6):
+                        drop.append('-x')
+                    if not (keep_hi or pb < b - 1e-6):
+                        drop.append('+x')
+                    matrix = place(((pa + pb) * 0.5, cy + jitter, butt * 0.5 + 0.004 * (k % 2)), (tilt, roll, 0.0))
+                    m.box((pb - pa, h, butt), matrix=matrix, uv=Trim('E', lane=k % 4, u=u + (pa + pb - a - b) * 0.5),
+                          space=slope, ao_floor=kit.ROOF_AO, drop=tuple(drop))
+            x += w
+        y += exposure
+        k += 1
+
+
 # --- The hidden roof ---
 
 def hidden_gable(m, x0, x1, y_front, y_back, eave_z, pitch, covering='shakes', overhang=0.28, rake=0.3, sag=0.06,
@@ -857,8 +993,8 @@ def hidden_gable(m, x0, x1, y_front, y_back, eave_z, pitch, covering='shakes', o
     it). covering: 'shakes' (big roofs: the tin strip's blue-grey and rust bands read as loot colors over a large area)
     or 'tin'. chimney (x, y, half x, half y) leaves the covering off round a stack. Returns the right and left Slopes."""
     frame = Matrix.Rotation(math.radians(90.0), 4, 'Z')
-    right, left = kit.gable(m, y_front + rake, y_back - rake, -x1, -x0, eave_z, pitch, overhang=overhang, rake=rake,
-                            deck=deck_t, sag=sag, ends=(False, True), frame=frame)
+    right, left = gable(m, y_front + rake, y_back - rake, -x1, -x0, eave_z, pitch, overhang=overhang, rake=rake,
+                        deck=deck_t, sag=sag, ends=(False, True), frame=frame)
 
     def gap(slope):
         if chimney is None:
@@ -873,9 +1009,9 @@ def hidden_gable(m, x0, x1, y_front, y_back, eave_z, pitch, covering='shakes', o
             kit.tin(m, slope, skip=gap(slope))
         else:
             # Long pieces: each is a run of the strip's painted shakes, so fewer, longer boxes cost less and look alike.
-            kit.shingles(m, slope, piece=piece, skip=gap(slope))
-    kit.ridge_cap(m, right, left, uv='F' if covering == 'tin' else 'C', width=0.22 if covering == 'tin' else 0.16,
-                  thick=0.025 if covering == 'tin' else 0.05)
+            shakes(m, slope, piece=piece, skip=gap(slope))
+    ridge_cap(m, right, left, uv='F' if covering == 'tin' else 'C', width=0.22 if covering == 'tin' else 0.16,
+              thick=0.025 if covering == 'tin' else 0.05)
     return right, left
 
 

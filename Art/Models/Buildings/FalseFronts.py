@@ -27,8 +27,9 @@ Every building's floor and door thresholds are at the boardwalk's height (looter
 pivot is the middle of its walls' footprint on the ground; the facade faces the front (-Y). A boardwalk (Boardwalk.py)
 runs along the facade: the facade's front face is at y = -depth / 2 (FACADE_Y below), so the walk's pivot line goes
 1.5 m in front of it. The store brings its own 3 m porch in place of the walk. Big roofs are shakes (the trim sheet's
-tin reads as loot colors over a large area); the sources are cut to about 11k triangles and their Nanite fallback to
-6-7k.
+tin reads as loot colors over a large area). Faces nobody sees are left out (walls' insides, the shakes' and
+clapboards' hidden sides, the backs of trim), which keeps the sources at 4.7-9.3k triangles, and Nanite's fallback
+keeps all of them (FALLBACK).
 
 A scripted model (Art/README.md) built with looter_buildings and looter_town.
 """
@@ -50,9 +51,9 @@ def siding(rng, rotate=False):
     return Trim('A', world=True, rotate=rotate, u=rng.uniform(0.0, 6.4))
 
 
-def fallback_for(m, target):
-    """The share of triangles Nanite's fallback keeps so that it lands near target triangles."""
-    return round(min(100.0, 100.0 * target / max(m.triangles(), 1)), 1)
+# Nanite's fallback (what Medium and Low draw) keeps every triangle: Unreal's own reduction of these meshes left
+# vertices with zero tangents (the saloon at 61.8%), and the sources are lean enough to be drawn whole.
+FALLBACK = 100.0
 
 
 # --- The parts every false front shares ---
@@ -78,7 +79,7 @@ def shell(m, X0, X1, YF, Y1, wall_h, pitch, sides, back, rotate=False, water_tab
     front; back holds the back wall's (x from its left seen from behind). Returns the spaces by name; each space's
     items are its openings in its own coordinates."""
     rng = m.rng
-    kit.plinth(m, X0, X1, YF + 0.1, Y1, BASE, out=0.06)
+    town.plinth(m, X0, X1, YF + 0.1, Y1, BASE, out=0.06)
     if stone:
         water_table, corner = False, None
     width = X1 - X0
@@ -363,7 +364,7 @@ def undertaker():
     m.hull((step_x1 - step_x0, 1.1, BASE), at=(X1 - (step_x0 + step_x1) * 0.5, Y1 + 0.55, BASE * 0.5))
     m.hull((step_x1 - step_x0 - 0.3, 0.32, BASE * 0.5), at=(X1 - (step_x0 + step_x1) * 0.5, Y1 + 1.24, BASE * 0.25))
     m.hull((0.62, 0.72, chimney_top - foot + 0.3), at=(CHIMNEY[0], CHIMNEY[1], (foot + chimney_top) * 0.5))
-    return m.finish(view=(-1.0, -1.7, 0.42), fit=0.78, fallback=fallback_for(m, 6500))
+    return m.finish(view=(-1.0, -1.7, 0.42), fit=0.78, fallback=FALLBACK)
 
 
 # --- The Gilt Spur ---
@@ -522,7 +523,7 @@ def saloon():
                                                              (rail_top + 0.1 + deck_z - 0.3) * 0.5))
     for x in posts:
         m.hull((0.2, 0.2, deck_z - 0.3), at=(XF0 + x, Y0 + post_y, (deck_z - 0.3) * 0.5))
-    return m.finish(view=(-1.0, -1.7, 0.42), fit=0.78, fallback=fallback_for(m, 7000))
+    return m.finish(view=(-1.0, -1.7, 0.42), fit=0.78, fallback=FALLBACK)
 
 
 # --- Pruitt's General Store ---
@@ -600,8 +601,8 @@ def store(shutters):
     origin = Vector((XF0 - 0.12, Y0 + post_y - p_over, beam_z + 0.22 - p_over * math.tan(theta))) + normal * p_deck
     p_len = (-post_y + p_over) / math.cos(theta)
     porch_roof = kit.Slope(origin, (1.0, 0.0, 0.0), (0.0, math.cos(theta), math.sin(theta)), WF + 0.24, p_len, sag=0.05)
-    kit.roof_deck(m, porch_roof, p_deck)
-    kit.shingles(m, porch_roof, piece=(4.5, 6.0), top=p_len - 0.03)
+    town.roof_deck(m, porch_roof, p_deck)
+    town.shakes(m, porch_roof, piece=(4.5, 6.0), top=p_len - 0.03)
     town.board(m, (XF0 - 0.12, Y0 - 0.03, wall_z + 0.06), (XF1 + 0.12, Y0 - 0.03, wall_z + 0.06), 0.16, 0.05, look='C')
     fascia_z = beam_z + 0.22 - p_over * math.tan(theta) - 0.02
     town.board(m, (XF0 - 0.14, Y0 + post_y - p_over - 0.02, fascia_z), (XF1 + 0.14, Y0 + post_y - p_over - 0.02, fascia_z),
@@ -655,7 +656,7 @@ def store(shutters):
     for x in posts:
         m.hull((0.18, 0.18, beam_z - town.DECK_TOP), at=(XF0 + x, Y0 + post_y, (beam_z + town.DECK_TOP) * 0.5))
     m.hull((porch_roof.width, p_len, 0.2), at=(porch_roof.width * 0.5, p_len * 0.5, -0.02), space=porch_roof)
-    obj = m.finish(preview=False, fallback=fallback_for(m, 7000))
+    obj = m.finish(preview=False, fallback=FALLBACK)
     if lt.want_preview():
         # Seen with its shutters hung: some swung open against the wall, some shut.
         copies = mount_shutters(obj, shutters)
@@ -769,7 +770,7 @@ def sheriff():
     tan = math.tan(math.radians(PITCH))
     m.hull_points([(x, y, EAVE - 0.3 * tan + 0.2) for x in (X0 - 0.3, X1 + 0.3) for y in (Y0 + FT, Y1 + 0.3)] +
                   [(0.0, y, EAVE + WS * 0.5 * tan + 0.25) for y in (Y0 + FT, Y1 + 0.3)])
-    return m.finish(view=(-1.0, -1.7, 0.42), fit=0.78, fallback=fallback_for(m, 6000))
+    return m.finish(view=(-1.0, -1.7, 0.42), fit=0.78, fallback=FALLBACK)
 
 
 def mount_shutters(building, shutters, open_every=2):

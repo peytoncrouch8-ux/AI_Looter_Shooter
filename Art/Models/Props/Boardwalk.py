@@ -252,13 +252,35 @@ def notice_board(name, seed):
 # --- The town memorial ---
 
 class Swatch:
-    """A part on a FoliagePalette swatch (lt.swatch_uv): its blades run from root to tip along the swatch."""
+    """A part on a FoliagePalette swatch, as lt.swatch_uv maps one (U from its root at 0 to its tip at 1, V across the
+    swatch), but repeatable: its root is its first vertex and its tip the vertex farthest from it, in mesh order
+    (swatch_uv picks its direction from a set of vertices, which iterates in a different order on every run)."""
 
     def __init__(self, name):
         self.name = name
 
     def apply(self, obj, rng):
-        lt.swatch_uv(obj, None, self.name, axis='long')
+        mesh = obj.data
+        rows = len(lt.PALETTE)
+        index = lt.PALETTE.index(self.name)
+        v_lo, v_hi = (index + 0.15) / rows, (index + 0.85) / rows
+        cos = [v.co.copy() for v in mesh.vertices]
+        root = cos[0]
+        tip = max(range(len(cos)), key=lambda i: (cos[i] - root).length)
+        direction = (cos[tip] - root).normalized()
+        side = direction.cross(Vector((0.0, 0.0, 1.0)) if abs(direction.z) < 0.9 else Vector((1.0, 0.0, 0.0)))
+        side.normalize()
+        along = [(c - root).dot(direction) for c in cos]
+        across = [(c - root).dot(side) for c in cos]
+        lo, hi = min(along), max(along)
+        a_lo, a_hi = min(across), max(across)
+        uv = mesh.uv_layers.active.data
+        for p in mesh.polygons:
+            for li in p.loop_indices:
+                i = mesh.loops[li].vertex_index
+                u = (along[i] - lo) / max(hi - lo, 1e-6)
+                w = (across[i] - a_lo) / max(a_hi - a_lo, 1e-6)
+                uv[li].uv = (min(max(u, 0.01), 0.99), v_lo + w * (v_hi - v_lo))
 
 
 def hat(m, at, tilt=(0.0, 0.0, 0.0), look='crepe', band='crepe', scale=1.0):
