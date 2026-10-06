@@ -381,8 +381,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   and bakes the meadow's ground cover meshes again.
 - `PropSettler`: `PropSettler`, seats a level's props on the terrain (no hovering edges; low, wide props lean with the slope).
 - `ModelImporter`: `FModelImporter`, imports the Blender models `Tools/models.ps1` exported (fixed FBX settings,
-  material instances, hull collision or none (a plant's hulls are all of its collision), sockets, LODs, Nanite
-  fallback shares). `ModelImporterMaterials.cpp`
+  material instances (saved only when an import changes them), hull collision or none (a plant's hulls are all of its
+  collision), sockets, LODs, Nanite with its fallback share). `ModelImporterMaterials.cpp`
   imports texture sets and makes instances of the textured masters; `ModelImporterRig.cpp` imports rigged models as
   skeletal meshes and turns their hit zones into a physics asset.
 - `SurfaceMaterials`: `SurfaceMaterials`, stylized material instance assets and the parents' usage flags.

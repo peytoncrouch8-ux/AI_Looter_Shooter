@@ -185,12 +185,16 @@ UMaterialInterface* FModelImporter::UpdateTexturedMaterial(const FString& Name, 
 	const FString AssetName = TEXT("MI_") + Name;
 	const FString MaterialFolder = ContentRoot / TEXT("Materials");
 	UMaterialInstanceConstant* Instance = SurfaceMaterials::LoadExisting<UMaterialInstanceConstant>(MaterialFolder / AssetName);
+	FString Before;
+	bool bWasDirty = false;
 	if (!Instance)
 	{
 		Instance = SurfaceMaterials::Create(MaterialFolder, AssetName, Parent);
 	}
 	else
 	{
+		Before = DescribeInstance(*Instance);
+		bWasDirty = Instance->GetPackage()->IsDirty();
 		Instance->Modify();
 		if (Instance->Parent != Parent)
 		{
@@ -237,8 +241,47 @@ UMaterialInterface* FModelImporter::UpdateTexturedMaterial(const FString& Name, 
 	}
 	Instance->BasePropertyOverrides.bOverride_UsageFlags = 0;
 	Instance->PostEditChange();
-	Instance->MarkPackageDirty();
-	ChangedPackages.AddUnique(Instance->GetPackage());
+	KeepIfChanged(Instance, Before, bWasDirty);
 	Materials.Add(Name, Instance);
 	return Instance;
+}
+
+FString FModelImporter::DescribeInstance(const UMaterialInstanceConstant& Instance)
+{
+	// Sorted, so the order the parameters were set in doesn't count.
+	TArray<FString> Values;
+	auto Key = [](const FMaterialParameterInfo& Info)
+	{
+		return FString::Printf(TEXT("%s:%d:%d"), *Info.Name.ToString(), static_cast<int32>(Info.Association), Info.Index);
+	};
+	for (const FScalarParameterValue& Value : Instance.ScalarParameterValues)
+	{
+		Values.Add(FString::Printf(TEXT("%s=%.9g"), *Key(Value.ParameterInfo), Value.ParameterValue));
+	}
+	for (const FVectorParameterValue& Value : Instance.VectorParameterValues)
+	{
+		Values.Add(FString::Printf(TEXT("%s=%.9g,%.9g,%.9g,%.9g"), *Key(Value.ParameterInfo), Value.ParameterValue.R, Value.ParameterValue.G,
+			Value.ParameterValue.B, Value.ParameterValue.A));
+	}
+	for (const FTextureParameterValue& Value : Instance.TextureParameterValues)
+	{
+		Values.Add(FString::Printf(TEXT("%s=%s"), *Key(Value.ParameterInfo), *GetPathNameSafe(Value.ParameterValue)));
+	}
+	Values.Sort();
+	return FString::Printf(TEXT("%s|usage %d|"), *GetPathNameSafe(Instance.Parent), Instance.BasePropertyOverrides.bOverride_UsageFlags ? 1 : 0)
+		+ FString::Join(Values, TEXT("|"));
+}
+
+void FModelImporter::KeepIfChanged(UMaterialInstanceConstant* Instance, const FString& Before, bool bWasDirty)
+{
+	if (!Before.IsEmpty() && DescribeInstance(*Instance) == Before)
+	{
+		if (!bWasDirty)
+		{
+			Instance->GetPackage()->SetDirtyFlag(false);
+		}
+		return;
+	}
+	Instance->MarkPackageDirty();
+	ChangedPackages.AddUnique(Instance->GetPackage());
 }
