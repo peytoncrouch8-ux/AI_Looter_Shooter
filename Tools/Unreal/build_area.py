@@ -1,4 +1,4 @@
-"""Builds an area's level from its layout: build_area.py <Area> [gameplay].
+"""Builds an area's level from its layout: build_area.py <Area> [gameplay|beyond].
 
 Art/Models/Terrain/<Area>.py turns Art/Levels/<Area>/layout.json into the terrain and into layout_computed.json: where
 every building, cliff piece, road, the bridge and the water go, at the built terrain's heights. This script places all
@@ -10,7 +10,8 @@ creature groups). The terrain's meshes are SM_<Area>_<part> (level.meshPrefix ov
 
 Everything it places carries the area's tag (IslandBuild on the tutorial island) and sits under its outliner folder
 (Island). Building again replaces those actors, so actors placed by hand survive; with "gameplay" it only places the
-gameplay actors again. Models that aren't imported yet are skipped with a warning. The level is saved at the end.
+gameplay actors again, and with "beyond" only what lies past the boundary (sky islands, a grounded area's ring, canyon
+wall and backdrop). Models that aren't imported yet are skipped with a warning. The level is saved at the end.
 Grass, flowers, trees and rocks come from the scatter (build_island_scatter.py <Area>).
 
 A grounded area's terrain also has what lies past its core (Art/Levels/area_beyond.py): the surround ring
@@ -271,7 +272,34 @@ class AreaBuild:
                     placed += 1
         self.log(f'placed {placed} models')
 
-    def terrain(self, meshes):
+    def sky_islands(self, meshes):
+        """Islands hanging in the sky past an island's rim (layout.json level.skyIslands: Skyreach's, seen beyond its
+        jetty). Each stands by bearing (0 north, 90 east) and distance from a point on the rim, its top (the mesh's
+        pivot) a rise above the ground there, turned by yaw or, with faceFrom, with its +X back toward that point (an
+        island's waterfall toward the jetty). No collision and no shadows; tagged Beyond, so Looter.Perf.HideTag Beyond
+        measures them with everything else past the boundary."""
+        spec = self.source.get('level', {}).get('skyIslands')
+        if not spec:
+            return
+        fx, fy = spec['from']
+        ground = ground_height(fx, fy, 0.0)
+        placed = 0
+        for island in spec['islands']:
+            name = island['mesh']
+            if name not in meshes:
+                self.warn(f'no SM_{name} yet (a sky island)')
+                continue
+            bearing = math.radians(island['bearing'])
+            location = (fx + math.cos(bearing) * island['distance'], fy + math.sin(bearing) * island['distance'],
+                        ground + island.get('rise', 0.0))
+            yaw = (island['bearing'] + 180.0) % 360.0 if island.get('faceFrom') else island.get('yaw', 0.0)
+            actor = self.place(unreal.load_asset(meshes[name]), location, yaw, label=f'SkyIsland_{placed + 1}',
+                               folder='Beyond', tags=('Beyond',))
+            actor.static_mesh_component.set_editor_property('cast_shadow', False)
+            placed += 1
+        self.log(f'placed {placed} sky islands')
+
+    def terrain(self, meshes, only_beyond=False):
         """The terrain tiles (walkable, tagged Ground for the minimap and the scatter), the rock underside and the
         water; and a grounded area's ring, canyon wall and backdrop (tagged Beyond, in their own folder; only the
         ring casts shadows). They are all modeled in the area's space, so they sit at the origin."""
@@ -280,6 +308,8 @@ class AreaBuild:
             if not name.startswith(self.prefix):
                 continue
             part = name[len(self.prefix):]
+            if only_beyond and not part.startswith(BEYOND_PARTS):
+                continue
             if part.startswith(BEYOND_PARTS):
                 actor = self.place(unreal.load_asset(path), (0, 0, 0), label=part, folder='Beyond', tags=('Beyond',))
                 if not part.startswith('Ring_'):
@@ -288,6 +318,10 @@ class AreaBuild:
                 self.place(unreal.load_asset(path), (0, 0, 0), label=part, folder='Terrain',
                            tags=('Ground',) if part.startswith('Tile_') else ())
             count += 1
+        if only_beyond:
+            if count:
+                self.log(f'placed {count} pieces past the boundary')
+            return
         if not count:
             self.warn(f'no SM_{self.prefix}* terrain yet')
         self.log(f'placed {count} terrain pieces')
@@ -409,19 +443,30 @@ class AreaBuild:
             count += 1
         self.log(f'placed {count} chimney smoke plumes')
 
-    def run(self, only_gameplay=False):
+    def run(self, mode=None):
+        """Builds the whole level, or with mode "gameplay" only the gameplay actors, or with "beyond" only what lies
+        past the boundary (a grounded area's ring, canyon wall and backdrop; an island's sky islands)."""
         with open(self.computed_path) as f:
             self.layout = json.load(f)
-        if only_gameplay:
+        if mode == 'gameplay':
             self.open_level('Gameplay')
             self.gameplay(mesh_index())
             levels.save_current_level()
             self.log('gameplay actors placed and saved')
             return
+        if mode == 'beyond':
+            self.open_level('Beyond')
+            meshes = mesh_index()
+            self.terrain(meshes, only_beyond=True)
+            self.sky_islands(meshes)
+            levels.save_current_level()
+            self.log('beyond placed and saved')
+            return
         self.open_level()
         meshes = mesh_index()
         sky_light = self.environment()
         self.terrain(meshes)
+        self.sky_islands(meshes)
         self.cliffs(meshes)
         self.models(meshes)
         self.effects(meshes)
@@ -434,12 +479,12 @@ class AreaBuild:
         self.log('built and saved')
 
 
-def run(name, only_gameplay=False):
-    AreaBuild(name).run(only_gameplay)
+def run(name, only_gameplay=False, mode=None):
+    AreaBuild(name).run('gameplay' if only_gameplay else mode)
 
 
 if __name__ == '__main__':
     args = sys.argv[1:]
-    if not args or args[0] == 'gameplay':
-        raise SystemExit('usage: build_area.py <Area> [gameplay] (the area is a folder under Art/Levels)')
-    run(args[0], only_gameplay='gameplay' in args[1:])
+    if not args or args[0] in ('gameplay', 'beyond'):
+        raise SystemExit('usage: build_area.py <Area> [gameplay|beyond] (the area is a folder under Art/Levels)')
+    run(args[0], mode=next((a for a in args[1:] if a in ('gameplay', 'beyond')), None))

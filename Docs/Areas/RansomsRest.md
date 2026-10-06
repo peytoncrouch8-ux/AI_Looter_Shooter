@@ -541,6 +541,16 @@ Everything past the boundary gets at most 30 draws and 0.6 ms of GPU at the heav
 3. A tour after every import. Ransom's Point, the orchard, the horizon views and the `Beyond` budget are re-measured after steps 17, 18 and 19.
 4. Anything over budget is fixed before the next step.
 
+**Measured on the test level** (`/Game/Maps/Dev/Lvl_TerrainTest`, 2026-10-05, Medium at 1080p, by the tour's
+cost-by-difference views):
+- Beyond (the ring, canyon wall and backdrop) costs 0.40 ms GPU and 33 draws looking west over the canyon, and 43
+  draws from the air. The time fits the 0.6 ms budget, but the draws are over 30. On Ransom's Rest, try one backdrop mesh
+  per layer instead of four sectors each first.
+- The 116 cliff pieces cost 6-22 draws and up to 0.2 ms GPU: Unreal's dynamic instancing already merges identical
+  pieces into one draw. Instancing them by hand would save little. It would also cost the scatter its per-obstacle boxes,
+  since the scatter keeps grass and trees out of each actor tagged `Obstacle` by its bounds. So cliff pieces stay actors
+  unless Ransom's Rest's own tour says otherwise.
+
 **Tour viewpoints** (`Art/Levels/RansomsRest/views.json`, with `exec` where a view needs setup):
 1. The grave.
 2. The farm porch toward town.

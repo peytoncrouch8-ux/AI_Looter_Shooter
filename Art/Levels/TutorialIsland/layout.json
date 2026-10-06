@@ -91,7 +91,17 @@
     "folder": "Island",
     "noTreeZones": [["range", 1.0], ["village", 0.7]],
     "scatterGraph": "PCG_IslandScatter",
-    "scatterVolume": "IslandScatter"
+    "scatterVolume": "IslandScatter",
+    "skyIslands": {
+      "about": "Skyreach's backdrop islands, hanging in the sky past its south-east rim beyond the jetty (Docs/Story.md, Leaving the tutorial island; Art/Models/Rocks/SkyIslands.py). Each by bearing (0 north, 90 east) and distance (cm) from a point on the rim by the jetty's root, its top's rise (cm) over the ground there, and its yaw, or faceFrom to turn its +X back toward that point (B's waterfall toward the jetty). From the jetty they spread across the view: the breaking pair low on the left, the arch and its ruined watchtower high, the waterfall facing the jetty, the needle far off on the right. build_area.py TutorialIsland beyond places only these.",
+      "from": [-6923, 7078],
+      "islands": [
+        { "mesh": "SkyIsland_D", "bearing": 96, "distance": 34000, "rise": -4500, "yaw": 300 },
+        { "mesh": "SkyIsland_A", "bearing": 112, "distance": 52000, "rise": 3000, "yaw": 20 },
+        { "mesh": "SkyIsland_B", "bearing": 141, "distance": 39000, "rise": -1500, "faceFrom": true },
+        { "mesh": "SkyIsland_C", "bearing": 166, "distance": 62000, "rise": 6000, "yaw": 0 }
+      ]
+    }
   },
   "gameplay": {
     "about": "The gameplay actors build_area.py places (its gameplay mode places only these): the director that comes with the PlayerStart, the gun rack's weapon, and creature groups in order, each in a zone (its id) or around a center [X, Y] within spread, spacing apart (cm); the groups share one random stream (seed).",

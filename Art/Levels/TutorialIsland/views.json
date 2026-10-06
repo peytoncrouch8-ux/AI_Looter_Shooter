@@ -9,6 +9,7 @@
     {"name": "Slimes", "x": 2400, "y": -3400, "height": 170, "yaw": -90, "pitch": -4, "fov": 80},
     {"name": "Lookout", "x": -6200, "y": 6000, "height": 800, "yaw": -40, "pitch": -8, "fov": 80},
     {"name": "Waterfall", "x": 8500, "y": 11500, "height": 600, "yaw": -125, "pitch": -18, "fov": 70},
-    {"name": "Aerial", "x": -15000, "y": -10500, "height": 9000, "yaw": 35, "pitch": -28, "fov": 60}
+    {"name": "Aerial", "x": -15000, "y": -10500, "height": 9000, "yaw": 35, "pitch": -28, "fov": 60},
+    {"name": "Jetty", "x": -6750, "y": 6850, "height": 170, "yaw": 126, "pitch": -4, "fov": 80}
   ]
 }
