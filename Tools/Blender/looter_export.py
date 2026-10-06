@@ -182,14 +182,19 @@ def to_unreal(vector, scale=1.0):
     return [-vector.y * scale, -vector.x * scale, vector.z * scale]
 
 
+def socket_name(empty):
+    """The socket's name in Unreal. Blender numbers names that repeat across models (a second SOCKET_Muzzle becomes
+    SOCKET_Muzzle.001); the number is dropped."""
+    return clean_name(re.sub(r'\.\d+$', '', empty.name[len('SOCKET_'):]))
+
+
 def socket_entry(empty):
     """A socket, in the model's Unreal space. Its front is the empty's -Y and its top the empty's +Z, like a model's.
-    (FBX sockets come in with the wrong rotation: Blender's and Unreal's axes differ in handedness.) Blender numbers
-    names that repeat across models (a second SOCKET_Muzzle becomes SOCKET_Muzzle.001); the number is dropped."""
+    (FBX sockets come in with the wrong rotation: Blender's and Unreal's axes differ in handedness.)"""
     matrix = empty.matrix_world
     rotation = matrix.to_3x3().normalized()
     return {
-        'name': clean_name(re.sub(r'\.\d+$', '', empty.name[len('SOCKET_'):])),
+        'name': socket_name(empty),
         'location': to_unreal(matrix.translation, 100.0),
         'forward': to_unreal(rotation @ Vector((0.0, -1.0, 0.0))),
         'up': to_unreal(rotation @ Vector((0.0, 0.0, 1.0))),
@@ -349,6 +354,12 @@ def export_model(root, out_dir, materials):
     hulls = [o for o in parts if o.type == 'MESH' and o.name.startswith('UCX_')]
     meshes = [root] + [o for o in parts if o.type == 'MESH' and not o.name.startswith('UCX_')]
     sockets = [o for o in parts if o.name.startswith('SOCKET_')]
+    # Unreal keeps one socket per name (the importer updates sockets by name), so a name used twice in one model would
+    # silently keep only the last: stop the export instead. Different models may share names.
+    names = [socket_name(o) for o in sockets]
+    repeated = sorted({n for n in names if names.count(n) > 1})
+    if repeated:
+        raise RuntimeError(f"{name}: socket names used more than once: {', '.join(repeated)}. Give each its own name.")
 
     # Unreal pairs hulls with the mesh by name: UCX_<mesh node>_<number>.
     rename(root, name)
