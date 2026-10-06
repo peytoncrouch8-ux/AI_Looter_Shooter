@@ -788,6 +788,7 @@ Each step ends with something you can look at or play. Each one names the consol
 **15. Sexton and the deal (Main 2).**
 - You get: Sexton concept renders first, then his seated model, the bluff-top spiders with a placed Restless, and Main 2 with the Ledger's seven names.
 - You approve: Sexton's look, then the deal after playing it.
+- Approved on 2026-10-06: Sexton's look (the Gentleman, from three concepts), then his seated game model (“Sexton is good”). `SM_MisterSexton` (11,974 triangles, LODs at 50% and 20%, no Nanite, one hull) sits on the lookout's `SOCKET_Sit`, with `SM_SextonLedger` on his `SOCKET_Ledger` and his captions from `SOCKET_Speaker`. His face above the shadow line never lights. The deal itself comes with Main 2.
 
 **16. The Unpaid.**
 - You get: three concept pictures, then the rig and mesh, `AUnpaidCreature` with its Restless and Gravebound ranks, the spawner and a Ledger page. Twelve chasing at the town gate, measured on Medium.
