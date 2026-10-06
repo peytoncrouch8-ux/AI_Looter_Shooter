@@ -30,3 +30,5 @@ Target: 120 fps (8.3 ms) at 1080p on the Medium preset on the reference PC (Rade
 | 2026-10-01 | Round slots, magazine gauge, minimap compass, no ammo light, Medium | 45260c4 | 1920x1080 | 5.7 | 176 | 6.9 | 5.0 | 4.9 | 1.8 | 4.5 | 428 | 627705 | 0.95 |
 | 2026-10-01 | Round 2: distant creatures update less often, health ring, XP bar, FOV setting (90), ammo beams | 0175bcd | 1920x1080 | 5.6 | 179 | 6.0 | 3.0 | 5.6 | 1.4 | 4.6 | 445 | 629243 | 1.00 |
 | 2026-10-01 | Scattered trees, rocks, stumps and logs collide; XP bar with the level in the middle; 1.5 m ammo beams | 52c06af | 1920x1080 | 5.7 | 176 | 6.1 | 3.0 | 5.7 | 1.5 | 4.5 | 449 | 630955 | 1.10 |
+| 2026-10-06 | Ransom's Rest greybox (step 5a), grave spawn, Medium; tour 174-228 fps at 20 viewpoints (Beyond 0.2-0.3 ms, dusk no dearer) | db5f8ec | 1920x1080 | 5.5 | 180 | 6.0 | 2.7 | 5.5 | 1.4 | 4.6 | 489 | 970407 | 1.05 |
+| 2026-10-06 | Tutorial island with the jetty and sky islands (steps 10, 13), spawn, Medium; tour 153-231 fps at 10 viewpoints | db5f8ec | 1920x1080 | 5.6 | 179 | 6.0 | 3.0 | 5.6 | 1.5 | 4.6 | 448 | 628868 | 1.01 |

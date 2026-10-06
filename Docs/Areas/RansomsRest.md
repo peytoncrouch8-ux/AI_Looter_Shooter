@@ -551,6 +551,19 @@ cost-by-difference views):
   since the scatter keeps grass and trees out of each actor tagged `Obstacle` by its bounds. So cliff pieces stay actors
   unless Ransom's Rest's own tour says otherwise.
 
+**Measured on Ransom's Rest** (`/Game/Maps/Lvl_RansomsRest`, step 5a's level before the greybox, 2026-10-06, Medium at
+1080p):
+- All 20 tour viewpoints hold the budget: 4.4-5.8 ms (174-228 fps). The heaviest are the aerial (5.8 ms, 469 draws) and
+  the grave, the farm and the chapel over town (5.7 ms). `perf.ps1` from the grave: 5.5 ms, p95 6.0, 489 draws, 0.97M
+  triangles, a 1.05 s load.
+- Beyond costs 0.2-0.3 ms, inside its 0.6 ms, but 23-38 draws: 25 west from Ransom's Point, 32 from the deck and 38
+  from the air. One backdrop mesh per layer instead of four sectors is the next try, to bring the deck under 30.
+- Dusk costs no more than the day (its shadows reach 60 m): the grave 5.6 ms against 5.7.
+- In play: the closed edges' walls stop the player (34 cm short of the line, the capsule's radius), stepping off the
+  Gravewind deck is recovered (5 m down, edge 19), and the minimap covers the valley.
+- Still to do for 5a: the far-cascade comparison, the render thread from a `-GpuStats` capture, and a walk along every
+  closed edge.
+
 **Tour viewpoints** (`Art/Levels/RansomsRest/views.json`, with `exec` where a view needs setup):
 1. The grave.
 2. The farm porch toward town.

@@ -1,0 +1,33 @@
+{
+  "about": "Where Ransom's Rest is looked at from, for screenshots and performance (Looter.Tour; Tools/tour.ps1 -Map /Game/Maps/Lvl_RansomsRest -Views Art/Levels/RansomsRest/views.json), most from the terrain's preview cameras (layout.json preview.views). x and y in cm (X north, Y east); height in cm above the first surface under the view (so never over a roof); yaw 0 looks north, 90 east; pitch up is positive. A view's exec runs as the tour arrives and after as it leaves: the _NoBeyond views measure what lies past the boundary (tagged Beyond) by the difference, and the _Dusk ones the level at dusk (Looter.Light Dusk behind its fade, back to Day after).",
+  "views": [
+    {"name": "Grave", "x": -3660, "y": -8650, "height": 170, "yaw": 35, "pitch": 2, "fov": 80},
+    {"name": "Farm", "x": -3900, "y": -5100, "height": 170, "yaw": 64, "pitch": -2, "fov": 80},
+    {"name": "PointOverValley", "x": -7400, "y": -9300, "height": 170, "yaw": 49, "pitch": -4, "fov": 80},
+    {"name": "PointWest", "x": -7400, "y": -9300, "height": 170, "yaw": 247.5, "pitch": -3, "fov": 80},
+    {"name": "PointWest_NoBeyond", "x": -7400, "y": -9300, "height": 170, "yaw": 247.5, "pitch": -3, "fov": 80,
+     "exec": ["Looter.Perf.HideTag Beyond 1"], "after": ["Looter.Perf.HideTag Beyond 0"]},
+    {"name": "DeckWest", "x": 1200, "y": -15400, "height": 170, "yaw": 247.5, "pitch": -8, "fov": 80},
+    {"name": "DeckWest_NoBeyond", "x": 1200, "y": -15400, "height": 170, "yaw": 247.5, "pitch": -8, "fov": 80,
+     "exec": ["Looter.Perf.HideTag Beyond 1"], "after": ["Looter.Perf.HideTag Beyond 0"]},
+    {"name": "MainStreet", "x": 60, "y": -1600, "height": 170, "yaw": 90, "pitch": -1, "fov": 80},
+    {"name": "Depot", "x": 265, "y": 10500, "height": 170, "yaw": 90, "pitch": -1, "fov": 80},
+    {"name": "ChapelOverTown", "x": 5300, "y": -1900, "height": 170, "yaw": 137, "pitch": -4, "fov": 80},
+    {"name": "ChapelFromBootHill", "x": 3400, "y": -300, "height": 170, "yaw": 333, "pitch": 4, "fov": 80},
+    {"name": "NorthBoundary", "x": 7600, "y": 3000, "height": 170, "yaw": 0, "pitch": 0, "fov": 80},
+    {"name": "RidgeFoot", "x": 300, "y": 14300, "height": 170, "yaw": 85, "pitch": 0, "fov": 80},
+    {"name": "RidgeFoot_NoBeyond", "x": 300, "y": 14300, "height": 170, "yaw": 85, "pitch": 0, "fov": 80,
+     "exec": ["Looter.Perf.HideTag Beyond 1"], "after": ["Looter.Perf.HideTag Beyond 0"]},
+    {"name": "Aerial", "x": -9000, "y": -9000, "height": 6000, "yaw": 45, "pitch": -22, "fov": 70},
+    {"name": "Aerial_NoBeyond", "x": -9000, "y": -9000, "height": 6000, "yaw": 45, "pitch": -22, "fov": 70,
+     "exec": ["Looter.Perf.HideTag Beyond 1"], "after": ["Looter.Perf.HideTag Beyond 0"]},
+    {"name": "Grave_Dusk", "x": -3660, "y": -8650, "height": 170, "yaw": 35, "pitch": 2, "fov": 80,
+     "exec": ["Looter.Light Dusk"], "after": ["Looter.Light Day"]},
+    {"name": "PointWest_Dusk", "x": -7400, "y": -9300, "height": 170, "yaw": 247.5, "pitch": -3, "fov": 80,
+     "exec": ["Looter.Light Dusk"], "after": ["Looter.Light Day"]},
+    {"name": "MainStreet_Dusk", "x": 60, "y": -1600, "height": 170, "yaw": 90, "pitch": -1, "fov": 80,
+     "exec": ["Looter.Light Dusk"], "after": ["Looter.Light Day"]},
+    {"name": "Aerial_Dusk", "x": -9000, "y": -9000, "height": 6000, "yaw": 45, "pitch": -22, "fov": 70,
+     "exec": ["Looter.Light Dusk"], "after": ["Looter.Light Day"]}
+  ]
+}

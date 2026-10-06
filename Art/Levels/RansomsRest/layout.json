@@ -1530,10 +1530,23 @@
         "directional": { "color": [0.9,0.6,0.3], "exponent": 8, "startDistance": 6000 }
       },
       "atmosphere": { "planetTop": -9000, "groundAlbedo": [0.45,0.37,0.24] },
-      "clouds": { "radius": 1500000 }
+      "clouds": { "radius": 1500000 },
+      "states": {
+        "Dusk": {
+          "about": "The scripted dusk (step 13; the cold open and Main 6, Looter.Light Dusk), tuned on Lvl_TerrainTest: the sun 4 degrees over the horizon a little further west, warmer and dimmer, its long shadows capped at 60 m; the sky light dimmer, recaptured behind the switch; the haze cooling to a dim violet away from the sun, still glowing amber toward it; the backdrop's ranges darkened and warmed through MPC_Lighting so none shows bright at sunset; the clouds dimmed to a dusky pink; the exposure lifted a little so the fight stays readable.",
+          "sun": { "azimuth": 252, "elevation": 4, "intensity": 4.0, "temperature": 3200, "shadowDistance": 6000, "cascades": 2 },
+          "sky": { "intensity": 0.6 },
+          "fog": { "density": 0.015, "inscattering": [0.06, 0.07, 0.11],
+                   "directional": { "color": [0.95, 0.45, 0.15], "exponent": 6 } },
+          "backdrop": { "tint": [0.30, 0.24, 0.24] },
+          "clouds": { "tint": [0.34, 0.23, 0.24] },
+          "post": { "exposureBias": 0.5 }
+        }
+      }
     }
   },
   "gameplay": {
-    "about": "No creatures or director yet: the encounters (Docs/Areas/RansomsRest.md, \"Encounters stay on one level of ground\") are placed with their missions from step 14 on."
+    "about": "No creatures or director yet: the encounters (Docs/Areas/RansomsRest.md, \"Encounters stay on one level of ground\") are placed with their missions from step 14 on. The story's first arrival (spawnLanding) is a player start of its own beside the level's start by Ellis's grave; the depot's station carries Landing_Depot (build_area_travel.py).",
+    "spawnLanding": "Landing_FamilyPlot"
   }
 }
