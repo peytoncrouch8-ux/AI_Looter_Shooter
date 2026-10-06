@@ -222,6 +222,110 @@ namespace
 		}
 	}
 
+	void SpawnHordeNow(const TArray<FString>& Args, UWorld* GameWorld, int32 TriesLeft);
+
+	/**
+	 * Looter.Perf.Horde <kind> <count> [rank] [x y yaw]: a fight's cost, measured where it happens (perf.ps1 -Exec). The
+	 * tour looks through a camera of its own while the player stays at the spawn, and creatures far from the player slow
+	 * down (FCreatureUpdateRate), so a fight has to come to the player: it's put at (x, y) facing yaw when given, can't be
+	 * hurt until the level loads again, and count creatures come at it from an arc 8 to 14 m ahead, in view.
+	 */
+	void SpawnHorde(const TArray<FString>& Args, UWorld* World)
+	{
+		UWorld* GameWorld = FindGameWorld(World);
+		if (!GameWorld)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.Perf.Horde: no game (start the game first)."));
+			return;
+		}
+		SpawnHordeNow(Args, GameWorld, 20);
+	}
+
+	void SpawnHordeNow(const TArray<FString>& Args, UWorld* GameWorld, int32 TriesLeft)
+	{
+		APlayerController* Controller = GameWorld->GetFirstPlayerController();
+		APawn* Pawn = Controller ? Controller->GetPawn() : nullptr;
+		if (!Pawn)
+		{
+			// From the command line (-ExecCmds) the game may not have its player yet: look again shortly, for up to 10 s.
+			if (TriesLeft > 0)
+			{
+				FTimerHandle Retry;
+				const TWeakObjectPtr<UWorld> WeakWorld(GameWorld);
+				GameWorld->GetTimerManager().SetTimer(Retry, FTimerDelegate::CreateLambda([Args, WeakWorld, TriesLeft]()
+				{
+					if (UWorld* Again = WeakWorld.Get())
+					{
+						SpawnHordeNow(Args, Again, TriesLeft - 1);
+					}
+				}), 0.5f, false);
+			}
+			else
+			{
+				UE_LOG(LogLooter, Warning, TEXT("Looter.Perf.Horde: the game never had a player."));
+			}
+			return;
+		}
+		const TSubclassOf<ACreatureBase> Kind = FindCreatureKind(Args.Num() > 0 ? Args[0] : FString(TEXT("Unpaid")));
+		ECreatureRank Rank = ECreatureRank::Basic;
+		if (!Kind || (Args.Num() > 2 && !UCreatureRankSettings::ParseRank(Args[2], Rank)))
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.Perf.Horde <Spider|Slime|Unpaid> <count> [rank] [x y yaw]: no such creature or rank."));
+			return;
+		}
+		const int32 Count = Args.Num() > 1 ? FMath::Clamp(FCString::Atoi(*Args[1]), 1, 40) : 12;
+
+		if (Args.Num() > 5)
+		{
+			FVector Ground;
+			const FVector Spot(FCString::Atof(*Args[3]), FCString::Atof(*Args[4]), Pawn->GetActorLocation().Z);
+			if (FindSpawnGround(GameWorld, Spot, Ground))
+			{
+				const float HalfHeight = Pawn->GetRootComponent()->Bounds.BoxExtent.Z;
+				Pawn->SetActorLocation(Ground + FVector(0.f, 0.f, HalfHeight + 5.f), false, nullptr, ETeleportType::TeleportPhysics);
+				Controller->SetControlRotation(FRotator(-5.f, FCString::Atof(*Args[5]), 0.f));
+			}
+			else
+			{
+				UE_LOG(LogLooter, Warning, TEXT("Looter.Perf.Horde: no ground at (%s, %s); the fight comes to the player where they stand."),
+					*Args[3], *Args[4]);
+			}
+		}
+		Pawn->SetCanBeDamaged(false);
+
+		// An arc across the view, alternately nearer and farther, each one facing the player and hunting them.
+		ACreatureBase::FRuntimeSpawn Spawn;
+		Spawn.Rank = Rank;
+		const FVector Ahead = FRotator(0.f, Controller->GetControlRotation().Yaw, 0.f).Vector();
+		int32 Spawned = 0;
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			const float Across = Count > 1 ? FMath::Lerp(-70.f, 70.f, static_cast<float>(Index) / (Count - 1)) : 0.f;
+			const float Distance = 800.f + static_cast<float>(Index % 3) * 300.f;
+			FVector Ground;
+			if (!FindSpawnGround(GameWorld, Pawn->GetActorLocation() + Ahead.RotateAngleAxis(Across, FVector::UpVector) * Distance, Ground))
+			{
+				continue;
+			}
+			const float Yaw = static_cast<float>((Pawn->GetActorLocation() - Ground).Rotation().Yaw);
+			if (ACreatureBase* Creature = ACreatureBase::SpawnAtRuntime(GameWorld, Kind, Ground, Yaw, Spawn))
+			{
+				Creature->AlertTo(Pawn);
+				++Spawned;
+			}
+		}
+		const FVector Where = Pawn->GetActorLocation();
+		UE_LOG(LogLooter, Display, TEXT("Looter.Perf.Horde: %d of %d %s (%s) hunting the player at (%.0f, %.0f, %.0f), who can't be hurt now."),
+			Spawned, Count, *Kind->GetName(), *UCreatureRankSettings::GetRankName(Rank), Where.X, Where.Y, Where.Z);
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs HordeCommand(
+		TEXT("Looter.Perf.Horde"),
+		TEXT("Looter.Perf.Horde <Spider|Slime|Unpaid> <count> [rank] [x y yaw]: to measure a fight, puts the player at (x, y) facing yaw ")
+		TEXT("(when given) where they can't be hurt, and sends count creatures of a rank at them from an arc ahead: ")
+		TEXT("perf.ps1 -Map /Game/Maps/Lvl_RansomsRest -Exec \"Looter.Quality Medium,Looter.Perf.Horde Unpaid 12 Basic 0 -1400 90\"."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SpawnHorde));
+
 	FAutoConsoleCommandWithWorldAndArgs SpawnCreatureCommand(
 		TEXT("Looter.SpawnCreature"),
 		TEXT("Looter.SpawnCreature <Spider|Slime|Unpaid> [Basic|Rare|Epic|Legendary|Boss] [count] [chase] [size=<scale>] [level=<n>]: ")

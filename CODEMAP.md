@@ -440,7 +440,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   [landing]`, `Looter.Area.List`.
 - `Dev/CreatureDevCommands.cpp`: `Looter.CreatureHealth`, gives the nearest creatures chosen health (to compare their
   bars); `Looter.SpawnCreature <Spider|Slime|Unpaid> [rank] [count] [chase] [size=] [level=]`, spawns ranked creatures in front of the
-  player (gone for good once killed).
+  player (gone for good once killed); `Looter.Perf.Horde <kind> <count> [rank] [x y yaw]`, a fight measured where it
+  happens (the player put there, unhurtable, the creatures coming at them; for `perf.ps1 -Exec`).
 - `Dev/BossDevCommands.cpp`: `Looter.Boss.Test [phases]`, the test boss in front of the player with its fight started;
   `Looter.Boss.Reset`, `Looter.Boss.Kill`.
 - `Dev/LootDevCommands.cpp`: `Looter.Loot.SimulateDrops <rank> [kills]`, rolls a rank's loot table and prints its odds.

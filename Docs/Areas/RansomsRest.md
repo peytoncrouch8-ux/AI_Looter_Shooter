@@ -561,6 +561,13 @@ cost-by-difference views):
 - Dusk costs no more than the day (its shadows reach 60 m): the grave 5.6 ms against 5.7.
 - In play: the closed edges' walls stop the player (34 cm short of the line, the capsule's radius), stepping off the
   Gravewind deck is recovered (5 m down, edge 19), and the minimap covers the valley.
+- Twelve Unpaid chasing at the town gate (step 16), the player looking down Main Street:
+  - 5.9 ms (169 fps), p95 6.3, game thread 4.3, GPU 4.9, 672 draws.
+  - With one Unpaid there: 5.5 ms, game 2.8, GPU 4.5, 465 draws.
+  - So each Unpaid costs about 0.14 ms of game thread, 0.04 ms of GPU and 19 draws.
+  - Measured with `perf.ps1 -Exec "Looter.Quality Medium,Looter.Perf.Horde Unpaid 12 Basic 0 -1400 90"`, which puts the
+    player at the gate, unhurtable, with the fight coming at them. A tour view can't measure a fight: the tour looks
+    through a camera of its own while the player stays at the spawn, and creatures far from the player slow down.
 - Still to do for 5a: the far-cascade comparison, the render thread from a `-GpuStats` capture, and a walk along every
   closed edge.
 
@@ -570,7 +577,7 @@ cost-by-difference views):
 3. Ransom's Point over the valley (expected heaviest).
 4. Ransom's Point west over Gravewind Canyon, into the low sun.
 5. Ransom's Point at dusk (`Looter.Light Dusk`).
-6. The town gate, looking down Main Street, with 12 Unpaid chasing.
+6. The town gate, looking down Main Street, with 12 Unpaid chasing (a fight: measured with `Looter.Perf.Horde`, above).
 7. The depot from the undertaker's yard, with the train at the platform and Stage Gap behind it.
 8. The chapel yard.
 9. Inside the chapel.
