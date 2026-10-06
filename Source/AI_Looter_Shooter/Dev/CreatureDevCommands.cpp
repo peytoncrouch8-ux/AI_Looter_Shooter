@@ -10,6 +10,7 @@
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/SlimeCreature.h"
 #include "Creatures/SpiderCreature.h"
+#include "Creatures/UnpaidCreature.h"
 #include "World/WorldQueries.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/Engine.h"
@@ -84,7 +85,7 @@ namespace
 		TEXT("going through the values in turn (to compare their health bars). Until the level reloads."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SetCreatureHealth));
 
-	/** The creature class a command names ("Spider", "slime"), or none. */
+	/** The creature class a command names ("Spider", "slime", "Unpaid"), or none. */
 	TSubclassOf<ACreatureBase> FindCreatureKind(const FString& Kind)
 	{
 		if (Kind.Equals(TEXT("Spider"), ESearchCase::IgnoreCase))
@@ -94,6 +95,10 @@ namespace
 		if (Kind.Equals(TEXT("Slime"), ESearchCase::IgnoreCase))
 		{
 			return ASlimeCreature::StaticClass();
+		}
+		if (Kind.Equals(TEXT("Unpaid"), ESearchCase::IgnoreCase))
+		{
+			return AUnpaidCreature::StaticClass();
 		}
 		return nullptr;
 	}
@@ -155,7 +160,7 @@ namespace
 		const TSubclassOf<ACreatureBase> Kind = FindCreatureKind(Args.Num() > 0 ? Args[0] : FString(TEXT("Spider")));
 		if (!Kind)
 		{
-			UE_LOG(LogLooter, Warning, TEXT("Looter.SpawnCreature: no creature called '%s' (Spider or Slime)."), *Args[0]);
+			UE_LOG(LogLooter, Warning, TEXT("Looter.SpawnCreature: no creature called '%s' (Spider, Slime or Unpaid)."), *Args[0]);
 			return;
 		}
 		ECreatureRank Rank = ECreatureRank::Basic;
@@ -219,10 +224,11 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs SpawnCreatureCommand(
 		TEXT("Looter.SpawnCreature"),
-		TEXT("Looter.SpawnCreature <Spider|Slime> [Basic|Rare|Epic|Legendary|Boss] [count] [chase] [size=<scale>] [level=<n>]: ")
+		TEXT("Looter.SpawnCreature <Spider|Slime|Unpaid> [Basic|Rare|Epic|Legendary|Boss] [count] [chase] [size=<scale>] [level=<n>]: ")
 		TEXT("spawns creatures of a rank on the ground in front of the player (rows of five, from about 8 m out). They never ")
 		TEXT("come back once killed. chase sets them on the player at once; size sets their BodyScale (0.45 a spiderling, 1.8 a ")
-		TEXT("giant) before the rank's own; level is before the rank's offset. Ranks also take their words (Restless, Gravebound, Soulfed)."),
+		TEXT("giant) before the rank's own; level is before the rank's offset. Ranks also take their words (Restless, Gravebound, ")
+		TEXT("Soulfed): Looter.SpawnCreature Unpaid Gravebound 1 chase. The Unpaid's cap (12 at once) holds for the encounters, not here."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SpawnCreature));
 }
 

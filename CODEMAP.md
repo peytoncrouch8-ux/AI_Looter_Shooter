@@ -44,6 +44,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   plain data: volleys and their tell, flight, hits on players' capsules; `EnemyProjectileSubsystemDraw.cpp` draws them on
   instanced meshes.
 - `Combat/EnemyShotDamageType.h`: `UEnemyShotDamageType`, a creature's pellet (still a creature's attack).
+- `Combat/MovementSlowComponent`: `UMovementSlowComponent`, a character's slows (a Gravebound Unpaid's shriek): the
+  strongest share and the longest time win; it holds the walking speeds down after whatever sets them each frame (the
+  player's sprint and aim), then gives them back.
 
 ## Weapons
 - `Weapons/WeaponBase.cpp`: `AWeaponBase` construction, lifecycle, equip and holster, loot state and looks.
@@ -131,6 +134,19 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   segments' frames.
 - `Creatures/SlimeCreature`: `ASlimeCreature`, the meadow slime: SK_Slime (from `Art/Models/Creatures/Slime.py`) that
   only hops, squashing and stretching on springs, with a leap attack and crits through the gel at its core.
+- `Creatures/UnpaidCreature`: `AUnpaidCreature`, the Unpaid: SK_Unpaid (from `Art/Models/Creatures/Unpaid.py`; its
+  bones are named in `Rig`, settable in `DefaultGame.ini`) floating and posed by code, 160 health and 8 damage. It crits
+  on its coal by the shot's line from the front, shows its rank in its coal and ember edge (custom primitive data,
+  `UnpaidLook`, read by `M_Ghost`) and wears one of three sets of clothes. `UnpaidCreatureAttack.cpp`: the shriek (a
+  Gravebound one's slowing ring) and the lunge; `UnpaidCreaturePhase.cpp`: the phase-step (stuck or far behind, it
+  fades out and comes back 3-5 m nearer); `UnpaidCreatureRig.cpp`: its rig and pose (hover, lean, look, jaw, arms and
+  fingers, the shroud's chains).
+- `Creatures/UnpaidRules`: `UnpaidRules` and `FPhaseStepRules`, the Unpaid's rules as plain functions: rank traits, the
+  coal shot, when a phase-step comes and where it lands.
+- `Creatures/ShroudChain`: `FShroudChain` and `FShroudChainSettings`, the shroud and side strips as damped chains: they
+  trail its motion, ripple with speed, sway at rest and snap straight on a lunge.
+- `Creatures/ShriekRing`: `AShriekRing`, a Gravebound shriek's glowing ring: it runs out over the ground and slows the
+  player as it passes them.
 - `Creatures/CreaturePoseAnimInstance`: `UCreaturePoseAnimInstance`, applies the pose a creature's code works out
   (`ACreatureBase::GetBonePose`) to its skeleton.
 - `Creatures/HuntingGround`: `FHuntingGround`, where a creature fights: a radius or a polygon (a fence's line) with a
@@ -165,6 +181,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 ## Bestiary
 - `Bestiary/BestiaryEntry`: `UBestiaryEntry` and `EBestiaryCategory`, one bestiary page as a data asset (in
   `/Game/Data/Bestiary`): words and stand model, with level, health, attack and experience read from its actor class.
+  `Tools/Unreal/create_bestiary_pages.py` writes pages from data (the Unpaid's, once its model exists).
 
 ## Tutorial
 - `Tutorial/TutorialDirector`: `ATutorialDirector`, the tutorial island's steps (move, reach the village, take the rifle,
@@ -420,7 +437,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   save's upgrade checked on a copy), `.Copy <from> <to>` (into an empty slot only), `Looter.Travel <area or level>
   [landing]`, `Looter.Area.List`.
 - `Dev/CreatureDevCommands.cpp`: `Looter.CreatureHealth`, gives the nearest creatures chosen health (to compare their
-  bars); `Looter.SpawnCreature <kind> [rank] [count] [chase] [size=] [level=]`, spawns ranked creatures in front of the
+  bars); `Looter.SpawnCreature <Spider|Slime|Unpaid> [rank] [count] [chase] [size=] [level=]`, spawns ranked creatures in front of the
   player (gone for good once killed).
 - `Dev/BossDevCommands.cpp`: `Looter.Boss.Test [phases]`, the test boss in front of the player with its fight started;
   `Looter.Boss.Reset`, `Looter.Boss.Kill`.
@@ -446,7 +463,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LightingTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
-  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
+  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)
@@ -507,6 +524,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   and the level's lighting states (`ALightingStates`: Day as placed, plus `level.environment.states` such as Dusk).
 - `Tools/Unreal/lighting_collection.py`: `MPC_Lighting`, the material parameter collection the lighting states write
   (`BackdropTint`, `CloudTint`, the fog's colors), made by `build_world_materials.py` before `M_Backdrop`, which reads it.
+- `Tools/Unreal/build_creature_materials.py`: the creatures' materials beside the world's masters: `M_Ghost` (the
+  Unpaid's masked, dithered ghost, its rank, dissolve and flare from the creature's custom primitive data) and the
+  clothing tints `MI_Ghost_B` and `_C`; it reuses `build_world_materials.py`'s helpers without running its build.
 - `Tools/Unreal/build_area_travel.py`: where an area's trips start and end, for `build_area.py`: the skiff jetty
   (`gameplay.jetty`), the depot as its station with the landing on the platform, the first arrival's player start
   beside the level's own (`gameplay.spawnLanding`), and markers for other landings.

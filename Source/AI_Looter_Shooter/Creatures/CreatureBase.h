@@ -315,6 +315,12 @@ protected:
 	virtual void OnSizeChanged() {}
 
 	/**
+	 * Its rank was applied (as play begins, on a promotion, on coming back), after its stats and size: the subclass's own
+	 * rank traits follow (the Unpaid's coal color, a Restless one's quicker lunge).
+	 */
+	virtual void OnRankChanged() {}
+
+	/**
 	 * The attack lands, AttackWindup into it: bites whatever is in reach in front (and calls OnAttackStrike). A creature
 	 * whose attack works differently (the slime's leap) overrides it.
 	 */

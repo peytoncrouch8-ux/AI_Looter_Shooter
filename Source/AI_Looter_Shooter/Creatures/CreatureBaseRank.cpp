@@ -126,6 +126,7 @@ void ACreatureBase::ApplyRank()
 	Loot->LootTable = CurrentRank == ECreatureRank::Basic ? OwnTable : UCreatureRankSettings::GetLootTable(CurrentRank);
 
 	ApplySize();
+	OnRankChanged();
 }
 
 // ---------------------------------------------------------------------------
