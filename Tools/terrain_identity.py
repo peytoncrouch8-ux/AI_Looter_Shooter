@@ -8,7 +8,8 @@ It builds the area twice, headless in Blender: with the committed generator (HEA
 Tools/Blender, taken with git archive into a temp folder) for the meshes, and with the working tree's for everything
 (--computed --macro --save-to, so nothing in the repository is written). Then it compares:
 - layout_computed.json against HEAD's (git show): every number within 0.1 cm, every text and count equal. Keys that
-  HEAD's file lacks are listed as new (and allowed); a key it has must still be there.
+  HEAD's file lacks are listed as new (and allowed); a key it has must still be there. layoutSha1 is left out: it
+  records which layout the file came from, not what the generator built (terrain_check.py checks it).
 - The meshes (<Area>_Tile_*, <Area>_Underside_*, <Area>_Water): the same names, vertex and triangle counts, and hashes
   of their positions, faces, UVs, vertex colors, normals, transforms, materials and properties
   (Tools/Blender/terrain_fingerprint.py).
@@ -236,6 +237,8 @@ def main():
     old_layout = json.loads(git('show', f'HEAD:{path}'))
     with open(os.path.join(new_folder, 'layout_computed.json'), encoding='utf-8') as file:
         new_layout = json.load(file)
+    for computed in (old_layout, new_layout):
+        computed.pop('layoutSha1', None)  # provenance, not output
     count, largest, differences, added = compare_json(old_layout, new_layout)
     passed = not differences
     results.append(passed)

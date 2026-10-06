@@ -2497,5 +2497,5 @@
   ],
   "note": "distances (cm) from walkable ground inside the boundary to its nearest break: largest is the widest empty circle's radius; worst lists the centers of the emptiest stretches (one per stretch); overTarget is the share of walkable ground farther than target from a break"
  },
- "layoutSha1": "b16aef679ef02dc0cae4e84a6ef35ff2ee92ecf4"
+ "layoutSha1": "a64de77fcdd7bedcf2d9966f38c7064345fa7e2b"
 }

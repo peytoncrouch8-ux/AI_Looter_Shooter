@@ -22,7 +22,11 @@ layout.json are centimeters; "left" and "right" are as seen on the plan (north u
          ("walls": "cliff").
   creek  ... with "falls": {"drop", "gorge": {path, width, fall}}: the creek ends in a falls "drop" high into a slot
          gorge with cliff walls, which starts at the creek's end and whose floor falls "fall" more along its path. A
-         shallow stream runs on in the gorge.
+         shallow stream runs on in the gorge. With "bottom": {width, depth, bank} the creek runs in a flat bottom cut
+         first (Mill Creek's, where the slimes live), its banks kept.
+A ramp's "drop" (left, right or both) makes that side of it a ledge's cliff instead of an embankment's slope
+(ramp_drop_sides; the bluff path, the Sink's ramp). A pit's "cliffGaps" ({center, radius}) leave its cliff ring out
+where a rock model stands in for its wall (Den Rock).
 Plateaus, pits and their ramps, and the creeks, are in area_shape.py.
 """
 import math
@@ -56,6 +60,20 @@ def right_normal(a, b):
 def control_arcs(pts, s, ctrl):
     """The arc length along a curve (pts, s) at each of its control points."""
     return np.array([s[int(np.argmin(np.linalg.norm(pts - c, axis=1)))] for c in ctrl])
+
+
+DROP_SIDES = {'left': [-1], 'right': [1], 'both': [-1, 1]}
+
+
+def ramp_drop_sides(ramp):
+    """The sides of a ramp whose embankment drops as a cliff (its "drop": left, right or both), as polyline_field()'s
+    side values (+1 on the right, as seen on the plan); empty when it has none."""
+    drop = ramp.get('drop')
+    if drop is None:
+        return []
+    if drop not in DROP_SIDES:
+        raise ValueError(f"a ramp's drop must be left, right or both, not {drop!r}")
+    return DROP_SIDES[drop]
 
 
 class FeatureSteps:

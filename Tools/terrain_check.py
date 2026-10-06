@@ -12,7 +12,8 @@ From Art/Levels/<Area>/layout.json (the generator's own geometry, nothing built)
   region.seamBand, where it fades into the regional field), the lip crossing the core square once, and the boundary a
   simple polygon whose open runs name real corners.
 From Art/Levels/<Area>/layout_computed.json (written by Art/Models/Terrain/<Area>.py --computed):
-- that it was computed from this layout.json (its layoutSha1);
+- that it was computed from this layout.json (its layoutSha1: area_shape.layout_sha1, which leaves out the blocks the
+  generator never reads, "level" and "gameplay");
 - every ramp's grade (over RAMP_WINDOW m) at most RAMP_MAX_GRADE (warned past RAMP_WARN_GRADE) and its width;
 - every cliff course at most MAX_COURSE (the cliff kit's tallest piece), every wall taller than that dressed in
   courses that add up to it, every feature that has cliffs given a dressed group;
@@ -21,7 +22,6 @@ From Art/Levels/<Area>/layout_computed.json (written by Art/Models/Terrain/<Area
 It prints each finding and a verdict, and exits with 1 on any error.
 """
 import argparse
-import hashlib
 import json
 import math
 import os
@@ -174,8 +174,7 @@ def check_computed(area, computed, out):
         return
     with open(computed, encoding='utf-8') as file:
         data = json.load(file)
-    with open(area.path, 'rb') as file:
-        sha = hashlib.sha1(file.read()).hexdigest()
+    sha = area_shape.layout_sha1(area.path)
     if 'layoutSha1' not in data:
         out.warn('it doesn\'t say which layout.json it came from (no layoutSha1): rebuild it to be sure')
     elif data['layoutSha1'] != sha:

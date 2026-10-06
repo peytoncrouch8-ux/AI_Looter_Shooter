@@ -13,7 +13,7 @@ A grounded area's core treats the escarpment's lip as the island treats its rim 
 edge), and its colors blend into the surround ring's map across the seam band. paint_ring() paints that map,
 T_<Area>RingMacro_BC.png, over the ring's square from the same palette and noise: ridges with dark pine floors and
 rock bands, the canyon's ochre floor with its river, the plains past the far wall. Pits, gullies and knobs get their
-own ground (_features).
+own ground (_features). A layout's "macro": {"grade": ...} turns both maps' greens to another season (GRADES).
 """
 import math
 import os
@@ -28,6 +28,44 @@ from area_shape import BUILDINGS, to_m
 
 def _c(value):
     return np.array([(value >> 16) & 255, (value >> 8) & 255, value & 255], dtype=np.float32) / 255.0
+
+
+# Grades a layout can ask for (layout.json "macro": {"grade": name}): the palette's greens turned toward another
+# season, applied to both maps after painting, so the core and the ring still agree at the seam. "golden" is late
+# summer (Ransom's Rest): the meadow's greens become golden grass, toward hue 42 degrees, a little lighter and paler;
+# straw, soil, rock and water keep their colors.
+GRADES = {'golden': dict(hue=42.0, keep=0.1, lift=0.28, fade=0.18)}
+
+
+def _grade(rgb, name):
+    """Grades an (n, n, 3) sRGB array in place, a band of rows at a time."""
+    spec = GRADES[name]
+    for a in range(0, rgb.shape[0], 256):
+        block = rgb[a:a + 256]
+        r, g, b = block[..., 0], block[..., 1], block[..., 2]
+        mx = np.maximum(np.maximum(r, g), b)
+        delta = mx - np.minimum(np.minimum(r, g), b)
+        safe = np.where(delta > 1e-6, delta, 1.0)
+        hue = np.where(mx == r, ((g - b) / safe) % 6.0, np.where(mx == g, (b - r) / safe + 2.0, (r - g) / safe + 4.0))
+        hue = np.where(delta > 1e-6, hue * 60.0, 0.0)
+        sat = np.where(mx > 1e-6, delta / np.maximum(mx, 1e-6), 0.0)
+        w = (_ss(spec['hue'] - 10.0, spec['hue'], hue) * (1.0 - _ss(150.0, 170.0, hue)) * _ss(0.06, 0.16, sat))
+        green = _ss(50.0, 75.0, hue) * w
+        val = mx * (1.0 + spec['lift'] * green)
+        sat = sat * (1.0 - spec['fade'] * green)
+        target = spec['hue'] + (np.maximum(hue, spec['hue']) - spec['hue']) * spec['keep']
+        h6 = (hue + (target - hue) * w) / 60.0
+        c = val * sat
+        x = c * (1.0 - np.abs(h6 % 2.0 - 1.0))
+        k = np.floor(h6).astype(np.int64) % 6
+        zero = np.zeros_like(c)
+        for i, (rr, gg, bb) in enumerate(((c, x, zero), (x, c, zero), (zero, c, x), (zero, x, c), (x, zero, c),
+                                          (c, zero, x))):
+            sel = k == i
+            block[..., 0] = np.where(sel, rr + val - c, block[..., 0])
+            block[..., 1] = np.where(sel, gg + val - c, block[..., 1])
+            block[..., 2] = np.where(sel, bb + val - c, block[..., 2])
+        np.clip(block, 0.0, 1.0, out=block)
 
 
 # The palette (sRGB): warm, slightly desaturated meadow greens, straw, soil, stone.
@@ -149,6 +187,9 @@ def paint(area, out_path, preview_dir=None, log=print):
     rgba = np.empty((n, n, 4), dtype=np.float32)
     rgba[..., :3] = np.clip(canvas.rgb, 0.0, 1.0)
     rgba[..., 3] = np.clip(canvas.alpha, 1.0 / 255.0, 1.0)
+    grade = area.layout.get('macro', {}).get('grade')
+    if grade:
+        _grade(rgba[..., :3], grade)
     if getattr(area, 'ring_rgba', None) is not None:
         # Across the seam band the core's colors fade into the ring's, which they meet exactly at the square's edge.
         import area_region
@@ -264,7 +305,7 @@ def _range(area, grid, canvas):
     canvas.paint(GREEN_MID * 0.96, 0.12 * w * (1.0 - _ss(0.3, 0.7, stripes)))
     for p in area.layout['placements']:
         if p['kind'] == 'TargetDummy':
-            _disc(grid, canvas, np.asarray(p['location']) / 100.0, 1.3, SOIL, 0.8, 0.1)
+            _disc(grid, canvas, np.asarray(p['location'][:2]) / 100.0, 1.3, SOIL, 0.8, 0.1)
 
 
 def _disc(grid, canvas, center, radius, color, strength, alpha, soft=0.8):
@@ -304,7 +345,7 @@ def _yards(area, grid, canvas, n_fine):
         if p['kind'] not in BUILDINGS:
             continue
         length, width = BUILDINGS[p['kind']]
-        c = np.asarray(p['location']) / 100.0
+        c = np.asarray(p['location'][:2]) / 100.0
         yaw = math.radians(p.get('yaw', 0.0))
         fwd = np.array([math.cos(yaw), math.sin(yaw)])
         reach = max(length, width) * 0.5 + 3.0
@@ -489,6 +530,9 @@ def paint_ring(area, out_path, preview_dir=None, log=print):
     rgba = np.empty((n, n, 4), dtype=np.float32)
     rgba[..., :3] = np.clip(canvas.rgb, 0.0, 1.0)
     rgba[..., 3] = np.clip(canvas.alpha, 1.0 / 255.0, 1.0)
+    grade = area.layout.get('macro', {}).get('grade')
+    if grade:
+        _grade(rgba[..., :3], grade)
     area.ring_rgba = rgba
     _save(rgba, out_path)
     written = out_path

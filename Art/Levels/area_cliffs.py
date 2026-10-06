@@ -135,10 +135,13 @@ def scarp_cliffs(area, sc):
 
 def pit_cliffs(area, p, near_ramp):
     """A pit's wall, every CLIFF_STEP m round its rim, facing in: the wall's foot is on the floor, its top on the rim.
-    Left out across its ramp."""
+    Left out across its ramp, and within each of its "cliffGaps" ({center, radius} in cm: where a rock model stands
+    in for the wall, as Den Rock does over the Gravemother's den)."""
     poly = p['poly']
     s = arc_length(poly, closed=True)
     gradient = np.gradient(p['sd'])
+    gaps = [(np.asarray(g['center'], dtype=np.float64) / 100.0, g['radius'] / 100.0)
+            for g in p['feature'].get('cliffGaps', [])]
     points = []
     for target in np.arange(0.0, s[-1], CLIFF_STEP):
         k = min(int(np.searchsorted(s, target)), len(poly) - 1)
@@ -153,6 +156,8 @@ def pit_cliffs(area, p, near_ramp):
             continue
         c = line[cross[np.argmin(np.abs(offsets[cross]))]]
         if not _inside(area, c) or near_ramp(area, c, 3.0):
+            continue
+        if any(np.linalg.norm(c - center) < radius for center, radius in gaps):
             continue
         g = np.array([area.at(gradient[0], *c), area.at(gradient[1], *c)])
         outward = g / max(np.linalg.norm(g), 1e-9)  # the signed distance grows outward, away from the floor

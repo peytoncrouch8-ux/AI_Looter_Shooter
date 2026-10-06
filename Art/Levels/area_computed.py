@@ -11,7 +11,6 @@ every group. ponds, creeks, ramps, bridges, gullies and waterfalls hold every on
 bridge and waterfall describe the first of each, as before. A grounded area's playable boundary is "boundary" (corners
 and open edges, as APlayableArea takes them), and every area gets the open-ground metric, "openGround" (area_open.py).
 """
-import hashlib
 import json
 import math
 
@@ -19,7 +18,7 @@ import numpy as np
 
 import area_cliffs
 from area_math import arc_length, points_in_polygon
-from area_shape import CREEK_WATER_HALF, to_m
+from area_shape import CREEK_WATER_HALF, layout_sha1, to_m
 
 CLIFF_STEP = 10.0     # meters between cliff dressing points
 ORCHARD_SPACING = 4.5
@@ -93,11 +92,20 @@ def bridge_of(area, spec):
     deck = float(np.interp(s_road, road['s'], road['z']))
     direction = road['pts'][min(i + 2, len(road['pts']) - 1)] - road['pts'][max(i - 2, 0)]
     direction /= np.linalg.norm(direction)
-    # The span: out along the road until the ground is back up to the deck on both sides, plus a meter each way.
+    # The span: out along the road until the ground is back up to the deck on both sides, plus a meter each way. Over
+    # a dry gully it ends at the top of the gully's banks too, where the road runs on lower than the deck (down off a
+    # terrace, as the keeper's path does over the Dry Wash).
+    channel = None
+    if 'bank' in creek:
+        bed = float(np.interp(_along(creek, point), creek['s'], creek['bed']))
+        channel = creek['half'] + max(deck - bed, 0.0) / creek['bank'] + 0.5
     reach = []
     for sign in (-1.0, 1.0):
         d = 0.5
         while d < 15.0 and area.height(*(point + sign * direction * d)) < deck - 0.12:
+            if channel is not None and np.min(np.linalg.norm(creek['pts'] - (point + sign * direction * d),
+                                                             axis=1)) > channel:
+                break
             d += 0.1
         reach.append(d)
     water = float(np.interp(_along(creek, point), creek['s'], creek['water']))
@@ -200,26 +208,45 @@ def _near_ramp(area, point, margin):
 
 def ramp_walls(area, r, step=5.0):
     """Both walls of a ramp's cut through the cliff, where they're more than 1.5 m high: the wall's foot, its
-    height and the direction it faces (toward the path)."""
-    walls = []
+    height and the direction it faces (toward the path). A ramp whose side drops as a cliff ("drop") gets that face
+    too, after the cut's walls: a standing face from the ground below up to the ramp's edge, facing away from it."""
+    walls, drops = [], []
     pts, s = r['pts'], r['s']
     half = r['width'] * 0.5
     for target in np.arange(step * 0.5, s[-1], step):
         k = int(np.searchsorted(s, target))
         tangent = pts[min(k + 1, len(pts) - 1)] - pts[max(k - 1, 0)]
         tangent /= np.linalg.norm(tangent)
-        side = np.array([-tangent[1], tangent[0]])
+        side = np.array([-tangent[1], tangent[0]])  # the right of travel, as seen on the plan
         zr = float(np.interp(target, s, r['z']))
         for sign in (-1.0, 1.0):
             d = np.arange(half, half + 9.0, 0.2)
             line = pts[k][None, :] + sign * d[:, None] * side[None, :]
-            rise = area.height(line[:, 0], line[:, 1]) - zr
+            ground = area.height(line[:, 0], line[:, 1])
+            rise = ground - zr
+            if sign in r.get('drop', ()):
+                point = _ramp_drop(area, line, ground, sign * side)
+                if point:
+                    drops.append(point)
             if rise.max() < 1.5:
                 continue
             foot = line[int(np.argmax(rise > 0.25))]
             walls.append({'location': [_cm(foot[0]), _cm(foot[1]), _cm(zr)], 'height': _cm(rise.max()),
                           'yaw': _yaw(*(-sign * side))})
-    return walls
+    return walls + drops
+
+
+def _ramp_drop(area, line, ground, out):
+    """The face where a ramp's side drops as a cliff, from the samples of a line running out from its edge: from
+    where the ground starts falling steeply to where it stops. None when it's lower than a face needs."""
+    steep = np.gradient(ground, 0.2) < -1.5
+    if not steep.any():
+        return None
+    first = int(np.argmax(steep))
+    last = first + int(np.argmax(~steep[first:])) if (~steep[first:]).any() else len(line) - 1
+    top, foot = line[first], line[last]
+    reach = float(np.linalg.norm(foot - top)) * 0.5 + 0.3
+    return area_cliffs.face(area, (top + foot) * 0.5, out, reach, reach)
 
 
 def rim_points(area):
@@ -356,8 +383,11 @@ def compute(area):
                         'flatRadius': _cm(f['radius']), 'blend': _cm(f['blend'])} for f in area.footprints],
     }
     for p in area.layout['placements']:
-        x, y = np.asarray(p['location']) / 100.0
-        data['placements'][p['id']] = {'kind': p['kind'], 'location': _xyz(area, x, y), 'yaw': p.get('yaw', 0.0)}
+        # [X, Y] stands on the terrain; [X, Y, Z] keeps its own height (a model seated on something the heights
+        # don't show: Den Rock's pivot on the Sink's rim, over the pocket its den goes into).
+        x, y = np.asarray(p['location'][:2]) / 100.0
+        z = p['location'][2] / 100.0 if len(p['location']) > 2 else None
+        data['placements'][p['id']] = {'kind': p['kind'], 'location': _xyz(area, x, y, z), 'yaw': p.get('yaw', 0.0)}
     data['bridge'] = bridge(area)
     data['waterfall'] = waterfall(area)
     if area.ponds:
@@ -392,8 +422,8 @@ def compute(area):
         _grounded(area, data)
     import area_open
     data['openGround'] = area_open.measure(area)[0]
-    with open(area.path, 'rb') as file:
-        data['layoutSha1'] = hashlib.sha1(file.read()).hexdigest()
+    # Which layout it came from, leaving out the blocks the generator never reads (area_shape.layout_sha1).
+    data['layoutSha1'] = layout_sha1(area.path)
     return data
 
 

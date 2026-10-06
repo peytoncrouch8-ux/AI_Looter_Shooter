@@ -6,7 +6,13 @@ gets a clay view of each, feature_<id>.png, with slabs standing in for the cliff
 course). Clay blocks stand in for the buildings, for scale. Everything added is removed afterwards.
 
 A view is an eye and a target, each [X, Y, height above the ground] in cm (an eye or a target outside the map square
-takes its height as absolute), and a lens in mm.
+takes its height as absolute), and a lens in mm. Optional: "sun" [azimuth from north, elevation] in degrees, the
+planned sun: warm, low, its shadows long, its disc in the sky, under a golden sky (else a sun from the view's upper
+left); "light" [azimuth, elevation], a plain sun from there (for clay views); "clay": the terrain in clay with the
+obstacles and the buildings as stand-ins ("cliffs" adds the cliff kit's courses as see-through bands); "obstacles":
+the obstacles' stand-ins on the textured terrain; "ortho": a width (cm) seen straight down onto the target, north up,
+under a dim sky so the sun's shadows read as shapes. preview.features lists the features that get a clay view of
+their own (all of step 3b's when it's left out), and preview.labelSize sets the plan's labels (m).
 """
 import math
 import os
@@ -22,7 +28,30 @@ STAND_INS = {  # kind: length along the actor's forward, width, height (m)
     'Farmhouse': (9.0, 11.0, 6.5), 'Barn': (12.0, 9.0, 8.0), 'Well': (1.8, 1.8, 1.4), 'LogCabin': (6.5, 8.0, 5.0),
     'Cottage': (6.5, 8.0, 5.5), 'Outhouse': (1.3, 1.3, 2.4), 'GunRack': (0.5, 2.0, 1.6), 'Windmill': (2.5, 2.5, 11.0),
     'LookoutTower': (4.0, 4.0, 10.0), 'TargetDummy': (0.5, 0.6, 1.8),
+    # Ransom's Rest's buildings and props. A list is several boxes: (length, width, height, ahead, x, up), offset
+    # from the pivot along the actor's forward (the model's -Y), the model's own x (as its script describes it) and up
+    # (m).
+    'Lookout': [(4.4, 4.4, 6.5, 0.0, 0.0, 0.0), (6.6, 6.6, 0.4, 1.1, 0.0, 6.5), (2.4, 3.4, 2.6, -1.0, 0.0, 6.9)],
+    'CliffStairs': [(2.9, 8.7, 20.0, 1.45, -2.85, -20.0)], 'MooringPost': (0.4, 0.4, 1.6),
+    'Chapel': [(9.6, 6.4, 8.5, -0.8, 0.0, 0.0), (3.2, 3.2, 16.0, 5.6, 0.0, 0.0), (2.6, 2.4, 4.0, -1.5, 4.4, 0.0)],
+    'FalseFront_Undertaker': (12.0, 7.0, 8.5), 'FalseFront_Saloon': (14.0, 8.4, 10.5),
+    'FalseFront_Store': (13.0, 9.4, 8.0), 'FalseFront_Sheriff': (10.0, 6.6, 8.0),
+    'NoticeBoard': (0.6, 2.0, 2.4), 'TownMemorial': (1.0, 1.0, 1.8),
+    'Depot': (6.0, 10.0, 6.5), 'WaterTower': (4.0, 4.0, 10.2), 'CoffinShed': (2.4, 3.2, 2.6),
+    'DepotPlatform_4m': [(4.0, 4.0, 0.4, 0.0, 2.0, 0.0)], 'DepotPlatform_End': [(4.0, 2.4, 0.3, 0.0, 1.2, 0.0)],
+    'Signal': (0.5, 0.5, 6.2), 'BufferStop': (1.5, 3.0, 1.6), 'Track_Straight_12m': [(12.0, 2.6, 0.25, 6.0, 0.0, 0.0)],
+    'HearseCar': (10.3, 2.9, 4.2), 'PassengerCar': (12.3, 2.9, 4.2), 'Locomotive_B': (8.8, 2.8, 4.6),
+    'BurialDeck': [(25.0, 18.0, 0.4, 0.0, 0.0, 0.0)],
+    'Grave_Ellis': (2.2, 1.2, 1.0), 'Grave_Abel': (2.2, 1.2, 1.0), 'Grave_Keeper': (1.6, 2.2, 2.2),
+    'Grave_MoundFresh': (2.0, 1.0, 0.9), 'DeadTree_A': (0.8, 0.8, 9.0),
+    'Ruin_Chimney': (1.6, 2.2, 6.6), 'Ruin_Derrick': (16.0, 2.0, 1.5), 'Wagon_BurntA': (4.0, 2.0, 2.0),
+    'Wagon_BurntB': (4.0, 2.0, 1.4), 'Cairn_A': (0.8, 0.8, 1.0), 'Cairn_B': (0.8, 0.8, 1.0), 'Cairn_C': (0.8, 0.8, 1.2),
 }
+# The planned light for views with a "sun": golden late afternoon.
+GOLDEN_SUN = (1.0, 0.8, 0.58)
+# How far (m) the plan's annotations are lifted, so ground higher than they'd otherwise float (a grounded area's
+# ridges) never hides them; render_plan sets it.
+_plan_lift = 0.0
 
 
 def _to_b(x, y, z):
@@ -41,7 +70,9 @@ def _material(name, color, emission=0.0):
     return mat
 
 
-def _world(scene):
+def _world(scene, golden=False, strength=1.0):
+    """The preview's sky: a gradient from the ground's grey through a pale horizon to blue (golden: a warm horizon,
+    the late afternoon's), lighting the scene at strength."""
     world = bpy.data.worlds.new('_PreviewSky')
     world.use_nodes = True
     nodes, links = world.node_tree.nodes, world.node_tree.links
@@ -58,12 +89,12 @@ def _world(scene):
     links.new(split.outputs['Z'], ramp.inputs['Fac'])
     ramp.color_ramp.interpolation = 'EASE'
     e = ramp.color_ramp.elements
-    e[0].position, e[0].color = 0.0, (0.26, 0.29, 0.33, 1.0)
-    e[1].position, e[1].color = 0.62, (0.16, 0.30, 0.62, 1.0)
+    e[0].position, e[0].color = 0.0, (0.26, 0.29, 0.33, 1.0) if not golden else (0.3, 0.27, 0.24, 1.0)
+    e[1].position, e[1].color = 0.62, (0.16, 0.30, 0.62, 1.0) if not golden else (0.2, 0.33, 0.6, 1.0)
     mid = e.new(0.03)
-    mid.color = (0.62, 0.66, 0.66, 1.0)
+    mid.color = (0.62, 0.66, 0.66, 1.0) if not golden else (0.86, 0.72, 0.52, 1.0)
     links.new(ramp.outputs['Color'], bg.inputs['Color'])
-    bg.inputs['Strength'].default_value = 1.0
+    bg.inputs['Strength'].default_value = strength
     links.new(bg.outputs['Background'], out.inputs['Surface'])
     world.mist_settings.start = 110.0
     world.mist_settings.depth = 700.0
@@ -72,7 +103,7 @@ def _world(scene):
     return world
 
 
-def _haze(scene, on):
+def _haze(scene, on, color=(0.66, 0.72, 0.78, 1.0)):
     """Aerial haze from the mist pass, mixed toward a pale sky color in the compositor."""
     scene.view_layers[0].use_pass_mist = on
     scene.use_nodes = on
@@ -82,7 +113,7 @@ def _haze(scene, on):
     tree.nodes.clear()
     layers = tree.nodes.new('CompositorNodeRLayers')
     mix = tree.nodes.new('CompositorNodeMixRGB')
-    mix.inputs[2].default_value = (0.66, 0.72, 0.78, 1.0)
+    mix.inputs[2].default_value = color
     scale = tree.nodes.new('CompositorNodeMath')
     scale.operation = 'MULTIPLY'
     scale.inputs[1].default_value = 0.4
@@ -111,25 +142,205 @@ def _sun(forward, added, strength=4.2, side=0.85, ahead=0.3, elevation=36.0):
     return sun
 
 
+def _world_sun(azimuth, elevation, added, strength=4.6, color=GOLDEN_SUN, disc=False):
+    """A fixed sun in the area's sky: azimuth in degrees from north toward east, elevation over the horizon; warm by
+    default, the planned golden late afternoon's. Its shadows are the views' point (a low sun throws long ones). disc
+    puts its glowing disc in the sky, 12 km out (inside the cameras' 20 km reach)."""
+    a, e = math.radians(azimuth), math.radians(elevation)
+    # Toward the sun, in Blender's axes (x = -east, y = -north).
+    toward = Vector((-math.sin(a) * math.cos(e), -math.cos(a) * math.cos(e), math.sin(e)))
+    sun = bpy.data.objects.new('_Sun', bpy.data.lights.new('_Sun', 'SUN'))
+    sun.data.energy = strength
+    sun.data.color = color
+    sun.data.angle = math.radians(0.8)
+    sun.rotation_euler = (-toward).to_track_quat('-Z', 'Y').to_euler()
+    bpy.context.scene.collection.objects.link(sun)
+    added.append(sun)
+    if disc:
+        mesh = bpy.data.meshes.new('_SunDisc')
+        ring = [(math.cos(t) * 160.0, math.sin(t) * 160.0, 0.0) for t in np.linspace(0.0, 2.0 * math.pi, 24,
+                                                                                    endpoint=False)]
+        mesh.from_pydata(ring, [], [tuple(range(24))])
+        mesh.materials.append(_material('_SunDisc', (1.0, 0.86, 0.62, 1.0), emission=40.0))
+        obj = bpy.data.objects.new('_SunDisc', mesh)
+        obj.location = toward * 12000.0
+        obj.rotation_euler = toward.to_track_quat('Z', 'Y').to_euler()
+        obj.visible_shadow = False
+        bpy.context.scene.collection.objects.link(obj)
+        added.append(obj)
+    return sun
+
+
 def _stand_ins(area, added):
     clay = _material('_Clay', (0.55, 0.52, 0.47, 1.0))
     for p in area.layout['placements']:
         if p['kind'] not in STAND_INS:
             continue
-        length, width, height = STAND_INS[p['kind']]
-        x, y = np.asarray(p['location']) / 100.0
+        spec = STAND_INS[p['kind']]
+        boxes = spec if isinstance(spec, list) else [tuple(spec) + (0.0, 0.0, 0.0)]
+        x, y = np.asarray(p['location'][:2]) / 100.0
         z = float(area.height(x, y))
+        verts, faces = [], []
+        for length, width, height, ahead, model_x, up in boxes:
+            # In the stand-in's own axes (a model's Blender axes): the actor's forward is -y, so the box spans its
+            # width along x and its length along y.
+            hx, hy = width * 0.5, length * 0.5
+            cx, cy = model_x, -ahead
+            b = len(verts)
+            verts += [(cx - hx, cy - hy, up), (cx + hx, cy - hy, up), (cx + hx, cy + hy, up), (cx - hx, cy + hy, up),
+                      (cx - hx, cy - hy, up + height), (cx + hx, cy - hy, up + height), (cx + hx, cy + hy, up + height),
+                      (cx - hx, cy + hy, up + height)]
+            faces += [tuple(b + i for i in f) for f in ((0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5),
+                                                        (2, 3, 7, 6), (3, 0, 4, 7))]
         mesh = bpy.data.meshes.new('_Stand')
-        hx, hy = width * 0.5, length * 0.5
-        mesh.from_pydata([(-hx, -hy, 0), (hx, -hy, 0), (hx, hy, 0), (-hx, hy, 0),
-                          (-hx, -hy, height), (hx, -hy, height), (hx, hy, height), (-hx, hy, height)], [],
-                         [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)])
+        mesh.from_pydata(verts, [], faces)
         mesh.materials.append(clay)
         obj = bpy.data.objects.new('_Stand_' + p['id'], mesh)
         obj.location = _to_b(x, y, z - 0.3)
         obj.rotation_euler = (0.0, 0.0, -math.radians(p.get('yaw', 0.0)))
         bpy.context.scene.collection.objects.link(obj)
         added.append(obj)
+
+
+def _computed(area):
+    """layout_computed.json's values for the previews, worked out once per area."""
+    if getattr(area, '_preview_data', None) is None:
+        area._preview_data = area_computed.compute(area)
+    return area._preview_data
+
+
+class _Batch:
+    """Stand-in solids merged per material (one object each), in layout meters."""
+
+    def __init__(self):
+        self.parts = {}
+
+    def _add(self, group, verts, faces):
+        vs, fs = self.parts.setdefault(group, ([], []))
+        base = len(vs)
+        vs += verts
+        fs += [tuple(base + i for i in f) for f in faces]
+
+    def prism(self, group, pts, z0, z1):
+        """A polygon (N, 2) from per-point foot heights z0 (N,) up to a flat top z1."""
+        n = len(pts)
+        verts = [tuple(_to_b(x, y, z)) for (x, y), z in zip(pts, z0)] + [tuple(_to_b(x, y, z1)) for x, y in pts]
+        faces = [tuple(range(n)), tuple(range(2 * n - 1, n - 1, -1))]
+        faces += [(i, (i + 1) % n, n + (i + 1) % n, n + i) for i in range(n)]
+        self._add(group, verts, faces)
+
+    def box(self, group, area, c, along, length, width, height, sink=0.3):
+        """A box on the ground at c, its length along the unit vector along (layout axes)."""
+        side = np.array([-along[1], along[0]])
+        pts = np.array([c + along * a * length * 0.5 + side * b * width * 0.5
+                        for a, b in ((1, 1), (-1, 1), (-1, -1), (1, -1))])
+        z = area.height(pts[:, 0], pts[:, 1]) - sink
+        self.prism(group, pts, z, float(np.max(z)) + sink + height)
+
+    def cone(self, group, area, c, radius, height, sides=7):
+        z = float(area.height(*c)) - 0.3
+        a = np.linspace(0.0, 2.0 * math.pi, sides, endpoint=False)
+        verts = [tuple(_to_b(c[0] + radius * math.cos(t), c[1] + radius * math.sin(t), z)) for t in a]
+        verts.append(tuple(_to_b(c[0], c[1], z + height + 0.3)))
+        faces = [tuple(range(sides))[::-1]] + [(i, (i + 1) % sides, sides) for i in range(sides)]
+        self._add(group, verts, faces)
+
+    def finish(self, materials, added):
+        for group, (verts, faces) in self.parts.items():
+            mesh = bpy.data.meshes.new('_Obstacles_' + group)
+            mesh.from_pydata(verts, [], faces)
+            mesh.materials.append(materials[group])
+            obj = bpy.data.objects.new('_Obstacles_' + group, mesh)
+            bpy.context.scene.collection.objects.link(obj)
+            added.append(obj)
+
+
+def _inside_points(poly, spacing, rng):
+    """Jittered points on a grid spacing meters apart inside a polygon (layout meters); its middle if none."""
+    from area_math import points_in_polygon
+    lo, hi = poly.min(axis=0), poly.max(axis=0)
+    xs = np.arange(lo[0] + spacing * 0.5, hi[0], spacing)
+    ys = np.arange(lo[1] + spacing * 0.5, hi[1], spacing)
+    if not len(xs) or not len(ys):
+        return poly.mean(axis=0)[None, :]
+    x, y = np.meshgrid(xs, ys, indexing='ij')
+    pts = np.column_stack([x.ravel(), y.ravel()]) + rng.uniform(-0.3, 0.3, (x.size, 2)) * spacing
+    keep = points_in_polygon(pts[:, 0], pts[:, 1], poly)
+    return pts[keep] if keep.any() else poly.mean(axis=0)[None, :]
+
+
+def _along_path(pts, step):
+    """Points every step meters along a polyline, with the direction there."""
+    out = []
+    for a, b in zip(pts[:-1], pts[1:]):
+        d = b - a
+        length = float(np.linalg.norm(d))
+        if length < 1e-6:
+            continue
+        u = d / length
+        for t in np.arange(step * 0.5, length, step):
+            out.append((a + u * t, u))
+    return out
+
+
+def _pieces(line, step=2.0):
+    """A polyline cut into pieces at most step meters long (center, direction, length), so walls built of them
+    follow the ground."""
+    out = []
+    for a, b in zip(line[:-1], line[1:]):
+        d = b - a
+        length = float(np.linalg.norm(d))
+        if length < 1e-6:
+            continue
+        count = max(1, int(math.ceil(length / step)))
+        for k in range(count):
+            out.append((a + d * (k + 0.5) / count, d / length, length / count))
+    return out
+
+
+def _obstacle_stand_ins(area, added, clay=False):
+    """layout.json's obstacles as simple solids at their heights: fences and walls along their lines, boulder groups
+    as scattered blocks, tree stands as cones, ruins as roofless walls, outcrops and props as blocks; the orchard's
+    trees too. One object per material."""
+    rng = np.random.default_rng(17)
+    colors = {'rock': (0.34, 0.32, 0.3, 1.0), 'tree': (0.27, 0.3, 0.24, 1.0) if clay else (0.13, 0.2, 0.1, 1.0),
+              'built': (0.62, 0.55, 0.45, 1.0), 'fence': (0.74, 0.7, 0.62, 1.0)}
+    materials = {k: _material('_Ob_' + k + ('_clay' if clay else ''), c) for k, c in colors.items()}
+    batch = _Batch()
+    for ob in area.layout.get('obstacles', []):
+        kind, h = ob.get('kind', ''), ob.get('height', 150) / 100.0
+        closed = 'polygon' in ob
+        pts = np.asarray(ob['polygon'] if closed else ob['path'], dtype=np.float64) / 100.0
+        line = np.vstack([pts, pts[:1]]) if closed else pts
+        if kind in ('fence', 'wall'):
+            for c, u, length in _pieces(line):
+                batch.box('fence', area, c, u, length, 0.15 if kind == 'fence' else 0.6, h)
+        elif kind in ('cairns', 'graves', 'biers'):
+            step, size = {'cairns': (2.5, (0.9, 0.9)), 'graves': (1.6, (0.15, 0.6)), 'biers': (3.4, (2.2, 0.8))}[kind]
+            for c, u in _along_path(line, step):
+                batch.box('rock' if kind == 'cairns' else 'built', area, c, u, size[0], size[1], h)
+        elif kind == 'ruin' and closed:
+            for c, u, length in _pieces(line):
+                batch.box('built', area, c, u, length, 0.5, h * 0.75)
+        elif kind == 'boulders' and closed:
+            for c in _inside_points(pts, 2.8, rng):
+                a = rng.uniform(0.0, math.pi)
+                batch.box('rock', area, c, np.array([math.cos(a), math.sin(a)]), rng.uniform(1.4, 2.6),
+                          rng.uniform(1.2, 2.2), h * rng.uniform(0.45, 1.0))
+        elif kind == 'trees' and closed:
+            big = h >= 9.0
+            for c in _inside_points(pts, 5.5 if big else 4.0, rng):
+                batch.cone('tree', area, c, (2.6 if big else 2.0) * rng.uniform(0.85, 1.15), h * rng.uniform(0.8, 1.1))
+        elif closed:  # outcrops, props, ruins drawn as areas
+            z = area.height(pts[:, 0], pts[:, 1]) - 0.3
+            batch.prism('rock' if kind == 'outcrop' else 'built', pts, z, float(np.max(z)) + 0.3 + h)
+        else:
+            for c, u, length in _pieces(line):
+                batch.box('built', area, c, u, length, 1.6, h)
+    for row in area_computed.orchard_rows(area):
+        for t in row['trees']:
+            batch.cone('tree', area, np.array(t[:2]) / 100.0, 1.8, 4.5)
+    batch.finish(materials, added)
 
 
 def _camera(eye, target, lens, added, ortho=None, far=2000.0):
@@ -178,27 +389,49 @@ def _cleanup(added):
 
 def render_views(area, out_dir, log=print, only=None):
     scene = bpy.context.scene
-    world = _world(scene)
-    _haze(scene, True)
     for name, view in area.layout.get('preview', {}).get('views', {}).items():
         if only and name not in only:
             continue
+        golden = 'sun' in view
+        # Seen straight down, the sky lights shadowed ground almost as much as the low sun lights the rest: dimmed,
+        # the shadows show.
+        world = _world(scene, golden=golden, strength=0.35 if view.get('ortho') else 1.0)
+        _haze(scene, True, (0.82, 0.75, 0.64, 1.0) if golden else (0.66, 0.72, 0.78, 1.0))
         (ex, ey, eh), (tx, ty, th) = (np.asarray(view[k], dtype=np.float64) / 100.0 for k in ('eye', 'target'))
         added = []
         _stand_ins(area, added)
+        restore = None
+        if view.get('clay'):
+            restore = _clay_terrain(area)
+            if view.get('cliffs'):
+                _cliff_stand_ins(area, _computed(area), added)
+        if view.get('clay') or view.get('obstacles'):
+            _obstacle_stand_ins(area, added, clay=bool(view.get('clay')))
         inside = abs(ex) < area.half and abs(ey) < area.half
         eye = _to_b(ex, ey, float(area.height(ex, ey)) + eh if inside else eh)
         aimed = abs(tx) < area.half and abs(ty) < area.half
         target = _to_b(tx, ty, float(area.height(tx, ty)) + th if aimed else th)
-        # A grounded area's backdrop stands out to 12 km.
-        _camera(eye, target, view['lens'], added, far=20000.0 if area.setting == 'grounded' else 2000.0)
-        _sun((target - eye).normalized(), added)
+        if view.get('ortho'):
+            # Straight down onto the target, north up, the given width (cm) across: shadows read as shapes.
+            _camera(Vector((target.x, target.y, target.z + 300.0)), None, view['lens'], added,
+                    ortho=view['ortho'] / 100.0, far=2000.0)
+        else:
+            # A grounded area's backdrop stands out to 12 km.
+            _camera(eye, target, view['lens'], added, far=20000.0 if area.setting == 'grounded' else 2000.0)
+        if golden:
+            _world_sun(view['sun'][0], view['sun'][1], added, disc=True)
+        elif 'light' in view:
+            _world_sun(view['light'][0], view['light'][1], added, strength=4.2, color=(1.0, 0.95, 0.88))
+        else:
+            _sun((target - eye).normalized(), added)
         path = os.path.join(out_dir, name + '.png')
         _render(path, (1600, 900))
         _cleanup(added)
+        if restore:
+            restore()
+        _haze(scene, False)
+        bpy.data.worlds.remove(world)
         log(f'terrain: preview {path}')
-    _haze(scene, False)
-    bpy.data.worlds.remove(world)
 
 
 def _text(body, x, y, size, color, added, z=40.0):
@@ -209,7 +442,7 @@ def _text(body, x, y, size, color, added, z=40.0):
     curve.align_y = 'CENTER'
     obj = bpy.data.objects.new('_Label', curve)
     obj.visible_shadow = False  # annotations float above the terrain: no shadows on it
-    obj.location = _to_b(x, y, z)
+    obj.location = _to_b(x, y, z + _plan_lift)
     obj.rotation_euler = (0.0, 0.0, math.pi)
     obj.data.materials.append(_material('_Label' + str(color), color, emission=3.0))
     bpy.context.scene.collection.objects.link(obj)
@@ -224,7 +457,7 @@ def _line(points, width, color, added, z=30.0, closed=False):
     spline = curve.splines.new('POLY')
     spline.points.add(len(points) - 1)
     for p, (x, y) in zip(spline.points, points):
-        v = _to_b(x, y, z)
+        v = _to_b(x, y, z + _plan_lift)
         p.co = (v.x, v.y, v.z, 1.0)
     spline.use_cyclic_u = closed
     obj = bpy.data.objects.new('_Line', curve)
@@ -237,22 +470,26 @@ def _line(points, width, color, added, z=30.0, closed=False):
 def render_plan(area, out_dir, log=print):
     """Top down over the map square: the area in its macro colors, zones outlined, labels, and the computed points
     (cliff dressing, hanging rim cliffs, the bridge, the waterfall)."""
+    global _plan_lift
     scene = bpy.context.scene
     world = _world(scene)
     added = []
     _stand_ins(area, added)
-    _camera(Vector((0.0, 0.0, 300.0)), None, 50.0, added, ortho=2.0 * area.half + 1.2)
+    # Annotations float over the highest ground in the square (a grounded area's ridges reach well over them).
+    _plan_lift = max(0.0, float(np.max(area.h)) - 25.0)
+    _camera(Vector((0.0, 0.0, 300.0 + _plan_lift)), None, 50.0, added, ortho=2.0 * area.half + 1.2)
     _sun(Vector((0.0, -1.0, -0.3)), added, strength=3.6, side=0.8, ahead=-0.6, elevation=40.0)
     white, dark = (1.0, 1.0, 1.0, 1.0), (0.02, 0.02, 0.03, 1.0)
     zone_color = (1.0, 0.45, 0.9, 1.0)
     for zone in area.layout['zones']:
         pts = np.asarray(zone['polygon']) / 100.0
         _line([tuple(p) for p in pts], 0.12, zone_color, added, closed=True)
+    size = area.layout.get('preview', {}).get('labelSize', 3.4)
     for text, (x, y) in area.layout.get('preview', {}).get('labels', {}).items():
         x, y = x / 100.0, y / 100.0
-        _text(text, x - 0.5, y + 0.5, 3.4, dark, added, z=39.0)
-        _text(text, x, y, 3.4, white, added)
-    data = area_computed.compute(area)
+        _text(text, x - 0.5 * size / 3.4, y + 0.5 * size / 3.4, size, dark, added, z=39.0)
+        _text(text, x, y, size, white, added)
+    data = _computed(area)
     orange, cyan, red = (1.0, 0.5, 0.1, 1.0), (0.2, 0.9, 1.0, 1.0), (1.0, 0.1, 0.1, 1.0)
     for points in data['cliffs'].values():
         for point in points:
@@ -278,6 +515,7 @@ def render_plan(area, out_dir, log=print):
     path = os.path.join(out_dir, 'plan.png')
     _render(path, (2048, 2048), samples=16)
     _cleanup(added)
+    _plan_lift = 0.0
     bpy.data.worlds.remove(world)
     log(f'terrain: preview {path}')
 
@@ -358,7 +596,7 @@ def _overlay(area, data, added):
     h = area.half
     mesh = bpy.data.meshes.new('_OpenGround')
     corners = [(-h, -h), (-h, h), (h, h), (h, -h)]
-    mesh.from_pydata([tuple(_to_b(x, y, 34.0)) for x, y in corners], [], [(0, 1, 2, 3)])
+    mesh.from_pydata([tuple(_to_b(x, y, 34.0 + _plan_lift)) for x, y in corners], [], [(0, 1, 2, 3)])
     uv = mesh.uv_layers.new(name='UVMap')
     uv.data.foreach_set('uv', [0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0])
     mesh.materials.append(mat)
@@ -589,13 +827,17 @@ def _feature_frames(area):
 
 
 def render_features(area, out_dir, log=print):
-    """feature_<id>.png: a clay view of each step 3b feature, with the cliff kit's courses as see-through bands."""
+    """feature_<id>.png: a clay view of each step 3b feature (those preview.features lists, when it does), with the
+    cliff kit's courses as see-through bands."""
     frames = _feature_frames(area)
+    wanted = area.layout.get('preview', {}).get('features')
+    if wanted is not None:
+        frames = [f for f in frames if f[0] in wanted]
     if not frames:
         return
     scene = bpy.context.scene
     world = _world(scene)
-    data = area_computed.compute(area)
+    data = _computed(area)
     restore = _clay_terrain(area)
     try:
         for fid, eye, target, groups in frames:

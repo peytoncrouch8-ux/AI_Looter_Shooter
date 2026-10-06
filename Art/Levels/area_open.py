@@ -10,9 +10,10 @@ Breaks are what a player can take cover behind or must go around:
   "polygon" (an area). Fences, low walls and knee-high cairns count: they are cover, even though a player sees over
   them;
 - tree stands drawn as zones (kind forest or orchard), and the knobs' rocks.
-Walkable ground is inside the boundary, gentler than WALKABLE_SLOPE and not under water. Ground marked open on purpose
-(layout.json openGround.open: polygons with ids) isn't measured and breaks nothing. openGround.target (cm, 10 m by
-default) is the most any walkable meter should be from a break.
+Walkable ground is inside the boundary, gentler than WALKABLE_SLOPE and not under water (grounded: on the core's own
+ground too, and the escarpment's lip is a break, even where a feature's heights run on past it). Ground marked open on
+purpose (layout.json openGround.open: polygons with ids) isn't measured and breaks nothing. openGround.target (cm, 10 m
+by default) is the most any walkable meter should be from a break.
 """
 import math
 
@@ -132,9 +133,15 @@ def measure(area, log=print):
     surface = area.water_surface()
     depth = resize(np.nan_to_num(surface - area.h, nan=-10.0).astype(np.float32), n, area.half)
     inside = resize(area.play_edge.astype(np.float32), n, area.half) > 0.0
+    if area.setting == 'grounded':
+        # Only the core's own ground: where a feature runs on past the escarpment's lip (Ransom's Point, whose west face
+        # is the Rim), the height raster holds its top there, but the mesh stops at the lip.
+        inside &= resize(area.edge.astype(np.float32), n, area.half) > 0.0
     open_mask, open_ids = marked_open(area, grid)
     walkable = inside & (slope < WALKABLE_SLOPE) & (depth < 0.3) & ~open_mask
     breaks = (_rise(h, px) | (slope >= BREAK_SLOPE) | obstacle_mask(area, grid)) & ~open_mask
+    if area.setting == 'grounded':
+        breaks |= resize(area.edge.astype(np.float32), n, area.half) <= 0.0  # the lip: the drop, whatever runs past it
     dist = distance_to(breaks, px) if breaks.any() else np.full((n, n), np.inf)
     shown = np.where(walkable, dist, np.nan).astype(np.float32)
     target = area.layout.get('openGround', {}).get('target', TARGET * 100.0) / 100.0
