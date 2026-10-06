@@ -31,7 +31,7 @@ command line keep theirs under `%LOCALAPPDATA%\UnrealEngine\5.8\Saved`.
   measures a standalone 1080p window and appends the result to `Docs/Performance.md`. Measure before and after
   anything that could change cost, on Medium (the minimum spec). `-GpuStats` records each pass; compare two captures
   with `Tools\perfdiff.ps1`. `-Map` measures another level.
-- Per area: `Tools	our.ps1 [-Quality Medium]` runs the game through the level's viewpoints
+- Per area: `Tools\tour.ps1 [-Quality Medium]` runs the game through the level's viewpoints
   (`Art/Levels/TutorialIsland/views.json`, the in-game `Looter.Tour` command) and prints each one's frame, game, render
   and GPU time, with a screenshot of each in `Saved\Screenshots\Tour`. The budget holds at every viewpoint, not just
   the spawn. To see which passes cost what at each one, capture a tour with `perf.ps1 -GpuStats` and split it with
@@ -93,6 +93,11 @@ command line keep theirs under `%LOCALAPPDATA%\UnrealEngine\5.8\Saved`.
 - Blender models live in `Art/Models/<Category>/` (hand-made `.blend` or scripted `.py`). `Tools\models.ps1` exports and
   imports them into `/Game/Art/<Category>` with fixed settings; `Art/README.md` has the authoring rules. Change a model
   in Blender and import it again, never edit the imported mesh.
+- Blender work beside a running editor goes through `Tools\artrun.ps1`: a model script (with `-Preview`, its renders),
+  any Blender script, or an export test into `Intermediate\ArtExport_<Family>`. It runs at below-normal priority and
+  waits while `Saved\ArtPause.flag` exists: create that file before a `perf.ps1` or `tour.ps1` measurement and delete it
+  after. `Tools/Blender/tangentcheck.py` checks an exported FBX's tangents the way Unreal's import will; with `--log` it
+  sorts the editor log's tangent warnings into the model's own and Unreal's reduced builds'.
 - Guns are assembled from parts when they drop. `Art/Models/Weapons/<Gun>.py` models the parts (sockets chain them;
   sights carry `SOCKET_Aim` for aiming down sights), and `<Gun>.parts.csv` beside it lists each part's key, name, name
   word, rarity and stat ranges in percent (capped per stat, `Weapons/WeaponParts.h`). After importing, run

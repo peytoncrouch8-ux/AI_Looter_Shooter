@@ -650,6 +650,7 @@ Concept renders come before any human costume. Sexton is first, because he sets 
 - **Step 15:** Sexton's look. It sets every human after him.
 - **Step 16:** the Unpaid's look.
 - **Step 18:** using the backlog Reliquary design for the smashed one.
+- **Step 21 (approved on 2026-10-05):** the boss bar and the test fight.
 - **Step 22:** Abel's difficulty and the ending's wording.
 - **Step 23:** Heirloom as a named Epic, or a Legendary.
 - **Step 26:** bringing the Supply Crate and Strongbox out of the backlog.
