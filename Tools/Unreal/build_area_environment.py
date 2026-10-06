@@ -8,20 +8,41 @@ level.environment changes (Ransom's Rest's golden hour, step 5a of Docs/Areas/Ra
             "inscattering": [0.4, 0.33, 0.27],
             "directional": {"color": [1.0, 0.7, 0.4], "exponent": 8, "startDistance": 6000}},
     "atmosphere": {"planetTop": -9000, "groundAlbedo": [0.45, 0.36, 0.22]},
-    "clouds": {"radius": 1500000}
+    "clouds": {"radius": 1500000, "tint": [1, 1, 1]},
+    "backdrop": {"tint": [1, 1, 1]},
+    "post": {"exposureBias": 0.4},
+    "states": {
+      "Dusk": {"sun": {"azimuth": 252, "elevation": 4, "intensity": 4, "temperature": 3200, "shadowDistance": 6000},
+               "sky": {"intensity": 0.6}, "fog": {"inscattering": [0.2, 0.13, 0.08]}, "backdrop": {"tint": [0.3, 0.24, 0.24]}}
+    }
   }
 
 The sun is placed by compass: its azimuth is the bearing it stands at (0 north, 90 east, 247.5 west-southwest) and its
 elevation how high it stands over the horizon. Lengths are cm, colors linear RGB. Unreal's +X is north and +Y east.
+
+Lighting states (step 13): an ALightingStates actor beside the lights holds the level's named states, which
+ULightingStateSubsystem switches between (Looter.Light Day|Dusk). Day is always the environment above, the light the
+level is built in; it can't be redefined. Each entry of "states" is another state, written as the groups it changes
+from Day: a group merges key by key over Day's (fog.directional too), so a dusk lists only what dusk changes. A state
+can change only what a switch sets at runtime (STATE_KEYS): the sun's azimuth, elevation, intensity, temperature,
+shadowDistance and cascades; the sky light's intensity (its color comes from recapturing the sky); the fog's density,
+inscattering and directional glow; the backdrop's and the clouds' tints, which go through the material parameter
+collection MPC_Lighting (M_Backdrop multiplies every layer by it); and the post volume's exposureBias. The rest (the
+fog's height and falloff, the atmosphere, the dome's size) stays as placed. Day's tints are best left white, since the
+editor shows the collection's white defaults. A layout without "states" gets a Day alone, and is otherwise built as
+before.
 """
 import unreal
 
 # The sky's clouds: a dome around the level with the painted cloud material.
 SKY_DOME = '/Engine/EngineSky/SM_SkySphere'
 SKY_CLOUDS = '/Game/Art/Materials/Masters/M_SkyClouds'
+# The level's lighting states (World/LightingStates.h).
+LIGHTING_STATES = '/Script/AI_Looter_Shooter.LightingStates'
 
 # The tutorial island's afternoon: the light from the west-northwest, so the view from the spawn (looking northeast) is
-# lit from the side.
+# lit from the side. FLightingState's defaults (World/LightingState.h) are these numbers; Looter.World.Lighting.Defaults
+# checks them.
 DEFAULTS = {
     'sun': {'azimuth': 292.0, 'elevation': 38.0, 'intensity': 7.0, 'temperature': 5300.0,
             # Cascaded shadows (Low and Medium) reach 100 m before the preset's scale (70 m on Medium).
@@ -31,9 +52,25 @@ DEFAULTS = {
     'fog': {'height': -2000.0, 'density': 0.03, 'falloff': 0.12, 'startDistance': 3000.0, 'maxOpacity': 0.85,
             'inscattering': [0.20, 0.29, 0.44], 'directional': None},
     'atmosphere': None,
-    # 1 km: the island's horizon is the sky itself.
-    'clouds': {'radius': 100000.0},
+    # 1 km: the island's horizon is the sky itself. The tint multiplies the painted clouds (MPC_Lighting CloudTint).
+    'clouds': {'radius': 100000.0, 'tint': [1.0, 1.0, 1.0]},
+    # Multiplies every backdrop layer's own tint (MPC_Lighting BackdropTint): white is the backdrop as built.
+    'backdrop': {'tint': [1.0, 1.0, 1.0]},
+    'post': {'exposureBias': 0.4},
 }
+
+# What a lighting state can change from Day, group by group (what FLightingState carries).
+STATE_KEYS = {
+    'sun': {'azimuth', 'elevation', 'intensity', 'temperature', 'shadowDistance', 'cascades'},
+    'sky': {'intensity'},
+    'fog': {'density', 'inscattering', 'directional'},
+    'backdrop': {'tint'},
+    'clouds': {'tint'},
+    'post': {'exposureBias'},
+}
+DIRECTIONAL_KEYS = {'color', 'exponent', 'startDistance'}
+# Without a glow toward the sun, the fog keeps the engine's: none, exponent 4, from 100 m.
+NO_GLOW = {'color': [0.0, 0.0, 0.0], 'exponent': 4.0, 'startDistance': 10000.0}
 
 
 def settings(source):
@@ -48,21 +85,90 @@ def settings(source):
     return merged
 
 
+def merge(base, changes):
+    """base with changes over it, key by key; a dict inside merges the same way (fog.directional)."""
+    if not isinstance(base, dict) or not isinstance(changes, dict):
+        return changes
+    result = dict(base)
+    for key, value in changes.items():
+        result[key] = merge(base.get(key), value)
+    return result
+
+
+def check_state_group(where, group, value):
+    """Stops on anything in a state's group that a switch can't change."""
+    allowed = STATE_KEYS.get(group)
+    if allowed is None or not isinstance(value, dict):
+        raise ValueError(f'{where}: a state changes only the groups {sorted(STATE_KEYS)}, each a dict of settings')
+    unknown = sorted(set(value) - allowed)
+    if unknown:
+        raise ValueError(f"{where}: a state can't change {unknown} (only {sorted(allowed)})")
+    glow = value.get('directional') if group == 'fog' else None
+    if glow is not None:
+        unknown = sorted(set(glow) - DIRECTIONAL_KEYS) if isinstance(glow, dict) else ['directional']
+        if unknown:
+            raise ValueError(f"{where}.directional: a state can't change {unknown} (only {sorted(DIRECTIONAL_KEYS)})")
+
+
+def lighting_states(source, env):
+    """Every lighting state's settings by name: Day, the environment as placed, then each one level.environment.states
+    adds, as Day with the groups it changes. Stops on anything a state can't change, before the level is touched."""
+    given = source.get('level', {}).get('environment', {}).get('states', {})
+    states = {'Day': env}
+    for name, changes in given.items():
+        if name.lower() == 'day':
+            raise ValueError('level.environment.states: Day is the environment itself; change it there')
+        changes = {group: value for group, value in changes.items() if group != 'about'}
+        for group, value in changes.items():
+            check_state_group(f'level.environment.states.{name}.{group}', group, value)
+        states[name] = merge(env, changes)
+    return states
+
+
 def color(values):
     r, g, b = values[:3]
     return unreal.LinearColor(r, g, b, 1.0)
 
 
+def lighting_state(name, env):
+    """One state as ALightingStates holds it (FLightingState)."""
+    sun, fog = env['sun'], env['fog']
+    glow = {**NO_GLOW, **(fog.get('directional') or {})}
+    return unreal.LightingState(
+        name=name, sun_bearing=sun['azimuth'], sun_elevation=sun['elevation'], sun_intensity=sun['intensity'],
+        sun_temperature=sun['temperature'], shadow_distance=sun['shadowDistance'], shadow_cascades=int(sun['cascades']),
+        sky_intensity=env['sky']['intensity'], fog_density=fog['density'], fog_inscattering=color(fog['inscattering']),
+        fog_directional_inscattering=color(glow['color']), fog_directional_exponent=glow['exponent'],
+        fog_directional_start_distance=glow['startDistance'], backdrop_tint=color(env['backdrop']['tint']),
+        cloud_tint=color(env['clouds']['tint']), exposure_bias=env['post']['exposureBias'])
+
+
+def place_states(build, states, lights):
+    """The level's lighting states beside the lights they drive (sun, sky light, height fog, post volume)."""
+    cls = unreal.load_class(None, LIGHTING_STATES)
+    if cls is None:
+        build.warn('no LightingStates class (build the game module first): the level gets no lighting states')
+        return
+    actor = build.place(cls, (0, 0, 2500), label='LightingStates', folder='Environment')
+    actor.set_editor_property('states', [lighting_state(name, s) for name, s in states.items()])
+    actor.set_editor_property('initial_state', 'Day')
+    for prop, target in zip(('sun', 'sky_light', 'height_fog', 'post_volume'), lights):
+        actor.set_editor_property(prop, target)
+    build.log('lighting states: ' + ', '.join(states))
+
+
 def place(build):
-    """Places the sun, sky light, atmosphere, height fog, cloud dome and post process volume; returns the sky light
-    component, which the build recaptures once everything else stands."""
+    """Places the sun, sky light, atmosphere, height fog, cloud dome, post process volume and the lighting states;
+    returns the sky light component, which the build recaptures once everything else stands."""
     env = settings(build.source)
+    states = lighting_states(build.source, env)
     sun_settings = env['sun']
     sun = build.place(unreal.DirectionalLight, (0, 0, 3000), label='Sun', folder='Environment')
     # A directional light shines along its forward axis: from the sun's bearing toward the opposite one, downward.
     sun.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=-sun_settings['elevation'],
                                           yaw=(sun_settings['azimuth'] + 180.0) % 360.0), False)
     light = sun.get_component_by_class(unreal.DirectionalLightComponent)
+    # Movable: the lighting states turn it in the game.
     light.set_mobility(unreal.ComponentMobility.MOVABLE)
     for name, value in (('intensity', sun_settings['intensity']), ('use_temperature', True),
                         ('temperature', sun_settings['temperature']), ('atmosphere_sun_light', True),
@@ -74,7 +180,8 @@ def place(build):
     sky = build.place(unreal.SkyLight, (0, 0, 2000), label='SkyLight', folder='Environment')
     sky_light = sky.get_component_by_class(unreal.SkyLightComponent)
     sky_light.set_mobility(unreal.ComponentMobility.MOVABLE)
-    # Captured once when the level loads rather than every frame (0.12 ms on Medium): the sun never moves.
+    # Captured once when the level loads rather than every frame (0.12 ms on Medium): the sun only moves when a
+    # lighting state switches, which recaptures it.
     for name, value in (('real_time_capture', False),
                         ('source_type', unreal.SkyLightSourceType.SLS_CAPTURED_SCENE),
                         ('intensity', env['sky']['intensity']), ('lower_hemisphere_is_black', False),
@@ -129,7 +236,7 @@ def place(build):
     post_settings = post.get_editor_property('settings')
     # No outline material: the new style draws no ink lines.
     for name, value in (('auto_exposure_method', unreal.AutoExposureMethod.AEM_HISTOGRAM),
-                        ('auto_exposure_bias', 0.4),
+                        ('auto_exposure_bias', env['post']['exposureBias']),
                         # Exposure adapts only a little (EV100 0.3 to 1): shade under the trees stays shade instead of
                         # brightening to look like the open meadow.
                         ('auto_exposure_min_brightness', 0.3), ('auto_exposure_max_brightness', 1.0),
@@ -138,4 +245,6 @@ def place(build):
         post_settings.set_editor_property(name, value)
         post_settings.set_editor_property(f'override_{name}', True)
     post.set_editor_property('settings', post_settings)
+
+    place_states(build, states, (sun, sky, fog, post))
     return sky_light

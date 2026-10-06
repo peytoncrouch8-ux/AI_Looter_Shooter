@@ -1,5 +1,5 @@
 {
-  "about": "Where the grounded test level is looked at from, for screenshots and performance (Looter.Tour; Tools/tour.ps1 -Map /Game/Maps/Dev/Lvl_TerrainTest -Views Art/Levels/TerrainTest/views.json). x and y in cm (X north, Y east); height in cm above the ground under the view; yaw 0 looks north, 90 east; pitch up is positive. A view's exec runs as the tour arrives and after as it leaves: the views repeated with Beyond or the cliffs (tagged Obstacle) hidden measure what those cost by the difference.",
+  "about": "Where the grounded test level is looked at from, for screenshots and performance (Looter.Tour; Tools/tour.ps1 -Map /Game/Maps/Dev/Lvl_TerrainTest -Views Art/Levels/TerrainTest/views.json). x and y in cm (X north, Y east); height in cm above the ground under the view; yaw 0 looks north, 90 east; pitch up is positive. A view's exec runs as the tour arrives and after as it leaves: the views repeated with Beyond or the cliffs (tagged Obstacle) hidden measure what those cost by the difference, and the _Dusk ones the level at dusk (Looter.Light Dusk behind its fade, back to Day after).",
   "views": [
     {"name": "WestLip", "x": 0, "y": -4500, "height": 170, "yaw": 247.5, "pitch": -2, "fov": 80},
     {"name": "WestLip_NoBeyond", "x": 0, "y": -4500, "height": 170, "yaw": 247.5, "pitch": -2, "fov": 80,
@@ -12,6 +12,12 @@
     {"name": "East", "x": 0, "y": -3000, "height": 170, "yaw": 67.5, "pitch": -2, "fov": 80},
     {"name": "Aerial", "x": 0, "y": -4000, "height": 3000, "yaw": 67.5, "pitch": -20, "fov": 80},
     {"name": "Aerial_NoBeyond", "x": 0, "y": -4000, "height": 3000, "yaw": 67.5, "pitch": -20, "fov": 80,
-     "exec": ["Looter.Perf.HideTag Beyond 1"], "after": ["Looter.Perf.HideTag Beyond 0"]}
+     "exec": ["Looter.Perf.HideTag Beyond 1"], "after": ["Looter.Perf.HideTag Beyond 0"]},
+    {"name": "WestLip_Dusk", "x": 0, "y": -4500, "height": 170, "yaw": 247.5, "pitch": -2, "fov": 80,
+     "exec": ["Looter.Light Dusk"], "after": ["Looter.Light Day"]},
+    {"name": "East_Dusk", "x": 0, "y": -3000, "height": 170, "yaw": 67.5, "pitch": -2, "fov": 80,
+     "exec": ["Looter.Light Dusk"], "after": ["Looter.Light Day"]},
+    {"name": "Aerial_Dusk", "x": 0, "y": -4000, "height": 3000, "yaw": 67.5, "pitch": -20, "fov": 80,
+     "exec": ["Looter.Light Dusk"], "after": ["Looter.Light Day"]}
   ]
 }

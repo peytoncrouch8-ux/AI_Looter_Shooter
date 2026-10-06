@@ -288,6 +288,17 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   Street after Main 3), a polygon or circle switched by its story condition.
 - `World/PCGGroundFitFilter`: `UPCGGroundFitFilterSettings`, the meadow's PCG node that drops ground cover patches
   hanging off an edge and presses ones floating over a bump into the ground (editor-time; the graph ships with the level).
+- `World/LightingState`: `FLightingState`, one way a level can be lit (Day, Dusk): the sun by bearing and elevation with
+  its shadows, the sky light, the fog's density and colors, the exposure, and the tints `MPC_Lighting` carries to the
+  unlit backdrop and clouds; blending two (the sun the short way round). Its defaults are the tutorial island's afternoon.
+- `World/LightingStates`: `ALightingStates`, a level's lighting states as data, placed with its lights by
+  `Tools/Unreal/build_area_environment.py` from `layout.json` (Day is the light it's built in; Dusk and others from
+  `level.environment.states`), and the lights and collection they drive.
+- `World/LightingTargets`: `FLightingTargets`, the lights a state drives (the states actor's, else the level's by kind):
+  sets a state on them and reads what they show.
+- `World/LightingStateSubsystem`: `ULightingStateSubsystem`, switches the level between its states: behind the camera's
+  fade with the sky light recaptured (the default), at once behind a caller's cover, or blended over seconds; writes
+  `MPC_Lighting`; `OnChanged` for the cold open and Main 6. Ticks only during a switch.
 
 ## Settings
 - `Settings/KeyBindingSubsystem`: key rebinding, the global pause/inventory actions and the character actions
@@ -381,12 +392,14 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Dev/WorldDevCommands.cpp`: `Looter.InstanceCollision`, whether the world's instanced meshes (the scattered trees and
   rocks) have collision bodies; `Looter.World.Bounds`, draws the playable area's boundary and walls;
   `Looter.Perf.HideTag <tag> [1|0]`, hides a tagged group to measure its cost by the difference.
+- `Dev/LightingDevCommands.cpp`: `Looter.Light [state] [seconds | now]`, switches the level's lighting state (behind a
+  fade, blended, or at once); with no state, lists them.
 - `Dev/EncounterDevCommands.cpp`: `Looter.Encounter.List`, `.Wave <spawner id | event | nearest> [force]`,
   `.Zones [1|0]` (safe zones, spawners' ground, spots and approach rings), `.Test` (a test spawner where the player looks).
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`); a view's `exec` and `after` commands measure a hidden group by the difference.
 
 ## Tests (run with `Tools\runtests.ps1`)
-- `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
+- `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LightingTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
   `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SlimeTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
@@ -444,7 +457,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Tools/Unreal/build_area_bounds.py`: a grounded area's bounds for `build_area.py`: the playable area from the
   computed boundary, the KillZ 100 m under the canyon floor, and a cull distance volume (sizes to distances).
 - `Tools/Unreal/build_area_environment.py`: every area's light, sky and fog for `build_area.py`: the tutorial island's
-  afternoon by default, or the layout's `level.environment` (sun by bearing and elevation, haze, atmosphere, cloud dome).
+  afternoon by default, or the layout's `level.environment` (sun by bearing and elevation, haze, atmosphere, cloud dome),
+  and the level's lighting states (`ALightingStates`: Day as placed, plus `level.environment.states` such as Dusk).
+- `Tools/Unreal/lighting_collection.py`: `MPC_Lighting`, the material parameter collection the lighting states write
+  (`BackdropTint`, `CloudTint`, the fog's colors), made by `build_world_materials.py` before `M_Backdrop`, which reads it.
 - `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`).
   `Tools/Unreal/island_views.py`: an area's viewpoints as editor cameras and shots.
 - `Tools/terrain_identity.ps1`, `.py`: checks an area regenerates exactly as committed (headless Blender, no editor;

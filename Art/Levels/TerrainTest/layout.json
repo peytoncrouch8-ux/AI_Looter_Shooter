@@ -89,14 +89,26 @@
     "scatterGraph": "PCG_TerrainTestScatter",
     "scatterVolume": "TerrainTestScatter",
     "environment": {
-      "about": "Ransom's Rest's golden hour, tried out here (Tools/Unreal/build_area_environment.py): the sun low in the west-southwest over the canyon, haze thickest down in the canyon and glowing warm toward the sun, full fog before the backdrop's last layer, the planet's top down on the plains, the cloud dome past the backdrop.",
+      "about": "Ransom's Rest's golden hour, tried out here (Tools/Unreal/build_area_environment.py): the sun low in the west-southwest over the canyon, haze thickest down in the canyon and glowing warm toward the sun, full fog before the backdrop's last layer, the planet's top down on the plains, the cloud dome past the backdrop. This is the level's Day; states adds the Dusk to try (Looter.Light Dusk, step 13).",
       "sun": { "azimuth": 247.5, "elevation": 15, "intensity": 6.5, "temperature": 4100 },
       "sky": { "intensity": 1.0, "lowerHemisphere": [0.32, 0.27, 0.16] },
       "fog": { "height": 0, "density": 0.012, "falloff": 0.15, "startDistance": 6000, "maxOpacity": 1.0,
                "inscattering": [0.30, 0.33, 0.38],
                "directional": { "color": [0.9, 0.6, 0.3], "exponent": 8, "startDistance": 6000 } },
       "atmosphere": { "planetTop": -9000, "groundAlbedo": [0.45, 0.37, 0.24] },
-      "clouds": { "radius": 1500000 }
+      "clouds": { "radius": 1500000 },
+      "states": {
+        "Dusk": {
+          "about": "The scripted dusk (the cold open, Main 6): the same sun 4 degrees over the horizon a little further west, warmer and dimmer, its long shadows capped at 60 m; the sky light dimmer, recaptured behind the switch; the haze cooling to a dim violet away from the sun, still glowing amber toward it; the backdrop's ranges darkened and warmed through MPC_Lighting so none shows bright at sunset; the clouds dimmed to a dusky pink; the exposure lifted a little so the fight stays readable.",
+          "sun": { "azimuth": 252, "elevation": 4, "intensity": 4.0, "temperature": 3200, "shadowDistance": 6000, "cascades": 2 },
+          "sky": { "intensity": 0.6 },
+          "fog": { "density": 0.015, "inscattering": [0.06, 0.07, 0.11],
+                   "directional": { "color": [0.95, 0.45, 0.15], "exponent": 6 } },
+          "backdrop": { "tint": [0.30, 0.24, 0.24] },
+          "clouds": { "tint": [0.34, 0.23, 0.24] },
+          "post": { "exposureBias": 0.5 }
+        }
+      }
     }
   },
   "gameplay": { "about": "No creatures or director: the test level only needs the spawn (placements)." },

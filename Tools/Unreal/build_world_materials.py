@@ -24,7 +24,9 @@
                   be aimed through, tinted (Tint) and brighter and denser toward grazing edges (RimBrightness,
                   EdgeOpacity), which reads as glass without reflections.
   M_Backdrop      unlit, opaque, one-sided: the far silhouettes past a grounded area (Art/Levels/area_beyond.py), a flat
-                  Tint times Brightness (about what sunlit ground of that color shows); the height fog hazes them.
+                  Tint times Brightness (about what sunlit ground of that color shows) times the lighting state's
+                  BackdropTint from MPC_Lighting (white by day; lighting_collection.py makes the collection first); the
+                  height fog hazes them.
 
 The model importer (FModelImporter) makes MI_<material> instances of these from the Blender materials. Re-running this
 keeps each material asset (so instances stay linked) and rebuilds its graph. Run in the open editor, optionally with the
@@ -118,6 +120,22 @@ class Graph:
         for name, source, source_out in inputs:
             self.link(source, source_out, c, name)
         return c
+
+
+def lighting_tint(g, name, x, y):
+    """A tint the lighting states set (MPC_Lighting; white by day), as its RGB. Unlit materials never see the sun go
+    down, so dusk reaches them this way. lighting_collection.py makes the collection first (a material can't read a
+    parameter that isn't there yet); it's reloaded, as the editor keeps modules between runs."""
+    import importlib
+    import os
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    import lighting_collection
+    collection = importlib.reload(lighting_collection).collection()
+    # The collection is set before the name: naming the parameter looks up its id in the collection.
+    state = g.node(unreal.MaterialExpressionCollectionParameter, x, y, collection=collection, parameter_name=name)
+    rgb = g.node(unreal.MaterialExpressionComponentMask, x + 300, y, r=True, g=True, b=True, a=False)
+    g.link(state, '', rgb, '')
+    return rgb
 
 
 def finish(mat, usages):
@@ -409,7 +427,9 @@ def build_sky_clouds():
     opacity = g.custom(CLOUD_OPACITY, inputs + [
         ('Opacity', g.scalar('Opacity', 0.9, -900, 950), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -400, 200, 'Cloud opacity')
-    g.out(color, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    # The lighting state's cloud tint (white by day) dims and warms them at dusk.
+    g.out(g.mul(color, '', lighting_tint(g, 'CloudTint', -900, 1050), '', -100, -100), '',
+          unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     g.out(opacity, '', unreal.MaterialProperty.MP_OPACITY)
     finish(mat, [])
     return mat
@@ -493,14 +513,17 @@ def build_glass():
 
 def build_backdrop():
     """M_Backdrop: a few cheap draws for the ranges and plains kilometers out. Unlit, so their color doesn't depend on
-    how the low sun happens to strike them; opaque and one-sided, since they're only ever seen from inside."""
+    how the low sun happens to strike them; opaque and one-sided, since they're only ever seen from inside. Being unlit
+    they never see the sun go down either, so the lighting state's tint (MPC_Lighting's BackdropTint, white by day)
+    multiplies every layer's own: dusk darkens and warms the ranges without touching the instances."""
     mat = material('M_Backdrop')
     mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
     g = Graph(mat)
     # A lit surface of albedo A shows about 2.5 A in the island's sun and sky (the unlit clouds' white is about 3).
     color = g.mul(g.vector('Tint', (0.11, 0.15, 0.11, 1.0), -600, -100), '', g.scalar('Brightness', 2.5, -600, 50), '',
                   -300, -50)
-    g.out(color, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    g.out(g.mul(color, '', lighting_tint(g, 'BackdropTint', -600, 200), '', 0, 0), '',
+          unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     finish(mat, [])
     return mat
 
