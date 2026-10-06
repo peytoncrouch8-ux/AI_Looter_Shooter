@@ -415,8 +415,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Art/Levels/area_preview.py`: Blender preview renders and the annotated plan.
 - `Art/Levels/area_model.py`: the Blender side (tile, underside and water objects and their materials);
   `Art/Models/Terrain/<Area>.py` wrappers call it.
-- `Tools/Unreal/build_area.py`: `AreaBuild`, builds an area's level (`build_area.py <Area> [gameplay]`), a grounded
-  area's ring, canyon wall and backdrop tagged Beyond; `build_tutorial_island.py` wraps it for the tutorial island.
+- `Tools/Unreal/build_area.py`: `AreaBuild`, builds an area's level (`build_area.py <Area> [gameplay|beyond]`), with
+  what lies past the boundary tagged Beyond (a grounded area's ring, canyon wall and backdrop; an island's sky islands);
+  `build_tutorial_island.py` wraps it for the tutorial island.
 - `Tools/Unreal/build_area_bounds.py`: a grounded area's bounds for `build_area.py`: the playable area from the
   computed boundary, the KillZ 100 m under the canyon floor, and a cull distance volume (sizes to distances).
 - `Tools/Unreal/build_area_environment.py`: every area's light, sky and fog for `build_area.py`: the tutorial island's
