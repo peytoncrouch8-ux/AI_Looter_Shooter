@@ -659,7 +659,7 @@ Concept renders come before any human costume. Sexton is first, because he sets 
 - **Step 12:** talking doors and captions only for this area.
 - **Step 14:** Hob's look.
 - **Step 15:** Sexton's look. It sets every human after him.
-- **Step 16:** the Unpaid's look.
+- **Step 16:** the Unpaid's look. Chosen on 2026-10-06 from three concepts: **the clothes they died in** (a homesteader in hat and vest, the coal burning through his chest, fading into shroud strips), made gaunter, with the hungry dead's face and lunge. A confirming render of that mix comes before the rig and mesh.
 - **Step 18:** using the backlog Reliquary design for the smashed one.
 - **Step 21 (approved on 2026-10-05):** the boss bar and the test fight.
 - **Step 22:** Abel's difficulty and the ending's wording.
