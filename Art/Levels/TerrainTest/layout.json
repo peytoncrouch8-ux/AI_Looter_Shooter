@@ -87,7 +87,17 @@
     "tag": "TerrainTestBuild",
     "folder": "TerrainTest",
     "scatterGraph": "PCG_TerrainTestScatter",
-    "scatterVolume": "TerrainTestScatter"
+    "scatterVolume": "TerrainTestScatter",
+    "environment": {
+      "about": "Ransom's Rest's golden hour, tried out here (Tools/Unreal/build_area_environment.py): the sun low in the west-southwest over the canyon, haze thickest down in the canyon and glowing warm toward the sun, full fog before the backdrop's last layer, the planet's top down on the plains, the cloud dome past the backdrop.",
+      "sun": { "azimuth": 247.5, "elevation": 15, "intensity": 6.5, "temperature": 4100 },
+      "sky": { "intensity": 1.0, "lowerHemisphere": [0.32, 0.27, 0.16] },
+      "fog": { "height": 0, "density": 0.012, "falloff": 0.15, "startDistance": 6000, "maxOpacity": 1.0,
+               "inscattering": [0.30, 0.33, 0.38],
+               "directional": { "color": [0.9, 0.6, 0.3], "exponent": 8, "startDistance": 6000 } },
+      "atmosphere": { "planetTop": -9000, "groundAlbedo": [0.45, 0.37, 0.24] },
+      "clouds": { "radius": 1500000 }
+    }
   },
   "gameplay": { "about": "No creatures or director: the test level only needs the spawn (placements)." },
   "preview": {

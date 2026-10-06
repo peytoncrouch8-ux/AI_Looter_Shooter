@@ -18,7 +18,7 @@ A grounded area's terrain also has what lies past its core (Art/Levels/area_beyo
 folder, tagged Beyond (Looter.Perf.HideTag measures them by difference); only the core's tiles are tagged Ground, so the
 minimap covers the valley alone. Cliff points with stacked courses get one piece per course; a knob's point places the
 outcrop kit's piece it names (SM_Outcrop_<piece>), and a gully's sloped banks get no faces. Its playable area, KillZ
-and cull distance volume come from build_area_bounds.py.
+and cull distance volume come from build_area_bounds.py; every area's light, sky and fog from build_area_environment.py.
 """
 import importlib
 import json
@@ -31,6 +31,7 @@ import unreal
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import build_area_bounds  # noqa: E402
+import build_area_environment  # noqa: E402
 
 PROJECT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
 ART = '/Game/Art'
@@ -51,11 +52,6 @@ BEYOND_PARTS = ('Ring_', 'CanyonWall_', 'Backdrop_')
 # Drops the waterfall model (made for the tutorial island's rim, its strands thinning out 40-58 m down) is shortened
 # for: a falls into a gorge is squashed to fit (cm).
 WATERFALL_LENGTH = 4800.0
-
-# The sky's clouds: a dome of this radius (cm) around the level with the painted cloud material.
-SKY_DOME = '/Engine/EngineSky/SM_SkySphere'
-SKY_CLOUDS = '/Game/Art/Materials/Masters/M_SkyClouds'
-SKY_RADIUS = 100000.0
 
 # The way smoke leans (the foliage master's default WindDirection, 1 : 0.35).
 WIND_YAW = 19.0
@@ -161,64 +157,9 @@ class AreaBuild:
         return actor
 
     def environment(self):
-        """Warm afternoon light from the west-northwest, so the tutorial island's view from the spawn (looking
-        northeast) is lit from the side. Every area has this light for now; Ransom's Rest gets its own at step 13."""
-        sun = self.place(unreal.DirectionalLight, (0, 0, 3000), label='Sun', folder='Environment')
-        sun.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=-38.0, yaw=112.0), False)
-        light = component(sun, unreal.DirectionalLightComponent)
-        light.set_mobility(unreal.ComponentMobility.MOVABLE)
-        for name, value in (('intensity', 7.0), ('use_temperature', True), ('temperature', 5300.0),
-                            ('atmosphere_sun_light', True), ('cast_cloud_shadows', False),
-                            # Cascaded shadows (Low and Medium) reach 100 m before the preset's scale (70 m on Medium).
-                            ('dynamic_shadow_distance_movable_light', 10000.0), ('dynamic_shadow_cascades', 2)):
-            light.set_editor_property(name, value)
-
-        sky = self.place(unreal.SkyLight, (0, 0, 2000), label='SkyLight', folder='Environment')
-        sky_light = component(sky, unreal.SkyLightComponent)
-        sky_light.set_mobility(unreal.ComponentMobility.MOVABLE)
-        # Captured once when the level loads rather than every frame (0.12 ms on Medium): the sun never moves.
-        for name, value in (('real_time_capture', False),
-                            ('source_type', unreal.SkyLightSourceType.SLS_CAPTURED_SCENE),
-                            ('intensity', 1.2), ('lower_hemisphere_is_black', False),
-                            # Light bouncing off the meadow.
-                            ('lower_hemisphere_color', unreal.LinearColor(0.26, 0.30, 0.18, 1.0))):
-            sky_light.set_editor_property(name, value)
-
-        self.place(unreal.SkyAtmosphere, (0, 0, 0), label='SkyAtmosphere', folder='Environment')
-
-        fog = self.place(unreal.ExponentialHeightFog, (0, 0, -2000), label='HeightFog', folder='Environment')
-        fog_component = component(fog, unreal.ExponentialHeightFogComponent)
-        for name, value in (('fog_density', 0.03), ('fog_height_falloff', 0.12), ('start_distance', 3000.0),
-                            ('fog_max_opacity', 0.85),
-                            ('fog_inscattering_luminance', unreal.LinearColor(0.20, 0.29, 0.44, 1.0))):
-            fog_component.set_editor_property(name, value)
-
-        # Painted clouds on a dome 1 km around the level (M_SkyClouds). Volumetric clouds cost Medium 2 ms and more,
-        # looking up through their layer, and thinned out enough to be cheap they vanished.
-        dome_mesh = unreal.load_asset(SKY_DOME)
-        radius = max(dome_mesh.get_bounding_box().max.x, 1.0)
-        dome = self.place(dome_mesh, (0, 0, 0), label='SkyClouds', folder='Environment',
-                          scale=(SKY_RADIUS / radius,) * 3)
-        sky_mesh = dome.static_mesh_component
-        sky_mesh.set_material(0, unreal.load_asset(SKY_CLOUDS))
-        sky_mesh.set_editor_property('cast_shadow', False)
-        sky_mesh.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
-
-        post = self.place(unreal.PostProcessVolume, (0, 0, 0), label=f'{self.folder}Post', folder='Environment')
-        post.set_editor_property('unbound', True)
-        settings = post.get_editor_property('settings')
-        # No outline material: the new style draws no ink lines.
-        for name, value in (('auto_exposure_method', unreal.AutoExposureMethod.AEM_HISTOGRAM),
-                            ('auto_exposure_bias', 0.4),
-                            # Exposure adapts only a little (EV100 0.3 to 1): shade under the trees stays
-                            # shade instead of brightening to look like the open meadow.
-                            ('auto_exposure_min_brightness', 0.3), ('auto_exposure_max_brightness', 1.0),
-                            ('bloom_intensity', 0.6), ('vignette_intensity', 0.3), ('film_slope', 0.88),
-                            ('film_toe', 0.55), ('color_saturation', unreal.Vector4(1.05, 1.05, 1.05, 1.0))):
-            settings.set_editor_property(name, value)
-            settings.set_editor_property(f'override_{name}', True)
-        post.set_editor_property('settings', settings)
-        return sky_light
+        """The light, sky and fog (build_area_environment.py): the tutorial island's afternoon, or what the layout's
+        level.environment sets. Returns the sky light, recaptured once the level stands."""
+        return importlib.reload(build_area_environment).place(self)
 
     def gameplay(self, meshes):
         """The spawn (with the area's director, the tutorial's on the tutorial island), the gun rack, the target

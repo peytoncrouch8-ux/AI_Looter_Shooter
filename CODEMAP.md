@@ -419,6 +419,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   area's ring, canyon wall and backdrop tagged Beyond; `build_tutorial_island.py` wraps it for the tutorial island.
 - `Tools/Unreal/build_area_bounds.py`: a grounded area's bounds for `build_area.py`: the playable area from the
   computed boundary, the KillZ 100 m under the canyon floor, and a cull distance volume (sizes to distances).
+- `Tools/Unreal/build_area_environment.py`: every area's light, sky and fog for `build_area.py`: the tutorial island's
+  afternoon by default, or the layout's `level.environment` (sun by bearing and elevation, haze, atmosphere, cloud dome).
 - `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`).
   `Tools/Unreal/island_views.py`: an area's viewpoints as editor cameras and shots.
 - `Tools/terrain_identity.ps1`, `.py`: checks an area regenerates exactly as committed (headless Blender, no editor);
