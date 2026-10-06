@@ -36,6 +36,10 @@ protected:
 private:
 	void Present(const FString& Header, const FString& Text);
 
+	/** A menu covers the game (the inventory, the pause menu, the station board), a scene holds the player, or the game
+	 *  is paused. */
+	bool IsCovered() const;
+
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> Box;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> HeaderText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> BodyText;

@@ -361,7 +361,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   gun fires (the reload bar while reloading), the count inside by the base.
 - `UI/HUD/HudMinimapWidget`: the round minimap that turns with the view (size and zoom from the settings), with the
   tracked mission's waypoint on it, or a compass arrow and its distance on the rim.
-- `UI/HUD/TutorialPromptWidget`: the tutorial's current instruction near the top of the screen.
+- `UI/HUD/TutorialPromptWidget`: the tutorial's current instruction near the top of the screen; it steps aside, its
+  "complete" line waiting with its time held, while a menu, the pause menu or a scene covers the game.
 - `UI/HUD/HudXPBarWidget`: the level and experience bar at the bottom center: the level in a circle in the middle of a
   slanted bar (two halves) ticked at every tenth that flashes what was just gained; `HudXPBarWidgetLayout.cpp` builds
   and paints it.
