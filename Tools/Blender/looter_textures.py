@@ -526,7 +526,10 @@ def _cut_bands(bm, face, u_axis, v_axis, height, start):
     while start + k * height < hi - 1e-4:
         level = start + k * height
         if level > lo + 1e-4:
-            geom = list(pieces) + list({e for f in pieces for e in f.edges}) + list({v for f in pieces for v in f.verts})
+            # In mesh order (dict keys keep it), never sets: those iterate by memory address, so the cut changed
+            # from run to run.
+            geom = (list(pieces) + list(dict.fromkeys(e for f in pieces for e in f.edges))
+                    + list(dict.fromkeys(v for f in pieces for v in f.verts)))
             result = bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-5, plane_co=v_axis * level, plane_no=v_axis)
             pieces = [g for g in result['geom'] if isinstance(g, bmesh.types.BMFace)]
         k += 1
@@ -674,7 +677,7 @@ def swatch_uv(obj, faces, swatch, axis='z'):
     uv = _uv_layer(bm)
     chosen = [f for f in bm.faces if f.index in wanted]
     for island in _islands(chosen):
-        verts = list({v for f in island for v in f.verts})
+        verts = list(dict.fromkeys(v for f in island for v in f.verts))  # in mesh order: the same on every run
         if axis == 'long':
             points = [v.co for v in verts]
             center = sum(points, Vector()) / len(points)
@@ -718,7 +721,7 @@ def cap_uv(obj, faces, seed=None, margin=0.02):
             turn = rng.uniform(0.0, 2.0 * math.pi)
             u_axis, v_axis = (u_axis * math.cos(turn) + v_axis * math.sin(turn),
                               -u_axis * math.sin(turn) + v_axis * math.cos(turn))
-        verts = list({v for f in island for v in f.verts})
+        verts = list(dict.fromkeys(v for f in island for v in f.verts))  # in mesh order: the same on every run
         us = [v.co.dot(u_axis) for v in verts]
         vs = [v.co.dot(v_axis) for v in verts]
         cu, cv = (min(us) + max(us)) * 0.5, (min(vs) + max(vs)) * 0.5
@@ -732,11 +735,14 @@ def cap_uv(obj, faces, seed=None, margin=0.02):
 
 
 def _islands(faces):
-    """Groups faces into connected islands (sharing edges)."""
+    """Groups faces into connected islands (sharing edges), in the order the faces come: seeded from a set, the
+    islands came out in memory-address order, which changes from run to run (and each island's random turn with it)."""
     remaining = set(faces)
     islands = []
-    while remaining:
-        seed = remaining.pop()
+    for seed in faces:
+        if seed not in remaining:
+            continue
+        remaining.remove(seed)
         island, stack = [seed], [seed]
         while stack:
             face = stack.pop()
