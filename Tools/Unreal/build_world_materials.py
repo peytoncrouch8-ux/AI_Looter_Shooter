@@ -3,7 +3,8 @@
   M_World         opaque: BaseColorMap, NormalMap, ORMMap (ambient occlusion, roughness, metallic), Tint, UVScale.
                   The vertex color alpha is baked ambient occlusion (SSAO is off on Medium), and DiffuseAO lets some of
                   it darken the base color too, so contact shading shows in direct light. MossAmount (0 = off) grows
-                  moss on upward faces, in MossColor, above the MossThreshold slope.
+                  moss on upward faces, in MossColor, above the MossThreshold slope. RoughnessOffset (added to the
+                  map's) and Specular (0.5 is Unreal's 4%) are for cloth and feathers: black wool reflects so little.
   M_Gun           M_World's maps for gun parts, plus per-gun wear: Wear (0 fresh to 1 battered) comes from each part's
                   custom primitive data 0 (set by UWeaponModelComponent, no material copies per gun): scuffs where the
                   finish is rubbed through to a paler layer, grime in the creases, a duller finish. No moss.
@@ -215,9 +216,17 @@ def build_world(orm_default):
     g = Graph(mat)
     bc, nrm, orm, vc, ao = textured_inputs(g, orm_default)
     color, rough = moss(g, bc, shaded_color(g, bc, ao), orm)
+    # RoughnessOffset raises the map's roughness for cloth and feathers, and Specular (0.5 is Unreal's 4% reflection)
+    # lowers how much a dark dielectric reflects: on black wool the bright sky's 4% outweighs the diffuse, and it reads
+    # like pale denim. Both default to no change.
+    rough = g.custom('return saturate(Rough + Offset);', [
+        ('Rough', rough, ''),
+        ('Offset', g.scalar('RoughnessOffset', 0.0, 0, -250), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, 300, -400, 'Roughness')
     g.out(color, '', unreal.MaterialProperty.MP_BASE_COLOR)
     g.out(nrm, 'RGB', unreal.MaterialProperty.MP_NORMAL)
     g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
+    g.out(g.scalar('Specular', 0.5, 300, -150), '', unreal.MaterialProperty.MP_SPECULAR)
     g.out(orm, 'B', unreal.MaterialProperty.MP_METALLIC)
     g.out(ao, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
     # Spline meshes too: the jetty's mooring lines bend MI_Canvas along a spline. Without the flag the editor sets it on
