@@ -141,6 +141,8 @@ bool UViewTourSubsystem::Start(const FString& ViewsFile, bool bInShots, bool bIn
 		double FieldOfView = 80.0;
 		View->TryGetNumberField(TEXT("fov"), FieldOfView);
 		Stop.FieldOfView = static_cast<float>(FieldOfView);
+		View->TryGetStringArrayField(TEXT("exec"), Stop.Exec);
+		View->TryGetStringArrayField(TEXT("after"), Stop.After);
 		Stops.Add(Stop);
 	}
 	if (Stops.IsEmpty())
@@ -166,6 +168,11 @@ bool UViewTourSubsystem::Start(const FString& ViewsFile, bool bInShots, bool bIn
 void UViewTourSubsystem::Visit(int32 Index)
 {
 	APlayerController* Controller = GetWorld()->GetFirstPlayerController();
+	// What the last view switched for its own measuring goes back first.
+	if (Stops.IsValidIndex(Current))
+	{
+		RunCommands(Stops[Current].After);
+	}
 	Current = Index;
 	Clock = 0.f;
 	bShotRequested = false;
@@ -178,6 +185,7 @@ void UViewTourSubsystem::Visit(int32 Index)
 		const FStop& Stop = Stops[Index];
 		Camera->SetActorLocationAndRotation(Stop.Location, Stop.Rotation);
 		Camera->GetCameraComponent()->SetFieldOfView(Stop.FieldOfView);
+		RunCommands(Stop.Exec);
 		if (Controller)
 		{
 			Controller->SetViewTarget(Camera);
@@ -214,6 +222,23 @@ void UViewTourSubsystem::Visit(int32 Index)
 	if (bQuit)
 	{
 		FPlatformMisc::RequestExit(false, TEXT("Looter.Tour"));
+	}
+}
+
+void UViewTourSubsystem::RunCommands(const TArray<FString>& Commands) const
+{
+	APlayerController* Controller = GetWorld()->GetFirstPlayerController();
+	for (const FString& Command : Commands)
+	{
+		UE_LOG(LogLooter, Display, TEXT("Looter.Tour: %s"), *Command);
+		if (Controller)
+		{
+			Controller->ConsoleCommand(Command);
+		}
+		else if (GEngine)
+		{
+			GEngine->Exec(GetWorld(), *Command);
+		}
 	}
 }
 

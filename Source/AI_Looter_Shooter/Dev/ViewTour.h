@@ -16,6 +16,11 @@ class ACameraActor;
  * moment (streaming, exposure), measures frame, game, render and GPU time and draw calls, and takes a screenshot to
  * Saved/Screenshots/Tour/<view>.png. The results go to the log and to Saved/Tour/<level>.csv. With "quit" the game
  * exits when the tour is done (Tools/tour.ps1 runs it that way).
+ *
+ * A view may also give console commands: "exec" runs as the tour arrives there (before it settles), "after" as it
+ * leaves. So one place can be measured twice, once as it is and once with something hidden or switched
+ * ("exec": ["Looter.Perf.HideTag Beyond 1"], "after": ["Looter.Perf.HideTag Beyond 0"]), and the difference between
+ * the two rows is what that thing costs there.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UViewTourSubsystem : public UTickableWorldSubsystem
@@ -38,9 +43,13 @@ private:
 		FVector Location = FVector::ZeroVector;
 		FRotator Rotation = FRotator::ZeroRotator;
 		float FieldOfView = 80.f;
+		/** Console commands run on arriving here, and on leaving. */
+		TArray<FString> Exec;
+		TArray<FString> After;
 	};
 
 	void Visit(int32 Index);
+	void RunCommands(const TArray<FString>& Commands) const;
 	void Report();
 
 	TArray<FStop> Stops;
