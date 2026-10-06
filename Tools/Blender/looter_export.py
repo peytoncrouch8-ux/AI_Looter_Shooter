@@ -303,6 +303,7 @@ def export_rig(arm, out_dir, materials):
     arm.location = (0.0, 0.0, 0.0)
     bpy.context.view_layer.update()
     shapes = [hit_shape_entry(obj, bone_names) for obj in hits]
+    unit_scale = bpy.context.scene.unit_settings.scale_length
     bake_for_unreal(arm, skins)
 
     select_only([arm] + skins, arm)
@@ -331,6 +332,10 @@ def export_rig(arm, out_dir, materials):
         path_mode='AUTO',
         embed_textures=False,
     )
+    # The centimeter scene is for the rig's own file only. A model exported after it from the same source (a creature's
+    # hat) is made in meters: left at 0.01, its file lost the usual scale of 100 and it came in 100 times too small.
+    bpy.context.scene.unit_settings.scale_length = unit_scale
+    bpy.context.view_layer.update()
     log(f"{name}: rig of {len(bone_names)} bones, {len(skins)} meshes, {len(shapes)} hit zones, materials {', '.join(used)}")
     entry = {'name': name, 'fbx': name + '.fbx', 'skeletal': True, 'materials': used, 'hitShapes': shapes}
     # Optional, on the armature: LOD1.. triangle percentages and the screen sizes they start at (the importer reduces).

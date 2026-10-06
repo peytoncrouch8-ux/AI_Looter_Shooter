@@ -2,6 +2,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Bestiary/BestiaryEntry.h"
 #include "Combat/HealthComponent.h"
 #include "Combat/MovementSlowComponent.h"
 #include "Creatures/CreatureRankSettings.h"
@@ -12,8 +13,10 @@
 #include "Progression/ProgressionSettings.h"
 #include "Tests/BossTestWorld.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/HitResult.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -26,7 +29,8 @@
 namespace
 {
 	/** An Unpaid in a test world, started as play starts it (a test world never begins play itself), dropping no loot. */
-	AUnpaidCreature* SpawnUnpaid(UWorld* World, const FVector& Where, ECreatureRank Rank = ECreatureRank::Basic, USkeletalMesh* Model = nullptr)
+	AUnpaidCreature* SpawnUnpaid(UWorld* World, const FVector& Where, ECreatureRank Rank = ECreatureRank::Basic, USkeletalMesh* Model = nullptr,
+		UStaticMesh* HatModel = nullptr)
 	{
 		AUnpaidCreature* Unpaid = World->SpawnActor<AUnpaidCreature>(Where, FRotator::ZeroRotator);
 		if (Unpaid)
@@ -34,6 +38,10 @@ namespace
 			if (Model)
 			{
 				Unpaid->GetMesh()->SetSkeletalMeshAsset(Model);
+			}
+			if (HatModel)
+			{
+				Unpaid->GetHat()->SetStaticMesh(HatModel);
 			}
 			Unpaid->StartingRank = Rank;
 			Unpaid->DispatchBeginPlay();
@@ -309,8 +317,8 @@ bool FUnpaidModelTest::RunTest(const FString& Parameters)
 {
 	// SK_Unpaid against what the code expects of it (Art/Models/Creatures/Unpaid.py): every bone the code poses by the
 	// names in its Rig, the body and coal slots, the coal at chest height in front, hit zones that answer bullets' complex
-	// traces, and the coal found through the chest's hit zone from the front, never from behind. Until the model is
-	// imported there is nothing to check.
+	// traces, the coal found through the chest's hit zone from the front, never from behind, and SM_UnpaidHat on the head
+	// at a hat's size. Until the model is imported there is nothing to check.
 	const TCHAR* ModelPath = TEXT("/Game/Art/Creatures/SK_Unpaid.SK_Unpaid");
 	if (!FPackageName::DoesPackageExist(FPackageName::ObjectPathToPackageName(FString(ModelPath))))
 	{
@@ -322,9 +330,13 @@ bool FUnpaidModelTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
+	const TCHAR* HatPath = TEXT("/Game/Art/Creatures/SM_UnpaidHat.SM_UnpaidHat");
+	UStaticMesh* HatModel = FPackageName::DoesPackageExist(FPackageName::ObjectPathToPackageName(FString(HatPath)))
+		? LoadObject<UStaticMesh>(nullptr, HatPath) : nullptr;
+	TestNotNull(TEXT("SM_UnpaidHat comes with the model"), HatModel);
 	const AUnpaidCreature* Defaults = GetDefault<AUnpaidCreature>();
 	const FUnpaidRigBones& Rig = Defaults->Rig;
-	TArray<FName> Bones = { Rig.Pelvis, Rig.Spine, Rig.Chest, Rig.Coal, Rig.Neck, Rig.Head, Rig.Jaw };
+	TArray<FName> Bones = { Rig.Pelvis, Rig.Spine, Rig.Chest, Rig.Coal, Rig.Neck, Rig.Head, Rig.Jaw, Rig.Hat };
 	for (const FUnpaidArmBones* Arm : { &Rig.LeftArm, &Rig.RightArm })
 	{
 		Bones.Append({ Arm->UpperArm, Arm->LowerArm, Arm->Hand });
@@ -361,7 +373,7 @@ bool FUnpaidModelTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	AUnpaidCreature* Unpaid = SpawnUnpaid(WorldWrapper.GetTestWorld(), FVector::ZeroVector, ECreatureRank::Basic, Model);
+	AUnpaidCreature* Unpaid = SpawnUnpaid(WorldWrapper.GetTestWorld(), FVector::ZeroVector, ECreatureRank::Basic, Model, HatModel);
 	if (!TestNotNull(TEXT("Unpaid spawned"), Unpaid))
 	{
 		return false;
@@ -372,6 +384,38 @@ bool FUnpaidModelTest::RunTest(const FString& Parameters)
 	TestTrue(FString::Printf(TEXT("The coal is at chest height (%.0f cm)"), Coal.Z - Ground.Z), Coal.Z - Ground.Z > 110.0 && Coal.Z - Ground.Z < 150.0);
 	TestTrue(TEXT("The coal is on the front of the chest"), Coal.X > Ground.X);
 	TestTrue(TEXT("Its pose has the bones it moves"), Unpaid->GetBonePose().Num() >= 20);
+
+	// The hat sits on the head as it was modelled: about 40 cm across, its middle over the head bone. An export that
+	// lost its metres-to-centimetres scale once made it 0.4 cm.
+	const UStaticMeshComponent* Hat = Unpaid->GetHat();
+	if (HatModel && TestTrue(TEXT("The hat is worn"), Hat->IsVisible() && Hat->GetAttachSocketName() == Rig.Hat))
+	{
+		const FBox HatBox = Hat->Bounds.GetBox();
+		const double Width = FMath::Max(HatBox.GetSize().X, HatBox.GetSize().Y);
+		TestTrue(FString::Printf(TEXT("The hat is a hat's width (%.1f cm)"), Width), Width > 25.0 && Width < 60.0);
+		const FVector Head = Mesh->GetBoneLocation(Rig.Head);
+		const FVector HatMiddle = HatBox.GetCenter();
+		TestTrue(FString::Printf(TEXT("The hat is on the head (%.0f cm up, %.0f cm from the head bone across)"), HatMiddle.Z - Ground.Z,
+			FVector::Dist2D(HatMiddle, Head)), HatMiddle.Z > Head.Z && FVector::Dist2D(HatMiddle, Head) < 20.0);
+
+		// The bestiary's stand wears it too: the class's defaults have it on, where play puts it.
+		if (Defaults->GetMesh()->GetSkeletalMeshAsset() != Model || Defaults->GetHat()->GetStaticMesh() != HatModel)
+		{
+			AddWarning(TEXT("The Unpaid's defaults don't have its model or hat yet (imported since the editor started): restart the editor to check the stand."));
+		}
+		else
+		{
+			UBestiaryEntry* Entry = NewObject<UBestiaryEntry>();
+			Entry->ActorClass = AUnpaidCreature::StaticClass();
+			const TArray<FBestiaryStandPart> Parts = Entry->GetPreviewParts(Model);
+			const FBestiaryStandPart* Worn = Parts.FindByPredicate([HatModel](const FBestiaryStandPart& Part) { return Part.Mesh == HatModel; });
+			if (TestNotNull(TEXT("The bestiary's stand wears the hat"), Worn))
+			{
+				TestEqual(TEXT("On the hat bone"), Worn->Bone, Rig.Hat);
+				TestTrue(TEXT("Turned as play puts it on"), Worn->Relative.GetRotation().AngularDistance(Hat->GetRelativeRotation().Quaternion()) < 0.01);
+			}
+		}
+	}
 
 	const FCollisionQueryParams BulletQuery(SCENE_QUERY_STAT(UnpaidModelTest), /*bTraceComplex*/ true);
 	struct FShot

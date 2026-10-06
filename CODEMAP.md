@@ -135,12 +135,12 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Creatures/SlimeCreature`: `ASlimeCreature`, the meadow slime: SK_Slime (from `Art/Models/Creatures/Slime.py`) that
   only hops, squashing and stretching on springs, with a leap attack and crits through the gel at its core.
 - `Creatures/UnpaidCreature`: `AUnpaidCreature`, the Unpaid: SK_Unpaid (from `Art/Models/Creatures/Unpaid.py`; its
-  bones are named in `Rig`, settable in `DefaultGame.ini`) floating and posed by code, 160 health and 8 damage. It crits
-  on its coal by the shot's line from the front, shows its rank in its coal and ember edge (custom primitive data,
-  `UnpaidLook`, read by `M_Ghost`) and wears one of three sets of clothes. `UnpaidCreatureAttack.cpp`: the shriek (a
-  Gravebound one's slowing ring) and the lunge; `UnpaidCreaturePhase.cpp`: the phase-step (stuck or far behind, it
-  fades out and comes back 3-5 m nearer); `UnpaidCreatureRig.cpp`: its rig and pose (hover, lean, look, jaw, arms and
-  fingers, the shroud's chains).
+  bones are named in `Rig`, settable in `DefaultGame.ini`) floating and posed by code, with its hat (SM_UnpaidHat) on
+  the hat bone; 160 health and 8 damage. It crits on its coal by the shot's line from the front, shows its rank in its
+  coal and ember edge (custom primitive data, `UnpaidLook`, read by `M_Ghost`) and wears one of three sets of clothes.
+  `UnpaidCreatureAttack.cpp`: the shriek (a Gravebound one's slowing ring) and the lunge; `UnpaidCreaturePhase.cpp`:
+  the phase-step (stuck or far behind, it fades out and comes back 3-5 m nearer); `UnpaidCreatureRig.cpp`: its rig and
+  pose (hover, lean, look, jaw, arms and fingers, the shroud's chains).
 - `Creatures/UnpaidRules`: `UnpaidRules` and `FPhaseStepRules`, the Unpaid's rules as plain functions: rank traits, the
   coal shot, when a phase-step comes and where it lands.
 - `Creatures/ShroudChain`: `FShroudChain` and `FShroudChainSettings`, the shroud and side strips as damped chains: they
@@ -180,8 +180,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Bestiary
 - `Bestiary/BestiaryEntry`: `UBestiaryEntry` and `EBestiaryCategory`, one bestiary page as a data asset (in
-  `/Game/Data/Bestiary`): words and stand model, with level, health, attack and experience read from its actor class.
-  `Tools/Unreal/create_bestiary_pages.py` writes pages from data (the Unpaid's, once its model exists).
+  `/Game/Data/Bestiary`): words and stand model, with level, health, attack and experience read from its actor class,
+  and what the actor wears on its bones (a hat) for the stand. `Tools/Unreal/create_bestiary_pages.py` writes pages
+  from data (the Unpaid's).
 
 ## Tutorial
 - `Tutorial/TutorialDirector`: `ATutorialDirector`, the tutorial island's steps (move, reach the village, take the rifle,
@@ -418,7 +419,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/Bestiary/BestiaryWidget.cpp`: the bestiary, the inventory's second page: opening, layout and contents.
 - `UI/Bestiary/BestiaryWidgetInput.cpp`: its keys, turning the model, and the ring it stands on.
 - `UI/Bestiary/BestiaryWidget.h`: the bestiary's declaration.
-- `UI/Bestiary/BestiaryStage`: `ABestiaryStage`, the off-screen stand that shows an entry's model, framed to its size.
+- `UI/Bestiary/BestiaryStage`: `ABestiaryStage`, the off-screen stand that shows an entry's model, framed to its size,
+  wearing what the actor wears on its bones.
 - `UI/World/WeaponLabelWidget`: the label over loot guns.
 - `UI/World/CreatureHealthBarWidget`: the tag over a hurt or hunting creature: floating level, rank word (in its rank's
   color) and name over a slim bar of fixed width, cut into quarters whatever the health.
@@ -482,6 +484,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   imports texture sets and makes instances of the textured masters; `ModelImporterRig.cpp` imports rigged models as
   skeletal meshes and turns their hit zones into a physics asset.
 - `SurfaceMaterials`: `SurfaceMaterials`, stylized material instance assets and the parents' usage flags.
+- `LooterMaterialGraphTools`: `ULooterMaterialGraphTools`, material graph helpers for the build scripts (from
+  Python): `ClearMaterialGraph` empties a master to build it again in place, moving the nodes loaded as the editor
+  started (rooted for good) out of it instead of deleting them.
 - `Tests/StylizedPropTests.cpp`, `PropSettlerTests.cpp`, `ModelImportTests.cpp`, `TexturedImportTests.cpp`,
   `RigImportTests.cpp`, `SurfaceMaterialTests.cpp`: the `Looter.Editor.*` tests (prop shapes and ground cover size,
   settling on the ground and the terrain's full fallback, the Blender import settings against

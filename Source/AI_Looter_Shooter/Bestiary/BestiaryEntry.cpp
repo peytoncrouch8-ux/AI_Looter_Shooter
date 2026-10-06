@@ -3,7 +3,9 @@
 #include "Creatures/CreatureBase.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
 #include "GameFramework/Actor.h"
 #include "Modules/ModuleManager.h"
 
@@ -76,6 +78,37 @@ TArray<UMaterialInterface*> UBestiaryEntry::GetPreviewMaterials(const USkeletalM
 		}
 	}
 	return Materials;
+}
+
+TArray<FBestiaryStandPart> UBestiaryEntry::GetPreviewParts(const USkeletalMesh* Mesh) const
+{
+	TArray<FBestiaryStandPart> Parts;
+	const USkeletalMeshComponent* Body = FindBody(ActorClass);
+	if (!Body || !Mesh || Body->GetSkeletalMeshAsset() != Mesh)
+	{
+		return Parts;
+	}
+	// Every static mesh the defaults wear on one of the body's bones.
+	TInlineComponentArray<UStaticMeshComponent*> Worn(Body->GetOwner());
+	for (const UStaticMeshComponent* Part : Worn)
+	{
+		UStaticMesh* PartMesh = Part->GetStaticMesh();
+		const FName Bone = Part->GetAttachSocketName();
+		if (!PartMesh || !Part->GetVisibleFlag() || Part->GetAttachParent() != Body || Bone.IsNone()
+			|| Mesh->GetRefSkeleton().FindBoneIndex(Bone) == INDEX_NONE)
+		{
+			continue;
+		}
+		FBestiaryStandPart& Stand = Parts.AddDefaulted_GetRef();
+		Stand.Mesh = PartMesh;
+		Stand.Bone = Bone;
+		Stand.Relative = Part->GetRelativeTransform();
+		for (int32 Slot = 0; Slot < Part->GetNumMaterials(); ++Slot)
+		{
+			Stand.Materials.Add(Part->GetMaterial(Slot));
+		}
+	}
+	return Parts;
 }
 
 bool UBestiaryEntry::Describes(const UClass* ActorType) const

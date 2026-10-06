@@ -8,6 +8,7 @@ class AActor;
 class UAnimationAsset;
 class UMaterialInterface;
 class USkeletalMesh;
+class UStaticMesh;
 
 /** The bestiary's sections, in the order it lists them. */
 UENUM(BlueprintType)
@@ -34,6 +35,17 @@ struct FBestiaryStats
 	/** It has stats at all (a creature or something with health), as opposed to a story character. */
 	bool bHasHealth = false;
 	bool bAttacks = false;
+};
+
+/** A mesh the actor wears on a bone of its body besides the body itself (the Unpaid's hat), as the stand puts it on. */
+struct FBestiaryStandPart
+{
+	UStaticMesh* Mesh = nullptr;
+	/** The bone it's worn on, and where on that bone. */
+	FName Bone;
+	FTransform Relative;
+	/** Its materials as the actor wears them, slot by slot. */
+	TArray<UMaterialInterface*> Materials;
 };
 
 /**
@@ -100,6 +112,12 @@ public:
 	 * so the stand shows it as it looks out there. Empty when the actor doesn't use this mesh.
 	 */
 	TArray<UMaterialInterface*> GetPreviewMaterials(const USkeletalMesh* Mesh) const;
+
+	/**
+	 * What the actor wears on this mesh's bones besides the body (a hat), as its class's defaults put it on: the stand
+	 * puts it on too, so the actor looks whole. Empty when the actor doesn't use this mesh (another may lack the bones).
+	 */
+	TArray<FBestiaryStandPart> GetPreviewParts(const USkeletalMesh* Mesh) const;
 
 	/** The actor is of this entry's kind (ActorClass or a child of it). */
 	bool Describes(const UClass* ActorType) const;

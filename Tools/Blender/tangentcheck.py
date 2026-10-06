@@ -3,17 +3,22 @@
 Unreal's import (legacy FBX, normals imported, tangents by MikkTSpace) checks every vertex of the built mesh and logs
   "nearly zero tangents" / "nearly zero bi-normals"   a vertex whose tangent (or normal x tangent) came out zero;
   "degenerate tangent bases"                         a vertex whose tangent is its own normal.
-This reads the FBX itself (no Blender import, so the normals are exactly the file's), converts it the way Unreal's
-importer does (Blender's -Y forward becomes +X, -X becomes +Y, centimeters, V flipped, float32, triangles with two
-corners together dropped), and runs a float32 port of mikktspace on it as Unreal calls it: one face per triangle,
-corners welded only where position, normal and UV are all equal. Per mesh:
+This reads the FBX itself (no Blender import, so the normals are exactly the file's) and converts it the way Unreal's
+importer does: through each model's own transforms as the file has them (Lcl Scaling included: looter_export puts
+the x100 from Blender's meters on a static mesh's root node; a rig is written in centimeters already), the file's
+UnitScaleFactor, and its axis system (GlobalSettings) turned to Unreal's. A static mesh's front is forced to +X
+(ModelImporter), so Blender's -Y becomes +X and -X becomes +Y; a rig (it has a skeleton) is imported in its file's
+axes (ModelImporterRig; export_rig turned it to face +X already) with only Unreal's Y flip. Then V flipped, float32,
+triangles with two corners within THRESH_POINTS_ARE_SAME (in cm) dropped, and a float32 port of mikktspace run on it
+as Unreal calls it: one face per triangle, corners welded only where position, normal and UV are all equal. Per mesh:
   ZERO        corners whose tangent sums to exactly zero: every face of their welded fan that adds to it does so at
               a zero angle (a sliver's sharp corner rounds to acos(1) = 0) or along the normal.
   DEFAULT     corners of faces without UV area that no good face took in: mikktspace leaves them its default +X
               tangent. Along a normal facing Unreal's +X (Blender's -Y, the front) that is a degenerate basis, facing
               -X a zero binormal; other normals get a wrong but quiet tangent ("of N corners left at +X").
   WEAK        corners whose summed tangent or bitangent is under 1e-4 before normalisation (no warning, but close).
-  NO UV AREA  faces with no UV area (the cause of DEFAULT corners), NO AREA faces with no area.
+  NO UV AREA  faces with no UV area (the cause of DEFAULT corners), NO AREA faces under 0.01 mm2 (in Blender's
+              meters: the model as built, whatever scale Unreal gets it at).
   REDUCED     the model's manifest asks Unreal for a reduced Nanite fallback or LODs. Unreal makes those itself and
               recomputes their tangents (NaniteBuilder's CalcTangents, MikkTSpace without degenerate fix-ups, on its
               simplified mesh); this check covers the full mesh only. A warning from such a build is not in the FBX.
@@ -23,16 +28,18 @@ Exit code 1 when Unreal would warn about a full mesh.
   Tools/artrun.ps1 -Script Tools/Blender/tangentcheck.py -ScriptArgs --log[,<editor log>]
 (or blender -b --factory-startup --python Tools/Blender/tangentcheck.py -- <the same arguments>; paths are relative to
 the project, where artrun.ps1 runs it)
---where lists where (Blender's coordinates, meters) and runs Blender's own MikkTSpace too (mesh.calc_tangents on the
-imported custom normals: it gives such corners a tangent anyway, so it can't stand in for Unreal's); --all lists
-clean models too. --log reads the editor's log (default Saved/Logs/AI_Looter_Shooter.log) and sorts every tangent
-warning by the build that logged it: a full mesh (fix the model) or a reduced Nanite fallback / LODs (Unreal's own
+--where lists where (Blender's coordinates in meters; a rig's as built, before export_rig turned it to face +X) and
+runs Blender's own MikkTSpace too (mesh.calc_tangents on the imported custom normals: it gives such corners a tangent
+anyway, so it can't stand in for Unreal's); --all lists clean models too. --log reads the editor's log (default
+Saved/Logs/AI_Looter_Shooter.log) and sorts every tangent warning by the build that logged it: a full mesh (fix the
+model) or a reduced Nanite fallback / LODs (Unreal's own
 reduction; before 4529a39 the import's first build also used Unreal's default fallback, before ModelImporter set the
 model's, and since then Nanite builds once, with the model's own).
 
 Checked against Unreal's import of 2026-10-02 (the logs): it flags SM_Skiff_A_Packet and SM_Skiff_A_Gang, the only
 models whose full mesh Unreal warned about, and passes every other model exported for Ransom's Rest; the warnings on
-SM_Ruin_LanternHouse, SM_FalseFront_Saloon, SM_FalseFront_Store and SM_Outcrop_TorB all came from reduced builds."""
+SM_Ruin_LanternHouse, SM_FalseFront_Saloon, SM_FalseFront_Store and SM_Outcrop_TorB all came from reduced builds.
+Its centimeters and axes match the bounds Unreal logged on import for static meshes and for a rig (SK_Unpaid)."""
 import json
 import math
 import os
@@ -66,9 +73,23 @@ def kid(elem, name):
 
 def read_fbx(path):
     """The file's meshes, other than collision hulls: (name, positions, polygons, normals per corner, UVs per corner,
-    world transform) with the transform as a 4x4 (double) of the model chain."""
+    world transform, space) with the transform a 4x4 (double) of the model chain's own Lcl transforms, and space the
+    file's axis system (coord, up and front axis vectors), its UnitScaleFactor (centimeters per unit) and whether it
+    is a rig (has a skeleton: Unreal imports it with ModelImporterRig's options)."""
     from io_scene_fbx import parse_fbx
     root, _ = parse_fbx.parse(path)
+    settings = {b'UpAxis': 1, b'UpAxisSign': 1, b'FrontAxis': 2, b'FrontAxisSign': 1, b'CoordAxis': 0,
+                b'CoordAxisSign': 1, b'UnitScaleFactor': 1.0}
+    globals_ = kid(root, b'GlobalSettings')
+    props70 = kid(globals_, b'Properties70') if globals_ is not None else None
+    for p in props70.elems if props70 is not None else []:
+        if p.props[0] in settings:
+            settings[p.props[0]] = p.props[-1]
+
+    def axis(name):
+        v = np.zeros(3)
+        v[int(settings[name + b'Axis'])] = 1.0 if settings[name + b'AxisSign'] >= 0 else -1.0
+        return v
     objects = kid(root, b'Objects')
     models, geometries, parent, geometry_model = {}, {}, {}, {}
     for e in objects.elems:
@@ -76,6 +97,9 @@ def read_fbx(path):
             models[e.props[0]] = e
         elif e.id == b'Geometry' and e.props[2] == b'Mesh':
             geometries[e.props[0]] = e
+    space = {'coord': axis(b'Coord'), 'up': axis(b'Up'), 'front': axis(b'Front'),
+             'unit': float(settings[b'UnitScaleFactor']),
+             'rig': any(m.props[2] == b'LimbNode' for m in models.values())}
     for c in kid(root, b'Connections').elems:
         if c.props[0] != b'OO':
             continue
@@ -149,33 +173,53 @@ def read_fbx(path):
         if normals is None or uvs is None or len(normals) != corners or len(uvs) != corners:
             print(f'TANGENTS {name}: no normals or UVs per corner; skipped', flush=True)
             continue
-        meshes.append((name, verts, polygons, normals, uvs, world))
+        meshes.append((name, verts, polygons, normals, uvs, world, space))
     return meshes
 
 
 # --- Into Unreal's space, as its importer does it ---
 
-TO_BLENDER = np.array([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
+def to_blender_axes(space):
+    """The rotation from the file's axis system to Blender's (X across, Z up, the front -Y): looter_export writes a
+    static mesh with FBX's Y up (and the turn on its root node), a rig in Blender's own axes."""
+    blender = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]])      # columns: coord, up, front
+    file_axes = np.stack([space['coord'], space['up'], space['front']], axis=1)
+    return blender @ file_axes.T
 
 
-def to_unreal_rows(v):
-    """Blender (x, y, z) to Unreal (-y, -x, z), as Tools/Blender/looter_export.to_unreal (the sockets agree)."""
+def to_unreal_rows(v, rig):
+    """Blender-axes rows (x, y, z) in Unreal's axes. A static mesh: ModelImporter forces the front to +X, so Blender's
+    -Y becomes +X and -X becomes +Y: (-y, -x, z), as looter_export.to_unreal (the sockets agree). A rig: imported
+    without that (ModelImporterRig), in its file's axes with only Y flipped to Unreal's left-handed ones: (x, -y, z)."""
+    if rig:
+        return np.stack([v[:, 0], -v[:, 1], v[:, 2]], axis=1)
     return np.stack([-v[:, 1], -v[:, 0], v[:, 2]], axis=1)
 
 
-def unreal_mesh(verts, polygons, normals, uvs, world):
-    """Float32 corners per triangle as Unreal's FBX importer builds them: positions through the model's transform
-    (FBX's Y-up axes back to Blender's, then Unreal's, in cm), normals through its inverse transpose and normalized,
-    UVs with V flipped; polygons over three corners fanned from their first (FBX SDK's quads). Returns positions,
-    normals, UVs (each per triangle corner), the Blender position of each triangle corner (for --where) and the
+def unreal_mesh(verts, polygons, normals, uvs, world, space):
+    """Float32 corners per triangle as Unreal's FBX importer builds them: positions through the model chain's own
+    transforms (its Lcl Scaling included: a static mesh's root carries the x100 from Blender's meters), the file's
+    axes turned to Unreal's and its UnitScaleFactor applied, in centimeters; normals through the transforms' inverse
+    transpose, normalized; UVs with V flipped; polygons over three corners fanned from their first (FBX SDK's quads).
+    Returns positions, normals, UVs (each per triangle corner), the Blender position of each triangle corner in
+    meters (for --where and the area checks; a rig's with export_rig's quarter turn to Unreal's front undone) and the
     count of polygons that had to be cut."""
-    m = TO_BLENDER @ world                 # the exporter turned Blender's Z-up into FBX's Y-up on the root
+    rig = space['rig']
+    to_blender = np.eye(4)
+    to_blender[:3, :3] = to_blender_axes(space)
+    m = to_blender @ world
     lin = m[:3, :3]
     pos_b = verts @ lin.T + m[:3, 3]
-    pos_u = to_unreal_rows(pos_b)
+    pos_u = to_unreal_rows(pos_b, rig) * space['unit']
     normal_matrix = np.linalg.inv(lin).T
     nrm_b = normals @ normal_matrix.T
-    nrm_u = to_unreal_rows(nrm_b).astype(np.float32)
+    nrm_u = to_unreal_rows(nrm_b, rig).astype(np.float32)
+    # Blender's meters: a static mesh's file units times its node scale are Unreal's centimeters; a rig's were also
+    # turned a quarter (looter_export.bake_for_unreal), which comes off again here.
+    pos_b = pos_b * space['unit']
+    if rig:
+        pos_b = np.stack([pos_b[:, 1], -pos_b[:, 0], pos_b[:, 2]], axis=1)
+    pos_b = pos_b / 100.0
     lengths = np.sqrt((nrm_u.astype(np.float32) ** 2).sum(axis=1, dtype=np.float32)).astype(np.float32)
     safe = np.where(lengths > 0, lengths, 1).astype(np.float32)
     nrm_u = np.where(lengths[:, None] > 0, nrm_u / safe[:, None], 0).astype(np.float32)
@@ -521,7 +565,7 @@ def reduced_note(entry):
     """What Unreal will reduce on its own for a manifest entry, or ''."""
     if not entry:
         return ''
-    if entry.get('nanite', True):
+    if entry.get('nanite', True) and not entry.get('skeletal'):        # a rig's manifest entry has no 'nanite'
         share = entry.get('fallbackPercent')
         if share is None or share < 100.0:
             return f"REDUCED: Nanite fallback {'Unreal default' if share is None else f'{share:g}%'}"
@@ -598,12 +642,12 @@ for path in paths:
         continue
     note = reduced_note(manifest_entries(os.path.dirname(path)).get(os.path.basename(path)))
     file_bad = 0
-    for name, verts, polygons, normals, uvs, world in meshes:
-        P, N, T, B, cut = unreal_mesh(verts, polygons, normals, uvs, world)
+    for name, verts, polygons, normals, uvs, world, space in meshes:
+        P, N, T, B, cut = unreal_mesh(verts, polygons, normals, uvs, world, space)
         # Unreal's importer drops triangles with two corners within THRESH_POINTS_ARE_SAME (bRemoveDegenerates).
         keep = [t for t in range(len(P)) if not any(np.all(np.abs(P[t, a] - P[t, b]) <= 0.00002)
                                                     for a, b in ((0, 1), (0, 2), (1, 2)))]
-        P, N, T, B = P[keep], N[keep], T[keep], B[keep] / 100.0
+        P, N, T, B = P[keep], N[keep], T[keep], B[keep]
         file_bad += check(f'{os.path.basename(path)} [{name}]' + (f' ({note})' if note else ''), P, N, T, B, cut)
     if file_bad and WHERE:
         for name, text in blender_check(path).items():

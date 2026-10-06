@@ -7,7 +7,9 @@
 class UBestiaryEntry;
 class UPointLightComponent;
 class USceneCaptureComponent2D;
+class USkeletalMesh;
 class USkeletalMeshComponent;
+class UStaticMeshComponent;
 class UTextureRenderTarget2D;
 
 /**
@@ -82,6 +84,10 @@ private:
 	/** Places the camera and lights for the model's size, and turns the turntable. */
 	void PlaceCamera();
 
+	/** Puts on what the entry's actor wears on its bones besides its body (UBestiaryEntry::GetPreviewParts), and grows
+	 * the model's box (its own space, at rest) by each part. */
+	void ShowParts(const UBestiaryEntry* Entry, const USkeletalMesh* Mesh, FBox& InOutBox);
+
 	UPROPERTY(VisibleAnywhere, Category = "Stage")
 	TObjectPtr<USceneComponent> Root;
 
@@ -90,6 +96,10 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Stage")
 	TObjectPtr<USkeletalMeshComponent> Model;
+
+	/** What the model wears on its bones (a hat), one component per part, kept for the next entry. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UStaticMeshComponent>> Parts;
 
 	UPROPERTY(VisibleAnywhere, Category = "Stage")
 	TObjectPtr<USceneCaptureComponent2D> Capture;

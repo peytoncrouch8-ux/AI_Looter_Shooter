@@ -185,7 +185,8 @@ bool AUnpaidCreature::SetupRig()
 	}
 
 	// The shroud and its strips: each a chain from its first link down to its first missing one, hanging from what its
-	// first link hangs from (the pelvis). Each link points at the next one at rest; the last keeps the one before's way.
+	// first link hangs from (the pelvis for the shroud; the shroud's second link, tail_02, for each strip). Each link
+	// points at the next one at rest; the last keeps the one before's way.
 	const TArray<FName>* ChainNames[3] = { &Rig.Shroud, &Rig.LeftStrip, &Rig.RightStrip };
 	for (int32 Chain = 0; Chain < 3; ++Chain)
 	{

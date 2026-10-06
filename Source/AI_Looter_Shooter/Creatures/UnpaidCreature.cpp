@@ -6,10 +6,13 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreaturePoseAnimInstance.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "AnimationRuntime.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/HitResult.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/PackageName.h"
@@ -46,6 +49,21 @@ namespace
 		ConstructorHelpers::FObjectFinder<T> Finder(ObjectPath);
 		return Finder.Object;
 	}
+
+	/**
+	 * The hat's turn on its bone. The hat was modelled where it sits, in the model's own axes, with its pivot on the bone:
+	 * turned back by the bone's rest turn it sits as modelled, and from there it follows the head. False without the bone.
+	 */
+	bool HatTurnOnBone(const USkeletalMesh* Model, FName Bone, FQuat& OutTurn)
+	{
+		const int32 Index = Model && !Bone.IsNone() ? Model->GetRefSkeleton().FindBoneIndex(Bone) : INDEX_NONE;
+		if (Index == INDEX_NONE)
+		{
+			return false;
+		}
+		OutTurn = FAnimationRuntime::GetComponentSpaceTransformRefPose(Model->GetRefSkeleton(), Index).GetRotation().Inverse();
+		return true;
+	}
 }
 
 FUnpaidArmBones::FUnpaidArmBones(const TCHAR* Side)
@@ -67,6 +85,7 @@ FUnpaidRigBones::FUnpaidRigBones()
 	, Neck(TEXT("neck"))
 	, Head(TEXT("head"))
 	, Jaw(TEXT("jaw"))
+	, Hat(TEXT("hat"))
 	, LeftArm(TEXT("l"))
 	, RightArm(TEXT("r"))
 {
@@ -145,6 +164,22 @@ AUnpaidCreature::AUnpaidCreature()
 	Body->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	Body->SetGenerateOverlapEvents(false);
 	Body->SetCanEverAffectNavigation(false);
+
+	// The hat is a mesh of its own on its bone, worn from the start so what reads the defaults (the bestiary's stand) sees
+	// it on; play puts it on again by the configured rig (PutOnHat). It has no collision: a shot meets the head under it.
+	static UStaticMesh* const HatModel = FindIfMade<UStaticMesh>(TEXT("/Game/Art/Creatures/SM_UnpaidHat.SM_UnpaidHat"));
+	Hat = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Hat"));
+	Hat->SetupAttachment(Body, Rig.Hat);
+	FQuat HatTurn;
+	if (HatTurnOnBone(Model, Rig.Hat, HatTurn))
+	{
+		Hat->SetRelativeRotation(HatTurn);
+	}
+	Hat->SetStaticMesh(HatModel);
+	Hat->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Hat->SetGenerateOverlapEvents(false);
+	Hat->SetCanEverAffectNavigation(false);
+	Hat->SetCastShadow(false);
 }
 
 void AUnpaidCreature::BeginPlay()
@@ -157,6 +192,7 @@ void AUnpaidCreature::BeginPlay()
 	LastYaw = static_cast<float>(GetActorRotation().Yaw);
 	PutOnClothes();
 	bRigReady = SetupRig();
+	PutOnHat();
 	ApplyLook(true);
 	if (bRigReady)
 	{
@@ -177,7 +213,26 @@ void AUnpaidCreature::PutOnClothes()
 	if (Worn && Slot != INDEX_NONE)
 	{
 		GetMesh()->SetMaterial(Slot, Worn);
+		// The hat goes with the clothes.
+		const int32 HatSlot = Hat->GetMaterialIndex(BodySlot);
+		if (HatSlot != INDEX_NONE)
+		{
+			Hat->SetMaterial(HatSlot, Worn);
+		}
 	}
+}
+
+void AUnpaidCreature::PutOnHat()
+{
+	FQuat Turn;
+	if (!HatTurnOnBone(GetMesh()->GetSkeletalMeshAsset(), Rig.Hat, Turn) || !Hat->GetStaticMesh())
+	{
+		Hat->SetVisibility(false);
+		return;
+	}
+	Hat->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, Rig.Hat);
+	Hat->SetRelativeLocationAndRotation(FVector::ZeroVector, Turn);
+	Hat->SetVisibility(true);
 }
 
 FLinearColor AUnpaidCreature::GetCoalColor() const
@@ -188,22 +243,28 @@ FLinearColor AUnpaidCreature::GetCoalColor() const
 
 void AUnpaidCreature::ApplyCoalColor()
 {
-	// The coal and the ember edge both read it (M_Ghost), on every slot of the mesh: no material instance per creature.
+	// The coal and the ember edge both read it (M_Ghost), on every slot of the body and the hat: no material instance per
+	// creature.
 	const FLinearColor Color = GetCoalColor();
-	GetMesh()->SetCustomPrimitiveDataVector4(UnpaidLook::RankColorIndex, FVector4(Color.R, Color.G, Color.B, Traits.CoalGlow));
+	const FVector4 RankColor(Color.R, Color.G, Color.B, Traits.CoalGlow);
+	GetMesh()->SetCustomPrimitiveDataVector4(UnpaidLook::RankColorIndex, RankColor);
+	Hat->SetCustomPrimitiveDataVector4(UnpaidLook::RankColorIndex, RankColor);
 }
 
 void AUnpaidCreature::ApplyLook(bool bForce)
 {
+	// The hat dissolves with the body.
 	USkeletalMeshComponent* Body = GetMesh();
 	if (bForce || !FMath::IsNearlyEqual(PhaseAmount, ShownPhase, 0.002f))
 	{
 		Body->SetCustomPrimitiveDataFloat(UnpaidLook::PhaseIndex, PhaseAmount);
+		Hat->SetCustomPrimitiveDataFloat(UnpaidLook::PhaseIndex, PhaseAmount);
 		ShownPhase = PhaseAmount;
 	}
 	if (bForce || !FMath::IsNearlyEqual(Heat, ShownHeat, 0.01f))
 	{
 		Body->SetCustomPrimitiveDataFloat(UnpaidLook::HeatIndex, Heat);
+		Hat->SetCustomPrimitiveDataFloat(UnpaidLook::HeatIndex, Heat);
 		ShownHeat = Heat;
 	}
 	// A shot passes through what has mostly faded away.

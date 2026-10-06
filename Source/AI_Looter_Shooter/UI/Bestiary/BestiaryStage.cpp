@@ -3,10 +3,13 @@
 #include "UI/Inventory/StageStudio.h"
 #include "Animation/AnimationAsset.h"
 #include "Animation/AnimSingleNodeInstance.h"
+#include "AnimationRuntime.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Materials/MaterialInterface.h"
 
@@ -99,10 +102,11 @@ void ABestiaryStage::ShowEntry(const UBestiaryEntry* Entry)
 		Model->SetAnimation(nullptr);
 	}
 
+	FBox Box = Mesh ? Mesh->GetBounds().GetBox() : FBox(ForceInit);
+	ShowParts(Entry, Mesh, Box);
 	if (Mesh)
 	{
 		// Stand it on the floor, centered over the turntable so it turns on the spot, its front along the turntable's +X.
-		const FBox Box = Mesh->GetBounds().GetBox();
 		const FRotator Facing(0.f, Entry->PreviewYaw, 0.f);
 		const FVector Center = Facing.RotateVector(Box.GetCenter());
 		Model->SetRelativeLocationAndRotation(FVector(-Center.X, -Center.Y, -Box.Min.Z), Facing);
@@ -114,6 +118,44 @@ void ABestiaryStage::ShowEntry(const UBestiaryEntry* Entry)
 	}
 	Turn = DefaultTurn;
 	PlaceCamera();
+}
+
+void ABestiaryStage::ShowParts(const UBestiaryEntry* Entry, const USkeletalMesh* Mesh, FBox& InOutBox)
+{
+	// Worn as in the world (the Unpaid's hat on its hat bone), and framed with the body: each part's box where it sits on
+	// the body at rest.
+	const TArray<FBestiaryStandPart> Worn = Entry && Mesh ? Entry->GetPreviewParts(Mesh) : TArray<FBestiaryStandPart>();
+	for (int32 Index = 0; Index < FMath::Max(Worn.Num(), Parts.Num()); ++Index)
+	{
+		if (!Worn.IsValidIndex(Index))
+		{
+			Parts[Index]->SetStaticMesh(nullptr);
+			Parts[Index]->SetVisibility(false);
+			continue;
+		}
+		const FBestiaryStandPart& Part = Worn[Index];
+		if (!Parts.IsValidIndex(Index))
+		{
+			UStaticMeshComponent* Added = NewObject<UStaticMeshComponent>(this);
+			Added->SetupAttachment(Model, Part.Bone);
+			Added->RegisterComponent();
+			StageStudio::SetupPrimitive(Added);
+			Parts.Add(Added);
+		}
+		UStaticMeshComponent* Shown = Parts[Index];
+		Shown->AttachToComponent(Model, FAttachmentTransformRules::KeepRelativeTransform, Part.Bone);
+		Shown->SetRelativeTransform(Part.Relative);
+		Shown->SetStaticMesh(Part.Mesh);
+		Shown->EmptyOverrideMaterials();
+		for (int32 Slot = 0; Slot < Part.Materials.Num(); ++Slot)
+		{
+			Shown->SetMaterial(Slot, Part.Materials[Slot]);
+		}
+		Shown->SetVisibility(true);
+		const int32 Bone = Mesh->GetRefSkeleton().FindBoneIndex(Part.Bone);
+		const FTransform OnBody = Part.Relative * FAnimationRuntime::GetComponentSpaceTransformRefPose(Mesh->GetRefSkeleton(), Bone);
+		InOutBox += Part.Mesh->GetBounds().GetBox().TransformBy(OnBody);
+	}
 }
 
 bool ABestiaryStage::HasModel() const

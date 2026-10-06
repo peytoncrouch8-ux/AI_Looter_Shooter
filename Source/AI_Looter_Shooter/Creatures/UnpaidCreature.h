@@ -8,6 +8,7 @@
 
 class AShriekRing;
 class UMaterialInterface;
+class UStaticMeshComponent;
 
 /** Where AUnpaidCreature keeps its look in its mesh's custom primitive data (M_Ghost reads them; build_creature_materials.py). */
 namespace UnpaidLook
@@ -83,6 +84,10 @@ struct AI_LOOTER_SHOOTER_API FUnpaidRigBones
 	UPROPERTY(EditAnywhere, Category = "Rig")
 	FName Jaw;
 
+	/** Carries the hat, which is a mesh of its own (SM_UnpaidHat) and follows the head. */
+	UPROPERTY(EditAnywhere, Category = "Rig")
+	FName Hat;
+
 	UPROPERTY(EditAnywhere, Category = "Rig")
 	FUnpaidArmBones LeftArm;
 
@@ -116,9 +121,9 @@ struct AI_LOOTER_SHOOTER_API FUnpaidRigBones
  *    target, never into a wall, off its level of ground or off its hunting ground.
  *  - Its rank shows in its coal and ember edge (custom primitive data, UnpaidLook): dull red Basic, the rank's tag color
  *    above it. Restless and up lunge faster; Gravebound and up shriek a ring that slows the player (AShriekRing).
- *  - It wears one of three sets of clothes: the model's own (Ghost_A) or MI_Ghost_B and C (OtherClothes).
+ *  - It wears one of three sets of clothes, hat and all: the model's own (Ghost_A) or MI_Ghost_B and C (OtherClothes).
  *
- * The body is SK_Unpaid (Art/Models/Creatures/Unpaid.py), about 32 bones, all posed by code (UnpaidCreatureRig.cpp) on
+ * The body is SK_Unpaid (Art/Models/Creatures/Unpaid.py), 33 bones under its root, all posed by code (UnpaidCreatureRig.cpp) on
  * top of the model's rest pose, the idle hang: it bobs, leans into its drift, looks at its target, its arms and fingers
  * reach and claw, and the shroud's chains (FShroudChain) trail its motion. Without the model (a test level, or before it
  * is imported) it hunts as well, unseen: its coal is where the model carries it (CoalPointWithoutRig).
@@ -146,6 +151,9 @@ public:
 
 	/** Its coal's color at its rank: BasicCoalColor, or the rank's tag color (UCreatureRankSettings). */
 	FLinearColor GetCoalColor() const;
+
+	/** Its hat (SM_UnpaidHat): on the hat bone once it has its model, hidden without one. */
+	UStaticMeshComponent* GetHat() const { return Hat; }
 
 	// --- Its attack ---
 
@@ -208,7 +216,7 @@ public:
 
 	/** Where the model carries the coal (its own space: X forward, Z up from the ground), for when it has no rig. */
 	UPROPERTY(EditAnywhere, Category = "Unpaid|Coal")
-	FVector CoalPointWithoutRig = FVector(12.f, -8.f, 130.f);
+	FVector CoalPointWithoutRig = FVector(10.9f, -5.9f, 131.3f);
 
 	/** How fast its lunge flies (cm/s at size 1, before its rank's) and how far at most (cm at size 1). */
 	UPROPERTY(EditAnywhere, Category = "Unpaid|Attack", meta = (ClampMin = "100", Units = "cm/s"))
@@ -273,6 +281,8 @@ private:
 	// --- Look (UnpaidCreature.cpp) ---
 	/** Puts on its clothes: the model's own, or one of OtherClothes. */
 	void PutOnClothes();
+	/** Puts the hat on the hat bone as it was modelled, or hides it without the bone or the hat. */
+	void PutOnHat();
 	/** Writes its rank's color into the mesh's custom primitive data. */
 	void ApplyCoalColor();
 	/** Writes its dissolve and the coal's flare when they change, and turns its hit zones off while it's faded away. */
@@ -415,6 +425,10 @@ private:
 	float StallTime = 0.f;
 	float BestDistance = TNumericLimits<float>::Max();
 	float RetryIn = 0.f;
+
+	/** The hat is a mesh of its own: it wears the body's clothes and look (custom primitive data), and casts no shadow either. */
+	UPROPERTY(VisibleAnywhere, Category = "Unpaid|Look")
+	TObjectPtr<UStaticMeshComponent> Hat;
 
 	// Death and look
 	float DeathTime = 0.f;

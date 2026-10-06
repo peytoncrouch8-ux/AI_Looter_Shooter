@@ -63,11 +63,24 @@ def default_orm():
     return texture
 
 
+def clear_graph(mat):
+    """Empties a master's graph to build it again in place. The engine's delete marks each node as garbage, which crashes
+    the editor (Assertion failed: !IsRooted()) on nodes loaded as it started, when a class's defaults reach the master
+    (the Unpaid's model reaches M_Ghost): LooterEditor's ClearMaterialGraph moves those out of the material instead."""
+    tools = getattr(unreal, 'LooterMaterialGraphTools', None)
+    if tools is None:
+        MEL.delete_all_material_expressions(mat)
+        return
+    removed, moved_out = tools.clear_material_graph(mat)
+    if moved_out:
+        unreal.log(f'{mat.get_name()}: {moved_out} of its {removed} nodes were loaded as the editor started; moved out of it')
+
+
 def material(name):
     path = f'{FOLDER}/{name}'
     if unreal.EditorAssetLibrary.does_asset_exist(path):
         mat = unreal.load_asset(path)
-        MEL.delete_all_material_expressions(mat)
+        clear_graph(mat)
     else:
         mat = unreal.AssetToolsHelpers.get_asset_tools().create_asset(name, FOLDER, unreal.Material, unreal.MaterialFactoryNew())
     return mat
