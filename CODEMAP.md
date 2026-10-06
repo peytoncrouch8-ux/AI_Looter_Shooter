@@ -488,10 +488,11 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   Python): `ClearMaterialGraph` empties a master to build it again in place, moving the nodes loaded as the editor
   started (rooted for good) out of it instead of deleting them.
 - `Tests/StylizedPropTests.cpp`, `PropSettlerTests.cpp`, `ModelImportTests.cpp`, `TexturedImportTests.cpp`,
-  `RigImportTests.cpp`, `SurfaceMaterialTests.cpp`: the `Looter.Editor.*` tests (prop shapes and ground cover size,
+  `RigImportTests.cpp`, `SurfaceMaterialTests.cpp`, `MaterialGraphToolsTests.cpp`: the `Looter.Editor.*` tests (prop
+  shapes and ground cover size,
   settling on the ground and the terrain's full fallback, the Blender import settings against
   `Tests/ModelImport/AxisTest`, textured materials, LODs and no-collision against `Tests/TexturedImport/TexturedTest`,
-  `Tests/RigImport/RigTest`, the stylized materials' usage flags).
+  `Tests/RigImport/RigTest`, the stylized materials' usage flags, clearing a master whose nodes are rooted).
 
 ## Terrain generator and level scripts (Python)
 - `Art/Levels/area_shape.py`: `Area`, an area's shape from `Art/Levels/<Area>/layout.json` (`TutorialIsland` is the

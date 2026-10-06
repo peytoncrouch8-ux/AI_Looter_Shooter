@@ -7,7 +7,8 @@
                 shroud (1 solid, 0 gone). The fade is broken up by the macro noise at two scales drifting up the strips
                 (UV 0's V runs down them: NoiseScale, NoiseSpeed, FadeSoftness). The Polymer grain (BaseColorMap on UV 0
                 times UVScale) runs through the cloth, and Tint multiplies it all. Emissive: a pale rim (RimColor,
-                RimStrength), a faint glow of its own (GlowStrength) and the ember edge in the rank's color (EmberStrength).
+                RimStrength, and RimPower: how tightly it hugs the silhouette), a faint glow of its own (GlowStrength) and
+                the ember edge in the rank's color (EmberStrength).
                 Coal = 1 makes a slot the coal instead: a dark crust with glowing cracks in the rank's color, no grain and
                 no fade. Phase dissolves it for the phase-step: the solid body goes first and the shroud's ends last, and
                 coming back the ends come first; the coal goes with the body.
@@ -40,19 +41,20 @@ DITHER = '/Engine/Functions/Engine_MaterialFunctions02/Utility/DitherTemporalAA.
 # The clothes they died in (Art/Backlog/Creatures/UnpaidConcepts.py's option A, the user's pick, 2026-10-06): skin and
 # shroud, then the shirt, the vest and hat, and the accents (bandana, hat band). A's are M_Ghost's defaults; MI_Ghost_A
 # itself is the importer's, from the model's script.
-SKIN = 0xd2d8d5
+# Pale enough to read as a ghost, dark enough that direct sun still shades it (at #D2D8D5 a sunlit limb went flat white).
+SKIN = 0xbac4c6
 CLOTHES = {
-    'A': (SKIN, 0xa5b2ba, 0x6c5d50, 0xa65e4c),   # faded chambray shirt, brown wool vest, red bandana
-    'B': (SKIN, 0xd6cebd, 0x4d4e51, 0x8f8b7e),   # Sunday: cream shirt, charcoal vest, grey
-    'C': (SKIN, 0xb8946f, 0x7b7f6e, 0xcfc095),   # harvest: rust shirt, drab vest, straw
+    'A': (SKIN, 0x93a5b2, 0x6c5d50, 0xa65e4c),   # faded chambray shirt, brown wool vest, red bandana
+    'B': (SKIN, 0xc6beae, 0x4d4e51, 0x8f8b7e),   # Sunday: cream shirt, charcoal vest, grey
+    'C': (SKIN, 0xa38f7e, 0x7b7f6e, 0xcfc095),   # harvest: dusty brown shirt (a rust one read as the legendary orange in sun), drab vest, straw
 }
 RIM = 0xdcecee            # pale and only barely cool, so no rarity color covers the body
 BASIC_COAL = 0xb02a18     # a Basic coal's dull red: what a mesh no creature drives shows
 COAL_CRUST = 0x1d110c
 
 # The scalars on M_Ghost and their defaults: an instance that sets none of them looks right.
-DEFAULTS = dict(RimStrength=1.5, GlowStrength=0.1, EmberStrength=3.0, NoiseScale=1.5, NoiseSpeed=0.06, FadeSoftness=0.07,
-                Coal=0.0, UVScale=1.0)
+DEFAULTS = dict(RimStrength=1.5, RimPower=2.8, GlowStrength=0.1, EmberStrength=3.0, NoiseScale=1.5, NoiseSpeed=0.06,
+                FadeSoftness=0.07, Coal=0.0, UVScale=1.0)
 # Read from the creature's custom primitive data (UnpaidLook in Creatures/UnpaidCreature.h): never an instance's.
 PRIMITIVE_DATA = {'RankColor': 0, 'Phase': 4, 'Heat': 5}
 ZONES = ('Zone1Color', 'Zone2Color', 'Zone3Color', 'Zone4Color')
@@ -110,7 +112,8 @@ GHOST_GLOW = """// The rank's color, which the creature sets in its custom primi
 float3 RankGlow = RankAlpha > 0.0 ? RankColor * RankAlpha : BasicColor * 1.8;
 float Burn = max(1.0 + Heat, 0.0);
 float Facing = abs(dot(normalize(Normal), normalize(CameraVector)));
-float RimAmount = pow(saturate(1.0 - Facing), 2.8);
+// RimPower keeps the rim to the silhouette: a low one covers a thin limb's whole face in daylight.
+float RimAmount = pow(saturate(1.0 - Facing), RimPower);
 float Dark = 1.0 - 0.93 * VertexColor.g;
 // The body: a pale rim, a faint glow of its own (a ghost never goes fully dark) and the ember edge round the coal's hole
 // (vertex B).
@@ -210,6 +213,7 @@ def build_ghost():
         ('Heat', heat, ''),
         ('RimColor', g.vector('RimColor', linear(RIM), -1100, 600), ''),
         ('RimStrength', g.scalar('RimStrength', DEFAULTS['RimStrength'], -1100, 700), ''),
+        ('RimPower', g.scalar('RimPower', DEFAULTS['RimPower'], -1100, 750), ''),
         ('GlowStrength', g.scalar('GlowStrength', DEFAULTS['GlowStrength'], -1100, 800), ''),
         ('EmberStrength', g.scalar('EmberStrength', DEFAULTS['EmberStrength'], -1100, 900), ''),
         ('CoalAmount', coal, ''),

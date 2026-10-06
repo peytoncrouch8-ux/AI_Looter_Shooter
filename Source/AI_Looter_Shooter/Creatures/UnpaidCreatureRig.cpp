@@ -54,6 +54,17 @@ namespace
 	/** How far it looks round at its target before its body has to turn (degrees). */
 	constexpr float LookYawLimit = 60.f;
 	constexpr float LookPitchLimit = 35.f;
+
+	/**
+	 * The idle the model rests in (Unpaid.py bakes it into SK_Unpaid's rest pose, so the bestiary's stand and anything
+	 * else that shows it unposed show the approved idle): the fingers curled 25 degrees and fanned 4 per finger, the jaw 6
+	 * past a mouth 10 open, each forearm bent 12. The pose's channels keep meaning what they did on the old rest pose, and
+	 * these come back off at the bones.
+	 */
+	constexpr float RestCurl = 25.f;
+	constexpr float RestSplay = 4.f;
+	constexpr float RestJaw = 6.f;
+	constexpr float RestBend = 12.f;
 }
 
 // ---------------------------------------------------------------------------
@@ -181,6 +192,7 @@ bool AUnpaidCreature::SetupRig()
 			Arm.Fingers.Add(Finger);
 			Arm.CurlAxes.Add(Axis);
 			Arm.FanOffsets.Add(Slot - Middle);
+			Arm.IdleTurns.Add(TurnBy(Axis, -RestCurl) * PitchBy((Slot - Middle) * RestSplay));
 		}
 	}
 
@@ -399,7 +411,7 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 	}
 	if (JawBone != INDEX_NONE)
 	{
-		Bones[JawBone].Own = PitchBy(Pose.Jaw);
+		Bones[JawBone].Own = PitchBy(Pose.Jaw - RestJaw);
 	}
 
 	// The arms hang and drift, trail a little as it glides, fling wide for the shriek and reach long in the lunge.
@@ -416,7 +428,7 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 		}
 		if (Arm.LowerArm != INDEX_NONE)
 		{
-			Bones[Arm.LowerArm].Own = PitchBy(-Bend);
+			Bones[Arm.LowerArm].Own = PitchBy(-(Bend - RestBend));
 		}
 		if (Arm.Hand != INDEX_NONE)
 		{
@@ -424,7 +436,9 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 		}
 		for (int32 Finger = 0; Finger < Arm.Fingers.Num(); ++Finger)
 		{
-			Bones[Arm.Fingers[Finger]].Own = TurnBy(Arm.CurlAxes[Finger], -Pose.Curl) * PitchBy(Arm.FanOffsets[Finger] * Pose.Splay);
+			// The curl and fan are about axes that don't commute, so the rest's idle comes off as one turn, after them.
+			Bones[Arm.Fingers[Finger]].Own = TurnBy(Arm.CurlAxes[Finger], -Pose.Curl) * PitchBy(Arm.FanOffsets[Finger] * Pose.Splay)
+				* Arm.IdleTurns[Finger].Inverse();
 		}
 	}
 

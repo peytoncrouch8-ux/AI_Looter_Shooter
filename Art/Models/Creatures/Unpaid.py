@@ -10,14 +10,16 @@ Models:
   SM_UnpaidHat  his hat, a static mesh (no collision) whose pivot is the 'hat' bone's head: attach it there. Abel and Amos
                 get their own hats later.
 
-Bones (Blender names, as AUnpaidCreature reads them; the armature is Unreal's root), in the bind pose, the idle hang the
-code poses on top of (facing -Y, Unreal's +X; the origin on the ground; upright, a slight hunch baked into the upper back,
-head level, the jaw slack and open 10 degrees, arms hanging with the palms in, the shroud hanging down and back):
+Bones (Blender names, as AUnpaidCreature reads them; the armature is Unreal's root), in the bind pose: the game's idle,
+which the code poses from and the bestiary's stand shows unposed (facing -Y, Unreal's +X; the origin on the ground;
+upright, a slight hunch baked into the upper back, head level, the jaw slack and open 16 degrees, the arms hanging with
+the forearms bent 12 degrees and the palms in, the hands as the D concept holds them, the shroud down and back). The code
+was written against an older rest without those three; see OLD_JAW, IDLE_JAW, IDLE_BEND, code_finger_pose and bake_idle.
   pelvis                         the float height (1.0 m over the origin); parent of the spine and the shroud
   spine_01, spine_02             spine_02 is the chest; it carries the arms, the neck and the coal
   coal                           the coal, rigid; its head is the coal's middle, the crit point
   neck, head, jaw, hat           jaw: the lower face, lower lip and lower teeth, opened by turning it down about its
-                                 head (the shriek's 36 degrees more make 46 in all); hat: no skin, the hat's attach point
+                                 head (the shriek's 30 degrees more make 46 in all); hat: no skin, the hat's attach point
   upperarm_l, lowerarm_l, hand_l and its fingers thumb_01_l, index_01_l, middle_01_l, ring_01_l, pinky_01_l (one bone a
                                  finger, at the knuckle); the same with _r
   tail_01 .. tail_05             the shroud, down its middle from the pelvis
@@ -62,9 +64,19 @@ import looter_textures as lt
 SIDES = (1.0, -1.0)                     # +1 the left (+X), -1 the right
 SUFFIX = {1.0: 'l', -1.0: 'r'}
 HUNCH = math.radians(9.0)               # the upper back's curve, baked into the bind pose
-JAW_BIND = math.radians(10.0)           # the rest jaw, slack (AUnpaidCreature opens it 6 more idle, 36 more to shriek)
+# The rest pose is the game's idle, so the bestiary's stand and the editor, which show the mesh unposed, show him as he
+# hangs in the game. AUnpaidCreature's numbers were first written against an older rest (straight forearms, the fingers
+# turned back from the idle hand, the jaw open 10 degrees); its idle over that rest (UnpaidCreatureRig.cpp: PoseTargets
+# and the arms) is baked in here, and the code takes these amounts off at the bones, so its poses stay where they were.
+OLD_JAW = 10.0                          # the older rest's jaw, degrees open
+IDLE_JAW = 6.0                          # the code's idle jaw over it (Goal.Jaw = 6; Own = PitchBy(Jaw))
+IDLE_BEND = 12.0                        # the code's idle elbow (Bend = 12 + ...; the forearm's Own = PitchBy(-Bend))
+JAW_BIND = math.radians(OLD_JAW + IDLE_JAW)     # the rest jaw: 16 degrees open, slack
 SKIN, SHIRT, VEST, ACCENT = 0, 1, 2, 3  # tint zones (vertex color R = zone / 3)
-ZONE_COLORS = ('#D2D8D5', '#A5B2BA', '#6C5D50', '#A65E4C')   # tint 1: pale skin and shroud, faded chambray, wool, red
+# Tint 1: pale skin and shroud, faded chambray, wool, red. The skin and the shirt are about 20% darker (in linear) than
+# the concept's #D2D8D5 and #A5B2BA, so that in daylight sunlit skin reads pale grey rather than white (tried in the game,
+# approved 2026-10-06).
+ZONE_COLORS = ('#BAC4C6', '#93A5B2', '#6C5D50', '#A65E4C')
 RIM_COLOR = '#DCECEE'
 TRIANGLES = dict(shirt=700, sleeve=230, vest=820, arm=560, head=1050)   # the parts that are reduced to a budget
 OUT = os.path.join(lt.REPO, 'Saved', 'ArtPreviews', 'RansomsRest', 'Unpaid')
@@ -122,22 +134,37 @@ def turn_matrix(axis, degrees):
     return np.eye(3) + math.sin(r) * k + (1.0 - math.cos(r)) * (k @ k)
 
 
-# AUnpaidCreature's hands (UnpaidCreatureRig.cpp). The rest pose's fingers are the D concept's idle hand turned back by
-# the code's idle Curl and Splay, so that at idle the code puts them exactly where the concept had them.
+# AUnpaidCreature's turns (UnpaidCreatureRig.cpp), in Blender's axes. Its PitchBy(a) is a turn about Blender's +X by a
+# (a hanging limb swings back), as jaw_turn() turns the jaw; the hands' turns are below.
 UE_FROM_BLENDER = np.array([[0.0, -1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])   # the rig's export; its own inverse
 FINGERS = ('thumb', 'index', 'middle', 'ring', 'pinky')       # the code's order: they fan out round the middle one
 IDLE_CURL, IDLE_SPLAY = 25.0, 4.0                             # its idle Curl and Splay (PoseTargets)
 
 
 def code_finger_turn(finger, knuckle, wrist, side, curl, splay):
-    """The turn AUnpaidCreature gives a finger for its Curl and Splay, in Blender's axes about the knuckle: fanned about
-    the side axis by its place from the middle finger, then curled about the axis square to the way it points from the
-    wrist and to the arm's side (side +1 left)."""
+    """The code's turn of a finger for its Curl and Splay, about the knuckle: fanned about the side axis by its place
+    from the middle finger, then curled about the axis square to the way it points from the wrist and to the arm's side
+    (side +1 left): TurnBy(Axis, -Curl) * PitchBy(Fan * Splay). Over the older rest, that was the finger's whole pose."""
     M = UE_FROM_BLENDER
     pointing = unit(M @ (np.asarray(knuckle, float) - np.asarray(wrist, float)))
     curl_turn = turn_matrix(np.cross(pointing, (0.0, -side, 0.0)), -curl)
     fan = turn_matrix((0.0, 1.0, 0.0), (FINGERS.index(finger) - 2.0) * splay)
     return M @ curl_turn @ fan @ M
+
+
+def code_finger_pose(finger, knuckle, wrist, side, curl, splay):
+    """A finger's pose over this rest, the idle hand: the code's turn less its idle one (TurnBy(Axis, -Curl) *
+    PitchBy(Fan * Splay) * IdleTurn.Inverse()), with the axes from this rest. The forearm's bend turns about the same axis
+    as the side, the splay and the hand, so these axes are the older rest's turned with it."""
+    return (code_finger_turn(finger, knuckle, wrist, side, curl, splay)
+            @ code_finger_turn(finger, knuckle, wrist, side, IDLE_CURL, IDLE_SPLAY).T)
+
+
+def bent(s):
+    """The forearm as the rest pose holds it, bent at the elbow by the code's idle (PitchBy(-12), the forearm swinging
+    forward): the elbow, the wrist, the way the hand points and the back of the hand."""
+    R = turn_matrix((1.0, 0.0, 0.0), -IDLE_BEND)
+    return ELBOW[s], ELBOW[s] + R @ (WRIST[s] - ELBOW[s]), R @ HAND_DIR[s], R @ HAND_UP[s]
 
 
 def spline(points, n):
@@ -909,10 +936,11 @@ def build_torso():
                                  np.full(32, zz)], -1) for zz in (1.52, 1.55, 1.578)])
     part = Part('Collar', (hunch(collar.reshape(-1, 3)), [grid_faces(3, 32)]), SHIRT)
     parts.append(part.weigh('neck', 0.5).weigh('spine_02', 0.5))
-    # Sleeves and cuffs, along the bind pose's arms.
+    # Sleeves and cuffs, along the bind pose's arms: the cuffs rolled round the forearms where they bend.
     for k, s in enumerate(SIDES):
         sfx = SUFFIX[s]
-        piece, line = sleeve(S[s], ELBOW[s], WRIST[s], 0.056, 0.05, seed=31 + k)
+        E, W = bent(s)[:2]
+        piece, line = sleeve(S[s], E, W, 0.056, 0.05, seed=31 + k)
         low = reduce(piece, TRIANGLES['sleeve'])
         part = Part(f'Sleeve_{sfx}', low, SHIRT)
         d, along = polyline_distance(low[0], line)
@@ -920,8 +948,8 @@ def build_torso():
         part.weigh(f'lowerarm_{sfx}', 0.5 * smoothstep(0.84, 1.0, along))
         part.weigh(f'upperarm_{sfx}', 1.0 - 0.45 * smoothstep(0.16, 0.0, along) - 0.5 * smoothstep(0.84, 1.0, along))
         parts.append(part)
-        dv = unit(WRIST[s] - ELBOW[s])
-        cuff = torus(ELBOW[s] + dv * 0.04, WRIST[s] - ELBOW[s], 0.046, 0.015, segs=14, sides=6, squash=0.85)
+        dv = unit(W - E)
+        cuff = torus(E + dv * 0.04, W - E, 0.046, 0.015, segs=14, sides=6, squash=0.85)
         parts.append(Part(f'Cuff_{sfx}', cuff, SHIRT).weigh(f'upperarm_{sfx}', 0.5).weigh(f'lowerarm_{sfx}', 0.5))
 
     # The vest: it hangs off him, stands clear of the hollow chest, folds slack down the front, pulls at the buttons.
@@ -988,18 +1016,21 @@ def build_torso():
 
 
 def build_arms():
-    """Forearms and hands, fused per side and reduced; fingers on their own bones past the knuckles."""
-    parts, fingers = [], {}
+    """Forearms and hands, fused per side and reduced; fingers on their own bones past the knuckles. Built in the rest
+    pose, the idle: the forearm bent at the elbow, the hand the D concept's as modeled. Also returns the older rest's
+    finger lines (straight forearm, fingers turned back by the code's idle), which the skeleton is laid out on first."""
+    parts, fingers, old_fingers = [], {}, {}
     for s in SIDES:
         sfx = SUFFIX[s]
-        E, W = ELBOW[s], WRIST[s]
+        E, W, fwd, up = bent(s)
         dv = unit(W - E)
         pieces = [tube([E + dv * 0.02, E + dv * 0.12, (E + W) * 0.5, W - dv * 0.01], [0.033, 0.031, 0.026, 0.017],
-                       [0.036, 0.034, 0.03, 0.024], segs=20, up=HAND_UP[s]),
-                  ellipsoid(W - dv * 0.012 + unit(np.cross(dv, HAND_UP[s])) * s * -0.018, (0.008, 0.008, 0.008))]
-        hand, lines = hand_pieces(W, HAND_DIR[s], HAND_UP[s], s, CURLS[s], SPREAD[s],
-                                  rest_turn=lambda name, knuckle, s=s, W=W:
-                                  code_finger_turn(name, knuckle, W, s, IDLE_CURL, IDLE_SPLAY).T)
+                       [0.036, 0.034, 0.03, 0.024], segs=20, up=up),
+                  ellipsoid(W - dv * 0.012 + unit(np.cross(dv, up)) * s * -0.018, (0.008, 0.008, 0.008))]
+        hand, lines = hand_pieces(W, fwd, up, s, CURLS[s], SPREAD[s])
+        old_fingers[s] = hand_pieces(WRIST[s], HAND_DIR[s], HAND_UP[s], s, CURLS[s], SPREAD[s],
+                                     rest_turn=lambda name, knuckle, s=s:
+                                     code_finger_turn(name, knuckle, WRIST[s], s, IDLE_CURL, IDLE_SPLAY).T)[1]
         low = reduce(union(pieces + hand, 0.0024, smooth=3), TRIANGLES['arm'])
         part = Part(f'Arm_{sfx}', low, SKIN)
         V = low[0]
@@ -1019,7 +1050,7 @@ def build_arms():
             part.weigh(finger_bone(name, sfx), hand_share * finger_share * (owner == k))
         parts.append(part)
         fingers[s] = lines
-    return parts, fingers
+    return parts, fingers, old_fingers
 
 
 def build_head():
@@ -1139,7 +1170,8 @@ def build_shroud():
 # --- The rig ---
 
 def bone_specs(torso, arms, head, tail):
-    """(name, head, tail, parent) for every bone, Blender meters, from where the parts were built."""
+    """(name, head, tail, parent) for every bone, Blender meters, from where the parts were built; the arms, hands,
+    fingers and jaw as the older rest had them (bake_idle then turns them into this rest)."""
     specs = [('pelvis', (0.0, 0.005, 1.0), (0.0, 0.0, 1.12), None),
              ('spine_01', (0.0, 0.0, 1.12), hunched((0.0, -0.012, 1.27)), 'pelvis'),
              ('spine_02', hunched((0.0, -0.012, 1.27)), hunched((0.0, -0.04, 1.48)), 'spine_01')]
@@ -1175,11 +1207,12 @@ def materials():
     """Ghost_A and GhostCoal: M_Ghost's slots (their properties are the material instances' parameters; the importer
     resets each instance and sets only these). The values give the D concept's look through M_Ghost's own formulas
     (Tools/Unreal/build_creature_materials.py), where the code's rank strength (a Basic coal's 1.8) multiplies the
-    rank color first. NoiseSpeed is left to the master: the concept didn't move."""
+    rank color first; the skin, the shirt, the rim and the glow as tried in the game's daylight and approved. NoiseSpeed
+    is left to the master: the concept didn't move."""
     ghost = bpy.data.materials.get('Ghost_A') or bpy.data.materials.new('Ghost_A')
     ghost.use_nodes = True
     bsdf = next(n for n in ghost.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
-    bsdf.inputs['Base Color'].default_value = lt.hex_color(0xd2d8d5)
+    bsdf.inputs['Base Color'].default_value = lt.hex_color(int(ZONE_COLORS[0][1:], 16))    # the skin, in Blender's view
     for key in [k for k in ghost.keys() if not k.startswith('_')]:
         del ghost[key]
     ghost['Master'] = 'Ghost'
@@ -1187,9 +1220,11 @@ def materials():
     for k, color in enumerate(ZONE_COLORS):
         ghost[f'Zone{k + 1}Color'] = color
     ghost['RimColor'] = RIM_COLOR
-    ghost['RimStrength'] = 1.5       # the concept's rim, 2 (1 - facing ^ 0.7) ^ 2.8, at the silhouette, through M_Ghost's
-                                     # (1 - facing) ^ 2.8
-    ghost['GlowStrength'] = 0.09     # the body's own faint glow: its base color times this
+    ghost['RimPower'] = 4.0          # a thinner rim than the master's 2.8, (1 - facing) ^ 4, so thin limbs keep their
+                                     # shading in daylight instead of going flat white
+    ghost['RimStrength'] = 2.2       # raised with the thinner rim, so the edge still reads
+    ghost['GlowStrength'] = 0.12     # the body's own faint glow (its base color times this), raised so the darker skin
+                                     # keeps the dusk look
     ghost['EmberStrength'] = 2.0     # the ember edge: the concept's 3.6 times the rank color, over the code's 1.8
     ghost['NoiseScale'] = 1.4        # the fade's noise at 1.4 a meter (UVs are in meters), as the concept's
     ghost['FadeSoftness'] = 0.07     # the concept's steepness, 14
@@ -1241,6 +1276,51 @@ def assemble(parts):
     return V, Fs, np.concatenate(cols), np.concatenate(slots), names, W
 
 
+def bake_idle(rig, fingers):
+    """Turns the skeleton from the older rest into this one the way AUnpaidCreature turned it at idle: each finger about
+    its knuckle by the code's idle turn (Curl 25, Splay 4), then each forearm with its hand and fingers about the elbow
+    by PitchBy(-12), and the jaw about its hinge by PitchBy(6). Whole bone matrices turn, rolls too, so the code's poses
+    over this rest (less those amounts) put every bone exactly where its poses over the older rest did. Only the wrists
+    and knuckles move, with their forearms; then they're checked against the parts, which were built in this pose."""
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.context.view_layer.objects.active = rig
+    rig.select_set(True)
+    bpy.ops.object.mode_set(mode='EDIT')
+    edit = rig.data.edit_bones
+
+    def turn(bone, pivot, R):
+        pivot = Vector(pivot)
+        bone.matrix = Matrix.Translation(pivot) @ Matrix(R.tolist()).to_4x4() @ Matrix.Translation(-pivot) @ bone.matrix
+
+    for s in SIDES:
+        sfx = SUFFIX[s]
+        wrist = np.array(edit[f'hand_{sfx}'].head)
+        for finger in FINGERS:
+            bone = edit[finger_bone(finger, sfx)]
+            turn(bone, bone.head.copy(), code_finger_turn(finger, bone.head, wrist, s, IDLE_CURL, IDLE_SPLAY))
+        elbow = edit[f'lowerarm_{sfx}'].head.copy()
+        for name in [f'lowerarm_{sfx}', f'hand_{sfx}'] + [finger_bone(f, sfx) for f in FINGERS]:
+            turn(edit[name], elbow, turn_matrix((1.0, 0.0, 0.0), -IDLE_BEND))
+    turn(edit['jaw'], edit['jaw'].head.copy(), turn_matrix((1.0, 0.0, 0.0), IDLE_JAW))
+    bpy.ops.object.mode_set(mode='OBJECT')
+    worst = 0.0
+    for s in SIDES:
+        sfx = SUFFIX[s]
+        E, W, fwd, up = bent(s)
+        bones = rig.data.bones
+        for point, want in ((bones[f'lowerarm_{sfx}'].tail_local, W), (bones[f'hand_{sfx}'].head_local, W),
+                            (bones[f'hand_{sfx}'].tail_local, W + fwd * 0.08)):
+            worst = max(worst, float(np.linalg.norm(np.array(point) - want)))
+        for name, pts, radius in fingers[s]:
+            bone = bones[finger_bone(name, sfx)]
+            worst = max(worst, float(np.linalg.norm(np.array(bone.head_local) - pts[0])),
+                        float(np.linalg.norm(np.array(bone.tail_local) - pts[1])))
+    if worst > 1e-5:
+        raise RuntimeError(f'the idle skeleton is {1000.0 * worst:.3f} mm off the parts built in it')
+    log(f'rest pose: the idle baked in (fingers Curl {IDLE_CURL:g} Splay {IDLE_SPLAY:g}, elbows {IDLE_BEND:g}, jaw '
+        f'{IDLE_JAW:g} more); its wrists and knuckles sit on the parts to {1000.0 * worst:.4f} mm')
+
+
 def strip_uvs(mesh, parts):
     """The parts with UVs of their own (the shroud) take them over the box projection: U the meters round the shroud,
     V as given. A face across the seam at the back takes its corners round the same way."""
@@ -1270,7 +1350,7 @@ def strip_uvs(mesh, parts):
 
 def build_rig():
     torso_parts, torso = build_torso()
-    arm_parts, fingers = build_arms()
+    arm_parts, fingers, old_fingers = build_arms()
     head_parts, head = build_head()
     shroud_parts, tail = build_shroud()
     parts = torso_parts + arm_parts + head_parts + shroud_parts
@@ -1278,7 +1358,8 @@ def build_rig():
         if not p.weights:
             raise RuntimeError(f'{p.name} has no weights')
     rig = lm.armature()
-    lm.bones(rig, bone_specs(torso, fingers, head, tail))
+    lm.bones(rig, bone_specs(torso, old_fingers, head, tail))
+    bake_idle(rig, fingers)
     V, faces, colors, slots, names, W = assemble(parts)
     mesh = to_mesh('Unpaid', V, faces)
     ghost, coal = materials()
@@ -1336,12 +1417,13 @@ def hull_owner(bone):
 
 COAL_REACH = 0.07     # the coal's hit sphere radius
 HITS = {}             # the zones as planes, for checking what they cover: filled by hit_zones()
-HAND_HULL_POSES = ((IDLE_CURL, IDLE_SPLAY), (48.0, 12.0))   # the code's idle and lunging hands: the hand hulls wrap these
-                                                            # fingers too, as they're off the rest pose most of the time
+HAND_HULL_POSES = ((0.0, 0.0), (48.0, 12.0))     # besides the rest (the idle hand), the hand hulls wrap the fingers
+                                                 # opened to the older rest's (Curl 0, Splay 0) and the lunge's claw
 
 
 def curled(rig, P, W, names, sfx, curl, splay):
-    """Points P (with their weights W) skinned to one hand's fingers as AUnpaidCreature curls them; all else at rest."""
+    """Points P (with their weights W) skinned to one hand's fingers as AUnpaidCreature turns them for this Curl and
+    Splay over this rest (code_finger_pose); all else at rest."""
     side = 1.0 if sfx == 'l' else -1.0
     wrist = np.array(rig.data.bones[f'hand_{sfx}'].head_local)
     out = P.copy()
@@ -1349,7 +1431,7 @@ def curled(rig, P, W, names, sfx, curl, splay):
         name = finger_bone(finger, sfx)
         if name in names:
             knuckle = np.array(rig.data.bones[name].head_local)
-            R = code_finger_turn(finger, knuckle, wrist, side, curl, splay)
+            R = code_finger_pose(finger, knuckle, wrist, side, curl, splay)
             out += W[:, names.index(name)][:, None] * ((P - knuckle) @ R.T + knuckle - P)
     return out
 
@@ -1557,36 +1639,37 @@ def pose_gaps(name):
 
 
 def hand_pose(curl, splay):
-    """The hands as AUnpaidCreature turns them for these Curl and Splay channels, as pose() takes them."""
+    """The hands as AUnpaidCreature turns them over this rest for these Curl and Splay channels, as pose() takes them."""
     turns = {}
     for s in SIDES:
         wrist = rig.data.bones[f'hand_{SUFFIX[s]}'].head_local
         for finger in FINGERS:
             name = finger_bone(finger, SUFFIX[s])
-            R = Matrix(code_finger_turn(finger, rig.data.bones[name].head_local, wrist, s, curl, splay).tolist())
+            R = Matrix(code_finger_pose(finger, rig.data.bones[name].head_local, wrist, s, curl, splay).tolist())
             axis, angle = R.to_quaternion().to_axis_angle()
             turns[name] = [(tuple(axis), math.degrees(angle))]
     return turns
 
 
-# The code's channels (PoseTargets): the jaw over the rest's 10 degrees, the hands' Curl and Splay.
-IDLE = {'jaw': [((1, 0, 0), 6)], **hand_pose(IDLE_CURL, IDLE_SPLAY)}
+# The previews' poses as offsets from this rest, the idle itself: the code's jaw over its idle, its forearms' bend over
+# the idle's (a straight forearm is +IDLE_BEND), its hands' Curl and Splay through code_finger_pose.
+IDLE = {}
 LUNGE = {'pelvis': [((1, 0, 0), 20)], 'spine_01': [((1, 0, 0), 8)], 'spine_02': [((1, 0, 0), 6)],
-         'neck': [((1, 0, 0), -14)], 'head': [((1, 0, 0), -24)], 'jaw': [((1, 0, 0), 27)],
-         'upperarm_l': [((1, 0, 0), -105)], 'lowerarm_l': [((1, 0, 0), -12)], 'hand_l': [((1, 0, 0), -15)],
-         'upperarm_r': [((0, 1, 0), 50), ((1, 0, 0), -70)], 'lowerarm_r': [((1, 0, 0), -25)],
+         'neck': [((1, 0, 0), -14)], 'head': [((1, 0, 0), -24)], 'jaw': [((1, 0, 0), 27 - IDLE_JAW)],
+         'upperarm_l': [((1, 0, 0), -105)], 'lowerarm_l': [((1, 0, 0), -12 + IDLE_BEND)], 'hand_l': [((1, 0, 0), -15)],
+         'upperarm_r': [((0, 1, 0), 50), ((1, 0, 0), -70)], 'lowerarm_r': [((1, 0, 0), -25 + IDLE_BEND)],
          'tail_01': [((1, 0, 0), 12)], 'tail_02': [((1, 0, 0), 6)], 'tail_l_01': [((1, 0, 0), 4)],
          'tail_r_01': [((1, 0, 0), 4)], **hand_pose(48.0, 12.0)}
 SHRIEK = {'spine_02': [((1, 0, 0), -6)], 'neck': [((1, 0, 0), -14)], 'head': [((1, 0, 0), -30)],
-          'jaw': [((1, 0, 0), 36)],
-          'upperarm_l': [((0, 1, 0), -48), ((1, 0, 0), -30)], 'lowerarm_l': [((1, 0, 0), -35)],
-          'upperarm_r': [((0, 1, 0), 48), ((1, 0, 0), -30)], 'lowerarm_r': [((1, 0, 0), -35)],
+          'jaw': [((1, 0, 0), 36 - IDLE_JAW)],
+          'upperarm_l': [((0, 1, 0), -48), ((1, 0, 0), -30)], 'lowerarm_l': [((1, 0, 0), -35 + IDLE_BEND)],
+          'upperarm_r': [((0, 1, 0), 48), ((1, 0, 0), -30)], 'lowerarm_r': [((1, 0, 0), -35 + IDLE_BEND)],
           'tail_01': [((1, 0, 0), 8)], 'tail_02': [((0, 0, 1), 8)], **hand_pose(-5.0, 18.0)}
 TRAIL = {'pelvis': [((1, 0, 0), 10)], 'tail_01': [((1, 0, 0), 22)], 'tail_02': [((1, 0, 0), 16), ((0, 0, 1), 14)],
          'tail_03': [((1, 0, 0), 8), ((0, 0, 1), -18)], 'tail_04': [((0, 0, 1), -16)], 'tail_05': [((0, 0, 1), 14)],
          'tail_l_01': [((0, 0, 1), 18)], 'tail_l_02': [((0, 0, 1), -12)], 'tail_r_01': [((0, 0, 1), -16)],
-         'tail_r_02': [((0, 0, 1), 14)], 'head': [((1, 0, 0), 6)], 'jaw': [((1, 0, 0), 6)],
-         **hand_pose(IDLE_CURL, IDLE_SPLAY)}
+         'tail_r_02': [((0, 0, 1), 14)], 'head': [((1, 0, 0), 6)],
+         'lowerarm_l': [((1, 0, 0), IDLE_BEND)], 'lowerarm_r': [((1, 0, 0), IDLE_BEND)]}
 
 
 def previews():
@@ -1609,7 +1692,7 @@ def previews():
             rgba = np.zeros((len(obj.data.vertices), 4), np.float32)
             rgba[loops] = per_loop.reshape(-1, 4)
         attr.data.foreach_set('color', np.asarray(rgba, np.float32).ravel())
-    ghost = uc.ghost_material(uc.TINTS['D'][0], uc.RANKS[0][1:])
+    ghost = uc.ghost_material(tuple(int(c[1:], 16) for c in ZONE_COLORS), uc.RANKS[0][1:])    # the slot's zone colors
     body.data.materials[0] = ghost
     body.data.materials[1] = uc.coal_material(uc.RANKS[0][1:])
     hat.data.materials[0] = ghost
@@ -1630,7 +1713,7 @@ def previews():
         keep(uc.camera(target + Vector(direction).normalized() * dist, target, lens=lens), where)
         uc.render(path, resolution)
 
-    # Idle, as the code holds him (jaw and hands), in the boot hill light of the concepts; and the same beside the concept.
+    # At rest, which is the idle, in the boot hill light of the concepts; and the same view beside the concept.
     pose(IDLE)
     where = stage('Rest')
     outdoors(where)

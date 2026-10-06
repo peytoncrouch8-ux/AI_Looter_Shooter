@@ -232,7 +232,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Unpaid|Attack", meta = (ClampMin = "0", Units = "cm"))
 	float LungeHitRadius = 130.f;
 
-	/** How far past its rest pose the jaw drops at the shriek's height (degrees): the mouth opens to about 46 in all. */
+	/** How far the jaw drops at the shriek's height (degrees), from a mouth 10 open: about 46 in all. The model rests at its idle, 16 open. */
 	UPROPERTY(EditAnywhere, Category = "Unpaid|Attack", meta = (ClampMin = "0", ClampMax = "60"))
 	float JawOpenDegrees = 36.f;
 
@@ -347,6 +347,8 @@ private:
 		/** The axis each finger curls about, in the rest pose's frame, and how far it fans from the middle one (in fingers). */
 		TArray<FVector> CurlAxes;
 		TArray<float> FanOffsets;
+		/** The idle curl and fan each finger rests in (the model bakes them in), taken back off as it's posed. */
+		TArray<FQuat> IdleTurns;
 	};
 
 	/** The pose's smoothed channels (degrees, or 0 to 1). */
