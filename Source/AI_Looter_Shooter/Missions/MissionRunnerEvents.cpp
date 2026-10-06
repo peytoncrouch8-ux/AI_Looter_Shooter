@@ -178,6 +178,8 @@ void UMissionRunner::NotifyEvent(const FMissionEvent& Event)
 	});
 	StartDue(Event.Name);
 	AfterChange();
+	// Passed on last, so a listener whose story hangs on the step this event just finished sees it finished.
+	OnEvent.Broadcast(Event);
 }
 
 // ---------------------------------------------------------------------------

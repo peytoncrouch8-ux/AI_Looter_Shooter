@@ -295,17 +295,6 @@ APawn* ACreatureBase::FindVisibleTarget() const
 	return nullptr;
 }
 
-bool ACreatureBase::IsValidTarget(const APawn* Pawn) const
-{
-	// Only living characters (not spectator cameras, not other creatures).
-	if (!Pawn || !Pawn->IsA<ACharacter>() || Pawn->IsA<ACreatureBase>())
-	{
-		return false;
-	}
-	const UHealthComponent* TargetHealth = Pawn->FindComponentByClass<UHealthComponent>();
-	return TargetHealth && !TargetHealth->IsDead();
-}
-
 bool ACreatureBase::HasLineOfSight(const AActor* Other) const
 {
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(CreatureSight), false, this);

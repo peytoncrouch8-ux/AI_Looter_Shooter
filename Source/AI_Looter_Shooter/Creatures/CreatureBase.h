@@ -7,6 +7,7 @@
 #include "Creatures/CreaturePoseAnimInstance.h"
 #include "Creatures/CreatureRank.h"
 #include "Creatures/CreatureUpdateRate.h"
+#include "Creatures/HuntingGround.h"
 #include "CreatureBase.generated.h"
 
 class UHealthComponent;
@@ -37,7 +38,8 @@ enum class ECreatureState : uint8
  * (BodyScale times its rank's): the whole actor is scaled, so the capsule, the model, its hit zones and the health bar
  * follow, and every distance the code works in (attack reach, steering probes, the subclass's gait or hops) is multiplied
  * by GetSizeScale(). CreatureBaseRank.cpp holds the rank, level and size, and which creatures come back after a death;
- * the area being played gives a creature its level and may promote it (UAreaRulesSubsystem).
+ * the area being played gives a creature its level and may promote it (UAreaRulesSubsystem). CreatureBaseHunting.cpp says
+ * whom it hunts: a living player on its HuntingGround and out of every safe zone that's on (ASafeGround).
  */
 UCLASS(Abstract)
 class AI_LOOTER_SHOOTER_API ACreatureBase : public ACharacter, public ICriticalSpotTarget
@@ -234,6 +236,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Senses", meta = (ClampMin = "0"))
 	float LoseInterestRadius = 5500.f;
 
+	/**
+	 * Where it fights (FHuntingGround): it hunts only players standing on it, and gives up and walks home when its target
+	 * leaves it. Spawners give their creatures their own (AEncounterSpawner). Unset, the default: anywhere, as far as
+	 * LoseInterestRadius. Wherever it is, nothing hunts a player in a safe zone that's on (ASafeGround).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Creature|Senses")
+	FHuntingGround HuntingGround;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Movement", meta = (ClampMin = "0"))
 	float WanderRadius = 900.f;
 
@@ -322,7 +332,10 @@ protected:
 	/** The pawn it's after, if any. */
 	APawn* GetTarget() const { return Target.Get(); }
 
-	/** A living player character it could go after. */
+	/**
+	 * A player it may hunt: a living character on its HuntingGround and out of every safe zone that's on
+	 * (CreatureBaseHunting.cpp). A target who leaves its ground or steps into a safe zone ends the chase: it walks home.
+	 */
 	bool IsValidTarget(const APawn* Pawn) const;
 
 	/** Seconds spent in the current state; drives attack and death animation. */

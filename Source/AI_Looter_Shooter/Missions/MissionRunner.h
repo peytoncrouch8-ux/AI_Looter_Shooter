@@ -31,6 +31,9 @@ DECLARE_MULTICAST_DELEGATE(FOnMissionRunnerChanged);
 /** A mission was finished; bRewarded is false when it had been finished before (played again: no second reward). */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMissionFinished, const UMissionDefinition& /*Mission*/, bool /*bRewarded*/);
 
+/** An event the missions heard, passed on once they have settled (UEncounterSubsystem starts waves on it). */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMissionEventSent, const FMissionEvent& /*Event*/);
+
 /** One objective of a running mission's current step, for the Missions page. */
 struct FMissionObjectiveView
 {
@@ -147,6 +150,7 @@ public:
 
 	FOnMissionRunnerChanged OnChanged;
 	FOnMissionFinished OnMissionFinished;
+	FOnMissionEventSent OnEvent;
 
 	// --- From the actors' health (UMissionActorWatch; MissionRunnerEvents.cpp) ---
 

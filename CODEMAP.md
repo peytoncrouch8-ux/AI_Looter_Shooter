@@ -115,7 +115,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   creatures come back after a death, pack tags, spawning creatures in play (`SpawnAtRuntime`) and what a boss fight
   asks of one (held back, put home);
   `CreatureBaseUpdateRate.cpp` slows the ones far from the player or out of sight (`Looter.Creatures.UpdateRates 0`
-  turns that off).
+  turns that off); `CreatureBaseHunting.cpp` says whom it hunts: a living player on its hunting ground
+  (`HuntingGround`) and out of every safe zone that's on.
 - `Creatures/CreatureRank.h`: `ECreatureRank`, a creature's rank (Basic, Rare "Restless", Epic "Gravebound", Legendary
   "Soulfed", Boss).
 - `Creatures/CreatureRankSettings`: `UCreatureRankSettings` and `FCreatureRankInfo`, what each rank does (its tag's
@@ -132,6 +133,20 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   only hops, squashing and stretching on springs, with a leap attack and crits through the gel at its core.
 - `Creatures/CreaturePoseAnimInstance`: `UCreaturePoseAnimInstance`, applies the pose a creature's code works out
   (`ACreatureBase::GetBonePose`) to its skeleton.
+- `Creatures/HuntingGround`: `FHuntingGround`, where a creature fights: a radius or a polygon (a fence's line) with a
+  height band; it hunts only players on it and gives up when they leave it.
+- `Creatures/EncounterGroup.h`: `FEncounterGroup` and `EEncounterRankRoll`, one kind of creature a spawner brings:
+  class, count, rank roll, level, size, health, the waves it joins, its kind's cap.
+- `Creatures/EncounterRules`: `EncounterRules`, a spawner's rules as plain functions: candidate spots, spots on its
+  level of ground, room under a cap, ranks, waves.
+- `Creatures/EncounterSettings`: `UEncounterSettings`, Project Settings > Game > Encounters: 16 creatures within 80 m of
+  the player, the Unpaid's 12, nothing spawning within 8 m of the player.
+- `Creatures/EncounterSubsystem`: `UEncounterSubsystem`, the level's spawners, safe zones and creatures: cap counts
+  without actor iteration, story refresh on mission changes, encounter events (`SendEvent`, and the missions' events
+  that some spawner waits for), safe-zone queries.
+- `Creatures/EncounterSpawner`: `AEncounterSpawner`, an encounter: groups and waves spawned when the player comes near,
+  switched by the story, kept to the caps and its hunting ground, taken away while the player is far; nothing it
+  spawns comes back once killed. `EncounterSpawnerWaves.cpp`: its waves, spots, spawning and taking away.
 
 ## Bosses
 - `Bosses/BossComponent`: `UBossComponent`, makes a creature a boss: the fight around it (started by a hit, a player near
@@ -175,7 +190,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   nearest living, middle).
 - `Missions/MissionRunner`: `UMissionRunner`, each level's mission runner (due missions, steps, objectives, display,
   campaign record). `MissionRunnerFlow.cpp` starts, steps, finishes and rewards; `MissionRunnerEvents.cpp` handles
-  deaths and hits (spawned actors too), events and the display.
+  deaths and hits (spawned actors too), events (passed on as `OnEvent` once the missions have heard them) and the
+  display.
 - `Missions/MissionActorWatch`: `UMissionActorWatch`, one actor's deaths and hits passed to the runner.
 - `Missions/MissionRewards`: `MissionRewards`, the experience share, the reward gun with its rarity floor, rewards in
   words.
@@ -268,6 +284,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   walls, and with the PCG volume what it scattered).
 - `World/LightBeam`: `LightBeams`, a soft glowing light pillar (sky beacons, the rarity-colored beam over loot).
 - `World/Windmill`: `AWindmill`, a water-pump windmill whose fan (a separate model on the tower's Fan socket) turns in gusts.
+- `World/SafeGround`: `ASafeGround`, a safe zone: ground where nothing hunts the player (Delia's salt line; Main
+  Street after Main 3), a polygon or circle switched by its story condition.
 - `World/PCGGroundFitFilter`: `UPCGGroundFitFilterSettings`, the meadow's PCG node that drops ground cover patches
   hanging off an edge and presses ones floating over a bump into the ground (editor-time; the graph ships with the level).
 
@@ -363,10 +381,12 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Dev/WorldDevCommands.cpp`: `Looter.InstanceCollision`, whether the world's instanced meshes (the scattered trees and
   rocks) have collision bodies; `Looter.World.Bounds`, draws the playable area's boundary and walls;
   `Looter.Perf.HideTag <tag> [1|0]`, hides a tagged group to measure its cost by the difference.
+- `Dev/EncounterDevCommands.cpp`: `Looter.Encounter.List`, `.Wave <spawner id | event | nearest> [force]`,
+  `.Zones [1|0]` (safe zones, spawners' ground, spots and approach rings), `.Test` (a test spawner where the player looks).
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`); a view's `exec` and `after` commands measure a hidden group by the difference.
 
 ## Tests (run with `Tools\runtests.ps1`)
-- `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
+- `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
   `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SlimeTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
