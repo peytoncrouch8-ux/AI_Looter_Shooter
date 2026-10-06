@@ -11,6 +11,7 @@ class AActor;
 class AController;
 class APawn;
 class APlayerController;
+class UAreaDefinition;
 class UHealthComponent;
 
 /** Where experience came from, so later systems (rewards, stats, bonuses) can tell kills from quests and the like. */
@@ -98,9 +99,13 @@ public:
 	/**
 	 * Experience for killing this actor, for a player at PlayerLevel: a creature's XPReward (its rank's multiplier is in
 	 * it already) grown 8% for each level of the creature's above 1, less when it's below the player (FLevelRules::KillXP).
-	 * Anything else (target dummies, props) gives none.
+	 * Anything else (target dummies, props) gives none, and nothing does in a practice area (Skyreach; the level's
+	 * UAreaRulesSubsystem says).
 	 */
 	static int64 KillXP(const AActor* Victim, int32 PlayerLevel);
+
+	/** KillXP in a given area (none: a level that is no area's): a practice area's kills give nothing. */
+	static int64 KillXPIn(const UAreaDefinition* Area, const AActor* Victim, int32 PlayerLevel);
 
 	/**
 	 * Gives the player's health the reward of Level: the most health the character was made with (its Blueprint's), times

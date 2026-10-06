@@ -10,7 +10,9 @@ class ULoadoutWidget;
 class UMissionsWidget;
 class UPlayerHUDWidget;
 class USettingsMenuWidget;
+class UStationBoardWidget;
 class UUserWidget;
+struct FStationBoardWords;
 
 /** The inventory's pages, in the order of their tabs. */
 enum class EInventoryPage : uint8
@@ -21,9 +23,9 @@ enum class EInventoryPage : uint8
 };
 
 /**
- * Owns the player HUD, the captions, inventory screen and pause menu (the settings menu over the paused game), plus the
- * always-on menu hotkeys. Set as the HUD Class on the game mode. The gameplay HUD hides while a menu is open (the captions
- * step aside by themselves).
+ * Owns the player HUD, the captions, inventory screen, the station board (a jetty's or a station's, opened by holding
+ * Interact at it) and pause menu (the settings menu over the paused game), plus the always-on menu hotkeys. Set as the
+ * HUD Class on the game mode. The gameplay HUD hides while a menu is open (the captions step aside by themselves).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ALooterHUD : public AHUD
@@ -55,8 +57,21 @@ public:
 
 	bool IsInventoryOpen() const { return bInventoryOpen; }
 
-	/** The inventory or the pause menu is up (the gameplay HUD is hidden). */
-	bool IsMenuOpen() const { return bInventoryOpen || bPauseMenuOpen; }
+	/**
+	 * Opens the station board of From (a jetty, a station; null: the level's own) with its words, the mouse on it. False
+	 * when it can't (no player, the pause menu up).
+	 */
+	bool OpenStationBoard(AActor* From, const FStationBoardWords& Words);
+
+	void CloseStationBoard();
+
+	bool IsStationBoardOpen() const { return bStationBoardOpen; }
+
+	/** The inventory, the station board or the pause menu is up (the gameplay HUD is hidden). */
+	bool IsMenuOpen() const { return bInventoryOpen || bPauseMenuOpen || bStationBoardOpen; }
+
+	/** The HUD of the local player behind Player (their pawn or controller), or null. */
+	static ALooterHUD* FindFor(const AActor* Player);
 
 	/** Saves the session being played and goes back to the main menu (the pause menu's Save & Quit). */
 	UFUNCTION(BlueprintCallable, Category = "HUD")
@@ -106,6 +121,11 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<USettingsMenuWidget> PauseMenuWidget;
 
+	/** The station board, made the first time one is opened. */
+	UPROPERTY(Transient)
+	TObjectPtr<UStationBoardWidget> StationBoardWidget;
+
 	bool bInventoryOpen = false;
 	bool bPauseMenuOpen = false;
+	bool bStationBoardOpen = false;
 };

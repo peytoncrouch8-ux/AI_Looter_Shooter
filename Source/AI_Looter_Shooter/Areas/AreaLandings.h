@@ -7,8 +7,10 @@ class UWorld;
 
 /**
  * Landings: where trips between areas arrive (a station's platform, Skyreach's jetty; UAreaDefinition::Landings). A
- * landing is an actor in the level tagged with its name, or a player start whose Player Start Tag is its name. Landing
- * names start with "Landing_", so a level's own start is never taken for one, and a new game never begins on a landing.
+ * landing is an actor in the level tagged with its name, or a player start whose Player Start Tag is its name. An actor
+ * can carry its landing as one of its scene components tagged with the name too (ASkiffJetty's spot on the deck,
+ * ATrainStation's on the platform): the player arrives there (GetSpot). Landing names start with "Landing_", so a level's
+ * own start is never taken for one, and a new game never begins on a landing.
  */
 namespace AreaLandings
 {
@@ -23,4 +25,10 @@ namespace AreaLandings
 
 	/** The landing named Landing in World: a player start tagged so first, then any actor with the tag; null when none. */
 	AI_LOOTER_SHOOTER_API AActor* Find(const UWorld* World, FName Landing);
+
+	/**
+	 * Where on Actor (a landing Find found) the player arrives: its scene component tagged Landing when it carries one,
+	 * else the actor itself. Identity without an actor.
+	 */
+	AI_LOOTER_SHOOTER_API FTransform GetSpot(const AActor* Actor, FName Landing);
 }

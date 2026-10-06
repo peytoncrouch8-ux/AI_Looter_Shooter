@@ -46,7 +46,8 @@ public:
 
 	/**
 	 * Outside the story, for practice (Skyreach): its creatures give no experience, and once the player has left it for
-	 * the first time they drop only ammo. Nothing enforces it yet (step 10 does).
+	 * the first time they drop only ammo (GivesKillExperience, DropsGuns; UAreaRulesSubsystem plays them). Every station
+	 * board lists it as "Skyreach (practice)" after the first cast-off.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area")
 	bool bPractice = false;
@@ -86,6 +87,15 @@ public:
 
 	/** Its creatures take their levels from a band (MinLevel is set). */
 	bool HasLevelBand() const { return MinLevel >= 1; }
+
+	/** Killing its creatures gives experience: anywhere but a practice area, which is no road to levels. */
+	bool GivesKillExperience() const { return !bPractice; }
+
+	/**
+	 * Its creatures may drop guns: anywhere but a practice area the player has already left once (bFirstCastOff), so a
+	 * return visit stays practice and never a loot farm. The tutorial's own kills still drop them.
+	 */
+	bool DropsGuns(bool bFirstCastOff) const { return !(bPractice && bFirstCastOff); }
 
 	/** The band's highest level: MaxLevel, or MinLevel when that's below it. */
 	int32 GetBandTop() const { return FMath::Max(MaxLevel, MinLevel); }

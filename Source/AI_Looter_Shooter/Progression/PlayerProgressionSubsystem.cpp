@@ -1,5 +1,6 @@
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "AI_Looter_Shooter.h"
+#include "Areas/AreaRulesSubsystem.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Progression/ProgressionSettings.h"
@@ -134,10 +135,24 @@ void UPlayerProgressionSubsystem::SetTutorialDone(bool bDone)
 
 int64 UPlayerProgressionSubsystem::KillXP(const AActor* Victim, int32 PlayerLevel)
 {
+	// The area the victim died in decides first: Skyreach is practice, outside the story and no road to levels.
+	if (!UAreaRulesSubsystem::GivesKillExperienceAt(Victim))
+	{
+		return 0;
+	}
+	return KillXPIn(nullptr, Victim, PlayerLevel);
+}
+
+int64 UPlayerProgressionSubsystem::KillXPIn(const UAreaDefinition* Area, const AActor* Victim, int32 PlayerLevel)
+{
 	// Its XPReward has its rank's multiplier in it already: the kill adds only its level's growth, and the falloff when
 	// it's below the player.
 	const ACreatureBase* Creature = Cast<ACreatureBase>(Victim);
-	return Creature ? GetLevelRules().KillXP(Creature->XPReward, Creature->Level, PlayerLevel) : 0;
+	if (!Creature || !UAreaRulesSubsystem::GivesKillExperienceIn(Area))
+	{
+		return 0;
+	}
+	return GetLevelRules().KillXP(Creature->XPReward, Creature->Level, PlayerLevel);
 }
 
 void UPlayerProgressionSubsystem::ApplyLevelHealth(UHealthComponent& Health, int32 Level)

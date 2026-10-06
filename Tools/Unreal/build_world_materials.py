@@ -207,8 +207,10 @@ def build_world(orm_default):
     g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
     g.out(orm, 'B', unreal.MaterialProperty.MP_METALLIC)
     g.out(ao, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
+    # Spline meshes too: the jetty's mooring lines bend MI_Canvas along a spline. Without the flag the editor sets it on
+    # the fly (and a cooked game draws the lines with the default material).
     finish(mat, [unreal.MaterialUsage.MATUSAGE_NANITE, unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES,
-                 unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH])
+                 unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH, unreal.MaterialUsage.MATUSAGE_SPLINE_MESH])
     return mat
 
 

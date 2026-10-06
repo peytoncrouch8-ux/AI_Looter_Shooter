@@ -51,17 +51,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Loot", meta = (WorldContext = "WorldContextObject"))
 	static TArray<AActor*> SpawnLoot(UObject* WorldContextObject, const ULootTable* LootTable, FVector Location, int32 Level = 1, float ExtraLuck = 0.f);
 
-	/** SpawnLoot for a kill: the ammo drops lean toward KillAmmo, the ammo class of the gun that made it, when set. */
+	/**
+	 * SpawnLoot for a kill: the ammo drops lean toward KillAmmo, the ammo class of the gun that made it, when set. Without
+	 * bWeapons only the ammo drops (a practice area's creatures once the player has left it).
+	 */
 	static TArray<AActor*> SpawnKillLoot(UObject* WorldContextObject, const ULootTable* LootTable, FVector Location, int32 Level,
-		float ExtraLuck, TOptional<EAmmoType> KillAmmo);
+		float ExtraLuck, TOptional<EAmmoType> KillAmmo, bool bWeapons = true);
 
 	/**
 	 * Decides what one kill drops, without spawning anything. What drops (counts, weapons, rarities, ammo classes and
 	 * amounts) comes from Random, so a seeded stream repeats it; each weapon still gets its own fresh stat seed. KillAmmo,
 	 * when set, is the ammo class of the gun that made the kill: each box leans toward it (the table's KillWeaponAmmoBias).
+	 * Without bWeapons the guns aren't drawn at all, so the ammo is what the same stream would have dropped with them.
 	 */
 	static FLootRoll RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random,
-		TOptional<EAmmoType> KillAmmo = {});
+		TOptional<EAmmoType> KillAmmo = {}, bool bWeapons = true);
 
 	/** RollLoot's first half: the ammo pickups one kill drops (how many, each one's class and rounds). */
 	static TArray<FAmmoDrop> RollAmmo(const ULootTable* LootTable, FRandomStream& Random, TOptional<EAmmoType> KillAmmo = {});

@@ -19,7 +19,8 @@ A grounded area's terrain also has what lies past its core (Art/Levels/area_beyo
 folder, tagged Beyond (Looter.Perf.HideTag measures them by difference); only the core's tiles are tagged Ground, so the
 minimap covers the valley alone. Cliff points with stacked courses get one piece per course; a knob's point places the
 outcrop kit's piece it names (SM_Outcrop_<piece>), and a gully's sloped banks get no faces. Its playable area, KillZ
-and cull distance volume come from build_area_bounds.py; every area's light, sky and fog from build_area_environment.py.
+and cull distance volume come from build_area_bounds.py; every area's light, sky and fog from build_area_environment.py;
+the skiff jetty, the depot's station and the landings trips arrive at from build_area_travel.py.
 """
 import importlib
 import json
@@ -33,6 +34,7 @@ import unreal
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import build_area_bounds  # noqa: E402
 import build_area_environment  # noqa: E402
+import build_area_travel  # noqa: E402
 
 PROJECT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
 ART = '/Game/Art'
@@ -73,6 +75,7 @@ def mesh_index():
 
 def component(actor, cls):
     return actor.get_component_by_class(cls)
+
 
 
 def ground_height(x, y, default):
@@ -164,7 +167,8 @@ class AreaBuild:
 
     def gameplay(self, meshes):
         """The spawn (with the area's director, the tutorial's on the tutorial island), the gun rack, the target
-        dummies and the creature groups (layout.json gameplay.creatures, in order).
+        dummies, the skiff jetty and the landings (build_area_travel.py), and the creature groups (layout.json
+        gameplay.creatures, in order).
 
         Everything here sits in the <area>/Gameplay folder, which a "gameplay" build clears first: whatever lives
         there must be placed here (the rack once lived in models() and a gameplay build left the island without
@@ -183,6 +187,7 @@ class AreaBuild:
                 rack.set_editor_property('weapon', unreal.load_asset(self.settings.get('rackWeapon', RACK_WEAPON)))
             elif spot['kind'] == 'PlayerStart':
                 self.place(unreal.PlayerStart, (x, y, z + 100.0), spot['yaw'], label='PlayerStart', folder='Gameplay')
+                self.travel.place_spawn_landing(self, (x, y, z + 100.0), spot['yaw'])
                 director = self.settings.get('director')
                 if director:
                     # The tutorial's prompts (ATutorialDirector: its steps are in C++).
@@ -190,6 +195,8 @@ class AreaBuild:
                                folder='Gameplay')
             elif spot['kind'] == 'TargetDummy':
                 self.place(dummy, (x, y, z), spot['yaw'], label=f'TargetDummy_{key[-1]}', folder='Gameplay')
+        self.travel.place_jetty(self)
+        self.travel.place_landings(self)
 
         # The groups draw from one random stream, in order, so each lands where it did last time.
         rng = random.Random(self.settings.get('seed', 7))
@@ -221,15 +228,22 @@ class AreaBuild:
     def models(self, meshes):
         """Buildings, structures and props at their placements, and the orchards' apple trees."""
         placed = 0
+        stations = []
         for key, spot in self.layout['placements'].items():
             kind = spot['kind']
             # Gameplay actors are gameplay()'s, so placing only those again ("gameplay") brings them all back.
-            if kind in ('PlayerStart', 'TargetDummy', 'GunRack'):
+            if kind in ('PlayerStart', 'TargetDummy', 'GunRack', 'Landing'):
                 continue
             name = kind
             if name not in meshes:
                 self.warn(f'no SM_{name} yet (placement {key})')
                 continue
+            if kind == 'Depot':
+                station = self.travel.place_station(self, key, spot, unreal.load_asset(meshes[name]))
+                if station:
+                    stations.append((station, key, spot))
+                    placed += 1
+                    continue
             if kind == 'Windmill':
                 # The fan turns: AWindmill hangs it from the tower's Fan socket.
                 windmill = self.place(unreal.load_class(None, CLASSES + 'Windmill'), spot['location'], spot['yaw'],
@@ -250,6 +264,10 @@ class AreaBuild:
                 self.place(unreal.load_asset(meshes[name]), spot['location'], spot['yaw'], label=key,
                            folder='Buildings', tags=('Obstacle',))
             placed += 1
+
+        # A station's landing lies on its platform, which stands only now.
+        for station, key, spot in stations:
+            self.travel.land_station(self, station, key, spot)
 
         # The bridge's ramps end at its pivot's height, which the layout gives as the road on both banks; it
         # stretches to the span. Untagged, so the minimap draws it as ground but the scatter doesn't grow grass on it.
@@ -431,16 +449,17 @@ class AreaBuild:
         plume = unreal.load_asset(meshes['SmokePlume'])
         count = 0
         for building in actors.get_all_level_actors():
-            if unreal.Name(self.tag) not in building.tags or not isinstance(building, unreal.StaticMeshActor):
+            if unreal.Name(self.tag) not in building.tags:
                 continue
-            mesh_component = building.static_mesh_component
-            mesh = mesh_component.static_mesh
-            if mesh is None or mesh.find_socket('Smoke') is None:
-                continue
-            where = mesh_component.get_socket_transform('Smoke', unreal.RelativeTransformSpace.RTS_WORLD).translation
-            self.place(plume, (where.x, where.y, where.z), WIND_YAW, label=f'Smoke_{building.get_actor_label()}',
-                       folder='Effects')
-            count += 1
+            # A building standing as an actor of its own (the depot's station) carries its mesh in a component.
+            for mesh_component in building.get_components_by_class(unreal.StaticMeshComponent):
+                mesh = mesh_component.static_mesh
+                if mesh is None or mesh.find_socket('Smoke') is None:
+                    continue
+                where = mesh_component.get_socket_transform('Smoke', unreal.RelativeTransformSpace.RTS_WORLD).translation
+                self.place(plume, (where.x, where.y, where.z), WIND_YAW, label=f'Smoke_{building.get_actor_label()}',
+                           folder='Effects')
+                count += 1
         self.log(f'placed {count} chimney smoke plumes')
 
     def run(self, mode=None):
@@ -448,6 +467,8 @@ class AreaBuild:
         past the boundary (a grounded area's ring, canyon wall and backdrop; an island's sky islands)."""
         with open(self.computed_path) as f:
             self.layout = json.load(f)
+        # Reloaded, as the editor keeps modules between runs, so an edited one takes effect.
+        self.travel = importlib.reload(build_area_travel)
         if mode == 'gameplay':
             self.open_level('Gameplay')
             self.gameplay(mesh_index())

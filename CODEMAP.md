@@ -100,7 +100,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   and spawning the results.
 - `Loot/LootOdds`: `LootOdds`, a loot table's odds worked out exactly and counted over many kills from a seed
   (`Looter.Loot.SimulateDrops`, the `Looter.Loot.RankOdds` test).
-- `Loot/LootDropComponent`: drops its owner's loot when it dies.
+- `Loot/LootDropComponent`: drops its owner's loot when it dies (only ammo in a practice area the player has left).
 - `Loot/LootTossComponent`: `ULootTossComponent`, throws loot so it pops out, lands and settles.
 - `Loot/WeaponRack`: `AWeaponRack`, a rack with a weapon lying on it as loot and ammo beside it; restocks when the
   weapon is gone and the player has none (the tutorial's first rifle).
@@ -215,6 +215,25 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Story/StoryCharacter`: `AStoryCharacter`, a non-hostile character of the story: a placeholder body posed by code
   (breathing, turning to whoever it talks to), a speaker point, shown or hidden by story state.
 
+## Scenes
+- `Scenes/SceneTimeline`: `FSceneTimeline`, a scene as a timeline with nothing in Sequencer: moves over spans of it and
+  named moments that happen once, in order; a skip puts every move at its end and fires the moments still to come.
+- `Scenes/SceneSubsystem`: `USceneSubsystem`, the level's scenes one at a time (`FScenePlay`): the first cast-off's skiff
+  ride (`PlaySkiffRide`), skipping (`Looter.Scene.Skip`, holding Interact, Escape twice), moments as `OnSceneEvent`,
+  `Scene.<Name>` to the missions, scenes off in tour and perf runs (`Looter.Scenes`, `-NoScenes`);
+  `SceneSubsystemPlayer.cpp` holds the player meanwhile (look-only keys over every other key, the HUD put away, carried
+  on the skiff, the scene's camera) and gives them back.
+- `Scenes/SkiffRide`: `SkiffRide`, the first cast-off: the skiff's course (easing out along its bow, a slow climb, a
+  gentle turn to starboard and a bob), the white over its last 2.5 s, and the ride as a scene.
+- `Scenes/SceneCloudBank`: `ASceneCloudBank`, soft cloud for a scene to sail into: the game's smoke puff on a dozen
+  camera-facing quads in one draw, thinning near the camera (`Looter.Scene.CloudBrightness`).
+- `Scenes/SceneSkipPromptWidget`: the skip prompt in the bottom right during a scene ("HOLD [E] TO SKIP" over a filling
+  bar, "PRESS [ESC] AGAIN TO SKIP").
+- `Scenes/TransitionScreen`: `FTransitionScreen`, the transition screen's rules apart from the screen: a scene's white,
+  fades, holds (thinning by themselves after 20 s), reveals (the title rising, then the white thinning).
+- `Scenes/TransitionScreenSubsystem`: `UTransitionScreenSubsystem`, the white over the whole game window, owned by the
+  game instance so it holds through level loads, and the REVENANT title card rising through it.
+
 ## Progression
 - `Progression/XPCurve`: `FXPCurve`, the experience each level takes (exponential), level-ups from a gain, and the
   maximum level.
@@ -230,7 +249,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Progression/PlayerProgressionSubsystem`: `UPlayerProgressionSubsystem`, the player's level and experience (adding,
   level-up events), the experience a kill gives (the creature's level and the falloff), the player's health for their
   level (the first level reward), and which kinds the player has met and how many defeated; the session being played
-  gives it its progress and saves it.
+  gives it its progress and saves it. A practice area's kills give no experience.
 
 ## Session
 - `Session/SessionSubsystem.h`, `Session/SessionSubsystem.cpp`: `USessionSubsystem`, the three save sessions: the main
@@ -240,6 +259,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   stands, health, guns, loot on the ground, the gun racks, the tutorial's step) and putting it back.
 - `Session/SessionSubsystemTravel.cpp`: travel between maps (`TravelToArea`, `TravelToMap`): the world left kept under
   its map, the trip's save, the destination opened with the session, and arriving at the trip's landing.
+- `Session/SessionSubsystemSkip.cpp`: "Skip the tutorial": a new game counting as the first cast-off, a Common Bullpup
+  in hand, opening on the story's first arrival behind the white.
 - `Session/SessionSubsystemWords.cpp`: the session picker's words: play time, when saved, and places by area name or
   level file.
 - `Session/SessionSave`: `ULooterSessionSave`, one session's save ("Session1" to "Session3"), version 2: the player, a
@@ -254,13 +275,21 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Areas
 - `Areas/AreaDefinition`: `UAreaDefinition`, one area as a data asset in `/Game/Data/Areas` (`DA_Area_<Id>`, made by
-  `Tools/Unreal/create_area_assets.py`): its name, level (which may not be built yet), landings, practice flag,
-  opening mission, level band and promotion chances; finding areas by name or level.
-- `Areas/AreaLandings`: `AreaLandings`, where trips arrive: an actor or player start tagged `Landing_<Place>`, found in
-  a level; a level's own start is never one.
+  `Tools/Unreal/create_area_assets.py`): its name, level (which may not be built yet), landings, practice flag
+  (a practice area gives no kill experience, and only ammo once the player has left it), opening mission, level band
+  and promotion chances; finding areas by name or level.
+- `Areas/AreaLandings`: `AreaLandings`, where trips arrive: an actor or player start tagged `Landing_<Place>`, or a
+  component of an actor so tagged (the jetty's, the station's), found in a level; a level's own start is never one.
 - `Areas/AreaRulesSubsystem`: `UAreaRulesSubsystem`, the area being played's rules for its creatures: each one's level
   from the area's band around the player's (bosses not rolled), and placed Basic creatures' promotions rolled as the
-  player arrives (at most once per 20 minutes of play per map).
+  player arrives (at most once per 20 minutes of play per map); the practice rules (`GivesKillExperience`, `DropsGuns`).
+- `Areas/StationBoard`: `StationBoard`, `FStationBoardLine` and `FStationBoardWords`: a station board's lines as the
+  story stands (every opened area, the blank line naming the mission that opens the next, "Skyreach (practice)" after
+  the first cast-off; before it only the first cast-off to the story's first arrival), each board's words, and
+  recording the first cast-off.
+- `Areas/AreaTravelSubsystem`: `UAreaTravelSubsystem`, trips from the boards: the first cast-off's trip behind the white
+  (`CompleteFirstCastOff`, `LeaveForFirstArrival`), plain fades to a station (`FadeTo`), and arriving (the held white
+  revealed, REVENANT on the first arrival; a fade in after a plain trip).
 
 ## World
 - `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime at about a meter per texel,
@@ -284,6 +313,13 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   walls, and with the PCG volume what it scattered).
 - `World/LightBeam`: `LightBeams`, a soft glowing light pillar (sky beacons, the rarity-colored beam over loot).
 - `World/Windmill`: `AWindmill`, a water-pump windmill whose fan (a separate model on the tower's Fan socket) turns in gusts.
+- `World/SkiffJetty`: `ASkiffJetty`, Skyreach's jetty with its bell, slate and landing (Landing_Jetty); the gangplank (up
+  until the tutorial is done, always down after the first cast-off; lowering it rings the bell and offers "Board the
+  skiff"); holding Interact at it opens the station board. `SkiffJettyMooring.cpp` is the moored skiff (its own actor
+  in play) and its mooring lines; `SkiffJettyCastOff.cpp` casting off (the ride, the lines slipping, the trip at the
+  whiteout).
+- `World/TrainStation`: `ATrainStation`, an area's station (the depot by default) with its departures board (hold
+  Interact to open the station board) and its landing on the platform (Landing_Depot).
 - `World/SafeGround`: `ASafeGround`, a safe zone: ground where nothing hunts the player (Delia's salt line; Main
   Street after Main 3), a polygon or circle switched by its story condition.
 - `World/PCGGroundFitFilter`: `UPCGGroundFitFilterSettings`, the meadow's PCG node that drops ground cover patches
@@ -307,14 +343,15 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## UI
 - `UI/Style/LooterUIStyle`: `LooterUI`, the style kit every UI is built with (palette, shapes, icons, text, builders,
-  transparency).
+  transparency, the display type for title cards).
 - `UI/Style/LooterUIInkedIcons.cpp`: the kit's Inked icons (`FInkedIcon`, the weapon and ammo icons) drawn into textures, as
   `Art/Icons/InkedIcons.py` draws its reference pictures.
 - `UI/Style/InkedIconData.inl`: every Inked icon as C++ data, generated by `Art/Icons/InkedIcons.py` (don't edit it).
 - `UI/Style/LooterButton`: `ULooterButton`, the kit's button.
 - `UI/Style/WeaponText`: `LooterWeaponText`, weapon names, rarity colors and stat strings.
-- `UI/HUD/LooterHUD`: `ALooterHUD`, owns the HUD, the captions, the inventory's pages (loadout, bestiary, missions) and
-  the pause menu (the settings menu with Save & Quit), and their hotkeys.
+- `UI/HUD/LooterHUD`: `ALooterHUD`, owns the HUD, the captions, the inventory's pages (loadout, bestiary, missions), the
+  station board and the pause menu (the settings menu with Save & Quit), and their hotkeys; a scene that holds the
+  player puts the gameplay HUD away.
 - `UI/HUD/PlayerHUDWidget`: the gameplay HUD (health, ammo, crosshair, hit marker, loot card, interaction prompt,
   messages), run frame by frame; `PlayerHUDWidgetLayout.cpp` builds it; `PlayerHUDWidgetPickupCard.cpp` fills the loot
   comparison card and the interaction prompt.
@@ -343,7 +380,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `SettingsMenuInput.cpp` handles its buttons, sliders and keys, `SettingsMenuParts.h` holds what they share.
 - `UI/Menus/MainMenuHUD`: `AMainMenuHUD`, the main menu's HUD: the menu and its settings.
 - `UI/Menus/MainMenuWidget`: `UMainMenuWidget`, the main menu (Single Player, Multiplayer, Settings, Quit Game);
-  `MainMenuSessions.cpp` is its session picker (each session's area by name) and the delete confirmation.
+  `MainMenuSessions.cpp` is its session picker (each session's area by name), a new game's choice to play or skip the
+  tutorial, and the delete confirmation.
 - `UI/Inventory/LoadoutWidget.cpp`: the loadout screen: opening, layout and contents.
 - `UI/Inventory/LoadoutWidgetInput.cpp`: its cursor, actions (swap, hold, drop), mouse handling and turning the stand-in.
 - `UI/Inventory/LoadoutWidgetDrag.cpp`: dragging guns between slots, the backpack and the character.
@@ -367,6 +405,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/World/CreatureHealthBarWidget`: the tag over a hurt or hunting creature: floating level, rank word (in its rank's
   color) and name over a slim bar of fixed width, cut into quarters whatever the health.
 - `UI/World/DamageNumberActor`, `UI/World/DamageNumberWidget`: floating damage numbers.
+- `UI/World/StationBoardWidget`: `UStationBoardWidget`, the station board (a LooterUI panel over the dimmed world): its
+  lines and keys; `StationBoardWidgetConfirm.cpp` the confirm ("Leave Skyreach? ..." with Cast off and Not yet on the
+  first cast-off) and the trip.
 
 ## Dev
 - `Dev/WeaponDevCommands.cpp`: console commands for testing (`Looter.GiveWeapon`, `Looter.SpawnAmmo`).
@@ -396,11 +437,15 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   fade, blended, or at once); with no state, lists them.
 - `Dev/EncounterDevCommands.cpp`: `Looter.Encounter.List`, `.Wave <spawner id | event | nearest> [force]`,
   `.Zones [1|0]` (safe zones, spawners' ground, spots and approach rings), `.Test` (a test spawner where the player looks).
+- `Dev/StationDevCommands.cpp`: `Looter.Station.Board`, `.CastOff`, `.Gangplank up|down`, `.SkipTutorial [stay]`,
+  `.Lines`.
+- `Dev/SceneDevCommands.cpp`: `Looter.Scene.Skip`, `Looter.Scene.Ride` (the ride on the nearest skiff, then everything
+  back and the white revealed with no trip), `Looter.Scene.Title [text]`.
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`); a view's `exec` and `after` commands measure a hidden group by the difference.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LightingTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
-  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SlimeTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
+  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)
@@ -461,6 +506,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   and the level's lighting states (`ALightingStates`: Day as placed, plus `level.environment.states` such as Dusk).
 - `Tools/Unreal/lighting_collection.py`: `MPC_Lighting`, the material parameter collection the lighting states write
   (`BackdropTint`, `CloudTint`, the fog's colors), made by `build_world_materials.py` before `M_Backdrop`, which reads it.
+- `Tools/Unreal/build_area_travel.py`: where an area's trips start and end, for `build_area.py`: the skiff jetty
+  (`gameplay.jetty`), the depot as its station with the landing on the platform, the first arrival's player start
+  beside the level's own (`gameplay.spawnLanding`), and markers for other landings.
 - `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`).
   `Tools/Unreal/island_views.py`: an area's viewpoints as editor cameras and shots.
 - `Tools/terrain_identity.ps1`, `.py`: checks an area regenerates exactly as committed (headless Blender, no editor;

@@ -1,4 +1,5 @@
 #include "Areas/AreaLandings.h"
+#include "Components/SceneComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
@@ -46,5 +47,25 @@ namespace AreaLandings
 			}
 		}
 		return Tagged;
+	}
+
+	FTransform GetSpot(const AActor* Actor, FName Landing)
+	{
+		if (!Actor)
+		{
+			return FTransform::Identity;
+		}
+		if (!Landing.IsNone())
+		{
+			TInlineComponentArray<USceneComponent*> Components(Actor);
+			for (const USceneComponent* Component : Components)
+			{
+				if (Component && Component->ComponentHasTag(Landing))
+				{
+					return Component->GetComponentTransform();
+				}
+			}
+		}
+		return Actor->GetActorTransform();
 	}
 }

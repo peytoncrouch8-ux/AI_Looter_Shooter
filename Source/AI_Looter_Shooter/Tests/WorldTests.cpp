@@ -8,6 +8,7 @@
 #include "Loot/WeaponRack.h"
 #include "Tutorial/TutorialDirector.h"
 #include "World/PCGGroundFitFilter.h"
+#include "World/SkiffJetty.h"
 #include "Algo/AnyOf.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/Level.h"
@@ -62,14 +63,14 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialIslandGameplayTest, "Looter.World.Tuto
 
 bool FTutorialIslandGameplayTest::RunTest(const FString& Parameters)
 {
-	// The tutorial island has everything its tutorial walks through. A rebuild of only its gameplay actors once left it
-	// without the gun rack, so the tutorial waited forever at "grab the rifle".
+	// The tutorial island has everything its tutorial walks through, and the way off it. A rebuild of only its gameplay
+	// actors once left it without the gun rack, so the tutorial waited forever at "grab the rifle".
 	const UWorld* Island = LoadObject<UWorld>(nullptr, TEXT("/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland"));
 	if (!TestNotNull(TEXT("The tutorial island loads"), Island) || !TestNotNull(TEXT("It has a level"), Island->PersistentLevel.Get()))
 	{
 		return false;
 	}
-	int32 Starts = 0, Directors = 0, Racks = 0, Dummies = 0, Spiders = 0, Slimes = 0;
+	int32 Starts = 0, Directors = 0, Racks = 0, Dummies = 0, Spiders = 0, Slimes = 0, Jetties = 0;
 	for (const AActor* Actor : Island->PersistentLevel->Actors)
 	{
 		if (!Actor)
@@ -81,6 +82,7 @@ bool FTutorialIslandGameplayTest::RunTest(const FString& Parameters)
 		Dummies += Actor->IsA<ATargetDummy>() ? 1 : 0;
 		Spiders += Actor->IsA<ASpiderCreature>() ? 1 : 0;
 		Slimes += Actor->IsA<ASlimeCreature>() ? 1 : 0;
+		Jetties += Actor->IsA<ASkiffJetty>() ? 1 : 0;
 		if (const AWeaponRack* Rack = Cast<AWeaponRack>(Actor))
 		{
 			++Racks;
@@ -93,6 +95,8 @@ bool FTutorialIslandGameplayTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Target dummies to shoot"), Dummies > 0);
 	TestTrue(TEXT("Spiders to hunt"), Spiders > 0);
 	TestTrue(TEXT("Slimes in the meadow"), Slimes > 0);
+	// The way off Skyreach: its jetty carries the landing practice trips arrive at (Landing_Jetty).
+	TestEqual(TEXT("One skiff jetty (build_area.py's gameplay places it)"), Jetties, 1);
 	AddInfo(FString::Printf(TEXT("%d dummies, %d spiders, %d slimes"), Dummies, Spiders, Slimes));
 	return true;
 }

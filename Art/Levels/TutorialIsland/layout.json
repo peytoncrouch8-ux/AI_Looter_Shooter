@@ -104,9 +104,10 @@
     }
   },
   "gameplay": {
-    "about": "The gameplay actors build_area.py places (its gameplay mode places only these): the director that comes with the PlayerStart, the gun rack's weapon, and creature groups in order, each in a zone (its id) or around a center [X, Y] within spread, spacing apart (cm); the groups share one random stream (seed).",
+    "about": "The gameplay actors build_area.py places (its gameplay mode places only these): the director that comes with the PlayerStart, the gun rack's weapon, the skiff jetty (its origin at [X, Y] on the rim where the drop starts, its yaw out over the drop; level.skyIslands hang from the same point), and creature groups in order, each in a zone (its id) or around a center [X, Y] within spread, spacing apart (cm); the groups share one random stream (seed).",
     "director": "TutorialDirector",
     "rackWeapon": "/Game/Weapons/Data/DA_AssaultRifle",
+    "jetty": { "at": [-6923, 7078], "yaw": 126.3 },
     "seed": 7,
     "creatures": [
       { "class": "SpiderCreature", "label": "Spider", "count": 8, "zone": "forest", "spacing": 900 },

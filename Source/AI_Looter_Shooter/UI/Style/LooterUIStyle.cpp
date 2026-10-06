@@ -184,6 +184,7 @@ namespace LooterUI::Color
 	FLinearColor IconInk()    { return Hex(10, 18, 24); }
 	FLinearColor IconLight()  { return Hex(244, 239, 230); }
 	FLinearColor IconShade()  { return Hex(142, 163, 180); }
+	FLinearColor Cloud()      { return Hex(246, 245, 240); }
 }
 
 // ---------------------------------------------------------------------------
@@ -224,6 +225,22 @@ FSlateFontInfo LooterUI::Font(int32 Size, bool bBold, int32 LetterSpacing)
 	const TSharedPtr<const FCompositeFont> UIFont = GetUIFont();
 	FSlateFontInfo FontInfo = UIFont.IsValid() ? FSlateFontInfo(UIFont, Size, Typeface) : FCoreStyle::GetDefaultFontStyle(Typeface, Size);
 	FontInfo.LetterSpacing = LetterSpacing;
+	return FontInfo;
+}
+
+FSlateFontInfo LooterUI::FloatingFont(int32 Size, int32 LetterSpacing)
+{
+	FSlateFontInfo FontInfo = Font(Size, true, LetterSpacing);
+	FontInfo.OutlineSettings.OutlineSize = FMath::Max(1, Size / 14);
+	FontInfo.OutlineSettings.OutlineColor = Color::Outline();
+	return FontInfo;
+}
+
+FSlateFontInfo LooterUI::DisplayFont(int32 Size, int32 LetterSpacing)
+{
+	// The floating outline, drawn finer for its size: at title sizes the HUD's outline would swell the letters.
+	FSlateFontInfo FontInfo = FloatingFont(Size, LetterSpacing);
+	FontInfo.OutlineSettings.OutlineSize = FMath::Max(1, Size / 24);
 	return FontInfo;
 }
 
@@ -525,10 +542,7 @@ UTextBlock* LooterUI::MakeText(UWidgetTree* Tree, const FString& Text, int32 Siz
 
 void LooterUI::StyleFloatingText(UTextBlock* Text, int32 Size, const FLinearColor& TextColor, int32 LetterSpacing, ETextJustify::Type Justify)
 {
-	FSlateFontInfo FontInfo = Font(Size, true, LetterSpacing);
-	FontInfo.OutlineSettings.OutlineSize = FMath::Max(1, Size / 14);
-	FontInfo.OutlineSettings.OutlineColor = Color::Outline();
-	Text->SetFont(FontInfo);
+	Text->SetFont(FloatingFont(Size, LetterSpacing));
 	Text->SetColorAndOpacity(FSlateColor(TextColor));
 	Text->SetJustification(Justify);
 }

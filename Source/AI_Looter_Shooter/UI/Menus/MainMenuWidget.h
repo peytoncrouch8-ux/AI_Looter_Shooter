@@ -17,7 +17,8 @@ struct FSessionSummary;
  * holds the game's title and the menu; the rest of the screen is left to the island.
  *  - Single Player shows the session picker in place of the main buttons: a card per session (USessionSubsystem) naming
  *    the area it's in (Skyreach, Ransom's Rest), each continued or started from its card, and a saved one deleted after
- *    a confirmation popup.
+ *    a confirmation popup. A new game asks first whether to play the tutorial or skip it (straight to the story's first
+ *    arrival with a Common Bullpup; USessionSubsystem::PlaySessionSkippingTutorial).
  *  - Multiplayer doesn't exist yet: it shows dimmed, with a SOON tag, and does nothing.
  *  - Settings opens the settings menu over this one (AMainMenuHUD owns both).
  *  - Quit Game closes the game.
@@ -64,11 +65,14 @@ private:
 	void RefreshSessions();
 	UWidget* MakeSessionCard(int32 Index, const FSessionSummary& Summary);
 	void HandleSessionButton(ULooterButton* Button);
-	/** Continues session Index, or starts a new game in it, which opens its level. */
-	void StartSession(int32 Index);
+	/** Continues session Index, or starts a new game in it (with the tutorial, or skipping it), which opens its level. */
+	void StartSession(int32 Index, bool bSkipTutorial = false);
 	void OpenDeleteConfirm(int32 Index);
 	void CloseDeleteConfirm();
 	void ConfirmDelete();
+	/** A new game in the empty slot Index: the tutorial, or skip it. */
+	void OpenNewGame(int32 Index);
+	void CloseNewGame();
 
 	/** The main buttons, and the session picker shown in their place. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> MainButtons;
@@ -83,6 +87,8 @@ private:
 	bool bPickerShown = false;
 	/** The session the delete confirmation asks about, or INDEX_NONE while it's closed. */
 	int32 DeleteIndex = INDEX_NONE;
+	/** The empty slot the new game asks about (the tutorial or skip it), or INDEX_NONE while it's closed. */
+	int32 NewGameIndex = INDEX_NONE;
 	/** A session's level is opening: the menu goes with this world, so it takes no more clicks or keys. */
 	bool bLoading = false;
 };

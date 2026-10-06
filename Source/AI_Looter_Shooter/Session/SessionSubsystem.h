@@ -9,6 +9,7 @@
 
 class UAreaDefinition;
 class ULooterSessionSave;
+class UWeaponDefinition;
 class UWorld;
 struct FCampaignRecord;
 struct FPlayerProgressData;
@@ -97,6 +98,30 @@ public:
 
 	/** Opens the main menu: the game's first level with the menu over it (DefaultEngine.ini's LocalMapOptions). */
 	void OpenMainMenu();
+
+	// --- "Skip the tutorial" (SessionSubsystemSkip.cpp) ---
+
+	/**
+	 * A new game in the empty slot Index that skips the tutorial: it counts as the first cast-off (the story begun, the
+	 * tutorial done, so a practice visit never sends the player through it), the player starts with a Common Bullpup in
+	 * hand ("in the coffin"), and the session opens straight on the story's first arrival behind the white, which comes
+	 * off with the title. Written to the slot first. False when the slot isn't empty or the first area's level isn't in the
+	 * game (CanSkipTutorial).
+	 */
+	bool PlaySessionSkippingTutorial(int32 Index);
+
+	/** The tutorial can be skipped: the story's first area and its level are in the game. */
+	static bool CanSkipTutorial();
+
+	/**
+	 * What skipping the tutorial writes into a session's save: the tutorial done, the first cast-off recorded, a Common
+	 * Bullpup (of Bullpup, with its starting magazines) in hand in place of whatever was carried, and the session pointed at
+	 * FirstArea's level to arrive at the story's first arrival. False (the gun left out) without Bullpup.
+	 */
+	static bool ApplyTutorialSkip(ULooterSessionSave& Save, const UAreaDefinition& FirstArea, UWeaponDefinition* Bullpup);
+
+	/** The Bullpup's kind: the assault rifle's definition, whose parts build the white bullpup. */
+	static UWeaponDefinition* LoadBullpup();
 
 	// --- The session being played ---
 

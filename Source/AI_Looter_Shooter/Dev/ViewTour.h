@@ -36,6 +36,9 @@ public:
 	/** Starts a tour of the viewpoints in the file (relative to the project folder). False if it can't be read. */
 	bool Start(const FString& ViewsFile, bool bShots, bool bQuit);
 
+	/** A tour is going on (scenes stay off meanwhile: USceneSubsystem::AreScenesOn). */
+	bool IsRunning() const { return Stops.IsValidIndex(Current); }
+
 private:
 	struct FStop
 	{

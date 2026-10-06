@@ -10,7 +10,8 @@ class ULootTable;
 /**
  * Add to enemies, chests, etc. Drops loot (ammo, sometimes a weapon) from a table when the owner's HealthComponent
  * dies, or when DropLoot is called. Without a table of its own it uses the game's default loot table. On a death, the
- * ammo leans toward the class of the gun that made the kill.
+ * ammo leans toward the class of the gun that made the kill, and a practice area the player has already left once
+ * (Skyreach, UAreaRulesSubsystem::DropsGuns) drops only the ammo.
  */
 UCLASS(ClassGroup = (Looter), meta = (BlueprintSpawnableComponent))
 class AI_LOOTER_SHOOTER_API ULootDropComponent : public UActorComponent

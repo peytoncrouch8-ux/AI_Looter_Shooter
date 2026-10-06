@@ -1,4 +1,5 @@
 #include "Loot/LootDropComponent.h"
+#include "Areas/AreaRulesSubsystem.h"
 #include "Loot/LootLibrary.h"
 #include "Combat/HealthComponent.h"
 #include "Weapons/WeaponBase.h"
@@ -31,7 +32,9 @@ void ULootDropComponent::HandleOwnerDeath(AController* Killer)
 	const UHealthComponent* Health = GetOwner()->FindComponentByClass<UHealthComponent>();
 	const AWeaponBase* KillWeapon = Health ? Cast<AWeaponBase>(Health->GetLastDamageCauser()) : nullptr;
 	const TOptional<EAmmoType> KillAmmo = KillWeapon ? TOptional<EAmmoType>(KillWeapon->GetAmmoType()) : TOptional<EAmmoType>();
-	ULootLibrary::SpawnKillLoot(this, LootTable, GetOwner()->GetActorLocation(), Level, ExtraLuck, KillAmmo);
+	// A practice area the player has already left once (Skyreach on a return visit) drops only ammo: practice, not a farm.
+	const bool bWeapons = UAreaRulesSubsystem::DropsGunsAt(this);
+	ULootLibrary::SpawnKillLoot(this, LootTable, GetOwner()->GetActorLocation(), Level, ExtraLuck, KillAmmo, bWeapons);
 }
 
 TArray<AActor*> ULootDropComponent::DropLoot()

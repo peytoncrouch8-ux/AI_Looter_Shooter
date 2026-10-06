@@ -5,6 +5,9 @@
 #include "UI/Menus/SettingsMenuWidget.h"
 #include "UI/HUD/HudCaptionWidget.h"
 #include "UI/HUD/PlayerHUDWidget.h"
+#include "UI/World/StationBoardWidget.h"
+#include "Areas/StationBoard.h"
+#include "Scenes/SceneSubsystem.h"
 #include "Session/SessionSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Inventory/WeaponManagerComponent.h"
@@ -102,9 +105,21 @@ void ALooterHUD::Tick(float DeltaSeconds)
 		Bindings->SyncContexts();
 	}
 
-	const bool bHideHUD = bInventoryOpen || bPauseMenuOpen;
+	// A scene (the skiff ride, later the cold open) holds the player with the gameplay HUD put away; the captions stay.
+	const bool bHideHUD = IsMenuOpen() || USceneSubsystem::HidesGameplayHUD(this);
 	HUDWidget->SetVisibility(bHideHUD ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	SetWorldLabelsVisible(!bHideHUD);
+}
+
+ALooterHUD* ALooterHUD::FindFor(const AActor* Player)
+{
+	const APlayerController* Controller = Cast<APlayerController>(Player);
+	if (!Controller)
+	{
+		const APawn* Pawn = Cast<APawn>(Player);
+		Controller = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
+	}
+	return Controller && Controller->IsLocalController() ? Cast<ALooterHUD>(Controller->GetHUD()) : nullptr;
 }
 
 void ALooterHUD::SetWorldLabelsVisible(bool bVisible)
@@ -143,7 +158,7 @@ void ALooterHUD::HandlePausePressed()
 
 void ALooterHUD::HandleInventoryPressed()
 {
-	if (!bPauseMenuOpen && !bInventoryOpen)
+	if (!bPauseMenuOpen && !bInventoryOpen && !bStationBoardOpen)
 	{
 		OpenInventory();
 	}
@@ -256,6 +271,62 @@ UUserWidget* ALooterHUD::GetInventoryPageWidget() const
 }
 
 // ---------------------------------------------------------------------------
+// The station board
+// ---------------------------------------------------------------------------
+
+bool ALooterHUD::OpenStationBoard(AActor* From, const FStationBoardWords& Words)
+{
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC || !PC->IsLocalController() || bPauseMenuOpen)
+	{
+		return false;
+	}
+	CloseInventory();
+	if (!StationBoardWidget)
+	{
+		StationBoardWidget = CreateWidget<UStationBoardWidget>(PC, UStationBoardWidget::StaticClass());
+	}
+	if (!StationBoardWidget)
+	{
+		return false;
+	}
+	if (const APawn* Pawn = PC->GetPawn())
+	{
+		if (UWeaponManagerComponent* Manager = Pawn->FindComponentByClass<UWeaponManagerComponent>())
+		{
+			Manager->StopFire();
+		}
+	}
+
+	StationBoardWidget->Open(this, From, Words);
+	if (!bStationBoardOpen)
+	{
+		StationBoardWidget->AddToViewport(25);
+	}
+	FInputModeUIOnly InputMode;
+	InputMode.SetWidgetToFocus(StationBoardWidget->TakeWidget());
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	PC->SetInputMode(InputMode);
+	PC->SetShowMouseCursor(true);
+	bStationBoardOpen = true;
+	return true;
+}
+
+void ALooterHUD::CloseStationBoard()
+{
+	if (!bStationBoardOpen)
+	{
+		return;
+	}
+	if (StationBoardWidget)
+	{
+		StationBoardWidget->RemoveFromParent();
+	}
+	bStationBoardOpen = false;
+	RestoreGameInput();
+}
+
+// ---------------------------------------------------------------------------
 // Pause / settings
 // ---------------------------------------------------------------------------
 
@@ -268,6 +339,7 @@ void ALooterHUD::OpenPauseMenu()
 	}
 
 	CloseInventory();
+	CloseStationBoard();
 	if (const APawn* Pawn = PC->GetPawn())
 	{
 		if (UWeaponManagerComponent* Manager = Pawn->FindComponentByClass<UWeaponManagerComponent>())

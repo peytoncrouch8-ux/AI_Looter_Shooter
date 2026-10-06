@@ -204,6 +204,7 @@ UWidget* UMainMenuWidget::MakeMainButtons()
 void UMainMenuWidget::ShowMainButtons()
 {
 	CloseDeleteConfirm();
+	CloseNewGame();
 	bPickerShown = false;
 	if (MainButtons)
 	{
@@ -251,7 +252,7 @@ void UMainMenuWidget::RefreshFooter()
 	}
 	// Only what Escape does right now; on the main buttons it does nothing, so there's nothing to say.
 	FString Hint;
-	if (!bLoading && DeleteIndex != INDEX_NONE)
+	if (!bLoading && (DeleteIndex != INDEX_NONE || NewGameIndex != INDEX_NONE))
 	{
 		Hint = TEXT("Esc: cancel");
 	}
@@ -319,6 +320,10 @@ FReply UMainMenuWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, cons
 			if (DeleteIndex != INDEX_NONE)
 			{
 				CloseDeleteConfirm();
+			}
+			else if (NewGameIndex != INDEX_NONE)
+			{
+				CloseNewGame();
 			}
 			else if (bPickerShown)
 			{

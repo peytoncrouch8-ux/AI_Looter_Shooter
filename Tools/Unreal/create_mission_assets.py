@@ -1,12 +1,17 @@
 """Makes the mission data assets (UMissionDefinition, Missions/MissionDefinition.h) in /Game/Data/Missions and saves
 them. Run it in the open editor once the C++ with UMissionDefinition is built:
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/create_mission_assets.py"
-It prints a MISSIONS line per mission and step, and "MISSIONS done" at the end. Running it again rebuilds these two
+It prints a MISSIONS line per mission and step, and "MISSIONS done" at the end. Running it again rebuilds these
 missions (fields, steps and rewards) from what's written here; other mission assets are left alone.
 
   DA_Mission_Tutorial  "Welcome to Skyreach", the tutorial island's steps as objectives. It must say what the tutorial
                        director's built-in steps say (ATutorialDirector's constructor): the director plays the asset,
                        and Looter.Missions.TutorialMission compares the two objective by objective.
+  DA_Mission_BoardSkiff "Board the skiff", leaving Skyreach: its own mission, not a seventh tutorial step. Skyreach's
+                       jetty (ASkiffJetty) starts it whenever the tutorial is done and the player hasn't cast off for the
+                       first time (after the tutorial, after skipping it, and for sessions that finished it before the
+                       skiff came), so it starts from code (manual) and asks for nothing first. Its arrow is on the
+                       jetty; casting off sends Board.Skiff, which finishes it. No reward: Skyreach gives no experience.
   DA_Mission_Test      a small mission for trying the runner in a game: kill two creatures, reach the windmill, use two
                        things tagged MissionTest (no level has them: Looter.Mission.Event Interact MissionTest stands in
                        for the interaction component), for 10% of a level's experience. It starts only from the console
@@ -27,7 +32,7 @@ def mission_types():
     names = ['MissionDefinition', 'MissionStep', 'MissionRewards', 'MissionActorFilter', 'MissionPlace', 'MissionKind',
              'MissionStart', 'MissionWaypoint', 'MissionCollect', 'MissionPage', 'MissionTravelObjective',
              'MissionReachObjective', 'MissionCollectObjective', 'MissionHitObjective', 'MissionKillObjective',
-             'MissionOpenPageObjective', 'MissionInteractObjective']
+             'MissionOpenPageObjective', 'MissionInteractObjective', 'MissionBoardObjective']
     missing = [name for name in names if getattr(unreal, name, None) is None]
     if missing:
         raise RuntimeError(f"unreal.{', unreal.'.join(missing)} missing: build the C++ with Missions/ first")
@@ -122,6 +127,17 @@ def tutorial_steps(asset):
     ]
 
 
+def board_skiff_steps(asset):
+    """Leaving Skyreach: board the skiff at the jetty. The arrow points at the jetty (ASkiffJetty); casting off from it
+    sends Board.Skiff."""
+    waypoint = unreal.MissionWaypoint
+    return [
+        step(objective(asset, unreal.MissionBoardObjective,
+                       "Your skiff is in. Board it at the jetty past the lookout when you're ready to leave Skyreach.",
+                       waypoint=waypoint.ACTOR, waypoint_class='SkiffJetty', vehicle=unreal.Name('Skiff'))),
+    ]
+
+
 def test_steps(asset):
     return [
         step(objective(asset, unreal.MissionKillObjective, 'Kill two creatures',
@@ -137,6 +153,11 @@ MISSIONS = [
     dict(asset='DA_Mission_Tutorial', id='Tutorial', title='Welcome to Skyreach',
          summary='Learn to move, fight and loot on Skyreach.', kind='TUTORIAL', start='MANUAL', area='Skyreach',
          prerequisites=[], sort_order=0, steps=tutorial_steps, rewards=dict()),
+    dict(asset='DA_Mission_BoardSkiff', id='BoardSkiff', title='Board the skiff',
+         summary="The skiff at the jetty past the lookout takes you off Skyreach, and your story begins. You can come "
+                 "back to practice any time.",
+         kind='TUTORIAL', start='MANUAL', area='Skyreach', prerequisites=[], sort_order=10, steps=board_skiff_steps,
+         rewards=dict()),
     dict(asset='DA_Mission_Test', id='Test', title='Test: Kill, Reach, Use',
          summary="A short mission for trying missions as data: kill, reach and interact objectives and an experience "
                  "reward. Only Looter.Mission.Start Test starts it.",

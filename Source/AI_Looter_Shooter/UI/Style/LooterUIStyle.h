@@ -56,6 +56,8 @@ namespace LooterUI
 		FLinearColor IconInk();
 		FLinearColor IconLight();
 		FLinearColor IconShade();
+		/** The cloud bank's white: the transition screen between places, which the title card rises through. */
+		FLinearColor Cloud();
 	}
 
 	enum class EShape : uint8
@@ -78,6 +80,15 @@ namespace LooterUI
 	};
 
 	FSlateFontInfo Font(int32 Size, bool bBold = true, int32 LetterSpacing = 0);
+
+	/** Bold, with the thin dark outline of text drawn with no panel behind it (StyleFloatingText's font, for Slate widgets). */
+	FSlateFontInfo FloatingFont(int32 Size, int32 LetterSpacing = 0);
+
+	/**
+	 * The kit's display type, for title cards (REVENANT rising through the white of the cloud bank): Chakra Petch Bold set
+	 * big and widely spaced, outlined like floating text, with no panel behind it. LetterSpacing is in thousandths of an em.
+	 */
+	FSlateFontInfo DisplayFont(int32 Size = 72, int32 LetterSpacing = 560);
 
 	/** One of the generated chamfer shapes (fill or 1-2px outline), tinted. Draws as a 9-slice box. */
 	FSlateBrush ShapeBrush(EShape Shape, bool bOutline, const FLinearColor& Tint);

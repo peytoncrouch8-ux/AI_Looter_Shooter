@@ -122,7 +122,8 @@ int32 ULootLibrary::RollAmmoAmount(const ULootTable* LootTable, FRandomStream& R
 	return Random.RandRange(MinAmount, MaxAmount);
 }
 
-FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random, TOptional<EAmmoType> KillAmmo)
+FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random, TOptional<EAmmoType> KillAmmo,
+	bool bWeapons)
 {
 	FLootRoll Roll;
 	if (!LootTable)
@@ -132,6 +133,10 @@ FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float
 	// Ammo first, then the guns, from the same stream: a seeded roll repeats. Each gun's stats come from its own seed, and
 	// its level is the killer's (a creature passes its own to its loot).
 	Roll.Ammo = RollAmmo(LootTable, Random, KillAmmo);
+	if (!bWeapons)
+	{
+		return Roll;
+	}
 	for (const FLootWeaponPick& Pick : RollWeaponPicks(LootTable, ExtraLuck, Random))
 	{
 		Roll.Weapons.Add(UWeaponRollLibrary::RollWeaponWithRarity(Pick.Definition, Pick.Rarity, Level));
@@ -193,7 +198,7 @@ TArray<AActor*> ULootLibrary::SpawnLoot(UObject* WorldContextObject, const ULoot
 }
 
 TArray<AActor*> ULootLibrary::SpawnKillLoot(UObject* WorldContextObject, const ULootTable* LootTable, FVector Location, int32 Level,
-	float ExtraLuck, TOptional<EAmmoType> KillAmmo)
+	float ExtraLuck, TOptional<EAmmoType> KillAmmo, bool bWeapons)
 {
 	TArray<AActor*> Spawned;
 	UWorld* World = WorldContextObject ? WorldContextObject->GetWorld() : nullptr;
@@ -203,7 +208,7 @@ TArray<AActor*> ULootLibrary::SpawnKillLoot(UObject* WorldContextObject, const U
 	}
 
 	FRandomStream Random(FMath::Rand());
-	const FLootRoll Roll = RollLoot(LootTable, Level, ExtraLuck, Random, KillAmmo);
+	const FLootRoll Roll = RollLoot(LootTable, Level, ExtraLuck, Random, KillAmmo, bWeapons);
 	const FVector SpawnLocation = Location + FVector(0.f, 0.f, 60.f);
 
 	if (UE_LOG_ACTIVE(LogLooter, Verbose))

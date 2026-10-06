@@ -2,11 +2,25 @@
 #include "AI_Looter_Shooter.h"
 #include "Areas/AreaDefinition.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Missions/MissionRunner.h"
 #include "Progression/PlayerProgressionSubsystem.h"
+#include "Session/CampaignRecord.h"
 #include "Session/SessionSubsystem.h"
+#include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
+
+namespace
+{
+	const UAreaRulesSubsystem* FindRules(const UObject* WorldContextObject)
+	{
+		// A class default (the tests ask about a spider's) has no level: no rules.
+		const UWorld* World = WorldContextObject && GEngine
+			? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull) : nullptr;
+		return World ? World->GetSubsystem<UAreaRulesSubsystem>() : nullptr;
+	}
+}
 
 bool UAreaRulesSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
@@ -77,6 +91,45 @@ int32 UAreaRulesSubsystem::RollLevelIn(const UAreaDefinition* InArea, int32 Play
 ECreatureRank UAreaRulesSubsystem::RollPromotionIn(const UAreaDefinition* InArea, const FRandomStream& Random)
 {
 	return InArea && InArea->HasPromotions() ? InArea->PickPromotion(Random.FRand()) : ECreatureRank::Basic;
+}
+
+// ---------------------------------------------------------------------------
+// Practice
+// ---------------------------------------------------------------------------
+
+bool UAreaRulesSubsystem::GivesKillExperience() const
+{
+	return GivesKillExperienceIn(Area);
+}
+
+bool UAreaRulesSubsystem::DropsGuns() const
+{
+	// Asked at each death, so the first cast-off counts from the moment it's recorded.
+	const UWorld* World = GetWorld();
+	const UMissionRunner* Runner = World ? World->GetSubsystem<UMissionRunner>() : nullptr;
+	return DropsGunsIn(Area, Runner ? &Runner->GetCampaign() : nullptr);
+}
+
+bool UAreaRulesSubsystem::GivesKillExperienceIn(const UAreaDefinition* InArea)
+{
+	return !InArea || InArea->GivesKillExperience();
+}
+
+bool UAreaRulesSubsystem::DropsGunsIn(const UAreaDefinition* InArea, const FCampaignRecord* Campaign)
+{
+	return !InArea || InArea->DropsGuns(Campaign && Campaign->bFirstCastOff);
+}
+
+bool UAreaRulesSubsystem::GivesKillExperienceAt(const UObject* WorldContextObject)
+{
+	const UAreaRulesSubsystem* Rules = FindRules(WorldContextObject);
+	return !Rules || Rules->GivesKillExperience();
+}
+
+bool UAreaRulesSubsystem::DropsGunsAt(const UObject* WorldContextObject)
+{
+	const UAreaRulesSubsystem* Rules = FindRules(WorldContextObject);
+	return !Rules || Rules->DropsGuns();
 }
 
 void UAreaRulesSubsystem::HandleLevelBegun()

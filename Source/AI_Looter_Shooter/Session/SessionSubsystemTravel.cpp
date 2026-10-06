@@ -92,13 +92,15 @@ void USessionSubsystem::PlaceAtLanding(UWorld* World, FName Landing)
 		return;
 	}
 	// A player start marks where the middle of the player goes (the game mode made them there already). Any other
-	// landing is a marker on the ground, so the player stands on it: half their height higher.
-	FVector Location = Spot->GetActorLocation();
+	// landing is a marker on the ground, so the player stands on it: half their height higher. An actor carrying its
+	// landing (the jetty's deck, a station's platform) says where on it.
+	const FTransform Arrival = AreaLandings::GetSpot(Spot, Landing);
+	FVector Location = Arrival.GetLocation();
 	if (!Spot->IsA<APlayerStart>())
 	{
 		Location.Z += Pawn->GetDefaultHalfHeight();
 	}
-	const FRotator Facing(0.f, Spot->GetActorRotation().Yaw, 0.f);
+	const FRotator Facing(0.f, Arrival.Rotator().Yaw, 0.f);
 	Pawn->TeleportTo(Location, Facing, /*bIsATest*/ false, /*bNoCheck*/ true);
 	Controller->SetControlRotation(Facing);
 	UE_LOG(LogLooter, Log, TEXT("Arrival: at %s in %s"), *Landing.ToString(), *FPackageName::GetShortName(MapOf(World)));

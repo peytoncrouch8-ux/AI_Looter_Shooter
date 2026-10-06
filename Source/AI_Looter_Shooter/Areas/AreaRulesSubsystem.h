@@ -7,6 +7,7 @@
 #include "AreaRulesSubsystem.generated.h"
 
 class UAreaDefinition;
+struct FCampaignRecord;
 
 /**
  * The rules of the area being played for the creatures in it (UAreaDefinition, found by the level as play begins):
@@ -15,6 +16,8 @@ class UAreaDefinition;
  *  - promotions: as the player arrives, each placed Basic creature may be Restless or Gravebound for one life, by the
  *    area's chances. In a session a map rolls at most once per 20 minutes of play (USessionSubsystem::ClaimPromotionRoll),
  *    so reloading doesn't reroll them; without a session every start rolls.
+ *  - practice (Skyreach): its kills give no experience (UPlayerProgressionSubsystem::KillXP), and once the player has
+ *    left it for the first time its creatures drop only ammo (ULootDropComponent).
  * A level that is no area's, or an area asset made before bands, leaves its creatures as they were placed.
  */
 UCLASS()
@@ -49,6 +52,27 @@ public:
 
 	/** A placed Basic creature's rank when InArea's promotions roll, drawn from Random against its chances. */
 	static ECreatureRank RollPromotionIn(const UAreaDefinition* InArea, const FRandomStream& Random);
+
+	// --- Practice (Skyreach) ---
+
+	/** Kills here give experience: not in a practice area. */
+	bool GivesKillExperience() const;
+
+	/** Kills here may drop guns: not in a practice area once the player has left it for the first time. */
+	bool DropsGuns() const;
+
+	/** InArea's rule; a level that is no area's gives experience. */
+	static bool GivesKillExperienceIn(const UAreaDefinition* InArea);
+
+	/** InArea's rule as the story stands (Campaign; none: the player hasn't left anywhere yet). */
+	static bool DropsGunsIn(const UAreaDefinition* InArea, const FCampaignRecord* Campaign);
+
+	/**
+	 * The rules of WorldContextObject's level: its rules subsystem's answers, or yes where there is none (a test level,
+	 * the editor, a class default).
+	 */
+	static bool GivesKillExperienceAt(const UObject* WorldContextObject);
+	static bool DropsGunsAt(const UObject* WorldContextObject);
 
 private:
 	/** Every actor has begun play (and the session has put the level back): logs what this arrival made of the creatures. */
