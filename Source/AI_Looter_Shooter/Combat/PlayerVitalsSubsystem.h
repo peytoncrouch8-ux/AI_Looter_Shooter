@@ -7,8 +7,9 @@
 class APlayerController;
 
 /**
- * Player-side consequences of taking damage: a red flash when hurt, and on death a fade-out, then a
- * respawn at the player start with full health. Works for any player character with a HealthComponent.
+ * Player-side consequences of taking damage: a red flash when hurt, and on death a fade-out, then a respawn with full
+ * health at the open respawn grave nearest where they fell (ARespawnMarker), or else at the level's own start, never at
+ * a trip's landing. Works for any player character with a HealthComponent.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UPlayerVitalsSubsystem : public UTickableWorldSubsystem
@@ -30,6 +31,8 @@ private:
 		float LastHealth = -1.f;
 		bool bDying = false;
 		float DeathTime = 0.f;
+		/** Where they fell: they wake at the open grave nearest it. */
+		FVector DeathLocation = FVector::ZeroVector;
 	};
 
 	void Respawn(APlayerController* PC, FPlayerVitals& Vitals);

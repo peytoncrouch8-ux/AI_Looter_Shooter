@@ -5,6 +5,7 @@
 #include "LooterHUD.generated.h"
 
 class UBestiaryWidget;
+class UHudCaptionWidget;
 class ULoadoutWidget;
 class UMissionsWidget;
 class UPlayerHUDWidget;
@@ -20,8 +21,9 @@ enum class EInventoryPage : uint8
 };
 
 /**
- * Owns the player HUD, inventory screen and pause menu (the settings menu over the paused game), plus the always-on menu
- * hotkeys. Set as the HUD Class on the game mode. The gameplay HUD hides while a menu is open.
+ * Owns the player HUD, the captions, inventory screen and pause menu (the settings menu over the paused game), plus the
+ * always-on menu hotkeys. Set as the HUD Class on the game mode. The gameplay HUD hides while a menu is open (the captions
+ * step aside by themselves).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ALooterHUD : public AHUD
@@ -81,6 +83,10 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPlayerHUDWidget> HUDWidget;
+
+	/** What's said aloud, low on the screen over the HUD. */
+	UPROPERTY(Transient)
+	TObjectPtr<UHudCaptionWidget> CaptionWidget;
 
 	/** The inventory's first page (the loadout: your character with your guns, and the backpack). */
 	UPROPERTY(Transient)

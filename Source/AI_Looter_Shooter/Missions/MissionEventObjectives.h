@@ -5,9 +5,9 @@
 #include "MissionEventObjectives.generated.h"
 
 // The objectives done by something the game's systems tell the mission runner (UMissionRunner::NotifyEvent): an
-// interaction, words at a speaker point, a scene that played, boarding the skiff, or any named event. The systems that
-// send most of them come in later steps (the interaction component, speaker points, scenes); until then
-// Looter.Mission.Event sends them from the console.
+// interaction, words at a speaker point, a scene that played, boarding the skiff, or any named event. The interaction
+// component and the speaker points send theirs; scenes come later. Looter.Mission.Event sends any of them from the
+// console.
 
 /** A named event happening a number of times ("Bell.Rung"). */
 UCLASS(BlueprintType, meta = (DisplayName = "Event"))
@@ -56,8 +56,9 @@ public:
 };
 
 /**
- * Talk to someone at a speaker point: the actor carrying SpeakerTag (Delia's screen door, Tilly's shop window). Speaker
- * points come in step 12 and send a Talk event with their actor; Looter.Mission.Event Talk <tag> stands in for them.
+ * Talk to someone at a speaker point: the actor carrying SpeakerTag (Delia's screen door, Tilly's shop window, a story
+ * character). A speaker point (USpeakerPointComponent) sends a Talk event about the actor it's on when the player talks
+ * there; Looter.Mission.Event Talk <tag> stands in for one from the console.
  */
 UCLASS(BlueprintType, meta = (DisplayName = "Talk"))
 class AI_LOOTER_SHOOTER_API UMissionTalkObjective : public UMissionObjective

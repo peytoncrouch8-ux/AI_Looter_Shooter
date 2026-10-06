@@ -1,13 +1,12 @@
 #include "Combat/PlayerVitalsSubsystem.h"
 #include "AI_Looter_Shooter.h"
-#include "Areas/AreaLandings.h"
 #include "Combat/HealthComponent.h"
+#include "Missions/MissionRunner.h"
+#include "World/RespawnMarker.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
-#include "GameFramework/PlayerStart.h"
 
 namespace
 {
@@ -63,6 +62,7 @@ void UPlayerVitalsSubsystem::Tick(float DeltaTime)
 			UE_LOG(LogLooter, Log, TEXT("Player died; respawning in %.1fs"), RespawnDelay);
 			Vitals.bDying = true;
 			Vitals.DeathTime = 0.f;
+			Vitals.DeathLocation = Character->GetActorLocation();
 			PC->SetIgnoreMoveInput(true);
 			PC->SetIgnoreLookInput(true);
 			if (PC->PlayerCameraManager)
@@ -90,19 +90,25 @@ void UPlayerVitalsSubsystem::Respawn(APlayerController* PC, FPlayerVitals& Vital
 		return;
 	}
 
+	// The open grave nearest where they fell, standing on it and facing its way; with none open, the level's own start.
+	// Never a trip's landing. The story's graves come from the session's campaign record.
 	FVector Location = Character->GetActorLocation();
 	FRotator Rotation = Character->GetActorRotation();
-	for (TActorIterator<APlayerStart> Start(GetWorld()); Start; ++Start)
+	const UMissionRunner* Runner = UMissionRunner::Get(this);
+	const FRespawnWakeSpot Spot = ARespawnMarker::ChooseWakeSpot(GetWorld(), Vitals.DeathLocation, Runner ? &Runner->GetCampaign() : nullptr);
+	if (Spot.IsSet())
 	{
-		// The level's own start, never a trip's landing (a depot's or a jetty's player start).
-		if (AreaLandings::IsLanding(*Start))
+		Location = Spot.Location;
+		Rotation = Spot.Facing;
+		// A grave is a spot on the ground: the player stands on it, half their height higher. A player start already
+		// marks where their middle goes.
+		if (Spot.Grave)
 		{
-			continue;
+			Location.Z += Character->GetDefaultHalfHeight();
 		}
-		Location = Start->GetActorLocation();
-		Rotation = FRotator(0.f, Start->GetActorRotation().Yaw, 0.f);
-		break;
 	}
+	UE_LOG(LogLooter, Log, TEXT("Player wakes %s"), Spot.Grave ? *FString::Printf(TEXT("at the grave %s"), *Spot.Grave->GetMarkerId().ToString())
+		: Spot.Start ? TEXT("at the level's start") : TEXT("where they fell (the level has no start of its own)"));
 
 	Character->TeleportTo(Location, Rotation, false, true);
 	PC->SetControlRotation(Rotation);
