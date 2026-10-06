@@ -27,9 +27,11 @@ reader: attach SM_SextonLedger to Sexton's Ledger socket, snapped to target. Soc
   SOCKET_Speaker  at his chin, facing his front: where his captions come from
 
 Materials (MI_<slot> on the textured masters; vertex alpha is baked occlusion everywhere):
-  SextonWool      M_World with no texture set: a flat near-black (#2E2E36) on the master's default ORM, roughness
-                  0.8, so the wool is matte. Coat, hat, bow tie, boots, the pen's holder.
-  SextonTrousers  the same, charcoal (#4E4F56): the trousers.
+  SextonWool      M_World with no texture set: a flat warm near-black (#2A2826) on the master's default ORM,
+                  roughness 0.8 + RoughnessOffset 0.1, Specular 0.15: matte wool that reflects little. Coat, hat,
+                  bow tie, boots, the pen's holder. (In the game the cooler, more reflective wool caught the blue
+                  sky: the trousers read pale blue-grey and the coat navy.)
+  SextonTrousers  the same, warm charcoal (#343230): the trousers.
   SextonLinen     Polymer tinted #F4EFE2: the wing collar and the shirt cuffs.
   SextonSkin      Polymer tinted #C9B9AA (pale but alive), DiffuseAO 1: his lips, his chin and his hands. Toward
                   the shadow's edge its vertex alpha fades to black over 2 cm (measured across the edge), so with
@@ -397,9 +399,11 @@ def surface_hit(obj, origin, direction, distance=3.0):
 
 # --- Materials ---
 
-def _flat_world(name, tint, roughness=0.8, diffuse_ao=0.4):
-    """M_World without a texture set: the master's white base x Tint on its default ORM (roughness 0.8). The preview
-    darkens the base by the vertex alpha as the master does (DiffuseAO of it)."""
+def _flat_world(name, tint, roughness=0.8, diffuse_ao=0.4, specular=None, roughness_offset=None):
+    """M_World without a texture set: the master's white base x Tint on its default ORM (roughness 0.8). specular and
+    roughness_offset set the master's Specular (0.5 by default: 4% reflectance) and RoughnessOffset (added to the
+    roughness, clamped) and reach the manifest as its scalars; the preview's BSDF follows them. The preview darkens
+    the base by the vertex alpha as the master does (DiffuseAO of it)."""
     mat = bpy.data.materials.get(name)
     if mat is not None:
         return mat
@@ -409,7 +413,10 @@ def _flat_world(name, tint, roughness=0.8, diffuse_ao=0.4):
     nodes.clear()
     out = nodes.new('ShaderNodeOutputMaterial')
     bsdf = nodes.new('ShaderNodeBsdfPrincipled')
-    bsdf.inputs['Roughness'].default_value = roughness
+    bsdf.inputs['Roughness'].default_value = min(roughness + (roughness_offset or 0.0), 1.0)
+    if specular is not None:
+        # The master's Specular is Unreal's (reflectance 0.08 x it), as Blender's Specular IOR Level is at IOR 1.5.
+        bsdf.inputs['Specular IOR Level'].default_value = specular
     links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
     vc = nodes.new('ShaderNodeVertexColor')
     vc.layer_name = 'Col'
@@ -429,6 +436,10 @@ def _flat_world(name, tint, roughness=0.8, diffuse_ao=0.4):
     mat['Master'] = 'World'
     mat['Tint'] = '#%06X' % tint
     mat['Kind'] = 'Surface'
+    if specular is not None:
+        mat['Specular'] = float(specular)
+    if roughness_offset is not None:
+        mat['RoughnessOffset'] = float(roughness_offset)
     return mat
 
 
@@ -456,8 +467,11 @@ def _shadow():
 
 
 MATERIALS = {
-    'wool': lambda: _flat_world('SextonWool', 0x2E2E36),
-    'trousers': lambda: _flat_world('SextonTrousers', 0x4E4F56),
+    # The wool reflects little (Specular 0.15) and is rough, and its tints are warm neutrals: in the game the
+    # near-black wool caught the sky's reflection (4% dielectric specular under a bright blue sky), so the trousers
+    # read pale blue-grey and the coat navy.
+    'wool': lambda: _flat_world('SextonWool', 0x2A2826, specular=0.15, roughness_offset=0.1),
+    'trousers': lambda: _flat_world('SextonTrousers', 0x343230, specular=0.15, roughness_offset=0.1),
     'linen': lambda: bpy.data.materials.get('SextonLinen') or lt.material('Polymer', name='SextonLinen', tint=0xF4EFE2),
     'skin': lambda: bpy.data.materials.get('SextonSkin') or lt.material('Polymer', name='SextonSkin', tint=0xC9B9AA,
                                                                           DiffuseAO=1.0),
@@ -1073,32 +1087,42 @@ def in_shadow(local):
 def cut_shadow(part, faces, hf):
     """Cuts the head's faces along the edge of the face's shadow (in_shadow's zero line: the shadow line above the
     lit skin and the jaw's edge below it, one closed curve) and gives the faces inside the shadow the shadow, the
-    others the skin, so the shadow ends in a clean curve. Where the curve crosses a mesh edge near one of its ends,
-    that end moves onto it instead of the edge splitting, and the faces the cut leaves with more than four corners
-    are triangulated (no slivers, no faces without area: Unreal's tangents need neither)."""
+    others the skin, so the shadow ends in a clean curve. A vertex lying near where the curve crosses one of its
+    edges (within a quarter of the edge) moves onto the nearest such crossing instead of the edge splitting; the
+    other crossed edges split, and the faces the cut leaves with more than four corners are triangulated (no slivers,
+    no faces without area: Unreal's tangents need neither).
+    It runs over lists in the faces' order, never over sets of BMesh elements: a set's order follows memory addresses,
+    which differ from one Blender process to the next, and the export must come out the same every time. Which
+    vertices move is decided from the whole cut before anything moves, so it doesn't depend on the order either."""
     inv = hf.inverted()
     bm = part.bm
-    faces = set(faces)
-    val = {v: in_shadow(inv @ v.co) for fc in faces for v in fc.verts}
-    on = set()
-    for e in {e for fc in faces for e in fc.edges}:
+    faces = list(faces)
+    val = {v: in_shadow(inv @ v.co) for v in dict.fromkeys(v for fc in faces for v in fc.verts)}
+    crossings = []
+    for e in dict.fromkeys(e for fc in faces for e in fc.edges):
         a, b = e.verts
-        if a in on or b in on or (val[a] > 0.0) == (val[b] > 0.0):
-            continue
-        t = val[a] / (val[a] - val[b])
-        if t < 0.25:
-            a.co = a.co.lerp(b.co, t)
-            on.add(a)
-        elif t > 0.75:
-            b.co = a.co.lerp(b.co, t)
-            on.add(b)
-        else:
+        if (val[a] > 0.0) != (val[b] > 0.0):
+            crossings.append((e, val[a] / (val[a] - val[b])))
+    # Each vertex near a crossing goes to the nearest one, measured along its edge.
+    moves = {}
+    for e, t in crossings:
+        a, b = e.verts
+        length = e.calc_length()
+        for v, share, other in ((a, t, b), (b, 1.0 - t, a)):
+            if share < 0.25 and (v not in moves or share * length < moves[v][0]):
+                moves[v] = (share * length, v.co.lerp(other.co, share))
+    for v, (_, co) in moves.items():
+        v.co = co
+    on = set(moves)
+    for e, t in crossings:
+        a, b = e.verts
+        if a not in on and b not in on:
             on.add(bmesh.utils.edge_split(e, a, t)[1])
     for fc in list(faces):
         vs = list(fc.verts)
         idx = [k for k, v in enumerate(vs) if v in on]
         if len(idx) == 2 and (idx[1] - idx[0]) % len(vs) not in (1, len(vs) - 1):
-            faces.add(bmesh.utils.face_split(fc, vs[idx[0]], vs[idx[1]])[0])
+            faces.append(bmesh.utils.face_split(fc, vs[idx[0]], vs[idx[1]])[0])
     # A face the cut left with more than four corners has one lying on a straight edge (where the curve passed through
     # a corner of the face beside it): fanned from that corner, none of its triangles is a sliver.
     for fc in [fc for fc in faces if len(fc.verts) > 4]:
@@ -1112,8 +1136,8 @@ def cut_shadow(part, faces, hf):
         for j in range(1, n - 1):
             tri = bm.faces.new((vs[k], vs[(k + j) % n], vs[(k + j + 1) % n]))
             tri.smooth = fc.smooth
-            faces.add(tri)
-        faces.discard(fc)
+            faces.append(tri)
+        faces.remove(fc)
         bm.faces.remove(fc)
     skin, shadow = part.slot('skin'), part.slot('shadow')
     for fc in faces:
@@ -1743,7 +1767,7 @@ def build_sexton():
     pts = [hb.verts.new(co[i]) for i in picks]
     res = bmesh.ops.convex_hull(hb, input=pts)
     inside = [v for v in res['geom_interior'] + res['geom_unused'] if isinstance(v, bmesh.types.BMVert)]
-    bmesh.ops.delete(hb, geom=list(set(inside)), context='VERTS')
+    bmesh.ops.delete(hb, geom=list(dict.fromkeys(inside)), context='VERTS')
     hull_mesh = bpy.data.meshes.new('UCX_MisterSexton')
     hb.to_mesh(hull_mesh)
     hb.free()
@@ -1770,7 +1794,7 @@ def build_ledger():
         before = set(bm.faces)
         cube = bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation((s * (W * 0.5 + 0.004), 0.0, c * 0.5)) @
                                      Matrix.Diagonal((W + 0.012, H + 0.014, c, 1.0)))['verts']
-        edges = list({e for v in cube for e in v.link_edges})
+        edges = list(dict.fromkeys(e for v in cube for e in v.link_edges))
         # (The bevel clears every element's tag, so the board's faces are the ones that weren't there before it.)
         bmesh.ops.bevel(bm, geom=cube + edges, offset=0.0014, segments=1, affect='EDGES', profile=0.5)
         for f in bm.faces:
