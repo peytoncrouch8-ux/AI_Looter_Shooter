@@ -8,14 +8,16 @@ tree layer closer in) to the ring's edge, never on the backdrop:
 - candidates on a jittered SPACING m grid, kept off ground steeper than "steep" degrees (the ridges' bands, the
   escarpment's face, the far wall), the canyon's river, every road and the "clear" corridors (the line out of Stage Gap
   and its trestle);
-- groves from noise with gaps between them, densest in the "woods" (polygons, each with a density and its share of
-  pines; elsewhere BASE), each grove in clumps with clearings, so no stretch reads as an even carpet; more on the
-  slopes and in the ridges' creases (area_faces.py) and along the low ground than on the flats, in tree lines along
-  the contours on slopes; on the canyon's floor along the river, and only a few on the plains past the far wall;
+- groves from noise with gaps between them (and a few lone trees in the gaps), densest in the "woods" (polygons, each
+  with a density and its share of pines; elsewhere BASE), each grove in clumps with clearings, so no stretch reads as
+  an even carpet; far more on the slopes, up the ridges and in their creases (area_faces.py), and along the low ground,
+  than on the flats, in tree lines along the contours on slopes; on the canyon's floor along the river, and only a few
+  on the plains past the far wall;
 - thinned where nobody sees them: a tree that no standing spot inside the boundary sees (eye height on a VIEW_STEP m
   grid, and the "lookouts") keeps UNSEEN of its chance, so the "count" goes where it shows;
-- pines higher up (by each wood's share, more the higher), broadleaf (cottonwoods) along the low ground (hollows
-  below the ground around them, the lowlands) and by water; random yaw, a modest scale;
+- pines at least PINE_FLOOR of the trees, more up the slopes and the high ground; broadleaf (cottonwoods) in the
+  hollows below the ground around them and by water; random yaw; sizes from 0.7 to 1.4 times (SCALE), the clumps'
+  middles taller;
 - and, by their own draws, dark pines in groups in the creases of the ring's ridge faces (area_faces.py), from the
   same "near" out, on steeper ground than the rest (the core's creases are the scatter's).
 Each tree stands on the meshes the level gets (the core's top and the ring, through a BVH: their triangles differ from
@@ -35,7 +37,7 @@ from area_math import fbm, points_in_polygon, sample, smoothstep
 # The trees (Art/Models/Vegetation/FarTrees.py): the mesh, its kind, its trunk's radius at the foot and its height (m).
 TREES = (('SM_FarPine_A', 'pine', 0.30, 13.0), ('SM_FarPine_B', 'pine', 0.36, 12.5),
          ('SM_FarBroadleaf', 'broadleaf', 0.42, 10.7))
-SCALE = {'pine': (0.85, 1.2), 'broadleaf': (0.85, 1.15)}
+SCALE = {'pine': (0.7, 1.4), 'broadleaf': (0.7, 1.4)}
 SPACING = 5.0         # meters between candidates (dense enough for a clump to close up)
 JITTER = 0.45         # of SPACING either way: no rows inside a clump
 MARGIN = 3.0          # meters inside the ring's edge
@@ -50,7 +52,10 @@ ROAD_CLEAR = 4.0      # meters past a road's edge
 SINK = 0.05           # meters below the lowest ground under the trunk
 # How the ground weighs a tree's chance: the flats' share of a slope's, and what a crease, the low ground and high
 # ground (pines up the ridges) add.
-FLATS, CREASES, LOWS, HIGHS = 0.35, 1.5, 0.6, 0.8
+FLATS, CREASES, LOWS, HIGHS = 0.2, 1.5, 0.5, 1.0
+LONE = 0.06           # the chance between the groves, against a grove's: a few lone trees
+# The pines' share: each wood's (or BASE's) at least PINE_FLOOR, and more up the slopes and the high ground.
+PINE_FLOOR, PINE_SLOPES, PINE_HIGH = 0.4, 0.35, 0.5
 LOW_REACH = 40.0      # meters round a point its ground is compared with (low ground lies below it)
 # Pines in the ring's ridge creases (_crease_pines; the core's are the scatter's, area_scatter.py): the steepest ground
 # (degrees) they stand on, meters between candidates, and their chance per unit of the creases' pine density
@@ -221,7 +226,7 @@ def place(area):
     high = smoothstep(10.0, 28.0, z)
     terrain = FLATS + (1.0 - FLATS) * sloped + CREASES * crease + LOWS * low + HIGHS * high
     clumped = 0.12 + 0.88 * clump
-    chance = wood * grove * clumped * terrain * (1.0 - sloped + sloped * (0.5 + 0.5 * lines))
+    chance = wood * (grove * clumped + LONE * (1.0 - grove)) * terrain * (1.0 - sloped + sloped * (0.5 + 0.5 * lines))
     by_water = 1.0 - smoothstep(half_river + 6.0, half_river + 45.0, river)
     if region.lip is not None:
         canyon = sample(area.ring_dl, x, y, region.half) < -(region.wall + 1.0)
@@ -247,15 +252,18 @@ def place(area):
         lo, hi = (k, hi) if np.minimum(1.0, k * chance).sum() < target else (lo, k)
     chosen = rng.random(len(pts)) < np.minimum(1.0, k * chance)
 
-    # What each is: pines higher up, broadleaf (cottonwoods) along the low ground and by the water.
-    low = np.maximum(low, smoothstep(-6.0, -18.0, z)) * ~canyon
+    # What each is: pines at least PINE_FLOOR, more up the slopes and the high ground; broadleaf (cottonwoods) in the
+    # hollows and by the water.
+    low = low * ~canyon
     high = high * ~canyon
-    pine_p = np.clip(pines * (1.0 - 0.85 * by_water) * (1.0 - 0.8 * low) + 0.8 * high * (1.0 - pines), 0.0, 1.0)
+    share = np.maximum(pines, PINE_FLOOR)
+    share = share + (1.0 - share) * np.clip(PINE_SLOPES * sloped + PINE_HIGH * high, 0.0, 1.0)
+    pine_p = np.clip(share * (1.0 - 0.85 * by_water) * (1.0 - 0.7 * low), 0.0, 1.0)
     is_pine = rng.random(len(pts)) < pine_p
     stand_a = fbm(x, y, 45.0, seed=404, octaves=2) > -0.05      # pines of a kind stand together
     which = np.where(is_pine, np.where(stand_a, 0, 1), 2)
     yaw = rng.integers(0, 360, len(pts))
-    unit = rng.random(len(pts))
+    unit = np.clip(0.75 * rng.random(len(pts)) + 0.25 * clump, 0.0, 1.0)  # a clump's middle taller
 
     meshes = {name: [] for name, _, _, _ in TREES}
     ring_angles = np.radians(np.arange(8) * 45.0)

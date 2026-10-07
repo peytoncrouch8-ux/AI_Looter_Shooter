@@ -733,9 +733,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Art/Levels/area_scrub.py`: a grounded area's dry scrub (the art session's kit): the scrub mask `T_<Area>Scrub_BC`
   (R sagebrush, and big sagebrush on 35-50 degree faces; G dry tufts; B rabbitbrush; A junipers in creases, on benches
   and rock-band tops; each a keep/chance encoding with spacing and slopes from `LAYERS`) on the ridge faces and the
-  flats' margins, clustered in patches and by the ground's curvature, and the points in `layout_computed.json`
-  `"scrub"` (crest and rim junipers, pit-floor tufts and sage, the sage's tight groups); `context()`, the ground it
-  keeps off.
+  flats' margins, clustered in patches from bare to twice the density and by the ground's curvature, and the points
+  in `layout_computed.json` `"scrub"` (crest and rim junipers, pit-floor tufts and sage, a quarter of the sage in tight
+  groups of 3-6); `context()`, the ground it keeps off.
 - `Art/Levels/area_faces.py`: a grounded area's big ridge faces broken up (rock bands at irregular heights with a lit
   lip and a ledge shadow, scree fans, creases, scrub and dry grass climbing, tone variation), painted over both macro
   maps after the grade, and the ring's crease pines (`pines()`).
@@ -751,8 +751,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   backdrop's silhouettes (per layer a skyline with rolling relief, soft U notches and landforms of five kinds: mesa,
   butte, stepped, broken, spire, with columns at their corners; each vertex's depth below its skyline for UV 1).
 - `Art/Levels/area_fartrees.py`: the far trees past a grounded area's boundary (`region.farTrees`): groves and contour
-  tree lines in the layout's woods, as groves with gaps and clumps, more on slopes, in creases and on low and high
-  ground (pines up high, cottonwoods on the low ground and along the canyon's river), off steep ground, water, roads and the
+  tree lines in the layout's woods, as groves with gaps, clumps and a few lone trees, more on slopes, ridges and in
+  creases than on the flats (pines at least 40%, more up high; cottonwoods in hollows and by water; sizes 0.7-1.4),
+  off steep ground, water, roads and the
   clear corridors (the line out of Stage Gap), thinned where nobody inside sees them, each seated on the core's and
   the ring's meshes, and pines in groups in the ring's ridge creases; `farTrees` in `layout_computed.json`.
 - `Art/Levels/area_preview.py`: Blender preview renders and the annotated plan: views at the planned sun, clay views

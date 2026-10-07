@@ -9,10 +9,10 @@ session's:
   steep faces (BIG_SLOPE to 50 degrees, most of what's seen of the ridges) big sagebrush 0.06-0.1, junipers
               0.008-0.015 on the benches and ledges (where the face eases off for a step) and the rock bands' tops,
               dry tufts 0.15 in the gaps; past 50 degrees bare (the terrain's rock)
-Never an even dotting: the sage (and less the tufts) comes in patches 10-30 m across, from 0.2 to 1.6 times its
-density (PATCHES), so some ground is nearly bare and some thick; thicker in concave swales, gullies, the creases and at
-a slope's toe, thinner on convex spurs and crests (the heights' curvature); and a fifth of it (GROUP_SHARE) stands in
-tight groups of 2-4, touching (points()).
+Never an even dotting: the sage (and less the tufts) comes in patches 10-30 m across, most of them either bare or
+twice its density (PATCHES); thicker in concave swales, gullies, the creases and at a slope's toe, thinner on convex
+spurs and crests (the heights' curvature); and a quarter of it (GROUP_SHARE) stands in tight groups of 3-6, touching
+(points()).
   flats       on the margins only (the roadsides, the slopes' toes, the boundary's edge, the gullies' banks, round the
               ruins; never in the fields, the town, the yards, the zones of EXCLUDED kinds or ground left open on
               purpose): sagebrush 0.03-0.08, dry tufts 0.15-0.3 where the meadow thins, rabbitbrush 0.01-0.02 on
@@ -66,8 +66,10 @@ CREST_YAW = 20.0        # degrees either side of 0: their swept crowns (-Y) poin
 RIM_JUNIPERS = 2        # per pit, on its rim
 PIT_TUFT_SPACING = 1.0  # meters between the pit floors' tuft candidates
 PIT_SAGE_SPACING = 3.0  # and their sage's
-PATCHES = (0.2, 1.6, 20.0)  # the sage's patches: its density times 0.2 to 1.6, the noise's wavelength (m)
-GROUP_SHARE = 0.2       # of the sage stands in tight groups (points()), the rest from the mask
+PATCHES = (0.0, 2.0, 20.0)  # the sage's patches: its density times 0 to 2, the noise's wavelength (m)
+PATCH_EDGE = 0.2        # the noise's spread (of about +-0.5) the patches change over: most patches are 0 or 2
+GROUP_SHARE = 0.25      # of the sage stands in tight groups (points()), the rest from the mask
+GROUP_SIZE = (3, 6)     # sage in a group
 GROUP_STEP = 4.0        # meters between the groups' candidate centers
 GROUP_GAP = (0.7, 0.9)  # meters between neighbors in a group: about touching
 
@@ -172,7 +174,7 @@ def densities(area, grid, faces, ctx):
     # Patches 10-30 m across from nearly bare to thick, thicker in hollows (concave ground, the creases) and at the
     # toes, thinner on spurs and crests (convex ground): the curvature of the heights at a few meters.
     lo, hi, wave = PATCHES
-    patches = lo + (hi - lo) * _ss(-0.4, 0.4, fbm_raster(grid, wave, seed=711, octaves=2)
+    patches = lo + (hi - lo) * _ss(-PATCH_EDGE, PATCH_EDGE, fbm_raster(grid, wave, seed=711, octaves=2)
                                    + 0.3 * fbm_raster(grid, wave * 0.3, seed=712))
     hb = blur(area.resized(area.h, n), cells(3.0, grid.px))
     gxx = np.gradient(np.gradient(hb, grid.px, axis=0), grid.px, axis=0)
@@ -418,8 +420,8 @@ def points(area):
 
 def sage_groups(area, rng):
     """[x, y] (cm): GROUP_SHARE of the sage (the slopes' and the steep faces' alike, by the mask's own densities) in
-    tight groups of 2-4, each next to one already in its group, about touching. A member that would stand where no
-    sage grows is left out."""
+    tight groups of GROUP_SIZE, each next to one already in its group, about touching. A member that would stand where
+    no sage grows is left out."""
     import area_faces
     from area_math import Grid, sample
     n = area.sizes['scatter']
@@ -433,12 +435,13 @@ def sage_groups(area, rng):
     half = area.half
     cand = _rng_points(rng, (-half, -half), (half, half), GROUP_STEP)
     here = sample(sage, cand[:, 0], cand[:, 1], half)
-    centers = cand[rng.random(len(cand)) < GROUP_SHARE * here * GROUP_STEP ** 2 / 3.0]
+    mean_size = 0.5 * (GROUP_SIZE[0] + GROUP_SIZE[1])
+    centers = cand[rng.random(len(cand)) < GROUP_SHARE * here * GROUP_STEP ** 2 / mean_size]
     found = []
     for c in centers:
         members = [c]
         turn = rng.uniform(0.0, 2.0 * math.pi)
-        for k in range(int(rng.integers(1, 4))):
+        for k in range(int(rng.integers(GROUP_SIZE[0], GROUP_SIZE[1] + 1)) - 1):
             base = members[int(rng.integers(0, len(members)))]
             a = turn + k * 2.1 + rng.uniform(-0.5, 0.5)
             p = base + rng.uniform(*GROUP_GAP) * np.array([math.cos(a), math.sin(a)])
