@@ -13,7 +13,9 @@ tree layer closer in) to the ring's edge, never on the backdrop:
   the far wall;
 - thinned where nobody sees them: a tree that no standing spot inside the boundary sees (eye height on a VIEW_STEP m
   grid, and the "lookouts") keeps UNSEEN of its chance, so the "count" goes where it shows;
-- pines higher up (by each wood's share), broadleaf low and by water; random yaw, a modest scale.
+- pines higher up (by each wood's share), broadleaf low and by water; random yaw, a modest scale;
+- and, by their own draws, dark pines in groups in the creases of the ring's ridge faces (area_faces.py), from the
+  same "near" out, on steeper ground than the rest (the core's creases are the scatter's).
 Each tree stands on the meshes the level gets (the core's top and the ring, through a BVH: their triangles differ from
 the field by up to the ring's height tolerance), at the lowest point under its trunk and a little below: no trunk
 floats, and the trunk's buried 0.6 m covers the rest. layout_computed.json's "farTrees" lists them per mesh as
@@ -43,6 +45,12 @@ SEEN_AT = 0.55        # of a tree's height: it counts as seen when the line to t
 RIVER_CLEAR = 4.0     # meters past the river's edge
 ROAD_CLEAR = 4.0      # meters past a road's edge
 SINK = 0.05           # meters below the lowest ground under the trunk
+# Pines in the ring's ridge creases (_crease_pines; the core's are the scatter's, area_scatter.py): the steepest ground
+# (degrees) they stand on, meters between candidates, and their chance per unit of the creases' pine density
+# (area_faces.py).
+CREASE_STEEP = 46.0
+CREASE_SPACING = 6.0
+CREASE_CHANCE = 1.5
 
 
 def _segments_distance(pts, line, closed=False):
@@ -246,9 +254,61 @@ def place(area):
         meshes[name].append([int(round(x[i] * 100.0)), int(round(y[i] * 100.0)),
                              int(round((float(h.min()) - SINK) * 100.0)), int(yaw[i]), scale])
     shown = int((chosen & seen).sum())
+    creases = _crease_pines(area, spec, near, ground, mesh_height, lookouts, meshes)
     area.far_trees = {
         'note': f'far trees past the boundary (Art/Levels/area_fartrees.py), one instanced component per mesh: '
                 f'[x, y, z, yaw, scale] in cm and degrees, the pivot (the trunk\'s foot) at the lowest ground under '
-                f'the trunk; {sum(len(v) for v in meshes.values())} in all, {shown} seen from inside the boundary',
+                f'the trunk; {sum(len(v) for v in meshes.values())} in all, {shown} seen from inside the boundary'
+                + (f', {creases} of them pines in the ridges\' creases' if creases else ''),
         'meshes': meshes}
     return area.far_trees
+
+
+def _crease_pines(area, spec, near, ground, mesh_height, lookouts, meshes):
+    """Dark pines in the creases of the ring's ridge faces (area_faces.py), few and in groups, appended to the pines'
+    lists: on the ring (the core's scatter has the core's creases), from near m past the boundary like the rest, on
+    slopes up to CREASE_STEEP degrees, only where some standing spot inside the boundary sees them. Their own random
+    draws, so the trees above are the same with or without them. Returns how many."""
+    import area_faces
+    faces = area_faces.ring_fields(area)
+    if faces is None:
+        return 0
+    region = area.region
+    rng = np.random.default_rng(spec.get('seed', 23) + 1)
+    edge = region.half - MARGIN
+    c = np.arange(-region.half + CREASE_SPACING * 0.5, region.half, CREASE_SPACING)
+    cx, cy = np.meshgrid(c, c, indexing='ij')
+    pts = np.column_stack([cx.ravel(), cy.ravel()]) + rng.uniform(-0.4, 0.4, (cx.size, 2)) * CREASE_SPACING
+    x, y = pts[:, 0], pts[:, 1]
+    density = sample(faces['pines'], x, y, region.half) * sample(faces['face'], x, y, region.half)
+    slope = sample(faces['slope'], x, y, region.half)
+    ok = ((np.maximum(np.abs(x), np.abs(y)) > area.half + 1.0) & (np.abs(x) < edge) & (np.abs(y) < edge)
+          & (density > 0.05) & (slope <= CREASE_STEEP))
+    pts, x, y, density = pts[ok], x[ok], y[ok], density[ok]
+    ok = _segments_distance(pts, area.boundary, closed=True) >= near
+    for corridor in spec.get('clear', []):
+        ok &= _segments_distance(pts, _to_m(corridor['path'])) > corridor['width'] / 200.0
+    pts, x, y, density = pts[ok], x[ok], y[ok], density[ok]
+    if not len(pts):
+        return 0
+    z = ground(x, y)
+    seen = _seen(area, ground, pts, z + SEEN_AT * 12.0, lookouts)
+    chosen = seen & (rng.random(len(pts)) < np.minimum(1.0, CREASE_CHANCE * density))
+    stand_a = fbm(x, y, 45.0, seed=404, octaves=2) > -0.05  # the same stands as the trees above
+    yaw = rng.integers(0, 360, len(pts))
+    unit = rng.random(len(pts))
+    ring_angles = np.radians(np.arange(8) * 45.0)
+    count = 0
+    for i in np.nonzero(chosen)[0]:
+        name, kind, trunk, _ = TREES[0 if stand_a[i] else 1]
+        lo_s, hi_s = SCALE[kind]
+        scale = round(lo_s + (hi_s - lo_s) * float(unit[i]), 2)
+        r = trunk * scale * 1.15 + 0.1
+        h = mesh_height(np.concatenate([[x[i]], x[i] + np.cos(ring_angles) * r]),
+                        np.concatenate([[y[i]], y[i] + np.sin(ring_angles) * r]))
+        if np.isnan(h).any():
+            continue
+        meshes[name].append([int(round(x[i] * 100.0)), int(round(y[i] * 100.0)),
+                             int(round((float(h.min()) - SINK) * 100.0)), int(yaw[i]), scale])
+        count += 1
+    return count

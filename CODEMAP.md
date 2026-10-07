@@ -710,11 +710,17 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   and a creek's falls into a gorge) as steps of `Area.build()`, and the sides of a ramp that drop as cliffs.
 - `Art/Levels/area_mesh.py`: the top's triangulation, terrain AO, the island's underside, the water mesh.
 - `Art/Levels/area_macro.py`: the macro color map `T_<Area>Macro_BC`, in the season the layout grades it to
-  (`macro.grade`). `Art/Levels/area_scatter.py`: the PCG scatter mask `T_<Area>Scatter_BC` (with
-  `scatter.roadside: pebbles`, no rocks or boulders on or beside the roads).
+  (`macro.grade`); a grounded area's ridge faces laid over it (`area_faces.py`). `Art/Levels/area_scatter.py`: the PCG
+  scatter mask `T_<Area>Scatter_BC` (with `scatter.roadside: pebbles`, no rocks or boulders on or beside the roads; a
+  pit's floor bare grit with sparse tufts at its walls' feet; grounded: steep layers in G, B and R past the flat
+  layers' slopes).
+- `Art/Levels/area_faces.py`: a grounded area's big ridge faces broken up (rock bands at irregular heights with a lit
+  lip and a ledge shadow, scree fans, creases, scrub and dry grass climbing, tone variation), painted over both macro
+  maps after the grade, and the densities for the scatter mask's steep layers and the ring's crease pines.
 - `Art/Levels/area_computed.py`: `layout_computed.json`: placements at terrain height (or their own), cliff groups per
   feature (a ramp's cliff side and the boundary's rock foot too), bridge, waterfall, orchard rows, the squares the maps
-  cover, the rise past the boundary's closed edges, and the far trees (one per line).
+  cover, the rise past the boundary's closed edges, the far trees (one per line), and the mask's steep layers
+  (`scatterMap.steep`).
 - `Art/Levels/area_cliffs.py`: cliff dressing for those features and the grounded setting: a group per feature, walls
   over 12 m in stacked courses, a knob's outcrop, a gully's banks, gaps in a pit's ring for rock models.
 - `Art/Levels/area_open.py`: the open-ground metric: how far each walkable meter inside the boundary is from its
@@ -725,7 +731,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Art/Levels/area_fartrees.py`: the far trees past a grounded area's boundary (`region.farTrees`): groves and contour
   tree lines in the layout's woods, cottonwoods along the canyon's river, off steep ground, water, roads and the
   clear corridors (the line out of Stage Gap), thinned where nobody inside sees them, each seated on the core's and
-  the ring's meshes; `farTrees` in `layout_computed.json`.
+  the ring's meshes, and pines in groups in the ring's ridge creases; `farTrees` in `layout_computed.json`.
 - `Art/Levels/area_preview.py`: Blender preview renders and the annotated plan: views at the planned sun, clay views
   with stand-ins for the buildings, obstacles and cliff courses, straight-down shadow views, and the far trees over
   the ring (`far_trees.png`).
@@ -803,7 +809,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Tools/amos_poses.py`: writes `Story/AmosPoseData.inl` from Amos.py's exported poses; run it again after they
   change.
 - `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`); its mask is imported
-  again whenever the PNG changes (its MD5 kept on the texture as metadata).
+  again whenever the PNG changes (its MD5 kept on the texture as metadata); a grounded area's steep layers (slope
+  tufts, slope bushes, crease pines) when `scatterMap.steep` is set, and larkspur along the salt line, the field wall
+  and the farm fences (the newer layers' meshes in tables, `SLOPE_TUFT_MESHES` and the rest); every layer kept off the
+  dressing's pieces (`build_area_dressing.footprints`), grass and flowers off its solid ones only.
 - `Tools/Unreal/build_area_dressing.py`: the layout's fence, wall, ruin, graves, cairns and props obstacles dressed from
   the art kit for `build_area.py` (in its full build after `models()`, and with `build_area.py <Area> dressing`): tables
   by obstacle id, sections chained along lines and polygons on the terrain's tiles, gates and road gaps, one

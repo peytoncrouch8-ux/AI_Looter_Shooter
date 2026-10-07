@@ -21,6 +21,7 @@ import os
 import numpy as np
 
 import area_computed
+import area_faces
 from area_math import Grid, blur, catmull_rom, cells, fbm, fbm_raster, polyline_field, resize, sample, signed_distance
 from area_mesh import extend_nan
 from area_shape import BUILDINGS, to_m
@@ -190,6 +191,18 @@ def paint(area, out_path, preview_dir=None, log=print):
     grade = area.layout.get('macro', {}).get('grade')
     if grade:
         _grade(rgba[..., :3], grade)
+    del canvas
+    if area.setting == 'grounded':
+        # The ridges' big faces (area_faces.py), after the grade: kept off what the core itself shapes and paints
+        # there (water, roads, its features, the rock raised past the boundary's closed edges).
+        faces = area_faces.fields(area, area.grid, area.h)
+        if faces is not None:
+            log('macro: ridge faces')
+            shaped = _ss(0.5, 1.2, area.resized(np.abs(area.h - area.h_region), n))
+            keep = np.maximum.reduce([near_water, road_near, shaped, _ss(0.0, 0.08, depth)])
+            del shaped
+            area_faces.paint(rgba, faces, keep=keep, fine=n_fine, grain=n_grain)
+            del faces, keep
     if getattr(area, 'ring_rgba', None) is not None:
         # Across the seam band the core's colors fade into the ring's, which they meet exactly at the square's edge.
         import area_region
@@ -265,6 +278,12 @@ def _features(area, grid, canvas, n_fine, n_grain):
         canvas.paint(_mix(SOIL_DARK, LITTER, 0.5 + 0.8 * n_fine), 0.75 * _ss(0.9, 0.99, sink), alpha=0.15)
         foot = _ss(0.55, 0.85, sink) * (1.0 - _ss(0.95, 0.995, sink))
         canvas.paint(_mix(SCREE, ROCK_DARK, 0.4 + 0.6 * n_grain), 0.8 * foot, alpha=0.65)
+        # Away from the walls the floor is bare grit and dust (it grows little: area_scatter.py).
+        from_wall = -area.resized(p['sd'], grid.n) - p['width'] * 0.5
+        grit = _ss(0.9, 0.99, sink) * _ss(2.0, 6.0, from_wall + 1.5 * n_fine)
+        del from_wall
+        canvas.paint(_mix(DIRT, PEBBLE_LIGHT, 0.4 + 0.8 * n_grain), 0.5 * grit, alpha=0.3)
+        canvas.paint(PEBBLE_DARK, 0.45 * grit * _ss(0.5, 0.7, n_grain), alpha=0.5)
     for g in getattr(area, 'gullies', []):
         reach = g['half'] + (g['depth'] + 3.0) / g['bank'] + 1.0
         dist, along, _ = polyline_field(grid, g['pts'], reach)
@@ -533,6 +552,11 @@ def paint_ring(area, out_path, preview_dir=None, log=print):
     grade = area.layout.get('macro', {}).get('grade')
     if grade:
         _grade(rgba[..., :3], grade)
+    # The ridges' faces past the core, as the core paints its own (area_faces.py), so they agree across the seam.
+    faces = area_faces.ring_fields(area)
+    if faces is not None:
+        area_faces.paint(rgba, faces, fine=n_fine)
+    area.ring_faces = faces = None
     area.ring_rgba = rgba
     _save(rgba, out_path)
     written = out_path

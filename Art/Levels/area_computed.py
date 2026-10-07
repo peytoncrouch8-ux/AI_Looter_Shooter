@@ -481,6 +481,15 @@ def _all_of_each(area, data):
 def _grounded(area, data):
     """A grounded area's extra entries: the ring's macro map, the seam band and the playable boundary."""
     region = area.region
+    # The scatter mask's steep layers (area_scatter.py, with regional ridges); Tools/Unreal/build_island_scatter.py
+    # adds their graph layers when this is there.
+    if region.ridges:
+        data['macroMap']['scatterMap']['steep'] = (
+            'on ground steeper than 32 degrees, which no flat layer reaches: G is slope tufts and B low bushes (to '
+            '50 degrees: climbing the ridges\' faces from their foot and creases, thinning upward, sparse on other '
+            'steep banks; tufts out to 40 m past the boundary, bushes 80 m), and R over 37 degrees pines in the '
+            'faces\' creases (area_faces.py), which past the boundary also carries the creases\' trees on gentler '
+            'ground')
     ring = [[-region.half * 100.0, -region.half * 100.0], [region.half * 100.0, region.half * 100.0]]
     half, side = _number(region.half * 100.0), _number(region.half * 200.0)
     data['ringMap'] = {'texture': area.ring_macro_texture, 'covers': ring,

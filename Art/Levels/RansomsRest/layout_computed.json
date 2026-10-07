@@ -32,7 +32,8 @@
    "R": "tree density: high in the forest grove, a few lone trees in open meadow; 0 on roads and paths (+1.5 m), water, rock, building footprints, the village square, the farmyard, the target meadow and the orchard (its trees go on orchardRows)",
    "G": "grass density: 1 in meadows; 0 on road and path surfaces (soft 1 m edge), water, steep rock, footprints and bare dirt; about 0.4 under the forest canopy",
    "B": "flower density: big drifts in the meadows, 0 where G is 0, sparse in the forest",
-   "A": "pebbles and small rocks: a thin band just outside road edges, cliff feet (scree), the rim, the creek banks; 0 elsewhere"
+   "A": "pebbles and small rocks: a thin band just outside road edges, cliff feet (scree), the rim, the creek banks; 0 elsewhere",
+   "steep": "on ground steeper than 32 degrees, which no flat layer reaches: G is slope tufts and B low bushes (to 50 degrees: climbing the ridges' faces from their foot and creases, thinning upward, sparse on other steep banks; tufts out to 40 m past the boundary, bushes 80 m), and R over 37 degrees pines in the faces' creases (area_faces.py), which past the boundary also carries the creases' trees on gentler ground"
   }
  },
  "placements": {
@@ -9800,7 +9801,7 @@
   "note": "distances (cm) from walkable ground inside the boundary to its nearest break: largest is the widest empty circle's radius; worst lists the centers of the emptiest stretches (one per stretch); overTarget is the share of walkable ground farther than target from a break"
  },
  "farTrees": {
-  "note": "far trees past the boundary (Art/Levels/area_fartrees.py), one instanced component per mesh: [x, y, z, yaw, scale] in cm and degrees, the pivot (the trunk's foot) at the lowest ground under the trunk; 2475 in all, 1447 seen from inside the boundary",
+  "note": "far trees past the boundary (Art/Levels/area_fartrees.py), one instanced component per mesh: [x, y, z, yaw, scale] in cm and degrees, the pivot (the trunk's foot) at the lowest ground under the trunk; 2514 in all, 1447 seen from inside the boundary, 39 of them pines in the ridges' creases",
   "meshes": {
    "SM_FarPine_A": [
     [-54504,-43965,-7044,196,0.94],
@@ -10624,7 +10625,33 @@
     [54402,26753,398,164,1.04],
     [54492,28533,363,247,1.18],
     [54505,31584,388,116,1.11],
-    [54642,45438,417,26,1.17]
+    [54642,45438,417,26,1.17],
+    [-49900,2924,-610,45,0.99],
+    [-49872,3536,-994,252,1.07],
+    [-49535,3030,-879,251,0.96],
+    [-49421,3348,-1197,270,1.14],
+    [-49121,12861,-1355,21,1.2],
+    [-48210,-5136,-307,166,1.18],
+    [-48131,12624,-2208,257,0.88],
+    [-47575,-4731,-488,296,1.1],
+    [-47549,12711,-2529,105,0.88],
+    [-47643,20424,-247,94,1.04],
+    [-46898,-4363,-758,289,0.85],
+    [-47058,12651,-2878,113,0.85],
+    [-46827,20880,-772,127,1.06],
+    [-46314,12570,-3368,217,0.85],
+    [-46509,20183,-834,253,1.15],
+    [-46445,20795,-966,88,0.86],
+    [-45552,12371,-3805,203,0.95],
+    [-45691,20796,-1425,76,1.11],
+    [-45266,12602,-3728,211,0.86],
+    [-44484,-3178,-1822,343,1.09],
+    [-44608,18113,-1218,139,1.08],
+    [-44340,18301,-1453,141,0.9],
+    [-43910,-2987,-2031,251,0.95],
+    [-43919,276,-1350,85,0.86],
+    [-43856,17815,-1416,94,0.99],
+    [-43378,17399,-1316,225,1.01]
    ],
    "SM_FarPine_B": [
     [-54531,-29527,-7063,136,1.07],
@@ -11240,7 +11267,20 @@
     [54380,15171,336,298,0.88],
     [54544,16101,327,292,0.98],
     [54444,42053,436,185,1.05],
-    [54581,43180,434,201,1.17]
+    [54581,43180,434,201,1.17],
+    [-51038,3507,-456,254,1.18],
+    [-51162,13153,-235,290,0.95],
+    [-50521,2939,-264,29,0.95],
+    [-50263,3708,-819,120,0.85],
+    [-50344,12891,-670,103,1.03],
+    [-45536,-4203,-1514,85,1.08],
+    [-45337,-3860,-1534,300,1.01],
+    [-45163,20175,-1620,33,1.03],
+    [-45058,20836,-1774,13,0.94],
+    [-44400,732,-1566,216,0.86],
+    [-44335,1048,-1838,193,1.02],
+    [-43693,1232,-2023,9,1.15],
+    [-43392,54468,2990,112,0.93]
    ],
    "SM_FarBroadleaf": [
     [-54672,-25878,-6972,101,0.93],

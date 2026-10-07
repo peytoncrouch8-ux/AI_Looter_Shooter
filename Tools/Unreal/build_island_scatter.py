@@ -17,6 +17,7 @@ Then save the level. After changing the terrain or the mask, select the scatter 
 island; layout.json level.scatterVolume) and press Generate.
 """
 import hashlib
+import importlib
 import json
 import math
 import os
@@ -43,9 +44,16 @@ class Area:
     def __init__(self, name):
         folder = os.path.join(PROJECT, 'Art', 'Levels', name)
         with open(os.path.join(folder, 'layout.json')) as f:
-            level = json.load(f).get('level', {})
+            layout = json.load(f)
+        level = layout.get('level', {})
+        self.obstacles = layout.get('obstacles', [])
         with open(os.path.join(folder, 'layout_computed.json')) as f:
             self.data = json.load(f)
+        # The dressing's pieces (build_area_dressing.py): instanced, and tagged Obstacle only in play (a map-wide actor's
+        # bounds would clear the whole valley), so their own boxes keep the layers off them here.
+        # Reloaded, as the editor keeps modules between runs.
+        dressing = importlib.reload(importlib.import_module('build_area_dressing'))
+        self.dressing = dressing.footprints(layout, self.data.get('placements', {}))
         scatter = self.data['macroMap']['scatterMap']
         self.mask_file = scatter['texture']
         # Art/Textures/<Set>/<File>.png is imported as /Game/Art/Textures/<Set>/<File>.
@@ -61,6 +69,8 @@ class Area:
         low, high = self.data.get('heightRange', [-8000.0, 3000.0])
         self.lift = max(4000.0, high + 1000.0)
         self.ray = max(12000.0, self.lift - low + 1000.0)
+        # A grounded area's mask carries steep layers too (Art/Levels/area_scatter.py: computed's scatterMap.steep).
+        self.steep = 'steep' in scatter
         self.graph = level.get('scatterGraph', f'PCG_{name}Scatter')
         self.volume = level.get('scatterVolume', f'{name}Scatter')
         self.folder = level.get('folder', name)
@@ -144,6 +154,67 @@ def shore_points(data):
     return reeds, pads, pond['waterZ'] if pond else 0.0
 
 
+# The newer layers' meshes, by name under VEGETATION: (mesh, weight, cull distance in cm). Each layer's list is its
+# own table, so the art session's dry scrub kit for the slopes (Art/Models/Vegetation/Scrub.py: Sagebrush,
+# Rabbitbrush, Juniper, DryTuft) can take over by editing them once it's imported.
+SLOPE_TUFT_MESHES = (('GrassClump_A', 3, 4500), ('GrassClump_C', 2, 5000), ('TallGrass_A', 3, 5500))
+SLOPE_BUSH_MESHES = (('Bush_A', 1, 9000), ('Bush_B', 1, 9000), ('Bush_C', 1, 9000))
+CREASE_PINE_MESHES = (('Pine_A', 1, 0), ('Pine_B', 1, 0))
+LARKSPUR_CLUMP_MESHES = (('Larkspur_A', 1, 6000),)
+LARKSPUR_STRIP_MESHES = (('Larkspur_B', 1, 6000),)
+
+# Larkspur along fences and walls (the art session's rules), by the obstacle it lines (layout.json obstacles): the share
+# of spots left out, how far past the line's centre a wall's face adds (cm), and its gates [X, Y] (cm, from the
+# obstacles' notes), kept LARKSPUR_GATE_CLEAR clear. Each side is walked, a spot every 80-140 cm: LARKSPUR_STRIP of them
+# the strip (Larkspur_B, along the line within LARKSPUR_TURN degrees, 40-55 cm off it), the rest the clump
+# (Larkspur_A, any heading, 35-60 cm off).
+LARKSPUR = {
+    'saltLine': (0.15, 0.0, ((-1100, -2400), (-1000, -8400))),  # Delia's salt line: the farm road's and keeper's gates
+    'fieldWall': (0.55, 20.0, ()),                               # the stone field wall, sparser
+    'amosFence': (0.55, 0.0, ((-3800, 5300),)),                  # Amos's fence, his gate
+    'barnYardFence': (0.55, 0.0, ((-6000, 4800),)),              # the barn yard fence, its gate
+}
+LARKSPUR_GATE_CLEAR = 200.0
+LARKSPUR_STRIP = 0.6
+LARKSPUR_TURN = 12.0
+LARKSPUR_LIFT = 3000.0  # cm: where the rays dropping them onto the ground start
+
+
+def larkspur_points(obstacles):
+    """The larkspur's spots along the LARKSPUR obstacles: the clumps (x, y, z) and the strips in runs, one per straight
+    stretch of a line ((its heading in degrees, [(x, y, z), ...])). Deterministic."""
+    rng = random.Random(53)
+    clumps, runs = [], []
+    for ob in obstacles:
+        rule = LARKSPUR.get(ob['id'])
+        if rule is None:
+            continue
+        skip, extra, gates = rule
+        corners = [tuple(p) for p in ob.get('polygon') or ob.get('path', [])]
+        if 'polygon' in ob and corners:
+            corners.append(corners[0])
+        for (x0, y0), (x1, y1) in zip(corners, corners[1:]):
+            length = math.hypot(x1 - x0, y1 - y0)
+            if length < 1.0:
+                continue
+            ux, uy = (x1 - x0) / length, (y1 - y0) / length
+            strips = []
+            for side in (-1.0, 1.0):
+                along = rng.uniform(0.0, 60.0)
+                while along < length:
+                    left_out, kind, off, step = rng.random(), rng.random(), rng.random(), rng.uniform(80.0, 140.0)
+                    if left_out >= skip:
+                        strip = kind < LARKSPUR_STRIP
+                        off = extra + (40.0 + 15.0 * off if strip else 35.0 + 25.0 * off)
+                        px, py = x0 + ux * along - uy * side * off, y0 + uy * along + ux * side * off
+                        if all(math.hypot(px - gx, py - gy) > LARKSPUR_GATE_CLEAR for gx, gy in gates):
+                            (strips if strip else clumps).append((px, py, LARKSPUR_LIFT))
+                    along += step
+            if strips:
+                runs.append((math.degrees(math.atan2(uy, ux)), strips))
+    return clumps, runs
+
+
 class Builder:
     def __init__(self, graph):
         self.graph = graph
@@ -192,7 +263,7 @@ def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=Fals
 class Scatter:
     """The shared inputs (obstacles, the mask's channels) and one chain per layer."""
 
-    def __init__(self, b, mask, half, lift=4000.0, ray=12000.0):
+    def __init__(self, b, mask, half, lift=4000.0, ray=12000.0, dressing=()):
         self.b = b
         self.half = half
         self.lift, self.ray = lift, ray  # how high over the ground the rays start, and how far down they reach (cm)
@@ -214,6 +285,10 @@ class Scatter:
         selector.set_editor_property('actor_selection_tag', 'NoTrees')
         selector.set_editor_property('select_multiple', True)
         settings.set_editor_property('actor_selector', selector)
+        # The dressing's boxes, a little wider than the pieces: every one for the woody and rocky layers, and only the
+        # solid ones (props, graves, stacks) for grass and flowers, which grow up to a fence or a wall.
+        self.dressing = {'all': self.boxes(b, 'Dressing', -4.0, dressing),
+                         'solid': self.boxes(b, 'Dressing, solid', -4.5, [d for d in dressing if not d[5]])}
         # Texture space runs -1..1 across the mask. Its columns follow world Y and its rows run from north (+X) at
         # the top to south: a quarter turn and half the side of the square the mask covers.
         transform = unreal.Transform(location=unreal.Vector(0, 0, 0), rotation=unreal.Rotator(roll=0, pitch=0, yaw=90),
@@ -224,8 +299,30 @@ class Scatter:
                                             texture=mask, transform=transform, use_absolute_transform=True,
                                             color_channel=channel, filter=unreal.PCGTextureFilter.BILINEAR)
 
-    def layer(self, title, cell, channel, keep, flat=0.85, trees=False):
-        """Points on the ground every `cell` cm where the mask's channel wins a random draw against `keep`."""
+    @staticmethod
+    def boxes(b, title, row, footprints, margin=40.0):
+        """A point per footprint (x, y, yaw, half along Y, half along X, line), its bounds the piece's box on the ground
+        plus margin, reaching far above and below; None without any."""
+        if not footprints:
+            return None
+        points = []
+        for i, (x, y, yaw, along, across, _) in enumerate(footprints):
+            p = unreal.PCGPoint()
+            p.set_editor_property('transform', unreal.Transform(location=unreal.Vector(x, y, 0.0),
+                                                                rotation=unreal.Rotator(roll=0.0, pitch=0.0, yaw=yaw)))
+            p.set_editor_property('bounds_min', unreal.Vector(-across - margin, -along - margin, -20000.0))
+            p.set_editor_property('bounds_max', unreal.Vector(across + margin, along + margin, 20000.0))
+            p.set_editor_property('steepness', 1.0)
+            p.set_editor_property('seed', i + 1)
+            points.append(p)
+        node, _ = b.node(unreal.PCGCreatePointsSettings, title, 3, row, points_to_create=points,
+                         coordinate_space=unreal.PCGCoordinateSpace.WORLD)
+        return node
+
+    def layer(self, title, cell, channel, keep, flat=0.85, trees=False, flat_max=1.0, dressing='all'):
+        """Points on the ground every `cell` cm where the mask's channel wins a random draw against `keep`, on ground
+        whose flatness (the up component of its normal) is from `flat` to `flat_max` (below 1: steep ground only), off
+        the obstacles and the dressing's boxes (`dressing`: 'all', or 'solid' for a layer that grows up to fences)."""
         b, y = self.b, self.row * 3
         self.row += 1
         grid, _ = b.node(unreal.PCGCreatePointsGridSettings, f'{title}: ray origins', 0, y,
@@ -245,7 +342,8 @@ class Scatter:
         query.set_editor_property('ignore_pcg_hits', True)
         ray_settings.set_editor_property('world_query_params', query)
         slope, _ = b.node(unreal.PCGNormalToDensitySettings, 'Slope', 3, y)
-        level = b.node(unreal.PCGDensityFilterSettings, 'Flat enough', 4, y, lower_bound=flat, upper_bound=1.0)[0]
+        level = b.node(unreal.PCGDensityFilterSettings, 'Flat enough' if flat_max >= 1.0 else 'Steep enough', 4, y,
+                       lower_bound=flat, upper_bound=flat_max)[0]
         clear, _ = b.node(unreal.PCGDifferenceSettings, 'Not in obstacles', 5, y,
                           density_function=unreal.PCGDifferenceDensityFunction.BINARY)
         sample, _ = b.node(unreal.PCGSampleTextureSettings, f'Mask {channel}', 6, y,
@@ -259,6 +357,8 @@ class Scatter:
         b.link(slope, level)
         b.link(level, clear, b_pin='Source')
         b.link(self.obstacles, clear, b_pin='Differences')
+        if self.dressing[dressing] is not None:
+            b.link(self.dressing[dressing], clear, b_pin='Differences')
         if trees:
             b.link(self.no_trees, clear, b_pin='Differences')
         b.link(clear, sample, b_pin='Point')
@@ -286,6 +386,25 @@ class Scatter:
         ray_settings.set_editor_property('world_query_params', query)
         b.link(made, ray, b_pin='Origins')
         return ray, y
+
+    def headed(self, title, runs, entries, scale, turn):
+        """Points the script worked out itself in runs that share a heading ((yaw, [(x, y, z), ...]) each), dropped
+        onto the ground, upright, each turned to its run's heading within turn degrees, and spawned together."""
+        y = self.row * 3
+        merge, _ = self.b.node(unreal.PCGMergeSettings, f'{title}: all', 10, y)
+        for yaw, points in runs:
+            dropped, row = self.listed(f'{title} {yaw:.0f}', points)
+            look, _ = self.b.node(unreal.PCGTransformPointsSettings, f'{title} heading', 3, row,
+                                  rotation_min=unreal.Rotator(0.0, 0.0, yaw - turn),
+                                  rotation_max=unreal.Rotator(0.0, 0.0, yaw + turn), absolute_rotation=True,
+                                  scale_min=unreal.Vector(scale[0], scale[0], scale[0]),
+                                  scale_max=unreal.Vector(scale[1], scale[1], scale[1]), uniform_scale=True)
+            self.b.link(dropped, look)
+            self.b.link(look, merge)
+        spawner, settings = self.b.node(unreal.PCGStaticMeshSpawnerSettings, f'Spawn {title}', 11, y)
+        selector = settings.get_editor_property('mesh_selector_parameters')
+        selector.set_editor_property('mesh_entries', entries)
+        self.b.link(merge, spawner)
 
     def split(self, source, y, scale, offset, threshold):
         """Two outputs by spatial noise: stands of one kind and of the other."""
@@ -328,7 +447,7 @@ def build_graph(area, mask):
     graph = unreal.AssetToolsHelpers.get_asset_tools().create_asset(area.graph, GRAPH_FOLDER, unreal.PCGGraph,
                                                                     unreal.PCGGraphFactory())
     b = Builder(graph)
-    s = Scatter(b, mask, area.half, area.lift, area.ray)
+    s = Scatter(b, mask, area.half, area.lift, area.ray, area.dressing)
     veg = lambda name, required=True: mesh(VEGETATION, name, required)  # noqa: E731
     rock = lambda name: mesh(ROCKS, name)  # noqa: E731
 
@@ -357,6 +476,16 @@ def build_graph(area, mask):
         pad_points, y = s.listed('Lily pads', [(x, yy, water + 1.0) for x, yy in pads], onto_ground=False)
         s.spawn(pad_points, 'Lily pads', 11, y, [entry(veg('LilyPads_A'), 1, 4000)], scale=(0.8, 1.2))
 
+    # Larkspur along Delia's salt line, and sparser along the field wall and the farms' fences.
+    clumps, runs = larkspur_points(area.obstacles)
+    clump = [entry(m, w, cull) for m, w, cull in ((veg(n, False), w, c) for n, w, c in LARKSPUR_CLUMP_MESHES) if m]
+    strip = [entry(m, w, cull) for m, w, cull in ((veg(n, False), w, c) for n, w, c in LARKSPUR_STRIP_MESHES) if m]
+    if clumps and clump:
+        clump_points, y = s.listed('Larkspur clumps', clumps)
+        s.spawn(clump_points, 'Larkspur clumps', 11, y, clump, scale=(0.85, 1.15))
+    if runs and strip:
+        s.headed('Larkspur strips', runs, strip, (0.85, 1.15), LARKSPUR_TURN)
+
     # Bushes at the forest's edges and in its gaps, and a few out in the meadow.
     bushes, y = s.layer('Bushes', 420.0, 'R', 0.1)
     s.spawn(bushes, 'Bushes', 11, y, [entry(veg(n), 1, 9000, shadow=True) for n in ('Bush_A', 'Bush_B', 'Bush_C')],
@@ -370,7 +499,7 @@ def build_graph(area, mask):
             scale=(0.8, 1.2), upright=False)
 
     # Grass: a patch about every 0.8 m², tall grass among it, clover in the gaps.
-    grass, y = s.layer('Grass', 90.0, 'G', 0.12)
+    grass, y = s.layer('Grass', 90.0, 'G', 0.12, dressing='solid')
     s.spawn(grass, 'Grass', 11, y, [entry(veg('GrassClump_A'), 4, 4500, density_scaling=True),
                                     entry(veg('GrassClump_B'), 3, 4500, density_scaling=True),
                                     entry(veg('GrassClump_C'), 3, 5000, density_scaling=True),
@@ -378,7 +507,7 @@ def build_graph(area, mask):
                                     entry(veg('Clover_A'), 1, 3500, density_scaling=True)],
             scale=(0.8, 1.25), upright=False, fit=45.0)
 
-    flowers, y = s.layer('Flowers', 230.0, 'B', 0.3)
+    flowers, y = s.layer('Flowers', 230.0, 'B', 0.3, dressing='solid')
     s.spawn(flowers, 'Flowers', 11, y, [entry(veg(n), 1, 4500, density_scaling=True)
                                         for n in ('Flowers_Yellow', 'Flowers_White', 'Flowers_Purple')],
             scale=(0.85, 1.2), upright=False, fit=35.0)
@@ -396,8 +525,30 @@ def build_graph(area, mask):
                                           for n in ('Boulder_A', 'Boulder_B', 'Boulder_C')],
             scale=(0.8, 1.3), sink=10.0)
 
+    if area.steep:
+        steep_layers(s, veg)
+
     unreal.EditorAssetLibrary.save_loaded_asset(graph)
     return graph
+
+
+def steep_layers(s, veg):
+    """A grounded area's steep ground, from 32 to 50 degrees (flatness 0.85 to 0.64), which none of the layers above
+    reach: the mask's G there is slope tufts, its B low bushes, and its R, past the tree stands' 37 degrees, pines in
+    the ridges' creases (Art/Levels/area_scatter.py's steep layers and Art/Levels/area_faces.py). Tufts and bushes
+    climb the ridges' faces from their foot and creases, thinning upward; the pines stand few and in groups. Past the
+    boundary the creases' trees on gentler ground come from the tree stands above. Their meshes are the tables
+    SLOPE_TUFT_MESHES, SLOPE_BUSH_MESHES and CREASE_PINE_MESHES."""
+    tufts, y = s.layer('Slope tufts', 170.0, 'G', 0.15, flat=0.64, flat_max=0.85)
+    s.spawn(tufts, 'Slope tufts', 11, y, [entry(veg(n), w, cull, density_scaling=True)
+                                          for n, w, cull in SLOPE_TUFT_MESHES],
+            scale=(0.85, 1.3), upright=False, fit=35.0)
+    shrubs, y = s.layer('Slope bushes', 350.0, 'B', 0.15, flat=0.64, flat_max=0.85)
+    s.spawn(shrubs, 'Slope bushes', 11, y, [entry(veg(n), w, cull, shadow=True) for n, w, cull in SLOPE_BUSH_MESHES],
+            scale=(0.6, 1.0), sink=20.0)
+    creases, y = s.layer('Crease pines', 700.0, 'R', 0.15, flat=0.64, flat_max=0.8, trees=True)
+    s.spawn(creases, 'Crease pines', 11, y, [entry(veg(n), w, cull, collide=True, shadow=True, tree=True)
+                                             for n, w, cull in CREASE_PINE_MESHES], sink=40.0)
 
 
 def place_volume(area, graph):

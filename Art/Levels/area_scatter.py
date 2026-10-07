@@ -15,7 +15,9 @@ Edges are softened by a few pixels, so density filters give natural transitions.
 
 A grounded area has no rim: things grow on the core up to 10 m past the playable boundary (the macro map paints their
 color beyond), with no pebble band along an edge; a gully's bed is gravel (pebbles, no grass or trees), and a pit's
-floor grows little.
+floor grows little (sparse tufts at its walls' feet, bare grit in the middle, no flowers). Its ground steeper than any
+flat layer reaches (FLAT_LIMIT degrees) carries steep layers in G, B and R instead (_steep: tufts and low bushes
+climbing the regional ridges' faces, pines in their creases, area_faces.py), out past the boundary.
 
 The scatter graph (Tools/Unreal/build_island_scatter.py) draws pebbles, rocks and boulders all from A: rocks and
 boulders where it's over ROCK_KEEP, pebbles over 0.1. A layout's "scatter": {"roadside": "pebbles"} keeps the stones
@@ -40,6 +42,20 @@ ROADSIDE_CLEAR = 2.5    # meters past a road's edge that big stones keep clear o
 ROADSIDE = ('stones', 'pebbles')
 STEEP_BARE = 44.0       # degrees: with "steep": "bare", ground steeper than this (no walking up it) gets no stones
 STEEP = ('stones', 'bare')
+
+# A pit's floor (the Sink): grass density at the walls' feet (in patches; the graph's grass keeps G over 0.12, so a
+# sparse tuft) and in the middle (none), and the pebbles' density on it (grit; under ROCK_KEEP, so no rocks).
+PIT_TUFTS, PIT_BARE, PIT_GRIT = 0.1, 0.04, 0.13
+
+# Grounded areas' steep layers (_steep): the slopes (degrees) the graph's flat layers stop at (cos 0.85: grass,
+# flowers, bushes) and its tree stands stop at (cos 0.8), and the range its steep layers take (cos 0.85 to 0.64).
+FLAT_LIMIT, TREE_LIMIT, STEEP_TOP = 31.8, 36.9, 50.2
+BOUNDARY_ROCK = 5.0     # meters past the boundary kept bare (the rock raised past its closed edges, area_boundary.py)
+TUFT_REACH = 40.0       # meters past the boundary the slope tufts reach (they're culled at 45-55 m)
+BUSH_REACH = 80.0       # and the low bushes (culled at 90 m); the creases' pines go out to the core's edge
+# The steep layers in build_island_scatter.py (cell in cm, keep), for the counts the log gives.
+STEEP_LAYERS = {'slope tufts': ('G', 170.0, 0.15), 'slope bushes': ('B', 350.0, 0.15),
+                'crease pines': ('R', 700.0, 0.15)}
 
 # What a yard (layout.json "yards") keeps clear, by its kind: bare ground (radius, soft edge) and no trees (radius,
 # soft edge), in meters.
@@ -164,10 +180,18 @@ def paint(area, out_path, preview_dir=None, log=print):
         dist, _, _ = polyline_field(grid, g['pts'], g['half'] + 2.0)
         gravel = np.maximum(gravel, 1.0 - _ss(g['half'] - 0.5, g['half'] + 0.5, np.where(np.isfinite(dist), dist,
                                                                                             1e3)))
+    pit_grit = np.zeros((n, n), np.float32)
     for p in getattr(area, 'pits', []):
-        floor = _ss(0.9, 0.99, area.resized(p['rise'], n))
-        grass = grass * (1.0 - 0.6 * floor)
+        # A pit's floor (the Sink: a spider pit of webs, blocks and coffins) grows little: sparse tufts in patches at
+        # the walls' feet, bare grit in the middle (pebbles only), no flowers on the floor or the walls.
+        rise = area.resized(p['rise'], n)
+        floor = _ss(0.9, 0.99, rise)
+        from_wall = -area.resized(p['sd'], n) - p['width'] * 0.5  # meters in from the wall's foot
+        at_foot = (1.0 - _ss(1.5, 4.0, from_wall)) * _ss(0.45, 0.7, variety)
+        grass = grass * (1.0 - floor) + floor * np.minimum(grass, PIT_TUFTS * at_foot + PIT_BARE)
+        flowers = flowers * (1.0 - _ss(0.4, 0.8, rise))
         trees = trees * (1.0 - floor)
+        pit_grit = np.maximum(pit_grit, PIT_GRIT * floor)
     grass = grass * (1.0 - gravel)
     flowers = flowers * (1.0 - gravel)
     trees = trees * (1.0 - gravel)
@@ -177,9 +201,15 @@ def paint(area, out_path, preview_dir=None, log=print):
         creek_bank = _union(creek_bank, _ss(0.8, 1.4, cd) * (1.0 - _ss(3.5, 5.0, cd)) * (1.0 - wet))
     if creek_bank is None:
         creek_bank = np.zeros((n, n), np.float32)
-    pebbles = np.maximum.reduce([0.7 * shoulder * (1.0 - bare * 0.5), scree, rim, 0.8 * creek_bank, 0.9 * gravel])
+    pebbles = np.maximum.reduce([0.7 * shoulder * (1.0 - bare * 0.5), scree, rim, 0.8 * creek_bank, 0.9 * gravel,
+                                 pit_grit])
     pebbles *= land
 
+    steep_note = None
+    if area.setting == 'grounded':
+        trees, grass, flowers, steep_note = _steep(area, grid, h, slope, trees, grass, flowers,
+                                                   (1.0 - surface_w) * (1.0 - clear_w * 0.5) * (1.0 - wet)
+                                                   * (1.0 - bare) * (1.0 - gravel))
     rgba = np.stack([trees, grass, flowers, pebbles], axis=-1)
     soften = cells(0.4, grid.px)
     for k in range(4):
@@ -204,7 +234,46 @@ def paint(area, out_path, preview_dir=None, log=print):
         preview = os.path.join(preview_dir, 'scatter.png')
         _save(gray, preview)
         written += ' and ' + preview
-    log(f'scatter: wrote {written}')
+    log(f'scatter: wrote {written}' + (f'; {steep_note}' if steep_note else ''))
+
+
+def _steep(area, grid, h, slope, trees, grass, flowers, clear):
+    """A grounded area's steep layers. Ground steeper than FLAT_LIMIT, which none of the graph's flat layers reach,
+    carries them in the same channels: G slope tufts (dry grass climbing the ridges' faces, sparse on other steep
+    banks), B low bushes, and R, over TREE_LIMIT (past the tree stands' reach), pines in the faces' creases
+    (area_faces.py: densest at a face's foot and in its creases, thinning upward, never on its rock bands). Past the
+    boundary R carries the creases' trees on gentler ground too, where the graph's own stands grow them. Never on
+    roads, water, bare ground, the rock past the closed edges, cliff faces (over STEEP_TOP) or the core's last meters.
+    Returns the channels and a note of about how many each steep layer places."""
+    import area_faces
+    n = grid.n
+    faces = area_faces.fields(area, grid, h)
+    if faces is None:
+        return trees, grass, flowers, None
+    tufts, bushes, pines = area_faces.scatter(faces, n)
+    del faces
+    past = signed_distance(grid, area.boundary, TUFT_REACH + BUSH_REACH) if area.boundary is not None else \
+        np.full((n, n), -1e3, np.float32)  # meters past the playable boundary (negative inside)
+    keep = clear * (1.0 - _ss(STEEP_TOP - 3.0, STEEP_TOP, slope)) * _ss(1.0, 5.0, area.resized(area.edge, n))
+    keep *= 1.0 - _ss(-0.5, 0.5, past) * (1.0 - _ss(BOUNDARY_ROCK, BOUNDARY_ROCK + 2.0, past))
+    steep = _ss(FLAT_LIMIT - 1.0, FLAT_LIMIT + 1.0, slope)
+    tufts = steep * keep * tufts * (1.0 - _ss(TUFT_REACH - 6.0, TUFT_REACH, past))
+    bushes = steep * keep * bushes * (1.0 - _ss(BUSH_REACH - 8.0, BUSH_REACH, past))
+    pines = keep * pines * _ss(1.0, 3.0, past)
+    grass = grass * (1.0 - steep) + tufts
+    flowers = flowers * (1.0 - steep) + bushes
+    trees = np.maximum(trees * (1.0 - _ss(TREE_LIMIT - 1.0, TREE_LIMIT + 1.5, slope)), pines)
+    # About how many each places: one draw per cell, kept with chance 1 - keep / density, on ground in its range.
+    cell_area = grid.px * grid.px
+    counts = []
+    for (name, (_, cell, cut)), density, lo in zip(STEEP_LAYERS.items(), (tufts, bushes, pines),
+                                                   (FLAT_LIMIT, FLAT_LIMIT, TREE_LIMIT)):
+        chance = np.clip(1.0 - cut / np.maximum(density, 1e-6), 0.0, 1.0) * ((slope > lo) & (slope < STEEP_TOP))
+        counts.append(f'{float(chance.sum()) * cell_area / (cell / 100.0) ** 2:.0f} {name}')
+    # The creases' trees on gentler ground past the boundary come from the graph's stands (cells of 6 m, keep 0.12).
+    gentler = np.clip(1.0 - 0.12 / np.maximum(pines, 1e-6), 0.0, 1.0) * (slope <= TREE_LIMIT)
+    counts.append(f'{float(gentler.sum()) * cell_area / 36.0:.0f} crease trees in the stands')
+    return trees, grass, flowers, 'steep layers: about ' + ', '.join(counts)
 
 
 def _save(rgba, path):
