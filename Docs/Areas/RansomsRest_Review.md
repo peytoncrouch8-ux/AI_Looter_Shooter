@@ -250,6 +250,10 @@ the doc's own words are marked. Each can be changed in `Tools/Unreal/create_stor
 
 ## Play-test notes
 
-- 2026-10-08, the user: the spider boss got stuck in the wall on spawn. The Gravemother comes out at her den's mouth
-  with her legs in the arch's rock (seen again in the tour's GravemotherDen view): the spawner checks a spot's room with
-  an ordinary creature's capsule, not hers at 1.8 times a spider. Being fixed.
+- 2026-10-08, the user: the spider boss got stuck in the wall on spawn. Fixed in f3e3579. The spawner refused her den's
+  floor (part of Den Rock, which is tagged Obstacle) and took a spot beside the arch's jamb that only had room for a man.
+  Spots now need room for the largest body the spawner brings, and the floor inside the rock her lair stands in counts
+  as ground. In the GravemotherDen view she stands in the den's mouth.
+- 2026-10-08, the user, on the tutorial island: a giant rock stood in the way up to the lookout. Fixed in bd96147. The
+  plateau cliff's last piece was widened to meet its neighbour, and its free end reached across the foot of the ramp. A
+  run's end piece now keeps off a ramp's walkway.
