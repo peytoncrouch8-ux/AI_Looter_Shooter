@@ -8,10 +8,10 @@ class UInstancedStaticMeshComponent;
 class UWorld;
 
 /**
- * A bank of soft cloud for a scene to sail into (Docs/Story.md: the cloud bank the tutorial's skiff enters; later the
- * evening cloud the gang's skiff comes out of): a dozen big puffs of the game's smoke (M_FX_Smoke, unlit and translucent)
- * on camera-facing quads, all one draw, whiter on top and bluer underneath. A puff thins out as the camera comes close,
- * so flying through one never pops, and they're drawn back to front so they blend right.
+ * A bank of soft cloud for a scene to sail into (Docs/Story.md: the cloud bank the tutorial's skiff enters, and the
+ * evening cloud the gang's skiff comes out of in the cold open): a dozen big puffs of the game's smoke (M_FX_Smoke, unlit
+ * and translucent) on camera-facing quads, all one draw, whiter on top and bluer underneath. A puff thins out as the
+ * camera comes close, so flying through one never pops, and they're drawn back to front so they blend right.
  *
  * Cheap on purpose: no volumetrics, a handful of quads, and only while a scene has it out. Its front is at its origin and
  * it reaches back along its forward axis. Looter.Scene.CloudBrightness tunes how bright it reads (0 leaves it out).
@@ -24,8 +24,11 @@ class AI_LOOTER_SHOOTER_API ASceneCloudBank : public AActor
 public:
 	ASceneCloudBank();
 
-	/** A bank at Where (its front, facing along its forward axis); null when it can't be drawn or is turned off. */
-	static ASceneCloudBank* Spawn(UWorld& World, const FTransform& Where);
+	/**
+	 * A bank at Where (its front, facing along its forward axis); null when it can't be drawn or is turned off. InTint
+	 * colors its light (white by day; an evening cloud warm and dim).
+	 */
+	static ASceneCloudBank* Spawn(UWorld& World, const FTransform& Where, const FLinearColor& InTint = FLinearColor::White);
 
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -54,6 +57,9 @@ private:
 	FVector FindViewer() const;
 
 	TArray<FPuff> Puffs;
+
+	/** Its light's color, times the lit tops and shaded undersides. */
+	FLinearColor Tint = FLinearColor::White;
 
 	UPROPERTY(VisibleAnywhere, Category = "Cloud")
 	TObjectPtr<UInstancedStaticMeshComponent> Cards;

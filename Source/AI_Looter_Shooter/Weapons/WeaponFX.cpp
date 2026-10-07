@@ -29,6 +29,7 @@ namespace
 	const FLinearColor IchorColor(0.55f, 0.66f, 0.1f);
 	const FLinearColor IchorFlashColor(0.85f, 1.f, 0.45f);
 	const FLinearColor CritFlashColor(1.f, 0.85f, 0.3f);
+	const FLinearColor GraveDirtColor(0.24f, 0.17f, 0.1f);
 
 	UInstancedStaticMeshComponent* MakeInstances(AActor* Owner, const TCHAR* Name, UStaticMesh* Mesh, UMaterialInterface* Material, int32 CustomFloats)
 	{
@@ -301,6 +302,73 @@ void FWeaponFX::SpawnImpact(const FVector& Location, const FVector& Normal, cons
 	{
 		// Critical hits get a bright pop on top, whatever they hit.
 		Flash(CritFlashColor, 28.f, 26.f, 60.f, 0.1f);
+	}
+}
+
+void FWeaponFX::SpawnFlash(const FVector& Location, const FVector& Direction, float Scale)
+{
+	const FVector Along = Direction.IsNearlyZero() ? FVector::ForwardVector : Direction.GetSafeNormal();
+	const float Size = FMath::Max(Scale, 0.1f);
+	// The gun's own flash in round glows: a hot core at the muzzle and a wider burst a little ahead of it.
+	FParticle& Core = AddParticle(EParticle::Flash, Location, FVector::ZeroVector, 0.06f);
+	Core.Color = FlashColor;
+	Core.Intensity = 30.f;
+	Core.StartSize = 14.f * Size;
+	Core.EndSize = 26.f * Size;
+	Core.Gravity = 0.f;
+	FParticle& Burst = AddParticle(EParticle::Flash, Location + Along * 12.f * Size, FVector::ZeroVector, 0.09f);
+	Burst.Color = SparkColor;
+	Burst.Intensity = 18.f;
+	Burst.StartSize = 30.f * Size;
+	Burst.EndSize = 64.f * Size;
+	Burst.Gravity = 0.f;
+	for (int32 Index = 0; Index < 5; ++Index)
+	{
+		const FVector Out = (Along + Random.GetUnitVector() * 0.35f).GetSafeNormal();
+		FParticle& Spark = AddParticle(EParticle::Spark, Location, Out * Random.FRandRange(900.f, 1700.f), Random.FRandRange(0.08f, 0.18f));
+		Spark.Color = SparkColor;
+		Spark.Intensity = 22.f;
+		Spark.StartSize = 1.f;
+		Spark.Drag = 2.f;
+		Spark.Gravity = 0.3f;
+	}
+	// A breath of smoke left hanging where it fired.
+	FParticle& Puff = AddParticle(EParticle::Smoke, Location + Along * 20.f * Size, Along * 60.f, 0.9f);
+	Puff.Color = DustColor;
+	Puff.Intensity = 0.4f;
+	Puff.StartSize = 12.f * Size;
+	Puff.EndSize = 60.f * Size;
+	Puff.Gravity = -0.03f;
+	Puff.Drag = 2.5f;
+}
+
+void FWeaponFX::SpawnDirt(const FVector& Location, const FVector& Up, float Strength)
+{
+	const FVector Rise = Up.IsNearlyZero() ? FVector::UpVector : Up.GetSafeNormal();
+	const float Amount = FMath::Clamp(Strength, 0.f, 1.f);
+	// Dark puffs that hang over the hole and spread...
+	const int32 Puffs = 3 + FMath::RoundToInt32(5.f * Amount);
+	for (int32 Index = 0; Index < Puffs; ++Index)
+	{
+		const FVector Velocity = Rise * Random.FRandRange(40.f, 140.f) * (0.6f + Amount) + Random.GetUnitVector() * 45.f;
+		FParticle& Puff = AddParticle(EParticle::Smoke, Location + Random.GetUnitVector() * 12.f, Velocity, Random.FRandRange(0.9f, 1.6f));
+		Puff.Color = GraveDirtColor;
+		Puff.Intensity = 0.7f;
+		Puff.StartSize = Random.FRandRange(14.f, 24.f);
+		Puff.EndSize = Random.FRandRange(60.f, 110.f) * (0.7f + 0.5f * Amount);
+		Puff.Gravity = 0.02f;
+		Puff.Drag = 2.2f;
+	}
+	// ...and clods tossed up that fall back onto the heap.
+	const int32 Clods = 4 + FMath::RoundToInt32(10.f * Amount);
+	for (int32 Index = 0; Index < Clods; ++Index)
+	{
+		const FVector Direction = (Rise + Random.GetUnitVector() * 0.7f).GetSafeNormal();
+		const float Speed = Random.FRandRange(180.f, 420.f) * (0.6f + 0.6f * Amount);
+		FParticle& Clod = AddParticle(EParticle::Chip, Location, Direction * Speed, Random.FRandRange(0.7f, 1.2f));
+		Clod.StartSize = Random.FRandRange(2.5f, 6.f);
+		Clod.Rotation = FQuat(Random.GetUnitVector(), Random.FRandRange(0.f, 2.f * UE_PI));
+		Clod.Spin = Random.GetUnitVector() * Random.FRandRange(4.f, 12.f);
 	}
 }
 

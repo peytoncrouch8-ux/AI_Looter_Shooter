@@ -16,6 +16,12 @@ missions (fields, steps and rewards) from what's written here; other mission ass
                        things tagged MissionTest (no level has them: Looter.Mission.Event Interact MissionTest stands in
                        for the interaction component), for 10% of a level's experience. It starts only from the console
                        (Looter.Mission.Start Test), so players never see it.
+  DA_Mission_Main1     "Seven Days", the story's first mission on Ransom's Rest (Docs/Areas/RansomsRest.md, Main 1): the
+                       cold open and the claw-out (scenes UColdOpenSubsystem plays on the story's first arrival, or
+                       passes when it can't), reading Abel's headboard (tagged Headboard_Abel), going up to the farmhouse
+                       (within 9 m of Delia's door, tagged Speaker_Delia) and talking to Grandma Delia there. It starts by
+                       itself on Ransom's Rest. 30% of a level's experience; the family plot's respawn grave opens with
+                       it (ARespawnMarker FamilyPlot, Tools/Unreal/build_area_story.py).
 
 Objectives are instanced objects inside the asset, one class per kind (UMissionReachObjective, UMissionKillObjective, ...),
 made with unreal.new_object(<class>, asset) and listed in each step's 'objectives'. Classes for actor filters are loaded
@@ -32,7 +38,8 @@ def mission_types():
     names = ['MissionDefinition', 'MissionStep', 'MissionRewards', 'MissionActorFilter', 'MissionPlace', 'MissionKind',
              'MissionStart', 'MissionWaypoint', 'MissionCollect', 'MissionPage', 'MissionTravelObjective',
              'MissionReachObjective', 'MissionCollectObjective', 'MissionHitObjective', 'MissionKillObjective',
-             'MissionOpenPageObjective', 'MissionInteractObjective', 'MissionBoardObjective']
+             'MissionOpenPageObjective', 'MissionInteractObjective', 'MissionBoardObjective', 'MissionSceneObjective',
+             'MissionTalkObjective']
     missing = [name for name in names if getattr(unreal, name, None) is None]
     if missing:
         raise RuntimeError(f"unreal.{', unreal.'.join(missing)} missing: build the C++ with Missions/ first")
@@ -138,6 +145,25 @@ def board_skiff_steps(asset):
     ]
 
 
+def main1_steps(asset):
+    """Main 1, "Seven Days": the cold open, the claw-out, the headboard beside Ellis's, the farmhouse, Delia's door. The
+    scenes' names are the C++'s (ColdOpen::SceneName, GraveWake::SceneName); the tags are the ones
+    Tools/Unreal/build_area_story.py gives what it places."""
+    waypoint = unreal.MissionWaypoint
+    return [
+        step(objective(asset, unreal.MissionSceneObjective, 'Seven days ago.',
+                       waypoint=waypoint.NONE, scene=unreal.Name('ColdOpen'))),
+        step(objective(asset, unreal.MissionSceneObjective, 'Claw out of the grave: press {Jump}.',
+                       waypoint=waypoint.NONE, scene=unreal.Name('GraveWake'))),
+        step(objective(asset, unreal.MissionInteractObjective, 'Read the headboard beside yours.',
+                       target=actor_filter(tag='Headboard_Abel'), count=1)),
+        step(objective(asset, unreal.MissionReachObjective, 'Go up to the farmhouse.',
+                       place=place(tag='Speaker_Delia', radius=900.0))),
+        step(objective(asset, unreal.MissionTalkObjective, 'Talk to Grandma Delia at the screen door.',
+                       speaker_tag=unreal.Name('Speaker_Delia'))),
+    ]
+
+
 def test_steps(asset):
     return [
         step(objective(asset, unreal.MissionKillObjective, 'Kill two creatures',
@@ -163,6 +189,12 @@ MISSIONS = [
                  "reward. Only Looter.Mission.Start Test starts it.",
          kind='SIDE', start='MANUAL', area='', prerequisites=[], sort_order=100, steps=test_steps,
          rewards=dict(experience_share=0.1)),
+    dict(asset='DA_Mission_Main1', id='Main1', title='Seven Days',
+         summary="Seven days after the Dunne Gang's last job, Ellis claws out of a fresh grave in the Ransom family plot, "
+                 "beside Pa's. Read the board beside yours, then go up to the farmhouse: Grandma Delia won't open the "
+                 "door to a corpse.",
+         kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=[], sort_order=1, steps=main1_steps,
+         rewards=dict(experience_share=0.3)),
 ]
 
 

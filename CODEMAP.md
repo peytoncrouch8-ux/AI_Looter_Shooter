@@ -65,7 +65,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `Art/Models/Weapons`), painted, with its muzzle, grips and moving reload part.
 - `Weapons/WeaponRecoil`: `FWeaponRecoil` and `FWeaponRecoilProfile`, spring recoil on the gun and the aim.
 - `Weapons/ReloadMotion`: `LooterReload`, the choreography of a reload over its progress.
-- `Weapons/WeaponFX`: `FWeaponFX`, code-drawn tracers, impact sparks, dust and chips.
+- `Weapons/WeaponFX`: `FWeaponFX`, code-drawn tracers, impact sparks, dust and chips; a scene's gunfire without a gun
+  model (`SpawnFlash`) and grave dirt (`SpawnDirt`).
 
 ## Inventory
 - `Inventory/WeaponManagerComponent.h`: `UWeaponManagerComponent`, the player's weapons, backpack and ammo.
@@ -202,7 +203,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   Board.X) and the waypoint setting.
 - `Missions/MissionPlaceObjectives`: reach a place, travel a distance, defend for a time.
 - `Missions/MissionCombatObjectives`: kill N (class, tag, zone), kill a named actor, hit N.
-- `Missions/MissionEventObjectives`: event, interact or hold, talk at a speaker point, play a scene, board.
+- `Missions/MissionEventObjectives`: event, interact or hold, talk at a speaker point, play a scene (done too when it
+  played before the step began), board.
 - `Missions/MissionPlayerObjectives`: collect (guns carried, items picked up), open an inventory page.
 - `Missions/MissionTargets`: `FMissionActorFilter`, `FMissionPlace` and `MissionTargets` (finding an objective's actors:
   nearest living, middle).
@@ -218,9 +220,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 ## Story
 - `Story/StoryLine`: `FStoryLine`, one line said aloud: who says it, the words and its seconds (without seconds, a
   reading time for its words).
-- `Story/StoryLineSet.h`: `UStoryLineSet`, lines said together as a data asset (`DA_Lines_<Name>` in `/Game/Data/Story`).
+- `Story/StoryLineSet.h`: `UStoryLineSet`, lines said together as a data asset (`DA_Lines_<Name>` in `/Game/Data/Story`,
+  made by `Tools/Unreal/create_story_lines.py`: Delia's, the headboards', Hob's).
 - `Story/StoryCondition`: `FStoryCondition`, when something of the story applies (after missions, before others, while
-  one is played), read from the campaign record.
+  one is played, from one of its steps), read from the campaign record.
 - `Story/CaptionQueue`: `FCaptionQueue`, the captions' rules apart from the world: lines one at a time in order, each
   for its seconds with its fades; a conversation that interrupts cuts the line on screen short.
 - `Story/CaptionSubsystem`: `UCaptionSubsystem`, the level's captions: plays lines (interrupting, or after what's
@@ -232,19 +235,54 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   a speaker point, and a leaf of its own if needed that never opens.
 - `Story/StoryCharacter`: `AStoryCharacter`, a non-hostile character of the story: a placeholder body posed by code
   (breathing, turning to whoever it talks to), a speaker point, shown or hidden by story state.
+- `Story/HobBird`: `AHobBird`, Hob, the one-eyed crow: SK_Hob posed by code (plain shapes without his model) on fixed
+  perches chosen by story condition, flying in when the story moves him and saying his piece as he lands, talked to as a
+  story character; `HobBirdRig.cpp` his rig (breathing, the head's small sudden steps, a ruffle now and then, the wings
+  blended open from Hob.py's table and beating about the shoulder in flight).
 
 ## Scenes
-- `Scenes/SceneTimeline`: `FSceneTimeline`, a scene as a timeline with nothing in Sequencer: moves over spans of it and
-  named moments that happen once, in order; a skip puts every move at its end and fires the moments still to come.
-- `Scenes/SceneSubsystem`: `USceneSubsystem`, the level's scenes one at a time (`FScenePlay`): the first cast-off's skiff
-  ride (`PlaySkiffRide`), skipping (`Looter.Scene.Skip`, holding Interact, Escape twice), moments as `OnSceneEvent`,
-  `Scene.<Name>` to the missions, scenes off in tour and perf runs (`Looter.Scenes`, `-NoScenes`);
-  `SceneSubsystemPlayer.cpp` holds the player meanwhile (look-only keys over every other key, the HUD put away, carried
-  on the skiff, the scene's camera) and gives them back.
+- `Scenes/SceneTimeline`: `FSceneTimeline`, a scene as a timeline with nothing in Sequencer: moves over spans of it,
+  named moments that happen once, in order, and waits that hold the clock until a condition holds; a skip passes every
+  wait, puts every move at its end and fires the moments still to come (`IsSkipping` while it does).
+- `Scenes/SceneSubsystem`: `USceneSubsystem`, the level's scenes one at a time (`FScenePlay`, with its own frame and keys
+  when it needs them: `OnTick`, `BindKeys`): the first cast-off's skiff ride (`PlaySkiffRide`), skipping
+  (`Looter.Scene.Skip`, holding Interact, Escape twice), moments as `OnSceneEvent`, `Scene.<Name>` to the missions and
+  which scenes have played here (`HasPlayed`, `MarkPlayed`), scenes off in tour and perf runs (`Looter.Scenes`,
+  `-NoScenes`); `SceneSubsystemPlayer.cpp` holds the player meanwhile (the HUD put away, carried on the skiff or stood
+  where a scene wants them, hidden, the scene's camera and the view handed back) and gives them back;
+  `SceneSubsystemKeys.cpp` their keys meanwhile (look only, the scene's own, over every other key) and the skip keys.
 - `Scenes/SkiffRide`: `SkiffRide`, the first cast-off: the skiff's course (easing out along its bow, a slow climb, a
   gentle turn to starboard and a bob), the white over its last 2.5 s, and the ride as a scene.
-- `Scenes/SceneCloudBank`: `ASceneCloudBank`, soft cloud for a scene to sail into: the game's smoke puff on a dozen
-  camera-facing quads in one draw, thinning near the camera (`Looter.Scene.CloudBrightness`).
+- `Scenes/ColdOpenSubsystem`: `UColdOpenSubsystem`, the story's opening on its first area: as the level begins it plays
+  the cold open, then the grave wake-up, while they're due (the first cast-off made, the cold open not yet seen), records
+  them seen at the end (`bColdOpenSeen`), and passes them where they can't play (scenes off, a level played without the
+  story begun) so Main 1 goes on; `Looter.Scene.ColdOpen`, `.GraveWake` and `.Claw` play them by hand.
+- `Scenes/ColdOpen`: `ColdOpen`, the cold open as a scene: dusk behind the arrival's white, REVENANT rising through it on
+  the gang's skiff gliding out of the evening cloud, down Gravewind Canyon toward the Mooring Ledge ("Home, kid.";
+  "Ransom's Rest. Seven days ago."); then dusk on Ransom's Point through Ellis's eyes (the ember, the bell, "El!", Ned's
+  shot and Abel's fall, the Deacon's, the sky turning over onto Sexton on the far rail) and black. Captions, sounds when
+  the set has them, skippable. `ColdOpenPoint.cpp` is the dusk on the Point; `ColdOpenBeats.h` what the two halves share
+  (the scene's state, its lines, the view, captions, sounds and fades).
+- `Scenes/ColdOpenCourse`: `FColdOpenCourse`, the gang's skiff's course as plain math: a smooth curve through the set's
+  points, travelled at the packet skiff's drift out of the cloud, picking up over the plains, easing off into the canyon,
+  leaning into its turns and heaving.
+- `Scenes/ColdOpenSet`: `AColdOpenSet`, the cold open's marks and looks as data in the level, standing where the lookout
+  stands (`Tools/Unreal/build_area_story.py`): the skiff's course in the world's frame; Ellis's views, the gang, Abel's
+  run and Sexton's seat in the lookout's; the models it draws and its sounds (none made yet).
+- `Scenes/ColdOpenCast`: `AColdOpenCast`, what the cold open shows that the level doesn't have: the gang's skiff in its
+  dark paint with the gang on its deck, the gang again on the lookout's deck, the ember and Abel's lantern as glows with
+  little lights, the muzzle flashes; `ColdOpenCastFigures.cpp` the figures (the UE mannequin posed by code, drawn flat
+  black with `M_Backdrop`) and Sexton (SM_MisterSexton and his ledger on the lookout's Sit socket, black; plain shapes
+  where he isn't imported).
+- `Scenes/GraveWake`: `FGraveClawOut`, clawing out of the grave as rules (three Jump presses, each rising a third of the
+  way and letting the light in) and `GraveWake`, the grave wake-up as a scene: in Ellis's coffin in the dark, the
+  timeline waiting for the claws (grave dirt bursting, the prompt's pips), the climb out to the grave's foot facing the
+  headboard, the view handed back to the player standing there.
+- `Scenes/GraveClawPromptWidget`: `UGraveClawPromptWidget`, the wake-up's "PRESS [SPACE BAR] TO CLAW OUT" over three
+  slanted pips that light as the player claws, floating outlined text with no panel.
+- `Scenes/SceneCloudBank`: `ASceneCloudBank`, soft cloud for a scene to sail into (or out of, tinted for the evening):
+  the game's smoke puff on a dozen camera-facing quads in one draw, thinning near the camera
+  (`Looter.Scene.CloudBrightness`).
 - `Scenes/SceneSkipPromptWidget`: the skip prompt in the bottom right during a scene ("HOLD [E] TO SKIP" over a filling
   bar, "PRESS [ESC] AGAIN TO SKIP").
 - `Scenes/TransitionScreen`: `FTransitionScreen`, the transition screen's rules apart from the screen: a scene's white,
@@ -306,8 +344,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   the first cast-off; before it only the first cast-off to the story's first arrival), each board's words, and
   recording the first cast-off.
 - `Areas/AreaTravelSubsystem`: `UAreaTravelSubsystem`, trips from the boards: the first cast-off's trip behind the white
-  (`CompleteFirstCastOff`, `LeaveForFirstArrival`), plain fades to a station (`FadeTo`), and arriving (the held white
-  revealed, REVENANT on the first arrival; a fade in after a plain trip).
+  (`CompleteFirstCastOff`, `LeaveForFirstArrival`), plain fades to a station (`FadeTo`), and arriving (the cold open while
+  it's due, which takes the held white; else the white revealed, REVENANT on the first arrival; a fade in after a plain
+  trip).
 
 ## World
 - `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime at about a meter per texel,
@@ -462,12 +501,13 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Dev/StationDevCommands.cpp`: `Looter.Station.Board`, `.CastOff`, `.Gangplank up|down`, `.SkipTutorial [stay]`,
   `.Lines`.
 - `Dev/SceneDevCommands.cpp`: `Looter.Scene.Skip`, `Looter.Scene.Ride` (the ride on the nearest skiff, then everything
-  back and the white revealed with no trip), `Looter.Scene.Title [text]`.
+  back and the white revealed with no trip), `Looter.Scene.Title [text]`, `Looter.Scene.ColdOpen` (the cold open then
+  the wake-up, recording nothing), `Looter.Scene.GraveWake` (the claw-out alone), `Looter.Scene.Claw` (a claw, as Jump).
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`); a view's `exec` and `after` commands measure a hidden group by the difference.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LightingTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
-  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `SessionTests.cpp`, `SettingsTests.cpp`, `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `WeaponTests.cpp`,
+  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)
@@ -544,6 +584,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Tools/Unreal/build_area_travel.py`: where an area's trips start and end, for `build_area.py`: the skiff jetty
   (`gameplay.jetty`), the depot as its station with the landing on the platform, the first arrival's player start
   beside the level's own (`gameplay.spawnLanding`), and markers for other landings.
+- `Tools/Unreal/build_area_story.py`: the story's pieces placed from the placed models' sockets, for `build_area.py`'s
+  gameplay pass (Ransom's Rest only): the cold open's set at the lookout, the family plot's respawn grave (open after
+  Main 1), the two headboards to read, Delia's speaker point at the farmhouse's screen door, and Hob with his perches.
 - `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`); its mask is imported
   again whenever the PNG changes (its MD5 kept on the texture as metadata).
   `Tools/Unreal/island_views.py`: an area's viewpoints as editor cameras and shots.

@@ -5,6 +5,8 @@
 #if !UE_BUILD_SHIPPING
 
 #include "AI_Looter_Shooter.h"
+#include "Scenes/ColdOpenSubsystem.h"
+#include "Scenes/GraveWake.h"
 #include "Scenes/SceneSubsystem.h"
 #include "Scenes/SkiffRide.h"
 #include "Scenes/TransitionScreenSubsystem.h"
@@ -128,6 +130,49 @@ namespace
 		Screen->Reveal(Words.IsEmpty() ? UTransitionScreenSubsystem::GameTitle() : FText::FromString(Words.ToUpper()));
 	}
 
+	/**
+	 * Looter.Scene.ColdOpen: the cold open on its own in the level with its set (Ransom's Rest), from the white with the
+	 * title, then the grave wake-up. Nothing is recorded: it plays again as often as asked, and the arrival's still plays.
+	 */
+	void ColdOpenCommand(const TArray<FString>& Args, UWorld* World)
+	{
+		UColdOpenSubsystem* Opening = UColdOpenSubsystem::Get(FindGameWorld(World));
+		if (!Opening)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.Scene.ColdOpen: start the game first."));
+			return;
+		}
+		if (Opening->PlayColdOpen(/*bRecord*/ false))
+		{
+			UE_LOG(LogLooter, Display, TEXT("Looter.Scene.ColdOpen: playing (hold Interact or Escape twice to skip; then Jump claws out)."));
+		}
+		else
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.Scene.ColdOpen: it doesn't play here (no cold open set, a scene playing, or scenes off: Looter.Scenes 2 forces them on)."));
+		}
+	}
+
+	/** Looter.Scene.GraveWake: the grave wake-up alone, at Ellis's grave: Jump three times to claw out. Nothing is recorded. */
+	void GraveWakeCommand(const TArray<FString>& Args, UWorld* World)
+	{
+		UColdOpenSubsystem* Opening = UColdOpenSubsystem::Get(FindGameWorld(World));
+		if (!Opening || !Opening->PlayGraveWake(/*bRecord*/ false))
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.Scene.GraveWake: it doesn't play here (start the game in a level with Ellis's grave; no scene playing)."));
+			return;
+		}
+		UE_LOG(LogLooter, Display, TEXT("Looter.Scene.GraveWake: in the coffin; Jump (or Looter.Scene.Claw) claws."));
+	}
+
+	/** Looter.Scene.Claw: a claw for the grave wake-up playing, as a Jump press. */
+	void ClawCommand(const TArray<FString>& Args, UWorld* World)
+	{
+		UColdOpenSubsystem* Opening = UColdOpenSubsystem::Get(FindGameWorld(World));
+		const bool bClawed = Opening && Opening->Claw();
+		UE_LOG(LogLooter, Display, TEXT("Looter.Scene.Claw: %s (%d of %d)."), bClawed ? TEXT("a claw") : TEXT("nothing to claw at, or too soon after the last"),
+			Opening ? Opening->GetClaws() : 0, FGraveClawOut::PressesNeeded);
+	}
+
 	FAutoConsoleCommandWithWorldAndArgs SkipRegistration(
 		TEXT("Looter.Scene.Skip"),
 		TEXT("Skips the scene playing to its end; its moments (travel among them) still happen."),
@@ -142,6 +187,21 @@ namespace
 		TEXT("Looter.Scene.Title"),
 		TEXT("Holds the white, then reveals it with a title rising through it: Looter.Scene.Title [text] (REVENANT by default)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&TitleCommand));
+
+	FAutoConsoleCommandWithWorldAndArgs ColdOpenRegistration(
+		TEXT("Looter.Scene.ColdOpen"),
+		TEXT("Plays the cold open (the gang's skiff, dusk on Ransom's Point) from the white, then the grave wake-up; nothing is recorded."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ColdOpenCommand));
+
+	FAutoConsoleCommandWithWorldAndArgs GraveWakeRegistration(
+		TEXT("Looter.Scene.GraveWake"),
+		TEXT("Plays the grave wake-up alone at Ellis's grave: Jump three times to claw out; nothing is recorded."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GraveWakeCommand));
+
+	FAutoConsoleCommandWithWorldAndArgs ClawRegistration(
+		TEXT("Looter.Scene.Claw"),
+		TEXT("A claw for the grave wake-up playing, as a Jump press."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ClawCommand));
 }
 
 #endif

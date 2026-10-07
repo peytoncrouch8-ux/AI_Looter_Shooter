@@ -109,14 +109,18 @@ void AStoryCharacter::HandleMissionsChanged()
 
 void AStoryCharacter::RefreshShown()
 {
-	bool bWanted = true;
-	if (!ShownWhen.IsEmpty())
+	SetShown(IsStoryShown());
+}
+
+bool AStoryCharacter::IsStoryShown() const
+{
+	if (ShownWhen.IsEmpty())
 	{
-		// The session's record (a test's in tests). Without a mission runner there's no story for it to be in.
-		const UMissionRunner* Runner = UMissionRunner::Get(this);
-		bWanted = Runner && ShownWhen.IsMet(Runner->GetCampaign(), Runner);
+		return true;
 	}
-	SetShown(bWanted);
+	// The session's record (a test's in tests). Without a mission runner there's no story for it to be in.
+	const UMissionRunner* Runner = UMissionRunner::Get(this);
+	return Runner && ShownWhen.IsMet(Runner->GetCampaign(), Runner);
 }
 
 void AStoryCharacter::SetShown(bool bInShown)

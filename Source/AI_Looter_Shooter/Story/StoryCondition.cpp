@@ -34,10 +34,20 @@ bool FStoryCondition::IsMet(const FCampaignRecord& Campaign, const UMissionRunne
 	if (!DuringMission.IsNone())
 	{
 		// The campaign's main mission is being played wherever the player is; a side mission only while it runs here.
-		const bool bPlayed = Campaign.ActiveMission == DuringMission || (Runner && Runner->IsRunning(DuringMission));
-		if (!bPlayed)
+		const bool bMain = Campaign.ActiveMission == DuringMission;
+		const bool bHere = Runner && Runner->IsRunning(DuringMission);
+		if (!bMain && !bHere)
 		{
 			return false;
+		}
+		if (FromStep > 0)
+		{
+			// The campaign keeps the main mission's step; a mission running here has its own.
+			const int32 Step = bHere ? Runner->GetStep(DuringMission) : Campaign.ActiveMissionStep;
+			if (Step < FromStep)
+			{
+				return false;
+			}
 		}
 	}
 	return true;
@@ -56,7 +66,8 @@ FString FStoryCondition::Describe() const
 	}
 	if (!DuringMission.IsNone())
 	{
-		Parts.Add(TEXT("during ") + DuringMission.ToString());
+		// Steps for people from 1, as the runner's log counts them.
+		Parts.Add(TEXT("during ") + DuringMission.ToString() + (FromStep > 0 ? FString::Printf(TEXT(" from step %d"), FromStep + 1) : FString()));
 	}
 	return Parts.IsEmpty() ? FString(TEXT("always")) : FString::Join(Parts, TEXT("; "));
 }

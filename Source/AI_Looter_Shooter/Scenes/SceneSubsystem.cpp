@@ -20,7 +20,7 @@ namespace
 	TAutoConsoleVariable<int32> CVarScenes(
 		TEXT("Looter.Scenes"),
 		1,
-		TEXT("Scenes (the skiff ride, later the cold open): 1 plays them except in tour and perf runs, 0 never (nothing plays and ")
+		TEXT("Scenes (the skiff ride, the cold open, the grave wake-up): 1 plays them except in tour and perf runs, 0 never (nothing plays and ")
 		TEXT("the game goes straight on, a scene playing skips to its end), 2 always, even in a tour or perf run (to measure one)."));
 
 	/** The mission event a scene's end sends: the missions hear Scene.<Name>. */
@@ -73,7 +73,15 @@ void USceneSubsystem::Tick(float DeltaTime)
 	{
 		if (AreScenesOn(GetWorld()))
 		{
-			AdvanceScene(DeltaTime);
+			// The scene's own frame first (the wake-up's camera), then its timeline; the frame may have asked for a skip.
+			if (Current->OnTick)
+			{
+				Current->OnTick(DeltaTime);
+			}
+			if (Current.IsValid())
+			{
+				AdvanceScene(DeltaTime);
+			}
 		}
 		else
 		{
@@ -137,7 +145,7 @@ bool USceneSubsystem::Play(FScenePlay&& Scene)
 		// Nothing plays, but it counts as played: a mission waiting for it would wait forever otherwise.
 		UE_LOG(LogLooter, Log, TEXT("Scene: %s doesn't play, scenes are off (a tour or perf run, -NoScenes, or Looter.Scenes 0)."),
 			*Scene.Name.ToString());
-		TellMissions(this, Scene.Name);
+		MarkPlayed(Scene.Name);
 		return false;
 	}
 
@@ -179,6 +187,35 @@ FName USceneSubsystem::GetPlayingName() const
 float USceneSubsystem::GetSceneTime() const
 {
 	return Current.IsValid() ? Current->Timeline.GetTime() : 0.f;
+}
+
+bool USceneSubsystem::IsSkipping() const
+{
+	return Current.IsValid() && Current->Timeline.IsSkipping();
+}
+
+bool USceneSubsystem::HasPlayed(FName Scene) const
+{
+	return !Scene.IsNone() && PlayedScenes.Contains(Scene);
+}
+
+bool USceneSubsystem::HasPlayed(const UObject* WorldContextObject, FName Scene)
+{
+	const USceneSubsystem* Scenes = Get(WorldContextObject);
+	return Scenes && Scenes->HasPlayed(Scene);
+}
+
+void USceneSubsystem::MarkPlayed(FName Scene, bool bTellMissions)
+{
+	if (Scene.IsNone())
+	{
+		return;
+	}
+	PlayedScenes.Add(Scene);
+	if (bTellMissions)
+	{
+		TellMissions(this, Scene);
+	}
 }
 
 void USceneSubsystem::AdvanceScene(float DeltaSeconds)
@@ -239,7 +276,7 @@ void USceneSubsystem::FinishScene(bool bSkipped)
 	}
 
 	// Before anything travels, so a trip's save already has what the missions made of it.
-	TellMissions(this, Ended->Name);
+	MarkPlayed(Ended->Name);
 
 	if (Ended->bHoldAfterEnd)
 	{

@@ -36,6 +36,18 @@ public:
 	/** Sparks, flash, dust and chips (or an ichor splash) where a bullet hit, thrown off the surface. */
 	void SpawnImpact(const FVector& Location, const FVector& Normal, const FVector& ShotDirection, EImpactSurface Surface, bool bCritical);
 
+	/**
+	 * A shot's flash in the open, with no gun model to wear one (a scene's gunfire): a hot core, a wider burst a hair
+	 * ahead along Direction, a few sparks thrown out with the shot and a breath of smoke left hanging. Scale sizes it.
+	 */
+	void SpawnFlash(const FVector& Location, const FVector& Direction, float Scale = 1.f);
+
+	/**
+	 * Grave dirt thrown up from Location along Up (the grave wake-up's claws): brown puffs that hang and spread, and clods
+	 * tossed out that fall back. A Strength nearer 1 throws more, farther.
+	 */
+	void SpawnDirt(const FVector& Location, const FVector& Up, float Strength);
+
 	/** Advances the particles and redraws everything, turned to face the camera. */
 	void Tick(float DeltaSeconds, const FVector& CameraLocation);
 

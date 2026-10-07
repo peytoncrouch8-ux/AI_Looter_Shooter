@@ -37,7 +37,22 @@ struct FScenePlay
 	/** Runs as it starts, once the player is held: put them aboard, spawn its props. */
 	TFunction<void()> OnStart;
 
-	/** Runs once it has ended, played or skipped, after the missions have heard: travel goes here (the ride's OnWhiteout). */
+	/**
+	 * Runs every frame while it plays, before its timeline moves on: what a timeline can't say by itself (the grave
+	 * wake-up's camera, which follows the player's presses while the timeline waits for them).
+	 */
+	TFunction<void(float /*DeltaSeconds*/)> OnTick;
+
+	/**
+	 * Binds the scene's own keys besides look and skip (the claw-out's Jump) on its input, which sits over every other key
+	 * in the game: nothing else hears them while it plays.
+	 */
+	TFunction<void(UEnhancedInputComponent& /*Input*/)> BindKeys;
+
+	/**
+	 * Runs once it has ended, played or skipped, after the missions have heard: travel goes here (the ride's OnWhiteout),
+	 * or the next scene (the cold open's grave wake-up), which takes over a player still held (bHoldAfterEnd).
+	 */
 	TFunction<void()> AfterEnd;
 
 	/** For a scene that holds the player for a trip: what to put back when no trip comes (the skiff at its moorings). */
@@ -46,14 +61,15 @@ struct FScenePlay
 
 /**
  * The level's scenes (Docs/Areas/RansomsRest.md, Tech needs: Scenes), all in C++ with no logic in Sequencer: the first
- * cast-off's skiff ride now; the cold open, the grave wake-up, Sexton's scene, Abel's ending and the train's two shots
- * later. A scene is a timeline of camera and actor moves plus named moments (FScenePlay), and one plays at a time.
+ * cast-off's skiff ride, the cold open and the grave wake-up (UColdOpenSubsystem plays those two); Sexton's scene, Abel's
+ * ending and the train's two shots later. A scene is a timeline of camera and actor moves plus named moments
+ * (FScenePlay), and one plays at a time.
  *
  * While one plays it holds the player (SceneSubsystemPlayer.cpp): look-only control or none (no moving, firing, using or
- * menus; the scene's keys sit over every other key and block them), the gameplay HUD put away, no damage, autosaves held,
- * the first-person view. Every scene can be skipped: Looter.Scene.Skip, holding Interact for a second, or Escape twice. A
- * skip jumps to the scene's end state and still fires its moments, so travel always happens. Each moment goes out as
- * OnSceneEvent, and the missions hear Scene.<Name> once a scene has played.
+ * menus; the scene's keys, SceneSubsystemKeys.cpp, sit over every other key and block them), the gameplay HUD put away,
+ * no damage, autosaves held, the first-person view. Every scene can be skipped: Looter.Scene.Skip, holding Interact for
+ * a second, or Escape twice. A skip jumps to the scene's end state and still fires its moments, so travel always
+ * happens. Each moment goes out as OnSceneEvent, and the missions hear Scene.<Name> once a scene has played.
  *
  * Scenes are off in tour and perf runs (AreScenesOn): nothing plays, and callers go straight on (travel at once).
  */
@@ -96,6 +112,19 @@ public:
 	/** Seconds into the scene playing (0 when none is). */
 	float GetSceneTime() const;
 
+	/** The scene playing is jumping to its end (a skip): its moments leave out what only a played scene shows or says. */
+	bool IsSkipping() const;
+
+	/**
+	 * The scene has played in this level: played or skipped to its end, or passed over (scenes off, or the story past it:
+	 * MarkPlayed). A mission step that began after a scene ended asks this, as its event went out before it listened.
+	 */
+	bool HasPlayed(FName Scene) const;
+	static bool HasPlayed(const UObject* WorldContextObject, FName Scene);
+
+	/** Counts a scene as played without playing it (the story is past it); with bTellMissions they hear Scene.<Name>. */
+	void MarkPlayed(FName Scene, bool bTellMissions = true);
+
 	/**
 	 * Whether scenes play in World. Looter.Scenes 0 turns them off and 2 forces them on; at 1 (the default) they're off in
 	 * tour and perf runs: while Looter.Tour runs, or when the command line says so (CommandLineTurnsScenesOff).
@@ -116,14 +145,32 @@ public:
 	/** The held player's pawn, or null. */
 	APawn* GetHeldPawn() const;
 
+	/** The held player's controller (whose view and look the scene has), or null. */
+	APlayerController* GetHeldController() const;
+
 	/** Carries the held player on Carrier: their feet at Feet, facing Yaw, moved with it (not walking) until they're let go. */
 	void CarryPlayer(USceneComponent* Carrier, const FVector& Feet, float Yaw);
+
+	/** Stands the held player with their feet at Feet, facing Yaw, where they'll be when they're let go (out of the grave). */
+	void PlaceHeldPlayer(const FVector& Feet, float Yaw);
+
+	/**
+	 * Hides the held player and what they carry (their guns) while the scene's camera looks elsewhere, or shows them
+	 * again. They're shown again when they're let go.
+	 */
+	void SetHeldPlayerHidden(bool bHidden);
 
 	/** Turns the held player's view by DeltaYaw degrees: what carries them turned. */
 	void TurnHeldView(float DeltaYaw);
 
 	/** The scene's own camera, with the player's view on it (blending in over BlendSeconds) until the scene ends. */
 	ACameraActor* ViewFromSceneCamera(float BlendSeconds = 0.f);
+
+	/** The scene's camera to move, once a scene has taken the view onto it (null before). */
+	ACameraActor* GetSceneCamera() const;
+
+	/** The view back on the held player's own eyes from the scene's camera, blending over BlendSeconds (before letting go). */
+	void ViewFromPlayer(float BlendSeconds);
 
 	/** An actor the scene spawned (its props, a cloud bank): it goes when the scene ends. */
 	void AddSceneActor(AActor* Actor);
@@ -166,7 +213,9 @@ private:
 	/** Gives the held player back: off whatever carried them, at PutBack and looking along View when given, keys and HUD back. */
 	void ReleasePlayer(const FTransform* PutBack, const FRotator* View);
 
-	/** The scene's keys, over every other key in the game and blocking them: look (bLookOnly), and the skip keys. */
+	// --- The scene's keys (SceneSubsystemKeys.cpp) ---
+
+	/** The scene's keys, over every other key in the game and blocking them: look (bLookOnly), the scene's own, the skip keys. */
 	void BindSceneInput(APlayerController& Controller, bool bLookOnly);
 	void UnbindSceneInput();
 
@@ -195,6 +244,12 @@ private:
 	bool bCarried = false;
 	bool bSavesHeld = false;
 	bool bSceneCameraView = false;
+	/** The held player and the actors they carried were hidden by the scene (those, to show again). */
+	bool bHeldHidden = false;
+	TArray<TWeakObjectPtr<AActor>> HiddenActors;
+
+	/** The scenes played in this level (played, skipped or passed over), for the missions that ask after them. */
+	TSet<FName> PlayedScenes;
 
 	/** After a scene that holds the player for a trip: what to put back if none comes, and seconds waited (negative: none). */
 	TFunction<void()> PendingReturn;

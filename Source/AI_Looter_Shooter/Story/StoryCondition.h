@@ -32,6 +32,13 @@ struct AI_LOOTER_SHOOTER_API FStoryCondition
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story")
 	FName DuringMission;
 
+	/**
+	 * With DuringMission: it's on this step or a later one, counted from 0 as the campaign record keeps steps (Hob lands
+	 * once Main 1 is past the claw-out, its step 2). 0: any step.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story", meta = (ClampMin = "0"))
+	int32 FromStep = 0;
+
 	/** It asks nothing, so it always applies. */
 	bool IsEmpty() const;
 

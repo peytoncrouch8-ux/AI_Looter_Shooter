@@ -38,8 +38,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Story")
 	bool IsShown() const { return bShown; }
 
-	/** Reads the story again and shows or hides it. The missions' changes call it; so can tests. */
-	void RefreshShown();
+	/**
+	 * Reads the story again and shows or hides it. The missions' changes call it; so can tests. A character with more to
+	 * follow (Hob's perches) adds to it.
+	 */
+	virtual void RefreshShown();
 
 	/** Moves its pose on by DeltaSeconds (the tick does while it's shown): breathing, and turning to whoever it talks to. */
 	virtual void UpdatePose(float DeltaSeconds);
@@ -74,10 +77,15 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	/** In the world or out of it: seen, solid, talked to and posed, or none of those. */
+	void SetShown(bool bInShown);
+
+	/** Whether its story condition holds now (ShownWhen; an empty condition always does). */
+	bool IsStoryShown() const;
+
 private:
 	void HandleMissionsChanged();
 	void HandleTalked(USpeakerPointComponent& Point, AActor* Listener);
-	void SetShown(bool bInShown);
 
 	/** Remembers the body as placed (its spot and facing), which the pose works from, the first time it's needed. */
 	void CapturePlacedBody();

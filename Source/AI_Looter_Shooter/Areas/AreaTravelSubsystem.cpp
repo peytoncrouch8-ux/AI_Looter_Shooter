@@ -6,6 +6,7 @@
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRunner.h"
 #include "Progression/PlayerProgressionSubsystem.h"
+#include "Scenes/ColdOpenSubsystem.h"
 #include "Scenes/TransitionScreenSubsystem.h"
 #include "Session/CampaignRecord.h"
 #include "Session/SessionSubsystem.h"
@@ -235,6 +236,15 @@ void UAreaTravelSubsystem::HandleLevelBegun()
 	if (!World)
 	{
 		return;
+	}
+	// The story's first area opens on the cold open while it's due (the first arrival): it takes the white the trip held
+	// and reveals it with the title on the gang's skiff, seven days ago.
+	if (UColdOpenSubsystem* Opening = World->GetSubsystem<UColdOpenSubsystem>())
+	{
+		if (Opening->BeginIfDue())
+		{
+			return;
+		}
 	}
 	// A white held through the load comes off now, the player standing on their landing: with the game's title on the
 	// story's first arrival, plain on any other.

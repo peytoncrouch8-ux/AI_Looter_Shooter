@@ -6,8 +6,8 @@
 
 // The objectives done by something the game's systems tell the mission runner (UMissionRunner::NotifyEvent): an
 // interaction, words at a speaker point, a scene that played, boarding the skiff, or any named event. The interaction
-// component and the speaker points send theirs; scenes come later. Looter.Mission.Event sends any of them from the
-// console.
+// component, the speaker points and the scenes (as each ends) send theirs. Looter.Mission.Event sends any of them from
+// the console.
 
 /** A named event happening a number of times ("Bell.Rung"). */
 UCLASS(BlueprintType, meta = (DisplayName = "Event"))
@@ -74,7 +74,11 @@ public:
 	virtual FString DescribeRule() const override;
 };
 
-/** Watch a scene: done when the scene named Scene has played (it sends Scene.<Scene>; scenes come later). */
+/**
+ * Watch a scene: done when the scene named Scene has played (it sends Scene.<Scene> as it ends), or had played in this
+ * level before the step began (USceneSubsystem::HasPlayed: one that played as the level began, or one the story is past),
+ * since its event went out before this listened.
+ */
 UCLASS(BlueprintType, meta = (DisplayName = "Play a scene"))
 class AI_LOOTER_SHOOTER_API UMissionSceneObjective : public UMissionObjective
 {
@@ -84,6 +88,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Objective")
 	FName Scene;
 
+	virtual void Update(const FMissionContext& Context, FMissionObjectiveState& State, float DeltaSeconds) const override;
 	virtual bool HandleEvent(const FMissionContext& Context, FMissionObjectiveState& State, const FMissionEvent& Happened) const override;
 	virtual FString DescribeRule() const override;
 };

@@ -15,13 +15,14 @@ struct FStationBoardLine;
 /**
  * Trips from the station boards (Areas/StationBoard.h) and how the player arrives, one per level:
  *  - the first cast-off, off Skyreach: its jetty plays the skiff's ride (ASkiffJetty::CastOff), and behind the white the
- *    ride ends in, CompleteFirstCastOff records it and travels to the story's first arrival: the family plot's grave on
- *    Ransom's Rest (Landing_FamilyPlot) until the cold open exists. Without a jetty or a ride it goes at once, behind the
- *    white (LeaveForFirstArrival).
+ *    ride ends in, CompleteFirstCastOff records it and travels to the story's first arrival: the family plot on Ransom's
+ *    Rest (Landing_FamilyPlot). Without a jetty or a ride it goes at once, behind the white (LeaveForFirstArrival).
  *  - every later trip (practice to Skyreach and back, every station board): a plain fade to black, then the session's
  *    travel to the destination's station (its first landing). No cutscene: a default the user can change.
- *  - arriving: a white held through the level load (UTransitionScreenSubsystem) is revealed, with the title REVENANT on
- *    the story's first arrival and none otherwise; after a plain trip the screen fades in from black.
+ *  - arriving: the story's first area opens on the cold open while it's due (UColdOpenSubsystem takes the held white and
+ *    reveals it with REVENANT on the gang's skiff, then Ellis claws out of the grave). Otherwise a white held through the
+ *    level load (UTransitionScreenSubsystem) is revealed, with the title REVENANT on the story's first arrival and none
+ *    otherwise; after a plain trip the screen fades in from black.
  * Saves wait while a trip fades out (the trip's own save has everything).
  */
 UCLASS()

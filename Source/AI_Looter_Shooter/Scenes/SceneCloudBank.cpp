@@ -77,7 +77,7 @@ ASceneCloudBank::ASceneCloudBank()
 	Cards->bReceivesDecals = false;
 }
 
-ASceneCloudBank* ASceneCloudBank::Spawn(UWorld& World, const FTransform& Where)
+ASceneCloudBank* ASceneCloudBank::Spawn(UWorld& World, const FTransform& Where, const FLinearColor& InTint)
 {
 	if (CVarCloudBrightness.GetValueOnGameThread() <= 0.f)
 	{
@@ -87,6 +87,10 @@ ASceneCloudBank* ASceneCloudBank::Spawn(UWorld& World, const FTransform& Where)
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	Params.ObjectFlags |= RF_Transient;
 	ASceneCloudBank* Bank = World.SpawnActor<ASceneCloudBank>(ASceneCloudBank::StaticClass(), Where, Params);
+	if (Bank)
+	{
+		Bank->Tint = InTint;
+	}
 	if (Bank && !Bank->Build())
 	{
 		Bank->Destroy();
@@ -185,10 +189,10 @@ void ASceneCloudBank::Redraw(const FVector& Viewer)
 		// The engine's quad lies in XY facing +Z, 100 across: turned to face the camera, then about its own middle.
 		const FQuat Rotation = FRotationMatrix::MakeFromZ(Facing).ToQuat() * FQuat(FVector::UpVector, Puff.Roll);
 		Transforms.Add(FTransform(Rotation, Each.Location, FVector(Puff.Size / 100.f, Puff.Size / 100.f, 1.f)));
-		const FLinearColor Tint = (ShadeColor + (LitColor - ShadeColor) * Puff.Height) * Brightness;
+		const FLinearColor Color = (ShadeColor + (LitColor - ShadeColor) * Puff.Height) * Tint * Brightness;
 		// Thin as the camera comes close, so passing through one never pops.
 		const float Opacity = PuffOpacity * FMath::SmoothStep(NearGone, NearFull, Each.Distance);
-		Data.Append({ Tint.R, Tint.G, Tint.B, Opacity });
+		Data.Append({ Color.R, Color.G, Color.B, Opacity });
 	}
 
 	// Moved in place while the count holds (it always does after the first draw), as FWeaponFX draws its puffs.

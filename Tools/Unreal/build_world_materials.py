@@ -27,7 +27,8 @@
   M_Backdrop      unlit, opaque, one-sided: the far silhouettes past a grounded area (Art/Levels/area_beyond.py), a flat
                   Tint times Brightness (about what sunlit ground of that color shows) times the lighting state's
                   BackdropTint from MPC_Lighting (white by day; lighting_collection.py makes the collection first); the
-                  height fog hazes them.
+                  height fog hazes them. Also the cold open's black silhouettes: the gang and Abel (skinned, so it's set
+                  for skeletal meshes) and Sexton on the rail.
 
 The model importer (FModelImporter) makes MI_<material> instances of these from the Blender materials. Re-running this
 keeps each material asset (so instances stay linked) and rebuilds its graph. Run in the open editor, optionally with the
@@ -548,7 +549,9 @@ def build_backdrop():
                   -300, -50)
     g.out(g.mul(color, '', lighting_tint(g, 'BackdropTint', -600, 200), '', 0, 0), '',
           unreal.MaterialProperty.MP_EMISSIVE_COLOR)
-    finish(mat, [])
+    # The cold open draws its silhouettes with it too (AColdOpenCast: the gang as black mannequins against the sunset),
+    # and they're skinned meshes.
+    finish(mat, [unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH])
     return mat
 
 

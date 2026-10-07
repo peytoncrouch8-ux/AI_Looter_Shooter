@@ -23,18 +23,61 @@ void FSceneTimeline::AddMoment(FName Name, float At, FAction Action)
 	Moments.Insert(MoveTemp(Moment), Index);
 }
 
+void FSceneTimeline::AddWait(float At, FCondition Until)
+{
+	FWaitEntry Wait;
+	Wait.At = FMath::Max(At, 0.f);
+	Wait.Until = MoveTemp(Until);
+	int32 Index = Waits.Num();
+	while (Index > 0 && Waits[Index - 1].At > Wait.At)
+	{
+		--Index;
+	}
+	Waits.Insert(MoveTemp(Wait), Index);
+}
+
 void FSceneTimeline::Advance(float DeltaSeconds)
 {
-	Time += FMath::Max(DeltaSeconds, 0.f);
+	float Target = Time + FMath::Max(DeltaSeconds, 0.f);
+	bWaiting = false;
+	for (FWaitEntry& Wait : Waits)
+	{
+		if (Wait.bPassed)
+		{
+			continue;
+		}
+		if (Wait.At > Target)
+		{
+			// In time order: the rest lie further on.
+			break;
+		}
+		if (Wait.Until && !Wait.Until())
+		{
+			// Held here, never behind where it already is: the moves stay where this time puts them, and the moments
+			// after it wait with it.
+			Target = FMath::Max(Time, Wait.At);
+			bWaiting = true;
+			break;
+		}
+		Wait.bPassed = true;
+	}
+	Time = Target;
 	ApplyMoves(false);
 	FireMoments(false);
 }
 
 void FSceneTimeline::SkipToEnd()
 {
+	bSkipping = true;
+	bWaiting = false;
+	for (FWaitEntry& Wait : Waits)
+	{
+		Wait.bPassed = true;
+	}
 	Time = FMath::Max(Time, GetDuration());
 	ApplyMoves(true);
 	FireMoments(true);
+	bSkipping = false;
 }
 
 float FSceneTimeline::GetDuration() const
@@ -48,13 +91,18 @@ float FSceneTimeline::GetDuration() const
 	{
 		Longest = FMath::Max(Longest, Moment.At);
 	}
+	for (const FWaitEntry& Wait : Waits)
+	{
+		Longest = FMath::Max(Longest, Wait.At);
+	}
 	return Longest;
 }
 
 bool FSceneTimeline::IsFinished() const
 {
 	return !Moves.ContainsByPredicate([](const FMoveEntry& Move) { return !Move.bDone; })
-		&& !Moments.ContainsByPredicate([](const FMomentEntry& Moment) { return !Moment.bHappened; });
+		&& !Moments.ContainsByPredicate([](const FMomentEntry& Moment) { return !Moment.bHappened; })
+		&& !Waits.ContainsByPredicate([](const FWaitEntry& Wait) { return !Wait.bPassed; });
 }
 
 bool FSceneTimeline::HasHappened(FName Moment) const

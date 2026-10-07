@@ -1,4 +1,6 @@
 #include "Missions/MissionEventObjectives.h"
+#include "Scenes/SceneSubsystem.h"
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
 // --- Event ---
@@ -96,6 +98,15 @@ FString UMissionTalkObjective::DescribeRule() const
 }
 
 // --- Scene ---
+
+void UMissionSceneObjective::Update(const FMissionContext& Context, FMissionObjectiveState& State, float DeltaSeconds) const
+{
+	// Played before this step began listening (as the level began, or passed over because the story is past it).
+	if (!Scene.IsNone() && USceneSubsystem::HasPlayed(Context.World, Scene))
+	{
+		State.Count = 1;
+	}
+}
 
 bool UMissionSceneObjective::HandleEvent(const FMissionContext& Context, FMissionObjectiveState& State, const FMissionEvent& Happened) const
 {

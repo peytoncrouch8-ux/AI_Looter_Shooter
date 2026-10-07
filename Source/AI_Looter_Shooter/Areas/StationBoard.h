@@ -75,15 +75,16 @@ struct AI_LOOTER_SHOOTER_API FStationBoardWords
  *    the one it stands in marked as here; later areas aren't shown;
  *  - one blank line naming the mission that opens the next area;
  *  - "Skyreach (practice)" once the player has left it for the first time, on every board but Skyreach's own.
- * Before the first cast-off a board offers one trip only: off Skyreach to the story's first arrival (the family plot's
- * grave on Ransom's Rest, until the cold open exists). "Skip the tutorial" counts as that first cast-off.
+ * Before the first cast-off a board offers one trip only: off Skyreach to the story's first arrival (the family plot on
+ * Ransom's Rest, where the cold open plays and Ellis claws out of the grave). "Skip the tutorial" counts as that first
+ * cast-off.
  */
 namespace StationBoard
 {
 	/** The story's first area: the first cast-off (and "Skip the tutorial") goes there. */
 	AI_LOOTER_SHOOTER_API FName FirstAreaId();
 
-	/** Where the story's first arrival wakes the player until the cold open exists: the family plot's grave. */
+	/** Where the story's first arrival puts the player: the family plot, by Ellis's grave (the cold open plays from there). */
 	AI_LOOTER_SHOOTER_API FName FirstArrivalLanding();
 
 	/** The first cast-off recorded in Campaign: the story has begun, and its first area is open to travel. */
