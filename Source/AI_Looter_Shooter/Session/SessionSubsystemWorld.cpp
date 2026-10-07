@@ -10,6 +10,7 @@
 #include "Session/SessionSave.h"
 #include "Tutorial/TutorialDirector.h"
 #include "Weapons/WeaponBase.h"
+#include "World/WantedPoster.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
@@ -64,8 +65,8 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 	}
 
 	// This map's world, filed under its own name so every other map's stays as it was left: what the racks still offer,
-	// every other gun and ammo pickup lying around, and the tutorial's step. When its creatures were promoted and its
-	// Legendary monsters beaten is kept as it was.
+	// every other gun and ammo pickup lying around, the wanted posters torn down, and the tutorial's step. When its
+	// creatures were promoted and its Legendary monsters beaten is kept as it was.
 	FSavedMapWorld& Here = Save.FindOrAddWorld(MapPackage);
 	const TArray<AWeaponRack*> Racks = FindRacks(World);
 	Here.Racks.Reset();
@@ -75,6 +76,15 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 		State.Rack = Rack->GetFName();
 		State.bWeaponOffered = Rack->IsWeaponOffered();
 		State.AmmoPickupsLeft = Rack->GetAmmoPickupsLeft();
+	}
+	// Torn posters by name, as racks are: Side 1's lasting objective counts what the world keeps down.
+	Here.TornPosters.Reset();
+	for (TActorIterator<AWantedPoster> It(World); It; ++It)
+	{
+		if (It->IsTorn())
+		{
+			Here.TornPosters.Add(It->GetFName());
+		}
 	}
 	Here.LootWeapons.Reset();
 	for (TActorIterator<AWeaponBase> It(World); It; ++It)
@@ -122,6 +132,15 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 			if (const FSavedWeaponRack* State = Here->Racks.FindByPredicate([RackName](const FSavedWeaponRack& Saved) { return Saved.Rack == RackName; }))
 			{
 				Rack->RestoreOffer(State->bWeaponOffered, State->AmmoPickupsLeft);
+			}
+		}
+
+		// The posters torn down before come down again, quietly (no scrap, no remark).
+		for (TActorIterator<AWantedPoster> It(World); It; ++It)
+		{
+			if (Here->TornPosters.Contains(It->GetFName()))
+			{
+				It->RestoreTorn();
 			}
 		}
 

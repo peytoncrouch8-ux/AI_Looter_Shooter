@@ -39,4 +39,10 @@ public:
 
 	/** The point the player looks at to use it (the middle of a door's leaf); unset: the actor's location. */
 	virtual TOptional<FVector> GetInteractionLocation() const { return TOptional<FVector>(); }
+
+	/**
+	 * Used for good, and the world keeps it so (a wanted poster torn down, a hay bale loaded): lasting interact objectives
+	 * (UMissionLastingInteractObjective) count it whenever they look, so their progress survives a session's reload.
+	 */
+	virtual bool IsUsedUp() const { return false; }
 };

@@ -20,7 +20,9 @@ folder, tagged Beyond (Looter.Perf.HideTag measures them by difference); only th
 minimap covers the valley alone. Cliff points with stacked courses get one piece per course; a knob's point places the
 outcrop kit's piece it names (SM_Outcrop_<piece>), and a gully's sloped banks get no faces. Its playable area, KillZ
 and cull distance volume come from build_area_bounds.py; every area's light, sky and fog from build_area_environment.py;
-the skiff jetty, the depot's station and the landings trips arrive at from build_area_travel.py.
+the skiff jetty, the depot's station and the landings trips arrive at from build_area_travel.py; the story's actors
+(the cold open's set, the family plot's grave, the headboards, Delia's door, Hob) from build_area_story.py; the wanted
+posters and Calder's note (layout.json gameplay.posters) from build_area_posters.py.
 """
 import importlib
 import json
@@ -34,6 +36,8 @@ import unreal
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import build_area_bounds  # noqa: E402
 import build_area_environment  # noqa: E402
+import build_area_posters  # noqa: E402
+import build_area_story  # noqa: E402
 import build_area_travel  # noqa: E402
 
 PROJECT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
@@ -197,6 +201,10 @@ class AreaBuild:
                 self.place(dummy, (x, y, z), spot['yaw'], label=f'TargetDummy_{key[-1]}', folder='Gameplay')
         self.travel.place_jetty(self)
         self.travel.place_landings(self)
+        # The story's actors stand on the models placed already (the graves, the lookout, the farmhouse), and so do the
+        # posters (on the buildings' walls and the notice board).
+        self.story.place(self)
+        self.posters.place(self)
 
         # The groups draw from one random stream, in order, so each lands where it did last time.
         rng = random.Random(self.settings.get('seed', 7))
@@ -469,6 +477,8 @@ class AreaBuild:
             self.layout = json.load(f)
         # Reloaded, as the editor keeps modules between runs, so an edited one takes effect.
         self.travel = importlib.reload(build_area_travel)
+        self.story = importlib.reload(build_area_story)
+        self.posters = importlib.reload(build_area_posters)
         if mode == 'gameplay':
             self.open_level('Gameplay')
             self.gameplay(mesh_index())

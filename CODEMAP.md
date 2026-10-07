@@ -79,7 +79,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Interaction
 - `Interaction/Interactable.h`: `IInteractable`, something the player uses with the Interact key (a door, a headboard,
-  the bell, a lantern post, the skiff's gangplank): its prompt, tap or hold, whether it can be used now, and the use.
+  the bell, a lantern post, the skiff's gangplank): its prompt, tap or hold, whether it can be used now, and the use,
+  and whether it's used up for good (a poster torn down).
 - `Interaction/InteractionTypes.h`: `FInteractionOptions` (how the key uses a thing now: a tap, a hold and its time, the
   prompt's words), `FInteractionView` and `FInteractionCandidate` (what the component looks around with).
 - `Interaction/InteractionComponent`: `UInteractionComponent`, the player's Interact key for everything it uses: the
@@ -205,6 +206,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Missions/MissionCombatObjectives`: kill N (class, tag, zone), kill a named actor, hit N.
 - `Missions/MissionEventObjectives`: event, interact or hold, talk at a speaker point, play a scene (done too when it
   played before the step began), board.
+- `Missions/MissionLastingInteractObjective`: `UMissionLastingInteractObjective`, Interact whose count lives in the
+  world: what stays used (`IInteractable::IsUsedUp`, a poster torn down) counts whenever it looks, so a side mission
+  started over after a reload, or opened late, loses nothing.
 - `Missions/MissionPlayerObjectives`: collect (guns carried, items picked up), open an inventory page.
 - `Missions/MissionTargets`: `FMissionActorFilter`, `FMissionPlace` and `MissionTargets` (finding an objective's actors:
   nearest living, middle).
@@ -312,7 +316,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   menu's summaries, playing, deleting, reading saves (brought up to date), autosaves and save holds, Save & Quit, and
   carrying the old progress save into session 1.
 - `Session/SessionSubsystemWorld.cpp`: what a session keeps of the player and each map's world (where the player
-  stands, health, guns, loot on the ground, the gun racks, the tutorial's step) and putting it back.
+  stands, health, guns, loot on the ground, the gun racks, the wanted posters torn down, the tutorial's step) and
+  putting it back.
 - `Session/SessionSubsystemTravel.cpp`: travel between maps (`TravelToArea`, `TravelToMap`): the world left kept under
   its map, the trip's save, the destination opened with the session, and arriving at the trip's landing.
 - `Session/SessionSubsystemSkip.cpp`: "Skip the tutorial": a new game counting as the first cast-off, a Common Bullpup
@@ -500,6 +505,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `.Zones [1|0]` (safe zones, spawners' ground, spots and approach rings), `.Test` (a test spawner where the player looks).
 - `Dev/StationDevCommands.cpp`: `Looter.Station.Board`, `.CastOff`, `.Gangplank up|down`, `.SkipTutorial [stay]`,
   `.Lines`.
+- `Dev/PosterDevCommands.cpp`: `Looter.Poster.Spawn [note]` (a wanted poster, or Calder's note, on the wall the
+  player looks at), `Looter.Poster.TearAll [count]` (tears posters as a held Interact would; missions told).
 - `Dev/SceneDevCommands.cpp`: `Looter.Scene.Skip`, `Looter.Scene.Ride` (the ride on the nearest skiff, then everything
   back and the white revealed with no trip), `Looter.Scene.Title [text]`, `Looter.Scene.ColdOpen` (the cold open then
   the wake-up, recording nothing), `Looter.Scene.GraveWake` (the claw-out alone), `Looter.Scene.Claw` (a claw, as Jump).
@@ -507,7 +514,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LightingTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
-  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `WeaponTests.cpp`,
+  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `PosterTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)
@@ -581,6 +588,12 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Tools/Unreal/build_creature_materials.py`: the creatures' materials beside the world's masters: `M_Ghost` (the
   Unpaid's masked, dithered ghost, its rank, dissolve and flare from the creature's custom primitive data) and the
   clothing tints `MI_Ghost_B` and `_C`; it reuses `build_world_materials.py`'s helpers without running its build.
+- `Tools/Unreal/build_decal_materials.py`: the decals' materials: `T_Posters_BC` from the art (or its stand-in),
+  `M_PosterDecal` (deferred decal: an atlas cell, a hard 0.5 edge, Tint, Roughness), `M_PosterScrap` (the falling
+  scrap: masked, two-sided, a dithered fade from custom primitive data) and their instances.
+  `Tools/Unreal/create_side_mission_assets.py`: the side missions' data assets (`DA_Mission_Side1`, made once its
+  prerequisite Main 3 exists). `Tools/Unreal/build_area_posters.py`: an area's posters from `layout.json`
+  `gameplay.posters` (on a host's face, snapped by a trace, or on a socket), for `build_area.py` or on their own.
 - `Tools/Unreal/build_area_travel.py`: where an area's trips start and end, for `build_area.py`: the skiff jetty
   (`gameplay.jetty`), the depot as its station with the landing on the platform, the first arrival's player start
   beside the level's own (`gameplay.spawnLanding`), and markers for other landings.

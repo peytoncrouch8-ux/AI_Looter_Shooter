@@ -59,8 +59,9 @@ struct AI_LOOTER_SHOOTER_API FSavedWeaponRack
 
 /**
  * What a session keeps of one map's world, so each map stays as it was left while the player is somewhere else: loot on
- * the ground, what the gun racks still offered, the tutorial's step, and when the map's creatures were last promoted and
- * its Legendary monsters last beaten. Creatures themselves aren't kept: they're all back whenever the map is played.
+ * the ground, what the gun racks still offered, the wanted posters torn down, the tutorial's step, and when the map's
+ * creatures were last promoted and its Legendary monsters last beaten. Creatures themselves aren't kept: they're all back
+ * whenever the map is played.
  */
 USTRUCT()
 struct AI_LOOTER_SHOOTER_API FSavedMapWorld
@@ -75,6 +76,14 @@ struct AI_LOOTER_SHOOTER_API FSavedMapWorld
 
 	UPROPERTY()
 	TArray<FSavedWeaponRack> Racks;
+
+	/**
+	 * The wanted posters torn down (AWantedPoster, Side 1), by the poster actor's name in its level: they stay down, and
+	 * Side 1's lasting objective counts them. New within version 2: a save from before it reads as none torn, which is
+	 * right, so it needs no upgrade.
+	 */
+	UPROPERTY()
+	TArray<FName> TornPosters;
 
 	/** The tutorial step on screen, or INDEX_NONE when it wasn't running (on every map but the tutorial's). */
 	UPROPERTY()
