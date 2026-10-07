@@ -4,9 +4,9 @@ Area(path).build() fills one height raster over the area's map square (the layou
 the cell size of each raster, 10 cm for the heights on the tutorial island) in this order, each step working on the
 result of the one before: base noise and hills, ridges and scarps, plateaus and mesas and their cliffs, pits, pads,
 building footprints, knobs, ponds, creek valleys, roads, ramps, creek channels, dry gullies, the gorges below falls,
-easing unplanned banks, and last the rim rolling over the island's edge (or, grounded, the seam band). It keeps what the
-macro painter and the mesh builder need: the heights, the water surface, the outline, and the curves of the roads,
-creeks, gullies and ramps.
+easing unplanned banks, and last the rim rolling over the island's edge (or, grounded, the rock past the playable
+boundary's closed edges (area_boundary.py) and the seam band). It keeps what the macro painter and the mesh builder
+need: the heights, the water surface, the outline, and the curves of the roads, creeks, gullies and ramps.
 
 Features are lists by type (FEATURE_TYPES), in layout order, each with its id: area.plateaus (mesas too), area.pits,
 area.ramps, area.ponds, area.creeks, area.spines (ridge features), area.scarps, area.knobs, area.gullies,
@@ -27,6 +27,7 @@ import os
 
 import numpy as np
 
+import area_boundary
 from area_features import GORGE_STREAM, GORGE_WALL, FeatureSteps, ramp_drop_sides, seam_conflicts
 from area_math import (Grid, arc_length, blur, catmull_rom, cells, fbm, fbm_raster, gauss_smooth_1d, normals_of,
                        points_in_polygon, polygon_area, polyline_field, raster_size, resample, resize, sample,
@@ -226,6 +227,8 @@ class Area(FeatureSteps):
         h = self._gorges(h)
         h = self._relax(h)
         if self.setting == 'grounded':
+            # The rock past the playable boundary's closed edges (boundary.foot), the last of the shaping.
+            h = area_boundary.foot(self, h)
             log('terrain: seam band')
             h = self._seam(h)
         else:

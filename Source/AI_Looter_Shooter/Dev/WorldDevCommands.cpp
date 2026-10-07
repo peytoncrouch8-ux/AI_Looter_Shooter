@@ -7,8 +7,10 @@
 
 #include "AI_Looter_Shooter.h"
 #include "World/PlayableArea.h"
+#include "Components/DirectionalLightComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/LineBatchComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/Engine.h"
@@ -191,6 +193,60 @@ namespace
 		TEXT("Looter.Perf.HideTag"),
 		TEXT("Hides (1, the default) or shows again (0) every actor and component with a tag, to measure its cost by the difference: Looter.Perf.HideTag <tag> [1|0]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&HideTagCommand));
+
+	/**
+	 * Looter.Perf.FarShadow <cascades> [metres]: gives the sun far shadow cascades past its own shadow distance, out to the
+	 * distance given (400 m by default), drawn only by what stands on the ground (actors tagged Obstacle: buildings,
+	 * cliffs, outcrops); 0 takes them away again. Medium's two cascades end at 100 m, so a town seen from a lookout has no
+	 * shadows; a tour view runs this in its exec and after to see and measure what one far cascade would give and cost.
+	 */
+	void FarShadowCommand(const TArray<FString>& Args, UWorld* World)
+	{
+		World = FindGameWorld(World);
+		if (!World || Args.Num() == 0)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.Perf.FarShadow <cascades> [metres]: %s"), World ? TEXT("how many cascades?") : TEXT("no world."));
+			return;
+		}
+		const int32 Cascades = FMath::Clamp(FCString::Atoi(*Args[0]), 0, 4);
+		const float Metres = Args.Num() > 1 ? FCString::Atof(*Args[1]) : 400.f;
+		int32 Suns = 0;
+		int32 Casters = 0;
+		const FName Obstacle(TEXT("Obstacle"));
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			AActor* Actor = *It;
+			TInlineComponentArray<UDirectionalLightComponent*> Lights(Actor);
+			for (UDirectionalLightComponent* Light : Lights)
+			{
+				Light->FarShadowCascadeCount = Cascades;
+				Light->FarShadowDistance = Metres * 100.f;
+				Light->MarkRenderStateDirty();
+				++Suns;
+			}
+			if (!Actor->ActorHasTag(Obstacle))
+			{
+				continue;
+			}
+			TInlineComponentArray<UPrimitiveComponent*> Primitives(Actor);
+			for (UPrimitiveComponent* Primitive : Primitives)
+			{
+				if (Primitive && Primitive->CastShadow)
+				{
+					Primitive->bCastFarShadow = Cascades > 0;
+					Primitive->MarkRenderStateDirty();
+					++Casters;
+				}
+			}
+		}
+		UE_LOG(LogLooter, Display, TEXT("Looter.Perf.FarShadow: %d far cascades to %.0f m on %d suns, drawn by %d obstacle parts, in %s."),
+			Cascades, Metres, Suns, Casters, *World->GetName());
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs FarShadowCommandRegistration(
+		TEXT("Looter.Perf.FarShadow"),
+		TEXT("Gives the sun far shadow cascades out to a distance (400 m by default), drawn by actors tagged Obstacle; 0 takes them away: Looter.Perf.FarShadow <cascades> [metres]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FarShadowCommand));
 }
 
 #endif

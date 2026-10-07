@@ -5,17 +5,20 @@ compute() returns the dictionary, write() saves it.
 The squares the macro map and the scatter mask cover are macroMap.covers and macroMap.scatterMap.covers
 (Tools/Unreal/build_island_scatter.py reads the mask's); a grounded area's ring has its own map, ringMap. Cliff dressing
 comes in groups, one per feature with cliffs (a plateau's or mesa's cliff, a pit's wall, a ramp's walls, a ridge's or
-scarp's face, a knob's rock, a gully's banks, a gorge's walls, a regional ridge's band, the escarpment's lip) plus the
-island's rim; area_cliffs.py has the points' format (stacked courses above 12 m) and Tools/Unreal/build_area.py dresses
-every group. ponds, creeks, ramps, bridges, gullies and waterfalls hold every one by id; the singular pond, creek, ramp,
-bridge and waterfall describe the first of each, as before. A grounded area's playable boundary is "boundary" (corners
-and open edges, as APlayableArea takes them), and every area gets the open-ground metric, "openGround" (area_open.py).
+scarp's face, a knob's rock, a gully's banks, a gorge's walls, a regional ridge's band, the rock raised past the
+playable boundary, the escarpment's lip) plus the island's rim; area_cliffs.py has the points' format (stacked courses
+above 12 m) and Tools/Unreal/build_area.py dresses every group. ponds, creeks, ramps, bridges, gullies and waterfalls
+hold every one by id; the singular pond, creek, ramp, bridge and waterfall describe the first of each, as before. A
+grounded area's playable boundary is "boundary" (corners and open edges, as APlayableArea takes them, and "rise": how
+the ground climbs past its closed edges, area_boundary.py), and every area gets the open-ground metric, "openGround"
+(area_open.py).
 """
 import json
 import math
 
 import numpy as np
 
+import area_boundary
 import area_cliffs
 from area_math import arc_length, points_in_polygon
 from area_shape import CREEK_WATER_HALF, layout_sha1, to_m
@@ -276,8 +279,9 @@ def rim_points(area):
 def cliff_groups(area):
     """Every cliff group in order: each plateau's (and mesa's) cliff and then its ramp's walls, each pit's wall and its
     ramp's, the ridges' and scarps' faces, the knobs' rocks, the gullies' banks, the gorges' walls, then the rim
-    (island setting) or the regional ridges' bands and the escarpment's lip (grounded). A group is named by its
-    feature's cliffGroup (the feature's id, or the ramp's own id, when not given)."""
+    (island setting) or the regional ridges' bands, the rock raised past the boundary ("boundaryFoot", with
+    boundary.foot) and the escarpment's lip (grounded). A group is named by its feature's cliffGroup (the feature's id,
+    or the ramp's own id, when not given)."""
     groups = {}
 
     def add(name, points):
@@ -307,6 +311,8 @@ def cliff_groups(area):
     if area.setting == 'grounded':
         for r in area.region.ridges:
             add(r['id'], area_cliffs.ridge_bands(area, r))
+        if area_boundary.foot_spec(area) is not None:
+            add('boundaryFoot', area_boundary.foot_faces(area))
         if area.region.lip is not None:
             loop, kinds = area.mesh_boundary()
             add('escarpment', area_cliffs.escarpment_points(area, loop[kinds != 1]))
@@ -487,6 +493,9 @@ def _grounded(area, data):
             'note': "APlayableArea's corners (world cm; Z is the ground at the corner, or the nearest ground on the "
                     "core within 2 m for a corner on an open edge, which stands out over a drop) and open_edges (edge i runs from corner i to corner "
                     "i + 1, the last back to corner 0; true where a drop is part of play)"}
+        rise = area_boundary.summary(area)
+        if rise is not None:
+            data['boundary']['rise'] = rise
 
 
 def _ground_near(area, x, y, open_edge):

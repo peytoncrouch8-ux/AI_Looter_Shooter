@@ -12,6 +12,10 @@
     "about": "The macro maps' palette (Art/Levels/area_macro.py GRADES): golden turns the meadow's greens to late-summer gold, the doc's golden grass and ochre soil.",
     "grade": "golden"
   },
+  "scatter": {
+    "about": "The scatter mask (Art/Levels/area_scatter.py): roadside pebbles keeps every road's surface clear of stones and lines the roads with pebbles only, so no rock or boulder stands in Main Street, the yards, on the rail bed or across a junction.",
+    "roadside": "pebbles"
+  },
   "region": {
     "about": "The regional height field around the core (Art/Levels/area_region.py), in cm: the valley floor's noise and tilt (meters of rise per meter north and east) and its benches (a polygon raised or lowered by height, easing out over blend), the ridges (each from its foot: height, crest = how far behind the foot the crest is, back = the outer slope's reach, band = the cliff band at the foot; a saddle lowers the crest near a pass), the escarpment (its lip, the drop to the canyon floor, how deep the cliff kit's stacked courses reach, the far wall; calm keeps the lip from wandering where a model is fitted to it), the surround ring and the backdrop. The core's outer seamBand fades into the field; no feature may enter it.",
     "seamBand": 2500,
@@ -128,7 +132,7 @@
     "ring": { "half": 55000, "cell": 100, "levels": [1000,500,250], "triangles": 38000, "sectors": 8, "macro": 2048 },
     "canyonWall": { "sectors": 4, "triangles": 18000 },
     "backdrop": {
-      "sectors": 4,
+      "sectors": 1,
       "triangles": 6000,
       "layers": [
         {
@@ -161,7 +165,7 @@
     }
   },
   "boundary": {
-    "about": "The playable boundary as approved (Docs/Areas/RansomsRest.plan.json), corners [X, Y] in cm in order; open lists runs of open edges (from corner a to corner b), where a drop is part of play. The other edges run along the foot of rock too steep to climb (the ridges' bands), and across Stage Gap's mouth behind the parked locomotive and the rockslide.",
+    "about": "The playable boundary as approved (Docs/Areas/RansomsRest.plan.json), corners [X, Y] in cm in order; open lists runs of open edges (from corner a to corner b), where a drop is part of play; blocked lists runs closed by something built (Stage Gap's mouth: the parked locomotive and the rockslide). The other edges stand at the foot of rock too steep to climb: the ridges' bands, and wherever a band stands back or fades, the rock foot makes (Art/Levels/area_boundary.py).",
     "polygon": [
       [-400,14600],[1000,14600],[1400,12700],[3700,12100],[6700,10400],[8800,7600],[9300,4200],[9300,3400],
       [10000,3200],[10000,800],[9200,600],[9000,-200],[9300,-3300],[8600,-6500],[6500,-9300],[3900,-11000],
@@ -177,7 +181,22 @@
         "note": "the Rim's lip, from where Larkspur Ridge meets it round Gravewind Point and its deck to the Mooring Ledge's south edge over the Mooring Notch"
       },
       { "from": 34, "to": 35, "note": "Mill Falls, over Mill Gorge" }
-    ]
+    ],
+    "blocked": [
+      {
+        "from": 0,
+        "to": 1,
+        "note": "Stage Gap's mouth: the line runs out through it, and the parked train and the rockslide close it (step 5b)"
+      }
+    ],
+    "foot": {
+      "about": "The rock past every other closed edge (Art/Levels/area_boundary.py): the ground stays level for setback (cm) past the line, then rises at slope (degrees) by at least height (cm) and on at back (degrees), easing into the ground behind by reach (cm). It never lowers the ground, so the ridges' bands stand as they are; it's the rule where a band stands back or fades. Tools/terrain_check.py holds the rise from the line to 5 m out over 44 degrees, its foot within 2.5 m, every 5 m along each edge.",
+      "setback": 200,
+      "slope": 65,
+      "height": 600,
+      "back": 35,
+      "reach": 1600
+    }
   },
   "openGround": {
     "about": "The open-ground metric (Art/Levels/area_open.py): every walkable meter inside the boundary is measured to its nearest break (a building, wall, fence, outcrop or boulder group, tree stand, cliff, or a 1.5 m rise within 6 m). target is the most it should be (cm); open marks ground left open on purpose, which isn't measured (Docs/Areas/RansomsRest.md: the hayfields, Main Street, the crossroads at the keeper's grave and the grave's line to the bell tower).",
@@ -1462,6 +1481,33 @@
         "sun": [247.5,15],
         "obstacles": true,
         "note": "from Ellis's grave (the spawn) to the chapel's bell tower"
+      },
+      "clay_rock_north": {
+        "eye": [8000,-2600,600],
+        "target": [9000,-5600,250],
+        "lens": 24,
+        "clay": true,
+        "obstacles": false,
+        "light": [210,30],
+        "note": "along the north edge under Larkspur Ridge, west of the quarry: the rock foot where the band stood back (boundary.foot); trees left out"
+      },
+      "clay_rock_east": {
+        "eye": [6800,7000,600],
+        "target": [8600,8600,250],
+        "lens": 24,
+        "clay": true,
+        "obstacles": false,
+        "light": [210,30],
+        "note": "along the north-east edge above the Webwood: the rock foot (boundary.foot); trees left out"
+      },
+      "clay_rock_south": {
+        "eye": [-8200,-2400,600],
+        "target": [-9600,2400,250],
+        "lens": 24,
+        "clay": true,
+        "obstacles": false,
+        "light": [30,30],
+        "note": "along the south edge under the Hogback, past the Nose: the rock foot (boundary.foot); trees left out"
       }
     },
     "labels": {
@@ -1501,7 +1547,7 @@
     }
   },
   "level": {
-    "about": "How Tools/Unreal/build_area.py builds the level (step 5a): the map, the tag and outliner folder of everything it places, the zones scattered trees keep out of ([zone id, share of its bounding box]), the scatter's PCG graph and volume (Tools/Unreal/build_island_scatter.py RansomsRest).",
+    "about": "How Tools/Unreal/build_area.py builds the level (step 5a): the map, the tag and outliner folder of everything it places, the zones scattered trees keep out of ([zone id, share of its bounding box]), the scatter's PCG graph and volume (Tools/Unreal/build_island_scatter.py RansomsRest), and how far behind the closed edges the walls stand (wallSetback, cm: at the rock's foot, which rises about 2.5 m past the line).",
     "map": "/Game/Maps/Lvl_RansomsRest",
     "tag": "RansomsRestBuild",
     "folder": "RansomsRest",
@@ -1516,6 +1562,7 @@
     ],
     "scatterGraph": "PCG_RansomsRestScatter",
     "scatterVolume": "RansomsRestScatter",
+    "wallSetback": 250,
     "environment": {
       "about": "The golden hour tried out on Lvl_TerrainTest (Tools/Unreal/build_area_environment.py): the sun low in the west-southwest over the canyon, haze thickest down in the canyon and glowing warm toward the sun, full fog before the backdrop's last layer, the planet's top down on the plains, the cloud dome past the backdrop. Tuned on Ransom's Rest at step 5a.",
       "sun": { "azimuth": 247.5, "elevation": 15, "intensity": 6.5, "temperature": 4100 },

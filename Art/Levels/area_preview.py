@@ -10,9 +10,10 @@ takes its height as absolute), and a lens in mm. Optional: "sun" [azimuth from n
 planned sun: warm, low, its shadows long, its disc in the sky, under a golden sky (else a sun from the view's upper
 left); "light" [azimuth, elevation], a plain sun from there (for clay views); "clay": the terrain in clay with the
 obstacles and the buildings as stand-ins ("cliffs" adds the cliff kit's courses as see-through bands); "obstacles":
-the obstacles' stand-ins on the textured terrain; "ortho": a width (cm) seen straight down onto the target, north up,
-under a dim sky so the sun's shadows read as shapes. preview.features lists the features that get a clay view of
-their own (all of step 3b's when it's left out), and preview.labelSize sets the plan's labels (m).
+the obstacles' stand-ins on the textured terrain (false leaves them out of a clay view, so tree stands don't hide the
+ground); "ortho": a width (cm) seen straight down onto the target, north up, under a dim sky so the sun's shadows read
+as shapes. preview.features lists the features that get a clay view of their own (all of step 3b's when it's left
+out), and preview.labelSize sets the plan's labels (m).
 """
 import math
 import os
@@ -405,7 +406,7 @@ def render_views(area, out_dir, log=print, only=None):
             restore = _clay_terrain(area)
             if view.get('cliffs'):
                 _cliff_stand_ins(area, _computed(area), added)
-        if view.get('clay') or view.get('obstacles'):
+        if view.get('obstacles', bool(view.get('clay'))):
             _obstacle_stand_ins(area, added, clay=bool(view.get('clay')))
         inside = abs(ex) < area.half and abs(ey) < area.half
         eye = _to_b(ex, ey, float(area.height(ex, ey)) + eh if inside else eh)

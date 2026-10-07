@@ -10,7 +10,8 @@ From Art/Levels/<Area>/layout.json (the generator's own geometry, nothing built)
   unique; every ramp at least RAMP_MIN_WIDTH wide;
 - grounded: features, roads, ramps, footprints and the playable boundary clear of the seam band (the core's outer
   region.seamBand, where it fades into the regional field), the lip crossing the core square once, and the boundary a
-  simple polygon whose open runs name real corners.
+  simple polygon whose open and blocked runs name real corners; boundary.foot (the rock past its closed edges,
+  area_boundary.py) able to meet the rule below.
 From Art/Levels/<Area>/layout_computed.json (written by Art/Models/Terrain/<Area>.py --computed):
 - that it was computed from this layout.json (its layoutSha1: area_shape.layout_sha1, which leaves out the blocks the
   generator never reads, "level" and "gameplay");
@@ -18,7 +19,10 @@ From Art/Levels/<Area>/layout_computed.json (written by Art/Models/Terrain/<Area
 - every cliff course at most MAX_COURSE (the cliff kit's tallest piece), every wall taller than that dressed in
   courses that add up to it, every feature that has cliffs given a dressed group;
 - each falls dropping, the boundary's corners and open edges matching, and the open-ground metric against its target
-  (a warning: it's the design's aim, not a rule).
+  (a warning: it's the design's aim, not a rule);
+- where the layout has boundary.foot: past every rock edge (closed, neither open nor blocked), sampled every 5 m along
+  it (boundary.rise), the ground rises steeper than walkable (over the 5 m out from the line, at more than 44 degrees)
+  with its foot within 2.5 m of the line, or drops off the core.
 It prints each finding and a verdict, and exits with 1 on any error.
 """
 import argparse
@@ -32,6 +36,7 @@ import numpy as np
 REPO = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 sys.path.insert(0, os.path.join(REPO, 'Art', 'Levels'))
 
+import area_boundary  # noqa: E402
 import area_features  # noqa: E402
 import area_region  # noqa: E402
 import area_shape  # noqa: E402
@@ -149,8 +154,28 @@ def check_grounded(area, out):
     crossing = area_region.edges_cross(corners)
     for i, j in crossing:
         out.error(f'the boundary\'s edges {i} and {j} cross')
+    area.boundary, area.open_edges = corners, flags
+    try:
+        kinds = area_boundary.edge_kinds(area)
+    except ValueError as error:
+        out.error(str(error))
+        return
     if not crossing:
-        out.ok(f'the boundary: {len(corners)} corners, a simple polygon, {sum(flags)} open edges')
+        blocked = kinds.count('blocked')
+        out.ok(f'the boundary: {len(corners)} corners, a simple polygon, {sum(flags)} open edges'
+               + (f', {blocked} blocked' if blocked else ''))
+    spec = area_boundary.foot_spec(area)
+    if spec is not None:
+        least = float(area_boundary.profile(spec, np.array([area_boundary.RISE_RUN]))[0])
+        need = area_boundary.RISE_RUN * math.tan(math.radians(area_boundary.WALKABLE))
+        text = (f'boundary.foot: past its {kinds.count("rock")} rock edges the ground rises from '
+                f'{spec["setback"]:g} m out at {math.degrees(math.atan(spec["slope"])):.0f} degrees by at least '
+                f'{spec["height"]:g} m')
+        if spec['setback'] >= area_boundary.FOOT_WITHIN or least <= need or spec['reach'] <= area_boundary.RISE_RUN:
+            out.error(text + f' (the rock must start within {area_boundary.FOOT_WITHIN:g} m and stand over '
+                             f'{need:.2f} m at {area_boundary.RISE_RUN:g} m out, inside its reach)')
+        else:
+            out.ok(text)
 
 
 def grades(points):
@@ -241,6 +266,8 @@ def check_computed(area, computed, out):
         else:
             out.ok(f'boundary: {len(corners)} corners with ground heights, {sum(flags)} open edges, ready for '
                    'APlayableArea')
+    if area.setting == 'grounded' and boundary is not None:
+        check_rise(area, boundary.get('rise'), out)
     # Open ground.
     metric = data.get('openGround')
     if metric and 'largest' in metric:
@@ -257,6 +284,39 @@ def check_computed(area, computed, out):
                           f'(layout [{spot["location"][0]:.0f}, {spot["location"][1]:.0f}])')
         else:
             out.ok(text)
+
+
+def check_rise(area, rise, out):
+    """The ground past the boundary's rock edges (boundary.rise, area_boundary.py): held to the rule where the layout
+    asks for it (boundary.foot), only reported where it doesn't."""
+    rule = area.layout.get('boundary', {}).get('foot') is not None
+    if rise is None:
+        if rule:
+            out.error('boundary: no rise measured past its closed edges: run the terrain model with --computed again')
+        return
+    rows = rise['samples']
+    bad = [r for r in rows if not area_boundary.passes({'edge': r[0], 'angle': r[2],
+                                                        'foot': None if r[3] is None else r[3] / 100.0, 'drop': r[4]})]
+    walk = [r for r in rows if not r[4]]
+    if not walk:
+        out.ok(f'boundary rock: all {len(rows)} samples past the closed edges drop off the core')
+        return
+    feet = [r[3] for r in walk if r[3] is not None]
+    text = (f'boundary rock: {len(rows)} samples every {rise["step"] / 100.0:g} m along {len({r[0] for r in rows})} '
+            f'rock edges, the rise from the line to {rise["run"] / 100.0:g} m out '
+            f'{min(r[2] for r in walk):.1f}-{max(r[2] for r in walk):.1f} degrees (over {rise["walkable"]:g}), '
+            + (f'the foot {min(feet) / 100.0:.1f}-{max(feet) / 100.0:.1f} m out (within {rise["within"] / 100.0:g} m)'
+               if feet else 'no foot')
+            + (f'; {len(rows) - len(walk)} drop off the core' if len(walk) < len(rows) else ''))
+    if not bad:
+        out.ok(text)
+        return
+    report = out.error if rule else out.warn
+    report(f'boundary rock: {len(bad)} of {len(rows)} samples past a closed edge stay walkable'
+           + ('' if rule else ' (the layout has no boundary.foot rule)'))
+    for r in bad[:12]:
+        foot = 'none' if r[3] is None else f'{r[3] / 100.0:.1f} m'
+        print(f'             edge {r[0]} at {r[1]:.2f}: rises {r[2]:.1f} degrees to 5 m out, foot {foot}')
 
 
 def main():

@@ -16,6 +16,12 @@ Edges are softened by a few pixels, so density filters give natural transitions.
 A grounded area has no rim: things grow on the core up to 10 m past the playable boundary (the macro map paints their
 color beyond), with no pebble band along an edge; a gully's bed is gravel (pebbles, no grass or trees), and a pit's
 floor grows little.
+
+The scatter graph (Tools/Unreal/build_island_scatter.py) draws pebbles, rocks and boulders all from A: rocks and
+boulders where it's over ROCK_KEEP, pebbles over 0.1. A layout's "scatter": {"roadside": "pebbles"} keeps the stones
+off its roads: A is 0 on every road's surface (another road's band at a junction too), and within ROADSIDE_CLEAR m of
+a road's edge it stays under ROCK_KEEP, so only pebbles line the roads and no rock or boulder stands in a street, on the
+rail bed or across a junction. Without it ("stones", the default) rocks and boulders line the roads too.
 """
 import os
 
@@ -23,6 +29,12 @@ import numpy as np
 
 from area_math import Grid, blur, catmull_rom, cells, fbm_raster, polyline_field, signed_distance
 from area_shape import to_m
+
+# The scatter graph's Rocks and Boulders layers keep A over this (build_island_scatter.py); pebbles keep it over 0.1.
+ROCK_KEEP = 0.15
+PEBBLES_ONLY = ROCK_KEEP - 0.01  # A's most near a road with "roadside": "pebbles": pebbles but no rocks
+ROADSIDE_CLEAR = 2.5    # meters past a road's edge that big stones keep clear of (a boulder's reach)
+ROADSIDE = ('stones', 'pebbles')
 
 # What a yard (layout.json "yards") keeps clear, by its kind: bare ground (radius, soft edge) and no trees (radius,
 # soft edge), in meters.
@@ -71,10 +83,15 @@ def paint(area, out_path, preview_dir=None, log=print):
     water = area.resized(np.nan_to_num(surface, nan=-100.0), n)
     wet = _ss(-0.25, 0.05, water - h)  # 1 in the water and on the waterline
 
-    # Roads, paths and ramps: the surface (for grass), the surface plus 1.5 m (for trees), the band beside it.
+    # Roads, paths and ramps: the surface (for grass), the surface plus 1.5 m (for trees), the band beside it, and
+    # (roadside pebbles) the ground near enough for a boulder to reach the road.
+    roadside = area.layout.get('scatter', {}).get('roadside', 'stones')
+    if roadside not in ROADSIDE:
+        raise ValueError(f"{area.path}: scatter.roadside must be {' or '.join(ROADSIDE)}, not {roadside!r}")
     surface_w = np.zeros((n, n), np.float32)
     clear_w = np.zeros((n, n), np.float32)
     shoulder = np.zeros((n, n), np.float32)
+    near_road = np.zeros((n, n), np.float32)
     curves = list(area.roads) + [dict(r, kind='ramp') for r in area.ramps]
     for road in curves:
         half = road['width'] * 0.5
@@ -83,6 +100,7 @@ def paint(area, out_path, preview_dir=None, log=print):
         surface_w = np.maximum(surface_w, 1.0 - _ss(half - 0.5, half + 0.5, d))
         clear_w = np.maximum(clear_w, 1.0 - _ss(half + 1.5, half + 2.3, d))
         shoulder = np.maximum(shoulder, _ss(half - 0.2, half + 0.2, d) * (1.0 - _ss(half + 0.8, half + 1.4, d)))
+        near_road = np.maximum(near_road, 1.0 - _ss(half + ROADSIDE_CLEAR, half + ROADSIDE_CLEAR + 0.4, d))
 
     # Built-up ground: footprints (flat radius plus blend) and the yards' bare dirt (a farmyard, a village square).
     built = np.zeros((n, n), np.float32)
@@ -159,6 +177,10 @@ def paint(area, out_path, preview_dir=None, log=print):
     for k in range(4):
         rgba[..., k] = blur(np.clip(rgba[..., k], 0.0, 1.0), soften)
     rgba = np.clip(rgba, 0.0, 1.0)
+    if roadside == 'pebbles':
+        # After the softening, so no edge creeps back over the line: nothing on the roads, pebbles only beside them.
+        cap = 1.0 - (1.0 - PEBBLES_ONLY) * near_road
+        rgba[..., 3] = np.minimum(rgba[..., 3], cap) * (1.0 - _ss(0.0, 0.5, surface_w))
     _save(rgba, out_path)
     written = out_path
     if preview_dir:

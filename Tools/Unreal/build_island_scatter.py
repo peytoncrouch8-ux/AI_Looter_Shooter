@@ -16,6 +16,7 @@ open (the area defaults to TutorialIsland):
 Then save the level. After changing the terrain or the mask, select the scatter volume (IslandScatter on the tutorial
 island; layout.json level.scatterVolume) and press Generate.
 """
+import hashlib
 import json
 import math
 import os
@@ -66,19 +67,28 @@ class Area:
 
 
 def import_mask(area):
-    """The mask as exact, uncompressed values without mips (PCG reads it on the CPU; it never renders)."""
-    if not unreal.EditorAssetLibrary.does_asset_exist(area.mask):
+    """The mask as exact, uncompressed values without mips (PCG reads it on the CPU; it never renders). It's imported
+    again whenever the PNG changes: the PNG's MD5 is kept on the texture as metadata (SourceMD5). Importing only when the
+    asset was missing once left a regenerated mask out of the scatter."""
+    source = os.path.join(PROJECT, area.mask_file)
+    with open(source, 'rb') as f:
+        digest = hashlib.md5(f.read()).hexdigest()
+    library = unreal.EditorAssetLibrary
+    current = unreal.load_asset(area.mask) if library.does_asset_exist(area.mask) else None
+    if current is None or library.get_metadata_tag(current, 'SourceMD5') != digest:
         task = unreal.AssetImportTask()
-        task.set_editor_property('filename', os.path.join(PROJECT, area.mask_file))
+        task.set_editor_property('filename', source)
         task.set_editor_property('destination_path', area.mask.rsplit('/', 1)[0])
         task.set_editor_property('automated', True)
         task.set_editor_property('replace_existing', True)
         unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+        unreal.log(f'Island scatter: {area.mask} imported from {area.mask_file} (MD5 {digest})')
     mask = unreal.load_asset(area.mask)
     mask.set_editor_property('srgb', False)
     mask.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_VECTOR_DISPLACEMENTMAP)
     mask.set_editor_property('mip_gen_settings', unreal.TextureMipGenSettings.TMGS_NO_MIPMAPS)
-    unreal.EditorAssetLibrary.save_loaded_asset(mask)
+    library.set_metadata_tag(mask, 'SourceMD5', digest)
+    library.save_loaded_asset(mask)
     return mask
 
 

@@ -57,7 +57,12 @@ def place(build):
     area = build.place(unreal.load_class(None, PLAYABLE_AREA), (0, 0, 0), label='PlayableArea', folder='Bounds')
     area.set_editor_property('corners', [unreal.Vector(*c) for c in boundary['corners']])
     area.set_editor_property('open_edges', [bool(o) for o in boundary['openEdges']])
-    build.log(f"playable area: {len(boundary['corners'])} corners, {sum(boundary['openEdges'])} open edges")
+    # The walls stand at the rock's foot rather than on the line a few metres before it, so a player walking out stops
+    # against rock, not in the air (level.wallSetback, cm; the line stays where the map has it).
+    setback = build.source.get('level', {}).get('wallSetback', 0.0)
+    area.set_editor_property('wall_setback', float(setback))
+    build.log(f"playable area: {len(boundary['corners'])} corners, {sum(boundary['openEdges'])} open edges, "
+              f"walls {setback / 100.0:.1f} m behind the line")
 
     world = unreal.EditorLevelLibrary.get_editor_world()
     settings = world.get_world_settings()
