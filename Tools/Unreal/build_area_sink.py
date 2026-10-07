@@ -27,8 +27,11 @@ below hold every number; Main changes them there after looking in the editor.
   the shared look.
 - The three egg sacs (AEggSac tagged EggSac, Main 5's second step): SM_EggSac_A and _C hanging by SOCKET_Silk from two
   Web_Lines each, glued to the wall either side where each line first meets the rock; SM_EggSac_B in its Web_Sling
-  against the north-west wall (one transform: the sling's SOCKET_Sac, the wall 66 cm behind). Shootable during Main 5's
-  second step only; burst on the floor from the start after it. Their spiders (two each, Basic, tagged Spider_EggSac) fight on the floor.
+  against the north-west wall (one transform: the sling's SOCKET_Sac, the wall 66 cm behind), two Web_Lines from its
+  SOCKET_Silk back to the rock. Each sac's body stands clear of the rock (SAC_MARGIN's rule: moved out along its front,
+  sling and lines with it, where a column juts out beside the traced wall). Shootable during Main 5's second step
+  only; burst on the floor from the start after it. Their spiders (two each, Basic, tagged Spider_EggSac) fight on the
+  floor.
 - The Keeper's Lantern (AKeepersLantern tagged Lantern_Keeper): Web_Snare at the north wall's foot, the lantern hanging
   dark from its SOCKET_Lantern by its SOCKET_Grip, taken in Main 5's third step.
 - The places' markers: the floor's middle (a target point tagged Place_SinkFloor: "Climb down into the Sink", within
@@ -121,9 +124,11 @@ DRAPES = (('West', 0, 1), ('North', 1, 1), ('East', 2, 1))
 
 # The three egg sacs. Hanging (A, C): its silk at dist out from the middle along its bearing, silk_up over the floor, two
 # Web_Lines from the wall at the anchors' bearings, anchor_up over the floor; its mouth turned to the middle. Slung (B): its
-# pivot (its bottom) pivot_up over the floor against the wall at its bearing; it lands burst_out in front of the wall.
+# pivot (its bottom) pivot_up over the floor against the wall at its bearing; it lands burst_out in front of the wall; its
+# silk_lines run from its SOCKET_Silk back to the rock, each turned from straight back and rising (degrees).
 SACS = (
-    dict(model='EggSac_B', bearing=-75.0, kind='sling', pivot_up=280.0, burst_out=40.0),
+    dict(model='EggSac_B', bearing=-75.0, kind='sling', pivot_up=280.0, burst_out=40.0,
+         silk_lines=((-35.0, 30.0), (35.0, 30.0))),
     dict(model='EggSac_A', bearing=-40.0, kind='hang', dist=1350.0, silk_up=520.0, anchors=(-58.0, -22.0), anchor_up=850.0),
     dict(model='EggSac_C', bearing=32.0, kind='hang', dist=1300.0, silk_up=560.0, anchors=(16.0, 48.0), anchor_up=850.0),
 )
@@ -133,6 +138,18 @@ SLING_OFF_WALL = 66.0
 # looked for up to LINE_PAST beyond that point; nearer the silk than LINE_MIN is no anchor (cm).
 LINE_PAST = 300.0
 LINE_MIN = 100.0
+# A slung sac's silk lines reach this far for the rock, and are no shorter than SILK_LINE_MIN (cm).
+SILK_LINE_REACH = 400.0
+SILK_LINE_MIN = 30.0
+# Every sac's body (its collision hulls) stands SAC_MARGIN clear of anything solid (the terrain, the cliff pieces, Den
+# Rock, the blocks): level lines every SAC_PROBE_STEP across it, each along its front, run from in front of it back to
+# its body's back, and where something solid stands on one before it clears the body's back by the margin, the sac (with
+# its sling) moves out along its front until it does, its lines glued from there. A wall isn't one plane where it was
+# traced: a column jutting out beside that point stood half through the sling's sac. Past SAC_PUSH_MOST it stays, with a
+# warning (cm). (Not SAC_STEP: that's the mission step the sacs are shot in.)
+SAC_MARGIN = 10.0
+SAC_PROBE_STEP = 15.0
+SAC_PUSH_MOST = 250.0
 
 # The Keeper's Lantern: the snare's middle out from the north wall's foot along its bearing, and over the floor (cm). Its
 # second card crosses the first at 55 degrees and reaches about 1 m back: to the wall.
@@ -578,6 +595,66 @@ def line_anchor(sink, silk, bearing, up):
     return hit[0]
 
 
+def glue_back(sink, start, bearing, rise):
+    """Where a line from start, along a bearing and rising so many degrees, first meets something solid within
+    SILK_LINE_REACH (past what's placed here), or None (or nearer than SILK_LINE_MIN)."""
+    b, r = math.radians(bearing), math.radians(rise)
+    way = unreal.Vector(math.cos(b) * math.cos(r), math.sin(b) * math.cos(r), math.sin(r))
+    hit = trace(start, start + way * SILK_LINE_REACH, sink.placed)
+    if hit is None or (hit[0] - start).length() < SILK_LINE_MIN:
+        return None
+    return hit[0]
+
+
+def body_hit(body, start, end):
+    """Where a line first meets a sac's body: its collision hulls (simple), which leave out its threads and strands, else
+    its model (complex) when it has no hulls. None when it misses."""
+    for complex_trace in (False, True):
+        hit = body.line_trace_component(start, end, complex_trace, False, False)
+        if hit:
+            if isinstance(hit, tuple):
+                return next((item for item in hit if isinstance(item, unreal.Vector)), None)
+            return hit.to_tuple()[5]
+    return None
+
+
+def clearance(build, sink, sac, body, yaw, name):
+    """How far a sac must move out along its front (level, cm) for its body to stand SAC_MARGIN clear of anything solid
+    (SAC_MARGIN's rule): 0 when it does, or when it would have to move further than SAC_PUSH_MOST (with a warning)."""
+    b = math.radians(yaw)
+    out = unreal.Vector(math.cos(b), math.sin(b), 0.0)
+    side = unreal.Vector(-math.sin(b), math.cos(b), 0.0)
+    up = unreal.Vector(0.0, 0.0, 1.0)
+    origin, extent = sac.get_actor_bounds(True)
+    deep = abs(out.x) * extent.x + abs(out.y) * extent.y
+    wide = abs(side.x) * extent.x + abs(side.y) * extent.y
+    ignore = sink.not_solid()
+    push = 0.0
+    lines = 0
+    across = max(int(math.ceil(2.0 * wide / SAC_PROBE_STEP)), 1)
+    high = max(int(math.ceil(2.0 * extent.z / SAC_PROBE_STEP)), 1)
+    for i in range(across + 1):
+        for j in range(high + 1):
+            middle = origin + side * (-wide + 2.0 * wide * i / across) + up * (-extent.z + 2.0 * extent.z * j / high)
+            back = body_hit(body, middle - out * (deep + 50.0), middle + out * (deep + 50.0))
+            if back is None:
+                continue
+            lines += 1
+            # The first solid thing coming back along the line from as far in front as the sac may move.
+            front = middle + out * (deep + SAC_PUSH_MOST + SAC_MARGIN)
+            hit = trace(front, back - out * (SAC_MARGIN + 1.0), ignore)
+            if hit is not None:
+                push = max(push, ((hit[0] - back).x * out.x + (hit[0] - back).y * out.y) + SAC_MARGIN)
+    if not lines:
+        build.warn(f'{name}: no line met its body, so it wasn\'t checked against the rock')
+        return 0.0
+    if push > SAC_PUSH_MOST:
+        build.warn(f'{name} stands {push:.0f} cm into something solid, more than {SAC_PUSH_MOST:.0f}: left where it is '
+                   f'(look at its place in SACS)')
+        return 0.0
+    return push
+
+
 def place_line(build, sink, a, b, label):
     """A Web_Line from a (glued) to b: built 4 m long from its pivot along its -Y, sagging 10 cm; stretched (Y and Z) to
     span."""
@@ -632,6 +709,7 @@ def hang_sac(build, sink, cls, spec, index):
         x, y = sink.along(bearing, spec['dist'])
         silk = unreal.Vector(x, y, sink.fz + spec['silk_up'])
         pivot = unreal.Vector(x, y, silk.z - 220.0)
+        sling = None
     sac = sink.keep(build.place(cls, (pivot.x, pivot.y, pivot.z), yaw, label=f'Sink_{spec["model"]}', folder='Gameplay',
                                 tags=(SAC_TAG,)))
     body = sac.get_editor_property('sac')
@@ -643,6 +721,31 @@ def hang_sac(build, sink, cls, spec, index):
             sac.set_actor_location(sac.get_actor_location() + offset, False, True)
         else:
             build.warn(f'SM_{spec["model"]} has no SOCKET_Silk: it hangs by its top instead')
+    # Clear of the rock (SAC_MARGIN's rule), its sling and its silk with it.
+    push = clearance(build, sink, sac, body, yaw, spec['model'])
+    if push > 0.0:
+        out = unreal.Vector(math.cos(math.radians(yaw)) * push, math.sin(math.radians(yaw)) * push, 0.0)
+        sac.set_actor_location(sac.get_actor_location() + out, False, True)
+        if spec['kind'] == 'sling' and sling is not None:
+            sling.set_actor_location(sling.get_actor_location() + out, False, True)
+        if silk is not None:
+            silk = silk + out
+        moved = sac.get_actor_location()
+        build.log(f'{spec["model"]} moved {push:.0f} cm out of the rock, to ({moved.x:.0f}, {moved.y:.0f}), so its body '
+                  f'stands {SAC_MARGIN:.0f} cm clear')
+    if spec.get('silk_lines'):
+        # A slung sac's own lines, from its knot back to the rock behind it.
+        if body.does_socket_exist('Silk'):
+            knot = body.get_socket_location('Silk')
+            for side, (turn_by, rise) in enumerate(spec['silk_lines']):
+                glued = glue_back(sink, knot, yaw + 180.0 + turn_by, rise)
+                if glued is None:
+                    build.warn(f'{spec["model"]}\'s silk line {side + 1} meets no rock behind it: it\'s left out')
+                    continue
+                place_line(build, sink, glued, knot, f'Sink_Web_Line_{index + 1}{"ab"[side]}')
+        else:
+            build.warn(f'SM_{spec["model"]} has no SOCKET_Silk: no silk lines to the rock')
+    if silk is not None:
         lines = 0
         for side, anchor in enumerate(spec['anchors']):
             glued = line_anchor(sink, silk, anchor, spec['anchor_up'])

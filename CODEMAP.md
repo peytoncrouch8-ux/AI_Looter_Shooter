@@ -816,8 +816,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   (on the town gate's SOCKET_Perch for Main 3).
 - `Tools/Unreal/build_area_sink.py`: Main 5's pieces for `build_area_story.py`: the Sink's floor (blocks and coffins, in
   the Sink's own dusty granite), its web cards (shadows off; corner mats at the walls' feet, the floor's mats in dusty
-  silk, orb webs only across a gap between two solid things), the three egg sacs on their lines (each ending where it
-  first meets rock) and sling, the lantern in its snare, the floor's and ramp
+  silk, orb webs only across a gap between two solid things), the three egg sacs, kept clear of the rock, on their
+  lines (each ending where it first meets rock) and sling, the lantern in its snare, the floor's and ramp
   head's places, the floor's spiders, the den's web funnel, the Webwood's dead trees and Hob's Sink perches; transforms
   in tables in the Sink's own frame.
 - `Tools/Unreal/build_area_chapel.py`: Main 4's pieces for `build_area_story.py`: the chapel's place, the chapel yard's
