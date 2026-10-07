@@ -493,7 +493,7 @@ def _grounded(area, data):
              'note': 'the dry scrub (area_scrub.py): the mask\'s layers (a channel each, candidates every cell cm '
                      'jittered by jitter of a cell, kept where mask x random >= keep; the graph names the meshes), '
                      'and points in cm: crestJunipers [x, y, yaw], pitTufts and pitSage [x, y], '
-                     'rimJunipers [x, y, yaw]',
+                     'rimJunipers [x, y, yaw], sageGroups [x, y] (the sage\'s tight groups)',
              'layers': area_scrub.LAYERS},
             **area_scrub.points(area))
     ring = [[-region.half * 100.0, -region.half * 100.0], [region.half * 100.0, region.half * 100.0]]

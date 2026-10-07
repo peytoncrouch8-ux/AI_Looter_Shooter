@@ -5,7 +5,14 @@ session's:
 
   slopes      sagebrush 0.15-0.25 (thinning up the faces), dry tufts 0.25-0.4 in the gaps (out to TUFT_REACH m past
               the boundary: they're culled at 40 m), rabbitbrush 0.01-0.02 at the faces' toes, junipers 0.02-0.04
-              only in the creases (area_faces.py), at least 4 m apart
+              in the creases (area_faces.py), at least 4 m apart
+  steep faces (BIG_SLOPE to 50 degrees, most of what's seen of the ridges) big sagebrush 0.06-0.1, junipers
+              0.008-0.015 on the benches and ledges (where the face eases off for a step) and the rock bands' tops,
+              dry tufts 0.15 in the gaps; past 50 degrees bare (the terrain's rock)
+Never an even dotting: the sage (and less the tufts) comes in patches 10-30 m across, from 0.2 to 1.6 times its
+density (PATCHES), so some ground is nearly bare and some thick; thicker in concave swales, gullies, the creases and at
+a slope's toe, thinner on convex spurs and crests (the heights' curvature); and a fifth of it (GROUP_SHARE) stands in
+tight groups of 2-4, touching (points()).
   flats       on the margins only (the roadsides, the slopes' toes, the boundary's edge, the gullies' banks, round the
               ruins; never in the fields, the town, the yards, the zones of EXCLUDED kinds or ground left open on
               purpose): sagebrush 0.03-0.08, dry tufts 0.15-0.3 where the meadow thins, rabbitbrush 0.01-0.02 on
@@ -14,11 +21,15 @@ session's:
               or two on the rim
 
 paint() writes the scrub mask, T_<Area>Scrub_BC.png beside the scatter mask (the same square and size, linear bytes,
-north up), one layer per channel (LAYERS): R sagebrush, G dry tufts, B rabbitbrush, A creases' junipers. The graph
-draws a layer's candidates every `cell` cm (jittered by `jitter` of a cell) and keeps one where mask x random >= keep,
-so the mask holds keep / (1 - chance): a candidate is kept with that chance, and the layer's density is chance / cell².
+north up): R sagebrush (and, on the steep faces, big sagebrush), G dry tufts, B rabbitbrush, A junipers (the
+creases', the steep faces' benches and the bands' tops). The graph draws a layer's (LAYERS) candidates every `cell` cm
+(jittered by `jitter` of a cell) on ground within its `slopes` (degrees) and keeps one where mask x random >= keep, so
+the mask holds keep / (1 - chance): a candidate is kept with that chance, and the layer's density is chance / cell².
+Two layers share a channel by slope: each pixel holds the one whose slopes it's in.
 points() gives what a mask can't place exactly, for layout_computed.json's "scrub": a wind-sheared juniper every
-CREST_STEP m along the ridges' crests, each pit floor's tufts and small sage, and a juniper or two on each pit's rim.
+CREST_STEP m along the ridges' crests, each pit floor's tufts and small sage, a juniper or two on each pit's rim, and
+the sage's groups (the mask holds the rest of the sage). context() works out the ground the scrub keeps off (roads,
+water, bare ground, gravel, past the boundary) for both, so they agree.
 Both are deterministic: noise and seeded draws only.
 """
 import math
@@ -28,17 +39,20 @@ import numpy as np
 from area_math import blur, catmull_rom, cells, fbm, fbm_raster, polyline_field, resample, signed_distance
 from area_shape import to_m
 
-# The mask's layers: channel, candidate spacing (cm), the graph's keep, jitter (share of a cell either way).
-LAYERS = {
-    'sage': {'channel': 'R', 'cell': 190.0, 'keep': 0.1, 'jitter': 0.5},
-    'tufts': {'channel': 'G', 'cell': 150.0, 'keep': 0.1, 'jitter': 0.5},
-    'rabbitbrush': {'channel': 'B', 'cell': 500.0, 'keep': 0.1, 'jitter': 0.5},
-    # 5 m apart, at most 0.5 m off: never closer than 4 m.
-    'junipers': {'channel': 'A', 'cell': 500.0, 'keep': 0.1, 'jitter': 0.1},
-}
-CHANNELS = ('sage', 'tufts', 'rabbitbrush', 'junipers')
 # The graph's scrub layers stand on ground up to this steep (degrees; flatness 0.64): the faces' steepest rock is bare.
 STEEPEST = 50.2
+BIG_SLOPE = 35.0        # degrees: steeper faces grow the big sagebrush instead
+# The mask's layers: channel, candidate spacing (cm), the graph's keep, jitter (share of a cell either way), and the
+# slopes (degrees) the graph takes them on.
+LAYERS = {
+    'sage': {'channel': 'R', 'cell': 190.0, 'keep': 0.1, 'jitter': 0.5, 'slopes': [0.0, BIG_SLOPE]},
+    'bigSage': {'channel': 'R', 'cell': 300.0, 'keep': 0.1, 'jitter': 0.5, 'slopes': [BIG_SLOPE, STEEPEST]},
+    'tufts': {'channel': 'G', 'cell': 150.0, 'keep': 0.1, 'jitter': 0.5, 'slopes': [0.0, STEEPEST]},
+    'rabbitbrush': {'channel': 'B', 'cell': 500.0, 'keep': 0.1, 'jitter': 0.5, 'slopes': [0.0, STEEPEST]},
+    # 5 m apart, at most 0.5 m off: never closer than 4 m.
+    'junipers': {'channel': 'A', 'cell': 500.0, 'keep': 0.1, 'jitter': 0.1, 'slopes': [0.0, STEEPEST]},
+}
+CHANNELS = ('R', 'G', 'B', 'A')
 TUFT_REACH = 40.0       # meters past the boundary the dry tufts reach
 RABBIT_REACH = 80.0     # and the rabbitbrush
 BOUNDARY_ROCK = 5.0     # meters past the boundary kept bare (the rock raised past its closed edges)
@@ -52,6 +66,10 @@ CREST_YAW = 20.0        # degrees either side of 0: their swept crowns (-Y) poin
 RIM_JUNIPERS = 2        # per pit, on its rim
 PIT_TUFT_SPACING = 1.0  # meters between the pit floors' tuft candidates
 PIT_SAGE_SPACING = 3.0  # and their sage's
+PATCHES = (0.2, 1.6, 20.0)  # the sage's patches: its density times 0.2 to 1.6, the noise's wavelength (m)
+GROUP_SHARE = 0.2       # of the sage stands in tight groups (points()), the rest from the mask
+GROUP_STEP = 4.0        # meters between the groups' candidate centers
+GROUP_GAP = (0.7, 0.9)  # meters between neighbors in a group: about touching
 
 
 def _ss(e0, e1, x):
@@ -88,7 +106,7 @@ def densities(area, grid, faces, ctx):
     x, y = grid.mesh()
     slope, past = ctx['slope'], ctx['past']
     face, crease, rel = (area_faces.at(faces, k, n) for k in ('face', 'crease', 'rel'))
-    band, fan = (area_faces.at(faces, k, n) for k in ('band', 'fan'))
+    band, fan, cap = (area_faces.at(faces, k, n) for k in ('band', 'fan', 'cap'))
     stands = _ss(-0.35, 0.35, fbm_raster(grid, 11.0, seed=701, octaves=2) + 0.4 * fbm_raster(grid, 3.0, seed=702))
     gaps = 1.0 - stands
     up = _ss(16.0, 50.0, rel)
@@ -102,17 +120,28 @@ def densities(area, grid, faces, ctx):
     for p in getattr(area, 'pits', []):
         ok *= 1.0 - _ss(0.02, 0.2, area.resized(p['rise'], n))  # the pit floors' scrub is points() (and its walls bare)
 
-    # The faces: sage thickest at the foot, thinning up them, off the rock bands and thin on the scree; tufts in the
-    # gaps between the sage; rabbitbrush at their toes; junipers in the creases.
+    # The faces: sage thickest at the foot, thinning up them, off the rock bands and thin on the scree, and on the
+    # steep faces fewer, bigger ones; tufts in the gaps between the sage; rabbitbrush at their toes; junipers in the
+    # creases, and on the steep faces' benches and the bands' tops.
     on_face = face * (1.0 - band) * (1.0 - 0.6 * fan)
     sloped = _ss(16.0, 26.0, slope)
     sage = on_face * (0.06 + (0.09 + 0.10 * stands) * sloped) * (1.0 - 0.4 * up)
-    tufts = on_face * (0.25 + 0.15 * gaps) * _ss(10.0, 20.0, slope) * (1.0 - _ss(TUFT_REACH - 6.0, TUFT_REACH, past))
+    big = on_face * (0.06 + 0.04 * stands) * (1.0 - 0.3 * up)
+    tufts = on_face * np.where(slope < BIG_SLOPE, 0.25 + 0.15 * gaps, 0.15) * _ss(10.0, 20.0, slope)
+    tufts *= 1.0 - _ss(TUFT_REACH - 6.0, TUFT_REACH, past)
     toe = face * (1.0 - _ss(6.0, 14.0, rel))
     rabbit = 0.015 * toe * (0.5 + stands) * (1.0 - band)
     groups = _ss(-0.1, 0.3, fbm_raster(grid, 38.0, seed=633, octaves=2))
     junipers = face * _ss(0.3, 0.7, crease) * (0.02 + 0.02 * groups) * _ss(20.0, 26.0, slope)
     junipers *= (1.0 - _ss(46.0, 49.0, slope)) * (1.0 - band)
+    # A bench: ground easing off below BIG_SLOPE with the steep face all round it; a band's top: its lit lip.
+    steep_round = blur(_ss(BIG_SLOPE, BIG_SLOPE + 7.0, slope), cells(5.0, grid.px))
+    bench = _ss(0.25, 0.6, steep_round) * (1.0 - _ss(BIG_SLOPE - 5.0, BIG_SLOPE + 1.0, slope))
+    tops = _ss(0.05, 0.3, blur(cap, cells(1.2, grid.px)))
+    on_steep = np.maximum(_ss(BIG_SLOPE - 2.0, BIG_SLOPE + 2.0, slope), bench)
+    ledges = face * on_steep * (0.006 + 0.009 * np.maximum(bench, tops)) * (0.6 + 0.4 * groups)
+    ledges *= (1.0 - band * (1.0 - tops)) * (1.0 - _ss(48.0, 50.0, slope))
+    junipers = np.maximum(junipers, ledges)
 
     # The flats' margins: the roadsides (from 1.5 m past a road's edge), the slopes' toes, the boundary's edge, the
     # gullies' banks and round the ruins; never in the excluded zones or the ground left open on purpose.
@@ -140,24 +169,79 @@ def densities(area, grid, faces, ctx):
     disturbed = np.maximum.reduce([roadside * (0.4 + 0.6 * cuts), around_ruins, banks, toes])
     rabbit = rabbit + 0.015 * flats * disturbed * (0.5 + stands)
     rabbit *= 1.0 - _ss(RABBIT_REACH - 8.0, RABBIT_REACH, past)
-    out = {'sage': sage, 'tufts': tufts, 'rabbitbrush': rabbit, 'junipers': junipers}
+    # Patches 10-30 m across from nearly bare to thick, thicker in hollows (concave ground, the creases) and at the
+    # toes, thinner on spurs and crests (convex ground): the curvature of the heights at a few meters.
+    lo, hi, wave = PATCHES
+    patches = lo + (hi - lo) * _ss(-0.4, 0.4, fbm_raster(grid, wave, seed=711, octaves=2)
+                                   + 0.3 * fbm_raster(grid, wave * 0.3, seed=712))
+    hb = blur(area.resized(area.h, n), cells(3.0, grid.px))
+    gxx = np.gradient(np.gradient(hb, grid.px, axis=0), grid.px, axis=0)
+    gyy = np.gradient(np.gradient(hb, grid.px, axis=1), grid.px, axis=1)
+    curve = gxx + gyy  # > 0 in hollows
+    del hb, gxx, gyy
+    shape = np.clip(1.0 + 0.7 * np.maximum(_ss(0.004, 0.04, curve), crease) + 0.4 * toe
+                    - 0.65 * _ss(0.004, 0.04, -curve), 0.3, 1.8)
+    sage, big = sage * patches * shape, big * patches * shape
+    tufts = tufts * (0.6 + 0.3 * patches) * (0.7 + 0.3 * shape)
+    out = {'sage': sage, 'bigSage': big, 'tufts': tufts, 'rabbitbrush': rabbit, 'junipers': junipers}
     return {k: np.clip(v * ok, 0.0, None).astype(np.float32) for k, v in out.items()}
 
 
+def context(area, grid):
+    """The ground the scrub keeps off, on a grid over the map square, as the scatter mask's painter works it out
+    (area_scatter.py): slope (degrees), past (meters past the playable boundary, negative inside), the roads' surfaces
+    and the 1.5 m past them, water and the waterline, bare ground (footprints, the yards' dirt) and the gullies'
+    gravel."""
+    from area_scatter import YARDS, _disc
+    n = grid.n
+    gx, gy = np.gradient(area.h.astype(np.float32), area.grid.px)
+    slope = area.resized(np.degrees(np.arctan(np.hypot(gx, gy))).astype(np.float32), n)
+    del gx, gy
+    h = area.resized(area.h, n)
+    water = area.resized(np.nan_to_num(area.water_surface(), nan=-100.0), n)
+    clear = np.zeros((n, n), np.float32)
+    for road in list(area.roads) + list(area.ramps):
+        half = road['width'] * 0.5
+        dist, _, _ = polyline_field(grid, road['pts'], half + 4.0)
+        clear = np.maximum(clear, 1.0 - _ss(half + 1.5, half + 2.3, np.where(np.isfinite(dist), dist, 1e3)))
+    bare = np.zeros((n, n), np.float32)
+    for f in area.footprints:
+        bare = np.maximum(bare, _disc(grid, f['center'], f['radius'] + f['blend'] * 0.5, f['blend'] * 0.5))
+    for yard in area.layout.get('yards', []):
+        center = area.yard_center(yard)
+        if center is not None:
+            (bare_r, bare_soft), _ = YARDS[yard['kind']]
+            bare = np.maximum(bare, _disc(grid, center, bare_r, bare_soft))
+    gravel = np.zeros((n, n), np.float32)
+    for g in getattr(area, 'gullies', []):
+        dist, _, _ = polyline_field(grid, g['pts'], g['half'] + 2.0)
+        gravel = np.maximum(gravel, 1.0 - _ss(g['half'] - 0.5, g['half'] + 0.5,
+                                              np.where(np.isfinite(dist), dist, 1e3)))
+    past = signed_distance(grid, area.boundary, 200.0) if area.boundary is not None else \
+        np.full((n, n), -1e3, np.float32)
+    return dict(slope=slope, past=past, surface=_ss(0.0, 0.5, clear), wet=_ss(-0.25, 0.05, water - h), bare=bare,
+                gravel=gravel)
+
+
 def paint(area, grid, faces, ctx, out_path, save, preview_dir=None):
-    """Writes the scrub mask (and, with preview_dir, scrub.png: its four layers side by side, sage and tufts below,
-    rabbitbrush and junipers above, as the chance per candidate). Returns a note of about how many each layer places."""
+    """Writes the scrub mask (and, with preview_dir, scrub.png: its four channels side by side, R and G below, B and
+    A above, as the chance per candidate). Returns a note of about how many each layer places."""
     dens = densities(area, grid, faces, ctx)
     soften = cells(0.4, grid.px)
+    slope = ctx['slope']
     rgba = np.zeros((grid.n, grid.n, 4), np.float32)
-    chances, notes = [], []
-    for k, name in enumerate(CHANNELS):
-        spec = LAYERS[name]
+    chances = [np.zeros((grid.n, grid.n), np.float32) for _ in CHANNELS]
+    notes = []
+    for name, spec in LAYERS.items():
+        k = CHANNELS.index(spec['channel'])
+        lo, hi = spec['slopes']
+        here = (slope >= lo) & (slope < hi)
         cell = spec['cell'] / 100.0
-        chance = np.clip(blur(dens[name], soften) * cell * cell, 0.0, 1.0 - spec['keep'] - 0.01)
-        rgba[..., k] = np.where(chance > 0.002, spec['keep'] / (1.0 - chance), 0.0)
-        chances.append(chance)
-        notes.append(f"{float(dens[name].sum()) * grid.px * grid.px:.0f} {name}")
+        share = 1.0 - GROUP_SHARE if name in ('sage', 'bigSage') else 1.0  # the rest is the groups' (points())
+        chance = np.clip(blur(dens[name], soften) * share * cell * cell, 0.0, 1.0 - spec['keep'] - 0.01)
+        rgba[..., k] = np.where(here, np.where(chance > 0.002, spec['keep'] / (1.0 - chance), 0.0), rgba[..., k])
+        chances[k] = np.where(here, chance, chances[k])
+        notes.append(f"{float((dens[name] * here).sum()) * share * grid.px * grid.px:.0f} {name}")
     save(rgba, out_path)
     if preview_dir:
         import os
@@ -328,4 +412,37 @@ def points(area):
     rng = np.random.default_rng(29)
     crests = crest_junipers(area, rng)
     tufts, sage, rim = pit_scrub(area, rng)
-    return {'crestJunipers': crests, 'pitTufts': tufts, 'pitSage': sage, 'rimJunipers': rim}
+    return {'crestJunipers': crests, 'pitTufts': tufts, 'pitSage': sage, 'rimJunipers': rim,
+            'sageGroups': sage_groups(area, rng)}
+
+
+def sage_groups(area, rng):
+    """[x, y] (cm): GROUP_SHARE of the sage (the slopes' and the steep faces' alike, by the mask's own densities) in
+    tight groups of 2-4, each next to one already in its group, about touching. A member that would stand where no
+    sage grows is left out."""
+    import area_faces
+    from area_math import Grid, sample
+    n = area.sizes['scatter']
+    grid = Grid(n, area.half)
+    faces = area_faces.fields(area, grid, area.resized(area.h, n))
+    ctx = context(area, grid)
+    dens = densities(area, grid, faces, ctx)
+    del faces
+    sage = np.where(ctx['slope'] < BIG_SLOPE, dens['sage'], dens['bigSage'])
+    del dens, ctx
+    half = area.half
+    cand = _rng_points(rng, (-half, -half), (half, half), GROUP_STEP)
+    here = sample(sage, cand[:, 0], cand[:, 1], half)
+    centers = cand[rng.random(len(cand)) < GROUP_SHARE * here * GROUP_STEP ** 2 / 3.0]
+    found = []
+    for c in centers:
+        members = [c]
+        turn = rng.uniform(0.0, 2.0 * math.pi)
+        for k in range(int(rng.integers(1, 4))):
+            base = members[int(rng.integers(0, len(members)))]
+            a = turn + k * 2.1 + rng.uniform(-0.5, 0.5)
+            p = base + rng.uniform(*GROUP_GAP) * np.array([math.cos(a), math.sin(a)])
+            if sample(sage, p[0:1], p[1:2], half)[0] > 0.01:
+                members.append(p)
+        found += members
+    return _cm(found)

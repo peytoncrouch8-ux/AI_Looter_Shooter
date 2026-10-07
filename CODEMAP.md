@@ -731,9 +731,11 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   pit's floor bare grit; grounded: R carries the crease pines, and the scrub mask is written beside it,
   `area_scrub.py`).
 - `Art/Levels/area_scrub.py`: a grounded area's dry scrub (the art session's kit): the scrub mask `T_<Area>Scrub_BC`
-  (R sagebrush, G dry tufts, B rabbitbrush, A crease junipers, each a keep/chance encoding with spacing from `LAYERS`) on
-  the ridge faces and the flats' margins, and the points in `layout_computed.json` `"scrub"` (crest junipers, pit-floor
-  tufts and sage, rim junipers).
+  (R sagebrush, and big sagebrush on 35-50 degree faces; G dry tufts; B rabbitbrush; A junipers in creases, on benches
+  and rock-band tops; each a keep/chance encoding with spacing and slopes from `LAYERS`) on the ridge faces and the
+  flats' margins, clustered in patches and by the ground's curvature, and the points in `layout_computed.json`
+  `"scrub"` (crest and rim junipers, pit-floor tufts and sage, the sage's tight groups); `context()`, the ground it
+  keeps off.
 - `Art/Levels/area_faces.py`: a grounded area's big ridge faces broken up (rock bands at irregular heights with a lit
   lip and a ledge shadow, scree fans, creases, scrub and dry grass climbing, tone variation), painted over both macro
   maps after the grade, and the ring's crease pines (`pines()`).
@@ -749,7 +751,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   backdrop's silhouettes (per layer a skyline with rolling relief, soft U notches and landforms of five kinds: mesa,
   butte, stepped, broken, spire, with columns at their corners; each vertex's depth below its skyline for UV 1).
 - `Art/Levels/area_fartrees.py`: the far trees past a grounded area's boundary (`region.farTrees`): groves and contour
-  tree lines in the layout's woods, cottonwoods along the canyon's river, off steep ground, water, roads and the
+  tree lines in the layout's woods, as groves with gaps and clumps, more on slopes, in creases and on low and high
+  ground (pines up high, cottonwoods on the low ground and along the canyon's river), off steep ground, water, roads and the
   clear corridors (the line out of Stage Gap), thinned where nobody inside sees them, each seated on the core's and
   the ring's meshes, and pines in groups in the ring's ridge creases; `farTrees` in `layout_computed.json`.
 - `Art/Levels/area_preview.py`: Blender preview renders and the annotated plan: views at the planned sun, clay views
@@ -836,7 +839,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`); its mask is imported
   again whenever the PNG changes (its MD5 kept on the texture as metadata); a grounded area's crease pines and dry
   scrub from the scrub mask and the computed points (`scrub_layers`), each later layer kept off what earlier ones
-  placed, the kit named only in its `*_MESHES` tables; larkspur along the salt line, the field wall and the farm
+  placed, the kit named only in its `*_MESHES` tables (big sagebrush on the steep faces, the sage's computed tight
+  groups merged into its spawner, junipers facing west; scattered meshes kept out of far shadow cascades); larkspur along the salt line, the field wall and the farm
   fences; every layer kept off the dressing's pieces (`build_area_dressing.footprints`), grass and flowers off its
   solid ones only; the area's material swaps (`layout.json` `level.swaps`) on the scattered meshes as override
   materials.

@@ -122,10 +122,14 @@ def mesh(folder, name, required=True):
     return asset
 
 
-def point(x, y, z, seed):
+def point(x, y, z, seed, bounds=None):
+    """A point at (x, y, z) cm; bounds (cm) gives it a box that far each way, for a Difference to keep clear of."""
     p = unreal.PCGPoint()
     p.set_editor_property('transform', unreal.Transform(location=unreal.Vector(x, y, z)))
     p.set_editor_property('seed', seed)
+    if bounds:
+        p.set_editor_property('bounds_min', unreal.Vector(-bounds, -bounds, -bounds))
+        p.set_editor_property('bounds_max', unreal.Vector(bounds, bounds, bounds))
     return p
 
 
@@ -175,14 +179,17 @@ CREASE_PINE_MESHES = (('Pine_A', 1, 0), ('Pine_B', 1, 0))
 LARKSPUR_CLUMP_MESHES = (('Larkspur_A', 1, 6000),)
 LARKSPUR_STRIP_MESHES = (('Larkspur_B', 1, 6000),)
 SAGE_MESHES = (('Sagebrush_A', 4, 27000), ('Sagebrush_B', 3, 27000), ('Sagebrush_C', 3, 27000))  # 162 m on Medium
+BIG_SAGE_MESHES = (('Sagebrush_A', 1, 42000), ('Sagebrush_B', 1, 42000))  # the steep faces' (252 m on Medium)
 RABBITBRUSH_MESHES = (('Rabbitbrush_A', 1, 27000),)
 DRY_TUFT_MESHES = (('DryTuft_A', 1, 6700), ('DryTuft_B', 1, 6700))  # 40 m on Medium
-JUNIPER_MESHES = (('Juniper_A', 1, 42000),)  # the creases' and the pits' rims' (252 m on Medium)
+JUNIPER_MESHES = (('Juniper_A', 2, 42000), ('Juniper_B', 1, 42000))  # creases, benches, bands' tops, pits' rims
 CREST_JUNIPER_MESHES = (('Juniper_B', 1, 42000),)  # wind-sheared: its crown sweeps toward -Y, west at yaw 0
 PIT_TUFT_MESHES = (('DryTuft_A', 1, 6700), ('DryTuft_B', 3, 6700))  # the pit floors' (B-heavy)
 PIT_SAGE_MESHES = (('Sagebrush_C', 1, 27000),)
 SCRUB_SINK = 4.0        # cm the scrub sinks into the ground
-SCRUB_FLAT = 0.64       # the scrub layers' steepest ground (flatness: 50 degrees)
+JUNIPER_YAW = 30.0      # degrees either side of 0 the junipers face: Juniper_B's swept crown (-Y) points west
+SAGE_SCALE = (0.6, 1.4)  # the slopes' sagebrush (the steep faces' big sagebrush: 1.2-1.6)
+SAGE_GROUP_CLEAR = 60.0  # cm round each grouped sage the mask's sage keeps clear of
 CREST_TURN = 5.0        # degrees either side of a crest juniper's yaw bin (10 degree bins)
 
 # Larkspur along fences and walls (the art session's rules), by the obstacle it lines (layout.json obstacles): the share
@@ -299,6 +306,8 @@ def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=Fals
                              else unreal.CollisionEnabled.NO_COLLISION)
     d.set_editor_property('body_instance', body)
     d.set_editor_property('cast_shadow', shadow)
+    # Never in a far cascade: past the dynamic shadows' range (100 m on Medium) instances cast nothing.
+    d.set_editor_property('cast_far_shadow', False)
     d.set_editor_property('instance_end_cull_distance', cull)
     d.set_editor_property('enable_density_scaling', density_scaling)
     if wind:
@@ -428,13 +437,14 @@ class Scatter:
         b.link(draw, kept)
         return kept, y
 
-    def listed(self, title, points, onto_ground=True, clear=False, ray=12000.0):
-        """Points the script worked out itself (x, y, z), dropped onto the ground when onto_ground (rays reaching ray
-        cm down), and with clear, kept off the obstacles and all the dressing's boxes."""
+    def listed(self, title, points, onto_ground=True, clear=False, ray=12000.0, avoid=(), bounds=None):
+        """Points the script worked out itself (x, y, z), each with a box bounds cm each way (else the default),
+        dropped onto the ground when onto_ground (rays reaching ray cm down), and with clear, kept off the obstacles,
+        all the dressing's boxes and what the spawners in avoid placed."""
         b, y = self.b, self.row * 3
         self.row += 1
         made, _ = b.node(unreal.PCGCreatePointsSettings, f'{title}: points', 0, y,
-                         points_to_create=[point(x, yy, z, i + 1) for i, (x, yy, z) in enumerate(points)],
+                         points_to_create=[point(x, yy, z, i + 1, bounds) for i, (x, yy, z) in enumerate(points)],
                          coordinate_space=unreal.PCGCoordinateSpace.WORLD)
         if not onto_ground:
             return made, y
@@ -455,6 +465,8 @@ class Scatter:
         b.link(self.obstacles, kept, b_pin='Differences')
         if self.dressing['all'] is not None:
             b.link(self.dressing['all'], kept, b_pin='Differences')
+        for spawner in avoid:
+            b.link(spawner, kept, b_pin='Differences')
         return kept, y
 
     def headed(self, title, runs, entries, scale, turn, sink=0.0, clear=False, ray=12000.0):
@@ -500,11 +512,12 @@ class Scatter:
         b.link(noise, low)
         return high, low
 
-    def spawn(self, source, title, x, y, entries, scale=(0.85, 1.2), upright=True, fit=None, sink=0.0):
-        """Heading (and, for ground cover, the slope), size, and the instanced meshes."""
+    def spawn(self, source, title, x, y, entries, scale=(0.85, 1.2), upright=True, fit=None, sink=0.0,
+              yaw=(0.0, 360.0)):
+        """Heading (yaw in degrees, and for ground cover the slope), size, and the instanced meshes."""
         b = self.b
         look, _ = b.node(unreal.PCGTransformPointsSettings, f'{title} look', x, y,
-                         rotation_min=unreal.Rotator(0.0, 0.0, 0.0), rotation_max=unreal.Rotator(0.0, 0.0, 360.0),
+                         rotation_min=unreal.Rotator(0.0, 0.0, yaw[0]), rotation_max=unreal.Rotator(0.0, 0.0, yaw[1]),
                          absolute_rotation=upright, scale_min=unreal.Vector(scale[0], scale[0], scale[0]),
                          scale_max=unreal.Vector(scale[1], scale[1], scale[1]), uniform_scale=True,
                          offset_min=unreal.Vector(0, 0, -sink), offset_max=unreal.Vector(0, 0, -sink))
@@ -630,25 +643,31 @@ def crease_pines(s, veg):
 
 def scrub_layers(s, veg, area, pines=None):
     """A grounded area's dry scrub (Art/Levels/area_scrub.py; the art session's kit, Art/Models/Vegetation/Scrub.py):
-    the scrub mask's layers on ground up to 50 degrees, and the computed layout's listed points. Each later layer keeps
-    off what the earlier ones placed (their meshes' bounds): junipers (the creases', with the pits' rims') clear of the
-    crease pines, then the crests' junipers, rabbitbrush, sagebrush and the pit floors' sage, and last the dry tufts in
-    the gaps. All upright, sunk SCRUB_SINK cm; the shrubs and tufts don't collide, the junipers' trunk hulls do; the
-    tufts cast no shadow, and the mask's thin with the foliage density quality as the grass does (foliage.DensityScale,
-    0.4 on Medium; the pit floors' few keep theirs)."""
+    the scrub mask's layers, each on its slopes (the sagebrush to 35 degrees, the big sagebrush from there to 50, the
+    rest to 50), and the computed layout's listed points. Each later layer keeps off what the earlier ones placed (their
+    meshes' bounds): junipers (the creases', the steep faces' benches and bands' tops, the pits' rims) clear of the
+    crease pines, then the crests' junipers, rabbitbrush, sagebrush (a fifth of it the computed tight groups, the mask's
+    keeping off them), big sagebrush and the pit floors' sage, and last the dry tufts in the gaps. All upright, sunk
+    SCRUB_SINK cm; the shrubs and tufts don't collide, the junipers' trunk hulls do; the junipers face west within
+    JUNIPER_YAW; the shrubs' shadows reach only as far as the dynamic shadows do (100 m on Medium: entry() keeps
+    everything out of a far cascade); the tufts cast none, and the mask's thin with the foliage density quality as the
+    grass does (foliage.DensityScale, 0.4 on Medium; the pit floors' few keep theirs)."""
     scrub, layers = area.scrub, area.scrub['layers']
     lift = area.lift
 
     def mask_layer(name, title, avoid, dressing='all'):
         spec = layers[name]
-        return s.layer(title, spec['cell'], 'Scrub ' + spec['channel'], spec['keep'], flat=SCRUB_FLAT,
+        lo, hi = spec.get('slopes', [0.0, 50.2])  # degrees, as flatness (the up component of the ground's normal)
+        return s.layer(title, spec['cell'], 'Scrub ' + spec['channel'], spec['keep'],
+                       flat=math.cos(math.radians(hi)), flat_max=math.cos(math.radians(lo)) if lo > 0.0 else 1.0,
                        dressing=dressing, jitter=spec.get('jitter', 0.5), avoid=avoid)
 
     def entries(table, **kw):
         return [entry(veg(n), w, cull, **kw) for n, w, cull in table]
 
-    def listed(title, points):
-        return s.listed(title, [(x, y, lift) for x, y, *_ in points], clear=True, ray=area.ray)
+    def listed(title, points, avoid=(), bounds=None):
+        return s.listed(title, [(x, y, lift) for x, y, *_ in points], clear=True, ray=area.ray, avoid=avoid,
+                        bounds=bounds)
 
     placed = [pines] if pines else []
     junipers, y = mask_layer('junipers', 'Crease junipers', list(placed))
@@ -656,7 +675,8 @@ def scrub_layers(s, veg, area, pines=None):
     if scrub.get('rimJunipers'):
         sources.append(listed('Rim junipers', scrub['rimJunipers'])[0])
     juniper = s.spawn(s.merged('Junipers: all', sources, y), 'Junipers', 11, y,
-                      entries(JUNIPER_MESHES, collide=True, shadow=True), scale=(0.85, 1.3), sink=SCRUB_SINK)
+                      entries(JUNIPER_MESHES, collide=True, shadow=True), scale=(0.9, 1.4), sink=SCRUB_SINK,
+                      yaw=(-JUNIPER_YAW, JUNIPER_YAW))
     placed.append(juniper)
     if scrub.get('crestJunipers'):
         bins = {}
@@ -668,9 +688,16 @@ def scrub_layers(s, veg, area, pines=None):
     rabbit, y = mask_layer('rabbitbrush', 'Rabbitbrush', list(placed))
     placed.append(s.spawn(rabbit, 'Rabbitbrush', 11, y, entries(RABBITBRUSH_MESHES, shadow=True), scale=(0.8, 1.25),
                           sink=SCRUB_SINK))
-    sage, y = mask_layer('sage', 'Sagebrush', list(placed))
-    placed.append(s.spawn(sage, 'Sagebrush', 11, y, entries(SAGE_MESHES, shadow=True), scale=(0.8, 1.25),
-                          sink=SCRUB_SINK))
+    # A fifth of the sage in tight groups (the computed points), the rest from the mask keeping off them: one spawner.
+    grouped = listed('Sage groups', scrub['sageGroups'], avoid=list(placed), bounds=SAGE_GROUP_CLEAR)[0] \
+        if scrub.get('sageGroups') else None
+    sage, y = mask_layer('sage', 'Sagebrush', list(placed) + ([grouped] if grouped else []))
+    placed.append(s.spawn(s.merged('Sagebrush: all', [sage] + ([grouped] if grouped else []), y), 'Sagebrush', 11, y,
+                          entries(SAGE_MESHES, shadow=True), scale=SAGE_SCALE, sink=SCRUB_SINK))
+    if 'bigSage' in layers:
+        big, y = mask_layer('bigSage', 'Big sagebrush', list(placed))
+        placed.append(s.spawn(big, 'Big sagebrush', 11, y, entries(BIG_SAGE_MESHES, shadow=True), scale=(1.2, 1.6),
+                              sink=SCRUB_SINK))
     if scrub.get('pitSage'):
         pit_sage, y = listed('Pit sage', scrub['pitSage'])
         placed.append(s.spawn(pit_sage, 'Pit sage', 11, y, entries(PIT_SAGE_MESHES, shadow=True), scale=(0.8, 1.25),

@@ -8,12 +8,14 @@ tree layer closer in) to the ring's edge, never on the backdrop:
 - candidates on a jittered SPACING m grid, kept off ground steeper than "steep" degrees (the ridges' bands, the
   escarpment's face, the far wall), the canyon's river, every road and the "clear" corridors (the line out of Stage Gap
   and its trestle);
-- groves from noise, densest in the "woods" (polygons, each with a density and its share of pines; elsewhere BASE),
-  in tree lines along the contours on slopes; on the canyon's floor along the river, and only a few on the plains past
-  the far wall;
+- groves from noise with gaps between them, densest in the "woods" (polygons, each with a density and its share of
+  pines; elsewhere BASE), each grove in clumps with clearings, so no stretch reads as an even carpet; more on the
+  slopes and in the ridges' creases (area_faces.py) and along the low ground than on the flats, in tree lines along
+  the contours on slopes; on the canyon's floor along the river, and only a few on the plains past the far wall;
 - thinned where nobody sees them: a tree that no standing spot inside the boundary sees (eye height on a VIEW_STEP m
   grid, and the "lookouts") keeps UNSEEN of its chance, so the "count" goes where it shows;
-- pines higher up (by each wood's share), broadleaf low and by water; random yaw, a modest scale;
+- pines higher up (by each wood's share, more the higher), broadleaf (cottonwoods) along the low ground (hollows
+  below the ground around them, the lowlands) and by water; random yaw, a modest scale;
 - and, by their own draws, dark pines in groups in the creases of the ring's ridge faces (area_faces.py), from the
   same "near" out, on steeper ground than the rest (the core's creases are the scatter's).
 Each tree stands on the meshes the level gets (the core's top and the ring, through a BVH: their triangles differ from
@@ -34,7 +36,8 @@ from area_math import fbm, points_in_polygon, sample, smoothstep
 TREES = (('SM_FarPine_A', 'pine', 0.30, 13.0), ('SM_FarPine_B', 'pine', 0.36, 12.5),
          ('SM_FarBroadleaf', 'broadleaf', 0.42, 10.7))
 SCALE = {'pine': (0.85, 1.2), 'broadleaf': (0.85, 1.15)}
-SPACING = 7.0         # meters between candidates
+SPACING = 5.0         # meters between candidates (dense enough for a clump to close up)
+JITTER = 0.45         # of SPACING either way: no rows inside a clump
 MARGIN = 3.0          # meters inside the ring's edge
 BASE = (0.22, 0.7)    # density and share of pines outside every wood
 UNSEEN = 0.3          # of its chance a tree keeps where no standing spot sees it
@@ -45,6 +48,10 @@ SEEN_AT = 0.55        # of a tree's height: it counts as seen when the line to t
 RIVER_CLEAR = 4.0     # meters past the river's edge
 ROAD_CLEAR = 4.0      # meters past a road's edge
 SINK = 0.05           # meters below the lowest ground under the trunk
+# How the ground weighs a tree's chance: the flats' share of a slope's, and what a crease, the low ground and high
+# ground (pines up the ridges) add.
+FLATS, CREASES, LOWS, HIGHS = 0.35, 1.5, 0.6, 0.8
+LOW_REACH = 40.0      # meters round a point its ground is compared with (low ground lies below it)
 # Pines in the ring's ridge creases (_crease_pines; the core's are the scatter's, area_scatter.py): the steepest ground
 # (degrees) they stand on, meters between candidates, and their chance per unit of the creases' pine density
 # (area_faces.py).
@@ -171,7 +178,7 @@ def place(area):
     # Candidates, and where they may stand.
     c = np.arange(-region.half + SPACING * 0.5, region.half, SPACING)
     cx, cy = np.meshgrid(c, c, indexing='ij')
-    pts = np.column_stack([cx.ravel(), cy.ravel()]) + rng.uniform(-0.3, 0.3, (cx.size, 2)) * SPACING
+    pts = np.column_stack([cx.ravel(), cy.ravel()]) + rng.uniform(-JITTER, JITTER, (cx.size, 2)) * SPACING
     x, y = pts[:, 0], pts[:, 1]
     ok = (np.abs(x) < edge) & (np.abs(y) < edge) & ~points_in_polygon(x, y, area.boundary)
     ok &= _segments_distance(pts, area.boundary, closed=True) >= near
@@ -193,7 +200,9 @@ def place(area):
     ok &= ~(sample(np.nan_to_num(water, nan=-1e3), x, y, area.half) > z - 0.3)
     pts, x, y, z, slope, river = pts[ok], x[ok], y[ok], z[ok], slope[ok], river[ok]
 
-    # How dense: the woods, groves from noise, tree lines on the slopes; the canyon by its river; the plains.
+    # How dense: the woods, groves from noise (gaps between them) in clumps (clearings inside them), more on slopes,
+    # in creases and along the low ground than on the flats, tree lines on the slopes; the canyon by its river; the
+    # plains.
     wood = np.full(len(pts), BASE[0])
     pines = np.full(len(pts), BASE[1])
     for w in spec.get('woods', []):
@@ -203,22 +212,31 @@ def place(area):
         soft = np.where(inside, 0.5 + 0.5 * soft, 0.5 - 0.5 * soft)
         wood = np.maximum(wood, w.get('density', 1.0) * soft)
         pines = np.where(soft > 0.5, w.get('pines', BASE[1]), pines)
-    grove = smoothstep(-0.2, 0.25, fbm(x, y, 95.0, seed=401, octaves=3) + 0.45 * fbm(x, y, 32.0, seed=402, octaves=2))
+    grove = smoothstep(0.0, 0.3, fbm(x, y, 95.0, seed=401, octaves=3) + 0.45 * fbm(x, y, 32.0, seed=402, octaves=2))
+    clump = smoothstep(-0.05, 0.35, fbm(x, y, 22.0, seed=405, octaves=2) + 0.35 * fbm(x, y, 8.0, seed=406))
     lines = smoothstep(0.3, 0.7, 0.5 + 0.5 * np.sin(2.0 * math.pi * z / 11.0 + 2.5 * fbm(x, y, 70.0, seed=403)))
-    sloped = smoothstep(9.0, 16.0, slope)
-    chance = wood * grove * (1.0 - sloped + sloped * (0.3 + 0.7 * lines))
+    sloped = smoothstep(8.0, 20.0, slope)
+    crease = _creases(area, x, y)
+    low = _low_ground(ground, x, y, z)
+    high = smoothstep(10.0, 28.0, z)
+    terrain = FLATS + (1.0 - FLATS) * sloped + CREASES * crease + LOWS * low + HIGHS * high
+    clumped = 0.12 + 0.88 * clump
+    chance = wood * grove * clumped * terrain * (1.0 - sloped + sloped * (0.5 + 0.5 * lines))
     by_water = 1.0 - smoothstep(half_river + 6.0, half_river + 45.0, river)
     if region.lip is not None:
         canyon = sample(area.ring_dl, x, y, region.half) < -(region.wall + 1.0)
         plains = canyon & (z > -region.drop + region.far['height'] * 0.6)
         floor = canyon & ~plains
-        chance = np.where(floor, np.maximum(RIVERSIDE * by_water * (0.35 + 0.65 * grove), 0.1 * grove), chance)
-        chance = np.where(plains, 0.05 * grove, chance)
+        floor_chance = np.maximum(RIVERSIDE * by_water * (0.35 + 0.65 * grove), 0.1 * grove) * clumped
+        chance = np.where(floor, floor_chance, chance)
+        chance = np.where(plains, 0.05 * grove * clumped, chance)
     else:
         canyon = np.zeros(len(pts), dtype=bool)
-    tree_top = np.full(len(pts), SEEN_AT * 12.0)
     lookouts = [[p[0] / 100.0, p[1] / 100.0, p[2] / 100.0] for p in spec.get('lookouts', [])]
-    seen = _seen(area, ground, pts, z + tree_top, lookouts)
+    # Who sees them, worked out only where a tree may stand (the gaps between the groves have no chance).
+    seen = np.zeros(len(pts), dtype=bool)
+    some = chance > 1e-4 * float(chance.max())
+    seen[some] = _seen(area, ground, pts[some], z[some] + SEEN_AT * 12.0, lookouts)
     chance *= UNSEEN + (1.0 - UNSEEN) * seen
 
     # As many as the count asks for: the chances scaled to add up to it.
@@ -229,10 +247,10 @@ def place(area):
         lo, hi = (k, hi) if np.minimum(1.0, k * chance).sum() < target else (lo, k)
     chosen = rng.random(len(pts)) < np.minimum(1.0, k * chance)
 
-    # What each is: pines higher up, broadleaf low and by the water.
-    low = smoothstep(-6.0, -18.0, z) * ~canyon
-    high = smoothstep(14.0, 30.0, z) * ~canyon
-    pine_p = np.clip(pines * (1.0 - 0.85 * by_water) + 0.6 * high * (1.0 - pines) - 0.15 * low, 0.0, 1.0)
+    # What each is: pines higher up, broadleaf (cottonwoods) along the low ground and by the water.
+    low = np.maximum(low, smoothstep(-6.0, -18.0, z)) * ~canyon
+    high = high * ~canyon
+    pine_p = np.clip(pines * (1.0 - 0.85 * by_water) * (1.0 - 0.8 * low) + 0.8 * high * (1.0 - pines), 0.0, 1.0)
     is_pine = rng.random(len(pts)) < pine_p
     stand_a = fbm(x, y, 45.0, seed=404, octaves=2) > -0.05      # pines of a kind stand together
     which = np.where(is_pine, np.where(stand_a, 0, 1), 2)
@@ -262,6 +280,23 @@ def place(area):
                 + (f', {creases} of them pines in the ridges\' creases' if creases else ''),
         'meshes': meshes}
     return area.far_trees
+
+
+def _creases(area, x, y):
+    """How much each point lies in a crease of the ring's ridge faces (area_faces.py), 0 to 1."""
+    import area_faces
+    faces = area_faces.ring_fields(area)
+    if faces is None:
+        return np.zeros(len(x))
+    return np.clip(sample(faces['crease'], x, y, area.region.half), 0.0, 1.0)
+
+
+def _low_ground(ground, x, y, z):
+    """How much each point lies low: below the ground LOW_REACH m around it (a hollow, a valley's bottom), 0 to 1."""
+    around = np.zeros(len(x))
+    for a in np.radians(np.arange(8) * 45.0):
+        around += ground(x + math.cos(a) * LOW_REACH, y + math.sin(a) * LOW_REACH)
+    return smoothstep(-1.5, -6.0, z - around / 8.0)
 
 
 def _crease_pines(area, spec, near, ground, mesh_height, lookouts, meshes):

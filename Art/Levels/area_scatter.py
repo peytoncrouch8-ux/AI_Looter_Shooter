@@ -214,9 +214,7 @@ def paint(area, out_path, preview_dir=None, log=print):
         sloped = _ss(FLAT_LIMIT - 1.0, FLAT_LIMIT + 1.0, slope)  # no flat layer reaches it
         grass, flowers = grass * (1.0 - sloped), flowers * (1.0 - sloped)
         import area_scrub
-        notes.append(area_scrub.paint(area, grid, faces,
-                                      dict(slope=slope, past=past, surface=_ss(0.0, 0.5, clear_w), wet=wet,
-                                           bare=bare, gravel=gravel),
+        notes.append(area_scrub.paint(area, grid, faces, area_scrub.context(area, grid),
                                       os.path.join(os.path.dirname(out_path), os.path.basename(area.scrub_texture)),
                                       _save, preview_dir))
         del faces
