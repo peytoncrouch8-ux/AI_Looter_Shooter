@@ -767,8 +767,11 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   varied (mirrored, sunk, turned); `build_tutorial_island.py` wraps it for the tutorial island. From `layout.json`'s
   level block an area swaps in models of its own (`models`), places models the generator needn't know (`props`: the
   town gate), chooses which chimneys smoke (`smoke`) and which houses are lit (`lights`: AHouseLights, or dark windows),
-  varies its cliffs' tops and leaves gaps (`cliffs`), and wears its own instances of shared materials (`materials`,
-  `swaps`: Ransom's Rest's rock and orchard leaves).
+  varies its cliffs' tops and leaves gaps (`cliffs`; in leaning groups no top ends inside the wall's rounded lip, and
+  per group the tops spread under it, `leanTop`, and the faces stand out from it, `leanProud`; runs that end at a rock
+  reach into it, `cliffs.abut`; a run's end piece keeps off a ramp's walkway), and wears its own instances of shared
+  materials (`materials`, `swaps`: Ransom's Rest's rock and orchard leaves; `swapsOn`, on the actors it names alone:
+  the windmill's steel).
 - `Tools/Unreal/build_area_bounds.py`: a grounded area's bounds for `build_area.py`: the playable area from the
   computed boundary (its walls `level.wallSetback` behind the line, at the rock's foot), the KillZ 100 m under the
   canyon floor, and a cull distance volume (sizes to distances).
@@ -807,8 +810,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `build_area_caches.py`; Side 2's from `build_area_whitlock.py`;
   Main 6's from `build_area_deck.py`; Main 7's from `build_area_depot.py`; and Hob with his perches through Main 7
   (on the town gate's SOCKET_Perch for Main 3).
-- `Tools/Unreal/build_area_sink.py`: Main 5's pieces for `build_area_story.py`: the Sink's floor (blocks and coffins), its
-  web cards (shadows off), the three egg sacs on their lines and sling, the lantern in its snare, the floor's and ramp
+- `Tools/Unreal/build_area_sink.py`: Main 5's pieces for `build_area_story.py`: the Sink's floor (blocks and coffins, in
+  the Sink's own dusty granite), its web cards (shadows off; corner mats at the walls' feet, the floor's mats in dusty
+  silk, orb webs only across a gap between two solid things), the three egg sacs on their lines (each ending where it
+  first meets rock) and sling, the lantern in its snare, the floor's and ramp
   head's places, the floor's spiders, the den's web funnel, the Webwood's dead trees and Hob's Sink perches; transforms
   in tables in the Sink's own frame.
 - `Tools/Unreal/build_area_chapel.py`: Main 4's pieces for `build_area_story.py`: the chapel's place, the chapel yard's

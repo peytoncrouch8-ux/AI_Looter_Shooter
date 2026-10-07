@@ -13,16 +13,22 @@ below hold every number; Main changes them there after looking in the editor.
 - The floor's collapsed blocks and old coffins (SM_DressedBlock_A/_B, SM_Coffin_Closed/_Broken, tagged Obstacle): three
   piles inside the obstacle sinkFloorBlocks (the crescent on the north side of the floor, clear of the ramp's foot),
   cover for the fight, and coffins lying loose about the floor. Each pile stands on the floor found under its middle.
+  The blocks wear the Sink's own granite, warm and dusty like the walls (BLOCK_LOOK).
 - The web cards (Art/Models/Props/Sink.py's notes; one slot, no collision, no Nanite, no LODs, shadows OFF on every one,
   about 20 in any view): Web_Corner along the walls' feet (its pivot on the foot, its mat out over the floor), Web_Drape
   over the long face of a block or a coffin (scaled 1.1 over a B, 1.4 over an A, 0.88 over a coffin), Web_Ground on open
-  floor, an orb web against the north wall, and Web_Tatters and Web_Strands hanging from the ramp's inner edge where it
-  stands high over the floor. Web_Funnel, the den's silk lining, on Den Rock's SOCKET_DenMouth with its rotation (left
-  out without the socket).
+  floor in the Sink's dusty silk (WEB_LOOKS), orb webs only where one spans a gap between two solid things (ORBS: the
+  corner under the ramp head), and Web_Tatters and Web_Strands hanging from the ramp's inner edge where it stands high
+  over the floor. Web_Funnel, the den's silk lining, on Den Rock's SOCKET_DenMouth with its rotation (left out without
+  the socket).
+- The Sink's own materials (WEB_LOOKS, BLOCK_LOOK) are the layout's level.materials, set here on the Sink's pieces alone:
+  a level.swaps entry would reach every slot wearing the shared one (the Webwood's webs wear MI_Web too, and the area's
+  cairns and scattered rocks MI_RockGranite). One the layout doesn't make is left out with a warning: those pieces keep
+  the shared look.
 - The three egg sacs (AEggSac tagged EggSac, Main 5's second step): SM_EggSac_A and _C hanging by SOCKET_Silk from two
-  Web_Lines each, glued to the wall either side; SM_EggSac_B in its Web_Sling against the north-west wall (one
-  transform: the sling's SOCKET_Sac, the wall 66 cm behind). Shootable during Main 5's second step only; burst on the
-  floor from the start after it. Their spiders (two each, Basic, tagged Spider_EggSac) fight on the floor.
+  Web_Lines each, glued to the wall either side where each line first meets the rock; SM_EggSac_B in its Web_Sling
+  against the north-west wall (one transform: the sling's SOCKET_Sac, the wall 66 cm behind). Shootable during Main 5's
+  second step only; burst on the floor from the start after it. Their spiders (two each, Basic, tagged Spider_EggSac) fight on the floor.
 - The Keeper's Lantern (AKeepersLantern tagged Lantern_Keeper): Web_Snare at the north wall's foot, the lantern hanging
   dark from its SOCKET_Lantern by its SOCKET_Grip, taken in Main 5's third step.
 - The places' markers: the floor's middle (a target point tagged Place_SinkFloor: "Climb down into the Sink", within
@@ -60,7 +66,17 @@ LANTERN_STEP = 2
 OUT_STEP = 3
 
 PROPS = '/Game/Art/Props/'
+MATERIALS = '/Game/Art/Materials/'
 DEAD_TREE = '/Game/Art/Vegetation/SM_DeadTree_A'
+
+# The Sink's own looks (the layout's level.materials; build_area's area_materials makes them). The web mats on the floor
+# in a dustier silk: at full brightness they read as white paint on the dark floor from 10-15 m (art note 1). The
+# collapsed blocks' granite warmed and dusted toward the walls' sandstone: clean light grey stood apart from them (art
+# note 4). Cards by name (Web_<name>) to their material; the blocks' granite slots (the model's own, or the area's once
+# swapped) to theirs.
+WEB_LOOKS = {'Ground': 'MI_Web_SinkFloor'}
+BLOCK_LOOK = 'MI_RockGranite_Sink'
+GRANITE = ('MI_RockGranite', 'MI_RockGranite_Ransom')
 
 # ---------------------------------------------------------------------------
 # The tables (the Sink's frame: cm from its middle, dx north, dy east; z over the floor; degrees)
@@ -113,6 +129,10 @@ SACS = (
 )
 # The sling's wall: the plane y = 0.66 m behind its pivot (Sink.py), so the pivot stands this far out of the wall (cm).
 SLING_OFF_WALL = 66.0
+# A hung sac's line ends where it first meets something solid on its way from the silk toward its anchor's wall point,
+# looked for up to LINE_PAST beyond that point; nearer the silk than LINE_MIN is no anchor (cm).
+LINE_PAST = 300.0
+LINE_MIN = 100.0
 
 # The Keeper's Lantern: the snare's middle out from the north wall's foot along its bearing, and over the floor (cm). Its
 # second card crosses the first at 55 degrees and reaches about 1 m back: to the wall.
@@ -120,12 +140,47 @@ LANTERN = dict(bearing=-8.0, off_wall=100.0, middle_up=175.0)
 
 # Web_Corner along the walls' feet (bearings: the north-west and north walls, and the ramp's inner cliff under its head).
 CORNERS = (-90.0, -55.0, -8.0, 40.0)
-# A corner's pivot stands this far out of the wall's face, over its rough foot (cm).
+# A corner's pivot stands this far out of the wall's foot (cm).
 CORNER_OUT = 8.0
+# Finding the foot: a level line CORNER_PROBE over the floor meets the wall's face (the floor rises gently toward the
+# walls, and a line 30 cm up met it 2-4 m short of them, which left the corners lying on open floor like ground mats);
+# then the ground is sampled back toward the middle every CORNER_STEP, up to CORNER_SEEK, over the wall and the 40-50
+# degree slope at its foot, and the foot is where it first rises no steeper than CORNER_FOOT (rise over run, 31
+# degrees): the floor's edge. The card's mat (CORNER_MAT out over the floor) is tipped down as the floor falls under it.
+CORNER_PROBE = 300.0
+CORNER_STEP = 10.0
+CORNER_SEEK = 600.0
+CORNER_FOOT = 0.6
+CORNER_MAT = 50.0
+CORNER_TIP = 20.0               # degrees at most
 # Web_Ground on open floor: (dx, dy, yaw).
 GROUND_WEBS = ((150.0, 120.0, 30.0), (500.0, 300.0, 75.0))
-# An orb web against the north wall: its hub's bearing, how far out of the wall and how high (cm).
-ORB = dict(bearing=20.0, off_wall=120.0, hub_up=230.0)
+# Orb webs, each across a gap between two solid things: an inside corner of the rock, two blocks, a block and the wall
+# (one hung 1.2 m out from the north wall floated in open air: art note 2). Each starts at its point (dx, dy), its face
+# turned out of the gap (facing, a yaw), and slides back into the gap ORB_STEP at a time, up to ORB_SLIDE, until level
+# lines either way along the card's width, at ORB_PROBES over the floor, meet something solid both ways within ORB_REACH
+# and the gap between is no wider than ORB_GAP's most. There its hub goes midway across, the card scaled so its anchor
+# lines' ends (ORB_HALF either side of the hub at full size) land on both sides, its lowest ones on the floor. A gap
+# narrower than ORB_GAP's least, or none within the slide, leaves the orb out with a warning.
+ORBS = (
+    # The north-west corner under the ramp head, where the ramp's inner face (facing 30) meets the pit's wall (facing 97)
+    # at about 115 degrees: about 2.5 m out of it, facing out along the corner's bisector.
+    dict(at=(220.0, -1525.0), facing=64.0),
+)
+# The orb card (Sink.py's Web_Orb on Art/Textures/Webs' Orb cell, 320 px per metre): its anchor lines end 1.19 m either
+# side of the hub and 1.19 m under it (cm).
+ORB_HALF = 118.75
+ORB_LOW = 118.75
+# The probes stand where a full-size card's side anchors end (0.88, 1.46 and 1.86 m over the floor); walls run straight
+# up past them, so a smaller or bigger card's anchors land on them too. Blocks lower than that are no gap for an orb.
+ORB_PROBES = (90.0, 180.0)
+ORB_REACH = 200.0
+ORB_GAP = (150.0, 260.0)        # cm: the card at 0.63 to 1.09 of its size
+ORB_STEP = 20.0
+ORB_SLIDE = 400.0
+# A side's face must turn toward the hub at least this much (the cosine between its normal and the line back): a face met
+# almost edge-on is no anchor.
+ORB_FACING = 0.25
 # Web_Tatters and Web_Strands hanging from the ramp's inner edge: the computed ramp's points by index (0 at its head on
 # the rim, 24 at its foot), where it stands 4-7 m over the floor.
 TATTERS = (12, 16)
@@ -159,10 +214,12 @@ ROAD_TREE = dict(yaw=-60.0, scale=1.05, crown=True)
 # at about 3 m: Blender (0.92, -0.10, 3.00), radius 0.11, in the tree's Unreal frame, on its top) (cm).
 ROAD_TREE_PERCH = unreal.Vector(10.0, -92.0, 312.0)
 
-# Traces for the walls start at the Sink's middle and reach this far (cm); floors are looked for this far down.
+# Traces for the walls start at the Sink's middle and reach this far (cm); floors are looked for from FLOOR_ABOVE over the
+# middle's floor this far down, or from SLOPE_ABOVE at the walls' feet, where the ground rises 1-3 m (cm).
 WALL_REACH = 3000.0
 FLOOR_ABOVE = 200.0
 FLOOR_BELOW = 500.0
+SLOPE_ABOVE = 600.0
 
 
 # ---------------------------------------------------------------------------
@@ -170,8 +227,8 @@ FLOOR_BELOW = 500.0
 # ---------------------------------------------------------------------------
 
 class Sink:
-    """The Sink's frame: its middle, the floor's height there, its outline, and what this script has placed (traces look
-    past it)."""
+    """The Sink's frame: its middle, the floor's height there, its outline, what this script has placed (traces look
+    past it; solid: the blocks and coffins, which orb webs may span to) and its own materials by name."""
 
     def __init__(self, build, zone):
         self.build = build
@@ -179,6 +236,8 @@ class Sink:
         self.cx, self.cy = story.centroid(self.zone)
         self.fz = story.ground_at(self.cx, self.cy)
         self.placed = []
+        self.solid = []
+        self.looks = sink_looks(build)
 
     def at(self, dx, dy):
         """The world (x, y) of a frame offset."""
@@ -189,10 +248,29 @@ class Sink:
         b = math.radians(bearing)
         return self.cx + math.cos(b) * dist, self.cy + math.sin(b) * dist
 
-    def floor(self, x, y):
-        """The floor's height under (x, y), past what's placed here (the blocks, the sacs)."""
-        hit = trace(unreal.Vector(x, y, self.fz + FLOOR_ABOVE), unreal.Vector(x, y, self.fz - FLOOR_BELOW), self.placed)
+    def floor(self, x, y, above=FLOOR_ABOVE):
+        """The floor's height under (x, y), past what's placed here (the blocks, the sacs), looked for from above over
+        the middle's floor (higher on the walls' slopes, where the default would start inside the rock)."""
+        hit = trace(unreal.Vector(x, y, self.fz + above), unreal.Vector(x, y, self.fz - FLOOR_BELOW), self.placed)
         return self.fz if hit is None else hit[0].z
+
+    def foot(self, bearing):
+        """Where the wall's slope along a bearing meets the floor (CORNER_PROBE's rule): (distance from the middle, the
+        floor's height there, how far the floor falls over CORNER_MAT toward the middle), or None."""
+        wall = self.wall(bearing, CORNER_PROBE)
+        if wall is None:
+            return None
+        r = wall[1]
+        z = self.floor(*self.along(bearing, r), above=SLOPE_ABOVE)
+        for _ in range(int(CORNER_SEEK / CORNER_STEP)):
+            inner = r - CORNER_STEP
+            below = self.floor(*self.along(bearing, inner), above=SLOPE_ABOVE)
+            if (z - below) / CORNER_STEP <= CORNER_FOOT:
+                return r, z, z - self.floor(*self.along(bearing, r - CORNER_MAT), above=SLOPE_ABOVE)
+            r, z = inner, below
+        self.build.warn(f'no foot within {CORNER_SEEK:.0f} cm of the wall along {bearing:.0f} degrees: its corner web '
+                        f'sits where the search ended')
+        return r, z, 0.0
 
     def wall(self, bearing, up):
         """Where a level line from the middle, up over the floor, meets the wall along a bearing: (point, distance from the
@@ -208,10 +286,16 @@ class Sink:
         point = hit[0]
         return point, math.hypot(point.x - self.cx, point.y - self.cy)
 
-    def keep(self, actor):
+    def keep(self, actor, solid=False):
         if actor is not None:
             self.placed.append(actor)
+            if solid:
+                self.solid.append(actor)
         return actor
+
+    def not_solid(self):
+        """What this script placed that an orb web can't hang from: the cards, the sacs, the lantern."""
+        return [actor for actor in self.placed if actor not in self.solid]
 
 
 def trace(start, end, ignore=()):
@@ -248,14 +332,46 @@ def quiet(actor):
     return actor
 
 
+def sink_looks(build):
+    """The Sink's own materials (WEB_LOOKS, BLOCK_LOOK) by name, made from the layout's level.materials first: the gameplay
+    pass places the Sink before it makes the area's materials, so on a first build they wouldn't exist yet. One the layout
+    doesn't make is None, with a warning: its pieces keep the shared look."""
+    build.area_materials()
+    looks = {}
+    for name in sorted(set(WEB_LOOKS.values()) | {BLOCK_LOOK}):
+        path = MATERIALS + name
+        if unreal.EditorAssetLibrary.does_asset_exist(path):
+            looks[name] = unreal.load_asset(path)
+        else:
+            build.warn(f'no {path} (layout.json level.materials makes it): the Sink\'s pieces meant to wear it keep the '
+                       f'shared look')
+            looks[name] = None
+    return looks
+
+
+def wear(actor, material, only=()):
+    """A placed model's slots in material: all of them, or those wearing a material named in only. None changes
+    nothing."""
+    if actor is None or material is None:
+        return actor
+    component = actor.static_mesh_component
+    for slot in range(component.get_num_materials()):
+        worn = component.get_material(slot)
+        if not only or (worn is not None and worn.get_name() in only):
+            component.set_material(slot, material)
+    return actor
+
+
 def card(build, sink, name, location, yaw, label, pitch=0.0, roll=0.0, scale=None):
-    """A web card (SM_Web_<name>), quiet."""
+    """A web card (SM_Web_<name>), quiet, in the Sink's own silk where WEB_LOOKS names one for it."""
     model = mesh(build, 'Web_' + name)
     if model is None:
         return None
     made = build.place(model, location, yaw, label=label, folder='Gameplay', scale=scale)
     if pitch or roll:
         turn(made, yaw, pitch, roll)
+    if name in WEB_LOOKS:
+        wear(made, sink.looks.get(WEB_LOOKS[name]))
     return sink.keep(quiet(made))
 
 
@@ -286,7 +402,9 @@ def place_floor(build, sink, blocks_zone):
                                folder='Gameplay', tags=('Obstacle',))
             if pitch or roll:
                 turn(made, yaw, pitch, roll)
-            placed.append((model_name, sink.keep(made)))
+            # The blocks' granite in the Sink's own (the coffins have none).
+            wear(made, sink.looks.get(BLOCK_LOOK), GRANITE)
+            placed.append((model_name, sink.keep(made, solid=True)))
         piles[name] = placed
     for index, (model_name, dx, dy, yaw) in enumerate(COFFINS):
         model = mesh(build, model_name)
@@ -294,7 +412,7 @@ def place_floor(build, sink, blocks_zone):
             continue
         x, y = sink.at(dx, dy)
         sink.keep(build.place(model, (x, y, sink.floor(x, y)), yaw, label=f'Sink_Coffin_{index + 1}', folder='Gameplay',
-                              tags=('Obstacle',)))
+                              tags=('Obstacle',)), solid=True)
     count = sum(len(pieces) for _, _, pieces in PILES) + len(COFFINS)
     build.log(f'the Sink\'s floor: {count} blocks and coffins in {len(PILES)} piles and loose, floor at {sink.fz:.0f}')
     return piles
@@ -315,16 +433,18 @@ def inside_polygon(point, polygon):
 # ---------------------------------------------------------------------------
 
 def place_webs(build, sink, piles):
-    """The corners, drapes, ground mats, the orb, and the ramp edge's tatters and strands."""
+    """The corners, drapes, ground mats, the orbs, and the ramp edge's tatters and strands."""
     placed = 0
     for index, bearing in enumerate(CORNERS):
-        wall = sink.wall(bearing, 30.0)
-        if wall is None:
+        foot = sink.foot(bearing)
+        if foot is None:
             continue
-        point, dist = wall
+        dist, z, fall = foot
         x, y = sink.along(bearing, dist - CORNER_OUT)
-        # The pivot on the wall's foot, the mat out over the floor (its front, +X), the rock behind.
-        made = card(build, sink, 'Corner', (x, y, sink.floor(x, y)), facing(bearing), f'Sink_Web_Corner_{index + 1}')
+        # The pivot on the wall's foot, the mat out over the floor (its front, +X, tipped down with the floor), the rock
+        # behind.
+        tip = -min(max(math.degrees(math.atan2(fall, CORNER_MAT)), 0.0), CORNER_TIP)
+        made = card(build, sink, 'Corner', (x, y, z), facing(bearing), f'Sink_Web_Corner_{index + 1}', pitch=tip)
         placed += made is not None
     for index, (pile, piece, face) in enumerate(DRAPES):
         pieces = piles.get(pile, [])
@@ -344,14 +464,67 @@ def place_webs(build, sink, piles):
     for index, (dx, dy, yaw) in enumerate(GROUND_WEBS):
         x, y = sink.at(dx, dy)
         placed += card(build, sink, 'Ground', (x, y, sink.floor(x, y)), yaw, f'Sink_Web_Ground_{index + 1}') is not None
-    wall = sink.wall(ORB['bearing'], ORB['hub_up'])
-    if wall is not None:
-        x, y = sink.along(ORB['bearing'], wall[1] - ORB['off_wall'])
-        made = card(build, sink, 'Orb', (x, y, sink.fz + ORB['hub_up']), facing(ORB['bearing']), 'Sink_Web_Orb')
-        placed += made is not None
+    for index, spec in enumerate(ORBS):
+        placed += place_orb(build, sink, spec, index) is not None
     placed += place_ramp_edge(build, sink)
     build.log(f'{placed} web cards on the Sink\'s floor, walls and ramp (shadows off, no collision)')
     return placed
+
+
+def gap_across(sink, x, y, yaw, ignore):
+    """The gap across (x, y) along the width of a card facing yaw: level lines either way at ORB_PROBES over the floor
+    there, out to ORB_REACH. Returns (how far to the left side, to the right; each averaged over the probes), or None
+    when a line meets nothing or meets a face almost edge-on."""
+    floor = sink.floor(x, y, above=SLOPE_ABOVE)
+    a = math.radians(yaw + 90.0)
+    ax, ay = math.cos(a), math.sin(a)
+    sides = ([], [])
+    for up in ORB_PROBES:
+        start = unreal.Vector(x, y, floor + up)
+        for side, sign in enumerate((-1.0, 1.0)):
+            end = unreal.Vector(x + sign * ax * ORB_REACH, y + sign * ay * ORB_REACH, floor + up)
+            hit = trace(start, end, ignore)
+            if hit is None:
+                return None
+            point, normal = hit
+            if -(normal.x * sign * ax + normal.y * sign * ay) < ORB_FACING:
+                return None
+            sides[side].append((point.x - x) * sign * ax + (point.y - y) * sign * ay)
+    return sum(sides[0]) / len(sides[0]), sum(sides[1]) / len(sides[1])
+
+
+def place_orb(build, sink, spec, index):
+    """An orb web across a gap between two solid things (ORBS' rule): slid back from its point into the gap until one
+    fits, its hub midway across, scaled to span it, its lowest anchors on the floor. None when no gap fits."""
+    x0, y0 = sink.at(*spec['at'])
+    yaw = spec['facing']
+    back = math.radians(yaw)
+    fx, fy = math.cos(back), math.sin(back)
+    ax, ay = math.cos(back + math.pi * 0.5), math.sin(back + math.pi * 0.5)
+    ignore = sink.not_solid()
+    for step in range(int(ORB_SLIDE / ORB_STEP) + 1):
+        x, y = x0 - fx * ORB_STEP * step, y0 - fy * ORB_STEP * step
+        sides = gap_across(sink, x, y, yaw, ignore)
+        if sides is None or sum(sides) > ORB_GAP[1]:
+            continue
+        gap = sum(sides)
+        if gap < ORB_GAP[0]:
+            build.warn(f'the orb web {index + 1}\'s gap near ({x:.0f}, {y:.0f}) is {gap:.0f} cm across, under '
+                       f'{ORB_GAP[0]:.0f}: it\'s left out')
+            return None
+        # Midway across, along the card's width; its lowest anchors on the floor there.
+        shift = (sides[1] - sides[0]) * 0.5
+        x, y = x + ax * shift, y + ay * shift
+        scale = gap / (2.0 * ORB_HALF)
+        hub = sink.floor(x, y, above=SLOPE_ABOVE) + ORB_LOW * scale
+        made = card(build, sink, 'Orb', (x, y, hub), yaw, f'Sink_Web_Orb_{index + 1}', scale=(scale, scale, scale))
+        if made is not None:
+            build.log(f'orb web {index + 1} across a {gap:.0f} cm gap at ({x:.0f}, {y:.0f}), slid '
+                      f'{ORB_STEP * step:.0f} cm in, at {scale:.2f} of its size')
+        return made
+    build.warn(f'no gap {ORB_GAP[0]:.0f}-{ORB_GAP[1]:.0f} cm across between two solid things within {ORB_SLIDE:.0f} cm '
+               f'of the orb web {index + 1}\'s point (frame {spec["at"]}, facing {yaw:.0f}): it\'s left out')
+    return None
 
 
 def place_ramp_edge(build, sink):
@@ -384,6 +557,25 @@ def place_ramp_edge(build, sink):
             yaw = math.degrees(math.atan2(ny, nx))
             placed += card(build, sink, name, (fx, fy, az - 5.0), yaw, f'Sink_Web_{name}_{index}') is not None
     return placed
+
+
+def line_anchor(sink, silk, bearing, up):
+    """Where a sac's line, from its silk toward the wall's point up over the floor along a bearing from the middle, first
+    meets something solid, so it ends on the rock it's glued to and never runs through a jutting one first: a level
+    line from the middle finds the point to aim at, then a line from the silk past it finds what's really there. None
+    when nothing solid lies within LINE_PAST past that point (or closer than LINE_MIN to the silk)."""
+    wall = sink.wall(bearing, up)
+    if wall is None:
+        return None
+    aim = wall[0] - silk
+    length = aim.length()
+    if length < LINE_MIN:
+        return None
+    end = silk + aim * ((length + LINE_PAST) / length)
+    hit = trace(silk, end, sink.placed)
+    if hit is None or (hit[0] - silk).length() < LINE_MIN:
+        return None
+    return hit[0]
 
 
 def place_line(build, sink, a, b, label):
@@ -451,10 +643,15 @@ def hang_sac(build, sink, cls, spec, index):
             sac.set_actor_location(sac.get_actor_location() + offset, False, True)
         else:
             build.warn(f'SM_{spec["model"]} has no SOCKET_Silk: it hangs by its top instead')
+        lines = 0
         for side, anchor in enumerate(spec['anchors']):
-            wall = sink.wall(anchor, spec['anchor_up'])
-            if wall is not None:
-                place_line(build, sink, wall[0], silk, f'Sink_Web_Line_{index + 1}{"ab"[side]}')
+            glued = line_anchor(sink, silk, anchor, spec['anchor_up'])
+            if glued is None:
+                build.warn(f'{spec["model"]}\'s line toward {anchor:.0f} degrees meets nothing solid: it\'s left out')
+                continue
+            lines += place_line(build, sink, glued, silk, f'Sink_Web_Line_{index + 1}{"ab"[side]}') is not None
+        if not lines:
+            build.warn(f'{spec["model"]} hangs from no line: look at its anchors in SACS')
     at = sac.get_actor_location()
     sac.set_editor_property('drop_height', max(at.z - sink.floor(at.x, at.y), 50.0))
     sac.set_editor_property('burst_out', spec.get('burst_out', 0.0))

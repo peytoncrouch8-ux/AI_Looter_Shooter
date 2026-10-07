@@ -92,8 +92,9 @@ CACHES = (
         # The art session's spot (Chests.py's SupplyCrate_Windmill view): at the foot of the tower's front face, between
         # the front footings, in front of the pump, turned 22.5 degrees right of the tower's front. Their (0.08, -1.72) m
         # in the model's Blender frame is (172, -8) here; the tower's hull (1.3 m out at the ground, 1.19 m at 0.9 m) would
-        # take the crate's back corner and the open lid's, so it stands 2 m out.
-        (200.0, -8.0, 22.5, True),
+        # take the crate's back corner and the open lid's. At 2 m out the front cross-brace and the pump's pipe, which the
+        # hull doesn't cover, stood just behind the hinge and the opening lid swung through them, so it stands 2.7 m out.
+        (270.0, -8.0, 22.5, True),
         # The back face, under the tail vane: facing south-south-west in the level (the tower faces 30 degrees).
         (-200.0, 0.0, 172.5, True),
         # The right face, toward the yard's south-east corner.

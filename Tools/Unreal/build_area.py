@@ -65,6 +65,28 @@ CLIFF_INSET = 120.0
 CLIFF_OVERTOP = 20.0
 CLIFF_OVERLAP = 250.0
 CLIFF_COURSE_OVERLAP = 30.0  # a lower course reaches this far up behind the one stacked on it
+# How far each kit piece's face stands in front of its pivot, on its +X side (Cliffs.py: the front plane, half its
+# depth less 0.9 m, its back flat at half its depth behind; cm). Its columns jut up to 1.2 m in front of that plane or
+# stand up to 0.8 m behind it, about 12 cm in front on average, so one line through a piece meets one column: the
+# Sink's probe met the middle column 20-46 cm behind on an A, 99 in front on a B, 11 in front on a C and 58 behind on a
+# D. CLIFF_INSET puts every pivot 1.2 m behind the wall's foot: a D's face on the wall, an A's, B's and C's 10, 30 and
+# 50 cm behind it, and a leaning piece tan(lean) times its sink further back again, its pivot being sunk under the foot.
+CLIFF_FRONT = {'CliffFace_A': 110.0, 'CliffFace_B': 90.0, 'CliffFace_C': 70.0, 'CliffFace_D': 120.0}
+# A leaning group's wall (level.cliffs.lean) is checked at these shares of its height, highest first, for where it falls
+# back from the plane its pieces lean in by no more than LIP_RECESS (cm): no piece's top ends between that share and the
+# wall's top (a group's level.cliffs.leanTop spreads its tops under it; without one, a top drawn in there comes down to
+# it and one drawn over the wall's top stays). A pit's wall rounds over into the rim: on the Sink's north wall it falls
+# back 0.1 m at 0.8 of its height, 0.4 m at 0.86, 1.1 m at 0.95, so a top ending in that stood out from the rim with the
+# slope curving away under it (art note 3's knob, Cliff_theSink_02 at 0.95). A wall that's a plane to its top (a ramp's
+# drop) keeps 1.0.
+LIP_SHARES = (1.0, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7)
+LIP_RECESS = 25.0
+# A run's end piece that ends against a placed rock (level.cliffs.abut) is stretched to reach ABUT_EMBED into it (cm),
+# looking ABUT_REACH past its end for it, to no more than ABUT_WIDEST times the kit piece's width.
+ABUT_EMBED = 150.0
+ABUT_REACH = 800.0
+ABUT_WIDEST = 2.0
+ABUT_HEIGHTS = (0.3, 0.6, 0.9)     # shares of the piece's height the rock is looked for at
 # Cliff groups whose pieces are varied. The boundary's rock (area_boundary.rock_faces) runs on for hundreds of meters
 # at much the same height, where the closest fit is the same piece at the same height every few meters and the wall
 # reads as a kit. Each of its pieces draws on its own seed, so a rebuild places it the same: every other one is
@@ -127,6 +149,12 @@ def free_ends(points, i, width):
     return ends
 
 
+def per_group(value, group):
+    """A level.cliffs setting given for every group it applies to, or by group ({group: value}; None for one it
+    doesn't name)."""
+    return value.get(group) if isinstance(value, dict) else value
+
+
 def ramp_corridors(source):
     """The walkways up the features' ramps (layout.json features[].ramp: its path and width), with the cliff group that
     lines each, which alone may stand at its edge: [(path, half width, walls group)]."""
@@ -148,13 +176,18 @@ def in_corridor(point, corridors, group):
     return False
 
 
-def varied_piece(pieces, group, points, i, k, course, last, gap, top=None):
+def varied_piece(pieces, group, points, i, k, course, last, gap, top=None, cap=None):
     """Course k of a varied group's point i (VARIED_CLIFFS): (mesh, its height and width, the height it's scaled to
     reach from its sunk pivot, how far it sinks, its turn, -1.0 when mirrored), all drawn from the piece's own seed. With
-    top (the least and most share of the wall), the top course reaches its own share of the wall."""
+    top (the least and most share of the wall), the top course reaches its own share of the wall. With cap (the share
+    of the course its top may reach and still end under the wall's rounded lip), a share drawn between the cap and the
+    wall's top comes down to the cap, so no top ends inside the lip; one over the wall's top keeps its place, standing
+    on the ground past the rim."""
     rnd = random.Random(f'{group} {i} {k}')
     sink = rnd.uniform(*VARY_SINK)
     share = rnd.uniform(*top) if top and last else 1.0
+    if cap is not None and share < 1.0:
+        share = min(share, cap)
     reach = course['height'] * share + sink + (CLIFF_OVERTOP if last else CLIFF_COURSE_OVERLAP)
     # Among the pieces that fit at a height scale within VARY_STRETCH (any when none does), the one stretched least
     # either way, with chance in it, so a long wall mixes the kit's pieces where their heights allow.
@@ -214,20 +247,31 @@ def wall_lean(tiles, x, y, bottom, height, yaw):
     that a piece stands proud of the wall near its top, which reads better than a slab tilted further) and how far
     behind the point its foot is (cm), from level traces out of the open side onto the wall at a third and two thirds
     of its height. A generated wall slopes (a pit's falls 12 m over 3 m), so an upright piece standing at its foot is
-    buried in it below and pokes out of it near the top: from below, a rock hanging off the rim. (0, 0) where a trace
-    finds no wall."""
+    buried in it below and pokes out of it near the top: from below, a rock hanging off the rim. Third, the share of its
+    height the pieces may reach before the wall falls back from that plane (LIP_SHARES). (0, 0, 1) where a trace finds
+    no wall."""
     out_x, out_y = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
-    behind = []
-    for share in (1.0 / 3.0, 2.0 / 3.0):
-        z = bottom + share * height
+
+    def behind_at(z):
         hit = terrain_hit(tiles, unreal.Vector(x + out_x * 800.0, y + out_y * 800.0, z),
                           unreal.Vector(x - out_x * 1500.0, y - out_y * 1500.0, z))
-        if hit is None:
-            return 0.0, 0.0
-        behind.append((x - hit.x) * out_x + (y - hit.y) * out_y)
+        return None if hit is None else (x - hit.x) * out_x + (y - hit.y) * out_y
+    behind = []
+    for share in (1.0 / 3.0, 2.0 / 3.0):
+        found = behind_at(bottom + share * height)
+        if found is None:
+            return 0.0, 0.0, 1.0
+        behind.append(found)
     lean = min(max(math.degrees(math.atan2(behind[1] - behind[0], height / 3.0)), 0.0), 20.0)
     foot = behind[0] - math.tan(math.radians(lean)) * height / 3.0
-    return lean, foot
+    ceiling = LIP_SHARES[-1]
+    for share in LIP_SHARES:
+        # 10 cm under the share, so the top one meets the wall's face rather than skimming the ground over it.
+        found = behind_at(bottom + share * height - 10.0)
+        if found is not None and found - (foot + math.tan(math.radians(lean)) * share * height) <= LIP_RECESS:
+            ceiling = share
+            break
+    return lean, foot, ceiling
 
 
 def ground_height(x, y, default):
@@ -571,13 +615,17 @@ class AreaBuild:
         while it still reaches just over the top (or its share of the wall, level.cliffs.top), so it's stretched
         differently (within VARY_STRETCH where the kit has a piece that fits), and turned up to 8 degrees; some are left
         out for gaps (level.cliffs.gaps). In the groups level.cliffs.lean names, every piece leans back with the
-        terrain's wall behind it (wall_lean: measured with traces) and stands from that wall's real foot."""
+        terrain's wall behind it (wall_lean: measured with traces) from that wall's real foot, and no top ends inside
+        the wall's rounded lip (the share wall_lean finds; a group's level.cliffs.leanTop spreads its tops under it);
+        a group named in level.cliffs.leanProud stands its faces that far in front of the wall."""
         pieces = []
+        front_of = {}
         for name in CLIFF_PIECES:
             if name in meshes:
                 mesh = unreal.load_asset(meshes[name])
                 box = mesh.get_bounding_box()
                 pieces.append((mesh, box.max.z, box.max.y - box.min.y))
+                front_of[mesh.get_path_name()] = CLIFF_FRONT.get(name, CLIFF_INSET)
         if not pieces:
             self.warn('no cliff pieces yet')
             return
@@ -588,6 +636,13 @@ class AreaBuild:
         # A pit's wall stands against the cut behind it, so a gap there reads as a dark seam, not a broken edge.
         solid = set(self.cliff_look.get('solid', []))
         leaning = self.cliff_look.get('lean', [])
+        # A leaning group's own tops (leanTop: a share of the wall under its lip) and faces stood proud of the wall
+        # (leanProud, cm), each for every leaning group or by group ({group: value}). A leaning group without leanTop
+        # keeps the level's top, a top drawn inside the lip brought down under it; one without leanProud stands at
+        # CLIFF_INSET, its faces on the wall or a little behind it, where the terrain's own rock shows round them (the
+        # Sink's walls: brought 50 cm out, their pieces showed through the terrain's noise as scattered fragments).
+        lean_top = self.cliff_look.get('leanTop')
+        lean_proud = self.cliff_look.get('leanProud')
         tiles = terrain_tiles(self.tag) if leaning else []
         corridors = ramp_corridors(self.source)
         placed = left_out = ends_held = 0
@@ -616,7 +671,9 @@ class AreaBuild:
                 # dresses and stands from the wall's real foot, so it covers the whole face instead of poking out of
                 # the slope near the top: a pit's walls, seen from below.
                 leans = tiles and (leaning is True or group in leaning)
-                lean, foot = wall_lean(tiles, x, y, bottom, height, yaw) if leans else (0.0, 0.0)
+                lean, foot, ceiling = wall_lean(tiles, x, y, bottom, height, yaw) if leans else (0.0, 0.0, 1.0)
+                own_top = per_group(lean_top, group) if leans else None
+                proud = per_group(lean_proud, group) if leans else None
                 for k, course in enumerate(courses):
                     cx, cy, cz = course['location']
                     last = k == len(courses) - 1
@@ -624,14 +681,39 @@ class AreaBuild:
                     choices = sorted(pieces, key=lambda p: abs(math.log(reach / p[1])) + rng.uniform(0.0, 0.25))
                     mesh, piece_height, piece_width = choices[0]
                     turn, sink, mirror = rng.uniform(-4.0, 4.0), 0.0, 1.0
+                    if leans and last and own_top is not None:
+                        # The top course reaches no higher than the share of the wall under its lip (after the shared
+                        # draws, so the groups after it keep theirs); one left too short for a face is left out.
+                        course = dict(course, height=bottom + ceiling * height - cz)
+                        if course['height'] < 150.0:
+                            left_out += 1
+                            continue
+                        if group not in varied:
+                            reach = course['height'] + CLIFF_OVERTOP
+                            mesh, piece_height, piece_width = min(pieces, key=lambda p: abs(math.log(reach / p[1])))
                     if group in varied:
                         # Its own draws; the shared ones above are still made, so the groups after it keep theirs.
                         if len(courses) == 1 and group not in solid and cliff_gap(group, i, len(points), gap_share):
                             left_out += 1
                             continue
+                        # Without its own leanTop, a leaning group's top course ends under the lip (CLIFF_OVERTOP
+                        # included) or over the wall's top, never inside the lip.
+                        cap = None
+                        if leans and last and own_top is None and ceiling < 1.0:
+                            cap = (bottom + ceiling * height - cz - CLIFF_OVERTOP) / max(course['height'], 1.0)
                         mesh, piece_height, piece_width, reach, sink, turn, mirror = varied_piece(
-                            pieces, group, points, i, k, course, last, gap, top)
-                    inset = CLIFF_INSET + foot + math.tan(math.radians(lean)) * (cz - bottom)
+                            pieces, group, points, i, k, course, last, gap, own_top if own_top is not None else top,
+                            cap)
+                    if proud is not None:
+                        # The piece's own face (CLIFF_FRONT) stands leanProud in front of the wall it leans with, its
+                        # pivot, sunk under the foot, moved out by as far as the lean carries the face back over the
+                        # sink. With CLIFF_INSET alone the A, B and C faces stood 10-50 cm behind the wall and the sink
+                        # put them up to 70 cm further back, so the terrain covered them and only their jutting columns
+                        # showed, as loose upright blocks (the walls over the ramp, from the ramp head).
+                        inset = (front_of.get(mesh.get_path_name(), CLIFF_INSET) - proud + foot
+                                 + math.tan(math.radians(lean)) * (cz - sink - bottom))
+                    else:
+                        inset = CLIFF_INSET + foot + math.tan(math.radians(lean)) * (cz - bottom)
                     inward = (-math.cos(math.radians(yaw)) * inset, -math.sin(math.radians(yaw)) * inset)
                     width = cliff_width(gap, piece_width)
                     # A run's end piece is widened to overlap its one neighbour, which carries its free end out as far
@@ -654,6 +736,78 @@ class AreaBuild:
                     placed += 1
         self.log(f'placed {placed} cliff pieces' + (f' ({left_out} left out for gaps)' if left_out else '')
                  + (f'; {ends_held} run ends kept off a ramp\'s walkway' if ends_held else ''))
+
+    def abut_cliffs(self):
+        """The cliff runs that end against a placed rock (level.cliffs.abut: a group's id to placement keys, Den Rock for
+        the Sink's ring): each of the group's pieces with a free end (free_ends) is stretched along the wall toward that
+        end, its other end kept, until the end lies ABUT_EMBED inside the rock, so the joint is the two rocks meeting
+        rather than the piece's square end standing short of the rock with a straight line down it. The rock is found
+        by level lines along the piece at ABUT_HEIGHTS of its height, a metre behind its face, and the end must reach
+        into it at all of them: a rock whose face falls back as it rises (Den Rock's west side) is met near the piece's
+        middle low down and well past its end higher up, where a single line at half its height found it already in
+        and left a wedge of terrain between them. An end with no rock within ABUT_REACH past it is left alone. Needs
+        the cliffs and the models standing (the whole build, or "cliffs" after one)."""
+        abut = self.cliff_look.get('abut', {})
+        if not abut:
+            return
+        level = [a for a in actors.get_all_level_actors() if unreal.Name(self.tag) in a.tags]
+        by_label = {str(a.get_actor_label()): a for a in level}
+        stretched = 0
+        for group, keys in abut.items():
+            rocks = [m for k in keys if k in by_label
+                     for m in by_label[k].get_components_by_class(unreal.StaticMeshComponent)]
+            points = self.layout.get('cliffs', {}).get(group, [])
+            if not rocks:
+                self.warn(f'no {", ".join(keys)} placed for the {group} cliffs to end against')
+                continue
+            for i, point in enumerate(points):
+                for label, piece in by_label.items():
+                    if not (label == f'Cliff_{group}_{i + 1:02d}' or label.startswith(f'Cliff_{group}_{i + 1:02d}_')):
+                        continue
+                    box = piece.static_mesh_component.static_mesh.get_bounding_box()
+                    kit_width = box.max.y - box.min.y
+                    scale = piece.get_actor_scale3d()
+                    half = abs(scale.y) * kit_width * 0.5
+                    ends = free_ends(points, i, half * 2.0)
+                    if not ends:
+                        continue
+                    rotation = piece.get_actor_rotation()
+                    across, out = rotation.get_right_vector(), rotation.get_forward_vector()
+                    up = rotation.get_up_vector()
+                    behind = CLIFF_FRONT.get(piece.static_mesh_component.static_mesh.get_name()[3:], 120.0) - 100.0
+                    for ex, ey in ends:
+                        sign = 1.0 if across.x * ex + across.y * ey > 0.0 else -1.0
+                        way = unreal.Vector(across.x * sign, across.y * sign, 0.0)
+                        way = way * (1.0 / max(way.length(), 1e-6))
+                        # How far along the rock begins at each height (the nearest of its meshes), the farthest of
+                        # those the end must reach.
+                        best = None
+                        for share in ABUT_HEIGHTS:
+                            at = piece.get_actor_location() + up * (scale.z * box.max.z * share) + out * behind
+                            nearest = None
+                            for rock in rocks:
+                                hit = rock.line_trace_component(at, at + way * (half + ABUT_REACH), True, False, False)
+                                if hit:
+                                    location = hit[0] if isinstance(hit, tuple) else hit.to_tuple()[5]
+                                    d = (location - at).length()
+                                    nearest = d if nearest is None else min(nearest, d)
+                            if nearest is not None:
+                                best = nearest if best is None else max(best, nearest)
+                        if best is None or best + ABUT_EMBED <= half:
+                            continue
+                        width = half + best + ABUT_EMBED
+                        if width > ABUT_WIDEST * kit_width:
+                            self.warn(f'{label} would stretch to {width / kit_width:.2f} of its width to reach into '
+                                      f'{", ".join(keys)}: left as it is')
+                            continue
+                        piece.set_actor_location(piece.get_actor_location() + way * ((best + ABUT_EMBED - half) * 0.5),
+                                                 False, True)
+                        piece.set_actor_scale3d(unreal.Vector(scale.x, math.copysign(width / kit_width, scale.y),
+                                                              scale.z))
+                        stretched += 1
+                        break   # one end per piece: a lone piece's other end stays as it is
+        if stretched:
+            self.log(f'{stretched} cliff run ends stretched into the rock they end against (level.cliffs.abut)')
 
     def area_materials(self):
         """The area's own instances of shared materials (level.materials: a name, the shared one it's an instance of
@@ -690,26 +844,32 @@ class AreaBuild:
                 unreal.EditorAssetLibrary.save_loaded_asset(instance, only_if_is_dirty=False)
                 self.log(f'{path} saved')
             made[name] = instance
+        self.own_materials = made
         return {shared: made[own] for shared, own in self.source.get('level', {}).get('swaps', {}).items() if own in made}
 
     def swap_materials(self):
         """The area's own look on what the build placed (level.swaps): every slot wearing a shared material wears the
-        area's instance of it instead (Ransom's Rest's rock, warmer and darker than the tutorial island's)."""
+        area's instance of it instead (Ransom's Rest's rock, warmer and darker than the tutorial island's). level.swapsOn
+        swaps on the actors it names alone (by label): the windmill's steel, while the barns and crates keep their rust."""
         swaps = self.area_materials()
-        if not swaps:
+        only = {label: {shared: self.own_materials[own] for shared, own in pairs.items() if own in self.own_materials}
+                for label, pairs in self.source.get('level', {}).get('swapsOn', {}).items()}
+        if not swaps and not only:
             return
         count = 0
         for actor in actors.get_all_level_actors():
             # The scatter's instances belong to its graph, which makes them again whenever it generates.
             if unreal.Name(self.tag) not in actor.tags or isinstance(actor, unreal.PCGVolume):
                 continue
+            worn_here = dict(swaps, **only.get(str(actor.get_actor_label()), {}))
             for mesh in actor.get_components_by_class(unreal.StaticMeshComponent):
                 for slot in range(mesh.get_num_materials()):
                     worn = mesh.get_material(slot)
-                    if worn is not None and worn.get_name() in swaps:
-                        mesh.set_material(slot, swaps[worn.get_name()])
+                    if worn is not None and worn.get_name() in worn_here:
+                        mesh.set_material(slot, worn_here[worn.get_name()])
                         count += 1
-        self.log(f'{count} slots wear the area\'s own materials ({", ".join(sorted(swaps))})')
+        self.log(f'{count} slots wear the area\'s own materials ({", ".join(sorted(swaps))}'
+                 + ''.join(f'; on {label}: {", ".join(sorted(pairs))}' for label, pairs in sorted(only.items())) + ')')
 
     def outcrop(self, meshes, group, point):
         """A knob's freestanding rock: the outcrop kit's piece (Art/Models/Rocks/Outcrops.py), scaled to the height
@@ -863,6 +1023,8 @@ class AreaBuild:
             # The cliff faces and the outcrops (cliffs() places both), in the area's look.
             self.open_level(('Cliffs', 'Outcrops'))
             self.cliffs(mesh_index())
+            # The models stand from the whole build (Den Rock among them).
+            self.abut_cliffs()
             self.swap_materials()
             levels.save_current_level()
             self.log('cliffs placed and saved')
@@ -883,6 +1045,8 @@ class AreaBuild:
         self.far_trees(meshes)
         self.cliffs(meshes)
         self.models(meshes)
+        # Now that the rocks the runs end against (Den Rock) stand too.
+        self.abut_cliffs()
         # The level's own dressing (not the story's): it stands on the terrain, beside the models.
         self.dressing(meshes)
         self.effects(meshes)
