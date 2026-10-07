@@ -1,8 +1,10 @@
 """Chimney smoke for the tutorial island's houses (it sits on a chimney's SOCKET_Smoke). A scripted model (Art/README.md)
 for M_Smoke:
 
-  SmokePlume   four crossed cards round a gently curving column, 1 m wide at the chimney widening to 3 m, 7 m tall,
-               leaning toward the front (the level turns it downwind) and twisting a little as it rises.
+  SmokePlume   four crossed cards round a curving column, 8 m tall: it leaves the chimney 0.6 m wide and nearly upright,
+               then bends over toward the front (the level turns it downwind), 3 m out at the top, spreading to
+               4.5 m wide and twisting a little as it rises. A straight, even column read as a white streak from the
+               street; a plume that spreads and bends reads as smoke.
 
 Pivot: the middle of the base. UV0: U 0..1 across each card, V 0..1 from bottom to top. Vertex color (linear): white,
 A fading in over the bottom 10% and out toward the top. Material Master = 'Smoke' (no texture set). No Nanite, no
@@ -18,9 +20,10 @@ from mathutils import Matrix, Vector
 
 import looter_textures as lt
 
-HEIGHT = 7.0
-LEAN = 1.6          # meters toward the front (-Y) at the top
-ROWS = (0.0, 0.05, 0.1, 0.22, 0.38, 0.56, 0.76, 1.0)
+HEIGHT = 8.0
+LEAN = 3.0          # meters toward the front (-Y) at the top
+BASE, TOP = 0.6, 4.5  # the plume's width at the chimney and at the top (meters)
+ROWS = (0.0, 0.04, 0.09, 0.16, 0.25, 0.36, 0.5, 0.66, 0.83, 1.0)
 
 
 def smoothstep(e0, e1, x):
@@ -49,8 +52,9 @@ def material(name):
 
 
 def center(t):
-    """The column's middle at height fraction t: leaning forward more as it rises, with a slight sideways S."""
-    return Vector((0.25 * math.sin(t * math.pi * 1.2), -LEAN * t ** 1.5, HEIGHT * t))
+    """The column's middle at height fraction t: it rises nearly straight out of the chimney, then bends over downwind
+    more and more as it rises (about 35 degrees from upright at the top), with a slight sideways S."""
+    return Vector((0.3 * math.sin(t * math.pi * 1.2), -LEAN * t ** 1.9, HEIGHT * t))
 
 
 def plume(mat):
@@ -62,8 +66,8 @@ def plume(mat):
         for t in ROWS:
             angle = math.radians(45.0 * k + 25.0 * t)          # the cards twist a little as the smoke rises
             across = Vector((math.cos(angle), math.sin(angle), 0.0))
-            half = 0.5 + 1.0 * t ** 0.8
-            alpha = smoothstep(0.0, 0.1, t) * (1.0 - smoothstep(0.4, 1.0, t))
+            half = 0.5 * (BASE + (TOP - BASE) * t ** 0.85)
+            alpha = smoothstep(0.0, 0.05, t) * (1.0 - smoothstep(0.35, 1.0, t))   # in at the chimney's lip, then thins
             c = center(t)
             rows.append([(bm.verts.new(c + across * (s * half)), ((s + 1.0) * 0.5, t), alpha) for s in (-1.0, 0.0, 1.0)])
         for r0, r1 in zip(rows, rows[1:]):
