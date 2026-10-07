@@ -723,7 +723,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `Tools/Unreal/create_side_mission_assets.py`: the side missions' data assets (`DA_Mission_Side1`, made once its
   prerequisite Main 3 exists; `DA_Mission_Side3`, once Main 5 does).
   `Tools/Unreal/build_area_den.py`: Side 3's pieces for `build_area_story.py`: the Gravemother's lair (after Main 5) at
-  the den's mouth and the den's place (`Place_Den`), from Den Rock's sockets, else the layout. `Tools/Unreal/build_area_posters.py`: an area's posters from `layout.json`
+  the den's mouth and the den's place (`Place_Den`), from Den Rock's sockets, else the layout; the den's dressing (bones,
+  the larder, cocoons, a dragged-in coffin) from `Art/Models/Props/DenDressing.placement.json` in SOCKET_DenMouth's space. `Tools/Unreal/build_area_posters.py`: an area's posters from `layout.json`
   `gameplay.posters` (on a host's face, snapped by a trace, or on a socket), for `build_area.py` or on their own.
 - `Tools/Unreal/create_named_weapons.py`: the named guns' data assets (`DA_Named_Heirloom`), checked (`FindProblems`)
   before they're saved.

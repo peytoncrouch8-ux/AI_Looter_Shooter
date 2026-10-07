@@ -1,0 +1,581 @@
+{
+  "space": "SOCKET_DenMouth of SM_DenRock (Intermediate/ArtExport_RR_DenRock/SM_DenRock.fbx)",
+  "axes_blender": "+X right looking into the den, +Y into the den, +Z up from the den floor at the mouth; yaw counterclockwise from above; yaw 0 = the model faces out of the den (its -Y); scale -1 on x = mirrored (applied before the yaw)",
+  "axes_unreal": "the socket's own space in Unreal: +X out of the den (the socket's forward), +Y to the right looking out, +Z up; cm; yaw as Unreal's (clockwise from above); a mirrored piece has its actor scale Y = -1",
+  "clear_way": "nothing on the floor within |x| < 3 m (Blender) down the den and out across the Sink floor, her way; the hung cocoon in the arch hangs over it with its bottom 4.7 m up",
+  "gravemother": "rests at SOCKET_Den (0, 7.3) facing out; her body is |x| < 0.8 m, y 6.3 to 9.7 m at 1.8x; the larder (x 1.4 to 3.0) keeps 0.6 m off it",
+  "placements": [
+    {
+      "asset": "SM_Bones_Scatter",
+      "blender_m": [
+        -4.2,
+        -9.2,
+        -0.05
+      ],
+      "yaw_blender_deg": 70.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        920.0,
+        420.0,
+        -5.0
+      ],
+      "yaw_unreal_deg": -70.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "the trail in: furthest out, left"
+    },
+    {
+      "asset": "SM_Bones_Scatter",
+      "blender_m": [
+        4.3,
+        -8.6,
+        -0.05
+      ],
+      "yaw_blender_deg": 104.0,
+      "scale_blender": [
+        -1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        860.0,
+        -430.0,
+        -5.0
+      ],
+      "yaw_unreal_deg": -104.0,
+      "scale_unreal": [
+        1.0,
+        -1.0,
+        1.0
+      ],
+      "note": "the trail in: furthest out, right (mirrored)"
+    },
+    {
+      "asset": "SM_Bones_Scatter",
+      "blender_m": [
+        -3.7,
+        -6.6,
+        -0.05
+      ],
+      "yaw_blender_deg": 95.0,
+      "scale_blender": [
+        -1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        660.0,
+        370.0,
+        -5.0
+      ],
+      "yaw_unreal_deg": -95.0,
+      "scale_unreal": [
+        1.0,
+        -1.0,
+        1.0
+      ],
+      "note": "the trail in, left (mirrored)"
+    },
+    {
+      "asset": "SM_Bones_Scatter",
+      "blender_m": [
+        3.75,
+        -6.0,
+        -0.05
+      ],
+      "yaw_blender_deg": 82.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        600.0,
+        -375.0,
+        -5.0
+      ],
+      "yaw_unreal_deg": -82.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "the trail in, right"
+    },
+    {
+      "asset": "SM_CattleSkull",
+      "blender_m": [
+        -5.0,
+        -3.3,
+        -0.05
+      ],
+      "yaw_blender_deg": 35.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        330.0,
+        500.0,
+        -5.0
+      ],
+      "yaw_unreal_deg": -35.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "the mouth's left side, out on the Sink floor, facing the Sink"
+    },
+    {
+      "asset": "SM_Bones_PileA",
+      "blender_m": [
+        -6.1,
+        -2.5,
+        -0.05
+      ],
+      "yaw_blender_deg": -75.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        250.0,
+        610.0,
+        -5.0
+      ],
+      "yaw_unreal_deg": 75.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "beside the skull, its back against the talus block at the face"
+    },
+    {
+      "asset": "SM_Bones_Scatter",
+      "blender_m": [
+        -4.4,
+        -4.5,
+        -0.05
+      ],
+      "yaw_blender_deg": 30.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        450.0,
+        440.0,
+        -5.0
+      ],
+      "yaw_unreal_deg": -30.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "spilling out in front of the skull"
+    },
+    {
+      "asset": "SM_Bones_Scatter",
+      "blender_m": [
+        -3.65,
+        -1.3,
+        -0.03
+      ],
+      "yaw_blender_deg": 88.0,
+      "scale_blender": [
+        -1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        130.0,
+        365.0,
+        -3.0
+      ],
+      "yaw_unreal_deg": -88.0,
+      "scale_unreal": [
+        1.0,
+        -1.0,
+        1.0
+      ],
+      "note": "the trail on over the threshold, at the left jamb (mirrored)"
+    },
+    {
+      "asset": "SM_Cocoon_Hung",
+      "blender_m": [
+        -3.45,
+        -0.8,
+        4.47
+      ],
+      "yaw_blender_deg": 0.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        80.0,
+        345.0,
+        447.0
+      ],
+      "yaw_unreal_deg": -0.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "hung from the brow over the mouth's left corner (z: its pivot)"
+    },
+    {
+      "asset": "SM_Cocoon_Hung",
+      "blender_m": [
+        -1.2,
+        -0.3,
+        6.62
+      ],
+      "yaw_blender_deg": 60.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        30.0,
+        120.0,
+        662.0
+      ],
+      "yaw_unreal_deg": -60.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "hung in the notch at the top of the arch: its bottom 4.7 m up, over her"
+    },
+    {
+      "asset": "SM_Ribcage",
+      "blender_m": [
+        5.6,
+        -3.0,
+        -0.05
+      ],
+      "yaw_blender_deg": -15.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        300.0,
+        -560.0,
+        -5.0
+      ],
+      "yaw_unreal_deg": 15.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "the mouth's right side, out on the Sink floor"
+    },
+    {
+      "asset": "SM_Relic_Boot",
+      "blender_m": [
+        4.3,
+        -3.7,
+        -0.05
+      ],
+      "yaw_blender_deg": 40.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        370.0,
+        -430.0,
+        -5.0
+      ],
+      "yaw_unreal_deg": -40.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "by the ribcage"
+    },
+    {
+      "asset": "SM_Bones_Scatter",
+      "blender_m": [
+        6.4,
+        -4.4,
+        -0.05
+      ],
+      "yaw_blender_deg": -20.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        440.0,
+        -640.0,
+        -5.0
+      ],
+      "yaw_unreal_deg": 20.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "in front of the ribcage"
+    },
+    {
+      "asset": "SM_Cocoon_Hung",
+      "blender_m": [
+        3.6,
+        -1.4,
+        4.01
+      ],
+      "yaw_blender_deg": 140.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        140.0,
+        -360.0,
+        401.0
+      ],
+      "yaw_unreal_deg": -140.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "hung from the brow over the mouth's right corner (z: its pivot)"
+    },
+    {
+      "asset": "SM_CoffinBoards",
+      "blender_m": [
+        3.6,
+        -0.1,
+        0.0
+      ],
+      "yaw_blender_deg": 96.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        10.0,
+        -360.0,
+        0.0
+      ],
+      "yaw_unreal_deg": -96.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "dragged in past the right jamb, half over the threshold"
+    },
+    {
+      "asset": "SM_Relic_Hat",
+      "blender_m": [
+        3.51,
+        -0.71,
+        0.04
+      ],
+      "yaw_blender_deg": 15.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        71.0,
+        -351.0,
+        4.0
+      ],
+      "yaw_unreal_deg": -15.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "set on the coffin lid's head half"
+    },
+    {
+      "asset": "SM_Cocoon_Lying",
+      "blender_m": [
+        -3.45,
+        1.4,
+        0.08
+      ],
+      "yaw_blender_deg": 90.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        -140.0,
+        345.0,
+        8.0
+      ],
+      "yaw_unreal_deg": -90.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "the left wall foot just inside the mouth, head into the den"
+    },
+    {
+      "asset": "SM_Bones_PileA",
+      "blender_m": [
+        -3.45,
+        3.95,
+        0.12
+      ],
+      "yaw_blender_deg": 90.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        -395.0,
+        345.0,
+        12.0
+      ],
+      "yaw_unreal_deg": -90.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "the left wall foot past the fallen block, its back to the wall"
+    },
+    {
+      "asset": "SM_Bones_Scatter",
+      "blender_m": [
+        -3.56,
+        5.6,
+        0.16
+      ],
+      "yaw_blender_deg": 92.0,
+      "scale_blender": [
+        -1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        -560.0,
+        356.0,
+        16.0
+      ],
+      "yaw_unreal_deg": -92.0,
+      "scale_unreal": [
+        1.0,
+        -1.0,
+        1.0
+      ],
+      "note": "the left wall foot further in (mirrored)"
+    },
+    {
+      "asset": "SM_Bones_PileA",
+      "blender_m": [
+        3.65,
+        2.3,
+        0.05
+      ],
+      "yaw_blender_deg": -90.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        -230.0,
+        -365.0,
+        5.0
+      ],
+      "yaw_unreal_deg": 90.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "the right wall foot, its back to the wall"
+    },
+    {
+      "asset": "SM_Bones_Scatter",
+      "blender_m": [
+        3.62,
+        4.7,
+        0.12
+      ],
+      "yaw_blender_deg": 90.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        -470.0,
+        -362.0,
+        12.0
+      ],
+      "yaw_unreal_deg": -90.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "the right wall foot further in"
+    },
+    {
+      "asset": "SM_Bones_PileB",
+      "blender_m": [
+        2.2,
+        6.85,
+        0.19
+      ],
+      "yaw_blender_deg": -90.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        -685.0,
+        -220.0,
+        19.0
+      ],
+      "yaw_unreal_deg": 90.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "the larder: the pocket's right side, its front toward the den's middle, off her body as she rests at SOCKET_Den"
+    }
+  ]
+}

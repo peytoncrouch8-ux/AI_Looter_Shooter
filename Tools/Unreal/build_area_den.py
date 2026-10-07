@@ -16,8 +16,14 @@ Gameplay folder; a piece whose class isn't built yet is left out with a warning.
   Gravemother force). She hunts the den and the Sink's floor (within 36 m of the mouth, and no more than 3 m above or
   below it), so she gives up a little way up the ramp and never hunts the rim. She comes back on an arrival at least 20
   minutes of play after her death: the lair (its LegendaryId) and the session keep that.
+- The den's dressing (the art session's DenDressing kit, approved 2026-10-07): bones, the larder, cocoons hung from the
+  brow, a coffin dragged in, the dead's hat and boot, at the places its placement table gives in SOCKET_DenMouth's space
+  (Art/Models/Props/DenDressing.placement.json, written by DenDressing.py). Her clear way down the den's middle stays
+  empty. Only with Den Rock's sockets: without them there's no den to dress.
 """
+import json
 import math
+import os
 
 import unreal
 
@@ -55,6 +61,12 @@ ACTIVATION = 4000.0
 GIVE_UP = 3600.0
 MAX_RISE = 300.0
 GROUND_STEP = 250.0
+
+# The den's dressing: where its pieces lie in SOCKET_DenMouth's own space (+X out of the den, +Y right looking out, cm),
+# and the folder its models import to.
+DRESSING_TABLE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'Art', 'Models', 'Props',
+                              'DenDressing.placement.json')
+DRESSING_FOLDER = '/Game/Art/Props'
 
 
 def lerp(a, b, share):
@@ -164,6 +176,29 @@ def place_lair(build, mouth, yaw, lurk):
               f'{yaw:.0f}, after {MAIN5}, back 20 minutes of play after her death')
 
 
+def place_dressing(build, rock):
+    """The den's dressing from its placement table, each piece in the mouth socket's frame (a mirrored one by its scale)."""
+    mouth = story.socket(rock, MOUTH_SOCKET)
+    if mouth is None:
+        return
+    with open(DRESSING_TABLE, encoding='utf-8') as f:
+        pieces = json.load(f)['placements']
+    turn = mouth.rotation.rotator().yaw
+    placed, missing = 0, set()
+    for piece in pieces:
+        model = unreal.load_asset(f'{DRESSING_FOLDER}/{piece["asset"]}')
+        if model is None:
+            missing.add(piece['asset'])
+            continue
+        at = mouth.transform_location(unreal.Vector(*piece['unreal_cm']))
+        build.place(model, (at.x, at.y, at.z), turn + piece['yaw_unreal_deg'], label=f'Den_{piece["asset"][3:]}',
+                    folder='Gameplay', scale=tuple(piece['scale_unreal']))
+        placed += 1
+    if missing:
+        build.warn(f"the den's dressing lacks {', '.join(sorted(missing))} (import Art/Models/Props/DenDressing.py)")
+    build.log(f"the den's dressing: {placed} pieces round the mouth and down its walls")
+
+
 def place(build):
     """The den's place and the Gravemother's lair, in the Gameplay folder (build_area_story's place() calls this). Only a
     level whose layout has Den Rock (Ransom's Rest) gets them."""
@@ -181,3 +216,5 @@ def place(build):
     mouth, yaw, lurk, inside = den
     place_den_marker(build, inside)
     place_lair(build, mouth, yaw, lurk)
+    if rock is not None:
+        place_dressing(build, rock)
