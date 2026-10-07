@@ -33,8 +33,9 @@ using namespace UnfinishedBusinessTestWorld;
 
 namespace
 {
-	/** The fence's top rail at the middle of a span (Amos.py's fence probe of FenceRail, cm). */
+	/** The fence's top rail at the middle of a span (Amos.py's fence probe of FenceRail, cm), and the bottom rail's middle. */
 	constexpr double RailTop = 100.8;
+	constexpr double RailBottom = 50.0;
 
 	/** Lets whatever is being said play out to its end. */
 	void PlayOut(UCaptionSubsystem& Captions)
@@ -336,6 +337,83 @@ bool FAmosPageTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...open once Side 2 can begin, after Main 4"), Asset->KnownWhen.AfterMissions.Contains(MainFour));
 	TestTrue(TEXT("...his model on the stand"), Asset->LoadPreviewMesh() == Model);
 	TestEqual(TEXT("...wearing his hat and fork"), Asset->GetPreviewParts(Model).Num(), 2);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAmosSeatTest, "Looter.Story.Amos.Seat",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FAmosSeatTest::RunTest(const FString& Parameters)
+{
+	// On the fence, the top rail is under his seat. The actor stands on the fence's line (its local Y axis, the rail's
+	// middle) facing across it into his field (+X), and Amos.py fitted the sit to FenceRail with his origin there: his
+	// pelvis over the line, its joint a seat's depth over the rail's top; his knees out over his field; the shroud trailing
+	// back from the knees under his thighs, through the gap between the rails, its tips behind the fence (-X). Pinned in
+	// the actor's frame, from the table and, with his model, from the posed skeleton, so a sign or pivot slip in the seat's
+	// placement (the lean's step back, the sit's turn) shows here. Leaning, his wrists rest on the rail over the line.
+	const FVector Pelvis = InActor(EAmosPose::Sit, TEXT("pelvis"));
+	TestTrue(*FString::Printf(TEXT("Sitting, his pelvis is over the fence's line (%.1f cm off it)"), Pelvis.X), FMath::Abs(Pelvis.X) < 5.0);
+	TestTrue(*FString::Printf(TEXT("...its joint %.1f cm over the rail's top: his seat on the rail"), Pelvis.Z - RailTop),
+		Pelvis.Z - RailTop > 12.0 && Pelvis.Z - RailTop < 25.0);
+	const FVector Knees = InActor(EAmosPose::Sit, TEXT("skirt_f_02"));
+	TestTrue(*FString::Printf(TEXT("...his knees out over his field (%.0f cm in front of the line, %.0f cm up)"), Knees.X, Knees.Z),
+		Knees.X > 25.0 && Knees.Z > RailTop);
+
+	// The shroud's links from the knees: where the chain crosses the line, and where it ends.
+	const TCHAR* const Links[] = { TEXT("tail_01"), TEXT("tail_02"), TEXT("tail_03"), TEXT("tail_04"), TEXT("tail_05") };
+	FVector Last = InActor(EAmosPose::Sit, Links[0]);
+	double CrossingZ = -1.0;
+	for (int32 Link = 1; Link < static_cast<int32>(UE_ARRAY_COUNT(Links)); ++Link)
+	{
+		const FVector Next = InActor(EAmosPose::Sit, Links[Link]);
+		if (CrossingZ < 0.0 && Last.X >= 0.0 && Next.X < 0.0)
+		{
+			CrossingZ = FMath::Lerp(Last.Z, Next.Z, Last.X / (Last.X - Next.X));
+		}
+		Last = Next;
+	}
+	TestTrue(*FString::Printf(TEXT("...his shroud passes under the top rail, between the rails (at %.0f cm)"), CrossingZ),
+		CrossingZ > RailBottom + 5.0 && CrossingZ < RailTop - 10.0);
+	TestTrue(*FString::Printf(TEXT("...its last link behind the fence (%.0f cm)"), Last.X), Last.X < -15.0);
+
+	// His model, placed as the build places him (turned, off the origin), sat and leaning: the posed skeleton in the actor's
+	// frame where the table says.
+	const bool bModelMade = FPackageName::DoesPackageExist(FPackageName::ObjectPathToPackageName(FString(AAmosWhitlock::ModelPath)));
+	if (!bModelMade)
+	{
+		AddWarning(TEXT("SK_Amos isn't in this checkout (Art/Models/Creatures/Amos.py): only the table was checked."));
+		return true;
+	}
+	FTestWorldWrapper TestLevel;
+	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	AAmosWhitlock* Amos = PlaceAmos(TestLevel.GetTestWorld(), FVector(-3731.0, 5448.0, 40.0), 171.0);
+	if (!TestNotNull(TEXT("Amos placed"), Amos) || !TestTrue(TEXT("...with his model"), Amos->HasModel()))
+	{
+		return false;
+	}
+	Amos->DispatchBeginPlay();
+	const auto Posed = [Amos](const TCHAR* Bone)
+	{
+		return Amos->GetActorTransform().InverseTransformPosition(Amos->Figure->GetBoneLocationByName(FName(Bone), EBoneSpaces::WorldSpace));
+	};
+	for (const TCHAR* Hand : { TEXT("hand_l"), TEXT("hand_r") })
+	{
+		const FVector Wrist = Posed(Hand);
+		TestTrue(*FString::Printf(TEXT("Leaning, his %s rests on the rail over the line (%s)"), Hand, *Wrist.ToCompactString()),
+			FMath::Abs(Wrist.X) < 15.0 && Wrist.Z > RailTop - 5.0 && Wrist.Z < RailTop + 15.0);
+	}
+	Amos->SitNow(/*bAtOnce*/ true);
+	TestTrue(TEXT("Sat on his fence"), Amos->IsSitting());
+	const FVector Seat = Posed(TEXT("pelvis"));
+	TestTrue(*FString::Printf(TEXT("...his model's pelvis over the fence's line (%s)"), *Seat.ToCompactString()),
+		FMath::Abs(Seat.X) < 5.0 && FMath::Abs(Seat.Z - Pelvis.Z) < 3.0);
+	const FVector Shin = Posed(TEXT("skirt_f_02"));
+	TestTrue(*FString::Printf(TEXT("...its knees over his field (%s)"), *Shin.ToCompactString()), Shin.X > 25.0);
+	TestTrue(*FString::Printf(TEXT("...its shroud's tip behind the fence (%s)"), *Posed(TEXT("tail_05")).ToCompactString()),
+		Posed(TEXT("tail_05")).X < -15.0);
 	return true;
 }
 

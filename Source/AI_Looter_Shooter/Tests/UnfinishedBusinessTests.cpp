@@ -25,14 +25,19 @@
 #include "Tests/MissionTestWorld.h"
 #include "Tests/UnfinishedBusinessTestWorld.h"
 #include "World/HayBale.h"
-#include "Components/StaticMeshComponent.h"
+#include "World/InstancedProps.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Dom/JsonObject.h"
 #include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
+#include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
+#include "Misc/Paths.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 #include "Tests/AutomationCommon.h"
 #include "UObject/Package.h"
 
@@ -116,6 +121,102 @@ namespace
 			}
 		}
 		return Brought;
+	}
+
+	/** One of the layout's obstacle lines (x and y in cm): a path, or a polygon closed round. */
+	struct FLayoutLine
+	{
+		TArray<FVector2D> Points;
+		bool bClosed = false;
+	};
+
+	/** The layout's obstacle lines by id (Art/Levels/RansomsRest/layout.json), which build_area_dressing.py dresses. */
+	TMap<FString, FLayoutLine> LayoutLines(FAutomationTestBase& Test)
+	{
+		TMap<FString, FLayoutLine> Lines;
+		FString Text;
+		const FString LayoutFile = FPaths::Combine(FPaths::ProjectDir(), TEXT("Art/Levels/RansomsRest/layout.json"));
+		TSharedPtr<FJsonObject> Layout;
+		const TArray<TSharedPtr<FJsonValue>>* Obstacles = nullptr;
+		if (!Test.TestTrue(TEXT("layout.json reads"), FFileHelper::LoadFileToString(Text, *LayoutFile))
+			|| !Test.TestTrue(TEXT("...as JSON with its obstacles"), FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Layout)
+				&& Layout.IsValid() && Layout->TryGetArrayField(TEXT("obstacles"), Obstacles) && Obstacles))
+		{
+			return Lines;
+		}
+		for (const TSharedPtr<FJsonValue>& Each : *Obstacles)
+		{
+			const TSharedPtr<FJsonObject> Obstacle = Each->AsObject();
+			FString Id;
+			const TArray<TSharedPtr<FJsonValue>>* Points = nullptr;
+			if (!Obstacle.IsValid() || !Obstacle->TryGetStringField(TEXT("id"), Id))
+			{
+				continue;
+			}
+			FLayoutLine Line;
+			Line.bClosed = Obstacle->TryGetArrayField(TEXT("polygon"), Points);
+			if (!Line.bClosed && !Obstacle->TryGetArrayField(TEXT("path"), Points))
+			{
+				continue;
+			}
+			for (const TSharedPtr<FJsonValue>& Point : *Points)
+			{
+				const TArray<TSharedPtr<FJsonValue>>& XY = Point->AsArray();
+				if (XY.Num() >= 2)
+				{
+					Line.Points.Emplace(XY[0]->AsNumber(), XY[1]->AsNumber());
+				}
+			}
+			Lines.Add(Id, MoveTemp(Line));
+		}
+		return Lines;
+	}
+
+	/** How far a point is from a layout line, seen from above (cm). */
+	double DistanceToLine(const FVector& Point, const FLayoutLine& Line)
+	{
+		const int32 Count = Line.Points.Num();
+		if (Count == 0)
+		{
+			return TNumericLimits<double>::Max();
+		}
+		const FVector2D At(Point.X, Point.Y);
+		double Best = FVector2D::Distance(At, Line.Points[0]);
+		for (int32 Index = 0; Index + 1 < Count + (Line.bClosed ? 1 : 0); ++Index)
+		{
+			const FVector2D A = Line.Points[Index];
+			const FVector2D Along = Line.Points[(Index + 1) % Count] - A;
+			const double LengthSquared = Along.SizeSquared();
+			const double T = LengthSquared > 0.0 ? FMath::Clamp(FVector2D::DotProduct(At - A, Along) / LengthSquared, 0.0, 1.0) : 0.0;
+			Best = FMath::Min(Best, FVector2D::Distance(At, A + Along * T));
+		}
+		return Best;
+	}
+
+	/** Where every instance of a mesh the level's dressing (AInstancedProps) places stands, relative to the level: a level
+	 * loaded only to look at has no world transforms. A section's is its pivot, its first post. */
+	TArray<FVector> DressingPivots(const ULevel& Level, const TCHAR* MeshName)
+	{
+		TArray<FVector> Pivots;
+		for (const AActor* Actor : Level.Actors)
+		{
+			const AInstancedProps* Props = Cast<AInstancedProps>(Actor);
+			const UStaticMesh* Mesh = Props && Props->Instances ? Props->Instances->GetStaticMesh() : nullptr;
+			if (!Mesh || Mesh->GetName() != MeshName)
+			{
+				continue;
+			}
+			const FTransform Placed = Props->GetRootComponent()->GetRelativeTransform();
+			for (int32 Index = 0; Index < Props->Instances->GetInstanceCount(); ++Index)
+			{
+				FTransform Instance;
+				if (Props->Instances->GetInstanceTransform(Index, Instance, /*bWorldSpace=*/false))
+				{
+					Pivots.Add((Instance * Placed).GetLocation());
+				}
+			}
+		}
+		return Pivots;
 	}
 
 	const ULevel* LoadRansomsRest(FAutomationTestBase& Test)
@@ -516,7 +617,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnfinishedBusinessPlacedTest, "Looter.Story.Un
 bool FUnfinishedBusinessPlacedTest::RunTest(const FString& Parameters)
 {
 	// Ransom's Rest as built (build_area_whitlock.py): Amos at his fence by its gate, his six bales with their stack by the
-	// barn, the hired hands' fight in the barn yard, and Whitlock Fields' fences and wall.
+	// barn, the hired hands' fight in the barn yard; and Whitlock Fields' fences and wall (build_area_dressing.py's
+	// instances, one AInstancedProps per mesh, theirs told from the rest by the layout's lines they stand on).
 	const ULevel* Level = LoadRansomsRest(*this);
 	if (!Level)
 	{
@@ -525,8 +627,6 @@ bool FUnfinishedBusinessPlacedTest::RunTest(const FString& Parameters)
 	const AAmosWhitlock* Amos = nullptr;
 	const AEncounterSpawner* Hands = nullptr;
 	TArray<const AHayBale*> Bales;
-	TArray<FVector> FencePosts;
-	int32 Walls = 0;
 	for (const AActor* Actor : Level->Actors)
 	{
 		if (!Actor)
@@ -542,23 +642,24 @@ bool FUnfinishedBusinessPlacedTest::RunTest(const FString& Parameters)
 		{
 			Hands = Spawner;
 		}
-		if (const AStaticMeshActor* Piece = Cast<AStaticMeshActor>(Actor))
-		{
-			const UStaticMesh* Mesh = Piece->GetStaticMeshComponent() ? Piece->GetStaticMeshComponent()->GetStaticMesh() : nullptr;
-			const FString Name = Mesh ? Mesh->GetName() : FString();
-			if (Name == TEXT("SM_FenceRail"))
-			{
-				// Where its first post stands (its pivot), relative to the level: a level loaded to look at keeps it there.
-				FencePosts.Add(Piece->GetRootComponent()->GetRelativeLocation());
-			}
-			Walls += Name == TEXT("SM_StoneWall") ? 1 : 0;
-		}
 	}
 	if (!Amos && Bales.IsEmpty() && !Hands)
 	{
 		AddWarning(TEXT("Side 2's pieces aren't placed yet: build the C++, then run Tools/Unreal/build_area.py RansomsRest gameplay."));
 		return true;
 	}
+	// The sections standing on Whitlock Fields' lines: a section's pivot is a joint on its line, so within a hand of it.
+	const TMap<FString, FLayoutLine> Lines = LayoutLines(*this);
+	const auto StandingOn = [&Lines](const TArray<FVector>& Pivots, const TCHAR* LineId)
+	{
+		const FLayoutLine* Line = Lines.Find(LineId);
+		return Line ? Pivots.FilterByPredicate([Line](const FVector& Pivot) { return DistanceToLine(Pivot, *Line) < 50.0; })
+			: TArray<FVector>();
+	};
+	const TArray<FVector> Rails = DressingPivots(*Level, TEXT("SM_FenceRail"));
+	const TArray<FVector> AmosRails = StandingOn(Rails, TEXT("amosFence"));
+	const int32 YardRails = StandingOn(Rails, TEXT("barnYardFence")).Num();
+	const int32 Walls = StandingOn(DressingPivots(*Level, TEXT("SM_StoneWall")), TEXT("fieldWall")).Num();
 	if (TestNotNull(TEXT("Amos at his fence"), Amos))
 	{
 		TestTrue(TEXT("...tagged for the missions"), Amos->ActorHasTag(AAmosWhitlock::SpeakerTag));
@@ -571,8 +672,9 @@ bool FUnfinishedBusinessPlacedTest::RunTest(const FString& Parameters)
 		{
 			return Topic.When.DuringMission == SideTwo && Topic.When.FromStep == 0 && Topic.LineSet != nullptr;
 		}));
+		// In the middle of a span, 75 cm from a section's first post (the one past his gate: build_area_whitlock.amos_spot).
 		const FVector At = Amos->GetRootComponent()->GetRelativeLocation();
-		TestTrue(TEXT("...on his fence's line, between two of its posts"), FencePosts.ContainsByPredicate([&At](const FVector& Post)
+		TestTrue(TEXT("...on his fence's line, between two of its posts"), AmosRails.ContainsByPredicate([&At](const FVector& Post)
 		{
 			return FVector::Dist2D(Post, At) < 100.0;
 		}));
@@ -617,7 +719,8 @@ bool FUnfinishedBusinessPlacedTest::RunTest(const FString& Parameters)
 			&& Hands->GroundCorners.Num() >= 3 && Hands->SpawnPoints.Num() >= HandsBasic + 1);
 		TestTrue(TEXT("...tagged for the fight"), Hands->CreatureTags.Contains(HandsTag));
 	}
-	TestTrue(TEXT("Whitlock Fields' fences (Amos's and the barn yard's)"), FencePosts.Num() >= 40);
+	// Too few: the dressing isn't placed (Tools/Unreal/build_area.py RansomsRest dressing), or no longer lays these lines.
+	TestTrue(TEXT("Whitlock Fields' fences (Amos's and the barn yard's), the dressing's"), AmosRails.Num() + YardRails >= 40);
 	TestTrue(TEXT("...and its stone field wall"), Walls >= 10);
 	return true;
 }

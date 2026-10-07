@@ -7,22 +7,23 @@ Undergrowth.py's log and stump). build_area.py's full build calls place() after 
 area's build tag and Dressing (Looter.Perf.HideTag Dressing measures it by difference), so building again replaces only
 what this placed.
 
-What each obstacle becomes is in the tables below (LINES, GRAVE_ROWS, CAIRN_LINES, RUINS, GROUPS, SKIP), by obstacle id,
-so the art session can retune it without touching the code:
+What each obstacle becomes is in the tables below (LINES, GRAVE_ROWS, CAIRN_LINES, RUINS, GROUPS, SPOTS, SKIP), by
+obstacle id, so the art session can retune it without touching the code:
 - Fences and walls run along their path or polygon in sections from evenly spaced joints, broken at corners sharper
-  than 20 degrees and each stretched to its chord on the ground (build_area_whitlock.py's rules: Whitlock Fields' fences
-  are the same kit). A run ends on a post (a wall on its finished end); a polygon's kit faces out of it (a fence's
-  outside, the iron gate's leaves open inward), a path's away from its "inside". The broken, fallen and missing sections
-  a note asks for are drawn per section from the obstacle's own seed. Gates are left open where the table puts them and
-  wherever a road crosses the line (as much of the line as the road takes up, and a little more), so no fence closes a
-  road. The sheep fold's walls turn on Ruins.py's square corner.
+  than 20 degrees and each stretched to its chord on the ground. Whitlock Fields' (Amos's fence, the barn yard's, the
+  field wall) are here too; build_area_whitlock.py stands Amos in his fence's first span past its gate by run_head()
+  and span_heights(), from the same plan. A run ends on a post (a wall on its finished end); a polygon's kit faces
+  out of it (a fence's outside, the iron gate's leaves open inward), a path's away from its "inside". The broken, fallen
+  and missing sections a note asks for are drawn per section from the obstacle's own seed. Gates are left open where
+  the table puts them and wherever a road crosses the line (as much of the line as the road takes up, and a little
+  more), so no fence closes a road. The sheep fold's walls turn on Ruins.py's square corner.
 - Grave rows get the old headboards and crosses, mixed by a fixed seed, a little out of line and leaning a little; the
   family plot's eight old boards, which have no obstacle, come from EXTRA_GRAVE_ROWS, and each fresh mound the
   placements put down (the respawn graves) gets its fresh headboard (MOUND_BOARDS).
 - Cairns stand along their path; the ruins and the keeper's three cairns are layout placements, which build_area.py's
   models() places already (a ruin whose placement is gone is placed here instead, as its own actor).
 - Props become small groups laid out in the obstacle's own frame: along its longest side, facing its road or a
-  building.
+  building. A few pieces stand at spots of their own (SPOTS: Whitlock Fields' round bales).
 Every piece stands on the terrain's tiles (traced like build_area_whitlock.py's Ground: the tiles alone, never a volume,
 a tree or a building). Sections follow the slope along their length (the roll) and sink where the ground dips under
 their middle; props tilt with the ground by at most MAX_TILT degrees and sink so no corner hovers; stacks stand level.
@@ -134,10 +135,14 @@ LINES = {
     'poundWall': {'kit': 'stone', 'broken': 0.45, 'fallen': 0.15},
     # The sheep fold: four square corners, its gap toward the west road, a breach or two.
     'sheepFold': {'kit': 'stone', 'broken': 0.25, 'fallen': 0.1, 'corners': True, 'gates': 'road', 'gate_width': 180},
-    # Whitlock Fields' (build_area_whitlock.py places them); these are its rules, for when it hands them over.
-    'amosFence': {'kit': 'rail', 'owner': 'build_area_whitlock', 'first_after_gate': 300.0},
-    'barnYardFence': {'kit': 'rail', 'owner': 'build_area_whitlock', 'gates': [[-6000, 4800, 300]]},
-    'fieldWall': {'kit': 'stone', 'owner': 'build_area_whitlock'},
+    # Whitlock Fields. Amos's fence: open where the fields path crosses it (his gate), the section just past the gate at
+    # the kit's own 3 m, unstretched: Amos leans in its first span (build_area_whitlock.amos_spot), his pose fitted to
+    # FenceRail. Its order is the layout's (east along it), so its front faces south, into his hayfield.
+    'amosFence': {'kit': 'rail', 'first_after_gate': 300.0},
+    # The barn yard's fence round the Whitlock barn and the windmill, its gate where the fields path ends.
+    'barnYardFence': {'kit': 'rail', 'gates': [[-6000, 4800, 300]]},
+    # The low stone field wall with larkspur splitting the hay, finished at both ends.
+    'fieldWall': {'kit': 'stone'},
 }
 # A road crossing a fence or wall opens a gap as wide as the road takes up along the line (the road at least MIN_GATE
 # wide, cm) and GATE_MARGIN more, so the posts stand clear of its edges; a gate standing there opens at least that much.
@@ -195,6 +200,14 @@ GRAVE_CLEAR = 200.0
 # behind their pivot (Graves.py's mound is 1.95 m long), facing as the mound does.
 MOUND_BOARDS = {'Grave_MoundFresh': ['Grave_Headboard_FreshA', 'Grave_Headboard_FreshB']}
 MOUND_HEAD = 105.0
+
+# Pieces at spots of their own, with no layout obstacle (cm, yaw): Whitlock Fields' round bales lying out in the east
+# field, the hay Amos never got in (nothing to do with them; Side 2's bales are build_area_whitlock's), clear of the
+# creek's bottom and the field wall.
+SPOTS = {
+    'whitlockRoundBales': ('HayBale_Round', [(-4600, 6700, 30), (-5400, 7000, -15), (-6800, 6600, 70),
+                                             (-7600, 6300, 10)]),
+}
 
 # Cairns along a path: the meshes in turn and the spacing (cm); placements: layout placements that already stand there.
 CAIRN_LINES = {
@@ -451,6 +464,10 @@ class Plan:
                 before = len(self.pieces)
                 texts = [self.graves(oid, {'path': path}, style, face, spacing) for style, face, path, spacing in rows]
                 self.notes[oid] = f'{len(self.pieces) - before} pieces; ' + '; '.join(texts)
+            for oid, (mesh, spots) in SPOTS.items():
+                for x, y, yaw in spots:
+                    self.pieces.append(Piece(mesh, oid, (x, y), yaw, kind='prop'))
+                self.notes[oid] = f'{len(spots)} {mesh}'
             self.mound_boards()
 
     def on_road(self, point, margin=GRAVE_CLEAR_ROAD):
@@ -865,15 +882,14 @@ def pose(piece, ground, bases):
     if piece.b is not None:
         # A span: along its chord, rolled with the slope (the far end, its -Y, rises with a positive roll), stretched
         # to reach the next joint over the ground, and sunk under a dip in its middle.
-        za, zb = ground(*piece.a), ground(*piece.b)
+        za, zb = span_heights(piece.a, piece.b, ground)
         chord = math.dist(piece.a, piece.b)
         mx, my = (piece.a[0] + piece.b[0]) * 0.5, (piece.a[1] + piece.b[1]) * 0.5
-        sag = max(min(ground(mx, my) - (za + zb) * 0.5, 0.0), -SAG)
         roll = math.degrees(math.atan2(zb - za, chord))
         stretch = math.hypot(chord, zb - za) / length_ if piece.stretch else 1.0
         if pivot == 'middle' or piece.kind == 'log':
-            return (mx, my, (za + zb) * 0.5 + sag), (roll, 0.0, piece.yaw), (1.0, stretch, 1.0)
-        return (x, y, za + sag), (roll, 0.0, piece.yaw), (1.0, stretch, 1.0)
+            return (mx, my, (za + zb) * 0.5), (roll, 0.0, piece.yaw), (1.0, stretch, 1.0)
+        return (x, y, za), (roll, 0.0, piece.yaw), (1.0, stretch, 1.0)
     if piece.kind == 'post':
         return (x, y, ground(x, y)), (0.0, 0.0, piece.yaw), (1.0, 1.0, 1.0)
     if piece.kind == 'corner':
@@ -901,6 +917,22 @@ def pose(piece, ground, bases):
 
 def clamp(value, limit):
     return max(-limit, min(limit, value))
+
+
+def span_heights(a, b, ground):
+    """A section's ends' heights as it stands from a to b: the ground at each, both sunk by the dip under its middle
+    (at most SAG), so its baseline at any point between is their blend."""
+    za, zb = ground(*a), ground(*b)
+    sag = max(min(ground((a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5) - (za + zb) * 0.5, 0.0), -SAG)
+    return za + sag, zb + sag
+
+
+def run_head(source, placements, oid, start='gate'):
+    """The first section of obstacle oid's first run that starts so ('gate': just past a gate; 'open': at the line's
+    start; 'loop'), as (its pivot, its far joint): its first post and where the next section starts. None without one.
+    A builder stands someone in a span by it (build_area_whitlock: Amos past his gate)."""
+    plan = plan_all(source, placements, only=[oid])
+    return next(((a, b) for kind, a, b in plan.heads.get(oid, []) if kind == start), None)
 
 
 # Fence and wall pieces: grass may grow up to them (a strip bared along every fence would read as mown), so the scatter
