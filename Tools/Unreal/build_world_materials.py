@@ -15,9 +15,9 @@
                   Grass* and Rock* maps tile on UV 1 (meters) and only modulate the macro color's brightness. Faces
                   steeper than SteepStart degrees (fully past SteepFull) take the rock map laid on from the side as
                   their detail, with no detail normal: maps laid on from above smear down a cliff. The face keeps the
-                  macro map's color with the rock's light and dark on it (SteepDetail), darkened by SteepTint, and the
-                  rock's layers rise and fall a little along it, so a long bluff wears the area's colors and no ruled
-                  stripes. Its relief comes from the rock's normal map laid on from the same sides, at
+                  macro map's color with the rock's light and dark on it (SteepDetail), darkened by SteepTint, some
+                  bands darker or redder (SteepVariation), and the rock's layers rise and fall along it (StrataWarp
+                  meters over StrataWave), so a long bluff wears the area's colors and no ruled stripes. Its relief comes from the rock's normal map laid on from the same sides, at
                   SteepNormalStrength (0: none, as on the island; SteepNormalGreen flips its green if the cracks read
                   inverted).
   M_SkyClouds     unlit, translucent: painted clouds on a sky dome (Coverage, Softness, Scale, wind), each lit from
@@ -362,8 +362,11 @@ float3 Side = RockX * Facing.x + RockY * Facing.y;
 // takes the detail maps': the rock map's own pale cream at full strength stood out of the area's palette, and its
 // layers, every four meters, ruled stripes down a long bluff.
 float SideLuma = dot(Side, float3(0.299, 0.587, 0.114));
-// SteepTint (white unless an area sets it) darkens and weathers the faces under the dusty slopes.
-Color = lerp(Color, Macro * SteepTint * lerp(1.0, SideLuma / max(RockMean, 0.05), SteepDetail), Steep);
+// SteepTint (white unless an area sets it) darkens and weathers the faces under the dusty slopes, and SteepVariation
+// (0 unless an area sets it) makes some bands darker and others redder, by a large noise read mostly by height.
+float B = (Band - 0.5) * 2.0 * SteepVariation;
+float3 Banding = (1.0 - 0.5 * max(-B, 0.0)) * lerp(float3(1.0, 1.0, 1.0), float3(1.1, 0.9, 0.78), max(B, 0.0));
+Color = lerp(Color, Macro * SteepTint * Banding * lerp(1.0, SideLuma / max(RockMean, 0.05), SteepDetail), Steep);
 return Color * lerp(1.0, Occlusion, DiffuseAO);"""
 # The rock's relief on a steep face, from the same two side-laid projections as its color (the rock normal map sampled
 # with the X- and the Y-side UVs): each sample turned into the world (its red along the projection's U axis, its green up
@@ -379,7 +382,11 @@ float3 FromY = float3(NY.x, NY.z * SY, NY.y * Green);
 return normalize(FromX * Facing.x + FromY * Facing.y);"""
 # The rock map laid on from one side (A: world X or Y, across the face) in world meters times Scale, its layers lifted
 # and dropped a little along the face (two long, low waves, and a slight lean), so they never run dead level for long.
+# StrataWarp (meters; 0 on the island) bends them further by the macro noise over StrataWave meters, so the layers
+# undulate, pinch and thicken instead of ruling a whole face.
 SIDE_UV_CODE = """float W = sin(A * 0.0011 + 1.3) * 0.14 + sin(A * 0.0037 + P.z * 0.0007) * 0.05 + A * 0.00002;
+float N = Texture2DSampleLevel(Noise, NoiseSampler, float2(A, P.z * 2.0) * 0.01 / max(Wave, 1.0), 0).r;
+W += (N - 0.5) * 2.0 * Warp * Scale;
 return float2(A * Scale * 0.01, -P.z * Scale * 0.01 + W);"""
 # How steep the ground is, from 0 (gentler than SteepStart degrees) to 1 (steeper than SteepFull).
 STEEP_CODE = 'return 1.0 - smoothstep(cos(radians(Full)), cos(radians(Start)), normalize(Normal).z);'
@@ -401,10 +408,18 @@ def build_terrain():
     # Steep faces: the rock map again, laid on from the X and the Y side (world meters x RockScale, as on UV 1).
     world = g.node(unreal.MaterialExpressionWorldPosition, -2400, 1300)
     vertex_normal = g.node(unreal.MaterialExpressionVertexNormalWS, -2400, 1500)
+    noise = g.node(unreal.MaterialExpressionTextureObjectParameter, -2400, 1100, parameter_name='StrataNoise',
+                   texture=import_mask(MACRO_NOISE_FILE, MACRO_NOISE))
+    warp, wave = g.scalar('StrataWarp', 0.0, -2400, 1000), g.scalar('StrataWave', 45.0, -2400, 900)
     side_uvs = [g.custom(f'float A = {axis};\n' + SIDE_UV_CODE,
-                         [('P', world, ''), ('Scale', rock_scale, '')],
+                         [('P', world, ''), ('Scale', rock_scale, ''), ('Noise', noise, ''), ('Warp', warp, ''),
+                          ('Wave', wave, '')],
                          unreal.CustomMaterialOutputType.CMOT_FLOAT2, -2000, y, f'Rock UV from the {name} side')
                 for axis, name, y in (('P.y', 'X', 1300), ('P.x', 'Y', 1450))]
+    # The bands' darkness: the macro noise over about 120 m along the ground and 25 m up, so it changes layer to layer.
+    band = g.custom('return Texture2DSampleLevel(Noise, NoiseSampler, float2((P.x + P.y) / 12000.0, P.z / 2500.0), 0).r;',
+                    [('P', world, ''), ('Noise', noise, '')],
+                    unreal.CustomMaterialOutputType.CMOT_FLOAT1, -2000, 1600, 'Band darkness noise')
     rock_x = g.texture('RockBaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, WHITE, side_uvs[0], -1400, 1300)
     rock_y = g.texture('RockBaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, WHITE, side_uvs[1], -1400, 1550)
     steep = g.custom(STEEP_CODE, [
@@ -423,6 +438,7 @@ def build_terrain():
         ('RockX', rock_x, 'RGB'), ('RockY', rock_y, 'RGB'), ('Normal', vertex_normal, ''), ('Steep', steep, ''),
         ('SteepDetail', g.scalar('SteepDetail', 0.75, -1000, 1300), ''),
         ('SteepTint', g.vector('SteepTint', (1.0, 1.0, 1.0, 1.0), -1000, 1400), ''),
+        ('Band', band, ''), ('SteepVariation', g.scalar('SteepVariation', 0.0, -1000, 1500), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -600, 0, 'TerrainColor')
     g.out(color, '', unreal.MaterialProperty.MP_BASE_COLOR)
     normal = g.node(unreal.MaterialExpressionLinearInterpolate, -900, 400)

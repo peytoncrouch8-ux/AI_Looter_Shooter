@@ -247,3 +247,9 @@ the doc's own words are marked. Each can be changed in `Tools/Unreal/create_stor
 
 - Amos Whitlock: "That's the last of it. Thank you, Ellis."
 - Amos Whitlock: "Now mind the yard. My old hired hands are about, and they've come home angry."
+
+## Play-test notes
+
+- 2026-10-08, the user: the spider boss got stuck in the wall on spawn. The Gravemother comes out at her den's mouth
+  with her legs in the arch's rock (seen again in the tour's GravemotherDen view): the spawner checks a spot's room with
+  an ordinary creature's capsule, not hers at 1.8 times a spider. Being fixed.
