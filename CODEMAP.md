@@ -453,7 +453,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   player stands), `.Die`.
 - `Dev/WorldDevCommands.cpp`: `Looter.InstanceCollision`, whether the world's instanced meshes (the scattered trees and
   rocks) have collision bodies; `Looter.World.Bounds`, draws the playable area's boundary and walls;
-  `Looter.Perf.HideTag <tag> [1|0]`, hides a tagged group to measure its cost by the difference.
+  `Looter.Perf.HideTag <tag> [1|0]`, hides a tagged group to measure its cost by the difference;
+  `Looter.Perf.FarShadow <cascades> [metres]`, far shadow cascades drawn by actors tagged Obstacle, to see and measure.
 - `Dev/LightingDevCommands.cpp`: `Looter.Light [state] [seconds | now]`, switches the level's lighting state (behind a
   fade, blended, or at once); with no state, lists them.
 - `Dev/EncounterDevCommands.cpp`: `Looter.Encounter.List`, `.Wave <spawner id | event | nearest> [force]`,
@@ -504,13 +505,18 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Art/Levels/area_region.py`: the grounded setting: the regional height field around the core (valley floor and its
   benches, ridges and their saddles, an escarpment and its canyon), the core's edge, the playable boundary and the seam
   band.
+- `Art/Levels/area_boundary.py`: the ground past a grounded area's playable boundary: its edges as open, blocked
+  (closed by something built) or rock; the rock foot raised past every rock edge (`boundary.foot`, the cliff group
+  `boundaryFoot`), and the rise a player meets past each edge (`boundary.rise` in `layout_computed.json`).
 - `Art/Levels/area_features.py`: the feature types that came with Ransom's Rest (ridge, scarp, pit, mesa, knob, gully,
   and a creek's falls into a gorge) as steps of `Area.build()`, and the sides of a ramp that drop as cliffs.
 - `Art/Levels/area_mesh.py`: the top's triangulation, terrain AO, the island's underside, the water mesh.
 - `Art/Levels/area_macro.py`: the macro color map `T_<Area>Macro_BC`, in the season the layout grades it to
-  (`macro.grade`). `Art/Levels/area_scatter.py`: the PCG scatter mask `T_<Area>Scatter_BC`.
+  (`macro.grade`). `Art/Levels/area_scatter.py`: the PCG scatter mask `T_<Area>Scatter_BC` (with
+  `scatter.roadside: pebbles`, no rocks or boulders on or beside the roads).
 - `Art/Levels/area_computed.py`: `layout_computed.json`: placements at terrain height (or their own), cliff groups per
-  feature (a ramp's cliff side too), bridge, waterfall, orchard rows, the squares the maps cover.
+  feature (a ramp's cliff side and the boundary's rock foot too), bridge, waterfall, orchard rows, the squares the maps
+  cover, and the rise past the boundary's closed edges.
 - `Art/Levels/area_cliffs.py`: cliff dressing for those features and the grounded setting: a group per feature, walls
   over 12 m in stacked courses, a knob's outcrop, a gully's banks, gaps in a pit's ring for rock models.
 - `Art/Levels/area_open.py`: the open-ground metric: how far each walkable meter inside the boundary is from its
@@ -525,7 +531,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   what lies past the boundary tagged Beyond (a grounded area's ring, canyon wall and backdrop; an island's sky islands);
   `build_tutorial_island.py` wraps it for the tutorial island.
 - `Tools/Unreal/build_area_bounds.py`: a grounded area's bounds for `build_area.py`: the playable area from the
-  computed boundary, the KillZ 100 m under the canyon floor, and a cull distance volume (sizes to distances).
+  computed boundary (its walls `level.wallSetback` behind the line, at the rock's foot), the KillZ 100 m under the
+  canyon floor, and a cull distance volume (sizes to distances).
 - `Tools/Unreal/build_area_environment.py`: every area's light, sky and fog for `build_area.py`: the tutorial island's
   afternoon by default, or the layout's `level.environment` (sun by bearing and elevation, haze, atmosphere, cloud dome),
   and the level's lighting states (`ALightingStates`: Day as placed, plus `level.environment.states` such as Dusk).
@@ -537,10 +544,12 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Tools/Unreal/build_area_travel.py`: where an area's trips start and end, for `build_area.py`: the skiff jetty
   (`gameplay.jetty`), the depot as its station with the landing on the platform, the first arrival's player start
   beside the level's own (`gameplay.spawnLanding`), and markers for other landings.
-- `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`).
+- `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`); its mask is imported
+  again whenever the PNG changes (its MD5 kept on the texture as metadata).
   `Tools/Unreal/island_views.py`: an area's viewpoints as editor cameras and shots.
 - `Tools/terrain_identity.ps1`, `.py`: checks an area regenerates exactly as committed (headless Blender, no editor;
   layoutSha1 left out);
   `Tools/Blender/terrain_fingerprint.py` fingerprints its meshes.
 - `Tools/terrain_check.ps1`, `.py`: checks an area's layout and computed layout before anything is built (feature rules,
-  ramp grades, cliff courses of at most 12 m, the seam band, the boundary, open ground).
+  ramp grades, cliff courses of at most 12 m, the seam band, the boundary and the rock past its closed edges, open
+  ground).

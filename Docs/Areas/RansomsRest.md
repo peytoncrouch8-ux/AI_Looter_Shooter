@@ -316,7 +316,7 @@ The Unpaid rig at 1.3× in a keeper's coat, with his ghost lantern in one hand a
 **Numbers.**
 - Level: the player's level kept inside 1–10, plus 1 (bosses skip the ±1 roll). About 9 for a player at level 8.
 - Health: about 40× an Unpaid of his level, about 10,500 at level 9. Tuned to a 3–4 minute fight with same-level Uncommon guns.
-- Crit spot: his coal heart, orange like every boss's, at the standard 1.5×. His lantern arm covers it while he fights; it is open only when he grieves.
+- Crit spot: his coal heart, gold like every boss's (the Boss rank's color, which stays clear of the legendary orange), at the standard 1.5×. His lantern arm covers it while he fights; it is open only when he grieves.
 
 **Phase 1, “You brought them here” (100–60%).**
 - He floats along the boards and fires spectral buckshot: slow, visible pellets in a cone after a one-second lantern flare.
@@ -552,15 +552,25 @@ cost-by-difference views):
   unless Ransom's Rest's own tour says otherwise.
 
 **Measured on Ransom's Rest** (`/Game/Maps/Lvl_RansomsRest`, step 5a's level before the greybox, 2026-10-06, Medium at
-1080p):
-- All 20 tour viewpoints hold the budget: 4.4-5.8 ms (174-228 fps). The heaviest are the aerial (5.8 ms, 469 draws) and
-  the grave, the farm and the chapel over town (5.7 ms). `perf.ps1` from the grave: 5.5 ms, p95 6.0, 489 draws, 0.97M
-  triangles, a 1.05 s load.
-- Beyond costs 0.2-0.3 ms, inside its 0.6 ms, but 23-38 draws: 25 west from Ransom's Point, 32 from the deck and 38
-  from the air. One backdrop mesh per layer instead of four sectors is the next try, to bring the deck under 30.
-- Dusk costs no more than the day (its shadows reach 60 m): the grave 5.6 ms against 5.7.
-- In play: the closed edges' walls stop the player (34 cm short of the line, the capsule's radius), stepping off the
-  Gravewind deck is recovered (5 m down, edge 19), and the minimap covers the valley.
+1080p, after the boundary rework):
+- All 22 tour viewpoints hold the budget: 4.1-6.0 ms (168-244 fps). The heaviest are the chapel over town with the far
+  cascade (6.0 ms, 507 draws), the aerial (5.8 ms, 434 draws) and the chapel over town (5.7 ms). `perf.ps1` from the
+  grave (before the rework): 5.5 ms, p95 6.0, 489 draws, 0.97M triangles, a 1.05 s load.
+- The render thread is the limit, not the GPU: render 4.1-5.9 ms against GPU 3.3-4.9 ms. A `-GpuStats` capture puts 1.7-
+  3.3 ms of the render thread in its visibility wait.
+- Beyond, now one backdrop mesh per layer: 13-20 draws and at most 0.22 ms (13 west from Ransom's Point, 16 from the
+  deck, 17 at the ridge foot, 20 from the air), inside its 30 draws and 0.6 ms. Four sectors per layer had cost 23-38.
+- Shadows: one far cascade to 400 m, drawn by buildings and cliffs (`Looter.Perf.FarShadow 1 400`), costs 0.95 ms at
+  Ransom's Point over the valley and 0.3 ms over town (GPU +0.7 and +0.25, 45-58 more draws), and the town beyond 100 m
+  hardly changes (`Saved/Screenshots/Review/RR_FarShadow.jpg`). The recommendation is to keep today's two 100 m cascades
+  on Medium.
+- Dusk costs about what the day does, -0.2 to +0.5 ms by view (its shadows reach 60 m): the grave 5.6 ms against 5.2,
+  Ransom's Point west 4.8 against 4.3, Main Street 5.1 against 5.3.
+- The boundary: steep rock (50.8-65.7 degrees, starting 0.0-2.1 m out) rises past every closed edge but Stage Gap's
+  mouth, and the walls stand 2.5 m behind the line at its foot (`level.wallSetback`). Walking into all 25 closed edges
+  (55 runs), every run stops at the wall, at most 2.16 m past the line, and none gets past it or falls. Only Stage Gap's
+  mouth, which waits for the train, has walkable ground past the line.
+- In play: stepping off the Gravewind deck is recovered (5 m down, edge 19), and the minimap covers the valley.
 - Twelve Unpaid chasing at the town gate (step 16), the player looking down Main Street:
   - 5.9 ms (169 fps), p95 6.3, game thread 4.3, GPU 4.9, 672 draws.
   - With one Unpaid there: 5.5 ms, game 2.8, GPU 4.5, 465 draws.
@@ -568,8 +578,6 @@ cost-by-difference views):
   - Measured with `perf.ps1 -Exec "Looter.Quality Medium,Looter.Perf.Horde Unpaid 12 Basic 0 -1400 90"`, which puts the
     player at the gate, unhurtable, with the fight coming at them. A tour view can't measure a fight: the tour looks
     through a camera of its own while the player stays at the spawn, and creatures far from the player slow down.
-- Still to do for 5a: the far-cascade comparison, the render thread from a `-GpuStats` capture, and a walk along every
-  closed edge.
 
 **Tour viewpoints** (`Art/Levels/RansomsRest/views.json`, with `exec` where a view needs setup):
 1. The grave.
@@ -680,9 +688,13 @@ Concept renders come before any human costume. Sexton is first, because he sets 
 - **Step 14:** Hob's look. Chosen on 2026-10-06 from three concepts: **the Revenant crow**, lean and brooding, with a dull ember deep in the empty socket and wingtips and tail feathers fading to ash (masked and dithered, like the Unpaid).
 - **Step 15:** Sexton's look. It sets every human after him. Chosen on 2026-10-06 from three concepts: **the Gentleman**, very tall and gaunt in a black frock coat buttoned to the throat, an exaggerated stovepipe, coat tails over the rail, legs crossed, long pale fingers on the ledger and a dip pen; his face in shadow but for the point of a pale chin, and a tarnished coin weighting the ledger's ribbon as the only hint of the ferryman.
 - **Step 16:** the Unpaid's look. Chosen on 2026-10-06 from three concepts: **the clothes they died in** (a homesteader in hat and vest, the coal burning through his chest, fading into shroud strips), made gaunter, with the hungry dead's face and lunge; the render of that mix was confirmed the same day, and the rig and mesh are built from it.
+- **Step 17:** Ellis's wanted poster. Chosen on 2026-10-06 from three: **B, a woodcut of a masked rider**, so the face
+  stays hidden and Ellis's gender open, with ALREADY written under DEAD OR ALIVE. The posters are decals (one atlas: the
+  poster, its torn remnant, Calder's note and a scrap).
 - **Step 18:** using the backlog Reliquary design for the smashed one.
 - **Step 21 (approved on 2026-10-05):** the boss bar and the test fight.
-- **Step 22:** Abel's difficulty and the ending's wording.
+- **Step 22:** Abel's look, chosen on 2026-10-06 from three concepts: **A, the Sunday keeper**. Still to come: his
+  difficulty and the ending's wording.
 - **Step 23:** Heirloom as a named Epic, or a Legendary.
 - **Step 26:** bringing the Supply Crate and Strongbox out of the backlog.
 - **Step 27:** whether the *Gilded Lily* stays an airship (deferred on 2026-10-01 until Ransom's Rest is complete).
