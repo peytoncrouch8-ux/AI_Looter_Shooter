@@ -12,7 +12,9 @@
                   color's alpha) plus wind: vertex color R is how far a vertex sways, G offsets its phase;
                   WindStrength (cm), WindSpeed, WindDirection.
   M_Terrain       MacroMap on UV 0 covers the whole island (its alpha picks the detail: 0 grass/soil, 1 rock); the
-                  Grass* and Rock* maps tile on UV 1 (meters) and only modulate the macro color's brightness.
+                  Grass* and Rock* maps tile on UV 1 (meters) and only modulate the macro color's brightness. Faces
+                  steeper than SteepStart degrees (fully past SteepFull) take the rock map's own color laid on from
+                  the side, with no detail normal: maps laid on from above smear down a cliff.
   M_SkyClouds     unlit, translucent: painted clouds on a sky dome (Coverage, Softness, Scale, wind, colors).
   M_Waterfall,    unlit, translucent effects scrolling the macro noise: a falling water sheet's foam streaks, and
   M_Smoke         chimney smoke. Vertex color A is opacity (R foam on the waterfall).
@@ -323,7 +325,14 @@ TERRAIN_CODE = """float3 Detail = lerp(Grass, Rock, Select);
 float Luma = dot(Detail, float3(0.299, 0.587, 0.114));
 float Mean = lerp(GrassMean, RockMean, Select);
 float3 Color = Macro * lerp(1.0, Luma / max(Mean, 0.05), Strength);
+// A steep face takes the rock's own color, laid on from the side it faces (the X and Y planes, blended by how far it
+// faces each): the macro map and the detail maps are laid on from above, so down a cliff they smear into streaks.
+float2 Facing = pow(abs(normalize(Normal).xy), 4.0);
+Facing /= max(Facing.x + Facing.y, 1e-4);
+Color = lerp(Color, RockX * Facing.x + RockY * Facing.y, Steep);
 return Color * lerp(1.0, Occlusion, DiffuseAO);"""
+# How steep the ground is, from 0 (gentler than SteepStart degrees) to 1 (steeper than SteepFull).
+STEEP_CODE = 'return 1.0 - smoothstep(cos(radians(Full)), cos(radians(Start)), normalize(Normal).z);'
 
 
 def build_terrain():
@@ -333,11 +342,26 @@ def build_terrain():
     macro = g.texture('MacroMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, WHITE, macro_uv, -1400, -300)
     detail_coords = g.node(unreal.MaterialExpressionTextureCoordinate, -2000, 200, coordinate_index=1)
     grass_uv = g.mul(detail_coords, '', g.scalar('GrassScale', 0.5, -2000, 320), '', -1800, 200)
-    rock_uv = g.mul(detail_coords, '', g.scalar('RockScale', 0.25, -2000, 520), '', -1800, 450)
+    rock_scale = g.scalar('RockScale', 0.25, -2000, 520)
+    rock_uv = g.mul(detail_coords, '', rock_scale, '', -1800, 450)
     grass = g.texture('GrassBaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, WHITE, grass_uv, -1400, 0)
     grass_n = g.texture('GrassNormalMap', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, FLAT_NORMAL, grass_uv, -1400, 250)
     rock = g.texture('RockBaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, WHITE, rock_uv, -1400, 500)
     rock_n = g.texture('RockNormalMap', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, FLAT_NORMAL, rock_uv, -1400, 750)
+    # Steep faces: the rock map again, laid on from the X and the Y side (world meters x RockScale, as on UV 1).
+    world = g.node(unreal.MaterialExpressionWorldPosition, -2400, 1300)
+    vertex_normal = g.node(unreal.MaterialExpressionVertexNormalWS, -2400, 1500)
+    side_uvs = [g.custom(f'return float2({axis}, -P.z) * Scale * 0.01;',
+                         [('P', world, ''), ('Scale', rock_scale, '')],
+                         unreal.CustomMaterialOutputType.CMOT_FLOAT2, -2000, y, f'Rock UV from the {name} side')
+                for axis, name, y in (('P.y', 'X', 1300), ('P.x', 'Y', 1450))]
+    rock_x = g.texture('RockBaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, WHITE, side_uvs[0], -1400, 1300)
+    rock_y = g.texture('RockBaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, WHITE, side_uvs[1], -1400, 1550)
+    steep = g.custom(STEEP_CODE, [
+        ('Normal', vertex_normal, ''),
+        ('Start', g.scalar('SteepStart', 50.0, -2000, 1650), ''),
+        ('Full', g.scalar('SteepFull', 65.0, -2000, 1750), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -1400, 1800, 'Steepness')
     vc = g.node(unreal.MaterialExpressionVertexColor, -1400, 1000)
     color = g.custom(TERRAIN_CODE, [
         ('Macro', macro, 'RGB'), ('Grass', grass, 'RGB'), ('Rock', rock, 'RGB'), ('Select', macro, 'A'),
@@ -346,6 +370,7 @@ def build_terrain():
         ('Strength', g.scalar('DetailStrength', 0.6, -1000, 1100), ''),
         ('Occlusion', vc, 'A'),
         ('DiffuseAO', g.scalar('DiffuseAO', 0.45, -1000, 1200), ''),
+        ('RockX', rock_x, 'RGB'), ('RockY', rock_y, 'RGB'), ('Normal', vertex_normal, ''), ('Steep', steep, ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -600, 0, 'TerrainColor')
     g.out(color, '', unreal.MaterialProperty.MP_BASE_COLOR)
     normal = g.node(unreal.MaterialExpressionLinearInterpolate, -900, 400)
@@ -355,10 +380,16 @@ def build_terrain():
     flatten = g.node(unreal.MaterialExpressionLinearInterpolate, -600, 400)
     g.link(g.node(unreal.MaterialExpressionConstant3Vector, -900, 600, constant=unreal.LinearColor(0.0, 0.0, 1.0, 1.0)), '', flatten, 'A')
     g.link(normal, '', flatten, 'B')
-    g.link(g.scalar('NormalStrength', 0.8, -900, 700), '', flatten, 'Alpha')
+    # A steep face's detail normal would be the stretched one from above: it goes flat there, and the side-laid color
+    # carries the rock's cracks.
+    strength = g.custom('return Strength * (1.0 - Steep);', [
+        ('Strength', g.scalar('NormalStrength', 0.8, -900, 700), ''), ('Steep', steep, ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -900, 800, 'Normal strength')
+    g.link(strength, '', flatten, 'Alpha')
     g.out(flatten, '', unreal.MaterialProperty.MP_NORMAL)
     rough = g.node(unreal.MaterialExpressionLinearInterpolate, -600, 700, const_a=0.92, const_b=0.82)
-    g.link(macro, 'A', rough, 'Alpha')
+    g.link(g.custom('return max(Select, Steep);', [('Select', macro, 'A'), ('Steep', steep, '')],
+                    unreal.CustomMaterialOutputType.CMOT_FLOAT1, -900, 950, 'Rock amount'), '', rough, 'Alpha')
     g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
     g.out(vc, 'A', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
     finish(mat, [unreal.MaterialUsage.MATUSAGE_NANITE])
