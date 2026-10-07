@@ -595,13 +595,16 @@ def build_waterfall():
 
 
 def build_smoke():
-    """M_Smoke: soft chimney smoke drifting up its cards."""
+    """M_Smoke: soft chimney smoke drifting up its cards. A light grey rather than white, and fainter: against a deep
+    afternoon sky a white plume over 1 read as bright streaks, not smoke. Unlit, so it follows the clouds' lighting tint
+    (MPC_Lighting's CloudTint, white by day) and dims at dusk with them."""
     return effect('M_Smoke',
                   [('Speed', lambda g: g.scalar('Speed', 0.12, -900, 200))],
-                  'return SmokeColor;',
-                  [('SmokeColor', lambda g: g.vector('SmokeColor', (1.25, 1.27, 1.33, 1.0), -900, 300))],
+                  'return SmokeColor * CloudTint;',
+                  [('SmokeColor', lambda g: g.vector('SmokeColor', (0.78, 0.79, 0.82, 1.0), -900, 300)),
+                   ('CloudTint', lambda g: lighting_tint(g, 'CloudTint', -900, 500))],
                   SMOKE_OPACITY,
-                  [('Opacity', lambda g: g.scalar('Opacity', 0.4, -900, 400))])
+                  [('Opacity', lambda g: g.scalar('Opacity', 0.28, -900, 400))])
 
 
 BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'M_Gun': lambda: build_gun(DEFAULT_ORM),
