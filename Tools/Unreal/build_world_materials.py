@@ -30,9 +30,10 @@
                   EdgeOpacity), which reads as glass without reflections.
   M_Backdrop      unlit, opaque, one-sided: the far silhouettes past a grounded area (Art/Levels/area_beyond.py), a flat
                   Tint times Brightness (about what sunlit ground of that color shows) times the lighting state's
-                  BackdropTint from MPC_Lighting (white by day; lighting_collection.py makes the collection first); the
-                  height fog hazes them. Also the cold open's black silhouettes: the gang and Abel (skinned, so it's set
-                  for skeletal meshes) and Sexton on the rail.
+                  BackdropTint from MPC_Lighting (white by day; lighting_collection.py makes the collection first),
+                  darkening toward the sun's bearing to their shaded sides (Backlit, the sky atmosphere's sun); the
+                  height fog and the atmosphere haze them, the farther layers more. Also the cold open's black
+                  silhouettes: the gang and Abel (skinned, so it's set for skeletal meshes) and Sexton on the rail.
 
 The model importer (FModelImporter) makes MI_<material> instances of these from the Blender materials. Re-running this
 keeps each material asset (so instances stay linked) and rebuilds its graph. Run in the open editor, optionally with the
@@ -587,17 +588,31 @@ def build_glass():
     return mat
 
 
+BACKDROP_SHADE = """// Seen against the sun a range shows the sides it doesn't reach: toward the sun's bearing the layers darken and cool
+// (Backlit at the sun itself), so the haze in front of them, thicker on the farther ones, sets them apart.
+float3 D = -CameraVector;
+float Toward = saturate(dot(D, normalize(SunDirection + 1e-5)));
+return lerp(float3(1.0, 1.0, 1.0), Backlit, Toward * Toward);"""
+
+
 def build_backdrop():
     """M_Backdrop: a few cheap draws for the ranges and plains kilometers out. Unlit, so their color doesn't depend on
     how the low sun happens to strike them; opaque and one-sided, since they're only ever seen from inside. Being unlit
     they never see the sun go down either, so the lighting state's tint (MPC_Lighting's BackdropTint, white by day)
-    multiplies every layer's own: dusk darkens and warms the ranges without touching the instances."""
+    multiplies every layer's own: dusk darkens and warms the ranges without touching the instances. Toward the sun
+    (the sky atmosphere's) they darken to their shaded sides."""
     mat = material('M_Backdrop')
     mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
     g = Graph(mat)
     # A lit surface of albedo A shows about 2.5 A in the island's sun and sky (the unlit clouds' white is about 3).
     color = g.mul(g.vector('Tint', (0.11, 0.15, 0.11, 1.0), -600, -100), '', g.scalar('Brightness', 2.5, -600, 50), '',
                   -300, -50)
+    shade = g.custom(BACKDROP_SHADE, [
+        ('CameraVector', g.node(unreal.MaterialExpressionCameraVectorWS, -900, 350), ''),
+        ('SunDirection', g.node(unreal.MaterialExpressionSkyAtmosphereLightDirection, -900, 450), ''),
+        ('Backlit', g.vector('Backlit', (0.22, 0.27, 0.38, 1.0), -900, 550), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -600, 350, 'Backdrop shade')
+    color = g.mul(color, '', shade, '', -150, 100)
     g.out(g.mul(color, '', lighting_tint(g, 'BackdropTint', -600, 200), '', 0, 0), '',
           unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     # The cold open draws its silhouettes with it too (AColdOpenCast: the gang as black mannequins against the sunset),

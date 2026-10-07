@@ -8,7 +8,7 @@ level.environment changes (Ransom's Rest's golden hour, step 5a of Docs/Areas/Ra
             "inscattering": [0.4, 0.33, 0.27], "cutoffDistance": 1350000,
             "directional": {"color": [1.0, 0.7, 0.4], "exponent": 8, "startDistance": 6000}},
     "atmosphere": {"planetTop": -9000, "groundAlbedo": [0.45, 0.36, 0.22], "skyLuminance": [1.0, 1.35, 2.0],
-                   "ozone": 1},
+                   "ozone": 1, "aerialPerspective": 3},
     "clouds": {"radius": 1500000, "tint": [1, 1, 1]},
     "backdrop": {"tint": [1, 1, 1]},
     "post": {"exposureBias": 0.4},
@@ -27,8 +27,10 @@ the atmosphere (a 4100 K sun turns a blue sky slate grey), so a golden hour canc
 only where the atmosphere reddens it, low toward the sun. The correction is the sky's alone: the height fog takes the
 sky's light without it, so the haze keeps the fog's own colors. Its ozone is the ozone layer's absorption as a multiple
 of Earth's: at sunset it soaks the green out of the light crossing the sky, leaving the sky away from the sun
-twilight's blue-violet. The fog's cutoffDistance (none by default) ends the haze before the sky and the cloud dome past
-it, which would otherwise wear it as a grey veil; a backdrop inside it still fades into the haze.
+twilight's blue-violet. Its aerialPerspective stretches the atmosphere's own haze (1 is real): the backdrop's layers
+fade by distance, darker near, paler far, under a height fog thin enough not to bury them all (art note 2). The fog's
+cutoffDistance (none by default) ends the haze before the sky and the cloud dome past it, which would otherwise wear it
+as a grey veil; a backdrop inside it still fades into the haze.
 
 Lighting states (step 13): an ALightingStates actor beside the lights holds the level's named states, which
 ULightingStateSubsystem switches between (Looter.Light Day|Dusk). Day is always the environment above, the light the
@@ -62,7 +64,7 @@ DEFAULTS = {
     'fog': {'height': -2000.0, 'density': 0.03, 'falloff': 0.12, 'startDistance': 3000.0, 'maxOpacity': 0.85,
             'inscattering': [0.20, 0.29, 0.44], 'directional': None, 'cutoffDistance': 0.0},
     # The engine's Earth, its planet top at the world's origin unless planetTop moves it.
-    'atmosphere': {'skyLuminance': [1.0, 1.0, 1.0], 'ozone': 1.0},
+    'atmosphere': {'skyLuminance': [1.0, 1.0, 1.0], 'ozone': 1.0, 'aerialPerspective': 1.0},
     # 1 km: the island's horizon is the sky itself. The tint multiplies the painted clouds (MPC_Lighting CloudTint).
     'clouds': {'radius': 100000.0, 'tint': [1.0, 1.0, 1.0]},
     # Multiplies every backdrop layer's own tint (MPC_Lighting BackdropTint): white is the backdrop as built.
@@ -216,6 +218,9 @@ def place(build):
     earth_ozone = unreal.get_default_object(unreal.SkyAtmosphereComponent).get_editor_property('other_absorption_scale')
     air.set_editor_property('sky_luminance_factor', color(atmosphere_settings['skyLuminance']))
     air.set_editor_property('other_absorption_scale', earth_ozone * atmosphere_settings['ozone'])
+    # How far the atmosphere's own haze reaches, as a multiple of the real one's. Past 1 it hazes each farther backdrop
+    # layer more than the one before, which gives the far ranges depth; height fog that thick buries them all.
+    air.set_editor_property('aerial_pespective_view_distance_scale', atmosphere_settings['aerialPerspective'])
 
     fog_settings = env['fog']
     fog = build.place(unreal.ExponentialHeightFog, (0, 0, fog_settings['height']), label='HeightFog',

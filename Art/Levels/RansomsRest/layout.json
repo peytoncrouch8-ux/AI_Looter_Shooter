@@ -1621,12 +1621,12 @@
     "scatterVolume": "RansomsRestScatter",
     "wallSetback": 250,
     "environment": {
-      "about": "The golden hour tried out on Lvl_TerrainTest (Tools/Unreal/build_area_environment.py): the sun low in the west-southwest over the canyon, haze thickest down in the canyon and glowing warm toward the sun, full fog before the backdrop's last layer, the planet's top down on the plains, the cloud dome past the backdrop. Tuned on Ransom's Rest at step 5a. Art note 3 (the sky): the sky's own color cancels most of the warm sun's tint, so it stays a clear blue overhead and warms only toward the sun; the haze ends at 13.5 km, between the backdrop (12 km) and the cloud dome (15 km), so neither the sky nor the clouds wear it; the haze's glow toward the sun matches the warm sky there.",
+      "about": "The golden hour tried out on Lvl_TerrainTest (Tools/Unreal/build_area_environment.py): the sun low in the west-southwest over the canyon, haze thickest down in the canyon and glowing warm toward the sun, the planet's top down on the plains, the cloud dome past the backdrop. Tuned on Ransom's Rest at step 5a. Art note 3 (the sky): the sky's own color cancels most of the warm sun's tint, so it stays a clear blue overhead and warms only toward the sun; the haze ends at 13.5 km, between the backdrop (12 km) and the cloud dome (15 km), so neither the sky nor the clouds wear it; the haze's glow toward the sun matches the warm sky there. Art note 2 (the far band): the fog thinned to 0.003 (dusk 0.004) and the atmosphere's own haze stretched 3 times, so the backdrop's layers fade by distance, darker near and paler far, instead of melting into one pale band; M_Backdrop darkens them toward the sun to their shaded sides.",
       "sun": { "azimuth": 247.5, "elevation": 15, "intensity": 6.5, "temperature": 4100 },
       "sky": { "intensity": 1, "lowerHemisphere": [0.32,0.27,0.16] },
       "fog": {
         "height": 0,
-        "density": 0.012,
+        "density": 0.003,
         "falloff": 0.15,
         "startDistance": 6000,
         "maxOpacity": 1,
@@ -1634,7 +1634,7 @@
         "cutoffDistance": 1350000,
         "directional": { "color": [1.5,0.95,0.3], "exponent": 8, "startDistance": 6000 }
       },
-      "atmosphere": { "planetTop": -9000, "groundAlbedo": [0.45,0.37,0.24], "skyLuminance": [1.0,1.35,2.0] },
+      "atmosphere": { "planetTop": -9000, "groundAlbedo": [0.45,0.37,0.24], "skyLuminance": [1.0,1.35,2.0], "aerialPerspective": 3 },
       "clouds": { "radius": 1500000 },
       "states": {
         "Dusk": {
@@ -1642,7 +1642,7 @@
           "sun": { "azimuth": 252, "elevation": 4, "intensity": 4.0, "temperature": 3600, "shadowDistance": 6000, "cascades": 2 },
           "sky": { "intensity": 0.6 },
           "atmosphere": { "skyLuminance": [1.2, 2.1, 5.0], "ozone": 3.5 },
-          "fog": { "density": 0.015, "inscattering": [0.06, 0.07, 0.11],
+          "fog": { "density": 0.004, "inscattering": [0.06, 0.07, 0.11],
                    "directional": { "color": [0.95, 0.45, 0.15], "exponent": 6 } },
           "backdrop": { "tint": [0.30, 0.24, 0.24] },
           "clouds": { "tint": [0.24, 0.13, 0.11] },
