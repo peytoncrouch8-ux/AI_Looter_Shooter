@@ -6,16 +6,20 @@ shutters that slam as Ellis walks by.
                          trim's cream strip G) and black trim (WoodBlack), gilt lettering (BrassWorn), an arched parapet
                          with urns. Tilly Bright talks through the left window, its lower sash pushed up
                          (SOCKET_Speaker); behind it a shallow room with black drapes, a dim lamp (LanternGlow,
-                         SOCKET_Light), a coffin on display, and a card on a string: "Back after the funeral". Black crepe
-                         on the door. A plain back door and a loading step face the undertaker's yard and the depot.
-                         SOCKET_Smoke tops the chimney.
+                         SOCKET_Light), a coffin on display, and a card on a string: "Back after the funeral". The
+                         window's panes are lamplit (WindowGlow). Black crepe on the door. A plain back door and a
+                         loading step face the undertaker's yard and the depot. SOCKET_Smoke tops the chimney.
   FalseFront_Saloon      "The Gilt Spur": two storeys with a balcony over the boardwalk on four posts, a stepped parapet
                          with a spur on it. Boarded up: planks nailed across every door and window, and a board across the
                          doors reading CLOSED FOR MOURNING.
   FalseFront_Store       "Pruitt's General Store": the widest front, flat under a bracketed cornice with a low pediment,
                          two big display windows round glazed double doors, and a deep porch (a plank deck that chains
-                         with the boardwalk, posts and a shake roof). Windows down both sides carry shutter sockets
-                         (SOCKET_Shutter_L1..L4 / R1..R4). SOCKET_Smoke tops the stovepipe.
+                         with the boardwalk, posts and a shake roof). The display windows show the shop
+                         (shop_window()): shelves of tins, jars and packets against its lamplit back wall, a dress on
+                         a stand and bolts of cloth on one side, sacks, a keg and tools on the other; the doors' panes
+                         are lamplit too (WindowGlow), and SOCKET_Light is the shop's lamp, behind the doors. Windows
+                         down both sides carry shutter sockets (SOCKET_Shutter_L1..L4 / R1..R4). SOCKET_Smoke tops the
+                         stovepipe.
   FalseFront_Sheriff     the empty sheriff's office: a stone storey (a jail) with quoins, barred windows and an
                          iron-strapped door hung with black crepe, under a wooden false front lettered SHERIFF with a star.
                          SOCKET_Smoke tops the (cold) stovepipe.
@@ -31,14 +35,23 @@ tin reads as loot colors over a large area). Faces nobody sees are left out (wal
 clapboards' hidden sides, the backs of trim), which keeps the sources at 4.7-9.3k triangles, and Nanite's fallback
 keeps all of them (FALLBACK).
 
+The lamplit windows (the store's and Tilly's) are the lived-in farmhouse's WindowGlow (Farmhouse.py): by day dark warm
+glass with a faint glow, and at dusk the level's AHouseLights raises its Glow (1 to 14) and lights a lamp at the
+building's SOCKET_Light.
+
 A scripted model (Art/README.md) built with looter_buildings and looter_town.
 """
 import math
+import random
+from contextlib import contextmanager
+
+import bmesh
 
 import looter_buildings as kit
+import looter_model as lm
 import looter_textures as lt
 import looter_town as town
-from looter_buildings import Matrix, Opening, Trim, Vector
+from looter_buildings import Matrix, Opening, Tile, Trim, Vector
 
 BASE = town.DECK_TOP        # floors and thresholds at the boardwalk's walking surface
 THICK = 0.14                # walls
@@ -54,6 +67,146 @@ def siding(rng, rotate=False):
 # Nanite's fallback (what Medium and Low draw) keeps every triangle: Unreal's own reduction of these meshes left
 # vertices with zero tangents (the saloon at 61.8%), and the sources are lean enough to be drawn whole.
 FALLBACK = 100.0
+
+# The lamplit panes: Farmhouse.py's WindowGlow exactly (its colour, its day Glow and Variation), so the name maps to one
+# material instance in Unreal. Glow is the emissive multiplier of the colour; AHouseLights sets the dusk value.
+WINDOW_COLOR, WINDOW_GLOW_DAY, WINDOW_GLOW_DUSK = 0x2e2219, 1.0, 14.0
+_LATE = 30          # faces marked for WindowGlow while the building is put together (finish() gives them its slot)
+
+
+class Lamplit(town.Model):
+    """A town Model with lamplit windows, which leaves the rest of the building exactly as it was: the same vertices,
+    corners and faces in the same order, with the same baked AO.
+
+    While glazing(glass) is on, the openings' panes (the trim sheet's H4 strip) go to glass: 'windowglow' (the WindowGlow
+    slot), or (key, move) to be moved too (move, a matrix in the opening's space: a display window's pane goes back to
+    become the shop's back wall, its goods in front of it). They're built in the same order with the same random
+    numbers, and a moved pane moves only once the building is cut into triangles, so it's cut as before. WindowGlow's
+    slot comes after all the others, so theirs keep their order. own(seed) builds new parts on a random stream of their
+    own, into a mesh of their own that finish() adds after the building's own faces (cut with them, the new faces would
+    take numbers among theirs). The AO the building's own faces keep is baked without the new parts, with the moved
+    panes where they were: Blender's ray tree, built over more faces, breaks ties between touching surfaces otherwise
+    and shifts the AO at scattered corners all over the building. The new parts and the moved panes take the AO of the
+    whole model."""
+
+    glass = None
+    late = None
+
+    def __init__(self, name, seed=1):
+        super().__init__(name, seed)
+        self.moves = []             # (vertex, its move in the model's space), for finish()
+
+    def slot(self, key):
+        if key == 'windowglow':
+            return _LATE
+        return super().slot(key)
+
+    def emit(self, tb, uv=None, mat='trim', place=None, space=None, *args, **kwargs):
+        move = None
+        if self.glass and mat == 'trim' and isinstance(uv, Trim) and uv.strip == 'H4':
+            mat, move = (self.glass, None) if isinstance(self.glass, str) else self.glass
+        first = len(self.bm.verts)
+        super().emit(tb, uv, mat, place, space, *args, **kwargs)
+        if move is not None:
+            frame = (space or kit.WORLD).matrix
+            self.bm.verts.ensure_lookup_table()
+            self.moves += [(v, frame @ move @ frame.inverted()) for v in self.bm.verts[first:]]
+
+    def triangles(self):
+        return super().triangles() + (sum(len(f.verts) - 2 for f in self.late.faces) if self.late else 0)
+
+    @contextmanager
+    def glazing(self, glass):
+        self.glass = glass
+        try:
+            yield
+        finally:
+            self.glass = None
+
+    @contextmanager
+    def own(self, seed):
+        if self.late is None:
+            self.late = bmesh.new()
+            self.late.loops.layers.uv.new('UVMap')
+            self.late.faces.layers.float.new('_aofloor')
+        main = (self.rng, self.bm, self.uv, self.floor)
+        self.rng, self.bm = random.Random(seed), self.late
+        self.uv, self.floor = self.late.loops.layers.uv['UVMap'], self.late.faces.layers.float['_aofloor']
+        try:
+            yield self.rng
+        finally:
+            self.rng, self.bm, self.uv, self.floor = main
+
+    def finish(self, **kwargs):
+        late = self.late
+        marked = [f for bm in (self.bm, late) if bm is not None for f in bm.faces if f.material_index == _LATE]
+        if marked:
+            index = len(self.slots)
+            self.slots['windowglow'] = (index, lm.material('WindowGlow', WINDOW_COLOR, Glow=WINDOW_GLOW_DAY,
+                                                           Variation=0.04))
+            for f in marked:
+                f.material_index = index
+        cut, bake = kit._triangulate, lt.bake_vertex_ao
+        was = {}                    # moved vertices: where they are -> where they were
+        own = []                    # the building's own vertex and face counts
+
+        def cut_then_add(bm):
+            cut(bm)
+            for v, move in self.moves:
+                before = v.co.copy()
+                v.co = move @ v.co
+                was[tuple(v.co)] = before
+            # The building read back in order (no gaps left by the cut for new elements to fill), then the new parts,
+            # cut on their own, after it.
+            mesh = kit.bpy.data.meshes.new('_lamplit')
+            bm.to_mesh(mesh)
+            bm.clear()
+            bm.from_mesh(mesh)
+            own.extend((len(bm.verts), len(bm.faces)))
+            if late is not None:
+                cut(late)
+                late.to_mesh(mesh)
+                late.free()
+                bm.from_mesh(mesh)
+            kit.bpy.data.meshes.remove(mesh)
+
+        def bake_own(obj, *args, **kw):
+            import numpy as np
+            bake(obj, *args, **kw)
+            # The building's own faces alone, the moved panes put back, baked again: their AO as it always was.
+            tb = bmesh.new()
+            tb.from_mesh(obj.data)
+            tb.verts.ensure_lookup_table()
+            bmesh.ops.delete(tb, geom=tb.verts[own[0]:], context='VERTS')
+            for v in tb.verts:
+                v.co = was.get(tuple(v.co), v.co)
+            alone = kit.bpy.data.objects.new('_lamplit_ao', kit.bpy.data.meshes.new('_lamplit_ao'))
+            tb.to_mesh(alone.data)
+            tb.free()
+            kit.bpy.context.scene.collection.objects.link(alone)
+            alone.matrix_world = obj.matrix_world
+            bake(alone, *args, **kw)
+            mesh = obj.data
+            corners = sum(len(p.vertices) for p in list(mesh.polygons)[:own[1]])
+            keep = np.ones(corners, dtype=bool)
+            for p in list(mesh.polygons)[:own[1]]:
+                if any(tuple(mesh.vertices[i].co) in was for i in p.vertices):
+                    keep[p.loop_start:p.loop_start + p.loop_total] = False
+            raw = lt._read_col(mesh)
+            raw[:corners][keep, 3] = lt._read_col(alone.data)[:corners][keep, 3]
+            lt._write_col(mesh, raw)
+            data = alone.data
+            kit.bpy.data.objects.remove(alone)
+            kit.bpy.data.meshes.remove(data)
+
+        if late is None and not self.moves:
+            return super().finish(**kwargs)
+        kit._triangulate, lt.bake_vertex_ao = cut_then_add, bake_own
+        try:
+            return super().finish(**kwargs)
+        finally:
+            kit._triangulate, lt.bake_vertex_ao = cut, bake
+            self.late, self.moves = None, []
 
 
 # --- The parts every false front shares ---
@@ -155,10 +308,32 @@ def urn(m, space, at, scale=1.0, look='woodblack'):
                    (0.075 * s, 0.45 * s), (0.035 * s, 0.5 * s), (0.0, 0.53 * s)], at=at, sides=8, look=look, space=space)
 
 
+def lamp_room_drapes(m, space, o):
+    """Black drapes over the lamplit panes of window o (style 'open', as town.window builds it): in front of the
+    pushed-up lower sash's pane, inside its frame, one gathered at each side and a scalloped valance under its top
+    rail, in two halves either side of its muntin. They carry on the lamp room's drapes seen below them, so the glowing
+    panes read as the lit room behind drapes, not as a panel."""
+    glass_y = FT * 0.55 - 0.05              # the lower sash's pane; its face is 1 cm in front, its frame 2.25 cm
+    y = glass_y - 0.0145                    # 2.5 mm in front of the pane's face, behind the frame's
+    stile, rail = 0.052, 0.082              # the sash frame's stiles and top rail (with 2 mm to spare)
+    x0, x1, xc = o.x + stile, o.x + o.w - stile, o.x + o.w * 0.5
+    low, top = o.z + o.h * 0.5 + 0.04, o.z + o.h - rail
+    for side in (1.0, -1.0):
+        edge = x0 if side > 0 else x1
+        rows = []
+        for z, cover in ((low, 0.2), ((low + top) * 0.5, 0.25), (top, 0.3)):
+            rows.append([(edge + side * cover * i / 5.0, y + (0.002 if i % 2 else -0.002), z) for i in range(6)])
+        town.sheet(m, rows, look='crepe', space=space)
+    for a, b in ((x0, xc - 0.022), (xc + 0.022, x1)):
+        bottom = [(a + (b - a) * i / 8.0, y - 0.005, top - 0.12 - 0.045 * math.sin(math.pi * (i % 4) / 4.0))
+                  for i in range(9)]
+        town.sheet(m, [bottom, [(x, y - 0.005, top) for x, _, _ in bottom]], look='crepe', space=space)
+
+
 # --- Bright & Daughter, Undertakers ---
 
 def undertaker():
-    m = town.Model('FalseFront_Undertaker', seed=301)
+    m = Lamplit('FalseFront_Undertaker', seed=301)
     rng = m.rng
     XF0, XF1, Y0, Y1 = -3.5, 3.5, -6.0, 6.0
     X0, X1 = -3.2, 3.2
@@ -200,7 +375,10 @@ def undertaker():
         town.board(m, (x, 0.0, 3.16), (x, 0.0, SHOULDER - 0.02), 0.3, 0.05, look='woodblack', space=front, lift=0.025)
     m.section('clapboards')
 
-    town.openings(m, front, items, FT, out=lap)
+    # Tilly's window's panes are lamplit, so the room reads lit at dusk (with drapes over them, lamp_room_drapes).
+    for o in items:
+        with m.glazing('windowglow' if o is TILLY else None):
+            town.openings(m, front, [o], FT, out=lap)
     # Crepe: a bow and tails on the door, a swag over its head.
     town.crepe_bow(m, front, (DOOR.x + DOOR.w * 0.5, 0.0, 1.92), scale=1.4, tails=0.85, y=-0.02)
     town.crepe_swag(m, front, DOOR.x - 0.2, DOOR.x + DOOR.w + 0.2, DOOR.h + 0.42, sag=0.16, y=-0.12)
@@ -357,6 +535,10 @@ def undertaker():
     for x in (XF0 + 0.16, XF1 - 0.16):
         m.box((0.34, FT + 0.12, BASE + 0.05), at=(x, Y0 + FT * 0.5, BASE * 0.5 - 0.02), uv=Trim('D', world=True))
     m.section('chimney, facade back')
+    # Drapes over Tilly's lamplit pane, built last on a stream of their own (the rest stays as it was).
+    with m.own(311):
+        lamp_room_drapes(m, front, TILLY)
+    m.section('lamplit window')
 
     hulls(m, XF0, XF1, Y0, X0, X1, Y1, EAVE, PITCH, BASE + SHOULDER + 0.14, back_over=0.35, overhang=0.3)
     m.hull_points([(XF0 + x, y, BASE + z + 0.14) for x, z in top if 1.7 < x < 5.3 for y in (Y0 - 0.1, Y0 + FT)] +
@@ -526,10 +708,209 @@ def saloon():
     return m.finish(view=(-1.0, -1.7, 0.42), fit=0.78, fallback=FALLBACK)
 
 
+# --- The shop behind Pruitt's display windows ---
+
+SHOP_DEPTH = 0.95           # from the facade's back face to the shop's back wall
+SHOP_MARGIN = 0.22          # how far a display runs on past its window at each side (it shows at a slant)
+SHELVES = (0.5, 0.95, 1.4)  # the shelves' middles over the display's floor (the window's sill)
+SHOP_LAMP = (0.65, 2.25)    # SOCKET_Light behind the doors: depth from the facade's front, height over the floor
+
+
+def quad(m, space, corner, along, up, length, height, cols, rows, uv, mat):
+    """A one-sided grid from corner, length along `along` and height along `up` (unit vectors in space), facing
+    along x up; cut into cols x rows for its baked shading, mapped in its own plane."""
+    a, u = Vector(along), Vector(up)
+    m.emit(kit._sheet(length, height, cols, rows), uv, mat, kit.basis(Vector(corner), a, u.cross(a), u), space)
+
+
+def turned(m, profile, at, sides, uv, mat, space, phase=0.0, scale=(1.0, 1.0)):
+    """town.lathe with a mapping of its own (town's finishes can't fit a part into a trim strip): profile [(radius, z),
+    ...] from bottom to top around a vertical axis through at; a radius of 0 closes it; scale stretches it across
+    (x, y)."""
+    tb = kit._new_bmesh()
+    angles = [phase + 2.0 * math.pi * k / sides for k in range(sides)]
+    rings = [[tb.verts.new((0.0, 0.0, z))] if r <= 1e-6 else
+             [tb.verts.new((r * math.cos(a), r * math.sin(a), z)) for a in angles] for r, z in profile]
+    for r0, r1 in zip(rings, rings[1:]):
+        for k in range(sides):
+            k1 = (k + 1) % sides
+            if len(r0) == 1:
+                tb.faces.new((r0[0], r1[k1], r1[k]))
+            elif len(r1) == 1:
+                tb.faces.new((r0[k], r0[k1], r1[0]))
+            else:
+                tb.faces.new((r0[k], r0[k1], r1[k1], r1[k]))
+    bmesh.ops.recalc_face_normals(tb, faces=tb.faces[:])
+    stretch = Matrix.Diagonal((scale[0], scale[1], 1.0, 1.0))
+    m.emit(tb, uv, mat, Matrix.Translation(Vector(at)) @ stretch, space, smooth=True)
+
+
+def paint(name):
+    """(mapping, material key) for the goods: a strip of the trim sheet fitted into it ('H1' teal, 'H2' oxide red, 'G'
+    cream, 'C' wood, 'H4' dark glass) or one of the store's own tileable materials ('iron', 'cream', 'planks')."""
+    tiles = {'iron': 'MetalWorn', 'cream': 'PaintWorn', 'planks': 'WoodPlanks'}
+    if name in tiles:
+        return Tile(tiles[name]), name
+    return Trim(name, fit=True), 'trim'
+
+
+def goods_box(m, space, size, at, look, yaw=0.0, drop=('-z', '+y')):
+    """A box of goods standing on its foot at `at` (a packet, a crate, a folded bolt of cloth)."""
+    spec, key = paint(look)
+    m.box(size, at=(at[0], at[1], at[2] + size[2] * 0.5), rot=(0.0, 0.0, yaw), uv=spec, mat=key, space=space, drop=drop)
+
+
+def shelf_row(m, space, x0, x1, y_back, z, count, room):
+    """count goods spread along a shelf from x0 to x1, standing on z with their backs to the wall at y_back, none
+    taller than room: packets, stacked boxes, rows of square tins, jars. The gaps between them are random, so the
+    lamplit wall shows through in a different rhythm on every shelf."""
+    rng = m.rng
+    items = []
+    for _ in range(count):
+        kind = rng.choice(('packet', 'packet', 'packet', 'stack', 'stack', 'tins', 'jars'))
+        if kind == 'tins':
+            n, s = rng.choice((2, 3, 3)), rng.uniform(0.085, 0.11)
+            items.append((kind, n * s + (n - 1) * 0.01, (n, s, min(room, rng.uniform(0.12, 0.18)))))
+        elif kind == 'jars':
+            r = rng.uniform(0.06, 0.075)
+            items.append((kind, 2.0 * r, (r, min(room, rng.uniform(0.18, 0.28)))))
+        elif kind == 'packet':
+            items.append((kind, rng.uniform(0.15, 0.3), (rng.uniform(0.12, 0.22), min(room, rng.uniform(0.18, 0.33)))))
+        else:
+            items.append((kind, rng.uniform(0.28, 0.42), (rng.uniform(0.18, 0.25), rng.uniform(0.12, 0.17))))
+    while items and sum(w for _, w, _ in items) > (x1 - x0) * 0.8:
+        items.pop()
+    gaps = [rng.uniform(0.3, 1.7) for _ in range(len(items) + 1)]
+    spare = (x1 - x0) - sum(w for _, w, _ in items)
+    x = x0 + spare * gaps[0] / sum(gaps)
+    for k, (kind, w, size) in enumerate(items):
+        if kind == 'tins':
+            n, s, h = size
+            look = rng.choice(('H2', 'H1', 'iron', 'cream'))
+            for i in range(n):
+                goods_box(m, space, (s, s, h), (x + s * 0.5 + i * (s + 0.01), y_back - s * 0.5, z), look)
+        elif kind == 'jars':
+            r, h = size
+            spec, key = paint('H4')
+            m.cylinder((x + r, y_back - r - 0.01, z), (x + r, y_back - r - 0.01, z + h), r, sides=5, uv=spec, mat=key,
+                       space=space, caps=(False, True))
+        elif kind == 'packet':
+            depth, h = size
+            goods_box(m, space, (w, depth, h), (x + w * 0.5, y_back - depth * 0.5, z),
+                      rng.choice(('G', 'H1', 'H2', 'C', 'cream')), yaw=rng.uniform(-3.0, 3.0))
+        else:
+            depth, h = size
+            goods_box(m, space, (w, depth, h), (x + w * 0.5, y_back - depth * 0.5, z), rng.choice(('C', 'planks', 'G')))
+            goods_box(m, space, (w * 0.8, depth * 0.85, h * 0.9), (x + w * 0.5, y_back - depth * 0.5, z + h),
+                      rng.choice(('H1', 'H2', 'G')), yaw=rng.uniform(-6.0, 6.0))
+        x += w + spare * gaps[k + 1] / sum(gaps)
+
+
+def lean(m, space, foot, top, head, head_w, head_look, head_thick=0.02):
+    """A long-handled thing leant against a wall (a shovel, a broom): its head from the foot up the handle's line,
+    then a round-ish handle (a square stick) on up to top."""
+    foot, top = Vector(foot), Vector(top)
+    up = (top - foot).normalized()
+    neck = foot + up * head
+    face = (0.0, -1.0, 0.0)
+    town.board(m, foot, neck, head_w, head_thick, look=head_look, space=space, face=face)
+    town.board(m, neck, top, 0.034, 0.034, look='C', space=space, face=face, drop=('-x', '+x'))
+
+
+def dry_goods(m, space, x0, x1, y0, y1, z):
+    """The dry goods window: a red calico dress on a stand, bolts of cloth, a crate with a folded blanket on it, a
+    broom against the wall."""
+    cx, cy = x0 + 0.62, y0 + 0.4
+    goods_box(m, space, (0.34, 0.34, 0.04), (cx, cy, z), 'C', drop=('-z',))
+    turned(m, [(0.27, 0.12), (0.13, 0.86), (0.15, 1.04), (0.15, 1.2), (0.045, 1.27), (0.035, 1.36), (0.0, 1.37)],
+           (cx, cy, z), 6, Trim('H2', fit=True), 'trim', space, scale=(1.25, 0.85))
+    bx = x0 + 1.55
+    for k, (look, yaw) in enumerate((('H1', 4.0), ('G', -7.0), ('H2', 3.0))):
+        goods_box(m, space, (0.62 - 0.05 * k, 0.3, 0.09), (bx + 0.03 * k, y0 + 0.3, z + 0.09 * k), look, yaw=yaw,
+                  drop=('-z',))
+    kx = x1 - 0.95
+    goods_box(m, space, (0.5, 0.36, 0.34), (kx, y0 + 0.4, z), 'planks', yaw=8.0, drop=('-z',))
+    goods_box(m, space, (0.42, 0.3, 0.08), (kx + 0.02, y0 + 0.4, z + 0.34), 'H1', yaw=-4.0, drop=('-z',))
+    lean(m, space, (x1 - 0.34, y0 + 0.56, z), (x1 - 0.03, y0 + 0.62, z + 1.28), 0.26, 0.24, 'band_G', head_thick=0.06)
+
+
+def hardware(m, space, x0, x1, y0, y1, z):
+    """The feed and hardware window: two sacks of flour, a keg, two shovels against the wall."""
+    sack = [(-0.2, 0.0), (0.2, 0.0), (0.23, 0.3), (0.12, 0.55), (-0.13, 0.53), (-0.23, 0.28)]
+    # Flour sacks on the plaster strip G where it has no stains (Farmhouse.py's curtains' stretches of it).
+    for sx, sy, yaw, s, u in ((x0 + 0.55, y0 + 0.34, -8.0, 0.9, 4.2), (x0 + 1.0, y0 + 0.44, 14.0, 0.8, 5.45)):
+        place = (Matrix.Translation((sx, sy, z)) @ Matrix.Rotation(math.radians(yaw), 4, 'Z') @
+                 Matrix.Diagonal((s, s, s, 1.0)) @ Matrix.Translation((0.0, -0.15, 0.0)))
+        m.emit(kit._prism([sack], 0.3), Trim('G', fit=True, u=u), 'trim', place, space)
+    kx, ky = x0 + 1.85, y0 + 0.42
+    turned(m, [(0.19, 0.0), (0.22, 0.27), (0.19, 0.54), (0.0, 0.54)], (kx, ky, z), 8, Tile('WoodPlanks'), 'planks',
+           space, phase=math.pi / 8.0)
+    for hz in (0.07, 0.43):
+        m.cylinder((kx, ky, z + hz), (kx, ky, z + hz + 0.04), 0.222, sides=8, uv=Tile('MetalWorn'), mat='iron',
+                   space=space, caps=(False, False))
+    lean(m, space, (x1 - 0.42, y0 + 0.36, z), (x1 - 0.03, y0 + 0.42, z + 1.3), 0.3, 0.22, 'iron')
+    lean(m, space, (x1 - 0.55, y0 + 0.62, z), (x1 - 0.03, y0 + 0.7, z + 1.18), 0.26, 0.2, 'iron')
+
+
+def door_blinds(m, space, o, drawn=0.42):
+    """Linen blinds drawn part way down the lamplit panes of double door o (the plaster strip G where it has no chips,
+    as Farmhouse.py's curtains take it), each weighted by a wooden slat, 6 mm in front of the glass (the panes laid out
+    as town.door lays out a framed leaf's: one pane in the upper half of a leaf up to 0.7 m wide), so the doors read as
+    a shop's by day and their panes glow under the blinds at dusk."""
+    leaf_h = o.h - o.opts['transom'] - 0.06
+    lw = o.w * 0.5
+    stile = 0.12 if lw > 0.7 else 0.09
+    pane_w = lw - 2.0 * stile - 0.06
+    z_lo, z_hi = leaf_h * 0.42 + 0.08, leaf_h - 0.15
+    z_b = z_hi - (z_hi - z_lo) * drawn
+    y = FT * 0.3 - 0.015 - 0.006            # the glass's face, less 6 mm
+    for lx, u in ((o.x, 4.3), (o.x + lw, 5.5)):
+        px = lx + stile + 0.03 + pane_w * 0.5
+        quad(m, space, (px - pane_w * 0.5, y, z_b), (1.0, 0.0, 0.0), (0.0, 0.0, 1.0), pane_w, z_hi - z_b, 1, 1,
+             Trim('G', fit=True, u=u), 'trim')
+        m.box((pane_w + 0.01, 0.01, 0.025), at=(px, y - 0.006, z_b), uv=Trim('C', fit=True), space=space, drop=('+y',))
+
+
+def shop_back(o):
+    """Where display window o's pane goes (a move for Lamplit.glazing, in the facade's space): back to the shop's back
+    wall, stretched across the display. Its face, as town.window builds it, is 1 cm in front of FT * 0.55."""
+    cx = o.x + o.w * 0.5
+    return (Matrix.Translation((cx, FT + SHOP_DEPTH - (FT * 0.55 - 0.01), 0.0)) @
+            Matrix.Diagonal(((o.w + 2.0 * SHOP_MARGIN) / o.w, 1.0, 1.0, 1.0)) @ Matrix.Translation((-cx, 0.0, 0.0)))
+
+
+def shop_window(m, space, o, goods):
+    """The shop seen through display window o (in the facade's space): a shallow box behind the facade, one-sided
+    (nothing sees it from outside): its back wall the window's pane, lamplit (moved there by shop_back(): dark warm by
+    day, glowing at dusk), its sides boards, a plank floor at the window's sill and a board ceiling at its head; shelves
+    of goods along the back wall, and goods(m, space, x0, x1, y0, y1, z) on the floor in front of them."""
+    x0, x1 = o.x - SHOP_MARGIN, o.x + o.w + SHOP_MARGIN
+    y0, y1 = FT, FT + SHOP_DEPTH
+    z0, z1 = o.z, o.z + o.h
+    w, d, h = x1 - x0, y1 - y0, z1 - z0
+    quad(m, space, (x0, y0, z0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0), d, h, 1, 2, Trim('A', world=True), 'trim')
+    quad(m, space, (x1, y1, z0), (0.0, -1.0, 0.0), (0.0, 0.0, 1.0), d, h, 1, 2, Trim('A', world=True), 'trim')
+    quad(m, space, (x0, y0, z0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), w, d, 4, 1, Tile('WoodPlanks'), 'planks')
+    quad(m, space, (x0, y1, z1), (1.0, 0.0, 0.0), (0.0, -1.0, 0.0), w, d, 2, 1, Trim('A', world=True), 'trim')
+    # The shelves: three uprights (one each end, one in the middle) and boards across, the goods on them.
+    depth = 0.3
+    yc = y1 - depth * 0.5
+    for x in (x0 + 0.08, (x0 + x1) * 0.5, x1 - 0.08):
+        town.board(m, (x, yc, z0), (x, yc, z1), depth, 0.05, look='C', space=space, face=(-1.0, 0.0, 0.0),
+                   drop=('-x', '+x', '+z'))
+    for k, sz in enumerate(SHELVES):
+        town.board(m, (x0, yc, z0 + sz), (x1, yc, z0 + sz), depth, 0.035, look='C', space=space, face=(0.0, 0.0, 1.0),
+                   drop=('-x', '+x', '+z'))
+        room = (SHELVES[k + 1] - sz if k + 1 < len(SHELVES) else z1 - z0 - sz) - 0.12
+        for a, b in ((x0 + 0.11, (x0 + x1) * 0.5 - 0.03), ((x0 + x1) * 0.5 + 0.03, x1 - 0.11)):
+            shelf_row(m, space, a, b, y1 - 0.012, z0 + sz + 0.0175, 2, room)
+    goods(m, space, x0, x1, y0, y1, z0)
+
+
 # --- Pruitt's General Store ---
 
 def store(shutters):
-    m = town.Model('FalseFront_Store', seed=303)
+    m = Lamplit('FalseFront_Store', seed=303)
     rng = m.rng
     XF0, XF1, Y0, Y1 = -4.7, 4.7, -6.5, 6.5
     X0, X1 = -4.4, 4.4
@@ -549,7 +930,10 @@ def store(shutters):
     items = [LEFT, RIGHT, DOORS]
     front = false_front(m, XF0, XF1, Y0, top, items)
     m.section('facade panel')
-    town.openings(m, front, items, FT)
+    # The doors' panes are lamplit; the display windows' go back to be the shop's lamplit back wall (shop_window()).
+    for o in items:
+        with m.glazing(('windowglow', shop_back(o)) if o.kind == 'window' else 'windowglow'):
+            town.openings(m, front, [o], FT)
     # Bulkheads under the display windows: two teal boards each, and pilasters at the corners.
     for o in (LEFT, RIGHT):
         for z in (0.16, 0.38):
@@ -648,6 +1032,15 @@ def store(shutters):
     for x in (XF0 + 0.16, XF1 - 0.16):
         m.box((0.34, FT + 0.12, BASE + 0.05), at=(x, Y0 + FT * 0.5, BASE * 0.5 - 0.02), uv=Trim('D', world=True))
     m.section('roof')
+
+    # The shop behind the display windows, built last on a stream of its own (the rest stays as it was), and the shop's
+    # lamp in the middle behind the doors, high, where it reaches into both windows.
+    with m.own(313):
+        shop_window(m, front, LEFT, dry_goods)
+        shop_window(m, front, RIGHT, hardware)
+        door_blinds(m, front, DOORS)
+    m.socket('Light', front.world((WF * 0.5, SHOP_LAMP[0], SHOP_LAMP[1])))
+    m.section('shop windows')
 
     hulls(m, XF0, XF1, Y0, X0, X1, Y1, EAVE, PITCH, BASE + TOP, back_over=0.3, overhang=0.28)
     m.hull_points([(XF0 + x, y, BASE + z + 0.12) for x, z in top[1:4] for y in (Y0 - 0.1, Y0 + FT)] +

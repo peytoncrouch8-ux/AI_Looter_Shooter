@@ -9,6 +9,11 @@ occlusion-roughness-metal) is painted by this script every run (looter_creatures
 unchanged painter rewrites the same files). Every part maps onto a rectangle of that atlas (ATLAS); eyes, bristles
 and fangs sit on small solid patches of it, so the eyes' gloss comes from the roughness map.
 
+The Gravemother (Ransom's Rest's Legendary monster) is this spider at 1.8x in a pale hide, BONE: the same painter with
+another palette writes Art/Textures/SpiderBody_Pale/T_SpiderBody_Pale_BC.png, a color map only. Its normal and ORM maps
+would be byte copies of SpiderBody's, so the game's MI_SpiderBody_Pale uses T_SpiderBody_N and T_SpiderBody_ORM. The
+mesh, the rig and the hulls are the same for both.
+
 Bones, which the game finds by name: body (the thorax; its rest height is the ride height); head, with the eyes, and
 its pedipalps palp_l and palp_r; fang_l and fang_r (each a chelicera with its fang); abdomen; and per leg
 femur_<pair>_<side>, tibia_<pair>_<side> and foot_<pair>_<side> (the tip), pairs 0 (front) to 3 (back) on sides l and
@@ -22,6 +27,8 @@ toward the same pole (knee_pole). Each bone's part, bristles included, has one c
 import math
 import os
 import random
+import shutil
+import tempfile
 
 import numpy as np
 from mathutils import Vector
@@ -32,7 +39,9 @@ import looter_textures as lt
 
 RIDE = 60.0          # the thorax's height over the ground (cm)
 SET = 'SpiderBody'
+PALE_SET = 'SpiderBody_Pale'
 SIZE = 1024
+PX_M, NORMAL_STRENGTH = 0.003, 1.2      # the atlas's metres per pixel (for the normal map) and the normals' strength
 # Where each part lies in the atlas (u0, u1, v0, v1).
 ATLAS = {
     'abdomen': (0.0, 1.0, 0.5, 1.0), 'carapace': (0.0, 0.5, 0.25, 0.5), 'head': (0.5, 1.0, 0.25, 0.5),
@@ -94,40 +103,110 @@ def lifted(point):
 
 
 # --- The texture atlas ---
+# A hide is a palette for the painter: the colors of the base fur and of each mark, and how strongly each mark mixes in
+# (the _k values). Only color comes from it; roughness, height and occlusion are the same for every hide, which is why
+# the hides can share one normal map and one ORM map.
 
-def paint(region, U, V, seed):
-    """Color, roughness, height (meters) and occlusion for one atlas region: a warm brown wolf spider, fur running
-    along the body and the limbs."""
+_DARK, _LIGHT = lt.rgb(0x2c1c0f), lt.rgb(0xb89466)
+# The Meadow Wolf: warm brown, a dark field round a light heart mark and light chevrons, dark leg rings.
+BROWN = dict(
+    base=lt.rgb(0x6b4a2e), light=_LIGHT, belly=lt.rgb(0xa08055),
+    field=_DARK, field_k=0.8, heart=_LIGHT * 0.95, heart_k=1.0, heart_shape=(0.11, 0.78, 0.2), heart_outline=False,
+    chevron=_LIGHT, chevron_k=0.85, speck=_LIGHT * 0.9, speck_k=0.6,
+    lateral=_DARK, lateral_k=0.85, stripe=_LIGHT, stripe_k=(0.9, 0.6), margin=_LIGHT * 0.95, margin_k=0.7,
+    ring=_DARK, ring_k=0.62, palp=_DARK, palp_k=0.45, joint=_DARK, joint_k=0.3,
+    solid={'eye': 0x070606, 'bristle': 0x24170c, 'fang': 0x1a120c, 'misc': 0x4a3220})
+# The Gravemother: bone, the user's pick (2026-10-07) of three looks (Art/Backlog/Creatures/GravemotherConcepts.py, A).
+# A chalky bone white, kept under about 0.75 so direct sun still shades it; the brown spider's marks faded to grey
+# ghost-lines (the heart drawn as an outline), its leg rings kept dark; a darker face round the eyes, since black eyes
+# alone on a pale head read as a toy's; a few old healed scars across her back and grave dust settled on it.
+BONE = dict(
+    base=lt.rgb(0xbab2a1), light=lt.rgb(0xcfc8b8), belly=lt.rgb(0x968e80),
+    field=lt.rgb(0x908a7f), field_k=0.6, heart=lt.rgb(0x524d46), heart_k=1.0, heart_shape=(0.15, 0.76, 0.23),
+    heart_outline=True, chevron=lt.rgb(0x58524a), chevron_k=0.85, speck=lt.rgb(0x847d72), speck_k=0.4,
+    lateral=lt.rgb(0x857e74), lateral_k=0.65, stripe=lt.rgb(0xd4cdbf), stripe_k=(0.6, 0.4),
+    margin=lt.rgb(0xcac3b3), margin_k=0.5,
+    ring=lt.rgb(0x463f38), ring_k=0.78, palp=lt.rgb(0x645d54), palp_k=0.6, joint=lt.rgb(0x5c554c), joint_k=0.45,
+    solid={'eye': 0x070606, 'bristle': 0x857d71, 'fang': 0x1e1a16, 'misc': 0x5a534a},
+    face=lt.rgb(0x6e675e), face_k=0.6,
+    scar=lt.rgb(0x72605a), scar_core=lt.rgb(0xdcd6ca), scar_k=0.9,
+    dust=lt.rgb(0x95805a), dust_k=0.75)
+
+
+def scars(shape, U, V, seed, count):
+    """A few old healed slashes across a body region's back: (cut, core) masks, 0..1, the cut's darker edges and its
+    pale healed middle. Color only (every hide shares the normal map)."""
+    rng = np.random.default_rng(seed)
+    cut = np.zeros(shape, np.float32)
+    core = np.zeros(shape, np.float32)
+    h, w = shape
+    for _ in range(count):
+        u0, v0 = rng.uniform(0.36, 0.64), rng.uniform(0.25, 0.85)
+        angle = rng.uniform(-0.9, 0.9) + (math.pi / 2 if rng.random() < 0.5 else 0.0)
+        length, bend = rng.uniform(0.08, 0.16), rng.uniform(-0.04, 0.04)
+        nearest = np.full(shape, 9.0, np.float32)
+        for t in np.linspace(-0.5, 0.5, 40):
+            pu = u0 + math.cos(angle) * length * t - math.sin(angle) * bend * (1 - 4 * t * t)
+            pv = v0 + math.sin(angle) * length * t * 2.0 + math.cos(angle) * bend * (1 - 4 * t * t)
+            taper = 1.0 - (2 * abs(t)) ** 3                      # thinning to nothing at both ends
+            nearest = np.minimum(nearest, np.sqrt(((U - pu) * w) ** 2 + ((V - pv) * h) ** 2) / max(taper, 0.05))
+        cut = np.maximum(cut, 1.0 - lt.smooth(2.8, 6.2, nearest))
+        core = np.maximum(core, 1.0 - lt.smooth(0.6, 1.8, nearest))
+    return cut, core
+
+
+def paint(region, U, V, seed, hide=BROWN):
+    """Color, roughness, height (meters) and occlusion for one atlas region in a hide (BROWN or BONE): a wolf spider,
+    fur running along the body and the limbs."""
     shape = U.shape
-    brown, dark, light, belly = lt.rgb(0x6b4a2e), lt.rgb(0x2c1c0f), lt.rgb(0xb89466), lt.rgb(0xa08055)
+    base, light, belly = hide['base'], hide['light'], hide['belly']
     n = lt.noise(shape, seed, 12.0, 12.0, octaves=3)
     rough = np.full(shape, 0.66, np.float32)
     occl = np.ones(shape, np.float32)
     if region in ('eye', 'bristle', 'fang', 'misc'):
-        color = {'eye': 0x070606, 'bristle': 0x24170c, 'fang': 0x1a120c, 'misc': 0x4a3220}[region]
+        color = hide['solid'][region]
         rough[:] = {'eye': 0.06, 'bristle': 0.6, 'fang': 0.25, 'misc': 0.7}[region]
         return np.broadcast_to(lt.rgb(color), shape + (3,)).copy(), rough, np.zeros(shape, np.float32), occl
     if region in ('abdomen', 'carapace', 'head'):
         d, s = lc.body_axes(U, V)
         fur = lt.noise(shape, seed + 11, 0.7, 5.0)            # streaks along the body (V runs along the rows)
-        col = lt.mix(brown, light, np.clip(0.25 + 0.2 * n, 0, 1))
+        col = lt.mix(base, light, np.clip(0.25 + 0.2 * n, 0, 1))
         col = lt.mix(col, belly, lt.smooth(-0.1, -0.5, d))
         if region == 'abdomen':
             field = lt.smooth(0.62, 0.42, np.abs(s) + 0.05 * n) * lt.smooth(-0.15, 0.25, d) * lt.smooth(0.02, 0.15, V)
-            col = lt.mix(col, dark, field * 0.8)
-            heart = (np.abs(s) < 0.11 * np.clip(1 - ((V - 0.78) / 0.2) ** 2, 0, 1)) & (d > 0)
-            col = lt.mix(col, light * 0.95, lt.blur(heart.astype(np.float32), 1.5))
+            col = lt.mix(col, hide['field'], field * hide['field_k'])
+            width, middle, half = hide['heart_shape']
+            heart = ((np.abs(s) < width * np.clip(1 - ((V - middle) / half) ** 2, 0, 1)) & (d > 0)).astype(np.float32)
+            if hide['heart_outline']:
+                # A ghost of the mark: its outline drawn, its inside only washed.
+                soft = lt.blur(heart, 2.5)
+                edge = np.clip(4.0 * soft * (1.0 - soft), 0, 1)
+                col = lt.mix(col, hide['heart'], np.clip(edge * 0.95 + soft * 0.3, 0, 1) * hide['heart_k'])
+            else:
+                col = lt.mix(col, hide['heart'], lt.blur(heart, 1.5) * hide['heart_k'])
             for k in range(4):
                 vk = 0.5 - k * 0.11
                 line = 1 - lt.smooth(0.012, 0.03, np.abs(V - (vk - 0.22 * np.abs(s))))
-                col = lt.mix(col, light, line * (np.abs(s) < 0.42) * (d > 0) * 0.85)
-            col = lt.mix(col, light * 0.9, lt.specks(shape, seed + 3, 0.04, 1.0) * 0.6 * (d > -0.2))
+                col = lt.mix(col, hide['chevron'], line * (np.abs(s) < 0.42) * (d > 0) * hide['chevron_k'])
+            col = lt.mix(col, hide['speck'], lt.specks(shape, seed + 3, 0.04, 1.0) * hide['speck_k'] * (d > -0.2))
         else:
             stripe = lt.smooth(0.15, 0.08, np.abs(s)) * (d > 0)
             lateral = lt.smooth(0.12, 0.2, np.abs(s)) * lt.smooth(0.72, 0.55, np.abs(s)) * (d > 0)
-            col = lt.mix(col, dark, lateral * 0.85)
-            col = lt.mix(col, light, stripe * (0.9 if region == 'carapace' else 0.6))
-            col = lt.mix(col, light * 0.95, lt.smooth(0.75, 0.92, np.abs(s)) * (d > -0.3) * 0.7)
+            col = lt.mix(col, hide['lateral'], lateral * hide['lateral_k'])
+            col = lt.mix(col, hide['stripe'], stripe * hide['stripe_k'][0 if region == 'carapace' else 1])
+            col = lt.mix(col, hide['margin'], lt.smooth(0.75, 0.92, np.abs(s)) * (d > -0.3) * hide['margin_k'])
+            if 'face' in hide and region == 'head':
+                face = lt.smooth(0.5, 0.74, V) * lt.smooth(-0.75, -0.25, d) * np.clip(0.85 + 0.25 * n, 0, 1)
+                col = lt.mix(col, hide['face'], face * hide['face_k'])
+        if 'scar' in hide and region != 'head':
+            cut, core = scars(shape, U, V, seed + (41 if region == 'abdomen' else 43), 4 if region == 'abdomen' else 1)
+            col = lt.mix(col, hide['scar'], cut * hide['scar_k'])
+            col = lt.mix(col, hide['scar_core'], core * 0.75)
+        if 'dust' in hide:
+            # Grave dust settled on her back: blotchy, thickest along the top, gone down the sides.
+            blotch = np.clip(0.55 + 0.6 * lt.noise(shape, seed + 21, 14.0, 9.0, octaves=2), 0, 1)
+            grit = lt.specks(shape, seed + 23, 0.12, 1.2)
+            col = lt.mix(col, hide['dust'], lt.smooth(0.2, 0.75, d) * (blotch * 0.8 + grit * 0.4) * hide['dust_k'])
         col = col * (1.0 + 0.09 * fur)[..., None]
         height = 0.0004 * fur + 0.0003 * n
         occl = 1.0 - 0.18 * lt.smooth(-0.2, -0.8, d)
@@ -135,24 +214,43 @@ def paint(region, U, V, seed):
         return col * (1.0 + 0.05 * lt.noise(shape, seed + 5, 3.0, 3.0))[..., None], rough, height, occl
     along, top = lc.limb_axes(U, V)
     fur = lt.noise(shape, seed + 13, 5.0, 0.7)                # streaks along the limb (U runs along the columns)
-    col = lt.mix(brown, light, np.clip(0.3 + 0.2 * n, 0, 1))
+    col = lt.mix(base, light, np.clip(0.3 + 0.2 * n, 0, 1))
     col = lt.mix(col, belly * 1.05, lt.smooth(0.0, -0.6, top))
     if region == 'femur':
-        col = lt.mix(col, dark, lc.bands(along, (0.42, 0.78), 0.07) * 0.62)
+        col = lt.mix(col, hide['ring'], lc.bands(along, (0.42, 0.78), 0.07) * hide['ring_k'])
+        if 'dust' in hide:
+            col = lt.mix(col, hide['dust'], lt.smooth(0.3, 0.9, top) * 0.25 * hide['dust_k'])
     elif region == 'tibia':
-        col = lt.mix(col, dark, lc.bands(along, (0.18, 0.46, 0.72, 0.94), 0.05) * 0.62)
+        col = lt.mix(col, hide['ring'], lc.bands(along, (0.18, 0.46, 0.72, 0.94), 0.05) * hide['ring_k'])
     elif region in ('palp', 'chel'):
-        col = lt.mix(col, dark, 0.45)
+        col = lt.mix(col, hide['palp'], hide['palp_k'])
     else:
-        col = lt.mix(col, dark, 0.3)
+        col = lt.mix(col, hide['joint'], hide['joint_k'])
     col = col * (1.0 + 0.09 * fur)[..., None]
     occl = 1.0 - 0.15 * lt.smooth(0.0, -0.8, top)
     return col, rough + 0.06 * fur, 0.0004 * fur + 0.0002 * n, occl
 
 
+def paint_pale():
+    """The Gravemother's color map, Art/Textures/SpiderBody_Pale/T_SpiderBody_Pale_BC.png. paint_atlas writes a whole
+    set, and this one's normal and ORM maps would be byte copies of SpiderBody's: the set is painted in a temporary
+    folder and only its color map is kept. A review stage that switches lc.paint_atlas off (to build the spider without
+    writing its texture sets) paints nothing here, so nothing is copied."""
+    out_dir = os.path.join(lt.TEXTURE_DIR, PALE_SET)
+    name = f'T_{PALE_SET}_BC.png'
+    with tempfile.TemporaryDirectory() as scratch:
+        lc.paint_atlas(ATLAS, lambda region, U, V, seed: paint(region, U, V, seed, BONE), SIZE, PX_M, scratch, PALE_SET,
+                       normal_strength=NORMAL_STRENGTH)
+        painted = os.path.join(scratch, name)
+        if os.path.exists(painted):
+            os.makedirs(out_dir, exist_ok=True)
+            shutil.copyfile(painted, os.path.join(out_dir, name))
+
+
 texture_dir = os.path.join(lt.TEXTURE_DIR, SET)
 os.makedirs(texture_dir, exist_ok=True)
-lc.paint_atlas(ATLAS, paint, SIZE, 0.003, texture_dir, SET, normal_strength=1.2)
+lc.paint_atlas(ATLAS, paint, SIZE, PX_M, texture_dir, SET, normal_strength=NORMAL_STRENGTH)
+paint_pale()
 MATERIAL = lt.material(SET)
 
 

@@ -644,7 +644,7 @@ PARTS = {
     'Body': [
         p('Standard', 'Standard receiver', '', R_COMMON),
         p('Classic', 'Classic receiver', 'Old', R_COMMON, handling=5, recoil=5),
-        p('Heritage', 'Heritage receiver', 'Heirloom', R_UNCOMMON, accuracy=4, damage=3),
+        p('Heritage', 'Heritage receiver', 'Vintage', R_UNCOMMON, accuracy=4, damage=3),
         p('Tactical', 'Tactical receiver', 'Tactical', R_UNCOMMON, handling=6, reload=-5),
         p('Salvaged', 'Salvaged receiver', 'Scrapped', R_UNCOMMON, damage=6, accuracy=-4),
         p('Skeleton', 'Skeleton receiver', 'Light', R_RARE, handling=12, recoil=8),

@@ -1952,44 +1952,172 @@ def build_lantern(mats):
 
 
 def pump_pieces():
-    """His Ranchhand pump (Heirloom) in gun space: X along the bore from the stock's wrist (where the fist holds it), Z
-    up. A classic walnut pump in the Ranchhand's proportions: a 20 cm receiver, a 56 cm barrel. Pieces by zone: 0 steel,
-    1 walnut, 2 dark steel, 3 the bead."""
+    """His Ranchhand pump, Heirloom, in gun space: X along the bore from the stock's wrist (where the fist holds it), Y the
+    gun's left, Z its top. The twin of Heirloom's fixed parts as Art/Models/Weapons/Ranchhand.py models them, at their
+    scale: Body Heritage (the receiver with its rail, brass trim and bolt, panel lines, the brass guard mid-receiver),
+    Barrel Trap (56 cm; a tall vent rib on posts, a steel mid bead and a brass front bead), Muzzle Crown, Magazine Tube6
+    (its cap clamped to the barrel), Sight Flip, Stock Field (walnut, a semi-pistol grip under the wrist, a leather cuff
+    with four shells on its right side), Pump Walnut. Laid out in the Ranchhand's own gun space (cm: u along the gun from
+    the receiver's back, v up from the bore, w to its left), its receiver back 4 cm ahead of his fist and its bore 2.4 cm
+    over it (the fist closes round the grip, under the bore). Pieces by zone: 0 steel, 1 walnut, 2 dark steel (the blued
+    parts, the leather and rubber), 3 the bead (Heirloom's brass)."""
     pieces = {0: [], 1: [], 2: [], 3: []}
 
-    def loft(sections, segs=16):
-        """Rounded sections along x: (x, half width, half height, z middle, power)."""
-        a = np.linspace(0.0, 2.0 * np.pi, segs, endpoint=False)
-        rings = []
-        for x, w, h, zc, p in sections:
-            c, s = np.cos(a), np.sin(a)
-            e = 2.0 / p
-            rings.append(np.stack([np.full_like(a, x), w * np.sign(s) * np.abs(s) ** e,
-                                   zc + h * np.sign(c) * np.abs(c) ** e], -1))
-        return orient(closed_loft(np.array(rings)))
-    pieces[1].append(loft([(0.05, 0.016, 0.022, -0.004, 2.4), (0.0, 0.017, 0.021, -0.008, 2.4),
-                           (-0.06, 0.018, 0.026, -0.016, 2.4), (-0.14, 0.02, 0.038, -0.03, 2.6),
-                           (-0.24, 0.021, 0.05, -0.044, 2.8), (-0.33, 0.022, 0.06, -0.054, 3.0),
-                           (-0.345, 0.021, 0.059, -0.055, 3.0)]))
-    pieces[2].append(loft([(-0.343, 0.022, 0.06, -0.055, 3.0), (-0.36, 0.022, 0.06, -0.055, 3.0)]))
-    pieces[0].append(loft([(0.04, 0.019, 0.03, 0.0, 3.0), (0.06, 0.022, 0.034, 0.002, 3.4),
-                           (0.22, 0.022, 0.034, 0.002, 3.4), (0.245, 0.02, 0.03, 0.004, 3.0)]))
-    pieces[0].append(torus((0.085, 0.0, -0.045), (0.0, 1.0, 0.0), 0.022, 0.0035, segs=14, sides=5))
-    pieces[2].append(tube([(0.09, 0.0, -0.03), (0.092, 0.0, -0.05)], [0.003, 0.0025], segs=6, domes=1))
-    pieces[0].append(tube([(0.24, 0.0, 0.014), (0.8, 0.0, 0.014)], 0.0115, segs=14, domes=1))
-    pieces[2].append(tube([(0.24, 0.0, -0.014), (0.66, 0.0, -0.014)], 0.0105, segs=12, domes=1))
-    pieces[3].append(ellipsoid((0.795, 0.0, 0.0265), (0.003, 0.003, 0.003), segs=6, rings=4))
-    xs = np.linspace(0.34, 0.54, 24)
-    C = np.stack([xs, np.zeros_like(xs), np.full_like(xs, -0.014)], -1)
+    def g(u, v, w):
+        return np.stack(np.broadcast_arrays(0.04 + np.asarray(u, float) * 0.01, np.asarray(w, float) * 0.01,
+                                            0.024 + np.asarray(v, float) * 0.01), -1)
 
-    def grooves(t, a):
-        return 0.022 * (1.0 - 0.07 * (np.cos(2.0 * np.pi * t * 9.0) > 0.3) * smoothstep(0.05, 0.12, t)
-                        * smoothstep(0.95, 0.88, t))
-    pieces[1].append(tube_fn(C, grooves, segs=14, up=(0.0, 0.0, 1.0)))
+    def outward(V, quads):
+        """Quads turned to face away from the piece's middle (for open pieces orient can't judge)."""
+        mid = V.mean(0)
+        out = []
+        for q in quads:
+            n = np.cross(V[q[1]] - V[q[0]], V[q[2]] - V[q[0]])
+            out.append(q if np.dot(n, V[q].mean(0) - mid) >= 0.0 else q[::-1])
+        return np.array(out)
+
+    def loft(sections, segs=12):
+        """Rounded sections along u: (u, half width, v bottom, v top, power)."""
+        a = np.linspace(0.0, 2.0 * np.pi, segs, endpoint=False)
+        c, s = np.cos(a), np.sin(a)
+        rings = [g(u, 0.5 * (vb + vt) + 0.5 * (vt - vb) * np.sign(c) * np.abs(c) ** (2.0 / p),
+                   hw * np.sign(s) * np.abs(s) ** (2.0 / p)) for u, hw, vb, vt, p in sections]
+        return orient(closed_loft(np.array(rings)))
+
+    def prism(outline, w0, w1):
+        """A convex side outline [(u, v), ...] extruded across the gun from w0 to w1."""
+        P = np.array(outline, float)
+        n = len(P)
+        V = np.vstack([g(P[:, 0], P[:, 1], w0), g(P[:, 0], P[:, 1], w1)])
+        sides = np.stack([np.arange(n), (np.arange(n) + 1) % n, n + (np.arange(n) + 1) % n, n + np.arange(n)], 1)
+        cap = np.stack([np.zeros(n - 2, int), np.arange(1, n - 1), np.arange(2, n)], 1)
+        return orient((V, [sides, cap, cap[:, ::-1] + n]))
+
+    def box(u0, u1, v0, v1, w0, w1):
+        return prism([(u0, v0), (u1, v0), (u1, v1), (u0, v1)], w0, w1)
+
+    def block(u0, u1, v0, v1, w0, w1):
+        """A box without its bottom face (it stands on another part)."""
+        V, faces = box(u0, u1, v0, v1, w0, w1)
+        z0 = V[:, 2].min()
+        keep = []
+        for F in faces:
+            low = np.all(np.isclose(V[F][..., 2], z0), axis=1)
+            if (~low).any():
+                keep.append(F[~low])
+        return V, keep
+
+    def post(u0, u1, v0, v1, w0, w1):
+        """A box open at its top and bottom (buried in the barrel and the rib)."""
+        V = np.array([g(u, v, w) for u in (u0, u1) for w in (w0, w1) for v in (v0, v1)]).reshape(-1, 3)
+        k = lambda iu, iw, iv: iu * 4 + iw * 2 + iv
+        quads = [[k(0, 0, 0), k(0, 1, 0), k(0, 1, 1), k(0, 0, 1)], [k(1, 0, 0), k(1, 1, 0), k(1, 1, 1), k(1, 0, 1)],
+                 [k(0, 0, 0), k(1, 0, 0), k(1, 0, 1), k(0, 0, 1)], [k(0, 1, 0), k(1, 1, 0), k(1, 1, 1), k(0, 1, 1)]]
+        return V, [outward(V, quads)]
+
+    def turned(u, r, v=0.0, segs=12):
+        """Turned round an axis along u at height v: radius r (cm) at each u (a u repeated makes a step)."""
+        a = np.linspace(0.0, 2.0 * np.pi, segs, endpoint=False)
+        rings = np.array([g(np.full(segs, uu), v + rr * np.cos(a), rr * np.sin(a)) for uu, rr in zip(u, r)])
+        return orient(closed_loft(rings))
+
+    def upright(u, v0, v1, r0, r1=None, w=0.0, segs=8):
+        """A cylinder standing along v (a bead, a shell)."""
+        a = np.linspace(0.0, 2.0 * np.pi, segs, endpoint=False)
+        rings = np.array([g(u + r * np.cos(a), np.full(segs, v), w + r * np.sin(a))
+                          for v, r in ((v0, r0), (v1, r0 if r1 is None else r1))])
+        return orient(closed_loft(rings))
+
+    def strip(points, across, thick):
+        """A flat strip swept along side-view points (u, v): across cm wide across the gun, thick cm."""
+        P = np.array(points, float)
+        T = np.gradient(P, axis=0)
+        T /= np.linalg.norm(T, axis=1, keepdims=True)
+        N = np.stack([-T[:, 1], T[:, 0]], 1) * thick * 0.5
+        rings = np.array([g(p[0] + np.array([1, 1, -1, -1]) * n[0], p[1] + np.array([1, 1, -1, -1]) * n[1],
+                            np.array([-0.5, 0.5, 0.5, -0.5]) * across) for p, n in zip(P, N)])
+        return orient(closed_loft(rings))
+
+    def panel(u0, u1, v0, v1, w, t=0.12):
+        """A thin panel line round a rectangle on a side face (w: its plane), facing out."""
+        outer = np.array([(u0, v0), (u1, v0), (u1, v1), (u0, v1)])
+        inner = outer + np.array([(t, t), (-t, t), (-t, -t), (t, -t)])
+        V = np.vstack([g(outer[:, 0], outer[:, 1], w), g(inner[:, 0], inner[:, 1], w)])
+        quads = np.array([[k, (k + 1) % 4, 4 + (k + 1) % 4, 4 + k] for k in range(4)])
+        n = np.cross(V[1] - V[0], V[2] - V[0])
+        return V, [quads if n[1] * w > 0 else quads[:, ::-1]]
+
+    # Body Heritage: the case-colored receiver (20 cm long, 3 cm wide, its top corners chamfered), the rail on top, brass
+    # trim along its foot on both sides, the brass bolt in the port on the right, panel lines fore and aft.
+    pieces[0].append(loft([(0.0, 1.32, -2.82, 1.42, 6.0), (0.2, 1.5, -3.0, 1.6, 6.0), (1.5, 1.5, -3.0, 2.2, 6.0),
+                           (18.5, 1.5, -3.0, 2.2, 6.0), (19.8, 1.5, -3.0, 1.4, 6.0), (20.0, 1.32, -2.82, 1.22, 6.0)]))
+    pieces[3].append(box(6.2, 13.8, -0.6, 1.0, -1.58, -1.3))
+    for side in (-1.0, 1.0):
+        pieces[3].append(box(0.6, 19.4, -2.9, -2.55, side * 1.36, side * 1.56))
+        for a, b in ((1.2, 5.2), (14.8, 19.0)):
+            pieces[2].append(panel(a, b, -2.2, 1.4, side * 1.51))
+    pieces[2].append(box(2.0, 18.5, 2.1, 2.65, -1.05, 1.05))
+    u = 2.35
+    while u + 0.55 <= 18.3:
+        pieces[2].append(block(u, u + 0.53, 2.6, 3.15, -1.05, 1.05))
+        u += 1.0
+    # Sight Flip: the rear leaf on the rail's back end, the aperture ring on its eye side.
+    pieces[2].append(prism([(3.4, 3.15), (6.4, 3.15), (6.0, 5.2), (4.4, 5.2)], -1.0, 1.0))
+    pieces[2].append(torus(g(4.12, 4.75, 0.0), (1.0, 0.0, 0.0), 0.004, 0.0012, segs=6, sides=3))
+    # The trigger group: its housing under the receiver, the brass guard mid-receiver, the trigger.
+    pieces[2].append(prism([(3.0, -3.0), (13.0, -3.0), (12.4, -4.6), (4.0, -4.4)], -1.2, 1.2))
+    pieces[3].append(strip([(4.6, -4.4), (5.0, -6.8), (7.0, -7.6), (11.0, -7.2), (12.4, -4.6)], 0.8, 0.3))
+    pieces[2].append(strip([(7.9, -4.3), (8.0, -5.4), (7.7, -6.3), (7.25, -6.8)], 0.5, 0.45))
+    # Barrel Trap with Muzzle Crown: 56 cm from the receiver, the crown's flush choke on its end (the muzzle at u 77).
+    pieces[2].append(turned([20.0, 76.0, 76.0, 76.8, 77.0], [1.1, 1.1, 1.18, 1.18, 1.0], segs=10))
+    # The Trap's vent rib: a plate on tall posts every 3 cm, a steel bead at its middle and the brass bead in front.
+    pieces[2].append(box(20.0, 76.0, 1.65, 2.2, -0.35, 0.35))
+    for u in range(23, 75, 3):
+        pieces[0].append(post(u, u + 1.0, 0.9, 1.7, -0.36, 0.36))
+    pieces[3].append(upright(75.0, 2.1, 2.55, 0.22, 0.2, segs=6))
+    pieces[0].append(upright(48.0, 2.1, 2.4, 0.15, segs=6))
+    # Magazine Tube6 under the barrel, its cap and the clamp round both.
+    pieces[2].append(turned([20.0, 54.0, 54.0, 55.6, 56.0], [1.05, 1.05, 1.2, 1.2, 0.9], v=-2.5, segs=10))
+    pieces[2].append(box(52.5, 54.5, -3.4, 0.9, -1.1, 1.1))
+    # Pump Walnut, three grooves along each side, riding the magazine; its action bars back into the receiver.
+    hw, rc = 2.2, 0.75
+    t_groove = [(-1.4 - rc - vg) / (3.0 - 2.0 * rc) for vg in (-2.2, -2.9, -3.6)]
+
+    def pump_ring(u, vb, vt, depth):
+        span = vt - vb - 2.0 * rc
+        side = [(hw - 0.25 * rc, vt - 0.25 * rc)]
+        for t in t_groove:
+            v = vt - rc - t * span
+            half = 0.13 * span / (3.0 - 2.0 * rc)
+            side += [(hw, v + half), (hw - depth, v), (hw, v - half)]
+        side += [(hw - 0.25 * rc, vb + 0.25 * rc)]
+        loop = [(0.0, vt)] + side + [(0.0, vb)] + [(-w, v) for w, v in side[::-1]]
+        return g(np.full(len(loop), u), np.array([v for w, v in loop]), np.array([w for w, v in loop]))
+
+    pieces[1].append(orient(closed_loft(np.array([pump_ring(*r) for r in (
+        (27.5, -3.6, -2.0, 0.0), (28.5, -4.25, -1.4, 0.0), (31.0, -4.4, -1.4, 0.35), (44.0, -4.4, -1.4, 0.35),
+        (46.0, -4.27, -1.4, 0.0), (47.0, -3.4, -2.0, 0.0))]))))
+    for side in (-1.0, 1.0):
+        pieces[0].append(box(19.5, 28.5, -2.3, -1.8, side * 1.05, side * 1.35))
+    # Stock Field: walnut, a semi-pistol grip under the wrist, the rubber butt pad, the leather cuff and four shells.
+    # Sections (u, half width, v bottom, v top). Where his fingers close round the grip (u -2 to -9) it is fitted to them:
+    # a little slimmer and shallower than the Field's, with a groove under the little finger, so no finger goes into it.
+    stock = [(0.0, 1.9, -3.0, 1.8), (-2.0, 1.7, -4.12, 1.8), (-4.0, 1.7, -5.0, 1.8), (-5.5, 1.8, -5.5, 1.68),
+             (-7.0, 1.65, -4.4, 1.56), (-8.5, 1.8, -5.5, 1.44), (-10.5, 1.9, -7.7, 1.28), (-12.0, 1.9, -7.4, 1.16),
+             (-14.0, 1.9, -7.82, 1.0), (-25.0, 1.9, -10.1, 0.8), (-36.4, 1.9, -12.47, 0.55), (-38.5, 1.9, -12.4, 0.2)]
+    pieces[1].append(loft([(u, hw, vb, vt, 2.8) for u, hw, vb, vt in stock], segs=10))
+    pieces[2].append(loft([(-38.35, 2.1, -12.6, 0.25, 4.0), (-40.0, 2.2, -12.6, 0.4, 4.0), (-40.2, 2.0, -12.4, 0.2, 4.0)],
+                          segs=10))
+    pieces[2].append(loft([(-24.0, 2.05, -9.4, 1.0, 4.0), (-23.6, 2.25, -9.53, 1.21, 4.0), (-14.4, 2.25, -7.87, 1.55, 4.0),
+                           (-14.0, 2.05, -7.6, 1.36, 4.0)], segs=10))
+    for k, u in enumerate((-22.2, -20.0, -17.8, -15.6)):
+        v0 = -6.9 + k * 1.8 / 3.0 * 0.8
+        pieces[3].append(upright(u, v0, v0 + 1.1, 1.02, w=-2.6, segs=6))
+        pieces[1].append(upright(u, v0 + 1.05, v0 + 6.0, 0.95, 0.8, w=-2.6, segs=6))
     return pieces
 
 
-MUZZLE = np.array([0.8115, 0.0, 0.014])     # where the bore ends, in gun space
+MUZZLE = np.array([0.81, 0.0, 0.024])      # where the bore ends (the Crown's face, u 77), in gun space
 
 
 def gun_frame(G, bore, up=(0.0, 0.0, 1.0)):
@@ -2409,12 +2537,25 @@ PUMP_DOWN = dict(at=(-0.3, -0.7), bore=(0.95, -0.3))     # where the dropped pum
 def pump_lying():
     """The pump dropped on the boards before his knees, lying on its right side, its bore across in front of him: the
     'gun' bone's head (the stock's wrist) and its whole turn from rest, in the rig's space."""
-    lowest = min(float(np.min(V[:, 1])) for pieces in pump_pieces().values() for V, F in pieces)
+    # On its right side it rests on the shells in its stock's cuff and on the pump, tipped that little along its length:
+    # the edge of its outline under it (gun x along, y up) that spans its balance point, the receiver's front, lies level.
+    P = np.concatenate([np.asarray(V, float) for pieces in pump_pieces().values() for V, F in pieces])[:, :2]
+    P = P[np.lexsort((P[:, 1], P[:, 0]))]
+    hull = []
+    for p in P:
+        while len(hull) >= 2 and np.cross(hull[-1] - hull[-2], p - hull[-2]) <= 0.0:
+            hull.pop()
+        hull.append(p)
+    hull = np.array(hull)
+    k = int(np.clip(np.searchsorted(hull[:, 0], 0.24) - 1, 0, len(hull) - 2))
+    (xa, ya), (xb, yb) = hull[k], hull[k + 1]
+    tip = rotation((0.0, 0.0, 1.0), math.atan2(ya - yb, xb - xa))
+    lowest = float(np.min(P @ tip[:2, :2].T[:, 1]))
     b = unit(np.array([*PUMP_DOWN['bore'], 0.0]))
     up = np.array([0.0, 0.0, 1.0])
     lying = np.column_stack([b, up, np.cross(b, up)])      # gun space: x the bore, y its left side (up), z its top
     rest, _ = gun_frame(ARMS[-1.0]['G'], ARMS[-1.0]['bore'])
-    return np.array([*PUMP_DOWN['at'], 0.001 - lowest]), lying @ rest.T
+    return np.array([*PUMP_DOWN['at'], 0.001 - lowest]), lying @ tip @ rest.T
 
 
 def kneel_spec():

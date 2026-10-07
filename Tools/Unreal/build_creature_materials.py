@@ -20,15 +20,19 @@
   MI_Ghost_C    MI_GhostCoal are the model importer's, made from SK_Unpaid's own slots (Ghost_A, GhostCoal): this never
                 touches them. B and C take MI_Ghost_A's settings (all but its zone colors) when it exists, so run this
                 again after importing SK_Unpaid.
+  MI_SpiderBody_Pale  the Gravemother's bone-pale hide (Side 3): M_World with Spider.py's pale color map
+                (T_SpiderBody_Pale_BC, imported here whenever the PNG changes) over the brown spider's normal and ORM.
 
 It never touches another asset: M_Ghost's graph is rebuilt in place (its instances stay linked), and an asset at one of
 these paths that isn't what this makes is left alone. It reuses build_world_materials.py's graph helpers (without running
 that module's build). Run it in the open editor (it needs no C++):
-  Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_creature_materials.py"
+  Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_creature_materials.py [M_Ghost MI_SpiderBody_Pale]"
 It prints a CREATUREMATS line per asset and "CREATUREMATS done".
 """
 import ast
+import hashlib
 import os
+import sys
 import types
 
 import unreal
@@ -37,6 +41,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 INSTANCE_FOLDER = '/Game/Art/Materials'
 POLYMER = '/Game/Art/Textures/Polymer/T_Polymer_BC'
 DITHER = '/Engine/Functions/Engine_MaterialFunctions02/Utility/DitherTemporalAA.DitherTemporalAA'
+# The Gravemother's pale hide: the color map Spider.py paints, on M_World with the brown spider's other maps.
+PALE_HIDE = 'MI_SpiderBody_Pale'
+PALE_FILE = os.path.normpath(os.path.join(HERE, '..', '..', 'Art', 'Textures', 'SpiderBody_Pale', 'T_SpiderBody_Pale_BC.png'))
+PALE_MAP = '/Game/Art/Textures/SpiderBody_Pale/T_SpiderBody_Pale_BC'
+SPIDER_MAPS = '/Game/Art/Textures/SpiderBody/T_SpiderBody'
+WORLD_MASTER = '/Game/Art/Materials/Masters/M_World'
 
 # The clothes they died in (Art/Backlog/Creatures/UnpaidConcepts.py's option A, the user's pick, 2026-10-06): skin and
 # shroud, then the shirt, the vest and hat, and the accents (bandana, hat band). A's are M_Ghost's defaults; MI_Ghost_A
@@ -309,12 +319,77 @@ def clothes(name, zones, master, shared):
     log(f'{path} {made}: zones {", ".join(f"#{c:06x}" for c in zones)}; {source}')
 
 
-def run():
-    master = build_ghost()
-    shared = first_tint_settings()
-    for key in ('B', 'C'):
-        clothes(f'MI_Ghost_{key}', CLOTHES[key], master, shared)
+def import_color_map(file, path):
+    """A color map as the model importer brings one in (sRGB, default compression, the World group), imported again
+    whenever the PNG changes (its MD5 kept on the texture as metadata)."""
+    with open(file, 'rb') as f:
+        md5 = hashlib.md5(f.read()).hexdigest()
+    exists = unreal.EditorAssetLibrary.does_asset_exist(path)
+    if exists and unreal.EditorAssetLibrary.get_metadata_tag(unreal.load_asset(path), 'SourceMD5') == md5:
+        return unreal.load_asset(path), False
+    task = unreal.AssetImportTask()
+    task.set_editor_property('filename', file)
+    task.set_editor_property('destination_path', path.rsplit('/', 1)[0])
+    task.set_editor_property('replace_existing', True)
+    task.set_editor_property('automated', True)
+    task.set_editor_property('save', False)
+    unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+    texture = unreal.load_asset(path)
+    texture.set_editor_property('srgb', True)
+    texture.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_DEFAULT)
+    texture.set_editor_property('lod_group', unreal.TextureGroup.TEXTUREGROUP_WORLD)
+    unreal.EditorAssetLibrary.set_metadata_tag(texture, 'SourceMD5', md5)
+    unreal.EditorAssetLibrary.save_loaded_asset(texture, only_if_is_dirty=False)
+    return texture, True
+
+
+def pale_hide():
+    """MI_SpiderBody_Pale, the Gravemother's bone-pale hide (Side 3; look A, Bone, the user's pick): M_World with the pale
+    color map Art/Models/Creatures/Spider.py paints (its BONE palette) over the brown spider's own normal and ORM maps.
+    M_World's Tint only multiplies, so the brown map can't be tinted pale. AGravemotherCreature wears it on SK_Spider's
+    slot 0 (restart the editor after making it: the class finds it as its defaults are built)."""
+    texture, imported = import_color_map(PALE_FILE, PALE_MAP)
+    path = f'{INSTANCE_FOLDER}/{PALE_HIDE}'
+    master = unreal.load_asset(WORLD_MASTER)
+    textures = {'BaseColorMap': texture, 'NormalMap': unreal.load_asset(f'{SPIDER_MAPS}_N'),
+                'ORMMap': unreal.load_asset(f'{SPIDER_MAPS}_ORM')}
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        instance = unreal.load_asset(path)
+        if not isinstance(instance, unreal.MaterialInstanceConstant):
+            log(f'{path} left alone: it is not a material instance')
+            return
+        made = 'updated'
+    else:
+        instance = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            PALE_HIDE, INSTANCE_FOLDER, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+        made = 'made'
+    worn = {parameter_name(v): v.get_editor_property('parameter_value')
+            for v in instance.get_editor_property('texture_parameter_values')}
+    if (made == 'updated' and not imported and instance.get_editor_property('parent') == master
+            and all(worn.get(k) == v for k, v in textures.items())):
+        log(f'{path} unchanged')
+        return
+    MEL.set_material_instance_parent(instance, master)
+    MEL.clear_all_material_instance_parameters(instance)
+    for key, value in textures.items():
+        MEL.set_material_instance_texture_parameter_value(instance, key, value)
+    MEL.set_material_instance_vector_parameter_value(instance, 'Tint', unreal.LinearColor(1.0, 1.0, 1.0, 1.0))
+    MEL.set_material_instance_scalar_parameter_value(instance, 'UVScale', 1.0)
+    MEL.update_material_instance(instance)
+    unreal.EditorAssetLibrary.save_loaded_asset(instance, only_if_is_dirty=False)
+    log(f'{path} {made}: {PALE_MAP} on the spider\'s own normal and ORM maps')
+
+
+def run(wanted):
+    """Everything, or only the named assets (M_Ghost with its tints MI_Ghost_B and _C, or MI_SpiderBody_Pale)."""
+    if not wanted or {'M_Ghost', 'MI_Ghost_B', 'MI_Ghost_C'} & wanted:
+        master = build_ghost()
+        shared = first_tint_settings()
+        for key in ('B', 'C'):
+            clothes(f'MI_Ghost_{key}', CLOTHES[key], master, shared)
+    if not wanted or PALE_HIDE in wanted:
+        pale_hide()
     log('done')
 
 
-run()
+run(set(sys.argv[1:]))

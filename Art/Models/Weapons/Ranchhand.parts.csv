@@ -1,7 +1,7 @@
 Slot,Key,Name,Word,MinRarity,Weight,NamePriority,Magazine,Zoom,Length,Needs,DamageMin,DamageMax,AccuracyMin,AccuracyMax,RangeMin,RangeMax,FireRateMin,FireRateMax,ReloadMin,ReloadMax,RecoilMin,RecoilMax,HandlingMin,HandlingMax
 Body,Standard,Standard receiver,,Common,1,0,,,,,,,,,,,,,,,,,,
 Body,Classic,Classic receiver,Old,Common,1,3,,,,,,,,,,,,,,,3,7,3,7
-Body,Heritage,Heritage receiver,Heirloom,Uncommon,1,13,,,,,2,4,2,6,,,,,,,,,,
+Body,Heritage,Heritage receiver,Vintage,Uncommon,1,13,,,,,2,4,2,6,,,,,,,,,,
 Body,Tactical,Tactical receiver,Tactical,Uncommon,1,13,,,,,,,,,,,,,-7,-3,,,4,8
 Body,Salvaged,Salvaged receiver,Scrapped,Uncommon,1,13,,,,,4,8,-6,-2,,,,,,,,,,
 Body,Skeleton,Skeleton receiver,Light,Rare,1,23,,,,,,,,,,,,,,,5,11,7,17

@@ -564,7 +564,7 @@ def p(key, name, word, rarity, **stats):
 PARTS = {
     'Body': [
         p('Standard', 'Standard shell', '', R_COMMON),
-        p('Heritage', 'Heritage shell', 'Heirloom', R_UNCOMMON, accuracy=4, damage=3),
+        p('Heritage', 'Heritage shell', 'Vintage', R_UNCOMMON, accuracy=4, damage=3),
         p('Carbon', 'Carbon shell', 'Carbon', R_UNCOMMON, handling=8, recoil=4),
         p('Salvager', 'Salvager shell', 'Scrapped', R_UNCOMMON, damage=6, accuracy=-4),
         p('Skeleton', 'Skeleton shell', 'Light', R_RARE, handling=12, recoil=6),

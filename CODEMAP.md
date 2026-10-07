@@ -622,7 +622,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   (`BackdropTint`, `CloudTint`, the fog's colors), made by `build_world_materials.py` before `M_Backdrop`, which reads it.
 - `Tools/Unreal/build_creature_materials.py`: the creatures' materials beside the world's masters: `M_Ghost` (the
   Unpaid's masked, dithered ghost, its rank, dissolve and flare from the creature's custom primitive data) and the
-  clothing tints `MI_Ghost_B` and `_C`; it reuses `build_world_materials.py`'s helpers without running its build.
+  clothing tints `MI_Ghost_B` and `_C`, and the Gravemother's pale hide `MI_SpiderBody_Pale` (`Spider.py`'s pale color
+  map, imported whenever it changes, on the brown spider's normal and ORM maps); by name, only the ones asked for; it
+  reuses `build_world_materials.py`'s helpers without running its build.
 - `Tools/Unreal/build_decal_materials.py`: the decals' materials: `T_Posters_BC` from the art (or its stand-in),
   `M_PosterDecal` (deferred decal: an atlas cell, a hard 0.5 edge, Tint, Roughness), `M_PosterScrap` (the falling
   scrap: masked, two-sided, a dithered fade from custom primitive data) and their instances.
