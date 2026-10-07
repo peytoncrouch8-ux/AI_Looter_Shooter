@@ -186,9 +186,9 @@ def textured_inputs(g, orm_default):
     return bc, nrm, orm, vc, ao
 
 
-def shaded_color(g, bc, ao):
-    """Base color x Tint, darkened by DiffuseAO of the occlusion."""
-    tint = g.vector('Tint', (1.0, 1.0, 1.0, 1.0), -1100, -500)
+def shaded_color(g, bc, ao, tint=None):
+    """Base color x Tint (or the given tint node), darkened by DiffuseAO of the occlusion."""
+    tint = tint or g.vector('Tint', (1.0, 1.0, 1.0, 1.0), -1100, -500)
     tinted = g.mul(bc, 'RGB', tint, '', -800, -400)
     lerp = g.node(unreal.MaterialExpressionLinearInterpolate, -800, -150, const_a=1.0)
     g.link(ao, '', lerp, 'B')
@@ -300,13 +300,26 @@ float2 Dir = normalize(Direction.xy + float2(0.0001, 0.0));
 return float3(Dir * Sway * Strength * VertexColor.r, 0.0);"""
 
 
+# A share of the plants (VariationAmount; 0 for all but an area's own instances) wear TintVariation instead of Tint: the
+# yellowing crowns of a dry summer. Picked by a hash of the plant's position, as a placed actor's per-instance random is
+# always 0 and every one would turn.
+FOLIAGE_TINT = """float Pick = frac(sin(dot(floor(Position.xy / 50.0), float2(12.9898, 78.233))) * 43758.5453);
+return Pick < Amount ? Variation : Tint;"""
+
+
 def build_foliage(orm_default):
     mat = material('M_WorldFoliage')
     mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_MASKED)
     mat.set_editor_property('two_sided', True)
     g = Graph(mat)
     bc, nrm, orm, vc, ao = textured_inputs(g, orm_default)
-    g.out(shaded_color(g, bc, ao), '', unreal.MaterialProperty.MP_BASE_COLOR)
+    tint = g.custom(FOLIAGE_TINT, [
+        ('Tint', g.vector('Tint', (1.0, 1.0, 1.0, 1.0), -1400, -600), ''),
+        ('Variation', g.vector('TintVariation', (1.0, 1.0, 1.0, 1.0), -1400, -500), ''),
+        ('Amount', g.scalar('VariationAmount', 0.0, -1400, -400), ''),
+        ('Position', g.node(unreal.MaterialExpressionObjectPositionWS, -1400, -300), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -1100, -500, 'Tint, or TintVariation for a share of the plants')
+    g.out(shaded_color(g, bc, ao, tint), '', unreal.MaterialProperty.MP_BASE_COLOR)
     # A two-sided material turns the normal around on back faces. Leaf cards and blades carry normals that point out of
     # the crown or up from the ground, which both sides should keep, or half the cards shade dark: undo the turn.
     # The engine multiplies the whole world normal by TwoSidedSign, so the tangent normal is multiplied by it first.

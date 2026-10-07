@@ -16,7 +16,8 @@ Everything is a function of world position (layout meters) and the heights, work
 
 paint() lays the faces over a macro map after its season's grade (their colors are the ones the faces show), with
 the macro alpha (the detail selector) following them: rock on the bands and the bare faces, scree on the fans, soil
-between, grass detail where the grass climbs. scatter() gives the scatter mask's steep layers their densities.
+between, grass detail where the grass climbs. pines() gives the scatter mask's creases' pines their density, and
+area_scrub.py reads the fields for the scrub's.
 """
 import numpy as np
 
@@ -33,7 +34,6 @@ LEDGE = 1.8              # meters down the fall line a band's ledge shadows the 
 CAP = 0.5                # meters of height under a band's top that catch the light (its lip)
 FAN_REACH = 9.0          # meters down the fall line a band's scree fan reaches
 LIC_SPREAD = 0.09        # the usual spread of noise drawn out along the fall line: scaled up to about -1..1
-BANK_TUFTS = 0.3         # the slope tufts' density on steep ground that isn't a ridge's face (a bank, a knoll)
 
 # Colors (sRGB), as the faces show them: laid on after the macro map's grade, so they sit among its golden meadow
 # (about #908155), its banks (#6b6041) and its rock (#756f61).
@@ -213,16 +213,10 @@ def at(faces, name, n):
     return raster if raster.shape[0] == n else resize(raster, n, faces['grid'].half)
 
 
-def scatter(faces, n):
-    """The steep layers' densities (0..1 each) on an n x n raster, for area_scatter.py: slope tufts (dry grass
-    climbing the faces: densest at the foot and in the creases, thinning upward; sparse on other steep banks), low
-    bushes (in the creases and at the foot) and pines (few, grouped in the creases). Never on a band, thin on a fan."""
-    face, crease, patch, rel = (at(faces, k, n) for k in ('face', 'crease', 'patch', 'rel'))
-    clear = (1.0 - at(faces, 'band', n)) * (1.0 - 0.7 * at(faces, 'fan', n))
-    tufts = (face * np.clip(0.45 + 0.9 * at(faces, 'scrub', n), 0.0, 1.0) + (1.0 - face) * BANK_TUFTS * patch) * clear
-    bushes = face * np.clip(0.3 + 1.2 * crease + 0.7 * (1.0 - _ss(9.0, 22.0, rel)), 0.0, 1.0) * patch * clear
-    bushes *= 1.0 - 0.5 * _ss(16.0, 50.0, rel)
-    return tufts, bushes, at(faces, 'pines', n) * clear
+def pines(faces, n):
+    """The creases' pines' density (0..1) on an n x n raster, for area_scatter.py: few, grouped in the creases, never
+    on a band, thin on a fan."""
+    return at(faces, 'pines', n) * (1.0 - at(faces, 'band', n)) * (1.0 - 0.7 * at(faces, 'fan', n))
 
 
 def _mix(a, b, t):

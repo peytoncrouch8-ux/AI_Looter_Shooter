@@ -33,7 +33,7 @@
    "G": "grass density: 1 in meadows; 0 on road and path surfaces (soft 1 m edge), water, steep rock, footprints and bare dirt; about 0.4 under the forest canopy",
    "B": "flower density: big drifts in the meadows, 0 where G is 0, sparse in the forest",
    "A": "pebbles and small rocks: a thin band just outside road edges, cliff feet (scree), the rim, the creek banks; 0 elsewhere",
-   "steep": "on ground steeper than 32 degrees, which no flat layer reaches: G is slope tufts and B low bushes (to 50 degrees: climbing the ridges' faces from their foot and creases, thinning upward, sparse on other steep banks; tufts out to 40 m past the boundary, bushes 80 m), and R over 37 degrees pines in the faces' creases (area_faces.py), which past the boundary also carries the creases' trees on gentler ground"
+   "steep": "R over 37 degrees is pines in the ridges' faces' creases (area_faces.py), which past the boundary also carries the creases' trees on gentler ground"
   }
  },
  "placements": {
@@ -2296,6 +2296,219 @@
    "gorge": "creekGorge",
    "note": "the lip: where the creek falls into its gorge, at the water surface; yaw is the flow direction"
   }
+ },
+ "scrub": {
+  "texture": "Art/Textures/TerrainTestMacro/T_TerrainTestScrub_BC.png",
+  "covers": [
+   [
+    -7500.0,
+    -7500.0
+   ],
+   [
+    7500.0,
+    7500.0
+   ]
+  ],
+  "note": "the dry scrub (area_scrub.py): the mask's layers (a channel each, candidates every cell cm jittered by jitter of a cell, kept where mask x random >= keep; the graph names the meshes), and points in cm: crestJunipers [x, y, yaw], pitTufts and pitSage [x, y], rimJunipers [x, y, yaw]",
+  "layers": {
+   "sage": {
+    "channel": "R",
+    "cell": 190.0,
+    "keep": 0.1,
+    "jitter": 0.5
+   },
+   "tufts": {
+    "channel": "G",
+    "cell": 150.0,
+    "keep": 0.1,
+    "jitter": 0.5
+   },
+   "rabbitbrush": {
+    "channel": "B",
+    "cell": 500.0,
+    "keep": 0.1,
+    "jitter": 0.5
+   },
+   "junipers": {
+    "channel": "A",
+    "cell": 500.0,
+    "keep": 0.1,
+    "jitter": 0.1
+   }
+  },
+  "crestJunipers": [],
+  "pitTufts": [
+   [
+    2179,
+    2847
+   ],
+   [
+    2113,
+    2990
+   ],
+   [
+    2276,
+    2635
+   ],
+   [
+    2240,
+    2732
+   ],
+   [
+    2379,
+    2678
+   ],
+   [
+    2323,
+    3345
+   ],
+   [
+    2400,
+    2791
+   ],
+   [
+    2487,
+    2959
+   ],
+   [
+    2529,
+    2860
+   ],
+   [
+    2654,
+    3031
+   ],
+   [
+    2750,
+    2833
+   ],
+   [
+    2783,
+    3591
+   ],
+   [
+    2960,
+    3053
+   ],
+   [
+    2949,
+    3763
+   ],
+   [
+    2955,
+    3842
+   ],
+   [
+    2977,
+    3914
+   ],
+   [
+    3011,
+    2988
+   ],
+   [
+    3050,
+    3147
+   ],
+   [
+    3066,
+    3352
+   ],
+   [
+    3000,
+    3813
+   ],
+   [
+    3130,
+    2857
+   ],
+   [
+    3145,
+    3173
+   ],
+   [
+    3176,
+    3284
+   ],
+   [
+    3153,
+    3864
+   ],
+   [
+    3218,
+    2037
+   ],
+   [
+    3271,
+    3785
+   ],
+   [
+    3334,
+    3605
+   ],
+   [
+    3476,
+    3754
+   ],
+   [
+    3668,
+    3238
+   ],
+   [
+    3741,
+    3191
+   ],
+   [
+    3726,
+    3280
+   ],
+   [
+    3884,
+    2961
+   ],
+   [
+    3888,
+    3083
+   ],
+   [
+    3880,
+    3140
+   ],
+   [
+    3849,
+    3474
+   ],
+   [
+    3976,
+    2926
+   ],
+   [
+    3904,
+    3376
+   ]
+  ],
+  "pitSage": [
+   [
+    2322,
+    3071
+   ],
+   [
+    2568,
+    3417
+   ]
+  ],
+  "rimJunipers": [
+   [
+    1951,
+    4158,
+    0
+   ],
+   [
+    4056,
+    4236,
+    0
+   ]
+  ]
  },
  "ringMap": {
   "texture": "Art/Textures/TerrainTestRingMacro/T_TerrainTestRingMacro_BC.png",

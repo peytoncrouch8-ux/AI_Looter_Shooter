@@ -723,15 +723,19 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Art/Levels/area_macro.py`: the macro color map `T_<Area>Macro_BC`, in the season the layout grades it to
   (`macro.grade`); a grounded area's ridge faces laid over it (`area_faces.py`). `Art/Levels/area_scatter.py`: the PCG
   scatter mask `T_<Area>Scatter_BC` (with `scatter.roadside: pebbles`, no rocks or boulders on or beside the roads; a
-  pit's floor bare grit with sparse tufts at its walls' feet; grounded: steep layers in G, B and R past the flat
-  layers' slopes).
+  pit's floor bare grit; grounded: R carries the crease pines, and the scrub mask is written beside it,
+  `area_scrub.py`).
+- `Art/Levels/area_scrub.py`: a grounded area's dry scrub (the art session's kit): the scrub mask `T_<Area>Scrub_BC`
+  (R sagebrush, G dry tufts, B rabbitbrush, A crease junipers, each a keep/chance encoding with spacing from `LAYERS`) on
+  the ridge faces and the flats' margins, and the points in `layout_computed.json` `"scrub"` (crest junipers, pit-floor
+  tufts and sage, rim junipers).
 - `Art/Levels/area_faces.py`: a grounded area's big ridge faces broken up (rock bands at irregular heights with a lit
   lip and a ledge shadow, scree fans, creases, scrub and dry grass climbing, tone variation), painted over both macro
-  maps after the grade, and the densities for the scatter mask's steep layers and the ring's crease pines.
+  maps after the grade, and the ring's crease pines (`pines()`).
 - `Art/Levels/area_computed.py`: `layout_computed.json`: placements at terrain height (or their own), cliff groups per
   feature (a ramp's cliff side and the boundary's rock foot too), bridge, waterfall, orchard rows, the squares the maps
   cover, the rise past the boundary's closed edges, the far trees (one per line), and the mask's steep layers
-  (`scatterMap.steep`).
+  (`scatterMap.steep`), and the scrub (`scrub`: its mask, layers and points).
 - `Art/Levels/area_cliffs.py`: cliff dressing for those features and the grounded setting: a group per feature, walls
   over 12 m in stacked courses, a knob's outcrop, a gully's banks, gaps in a pit's ring for rock models.
 - `Art/Levels/area_open.py`: the open-ground metric: how far each walkable meter inside the boundary is from its
@@ -825,10 +829,12 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   Crates under the windmill, on the Sink's rim and on the bluff path, each at the first of its spots that's level and
   clear) and the gang's Strongbox on the sheriff's office's SOCKET_Strongbox.
 - `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`); its mask is imported
-  again whenever the PNG changes (its MD5 kept on the texture as metadata); a grounded area's steep layers (slope
-  tufts, slope bushes, crease pines) when `scatterMap.steep` is set, and larkspur along the salt line, the field wall
-  and the farm fences (the newer layers' meshes in tables, `SLOPE_TUFT_MESHES` and the rest); every layer kept off the
-  dressing's pieces (`build_area_dressing.footprints`), grass and flowers off its solid ones only.
+  again whenever the PNG changes (its MD5 kept on the texture as metadata); a grounded area's crease pines and dry
+  scrub from the scrub mask and the computed points (`scrub_layers`), each later layer kept off what earlier ones
+  placed, the kit named only in its `*_MESHES` tables; larkspur along the salt line, the field wall and the farm
+  fences; every layer kept off the dressing's pieces (`build_area_dressing.footprints`), grass and flowers off its
+  solid ones only; the area's material swaps (`layout.json` `level.swaps`) on the scattered meshes as override
+  materials.
 - `Tools/Unreal/build_area_dressing.py`: the layout's fence, wall, ruin, graves, cairns and props obstacles dressed from
   the art kit for `build_area.py` (in its full build after `models()`, and with `build_area.py <Area> dressing`): tables
   by obstacle id, sections chained along lines and polygons on the terrain's tiles, gates and road gaps, one

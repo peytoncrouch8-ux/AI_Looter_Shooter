@@ -4,7 +4,11 @@ undergrowth, rocks, pebbles, and reeds and lily pads on the pond and creek (plac
 
 Where things grow comes from the area's scatter mask, T_<Area>Scatter (painted from the layout by
 Art/Models/Terrain/<Area>.py, so it agrees with the roads, water and buildings): R trees, G grass, B flowers, A pebbles
-and rocks. layout_computed.json macroMap.scatterMap names it and the square it covers. Each layer is its own chain:
+and rocks. layout_computed.json macroMap.scatterMap names it and the square it covers. A grounded area also has its dry
+scrub (layout_computed.json "scrub", Art/Levels/area_scrub.py): a scrub mask (R sagebrush, G dry tufts, B rabbitbrush,
+A the creases' junipers, each with its candidate spacing and keep) and listed points (the crests' junipers, the pit
+floors' tufts and sage, the pits' rims' junipers); the kit's meshes are the *_MESHES tables. Each layer is its own
+chain:
   grid of ray origins -> jitter -> raycast onto actors tagged Ground -> flat enough -> not inside an Obstacle
   -> density = its mask channel -> x random -> keep above a threshold -> look (size, heading, slope) -> spawn instances
 A higher threshold thins a layer everywhere, and the mask's soft edges fade it out. Spatial noise splits the trees
@@ -28,6 +32,7 @@ import unreal
 
 PROJECT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
 GRAPH_FOLDER = '/Game/Environment/PCG'
+MATERIALS = '/Game/Art/Materials'
 VEGETATION = '/Game/Art/Vegetation'
 ROCKS = '/Game/Art/Rocks'
 # Beyond this distance (cm) foliage stops swaying (saves vertex work far away).
@@ -47,6 +52,9 @@ class Area:
             layout = json.load(f)
         level = layout.get('level', {})
         self.obstacles = layout.get('obstacles', [])
+        # The area's own instances of shared materials (level.swaps: the shared one's name -> the area's), which
+        # build_area.py makes (area_materials) and puts on what it places; the scatter's meshes wear them too.
+        self.swaps = level.get('swaps', {})
         with open(os.path.join(folder, 'layout_computed.json')) as f:
             self.data = json.load(f)
         # The dressing's pieces (build_area_dressing.py): instanced, and tagged Obstacle only in play (a map-wide actor's
@@ -69,31 +77,35 @@ class Area:
         low, high = self.data.get('heightRange', [-8000.0, 3000.0])
         self.lift = max(4000.0, high + 1000.0)
         self.ray = max(12000.0, self.lift - low + 1000.0)
-        # A grounded area's mask carries steep layers too (Art/Levels/area_scatter.py: computed's scatterMap.steep).
+        # A grounded area's mask carries the creases' pines too (Art/Levels/area_scatter.py: computed's
+        # scatterMap.steep), and it has the dry scrub (computed's "scrub": its mask, layers and points).
         self.steep = 'steep' in scatter
+        self.scrub = self.data.get('scrub')
         self.graph = level.get('scatterGraph', f'PCG_{name}Scatter')
         self.volume = level.get('scatterVolume', f'{name}Scatter')
         self.folder = level.get('folder', name)
 
 
-def import_mask(area):
-    """The mask as exact, uncompressed values without mips (PCG reads it on the CPU; it never renders). It's imported
-    again whenever the PNG changes: the PNG's MD5 is kept on the texture as metadata (SourceMD5). Importing only when the
-    asset was missing once left a regenerated mask out of the scatter."""
-    source = os.path.join(PROJECT, area.mask_file)
+def import_mask(area, mask_file=None):
+    """The mask (the scatter mask, or another: the scrub's) as exact, uncompressed values without mips (PCG reads it
+    on the CPU; it never renders). It's imported again whenever the PNG changes: the PNG's MD5 is kept on the texture as
+    metadata (SourceMD5). Importing only when the asset was missing once left a regenerated mask out of the scatter."""
+    mask_file = mask_file or area.mask_file
+    asset = '/Game/' + os.path.splitext(mask_file)[0]
+    source = os.path.join(PROJECT, mask_file)
     with open(source, 'rb') as f:
         digest = hashlib.md5(f.read()).hexdigest()
     library = unreal.EditorAssetLibrary
-    current = unreal.load_asset(area.mask) if library.does_asset_exist(area.mask) else None
+    current = unreal.load_asset(asset) if library.does_asset_exist(asset) else None
     if current is None or library.get_metadata_tag(current, 'SourceMD5') != digest:
         task = unreal.AssetImportTask()
         task.set_editor_property('filename', source)
-        task.set_editor_property('destination_path', area.mask.rsplit('/', 1)[0])
+        task.set_editor_property('destination_path', asset.rsplit('/', 1)[0])
         task.set_editor_property('automated', True)
         task.set_editor_property('replace_existing', True)
         unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
-        unreal.log(f'Island scatter: {area.mask} imported from {area.mask_file} (MD5 {digest})')
-    mask = unreal.load_asset(area.mask)
+        unreal.log(f'Island scatter: {asset} imported from {mask_file} (MD5 {digest})')
+    mask = unreal.load_asset(asset)
     mask.set_editor_property('srgb', False)
     mask.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_VECTOR_DISPLACEMENTMAP)
     mask.set_editor_property('mip_gen_settings', unreal.TextureMipGenSettings.TMGS_NO_MIPMAPS)
@@ -154,14 +166,24 @@ def shore_points(data):
     return reeds, pads, pond['waterZ'] if pond else 0.0
 
 
-# The newer layers' meshes, by name under VEGETATION: (mesh, weight, cull distance in cm). Each layer's list is its
-# own table, so the art session's dry scrub kit for the slopes (Art/Models/Vegetation/Scrub.py: Sagebrush,
-# Rabbitbrush, Juniper, DryTuft) can take over by editing them once it's imported.
-SLOPE_TUFT_MESHES = (('GrassClump_A', 3, 4500), ('GrassClump_C', 2, 5000), ('TallGrass_A', 3, 5500))
-SLOPE_BUSH_MESHES = (('Bush_A', 1, 9000), ('Bush_B', 1, 9000), ('Bush_C', 1, 9000))
+# The newer layers' meshes, by name under VEGETATION: (mesh, weight, cull distance in cm), each layer's list its own
+# table; the scrub kit (Art/Models/Vegetation/Scrub.py) is named only here. An instance's cull distance shrinks with
+# the view distance quality (r.ViewDistanceScale, 0.6 on Medium): each is the distance wanted on Medium / 0.6. The
+# level's CullDistanceVolume leaves PCG's components alone: it judges a component by its bounds, and each spawner's
+# component per mesh spans tens of meters or the whole scatter, past the volume's largest culled size (6 m).
 CREASE_PINE_MESHES = (('Pine_A', 1, 0), ('Pine_B', 1, 0))
 LARKSPUR_CLUMP_MESHES = (('Larkspur_A', 1, 6000),)
 LARKSPUR_STRIP_MESHES = (('Larkspur_B', 1, 6000),)
+SAGE_MESHES = (('Sagebrush_A', 4, 27000), ('Sagebrush_B', 3, 27000), ('Sagebrush_C', 3, 27000))  # 162 m on Medium
+RABBITBRUSH_MESHES = (('Rabbitbrush_A', 1, 27000),)
+DRY_TUFT_MESHES = (('DryTuft_A', 1, 6700), ('DryTuft_B', 1, 6700))  # 40 m on Medium
+JUNIPER_MESHES = (('Juniper_A', 1, 42000),)  # the creases' and the pits' rims' (252 m on Medium)
+CREST_JUNIPER_MESHES = (('Juniper_B', 1, 42000),)  # wind-sheared: its crown sweeps toward -Y, west at yaw 0
+PIT_TUFT_MESHES = (('DryTuft_A', 1, 6700), ('DryTuft_B', 3, 6700))  # the pit floors' (B-heavy)
+PIT_SAGE_MESHES = (('Sagebrush_C', 1, 27000),)
+SCRUB_SINK = 4.0        # cm the scrub sinks into the ground
+SCRUB_FLAT = 0.64       # the scrub layers' steepest ground (flatness: 50 degrees)
+CREST_TURN = 5.0        # degrees either side of a crest juniper's yaw bin (10 degree bins)
 
 # Larkspur along fences and walls (the art session's rules), by the obstacle it lines (layout.json obstacles): the share
 # of spots left out, how far past the line's centre a wall's face adds (cm), and its gates [X, Y] (cm, from the
@@ -234,9 +256,40 @@ class Builder:
         self.graph.add_edge(a, a_pin, b, b_pin)
 
 
+# The area's material swaps for this graph (swaps()): a shared material's name -> the area's instance of it.
+SWAPS = {}
+
+
+def swaps(area):
+    """The area's swaps (layout.json level.swaps) as loaded materials, for entry(): build_area.py's area_materials()
+    makes the area's instances, so it runs first; one that doesn't exist yet is left out, with a warning."""
+    loaded = {}
+    for shared, own in area.swaps.items():
+        path = f'{MATERIALS}/{own}'
+        if unreal.EditorAssetLibrary.does_asset_exist(path):
+            loaded[shared] = unreal.load_asset(path)
+        else:
+            unreal.log_warning(f'Island scatter: no {path} yet (build_area.py makes it): {shared} stays')
+    return loaded
+
+
+def overrides(asset):
+    """The mesh's slots with the area's swaps applied (SWAPS), or None when none of its slots is swapped."""
+    if not SWAPS:
+        return None
+    worn = [slot.get_editor_property('material_interface') for slot in asset.get_editor_property('static_materials')]
+    swapped = [SWAPS.get(m.get_name(), m) if m is not None else None for m in worn]
+    return swapped if any(a is not b for a, b in zip(swapped, worn)) else None
+
+
 def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=False, wind=True, tree=False):
     d = unreal.PCGSoftISMComponentDescriptor()
     d.set_editor_property('static_mesh', asset)
+    # The area's look on the scattered meshes as on the placed ones: a slot wearing a shared material the area swaps
+    # (level.swaps) wears the area's instance of it (build_area.py's swap_materials() skips PCG's components).
+    swapped = overrides(asset)
+    if swapped:
+        d.set_editor_property('override_materials', swapped)
     # PCG's instances don't collide unless told to: say which way, both ways. Colliding ones block like the buildings
     # (BlockAll) with their mesh's hulls (a tree's trunk, a rock); without this, trees and rocks were walk-through.
     d.set_editor_property('use_default_collision', False)
@@ -263,7 +316,7 @@ def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=Fals
 class Scatter:
     """The shared inputs (obstacles, the mask's channels) and one chain per layer."""
 
-    def __init__(self, b, mask, half, lift=4000.0, ray=12000.0, dressing=()):
+    def __init__(self, b, mask, half, lift=4000.0, ray=12000.0, dressing=(), scrub_mask=None):
         self.b = b
         self.half = half
         self.lift, self.ray = lift, ray  # how high over the ground the rays start, and how far down they reach (cm)
@@ -294,10 +347,13 @@ class Scatter:
         transform = unreal.Transform(location=unreal.Vector(0, 0, 0), rotation=unreal.Rotator(roll=0, pitch=0, yaw=90),
                                      scale=unreal.Vector(half, half, 1))
         self.channels = {}
-        for i, (name, channel) in enumerate(CHANNELS.items()):
-            self.channels[name], _ = b.node(unreal.PCGTextureSamplerSettings, f'Mask {name}', 3, -2 + i * 0.5,
-                                            texture=mask, transform=transform, use_absolute_transform=True,
-                                            color_channel=channel, filter=unreal.PCGTextureFilter.BILINEAR)
+        masks = [('', mask)] + ([('Scrub ', scrub_mask)] if scrub_mask else [])
+        for m, (prefix, texture) in enumerate(masks):
+            for i, (name, channel) in enumerate(CHANNELS.items()):
+                self.channels[prefix + name], _ = b.node(unreal.PCGTextureSamplerSettings, f'Mask {prefix}{name}', 3,
+                                                         -2 + i * 0.5 + m * 2.0, texture=texture, transform=transform,
+                                                         use_absolute_transform=True, color_channel=channel,
+                                                         filter=unreal.PCGTextureFilter.BILINEAR)
 
     @staticmethod
     def boxes(b, title, row, footprints, margin=40.0):
@@ -319,10 +375,13 @@ class Scatter:
                          coordinate_space=unreal.PCGCoordinateSpace.WORLD)
         return node
 
-    def layer(self, title, cell, channel, keep, flat=0.85, trees=False, flat_max=1.0, dressing='all'):
-        """Points on the ground every `cell` cm where the mask's channel wins a random draw against `keep`, on ground
-        whose flatness (the up component of its normal) is from `flat` to `flat_max` (below 1: steep ground only), off
-        the obstacles and the dressing's boxes (`dressing`: 'all', or 'solid' for a layer that grows up to fences)."""
+    def layer(self, title, cell, channel, keep, flat=0.85, trees=False, flat_max=1.0, dressing='all', jitter=0.5,
+              avoid=()):
+        """Points on the ground every `cell` cm (moved up to `jitter` of a cell either way) where the mask's channel
+        ('R', or 'Scrub R' for the scrub mask's) wins a random draw against `keep`, on ground whose flatness (the up
+        component of its normal) is from `flat` to `flat_max` (below 1: steep ground only), off the obstacles, the
+        dressing's boxes (`dressing`: 'all', or 'solid' for a layer that grows up to fences) and what the spawners in
+        `avoid` placed (their meshes' bounds)."""
         b, y = self.b, self.row * 3
         self.row += 1
         grid, _ = b.node(unreal.PCGCreatePointsGridSettings, f'{title}: ray origins', 0, y,
@@ -331,8 +390,8 @@ class Scatter:
                          coordinate_space=unreal.PCGCoordinateSpace.WORLD,
                          point_position=unreal.PCGPointPosition.CELL_CENTER)
         lift, _ = b.node(unreal.PCGTransformPointsSettings, 'Jitter, lift', 1, y,
-                         offset_min=unreal.Vector(-cell / 2, -cell / 2, self.lift),
-                         offset_max=unreal.Vector(cell / 2, cell / 2, self.lift))
+                         offset_min=unreal.Vector(-cell * jitter, -cell * jitter, self.lift),
+                         offset_max=unreal.Vector(cell * jitter, cell * jitter, self.lift))
         ray, ray_settings = b.node(unreal.PCGWorldRaycastElementSettings, 'Onto Ground', 2, y,
                                    raycast_mode=unreal.PCGWorldRaycastMode.NORMALIZED_WITH_LENGTH,
                                    ray_direction=unreal.Vector(0.0, 0.0, -1.0), ray_length=self.ray)
@@ -361,14 +420,17 @@ class Scatter:
             b.link(self.dressing[dressing], clear, b_pin='Differences')
         if trees:
             b.link(self.no_trees, clear, b_pin='Differences')
+        for spawner in avoid:
+            b.link(spawner, clear, b_pin='Differences')
         b.link(clear, sample, b_pin='Point')
         b.link(self.channels[channel], sample, b_pin='BaseTexture')
         b.link(sample, draw)
         b.link(draw, kept)
         return kept, y
 
-    def listed(self, title, points, onto_ground=True):
-        """Points the script worked out itself (x, y, z), dropped onto the ground when onto_ground."""
+    def listed(self, title, points, onto_ground=True, clear=False, ray=12000.0):
+        """Points the script worked out itself (x, y, z), dropped onto the ground when onto_ground (rays reaching ray
+        cm down), and with clear, kept off the obstacles and all the dressing's boxes."""
         b, y = self.b, self.row * 3
         self.row += 1
         made, _ = b.node(unreal.PCGCreatePointsSettings, f'{title}: points', 0, y,
@@ -376,35 +438,53 @@ class Scatter:
                          coordinate_space=unreal.PCGCoordinateSpace.WORLD)
         if not onto_ground:
             return made, y
-        ray, ray_settings = b.node(unreal.PCGWorldRaycastElementSettings, 'Onto Ground', 2, y,
-                                   raycast_mode=unreal.PCGWorldRaycastMode.NORMALIZED_WITH_LENGTH,
-                                   ray_direction=unreal.Vector(0.0, 0.0, -1.0), ray_length=12000.0)
+        ray_node, ray_settings = b.node(unreal.PCGWorldRaycastElementSettings, 'Onto Ground', 2, y,
+                                        raycast_mode=unreal.PCGWorldRaycastMode.NORMALIZED_WITH_LENGTH,
+                                        ray_direction=unreal.Vector(0.0, 0.0, -1.0), ray_length=ray)
         query = ray_settings.get_editor_property('world_query_params')
         query.set_editor_property('actor_tag_filter', unreal.PCGWorldQueryFilter.INCLUDE)
         query.set_editor_property('actor_tags_list', 'Ground')
         query.set_editor_property('ignore_pcg_hits', True)
         ray_settings.set_editor_property('world_query_params', query)
-        b.link(made, ray, b_pin='Origins')
-        return ray, y
+        b.link(made, ray_node, b_pin='Origins')
+        if not clear:
+            return ray_node, y
+        kept, _ = b.node(unreal.PCGDifferenceSettings, 'Not in obstacles', 3, y,
+                         density_function=unreal.PCGDifferenceDensityFunction.BINARY)
+        b.link(ray_node, kept, b_pin='Source')
+        b.link(self.obstacles, kept, b_pin='Differences')
+        if self.dressing['all'] is not None:
+            b.link(self.dressing['all'], kept, b_pin='Differences')
+        return kept, y
 
-    def headed(self, title, runs, entries, scale, turn):
+    def headed(self, title, runs, entries, scale, turn, sink=0.0, clear=False, ray=12000.0):
         """Points the script worked out itself in runs that share a heading ((yaw, [(x, y, z), ...]) each), dropped
-        onto the ground, upright, each turned to its run's heading within turn degrees, and spawned together."""
+        onto the ground (and with clear, kept off the obstacles and the dressing), upright, each turned to its run's
+        heading within turn degrees, sunk sink cm, and spawned together. Returns the spawner."""
         y = self.row * 3
         merge, _ = self.b.node(unreal.PCGMergeSettings, f'{title}: all', 10, y)
         for yaw, points in runs:
-            dropped, row = self.listed(f'{title} {yaw:.0f}', points)
-            look, _ = self.b.node(unreal.PCGTransformPointsSettings, f'{title} heading', 3, row,
+            dropped, row = self.listed(f'{title} {yaw:.0f}', points, clear=clear, ray=ray)
+            look, _ = self.b.node(unreal.PCGTransformPointsSettings, f'{title} heading', 4, row,
                                   rotation_min=unreal.Rotator(0.0, 0.0, yaw - turn),
                                   rotation_max=unreal.Rotator(0.0, 0.0, yaw + turn), absolute_rotation=True,
                                   scale_min=unreal.Vector(scale[0], scale[0], scale[0]),
-                                  scale_max=unreal.Vector(scale[1], scale[1], scale[1]), uniform_scale=True)
+                                  scale_max=unreal.Vector(scale[1], scale[1], scale[1]), uniform_scale=True,
+                                  offset_min=unreal.Vector(0, 0, -sink), offset_max=unreal.Vector(0, 0, -sink))
             self.b.link(dropped, look)
             self.b.link(look, merge)
         spawner, settings = self.b.node(unreal.PCGStaticMeshSpawnerSettings, f'Spawn {title}', 11, y)
         selector = settings.get_editor_property('mesh_selector_parameters')
         selector.set_editor_property('mesh_entries', entries)
         self.b.link(merge, spawner)
+        return spawner
+
+    def merged(self, title, sources, y):
+        """One point set from several."""
+        merge, _ = self.b.node(unreal.PCGMergeSettings, title, 9.5, y)
+        for source in sources:
+            self.b.link(source, merge)
+        return merge
 
     def split(self, source, y, scale, offset, threshold):
         """Two outputs by spatial noise: stands of one kind and of the other."""
@@ -438,16 +518,22 @@ class Scatter:
         selector = s.get_editor_property('mesh_selector_parameters')
         selector.set_editor_property('mesh_entries', entries)
         b.link(last, spawner)
+        return spawner
 
 
-def build_graph(area, mask):
+def build_graph(area, mask, scrub_mask=None):
     path = f'{GRAPH_FOLDER}/{area.graph}'
     if unreal.EditorAssetLibrary.does_asset_exist(path):
         unreal.EditorAssetLibrary.delete_asset(path)
     graph = unreal.AssetToolsHelpers.get_asset_tools().create_asset(area.graph, GRAPH_FOLDER, unreal.PCGGraph,
                                                                     unreal.PCGGraphFactory())
     b = Builder(graph)
-    s = Scatter(b, mask, area.half, area.lift, area.ray, area.dressing)
+    SWAPS.clear()
+    SWAPS.update(swaps(area))
+    if SWAPS:
+        unreal.log(f'Island scatter: the area\'s materials on its meshes: '
+                   + ', '.join(f'{k} -> {v.get_name()}' for k, v in sorted(SWAPS.items())))
+    s = Scatter(b, mask, area.half, area.lift, area.ray, area.dressing, scrub_mask)
     veg = lambda name, required=True: mesh(VEGETATION, name, required)  # noqa: E731
     rock = lambda name: mesh(ROCKS, name)  # noqa: E731
 
@@ -525,30 +611,76 @@ def build_graph(area, mask):
                                           for n in ('Boulder_A', 'Boulder_B', 'Boulder_C')],
             scale=(0.8, 1.3), sink=10.0)
 
-    if area.steep:
-        steep_layers(s, veg)
+    pines = crease_pines(s, veg) if area.steep else None
+    if area.scrub and scrub_mask:
+        scrub_layers(s, veg, area, pines)
 
     unreal.EditorAssetLibrary.save_loaded_asset(graph)
     return graph
 
 
-def steep_layers(s, veg):
-    """A grounded area's steep ground, from 32 to 50 degrees (flatness 0.85 to 0.64), which none of the layers above
-    reach: the mask's G there is slope tufts, its B low bushes, and its R, past the tree stands' 37 degrees, pines in
-    the ridges' creases (Art/Levels/area_scatter.py's steep layers and Art/Levels/area_faces.py). Tufts and bushes
-    climb the ridges' faces from their foot and creases, thinning upward; the pines stand few and in groups. Past the
-    boundary the creases' trees on gentler ground come from the tree stands above. Their meshes are the tables
-    SLOPE_TUFT_MESHES, SLOPE_BUSH_MESHES and CREASE_PINE_MESHES."""
-    tufts, y = s.layer('Slope tufts', 170.0, 'G', 0.15, flat=0.64, flat_max=0.85)
-    s.spawn(tufts, 'Slope tufts', 11, y, [entry(veg(n), w, cull, density_scaling=True)
-                                          for n, w, cull in SLOPE_TUFT_MESHES],
-            scale=(0.85, 1.3), upright=False, fit=35.0)
-    shrubs, y = s.layer('Slope bushes', 350.0, 'B', 0.15, flat=0.64, flat_max=0.85)
-    s.spawn(shrubs, 'Slope bushes', 11, y, [entry(veg(n), w, cull, shadow=True) for n, w, cull in SLOPE_BUSH_MESHES],
-            scale=(0.6, 1.0), sink=20.0)
+def crease_pines(s, veg):
+    """A grounded area's pines in the ridges' creases, from 37 to 50 degrees (flatness 0.8 to 0.64), past the tree
+    stands' slope: the mask's R there (Art/Levels/area_scatter.py, area_faces.py), few and in groups. Past the
+    boundary the creases' trees on gentler ground come from the tree stands above. Returns the spawner."""
     creases, y = s.layer('Crease pines', 700.0, 'R', 0.15, flat=0.64, flat_max=0.8, trees=True)
-    s.spawn(creases, 'Crease pines', 11, y, [entry(veg(n), w, cull, collide=True, shadow=True, tree=True)
-                                             for n, w, cull in CREASE_PINE_MESHES], sink=40.0)
+    return s.spawn(creases, 'Crease pines', 11, y, [entry(veg(n), w, cull, collide=True, shadow=True, tree=True)
+                                                    for n, w, cull in CREASE_PINE_MESHES], sink=40.0)
+
+
+def scrub_layers(s, veg, area, pines=None):
+    """A grounded area's dry scrub (Art/Levels/area_scrub.py; the art session's kit, Art/Models/Vegetation/Scrub.py):
+    the scrub mask's layers on ground up to 50 degrees, and the computed layout's listed points. Each later layer keeps
+    off what the earlier ones placed (their meshes' bounds): junipers (the creases', with the pits' rims') clear of the
+    crease pines, then the crests' junipers, rabbitbrush, sagebrush and the pit floors' sage, and last the dry tufts in
+    the gaps. All upright, sunk SCRUB_SINK cm; the shrubs and tufts don't collide, the junipers' trunk hulls do; the
+    tufts cast no shadow, and the mask's thin with the foliage density quality as the grass does (foliage.DensityScale,
+    0.4 on Medium; the pit floors' few keep theirs)."""
+    scrub, layers = area.scrub, area.scrub['layers']
+    lift = area.lift
+
+    def mask_layer(name, title, avoid, dressing='all'):
+        spec = layers[name]
+        return s.layer(title, spec['cell'], 'Scrub ' + spec['channel'], spec['keep'], flat=SCRUB_FLAT,
+                       dressing=dressing, jitter=spec.get('jitter', 0.5), avoid=avoid)
+
+    def entries(table, **kw):
+        return [entry(veg(n), w, cull, **kw) for n, w, cull in table]
+
+    def listed(title, points):
+        return s.listed(title, [(x, y, lift) for x, y, *_ in points], clear=True, ray=area.ray)
+
+    placed = [pines] if pines else []
+    junipers, y = mask_layer('junipers', 'Crease junipers', list(placed))
+    sources = [junipers]
+    if scrub.get('rimJunipers'):
+        sources.append(listed('Rim junipers', scrub['rimJunipers'])[0])
+    juniper = s.spawn(s.merged('Junipers: all', sources, y), 'Junipers', 11, y,
+                      entries(JUNIPER_MESHES, collide=True, shadow=True), scale=(0.85, 1.3), sink=SCRUB_SINK)
+    placed.append(juniper)
+    if scrub.get('crestJunipers'):
+        bins = {}
+        for x, yy, yaw in scrub['crestJunipers']:
+            bins.setdefault(10.0 * round(yaw / 10.0), []).append((x, yy, lift))
+        placed.append(s.headed('Crest junipers', sorted(bins.items()), entries(CREST_JUNIPER_MESHES, collide=True,
+                                                                               shadow=True),
+                               (0.85, 1.3), CREST_TURN, sink=SCRUB_SINK, clear=True, ray=area.ray))
+    rabbit, y = mask_layer('rabbitbrush', 'Rabbitbrush', list(placed))
+    placed.append(s.spawn(rabbit, 'Rabbitbrush', 11, y, entries(RABBITBRUSH_MESHES, shadow=True), scale=(0.8, 1.25),
+                          sink=SCRUB_SINK))
+    sage, y = mask_layer('sage', 'Sagebrush', list(placed))
+    placed.append(s.spawn(sage, 'Sagebrush', 11, y, entries(SAGE_MESHES, shadow=True), scale=(0.8, 1.25),
+                          sink=SCRUB_SINK))
+    if scrub.get('pitSage'):
+        pit_sage, y = listed('Pit sage', scrub['pitSage'])
+        placed.append(s.spawn(pit_sage, 'Pit sage', 11, y, entries(PIT_SAGE_MESHES, shadow=True), scale=(0.8, 1.25),
+                              sink=SCRUB_SINK))
+    tufts, y = mask_layer('tufts', 'Dry tufts', list(placed), dressing='solid')
+    s.spawn(tufts, 'Dry tufts', 11, y, entries(DRY_TUFT_MESHES, density_scaling=True), scale=(0.8, 1.25),
+            sink=SCRUB_SINK)
+    if scrub.get('pitTufts'):
+        pit_tufts, y = listed('Pit tufts', scrub['pitTufts'])
+        s.spawn(pit_tufts, 'Pit tufts', 11, y, entries(PIT_TUFT_MESHES), scale=(0.8, 1.25), sink=SCRUB_SINK)
 
 
 def place_volume(area, graph):
@@ -570,6 +702,7 @@ def place_volume(area, graph):
 
 if __name__ == '__main__':
     AREA = Area(sys.argv[1] if len(sys.argv) > 1 else 'TutorialIsland')
-    graph = build_graph(AREA, import_mask(AREA))
+    SCRUB = import_mask(AREA, AREA.scrub['texture']) if AREA.scrub else None
+    graph = build_graph(AREA, import_mask(AREA), SCRUB)
     volume = place_volume(AREA, graph)
     unreal.log(f'Island scatter: graph {graph.get_path_name()}, volume {volume.get_path_name()}; generating')

@@ -481,15 +481,21 @@ def _all_of_each(area, data):
 def _grounded(area, data):
     """A grounded area's extra entries: the ring's macro map, the seam band and the playable boundary."""
     region = area.region
-    # The scatter mask's steep layers (area_scatter.py, with regional ridges); Tools/Unreal/build_island_scatter.py
-    # adds their graph layers when this is there.
+    # The scatter mask's creases' pines and the scrub (area_scatter.py, area_scrub.py, with regional ridges);
+    # Tools/Unreal/build_island_scatter.py adds their graph layers when these are there.
     if region.ridges:
         data['macroMap']['scatterMap']['steep'] = (
-            'on ground steeper than 32 degrees, which no flat layer reaches: G is slope tufts and B low bushes (to '
-            '50 degrees: climbing the ridges\' faces from their foot and creases, thinning upward, sparse on other '
-            'steep banks; tufts out to 40 m past the boundary, bushes 80 m), and R over 37 degrees pines in the '
-            'faces\' creases (area_faces.py), which past the boundary also carries the creases\' trees on gentler '
-            'ground')
+            'R over 37 degrees is pines in the ridges\' faces\' creases (area_faces.py), which past the boundary also '
+            'carries the creases\' trees on gentler ground')
+        import area_scrub
+        data['scrub'] = dict(
+            {'texture': area.scrub_texture, 'covers': data['macroMap']['covers'],
+             'note': 'the dry scrub (area_scrub.py): the mask\'s layers (a channel each, candidates every cell cm '
+                     'jittered by jitter of a cell, kept where mask x random >= keep; the graph names the meshes), '
+                     'and points in cm: crestJunipers [x, y, yaw], pitTufts and pitSage [x, y], '
+                     'rimJunipers [x, y, yaw]',
+             'layers': area_scrub.LAYERS},
+            **area_scrub.points(area))
     ring = [[-region.half * 100.0, -region.half * 100.0], [region.half * 100.0, region.half * 100.0]]
     half, side = _number(region.half * 100.0), _number(region.half * 200.0)
     data['ringMap'] = {'texture': area.ring_macro_texture, 'covers': ring,

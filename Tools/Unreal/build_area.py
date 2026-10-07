@@ -73,7 +73,7 @@ CLIFF_COURSE_OVERLAP = 30.0  # a lower course reaches this far up behind the one
 # and each turns a little more. An area's layout can name its own (level.cliffs.varied), and give their tops a spread
 # (level.cliffs.top: the share of the wall each piece's top reaches, so a run's top isn't one line and the terrain's own
 # rock shows over the short ones) and gaps (level.cliffs.gaps: the share of single-course pieces left out, never two
-# side by side nor a run's end, so a long wall breaks).
+# side by side nor a run's end, so a long wall breaks; groups in level.cliffs.solid, such as a pit's wall, never get one).
 VARIED_CLIFFS = ('boundaryFoot',)
 VARY_SINK = (50.0, 200.0)     # cm a piece sinks below its foot
 VARY_STRETCH = (0.85, 1.15)   # height scales a piece is picked for, when the kit has one that fits
@@ -564,6 +564,8 @@ class AreaBuild:
         varied = tuple(self.cliff_look.get('varied', VARIED_CLIFFS))
         top = self.cliff_look.get('top')
         gap_share = self.cliff_look.get('gaps', 0.0)
+        # A pit's wall stands against the cut behind it, so a gap there reads as a dark seam, not a broken edge.
+        solid = set(self.cliff_look.get('solid', []))
         leaning = self.cliff_look.get('lean', [])
         tiles = terrain_tiles(self.tag) if leaning else []
         placed = left_out = 0
@@ -602,7 +604,7 @@ class AreaBuild:
                     turn, sink, mirror = rng.uniform(-4.0, 4.0), 0.0, 1.0
                     if group in varied:
                         # Its own draws; the shared ones above are still made, so the groups after it keep theirs.
-                        if len(courses) == 1 and cliff_gap(group, i, len(points), gap_share):
+                        if len(courses) == 1 and group not in solid and cliff_gap(group, i, len(points), gap_share):
                             left_out += 1
                             continue
                         mesh, piece_height, piece_width, reach, sink, turn, mirror = varied_piece(

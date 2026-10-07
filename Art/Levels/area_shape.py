@@ -165,6 +165,11 @@ class Area(FeatureSteps):
         return f'Art/Textures/{self.name}Macro/T_{self.name}Scatter_BC.png'
 
     @property
+    def scrub_texture(self):
+        """A grounded area's scrub mask (area_scrub.py), beside the scatter mask."""
+        return f'Art/Textures/{self.name}Macro/T_{self.name}Scrub_BC.png'
+
+    @property
     def ring_macro_texture(self):
         """A grounded area's surround ring's macro color map (its own texture set, Art/Textures/<Area>RingMacro)."""
         return f'Art/Textures/{self.name}RingMacro/T_{self.name}RingMacro_BC.png'
