@@ -233,10 +233,12 @@ bool AChest::Interact(UInteractionComponent& User, bool bHeld)
 
 TOptional<FVector> AChest::GetInteractionLocation() const
 {
-	// The middle of the chest, where hands go to the lid; without its model, halfway up where it would be.
+	// The model's SOCKET_Interact on its front (where the hasp is), so focus is judged toward the side a player opens it
+	// from; else the middle of the chest; without its model, halfway up where it would be.
 	if (Body && Body->GetStaticMesh())
 	{
-		return Body->Bounds.Origin;
+		static const FName InteractSocket(TEXT("Interact"));
+		return Body->DoesSocketExist(InteractSocket) ? Body->GetSocketLocation(InteractSocket) : Body->Bounds.Origin;
 	}
 	return GetActorTransform().TransformPosition(FVector(0.0, 0.0, GetKindInfo().Height * 0.5));
 }
