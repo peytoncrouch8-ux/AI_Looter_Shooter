@@ -40,11 +40,11 @@ bool FStoryCondition::IsMet(const FCampaignRecord& Campaign, const UMissionRunne
 		{
 			return false;
 		}
-		if (FromStep > 0)
+		if (FromStep > 0 || BeforeStep > 0)
 		{
 			// The campaign keeps the main mission's step; a mission running here has its own.
 			const int32 Step = bHere ? Runner->GetStep(DuringMission) : Campaign.ActiveMissionStep;
-			if (Step < FromStep)
+			if (Step < FromStep || (BeforeStep > 0 && Step >= BeforeStep))
 			{
 				return false;
 			}
@@ -67,7 +67,8 @@ FString FStoryCondition::Describe() const
 	if (!DuringMission.IsNone())
 	{
 		// Steps for people from 1, as the runner's log counts them.
-		Parts.Add(TEXT("during ") + DuringMission.ToString() + (FromStep > 0 ? FString::Printf(TEXT(" from step %d"), FromStep + 1) : FString()));
+		Parts.Add(TEXT("during ") + DuringMission.ToString() + (FromStep > 0 ? FString::Printf(TEXT(" from step %d"), FromStep + 1) : FString())
+			+ (BeforeStep > 0 ? FString::Printf(TEXT(", before step %d"), BeforeStep + 1) : FString()));
 	}
 	return Parts.IsEmpty() ? FString(TEXT("always")) : FString::Join(Parts, TEXT("; "));
 }

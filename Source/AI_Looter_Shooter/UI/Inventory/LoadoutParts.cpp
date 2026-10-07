@@ -1,4 +1,5 @@
 #include "UI/Inventory/LoadoutParts.h"
+#include "Bestiary/Ledger.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/InkedIconData.inl"
@@ -152,9 +153,33 @@ namespace LoadoutParts
 		return Hint;
 	}
 
+	void TitlePageTabs(UWidgetTree& Tree, bool bLedger)
+	{
+		// The bestiary's tab is the second (EInventoryPage order); its title is the first text in its button.
+		constexpr int32 BestiaryPage = 1;
+		const FText Title = FText::FromString(FString(Ledger::BookName(bLedger)).ToUpper());
+		Tree.ForEachWidget([&Title](UWidget* Widget)
+		{
+			ULooterButton* Tab = Cast<ULooterButton>(Widget);
+			if (!Tab || Tab->Action != ActionPage || Tab->Index != BestiaryPage)
+			{
+				return;
+			}
+			UTextBlock* TabText = nullptr;
+			UWidgetTree::ForWidgetAndChildren(Tab, [&TabText](UWidget* Child)
+			{
+				TabText = TabText ? TabText : Cast<UTextBlock>(Child);
+			});
+			if (TabText && !TabText->GetText().EqualTo(Title))
+			{
+				TabText->SetText(Title);
+			}
+		});
+	}
+
 	UWidget* MakePageTabs(UWidgetTree* Tree, int32 ShownPage, TArray<ULooterButton*>& OutTabs)
 	{
-		static const TCHAR* const Pages[] = { TEXT("Loadout"), TEXT("Bestiary"), TEXT("Missions") };
+		static const TCHAR* const Pages[] = { TEXT("Loadout"), Ledger::BookName(false), TEXT("Missions") };
 		UHorizontalBox* Strip = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		OutTabs.Reset();
 		for (int32 Page = 0; Page < UE_ARRAY_COUNT(Pages); ++Page)

@@ -1,6 +1,7 @@
 // UMissionsWidget: the chosen mission (its words, steps, objectives and rewards), the keys, tracking, and what the page asks.
 
 #include "UI/Inventory/MissionsWidget.h"
+#include "Bestiary/Ledger.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionObjective.h"
 #include "Missions/MissionRewards.h"
@@ -271,7 +272,7 @@ void UMissionsWidget::RefreshPrompts()
 		Prompts.Add({ TEXT("E"), bTracked ? TEXT("Untrack") : TEXT("Track") });
 	}
 	Prompts.Add({ TEXT("1"), TEXT("Loadout") });
-	Prompts.Add({ TEXT("2"), TEXT("Bestiary") });
+	Prompts.Add({ TEXT("2"), Ledger::BookName(Ledger::IsOpenIn(this)) });
 	Prompts.Add({ Bindings ? Bindings->GetKey(TEXT("Inventory")).GetDisplayName().ToString() : FString(TEXT("Tab")), TEXT("Close") });
 	for (int32 Index = 0; Index < Prompts.Num(); ++Index)
 	{

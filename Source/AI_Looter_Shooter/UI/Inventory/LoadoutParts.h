@@ -115,6 +115,12 @@ namespace LoadoutParts
 	UWidget* MakePageTabs(UWidgetTree* Tree, int32 ShownPage, TArray<ULooterButton*>& OutTabs);
 	inline const FVector2D PageTabsPosition(800.f, 36.f);
 
+	/**
+	 * Names the tabs MakePageTabs made in Tree as the story stands: the bestiary's reads "Ledger" once Sexton has handed it
+	 * over (Bestiary/Ledger.h). A page's tabs are made once, so the HUD calls this as each page opens.
+	 */
+	void TitlePageTabs(UWidgetTree& Tree, bool bLedger);
+
 	/** A stat change, signed, with fewer decimals for big changes. */
 	FString FormatDelta(float Delta, int32 Decimals);
 	FString AmmoName(const FWeaponInstanceData& Item);

@@ -12,7 +12,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBestiaryEntriesTest, "Looter.Bestiary.Entries"
 
 bool FBestiaryEntriesTest::RunTest(const FString& Parameters)
 {
-	// Every page of the bestiary, now and later: written up, about an actor that exists, with a model for the stand.
+	// Every page of the bestiary, now and later: written up; an actor page about an actor that exists, with a model for
+	// the stand; a story's page (a story character, a Ledger name) with no actor at all, and any model it names there.
 	const TArray<UBestiaryEntry*> Entries = UBestiaryEntry::LoadAll();
 	TestTrue(TEXT("Has entries"), Entries.Num() >= 2);
 	for (const UBestiaryEntry* Entry : Entries)
@@ -20,14 +21,22 @@ bool FBestiaryEntriesTest::RunTest(const FString& Parameters)
 		const FString Name = Entry->GetName();
 		TestFalse(FString::Printf(TEXT("%s: has a name"), *Name), Entry->DisplayName.IsEmpty());
 		TestFalse(FString::Printf(TEXT("%s: has a description"), *Name), Entry->Description.IsEmpty());
-		TestNotNull(FString::Printf(TEXT("%s: its actor class loads"), *Name), Entry->ActorClass.LoadSynchronous());
-		TestNotNull(FString::Printf(TEXT("%s: has a model for the stand"), *Name), Entry->LoadPreviewMesh());
+		if (Entry->NeedsActor())
+		{
+			TestNotNull(FString::Printf(TEXT("%s: its actor class loads"), *Name), Entry->ActorClass.LoadSynchronous());
+			TestNotNull(FString::Printf(TEXT("%s: has a model for the stand"), *Name), Entry->LoadPreviewMesh());
+			continue;
+		}
+		TestTrue(FString::Printf(TEXT("%s: a story's page is about no actor"), *Name), Entry->ActorClass.IsNull());
+		TestTrue(FString::Printf(TEXT("%s: the model it names loads"), *Name), Entry->PreviewMesh.IsNull() || Entry->LoadPreviewMesh());
 	}
 
-	// Listed by section, in the sections' order.
+	// Listed by section, in the sections' order, and within one by order.
 	for (int32 Index = 1; Index < Entries.Num(); ++Index)
 	{
 		TestTrue(TEXT("Sorted by section"), Entries[Index - 1]->Category <= Entries[Index]->Category);
+		TestTrue(TEXT("...then by order"), Entries[Index - 1]->Category != Entries[Index]->Category
+			|| Entries[Index - 1]->SortOrder <= Entries[Index]->SortOrder);
 	}
 
 	// The spider's page reads its numbers from the spider itself.

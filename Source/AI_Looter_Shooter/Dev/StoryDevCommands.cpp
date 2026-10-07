@@ -5,15 +5,21 @@
 #if !UE_BUILD_SHIPPING
 
 #include "AI_Looter_Shooter.h"
+#include "Bestiary/BestiaryEntry.h"
+#include "Bestiary/Ledger.h"
+#include "Missions/MissionRunner.h"
+#include "Session/CampaignRecord.h"
 #include "Story/CaptionSubsystem.h"
 #include "Story/SpeakerPoint.h"
 #include "Story/SpeakerPointComponent.h"
 #include "Story/StoryCharacter.h"
 #include "Story/StoryLine.h"
+#include "World/WindowShutter.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
@@ -179,6 +185,89 @@ namespace
 		UE_LOG(LogLooter, Log, TEXT("%s: %s placed in front of the player, there %s; now %s."), Command, *Stranger->GetName(),
 			*Stranger->ShownWhen.Describe(), Stranger->IsShown() ? TEXT("shown") : TEXT("hidden"));
 	}
+
+	/**
+	 * Looter.Story.Shutters [open | slam]: Main Street's shutters (AWindowShutter, Main 3). With nothing, how many hang open
+	 * and shut; "open" swings every one back open against the wall, watching for the player again; "slam" slams them all,
+	 * each after its own moment, to see the slam without walking past.
+	 */
+	void Shutters(const TArray<FString>& Args, UWorld* World)
+	{
+		const TCHAR* Command = TEXT("Looter.Story.Shutters");
+		UWorld* GameWorld = FindGameWorld(World);
+		if (!GameWorld)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("%s: no level is being played (start the game first)."), Command);
+			return;
+		}
+		const FString Mode = Args.Num() > 0 ? Args[0].ToLower() : FString();
+		if (!Mode.IsEmpty() && Mode != TEXT("open") && Mode != TEXT("slam"))
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Usage: %s [open | slam]"), Command);
+			return;
+		}
+		int32 Total = 0;
+		int32 Shut = 0;
+		for (TActorIterator<AWindowShutter> It(GameWorld); It; ++It)
+		{
+			AWindowShutter* Shutter = *It;
+			if (Mode == TEXT("open"))
+			{
+				Shutter->OpenNow();
+			}
+			else if (Mode == TEXT("slam"))
+			{
+				Shutter->Slam(FMath::FRandRange(0.f, Shutter->MaxDelay));
+			}
+			++Total;
+			Shut += Shutter->IsShut() ? 1 : 0;
+		}
+		UE_LOG(LogLooter, Log, TEXT("%s: %d shutter(s), %d hanging open or slamming, %d shut%s."), Command, Total, Total - Shut, Shut,
+			Mode.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(" (%s)"), *Mode));
+	}
+
+	/**
+	 * Looter.Story.Ledger: whether the bestiary is Sexton's Ledger yet (Main 2's last step or past it), and the pages written
+	 * in it only: who's met, and which of the seven names' whereabouts are written in.
+	 */
+	void ShowLedger(const TArray<FString>& Args, UWorld* World)
+	{
+		const TCHAR* Command = TEXT("Looter.Story.Ledger");
+		const UMissionRunner* Runner = UMissionRunner::Get(FindGameWorld(World));
+		if (!Runner)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("%s: no level is being played (start the game first)."), Command);
+			return;
+		}
+		const FCampaignRecord& Campaign = Runner->GetCampaign();
+		const bool bOpen = Ledger::IsOpen(Campaign, Runner);
+		UE_LOG(LogLooter, Log, TEXT("%s: the %s (handed over at %s's step %d)."), Command,
+			bOpen ? TEXT("bestiary is Sexton's Ledger") : TEXT("bestiary isn't the Ledger yet"), *Ledger::Mission.ToString(), Ledger::HandedOverStep + 1);
+		for (const UBestiaryEntry* Entry : UBestiaryEntry::LoadAll())
+		{
+			if (Entry->IsListed(false))
+			{
+				continue;
+			}
+			const bool bName = Entry->Page == EBestiaryPage::LedgerName;
+			UE_LOG(LogLooter, Log, TEXT("  %s: %s%s"), *Entry->DisplayName.ToString(),
+				bName ? TEXT("a name") : Entry->IsKnown(false, Campaign, Runner) ? TEXT("met") : TEXT("not met yet"),
+				bName ? (Entry->IsFound(Campaign, Runner) ? *FString::Printf(TEXT(", found: %s"), *Entry->Habitat.ToString()) : TEXT(", whereabouts blank"))
+					: TEXT(""));
+		}
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs ShuttersCommand(
+		TEXT("Looter.Story.Shutters"),
+		TEXT("Looter.Story.Shutters [open | slam]: how Main Street's shutters hang; 'open' swings them all back open, watching for the ")
+		TEXT("player; 'slam' slams them all."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&Shutters));
+
+	FAutoConsoleCommandWithWorldAndArgs ShowLedgerCommand(
+		TEXT("Looter.Story.Ledger"),
+		TEXT("Looter.Story.Ledger: whether the bestiary is Sexton's Ledger yet, and the pages written in it only (met or not, and the ")
+		TEXT("seven names' whereabouts)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ShowLedger));
 
 	FAutoConsoleCommandWithWorldAndArgs ShowCaptionCommand(
 		TEXT("Looter.Story.Caption"),

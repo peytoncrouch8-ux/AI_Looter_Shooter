@@ -1,5 +1,7 @@
 #include "UI/HUD/LooterHUD.h"
+#include "Bestiary/Ledger.h"
 #include "UI/Bestiary/BestiaryWidget.h"
+#include "UI/Inventory/LoadoutParts.h"
 #include "UI/Inventory/LoadoutWidget.h"
 #include "UI/Inventory/MissionsWidget.h"
 #include "UI/Menus/SettingsMenuWidget.h"
@@ -12,6 +14,7 @@
 #include "Settings/KeyBindingSubsystem.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetTree.h"
 #include "EnhancedInputComponent.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
@@ -250,6 +253,11 @@ bool ALooterHUD::OpenInventoryPage()
 		break;
 	}
 	Page->AddToViewport(20);
+	// Its tabs stand made (a page builds them as it's first shown): the bestiary's reads "Ledger" once Sexton has handed it over.
+	if (Page->WidgetTree)
+	{
+		LoadoutParts::TitlePageTabs(*Page->WidgetTree, Ledger::IsOpenIn(this));
+	}
 
 	FInputModeUIOnly InputMode;
 	InputMode.SetWidgetToFocus(Page->TakeWidget());

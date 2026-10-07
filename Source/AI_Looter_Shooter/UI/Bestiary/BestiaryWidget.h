@@ -36,6 +36,11 @@ class UVerticalBox;
  *  - bottom: what the keys do
  * W / S, the arrows or the D-pad choose an entry (so does the mouse); 1, the left shoulder or the Loadout tab go back to
  * the loadout, 3, the right shoulder or the Missions tab on to the missions; Esc, Tab and I close.
+ *
+ * From Main 2 it's Sexton's Ledger (Bestiary/Ledger.h): the same page in his words, with the pages written in it only
+ * (the story's characters and the seven names). A story character's page has words (and the model it names, Hob's) but
+ * no numbers; a Ledger name's has its whereabouts, blank until the story finds them. BestiaryWidgetDetails.cpp builds the
+ * chosen entry's side.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UBestiaryWidget : public UUserWidget
@@ -86,8 +91,16 @@ private:
 
 	const UBestiaryEntry* GetSelected() const;
 	int32 GetDefeated(const UBestiaryEntry& Entry) const;
-	/** The player has met one: its page is open. Until then it reads "???" and its model stands as a silhouette. */
+	/**
+	 * The player has met one, or the story has met them: its page is open. Until then it reads "???" and its model stands
+	 * as a silhouette.
+	 */
 	bool IsKnown(const UBestiaryEntry& Entry) const;
+	/** A Ledger name's whereabouts are written in (the story has found them). */
+	bool IsFound(const UBestiaryEntry& Entry) const;
+
+	/** The book is Sexton's Ledger (read as the page opens): its words, and its pages listed. */
+	bool bLedger = false;
 
 	TWeakObjectPtr<ALooterHUD> OwningHUD;
 	TWeakObjectPtr<ABestiaryStage> Stage;
@@ -99,6 +112,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UImage> StageImage;
 	UPROPERTY(Transient) TObjectPtr<ULoadoutPaintLayer> BackLayer;
 	UPROPERTY(Transient) TObjectPtr<ULoadoutPaintLayer> FrontLayer;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ListTitle;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> ListCount;
 	UPROPERTY(Transient) TObjectPtr<UScrollBox> ListBox;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> DetailsHeader;

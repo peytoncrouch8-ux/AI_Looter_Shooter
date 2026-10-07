@@ -1,7 +1,10 @@
 #include "UI/Bestiary/BestiaryWidget.h"
 #include "AI_Looter_Shooter.h"
 #include "Bestiary/BestiaryEntry.h"
+#include "Bestiary/Ledger.h"
+#include "Missions/MissionRunner.h"
 #include "Progression/PlayerProgressionSubsystem.h"
+#include "Session/CampaignRecord.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "UI/Bestiary/BestiaryStage.h"
 #include "UI/HUD/LooterHUD.h"
@@ -43,24 +46,6 @@ namespace
 	constexpr float ColumnHeight = 690.f;
 
 	const EBestiaryCategory Sections[] = { EBestiaryCategory::Creature, EBestiaryCategory::Enemy, EBestiaryCategory::NPC, EBestiaryCategory::Friend };
-
-	/** "Creature", "Enemy", "NPC", "Friend": the details header's word for one entry. */
-	FString CategoryWord(EBestiaryCategory Category)
-	{
-		switch (Category)
-		{
-		case EBestiaryCategory::Creature: return TEXT("Creature");
-		case EBestiaryCategory::Enemy:    return TEXT("Enemy");
-		case EBestiaryCategory::NPC:      return TEXT("NPC");
-		case EBestiaryCategory::Friend:   return TEXT("Friend");
-		}
-		return FString();
-	}
-
-	FString FormatWhole(float Value)
-	{
-		return FText::AsNumber(FMath::RoundToInt(Value)).ToString();
-	}
 }
 
 // ---------------------------------------------------------------------------
@@ -72,12 +57,17 @@ void UBestiaryWidget::Open(ALooterHUD* InHUD)
 	OwningHUD = InHUD;
 	SetIsFocusable(true);
 
-	// Read every time, so an entry added in the editor shows up the next time the page opens.
+	// Read every time, so an entry added in the editor shows up the next time the page opens, and the Ledger's own pages
+	// once Sexton has handed it over.
+	bLedger = Ledger::IsOpenIn(this);
 	const UBestiaryEntry* Previous = GetSelected();
 	Entries.Reset();
 	for (UBestiaryEntry* Entry : UBestiaryEntry::LoadAll())
 	{
-		Entries.Add(Entry);
+		if (Entry->IsListed(bLedger))
+		{
+			Entries.Add(Entry);
+		}
 	}
 	Selected = FMath::Max(Entries.IndexOfByKey(Previous), 0);
 
@@ -235,7 +225,8 @@ TSharedRef<SWidget> UBestiaryWidget::RebuildWidget()
 		{
 			UVerticalBox* Left = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 			UHorizontalBox* Header = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			Header->AddChildToHorizontalBox(Label(WidgetTree, TEXT("Field guide"), 10, Color::Accent(), 300));
+			ListTitle = Label(WidgetTree, Ledger::Words(bLedger).ListTitle, 10, Color::Accent(), 300);
+			Header->AddChildToHorizontalBox(ListTitle);
 			ListCount = Label(WidgetTree, TEXT(""), 10, Color::TextDim(), 200);
 			Header->AddChildToHorizontalBox(ListCount)->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
 			Left->AddChildToVerticalBox(Header);
@@ -310,7 +301,9 @@ void UBestiaryWidget::RebuildList()
 	ListBox->ClearChildren();
 	Cards.Reset();
 	Cards.SetNum(Entries.Num());
-	ListCount->SetText(FText::FromString(FString::Printf(TEXT("%d %s"), Entries.Num(), Entries.Num() == 1 ? TEXT("entry") : TEXT("entries")).ToUpper()));
+	const Ledger::FWords& Words = Ledger::Words(bLedger);
+	ListTitle->SetText(FText::FromString(Words.ListTitle.ToUpper()));
+	ListCount->SetText(FText::FromString(FString::Printf(TEXT("%d %s"), Entries.Num(), Entries.Num() == 1 ? *Words.One : *Words.Many).ToUpper()));
 
 	// Every section is listed, empty or not, so the guide shows what's still out there to meet.
 	for (int32 SectionIndex = 0; SectionIndex < UE_ARRAY_COUNT(Sections); ++SectionIndex)
@@ -361,7 +354,7 @@ UBestiaryWidget::FCard UBestiaryWidget::MakeEntryCard(int32 Index)
 	UVerticalBox* Text = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Text->AddChildToVerticalBox(FittedLabel(WidgetTree, bKnown ? Entry.DisplayName.ToString() : FString(Unknown), 10,
 		bKnown ? Color::Text() : Color::TextDim(), 50));
-	FString Sub = bKnown ? Entry.Kind.ToString() : FString(TEXT("Not met yet"));
+	FString Sub = bKnown ? Entry.Kind.ToString() : Ledger::Words(bLedger).NotMet;
 	if (bKnown && Stats.Level > 0)
 	{
 		Sub += FString::Printf(TEXT("%sLv %d"), Sub.IsEmpty() ? TEXT("") : TEXT(" · "), Stats.Level);
@@ -372,13 +365,16 @@ UBestiaryWidget::FCard UBestiaryWidget::MakeEntryCard(int32 Index)
 	TextSlot->SetVerticalAlignment(VAlign_Center);
 	TextSlot->SetPadding(FMargin(4.f, 0.f, 8.f, 0.f));
 
-	// How many you've defeated, on the right.
-	const int32 Defeated = GetDefeated(Entry);
-	UVerticalBox* Count = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	Count->AddChildToVerticalBox(Label(WidgetTree, FText::AsNumber(Defeated).ToString(), 12, Defeated > 0 ? Color::Text() : Color::TextDim(), 40))
-		->SetHorizontalAlignment(HAlign_Right);
-	Count->AddChildToVerticalBox(Label(WidgetTree, TEXT("Defeated"), 7, Color::TextDim(), 120))->SetHorizontalAlignment(HAlign_Right);
-	Line->AddChildToHorizontalBox(Count)->SetVerticalAlignment(VAlign_Center);
+	// How many you've defeated, on the right: only something met in the world is fought (a story's page has no count).
+	if (Entry.NeedsActor())
+	{
+		const int32 Defeated = GetDefeated(Entry);
+		UVerticalBox* Count = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		Count->AddChildToVerticalBox(Label(WidgetTree, FText::AsNumber(Defeated).ToString(), 12, Defeated > 0 ? Color::Text() : Color::TextDim(), 40))
+			->SetHorizontalAlignment(HAlign_Right);
+		Count->AddChildToVerticalBox(Label(WidgetTree, TEXT("Defeated"), 7, Color::TextDim(), 120))->SetHorizontalAlignment(HAlign_Right);
+		Line->AddChildToHorizontalBox(Count)->SetVerticalAlignment(VAlign_Center);
+	}
 
 	UOverlay* Box = MakeCard(WidgetTree, Line, FMargin(14.f, 7.f), 1.3f, Card.Fill, Card.Line);
 	Card.Button = WidgetTree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
@@ -421,106 +417,6 @@ void UBestiaryWidget::Restyle()
 	}
 }
 
-void UBestiaryWidget::RefreshDetails()
-{
-	if (!DetailsBox)
-	{
-		return;
-	}
-	DetailsBox->ClearChildren();
-	NotesBox->ClearChildren();
-	const UBestiaryEntry* Entry = GetSelected();
-	const ABestiaryStage* StagePtr = Stage.Get();
-	StageHint->SetVisibility(StagePtr && StagePtr->HasModel() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
-	if (!Entry)
-	{
-		DetailsHeader->SetText(FText::FromString(TEXT("BESTIARY")));
-		DetailsBox->AddChildToVerticalBox(Label(WidgetTree, TEXT("No entries yet"), 17, Color::TextDim(), 40));
-		UTextBlock* Help = MakeText(WidgetTree, TEXT("The creatures, enemies and people you meet are written up here."), 10, Color::TextDim());
-		Help->SetAutoWrapText(true);
-		DetailsBox->AddChildToVerticalBox(Help)->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
-		return;
-	}
-
-	// Not met yet: only its section is known, and the page says how to fill it in.
-	const bool bKnown = IsKnown(*Entry);
-	bSelectedKnown = bKnown;
-	const FString Kind = bKnown ? Entry->Kind.ToString() : FString();
-	DetailsHeader->SetText(FText::FromString((Kind.IsEmpty() ? CategoryWord(Entry->Category) : CategoryWord(Entry->Category) + TEXT(" · ") + Kind).ToUpper()));
-
-	UTextBlock* NameText = Label(WidgetTree, bKnown ? Entry->DisplayName.ToString() : FString(Unknown), 17, bKnown ? Color::Text() : Color::TextDim(), 40);
-	NameText->SetAutoWrapText(true);
-	DetailsBox->AddChildToVerticalBox(NameText);
-	const FString Habitat = bKnown ? Entry->Habitat.ToString() : FString(TEXT("Not met yet"));
-	if (!Habitat.IsEmpty())
-	{
-		DetailsBox->AddChildToVerticalBox(Label(WidgetTree, Habitat, 9, Color::TextDim(), 140))->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
-	}
-
-	// The numbers, read from the actor itself.
-	const FBestiaryStats Stats = Entry->ReadStats();
-	auto AddStat = [this](const TCHAR* StatName, const FString& Value, bool bLit)
-	{
-		UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		UHorizontalBoxSlot* NameSlot = Line->AddChildToHorizontalBox(Label(WidgetTree, StatName, 8, Color::TextDim(), 120));
-		NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		NameSlot->SetVerticalAlignment(VAlign_Center);
-		UTextBlock* ValueText = MakeText(WidgetTree, Value, 11, bLit ? Color::Text() : Color::TextDim());
-		ValueText->SetJustification(ETextJustify::Right);
-		Line->AddChildToHorizontalBox(ValueText)->SetVerticalAlignment(VAlign_Center);
-		DetailsBox->AddChildToVerticalBox(MakeSized(WidgetTree, Line, 0.f, 24.f))->SetPadding(FMargin(0.f, 2.f));
-	};
-	DetailsBox->AddChildToVerticalBox(MakeSized(WidgetTree, nullptr, 0.f, 8.f));
-	if (!bKnown)
-	{
-		for (const TCHAR* StatName : { TEXT("Level"), TEXT("Health"), TEXT("Attack"), TEXT("Experience") })
-		{
-			AddStat(StatName, Unknown, false);
-		}
-		AddStat(TEXT("Defeated"), TEXT("0"), false);
-		UTextBlock* Help = MakeText(WidgetTree, TEXT("You haven't met one yet. Find it out in the world, or let it find you, to fill in this page."),
-			10, Color::TextDim());
-		Help->SetAutoWrapText(true);
-		NotesBox->AddChildToVerticalBox(Help);
-		return;
-	}
-	if (Stats.Level > 0)
-	{
-		AddStat(TEXT("Level"), FString::FromInt(Stats.Level), true);
-	}
-	if (Stats.bHasHealth)
-	{
-		AddStat(TEXT("Health"), FormatWhole(Stats.Health), true);
-	}
-	AddStat(TEXT("Attack"), Stats.bAttacks ? FString::Printf(TEXT("%s dmg"), *FormatWhole(Stats.AttackDamage)) : FString(TEXT("Harmless")), Stats.bAttacks);
-	AddStat(TEXT("Experience"), Stats.XPReward > 0 ? FString::Printf(TEXT("%d XP"), Stats.XPReward) : FString(TEXT("None")), Stats.XPReward > 0);
-	const int32 Defeated = GetDefeated(*Entry);
-	AddStat(TEXT("Defeated"), FText::AsNumber(Defeated).ToString(), Defeated > 0);
-
-	// Under the card: the description, then the field notes.
-	if (!Entry->Description.IsEmpty())
-	{
-		UTextBlock* Description = MakeText(WidgetTree, Entry->Description.ToString(), 10, Color::Text());
-		Description->SetAutoWrapText(true);
-		NotesBox->AddChildToVerticalBox(Description);
-	}
-	if (!Entry->Notes.IsEmpty())
-	{
-		NotesBox->AddChildToVerticalBox(Label(WidgetTree, TEXT("Field notes"), 10, Color::Accent(), 300))->SetPadding(FMargin(0.f, 18.f, 0.f, 4.f));
-		for (const FText& Note : Entry->Notes)
-		{
-			UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			UHorizontalBoxSlot* BulletSlot = Line->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Color::Accent())), 5.f, 5.f));
-			BulletSlot->SetVerticalAlignment(VAlign_Top);
-			BulletSlot->SetPadding(FMargin(2.f, 6.f, 10.f, 0.f));
-			UTextBlock* NoteText = MakeText(WidgetTree, Note.ToString(), 10, Color::Text());
-			NoteText->SetAutoWrapText(true);
-			Line->AddChildToHorizontalBox(NoteText)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			NotesBox->AddChildToVerticalBox(Line)->SetPadding(FMargin(0.f, 4.f, 8.f, 0.f));
-		}
-	}
-}
-
 void UBestiaryWidget::RefreshPrompts()
 {
 	if (!PromptBar)
@@ -559,11 +455,14 @@ const UBestiaryEntry* UBestiaryWidget::GetSelected() const
 
 bool UBestiaryWidget::IsKnown(const UBestiaryEntry& Entry) const
 {
-	// A page about no actor in particular has nothing to meet, so it's always open.
-	const UClass* ActorType = Entry.ActorClass.LoadSynchronous();
+	// A page about no actor in particular has nothing to meet in the world; one whose actor the player has met is open.
+	const UClass* ActorType = Entry.NeedsActor() ? Entry.ActorClass.LoadSynchronous() : nullptr;
 	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 	const UPlayerProgressionSubsystem* Progression = LocalPlayer ? LocalPlayer->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
-	return !ActorType || !Progression || Progression->HasEncountered(ActorType);
+	const bool bMet = !ActorType || !Progression || Progression->HasEncountered(ActorType);
+	// The story's pages open with the story: the session's campaign record.
+	const UMissionRunner* Runner = UMissionRunner::Get(this);
+	return Runner ? Entry.IsKnown(bMet, Runner->GetCampaign(), Runner) : Entry.IsKnown(bMet, FCampaignRecord());
 }
 
 int32 UBestiaryWidget::GetDefeated(const UBestiaryEntry& Entry) const

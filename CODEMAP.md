@@ -181,10 +181,14 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   spider with a brood at 50%, venom volleys from 25% and a 15 m wall.
 
 ## Bestiary
-- `Bestiary/BestiaryEntry`: `UBestiaryEntry` and `EBestiaryCategory`, one bestiary page as a data asset (in
-  `/Game/Data/Bestiary`): words and stand model, with level, health, attack and experience read from its actor class,
-  and what the actor wears on its bones (a hat) for the stand. `Tools/Unreal/create_bestiary_pages.py` writes pages
-  from data (the Unpaid's).
+- `Bestiary/BestiaryEntry`: `UBestiaryEntry`, `EBestiaryCategory` and `EBestiaryPage`, one bestiary page as a data asset
+  (in `/Game/Data/Bestiary`): words and stand model, with level, health, attack and experience read from its actor class,
+  and what the actor wears on its bones (a hat) for the stand. Its page type: an actor met in the world, a story
+  character with no actor (open once its story condition holds), or one of the Ledger's seven names (whereabouts blank
+  until found); pages written in the Ledger only. `Tools/Unreal/create_bestiary_pages.py` writes pages from data (the
+  Unpaid's; Hob's, Sexton's, Delia's, Tilly's, Aldana's and Ruth's; the seven names).
+- `Bestiary/Ledger`: `Ledger`, the bestiary as Sexton's Ledger from Main 2's "Open the Ledger" step on (read from the
+  campaign record), its name on the inventory's tab and key hints, and its words in his voice.
 
 ## Tutorial
 - `Tutorial/TutorialDirector`: `ATutorialDirector`, the tutorial island's steps (move, reach the village, take the rifle,
@@ -203,7 +207,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   progress in `FMissionObjectiveState`), with `FMissionContext`, `FMissionEvent` (Interact, Talk, Collect, Scene.X,
   Board.X) and the waypoint setting.
 - `Missions/MissionPlaceObjectives`: reach a place, travel a distance, defend for a time.
-- `Missions/MissionCombatObjectives`: kill N (class, tag, zone), kill a named actor, hit N.
+- `Missions/MissionCombatObjectives`: kill N (class, tag, zone), kill a named actor, hit N, clear an encounter
+  (`UMissionClearObjective`: done once a spawner is cleared, its count read from the spawner, so kills before the step
+  began count too: Main 2's nest, Main 3's gate).
 - `Missions/MissionEventObjectives`: event, interact or hold, talk at a speaker point, play a scene (done too when it
   played before the step began), board.
 - `Missions/MissionLastingInteractObjective`: `UMissionLastingInteractObjective`, Interact whose count lives in the
@@ -225,9 +231,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Story/StoryLine`: `FStoryLine`, one line said aloud: who says it, the words and its seconds (without seconds, a
   reading time for its words).
 - `Story/StoryLineSet.h`: `UStoryLineSet`, lines said together as a data asset (`DA_Lines_<Name>` in `/Game/Data/Story`,
-  made by `Tools/Unreal/create_story_lines.py`: Delia's, the headboards', Hob's).
+  made by `Tools/Unreal/create_story_lines.py`: Delia's, the headboards', Hob's, Sexton's deal, Tilly's).
 - `Story/StoryCondition`: `FStoryCondition`, when something of the story applies (after missions, before others, while
-  one is played, from one of its steps), read from the campaign record.
+  one is played, from one of its steps and before a later one), read from the campaign record.
 - `Story/CaptionQueue`: `FCaptionQueue`, the captions' rules apart from the world: lines one at a time in order, each
   for its seconds with its fades; a conversation that interrupts cuts the line on screen short.
 - `Story/CaptionSubsystem`: `UCaptionSubsystem`, the level's captions: plays lines (interrupting, or after what's
@@ -243,6 +249,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   perches chosen by story condition, flying in when the story moves him and saying his piece as he lands, talked to as a
   story character; `HobBirdRig.cpp` his rig (breathing, the head's small sudden steps, a ruffle now and then, the wings
   blended open from Hob.py's table and beating about the shoulder in flight).
+- `Story/MisterSexton`: `AMisterSexton`, Mister Sexton on the lookout's rail (Main 2): SM_MisterSexton seated on the
+  Lookout's Sit socket with SM_SextonLedger on his Ledger socket and his captions from his Speaker socket; a story
+  character shown by its condition that never turns or breathes, solid to the player and the Interact line but not to
+  shots; once the story is done with him he goes the next time nobody is looking or listening.
 
 ## Scenes
 - `Scenes/SceneTimeline`: `FSceneTimeline`, a scene as a timeline with nothing in Sequencer: moves over spans of it,
@@ -384,6 +394,12 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   Interact to open the station board) and its landing on the platform (Landing_Depot).
 - `World/SafeGround`: `ASafeGround`, a safe zone: ground where nothing hunts the player (Delia's salt line; Main
   Street after Main 3), a polygon or circle switched by its story condition.
+- `World/WantedPoster`: `AWantedPoster`, Ellis's wanted poster as a decal of its atlas cell, torn down by holding
+  Interact (it swaps to the remnant and a scrap falls; Hob remarks), or Calder's note read with a tap; torn ones stay
+  torn with the session's map world. `WantedPosterTear.cpp` is the tear and the falling scrap.
+- `World/WindowShutter`: `AWindowShutter`, one of Main Street's shutters on a false front's Shutter socket (Main 3): open
+  flat against the wall until the player comes near, then it slams shut (after a moment of its own) and stays shut;
+  shut from the start after Main 3.
 - `World/PCGGroundFitFilter`: `UPCGGroundFitFilterSettings`, the meadow's PCG node that drops ground cover patches
   hanging off an edge and presses ones floating over a bump into the ground (editor-time; the graph ships with the level).
 - `World/LightingState`: `FLightingState`, one way a level can be lit (Day, Dusk): the sun by bearing and elevation with
@@ -455,12 +471,15 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `MissionsWidgetDetails.cpp` the chosen mission's steps, objectives and rewards, the keys and tracking.
 - `UI/Inventory/LoadoutRules`: `LoadoutRules`, the backpack list's compare and sort rules.
 - `UI/Inventory/LoadoutParts`: `LoadoutParts`, the inventory pages' layout, colors, vector art, card builders and title
-  tabs.
+  tabs (the bestiary's titled "Ledger" once it's Sexton's, `TitlePageTabs`).
 - `UI/Inventory/LoadoutPaintLayer`: `ULoadoutPaintLayer`, a see-through layer the screen draws on.
 - `UI/Inventory/LoadoutStage`: `ALoadoutStage`, the off-screen stand-in of the character and its capture.
 - `UI/Inventory/StageStudio`: `StageStudio`, what the inventory's off-screen stands share (spot, capture, studio lights,
   picture, projection).
-- `UI/Bestiary/BestiaryWidget.cpp`: the bestiary, the inventory's second page: opening, layout and contents.
+- `UI/Bestiary/BestiaryWidget.cpp`: the bestiary, the inventory's second page (Sexton's Ledger from Main 2, with its
+  own pages and words): opening, layout and the list.
+- `UI/Bestiary/BestiaryWidgetDetails.cpp`: the chosen entry's card, description and notes, for each kind of page (an
+  actor's numbers, a story character's words, a Ledger name's whereabouts).
 - `UI/Bestiary/BestiaryWidgetInput.cpp`: its keys, turning the model, and the ring it stands on.
 - `UI/Bestiary/BestiaryWidget.h`: the bestiary's declaration.
 - `UI/Bestiary/BestiaryStage`: `ABestiaryStage`, the off-screen stand that shows an entry's model, framed to its size,
@@ -492,7 +511,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Dev/InteractionDevCommands.cpp`: `Looter.Interaction.Spawn <door|bell|lantern>`, a greybox interactable in front of
   the player; `Looter.Interaction.Focus`, what the player would use now.
 - `Dev/StoryDevCommands.cpp`: `Looter.Story.Caption [speaker words...] | stop`, `Looter.Story.Door` (Delia's talking
-  test door), `Looter.Story.Character [mission id]` (a placeholder story character).
+  test door), `Looter.Story.Character [mission id]` (a placeholder story character), `Looter.Story.Shutters [open |
+  slam]` (Main Street's shutters), `Looter.Story.Ledger` (whether the bestiary is the Ledger yet, and its own pages).
 - `Dev/RespawnDevCommands.cpp`: `Looter.Respawn.List`, `.Activate <id | all>`, `.Place [closed]` (a test grave where the
   player stands), `.Die`.
 - `Dev/WorldDevCommands.cpp`: `Looter.InstanceCollision`, whether the world's instanced meshes (the scattered trees and
@@ -514,7 +534,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LightingTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
-  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `PosterTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `WeaponTests.cpp`,
+  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `PosterTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `WeaponTests.cpp`,
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)
@@ -597,9 +617,12 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Tools/Unreal/build_area_travel.py`: where an area's trips start and end, for `build_area.py`: the skiff jetty
   (`gameplay.jetty`), the depot as its station with the landing on the platform, the first arrival's player start
   beside the level's own (`gameplay.spawnLanding`), and markers for other landings.
-- `Tools/Unreal/build_area_story.py`: the story's pieces placed from the placed models' sockets, for `build_area.py`'s
-  gameplay pass (Ransom's Rest only): the cold open's set at the lookout, the family plot's respawn grave (open after
-  Main 1), the two headboards to read, Delia's speaker point at the farmhouse's screen door, and Hob with his perches.
+- `Tools/Unreal/build_area_story.py`: the story's pieces placed from the placed models' sockets and the layout's zones,
+  obstacles and roads, for `build_area.py`'s gameplay pass (Ransom's Rest only): the cold open's set at the lookout, the
+  family plot's respawn grave (open after Main 1), the two headboards to read, Delia's speaker point at the farmhouse's
+  screen door; Sexton on the lookout's rail, Ransom's Point's place and its spider nest (Main 2); the town gate's place
+  and its Unpaid, Tilly's window, the store's shutters, the farm's and Main Street's safe zones (Main 3); and Hob with his
+  perches through Main 3.
 - `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`); its mask is imported
   again whenever the PNG changes (its MD5 kept on the texture as metadata).
   `Tools/Unreal/island_views.py`: an area's viewpoints as editor cameras and shots.

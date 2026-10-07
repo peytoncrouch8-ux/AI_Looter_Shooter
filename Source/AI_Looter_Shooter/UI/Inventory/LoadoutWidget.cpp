@@ -1,4 +1,5 @@
 #include "UI/Inventory/LoadoutWidget.h"
+#include "Bestiary/Ledger.h"
 #include "UI/Inventory/LoadoutPaintLayer.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Inventory/LoadoutRules.h"
@@ -745,7 +746,7 @@ void ULoadoutWidget::RefreshPrompts()
 	{
 		const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 		const UKeyBindingSubsystem* Bindings = LocalPlayer ? LocalPlayer->GetSubsystem<UKeyBindingSubsystem>() : nullptr;
-		Prompts.Add({ TEXT("2"), TEXT("Bestiary") });
+		Prompts.Add({ TEXT("2"), Ledger::BookName(Ledger::IsOpenIn(this)) });
 		Prompts.Add({ TEXT("3"), TEXT("Missions") });
 		Prompts.Add({ Bindings ? Bindings->GetKey(TEXT("Inventory")).GetDisplayName().ToString() : FString(TEXT("Tab")), TEXT("Close") });
 	}

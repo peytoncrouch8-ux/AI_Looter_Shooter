@@ -39,12 +39,20 @@ struct AI_LOOTER_SHOOTER_API FStoryCondition
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story", meta = (ClampMin = "0"))
 	int32 FromStep = 0;
 
+	/**
+	 * With DuringMission: it's on a step before this one, counted from 0 as FromStep is (the town gate's fight is on
+	 * during Main 3's second step only: from step 1, before step 2), so a fight already won doesn't come back when a
+	 * session is loaded on a later step. 0: until the mission ends.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story", meta = (ClampMin = "0"))
+	int32 BeforeStep = 0;
+
 	/** It asks nothing, so it always applies. */
 	bool IsEmpty() const;
 
 	/** It applies in Campaign. Runner adds the missions running in this level; without it only the campaign's main mission counts as being played. */
 	bool IsMet(const FCampaignRecord& Campaign, const UMissionRunner* Runner = nullptr) const;
 
-	/** "after Main1; before Main6; during Main2", or "always", for logs and the console. */
+	/** "after Main1; before Main6; during Main2 from step 2, before step 3", or "always", for logs and the console. */
 	FString Describe() const;
 };

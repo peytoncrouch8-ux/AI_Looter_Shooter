@@ -1,6 +1,7 @@
 #include "Bestiary/BestiaryEntry.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
+#include "Session/CampaignRecord.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -109,6 +110,32 @@ TArray<FBestiaryStandPart> UBestiaryEntry::GetPreviewParts(const USkeletalMesh* 
 		}
 	}
 	return Parts;
+}
+
+bool UBestiaryEntry::IsListed(bool bLedgerOpen) const
+{
+	// The Ledger's own pages wait for Sexton to hand it over; the rest were the bestiary's before it was his.
+	return bLedgerOpen || (!bLedgerOnly && Page != EBestiaryPage::LedgerName);
+}
+
+bool UBestiaryEntry::IsKnown(bool bMet, const FCampaignRecord& Campaign, const UMissionRunner* Runner) const
+{
+	switch (Page)
+	{
+	case EBestiaryPage::LedgerName:
+		// The name is written in from the first: that's the debt. Only where they are waits.
+		return true;
+	case EBestiaryPage::StoryCharacter:
+		return KnownWhen.IsMet(Campaign, Runner);
+	case EBestiaryPage::Actor:
+		break;
+	}
+	return bMet || (!KnownWhen.IsEmpty() && KnownWhen.IsMet(Campaign, Runner));
+}
+
+bool UBestiaryEntry::IsFound(const FCampaignRecord& Campaign, const UMissionRunner* Runner) const
+{
+	return Page == EBestiaryPage::LedgerName && !Habitat.IsEmpty() && !FoundWhen.IsEmpty() && FoundWhen.IsMet(Campaign, Runner);
 }
 
 bool UBestiaryEntry::Describes(const UClass* ActorType) const

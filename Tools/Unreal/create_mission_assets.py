@@ -22,6 +22,19 @@ missions (fields, steps and rewards) from what's written here; other mission ass
                        (within 9 m of Delia's door, tagged Speaker_Delia) and talking to Grandma Delia there. It starts by
                        itself on Ransom's Rest. 30% of a level's experience; the family plot's respawn grave opens with
                        it (ARespawnMarker FamilyPlot, Tools/Unreal/build_area_story.py).
+  DA_Mission_Main2     "Shall We Talk Business?" (Main 2), once Main 1 is done: up the bluff path onto Ransom's Point
+                       (within 18 m of its middle, the marker tagged Place_RansomsPoint, height counted, so the path
+                       under the edge isn't the top), clearing the spider nest there (the encounter BluffNest: four
+                       spiders and a Restless one, counted from the spawner, so one shot from the path still counts),
+                       talking to Mister Sexton on the lookout's rail (Speaker_Sexton), and opening the Ledger (the
+                       inventory's second page, which is his book from that step: Bestiary/Ledger.h). 30% of a level;
+                       the Ledger is the other reward.
+  DA_Mission_Main3     "Cold Welcome" (Main 3), once Main 2 is done: the farm road through the orchard to the town gate
+                       (within 10 m of the marker tagged Place_TownGate), fighting off the Unpaid there (the encounter
+                       TownGate: three and a Restless one), finding Bright & Daughter, Undertakers (within 8 m of Tilly's
+                       window, tagged Speaker_Tilly) and talking to Tilly there. 30% of a level and an Uncommon gun or
+                       better, the undertaker's unclaimed effects. Its id must stay "Main3": Side 1 opens after it
+                       (create_side_mission_assets.py), and Main Street's safe zone and shutters follow it.
 
 Objectives are instanced objects inside the asset, one class per kind (UMissionReachObjective, UMissionKillObjective, ...),
 made with unreal.new_object(<class>, asset) and listed in each step's 'objectives'. Classes for actor filters are loaded
@@ -39,7 +52,7 @@ def mission_types():
              'MissionStart', 'MissionWaypoint', 'MissionCollect', 'MissionPage', 'MissionTravelObjective',
              'MissionReachObjective', 'MissionCollectObjective', 'MissionHitObjective', 'MissionKillObjective',
              'MissionOpenPageObjective', 'MissionInteractObjective', 'MissionBoardObjective', 'MissionSceneObjective',
-             'MissionTalkObjective']
+             'MissionTalkObjective', 'MissionClearObjective', 'WeaponRarity']
     missing = [name for name in names if getattr(unreal, name, None) is None]
     if missing:
         raise RuntimeError(f"unreal.{', unreal.'.join(missing)} missing: build the C++ with Missions/ first")
@@ -93,10 +106,14 @@ def step(*objectives):
     return made
 
 
-def rewards(experience_share=0.0, unlock_areas=()):
+def rewards(experience_share=0.0, unlock_areas=(), gun=False, gun_rarity_floor='COMMON'):
+    """FMissionRewards: a share of a level's experience, areas opened, and a gun at the player's feet (at least as rare as
+    the floor)."""
     made = unreal.MissionRewards()
     made.set_editor_property('experience_share', experience_share)
     made.set_editor_property('unlock_areas', [unreal.Name(area) for area in unlock_areas])
+    made.set_editor_property('gun', gun)
+    made.set_editor_property('gun_rarity_floor', getattr(unreal.WeaponRarity, gun_rarity_floor))
     return made
 
 
@@ -164,6 +181,37 @@ def main1_steps(asset):
     ]
 
 
+def main2_steps(asset):
+    """Main 2, "Shall We Talk Business?": up onto Ransom's Point, the spider nest cleared, Sexton's deal, the Ledger. The
+    tags and the encounter's id are the ones Tools/Unreal/build_area_story.py gives what it places; the Ledger's step must
+    stay the fourth (Ledger::HandedOverStep, counted from 0: 3), as the book is his from it."""
+    return [
+        # Height counted: the bluff path runs under the top's edge, a few metres from its middle as the crow flies.
+        step(objective(asset, unreal.MissionReachObjective, "Climb the bluff path to Ransom's Point.",
+                       place=place(tag='Place_RansomsPoint', radius=1800.0, ignore_height=False))),
+        step(objective(asset, unreal.MissionClearObjective, 'Clear the spiders nesting at the top.',
+                       spawner_id=unreal.Name('BluffNest'), count=5)),
+        step(objective(asset, unreal.MissionTalkObjective, 'Talk to Mister Sexton.',
+                       speaker_tag=unreal.Name('Speaker_Sexton'))),
+        step(objective(asset, unreal.MissionOpenPageObjective, 'Open the Ledger: {Inventory}, then 2.',
+                       page=unreal.MissionPage.BESTIARY)),
+    ]
+
+
+def main3_steps(asset):
+    """Main 3, "Cold Welcome": the farm road into town, the Unpaid at the gate, Bright & Daughter, Tilly at her window."""
+    return [
+        step(objective(asset, unreal.MissionReachObjective, 'Follow the farm road through the orchard into town.',
+                       place=place(tag='Place_TownGate', radius=1000.0))),
+        step(objective(asset, unreal.MissionClearObjective, 'Fight off the Unpaid at the town gate.',
+                       spawner_id=unreal.Name('TownGate'), count=4)),
+        step(objective(asset, unreal.MissionReachObjective, 'Find Bright & Daughter, Undertakers.',
+                       place=place(tag='Speaker_Tilly', radius=800.0))),
+        step(objective(asset, unreal.MissionTalkObjective, 'Talk to Tilly at the window.',
+                       speaker_tag=unreal.Name('Speaker_Tilly'))),
+    ]
+
+
 def test_steps(asset):
     return [
         step(objective(asset, unreal.MissionKillObjective, 'Kill two creatures',
@@ -195,6 +243,17 @@ MISSIONS = [
                  "door to a corpse.",
          kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=[], sort_order=1, steps=main1_steps,
          rewards=dict(experience_share=0.3)),
+    dict(asset='DA_Mission_Main2', id='Main2', title='Shall We Talk Business?',
+         summary="Someone's waiting up top, on Ransom's Point, where it happened. Spiders nest there now, and a tall man in "
+                 "a stovepipe hat sits on the lookout's rail with a ledger on his knee. Reward: experience, and the "
+                 "Ledger.",
+         kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main1'], sort_order=2, steps=main2_steps,
+         rewards=dict(experience_share=0.3)),
+    dict(asset='DA_Mission_Main3', id='Main3', title='Cold Welcome',
+         summary="Into town by the farm road. The living shutter their windows, and the Unpaid come for the corpse at the "
+                 "gate. Tilly Bright, the undertaker's daughter, talks through her shop window.",
+         kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main2'], sort_order=3, steps=main3_steps,
+         rewards=dict(experience_share=0.3, gun=True, gun_rarity_floor='UNCOMMON')),
 ]
 
 
