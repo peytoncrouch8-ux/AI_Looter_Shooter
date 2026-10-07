@@ -1334,14 +1334,16 @@ STRIP_SWEEP = 0.04          # how far the strips' tips drift to his left (m): a 
 TIP_CUT = 0.006             # the strips' last row stands this far (m) past where their spacing would put it (their tips)
 TOP_RISE = 0.07             # the tube runs on up inside the trouser legs this far over its old top (of the shroud's length,
                             # about 8 cm: past the hems' highest notches), closed there by a cap, so no open end shows
-# M_Ghost's fade (vertex A) down the shroud: going soon below the hems, as the Unpaid's lower body goes. Down the tube it
-# falls from FADE_HEM at the knees (about 0.85 at the hems' lowest teeth, 2 cm down) to about 0.45 some 18 cm down and
-# FADE_ROOT where the strips tear off (this curve's power FADE_POWER), then down each strip to nothing at its tip; up
-# inside the legs it fades in from FADE_TOP at the cap, so its top edge never shows in the gap between his knees.
-FADE_HEM = 0.94
-FADE_ROOT = 0.32
-FADE_POWER = 2.25
+# M_Ghost's fade (vertex A) down the shroud, pulled in hard below the hems: the game's dithered fade draws a vertex A of
+# 0.5 nearly solid, so the shroud is a veil the rail shows through within a hand's width of the knees. Down the tube it
+# falls from FADE_HEM at the knees by a factor e every FADE_DECAY meters (about 0.75 at the hems' lowest teeth, 2 cm
+# down; 0.4 at 10 cm; 0.18 at 20 cm; 0.05 where the strips tear off), then down each strip to nothing by STRIP_GONE of
+# its length; up inside the legs it fades in from FADE_TOP at the cap, so its top edge never shows between his knees.
+FADE_HEM = 0.88
+FADE_DECAY = 0.127
+STRIP_GONE = 0.5
 FADE_TOP = 0.25
+SHROUD_LENGTH = float(np.linalg.norm(np.diff(spline(SHROUD_PATH, 300), axis=0), axis=1).sum())
 
 
 def shroud_fade(t, q=None):
@@ -1349,10 +1351,10 @@ def shroud_fade(t, q=None):
     strip, q of the way from its root to its tip."""
     t = np.asarray(t, float)
     top = FADE_TOP + (1.0 - FADE_TOP) * smoothstep(-TOP_RISE, -0.01, t)
-    x = np.clip(np.minimum(t, SHROUD_SPLIT) / SHROUD_SPLIT, 0.0, 1.0)
-    fade = top * (FADE_ROOT + (FADE_HEM - FADE_ROOT) * (1.0 - x) ** FADE_POWER)
+    down = np.clip(np.minimum(t, SHROUD_SPLIT), 0.0, None) * SHROUD_LENGTH
+    fade = top * FADE_HEM * np.exp(-down / FADE_DECAY)
     if q is not None:
-        fade = fade * (1.0 - smoothstep(0.0, 1.0, np.asarray(q, float)))
+        fade = fade * (1.0 - smoothstep(0.0, STRIP_GONE, np.asarray(q, float)))
     return fade
 
 
@@ -2121,11 +2123,10 @@ def build():
     # The strips fade as the Unpaid's do, so M_Ghost's noise breaks them up toward their tips: a measure, not a fault.
     log(f'shroud: over a whole period of the fade noise\'s drift, {islands} bits break off and {holes} holes open in the '
         f'fading strips' + (f' (the largest {1000.0 * largest:.0f} mm across)' if islands or holes else ''))
-    path = spline(SHROUD_PATH, 300)
-    length = float(np.linalg.norm(np.diff(path, axis=0), axis=1).sum())
     log('shroud fade (vertex A) down the tube: ' + ', '.join(
-        f'{float(shroud_fade(cm / 100.0 / length)):.2f} at {cm} cm' for cm in (0, 2, 10, 18, int(100 * SHROUD_SPLIT * length)))
-        + ', then down each strip to 0 at its tip')
+        f'{float(shroud_fade(cm / 100.0 / SHROUD_LENGTH)):.2f} at {cm} cm'
+        for cm in (0, 2, 10, 20, 25, int(100 * SHROUD_SPLIT * SHROUD_LENGTH)))
+        + f', then down each strip to 0 by {100 * STRIP_GONE:.0f}% of its length')
     log(f'hat: the Hay grain draws {hat_gain():.3f} as bright as the Polymer grain under M_Ghost')
     return rig, body, hat, fork, raw_colors
 
