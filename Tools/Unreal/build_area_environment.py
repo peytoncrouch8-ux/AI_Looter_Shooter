@@ -5,32 +5,41 @@ level.environment changes (Ransom's Rest's golden hour, step 5a of Docs/Areas/Ra
     "sun": {"azimuth": 247.5, "elevation": 15, "intensity": 7, "temperature": 4300},
     "sky": {"intensity": 1.0, "lowerHemisphere": [0.3, 0.25, 0.15]},
     "fog": {"height": -7000, "density": 0.02, "falloff": 0.05, "startDistance": 6000, "maxOpacity": 1.0,
-            "inscattering": [0.4, 0.33, 0.27],
+            "inscattering": [0.4, 0.33, 0.27], "cutoffDistance": 1350000,
             "directional": {"color": [1.0, 0.7, 0.4], "exponent": 8, "startDistance": 6000}},
-    "atmosphere": {"planetTop": -9000, "groundAlbedo": [0.45, 0.36, 0.22]},
+    "atmosphere": {"planetTop": -9000, "groundAlbedo": [0.45, 0.36, 0.22], "skyLuminance": [1.0, 1.35, 2.0],
+                   "ozone": 1},
     "clouds": {"radius": 1500000, "tint": [1, 1, 1]},
     "backdrop": {"tint": [1, 1, 1]},
     "post": {"exposureBias": 0.4},
     "states": {
       "Dusk": {"sun": {"azimuth": 252, "elevation": 4, "intensity": 4, "temperature": 3200, "shadowDistance": 6000},
-               "sky": {"intensity": 0.6}, "fog": {"inscattering": [0.2, 0.13, 0.08]}, "backdrop": {"tint": [0.3, 0.24, 0.24]}}
+               "sky": {"intensity": 0.6}, "atmosphere": {"skyLuminance": [1.2, 2.1, 5.0], "ozone": 3.5},
+               "fog": {"inscattering": [0.2, 0.13, 0.08]}, "backdrop": {"tint": [0.3, 0.24, 0.24]}}
     }
   }
 
 The sun is placed by compass: its azimuth is the bearing it stands at (0 north, 90 east, 247.5 west-southwest) and its
 elevation how high it stands over the horizon. Lengths are cm, colors linear RGB. Unreal's +X is north and +Y east.
 
+The atmosphere's skyLuminance multiplies the sky's own color. The sun's color temperature tints the whole sky through
+the atmosphere (a 4100 K sun turns a blue sky slate grey), so a golden hour cancels most of it here and the sky reddens
+only where the atmosphere reddens it, low toward the sun. Its ozone is the ozone layer's absorption as a multiple of
+Earth's: at sunset it soaks the green out of the light crossing the sky, leaving the sky away from the sun twilight's
+blue-violet. The fog's cutoffDistance (none by default) ends the haze before the sky and the cloud dome past it, which
+would otherwise wear it as a grey veil; a backdrop inside it still fades into the haze.
+
 Lighting states (step 13): an ALightingStates actor beside the lights holds the level's named states, which
 ULightingStateSubsystem switches between (Looter.Light Day|Dusk). Day is always the environment above, the light the
 level is built in; it can't be redefined. Each entry of "states" is another state, written as the groups it changes
 from Day: a group merges key by key over Day's (fog.directional too), so a dusk lists only what dusk changes. A state
 can change only what a switch sets at runtime (STATE_KEYS): the sun's azimuth, elevation, intensity, temperature,
-shadowDistance and cascades; the sky light's intensity (its color comes from recapturing the sky); the fog's density,
-inscattering and directional glow; the backdrop's and the clouds' tints, which go through the material parameter
-collection MPC_Lighting (M_Backdrop multiplies every layer by it); and the post volume's exposureBias. The rest (the
-fog's height and falloff, the atmosphere, the dome's size) stays as placed. Day's tints are best left white, since the
-editor shows the collection's white defaults. A layout without "states" gets a Day alone, and is otherwise built as
-before.
+shadowDistance and cascades; the sky light's intensity (its color comes from recapturing the sky); the atmosphere's
+skyLuminance and ozone; the fog's density, inscattering and directional glow; the backdrop's and the clouds' tints,
+which go through the material parameter collection MPC_Lighting (M_Backdrop multiplies every layer by it); and the post
+volume's exposureBias. The rest (the fog's height, falloff and cutoff, the planet and its ground, the dome's size) stays
+as placed. Day's tints are best left white, since the editor shows the collection's white defaults. A layout without
+"states" gets a Day alone, and is otherwise built as before.
 """
 import unreal
 
@@ -48,10 +57,11 @@ DEFAULTS = {
             # Cascaded shadows (Low and Medium) reach 100 m before the preset's scale (70 m on Medium).
             'shadowDistance': 10000.0, 'cascades': 2},
     'sky': {'intensity': 1.2, 'lowerHemisphere': [0.26, 0.30, 0.18]},  # light bouncing off the meadow
-    # Blue, filling the void under the island.
+    # Blue, filling the void under the island. A cutoff of 0 is none: the haze reaches the sky.
     'fog': {'height': -2000.0, 'density': 0.03, 'falloff': 0.12, 'startDistance': 3000.0, 'maxOpacity': 0.85,
-            'inscattering': [0.20, 0.29, 0.44], 'directional': None},
-    'atmosphere': None,
+            'inscattering': [0.20, 0.29, 0.44], 'directional': None, 'cutoffDistance': 0.0},
+    # The engine's Earth, its planet top at the world's origin unless planetTop moves it.
+    'atmosphere': {'skyLuminance': [1.0, 1.0, 1.0], 'ozone': 1.0},
     # 1 km: the island's horizon is the sky itself. The tint multiplies the painted clouds (MPC_Lighting CloudTint).
     'clouds': {'radius': 100000.0, 'tint': [1.0, 1.0, 1.0]},
     # Multiplies every backdrop layer's own tint (MPC_Lighting BackdropTint): white is the backdrop as built.
@@ -63,6 +73,7 @@ DEFAULTS = {
 STATE_KEYS = {
     'sun': {'azimuth', 'elevation', 'intensity', 'temperature', 'shadowDistance', 'cascades'},
     'sky': {'intensity'},
+    'atmosphere': {'skyLuminance', 'ozone'},
     'fog': {'density', 'inscattering', 'directional'},
     'backdrop': {'tint'},
     'clouds': {'tint'},
@@ -132,19 +143,20 @@ def color(values):
 
 def lighting_state(name, env):
     """One state as ALightingStates holds it (FLightingState)."""
-    sun, fog = env['sun'], env['fog']
+    sun, fog, atmosphere = env['sun'], env['fog'], env['atmosphere']
     glow = {**NO_GLOW, **(fog.get('directional') or {})}
     return unreal.LightingState(
         name=name, sun_bearing=sun['azimuth'], sun_elevation=sun['elevation'], sun_intensity=sun['intensity'],
         sun_temperature=sun['temperature'], shadow_distance=sun['shadowDistance'], shadow_cascades=int(sun['cascades']),
-        sky_intensity=env['sky']['intensity'], fog_density=fog['density'], fog_inscattering=color(fog['inscattering']),
+        sky_intensity=env['sky']['intensity'], sky_luminance=color(atmosphere['skyLuminance']),
+        ozone=atmosphere['ozone'], fog_density=fog['density'], fog_inscattering=color(fog['inscattering']),
         fog_directional_inscattering=color(glow['color']), fog_directional_exponent=glow['exponent'],
         fog_directional_start_distance=glow['startDistance'], backdrop_tint=color(env['backdrop']['tint']),
         cloud_tint=color(env['clouds']['tint']), exposure_bias=env['post']['exposureBias'])
 
 
 def place_states(build, states, lights):
-    """The level's lighting states beside the lights they drive (sun, sky light, height fog, post volume)."""
+    """The level's lighting states beside the lights they drive (sun, sky light, atmosphere, fog, post volume)."""
     cls = unreal.load_class(None, LIGHTING_STATES)
     if cls is None:
         build.warn('no LightingStates class (build the game module first): the level gets no lighting states')
@@ -152,7 +164,7 @@ def place_states(build, states, lights):
     actor = build.place(cls, (0, 0, 2500), label='LightingStates', folder='Environment')
     actor.set_editor_property('states', [lighting_state(name, s) for name, s in states.items()])
     actor.set_editor_property('initial_state', 'Day')
-    for prop, target in zip(('sun', 'sky_light', 'height_fog', 'post_volume'), lights):
+    for prop, target in zip(('sun', 'sky_light', 'atmosphere', 'height_fog', 'post_volume'), lights):
         actor.set_editor_property(prop, target)
     build.log('lighting states: ' + ', '.join(states))
 
@@ -188,19 +200,21 @@ def place(build):
                         ('lower_hemisphere_color', color(env['sky']['lowerHemisphere']))):
         sky_light.set_editor_property(name, value)
 
-    atmosphere = env['atmosphere']
-    if atmosphere:
+    atmosphere_settings = env['atmosphere']
+    atmosphere = build.place(unreal.SkyAtmosphere, (0, 0, atmosphere_settings.get('planetTop', 0.0)),
+                             label='SkyAtmosphere', folder='Environment')
+    air = atmosphere.get_component_by_class(unreal.SkyAtmosphereComponent)
+    if 'planetTop' in atmosphere_settings:
         # A grounded area's planet top sits down on the plains past the canyon, so the horizon and the ground under
         # it take the plains' color rather than the island's void.
-        actor = build.place(unreal.SkyAtmosphere, (0, 0, atmosphere.get('planetTop', 0.0)), label='SkyAtmosphere',
-                            folder='Environment')
-        component = actor.get_component_by_class(unreal.SkyAtmosphereComponent)
-        component.set_editor_property('transform_mode', unreal.SkyAtmosphereTransformMode.PLANET_TOP_AT_COMPONENT_TRANSFORM)
-        if 'groundAlbedo' in atmosphere:
-            r, g, b = (max(0, min(255, round(c * 255.0))) for c in atmosphere['groundAlbedo'][:3])
-            component.set_editor_property('ground_albedo', unreal.Color(r=r, g=g, b=b, a=255))
-    else:
-        build.place(unreal.SkyAtmosphere, (0, 0, 0), label='SkyAtmosphere', folder='Environment')
+        air.set_editor_property('transform_mode', unreal.SkyAtmosphereTransformMode.PLANET_TOP_AT_COMPONENT_TRANSFORM)
+    if 'groundAlbedo' in atmosphere_settings:
+        r, g, b = (max(0, min(255, round(c * 255.0))) for c in atmosphere_settings['groundAlbedo'][:3])
+        air.set_editor_property('ground_albedo', unreal.Color(r=r, g=g, b=b, a=255))
+    # Ozone as a multiple of the engine's absorption, which is Earth's ozone layer (as FLightingState's Ozone).
+    earth_ozone = unreal.get_default_object(unreal.SkyAtmosphereComponent).get_editor_property('other_absorption_scale')
+    air.set_editor_property('sky_luminance_factor', color(atmosphere_settings['skyLuminance']))
+    air.set_editor_property('other_absorption_scale', earth_ozone * atmosphere_settings['ozone'])
 
     fog_settings = env['fog']
     fog = build.place(unreal.ExponentialHeightFog, (0, 0, fog_settings['height']), label='HeightFog',
@@ -209,6 +223,7 @@ def place(build):
     for name, value in (('fog_density', fog_settings['density']), ('fog_height_falloff', fog_settings['falloff']),
                         ('start_distance', fog_settings['startDistance']),
                         ('fog_max_opacity', fog_settings['maxOpacity']),
+                        ('fog_cutoff_distance', fog_settings['cutoffDistance']),
                         ('fog_inscattering_luminance', color(fog_settings['inscattering']))):
         fog_component.set_editor_property(name, value)
     directional = fog_settings.get('directional')
@@ -246,5 +261,5 @@ def place(build):
         post_settings.set_editor_property(f'override_{name}', True)
     post.set_editor_property('settings', post_settings)
 
-    place_states(build, states, (sun, sky, fog, post))
+    place_states(build, states, (sun, sky, atmosphere, fog, post))
     return sky_light

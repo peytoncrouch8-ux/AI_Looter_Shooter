@@ -1621,7 +1621,7 @@
     "scatterVolume": "RansomsRestScatter",
     "wallSetback": 250,
     "environment": {
-      "about": "The golden hour tried out on Lvl_TerrainTest (Tools/Unreal/build_area_environment.py): the sun low in the west-southwest over the canyon, haze thickest down in the canyon and glowing warm toward the sun, full fog before the backdrop's last layer, the planet's top down on the plains, the cloud dome past the backdrop. Tuned on Ransom's Rest at step 5a.",
+      "about": "The golden hour tried out on Lvl_TerrainTest (Tools/Unreal/build_area_environment.py): the sun low in the west-southwest over the canyon, haze thickest down in the canyon and glowing warm toward the sun, full fog before the backdrop's last layer, the planet's top down on the plains, the cloud dome past the backdrop. Tuned on Ransom's Rest at step 5a. Art note 3 (the sky): the sky's own color cancels most of the warm sun's tint, so it stays a clear blue overhead and warms only toward the sun; the haze ends at 13.5 km, between the backdrop (12 km) and the cloud dome (15 km), so neither the sky nor the clouds wear it; the haze's glow toward the sun matches the warm sky there.",
       "sun": { "azimuth": 247.5, "elevation": 15, "intensity": 6.5, "temperature": 4100 },
       "sky": { "intensity": 1, "lowerHemisphere": [0.32,0.27,0.16] },
       "fog": {
@@ -1630,20 +1630,22 @@
         "falloff": 0.15,
         "startDistance": 6000,
         "maxOpacity": 1,
-        "inscattering": [0.3,0.33,0.38],
-        "directional": { "color": [0.9,0.6,0.3], "exponent": 8, "startDistance": 6000 }
+        "inscattering": [0.3,0.32,0.34],
+        "cutoffDistance": 1350000,
+        "directional": { "color": [1.5,0.95,0.3], "exponent": 8, "startDistance": 6000 }
       },
-      "atmosphere": { "planetTop": -9000, "groundAlbedo": [0.45,0.37,0.24] },
+      "atmosphere": { "planetTop": -9000, "groundAlbedo": [0.45,0.37,0.24], "skyLuminance": [1.0,1.35,2.0] },
       "clouds": { "radius": 1500000 },
       "states": {
         "Dusk": {
-          "about": "The scripted dusk (step 13; the cold open and Main 6, Looter.Light Dusk), tuned on Lvl_TerrainTest: the sun 4 degrees over the horizon a little further west, warmer and dimmer, its long shadows capped at 60 m; the sky light dimmer, recaptured behind the switch; the haze cooling to a dim violet away from the sun, still glowing amber toward it; the backdrop's ranges darkened and warmed through MPC_Lighting so none shows bright at sunset; the clouds dimmed to a dusky pink; the exposure lifted a little so the fight stays readable.",
-          "sun": { "azimuth": 252, "elevation": 4, "intensity": 4.0, "temperature": 3200, "shadowDistance": 6000, "cascades": 2 },
+          "about": "The scripted dusk (step 13; the cold open and Main 6, Looter.Light Dusk), tuned on Lvl_TerrainTest: the sun 4 degrees over the horizon a little further west, warmer and dimmer, its long shadows capped at 60 m; the sky light dimmer, recaptured behind the switch; the haze cooling to a dim violet away from the sun, still glowing amber toward it; the backdrop's ranges darkened and warmed through MPC_Lighting so none shows bright at sunset; the exposure lifted a little so the fight stays readable. Art note 3 (the sky): the ozone raised to 3.5 times Earth's and the sky's color corrected, so the sky away from the sun turns twilight's blue-violet while it still burns orange to pink around the sun; the sun at 3600 K rather than 3200 K, since the ozone reddens its light too; the clouds dimmed and warmed so their lit sides glow peach against the violet.",
+          "sun": { "azimuth": 252, "elevation": 4, "intensity": 4.0, "temperature": 3600, "shadowDistance": 6000, "cascades": 2 },
           "sky": { "intensity": 0.6 },
+          "atmosphere": { "skyLuminance": [1.2, 2.1, 5.0], "ozone": 3.5 },
           "fog": { "density": 0.015, "inscattering": [0.06, 0.07, 0.11],
                    "directional": { "color": [0.95, 0.45, 0.15], "exponent": 6 } },
           "backdrop": { "tint": [0.30, 0.24, 0.24] },
-          "clouds": { "tint": [0.34, 0.23, 0.24] },
+          "clouds": { "tint": [0.24, 0.13, 0.11] },
           "post": { "exposureBias": 0.5 }
         }
       }

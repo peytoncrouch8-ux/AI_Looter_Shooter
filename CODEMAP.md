@@ -406,13 +406,14 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `World/PCGGroundFitFilter`: `UPCGGroundFitFilterSettings`, the meadow's PCG node that drops ground cover patches
   hanging off an edge and presses ones floating over a bump into the ground (editor-time; the graph ships with the level).
 - `World/LightingState`: `FLightingState`, one way a level can be lit (Day, Dusk): the sun by bearing and elevation with
-  its shadows, the sky light, the fog's density and colors, the exposure, and the tints `MPC_Lighting` carries to the
-  unlit backdrop and clouds; blending two (the sun the short way round). Its defaults are the tutorial island's afternoon.
+  its shadows, the sky light, the sky's own color and ozone, the fog's density and colors, the exposure, and the tints
+  `MPC_Lighting` carries to the unlit backdrop and clouds; blending two (the sun the short way round). Its defaults are
+  the tutorial island's afternoon.
 - `World/LightingStates`: `ALightingStates`, a level's lighting states as data, placed with its lights by
   `Tools/Unreal/build_area_environment.py` from `layout.json` (Day is the light it's built in; Dusk and others from
   `level.environment.states`), and the lights and collection they drive.
-- `World/LightingTargets`: `FLightingTargets`, the lights a state drives (the states actor's, else the level's by kind):
-  sets a state on them and reads what they show.
+- `World/LightingTargets`: `FLightingTargets`, the lights a state drives (the states actor's, else the level's by kind:
+  sun, sky light, sky atmosphere, height fog, post volume): sets a state on them and reads what they show.
 - `World/LightingStateSubsystem`: `ULightingStateSubsystem`, switches the level between its states: behind the camera's
   fade with the sky light recaptured (the default), at once behind a caller's cover, or blended over seconds; writes
   `MPC_Lighting`; `OnChanged` for the cold open and Main 6. Ticks only during a switch.
@@ -604,16 +605,17 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   the ring (`far_trees.png`).
 - `Art/Levels/area_model.py`: the Blender side (tile, underside and water objects and their materials);
   `Art/Models/Terrain/<Area>.py` wrappers call it.
-- `Tools/Unreal/build_area.py`: `AreaBuild`, builds an area's level (`build_area.py <Area> [gameplay|beyond]`), with
-  what lies past the boundary tagged Beyond (a grounded area's ring, canyon wall, backdrop and far trees, the last as
-  `AInstancedScenery`; an island's sky islands), and the boundary's rock pieces varied (mirrored, sunk, turned);
-  `build_tutorial_island.py` wraps it for the tutorial island.
+- `Tools/Unreal/build_area.py`: `AreaBuild`, builds an area's level (`build_area.py <Area>
+  [gameplay|environment|beyond]`), with what lies past the boundary tagged Beyond (a grounded area's ring, canyon wall,
+  backdrop and far trees, the last as `AInstancedScenery`; an island's sky islands), and the boundary's rock pieces
+  varied (mirrored, sunk, turned); `build_tutorial_island.py` wraps it for the tutorial island.
 - `Tools/Unreal/build_area_bounds.py`: a grounded area's bounds for `build_area.py`: the playable area from the
   computed boundary (its walls `level.wallSetback` behind the line, at the rock's foot), the KillZ 100 m under the
   canyon floor, and a cull distance volume (sizes to distances).
 - `Tools/Unreal/build_area_environment.py`: every area's light, sky and fog for `build_area.py`: the tutorial island's
-  afternoon by default, or the layout's `level.environment` (sun by bearing and elevation, haze, atmosphere, cloud dome),
-  and the level's lighting states (`ALightingStates`: Day as placed, plus `level.environment.states` such as Dusk).
+  afternoon by default, or the layout's `level.environment` (sun by bearing and elevation, haze and where it ends,
+  atmosphere with the sky's own color and ozone, cloud dome), and the level's lighting states (`ALightingStates`: Day as
+  placed, plus `level.environment.states` such as Dusk).
 - `Tools/Unreal/lighting_collection.py`: `MPC_Lighting`, the material parameter collection the lighting states write
   (`BackdropTint`, `CloudTint`, the fog's colors), made by `build_world_materials.py` before `M_Backdrop`, which reads it.
 - `Tools/Unreal/build_creature_materials.py`: the creatures' materials beside the world's masters: `M_Ghost` (the

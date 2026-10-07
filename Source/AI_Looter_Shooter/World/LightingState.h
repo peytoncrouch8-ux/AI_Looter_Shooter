@@ -6,9 +6,10 @@
 /**
  * One way a level can be lit (Day, Dusk), as Tools/Unreal/build_area_environment.py writes it from layout.json
  * level.environment: the sun by compass bearing and elevation, with its intensity, color temperature and shadows; the
- * sky light; the height fog's density and colors; the exposure; and the tints the material parameter collection
- * MPC_Lighting carries to what can't see the light itself (the unlit backdrop, the painted clouds). Lengths are cm,
- * colors linear. ALightingStates holds a level's states and ULightingStateSubsystem switches between them.
+ * sky light; the sky's own color and ozone; the height fog's density and colors; the exposure; and the tints the
+ * material parameter collection MPC_Lighting carries to what can't see the light itself (the unlit backdrop, the
+ * painted clouds). Lengths are cm, colors linear. ALightingStates holds a level's states and ULightingStateSubsystem
+ * switches between them.
  *
  * The defaults are the tutorial island's afternoon exactly as the build script places it (its DEFAULTS), so a default
  * state and a level built without states agree.
@@ -52,6 +53,22 @@ struct AI_LOOTER_SHOOTER_API FLightingState
 	/** The sky light's intensity. Its color comes from capturing the sky, which every switch does again. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lighting|Sky", meta = (ClampMin = "0"))
 	float SkyIntensity = 1.2f;
+
+	/**
+	 * Multiplies the sky's own color (the sky atmosphere's sky luminance factor). The sun's color temperature tints the
+	 * whole sky through the atmosphere, which turns a warm sun's blue sky slate or brown; a state cancels most of that
+	 * here, so the sky reddens only where the atmosphere reddens it, low toward the sun. White leaves the sky as lit.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lighting|Sky")
+	FLinearColor SkyLuminance = FLinearColor::White;
+
+	/**
+	 * The ozone layer's absorption, as a multiple of Earth's (the sky atmosphere's absorption at its default). At sunset
+	 * it soaks the green out of the light crossing the sky, which leaves the sky away from the sun the blue-violet of
+	 * twilight; it reddens the low sun's light a little too.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lighting|Sky", meta = (ClampMin = "0"))
+	float Ozone = 1.f;
 
 	/** The height fog's density. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lighting|Fog", meta = (ClampMin = "0"))

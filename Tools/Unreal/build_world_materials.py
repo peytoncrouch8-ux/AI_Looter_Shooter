@@ -15,7 +15,9 @@
                   Grass* and Rock* maps tile on UV 1 (meters) and only modulate the macro color's brightness. Faces
                   steeper than SteepStart degrees (fully past SteepFull) take the rock map's own color laid on from
                   the side, with no detail normal: maps laid on from above smear down a cliff.
-  M_SkyClouds     unlit, translucent: painted clouds on a sky dome (Coverage, Softness, Scale, wind, colors).
+  M_SkyClouds     unlit, translucent: painted clouds on a sky dome (Coverage, Softness, Scale, wind), each lit from
+                  the sun's side (the sky atmosphere's sun): a warm LitColor where it thins toward the sun, a cool
+                  ShadeColor where it thickens, darker cores against the sun and thin edges glowing near it.
   M_Waterfall,    unlit, translucent effects scrolling the macro noise: a falling water sheet's foam streaks, and
   M_Smoke         chimney smoke. Vertex color A is opacity (R foam on the waterfall).
   M_Water         opaque, cheap: a dark color (the sky's reflection does the rest), glossy, procedural ripples on
@@ -433,8 +435,20 @@ float B = Texture2DSample(Noise, NoiseSampler, P * 2.31 + float2(0.37, 0.71) + D
 float C = Texture2DSample(Noise, NoiseSampler, P * 5.13 + float2(0.11, 0.53) + Drift * 2.4).r;
 float Density = A * 0.6 + B * 0.3 + C * 0.1 - Coverage;
 """
-CLOUD_COLOR = CLOUD_DENSITY + """// Lit tops, greyer bellies where the cloud is thick.
-return lerp(LitColor, ShadeColor, saturate(Density / (Softness * 3.0)) * 0.7);"""
+CLOUD_COLOR = CLOUD_DENSITY + """// Each cloud lit from the sun's side, like a bump map of its density: where it thins toward the sun the face is lit
+// (the warm LitColor), where it thickens toward the sun it's in shade (the cool ShadeColor), and thick cores darken.
+// The fine octave is the same at both points, so it drops out of the difference.
+float2 Q = P + normalize(SunDirection.xy + 1e-4) * ShadowStep;
+float Ahead = Texture2DSample(Noise, NoiseSampler, Q + Drift).r * 0.6
+            + Texture2DSample(Noise, NoiseSampler, Q * 2.31 + float2(0.37, 0.71) + Drift * 1.6).r * 0.3
+            + C * 0.1 - Coverage;
+float Lit = saturate(0.5 + (Density - Ahead) * Contrast) * (1.0 - 0.5 * saturate(Density / (Softness * 3.0)));
+// Seen against the sun a cloud shows its shaded side: the thick parts darken (Backlight), while thin cloud glows with
+// the light scattered forward through it (SunGlow), its rims brightest close to the sun.
+float Toward = saturate(dot(D, normalize(SunDirection + 1e-5)));
+float Thin = 1.0 - saturate(Density / (Softness * 2.0));
+Lit *= 1.0 - Backlight * Toward * Toward * (1.0 - Thin);
+return lerp(ShadeColor, LitColor, Lit) + LitColor * (SunGlow * pow(Toward, 8.0) * Thin);"""
 CLOUD_OPACITY = CLOUD_DENSITY + """// Soft edges, and the layer fades into the haze toward the horizon.
 return saturate(Density / Softness) * saturate((Up - 0.04) * 3.0) * Opacity;"""
 
@@ -476,9 +490,15 @@ def build_sky_clouds():
         ('Coverage', g.scalar('Coverage', 0.58, -900, 550), ''),
         ('Softness', g.scalar('Softness', 0.22, -900, 650), ''),
     ]
+    # The sun's direction comes from the sky atmosphere (its sun light), so the clouds turn with a lighting state's sun.
     color = g.custom(CLOUD_COLOR, inputs + [
-        ('LitColor', g.vector('LitColor', (3.0, 2.95, 2.85, 1.0), -900, 750), ''),
-        ('ShadeColor', g.vector('ShadeColor', (1.35, 1.45, 1.65, 1.0), -900, 850), ''),
+        ('SunDirection', g.node(unreal.MaterialExpressionSkyAtmosphereLightDirection, -1200, 750), ''),
+        ('LitColor', g.vector('LitColor', (3.0, 2.35, 1.6, 1.0), -900, 750), ''),
+        ('ShadeColor', g.vector('ShadeColor', (0.9, 1.02, 1.32, 1.0), -900, 850), ''),
+        ('ShadowStep', g.scalar('ShadowStep', 0.03, -1200, 850), ''),
+        ('Contrast', g.scalar('Contrast', 6.0, -1200, 950), ''),
+        ('SunGlow', g.scalar('SunGlow', 0.6, -1200, 1050), ''),
+        ('Backlight', g.scalar('Backlight', 0.6, -1200, 1150), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -400, -100, 'Cloud color')
     opacity = g.custom(CLOUD_OPACITY, inputs + [
         ('Opacity', g.scalar('Opacity', 0.9, -900, 950), ''),

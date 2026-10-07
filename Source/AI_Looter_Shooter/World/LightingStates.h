@@ -9,6 +9,7 @@
 class ADirectionalLight;
 class AExponentialHeightFog;
 class APostProcessVolume;
+class ASkyAtmosphere;
 class ASkyLight;
 class UMaterialParameterCollection;
 
@@ -21,7 +22,7 @@ class UMaterialParameterCollection;
  * From a build script (Python):
  *     states = actors.spawn_actor_from_class(unreal.LightingStates, unreal.Vector(0, 0, 0))
  *     states.set_editor_property('states', [unreal.LightingState(name='Day', ...), unreal.LightingState(name='Dusk', ...)])
- *     states.set_editor_property('sun', sun)    # and sky_light, height_fog, post_volume
+ *     states.set_editor_property('sun', sun)    # and sky_light, atmosphere, height_fog, post_volume
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ALightingStates : public AInfo
@@ -52,6 +53,10 @@ public:
 	/** Left empty, the level's first sky light. */
 	UPROPERTY(EditInstanceOnly, Category = "Lighting States|Lights")
 	TObjectPtr<ASkyLight> SkyLight;
+
+	/** The sky whose color and ozone the states set. Left empty, the level's first sky atmosphere. */
+	UPROPERTY(EditInstanceOnly, Category = "Lighting States|Lights")
+	TObjectPtr<ASkyAtmosphere> Atmosphere;
 
 	/** Left empty, the level's first height fog. */
 	UPROPERTY(EditInstanceOnly, Category = "Lighting States|Lights")

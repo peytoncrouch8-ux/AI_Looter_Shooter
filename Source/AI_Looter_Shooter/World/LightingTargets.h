@@ -6,20 +6,22 @@ class ADirectionalLight;
 class AExponentialHeightFog;
 class ALightingStates;
 class APostProcessVolume;
+class ASkyAtmosphere;
 class ASkyLight;
 class ULevel;
 struct FLightingState;
 
 /**
- * The lights a lighting state drives in a level: its sun, sky light, height fog and post process volume, as its
- * ALightingStates names them, or the first of each kind in the level for any it leaves empty (the sun is the directional
- * light that lights the atmosphere). Sets a state on them and reads what they show. The sky light's recapture and the
- * material parameter collection are ULightingStateSubsystem's: they belong to a running world.
+ * The lights a lighting state drives in a level: its sun, sky light, sky atmosphere, height fog and post process
+ * volume, as its ALightingStates names them, or the first of each kind in the level for any it leaves empty (the sun is
+ * the directional light that lights the atmosphere). Sets a state on them and reads what they show. The sky light's
+ * recapture and the material parameter collection are ULightingStateSubsystem's: they belong to a running world.
  */
 struct AI_LOOTER_SHOOTER_API FLightingTargets
 {
 	ADirectionalLight* Sun = nullptr;
 	ASkyLight* SkyLight = nullptr;
+	ASkyAtmosphere* Atmosphere = nullptr;
 	AExponentialHeightFog* HeightFog = nullptr;
 	APostProcessVolume* PostVolume = nullptr;
 
@@ -29,7 +31,10 @@ struct AI_LOOTER_SHOOTER_API FLightingTargets
 	/** What's missing, for a warning ("sun, height fog"), or empty when everything is there. */
 	FString DescribeMissing() const;
 
-	/** Turns the sun and sets its light and shadows, the sky light's intensity, the fog's density and colors, the exposure. */
+	/**
+	 * Turns the sun and sets its light and shadows, the sky light's intensity, the sky's color and ozone, the fog's
+	 * density and colors, the exposure.
+	 */
 	void Write(const FLightingState& State) const;
 
 	/**

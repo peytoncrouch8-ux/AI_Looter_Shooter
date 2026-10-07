@@ -1,17 +1,18 @@
-"""Builds an area's level from its layout: build_area.py <Area> [gameplay|beyond].
+"""Builds an area's level from its layout: build_area.py <Area> [gameplay|environment|beyond].
 
 Art/Models/Terrain/<Area>.py turns Art/Levels/<Area>/layout.json into the terrain and into layout_computed.json: where
 every building, cliff piece, road, the bridge and the water go, at the built terrain's heights. This script places all
 of that in the area's level, with the new style's lighting and the gameplay actors. Run it in the open editor:
-  Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_area.py TutorialIsland [gameplay]"
+  Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_area.py TutorialIsland [gameplay|environment]"
 What differs per area comes from layout.json: "level" (the map, the tag and outliner folder of everything placed, the
 zones kept free of scattered trees) and "gameplay" (the director that comes with the PlayerStart, the gun rack's weapon,
 creature groups). The terrain's meshes are SM_<Area>_<part> (level.meshPrefix overrides <Area>_).
 
 Everything it places carries the area's tag (IslandBuild on the tutorial island) and sits under its outliner folder
 (Island). Building again replaces those actors, so actors placed by hand survive; with "gameplay" it only places the
-gameplay actors again, and with "beyond" only what lies past the boundary (sky islands, a grounded area's ring, canyon
-wall, backdrop and far trees). Models that aren't imported yet are skipped with a warning. The level is saved last.
+gameplay actors again, with "environment" only the light, sky and fog, and with "beyond" only what lies past the
+boundary (sky islands, a grounded area's ring, canyon wall, backdrop and far trees). Models that aren't imported yet are
+skipped with a warning. The level is saved last.
 Grass, flowers, trees and rocks come from the scatter (build_island_scatter.py <Area>).
 
 A grounded area's terrain also has what lies past its core (Art/Levels/area_beyond.py): the surround ring
@@ -569,8 +570,9 @@ class AreaBuild:
         self.log(f'placed {count} chimney smoke plumes')
 
     def run(self, mode=None):
-        """Builds the whole level, or with mode "gameplay" only the gameplay actors, or with "beyond" only what lies
-        past the boundary (a grounded area's ring, canyon wall and backdrop; an island's sky islands)."""
+        """Builds the whole level, or with mode "gameplay" only the gameplay actors, with "environment" only the light,
+        sky and fog, or with "beyond" only what lies past the boundary (a grounded area's ring, canyon wall and
+        backdrop; an island's sky islands)."""
         with open(self.computed_path) as f:
             self.layout = json.load(f)
         # Reloaded, as the editor keeps modules between runs, so an edited one takes effect.
@@ -582,6 +584,12 @@ class AreaBuild:
             self.gameplay(mesh_index())
             levels.save_current_level()
             self.log('gameplay actors placed and saved')
+            return
+        if mode == 'environment':
+            self.open_level('Environment')
+            self.environment().recapture_sky()
+            levels.save_current_level()
+            self.log('light, sky and fog placed and saved')
             return
         if mode == 'beyond':
             self.open_level('Beyond')
@@ -616,6 +624,8 @@ def run(name, only_gameplay=False, mode=None):
 
 if __name__ == '__main__':
     args = sys.argv[1:]
-    if not args or args[0] in ('gameplay', 'beyond'):
-        raise SystemExit('usage: build_area.py <Area> [gameplay|beyond] (the area is a folder under Art/Levels)')
-    run(args[0], mode=next((a for a in args[1:] if a in ('gameplay', 'beyond')), None))
+    modes = ('gameplay', 'environment', 'beyond')
+    if not args or args[0] in modes:
+        raise SystemExit('usage: build_area.py <Area> [gameplay|environment|beyond] (the area is a folder under '
+                         'Art/Levels)')
+    run(args[0], mode=next((a for a in args[1:] if a in modes), None))

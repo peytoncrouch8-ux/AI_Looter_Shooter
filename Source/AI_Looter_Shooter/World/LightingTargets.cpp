@@ -3,6 +3,7 @@
 #include "World/LightingStates.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/ExponentialHeightFogComponent.h"
+#include "Components/SkyAtmosphereComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/ExponentialHeightFog.h"
@@ -27,6 +28,12 @@ namespace
 		return nullptr;
 	}
 
+	/** The sky atmosphere's absorption as the engine sets it: Earth's ozone layer, which a state's Ozone multiplies. */
+	float EarthOzone()
+	{
+		return GetDefault<USkyAtmosphereComponent>()->OtherAbsorptionScale;
+	}
+
 	/** A reference the states actor holds, if it still points at a living actor. */
 	template <typename ActorType>
 	ActorType* Living(const TObjectPtr<ActorType>& Reference)
@@ -43,6 +50,7 @@ FLightingTargets FLightingTargets::Find(const ULevel* Level, const ALightingStat
 	{
 		Targets.Sun = Living(States->Sun);
 		Targets.SkyLight = Living(States->SkyLight);
+		Targets.Atmosphere = Living(States->Atmosphere);
 		Targets.HeightFog = Living(States->HeightFog);
 		Targets.PostVolume = Living(States->PostVolume);
 	}
@@ -67,6 +75,10 @@ FLightingTargets FLightingTargets::Find(const ULevel* Level, const ALightingStat
 	{
 		Targets.SkyLight = FirstActorOf<ASkyLight>(*Where, [](const ASkyLight&) { return true; });
 	}
+	if (!Targets.Atmosphere)
+	{
+		Targets.Atmosphere = FirstActorOf<ASkyAtmosphere>(*Where, [](const ASkyAtmosphere&) { return true; });
+	}
 	if (!Targets.HeightFog)
 	{
 		Targets.HeightFog = FirstActorOf<AExponentialHeightFog>(*Where, [](const AExponentialHeightFog&) { return true; });
@@ -89,6 +101,10 @@ FString FLightingTargets::DescribeMissing() const
 	if (!SkyLight)
 	{
 		Missing.Add(TEXT("sky light"));
+	}
+	if (!Atmosphere)
+	{
+		Missing.Add(TEXT("sky atmosphere"));
 	}
 	if (!HeightFog)
 	{
@@ -120,6 +136,11 @@ void FLightingTargets::Write(const FLightingState& State) const
 	{
 		Sky->SetIntensity(State.SkyIntensity);
 	}
+	if (USkyAtmosphereComponent* Air = Atmosphere ? Atmosphere->GetComponent() : nullptr)
+	{
+		Air->SetSkyLuminanceFactor(State.SkyLuminance);
+		Air->SetOtherAbsorptionScale(EarthOzone() * State.Ozone);
+	}
 	if (UExponentialHeightFogComponent* Fog = HeightFog ? HeightFog->GetComponent() : nullptr)
 	{
 		Fog->SetFogDensity(State.FogDensity);
@@ -149,6 +170,11 @@ void FLightingTargets::Read(FLightingState& Out) const
 	if (const USkyLightComponent* Sky = SkyLight ? SkyLight->GetLightComponent() : nullptr)
 	{
 		Out.SkyIntensity = Sky->Intensity;
+	}
+	if (const USkyAtmosphereComponent* Air = Atmosphere ? Atmosphere->GetComponent() : nullptr)
+	{
+		Out.SkyLuminance = Air->SkyLuminanceFactor;
+		Out.Ozone = EarthOzone() > 0.f ? Air->OtherAbsorptionScale / EarthOzone() : 1.f;
 	}
 	if (const UExponentialHeightFogComponent* Fog = HeightFog ? HeightFog->GetComponent() : nullptr)
 	{

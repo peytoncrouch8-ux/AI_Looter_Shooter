@@ -8,6 +8,7 @@
 #include "World/LightingTargets.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/DirectionalLightComponent.h"
+#include "Components/SkyAtmosphereComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/ExponentialHeightFog.h"
@@ -39,6 +40,8 @@ namespace
 		Dusk.ShadowDistance = 6000.f;
 		Dusk.ShadowCascades = 1;
 		Dusk.SkyIntensity = 0.6f;
+		Dusk.SkyLuminance = FLinearColor(1.2f, 2.1f, 5.f);
+		Dusk.Ozone = 3.5f;
 		Dusk.FogDensity = 0.015f;
 		Dusk.FogInscattering = FLinearColor(0.20f, 0.13f, 0.08f);
 		Dusk.FogDirectionalInscattering = FLinearColor(0.95f, 0.45f, 0.15f);
@@ -61,6 +64,8 @@ namespace
 		Test.TestEqual(What + TEXT(": how far its shadows reach"), Actual.ShadowDistance, Expected.ShadowDistance, 0.5f);
 		Test.TestEqual(What + TEXT(": its shadows' cascades"), Actual.ShadowCascades, Expected.ShadowCascades);
 		Test.TestEqual(What + TEXT(": the sky light"), Actual.SkyIntensity, Expected.SkyIntensity, 1e-3f);
+		Test.TestTrue(What + TEXT(": the sky's color"), Actual.SkyLuminance.Equals(Expected.SkyLuminance, 1e-3f));
+		Test.TestEqual(What + TEXT(": the ozone"), Actual.Ozone, Expected.Ozone, 1e-3f);
 		Test.TestEqual(What + TEXT(": the fog's density"), Actual.FogDensity, Expected.FogDensity, 1e-5f);
 		Test.TestTrue(What + TEXT(": the haze's color"), Actual.FogInscattering.Equals(Expected.FogInscattering, 1e-3f));
 		Test.TestTrue(What + TEXT(": the glow toward the sun"), Actual.FogDirectionalInscattering.Equals(Expected.FogDirectionalInscattering, 1e-3f));
@@ -88,10 +93,11 @@ namespace
 	{
 		ADirectionalLight* Sun = World->SpawnActor<ADirectionalLight>();
 		ASkyLight* Sky = World->SpawnActor<ASkyLight>();
+		ASkyAtmosphere* Air = World->SpawnActor<ASkyAtmosphere>();
 		AExponentialHeightFog* Fog = World->SpawnActor<AExponentialHeightFog>();
 		APostProcessVolume* Post = World->SpawnActor<APostProcessVolume>();
 		ALightingStates* Placed = World->SpawnActor<ALightingStates>();
-		if (!Sun || !Sky || !Fog || !Post || !Placed || LevelStates.IsEmpty())
+		if (!Sun || !Sky || !Air || !Fog || !Post || !Placed || LevelStates.IsEmpty())
 		{
 			return nullptr;
 		}
@@ -102,6 +108,7 @@ namespace
 		Placed->States = LevelStates;
 		Placed->Sun = Sun;
 		Placed->SkyLight = Sky;
+		Placed->Atmosphere = Air;
 		Placed->HeightFog = Fog;
 		Placed->PostVolume = Post;
 		FLightingTargets::Find(nullptr, Placed).Write(LevelStates[0]);
@@ -137,6 +144,8 @@ bool FLightingDefaultsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Its shadows reach 100 m"), Day.ShadowDistance, 10000.f);
 	TestEqual(TEXT("...in two cascades"), Day.ShadowCascades, 2);
 	TestEqual(TEXT("The sky light at 1.2"), Day.SkyIntensity, 1.2f);
+	TestTrue(TEXT("The sky's own color"), Day.SkyLuminance.Equals(FLinearColor::White));
+	TestEqual(TEXT("...and Earth's ozone"), Day.Ozone, 1.f);
 	TestEqual(TEXT("Fog at 0.03"), Day.FogDensity, 0.03f);
 	TestTrue(TEXT("...the island's blue haze"), Day.FogInscattering.Equals(FLinearColor(0.20f, 0.29f, 0.44f)));
 	TestTrue(TEXT("...with no glow toward the sun"), Day.FogDirectionalInscattering.Equals(FLinearColor::Black));
@@ -178,6 +187,7 @@ bool FLightingDefaultsTest::RunTest(const FString& Parameters)
 	To.SunIntensity = 4.f;
 	To.FogInscattering = FLinearColor(0.4f, 0.2f, 0.f);
 	To.ShadowCascades = 3;
+	To.Ozone = 3.f;
 	const FLightingState Halfway = FLightingState::Blend(From, To, 0.5f);
 	TestTrue(TEXT("A blend is named for where it goes"), Halfway.Name == DuskName);
 	TestEqual(TEXT("At 0, where it set out"), FLightingState::Blend(From, To, 0.f).SunIntensity, 2.f);
@@ -185,6 +195,7 @@ bool FLightingDefaultsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Past the end, still there"), FLightingState::Blend(From, To, 2.f).SunIntensity, 4.f);
 	TestEqual(TEXT("Halfway, halfway"), Halfway.SunIntensity, 3.f, 1e-4f);
 	TestTrue(TEXT("...the colors too"), Halfway.FogInscattering.Equals(FLinearColor(0.2f, 0.1f, 0.f), 1e-4f));
+	TestEqual(TEXT("...the ozone too"), Halfway.Ozone, 2.f, 1e-4f);
 	TestEqual(TEXT("...and the cascades, whole"), Halfway.ShadowCascades, 2);
 	TestTrue(FString::Printf(TEXT("Halfway from bearing 350 to 10 is north, not south (%.2f)"), Halfway.SunBearing),
 		FMath::Abs(FMath::FindDeltaAngleDegrees(Halfway.SunBearing, 0.f)) < 0.01f);
@@ -363,6 +374,7 @@ bool FLightingLevelsTest::RunTest(const FString& Parameters)
 	const FBuiltLevel Built[] = {
 		{ TEXT("/Game/Maps/Lvl_TutorialIsland"), false },
 		{ TEXT("/Game/Maps/Dev/Lvl_TerrainTest"), true },
+		{ TEXT("/Game/Maps/Lvl_RansomsRest"), true },
 	};
 	for (const FBuiltLevel& Each : Built)
 	{

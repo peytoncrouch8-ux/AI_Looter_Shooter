@@ -28,6 +28,8 @@ FLightingState FLightingState::Blend(const FLightingState& From, const FLighting
 	Mixed.ShadowDistance = FMath::Lerp(From.ShadowDistance, To.ShadowDistance, T);
 	Mixed.ShadowCascades = FMath::RoundToInt32(FMath::Lerp(static_cast<float>(From.ShadowCascades), static_cast<float>(To.ShadowCascades), T));
 	Mixed.SkyIntensity = FMath::Lerp(From.SkyIntensity, To.SkyIntensity, T);
+	Mixed.SkyLuminance = FMath::Lerp(From.SkyLuminance, To.SkyLuminance, T);
+	Mixed.Ozone = FMath::Lerp(From.Ozone, To.Ozone, T);
 	Mixed.FogDensity = FMath::Lerp(From.FogDensity, To.FogDensity, T);
 	Mixed.FogInscattering = FMath::Lerp(From.FogInscattering, To.FogInscattering, T);
 	Mixed.FogDirectionalInscattering = FMath::Lerp(From.FogDirectionalInscattering, To.FogDirectionalInscattering, T);
@@ -49,9 +51,10 @@ namespace
 
 FString FLightingState::Describe() const
 {
-	return FString::Printf(TEXT("sun at bearing %.1f, %.1f deg up, %.2f lux, %.0f K, shadows to %.0f m in %d cascades; sky light %.2f; ")
-		TEXT("fog %.4f, haze %s, toward the sun %s exponent %.1f from %.0f m; backdrop tint %s, cloud tint %s; exposure bias %.2f"),
+	return FString::Printf(TEXT("sun at bearing %.1f, %.1f deg up, %.2f lux, %.0f K, shadows to %.0f m in %d cascades; sky light %.2f, ")
+		TEXT("sky color %s, ozone x%.2f; fog %.4f, haze %s, toward the sun %s exponent %.1f from %.0f m; backdrop tint %s, cloud tint %s; ")
+		TEXT("exposure bias %.2f"),
 		SunBearing, SunElevation, SunIntensity, SunTemperature, ShadowDistance / 100.f, ShadowCascades, SkyIntensity,
-		FogDensity, *ColorText(FogInscattering), *ColorText(FogDirectionalInscattering), FogDirectionalExponent,
+		*ColorText(SkyLuminance), Ozone, FogDensity, *ColorText(FogInscattering), *ColorText(FogDirectionalInscattering), FogDirectionalExponent,
 		FogDirectionalStartDistance / 100.f, *ColorText(BackdropTint), *ColorText(CloudTint), ExposureBias);
 }
