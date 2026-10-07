@@ -59,6 +59,17 @@ light"; everything here is a first draft for the user):
                              draft)
   DA_Lines_HobMain5          Hob talked to during Main 5 (a draft)
   DA_Lines_AldanaAfterMain5  Aldana after Main 5: the lantern found, take it home to Delia (a draft)
+
+Main 6, "The Gravewind" (the doc gives Delia's words and the scene's; the scene's lines are in the C++, Scenes/SitWithPa;
+everything here but Delia's is a first draft for the user):
+  DA_Lines_DeliaMain6        Delia through the door after Main 5, until Main 6 is done: "Take him the lantern. Show him the
+                             way, even if he can't go." (the doc's words); her topic's event starts Main 6
+  DA_Lines_HobMain6Way       Hob on the keeper's grave's board as Main 6 begins: the way to the deck (a draft)
+  DA_Lines_HobMain6Post      Hob on the Keeper's Gate's rock at the deck: the keeper's post (a draft)
+  DA_Lines_HobMain6Fight     Hob as the lantern hangs and Pa turns (a draft)
+  DA_Lines_HobMain6          Hob talked to during Main 6 (a draft)
+  DA_Lines_AbelOnBoard       Abel on his board after Main 6 (drafts; each ember paid later adds its own set)
+  DA_Lines_AbelAfterMain7    Abel on his board once the lantern has led Ellis on (after Main 7; drafts)
 """
 import unreal
 
@@ -223,6 +234,33 @@ SETS = {
     'DA_Lines_AldanaAfterMain5': [
         ('', "You found it. Dark, but whole."),
         ('', "Take it home to your grandmother, Ellis. She'll know what's owed a keeper."),
+    ],
+    # --- Main 6 ---
+    'DA_Lines_DeliaMain6': [
+        ('', "Take him the lantern. Show him the way, even if he can't go."),
+    ],
+    'DA_Lines_HobMain6Way': [
+        (HOB, "Keeper's grave. Every Ransom who ever sat up with the dead is under that board, sunshine. Your Pa's the "
+              "first one who won't stay there."),
+        (HOB, "Follow the cairns to the gate. He'll be on the boards. It's dusk."),
+    ],
+    'DA_Lines_HobMain6Post': [
+        (HOB, "That's the keeper's post, by the steps. Hang it where he'd look for it."),
+    ],
+    'DA_Lines_HobMain6Fight': [
+        (HOB, "He doesn't know you, sunshine. Not yet. And mind the open end: the wind's his."),
+    ],
+    'DA_Lines_HobMain6': [
+        ('', "The Gravewind comes off the Rim at dusk and takes the dead west. It's come for him every night this week, "
+             "sunshine. He keeps walking back."),
+    ],
+    'DA_Lines_AbelOnBoard': [
+        ('', "Sun goes down the same every night, El. I never once got tired of it."),
+        ('', "Your grandmother still setting a plate? Eat it, even if you can't taste it. She needs to see it gone."),
+    ],
+    'DA_Lines_AbelAfterMain7': [
+        ('', "She still leans north-east. I'd know that lean anywhere."),
+        ('', "Go on, El. I'll keep the boards."),
     ],
 }
 

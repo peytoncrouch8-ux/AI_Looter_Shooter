@@ -55,6 +55,15 @@ missions (fields, steps and rewards) from what's written here; other mission ass
                        step the third (AKeepersLantern::TakeStep): Side 3 opens after it (create_side_mission_assets.py),
                        and Ellis has the lantern from its last step on (AKeepersLantern::IsTaken), which Main 6 carries
                        to Gravewind Point (Tools/Unreal/build_area_sink.py places the Sink's pieces).
+  DA_Mission_Main6     "The Gravewind" (Main 6), once Main 5 is done, started by Grandma Delia's word through the door
+                       ("Take him the lantern...": her topic sends Delia.Main6, Tools/Unreal/build_area_farm.py), which
+                       fades the Rest to dusk (AStoryLighting): carrying the lantern to Gravewind Point (within 10 m of the
+                       Keeper's Gate, the marker tagged Place_GravewindPoint: both roads end at the keeper's grave and the
+                       cairns lead on), hanging it on the keeper's post (a tap on the AKeeperLanternPost tagged
+                       LanternPost_Keeper), defeating Abel (the AAbelKeeper tagged Boss_Abel, his boss loot at his death)
+                       and sitting with Pa (the scene SitWithPa). 30% of a level. Its id must stay "Main6" and its steps in
+                       this order: Abel's story counts them (AAbelKeeper::HangStep, FightStep, SceneStep), and his board,
+                       the lantern lit and the dusk follow it (Tools/Unreal/build_area_deck.py).
 
 Objectives are instanced objects inside the asset, one class per kind (UMissionReachObjective, UMissionKillObjective, ...),
 made with unreal.new_object(<class>, asset) and listed in each step's 'objectives'. Classes for actor filters are loaded
@@ -72,7 +81,8 @@ def mission_types():
              'MissionStart', 'MissionWaypoint', 'MissionCollect', 'MissionPage', 'MissionTravelObjective',
              'MissionReachObjective', 'MissionCollectObjective', 'MissionHitObjective', 'MissionKillObjective',
              'MissionOpenPageObjective', 'MissionInteractObjective', 'MissionBoardObjective', 'MissionSceneObjective',
-             'MissionTalkObjective', 'MissionClearObjective', 'MissionEventObjective', 'WeaponRarity']
+             'MissionTalkObjective', 'MissionClearObjective', 'MissionEventObjective', 'MissionKillNamedObjective',
+             'WeaponRarity']
     missing = [name for name in names if getattr(unreal, name, None) is None]
     if missing:
         raise RuntimeError(f"unreal.{', unreal.'.join(missing)} missing: build the C++ with Missions/ first")
@@ -278,6 +288,27 @@ def main5_steps(asset):
     ]
 
 
+def main6_steps(asset):
+    """Main 6, "The Gravewind": the lantern carried to Gravewind Point and hung on the keeper's post, Abel defeated, the
+    scene after. The tags and the scene are the ones build_area_deck.py and the C++ give them (AKeeperLanternPost's
+    KeepersPostTag, AAbelKeeper's BossTag, SitWithPa::SceneName); the steps' order is Abel's (HangStep 1, FightStep 2,
+    SceneStep 3, counted from 0)."""
+    waypoint = unreal.MissionWaypoint
+    return [
+        # Either road: the west road or the keeper's path; both end at the keeper's grave, and the cairns lead to the gate.
+        step(objective(asset, unreal.MissionReachObjective,
+                       "Carry the lantern to Gravewind Point, by the west road or the keeper's path.",
+                       place=place(tag='Place_GravewindPoint', radius=1000.0))),
+        step(objective(asset, unreal.MissionInteractObjective, "Hang the Keeper's Lantern on the keeper's post.",
+                       target=actor_filter(tag='LanternPost_Keeper'), count=1)),
+        # A boss falling off the deck is still beaten (any kill counts).
+        step(objective(asset, unreal.MissionKillNamedObjective, 'Defeat Abel Ransom, the Keeper.',
+                       actor_tag=unreal.Name('Boss_Abel'), player_kills_only=False)),
+        step(objective(asset, unreal.MissionSceneObjective, 'Sit with Pa.',
+                       waypoint=waypoint.NONE, scene=unreal.Name('SitWithPa'))),
+    ]
+
+
 def test_steps(asset):
     return [
         step(objective(asset, unreal.MissionKillObjective, 'Kill two creatures',
@@ -332,6 +363,12 @@ MISSIONS = [
                  "sacs.",
          kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main4'], sort_order=5, steps=main5_steps,
          rewards=dict(experience_share=0.3)),
+    dict(asset='DA_Mission_Main6', id='Main6', title='The Gravewind',
+         summary="Grandma Delia, through the door: take him the lantern. At dusk Pa walks the burial boards on Gravewind "
+                 "Point, where the wind pours off the Rim. Hang the Keeper's Lantern on his post and show him the way, even "
+                 "if he can't go. Reward: experience, and what Abel leaves when he kneels.",
+         kind='MAIN', start='ON_EVENT', start_event='Delia.Main6', area='RansomsRest', prerequisites=['Main5'], sort_order=6,
+         steps=main6_steps, rewards=dict(experience_share=0.3)),
 ]
 
 
@@ -357,6 +394,8 @@ def setup(spec):
     asset.set_editor_property('summary', unreal.Text(spec['summary']))
     asset.set_editor_property('kind', getattr(unreal.MissionKind, spec['kind']))
     asset.set_editor_property('start', getattr(unreal.MissionStart, spec['start']))
+    # What starts an ON_EVENT mission (Main 6: Delia's word at her door); the others have none.
+    asset.set_editor_property('start_event', unreal.Name(spec.get('start_event', '')))
     asset.set_editor_property('area', unreal.Name(spec['area']))
     asset.set_editor_property('prerequisites', [unreal.Name(each) for each in spec['prerequisites']])
     asset.set_editor_property('sort_order', spec['sort_order'])

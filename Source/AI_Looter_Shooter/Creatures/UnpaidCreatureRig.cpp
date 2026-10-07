@@ -113,6 +113,8 @@ bool AUnpaidCreature::SetupRig()
 	Wanted.Append(Rig.Shroud);
 	Wanted.Append(Rig.LeftStrip);
 	Wanted.Append(Rig.RightStrip);
+	// A body built on this rig poses bones of its own too (Abel's lantern, gun and skirts).
+	GetExtraRigBones(Wanted);
 	TArray<FString> Missing;
 	for (const FName Name : Needed)
 	{
@@ -451,6 +453,8 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 		}
 	}
 
+	// A body built on this rig lays its own pose over the channels' (Abel's pose table).
+	LayerPose(Dt);
 	SolvePose();
 	for (int32 Index = 0; Index < Bones.Num() && Index < BonePose.Num(); ++Index)
 	{
@@ -478,7 +482,9 @@ void AUnpaidCreature::SolvePose()
 			// A shroud link swings as its chain says, under what the chain hangs from (the pelvis's lean carries it all).
 			const int32 Anchor = ChainAnchors[Bone.Chain];
 			const FQuat Hung = Anchor != INDEX_NONE ? Bones[Anchor].Turned : FQuat::Identity;
-			Bone.Turned = Hung * Chains[Bone.Chain].LinkRotation(Bone.Link, ChainRestDirections[Bone.Chain][Bone.Link]);
+			const FQuat Swung = Hung * Chains[Bone.Chain].LinkRotation(Bone.Link, ChainRestDirections[Bone.Chain][Bone.Link]);
+			// Knelt or sat (Abel), the links lie as their own turns lay them, the chain's swing blended out.
+			Bone.Turned = ChainSwing >= 1.f ? Swung : FQuat::Slerp(Above * Bone.Own, Swung, FMath::Clamp(ChainSwing, 0.f, 1.f)).GetNormalized();
 		}
 		else
 		{

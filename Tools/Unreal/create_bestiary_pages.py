@@ -199,6 +199,35 @@ PAGES = {
         ],
         sort_order=2,
     ),
+    # The doc has him an Enemy until The Gravewind is done, then a Friend; a page can't move sections yet, so he waits
+    # in Friends until his fight is over, with his fight's stats on his page.
+    'Abel': dict(
+        asset='DA_Bestiary_Abel',
+        name='Abel Ransom, the Keeper',
+        section='FRIEND',
+        kind='Keeper of Saint Ada',
+        actor='/Script/AI_Looter_Shooter.AbelKeeper',
+        model='/Game/Art/Creatures/SK_Abel',
+        ledger_only=True,
+        known_when=dict(after=['Main6']),
+        habitat="Ransom's Rest: his board on Gravewind Point's burial deck",
+        description=("Abel Ransom, Keeper of Saint Ada, and your father, friend. He hung the lantern on Gravewind Point at "
+                     "dusk so the dead could find their way west. Ned Purcell shot him before he could raise it, and he got "
+                     "up out of his grave to keep the boards himself. He's quieter now. He sits on his board facing the "
+                     "sunset and waits for you to bring Saint Ada home."),
+        notes=[
+            "His coal is soft only while he grieves, turned to the sunset with his lantern arm down, or while he's stunned "
+            "from being dragged back. Then a shot through it is critical, for 1.5 times the damage.",
+            "When his lantern flares, a spread of spectral buckshot follows a second later. Put a bier between you.",
+            "Come too close and he swings the stock.",
+            "When the chapel bell rings he drifts out over the canyon where no gun reaches him. Relight the deck's three "
+            "lanterns (hold at each) and they drag him back.",
+            "At the last the Gravewind pours across the deck toward the open end. Keep off the end. Hob will fetch you back, "
+            "and he'll have something to say about it.",
+            "He isn't fought again. He keeps the boards now.",
+        ],
+        sort_order=3,
+    ),
 
     # --- The seven names: Enemies, before the Unpaid, whereabouts blank until the lantern finds them ---
     'Ned': dict(

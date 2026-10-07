@@ -249,6 +249,13 @@ void AUnpaidCreature::ApplyCoalColor()
 	const FVector4 RankColor(Color.R, Color.G, Color.B, Traits.CoalGlow);
 	GetMesh()->SetCustomPrimitiveDataVector4(UnpaidLook::RankColorIndex, RankColor);
 	Hat->SetCustomPrimitiveDataVector4(UnpaidLook::RankColorIndex, RankColor);
+	for (UPrimitiveComponent* Part : LookParts)
+	{
+		if (Part)
+		{
+			Part->SetCustomPrimitiveDataVector4(UnpaidLook::RankColorIndex, RankColor);
+		}
+	}
 }
 
 void AUnpaidCreature::ApplyLook(bool bForce)
@@ -259,12 +266,26 @@ void AUnpaidCreature::ApplyLook(bool bForce)
 	{
 		Body->SetCustomPrimitiveDataFloat(UnpaidLook::PhaseIndex, PhaseAmount);
 		Hat->SetCustomPrimitiveDataFloat(UnpaidLook::PhaseIndex, PhaseAmount);
+		for (UPrimitiveComponent* Part : LookParts)
+		{
+			if (Part)
+			{
+				Part->SetCustomPrimitiveDataFloat(UnpaidLook::PhaseIndex, PhaseAmount);
+			}
+		}
 		ShownPhase = PhaseAmount;
 	}
 	if (bForce || !FMath::IsNearlyEqual(Heat, ShownHeat, 0.01f))
 	{
 		Body->SetCustomPrimitiveDataFloat(UnpaidLook::HeatIndex, Heat);
 		Hat->SetCustomPrimitiveDataFloat(UnpaidLook::HeatIndex, Heat);
+		for (UPrimitiveComponent* Part : LookParts)
+		{
+			if (Part)
+			{
+				Part->SetCustomPrimitiveDataFloat(UnpaidLook::HeatIndex, Heat);
+			}
+		}
 		ShownHeat = Heat;
 	}
 	// A shot passes through what has mostly faded away.
@@ -350,10 +371,8 @@ void AUnpaidCreature::Tick(float DeltaSeconds)
 	SinceSlowingShriek = FMath::Min(SinceSlowingShriek + DeltaSeconds, 1000.f);
 	if (IsDead())
 	{
-		// It slumps, then dissolves while its coal goes out.
 		DeathTime += DeltaSeconds;
-		PhaseAmount = FMath::Clamp((DeathTime - DeathFadeDelay) / DeathFadeSeconds, 0.f, 1.f);
-		Heat = -PhaseAmount;
+		UpdateDeathLook(DeltaSeconds);
 	}
 	else
 	{
@@ -374,6 +393,26 @@ void AUnpaidCreature::Tick(float DeltaSeconds)
 		AnimateBody(DeltaSeconds);
 	}
 	ApplyLook(false);
+}
+
+void AUnpaidCreature::UpdateDeathLook(float DeltaSeconds)
+{
+	// It slumps, then dissolves while its coal goes out.
+	PhaseAmount = FMath::Clamp((DeathTime - DeathFadeDelay) / DeathFadeSeconds, 0.f, 1.f);
+	Heat = -PhaseAmount;
+}
+
+void AUnpaidCreature::RiseIn()
+{
+	if (IsDead())
+	{
+		return;
+	}
+	// The end of a phase-step without its start: gone, and fading back in where it stands.
+	PhaseState = EPhaseState::In;
+	PhaseTime = 0.f;
+	PhaseAmount = 1.f;
+	ApplyLook(true);
 }
 
 void AUnpaidCreature::OnHurt(bool bCritical, const FVector& HitLocation)

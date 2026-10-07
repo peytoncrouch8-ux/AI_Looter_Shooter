@@ -54,6 +54,13 @@ struct FBossAddWave
 	float Radius = 600.f;
 
 	/**
+	 * They rise round the fight's spot (the middle of its arena, on its ground) instead of round the boss where it is now:
+	 * Abel's adds rise through the deck while he hangs in the fog over the canyon.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave")
+	bool bAroundSpot = false;
+
+	/**
 	 * The wave only tops the boss's adds up to this many alive ("two rise every 25 s, at most 4"). 0: the boss's own cap
 	 * (UBossComponent::MaxAliveAdds), which is never more than 10.
 	 */

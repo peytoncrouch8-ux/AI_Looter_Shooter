@@ -6,8 +6,9 @@ Gameplay folder, so a "gameplay" build places it all again; a piece whose socket
 out with a warning.
 
 - Grandma Delia's screen door (ASpeakerPoint tagged Speaker_Delia) on SOCKET_Speaker, the middle of the screen door's
-  face: her Main 1 lines while it lasts, the porch after. On a farmhouse without the socket (the tutorial island's old
-  model) it stands on that house's front door.
+  face: her Main 1 lines while it lasts, the porch after; after Main 5, until Main 6 is done, "Take him the lantern..."
+  (DA_Lines_DeliaMain6), whose event (Delia.Main6) starts Main 6. On a farmhouse without the socket (the tutorial island's
+  old model) it stands on that house's front door.
 - The screen door (SM_ScreenDoor) hung closed on SOCKET_ScreenDoor, the hinge line at its foot.
 - The plate Delia sets out (SM_PorchPlate) on the porch stool's SOCKET_Plate.
 Her hall lamp and lamplit windows (AHouseLights on SOCKET_Light) are build_area.py's, as every lived-in house's are.
@@ -17,6 +18,10 @@ import unreal
 import build_area_story as story
 
 DELIA_TAG = 'Speaker_Delia'
+# Main 6 starts with Delia's word through the door: her topic sends this event (create_mission_assets.py's StartEvent).
+MAIN5 = 'Main5'
+MAIN6 = 'Main6'
+MAIN6_EVENT = 'Delia.Main6'
 SCREEN_DOOR = '/Game/Art/Buildings/SM_ScreenDoor'
 PORCH_PLATE = '/Game/Art/Buildings/SM_PorchPlate'
 # The old farmhouse's front door, in its model's frame (Farmhouse.py: the door in the middle of the front wall, which
@@ -53,10 +58,19 @@ def place_delia(build, house):
         at, yaw, reach = door.translation, door.rotation.rotator().yaw, story.TALK_REACH
     else:
         at, yaw, reach = house.get_actor_transform().transform_location(OLD_DOOR), house.get_actor_rotation().yaw, 0.0
+    # The first that holds is said: Main 1's lines while it lasts; after Main 5 until Main 6 is done, "Take him the lantern"
+    # (its event starts Main 6); else the porch.
+    said = []
     during = story.lines(build, 'DA_Lines_DeliaMain1')
+    if during:
+        said.append(story.topic(story.condition(before=[story.MAIN1]), during))
+    lantern = story.lines(build, 'DA_Lines_DeliaMain6')
+    if lantern:
+        take_him = story.topic(story.condition(after=[MAIN5], before=[MAIN6]), lantern)
+        take_him.set_editor_property('event', unreal.Name(MAIN6_EVENT))
+        said.append(take_him)
     story.speaker(build, cls, (at.x, at.y, at.z), yaw, DELIA_TAG, DELIA_TAG, name='Grandma Delia', reach=reach,
-                  line_set=story.lines(build, 'DA_Lines_DeliaPorch'),
-                  topics=[story.topic(story.condition(before=[story.MAIN1]), during)] if during else ())
+                  line_set=story.lines(build, 'DA_Lines_DeliaPorch'), topics=said)
     build.log(f'Grandma Delia\'s screen door at ({at.x:.0f}, {at.y:.0f}, {at.z:.0f})')
 
 

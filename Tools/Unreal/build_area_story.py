@@ -1,5 +1,5 @@
 """The story's actors for build_area.py (Docs/Areas/RansomsRest.md: Main 1 "Seven Days", Main 2 "Shall We Talk Business?",
-Main 3 "Cold Welcome", Main 4 "Hallowed Ground", Main 5 "The Keeper's Lantern"), placed from the models build_area.py
+Main 3 "Cold Welcome", Main 4 "Hallowed Ground", Main 5 "The Keeper's Lantern", Main 6 "The Gravewind"), placed from the models build_area.py
 placed and their sockets (Art/Models/Props/Graves.py, Buildings/Lookout.py, Buildings/Farmhouse.py,
 Buildings/FalseFronts.py, Buildings/Chapel.py, Rocks/Outcrops.py's Den Rock) and from the layout's zones, obstacles,
 features and roads, so they follow the level whenever it's rebuilt. Only a level whose layout has Ellis's grave
@@ -41,6 +41,9 @@ Main 5 (build_area_sink.py, with these helpers): the Sink's floor dressed (colla
   its three egg sacs (shot down in Main 5's second step, two spiders each), the Keeper's Lantern in the webbing (taken
   in its third), the floor's and the ramp head's places, the floor's spiders, the den's web funnel and the Webwood's
   trees.
+Main 6 (build_area_deck.py, with these helpers): the burial deck's biers and keeper's lantern posts, Abel on the boards
+  (during Main 6), Pa's board after it, the fog wall across the Keeper's Gate, Gravewind Point's place, the keeper's grave's
+  respawn (after Main 5), the story's dusk, and the Gravewind's wisps and canyon fog (seen only at dusk).
 Side 3 (build_area_den.py): the Gravemother's lair at the den's mouth under Den Rock (after Main 5) and the den's place.
 Hob (AHobBird, tagged Speaker_Hob), perched near the next thing to do, saying his piece as he lands:
   Main 1: on Ellis's headboard (silent from the claw-out, "Morning, sunshine" once Ellis is out), and after it.
@@ -54,6 +57,9 @@ Hob (AHobBird, tagged Speaker_Hob), perched near the next thing to do, saying hi
   Main 5: on Den Rock over the den for the way down ("Keepers walk the dead to the boards by lantern light..."), on
           a block on the Sink's floor for the egg sacs and then the lantern (a word at each, no flight), on the Sink
           road's dead tree by the ramp head once the lantern is taken, and there after Main 5.
+  Main 6: on the keeper's grave's board for the way to Gravewind Point, on the Keeper's Gate's north rock for the lantern
+          and the fight (a word at each, no flight between them), on the bier beside Pa's for the scene, and there after
+          Main 6.
   Talked to, a line for where things stand.
 Their words are line sets in /Game/Data/Story (Tools/Unreal/create_story_lines.py makes them first); a set that's
 missing is left out with a warning, and its speaker says nothing until the sets are made and this runs again.
@@ -72,6 +78,7 @@ MAIN2 = 'Main2'
 MAIN3 = 'Main3'
 MAIN4 = 'Main4'
 MAIN5 = 'Main5'
+MAIN6 = 'Main6'
 FAMILY_PLOT = 'FamilyPlot'
 PLACE_POINT = 'Place_RansomsPoint'
 PLACE_GATE = 'Place_TownGate'
@@ -216,14 +223,16 @@ def ground(x, y, z, ignore=()):
     return z if hit is None else hit.to_tuple()[5].z
 
 
-def ground_at(x, y, default=0.0):
-    """The first thing under (x, y) from high over the level: the terrain, or the top of a rock or a post standing there."""
+def ground_at(x, y, default=0.0, warn=True):
+    """The first thing under (x, y) from high over the level: the terrain, or the top of a rock or a post standing there.
+    Nothing there (open canyon past a rim, or no terrain placed) gives default, with a warning unless warn is off."""
     world = unreal.EditorLevelLibrary.get_editor_world()
     hit = unreal.SystemLibrary.line_trace_single(world, unreal.Vector(x, y, 20000.0), unreal.Vector(x, y, -20000.0),
                                                  unreal.TraceTypeQuery.TRACE_TYPE_QUERY1, True, [],
                                                  unreal.DrawDebugTrace.NONE, True)
     if hit is None:
-        unreal.log_warning(f'no ground under ({x:.0f}, {y:.0f}): it stands at {default:.0f} (is the terrain placed?)')
+        if warn:
+            unreal.log_warning(f'no ground under ({x:.0f}, {y:.0f}): it stands at {default:.0f} (is the terrain placed?)')
         return default
     return hit.to_tuple()[5].z
 
@@ -575,7 +584,7 @@ def hob_on_sign(shop):
     return at.x, at.y, z, shop.get_actor_rotation().yaw
 
 
-def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_spots):
+def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_spots, deck_spots):
     cls = actor_class('HobBird')
     board = hob_on_board(grave_ellis)
     if cls is None or board is None:
@@ -593,6 +602,10 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
         'denRock': sink_spots.get('way'),
         'block': sink_spots.get('block'),
         'roadTree': sink_spots.get('rim'),
+        # Main 6's: the keeper's grave's board, the Keeper's Gate's north rock, the bier beside Pa's (build_area_deck.hob_spots).
+        'keeperGrave': deck_spots.get('keeperGrave'),
+        'gateRock': deck_spots.get('gateRock'),
+        'deckBier': deck_spots.get('deckBier'),
     }
 
     def perch(spot, when, arrival=None):
@@ -639,7 +652,14 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
         perch(spots['block'], condition(during=MAIN5, from_step=2), 'DA_Lines_HobMain5Lantern'),
         perch(spots['block'], condition(during=MAIN5, from_step=1), 'DA_Lines_HobMain5Sacs'),
         perch(spots['denRock'], condition(during=MAIN5), 'DA_Lines_HobMain5Way'),
+        # Main 6: on the bier beside Pa's for the scene (his word is the scene's own); on the gate's north rock for the fight
+        # and the lantern (no flight between them: a word at each); on the keeper's grave's board for the way there.
+        perch(spots['deckBier'], condition(during=MAIN6, from_step=3)),
+        perch(spots['gateRock'], condition(during=MAIN6, from_step=2), 'DA_Lines_HobMain6Fight'),
+        perch(spots['gateRock'], condition(during=MAIN6, from_step=1), 'DA_Lines_HobMain6Post'),
+        perch(spots['keeperGrave'], condition(during=MAIN6), 'DA_Lines_HobMain6Way'),
         # After each, where the last left him.
+        perch(spots['deckBier'], condition(after=[MAIN6])),
         perch(spots['roadTree'], condition(after=[MAIN5])),
         perch(spots['lantern'], condition(after=[MAIN4])),
         perch(spots['sign'], condition(after=[MAIN3])),
@@ -649,6 +669,7 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
     hob.set_editor_property('perches', [each for each in perches if each is not None])
     hob.get_editor_property('speaker_point').set_editor_property('topics', topics(
         build,
+        (condition(during=MAIN6), 'DA_Lines_HobMain6'),
         (condition(during=MAIN5), 'DA_Lines_HobMain5'),
         (condition(during=MAIN4), 'DA_Lines_HobMain4'),
         (condition(during=MAIN3), 'DA_Lines_HobMain3'),
@@ -689,4 +710,6 @@ def place(build):
     sink_spots = importlib.reload(importlib.import_module('build_area_sink')).place(build)
     # Side 3: the Gravemother's lair and the den's place (its own module, reloaded as the chapel's is).
     importlib.reload(importlib.import_module('build_area_den')).place(build)
-    place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_spots)
+    # Main 6, on the burial deck (its own module, reloaded as the chapel's is); it hands back Hob's Main 6 perches.
+    deck_spots = importlib.reload(importlib.import_module('build_area_deck')).place(build)
+    place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_spots, deck_spots)

@@ -34,8 +34,9 @@ int32 UBossComponent::SpawnWave(const FBossAddWave& Wave)
 	Spawn.BodyScale = Wave.BodyScale;
 
 	// They rise round the boss on its own level of ground (creatures never step down a drop, and every fight keeps to one
-	// level), inside its wall: one ring of spots evenly round it, then a second between them for any that didn't fit.
-	const FVector Middle = Creature->GetActorLocation();
+	// level), inside its wall: one ring of spots evenly round it, then a second between them for any that didn't fit. A wave
+	// that rises round the fight's spot (its home, the arena's middle) does so wherever the boss has gone.
+	const FVector Middle = Wave.bAroundSpot && bFighting ? Spot : Creature->GetActorLocation();
 	const float FeetZ = static_cast<float>(Middle.Z) - Creature->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 	const FVector Feet(Middle.X, Middle.Y, FeetZ);
 	FVector BossGround;

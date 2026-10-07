@@ -1,5 +1,5 @@
 {
-  "about": "Where Ransom's Rest is looked at from, for screenshots and performance (Looter.Tour; Tools/tour.ps1 -Map /Game/Maps/Lvl_RansomsRest -Views Art/Levels/RansomsRest/views.json), most from the terrain's preview cameras (layout.json preview.views). x and y in cm (X north, Y east); height in cm above the first surface under the view (so never over a roof); yaw 0 looks north, 90 east; pitch up is positive. A view's exec runs as the tour arrives and after as it leaves: the _NoBeyond views measure what lies past the boundary (tagged Beyond) by the difference, the _FarShadow ones one far shadow cascade to 400 m drawn by buildings and cliffs (Looter.Perf.FarShadow), and the _Dusk ones the level at dusk (Looter.Light Dusk behind its fade, back to Day after).",
+  "about": "Where Ransom's Rest is looked at from, for screenshots and performance (Looter.Tour; Tools/tour.ps1 -Map /Game/Maps/Lvl_RansomsRest -Views Art/Levels/RansomsRest/views.json), most from the terrain's preview cameras (layout.json preview.views). x and y in cm (X north, Y east); height in cm above the first surface under the view (so never over a roof); yaw 0 looks north, 90 east; pitch up is positive. A view's exec runs as the tour arrives and after as it leaves: the _NoBeyond views measure what lies past the boundary (tagged Beyond) by the difference, the _FarShadow ones one far shadow cascade to 400 m drawn by buildings and cliffs (Looter.Perf.FarShadow), and the _Dusk ones the level at dusk (Looter.Light Dusk behind its fade, back to Day after; on the deck the Gravewind's wisps and the canyon's fog show then). DeckFight_Dusk is the plan's view 13, last because it moves the player: Abel's fight on the deck at dusk with ten adds hunting the player, who can't be hurt (Looter.Abel.Perf 10), started over as it leaves (Looter.Abel.Reset).",
   "views": [
     {"name": "Grave", "x": -3660, "y": -8650, "height": 170, "yaw": 35, "pitch": 2, "fov": 80},
     {"name": "Farm", "x": -3900, "y": -5100, "height": 170, "yaw": 64, "pitch": -2, "fov": 80},
@@ -35,6 +35,10 @@
     {"name": "MainStreet_Dusk", "x": 60, "y": -1600, "height": 170, "yaw": 90, "pitch": -1, "fov": 80,
      "exec": ["Looter.Light Dusk"], "after": ["Looter.Light Day"]},
     {"name": "Aerial_Dusk", "x": -9000, "y": -9000, "height": 6000, "yaw": 45, "pitch": -22, "fov": 70,
-     "exec": ["Looter.Light Dusk"], "after": ["Looter.Light Day"]}
+     "exec": ["Looter.Light Dusk"], "after": ["Looter.Light Day"]},
+    {"name": "DeckWest_Dusk", "x": 1200, "y": -15400, "height": 170, "yaw": 247.5, "pitch": -8, "fov": 80,
+     "exec": ["Looter.Light Dusk"], "after": ["Looter.Light Day"]},
+    {"name": "DeckFight_Dusk", "x": 1200, "y": -13800, "height": 200, "yaw": 262, "pitch": -7, "fov": 80,
+     "exec": ["Looter.Light Dusk", "Looter.Abel.Perf 10"], "after": ["Looter.Abel.Reset", "Looter.Light Day"]}
   ]
 }

@@ -7,6 +7,7 @@
 #include "UnpaidCreature.generated.h"
 
 class AShriekRing;
+class UPrimitiveComponent;
 class UMaterialInterface;
 class UStaticMeshComponent;
 
@@ -180,6 +181,12 @@ public:
 	/** How far it's dissolved now: 0 solid to 1 gone (its material's Phase). */
 	float GetPhase() const { return PhaseAmount; }
 
+	/**
+	 * Fades it in where it stands, as the end of a phase-step does (its shroud's ends first, shot through until it's mostly
+	 * there): an add rising through the boards (Abel's). Nothing while it's dead.
+	 */
+	void RiseIn();
+
 	// --- Settings ---
 
 	/** Its bones in SK_Unpaid. */
@@ -277,6 +284,65 @@ protected:
 	virtual void SetHitVolumesEnabled(bool bEnabled) override;
 	virtual bool CanStartAttack() const override;
 
+	// --- For a body built on the Unpaid's rig (Abel, the Keeper: Bosses/AbelKeeper.h) ---
+
+	/** Bones such a body poses besides the Unpaid's (Abel's lantern, gun and coat skirts), by name; one the model lacks is left out. */
+	virtual void GetExtraRigBones(TArray<FName>& OutBones) const {}
+
+	/**
+	 * Once this frame's pose is worked out channel by channel and the shroud's chains have swung, before it's solved: such a
+	 * body lays a pose of its own over the bones' turns and shifts (Bones' Own and Shift). The Unpaid lays nothing.
+	 */
+	virtual void LayerPose(float DeltaSeconds) {}
+
+	/** Its look as it dies, DeathTime into its death: by default it slumps, then dissolves while its coal goes out. */
+	virtual void UpdateDeathLook(float DeltaSeconds);
+
+	/** One bone the code poses: its rest pose (component space), this frame's turn and shift, and the pose they make. */
+	struct FPosedBone
+	{
+		FName Name;
+		int32 SkeletonIndex = INDEX_NONE;
+		/** The nearest posed bone above it (an index into Bones), or none. */
+		int32 Parent = INDEX_NONE;
+		FTransform Rest;
+		/** Its own turn about its joint this frame, in the rest pose's frame (it takes its parent's turn on top). */
+		FQuat Own = FQuat::Identity;
+		/** Its own shift this frame (component space) and size against its rest. */
+		FVector Shift = FVector::ZeroVector;
+		float Scale = 1.f;
+		/** A shroud link: its chain and link (its turn comes from the chain, under what the chain hangs from). */
+		int32 Chain = INDEX_NONE;
+		int32 Link = INDEX_NONE;
+		/** Its turn from rest with everything above it, and its pose: worked out each frame. */
+		FQuat Turned = FQuat::Identity;
+		FTransform Posed;
+	};
+
+	/** Finds a bone of the rig by name (INDEX_NONE when the model lacks it). */
+	int32 FindPosedBone(FName Name) const;
+
+	/** The bones it poses, parents first (none without its model), and whether it has its rig. */
+	TArray<FPosedBone> Bones;
+	bool bRigReady = false;
+
+	/**
+	 * How far the shroud's chains swing its links: 1, they do (the Unpaid, always); at 0 the links take their own turns
+	 * (Abel knelt or sat, his shroud lying on the boards as his pose table lays it).
+	 */
+	float ChainSwing = 1.f;
+
+	/** How far it's dissolved (its material's Phase: 0 solid, 1 gone), its coal's flare (0 as it is, up on a crit, -1 out). */
+	float PhaseAmount = 0.f;
+	float Heat = 0.f;
+
+	/** Seconds since it died. */
+	float DeathTime = 0.f;
+
+	/** Meshes that wear the body's look besides the hat (Abel's lantern and pump): its rank's color, its dissolve, its flare. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UPrimitiveComponent>> LookParts;
+
 private:
 	// --- Look (UnpaidCreature.cpp) ---
 	/** Puts on its clothes: the model's own, or one of OtherClothes. */
@@ -316,27 +382,6 @@ private:
 	void Arrive();
 
 	// --- The body (UnpaidCreatureRig.cpp) ---
-	/** One bone the code poses: its rest pose (component space), this frame's turn and shift, and the pose they make. */
-	struct FPosedBone
-	{
-		FName Name;
-		int32 SkeletonIndex = INDEX_NONE;
-		/** The nearest posed bone above it (an index into Bones), or none. */
-		int32 Parent = INDEX_NONE;
-		FTransform Rest;
-		/** Its own turn about its joint this frame, in the rest pose's frame (it takes its parent's turn on top). */
-		FQuat Own = FQuat::Identity;
-		/** Its own shift this frame (component space) and size against its rest. */
-		FVector Shift = FVector::ZeroVector;
-		float Scale = 1.f;
-		/** A shroud link: its chain and link (its turn comes from the chain, under what the chain hangs from). */
-		int32 Chain = INDEX_NONE;
-		int32 Link = INDEX_NONE;
-		/** Its turn from rest with everything above it, and its pose: worked out each frame. */
-		FQuat Turned = FQuat::Identity;
-		FTransform Posed;
-	};
-
 	struct FArm
 	{
 		float Side = 1.f;
@@ -369,8 +414,6 @@ private:
 
 	/** Reads its rig from the skeleton; false without the model or the bones it needs (it then stays at rest). */
 	bool SetupRig();
-	/** Finds a bone of the rig by name (INDEX_NONE when the model lacks it). */
-	int32 FindPosedBone(FName Name) const;
 	/** Works out this frame's pose and hands it to the animation (GetBonePose). */
 	void AnimateBody(float DeltaSeconds);
 	/** Where each channel heads now, from what the brain is doing (Speed: its drift against its chase speed; Time: its clock). */
@@ -379,8 +422,6 @@ private:
 	void SolvePose();
 
 	// The rig
-	bool bRigReady = false;
-	TArray<FPosedBone> Bones;
 	int32 PelvisBone = INDEX_NONE;
 	int32 SpineBone = INDEX_NONE;
 	int32 ChestBone = INDEX_NONE;
@@ -421,7 +462,6 @@ private:
 	// Phase-steps
 	EPhaseState PhaseState = EPhaseState::None;
 	float PhaseTime = 0.f;
-	float PhaseAmount = 0.f;
 	FVector PhaseDestination = FVector::ZeroVector;
 	float SinceLastStep = 1000.f;
 	float StallTime = 0.f;
@@ -432,9 +472,7 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Unpaid|Look")
 	TObjectPtr<UStaticMeshComponent> Hat;
 
-	// Death and look
-	float DeathTime = 0.f;
-	float Heat = 0.f;
+	// Look
 	float ShownPhase = -1.f;
 	float ShownHeat = -10.f;
 	bool bHitVolumesWanted = true;
