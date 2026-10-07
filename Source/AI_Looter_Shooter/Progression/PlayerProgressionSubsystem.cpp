@@ -10,6 +10,18 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 
+namespace
+{
+	/**
+	 * Whether something of class Met (as kept, by exact class) counts as one of a bestiary page's kind: that class itself, or
+	 * a Blueprint made from it. A C++ class made from it is a kind of its own (the Gravemother, a spider).
+	 */
+	bool CountsForPage(const UClass* Met, const UClass* PageKind)
+	{
+		return Met && PageKind && Met->IsChildOf(PageKind) && (Met == PageKind || !Met->HasAnyClassFlags(CLASS_Native));
+	}
+}
+
 void UPlayerProgressionSubsystem::PlayerControllerChanged(APlayerController* NewPlayerController)
 {
 	Super::PlayerControllerChanged(NewPlayerController);
@@ -241,11 +253,12 @@ bool UPlayerProgressionSubsystem::HasEncountered(const UClass* ActorType) const
 	{
 		return false;
 	}
-	// Met per exact class, so meeting a Blueprint child of a creature opens its parent's page too.
+	// Met per exact class, so meeting a Blueprint child of a creature opens its parent's page too. A C++ child is a kind of
+	// its own with a page of its own (the Gravemother, a spider): meeting her doesn't open the brown spider's.
 	for (const FString& Kind : Progress.Encountered)
 	{
 		const UClass* Met = FSoftClassPath(Kind).TryLoadClass<AActor>();
-		if (Met && Met->IsChildOf(ActorType))
+		if (CountsForPage(Met, ActorType))
 		{
 			return true;
 		}
@@ -259,12 +272,13 @@ int32 UPlayerProgressionSubsystem::GetDefeated(const UClass* ActorType) const
 	{
 		return 0;
 	}
-	// Kills are kept per exact class, so a Blueprint child of a creature counts toward its parent's entry too.
+	// Kills are kept per exact class, so a Blueprint child of a creature counts toward its parent's entry too (a C++ child,
+	// the Gravemother, toward her own).
 	int32 Count = 0;
 	for (const TPair<FString, int32>& Pair : Progress.Defeated)
 	{
 		const UClass* Killed = FSoftClassPath(Pair.Key).TryLoadClass<AActor>();
-		Count += Killed && Killed->IsChildOf(ActorType) ? Pair.Value : 0;
+		Count += CountsForPage(Killed, ActorType) ? Pair.Value : 0;
 	}
 	return Count;
 }

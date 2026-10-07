@@ -207,7 +207,8 @@ void ACreatureBase::TickBrain(float DeltaSeconds)
 		}
 		const float Distance = FVector::Dist2D(GetActorLocation(), Victim->GetActorLocation());
 		const float StrikeFrom = GetAttackRange();
-		if (Distance <= StrikeFrom && CooldownRemaining <= 0.f && CanStartAttack())
+		// An attack of its own may start from farther out than its reach (a charge); otherwise it closes in to bite.
+		if (Distance <= GetAttackStartRange() && CooldownRemaining <= 0.f && CanStartAttack())
 		{
 			SetState(ECreatureState::Attack);
 		}
@@ -311,9 +312,10 @@ bool ACreatureBase::HasLineOfSight(const AActor* Other) const
 void ACreatureBase::TickAttack(float DeltaSeconds)
 {
 	APawn* Victim = Target.Get();
-	if (Victim && StateTime < AttackWindup)
+	if (Victim && StateTime < AttackWindup && TracksTargetInWindup())
 	{
-		// Track the target through the wind-up; commit to the direction once the strike starts.
+		// Track the target through the wind-up; commit to the direction once the strike starts (or once a charge has
+		// taken its aim).
 		FaceToward(Victim->GetActorLocation(), DeltaSeconds);
 	}
 
@@ -351,16 +353,17 @@ void ACreatureBase::Strike()
 	OnAttackStrike(bConnected);
 }
 
-void ACreatureBase::HitWithAttack(APawn* Victim, const FVector& Push)
+void ACreatureBase::HitWithAttack(APawn* Victim, const FVector& Push, float Strength)
 {
 	// Attacks roll in the same damage range as player weapons.
-	const float Damage = LooterCombat::RollHitDamage(AttackDamage, false);
+	const float Hardness = FMath::Max(Strength, 0.f);
+	const float Damage = LooterCombat::RollHitDamage(AttackDamage * Hardness, false);
 	UGameplayStatics::ApplyDamage(Victim, Damage, GetController(), this, UCreatureAttackDamageType::StaticClass());
 	UE_LOG(LogLooter, Verbose, TEXT("%s hit %s for %.1f"), *GetName(), *GetNameSafe(Victim), Damage);
 	// Shove the victim back so the hit is felt, not just read on the health bar.
 	if (ACharacter* VictimCharacter = Cast<ACharacter>(Victim))
 	{
-		VictimCharacter->LaunchCharacter(Push * 450.f + FVector(0.f, 0.f, 180.f), true, false);
+		VictimCharacter->LaunchCharacter((Push * 450.f + FVector(0.f, 0.f, 180.f)) * Hardness, true, false);
 	}
 }
 
@@ -481,8 +484,9 @@ void ACreatureBase::UpdateHealthBar(float DeltaSeconds)
 	{
 		if (UCreatureHealthBarWidget* Bar = Cast<UCreatureHealthBarWidget>(HealthBar->GetUserWidgetObject()))
 		{
+			// A Legendary monster with a name of its own shows its name in the rank's color, with no word before it.
 			const FCreatureRankInfo& RankInfo = UCreatureRankSettings::Get(CurrentRank);
-			Bar->SetCreature(DisplayName, Level, RankInfo.Word, RankInfo.Color);
+			Bar->SetCreature(DisplayName, Level, bNameIsRankWord ? FText::GetEmpty() : RankInfo.Word, RankInfo.Color);
 			Bar->SetHealth(Health->GetHealth(), Health->GetMaxHealth());
 		}
 	}

@@ -126,7 +126,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   asks of one (held back, put home);
   `CreatureBaseUpdateRate.cpp` slows the ones far from the player or out of sight (`Looter.Creatures.UpdateRates 0`
   turns that off); `CreatureBaseHunting.cpp` says whom it hunts: a living player on its hunting ground
-  (`HuntingGround`) and out of every safe zone that's on.
+  (`HuntingGround`) and out of every safe zone that's on. An attack can start farther out or hold its aim
+  (`GetAttackStartRange`, `TracksTargetInWindup`), and a named Legendary shows its name on its tag (`bNameIsRankWord`).
 - `Creatures/CreatureRank.h`: `ECreatureRank`, a creature's rank (Basic, Rare "Restless", Epic "Gravebound", Legendary
   "Soulfed", Boss).
 - `Creatures/CreatureRankSettings`: `UCreatureRankSettings` and `FCreatureRankInfo`, what each rank does (its tag's
@@ -139,6 +140,14 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   posed by code (stepping gait, leg IK, attack and death motion) at any size; its physics asset holds the hit zones.
   `SpiderCreatureRig.cpp` reads its rig from the skeleton (the bones it moves, the legs' layout) and builds the leg
   segments' frames.
+- `Creatures/GravemotherCreature`: `AGravemotherCreature`, the Gravemother (Side 3): the brown spider at 1.8x in a pale
+  hide (MI_SpiderBody_Pale), Legendary with her own name on her tag, crits on the head and abdomen.
+  `GravemotherCreatureCharge.cpp` is her charge (a long telegraph: she tracks, then holds her aim while the ground
+  cracks along her line; a straight dash that runs down whoever is in it; a slam and a burst);
+  `GravemotherCreatureBrood.cpp` her brood (four spiderlings at 66% and 33%, each once a life; a spiderling is a brown
+  spider at 0.45x with a fifth of its health, `SpawnSpiderling`).
+- `Creatures/GroundCrack`: `AGroundCrack`, a charge's crack in the ground: a jagged fissure with a glowing seam laid on
+  the ground, opened along its line, burst round a point, closing and gone by itself.
 - `Creatures/SlimeCreature`: `ASlimeCreature`, the meadow slime: SK_Slime (from `Art/Models/Creatures/Slime.py`) that
   only hops, squashing and stretching on springs, with a leap attack and crits through the gel at its core.
 - `Creatures/UnpaidCreature`: `AUnpaidCreature`, the Unpaid: SK_Unpaid (from `Art/Models/Creatures/Unpaid.py`; its
@@ -169,7 +178,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   that some spawner waits for), safe-zone queries.
 - `Creatures/EncounterSpawner`: `AEncounterSpawner`, an encounter: groups and waves spawned when the player comes near,
   switched by the story, kept to the caps and its hunting ground, taken away while the player is far; nothing it
-  spawns comes back once killed. `EncounterSpawnerWaves.cpp`: its waves, spots, spawning and taking away.
+  spawns comes back once killed. `EncounterSpawnerWaves.cpp`: its waves, spots, spawning and taking away. A
+  Legendary monster's lair (`LegendaryId`): its death kept in the session, the encounter cleared on every arrival until
+  20 minutes of play have passed.
 
 ## Bosses
 - `Bosses/BossComponent`: `UBossComponent`, makes a creature a boss: the fight around it (started by a hit, a player near
@@ -323,8 +334,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   slot), read once to become session 1.
 - `Progression/PlayerProgressionSubsystem`: `UPlayerProgressionSubsystem`, the player's level and experience (adding,
   level-up events), the experience a kill gives (the creature's level and the falloff), the player's health for their
-  level (the first level reward), and which kinds the player has met and how many defeated; the session being played
-  gives it its progress and saves it. A practice area's kills give no experience.
+  level (the first level reward), and which kinds the player has met and how many defeated (by exact class: a
+  Blueprint child counts for its parent's page, a C++ child such as the Gravemother is its own); the session being
+  played gives it its progress and saves it. A practice area's kills give no experience.
 
 ## Session
 - `Session/SessionSubsystem.h`, `Session/SessionSubsystem.cpp`: `USessionSubsystem`, the three save sessions: the main
@@ -348,6 +360,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   destination begins; autosaves held during rides and fades.
 - `Session/SessionSubsystemPromotions.cpp`: when a map's creatures are promoted on arrival: at most once per 20 minutes
   of play, the time saved with the map's world.
+- `Session/SessionSubsystemLegendary.cpp`: when a map's Legendary monsters come back: on an arrival at least 20 minutes
+  of play after the last death (`LegendaryDefeatedAt`); noting and forgetting one.
 
 ## Areas
 - `Areas/AreaDefinition`: `UAreaDefinition`, one area as a data asset in `/Game/Data/Areas` (`DA_Area_<Id>`, made by
@@ -513,11 +527,13 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   save's upgrade checked on a copy), `.Copy <from> <to>` (into an empty slot only), `Looter.Travel <area or level>
   [landing]`, `Looter.Area.List`.
 - `Dev/CreatureDevCommands.cpp`: `Looter.CreatureHealth`, gives the nearest creatures chosen health (to compare their
-  bars); `Looter.SpawnCreature <Spider|Slime|Unpaid> [rank] [count] [chase] [size=] [level=]`, spawns ranked creatures in front of the
-  player (gone for good once killed); `Looter.Perf.Horde <kind> <count> [rank] [x y yaw]`, a fight measured where it
+  bars); `Looter.SpawnCreature <Spider|Spiderling|Gravemother|Slime|Unpaid> [rank] [count] [chase] [size=] [level=]` (no rank:
+  the kind's own), spawns ranked creatures in front of the player (gone for good once killed); `Looter.Perf.Horde <kind> <count> [rank] [x y yaw]`, a fight measured where it
   happens (the player put there, unhurtable, the creatures coming at them; for `perf.ps1 -Exec`).
 - `Dev/BossDevCommands.cpp`: `Looter.Boss.Test [phases]`, the test boss in front of the player with its fight started;
   `Looter.Boss.Reset`, `Looter.Boss.Kill`.
+- `Dev/LegendaryDevCommands.cpp`: `Looter.Legendary.List`, `.Forget [id | all]`, `.Return [id]` (a Legendary
+  monster's lair brought back now, whatever the story).
 - `Dev/LootDevCommands.cpp`: `Looter.Loot.SimulateDrops <rank> [kills]`, rolls a rank's loot table and prints its odds.
 - `Dev/InteractionDevCommands.cpp`: `Looter.Interaction.Spawn <door|bell|lantern>`, a greybox interactable in front of
   the player; `Looter.Interaction.Focus`, what the player would use now.
@@ -545,7 +561,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LightingTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
-  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `PosterTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `WeaponTests.cpp`, `NamedWeaponTests.cpp` (named guns: the
+  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `PosterTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `GravemotherTests.cpp` (her body, charge, brood, pack calls by tag,
+  loot), `GravemotherSideTests.cpp` (her return after 20 minutes of play, her lair, Side 3), `WeaponTests.cpp`, `NamedWeaponTests.cpp` (named guns: the
   fixed-quality rules, Heirloom's asset and label, its save, the mission reward),
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
@@ -637,7 +654,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `M_PosterDecal` (deferred decal: an atlas cell, a hard 0.5 edge, Tint, Roughness), `M_PosterScrap` (the falling
   scrap: masked, two-sided, a dithered fade from custom primitive data) and their instances.
   `Tools/Unreal/create_side_mission_assets.py`: the side missions' data assets (`DA_Mission_Side1`, made once its
-  prerequisite Main 3 exists). `Tools/Unreal/build_area_posters.py`: an area's posters from `layout.json`
+  prerequisite Main 3 exists; `DA_Mission_Side3`, once Main 5 does).
+  `Tools/Unreal/build_area_den.py`: Side 3's pieces for `build_area_story.py`: the Gravemother's lair (after Main 5) at
+  the den's mouth and the den's place (`Place_Den`), from Den Rock's sockets, else the layout. `Tools/Unreal/build_area_posters.py`: an area's posters from `layout.json`
   `gameplay.posters` (on a host's face, snapped by a trace, or on a socket), for `build_area.py` or on their own.
 - `Tools/Unreal/create_named_weapons.py`: the named guns' data assets (`DA_Named_Heirloom`), checked (`FindProblems`)
   before they're saved.

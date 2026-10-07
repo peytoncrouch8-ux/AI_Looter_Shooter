@@ -8,6 +8,7 @@
 #include "Creatures/CreatureBase.h"
 #include "Creatures/EncounterRules.h"
 #include "Creatures/EncounterSubsystem.h"
+#include "Session/SessionSubsystem.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Components/LineBatchComponent.h"
 #include "Components/SceneComponent.h"
@@ -63,7 +64,44 @@ void AEncounterSpawner::BeginPlay()
 	{
 		Encounters->RegisterSpawner(this);
 	}
+	// A Legendary monster beaten too lately is away for this visit (the level beginning is an arrival): the encounter starts
+	// cleared, whatever its story says.
+	if (!LegendaryId.IsNone() && !bMenuWorld)
+	{
+		const USessionSubsystem* Sessions = USessionSubsystem::Get(this);
+		if (Sessions && !Sessions->IsLegendaryBack(GetWorld(), LegendaryId))
+		{
+			SendLegendaryAway();
+		}
+	}
 	RefreshStory();
+}
+
+void AEncounterSpawner::SendLegendaryAway()
+{
+	bLegendaryAway = true;
+	// Nothing of it this visit: nothing owed, and whatever it had out goes (the console's way; as the level begins there's
+	// nothing yet).
+	Owed.Reset();
+	RemoveLiving(/*bOweThem*/ false);
+	SetState(EEncounterState::Cleared);
+	UpdateTimer();
+	UE_LOG(LogLooter, Log, TEXT("Encounter %s: %s is away this visit (beaten too lately); cleared until the level loads again."),
+		*GetSpawnerId().ToString(), *LegendaryId.ToString());
+}
+
+void AEncounterSpawner::HandleCreatureDeath(AController* Killer)
+{
+	if (LegendaryId.IsNone())
+	{
+		return;
+	}
+	// Beaten: it comes back on an arrival 20 minutes of play from now (USessionSubsystem keeps the time with the map).
+	if (USessionSubsystem* Sessions = USessionSubsystem::Get(this))
+	{
+		Sessions->NoteLegendaryDefeat(GetWorld(), LegendaryId);
+	}
+	UE_LOG(LogLooter, Log, TEXT("Encounter %s: %s is beaten."), *GetSpawnerId().ToString(), *LegendaryId.ToString());
 }
 
 void AEncounterSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -170,8 +208,10 @@ bool AEncounterSpawner::TriggerWave(bool bForce)
 {
 	if (bForce)
 	{
-		// The console's way to try an encounter: on whatever its story says, and a cleared one starts over.
+		// The console's way to try an encounter: on whatever its story says, and a cleared one starts over (a Legendary
+		// monster away this visit comes back).
 		bForced = true;
+		bLegendaryAway = false;
 		if (State == EEncounterState::Cleared)
 		{
 			Owed.Reset();
@@ -391,8 +431,9 @@ FString AEncounterSpawner::Describe() const
 		? FString::Printf(TEXT("%d (until %d in all)"), WavesStarted, MaxTotal)
 		: FString::Printf(TEXT("%d/%d"), WavesStarted, Planned);
 	const FString When = FromStep > 0 ? FString::Printf(TEXT("%s, from step %d"), *ActiveWhen.Describe(), FromStep) : ActiveWhen.Describe();
-	return FString::Printf(TEXT("%s, %s (%s): waves %s, %d alive, %d owed, %d killed, %d spawned"), *GetStateName(State),
-		bStoryActive ? TEXT("on") : TEXT("off"), *When, *Waves, NumAlive(), Owed.Num(), Killed, TotalQueued);
+	const FString Away = bLegendaryAway ? FString::Printf(TEXT(", %s away this visit"), *LegendaryId.ToString()) : FString();
+	return FString::Printf(TEXT("%s, %s (%s): waves %s, %d alive, %d owed, %d killed, %d spawned%s"), *GetStateName(State),
+		bStoryActive ? TEXT("on") : TEXT("off"), *When, *Waves, NumAlive(), Owed.Num(), Killed, TotalQueued, *Away);
 }
 
 void AEncounterSpawner::DrawEncounter(ULineBatchComponent& Lines, uint32 BatchID) const

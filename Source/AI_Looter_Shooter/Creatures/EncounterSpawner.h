@@ -10,6 +10,7 @@
 #include "Story/StoryCondition.h"
 #include "EncounterSpawner.generated.h"
 
+class AController;
 class ACreatureBase;
 class APawn;
 class UAreaDefinition;
@@ -34,7 +35,7 @@ enum class EEncounterState : uint8
 /**
  * An encounter (Docs/Areas/RansomsRest.md, "Spawners"): creatures spawned in play when the player comes near, all on one
  * level of ground, switched on and off by the story. Placed where a group fights (the town gate, the chapel yard, the
- * barn yard, boot hill's roaming Unpaid, the Gravemother's brood), with:
+ * barn yard, boot hill's roaming Unpaid, the Gravemother's den: a Legendary monster's lair, LegendaryId), with:
  *  - groups (FEncounterGroup): any creature class, how many, their ranks (the area's promotions, chances of their own, or
  *    one rank: "4, one of them Restless" is three of a group and one of a Restless group), level and size;
  *  - where they stand: spots round it within SpawnRadius, or its SpawnPoints. A spot whose ground is more than
@@ -57,7 +58,8 @@ enum class EEncounterState : uint8
  * room. It never ticks: a timer looks twice a second while it's on, and an idle spawner has none.
  *
  * What it has done isn't saved: a level loaded again starts every encounter over, as a mission's objectives start their
- * step over.
+ * step over. Only a Legendary lair's monster keeps its death in the session: it's away, the lair cleared, on every
+ * arrival until 20 minutes of play have passed since.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AEncounterSpawner : public AActor
@@ -80,6 +82,15 @@ public:
 	/** Tags every creature it spawns carries: a mission counts their kills by tag (Unpaid_TownGate). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Encounter")
 	TArray<FName> CreatureTags;
+
+	/**
+	 * A Legendary monster's lair (the Gravemother's den): the id the monster is known by in the session ("Gravemother").
+	 * Its death is noted with the map's world (USessionSubsystem::NoteLegendaryDefeat), and it's back only on an arrival
+	 * at least 20 minutes of play after it (USessionSubsystem::IsLegendaryBack): until then each visit starts cleared,
+	 * whatever its story says. None: an ordinary encounter.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Encounter")
+	FName LegendaryId;
 
 	/**
 	 * Its creatures go for the player as they appear (a wave in a fight), if the player is on their hunting ground. Off:
@@ -215,6 +226,16 @@ public:
 	/** Seeds its rolls (ranks, where its creatures stand), for tests; play seeds them anew as it begins. */
 	void SetRandomSeed(int32 Seed);
 
+	/**
+	 * Its Legendary monster is away this visit (beaten too lately): the encounter is cleared until the level loads again,
+	 * and what it had out goes. Play asks the session as it begins; the tests and the console say so themselves. A forced
+	 * TriggerWave (Looter.Encounter.Wave <id> force, Looter.Legendary.Return) brings it back.
+	 */
+	void SendLegendaryAway();
+
+	/** Its Legendary monster is away this visit. */
+	bool IsLegendaryAway() const { return bLegendaryAway; }
+
 	// --- What's going on ---
 
 	/** SpawnerId, or the actor's name. */
@@ -305,6 +326,10 @@ private:
 	bool IsAnyFighting() const;
 	const UAreaDefinition* FindArea() const;
 
+	/** One of its creatures died: a Legendary lair's monster is noted beaten in the session. */
+	UFUNCTION()
+	void HandleCreatureDeath(AController* Killer);
+
 	EEncounterState State = EEncounterState::Off;
 	bool bStoryActive = false;
 	bool bStoryApplied = false;
@@ -314,6 +339,8 @@ private:
 	bool bMenuWorld = false;
 	/** It warned once that its creatures found nowhere to stand. */
 	bool bWarnedNoRoom = false;
+	/** Its Legendary monster is away this visit (SendLegendaryAway). */
+	bool bLegendaryAway = false;
 
 	int32 WavesStarted = 0;
 	/** Creatures its waves have brought, against MaxTotal. */

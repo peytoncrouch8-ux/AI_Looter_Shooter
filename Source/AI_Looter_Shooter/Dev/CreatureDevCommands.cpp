@@ -8,6 +8,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/GravemotherCreature.h"
 #include "Creatures/SlimeCreature.h"
 #include "Creatures/SpiderCreature.h"
 #include "Creatures/UnpaidCreature.h"
@@ -85,22 +86,45 @@ namespace
 		TEXT("going through the values in turn (to compare their health bars). Until the level reloads."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SetCreatureHealth));
 
-	/** The creature class a command names ("Spider", "slime", "Unpaid"), or none. */
-	TSubclassOf<ACreatureBase> FindCreatureKind(const FString& Kind)
+	/** A kind of creature a command names: its class, and whether it's a spiderling (the brown spider as the Gravemother's brood). */
+	struct FCreatureKind
 	{
+		TSubclassOf<ACreatureBase> Class;
+		bool bSpiderling = false;
+	};
+
+	/** The creature kind a command names ("Spider", "slime", "Unpaid", "Gravemother", "Spiderling"), or none. */
+	FCreatureKind FindCreatureKind(const FString& Kind)
+	{
+		FCreatureKind Found;
 		if (Kind.Equals(TEXT("Spider"), ESearchCase::IgnoreCase))
 		{
-			return ASpiderCreature::StaticClass();
+			Found.Class = ASpiderCreature::StaticClass();
 		}
-		if (Kind.Equals(TEXT("Slime"), ESearchCase::IgnoreCase))
+		else if (Kind.Equals(TEXT("Spiderling"), ESearchCase::IgnoreCase))
 		{
-			return ASlimeCreature::StaticClass();
+			Found.Class = ASpiderCreature::StaticClass();
+			Found.bSpiderling = true;
 		}
-		if (Kind.Equals(TEXT("Unpaid"), ESearchCase::IgnoreCase))
+		else if (Kind.Equals(TEXT("Gravemother"), ESearchCase::IgnoreCase))
 		{
-			return AUnpaidCreature::StaticClass();
+			Found.Class = AGravemotherCreature::StaticClass();
 		}
-		return nullptr;
+		else if (Kind.Equals(TEXT("Slime"), ESearchCase::IgnoreCase))
+		{
+			Found.Class = ASlimeCreature::StaticClass();
+		}
+		else if (Kind.Equals(TEXT("Unpaid"), ESearchCase::IgnoreCase))
+		{
+			Found.Class = AUnpaidCreature::StaticClass();
+		}
+		return Found;
+	}
+
+	/** How a creature of Kind starts when a command spawns it: a spiderling as the Gravemother's brood come, else its class's. */
+	ACreatureBase::FRuntimeSpawn MakeSpawn(const FCreatureKind& Kind)
+	{
+		return Kind.bSpiderling ? AGravemotherCreature::MakeSpiderlingSpawn() : ACreatureBase::FRuntimeSpawn();
 	}
 
 	/** The ground under a spot (terrain and solid props, never volumes), from well above it to well below. */
@@ -157,13 +181,16 @@ namespace
 			UE_LOG(LogLooter, Warning, TEXT("Looter.SpawnCreature: no player (start the game first)."));
 			return;
 		}
-		const TSubclassOf<ACreatureBase> Kind = FindCreatureKind(Args.Num() > 0 ? Args[0] : FString(TEXT("Spider")));
-		if (!Kind)
+		const FCreatureKind Kind = FindCreatureKind(Args.Num() > 0 ? Args[0] : FString(TEXT("Spider")));
+		if (!Kind.Class)
 		{
-			UE_LOG(LogLooter, Warning, TEXT("Looter.SpawnCreature: no creature called '%s' (Spider, Slime or Unpaid)."), *Args[0]);
+			UE_LOG(LogLooter, Warning, TEXT("Looter.SpawnCreature: no creature called '%s' (Spider, Spiderling, Gravemother, Slime or Unpaid)."),
+				*Args[0]);
 			return;
 		}
-		ECreatureRank Rank = ECreatureRank::Basic;
+		// With no rank named, its kind's own: the Gravemother is Legendary, everything else Basic.
+		const ACreatureBase* Defaults = Kind.Class->GetDefaultObject<ACreatureBase>();
+		ECreatureRank Rank = Defaults->StartingRank;
 		if (Args.Num() > 1 && !UCreatureRankSettings::ParseRank(Args[1], Rank))
 		{
 			UE_LOG(LogLooter, Warning, TEXT("Looter.SpawnCreature: no rank called '%s' (Basic, Rare, Epic, Legendary, Boss, or ")
@@ -173,12 +200,14 @@ namespace
 		const int32 Count = Args.Num() > 2 ? FMath::Clamp(FCString::Atoi(*Args[2]), 1, 40) : 1;
 
 		// In rows of up to five, from about 8 m in front of the player, spaced by the creature's size, each facing the player.
-		ACreatureBase::FRuntimeSpawn Spawn;
+		ACreatureBase::FRuntimeSpawn Spawn = MakeSpawn(Kind);
 		Spawn.Rank = Rank;
 		Spawn.Level = SpawnLevel;
-		Spawn.BodyScale = Size;
-		const ACreatureBase* Defaults = Kind->GetDefaultObject<ACreatureBase>();
-		const float Grown = (Size > 0.f ? Size : Defaults->BodyScale) * UCreatureRankSettings::Get(Rank).Size;
+		if (Size > 0.f)
+		{
+			Spawn.BodyScale = Size;
+		}
+		const float Grown = (Spawn.BodyScale > 0.f ? Spawn.BodyScale : Defaults->BodyScale) * UCreatureRankSettings::Get(Rank).Size;
 		const float Spacing = FMath::Max(Defaults->GetCapsuleComponent()->GetUnscaledCapsuleRadius() * Grown * 3.f, 120.f);
 		// Where the player is looking, level (the body can face elsewhere in third person).
 		const FVector Ahead = FRotator(0.f, Controller->GetControlRotation().Yaw, 0.f).Vector();
@@ -198,10 +227,14 @@ namespace
 				continue;
 			}
 			const float Yaw = static_cast<float>((Pawn->GetActorLocation() - Ground).Rotation().Yaw);
-			ACreatureBase* Creature = ACreatureBase::SpawnAtRuntime(GameWorld, Kind, Ground, Yaw, Spawn);
+			ACreatureBase* Creature = ACreatureBase::SpawnAtRuntime(GameWorld, Kind.Class, Ground, Yaw, Spawn);
 			if (!Creature)
 			{
 				continue;
+			}
+			if (Kind.bSpiderling)
+			{
+				Creature->DisplayName = AGravemotherCreature::SpiderlingName();
 			}
 			++Spawned;
 			Name = Creature->DisplayName.ToString();
@@ -212,7 +245,8 @@ namespace
 		}
 
 		const FCreatureRankInfo& Info = UCreatureRankSettings::Get(Rank);
-		const FString Shown = Info.Word.IsEmpty() ? Name : FString::Printf(TEXT("%s %s"), *Info.Word.ToString(), *Name);
+		const bool bWord = !Info.Word.IsEmpty() && !Defaults->bNameIsRankWord;
+		const FString Shown = bWord ? FString::Printf(TEXT("%s %s"), *Info.Word.ToString(), *Name) : Name;
 		UE_LOG(LogLooter, Log, TEXT("Looter.SpawnCreature: %d of %d %s (%s, %.2fx size, level %d) in front of the player%s."), Spawned, Count,
 			*Shown, *UCreatureRankSettings::GetRankName(Rank), Grown,
 			(SpawnLevel > 0 ? SpawnLevel : Defaults->Level) + Info.LevelOffset, bChase ? TEXT(", hunting them") : TEXT(""));
@@ -266,11 +300,12 @@ namespace
 			}
 			return;
 		}
-		const TSubclassOf<ACreatureBase> Kind = FindCreatureKind(Args.Num() > 0 ? Args[0] : FString(TEXT("Unpaid")));
-		ECreatureRank Rank = ECreatureRank::Basic;
-		if (!Kind || (Args.Num() > 2 && !UCreatureRankSettings::ParseRank(Args[2], Rank)))
+		const FCreatureKind Kind = FindCreatureKind(Args.Num() > 0 ? Args[0] : FString(TEXT("Unpaid")));
+		ECreatureRank Rank = Kind.Class ? Kind.Class->GetDefaultObject<ACreatureBase>()->StartingRank : ECreatureRank::Basic;
+		if (!Kind.Class || (Args.Num() > 2 && !UCreatureRankSettings::ParseRank(Args[2], Rank)))
 		{
-			UE_LOG(LogLooter, Warning, TEXT("Looter.Perf.Horde <Spider|Slime|Unpaid> <count> [rank] [x y yaw]: no such creature or rank."));
+			UE_LOG(LogLooter, Warning, TEXT("Looter.Perf.Horde <Spider|Spiderling|Gravemother|Slime|Unpaid> <count> [rank] [x y yaw]: no such ")
+				TEXT("creature or rank."));
 			return;
 		}
 		const int32 Count = Args.Num() > 1 ? FMath::Clamp(FCString::Atoi(*Args[1]), 1, 40) : 12;
@@ -294,7 +329,7 @@ namespace
 		Pawn->SetCanBeDamaged(false);
 
 		// An arc across the view, alternately nearer and farther, each one facing the player and hunting them.
-		ACreatureBase::FRuntimeSpawn Spawn;
+		ACreatureBase::FRuntimeSpawn Spawn = MakeSpawn(Kind);
 		Spawn.Rank = Rank;
 		const FVector Ahead = FRotator(0.f, Controller->GetControlRotation().Yaw, 0.f).Vector();
 		int32 Spawned = 0;
@@ -308,31 +343,39 @@ namespace
 				continue;
 			}
 			const float Yaw = static_cast<float>((Pawn->GetActorLocation() - Ground).Rotation().Yaw);
-			if (ACreatureBase* Creature = ACreatureBase::SpawnAtRuntime(GameWorld, Kind, Ground, Yaw, Spawn))
+			if (ACreatureBase* Creature = ACreatureBase::SpawnAtRuntime(GameWorld, Kind.Class, Ground, Yaw, Spawn))
 			{
+				if (Kind.bSpiderling)
+				{
+					Creature->DisplayName = AGravemotherCreature::SpiderlingName();
+				}
 				Creature->AlertTo(Pawn);
 				++Spawned;
 			}
 		}
 		const FVector Where = Pawn->GetActorLocation();
 		UE_LOG(LogLooter, Display, TEXT("Looter.Perf.Horde: %d of %d %s (%s) hunting the player at (%.0f, %.0f, %.0f), who can't be hurt now."),
-			Spawned, Count, *Kind->GetName(), *UCreatureRankSettings::GetRankName(Rank), Where.X, Where.Y, Where.Z);
+			Spawned, Count, Kind.bSpiderling ? TEXT("spiderlings") : *Kind.Class->GetName(), *UCreatureRankSettings::GetRankName(Rank),
+			Where.X, Where.Y, Where.Z);
 	}
 
 	FAutoConsoleCommandWithWorldAndArgs HordeCommand(
 		TEXT("Looter.Perf.Horde"),
-		TEXT("Looter.Perf.Horde <Spider|Slime|Unpaid> <count> [rank] [x y yaw]: to measure a fight, puts the player at (x, y) facing yaw ")
-		TEXT("(when given) where they can't be hurt, and sends count creatures of a rank at them from an arc ahead: ")
+		TEXT("Looter.Perf.Horde <Spider|Spiderling|Gravemother|Slime|Unpaid> <count> [rank] [x y yaw]: to measure a fight, puts ")
+		TEXT("the player at (x, y) facing yaw (when given) where they can't be hurt, and sends count creatures of a rank at them from ")
+		TEXT("an arc ahead: ")
 		TEXT("perf.ps1 -Map /Game/Maps/Lvl_RansomsRest -Exec \"Looter.Quality Medium,Looter.Perf.Horde Unpaid 12 Basic 0 -1400 90\"."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SpawnHorde));
 
 	FAutoConsoleCommandWithWorldAndArgs SpawnCreatureCommand(
 		TEXT("Looter.SpawnCreature"),
-		TEXT("Looter.SpawnCreature <Spider|Slime|Unpaid> [Basic|Rare|Epic|Legendary|Boss] [count] [chase] [size=<scale>] [level=<n>]: ")
-		TEXT("spawns creatures of a rank on the ground in front of the player (rows of five, from about 8 m out). They never ")
-		TEXT("come back once killed. chase sets them on the player at once; size sets their BodyScale (0.45 a spiderling, 1.8 a ")
-		TEXT("giant) before the rank's own; level is before the rank's offset. Ranks also take their words (Restless, Gravebound, ")
-		TEXT("Soulfed): Looter.SpawnCreature Unpaid Gravebound 1 chase. The Unpaid's cap (12 at once) holds for the encounters, not here."),
+		TEXT("Looter.SpawnCreature <Spider|Spiderling|Gravemother|Slime|Unpaid> [Basic|Rare|Epic|Legendary|Boss] [count] [chase] ")
+		TEXT("[size=<scale>] [level=<n>]: spawns creatures of a rank (with none named, their kind's own: the Gravemother is ")
+		TEXT("Legendary) on the ground in front of the player (rows of five, from about 8 m out). They never come back once ")
+		TEXT("killed. chase sets them on the player at once; size sets their BodyScale (0.45 a spiderling, 1.8 a giant) before the ")
+		TEXT("rank's own; level is before the rank's offset. A Spiderling is the Gravemother's brood: a brown spider at 0.45 with a ")
+		TEXT("fifth of its health. Ranks also take their words (Restless, Gravebound, Soulfed): Looter.SpawnCreature Unpaid ")
+		TEXT("Gravebound 1 chase. The Unpaid's cap (12 at once) holds for the encounters, not here."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SpawnCreature));
 }
 

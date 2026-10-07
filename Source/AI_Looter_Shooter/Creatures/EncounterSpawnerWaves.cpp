@@ -4,6 +4,7 @@
 #include "Creatures/EncounterSpawner.h"
 #include "AI_Looter_Shooter.h"
 #include "Areas/AreaRulesSubsystem.h"
+#include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/EncounterRules.h"
 #include "Creatures/EncounterSettings.h"
@@ -230,6 +231,14 @@ ACreatureBase* AEncounterSpawner::SpawnOne(const FOwedCreature& Entry, const FVe
 		if (!Tag.IsNone())
 		{
 			Creature->Tags.AddUnique(Tag);
+		}
+	}
+	// A Legendary lair's monster: its death is noted in the session, for its return (USessionSubsystem::IsLegendaryBack).
+	if (!LegendaryId.IsNone())
+	{
+		if (UHealthComponent* Life = Creature->FindComponentByClass<UHealthComponent>())
+		{
+			Life->OnDeath.AddDynamic(this, &AEncounterSpawner::HandleCreatureDeath);
 		}
 	}
 	FLivingCreature& Out = Living.AddDefaulted_GetRef();

@@ -57,6 +57,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Creature")
 	ECreatureState GetCreatureState() const { return State; }
 
+	/** The pawn it's after, if any. */
+	APawn* GetTarget() const { return Target.Get(); }
+
 	UFUNCTION(BlueprintPure, Category = "Creature")
 	bool IsDead() const { return State == ECreatureState::Dead; }
 
@@ -210,6 +213,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Rank", meta = (ClampMin = "0.1", ClampMax = "5"))
 	float BodyScale = 1.f;
 
+	/** Its name stands for its rank's word on its tag, in the rank's color: a named Legendary (the Gravemother), not "Soulfed". */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Rank")
+	bool bNameIsRankWord = false;
+
 	/**
 	 * Creatures with the same pack tag answer each other's pack calls (PackAlertRadius, and a rank's wider call): every
 	 * spider, spiderlings and the Gravemother too. None: only its own class.
@@ -326,8 +333,8 @@ protected:
 	 */
 	virtual void Strike();
 
-	/** Deals one attack's damage to Victim (rolled like a weapon hit) and shoves it along Push. */
-	void HitWithAttack(APawn* Victim, const FVector& Push);
+	/** Deals one attack's damage to Victim (rolled like a weapon hit) and shoves it along Push, both times Strength (a charge's 2). */
+	void HitWithAttack(APawn* Victim, const FVector& Push, float Strength = 1.f);
 
 	/** Moving toward a goal at Speed but not getting anywhere (it then takes a detour). Hoppers stand still between hops. */
 	virtual bool IsStuck(float Speed) const;
@@ -335,8 +342,11 @@ protected:
 	/** Whether it can begin an attack right now (in range and off cooldown); a hopper waits until it's on the ground. */
 	virtual bool CanStartAttack() const { return true; }
 
-	/** The pawn it's after, if any. */
-	APawn* GetTarget() const { return Target.Get(); }
+	/** How far off it may begin an attack now: its reach, or farther for an attack of its own that's ready (a charge). */
+	virtual float GetAttackStartRange() const { return GetAttackRange(); }
+
+	/** Whether it keeps turning to its target through a wind-up: a charge that has taken its aim holds it (the Gravemother's). */
+	virtual bool TracksTargetInWindup() const { return true; }
 
 	/**
 	 * A player it may hunt: a living character on its HuntingGround and out of every safe zone that's on

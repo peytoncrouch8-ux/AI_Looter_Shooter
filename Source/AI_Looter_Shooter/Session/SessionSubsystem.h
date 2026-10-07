@@ -189,6 +189,37 @@ public:
 	/** Whether a map whose promotions last rolled at RolledAt (time played; negative: never) rolls again at PlayedSeconds. */
 	static bool IsPromotionRollDue(double RolledAt, double PlayedSeconds);
 
+	// --- Legendary monsters (SessionSubsystemLegendary.cpp) ---
+
+	/** Time played from a Legendary monster's death to the first arrival that brings it back (20 minutes, as promotions). */
+	static constexpr double LegendaryReturnTime = 20.0 * 60.0;
+
+	/**
+	 * Whether the Legendary monster LegendaryId is in World as it starts: never beaten on its map in this session, or beaten
+	 * at least LegendaryReturnTime of play before now. Its lair asks as the level begins, which is an arrival (loading the
+	 * session, a trip back from Skyreach, a train's arrival), so one beaten during a visit stays gone until a later arrival.
+	 * Without even a trip's save in memory it's always there.
+	 */
+	bool IsLegendaryBack(const UWorld* World, FName LegendaryId) const;
+
+	/** Notes LegendaryId beaten now, in World's map world (the session's time played), and saves soon. */
+	void NoteLegendaryDefeat(UWorld* World, FName LegendaryId);
+
+	/** When LegendaryId was last beaten on World's map (the session's time played), or negative: never. */
+	double GetLegendaryDefeatedAt(const UWorld* World, FName LegendaryId) const;
+
+	/**
+	 * Forgets when LegendaryId (None: every one) was last beaten on World's map, so it's back on the next arrival (the
+	 * console). How many it forgot.
+	 */
+	int32 ForgetLegendaryDefeats(UWorld* World, FName LegendaryId = NAME_None);
+
+	/** The session's time played now, World's play so far included when it's the level being played (0 with no session). */
+	double GetPlayedSecondsNow(const UWorld* World) const;
+
+	/** Whether a monster last beaten at DefeatedAt (time played; negative: never) is back on an arrival at PlayedSeconds. */
+	static bool IsLegendaryReturnDue(double DefeatedAt, double PlayedSeconds);
+
 	// --- For the game modes ---
 
 	/**

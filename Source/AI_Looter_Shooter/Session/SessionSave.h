@@ -97,8 +97,9 @@ struct AI_LOOTER_SHOOTER_API FSavedMapWorld
 	double PromotionsRolledAt = -1.0;
 
 	/**
-	 * When each of the map's Legendary monsters was last beaten, by its id, in the session's time played: it comes back
-	 * once enough play has passed. Kept here; nothing uses it yet.
+	 * When each of the map's Legendary monsters was last beaten, by its id (its lair's LegendaryId: "Gravemother"), in the
+	 * session's time played: it's back on an arrival once 20 minutes of play have passed (USessionSubsystem::
+	 * IsLegendaryBack, which its lair asks as the level begins; NoteLegendaryDefeat writes it).
 	 */
 	UPROPERTY()
 	TMap<FName, double> LegendaryDefeatedAt;

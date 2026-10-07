@@ -12,6 +12,13 @@ missions (fields, steps and rewards) from what's written here; other mission ass
                     before a reload, since a side mission starts over from its first step. Seven hang, so one can be
                     missed. Then read Ranger Calder's note on the Rim Rangers' board (a tap on the one tagged CalderNote).
                     Reward: a side mission's share of experience (20% of the player's level) and a guaranteed Rare gun.
+  DA_Mission_Side3  "The Gravemother" (Side 3), on Ransom's Rest once Main 5 is finished, starting by itself. Enter the
+                    den (reach the place tagged Place_Den inside it, within 4.5 m measured with its height, so the Sink's
+                    rim over the den doesn't count), then kill the Gravemother (clear her lair's encounter, Gravemother:
+                    a kill before the step began counts too, and so does one on an earlier visit while she's still away).
+                    Reward: a side mission's share of experience, once; her Legendary loot table drops on every kill, and
+                    she comes back on an arrival 20 minutes of play after her death. Both made by build_area_den.py.
+                    Made once Main 5 exists (step 19's main mission): until then the script says it waits.
 
 Objectives are instanced objects inside the asset, one class per kind, made with unreal.new_object(<class>, asset) and
 listed in each step's 'objectives'. Classes for actor filters are loaded by their script path
@@ -24,12 +31,18 @@ CLASSES = '/Script/AI_Looter_Shooter.'
 # AWantedPoster's tags (World/WantedPoster.h).
 WANTED_TAG = 'WantedPoster'
 NOTE_TAG = 'CalderNote'
+# The Gravemother's den and lair (Creatures/GravemotherCreature.h: Gravemother::DenPlaceTag and LairId; placed by
+# Tools/Unreal/build_area_den.py).
+DEN_TAG = 'Place_Den'
+DEN_REACH = 450.0
+GRAVEMOTHER_LAIR = 'Gravemother'
 
 
 def mission_types():
     """The reflected mission types, or a clear error when the C++ isn't built yet."""
     names = ['MissionDefinition', 'MissionStep', 'MissionRewards', 'MissionActorFilter', 'MissionKind', 'MissionStart',
-             'MissionInteractObjective', 'MissionLastingInteractObjective', 'WantedPoster', 'WeaponRarity']
+             'MissionInteractObjective', 'MissionLastingInteractObjective', 'WantedPoster', 'WeaponRarity',
+             'MissionReachObjective', 'MissionClearObjective', 'MissionPlace']
     missing = [name for name in names if getattr(unreal, name, None) is None]
     if missing:
         raise RuntimeError(f"unreal.{', unreal.'.join(missing)} missing: build the C++ with the wanted posters first")
@@ -91,6 +104,20 @@ def side1_steps(asset):
     ]
 
 
+def side3_steps(asset):
+    """Enter the den (its place, measured with its height), then kill the Gravemother (her lair's encounter cleared). The
+    arrows find their own: the den's place, then the Gravemother herself (or her lair while she's in her den)."""
+    den = unreal.MissionPlace()
+    den.set_editor_property('actor', actor_filter(tag=DEN_TAG))
+    den.set_editor_property('radius', DEN_REACH)
+    den.set_editor_property('ignore_height', False)
+    return [
+        step(objective(asset, unreal.MissionReachObjective, 'Enter the den', show_count=False, place=den)),
+        step(objective(asset, unreal.MissionClearObjective, 'Kill the Gravemother', show_count=False,
+                       spawner_id=unreal.Name(GRAVEMOTHER_LAIR), count=1)),
+    ]
+
+
 MISSIONS = [
     dict(asset='DA_Mission_Side1', id='Side1', title='Wanted: Already Dead',
          summary='Your wanted poster hangs all over Ransom\'s Rest, and someone has written ALREADY under DEAD OR ALIVE. '
@@ -99,7 +126,43 @@ MISSIONS = [
          rewards=dict(experience_share=0.2, gun=True, gun_rarity_floor='RARE'),
          # What setup() checks the stored steps against: each step's objective class.
          expect=['MissionLastingInteractObjective', 'MissionInteractObjective']),
+    dict(asset='DA_Mission_Side3', id='Side3', title='The Gravemother',
+         summary='Something big lives in the Sink\'s den, and it eats what the Unpaid leave behind.',
+         kind='SIDE', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main5'], sort_order=30, steps=side3_steps,
+         # Experience the first time; her loot is her own (the Legendary table on every kill), so no reward gun.
+         rewards=dict(experience_share=0.2, gun=False),
+         expect=['MissionReachObjective', 'MissionClearObjective']),
 ]
+
+
+def editor_property(obj, name):
+    """An objective's setting, or None when its kind has none so named (a place to reach has no count)."""
+    try:
+        return obj.get_editor_property(name)
+    except Exception:
+        return None
+
+
+def describe(objective_object):
+    """What a stored objective asks, for its SIDEMISSIONS line: its count and targets, its place, its encounter."""
+    words = []
+    count = editor_property(objective_object, 'count')
+    target = editor_property(objective_object, 'target')
+    if target is not None:
+        words.append(f"{count} of tag {target.get_editor_property('actor_tag')}")
+    elif count is not None:
+        words.append(f'{count}')
+    place = editor_property(objective_object, 'place')
+    if place is not None:
+        words.append(f"the place tagged {place.get_editor_property('actor').get_editor_property('actor_tag')} within "
+                     f"{place.get_editor_property('radius'):.0f} cm"
+                     f"{'' if place.get_editor_property('ignore_height') else ', measured with its height'}")
+    spawner = editor_property(objective_object, 'spawner_id')
+    if spawner is not None:
+        words.append(f'the encounter {spawner} cleared')
+    if editor_property(objective_object, 'hold'):
+        words.append('held')
+    return ', '.join(words)
 
 
 def load_or_create(asset_name, cls):
@@ -146,8 +209,7 @@ def setup(spec):
                 raise RuntimeError(f"{FOLDER}/{spec['asset']}: step {index + 1} holds a {each.get_class().get_name()}, not a "
                                    f"{expected}: nothing was saved")
             unreal.log(f"SIDEMISSIONS {spec['asset']} step {index + 1}: {expected} \"{each.get_editor_property('text')}\", "
-                       f"{each.get_editor_property('count')} of tag {each.get_editor_property('target').get_editor_property('actor_tag')}"
-                       f"{', held' if each.get_editor_property('hold') else ''}")
+                       f"{describe(each)}")
     if not unreal.EditorAssetLibrary.save_loaded_asset(asset, only_if_is_dirty=False):
         raise RuntimeError(f"{FOLDER}/{spec['asset']} could not be saved")
     reward = spec['rewards']
