@@ -1,9 +1,10 @@
 """The story's actors for build_area.py (Docs/Areas/RansomsRest.md: Main 1 "Seven Days", Main 2 "Shall We Talk Business?",
-Main 3 "Cold Welcome", Main 4 "Hallowed Ground"), placed from the models build_area.py placed and their sockets
-(Art/Models/Props/Graves.py, Buildings/Lookout.py, Buildings/Farmhouse.py, Buildings/FalseFronts.py, Buildings/Chapel.py)
-and from the layout's zones, obstacles, features and roads, so they follow the level whenever it's rebuilt. Only a level
-whose layout has Ellis's grave (Ransom's Rest) gets any of it, and each piece waits for what it's placed from (no lookout:
-no cold open, no Sexton). Everything goes in the area's Gameplay folder, so a "gameplay" build places it all again.
+Main 3 "Cold Welcome", Main 4 "Hallowed Ground", Main 5 "The Keeper's Lantern"), placed from the models build_area.py
+placed and their sockets (Art/Models/Props/Graves.py, Buildings/Lookout.py, Buildings/Farmhouse.py,
+Buildings/FalseFronts.py, Buildings/Chapel.py, Rocks/Outcrops.py's Den Rock) and from the layout's zones, obstacles,
+features and roads, so they follow the level whenever it's rebuilt. Only a level whose layout has Ellis's grave
+(Ransom's Rest) gets any of it, and each piece waits for what it's placed from (no lookout: no cold open, no Sexton).
+Everything goes in the area's Gameplay folder, so a "gameplay" build places it all again.
 
 Main 1:
 - The cold open's set (AColdOpenSet) where the lookout stands, facing as it faces: its marks on Ransom's Point are the
@@ -36,6 +37,10 @@ Main 3:
 Main 4 (build_area_chapel.py, with these helpers): the chapel's place, the chapel yard's fight, the bell, the smashed
   Reliquary, Father Aldana's vestry door, the chapel yard's respawn grave, and the Unpaid on boot hill and the north road
   after Main 4.
+Main 5 (build_area_sink.py, with these helpers): the Sink's floor dressed (collapsed blocks and coffins, web cards),
+  its three egg sacs (shot down in Main 5's second step, two spiders each), the Keeper's Lantern in the webbing (taken
+  in its third), the floor's and the ramp head's places, the floor's spiders, the den's web funnel and the Webwood's
+  trees.
 Side 3 (build_area_den.py): the Gravemother's lair at the den's mouth under Den Rock (after Main 5) and the den's place.
 Hob (AHobBird, tagged Speaker_Hob), perched near the next thing to do, saying his piece as he lands:
   Main 1: on Ellis's headboard (silent from the claw-out, "Morning, sunshine" once Ellis is out), and after it.
@@ -46,6 +51,9 @@ Hob (AHobBird, tagged Speaker_Hob), perched near the next thing to do, saying hi
   Main 4: on the chapel's door hood (SOCKET_Perch_Hood) for the way up, the yard's fight, the bell and the Reliquary (a
           word at each, no flight between them), then on the vestry lantern's bracket (SOCKET_Perch_Lantern) for Aldana,
           and there after Main 4.
+  Main 5: on Den Rock over the den for the way down ("Keepers walk the dead to the boards by lantern light..."), on
+          a block on the Sink's floor for the egg sacs and then the lantern (a word at each, no flight), on the Sink
+          road's dead tree by the ramp head once the lantern is taken, and there after Main 5.
   Talked to, a line for where things stand.
 Their words are line sets in /Game/Data/Story (Tools/Unreal/create_story_lines.py makes them first); a set that's
 missing is left out with a warning, and its speaker says nothing until the sets are made and this runs again.
@@ -63,6 +71,7 @@ MAIN1 = 'Main1'
 MAIN2 = 'Main2'
 MAIN3 = 'Main3'
 MAIN4 = 'Main4'
+MAIN5 = 'Main5'
 FAMILY_PLOT = 'FamilyPlot'
 PLACE_POINT = 'Place_RansomsPoint'
 PLACE_GATE = 'Place_TownGate'
@@ -566,7 +575,7 @@ def hob_on_sign(shop):
     return at.x, at.y, z, shop.get_actor_rotation().yaw
 
 
-def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots):
+def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_spots):
     cls = actor_class('HobBird')
     board = hob_on_board(grave_ellis)
     if cls is None or board is None:
@@ -580,6 +589,10 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots):
         # The chapel's door hood and vestry lantern (build_area_chapel.hob_spots).
         'hood': chapel_spots.get('hood'),
         'lantern': chapel_spots.get('lantern'),
+        # The Sink's: Den Rock's top, the north pile's top block, the Sink road's dead tree (build_area_sink.hob_spots).
+        'denRock': sink_spots.get('way'),
+        'block': sink_spots.get('block'),
+        'roadTree': sink_spots.get('rim'),
     }
 
     def perch(spot, when, arrival=None):
@@ -620,7 +633,14 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots):
         perch(spots['hood'], condition(during=MAIN4, from_step=2), 'DA_Lines_HobMain4Bell'),
         perch(spots['hood'], condition(during=MAIN4, from_step=1), 'DA_Lines_HobMain4Yard'),
         perch(spots['hood'], condition(during=MAIN4), 'DA_Lines_HobMain4Road'),
+        # Main 5: on the Sink road's tree by the ramp head once the lantern is taken; on the floor's block for the
+        # lantern and the sacs (no flight between them: a word at each); on Den Rock over the den for the way down.
+        perch(spots['roadTree'], condition(during=MAIN5, from_step=3), 'DA_Lines_HobMain5Out'),
+        perch(spots['block'], condition(during=MAIN5, from_step=2), 'DA_Lines_HobMain5Lantern'),
+        perch(spots['block'], condition(during=MAIN5, from_step=1), 'DA_Lines_HobMain5Sacs'),
+        perch(spots['denRock'], condition(during=MAIN5), 'DA_Lines_HobMain5Way'),
         # After each, where the last left him.
+        perch(spots['roadTree'], condition(after=[MAIN5])),
         perch(spots['lantern'], condition(after=[MAIN4])),
         perch(spots['sign'], condition(after=[MAIN3])),
         perch(spots['rail'], condition(after=[MAIN2])),
@@ -629,6 +649,7 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots):
     hob.set_editor_property('perches', [each for each in perches if each is not None])
     hob.get_editor_property('speaker_point').set_editor_property('topics', topics(
         build,
+        (condition(during=MAIN5), 'DA_Lines_HobMain5'),
         (condition(during=MAIN4), 'DA_Lines_HobMain4'),
         (condition(during=MAIN3), 'DA_Lines_HobMain3'),
         (condition(during=MAIN2), 'DA_Lines_HobMain2'),
@@ -664,6 +685,8 @@ def place(build):
     # Main 4, at the chapel (its own module, reloaded as the editor keeps modules between runs, so an edited one takes
     # effect); it hands back Hob's chapel perches.
     chapel_spots = importlib.reload(importlib.import_module('build_area_chapel')).place(build)
+    # Main 5, in the Sink (its own module, reloaded as the chapel's is); it hands back Hob's Sink perches.
+    sink_spots = importlib.reload(importlib.import_module('build_area_sink')).place(build)
     # Side 3: the Gravemother's lair and the den's place (its own module, reloaded as the chapel's is).
     importlib.reload(importlib.import_module('build_area_den')).place(build)
-    place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots)
+    place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_spots)

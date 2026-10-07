@@ -48,6 +48,17 @@ Main 4, "Hallowed Ground" (the doc gives Aldana's words at the vestry door; ever
   DA_Lines_AldanaMain4       Aldana at Main 4's last step: "A keeper's lantern can find an ember." through "Look in the
                              Sink." (the doc's words, word for word; his first line and Ellis's question are drafts)
   DA_Lines_AldanaAfterMain4  Aldana after Main 4 (a draft)
+
+Main 5, "The Keeper's Lantern" (the doc gives no words but its line "The keepers walk the dead to the boards by lantern
+light"; everything here is a first draft for the user):
+  DA_Lines_HobMain5Way       Hob on Den Rock over the den as Main 5 begins: the way down, and the hole under him (a draft
+                             around the doc's line)
+  DA_Lines_HobMain5Sacs      Hob on a block on the Sink's floor once the player is down: the egg sacs (a draft)
+  DA_Lines_HobMain5Lantern   Hob on the block once the sacs are down: the lantern in the webbing (a draft)
+  DA_Lines_HobMain5Out       Hob on the Sink road's dead tree once the lantern is taken: it's dark, climb out, the den (a
+                             draft)
+  DA_Lines_HobMain5          Hob talked to during Main 5 (a draft)
+  DA_Lines_AldanaAfterMain5  Aldana after Main 5: the lantern found, take it home to Delia (a draft)
 """
 import unreal
 
@@ -186,6 +197,32 @@ SETS = {
     ],
     'DA_Lines_AldanaAfterMain4': [
         ('', "The Sink, Ellis. Your father's lantern. I'll pray it's still whole."),
+    ],
+
+    # --- Main 5 ---
+    'DA_Lines_HobMain5Way': [
+        (HOB, "Keepers walk the dead to the boards by lantern light. Your Pa's is down there, sunshine, somewhere under "
+              "the webs. Ramp's on the west side, by the gap in the fence."),
+        (HOB, "And whatever dug the hole under me, let's not wake it."),
+    ],
+    'DA_Lines_HobMain5Sacs': [
+        (HOB, "Egg sacs. Three of them, fat and twitching. Shoot them down before they drop on their own, sunshine. Two to "
+              "a sac, by the look."),
+    ],
+    'DA_Lines_HobMain5Lantern': [
+        (HOB, "That's the last of them. There, in the webbing by the north wall. Brass and glass. That's your Pa's."),
+    ],
+    'DA_Lines_HobMain5Out': [
+        (HOB, "Dark as a shut eye, but whole. Up the ramp, sunshine."),
+        (HOB, "And don't stare at the hole in the east wall too long. Something in there stares back."),
+    ],
+    'DA_Lines_HobMain5': [
+        ('', "Spiders hoard anything a saint has touched. Your Pa's lantern was lit from her every night he kept her. To "
+             "them it smells like supper, sunshine."),
+    ],
+    'DA_Lines_AldanaAfterMain5': [
+        ('', "You found it. Dark, but whole."),
+        ('', "Take it home to your grandmother, Ellis. She'll know what's owed a keeper."),
     ],
 }
 

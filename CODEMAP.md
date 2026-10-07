@@ -434,6 +434,13 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   Reliquary_Chapel): looked at (a tap, from Main 4's fourth step) it plays the two-second Grave Sight flash and her
   ember lifting off the lid (SOCKET_Ember; the cold open's glow), then tells the missions (`GraveSight.Reliquary`);
   plain shapes stand in without its model.
+- `World/EggSac`: `AEggSac`, an egg sac in the Sink (Main 5): shootable only while its story allows (SM_EggSac_A/_B/_C);
+  shot down it falls to the ground under it, becomes SM_EggSac_Burst and lets out two Basic spiders at its Spawn
+  sockets (gone for good once killed), telling the missions `EggSac.Burst`; burst from the start once the story is past
+  it. `EggSacFall.cpp` is the fall, the burst and the spiders.
+- `World/KeepersLantern`: `AKeepersLantern`, the Keeper's Lantern hanging dark in the Sink's webbing (Web_Snare, no
+  light, its glass the trim's window glass), taken with a tap in Main 5's third step; whether Ellis has it comes from
+  the campaign record (`IsTaken`); `SetLit` for Main 6.
 - `World/HouseLights`: `AHouseLights`, a lived-in house's lights for the lighting states: a warm unshadowed lamp at the
   house's SOCKET_Light and its WindowGlow slot's glow (an instance of its own), both brighter at dusk; placed by
   `build_area.py` from `layout.json` `level.lights` (Delia's, the store, Tilly's, two cottages). Nothing ticks.
@@ -555,6 +562,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `Looter.Boss.Reset`, `Looter.Boss.Kill`.
 - `Dev/LegendaryDevCommands.cpp`: `Looter.Legendary.List`, `.Forget [id | all]`, `.Return [id]` (a Legendary
   monster's lair brought back now, whatever the story).
+- `Dev/SinkDevCommands.cpp`: `Looter.Story.EggSacs [force | reset]` (every egg sac shot down, or hung up again),
+  `Looter.Story.Lantern [force]` (the lantern taken, the missions told).
 - `Dev/LootDevCommands.cpp`: `Looter.Loot.SimulateDrops <rank> [kills]`, rolls a rank's loot table and prints its odds.
 - `Dev/InteractionDevCommands.cpp`: `Looter.Interaction.Spawn <door|bell|lantern>`, a greybox interactable in front of
   the player; `Looter.Interaction.Focus`, what the player would use now.
@@ -584,7 +593,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LightingTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
-  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `PosterTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `HallowedGroundTests.cpp` (Main 4: its steps, Main 3 first, the yard's two waves by count and rank, the bell held, the Reliquary's flash ending its step, Aldana's words and the chapel yard's grave; the Unpaid on boot hill and the north road after it; the placed pieces), `ChapelTests.cpp` (the bell's hold, swing and tolls; Grave Sight's flash and the Reliquary's look timing out; Aldana's topics) with `HallowedGroundTestWorld.h`, `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `GravemotherTests.cpp` (her body, charge, brood, pack calls by tag,
+  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `PosterTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `HallowedGroundTests.cpp` (Main 4: its steps, Main 3 first, the yard's two waves by count and rank, the bell held, the Reliquary's flash ending its step, Aldana's words and the chapel yard's grave; the Unpaid on boot hill and the north road after it; the placed pieces), `ChapelTests.cpp` (the bell's hold, swing and tolls; Grave Sight's flash and the Reliquary's look timing out; Aldana's topics) with `HallowedGroundTestWorld.h`, `EggSacTests.cpp` (the egg sac's fall, burst and spiders, shootable only in its step; the lantern dark, taken in its step, gone after), `KeepersLanternTests.cpp` (with `KeepersLanternTestWorld.h`; Main 5: its steps, Main 4 first, the floor's spiders, Side 3 after it, the placed pieces), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `GravemotherTests.cpp` (her body, charge, brood, pack calls by tag,
   loot), `GravemotherSideTests.cpp` (her return after 20 minutes of play, her lair, Side 3), `WeaponTests.cpp`, `NamedWeaponTests.cpp` (named guns: the
   fixed-quality rules, Heirloom's asset and label, its save, the mission reward),
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
@@ -695,9 +704,13 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   family plot's respawn grave (open after Main 1), the two headboards to read, Delia's speaker point at the farmhouse's
   screen door (with the farmhouse's screen door and plate, `build_area_farm.py`); Sexton on the lookout's rail, Ransom's
   Point's place and its spider nest (Main 2); the town gate's place and its Unpaid, Tilly's window, the store's
-  shutters, the farm's and Main Street's safe zones (Main 3); Main 4's pieces from `build_area_chapel.py`; the
-  Gravemother's lair from `build_area_den.py`; and Hob with his perches through Main 4 (on the town gate's
-  SOCKET_Perch for Main 3).
+  shutters, the farm's and Main Street's safe zones (Main 3); Main 4's pieces from `build_area_chapel.py`; Main 5's
+  from `build_area_sink.py`; the Gravemother's lair from `build_area_den.py`; and Hob with his perches through Main 5
+  (on the town gate's SOCKET_Perch for Main 3).
+- `Tools/Unreal/build_area_sink.py`: Main 5's pieces for `build_area_story.py`: the Sink's floor (blocks and coffins), its
+  web cards (shadows off), the three egg sacs on their lines and sling, the lantern in its snare, the floor's and ramp
+  head's places, the floor's spiders, the den's web funnel, the Webwood's dead trees and Hob's Sink perches; transforms
+  in tables in the Sink's own frame.
 - `Tools/Unreal/build_area_chapel.py`: Main 4's pieces for `build_area_story.py`: the chapel's place, the chapel yard's
   fight (two waves of six Unpaid, the Restless one with the second, inside the churchyard fence), the bell at the rope's
   grip with SM_ChapelBell on the belfry socket, the smashed Reliquary, Aldana's vestry door, the chapel yard's respawn

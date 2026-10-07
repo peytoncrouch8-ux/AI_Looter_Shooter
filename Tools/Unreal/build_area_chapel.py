@@ -21,7 +21,8 @@ class isn't there yet is left out with a warning.
   Art/Models/Props/Reliquary.py, export family RR_Reliquary, with SOCKET_Ember and SOCKET_Interact), else the class's
   stand-in.
 - Father Aldana's vestry door (ASpeakerPoint tagged Speaker_Aldana) on SOCKET_Speaker: barred before the yard is quiet
-  (and before Main 4), the bell and the Reliquary next, the doc's words at Main 4's last step, the Sink after.
+  (and before Main 4), the bell and the Reliquary next, the doc's words at Main 4's last step, the Sink after, and the
+  lantern found after Main 5 (take it home to Delia).
 - The chapel yard's respawn grave (ARespawnMarker ChapelYard, open after Main 4) at the foot of its fresh mound (the
   placement graveChapelYard), facing the chapel.
 - The roaming Unpaid after Main 4 ("From now on the Unpaid walk the north road and boot hill"): AEncounterSpawner BootHill
@@ -36,6 +37,7 @@ import build_area_story as story
 # The story's ids and tags, as the C++ (AChapelBell, AChapelReliquary) and the mission asset
 # (Tools/Unreal/create_mission_assets.py, DA_Mission_Main4) name them.
 MAIN4 = 'Main4'
+MAIN5 = 'Main5'
 PLACE_CHAPEL = 'Place_Chapel'
 YARD = 'ChapelYard'
 YARD_TAG = 'Unpaid_ChapelYard'
@@ -206,7 +208,7 @@ def place_reliquary(build, chapel):
 
 
 def place_aldana(build, chapel):
-    """Father Aldana's vestry door: barred, then the bell and the Reliquary, the doc's words, the Sink."""
+    """Father Aldana's vestry door: barred, the bell and the Reliquary, the doc's words, the Sink, the lantern found."""
     cls = story.actor_class('SpeakerPoint')
     door = story.socket(chapel, 'Speaker')
     if cls is None or door is None:
@@ -214,13 +216,14 @@ def place_aldana(build, chapel):
             build.warn('the chapel has no Speaker socket: Father Aldana can\'t be talked to')
         return
     at = door.translation
-    # The first that holds is said: Main 4's last step (from 0: 4), the bell and the Reliquary (2 and 3), after it; with
-    # none (before Main 4, and while the yard is held), the door stays barred.
+    # The first that holds is said: Main 4's last step (from 0: 4), the bell and the Reliquary (2 and 3), after Main 5 (the
+    # lantern found), after Main 4 (the Sink); with none (before Main 4, and while the yard is held), the door stays barred.
     story.speaker(build, cls, (at.x, at.y, at.z), door.rotation.rotator().yaw, 'Speaker_Aldana', ALDANA_TAG,
                   name='Father Aldana', reach=story.TALK_REACH, line_set=story.lines(build, 'DA_Lines_AldanaBarred'),
                   topics=story.topics(build,
                                       (story.condition(during=MAIN4, from_step=4), 'DA_Lines_AldanaMain4'),
                                       (story.condition(during=MAIN4, from_step=2), 'DA_Lines_AldanaWaiting'),
+                                      (story.condition(after=[MAIN5]), 'DA_Lines_AldanaAfterMain5'),
                                       (story.condition(after=[MAIN4]), 'DA_Lines_AldanaAfterMain4')))
     build.log(f'Father Aldana\'s vestry door at ({at.x:.0f}, {at.y:.0f}, {at.z:.0f})')
 

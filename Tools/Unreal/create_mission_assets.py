@@ -45,6 +45,16 @@ missions (fields, steps and rewards) from what's written here; other mission ass
                        Unpaid walk boot hill and the north road from then on (Tools/Unreal/build_area_chapel.py). Its id
                        must stay "Main4": Side 2 opens after it, and Aldana's Ledger page is known after it
                        (create_bestiary_pages.py).
+  DA_Mission_Main5     "The Keeper's Lantern" (Main 5), once Main 4 is done: down the ramp into the Sink (within 9 m of
+                       its floor's middle, the marker tagged Place_SinkFloor, height counted, so the rim and the ramp's
+                       upper half aren't the floor), shooting down its three egg sacs (each sends EggSac.Burst,
+                       AEggSac::BurstEvent, as it lands and lets out its two spiders; the arrow on the nearest sac still
+                       up, tagged EggSac), taking the Keeper's Lantern from the webbing (a tap on the AKeepersLantern
+                       tagged Lantern_Keeper) and climbing out (within 6 m of the ramp head on the west rim, the marker
+                       tagged Place_SinkRim, height counted). 30% of a level. Its id must stay "Main5" and the lantern's
+                       step the third (AKeepersLantern::TakeStep): Side 3 opens after it (create_side_mission_assets.py),
+                       and Ellis has the lantern from its last step on (AKeepersLantern::IsTaken), which Main 6 carries
+                       to Gravewind Point (Tools/Unreal/build_area_sink.py places the Sink's pieces).
 
 Objectives are instanced objects inside the asset, one class per kind (UMissionReachObjective, UMissionKillObjective, ...),
 made with unreal.new_object(<class>, asset) and listed in each step's 'objectives'. Classes for actor filters are loaded
@@ -247,6 +257,27 @@ def main4_steps(asset):
     ]
 
 
+def main5_steps(asset):
+    """Main 5, "The Keeper's Lantern": down into the Sink, its three egg sacs shot down, the Keeper's Lantern taken from the
+    webbing, and out at the ramp head. The tags and the event are the ones build_area_sink.py and the C++ give them
+    (AEggSac::EggSacTag and BurstEvent, AKeepersLantern::LanternTag); the lantern's step must stay the third
+    (AKeepersLantern::TakeStep, counted from 0: 2), as Ellis has it from the step after."""
+    waypoint = unreal.MissionWaypoint
+    return [
+        # Height counted: the rim and the ramp's upper half are within a few metres of the floor's middle as the crow flies.
+        step(objective(asset, unreal.MissionReachObjective, 'Climb down into the Sink.',
+                       place=place(tag='Place_SinkFloor', radius=900.0, ignore_height=False))),
+        # Each sac tells the missions as it lands burst; the arrow on the nearest one still up.
+        step(objective(asset, unreal.MissionEventObjective, 'Shoot down the three egg sacs.',
+                       waypoint=waypoint.ACTOR, waypoint_tag='EggSac', event=unreal.Name('EggSac.Burst'), count=3)),
+        step(objective(asset, unreal.MissionInteractObjective, "Take the Keeper's Lantern from the webbing.",
+                       target=actor_filter(tag='Lantern_Keeper'), count=1)),
+        # The ramp head on the west rim, by the fence's gap; height counted, so the ramp just under it isn't out yet.
+        step(objective(asset, unreal.MissionReachObjective, 'Climb out of the Sink.',
+                       place=place(tag='Place_SinkRim', radius=600.0, ignore_height=False))),
+    ]
+
+
 def test_steps(asset):
     return [
         step(objective(asset, unreal.MissionKillObjective, 'Kill two creatures',
@@ -294,6 +325,12 @@ MISSIONS = [
                  "and dark. Father Aldana keeps to the vestry door. Reward: experience, and the chapel yard's grave to wake "
                  "at.",
          kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main3'], sort_order=4, steps=main4_steps,
+         rewards=dict(experience_share=0.3)),
+    dict(asset='DA_Mission_Main5', id='Main5', title="The Keeper's Lantern",
+         summary="The keepers walk the dead to the boards by lantern light, and Abel's lantern fell in the dark, whole. "
+                 "Spiders hoard anything a saint has touched: it's down in the Sink, in the webbing, among their egg "
+                 "sacs.",
+         kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main4'], sort_order=5, steps=main5_steps,
          rewards=dict(experience_share=0.3)),
 ]
 
