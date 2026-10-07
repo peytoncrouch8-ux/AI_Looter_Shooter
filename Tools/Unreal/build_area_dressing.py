@@ -13,20 +13,25 @@ obstacle id, so the art session can retune it without touching the code:
   than 20 degrees and each stretched to its chord on the ground. Whitlock Fields' (Amos's fence, the barn yard's, the
   field wall) are here too; build_area_whitlock.py stands Amos in his fence's first span past its gate by run_head()
   and span_heights(), from the same plan. A run ends on a post (a wall on its finished end); a polygon's kit faces
-  out of it (a fence's outside, the iron gate's leaves open inward), a path's away from its "inside". The broken, fallen
-  and missing sections a note asks for are drawn per section from the obstacle's own seed. Gates are left open where
-  the table puts them and wherever a road crosses the line (as much of the line as the road takes up, and a little
-  more), so no fence closes a road. The sheep fold's walls turn on Ruins.py's square corner.
-- Grave rows get the old headboards and crosses, mixed by a fixed seed, a little out of line and leaning a little; the
-  family plot's eight old boards, which have no obstacle, come from EXTRA_GRAVE_ROWS, and each fresh mound the
-  placements put down (the respawn graves) gets its fresh headboard (MOUND_BOARDS).
+  out of it (a fence's outside, a gate's leaves open inward), a path's away from its "inside". The broken, fallen and
+  missing sections a note asks for are drawn per section from the obstacle's own seed. Gates are left open where the
+  table puts them and wherever a road crosses the line (as much of the line as the road takes up, and a little more),
+  so no fence closes a road; the iron and picket fences fill theirs with their gate units, swung open. The sheep fold's
+  walls turn on Ruins.py's square corner and take half walls where whole ones won't fit. The Sink's fences carry a
+  warning sign each by the ramp head's gap.
+- Grave rows get the old headboards and crosses, mixed by a fixed seed, a little out of line and leaning a little, boot
+  hill's and the family plot's each over its sunken mound; the family plot's eight old graves, which have no obstacle,
+  come from EXTRA_GRAVE_ROWS, and each fresh mound the placements put down (the respawn graves) gets its fresh
+  headboard (MOUND_BOARDS).
 - Cairns stand along their path; the ruins and the keeper's three cairns are layout placements, which build_area.py's
   models() places already (a ruin whose placement is gone is placed here instead, as its own actor).
 - Props become small groups laid out in the obstacle's own frame: along its longest side, facing its road or a
-  building. A few pieces stand at spots of their own (SPOTS: Whitlock Fields' round bales).
+  building, and pieces set against a building's wall in its own frame (the backlots' lean-tos). A few pieces stand at
+  spots of their own (SPOTS: Whitlock Fields' round bales, two more fallen pines by the Sink and north roads).
 Every piece stands on the terrain's tiles (traced like build_area_whitlock.py's Ground: the tiles alone, never a volume,
 a tree or a building). Sections follow the slope along their length (the roll) and sink where the ground dips under
-their middle; props tilt with the ground by at most MAX_TILT degrees and sink so no corner hovers; stacks stand level.
+their middle; props tilt with the ground by at most MAX_TILT degrees (mounds MOUND_TILT) and sink so no corner hovers;
+stacks and sheds (UPRIGHT) stand level.
 
 Performance (the doc's "Performance plan": about 700 draws at the heaviest view): every kit piece is instanced, one
 AInstancedProps per mesh (World/InstancedProps.h: solid like a placed mesh, shadowed, each instance culled on its own
@@ -97,29 +102,50 @@ PIECES = {
     'Outhouse': ((134, 134, 230), 'middle', WALL_CULL),
     'Log_A': ((340, 55, 50), 'middle', SMALL_CULL),
     'Stump_A': ((130, 130, 50), 'middle', SMALL_CULL),
+    # The art session's second round (Art/Models/Props/Backlots.py, Graves.py, Ruins.py).
+    'Woodshed': ((326, 282, 247), 'middle', WALL_CULL),
+    'LeanTo': ((340, 203, 286), 'middle', WALL_CULL),
+    'LumberStack': ((380, 234, 176), 'middle', WALL_CULL),
+    'Dray': ((177, 543, 173), 'middle', WALL_CULL),
+    'FallenPine': ((788, 152, 91), 'middle', FENCE_CULL),
+    'SinkWarning': ((118, 25, 171), 'middle', FENCE_CULL),
+    'Fence_PicketGate_Open': ((200, 100, 108), 'start', FENCE_CULL),
+    'Grave_MoundSunken': ((100, 200, 25), 'middle', SMALL_CULL),
+    'StoneWall_Half': ((150, 72, 95), 'start', WALL_CULL),
 }
+# Where a piece's footprint's middle is, ahead of its pivot along its front (cm), where it isn't the pivot: the
+# woodshed's chopping block stands in front of its posts, the lumber stack's planks lean out of its front, the lean-to's
+# pivot is a little behind its middle (its back is on the wall).
+FOOTPRINT_AHEAD = {'Woodshed': 21.0, 'LumberStack': 28.0, 'LeanTo': 6.0}
 
 # The fence and wall kits: the section and its length (cm), the broken and fallen sections, the piece that closes a run,
-# the iron fence's heavy corner post and double gate, the wall's finished end (it reaches end_length past its joint)
-# and square corner (arm: how far each arm reaches from the corner, cm).
+# the iron fence's heavy corner post, the gate unit that fills a gate's gap (gate_clear: its way through, from and to
+# along it (cm), centred on the gate's spot), the wall's finished end (it reaches end_length past its joint), square
+# corner (arm: how far each arm reaches from the corner, cm) and half section (chained in where whole sections would
+# be squashed or stretched, on the lines that ask for halves).
 KITS = {
     'rail': {'section': 'FenceRail', 'length': 300.0, 'broken': 'FenceBroken', 'end': 'FencePost'},
-    'picket': {'section': 'Fence_PicketSection', 'length': 200.0, 'end': 'Fence_PicketPost'},
+    'picket': {'section': 'Fence_PicketSection', 'length': 200.0, 'end': 'Fence_PicketPost',
+               'gate': 'Fence_PicketGate_Open', 'gate_clear': (4.5, 100.5)},
     'iron': {'section': 'Fence_IronSection', 'length': 200.0, 'end': 'Fence_IronPost', 'corner_post': 'Fence_IronPost',
-             'gate': 'Fence_IronGate'},
+             'gate': 'Fence_IronGate', 'gate_clear': (11.0, 189.0)},
     'stone': {'section': 'StoneWall', 'length': 300.0, 'broken': 'StoneWall_Broken', 'fallen': 'StoneWall_Fallen',
-              'end': 'StoneWallEnd', 'end_length': 90.0, 'corner': 'StoneWall_Corner', 'arm': 150.0, 'wall': True},
+              'end': 'StoneWallEnd', 'end_length': 90.0, 'corner': 'StoneWall_Corner', 'arm': 150.0, 'wall': True,
+              'half': 'StoneWall_Half', 'half_length': 150.0},
 }
 
 # The fences and walls (layout obstacle ids). kit: KITS; broken, fallen, missing: the share of sections drawn so (never
 # a run's first or last missing, nor two side by side); gates: [X, Y, width] (cm) left open, or 'road': one in the
 # middle of the side nearest a road; roads crossing the line open their own (ROAD_GAPS); inside: a point or 'zone:<id>'
 # the kit's back faces (a path's; a polygon's faces out of it); corners: a wall's square corners on Ruins.py's piece;
-# inner: extra lines inside (the pens' divider). owner: another builder places it, so it's left out here.
+# halves: half sections where whole ones won't fit; inner: extra lines inside (the pens' divider); signs: [mesh, the
+# point whose nearest end of the line it stands by, how far in from that end and out in front of the line (cm)], facing
+# out of it. owner: another builder places it, so it's left out here.
 LINES = {
     # Delia's salt line round the farm, kept up: whole rails, gates where the farm road and the keeper's path pass.
     'saltLine': {'kit': 'rail', 'inside': 'zone:farm', 'gates': [[-1100, -2400, 450], [-1000, -8400, 300]]},
-    # The family plot's picket fence, open where the family plot path (east) and the bluff approach (west) leave it.
+    # The family plot's picket fence: its gates (Fence_PicketGate_Open, the leaf swung back) where the family plot path
+    # (east) and the bluff approach (west) leave it.
     'familyPlotFence': {'kit': 'picket', 'gates': [[-3680, -7950, 250], [-3650, -9250, 250]]},
     # The churchyard's iron fence: the double gate on the chapel's axis, before its door, where the roads meet.
     'churchyardFence': {'kit': 'iron', 'gates': [[5600, -1900, 200]]},
@@ -127,14 +153,19 @@ LINES = {
     # down.
     'stockPens': {'kit': 'rail', 'broken': 0.2, 'gates': [[-2600, -150, 300]],
                   'inner': [{'path': [[-2600, -500], [-4100, -400]], 'gates': [[-3350, -450, 300]]}]},
-    # The Sink's broken warning fences, either side of the ramp head's gap.
-    'sinkFenceSouth': {'kit': 'rail', 'broken': 0.35, 'missing': 0.12, 'inside': 'zone:sink'},
-    'sinkFenceNorth': {'kit': 'rail', 'broken': 0.35, 'missing': 0.12, 'inside': 'zone:sink'},
+    # The Sink's broken warning fences, either side of the ramp head's gap, each with its warning sign by the gap
+    # (where the Sink road comes up), standing out in front of the fence, its face away from the Sink.
+    'sinkFenceSouth': {'kit': 'rail', 'broken': 0.35, 'missing': 0.12, 'inside': 'zone:sink',
+                       'signs': [['SinkWarning', [4480, 4250], 120.0, 70.0]]},
+    'sinkFenceNorth': {'kit': 'rail', 'broken': 0.35, 'missing': 0.12, 'inside': 'zone:sink',
+                       'signs': [['SinkWarning', [4480, 4250], 120.0, 70.0]]},
     # The glebe wall, mostly down; the old pound wall, broken.
     'glebeWall': {'kit': 'stone', 'fallen': 0.7, 'broken': 0.1},
     'poundWall': {'kit': 'stone', 'broken': 0.45, 'fallen': 0.15},
-    # The sheep fold: four square corners, its gap toward the west road, a breach or two.
-    'sheepFold': {'kit': 'stone', 'broken': 0.25, 'fallen': 0.1, 'corners': True, 'gates': 'road', 'gate_width': 180},
+    # The sheep fold: four square corners, a 2.2 m gateway toward the west road between finished ends (each side of it
+    # a corner's arm and a half wall, Ruins.py's 1.5 m step), a breach or two.
+    'sheepFold': {'kit': 'stone', 'broken': 0.25, 'fallen': 0.1, 'corners': True, 'halves': True, 'gates': 'road',
+                  'gate_width': 220},
     # Whitlock Fields. Amos's fence: open where the fields path crosses it (his gate), the section just past the gate at
     # the kit's own 3 m, unstretched: Amos leans in its first span (build_area_whitlock.amos_spot), his pose fitted to
     # FenceRail. Its order is the layout's (east along it), so its front faces south, into his hayfield.
@@ -165,14 +196,23 @@ GRAVE_STYLES = {
                            ('Grave_Headboard_OldD', 3), ('Grave_Cross_A', 2), ('Grave_Cross_B', 2),
                            ('Grave_Headboard_FreshA', 1), ('Grave_Headboard_FreshB', 1)],
                    'spacing': 170.0, 'along': 12.0, 'across': 8.0, 'turn': 5.0, 'lean': 3.0, 'missing': 0.06},
-    # The Ransoms' old dead: weathered boards and a wooden cross, kept in line.
+    # The Ransoms' old dead: weathered boards and a wooden cross, kept in line, each over its settled mound.
     'family': {'mix': [('Grave_Headboard_OldA', 2), ('Grave_Headboard_OldB', 2), ('Grave_Headboard_OldC', 1),
                        ('Grave_Headboard_OldD', 2), ('Grave_Cross_A', 1)],
-               'spacing': 200.0, 'along': 8.0, 'across': 6.0, 'turn': 4.0, 'lean': 2.5, 'missing': 0.0},
+               'spacing': 200.0, 'along': 8.0, 'across': 6.0, 'turn': 4.0, 'lean': 2.5, 'missing': 0.0,
+               'mound': 'Grave_MoundSunken'},
+    # Boot hill's: ragged rows, more crosses, each over its settled mound (turned a little less than its looks would
+    # like, so the 1 m mounds 1.65 m apart don't run into each other).
     'bootHill': {'mix': [('Grave_Headboard_OldA', 2), ('Grave_Headboard_OldB', 2), ('Grave_Headboard_OldC', 3),
                          ('Grave_Headboard_OldD', 1), ('Grave_Cross_A', 4)],
-                 'spacing': 165.0, 'along': 30.0, 'across': 25.0, 'turn': 12.0, 'lean': 6.0, 'missing': 0.15},
+                 'spacing': 165.0, 'along': 25.0, 'across': 25.0, 'turn': 7.0, 'lean': 6.0, 'missing': 0.15,
+                 'mound': 'Grave_MoundSunken'},
 }
+# A style's mound (Graves.py's Grave_MoundSunken: 2 x 1 m, its board at its +Y end, about 1.1 m behind its middle) lies
+# in front of its board, its middle this far out (cm), turned as the board is; it tilts with the ground by at most
+# MOUND_TILT degrees (it has no collision: it only has to hug the slope).
+MOUND_OUT = 110.0
+MOUND_TILT = 12.0
 # Each row: its style and the yaw its boards' faces look (0 north, 90 east): the churchyard's toward the lanes either
 # side of the nave, where the player walks; boot hill's south, down toward the town, as its respawn mound faces.
 GRAVE_ROWS = {
@@ -201,12 +241,19 @@ GRAVE_CLEAR = 200.0
 MOUND_BOARDS = {'Grave_MoundFresh': ['Grave_Headboard_FreshA', 'Grave_Headboard_FreshB']}
 MOUND_HEAD = 105.0
 
-# Pieces at spots of their own, with no layout obstacle (cm, yaw): Whitlock Fields' round bales lying out in the east
-# field, the hay Amos never got in (nothing to do with them; Side 2's bales are build_area_whitlock's), clear of the
-# creek's bottom and the field wall.
+# Pieces at spots of their own, with no layout obstacle (cm): at: [x, y, yaw] each; or from and to: a piece lying from
+# one point to the other (unstretched, its middle between them; a fallen pine's stump at from).
 SPOTS = {
-    'whitlockRoundBales': ('HayBale_Round', [(-4600, 6700, 30), (-5400, 7000, -15), (-6800, 6600, 70),
-                                             (-7600, 6300, 10)]),
+    # Whitlock Fields' round bales lying out in the east field, the hay Amos never got in (nothing to do with them;
+    # Side 2's bales are build_area_whitlock's), clear of the creek's bottom and the field wall.
+    'whitlockRoundBales': {'mesh': 'HayBale_Round',
+                           'at': [(-4600, 6700, 30), (-5400, 7000, -15), (-6800, 6600, 70), (-7600, 6300, 10)]},
+    # Two more fallen pines (the art's suggestion), on the emptiest ground by the roads it named: in the fork where the
+    # Sink road leaves the north road, and by the north road below the chapel. Each lies 20 degrees off its road's line,
+    # 5-7 m from its middle, at least 4 m from any obstacle or building and clear of the ground left open on purpose,
+    # the Sink, the boundary and the Ranger caches' spots (the ground there was 10.4 m from its nearest break).
+    'sinkRoadPine': {'mesh': 'FallenPine', 'from': (2869, 1846), 'to': (3440, 2285)},
+    'northRoadPine': {'mesh': 'FallenPine', 'from': (4273, -1157), 'to': (4843, -1598)},
 }
 
 # Cairns along a path: the meshes in turn and the spacing (cm); placements: layout placements that already stand there.
@@ -229,7 +276,13 @@ RUINS = {
 # The prop groups, in the obstacle's frame: u along its longest side, v toward its front (cm). front: 'road' (its
 # nearest road's side), ['toward' or 'away', a placement id], or a yaw. Items: [mesh, u, v, turn, z, stack]: turn is
 # from facing the front (degrees), z lifts it (cm), and the items of one stack stand level on the lowest ground under
-# them. jitter: how far each item is moved and turned at random (cm, degrees), from the obstacle's seed.
+# them. jitter: how far each item is moved and turned at random (cm, degrees), from the obstacle's seed. against:
+# pieces set against a building placement's wall, in its own frame: [mesh, the placement's id, cm ahead of its pivot
+# (its front: +X), cm to its right (+Y), turn from its yaw] (a lean-to on a false front's back wall, beside its back
+# door). A path's items: [mesh, from, to (shares of the path), stretched to fit (default yes)].
+# Pieces in UPRIGHT stand plumb (a shed against a wall, on its posts), sunk to their lowest corner, never tilted.
+UPRIGHT = ('Woodshed', 'LeanTo')
+UPRIGHT_SINK = 40.0
 GROUPS = {
     # A hitch rail and a trough at the town gate, by the street.
     'gateTrough': {'front': 'road', 'jitter': (5.0, 3.0), 'items': [
@@ -237,25 +290,30 @@ GROUPS = {
     # A hitch rail and a trough where Main Street ends at the undertaker's yard, facing the yard.
     'yardTrough': {'front': 90.0, 'jitter': (5.0, 3.0), 'items': [
         ['HitchRail', -40, -15, 0], ['WaterTrough', 40, 70, 0]]},
-    # Behind the Gilt Spur, facing its back door: the privy and the wood (two cords, the woodshed's stand-in) at the
-    # back of the lot, a barrel and a crate by the door.
+    # Behind the Gilt Spur: the woodshed (its open front and chopping block toward the saloon's back door) and the
+    # privy at the back of the lot, a barrel and a crate by the door; a lean-to on the saloon's back wall beside its
+    # back door (the door 1.0-2.0 m right of its middle, seen from the street; the wall's face 7 m behind its pivot).
     'saloonBacklot': {'front': ['toward', 'saloon'], 'jitter': (8.0, 5.0), 'items': [
-        ['Outhouse', 200, -40, 0], ['FirewoodStack', -180, -130, 0], ['FirewoodStack', 0, -135, 0],
-        ['Barrel_A', -240, 110, 0], ['Crate_A', -90, 90, 15]]},
-    # Behind Pruitt's store: crates (two stacked), barrels.
+        ['Woodshed', -130, -50, 0], ['Outhouse', 220, -60, 0], ['Crate_A', 60, 120, 15], ['Barrel_A', 130, 110, 0]],
+        'against': [['LeanTo', 'saloon', -795.0, -100.0, 180.0]]},
+    # Behind Pruitt's store: a woodshed, crates (two stacked), barrels; a lean-to on the store's back wall beside its
+    # back door (the door 1.2-2.25 m right of its middle; the wall's face 6.5 m behind its pivot).
     'storeBacklot': {'front': ['toward', 'store'], 'jitter': (6.0, 6.0), 'items': [
-        ['Crate_A', -150, -40, 0, 0, 'crates'], ['Crate_A', -150, -40, 6, 62, 'crates'], ['Crate_B', -40, -70, 10],
-        ['Crate_B', 30, 90, -20], ['Barrel_A', 120, -80, 0], ['Barrel_B', 190, -20, 0], ['Barrel_A', 160, 70, 0]]},
-    # The undertaker's yard: coffin stacks (three, two, two), a broken one, crates, a barrel.
+        ['Woodshed', -60, -40, 0], ['Crate_A', 165, -80, 0, 0, 'crates'], ['Crate_A', 165, -80, 6, 62, 'crates'],
+        ['Crate_B', 175, 45, -20], ['Barrel_A', 90, 150, 0], ['Barrel_B', 190, 150, 0]],
+        'against': [['LeanTo', 'store', -745.0, -80.0, 180.0]]},
+    # The undertaker's yard: the lumber stack (its leaning planks toward the road), coffin stacks (three and two), a
+    # broken one, crates, a barrel.
     'yardStacks': {'front': 'road', 'jitter': (4.0, 3.0), 'items': [
-        ['Coffin_Closed', -180, -40, 0, 0, 'a'], ['Coffin_Closed', -180, -40, 3, 44, 'a'],
-        ['Coffin_Closed', -180, -40, -2, 88, 'a'], ['Coffin_Closed', -180, 45, 0, 0, 'b'],
-        ['Coffin_Closed', -180, 45, -4, 44, 'b'], ['Coffin_Closed', 70, 80, 0, 0, 'c'],
-        ['Coffin_Closed', 70, 80, 5, 44, 'c'], ['Coffin_Broken', 190, -70, 25], ['Crate_B', 50, -80, 10],
-        ['Crate_A', 270, 60, -15], ['Barrel_A', -310, 110, 0]]},
-    # The undertaker's old dray (the hand cart stands in), turned along the plot, with a crate and a barrel.
-    'yardWagon': {'front': 'road', 'jitter': (5.0, 3.0), 'items': [
-        ['Cart', 0, 0, 90], ['Crate_A', -150, 75, 20], ['Barrel_A', 160, 70, 0]]},
+        ['LumberStack', -150, -20, 0], ['Coffin_Closed', 195, -70, 0, 0, 'a'], ['Coffin_Closed', 195, -70, 3, 44, 'a'],
+        ['Coffin_Closed', 195, -70, -2, 88, 'a'], ['Coffin_Closed', 195, 15, 0, 0, 'b'],
+        ['Coffin_Closed', 195, 15, -4, 44, 'b'], ['Coffin_Broken', 110, 120, 25], ['Crate_B', 40, -150, 10],
+        ['Crate_A', 300, 120, -15], ['Barrel_A', -330, 165, 0]]},
+    # The undertaker's dray, retired by the hearse car: along the plot, its bed's middle on the plot's (the pivot is
+    # 1.22 m ahead of it), its shafts down toward Main Street's end and over the plot's edge; a barrel behind it and a
+    # crate beside it.
+    'yardWagon': {'front': 'road', 'jitter': (3.0, 2.0), 'items': [
+        ['Dray', -122, 0, 90], ['Barrel_A', 185, 20, 0], ['Crate_A', 40, 125, 20]]},
     # Hay stacked against the barn's east wall: square bales in three courses (four, three and two long; three, three
     # and two deep), and two round bales and two loose square ones before it.
     'farmHayStack': {'front': ['away', 'barn'], 'jitter': (3.0, 4.0), 'items':
@@ -268,8 +326,8 @@ GROUPS = {
     'farmHayBales': {'front': 'road', 'jitter': (6.0, 6.0), 'items': [
         ['HayBale_Square', -90, -40, 10, 0, 'pair'], ['HayBale_Square', -90, -40, 18, 36, 'pair'],
         ['HayBale_Square', 70, 50, -30], ['HayBale_Square', 120, -90, 75]]},
-    # A fallen pine by the west road: the snapped stump at its root, the trunk in two lengths along the path.
-    'westRoadLog': {'path': True, 'items': [['Stump_A', 0.0, 0.0], ['Log_A', 0.08, 0.52], ['Log_A', 0.5, 1.0]]},
+    # A fallen pine by the west road (Backlots.py's FallenPine: its stump at the path's start, its top toward the end).
+    'westRoadLog': {'path': True, 'items': [['FallenPine', 0.0, 1.0, False]]},
 }
 
 # Obstacles of these kinds that something else places.
@@ -464,10 +522,12 @@ class Plan:
                 before = len(self.pieces)
                 texts = [self.graves(oid, {'path': path}, style, face, spacing) for style, face, path, spacing in rows]
                 self.notes[oid] = f'{len(self.pieces) - before} pieces; ' + '; '.join(texts)
-            for oid, (mesh, spots) in SPOTS.items():
-                for x, y, yaw in spots:
-                    self.pieces.append(Piece(mesh, oid, (x, y), yaw, kind='prop'))
-                self.notes[oid] = f'{len(spots)} {mesh}'
+            for oid, spot in SPOTS.items():
+                for x, y, yaw in spot.get('at', ()):
+                    self.pieces.append(Piece(spot['mesh'], oid, (x, y), yaw, kind=piece_kind(spot['mesh'])))
+                if 'from' in spot:
+                    self.pieces.append(Piece(spot['mesh'], oid, tuple(spot['from']), b=tuple(spot['to']), kind='log'))
+                self.notes[oid] = f"{len(spot.get('at', ())) + (1 if 'from' in spot else 0)} {spot['mesh']}"
             self.mound_boards()
 
     def on_road(self, point, margin=GRAVE_CLEAR_ROAD):
@@ -560,13 +620,16 @@ class Plan:
                         near[0], near[1] = min(near[0], at - half), max(near[1], at + half)
         out = []
         for d0, d1, why in wanted:
-            width = d1 - d0
-            if kit.get('gate'):
-                # The gate unit fills its gap whole, round its middle.
-                width = PIECES[kit['gate']][0][0]
             middle = (d0 + d1) * 0.5
-            reach = width * 0.5 + kit.get('end_length', 0.0)
-            out.append((middle - reach, middle + reach, why, width))
+            if kit.get('gate'):
+                # The gate unit fills its gap whole, its way through (gate_clear) centred on the gate's spot.
+                unit_length = PIECES[kit['gate']][0][0]
+                clear = kit.get('gate_clear', (0.0, unit_length))
+                begin = middle - (clear[0] + clear[1]) * 0.5
+                out.append((begin, begin + unit_length, why, clear[1] - clear[0]))
+                continue
+            reach = (d1 - d0) * 0.5 + kit.get('end_length', 0.0)
+            out.append((middle - reach, middle + reach, why, d1 - d0))
         if not closed:
             out = [g for g in out if g[1] > 0.0 and g[0] < total]
         return sorted(out)
@@ -618,8 +681,20 @@ class Plan:
             first = spec.get('first_after_gate', 0.0) if start == 'gate' and not closed else 0.0
             self.run(oid, index, cut(track, d0, d1), kit, spec, start, end, first)
             lengths.append(f'{(d1 - d0) / 100.0:.1f}')
+        for mesh, near, inward, out in spec.get('signs', []):
+            # By the line's end nearest near, inward along it, out in front of it (its front: the kit's), facing out.
+            at = along(line, tuple(near))
+            d = at + inward if at < total * 0.5 else at - inward
+            p = point_at(track, d % total if closed else d)
+            q = point_at(track, (d % total if closed else d) + 1.0)
+            if math.dist(p, q) < 0.5:
+                q, p = p, point_at(track, (d % total if closed else d) - 1.0)
+            way = unit(p, q)
+            front = (-way[1], way[0])
+            self.pieces.append(Piece(mesh, oid, (p[0] + front[0] * out, p[1] + front[1] * out),
+                                     math.degrees(math.atan2(front[1], front[0])), kind='upright'))
         if kit.get('gate'):
-            # The gate itself fills its gap (the iron fence's double gate, its leaves open inward).
+            # The gate itself fills its gap (the iron fence's double gate, the pickets' gate, their leaves open inward).
             for d0, d1, _, _ in gaps:
                 d0 = d0 % total if closed else d0
                 self.pieces.append(Piece(kit['gate'], oid, point_at(track, d0), b=point_at(track, d0 + (d1 - d0)),
@@ -652,9 +727,13 @@ class Plan:
             # A sliver of a leg at a run's end (a gate cut close to a corner) is left out; one inside a run isn't, or
             # the run would have a hole.
             if length(leg) >= section * MIN_LEG or 0 < i < len(parts) - 1:
-                spots = joints(leg, section, first if i == 0 else 0.0)
-                for a, b in zip(spots, spots[1:]):
-                    elements.append({'type': 'section', 'a': a, 'b': b, 'dir': unit(a, b)})
+                if spec.get('halves') and kit.get('half'):
+                    spots, halves = half_joints(leg, section, kit['half_length'])
+                else:
+                    spots = joints(leg, section, first if i == 0 else 0.0)
+                    halves = [False] * (len(spots) - 1)
+                for a, b, half in zip(spots, spots[1:], halves):
+                    elements.append({'type': 'section', 'a': a, 'b': b, 'dir': unit(a, b), 'half': half})
             if i < len(parts) - 1:
                 if i in corner_at:
                     a, v = parts[i][-1], poly_vertex(parts[i], parts[i + 1])
@@ -676,7 +755,10 @@ class Plan:
             broken = spec.get('broken', 0.0) if kit.get('broken') else 0.0
             e['state'] = 'M' if draw < missing else 'F' if draw < missing + fallen else \
                 'B' if draw < missing + fallen + broken else 'S'
-        meshes = {'S': kit['section'], 'B': kit.get('broken'), 'F': kit.get('fallen')}
+            if e.get('half'):
+                # The kit has no broken or fallen half: a half always stands.
+                e['state'] = 'H'
+        meshes = {'S': kit['section'], 'B': kit.get('broken'), 'F': kit.get('fallen'), 'H': kit.get('half')}
         for e in elements:
             if e['type'] == 'corner':
                 self.pieces.append(Piece(kit['corner'], oid, e['a'], kit_yaw(*e['dir']), kind='corner',
@@ -691,8 +773,8 @@ class Plan:
             self.fence_posts(oid, elements, kit, end)
 
     def fence_posts(self, oid, elements, kit, end):
-        """A post where a run's rails stop: before a missing section and at the run's end (a gate's own posts close it
-        for the iron fence, and a loop closes on its own first post)."""
+        """A post where a run's rails stop: before a missing section and at the run's end (a gate unit's own posts close
+        it for the iron and picket fences, and a loop closes on its own first post)."""
         for i, e in enumerate(elements):
             if e['state'] == 'M':
                 continue
@@ -705,7 +787,7 @@ class Plan:
         """A finished end wherever standing wall meets fallen, missing or open ground: past the standing piece's last
         joint, or turned back from its first."""
         def full(e):
-            return e['state'] in ('S', 'B', 'C')
+            return e['state'] in ('S', 'B', 'C', 'H')
 
         def forward(e):
             d = e.get('out', e['dir'])
@@ -752,13 +834,19 @@ class Plan:
             off = rnd.uniform(-style['across'], style['across'])
             lean = (rnd.uniform(-style['lean'], style['lean']), rnd.uniform(-style['lean'], style['lean']))
             at = (x + across[0] * off, y + across[1] * off)
+            yaw = face + rnd.uniform(-style['turn'], style['turn'])
+            # Its mound (when the style has one) out in front of the board, where the board faces.
+            mound = (at[0] + math.cos(math.radians(yaw)) * MOUND_OUT, at[1] + math.sin(math.radians(yaw)) * MOUND_OUT)
+            spots = (at, mound) if style.get('mound') else (at,)
             # Never on a road, nor crowding a story grave (a respawn mound and its board).
-            if self.on_road(at) or any(math.dist(at, g) < GRAVE_CLEAR for g in graves):
+            if any(self.on_road(p) or any(math.dist(p, g) < GRAVE_CLEAR for g in graves) for p in spots):
                 cleared += 1
                 continue
-            self.pieces.append(Piece(mesh, oid, at, face + rnd.uniform(-style['turn'], style['turn']), lean=lean,
-                                     kind='board'))
+            self.pieces.append(Piece(mesh, oid, at, yaw, lean=lean, kind='board'))
+            if style.get('mound'):
+                self.pieces.append(Piece(style['mound'], oid, mound, yaw, kind='mound'))
         return (f'{total / 100.0:.1f} m, {count - left - cleared} of {count} graves'
+                + (' (each over its mound)' if style.get('mound') else '')
                 + (f' ({cleared} cleared for a road or a story grave)' if cleared else ''))
 
     def cairns(self, oid, entry, spec):
@@ -796,13 +884,15 @@ class Plan:
         if spec.get('path'):
             path = [tuple(p) for p in entry['path']]
             total = length(path)
-            for mesh, t0, t1 in spec['items']:
+            for item in spec['items']:
+                mesh, t0, t1 = item[:3]
                 a, b = point_at(path, total * t0), point_at(path, total * t1)
                 if math.dist(a, b) < 1.0:
                     self.pieces.append(Piece(mesh, oid, a, kit_yaw(*unit(path[0], path[-1])) + rnd.uniform(0, 360),
-                                             kind='prop'))
+                                             kind=piece_kind(mesh)))
                 else:
-                    self.pieces.append(Piece(mesh, oid, a, b=b, stretch=True, kind='log'))
+                    self.pieces.append(Piece(mesh, oid, a, b=b, stretch=item[3] if len(item) > 3 else True,
+                                             kind='log'))
             return f'{total / 100.0:.1f} m'
         pts = [tuple(p) for p in entry['polygon']]
         center = centroid(pts)
@@ -829,8 +919,41 @@ class Plan:
             dv += rnd.uniform(-shift, shift)
             x, y = center[0] + u[0] * du + f[0] * dv, center[1] + u[1] * du + f[1] * dv
             self.pieces.append(Piece(mesh, oid, (x, y), facing + turn + rnd.uniform(-twist, twist),
-                                     level=f'{oid}.{stack}' if stack else None, lift=lift, kind='prop'))
+                                     level=f'{oid}.{stack}' if stack else None, lift=lift, kind=piece_kind(mesh)))
+        for mesh, host, ahead, right, turn in spec.get('against', []):
+            # In the building's own frame (its +X its front, its +Y its right), from the layout's placement.
+            spot = next((p for p in self.source.get('placements', []) if p['id'] == host), None)
+            if spot is None:
+                self.warnings.append(f'{oid}: no placement {host} to stand its {mesh} against: left out')
+                continue
+            (hx, hy), yaw = spot['location'][:2], math.radians(spot.get('yaw', 0.0))
+            x = hx + math.cos(yaw) * ahead - math.sin(yaw) * right
+            y = hy + math.sin(yaw) * ahead + math.cos(yaw) * right
+            self.pieces.append(Piece(mesh, oid, (x, y), spot.get('yaw', 0.0) + turn, kind=piece_kind(mesh)))
         return f'facing {facing:.0f}'
+
+
+def piece_kind(mesh):
+    """How a free-standing piece stands: plumb (UPRIGHT), or a prop tilted a little with the ground."""
+    return 'upright' if mesh in UPRIGHT else 'prop'
+
+
+def half_joints(leg, section, half):
+    """Joints along a leg for whole sections and at most one half one (the last), the mix stretched least (whole ones
+    win a tie); and which of the sections is the half."""
+    total = max(length(leg), 1e-3)
+    best = None
+    for whole in range(int(total // section) + 2):
+        for halves in (0, 1):
+            nominal = whole * section + halves * half
+            if nominal > 0.0 and (best is None or abs(math.log(total / nominal)) < best[0] - 1e-9):
+                best = (abs(math.log(total / nominal)), whole, halves)
+    _, whole, halves = best
+    scale = total / (whole * section + halves * half)
+    marks = [0.0]
+    for k in range(whole + halves):
+        marks.append(marks[-1] + (half if k >= whole else section) * scale)
+    return [point_at(leg, d) for d in marks], [k >= whole for k in range(whole + halves)]
 
 
 def poly_vertex(leg_in, leg_out):
@@ -898,7 +1021,8 @@ def pose(piece, ground, bases):
         return (x, y, z), (0.0, 0.0, piece.yaw), (1.0, 1.0, 1.0)
     if piece.level:
         return (x, y, bases[piece.level] + piece.lift), (0.0, 0.0, piece.yaw), (1.0, 1.0, 1.0)
-    # A prop: tilted with the ground under its sides (at most MAX_TILT), sunk so no side hovers.
+    # A prop: tilted with the ground under its sides (at most MAX_TILT; a mound, MOUND_TILT), sunk so no side hovers;
+    # an upright piece isn't tilted, and sinks to its lowest side (at most UPRIGHT_SINK).
     yaw = math.radians(piece.yaw)
     fx, fy = math.cos(yaw), math.sin(yaw)     # the actor's +X
     hx, hy = max(depth * 0.5, 10.0), max(length_ * 0.5, 10.0)
@@ -906,12 +1030,13 @@ def pose(piece, ground, bases):
     gf, gb = ground(x + fx * hx, y + fy * hx), ground(x - fx * hx, y - fy * hx)
     # The actor's +Y is the front turned right: (-fy, fx) seen as (X north, Y east) is +Y.
     gr, gl = ground(x - fy * hy, y + fx * hy), ground(x + fy * hy, y - fx * hy)
-    upright = piece.kind == 'cairn'
-    pitch = 0.0 if upright else clamp(math.degrees(math.atan2(gf - gb, 2.0 * hx)), MAX_TILT)
-    roll = 0.0 if upright else clamp(math.degrees(math.atan2(gl - gr, 2.0 * hy)), MAX_TILT)
+    upright = piece.kind in ('cairn', 'upright')
+    tilt = MOUND_TILT if piece.kind == 'mound' else MAX_TILT
+    pitch = 0.0 if upright else clamp(math.degrees(math.atan2(gf - gb, 2.0 * hx)), tilt)
+    roll = 0.0 if upright else clamp(math.degrees(math.atan2(gl - gr, 2.0 * hy)), tilt)
     tp, tr = math.tan(math.radians(pitch)), math.tan(math.radians(roll))
     z = min(g0, gf - hx * tp, gb + hx * tp, gl - hy * tr, gr + hy * tr)
-    z = max(z, g0 - MAX_SINK)
+    z = max(z, g0 - (UPRIGHT_SINK if piece.kind == 'upright' else MAX_SINK))
     return (x, y, z + piece.lift), (roll + piece.lean[1], pitch + piece.lean[0], piece.yaw), (1.0, 1.0, 1.0)
 
 
@@ -962,6 +1087,8 @@ def footprints(source, placements=None):
                 x, y = x + d[0] * half, y + d[1] * half
             else:
                 x, y = (piece.a[0] + piece.b[0]) * 0.5, (piece.a[1] + piece.b[1]) * 0.5
+        ahead = FOOTPRINT_AHEAD.get(piece.mesh, 0.0)
+        x, y = x + math.cos(math.radians(piece.yaw)) * ahead, y + math.sin(math.radians(piece.yaw)) * ahead
         out.append((x, y, piece.yaw, half, depth * 0.5, piece.kind in LINE_KINDS))
     return out
 

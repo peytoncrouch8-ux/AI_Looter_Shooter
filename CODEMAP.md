@@ -834,7 +834,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   by obstacle id, sections chained along lines and polygons on the terrain's tiles, gates and road gaps, one
   `AInstancedProps` per mesh; `footprints()` gives the scatter each piece's box. Whitlock Fields' fences and wall
   included, and pieces at spots of their own (`SPOTS`: its round bales); `run_head()` and `span_heights()` give a
-  builder a section's span to stand someone in (Amos).
+  builder a section's span to stand someone in (Amos). The backlots' woodsheds and lean-tos (set against the false
+  fronts' back walls), the undertaker's dray and lumber stack, fallen pines, the Sink fences' warning signs, the picket
+  gates swung open, boot hill's and the family plot's sunken mounds, the sheep fold's half walls.
   `Tools/Unreal/island_views.py`: an area's viewpoints as editor cameras and shots.
 - `Tools/terrain_identity.ps1`, `.py`: checks an area regenerates exactly as committed (headless Blender, no editor;
   layoutSha1 left out);
