@@ -9,17 +9,23 @@ Art/Models/Loot/Chests.py) is left out with a warning, and so is everything whil
 - Ruth's three Supply Crates (kind SupplyCrate: one gun at Luck 0.5 and two ammo pickups of 36 rounds), the caches her
   note on the Rim Rangers' board names ("UNDER THE WINDMILL - SINK RIM - BLUFF PATH"), tagged Chest, RangerCache and
   Obstacle, each with a stable id (its label too):
-  - RangerCache_Windmill, under the windmill: at its tower's foot behind its legs, under the tail vane, so the tower
-    stands between it and the barn yard's gate; its front toward the yard's south fence.
-  - RangerCache_SinkRim, on the Sink's rim: on the east rim where the south warning fence ends against Den Rock's west
-    flank, its back to the rock, across the pit from the ramp head and well off the Sink road.
+  - RangerCache_Windmill, under the windmill: at the foot of its tower's front face (the fan's side), between the front
+    footings and in front of the pump, turned a little as the art session's SupplyCrate_Windmill picture stands it.
+    The tower's collision is one hull round its whole lattice, so it stands outside the legs: 2 m out, which keeps the
+    lid's swing out of the lattice too. Two fallbacks stand outside the legs as well: the back face, facing south-south-
+    west in the level (under the tail vane), and the right face.
+  - RangerCache_SinkRim, on the Sink's rim: on the east rim just outside the north warning fence, its back to the fence
+    and the pit, across the pit from the ramp head and well off the Sink road (Den Rock's collision reaches past its
+    rock, so the rim by its flank is out).
   - RangerCache_BluffPath, on the bluff path: where the path tops out on Ransom's Point, tucked against the east lip a
     few metres north of it, behind the right shoulder of a player coming up. The path itself climbs about 1 in 4, too
     steep for a crate to stand level on.
   Each has a few spots in order of preference (CACHES). The first where the crate stands level (the terrain under its
   corners within LEVEL cm, no drop within a hand of it) and clear wins: nothing solid in its footprint or a hand round
-  it (traced: a rock, a tree, a fence, a cliff piece, the scatter), none of the dressing's pieces
-  (build_area_dressing.footprints()), clear of the roads, of the encounters' spots and of the playable boundary's edge.
+  it (traced against what blocks the player: a rock, a tree, a fence, a cliff piece, the windmill's hull), room behind
+  it for its lid to swing open, none of the dressing's pieces (build_area_dressing.footprints()), clear of the roads, of
+  the encounters' spots and of the playable boundary's edge. A spot tucked against something (the windmill's) needs no
+  hand's room behind its back, only its lid's.
   Without such a spot, the level spot with the fewest problems is taken, else the flattest, with a warning naming them.
   It stands level, its pivot on the terrain (the tiles alone, never a rock or the scatter).
 - The gang's Strongbox (kind Strongbox: two guns at Luck 1.0; id GangStrongbox, tagged Chest, GangStrongbox and
@@ -58,8 +64,14 @@ STRONGBOX_SOCKET = 'Strongbox'
 
 # A Supply Crate's footprint, halves in cm (Chests.py: 0.52 m deep along its X, its front +X; 1.15 m along its Y).
 CRATE_HALF = (26.0, 57.5)
-# Kept clear round it: a hand's width past its sides, which also takes the lid's swing (21 cm past its hinge, behind).
+# Kept clear round it: a hand's width past its sides.
 MARGIN = 30.0
+# Its lid (Chests.py): hinged this far behind its middle and up (cm), reaching this far forward of the hinge, this thick,
+# opening this far (degrees). Open, its back face runs from the hinge up and back past upright: there must be room for it.
+HINGE = (-28.2, 40.0)
+LID_REACH = 56.7
+LID_THICK = 6.5
+LID_OPEN = 112.0
 # Level: its corners' terrain within this (cm); a drop: the terrain this far under it within the margin (a lip, the pit).
 LEVEL = 8.0
 DROP = 40.0
@@ -73,25 +85,28 @@ SPOT_CLEAR = 250.0
 EDGE_CLEAR = 300.0
 
 # Ruth's caches: (id, where in words, the placement kind its spots are in the frame of (None: the level's own, layout cm),
-# spots in order of preference as (x, y, yaw): yaw is where the crate's front faces, its back the way it's tucked).
+# spots in order of preference as (x, y, yaw[, tucked]): yaw is where the crate's front faces; a tucked one stands with
+# its back against something, so only its lid needs room behind it).
 CACHES = (
     ('RangerCache_Windmill', 'under the windmill', WINDMILL, (
-        # Behind the tower (its -X, under the tail vane): the tower stands between it and the yard's gate; 1.9 m out,
-        # clear of the stone footings (1.53 m) and of the leg hull with the lid open.
-        (-190.0, 0.0, 180.0),
-        # Its right side, toward the yard's south-east corner.
-        (0.0, 190.0, 90.0),
-        # Its left side, toward the barn.
-        (0.0, -190.0, -90.0),
+        # The art session's spot (Chests.py's SupplyCrate_Windmill view): at the foot of the tower's front face, between
+        # the front footings, in front of the pump, turned 22.5 degrees right of the tower's front. Their (0.08, -1.72) m
+        # in the model's Blender frame is (172, -8) here; the tower's hull (1.3 m out at the ground, 1.19 m at 0.9 m) would
+        # take the crate's back corner and the open lid's, so it stands 2 m out.
+        (200.0, -8.0, 22.5, True),
+        # The back face, under the tail vane: facing south-south-west in the level (the tower faces 30 degrees).
+        (-200.0, 0.0, 172.5, True),
+        # The right face, toward the yard's south-east corner.
+        (0.0, 200.0, 90.0, True),
     )),
     ('RangerCache_SinkRim', "on the Sink's rim", None, (
-        # The east rim where the south warning fence ends (2 m off) against Den Rock's west flank (3.4 m), its back to the
-        # rock, 4.6 m back from the pit's edge.
-        (3600.0, 8600.0, -135.0),
-        # A little further along the rock's flank.
-        (3550.0, 8750.0, -150.0),
-        # The north-east rim between Den Rock and the Webwood, past the north fence's end.
-        (6000.0, 8550.0, -125.0),
+        # The east rim, 1.7 m outside the north warning fence, its back to the fence and the pit, facing the way a player
+        # comes along the rim: level within 2 cm and clear of everything (probed in the editor). Den Rock's collision
+        # reaches well past its rock, so the spots by its west flank stood inside it.
+        (6700.0, 7500.0, 90.0),
+        # Along the same stretch of rim, outside the fence.
+        (6900.0, 7300.0, 90.0),
+        (7100.0, 7500.0, 90.0),
     )),
     ('RangerCache_BluffPath', 'on the bluff path', None, (
         # Where the path tops out (-7882, -7208): 5 m north of it on the top, 2.4 m in from the east lip, facing in.
@@ -170,9 +185,9 @@ class Site:
         hit = build_area.terrain_hit(self.tiles, unreal.Vector(x, y, 20000.0), unreal.Vector(x, y, -20000.0))
         return None if hit is None else hit.z
 
-    def judge(self, x, y, yaw):
+    def judge(self, x, y, yaw, tucked=False):
         """(the terrain's height at its pivot, how far its corners' ground differs, the problems in words) for a crate at
-        (x, y) facing yaw. The height is None off the terrain."""
+        (x, y) facing yaw; tucked, its back may stand against something. The height is None off the terrain."""
         hx, hy = CRATE_HALF
         under = [self.terrain(*frame(x, y, yaw, fx * hx, fy * hy)) for fx in (-1, 0, 1) for fy in (-1, 0, 1)]
         if any(z is None for z in under):
@@ -182,25 +197,27 @@ class Site:
         problems = []
         if spread > LEVEL:
             problems.append(f'not level ({spread:.0f} cm across it)')
-        world = unreal.EditorLevelLibrary.get_editor_world()
+        # Its own footprint (corners, sides, middle), and a hand round it: in front, at its ends, and behind unless it's
+        # tucked against something there.
+        probes = [(fx * hx, fy * hy) for fx in (-1.0, 0.0, 1.0) for fy in (-1.0, 0.0, 1.0)]
+        probes += [(fx * (hx + MARGIN), fy * (hy + MARGIN)) for fx in (-1.0, 0.0, 1.0) for fy in (-1.0, -0.5, 0.0, 0.5, 1.0)
+                   if (fx != 0.0 or abs(fy) == 1.0) and not (tucked and fx < 0.0)]
         solid = drops = 0
-        for fx in (-1.0, 0.0, 1.0):
-            for fy in (-1.0, -0.5, 0.0, 0.5, 1.0):
-                px, py = frame(x, y, yaw, fx * (hx + MARGIN), fy * (hy + MARGIN))
-                ground = self.terrain(px, py)
-                if ground is None or ground < z - DROP:
-                    drops += 1
-                    continue
-                hit = unreal.SystemLibrary.line_trace_single(world, unreal.Vector(px, py, ground + PROBE_FROM),
-                                                             unreal.Vector(px, py, ground - 50.0),
-                                                             unreal.TraceTypeQuery.TRACE_TYPE_QUERY1, True, [],
-                                                             unreal.DrawDebugTrace.NONE, True)
-                if hit is not None and hit.to_tuple()[5].z > ground + SOLID_OVER:
-                    solid += 1
+        for ax, ay in probes:
+            px, py = frame(x, y, yaw, ax, ay)
+            ground = self.terrain(px, py)
+            if ground is None or ground < z - DROP:
+                drops += 1
+                continue
+            hit = blocking(unreal.Vector(px, py, ground + PROBE_FROM), unreal.Vector(px, py, ground - 50.0))
+            if hit is not None and hit.z > ground + SOLID_OVER:
+                solid += 1
         if drops:
             problems.append(f'a drop within {MARGIN:.0f} cm of it')
         if solid:
-            problems.append(f'something solid in its footprint or round it ({solid} of 15 probes)')
+            problems.append(f'something solid in its footprint or round it ({solid} of {len(probes)} probes)')
+        if not self.lid_room(x, y, z, yaw):
+            problems.append('no room behind it for its lid to open')
         mine = corners(x, y, yaw, hx + MARGIN, hy + MARGIN)
         pieces = [p for p in self.pieces if math.hypot(p[0] - x, p[1] - y) < 2000.0
                   and overlap(mine, corners(p[0], p[1], p[2], p[4], p[3]))]
@@ -218,6 +235,30 @@ class Site:
             elif line_distance((x, y), self.boundary, closed=True) < EDGE_CLEAR:
                 problems.append('by the playable boundary\'s edge')
         return z, spread, problems
+
+    @staticmethod
+    def lid_room(x, y, z, yaw):
+        """Nothing that blocks the player stands where the open lid's back face goes: along it from the hinge, at the
+        hinge's ends and middle."""
+        hy = CRATE_HALF[1]
+        open_ = math.radians(LID_OPEN)
+        back = LID_REACH * math.cos(open_) - LID_THICK * math.sin(open_)
+        up = LID_REACH * math.sin(open_) + LID_THICK * math.cos(open_)
+        for along in (-hy, 0.0, hy):
+            hinge = frame(x, y, yaw, HINGE[0], along)
+            top = frame(x, y, yaw, HINGE[0] + back, along)
+            if blocking(unreal.Vector(hinge[0], hinge[1], z + HINGE[1]), unreal.Vector(top[0], top[1], z + HINGE[1] + up)):
+                return False
+        return True
+
+
+def blocking(start, end):
+    """Where the line from start to end first meets what blocks the player (simple collision: a rock's hull, the
+    windmill's round its lattice, the terrain), or None."""
+    hit = unreal.SystemLibrary.line_trace_single(unreal.EditorLevelLibrary.get_editor_world(), start, end,
+                                                 unreal.TraceTypeQuery.TRACE_TYPE_QUERY1, False, [],
+                                                 unreal.DrawDebugTrace.NONE, True)
+    return None if hit is None else hit.to_tuple()[5]
 
 
 def encounter_spots():
@@ -279,8 +320,8 @@ def choose(site, spots):
     """The first spot that's level and clear, else the level one with the fewest problems, else the flattest: (index,
     x, y, z, yaw, spread, problems), or None when none is on the terrain."""
     judged = []
-    for i, (x, y, yaw) in enumerate(spots):
-        z, spread, problems = site.judge(x, y, yaw)
+    for i, (x, y, yaw, tucked) in enumerate(spots):
+        z, spread, problems = site.judge(x, y, yaw, tucked)
         if z is None:
             judged.append((i, x, y, z, yaw, spread, problems))
             continue
@@ -307,8 +348,8 @@ def place_caches(build, cls, site):
                 build.warn(f'the layout has no {relative_to}: no cache {words}')
                 continue
             bx, by, byaw = base
-            spots = [frame(bx, by, byaw, lx, ly) + (byaw + lyaw,) for lx, ly, lyaw in spots]
-        chosen = choose(site, spots)
+            spots = [frame(bx, by, byaw, lx, ly) + (byaw + lyaw,) + tuple(rest) for lx, ly, lyaw, *rest in spots]
+        chosen = choose(site, [(sx, sy, syaw, bool(rest and rest[0])) for sx, sy, syaw, *rest in spots])
         if chosen is None:
             build.warn(f'no terrain under any of {cache_id}\'s spots: no cache {words}')
             continue

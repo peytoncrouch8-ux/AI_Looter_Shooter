@@ -45,6 +45,10 @@ namespace
 	/** The sheriff's office's floor spot for the Strongbox (FalseFronts.py's walk-in office). */
 	const FName StrongboxSocket(TEXT("Strongbox"));
 
+	/** Half the windmill's legs' square at the ground (Windmill.py's BASE_HALF) and half a Supply Crate's depth (cm). */
+	constexpr double WindmillLegsHalf = 130.0;
+	constexpr double CrateHalfDepth = 26.0;
+
 	/** The design's numbers per kind: guns, luck, and the chance of at least one legendary per chest. */
 	struct FChestDesign
 	{
@@ -547,6 +551,12 @@ bool FRangerCachesPlacedTest::RunTest(const FString& Parameters)
 		{
 			TestTrue(FString::Printf(TEXT("%s is at the windmill's foot (%.0f cm from it)"), *What, FVector::Dist2D(At, Where(Windmill))),
 				FVector::Dist2D(At, Where(Windmill)) <= 300.0);
+			// The tower's collision is one hull round its whole lattice, a square 2.6 m across at the ground (Windmill.py): a
+			// crate standing in it, or with its back in it, couldn't be reached. Its middle stands half its depth past the
+			// square at least.
+			const FVector InTower = Windmill->GetRootComponent()->GetRelativeTransform().InverseTransformPosition(At);
+			TestTrue(FString::Printf(TEXT("%s stands outside the windmill's legs (%.0f, %.0f in the tower's frame)"), *What, InTower.X, InTower.Y),
+				FMath::Max(FMath::Abs(InTower.X), FMath::Abs(InTower.Y)) >= WindmillLegsHalf + CrateHalfDepth);
 		}
 	}
 
