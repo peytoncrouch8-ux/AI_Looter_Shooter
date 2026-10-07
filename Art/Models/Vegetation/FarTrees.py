@@ -26,8 +26,8 @@ trees' cards are, looter_plants.crown_shade): a tree lights as one soft volume, 
 One material slot for all three, FarTrees (MI_FarTrees: the opaque master M_World on the FoliagePalette texture set, at
 M_World's defaults): every part sits on one point of a FoliagePalette swatch (the pines on CloverDark, lower tiers
 further down its dark-to-light gradient, their trunks on CattailBrown and the dead snag on a darker point of it; the
-cottonwood in late summer's dry colors, like the valley's tinted oaks and birches: olive-drab clumps on GrassOlive, the
-top on GrassDry, one small low clump turning on GrassYellow's warm end, the bark on CattailBrown's dark grey-brown end).
+cottonwood in late summer's dry colors, like the valley's tinted oaks and birches: olive-drab clumps on GrassOlive's
+dark end, one small low clump turning on GrassDry's dark end, the bark on CattailBrown's dark grey-brown end).
 Each part's UVs spread only a hair round that point (a planar projection a few hundredths of the swatch):
 enough UV area for MikkTSpace tangents, and so little that the sampled mip stays sharp at any distance and never bleeds
 into the neighboring swatches. Shading within a part comes from the baked vertex AO (vertex color alpha, as every model
@@ -72,16 +72,19 @@ BARK = ('CattailBrown', 0.9)
 DEAD_WOOD = ('CattailBrown', 0.2)
 # The cottonwood wears Ransom's Rest's dry late summer, as the valley's scattered oaks and birches do
 # (MI_LeavesOak_Ransom, MI_LeavesBirch_Ransom: olive-drab, a third turning gold); on GrassDeep it stood past the
-# boundary as rows of saturated green lollipops. Its clumps sit on olive-drab points (GrassOlive, near the oaks' tinted
-# leaves; the top a little drier), and one small low clump is turning: a patch, not a crown. It sits on GrassYellow's
-# warm end, between the olive and FlowerYellow in lightness, which the golden light turns old gold. FlowerYellow's
-# dull end, on two clumps a tree, made the far forest read bright yellow-orange, brighter than the near oaks (its
-# gradient barely darkens toward that end, and no swatch lies between it and the olive). The bark is CattailBrown's
-# dark end, a dark grey-brown like the near oaks' bark rather than the pines' orange-red.
-LEAVES_TOP = ('GrassDry', 0.14)
-LEAVES_HIGH = ('GrassOlive', 0.46)
-LEAVES_LOW = ('GrassOlive', 0.38)      # a shade darker, under the high clumps
-LEAVES_GOLD = ('GrassYellow', 0.72)
+# boundary as rows of saturated green lollipops. Its clumps sit on the dark end of GrassOlive (the top lighter, the low
+# clumps darker), and one small low clump is turning: a khaki patch on GrassDry's dark end, which the golden light
+# turns gold-ochre, a fleck, not a crown. The points are picked by the game: lit flat (no shadows past the boundary)
+# and lifted by the warm light and exposure, the far crowns came out about 1.7, 1.37 and 0.89 times their palette color
+# (red, green, blue, sRGB: RidgeFoot's lit crowns on GrassOlive 0.46 and GrassDry 0.14 read #c8a239), a bright
+# yellow-khaki forest beside the near oaks' darker amber-olive (#b08130 lit, in Aerial). These points land the crowns
+# near the oaks' lightness (about #a0862d lit), a little yellower: the palette has no darker olive warmer than
+# GrassOlive. Brighter points read as a lit yellow forest; FlowerYellow, on two clumps a tree, as a yellow-orange one.
+# The bark is CattailBrown's dark end, a dark grey-brown like the near oaks' bark rather than the pines' orange-red.
+LEAVES_TOP = ('GrassOlive', 0.26)
+LEAVES_HIGH = ('GrassOlive', 0.14)
+LEAVES_LOW = ('GrassOlive', 0.08)      # a shade darker, under the high clumps
+LEAVES_GOLD = ('GrassDry', 0.08)
 COTTONWOOD_BARK = ('CattailBrown', 0.15)
 
 
@@ -392,7 +395,7 @@ def far_broadleaf():
     """A cottonwood: a short trunk carrying on up through a broken crown of seven separate clumps at different heights
     (one on top, three high round it, three lower and further out), with three limbs from the fork to the high clumps
     and side limbs from them to the low ones showing in the gaps, about 11 m tall and 10.5 m across. Olive-drab, the
-    smallest low clump turning old gold, on dark grey-brown bark (see LEAVES_TOP)."""
+    smallest low clump turning gold-ochre, on dark grey-brown bark (see LEAVES_TOP)."""
     rng = random.Random(837)
     plant = lp.Plant('FarBroadleaf', 837)
     center = Vector((0.2, 0.1, 7.4))
