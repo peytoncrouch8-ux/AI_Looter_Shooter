@@ -827,7 +827,7 @@ Each step ends with something you can look at or play. Each one names the consol
 - You get: phases, untargetable states, add waves, the fog-wall seal, the boss bar, reset on death, and enemy pellets, all shown on a test spider boss on the greybox.
 - You approve: the boss bar and a test fight.
 
-**22. Abel, the Keeper (Main 6)** (in progress).
+**22. Abel, the Keeper (Main 6)** (built on 2026-10-07; waiting for your approval: the bundled review has the fight's numbers and the drafted lines).
 - You get: Abel concepts, the burial boards deck, Abel as boss and as friend, the fade to dusk, Main 6 and the scene after. Abel's drift goes out into the fog over the canyon. Phase 3 relies on the deck's open edge and fall recovery's outside rule, tested: a gust off the deck returns the player to the deck within a second. A tour at dusk mid-fight.
 - You approve: the difficulty and the ending's wording after fighting him.
 
