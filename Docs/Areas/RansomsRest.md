@@ -723,26 +723,26 @@ Each step ends with something you can look at or play. Each one names the consol
   6. a sketch of the horizon from Ransom's Point.
 - Approved on 2026-10-01: the valley ending at the Rim. The same day you chose travel by train, so the exit in Stage Gap is now the depot, its platform, a water tower and the track through the gap, in the same places. One small choice on the picture is still open: the lookout tower stays at (−100, −86), where the bluff's edge hides it from the grave, or moves to the top's north-west corner, at about (−106, −66), where the grave sees it.
 
-**3a. Terrain scripts for any area, with the tutorial island unchanged** (next: building starts here).
+**3a. Terrain scripts for any area, with the tutorial island unchanged** (built).
 - You get: the generator in a shared module that takes a layout path; the map square and cell sizes set per layout; features as lists by type, with cliff groups per feature; and the covered squares written to `layout_computed.json` and read by `build_area.py <Area>` and the scatter builder (no more hard-coded `10240`).
 - Check: the tutorial island regenerated, with a compare script printing each result. `layout_computed.json` must match to 0.1 cm; the tile, underside and water meshes must have identical vertex and triangle counts and hashes; the macro and scatter PNGs must be pixel-identical. Then the level is rebuilt: `Tools\tour.ps1 -Quality Medium` within 3% of the last run at every view, with screenshots side by side, and `Tools\runtests.ps1` green. Also the generator's peak memory and build time on a dry run at the square size of Ransom's Rest.
 - You approve: the tutorial island looks and runs the same.
 
-**3b. New feature types, on a test layout.**
+**3b. New feature types, on a test layout** (built).
 - You get: `Art/Levels/TerrainTest/layout.json`, a 150 m square with a pit and its ramp, a 20 m cliff in two stacked courses, a scarp, a ridge, two outcrop knobs, two plateaus with ramps, a mesa, a dry gully, a creek that ends in a falls into a gorge, and a rail bed through a saddle. Also the open-ground metric with its plan overlay, and a layout checker (ramp grades and widths, every cliff course at most 12 m, features clear of the seam band).
 - Check: the checker passes, and the tutorial island's identity check still passes.
 - You approve: Blender clay renders of each feature, and the plan with its overlay.
 
-**3c. Grounded terrain, on the test layout.**
+**3c. Grounded terrain, on the test layout** (built).
 - You get: the grounded setting on `TerrainTest`: no rim or underside; the regional height field and the seam band; the surround ring in sectors, with collision on its ridge sectors; an escarpment edge with its generated wall and a canyon floor below; three backdrop silhouette layers; the ring's macro map; and the boundary polygon with its open edges in `layout_computed.json`.
 - Check (printed by the script): a seam gap of 0 mm and a normal difference under 1°; triangles per piece within budget (core 150k, ring 40k, canyon wall 20k, backdrop 6k); the tutorial island's identity check still passes.
 - You approve: renders from inside the boundary toward each side, from the highest point, and along the escarpment edge.
 
-**3d. Bounds, fall recovery and the minimap in the game, on a test level.**
+**3d. Bounds, fall recovery and the minimap in the game, on a test level** (built).
 - You get: `APlayableArea` with its walls and the `PlayableBounds` profile; the fall recovery and minimap changes; the `Looter.World.Bounds` and `Looter.Perf.HideTag` commands; `build_area.py` placing the ring, canyon wall, backdrop, playable area, `KillZ` and a cull distance volume; and `/Game/Maps/Dev/Lvl_TerrainTest` built from the test layout. New tests: `Looter.World.PlayableArea`, `Looter.World.FallRecovery` and `Looter.World.Minimap.Bounds` (see *Tech needs*). The tutorial island's tour is rerun and unchanged.
 - You approve: a short play of walking into the boundary, jumping off the edge and reading the minimap, or screenshots of it if you'd rather.
 
-**4. Ransom's Rest greybox, pictures (no Unreal).**
+**4. Ransom's Rest greybox, pictures (no Unreal)** (built).
 - You get: `Art/Levels/RansomsRest/layout.json`, grounded, with the approved boundary, edges and obstacles, plus Blender renders:
   1. the plan with zones, boundary and the open-ground overlay, against the target of nothing more than about 10 m from a break (fences and low walls count), outside ground marked open on purpose;
   2. clay views of the bluff path, the Sink ramp and Main Street;
@@ -758,95 +758,95 @@ Each step ends with something you can look at or play. Each one names the consol
 - Checks: a walk along the whole boundary finds no climbable gap (Stage Gap's cut waits for the grey-box train at step 5b), a jump off the deck is recovered, and the minimap reads correctly.
 - You approve: the horizon and the boundary in the game, the shadow choice, and the timings.
 
-**5b. Ransom's Rest greybox: buildings, load and encounters.**
+**5b. Ransom's Rest greybox: buildings, load and encounters** (overtaken by the real buildings and train; its remaining checks, Stage Gap past the parked train and the zones' draws, fold into step 27).
 - You get: grey boxes for the new buildings (the depot and the water tower among them), a grey-box train parked at the platform with the track through Stage Gap, and existing models where they fit; a walk through Stage Gap that finds no way past the parked train; zone tags, with each zone's draws measured from Ransom's Point against the zone table; 12–20 real spiders chasing the camera (game thread); 12 dithered ghost stand-ins (GPU); each encounter group spawned with `Looter.SpawnCreature` and chased on its own ground; and every obstacle inside an encounter's ground checked (no group split by a change of level, no creature stuck on a rock).
 - You approve: scale, route, sightlines and timings, after walking it or reading the screenshots.
 
-**6. Ranks and legendary odds.**
+**6. Ranks and legendary odds** (built).
 - You get: ranks on creatures, rank tags and words, four new rank loot tables (Basic stays today's table), creature size, dropped guns taking the creature's level, `Looter.SpawnCreature <kind> <rank>`, `Looter.Loot.SimulateDrops` and the `Looter.Loot.RankOdds` test. Shown on spiders from the console only, on the tutorial island and the greybox; nothing is placed.
 - You approve: blue, purple and orange spiders seen in the game, their sizes, and the simulated drop table.
 
-**7. Level bands and XP.**
+**7. Level bands and XP** (built).
 - You get: the first `UAreaDefinition` assets (`DA_Area_RansomsRest` with the area's band and promotion chances, and Skyreach's, marked as practice at 0 XP), the level roll, linear health and damage, kill XP with the falloff, and promotions rolled on load. `Looter.XP.Table` prints kills per level from 1 to 70.
 - You approve: the numbers, and a level 8 spider against a level 8 gun.
 
-**8. Sessions that travel.**
+**8. Sessions that travel** (built).
 - You get: session save version 2 and the upgrade from version 1, tested on a copy of a real save first; travel that saves the right world (`Looter.Travel <area>`); arrival points (on a station's platform, or Skyreach's jetty); saved promotion and Legendary-monster times; area names in the session picker; a round trip to Skyreach and back that keeps each map's world.
 - You approve: travel to the Ransom's Rest greybox from the console, Save & Quit, Continue there, a trip to Skyreach and back, and an old session that still loads on the tutorial island with its guns.
 
-**9. Train, depot and skiff concepts.**
+**9. Train, depot and skiff concepts** (built: the train, depot and skiff are in the game; your approval of the train waits in the bundled review).
 - You get: Blender preview pictures from the art session of the train (two locomotive options, the passenger car and Tilly's hearse car, all from one parts kit with shared materials), the rail track kit (straights, curves and a buffer stop), the depot with its platform, the water tower, the signal and the station board; the tutorial's packet skiff (two options) in its packet paint and the gang's dark paint; Skyreach's jetty with its bell post and slate; and Skyreach's backdrop islands. Each model shows its LODs and triangle counts, and a few frames show the train's departure shot through Stage Gap. The horizon of Ransom's Rest comes from steps 3c and 5a. Nothing imported.
 - You approve: the train, the depot and the skiff, and how the train arrives and departs (a short shot and a fade, or a fade alone).
 
-**10. Leaving Skyreach, the station board and practice trips.**
+**10. Leaving Skyreach, the station board and practice trips** (built).
 - You get: first, the tutorial's six steps played end to end and fixed if needed. Then the interaction component (loot moved onto it), the jetty and skiff on the tutorial plateau, the “Board the skiff” mission, the gangplank and bell, the station board at the jetty with the first cast-off's confirm (*“You can come back to practice any time.”*), the 12 s ride into the cloud, Skyreach's backdrop islands, the title card, and waking at the family plot's grave on the Ransom's Rest greybox. Then the station board at the grey-box depot: “Skyreach (practice)” and the blank line naming the next mission, a plain fade with no cutscene to Skyreach's jetty, and the jetty's board listing every opened area, which returns the player to the depot's platform the same way. Also “Skip the tutorial” with a Common Bullpup in the coffin, and Skyreach's creatures at 0 XP with ammo-only drops on return visits. Tests and a plateau tour.
 - You approve: the feel of the exit, after finishing the tutorial, casting off and waking in the grave; the skip; the station board; and a practice trip to Skyreach and back.
 
-**11. Missions as data.**
+**11. Missions as data** (built).
 - You get: mission data assets and the runner, a Missions page in the inventory, `Looter.Mission.Start/Complete`, and “Board the skiff” moved onto it as the proof.
 - You approve: the Missions page and the tracker.
 
-**12. Captions, doors and graves.**
+**12. Captions, doors and graves** (built).
 - You get: captions, speaker points on doors and windows, the story-character actor, and respawn graves, shown on the greybox with a test line at Delia's door.
 - You approve: how captions look, and waking at a grave.
 
-**13. Day and dusk.**
+**13. Day and dusk** (built).
 - You get: the afternoon and dusk lighting states and `Looter.Light Day|Dusk`. Both also set the fog's directional inscattering and the backdrop's tint, through the material parameter collection. Dusk is measured on the deck and at Ransom's Point looking west over the canyon, where the low sun is in view, and the backdrop is checked for bright ridges at sunset.
 - You approve: the dusk look and its timings.
 
-**14. Seven Days (Main 1).**
+**14. Seven Days (Main 1)** (built).
 - You get: the cold open with the cloud match cut (played on the first cast-off only): the gang's skiff glides out of the evening cloud in the west, low over the plains, and drops into Gravewind Canyon toward the Mooring Ledge under Ransom's Point. Then the grave wake-up, Delia's door and Main 1 on the greybox with a placeholder bird. Hob concepts from the art session.
 - You approve: Main 1's flow and tone after playing from casting off; you pick Hob.
 
-**15. Sexton and the deal (Main 2).**
+**15. Sexton and the deal (Main 2)** (built).
 - You get: Sexton concept renders first, then his seated model, the bluff-top spiders with a placed Restless, and Main 2 with the Ledger's seven names.
 - You approve: Sexton's look, then the deal after playing it.
 - Approved on 2026-10-06: Sexton's look (the Gentleman, from three concepts), then his seated game model (“Sexton is good”). `SM_MisterSexton` (11,974 triangles, LODs at 50% and 20%, no Nanite, one hull) sits on the lookout's `SOCKET_Sit`, with `SM_SextonLedger` on his `SOCKET_Ledger` and his captions from `SOCKET_Speaker`. His face above the shadow line never lights. The deal itself comes with Main 2.
 
-**16. The Unpaid.**
+**16. The Unpaid** (built).
 - You get: three concept pictures, then the rig and mesh, `AUnpaidCreature` with its Restless and Gravebound ranks, the spawner and a Ledger page. Twelve chasing at the town gate, measured on Medium.
 - You approve: the look, then a fight at the town gate.
 
-**17. Main Street and Cold Welcome (Main 3, Side 1).**
+**17. Main Street and Cold Welcome (Main 3, Side 1)** (built).
 - You get: concepts, then the false-front kit; Main Street dressed; Main 3 and the posters. Re-measured: Ransom's Point, the orchard, the horizon views and the `Beyond` budget (30 draws, 0.6 ms).
 - You approve: the street, then Main 3 and the posters.
 
-**18. The chapel and Hallowed Ground (Main 4).**
+**18. The chapel and Hallowed Ground (Main 4)** (built on 2026-10-07; waiting for your approval).
 - You get: concepts, then the chapel and the graves kit; the family plot and boot hill dressed; the smashed Reliquary (with your OK); Main 4. Re-measured, with the horizon views and the `Beyond` budget.
 - You approve: the chapel and graves, then Main 4.
 
-**19. The Sink and the Keeper's Lantern (Main 5).**
+**19. The Sink and the Keeper's Lantern (Main 5)** (built on 2026-10-07; waiting for your approval).
 - You get: web cards, egg sacs, the lantern and Main 5. Re-measured, with the horizon views and the `Beyond` budget.
 - You approve: Main 5.
 
-**20. The Gravemother (Side 3).**
+**20. The Gravemother (Side 3)** (built on 2026-10-07; waiting for your approval of the fight).
 - You get: the den mesh, the Gravemother on the spider rig at 1.8×, her charge and spiderlings, her return after 20 minutes of play, and her Ledger page. A tour of the den.
 - You approve: the fight.
 
-**21. The boss framework.**
+**21. The boss framework** (built; approved on 2026-10-05).
 - You get: phases, untargetable states, add waves, the fog-wall seal, the boss bar, reset on death, and enemy pellets, all shown on a test spider boss on the greybox.
 - You approve: the boss bar and a test fight.
 
-**22. Abel, the Keeper (Main 6).**
+**22. Abel, the Keeper (Main 6)** (in progress).
 - You get: Abel concepts, the burial boards deck, Abel as boss and as friend, the fade to dusk, Main 6 and the scene after. Abel's drift goes out into the fog over the canyon. Phase 3 relies on the deck's open edge and fall recovery's outside rule, tested: a gust off the deck returns the player to the deck within a second. A tour at dusk mid-fight.
 - You approve: the difficulty and the ending's wording after fighting him.
 
-**23. Heirloom.**
+**23. Heirloom** (built on 2026-10-07; Delia hands it over in Main 7).
 - You get: named weapons (fixed parts, a name, a flavor line) and Heirloom.
 - You approve: Heirloom as a named Epic, or a Legendary.
 
-**24. Travel by train, and The Lantern Leans (Main 7).**
+**24. Travel by train, and The Lantern Leans (Main 7)** (in progress).
 - You get: the train in place of the grey box (the locomotive, the passenger car and Tilly's hearse car, with their LODs and collision), the track kit through Stage Gap with its buffer stop, the depot, the platform, the water tower, the signal and the station board prop; the train's departure and arrival as chosen at step 9 (by default a short shot, then a fade), shown from the console (`Looter.Train.Depart`, `Looter.Train.Arrive`) until the *Lily* opens a real trip; the station board listing the *Gilded Lily* beside “Skyreach (practice)”; and Main 7, with Tilly's hearse car waiting at the platform. Re-measured: the depot view and Ransom's Point.
 - You approve: the train and the depot; the area's ending, after playing from Abel to the station board; and a practice trip from the depot to Skyreach and back.
 
-**25. Unfinished Business (Side 2).**
+**25. Unfinished Business (Side 2)** (in progress: Amos's model approved and imported).
 - You get: Amos, Whitlock Fields dressed, and Side 2.
 - You approve: Amos's mission.
 
-**26. Ranger caches (optional).**
+**26. Ranger caches (optional)** (optional; waits for your OK).
 - You get, only with your OK: the Supply Crate and Strongbox out of the backlog, `AChest`, the three caches and the sheriff's Strongbox.
 - You approve: the import, then the chests after opening them.
 
-**27. Ransom's Rest finished.**
+**27. Ransom's Rest finished** (last).
 - You get: Ledger pages for every new creature and character, XP tuned so the main path ends near level 9, every `Looter.*` test green, a full Medium tour under 8.3 ms at every view (the horizon and boundary views included), a level check that every respawn grave, spawn point and tour view lies inside the playable boundary, and an entry in `Docs/Performance.md`.
 - You approve: Ransom's Rest as done, after a new session from the tutorial to the station board at the depot and a practice trip to Skyreach and back. Then you decide whether the *Gilded Lily* stays an airship, and only then does it start.
