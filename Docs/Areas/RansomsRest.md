@@ -666,7 +666,7 @@ Concept renders come before any human costume. Sexton is first, because he sets 
   - **Deferred until Ransom's Rest is complete:** whether the *Gilded Lily* stays an airship.
   - **Build Ransom's Rest with several agents, to a professional standard:** buildings, obstacles, the environment and every asset working properly; interesting and interactive; fully optimized, with small files and good graphics; and fleshed out. Building starts at step 3.
 - **Still open, a small choice:** the lookout tower stays at (−100, −86), where the bluff's edge hides it from the grave, unless you want it moved to the top's north-west corner, at about (−106, −66), where the grave sees it.
-- **Step 5a:** the shadows for long views: today's two 100 m cascades, or one far cascade drawn by buildings and cliffs.
+- **Step 5a (approved on 2026-10-07, as recommended):** today's two 100 m cascades stay; the far cascade cost 0.2–0.4 ms GPU at the long views for nothing you could see. The horizon and the boundary in the game (with art notes 2 and 3: the blue sky, the blue-violet dusk and the layered far band) and the timings (Medium, the heaviest view 6.5 ms of the 8.3 ms budget) were approved with it.
 - **Step 6:**
   - The legendary odds per rank: 0.3%, 2.2%, 11.8%, 21.4% and 30.3%.
   - Ranked enemies dropping guns more often than your 20–40% rule (Rare 60%; Epic and up on every kill). Basic keeps 30%.
@@ -691,6 +691,7 @@ Concept renders come before any human costume. Sexton is first, because he sets 
 - **Step 17:** Ellis's wanted poster. Chosen on 2026-10-06 from three: **B, a woodcut of a masked rider**, so the face
   stays hidden and Ellis's gender open, with ALREADY written under DEAD OR ALIVE. The posters are decals (one atlas: the
   poster, its torn remnant, Calder's note and a scrap).
+- **Steps 14, 15 and 17 (decided on 2026-10-07, as recommended):** the first-draft lines for Mains 1 to 3 stay as written, and the Ledger shows on Skyreach too once Sexton has handed it over: it's the book Ellis carries.
 - **Step 18:** using the backlog Reliquary design for the smashed one.
 - **Step 21 (approved on 2026-10-05):** the boss bar and the test fight.
 - **Step 22:** Abel's look, chosen on 2026-10-06 from three concepts: **A, the Sunday keeper**. Still to come: his
@@ -751,7 +752,7 @@ Each step ends with something you can look at or play. Each one names the consol
   Printed numbers: triangles per piece, ramp grades, openness.
 - You approve: the shape, heights, sightlines, horizon and obstacles.
 
-**5a. Ransom's Rest in the game: terrain, bounds and sky.**
+**5a. Ransom's Rest in the game: terrain, bounds and sky** (done; approved on 2026-10-07).
 - You get: `Lvl_RansomsRest` with the terrain tiles, ring, canyon wall and backdrop; cliffs and outcrops instanced; the playable area; the golden afternoon (a low sun in the west-southwest over the canyon, warm fog that fully hides the backdrop's ends, the cloud dome grown past the backdrop); `views.json` with per-view `exec`; and a Medium tour baseline that includes the new views (Ransom's Point west over the canyon into the low sun, the north boundary looking out, the ridge foot).
 - Measured: (1) everything tagged `Beyond` stays at or under 30 draws and 0.6 ms GPU at the heaviest view, by difference with `Looter.Perf.HideTag Beyond`; (2) shadows at Ransom's Point and on the deck, today's two 100 m cascades against one far cascade drawn by buildings and cliffs, with screenshots and milliseconds side by side; (3) the render thread, from a `perf.ps1 -GpuStats` capture.
 - Checks: a walk along the whole boundary finds no climbable gap (Stage Gap's cut waits for the grey-box train at step 5b), a jump off the deck is recovered, and the minimap reads correctly.
