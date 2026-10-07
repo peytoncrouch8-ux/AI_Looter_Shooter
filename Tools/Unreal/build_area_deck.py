@@ -101,6 +101,11 @@ POINT_WISPS_PER_CM = 2.8 / 1000.0
 RIM_WISPS_PER_CM = 1.0 / 1000.0
 RIM_WEST = -8000.0
 WISP_MOST = 35
+# Which wisps the lips get: the Streamer (C) and the Curl (D) carry out nearly level; the Spill (A) pours straight down a
+# face like a fall, so it's kept to the deck's west end. A lip wisp turns west, this share of the way out over the drop.
+POINT_WISP_KINDS = 'CCCDD'
+RIM_WISP_KINDS = 'BCCD'
+LIP_OUT_SHARE = 0.35
 # A lip turning more than this (degrees) at a corner gets a Curl there.
 CORNER_TURN = 30.0
 # The boundary stands a step past the walkable lip: a wisp leaves the lip this far in from it, at the ground found there.
@@ -391,13 +396,13 @@ def gravewind_wisps(build, deck, gate):
     # Over budget, the rest of the Rim thins first.
     rim_share = 1.0 if point_count + rim_count <= budget else max(0.0, (budget - point_count) / max(rim_count, 1e-6))
     previous = None
-    for edges, density in ((point, POINT_WISPS_PER_CM), (rim, RIM_WISPS_PER_CM * rim_share)):
+    for edges, density, kinds in ((point, POINT_WISPS_PER_CM, POINT_WISP_KINDS), (rim, RIM_WISPS_PER_CM * rim_share, RIM_WISP_KINDS)):
         for a, b, inward in edges:
             length = math.hypot(b[0] - a[0], b[1] - a[1])
             count = int(round(length * density))
             outward = (-inward[0], -inward[1])
-            # Halfway between straight out over the drop and west, the way the Gravewind pours.
-            between = flat((outward[0] + 0.0, outward[1] - 1.0))
+            # West with the wind, more along the lip than out over the drop: the Gravewind pours off the Rim westward.
+            between = flat((outward[0] * LIP_OUT_SHARE, outward[1] * LIP_OUT_SHARE - 1.0))
             yaw = yaw_of(between)
             # A Curl where the lip turns sharply from the edge before.
             if previous is not None and previous[1] == a and len(placed) < WISP_MOST:
@@ -411,7 +416,7 @@ def gravewind_wisps(build, deck, gate):
                 if len(placed) >= WISP_MOST:
                     break
                 x, y, z = lip_spot(a, b, inward, (k + 0.5) / count)
-                key = rng.choice('ABCD')
+                key = rng.choice(kinds)
                 placed.append((key, wisp_transform(rng, x, y, z, yaw + rng.uniform(-8.0, 8.0), key)))
     return placed
 

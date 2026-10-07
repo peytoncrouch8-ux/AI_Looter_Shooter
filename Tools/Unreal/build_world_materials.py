@@ -722,8 +722,12 @@ def build_smoke():
 # sun, times the clouds' lighting tint, so dusk reaches them.
 GRAVEWIND_NOISE = """float2 P = float2(UV1.x * ScaleAcross, (UV1.y - Time * Pan) * ScaleAlong) + Phase * 7.0;
 P += 0.18 * float2(sin(P.y * 2.1 + Time * 0.2), sin(P.x * 1.7 - Time * 0.15)) * Distort;
-float N = Texture2DSample(Noise, NoiseSampler, P).r * 0.65 + Texture2DSample(Noise, NoiseSampler, P * 2.1 + 0.37).r * 0.35;
-float Shape = saturate((N - Threshold) * Contrast);
+// Three octaves, the first warped by the second (the billows'), shaped soft: a hard cut of one bilinear octave broke into
+// stair-stepped blotches.
+float N2 = Texture2DSample(Noise, NoiseSampler, P * 2.3 + 0.37).r;
+float N1 = Texture2DSample(Noise, NoiseSampler, P + (N2 - 0.5) * 0.15 * Distort).r;
+float N3 = Texture2DSample(Noise, NoiseSampler, P * 5.0 + 0.71).r;
+float Shape = smoothstep(ShapeLow, ShapeHigh, N1 * 0.6 + N2 * 0.3 + N3 * 0.1);
 float EdgeOn = saturate(abs(dot(normalize(Normal), CameraVector)) * 2.5);
 float Dist = length(WorldPos - CameraPos);
 float Near = saturate((Dist - NearStart) / max(NearEnd - NearStart, 1.0));
@@ -759,7 +763,7 @@ def gravewind(name, settings):
                          texture=import_mask(MACRO_NOISE_FILE, MACRO_NOISE)), ''),
         ('Time', time, ''), ('Normal', normal, ''), ('CameraVector', camera, ''), ('WorldPos', world, ''),
         ('CameraPos', g.node(unreal.MaterialExpressionCameraPositionWS, -1300, 550), ''), ('Soft', soft, ''),
-    ] + [(key, params[key], '') for key in ('ScaleAcross', 'ScaleAlong', 'Pan', 'Distort', 'Threshold', 'Contrast',
+    ] + [(key, params[key], '') for key in ('ScaleAcross', 'ScaleAlong', 'Pan', 'Distort', 'ShapeLow', 'ShapeHigh',
                                            'NearStart', 'NearEnd', 'FarStart', 'FarEnd', 'Opacity')],
         unreal.CustomMaterialOutputType.CMOT_FLOAT1, -600, 200, f'{name} opacity')
     color = g.custom(GRAVEWIND_COLOR, [
@@ -778,27 +782,32 @@ def gravewind(name, settings):
     g.out(color, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     g.out(opacity, '', unreal.MaterialProperty.MP_OPACITY)
     g.out(sway, '', unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET)
-    finish(mat, [])
+    # Drawn as instances (ADuskScenery): without the usage saved, the game falls back to the default material.
+    finish(mat, [unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES])
     return mat
 
 
+# Brightness is on the painted clouds' scale (their LitColor about 3, before the lighting state's CloudTint, a quarter of
+# it at dusk), and Warm keeps their lit sides' ratio: the banks sit just lighter than the canyon haze they hang in, as fog
+# must; the wisps a barely-there cold drift, gone by 45 m so the far side's don't sit on the rim as tufts (the art
+# session's values from the game's dusk, 2026-10-07).
 def build_gravewind_wisp():
     """M_GravewindWisp: fine streaming streaks off the Rim at dusk (lengths in cm, Pan in m a second along UV1's V)."""
     return gravewind('M_GravewindWisp', {
-        'cool': (0.434, 0.468, 0.658, 1.0), 'warm': (1.0, 0.527, 0.262, 1.0),
-        'scalars': dict(ScaleAcross=2.4, ScaleAlong=0.26, Pan=1.5, Distort=0.0, Threshold=0.34, Contrast=2.6,
-                        NearStart=50.0, NearEnd=200.0, FarStart=2500.0, FarEnd=6000.0, Opacity=0.5, DepthFade=50.0,
-                        SunPower=6.0, BaseShade=1.0, Brightness=1.0, Amount=15.0, Speed=1.3, Along=0.8)})
+        'cool': (0.434, 0.468, 0.658, 1.0), 'warm': (1.0, 0.79, 0.53, 1.0),
+        'scalars': dict(ScaleAcross=1.6, ScaleAlong=0.12, Pan=2.5, Distort=0.0, ShapeLow=0.25, ShapeHigh=0.8,
+                        NearStart=50.0, NearEnd=200.0, FarStart=1500.0, FarEnd=4500.0, Opacity=0.35, DepthFade=50.0,
+                        SunPower=6.0, BaseShade=1.0, Brightness=2.5, Amount=15.0, Speed=1.3, Along=0.8)})
 
 
 def build_canyon_fog():
     """M_CanyonFog: slow billowing banks rising out of the canyon at the deck, darker low down (no far fade: they're
     the view)."""
     return gravewind('M_CanyonFog', {
-        'cool': (0.503, 0.527, 0.701, 1.0), 'warm': (1.0, 0.565, 0.279, 1.0),
-        'scalars': dict(ScaleAcross=0.08, ScaleAlong=0.08, Pan=0.4, Distort=1.0, Threshold=0.3, Contrast=2.8,
+        'cool': (0.503, 0.527, 0.701, 1.0), 'warm': (1.0, 0.79, 0.53, 1.0),
+        'scalars': dict(ScaleAcross=0.08, ScaleAlong=0.08, Pan=0.4, Distort=1.0, ShapeLow=0.2, ShapeHigh=0.85,
                         NearStart=400.0, NearEnd=1200.0, FarStart=1.0e6, FarEnd=2.0e6, Opacity=0.75, DepthFade=300.0,
-                        SunPower=3.0, BaseShade=0.6, Brightness=1.0, Amount=40.0, Speed=0.785, Along=0.0)})
+                        SunPower=3.0, BaseShade=0.85, Brightness=3.0, Amount=40.0, Speed=0.785, Along=0.0)})
 
 
 BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'M_Gun': lambda: build_gun(DEFAULT_ORM),
