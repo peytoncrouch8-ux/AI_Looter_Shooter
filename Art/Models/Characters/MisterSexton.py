@@ -1,6 +1,6 @@
 """Mister Sexton, the game's first human (Docs/Story.md, "Antagonist: Mister Sexton"; Docs/Areas/RansomsRest.md, step
 15): the user's pick from Art/Backlog/Creatures/SextonConcepts.py, option A, the Gentleman (2026-10-06). A scripted
-model file (Art/README.md) with two models:
+model file (Art/README.md) with three models:
 
   MisterSexton  SM_MisterSexton: seated on a rail, legs crossed knee over knee, the ledger on his right knee, his left
                 hand spread on its page, a dip pen in his right. A fitted black frock coat buttoned to the throat: a
@@ -17,6 +17,12 @@ model file (Art/README.md) with two models:
                 finger goes through the ledger.
   SextonLedger  SM_SextonLedger: the open ledger, its own prop: oxblood boards and a ribbon, cream pages, brass
                 corners, the ribbon weighted with a tarnished coin.
+  SextonStand   SM_SextonStand: his seat on the Ledger's stand (the bestiary shows him seated on it): a short length of
+                the lookout's front rail as Lookout.py builds it (looter_ruins.railing's timbers: 11 cm posts, a 12 x 6
+                cm top rail 1.05 m over the deck, a mid rail at half that height, a saltire brace under it, on the house
+                trim sheet), 1.27 m between the posts' outer faces, standing on three of the lookout's deck boards
+                (WoodPlanks) laid across two sleepers. As on the lookout, the posts stand in front of the rail (his
+                side), the rail is fixed to their outer faces, and the boards run forward from the posts under his feet.
 
 Pivot and attaching. Sexton's pivot is the seat point on the rail's top under him, his front -Y as every model's: it
 is the Lookout's SOCKET_Sit (Art/Models/Buildings/Lookout.py; its front faces into the deck), so attach
@@ -25,6 +31,10 @@ deck is 1.05 m below the pivot. The ledger's pivot is the middle of its boards' 
 reader: attach SM_SextonLedger to Sexton's Ledger socket, snapped to target. Sockets:
   SOCKET_Ledger   on his right knee, where the ledger rests (its front toward him)
   SOCKET_Speaker  at his chin, facing his front: where his captions come from
+The stand's pivot is the ground under the seat, its front his. Its sockets, so both still parts hang from it:
+  SOCKET_Sit      the seat on its top rail, 1.2 m up, not turned: SM_MisterSexton's pivot goes there and he sits on it
+                  exactly as on the lookout's rail (the rail's top and its middle under him, the posts in front of it)
+  SOCKET_Ledger   his own Ledger socket where he sits on the stand: SM_SextonLedger on his knee
 
 Materials (MI_<slot> on the textured masters; vertex alpha is baked occlusion everywhere):
   SextonWool      M_World with no texture set: a flat warm near-black (#2A2826) on the master's default ORM,
@@ -42,10 +52,13 @@ Materials (MI_<slot> on the textured masters; vertex alpha is baked occlusion ev
                   at noon"); only the head's outline shows its forms.
   SextonMetal     MetalWorn tinted #A88A52, old tarnished brass: the buttons, the nib, the coin and the ledger's corners.
   The ledger adds SextonLedgerCover (Polymer #6E3226, oxblood) and SextonLedgerPages (Polymer #E9DFC6).
+  The stand has the lookout's own: HouseTrim (posts, rails, brace and sleepers) and WoodPlanks (the deck boards). Its
+  occlusion is baked with him seated on it, so the rail darkens under him and the boards under his boots.
 For the cold open (his seated model drawn black), the scene swaps every slot for an unlit black instance.
 
 Nanite off (it's a character seen up close): SM_MisterSexton LODs 50% and 20%, one convex hull (UCX) round his body
-and legs; SM_SextonLedger LODs 50% and 25%, no collision. Every fold is geometry: no normal map, no new texture.
+and legs; SM_SextonLedger LODs 50% and 25%, no collision; SM_SextonStand LODs 50% and 25%, no collision. Every fold is
+geometry: no normal map, no new texture.
 
 The drape. His skirt and tails come from a cloth simulation over his body and the rail (two panels from the waist
 seam, the front edges parting over the crossed legs, the tails falling behind the rail), run at a fine grid and kept
@@ -53,11 +66,14 @@ at every second row and column. The settled cloth is stored beside this file in 
 of everything it depends on (the starting cloth, the colliders, the settings), so an export never runs it again; a
 change to the body changes the digest, and the next run simulates and rewrites the file (--resim forces it).
 
-    blender -b --factory-startup --python Art/Models/Characters/MisterSexton.py -- [--preview] [--stats] [--resim]
+    blender -b --factory-startup --python Art/Models/Characters/MisterSexton.py -- [--preview] [--stand-preview]
+                                                                                      [--stats] [--resim]
 --preview renders Saved/ArtPreviews/RansomsRest/Sexton/: on the real Lookout in a golden sun, backlit by the Day
 state's sun as at Main 2, the cold open's black silhouette at dusk, close-ups of the hands and ledger and of the
 face's shadow edge, his head three-quarter as a player standing on the deck sees it (Sexton_Head), the LOD sheet
-(Blender's decimation standing in for Unreal's) and the game mesh beside the concept.
+(Blender's decimation standing in for Unreal's), the game mesh beside the concept, and him on his stand
+(SextonStand.png: as the Ledger's stand first turns him, and from the side, close on his seat on the rail).
+--stand-preview renders only SextonStand.png.
 """
 import hashlib
 import json
@@ -1871,8 +1887,84 @@ def build_ledger():
     return obj
 
 
+# --- The stand ---
+
+# The stand in his frame, set on the ground. The lookout's railing (Lookout.py's front rail: looter_ruins.railing with
+# 11 cm posts, a 12 x 6 cm top rail, the mid rail at half the height and a saltire under it) has its posts' line
+# 8.5 cm in front of the rail's middle, which is his seat. Their middles stand STAND_POST_X either side of him, clear of
+# his skirt (it spreads to 0.46 m over the rail: their inner faces are 6 cm outside it).
+STAND_DECK = 0.15                 # the deck boards' top over the ground (5 cm boards on 10 cm sleepers)
+STAND_SEAT = STAND_DECK - DECK    # the top rail's top: his seat, 1.05 m over the deck as on the lookout
+STAND_POST_X, STAND_POST_Y, STAND_POST = 0.58, -0.085, 0.11
+
+
+def build_stand():
+    """SM_SextonStand (the module's docstring): his seat on the Ledger's stand, a piece of the lookout's front rail on
+    three of its deck boards. The rails end flush with the posts' outer faces, and the mid rail lies on the posts (the
+    lookout's stands 7.5 mm off them). The occlusion is baked with him seated on it, then he's taken off again."""
+    import looter_buildings as kit
+    import looter_ruins as lr
+    m = lr.Model('SextonStand', seed=631)
+    rng = m.rng
+    beam = kit.Trim('C', lane='each')
+    out = (0.0, 1.0, 0.0)                               # the rails' side of the posts: behind him
+    deck, top = STAND_DECK, STAND_SEAT
+    xp, yp, post = STAND_POST_X, STAND_POST_Y, STAND_POST
+    face_y = yp + post * 0.5                            # the posts' outer faces, where the rails are fixed
+    end = xp + post * 0.5
+    # Three boards along X, 19 cm wide and 5 cm thick in rows 20 cm apart as on the lookout's deck, the first flush
+    # with the posts' outer faces (the deck's edge), on two sleepers under the posts.
+    rows = [face_y - 0.095 - 0.2 * k for k in range(3)]
+    sleeper = deck - 0.05
+    for x in (-xp, xp):
+        m.board((x, rows[0] + 0.075, sleeper * 0.5), (x, rows[-1] - 0.075, sleeper * 0.5), sleeper, 0.12,
+                face=(1.0, 0.0, 0.0), uv=beam)
+    for y in rows:
+        x0, x1 = -end - rng.uniform(0.03, 0.06), end + rng.uniform(0.03, 0.06)
+        m.board((x0, y, deck - 0.025), (x1, y, deck - 0.025), 0.19, 0.05, face=(0.0, 0.0, 1.0),
+                uv=lr.PlankRow(rng.randrange(16)), mat='planks', cuts=4)
+    # The posts (m.board's, with one cut of their own), down into the boards and standing 5 cm over the top rail. The
+    # cut 20 cm over the deck keeps the occlusion at their feet there, instead of shading them all the way up.
+    for x in (-xp, xp):
+        p0, p1 = Vector((x, yp, deck - 0.04)), Vector((x, yp, top + 0.05))
+        length = (p1 - p0).length
+        tb = kit._box((length, post, post), 0.01)
+        kit._slice(tb, 0, [0.24 - length * 0.5])
+        m.emit(tb, kit._spec(beam, width=post), 'trim', kit.toward(p0, p1, out) @
+               Matrix.Translation((length * 0.5, 0.0, 0.0)))
+    # The top rail he sits on (cut along it, so the occlusion he casts on it has vertices to land on), the mid rail and
+    # the saltire under it.
+    m.board((-end, face_y + 0.03, top - 0.06), (end, face_y + 0.03, top - 0.06), 0.12, 0.06, face=out, uv=beam, cuts=7)
+    mid = deck - DECK * 0.5
+    m.board((-end, face_y + 0.0225, mid), (end, face_y + 0.0225, mid), 0.102, 0.045, face=out, uv='A', cuts=2)
+    brace_y = yp + 0.6 * (post * 0.5 + 0.03)
+    lo, hi = deck + 0.08, mid - 0.06
+    for z0, z1 in ((lo, hi), (hi, lo)):
+        m.board((-xp, brace_y, z0), (xp, brace_y, z1), 0.08, 0.04, face=out, uv='C')
+    obj = m.finish(ao=False, preview=False, fallback=None, Nanite=0, LODs='50,25', Collision='None')
+    sit = Matrix.Translation((0.0, 0.0, top))
+    if '--no-ao' not in ARGS:
+        # He's always seated on it: his mesh (not a copy) on the seat while the occlusion bakes, then gone again.
+        seated = bpy.data.objects.new('SextonSeated', SEXTON.data)
+        bpy.context.scene.collection.objects.link(seated)
+        seated.parent = obj
+        seated.matrix_world = sit
+        lt.bake_vertex_ao(obj, samples=48, distance=0.45, ground=True, children=False)
+        bpy.data.objects.remove(seated)
+    for name, matrix in (('Sit', sit), ('Ledger', sit @ ledger_matrix())):
+        empty = bpy.data.objects.new('SOCKET_' + name, None)
+        empty.empty_display_type = 'ARROWS'
+        empty.empty_display_size = 0.08
+        bpy.context.scene.collection.objects.link(empty)
+        empty.parent = obj
+        empty.matrix_world = matrix
+    log(f'SextonStand: {triangles(obj)} triangles, materials {", ".join(mt.name for mt in obj.data.materials)}')
+    return obj
+
+
 SEXTON = build_sexton()
 LEDGER = build_ledger()
+STAND = build_stand()
 
 
 # --- Previews ---
@@ -2238,6 +2330,8 @@ def _stand_in(coll):
 def previews():
     os.makedirs(OUT_DIR, exist_ok=True)
     scene = bpy.context.scene
+    # The stand stays out of these (at the origin it would stand inside him in the studio); it has its own shot.
+    STAND.hide_render = True
     figure = [SEXTON, LEDGER]
     ledger_view = LEDGER.copy()
     ledger_view.name = '_LedgerOnKnee'
@@ -2342,7 +2436,143 @@ def previews():
         for o in list(coll.objects):
             bpy.data.objects.remove(o)
         bpy.data.collections.remove(coll)
+    STAND.hide_render = False
+    stand_preview()
+
+
+def _backfaces(mat, color):
+    """A copy of mat that draws its back faces flat color: whatever a section opens up."""
+    cut = mat.copy()
+    nodes, links = cut.node_tree.nodes, cut.node_tree.links
+    out = next((n for n in nodes if n.type == 'OUTPUT_MATERIAL' and n.is_active_output),
+               next(n for n in nodes if n.type == 'OUTPUT_MATERIAL'))
+    shader = out.inputs['Surface'].links[0].from_socket
+    geometry = nodes.new('ShaderNodeNewGeometry')
+    flat = nodes.new('ShaderNodeEmission')
+    flat.inputs['Color'].default_value = lt.hex_color(color)
+    mix = nodes.new('ShaderNodeMixShader')
+    links.new(geometry.outputs['Backfacing'], mix.inputs['Fac'])
+    links.new(shader, mix.inputs[1])
+    links.new(flat.outputs['Emission'], mix.inputs[2])
+    links.new(mix.outputs['Shader'], out.inputs['Surface'])
+    return cut
+
+
+def _section(objects, cut, colors):
+    """Preview-only: each of objects that the plane x = cut crosses is hidden and stood in for by a copy cut there (the
+    part toward +X gone), its cut loops capped and whatever else the cut opens (a leg cut along its length, through its
+    open hem) drawn flat in its color from behind, so a view along -X shows a true section rather than the meshes'
+    insides. Returns the copies, the objects hidden and the materials made, to undo it."""
+    made, hidden, materials = [], [], []
+    for obj, color in zip(objects, colors):
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bm.transform(obj.matrix_world)
+        bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], dist=1e-6, plane_co=(cut, 0.0, 0.0),
+                               plane_no=(1.0, 0.0, 0.0), clear_outer=True)
+        rim = [e for e in bm.edges if e.is_boundary and all(abs(v.co.x - cut) < 1e-5 for v in e.verts)]
+        if not rim:
+            bm.free()
+            continue
+        caps = bmesh.ops.holes_fill(bm, edges=rim, sides=0)['faces']
+        mesh = bpy.data.meshes.new('_Section')
+        for mat in obj.data.materials:
+            materials.append(_backfaces(mat, color))
+            mesh.materials.append(materials[-1])
+        mesh.materials.append(_unlit(f'_Cut{color:06x}', color))
+        for f in caps:
+            f.material_index = len(mesh.materials) - 1
+        bm.to_mesh(mesh)
+        bm.free()
+        section = bpy.data.objects.new('_Section', mesh)
+        bpy.context.scene.collection.objects.link(section)
+        made.append(section)
+        hidden.append(obj)
+        obj.hide_render = True
+    return made, hidden, materials
+
+
+def stand_preview():
+    """SextonStand.png: him seated on his stand through its sockets, the ledger on his knee. Left, the Ledger's view
+    (its camera: 24 degrees wide, looking down 14, him turned 35 to his right, so his left side shows); then from his
+    left side square on, cut just inside the near post; then close, cut through his seat: the rail's top under him,
+    with no gap and nothing sunk into it."""
+    os.makedirs(OUT_DIR, exist_ok=True)
+    sockets = {o.name[len('SOCKET_'):].split('.')[0]: o for o in STAND.children if o.name.startswith('SOCKET_')}
+    hull = next(o for o in SEXTON.children if o.name.startswith('UCX_'))
+    shown = [(o, o.hide_render) for o in (hull, LEDGER, STAND)]
+    hull.hide_render = LEDGER.hide_render = True
+    STAND.hide_render = False
+    SEXTON.matrix_world = sockets['Sit'].matrix_world
+    ledger_view = LEDGER.copy()
+    ledger_view.name = '_LedgerOnStand'
+    bpy.context.scene.collection.objects.link(ledger_view)
+    ledger_view.hide_render = False
+    ledger_view.matrix_world = sockets['Ledger'].matrix_world
+    floor = bpy.data.meshes.new('_StandFloor')
+    floor.from_pydata([(-30.0, -30.0, 0.0), (30.0, -30.0, 0.0), (30.0, 30.0, 0.0), (-30.0, 30.0, 0.0)], [],
+                      [(0, 1, 2, 3)])
+    floor_obj = bpy.data.objects.new('_StandFloor', floor)
+    bpy.context.scene.collection.objects.link(floor_obj)
+    floor_mat = bpy.data.materials.new('_StandFloorMat')
+    floor_mat.use_nodes = True
+    floor_mat.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = lt.hex_color(0x8d877d)
+    floor_mat.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value = 0.95
+    floor.materials.append(floor_mat)
+    bpy.context.view_layer.update()
+    W, H = 960, 880
+    world = _studio_world()
+    shots = []
+    # 1. The Ledger's camera: it frames him and the stand together, aimed at the middle of their box; the sun from his
+    # front right.
+    seat = sockets['Sit'].matrix_world.translation
+    aim = Vector((0.0, -0.33, (seat.z + 1.312) * 0.5))
+    turn, pitch, dist = math.radians(35.0), math.radians(14.0), 7.9
+    toward = Vector((math.sin(turn), -math.cos(turn), 0.0)) * math.cos(pitch) + UP * math.sin(pitch)
+    cam = _camera(aim + toward * dist, aim, lens=18.0 / math.tan(math.radians(12.0)))
+    cam.data.sensor_fit = 'HORIZONTAL'
+    _sun((-0.55, -0.75, 0.62), 3.4, (1.0, 0.9, 0.78))
+    _label('SEXTON ON SM_SEXTONSTAND: THE LEDGER\'S VIEW', cam, -0.92, 0.88, 26, W, H)
+    shots.append(_render(os.path.join(OUT_DIR, '_stand_a.png'), cam, W, H, world, samples=64))
+    _clear_labels()
+    # 2 and 3. From his left side, square on and orthographic, the sun from his front left, as sections (_section; the
+    # cuts red through him and his ledger, pale through the stand): first cut just inside the near post (it hid the
+    # seat), the whole of him and the stand; then, close, cut where he comes nearest the rail: 10 cm to his left of the
+    # middle his left thigh lies on the rail's front edge (1 mm over it there, 1.2 cm at its back edge).
+    _sun((0.75, -0.45, 0.5), 3.4, (1.0, 0.9, 0.78))
+    for name, cut, size, middle, w, text, sy in (
+            ('b', 0.5, seat.z + 1.4, Vector((0.0, -0.33, (seat.z + 1.36) * 0.5)), 600, 'SIDE, CUT INSIDE THE NEAR POST',
+             0.9),
+            ('c', 0.1, 0.36, seat + Vector((0.0, -0.04, 0.03)), 880,
+             'SECTION 10 CM TO HIS LEFT: HIS THIGH (RED) ON THE TOP RAIL (PALE)', -0.93)):
+        made, hidden, materials = _section([SEXTON, ledger_view, STAND], cut, (0xc8582c, 0xc8582c, 0xe8d0a0))
+        cam = _camera(middle + Vector((4.0, 0.0, 0.0)), middle, ortho=size)
+        _label(text, cam, -0.92, sy, 24, w, H)
+        shots.append(_render(os.path.join(OUT_DIR, f'_stand_{name}.png'), cam, w, H, world, samples=64))
+        _clear_labels()
+        for o in made:
+            mesh = o.data
+            bpy.data.objects.remove(o)
+            bpy.data.meshes.remove(mesh)
+        for o in hidden:
+            o.hide_render = False
+        for temp in materials:
+            bpy.data.materials.remove(temp)
+    lt.write_png(os.path.join(OUT_DIR, 'SextonStand.png'), lt.to8(np.concatenate([_pixels(p) for p in shots], axis=1)))
+    for p in shots:
+        os.remove(p)
+    log(f'previews: {os.path.relpath(os.path.join(OUT_DIR, "SextonStand.png"), REPO)}')
+    # Back as the exporter wants it.
+    bpy.data.objects.remove(ledger_view)
+    bpy.data.objects.remove(floor_obj)
+    bpy.data.meshes.remove(floor)
+    bpy.data.materials.remove(floor_mat)
+    SEXTON.matrix_world = Matrix.Identity(4)
+    for o, was in shown:
+        o.hide_render = was
 
 
 if '--preview' in ARGS or lt.want_preview():
     previews()
+elif '--stand-preview' in ARGS:
+    stand_preview()
