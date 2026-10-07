@@ -32,8 +32,8 @@ Everything here is built and in the game. Each item says what to look at and wha
 
 ## Waiting for your OK
 
-- Step 26, the Ranger caches: the Supply Crate and Strongbox out of the backlog, three caches and the sheriff's
-  Strongbox.
+- Step 26, the Ranger caches: approved on 2026-10-08 and being built (the Supply Crate and Strongbox out of the backlog,
+  three caches and the sheriff's Strongbox).
 
 ## Drafted lines
 

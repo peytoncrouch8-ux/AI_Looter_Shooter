@@ -59,9 +59,9 @@ struct AI_LOOTER_SHOOTER_API FSavedWeaponRack
 
 /**
  * What a session keeps of one map's world, so each map stays as it was left while the player is somewhere else: loot on
- * the ground, what the gun racks still offered, the wanted posters torn down, the hay bales loaded, the tutorial's step,
- * and when the map's creatures were last promoted and its Legendary monsters last beaten. Creatures themselves aren't
- * kept: they're all back whenever the map is played.
+ * the ground, what the gun racks still offered, the wanted posters torn down, the hay bales loaded, the chests opened,
+ * the tutorial's step, and when the map's creatures were last promoted and its Legendary monsters last beaten.
+ * Creatures themselves aren't kept: they're all back whenever the map is played.
  */
 USTRUCT()
 struct AI_LOOTER_SHOOTER_API FSavedMapWorld
@@ -92,6 +92,14 @@ struct AI_LOOTER_SHOOTER_API FSavedMapWorld
 	 */
 	UPROPERTY()
 	TArray<FName> LoadedBales;
+
+	/**
+	 * The loot chests opened (AChest: the Ranger caches, the gang's Strongbox), by the chest's id (AChest::GetSaveKey):
+	 * they stay open and empty, and give nothing again. Only chests whose loot is out count, so a save mid-swing keeps the
+	 * chest closed and full. New within version 2, as TornPosters: a save from before it reads as none opened.
+	 */
+	UPROPERTY()
+	TArray<FName> OpenedChests;
 
 	/** The tutorial step on screen, or INDEX_NONE when it wasn't running (on every map but the tutorial's). */
 	UPROPERTY()

@@ -843,7 +843,7 @@ Each step ends with something you can look at or play. Each one names the consol
 - You get: Amos, Whitlock Fields dressed, and Side 2.
 - You approve: Amos's mission.
 
-**26. Ranger caches (optional)** (optional; waits for your OK).
+**26. Ranger caches (optional)** (approved on 2026-10-08; in progress).
 - You get, only with your OK: the Supply Crate and Strongbox out of the backlog, `AChest`, the three caches and the sheriff's Strongbox.
 - You approve: the import, then the chests after opening them.
 

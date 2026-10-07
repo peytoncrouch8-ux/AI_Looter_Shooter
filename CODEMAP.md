@@ -116,6 +116,13 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   weapon is gone and the player has none (the tutorial's first rifle).
 - `Loot/AmmoPickup`: `AAmmoPickup`, dropped ammo: a spinning bundle of rounds, the ammo's icon modeled in 3D (per type,
   from `Art/Models/Loot/Ammo.py`) under a small white beam, collected by running past it (within `CollectRadius`).
+- `Loot/Chest`: `AChest`, `EChestKind`, `EChestState` and `FChestKindInfo`, a loot chest opened once with a tap of
+  Interact (Ruth Calder's Ranger caches, the Supply Crates, and the gang's Strongbox; step 26): its kind's models from
+  `Art/Models/Loot/Chests.py` (the lid on SOCKET_Lid, the Strongbox's wheel on SOCKET_Wheel), the wheel spinning and the
+  lid swinging open (ticks only while it moves), kept open and empty by the session by its id
+  (`FSavedMapWorld::OpenedChests`); `ChestLoot.cpp` is what it gives (its kind's guns from the default loot table at its
+  luck and the area's level for the player, and ammo pickups of a chest's 36 rounds), thrown out of SOCKET_Loot once as
+  the lid opens.
 
 ## Creatures
 - `Creatures/CreatureBase`: `ACreatureBase`, a hostile creature's brain and life cycle (senses, chase, attack, death,
@@ -384,6 +391,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   carrying the old progress save into session 1.
 - `Session/SessionSubsystemWorld.cpp`: what a session keeps of the player and each map's world (where the player
   stands, health, guns, loot on the ground, the gun racks, the wanted posters torn down, the hay bales loaded, the
+  chests opened, the
   tutorial's step) and putting it back.
 - `Session/SessionSubsystemTravel.cpp`: travel between maps (`TravelToArea`, `TravelToMap`): the world left kept under
   its map, the trip's save, the destination opened with the session, and arriving at the trip's landing (by train
@@ -652,6 +660,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `Looter.Story.Handoff [force]`, `Looter.Story.Lean [lit|out]`.
 - `Dev/WhitlockDevCommands.cpp`: `Looter.Story.Bales [force | reset]`, `Looter.Story.Hands [force]`,
   `Looter.Story.Amos [sit [now] | lean | talk]`.
+- `Dev/ChestDevCommands.cpp`: `Looter.Chest.Open [all]` (the nearest closed chest as a tap of Interact, the missions
+  told), `Looter.Chest.Reset` (every chest shut and full again), `Looter.Chest.List`.
 - `Dev/PosterDevCommands.cpp`: `Looter.Poster.Spawn [note]` (a wanted poster, or Calder's note, on the wall the
   player looks at), `Looter.Poster.TearAll [count]` (tears posters as a held Interact would; missions told).
 - `Dev/SceneDevCommands.cpp`: `Looter.Scene.Skip`, `Looter.Scene.Ride` (the ride on the nearest skiff, then everything
@@ -662,7 +672,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LightingTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
   `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `PosterTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `HallowedGroundTests.cpp` (Main 4: its steps, Main 3 first, the yard's two waves by count and rank, the bell held, the Reliquary's flash ending its step, Aldana's words and the chapel yard's grave; the Unpaid on boot hill and the north road after it; the placed pieces), `ChapelTests.cpp` (the bell's hold, swing and tolls; Grave Sight's flash and the Reliquary's look timing out; Aldana's topics) with `HallowedGroundTestWorld.h`, `EggSacTests.cpp` (the egg sac's fall, burst and spiders, shootable only in its step; the lantern dark, taken in its step, gone after), `KeepersLanternTests.cpp` (with `KeepersLanternTestWorld.h`; Main 5: its steps, Main 4 first, the floor's spiders, Side 3 after it, the placed pieces), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `GravemotherTests.cpp` (her body, charge, brood, pack calls by tag,
-  loot), `GravemotherSideTests.cpp` (her return after 20 minutes of play, her lair, Side 3), `UnfinishedBusinessTests.cpp` (with `UnfinishedBusinessTestWorld.h`: Side 2 end to end, the bales counted from the world and kept by the save, the hands by count and rank, the placed pieces, its fences and wall counted as the dressing's instances on the layout's lines), `AmosTests.cpp` (his pose table, topics by the story, the rail, the seat on the rail, ticking only while he moves, his Ledger page), `RansomsRestLevelTests.cpp` (every respawn grave, player start, encounter spot and tour view inside the playable boundary), `AbelTests.cpp`, `AbelFightTests.cpp` (with `AbelTestWorld.h`: Abel's pose table, rules, body, phases, lanterns, reset, fog wall, the Gravewind and a fall, the kneel and the scene), `GravewindTests.cpp` (with `GravewindTestWorld.h`: Main 6 end to end, Pa on his board, the dusk scenery, the level as built), `TrainTests.cpp` (the train's assembly and rolling wheels, cold until Main 7, its two shots, which trips go by train), `LanternLeansTests.cpp` (with `LanternLeansTestWorld.h`: Main 7's steps after Main 6, Delia's hand-off once, the board read opening the Lily, Ned's page, the flame's lean), `LanternLeansPlacedTests.cpp` (the Lily's area and the board's "isn't open yet"; Main 7's placed pieces), `WeaponTests.cpp`, `NamedWeaponTests.cpp` (named guns: the
+  loot), `GravemotherSideTests.cpp` (her return after 20 minutes of play, her lair, Side 3), `UnfinishedBusinessTests.cpp` (with `UnfinishedBusinessTestWorld.h`: Side 2 end to end, the bales counted from the world and kept by the save, the hands by count and rank, the placed pieces, its fences and wall counted as the dressing's instances on the layout's lines), `AmosTests.cpp` (his pose table, topics by the story, the rail, the seat on the rail, ticking only while he moves, his Ledger page), `RangerCachesTests.cpp` (step 26: a chest's wheel and lid, its loot and odds per kind, once only, kept open by the save; the caches and the Strongbox as Ransom's Rest is built), `RansomsRestLevelTests.cpp` (every respawn grave, player start, encounter spot and tour view inside the playable boundary), `AbelTests.cpp`, `AbelFightTests.cpp` (with `AbelTestWorld.h`: Abel's pose table, rules, body, phases, lanterns, reset, fog wall, the Gravewind and a fall, the kneel and the scene), `GravewindTests.cpp` (with `GravewindTestWorld.h`: Main 6 end to end, Pa on his board, the dusk scenery, the level as built), `TrainTests.cpp` (the train's assembly and rolling wheels, cold until Main 7, its two shots, which trips go by train), `LanternLeansTests.cpp` (with `LanternLeansTestWorld.h`: Main 7's steps after Main 6, Delia's hand-off once, the board read opening the Lily, Ned's page, the flame's lean), `LanternLeansPlacedTests.cpp` (the Lily's area and the board's "isn't open yet"; Main 7's placed pieces), `WeaponTests.cpp`, `NamedWeaponTests.cpp` (named guns: the
   fixed-quality rules, Heirloom's asset and label, its save, the mission reward),
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
@@ -780,7 +790,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   screen door (with the farmhouse's screen door and plate, `build_area_farm.py`); Sexton on the lookout's rail, Ransom's
   Point's place and its spider nest (Main 2); the town gate's place and its Unpaid, Tilly's window, the store's
   shutters, the farm's and Main Street's safe zones (Main 3); Main 4's pieces from `build_area_chapel.py`; Main 5's
-  from `build_area_sink.py`; the Gravemother's lair from `build_area_den.py`; Side 2's from `build_area_whitlock.py`;
+  from `build_area_sink.py`; the Gravemother's lair from `build_area_den.py`; the Ranger caches from
+  `build_area_caches.py`; Side 2's from `build_area_whitlock.py`;
   Main 6's from `build_area_deck.py`; Main 7's from `build_area_depot.py`; and Hob with his perches through Main 7
   (on the town gate's SOCKET_Perch for Main 3).
 - `Tools/Unreal/build_area_sink.py`: Main 5's pieces for `build_area_story.py`: the Sink's floor (blocks and coffins), its
@@ -809,6 +820,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `build_area_dressing.py`'s.
 - `Tools/amos_poses.py`: writes `Story/AmosPoseData.inl` from Amos.py's exported poses; run it again after they
   change.
+- `Tools/Unreal/build_area_caches.py`: step 26's pieces for `build_area_story.py`: Ruth's three Ranger caches (Supply
+  Crates under the windmill, on the Sink's rim and on the bluff path, each at the first of its spots that's level and
+  clear) and the gang's Strongbox on the sheriff's office's SOCKET_Strongbox.
 - `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`); its mask is imported
   again whenever the PNG changes (its MD5 kept on the texture as metadata); a grounded area's steep layers (slope
   tufts, slope bushes, crease pines) when `scatterMap.steep` is set, and larkspur along the salt line, the field wall

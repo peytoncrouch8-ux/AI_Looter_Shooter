@@ -6,6 +6,7 @@
 #include "Combat/HealthComponent.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Loot/AmmoPickup.h"
+#include "Loot/Chest.h"
 #include "Loot/WeaponRack.h"
 #include "Session/SessionSave.h"
 #include "Tutorial/TutorialDirector.h"
@@ -66,8 +67,8 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 	}
 
 	// This map's world, filed under its own name so every other map's stays as it was left: what the racks still offer,
-	// every other gun and ammo pickup lying around, the wanted posters torn down, the hay bales loaded, and the tutorial's
-	// step. When its creatures were promoted and its Legendary monsters beaten is kept as it was.
+	// every other gun and ammo pickup lying around, the wanted posters torn down, the hay bales loaded, the chests opened,
+	// and the tutorial's step. When its creatures were promoted and its Legendary monsters beaten is kept as it was.
 	FSavedMapWorld& Here = Save.FindOrAddWorld(MapPackage);
 	const TArray<AWeaponRack*> Racks = FindRacks(World);
 	Here.Racks.Reset();
@@ -94,6 +95,15 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 		if (It->IsLoaded())
 		{
 			Here.LoadedBales.Add(It->GetFName());
+		}
+	}
+	// Opened chests by their ids, once their loot is out (the loot itself is kept below, as any loot lying around).
+	Here.OpenedChests.Reset();
+	for (TActorIterator<AChest> It(World); It; ++It)
+	{
+		if (It->HasGivenLoot())
+		{
+			Here.OpenedChests.Add(It->GetSaveKey());
 		}
 	}
 	Here.LootWeapons.Reset();
@@ -160,6 +170,15 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 			if (Here->LoadedBales.Contains(It->GetFName()))
 			{
 				It->RestoreLoaded();
+			}
+		}
+
+		// The chests opened before stand open and empty: what they gave comes back below with the rest of the loot.
+		for (TActorIterator<AChest> It(World); It; ++It)
+		{
+			if (Here->OpenedChests.Contains(It->GetSaveKey()))
+			{
+				It->RestoreOpened();
 			}
 		}
 
