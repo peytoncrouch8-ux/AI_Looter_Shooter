@@ -772,6 +772,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   reach into it, `cliffs.abut`; a run's end piece keeps off a ramp's walkway), and wears its own instances of shared
   materials (`materials`, `swaps`: Ransom's Rest's rock and orchard leaves; `swapsOn`, on the actors it names alone:
   the windmill's steel).
+- `Tools/Unreal/build_area_walkways.py`: the ramps' walkways kept open for a player, for `build_area.py`: a player's
+  capsule tested down the middle of each ramp once the cliffs stand, and the cliff pieces in its way moved off
+  (a ramp's own walls back into their cut, others along their run); the ramps and their wall groups.
 - `Tools/Unreal/build_area_bounds.py`: a grounded area's bounds for `build_area.py`: the playable area from the
   computed boundary (its walls `level.wallSetback` behind the line, at the rock's foot), the KillZ 100 m under the
   canyon floor, and a cull distance volume (sizes to distances).

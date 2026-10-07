@@ -50,6 +50,7 @@ import build_area_environment  # noqa: E402
 import build_area_posters  # noqa: E402
 import build_area_story  # noqa: E402
 import build_area_travel  # noqa: E402
+import build_area_walkways  # noqa: E402
 
 PROJECT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
 ART = '/Game/Art'
@@ -153,27 +154,6 @@ def per_group(value, group):
     """A level.cliffs setting given for every group it applies to, or by group ({group: value}; None for one it
     doesn't name)."""
     return value.get(group) if isinstance(value, dict) else value
-
-
-def ramp_corridors(source):
-    """The walkways up the features' ramps (layout.json features[].ramp: its path and width), with the cliff group that
-    lines each, which alone may stand at its edge: [(path, half width, walls group)]."""
-    return [(ramp['path'], ramp['width'] * 0.5, ramp.get('cliffGroup'))
-            for feature in source.get('features', []) for ramp in [feature.get('ramp')] if ramp and ramp.get('path')]
-
-
-def in_corridor(point, corridors, group):
-    """Whether a point (x, y) lies on a ramp's walkway that another group's walls line."""
-    px, py = point
-    for path, half, walls in corridors:
-        if group == walls:
-            continue
-        for (ax, ay), (bx, by) in zip(path, path[1:]):
-            dx, dy = bx - ax, by - ay
-            t = min(max(((px - ax) * dx + (py - ay) * dy) / max(dx * dx + dy * dy, 1e-6), 0.0), 1.0)
-            if math.dist((px, py), (ax + dx * t, ay + dy * t)) < half:
-                return True
-    return False
 
 
 def varied_piece(pieces, group, points, i, k, course, last, gap, top=None, cap=None):
@@ -644,7 +624,8 @@ class AreaBuild:
         lean_top = self.cliff_look.get('leanTop')
         lean_proud = self.cliff_look.get('leanProud')
         tiles = terrain_tiles(self.tag) if leaning else []
-        corridors = ramp_corridors(self.source)
+        walkways = importlib.reload(build_area_walkways)
+        corridors = walkways.ramp_corridors(self.source)
         placed = left_out = ends_held = 0
         for group, points in self.layout.get('cliffs', {}).items():
             for i, point in enumerate(points):
@@ -722,7 +703,8 @@ class AreaBuild:
                     ends = free_ends(points, i, width * piece_width) if width > 1.0 and corridors else None
                     if ends:
                         (ex, ey), half = ends[0], width * piece_width * 0.5
-                        if in_corridor((cx + inward[0] + ex * half, cy + inward[1] + ey * half), corridors, group):
+                        if walkways.in_corridor((cx + inward[0] + ex * half, cy + inward[1] + ey * half), corridors,
+                                                group):
                             back = (width - 1.0) * piece_width * 0.5
                             inward = (inward[0] - ex * back, inward[1] - ey * back)
                             ends_held += 1
@@ -736,6 +718,13 @@ class AreaBuild:
                     placed += 1
         self.log(f'placed {placed} cliff pieces' + (f' ({left_out} left out for gaps)' if left_out else '')
                  + (f'; {ends_held} run ends kept off a ramp\'s walkway' if ends_held else ''))
+
+    def clear_walkways(self):
+        """The ramps' walkways kept open for a player once the cliffs stand (build_area_walkways.py; reloaded, as the
+        editor keeps modules between runs)."""
+        moved = importlib.reload(build_area_walkways).clear(self, terrain_tiles(self.tag), terrain_hit)
+        if moved:
+            self.log(f'{moved} cliff pieces moved off the ramps\' walkways')
 
     def abut_cliffs(self):
         """The cliff runs that end against a placed rock (level.cliffs.abut: a group's id to placement keys, Den Rock for
@@ -1025,6 +1014,7 @@ class AreaBuild:
             self.cliffs(mesh_index())
             # The models stand from the whole build (Den Rock among them).
             self.abut_cliffs()
+            self.clear_walkways()
             self.swap_materials()
             levels.save_current_level()
             self.log('cliffs placed and saved')
@@ -1047,6 +1037,7 @@ class AreaBuild:
         self.models(meshes)
         # Now that the rocks the runs end against (Den Rock) stand too.
         self.abut_cliffs()
+        self.clear_walkways()
         # The level's own dressing (not the story's): it stands on the terrain, beside the models.
         self.dressing(meshes)
         self.effects(meshes)
