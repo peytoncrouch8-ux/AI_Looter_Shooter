@@ -1,4 +1,4 @@
-"""Builds an area's level from its layout: build_area.py <Area> [gameplay|environment|beyond|cliffs].
+"""Builds an area's level from its layout: build_area.py <Area> [gameplay|environment|beyond|cliffs|dressing].
 
 Art/Models/Terrain/<Area>.py turns Art/Levels/<Area>/layout.json into the terrain and into layout_computed.json: where
 every building, cliff piece, road, the bridge and the water go, at the built terrain's heights. This script places all
@@ -11,9 +11,10 @@ creature groups). The terrain's meshes are SM_<Area>_<part> (level.meshPrefix ov
 Everything it places carries the area's tag (IslandBuild on the tutorial island) and sits under its outliner folder
 (Island). Building again replaces those actors, so actors placed by hand survive; with "gameplay" it only places the
 gameplay actors again, with "environment" only the light, sky and fog, with "beyond" only what lies past the
-boundary (sky islands, a grounded area's ring, canyon wall, backdrop and far trees), and with "cliffs" only the cliff
-faces and outcrops. Models that aren't imported yet are skipped with a warning. The level is saved last. An area can
-swap in models of its own (level.models), add models only the build places (level.props), choose which chimneys smoke
+boundary (sky islands, a grounded area's ring, canyon wall, backdrop and far trees), with "cliffs" only the cliff
+faces and outcrops, and with "dressing" only the obstacles' dressing (build_area_dressing.py: fences, walls, grave rows,
+cairns and yard props, instanced). Models that aren't imported yet are skipped with a warning. The level is saved last.
+An area can swap in models of its own (level.models), add models only the build places (level.props), choose which chimneys smoke
 (level.smoke), vary its cliffs (level.cliffs) and wear its own instances of shared materials (level.materials and
 level.swaps: Ransom's Rest's rock).
 Grass, flowers, trees and rocks come from the scatter (build_island_scatter.py <Area>).
@@ -306,6 +307,11 @@ class AreaBuild:
         """The light, sky and fog (build_area_environment.py): the tutorial island's afternoon, or what the layout's
         level.environment sets. Returns the sky light, recaptured once the level stands."""
         return importlib.reload(build_area_environment).place(self)
+
+    def dressing(self, meshes):
+        """The layout's fences, walls, grave rows, cairns and yard props, instanced, in the Dressing folder
+        (build_area_dressing.py; reloaded, as the editor keeps modules between runs)."""
+        importlib.reload(importlib.import_module('build_area_dressing')).place(self, meshes)
 
     def gameplay(self, meshes):
         """The spawn (with the area's director, the tutorial's on the tutorial island), the gun rack, the target
@@ -786,7 +792,8 @@ class AreaBuild:
     def run(self, mode=None):
         """Builds the whole level, or with mode "gameplay" only the gameplay actors, with "environment" only the light,
         sky and fog, with "beyond" only what lies past the boundary (a grounded area's ring, canyon wall and
-        backdrop; an island's sky islands), or with "cliffs" only the cliff faces and the outcrops."""
+        backdrop; an island's sky islands), with "cliffs" only the cliff faces and the outcrops, or with "dressing"
+        only the obstacles' fences, walls, graves, cairns and yard props (build_area_dressing.py)."""
         with open(self.computed_path) as f:
             self.layout = json.load(f)
         # Reloaded, as the editor keeps modules between runs, so an edited one takes effect.
@@ -825,6 +832,14 @@ class AreaBuild:
             levels.save_current_level()
             self.log('cliffs placed and saved')
             return
+        if mode == 'dressing':
+            # On the terrain's tiles, which stand already; in the area's look (the cairns' granite).
+            self.open_level('Dressing')
+            self.dressing(mesh_index())
+            self.swap_materials()
+            levels.save_current_level()
+            self.log('dressing placed and saved')
+            return
         self.open_level()
         meshes = mesh_index()
         sky_light = self.environment()
@@ -833,6 +848,8 @@ class AreaBuild:
         self.far_trees(meshes)
         self.cliffs(meshes)
         self.models(meshes)
+        # The level's own dressing (not the story's): it stands on the terrain, beside the models.
+        self.dressing(meshes)
         self.effects(meshes)
         self.no_tree_zones()
         self.gameplay(meshes)
@@ -850,8 +867,8 @@ def run(name, only_gameplay=False, mode=None):
 
 if __name__ == '__main__':
     args = sys.argv[1:]
-    modes = ('gameplay', 'environment', 'beyond', 'cliffs')
+    modes = ('gameplay', 'environment', 'beyond', 'cliffs', 'dressing')
     if not args or args[0] in modes:
-        raise SystemExit('usage: build_area.py <Area> [gameplay|environment|beyond|cliffs] (the area is a folder under '
-                         'Art/Levels)')
+        raise SystemExit('usage: build_area.py <Area> [gameplay|environment|beyond|cliffs|dressing] (the area is a '
+                         'folder under Art/Levels)')
     run(args[0], mode=next((a for a in args[1:] if a in modes), None))

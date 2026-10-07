@@ -492,6 +492,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `World/InstancedScenery`: `AInstancedScenery`, scenery far past a level's playable boundary drawn as one mesh's
   instances (Ransom's Rest's far trees, one actor per tree mesh, set by `build_area.py`): no collision, navigation
   or shadows, never distance-culled.
+- `World/InstancedProps`: `AInstancedProps`, one mesh's instances of level dressing inside the playable area (Ransom's
+  Rest's fences, walls, graves, cairns and yard props, one actor per mesh, set by `Tools/Unreal/build_area_dressing.py`):
+  solid like a placed mesh (BlockAll), shadowed, each instance culled past `CullDistance`; tagged Obstacle only in game
+  worlds, since the editor's scatter would keep out of its map-wide bounds (the scatter takes the pieces' own boxes).
 - `World/Train`: `ATrain`, the train at a station's platform put together from Train.py's parts (Locomotive B, the
   passenger car and Tilly's hearse car coupled at their couplers; wheel sets on their axles, picked by height; the
   coupling rods on the drivers' cranks; the hearse car's door on its hinge; steam on the stack): cold and shut until
@@ -729,7 +733,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   their materials; the backdrop's tints, darker near and paler far, and its UV 1 `Depth`); `Art/Models/Terrain/<Area>.py`
   wrappers call it.
 - `Tools/Unreal/build_area.py`: `AreaBuild`, builds an area's level (`build_area.py <Area>
-  [gameplay|environment|beyond|cliffs]`), with what lies past the boundary tagged Beyond (a grounded area's ring, canyon
+  [gameplay|environment|beyond|cliffs|dressing]`), with what lies past the boundary tagged Beyond (a grounded area's ring, canyon
   wall, backdrop and far trees, the last as `AInstancedScenery`; an island's sky islands), and the boundary's rock pieces
   varied (mirrored, sunk, turned); `build_tutorial_island.py` wraps it for the tutorial island. From `layout.json`'s
   level block an area swaps in models of its own (`models`), places models the generator needn't know (`props`: the
@@ -800,6 +804,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   change.
 - `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`); its mask is imported
   again whenever the PNG changes (its MD5 kept on the texture as metadata).
+- `Tools/Unreal/build_area_dressing.py`: the layout's fence, wall, ruin, graves, cairns and props obstacles dressed from
+  the art kit for `build_area.py` (in its full build after `models()`, and with `build_area.py <Area> dressing`): tables
+  by obstacle id, sections chained along lines and polygons on the terrain's tiles, gates and road gaps, one
+  `AInstancedProps` per mesh; `footprints()` gives the scatter each piece's box.
   `Tools/Unreal/island_views.py`: an area's viewpoints as editor cameras and shots.
 - `Tools/terrain_identity.ps1`, `.py`: checks an area regenerates exactly as committed (headless Blender, no editor;
   layoutSha1 left out);
