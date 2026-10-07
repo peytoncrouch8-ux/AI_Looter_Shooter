@@ -82,6 +82,18 @@ Main 7, "The Lantern Leans" (the doc gives Delia's words and Hob's line at the l
   DA_Lines_HobMain7          Hob talked to during Main 7 (a draft)
   DA_Lines_TillyMain7        Tilly at her window during Main 7: her father's car at the platform (a draft)
   DA_Lines_TillyAfterMain7   Tilly after Main 7 (a draft)
+
+Side 2, "Unfinished Business" (the doc gives Amos's story but no words: every line here is a first draft for the user):
+  DA_Lines_AmosMeet          Amos at his fence before he's asked (Side 2's first step, and his lines with no topic): Ellis
+                             can see him; the hay he never got in; would Ellis load it
+  DA_Lines_AmosBales         Amos while the bales wait (its second step)
+  DA_Lines_AmosHands         Amos while his old hired hands are in the yard (its third)
+  DA_Lines_AmosThanks        Amos at its last step: the hay's in, the gun he was buried with, and he'll sit and wait
+  DA_Lines_AmosFence         Amos on his fence after Side 2, waiting for the saint
+  DA_Lines_AmosAfterMain6    Amos on his fence after Side 2 and Main 6: a word of Abel's light on the point
+  DA_Lines_AmosBaleFirst     Amos as the first bale goes into the stack (a remark, so it names him)
+  DA_Lines_HobBaleThird      Hob at the third
+  DA_Lines_AmosBaleLast      Amos at the last: thanks, and the hands in the yard (Side 2's third step begins)
 """
 import unreal
 
@@ -90,6 +102,8 @@ FOLDER = '/Game/Data/Story'
 HOB = 'Hob'
 # Ellis speaks in the deal, at Tilly's window and at Aldana's door (the cold open names them so too).
 ELLIS = 'Ellis'
+# A hay bale's remark plays as captions with no speaker point to name him, so his remarks name him (as his point does).
+AMOS = 'Amos Whitlock'
 
 SETS = {
     'DA_Lines_DeliaMain1': [
@@ -308,6 +322,47 @@ SETS = {
     ],
     'DA_Lines_TillyAfterMain7': [
         ('', "The car's yours whenever the line runs. Wipe your boots."),
+    ],
+
+    # --- Side 2 (all drafts) ---
+    'DA_Lines_AmosMeet': [
+        ('', "Well, now. You're looking right at me. Folks in town look clean through me, like a window."),
+        (ELLIS, "Amos Whitlock?"),
+        ('', "What's left of him. And you're Abel's young'un. I heard the shooting from the Sundown Road the night the "
+             "saint went out. I'm sorry for it."),
+        ('', "I died last harvest with the hay half in. Got turned back on the road and came home to find it rotting "
+             "where I left it."),
+        ('', "My hands go through a bale like it was smoke. Would you load it for me? Six bales, stacked under the hoist "
+             "by the big doors."),
+    ],
+    'DA_Lines_AmosBales': [
+        ('', "Six bales, under the hoist by the big doors. I'd do it myself if my hands would hold."),
+    ],
+    'DA_Lines_AmosHands': [
+        ('', "Those are my hired men in the yard. The fever took them the winter before I went, and they came home "
+             "hungry."),
+        ('', "They were good boys once. Drive them off before they get at the hay."),
+    ],
+    'DA_Lines_AmosThanks': [
+        ('', "Gone, are they? Then the hay's in, and it'll keep."),
+        ('', "They buried me with a gun I never once fired. It's yours. Better in a walking hand than a buried one."),
+        ('', "I'll sit a while. The saint'll come home. I'd like to be here when she does."),
+    ],
+    'DA_Lines_AmosFence': [
+        ('', "Still waiting on her. The hay keeps. So do I."),
+    ],
+    'DA_Lines_AmosAfterMain6': [
+        ('', "Saw a light out on Gravewind Point at dusk. Your Pa's, I'd wager. Good to know a keeper's still keeping."),
+    ],
+    'DA_Lines_AmosBaleFirst': [
+        (AMOS, "That's one. Mind your back. Mine's past minding."),
+    ],
+    'DA_Lines_HobBaleThird': [
+        (HOB, "Hauling hay for a ghost. Your Pa would laugh, sunshine. Then he'd hand you another."),
+    ],
+    'DA_Lines_AmosBaleLast': [
+        (AMOS, "That's the last of it. Thank you, Ellis."),
+        (AMOS, "Now mind the yard. My old hired hands are about, and they've come home angry."),
     ],
 }
 

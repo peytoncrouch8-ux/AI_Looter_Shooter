@@ -59,9 +59,9 @@ struct AI_LOOTER_SHOOTER_API FSavedWeaponRack
 
 /**
  * What a session keeps of one map's world, so each map stays as it was left while the player is somewhere else: loot on
- * the ground, what the gun racks still offered, the wanted posters torn down, the tutorial's step, and when the map's
- * creatures were last promoted and its Legendary monsters last beaten. Creatures themselves aren't kept: they're all back
- * whenever the map is played.
+ * the ground, what the gun racks still offered, the wanted posters torn down, the hay bales loaded, the tutorial's step,
+ * and when the map's creatures were last promoted and its Legendary monsters last beaten. Creatures themselves aren't
+ * kept: they're all back whenever the map is played.
  */
 USTRUCT()
 struct AI_LOOTER_SHOOTER_API FSavedMapWorld
@@ -84,6 +84,14 @@ struct AI_LOOTER_SHOOTER_API FSavedMapWorld
 	 */
 	UPROPERTY()
 	TArray<FName> TornPosters;
+
+	/**
+	 * Amos's hay bales loaded into the stack by his barn (AHayBale, Side 2), by the bale actor's name in its level: they
+	 * stay loaded, and Side 2's lasting objective counts them. New within version 2, as TornPosters: a save from before it
+	 * reads as none loaded, which is right.
+	 */
+	UPROPERTY()
+	TArray<FName> LoadedBales;
 
 	/** The tutorial step on screen, or INDEX_NONE when it wasn't running (on every map but the tutorial's). */
 	UPROPERTY()

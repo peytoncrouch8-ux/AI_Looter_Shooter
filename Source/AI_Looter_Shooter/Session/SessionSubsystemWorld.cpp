@@ -10,6 +10,7 @@
 #include "Session/SessionSave.h"
 #include "Tutorial/TutorialDirector.h"
 #include "Weapons/WeaponBase.h"
+#include "World/HayBale.h"
 #include "World/WantedPoster.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -65,8 +66,8 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 	}
 
 	// This map's world, filed under its own name so every other map's stays as it was left: what the racks still offer,
-	// every other gun and ammo pickup lying around, the wanted posters torn down, and the tutorial's step. When its
-	// creatures were promoted and its Legendary monsters beaten is kept as it was.
+	// every other gun and ammo pickup lying around, the wanted posters torn down, the hay bales loaded, and the tutorial's
+	// step. When its creatures were promoted and its Legendary monsters beaten is kept as it was.
 	FSavedMapWorld& Here = Save.FindOrAddWorld(MapPackage);
 	const TArray<AWeaponRack*> Racks = FindRacks(World);
 	Here.Racks.Reset();
@@ -84,6 +85,15 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 		if (It->IsTorn())
 		{
 			Here.TornPosters.Add(It->GetFName());
+		}
+	}
+	// Loaded bales the same way: Side 2's lasting objective counts what the world keeps in the stack.
+	Here.LoadedBales.Reset();
+	for (TActorIterator<AHayBale> It(World); It; ++It)
+	{
+		if (It->IsLoaded())
+		{
+			Here.LoadedBales.Add(It->GetFName());
 		}
 	}
 	Here.LootWeapons.Reset();
@@ -141,6 +151,15 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 			if (Here->TornPosters.Contains(It->GetFName()))
 			{
 				It->RestoreTorn();
+			}
+		}
+
+		// The bales loaded before stand in the stack again, quietly (no remark).
+		for (TActorIterator<AHayBale> It(World); It; ++It)
+		{
+			if (Here->LoadedBales.Contains(It->GetFName()))
+			{
+				It->RestoreLoaded();
 			}
 		}
 

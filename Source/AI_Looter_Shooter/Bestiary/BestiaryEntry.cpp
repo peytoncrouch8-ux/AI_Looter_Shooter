@@ -3,6 +3,7 @@
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Session/CampaignRecord.h"
+#include "AnimationRuntime.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -94,8 +95,27 @@ TArray<UMaterialInterface*> UBestiaryEntry::GetPreviewMaterials(const USkeletalM
 TArray<FBestiaryStandPart> UBestiaryEntry::GetPreviewParts(const USkeletalMesh* Mesh) const
 {
 	TArray<FBestiaryStandPart> Parts;
+	if (!Mesh)
+	{
+		return Parts;
+	}
+	// The page's own, for a figure with no actor: each as the model has it at rest, at its bone and turned back by the
+	// bone's rest turn (as the Unpaid wear their hats).
+	for (const FBestiaryBonePart& Worn : PreviewBoneParts)
+	{
+		UStaticMesh* PartMesh = Worn.Mesh.LoadSynchronous();
+		const int32 Bone = Mesh->GetRefSkeleton().FindBoneIndex(Worn.Bone);
+		if (!PartMesh || Bone == INDEX_NONE)
+		{
+			continue;
+		}
+		FBestiaryStandPart& Stand = Parts.AddDefaulted_GetRef();
+		Stand.Mesh = PartMesh;
+		Stand.Bone = Worn.Bone;
+		Stand.Relative = FTransform(FAnimationRuntime::GetComponentSpaceTransformRefPose(Mesh->GetRefSkeleton(), Bone).GetRotation().Inverse());
+	}
 	const USkeletalMeshComponent* Body = FindBody(ActorClass);
-	if (!Body || !Mesh || Body->GetSkeletalMeshAsset() != Mesh)
+	if (!Body || Body->GetSkeletalMeshAsset() != Mesh)
 	{
 		return Parts;
 	}

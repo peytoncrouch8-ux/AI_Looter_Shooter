@@ -3,7 +3,7 @@ pages the Ledger shows. Run it in the open editor once the C++ with each page's 
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/create_bestiary_pages.py [Unpaid Sexton ...]"
 With no names it makes every page below. It prints a BESTIARY line per page and "BESTIARY done". Running it again writes
 these fields again (name, section, kind, description, habitat, notes, page type, the Ledger's flags and conditions, actor
-class, stand model and its turn when given, order) and leaves the others as they are; other pages are never touched.
+class, stand model and what it wears on its bones, its turn when given, order) and leaves the others as they are; other pages are never touched.
 
 Three kinds of page (UBestiaryEntry::Page, Docs/Areas/RansomsRest.md "The Ledger"):
   - an actor page (ACTOR): something met in the world, its numbers read from its actor class and its model on the stand.
@@ -28,6 +28,9 @@ are written in his voice (first drafts, for the user to judge).
   DA_Bestiary_Tilly       Tilly Bright, Friends (Docs/Story.md's cast); known after Main 3.
   DA_Bestiary_Aldana      Father Moses Aldana, NPCs; known after Main 4.
   DA_Bestiary_Ruth        Ranger Ruth Calder, Friends (the cast's); known after Side 1 (her note on the board).
+  DA_Bestiary_Amos        Amos Whitlock, Friends (Docs/Story.md: "Friend"): a story character's page with SK_Amos on the
+                          stand wearing his hat and hay fork on their bones (he has no actor class to read them from:
+                          bone_parts); in the Ledger, known after Main 4 (when Side 2 opens).
   DA_Bestiary_Ned ... _Deacon  the seven names, in Enemies before the Unpaid, in the order the lantern finds them.
 """
 import sys
@@ -228,6 +231,30 @@ PAGES = {
         ],
         sort_order=3,
     ),
+    # A story character with a skinned model: his hat and fork go on its bones as he wears them at his fence.
+    'Amos': dict(
+        asset='DA_Bestiary_Amos',
+        page='STORY_CHARACTER',
+        name='Amos Whitlock',
+        section='FRIEND',
+        kind='A patient ghost',
+        model='/Game/Art/Creatures/SK_Amos',
+        bone_parts=[('/Game/Art/Creatures/SM_AmosHat', 'hat'), ('/Game/Art/Creatures/SM_AmosFork', 'fork')],
+        ledger_only=True,
+        known_when=dict(after=['Main4']),
+        habitat="Ransom's Rest: his fence in Whitlock Fields, by the gate where the fields path passes",
+        description=("Amos Whitlock farmed the fields along Mill Creek. He died last harvest with his hay half in, a year after "
+                     "the fever winter took his hired men. He was still on the Sundown Road when Saint Ada went dark, and "
+                     "he drifted home to find the hay rotting where he left it. A patient man. He isn't angry yet, friend. "
+                     "Give it time."),
+        notes=[
+            "Only you can see him. To the living he's a cold spot by a fence.",
+            "He can't lift a straw: his hands pass through it. He'd be obliged if yours didn't.",
+            "His coal is banked low, under ash. He has no quarrel with you.",
+            "Since his hay went in he sits on his fence, waiting for Saint Ada to come home.",
+        ],
+        sort_order=4,
+    ),
 
     # --- The seven names: Enemies, before the Unpaid, whereabouts blank until the lantern finds them ---
     'Ned': dict(
@@ -367,7 +394,8 @@ def setup(spec, cls):
     page = spec.get('page', 'ACTOR')
     if page == 'ACTOR' and unreal.load_class(None, spec['actor']) is None:
         raise RuntimeError(f"{spec['actor']} is not a class: build the C++ first; nothing was changed")
-    models = [spec[key] for key in ('model', 'still_model') if key in spec] + [p for p, _ in spec.get('still_parts', [])]
+    models = ([spec[key] for key in ('model', 'still_model') if key in spec] + [p for p, _ in spec.get('still_parts', [])]
+              + [p for p, _ in spec.get('bone_parts', [])])
     for model in models:
         if not unreal.EditorAssetLibrary.does_asset_exist(model):
             unreal.log_warning(f"BESTIARY {path} waits for its model {model}: import it first (Looter.Bestiary.Entries wants "
@@ -399,6 +427,14 @@ def setup(spec, cls):
             part.set_editor_property('socket', socket)
             parts.append(part)
         asset.set_editor_property('preview_still_parts', parts)
+    if 'bone_parts' in spec:
+        worn = []
+        for mesh, bone in spec['bone_parts']:
+            part = unreal.BestiaryBonePart()
+            part.set_editor_property('mesh', unreal.load_asset(mesh))
+            part.set_editor_property('bone', bone)
+            worn.append(part)
+        asset.set_editor_property('preview_bone_parts', worn)
     if 'stand_yaw' in spec:
         asset.set_editor_property('preview_yaw', spec['stand_yaw'])
     if not unreal.EditorAssetLibrary.save_loaded_asset(asset, only_if_is_dirty=False):

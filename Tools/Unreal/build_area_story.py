@@ -46,6 +46,10 @@ Main 6 (build_area_deck.py, with these helpers): the burial deck's biers and kee
   respawn (after Main 5), the story's dusk, and the Gravewind's wisps and canyon fog (seen only at dusk).
 Main 7 (build_area_depot.py, with these helpers): the train at the depot's platform (cold until Main 7), the depot's
   place at the hearse car's door, Delia's hand-off of Heirloom through her screen door, and the lit lantern's leaning flame.
+Side 2 (build_area_whitlock.py, with these helpers): Whitlock Fields dressed (Amos's fence with his gate, the barn yard's
+  fence, the stone field wall, round bales in the east field), Amos leaning on his fence by the gate (after Main 4; on the
+  rail after Side 2), his six hay bales in the west field with their stack by the barn's doors, and his old hired hands'
+  fight in the barn yard (during Side 2's third step). Hob has no perches of his own for it.
 Side 3 (build_area_den.py): the Gravemother's lair at the den's mouth under Den Rock (after Main 5) and the den's place.
 Hob (AHobBird, tagged Speaker_Hob), perched near the next thing to do, saying his piece as he lands:
   Main 1: on Ellis's headboard (silent from the claw-out, "Morning, sunshine" once Ellis is out), and after it.
@@ -727,6 +731,9 @@ def place(build):
     sink_spots = importlib.reload(importlib.import_module('build_area_sink')).place(build)
     # Side 3: the Gravemother's lair and the den's place (its own module, reloaded as the chapel's is).
     importlib.reload(importlib.import_module('build_area_den')).place(build)
+    # Side 2: Whitlock Fields, Amos, his bales and his hired hands (its own module, reloaded as the chapel's is). Side
+    # missions don't move Hob, so it hands back no perches.
+    importlib.reload(importlib.import_module('build_area_whitlock')).place(build)
     # Main 6, on the burial deck (its own module, reloaded as the chapel's is); it hands back Hob's Main 6 perches.
     deck_spots = importlib.reload(importlib.import_module('build_area_deck')).place(build)
     # Main 7: the train, the depot's place, Delia's hand-off, the lantern's flame (after the deck: its lantern must stand).

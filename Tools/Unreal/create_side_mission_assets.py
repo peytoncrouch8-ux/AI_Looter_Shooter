@@ -12,6 +12,13 @@ missions (fields, steps and rewards) from what's written here; other mission ass
                     before a reload, since a side mission starts over from its first step. Seven hang, so one can be
                     missed. Then read Ranger Calder's note on the Rim Rangers' board (a tap on the one tagged CalderNote).
                     Reward: a side mission's share of experience (20% of the player's level) and a guaranteed Rare gun.
+  DA_Mission_Side2  "Unfinished Business" (Side 2), on Ransom's Rest once Main 4 is finished, starting by itself. Talk to
+                    Amos at his fence (AAmosWhitlock, tagged Speaker_Amos); load his 6 hay bales into his barn (each a
+                    held Interact on an AHayBale tagged HayBale, counted from the world as Side 1's posters are: the session
+                    keeps the loaded ones with the map, so a reload loses none); drive off his old hired hands (clear the
+                    encounter WhitlockHands: five Unpaid and a Restless one in his barn yard); talk to Amos again. All
+                    placed by build_area_whitlock.py. Reward: a side mission's share of experience and a guaranteed Epic
+                    gun ("the one Amos was buried with and never needed"). Made once Main 4 exists.
   DA_Mission_Side3  "The Gravemother" (Side 3), on Ransom's Rest once Main 5 is finished, starting by itself. Enter the
                     den (reach the place tagged Place_Den inside it, within 4.5 m measured with its height, so the Sink's
                     rim over the den doesn't count), then kill the Gravemother (clear her lair's encounter, Gravemother:
@@ -31,6 +38,12 @@ CLASSES = '/Script/AI_Looter_Shooter.'
 # AWantedPoster's tags (World/WantedPoster.h).
 WANTED_TAG = 'WantedPoster'
 NOTE_TAG = 'CalderNote'
+# Side 2's pieces (Story/AmosWhitlock.h: SpeakerTag; World/HayBale.h: BaleTag; build_area_whitlock.py: the hands' encounter).
+AMOS_TAG = 'Speaker_Amos'
+BALE_TAG = 'HayBale'
+BALES = 6
+HANDS = 'WhitlockHands'
+HANDS_COUNT = 6
 # The Gravemother's den and lair (Creatures/GravemotherCreature.h: Gravemother::DenPlaceTag and LairId; placed by
 # Tools/Unreal/build_area_den.py).
 DEN_TAG = 'Place_Den'
@@ -42,7 +55,7 @@ def mission_types():
     """The reflected mission types, or a clear error when the C++ isn't built yet."""
     names = ['MissionDefinition', 'MissionStep', 'MissionRewards', 'MissionActorFilter', 'MissionKind', 'MissionStart',
              'MissionInteractObjective', 'MissionLastingInteractObjective', 'WantedPoster', 'WeaponRarity',
-             'MissionReachObjective', 'MissionClearObjective', 'MissionPlace']
+             'MissionReachObjective', 'MissionClearObjective', 'MissionPlace', 'MissionTalkObjective']
     missing = [name for name in names if getattr(unreal, name, None) is None]
     if missing:
         raise RuntimeError(f"unreal.{', unreal.'.join(missing)} missing: build the C++ with the wanted posters first")
@@ -104,6 +117,22 @@ def side1_steps(asset):
     ]
 
 
+def side2_steps(asset):
+    """Talk to Amos at his fence, load his six bales (held, counted from the world), drive off his hired hands (their
+    encounter cleared), talk to Amos again. The arrows find their own: Amos, the nearest bale still in the field, the
+    nearest of the hands (or their spawner before they're up), Amos."""
+    return [
+        step(objective(asset, unreal.MissionTalkObjective, 'Talk to Amos at his fence', show_count=False,
+                       speaker_tag=unreal.Name(AMOS_TAG))),
+        step(objective(asset, unreal.MissionLastingInteractObjective, 'Load the hay bales into his barn',
+                       target=actor_filter('HayBale', BALE_TAG), count=BALES, hold=True)),
+        step(objective(asset, unreal.MissionClearObjective, 'Drive off his old hired hands',
+                       spawner_id=unreal.Name(HANDS), count=HANDS_COUNT)),
+        step(objective(asset, unreal.MissionTalkObjective, 'Talk to Amos', show_count=False,
+                       speaker_tag=unreal.Name(AMOS_TAG))),
+    ]
+
+
 def side3_steps(asset):
     """Enter the den (its place, measured with its height), then kill the Gravemother (her lair's encounter cleared). The
     arrows find their own: the den's place, then the Gravemother herself (or her lair while she's in her den)."""
@@ -126,6 +155,13 @@ MISSIONS = [
          rewards=dict(experience_share=0.2, gun=True, gun_rarity_floor='RARE'),
          # What setup() checks the stored steps against: each step's objective class.
          expect=['MissionLastingInteractObjective', 'MissionInteractObjective']),
+    dict(asset='DA_Mission_Side2', id='Side2', title='Unfinished Business',
+         summary=('Amos Whitlock died last harvest with his hay half in. He was still on the Sundown Road when the saint '
+                  "went dark, and he drifted home to find it rotting in the field. He isn't angry yet."),
+         kind='SIDE', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main4'], sort_order=20, steps=side2_steps,
+         rewards=dict(experience_share=0.2, gun=True, gun_rarity_floor='EPIC'),
+         expect=['MissionTalkObjective', 'MissionLastingInteractObjective', 'MissionClearObjective',
+                 'MissionTalkObjective']),
     dict(asset='DA_Mission_Side3', id='Side3', title='The Gravemother',
          summary='Something big lives in the Sink\'s den, and it eats what the Unpaid leave behind.',
          kind='SIDE', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main5'], sort_order=30, steps=side3_steps,
@@ -160,6 +196,9 @@ def describe(objective_object):
     spawner = editor_property(objective_object, 'spawner_id')
     if spawner is not None:
         words.append(f'the encounter {spawner} cleared')
+    speaker = editor_property(objective_object, 'speaker_tag')
+    if speaker is not None:
+        words.append(f'the speaker tagged {speaker}')
     if editor_property(objective_object, 'hold'):
         words.append('held')
     return ', '.join(words)

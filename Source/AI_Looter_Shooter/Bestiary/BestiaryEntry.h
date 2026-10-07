@@ -92,6 +92,23 @@ struct AI_LOOTER_SHOOTER_API FBestiaryStillPart
 };
 
 /**
+ * A still model worn on one of the stand model's bones, for a page with no actor to read it from (Amos's hat and his hay
+ * fork on SK_Amos): put on as the model has it at rest, at the bone and turned back by the bone's own rest turn.
+ */
+USTRUCT(BlueprintType)
+struct AI_LOOTER_SHOOTER_API FBestiaryBonePart
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bestiary|Stand")
+	TSoftObjectPtr<UStaticMesh> Mesh;
+
+	/** The skeletal model's bone it's worn on ("hat"). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bestiary|Stand")
+	FName Bone;
+};
+
+/**
  * One page of the bestiary (the inventory's second tab; Sexton's Ledger from Main 2): a creature, enemy, NPC or friend.
  * Make one per kind of character in /Game/Data/Bestiary (right-click > Miscellaneous > Data Asset > Bestiary Entry, or
  * duplicate one; Tools/Unreal/create_bestiary_pages.py writes the story's); the bestiary finds them all by itself. An
@@ -149,6 +166,13 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bestiary|Stand")
 	TArray<FBestiaryStillPart> PreviewStillParts;
+
+	/**
+	 * Still models worn on the skeletal model's bones, for a story character with no actor to read them from (Amos's hat
+	 * and fork on SK_Amos); an actor page's come from its actor (GetPreviewParts).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bestiary|Stand")
+	TArray<FBestiaryBonePart> PreviewBoneParts;
 
 	/** Loops on the stand, if set. Without one the model stands in its modeled pose. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bestiary|Stand")
@@ -221,8 +245,9 @@ public:
 	TArray<UMaterialInterface*> GetPreviewMaterials(const USkeletalMesh* Mesh) const;
 
 	/**
-	 * What the actor wears on this mesh's bones besides the body (a hat), as its class's defaults put it on: the stand
-	 * puts it on too, so the actor looks whole. Empty when the actor doesn't use this mesh (another may lack the bones).
+	 * What the actor wears on this mesh's bones besides the body (a hat), as its class's defaults put it on, and the
+	 * page's own PreviewBoneParts the mesh has bones for: the stand puts them on too, so the figure looks whole. Without
+	 * either (the actor doesn't use this mesh, and the page names none), empty.
 	 */
 	TArray<FBestiaryStandPart> GetPreviewParts(const USkeletalMesh* Mesh) const;
 
