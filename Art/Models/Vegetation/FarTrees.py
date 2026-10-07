@@ -27,8 +27,8 @@ One material slot for all three, FarTrees (MI_FarTrees: the opaque master M_Worl
 M_World's defaults): every part sits on one point of a FoliagePalette swatch (the pines on CloverDark, lower tiers
 further down its dark-to-light gradient, their trunks on CattailBrown and the dead snag on a darker point of it; the
 cottonwood in late summer's dry colors, like the valley's tinted oaks and birches: olive-drab clumps on GrassOlive, the
-top on GrassDry, two of seven turning on FlowerYellow's dull end, the bark on CattailBrown's dark grey-brown end). Each
-part's UVs spread only a hair round that point (a planar projection a few hundredths of the swatch):
+top on GrassDry, one small low clump turning on GrassYellow's warm end, the bark on CattailBrown's dark grey-brown end).
+Each part's UVs spread only a hair round that point (a planar projection a few hundredths of the swatch):
 enough UV area for MikkTSpace tangents, and so little that the sampled mip stays sharp at any distance and never bleeds
 into the neighboring swatches. Shading within a part comes from the baked vertex AO (vertex color alpha, as every model
 has; RGB carries looter_plants' foliage convention, which M_World ignores), mottled a little per bough.
@@ -73,14 +73,15 @@ DEAD_WOOD = ('CattailBrown', 0.2)
 # The cottonwood wears Ransom's Rest's dry late summer, as the valley's scattered oaks and birches do
 # (MI_LeavesOak_Ransom, MI_LeavesBirch_Ransom: olive-drab, a third turning gold); on GrassDeep it stood past the
 # boundary as rows of saturated green lollipops. Its clumps sit on olive-drab points (GrassOlive, near the oaks' tinted
-# leaves; the top a little drier), and two of the seven, one high and one low on opposite sides so every side shows
-# one, on FlowerYellow's dull end: the palette's only saturated gold (its darker yellows are dull khaki and tan, which
-# read as one dry olive with the rest), the hue of the turning oaks in the golden light. The bark is CattailBrown's
+# leaves; the top a little drier), and one small low clump is turning: a patch, not a crown. It sits on GrassYellow's
+# warm end, between the olive and FlowerYellow in lightness, which the golden light turns old gold. FlowerYellow's
+# dull end, on two clumps a tree, made the far forest read bright yellow-orange, brighter than the near oaks (its
+# gradient barely darkens toward that end, and no swatch lies between it and the olive). The bark is CattailBrown's
 # dark end, a dark grey-brown like the near oaks' bark rather than the pines' orange-red.
 LEAVES_TOP = ('GrassDry', 0.14)
 LEAVES_HIGH = ('GrassOlive', 0.46)
 LEAVES_LOW = ('GrassOlive', 0.38)      # a shade darker, under the high clumps
-LEAVES_GOLD = ('FlowerYellow', 0.05)
+LEAVES_GOLD = ('GrassYellow', 0.72)
 COTTONWOOD_BARK = ('CattailBrown', 0.15)
 
 
@@ -390,8 +391,8 @@ def clump(plant, rng, center, radii, shade_center, occlusion, swatch, u, share=0
 def far_broadleaf():
     """A cottonwood: a short trunk carrying on up through a broken crown of seven separate clumps at different heights
     (one on top, three high round it, three lower and further out), with three limbs from the fork to the high clumps
-    and side limbs from them to the low ones showing in the gaps, about 11 m tall and 10.5 m across. Olive-drab, two
-    clumps turning gold (the third high one and the first low one), on dark grey-brown bark (see LEAVES_TOP)."""
+    and side limbs from them to the low ones showing in the gaps, about 11 m tall and 10.5 m across. Olive-drab, the
+    smallest low clump turning old gold, on dark grey-brown bark (see LEAVES_TOP)."""
     rng = random.Random(837)
     plant = lp.Plant('FarBroadleaf', 837)
     center = Vector((0.2, 0.1, 7.4))
@@ -405,15 +406,12 @@ def far_broadleaf():
 
     top = (around(0.0, 0.5, 9.1), 2.0, 0.8, LEAVES_TOP)
     high = [(around(turn, out, z), size, 0.75, leaves) for turn, out, z, size, leaves in
-            ((0.3, 2.7, 8.0, 2.1, LEAVES_HIGH), (2.4, 2.6, 7.7, 2.2, LEAVES_HIGH), (4.4, 2.9, 8.3, 1.95, LEAVES_GOLD))]
+            ((0.3, 2.7, 8.0, 2.1, LEAVES_HIGH), (2.4, 2.6, 7.7, 2.2, LEAVES_HIGH), (4.4, 2.9, 8.3, 1.95, LEAVES_HIGH))]
     low = [(around(turn, out, z), size, 0.72, leaves) for turn, out, z, size, leaves in
-           ((1.35, 3.3, 6.0, 1.85, LEAVES_GOLD), (3.4, 3.1, 5.5, 2.0, LEAVES_LOW), (5.4, 3.4, 6.2, 1.7, LEAVES_LOW))]
+           ((1.35, 3.3, 6.0, 1.85, LEAVES_LOW), (3.4, 3.1, 5.5, 2.0, LEAVES_LOW), (5.4, 3.4, 6.2, 1.7, LEAVES_GOLD))]
     for c, size, flat, (swatch, u) in [top] + high + low:
-        radii = (size, size * rng.uniform(0.9, 1.05), size * flat)
-        # Each clump a little off its point, the gold ones less: their point is near the swatch's end, and a spread
-        # past the UV clamp would flatten faces.
-        jitter = rng.uniform(-0.03, 0.03) * (0.3 if (swatch, u) == LEAVES_GOLD else 1.0)
-        clump(plant, rng, c, radii, shade_center, occlusion, swatch, u + jitter)
+        clump(plant, rng, c, (size, size * rng.uniform(0.9, 1.05), size * flat), shade_center, occlusion, swatch,
+              u + rng.uniform(-0.03, 0.03))
     # The trunk carries on up through the middle into the top clump; the limbs leave it at the fork.
     fork = Vector((0.12, 0.05, 3.0))
     tube(plant, rng, [Vector((0.0, 0.0, -0.6)), fork, top[0] - UP * 0.8], [0.45, 0.34, 0.16], 5,
