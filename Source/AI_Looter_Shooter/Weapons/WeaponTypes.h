@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "WeaponTypes.generated.h"
 
+class UNamedWeaponDefinition;
 class UWeaponDefinition;
 
 UENUM(BlueprintType)
@@ -149,6 +150,14 @@ struct FWeaponInstanceData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
 	TObjectPtr<UWeaponDefinition> Definition = nullptr;
+
+	/**
+	 * The named gun it is (Heirloom), or null for a rolled one: its name and flavor line replace the name its parts would
+	 * give it, and its stats sit at the named gun's fixed quality instead of rolling from the seed. Saved as the asset's
+	 * path, like Definition; a gun saved before named guns existed reads back as null, a rolled gun as before.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	TObjectPtr<UNamedWeaponDefinition> Named = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
 	EWeaponRarity Rarity = EWeaponRarity::Common;

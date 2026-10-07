@@ -2,6 +2,7 @@
 #include "UI/Inventory/StageStudio.h"
 #include "Player/Animation/LooterCharacterAnimInstance.h"
 #include "Player/PlayerViewComponent.h"
+#include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponBase.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Weapons/WeaponModelComponent.h"
@@ -16,7 +17,8 @@ namespace
 {
 	bool IsSameGun(const FWeaponInstanceData& A, const FWeaponInstanceData& B)
 	{
-		return A.Definition == B.Definition && A.Seed == B.Seed && A.Rarity == B.Rarity && A.Level == B.Level && A.Parts == B.Parts;
+		return A.Definition == B.Definition && A.Named == B.Named && A.Seed == B.Seed && A.Rarity == B.Rarity && A.Level == B.Level
+			&& A.Parts == B.Parts;
 	}
 }
 

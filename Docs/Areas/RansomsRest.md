@@ -696,7 +696,7 @@ Concept renders come before any human costume. Sexton is first, because he sets 
 - **Step 21 (approved on 2026-10-05):** the boss bar and the test fight.
 - **Step 22:** Abel's look, chosen on 2026-10-06 from three concepts: **A, the Sunday keeper**. Still to come: his
   difficulty and the ending's wording.
-- **Step 23:** Heirloom as a named Epic, or a Legendary.
+- **Step 23 (decided on 2026-10-07, as recommended):** Heirloom is a named Epic with fixed parts and the line *Hold the door.*, not a Legendary; its special effect waits for unique legendaries. Its parts are the user's pick of the art session's candidates (B, 2026-10-07): the Ranchhand's Heritage body, Trap barrel (56 cm, Abel's length), Crown muzzle, Tube6 magazine, Flip sight, Field stock and Walnut pump; SM_AbelPump is remodeled to match, so the gun Delia hands over is the one Abel fought with.
 - **Step 26:** bringing the Supply Crate and Strongbox out of the backlog.
 - **Step 27:** whether the *Gilded Lily* stays an airship (deferred on 2026-10-01 until Ransom's Rest is complete).
 - **When the *Lily* starts:** a Hollow's signature legendary guaranteed on the first defeat, or always 15%.

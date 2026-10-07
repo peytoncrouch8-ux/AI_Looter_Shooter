@@ -1,4 +1,5 @@
 #include "Weapons/WeaponParts.h"
+#include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponDefinition.h"
 
 namespace
@@ -117,7 +118,7 @@ TArray<FName> WeaponParts::PartKeys(const FWeaponLook& Look)
 	return Keys;
 }
 
-FWeaponPartTotals WeaponParts::CombinedStats(const FWeaponLook& Look, int32 Seed)
+FWeaponPartTotals WeaponParts::CombinedStats(const FWeaponLook& Look, int32 Seed, TOptional<float> FixedQuality)
 {
 	FWeaponPartTotals Totals;
 	for (int32 Index = 0; Index < Look.Parts.Num(); ++Index)
@@ -130,14 +131,25 @@ FWeaponPartTotals WeaponParts::CombinedStats(const FWeaponLook& Look, int32 Seed
 		// Each part rolls from its own stream (the gun's seed and the part's key), in a fixed stat order.
 		const uint32 PartHash = Part->Key.IsNone() ? static_cast<uint32>(Index) : GetTypeHash(Part->Key);
 		FRandomStream Random(static_cast<int32>(HashCombine(static_cast<uint32>(Seed), HashCombine(PartHash, 0x51ED270Bu))));
+		// Where in its range each percentage lands: the next roll, or a named gun's fixed point, turned around for the
+		// stats where less is better. A fixed point draws nothing, and a rolled gun draws as it always has.
+		auto Roll = [&Random, &FixedQuality](bool bLessIsBetter)
+		{
+			if (FixedQuality.IsSet())
+			{
+				const float Quality = FMath::Clamp(FixedQuality.GetValue(), 0.f, 1.f);
+				return bLessIsBetter ? 1.f - Quality : Quality;
+			}
+			return Random.FRand();
+		};
 		const FWeaponPartStats& Stats = Part->Stats;
-		Totals.Damage += Stats.Damage.At(Random.FRand());
-		Totals.Accuracy += Stats.Accuracy.At(Random.FRand());
-		Totals.Range += Stats.Range.At(Random.FRand());
-		Totals.FireRate += Stats.FireRate.At(Random.FRand());
-		Totals.Reload += Stats.Reload.At(Random.FRand());
-		Totals.Recoil += Stats.Recoil.At(Random.FRand());
-		Totals.Handling += Stats.Handling.At(Random.FRand());
+		Totals.Damage += Stats.Damage.At(Roll(false));
+		Totals.Accuracy += Stats.Accuracy.At(Roll(false));
+		Totals.Range += Stats.Range.At(Roll(false));
+		Totals.FireRate += Stats.FireRate.At(Roll(false));
+		Totals.Reload += Stats.Reload.At(Roll(true));
+		Totals.Recoil += Stats.Recoil.At(Roll(true));
+		Totals.Handling += Stats.Handling.At(Roll(false));
 		// Capacity and zoom are the part's own (the last part that sets one wins).
 		Totals.Magazine = Stats.Magazine > 0 ? Stats.Magazine : Totals.Magazine;
 		Totals.Zoom = Stats.Zoom > 0.f ? Stats.Zoom : Totals.Zoom;
@@ -168,6 +180,11 @@ FText WeaponParts::NamePrefix(const FWeaponLook& Look)
 
 float WeaponParts::Wear(const FWeaponInstanceData& Instance)
 {
+	// A named gun's own wear, the same on every copy (Heirloom's: a keeper's gun, worn but cared for).
+	if (Instance.Named && Instance.Named->Wear >= 0.f)
+	{
+		return FMath::Clamp(Instance.Named->Wear, 0.f, 1.f);
+	}
 	// From least to most worn by rarity; a stream of its own, so it never shifts the parts' or the stats' rolls.
 	static const FVector2f Ranges[] = { { 0.45f, 1.f }, { 0.3f, 0.85f }, { 0.15f, 0.65f }, { 0.05f, 0.45f }, { 0.f, 0.25f } };
 	const FVector2f Range = Ranges[FMath::Clamp(static_cast<int32>(Instance.Rarity), 0, static_cast<int32>(UE_ARRAY_COUNT(Ranges)) - 1)];

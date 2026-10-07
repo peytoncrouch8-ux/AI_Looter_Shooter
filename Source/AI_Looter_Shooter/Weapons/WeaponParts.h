@@ -236,16 +236,19 @@ namespace WeaponParts
 
 	/**
 	 * The parts' changes added up: each part's percentages rolled within their ranges from the gun's seed (each part from
-	 * a draw of its own, so changing one part never changes another's roll), summed per stat and capped.
+	 * a draw of its own, so changing one part never changes another's roll), summed per stat and capped. With a
+	 * FixedQuality (a named gun's) nothing is rolled: every percentage sits at that point of its range, 0 the worse end
+	 * and 1 the better (the low end for reload and recoil, where less is better).
 	 */
-	AI_LOOTER_SHOOTER_API FWeaponPartTotals CombinedStats(const FWeaponLook& Look, int32 Seed);
+	AI_LOOTER_SHOOTER_API FWeaponPartTotals CombinedStats(const FWeaponLook& Look, int32 Seed, TOptional<float> FixedQuality = {});
 
 	/** The word the gun's parts put before its name (empty when none does). */
 	AI_LOOTER_SHOOTER_API FText NamePrefix(const FWeaponLook& Look);
 
 	/**
 	 * How worn a gun looks, 0 (factory fresh) to 1 (battered), rolled from its seed: commons come scuffed and grimy,
-	 * legendaries nearly clean. The gun master (M_Gun) reads it from the parts' custom primitive data WearDataIndex.
+	 * legendaries nearly clean. A named gun can set its own (Heirloom's: worn but cared for). The gun master (M_Gun) reads
+	 * it from the parts' custom primitive data WearDataIndex.
 	 */
 	AI_LOOTER_SHOOTER_API float Wear(const FWeaponInstanceData& Instance);
 	inline constexpr int32 WearDataIndex = 0;

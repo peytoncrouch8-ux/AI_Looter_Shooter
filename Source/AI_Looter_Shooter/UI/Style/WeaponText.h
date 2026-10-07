@@ -1,9 +1,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponParts.h"
 #include "Affixes/WeaponRollLibrary.h"
+#include "UI/Style/LooterUIStyle.h"
 #include "Weapons/WeaponTypes.h"
 
 /** Shared formatting for weapon names/stats across the HUD, loot labels and inventory. */
@@ -11,10 +13,15 @@ namespace LooterWeaponText
 {
 	/**
 	 * "Scoped Assault Rifle": the word the gun's parts give it (if any) and the kind of gun. No rarity word: every name is
-	 * shown in its rarity's color (Color below), which says it at a glance (the user's call).
+	 * shown in its rarity's color (Color below), which says it at a glance (the user's call). A named gun goes by its own
+	 * name ("Heirloom") instead.
 	 */
 	inline FString Name(const FWeaponInstanceData& Instance)
 	{
+		if (Instance.Named && !Instance.Named->DisplayName.IsEmpty())
+		{
+			return Instance.Named->DisplayName.ToString();
+		}
 		if (!Instance.Definition)
 		{
 			return TEXT("Unknown");
@@ -22,6 +29,27 @@ namespace LooterWeaponText
 		const FText Prefix = WeaponParts::NamePrefix(WeaponParts::Pick(Instance));
 		const FString Weapon = Instance.Definition->DisplayName.ToString();
 		return Prefix.IsEmpty() ? Weapon : FString::Printf(TEXT("%s %s"), *Prefix.ToString(), *Weapon);
+	}
+
+	/** A named gun's flavor line ("Hold the door."), shown under its name on its cards and label; empty for other guns. */
+	inline FString FlavorLine(const FWeaponInstanceData& Instance)
+	{
+		return Instance.Named ? Instance.Named->FlavorText.ToString() : FString();
+	}
+
+	/** The color a flavor line is shown in, wherever it shows: the kit's accent, as the line is a named gun's highlight. */
+	inline FLinearColor FlavorColor()
+	{
+		return LooterUI::Color::Accent();
+	}
+
+	/**
+	 * A flavor line's type on a card: the kit's regular face rather than the labels' bold, so it reads as words said. Over
+	 * the world (the loot label) it stays floating text, whose bold carries the outline.
+	 */
+	inline FSlateFontInfo FlavorFont(int32 Size)
+	{
+		return LooterUI::Font(Size, /*bBold*/ false);
 	}
 
 	inline FLinearColor Color(const FWeaponInstanceData& Instance)

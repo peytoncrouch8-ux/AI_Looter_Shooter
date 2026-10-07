@@ -44,9 +44,11 @@ TSharedRef<SWidget> UWeaponLabelWidget::RebuildWidget()
 		};
 
 		NameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Name"));
+		FlavorText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Flavor"));
 		StatsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Stats"));
 		PromptText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Prompt"));
 		AddLine(NameText);
+		AddLine(FlavorText);
 		AddLine(StatsText);
 		AddLine(PromptText);
 		AddFill(Box, FMargin(12.f, 6.f));
@@ -66,10 +68,28 @@ void UWeaponLabelWidget::SetWeapon(const AWeaponBase* Weapon)
 	const FWeaponInstanceData& Instance = Weapon->GetInstance();
 	const FWeaponStats& S = Instance.Stats;
 	Name = FText::FromString(LooterWeaponText::Name(Instance).ToUpper());
+	// The line in its own words, as written: it's said, not a label.
+	Flavor = FText::FromString(LooterWeaponText::FlavorLine(Instance));
 	Stats = FText::FromString(FString::Printf(TEXT("LV %d   %s DMG   %.0f RPM   %d MAG"),
 		Instance.Level, *LooterWeaponText::DamageString(S), S.FireRate, S.MagazineSize));
 	NameColor = LooterWeaponText::Color(Instance);
 	ApplyContent();
+}
+
+FText UWeaponLabelWidget::GetNameText() const
+{
+	return NameText ? NameText->GetText() : FText::GetEmpty();
+}
+
+FText UWeaponLabelWidget::GetFlavorText() const
+{
+	return FlavorText ? FlavorText->GetText() : FText::GetEmpty();
+}
+
+bool UWeaponLabelWidget::IsFlavorShown() const
+{
+	const ESlateVisibility Shown = FlavorText ? FlavorText->GetVisibility() : ESlateVisibility::Collapsed;
+	return Shown != ESlateVisibility::Collapsed && Shown != ESlateVisibility::Hidden && !FlavorText->GetText().IsEmpty();
 }
 
 void UWeaponLabelWidget::SetFocused(bool bFocused)
@@ -95,6 +115,11 @@ void UWeaponLabelWidget::ApplyContent()
 
 	NameText->SetText(Name);
 	StyleFloatingText(NameText, bIsFocused ? 17 : 14, NameColor, 80);
+
+	// A named gun's line under its name, with the details: the name alone floats over the loot from afar.
+	FlavorText->SetText(Flavor);
+	StyleFloatingText(FlavorText, 12, LooterWeaponText::FlavorColor(), 20);
+	FlavorText->SetVisibility(bIsFocused && !Flavor.IsEmpty() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 
 	StatsText->SetText(Stats);
 	StyleFloatingText(StatsText, 11, Color::TextDim(), 60);

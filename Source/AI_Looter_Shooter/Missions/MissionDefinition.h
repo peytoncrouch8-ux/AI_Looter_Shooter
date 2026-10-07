@@ -68,7 +68,10 @@ struct AI_LOOTER_SHOOTER_API FMissionRewards
 	UPROPERTY(EditAnywhere, Category = "Rewards", meta = (EditCondition = "bGun"))
 	EWeaponRarity GunRarityFloor = EWeaponRarity::Common;
 
-	/** A named gun (Heirloom), by its name. Named guns come in step 23: until then it's only written down here. */
+	/**
+	 * A named gun by its id (UNamedWeaponDefinition, DA_Named_<Id> in /Game/Data/Weapons: "Heirloom"), dropped at the
+	 * player's feet at their level as the gun above is: its own parts, rarity, name and line.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Rewards")
 	FName NamedGun;
 

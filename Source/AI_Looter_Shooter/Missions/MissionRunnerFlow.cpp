@@ -328,15 +328,14 @@ void UMissionRunner::GrantRewards(const UMissionDefinition& Mission)
 		}
 	}
 
-	// A gun at the player's feet, at their level.
+	// A gun at the player's feet, at their level, and a named gun (Heirloom) the same way.
 	if (Rewards.bGun)
 	{
 		MissionRewards::DropGun(Context.World, Rewards, PlayerLevel, Context.Player);
 	}
 	if (!Rewards.NamedGun.IsNone())
 	{
-		UE_LOG(LogLooter, Log, TEXT("Missions: %s gives the named gun %s, which comes with named guns (step 23)."),
-			*Mission.GetMissionId().ToString(), *Rewards.NamedGun.ToString());
+		MissionRewards::DropNamedGun(Context.World, Rewards, PlayerLevel, Context.Player);
 	}
 
 	// Areas opened to travel.

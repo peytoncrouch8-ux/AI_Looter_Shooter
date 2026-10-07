@@ -8,6 +8,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Areas/AreaDefinition.h"
 #include "Session/SessionSave.h"
+#include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponDefinition.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -172,12 +173,13 @@ namespace
 		return FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("SessionCheck")));
 	}
 
-	/** A gun in a few words, to compare guns before and after: kind, rarity, level, seed, parts and magazine. */
+	/** A gun in a few words, to compare guns before and after: kind, rarity, level, seed, parts, magazine, named gun. */
 	FString DescribeGun(const FWeaponInstanceData& Gun)
 	{
-		return FString::Printf(TEXT("%s %s L%d seed %d [%s] mag %d"), Gun.Definition ? *Gun.Definition->GetName() : TEXT("(kind missing)"),
+		const FString Named = Gun.Named ? FString::Printf(TEXT(" named %s"), *Gun.Named->GetNamedId().ToString()) : FString();
+		return FString::Printf(TEXT("%s %s L%d seed %d [%s] mag %d%s"), Gun.Definition ? *Gun.Definition->GetName() : TEXT("(kind missing)"),
 			*UEnum::GetValueAsString(Gun.Rarity), Gun.Level, Gun.Seed, *FString::JoinBy(Gun.Parts, TEXT(","), [](FName Part) { return Part.ToString(); }),
-			Gun.SavedMagazine);
+			Gun.SavedMagazine, *Named);
 	}
 
 	/** What the player carries and has earned, in a few lines, to compare before and after. */

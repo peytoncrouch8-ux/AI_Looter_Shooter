@@ -5,6 +5,7 @@
 #include "Loot/LootLibrary.h"
 #include "Missions/MissionDefinition.h"
 #include "Progression/XPCurve.h"
+#include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Engine/World.h"
@@ -16,6 +17,19 @@ namespace
 	FString RarityName(EWeaponRarity Rarity)
 	{
 		return UEnum::GetDisplayValueAsText(Rarity).ToString();
+	}
+
+	/** Spawns the gun a couple of metres ahead of Player, tossed up so it lands and settles as loot does, beam and all. */
+	AWeaponBase* TossAhead(UWorld* World, const FWeaponInstanceData& Instance, const AActor& Player)
+	{
+		const FVector Ahead = Player.GetActorForwardVector().GetSafeNormal2D();
+		const FVector Spot = Player.GetActorLocation() + Ahead * 150.f + FVector(0.f, 0.f, 60.f);
+		AWeaponBase* Gun = UWeaponRollLibrary::SpawnWeapon(World, Instance, FTransform(FRotator(0.f, FMath::FRandRange(0.f, 360.f), 0.f), Spot));
+		if (Gun)
+		{
+			Gun->Toss(Ahead * 120.f + FVector(0.f, 0.f, 450.f));
+		}
+		return Gun;
 	}
 }
 
@@ -54,15 +68,34 @@ AWeaponBase* MissionRewards::DropGun(UWorld* World, const FMissionRewards& Rewar
 	}
 	const EWeaponRarity Rarity = ApplyFloor(UWeaponRollLibrary::RollRarity(Kind), Rewards.GunRarityFloor);
 	const FWeaponInstanceData Instance = UWeaponRollLibrary::RollWeaponWithRarity(Kind, Rarity, FMath::Max(Level, 1));
-
-	// A couple of metres ahead, tossed up so it lands and settles as loot does, beam and all.
-	const FVector Ahead = Player->GetActorForwardVector().GetSafeNormal2D();
-	const FVector Spot = Player->GetActorLocation() + Ahead * 150.f + FVector(0.f, 0.f, 60.f);
-	AWeaponBase* Gun = UWeaponRollLibrary::SpawnWeapon(World, Instance, FTransform(FRotator(0.f, FMath::FRandRange(0.f, 360.f), 0.f), Spot));
+	AWeaponBase* Gun = TossAhead(World, Instance, *Player);
 	if (Gun)
 	{
-		Gun->Toss(Ahead * 120.f + FVector(0.f, 0.f, 450.f));
 		UE_LOG(LogLooter, Log, TEXT("Missions: reward gun %s %s (level %d)"), *RarityName(Rarity), *Kind->GetName(), Instance.Level);
+	}
+	return Gun;
+}
+
+AWeaponBase* MissionRewards::DropNamedGun(UWorld* World, const FMissionRewards& Rewards, int32 Level, const AActor* Player)
+{
+	if (!World || Rewards.NamedGun.IsNone() || !Player)
+	{
+		return nullptr;
+	}
+	UNamedWeaponDefinition* Named = UNamedWeaponDefinition::FindByName(Rewards.NamedGun.ToString());
+	if (!Named || !Named->Weapon)
+	{
+		UE_LOG(LogLooter, Warning, TEXT("Missions: no named gun %s (%s%s in %s, made by Tools/Unreal/create_named_weapons.py), so it isn't given."),
+			*Rewards.NamedGun.ToString(), UNamedWeaponDefinition::AssetPrefix, *Rewards.NamedGun.ToString(), UNamedWeaponDefinition::AssetFolder);
+		return nullptr;
+	}
+	// Its own parts, rarity and fixed stats; only its level is the player's, as every reward gun's is.
+	const FWeaponInstanceData Instance = Named->MakeInstance(Level);
+	AWeaponBase* Gun = TossAhead(World, Instance, *Player);
+	if (Gun)
+	{
+		UE_LOG(LogLooter, Log, TEXT("Missions: named gun %s, %s %s (level %d)"), *Named->GetNamedId().ToString(), *RarityName(Instance.Rarity),
+			*Named->Weapon->GetName(), Instance.Level);
 	}
 	return Gun;
 }
@@ -83,7 +116,10 @@ TArray<FString> MissionRewards::Describe(const FMissionRewards& Rewards)
 	}
 	if (!Rewards.NamedGun.IsNone())
 	{
-		Lines.Add(TEXT("Named gun: ") + FName::NameToDisplayString(Rewards.NamedGun.ToString(), /*bIsBool*/ false));
+		// Its own name, or its id as words when its asset isn't there.
+		const UNamedWeaponDefinition* Named = UNamedWeaponDefinition::FindByName(Rewards.NamedGun.ToString());
+		Lines.Add(TEXT("Named gun: ") + (Named && !Named->DisplayName.IsEmpty() ? Named->DisplayName.ToString()
+			: FName::NameToDisplayString(Rewards.NamedGun.ToString(), /*bIsBool*/ false)));
 	}
 	for (const FName AreaId : Rewards.UnlockAreas)
 	{

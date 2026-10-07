@@ -230,6 +230,11 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			Box->AddChildToVerticalBox(MakeSection(WidgetTree, TEXT("Loot")));
 			PickupName = MakeText(WidgetTree, TEXT(""), 17, Color::Text(), false, 80);
 			Box->AddChildToVerticalBox(PickupName)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
+			// A named gun's line under its name (UpdatePickupCard collapses it for any other gun).
+			PickupFlavor = MakeText(WidgetTree, TEXT(""), 12, LooterWeaponText::FlavorColor());
+			PickupFlavor->SetFont(LooterWeaponText::FlavorFont(12));
+			PickupFlavor->SetVisibility(ESlateVisibility::Collapsed);
+			Box->AddChildToVerticalBox(PickupFlavor)->SetPadding(FMargin(0.f, 1.f, 0.f, 0.f));
 			PickupLevel = MakeText(WidgetTree, TEXT(""), 11, Color::TextDim(), false, 120);
 			Box->AddChildToVerticalBox(PickupLevel)->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
 			for (int32 Stat = 0; Stat < NumCompareStats; ++Stat)

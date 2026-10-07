@@ -70,6 +70,14 @@ void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager, const 
 
 	PickupName->SetText(FText::FromString(LooterWeaponText::Name(New).ToUpper()));
 	PickupName->SetColorAndOpacity(FSlateColor(LooterWeaponText::Color(New)));
+	// A named gun's line under its name, as written.
+	const FString Flavor = LooterWeaponText::FlavorLine(New);
+	PickupFlavor->SetText(FText::FromString(Flavor));
+	const ESlateVisibility FlavorShown = Flavor.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible;
+	if (PickupFlavor->GetVisibility() != FlavorShown)
+	{
+		PickupFlavor->SetVisibility(FlavorShown);
+	}
 	PickupLevel->SetText(FText::FromString(FString::Printf(TEXT("LV %d  |  %s  |  VS WEAPON IN HAND"), New.Level, *LooterWeaponText::FireModeName(New).ToUpper())));
 
 	// Damage shows the weapon's damage, compared on total per-shot damage so shotguns and rifles line up fairly.

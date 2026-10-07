@@ -27,6 +27,15 @@ namespace MissionRewards
 	 */
 	AWeaponBase* DropGun(UWorld* World, const FMissionRewards& Rewards, int32 Level, const AActor* Player);
 
-	/** The rewards in words, one line each, for the Missions page: "+30% of a level's experience", "Gun: Rare or better". */
+	/**
+	 * Makes the reward's named gun (NamedGun, by its id: Heirloom) at Level and drops it in front of Player as the reward
+	 * gun is. Null when the rewards name none, there's no player, or no named gun has that id.
+	 */
+	AWeaponBase* DropNamedGun(UWorld* World, const FMissionRewards& Rewards, int32 Level, const AActor* Player);
+
+	/**
+	 * The rewards in words, one line each, for the Missions page: "+30% of a level's experience", "Gun: Rare or better",
+	 * "Named gun: Heirloom".
+	 */
 	TArray<FString> Describe(const FMissionRewards& Rewards);
 }

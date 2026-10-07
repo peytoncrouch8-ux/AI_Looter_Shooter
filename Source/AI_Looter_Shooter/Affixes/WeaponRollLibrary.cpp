@@ -1,4 +1,5 @@
 #include "Affixes/WeaponRollLibrary.h"
+#include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponParts.h"
@@ -51,7 +52,7 @@ FWeaponStats UWeaponRollLibrary::ComputeStats(const UWeaponDefinition* Definitio
 }
 
 FWeaponStats UWeaponRollLibrary::ComputeStatsWithParts(const UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level, int32 Seed,
-	TConstArrayView<FName> Parts)
+	TConstArrayView<FName> Parts, TOptional<float> FixedQuality)
 {
 	if (!Definition)
 	{
@@ -60,34 +61,51 @@ FWeaponStats UWeaponRollLibrary::ComputeStatsWithParts(const UWeaponDefinition* 
 
 	FRandomStream Stream(Seed);
 	const float Variance = Definition->StatVariance;
-	auto Vary = [&Stream, Variance](float Value)
+	// Each stat's variance: drawn from the seed, or a named gun's fixed point of it (turned around for the stats where
+	// less is better). A fixed point draws nothing, and a rolled gun draws and rounds exactly as it always has (the
+	// stream's range is in doubles).
+	auto Vary = [&Stream, Variance, &FixedQuality](float Value, bool bLessIsBetter) -> double
 	{
+		if (FixedQuality.IsSet())
+		{
+			const float Quality = FMath::Clamp(FixedQuality.GetValue(), 0.f, 1.f);
+			return Value * FMath::Lerp(1.f - Variance, 1.f + Variance, bLessIsBetter ? 1.f - Quality : Quality);
+		}
 		return Value * Stream.FRandRange(1.f - Variance, 1.f + Variance);
 	};
 
 	const FWeaponRarityInfo& RarityInfo = Definition->GetRarityInfo(Rarity);
 	const FWeaponStats& Base = Definition->BaseStats;
 	const float LevelScale = 1.f + Definition->DamagePerLevel * FMath::Max(Level - 1, 0);
-	// The gun's parts shift its stats: their percentages add up (capped), each rolled within its range from the seed.
-	const FWeaponPartTotals Part = WeaponParts::CombinedStats(WeaponParts::Pick(*Definition, Seed, Rarity, Parts), Seed);
+	// The gun's parts shift its stats: their percentages add up (capped), each rolled within its range from the seed (or
+	// at the named gun's fixed point of it).
+	const FWeaponPartTotals Part = WeaponParts::CombinedStats(WeaponParts::Pick(*Definition, Seed, Rarity, Parts), Seed, FixedQuality);
 	auto Scale = [](float Percent) { return FMath::Max(1.f + Percent * 0.01f, 0.05f); };
 
 	// Roll order is fixed so a given seed always produces the same weapon (the magazine's variance is drawn even when a
 	// part sets the capacity, so the draws after it don't move).
 	FWeaponStats Stats;
-	Stats.Damage = Vary(Base.Damage) * RarityInfo.DamageMultiplier * LevelScale * Scale(Part.Damage);
-	Stats.FireRate = Vary(Base.FireRate) * RarityInfo.FireRateMultiplier * Scale(Part.FireRate);
-	const float BaseMagazine = Vary(static_cast<float>(Base.MagazineSize));
+	Stats.Damage = Vary(Base.Damage, false) * RarityInfo.DamageMultiplier * LevelScale * Scale(Part.Damage);
+	Stats.FireRate = Vary(Base.FireRate, false) * RarityInfo.FireRateMultiplier * Scale(Part.FireRate);
+	const float BaseMagazine = Vary(static_cast<float>(Base.MagazineSize), false);
 	Stats.MagazineSize = FMath::Max(1, FMath::RoundToInt((Part.Magazine > 0 ? Part.Magazine : BaseMagazine) * RarityInfo.MagazineMultiplier));
-	Stats.ReloadTime = Vary(Base.ReloadTime) * RarityInfo.ReloadTimeMultiplier * Scale(Part.Reload);
+	Stats.ReloadTime = Vary(Base.ReloadTime, true) * RarityInfo.ReloadTimeMultiplier * Scale(Part.Reload);
 	// +40% accuracy shoots 1/1.4 as wide.
-	Stats.Spread = Vary(Base.Spread) * RarityInfo.SpreadMultiplier / Scale(Part.Accuracy);
+	Stats.Spread = Vary(Base.Spread, true) * RarityInfo.SpreadMultiplier / Scale(Part.Accuracy);
 	Stats.Range = Base.Range * Scale(Part.Range);
 	Stats.PelletsPerShot = Base.PelletsPerShot;
 	Stats.Recoil = Base.Recoil * Scale(Part.Recoil);
 	Stats.Handling = Base.Handling * Scale(Part.Handling);
 	Stats.Zoom = FMath::Max(Part.Zoom > 0.f ? Part.Zoom : Base.Zoom, 1.f);
 	return Stats;
+}
+
+FWeaponStats UWeaponRollLibrary::ComputeInstanceStats(const FWeaponInstanceData& Instance)
+{
+	// A named gun is one gun: its stats sit at its fixed quality on every copy, and follow that quality if it's tuned.
+	const UNamedWeaponDefinition* Named = Instance.Named;
+	return ComputeStatsWithParts(Instance.Definition, Instance.Rarity, Instance.Level, Instance.Seed, Instance.Parts,
+		Named ? TOptional<float>(Named->StatQuality) : TOptional<float>());
 }
 
 FWeaponInstanceData UWeaponRollLibrary::RollWeapon(UWeaponDefinition* Definition, int32 Level, float Luck)

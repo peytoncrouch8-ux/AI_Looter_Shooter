@@ -92,6 +92,8 @@ private:
 	// Loot card and messages
 	UPROPERTY(Transient) TObjectPtr<UWidget> PickupCard;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupName;
+	/** A named gun's flavor line under its name; collapsed for any other gun. */
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupFlavor;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupLevel;
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> PickupStatTexts;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupHint;

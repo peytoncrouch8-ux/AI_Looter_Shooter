@@ -53,6 +53,15 @@ void ULoadoutWidget::RefreshInspect()
 	UTextBlock* NameText = Label(WidgetTree, LooterWeaponText::Name(*Shown), 15, LooterWeaponText::Color(*Shown), 40);
 	NameText->SetAutoWrapText(true);
 	InspectBox->AddChildToVerticalBox(NameText);
+	// A named gun's line under its name, as written.
+	const FString Flavor = LooterWeaponText::FlavorLine(*Shown);
+	if (!Flavor.IsEmpty())
+	{
+		UTextBlock* FlavorText = MakeText(WidgetTree, Flavor, 11, LooterWeaponText::FlavorColor());
+		FlavorText->SetFont(LooterWeaponText::FlavorFont(11));
+		FlavorText->SetAutoWrapText(true);
+		InspectBox->AddChildToVerticalBox(FlavorText)->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
+	}
 	InspectBox->AddChildToVerticalBox(Label(WidgetTree, FString::Printf(TEXT("Lv %d · %s · %s"), Shown->Level,
 		*LooterWeaponText::FireModeName(*Shown), *AmmoName(*Shown)), 9, Color::TextDim(), 140))->SetPadding(FMargin(0.f, 4.f, 0.f, 8.f));
 

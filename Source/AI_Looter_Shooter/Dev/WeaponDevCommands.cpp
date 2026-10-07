@@ -4,13 +4,16 @@
 
 #if !UE_BUILD_SHIPPING
 
+#include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Loot/AmmoPickup.h"
 #include "Affixes/WeaponRollLibrary.h"
+#include "Progression/PlayerProgressionSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Engine.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
@@ -74,6 +77,39 @@ namespace
 		Instance.Stats = UWeaponRollLibrary::ComputeStatsWithParts(Definition, Instance.Rarity, Instance.Level, Instance.Seed, Instance.Parts);
 	}
 
+	/** Into a free slot if there is one, otherwise the backpack (never swapping out the weapon in hand). */
+	bool Give(UWeaponManagerComponent& Inventory, const FWeaponInstanceData& Instance)
+	{
+		return Inventory.GetWeapons().Num() < Inventory.MaxWeapons ? Inventory.GiveWeapon(Instance) != nullptr : Inventory.AddToBackpack(Instance);
+	}
+
+	/** A named gun (Heirloom): its own parts and rarity, at the level asked for or else the player's, as missions give it. */
+	void GiveNamedWeapon(UNamedWeaponDefinition& Named, const TArray<FString>& Args, bool bPartsAsked, const APlayerController& Controller,
+		UWeaponManagerComponent& Inventory)
+	{
+		if (bPartsAsked)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.GiveWeapon: %s keeps its own parts; the Slot=Key arguments are left out."), *Named.GetNamedId().ToString());
+		}
+		const ULocalPlayer* LocalPlayer = Controller.GetLocalPlayer();
+		const UPlayerProgressionSubsystem* Progression = LocalPlayer ? LocalPlayer->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
+		const int32 Level = Args.Num() > 1 && Args[1].IsNumeric() ? FMath::Max(FCString::Atoi(*Args[1]), 1) : (Progression ? Progression->GetLevel() : 1);
+		const FWeaponInstanceData Instance = Named.MakeInstance(Level);
+		if (!Instance.Definition)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.GiveWeapon: %s names no kind of gun."), *Named.GetName());
+			return;
+		}
+		for (const FString& Problem : Named.FindProblems())
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.GiveWeapon: %s: %s."), *Named.GetName(), *Problem);
+		}
+		const bool bGiven = Give(Inventory, Instance);
+		UE_LOG(LogLooter, Log, TEXT("Looter.GiveWeapon: %s, %s %s (level %d) %s."), *Named.GetNamedId().ToString(),
+			*StaticEnum<EWeaponRarity>()->GetNameStringByValue(static_cast<int64>(Instance.Rarity)), *Instance.Definition->GetName(), Instance.Level,
+			bGiven ? TEXT("given") : TEXT("did not fit"));
+	}
+
 	void GiveWeapon(const TArray<FString>& AllArgs, UWorld* World)
 	{
 		// Slot=Key arguments pick parts; the rest are the weapon, rarity and level in order.
@@ -93,6 +129,13 @@ namespace
 			return;
 		}
 
+		// A named gun by its id or name first: named guns match whole names only, so "Rifle" still finds a rifle.
+		if (UNamedWeaponDefinition* Named = Args.Num() > 0 ? UNamedWeaponDefinition::FindByName(Args[0]) : nullptr)
+		{
+			GiveNamedWeapon(*Named, Args, !Overrides.IsEmpty(), *Controller, *Inventory);
+			return;
+		}
+
 		UWeaponDefinition* Definition = FindDefinition(Args.Num() > 0 ? Args[0] : FString(TEXT("Rifle")));
 		if (!Definition)
 		{
@@ -109,10 +152,7 @@ namespace
 			ForceParts(Instance, Overrides);
 		}
 
-		// Into a free slot if there is one, otherwise the backpack (never swapping out the weapon in hand).
-		const bool bGiven = Inventory->GetWeapons().Num() < Inventory->MaxWeapons
-			? Inventory->GiveWeapon(Instance) != nullptr
-			: Inventory->AddToBackpack(Instance);
+		const bool bGiven = Give(*Inventory, Instance);
 		UE_LOG(LogLooter, Log, TEXT("Looter.GiveWeapon: %s %s (level %d) %s."), *StaticEnum<EWeaponRarity>()->GetNameStringByValue(static_cast<int64>(Instance.Rarity)),
 			*Definition->GetName(), Level, bGiven ? TEXT("given") : TEXT("did not fit"));
 	}
@@ -157,7 +197,8 @@ namespace
 	FAutoConsoleCommandWithWorldAndArgs GiveWeaponCommand(
 		TEXT("Looter.GiveWeapon"),
 		TEXT("Looter.GiveWeapon <weapon, e.g. Rifle or Shotgun> [Common|Uncommon|Rare|Epic|Legendary] [level] [Slot=Key ...]: gives the player ")
-		TEXT("a weapon, into a free slot or else the backpack. The rarity is rolled when it's left out; Slot=Key (Sight=Variable) picks a part."),
+		TEXT("a weapon, into a free slot or else the backpack. The rarity is rolled when it's left out; Slot=Key (Sight=Variable) picks a part. ")
+		TEXT("A named gun by its id, Looter.GiveWeapon Heirloom [level], comes with its own parts and rarity, at the player's level unless one is given."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GiveWeapon));
 }
 

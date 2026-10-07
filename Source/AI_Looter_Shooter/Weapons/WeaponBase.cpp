@@ -7,6 +7,7 @@
 #include "Player/PlayerViewComponent.h"
 #include "UI/World/WeaponLabelWidget.h"
 #include "Inventory/WeaponManagerComponent.h"
+#include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponModelComponent.h"
 #include "Weapons/WeaponParts.h"
 #include "World/LightBeam.h"
@@ -107,13 +108,15 @@ void AWeaponBase::InitializeFromInstance(const FWeaponInstanceData& InInstance)
 {
 	Instance = InInstance;
 	Instance.Level = FMath::Max(Instance.Level, 1);
-	// A gun saved before parts were kept gets the parts its seed picks now, and keeps them from here on.
+	// A gun saved before parts were kept gets the parts its seed picks now (a named gun its own), and keeps them from now on.
 	if (Instance.Parts.IsEmpty() && Instance.Definition && !Instance.Definition->Parts.IsEmpty())
 	{
-		Instance.Parts = WeaponParts::PartKeys(WeaponParts::Pick(*Instance.Definition, Instance.Seed, Instance.Rarity));
+		Instance.Parts = Instance.Named ? Instance.Named->GetPartKeys()
+			: WeaponParts::PartKeys(WeaponParts::Pick(*Instance.Definition, Instance.Seed, Instance.Rarity));
 	}
-	// Always rebuild stats from the seed and parts so saved instances can't drift from their definition.
-	Instance.Stats = UWeaponRollLibrary::ComputeStatsWithParts(Instance.Definition, Instance.Rarity, Instance.Level, Instance.Seed, Instance.Parts);
+	// Always rebuild stats from the seed and parts (a named gun's at its fixed quality) so saved instances can't drift
+	// from their definition.
+	Instance.Stats = UWeaponRollLibrary::ComputeInstanceStats(Instance);
 
 	CurrentMagazine = Instance.SavedMagazine >= 0 ? FMath::Min(Instance.SavedMagazine, Instance.Stats.MagazineSize) : Instance.Stats.MagazineSize;
 	bAmmoInitialized = true;
@@ -199,6 +202,11 @@ int32 AWeaponBase::GetReserveAmmo() const
 
 FText AWeaponBase::GetDisplayName() const
 {
+	// A named gun goes by its own name ("Heirloom sent to backpack").
+	if (Instance.Named && !Instance.Named->DisplayName.IsEmpty())
+	{
+		return Instance.Named->DisplayName;
+	}
 	return Instance.Definition ? Instance.Definition->DisplayName : FText::FromString(GetName());
 }
 
