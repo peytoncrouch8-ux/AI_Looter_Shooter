@@ -6,6 +6,7 @@
 #include "Inventory/WeaponManagerComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "CoreGlobals.h"
 #include "Engine/Engine.h"
 #include "HAL/IConsoleManager.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -301,8 +302,30 @@ void UPlayerLocomotionComponent::ReleaseKeysNoLongerHeld()
 // Stance
 // ---------------------------------------------------------------------------
 
+void UPlayerLocomotionComponent::HandleMoveInput(const FVector2D& Input)
+{
+	MoveInput = Input;
+	MoveInputFrame = GFrameCounter;
+	bHasMoveInput = true;
+}
+
+FVector2D UPlayerLocomotionComponent::GetHeldMoveInput() const
+{
+	// The character passes the keys on every frame they're down (Enhanced Input's Triggered), so a report older than the
+	// last frame means they were let go; no release event has to arrive (a menu or alt-tab can swallow it).
+	return MoveInputFrame + 1 >= GFrameCounter ? MoveInput : FVector2D::ZeroVector;
+}
+
 bool UPlayerLocomotionComponent::IsMovingForward() const
 {
+	const float MinForward = FMath::Cos(FMath::DegreesToRadians(SprintMaxInputAngle));
+	// The keys themselves when the character passes them on: through a slide the last move's input is the slide's own
+	// line, which says nothing about whether the player still runs forward.
+	if (bHasMoveInput)
+	{
+		const FVector2D Held = GetHeldMoveInput();
+		return !Held.IsNearlyZero() && Held.GetSafeNormal().Y >= MinForward;
+	}
 	const ACharacter* Owner = Character.Get();
 	const FVector Input = Owner->GetLastMovementInputVector().GetSafeNormal2D();
 	if (Input.IsNearlyZero())
@@ -310,7 +333,7 @@ bool UPlayerLocomotionComponent::IsMovingForward() const
 		return false;
 	}
 	const FVector Facing = Owner->GetActorForwardVector().GetSafeNormal2D();
-	return FVector::DotProduct(Input, Facing) >= FMath::Cos(FMath::DegreesToRadians(SprintMaxInputAngle));
+	return FVector::DotProduct(Input, Facing) >= MinForward;
 }
 
 bool UPlayerLocomotionComponent::IsWeaponFiring() const
@@ -397,8 +420,10 @@ void UPlayerLocomotionComponent::UpdateStance(float DeltaTime)
 
 void UPlayerLocomotionComponent::UpdateAlphas(float DeltaTime)
 {
-	const float SprintTime = bSprinting ? SprintBlendTime : (bSprintInterrupted ? SprintInterruptBlendTime : SprintBlendTime);
-	SprintLinear = FMath::FInterpConstantTo(SprintLinear, bSprinting ? 1.f : 0.f, DeltaTime, 1.f / SprintTime);
+	// A slide that ends in the sprint brings the sprint pose (and its wider view) in as it eases out, so they hand over.
+	const bool bSprintPose = bSprinting || (bSlideExitsToSprint && Slide.IsEasingOut());
+	const float SprintTime = bSprintPose ? SprintBlendTime : (bSprintInterrupted ? SprintInterruptBlendTime : SprintBlendTime);
+	SprintLinear = FMath::FInterpConstantTo(SprintLinear, bSprintPose ? 1.f : 0.f, DeltaTime, 1.f / SprintTime);
 	SprintAlpha = FMath::SmoothStep(0.f, 1.f, SprintLinear);
 	if (SprintLinear <= 0.f)
 	{

@@ -82,15 +82,19 @@ void ALooterCharacter::JumpPressed()
 
 void ALooterCharacter::Move(const FInputActionValue& Value)
 {
-	// A slide holds its own line; the keys steer again once it ends.
-	const UPlayerLocomotionComponent* Locomotion = FindComponentByClass<UPlayerLocomotionComponent>();
-	if (Locomotion && Locomotion->IsSliding())
+	// The locomotion component reads the keys too (the sprint, and whether a slide ends in a run), even while a slide
+	// holds its own line; they steer again once it ends.
+	const FVector2D Input = Value.Get<FVector2D>();
+	if (UPlayerLocomotionComponent* Locomotion = FindComponentByClass<UPlayerLocomotionComponent>())
 	{
-		return;
+		Locomotion->HandleMoveInput(Input);
+		if (Locomotion->IsSliding())
+		{
+			return;
+		}
 	}
 
 	// X strafes and Y walks, both relative to where the character faces.
-	const FVector2D Input = Value.Get<FVector2D>();
 	AddMovementInput(GetActorRightVector(), Input.X);
 	AddMovementInput(GetActorForwardVector(), Input.Y);
 }

@@ -4,9 +4,11 @@
 
 /**
  * A slide: crouching out of a sprint on the ground carries the player along the line they were running, 10% faster
- * than they went in, for a short fixed time, low enough to pass under anything a crouch fits under. It ends early if
- * the player runs into something or leaves the ground. Pure rules (starting, the speed over time, ending), so they are
- * unit tested; UPlayerLocomotionComponent moves the character and poses the body from them.
+ * than they went in, for a short fixed time, low enough to pass under anything a crouch fits under. Over its last
+ * moments it eases to the speed the player goes on at (the sprint, when they hold forward; the crouched walk; or a stop),
+ * so it hands over without a dip. It ends early if the player runs into something or leaves the ground. Pure rules
+ * (starting, the speed over time, ending), so they are unit tested; UPlayerLocomotionComponent moves the character and
+ * poses the body from them.
  */
 struct FPlayerSlide
 {
@@ -14,9 +16,12 @@ struct FPlayerSlide
 	static constexpr float SpeedMultiplier = 1.1f;
 	/** Seconds a slide lasts: about six and a half metres at the player's sprint. */
 	static constexpr float Duration = 0.8f;
-	/** Over its last this-many seconds it slows to the crouched walk instead of stopping dead. */
-	static constexpr float EaseOutTime = 0.2f;
-	/** Moving at under this share of the slide's speed means it ran into something: it ends there. */
+	/**
+	 * Over its last this-many seconds it eases to the exit speed, on a smooth curve (no sudden braking as the ease starts
+	 * or ends). Long enough that coming to a stop out of a slide is gentler than stopping out of a walk.
+	 */
+	static constexpr float EaseOutTime = 0.3f;
+	/** Moving at under this share of what the last move allowed means it ran into something: it ends there. */
 	static constexpr float StallShare = 0.5f;
 
 	enum class EEnd : uint8 { None, Time, Stalled, Airborne, Cancelled };
@@ -26,9 +31,9 @@ struct FPlayerSlide
 
 	/**
 	 * Starts along the horizontal Velocity (Facing if standing still) at SpeedMultiplier times its speed. TopSpeed is the
-	 * most the slide holds (the full sprint's speed times SpeedMultiplier); ExitSpeed is what it eases down to at the end.
+	 * most the slide holds (the full sprint's speed times SpeedMultiplier).
 	 */
-	void Start(const FVector& Velocity, const FVector& Facing, float TopSpeed, float InExitSpeed)
+	void Start(const FVector& Velocity, const FVector& Facing, float TopSpeed)
 	{
 		const FVector Flat(Velocity.X, Velocity.Y, 0.0);
 		Direction = Flat.GetSafeNormal();
@@ -38,17 +43,18 @@ struct FPlayerSlide
 		}
 		StartSpeed = static_cast<float>(Flat.Size()) * SpeedMultiplier;
 		Top = FMath::Max(TopSpeed, StartSpeed);
-		ExitSpeed = FMath::Min(InExitSpeed, Top);
+		Speed = Top;
 		Elapsed = 0.f;
 		bActive = true;
 		LastEnd = EEnd::None;
 	}
 
 	/**
-	 * Moves the slide on by DeltaTime, given how fast the character actually moves now (horizontally) and whether it is
-	 * on the ground. Returns false once the slide is over.
+	 * Moves the slide on by DeltaTime, given how fast the character actually moved (horizontally) on the speed the slide
+	 * last allowed, whether it is on the ground, and the speed the player will go on at once it ends (ExitSpeed, read
+	 * each frame: the keys can change). Returns false once the slide is over.
 	 */
-	bool Advance(float DeltaTime, float ActualSpeed, bool bOnGround)
+	bool Advance(float DeltaTime, float ActualSpeed, bool bOnGround, float ExitSpeed)
 	{
 		if (!bActive)
 		{
@@ -63,10 +69,11 @@ struct FPlayerSlide
 		{
 			return Finish(EEnd::Time);
 		}
-		if (ActualSpeed < FMath::Min(StartSpeed, GetSpeed()) * StallShare)
+		if (ActualSpeed < FMath::Min(StartSpeed, Speed) * StallShare)
 		{
 			return Finish(EEnd::Stalled);
 		}
+		Speed = SpeedAt(Elapsed, ExitSpeed);
 		return true;
 	}
 
@@ -79,17 +86,20 @@ struct FPlayerSlide
 		}
 	}
 
-	/** The most the slide moves at right now: its top speed, easing down to the exit speed over the last EaseOutTime. */
-	float GetSpeed() const
+	/** The slide's speed at Time into it: its top speed, then over the last EaseOutTime a smooth ease to ExitSpeed. */
+	float SpeedAt(float Time, float ExitSpeed) const
 	{
 		const float EaseStart = Duration - EaseOutTime;
-		if (Elapsed <= EaseStart)
+		if (Time <= EaseStart)
 		{
 			return Top;
 		}
-		return FMath::Lerp(Top, ExitSpeed, FMath::Clamp((Elapsed - EaseStart) / EaseOutTime, 0.f, 1.f));
+		const float Alpha = FMath::Clamp((Time - EaseStart) / EaseOutTime, 0.f, 1.f);
+		return FMath::Lerp(Top, FMath::Clamp(ExitSpeed, 0.f, Top), FMath::SmoothStep(0.f, 1.f, Alpha));
 	}
 
+	/** The most the slide lets the character move at on its next move. */
+	float GetSpeed() const { return Speed; }
 	bool IsActive() const { return bActive; }
 	/** In the last EaseOutTime: the body starts coming up out of the slide pose. */
 	bool IsEasingOut() const { return bActive && Elapsed > Duration - EaseOutTime; }
@@ -109,7 +119,7 @@ private:
 	FVector Direction = FVector::ForwardVector;
 	float StartSpeed = 0.f;
 	float Top = 0.f;
-	float ExitSpeed = 0.f;
+	float Speed = 0.f;
 	float Elapsed = 0.f;
 	bool bActive = false;
 	EEnd LastEnd = EEnd::None;

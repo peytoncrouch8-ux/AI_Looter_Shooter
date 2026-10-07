@@ -8,8 +8,8 @@
  *
  * When both are asked for, the most recent press wins: holding crouch then pressing sprint stands up and sprints,
  * and letting go of sprint drops back into the crouch that is still held. Pressing one also clears the other's
- * toggle, so a toggled crouch doesn't come back after a sprint. Jump while crouched stands up (StandUp). Pure logic,
- * so the rules are unit tested.
+ * toggle, so a toggled crouch doesn't come back after a sprint. Jump while crouched stands up (StandUp), and a slide
+ * ending with forward held goes back into the sprint (ResumeSprint). Pure logic, so the rules are unit tested.
  */
 struct FStanceIntent
 {
@@ -23,6 +23,11 @@ struct FStanceIntent
 
 	void Press(EStance Stance)
 	{
+		if (Stance == EStance::Sprint)
+		{
+			// The key itself takes over a sprint kept on without it (ResumeSprint).
+			bSprintLatched = false;
+		}
 		bool& bActive = Stance == EStance::Sprint ? bSprintActive : bCrouchActive;
 		const bool bToggle = Stance == EStance::Sprint ? bSprintToggle : bCrouchToggle;
 		bActive = bToggle ? !bActive : true;
@@ -44,7 +49,8 @@ struct FStanceIntent
 	void Release(EStance Stance)
 	{
 		const bool bToggle = Stance == EStance::Sprint ? bSprintToggle : bCrouchToggle;
-		if (bToggle)
+		// A sprint kept on without its key has no key to let go of (the safety net for missed releases asks anyway).
+		if (bToggle || (Stance == EStance::Sprint && bSprintLatched))
 		{
 			return;
 		}
@@ -55,13 +61,30 @@ struct FStanceIntent
 		}
 	}
 
-	/** Ends a toggled sprint (the player stopped moving or started shooting). A held key keeps its intent. */
+	/**
+	 * Ends a toggled sprint, or one kept on out of a slide (the player stopped moving, shot or aimed). A held key keeps
+	 * its intent.
+	 */
 	void CancelSprintToggle()
 	{
-		if (bSprintToggle)
+		if (bSprintToggle || bSprintLatched)
 		{
 			bSprintActive = false;
+			bSprintLatched = false;
 		}
+	}
+
+	/**
+	 * A slide ending with forward held (the user's rule): back into the sprint as if its key were down, and out of any
+	 * crouch, a toggled one too. A sprint key still held keeps working as a held key; one already let go (hold mode) is
+	 * kept on without it, like a toggled sprint, until the player stops, shoots or aims.
+	 */
+	void ResumeSprint()
+	{
+		bSprintLatched = !bSprintToggle && !bSprintActive;
+		bSprintActive = true;
+		bCrouchActive = false;
+		Latest = EStance::Sprint;
 	}
 
 	/**
@@ -86,6 +109,7 @@ struct FStanceIntent
 	void Reset()
 	{
 		bSprintActive = false;
+		bSprintLatched = false;
 		bCrouchActive = false;
 		Latest = EStance::None;
 	}
@@ -96,6 +120,8 @@ private:
 	bool bSprintToggle = false;
 	bool bCrouchToggle = false;
 	bool bSprintActive = false;
+	/** The sprint is on without its key (hold mode, out of a slide): it behaves as a toggled one until it ends. */
+	bool bSprintLatched = false;
 	bool bCrouchActive = false;
 	EStance Latest = EStance::None;
 };

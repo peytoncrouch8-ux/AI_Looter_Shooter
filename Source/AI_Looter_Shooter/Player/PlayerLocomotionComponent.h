@@ -89,6 +89,11 @@ public:
 	 * (or does nothing when there's no room to stand). The next press jumps.
 	 */
 	void HandleJumpPressed();
+	/**
+	 * The movement keys (X strafe, Y forward), passed on by the character every frame they're down, even while a slide
+	 * ignores them for steering: whether the player runs forward decides the sprint and how a slide ends.
+	 */
+	void HandleMoveInput(const FVector2D& Input);
 
 	// --- Tuning ---
 
@@ -168,7 +173,17 @@ private:
 	void UpdateSlide(float DeltaTime);
 	/** Ends a slide (if one is under way) and gives the crouched walk its own speed back. */
 	void EndSlide();
+	/**
+	 * How a slide would end right now: back into the sprint (forward held, and not a held crouch key), else in the crouch.
+	 * The slide eases to the speed that goes with it (GetSlideExitSpeed), so it hands over without a dip.
+	 */
+	bool SlideEndsInSprint() const;
+	float GetSlideExitSpeed() const;
+	/** Out of a slide with forward held: stands at once (if there's room) and runs on in the sprint. */
+	void SprintOutOfSlide();
 
+	/** The movement keys held this frame (HandleMoveInput); zero once they stop coming. */
+	FVector2D GetHeldMoveInput() const;
 	bool IsMovingForward() const;
 	bool IsWeaponFiring() const;
 	/** The character's scale against the full-size body (1 for any character not scaled). */
@@ -201,6 +216,13 @@ private:
 	FPlayerSlide Slide;
 	/** A slide set the crouched walk's speed, and it still has to be given back (the slide may already have ended). */
 	bool bSlideHoldsSpeed = false;
+	/** The slide under way will end in the sprint (as of this frame's keys): the sprint pose comes in as it eases out. */
+	bool bSlideExitsToSprint = false;
+	/** The movement keys as the character last passed them on, and the frame it did (GFrameCounter). */
+	FVector2D MoveInput = FVector2D::ZeroVector;
+	uint64 MoveInputFrame = 0;
+	/** The character passes the keys on (the player's does), so they are read from there rather than the last move. */
+	bool bHasMoveInput = false;
 	bool bSprinting = false;
 	float BaseWalkSpeed = 600.f;
 	float LastFiringTime = -100.f;
