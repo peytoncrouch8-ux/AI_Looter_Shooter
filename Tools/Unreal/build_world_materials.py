@@ -22,6 +22,10 @@
                   ShadeColor where it thickens, darker cores against the sun and thin edges glowing near it.
   M_Waterfall,    unlit, translucent effects scrolling the macro noise: a falling water sheet's foam streaks, and
   M_Smoke         chimney smoke. Vertex color A is opacity (R foam on the waterfall).
+  M_GravewindWisp, unlit, translucent, two-sided: the Gravewind's cards at Gravewind Point (Art/Models/Props/
+  M_CanyonFog     Gravewind.py): world-scale noise streaks (the wisps off the Rim) or billows (the fog banks in the
+                  canyon) panned along UV1, fading edge-on, against what's behind, near the camera and (wisps) far off;
+                  lilac turning warm toward the sun, times MPC_Lighting's CloudTint; a sway from vertex G.
   M_Water         opaque, cheap: a dark color (the sky's reflection does the rest), glossy, procedural ripples on
                   UV 0 in meters.
   M_Gel           lit translucent gel (the slime): Tint, mostly clear facing the eye (Opacity) and denser at grazing
@@ -697,11 +701,97 @@ def build_smoke():
                   [('Opacity', lambda g: g.scalar('Opacity', 0.28, -900, 400))])
 
 
+# The Gravewind's cards (Art/Models/Props/Gravewind.py): UV1 in meters (X across, Y along: root to tail, bottom to top),
+# vertex alpha the opacity, R a phase per strand or card, G how far it sways. Two octaves of the macro noise at world
+# scale, panned along the strands, make the streaks or billows; they fade where a card turns edge-on, where it meets
+# what's behind it, near the camera and (the wisps) far off; the colour is the sky's cool lilac turning warm toward the
+# sun, times the clouds' lighting tint, so dusk reaches them.
+GRAVEWIND_NOISE = """float2 P = float2(UV1.x * ScaleAcross, (UV1.y - Time * Pan) * ScaleAlong) + Phase * 7.0;
+P += 0.18 * float2(sin(P.y * 2.1 + Time * 0.2), sin(P.x * 1.7 - Time * 0.15)) * Distort;
+float N = Texture2DSample(Noise, NoiseSampler, P).r * 0.65 + Texture2DSample(Noise, NoiseSampler, P * 2.1 + 0.37).r * 0.35;
+float Shape = saturate((N - Threshold) * Contrast);
+float EdgeOn = saturate(abs(dot(normalize(Normal), CameraVector)) * 2.5);
+float Dist = length(WorldPos - CameraPos);
+float Near = saturate((Dist - NearStart) / max(NearEnd - NearStart, 1.0));
+float Far = 1.0 - saturate((Dist - FarStart) / max(FarEnd - FarStart, 1.0));
+"""
+GRAVEWIND_OPACITY = GRAVEWIND_NOISE + """return saturate(Alpha * Shape * EdgeOn * Near * Far * Opacity) * Soft;"""
+GRAVEWIND_COLOR = """float Toward = pow(saturate(dot(-CameraVector, normalize(SunDirection + 1e-5))), SunPower);
+float Rise = lerp(BaseShade, 1.0, saturate((WorldPos.z - ObjectPos.z) / 1000.0));
+return lerp(Cool, Warm, Toward) * Rise * Brightness * CloudTint;"""
+GRAVEWIND_SWAY = """return normalize(Normal) * Sway * Amount * sin(Time * Speed + Phase * 6.28318 + UV1.y * Along);"""
+
+
+def gravewind(name, settings):
+    """An unlit, translucent, two-sided master for the Gravewind's cards, by the art session's spec: settings holds each
+    parameter's default (the wisps' and the fog's differ)."""
+    mat = material(name)
+    mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_TRANSLUCENT)
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
+    mat.set_editor_property('two_sided', True)
+    g = Graph(mat)
+    vertex = g.node(unreal.MaterialExpressionVertexColor, -1300, -100)
+    uv1 = g.node(unreal.MaterialExpressionTextureCoordinate, -1300, -250, coordinate_index=1)
+    normal = g.node(unreal.MaterialExpressionVertexNormalWS, -1300, 50)
+    camera = g.node(unreal.MaterialExpressionCameraVectorWS, -1300, 150)
+    world = g.node(unreal.MaterialExpressionWorldPosition, -1300, 250)
+    time = g.node(unreal.MaterialExpressionTime, -1300, 350)
+    params = {key: g.scalar(key, value, -1700, 40 * i) for i, (key, value) in enumerate(settings['scalars'].items())}
+    soft = g.node(unreal.MaterialExpressionDepthFade, -1000, 600)
+    g.link(params['DepthFade'], '', soft, 'FadeDistance')
+    opacity = g.custom(GRAVEWIND_OPACITY, [
+        ('UV1', uv1, ''), ('Alpha', vertex, 'A'), ('Phase', vertex, 'R'),
+        ('Noise', g.node(unreal.MaterialExpressionTextureObjectParameter, -1300, 450, parameter_name='Noise',
+                         texture=import_mask(MACRO_NOISE_FILE, MACRO_NOISE)), ''),
+        ('Time', time, ''), ('Normal', normal, ''), ('CameraVector', camera, ''), ('WorldPos', world, ''),
+        ('CameraPos', g.node(unreal.MaterialExpressionCameraPositionWS, -1300, 550), ''), ('Soft', soft, ''),
+    ] + [(key, params[key], '') for key in ('ScaleAcross', 'ScaleAlong', 'Pan', 'Distort', 'Threshold', 'Contrast',
+                                           'NearStart', 'NearEnd', 'FarStart', 'FarEnd', 'Opacity')],
+        unreal.CustomMaterialOutputType.CMOT_FLOAT1, -600, 200, f'{name} opacity')
+    color = g.custom(GRAVEWIND_COLOR, [
+        ('CameraVector', camera, ''), ('SunDirection', g.node(unreal.MaterialExpressionSkyAtmosphereLightDirection,
+                                                               -1300, 650), ''),
+        ('WorldPos', world, ''), ('ObjectPos', g.node(unreal.MaterialExpressionObjectPositionWS, -1300, 750), ''),
+        ('Cool', g.vector('Cool', settings['cool'], -1700, 600), ''),
+        ('Warm', g.vector('Warm', settings['warm'], -1700, 700), ''),
+        ('CloudTint', lighting_tint(g, 'CloudTint', -1700, 800), ''),
+    ] + [(key, params[key], '') for key in ('SunPower', 'BaseShade', 'Brightness')],
+        unreal.CustomMaterialOutputType.CMOT_FLOAT3, -600, -100, f'{name} color')
+    sway = g.custom(GRAVEWIND_SWAY, [
+        ('Normal', normal, ''), ('Sway', vertex, 'G'), ('Phase', vertex, 'R'), ('UV1', uv1, ''), ('Time', time, ''),
+    ] + [(key, params[key], '') for key in ('Amount', 'Speed', 'Along')],
+        unreal.CustomMaterialOutputType.CMOT_FLOAT3, -600, 500, f'{name} sway')
+    g.out(color, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    g.out(opacity, '', unreal.MaterialProperty.MP_OPACITY)
+    g.out(sway, '', unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET)
+    finish(mat, [])
+    return mat
+
+
+def build_gravewind_wisp():
+    """M_GravewindWisp: fine streaming streaks off the Rim at dusk (lengths in cm, Pan in m a second along UV1's V)."""
+    return gravewind('M_GravewindWisp', {
+        'cool': (0.434, 0.468, 0.658, 1.0), 'warm': (1.0, 0.527, 0.262, 1.0),
+        'scalars': dict(ScaleAcross=2.4, ScaleAlong=0.26, Pan=1.5, Distort=0.0, Threshold=0.34, Contrast=2.6,
+                        NearStart=50.0, NearEnd=200.0, FarStart=2500.0, FarEnd=6000.0, Opacity=0.5, DepthFade=50.0,
+                        SunPower=6.0, BaseShade=1.0, Brightness=1.0, Amount=15.0, Speed=1.3, Along=0.8)})
+
+
+def build_canyon_fog():
+    """M_CanyonFog: slow billowing banks rising out of the canyon at the deck, darker low down (no far fade: they're
+    the view)."""
+    return gravewind('M_CanyonFog', {
+        'cool': (0.503, 0.527, 0.701, 1.0), 'warm': (1.0, 0.565, 0.279, 1.0),
+        'scalars': dict(ScaleAcross=0.08, ScaleAlong=0.08, Pan=0.4, Distort=1.0, Threshold=0.3, Contrast=2.8,
+                        NearStart=400.0, NearEnd=1200.0, FarStart=1.0e6, FarEnd=2.0e6, Opacity=0.75, DepthFade=300.0,
+                        SunPower=3.0, BaseShade=0.6, Brightness=1.0, Amount=40.0, Speed=0.785, Along=0.0)})
+
+
 BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'M_Gun': lambda: build_gun(DEFAULT_ORM),
             'M_WorldFoliage': lambda: build_foliage(DEFAULT_ORM),
             'M_Terrain': build_terrain, 'M_Water': build_water, 'M_SkyClouds': build_sky_clouds,
             'M_Waterfall': build_waterfall, 'M_Smoke': build_smoke, 'M_Glass': build_glass, 'M_Gel': build_gel,
-            'M_Backdrop': build_backdrop}
+            'M_Backdrop': build_backdrop, 'M_GravewindWisp': build_gravewind_wisp, 'M_CanyonFog': build_canyon_fog}
 wanted = [name for name in sys.argv[1:] if name in BUILDERS] or list(BUILDERS)
 orm = default_orm()
 built = [BUILDERS[name]() for name in wanted]
