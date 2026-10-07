@@ -40,9 +40,11 @@ masters darken the colour by DiffuseAO of it (Web's 0.6: at most to 40%) and the
                   floor; grimy low down. One low hull.
   Cocoon_Hung     a calf-sized bundle, 1.3 m, curled under the silk, hanging from its knot on a twisted silk rope
                   and three strands: the pivot (and SOCKET_Top) is the hanging point, where they glue to the rock;
-                  its knot hangs 0.6 m below it and its bottom 1.9 m. Hang it from the den's brow, ceiling or a
-                  rock edge (the pivot a few cm into the rock); over her way only where its bottom clears her 3.6 m
-                  (the notch at the top of the arch). It sways a little as one piece. No collision.
+                  its knot hangs 1 m below it and its bottom 2.3 m; the strands reach 6-10 cm above the pivot, so
+                  they meet a sloping underside. Hang it from an overhang's underside (the brow, the arch, a rock
+                  edge), the pivot about 3 cm into the rock and the bundle 10 cm or more clear of the face; over her
+                  way only where its bottom clears her 3.6 m (the notch at the top of the arch). It sways a little
+                  as one piece. No collision.
   CoffinBoards    a coffin dragged in in pieces, 2.8 x 0.9 m: its lid broken in two (the head half flat, the foot
                   half fallen across two side boards), the side boards splintered, one still carrying its iron
                   handle, the end board fallen across the lid, nails, splinters. The graves kit's coffin wood
@@ -1344,7 +1346,9 @@ def cocoon_lying(name='Cocoon_Lying', seed=51):
 def cocoon_hung(name='Cocoon_Hung', seed=52):
     """A calf-sized bundle hanging from its knot: a lumpy teardrop round a curled body (head tucked down, legs folded
     against it), gathered at the top into a twisted silk rope, which runs up with three strands to where they glue to
-    the rock: the pivot, SOCKET_Top. The bundle's bottom is 1.9 m under the pivot."""
+    the rock: the pivot, SOCKET_Top. The knot hangs 1 m under the pivot, the bundle's bottom 2.3 m. The three strands
+    reach 6-10 cm above the pivot within 17 cm of it, so hung with the pivot a few cm into a rock's underside they
+    meet the rock where it slopes, under a small overhang too."""
     rnd = random.Random(seed)
     body = Shape(
         ellipsoids=[((0.0, 0.02, 0.66), (0.19, 0.16, 0.34)),             # the body
@@ -1364,20 +1368,22 @@ def cocoon_hung(name='Cocoon_Hung', seed=52):
     knot = Vector(skin.P[-1].mean(axis=0))
     rope = [knot - Vector((0.0, 0.0, 0.05)), knot + Vector((0.008, 0.0, 0.1)), knot + Vector((-0.004, 0.006, 0.22))]
     silk_rope(card, rope, [0.06, 0.045, 0.034], 6)
-    pivot = rope[-1] + Vector((0.0, 0.0, 0.4))
-    # The main line on up from the rope to the pivot, and three strands fanning to their own glue spots round it.
-    tops = [pivot] + [pivot + Vector((math.cos(a) * r, math.sin(a) * r, rnd.uniform(-0.05, 0.03)))
-                      for a, r in ((0.3, 0.26), (2.4, 0.3), (4.3, 0.24))]
+    pivot = rope[-1] + Vector((0.0, 0.0, 0.78))
+    # The main line on up from the rope to the pivot, and three strands fanning to their own glue spots round it, a
+    # little higher than it (they meet a sloping underside too).
+    tops = [pivot] + [pivot + Vector((math.cos(a) * r, math.sin(a) * r, rnd.uniform(0.06, 0.1)))
+                      for a, r in ((0.3, 0.15), (2.4, 0.17), (4.3, 0.13))]
+    steps = [i / 6.0 for i in range(7)]
     for k, top in enumerate(tops):
         start = rope[-1] if k == 0 else rope[1] + Vector((rnd.uniform(-0.02, 0.02), rnd.uniform(-0.02, 0.02), 0.0))
-        pts = [start.lerp(top, f) for f in (0.0, 0.25, 0.5, 0.75, 1.0)]
-        pts = wiggle(pts, 0.008, rnd, waves=1.0)
-        winds = [0.08 * (1.0 - f) for f in (0.0, 0.25, 0.5, 0.75, 1.0)]
+        pts = [start.lerp(top, f) for f in steps]
+        pts = wiggle(pts, 0.012, rnd, waves=1.2)
+        winds = [0.08 * (1.0 - f) for f in steps]
         cord(card, pts, 0.05 if k == 0 else 0.04, 'Rope' if k == 0 else rnd.choice(('Cord', 'Tufted')),
-             rnd.uniform(0.0, 1500.0), winds, rnd.random(), occ=[1.0, 0.95, 0.9, 0.85, 0.75])
+             rnd.uniform(0.0, 1500.0), winds, rnd.random(), occ=[1.0, 0.97, 0.94, 0.9, 0.87, 0.82, 0.75])
     # Sway: the whole thing swings a little on its rope as one piece (one phase), more the lower it hangs.
     for i, c in enumerate(card.co):
-        w = min(0.25, max(0.0, (pivot.z - c.z) / 2.2) * 0.25)
+        w = min(0.25, max(0.0, (pivot.z - c.z) / 2.6) * 0.25)
         card.col[i] = (w, 0.0, 0.0, card.col[i][3])
     card.apply(Matrix.Translation(-pivot))
     obj = card.build()
@@ -1844,25 +1850,27 @@ PLACEMENT = [
     ('Bones_PileA', -6.1, -2.5, -0.05, -75.0, 'beside the skull, its back against the talus block at the face', False),
     ('Bones_Scatter', -4.4, -4.5, -0.05, 30.0, 'spilling out in front of the skull', False),
     ('Bones_Scatter', -3.65, -1.3, -0.03, 88.0, 'the trail on over the threshold, at the left jamb (mirrored)', True),
-    ('Cocoon_Hung', -3.45, -0.8, 4.47, 0.0, "hung from the brow over the mouth's left corner (z: its pivot)", False),
-    ('Cocoon_Hung', -1.2, -0.3, 6.62, 60.0, "hung in the notch at the top of the arch: its bottom 4.7 m up, over her",
-     False),
+    ('Cocoon_Hung', -3.6, -0.8, 3.89, 60.0, "hung under the brow over the mouth's left corner (z: its pivot, 3 cm "
+     "into the rock)", False),
+    ('Cocoon_Hung', -1.2, -0.6, 6.47, 80.0, "hung in the notch at the top of the arch (z: its pivot, 3 cm into the "
+     "rock): its bottom 4.2 m up, over her", False),
     # The mouth's right side.
     ('Ribcage', 5.6, -3.0, -0.05, -15.0, "the mouth's right side, out on the Sink floor", False),
     ('Relic_Boot', 4.3, -3.7, -0.05, 40.0, 'by the ribcage', False),
     ('Bones_Scatter', 6.4, -4.4, -0.05, -20.0, 'in front of the ribcage', False),
-    ('Cocoon_Hung', 3.6, -1.4, 4.01, 140.0, "hung from the brow over the mouth's right corner (z: its pivot)", False),
-    ('CoffinBoards', 3.6, -0.1, 0.0, 96.0, 'dragged in past the right jamb, half over the threshold', False),
-    ('Relic_Hat', 3.51, -0.71, 0.04, 15.0, "set on the coffin lid's head half", False),
+    ('Cocoon_Hung', 3.6, -1.4, 4.03, 160.0, "hung under the brow over the mouth's right corner (z: its pivot, 3 cm "
+     "into the rock)", False),
+    ('CoffinBoards', 3.6, -0.1, -0.02, 96.0, 'dragged in past the right jamb, half over the threshold', False),
+    ('Relic_Hat', 3.51, -0.71, 0.02, 15.0, "set on the coffin lid's head half", False),
     # Inside, the left wall foot.
-    ('Cocoon_Lying', -3.45, 1.4, 0.08, 90.0, 'the left wall foot just inside the mouth, head into the den', False),
+    ('Cocoon_Lying', -3.45, 1.4, 0.05, 90.0, 'the left wall foot just inside the mouth, head into the den', False),
     ('Bones_PileA', -3.45, 3.95, 0.12, 90.0, 'the left wall foot past the fallen block, its back to the wall', False),
-    ('Bones_Scatter', -3.56, 5.6, 0.16, 92.0, 'the left wall foot further in (mirrored)', True),
+    ('Bones_Scatter', -3.56, 5.6, 0.2, 92.0, 'the left wall foot further in (mirrored)', True),
     # Inside, the right wall foot.
-    ('Bones_PileA', 3.65, 2.3, 0.05, -90.0, 'the right wall foot, its back to the wall', False),
-    ('Bones_Scatter', 3.62, 4.7, 0.12, 90.0, 'the right wall foot further in', False),
+    ('Bones_PileA', 3.65, 2.3, 0.07, -90.0, 'the right wall foot, its back to the wall', False),
+    ('Bones_Scatter', 3.62, 4.7, 0.135, 90.0, 'the right wall foot further in', False),
     # The pocket.
-    ('Bones_PileB', 2.2, 6.85, 0.19, -90.0, "the larder: the pocket's right side, its front toward the den's middle, "
+    ('Bones_PileB', 2.2, 6.85, 0.2, -90.0, "the larder: the pocket's right side, its front toward the den's middle, "
      "off her body as she rests at SOCKET_Den", False),
 ]
 
@@ -1891,7 +1899,9 @@ def write_placement(path):
                        'right looking out, +Z up; cm; yaw as Unreal\'s (clockwise from above); a mirrored piece '
                        'has its actor scale Y = -1',
         'clear_way': 'nothing on the floor within |x| < 3 m (Blender) down the den and out across the Sink floor, '
-                     'her way; the hung cocoon in the arch hangs over it with its bottom 4.7 m up',
+                     'her way; the hung cocoon in the arch hangs over it with its bottom 4.2 m up',
+        'hung': 'each SM_Cocoon_Hung pivot (SOCKET_Top) is 3 cm into the underside of an overhang (the brow, the arch) '
+                'of SM_DenRock, its strands meet the rock and its bundle hangs 10 cm or more clear of the face',
         'gravemother': 'rests at SOCKET_Den (0, 7.3) facing out; her body is |x| < 0.8 m, y 6.3 to 9.7 m at 1.8x; '
                        'the larder (x 1.4 to 3.0) keeps 0.6 m off it',
         'placements': rows,

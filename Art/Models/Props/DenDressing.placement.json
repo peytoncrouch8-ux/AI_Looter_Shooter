@@ -2,7 +2,8 @@
   "space": "SOCKET_DenMouth of SM_DenRock (Intermediate/ArtExport_RR_DenRock/SM_DenRock.fbx)",
   "axes_blender": "+X right looking into the den, +Y into the den, +Z up from the den floor at the mouth; yaw counterclockwise from above; yaw 0 = the model faces out of the den (its -Y); scale -1 on x = mirrored (applied before the yaw)",
   "axes_unreal": "the socket's own space in Unreal: +X out of the den (the socket's forward), +Y to the right looking out, +Z up; cm; yaw as Unreal's (clockwise from above); a mirrored piece has its actor scale Y = -1",
-  "clear_way": "nothing on the floor within |x| < 3 m (Blender) down the den and out across the Sink floor, her way; the hung cocoon in the arch hangs over it with its bottom 4.7 m up",
+  "clear_way": "nothing on the floor within |x| < 3 m (Blender) down the den and out across the Sink floor, her way; the hung cocoon in the arch hangs over it with its bottom 4.2 m up",
+  "hung": "each SM_Cocoon_Hung pivot (SOCKET_Top) is 3 cm into the underside of an overhang (the brow, the arch) of SM_DenRock, its strands meet the rock and its bundle hangs 10 cm or more clear of the face",
   "gravemother": "rests at SOCKET_Den (0, 7.3) facing out; her body is |x| < 0.8 m, y 6.3 to 9.7 m at 1.8x; the larder (x 1.4 to 3.0) keeps 0.6 m off it",
   "placements": [
     {
@@ -216,35 +217,9 @@
     {
       "asset": "SM_Cocoon_Hung",
       "blender_m": [
-        -3.45,
+        -3.6,
         -0.8,
-        4.47
-      ],
-      "yaw_blender_deg": 0.0,
-      "scale_blender": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "unreal_cm": [
-        80.0,
-        345.0,
-        447.0
-      ],
-      "yaw_unreal_deg": -0.0,
-      "scale_unreal": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "note": "hung from the brow over the mouth's left corner (z: its pivot)"
-    },
-    {
-      "asset": "SM_Cocoon_Hung",
-      "blender_m": [
-        -1.2,
-        -0.3,
-        6.62
+        3.89
       ],
       "yaw_blender_deg": 60.0,
       "scale_blender": [
@@ -253,9 +228,9 @@
         1.0
       ],
       "unreal_cm": [
-        30.0,
-        120.0,
-        662.0
+        80.0,
+        360.0,
+        389.0
       ],
       "yaw_unreal_deg": -60.0,
       "scale_unreal": [
@@ -263,7 +238,33 @@
         1.0,
         1.0
       ],
-      "note": "hung in the notch at the top of the arch: its bottom 4.7 m up, over her"
+      "note": "hung under the brow over the mouth's left corner (z: its pivot, 3 cm into the rock)"
+    },
+    {
+      "asset": "SM_Cocoon_Hung",
+      "blender_m": [
+        -1.2,
+        -0.6,
+        6.47
+      ],
+      "yaw_blender_deg": 80.0,
+      "scale_blender": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unreal_cm": [
+        60.0,
+        120.0,
+        647.0
+      ],
+      "yaw_unreal_deg": -80.0,
+      "scale_unreal": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "note": "hung in the notch at the top of the arch (z: its pivot, 3 cm into the rock): its bottom 4.2 m up, over her"
     },
     {
       "asset": "SM_Ribcage",
@@ -348,9 +349,9 @@
       "blender_m": [
         3.6,
         -1.4,
-        4.01
+        4.03
       ],
-      "yaw_blender_deg": 140.0,
+      "yaw_blender_deg": 160.0,
       "scale_blender": [
         1.0,
         1.0,
@@ -359,22 +360,22 @@
       "unreal_cm": [
         140.0,
         -360.0,
-        401.0
+        403.0
       ],
-      "yaw_unreal_deg": -140.0,
+      "yaw_unreal_deg": -160.0,
       "scale_unreal": [
         1.0,
         1.0,
         1.0
       ],
-      "note": "hung from the brow over the mouth's right corner (z: its pivot)"
+      "note": "hung under the brow over the mouth's right corner (z: its pivot, 3 cm into the rock)"
     },
     {
       "asset": "SM_CoffinBoards",
       "blender_m": [
         3.6,
         -0.1,
-        0.0
+        -0.02
       ],
       "yaw_blender_deg": 96.0,
       "scale_blender": [
@@ -385,7 +386,7 @@
       "unreal_cm": [
         10.0,
         -360.0,
-        0.0
+        -2.0
       ],
       "yaw_unreal_deg": -96.0,
       "scale_unreal": [
@@ -400,7 +401,7 @@
       "blender_m": [
         3.51,
         -0.71,
-        0.04
+        0.02
       ],
       "yaw_blender_deg": 15.0,
       "scale_blender": [
@@ -411,7 +412,7 @@
       "unreal_cm": [
         71.0,
         -351.0,
-        4.0
+        2.0
       ],
       "yaw_unreal_deg": -15.0,
       "scale_unreal": [
@@ -426,7 +427,7 @@
       "blender_m": [
         -3.45,
         1.4,
-        0.08
+        0.05
       ],
       "yaw_blender_deg": 90.0,
       "scale_blender": [
@@ -437,7 +438,7 @@
       "unreal_cm": [
         -140.0,
         345.0,
-        8.0
+        5.0
       ],
       "yaw_unreal_deg": -90.0,
       "scale_unreal": [
@@ -478,7 +479,7 @@
       "blender_m": [
         -3.56,
         5.6,
-        0.16
+        0.2
       ],
       "yaw_blender_deg": 92.0,
       "scale_blender": [
@@ -489,7 +490,7 @@
       "unreal_cm": [
         -560.0,
         356.0,
-        16.0
+        20.0
       ],
       "yaw_unreal_deg": -92.0,
       "scale_unreal": [
@@ -504,7 +505,7 @@
       "blender_m": [
         3.65,
         2.3,
-        0.05
+        0.07
       ],
       "yaw_blender_deg": -90.0,
       "scale_blender": [
@@ -515,7 +516,7 @@
       "unreal_cm": [
         -230.0,
         -365.0,
-        5.0
+        7.0
       ],
       "yaw_unreal_deg": 90.0,
       "scale_unreal": [
@@ -530,7 +531,7 @@
       "blender_m": [
         3.62,
         4.7,
-        0.12
+        0.135
       ],
       "yaw_blender_deg": 90.0,
       "scale_blender": [
@@ -541,7 +542,7 @@
       "unreal_cm": [
         -470.0,
         -362.0,
-        12.0
+        13.5
       ],
       "yaw_unreal_deg": -90.0,
       "scale_unreal": [
@@ -556,7 +557,7 @@
       "blender_m": [
         2.2,
         6.85,
-        0.19
+        0.2
       ],
       "yaw_blender_deg": -90.0,
       "scale_blender": [
@@ -567,7 +568,7 @@
       "unreal_cm": [
         -685.0,
         -220.0,
-        19.0
+        20.0
       ],
       "yaw_unreal_deg": 90.0,
       "scale_unreal": [
