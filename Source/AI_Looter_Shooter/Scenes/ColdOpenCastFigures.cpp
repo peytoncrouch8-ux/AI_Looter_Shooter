@@ -119,6 +119,67 @@ namespace
 		return Axes;
 	}
 
+	/**
+	 * Where a cold-open prop sits on the mannequin (Art/Models/Props/ColdOpen.py, measured on its bones): the bone, and the
+	 * prop's place and turn there (pitch, yaw, roll).
+	 */
+	struct FPropHold
+	{
+		const TCHAR* Bone;
+		FVector Where;
+		FRotator Turn;
+	};
+	const FPropHold OnHead{ TEXT("head"), FVector(10.43, 2.04, 0.0), FRotator(0.0, 90.0, -90.0) };
+	const FPropHold AimInHand{ TEXT("hand_r"), FVector(-7.01, 2.05, 0.0), FRotator(0.0, 180.0, 0.0) };
+	// A long gun hanging from the at-ease hand on the aim hold reads as a stick (and the long rifle hits the ground): at
+	// ease it's carried tipped forward, or slung across the back.
+	const FPropHold CarriedAtEase{ TEXT("hand_r"), FVector(-7.01, 2.05, 0.0), FRotator(75.0, 180.0, 0.0) };
+	const FPropHold SlungCoachGun{ TEXT("spine_05"), FVector(-29.58, -22.07, 8.60), FRotator(-30.0, 10.1, 0.0) };
+	const FPropHold SlungLeverRifle{ TEXT("spine_05"), FVector(-35.71, -23.17, 12.20), FRotator(-30.0, 10.1, 0.0) };
+	const FPropHold SlungLongRifle{ TEXT("spine_05"), FVector(-43.13, -24.50, 16.55), FRotator(-30.0, 10.1, 0.0) };
+	const FPropHold KegOnBack{ TEXT("spine_05"), FVector(-1.48, -15.02, 0.0), FRotator(0.0, 10.1, -90.0) };
+	const FPropHold BagInLeftHand{ TEXT("hand_l"), FVector(7.52, -2.53, 0.0), FRotator(-90.0, 180.0, 0.0) };
+
+	struct FOutfitProp
+	{
+		const TCHAR* Mesh;
+		const FPropHold* Hold;
+		bool bGun;
+	};
+
+	/** The props by the gang's order (the Deacon, Lucky Ned, Ira, Constance, Barrels, Lena, Mule), on the skiff and the Point alike. */
+	const TArray<TArray<FOutfitProp>>& Outfits()
+	{
+		static const TArray<TArray<FOutfitProp>> Gang = {
+			// The Deacon: the preacher's hat; his coach gun slung, the ember in his left hand until he draws.
+			{ { TEXT("/Game/Art/Props/SM_ColdOpen_HatPreacher.SM_ColdOpen_HatPreacher"), &OnHead, false },
+			  { TEXT("/Game/Art/Props/SM_ColdOpen_CoachGun.SM_ColdOpen_CoachGun"), &SlungCoachGun, true } },
+			// Lucky Ned: the gambler's hat and the revolver he shoots Abel with.
+			{ { TEXT("/Game/Art/Props/SM_ColdOpen_HatGambler.SM_ColdOpen_HatGambler"), &OnHead, false },
+			  { TEXT("/Game/Art/Props/SM_ColdOpen_Revolver.SM_ColdOpen_Revolver"), &AimInHand, true } },
+			// Whistling Ira: a slouch hat, his lever rifle carried.
+			{ { TEXT("/Game/Art/Props/SM_ColdOpen_HatSlouch.SM_ColdOpen_HatSlouch"), &OnHead, false },
+			  { TEXT("/Game/Art/Props/SM_ColdOpen_LeverRifle.SM_ColdOpen_LeverRifle"), &CarriedAtEase, true } },
+			// Sister Constance: the veil, her rifle slung and her medic's bag in her left hand.
+			{ { TEXT("/Game/Art/Props/SM_ColdOpen_Veil.SM_ColdOpen_Veil"), &OnHead, false },
+			  { TEXT("/Game/Art/Props/SM_ColdOpen_LeverRifle.SM_ColdOpen_LeverRifle"), &SlungLeverRifle, true },
+			  { TEXT("/Game/Art/Props/SM_ColdOpen_MedicBag.SM_ColdOpen_MedicBag"), &BagInLeftHand, false } },
+			// Barrels: the bowler, a coach gun carried and his powder keg on his back.
+			{ { TEXT("/Game/Art/Props/SM_ColdOpen_HatBowler.SM_ColdOpen_HatBowler"), &OnHead, false },
+			  { TEXT("/Game/Art/Props/SM_ColdOpen_CoachGun.SM_ColdOpen_CoachGun"), &CarriedAtEase, true },
+			  { TEXT("/Game/Art/Props/SM_ColdOpen_PowderKeg.SM_ColdOpen_PowderKeg"), &KegOnBack, false } },
+			// Lena "Spyglass": a slouch hat, her scoped long rifle slung.
+			{ { TEXT("/Game/Art/Props/SM_ColdOpen_HatSlouch.SM_ColdOpen_HatSlouch"), &OnHead, false },
+			  { TEXT("/Game/Art/Props/SM_ColdOpen_LongRifle.SM_ColdOpen_LongRifle"), &SlungLongRifle, true } },
+			// Mule: the flat cap, a coach gun carried.
+			{ { TEXT("/Game/Art/Props/SM_ColdOpen_FlatCap.SM_ColdOpen_FlatCap"), &OnHead, false },
+			  { TEXT("/Game/Art/Props/SM_ColdOpen_CoachGun.SM_ColdOpen_CoachGun"), &CarriedAtEase, true } },
+		};
+		return Gang;
+	}
+
+	const FName MuzzleSocket(TEXT("Muzzle"));
+
 	/** A plain shape of the engine's for Sexton's stand-in, in his seat's frame (the engine's shapes are 100 cm across). */
 	UStaticMeshComponent* AddShape(AActor& Owner, USceneComponent* Seat, const TCHAR* Shape, const FVector& Where, const FRotator& Turn,
 		const FVector& Size)
@@ -190,6 +251,54 @@ UPoseableMeshComponent* AColdOpenCast::MakeFigure(USceneComponent* Parent, const
 	PaintBlack(*Figure);
 	PoseAtEase(*Figure);
 	return Figure;
+}
+
+UStaticMeshComponent* AColdOpenCast::Outfit(UPoseableMeshComponent& Figure, int32 Index)
+{
+	if (!Outfits().IsValidIndex(Index))
+	{
+		return nullptr;
+	}
+	UStaticMeshComponent* Gun = nullptr;
+	for (const FOutfitProp& Prop : Outfits()[Index])
+	{
+		const FName Bone(Prop.Hold->Bone);
+		UStaticMesh* Model = LoadIfMade(TSoftObjectPtr<UStaticMesh>(FSoftObjectPath(Prop.Mesh)));
+		if (!Model || !HasBone(Figure, Bone))
+		{
+			continue;
+		}
+		UStaticMeshComponent* Part = NewObject<UStaticMeshComponent>(this, NAME_None, RF_Transient);
+		Part->SetupAttachment(&Figure, Bone);
+		Part->SetMobility(EComponentMobility::Movable);
+		Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Part->SetCastShadow(false);
+		Part->SetStaticMesh(Model);
+		Part->SetRelativeLocationAndRotation(Prop.Hold->Where, Prop.Hold->Turn);
+		Part->RegisterComponent();
+		PaintBlack(*Part);
+		Gun = Prop.bGun ? Part : Gun;
+	}
+	return Gun;
+}
+
+void AColdOpenCast::HoldGunToAim(int32 GangIndex)
+{
+	UStaticMeshComponent* Gun = GangGuns.IsValidIndex(GangIndex) ? GangGuns[GangIndex].Get() : nullptr;
+	UPoseableMeshComponent* Figure = Gang.IsValidIndex(GangIndex) ? Gang[GangIndex].Get() : nullptr;
+	if (!Gun || !Figure || !HasBone(*Figure, FName(AimInHand.Bone)))
+	{
+		return;
+	}
+	// Off the back or out of the carry, into the hand as the arm comes up.
+	Gun->AttachToComponent(Figure, FAttachmentTransformRules::KeepRelativeTransform, FName(AimInHand.Bone));
+	Gun->SetRelativeLocationAndRotation(AimInHand.Where, AimInHand.Turn);
+}
+
+FVector AColdOpenCast::GunMuzzle(int32 GangIndex, const FVector& Fallback) const
+{
+	const UStaticMeshComponent* Gun = GangGuns.IsValidIndex(GangIndex) ? GangGuns[GangIndex].Get() : nullptr;
+	return Gun && Gun->DoesSocketExist(MuzzleSocket) ? Gun->GetSocketLocation(MuzzleSocket) : Fallback;
 }
 
 void AColdOpenCast::PoseAtEase(UPoseableMeshComponent& Figure)

@@ -215,6 +215,7 @@ void AColdOpenCast::BuildSkiff(const AColdOpenSet& Set)
 	{
 		if (UPoseableMeshComponent* Figure = MakeFigure(Skiff, Spot))
 		{
+			Outfit(*Figure, SkiffCrew.Num());
 			SkiffCrew.Add(Figure);
 		}
 	}
@@ -224,10 +225,12 @@ void AColdOpenCast::BuildPoint(const AColdOpenSet& Set)
 {
 	UWorld* World = GetWorld();
 	Gang.Reset();
+	GangGuns.Reset();
 	for (const FTransform& Spot : Set.Gang)
 	{
 		if (UPoseableMeshComponent* Figure = MakeFigure(Root, Set.ToWorld(Spot)))
 		{
+			GangGuns.Add(Outfit(*Figure, Gang.Num()));
 			Gang.Add(Figure);
 		}
 	}
@@ -376,6 +379,7 @@ void AColdOpenCast::Aim(int32 GangIndex, const FVector& Target)
 	if (Gang.IsValidIndex(GangIndex) && Gang[GangIndex])
 	{
 		PoseAim(*Gang[GangIndex], Target);
+		HoldGunToAim(GangIndex);
 	}
 }
 
@@ -387,8 +391,8 @@ void AColdOpenCast::Fire(int32 GangIndex, const FVector& Target)
 	}
 	const FVector Hand = BoneInWorld(Gang[GangIndex], GunHand);
 	const FVector Along = (Target - Hand).GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector);
-	// Just past the hand, where a pistol's muzzle would be.
-	const FVector Muzzle = Hand + Along * 22.f;
+	// The gun's own muzzle (its prop's Muzzle socket), else just past the hand, where a pistol's would be.
+	const FVector Muzzle = GunMuzzle(GangIndex, Hand + Along * 22.f);
 	UWorld* World = GetWorld();
 	if (UBulletSubsystem* Bullets = World ? World->GetSubsystem<UBulletSubsystem>() : nullptr)
 	{

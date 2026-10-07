@@ -18,7 +18,8 @@ class UStaticMeshComponent;
  * Everything the cold open shows that the level doesn't have, staged cheaply on purpose (Docs/Story.md: Cold open): the
  * gang's skiff in its dark paint with the gang on its deck, the gang again on the lookout's deck, Saint Ada's ember in the
  * Deacon's gloved hand, Abel running up the bluff path with his lantern, the muzzle flashes, and Mister Sexton on the far
- * rail. The people are the UE mannequin posed by code and drawn flat black, with no costumes; Sexton is his seated model
+ * rail. The people are the UE mannequin posed by code and drawn flat black, each outlaw's hat and guns on its bones
+ * (ColdOpen.py's props, so every silhouette reads as who it is); Sexton is his seated model
  * (SM_MisterSexton, on the lookout's Sit socket, with his ledger on its Ledger socket) drawn black, or a stand-in of plain
  * shapes in a checkout that hasn't imported him yet.
  *
@@ -110,6 +111,17 @@ private:
 	/** A mannequin standing on Feet (relative to Parent, facing its +X), drawn black, posed at ease. */
 	UPoseableMeshComponent* MakeFigure(USceneComponent* Parent, const FTransform& Feet);
 
+	/**
+	 * The outlaw's own silhouette props (Art/Models/Props/ColdOpen.py), drawn black with the figure: a hat or veil, a gun at
+	 * ease (in hand, carried or slung), a keg or a medic bag. Index is the gang's order: the Deacon, Lucky Ned, Ira,
+	 * Constance, Barrels, Lena, Mule. Returns the gun (null without one, or before the props are imported).
+	 */
+	UStaticMeshComponent* Outfit(UPoseableMeshComponent& Figure, int32 Index);
+
+	/** A gang member's gun brought into the aiming hand (as the arm comes up), and its muzzle (world; Fallback without). */
+	void HoldGunToAim(int32 GangIndex);
+	FVector GunMuzzle(int32 GangIndex, const FVector& Fallback) const;
+
 	/** Mister Sexton on the lookout's Sit socket (or the set's seat): his model and ledger drawn black, or the stand-in. */
 	void BuildSexton(const AColdOpenSet& Set);
 	void BuildSextonStandIn(USceneComponent* Seat);
@@ -133,6 +145,10 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UPoseableMeshComponent>> Gang;
+
+	/** Each of the Point's gang's gun (null for none), by the same index. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UStaticMeshComponent>> GangGuns;
 
 	UPROPERTY(Transient)
 	TObjectPtr<USkeletalMeshComponent> Abel;
