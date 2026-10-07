@@ -843,7 +843,9 @@ Each step ends with something you can look at or play. Each one names the consol
 - You get: Amos, Whitlock Fields dressed, and Side 2.
 - You approve: Amos's mission.
 
-**26. Ranger caches (optional)** (approved on 2026-10-08; in progress).
+**26. Ranger caches (optional)** (approved on 2026-10-08; built on 2026-10-08, waiting for your approval after opening
+them: the windmill's crate under the tower, the Sink rim's, the bluff path's, and the gang's Strongbox in the sheriff's
+office).
 - You get, only with your OK: the Supply Crate and Strongbox out of the backlog, `AChest`, the three caches and the sheriff's Strongbox.
 - You approve: the import, then the chests after opening them.
 
@@ -852,7 +854,7 @@ Each step ends with something you can look at or play. Each one names the consol
 - You approve: Ransom's Rest as done, after a new session from the tutorial to the station board at the depot and a practice trip to Skyreach and back. Then you decide whether the *Gilded Lily* stays an airship, and only then does it start.
 - Where it stands (2026-10-07):
   - XP: `Looter.XP.Path` plays the missions on paper with the level as built. The main path ends at level 9.7 after 53 kills (every kill comes from a mission's encounters, egg sacs or Abel's adds; the level has no roaming creatures), and with Sides 1 and 3 at 10.1, the band's top. No retuning was needed.
-  - Tests: all 211 `Looter.*` tests pass, including `Looter.World.RansomsRest.InsideBoundary` (every respawn grave, player start, encounter spot and tour view inside the boundary).
+  - Tests: all `Looter.*` tests pass (219 on 2026-10-08), including `Looter.World.RansomsRest.InsideBoundary` (every respawn grave, player start, encounter spot and tour view inside the boundary).
   - Ledger pages: every new creature and character has one (the Unpaid, the Gravemother, Hob, Sexton, Delia, Aldana, Tilly, Ruth, Abel, Amos, and the seven names).
   - Performance, Medium with the editor closed: all 28 tour views run at 150-218 fps (heaviest: the Farm, 6.7 ms). The spawn measures 6.5 ms and the deck at dusk with Abel and 10 adds 5.5 ms (`Docs/Performance.md`). The busiest views draw 750-850 (the plan guessed about 700), well inside the frame budget.
   - Also built since the plan: the layout's fences, walls, grave rows, cairns and yard props (`build_area_dressing.py`, 391 instances), the ridge faces broken up with slope scrub and crease pines, and the Gravemother's den dressed.
