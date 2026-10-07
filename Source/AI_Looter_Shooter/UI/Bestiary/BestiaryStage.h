@@ -97,6 +97,10 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Stage")
 	TObjectPtr<USkeletalMeshComponent> Model;
 
+	/** A still model (UBestiaryEntry::PreviewStaticMesh), shown instead when the entry has no skeletal one. */
+	UPROPERTY(VisibleAnywhere, Category = "Stage")
+	TObjectPtr<UStaticMeshComponent> StillModel;
+
 	/** What the model wears on its bones (a hat), one component per part, kept for the next entry. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> Parts;

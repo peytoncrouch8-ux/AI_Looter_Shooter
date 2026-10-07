@@ -182,10 +182,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Bestiary
 - `Bestiary/BestiaryEntry`: `UBestiaryEntry`, `EBestiaryCategory` and `EBestiaryPage`, one bestiary page as a data asset
-  (in `/Game/Data/Bestiary`): words and stand model, with level, health, attack and experience read from its actor class,
-  and what the actor wears on its bones (a hat) for the stand. Its page type: an actor met in the world, a story
-  character with no actor (open once its story condition holds), or one of the Ledger's seven names (whereabouts blank
-  until found); pages written in the Ledger only. `Tools/Unreal/create_bestiary_pages.py` writes pages from data (the
+  (in `/Game/Data/Bestiary`): words and stand model (skinned, or a still one for a seated figure), with level, health,
+  attack and experience read from its actor class, and what the actor wears on its bones (a hat) for the stand. Its page
+  type: an actor met in the world, a story character with no actor (open once its story condition holds), or one of the
+  Ledger's seven names (whereabouts blank until found); pages written in the Ledger only. `Tools/Unreal/create_bestiary_pages.py` writes pages from data (the
   Unpaid's; Hob's, Sexton's, Delia's, Tilly's, Aldana's and Ruth's; the seven names).
 - `Bestiary/Ledger`: `Ledger`, the bestiary as Sexton's Ledger from Main 2's "Open the Ledger" step on (read from the
   campaign record), its name on the inventory's tab and key hints, and its words in his voice.
@@ -486,8 +486,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   actor's numbers, a story character's words, a Ledger name's whereabouts).
 - `UI/Bestiary/BestiaryWidgetInput.cpp`: its keys, turning the model, and the ring it stands on.
 - `UI/Bestiary/BestiaryWidget.h`: the bestiary's declaration.
-- `UI/Bestiary/BestiaryStage`: `ABestiaryStage`, the off-screen stand that shows an entry's model, framed to its size,
-  wearing what the actor wears on its bones.
+- `UI/Bestiary/BestiaryStage`: `ABestiaryStage`, the off-screen stand that shows an entry's model (skinned or still),
+  framed to its size, wearing what the actor wears on its bones.
 - `UI/World/WeaponLabelWidget`: the label over loot guns.
 - `UI/World/CreatureHealthBarWidget`: the tag over a hurt or hunting creature: floating level, rank word (in its rank's
   color) and name over a slim bar of fixed width, cut into quarters whatever the health.

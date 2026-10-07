@@ -67,6 +67,11 @@ USkeletalMesh* UBestiaryEntry::LoadPreviewMesh() const
 	return Body ? Body->GetSkeletalMeshAsset() : nullptr;
 }
 
+UStaticMesh* UBestiaryEntry::LoadPreviewStaticMesh() const
+{
+	return PreviewStaticMesh.LoadSynchronous();
+}
+
 TArray<UMaterialInterface*> UBestiaryEntry::GetPreviewMaterials(const USkeletalMesh* Mesh) const
 {
 	TArray<UMaterialInterface*> Materials;

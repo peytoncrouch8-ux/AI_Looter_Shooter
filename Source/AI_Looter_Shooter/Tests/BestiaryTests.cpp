@@ -29,6 +29,8 @@ bool FBestiaryEntriesTest::RunTest(const FString& Parameters)
 		}
 		TestTrue(FString::Printf(TEXT("%s: a story's page is about no actor"), *Name), Entry->ActorClass.IsNull());
 		TestTrue(FString::Printf(TEXT("%s: the model it names loads"), *Name), Entry->PreviewMesh.IsNull() || Entry->LoadPreviewMesh());
+		TestTrue(FString::Printf(TEXT("%s: the still model it names loads"), *Name),
+			Entry->PreviewStaticMesh.IsNull() || Entry->LoadPreviewStaticMesh());
 	}
 
 	// Listed by section, in the sections' order, and within one by order.

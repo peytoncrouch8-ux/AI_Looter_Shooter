@@ -122,6 +122,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bestiary|Stand")
 	TSoftObjectPtr<USkeletalMesh> PreviewMesh;
 
+	/**
+	 * A still model on the stand instead, for a figure that isn't skinned (Mister Sexton, seated on his rail as
+	 * SM_MisterSexton): shown when there's no skeletal model (PreviewMesh or the actor's).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bestiary|Stand")
+	TSoftObjectPtr<UStaticMesh> PreviewStaticMesh;
+
 	/** Loops on the stand, if set. Without one the model stands in its modeled pose. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bestiary|Stand")
 	TSoftObjectPtr<UAnimationAsset> PreviewAnimation;
@@ -182,6 +189,9 @@ public:
 
 	/** PreviewMesh, or the first skeletal mesh on ActorClass's defaults. */
 	USkeletalMesh* LoadPreviewMesh() const;
+
+	/** The still model the stand shows when there's no skeletal one (PreviewStaticMesh), or null. */
+	UStaticMesh* LoadPreviewStaticMesh() const;
 
 	/**
 	 * The materials the actor wears on this mesh in the world, slot by slot (its Blueprint may override the mesh's own),

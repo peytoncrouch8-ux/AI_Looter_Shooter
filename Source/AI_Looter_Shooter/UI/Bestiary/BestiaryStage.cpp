@@ -53,6 +53,11 @@ ABestiaryStage::ABestiaryStage()
 	Model->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 	StageStudio::SetupPrimitive(Model);
 
+	StillModel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StillModel"));
+	StillModel->SetupAttachment(Turntable);
+	StillModel->SetVisibility(false);
+	StageStudio::SetupPrimitive(StillModel);
+
 	Capture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("Capture"));
 	Capture->SetupAttachment(Root);
 	StageStudio::SetupCapture(Capture);
@@ -102,14 +107,23 @@ void ABestiaryStage::ShowEntry(const UBestiaryEntry* Entry)
 		Model->SetAnimation(nullptr);
 	}
 
-	FBox Box = Mesh ? Mesh->GetBounds().GetBox() : FBox(ForceInit);
+	// A figure that isn't skinned (Sexton seated on his rail) stands as a still model instead.
+	UStaticMesh* Still = !Mesh && Entry ? Entry->LoadPreviewStaticMesh() : nullptr;
+	if (StillModel->GetStaticMesh() != Still)
+	{
+		StillModel->SetStaticMesh(Still);
+	}
+	StillModel->SetVisibility(Still != nullptr);
+
+	FBox Box = Mesh ? Mesh->GetBounds().GetBox() : (Still ? Still->GetBounds().GetBox() : FBox(ForceInit));
 	ShowParts(Entry, Mesh, Box);
-	if (Mesh)
+	if (Mesh || Still)
 	{
 		// Stand it on the floor, centered over the turntable so it turns on the spot, its front along the turntable's +X.
 		const FRotator Facing(0.f, Entry->PreviewYaw, 0.f);
 		const FVector Center = Facing.RotateVector(Box.GetCenter());
-		Model->SetRelativeLocationAndRotation(FVector(-Center.X, -Center.Y, -Box.Min.Z), Facing);
+		USceneComponent* Shown = Mesh ? static_cast<USceneComponent*>(Model) : static_cast<USceneComponent*>(StillModel);
+		Shown->SetRelativeLocationAndRotation(FVector(-Center.X, -Center.Y, -Box.Min.Z), Facing);
 
 		const FVector Extent = Box.GetExtent();
 		SubjectReach = FMath::Max(FMath::Max(Extent.X, Extent.Y), 10.f);
@@ -160,7 +174,7 @@ void ABestiaryStage::ShowParts(const UBestiaryEntry* Entry, const USkeletalMesh*
 
 bool ABestiaryStage::HasModel() const
 {
-	return Model->GetSkeletalMeshAsset() != nullptr;
+	return Model->GetSkeletalMeshAsset() != nullptr || StillModel->GetStaticMesh() != nullptr;
 }
 
 void ABestiaryStage::SetActive(bool bInActive)
