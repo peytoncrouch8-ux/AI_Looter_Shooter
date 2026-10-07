@@ -6,6 +6,7 @@
 #include "Creatures/CreatureBase.h"
 #include "Creatures/SpiderCreature.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBestiaryEntriesTest, "Looter.Bestiary.Entries",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -31,6 +32,13 @@ bool FBestiaryEntriesTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("%s: the model it names loads"), *Name), Entry->PreviewMesh.IsNull() || Entry->LoadPreviewMesh());
 		TestTrue(FString::Printf(TEXT("%s: the still model it names loads"), *Name),
 			Entry->PreviewStaticMesh.IsNull() || Entry->LoadPreviewStaticMesh());
+		for (const FBestiaryStillPart& Part : Entry->PreviewStillParts)
+		{
+			// Each still part loads and has its socket on the still model, or the stand leaves it off.
+			const UStaticMesh* Base = Entry->LoadPreviewStaticMesh();
+			TestTrue(FString::Printf(TEXT("%s: its still part on %s loads, and the stand model has that socket"), *Name, *Part.Socket.ToString()),
+				Part.Mesh.LoadSynchronous() && Base && Base->FindSocket(Part.Socket));
+		}
 	}
 
 	// Listed by section, in the sections' order, and within one by order.

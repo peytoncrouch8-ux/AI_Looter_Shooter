@@ -9,16 +9,18 @@ Three kinds of page (UBestiaryEntry::Page, Docs/Areas/RansomsRest.md "The Ledger
   - an actor page (ACTOR): something met in the world, its numbers read from its actor class and its model on the stand.
     It waits for its model: Looter.Bestiary.Entries wants a model on every actor page's stand, so until the model is
     imported the page isn't made, and the script says so.
-  - a story character's page (STORY_CHARACTER): words, and a model on the stand when it has one (Hob's SK_Hob, or a still
-    one: Mister Sexton seated, SM_MisterSexton), but no actor, numbers or kills (Sexton, Grandma Delia, Tilly, Father
-    Aldana, Ranger Calder: a seated figure and talking doors and windows; Hob, who is never fought). Open once its
-    known_when holds (the mission that introduces them).
+  - a story character's page (STORY_CHARACTER): words, and a model on the stand when it has one (Hob's SK_Hob, or still
+    ones: Mister Sexton seated on a length of the lookout's rail, his ledger on his knee), but no actor, numbers or
+    kills (Sexton, Grandma Delia, Tilly, Father Aldana, Ranger Calder: a seated figure and talking doors and windows;
+    Hob, who is never fought). Open once its known_when holds (the mission that introduces them).
   - a Ledger name (LEDGER_NAME): one of the seven names Sexton writes in the Ledger, its whereabouts (habitat) blank until
     found_when holds (the Keeper's Lantern finds Lucky Ned in Main 7; the others wait for their missions).
 Pages ledger_only (and every Ledger name) are listed only once Sexton has handed the Ledger over, Main 2's last step; they
 are written in his voice (first drafts, for the user to judge).
 
   DA_Bestiary_Unpaid      The Unpaid (AUnpaidCreature), in Enemies; written before the Ledger, in the field guide's voice.
+  DA_Bestiary_Gravemother The Gravemother (AGravemotherCreature, Side 3), in Creatures after the brown spider; in the
+                          Ledger, in Sexton's voice.
   DA_Bestiary_Hob         Hob, in Friends: a story character's page with SK_Hob on the stand; in the Ledger, known after
                           Main 1 (he never fights, so the player never "meets" him the way they meet a creature).
   DA_Bestiary_Sexton      Mister Sexton, NPCs, seated on the stand; in the Ledger, known from the start (he wrote it).
@@ -64,6 +66,31 @@ PAGES = {
         ],
         sort_order=0,
     ),
+    'Gravemother': dict(
+        asset='DA_Bestiary_Gravemother',
+        name='The Gravemother',
+        section='CREATURE',
+        kind='Soulfed spider',
+        actor='/Script/AI_Looter_Shooter.GravemotherCreature',
+        model='/Game/Art/Creatures/SK_Spider',
+        ledger_only=True,
+        habitat="Ransom's Rest: the Sink, in the den under Den Rock",
+        description=("The Sink's old queen. She was a Meadow Wolf once, friend, before she grew fat on what the Unpaid "
+                     "leave lying about; now she's pale as a winding sheet and broad as a hearse, and every spider in that "
+                     "hole is hers. She doesn't care for callers."),
+        notes=[
+            "Her head and that swollen abdomen are the soft places: a hit on either is critical, for 1.5 times the damage.",
+            "When she rears and the ground splits toward you, she's about to run that line. Step off it. She can't turn "
+            "once she's running.",
+            "At the end of a charge she slams down and is slow to rise. That's your moment.",
+            "Bleed her past two thirds, and again past one third, and her brood claws up out of the floor round her: four "
+            "spiderlings each time.",
+            "She keeps to the Sink and her den. Go up the ramp and she lets you be.",
+            "Every kill drops two guns, at the best odds this side of a Keeper. Kill her and she's gone a while: come back "
+            "after twenty minutes or more and she'll be home.",
+        ],
+        sort_order=1,
+    ),
     'Hob': dict(
         asset='DA_Bestiary_Hob',
         page='STORY_CHARACTER',
@@ -92,8 +119,10 @@ PAGES = {
         kind='A man of business',
         ledger_only=True,
         habitat="Ransom's Point: the lookout's rail",
-        # Seated on his rail, as the lookout has him: a still model, not a skinned one.
-        still_model='/Game/Art/Characters/SM_MisterSexton',
+        # Seated on a length of the lookout's rail, as the lookout has him, with his ledger on his knee: still models,
+        # not skinned ones, on the stand piece's sockets.
+        still_model='/Game/Art/Characters/SM_SextonStand',
+        still_parts=[('/Game/Art/Characters/SM_MisterSexton', 'Sit'), ('/Game/Art/Characters/SM_SextonLedger', 'Ledger')],
         description=("The undersigned. I attend every death, friend; it's my trade. I keep this book and the accounts in "
                      "it, and I see that what's owed is paid."),
         notes=[
@@ -309,9 +338,10 @@ def setup(spec, cls):
     page = spec.get('page', 'ACTOR')
     if page == 'ACTOR' and unreal.load_class(None, spec['actor']) is None:
         raise RuntimeError(f"{spec['actor']} is not a class: build the C++ first; nothing was changed")
-    for key in ('model', 'still_model'):
-        if key in spec and not unreal.EditorAssetLibrary.does_asset_exist(spec[key]):
-            unreal.log_warning(f"BESTIARY {path} waits for its model {spec[key]}: import it first (Looter.Bestiary.Entries wants "
+    models = [spec[key] for key in ('model', 'still_model') if key in spec] + [p for p, _ in spec.get('still_parts', [])]
+    for model in models:
+        if not unreal.EditorAssetLibrary.does_asset_exist(model):
+            unreal.log_warning(f"BESTIARY {path} waits for its model {model}: import it first (Looter.Bestiary.Entries wants "
                                f"a model on every actor page's stand, and the one a page names); nothing was changed")
             return False
     asset, created = load_or_create(spec['asset'], cls)
@@ -332,6 +362,14 @@ def setup(spec, cls):
         set_model(asset, spec['model'])
     if 'still_model' in spec:
         set_model(asset, spec['still_model'], 'preview_static_mesh')
+    if 'still_parts' in spec:
+        parts = []
+        for mesh, socket in spec['still_parts']:
+            part = unreal.BestiaryStillPart()
+            part.set_editor_property('mesh', unreal.load_asset(mesh))
+            part.set_editor_property('socket', socket)
+            parts.append(part)
+        asset.set_editor_property('preview_still_parts', parts)
     if 'stand_yaw' in spec:
         asset.set_editor_property('preview_yaw', spec['stand_yaw'])
     if not unreal.EditorAssetLibrary.save_loaded_asset(asset, only_if_is_dirty=False):

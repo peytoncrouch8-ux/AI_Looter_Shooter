@@ -10,6 +10,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshSocket.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Materials/MaterialInterface.h"
 
@@ -117,6 +118,7 @@ void ABestiaryStage::ShowEntry(const UBestiaryEntry* Entry)
 
 	FBox Box = Mesh ? Mesh->GetBounds().GetBox() : (Still ? Still->GetBounds().GetBox() : FBox(ForceInit));
 	ShowParts(Entry, Mesh, Box);
+	ShowStillParts(Entry, Still, Box);
 	if (Mesh || Still)
 	{
 		// Stand it on the floor, centered over the turntable so it turns on the spot, its front along the turntable's +X.
@@ -129,6 +131,18 @@ void ABestiaryStage::ShowEntry(const UBestiaryEntry* Entry)
 		SubjectReach = FMath::Max(FMath::Max(Extent.X, Extent.Y), 10.f);
 		SubjectHeight = FMath::Max(Extent.Z, 10.f);
 		RingRadius = FMath::Max(SubjectReach * 0.8f, 30.f);
+		if (Still)
+		{
+			// A still model stands on a base of its own (Sexton's length of rail on its deck boards): the ring takes in its
+			// corners, so the boards don't poke out past it.
+			const FBox Base = Still->GetBounds().GetBox();
+			const FVector2D Middle(Box.GetCenter().X, Box.GetCenter().Y);
+			for (const FVector2D Corner : { FVector2D(Base.Min.X, Base.Min.Y), FVector2D(Base.Min.X, Base.Max.Y),
+				FVector2D(Base.Max.X, Base.Min.Y), FVector2D(Base.Max.X, Base.Max.Y) })
+			{
+				RingRadius = FMath::Max(RingRadius, static_cast<float>(FVector2D::Distance(Corner, Middle)) * 1.04f);
+			}
+		}
 	}
 	Turn = DefaultTurn;
 	PlaceCamera();
@@ -169,6 +183,50 @@ void ABestiaryStage::ShowParts(const UBestiaryEntry* Entry, const USkeletalMesh*
 		const int32 Bone = Mesh->GetRefSkeleton().FindBoneIndex(Part.Bone);
 		const FTransform OnBody = Part.Relative * FAnimationRuntime::GetComponentSpaceTransformRefPose(Mesh->GetRefSkeleton(), Bone);
 		InOutBox += Part.Mesh->GetBounds().GetBox().TransformBy(OnBody);
+	}
+}
+
+void ABestiaryStage::ShowStillParts(const UBestiaryEntry* Entry, const UStaticMesh* Still, FBox& InOutBox)
+{
+	// On the still model's sockets, snapped (Sexton on his rail's Sit socket, his ledger on its Ledger socket), and
+	// framed with it: each part's box where its socket puts it. A part whose mesh or socket is missing is left off.
+	TArray<TPair<UStaticMesh*, const UStaticMeshSocket*>> Wanted;
+	if (Entry && Still)
+	{
+		for (const FBestiaryStillPart& Part : Entry->PreviewStillParts)
+		{
+			UStaticMesh* PartMesh = Part.Mesh.LoadSynchronous();
+			const UStaticMeshSocket* Socket = PartMesh ? Still->FindSocket(Part.Socket) : nullptr;
+			if (Socket)
+			{
+				Wanted.Emplace(PartMesh, Socket);
+			}
+		}
+	}
+	for (int32 Index = 0; Index < FMath::Max(Wanted.Num(), StillParts.Num()); ++Index)
+	{
+		if (!Wanted.IsValidIndex(Index))
+		{
+			StillParts[Index]->SetStaticMesh(nullptr);
+			StillParts[Index]->SetVisibility(false);
+			continue;
+		}
+		if (!StillParts.IsValidIndex(Index))
+		{
+			UStaticMeshComponent* Added = NewObject<UStaticMeshComponent>(this);
+			Added->SetupAttachment(StillModel);
+			Added->RegisterComponent();
+			StageStudio::SetupPrimitive(Added);
+			StillParts.Add(Added);
+		}
+		UStaticMesh* PartMesh = Wanted[Index].Key;
+		const UStaticMeshSocket* Socket = Wanted[Index].Value;
+		UStaticMeshComponent* Shown = StillParts[Index];
+		Shown->AttachToComponent(StillModel, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket->SocketName);
+		Shown->SetStaticMesh(PartMesh);
+		Shown->SetVisibility(true);
+		const FTransform OnBase(Socket->RelativeRotation, Socket->RelativeLocation, Socket->RelativeScale);
+		InOutBox += PartMesh->GetBounds().GetBox().TransformBy(OnBase);
 	}
 }
 

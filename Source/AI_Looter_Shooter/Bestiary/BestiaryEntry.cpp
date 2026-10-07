@@ -1,6 +1,7 @@
 #include "Bestiary/BestiaryEntry.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureRankSettings.h"
 #include "Session/CampaignRecord.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -26,9 +27,13 @@ FBestiaryStats UBestiaryEntry::ReadStats() const
 	}
 	if (const ACreatureBase* Creature = Cast<ACreatureBase>(Defaults))
 	{
+		// A creature that is always of one rank (the Gravemother, Legendary) shows what that rank makes of it, as it's
+		// met; a Basic one, its own numbers (a promotion is luck, not the creature).
+		const FCreatureRankInfo& Rank = UCreatureRankSettings::Get(Creature->StartingRank);
 		Stats.Level = Creature->Level;
-		Stats.AttackDamage = Creature->AttackDamage;
-		Stats.XPReward = Creature->XPReward;
+		Stats.Health *= Rank.HealthMultiplier;
+		Stats.AttackDamage = Creature->AttackDamage * Rank.DamageMultiplier;
+		Stats.XPReward = FMath::Max(0, FMath::RoundToInt32(Creature->XPReward * Rank.XPMultiplier));
 		Stats.bAttacks = Creature->AttackDamage > 0.f;
 	}
 	return Stats;

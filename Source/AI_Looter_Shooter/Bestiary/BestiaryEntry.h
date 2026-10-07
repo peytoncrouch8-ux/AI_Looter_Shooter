@@ -77,6 +77,20 @@ struct FBestiaryStandPart
 	TArray<UMaterialInterface*> Materials;
 };
 
+/** A still model on one of the still stand model's sockets (Sexton on his rail's Sit, his ledger on its Ledger). */
+USTRUCT(BlueprintType)
+struct AI_LOOTER_SHOOTER_API FBestiaryStillPart
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bestiary|Stand")
+	TSoftObjectPtr<UStaticMesh> Mesh;
+
+	/** The stand model's socket it goes on, snapped (its SOCKET_ prefix left off, as Unreal names sockets). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bestiary|Stand")
+	FName Socket;
+};
+
 /**
  * One page of the bestiary (the inventory's second tab; Sexton's Ledger from Main 2): a creature, enemy, NPC or friend.
  * Make one per kind of character in /Game/Data/Bestiary (right-click > Miscellaneous > Data Asset > Bestiary Entry, or
@@ -128,6 +142,13 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bestiary|Stand")
 	TSoftObjectPtr<UStaticMesh> PreviewStaticMesh;
+
+	/**
+	 * Still models on PreviewStaticMesh's sockets: a seated figure on a stand piece that grounds him (SM_SextonStand, a
+	 * length of the lookout's rail, with Sexton on its Sit socket and his ledger on its Ledger socket).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bestiary|Stand")
+	TArray<FBestiaryStillPart> PreviewStillParts;
 
 	/** Loops on the stand, if set. Without one the model stands in its modeled pose. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bestiary|Stand")

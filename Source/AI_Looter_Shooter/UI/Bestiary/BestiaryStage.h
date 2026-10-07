@@ -9,6 +9,7 @@ class UPointLightComponent;
 class USceneCaptureComponent2D;
 class USkeletalMesh;
 class USkeletalMeshComponent;
+class UStaticMesh;
 class UStaticMeshComponent;
 class UTextureRenderTarget2D;
 
@@ -88,6 +89,10 @@ private:
 	 * the model's box (its own space, at rest) by each part. */
 	void ShowParts(const UBestiaryEntry* Entry, const USkeletalMesh* Mesh, FBox& InOutBox);
 
+	/** Puts the entry's still parts (UBestiaryEntry::PreviewStillParts) on the still model's sockets, and grows the box
+	 * (the still model's own space) by each part. */
+	void ShowStillParts(const UBestiaryEntry* Entry, const UStaticMesh* Still, FBox& InOutBox);
+
 	UPROPERTY(VisibleAnywhere, Category = "Stage")
 	TObjectPtr<USceneComponent> Root;
 
@@ -100,6 +105,10 @@ private:
 	/** A still model (UBestiaryEntry::PreviewStaticMesh), shown instead when the entry has no skeletal one. */
 	UPROPERTY(VisibleAnywhere, Category = "Stage")
 	TObjectPtr<UStaticMeshComponent> StillModel;
+
+	/** What stands on the still model's sockets (Sexton on his rail, his ledger), one component per part, kept. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UStaticMeshComponent>> StillParts;
 
 	/** What the model wears on its bones (a hat), one component per part, kept for the next entry. */
 	UPROPERTY(Transient)
