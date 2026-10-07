@@ -727,13 +727,14 @@ P += 0.18 * float2(sin(P.y * 2.1 + Time * 0.2), sin(P.x * 1.7 - Time * 0.15)) * 
 float N2 = Texture2DSample(Noise, NoiseSampler, P * 2.3 + 0.37).r;
 float N1 = Texture2DSample(Noise, NoiseSampler, P + (N2 - 0.5) * 0.15 * Distort).r;
 float N3 = Texture2DSample(Noise, NoiseSampler, P * 5.0 + 0.71).r;
-float Shape = smoothstep(ShapeLow, ShapeHigh, N1 * 0.6 + N2 * 0.3 + N3 * 0.1);
+float Shape = smoothstep(ShapeLow, ShapeHigh, N1 * Octave1 + N2 * Octave2 + N3 * Octave3);
 float EdgeOn = saturate(abs(dot(normalize(Normal), CameraVector)) * 2.5);
 float Dist = length(WorldPos - CameraPos);
 float Near = saturate((Dist - NearStart) / max(NearEnd - NearStart, 1.0));
 float Far = 1.0 - saturate((Dist - FarStart) / max(FarEnd - FarStart, 1.0));
 """
-GRAVEWIND_OPACITY = GRAVEWIND_NOISE + """return saturate(Alpha * Shape * EdgeOn * Near * Far * Opacity) * Soft;"""
+# Inside a bank the fog thins to BillowFloor but never opens onto the canyon floor; its card's own edges still fade it.
+GRAVEWIND_OPACITY = GRAVEWIND_NOISE + """return saturate(Alpha * lerp(BillowFloor, 1.0, Shape) * EdgeOn * Near * Far * Opacity) * Soft;"""
 GRAVEWIND_COLOR = """float Toward = pow(saturate(dot(-CameraVector, normalize(SunDirection + 1e-5))), SunPower);
 float Rise = lerp(BaseShade, 1.0, saturate((WorldPos.z - ObjectPos.z) / 1000.0));
 return lerp(Cool, Warm, Toward) * Rise * Brightness * CloudTint;"""
@@ -764,7 +765,8 @@ def gravewind(name, settings):
         ('Time', time, ''), ('Normal', normal, ''), ('CameraVector', camera, ''), ('WorldPos', world, ''),
         ('CameraPos', g.node(unreal.MaterialExpressionCameraPositionWS, -1300, 550), ''), ('Soft', soft, ''),
     ] + [(key, params[key], '') for key in ('ScaleAcross', 'ScaleAlong', 'Pan', 'Distort', 'ShapeLow', 'ShapeHigh',
-                                           'NearStart', 'NearEnd', 'FarStart', 'FarEnd', 'Opacity')],
+                                           'Octave1', 'Octave2', 'Octave3', 'BillowFloor', 'NearStart', 'NearEnd',
+                                           'FarStart', 'FarEnd', 'Opacity')],
         unreal.CustomMaterialOutputType.CMOT_FLOAT1, -600, 200, f'{name} opacity')
     color = g.custom(GRAVEWIND_COLOR, [
         ('CameraVector', camera, ''), ('SunDirection', g.node(unreal.MaterialExpressionSkyAtmosphereLightDirection,
@@ -796,17 +798,18 @@ def build_gravewind_wisp():
     return gravewind('M_GravewindWisp', {
         'cool': (0.434, 0.468, 0.658, 1.0), 'warm': (1.0, 0.79, 0.53, 1.0),
         'scalars': dict(ScaleAcross=1.6, ScaleAlong=0.12, Pan=2.5, Distort=0.0, ShapeLow=0.25, ShapeHigh=0.8,
-                        NearStart=50.0, NearEnd=200.0, FarStart=1500.0, FarEnd=4500.0, Opacity=0.35, DepthFade=50.0,
+                        Octave1=0.6, Octave2=0.3, Octave3=0.1, BillowFloor=0.0, NearStart=50.0, NearEnd=200.0, FarStart=1500.0, FarEnd=4500.0, Opacity=0.35, DepthFade=50.0,
                         SunPower=6.0, BaseShade=1.0, Brightness=2.5, Amount=15.0, Speed=1.3, Along=0.8)})
 
 
 def build_canyon_fog():
     """M_CanyonFog: slow billowing banks rising out of the canyon at the deck, darker low down (no far fade: they're
-    the view)."""
+    the view): broad soft rolls about 25 m across, never opening onto the floor inside a bank."""
     return gravewind('M_CanyonFog', {
         'cool': (0.503, 0.527, 0.701, 1.0), 'warm': (1.0, 0.79, 0.53, 1.0),
-        'scalars': dict(ScaleAcross=0.08, ScaleAlong=0.08, Pan=0.4, Distort=1.0, ShapeLow=0.2, ShapeHigh=0.85,
-                        NearStart=400.0, NearEnd=1200.0, FarStart=1.0e6, FarEnd=2.0e6, Opacity=0.75, DepthFade=300.0,
+        'scalars': dict(ScaleAcross=0.04, ScaleAlong=0.04, Pan=0.3, Distort=0.4, ShapeLow=0.05, ShapeHigh=0.75,
+                        Octave1=0.75, Octave2=0.25, Octave3=0.0, BillowFloor=0.45,
+                        NearStart=400.0, NearEnd=1200.0, FarStart=1.0e6, FarEnd=2.0e6, Opacity=0.7, DepthFade=300.0,
                         SunPower=3.0, BaseShade=0.85, Brightness=3.0, Amount=40.0, Speed=0.785, Along=0.0)})
 
 
