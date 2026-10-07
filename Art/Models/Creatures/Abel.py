@@ -92,7 +92,7 @@ SKIN, SHIRT, COAT, STOLE = 0, 1, 2, 3   # tint zones (vertex color R = zone / 3)
 ZONE_COLORS = ('#BAC4C6', '#DCD8CC', '#3C3B40', '#D3C9AE')
 RIM_COLOR = '#DCECEE'
 LANTERN_COLORS = ('#CABF9F', '#7D8285', '#9A8774', '#CABF9F')   # ghost brass, iron, the grip's wood
-FLAME_COLOR = '#FFF0D6'                                         # a pale, warm white: no rarity color
+FLAME_COLOR = '#FFD9A0'                                         # a warm lamplight: no rarity color
 PUMP_COLORS = ('#B4BCC0', '#A08A72', '#8F979B', '#CFC4AD')      # steel, walnut, dark steel, the bead
 BOSS_COAL = 0xffcc00                    # the Boss rank's color (CreatureRankSettings), for the previews only
 JAW_REST = 0.0                          # degrees the jaw is open at rest: the lips closed, the mouth a line
@@ -1674,9 +1674,10 @@ def materials():
     coal['EmberStrength'] = 2.1      # its cracks (SK_Unpaid's value: the slot is shared)
     coal['FadeSoftness'] = 0.07
     lantern = ghost_slot('GhostAbelLantern', LANTERN_COLORS, **GHOST_LOOK)
-    # The globe: the same ghost, glowing of itself. UVScale nearly nothing keeps the grain out of the light.
+    # The globe: the same ghost, glowing of itself. UVScale nearly nothing keeps the grain out of the light. At dusk a
+    # brighter glow blew the globe out to plain white in the game, so it stays low enough to read as lit glass.
     flame = ghost_slot('GhostAbelFlame', (FLAME_COLOR,) * 4, RimColor=RIM_COLOR, RimPower=4.0, RimStrength=0.6,
-                       GlowStrength=5.0, EmberStrength=0.0, NoiseScale=1.4, FadeSoftness=0.07, UVScale=0.02)
+                       GlowStrength=3.3, EmberStrength=0.0, NoiseScale=1.4, FadeSoftness=0.07, UVScale=0.02)
     pump = ghost_slot('GhostAbelPump', PUMP_COLORS, **GHOST_LOOK)
     return dict(body=body, coal=coal, lantern=lantern, flame=flame, pump=pump)
 
