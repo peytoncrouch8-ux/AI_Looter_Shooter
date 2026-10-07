@@ -48,8 +48,9 @@ component space (cm at size 1; x forward, y right, z up), both as the whole turn
 parent's (AUnpaidCreature's Turned = Above * Own).
 
 Vertex colors ('Col', what M_Ghost reads): R the tint zone (0 skin and shroud, 1/3 shirt, his hair and the flour-sack
-patch, 2/3 trousers, 1 the braces), G cavity, B the ember edge round the coal (narrow and weak: banked), A the fade (the
-shroud's strips: solid down to their tips, cut in their last 6 mm). The rig's FBX carries them as sRGB, so the body
+patch, 2/3 trousers, 1 the braces), G cavity, B the ember edge round the coal (narrow and weak: banked), A the fade (as
+the Unpaid's shroud: whole at the hems, fading down the tube and the strips to nothing at their tips; up inside the trouser
+legs, where the tube runs on to a cap, it fades in from the cap). The rig's FBX carries them as sRGB, so the body
 stores bytes; the props (textured static meshes, exported linear) store floats. UV 0: a world-scale box projection,
 1 unit a meter, but on the shroud U the meters round it and V minus the meters down it.
 
@@ -64,7 +65,7 @@ forearm and hand, tail_01, tail_02, skirt_f_01 and skirt_f_02, round every face 
 sphere on coal. The build checks that every face but the shroud strips' lies inside a zone.
 
     powershell -NoProfile -File <artrun.ps1> -Script Art\\Models\\Creatures\\Amos.py -Preview
-    ... -ScriptArgs --preview,lean,face        only some: lean (and compare) sit face turn lods hits poses
+    ... -ScriptArgs --preview,lean,face        only some: lean (and compare) sit face turn lods hits poses game
 Previews go to Saved/ArtPreviews/RansomsRest/Amos/ (the field, the fence and the light come from the concept script).
 """
 import json
@@ -1330,17 +1331,54 @@ SHROUD_SPLIT = 0.3          # where the shroud tears into strips
 STRIP_CENTERS = (12.0, 84.0, 156.0, -132.0, -60.0)  # degrees round the shroud from the front (+ toward his right): five
                                                     # wide strips, set a column off true, so no two hang as a pair
 STRIP_SWEEP = 0.04          # how far the strips' tips drift to his left (m): a breath of wind, no gale
-STRIP_SOLID = 0.92          # the fade at a strip's last solid row: 1.3 x 0.92 - 0.15 > 1, above every value of M_Ghost's
-                            # noise, so no hole opens in a strip and nothing breaks off it
-TIP_CUT = 0.006             # the tip's alpha cut: the last row (fade 0) this far past the last solid one, in meters
+TIP_CUT = 0.006             # the strips' last row stands this far (m) past where their spacing would put it (their tips)
+TOP_RISE = 0.07             # the tube runs on up inside the trouser legs this far over its old top (of the shroud's length,
+                            # about 8 cm: past the hems' highest notches), closed there by a cap, so no open end shows
+# M_Ghost's fade (vertex A) down the shroud: going soon below the hems, as the Unpaid's lower body goes. Down the tube it
+# falls from FADE_HEM at the knees (about 0.85 at the hems' lowest teeth, 2 cm down) to about 0.45 some 18 cm down and
+# FADE_ROOT where the strips tear off (this curve's power FADE_POWER), then down each strip to nothing at its tip; up
+# inside the legs it fades in from FADE_TOP at the cap, so its top edge never shows in the gap between his knees.
+FADE_HEM = 0.94
+FADE_ROOT = 0.32
+FADE_POWER = 2.25
+FADE_TOP = 0.25
 
 
-def build_shroud():
+def shroud_fade(t, q=None):
+    """The shroud's fade (vertex A) at t along it (0 its old top at the knees, negative up inside the legs) and, on a
+    strip, q of the way from its root to its tip."""
+    t = np.asarray(t, float)
+    top = FADE_TOP + (1.0 - FADE_TOP) * smoothstep(-TOP_RISE, -0.01, t)
+    x = np.clip(np.minimum(t, SHROUD_SPLIT) / SHROUD_SPLIT, 0.0, 1.0)
+    fade = top * (FADE_ROOT + (FADE_HEM - FADE_ROOT) * (1.0 - x) ** FADE_POWER)
+    if q is not None:
+        fade = fade * (1.0 - smoothstep(0.0, 1.0, np.asarray(q, float)))
+    return fade
+
+
+def trouser_weights(trousers, P, k=4):
+    """The trousers' skin weights where points P lie (their k nearest vertices, nearer counting more), so the shroud's
+    top folds with the trousers round it at the knees and stays inside them."""
+    names = sorted(trousers.weights)
+    W = np.stack([trousers.weights[n] for n in names], 1)
+    W = W / np.maximum(W.sum(1, keepdims=True), 1e-9)
+    TV = trousers.V
+    out = np.zeros((len(P), len(names)))
+    for i, p in enumerate(P):
+        d = np.linalg.norm(TV - p, axis=1)
+        near = np.argsort(d, kind='stable')[:k]
+        share = 1.0 / np.maximum(d[near], 1e-4)
+        out[i] = (W[near] * share[:, None]).sum(0) / share.sum()
+    return {n: out[:, j] for j, n in enumerate(names)}
+
+
+def build_shroud(trousers):
     """The shroud at game density (Abel.py's, from the knees): a pale tube gathering out of the trousers' hems, whole for
     a hand's width, then five wide strips sweeping back behind him and tapering to soft points. The one in front is the
-    shortest and swings back under him, so nothing hangs in front like a pair of shins. The strips don't fade along their
-    length (M_Ghost's noise would break a fade into holes and floating bits): each stays solid and its tip is cut over
-    its last 6 mm. Returns the part and the tail chains' lines."""
+    shortest and swings back under him, so nothing hangs in front like a pair of shins. The tube runs on up inside the
+    trouser legs, closed by a cap, and its top is skinned as the trousers round it are: when his knees bend in the sit it
+    folds with them and no open end shows. It fades as the Unpaid's shroud does (shroud_fade). Returns the part and the
+    tail chains' lines."""
     rows, cols, mrows = 17, 30, 6
     narrow, spread, wave, folds, harmonics, twist, seed = 0.55, 0.05, 0.03, 0.3, (5, 7, 9, 12), 0.8, 7
     rng = np.random.default_rng(seed)
@@ -1352,7 +1390,9 @@ def build_shroud():
     drift = rng.uniform(-1.0, 1.0, len(harmonics)) * twist
 
     def at(t):
-        return sample(C, t), sample(N, t), sample(B, t)
+        # Above its old top (t < 0) the tube runs straight on up the path's first way.
+        t = np.asarray(t, float)
+        return (sample(C, t) + T[0] * (np.minimum(t, 0.0) * length)[..., None], sample(N, t), sample(B, t))
 
     def point(t, theta, out=0.0):
         t = np.asarray(t, float)
@@ -1364,11 +1404,23 @@ def build_shroud():
                 + b * (w * r * np.sin(theta) + out * np.sin(theta))[..., None])
 
     theta = np.linspace(0.0, 2.0 * np.pi, cols, endpoint=False)
-    tt, th = np.meshgrid(np.linspace(0.0, SHROUD_SPLIT, mrows), theta, indexing='ij')
-    pieces = [(point(tt, th).reshape(-1, 3), [grid_faces(mrows, cols)])]
-    blocks, start = [], mrows * cols
-    ts, fades, qs, sides = [tt.ravel()], [np.ones(tt.size)], [np.zeros(tt.size)], [np.zeros(tt.size)]
-    angles = [wrap(th).ravel()]
+    t_rows = np.concatenate([[-TOP_RISE, -TOP_RISE / 2.0], np.linspace(0.0, SHROUD_SPLIT, mrows)])
+    trows = len(t_rows)
+    tt, th = np.meshgrid(t_rows, theta, indexing='ij')
+    ring = point(tt, th).reshape(-1, 3)
+    # The cap over the tube's top, a little domed, inside the legs.
+    cap_t = -TOP_RISE - 0.012
+    cap = at(np.array([cap_t]))[0][0]
+    cap_faces = fan(trows * cols, np.arange(cols), top=True)
+    tube = np.vstack([ring, cap[None]])
+    a, b, c = tube[cap_faces[0]]
+    if np.dot(np.cross(b - a, c - a), -T[0]) < 0.0:          # the cap faces up, out of the tube
+        cap_faces = cap_faces[:, ::-1]
+    pieces = [(tube, [grid_faces(trows, cols), cap_faces])]
+    blocks, start = [], trows * cols + 1
+    ts = [tt.ravel(), [cap_t]]
+    qs, sides = [np.zeros(tt.size + 1)], [np.zeros(tt.size + 1)]
+    angles = [wrap(th).ravel(), [np.nan]]
     srows = rows - mrows + 1
     span = 1.0 - TIP_CUT / ((0.85 - SHROUD_SPLIT) * length)
     q = np.concatenate([np.linspace(0.0, span, srows - 1), [1.0]])[:, None]
@@ -1395,20 +1447,19 @@ def build_shroud():
         blocks.append((start, srows, len(js)))
         start += srows * len(js)
         ts.append(tq.ravel())
-        fade = np.broadcast_to(1.0 - (1.0 - STRIP_SOLID) * q / span, tq.shape).copy()
-        fade[-1] = 0.0
-        fades.append(fade.ravel())
         qs.append(np.broadcast_to(q, tq.shape).ravel())
         angles.append((wrap(tc) + ang - tc).ravel())
         sides.append(np.full(tq.size, 0.0 if abs(math.sin(tc)) < 0.3 else -math.copysign(1.0, math.sin(tc))))
     V, F = merge(pieces)
     t = np.concatenate(ts)
-    fade = np.concatenate(fades)
     q = np.concatenate(qs)
+    strip = np.zeros(len(V), dtype=bool)
+    strip[trows * cols + 1:] = True
+    fade = np.where(strip, shroud_fade(t, q), shroud_fade(t))
     side = np.concatenate(sides)
     w, dd = table(SHROUD_SIZE, t)
     radius = (3.0 * (w + dd) - np.sqrt((3.0 * w + dd) * (w + 3.0 * dd))) / 2.0
-    uv = np.column_stack([np.concatenate(angles), radius, -t * length])
+    uv = np.column_stack([np.concatenate(angles), radius, -t * length])      # the cap keeps the box projection
     part = Part('Shroud', (V, F), SKIN, fade=fade, strip_uv=uv)
     mids = [(a + b) / 2 for a, b in zip(TAIL_STOPS[:-1], TAIL_STOPS[1:])]
     main = chain(t, mids, ('tail_01', 'tail_02', 'tail_03', 'tail_04', 'tail_05'))
@@ -1416,7 +1467,13 @@ def build_shroud():
     side_share = 0.6 * smoothstep(0.1, 0.6, q) * (side != 0)
     for bone, wgt in main.items():
         part.weigh(bone, wgt * (1.0 - top) * (1.0 - side_share))
-    part.weigh('skirt_f_02', top)
+    # The top as the trousers round it are skinned (whole at the knees' joint and above, blending into the chain by
+    # t 0.06), so it bends with them.
+    tops = top > 0.0
+    for bone, wgt in trouser_weights(trousers, V[tops]).items():
+        full = np.zeros(len(V))
+        full[tops] = wgt * top[tops]
+        part.weigh(bone, full)
     for s in SIDES:
         sfx = SUFFIX[s]
         on_side = side_share * (side == s) * (1.0 - top)
@@ -1429,7 +1486,7 @@ def build_shroud():
         tc = math.radians(-96.0 if s > 0 else 120.0)
         lines[s] = [point(np.array([tt_]), np.array([tc]))[0] + np.array([s * STRIP_SWEEP * 0.3, 0.0, 0.0]) * k
                     for k, tt_ in enumerate((0.38, 0.62, 0.86))]
-    return [part], dict(path=C, sides=lines, strips=dict(V=V, fade=fade, uv=uv, blocks=blocks))
+    return [part], dict(path=C, sides=lines, strips=dict(V=V, fade=fade, uv=uv, blocks=blocks, t=t, q=q, strip=strip))
 
 
 # --- The rig ---
@@ -1678,7 +1735,7 @@ def build_rig():
     trouser_parts = build_trousers()
     arm_parts, fingers = build_arms()
     head_parts = build_head()
-    shroud_parts, tail = build_shroud()
+    shroud_parts, tail = build_shroud(trouser_parts[0])
     LAYOUT['strips'] = tail['strips']
     parts = shirt_parts + brace_parts + trouser_parts + arm_parts + head_parts + shroud_parts
     for p in parts:
@@ -2061,8 +2118,14 @@ def build():
     fork = build_fork(mats)
     hit_zones(rig, V, faces, W, names)
     islands, holes, largest = shroud_islands(LAYOUT['strips'])
-    log(f'shroud: over a whole period of the fade noise\'s drift, {islands} floating bits and {holes} holes or bites in '
-        f'the strips' + (f' (the largest {1000.0 * largest:.0f} mm across)' if islands or holes else ''))
+    # The strips fade as the Unpaid's do, so M_Ghost's noise breaks them up toward their tips: a measure, not a fault.
+    log(f'shroud: over a whole period of the fade noise\'s drift, {islands} bits break off and {holes} holes open in the '
+        f'fading strips' + (f' (the largest {1000.0 * largest:.0f} mm across)' if islands or holes else ''))
+    path = spline(SHROUD_PATH, 300)
+    length = float(np.linalg.norm(np.diff(path, axis=0), axis=1).sum())
+    log('shroud fade (vertex A) down the tube: ' + ', '.join(
+        f'{float(shroud_fade(cm / 100.0 / length)):.2f} at {cm} cm' for cm in (0, 2, 10, 18, int(100 * SHROUD_SPLIT * length)))
+        + ', then down each strip to 0 at its tip')
     log(f'hat: the Hay grain draws {hat_gain():.3f} as bright as the Polymer grain under M_Ghost')
     return rig, body, hat, fork, raw_colors
 
@@ -3263,8 +3326,49 @@ def shot_poses():
     hide_field(False)
 
 
+# The tour's camera on him (Saved/Screenshots/Tour/AmosSit_Medium.png and AmosLean_Medium.png): on the fields path about
+# 1.6 m from the fence, 1.2 m up, level, 90 degrees across; in the concept's field (the fence along y = 0).
+GAME_VIEW = ((0.78, -1.57, 1.22), (0.74, 1.0, 1.2), 18.0)
+FENCE_VIEW = ((0.75 + 3.2, -0.9, 1.0), (0.75, -0.1, 0.85), 30.0)        # along the fence from his left, past the post
+
+
+def lod_preview(share):
+    """SK_Amos as a reduced LOD draws it (share of its triangles; 1: LOD0): collapsed before the armature, so the reduced
+    mesh is skinned as Unreal skins its LOD (Medium draws LOD1, the 50% one)."""
+    for mod in [m for m in BODY.modifiers if m.name == 'PreviewLOD']:
+        BODY.modifiers.remove(mod)
+    if share < 1.0:
+        mod = BODY.modifiers.new('PreviewLOD', 'DECIMATE')
+        mod.decimate_type = 'COLLAPSE'
+        mod.ratio = share
+        BODY.modifiers.move(len(BODY.modifiers) - 1, 0)
+    bpy.context.view_layer.update()
+
+
+def shot_game():
+    """The sit and the lean from the tour's camera, at LOD0 and at LOD1 (what Medium draws), and the sit along the
+    fence."""
+    where = field_stage()
+    for name, frame in (('sit', SIT_FRAME), ('lean', LEAN_FRAME)):
+        apply(POSES[name])
+        place_frame(frame)
+        paths = []
+        for share, lod in ((1.0, 'lod0'), (0.5, 'lod1')):
+            lod_preview(share)
+            paths.append(os.path.join(WORK, f'game_{name}_{lod}.png'))
+            lens_shot(where, paths[-1], *GAME_VIEW, (1280, 720), samples=64)
+        if name == 'sit':
+            paths.append(os.path.join(WORK, 'game_sit_fence.png'))
+            lens_shot(where, paths[-1], *FENCE_VIEW, (1280, 720), samples=64)
+            lod_preview(0.5)
+            paths.append(os.path.join(WORK, 'game_sit_fence_lod1.png'))
+            lens_shot(where, paths[-1], *FENCE_VIEW, (1280, 720), samples=64)
+        lod_preview(1.0)
+        grid(paths, os.path.join(OUT, f'Amos_game_{name}.png'), 2)
+
+
 SHOTS = {'compare': shot_lean, 'lean': shot_lean, 'sit': shot_sit, 'face': shot_face, 'turn': shot_turnaround,
-         'hits': shot_hits, 'lods': shot_lods, 'poses': shot_poses}
+         'hits': shot_hits, 'lods': shot_lods, 'poses': shot_poses, 'game': shot_game}
 
 
 def previews():
@@ -3274,7 +3378,7 @@ def previews():
         if o.name.startswith(('UCX_', 'USP_')):
             o.hide_render = True
     preview_look()
-    wanted = [a for a in ARGV if a in SHOTS] or ['turn', 'lods', 'hits', 'poses', 'lean', 'sit', 'face']
+    wanted = [a for a in ARGV if a in SHOTS] or ['turn', 'lods', 'hits', 'poses', 'lean', 'sit', 'face', 'game']
     done = set()
     for name in wanted:
         if SHOTS[name] not in done:
