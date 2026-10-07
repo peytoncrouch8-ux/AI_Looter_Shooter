@@ -127,6 +127,27 @@ def free_ends(points, i, width):
     return ends
 
 
+def ramp_corridors(source):
+    """The walkways up the features' ramps (layout.json features[].ramp: its path and width), with the cliff group that
+    lines each, which alone may stand at its edge: [(path, half width, walls group)]."""
+    return [(ramp['path'], ramp['width'] * 0.5, ramp.get('cliffGroup'))
+            for feature in source.get('features', []) for ramp in [feature.get('ramp')] if ramp and ramp.get('path')]
+
+
+def in_corridor(point, corridors, group):
+    """Whether a point (x, y) lies on a ramp's walkway that another group's walls line."""
+    px, py = point
+    for path, half, walls in corridors:
+        if group == walls:
+            continue
+        for (ax, ay), (bx, by) in zip(path, path[1:]):
+            dx, dy = bx - ax, by - ay
+            t = min(max(((px - ax) * dx + (py - ay) * dy) / max(dx * dx + dy * dy, 1e-6), 0.0), 1.0)
+            if math.dist((px, py), (ax + dx * t, ay + dy * t)) < half:
+                return True
+    return False
+
+
 def varied_piece(pieces, group, points, i, k, course, last, gap, top=None):
     """Course k of a varied group's point i (VARIED_CLIFFS): (mesh, its height and width, the height it's scaled to
     reach from its sunk pivot, how far it sinks, its turn, -1.0 when mirrored), all drawn from the piece's own seed. With
@@ -568,7 +589,8 @@ class AreaBuild:
         solid = set(self.cliff_look.get('solid', []))
         leaning = self.cliff_look.get('lean', [])
         tiles = terrain_tiles(self.tag) if leaning else []
-        placed = left_out = 0
+        corridors = ramp_corridors(self.source)
+        placed = left_out = ends_held = 0
         for group, points in self.layout.get('cliffs', {}).items():
             for i, point in enumerate(points):
                 kind = point.get('kind')
@@ -612,6 +634,16 @@ class AreaBuild:
                     inset = CLIFF_INSET + foot + math.tan(math.radians(lean)) * (cz - bottom)
                     inward = (-math.cos(math.radians(yaw)) * inset, -math.sin(math.radians(yaw)) * inset)
                     width = cliff_width(gap, piece_width)
+                    # A run's end piece is widened to overlap its one neighbour, which carries its free end out as far
+                    # again. Where that end reaches onto a ramp's walkway it gives the stretch back on that side: the
+                    # tutorial island's plateau edge ended in a piece stood across the foot of the ramp to the lookout.
+                    ends = free_ends(points, i, width * piece_width) if width > 1.0 and corridors else None
+                    if ends:
+                        (ex, ey), half = ends[0], width * piece_width * 0.5
+                        if in_corridor((cx + inward[0] + ex * half, cy + inward[1] + ey * half), corridors, group):
+                            back = (width - 1.0) * piece_width * 0.5
+                            inward = (inward[0] - ex * back, inward[1] - ey * back)
+                            ends_held += 1
                     suffix = f'_{k + 1}' if len(courses) > 1 else ''
                     piece = self.place(mesh, (cx + inward[0], cy + inward[1], cz - sink), yaw + turn,
                                        label=f'Cliff_{group}_{i + 1:02d}{suffix}', folder=f'Cliffs/{group}',
@@ -620,7 +652,8 @@ class AreaBuild:
                         # Pitched up its top tilts back, away from its face (+X, out of the wall), into the slope.
                         piece.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=lean, yaw=yaw + turn), False)
                     placed += 1
-        self.log(f'placed {placed} cliff pieces' + (f' ({left_out} left out for gaps)' if left_out else ''))
+        self.log(f'placed {placed} cliff pieces' + (f' ({left_out} left out for gaps)' if left_out else '')
+                 + (f'; {ends_held} run ends kept off a ramp\'s walkway' if ends_held else ''))
 
     def area_materials(self):
         """The area's own instances of shared materials (level.materials: a name, the shared one it's an instance of
