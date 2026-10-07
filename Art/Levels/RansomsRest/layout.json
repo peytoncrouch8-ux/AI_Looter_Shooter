@@ -1618,7 +1618,7 @@
     }
   },
   "level": {
-    "about": "How Tools/Unreal/build_area.py builds the level (step 5a): the map, the tag and outliner folder of everything it places, the zones scattered trees keep out of ([zone id, share of its bounding box]), the scatter's PCG graph and volume (Tools/Unreal/build_island_scatter.py RansomsRest), and how far behind the closed edges the walls stand (wallSetback, cm: at the rock's foot, which rises about 2.5 m past the line).",
+    "about": "How Tools/Unreal/build_area.py builds the level (step 5a): the map, the tag and outliner folder of everything it places, the zones scattered trees keep out of ([zone id, share of its bounding box]), the scatter's PCG graph and volume (Tools/Unreal/build_island_scatter.py RansomsRest), and how far behind the closed edges the walls stand (wallSetback, cm: at the rock's foot, which rises about 2.5 m past the line). models: a placement kind's model where this area has its own (Grandma Delia's lived-in house, SM_Farmhouse_Ransom, for the farmhouse; the clapboard SM_Cottage_Ransom and the shake-roofed SM_Barn_Ransom for the tutorial island's cottage and barn). lights: the lived-in houses' lamps and lamplit windows, brighter at dusk (AHouseLights on each one's SOCKET_Light: the lamp's candelas by day and at dusk, its reach in cm), and the empty cottages' windows left dark. props: models only the build places, on the ground at their location (x, y cm), turned by yaw and tagged Obstacle like the placements; their footprints are the layout's obstacles already, so the generator needs nothing of them (the town gate over its posts, townGateNorth and townGateSouth). smoke: the buildings whose chimneys smoke (placement keys), in a half-empty town in mourning only the lived-in ones: Delia's, Pruitt's store, Tilly's, two cottages and the waiting locomotive. cliffs: the walls varied piece by piece (varied: the cliff groups), their tops reaching 72-112% of the wall (top) and one point in ten left out (gaps), so the ring at the valley's foot isn't one even picket wall. materials and swaps: the area's own instances of shared materials, worn by everything the build places: the rock (MI_RockCliff_Ransom, on the cliff kit, the outcrops and Den Rock) warmer and darker than the tutorial island's pale cream, toward the valley's ochre, with less moss in dry country; the orchard's leaves (MI_LeavesApple_Ransom) amber-leaning, late summer's, as the palette asks.",
     "map": "/Game/Maps/Lvl_RansomsRest",
     "tag": "RansomsRestBuild",
     "folder": "RansomsRest",
@@ -1634,6 +1634,37 @@
     "scatterGraph": "PCG_RansomsRestScatter",
     "scatterVolume": "RansomsRestScatter",
     "wallSetback": 250,
+    "models": { "Farmhouse": "Farmhouse_Ransom", "Cottage": "Cottage_Ransom", "Barn": "Barn_Ransom" },
+    "lights": {
+      "farmhouse": { "lamp": [2,5.5], "reach": 175 },
+      "store": { "lamp": [3.5,30], "reach": 350 },
+      "undertaker": { "lamp": [1.75,5.5], "reach": 175 },
+      "cottageNorth": { "lamp": [3,16], "reach": 400 },
+      "cottageSouth": { "lamp": [3,16], "reach": 400 },
+      "cottageNorthEast": { "dark": true },
+      "cottageSouthWest": { "dark": true }
+    },
+    "smoke": ["farmhouse","store","undertaker","cottageNorth","cottageSouth","locomotive"],
+    "cliffs": {
+      "varied": ["boundaryFoot","eastRidge","hogback","larkspurEast","escarpment","bluffPath","ransomsPoint","coffinRock","theSink","sinkRamp","theNose","millGorge"],
+      "top": [0.72,1.12],
+      "gaps": 0.1
+    },
+    "materials": {
+      "MI_RockCliff_Ransom": { "parent": "MI_RockCliff", "vectors": { "Tint": [0.66,0.58,0.5] }, "scalars": { "MossAmount": 0.25 } },
+      "MI_LeavesApple_Ransom": { "parent": "MI_LeavesApple", "vectors": { "Tint": [0.5,0.44,0.19] } },
+      "MI_WindowGlow_Dark": { "parent": "MI_WindowGlow", "scalars": { "Glow": 0 } }
+    },
+    "swaps": { "MI_RockCliff": "MI_RockCliff_Ransom", "MI_LeavesApple": "MI_LeavesApple_Ransom" },
+    "props": [
+      {
+        "id": "townGate",
+        "kind": "TownGate",
+        "location": [0,-1100],
+        "yaw": -90,
+        "note": "Main Street's west end: the arch over the road, its front down the road west, its posts on townGateNorth and townGateSouth"
+      }
+    ],
     "environment": {
       "about": "The golden hour tried out on Lvl_TerrainTest (Tools/Unreal/build_area_environment.py): the sun low in the west-southwest over the canyon, haze thickest down in the canyon and glowing warm toward the sun, the planet's top down on the plains, the cloud dome past the backdrop. Tuned on Ransom's Rest at step 5a. Art note 3 (the sky): the sky's own color cancels most of the warm sun's tint, so it stays a clear blue overhead and warms only toward the sun; the haze ends at 13.5 km, between the backdrop (12 km) and the cloud dome (15 km), so neither the sky nor the clouds wear it; the haze's glow toward the sun matches the warm sky there. Art note 2 (the far band): the fog thinned to 0.003 (dusk 0.004) and the atmosphere's own haze stretched 3 times, so the backdrop's layers fade by distance, darker near and paler far, instead of melting into one pale band; M_Backdrop darkens them toward the sun to their shaded sides.",
       "sun": { "azimuth": 247.5, "elevation": 15, "intensity": 6.5, "temperature": 4100 },
@@ -1669,7 +1700,7 @@
     "about": "No creatures or director yet: the encounters (Docs/Areas/RansomsRest.md, \"Encounters stay on one level of ground\") are placed with their missions from step 14 on. The story's first arrival (spawnLanding) is a player start of its own beside the level's start by Ellis's grave; the depot's station carries Landing_Depot (build_area_travel.py).",
     "spawnLanding": "Landing_FamilyPlot",
     "posters": [
-      { "id": "posterGate", "host": "cottageSouthWest", "at": [200, -240, 190], "yaw": -90, "note": "west wall's plaster bay between two posts, facing the town gate" },
+      { "id": "posterGate", "host": "townGate", "socket": "Decal", "scale": 0.62, "note": "on the town gate's south post, facing the farm road (SOCKET_Decal, TownGate.py); a handbill's size, as the post is 32 cm across" },
       { "id": "posterSheriff", "host": "sheriff", "at": [500, 96, 188], "yaw": 0, "note": "stone front between the left barred window and the door" },
       { "id": "posterSaloon", "host": "saloon", "at": [700, 111.5, 243], "yaw": 0, "note": "siding between the boarded left window and the doors, over CLOSED FOR MOURNING" },
       { "id": "posterDepot", "host": "depot", "at": [300, -259, 205], "yaw": 0, "note": "siding between the agent's bay and the east window; trips arrive facing it" },

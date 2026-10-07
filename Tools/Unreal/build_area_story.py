@@ -1,9 +1,9 @@
 """The story's actors for build_area.py (Docs/Areas/RansomsRest.md: Main 1 "Seven Days", Main 2 "Shall We Talk Business?",
-Main 3 "Cold Welcome"), placed from the models build_area.py placed and their sockets (Art/Models/Props/Graves.py,
-Buildings/Lookout.py, Buildings/Farmhouse.py, Buildings/FalseFronts.py) and from the layout's zones, obstacles, features
-and roads, so they follow the level whenever it's rebuilt. Only a level whose layout has Ellis's grave (Ransom's Rest)
-gets any of it, and each piece waits for what it's placed from (no lookout: no cold open, no Sexton). Everything goes in
-the area's Gameplay folder, so a "gameplay" build places it all again.
+Main 3 "Cold Welcome", Main 4 "Hallowed Ground"), placed from the models build_area.py placed and their sockets
+(Art/Models/Props/Graves.py, Buildings/Lookout.py, Buildings/Farmhouse.py, Buildings/FalseFronts.py, Buildings/Chapel.py)
+and from the layout's zones, obstacles, features and roads, so they follow the level whenever it's rebuilt. Only a level
+whose layout has Ellis's grave (Ransom's Rest) gets any of it, and each piece waits for what it's placed from (no lookout:
+no cold open, no Sexton). Everything goes in the area's Gameplay folder, so a "gameplay" build places it all again.
 
 Main 1:
 - The cold open's set (AColdOpenSet) where the lookout stands, facing as it faces: its marks on Ransom's Point are the
@@ -12,8 +12,8 @@ Main 1:
   where the wake-up stands the player (GraveWake::StandOut), facing as the level's start does (toward the bell tower).
 - The two headboards to read (ASpeakerPoint tagged Headboard_Ellis and Headboard_Abel: "Read", from 2.5 m) at the graves'
   Interact sockets.
-- Grandma Delia's screen door (ASpeakerPoint tagged Speaker_Delia) on the farmhouse's front door: her Main 1 lines while
-  it lasts, the porch after.
+- Grandma Delia's screen door (ASpeakerPoint tagged Speaker_Delia) on the farmhouse's front door, and her house's screen
+  door and plate (build_area_farm.py).
 Main 2:
 - Mister Sexton (AMisterSexton, tagged Speaker_Sexton) on the lookout's SOCKET_Sit, facing into the deck, there during
   Main 2. Talked to: the spiders first; the deal once they're cleared; the Ledger; and a word after, before he's gone.
@@ -33,16 +33,24 @@ Main 3:
   player comes near, shut from the start after Main 3.
 - The safe zones (ASafeGround) from the layout's zones: Delia's salt line round the farm (zone farm, always) and Main
   Street (zone mainStreet, after Main 3).
+Main 4 (build_area_chapel.py, with these helpers): the chapel's place, the chapel yard's fight, the bell, the smashed
+  Reliquary, Father Aldana's vestry door, the chapel yard's respawn grave, and the Unpaid on boot hill and the north road
+  after Main 4.
+Side 3 (build_area_den.py): the Gravemother's lair at the den's mouth under Den Rock (after Main 5) and the den's place.
 Hob (AHobBird, tagged Speaker_Hob), perched near the next thing to do, saying his piece as he lands:
   Main 1: on Ellis's headboard (silent from the claw-out, "Morning, sunshine" once Ellis is out), and after it.
   Main 2: at the bluff path's foot ("Someone's waiting on you..."), on the bluff top's east rock as the fight begins ("See
           the blue on that one?..."), on the lookout's front rail beside Sexton for the deal, and there after it.
-  Main 3: on the town gate's north post (the farm road's way, then the fight), on Bright & Daughter's sign once the gate
-          is won, and there after Main 3.
+  Main 3: on the town gate's north post (its SOCKET_Perch: the farm road's way, then the fight), on Bright & Daughter's
+          sign once the gate is won, and there after Main 3.
+  Main 4: on the chapel's door hood (SOCKET_Perch_Hood) for the way up, the yard's fight, the bell and the Reliquary (a
+          word at each, no flight between them), then on the vestry lantern's bracket (SOCKET_Perch_Lantern) for Aldana,
+          and there after Main 4.
   Talked to, a line for where things stand.
 Their words are line sets in /Game/Data/Story (Tools/Unreal/create_story_lines.py makes them first); a set that's
 missing is left out with a warning, and its speaker says nothing until the sets are made and this runs again.
 """
+import importlib
 import math
 
 import unreal
@@ -54,6 +62,7 @@ LINES = '/Game/Data/Story/'
 MAIN1 = 'Main1'
 MAIN2 = 'Main2'
 MAIN3 = 'Main3'
+MAIN4 = 'Main4'
 FAMILY_PLOT = 'FamilyPlot'
 PLACE_POINT = 'Place_RansomsPoint'
 PLACE_GATE = 'Place_TownGate'
@@ -68,9 +77,6 @@ STAND_OUT = 190.0
 # its thickness and lean (cm).
 PERCH_UP = 30.0
 PERCH_BACK = 12.0
-# The farmhouse's front door, in its model's frame (Farmhouse.py: the door in the middle of the front wall, which stands
-# 3.1 m out from the pivot, its sill on the 0.6 m foundation): the speaker point stands on its face.
-DOOR = unreal.Vector(312.0, 0.0, 60.0)
 # Reading a headboard is done close to (cm).
 READ_REACH = 250.0
 # A conversation through a window carries as far as one through a door (USpeakerPointComponent's default, cm).
@@ -108,8 +114,10 @@ def actor_class(name):
 
 
 def placed(build, kind):
-    """The actor build_area.py placed for the first placement of this kind (labelled with its key), or None."""
+    """The actor build_area.py placed for the first placement (or level prop) of this kind (labelled with its key), or
+    None."""
     keys = [key for key, spot in build.layout['placements'].items() if spot['kind'] == kind]
+    keys += [prop['id'] for prop in build.props if prop['kind'] == kind]
     if not keys:
         return None
     level_actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
@@ -255,13 +263,16 @@ def marker(build, x, y, tag):
     return z
 
 
-def group(cls, count, rank):
-    """FEncounterGroup: count creatures of cls, all of one rank ('BASIC', 'RARE')."""
+def group(cls, count, rank, first_wave=1, last_wave=0):
+    """FEncounterGroup: count creatures of cls, all of one rank ('BASIC', 'RARE'), in each wave from first_wave to
+    last_wave (counted from 1; 0: every wave from the first)."""
     made = unreal.EncounterGroup()
     made.set_editor_property('creature_class', cls)
     made.set_editor_property('count', count)
     made.set_editor_property('rank_roll', unreal.EncounterRankRoll.FIXED)
     made.set_editor_property('rank', getattr(unreal.CreatureRank, rank))
+    made.set_editor_property('first_wave', first_wave)
+    made.set_editor_property('last_wave', last_wave)
     return made
 
 
@@ -316,19 +327,6 @@ def place_headboards(build, grave_ellis):
         speaker(build, cls, (at.x, at.y, at.z), face.rotation.rotator().yaw, tag, tag, prompt='Read', reach=READ_REACH,
                 line_set=lines(build, line_set))
     build.log('the headboards, to read')
-
-
-def place_delia(build):
-    farmhouse = placed(build, 'Farmhouse')
-    cls = actor_class('SpeakerPoint')
-    if farmhouse is None or cls is None:
-        return
-    door = farmhouse.get_actor_transform().transform_location(DOOR)
-    during = lines(build, 'DA_Lines_DeliaMain1')
-    speaker(build, cls, (door.x, door.y, door.z), farmhouse.get_actor_rotation().yaw, 'Speaker_Delia', 'Speaker_Delia',
-            name='Grandma Delia', line_set=lines(build, 'DA_Lines_DeliaPorch'),
-            topics=[topic(condition(before=[MAIN1]), during)] if during else ())
-    build.log(f'Grandma Delia\'s screen door at ({door.x:.0f}, {door.y:.0f}, {door.z:.0f})')
 
 
 # ---------------------------------------------------------------------------
@@ -542,7 +540,13 @@ def hob_on_rail(lookout, seat):
 
 
 def hob_on_gate_post(build):
-    """On the town gate's north post, looking down the farm road the player comes by."""
+    """On the town gate's north post, looking down the farm road the player comes by: on the gate's SOCKET_Perch, on the
+    post's cap (TownGate.py), or without the gate's model over the post's footprint."""
+    gate = placed(build, 'TownGate')
+    perch = socket(gate, 'Perch') if gate is not None else None
+    if perch is not None:
+        at = perch.translation
+        return at.x, at.y, at.z, perch.rotation.rotator().yaw
     post = layout_entry(build, 'obstacles', 'townGateNorth')
     road = layout_entry(build, 'roads', 'farmRoad')
     if post is None:
@@ -562,7 +566,7 @@ def hob_on_sign(shop):
     return at.x, at.y, z, shop.get_actor_rotation().yaw
 
 
-def place_hob(build, grave_ellis, lookout, seat, nest, shop):
+def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots):
     cls = actor_class('HobBird')
     board = hob_on_board(grave_ellis)
     if cls is None or board is None:
@@ -573,6 +577,9 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop):
         'rail': hob_on_rail(lookout, seat),
         'gate': hob_on_gate_post(build),
         'sign': hob_on_sign(shop),
+        # The chapel's door hood and vestry lantern (build_area_chapel.hob_spots).
+        'hood': chapel_spots.get('hood'),
+        'lantern': chapel_spots.get('lantern'),
     }
 
     def perch(spot, when, arrival=None):
@@ -606,7 +613,15 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop):
         perch(spots['sign'], condition(during=MAIN3, from_step=2), 'DA_Lines_HobMain3Tilly'),
         perch(spots['gate'], condition(during=MAIN3, from_step=1), 'DA_Lines_HobMain3Gate'),
         perch(spots['gate'], condition(during=MAIN3), 'DA_Lines_HobMain3Road'),
+        # Main 4: on the vestry lantern's bracket for Aldana; on the door hood for the Reliquary, the bell, the yard's fight
+        # and the way up (no flights between those: the same spot, a word at each).
+        perch(spots['lantern'], condition(during=MAIN4, from_step=4), 'DA_Lines_HobMain4Aldana'),
+        perch(spots['hood'], condition(during=MAIN4, from_step=3), 'DA_Lines_HobMain4Reliquary'),
+        perch(spots['hood'], condition(during=MAIN4, from_step=2), 'DA_Lines_HobMain4Bell'),
+        perch(spots['hood'], condition(during=MAIN4, from_step=1), 'DA_Lines_HobMain4Yard'),
+        perch(spots['hood'], condition(during=MAIN4), 'DA_Lines_HobMain4Road'),
         # After each, where the last left him.
+        perch(spots['lantern'], condition(after=[MAIN4])),
         perch(spots['sign'], condition(after=[MAIN3])),
         perch(spots['rail'], condition(after=[MAIN2])),
         perch(board, condition(after=[MAIN1])),
@@ -614,6 +629,7 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop):
     hob.set_editor_property('perches', [each for each in perches if each is not None])
     hob.get_editor_property('speaker_point').set_editor_property('topics', topics(
         build,
+        (condition(during=MAIN4), 'DA_Lines_HobMain4'),
         (condition(during=MAIN3), 'DA_Lines_HobMain3'),
         (condition(during=MAIN2), 'DA_Lines_HobMain2'),
         (condition(during=MAIN1), 'DA_Lines_HobMain1'),
@@ -632,7 +648,8 @@ def place(build):
     place_cold_open(build)
     grave_ellis = place_family_plot(build)
     place_headboards(build, grave_ellis)
-    place_delia(build)
+    # Delia's door and her house's pieces (their own module, reloaded as the chapel's is).
+    importlib.reload(importlib.import_module('build_area_farm')).place(build)
     # Main 2.
     lookout = placed(build, 'Lookout')
     seat = socket(lookout, 'Sit') if lookout else None
@@ -644,4 +661,9 @@ def place(build):
     place_tilly(build, shop)
     place_shutters(build)
     place_safe_zones(build)
-    place_hob(build, grave_ellis, lookout, seat, nest, shop)
+    # Main 4, at the chapel (its own module, reloaded as the editor keeps modules between runs, so an edited one takes
+    # effect); it hands back Hob's chapel perches.
+    chapel_spots = importlib.reload(importlib.import_module('build_area_chapel')).place(build)
+    # Side 3: the Gravemother's lair and the den's place (its own module, reloaded as the chapel's is).
+    importlib.reload(importlib.import_module('build_area_den')).place(build)
+    place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots)

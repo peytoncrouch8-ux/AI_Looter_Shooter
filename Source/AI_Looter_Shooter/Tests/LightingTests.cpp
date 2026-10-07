@@ -23,7 +23,9 @@
 #include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialParameterCollectionInstance.h"
 #include "Misc/PackageName.h"
+#include "Misc/ScopeExit.h"
 #include "Tests/AutomationCommon.h"
+#include "UObject/UObjectGlobals.h"
 
 namespace
 {
@@ -382,6 +384,19 @@ bool FLightingLevelsTest::RunTest(const FString& Parameters)
 		{ TEXT("/Game/Maps/Dev/Lvl_TerrainTest"), true },
 		{ TEXT("/Game/Maps/Lvl_RansomsRest"), true },
 	};
+	// The maps this test loads itself are let go at the end. A map left loaded on its own stays in memory, where a later
+	// reimport of a mesh it uses marks it changed: the editor then can't unload it, and opening that map fails its leak
+	// check and stops the editor. Let go, the editor's next collection (opening a map starts with one) frees them. Not
+	// one of the test's own: that would also collect whatever the editor last unloaded, mid-test, and a world it left
+	// behind trips the engine's subsystem check there.
+	TArray<UWorld*> LoadedHere;
+	ON_SCOPE_EXIT
+	{
+		for (UWorld* Loaded : LoadedHere)
+		{
+			Loaded->ClearFlags(RF_Standalone);
+		}
+	};
 	for (const FBuiltLevel& Each : Built)
 	{
 		const FString MapPackage(Each.Map);
@@ -391,7 +406,13 @@ bool FLightingLevelsTest::RunTest(const FString& Parameters)
 			AddInfo(FString::Printf(TEXT("%s isn't built: skipped."), *Name));
 			continue;
 		}
-		const UWorld* Map = LoadObject<UWorld>(nullptr, *FString::Printf(TEXT("%s.%s"), *MapPackage, *Name));
+		const FString MapPath = FString::Printf(TEXT("%s.%s"), *MapPackage, *Name);
+		const bool bWasLoaded = FindObject<UWorld>(nullptr, *MapPath) != nullptr;
+		UWorld* Map = LoadObject<UWorld>(nullptr, *MapPath);
+		if (Map && !bWasLoaded)
+		{
+			LoadedHere.Add(Map);
+		}
 		if (!TestNotNull(Name + TEXT(" loads"), Map) || !TestNotNull(Name + TEXT(" has a level"), Map->PersistentLevel.Get()))
 		{
 			continue;

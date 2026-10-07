@@ -434,6 +434,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   Reliquary_Chapel): looked at (a tap, from Main 4's fourth step) it plays the two-second Grave Sight flash and her
   ember lifting off the lid (SOCKET_Ember; the cold open's glow), then tells the missions (`GraveSight.Reliquary`);
   plain shapes stand in without its model.
+- `World/HouseLights`: `AHouseLights`, a lived-in house's lights for the lighting states: a warm unshadowed lamp at the
+  house's SOCKET_Light and its WindowGlow slot's glow (an instance of its own), both brighter at dusk; placed by
+  `build_area.py` from `layout.json` `level.lights` (Delia's, the store, Tilly's, two cottages). Nothing ticks.
 - `World/InstancedScenery`: `AInstancedScenery`, scenery far past a level's playable boundary drawn as one mesh's
   instances (Ransom's Rest's far trees, one actor per tree mesh, set by `build_area.py`): no collision, navigation
   or shadows, never distance-culled.
@@ -653,9 +656,13 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   their materials; the backdrop's tints, darker near and paler far, and its UV 1 `Depth`); `Art/Models/Terrain/<Area>.py`
   wrappers call it.
 - `Tools/Unreal/build_area.py`: `AreaBuild`, builds an area's level (`build_area.py <Area>
-  [gameplay|environment|beyond]`), with what lies past the boundary tagged Beyond (a grounded area's ring, canyon wall,
-  backdrop and far trees, the last as `AInstancedScenery`; an island's sky islands), and the boundary's rock pieces
-  varied (mirrored, sunk, turned); `build_tutorial_island.py` wraps it for the tutorial island.
+  [gameplay|environment|beyond|cliffs]`), with what lies past the boundary tagged Beyond (a grounded area's ring, canyon
+  wall, backdrop and far trees, the last as `AInstancedScenery`; an island's sky islands), and the boundary's rock pieces
+  varied (mirrored, sunk, turned); `build_tutorial_island.py` wraps it for the tutorial island. From `layout.json`'s
+  level block an area swaps in models of its own (`models`), places models the generator needn't know (`props`: the
+  town gate), chooses which chimneys smoke (`smoke`) and which houses are lit (`lights`: AHouseLights, or dark windows),
+  varies its cliffs' tops and leaves gaps (`cliffs`), and wears its own instances of shared materials (`materials`,
+  `swaps`: Ransom's Rest's rock and orchard leaves).
 - `Tools/Unreal/build_area_bounds.py`: a grounded area's bounds for `build_area.py`: the playable area from the
   computed boundary (its walls `level.wallSetback` behind the line, at the rock's foot), the KillZ 100 m under the
   canyon floor, and a cull distance volume (sizes to distances).
@@ -686,9 +693,17 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Tools/Unreal/build_area_story.py`: the story's pieces placed from the placed models' sockets and the layout's zones,
   obstacles and roads, for `build_area.py`'s gameplay pass (Ransom's Rest only): the cold open's set at the lookout, the
   family plot's respawn grave (open after Main 1), the two headboards to read, Delia's speaker point at the farmhouse's
-  screen door; Sexton on the lookout's rail, Ransom's Point's place and its spider nest (Main 2); the town gate's place
-  and its Unpaid, Tilly's window, the store's shutters, the farm's and Main Street's safe zones (Main 3); and Hob with his
-  perches through Main 3.
+  screen door (with the farmhouse's screen door and plate, `build_area_farm.py`); Sexton on the lookout's rail, Ransom's
+  Point's place and its spider nest (Main 2); the town gate's place and its Unpaid, Tilly's window, the store's
+  shutters, the farm's and Main Street's safe zones (Main 3); Main 4's pieces from `build_area_chapel.py`; the
+  Gravemother's lair from `build_area_den.py`; and Hob with his perches through Main 4 (on the town gate's
+  SOCKET_Perch for Main 3).
+- `Tools/Unreal/build_area_chapel.py`: Main 4's pieces for `build_area_story.py`: the chapel's place, the chapel yard's
+  fight (two waves of six Unpaid, the Restless one with the second, inside the churchyard fence), the bell at the rope's
+  grip with SM_ChapelBell on the belfry socket, the smashed Reliquary, Aldana's vestry door, the chapel yard's respawn
+  grave (after Main 4), the Unpaid on boot hill and the north road after Main 4, and Hob's chapel perches.
+- `Tools/Unreal/build_area_farm.py`: Ransom Farm's pieces for `build_area_story.py`, on the lived-in farmhouse's
+  sockets: Delia's door (SOCKET_Speaker), the screen door hung closed and the plate on the porch stool.
 - `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`); its mask is imported
   again whenever the PNG changes (its MD5 kept on the texture as metadata).
   `Tools/Unreal/island_views.py`: an area's viewpoints as editor cameras and shots.

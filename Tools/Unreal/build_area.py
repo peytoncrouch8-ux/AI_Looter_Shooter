@@ -1,4 +1,4 @@
-"""Builds an area's level from its layout: build_area.py <Area> [gameplay|environment|beyond].
+"""Builds an area's level from its layout: build_area.py <Area> [gameplay|environment|beyond|cliffs].
 
 Art/Models/Terrain/<Area>.py turns Art/Levels/<Area>/layout.json into the terrain and into layout_computed.json: where
 every building, cliff piece, road, the bridge and the water go, at the built terrain's heights. This script places all
@@ -10,9 +10,12 @@ creature groups). The terrain's meshes are SM_<Area>_<part> (level.meshPrefix ov
 
 Everything it places carries the area's tag (IslandBuild on the tutorial island) and sits under its outliner folder
 (Island). Building again replaces those actors, so actors placed by hand survive; with "gameplay" it only places the
-gameplay actors again, with "environment" only the light, sky and fog, and with "beyond" only what lies past the
-boundary (sky islands, a grounded area's ring, canyon wall, backdrop and far trees). Models that aren't imported yet are
-skipped with a warning. The level is saved last.
+gameplay actors again, with "environment" only the light, sky and fog, with "beyond" only what lies past the
+boundary (sky islands, a grounded area's ring, canyon wall, backdrop and far trees), and with "cliffs" only the cliff
+faces and outcrops. Models that aren't imported yet are skipped with a warning. The level is saved last. An area can
+swap in models of its own (level.models), add models only the build places (level.props), choose which chimneys smoke
+(level.smoke), vary its cliffs (level.cliffs) and wear its own instances of shared materials (level.materials and
+level.swaps: Ransom's Rest's rock).
 Grass, flowers, trees and rocks come from the scatter (build_island_scatter.py <Area>).
 
 A grounded area's terrain also has what lies past its core (Art/Levels/area_beyond.py): the surround ring
@@ -25,8 +28,9 @@ banks get no faces. Its playable area, KillZ and cull distance volume come from 
 light, sky and fog from build_area_environment.py; the skiff jetty, the depot's station and the landings trips arrive at
 from build_area_travel.py; the story's actors (the cold open's set, the family plot's grave, the headboards, Delia's
 door, Sexton, the bluff's spider nest, the town gate's fight, Tilly's window, the store's shutters, the safe zones,
-Hob) from build_area_story.py; the wanted posters and Calder's note (layout.json gameplay.posters) from
-build_area_posters.py.
+Hob) from build_area_story.py, and Main 4's at the chapel (the yard's fight, the bell, the Reliquary, Aldana's door, the
+chapel yard's grave, the Unpaid on boot hill and the north road) from build_area_chapel.py; the wanted posters and
+Calder's note (layout.json gameplay.posters) from build_area_posters.py.
 """
 import importlib
 import json
@@ -63,7 +67,10 @@ CLIFF_COURSE_OVERLAP = 30.0  # a lower course reaches this far up behind the one
 # reads as a kit. Each of its pieces draws on its own seed, so a rebuild places it the same: every other one is
 # mirrored across its width (its face still toward the line, its features flipped), each sinks into the ground by its
 # own depth and still reaches just over the top, so it's stretched differently and a feature never sits at one height,
-# and each turns a little more.
+# and each turns a little more. An area's layout can name its own (level.cliffs.varied), and give their tops a spread
+# (level.cliffs.top: the share of the wall each piece's top reaches, so a run's top isn't one line and the terrain's own
+# rock shows over the short ones) and gaps (level.cliffs.gaps: the share of single-course pieces left out, never two
+# side by side nor a run's end, so a long wall breaks).
 VARIED_CLIFFS = ('boundaryFoot',)
 VARY_SINK = (50.0, 200.0)     # cm a piece sinks below its foot
 VARY_STRETCH = (0.85, 1.15)   # height scales a piece is picked for, when the kit has one that fits
@@ -117,12 +124,14 @@ def free_ends(points, i, width):
     return ends
 
 
-def varied_piece(pieces, group, points, i, k, course, last, gap):
+def varied_piece(pieces, group, points, i, k, course, last, gap, top=None):
     """Course k of a varied group's point i (VARIED_CLIFFS): (mesh, its height and width, the height it's scaled to
-    reach from its sunk pivot, how far it sinks, its turn, -1.0 when mirrored), all drawn from the piece's own seed."""
+    reach from its sunk pivot, how far it sinks, its turn, -1.0 when mirrored), all drawn from the piece's own seed. With
+    top (the least and most share of the wall), the top course reaches its own share of the wall."""
     rnd = random.Random(f'{group} {i} {k}')
     sink = rnd.uniform(*VARY_SINK)
-    reach = course['height'] + sink + (CLIFF_OVERTOP if last else CLIFF_COURSE_OVERLAP)
+    share = rnd.uniform(*top) if top and last else 1.0
+    reach = course['height'] * share + sink + (CLIFF_OVERTOP if last else CLIFF_COURSE_OVERLAP)
     # Among the pieces that fit at a height scale within VARY_STRETCH (any when none does), the one stretched least
     # either way, with chance in it, so a long wall mixes the kit's pieces where their heights allow.
     fits = [p for p in pieces if VARY_STRETCH[0] <= reach / p[1] <= VARY_STRETCH[1]] or pieces
@@ -139,6 +148,14 @@ def varied_piece(pieces, group, points, i, k, course, last, gap):
         turn = -math.copysign(abs(turn), ex * math.sin(yaw) - ey * math.cos(yaw))
     return mesh, piece_height, piece_width, reach, sink, turn, (-1.0 if (i + k) % 2 else 1.0)
 
+
+
+def cliff_gap(group, i, count, share):
+    """Whether a varied group's point i is left out (level.cliffs.gaps): drawn from its own seed, never a run's first or
+    last point, nor the one after a gap."""
+    def drawn(j):
+        return 0 < j < count - 1 and random.Random(f'{group} {j} gap').random() < share
+    return share > 0.0 and drawn(i) and not drawn(i - 1)
 
 
 def ground_height(x, y, default):
@@ -177,6 +194,10 @@ class AreaBuild:
         self.folder = level.get('folder', name)
         self.prefix = level.get('meshPrefix', f'{name}_')
         self.tree_free_zones = level.get('noTreeZones', [])
+        # A placement kind's model where the area has its own, and the models only the build places (level.props).
+        self.model_names = level.get('models', {})
+        self.props = level.get('props', [])
+        self.cliff_look = level.get('cliffs', {})
         self.settings = self.source.get('gameplay', {})
         self.layout = None  # layout_computed.json, read by run()
 
@@ -188,7 +209,8 @@ class AreaBuild:
 
     def open_level(self, folder=None):
         """Opens (or makes) the level and removes what the last build placed (only in the outliner folder
-        <area folder>/<folder> when given). Stops if another level has unsaved edits."""
+        <area folder>/<folder> and its subfolders when given; a tuple names several). Stops if another level has
+        unsaved edits."""
         world = unreal.EditorLevelLibrary.get_editor_world()
         if world.get_path_name().split('.')[0] != self.level:
             # Untitled scratch maps (/Temp, such as review_stage.py's) are never saved, so they don't count.
@@ -204,8 +226,12 @@ class AreaBuild:
                     unreal.LooterLevelTools.finish_asset_compilation()
             else:
                 levels.new_level(self.level)
+        folders = [f'{self.folder}/{each}' for each in ((folder,) if isinstance(folder, str) else folder or ())]
+
+        def cleared(path):
+            return not folders or any(path == each or path.startswith(each + '/') for each in folders)
         built = [a for a in actors.get_all_level_actors() if unreal.Name(self.tag) in a.tags
-                 and (folder is None or str(a.get_folder_path()) == f'{self.folder}/{folder}')]
+                 and cleared(str(a.get_folder_path()))]
         if built:
             actors.destroy_actors(built)
             self.log(f'removed {len(built)} actors from the last build')
@@ -296,7 +322,8 @@ class AreaBuild:
         return spots
 
     def models(self, meshes):
-        """Buildings, structures and props at their placements, and the orchards' apple trees."""
+        """Buildings, structures and props at their placements (each kind's model, or the area's own from level.models),
+        the models only the build places (level.props), and the orchards' apple trees."""
         placed = 0
         stations = []
         for key, spot in self.layout['placements'].items():
@@ -304,7 +331,7 @@ class AreaBuild:
             # Gameplay actors are gameplay()'s, so placing only those again ("gameplay") brings them all back.
             if kind in ('PlayerStart', 'TargetDummy', 'GunRack', 'Landing'):
                 continue
-            name = kind
+            name = self.model_names.get(kind, kind)
             if name not in meshes:
                 self.warn(f'no SM_{name} yet (placement {key})')
                 continue
@@ -335,6 +362,17 @@ class AreaBuild:
                            folder='Buildings', tags=('Obstacle',))
             placed += 1
 
+        # The models only the build places stand on the ground under their location, which the terrain now gives.
+        for prop in self.props:
+            name = self.model_names.get(prop['kind'], prop['kind'])
+            if name not in meshes:
+                self.warn(f'no SM_{name} yet (prop {prop["id"]})')
+                continue
+            x, y = prop['location']
+            self.place(unreal.load_asset(meshes[name]), (x, y, ground_height(x, y, 0.0)), prop.get('yaw', 0.0),
+                       label=prop['id'], folder='Buildings', tags=('Obstacle',))
+            placed += 1
+
         # A station's landing lies on its platform, which stands only now.
         for station, key, spot in stations:
             self.travel.land_station(self, station, key, spot)
@@ -355,8 +393,10 @@ class AreaBuild:
         for r, row in enumerate(self.layout.get('orchardRows', [])):
             for t, tree in enumerate(row['trees']):
                 if apple:
+                    # Not Obstacles: the scatter keeps every layer out of an obstacle's bounds, and the crowns, 4.5 m
+                    # apart, would leave the orchard's whole floor bare.
                     self.place(apple, tree, rng.uniform(-180.0, 180.0), label=f'AppleTree_{r + 1}_{t + 1}',
-                               folder='Orchard', tags=('Obstacle', 'Tree'))
+                               folder='Orchard', tags=('Tree',))
                     placed += 1
         self.log(f'placed {placed} models')
 
@@ -449,10 +489,11 @@ class AreaBuild:
         Each dressing point is where a wall meets the ground below it (a hanging cliff such as the rim: the wall's
         top, with the drop below it), facing out. A piece stands a little inside that line so it covers the wall and
         its lip; it reaches just over the top, is widened to overlap its neighbours, and is chosen among the kit's
-        pieces by how little it must stretch. The groups in VARIED_CLIFFS (the boundary's rock) are varied more, each
-        piece from its own seed: every other one mirrored, sunk 0.5-2 m while it still reaches just over the top, so
-        it's stretched differently (within VARY_STRETCH where the kit has a piece that fits), and turned up to 8
-        degrees."""
+        pieces by how little it must stretch. The groups in VARIED_CLIFFS (the boundary's rock), or the layout's own
+        (level.cliffs.varied), are varied more, each piece from its own seed: every other one mirrored, sunk 0.5-2 m
+        while it still reaches just over the top (or its share of the wall, level.cliffs.top), so it's stretched
+        differently (within VARY_STRETCH where the kit has a piece that fits), and turned up to 8 degrees; some are left
+        out for gaps (level.cliffs.gaps)."""
         pieces = []
         for name in CLIFF_PIECES:
             if name in meshes:
@@ -463,7 +504,10 @@ class AreaBuild:
             self.warn('no cliff pieces yet')
             return
         rng = random.Random(23)
-        placed = 0
+        varied = tuple(self.cliff_look.get('varied', VARIED_CLIFFS))
+        top = self.cliff_look.get('top')
+        gap_share = self.cliff_look.get('gaps', 0.0)
+        placed = left_out = 0
         for group, points in self.layout.get('cliffs', {}).items():
             for i, point in enumerate(points):
                 kind = point.get('kind')
@@ -492,10 +536,13 @@ class AreaBuild:
                     choices = sorted(pieces, key=lambda p: abs(math.log(reach / p[1])) + rng.uniform(0.0, 0.25))
                     mesh, piece_height, piece_width = choices[0]
                     turn, sink, mirror = rng.uniform(-4.0, 4.0), 0.0, 1.0
-                    if group in VARIED_CLIFFS:
+                    if group in varied:
                         # Its own draws; the shared ones above are still made, so the groups after it keep theirs.
+                        if len(courses) == 1 and cliff_gap(group, i, len(points), gap_share):
+                            left_out += 1
+                            continue
                         mesh, piece_height, piece_width, reach, sink, turn, mirror = varied_piece(
-                            pieces, group, points, i, k, course, last, gap)
+                            pieces, group, points, i, k, course, last, gap, top)
                     inward = (-math.cos(math.radians(yaw)) * CLIFF_INSET, -math.sin(math.radians(yaw)) * CLIFF_INSET)
                     width = cliff_width(gap, piece_width)
                     suffix = f'_{k + 1}' if len(courses) > 1 else ''
@@ -503,7 +550,63 @@ class AreaBuild:
                                label=f'Cliff_{group}_{i + 1:02d}{suffix}', folder=f'Cliffs/{group}',
                                scale=(1.0, mirror * width, reach / piece_height), tags=('Obstacle',))
                     placed += 1
-        self.log(f'placed {placed} cliff pieces')
+        self.log(f'placed {placed} cliff pieces' + (f' ({left_out} left out for gaps)' if left_out else ''))
+
+    def area_materials(self):
+        """The area's own instances of shared materials (level.materials: a name, the shared one it's an instance of
+        and the values it changes), made or updated here and saved only when they change; returns them by the shared
+        one's name (level.swaps), for swap_materials."""
+        mel = unreal.MaterialEditingLibrary
+        made = {}
+        for name, spec in self.source.get('level', {}).get('materials', {}).items():
+            path = f'{ART}/Materials/{name}'
+            parent = unreal.load_asset(f'{ART}/Materials/{spec["parent"]}')
+            if parent is None:
+                self.warn(f'no {spec["parent"]}: no {name}')
+                continue
+            if unreal.EditorAssetLibrary.does_asset_exist(path):
+                instance = unreal.load_asset(path)
+            else:
+                instance = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+                    name, f'{ART}/Materials', unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+            changed = instance.get_editor_property('parent') != parent
+            if changed:
+                mel.set_material_instance_parent(instance, parent)
+            for key, value in spec.get('vectors', {}).items():
+                color = unreal.LinearColor(*(list(value) + [1.0] * (4 - len(value))))
+                old = mel.get_material_instance_vector_parameter_value(instance, key)
+                if changed or any(abs(a - b) > 1e-4 for a, b in zip(old.to_tuple(), color.to_tuple())):
+                    mel.set_material_instance_vector_parameter_value(instance, key, color)
+                    changed = True
+            for key, value in spec.get('scalars', {}).items():
+                if changed or abs(mel.get_material_instance_scalar_parameter_value(instance, key) - value) > 1e-4:
+                    mel.set_material_instance_scalar_parameter_value(instance, key, value)
+                    changed = True
+            if changed:
+                mel.update_material_instance(instance)
+                unreal.EditorAssetLibrary.save_loaded_asset(instance, only_if_is_dirty=False)
+                self.log(f'{path} saved')
+            made[name] = instance
+        return {shared: made[own] for shared, own in self.source.get('level', {}).get('swaps', {}).items() if own in made}
+
+    def swap_materials(self):
+        """The area's own look on what the build placed (level.swaps): every slot wearing a shared material wears the
+        area's instance of it instead (Ransom's Rest's rock, warmer and darker than the tutorial island's)."""
+        swaps = self.area_materials()
+        if not swaps:
+            return
+        count = 0
+        for actor in actors.get_all_level_actors():
+            # The scatter's instances belong to its graph, which makes them again whenever it generates.
+            if unreal.Name(self.tag) not in actor.tags or isinstance(actor, unreal.PCGVolume):
+                continue
+            for mesh in actor.get_components_by_class(unreal.StaticMeshComponent):
+                for slot in range(mesh.get_num_materials()):
+                    worn = mesh.get_material(slot)
+                    if worn is not None and worn.get_name() in swaps:
+                        mesh.set_material(slot, swaps[worn.get_name()])
+                        count += 1
+        self.log(f'{count} slots wear the area\'s own materials ({", ".join(sorted(swaps))})')
 
     def outcrop(self, meshes, group, point):
         """A knob's freestanding rock: the outcrop kit's piece (Art/Models/Rocks/Outcrops.py), scaled to the height
@@ -534,8 +637,9 @@ class AreaBuild:
             box.set_actor_enable_collision(False)
 
     def effects(self, meshes):
-        """The waterfall off the creek's lip, and smoke from every chimney (the buildings' Smoke sockets), leaning
-        downwind. Each waits for its model."""
+        """The waterfall off the creek's lip, and smoke from the chimneys (the buildings' Smoke sockets), leaning
+        downwind: every one, or with level.smoke only those buildings' (placement keys: the lived-in houses of a
+        mourning town). Each waits for its model."""
         falls = self.layout.get('waterfalls') or ({'waterfall': self.layout['waterfall']}
                                                   if self.layout.get('waterfall') else {})
         for n, (key, fall) in enumerate(falls.items()):
@@ -554,9 +658,12 @@ class AreaBuild:
             self.warn('no SM_SmokePlume yet')
             return
         plume = unreal.load_asset(meshes['SmokePlume'])
+        smoking = self.source.get('level', {}).get('smoke')
         count = 0
         for building in actors.get_all_level_actors():
             if unreal.Name(self.tag) not in building.tags:
+                continue
+            if smoking is not None and building.get_actor_label() not in smoking:
                 continue
             # A building standing as an actor of its own (the depot's station) carries its mesh in a component.
             for mesh_component in building.get_components_by_class(unreal.StaticMeshComponent):
@@ -568,11 +675,56 @@ class AreaBuild:
                            folder='Effects')
                 count += 1
         self.log(f'placed {count} chimney smoke plumes')
+        self.house_lights()
+
+    def house_lights(self):
+        """The lived-in houses' lights (level.lights, by placement key): AHouseLights on each one's SOCKET_Light, its lamp
+        there and the model's WindowGlow slot brightened at dusk, with the lamp's candelas by day and at dusk ("lamp") and
+        its reach ("reach", cm) where the house wants its own; or with "dark" an empty house's windows unlit (its
+        WindowGlow slot wears MI_WindowGlow_Dark, which level.materials makes)."""
+        spec = self.source.get('level', {}).get('lights', {})
+        if not spec:
+            return
+        self.area_materials()
+        dark = unreal.load_asset(f'{ART}/Materials/MI_WindowGlow_Dark')
+        cls = unreal.load_class(None, CLASSES + 'HouseLights')
+        lit = unlit = 0
+        for house in actors.get_all_level_actors():
+            key = str(house.get_actor_label())
+            if unreal.Name(self.tag) not in house.tags or key not in spec or not isinstance(house, unreal.StaticMeshActor):
+                continue
+            mesh, settings = house.static_mesh_component, spec[key]
+            if settings.get('dark'):
+                slot = mesh.get_material_index('WindowGlow')
+                if slot >= 0 and dark is not None:
+                    mesh.set_material(slot, dark)
+                    unlit += 1
+                continue
+            if cls is None:
+                self.warn('no HouseLights class (build the game module first): the houses stay dark at dusk')
+                return
+            if not mesh.does_socket_exist('Light'):
+                self.warn(f'{key} has no Light socket: no lamp in it')
+                continue
+            at = mesh.get_socket_transform('Light', unreal.RelativeTransformSpace.RTS_WORLD)
+            where = at.translation
+            lights = self.place(cls, (where.x, where.y, where.z), at.rotation.rotator().yaw, label=f'Lights_{key}',
+                                folder='Effects')
+            lights.set_editor_property('house', house)
+            day, dusk = settings.get('lamp', (2.0, 5.5))
+            lights.set_editor_property('day_lamp', day)
+            lights.set_editor_property('dusk_lamp', dusk)
+            lamp = lights.get_editor_property('lamp')
+            lamp.set_editor_property('intensity', day)
+            if 'reach' in settings:
+                lamp.set_editor_property('attenuation_radius', float(settings['reach']))
+            lit += 1
+        self.log(f'lights in {lit} houses, {unlit} left dark')
 
     def run(self, mode=None):
         """Builds the whole level, or with mode "gameplay" only the gameplay actors, with "environment" only the light,
-        sky and fog, or with "beyond" only what lies past the boundary (a grounded area's ring, canyon wall and
-        backdrop; an island's sky islands)."""
+        sky and fog, with "beyond" only what lies past the boundary (a grounded area's ring, canyon wall and
+        backdrop; an island's sky islands), or with "cliffs" only the cliff faces and the outcrops."""
         with open(self.computed_path) as f:
             self.layout = json.load(f)
         # Reloaded, as the editor keeps modules between runs, so an edited one takes effect.
@@ -597,8 +749,17 @@ class AreaBuild:
             self.terrain(meshes, only_beyond=True)
             self.sky_islands(meshes)
             self.far_trees(meshes)
+            self.swap_materials()
             levels.save_current_level()
             self.log('beyond placed and saved')
+            return
+        if mode == 'cliffs':
+            # The cliff faces and the outcrops (cliffs() places both), in the area's look.
+            self.open_level(('Cliffs', 'Outcrops'))
+            self.cliffs(mesh_index())
+            self.swap_materials()
+            levels.save_current_level()
+            self.log('cliffs placed and saved')
             return
         self.open_level()
         meshes = mesh_index()
@@ -613,6 +774,7 @@ class AreaBuild:
         self.gameplay(meshes)
         # Reloaded, as the editor keeps modules between runs, so an edited one takes effect.
         importlib.reload(build_area_bounds).place(self)
+        self.swap_materials()
         sky_light.recapture_sky()
         levels.save_current_level()
         self.log('built and saved')
@@ -624,8 +786,8 @@ def run(name, only_gameplay=False, mode=None):
 
 if __name__ == '__main__':
     args = sys.argv[1:]
-    modes = ('gameplay', 'environment', 'beyond')
+    modes = ('gameplay', 'environment', 'beyond', 'cliffs')
     if not args or args[0] in modes:
-        raise SystemExit('usage: build_area.py <Area> [gameplay|environment|beyond] (the area is a folder under '
+        raise SystemExit('usage: build_area.py <Area> [gameplay|environment|beyond|cliffs] (the area is a folder under '
                          'Art/Levels)')
     run(args[0], mode=next((a for a in args[1:] if a in modes), None))

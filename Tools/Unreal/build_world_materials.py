@@ -13,8 +13,10 @@
                   WindStrength (cm), WindSpeed, WindDirection.
   M_Terrain       MacroMap on UV 0 covers the whole island (its alpha picks the detail: 0 grass/soil, 1 rock); the
                   Grass* and Rock* maps tile on UV 1 (meters) and only modulate the macro color's brightness. Faces
-                  steeper than SteepStart degrees (fully past SteepFull) take the rock map's own color laid on from
-                  the side, with no detail normal: maps laid on from above smear down a cliff.
+                  steeper than SteepStart degrees (fully past SteepFull) take the rock map laid on from the side as
+                  their detail, with no detail normal: maps laid on from above smear down a cliff. The face keeps the
+                  macro map's color with the rock's light and dark on it (SteepDetail), and the rock's layers rise and
+                  fall a little along it, so a long bluff wears the area's colors and no ruled stripes.
   M_SkyClouds     unlit, translucent: painted clouds on a sky dome (Coverage, Softness, Scale, wind), each lit from
                   the sun's side (the sky atmosphere's sun): a warm LitColor where it thins toward the sun, a cool
                   ShadeColor where it thickens, darker cores against the sun and thin edges glowing near it.
@@ -332,8 +334,17 @@ float3 Color = Macro * lerp(1.0, Luma / max(Mean, 0.05), Strength);
 // faces each): the macro map and the detail maps are laid on from above, so down a cliff they smear into streaks.
 float2 Facing = pow(abs(normalize(Normal).xy), 4.0);
 Facing /= max(Facing.x + Facing.y, 1e-4);
-Color = lerp(Color, RockX * Facing.x + RockY * Facing.y, Steep);
+float3 Side = RockX * Facing.x + RockY * Facing.y;
+// The face takes the macro map's color with the side-laid rock's light and dark on it (SteepDetail), as gentler ground
+// takes the detail maps': the rock map's own pale cream at full strength stood out of the area's palette, and its
+// layers, every four meters, ruled stripes down a long bluff.
+float SideLuma = dot(Side, float3(0.299, 0.587, 0.114));
+Color = lerp(Color, Macro * lerp(1.0, SideLuma / max(RockMean, 0.05), SteepDetail), Steep);
 return Color * lerp(1.0, Occlusion, DiffuseAO);"""
+# The rock map laid on from one side (A: world X or Y, across the face) in world meters times Scale, its layers lifted
+# and dropped a little along the face (two long, low waves, and a slight lean), so they never run dead level for long.
+SIDE_UV_CODE = """float W = sin(A * 0.0011 + 1.3) * 0.14 + sin(A * 0.0037 + P.z * 0.0007) * 0.05 + A * 0.00002;
+return float2(A * Scale * 0.01, -P.z * Scale * 0.01 + W);"""
 # How steep the ground is, from 0 (gentler than SteepStart degrees) to 1 (steeper than SteepFull).
 STEEP_CODE = 'return 1.0 - smoothstep(cos(radians(Full)), cos(radians(Start)), normalize(Normal).z);'
 
@@ -354,7 +365,7 @@ def build_terrain():
     # Steep faces: the rock map again, laid on from the X and the Y side (world meters x RockScale, as on UV 1).
     world = g.node(unreal.MaterialExpressionWorldPosition, -2400, 1300)
     vertex_normal = g.node(unreal.MaterialExpressionVertexNormalWS, -2400, 1500)
-    side_uvs = [g.custom(f'return float2({axis}, -P.z) * Scale * 0.01;',
+    side_uvs = [g.custom(f'float A = {axis};\n' + SIDE_UV_CODE,
                          [('P', world, ''), ('Scale', rock_scale, '')],
                          unreal.CustomMaterialOutputType.CMOT_FLOAT2, -2000, y, f'Rock UV from the {name} side')
                 for axis, name, y in (('P.y', 'X', 1300), ('P.x', 'Y', 1450))]
@@ -374,6 +385,7 @@ def build_terrain():
         ('Occlusion', vc, 'A'),
         ('DiffuseAO', g.scalar('DiffuseAO', 0.45, -1000, 1200), ''),
         ('RockX', rock_x, 'RGB'), ('RockY', rock_y, 'RGB'), ('Normal', vertex_normal, ''), ('Steep', steep, ''),
+        ('SteepDetail', g.scalar('SteepDetail', 0.75, -1000, 1300), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -600, 0, 'TerrainColor')
     g.out(color, '', unreal.MaterialProperty.MP_BASE_COLOR)
     normal = g.node(unreal.MaterialExpressionLinearInterpolate, -900, 400)

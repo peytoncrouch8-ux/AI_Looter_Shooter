@@ -3,7 +3,7 @@
 param([string]$Filter = 'Looter')
 $s = $PSScriptRoot; $T = 'AutomationTestToolset.AutomationTestToolset'
 & "$s\mcp.ps1" $T "DiscoverTests" '{"bForceRediscover":true}' | Out-Null
-$list = ((& "$s\mcp.ps1" $T "ListTests" (@{ nameFilter = $Filter; tagFilter = ''; limit = 200 } | ConvertTo-Json -Compress)) | ConvertFrom-Json).returnValue | ConvertFrom-Json
+$list = ((& "$s\mcp.ps1" $T "ListTests" (@{ nameFilter = $Filter; tagFilter = ''; limit = 1000 } | ConvertTo-Json -Compress)) | ConvertFrom-Json).returnValue | ConvertFrom-Json
 $names = @($list.tests)
 & "$s\mcp.ps1" $T "RunTests" (@{ testNames = $names } | ConvertTo-Json -Compress) | Out-Null
 for ($i = 0; $i -lt 120; $i++) { Start-Sleep 2; $st = & "$s\mcp.ps1" $T "GetTestStatus" '{}'; if ($st -notmatch 'InProcess|Running|running') { break } }
