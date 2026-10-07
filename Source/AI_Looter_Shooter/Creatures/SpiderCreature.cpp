@@ -4,6 +4,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "Player/PlayerSize.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
@@ -67,7 +68,9 @@ ASpiderCreature::ASpiderCreature()
 	CriticalSpotBones = { TEXT("head") };
 
 	WalkSpeed = 170.f;
-	ChaseSpeed = 540.f;
+	// Tuned against the full-size player's 600 walk (90% of it, so a walking player just outpaces one) and scaled with the
+	// player's speed: at 540 against the smaller player's 510 a spider caught anyone walking (the user's call, 2026-10-08).
+	ChaseSpeed = 540.f * LooterPlayerSize::SpeedScale;
 	AttackRange = 220.f;
 	AttackDamage = 12.f;
 	HealthBarHeight = 120.f;

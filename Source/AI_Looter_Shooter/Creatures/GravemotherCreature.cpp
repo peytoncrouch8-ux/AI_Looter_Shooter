@@ -7,6 +7,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/PackageName.h"
+#include "Player/PlayerSize.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
@@ -41,9 +42,12 @@ AGravemotherCreature::AGravemotherCreature()
 	// The head as on every spider, and the swollen abdomen she drags about: their hit hulls, no new bones.
 	CriticalSpotBones = { TEXT("head"), TEXT("abdomen") };
 
-	// Heavy and unhurried until she means it (the charge is her speed), keeping close to her den while nobody's about.
+	// Heavy and unhurried until she means it (the charge is her speed), keeping close to her den while nobody's about. Her
+	// chase and charge were tuned against the full-size player and scale with the player's speed, as a spider's do, so
+	// the charge still gives the same time to sidestep.
 	WalkSpeed = 140.f;
-	ChaseSpeed = 480.f;
+	ChaseSpeed = 480.f * LooterPlayerSize::SpeedScale;
+	ChargeSpeed = 900.f * LooterPlayerSize::SpeedScale;
 	WanderRadius = 400.f;
 	// Her body lies a while longer: she's the fight's end.
 	CorpseTime = 10.f;

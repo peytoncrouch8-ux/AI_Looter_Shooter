@@ -136,7 +136,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "0", Units = "cm"))
 	float ChargeOvershoot = 150.f;
 
-	/** How fast the dash runs (cm/s). */
+	/** How fast the dash runs (cm/s; the constructor scales it with the player's speed). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "100", Units = "cm/s"))
 	float ChargeSpeed = 900.f;
 
