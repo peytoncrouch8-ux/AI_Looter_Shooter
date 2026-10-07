@@ -1,0 +1,9 @@
+{
+  "name": "concept-viewer-tests",
+  "private": true,
+  "description": "Headless screenshots and an interaction run of the island concept viewer.",
+  "dependencies": {
+    "playwright": "^1.56.0",
+    "three": "0.160.0"
+  }
+}

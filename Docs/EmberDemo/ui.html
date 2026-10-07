@@ -1,0 +1,434 @@
+<title>Ember Powers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* A game screen over a 3D scene, so one deliberate dark look: the game's LooterUI kit (dark glass, orange accents, cyan
+   hairlines, Chakra Petch). The HUD is drawn at 1920 x 1080 and each corner group scales with the window (--s). */
+:root {
+  --s: 1;
+  --ink: #0e1116; --ink2: #0a1218; --glass: rgba(5, 16, 24, .84); --glass2: rgba(7, 26, 40, .9);
+  --orange: #ff9f1c; --orange-hi: #ffc06a; --cyan: #5ac8ff; --cyan-hi: #9fe0ff;
+  --text: #dcefff; --dim: #8fb3cc; --white: #ffffff; --red: #ff5b4a; --gold: #ffcf4a;
+  --font: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; background: #05080b; overflow: hidden; }
+body { font-family: var(--font); color: var(--text); -webkit-font-smoothing: antialiased; }
+#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; outline: none; touch-action: none; }
+button { font-family: var(--font); }
+.ol { font-weight: 700; text-shadow: 0 0 1px #00182a, 1.5px 0 0 #00182a, -1.5px 0 0 #00182a, 0 1.5px 0 #00182a, 0 -1.5px 0 #00182a,
+  1.1px 1.1px 0 #00182a, -1.1px -1.1px 0 #00182a, 1.1px -1.1px 0 #00182a, -1.1px 1.1px 0 #00182a, 0 2px 6px rgba(0, 8, 14, .5); }
+.key { display: inline-block; min-width: 24px; height: 26px; padding: 0 5px; box-sizing: border-box; font-size: 15px; line-height: 26px;
+  text-align: center; color: var(--white); font-weight: 700; text-shadow: none; background: linear-gradient(#24465e, #0e2433);
+  box-shadow: inset 0 0 0 1.4px var(--cyan), 0 2px 0 var(--ink2);
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px)); }
+
+/* ---------------------------------------------------------------- HUD frame */
+.hud { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+.hud[hidden] { display: none !important; }
+.anchor { position: absolute; }
+.bl { left: 0; bottom: 0; width: 700px; height: 260px; transform: scale(var(--s)); transform-origin: 0 100%; }
+.br { right: 0; bottom: 0; width: 420px; height: 320px; transform: scale(var(--s)); transform-origin: 100% 100%; }
+.bc { left: 50%; bottom: 0; width: 520px; height: 210px; margin-left: -260px; transform: scale(var(--s)); transform-origin: 50% 100%; }
+.tl { left: 0; top: 0; width: 600px; height: 440px; transform: scale(var(--s)); transform-origin: 0 0; }
+.tc { left: 50%; top: 0; width: 900px; height: 220px; margin-left: -450px; transform: scale(var(--s)); transform-origin: 50% 0; }
+.cc { left: 50%; top: 50%; width: 0; height: 0; transform: scale(var(--s)); }
+.a { position: absolute; }
+
+/* the player frame, drawn at 85% toward its bottom-left corner */
+.frame { position: absolute; left: 0; top: 0; width: 700px; height: 260px; transform: scale(.85); transform-origin: 18px 233px; }
+.hpbar { position: absolute; left: 150px; top: 100px; width: 540px; height: 32px; transform: skewX(-16deg); background: var(--ink); padding: 2px; box-sizing: border-box; filter: drop-shadow(0 2px 3px rgba(0,10,18,.55)); }
+.bez { position: relative; width: 100%; height: 100%; background: linear-gradient(#66717e 0, #3a434d 30%, #232a31 70%, #15191e 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -1px 0 rgba(0,0,0,.5); }
+.track { position: absolute; left: 40px; right: 4px; top: 4px; bottom: 4px; background: rgba(5,16,24,.88); overflow: hidden; box-shadow: inset 0 0 0 1px rgba(0,0,0,.6); }
+.chip { position: absolute; left: 0; top: 0; bottom: 0; background: #ffe1db; }
+.fill { position: absolute; left: 0; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, rgba(0,0,0,.13) 0 1.4px, transparent 1.4px 6px), linear-gradient(#ffb1a6 0, #ffb1a6 1px, #ff8f80 1px, #ff8f80 36%, #ff5b4a 36%, #ff5b4a 72%, #c63e2f 72%); box-shadow: inset -2px 0 0 #fff3ef; }
+.fill.low { animation: lowBeat .9s ease-in-out infinite; }
+.cut { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: var(--ink); }
+.clamp { position: absolute; right: -7px; top: -5px; width: 14px; height: 38px; background: var(--orange); box-shadow: inset 0 0 0 2px var(--ink);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 calc(100% - 5px), 9px calc(100% - 5px), 9px 5px, 0 5px); }
+.hpnum { position: absolute; left: 206px; top: 99px; width: 470px; text-align: center; font-size: 21px; color: #fff; line-height: 34px; }
+.hpnum span { font-size: 14px; color: #d6e4ee; margin-left: 4px; }
+.hpnum.low { color: #ffd9d3; }
+.xpbar { position: absolute; left: 214px; top: 163px; width: 380px; height: 12px; transform: skewX(-16deg); display: flex; gap: 3px; padding: 2px; box-sizing: content-box; background: rgba(5,16,24,.8); box-shadow: 0 0 0 1.5px var(--ink); filter: drop-shadow(0 2px 3px rgba(0,10,18,.5)); }
+.xpsec { position: relative; flex: 1 1 0; background: rgba(90,200,255,.17); overflow: hidden; }
+.xpsec i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#c9f1ff 0, #b9ecff 50%, #45b4ee 50%, #45b4ee 100%); }
+.xptext { position: absolute; left: 606px; top: 158px; font-size: 15px; color: var(--text); white-space: nowrap; }
+.xptext span { font-size: 12px; color: var(--dim); margin-left: 3px; }
+.med { position: absolute; left: 20px; top: 30px; width: 220px; height: 220px; overflow: visible; filter: drop-shadow(0 3px 4px rgba(0,10,18,.6)); }
+.face { transform-box: view-box; transform-origin: 0 0; }
+.face.flinch { animation: flinch .32s linear; }
+.breath { animation: breath 4.2s ease-in-out infinite; }
+.blink { transform-box: fill-box; transform-origin: center; animation: blink 5.2s linear infinite; }
+.hurtfx { opacity: 0; }
+.hurtfx.flinch { animation: hurt .45s ease-out; }
+.gem { position: absolute; left: 160px; top: 144px; width: 52px; height: 52px; overflow: visible; filter: drop-shadow(0 2px 3px rgba(0,10,18,.6)); }
+
+/* weapons: the slots in a column, the cartridge standing on their right */
+.slot { position: absolute; width: 64px; height: 64px; transition: transform .2s ease-out; }
+.slot.on { transform: translateX(-9px) scale(1.14); }
+.slot svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.slot .tab { position: absolute; left: -30px; top: 24px; width: 22px; height: 16px; font-size: 13px; line-height: 16px; text-align: center; font-weight: 700; color: var(--text);
+  background: rgba(7,26,40,.85); box-shadow: inset 0 0 0 1.2px rgba(90,200,255,.7); clip-path: polygon(0 0, 100% 0, 100% 70%, 78% 100%, 0 100%); }
+.slot.on .tab { background: var(--orange); color: #140a02; box-shadow: inset 0 0 0 1.6px var(--ink); }
+.slot .glow { position: absolute; left: -8px; top: -8px; width: 80px; height: 80px; border-radius: 50%; background: radial-gradient(circle, rgba(255,159,28,.55) 40%, rgba(255,159,28,0) 70%); opacity: 0; }
+.slot.on .glow { opacity: 1; }
+.slot .ring { opacity: 0; }
+.slot.on .ring { opacity: 1; }
+.slot .gun { position: absolute; left: 4px; top: 17px; width: 56px; transform: rotate(-22deg); opacity: .85; }
+.slot.on .gun { opacity: 1; }
+.slot .ammo { position: absolute; left: -58px; top: 22px; width: 20px; height: 20px; opacity: .85; }
+.magfill { transition: width .12s ease-out; }
+.status { position: absolute; left: 60px; top: 241px; width: 254px; text-align: right; font-size: 12px; letter-spacing: 2.4px; color: var(--orange); line-height: 18px; }
+.firemode { position: absolute; left: 160px; top: 240px; width: 212px; text-align: right; font-size: 13px; letter-spacing: 2px; color: var(--dim); line-height: 20px; }
+.gunname { position: absolute; left: 150px; top: 264px; width: 206px; text-align: right; font-size: 18px; letter-spacing: 1px; line-height: 24px; white-space: nowrap; color: #cb7cf3; }
+.raritygem { position: absolute; left: 361px; top: 271px; width: 10px; height: 10px; transform: rotate(45deg); background: #cb7cf3; box-shadow: 0 0 0 1.6px var(--ink2); }
+
+/* the two ember sockets at the bottom centre */
+.sock { position: absolute; top: 34px; width: 92px; height: 92px; }
+.sock svg { position: absolute; left: 0; top: 0; width: 92px; height: 92px; overflow: visible; }
+.sock .ember { opacity: 0; transition: opacity .25s; }
+.sock.ready .ember { opacity: 1; animation: emberPulse 1.6s ease-in-out infinite; }
+.sock .cd { position: absolute; left: 0; top: 0; width: 92px; height: 92px; text-align: center; line-height: 92px; font-size: 26px; color: #fff; }
+.sock .keytab { position: absolute; left: 33px; top: 80px; }
+.sock .keytab .key { height: 24px; line-height: 24px; font-size: 14px; min-width: 26px; }
+.sock .nm { position: absolute; left: -40px; top: 110px; width: 172px; text-align: center; font-size: 13px; letter-spacing: 2px; color: var(--text); white-space: nowrap; }
+.sock.used svg { animation: sockUse .4s ease-out; }
+.callout { position: absolute; left: 0; top: -6px; width: 520px; text-align: center; font-size: 22px; letter-spacing: 6px; color: var(--orange); opacity: 0; white-space: nowrap; }
+.callout.show { animation: callout 1.6s ease-out forwards; }
+
+/* the tracked mission, top left (the new HUD's tracker) */
+.trk { position: absolute; left: 36px; top: 286px; width: 520px; height: 120px; }
+.trk .medal { position: absolute; left: 0; top: 0; width: 34px; height: 34px; overflow: visible; filter: drop-shadow(0 2px 2px rgba(0,10,18,.5)); }
+.trk .route { position: absolute; left: 0; top: 0; width: 48px; height: 70px; overflow: visible; }
+.trk .title { position: absolute; left: 44px; top: -3px; font-size: 17px; letter-spacing: 1.6px; color: #fff; line-height: 24px; white-space: nowrap; }
+.trk .steps { position: absolute; left: 47px; top: 24px; width: 204px; height: 6px; transform: skewX(-16deg); display: flex; gap: 3px; padding: 2px; background: rgba(5,16,24,.8); box-shadow: 0 0 0 1.5px var(--ink); }
+.trk .seg { flex: 1 1 0; background: rgba(90,200,255,.17); }
+.trk .seg.done { background: linear-gradient(#c9f1ff 0, #b9ecff 50%, #45b4ee 50%, #45b4ee 100%); }
+.trk .seg.now { background: linear-gradient(#ffd49a 0, #ffc06a 50%, #ff9f1c 50%, #e2850f 100%); }
+.trk .step { position: absolute; left: 262px; top: 19px; font-size: 12px; letter-spacing: 1.5px; color: var(--dim); line-height: 16px; }
+.trk .obj { position: absolute; left: 46px; top: 46px; display: flex; align-items: center; gap: 9px; font-size: 18px; color: #fff; line-height: 24px; white-space: nowrap; }
+.trk .obj svg { width: 16px; height: 16px; overflow: visible; flex: none; }
+.trk .obj.done .txt { color: var(--dim); }
+.trk .obj.in { animation: objIn .45s ease-out; }
+.trk .count { color: var(--cyan-hi); }
+.trk .hint { position: absolute; left: 71px; top: 76px; display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--dim); line-height: 26px; white-space: nowrap; }
+.trk .hint .key { height: 22px; min-width: 22px; font-size: 13px; line-height: 22px; }
+
+/* crosshair, hit marker, vignettes, world labels */
+.xh { position: absolute; left: -20px; top: -20px; width: 40px; height: 40px; }
+.xh.kick { animation: kick .16s ease-out; }
+.hm { position: absolute; left: -17px; top: -17px; width: 34px; height: 34px; opacity: 0; transform: rotate(45deg); }
+.hm.on { animation: hit .3s ease-out; }
+.vig { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(255,40,30,0) 55%, rgba(200,20,16,.55) 100%); }
+.vig.hit { animation: vig .55s ease-out; }
+.speed { position: fixed; inset: 0; pointer-events: none; opacity: 0; }
+.speed.on { animation: speed .45s ease-out; }
+.lens { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle at center, rgba(90,200,255,0) 38%, rgba(90,200,255,.16) 46%, rgba(5,16,24,.72) 62%); }
+.lens.on { animation: lens .9s ease-out; }
+.fade { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: #1b2026; transition: opacity .6s; }
+.world { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+.dmg { position: absolute; left: 0; top: 0; font-size: calc(19px * var(--s)); color: #fff; white-space: nowrap; will-change: transform, opacity; }
+.dmg.crit { color: var(--gold); font-size: calc(25px * var(--s)); }
+.dmg.burn { color: var(--orange-hi); }
+.dmg.mark { color: #ffb24d; }
+.tag { position: absolute; left: 0; top: 0; width: calc(120px * var(--s)); margin-left: calc(-60px * var(--s)); text-align: center; font-size: calc(12px * var(--s)); line-height: 1.2; color: var(--text); white-space: nowrap; }
+.tag b { color: var(--dim); margin-right: .4em; }
+.tag .bar { height: calc(5px * var(--s)); margin-top: calc(3px * var(--s)); background: rgba(5,16,24,.8); box-shadow: 0 0 0 1px var(--ink); transform: skewX(-16deg); }
+.tag .bar i { display: block; height: 100%; background: #ff6a55; }
+.mk { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.mk svg { position: absolute; left: calc(-11px * var(--s)); top: calc(-24px * var(--s)); width: calc(22px * var(--s)); height: calc(22px * var(--s)); overflow: visible; }
+.mk span { position: absolute; left: -40px; width: 80px; top: calc(-40px * var(--s)); text-align: center; font-size: calc(12px * var(--s)); color: #ffc06a; }
+
+/* watch mode's caption, top centre */
+.cap { position: absolute; left: 0; top: 44px; width: 900px; text-align: center; opacity: 0; transition: opacity .35s; }
+.cap.on { opacity: 1; }
+.cap .n { font-size: 14px; letter-spacing: 4px; color: var(--dim); }
+.cap .name { margin-top: 2px; font-size: 40px; letter-spacing: 8px; color: var(--orange); line-height: 50px; }
+.cap .who { margin-top: 2px; font-size: 16px; letter-spacing: 2px; color: var(--cyan-hi); }
+.cap .what { margin: 10px auto 0; max-width: 700px; font-size: 19px; color: #fff; line-height: 1.35; }
+
+/* ---------------------------------------------------------------- menus */
+.overlay { position: fixed; inset: 0; display: flex; padding: 16px; box-sizing: border-box; overflow-y: auto; }
+.overlay > * { margin: auto; flex: none; }
+.overlay[hidden] { display: none !important; }
+.overlay.dim { background: rgba(4, 9, 13, .55); }
+.panel { position: relative; width: min(640px, 100%); box-sizing: border-box; padding: 28px 30px 24px; background: linear-gradient(180deg, rgba(10,22,32,.94), rgba(5,13,20,.94));
+  box-shadow: inset 0 0 0 1px rgba(90,200,255,.45), 0 18px 60px rgba(0,0,0,.5);
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px)); }
+.panel::before { content: ''; position: absolute; left: 0; top: 0; width: 120px; height: 3px; background: var(--orange); }
+.eyebrow { font-size: 13px; letter-spacing: 4px; color: var(--cyan-hi); }
+.panel h1 { margin: 6px 0 0; font-size: clamp(34px, 7vw, 54px); letter-spacing: .14em; line-height: 1.05; color: var(--orange); font-weight: 700; text-wrap: balance; }
+.panel .lede { margin: 14px 0 0; font-size: 17px; line-height: 1.5; color: var(--text); max-width: 60ch; }
+.btns { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+.btn { height: 50px; padding: 0 24px; border: 0; cursor: pointer; font-weight: 700; font-size: 16px; letter-spacing: 2px; color: var(--text); background: linear-gradient(#173a52, #0b2131);
+  box-shadow: inset 0 0 0 1.4px rgba(90,200,255,.8); clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); }
+.btn:hover { background: linear-gradient(#20506f, #10304a); }
+.btn:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
+.btn.hot { color: #140a02; background: linear-gradient(#ffb54d, #ff9f1c); box-shadow: inset 0 0 0 1.6px var(--ink); }
+.btn.hot:hover { background: linear-gradient(#ffc56d, #ffab33); }
+.btn.small { height: 40px; font-size: 14px; padding: 0 16px; letter-spacing: 1.5px; }
+.controls { margin-top: 22px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 14px; font-size: 14px; color: var(--dim); }
+.controls div { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.controls .key { font-size: 13px; height: 24px; line-height: 24px; flex: none; }
+.note { margin-top: 18px; font-size: 13px; line-height: 1.5; color: var(--dim); }
+.touchnote { display: none; margin-top: 12px; font-size: 14px; color: var(--orange-hi); }
+.touch .touchnote { display: block; }
+
+#loading .bar { margin-top: 18px; height: 6px; background: rgba(90,200,255,.15); box-shadow: inset 0 0 0 1px rgba(90,200,255,.4); }
+#loading .bar i { display: block; height: 100%; width: 2%; background: var(--orange); transition: width .3s; }
+#loading .msg { margin-top: 10px; font-size: 14px; color: var(--dim); }
+
+/* the embers page */
+#embers .page { width: min(1180px, 100%); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; margin-top: 14px; }
+.card { display: grid; grid-template-columns: 64px 1fr; grid-template-rows: auto 1fr auto auto; gap: 8px 14px; padding: 14px 16px; background: rgba(7,24,36,.88); box-shadow: inset 0 0 0 1px rgba(90,200,255,.3); min-width: 0; }
+.card.eq { box-shadow: inset 0 0 0 1.6px var(--orange), 0 0 22px rgba(255,159,28,.18); }
+.card svg.ic { width: 64px; height: 64px; align-self: center; }
+.card .head { min-width: 0; align-self: center; }
+.card .nature { font-size: 11px; letter-spacing: 2.5px; color: var(--dim); line-height: 1.2; }
+.card .nm { margin-top: 2px; font-size: 20px; letter-spacing: 2px; color: var(--orange); font-weight: 700; line-height: 1.15; }
+.card .who { margin-top: 2px; font-size: 13px; color: var(--cyan-hi); line-height: 1.3; }
+.card .desc { grid-column: 1 / -1; font-size: 15px; line-height: 1.45; color: var(--text); }
+.card .cdtxt { grid-column: 1 / -1; font-size: 13px; color: var(--dim); }
+.card .row { grid-column: 1 / -1; display: flex; gap: 10px; }
+.card .eqbtn { flex: 1 1 0; height: 36px; padding: 0 10px; font-size: 13px; }
+.card .eqbtn[aria-pressed="true"] { color: #140a02; background: linear-gradient(#ffb54d, #ff9f1c); box-shadow: inset 0 0 0 1.6px var(--ink); }
+.pagehead { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 24px; }
+.pagehead h2 { margin: 4px 0 0; font-size: 34px; letter-spacing: .16em; color: var(--orange); }
+.pagehead p { margin: 0; flex: 1 1 320px; font-size: 15px; line-height: 1.5; color: var(--text); }
+
+/* touch controls */
+.touchui { position: fixed; inset: 0; pointer-events: none; }
+.touchui[hidden] { display: none !important; }
+.tbtn { position: absolute; pointer-events: auto; width: 74px; height: 74px; border-radius: 50%; border: 0; color: #fff; font-weight: 700; font-size: 15px; letter-spacing: 1px;
+  background: rgba(7,26,40,.55); box-shadow: inset 0 0 0 2px rgba(90,200,255,.7); touch-action: none; }
+.tbtn.fire { right: 28px; bottom: 150px; width: 92px; height: 92px; box-shadow: inset 0 0 0 2px var(--orange); }
+.tbtn.q { right: 140px; bottom: 210px; }
+.tbtn.f { right: 140px; bottom: 120px; }
+.tbtn.menu { right: 20px; top: 20px; width: 56px; height: 56px; font-size: 12px; }
+#stick { position: absolute; left: 0; top: 0; width: 45%; height: 100%; pointer-events: auto; touch-action: none; }
+#stick .base, #stick .knob { position: absolute; display: none; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+#stick .base { width: 120px; height: 120px; box-shadow: inset 0 0 0 2px rgba(90,200,255,.6); background: rgba(5,16,24,.3); }
+#stick .knob { width: 52px; height: 52px; background: rgba(90,200,255,.5); }
+
+@keyframes lowBeat { 0%,100% { filter: none } 50% { filter: brightness(1.35) saturate(.85) } }
+@keyframes flinch { 0% { transform: translate(0,0) } 20% { transform: translate(-5px,2px) } 40% { transform: translate(4px,-2px) } 60% { transform: translate(-3px,1px) } 80% { transform: translate(2px,0) } 100% { transform: translate(0,0) } }
+@keyframes hurt { 0% { opacity: .6 } 100% { opacity: 0 } }
+@keyframes breath { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-1.6px) } }
+@keyframes blink { 0%,95%,100% { transform: scaleY(1) } 96.5% { transform: scaleY(.08) } 98% { transform: scaleY(1) } }
+@keyframes kick { 0% { transform: scale(1.45) } 100% { transform: scale(1) } }
+@keyframes hit { 0% { opacity: 1 } 100% { opacity: 0 } }
+@keyframes vig { 0% { opacity: .85 } 100% { opacity: 0 } }
+@keyframes speed { 0% { opacity: .95 } 100% { opacity: 0 } }
+@keyframes lens { 0% { opacity: 0 } 25% { opacity: 1 } 100% { opacity: 0 } }
+@keyframes objIn { 0% { opacity: 0; transform: translateX(-14px) } 100% { opacity: 1; transform: none } }
+@keyframes emberPulse { 0%,100% { opacity: .75 } 50% { opacity: 1 } }
+@keyframes sockUse { 0% { transform: scale(1.18) } 100% { transform: scale(1) } }
+@keyframes callout { 0% { opacity: 0; transform: translateY(8px) } 12% { opacity: 1; transform: none } 70% { opacity: 1 } 100% { opacity: 0 } }
+@media (prefers-reduced-motion: reduce) { .breath, .blink, .sock.ready .ember, .fill.low { animation: none !important; } }
+</style>
+
+<canvas id="view" tabindex="0" aria-label="The town square of Crossroads Town, where the ember powers demo plays"></canvas>
+<div class="world" id="world" aria-hidden="true"></div>
+<svg class="speed" id="speed" viewBox="-100 -60 200 120" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+<div class="lens" id="lens" aria-hidden="true"></div>
+<div class="vig" id="vig" aria-hidden="true"></div>
+<div class="fade" id="fade" aria-hidden="true"></div>
+
+<div class="hud" id="hud" hidden>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">__PORTRAIT_DEFS__</svg>
+
+  <div class="anchor tl">
+    <div class="trk" id="trk">
+      <svg class="route" viewBox="0 0 48 70" aria-hidden="true">
+        <path d="M17 35 L17 58 L38 58" fill="none" stroke="#0a1218" stroke-width="3" stroke-opacity="0.45" stroke-linejoin="round"/>
+        <path d="M17 35 L17 58 L38 58" fill="none" stroke="#5ac8ff" stroke-width="1.2" stroke-opacity="0.8" stroke-linejoin="round"/>
+      </svg>
+      <svg class="medal" viewBox="-17 -17 34 34" aria-hidden="true">
+        <circle r="16" fill="#0e1116"/><circle r="14.6" fill="url(#gmRing)"/><circle r="12" fill="rgba(7,26,40,0.9)"/>
+        <circle r="12.4" fill="none" stroke="#5ac8ff" stroke-width="1" opacity="0.6"/>
+        <polygon points="0.00,-10.40 2.65,-3.64 9.89,-3.21 4.28,1.39 6.11,8.41 0.00,4.50 -6.11,8.41 -4.28,1.39 -9.89,-3.21 -2.65,-3.64" fill="#ff9f1c" stroke="#0a1218" stroke-width="1.5" stroke-linejoin="round"/>
+        <polyline points="-7.6,-2.6 -2.1,-2.9 0,-8.1" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="1"/>
+      </svg>
+      <div class="title ol" id="trkTitle">EMBER TRIAL</div>
+      <div class="steps" id="trkSteps"></div>
+      <div class="step ol" id="trkStep">1 / 4</div>
+      <div class="obj" id="trkObj">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <polygon id="trkChev" points="2,1.5 8,1.5 14.5,8 8,14.5 2,14.5 8.5,8" fill="#ff9f1c" stroke="#0a1218" stroke-width="1.6" stroke-linejoin="round"/>
+          <path id="trkTick1" d="M2.5 8.5 L6.5 12.5 L14 4" fill="none" stroke="#0a1218" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0"/>
+          <path id="trkTick2" d="M2.5 8.5 L6.5 12.5 L14 4" fill="none" stroke="#5ac8ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity="0"/>
+        </svg>
+        <span class="txt ol" id="trkTxt"></span><span class="count ol" id="trkCount"></span>
+      </div>
+      <div class="hint ol" id="trkHint"><span class="key" id="trkKey">Q</span><span id="trkHintTxt"></span></div>
+    </div>
+  </div>
+
+  <div class="anchor tc"><div class="cap" id="cap" aria-live="polite"><div class="n ol" id="capN"></div><div class="name ol" id="capName"></div><div class="who ol" id="capWho"></div><div class="what ol" id="capWhat"></div></div></div>
+
+  <div class="anchor cc">
+    <svg class="xh" id="xh" viewBox="-20 -20 40 40" aria-hidden="true">
+      <g fill="#ffffff" stroke="rgba(0,39,56,0.85)" stroke-width="1" opacity="0.92">
+        <rect x="-2" y="-19" width="4" height="9"/><rect x="-2" y="10" width="4" height="9"/><rect x="-19" y="-2" width="9" height="4"/><rect x="10" y="-2" width="9" height="4"/>
+      </g>
+      <rect x="-1.5" y="-1.5" width="3" height="3" fill="#ffffff" opacity="0.85"/>
+    </svg>
+    <svg class="hm" id="hm" viewBox="-17 -17 34 34" aria-hidden="true">
+      <g fill="#ffffff" stroke="rgba(0,39,56,0.85)" stroke-width="1"><rect x="-2" y="-17" width="4" height="11"/><rect x="-2" y="6" width="4" height="11"/><rect x="-17" y="-2" width="11" height="4"/><rect x="6" y="-2" width="11" height="4"/></g>
+    </svg>
+  </div>
+
+  <div class="anchor bl">
+    <div class="frame">
+      <div class="hpbar"><div class="bez"><div class="track"><div class="chip" id="hpChip"></div><div class="fill" id="hpFill"></div>
+        <div class="cut" style="left:25%"></div><div class="cut" style="left:50%"></div><div class="cut" style="left:75%"></div></div></div><div class="clamp"></div></div>
+      <div class="hpnum ol" id="hpNum">100<span>/ 100</span></div>
+      <div class="xpbar" id="xpBar"></div>
+      <div class="xptext ol" id="xpText"></div>
+      <svg class="med" viewBox="-110 -110 220 220" aria-label="Portrait of your character">
+        <polygon points="-72,-17 -112,0 -72,17 -85,0" fill="url(#gmUp)" stroke="#0e1116" stroke-width="2.5" stroke-linejoin="round"/>
+        <polygon points="-84,-7 -101,0 -84,7 -89,0" fill="#ff9f1c" stroke="#0e1116" stroke-width="1.4" stroke-linejoin="round"/>
+        <polygon points="-86,0 0,-86 86,0" fill="url(#gmUp)"/><polygon points="-86,0 0,86 86,0" fill="url(#gmDown)"/>
+        <polygon points="0,-86 86,0 0,86 -86,0" fill="none" stroke="#0e1116" stroke-width="3.2" stroke-linejoin="round"/>
+        <polyline points="-81,0 0,-81 81,0" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.3"/>
+        <polyline points="-81,0 0,81 81,0" fill="none" stroke="#000000" stroke-opacity="0.35" stroke-width="1.3"/>
+        <g clip-path="url(#medWin)"><g class="face" id="face"><g class="breath"><g transform="translate(-75 -75) scale(0.75)">
+          <use href="#bust"/>
+          <g id="calmEyes"><g class="blink"><use href="#eyesOpen"/></g><use href="#browsCalm"/></g>
+          <g id="hurtEyes" opacity="0"><use href="#eyesHurt"/></g>
+        </g></g></g>
+        <polygon class="hurtfx" id="hurtfx" points="0,-75 75,0 0,75 -75,0" fill="#ff3b2e"/></g>
+        <polygon points="0,-75 75,0 0,75 -75,0" fill="none" stroke="#0e1116" stroke-width="2.6"/>
+        <polygon points="0,-73.2 73.2,0 0,73.2 -73.2,0" fill="none" stroke="#5ac8ff" stroke-width="1.6" opacity="0.9"/>
+        <path d="M-16 -80 L0 -98 L16 -80 L10 -75 L0 -87 L-10 -75 Z" fill="#ff9f1c" stroke="#0e1116" stroke-width="2.2" stroke-linejoin="round"/>
+        <path d="M-10 81 L0 93 L10 81 L6 78 L0 85 L-6 78 Z" fill="#ff9f1c" stroke="#0e1116" stroke-width="1.8" stroke-linejoin="round"/>
+      </svg>
+      <svg class="gem" viewBox="-26 -26 52 52" aria-label="Level">
+        <polygon points="0,-22 22,0 0,22 -22,0" fill="url(#gemFill)" stroke="#0a1218" stroke-width="2.8" stroke-linejoin="round"/>
+        <polyline points="-14.5,0 0,-14.5 14.5,0" fill="none" stroke="#ffffff" stroke-opacity="0.8" stroke-width="1.3"/>
+        <text x="0" y="6.5" text-anchor="middle" fill="#0a1218" font-size="18" font-family="Chakra Petch, sans-serif" font-weight="700" id="lvl">12</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="anchor bc">
+    <div class="callout ol" id="callout"></div>
+    <div class="sock" id="sock0" style="left:120px"></div>
+    <div class="sock" id="sock1" style="left:308px"></div>
+  </div>
+
+  <div class="anchor br">
+    <div class="slot on" style="left:243px;top:20px">
+      <div class="glow"></div>
+      <svg width="64" height="64" viewBox="-32 -32 64 64"><circle r="32" fill="#0e1116"/><circle r="30" fill="url(#gmRing)"/><circle r="27.5" fill="rgba(7,26,40,0.82)"/>
+        <path d="M -20.9 17.5 A 27.25 27.25 0 0 0 20.9 17.5" fill="none" stroke="#cb7cf3" stroke-width="4.5"/><circle r="27.9" fill="none" stroke="#5ac8ff" stroke-width="1" opacity="0.55"/>
+        <circle class="ring" r="31.6" fill="none" stroke="#ff9f1c" stroke-width="3"/></svg>
+      <img class="gun" src="__RIFLE__" alt="">
+      <div class="tab">1</div>
+      <img class="ammo" src="__AMMO_AR_S__" alt="">
+    </div>
+    <div class="slot" style="left:243px;top:96px">
+      <svg width="64" height="64" viewBox="-32 -32 64 64"><circle r="32" fill="#0e1116"/><circle r="30" fill="url(#gmRing)"/><circle r="27.5" fill="rgba(7,26,40,0.82)"/>
+        <path d="M -20.9 17.5 A 27.25 27.25 0 0 0 20.9 17.5" fill="none" stroke="#ffcb00" stroke-width="4.5"/><circle r="27.9" fill="none" stroke="#5ac8ff" stroke-width="1" opacity="0.55"/></svg>
+      <img class="gun" src="__SHOTGUN__" alt="" style="top:25px;width:58px;left:3px">
+      <div class="tab">2</div>
+      <img class="ammo" src="__AMMO_SG_S__" alt="">
+    </div>
+    <div class="slot" style="left:243px;top:172px">
+      <svg width="64" height="64" viewBox="-32 -32 64 64"><circle r="32" fill="#0e1116" opacity="0.55"/><circle r="26" fill="rgba(7,26,40,0.6)"/><circle r="28" fill="none" stroke="#dcefff" stroke-width="2" stroke-dasharray="4.4 4.4" opacity="0.6"/></svg>
+      <div class="tab" style="color:#8fb3cc;opacity:.8">3</div>
+    </div>
+    <svg class="a" style="left:321px;top:40px;overflow:visible;filter:drop-shadow(0 2px 3px rgba(0,10,18,.55))" width="51" height="196" viewBox="0 0 60 230" aria-label="Magazine">
+      <g transform="translate(0 230) rotate(-90)">
+        <path d="M2 2 L9 2 L9 9 L15 9 L15 5 L176 5 L186 10 C206 12 222 20 230 30 C222 40 206 48 186 50 L176 55 L15 55 L15 51 L9 51 L9 58 L2 58 L0 56 L0 4 Z" fill="rgba(5,16,24,0.76)"/>
+        <g clip-path="url(#magClip)">
+          <rect class="magfill" id="magFill" x="15" y="0" width="211" height="60" fill="url(#magCyan)"/>
+          <rect id="magHatch" x="15" y="0" width="211" height="60" fill="url(#hatch)"/>
+          <rect id="magReload" x="15" y="0" width="0" height="60" fill="url(#magOrange)"/>
+        </g>
+        <g stroke="#dcefff" stroke-width="1.2" opacity="0.4"><line x1="120.5" y1="9" x2="120.5" y2="51"/><line x1="173.2" y1="9" x2="173.2" y2="51"/></g>
+        <path id="magLine" d="M2 2 L9 2 L9 9 L15 9 L15 5 L176 5 L186 10 C206 12 222 20 230 30 C222 40 206 48 186 50 L176 55 L15 55 L15 51 L9 51 L9 58 L2 58 L0 56 L0 4 Z" fill="none" stroke="#0e1116" stroke-width="4.6" stroke-linejoin="round"/>
+        <path d="M2 2 L9 2 L9 9 L15 9 L15 5 L176 5 L186 10 C206 12 222 20 230 30 C222 40 206 48 186 50 L176 55 L15 55 L15 51 L9 51 L9 58 L2 58 L0 56 L0 4 Z" fill="none" stroke="#e6f3ff" stroke-width="1.8" stroke-linejoin="round"/>
+      </g>
+      <text id="magCount" x="30" y="187" text-anchor="middle" fill="#ffffff" font-size="27" font-family="Chakra Petch, sans-serif" font-weight="700" stroke="#00182a" stroke-width="4.5" paint-order="stroke fill" stroke-linejoin="round">30</text>
+      <text id="magRes" x="30" y="207" text-anchor="middle" fill="#cfe2ef" font-size="16" font-family="Chakra Petch, sans-serif" font-weight="700" stroke="#00182a" stroke-width="3.6" paint-order="stroke fill" stroke-linejoin="round">/240</text>
+    </svg>
+    <div class="status ol" id="status"></div>
+    <div class="firemode ol">AUTO</div>
+    <div class="gunname ol">WHISPER BULLPUP</div>
+    <div class="raritygem"></div>
+  </div>
+</div>
+
+<div class="touchui" id="touchui" hidden>
+  <div id="stick"><div class="base"></div><div class="knob"></div></div>
+  <button class="tbtn fire" id="tFire" aria-label="Fire">FIRE</button>
+  <button class="tbtn q" id="tQ" aria-label="Use the first ember">Q</button>
+  <button class="tbtn f" id="tF" aria-label="Use the second ember">F</button>
+  <button class="tbtn menu" id="tMenu" aria-label="Pause">II</button>
+</div>
+
+<div class="overlay" id="loading">
+  <div class="panel">
+    <div class="eyebrow">A PLAYABLE SKETCH</div>
+    <h1>EMBER POWERS</h1>
+    <div class="bar"><i id="prog"></i></div>
+    <div class="msg" id="progtext">Loading Crossroads Town…</div>
+  </div>
+</div>
+
+<div class="overlay dim" id="start" hidden>
+  <div class="panel">
+    <div class="eyebrow">A PLAYABLE SKETCH</div>
+    <h1>EMBER POWERS</h1>
+    <p class="lede">Every outlaw's ember passes through Ellis's hand before it's paid to Sexton, and each one leaves a power behind. Ellis earns one from each outlaw who falls and carries two at a time. Here all six are open, and the spiders have come to town.</p>
+    <div class="btns">
+      <button class="btn hot" id="playBtn">PLAY</button>
+      <button class="btn" id="watchBtn">WATCH ALL SIX</button>
+    </div>
+    <div class="touchnote">On a touch screen: drag the left side to move and the right side to look. The buttons fire and use the embers.</div>
+    <div class="controls">
+      <div><span class="key">W A S D</span>Move</div>
+      <div><span class="key">Shift</span>Sprint</div>
+      <div><span class="key">Mouse</span>Aim and shoot</div>
+      <div><span class="key">R</span>Reload</div>
+      <div><span class="key">Q</span><span class="key">F</span>Embers</div>
+      <div><span class="key">Tab</span>Ember page</div>
+      <div><span class="key">Esc</span>Pause</div>
+    </div>
+    <p class="note">Built in the island viewer's engine with the game's own models, in the Screen Print Wash style. The game would build this in Unreal.</p>
+  </div>
+</div>
+
+<div class="overlay dim" id="pause" hidden>
+  <div class="panel">
+    <div class="eyebrow">PAUSED</div>
+    <h1>EMBER POWERS</h1>
+    <div class="btns">
+      <button class="btn hot" id="resumeBtn">RESUME</button>
+      <button class="btn" id="pEmbersBtn">EMBER PAGE</button>
+      <button class="btn" id="pWatchBtn">WATCH ALL SIX</button>
+    </div>
+    <div class="controls">
+      <div><span class="key">W A S D</span>Move</div>
+      <div><span class="key">Shift</span>Sprint</div>
+      <div><span class="key">Mouse</span>Aim and shoot</div>
+      <div><span class="key">R</span>Reload</div>
+      <div><span class="key">Q</span><span class="key">F</span>Embers</div>
+      <div><span class="key">Tab</span>Ember page</div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay dim" id="embers" hidden>
+  <div class="panel page">
+    <div class="pagehead">
+      <div><div class="eyebrow">INVENTORY · EMBERS</div><h2>EMBERS</h2></div>
+      <p>Each outlaw's ember leaves a power in Ellis's hand. Pick two to carry, one on <span class="key">Q</span> and one on <span class="key">F</span>. In the game you earn them one outlaw at a time; here all six are open to try.</p>
+    </div>
+    <div class="cards" id="cards"></div>
+    <div class="btns"><button class="btn hot" id="embersBack">BACK TO THE FIGHT</button></div>
+  </div>
+</div>

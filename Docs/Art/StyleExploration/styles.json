@@ -1,0 +1,65 @@
+[
+ {
+  "number": 0,
+  "name": "Current look",
+  "reference": "what the kit renders today (stylized realism)",
+  "note": "Textured PBR, soft sun, no lines. The control tile.",
+  "file": "00_current_look.png"
+ },
+ {
+  "number": 1,
+  "name": "Ink & flat color",
+  "reference": "Sable / Moebius",
+  "note": "Flat fills, hard two-tone shade, bold ink lines, stipple, pastel sky. Textures carry no detail.",
+  "file": "01_ink_and_flat_color.png"
+ },
+ {
+  "number": 2,
+  "name": "Painted stylized",
+  "reference": "Jumanji / Fortnite",
+  "note": "Hand-painted texture detail, saturated, warm key + cool fill, rim light, soft bloom. No lines.",
+  "file": "02_painted_stylized.png"
+ },
+ {
+  "number": 3,
+  "name": "Cel toon, colored lines",
+  "reference": "Wind Waker / Hi-Fi Rush",
+  "note": "Three-step shade ramp, hard specular shapes, outlines in a darker fill color, flat sky.",
+  "file": "03_cel_toon_colored_lines.png"
+ },
+ {
+  "number": 4,
+  "name": "Gouache storybook",
+  "reference": "watercolor wash + pencil",
+  "note": "Soft washes, wet edges, paper grain, pencil underdrawing, washed shadows. Everything fades to paper.",
+  "file": "04_gouache_storybook.png"
+ },
+ {
+  "number": 5,
+  "name": "Comic halftone",
+  "reference": "Spider-Verse print",
+  "note": "Flat posterized color, Ben-Day dots in the shade, thick black inks, slight misregistration.",
+  "file": "05_comic_halftone.png"
+ },
+ {
+  "number": 6,
+  "name": "Flat-shaded graphic",
+  "reference": "Firewatch / Grow Home",
+  "note": "No textures: one color per surface, faceted lighting, long cool shadows, big gradient sky with a sun.",
+  "file": "06_flat_shaded_graphic.png"
+ },
+ {
+  "number": 7,
+  "name": "Oil-painted realism",
+  "reference": "Arcane / Dishonored",
+  "note": "Brush strokes that follow the forms over the real textures, teal/orange grade, painterly sky.",
+  "file": "07_oil_painted_realism.png"
+ },
+ {
+  "number": 8,
+  "name": "Pen & ink crosshatch",
+  "reference": "ink drawing with a tinted wash",
+  "note": "Sketchy outlines, three layers of hatching in the shade, cream paper, a light color wash.",
+  "file": "08_pen_and_ink_crosshatch.png"
+ }
+]

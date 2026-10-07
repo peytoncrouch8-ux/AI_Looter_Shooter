@@ -1,10 +1,12 @@
 > **Brought in from the cloud session on 2026-10-07, for future use.** This is `HANDOFF.md` as the cloud session left it
 > on branch `claude/island-concepts` (commit `740a649`, 2026-10-05), unchanged below this note. None of it is built
-> yet. The files it points to (the Screen Print Wash docs and scripts, `crossroads_town.json`, the HUD mockup sources,
-> the ember demo, the heroes' backlog models, `Docs/Plan.md`'s phases 6-11) are still only on that branch; bring one in
-> with `git checkout origin/claude/island-concepts -- <path>`, or merge the branch. Unlike on the branch, `CLAUDE.md`
-> does not import this file. Note: decision 1 (Screen Print Wash everywhere) predates the stylized-realism art the user
-> approved for Ransom's Rest from 2026-10-05 on; settle which look wins before building it.
+> yet. The files it points to were brought in too, at the user's request (2026-10-07): the Screen Print Wash docs and
+> scripts, `crossroads_town.json`, the concept viewer, the HUD mockup, ember demo and hero page sources, the heroes'
+> backlog models, and `Docs/Plan.md`'s phases 6-11. Where this file says `HANDOFF.md`, read this file. Unlike on the
+> branch, `CLAUDE.md` neither imports it nor carries the branch's "Working with the user" rules (the user: "not yet").
+> Decision 1 (Screen Print Wash everywhere) predates the stylized-realism art the user approved for Ransom's Rest from
+> 2026-10-05 on; the user will decide later which look wins, so build none of decision 1 until they do. The images
+> (style targets and sheets) were never on GitHub: `Docs/Art/REGENERATE_IMAGES.md` makes them again.
 # Handoff: the art style, tutorial island, HUD, gun ideas, ember powers and heroes
 
 The user made six decisions in a cloud session from 2026-10-02 to 2026-10-05, and plans to have them built starting

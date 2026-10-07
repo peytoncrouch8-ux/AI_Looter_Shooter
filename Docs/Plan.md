@@ -111,3 +111,92 @@ art bible, the asset list, the island layout and the performance plan. The targe
       clouds were the big cost (9.5 ms with the engine's layer, 2 ms thinned); the dome costs almost nothing.
 - [ ] Next: a waterfall and chimney smoke, reeds at the pond, more trees in the meadows, the gun rack's weapon, and the
       tutorial itself (prompts along the road).
+
+## Phases 6-11: decided in the cloud session, not started
+These phases came from the user's cloud session of 2026-10-02 to 2026-10-05 (its handoff is
+`Docs/Handoffs/CloudIslandConcepts_2026-10-05.md`; its files were brought in on 2026-10-07). Nothing in them is built.
+The user will decide later whether Phase 6's look replaces the stylized realism Ransom's Rest is being built in, so
+read "the transition starts in the next session" below as waiting on that decision.
+## Phase 6: Screen Print Wash
+The user found stylized realism bland and, from an exploration of eight styles and six mixes
+(`Docs/Art/StyleExploration/`), chose **Screen Print Wash** on 2026-10-02: flat palette fills, a hard violet two-tone
+light with pigment granulation, pencil-under-ink lines, a misregistered color plate and cream paper, with a pastel sky
+(`Docs/Art/ScreenPrintWash.md`, target `Docs/Art/StyleTarget_ScreenPrintWash.png`). The transition starts in the next
+session; its steps are listed in that document. Nothing in the game has changed yet.
+- [ ] Docs: the art bible, `CLAUDE.md`, this phase's boxes.
+- [ ] The post-process material (two-tone light, ink and pencil lines, misregistration, granulation, paper, distance
+      fade), applied from C++, within 0.8 ms on Medium.
+- [ ] Flat texture plates for every set (`looter_textures.py --style print`) and the masters' `Print` switch.
+- [ ] Foliage and terrain as flat tones, with the edge pass excluding leaf cards.
+- [ ] Light, fog and sky dome in the pastel palette.
+- [ ] Guns, creatures and loot; the UI checked over the new world.
+- [ ] Retire the realism texture mode; tour and performance recorded.
+
+## Phase 7: Crossroads Town
+The user found the tutorial island bland and lonely and, from four 3D layout concepts in the new look
+(`Docs/TutorialIslandConcepts.md`), chose **Crossroads Town** on 2026-10-03. The crossroads grows into a small town
+round a cobbled square, the slimes get a bog and the spiders a webbed hollow, and the roads get brick kerbs, lamps and
+cover, with far more trees, hedges, flowers and life. Every placement is in
+`Art/Levels/TutorialIsland/crossroads_town.json`; `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md` has the plan and the concept's mistakes to fix. Nothing
+in the level has changed yet.
+- [ ] The town with the models that exist: placements, kerbed roads and the cobbled square, the creature groups, the
+      scatter and new tour views; measured on Medium.
+- [ ] New models in the print style: stalls, sheds, coop, haystacks, scarecrows, picket fences, hedges, barricades,
+      sandbags, targets, the dock, garden crops, kerbs and cobbles, and the creature grounds' dressing.
+- [ ] Sheep, hens and townsfolk: models, actors and bestiary pages.
+- [ ] Tour and performance recorded at every viewpoint.
+
+## Phase 8: HUD upgrade
+The user found the gameplay HUD simple and bland and asked for a more personable one that wows, after an RPG unit
+frame as the reference. On 2026-10-03 they approved the mockup (<https://claude.ai/artifact/MjHmSiZunHXm2MqxCqhmJ1>,
+sources in `Docs/HudMockup/`) after four rounds of changes: a smaller ammo cartridge that holds the ammo counts and
+stands upright beside the weapon slots, now a column, bigger gun icons, a smaller player frame with no name, and the
+tutorial prompt moved off the top of the screen. A player frame replaces the health ring and the bottom experience
+bar: an inked portrait of the player character in a gunmetal diamond that blinks, flinches, squints at low health and
+flares on a level-up, with a thick health bar with its number, a level gem and the experience bar. A mission tracker
+on the left replaces the tutorial prompt: a ranger's star, the tracked mission's name over a bar of its steps, one
+short objective and a key hint. The weapons, minimap and boss bar get the same metalwork, and a banner announces each
+level. `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md` has the full spec. Nothing in the code has changed yet.
+- [ ] The player frame and the portrait (`Art/Icons/HudPortrait.svg` as vector data), with its reactions.
+- [ ] The level-up banner; the experience bar's logic moved into the frame.
+- [ ] The mission tracker in place of the tutorial prompt, with the tutorial's short lines and key hints.
+- [ ] The weapon slots as a column with the upright cartridge, then the minimap and boss bar, in the new style.
+- [ ] Measured on Medium, tests passing, `CLAUDE.md`'s UI rules updated.
+
+## Phase 9: Gun ideas
+On 2026-10-04 the user picked three ideas for the loot from a brainstorm: notches (each gun counts its kills, cut into
+its stock, and wakes at 50, 250 and 1,000 with small bonuses and a nickname), part swapping at Ozias's bench (scrap a
+gun to keep one part, fit parts onto guns of the same kind) and cursed irons (6% of Rare-or-better drops: a strong perk
+with a real drawback, lifted at 100 notches or with Tilly's grave salt). `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md` has the full spec. Nothing in the
+code has changed yet.
+- [ ] Notches: the kill count on `FWeaponInstanceData`, the tally on the stock, the milestones and their messages.
+- [ ] Cursed irons: the curse table, the roll, the effects, how they show, and lifting.
+- [ ] Part swapping: the bench, scrapping into the parts box, fitting by the rules, the bench screen.
+- [ ] Tests for all three, `CODEMAP.md` updated.
+
+## Phase 10: Ember powers
+On 2026-10-04 the user played a demo of six ember powers (<https://claude.ai/artifact/MeXAwqdJdX4SYGDzhEy4xR>, sources
+in `Docs/EmberDemo/`). They kept four, for the main session to revise:
+- Lucky Streak: ricochets and critical hits.
+- Dust Devil: a dash that flings creatures aside.
+- Slag Bomb: a burning pool.
+- Spyglass: marks creatures through walls.
+
+With the heroes (Phase 11) they became four of the heroes' fifteen powers, and the outlaws' embers no longer give
+powers. `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md` has the full spec. Nothing in the code has changed yet.
+- [ ] The ember component, definitions, keys and saving.
+- [ ] The creatures' knocked, dizzy, burning and marked states.
+- [ ] The fifteen powers and their effects, in the print look, the four from the demo first.
+- [ ] The HUD's ember sockets and the inventory's ember page.
+- [ ] Tests, measured on Medium, `CODEMAP.md` updated.
+
+## Phase 11: Playable heroes
+On 2026-10-05 the user approved five playable heroes to choose from, as in Borderlands, each with three ember powers
+(<https://claude.ai/artifact/5NVdW7yTzReFkP3wvaxbyg>, sources in `Docs/HeroSelect/`): Ellis Ransom the Revenant,
+Odessa Lark the Cardsharp, Hollis Crane the Unpaid, Gauge the Iron Hand and Wendell Pike the Surveyor. Their models are
+Blender scripts in `Art/Backlog/Characters/`, rigged on the mannequin's skeleton. `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md` has the full spec.
+Nothing in the game has changed yet.
+- [ ] The five brought in and retargeted from the mannequin, materials merged, checked in first and third person.
+- [ ] Hero definitions, the hero select screen, and the session's hero and its saving.
+- [ ] Four new portraits for the player frame.
+- [ ] `Docs/Story.md` updated for the five; tests; `CODEMAP.md` updated.

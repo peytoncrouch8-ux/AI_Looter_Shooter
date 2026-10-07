@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New HUD</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#05080b}
+.hud{position:relative;width:1920px;height:1180px;overflow:hidden;font-family:'Chakra Petch',sans-serif;color:#dcefff;background:#05080b}
+.screen{position:absolute;left:0;top:0;width:1920px;height:1080px;overflow:hidden}
+.bg{position:absolute;left:0;top:0;width:1920px;height:1080px}
+.a{position:absolute}
+.ol{font-weight:700;text-shadow:0 0 1px #00182a,1.5px 0 0 #00182a,-1.5px 0 0 #00182a,0 1.5px 0 #00182a,0 -1.5px 0 #00182a,1.1px 1.1px 0 #00182a,-1.1px -1.1px 0 #00182a,1.1px -1.1px 0 #00182a,-1.1px 1.1px 0 #00182a,0 2px 6px rgba(0,8,14,.5)}
+.sh{filter:drop-shadow(0 2px 3px rgba(0,10,18,.55))}
+svg text{font-family:'Chakra Petch',sans-serif;font-weight:700}
+
+/* The player frame is drawn at 85% of the sizes in its rules (the user's request, 2026-10-03), shrinking toward its
+   bottom-left corner (18, 1053), where the horn and the lower clamp end. */
+.frame{position:absolute;left:0;top:0;width:1920px;height:1080px;transform:scale(.85);transform-origin:18px 1053px}
+
+/* health bar: slanted like every HUD bar, a gunmetal bezel, quarter cuts, a chip that lingers after a hit */
+.hpbar{position:absolute;left:150px;top:920px;width:540px;height:32px;transform:skewX(-16deg);background:#0e1116;padding:2px;box-sizing:border-box;filter:drop-shadow(0 2px 3px rgba(0,10,18,.55))}
+.hpbez{position:relative;width:100%;height:100%;background:linear-gradient(#66717e 0,#3a434d 30%,#232a31 70%,#15191e 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -1px 0 rgba(0,0,0,.5)}
+.hptrack{position:absolute;left:40px;right:4px;top:4px;bottom:4px;background:rgba(5,16,24,.88);overflow:hidden;box-shadow:inset 0 0 0 1px rgba(0,0,0,.6)}
+.hpchip{position:absolute;left:0;top:0;bottom:0;background:#ffe1db}
+.hpfill{position:absolute;left:0;top:0;bottom:0;background:repeating-linear-gradient(45deg,rgba(0,0,0,.13) 0 1.4px,transparent 1.4px 6px),linear-gradient(#ffb1a6 0,#ffb1a6 1px,#ff8f80 1px,#ff8f80 36%,#ff5b4a 36%,#ff5b4a 72%,#c63e2f 72%);box-shadow:inset -2px 0 0 #fff3ef}
+.hpfill.low{animation:lowBeat .9s ease-in-out infinite}
+.hpshine{position:absolute;top:0;bottom:0;left:0;width:34%;opacity:0;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(214,255,224,.9),rgba(255,255,255,0))}
+.hpshine.healA{animation:shineA .75s ease-out}
+.hpshine.healB{animation:shineB .75s ease-out}
+.hpcut{position:absolute;top:0;bottom:0;width:3px;margin-left:-1.5px;background:#0e1116}
+.hpclamp{position:absolute;right:-7px;top:-5px;width:14px;height:38px;background:#ff9f1c;box-shadow:inset 0 0 0 2px #0e1116;clip-path:polygon(0 0,100% 0,100% 100%,0 100%,0 calc(100% - 5px),9px calc(100% - 5px),9px 5px,0 5px)}
+.hpnum{position:absolute;left:206px;top:919px;width:470px;text-align:center;font-size:21px;color:#fff;line-height:34px}
+.hpnum span{font-size:14px;color:#d6e4ee;margin-left:4px}
+.hpnum.low{color:#ffd9d3}
+.healfloat{position:absolute;left:640px;top:916px;font-size:18px;color:#6dff7a;opacity:0}
+.healfloat.healA{animation:floatA 1.2s ease-out}
+.healfloat.healB{animation:floatB 1.2s ease-out}
+
+/* experience: ten sections, each a tenth of the level */
+.xpbar{position:absolute;left:214px;top:983px;width:380px;height:12px;transform:skewX(-16deg);display:flex;gap:3px;padding:2px;box-sizing:content-box;background:rgba(5,16,24,.8);box-shadow:0 0 0 1.5px #0e1116;filter:drop-shadow(0 2px 3px rgba(0,10,18,.5))}
+.xpsec{position:relative;flex:1 1 0;background:rgba(90,200,255,.17);overflow:hidden}
+.xpfill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#c9f1ff 0,#b9ecff 50%,#45b4ee 50%,#45b4ee 100%)}
+.xpgain{position:absolute;top:0;bottom:0;background:#f4fdff;opacity:0}
+.xpgain.gainA{animation:gainA 1.5s ease-out}
+.xpgain.gainB{animation:gainB 1.5s ease-out}
+.xptext{position:absolute;left:606px;top:978px;font-size:15px;color:#dcefff;white-space:nowrap}
+.xptext span{font-size:12px;color:#8fb3cc;margin-left:3px}
+.xpfloat{position:absolute;left:606px;top:956px;font-size:14px;color:#9fe0ff;opacity:0;white-space:nowrap}
+.xpfloat.gainA{animation:floatA 1.4s ease-out}
+.xpfloat.gainB{animation:floatB 1.4s ease-out}
+
+/* the portrait medallion and its reactions */
+.med{position:absolute;left:20px;top:850px;width:220px;height:220px;overflow:visible;filter:drop-shadow(0 3px 4px rgba(0,10,18,.6))}
+.face{transform-box:view-box;transform-origin:0 0}
+.breath{animation:breath 4.2s ease-in-out infinite}
+.face.flinchA{animation:flinchA .32s linear}
+.face.flinchB{animation:flinchB .32s linear}
+.hurtfx{opacity:0}
+.hurtfx.flinchA{animation:hurtA .45s ease-out}
+.hurtfx.flinchB{animation:hurtB .45s ease-out}
+.lowfx{opacity:0}
+.lowfx.low{animation:lowGlass .9s ease-in-out infinite}
+.blink{transform-box:fill-box;transform-origin:center;animation:blink 5.2s linear infinite}
+.squint.flinchA{animation:squintA .6s ease-out}
+.squint.flinchB{animation:squintB .6s ease-out}
+.calmfx.flinchA{animation:calmA .6s ease-out}
+.calmfx.flinchB{animation:calmB .6s ease-out}
+.flare{opacity:0}
+.flare.lvA{animation:flareA 1.8s ease-out}
+.flare.lvB{animation:flareB 1.8s ease-out}
+.dim{transition:opacity .3s}
+.gem{position:absolute;left:160px;top:964px;width:52px;height:52px;overflow:visible;filter:drop-shadow(0 2px 3px rgba(0,10,18,.6))}
+.gemring{opacity:0;transform-box:fill-box;transform-origin:center}
+.gemring.lvA{animation:ringA 1.1s ease-out}
+.gemring.lvB{animation:ringB 1.1s ease-out}
+.gemcore.lvA{animation:gemA .9s ease-out}
+.gemcore.lvB{animation:gemB .9s ease-out}
+
+/* the weapon slots in a column (slot 1 on top), each with its key tab and ammo on its left; the magazine cartridge
+   standing tip-up on their right with the rounds and the reserve in it; the status, fire mode and gun's name under it */
+.slot{position:absolute;width:64px;height:64px;transition:transform .2s ease-out}
+.slot.on{transform:translateX(-9px) scale(1.14)}
+.slot svg{position:absolute;left:0;top:0;overflow:visible}
+.slot .gun{position:absolute;left:4px;top:17px;width:56px;transform:rotate(-22deg);opacity:.82}
+.slot.on .gun{opacity:1}
+.slot .tab{position:absolute;left:-30px;top:24px;width:22px;height:16px;font-size:13px;line-height:16px;text-align:center;font-weight:700;color:#dcefff;background:rgba(7,26,40,.85);box-shadow:inset 0 0 0 1.2px rgba(90,200,255,.7);clip-path:polygon(0 0,100% 0,100% 70%,78% 100%,0 100%)}
+.slot.on .tab{background:#ff9f1c;color:#140a02;box-shadow:inset 0 0 0 1.6px #0e1116}
+.slot .glow{position:absolute;left:-8px;top:-8px;width:80px;height:80px;border-radius:50%;background:radial-gradient(circle,rgba(255,159,28,.55) 40%,rgba(255,159,28,0) 70%);opacity:0;transition:opacity .2s}
+.slot.on .glow{opacity:1}
+.slot .ring{opacity:0;transition:opacity .2s}
+.slot.on .ring{opacity:1}
+.slot .ammo{position:absolute;left:-58px;top:22px;width:20px;height:20px;opacity:.85}
+.slot.on .ammo{opacity:1}
+.magfill{transition:width .12s ease-out}
+.reloadbar{transform-box:fill-box;transform-origin:0 50%;transform:scaleX(0)}
+.reloadbar.rlA{animation-name:reloadA;animation-timing-function:linear;animation-fill-mode:forwards}
+.reloadbar.rlB{animation-name:reloadB;animation-timing-function:linear;animation-fill-mode:forwards}
+.magline.empty{animation:emptyBeat .6s ease-in-out infinite}
+.status{position:absolute;left:1560px;top:1001px;width:254px;text-align:right;font-size:12px;letter-spacing:2.4px;color:#ff9f1c;line-height:18px}
+.firemode{position:absolute;left:1660px;top:1000px;width:212px;text-align:right;font-size:13px;letter-spacing:2px;color:#8fb3cc;line-height:20px}
+.gunname{position:absolute;left:1650px;top:1024px;width:206px;text-align:right;font-size:18px;letter-spacing:1px;line-height:24px;white-space:nowrap}
+.raritygem{position:absolute;left:1861px;top:1031px;width:10px;height:10px;transform:rotate(45deg);box-shadow:0 0 0 1.6px #0a1218}
+
+/* minimap */
+.map{position:absolute;left:1712px;top:36px;width:172px;height:172px;border-radius:50%}
+.area{position:absolute;left:1648px;width:300px;text-align:center;white-space:nowrap}
+
+/* the tracked mission, on the left, in the HUD's own metalwork: a ranger's star in a gunmetal ring, the mission's name
+   in caps over a slanted bar of its steps (cyan done, orange now), a cyan route line down to the objective, whose
+   orange chevron turns into a cyan tick when it's done, and a key hint */
+.track{position:absolute;left:36px;top:286px;width:480px;height:110px}
+.trackroute{position:absolute;left:0;top:0;width:48px;height:70px;overflow:visible}
+.trackmedal{position:absolute;left:0;top:0;width:34px;height:34px;overflow:visible;filter:drop-shadow(0 2px 2px rgba(0,10,18,.5))}
+.tracktitle{position:absolute;left:44px;top:-3px;font-size:17px;letter-spacing:1.6px;color:#fff;line-height:24px;white-space:nowrap}
+.tracksteps{position:absolute;left:47px;top:24px;width:204px;height:6px;transform:skewX(-16deg);display:flex;gap:3px;padding:2px;background:rgba(5,16,24,.8);box-shadow:0 0 0 1.5px #0e1116;filter:drop-shadow(0 2px 3px rgba(0,10,18,.5))}
+.trackseg{flex:1 1 0;background:rgba(90,200,255,.17)}
+.trackseg.done{background:linear-gradient(#c9f1ff 0,#b9ecff 50%,#45b4ee 50%,#45b4ee 100%)}
+.trackseg.now{background:linear-gradient(#ffd49a 0,#ffc06a 50%,#ff9f1c 50%,#e2850f 100%)}
+.trackstep{position:absolute;left:262px;top:19px;font-size:12px;letter-spacing:1.5px;color:#8fb3cc;line-height:16px}
+.trackobj{position:absolute;left:46px;top:46px;display:flex;align-items:center;gap:9px;font-size:18px;color:#fff;line-height:24px;white-space:nowrap}
+.trackobj svg{width:16px;height:16px;overflow:visible;flex:none}
+.trackobj.done .txt{color:#8fb3cc}
+.trackobj.inA{animation:objInA .45s ease-out}
+.trackobj.inB{animation:objInB .45s ease-out}
+.trackcount{color:#9fe0ff}
+.trackcount.pulseA{animation:countA .3s ease-out}
+.trackcount.pulseB{animation:countB .3s ease-out}
+.trackhint{position:absolute;left:71px;top:76px;display:flex;align-items:center;gap:2px;font-size:14px;color:#8fb3cc;line-height:26px;white-space:nowrap}
+.trackhint .key{height:22px;min-width:22px;font-size:13px;line-height:22px;margin:0 8px 0 0}
+.key{display:inline-block;min-width:24px;height:26px;margin:0 6px;padding:0 4px;box-sizing:border-box;vertical-align:1px;font-size:15px;line-height:26px;text-align:center;color:#fff;text-shadow:none;background:linear-gradient(#24465e,#0e2433);box-shadow:inset 0 0 0 1.4px #5ac8ff,0 2px 0 #0a1218;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
+
+/* boss */
+.boss{position:absolute;left:600px;top:30px;width:720px;height:110px}
+.bossname{position:absolute;left:62px;top:0;font-size:25px;letter-spacing:3px;color:#ff9f1c;line-height:32px}
+.bossbar{position:absolute;left:58px;top:36px;width:640px;height:30px;transform:skewX(-16deg);background:#0e1116;padding:2px;box-sizing:border-box}
+.bossphase{position:absolute;left:58px;top:72px;width:640px;text-align:center;font-size:13px;letter-spacing:3.5px;color:#8fb3cc;line-height:18px}
+.bossphase.phA{animation:phaseA 1.6s ease-out}
+.bossphase.phB{animation:phaseB 1.6s ease-out}
+
+/* level up */
+.banner{position:absolute;left:610px;top:170px;width:700px;height:290px;animation:banner 2.8s ease-out forwards}
+.banner .big{position:absolute;left:260px;top:0;width:180px;height:180px;overflow:visible}
+.banner .title{position:absolute;left:0;top:176px;width:700px;text-align:center;font-size:46px;letter-spacing:12px;color:#ff9f1c;line-height:56px;white-space:nowrap}
+.banner .title .rule{display:inline-block;vertical-align:middle;width:90px;height:2px;margin:0 22px 0 10px;background:linear-gradient(90deg,rgba(90,200,255,0),#5ac8ff)}
+.banner .title .rule:last-child{margin:0 0 0 10px;background:linear-gradient(90deg,#5ac8ff,rgba(90,200,255,0))}
+.banner .sub{position:absolute;left:0;top:236px;width:700px;text-align:center;font-size:17px;letter-spacing:4px;color:#9fe0ff;line-height:24px}
+
+/* crosshair, hit marker, pickup feed, vignette */
+.xh{position:absolute;left:940px;top:520px;width:40px;height:40px}
+.xh.kickA{animation:kickA .16s ease-out}
+.xh.kickB{animation:kickB .16s ease-out}
+.hm{position:absolute;left:943px;top:523px;width:34px;height:34px;opacity:0;transform:rotate(45deg)}
+.hm.hitA{animation:hitA .3s ease-out}
+.hm.hitB{animation:hitB .3s ease-out}
+.feed{position:absolute;left:584px;width:300px;height:26px;display:flex;justify-content:flex-end;align-items:center;gap:7px;font-size:15px;color:#fff;line-height:26px;opacity:0;transition:top .2s ease-out}
+.feed img{width:20px;height:20px}
+.feed .n{color:#9fe0ff}
+.feed.fA{animation:feedA 2.6s ease-out forwards}
+.feed.fB{animation:feedB 2.6s ease-out forwards}
+.vig{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(255,40,30,0) 55%,rgba(200,20,16,.55) 100%)}
+.vig.hitA{animation:vigA .55s ease-out}
+.vig.hitB{animation:vigB .55s ease-out}
+.vig.low{animation:vigLow .9s ease-in-out infinite}
+
+/* the controls under the screen */
+.controls{position:absolute;left:0;top:1080px;width:1920px;height:100px;display:flex;align-items:center;gap:12px;padding:0 36px;box-sizing:border-box;background:linear-gradient(#0c141b,#070b0f);box-shadow:inset 0 1px 0 rgba(90,200,255,.35)}
+.controls .lab{font-size:13px;letter-spacing:4px;color:#8fb3cc;margin-right:8px;white-space:nowrap}
+.btn{height:48px;padding:0 18px;border:0;cursor:pointer;font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:15px;letter-spacing:1.5px;color:#dcefff;background:linear-gradient(#173a52,#0b2131);box-shadow:inset 0 0 0 1.4px rgba(90,200,255,.8);clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));white-space:nowrap}
+.btn:hover{background:linear-gradient(#20506f,#10304a)}
+.btn:focus-visible{outline:2px solid #ff9f1c;outline-offset:2px}
+.btn.hot{color:#140a02;background:linear-gradient(#ffb54d,#ff9f1c);box-shadow:inset 0 0 0 1.6px #0e1116}
+.btn.on{color:#140a02;background:linear-gradient(#ffb54d,#ff9f1c);box-shadow:inset 0 0 0 1.6px #0e1116}
+
+@keyframes lowBeat{0%,100%{filter:none}50%{filter:brightness(1.35) saturate(.85)}}
+@keyframes shineA{0%{opacity:1;transform:translateX(-100%)}100%{opacity:1;transform:translateX(300%)}}
+@keyframes shineB{0%{opacity:1;transform:translateX(-100%)}100%{opacity:1;transform:translateX(300%)}}
+@keyframes floatA{0%{opacity:0;transform:translateY(8px)}15%{opacity:1}100%{opacity:0;transform:translateY(-22px)}}
+@keyframes floatB{0%{opacity:0;transform:translateY(8px)}15%{opacity:1}100%{opacity:0;transform:translateY(-22px)}}
+@keyframes gainA{0%{opacity:1}55%{opacity:1}100%{opacity:0}}
+@keyframes gainB{0%{opacity:1}55%{opacity:1}100%{opacity:0}}
+@keyframes flinchA{0%{transform:translate(0,0)}20%{transform:translate(-5px,2px)}40%{transform:translate(4px,-2px)}60%{transform:translate(-3px,1px)}80%{transform:translate(2px,0)}100%{transform:translate(0,0)}}
+@keyframes flinchB{0%{transform:translate(0,0)}20%{transform:translate(-5px,2px)}40%{transform:translate(4px,-2px)}60%{transform:translate(-3px,1px)}80%{transform:translate(2px,0)}100%{transform:translate(0,0)}}
+@keyframes hurtA{0%{opacity:.6}100%{opacity:0}}
+@keyframes hurtB{0%{opacity:.6}100%{opacity:0}}
+@keyframes lowGlass{0%,100%{opacity:.1}50%{opacity:.34}}
+@keyframes squintA{0%,70%{opacity:1}100%{opacity:0}}
+@keyframes squintB{0%,70%{opacity:1}100%{opacity:0}}
+@keyframes calmA{0%,70%{opacity:0}100%{opacity:1}}
+@keyframes calmB{0%,70%{opacity:0}100%{opacity:1}}
+@keyframes breath{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.6px)}}
+@keyframes blink{0%,95%,100%{transform:scaleY(1)}96.5%{transform:scaleY(.08)}98%{transform:scaleY(1)}}
+@keyframes flareA{0%{opacity:1}60%{opacity:1}100%{opacity:0}}
+@keyframes flareB{0%{opacity:1}60%{opacity:1}100%{opacity:0}}
+@keyframes ringA{0%{opacity:.95;transform:scale(1)}100%{opacity:0;transform:scale(2.6)}}
+@keyframes ringB{0%{opacity:.95;transform:scale(1)}100%{opacity:0;transform:scale(2.6)}}
+@keyframes gemA{0%{filter:brightness(2.2)}100%{filter:brightness(1)}}
+@keyframes gemB{0%{filter:brightness(2.2)}100%{filter:brightness(1)}}
+@keyframes reloadA{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes reloadB{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes emptyBeat{0%,100%{stroke:#ff9f1c}50%{stroke:#ff5b4a}}
+@keyframes phaseA{0%{color:#ff9f1c;transform:scale(1.15)}100%{color:#8fb3cc;transform:scale(1)}}
+@keyframes phaseB{0%{color:#ff9f1c;transform:scale(1.15)}100%{color:#8fb3cc;transform:scale(1)}}
+@keyframes banner{0%{opacity:0;transform:scale(.7)}9%{opacity:1;transform:scale(1.04)}14%{transform:scale(1)}80%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1)}}
+@keyframes kickA{0%{transform:scale(1.45)}100%{transform:scale(1)}}
+@keyframes kickB{0%{transform:scale(1.45)}100%{transform:scale(1)}}
+@keyframes hitA{0%{opacity:1}100%{opacity:0}}
+@keyframes hitB{0%{opacity:1}100%{opacity:0}}
+@keyframes feedA{0%{opacity:0;transform:translateX(-10px)}8%{opacity:1;transform:translateX(0)}75%{opacity:1}100%{opacity:0}}
+@keyframes feedB{0%{opacity:0;transform:translateX(-10px)}8%{opacity:1;transform:translateX(0)}75%{opacity:1}100%{opacity:0}}
+@keyframes vigA{0%{opacity:.85}100%{opacity:0}}
+@keyframes vigB{0%{opacity:.85}100%{opacity:0}}
+@keyframes vigLow{0%,100%{opacity:.25}50%{opacity:.6}}
+@keyframes objInA{0%{opacity:0;transform:translateX(-14px)}100%{opacity:1;transform:translateX(0)}}
+@keyframes objInB{0%{opacity:0;transform:translateX(-14px)}100%{opacity:1;transform:translateX(0)}}
+@keyframes countA{0%{transform:scale(1.35);color:#ffffff}100%{transform:scale(1);color:#9fe0ff}}
+@keyframes countB{0%{transform:scale(1.35);color:#ffffff}100%{transform:scale(1);color:#9fe0ff}}
+</style>
+</helmet>
+<div class="hud">
+<div class="screen">
+<img class="bg" src="__BG__" alt="The tutorial island's new town square, on foot">
+
+<svg width="0" height="0" style="position: absolute">
+<defs>
+<radialGradient id="pGlass" cx="50%" cy="40%" r="64%"><stop offset="0" stop-color="#1f5470"></stop><stop offset="0.5" stop-color="#0c2a3c"></stop><stop offset="1" stop-color="#04101a"></stop></radialGradient>
+<radialGradient id="pEye" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#e6fbff" stop-opacity="1"></stop><stop offset="0.3" stop-color="#7fd8ff" stop-opacity="0.7"></stop><stop offset="1" stop-color="#5ccaff" stop-opacity="0"></stop></radialGradient>
+<pattern id="pScan" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="1.2" fill="#5ac8ff" opacity="0.08"></rect></pattern>
+<linearGradient id="gmUp" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#76818e"></stop><stop offset="0.5" stop-color="#46505b"></stop><stop offset="1" stop-color="#2c333b"></stop></linearGradient>
+<linearGradient id="gmDown" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2e353d"></stop><stop offset="0.6" stop-color="#1d2228"></stop><stop offset="1" stop-color="#111418"></stop></linearGradient>
+<linearGradient id="gmRing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6b7683"></stop><stop offset="0.5" stop-color="#2f363f"></stop><stop offset="1" stop-color="#15191e"></stop></linearGradient>
+<linearGradient id="gemFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d4f4ff"></stop><stop offset="0.5" stop-color="#bdeeff"></stop><stop offset="0.5" stop-color="#4ab5ee"></stop><stop offset="1" stop-color="#2f9fdc"></stop></linearGradient>
+<linearGradient id="magCyan" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bdeaff"></stop><stop offset="0.4" stop-color="#a6e3ff"></stop><stop offset="0.4" stop-color="#43b2ec"></stop><stop offset="1" stop-color="#2f9ad6"></stop></linearGradient>
+<linearGradient id="magOrange" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd49a"></stop><stop offset="0.4" stop-color="#ffc06a"></stop><stop offset="0.4" stop-color="#ff9f1c"></stop><stop offset="1" stop-color="#e2850f"></stop></linearGradient>
+<linearGradient id="bossFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8f80"></stop><stop offset="0.36" stop-color="#ff8f80"></stop><stop offset="0.36" stop-color="#ff5b4a"></stop><stop offset="0.72" stop-color="#ff5b4a"></stop><stop offset="0.72" stop-color="#c63e2f"></stop><stop offset="1" stop-color="#c63e2f"></stop></linearGradient>
+<radialGradient id="bannerGlow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#9fe0ff" stop-opacity="0.55"></stop><stop offset="0.5" stop-color="#5ac8ff" stop-opacity="0.18"></stop><stop offset="1" stop-color="#5ac8ff" stop-opacity="0"></stop></radialGradient>
+<pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.4" height="6" fill="#000" opacity="0.13"></rect></pattern>
+<clipPath id="medWin"><polygon points="0,-75 75,0 0,75 -75,0"></polygon></clipPath>
+<clipPath id="magClip"><path d="M17 7.5 L175 7.5 L184 12 C202 14 216 21 223 30 C216 39 202 46 184 48 L175 52.5 L17 52.5 Z"></path></clipPath>
+<g id="bust">
+<rect x="-10" y="-10" width="220" height="220" fill="url(#pGlass)"></rect>
+<rect x="-10" y="-10" width="220" height="220" fill="url(#pScan)"></rect>
+<g transform="translate(1.3 0.9)">
+<path d="M-6 206 L-6 162 C14 150 38 141 62 137 L138 137 C162 141 186 150 206 162 L206 206 Z" fill="#33414d"></path>
+<path d="M-6 162 C14 150 38 141 62 137 L138 137 C162 141 186 150 206 162 L206 168 C186 157 162 148 138 145 L62 145 C38 148 14 157 -6 168 Z" fill="#5b6e80"></path>
+<path d="M84 206 L88 150 L100 166 L112 150 L116 206 Z" fill="#7f8a92"></path>
+<path d="M48 206 L52 150 L58 118 L80 128 L88 150 L84 206 Z" fill="#46576a"></path>
+<path d="M152 206 L148 150 L142 118 L120 128 L112 150 L116 206 Z" fill="#46576a"></path>
+<path d="M58 118 L80 128 L77 136 L57 127 Z M142 118 L120 128 L123 136 L143 127 Z" fill="#6f8496"></path>
+<path d="M70 74 L130 74 L133 96 C133 104 131 109 128 113 L72 113 C69 109 67 104 67 96 Z" fill="#9fb0bd"></path>
+<path d="M67 74 L133 74 L133.5 93 C123 97.5 111.5 98.5 100 98 C88.5 98.5 77 97.5 66.5 93 Z" fill="#26343f"></path>
+<path d="M97.8 98 L102.2 98 L103.4 105 L96.6 105 Z" fill="#c8d4dc"></path>
+<path d="M66 76 C63 88 61 102 64 114 C66 108 68 104 70 102 C69 96 70 86 72 78 Z" fill="#141c23"></path>
+<path d="M134 76 C137 88 139 102 136 114 C134 108 132 104 130 102 C131 96 130 86 128 78 Z" fill="#141c23"></path>
+<path d="M66 105 C77 101.5 89 98.5 100 98 C111 98.5 123 101.5 134 105 L135.5 118 C128 131 116 146 100 166 C84 146 72 131 64.5 118 Z" fill="#ff5b4a"></path>
+<path d="M65.5 121 C73 133 85 148 100 166 C115 148 127 133 134.5 121 C123 128 112 131 100 131 C88 131 77 128 65.5 121 Z" fill="#b83a2d"></path>
+<path d="M64 63 C62 50 64 38 70.5 30 C77 24 87 20.5 95 22.5 L100 27.5 L105 22.5 C113 20.5 123 24 129.5 30 C136 38 138 50 136 63 C124 65.6 112 66.6 100 66.6 C88 66.6 76 65.6 64 63 Z" fill="#4a5a6a"></path>
+<path d="M64 63 C62 50 64 38 70.5 30 C74 27 78.5 24.5 83 23.5 C78.5 34 77 48 78 64.9 C73 64.5 68.5 63.8 64 63 Z" fill="#2c3844"></path>
+<path d="M86 26 C92 23.5 96 24 100 27.5 C104 24 108 23.5 114 26 C110 26.5 106 28.5 100 33 C94 28.5 90 26.5 86 26 Z" fill="#6d8093"></path>
+<path d="M64 55.5 C76 58.5 88 59.8 100 59.8 C112 59.8 124 58.5 136 55.5 L136.3 63 C124 65.6 112 66.6 100 66.6 C88 66.6 76 65.6 63.7 63 Z" fill="#141c23"></path>
+<path d="M121 56.6 L125.8 61.4 L121 66.2 L116.2 61.4 Z" fill="#ff9f1c"></path>
+<path d="M20 70 C36 60.5 66 56.5 100 58.5 C134 56.5 164 60.5 180 70 C174 77.5 160 81.5 141 81.5 C126 81.5 112 83.5 100 85.5 C88 83.5 74 81.5 59 81.5 C40 81.5 26 77.5 20 70 Z" fill="#56687a"></path>
+<path d="M20 70 C26 77.5 40 81.5 59 81.5 C74 81.5 88 83.5 100 85.5 C112 83.5 126 81.5 141 81.5 C160 81.5 174 77.5 180 70 C171 74.5 157 77 141 77 C126 77 112 79 100 80.5 C88 79 74 77 59 77 C43 77 29 74.5 20 70 Z" fill="#1d2730"></path>
+</g>
+<path d="M21 69.5 C37 60 66 56 100 58 M64 62 C62 49 64 37.5 70.5 29.5 C77 23.5 87 20 95 22" fill="none" stroke="#7fd8ff" stroke-width="1.4" opacity="0.8" stroke-linecap="round"></path>
+<path d="M-6 161 C14 149 38 140 62 136" fill="none" stroke="#7fd8ff" stroke-width="1.4" opacity="0.6" stroke-linecap="round"></path>
+<g fill="none" stroke="#0a1218" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-6 162 C14 150 38 141 62 137 L138 137 C162 141 186 150 206 162" stroke-width="3"></path>
+<path d="M48 206 L52 150 L58 118 L80 128 L88 150 L84 206 M152 206 L148 150 L142 118 L120 128 L112 150 L116 206" stroke-width="2.6"></path>
+<path d="M88 150 L100 166 L112 150" stroke-width="2"></path>
+<path d="M70 74 L67 96 C67 104 69 109 72 113 M130 74 L133 96 C133 104 131 109 128 113" stroke-width="2.4"></path>
+<path d="M66 76 C63 88 61 102 64 114 C66 108 68 104 70 102 M134 76 C137 88 139 102 136 114 C134 108 132 104 130 102" stroke-width="2"></path>
+<path d="M66 105 C77 101.5 89 98.5 100 98 C111 98.5 123 101.5 134 105 L135.5 118 C128 131 116 146 100 166 C84 146 72 131 64.5 118 Z" stroke-width="2.6"></path>
+<path d="M100 99 C98.5 108 98 118 99 128 M86 102 C84 110 83 116 84.5 124 M115 102 C117 110 118 116 116.5 124" stroke-width="1.5"></path>
+<path d="M64 63 C62 50 64 38 70.5 30 C77 24 87 20.5 95 22.5 L100 27.5 L105 22.5 C113 20.5 123 24 129.5 30 C136 38 138 50 136 63" stroke-width="3"></path>
+<path d="M100 33 L100 46 M86 27 C90 34 90.5 40 89.5 47 M114 27 C110 34 109.5 40 110.5 47" stroke-width="1.4"></path>
+<path d="M121 56.6 L125.8 61.4 L121 66.2 L116.2 61.4 Z" stroke-width="1.2"></path>
+<path d="M20 70 C36 60.5 66 56.5 100 58.5 C134 56.5 164 60.5 180 70 C174 77.5 160 81.5 141 81.5 C126 81.5 112 83.5 100 85.5 C88 83.5 74 81.5 59 81.5 C40 81.5 26 77.5 20 70 Z" stroke-width="3"></path>
+</g>
+</g>
+<g id="eyesOpen">
+<ellipse cx="86" cy="90" rx="17" ry="9" fill="url(#pEye)"></ellipse>
+<ellipse cx="114" cy="90" rx="17" ry="9" fill="url(#pEye)"></ellipse>
+<path d="M77.5 90.4 C82 88 88.5 87.2 94 88.6 C89 91.4 83 92.2 77.5 90.4 Z" fill="#f2fdff"></path>
+<path d="M122.5 90.4 C118 88 111.5 87.2 106 88.6 C111 91.4 117 92.2 122.5 90.4 Z" fill="#f2fdff"></path>
+</g>
+<g id="browsCalm"><path d="M74 86.6 C80 85 87 84.6 94 85.4 M126 86.6 C120 85 113 84.6 106 85.4" fill="none" stroke="#0a1218" stroke-width="2.2" stroke-linecap="round"></path></g>
+<g id="eyesHurt">
+<ellipse cx="86" cy="90" rx="12" ry="6" fill="url(#pEye)" opacity="0.7"></ellipse>
+<ellipse cx="114" cy="90" rx="12" ry="6" fill="url(#pEye)" opacity="0.7"></ellipse>
+<path d="M78.5 90.2 C83 89.2 88.5 89 93 89.8 C88.5 90.9 83 91.1 78.5 90.2 Z" fill="#f2fdff"></path>
+<path d="M121.5 90.2 C117 89.2 111.5 89 107 89.8 C111.5 90.9 117 91.1 121.5 90.2 Z" fill="#f2fdff"></path>
+<path d="M74 84.6 C81 85.4 88 86.6 94.5 88.4 M126 84.6 C119 85.4 112 86.6 105.5 88.4" fill="none" stroke="#0a1218" stroke-width="2.4" stroke-linecap="round"></path>
+</g>
+<g id="eyesFlare">
+<ellipse cx="86" cy="90" rx="28" ry="16" fill="url(#pEye)"></ellipse>
+<ellipse cx="114" cy="90" rx="28" ry="16" fill="url(#pEye)"></ellipse>
+<path d="M76.5 90.4 C81.5 87.2 88.5 86.2 95 88.2 C89.5 91.8 83 92.8 76.5 90.4 Z" fill="#ffffff"></path>
+<path d="M123.5 90.4 C118.5 87.2 111.5 86.2 105 88.2 C110.5 91.8 117 92.8 123.5 90.4 Z" fill="#ffffff"></path>
+</g>
+</defs>
+</svg>
+
+<!-- player frame, at 85%: bars under the medallion -->
+<div class="frame">
+<div class="hpbar">
+<div class="hpbez">
+<div class="hptrack">
+<div class="hpchip" style="width: {{hp.chipPct}}%; transition: {{hp.chipTrans}};"></div>
+<div class="hpfill {{hp.lowCls}}" style="width: {{hp.pct}}%; transition: {{hp.fillTrans}};"><div class="hpshine {{hp.healCls}}"></div></div>
+<div class="hpcut" style="left: 25%"></div>
+<div class="hpcut" style="left: 50%"></div>
+<div class="hpcut" style="left: 75%"></div>
+</div>
+</div>
+<div class="hpclamp"></div>
+</div>
+<div class="hpnum ol {{hp.lowCls}}">{{hp.text}}<span>/ {{hp.max}}</span></div>
+<div class="healfloat ol {{hp.healCls}}">+{{hp.healAmt}}</div>
+
+<div class="xpbar">
+<sc-for list="{{xp.sections}}" as="sec" hint-placeholder-count="10">
+<div class="xpsec"><div class="xpfill" style="width: {{sec.fill}}%"></div><div class="xpgain {{xp.gainCls}}" style="left: {{sec.gainLeft}}%; width: {{sec.gainWidth}}%"></div></div>
+</sc-for>
+</div>
+<div class="xptext ol">{{xp.now}}<span>/ {{xp.max}} XP</span></div>
+<div class="xpfloat ol {{xp.gainCls}}">+{{xp.gained}} XP</div>
+
+<svg class="med" viewBox="-110 -110 220 220" aria-label="Portrait of your character">
+<polygon points="-72,-17 -112,0 -72,17 -85,0" fill="url(#gmUp)" stroke="#0e1116" stroke-width="2.5" stroke-linejoin="round"></polygon>
+<polygon points="-84,-7 -101,0 -84,7 -89,0" fill="#ff9f1c" stroke="#0e1116" stroke-width="1.4" stroke-linejoin="round"></polygon>
+<polygon points="-86,0 0,-86 86,0" fill="url(#gmUp)"></polygon>
+<polygon points="-86,0 0,86 86,0" fill="url(#gmDown)"></polygon>
+<polygon points="0,-86 86,0 0,86 -86,0" fill="none" stroke="#0e1116" stroke-width="3.2" stroke-linejoin="round"></polygon>
+<polyline points="-81,0 0,-81 81,0" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.3"></polyline>
+<polyline points="-81,0 0,81 81,0" fill="none" stroke="#000000" stroke-opacity="0.35" stroke-width="1.3"></polyline>
+<g clip-path="url(#medWin)">
+<g class="face {{face.flinchCls}}">
+<g class="breath">
+<g transform="translate(-75 -75) scale(0.75)">
+<use href="#bust"></use>
+<g class="calmfx {{face.eyeCls}}" opacity="{{face.calm}}"><g class="blink"><use href="#eyesOpen"></use></g><use href="#browsCalm"></use></g>
+<g class="squint {{face.eyeCls}}" opacity="{{face.hurt}}"><use href="#eyesHurt"></use></g>
+<g class="flare {{face.flareCls}}"><use href="#eyesFlare"></use></g>
+</g>
+</g>
+</g>
+<polygon class="hurtfx {{face.flinchCls}}" points="0,-75 75,0 0,75 -75,0" fill="#ff3b2e"></polygon>
+<polygon class="lowfx {{face.lowCls}}" points="0,-75 75,0 0,75 -75,0" fill="#ff2a1e"></polygon>
+</g>
+<polygon points="0,-75 75,0 0,75 -75,0" fill="none" stroke="#0e1116" stroke-width="2.6"></polygon>
+<polygon points="0,-73.2 73.2,0 0,73.2 -73.2,0" fill="none" stroke="#5ac8ff" stroke-width="1.6" opacity="0.9"></polygon>
+<path d="M-16 -80 L0 -98 L16 -80 L10 -75 L0 -87 L-10 -75 Z" fill="#ff9f1c" stroke="#0e1116" stroke-width="2.2" stroke-linejoin="round"></path>
+<path d="M-10 81 L0 93 L10 81 L6 78 L0 85 L-6 78 Z" fill="#ff9f1c" stroke="#0e1116" stroke-width="1.8" stroke-linejoin="round"></path>
+</svg>
+
+<svg class="gem" viewBox="-26 -26 52 52" aria-label="Level">
+<polygon class="gemring {{xp.levelCls}}" points="0,-22 22,0 0,22 -22,0" fill="none" stroke="#9fe0ff" stroke-width="2.4"></polygon>
+<g class="gemcore {{xp.levelCls}}">
+<polygon points="0,-22 22,0 0,22 -22,0" fill="url(#gemFill)" stroke="#0a1218" stroke-width="2.8" stroke-linejoin="round"></polygon>
+<polyline points="-14.5,0 0,-14.5 14.5,0" fill="none" stroke="#ffffff" stroke-opacity="0.8" stroke-width="1.3"></polyline>
+<text x="0" y="6.5" text-anchor="middle" fill="#0a1218" font-size="18">{{xp.level}}</text>
+</g>
+</svg>
+</div>
+
+<!-- weapon cluster: the slots in a column, the cartridge standing on their right -->
+<div class="slot {{slotA.cls}}" style="left: 1743px; top: 780px;">
+<div class="glow"></div>
+<svg width="64" height="64" viewBox="-32 -32 64 64">
+<circle r="32" fill="#0e1116"></circle>
+<circle r="30" fill="url(#gmRing)"></circle>
+<circle r="27.5" fill="rgba(7,26,40,0.82)"></circle>
+<path d="M -20.9 17.5 A 27.25 27.25 0 0 0 20.9 17.5" fill="none" stroke="#cb7cf3" stroke-width="4.5"></path>
+<circle r="27.9" fill="none" stroke="#5ac8ff" stroke-width="1" opacity="0.55"></circle>
+<circle class="ring" r="31.6" fill="none" stroke="#ff9f1c" stroke-width="3"></circle>
+</svg>
+<img class="gun" src="__RIFLE__" alt="Whisper Bullpup">
+<div class="tab">1</div>
+<img class="ammo" src="__AMMO_AR_S__" alt="Rifle rounds">
+</div>
+<div class="slot {{slotB.cls}}" style="left: 1743px; top: 856px;">
+<div class="glow"></div>
+<svg width="64" height="64" viewBox="-32 -32 64 64">
+<circle r="32" fill="#0e1116"></circle>
+<circle r="30" fill="url(#gmRing)"></circle>
+<circle r="27.5" fill="rgba(7,26,40,0.82)"></circle>
+<path d="M -20.9 17.5 A 27.25 27.25 0 0 0 20.9 17.5" fill="none" stroke="#ffcb00" stroke-width="4.5"></path>
+<circle r="27.9" fill="none" stroke="#5ac8ff" stroke-width="1" opacity="0.55"></circle>
+<circle class="ring" r="31.6" fill="none" stroke="#ff9f1c" stroke-width="3"></circle>
+</svg>
+<img class="gun" src="__SHOTGUN__" alt="Gilded Ranchhand" style="top: 25px; width: 58px; left: 3px;">
+<div class="tab">2</div>
+<img class="ammo" src="__AMMO_SG_S__" alt="Shotgun shells">
+</div>
+<div class="slot" style="left: 1743px; top: 932px;">
+<svg width="64" height="64" viewBox="-32 -32 64 64">
+<circle r="32" fill="#0e1116" opacity="0.55"></circle>
+<circle r="26" fill="rgba(7,26,40,0.6)"></circle>
+<circle r="28" fill="none" stroke="#dcefff" stroke-width="2" stroke-dasharray="4.4 4.4" opacity="0.6"></circle>
+</svg>
+<div class="tab" style="color: #8fb3cc; opacity: 0.8;">3</div>
+</div>
+
+<div class="status ol">{{mag.status}}</div>
+<svg class="a sh" style="left: 1821px; top: 800px; overflow: visible;" width="51" height="196" viewBox="0 0 60 230" aria-label="Magazine: rounds in it, then the reserve">
+<g transform="translate(0 230) rotate(-90)">
+<path d="M2 2 L9 2 L9 9 L15 9 L15 5 L176 5 L186 10 C206 12 222 20 230 30 C222 40 206 48 186 50 L176 55 L15 55 L15 51 L9 51 L9 58 L2 58 L0 56 L0 4 Z" fill="rgba(5,16,24,0.76)"></path>
+<g clip-path="url(#magClip)">
+<rect class="magfill" x="15" y="0" width="{{mag.width}}" height="60" fill="{{mag.fill}}" opacity="{{mag.fillOpacity}}"></rect>
+<rect x="15" y="0" width="{{mag.width}}" height="60" fill="url(#hatch)" opacity="{{mag.fillOpacity}}"></rect>
+<rect class="reloadbar {{mag.reloadCls}}" x="15" y="0" width="211" height="60" fill="url(#magOrange)" opacity="{{mag.reloadOpacity}}" style="animation-duration: {{mag.reloadMs}}ms;"></rect>
+</g>
+<g stroke="#dcefff" stroke-width="1.2" opacity="0.4"><line x1="120.5" y1="9" x2="120.5" y2="51"></line><line x1="173.2" y1="9" x2="173.2" y2="51"></line></g>
+<path class="magline {{mag.emptyCls}}" d="M2 2 L9 2 L9 9 L15 9 L15 5 L176 5 L186 10 C206 12 222 20 230 30 C222 40 206 48 186 50 L176 55 L15 55 L15 51 L9 51 L9 58 L2 58 L0 56 L0 4 Z" fill="none" stroke="#0e1116" stroke-width="4.6" stroke-linejoin="round"></path>
+<path d="M2 2 L9 2 L9 9 L15 9 L15 5 L176 5 L186 10 C206 12 222 20 230 30 C222 40 206 48 186 50 L176 55 L15 55 L15 51 L9 51 L9 58 L2 58 L0 56 L0 4 Z" fill="none" stroke="#e6f3ff" stroke-width="1.8" stroke-linejoin="round"></path>
+</g>
+<text x="30" y="187" text-anchor="middle" fill="{{mag.countColor}}" font-size="27" stroke="#00182a" stroke-width="4.5" paint-order="stroke fill" stroke-linejoin="round">{{mag.count}}</text>
+<text x="30" y="207" text-anchor="middle" fill="#cfe2ef" font-size="16" stroke="#00182a" stroke-width="3.6" paint-order="stroke fill" stroke-linejoin="round">/{{mag.reserve}}</text>
+</svg>
+<div class="firemode ol">{{gun.mode}}</div>
+<div class="gunname ol" style="color: {{gun.color}};">{{gun.name}}</div>
+<div class="raritygem" style="background: {{gun.color}};"></div>
+
+<!-- minimap -->
+<img class="map sh" src="__MAP__" alt="Minimap of the town around you">
+<svg class="a" style="left: 1700px; top: 24px; overflow: visible;" width="196" height="196" viewBox="0 0 196 196" aria-hidden="true">
+<circle cx="98" cy="98" r="90.5" fill="none" stroke="url(#gmRing)" stroke-width="9"></circle>
+<circle cx="98" cy="98" r="95" fill="none" stroke="#0e1116" stroke-width="1.8"></circle>
+<circle cx="98" cy="98" r="86" fill="none" stroke="#0e1116" stroke-width="1.6"></circle>
+<circle cx="98" cy="98" r="84.6" fill="none" stroke="#5ac8ff" stroke-width="1" opacity="0.75"></circle>
+<g transform="translate(98 98) rotate(-38)" stroke="#c9d7e2" stroke-width="1.4" opacity="0.8">
+<line y1="-94" y2="-88" transform="rotate(30)"></line><line y1="-94" y2="-88" transform="rotate(60)"></line><line y1="-94" y2="-88" transform="rotate(120)"></line><line y1="-94" y2="-88" transform="rotate(150)"></line>
+<line y1="-94" y2="-88" transform="rotate(210)"></line><line y1="-94" y2="-88" transform="rotate(240)"></line><line y1="-94" y2="-88" transform="rotate(300)"></line><line y1="-94" y2="-88" transform="rotate(330)"></line>
+<line y1="-95" y2="-86" transform="rotate(90)" stroke-width="2.2"></line><line y1="-95" y2="-86" transform="rotate(180)" stroke-width="2.2"></line><line y1="-95" y2="-86" transform="rotate(270)" stroke-width="2.2"></line>
+</g>
+<g transform="translate(98 98) rotate(-38) translate(0 -90.5) rotate(38)">
+<circle r="9.5" fill="#0e1116" stroke="#ff9f1c" stroke-width="1.6"></circle>
+<text y="4.4" text-anchor="middle" fill="#ff9f1c" font-size="12">N</text>
+</g>
+<path d="M91 -0.5 L105 -0.5 L98 9 Z" fill="#ff9f1c" stroke="#0e1116" stroke-width="1.4" stroke-linejoin="round"></path>
+<g transform="translate(98 98) rotate(-39) translate(0 -74)">
+<path d="M0 -9 L7 4 L0 1 L-7 4 Z" fill="#ff9f1c" stroke="#0a1218" stroke-width="1.6" stroke-linejoin="round"></path>
+</g>
+<text x="58" y="58" text-anchor="middle" fill="#ffcf8a" font-size="12" stroke="#00182a" stroke-width="3.5" paint-order="stroke fill" stroke-linejoin="round">72 m</text>
+<circle cx="124" cy="62" r="3.6" fill="#ffcb00" stroke="#0a1218" stroke-width="1.4"></circle>
+<circle cx="66" cy="120" r="2.4" fill="#f4efe6" stroke="#0a1218" stroke-width="1.2"></circle>
+<path d="M98 88 L106 106 L98 101.5 L90 106 Z" fill="#ffffff" stroke="#0a1218" stroke-width="1.8" stroke-linejoin="round"></path>
+</svg>
+<div class="area ol" style="top: 224px; font-size: 15px; letter-spacing: 2.5px; color: #dcefff; line-height: 20px;">CROSSROADS</div>
+<div class="area ol" style="top: 244px; font-size: 10.5px; letter-spacing: 3.5px; color: #8fb3cc; line-height: 14px;">SKYREACH</div>
+
+<!-- the tracked mission (the tutorial, on Skyreach), on the left -->
+<div class="track">
+<svg class="trackroute" viewBox="0 0 48 70" aria-hidden="true">
+<path d="M17 35 L17 58 L38 58" fill="none" stroke="#0a1218" stroke-width="3" stroke-opacity="0.45" stroke-linejoin="round"></path>
+<path d="M17 35 L17 58 L38 58" fill="none" stroke="#5ac8ff" stroke-width="1.2" stroke-opacity="0.8" stroke-linejoin="round"></path>
+</svg>
+<svg class="trackmedal" viewBox="-17 -17 34 34" aria-hidden="true">
+<circle r="16" fill="#0e1116"></circle>
+<circle r="14.6" fill="url(#gmRing)"></circle>
+<circle r="12" fill="rgba(7,26,40,0.9)"></circle>
+<circle r="12.4" fill="none" stroke="#5ac8ff" stroke-width="1" opacity="0.6"></circle>
+<polygon points="0.00,-10.40 2.65,-3.64 9.89,-3.21 4.28,1.39 6.11,8.41 0.00,4.50 -6.11,8.41 -4.28,1.39 -9.89,-3.21 -2.65,-3.64" fill="#ff9f1c" stroke="#0a1218" stroke-width="1.5" stroke-linejoin="round"></polygon>
+<polyline points="-7.6,-2.6 -2.1,-2.9 0,-8.1" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="1"></polyline>
+</svg>
+<div class="tracktitle ol">WELCOME TO SKYREACH</div>
+<div class="tracksteps">
+<sc-for list="{{track.segs}}" as="seg" hint-placeholder-count="6"><div class="trackseg {{seg.cls}}"></div></sc-for>
+</div>
+<div class="trackstep ol">{{track.step}}</div>
+<div class="trackobj {{track.objCls}}">
+<svg viewBox="0 0 16 16" aria-hidden="true">
+<polygon points="2,1.5 8,1.5 14.5,8 8,14.5 2,14.5 8.5,8" fill="#ff9f1c" stroke="#0a1218" stroke-width="1.6" stroke-linejoin="round" opacity="{{track.chevron}}"></polygon>
+<path d="M2.5 8.5 L6.5 12.5 L14 4" fill="none" stroke="#0a1218" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="{{track.tick}}"></path>
+<path d="M2.5 8.5 L6.5 12.5 L14 4" fill="none" stroke="#5ac8ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity="{{track.tick}}"></path>
+</svg>
+<span class="txt ol">{{track.text}}</span>
+<span class="trackcount ol {{track.countCls}}">{{track.count}}</span>
+</div>
+<sc-if value="{{track.hasHint}}" hint-placeholder-val="{{ true }}">
+<div class="trackhint ol"><span class="key">{{track.key}}</span>{{track.hint}}</div>
+</sc-if>
+</div>
+
+<!-- the boss's bar during a fight -->
+<sc-if value="{{boss.show}}" hint-placeholder-val="{{ false }}">
+<div class="boss">
+<svg class="a" style="left: 4px; top: 22px; overflow: visible;" width="52" height="52" viewBox="-26 -26 52 52">
+<polygon points="0,-22 22,0 0,22 -22,0" fill="#ff9f1c" stroke="#0a1218" stroke-width="2.8" stroke-linejoin="round"></polygon>
+<polyline points="-14.5,0 0,-14.5 14.5,0" fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="1.3"></polyline>
+<text x="0" y="6.5" text-anchor="middle" fill="#0a1218" font-size="18">15</text>
+</svg>
+<div class="bossname ol">BROOD MOTHER</div>
+<div class="bossbar">
+<div class="hpbez">
+<div class="hptrack" style="left: 4px;">
+<div class="hpchip" style="width: {{boss.chipPct}}%; transition: {{boss.chipTrans}};"></div>
+<div class="hpfill" style="width: {{boss.pct}}%;"></div>
+<div class="hpcut" style="left: 70%; background: {{boss.cut1}};"></div>
+<div class="hpcut" style="left: 40%; background: {{boss.cut2}};"></div>
+</div>
+</div>
+<div class="hpclamp" style="height: 36px;"></div>
+</div>
+<div class="bossphase ol {{boss.phaseCls}}">{{boss.phase}}</div>
+</div>
+</sc-if>
+
+<!-- level-up -->
+<sc-if value="{{banner.show}}" hint-placeholder-val="{{ false }}">
+<div class="banner">
+<svg class="big" viewBox="-90 -90 180 180">
+<circle r="80" fill="url(#bannerGlow)"></circle>
+<g stroke="#ff9f1c" stroke-width="2" stroke-linecap="round" opacity="0.75">
+<line x1="0" y1="-64" x2="0" y2="-86"></line><line x1="64" y1="0" x2="86" y2="0"></line><line x1="0" y1="64" x2="0" y2="86"></line><line x1="-64" y1="0" x2="-86" y2="0"></line>
+<line x1="42" y1="-42" x2="54" y2="-54"></line><line x1="42" y1="42" x2="54" y2="54"></line><line x1="-42" y1="42" x2="-54" y2="54"></line><line x1="-42" y1="-42" x2="-54" y2="-54"></line>
+</g>
+<polygon points="0,-58 58,0 0,58 -58,0" fill="none" stroke="#9fe0ff" stroke-width="1.6" opacity="0.8"></polygon>
+<polygon points="0,-46 46,0 0,46 -46,0" fill="url(#gemFill)" stroke="#0a1218" stroke-width="4" stroke-linejoin="round"></polygon>
+<polyline points="-31,0 0,-31 31,0" fill="none" stroke="#ffffff" stroke-opacity="0.8" stroke-width="2"></polyline>
+<text x="0" y="13" text-anchor="middle" fill="#0a1218" font-size="38">{{xp.level}}</text>
+</svg>
+<div class="title ol"><span class="rule"></span>LEVEL UP<span class="rule"></span></div>
+<div class="sub ol">MAX HEALTH +8%</div>
+</div>
+</sc-if>
+
+<!-- crosshair, hit marker, pickup feed -->
+<svg class="xh {{xh.kickCls}}" viewBox="-20 -20 40 40" aria-hidden="true">
+<g fill="#ffffff" stroke="rgba(0,39,56,0.85)" stroke-width="1" opacity="0.92">
+<rect x="-2" y="-19" width="4" height="9"></rect><rect x="-2" y="10" width="4" height="9"></rect>
+<rect x="-19" y="-2" width="9" height="4"></rect><rect x="10" y="-2" width="9" height="4"></rect>
+</g>
+<rect x="-1.5" y="-1.5" width="3" height="3" fill="#ffffff" opacity="0.85"></rect>
+</svg>
+<svg class="hm {{xh.hitCls}}" viewBox="-17 -17 34 34" aria-hidden="true">
+<g fill="#ffffff" stroke="rgba(0,39,56,0.85)" stroke-width="1">
+<rect x="-2" y="-17" width="4" height="11"></rect><rect x="-2" y="6" width="4" height="11"></rect>
+<rect x="-17" y="-2" width="11" height="4"></rect><rect x="6" y="-2" width="11" height="4"></rect>
+</g>
+</svg>
+<div class="feed ol {{feedA.cls}}" style="top: {{feedA.top}}px;"><span class="n">+{{feedA.n}}</span><img src="__AMMO_AR_S__" alt="" style="display: {{feedA.ar}};"><img src="__AMMO_SG_S__" alt="" style="display: {{feedA.sg}};"><span>{{feedA.name}}</span></div>
+<div class="feed ol {{feedB.cls}}" style="top: {{feedB.top}}px;"><span class="n">+{{feedB.n}}</span><img src="__AMMO_AR_S__" alt="" style="display: {{feedB.ar}};"><img src="__AMMO_SG_S__" alt="" style="display: {{feedB.sg}};"><span>{{feedB.name}}</span></div>
+<div class="feed ol {{feedC.cls}}" style="top: {{feedC.top}}px;"><span class="n">+{{feedC.n}}</span><img src="__AMMO_AR_S__" alt="" style="display: {{feedC.ar}};"><img src="__AMMO_SG_S__" alt="" style="display: {{feedC.sg}};"><span>{{feedC.name}}</span></div>
+
+<div class="vig {{vig.cls}}"></div>
+<div class="a ol" style="left: 36px; top: 26px; font-size: 13px; letter-spacing: 1.5px; color: #8fb3cc; line-height: 18px;">120 FPS</div>
+</div>
+
+<div class="controls">
+<span class="lab">DEMO CONTROLS (NOT PART OF THE HUD)</span>
+<button class="btn" onClick="{{act.hit}}">Take a hit</button>
+<button class="btn" onClick="{{act.heal}}">Heal</button>
+<button class="btn" onClick="{{act.low}}">Low health</button>
+<button class="btn" onClick="{{act.gain}}">Gain XP</button>
+<button class="btn" onClick="{{act.levelUp}}">Level up</button>
+<button class="btn hot" onClick="{{act.fire}}">Fire</button>
+<button class="btn" onClick="{{act.reload}}">Reload</button>
+<button class="btn" onClick="{{act.swap}}">Swap gun</button>
+<button class="btn" onClick="{{act.pickup}}">Pick up ammo</button>
+<button class="btn {{act.bossCls}}" onClick="{{act.boss}}" aria-pressed="{{act.bossPressed}}">Boss fight</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1920,"height":1180}}'>
+const GUNS = [
+  { name: 'WHISPER BULLPUP', color: '#cb7cf3', mode: 'AUTO', cap: 30, reloadMs: 1700, ammo: 'RIFLE ROUNDS', pickup: 24 },
+  { name: 'GILDED RANCHHAND', color: '#ffcb00', mode: 'PUMP', cap: 6, reloadMs: 2200, ammo: 'SHOTGUN SHELLS', pickup: 8 }
+];
+const PHASES = ['THE BROOD STIRS', 'OLD HUNGER', 'UNDER SILK'];
+// The tutorial's six steps as the tracker words them: a short objective, a count where it has one, and a key hint.
+const STEPS = [
+  { text: 'Move and look around', key: 'W A S D', hint: 'Move' },
+  { text: 'Follow the road to the village', key: 'Shift', hint: 'Hold to run' },
+  { text: 'Grab the rifle from the gun rack', key: 'E', hint: 'Take it' },
+  { text: 'Shoot the target dummies', count: 5, key: 'R', hint: 'Reload' },
+  { text: 'Hunt spiders past the pond', count: 2 },
+  { text: 'Check your loadout', key: 'Tab', hint: 'Inventory' }
+];
+const LOW = 0.3;
+const pick = (n, a, b) => (n === 0 ? '' : n % 2 ? a : b);
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      hp: 78, maxHp: 100, chip: 78, healing: false, draining: false, hurtN: 0, healN: 0, healAmt: 0,
+      level: 12, xp: 1240, xpMax: 2000, gainFrom: 1240, gainTo: 1240, gained: 0, gainN: 0, levelN: 0, banner: false,
+      slot: 0, mags: [18, 5], reserves: [120, 24], reloading: false, reloadN: 0, kickN: 0, hitN: 0,
+      feed: [], feedId: 0,
+      boss: false, bossHp: 1, bossChip: 1, bossDraining: false, phaseN: 0,
+      step: 3, progress: 2, stepDone: false, stepN: 0, countN: 0
+    };
+    this.timers = [];
+  }
+  componentWillUnmount() { this.timers.forEach((t) => clearTimeout(t)); }
+  later(ms, fn) { this.timers.push(setTimeout(fn, ms)); }
+
+  hurt(to) {
+    const s = this.state;
+    const hp = Math.max(1, to);
+    this.setState({ hp, chip: Math.max(s.chip, s.hp), healing: false, draining: false, hurtN: s.hurtN + 1 });
+    const n = s.hurtN + 1;
+    this.later(450, () => { if (this.state.hurtN === n) this.setState({ chip: this.state.hp, draining: true }); });
+  }
+  hit() { const s = this.state; this.hurt(s.hp - 17 < 8 ? 8 : s.hp - 17); }
+  low() { this.hurt(18); }
+  heal() {
+    const s = this.state;
+    const hp = Math.min(s.maxHp, s.hp + 30);
+    this.setState({ hp, chip: hp, healing: true, draining: false, healN: s.healN + 1, healAmt: hp - s.hp });
+  }
+  gain(amount) {
+    const s = this.state;
+    let xp = s.xp + amount, level = s.level, xpMax = s.xpMax, from = s.xp, leveled = false, maxHp = s.maxHp, hp = s.hp;
+    if (xp >= xpMax) {
+      xp -= xpMax; level += 1; from = 0; leveled = true;
+      xpMax = Math.round(xpMax * 1.15 / 10) * 10;
+      maxHp = Math.round(s.maxHp * 1.08); hp = s.hp + (maxHp - s.maxHp);
+    }
+    this.setState({ xp, level, xpMax, gainFrom: from, gainTo: xp, gained: amount, gainN: s.gainN + 1,
+      levelN: leveled ? s.levelN + 1 : s.levelN, banner: leveled || s.banner, maxHp, hp, chip: Math.max(hp, s.chip) });
+    if (leveled) { const n = s.levelN + 1; this.later(2800, () => { if (this.state.levelN === n) this.setState({ banner: false }); }); }
+  }
+  fire() {
+    const s = this.state;
+    if (s.reloading) return;
+    const mags = s.mags.slice();
+    if (mags[s.slot] <= 0) return;
+    mags[s.slot] -= 1;
+    const next = { mags, kickN: s.kickN + 1, hitN: s.hitN + 1 };
+    // Out of a boss fight the shots hit the dummies, which the tutorial's step counts; the last one ticks the box and
+    // the next step slides in a moment later.
+    const goal = STEPS[s.step].count;
+    if (!s.boss && goal && !s.stepDone && s.progress < goal) {
+      const progress = s.progress + 1;
+      Object.assign(next, { progress, countN: s.countN + 1, stepDone: progress >= goal });
+      if (progress >= goal) {
+        const at = s.step;
+        this.later(1400, () => {
+          if (this.state.step === at && at + 1 < STEPS.length) {
+            this.setState({ step: at + 1, progress: 0, stepDone: false, stepN: this.state.stepN + 1 });
+          }
+        });
+      }
+    }
+    if (s.boss) {
+      const bossHp = Math.max(0.04, s.bossHp - (s.slot === 0 ? 0.03 : 0.08));
+      const phase = bossHp > 0.7 ? 0 : bossHp > 0.4 ? 1 : 2;
+      const was = s.bossHp > 0.7 ? 0 : s.bossHp > 0.4 ? 1 : 2;
+      Object.assign(next, { bossHp, bossChip: Math.max(s.bossChip, s.bossHp), bossDraining: false, phaseN: phase !== was ? s.phaseN + 1 : s.phaseN });
+      const k = s.kickN + 1;
+      this.later(450, () => { if (this.state.kickN === k) this.setState({ bossChip: this.state.bossHp, bossDraining: true }); });
+    }
+    this.setState(next);
+  }
+  reload() {
+    const s = this.state, gun = GUNS[s.slot];
+    if (s.reloading || s.mags[s.slot] >= gun.cap || s.reserves[s.slot] <= 0) return;
+    const n = s.reloadN + 1, slot = s.slot;
+    this.setState({ reloading: true, reloadN: n });
+    this.later(gun.reloadMs, () => {
+      const t = this.state;
+      if (t.reloadN !== n || !t.reloading) return;
+      const mags = t.mags.slice(), reserves = t.reserves.slice();
+      const take = Math.min(gun.cap - mags[slot], reserves[slot]);
+      mags[slot] += take; reserves[slot] -= take;
+      this.setState({ mags, reserves, reloading: false });
+    });
+  }
+  swap() { const s = this.state; this.setState({ slot: (s.slot + 1) % GUNS.length, reloading: false }); }
+  pickup() {
+    const s = this.state, gun = GUNS[s.slot], id = s.feedId + 1;
+    const reserves = s.reserves.slice(); reserves[s.slot] += gun.pickup;
+    this.setState({ feedId: id, reserves, feed: s.feed.concat([{ id, n: gun.pickup, name: gun.ammo, ar: s.slot === 0 }]).slice(-3) });
+    this.later(2600, () => this.setState({ feed: this.state.feed.filter((f) => f.id !== id) }));
+  }
+  toggleBoss() { const s = this.state; this.setState({ boss: !s.boss, bossHp: 1, bossChip: 1, bossDraining: false, phaseN: 0 }); }
+
+  feedSlot(k) {
+    const s = this.state;
+    const line = s.feed.find((f) => f.id % 3 === k);
+    if (!line) return { cls: '', top: 528, n: '', name: '', ar: 'none', sg: 'none' };
+    const rank = s.feedId - line.id;
+    return { cls: Math.floor(line.id / 3) % 2 ? 'fA' : 'fB', top: 528 - rank * 28, n: line.n, name: line.name,
+      ar: line.ar ? 'inline' : 'none', sg: line.ar ? 'none' : 'inline' };
+  }
+
+  renderVals() {
+    const s = this.state, gun = GUNS[s.slot];
+    const frac = s.hp / s.maxHp, low = frac <= LOW;
+    const lowCls = low ? 'low' : '';
+    const sections = [];
+    for (let i = 0; i < 10; i++) {
+      const lo = i / 10, hi = (i + 1) / 10, at = s.xp / s.xpMax;
+      const fill = Math.max(0, Math.min(1, (at - lo) * 10)) * 100;
+      const g0 = Math.max(lo, s.gainFrom / s.xpMax), g1 = Math.min(hi, s.gainTo / s.xpMax);
+      sections.push({ fill: fill.toFixed(1), gainLeft: g1 > g0 ? ((g0 - lo) * 1000).toFixed(1) : 0, gainWidth: g1 > g0 ? ((g1 - g0) * 1000).toFixed(1) : 0 });
+    }
+    const mag = s.mags[s.slot], cap = gun.cap, reserve = s.reserves[s.slot];
+    const magLow = mag / cap <= 0.25;
+    const phase = s.bossHp > 0.7 ? 0 : s.bossHp > 0.4 ? 1 : 2;
+    return {
+      hp: {
+        text: Math.round(s.hp), max: s.maxHp, pct: (frac * 100).toFixed(2), chipPct: (s.chip / s.maxHp * 100).toFixed(2),
+        fillTrans: s.healing ? 'width 0.5s ease-out' : 'none', chipTrans: s.draining ? 'width 0.6s ease-in' : 'none',
+        lowCls, healCls: pick(s.healN, 'healA', 'healB'), healAmt: s.healAmt
+      },
+      face: {
+        flinchCls: pick(s.hurtN, 'flinchA', 'flinchB'), eyeCls: low ? '' : pick(s.hurtN, 'flinchA', 'flinchB'), lowCls, flareCls: pick(s.levelN, 'lvA', 'lvB'),
+        calm: low ? 0 : 1, hurt: low ? 1 : 0
+      },
+      xp: {
+        sections, now: s.xp.toLocaleString('en-US'), max: s.xpMax.toLocaleString('en-US'), level: s.level,
+        gained: s.gained, gainCls: pick(s.gainN, 'gainA', 'gainB'), levelCls: pick(s.levelN, 'lvA', 'lvB')
+      },
+      slotA: { cls: s.slot === 0 ? 'on' : '' },
+      slotB: { cls: s.slot === 1 ? 'on' : '' },
+      gun: { name: gun.name, color: gun.color, mode: gun.mode },
+      mag: {
+        count: mag, reserve, width: (211 * mag / cap).toFixed(1),
+        fill: magLow ? 'url(#magOrange)' : 'url(#magCyan)', fillOpacity: s.reloading ? 0 : 1,
+        countColor: mag === 0 ? '#ff5b4a' : magLow ? '#ffb54d' : '#ffffff', emptyCls: mag === 0 && !s.reloading ? 'empty' : '',
+        reloadCls: s.reloading ? pick(s.reloadN, 'rlA', 'rlB') : '', reloadOpacity: s.reloading ? 1 : 0, reloadMs: gun.reloadMs,
+        status: s.reloading ? 'RELOADING' : mag === 0 ? (reserve > 0 ? 'PRESS R' : 'NO AMMO') : ''
+      },
+      track: {
+        step: (s.step + 1) + ' / ' + STEPS.length, text: STEPS[s.step].text,
+        count: STEPS[s.step].count ? s.progress + ' / ' + STEPS[s.step].count : '',
+        hasHint: !!STEPS[s.step].key, key: STEPS[s.step].key || '', hint: STEPS[s.step].hint || '',
+        segs: STEPS.map((_, i) => ({ cls: i < s.step || (i === s.step && s.stepDone) ? 'done' : i === s.step ? 'now' : '' })),
+        objCls: (s.stepDone ? 'done ' : '') + pick(s.stepN, 'inA', 'inB'), countCls: pick(s.countN, 'pulseA', 'pulseB'),
+        chevron: s.stepDone ? 0 : 1, tick: s.stepDone ? 1 : 0
+      },
+      boss: {
+        show: s.boss, pct: (s.bossHp * 100).toFixed(2), chipPct: (s.bossChip * 100).toFixed(2),
+        chipTrans: s.bossDraining ? 'width 0.6s ease-in' : 'none', phase: PHASES[phase], phaseCls: pick(s.phaseN, 'phA', 'phB'),
+        cut1: s.bossHp < 0.7 ? '#dcefff' : '#0e1116', cut2: s.bossHp < 0.4 ? '#dcefff' : '#0e1116'
+      },
+      banner: { show: s.banner },
+      xh: { kickCls: pick(s.kickN, 'kickA', 'kickB'), hitCls: pick(s.hitN, 'hitA', 'hitB') },
+      feedA: this.feedSlot(0), feedB: this.feedSlot(1), feedC: this.feedSlot(2),
+      vig: { cls: low ? 'low' : pick(s.hurtN, 'hitA', 'hitB') },
+      act: {
+        hit: () => this.hit(), heal: () => this.heal(), low: () => this.low(), gain: () => this.gain(160),
+        levelUp: () => this.gain(this.state.xpMax - this.state.xp + 140), fire: () => this.fire(), reload: () => this.reload(),
+        swap: () => this.swap(), pickup: () => this.pickup(), boss: () => this.toggleBoss(),
+        bossCls: s.boss ? 'on' : '', bossPressed: s.boss ? 'true' : 'false'
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>
