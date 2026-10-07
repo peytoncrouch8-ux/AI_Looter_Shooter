@@ -117,7 +117,7 @@ public:
 	/** The body's animation with or without a gun in hand (the character switches between the two as weapons change). */
 	TSubclassOf<UAnimInstance> GetBodyAnimClass(bool bArmed) const { return bArmed && LoadedArmedAnimClass ? LoadedArmedAnimClass : UnarmedAnimClass; }
 
-	// --- Third-person camera ---
+	// --- Third-person camera (distances and heights for the full-size body; the character's scale shrinks them) ---
 
 	/** Distance from the pivot to the camera, behind the character. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "View|Third Person", meta = (ClampMin = "50"))

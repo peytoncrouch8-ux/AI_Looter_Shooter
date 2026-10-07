@@ -3,6 +3,7 @@
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/HUD/HudMinimapWidget.h"
+#include "Settings/ControlSettingsSubsystem.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Blueprint/WidgetTree.h"
@@ -31,6 +32,7 @@ void USettingsMenuWidget::Open(ESettingsMenuMode InMode)
 	ApplyMode();
 	RefreshKeyLabels();
 	RefreshGraphics();
+	RefreshControlSettings();
 	SetStatus(TEXT(""), LooterUI::Color::TextDim());
 
 	bMinimapSliderHeld = false;
@@ -81,6 +83,12 @@ UGraphicsSettingsSubsystem* USettingsMenuWidget::GetGraphics() const
 {
 	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 	return LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
+}
+
+UControlSettingsSubsystem* USettingsMenuWidget::GetControls() const
+{
+	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
+	return LocalPlayer ? LocalPlayer->GetSubsystem<UControlSettingsSubsystem>() : nullptr;
 }
 
 ULooterButton* USettingsMenuWidget::MakeButton(FName Action, int32 Index, const FString& Label, int32 FontSize, LooterUI::EButtonKind Kind)
@@ -189,9 +197,18 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		FrameRateOff = RateOff;
 
 		Add(MakeSection(WidgetTree, TEXT("Controls")), 18.f);
+		// Mouse and stick alike; a zoomed sight still slows the turn by its zoom on top of it.
+		USlider* LookSlider = nullptr;
+		UTextBlock* LookValueText = nullptr;
+		Add(MakeSliderRow(TEXT("Look sensitivity"), UControlSettingsSubsystem::MinLookSensitivity, UControlSettingsSubsystem::MaxLookSensitivity,
+			LookSlider, LookValueText, UControlSettingsSubsystem::LookSensitivityStep), 4.f);
+		LookSensitivitySlider = LookSlider;
+		LookSensitivityValue = LookValueText;
+		LookSensitivitySlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleLookSensitivityChanged);
+		LookSensitivitySlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleLookSensitivityReleased);
 		UTextBlock* Hint = MakeText(WidgetTree, TEXT("Click a key to change it, then press the new key or mouse button. Esc cancels."), 11, Color::TextDim());
 		Hint->SetAutoWrapText(true);
-		Add(Hint, 4.f);
+		Add(Hint, 8.f);
 		ControlsList = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
 		StyleScrollBox(ControlsList);
 		Add(ControlsList, 8.f, true);
@@ -234,6 +251,7 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 
 		RebuildControls();
 		RefreshGraphics();
+		RefreshControlSettings();
 		ApplyMode();
 	}
 	return Super::RebuildWidget();
@@ -289,6 +307,17 @@ void USettingsMenuWidget::RefreshGraphics()
 		const float Zoom = Graphics->GetMinimapZoom();
 		MinimapZoomSlider->SetValue(Zoom);
 		MinimapZoomValue->SetText(FText::FromString(FString::Printf(TEXT("%.1fx"), Zoom)));
+	}
+}
+
+void USettingsMenuWidget::RefreshControlSettings()
+{
+	const UControlSettingsSubsystem* Controls = GetControls();
+	if (Controls && LookSensitivitySlider && LookSensitivityValue)
+	{
+		const float Sensitivity = Controls->GetLookSensitivity();
+		LookSensitivitySlider->SetValue(Sensitivity);
+		LookSensitivityValue->SetText(FText::FromString(LookSensitivityText(Sensitivity)));
 	}
 }
 

@@ -2,12 +2,15 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Settings/ControlSettingsSubsystem.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "InputAction.h"
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
+#include "Kismet/GameplayStatics.h"
+#include <limits>
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FQualityPresetsTest, "Looter.Settings.QualityPresets",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -94,6 +97,64 @@ bool FWeaponSlotKeysTest::RunTest(const FString& Parameters)
 		}));
 	}
 	TestTrue(TEXT("A different action per slot"), Actions[0] != Actions[1] && Actions[1] != Actions[2] && Actions[0] != Actions[2]);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLookSensitivitySettingTest, "Looter.Settings.LookSensitivity",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FLookSensitivitySettingTest::RunTest(const FString& Parameters)
+{
+	using Controls = UControlSettingsSubsystem;
+
+	// A fresh install, and a save from before the setting, turn the view as the game was made.
+	TestEqual(TEXT("Defaults to 1x"), Controls::DefaultLookSensitivity, 1.f);
+	TestEqual(TEXT("A fresh save starts at the default"), GetDefault<ULooterControlsSave>()->LookSensitivity, Controls::DefaultLookSensitivity);
+
+	// The slider runs from 0.1x to 3x in steps of 0.05, and anything outside (a hand-edited save) is pulled back in.
+	TestEqual(TEXT("Slowest is 0.1x"), Controls::MinLookSensitivity, 0.1f);
+	TestEqual(TEXT("Fastest is 3x"), Controls::MaxLookSensitivity, 3.f);
+	TestEqual(TEXT("Too slow clamps to 0.1x"), Controls::ClampLookSensitivity(0.f), 0.1f);
+	TestEqual(TEXT("Backwards clamps to 0.1x"), Controls::ClampLookSensitivity(-2.f), 0.1f);
+	TestEqual(TEXT("Too fast clamps to 3x"), Controls::ClampLookSensitivity(12.f), 3.f);
+	TestEqual(TEXT("The ends are kept"), Controls::ClampLookSensitivity(3.f), 3.f);
+	TestEqual(TEXT("Inside the range is kept"), Controls::ClampLookSensitivity(1.75f), 1.75f);
+	TestEqual(TEXT("Rounded to the slider's steps"), Controls::ClampLookSensitivity(1.23f), 1.25f);
+	TestEqual(TEXT("Not a number: the default"), Controls::ClampLookSensitivity(std::numeric_limits<float>::quiet_NaN()), Controls::DefaultLookSensitivity);
+	TestEqual(TEXT("The default is in range"), Controls::ClampLookSensitivity(Controls::DefaultLookSensitivity), Controls::DefaultLookSensitivity);
+
+	// Saved and read back as the subsystem does, through a slot of the test's own so the player's setting is never touched.
+	const FString Slot = TEXT("ControlSettings_AutomationTest");
+	UGameplayStatics::DeleteGameInSlot(Slot, 0);
+	ULooterControlsSave* Missing = Controls::LoadControls(Slot, nullptr);
+	TestNotNull(TEXT("No save yet: a fresh set"), Missing);
+	TestEqual(TEXT("...at the default"), Controls::LookSensitivityOf(Missing), Controls::DefaultLookSensitivity);
+	TestEqual(TEXT("No save object at all: the default"), Controls::LookSensitivityOf(nullptr), Controls::DefaultLookSensitivity);
+
+	ULooterControlsSave* Written = NewObject<ULooterControlsSave>();
+	Written->LookSensitivity = 1.75f;
+	if (!TestTrue(TEXT("Saved"), UGameplayStatics::SaveGameToSlot(Written, Slot, 0)))
+	{
+		return false;
+	}
+	const ULooterControlsSave* ReadBack = Controls::LoadControls(Slot, nullptr);
+	TestTrue(TEXT("Read back a new copy"), ReadBack && ReadBack != Written);
+	TestEqual(TEXT("...with the sensitivity saved"), Controls::LookSensitivityOf(ReadBack), 1.75f);
+
+	// A hand-edited save can't spin the view: what's read back is clamped.
+	Written->LookSensitivity = 40.f;
+	UGameplayStatics::SaveGameToSlot(Written, Slot, 0);
+	TestEqual(TEXT("A save past the end reads as 3x"), Controls::LookSensitivityOf(Controls::LoadControls(Slot, nullptr)), 3.f);
+	UGameplayStatics::DeleteGameInSlot(Slot, 0);
+
+	// Every turn of the view goes through it, mouse and stick alike: the look input scaled by the setting.
+	const FVector2D Input(3.f, -1.5f);
+	TestTrue(TEXT("1x leaves the turn as it was"), Controls::ScaleLookInput(Input, 1.f).Equals(Input));
+	TestTrue(TEXT("2x turns twice as far"), Controls::ScaleLookInput(Input, 2.f).Equals(FVector2D(6.f, -3.f)));
+	TestTrue(TEXT("0.5x turns half as far"), Controls::ScaleLookInput(Input, 0.5f).Equals(FVector2D(1.5f, -0.75f)));
+	TestTrue(TEXT("Scaled within the range"), Controls::ScaleLookInput(Input, 50.f).Equals(Input * Controls::MaxLookSensitivity));
+	// Anything without a local player (AI, tests) turns as the game was made.
+	TestTrue(TEXT("No player: unchanged"), Controls::ScaleLookInputFor(nullptr, Input).Equals(Input));
 	return true;
 }
 

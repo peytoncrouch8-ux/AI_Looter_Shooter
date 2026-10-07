@@ -11,7 +11,8 @@ struct FInputActionValue;
 /**
  * The player's character: walking, looking and jumping. Everything else lives in components (view, locomotion,
  * health, weapons, interaction). The Blueprint child, BP_LooterCharacter, holds only data: meshes, animation, camera
- * placement and the component settings.
+ * placement and the component settings. The whole character is the full-size mannequin scaled down
+ * (Player/PlayerSize.h), and walks at the full-size speed scaled the same.
  */
 UCLASS(Abstract)
 class AI_LOOTER_SHOOTER_API ALooterCharacter : public ACharacter
@@ -20,6 +21,9 @@ class AI_LOOTER_SHOOTER_API ALooterCharacter : public ACharacter
 
 public:
 	ALooterCharacter();
+
+	/** The standing half height at the player's size (the engine's version misses the capsule's scale). */
+	virtual float GetDefaultHalfHeight() const override;
 
 protected:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
@@ -44,4 +48,6 @@ protected:
 private:
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
+	/** Jumps, or stands a crouched or sliding player up (UPlayerLocomotionComponent::HandleJumpPressed). */
+	void JumpPressed();
 };

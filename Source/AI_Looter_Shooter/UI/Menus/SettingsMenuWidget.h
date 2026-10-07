@@ -5,6 +5,7 @@
 #include "UI/Style/LooterUIStyle.h"
 #include "SettingsMenuWidget.generated.h"
 
+class UControlSettingsSubsystem;
 class UGraphicsSettingsSubsystem;
 class UKeyBindingSubsystem;
 class ULooterButton;
@@ -25,9 +26,9 @@ enum class ESettingsMenuMode : uint8
 DECLARE_DELEGATE(FOnSettingsMenuAction);
 
 /**
- * The settings menu: graphics and interface options and key bindings. Escape opens it over the game (ALooterHUD, which
- * pauses the game) and the main menu's Settings opens it there. The HUD hides under it, so while the minimap size is
- * being set an outline of the minimap shows where it sits, at the size chosen.
+ * The settings menu: graphics and interface options, and the controls (look sensitivity and key bindings). Escape
+ * opens it over the game (ALooterHUD, which pauses the game) and the main menu's Settings opens it there. The HUD hides
+ * under it, so while the minimap size is being set an outline of the minimap shows where it sits, at the size chosen.
  *
  * SettingsMenuWidget.cpp builds and fills it; SettingsMenuRows.cpp makes its rows and the key list;
  * SettingsMenuInput.cpp handles its buttons, sliders and keys.
@@ -59,6 +60,7 @@ protected:
 private:
 	UKeyBindingSubsystem* GetBindings() const;
 	UGraphicsSettingsSubsystem* GetGraphics() const;
+	UControlSettingsSubsystem* GetControls() const;
 	ULooterButton* MakeButton(FName Action, int32 Index, const FString& Label, int32 FontSize = 13,
 		LooterUI::EButtonKind Kind = LooterUI::EButtonKind::Normal);
 	/** A labelled two-way switch (On/Off, Hold/Toggle). bKeyListRow indents it under a key binding and aligns it to that list's columns. */
@@ -77,6 +79,8 @@ private:
 	void RebuildControls();
 	void RefreshKeyLabels();
 	void RefreshGraphics();
+	/** The Controls section's settings above the key list (which RefreshKeyLabels fills). */
+	void RefreshControlSettings();
 	/** Shows the parts that differ between the pause menu and the main menu's settings. */
 	void ApplyMode();
 	/** The size shown beside the minimap slider and by the preview outline. */
@@ -109,6 +113,12 @@ private:
 
 	UFUNCTION()
 	void HandleFieldOfViewReleased();
+
+	UFUNCTION()
+	void HandleLookSensitivityChanged(float Value);
+
+	UFUNCTION()
+	void HandleLookSensitivityReleased();
 	void HandleButton(ULooterButton* Button);
 	void StartListening(int32 BindingIndex);
 	void StopListening();
@@ -146,6 +156,9 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> MinimapValue;
 	UPROPERTY(Transient) TObjectPtr<USlider> MinimapZoomSlider;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> MinimapZoomValue;
+	/** The look sensitivity, as a multiple of the game's own turn. */
+	UPROPERTY(Transient) TObjectPtr<USlider> LookSensitivitySlider;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> LookSensitivityValue;
 	UPROPERTY(Transient) TObjectPtr<UWidget> MinimapPreview;
 	UPROPERTY(Transient) TObjectPtr<USizeBox> MinimapPreviewSize;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> MinimapPreviewCaption;

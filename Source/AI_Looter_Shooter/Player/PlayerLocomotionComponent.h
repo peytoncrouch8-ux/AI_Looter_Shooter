@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Player/PlayerSize.h"
+#include "Player/PlayerSlide.h"
 #include "Player/StanceIntent.h"
 #include "Player/PawnInputBinding.h"
 #include "PlayerLocomotionComponent.generated.h"
@@ -16,18 +18,22 @@ class UPlayerViewComponent;
 class UWeaponManagerComponent;
 
 /**
- * Sprint and crouch for the player character, plus the first-person motion that sells them.
+ * Sprint, crouch and slide for the player character, plus the first-person motion that sells them.
  *
- *  - Input: binds the code-built Sprint/Crouch actions from UKeyBindingSubsystem (rebindable, hold or toggle).
+ *  - Input: binds the code-built Sprint/Crouch actions from UKeyBindingSubsystem (rebindable, hold or toggle). The
+ *    character hands it the jump key too: while crouched, jump stands up instead (PlayerLocomotionSlide.cpp).
  *  - Movement: sprint raises MaxWalkSpeed while moving forward; crouch uses the character's built-in crouch
- *    (shorter capsule, MaxWalkSpeedCrouched) and tightens weapon spread.
- *  - Animation: exposes smoothed Sprint/Crouch alphas that ULooterCharacterAnimInstance turns into a full-body
- *    crouch/lean (which the first-person arms and camera inherit), and drives the held weapon procedurally:
- *    sprint carry pose, step bob, look sway, crouch cant, jump/land kick, and each shot's recoil kick (from the view
- *    component). Sprint also widens the FOV a little (via GetFieldOfViewOffset).
+ *    (shorter capsule, MaxWalkSpeedCrouched) and tightens weapon spread. Crouching out of a sprint slides
+ *    (FPlayerSlide): the crouched capsule carried along the run, 10% faster, for a moment.
+ *  - Animation: exposes smoothed Sprint/Crouch/Slide alphas that ULooterCharacterAnimInstance turns into a full-body
+ *    crouch/lean/slide pose, and drives the first-person view and held weapon procedurally
+ *    (PlayerLocomotionViewModel.cpp): the eye dropping into a crouch or slide, sprint carry pose, step bob, look sway,
+ *    crouch cant, jump/land kick, and each shot's recoil kick (from the view component). Sprinting and sliding also
+ *    widen the FOV a little (via GetFieldOfViewOffset).
  *
- * Firing ends a sprint (the gun comes up immediately). Everything resets when the character loses its controller
- * (death, unpossess), so no key can get stuck.
+ * Speeds and heights here are for the full-size body (Player/PlayerSize.h): the character's scale shrinks the heights,
+ * and the crouch speed default is already scaled. Firing ends a sprint (the gun comes up immediately). Everything
+ * resets when the character loses its controller (death, unpossess), so no key can get stuck.
  */
 UCLASS(ClassGroup = (Looter), meta = (BlueprintSpawnableComponent))
 class AI_LOOTER_SHOOTER_API UPlayerLocomotionComponent : public UActorComponent
@@ -48,15 +54,41 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Locomotion|Animation")
 	float GetCrouchAlpha() const { return CrouchAlpha; }
 
-	/** Height above the feet (component space) the head should sit at when fully crouched. */
+	UFUNCTION(BlueprintPure, Category = "Locomotion")
+	bool IsSliding() const { return Slide.IsActive(); }
+
+	/** 0..1, eased. How far into the slide pose the body (and the first-person view) is. */
+	UFUNCTION(BlueprintPure, Category = "Locomotion|Animation")
+	float GetSlideAlpha() const { return SlideAlpha; }
+
+	/** The slide under way (or the last one): its line, speed and time, for the tests and the debug line. */
+	const FPlayerSlide& GetSlide() const { return Slide; }
+
+	/**
+	 * Height above the feet the head should sit at when fully crouched, in the full-size body's units: the mesh's
+	 * component space (the character's scale shrinks it in the world).
+	 */
 	float GetCrouchedHeadHeight() const;
 
-	/** Multiplier for weapon spread from the current stance (crouching steadies your aim). */
+	/** Multiplier for weapon spread from the current stance (crouching steadies your aim; a slide doesn't). */
 	UFUNCTION(BlueprintPure, Category = "Locomotion")
 	float GetSpreadMultiplier() const;
 
-	/** Degrees the camera's field of view should widen right now (sprinting). Applied by the view component. */
-	float GetFieldOfViewOffset() const { return SprintFovBoost * SprintAlpha; }
+	/** Degrees the camera's field of view should widen right now (sprinting or sliding). Applied by the view component. */
+	float GetFieldOfViewOffset() const { return SprintFovBoost * FMath::Max(SprintAlpha, SlideAlpha); }
+
+	// --- The keys (bound to the player's input; public so the tests can press them) ---
+
+	void HandleSprintPressed();
+	void HandleSprintReleased();
+	/** Crouch; out of a sprint on the ground, a slide. */
+	void HandleCrouchPressed();
+	void HandleCrouchReleased();
+	/**
+	 * The jump key (the character passes it on): jumps, except while crouched or sliding, when it stands up instead
+	 * (or does nothing when there's no room to stand). The next press jumps.
+	 */
+	void HandleJumpPressed();
 
 	// --- Tuning ---
 
@@ -80,12 +112,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Locomotion|Sprint", meta = (ClampMin = "0"))
 	float SprintFovBoost = 6.f;
 
-	/** Capsule half height while crouched (standing is 96). */
+	/** Capsule half height while crouched (standing is 96), before the character's scale. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Locomotion|Crouch", meta = (ClampMin = "30"))
 	float CrouchedHalfHeight = 68.f;
 
+	/** Crouched walking speed (cm/s): the full-size 300, scaled with the player (Player/PlayerSize.h). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Locomotion|Crouch", meta = (ClampMin = "0"))
-	float CrouchSpeed = 300.f;
+	float CrouchSpeed = LooterPlayerSize::FullSizeCrouchSpeed * LooterPlayerSize::SpeedScale;
 
 	/** How far below the crouched capsule's top the head (and camera) sits, so low ceilings never clip the view. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Locomotion|Crouch", meta = (ClampMin = "0"))
@@ -121,10 +154,6 @@ private:
 	void TeardownInput();
 	UKeyBindingSubsystem* GetBindings() const;
 
-	void HandleSprintPressed();
-	void HandleSprintReleased();
-	void HandleCrouchPressed();
-	void HandleCrouchReleased();
 	void RefreshModes();
 	void ReleaseKeysNoLongerHeld();
 
@@ -133,8 +162,17 @@ private:
 	void UpdateCamera();
 	void UpdateViewModel(float DeltaTime);
 
+	/** Starts a slide if the character is sprinting on the ground (PlayerLocomotionSlide.cpp). */
+	bool TryStartSlide();
+	/** Moves a slide on: ends it on time, against a wall or off the ground; otherwise holds its speed and line. */
+	void UpdateSlide(float DeltaTime);
+	/** Ends a slide (if one is under way) and gives the crouched walk its own speed back. */
+	void EndSlide();
+
 	bool IsMovingForward() const;
 	bool IsWeaponFiring() const;
+	/** The character's scale against the full-size body (1 for any character not scaled). */
+	float GetBodyScale() const;
 
 	TWeakObjectPtr<ACharacter> Character;
 	TWeakObjectPtr<UCharacterMovementComponent> Movement;
@@ -149,12 +187,20 @@ private:
 	 */
 	TWeakObjectPtr<USceneComponent> EyeRig;
 	FVector EyeRigBaseLocation = FVector::ZeroVector;
-	/** Camera height above the feet when standing, measured on the ground (the crouch drop is derived from it). */
+	/**
+	 * Camera height above the feet when standing, measured on the ground, in the full-size body's units (the crouch drop
+	 * is derived from it).
+	 */
 	float StandingEyeHeight = -1.f;
+	/** The roll a slide tips the first-person view by, as last given to the camera. */
+	float AppliedViewRoll = 0.f;
 
 	FPawnInputBinding InputBinding;
 
 	FStanceIntent Intent;
+	FPlayerSlide Slide;
+	/** A slide set the crouched walk's speed, and it still has to be given back (the slide may already have ended). */
+	bool bSlideHoldsSpeed = false;
 	bool bSprinting = false;
 	float BaseWalkSpeed = 600.f;
 	float LastFiringTime = -100.f;
@@ -165,6 +211,8 @@ private:
 	float SprintLinear = 0.f;      // linear ramp behind it
 	float CrouchAlpha = 0.f;
 	float CrouchLinear = 0.f;
+	float SlideAlpha = 0.f;
+	float SlideLinear = 0.f;
 	bool bSprintInterrupted = false;
 
 	// View model

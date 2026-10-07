@@ -410,11 +410,14 @@ void UPlayerViewComponent::UpdateBoom(float DeltaTime)
 	}
 
 	// The pivot tracks the feet at shoulder height, eased with the crouch pose, so crouching lowers the camera
-	// smoothly even though the capsule itself shrinks in a single frame.
+	// smoothly even though the capsule itself shrinks in a single frame. The heights and distances are for the full-size
+	// body: the pivot sits in the capsule's own (scaled) space, and the arm, which works in the world's, is scaled to
+	// match, so a smaller character keeps the framing the view was tuned with.
 	const UPlayerLocomotionComponent* Loco = Locomotion.Get();
 	const float Crouch = Loco ? Loco->GetCrouchAlpha() : (Owner->bIsCrouched ? 1.f : 0.f);
-	const float HalfHeight = Owner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	const float HalfHeight = Owner->GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
 	Boom->SetRelativeLocation(FVector(0.f, 0.f, FMath::Lerp(PivotHeight, CrouchedPivotHeight, Crouch) - HalfHeight));
+	const float Scale = static_cast<float>(Owner->GetActorScale3D().Z);
 
 	PullOut = FMath::FInterpConstantTo(PullOut, 1.f, DeltaTime, 1.f / PullOutTime);
 	const float Out = 1.f - FMath::Pow(1.f - PullOut, 3.f); // ease out
@@ -422,16 +425,16 @@ void UPlayerViewComponent::UpdateBoom(float DeltaTime)
 	if (Mode == EPlayerViewMode::ThirdPerson)
 	{
 		const FVector Shoulder(ShoulderOffset.X, Tuned(CVarShoulderRight, ShoulderOffset.Y), Tuned(CVarShoulderUp, ShoulderOffset.Z));
-		Boom->TargetArmLength = Tuned(CVarArmLength, ArmLength) * Out;
-		Boom->SocketOffset = Shoulder * Out;
+		Boom->TargetArmLength = Tuned(CVarArmLength, ArmLength) * Scale * Out;
+		Boom->SocketOffset = Shoulder * Scale * Out;
 	}
 	else
 	{
 		// Front view: the arm points back at the character from where they're looking.
 		const FRotator Control = Owner->GetControlRotation();
 		Boom->SetWorldRotation(FRotator(-FRotator::NormalizeAxis(Control.Pitch), Control.Yaw + 180.f, 0.f));
-		Boom->TargetArmLength = FrontArmLength * Out;
-		Boom->SocketOffset = FVector(0.f, 0.f, 10.f) * Out;
+		Boom->TargetArmLength = FrontArmLength * Scale * Out;
+		Boom->SocketOffset = FVector(0.f, 0.f, 10.f) * Scale * Out;
 	}
 }
 

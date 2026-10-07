@@ -277,6 +277,8 @@ void AWeaponBase::OnDropped()
 	OnHolstered();
 
 	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	// Held, a gun takes its holder's size (the player is smaller than full size); loose, it's its own again.
+	SetActorScale3D(FVector::OneVector);
 	SetOwner(nullptr);
 	SetInstigator(nullptr);
 
@@ -294,6 +296,7 @@ void AWeaponBase::Toss(const FVector& Velocity)
 	if (GetAttachParentActor())
 	{
 		DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		SetActorScale3D(FVector::OneVector);
 	}
 	SetPickupState(true);
 	TossMovement->Throw(Velocity);

@@ -2,8 +2,6 @@
 #include "AI_Looter_Shooter.h"
 #include "Player/PlayerViewComponent.h"
 #include "Settings/KeyBindingSubsystem.h"
-#include "UI/HUD/LooterHUD.h"
-#include "Weapons/ReloadMotion.h"
 #include "Weapons/WeaponBase.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Camera/CameraComponent.h"
@@ -17,6 +15,9 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 
+// The component's lifetime, keys and stance. The first-person view and gun motion are in PlayerLocomotionViewModel.cpp,
+// the slide and the jump key in PlayerLocomotionSlide.cpp.
+
 namespace
 {
 	using EStance = FStanceIntent::EStance;
@@ -24,34 +25,17 @@ namespace
 	const FName SprintId(TEXT("Sprint"));
 	const FName CrouchId(TEXT("Crouch"));
 
-	// View-model tuning (camera space: X forward, Y right, Z up; cm and degrees).
-	const FVector SprintPoseOffset(-4.f, -5.f, -7.f);
-	const FRotator SprintPoseRotation(-12.f, -32.f, -22.f);
-	const FVector CrouchPoseOffset(-1.f, -1.5f, -1.f);
-	constexpr float CrouchPoseRoll = -6.f;
-	/** The point the stance poses turn the gun around, from its grip: a little ahead of and above the hand. */
-	const FVector GripPivotFromGrip(9.f, 0.f, 2.f);
-	constexpr float WalkStepLength = 190.f;
-	constexpr float SprintStepLength = 250.f;
-	constexpr float KickStiffness = 170.f;
-	constexpr float KickDamping = 18.f;
-	/** Where a freshly drawn gun starts, low and tipped, before it comes up over its ready time. */
-	const FVector DrawPoseOffset(-3.f, 2.f, -16.f);
-	const FRotator DrawPoseRotation(-35.f, 8.f, 18.f);
-	/**
-	 * Aiming: how far in front of the eye the sight's aim point sits. The point goes exactly on the line of sight: the
-	 * first-person render (its own field of view and scale) moves anything off the camera's axis, so only points on
-	 * it stay on the crosshair, and a scope's reticle lines up only when its axis is the camera's.
-	 */
-	constexpr float AimSightDistance = 22.f;
-	/** How much of the walking bob and look sway aiming takes out. */
-	constexpr float AimSteadiness = 0.85f;
 	/** Walk speed while aiming, as a share of the normal walk. */
 	constexpr float AimWalkSpeedMultiplier = 0.65f;
-	/** While the inventory or pause menu is open the gun is lowered out of view, so it doesn't show through the panels. */
-	const FVector MenuPoseOffset(-4.f, 3.f, -30.f);
-	const FRotator MenuPoseRotation(-30.f, 0.f, 10.f);
-	constexpr float MenuBlendTime = 0.2f;
+
+	/** Seconds the body takes to drop into the slide pose, and to come back up out of it. */
+	constexpr float SlideBlendInTime = 0.12f;
+	constexpr float SlideBlendOutTime = 0.2f;
+	/**
+	 * The body's animation rate in a full slide. The legs are posed by code then, but the run cycle underneath would
+	 * still pump the arms and twist the feet at the slide's speed; nearly stopped, it reads as one held pose.
+	 */
+	constexpr float SlideAnimRate = 0.2f;
 
 	TAutoConsoleVariable<bool> CVarDebugStance(TEXT("Looter.DebugStance"), false,
 		TEXT("Print the player's stance each frame: sprint/crouch alphas, speed, and head/camera heights above the feet."));
@@ -71,6 +55,8 @@ bool UPlayerLocomotionComponent::IsCrouching() const
 
 float UPlayerLocomotionComponent::GetCrouchedHeadHeight() const
 {
+	// The movement component keeps the crouched half height before the character's scale, so this is in the full-size
+	// body's units, like the mesh's component space the stance layer works in.
 	const UCharacterMovementComponent* Move = Movement.Get();
 	const float HalfHeight = Move ? Move->GetCrouchedHalfHeight() : CrouchedHalfHeight;
 	return HalfHeight * 2.f - CrouchHeadClearance;
@@ -78,7 +64,14 @@ float UPlayerLocomotionComponent::GetCrouchedHeadHeight() const
 
 float UPlayerLocomotionComponent::GetSpreadMultiplier() const
 {
-	return FMath::Lerp(1.f, CrouchSpreadMultiplier, CrouchAlpha);
+	// A slide uses the crouched capsule but isn't a steady stance.
+	return FMath::Lerp(1.f, CrouchSpreadMultiplier, CrouchAlpha * (1.f - SlideAlpha));
+}
+
+float UPlayerLocomotionComponent::GetBodyScale() const
+{
+	const ACharacter* Owner = Character.Get();
+	return Owner ? FMath::Max(static_cast<float>(Owner->GetActorScale3D().Z), UE_KINDA_SMALL_NUMBER) : 1.f;
 }
 
 // ---------------------------------------------------------------------------
@@ -151,6 +144,7 @@ void UPlayerLocomotionComponent::TickComponent(float DeltaTime, ELevelTick TickT
 		return;
 	}
 
+	UpdateSlide(DeltaTime);
 	UpdateStance(DeltaTime);
 	UpdateAlphas(DeltaTime);
 	UpdateCamera();
@@ -175,12 +169,12 @@ void UPlayerLocomotionComponent::TickComponent(float DeltaTime, ELevelTick TickT
 		// The body's feet in its own space, for spotting leg jitter from the locomotion clips.
 		const FVector FootL = Body ? Body->GetSocketTransform(TEXT("foot_l"), RTS_Component).GetLocation() : FVector::ZeroVector;
 		const FVector FootR = Body ? Body->GetSocketTransform(TEXT("foot_r"), RTS_Component).GetLocation() : FVector::ZeroVector;
-		const FString Line = FString::Printf(TEXT("Stance: sprint %d a=%.2f crouch %d a=%.2f speed %.0f/%.0f dir %.0f rate %.2f body %s head %.1f (camera parent %s head %.1f, socket %s) eye %.1f fov %.1f cam %.2f,%.2f,%.2f feet %.1f,%.1f,%.1f %.1f,%.1f,%.1f"),
+		const FString Line = FString::Printf(TEXT("Stance: sprint %d a=%.2f crouch %d a=%.2f speed %.0f/%.0f dir %.0f rate %.2f body %s head %.1f (camera parent %s head %.1f, socket %s) eye %.1f fov %.1f cam %.2f,%.2f,%.2f feet %.1f,%.1f,%.1f %.1f,%.1f,%.1f slide %d a=%.2f"),
 			bSprinting, SprintAlpha, Owner->bIsCrouched, CrouchAlpha, Velocity.Size2D(), Movement->MaxWalkSpeed, MoveDirection,
 			Body ? Body->GlobalAnimRateScale : 0.f, *GetNameSafe(BodyAnim ? BodyAnim->GetClass() : nullptr), BodyHead,
 			*GetNameSafe(EyeParent), EyeParentHead, Camera.IsValid() ? *Camera->GetAttachSocketName().ToString() : TEXT("-"), Eye,
 			Camera.IsValid() ? Camera->FieldOfView : 0.f, CameraLocal.X, CameraLocal.Y, CameraLocal.Z,
-			FootL.X, FootL.Y, FootL.Z, FootR.X, FootR.Y, FootR.Z);
+			FootL.X, FootL.Y, FootL.Z, FootR.X, FootR.Y, FootR.Z, Slide.IsActive(), SlideAlpha);
 		UE_LOG(LogLooter, Log, TEXT("%s"), *Line);
 		if (GEngine)
 		{
@@ -231,8 +225,9 @@ void UPlayerLocomotionComponent::TeardownInput()
 {
 	InputBinding.Teardown();
 
-	// Losing control (death, unpossess) means release events may never arrive: stand up and walk.
+	// Losing control (death, unpossess) means release events may never arrive: stop sliding, stand up and walk.
 	Intent.Reset();
+	EndSlide();
 	bSprinting = false;
 	if (UCharacterMovementComponent* Move = Movement.Get())
 	{
@@ -268,6 +263,11 @@ void UPlayerLocomotionComponent::HandleCrouchPressed()
 {
 	RefreshModes();
 	Intent.Press(EStance::Crouch);
+	// Crouching out of a sprint slides (only on the ground: TryStartSlide checks).
+	if (Intent.WantsCrouch())
+	{
+		TryStartSlide();
+	}
 }
 
 void UPlayerLocomotionComponent::HandleCrouchReleased()
@@ -346,8 +346,9 @@ void UPlayerLocomotionComponent::UpdateStance(float DeltaTime)
 		Intent.CancelSprintToggle();
 	}
 
-	// Crouch: the character's built-in crouch owns the capsule; we only say what we want.
-	const bool bWantsCrouch = Intent.WantsCrouch();
+	// Crouch: the character's built-in crouch owns the capsule; we only say what we want. A slide keeps the crouched
+	// capsule until it ends, whatever the keys say meanwhile.
+	const bool bWantsCrouch = Intent.WantsCrouch() || Slide.IsActive();
 	if (bWantsCrouch != Move->bWantsToCrouch)
 	{
 		if (bWantsCrouch)
@@ -368,7 +369,7 @@ void UPlayerLocomotionComponent::UpdateStance(float DeltaTime)
 		Intent.CancelSprintToggle();
 	}
 
-	const bool bCanSprint = Intent.WantsSprint() && bMovingForward && !Owner->bIsCrouched && !bFiring && !bWantsAim
+	const bool bCanSprint = Intent.WantsSprint() && bMovingForward && !Owner->bIsCrouched && !Slide.IsActive() && !bFiring && !bWantsAim
 		&& Now - LastFiringTime >= SprintResumeDelay && (bSprinting || Move->IsMovingOnGround());
 
 	if (bCanSprint != bSprinting)
@@ -407,173 +408,19 @@ void UPlayerLocomotionComponent::UpdateAlphas(float DeltaTime)
 	CrouchLinear = FMath::FInterpConstantTo(CrouchLinear, IsCrouching() ? 1.f : 0.f, DeltaTime, 1.f / CrouchBlendTime);
 	CrouchAlpha = FMath::SmoothStep(0.f, 1.f, CrouchLinear);
 
-	// The body's run cycle tops out at walking speed; play it faster while sprinting so the feet don't slide.
+	// The slide pose comes in fast and starts letting go as the slide slows at its end.
+	const bool bSlidePose = Slide.IsActive() && !Slide.IsEasingOut();
+	SlideLinear = FMath::FInterpConstantTo(SlideLinear, bSlidePose ? 1.f : 0.f, DeltaTime, 1.f / (bSlidePose ? SlideBlendInTime : SlideBlendOutTime));
+	SlideAlpha = FMath::SmoothStep(0.f, 1.f, SlideLinear);
+
+	// The body's run cycle tops out at walking speed; play it faster while sprinting so the feet don't slide. (Both are
+	// the character's own, so this holds at any size.) A slide holds the body nearly still instead.
 	const ACharacter* Owner = Character.Get();
 	if (USkeletalMeshComponent* Body = Owner->GetMesh())
 	{
 		const float Speed = Owner->GetVelocity().Size2D();
-		const float Rate = Movement->IsMovingOnGround() ? FMath::Max(1.f, Speed / FMath::Max(BaseWalkSpeed, 1.f)) : 1.f;
+		const float Running = Movement->IsMovingOnGround() ? FMath::Max(1.f, Speed / FMath::Max(BaseWalkSpeed, 1.f)) : 1.f;
+		const float Rate = FMath::Lerp(Running, SlideAnimRate, SlideAlpha);
 		Body->GlobalAnimRateScale = FMath::FInterpTo(Body->GlobalAnimRateScale, Rate, DeltaTime, 8.f);
 	}
-}
-
-void UPlayerLocomotionComponent::UpdateCamera()
-{
-	UCameraComponent* View = Camera.Get();
-	if (!View)
-	{
-		return;
-	}
-
-	// Crouch the first-person view: learn the standing eye height while standing on the ground, then lower the eye rig by the
-	// difference to the crouched head height, eased with the crouch pose so view and body move together.
-	const ACharacter* Owner = Character.Get();
-	const float Feet = Owner->GetActorLocation().Z - Owner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-	if (CrouchAlpha <= 0.f && Movement->IsMovingOnGround())
-	{
-		StandingEyeHeight = View->GetComponentLocation().Z - Feet;
-	}
-	if (USceneComponent* Rig = EyeRig.Get())
-	{
-		const float Drop = StandingEyeHeight > 0.f ? FMath::Max(StandingEyeHeight - GetCrouchedHeadHeight(), 0.f) * CrouchAlpha : 0.f;
-		const FVector Wanted = EyeRigBaseLocation - FVector(0.f, 0.f, Drop);
-		if (!Rig->GetRelativeLocation().Equals(Wanted, 0.01f))
-		{
-			Rig->SetRelativeLocation(Wanted);
-		}
-	}
-}
-
-// ---------------------------------------------------------------------------
-// First-person weapon motion
-// ---------------------------------------------------------------------------
-
-void UPlayerLocomotionComponent::HandleLanded(const FHitResult& Hit)
-{
-	// Harder landings push the gun down further.
-	KickVelocity -= FMath::Clamp(FallSpeed / 12.f, 10.f, 90.f);
-	FallSpeed = 0.f;
-}
-
-void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
-{
-	const ACharacter* Owner = Character.Get();
-	const UCharacterMovementComponent* Move = Movement.Get();
-	const float Dt = FMath::Min(DeltaTime, 0.05f);
-
-	// Jumps and falls feed the kick spring.
-	const bool bFalling = Move->IsFalling();
-	if (bFalling)
-	{
-		FallSpeed = FMath::Max(FallSpeed, -Owner->GetVelocity().Z);
-		if (!bWasFalling && Owner->GetVelocity().Z > 50.f)
-		{
-			KickVelocity -= 18.f; // the gun lags as you jump
-		}
-	}
-	bWasFalling = bFalling;
-	KickVelocity += (-KickStiffness * KickOffset - KickDamping * KickVelocity) * Dt;
-	KickOffset += KickVelocity * Dt;
-
-	// The gun lags behind fast mouse movement and springs back.
-	const FRotator Control = Owner->GetControlRotation();
-	const FRotator Turn = (Control - LastControlRotation).GetNormalized();
-	LastControlRotation = Control;
-	const float TurnScale = 0.012f / FMath::Max(Dt, UE_KINDA_SMALL_NUMBER);
-	const FVector2D SwayTarget(FMath::Clamp(-Turn.Yaw * TurnScale, -4.f, 4.f), FMath::Clamp(-Turn.Pitch * TurnScale, -3.f, 3.f));
-	LookSway = FMath::Vector2DInterpTo(LookSway, SwayTarget, Dt, 9.f);
-
-	// Step cycle: one dip per footstep, one side-to-side sway per stride.
-	const float Speed = Owner->GetVelocity().Size2D();
-	const bool bGrounded = Move->IsMovingOnGround();
-	const float StepLength = FMath::Lerp(WalkStepLength, SprintStepLength, SprintAlpha) * FMath::Lerp(1.f, 0.75f, CrouchAlpha);
-	if (bGrounded)
-	{
-		StepPhase = FMath::Fmod(StepPhase + Dt * Speed / StepLength * UE_PI, 2.f * UE_PI);
-	}
-	MoveWeight = FMath::FInterpTo(MoveWeight, bGrounded ? FMath::Clamp(Speed / FMath::Max(BaseWalkSpeed, 1.f), 0.f, 1.6f) : 0.f, Dt, 6.f);
-	IdleTime += Dt;
-
-	const float Sprint = SprintAlpha;
-	const float Crouch = CrouchAlpha;
-	const float StepSide = FMath::Sin(StepPhase);
-	const float StepDip = StepSide * StepSide;
-	const float BobDepth = FMath::Lerp(0.5f, 1.3f, Sprint) * MoveWeight;
-	const float BobSide = FMath::Lerp(0.7f, 2.f, Sprint) * MoveWeight;
-	const float BobRoll = FMath::Lerp(0.6f, 3.f, Sprint) * MoveWeight;
-	const float Breath = 1.f - FMath::Min(MoveWeight, 1.f);
-
-	FVector Offset(0.f, StepSide * BobSide, -StepDip * BobDepth);
-	FRotator Rotation(-StepDip * BobDepth * 0.6f, 0.f, StepSide * BobRoll);
-
-	Offset.Z += FMath::Sin(IdleTime * 1.6f) * 0.15f * Breath;
-	Rotation.Pitch += FMath::Sin(IdleTime * 1.6f + 0.6f) * 0.25f * Breath;
-
-	Rotation.Yaw += LookSway.X;
-	Rotation.Pitch += LookSway.Y;
-	Offset.Y += LookSway.X * 0.35f;
-	Offset.Z += LookSway.Y * 0.25f;
-
-	Offset += SprintPoseOffset * Sprint + CrouchPoseOffset * Crouch;
-	Rotation += SprintPoseRotation * Sprint;
-	Rotation.Roll += CrouchPoseRoll * Crouch;
-
-	Offset.Z += KickOffset;
-	Rotation.Pitch += KickOffset * 0.8f;
-
-	// Apply on top of the manager's hold offset, rotating around the grip rather than the back of the gun.
-	const UWeaponManagerComponent* Manager = WeaponManager.Get();
-	AWeaponBase* Weapon = Manager ? Manager->GetActiveWeapon() : nullptr;
-	if (!Weapon || Weapon->GetAttachParentActor() != Owner || Manager->IsThirdPersonHold())
-	{
-		// In third person the gun is in the body's hands and moves with the animation instead.
-		return;
-	}
-
-	// Reloading brings the gun in to work the magazine or pump (the weapon moves the part itself, on the same timeline).
-	FVector ReloadOffset;
-	FRotator ReloadRotation;
-	LooterReload::ViewModelPose(Weapon->GetReloadPart(), Weapon->GetReloadProgress(), ReloadOffset, ReloadRotation);
-	Offset += ReloadOffset;
-	Rotation += ReloadRotation;
-
-	// Recoil: each shot jumps the gun back toward you and flips its muzzle up, springing back into place.
-	if (const UPlayerViewComponent* ViewComponent = PlayerView.Get())
-	{
-		Offset.X -= ViewComponent->GetKickBack();
-		Rotation += ViewComponent->GetKickRotation();
-	}
-
-	// Lowered while a menu is open.
-	const APlayerController* Player = Cast<APlayerController>(Owner->GetController());
-	const ALooterHUD* Hud = Player ? Player->GetHUD<ALooterHUD>() : nullptr;
-	MenuLinear = FMath::FInterpConstantTo(MenuLinear, Hud && Hud->IsMenuOpen() ? 1.f : 0.f, Dt, 1.f / MenuBlendTime);
-	const float Menu = FMath::SmoothStep(0.f, 1.f, MenuLinear);
-	Offset += MenuPoseOffset * Menu;
-	Rotation += MenuPoseRotation * Menu;
-
-	// A freshly drawn gun comes up from below over its ready time (quicker with better handling).
-	const float Ready = FMath::InterpEaseOut(0.f, 1.f, Weapon->GetReadyAlpha(), 2.f);
-	Offset += DrawPoseOffset * (1.f - Ready);
-	Rotation += DrawPoseRotation * (1.f - Ready);
-
-	// Aiming: the hold moves from the hip to straight in front of the eye, with the sight's aim point on the line of
-	// sight; walking bob and look sway mostly settle so the sight stays on target.
-	const float Aim = PlayerView.IsValid() ? PlayerView->GetAimAlpha() : 0.f;
-	FTransform Hold = Manager->GetFirstPersonHold(Weapon);
-	if (Aim > 0.f)
-	{
-		const FVector AimLocation = FVector(AimSightDistance, 0.f, 0.f) - Weapon->GetAimPoint() * Hold.GetScale3D();
-		Hold.SetLocation(FMath::Lerp(Hold.GetLocation(), AimLocation, Aim));
-		Hold.SetRotation(FQuat::Slerp(Hold.GetRotation(), FQuat::Identity, Aim));
-		const float Settle = 1.f - AimSteadiness * Aim;
-		Offset *= Settle;
-		Rotation *= Settle;
-	}
-
-	const FQuat FinalRotation = Rotation.Quaternion() * Hold.GetRotation();
-	// The stance poses turn the gun around (roughly) its grip, wherever this gun has it.
-	const FVector Pivot = (Weapon->GetGripPoint().IsZero() ? Manager->AttachGrip : Weapon->GetGripPoint()) + GripPivotFromGrip;
-	const FVector FinalLocation = Hold.GetLocation() + Offset + Hold.GetRotation().RotateVector(Pivot) - FinalRotation.RotateVector(Pivot);
-	Weapon->SetActorRelativeTransform(FTransform(FinalRotation, FinalLocation, Hold.GetScale3D()));
 }

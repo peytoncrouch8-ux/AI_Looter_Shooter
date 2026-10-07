@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
 
-/** What the settings menu's three .cpp files share: its buttons' actions and the key list's columns. */
+/** What the settings menu's three .cpp files share: its buttons' actions, the key list's columns and value labels. */
 namespace SettingsMenu
 {
 	/** Resume or Back (and the corner's X). */
@@ -37,5 +37,11 @@ namespace SettingsMenu
 	inline FString DegreesText(float Degrees)
 	{
 		return FString::Printf(TEXT("%d°"), FMath::RoundToInt32(Degrees));
+	}
+
+	/** "1.25x": a look sensitivity as its slider shows it (two places, for its 0.05 steps). */
+	inline FString LookSensitivityText(float Sensitivity)
+	{
+		return FString::Printf(TEXT("%.2fx"), Sensitivity);
 	}
 }

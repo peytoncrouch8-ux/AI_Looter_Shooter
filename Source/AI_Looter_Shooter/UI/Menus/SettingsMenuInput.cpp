@@ -4,6 +4,7 @@
 #include "UI/Menus/SettingsMenuParts.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "Settings/ControlSettingsSubsystem.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Components/ScrollBox.h"
@@ -100,6 +101,31 @@ void USettingsMenuWidget::HandleFieldOfViewReleased()
 	{
 		Graphics->SaveSettings();
 		SetStatus(FString::Printf(TEXT("First-person field of view %s."), *DegreesText(Graphics->GetFirstPersonFieldOfView())), LooterUI::Color::TextDim());
+	}
+	// Dragging handed focus to the slider's window; take it back so Esc still closes the menu.
+	SetKeyboardFocus();
+}
+
+void USettingsMenuWidget::HandleLookSensitivityChanged(float Value)
+{
+	// The view turns at the new speed from the next mouse move or stick push (as soon as the game resumes, under the
+	// pause menu).
+	if (UControlSettingsSubsystem* Controls = GetControls())
+	{
+		Controls->SetLookSensitivity(Value, /*bSave*/ false);
+	}
+	if (LookSensitivityValue)
+	{
+		LookSensitivityValue->SetText(FText::FromString(LookSensitivityText(UControlSettingsSubsystem::ClampLookSensitivity(Value))));
+	}
+}
+
+void USettingsMenuWidget::HandleLookSensitivityReleased()
+{
+	if (UControlSettingsSubsystem* Controls = GetControls())
+	{
+		Controls->SaveSettings();
+		SetStatus(FString::Printf(TEXT("Look sensitivity %s."), *LookSensitivityText(Controls->GetLookSensitivity())), LooterUI::Color::TextDim());
 	}
 	// Dragging handed focus to the slider's window; take it back so Esc still closes the menu.
 	SetKeyboardFocus();

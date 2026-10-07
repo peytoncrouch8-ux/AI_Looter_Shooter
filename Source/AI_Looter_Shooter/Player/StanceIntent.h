@@ -8,7 +8,8 @@
  *
  * When both are asked for, the most recent press wins: holding crouch then pressing sprint stands up and sprints,
  * and letting go of sprint drops back into the crouch that is still held. Pressing one also clears the other's
- * toggle, so a toggled crouch doesn't come back after a sprint. Pure logic, so the rules are unit tested.
+ * toggle, so a toggled crouch doesn't come back after a sprint. Jump while crouched stands up (StandUp). Pure logic,
+ * so the rules are unit tested.
  */
 struct FStanceIntent
 {
@@ -60,6 +61,19 @@ struct FStanceIntent
 		if (bSprintToggle)
 		{
 			bSprintActive = false;
+		}
+	}
+
+	/**
+	 * The jump key while crouched: stand up, in either mode. A held crouch key counts as let go until it is pressed
+	 * again, and a held sprint key takes over.
+	 */
+	void StandUp()
+	{
+		bCrouchActive = false;
+		if (Latest == EStance::Crouch)
+		{
+			Latest = Other(EStance::Crouch);
 		}
 	}
 

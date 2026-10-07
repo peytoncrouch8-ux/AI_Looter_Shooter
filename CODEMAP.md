@@ -18,17 +18,26 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Core/LooterMenuPlayerController`: `ALooterMenuPlayerController`, the main menu's camera, slowly circling the island.
 - `Core/LooterPlayerController`: `ALooterPlayerController`, which adds the always-on input contexts and sets the view's
   look limits.
-- `Core/LooterCharacter`: `ALooterCharacter`, the player character: walking, looking and jumping, and its interaction
-  component. Its data-only child is `/Game/Player/BP_LooterCharacter`.
+- `Core/LooterCharacter`: `ALooterCharacter`, the player character: walking, looking (at the player's look
+  sensitivity) and jumping (crouched, the key stands up first), and its interaction component; the whole actor is
+  scaled to the player's size (`Player/PlayerSize.h`). Its data-only child is `/Game/Player/BP_LooterCharacter`.
 
 ## Player
-- `Player/PlayerLocomotionComponent`: sprint and crouch, and the first-person motion that goes with them.
-- `Player/StanceIntent.h`: `FStanceIntent`, what the sprint and crouch keys ask for (hold or toggle, the latest press wins).
+- `Player/PlayerLocomotionComponent`: sprint, crouch and slide, and the first-person motion that goes with them;
+  `PlayerLocomotionViewModel.cpp` lowers and tips the eye (crouch, slide) and moves the camera-held gun (stance poses,
+  bob, sway, kicks), `PlayerLocomotionSlide.cpp` runs the slide and the jump key (crouched or sliding, it stands up).
+- `Player/PlayerSize.h`: `LooterPlayerSize`, the player's size against the full-size mannequin (0.85, the whole actor
+  scaled), the speed scale that goes with it, and the full-size walk and crouch speeds.
+- `Player/PlayerSlide.h`: `FPlayerSlide`, a slide's rules: out of a sprint on the ground, 1.1x the speed along the run
+  for 0.8 s, easing down at the end, over early against a wall or off the ground.
+- `Player/StanceIntent.h`: `FStanceIntent`, what the sprint and crouch keys ask for (hold or toggle, the latest press
+  wins; jump while crouched stands up).
 - `Player/PlayerViewComponent`: first/third-person camera (F5 cycle), field of view (the player's first-person setting
   for the world, a fixed one for the gun), recoil on the aim, armed body animation.
 - `Player/PawnInputBinding`: `FPawnInputBinding`, a gameplay component's own input component and mapping context.
 - `Player/Animation/LooterCharacterAnimInstance`: parent of the character's Anim Blueprints; layers the procedural stance
-  pose and holds guns in the loadout stand-in's hands.
+  pose (crouch, sprint, slide), holds guns in the loadout stand-in's hands, and gives the blend spaces the ground speed
+  in the body's own size.
 
 ## Combat
 - `Combat/HealthComponent`: `UHealthComponent`, health, damage events, floating damage numbers, and what dealt the
@@ -537,6 +546,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Settings/KeyBindingSubsystem`: key rebinding, the global pause/inventory actions and the character actions
   (weapon slots 1-3 among them).
 - `Settings/GraphicsSettingsSubsystem`: saved display options (quality preset, motion blur, first-person field of view, UI transparency, minimap on/off, size and zoom, FPS counter) and the `Looter.Quality` and `Looter.FieldOfView` commands.
+- `Settings/ControlSettingsSubsystem`: saved control options: look sensitivity (0.1x-3x), which scales every turn of
+  the view by mouse or stick (the character's look, under a sight's own slowing, and a scene's free look).
 
 ## UI
 - `UI/Style/LooterUIStyle`: `LooterUI`, the style kit every UI is built with (palette, shapes, icons, text, builders,
@@ -577,7 +588,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/HUD/HudGraveSightWidget`: `UHudGraveSightWidget`, Grave Sight's flash on the screen: the kit's dark glass at the
   edges (a background) under a thin cyan frame with cut corners and brackets, faint scan lines, a sweep down the screen
   and a ring opening from the middle; `UGraveSightSubsystem` drives it.
-- `UI/Menus/SettingsMenuWidget`: `USettingsMenuWidget`, the settings menu (graphics, interface, key bindings), over the
+- `UI/Menus/SettingsMenuWidget`: `USettingsMenuWidget`, the settings menu (graphics, interface, controls: look
+  sensitivity and key bindings), over the
   paused game or from the main menu: its layout. `SettingsMenuRows.cpp` makes its rows and key list,
   `SettingsMenuInput.cpp` handles its buttons, sliders and keys, `SettingsMenuParts.h` holds what they share.
 - `UI/Menus/MainMenuHUD`: `AMainMenuHUD`, the main menu's HUD: the menu and its settings.

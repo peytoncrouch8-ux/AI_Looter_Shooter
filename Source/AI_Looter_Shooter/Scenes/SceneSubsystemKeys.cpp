@@ -2,6 +2,7 @@
 
 #include "Scenes/SceneSubsystem.h"
 #include "Scenes/SceneSkipPromptWidget.h"
+#include "Settings/ControlSettingsSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedPlayerInput.h"
@@ -100,9 +101,10 @@ void USceneSubsystem::UnbindSceneInput()
 
 void USceneSubsystem::HandleLook(const FInputActionValue& Value)
 {
-	// As the character turns its view (ALooterCharacter::Look), with nothing ever aimed during a scene.
+	// As the character turns its view (ALooterCharacter::Look), at the player's look sensitivity, with nothing ever aimed
+	// during a scene.
 	APlayerController* Controller = HeldController.Get();
-	const FVector2D Look = Value.Get<FVector2D>();
+	const FVector2D Look = UControlSettingsSubsystem::ScaleLookInputFor(Controller, Value.Get<FVector2D>());
 	if (Controller)
 	{
 		Controller->AddYawInput(Look.X);

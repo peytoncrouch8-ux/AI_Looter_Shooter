@@ -6,6 +6,7 @@
 #include "BonePose.h"
 #include "LooterCharacterAnimInstance.generated.h"
 
+class FNumericProperty;
 class UPlayerLocomotionComponent;
 class UPlayerViewComponent;
 class UWeaponManagerComponent;
@@ -15,6 +16,7 @@ struct FLooterStanceInput
 {
 	float CrouchAlpha = 0.f;
 	float SprintAlpha = 0.f;
+	float SlideAlpha = 0.f;
 	/** Component-space height the head settles at when fully crouched. */
 	float CrouchedHeadHeight = 120.f;
 	/** The character's facing, in the mesh's component space (horizontal, unit length). */
@@ -25,6 +27,9 @@ struct FLooterStanceInput
 	float CrouchHipsBack = 0.f;
 	float MaxHipDrop = 0.f;
 	float KneeSplay = 0.f;
+	float SlideTorsoLean = 0.f;
+	float SlideHipHeight = 0.f;
+	float SlideLegReach = 0.f;
 
 	/** Armed Anim Blueprints only: how far the character aims up (+) or down (-), in degrees. */
 	float AimPitch = 0.f;
@@ -54,8 +59,8 @@ struct FLooterStanceInput
 
 	bool NeedsLayer() const
 	{
-		return CrouchAlpha > UE_KINDA_SMALL_NUMBER || SprintAlpha > UE_KINDA_SMALL_NUMBER || bAimWithTorso || bHandOnForegrip
-			|| ReloadWeight > UE_KINDA_SMALL_NUMBER || UpperBodyPose;
+		return CrouchAlpha > UE_KINDA_SMALL_NUMBER || SprintAlpha > UE_KINDA_SMALL_NUMBER || SlideAlpha > UE_KINDA_SMALL_NUMBER
+			|| bAimWithTorso || bHandOnForegrip || ReloadWeight > UE_KINDA_SMALL_NUMBER || UpperBodyPose;
 	}
 };
 
@@ -90,7 +95,7 @@ private:
 
 /**
  * Parent class for character Anim Blueprints (ABP_Unarmed). Reads the owner's UPlayerLocomotionComponent and adds
- * the crouch and sprint body poses the template animations don't have. Characters without that component
+ * the crouch, sprint and slide body poses the template animations don't have. Characters without that component
  * (target dummies) are left untouched.
  */
 UCLASS(Transient, Blueprintable, BlueprintType)
@@ -123,6 +128,28 @@ public:
 	/** Knees point this far (cm) outward from straight ahead when bent. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stance")
 	float KneeSplay = 12.f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Stance")
+	float SlideAlpha = 0.f;
+
+	/** Lean of the torso in a full slide (degrees, spread over the spine; negative leans back). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stance|Slide")
+	float SlideTorsoLean = -24.f;
+
+	/** Height of the hips above the feet in a full slide (cm, the full-size body's): sat down near the ground. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stance|Slide")
+	float SlideHipHeight = 42.f;
+
+	/** How far ahead of the hips the leading (right) foot reaches in a slide (cm); the left leg folds under it. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stance|Slide")
+	float SlideLegReach = 58.f;
+
+	/**
+	 * The Anim Blueprint's ground speed variable (the template's event graph sets it from the movement component; its
+	 * blend spaces sample it). Rescaled to the body's own size before the graph reads it: see NativeThreadSafeUpdateAnimation.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Locomotion")
+	FName GroundSpeedVariable = TEXT("GroundSpeed");
 
 	/** Armed Anim Blueprints (ABP_Rifle): the torso follows the aim and the left hand holds the gun's foregrip. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stance")
@@ -159,6 +186,14 @@ public:
 protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
 	virtual void DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy) override;
+	virtual void NativeInitializeAnimation() override;
+	/**
+	 * Worker thread, after the event graph and before the graph's nodes: the blend spaces' clips were made for the
+	 * full-size mannequin, so the ground speed the event graph read off the movement component (world units) goes to
+	 * them in the body's own size. A 0.85-size player walking at 0.85 of the speed then plays exactly the full-size jog,
+	 * each step covering the ground it does, instead of a part-walk blend with sliding feet.
+	 */
+	virtual void NativeThreadSafeUpdateAnimation(float DeltaSeconds) override;
 
 private:
 	struct FStandaloneHold
@@ -172,6 +207,11 @@ private:
 	FLooterStanceInput StanceInput;
 	TOptional<FStandaloneHold> StandaloneHold;
 	float UpperBodyTime = 0.f;
+	/** The mesh's scale against the full-size body, read on the game thread each update. */
+	float BodyScale = 1.f;
+	/** The Blueprint's ground speed variable (GroundSpeedVariable), if it has one, and the value last written to it. */
+	const FNumericProperty* GroundSpeedProperty = nullptr;
+	double WrittenGroundSpeed = -1.0;
 	TWeakObjectPtr<const UPlayerLocomotionComponent> Locomotion;
 	TWeakObjectPtr<const UWeaponManagerComponent> WeaponManager;
 	TWeakObjectPtr<const UPlayerViewComponent> View;

@@ -12,6 +12,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Pawn.h"
 #include "TwoBoneIK.h"
+#include "UObject/UnrealType.h"
 #include <atomic>
 
 namespace
@@ -57,17 +58,23 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 	const UPlayerLocomotionComponent* Loco = Locomotion.Get();
 	CrouchAlpha = Loco ? Loco->GetCrouchAlpha() : 0.f;
 	SprintAlpha = Loco ? Loco->GetSprintAlpha() : 0.f;
+	SlideAlpha = Loco ? Loco->GetSlideAlpha() : 0.f;
 
 	StanceInput.CrouchAlpha = CrouchAlpha;
 	StanceInput.SprintAlpha = SprintAlpha;
+	StanceInput.SlideAlpha = SlideAlpha;
 	StanceInput.CrouchedHeadHeight = Loco ? Loco->GetCrouchedHeadHeight() : 120.f;
 	StanceInput.CrouchTorsoLean = CrouchTorsoLean;
 	StanceInput.SprintTorsoLean = SprintTorsoLean;
 	StanceInput.CrouchHipsBack = CrouchHipsBack;
 	StanceInput.MaxHipDrop = MaxHipDrop;
 	StanceInput.KneeSplay = KneeSplay;
+	StanceInput.SlideTorsoLean = SlideTorsoLean;
+	StanceInput.SlideHipHeight = SlideHipHeight;
+	StanceInput.SlideLegReach = SlideLegReach;
 
 	const USkeletalMeshComponent* Mesh = GetSkelMeshComponent();
+	BodyScale = Mesh ? FMath::Max(static_cast<float>(Mesh->GetComponentScale().Z), UE_KINDA_SMALL_NUMBER) : 1.f;
 	if (Pawn && Mesh)
 	{
 		const FVector Forward = Mesh->GetComponentTransform().InverseTransformVectorNoScale(Pawn->GetActorForwardVector()).GetSafeNormal2D();
@@ -136,6 +143,34 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 void ULooterCharacterAnimInstance::SetStandaloneHold(const FVector& Grip, const FVector& Foregrip, FName HoldSocket, const FQuat& Facing)
 {
 	StandaloneHold = FStandaloneHold{ Grip, Foregrip, HoldSocket, Facing };
+}
+
+void ULooterCharacterAnimInstance::NativeInitializeAnimation()
+{
+	Super::NativeInitializeAnimation();
+	const FNumericProperty* Property = CastField<FNumericProperty>(GetClass()->FindPropertyByName(GroundSpeedVariable));
+	GroundSpeedProperty = Property && Property->IsFloatingPoint() ? Property : nullptr;
+	WrittenGroundSpeed = -1.0;
+	UE_CLOG(!GroundSpeedProperty, LogLooter, Verbose, TEXT("%s has no float %s: its blend spaces get the speed in world units."),
+		*GetClass()->GetName(), *GroundSpeedVariable.ToString());
+}
+
+void ULooterCharacterAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
+{
+	Super::NativeThreadSafeUpdateAnimation(DeltaSeconds);
+	if (!GroundSpeedProperty || FMath::IsNearlyEqual(BodyScale, 1.f))
+	{
+		return;
+	}
+	// Only a value the event graph wrote this update, so a frame it skipped can't be divided twice.
+	void* Value = GroundSpeedProperty->ContainerPtrToValuePtr<void>(this);
+	const double Speed = GroundSpeedProperty->GetFloatingPointPropertyValue(Value);
+	if (Speed != WrittenGroundSpeed)
+	{
+		GroundSpeedProperty->SetFloatingPointPropertyValue(Value, Speed / BodyScale);
+		// Read back: a single-precision variable rounds what it's given.
+		WrittenGroundSpeed = GroundSpeedProperty->GetFloatingPointPropertyValue(Value);
+	}
 }
 
 FAnimInstanceProxy* ULooterCharacterAnimInstance::CreateAnimInstanceProxy()
@@ -289,6 +324,7 @@ void FLooterCharacterAnimInstanceProxy::ApplyStance(FPoseContext& Output) const
 	const FVector Forward = Stance.Forward;
 	const FVector Right = FVector::CrossProduct(Up, Forward).GetSafeNormal(); // rotating about this tips the torso forward
 	const float Crouch = Stance.CrouchAlpha;
+	const float Slide = Stance.SlideAlpha;
 
 	// Feet stay where the graph planted them.
 	FTransform FootTargets[UE_ARRAY_COUNT(Legs)];
@@ -297,8 +333,9 @@ void FLooterCharacterAnimInstanceProxy::ApplyStance(FPoseContext& Output) const
 		FootTargets[Index] = Pose.GetComponentSpaceTransform(Legs[Index].Foot);
 	}
 
-	// Torso lean, spread down the spine; the neck takes most of it back so the head stays upright.
-	const float Lean = Stance.CrouchTorsoLean * Crouch + Stance.SprintTorsoLean * Stance.SprintAlpha;
+	// Torso lean, spread down the spine; the neck takes most of it back so the head stays upright. A slide leans back,
+	// taking over from the crouch's forward lean as it comes in.
+	const float Lean = Stance.CrouchTorsoLean * Crouch * (1.f - Slide) + Stance.SprintTorsoLean * Stance.SprintAlpha + Stance.SlideTorsoLean * Slide;
 	if (!FMath::IsNearlyZero(Lean))
 	{
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Spine); ++Index)
@@ -318,25 +355,42 @@ void FLooterCharacterAnimInstanceProxy::ApplyStance(FPoseContext& Output) const
 		}
 	}
 
-	if (Crouch > UE_KINDA_SMALL_NUMBER)
+	if (Crouch > UE_KINDA_SMALL_NUMBER || Slide > UE_KINDA_SMALL_NUMBER)
 	{
-		// Hips drop until the head reaches the crouched head height (the capsule's top minus clearance).
+		// Hips drop until the head reaches the crouched head height (the capsule's top minus clearance); a slide sits them
+		// down near the ground instead.
 		const float HeadHeight = Pose.GetComponentSpaceTransform(Head).GetLocation().Z;
-		const float Drop = FMath::Min(FMath::Max(HeadHeight - Stance.CrouchedHeadHeight, 0.f), Stance.MaxHipDrop) * Crouch;
+		const float CrouchDrop = FMath::Min(FMath::Max(HeadHeight - Stance.CrouchedHeadHeight, 0.f), Stance.MaxHipDrop) * Crouch;
 		FTransform PelvisTransform = Pose.GetComponentSpaceTransform(Pelvis);
-		PelvisTransform.AddToTranslation(-Up * Drop - Forward * (Stance.CrouchHipsBack * Crouch));
+		const float SlideDrop = FMath::Max(static_cast<float>(PelvisTransform.GetLocation().Z) - Stance.SlideHipHeight, 0.f);
+		const float Drop = FMath::Lerp(CrouchDrop, SlideDrop, Slide);
+		PelvisTransform.AddToTranslation(-Up * Drop - Forward * (Stance.CrouchHipsBack * Crouch * (1.f - Slide)));
 		SetBone(Pose, Pelvis, PelvisTransform);
+		const FVector Hips = PelvisTransform.GetLocation();
 
-		// Legs bend to reach the planted feet again, knees forward and a little outward.
+		// Legs bend to reach the planted feet again, knees forward and a little outward. In a slide the right leg reaches
+		// out ahead, heel near the ground, and the left folds under it with its knee out to the side (a code pose: no
+		// slide animation exists).
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Legs); ++Index)
 		{
 			const FLeg& Leg = Legs[Index];
 			FTransform Thigh = Pose.GetComponentSpaceTransform(Leg.Thigh);
 			FTransform Calf = Pose.GetComponentSpaceTransform(Leg.Calf);
 			FTransform Foot = Pose.GetComponentSpaceTransform(Leg.Foot);
-			const FVector KneeTarget = Calf.GetLocation() + Forward * 60.f + Right * (Leg.Side * Stance.KneeSplay);
+			FVector KneeTarget = Calf.GetLocation() + Forward * 60.f + Right * (Leg.Side * Stance.KneeSplay);
+			FVector FootTarget = FootTargets[Index].GetLocation();
+			if (Slide > UE_KINDA_SMALL_NUMBER)
+			{
+				const bool bLeading = Leg.Side > 0.f;
+				FVector SlideFoot = bLeading ? Hips + Forward * Stance.SlideLegReach + Right * 12.f : Hips + Forward * 22.f + Right * 4.f;
+				SlideFoot.Z = bLeading ? 13.f : 10.f;
+				const FVector SlideKnee = bLeading ? Thigh.GetLocation() + Forward * 50.f + Up * 25.f
+					: Thigh.GetLocation() + Forward * 15.f + Right * (Leg.Side * 40.f) - Up * 10.f;
+				FootTarget = FMath::Lerp(FootTarget, SlideFoot, Slide);
+				KneeTarget = FMath::Lerp(KneeTarget, SlideKnee, Slide);
+			}
 
-			AnimationCore::SolveTwoBoneIK(Thigh, Calf, Foot, KneeTarget, FootTargets[Index].GetLocation(),
+			AnimationCore::SolveTwoBoneIK(Thigh, Calf, Foot, KneeTarget, FootTarget,
 				/*bAllowStretching*/ false, /*StartStretchRatio*/ 1.0, /*MaxStretchScale*/ 1.0);
 			Foot.SetRotation(FootTargets[Index].GetRotation());
 

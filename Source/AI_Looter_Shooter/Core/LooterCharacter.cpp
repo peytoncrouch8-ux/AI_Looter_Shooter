@@ -1,11 +1,15 @@
 #include "Core/LooterCharacter.h"
 #include "AI_Looter_Shooter.h"
+#include "Components/CapsuleComponent.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "Interaction/InteractionComponent.h"
+#include "Player/PlayerLocomotionComponent.h"
+#include "Player/PlayerSize.h"
 #include "Player/PlayerViewComponent.h"
+#include "Settings/ControlSettingsSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
 
 ALooterCharacter::ALooterCharacter()
@@ -21,7 +25,17 @@ ALooterCharacter::ALooterCharacter()
 	JumpAction = JumpAsset.Object;
 
 	// Jumps 15% higher than the engine's 420 cm/s: height grows with the speed squared (v^2 / 2g), 90 cm -> 103.5 cm.
+	// Left as it is at the smaller size: the levels' ledges and fences were placed for this jump.
 	GetCharacterMovement()->JumpZVelocity = 420.f * FMath::Sqrt(1.15f);
+
+	// The full-size mannequin scaled down as one (Player/PlayerSize.h): capsule, body, first-person rig, camera and the
+	// gun in hand together, so first and third person stay lined up with no special cases. The engine works the crouch
+	// from the scaled capsule; the step height and walkable slopes stay the world's.
+	GetCapsuleComponent()->SetRelativeScale3D(FVector(LooterPlayerSize::Scale));
+	BaseEyeHeight *= LooterPlayerSize::Scale;
+	// Walking at the full-size speed scaled the same, so each step covers the ground the animation's does; sprint and
+	// aim are shares of it (UPlayerLocomotionComponent).
+	GetCharacterMovement()->MaxWalkSpeed = LooterPlayerSize::FullSizeWalkSpeed * LooterPlayerSize::SpeedScale;
 
 	// Made in C++ so every character has it without touching the Blueprint; the weapon manager offers it the loot.
 	Interaction = CreateDefaultSubobject<UInteractionComponent>(TEXT("Interaction"));
@@ -42,12 +56,39 @@ void ALooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	Input->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ALooterCharacter::Move);
 	Input->BindAction(LookAction, ETriggerEvent::Triggered, this, &ALooterCharacter::Look);
 	Input->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &ALooterCharacter::Look);
-	Input->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+	Input->BindAction(JumpAction, ETriggerEvent::Started, this, &ALooterCharacter::JumpPressed);
 	Input->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+}
+
+float ALooterCharacter::GetDefaultHalfHeight() const
+{
+	// The engine reads the class default's capsule, which never has its scale applied: give the height at the player's
+	// size, so a landing or a respawn puts the feet on the ground.
+	const ACharacter* Defaults = GetClass()->GetDefaultObject<ACharacter>();
+	const UCapsuleComponent* Capsule = Defaults ? Defaults->GetCapsuleComponent() : nullptr;
+	return Capsule ? Capsule->GetUnscaledCapsuleHalfHeight() * static_cast<float>(Capsule->GetRelativeScale3D().Z) : Super::GetDefaultHalfHeight();
+}
+
+void ALooterCharacter::JumpPressed()
+{
+	// Crouched or sliding, the jump key stands the player up first; the locomotion component knows the stance.
+	if (UPlayerLocomotionComponent* Locomotion = FindComponentByClass<UPlayerLocomotionComponent>())
+	{
+		Locomotion->HandleJumpPressed();
+		return;
+	}
+	Jump();
 }
 
 void ALooterCharacter::Move(const FInputActionValue& Value)
 {
+	// A slide holds its own line; the keys steer again once it ends.
+	const UPlayerLocomotionComponent* Locomotion = FindComponentByClass<UPlayerLocomotionComponent>();
+	if (Locomotion && Locomotion->IsSliding())
+	{
+		return;
+	}
+
 	// X strafes and Y walks, both relative to where the character faces.
 	const FVector2D Input = Value.Get<FVector2D>();
 	AddMovementInput(GetActorRightVector(), Input.X);
@@ -56,9 +97,11 @@ void ALooterCharacter::Move(const FInputActionValue& Value)
 
 void ALooterCharacter::Look(const FInputActionValue& Value)
 {
-	// Slower through a zoomed sight, so the crosshair crosses a target at the same pace as unzoomed.
+	// The player's look sensitivity (Settings > Controls), then slower through a zoomed sight, so the crosshair crosses a
+	// target at the same pace as unzoomed.
 	const UPlayerViewComponent* View = FindComponentByClass<UPlayerViewComponent>();
-	const FVector2D Input = Value.Get<FVector2D>() * (View ? View->GetLookSensitivityMultiplier() : 1.f);
+	const FVector2D Input = UControlSettingsSubsystem::ScaleLookInputFor(GetController(), Value.Get<FVector2D>())
+		* (View ? View->GetLookSensitivityMultiplier() : 1.f);
 	AddControllerYawInput(Input.X);
 	AddControllerPitchInput(Input.Y);
 }
