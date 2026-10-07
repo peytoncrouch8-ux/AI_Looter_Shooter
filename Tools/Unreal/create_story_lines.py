@@ -35,13 +35,26 @@ Main 3, "Cold Welcome":
                            my collar, by the way." (the doc's beats and line; the rest is a draft), and the unclaimed
                            effects on the step (Main 3's Uncommon gun)
   DA_Lines_TillyAfterMain3 Tilly after Main 3 (a draft)
+
+Main 4, "Hallowed Ground" (the doc gives Aldana's words at the vestry door; everything else is a first draft for the user):
+  DA_Lines_HobMain4Road      Hob on the chapel's door hood as Main 4 begins (a draft)
+  DA_Lines_HobMain4Yard      Hob as the chapel yard's Unpaid rise (a draft)
+  DA_Lines_HobMain4Bell      Hob once the yard is quiet: the bell (a draft)
+  DA_Lines_HobMain4Reliquary Hob once the bell has rung and nothing answered: the Reliquary (a draft)
+  DA_Lines_HobMain4Aldana    Hob on the vestry lantern's bracket after the sight: Aldana's door (a draft)
+  DA_Lines_HobMain4          Hob talked to during Main 4 (a draft)
+  DA_Lines_AldanaBarred      Father Aldana through the vestry door before the yard is quiet, and before Main 4 (a draft)
+  DA_Lines_AldanaWaiting     Aldana once the yard is quiet, while the bell and the Reliquary wait (a draft)
+  DA_Lines_AldanaMain4       Aldana at Main 4's last step: "A keeper's lantern can find an ember." through "Look in the
+                             Sink." (the doc's words, word for word; his first line and Ellis's question are drafts)
+  DA_Lines_AldanaAfterMain4  Aldana after Main 4 (a draft)
 """
 import unreal
 
 FOLDER = '/Game/Data/Story'
 
 HOB = 'Hob'
-# Ellis speaks in the deal and at Tilly's window (the cold open names them so too).
+# Ellis speaks in the deal, at Tilly's window and at Aldana's door (the cold open names them so too).
 ELLIS = 'Ellis'
 
 SETS = {
@@ -132,6 +145,47 @@ SETS = {
     ],
     'DA_Lines_TillyAfterMain3': [
         ('', "Still closed. Mind that collar."),
+    ],
+
+    # --- Main 4 ---
+    'DA_Lines_HobMain4Road': [
+        (HOB, "Up the north road to the chapel, sunshine. Saint Ada's yard is full of folks who didn't stay put. "
+              "You'll fit right in."),
+    ],
+    'DA_Lines_HobMain4Yard': [
+        (HOB, "Years of the Rest's dead, come home to their own graves. They don't take to company, sunshine."),
+    ],
+    'DA_Lines_HobMain4Bell': [
+        (HOB, "Quiet. Bell rope's inside the door. That bell used to call the dead to rest. Give it a pull, see who "
+              "answers."),
+    ],
+    'DA_Lines_HobMain4Reliquary': [
+        (HOB, "Nobody answered. Bell's fine, sunshine. It's the saint that's out. Go look at what's left of her."),
+    ],
+    'DA_Lines_HobMain4Aldana': [
+        (HOB, "Somebody's breathing behind the vestry door. Living, by the sound of it. Knock nice."),
+    ],
+    'DA_Lines_HobMain4': [
+        ('', "No light, no road. When the saint went out, every soul still on the Sundown Road drifted home. That's the "
+             "whole yard, sunshine."),
+    ],
+    'DA_Lines_AldanaBarred': [
+        ('', "Stay back from that door. I've no comfort left for the dead, and the yard is full of them."),
+    ],
+    'DA_Lines_AldanaWaiting': [
+        ('', "They're quiet. Ring her bell, then look at what was done to her. Then we'll talk."),
+    ],
+    'DA_Lines_AldanaMain4': [
+        ('', "You rang her bell, and she didn't answer. Now you've seen why."),
+        (ELLIS, "How do I find them?"),
+        ('', "A keeper's lantern can find an ember."),
+        ('', "In every town they robbed, the gang shot the keeper first and smashed his lantern."),
+        ('', "Your father's fell in the dark, whole."),
+        ('', "Spiders hoard anything a saint has touched."),
+        ('', "Look in the Sink."),
+    ],
+    'DA_Lines_AldanaAfterMain4': [
+        ('', "The Sink, Ellis. Your father's lantern. I'll pray it's still whole."),
     ],
 }
 

@@ -227,7 +227,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Missions/MissionPlaceObjectives`: reach a place, travel a distance, defend for a time.
 - `Missions/MissionCombatObjectives`: kill N (class, tag, zone), kill a named actor, hit N, clear an encounter
   (`UMissionClearObjective`: done once a spawner is cleared, its count read from the spawner, so kills before the step
-  began count too: Main 2's nest, Main 3's gate).
+  began count too: Main 2's nest, Main 3's gate, Main 4's chapel yard).
 - `Missions/MissionEventObjectives`: event, interact or hold, talk at a speaker point, play a scene (done too when it
   played before the step began), board.
 - `Missions/MissionLastingInteractObjective`: `UMissionLastingInteractObjective`, Interact whose count lives in the
@@ -249,7 +249,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Story/StoryLine`: `FStoryLine`, one line said aloud: who says it, the words and its seconds (without seconds, a
   reading time for its words).
 - `Story/StoryLineSet.h`: `UStoryLineSet`, lines said together as a data asset (`DA_Lines_<Name>` in `/Game/Data/Story`,
-  made by `Tools/Unreal/create_story_lines.py`: Delia's, the headboards', Hob's, Sexton's deal, Tilly's).
+  made by `Tools/Unreal/create_story_lines.py`: Delia's, the headboards', Hob's, Sexton's deal, Tilly's, Aldana's).
 - `Story/StoryCondition`: `FStoryCondition`, when something of the story applies (after missions, before others, while
   one is played, from one of its steps and before a later one), read from the campaign record.
 - `Story/CaptionQueue`: `FCaptionQueue`, the captions' rules apart from the world: lines one at a time in order, each
@@ -271,6 +271,11 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   Lookout's Sit socket with SM_SextonLedger on his Ledger socket and his captions from his Speaker socket; a story
   character shown by its condition that never turns or breathes, solid to the player and the Interact line but not to
   shots; once the story is done with him he goes the next time nobody is looking or listening.
+- `Story/GraveSightFlash`: `FGraveSightFlash`, a Grave Sight flash's rules apart from the world: its seconds (two by
+  default), the overlay in quickly, held and out more slowly, and an ember seen through it rising, flaring and fading.
+- `Story/GraveSightSubsystem`: `UGraveSightSubsystem`, Grave Sight on the local player's screen: for now its flash (one at
+  a time, a new one starts over), shown on `UHudGraveSightWidget`, made the first time one plays; unseen without a local
+  player (tests).
 
 ## Scenes
 - `Scenes/SceneTimeline`: `FSceneTimeline`, a scene as a timeline with nothing in Sequencer: moves over spans of it,
@@ -421,6 +426,14 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `World/WindowShutter`: `AWindowShutter`, one of Main Street's shutters on a false front's Shutter socket (Main 3): open
   flat against the wall until the player comes near, then it slams shut (after a moment of its own) and stays shut;
   shut from the start after Main 3.
+- `World/ChapelBell`: `AChapelBell`, the Chapel of Saint Ada's bell (Main 4, tagged Bell_Chapel): held on the rope's grip
+  (the chapel's SOCKET_Interact) it rings: SM_ChapelBell on the belfry's SOCKET_Bell swings about its axis, the swings
+  dying away over 9 s, tolling at the ends of the hard ones (a sound when one is made); not again until still, nor
+  while its story condition says not.
+- `World/ChapelReliquary`: `AChapelReliquary`, Saint Ada's smashed Reliquary on the apse's plinth (Main 4, tagged
+  Reliquary_Chapel): looked at (a tap, from Main 4's fourth step) it plays the two-second Grave Sight flash and her
+  ember lifting off the lid (SOCKET_Ember; the cold open's glow), then tells the missions (`GraveSight.Reliquary`);
+  plain shapes stand in without its model.
 - `World/InstancedScenery`: `AInstancedScenery`, scenery far past a level's playable boundary drawn as one mesh's
   instances (Ransom's Rest's far trees, one actor per tree mesh, set by `build_area.py`): no collision, navigation
   or shadows, never distance-culled.
@@ -480,6 +493,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/HUD/HudCaptionWidget`: the captions low on the screen over the experience bar: the speaker's name in the accent
   color over their words, outlined with no panel, fading in and out; steps aside and holds the lines while a menu is
   open.
+- `UI/HUD/HudGraveSightWidget`: `UHudGraveSightWidget`, Grave Sight's flash on the screen: the kit's dark glass at the
+  edges (a background) under a thin cyan frame with cut corners and brackets, faint scan lines, a sweep down the screen
+  and a ring opening from the middle; `UGraveSightSubsystem` drives it.
 - `UI/Menus/SettingsMenuWidget`: `USettingsMenuWidget`, the settings menu (graphics, interface, key bindings), over the
   paused game or from the main menu: its layout. `SettingsMenuRows.cpp` makes its rows and key list,
   `SettingsMenuInput.cpp` handles its buttons, sliders and keys, `SettingsMenuParts.h` holds what they share.
@@ -541,7 +557,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   the player; `Looter.Interaction.Focus`, what the player would use now.
 - `Dev/StoryDevCommands.cpp`: `Looter.Story.Caption [speaker words...] | stop`, `Looter.Story.Door` (Delia's talking
   test door), `Looter.Story.Character [mission id]` (a placeholder story character), `Looter.Story.Shutters [open |
-  slam]` (Main Street's shutters), `Looter.Story.Ledger` (whether the bestiary is the Ledger yet, and its own pages).
+  slam]` (Main Street's shutters), `Looter.Story.Ledger` (whether the bestiary is the Ledger yet, and its own pages), `Looter.Story.GraveSight [force]`
+  (Grave Sight on the nearest Reliquary, or the flash alone), `Looter.Story.Bell` (rings the nearest chapel bell; the
+  missions told).
 - `Dev/RespawnDevCommands.cpp`: `Looter.Respawn.List`, `.Activate <id | all>`, `.Place [closed]` (a test grave where the
   player stands), `.Die`.
 - `Dev/WorldDevCommands.cpp`: `Looter.InstanceCollision`, whether the world's instanced meshes (the scattered trees and
@@ -563,7 +581,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LightingTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
-  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `PosterTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `GravemotherTests.cpp` (her body, charge, brood, pack calls by tag,
+  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `PosterTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `HallowedGroundTests.cpp` (Main 4: its steps, Main 3 first, the yard's two waves by count and rank, the bell held, the Reliquary's flash ending its step, Aldana's words and the chapel yard's grave; the Unpaid on boot hill and the north road after it; the placed pieces), `ChapelTests.cpp` (the bell's hold, swing and tolls; Grave Sight's flash and the Reliquary's look timing out; Aldana's topics) with `HallowedGroundTestWorld.h`, `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `GravemotherTests.cpp` (her body, charge, brood, pack calls by tag,
   loot), `GravemotherSideTests.cpp` (her return after 20 minutes of play, her lair, Side 3), `WeaponTests.cpp`, `NamedWeaponTests.cpp` (named guns: the
   fixed-quality rules, Heirloom's asset and label, its save, the mission reward),
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.

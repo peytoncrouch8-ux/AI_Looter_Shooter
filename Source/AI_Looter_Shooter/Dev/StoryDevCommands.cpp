@@ -1,4 +1,5 @@
-// Developer console commands for captions, speaker points and story characters (not in shipping builds).
+// Developer console commands for captions, speaker points, story characters and the story's props (Main Street's shutters,
+// the chapel's bell and Reliquary) (not in shipping builds).
 
 #include "CoreMinimal.h"
 
@@ -7,13 +8,17 @@
 #include "AI_Looter_Shooter.h"
 #include "Bestiary/BestiaryEntry.h"
 #include "Bestiary/Ledger.h"
+#include "Missions/MissionObjective.h"
 #include "Missions/MissionRunner.h"
 #include "Session/CampaignRecord.h"
 #include "Story/CaptionSubsystem.h"
+#include "Story/GraveSightSubsystem.h"
 #include "Story/SpeakerPoint.h"
 #include "Story/SpeakerPointComponent.h"
 #include "Story/StoryCharacter.h"
 #include "Story/StoryLine.h"
+#include "World/ChapelBell.h"
+#include "World/ChapelReliquary.h"
 #include "World/WindowShutter.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
@@ -47,6 +52,23 @@ namespace
 	{
 		const APlayerController* Controller = World ? World->GetFirstPlayerController() : nullptr;
 		return Controller ? Controller->GetPawn() : nullptr;
+	}
+
+	/** The actor of type T nearest the player (any one without a player), or null when the level has none. */
+	template <typename T>
+	T* FindNearest(UWorld* World)
+	{
+		const APawn* Pawn = FindPlayerPawn(World);
+		const FVector From = Pawn ? Pawn->GetActorLocation() : FVector::ZeroVector;
+		T* Nearest = nullptr;
+		for (TActorIterator<T> It(World); It; ++It)
+		{
+			if (!Nearest || FVector::DistSquared(It->GetActorLocation(), From) < FVector::DistSquared(Nearest->GetActorLocation(), From))
+			{
+				Nearest = *It;
+			}
+		}
+		return Nearest;
 	}
 
 	/** Distance in front of the player's feet, turned to face them. */
@@ -256,6 +278,78 @@ namespace
 					: TEXT(""));
 		}
 	}
+
+	/**
+	 * Looter.Story.GraveSight [force]: Grave Sight on the Reliquary nearest the player (Main 4), as a look at it does: the
+	 * screen's flash, her ember lifting off the lid, and the missions told at its end. Before the story lets it be looked at,
+	 * "force" plays it anyway. With no Reliquary in the level, the screen's flash alone.
+	 */
+	void GraveSight(const TArray<FString>& Args, UWorld* World)
+	{
+		const TCHAR* Command = TEXT("Looter.Story.GraveSight");
+		UWorld* GameWorld = FindGameWorld(World);
+		UGraveSightSubsystem* Sight = UGraveSightSubsystem::Get(GameWorld);
+		if (!Sight)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("%s: no level is being played (start the game first)."), Command);
+			return;
+		}
+		const bool bForce = Args.Num() > 0 && Args[0].Equals(TEXT("force"), ESearchCase::IgnoreCase);
+		AChapelReliquary* Reliquary = FindNearest<AChapelReliquary>(GameWorld);
+		if (!Reliquary)
+		{
+			Sight->Flash();
+			UE_LOG(LogLooter, Log, TEXT("%s: no Reliquary in this level: the screen's flash alone."), Command);
+			return;
+		}
+		if (Reliquary->Look(FindPlayerPawn(GameWorld), bForce))
+		{
+			UE_LOG(LogLooter, Log, TEXT("%s: Grave Sight on %s; the missions hear %s at its end."), Command, *Reliquary->GetActorNameOrLabel(),
+				*AChapelReliquary::SightEvent.ToString());
+			return;
+		}
+		UE_LOG(LogLooter, Warning, TEXT("%s: %s can't be looked at now (%s, or its flash still plays): '%s force' plays it anyway."), Command,
+			*Reliquary->GetActorNameOrLabel(), *Reliquary->LookWhen.Describe(), Command);
+	}
+
+	/**
+	 * Looter.Story.Bell: rings the chapel bell nearest the player as holding Interact on its rope does, and tells the
+	 * missions so (Main 4's third step), to see the swing from the yard without going in.
+	 */
+	void RingBell(const TArray<FString>& Args, UWorld* World)
+	{
+		const TCHAR* Command = TEXT("Looter.Story.Bell");
+		UWorld* GameWorld = FindGameWorld(World);
+		AChapelBell* Bell = GameWorld ? FindNearest<AChapelBell>(GameWorld) : nullptr;
+		if (!Bell)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("%s: no chapel bell in a level being played (start the game on Ransom's Rest)."), Command);
+			return;
+		}
+		if (!Bell->Ring(FindPlayerPawn(GameWorld)))
+		{
+			UE_LOG(LogLooter, Warning, TEXT("%s: %s can't be rung now (still swinging, or not yet: %s)."), Command, *Bell->GetActorNameOrLabel(),
+				*Bell->RingWhen.Describe());
+			return;
+		}
+		// The missions hear of it as they would from the player's held Interact.
+		if (UMissionRunner* Runner = UMissionRunner::Get(GameWorld))
+		{
+			Runner->NotifyEvent(FMissionEvent::Interaction(Bell, /*bHeld*/ true));
+		}
+		UE_LOG(LogLooter, Log, TEXT("%s: %s rings."), Command, *Bell->GetActorNameOrLabel());
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs GraveSightCommand(
+		TEXT("Looter.Story.GraveSight"),
+		TEXT("Looter.Story.GraveSight [force]: Grave Sight on the nearest Reliquary (the flash, her ember lifting off the lid, the ")
+		TEXT("missions told at its end); 'force' plays it before the story lets it be looked at. With no Reliquary, the flash alone."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GraveSight));
+
+	FAutoConsoleCommandWithWorldAndArgs RingBellCommand(
+		TEXT("Looter.Story.Bell"),
+		TEXT("Looter.Story.Bell: rings the nearest chapel bell as holding Interact on its rope does, and tells the missions."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&RingBell));
 
 	FAutoConsoleCommandWithWorldAndArgs ShuttersCommand(
 		TEXT("Looter.Story.Shutters"),

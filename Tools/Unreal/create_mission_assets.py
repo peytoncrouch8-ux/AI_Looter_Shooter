@@ -35,6 +35,16 @@ missions (fields, steps and rewards) from what's written here; other mission ass
                        window, tagged Speaker_Tilly) and talking to Tilly there. 30% of a level and an Uncommon gun or
                        better, the undertaker's unclaimed effects. Its id must stay "Main3": Side 1 opens after it
                        (create_side_mission_assets.py), and Main Street's safe zone and shutters follow it.
+  DA_Mission_Main4     "Hallowed Ground" (Main 4), once Main 3 is done: up to the Chapel of Saint Ada (within 15 m of the
+                       chapel's middle, the marker tagged Place_Chapel), clearing the chapel yard (the encounter
+                       ChapelYard: 12 Unpaid in two waves and a Restless one, 13 in all), ringing the chapel bell (holding
+                       Interact on its rope, the AChapelBell tagged Bell_Chapel), looking at the Reliquary (the end of its
+                       two-second Grave Sight flash sends GraveSight.Reliquary, AChapelReliquary::SightEvent; the arrow on
+                       the one tagged Reliquary_Chapel) and talking to Father Aldana at the vestry door (Speaker_Aldana).
+                       30% of a level; the chapel yard's respawn grave opens with it (ARespawnMarker ChapelYard), and the
+                       Unpaid walk boot hill and the north road from then on (Tools/Unreal/build_area_chapel.py). Its id
+                       must stay "Main4": Side 2 opens after it, and Aldana's Ledger page is known after it
+                       (create_bestiary_pages.py).
 
 Objectives are instanced objects inside the asset, one class per kind (UMissionReachObjective, UMissionKillObjective, ...),
 made with unreal.new_object(<class>, asset) and listed in each step's 'objectives'. Classes for actor filters are loaded
@@ -52,7 +62,7 @@ def mission_types():
              'MissionStart', 'MissionWaypoint', 'MissionCollect', 'MissionPage', 'MissionTravelObjective',
              'MissionReachObjective', 'MissionCollectObjective', 'MissionHitObjective', 'MissionKillObjective',
              'MissionOpenPageObjective', 'MissionInteractObjective', 'MissionBoardObjective', 'MissionSceneObjective',
-             'MissionTalkObjective', 'MissionClearObjective', 'WeaponRarity']
+             'MissionTalkObjective', 'MissionClearObjective', 'MissionEventObjective', 'WeaponRarity']
     missing = [name for name in names if getattr(unreal, name, None) is None]
     if missing:
         raise RuntimeError(f"unreal.{', unreal.'.join(missing)} missing: build the C++ with Missions/ first")
@@ -85,14 +95,16 @@ def place(cls_name=None, tag=None, location=(0.0, 0.0, 0.0), radius=500.0, ignor
     return where
 
 
-def objective(asset, cls, text, waypoint=None, waypoint_class=None, pass_without_targets=False, show_count=True, **settings):
-    """One objective, made inside the asset (its outer) so it's saved with it."""
+def objective(asset, cls, text, waypoint=None, waypoint_class=None, waypoint_tag=None, pass_without_targets=False,
+              show_count=True, **settings):
+    """One objective, made inside the asset (its outer) so it's saved with it. With waypoint ACTOR, the arrow points at
+    the nearest actor of waypoint_class and/or carrying waypoint_tag."""
     made = unreal.new_object(cls, asset)
     made.set_editor_property('text', unreal.Text(text))
     if waypoint is not None:
         made.set_editor_property('waypoint', waypoint)
-    if waypoint_class:
-        made.set_editor_property('waypoint_actor', actor_filter(waypoint_class))
+    if waypoint_class or waypoint_tag:
+        made.set_editor_property('waypoint_actor', actor_filter(waypoint_class, waypoint_tag))
     made.set_editor_property('pass_without_targets', pass_without_targets)
     made.set_editor_property('show_count', show_count)
     for name, value in settings.items():
@@ -212,6 +224,29 @@ def main3_steps(asset):
     ]
 
 
+def main4_steps(asset):
+    """Main 4, "Hallowed Ground": up to the chapel, the yard cleared, the bell rung, the Reliquary seen, Father Aldana at
+    the vestry door. The tags, the encounter's id and the event are the ones build_area_chapel.py and the C++ give them
+    (AChapelBell::BellTag, AChapelReliquary::ReliquaryTag and SightEvent)."""
+    waypoint = unreal.MissionWaypoint
+    return [
+        step(objective(asset, unreal.MissionReachObjective, 'Go up to the Chapel of Saint Ada.',
+                       place=place(tag='Place_Chapel', radius=1500.0))),
+        # "12 Unpaid in two waves, and one Restless": 13, counted from the spawner.
+        step(objective(asset, unreal.MissionClearObjective, 'Clear the chapel yard.',
+                       spawner_id=unreal.Name('ChapelYard'), count=13)),
+        step(objective(asset, unreal.MissionInteractObjective,
+                       'Ring the chapel bell: hold {Interact} on the rope inside the door.',
+                       target=actor_filter(tag='Bell_Chapel'), count=1, hold=True)),
+        # Done as the flash ends, so the next step comes after the vision; the arrow on the Reliquary meanwhile.
+        step(objective(asset, unreal.MissionEventObjective, 'Look at the Reliquary.',
+                       waypoint=waypoint.ACTOR, waypoint_tag='Reliquary_Chapel', show_count=False,
+                       event=unreal.Name('GraveSight.Reliquary'), count=1)),
+        step(objective(asset, unreal.MissionTalkObjective, 'Talk to Father Aldana at the vestry door.',
+                       speaker_tag=unreal.Name('Speaker_Aldana'))),
+    ]
+
+
 def test_steps(asset):
     return [
         step(objective(asset, unreal.MissionKillObjective, 'Kill two creatures',
@@ -254,6 +289,12 @@ MISSIONS = [
                  "gate. Tilly Bright, the undertaker's daughter, talks through her shop window.",
          kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main2'], sort_order=3, steps=main3_steps,
          rewards=dict(experience_share=0.3, gun=True, gun_rarity_floor='UNCOMMON')),
+    dict(asset='DA_Mission_Main4', id='Main4', title='Hallowed Ground',
+         summary="The Unpaid hold the chapel yard, and the bell won't call them to rest: Saint Ada's Reliquary lies smashed "
+                 "and dark. Father Aldana keeps to the vestry door. Reward: experience, and the chapel yard's grave to wake "
+                 "at.",
+         kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main3'], sort_order=4, steps=main4_steps,
+         rewards=dict(experience_share=0.3)),
 ]
 
 
