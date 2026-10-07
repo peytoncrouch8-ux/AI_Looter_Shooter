@@ -33,7 +33,8 @@
                   atmosphere's sun direction), so the cheapest translucent lighting does. Casts a solid shadow.
   M_Glass         unlit, translucent: lenses and sight windows. Mostly clear (Opacity) facing the eye, so a sight can
                   be aimed through, tinted (Tint) and brighter and denser toward grazing edges (RimBrightness,
-                  EdgeOpacity), which reads as glass without reflections.
+                  EdgeOpacity), which reads as glass without reflections. A screen door's wire mesh sets MeshMaskStrength:
+                  its weave (MeshMask, MeshTiling repeats a meter of UV 0) then takes over the opacity.
   M_Backdrop      unlit, opaque, one-sided: the far silhouettes past a grounded area (Art/Levels/area_beyond.py), a flat
                   Tint times Brightness (about what sunlit ground of that color shows) times the lighting state's
                   BackdropTint from MPC_Lighting (white by day; lighting_collection.py makes the collection first),
@@ -58,6 +59,8 @@ DEFAULT_ORM_FILE = 'C:/Dev/AI_Looter_Shooter/Art/Textures/Default/T_DefaultORM.p
 DEFAULT_ORM = '/Game/Art/Textures/Default/T_DefaultORM'
 MACRO_NOISE_FILE = 'C:/Dev/AI_Looter_Shooter/Art/Textures/MacroNoise/T_MacroNoise_M.png'
 MACRO_NOISE = '/Game/Art/Textures/MacroNoise/T_MacroNoise_M'
+SCREEN_MESH_FILE = 'C:/Dev/AI_Looter_Shooter/Art/Textures/ScreenMesh/T_ScreenMesh.png'
+SCREEN_MESH = '/Game/Art/Textures/ScreenMesh/T_ScreenMesh'
 
 
 def default_orm():
@@ -470,8 +473,9 @@ CLOUD_OPACITY = CLOUD_DENSITY + """// Soft edges, and the layer fades into the h
 return saturate(Density / Softness) * saturate((Up - 0.04) * 3.0) * Opacity;"""
 
 
-def import_mask(file, path):
-    """A linear single-channel texture from the library (here the macro noise for the clouds)."""
+def import_mask(file, path, compression=unreal.TextureCompressionSettings.TC_MASKS):
+    """A linear single-channel texture from the library (the macro noise for the clouds; the screen door's wire weave, kept
+    uncompressed as Grayscale, since block compression smears a weave only a few pixels wide)."""
     if not unreal.EditorAssetLibrary.does_asset_exist(path):
         task = unreal.AssetImportTask()
         task.set_editor_property('filename', file)
@@ -481,7 +485,7 @@ def import_mask(file, path):
         unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
     texture = unreal.load_asset(path)
     texture.set_editor_property('srgb', False)
-    texture.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_MASKS)
+    texture.set_editor_property('compression_settings', compression)
     unreal.EditorAssetLibrary.save_loaded_asset(texture)
     return texture
 
@@ -599,7 +603,17 @@ def build_glass():
     g.link(g.scalar('Opacity', 0.15, -900, 350), '', opacity, 'A')
     g.link(g.scalar('EdgeOpacity', 0.6, -900, 450), '', opacity, 'B')
     g.link(fresnel, '', opacity, 'Alpha')
-    g.out(opacity, '', unreal.MaterialProperty.MP_OPACITY)
+    # A wire mesh (a screen door's) instead of a pane: the weave (R: 1 wire, 0 gap) tiled MeshTiling times a meter of UV 0
+    # takes over the opacity by MeshMaskStrength. 0, as every lens and window has it, leaves the glass as it was.
+    import_mask(SCREEN_MESH_FILE, SCREEN_MESH, unreal.TextureCompressionSettings.TC_GRAYSCALE)
+    coords = g.node(unreal.MaterialExpressionTextureCoordinate, -1500, 600, coordinate_index=0)
+    weave = g.texture('MeshMask', unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_GRAYSCALE, SCREEN_MESH,
+                      g.mul(coords, '', g.scalar('MeshTiling', 32.0, -1500, 700), '', -1250, 650), -1000, 600)
+    meshed = g.node(unreal.MaterialExpressionLinearInterpolate, -350, 400)
+    g.link(opacity, '', meshed, 'A')
+    g.link(weave, 'R', meshed, 'B')
+    g.link(g.scalar('MeshMaskStrength', 0.0, -600, 700), '', meshed, 'Alpha')
+    g.out(meshed, '', unreal.MaterialProperty.MP_OPACITY)
     finish(mat, [])
     return mat
 

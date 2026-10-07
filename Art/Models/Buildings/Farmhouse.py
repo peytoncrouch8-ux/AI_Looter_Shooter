@@ -32,7 +32,9 @@ The file also makes Ransom Farm's farmhouse on Ransom's Rest (Docs/Areas/Ransoms
                        SOCKET_Smoke       the stovepipe's top, as on the old house
   ScreenDoor         a light timber screen door in the house's faded teal (trim strip H1): stiles and rails, a push
                      rail, a kick panel, a brace across the lower screen, a door spring, a pull and two hinges; the
-                     screens are ScreenMesh on the Glass master. Its pivot is its hinge line at its foot and its front
+                     screens are ScreenMesh on the Glass master, its wire mask the weave this file paints into
+                     Art/Textures/ScreenMesh/T_ScreenMesh.png (screen_weave()) over their UVs, which are meters (U
+                     across, V up). Its pivot is its hinge line at its foot and its front
                      faces -Y: hung on SOCKET_ScreenDoor it sits closed, and a turn about its Z swings it open (out
                      toward the porch: +25 degrees of yaw in Unreal, -25 about Blender's Z). No collision, no Nanite.
   PorchPlate         the plate Delia sets out: a checked cloth over a plate of food (the cloth takes the plate's shape;
@@ -348,9 +350,20 @@ RED_U = (0.55, 0.63, 0.71, 2.33, 2.41, 2.49, 2.57, 2.65, 5.38, 5.45)
 # as on LanternGlow), so the panes read as glass between the curtains; for dusk the game raises Glow and they read as
 # lit windows. A slot of its own, so it changes without the lanterns.
 WINDOW_COLOR, WINDOW_GLOW_DAY, WINDOW_GLOW_DUSK = 0x2e2219, 1.0, 14.0
-# The insect screen's look on the Glass master (M_Glass: unlit, translucent; Fresnel exponent 3): a dark grey-green
-# mesh that shows half of what's behind it face on and closes up toward a glance, darkening there, never brightening.
-SCREEN_TINT, SCREEN_OPACITY, SCREEN_EDGE_OPACITY, SCREEN_RIM = 0x2e3530, 0.5, 0.95, 0.6
+# The insect screen's look on the Glass master (M_Glass: unlit, translucent; Fresnel exponent 3), with its wire mask:
+# opacity = lerp(lerp(Opacity, EdgeOpacity, Fresnel), MeshMask, MeshMaskStrength). The wires (T_ScreenMesh, below)
+# carry the coverage: nearly solid dark grey-green wires and gaps all but clear face on, the gaps hazing over toward a
+# glance, where the wires darken (RimBrightness under 1), never brighten.
+SCREEN_TINT, SCREEN_OPACITY, SCREEN_EDGE_OPACITY, SCREEN_RIM = 0x2e3530, 0.1, 1.0, 0.6
+SCREEN_MASK_STRENGTH = 0.85
+# T_ScreenMesh: a plain over-under weave of round wires, the mask for MeshMask (1 = wire, 0 = gap; 8-bit greyscale).
+# Stylized coarse, 7.8 mm from wire to wire, since a real screen's 1.4 mm would be grey mush a pace away: at 1080p it
+# reads as screen out to about 2 m (four or more pixels a wire), softening to about 3 m, and further out the mips settle
+# on its coverage (51%), an even haze about as dense as the screen's old flat one. The tile holds four wires each way
+# in 64 px; the screen's UVs are meters, so M_Glass's MeshTiling (repeats a metre) is 1 / (4 x 7.8125 mm) = 32.
+MESH_TEXTURE = os.path.join(lt.TEXTURE_DIR, 'ScreenMesh', 'T_ScreenMesh.png')
+MESH_SIZE, MESH_WIRES, MESH_PITCH = 64, 4, 0.0078125
+MESH_TILING = 1.0 / (MESH_WIRES * MESH_PITCH)
 
 LIVED_IN = {
     'crepe': lambda: lt.material('Polymer', name='MourningCrepe', tint=0x161518),
@@ -832,12 +845,39 @@ def pail(m, at):
 
 # --- SM_ScreenDoor ---
 
+def screen_weave():
+    """T_ScreenMesh's pixels (MESH_SIZE square, 0 to 1): wires about a third of the pitch wide, their edges rolling off
+    over a pixel; where two cross, the top one runs whole and the one underneath dims beside it as it dives, so the
+    weave reads over and under. It tiles (an even number of wires each way)."""
+    import numpy as np
+    half, soft, notch, dip = 0.16, 0.08, 0.13, 0.35   # pitches; dip: the under wire's opacity at the top one's edge
+
+    def smooth(t):
+        t = np.clip(t, 0.0, 1.0)
+        return t * t * (3.0 - 2.0 * t)
+    px = (np.arange(MESH_SIZE) + 0.5) * MESH_WIRES / MESH_SIZE
+    u, v = np.meshgrid(px, px)
+    du, dv = np.abs(u % 1.0 - 0.5), np.abs(v % 1.0 - 0.5)    # from the nearest upright and level wires' middles
+    upright, level = smooth((half - du) / soft + 0.5), smooth((half - dv) / soft + 0.5)
+    upright_on_top = (np.floor(u) + np.floor(v)) % 2 == 0
+    upright = np.where(upright_on_top, upright, upright * (dip + (1.0 - dip) * smooth((dv - half) / notch)))
+    level = np.where(upright_on_top, level * (dip + (1.0 - dip) * smooth((du - half) / notch)), level)
+    return np.maximum(upright, level)
+
+
+def write_screen_weave():
+    """Writes T_ScreenMesh (an 8-bit greyscale PNG, the same bytes every time)."""
+    lt.write_png(MESH_TEXTURE, lt.to8(screen_weave()))
+
+
 def screen_material():
-    """ScreenMesh: insect screen on the Glass master (M_Glass: unlit and translucent), a dark grey-green mesh half
-    see-through face on (Opacity) and nearly solid at a glance (EdgeOpacity), darker there (RimBrightness under 1), so
-    the lamp and the hall show through it and it never goes milky; no texture. Its nodes only stand in for M_Glass in
-    the previews: the same sums (Fresnel (1 - N.V)^3; emissive Tint x lerp(1, RimBrightness, Fresnel); opacity
-    lerp(Opacity, EdgeOpacity, Fresnel)), and like a translucent surface in the game it casts no shadow."""
+    """ScreenMesh: insect screen on the Glass master (M_Glass: unlit and translucent): dark grey-green wires
+    (T_ScreenMesh as MeshMask, tiled MeshTiling times a metre over the screen's metre UVs, at MeshMaskStrength) with
+    the gaps clear face on (Opacity) and hazing over at a glance (EdgeOpacity), darker there (RimBrightness under 1),
+    so the lamp and the hall show through it, the sky reads as seen through wire, and it never goes milky. Its nodes
+    only stand in for M_Glass in the previews: the same sums (Fresnel (1 - N.V)^3; emissive Tint x lerp(1,
+    RimBrightness, Fresnel); opacity lerp(lerp(Opacity, EdgeOpacity, Fresnel), mask, MeshMaskStrength)), the mask
+    mipmapped as the game's is, and like a translucent surface in the game it casts no shadow."""
     bpy = kit.bpy
     tint, opacity, edge, rim = SCREEN_TINT, SCREEN_OPACITY, SCREEN_EDGE_OPACITY, SCREEN_RIM
     mat = bpy.data.materials.get('ScreenMesh') or bpy.data.materials.new('ScreenMesh')
@@ -864,6 +904,26 @@ def screen_material():
     alpha = nodes.new('ShaderNodeMapRange')
     links.new(fresnel.outputs['Value'], alpha.inputs['Value'])
     alpha.inputs['To Min'].default_value, alpha.inputs['To Max'].default_value = opacity, edge
+    # The wires: the mask over the metre UVs, MeshTiling times a metre; opacity goes to it by MeshMaskStrength.
+    coords = nodes.new('ShaderNodeTexCoord')
+    tiling = nodes.new('ShaderNodeVectorMath')
+    tiling.operation = 'SCALE'
+    tiling.inputs['Scale'].default_value = MESH_TILING
+    links.new(coords.outputs['UV'], tiling.inputs[0])
+    weave = nodes.new('ShaderNodeTexImage')
+    weave.image = bpy.data.images.load(MESH_TEXTURE, check_existing=True)
+    weave.image.colorspace_settings.name = 'Non-Color'
+    weave.interpolation, weave.extension = 'Linear', 'REPEAT'
+    links.new(tiling.outputs['Vector'], weave.inputs['Vector'])
+    toward = nodes.new('ShaderNodeMath')
+    toward.operation = 'SUBTRACT'
+    links.new(weave.outputs['Color'], toward.inputs[0])
+    links.new(alpha.outputs['Result'], toward.inputs[1])
+    masked = nodes.new('ShaderNodeMath')
+    masked.operation = 'MULTIPLY_ADD'
+    links.new(toward.outputs['Value'], masked.inputs[0])
+    masked.inputs[1].default_value = SCREEN_MASK_STRENGTH
+    links.new(alpha.outputs['Result'], masked.inputs[2])
     bright = nodes.new('ShaderNodeMapRange')
     links.new(fresnel.outputs['Value'], bright.inputs['Value'])
     bright.inputs['To Min'].default_value, bright.inputs['To Max'].default_value = 1.0, rim
@@ -872,7 +932,7 @@ def screen_material():
     links.new(bright.outputs['Result'], glow.inputs['Strength'])
     clear = nodes.new('ShaderNodeBsdfTransparent')
     mix = nodes.new('ShaderNodeMixShader')
-    links.new(alpha.outputs['Result'], mix.inputs['Fac'])
+    links.new(masked.outputs['Value'], mix.inputs['Fac'])
     links.new(clear.outputs['BSDF'], mix.inputs[1])
     links.new(glow.outputs['Emission'], mix.inputs[2])
     # Shadow rays see straight through it.
@@ -895,6 +955,8 @@ def screen_material():
     mat['Opacity'] = opacity
     mat['EdgeOpacity'] = edge
     mat['RimBrightness'] = rim
+    mat['MeshMaskStrength'] = SCREEN_MASK_STRENGTH
+    mat['MeshTiling'] = MESH_TILING
     return mat
 
 
@@ -908,7 +970,8 @@ class ScreenModel(kit.Model):
 
 
 class Flat:
-    """UVs straight from a part's X and Z in meters: something to give the untextured screen real tangents."""
+    """UVs straight from a part's X and Z in meters: the screen's (U across, V up), over which M_Glass tiles its wire
+    mask MeshTiling times a metre."""
 
     def apply(self, obj, rng):
         mesh = obj.data
@@ -1252,6 +1315,7 @@ def previews(house, ransom, door, dish):
     late afternoon, the low sun behind the house, as the posters paint it; the game's Dusk state for the dusk shot):
       Farmhouse_BeforeAfter  the derelict house and Delia's side by side, front three-quarter from 12 m
       Farmhouse_Door         the talking door from a standing player's eye (1.7 m), 3 m from the screen
+      Farmhouse_ScreenClose  the screen's wire weave from 1 m, at the game's pixel size
       Farmhouse_Dusk         Delia's house at dusk: the lamps up and the front windows' Glow raised (WINDOW_GLOW_DUSK)
       Farmhouse_Handoff      the screen door swung 25 degrees open, as for Heirloom
       Farmhouse_Props        the screen door and the plate on their own
@@ -1291,6 +1355,10 @@ def previews(house, ransom, door, dish):
     side_by_side([before, after], ['BEFORE', 'AFTER'], os.path.join(PREVIEW_DIR, 'Farmhouse_BeforeAfter.png'))
     shoot(scene, os.path.join(PREVIEW_DIR, 'Farmhouse_Door.png'), (0.35, Y0 - 3.0, 1.7), (0.05, Y0, 1.72), 26.0,
           (1600, 1000), exposure=SHADE_EXPOSURE)
+    # A metre from the screen at a standing eye's height, a millimetre a pixel there (as the game's 90-degree view at
+    # 1080p).
+    shoot(scene, os.path.join(PREVIEW_DIR, 'Farmhouse_ScreenClose.png'), (0.0, Y0 - 1.03, BASE + 1.6),
+          (0.0, Y0, BASE + 1.5), 22.0, (1600, 1000), exposure=SHADE_EXPOSURE)
     screen.matrix_world = sockets['ScreenDoor'].matrix_world @ Matrix.Rotation(math.radians(-25.0), 4, 'Z')
     shoot(scene, os.path.join(PREVIEW_DIR, 'Farmhouse_Handoff.png'), (1.55, -5.05, 2.25), (0.05, Y0 - 0.15, 1.55),
           28.0, (1600, 1000), exposure=SHADE_EXPOSURE)
@@ -1316,6 +1384,7 @@ def previews(house, ransom, door, dish):
 house = farmhouse()
 if __name__ != '__overview__':            # the buildings' overview shows the tutorial island's house only
     ransom = farmhouse('Farmhouse_Ransom', lived_in=True)
+    write_screen_weave()
     door = screen_door()
     dish = porch_plate()
     if lt.want_preview():
