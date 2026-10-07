@@ -592,6 +592,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `Looter.GiveWeapon Heirloom [level]`; `Looter.SpawnAmmo`).
 - `Dev/ProgressionDevCommands.cpp`: console commands for levels (`Looter.GiveXP`, `Looter.SetLevel`,
   `Looter.ResetProgress`, `Looter.XP.Table`) and the bestiary (`Looter.ForgetBestiary`).
+- `Dev/XPPathDevCommands.cpp`: `Looter.XP.Path [open-world share] [sides]`, in the editor with an area's level open:
+  plays the tutorial and the area's missions on paper (each one's encounters wave by wave, its egg sacs' spiders, its
+  named bosses with their adds, a share of the open world, its reward) and prints the level after each, for tuning
+  experience (step 27: about 9 at the end).
 - `Dev/MissionDevCommands.cpp`: `Looter.Mission.Start <id> [step]`, `.Complete <id> [all]`, `.List`,
   `.Event <name> [tag] [hold]`.
 - `Dev/AbelDevCommands.cpp`: `Looter.Abel.Fight [here]`, `.Phase <1-3>`, `.Kneel`, `.Scene`, `.Back`, `.Reset`,
