@@ -20,6 +20,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Misc/PackageName.h"
+#include "ReferenceSkeleton.h"
 #include "Engine/World.h"
 #include "Tests/AutomationCommon.h"
 #include "UObject/Package.h"
@@ -414,6 +415,116 @@ bool FAmosSeatTest::RunTest(const FString& Parameters)
 	TestTrue(*FString::Printf(TEXT("...its knees over his field (%s)"), *Shin.ToCompactString()), Shin.X > 25.0);
 	TestTrue(*FString::Printf(TEXT("...its shroud's tip behind the fence (%s)"), *Posed(TEXT("tail_05")).ToCompactString()),
 		Posed(TEXT("tail_05")).X < -15.0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAmosTableTest, "Looter.Story.Amos.Table",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FAmosTableTest::RunTest(const FString& Parameters)
+{
+	// Every bone of his posed model where Amos.py's pose table puts it, leaning and sitting: its head in component space
+	// (cm, size 1, as the table is written) within 2 cm, and its whole turn from rest within 2 degrees. The table the game
+	// reads is the generated one (AmosPoses); a few rows quoted from Amos.py's own (Intermediate/AmosModel/
+	// Amos_poses.json: the sit's thighs, knees and shroud links, pitched back and rolled between the rails, and the lean's
+	// fork and wrist) tie it to the art's. Change those with the table: run Tools/amos_poses.py, then copy them here.
+	struct FQuotedRow
+	{
+		EAmosPose Pose;
+		const TCHAR* Bone;
+		FVector Head;
+		FQuat Turn;
+	};
+	const FQuotedRow Quoted[] = {
+		{ EAmosPose::Sit, TEXT("pelvis"), FVector(-1.7, 0.0, 118.89), FQuat::Identity },
+		{ EAmosPose::Sit, TEXT("skirt_f_01"), FVector(-0.7, 0.0, 109.89), FQuat(0.0, -0.69466, 0.0, 0.71934) },
+		{ EAmosPose::Sit, TEXT("skirt_f_02"), FVector(40.36, 0.0, 110.96), FQuat(0.0, 0.34202, 0.0, 0.93969) },
+		{ EAmosPose::Sit, TEXT("tail_01"), FVector(43.32, 0.0, 113.7), FQuat(-0.20464, 0.21838, -0.32337, 0.8977) },
+		{ EAmosPose::Sit, TEXT("tail_02"), FVector(26.41, 0.0, 97.37), FQuat(-0.44406, -0.11146, -0.37434, 0.80638) },
+		{ EAmosPose::Sit, TEXT("tail_03"), FVector(10.53, 0.0, 79.73), FQuat(-0.51961, -0.1089, -0.21452, 0.81984) },
+		{ EAmosPose::Sit, TEXT("tail_04"), FVector(-10.21, 0.0, 67.76), FQuat(-0.53545, -0.15187, -0.16807, 0.81362) },
+		{ EAmosPose::Sit, TEXT("tail_05"), FVector(-31.38, 0.0, 56.51), FQuat(-0.51761, -0.29876, -0.22787, 0.76869) },
+		{ EAmosPose::Lean, TEXT("fork"), FVector(25.55, 69.53, 95.15), FQuat(-0.03469, 0.07678, -0.00267, 0.99644) },
+		{ EAmosPose::Lean, TEXT("hand_l"), FVector(34.11, -3.59, 104.69), FQuat(-0.14165, -0.49541, 0.70969, 0.48047) },
+	};
+	for (const FQuotedRow& Row : Quoted)
+	{
+		const int32 Bone = AmosPoses::FindBone(Row.Bone);
+		const FAmosPoseHeads Solved = AmosPoses::SolveHeads(Row.Pose);
+		if (!TestTrue(*FString::Printf(TEXT("The table has %s"), Row.Bone), Solved.Heads.IsValidIndex(Bone)))
+		{
+			continue;
+		}
+		TestTrue(*FString::Printf(TEXT("%s %s: head %s as Amos.py's table has it (%s)"), AmosPoses::Name(Row.Pose), Row.Bone,
+			*Solved.Heads[Bone].ToCompactString(), *Row.Head.ToCompactString()), Solved.Heads[Bone].Equals(Row.Head, 0.5));
+		TestTrue(*FString::Printf(TEXT("%s %s: whole turn as the table has it (%.2f degrees off)"), AmosPoses::Name(Row.Pose), Row.Bone,
+			FMath::RadiansToDegrees(Solved.Turns[Bone].AngularDistance(Row.Turn.GetNormalized()))),
+			FMath::RadiansToDegrees(Solved.Turns[Bone].AngularDistance(Row.Turn.GetNormalized())) < 0.5);
+	}
+
+	// His model, posed by the actor: every table bone, in both seats.
+	const bool bModelMade = FPackageName::DoesPackageExist(FPackageName::ObjectPathToPackageName(FString(AAmosWhitlock::ModelPath)));
+	if (!bModelMade)
+	{
+		AddWarning(TEXT("SK_Amos isn't in this checkout (Art/Models/Creatures/Amos.py): only the table was checked."));
+		return true;
+	}
+	FTestWorldWrapper TestLevel;
+	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	AAmosWhitlock* Amos = PlaceAmos(TestLevel.GetTestWorld(), FVector(-3731.0, 5448.0, 40.0), 171.0);
+	if (!TestNotNull(TEXT("Amos placed"), Amos) || !TestTrue(TEXT("...with his model"), Amos->HasModel()))
+	{
+		return false;
+	}
+	Amos->DispatchBeginPlay();
+	const USkeletalMesh* Model = Cast<USkeletalMesh>(Amos->Figure->GetSkinnedAsset());
+	const FReferenceSkeleton& Skeleton = Model->GetRefSkeleton();
+	for (const EAmosPose Seat : { EAmosPose::Lean, EAmosPose::Sit })
+	{
+		if (Seat == EAmosPose::Sit)
+		{
+			Amos->SitNow(/*bAtOnce*/ true);
+		}
+		TestTrue(*FString::Printf(TEXT("Posed in the %s"), AmosPoses::Name(Seat)), Amos->GetSeat() == Seat && !Amos->IsSettling());
+		const FAmosPoseHeads Solved = AmosPoses::SolveHeads(Seat);
+		double WorstHead = 0.0;
+		double WorstTurn = 0.0;
+		FString WorstHeadBone;
+		FString WorstTurnBone;
+		int32 Missing = 0;
+		for (int32 Bone = 0; Bone < AmosPoses::NumBones(); ++Bone)
+		{
+			const FName Name = AmosPoses::BoneName(Bone);
+			const int32 Index = Skeleton.FindBoneIndex(Name);
+			if (Index == INDEX_NONE)
+			{
+				++Missing;
+				continue;
+			}
+			const FTransform Posed = Amos->Figure->GetBoneTransformByName(Name, EBoneSpaces::ComponentSpace);
+			const FQuat Whole = Posed.GetRotation() * FAnimationRuntime::GetComponentSpaceTransformRefPose(Skeleton, Index).GetRotation().Inverse();
+			const double HeadOff = FVector::Dist(Posed.GetLocation(), Solved.Heads[Bone]);
+			const double TurnOff = FMath::RadiansToDegrees(Whole.GetNormalized().AngularDistance(Solved.Turns[Bone]));
+			if (HeadOff > WorstHead)
+			{
+				WorstHead = HeadOff;
+				WorstHeadBone = Name.ToString();
+			}
+			if (TurnOff > WorstTurn)
+			{
+				WorstTurn = TurnOff;
+				WorstTurnBone = Name.ToString();
+			}
+		}
+		TestEqual(*FString::Printf(TEXT("%s: his skeleton has every table bone"), AmosPoses::Name(Seat)), Missing, 0);
+		TestTrue(*FString::Printf(TEXT("%s: every bone's head where the table puts it (worst %.2f cm, %s)"), AmosPoses::Name(Seat), WorstHead,
+			*WorstHeadBone), WorstHead < 2.0);
+		TestTrue(*FString::Printf(TEXT("%s: every bone's whole turn as the table has it (worst %.2f degrees, %s)"), AmosPoses::Name(Seat), WorstTurn,
+			*WorstTurnBone), WorstTurn < 2.0);
+	}
 	return true;
 }
 
