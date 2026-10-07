@@ -796,6 +796,8 @@ class AreaBuild:
         if mode == 'gameplay':
             self.open_level('Gameplay')
             self.gameplay(mesh_index())
+            # The story's dressing (the Sink's blocks) wears the area's materials too.
+            self.swap_materials()
             levels.save_current_level()
             self.log('gameplay actors placed and saved')
             return
