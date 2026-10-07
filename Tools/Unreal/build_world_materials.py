@@ -15,8 +15,11 @@
                   Grass* and Rock* maps tile on UV 1 (meters) and only modulate the macro color's brightness. Faces
                   steeper than SteepStart degrees (fully past SteepFull) take the rock map laid on from the side as
                   their detail, with no detail normal: maps laid on from above smear down a cliff. The face keeps the
-                  macro map's color with the rock's light and dark on it (SteepDetail), and the rock's layers rise and
-                  fall a little along it, so a long bluff wears the area's colors and no ruled stripes.
+                  macro map's color with the rock's light and dark on it (SteepDetail), darkened by SteepTint, and the
+                  rock's layers rise and fall a little along it, so a long bluff wears the area's colors and no ruled
+                  stripes. Its relief comes from the rock's normal map laid on from the same sides, at
+                  SteepNormalStrength (0: none, as on the island; SteepNormalGreen flips its green if the cracks read
+                  inverted).
   M_SkyClouds     unlit, translucent: painted clouds on a sky dome (Coverage, Softness, Scale, wind), each lit from
                   the sun's side (the sky atmosphere's sun): a warm LitColor where it thins toward the sun, a cool
                   ShadeColor where it thickens, darker cores against the sun and thin edges glowing near it.
@@ -359,8 +362,21 @@ float3 Side = RockX * Facing.x + RockY * Facing.y;
 // takes the detail maps': the rock map's own pale cream at full strength stood out of the area's palette, and its
 // layers, every four meters, ruled stripes down a long bluff.
 float SideLuma = dot(Side, float3(0.299, 0.587, 0.114));
-Color = lerp(Color, Macro * lerp(1.0, SideLuma / max(RockMean, 0.05), SteepDetail), Steep);
+// SteepTint (white unless an area sets it) darkens and weathers the faces under the dusty slopes.
+Color = lerp(Color, Macro * SteepTint * lerp(1.0, SideLuma / max(RockMean, 0.05), SteepDetail), Steep);
 return Color * lerp(1.0, Occlusion, DiffuseAO);"""
+# The rock's relief on a steep face, from the same two side-laid projections as its color (the rock normal map sampled
+# with the X- and the Y-side UVs): each sample turned into the world (its red along the projection's U axis, its green up
+# the face by Green's sign, its blue out of the face), blended by the same side weights. The caller turns it back into
+# the tangent frame.
+SIDE_NORMAL_CODE = """float3 N = normalize(Normal);
+float2 Facing = pow(abs(N.xy), 4.0);
+Facing /= max(Facing.x + Facing.y, 1e-4);
+float SX = N.x >= 0.0 ? 1.0 : -1.0;
+float SY = N.y >= 0.0 ? 1.0 : -1.0;
+float3 FromX = float3(NX.z * SX, NX.x, NX.y * Green);
+float3 FromY = float3(NY.x, NY.z * SY, NY.y * Green);
+return normalize(FromX * Facing.x + FromY * Facing.y);"""
 # The rock map laid on from one side (A: world X or Y, across the face) in world meters times Scale, its layers lifted
 # and dropped a little along the face (two long, low waves, and a slight lean), so they never run dead level for long.
 SIDE_UV_CODE = """float W = sin(A * 0.0011 + 1.3) * 0.14 + sin(A * 0.0037 + P.z * 0.0007) * 0.05 + A * 0.00002;
@@ -406,6 +422,7 @@ def build_terrain():
         ('DiffuseAO', g.scalar('DiffuseAO', 0.45, -1000, 1200), ''),
         ('RockX', rock_x, 'RGB'), ('RockY', rock_y, 'RGB'), ('Normal', vertex_normal, ''), ('Steep', steep, ''),
         ('SteepDetail', g.scalar('SteepDetail', 0.75, -1000, 1300), ''),
+        ('SteepTint', g.vector('SteepTint', (1.0, 1.0, 1.0, 1.0), -1000, 1400), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -600, 0, 'TerrainColor')
     g.out(color, '', unreal.MaterialProperty.MP_BASE_COLOR)
     normal = g.node(unreal.MaterialExpressionLinearInterpolate, -900, 400)
@@ -421,7 +438,24 @@ def build_terrain():
         ('Strength', g.scalar('NormalStrength', 0.8, -900, 700), ''), ('Steep', steep, ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -900, 800, 'Normal strength')
     g.link(strength, '', flatten, 'Alpha')
-    g.out(flatten, '', unreal.MaterialProperty.MP_NORMAL)
+    # The steep faces' own relief, at SteepNormalStrength (0 unless an area sets it, so the island's faces stay flat).
+    rock_nx = g.texture('RockNormalMap', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, FLAT_NORMAL, side_uvs[0], -1400, 1900)
+    rock_ny = g.texture('RockNormalMap', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, FLAT_NORMAL, side_uvs[1], -1400, 2150)
+    side_world = g.custom(SIDE_NORMAL_CODE, [
+        ('NX', rock_nx, 'RGB'), ('NY', rock_ny, 'RGB'), ('Normal', vertex_normal, ''),
+        ('Green', g.scalar('SteepNormalGreen', 1.0, -1000, 2300), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -1000, 2000, 'Side-laid rock normal (world)')
+    side_tangent = g.node(unreal.MaterialExpressionTransform, -700, 2000,
+                          transform_source_type=unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_WORLD,
+                          transform_type=unreal.MaterialVectorCoordTransform.TRANSFORM_TANGENT)
+    g.link(side_world, '', side_tangent, '')
+    relief = g.node(unreal.MaterialExpressionLinearInterpolate, -400, 600)
+    g.link(flatten, '', relief, 'A')
+    g.link(side_tangent, '', relief, 'B')
+    g.link(g.custom('return Steep * Strength;', [
+        ('Steep', steep, ''), ('Strength', g.scalar('SteepNormalStrength', 0.0, -700, 2200), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -700, 2300, 'Steep relief'), '', relief, 'Alpha')
+    g.out(relief, '', unreal.MaterialProperty.MP_NORMAL)
     rough = g.node(unreal.MaterialExpressionLinearInterpolate, -600, 700, const_a=0.92, const_b=0.82)
     g.link(g.custom('return max(Select, Steep);', [('Select', macro, 'A'), ('Steep', steep, '')],
                     unreal.CustomMaterialOutputType.CMOT_FLOAT1, -900, 950, 'Rock amount'), '', rough, 'Alpha')
