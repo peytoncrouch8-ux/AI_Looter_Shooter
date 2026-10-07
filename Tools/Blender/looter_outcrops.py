@@ -621,7 +621,10 @@ def clean(obj, min_edge=0.015, thin=0.006):
         slivers = [f for f in bm.faces if _thin(f, thin)]
         if not slivers:
             break
-        edges = {max(f.edges, key=lambda e: e.calc_length()) for f in slivers}
+        # Sorted by index: a set of edges iterates in memory order, which changes every run, and the operators'
+        # results depend on the order they're given.
+        bm.edges.index_update()
+        edges = sorted({max(f.edges, key=lambda e: e.calc_length()) for f in slivers}, key=lambda e: e.index)
         bmesh.ops.rotate_edges(bm, edges=[e for e in edges if len(e.link_faces) == 2], use_ccw=False)
         bmesh.ops.dissolve_degenerate(bm, dist=1e-4, edges=bm.edges[:])
         bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3])
@@ -629,7 +632,8 @@ def clean(obj, min_edge=0.015, thin=0.006):
         slivers = [f for f in bm.faces if f.is_valid and _thin(f, thin)]
         if not slivers:
             break
-        edges = list({min(f.edges, key=lambda e: e.calc_length()) for f in slivers})
+        bm.edges.index_update()
+        edges = sorted({min(f.edges, key=lambda e: e.calc_length()) for f in slivers}, key=lambda e: e.index)
         bmesh.ops.collapse(bm, edges=[e for e in edges if e.is_valid], uvs=False)
         bmesh.ops.dissolve_degenerate(bm, dist=1e-4, edges=bm.edges[:])
         bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3])
