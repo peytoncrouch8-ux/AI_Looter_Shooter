@@ -467,6 +467,14 @@ DEN_LOBES = ((0.0, -1.2, 0.3, 4.25, 2.6, 4.6),
              (0.2, 6.1, 0.3, 4.1, 2.2, 3.5),
              (0.0, 7.0, 0.2, 4.4, 2.3, 3.3))
 DEN_BOX = (np.array([-8.0, -5.0, -13.0]), np.array([8.0, 11.6, -4.0]))    # everything the den changes lies in here
+# Where Den Rock keeps its first build (DenBlend): the den, its mouth with the rim round it, the joint above the arch
+# that the mouth's outline (den_mouth) runs into, and the threshold with its stones; beyond these the reworked outside
+# (den_exterior) takes over across DEN_BLEND metres.
+DEN_KEEP = ((np.array([-4.55, 0.3, -13.0]), np.array([4.55, 11.6, -5.3])),       # the den behind its face
+            (np.array([-4.55, -2.2, -13.0]), np.array([4.55, 0.3, -6.3])),       # the mouth and its broken rim
+            (np.array([-1.75, -2.2, -13.0]), np.array([-0.65, 0.3, -5.3])),      # the joint the mouth's outline enters
+            (np.array([-4.95, -3.5, -13.0]), np.array([4.95, 0.0, -11.0])))      # the threshold and its stones
+DEN_BLEND = 1.0
 
 
 def polar(theta, r):
@@ -566,6 +574,54 @@ class DenRockSolid(lo.Rock):
         return d
 
 
+class DenBlend:
+    """Den Rock's solid: its first build (den, a DenRockSolid) inside DEN_KEEP, the reworked outside (den_exterior)
+    beyond it, the two fields blended across DEN_BLEND metres. Inside DEN_KEEP the field is the first build's exactly,
+    so the den, its mouth (den_mouth's outline) and the face round it stay as they are. Everything but the field and
+    the bounds (the cave, the warp, the rubble) is the first build's."""
+
+    def __init__(self, den, outside):
+        object.__setattr__(self, 'den', den)
+        object.__setattr__(self, 'outside', outside)
+
+    def __getattr__(self, name):
+        return getattr(self.den, name)
+
+    def __setattr__(self, name, value):
+        if name == 'with_rubble':
+            self.den.with_rubble = value        # the den's checks switch its rubble off and on
+        else:
+            object.__setattr__(self, name, value)
+
+    def weight(self, P):
+        """0 inside DEN_KEEP, rising to 1 at DEN_BLEND from it."""
+        far = None
+        for lo_, hi_ in DEN_KEEP:
+            d = np.linalg.norm(np.maximum(np.maximum(lo_ - P, P - hi_), 0.0), axis=1)
+            far = d if far is None else np.minimum(far, d)
+        return lo.smoothstep(0.0, DEN_BLEND, far)
+
+    def field(self, P):
+        P = np.asarray(P, np.float64)
+        w = self.weight(P)
+        d = np.zeros(len(P))
+        first, second = w < 1.0, w > 0.0
+        if first.any():
+            d[first] = self.den.field(P[first])
+        if second.any():
+            e = self.outside.field(P[second])
+            mix = w[second]
+            d[second] = np.where(first[second], (1.0 - mix) * d[second] + mix * e, e)
+        return d
+
+    def bounds(self, margin=0.6):
+        lo_a, hi_a = self.den.bounds(margin)
+        lo_b, hi_b = self.outside.bounds(margin)
+        if np.all(lo_b >= lo_a) and np.all(hi_b <= hi_a):
+            return lo_a, hi_a                   # the first build's grid, so the den's surface samples as before
+        return np.minimum(lo_a, lo_b), np.maximum(hi_a, hi_b)
+
+
 def den_rock():
     """Den Rock: a dome of the beds on the Sink's east rim. Its west face is the Sink's wall, a 19 m face from the
     floor (z = -12) up past the rim into the dome, curved on the Sink's circle; at its foot, under a brow of the middle
@@ -575,8 +631,10 @@ def den_rock():
     back, widening to a pocket 8.4 m across and 3.8 m high where she rests (SOCKET_Den) that rounds off 9.3 m in.
     Its floor is flat, walkable trodden dirt (DenFloor), clear 6 m wide down the middle, with rubble along the walls
     and on the threshold's corners. Inside it the rock is RockCliffDen: no moss, a little darker, growing dim toward
-    the back. The pivot is at rim level on the lip above the mouth; the mouth faces -Y (the Sink's centre is 18 m out
-    that way). Writes the mouth's outline for the Sink's web funnel (den_mouth)."""
+    the back. Round the den and its mouth the rock is one weathered mass (den_exterior, blended in by DenBlend): beds
+    with their own setbacks, fused, joints only short shallow cracks within a bed. The pivot is at rim level on the lip
+    above the mouth; the mouth faces -Y (the Sink's centre is 18 m out that way). Writes the mouth's outline for the
+    Sink's web funnel (den_mouth)."""
     rnd = random.Random(4808)
     rock = DenRockSolid(seed=4808, sink=12.8, lumps=(0.26, 4.2), detail=(0.08, 1.4), grain=(0.025, 0.5),
                         warp=(0.5, 7.5), fold=0.3)
@@ -636,7 +694,7 @@ def den_rock():
         rock.crack((x, y, z), normal, width=rnd.uniform(0.14, 0.24), depth=rnd.uniform(0.4, 0.7),
                    radius=rnd.uniform(3.0, 5.5))
     # Behind the den, the rock that closes it: below the terrain, seen only from inside.
-    rock.add(lo.Block(lo.rect(6.4, 3.9), -12.8, -4.0, center=(0.0, 6.9), r_side=0.3, r_top=0.4, blend=0.3))
+    closing = rock.add(lo.Block(lo.rect(6.4, 3.9), -12.8, -4.0, center=(0.0, 6.9), r_side=0.3, r_top=0.4, blend=0.3))
     # The threshold: the den's floor running out and down under the Sink's floor.
     threshold = rock.add(lo.Block(lo.rect(4.6, 1.9), -12.8, DEN_FLOOR[0], center=(0.0, -1.3), r_side=0.4, r_top=0.12,
                                   blend=0.2, facets=[((0.0, -0.1, 1.0), 0.33)]))
@@ -680,20 +738,140 @@ def den_rock():
     # The den, carved last: the face's cracks and chips above were placed by tracing the face without it.
     open_den(rock)
     extra += den_rubble(rock, random.Random(4828))
+    # Beyond the den and the face round its mouth, the outside rebuilt as one weathered mass: its first build's columns
+    # stood apart as boxes, split by slots running the full height.
+    solid = DenBlend(rock, den_exterior(fallen + [threshold, closing, rock.fill], (edges[0], edges[-1])))
 
-    obj = lo.mesh_rock('DenRock', rock, cell=0.1, source=18000)
+    obj = lo.mesh_rock('DenRock', solid, cell=0.1, source=18000)
     lo.finish(obj, fallback=28, uv_seed=18, ao_distance=2.4)
-    inside = den_faces(obj, rock)
+    inside = den_faces(obj, solid)
     lt.assign(obj, den_material(), inside)
-    floor = den_floor_faces(obj, rock, inside)
+    floor = den_floor_faces(obj, solid, inside)
     lt.assign(obj, den_floor_material(), floor)
     lt.box_uv(obj, 'GroundDirt', faces=floor, seed=18)
-    lo.darken(obj, lambda P: den_shade(rock, P))
-    den_hulls(obj, rock, extra, fallen + [threshold])
+    lo.darken(obj, lambda P: den_shade(solid, P))
+    den_hulls(obj, solid, extra, fallen + [threshold])
     lo.lm.socket(obj, 'Den', (0.0, DEN_BACK - 1.0, den_floor(DEN_BACK - 1.0)))
     lo.lm.socket(obj, 'DenMouth', (0.0, 0.0, DEN_FLOOR[0]))
-    den_mouth(rock, os.path.join(lt.REPO, 'Intermediate', 'DenRock', 'den_mouth.json'))
+    den_mouth(solid, os.path.join(lt.REPO, 'Intermediate', 'DenRock', 'den_mouth.json'))
     return obj
+
+
+def den_exterior(keep, span):
+    """Den Rock's outside rebuilt as one weathered mass, for DenBlend beyond DEN_KEEP: the face, beds and dome of
+    den_rock's first build, but each bed split at its own irregular joints, so no joint runs from one bed into the next;
+    the pieces fused instead of standing apart, their edges worn round, their setbacks varying piece by piece and bed
+    by bed. Joints show only as short, shallow cracks that die out within their bed, and a few edges of the dome are
+    worn away. keep: blocks of the first build it keeps as they are (the fallen blocks, the threshold, the rock behind
+    the den); span: the angles the first build's face ran between."""
+    rnd = random.Random(4848)
+    rock = lo.Rock(seed=4808, sink=12.8, lumps=(0.26, 4.2), detail=(0.08, 1.4), grain=(0.025, 0.5),
+                   warp=(0.5, 7.5), fold=0.3)
+    rock.calm_box((-3.7, -3.7, -12.6), (3.7, DEN_BACK + 0.6, -11.4), 0.12)     # den_rock's, so the warp is the same
+    for block in keep:
+        rock.add(block)
+
+    def pieces(width):
+        """Spans of angle along the face for one bed: irregular, its own for every bed, within span; and each piece's
+        standing out, wandering from piece to piece (no great steps between neighbours)."""
+        edges = [span[0]]
+        while edges[-1] < span[1]:
+            edges.append(min(edges[-1] + rnd.uniform(*width) / SINK_R, span[1]))
+        if len(edges) > 2 and edges[-1] - edges[-2] < 1.5 / SINK_R:
+            del edges[-2]                       # no sliver at the end
+        outs, out = [], rnd.uniform(-0.3, 0.3)
+        for _ in edges[1:]:
+            out = min(max(out + rnd.uniform(-0.22, 0.22), -0.35), 0.35)
+            outs.append(out)
+        return [(t0, t1, o) for t0, t1, o in zip(edges, edges[1:], outs)]
+
+    def face_r(mid, z, out):
+        """As den_rock's: standing out by out, leaning back 1.5 degrees, curving back at the ends."""
+        end = max(0.0, abs(mid) - 0.42) / 0.2
+        return SINK_R - out + 0.026 * (z + 12.0) + 2.6 * min(end, 1.0) ** 1.5
+
+    def add(poly, z0, z1, r_side, r_top, r_bottom):
+        if len(poly) < 3 or abs(lo.area2d(poly)) < 0.25:
+            return
+        cx, cy = centroid(poly)
+        rock.add(lo.Block([(x - cx, y - cy) for x, y in poly], z0, z1, center=(cx, cy),
+                          tilt=(rnd.uniform(-1.5, 1.5), rnd.uniform(-1.5, 1.5)), r_side=r_side, r_top=r_top,
+                          r_bottom=r_bottom, blend=0.45, facets=facets(rnd, rnd.choice((0, 1, 1, 2)), z1 - z0)))
+
+    lap = 0.12 / SINK_R                         # neighbours overlap: fused, not parted by a slot
+    # The wall below the rim, its three beds each with its own setback (the top one standing out a little, as before;
+    # over the den the middle one is a brow).
+    wall = [(-12.8, -7.6, 0.0), (-7.6, -4.9, -0.15), (-4.9, -0.35, 0.25)]
+    cuts = []
+    for k, (z0, z1, setback) in enumerate(wall):
+        spans = pieces((3.0, 5.5))
+        for t0, t1, wander in spans:
+            mid = (t0 + t1) * 0.5
+            out = setback + wander + (0.8 if k == 1 and abs(mid) < 0.33 else 0.0)
+            add(sector(t0 - lap, t1 + lap, face_r(mid, z0, out), SINK_R + 4.5), z0 - (0.0 if k == 0 else 0.35),
+                z1 + rnd.uniform(0.0, 0.2), r_side=0.4, r_top=0.35, r_bottom=0.5 if k else 0.05)
+        # Its short joints: a few of its pieces' meetings, cracked within the bed only.
+        for t, _, _ in rnd.sample(spans[1:], min(3, len(spans) - 1)):
+            h = z1 - z0
+            cuts.append((t, rnd.uniform(z0 + 0.3 * h, z1 - 0.3 * h), h * rnd.uniform(0.28, 0.4)))
+    # The dome above the rim: den_rock's beds and rings of loaves, each bed with its own pieces and ring joints.
+    rings = [23.5, 28.2, 33.5]
+    dome = [(0.0, 2.0, 10.4, 14.5, -4.0), (2.0, 3.9, 9.0, 12.6, -4.0), (3.9, 5.6, 7.0, 9.9, 0.4),
+            (5.6, 7.1, 4.6, 6.8, 2.1)]
+    for k, (z0, z1, half, east, west) in enumerate(dome):
+        outline = ellipse(0.0, (east + west) * 0.5, half, (east - west) * 0.5)
+        last = k == len(dome) - 1
+        split = [r + rnd.uniform(-0.8, 0.8) for r in rings[:-1]] + rings[-1:]
+        for t0, t1, out in pieces((3.5, 6.5)):
+            mid = (t0 + t1) * 0.5
+            step = rnd.uniform(-0.7, 0.25) if last else 0.0
+            radii = [face_r(mid, z0, out) - 0.25] + split
+            for j, (r0, r1) in enumerate(zip(radii, radii[1:])):
+                poly = clip_to(sector(t0 - lap, t1 + lap, r0, r1 + 0.1), outline)
+                if not poly or min_width(poly) < 1.0:
+                    continue                    # a sliver clipped off by the outline would stand like a plate
+                add(poly, -1.3 if (k == 0 and j > 0) else z0 - 0.3, z1 + step + rnd.uniform(0.0, 0.2), r_side=0.5,
+                    r_top=0.95 if last else 0.6 if k else 0.4, r_bottom=0.15)
+
+    for z, depth, width, fade in ((-10.3, 0.3, 0.16, 0.1), (-8.6, 0.2, 0.14, -0.2), (-6.0, 0.26, 0.15, 0.0),
+                                  (-3.3, 0.34, 0.16, 0.2), (-1.4, 0.22, 0.14, -0.1), (1.0, 0.24, 0.15, 0.0),
+                                  (3.0, 0.22, 0.14, -0.1), (4.7, 0.2, 0.14, -0.15)):
+        rock.parting(z, depth=depth, width=width, fade=fade)
+    # The face's joints: short, shallow V cracks (lips worn by the weathering) where the face stands at that angle.
+    rs = np.arange(SINK_R - 3.0, SINK_R + 4.0, 0.04)
+    for t, z, reach in cuts:
+        P = np.stack([np.sin(t) * rs, -SINK_R + np.cos(t) * rs, np.full_like(rs, z)], axis=1)
+        solid = np.nonzero(rock.field(P) < 0.0)[0]
+        if not len(solid):
+            continue
+        r = float(rs[solid[0]])
+        lean = math.radians(rnd.uniform(-8.0, 8.0))
+        rock.crack((math.sin(t) * r, -SINK_R + math.cos(t) * r, z),
+                   (math.cos(t) * math.cos(lean), -math.sin(t) * math.cos(lean), math.sin(lean)),
+                   width=rnd.uniform(0.08, 0.12), depth=rnd.uniform(0.08, 0.15), radius=reach)
+    # The dome's: on its loaves' sides, and a few of its edges worn away (rounded, not chipped).
+    for k, (z0, z1, _, _, _) in enumerate(dome[:3]):
+        for _ in range(2):
+            angle = rnd.uniform(-20.0, 200.0)
+            z = rnd.uniform(z0 + 0.3, z1 - 0.3)
+            r = foot(rock, 0.0, 6.0, angle, z)
+            if r < 0.3:
+                continue
+            a, lean = math.radians(angle), math.radians(rnd.uniform(-8.0, 8.0))
+            rock.crack((r * math.cos(a), 6.0 + r * math.sin(a), z),
+                       (-math.sin(a) * math.cos(lean), math.cos(a) * math.cos(lean), math.sin(lean)),
+                       width=rnd.uniform(0.08, 0.12), depth=rnd.uniform(0.08, 0.15), radius=rnd.uniform(0.6, 0.9))
+    for angle, z, size in ((250.0, 6.8, 1.5), (300.0, 5.4, 1.3), (20.0, 5.2, 1.2), (160.0, 5.3, 1.4),
+                           (215.0, 3.7, 1.3), (95.0, 3.6, 1.2)):
+        r = foot(rock, 0.0, 6.0, angle, z)
+        if r < 0.3:
+            continue
+        a = math.radians(angle)
+        rock.cut(lo.Block(lo.rect(size * 0.55, size * 0.45), z - size * 0.5, z + size * 0.5,
+                          center=(r * math.cos(a), 6.0 + r * math.sin(a)), yaw=angle + rnd.uniform(-30.0, 30.0),
+                          tilt=(rnd.uniform(-25.0, 25.0), rnd.uniform(-25.0, 25.0)), r_side=size * 0.35,
+                          r_top=size * 0.35, r_bottom=size * 0.3, blend=0.25))
+    return rock
 
 
 def talus_at(rock, rnd, at, size, base=0.0):
