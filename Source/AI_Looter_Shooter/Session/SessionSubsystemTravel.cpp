@@ -13,7 +13,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Misc/PackageName.h"
 
-bool USessionSubsystem::TravelToArea(const UAreaDefinition& Area, FName Landing)
+bool USessionSubsystem::TravelToArea(const UAreaDefinition& Area, FName Landing, bool bByTrain)
 {
 	const FString Destination = Area.GetMapPackage();
 	if (!Area.HasMap())
@@ -22,10 +22,10 @@ bool USessionSubsystem::TravelToArea(const UAreaDefinition& Area, FName Landing)
 		UE_LOG(LogLooter, Warning, TEXT("Travel: %s's level (%s) isn't in the game yet, so nobody goes."), *Area.DisplayName.ToString(), *MissingLevel);
 		return false;
 	}
-	return TravelToMap(Destination, Landing.IsNone() ? Area.GetDefaultLanding() : Landing);
+	return TravelToMap(Destination, Landing.IsNone() ? Area.GetDefaultLanding() : Landing, bByTrain);
 }
 
-bool USessionSubsystem::TravelToMap(const FString& MapPackage, FName Landing)
+bool USessionSubsystem::TravelToMap(const FString& MapPackage, FName Landing, bool bByTrain)
 {
 	UWorld* World = PlayWorld.Get();
 	if (SaveGate.IsTravelling())
@@ -68,9 +68,11 @@ bool USessionSubsystem::TravelToMap(const FString& MapPackage, FName Landing)
 	SaveGate.BeginTrip(Destination);
 	StopTimers();
 	bSaveWanted = false;
+	// How it arrives is the trip's, not the save's: a session loaded later never arrives by train.
+	bArrivalByTrain = bByTrain;
 	const FString Arrival = Landing.IsNone() ? FString(TEXT("the level's start")) : Landing.ToString();
-	UE_LOG(LogLooter, Log, TEXT("Travel: from %s to %s, arriving at %s%s"), *FPackageName::GetShortName(Leaving), *Destination, *Arrival,
-		IsPlayingSession() ? TEXT("") : TEXT(" (no session: nothing saved)"));
+	UE_LOG(LogLooter, Log, TEXT("Travel: from %s to %s, arriving at %s%s%s"), *FPackageName::GetShortName(Leaving), *Destination, *Arrival,
+		bByTrain ? TEXT(" by train") : TEXT(""), IsPlayingSession() ? TEXT("") : TEXT(" (no session: nothing saved)"));
 	const FString Options = IsPlayingSession() ? FString::Printf(TEXT("Session=%d"), ActiveIndex + 1) : FString();
 	UGameplayStatics::OpenLevel(World, FName(*Destination), /*bAbsolute*/ true, Options);
 	return true;

@@ -70,6 +70,18 @@ everything here but Delia's is a first draft for the user):
   DA_Lines_HobMain6          Hob talked to during Main 6 (a draft)
   DA_Lines_AbelOnBoard       Abel on his board after Main 6 (drafts; each ember paid later adds its own set)
   DA_Lines_AbelAfterMain7    Abel on his board once the lantern has led Ellis on (after Main 7; drafts)
+
+Main 7, "The Lantern Leans" (the doc gives Delia's words and Hob's line at the lean; everything else is a first draft):
+  DA_Lines_DeliaMain7        Delia through the door at Main 7's first step, as she hands Heirloom out: "A keeper's buried
+                             with his lantern, not his iron." through "Hold the door." (the doc's words, word for word)
+  DA_Lines_DeliaMain7After   Delia once she has (a draft)
+  DA_Lines_HobMain7Lean      Hob on the keeper's post as Main 7 begins: "That's Purcell. The Lily's moored out that way."
+                             (the doc's line) and the way home (a draft)
+  DA_Lines_HobMain7Depot     Hob on Tilly's hearse car's roof once Delia has handed it over (a draft)
+  DA_Lines_HobMain7Board     Hob there at the depot: the station board (a draft)
+  DA_Lines_HobMain7          Hob talked to during Main 7 (a draft)
+  DA_Lines_TillyMain7        Tilly at her window during Main 7: her father's car at the platform (a draft)
+  DA_Lines_TillyAfterMain7   Tilly after Main 7 (a draft)
 """
 import unreal
 
@@ -261,6 +273,41 @@ SETS = {
     'DA_Lines_AbelAfterMain7': [
         ('', "She still leans north-east. I'd know that lean anywhere."),
         ('', "Go on, El. I'll keep the boards."),
+    ],
+
+    # --- Main 7 ---
+    'DA_Lines_DeliaMain7': [
+        ('', "A keeper's buried with his lantern, not his iron."),
+        ('', "His lantern wasn't on him, so I kept this back."),
+        ('', "He'd want you to have it."),
+        ('', "Hold the door."),
+    ],
+    'DA_Lines_DeliaMain7After': [
+        ('', "Go on, now. Tilly's got her father's car waiting at the depot."),
+        ('', "I'll keep setting a plate."),
+    ],
+    'DA_Lines_HobMain7Lean': [
+        (HOB, "That's Purcell. The Lily's moored out that way."),
+        (HOB, "Go home first, sunshine. Your grandmother's been keeping something back."),
+    ],
+    'DA_Lines_HobMain7Depot': [
+        (HOB, "Tilly's Pa's car. The living won't share a carriage with a corpse, so you ride with the coffins. First "
+              "class, sunshine."),
+    ],
+    'DA_Lines_HobMain7Board': [
+        (HOB, "Board's by the depot door. Let's see if the railroad agrees with the lantern."),
+    ],
+    'DA_Lines_HobMain7': [
+        ('', "North-east, over the ridges. Purcell's out there with a deck of cards and an ember that isn't his, "
+             "sunshine."),
+    ],
+    'DA_Lines_TillyMain7': [
+        ('', "Father's car is coupled up at the platform. The living won't share a carriage with you, so you'll ride "
+             "with the coffins."),
+        ('', "Mind the brass. I polished it for him, and he never once complained."),
+    ],
+    'DA_Lines_TillyAfterMain7': [
+        ('', "The car's yours whenever the line runs. Wipe your boots."),
     ],
 }
 

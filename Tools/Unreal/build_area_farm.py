@@ -7,8 +7,10 @@ out with a warning.
 
 - Grandma Delia's screen door (ASpeakerPoint tagged Speaker_Delia) on SOCKET_Speaker, the middle of the screen door's
   face: her Main 1 lines while it lasts, the porch after; after Main 5, until Main 6 is done, "Take him the lantern..."
-  (DA_Lines_DeliaMain6), whose event (Delia.Main6) starts Main 6. On a farmhouse without the socket (the tutorial island's
-  old model) it stands on that house's front door.
+  (DA_Lines_DeliaMain6), whose event (Delia.Main6) starts Main 6; in Main 7, as she hands Heirloom out through the door,
+  "A keeper's buried with his lantern..." (DA_Lines_DeliaMain7; the hand-off itself is build_area_depot.py's), then a word
+  after (DA_Lines_DeliaMain7After). On a farmhouse without the socket (the tutorial island's old model) it stands on that
+  house's front door.
 - The screen door (SM_ScreenDoor) hung closed on SOCKET_ScreenDoor, the hinge line at its foot.
 - The plate Delia sets out (SM_PorchPlate) on the porch stool's SOCKET_Plate.
 Her hall lamp and lamplit windows (AHouseLights on SOCKET_Light) are build_area.py's, as every lived-in house's are.
@@ -22,6 +24,7 @@ DELIA_TAG = 'Speaker_Delia'
 MAIN5 = 'Main5'
 MAIN6 = 'Main6'
 MAIN6_EVENT = 'Delia.Main6'
+MAIN7 = 'Main7'
 SCREEN_DOOR = '/Game/Art/Buildings/SM_ScreenDoor'
 PORCH_PLATE = '/Game/Art/Buildings/SM_PorchPlate'
 # The old farmhouse's front door, in its model's frame (Farmhouse.py: the door in the middle of the front wall, which
@@ -69,6 +72,9 @@ def place_delia(build, house):
         take_him = story.topic(story.condition(after=[MAIN5], before=[MAIN6]), lantern)
         take_him.set_editor_property('event', unreal.Name(MAIN6_EVENT))
         said.append(take_him)
+    # Main 7: Heirloom handed out through the door (its first step, from 0: 0), then a word once she has.
+    said += story.topics(build, (story.condition(during=MAIN7, from_step=1), 'DA_Lines_DeliaMain7After'),
+                         (story.condition(during=MAIN7), 'DA_Lines_DeliaMain7'))
     story.speaker(build, cls, (at.x, at.y, at.z), yaw, DELIA_TAG, DELIA_TAG, name='Grandma Delia', reach=reach,
                   line_set=story.lines(build, 'DA_Lines_DeliaPorch'), topics=said)
     build.log(f'Grandma Delia\'s screen door at ({at.x:.0f}, {at.y:.0f}, {at.z:.0f})')

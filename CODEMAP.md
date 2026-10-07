@@ -255,7 +255,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   display.
 - `Missions/MissionActorWatch`: `UMissionActorWatch`, one actor's deaths and hits passed to the runner.
 - `Missions/MissionRewards`: `MissionRewards`, the experience share, the reward gun with its rarity floor, the named
-  gun (`DropNamedGun`), rewards in words.
+  gun (`DropNamedGun`; one given by hand in the story, `bNamedGunByHand`, is never dropped), rewards in words.
 - `Missions/MissionText`: `MissionText::ResolveKeys`, `{Action}` as the player's bound key.
 
 ## Story
@@ -293,6 +293,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Story/AbelOnBoard`: `AAbelOnBoard`, Pa on his board after Main 6: SK_Abel posed once in the sit (a poseable mesh)
   with his props and his coal sunk to an ember; a story character (topics from `create_story_lines.py`) who turns his
   head and moves his jaw while he talks.
+- `Story/DoorHandoff`: `ADoorHandoff`, a named gun handed out once through a door opened a crack (Delia's screen door,
+  Main 7: Heirloom, the mission's by-hand reward): spawned unseen at the farmhouse's SOCKET_Handoff as her step ends,
+  the door swings open, the gun is held out as loot, and the door shuts once it's taken; ticks only while the door
+  moves.
 
 ## Scenes
 - `Scenes/SceneTimeline`: `FSceneTimeline`, a scene as a timeline with nothing in Sequencer: moves over spans of it,
@@ -337,6 +341,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   slanted pips that light as the player claws, floating outlined text with no panel.
 - `Scenes/SitWithPa`: `SitWithPa`, the scene after Abel's fight: he speaks, rises, lights the Keeper's Lantern on the
   keeper's post and sits on his board facing the sunset; Hob speaks, and the player is handed back facing him.
+- `Scenes/TrainShots`: `TrainShots`, the train's departure (it pulls out, then black) and arrival (out of black it backs
+  in, then the player's view) as scenes from its platform camera; its course is plain math.
 - `Scenes/SceneCloudBank`: `ASceneCloudBank`, soft cloud for a scene to sail into (or out of, tinted for the evening):
   the game's smoke puff on a dozen camera-facing quads in one draw, thinning near the camera
   (`Looter.Scene.CloudBrightness`).
@@ -373,7 +379,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   stands, health, guns, loot on the ground, the gun racks, the wanted posters torn down, the tutorial's step) and
   putting it back.
 - `Session/SessionSubsystemTravel.cpp`: travel between maps (`TravelToArea`, `TravelToMap`): the world left kept under
-  its map, the trip's save, the destination opened with the session, and arriving at the trip's landing.
+  its map, the trip's save, the destination opened with the session, and arriving at the trip's landing (by train
+  when the trip is one).
 - `Session/SessionSubsystemSkip.cpp`: "Skip the tutorial": a new game counting as the first cast-off, a Common Bullpup
   in hand, opening on the story's first arrival behind the white.
 - `Session/SessionSubsystemWords.cpp`: the session picker's words: play time, when saved, and places by area name or
@@ -394,7 +401,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Areas/AreaDefinition`: `UAreaDefinition`, one area as a data asset in `/Game/Data/Areas` (`DA_Area_<Id>`, made by
   `Tools/Unreal/create_area_assets.py`): its name, level (which may not be built yet), landings, practice flag
   (a practice area gives no kill experience, and only ammo once the player has left it), opening mission, level band
-  and promotion chances; finding areas by name or level.
+  and promotion chances, a spoken name ("the Lily"); finding areas by name or level.
 - `Areas/AreaLandings`: `AreaLandings`, where trips arrive: an actor or player start tagged `Landing_<Place>`, or a
   component of an actor so tagged (the jetty's, the station's), found in a level; a level's own start is never one.
 - `Areas/AreaRulesSubsystem`: `UAreaRulesSubsystem`, the area being played's rules for its creatures: each one's level
@@ -402,12 +409,12 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   player arrives (at most once per 20 minutes of play per map); the practice rules (`GivesKillExperience`, `DropsGuns`).
 - `Areas/StationBoard`: `StationBoard`, `FStationBoardLine` and `FStationBoardWords`: a station board's lines as the
   story stands (every opened area, the blank line naming the mission that opens the next, "Skyreach (practice)" after
-  the first cast-off; before it only the first cast-off to the story's first arrival), each board's words, and
-  recording the first cast-off.
+  the first cast-off; before it only the first cast-off to the story's first arrival), each board's words (its "isn't
+  open yet" with the spoken name), recording the first cast-off, and `ReadEvent` (StationBoard.Read).
 - `Areas/AreaTravelSubsystem`: `UAreaTravelSubsystem`, trips from the boards: the first cast-off's trip behind the white
   (`CompleteFirstCastOff`, `LeaveForFirstArrival`), plain fades to a station (`FadeTo`), and arriving (the cold open while
   it's due, which takes the held white; else the white revealed, REVENANT on the first arrival; a fade in after a plain
-  trip).
+  trip). A story area from a station whose train is in goes by train: its departure shot, arriving by its arrival shot.
 
 ## World
 - `World/MinimapSubsystem`: `UMinimapSubsystem`, bakes the top-down map picture at runtime at about a meter per texel,
@@ -475,6 +482,14 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `World/InstancedScenery`: `AInstancedScenery`, scenery far past a level's playable boundary drawn as one mesh's
   instances (Ransom's Rest's far trees, one actor per tree mesh, set by `build_area.py`): no collision, navigation
   or shadows, never distance-culled.
+- `World/Train`: `ATrain`, the train at a station's platform put together from Train.py's parts (Locomotive B, the
+  passenger car and Tilly's hearse car coupled at their couplers; wheel sets on their axles, picked by height; the
+  coupling rods on the drivers' cranks; the hearse car's door on its hinge; steam on the stack): cold and shut until
+  Main 7 (`WarmWhen`: steam up, lamps lit, the door open), sliding along its track with every wheel rolling in its two
+  shots (`SetTravel`); never ticks. `TrainRunningGear.cpp` is its wheels and rods.
+- `World/LanternFlame`: `ALanternFlame` and `LanternLean`, the lit Keeper's Lantern's flame leaning toward the next
+  saint's light (north-east, the Lily): crossed glow cards on the lantern's SOCKET_Light with a world-fixed turn, lit
+  with the keeper's post's lantern (`OnKeepersLanternLit`) or after Main 6; never ticks.
 - `World/PCGGroundFitFilter`: `UPCGGroundFitFilterSettings`, the meadow's PCG node that drops ground cover patches
   hanging off an edge and presses ones floating over a bump into the ground (editor-time; the graph ships with the level).
 - `World/LightingState`: `FLightingState`, one way a level can be lit (Day, Dusk): the sun by bearing and elevation with
@@ -506,7 +521,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   named gun's flavor line.
 - `UI/HUD/LooterHUD`: `ALooterHUD`, owns the HUD, the captions, the inventory's pages (loadout, bestiary, missions), the
   station board and the pause menu (the settings menu with Save & Quit), and their hotkeys; a scene that holds the
-  player puts the gameplay HUD away.
+  player puts the gameplay HUD away. Opening the station board tells the missions it's read.
 - `UI/HUD/PlayerHUDWidget`: the gameplay HUD (health, ammo, crosshair, hit marker, loot card, interaction prompt,
   messages), run frame by frame; `PlayerHUDWidgetLayout.cpp` builds it; `PlayerHUDWidgetPickupCard.cpp` fills the loot
   comparison card and the interaction prompt.
@@ -615,6 +630,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `.Zones [1|0]` (safe zones, spawners' ground, spots and approach rings), `.Test` (a test spawner where the player looks).
 - `Dev/StationDevCommands.cpp`: `Looter.Station.Board`, `.CastOff`, `.Gangplank up|down`, `.SkipTutorial [stay]`,
   `.Lines`.
+- `Dev/TrainDevCommands.cpp`: `Looter.Train.Depart`, `.Arrive`, `.Warm [1|0]`, `.Move <metres>`, `.Info`;
+  `Looter.Story.Handoff [force]`, `Looter.Story.Lean [lit|out]`.
 - `Dev/PosterDevCommands.cpp`: `Looter.Poster.Spawn [note]` (a wanted poster, or Calder's note, on the wall the
   player looks at), `Looter.Poster.TearAll [count]` (tears posters as a held Interact would; missions told).
 - `Dev/SceneDevCommands.cpp`: `Looter.Scene.Skip`, `Looter.Scene.Ride` (the ride on the nearest skiff, then everything
@@ -625,7 +642,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LightingTests.cpp`, `LocomotionTests.cpp`, `LootTests.cpp`, `LootRankTests.cpp`,
   `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `PlayableAreaTests.cpp`, `PosterTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `HallowedGroundTests.cpp` (Main 4: its steps, Main 3 first, the yard's two waves by count and rank, the bell held, the Reliquary's flash ending its step, Aldana's words and the chapel yard's grave; the Unpaid on boot hill and the north road after it; the placed pieces), `ChapelTests.cpp` (the bell's hold, swing and tolls; Grave Sight's flash and the Reliquary's look timing out; Aldana's topics) with `HallowedGroundTestWorld.h`, `EggSacTests.cpp` (the egg sac's fall, burst and spiders, shootable only in its step; the lantern dark, taken in its step, gone after), `KeepersLanternTests.cpp` (with `KeepersLanternTestWorld.h`; Main 5: its steps, Main 4 first, the floor's spiders, Side 3 after it, the placed pieces), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `GravemotherTests.cpp` (her body, charge, brood, pack calls by tag,
-  loot), `GravemotherSideTests.cpp` (her return after 20 minutes of play, her lair, Side 3), `RansomsRestLevelTests.cpp` (every respawn grave, player start, encounter spot and tour view inside the playable boundary), `AbelTests.cpp`, `AbelFightTests.cpp` (with `AbelTestWorld.h`: Abel's pose table, rules, body, phases, lanterns, reset, fog wall, the Gravewind and a fall, the kneel and the scene), `GravewindTests.cpp` (with `GravewindTestWorld.h`: Main 6 end to end, Pa on his board, the dusk scenery, the level as built), `WeaponTests.cpp`, `NamedWeaponTests.cpp` (named guns: the
+  loot), `GravemotherSideTests.cpp` (her return after 20 minutes of play, her lair, Side 3), `RansomsRestLevelTests.cpp` (every respawn grave, player start, encounter spot and tour view inside the playable boundary), `AbelTests.cpp`, `AbelFightTests.cpp` (with `AbelTestWorld.h`: Abel's pose table, rules, body, phases, lanterns, reset, fog wall, the Gravewind and a fall, the kneel and the scene), `GravewindTests.cpp` (with `GravewindTestWorld.h`: Main 6 end to end, Pa on his board, the dusk scenery, the level as built), `TrainTests.cpp` (the train's assembly and rolling wheels, cold until Main 7, its two shots, which trips go by train), `LanternLeansTests.cpp` (with `LanternLeansTestWorld.h`: Main 7's steps after Main 6, Delia's hand-off once, the board read opening the Lily, Ned's page, the flame's lean), `LanternLeansPlacedTests.cpp` (the Lily's area and the board's "isn't open yet"; Main 7's placed pieces), `WeaponTests.cpp`, `NamedWeaponTests.cpp` (named guns: the
   fixed-quality rules, Heirloom's asset and label, its save, the mission reward),
   `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
@@ -737,8 +754,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   screen door (with the farmhouse's screen door and plate, `build_area_farm.py`); Sexton on the lookout's rail, Ransom's
   Point's place and its spider nest (Main 2); the town gate's place and its Unpaid, Tilly's window, the store's
   shutters, the farm's and Main Street's safe zones (Main 3); Main 4's pieces from `build_area_chapel.py`; Main 5's
-  from `build_area_sink.py`; the Gravemother's lair from `build_area_den.py`; Main 6's from `build_area_deck.py`; and Hob
-  with his perches through Main 6
+  from `build_area_sink.py`; the Gravemother's lair from `build_area_den.py`; Main 6's from `build_area_deck.py`; Main
+  7's from `build_area_depot.py`; and Hob with his perches through Main 7
   (on the town gate's SOCKET_Perch for Main 3).
 - `Tools/Unreal/build_area_sink.py`: Main 5's pieces for `build_area_story.py`: the Sink's floor (blocks and coffins), its
   web cards (shadows off), the three egg sacs on their lines and sling, the lantern in its snare, the floor's and ramp
@@ -757,6 +774,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   wisps and canyon fog, and Hob's Main 6 perches.
 - `Tools/abel_poses.py`: writes `Bosses/AbelPoseData.inl` from Abel.py's exported poses; run it again after they
   change.
+- `Tools/Unreal/build_area_depot.py`: Main 7's pieces for `build_area_story.py`: the train in place of `build_area.py`'s
+  plain bodies and steam, the depot's place at the hearse car's door, Delia's hand-off, the lantern's leaning flame,
+  and Hob's Main 7 spots.
 - `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`); its mask is imported
   again whenever the PNG changes (its MD5 kept on the texture as metadata).
   `Tools/Unreal/island_views.py`: an area's viewpoints as editor cameras and shots.

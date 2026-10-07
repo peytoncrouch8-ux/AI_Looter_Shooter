@@ -254,8 +254,10 @@ void USessionSubsystem::BeginPlayWorld(UWorld* World, const FString& Options)
 		UE_LOG(LogLooter, Log, TEXT("Playing without a session: nothing is saved."));
 	}
 
-	// After a trip the player arrives at its landing, unless the session has a spot for them on this level.
+	// After a trip the player arrives at its landing, unless the session has a spot for them on this level; by train only
+	// from a train's trip.
 	ArrivalLanding = Current ? Current->GetArrivalOn(MapOf(World)) : NAME_None;
+	bArrivalByTrain = bArrivalByTrain && bFromTrip && !ArrivalLanding.IsNone();
 	SetPlayerProgress(Current ? Current->Progress : FPlayerProgressData());
 }
 
@@ -276,6 +278,7 @@ void USessionSubsystem::RestorePlayWorld(UWorld* World)
 		PlaceAtLanding(World, ArrivalLanding);
 		ArrivalLanding = NAME_None;
 	}
+	bArrivalByTrain = false;
 	bWorldRestored = true;
 }
 
@@ -285,6 +288,7 @@ void USessionSubsystem::BeginMenuWorld(UWorld* World)
 	SaveGate.Reset();
 	bSaveWanted = false;
 	ArrivalLanding = NAME_None;
+	bArrivalByTrain = false;
 	ActiveIndex = INDEX_NONE;
 	Current = nullptr;
 	PlayWorld = nullptr;

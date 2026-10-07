@@ -328,12 +328,13 @@ void UMissionRunner::GrantRewards(const UMissionDefinition& Mission)
 		}
 	}
 
-	// A gun at the player's feet, at their level, and a named gun (Heirloom) the same way.
+	// A gun at the player's feet, at their level, and a named gun the same way, unless the story hands that one over itself
+	// (Heirloom through Delia's door).
 	if (Rewards.bGun)
 	{
 		MissionRewards::DropGun(Context.World, Rewards, PlayerLevel, Context.Player);
 	}
-	if (!Rewards.NamedGun.IsNone())
+	if (!Rewards.NamedGun.IsNone() && !Rewards.bNamedGunByHand)
 	{
 		MissionRewards::DropNamedGun(Context.World, Rewards, PlayerLevel, Context.Player);
 	}

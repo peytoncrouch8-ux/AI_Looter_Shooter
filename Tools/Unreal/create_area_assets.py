@@ -6,7 +6,10 @@ leaves every other field as it is.
 
   asset            DA_Area_<Id>; sessions and Looter.Travel name the area by its id.
   name             what people see: the session picker, the station boards.
-  map              the area's level; it may not exist yet (Ransom's Rest's until its level is built).
+  spoken           what a sentence calls it, when shorter than its name ("the Lily": "The line to the Lily isn't open
+                   yet."); '' for its name.
+  map              the area's level; it may not exist yet (Ransom's Rest's until its level is built; the Gilded Lily's,
+                   which Main 7 opens: the depot's board lists it, and nobody goes until its level is in the game).
   landings         where trips arrive: an actor or player start in the level tagged with the name. The first is the
                    default. Names start with Landing_.
   practice         outside the story (Skyreach): no experience, and ammo-only drops after the first cast-off.
@@ -26,6 +29,9 @@ AREAS = [
          practice=True, opening_mission='', sort_order=0, band=(1, 1), promotions=dict(rare=0.0, epic=0.0)),
     dict(asset='DA_Area_RansomsRest', name="Ransom's Rest", map='/Game/Maps/Lvl_RansomsRest', landings=['Landing_Depot'],
          practice=False, opening_mission='Main1', sort_order=10, band=(1, 10), promotions=dict(rare=0.08, epic=0.02)),
+    dict(asset='DA_Area_GildedLily', name='The Gilded Lily', spoken='the Lily', map='/Game/Maps/Lvl_GildedLily',
+         landings=['Landing_Platform'], practice=False, opening_mission='', sort_order=20, band=(9, 15),
+         promotions=dict(rare=0.08, epic=0.02)),
 ]
 
 # The level band and promotion chances, by their Python names, as the C++ declares them.
@@ -82,6 +88,7 @@ def setup(spec, cls):
         raise RuntimeError(f"{spec['asset']}: the band {spec['band']} must be 1 or more, lowest first")
     asset, created = load_or_create(spec['asset'], cls)
     asset.set_editor_property('display_name', unreal.Text(spec['name']))
+    asset.set_editor_property('spoken_name', unreal.Text(spec.get('spoken', '')))
     asset.set_editor_property('map', soft_world_path(spec['map']))
     asset.set_editor_property('landings', [unreal.Name(tag) for tag in spec['landings']])
     asset.set_editor_property('practice', spec['practice'])

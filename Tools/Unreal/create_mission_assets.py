@@ -64,6 +64,13 @@ missions (fields, steps and rewards) from what's written here; other mission ass
                        and sitting with Pa (the scene SitWithPa). 30% of a level. Its id must stay "Main6" and its steps in
                        this order: Abel's story counts them (AAbelKeeper::HangStep, FightStep, SceneStep), and his board,
                        the lantern lit and the dusk follow it (Tools/Unreal/build_area_deck.py).
+  DA_Mission_Main7     "The Lantern Leans" (Main 7), starting by itself once Main 6 is done: home to Delia (talking at
+                       her door, Speaker_Delia: she hands Heirloom out through it, ADoorHandoff), the depot (within 8 m of
+                       the hearse car's door on the platform, the marker tagged Place_Depot) and the station board read
+                       (StationBoard.Read, which the board sends as it opens; the arrow on the station). 30% of a level,
+                       the Gilded Lily opened (GildedLily, create_area_assets.py), and Heirloom, given by Delia's hand
+                       rather than dropped (named_gun_by_hand). Its id must stay "Main7" and Delia's step the first: the
+                       hand-off, Ned's Ledger page and the train's steam follow it (Tools/Unreal/build_area_depot.py).
 
 Objectives are instanced objects inside the asset, one class per kind (UMissionReachObjective, UMissionKillObjective, ...),
 made with unreal.new_object(<class>, asset) and listed in each step's 'objectives'. Classes for actor filters are loaded
@@ -138,14 +145,17 @@ def step(*objectives):
     return made
 
 
-def rewards(experience_share=0.0, unlock_areas=(), gun=False, gun_rarity_floor='COMMON'):
-    """FMissionRewards: a share of a level's experience, areas opened, and a gun at the player's feet (at least as rare as
-    the floor)."""
+def rewards(experience_share=0.0, unlock_areas=(), gun=False, gun_rarity_floor='COMMON', named_gun='',
+            named_gun_by_hand=False):
+    """FMissionRewards: a share of a level's experience, areas opened, a gun at the player's feet (at least as rare as
+    the floor), and a named gun by id, dropped, or handed over in the story (by hand: listed, never dropped)."""
     made = unreal.MissionRewards()
     made.set_editor_property('experience_share', experience_share)
     made.set_editor_property('unlock_areas', [unreal.Name(area) for area in unlock_areas])
     made.set_editor_property('gun', gun)
     made.set_editor_property('gun_rarity_floor', getattr(unreal.WeaponRarity, gun_rarity_floor))
+    made.set_editor_property('named_gun', unreal.Name(named_gun))
+    made.set_editor_property('named_gun_by_hand', named_gun_by_hand)
     return made
 
 
@@ -309,6 +319,24 @@ def main6_steps(asset):
     ]
 
 
+def main7_steps(asset):
+    """Main 7, "The Lantern Leans": home to Delia, the depot, the station board. The tags and the event are the ones
+    build_area_farm.py, build_area_depot.py and the C++ give them (StationBoard::ReadEvent); Delia's step must stay the
+    first (ADoorHandoff's Step 0), as Heirloom comes out as it ends."""
+    waypoint = unreal.MissionWaypoint
+    return [
+        step(objective(asset, unreal.MissionTalkObjective, 'Go home to Delia.', speaker_tag=unreal.Name('Speaker_Delia'))),
+        # Tilly's hearse car waits at the platform: the place is its door, on the boards.
+        step(objective(asset, unreal.MissionReachObjective,
+                       "Go to the depot at the east end of town, by the undertaker's yard.",
+                       place=place(tag='Place_Depot', radius=800.0))),
+        # The board says it's read as it opens (whatever opened it); the arrow on the station.
+        step(objective(asset, unreal.MissionEventObjective, 'Read the station board.',
+                       waypoint=waypoint.ACTOR, waypoint_class='TrainStation', show_count=False,
+                       event=unreal.Name('StationBoard.Read'), count=1)),
+    ]
+
+
 def test_steps(asset):
     return [
         step(objective(asset, unreal.MissionKillObjective, 'Kill two creatures',
@@ -369,6 +397,12 @@ MISSIONS = [
                  "if he can't go. Reward: experience, and what Abel leaves when he kneels.",
          kind='MAIN', start='ON_EVENT', start_event='Delia.Main6', area='RansomsRest', prerequisites=['Main5'], sort_order=6,
          steps=main6_steps, rewards=dict(experience_share=0.3)),
+    dict(asset='DA_Mission_Main7', id='Main7', title='The Lantern Leans',
+         summary="Pa lit the Keeper's Lantern, and its flame leans north-east, over the ridges, toward Lucky Ned Purcell. "
+                 "Go home to Delia first; then Tilly's hearse car waits at the depot. Reward: experience, Heirloom, and the "
+                 "line to the Gilded Lily.",
+         kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main6'], sort_order=7, steps=main7_steps,
+         rewards=dict(experience_share=0.3, unlock_areas=['GildedLily'], named_gun='Heirloom', named_gun_by_hand=True)),
 ]
 
 

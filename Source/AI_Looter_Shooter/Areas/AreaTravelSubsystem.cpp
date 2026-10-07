@@ -1,16 +1,21 @@
 #include "Areas/AreaTravelSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Areas/AreaDefinition.h"
+#include "Areas/AreaLandings.h"
 #include "Areas/StationBoard.h"
 #include "Core/LooterMenuGameMode.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRunner.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "Scenes/ColdOpenSubsystem.h"
+#include "Scenes/SceneSubsystem.h"
+#include "Scenes/TrainShots.h"
 #include "Scenes/TransitionScreenSubsystem.h"
 #include "Session/CampaignRecord.h"
 #include "Session/SessionSubsystem.h"
 #include "World/SkiffJetty.h"
+#include "World/Train.h"
+#include "World/TrainStation.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
@@ -50,6 +55,7 @@ void UAreaTravelSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	// Read now: as the level's start puts the player on the trip's landing, the session forgets which it was.
 	const USessionSubsystem* Sessions = USessionSubsystem::Get(&InWorld);
 	ArrivalLanding = Sessions && !ALooterMenuGameMode::IsMenuWorld(&InWorld) ? Sessions->GetArrivalLanding() : NAME_None;
+	bArrivedByTrain = !ArrivalLanding.IsNone() && Sessions->IsArrivingByTrain();
 	InWorld.OnWorldBeginPlay.AddUObject(this, &UAreaTravelSubsystem::HandleLevelBegun);
 }
 
@@ -97,7 +103,75 @@ bool UAreaTravelSubsystem::Depart(const FStationBoardLine& Line, AActor* From)
 		}
 		return (Jetty && Jetty->CastOff()) || LeaveForFirstArrival();
 	}
+	// By train from a station whose train is in: its departure, then the trip. Without one (or with scenes off), a fade.
+	if (ATrain* Train = FindTrainFor(Line, From))
+	{
+		if (DepartByTrain(*Train, *Area, Line.Landing))
+		{
+			return true;
+		}
+	}
 	return FadeTo(*Area, Line.Landing);
+}
+
+ATrain* UAreaTravelSubsystem::FindTrainFor(const FStationBoardLine& Line, const AActor* From)
+{
+	if (Line.Kind != EStationLine::Area || Line.bFirstCastOff || !Line.IsDestination() || !Cast<ATrainStation>(From))
+	{
+		return nullptr;
+	}
+	return ATrain::FindNear(From);
+}
+
+bool UAreaTravelSubsystem::DepartByTrain(ATrain& Train, UAreaDefinition& Area, FName Landing)
+{
+	UWorld* World = GetWorld();
+	USessionSubsystem* Sessions = USessionSubsystem::Get(World);
+	USceneSubsystem* Scenes = World ? World->GetSubsystem<USceneSubsystem>() : nullptr;
+	if (!Scenes || !Sessions || bDeparting || Sessions->IsTravelling() || Scenes->IsPlaying() || !Area.HasMap())
+	{
+		return false;
+	}
+	bDeparting = true;
+	FadeArea = &Area;
+	FadeLanding = Landing;
+	// The scene holds the player, and the autosaves with them, until the level goes (or gives them back if it doesn't).
+	const TWeakObjectPtr<UAreaTravelSubsystem> WeakThis(this);
+	TFunction<void()> AtBlack = [WeakThis]()
+	{
+		if (UAreaTravelSubsystem* Travel = WeakThis.Get())
+		{
+			Travel->FinishTrainDeparture();
+		}
+	};
+	if (!Scenes->Play(TrainShots::MakeDeparture(*Scenes, Train, MoveTemp(AtBlack), /*bTripFollows*/ true)))
+	{
+		bDeparting = false;
+		FadeArea = nullptr;
+		return false;
+	}
+	UE_LOG(LogLooter, Log, TEXT("Trip: by train for %s (arriving at %s)"), *Area.DisplayName.ToString(),
+		Landing.IsNone() ? TEXT("its station") : *Landing.ToString());
+	return true;
+}
+
+void UAreaTravelSubsystem::FinishTrainDeparture()
+{
+	UWorld* World = GetWorld();
+	USessionSubsystem* Sessions = USessionSubsystem::Get(World);
+	UAreaDefinition* Area = FadeArea.Get();
+	FadeArea = nullptr;
+	if (Area && Sessions && Sessions->TravelToArea(*Area, FadeLanding, /*bByTrain*/ true))
+	{
+		// The destination opens behind the black, and the train backs in there.
+		return;
+	}
+	// Nobody goes: the train comes back to the platform and the player out of it, where they stood, as the black lifts.
+	bDeparting = false;
+	if (USceneSubsystem* Scenes = World ? World->GetSubsystem<USceneSubsystem>() : nullptr)
+	{
+		Scenes->ReturnFromScene();
+	}
 }
 
 bool UAreaTravelSubsystem::FadeTo(UAreaDefinition& Area, FName Landing)
@@ -257,6 +331,11 @@ void UAreaTravelSubsystem::HandleLevelBegun()
 		White->Reveal(Title);
 		return;
 	}
+	// A train's trip comes in as it went: the train backing in to the platform, out of the black.
+	if (bArrivedByTrain && PlayTrainArrival())
+	{
+		return;
+	}
 	// A plain trip went out through black: it comes back the same way.
 	if (!ArrivalLanding.IsNone())
 	{
@@ -266,6 +345,27 @@ void UAreaTravelSubsystem::HandleLevelBegun()
 			Controller->PlayerCameraManager->StartCameraFade(1.f, 0.f, FadeInSeconds, FLinearColor::Black, true, false);
 		}
 	}
+}
+
+bool UAreaTravelSubsystem::PlayTrainArrival()
+{
+	UWorld* World = GetWorld();
+	USceneSubsystem* Scenes = World ? World->GetSubsystem<USceneSubsystem>() : nullptr;
+	const AActor* Landing = AreaLandings::Find(World, ArrivalLanding);
+	ATrain* Train = Landing ? ATrain::FindNear(Landing) : nullptr;
+	if (!Scenes || !Train)
+	{
+		return false;
+	}
+	// The player is on the landing already (the session put them there); the shot keeps them there, unseen until it stops.
+	const FTransform Spot = AreaLandings::GetSpot(Landing, ArrivalLanding);
+	const FTransform Feet(FRotator(0.0, Spot.Rotator().Yaw, 0.0), Spot.GetLocation());
+	const bool bPlays = Scenes->Play(TrainShots::MakeArrival(*Scenes, *Train, Feet));
+	if (bPlays)
+	{
+		UE_LOG(LogLooter, Log, TEXT("Arrival: by train at %s"), *ArrivalLanding.ToString());
+	}
+	return bPlays;
 }
 
 FText UAreaTravelSubsystem::ArrivalTitle(FName Landing)

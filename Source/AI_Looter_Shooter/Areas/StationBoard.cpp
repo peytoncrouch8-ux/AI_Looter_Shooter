@@ -27,6 +27,7 @@ namespace
 		Line.Area = &Area;
 		Line.AreaId = Area.GetAreaId();
 		Line.Name = Name;
+		Line.SpokenName = Kind == EStationLine::Practice ? Name : StationBoard::SpokenName(Area);
 		Line.Landing = Landing;
 		Line.bHere = !HereAreaId.IsNone() && Line.AreaId == HereAreaId;
 		Line.bLevelBuilt = Area.HasMap();
@@ -160,6 +161,21 @@ namespace StationBoard
 	{
 		const FText Title = Mission.Title.IsEmpty() ? FText::FromName(Mission.GetMissionId()) : Mission.Title;
 		return FText::Format(LOCTEXT("NextMission", "Finish ‘{0}’"), Title);
+	}
+
+	FText SpokenName(const UAreaDefinition& Area)
+	{
+		return Area.SpokenName.IsEmpty() ? AreaName(Area) : Area.SpokenName;
+	}
+
+	FText NotOpenText(const FStationBoardWords& Words, const FStationBoardLine& Line)
+	{
+		return FText::Format(Words.NotOpen, Line.SpokenName.IsEmpty() ? Line.Name : Line.SpokenName);
+	}
+
+	FName ReadEvent()
+	{
+		return FName(TEXT("StationBoard.Read"));
 	}
 }
 

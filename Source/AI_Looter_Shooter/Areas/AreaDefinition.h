@@ -32,6 +32,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area")
 	FText DisplayName;
 
+	/**
+	 * What words in a sentence call it, where that's shorter than DisplayName ("the Lily", for "The Gilded Lily"): the
+	 * station board's "The line to the Lily isn't open yet." Empty: DisplayName.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area")
+	FText SpokenName;
+
 	/** The area's level. A path rather than a reference, so it can name a level that isn't built yet. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area", meta = (AllowedClasses = "/Script/Engine.World"))
 	FSoftObjectPath Map;

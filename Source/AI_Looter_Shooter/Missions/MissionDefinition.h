@@ -75,6 +75,13 @@ struct AI_LOOTER_SHOOTER_API FMissionRewards
 	UPROPERTY(EditAnywhere, Category = "Rewards")
 	FName NamedGun;
 
+	/**
+	 * The named gun is handed over in the story rather than dropped as the mission ends (Main 7: Delia hands Heirloom out
+	 * through her door, ADoorHandoff): it's listed among the rewards, and the hand-off gives it, once.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Rewards")
+	bool bNamedGunByHand = false;
+
 	/** Areas opened to travel (the station boards list them), by area id (UAreaDefinition::GetAreaId). */
 	UPROPERTY(EditAnywhere, Category = "Rewards")
 	TArray<FName> UnlockAreas;

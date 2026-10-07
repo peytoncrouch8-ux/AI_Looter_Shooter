@@ -9,6 +9,8 @@
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/World/StationBoardWidget.h"
 #include "Areas/StationBoard.h"
+#include "Missions/MissionObjective.h"
+#include "Missions/MissionRunner.h"
 #include "Scenes/SceneSubsystem.h"
 #include "Session/SessionSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
@@ -306,6 +308,12 @@ bool ALooterHUD::OpenStationBoard(AActor* From, const FStationBoardWords& Words)
 		}
 	}
 
+	// The missions hear it read before its lines are: a mission it finishes (Main 7) opens what it opens, and the board
+	// shows it.
+	if (UMissionRunner* Runner = UMissionRunner::Get(this))
+	{
+		Runner->NotifyEvent(FMissionEvent::Named(StationBoard::ReadEvent(), From));
+	}
 	StationBoardWidget->Open(this, From, Words);
 	if (!bStationBoardOpen)
 	{

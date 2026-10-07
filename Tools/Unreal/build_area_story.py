@@ -44,6 +44,8 @@ Main 5 (build_area_sink.py, with these helpers): the Sink's floor dressed (colla
 Main 6 (build_area_deck.py, with these helpers): the burial deck's biers and keeper's lantern posts, Abel on the boards
   (during Main 6), Pa's board after it, the fog wall across the Keeper's Gate, Gravewind Point's place, the keeper's grave's
   respawn (after Main 5), the story's dusk, and the Gravewind's wisps and canyon fog (seen only at dusk).
+Main 7 (build_area_depot.py, with these helpers): the train at the depot's platform (cold until Main 7), the depot's
+  place at the hearse car's door, Delia's hand-off of Heirloom through her screen door, and the lit lantern's leaning flame.
 Side 3 (build_area_den.py): the Gravemother's lair at the den's mouth under Den Rock (after Main 5) and the den's place.
 Hob (AHobBird, tagged Speaker_Hob), perched near the next thing to do, saying his piece as he lands:
   Main 1: on Ellis's headboard (silent from the claw-out, "Morning, sunshine" once Ellis is out), and after it.
@@ -60,6 +62,9 @@ Hob (AHobBird, tagged Speaker_Hob), perched near the next thing to do, saying hi
   Main 6: on the keeper's grave's board for the way to Gravewind Point, on the Keeper's Gate's north rock for the lantern
           and the fight (a word at each, no flight between them), on the bier beside Pa's for the scene, and there after
           Main 6.
+  Main 7: on the keeper's post by the leaning lantern as it begins ("That's Purcell. The Lily's moored out that way."),
+          on Tilly's hearse car's roof once Delia has handed Heirloom out, and the station board (a word at each), and
+          there after Main 7.
   Talked to, a line for where things stand.
 Their words are line sets in /Game/Data/Story (Tools/Unreal/create_story_lines.py makes them first); a set that's
 missing is left out with a warning, and its speaker says nothing until the sets are made and this runs again.
@@ -79,6 +84,7 @@ MAIN3 = 'Main3'
 MAIN4 = 'Main4'
 MAIN5 = 'Main5'
 MAIN6 = 'Main6'
+MAIN7 = 'Main7'
 FAMILY_PLOT = 'FamilyPlot'
 PLACE_POINT = 'Place_RansomsPoint'
 PLACE_GATE = 'Place_TownGate'
@@ -461,6 +467,8 @@ def place_tilly(build, shop):
             name='Tilly Bright', reach=TALK_REACH, line_set=lines(build, 'DA_Lines_TillyClosed'),
             topics=topics(build,
                           (condition(during=MAIN3, from_step=3), 'DA_Lines_TillyMain3'),
+                          (condition(during=MAIN7), 'DA_Lines_TillyMain7'),
+                          (condition(after=[MAIN7]), 'DA_Lines_TillyAfterMain7'),
                           (condition(after=[MAIN3]), 'DA_Lines_TillyAfterMain3')))
     build.log(f'Tilly\'s window at ({at.x:.0f}, {at.y:.0f}, {at.z:.0f})')
 
@@ -584,7 +592,7 @@ def hob_on_sign(shop):
     return at.x, at.y, z, shop.get_actor_rotation().yaw
 
 
-def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_spots, deck_spots):
+def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_spots, deck_spots, depot_spots):
     cls = actor_class('HobBird')
     board = hob_on_board(grave_ellis)
     if cls is None or board is None:
@@ -606,6 +614,9 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
         'keeperGrave': deck_spots.get('keeperGrave'),
         'gateRock': deck_spots.get('gateRock'),
         'deckBier': deck_spots.get('deckBier'),
+        # Main 7's: the keeper's post's top, Tilly's hearse car's roof (build_area_depot.place).
+        'keeperPost': depot_spots.get('post'),
+        'hearse': depot_spots.get('hearse'),
     }
 
     def perch(spot, when, arrival=None):
@@ -658,7 +669,12 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
         perch(spots['gateRock'], condition(during=MAIN6, from_step=2), 'DA_Lines_HobMain6Fight'),
         perch(spots['gateRock'], condition(during=MAIN6, from_step=1), 'DA_Lines_HobMain6Post'),
         perch(spots['keeperGrave'], condition(during=MAIN6), 'DA_Lines_HobMain6Way'),
+        # Main 7: on the hearse car's roof for the depot and the board (a word at each); on the keeper's post by the lantern.
+        perch(spots['hearse'], condition(during=MAIN7, from_step=2), 'DA_Lines_HobMain7Board'),
+        perch(spots['hearse'], condition(during=MAIN7, from_step=1), 'DA_Lines_HobMain7Depot'),
+        perch(spots['keeperPost'], condition(during=MAIN7), 'DA_Lines_HobMain7Lean'),
         # After each, where the last left him.
+        perch(spots['hearse'], condition(after=[MAIN7])),
         perch(spots['deckBier'], condition(after=[MAIN6])),
         perch(spots['roadTree'], condition(after=[MAIN5])),
         perch(spots['lantern'], condition(after=[MAIN4])),
@@ -669,6 +685,7 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
     hob.set_editor_property('perches', [each for each in perches if each is not None])
     hob.get_editor_property('speaker_point').set_editor_property('topics', topics(
         build,
+        (condition(during=MAIN7), 'DA_Lines_HobMain7'),
         (condition(during=MAIN6), 'DA_Lines_HobMain6'),
         (condition(during=MAIN5), 'DA_Lines_HobMain5'),
         (condition(during=MAIN4), 'DA_Lines_HobMain4'),
@@ -712,4 +729,6 @@ def place(build):
     importlib.reload(importlib.import_module('build_area_den')).place(build)
     # Main 6, on the burial deck (its own module, reloaded as the chapel's is); it hands back Hob's Main 6 perches.
     deck_spots = importlib.reload(importlib.import_module('build_area_deck')).place(build)
-    place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_spots, deck_spots)
+    # Main 7: the train, the depot's place, Delia's hand-off, the lantern's flame (after the deck: its lantern must stand).
+    depot_spots = importlib.reload(importlib.import_module('build_area_depot')).place(build)
+    place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_spots, deck_spots, depot_spots)

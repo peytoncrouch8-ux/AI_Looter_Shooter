@@ -30,6 +30,9 @@ struct AI_LOOTER_SHOOTER_API FStationBoardLine
 	/** What the line says: "Ransom's Rest", "Skyreach (practice)", "Finish ‘The Lantern Leans’". */
 	FText Name;
 
+	/** What a sentence calls its place ("the Lily"): the area's spoken name, else Name. */
+	FText SpokenName;
+
 	/** Where a trip on it arrives: the area's station (its first landing), or the story's first arrival. */
 	FName Landing;
 
@@ -115,4 +118,16 @@ namespace StationBoard
 
 	/** "Finish ‘The Lantern Leans’". */
 	AI_LOOTER_SHOOTER_API FText NextMissionText(const UMissionDefinition& Mission);
+
+	/** What a sentence calls an area: its spoken name ("the Lily"), else its board name. */
+	AI_LOOTER_SHOOTER_API FText SpokenName(const UAreaDefinition& Area);
+
+	/** What the board says when Line's level isn't in the game yet: "The line to the Lily isn't open yet." */
+	AI_LOOTER_SHOOTER_API FText NotOpenText(const FStationBoardWords& Words, const FStationBoardLine& Line);
+
+	/**
+	 * The mission event a station board sends as it opens ("StationBoard.Read", about the station or jetty it hangs at):
+	 * Main 7's "Read the station board" waits for it.
+	 */
+	AI_LOOTER_SHOOTER_API FName ReadEvent();
 }

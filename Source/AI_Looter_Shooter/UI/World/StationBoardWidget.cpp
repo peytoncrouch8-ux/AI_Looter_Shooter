@@ -219,7 +219,7 @@ void UStationBoardWidget::BuildPanel()
 		}
 		else
 		{
-			SetStatus(FText::Format(Words.NotOpen, Lines[0].Name), Color::Worse());
+			SetStatus(StationBoard::NotOpenText(Words, Lines[0]), Color::Worse());
 		}
 	}
 }
@@ -364,8 +364,8 @@ void UStationBoardWidget::Choose(int32 Index)
 	const FStationBoardLine& Line = Lines[Index];
 	if (!Line.bLevelBuilt)
 	{
-		// Until the level is built nobody goes, and the board says so.
-		SetStatus(FText::Format(Words.NotOpen, Line.Name), Color::Worse());
+		// Until the level is built nobody goes, and the board says so ("The line to the Lily isn't open yet.").
+		SetStatus(StationBoard::NotOpenText(Words, Line), Color::Worse());
 		return;
 	}
 	OpenConfirm(Index, /*bAuto*/ false);

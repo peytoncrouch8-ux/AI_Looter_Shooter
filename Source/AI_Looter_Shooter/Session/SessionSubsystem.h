@@ -154,10 +154,11 @@ public:
 	// --- Travel (SessionSubsystemTravel.cpp) ---
 
 	/**
-	 * Travels to an area's level, arriving at Landing (None: the area's first landing). False, with the reason logged,
-	 * when nobody can go: its level isn't in the game yet, a trip is under way, or no level is being played.
+	 * Travels to an area's level, arriving at Landing (None: the area's first landing); bByTrain: the trip went by train,
+	 * so it arrives by train (UAreaTravelSubsystem plays the arrival). False, with the reason logged, when nobody can go:
+	 * its level isn't in the game yet, a trip is under way, or no level is being played.
 	 */
-	bool TravelToArea(const UAreaDefinition& Area, FName Landing = NAME_None);
+	bool TravelToArea(const UAreaDefinition& Area, FName Landing = NAME_None, bool bByTrain = false);
 
 	/**
 	 * Travels to a level (its package name). The world being left is kept under its own map; the session then points at
@@ -165,13 +166,16 @@ public:
 	 * with ?Session=N. Without a session nothing is written, but the player and the worlds come along in memory. False,
 	 * with the reason logged, when it can't go.
 	 */
-	bool TravelToMap(const FString& MapPackage, FName Landing = NAME_None);
+	bool TravelToMap(const FString& MapPackage, FName Landing = NAME_None, bool bByTrain = false);
 
 	/** A trip's save is written and its destination is opening. */
 	bool IsTravelling() const { return SaveGate.IsTravelling(); }
 
 	/** The landing the player arrives at in the level starting now (None: its start); the game mode spawns them there. */
 	FName GetArrivalLanding() const { return ArrivalLanding; }
+
+	/** The trip that brings the player into the level starting now went by train (until they've arrived). */
+	bool IsArrivingByTrain() const { return bArrivalByTrain; }
 
 	// --- Promotions (SessionSubsystemPromotions.cpp) ---
 
@@ -324,6 +328,9 @@ private:
 
 	/** Where the player arrives in the level starting now (a trip's landing), until they're there. */
 	FName ArrivalLanding;
+
+	/** The trip under way, or the one the level starting now came by, went by train (not kept in saves: loading isn't a trip). */
+	bool bArrivalByTrain = false;
 
 	FTSTicker::FDelegateHandle AutosaveTicker;
 	FTSTicker::FDelegateHandle PendingSave;
