@@ -13,8 +13,9 @@
     "grade": "golden"
   },
   "scatter": {
-    "about": "The scatter mask (Art/Levels/area_scatter.py): roadside pebbles keeps every road's surface clear of stones and lines the roads with pebbles only, so no rock or boulder stands in Main Street, the yards, on the rail bed or across a junction.",
-    "roadside": "pebbles"
+    "about": "The scatter mask (Art/Levels/area_scatter.py): roadside pebbles keeps every road's surface clear of stones and lines the roads with pebbles only, so no rock or boulder stands in Main Street, the yards, on the rail bed or across a junction; steep bare keeps every stone off ground too steep to walk up (the rock past the boundary, the cliffs' faces), where it would hang on the slope.",
+    "roadside": "pebbles",
+    "steep": "bare"
   },
   "region": {
     "about": "The regional height field around the core (Art/Levels/area_region.py), in cm: the valley floor's noise and tilt (meters of rise per meter north and east) and its benches (a polygon raised or lowered by height, easing out over blend), the ridges (each from its foot: height, crest = how far behind the foot the crest is, back = the outer slope's reach, band = the cliff band at the foot; a saddle lowers the crest near a pass), the escarpment (its lip, the drop to the canyon floor, how deep the cliff kit's stacked courses reach, the far wall; calm keeps the lip from wandering where a model is fitted to it), the surround ring and the backdrop. The core's outer seamBand fades into the field; no feature may enter it.",
@@ -1208,8 +1209,8 @@
       "yaw": 34.9,
       "note": "Ellis wakes in the family plot, facing the bell tower over the orchard"
     },
-    { "id": "graveEllis", "kind": "Grave_Ellis", "location": [-3520,-8750], "yaw": 90 },
-    { "id": "graveAbel", "kind": "Grave_Abel", "location": [-3520,-8480], "yaw": 90 },
+    { "id": "graveEllis", "kind": "Grave_Ellis", "location": [-3520,-8750], "yaw": 180 },
+    { "id": "graveAbel", "kind": "Grave_Abel", "location": [-3520,-8480], "yaw": 180 },
     { "id": "familyPlotOak", "kind": "DeadTree_A", "location": [-3900,-8950], "yaw": 40 },
     {
       "id": "farmhouse",
@@ -1482,32 +1483,49 @@
         "obstacles": true,
         "note": "from Ellis's grave (the spawn) to the chapel's bell tower"
       },
-      "clay_rock_north": {
-        "eye": [8000,-2600,600],
-        "target": [9000,-5600,250],
-        "lens": 24,
+      "rock_foot_east": {
+        "eye": [459, 12995, 170],
+        "target": [1242, 13161, 144],
+        "lens": 18,
+        "sun": [247.5, 15],
         "clay": true,
+        "cliffs": "solid",
+        "steep": 50,
         "obstacles": false,
-        "light": [210,30],
-        "note": "along the north edge under Larkspur Ridge, west of the quarry: the rock foot where the band stood back (boundary.foot); trees left out"
+        "note": "Saved/Screenshots/Review/RR_RockFoot_East: Stage Gap's north wall and the rock along the east edge, clay, the cliff pieces as solid blocks where the build stands them, bare ground over 50 degrees red (eye 1.7 m, level)"
       },
-      "clay_rock_east": {
-        "eye": [6800,7000,600],
-        "target": [8600,8600,250],
-        "lens": 24,
+      "rock_foot_northeast": {
+        "eye": [6274, 9534, 170],
+        "target": [6913, 10015, 155],
+        "lens": 18,
+        "sun": [247.5, 15],
         "clay": true,
+        "cliffs": "solid",
+        "steep": 50,
         "obstacles": false,
-        "light": [210,30],
-        "note": "along the north-east edge above the Webwood: the rock foot (boundary.foot); trees left out"
+        "note": "Saved/Screenshots/Review/RR_RockFoot_NorthEast: the rock past the north-east edge above the Webwood, clay, the cliff pieces as solid blocks where the build stands them, bare ground over 50 degrees red (eye 1.7 m, level)"
       },
-      "clay_rock_south": {
-        "eye": [-8200,-2400,600],
-        "target": [-9600,2400,250],
-        "lens": 24,
+      "rock_foot_north": {
+        "eye": [9140, 2600, 170],
+        "target": [9940, 2600, 177],
+        "lens": 18,
+        "sun": [247.5, 15],
         "clay": true,
+        "cliffs": "solid",
+        "steep": 50,
         "obstacles": false,
-        "light": [30,30],
-        "note": "along the south edge under the Hogback, past the Nose: the rock foot (boundary.foot); trees left out"
+        "note": "Saved/Screenshots/Review/RR_RockFoot_North: the Old Quarry's back wall, clay, the cliff pieces as solid blocks where the build stands them, bare ground over 50 degrees red (eye 1.7 m, level)"
+      },
+      "north_boundary": {
+        "eye": [7600, 3000, 170],
+        "target": [8400, 3000, 154],
+        "lens": 18,
+        "sun": [247.5, 15],
+        "clay": true,
+        "cliffs": "solid",
+        "steep": 50,
+        "obstacles": false,
+        "note": "the tour view NorthBoundary: the north edge by the quarry, clay, the cliff pieces as solid blocks where the build stands them, bare ground over 50 degrees red (eye 1.7 m, level)"
       }
     },
     "labels": {
@@ -1594,6 +1612,16 @@
   },
   "gameplay": {
     "about": "No creatures or director yet: the encounters (Docs/Areas/RansomsRest.md, \"Encounters stay on one level of ground\") are placed with their missions from step 14 on. The story's first arrival (spawnLanding) is a player start of its own beside the level's start by Ellis's grave; the depot's station carries Landing_Depot (build_area_travel.py).",
-    "spawnLanding": "Landing_FamilyPlot"
+    "spawnLanding": "Landing_FamilyPlot",
+    "posters": [
+      { "id": "posterGate", "host": "cottageSouthWest", "at": [200, -240, 190], "yaw": -90, "note": "west wall's plaster bay between two posts, facing the town gate" },
+      { "id": "posterSheriff", "host": "sheriff", "at": [500, 96, 188], "yaw": 0, "note": "stone front between the left barred window and the door" },
+      { "id": "posterSaloon", "host": "saloon", "at": [700, 111.5, 243], "yaw": 0, "note": "siding between the boarded left window and the doors, over CLOSED FOR MOURNING" },
+      { "id": "posterDepot", "host": "depot", "at": [300, -259, 205], "yaw": 0, "note": "siding between the agent's bay and the east window; trips arrive facing it" },
+      { "id": "posterFarm", "host": "barn", "at": [600, 280, 190], "yaw": 0, "note": "Ransom Farm's barn, left of the big doors" },
+      { "id": "posterWhitlock", "host": "whitlockBarn", "at": [600, 280, 190], "yaw": 0, "note": "Whitlock's barn, left of the big doors" },
+      { "id": "posterBoard", "host": "noticeBoard", "socket": "Decal", "offset": [0, 29, 0], "note": "left half of the board, as the art's board render" },
+      { "id": "calderNote", "host": "noticeBoard", "socket": "Decal", "offset": [0, -40, 9], "variant": "CalderNote" }
+    ]
   }
 }

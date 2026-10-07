@@ -279,9 +279,9 @@ def rim_points(area):
 def cliff_groups(area):
     """Every cliff group in order: each plateau's (and mesa's) cliff and then its ramp's walls, each pit's wall and its
     ramp's, the ridges' and scarps' faces, the knobs' rocks, the gullies' banks, the gorges' walls, then the rim
-    (island setting) or the regional ridges' bands, the rock raised past the boundary ("boundaryFoot", with
-    boundary.foot) and the escarpment's lip (grounded). A group is named by its feature's cliffGroup (the feature's id,
-    or the ramp's own id, when not given)."""
+    (island setting) or the regional ridges' bands, the rock wall past the boundary's closed edges ("boundaryFoot",
+    with boundary.foot, which takes over the bands' points there) and the escarpment's lip (grounded). A group is named
+    by its feature's cliffGroup (the feature's id, or the ramp's own id, when not given)."""
     groups = {}
 
     def add(name, points):
@@ -310,9 +310,10 @@ def cliff_groups(area):
         add(g['cliff_group'], area_cliffs.gorge_walls(area, g))
     if area.setting == 'grounded':
         for r in area.region.ridges:
-            add(r['id'], area_cliffs.ridge_bands(area, r))
+            # Where boundary.foot's rock stands, its own dressing covers the band from the wall's foot.
+            add(r['id'], area_boundary.clear_of_rock(area, area_cliffs.ridge_bands(area, r)))
         if area_boundary.foot_spec(area) is not None:
-            add('boundaryFoot', area_boundary.foot_faces(area))
+            add('boundaryFoot', area_boundary.rock_faces(area))
         if area.region.lip is not None:
             loop, kinds = area.mesh_boundary()
             add('escarpment', area_cliffs.escarpment_points(area, loop[kinds != 1]))

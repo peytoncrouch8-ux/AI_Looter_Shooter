@@ -21,7 +21,10 @@ The scatter graph (Tools/Unreal/build_island_scatter.py) draws pebbles, rocks an
 boulders where it's over ROCK_KEEP, pebbles over 0.1. A layout's "scatter": {"roadside": "pebbles"} keeps the stones
 off its roads: A is 0 on every road's surface (another road's band at a junction too), and within ROADSIDE_CLEAR m of
 a road's edge it stays under ROCK_KEEP, so only pebbles line the roads and no rock or boulder stands in a street, on the
-rail bed or across a junction. Without it ("stones", the default) rocks and boulders line the roads too.
+rail bed or across a junction. Without it ("stones", the default) rocks and boulders line the roads too. "steep": "bare"
+keeps every stone off ground steeper than STEEP_BARE degrees (a cliff's face, the rock past a grounded area's
+boundary), where one would hang on the slope; the graph's own slope filter judges by the triangle it lands on, which a
+face's ledges can fool. Without it ("stones", the default) only that filter does.
 """
 import os
 
@@ -35,6 +38,8 @@ ROCK_KEEP = 0.15
 PEBBLES_ONLY = ROCK_KEEP - 0.01  # A's most near a road with "roadside": "pebbles": pebbles but no rocks
 ROADSIDE_CLEAR = 2.5    # meters past a road's edge that big stones keep clear of (a boulder's reach)
 ROADSIDE = ('stones', 'pebbles')
+STEEP_BARE = 44.0       # degrees: with "steep": "bare", ground steeper than this (no walking up it) gets no stones
+STEEP = ('stones', 'bare')
 
 # What a yard (layout.json "yards") keeps clear, by its kind: bare ground (radius, soft edge) and no trees (radius,
 # soft edge), in meters.
@@ -88,6 +93,9 @@ def paint(area, out_path, preview_dir=None, log=print):
     roadside = area.layout.get('scatter', {}).get('roadside', 'stones')
     if roadside not in ROADSIDE:
         raise ValueError(f"{area.path}: scatter.roadside must be {' or '.join(ROADSIDE)}, not {roadside!r}")
+    steep = area.layout.get('scatter', {}).get('steep', 'stones')
+    if steep not in STEEP:
+        raise ValueError(f"{area.path}: scatter.steep must be {' or '.join(STEEP)}, not {steep!r}")
     surface_w = np.zeros((n, n), np.float32)
     clear_w = np.zeros((n, n), np.float32)
     shoulder = np.zeros((n, n), np.float32)
@@ -181,6 +189,10 @@ def paint(area, out_path, preview_dir=None, log=print):
         # After the softening, so no edge creeps back over the line: nothing on the roads, pebbles only beside them.
         cap = 1.0 - (1.0 - PEBBLES_ONLY) * near_road
         rgba[..., 3] = np.minimum(rgba[..., 3], cap) * (1.0 - _ss(0.0, 0.5, surface_w))
+    if steep == 'bare':
+        # The steepest the ground gets within a cell and its neighbors (a thin face mustn't average away).
+        steepest = np.maximum.reduce([np.roll(np.roll(slope, di, 0), dj, 1) for di in (-1, 0, 1) for dj in (-1, 0, 1)])
+        rgba[..., 3] *= 1.0 - _ss(STEEP_BARE - 6.0, STEEP_BARE, steepest)
     _save(rgba, out_path)
     written = out_path
     if preview_dir:

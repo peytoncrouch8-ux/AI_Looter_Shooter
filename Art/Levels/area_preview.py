@@ -9,7 +9,9 @@ A view is an eye and a target, each [X, Y, height above the ground] in cm (an ey
 takes its height as absolute), and a lens in mm. Optional: "sun" [azimuth from north, elevation] in degrees, the
 planned sun: warm, low, its shadows long, its disc in the sky, under a golden sky (else a sun from the view's upper
 left); "light" [azimuth, elevation], a plain sun from there (for clay views); "clay": the terrain in clay with the
-obstacles and the buildings as stand-ins ("cliffs" adds the cliff kit's courses as see-through bands); "obstacles":
+obstacles and the buildings as stand-ins ("cliffs" adds the cliff kit's courses as see-through bands, and "cliffs":
+"solid" stands solid blocks where the level's builder puts the kit's pieces, to see what they hide; "steep": degrees
+paints clay ground steeper than that red, so bare steep terrain shows); "obstacles":
 the obstacles' stand-ins on the textured terrain (false leaves them out of a clay view, so tree stands don't hide the
 ground); "ortho": a width (cm) seen straight down onto the target, north up, under a dim sky so the sun's shadows read
 as shapes. preview.features lists the features that get a clay view of their own (all of step 3b's when it's left
@@ -403,8 +405,10 @@ def render_views(area, out_dir, log=print, only=None):
         _stand_ins(area, added)
         restore = None
         if view.get('clay'):
-            restore = _clay_terrain(area)
-            if view.get('cliffs'):
+            restore = _clay_terrain(area, view.get('steep'))
+            if view.get('cliffs') == 'solid':
+                _piece_stand_ins(area, _computed(area), added)
+            elif view.get('cliffs'):
                 _cliff_stand_ins(area, _computed(area), added)
         if view.get('obstacles', bool(view.get('clay'))):
             _obstacle_stand_ins(area, added, clay=bool(view.get('clay')))
@@ -732,10 +736,78 @@ def _cliff_stand_ins(area, data, added, groups=None):
                      course['height'] / 100.0, _band_material(color, 0.5 if stacked else 0.28), added)
 
 
-def _clay_terrain(area):
-    """Gives the terrain's own meshes (not the water or the backdrop) a clay material; returns what puts theirs
-    back."""
-    clay = _material('_ClayTerrain', CLAY)
+# The cliff kit's pieces (Art/Models/Rocks/Cliffs.py: height, width, depth in m, the pivot on the ground in the middle
+# of the width and depth, the bottom sunk CLIFF_SINK below it) and how Tools/Unreal/build_area.py places them.
+CLIFF_KIT = ((10.0, 12.0, 4.0), (8.0, 10.0, 3.6), (6.0, 15.0, 3.2), (12.0, 8.0, 4.2))
+CLIFF_SINK = 1.3
+CLIFF_INSET, CLIFF_OVERTOP, CLIFF_OVERLAP, CLIFF_COURSE_OVERLAP = 1.2, 0.2, 2.5, 0.3
+
+
+def _piece_stand_ins(area, data, added):
+    """Solid blocks where Tools/Unreal/build_area.py stands the cliff kit's pieces: per course, the piece nearest its
+    height (the builder adds a little chance), set CLIFF_INSET into the wall from the course's foot, reaching the
+    course's height plus the overtop, widened to overlap its neighbors, its bottom sunk below the foot. A knob's rock is
+    a grey block. They cast shadows, as the pieces do."""
+    rock = _material('_CliffPiece', (0.6, 0.55, 0.48, 1.0))
+    knob = _material('_RockBlock', (0.3, 0.28, 0.27, 1.0))
+    for group, points in data['cliffs'].items():
+        for i, point in enumerate(points):
+            kind = point.get('kind')
+            if kind == 'bank':
+                continue
+            x, y, z = (v / 100.0 for v in point['location'])
+            if kind == 'outcrop':
+                size = max(point['radius'] / 100.0, 2.0)
+                _box('_Rock', x, y, z - 0.5, point['yaw'], size * 1.3, size, point['height'] / 100.0 + 0.5, knob,
+                     added).visible_shadow = True
+                continue
+            if 'drop' in point:
+                bottom, height = z - point['drop'] / 100.0, point['drop'] / 100.0
+            else:
+                bottom, height = z, point.get('height', point.get('top', z * 100.0) - z * 100.0) / 100.0
+            courses = point.get('courses') or [{'location': [x * 100.0, y * 100.0, bottom * 100.0],
+                                                'height': height * 100.0}]
+            gaps = [math.dist(point['location'][:2], points[j]['location'][:2]) / 100.0 for j in (i - 1, i + 1)
+                    if 0 <= j < len(points)]
+            gap = min(gaps) if gaps else 10.0
+            a = math.radians(point['yaw'])
+            for k, course in enumerate(courses):
+                cx, cy, cz = (v / 100.0 for v in course['location'])
+                reach = course['height'] / 100.0 + (CLIFF_OVERTOP if k == len(courses) - 1 else CLIFF_COURSE_OVERLAP)
+                piece_height, piece_width, depth = min(CLIFF_KIT, key=lambda p: abs(math.log(max(reach, 0.1) / p[0])))
+                width = min(max((gap + CLIFF_OVERLAP) / piece_width, 0.75), 1.6) * piece_width
+                _box('_Piece', cx - math.cos(a) * CLIFF_INSET, cy - math.sin(a) * CLIFF_INSET, cz - CLIFF_SINK,
+                     point['yaw'], depth, width, reach + CLIFF_SINK, rock, added).visible_shadow = True
+
+
+def _steep_clay(steep):
+    """Clay that turns red where the ground is steeper than steep degrees (its face's normal, in the world's Z up)."""
+    mat = bpy.data.materials.new('_ClaySteep')
+    mat.use_nodes = True
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    bsdf = next(n for n in nodes if n.type == 'BSDF_PRINCIPLED')
+    bsdf.inputs['Roughness'].default_value = 0.8
+    geometry = nodes.new('ShaderNodeNewGeometry')
+    split = nodes.new('ShaderNodeSeparateXYZ')
+    below = nodes.new('ShaderNodeMath')
+    below.operation = 'LESS_THAN'
+    below.inputs[1].default_value = math.cos(math.radians(steep))
+    mix = nodes.new('ShaderNodeMix')
+    mix.data_type = 'RGBA'
+    sockets = {sk.identifier: sk for sk in mix.inputs}
+    sockets['A_Color'].default_value = CLAY
+    sockets['B_Color'].default_value = (0.75, 0.05, 0.03, 1.0)
+    links.new(geometry.outputs['Normal'], split.inputs['Vector'])
+    links.new(split.outputs['Z'], below.inputs[0])
+    links.new(below.outputs['Value'], sockets['Factor_Float'])
+    links.new(next(sk for sk in mix.outputs if sk.identifier == 'Result_Color'), bsdf.inputs['Base Color'])
+    return mat
+
+
+def _clay_terrain(area, steep=None):
+    """Gives the terrain's own meshes (not the water or the backdrop) a clay material (red where steeper than steep
+    degrees, when given); returns what puts theirs back."""
+    clay = _steep_clay(steep) if steep else _material('_ClayTerrain', CLAY)
     saved = []
     for obj in bpy.data.objects:
         if obj.type != 'MESH' or not obj.name.startswith(area.name + '_') or obj.name.endswith('_Water') \

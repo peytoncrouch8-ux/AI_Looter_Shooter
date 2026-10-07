@@ -11,8 +11,12 @@ that profile, measured from the line's own ground, and never lowers them, so a b
 Each edge's rock stands straight out from it, so the rule holds along every edge's normal. Round a convex corner the
 rock follows the corner, and it rounds off where the next edge is open or blocked (Stage Gap's mouth stays clear for the
 line); in a reflex corner both edges' rock meets without a step. It never builds out over a drop: toward the
-escarpment's lip it fades, and ground already well below the line (a gorge past a falls) is left. Where the lift stands
-proud of the ground, foot_faces() dresses it as the cliff group "boundaryFoot".
+escarpment's lip it fades, and ground already well below the line (a gorge past a falls) is left.
+
+rock_faces() dresses that rock as the cliff group "boundaryFoot", all along it: every DRESS_STEP m along each rock edge
+and in each convex rock corner, a point at the foot of the first rock wall out from the line (the foot's rise and a
+ridge's band where it stands close behind are one wall, up to where it eases), so the kit's pieces stand against it
+from its foot. clear_of_rock() takes the ridges' own band points out of that stretch, so nothing doubles up there.
 
 samples() measures what a player meets, every SAMPLE_STEP m along each rock edge: the rise from the line to RISE_RUN m
 out, as an angle, and how far out the rock's foot is (where the ground first gets steeper than WALKABLE). summary()
@@ -30,7 +34,13 @@ WALKABLE = 44.0       # degrees: the player can't walk up ground steeper than th
 RISE_RUN = 5.0        # meters out from the line over which the rise is measured
 SAMPLE_STEP = 5.0     # meters between samples along a rock edge
 FOOT_WITHIN = 2.5     # meters: the rock's foot is at most this far past the line (where the build's walls stand)
-MIN_LIFT = 2.0        # meters: raised rock this proud of the ground gets cliff dressing of its own
+DRESS_STEP = 8.0      # meters between the rock's dressing points along an edge
+DRESS_REACH = 16.0    # meters: a wall whose foot is within this of the line is the boundary's rock (the lift's reach)
+EASE_REACH = 14.0     # meters more the profile runs on, to find where a wall that starts in the reach eases
+EASED = 40.0          # degrees: a wall ends where its slope eases below this
+STEEP = 45.0          # degrees: ground this steep starts a wall
+ROCK = 58.0           # degrees: a wall is rock where it's somewhere this steep (a ridge's slope stays under it)
+MERGE = 3.0           # meters of eased ground between two walls that still makes them one
 FADE = 2.0            # meters: in a reflex corner where rock meets an open or blocked edge, the rock fades over this
 FOOT = {'setback': 200.0, 'slope': 65.0, 'height': 600.0, 'back': 35.0, 'reach': 1600.0}  # boundary.foot's defaults
 
@@ -137,10 +147,9 @@ def _edge_lift(area, spec, h, pts, base, i, corners, normals, kinds, convex):
 def foot(area, h):
     """Lifts the core's heights past the rock edges to boundary.foot's profile (never lowering them; each edge's
     strip lifts on its own and the highest wins, so the rule holds straight out from every edge), fading toward the
-    core's edge (the escarpment's lip: no rock builds out over the drop). Keeps the lift as a raster (area.foot_lift)
-    for foot_faces(). Returns the heights (unchanged without boundary.foot)."""
+    core's edge (the escarpment's lip: no rock builds out over the drop). Returns the heights (unchanged without
+    boundary.foot)."""
     spec = foot_spec(area)
-    area.foot_lift = None
     if spec is None or area.boundary is None:
         return h
     corners = area.boundary
@@ -158,8 +167,6 @@ def foot(area, h):
     lift *= smoothstep(1.0, 4.0, area.edge[ii, jj])
     h = h.copy()
     h[ii, jj] += lift.astype(h.dtype)
-    area.foot_lift = np.zeros(h.shape, dtype=np.float32)
-    area.foot_lift[ii, jj] = lift
     return h
 
 
@@ -231,31 +238,116 @@ def summary(area):
                 'foot within the within cm where the layout asks for the rule (boundary.foot)'}
 
 
-def foot_faces(area):
-    """The rock boundary.foot raised, as a cliff group: every CLIFF_STEP m along each rock edge where the lift stands
-    at least MIN_LIFT m proud of the ground at the face's middle (elsewhere a ridge's band was there already, dressed
-    with its own group), facing the line."""
-    spec = foot_spec(area)
-    lift = getattr(area, 'foot_lift', None)
-    if spec is None or lift is None:
-        return []
+def _wall(area, p, direction, step=0.25):
+    """The rock wall met going out from p along direction (unit, layout meters) within DRESS_REACH: (foot (2,), top
+    (2,), the ground's height at each), or None. A wall starts where the ground gets steeper than STEEP (backed down to
+    where it passes EASED) and ends where it eases below EASED; walls with no more than MERGE m of eased ground between
+    them are one, and a wall counts only if somewhere it's steeper than ROCK (a rock face, not a ridge's slope) and
+    rises at least MIN_FACE. The first such wall out from the line is the one returned. The profile stops at the core's
+    edge (the escarpment's lip has its own dressing)."""
+    d = np.arange(0.0, DRESS_REACH + EASE_REACH + step * 0.5, step)
+    x, y = p[0] + direction[0] * d, p[1] + direction[1] * d
+    z = area.height(x, y)
+    on = area.at(area.edge, x, y) > 1.0
+    if not on.all():
+        d, x, y, z = (v[:int(np.argmin(on))] for v in (d, x, y, z))
+    if len(z) < 8:
+        return None
+    slope = np.gradient(z, step)
+    eased, steep, rock = (math.tan(math.radians(v)) for v in (EASED, STEEP, ROCK))
+    walls, k = [], 0
+    while k < len(slope):
+        if slope[k] < steep:
+            k += 1
+            continue
+        i0 = k
+        while i0 > 0 and slope[i0 - 1] >= eased:
+            i0 -= 1
+        j = k
+        while j < len(slope) and slope[j] >= eased:
+            j += 1
+        if walls and d[i0] - d[walls[-1][1]] <= MERGE:
+            walls[-1][1] = j - 1
+        else:
+            walls.append([i0, j - 1])
+        k = j
+    for i0, i1 in walls:
+        if d[i0] > DRESS_REACH:
+            break
+        if slope[i0:i1 + 1].max() >= rock and z[i1] - z[i0] >= area_cliffs.MIN_FACE:
+            return np.array([x[i0], y[i0]]), np.array([x[i1], y[i1]]), float(z[i0]), float(z[i1])
+    return None
+
+
+def _stations(area):
+    """Where the rock gets a dressing point, in order along the boundary: every DRESS_STEP m along each rock edge
+    (looking straight out from it), and at each convex corner between two rock edges (looking out along the corner's
+    bisector, into the wedge where the rock follows the corner). [(point, direction)]."""
     corners = area.boundary
     kinds = edge_kinds(area)
     normals = outward(corners)
-    half = 0.5 * spec['height'] / spec['slope']
-    middle = spec['setback'] + half
-    points = []
-    for i in range(len(corners)):
+    convex = _convex(corners, normals)
+    count = len(corners)
+    out = []
+    for i in range(count):
         if kinds[i] != 'rock':
             continue
-        a, b = corners[i], corners[(i + 1) % len(corners)]
-        length = float(np.linalg.norm(b - a))
-        count = max(1, int(round(length / area_cliffs.CLIFF_STEP)))
-        for k in range(count):
-            c = a + (b - a) * (k + 0.5) / count + normals[i] * middle
-            if area.at(lift, *c) < MIN_LIFT or area.at(area.edge, *c) < 2.0:
-                continue
-            point = area_cliffs.face(area, c, -normals[i], half + 0.6, half + 0.6)
-            if point:
-                points.append(point)
+        if convex[i] and kinds[(i - 1) % count] == 'rock':
+            bisector = normals[(i - 1) % count] + normals[i]
+            out.append((corners[i], bisector / max(float(np.linalg.norm(bisector)), 1e-9)))
+        a, b = corners[i], corners[(i + 1) % count]
+        n = max(1, int(round(float(np.linalg.norm(b - a)) / DRESS_STEP)))
+        out += [(a + (b - a) * (k + 0.5) / n, normals[i]) for k in range(n)]
+    return out
+
+
+def rock_faces(area):
+    """The cliff group "boundaryFoot": the rock wall past every rock edge, dressed all along it. Each point stands at
+    the wall's foot (where it meets the ground below it, a little past the line), faces the line, and reaches up to
+    where the wall eases (the foot's rise, and a ridge's band where it stands close behind), in stacked courses over the
+    kit's tallest piece; the pieces stand against the wall from its foot as they do on a plateau's cliff. Empty without
+    boundary.foot."""
+    if foot_spec(area) is None or area.boundary is None:
+        return []
+    points = []
+    for p, direction in _stations(area):
+        wall = _wall(area, p, direction)
+        if wall is None:
+            continue
+        foot, top, z_foot, z_top = wall
+        point = {'location': [area_cliffs._cm(foot[0]), area_cliffs._cm(foot[1]), area_cliffs._cm(z_foot)],
+                 'top': area_cliffs._cm(z_top), 'height': area_cliffs._cm(z_top - z_foot),
+                 'yaw': area_cliffs._yaw(*-direction)}
+        stacked = area_cliffs.courses(area, foot, top, z_foot, z_top)
+        if stacked:
+            point['courses'] = stacked
+        points.append(point)
     return points
+
+
+def clear_of_rock(area, points):
+    """A ridge band's dressing points, less those standing where boundary.foot's rock is dressed (straight out from a
+    rock edge or in a convex rock corner's wedge, within DRESS_REACH of the line): rock_faces() covers that wall from
+    its foot, and the foot's lift has raised the ground in front of the band there. All of them without the rule."""
+    if foot_spec(area) is None or area.boundary is None or not points:
+        return points
+    corners = area.boundary
+    kinds = edge_kinds(area)
+    normals = outward(corners)
+    convex = _convex(corners, normals)
+    count = len(corners)
+    xy = np.array([p['location'][:2] for p in points], dtype=np.float64) / 100.0
+    dressed = np.zeros(len(points), dtype=bool)
+    for i in range(count):
+        if kinds[i] != 'rock':
+            continue
+        a, b = corners[i], corners[(i + 1) % count]
+        length = float(np.linalg.norm(b - a))
+        along, out = (xy - a) @ ((b - a) / length), (xy - a) @ normals[i]
+        dressed |= (along >= 0.0) & (along <= length) & (out > 0.0) & (out <= DRESS_REACH)
+        if convex[i] and kinds[(i - 1) % count] == 'rock':
+            # The wedge outside the corner: past the end of the edge before it and short of this edge's own strip.
+            before = corners[(i - 1) % count]
+            past = (xy - a) @ ((a - before) / max(float(np.linalg.norm(a - before)), 1e-9)) > 0.0
+            dressed |= past & (along < 0.0) & (np.linalg.norm(xy - a, axis=1) <= DRESS_REACH)
+    return [p for p, gone in zip(points, dressed) if not gone]

@@ -186,7 +186,8 @@ def place_hob(build, grave_ellis):
     face = socket(grave_ellis, 'Interact') if grave_ellis else None
     if cls is None or face is None:
         return
-    front = face.rotation.get_forward_vector()
+    # A Quat has no forward vector in Python: the rotator's does.
+    front = face.rotation.rotator().get_forward_vector()
     at = face.translation
     x, y, z = at.x - front.x * PERCH_BACK, at.y - front.y * PERCH_BACK, at.z + PERCH_UP
     yaw = face.rotation.rotator().yaw
