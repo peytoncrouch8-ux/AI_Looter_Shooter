@@ -1,6 +1,9 @@
 #include "Bosses/AbelRules.h"
 #include "Bosses/AbelPoses.h"
 #include "Creatures/UnpaidCreature.h"
+#include "Components/LightComponent.h"
+#include "Components/PrimitiveComponent.h"
+#include "GameFramework/Actor.h"
 
 #define LOCTEXT_NAMESPACE "LooterAbel"
 
@@ -172,6 +175,43 @@ namespace AbelRules
 	FStoryLine HobOnFall()
 	{
 		return FStoryLine::Make(LOCTEXT("Hob", "Hob"), LOCTEXT("HobFall", "Caught you. Keep off the end, sunshine. The wind's his, not yours."), 3.6f);
+	}
+
+	void ShineOnGhostChannel(ULightComponent& Light)
+	{
+		static_assert(GhostLightChannel == 2, "The channels below are written out for channel 2");
+		// Written straight in (as the stands' lights are), so it holds in a constructor too; drawn again if it's showing.
+		Light.LightingChannels.bChannel0 = false;
+		Light.LightingChannels.bChannel1 = false;
+		Light.LightingChannels.bChannel2 = true;
+		Light.MarkRenderStateDirty();
+	}
+
+	bool IsOnGhostChannel(const ULightComponent& Light)
+	{
+		return !Light.LightingChannels.bChannel0 && !Light.LightingChannels.bChannel1 && Light.LightingChannels.bChannel2;
+	}
+
+	void LetGhostLightReach(UPrimitiveComponent& Part)
+	{
+		Part.SetLightingChannels(Part.LightingChannels.bChannel0, Part.LightingChannels.bChannel1, /*bChannel2*/ true);
+	}
+
+	void LetGhostLightReach(AActor& Actor)
+	{
+		TInlineComponentArray<UPrimitiveComponent*> Parts(&Actor);
+		for (UPrimitiveComponent* Part : Parts)
+		{
+			if (Part)
+			{
+				LetGhostLightReach(*Part);
+			}
+		}
+	}
+
+	bool DoesGhostLightReach(const UPrimitiveComponent& Part)
+	{
+		return Part.LightingChannels.bChannel2;
 	}
 }
 

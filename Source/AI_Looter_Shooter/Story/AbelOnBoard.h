@@ -75,7 +75,8 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> Pump;
 
-	/** His ghost light at the lantern's globe: small, pale, never a shadow. */
+	/** His ghost light at the lantern's globe: small, pale, never a shadow, on its own lighting channel (it lights his bier and
+	 * the deck, never him: AbelRules::GhostLightChannel). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UPointLightComponent> LanternLight;
 

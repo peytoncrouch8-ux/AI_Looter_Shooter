@@ -146,6 +146,9 @@ AAbelKeeper::AAbelKeeper()
 	LanternLight->SetIntensity(LanternCandela);
 	LanternLight->SetAttenuationRadius(LanternRadius);
 	LanternLight->SetLightColor(FLinearColor::FromSRGBColor(FColor(0xFF, 0xF0, 0xD6)));
+	// It lights the deck round him, never him: so close to his chest it blew his dark coat out white. His body and props
+	// keep channel 0 (the sun and sky) and never take the ghost light's.
+	AbelRules::ShineOnGhostChannel(*LanternLight);
 
 	// The Gravewind's wisps: in the world's own frame wherever he goes, seen only while it blows.
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));

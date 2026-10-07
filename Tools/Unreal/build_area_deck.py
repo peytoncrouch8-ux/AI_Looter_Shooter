@@ -30,6 +30,9 @@ there yet is left out with a warning.
   front, about 2.8 per 10 m along Gravewind Point's open lips, about 1 per 10 m along the rest of the open Rim (a Curl,
   mirrored, at each corner), WISP_MOST in all; three fog banks off the point (FOGS).
 Abel's adds need no spawner: his boss raises them round the deck's middle (AbelRules::RisingUnpaid).
+Abel's ghost lantern lights what's round him and never him: it shines on a lighting channel of its own
+(AbelRules::GhostLightChannel), so the deck and the biers take that channel as well as 0 here (the posts and his adds take
+it in the C++).
 Hob's perches (returned to build_area_story.place_hob): on the keeper's grave's board for the way there, on the Keeper's
 Gate's north rock for the lantern and the fight, on the bier beside Pa's for the scene and after Main 6.
 """
@@ -82,6 +85,8 @@ FOG_UP = 150.0
 BIER_HEAD = 80.0
 BIER_TOP = 92.0
 
+# Abel's ghost lantern's lighting channel (AbelRules::GhostLightChannel): what should catch its light takes it too.
+GHOST_LIGHT_CHANNEL = 'channel2'
 # The fog wall's ends go this share of each rock's radius into it, so the wall meets the stone with no gap at its ends.
 GATE_INSET = 0.6
 # The Keeper's Grave's respawn: this far out of the mound's foot (cm), clear of its kerb.
@@ -146,6 +151,17 @@ def place_rotated(build, what, transform, label, tags=()):
     return actor
 
 
+def let_ghost_light_reach(actor):
+    """Every part of a placed actor takes Abel's ghost light's channel as well as its own (0: the sun and sky), so his
+    lantern lights it; his own body never takes it (so close to his chest it blew his coat out white)."""
+    if actor is None:
+        return
+    for part in actor.get_components_by_class(unreal.PrimitiveComponent):
+        channels = part.get_editor_property('lighting_channels')
+        channels.set_editor_property(GHOST_LIGHT_CHANNEL, True)
+        part.set_editor_property('lighting_channels', channels)
+
+
 def mesh(build, path, what):
     if not unreal.EditorAssetLibrary.does_asset_exist(path):
         build.warn(f'no {path} yet ({what}): left out')
@@ -167,6 +183,7 @@ def place_biers(build, deck):
             build.warn(f'the deck has no Bier_{k} socket: that bier is left out')
             continue
         biers[k] = place_rotated(build, bier_mesh, spot, f'Bier_{k}', tags=('Obstacle',)) if bier_mesh else None
+        let_ghost_light_reach(biers[k])
     build.log(f'{len([b for b in biers.values() if b])} biers on the deck')
     return biers
 
@@ -483,6 +500,8 @@ def place(build):
     if deck is None:
         build.warn('no burial deck: Main 6 has nowhere to happen (import BurialDeck.py and build the whole level)')
         return {'keeperGrave': None, 'gateRock': None, 'deckBier': None}
+    # The deck is build_area.py's; its boards catch Abel's lantern (his lighting channel), as the biers on it do.
+    let_ghost_light_reach(deck)
     biers = place_biers(build, deck)
     posts = place_posts(build, deck)
     board = place_board(build, biers)

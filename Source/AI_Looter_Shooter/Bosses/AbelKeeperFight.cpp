@@ -415,11 +415,12 @@ void AAbelKeeper::RiseNewAdds()
 			continue;
 		}
 		KnownAdds.Add(Add);
-		// They rise through the boards: faded in where they stand.
+		// They rise through the boards: faded in where they stand, and lit by his lantern as the deck is.
 		if (AUnpaidCreature* Unpaid = Cast<AUnpaidCreature>(Add))
 		{
 			Unpaid->RiseIn();
 		}
+		AbelRules::LetGhostLightReach(*Add);
 	}
 }
 

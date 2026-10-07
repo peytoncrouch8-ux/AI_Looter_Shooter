@@ -3,6 +3,7 @@
 
 #include "World/KeeperLanternPost.h"
 #include "AI_Looter_Shooter.h"
+#include "Bosses/AbelRules.h"
 #include "Interaction/InteractionComponent.h"
 #include "Interaction/InteractionSubsystem.h"
 #include "Missions/MissionRunner.h"
@@ -150,6 +151,10 @@ AKeeperLanternPost::AKeeperLanternPost()
 	KeepersLantern->SetVisibility(false);
 
 	KeepersLight = MakeLight(this, KeepersLantern, TEXT("KeepersLight"), KeepersCandela);
+
+	// Abel's ghost lantern lights the posts as it lights the deck (its own lighting channel, which his body never takes).
+	AbelRules::LetGhostLightReach(*Post);
+	AbelRules::LetGhostLightReach(*KeepersLantern);
 
 	static UMaterialInterface* const TrimGlass = FindIfMade<UMaterialInterface>(DarkGlassPath);
 	DarkGlass = TrimGlass;

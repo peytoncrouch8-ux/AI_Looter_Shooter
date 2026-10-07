@@ -76,6 +76,7 @@ bool FAbelPhasesTest::RunTest(const FString& Parameters)
 	const TArray<ACreatureBase*> Risen = Boss->GetAliveAdds();
 	TestEqual(TEXT("Two Unpaid rise"), Risen.Num(), 2);
 	TestTrue(TEXT("...fading in through the boards"), Risen.Num() > 0 && Cast<AUnpaidCreature>(Risen[0]) && Cast<AUnpaidCreature>(Risen[0])->GetPhase() > 0.5f);
+	TestTrue(TEXT("...lit by his lantern, as the deck is"), Risen.Num() > 0 && Risen[0]->GetMesh() && AbelRules::DoesGhostLightReach(*Risen[0]->GetMesh()));
 	Run(Abel, 25.5f);
 	TestEqual(TEXT("25 s on, two more"), Boss->NumAliveAdds(), 4);
 	Run(Abel, 25.5f);

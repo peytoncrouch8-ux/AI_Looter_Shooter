@@ -25,6 +25,7 @@
 #include "World/RespawnMarker.h"
 #include "World/StoryLighting.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Level.h"
@@ -219,6 +220,9 @@ bool FGravewindFriendTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("After it, there he sits"), OnBoard->IsShown());
 	TestTrue(TEXT("Tagged for the console and the missions"), OnBoard->ActorHasTag(AAbelOnBoard::SpeakerTag));
 	TestTrue(TEXT("His speaker point is at his head, over the board"), OnBoard->SpeakerPoint->GetComponentLocation().Z - OnBoard->GetActorLocation().Z > 60.0);
+	TestTrue(TEXT("His ghost light lights his bier and the deck, never him (its own lighting channel)"),
+		AbelRules::IsOnGhostChannel(*OnBoard->LanternLight) && !AbelRules::DoesGhostLightReach(*OnBoard->Figure)
+		&& !AbelRules::DoesGhostLightReach(*OnBoard->Hat) && !AbelRules::DoesGhostLightReach(*OnBoard->Lantern) && !AbelRules::DoesGhostLightReach(*OnBoard->Pump));
 
 	if (!OnBoard->Figure->GetSkinnedAsset())
 	{
@@ -270,6 +274,7 @@ bool FGravewindPlacedTest::RunTest(const FString& Parameters)
 	const ARespawnMarker* Grave = nullptr;
 	TArray<const AKeeperLanternPost*> Posts;
 	int32 Biers = 0;
+	int32 BiersLit = 0;
 	int32 Wisps = 0;
 	int32 Fogs = 0;
 	bool bPoint = false;
@@ -294,7 +299,9 @@ bool FGravewindPlacedTest::RunTest(const FString& Parameters)
 		if (const AStaticMeshActor* Placed = Cast<AStaticMeshActor>(Actor))
 		{
 			const UStaticMesh* Mesh = Placed->GetStaticMeshComponent() ? Placed->GetStaticMeshComponent()->GetStaticMesh() : nullptr;
-			Biers += Mesh && Mesh->GetName() == TEXT("SM_Bier") ? 1 : 0;
+			const bool bBier = Mesh && Mesh->GetName() == TEXT("SM_Bier");
+			Biers += bBier ? 1 : 0;
+			BiersLit += bBier && AbelRules::DoesGhostLightReach(*Placed->GetStaticMeshComponent()) ? 1 : 0;
 		}
 		if (const ADuskScenery* Scenery = Cast<ADuskScenery>(Actor); Scenery && Scenery->Instances->GetStaticMesh())
 		{
@@ -331,6 +338,7 @@ bool FGravewindPlacedTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("...each the post's model"), Post->Post->GetStaticMesh() && Post->Post->GetStaticMesh()->GetName() == TEXT("SM_KeeperLanternPost"));
 	}
 	TestEqual(TEXT("Eight biers on the deck"), Biers, 8);
+	TestEqual(TEXT("...each lit by Abel's lantern (his lighting channel; if not, run build_area.py RansomsRest gameplay again)"), BiersLit, Biers);
 	if (TestNotNull(TEXT("Pa's board"), OnBoard))
 	{
 		TestTrue(TEXT("...after Main 6"), OnBoard->ShownWhen.AfterMissions.Contains(MainSix));

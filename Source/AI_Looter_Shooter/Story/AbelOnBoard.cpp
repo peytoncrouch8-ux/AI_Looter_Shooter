@@ -3,6 +3,7 @@
 #include "Story/AbelOnBoard.h"
 #include "AI_Looter_Shooter.h"
 #include "Bosses/AbelPoses.h"
+#include "Bosses/AbelRules.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/UnpaidCreature.h"
 #include "Story/SpeakerPointComponent.h"
@@ -124,8 +125,10 @@ AAbelOnBoard::AAbelOnBoard()
 	LanternLight->SetIntensityUnits(ELightUnits::Candelas);
 	LanternLight->SetIntensity(5.f);
 	LanternLight->SetAttenuationRadius(550.f);
-	// His ghost light: a pale, warm white (Abel.py's flame), no rarity color.
+	// His ghost light: a pale, warm white (Abel.py's flame), no rarity color. As in his fight, it lights his bier and the
+	// deck round him and never him (the ghost light's own channel): a hand's width from his chest it blew his coat out white.
 	LanternLight->SetLightColor(FLinearColor::FromSRGBColor(FColor(0xFF, 0xF0, 0xD6)));
+	AbelRules::ShineOnGhostChannel(*LanternLight);
 
 	// His captions come from his head, where the player looks to talk to him.
 	SpeakerPoint->SetRelativeLocation(SeatedHead() * BodyScale);

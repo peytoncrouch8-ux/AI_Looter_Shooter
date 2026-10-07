@@ -288,6 +288,19 @@ bool FAbelBodyTest::RunTest(const FString& Parameters)
 
 	// His light: one, shadowless, at his lantern.
 	TestTrue(TEXT("His lantern's light casts no shadow"), Abel->LanternLight && !Abel->LanternLight->CastShadows);
+	// It lights the deck round him, never him (a hand's width from his chest it blew his dark coat out white): it shines on
+	// the ghost light's own lighting channel, which his body and props never take (they keep the sun's and sky's, 0).
+	TestTrue(TEXT("...on the ghost light's lighting channel alone"), Abel->LanternLight && AbelRules::IsOnGhostChannel(*Abel->LanternLight));
+	const TArray<const UPrimitiveComponent*> Worn = { Abel->GetMesh(), Abel->GetHat(), Abel->Lantern.Get(), Abel->Pump.Get() };
+	for (const UPrimitiveComponent* Part : Worn)
+	{
+		TestTrue(FString::Printf(TEXT("...which never lights his %s, lit by the sun and sky"), Part ? *Part->GetName() : TEXT("(missing part)")),
+			Part && Part->LightingChannels.bChannel0 && !AbelRules::DoesGhostLightReach(*Part));
+	}
+	for (const TObjectPtr<AKeeperLanternPost>& Post : Abel->GetLanternPosts())
+	{
+		TestTrue(TEXT("...and lights the lantern posts round him"), Post && Post->Post->LightingChannels.bChannel0 && AbelRules::DoesGhostLightReach(*Post->Post));
+	}
 	USkeletalMesh* Model = LoadModel();
 	if (!Model || Abel->GetMesh()->GetSkeletalMeshAsset() != Model)
 	{

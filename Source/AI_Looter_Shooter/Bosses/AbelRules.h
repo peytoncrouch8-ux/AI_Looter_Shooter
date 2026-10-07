@@ -5,6 +5,10 @@
 #include "Story/StoryLine.h"
 #include "AbelRules.generated.h"
 
+class AActor;
+class ULightComponent;
+class UPrimitiveComponent;
+
 /**
  * The Gravewind in Abel's last phase (Docs/Areas/RansomsRest.md, "Let me go": "wisps and mild gusts toward the deck's open
  * end. A fall off the deck is caught by Hob ... fall recovery puts the player back on the deck within a second").
@@ -143,4 +147,27 @@ namespace AbelRules
 	AI_LOOTER_SHOOTER_API FStoryLine PhaseLine(int32 Phase);
 	AI_LOOTER_SHOOTER_API FStoryLine BellLine();
 	AI_LOOTER_SHOOTER_API FStoryLine HobOnFall();
+
+	/**
+	 * His ghost light lights what's round him, never him. Its globe hangs a hand's width from his chest, and a light bright
+	 * enough to reach the deck's boards is hundreds of times brighter there than the dusk sun: it blew his charcoal coat
+	 * out white (the dusk fight's tour shot), where his sheet has a dark coat, a pale face and hands and the gold coal. So
+	 * his lantern shines on a lighting channel of its own, which his body and props (hat, lantern, pump) never take: they
+	 * keep channel 0, the sun's and the sky's. What should catch the light (the deck and its biers, the lantern posts, his
+	 * adds) takes this channel as well as 0. Channel 1 is the loadout and bestiary stands' (StageStudio), so it's 2.
+	 */
+	inline constexpr int32 GhostLightChannel = 2;
+
+	/** Puts a light on the ghost light's channel alone (his lantern's, and Pa's on his board). */
+	AI_LOOTER_SHOOTER_API void ShineOnGhostChannel(ULightComponent& Light);
+
+	/** True when a light shines on the ghost light's channel and no other. */
+	AI_LOOTER_SHOOTER_API bool IsOnGhostChannel(const ULightComponent& Light);
+
+	/** Lets the ghost light reach a part (or every part of an actor), which keeps its other channels (0: the sun and sky). */
+	AI_LOOTER_SHOOTER_API void LetGhostLightReach(UPrimitiveComponent& Part);
+	AI_LOOTER_SHOOTER_API void LetGhostLightReach(AActor& Actor);
+
+	/** True when the ghost light reaches a part. */
+	AI_LOOTER_SHOOTER_API bool DoesGhostLightReach(const UPrimitiveComponent& Part);
 }

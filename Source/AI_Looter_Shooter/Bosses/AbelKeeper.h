@@ -196,7 +196,11 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UBossComponent> Boss;
 
-	/** His ghost lantern on the lantern bone, and its light at its globe (SOCKET_Light): shadowless, his one light. */
+	/**
+	 * His ghost lantern on the lantern bone, and its light at its globe (SOCKET_Light): shadowless, his one light. It shines
+	 * on the ghost light's own lighting channel (AbelRules::GhostLightChannel), so it lights the deck, the biers, the posts
+	 * and his adds round him and never his own body and props, a hand's width from it.
+	 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> Lantern;
 
