@@ -32,7 +32,8 @@ to top, a stratum from the cliff side to its outer edge), so M_Smoke itself alre
 UV1 (Meters): the same directions in meters (U across, V along), so the effect materials can tile their noise at a
 constant world scale whatever the card's size.
 
-Material Master 'Smoke' (no texture set), slots GravewindWisp and CanyonFog. No Nanite, no collision, one slot each.
+Materials GravewindWisp and CanyonFog, each its own Master (M_GravewindWisp, M_CanyonFog: unlit translucent effects
+beside M_Smoke, built by Tools/Unreal/build_world_materials.py), no texture set. No Nanite, no collision, one slot each.
 The node trees here are only the preview's stand-in for the effect materials (described in the report); the export
 reads Master. --preview renders a mock of Gravewind Point at dusk (a cliff, a deck stand-in) with the kit placed into
 Saved/ArtPreviews/RansomsRest/Gravewind/ (the views, an overdraw count from the deck, Cards.png) and
@@ -410,12 +411,13 @@ LOOKS = {
 
 
 def card_material(name):
-    """Master 'Smoke' for the export. The nodes are the preview's stand-in for the effect material: unlit, opacity =
+    """Each slot is its own master (M_GravewindWisp, M_CanyonFog) for the export. The nodes are the preview's stand-in
+    for the effect material: unlit, opacity =
     vertex A x panning noise (UV1 meters, R its phase) x a fade where the card turns edge-on x Opacity; the color
     cold blue-violet, warming toward the sun, a bank darker toward its base."""
     look = LOOKS[name]
     mat = bpy.data.materials.get(name) or bpy.data.materials.new(name)
-    mat['Master'] = 'Smoke'
+    mat['Master'] = name
     mat.use_nodes = True
     nodes, links = mat.node_tree.nodes, mat.node_tree.links
     nodes.clear()
