@@ -160,6 +160,54 @@ def cliff_gap(group, i, count, share):
     return share > 0.0 and drawn(i) and not drawn(i - 1)
 
 
+def terrain_tiles(tag):
+    """The placed core's terrain tiles (tagged Ground) with their XY bounds, for traces against the ground alone."""
+    tiles = []
+    for actor in actors.get_all_level_actors():
+        if unreal.Name('Ground') in actor.tags and unreal.Name(tag) in actor.tags and isinstance(actor, unreal.StaticMeshActor):
+            origin, extent = actor.get_actor_bounds(False)
+            tiles.append((actor.static_mesh_component, origin.x - extent.x, origin.x + extent.x, origin.y - extent.y,
+                          origin.y + extent.y))
+    return tiles
+
+
+def terrain_hit(tiles, start, end):
+    """Where the line from start to end first meets the terrain's tiles (complex collision), or None."""
+    best = None
+    for mesh, x0, x1, y0, y1 in tiles:
+        if max(start.x, end.x) < x0 or min(start.x, end.x) > x1 or max(start.y, end.y) < y0 or min(start.y, end.y) > y1:
+            continue
+        hit = mesh.line_trace_component(start, end, True, False, False)
+        if not hit:
+            continue
+        location = hit[0] if isinstance(hit, tuple) else hit.to_tuple()[5]
+        distance = (location - start).length()
+        if best is None or distance < best[0]:
+            best = (distance, location)
+    return None if best is None else best[1]
+
+
+def wall_lean(tiles, x, y, bottom, height, yaw):
+    """How the terrain's wall behind a cliff point stands: how far it leans back from upright (degrees, 0 to 20; past
+    that a piece stands proud of the wall near its top, which reads better than a slab tilted further) and how far
+    behind the point its foot is (cm), from level traces out of the open side onto the wall at a third and two thirds
+    of its height. A generated wall slopes (a pit's falls 12 m over 3 m), so an upright piece standing at its foot is
+    buried in it below and pokes out of it near the top: from below, a rock hanging off the rim. (0, 0) where a trace
+    finds no wall."""
+    out_x, out_y = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    behind = []
+    for share in (1.0 / 3.0, 2.0 / 3.0):
+        z = bottom + share * height
+        hit = terrain_hit(tiles, unreal.Vector(x + out_x * 800.0, y + out_y * 800.0, z),
+                          unreal.Vector(x - out_x * 1500.0, y - out_y * 1500.0, z))
+        if hit is None:
+            return 0.0, 0.0
+        behind.append((x - hit.x) * out_x + (y - hit.y) * out_y)
+    lean = min(max(math.degrees(math.atan2(behind[1] - behind[0], height / 3.0)), 0.0), 20.0)
+    foot = behind[0] - math.tan(math.radians(lean)) * height / 3.0
+    return lean, foot
+
+
 def ground_height(x, y, default):
     """The terrain's height under (x, y), by a trace onto the placed terrain."""
     world = unreal.EditorLevelLibrary.get_editor_world()
@@ -495,7 +543,8 @@ class AreaBuild:
         (level.cliffs.varied), are varied more, each piece from its own seed: every other one mirrored, sunk 0.5-2 m
         while it still reaches just over the top (or its share of the wall, level.cliffs.top), so it's stretched
         differently (within VARY_STRETCH where the kit has a piece that fits), and turned up to 8 degrees; some are left
-        out for gaps (level.cliffs.gaps)."""
+        out for gaps (level.cliffs.gaps). In the groups level.cliffs.lean names, every piece leans back with the
+        terrain's wall behind it (wall_lean: measured with traces) and stands from that wall's real foot."""
         pieces = []
         for name in CLIFF_PIECES:
             if name in meshes:
@@ -509,6 +558,8 @@ class AreaBuild:
         varied = tuple(self.cliff_look.get('varied', VARIED_CLIFFS))
         top = self.cliff_look.get('top')
         gap_share = self.cliff_look.get('gaps', 0.0)
+        leaning = self.cliff_look.get('lean', [])
+        tiles = terrain_tiles(self.tag) if leaning else []
         placed = left_out = 0
         for group, points in self.layout.get('cliffs', {}).items():
             for i, point in enumerate(points):
@@ -531,6 +582,11 @@ class AreaBuild:
                         if 0 <= j < len(points)]
                 gap = min(gaps) if gaps else 1000.0
                 yaw = point['yaw']
+                # In the groups level.cliffs.lean names (true: every group), each piece leans back with the wall it
+                # dresses and stands from the wall's real foot, so it covers the whole face instead of poking out of
+                # the slope near the top: a pit's walls, seen from below.
+                leans = tiles and (leaning is True or group in leaning)
+                lean, foot = wall_lean(tiles, x, y, bottom, height, yaw) if leans else (0.0, 0.0)
                 for k, course in enumerate(courses):
                     cx, cy, cz = course['location']
                     last = k == len(courses) - 1
@@ -545,12 +601,16 @@ class AreaBuild:
                             continue
                         mesh, piece_height, piece_width, reach, sink, turn, mirror = varied_piece(
                             pieces, group, points, i, k, course, last, gap, top)
-                    inward = (-math.cos(math.radians(yaw)) * CLIFF_INSET, -math.sin(math.radians(yaw)) * CLIFF_INSET)
+                    inset = CLIFF_INSET + foot + math.tan(math.radians(lean)) * (cz - bottom)
+                    inward = (-math.cos(math.radians(yaw)) * inset, -math.sin(math.radians(yaw)) * inset)
                     width = cliff_width(gap, piece_width)
                     suffix = f'_{k + 1}' if len(courses) > 1 else ''
-                    self.place(mesh, (cx + inward[0], cy + inward[1], cz - sink), yaw + turn,
-                               label=f'Cliff_{group}_{i + 1:02d}{suffix}', folder=f'Cliffs/{group}',
-                               scale=(1.0, mirror * width, reach / piece_height), tags=('Obstacle',))
+                    piece = self.place(mesh, (cx + inward[0], cy + inward[1], cz - sink), yaw + turn,
+                                       label=f'Cliff_{group}_{i + 1:02d}{suffix}', folder=f'Cliffs/{group}',
+                                       scale=(1.0, mirror * width, reach / piece_height), tags=('Obstacle',))
+                    if lean > 0.0:
+                        # Pitched up its top tilts back, away from its face (+X, out of the wall), into the slope.
+                        piece.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=lean, yaw=yaw + turn), False)
                     placed += 1
         self.log(f'placed {placed} cliff pieces' + (f' ({left_out} left out for gaps)' if left_out else ''))
 
