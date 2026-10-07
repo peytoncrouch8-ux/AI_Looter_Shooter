@@ -50,6 +50,7 @@ import build_area_environment  # noqa: E402
 import build_area_posters  # noqa: E402
 import build_area_story  # noqa: E402
 import build_area_travel  # noqa: E402
+import build_area_platforms  # noqa: E402
 import build_area_walkways  # noqa: E402
 
 PROJECT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
@@ -719,6 +720,13 @@ class AreaBuild:
         self.log(f'placed {placed} cliff pieces' + (f' ({left_out} left out for gaps)' if left_out else '')
                  + (f'; {ends_held} run ends kept off a ramp\'s walkway' if ends_held else ''))
 
+    def keep_under_platforms(self):
+        """The cliff pieces under the models level.cliffs.under names cut down under their floors once both stand
+        (build_area_platforms.py; reloaded, as the editor keeps modules between runs)."""
+        cut, left = importlib.reload(build_area_platforms).keep_under(self)
+        if cut or left:
+            self.log(f'{cut} cliff pieces cut down and {left} left out under the platforms over them (level.cliffs.under)')
+
     def clear_walkways(self):
         """The ramps' walkways kept open for a player once the cliffs stand (build_area_walkways.py; reloaded, as the
         editor keeps modules between runs)."""
@@ -1015,6 +1023,7 @@ class AreaBuild:
             # The models stand from the whole build (Den Rock among them).
             self.abut_cliffs()
             self.clear_walkways()
+            self.keep_under_platforms()
             self.swap_materials()
             levels.save_current_level()
             self.log('cliffs placed and saved')
@@ -1038,6 +1047,7 @@ class AreaBuild:
         # Now that the rocks the runs end against (Den Rock) stand too.
         self.abut_cliffs()
         self.clear_walkways()
+        self.keep_under_platforms()
         # The level's own dressing (not the story's): it stands on the terrain, beside the models.
         self.dressing(meshes)
         self.effects(meshes)
