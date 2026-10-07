@@ -36,8 +36,12 @@ namespace
 	constexpr float ArriveBehind = 700.f;
 	constexpr float ArriveAbove = 450.f;
 
-	/** A flight's arc over the straight line between perches (cm). */
+	/**
+	 * A flight's arc over the straight line between perches (cm), and how much higher a longer one rises for each cm it
+	 * covers: across the valley he flies up over the roofs rather than through them.
+	 */
 	constexpr float FlightArc = 60.f;
+	constexpr float FlightArcPerLength = 0.12f;
 
 	/** Closer than this to the new perch, he's already on it (cm). */
 	constexpr float SameSpot = 10.f;
@@ -163,10 +167,19 @@ void AHobBird::FlyTo(int32 Index)
 	FlightFrom = bFromAway ? To.Location + FRotator(0.0, To.Yaw + 180.0, 0.0).Vector() * ArriveBehind + FVector(0.0, 0.0, ArriveAbove)
 		: GetActorLocation();
 	FlightTo = To.Location;
-	FlightTotal = FMath::Max(FlightSeconds, 0.1f);
+	const float Length = static_cast<float>(FVector::Dist(FlightFrom, FlightTo));
+	FlightTotal = GetFlightSecondsFor(Length);
+	FlightRise = FMath::Max(FlightArc, Length * FlightArcPerLength);
 	FlightLeft = FlightTotal;
 	SetActorLocation(FlightFrom);
 	UE_LOG(LogLooter, Log, TEXT("%s: flies to perch %d (%s)."), *GetActorNameOrLabel(), Index + 1, *To.When.Describe());
+}
+
+float AHobBird::GetFlightSecondsFor(float Length) const
+{
+	// As long as the way needs at his speed: a hop still takes off and lands, a long way doesn't keep his news waiting.
+	const float Shortest = FMath::Max(MinFlightSeconds, 0.1f);
+	return FMath::Clamp(Length / FMath::Max(FlightSpeed, 100.f), Shortest, FMath::Max(MaxFlightSeconds, Shortest));
 }
 
 void AHobBird::FinishFlight()
@@ -221,7 +234,7 @@ void AHobBird::UpdatePose(float DeltaSeconds)
 		FlightLeft = FMath::Max(FlightLeft - DeltaSeconds, 0.f);
 		const float Alpha = 1.f - FlightLeft / FlightTotal;
 		const float Eased = FMath::InterpEaseOut(0.f, 1.f, Alpha, 2.f);
-		const FVector Where = FMath::Lerp(FlightFrom, FlightTo, Eased) + FVector(0.0, 0.0, FlightArc * FMath::Sin(UE_PI * Alpha));
+		const FVector Where = FMath::Lerp(FlightFrom, FlightTo, Eased) + FVector(0.0, 0.0, FlightRise * FMath::Sin(UE_PI * Alpha));
 		FVector Heading = FlightTo - FlightFrom;
 		Heading.Z = 0.0;
 		const float PerchYaw = Perches.IsValidIndex(Perch) ? Perches[Perch].Yaw : GetActorRotation().Yaw;

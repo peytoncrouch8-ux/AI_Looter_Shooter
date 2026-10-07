@@ -246,8 +246,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Story/StoryCharacter`: `AStoryCharacter`, a non-hostile character of the story: a placeholder body posed by code
   (breathing, turning to whoever it talks to), a speaker point, shown or hidden by story state.
 - `Story/HobBird`: `AHobBird`, Hob, the one-eyed crow: SK_Hob posed by code (plain shapes without his model) on fixed
-  perches chosen by story condition, flying in when the story moves him and saying his piece as he lands, talked to as a
-  story character; `HobBirdRig.cpp` his rig (breathing, the head's small sudden steps, a ruffle now and then, the wings
+  perches chosen by story condition, flying in when the story moves him (as long as the way needs at his speed, higher
+  over a longer one) and saying his piece as he lands, talked to as a story character; `HobBirdRig.cpp` his rig (breathing, the head's small sudden steps, a ruffle now and then, the wings
   blended open from Hob.py's table and beating about the shoulder in flight).
 - `Story/MisterSexton`: `AMisterSexton`, Mister Sexton on the lookout's rail (Main 2): SM_MisterSexton seated on the
   Lookout's Sit socket with SM_SextonLedger on his Ledger socket and his captions from his Speaker socket; a story

@@ -69,9 +69,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hob")
 	TArray<FHobPerch> Perches;
 
-	/** How long a flight takes (seconds); flying in from away, he drops in from above and behind his perch. */
+	/**
+	 * His speed between perches (cm/s): a flight takes as long as its length needs at it, within the bounds below.
+	 * Flying in from away, he drops in from above and behind his perch.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hob", meta = (ClampMin = "100"))
+	float FlightSpeed = 1400.f;
+
+	/** The shortest flight (seconds): a hop still takes off, beats its wings and lands. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hob", meta = (ClampMin = "0.1"))
-	float FlightSeconds = 1.4f;
+	float MinFlightSeconds = 1.2f;
+
+	/** The longest flight (seconds): across the valley he flies faster rather than keep his news waiting. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hob", meta = (ClampMin = "0.1"))
+	float MaxFlightSeconds = 6.f;
 
 	/** The perch whose condition holds now in the story, or INDEX_NONE. */
 	int32 FindPerch() const;
@@ -80,6 +91,12 @@ public:
 	int32 GetPerch() const { return Perch; }
 
 	bool IsFlying() const { return FlightLeft > 0.f; }
+
+	/** How long the flight under way (or the last one) takes, in seconds. */
+	float GetFlightSeconds() const { return FlightTotal; }
+
+	/** How long a flight this long (cm) takes him, in seconds: its length at his speed, within the shortest and longest. */
+	float GetFlightSecondsFor(float Length) const;
 
 	/** Ends a flight now: landed, his piece said (tests; a level that wants him there at once). */
 	void FinishFlight();
@@ -164,4 +181,6 @@ private:
 	FVector FlightTo = FVector::ZeroVector;
 	float FlightLeft = 0.f;
 	float FlightTotal = 1.f;
+	/** How high the flight under way bows over the straight line (cm): higher on a longer one. */
+	float FlightRise = 0.f;
 };

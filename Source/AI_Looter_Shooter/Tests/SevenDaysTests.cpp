@@ -292,6 +292,11 @@ bool FSevenDaysLinesTest::RunTest(const FString& Parameters)
 
 	Runner->SetStep(TEXT("TestMain1"), 2);
 	TestTrue(TEXT("Past the claw-out: Hob flies in"), Hob->IsShown() && Hob->GetPerch() == 0 && Hob->IsFlying());
+	// A flight lasts as long as its way needs at his speed, within the shortest and longest: dropping in from just above
+	// and behind the board is a hop.
+	TestEqual(TEXT("...a short drop onto the board, the shortest flight"), Hob->GetFlightSeconds(), Hob->MinFlightSeconds, 1e-3f);
+	TestEqual(TEXT("A flight three seconds long at his speed takes three"), Hob->GetFlightSecondsFor(Hob->FlightSpeed * 3.f), 3.f, 1e-3f);
+	TestEqual(TEXT("Across the valley he flies no longer than the longest"), Hob->GetFlightSecondsFor(1.0e6f), Hob->MaxFlightSeconds, 1e-3f);
 	Hob->FinishFlight();
 	TestTrue(TEXT("...and lands on Ellis's headboard"), !Hob->IsFlying() && Hob->GetActorLocation().Equals(Board, 0.5));
 	TestEqual(TEXT("...saying his piece"), OnScreen(*Captions), FString(TEXT("Hob|")) + HobsMorning);
