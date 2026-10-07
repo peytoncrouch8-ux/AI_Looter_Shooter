@@ -33,7 +33,7 @@ struct AI_LOOTER_SHOOTER_API FLightingTargets
 
 	/**
 	 * Turns the sun and sets its light and shadows, the sky light's intensity, the sky's color and ozone, the fog's
-	 * density and colors, the exposure.
+	 * density and colors (with its share of the sky's light, the inverse of the sky's color), the exposure.
 	 */
 	void Write(const FLightingState& State) const;
 

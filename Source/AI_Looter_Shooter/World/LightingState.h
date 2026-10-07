@@ -58,6 +58,8 @@ struct AI_LOOTER_SHOOTER_API FLightingState
 	 * Multiplies the sky's own color (the sky atmosphere's sky luminance factor). The sun's color temperature tints the
 	 * whole sky through the atmosphere, which turns a warm sun's blue sky slate or brown; a state cancels most of that
 	 * here, so the sky reddens only where the atmosphere reddens it, low toward the sun. White leaves the sky as lit.
+	 * The height fog takes the sky's light without it (FLightingTargets gives it the inverse share), so the haze keeps
+	 * the fog's own colors.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lighting|Sky")
 	FLinearColor SkyLuminance = FLinearColor::White;

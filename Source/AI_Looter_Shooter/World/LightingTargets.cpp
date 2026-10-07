@@ -34,6 +34,16 @@ namespace
 		return GetDefault<USkyAtmosphereComponent>()->OtherAbsorptionScale;
 	}
 
+	/**
+	 * The share of the sky atmosphere's light the height fog takes: the inverse of the sky's color correction, which is
+	 * meant for the sky alone. Otherwise a correction that turns a dusk sky blue-violet turns the haze lavender too.
+	 */
+	FLinearColor FogSkyShare(const FLinearColor& SkyLuminance)
+	{
+		return FLinearColor(1.f / FMath::Max(SkyLuminance.R, 0.01f), 1.f / FMath::Max(SkyLuminance.G, 0.01f),
+			1.f / FMath::Max(SkyLuminance.B, 0.01f));
+	}
+
 	/** A reference the states actor holds, if it still points at a living actor. */
 	template <typename ActorType>
 	ActorType* Living(const TObjectPtr<ActorType>& Reference)
@@ -148,6 +158,7 @@ void FLightingTargets::Write(const FLightingState& State) const
 		Fog->SetDirectionalInscatteringColor(State.FogDirectionalInscattering);
 		Fog->SetDirectionalInscatteringExponent(State.FogDirectionalExponent);
 		Fog->SetDirectionalInscatteringStartDistance(State.FogDirectionalStartDistance);
+		Fog->SetSkyAtmosphereAmbientContributionColorScale(FogSkyShare(State.SkyLuminance));
 	}
 	if (PostVolume)
 	{

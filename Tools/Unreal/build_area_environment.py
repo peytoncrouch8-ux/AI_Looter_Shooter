@@ -24,10 +24,11 @@ elevation how high it stands over the horizon. Lengths are cm, colors linear RGB
 
 The atmosphere's skyLuminance multiplies the sky's own color. The sun's color temperature tints the whole sky through
 the atmosphere (a 4100 K sun turns a blue sky slate grey), so a golden hour cancels most of it here and the sky reddens
-only where the atmosphere reddens it, low toward the sun. Its ozone is the ozone layer's absorption as a multiple of
-Earth's: at sunset it soaks the green out of the light crossing the sky, leaving the sky away from the sun twilight's
-blue-violet. The fog's cutoffDistance (none by default) ends the haze before the sky and the cloud dome past it, which
-would otherwise wear it as a grey veil; a backdrop inside it still fades into the haze.
+only where the atmosphere reddens it, low toward the sun. The correction is the sky's alone: the height fog takes the
+sky's light without it, so the haze keeps the fog's own colors. Its ozone is the ozone layer's absorption as a multiple
+of Earth's: at sunset it soaks the green out of the light crossing the sky, leaving the sky away from the sun
+twilight's blue-violet. The fog's cutoffDistance (none by default) ends the haze before the sky and the cloud dome past
+it, which would otherwise wear it as a grey veil; a backdrop inside it still fades into the haze.
 
 Lighting states (step 13): an ALightingStates actor beside the lights holds the level's named states, which
 ULightingStateSubsystem switches between (Looter.Light Day|Dusk). Day is always the environment above, the light the
@@ -224,7 +225,11 @@ def place(build):
                         ('start_distance', fog_settings['startDistance']),
                         ('fog_max_opacity', fog_settings['maxOpacity']),
                         ('fog_cutoff_distance', fog_settings['cutoffDistance']),
-                        ('fog_inscattering_luminance', color(fog_settings['inscattering']))):
+                        ('fog_inscattering_luminance', color(fog_settings['inscattering'])),
+                        # The sky's color correction is for the sky alone: the haze takes the sky's light without it
+                        # (as FLightingTargets sets it for every state).
+                        ('sky_atmosphere_ambient_contribution_color_scale',
+                         color([1.0 / max(c, 0.01) for c in atmosphere_settings['skyLuminance'][:3]]))):
         fog_component.set_editor_property(name, value)
     directional = fog_settings.get('directional')
     if directional:

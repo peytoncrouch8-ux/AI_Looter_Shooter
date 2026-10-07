@@ -8,6 +8,7 @@
 #include "World/LightingTargets.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/DirectionalLightComponent.h"
+#include "Components/ExponentialHeightFogComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Engine/DirectionalLight.h"
@@ -245,6 +246,11 @@ bool FLightingSwitchTest::RunTest(const FString& Parameters)
 	// Dusk at once, as a scene's cut asks: every light as Dusk has it.
 	TestTrue(TEXT("Dusk switched to"), Lighting->SetState(DuskName, ELightingSwitch::Instant));
 	TestLightsShow(*this, TEXT("At dusk"), Lights, Dusk);
+	// The sky's color correction is the sky's alone: the haze takes the sky's light without it.
+	const FLinearColor FogShare = Lights.HeightFog->GetComponent()->SkyAtmosphereAmbientContributionColorScale;
+	TestTrue(FString::Printf(TEXT("The fog's share of the sky's light undoes the sky's color (%s)"), *FogShare.ToString()),
+		FMath::IsNearlyEqual(FogShare.R * Dusk.SkyLuminance.R, 1.f, 1e-3f) && FMath::IsNearlyEqual(FogShare.G * Dusk.SkyLuminance.G, 1.f, 1e-3f)
+		&& FMath::IsNearlyEqual(FogShare.B * Dusk.SkyLuminance.B, 1.f, 1e-3f));
 	TestTrue(TEXT("Dusk in place"), Lighting->GetState() == DuskName && !Lighting->IsSwitching());
 	TestTrue(TEXT("Heard once, from Day to Dusk"), Heard.Num() == 1 && Heard[0].From == ALightingStates::DayState && Heard[0].To == DuskName
 		&& Heard[0].How == ELightingSwitch::Instant);
