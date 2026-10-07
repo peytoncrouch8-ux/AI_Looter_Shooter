@@ -429,6 +429,11 @@ def compute(area):
         _grounded(area, data)
     import area_open
     data['openGround'] = area_open.measure(area)[0]
+    # The far trees on the ring (region.farTrees), on the meshes the terrain model has just built.
+    import area_fartrees
+    trees = area_fartrees.place(area)
+    if trees is not None:
+        data['farTrees'] = trees
     # Which layout it came from, leaving out the blocks the generator never reads (area_shape.layout_sha1).
     data['layoutSha1'] = layout_sha1(area.path)
     return data
@@ -514,11 +519,34 @@ def _ground_near(area, x, y, open_edge):
     return float(area.height(*(pts[k] + inward * 0.5)))
 
 
+def _dumps(data):
+    """The file's text: indented as ever, but the far trees one per line ([x, y, z, yaw, scale]), which keeps a few
+    thousand of them compact; the layout's hash stays last."""
+    rest = {k: v for k, v in data.items() if k not in ('farTrees', 'layoutSha1')}
+    text = json.dumps(rest, indent=1)
+    if 'farTrees' in data:
+        trees = data['farTrees']
+        rows = []
+        for name, items in trees['meshes'].items():
+            body = ',\n'.join('    ' + json.dumps(t, separators=(',', ':')) for t in items)
+            rows.append(f'   {json.dumps(name)}: [\n{body}\n   ]' if items else f'   {json.dumps(name)}: []')
+        text = (text[:-2] + ',\n "farTrees": {\n  "note": ' + json.dumps(trees['note']) + ',\n  "meshes": {\n'
+                + ',\n'.join(rows) + '\n  }\n }\n}')
+    if 'layoutSha1' in data:
+        text = text[:-2] + ',\n "layoutSha1": ' + json.dumps(data['layoutSha1']) + '\n}'
+    return text
+
+
 def write(area, path=None, log=print):
     path = path or area.computed_path
     data = compute(area)
     with open(path, 'w', encoding='utf-8') as file:
-        json.dump(data, file, indent=1)
+        if 'farTrees' in data:
+            file.write(_dumps(data))
+        else:
+            json.dump(data, file, indent=1)
     counts = ', '.join(f'{len(points)} {group}' for group, points in data['cliffs'].items())
-    log(f'terrain: wrote {path} (cliff points: {counts})')
+    trees = data.get('farTrees')
+    far = ('; far trees: ' + ', '.join(f'{len(v)} {k[3:]}' for k, v in trees['meshes'].items())) if trees else ''
+    log(f'terrain: wrote {path} (cliff points: {counts}){far}')
     return data

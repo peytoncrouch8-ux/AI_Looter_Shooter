@@ -11,18 +11,21 @@ creature groups). The terrain's meshes are SM_<Area>_<part> (level.meshPrefix ov
 Everything it places carries the area's tag (IslandBuild on the tutorial island) and sits under its outliner folder
 (Island). Building again replaces those actors, so actors placed by hand survive; with "gameplay" it only places the
 gameplay actors again, and with "beyond" only what lies past the boundary (sky islands, a grounded area's ring, canyon
-wall and backdrop). Models that aren't imported yet are skipped with a warning. The level is saved at the end.
+wall, backdrop and far trees). Models that aren't imported yet are skipped with a warning. The level is saved last.
 Grass, flowers, trees and rocks come from the scatter (build_island_scatter.py <Area>).
 
 A grounded area's terrain also has what lies past its core (Art/Levels/area_beyond.py): the surround ring
-(SM_<Area>_Ring_<n>), the canyon wall (_CanyonWall_<n>) and the backdrop (_Backdrop_<n>). They go in the Beyond
-folder, tagged Beyond (Looter.Perf.HideTag measures them by difference); only the core's tiles are tagged Ground, so the
-minimap covers the valley alone. Cliff points with stacked courses get one piece per course; a knob's point places the
-outcrop kit's piece it names (SM_Outcrop_<piece>), and a gully's sloped banks get no faces. Its playable area, KillZ
-and cull distance volume come from build_area_bounds.py; every area's light, sky and fog from build_area_environment.py;
-the skiff jetty, the depot's station and the landings trips arrive at from build_area_travel.py; the story's actors
-(the cold open's set, the family plot's grave, the headboards, Delia's door, Hob) from build_area_story.py; the wanted
-posters and Calder's note (layout.json gameplay.posters) from build_area_posters.py.
+(SM_<Area>_Ring_<n>), the canyon wall (_CanyonWall_<n>) and the backdrop (_Backdrop_<n>). They go in the Beyond folder,
+tagged Beyond (Looter.Perf.HideTag measures them by difference); only the core's tiles are tagged Ground, so the minimap
+covers the valley alone. The trees standing on the ring (layout_computed.json farTrees, from
+Art/Levels/area_fartrees.py) go there too, one AInstancedScenery per tree mesh. Cliff points with stacked courses get
+one piece per course; a knob's point places the outcrop kit's piece it names (SM_Outcrop_<piece>), and a gully's sloped
+banks get no faces. Its playable area, KillZ and cull distance volume come from build_area_bounds.py; every area's
+light, sky and fog from build_area_environment.py; the skiff jetty, the depot's station and the landings trips arrive at
+from build_area_travel.py; the story's actors (the cold open's set, the family plot's grave, the headboards, Delia's
+door, Sexton, the bluff's spider nest, the town gate's fight, Tilly's window, the store's shutters, the safe zones,
+Hob) from build_area_story.py; the wanted posters and Calder's note (layout.json gameplay.posters) from
+build_area_posters.py.
 """
 import importlib
 import json
@@ -54,6 +57,16 @@ CLIFF_INSET = 120.0
 CLIFF_OVERTOP = 20.0
 CLIFF_OVERLAP = 250.0
 CLIFF_COURSE_OVERLAP = 30.0  # a lower course reaches this far up behind the one stacked on it
+# Cliff groups whose pieces are varied. The boundary's rock (area_boundary.rock_faces) runs on for hundreds of meters
+# at much the same height, where the closest fit is the same piece at the same height every few meters and the wall
+# reads as a kit. Each of its pieces draws on its own seed, so a rebuild places it the same: every other one is
+# mirrored across its width (its face still toward the line, its features flipped), each sinks into the ground by its
+# own depth and still reaches just over the top, so it's stretched differently and a feature never sits at one height,
+# and each turns a little more.
+VARIED_CLIFFS = ('boundaryFoot',)
+VARY_SINK = (50.0, 200.0)     # cm a piece sinks below its foot
+VARY_STRETCH = (0.85, 1.15)   # height scales a piece is picked for, when the kit has one that fits
+VARY_TURN = 8.0               # degrees either way; at a run's free end only the way that swings it back into the wall
 # What lies past a grounded area's core: its terrain parts by name, none of them Ground.
 BEYOND_PARTS = ('Ring_', 'CanyonWall_', 'Backdrop_')
 # Drops the waterfall model (made for the tutorial island's rim, its strands thinning out 40-58 m down) is shortened
@@ -79,6 +92,51 @@ def mesh_index():
 
 def component(actor, cls):
     return actor.get_component_by_class(cls)
+
+
+def cliff_width(gap, piece_width):
+    """A cliff piece's width scale: wide enough to overlap its neighbours (gap: to the nearest, cm), within reason."""
+    return min(max((gap + CLIFF_OVERLAP) / piece_width, 0.75), 1.6)
+
+
+def free_ends(points, i, width):
+    """The directions (unit x, y) from cliff point i toward the ends of its run that no neighbour covers: no point on
+    that side, or the next one farther off than the piece's width (cm). None when neither end is covered."""
+    here = points[i]['location'][:2]
+    near = {side: points[i + side]['location'][:2] for side in (-1, 1)
+            if 0 <= i + side < len(points) and math.dist(here, points[i + side]['location'][:2]) <= width}
+    if not near:
+        return None
+    ends = []
+    for side in (-1, 1):
+        if side not in near:
+            other = near[-side]
+            length = max(math.dist(here, other), 1e-6)
+            ends.append(((here[0] - other[0]) / length, (here[1] - other[1]) / length))
+    return ends
+
+
+def varied_piece(pieces, group, points, i, k, course, last, gap):
+    """Course k of a varied group's point i (VARIED_CLIFFS): (mesh, its height and width, the height it's scaled to
+    reach from its sunk pivot, how far it sinks, its turn, -1.0 when mirrored), all drawn from the piece's own seed."""
+    rnd = random.Random(f'{group} {i} {k}')
+    sink = rnd.uniform(*VARY_SINK)
+    reach = course['height'] + sink + (CLIFF_OVERTOP if last else CLIFF_COURSE_OVERLAP)
+    # Among the pieces that fit at a height scale within VARY_STRETCH (any when none does), the one stretched least
+    # either way, with chance in it, so a long wall mixes the kit's pieces where their heights allow.
+    fits = [p for p in pieces if VARY_STRETCH[0] <= reach / p[1] <= VARY_STRETCH[1]] or pieces
+    mesh, piece_height, piece_width = min(fits, key=lambda p: abs(math.log(reach / p[1]))
+                                          + abs(math.log(cliff_width(gap, p[2]))) + rnd.uniform(0.0, 0.35))
+    turn = rnd.uniform(-VARY_TURN, VARY_TURN)
+    ends = free_ends(points, i, cliff_width(gap, piece_width) * piece_width)
+    if ends is None:
+        turn = 0.0  # a lone piece: turned either way, one end would swing out
+    elif ends:
+        # The end of a run: its free end swings back into the wall, never out toward the line, where its back would
+        # show from the open side.
+        (ex, ey), yaw = ends[0], math.radians(points[i]['yaw'])
+        turn = -math.copysign(abs(turn), ex * math.sin(yaw) - ey * math.cos(yaw))
+    return mesh, piece_height, piece_width, reach, sink, turn, (-1.0 if (i + k) % 2 else 1.0)
 
 
 
@@ -140,6 +198,9 @@ class AreaBuild:
             if unreal.EditorAssetLibrary.does_asset_exist(self.level):
                 # Loads without asking about the scratch maps.
                 unreal.EditorLoadingAndSavingUtils.load_map(self.level)
+                # Its meshes finish building after it loads, and until then traces for the ground find nothing.
+                if hasattr(unreal, 'LooterLevelTools'):
+                    unreal.LooterLevelTools.finish_asset_compilation()
             else:
                 levels.new_level(self.level)
         built = [a for a in actors.get_all_level_actors() if unreal.Name(self.tag) in a.tags
@@ -325,6 +386,34 @@ class AreaBuild:
             placed += 1
         self.log(f'placed {placed} sky islands')
 
+    def far_trees(self, meshes):
+        """The far trees on the ring (layout_computed.json farTrees, from region.farTrees: Art/Levels/area_fartrees.py):
+        one AInstancedScenery per mesh, its instances at [x, y, z, yaw, scale] each; no collision, no shadows, never
+        distance-culled (the class sees to that). In the Beyond folder, tagged Beyond. A mesh not imported yet is
+        skipped with a warning."""
+        trees = self.layout.get('farTrees')
+        if not trees:
+            return
+        scenery = unreal.load_class(None, CLASSES + 'InstancedScenery')
+        if scenery is None:
+            self.warn('no InstancedScenery class (build the game module first): no far trees')
+            return
+        placed = 0
+        for full, items in trees['meshes'].items():
+            name = full[3:] if full.startswith('SM_') else full
+            if not items:
+                continue
+            if name not in meshes:
+                self.warn(f'no SM_{name} yet ({len(items)} far trees)')
+                continue
+            transforms = [unreal.Transform(location=unreal.Vector(x, y, z), rotation=unreal.Rotator(roll=0.0, pitch=0.0,
+                                                                                                     yaw=float(yaw)),
+                                           scale=unreal.Vector(scale, scale, scale)) for x, y, z, yaw, scale in items]
+            actor = self.place(scenery, (0, 0, 0), label=f'FarTrees_{name}', folder='Beyond', tags=('Beyond',))
+            actor.set_instances(unreal.load_asset(meshes[name]), transforms)
+            placed += len(items)
+        self.log(f'placed {placed} far trees')
+
     def terrain(self, meshes, only_beyond=False):
         """The terrain tiles (walkable, tagged Ground for the minimap and the scatter), the rock underside and the
         water; and a grounded area's ring, canyon wall and backdrop (tagged Beyond, in their own folder; only the
@@ -359,7 +448,10 @@ class AreaBuild:
         Each dressing point is where a wall meets the ground below it (a hanging cliff such as the rim: the wall's
         top, with the drop below it), facing out. A piece stands a little inside that line so it covers the wall and
         its lip; it reaches just over the top, is widened to overlap its neighbours, and is chosen among the kit's
-        pieces by how little it must stretch."""
+        pieces by how little it must stretch. The groups in VARIED_CLIFFS (the boundary's rock) are varied more, each
+        piece from its own seed: every other one mirrored, sunk 0.5-2 m while it still reaches just over the top, so
+        it's stretched differently (within VARY_STRETCH where the kit has a piece that fits), and turned up to 8
+        degrees."""
         pieces = []
         for name in CLIFF_PIECES:
             if name in meshes:
@@ -394,15 +486,21 @@ class AreaBuild:
                 yaw = point['yaw']
                 for k, course in enumerate(courses):
                     cx, cy, cz = course['location']
-                    reach = course['height'] + (CLIFF_OVERTOP if k == len(courses) - 1 else CLIFF_COURSE_OVERLAP)
+                    last = k == len(courses) - 1
+                    reach = course['height'] + (CLIFF_OVERTOP if last else CLIFF_COURSE_OVERLAP)
                     choices = sorted(pieces, key=lambda p: abs(math.log(reach / p[1])) + rng.uniform(0.0, 0.25))
                     mesh, piece_height, piece_width = choices[0]
+                    turn, sink, mirror = rng.uniform(-4.0, 4.0), 0.0, 1.0
+                    if group in VARIED_CLIFFS:
+                        # Its own draws; the shared ones above are still made, so the groups after it keep theirs.
+                        mesh, piece_height, piece_width, reach, sink, turn, mirror = varied_piece(
+                            pieces, group, points, i, k, course, last, gap)
                     inward = (-math.cos(math.radians(yaw)) * CLIFF_INSET, -math.sin(math.radians(yaw)) * CLIFF_INSET)
-                    width = min(max((gap + CLIFF_OVERLAP) / piece_width, 0.75), 1.6)
+                    width = cliff_width(gap, piece_width)
                     suffix = f'_{k + 1}' if len(courses) > 1 else ''
-                    self.place(mesh, (cx + inward[0], cy + inward[1], cz), yaw + rng.uniform(-4.0, 4.0),
+                    self.place(mesh, (cx + inward[0], cy + inward[1], cz - sink), yaw + turn,
                                label=f'Cliff_{group}_{i + 1:02d}{suffix}', folder=f'Cliffs/{group}',
-                               scale=(1.0, width, reach / piece_height), tags=('Obstacle',))
+                               scale=(1.0, mirror * width, reach / piece_height), tags=('Obstacle',))
                     placed += 1
         self.log(f'placed {placed} cliff pieces')
 
@@ -490,6 +588,7 @@ class AreaBuild:
             meshes = mesh_index()
             self.terrain(meshes, only_beyond=True)
             self.sky_islands(meshes)
+            self.far_trees(meshes)
             levels.save_current_level()
             self.log('beyond placed and saved')
             return
@@ -498,6 +597,7 @@ class AreaBuild:
         sky_light = self.environment()
         self.terrain(meshes)
         self.sky_islands(meshes)
+        self.far_trees(meshes)
         self.cliffs(meshes)
         self.models(meshes)
         self.effects(meshes)

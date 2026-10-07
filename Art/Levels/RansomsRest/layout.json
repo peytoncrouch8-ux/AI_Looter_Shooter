@@ -132,6 +132,45 @@
     },
     "ring": { "half": 55000, "cell": 100, "levels": [1000,500,250], "triangles": 38000, "sectors": 8, "macro": 2048 },
     "canyonWall": { "sectors": 4, "triangles": 18000 },
+    "farTrees": {
+      "about": "The far trees on the ring (Art/Levels/area_fartrees.py; the art session's SM_FarPine_A, SM_FarPine_B and SM_FarBroadleaf, one instanced component each, tagged Beyond): from near (cm) past the boundary to the ring's edge, off ground steeper than steep degrees, the river, the roads and the clear corridors; groves from noise, densest in the woods (density, share of pines), tree lines along the slopes, cottonwoods along the canyon's river, few on the plains; thinned where no standing spot inside the boundary (nor the lookouts: [X, Y, eye over the ground] cm) sees them; about count in all.",
+      "near": 15000,
+      "count": 2500,
+      "steep": 35,
+      "seed": 23,
+      "woods": [
+        {
+          "id": "northWoods",
+          "polygon": [[23000,-14000],[23000,55500],[55500,55500],[55500,-14000]],
+          "density": 1.0,
+          "pines": 0.85,
+          "note": "the higher forested ridges behind Larkspur Ridge"
+        },
+        {
+          "id": "eastValley",
+          "polygon": [[-7000,24500],[7000,24500],[15000,33000],[16000,62000],[-17000,62000],[-16000,33000]],
+          "density": 1.6,
+          "pines": 0.55,
+          "note": "the wooded valley past Stage Gap (the eastLowland bench), the most wooded: it shows through the gap"
+        },
+        {
+          "id": "southLowland",
+          "polygon": [[-20500,3000],[-20500,13000],[-42000,18000],[-42000,-2000]],
+          "density": 0.8,
+          "pines": 0.45,
+          "note": "the low ground past the Hogback, where Mill Creek runs on out of Mill Gorge"
+        }
+      ],
+      "lookouts": [[-8600,-10000,820]],
+      "clear": [
+        {
+          "id": "lineOut",
+          "path": [[-100,14600],[-100,55500]],
+          "width": 1800,
+          "note": "the line out of Stage Gap, down its trestle and east through the wooded valley: the track pieces past the gap follow it"
+        }
+      ]
+    },
     "backdrop": {
       "sectors": 1,
       "triangles": 6000,

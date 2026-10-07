@@ -1,7 +1,8 @@
 """Preview renders of an area (Eevee) into a folder (Saved/ArtPreviews/Terrain/<Area> by default): the layout's views
 (layout.json preview.views) and plan.png (top down, annotated with the zones, preview.labels, the computed points, the
 open-ground metric's overlay and, grounded, the playable boundary). A grounded area also gets plan_region.png (the
-ring's square: the core, its seam band, the lip, the ridges' feet, the river), and every area with step 3b's features
+ring's square: the core, its seam band, the lip, the ridges' feet, the river) and, with region.farTrees, far_trees.png
+(the far trees' crowns over that square, and the line they start at), and every area with step 3b's features
 gets a clay view of each, feature_<id>.png, with slabs standing in for the cliff kit's pieces (one color per stacked
 course). Clay blocks stand in for the buildings, for scale. Everything added is removed afterwards.
 
@@ -658,6 +659,89 @@ def render_region(area, out_dir, log=print):
     log(f'terrain: preview {path}')
 
 
+# The far trees' crowns on far_trees.png: color and radius (m) by mesh (Art/Models/Vegetation/FarTrees.py's reach).
+FAR_TREE_LOOK = {'SM_FarPine_A': ((0.04, 0.3, 0.1, 1.0), 2.65, 'dark green'),
+                 'SM_FarPine_B': ((0.3, 0.6, 0.12, 1.0), 3.4, 'green'),
+                 'SM_FarBroadleaf': ((0.95, 0.8, 0.1, 1.0), 4.85, 'yellow')}
+
+
+def render_far_trees(area, out_dir, log=print):
+    """far_trees.png: a grounded area's far trees (region.farTrees) from above over the ring's whole square, each a
+    crown to scale (dark green spires, green old pines, yellow cottonwoods), with the playable boundary (white), the
+    line the trees start at (orange, near past it) and the corridors they keep off (blue), to judge their density."""
+    data = _computed(area)
+    trees = data.get('farTrees')
+    spec = area.layout.get('region', {}).get('farTrees')
+    if not trees or not spec:
+        return
+    import area_fartrees
+    region = area.region
+    scene = bpy.context.scene
+    world = _world(scene)
+    added = []
+    _camera(Vector((0.0, 0.0, 800.0)), None, 50.0, added, ortho=2.0 * region.half + 4.0)
+    _sun(Vector((0.0, -1.0, -0.3)), added, strength=3.6, side=0.8, ahead=-0.6, elevation=40.0)
+    top = 130.0
+    for name, items in trees['meshes'].items():
+        if not items:
+            continue
+        color, reach, _ = FAR_TREE_LOOK.get(name, ((1.0, 0.0, 1.0, 1.0), 3.0, 'magenta'))
+        verts, faces = [], []
+        for x, y, _, _, scale in items:
+            cx, cy, r = x / 100.0, y / 100.0, reach * scale
+            base = len(verts)
+            verts += [tuple(_to_b(cx + r * math.cos(t), cy + r * math.sin(t), top)) for t in np.linspace(
+                0.0, 2.0 * math.pi, 8, endpoint=False)]
+            faces.append(tuple(range(base, base + 8)))
+        mesh = bpy.data.meshes.new('_FarTrees')
+        mesh.from_pydata(verts, [], faces)
+        mesh.materials.append(_material('_FarTree' + name, color, emission=0.5))
+        obj = bpy.data.objects.new('_FarTrees_' + name, mesh)
+        obj.visible_shadow = False
+        bpy.context.scene.collection.objects.link(obj)
+        added.append(obj)
+    # The line they start at: where the distance to the boundary crosses near, every 2 m, as dots.
+    near = spec.get('near', 15000) / 100.0
+    c = np.arange(-region.half + 1.0, region.half, 2.0)
+    gx, gy = np.meshgrid(c, c, indexing='ij')
+    d = area_fartrees._segments_distance(np.column_stack([gx.ravel(), gy.ravel()]), area.boundary,
+                                         closed=True).reshape(gx.shape)
+    across = (d[:-1, :] - near) * (d[1:, :] - near) <= 0.0
+    along = (d[:, :-1] - near) * (d[:, 1:] - near) <= 0.0
+    edge = across[:, :-1] | along[:-1, :]
+    dots, faces = [], []
+    for i, j in zip(*np.nonzero(edge)):
+        base = len(dots)
+        dots += [tuple(_to_b(gx[i, j] + dx, gy[i, j] + dy, top)) for dx, dy in ((-0.9, -0.9), (0.9, -0.9), (0.9, 0.9),
+                                                                               (-0.9, 0.9))]
+        faces.append((base, base + 1, base + 2, base + 3))
+    mesh = bpy.data.meshes.new('_NearLine')
+    mesh.from_pydata(dots, [], faces)
+    mesh.materials.append(_material('_NearLine', (1.0, 0.3, 0.02, 1.0), emission=0.8))
+    obj = bpy.data.objects.new('_NearLine', mesh)
+    obj.visible_shadow = False
+    bpy.context.scene.collection.objects.link(obj)
+    added.append(obj)
+    for i in range(len(area.boundary)):
+        a, b = area.boundary[i], area.boundary[(i + 1) % len(area.boundary)]
+        _line([tuple(a), tuple(b)], 0.8, (1.0, 1.0, 1.0, 1.0), added, z=top + 1.0)
+    for corridor in spec.get('clear', []):
+        path = np.asarray(corridor['path'], dtype=np.float64) / 100.0
+        _line([tuple(p) for p in path], corridor['width'] / 200.0, (0.25, 0.55, 1.0, 1.0), added, z=top - 1.0)
+    # The legend in the empty band south of the boundary, where no tree stands.
+    counts = ', '.join(f'{len(v)} {k[3:]} ({FAR_TREE_LOOK.get(k, (None, None, "magenta"))[2]})'
+                       for k, v in trees['meshes'].items())
+    south = float(area.boundary[:, 0].min())
+    _text(f'far trees: {counts}', south - near * 0.4, 0.0, 10.0, (1.0, 1.0, 1.0, 1.0), added, z=top + 5.0)
+    _text(f"from {near:g} m past the boundary (orange) to the ring's edge", south - near * 0.4 - 16.0, 0.0, 8.0,
+          (1.0, 0.3, 0.02, 1.0), added, z=top + 5.0)
+    path = os.path.join(out_dir, 'far_trees.png')
+    _render(path, (2048, 2048), samples=16)
+    _cleanup(added)
+    bpy.data.worlds.remove(world)
+    log(f'terrain: preview {path}')
+
+
 # --- Clay views of the features ---
 
 CLAY = (0.2, 0.19, 0.175, 1.0)
@@ -933,5 +1017,6 @@ def render_all(area, out_dir, log=print):
     render_plan(area, out_dir, log)
     if area.setting == 'grounded':
         render_region(area, out_dir, log)
+        render_far_trees(area, out_dir, log)
     render_features(area, out_dir, log)
     render_views(area, out_dir, log)

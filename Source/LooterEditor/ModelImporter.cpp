@@ -251,8 +251,9 @@ bool FModelImporter::ReadManifest(const FString& Path, TArray<FModel>& OutModels
 			Model.FallbackShare = static_cast<float>(FallbackPercent) * 0.01f;
 		}
 		// Defaults by category (Docs/TutorialIsland.md): vegetation gets LODs, terrain keeps every triangle in its fallback
-		// so its collision matches what every preset draws.
-		if (!Model.bNanite && Model.LODShares.IsEmpty() && Category == TEXT("Vegetation"))
+		// so its collision matches what every preset draws. A model that lists no LODs ("lods": []) means it: the far
+		// ridge trees are drawn by one instanced component each, which draws once more for every LOD in view.
+		if (!Model.bNanite && !(*Json)->HasField(TEXT("lods")) && Category == TEXT("Vegetation"))
 		{
 			Model.LODShares = { 0.4f, 0.12f };
 		}

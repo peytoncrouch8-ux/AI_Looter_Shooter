@@ -404,6 +404,8 @@ def build_beyond(area):
     ring_spec = spec.get('ring', {})
     upland, canyon, seam = area_beyond.ring(area, top['verts'], top['ring'], top['kinds'], top['normals'], top['ao'],
                                             ring_spec.get('triangles', area_beyond.RING_TRIANGLES), log=log)
+    # Kept for what stands on the ring (the far trees, seated on these triangles).
+    area.ring_mesh = [piece for piece in (upland, canyon) if piece is not None]
     count = ring_spec.get('sectors', 8)
     shares = [('upland', upland, count - (2 if canyon else 0))] + ([('canyon', canyon, 2)] if canyon else [])
     mat = macro_material(area, ring=True)

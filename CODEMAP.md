@@ -400,6 +400,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `World/WindowShutter`: `AWindowShutter`, one of Main Street's shutters on a false front's Shutter socket (Main 3): open
   flat against the wall until the player comes near, then it slams shut (after a moment of its own) and stays shut;
   shut from the start after Main 3.
+- `World/InstancedScenery`: `AInstancedScenery`, scenery far past a level's playable boundary drawn as one mesh's
+  instances (Ransom's Rest's far trees, one actor per tree mesh, set by `build_area.py`): no collision, navigation
+  or shadows, never distance-culled.
 - `World/PCGGroundFitFilter`: `UPCGGroundFitFilterSettings`, the meadow's PCG node that drops ground cover patches
   hanging off an edge and presses ones floating over a bump into the ground (editor-time; the graph ships with the level).
 - `World/LightingState`: `FLightingState`, one way a level can be lit (Day, Dusk): the sun by bearing and elevation with
@@ -556,6 +559,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `LooterMaterialGraphTools`: `ULooterMaterialGraphTools`, material graph helpers for the build scripts (from
   Python): `ClearMaterialGraph` empties a master to build it again in place, moving the nodes loaded as the editor
   started (rooted for good) out of it instead of deleting them.
+- `LooterLevelTools`: `ULooterLevelTools`, level helpers for the build scripts (from Python):
+  `FinishAssetCompilation` waits for a just-loaded level's meshes to finish building, so traces find the ground.
 - `Tests/StylizedPropTests.cpp`, `PropSettlerTests.cpp`, `ModelImportTests.cpp`, `TexturedImportTests.cpp`,
   `RigImportTests.cpp`, `SurfaceMaterialTests.cpp`, `MaterialGraphToolsTests.cpp`: the `Looter.Editor.*` tests (prop
   shapes and ground cover size,
@@ -583,19 +588,25 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `scatter.roadside: pebbles`, no rocks or boulders on or beside the roads).
 - `Art/Levels/area_computed.py`: `layout_computed.json`: placements at terrain height (or their own), cliff groups per
   feature (a ramp's cliff side and the boundary's rock foot too), bridge, waterfall, orchard rows, the squares the maps
-  cover, and the rise past the boundary's closed edges.
+  cover, the rise past the boundary's closed edges, and the far trees (one per line).
 - `Art/Levels/area_cliffs.py`: cliff dressing for those features and the grounded setting: a group per feature, walls
   over 12 m in stacked courses, a knob's outcrop, a gully's banks, gaps in a pit's ring for rock models.
 - `Art/Levels/area_open.py`: the open-ground metric: how far each walkable meter inside the boundary is from its
   nearest break (cover), in `layout_computed.json` and the plan preview.
 - `Art/Levels/area_beyond.py`: what lies past a grounded area's core: the surround ring, the canyon wall and the
   backdrop's silhouettes.
+- `Art/Levels/area_fartrees.py`: the far trees past a grounded area's boundary (`region.farTrees`): groves and contour
+  tree lines in the layout's woods, cottonwoods along the canyon's river, off steep ground, water, roads and the
+  clear corridors (the line out of Stage Gap), thinned where nobody inside sees them, each seated on the core's and
+  the ring's meshes; `farTrees` in `layout_computed.json`.
 - `Art/Levels/area_preview.py`: Blender preview renders and the annotated plan: views at the planned sun, clay views
-  with stand-ins for the buildings, obstacles and cliff courses, and straight-down shadow views.
+  with stand-ins for the buildings, obstacles and cliff courses, straight-down shadow views, and the far trees over
+  the ring (`far_trees.png`).
 - `Art/Levels/area_model.py`: the Blender side (tile, underside and water objects and their materials);
   `Art/Models/Terrain/<Area>.py` wrappers call it.
 - `Tools/Unreal/build_area.py`: `AreaBuild`, builds an area's level (`build_area.py <Area> [gameplay|beyond]`), with
-  what lies past the boundary tagged Beyond (a grounded area's ring, canyon wall and backdrop; an island's sky islands);
+  what lies past the boundary tagged Beyond (a grounded area's ring, canyon wall, backdrop and far trees, the last as
+  `AInstancedScenery`; an island's sky islands), and the boundary's rock pieces varied (mirrored, sunk, turned);
   `build_tutorial_island.py` wraps it for the tutorial island.
 - `Tools/Unreal/build_area_bounds.py`: a grounded area's bounds for `build_area.py`: the playable area from the
   computed boundary (its walls `level.wallSetback` behind the line, at the rock's foot), the KillZ 100 m under the
@@ -630,5 +641,5 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   layoutSha1 left out);
   `Tools/Blender/terrain_fingerprint.py` fingerprints its meshes.
 - `Tools/terrain_check.ps1`, `.py`: checks an area's layout and computed layout before anything is built (feature rules,
-  ramp grades, cliff courses of at most 12 m, the seam band, the boundary and the rock past its closed edges, open
-  ground).
+  ramp grades, cliff courses of at most 12 m, the seam band, the boundary and the rock past its closed edges, the far
+  trees, open ground).

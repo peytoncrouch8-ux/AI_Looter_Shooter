@@ -22,7 +22,10 @@ From Art/Levels/<Area>/layout_computed.json (written by Art/Models/Terrain/<Area
   (a warning: it's the design's aim, not a rule);
 - where the layout has boundary.foot: past every rock edge (closed, neither open nor blocked), sampled every 5 m along
   it (boundary.rise), the ground rises steeper than walkable (over the 5 m out from the line, at more than 44 degrees)
-  with its foot within 2.5 m of the line, or drops off the core.
+  with its foot within 2.5 m of the line, or drops off the core;
+- where the layout has region.farTrees: the far trees written (farTrees), each of a known mesh, outside the boundary
+  and at least region.farTrees.near past it, inside the ring's square, its yaw and scale in range, and about the count
+  asked for (a warning when far off).
 It prints each finding and a verdict, and exits with 1 on any error.
 """
 import argparse
@@ -37,6 +40,7 @@ REPO = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 sys.path.insert(0, os.path.join(REPO, 'Art', 'Levels'))
 
 import area_boundary  # noqa: E402
+import area_fartrees  # noqa: E402
 import area_features  # noqa: E402
 import area_region  # noqa: E402
 import area_shape  # noqa: E402
@@ -268,6 +272,8 @@ def check_computed(area, computed, out):
                    'APlayableArea')
     if area.setting == 'grounded' and boundary is not None:
         check_rise(area, boundary.get('rise'), out)
+    if area.setting == 'grounded':
+        check_far_trees(area, data.get('farTrees'), out)
     # Open ground.
     metric = data.get('openGround')
     if metric and 'largest' in metric:
@@ -317,6 +323,50 @@ def check_rise(area, rise, out):
     for r in bad[:12]:
         foot = 'none' if r[3] is None else f'{r[3] / 100.0:.1f} m'
         print(f'             edge {r[0]} at {r[1]:.2f}: rises {r[2]:.1f} degrees to 5 m out, foot {foot}')
+
+
+def check_far_trees(area, trees, out):
+    """The far trees (region.farTrees, area_fartrees.py), when the layout asks for them."""
+    spec = area.layout.get('region', {}).get('farTrees')
+    if not spec:
+        return
+    if not trees:
+        out.error('no far trees written: run the terrain model with --computed again')
+        return
+    kinds = {name: kind for name, kind, _, _ in area_fartrees.TREES}
+    corners = np.asarray(area.layout['boundary']['polygon'], dtype=np.float64) / 100.0
+    half = area.region.half
+    near = spec.get('near', 15000) / 100.0
+    counts, bad = {}, []
+    for name, items in trees.get('meshes', {}).items():
+        counts[name] = len(items)
+        if name not in kinds:
+            out.error(f'far trees: {name} is no far tree (area_fartrees.TREES)')
+            continue
+        if not items:
+            continue
+        rows = np.asarray(items, dtype=np.float64)
+        pts = rows[:, :2] / 100.0
+        lo, hi = area_fartrees.SCALE[kinds[name]]
+        wrong = area_region.points_in_polygon(pts[:, 0], pts[:, 1], corners)
+        wrong |= area_fartrees._segments_distance(pts, corners, closed=True) < near - 0.01
+        wrong |= np.max(np.abs(pts), axis=1) > half
+        wrong |= (rows[:, 3] < 0) | (rows[:, 3] >= 360) | (rows[:, 4] < lo - 1e-6) | (rows[:, 4] > hi + 1e-6)
+        for k in np.nonzero(wrong)[0][:5]:
+            bad.append(f'{name} at x {pts[k, 0]:.0f}, y {pts[k, 1]:.0f} (layout m)')
+        if wrong.any():
+            out.error(f'far trees: {int(wrong.sum())} {name} inside the boundary, within {near:g} m of it, past the '
+                      "ring's edge, or with a yaw or scale out of range")
+    for line in bad:
+        print(f'             {line}')
+    total = sum(counts.values())
+    text = (f'far trees: {total} in all (' + ', '.join(f'{n} {name[3:]}' for name, n in counts.items())
+            + f"), from {near:g} m past the boundary to the ring's edge")
+    target = spec.get('count', 2500)
+    if abs(total - target) > 0.3 * target:
+        out.warn(text + f' (about {target} asked for)')
+    elif not bad:
+        out.ok(text)
 
 
 def main():
