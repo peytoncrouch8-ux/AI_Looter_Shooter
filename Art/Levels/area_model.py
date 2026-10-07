@@ -13,7 +13,8 @@ wrapper that calls main('<Area>'). It builds:
 - Grounded (area_beyond.py): <Area>_Ring_<n>, the surround ring in sectors (material <Area>RingMacro, master Terrain,
   UV 0 over the ring's square onto T_<Area>RingMacro_BC; the upland's sectors collide, the canyon's don't);
   <Area>_CanyonWall_<n>, the generated wall under the escarpment's lip (RockCliff, no collision); <Area>_Backdrop_<n>,
-  the unlit silhouettes (material Backdrop<layer>, master Backdrop; no collision, no Nanite). The core's tiles share
+  the unlit silhouettes (material Backdrop<layer>, master Backdrop; no collision, no Nanite; UV 0 the azimuth share
+  and the height share up the curtain, UV 1 "Depth" U the meters below the layer's skyline). The core's tiles share
   their seam vertices with the ring exactly; the log prints the seam's gap and normal difference and each piece's
   triangles against its budget.
 
@@ -57,8 +58,9 @@ UNDERSIDE_REPEAT = 9.6  # meters per RockCliff repeat under the island: a third 
 # wall, the backdrop.
 BUDGETS = {'core': 150000, 'ring': 40000, 'canyon wall': 20000, 'backdrop': 6000}
 # The backdrop's layers, nearest first: tints that fade toward the sky's haze (a material parameter collection takes
-# over in the game, step 13).
-BACKDROP_TINTS = (0x5b6b5e, 0x7d8a8f, 0xa3adb5)
+# over in the game, step 13), darker near and paler far. The nearest is a dusty blue-grey: its old sage green read cyan
+# under the golden afternoon's haze, so it lost a third of its color and its green, and a little of its lightness.
+BACKDROP_TINTS = (0x575e68, 0x7d8a8f, 0xa3adb5)
 STARTED = time.time()
 
 
@@ -444,8 +446,11 @@ def build_beyond(area):
         for obj in walls:
             _underside_ao(obj, 0.0, area.region.drop, top=float(np.max(lip_xyz[:, 2])))
     for li, sct, verts, tris, extra in area_beyond.backdrop(area):
+        # UV 1 (Depth): U is meters below the layer's skyline, so M_Backdrop can thicken the haze toward the curtain's
+        # foot, by height rather than by share of a curtain kilometers tall.
         obj = make_object(f'{area.name}_Backdrop_{li * spec.get("backdrop", {}).get("sectors", 4) + sct}', verts, tris,
-                          backdrop_material(li), uvs={'UVMap': np.column_stack([extra[:, 1], extra[:, 0]])},
+                          backdrop_material(li), uvs={'UVMap': np.column_stack([extra[:, 1], extra[:, 0]]),
+                                                      'Depth': np.column_stack([extra[:, 2], np.zeros(len(verts))])},
                           colors=np.column_stack([np.ones((len(verts), 3)), extra[:, 0]]))
         obj['Collision'] = 'None'
         obj['Nanite'] = 0

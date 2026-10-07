@@ -588,11 +588,16 @@ def build_glass():
     return mat
 
 
-BACKDROP_SHADE = """// Seen against the sun a range shows the sides it doesn't reach: toward the sun's bearing the layers darken and cool
-// (Backlit at the sun itself), so the haze in front of them, thicker on the farther ones, sets them apart.
+BACKDROP_COLOR = """// Seen against the sun a range shows the sides it doesn't reach: toward the sun's bearing the layers
+// darken and cool (Backlit at the sun itself), so the haze in front of them, thicker on the farther ones, sets them apart.
 float3 D = -CameraVector;
 float Toward = saturate(dot(D, normalize(SunDirection + 1e-5)));
-return lerp(float3(1.0, 1.0, 1.0), Backlit, Toward * Toward);"""
+float3 Lit = Color * lerp(float3(1.0, 1.0, 1.0), Backlit, Toward * Toward) * BackdropTint;
+// Land fading into air: the further a point lies below its layer's skyline (UV 1's U, in meters), the more air hangs in
+// front of it, so each range grades from hazy at its foot to crisp on the skyline. The haze takes the lighting state's
+// own fog color (MPC_Lighting) but not its glow toward the sun, so at dusk the ranges against the sun stay silhouettes.
+float3 Air = FogInscattering * HazeBrightness;
+return lerp(Lit, Air, MaxHaze * saturate(Depth.x / HazeDepth));"""
 
 
 def build_backdrop():
@@ -600,21 +605,28 @@ def build_backdrop():
     how the low sun happens to strike them; opaque and one-sided, since they're only ever seen from inside. Being unlit
     they never see the sun go down either, so the lighting state's tint (MPC_Lighting's BackdropTint, white by day)
     multiplies every layer's own: dusk darkens and warms the ranges without touching the instances. Toward the sun
-    (the sky atmosphere's) they darken to their shaded sides."""
+    (the sky atmosphere's) they darken to their shaded sides, and each grades into the haze toward its foot (UV 1:
+    meters below the skyline, which Art/Levels/area_beyond.py writes)."""
     mat = material('M_Backdrop')
     mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
     g = Graph(mat)
     # A lit surface of albedo A shows about 2.5 A in the island's sun and sky (the unlit clouds' white is about 3).
     color = g.mul(g.vector('Tint', (0.11, 0.15, 0.11, 1.0), -600, -100), '', g.scalar('Brightness', 2.5, -600, 50), '',
                   -300, -50)
-    shade = g.custom(BACKDROP_SHADE, [
+    shaded = g.custom(BACKDROP_COLOR, [
+        ('Color', color, ''),
         ('CameraVector', g.node(unreal.MaterialExpressionCameraVectorWS, -900, 350), ''),
         ('SunDirection', g.node(unreal.MaterialExpressionSkyAtmosphereLightDirection, -900, 450), ''),
         ('Backlit', g.vector('Backlit', (0.22, 0.27, 0.38, 1.0), -900, 550), ''),
-    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -600, 350, 'Backdrop shade')
-    color = g.mul(color, '', shade, '', -150, 100)
-    g.out(g.mul(color, '', lighting_tint(g, 'BackdropTint', -600, 200), '', 0, 0), '',
-          unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+        ('BackdropTint', lighting_tint(g, 'BackdropTint', -1200, 200), ''),
+        ('FogInscattering', lighting_tint(g, 'FogInscattering', -1200, 650), ''),
+        ('Depth', g.node(unreal.MaterialExpressionTextureCoordinate, -900, 950, coordinate_index=1), ''),
+        # About what a view sees of the nearest layer below its skyline (meters): the grade runs over that.
+        ('HazeDepth', g.scalar('HazeDepth', 220.0, -900, 1050), ''),
+        ('MaxHaze', g.scalar('MaxHaze', 0.35, -900, 1150), ''),
+        ('HazeBrightness', g.scalar('HazeBrightness', 1.2, -900, 1250), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, 300, 'Backdrop color')
+    g.out(shaded, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     # The cold open draws its silhouettes with it too (AColdOpenCast: the gang as black mannequins against the sunset),
     # and they're skinned meshes.
     finish(mat, [unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH])

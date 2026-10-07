@@ -595,7 +595,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Art/Levels/area_open.py`: the open-ground metric: how far each walkable meter inside the boundary is from its
   nearest break (cover), in `layout_computed.json` and the plan preview.
 - `Art/Levels/area_beyond.py`: what lies past a grounded area's core: the surround ring, the canyon wall and the
-  backdrop's silhouettes.
+  backdrop's silhouettes (per layer a skyline with rolling relief, soft U notches and landforms of five kinds: mesa,
+  butte, stepped, broken, spire, with columns at their corners; each vertex's depth below its skyline for UV 1).
 - `Art/Levels/area_fartrees.py`: the far trees past a grounded area's boundary (`region.farTrees`): groves and contour
   tree lines in the layout's woods, cottonwoods along the canyon's river, off steep ground, water, roads and the
   clear corridors (the line out of Stage Gap), thinned where nobody inside sees them, each seated on the core's and
@@ -603,8 +604,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Art/Levels/area_preview.py`: Blender preview renders and the annotated plan: views at the planned sun, clay views
   with stand-ins for the buildings, obstacles and cliff courses, straight-down shadow views, and the far trees over
   the ring (`far_trees.png`).
-- `Art/Levels/area_model.py`: the Blender side (tile, underside and water objects and their materials);
-  `Art/Models/Terrain/<Area>.py` wrappers call it.
+- `Art/Levels/area_model.py`: the Blender side (tile, underside, water, ring, canyon wall and backdrop objects and
+  their materials; the backdrop's tints, darker near and paler far, and its UV 1 `Depth`); `Art/Models/Terrain/<Area>.py`
+  wrappers call it.
 - `Tools/Unreal/build_area.py`: `AreaBuild`, builds an area's level (`build_area.py <Area>
   [gameplay|environment|beyond]`), with what lies past the boundary tagged Beyond (a grounded area's ring, canyon wall,
   backdrop and far trees, the last as `AInstancedScenery`; an island's sky islands), and the boundary's rock pieces

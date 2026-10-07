@@ -404,7 +404,17 @@ def export_model(root, out_dir, materials):
         path_mode='AUTO',
         embed_textures=False,
     )
-    log(f"{name}: {len(meshes)} meshes, {len(hulls)} hulls, {len(sockets)} sockets, materials {', '.join(used)}")
+    # The UV channels in Unreal's order (each mesh's layers, in order; merged meshes share them by index), so an export
+    # test shows a second channel came through (the terrain's detail UVs, the backdrop's depth).
+    uv_channels = []
+    for mesh in meshes:
+        for index, layer in enumerate(mesh.data.uv_layers):
+            if index >= len(uv_channels):
+                uv_channels.append(layer.name)
+    depsgraph = bpy.context.evaluated_depsgraph_get()  # with the modifiers applied, as exported
+    triangles = sum(len(p.vertices) - 2 for mesh in meshes for p in mesh.evaluated_get(depsgraph).data.polygons)
+    log(f"{name}: {len(meshes)} meshes, {triangles} triangles, UV {', '.join(uv_channels) or 'none'}, "
+        f"{len(hulls)} hulls, {len(sockets)} sockets, materials {', '.join(used)}")
     entry = {
         'name': name,
         'fbx': name + '.fbx',
@@ -412,6 +422,7 @@ def export_model(root, out_dir, materials):
         'nanite': bool(root.get('Nanite', True)),
         'materials': used,
         'sockets': [socket_entry(empty) for empty in sockets],
+        'uvChannels': uv_channels,
     }
     # Optional: LOD1.. triangle percentages and screen sizes (meshes without Nanite), and Nanite's fallback share.
     if root.get('LODs') is not None:

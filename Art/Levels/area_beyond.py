@@ -12,7 +12,9 @@ makes Blender objects of them; area_region.py has the regional field R they're a
   floor, in sectors along the lip: a slight batter, a ledge at the foot of each 6 m layer, level strata UVs; the
   generated part of the escarpment below the cliff kit's courses.
 - backdrop(): unlit silhouettes on circles of about 3, 6 and 12 km (layout.json region.backdrop.layers), each a curtain
-  from far below the horizon up to its skyline: the far ranges and hills, the plains and far mesas beyond the canyon.
+  from far below the horizon up to its skyline: the far ranges and hills, the plains beyond the canyon with their
+  rolling relief and gaps, and the landforms on them (mesas, buttes, stepped and broken mesas, spires). Each vertex
+  also carries its depth below the skyline, for the material's haze.
 - seam(): the gap and the normal difference where the core meets the ring.
 Every piece returns its vertices in layout meters (x north, y east, z up), triangles, and per-vertex extras.
 """
@@ -471,23 +473,180 @@ def _zipper_open(a_start, a_u, b_start, b_u):
 
 # --- The backdrop ---
 
-def _direction_range(theta, spec):
-    """A layer's skyline range [low, high] (m) at azimuths theta (degrees, 0 north, 90 east), eased between the four
-    directions' ranges."""
-    names = ('north', 'east', 'south', 'west')
-    lows = np.array([spec[n][0] for n in names], dtype=np.float64) / 100.0
-    highs = np.array([spec[n][1] for n in names], dtype=np.float64) / 100.0
+DIRECTIONS = ('north', 'east', 'south', 'west')
+# The landforms standing on a backdrop layer's skyline besides today's mesa (a smooth step: _shape_profile), each a
+# profile across its width: knots (the offset from its azimuth as a share of its width, -0.5 to 0.5; the height as a
+# share of its own) joined by straight runs. The curtain gets a column at every knot, so it draws them exactly: a thin
+# spire still reads, and no two are the same stamp. Their sides are steep but never sheer, and all but the mesa stand
+# on a talus apron, as buttes and spires do.
+BACKDROP_SHAPES = {
+    # Narrow and tall: a flat cap a third of the base wide on cliffs, then the talus.
+    'butte': ((-0.5, 0.0), (-0.36, 0.16), (-0.27, 0.42), (-0.215, 0.9), (-0.19, 0.985), (-0.16, 1.0), (0.16, 1.0),
+              (0.19, 0.985), (0.215, 0.9), (0.27, 0.42), (0.36, 0.16), (0.5, 0.0)),
+    # A mesa with a lower shelf (about half its height) on its far side: toward larger azimuths, or smaller with side -1.
+    'stepped': ((-0.5, 0.0), (-0.42, 0.14), (-0.36, 0.4), (-0.325, 0.92), (-0.305, 1.0), (0.04, 1.0), (0.06, 0.95),
+                (0.085, 0.6), (0.1, 0.56), (0.3, 0.53), (0.32, 0.49), (0.355, 0.24), (0.42, 0.09), (0.5, 0.0)),
+    # A mesa whose top a notch splits into two blocks, the smaller one a little lower.
+    'broken': ((-0.5, 0.0), (-0.42, 0.14), (-0.36, 0.4), (-0.325, 0.92), (-0.305, 1.0), (0.03, 1.0), (0.05, 0.94),
+               (0.075, 0.66), (0.1, 0.6), (0.125, 0.64), (0.15, 0.93), (0.17, 0.985), (0.3, 0.965), (0.32, 0.9),
+               (0.355, 0.38), (0.42, 0.13), (0.5, 0.0)),
+    # A thin pinnacle tapering to a point off a talus cone, leaning a little toward its far side.
+    'spire': ((-0.5, 0.0), (-0.3, 0.05), (-0.15, 0.17), (-0.085, 0.45), (-0.05, 0.8), (-0.028, 0.95), (-0.01, 1.0),
+              (0.01, 0.99), (0.032, 0.93), (0.055, 0.76), (0.095, 0.42), (0.16, 0.16), (0.31, 0.04), (0.5, 0.0)),
+}
+MESA_SIDES = (0.35, 0.3875, 0.425, 0.4625, 0.5)  # where a mesa's smooth sides get columns (share of its width)
+SHAPE_COVER = 0.2               # a landform keeps its outline where it stands this share of its height or more
+NOTCH_SAMPLES = (0.0, 0.25, 0.45, 0.6, 0.72, 0.86, 1.0)  # and a notch's walls (share of its half width), both sides
+RELIEF_WAVELENGTH = 110000      # cm of arc between a layer's relief swells, unless its relief gives a wavelength
+
+
+def _eased(theta, values):
+    """Per-direction values (north, east, south, west) at azimuths theta (degrees, 0 north, 90 east), eased between
+    the four directions."""
     t = (np.asarray(theta) % 360.0) / 90.0
     k = np.floor(t).astype(int) % 4
     f = t - np.floor(t)
     f = f * f * (3.0 - 2.0 * f)
     nxt = (k + 1) % 4
-    return lows[k] + (lows[nxt] - lows[k]) * f, highs[k] + (highs[nxt] - highs[k]) * f
+    return values[k] + (values[nxt] - values[k]) * f
+
+
+def _direction_range(theta, spec):
+    """A layer's skyline range [low, high] (m) at azimuths theta, eased between the four directions' ranges."""
+    lows = np.array([spec[n][0] for n in DIRECTIONS], dtype=np.float64) / 100.0
+    highs = np.array([spec[n][1] for n in DIRECTIONS], dtype=np.float64) / 100.0
+    return _eased(theta, lows), _eased(theta, highs)
+
+
+def _backdrop_shapes(layer):
+    """A layer's landforms (its "mesas"), as dicts: azimuth and width (degrees), height (m over the layer's low), kind,
+    side (1, or -1 to mirror the kind) and tilt; plain marks today's three-number form."""
+    shapes = []
+    for entry in layer.get('mesas', []):
+        if isinstance(entry, dict):
+            azimuth, width, height = entry['azimuth'], entry['width'], entry['height']
+            kind, side, tilt = entry.get('kind', 'mesa'), entry.get('side', 1), entry.get('tilt', 0.0)
+        else:
+            azimuth, width, height = entry[:3]
+            kind, side, tilt = (entry[3] if len(entry) > 3 else 'mesa'), 1, 0.0
+        if kind != 'mesa' and kind not in BACKDROP_SHAPES:
+            raise ValueError(f"backdrop: a shape's kind is {kind!r}, not one of mesa, {', '.join(BACKDROP_SHAPES)}")
+        shapes.append(dict(azimuth=azimuth, width=width, height=height / 100.0, kind=kind,
+                           side=-1.0 if side < 0 else 1.0, tilt=float(tilt),
+                           plain=not isinstance(entry, dict) and len(entry) == 3))
+    return shapes
+
+
+def _shape_profile(shape, off):
+    """A landform's height as a share of its own (0 to 1) at offsets off (degrees from its azimuth)."""
+    width = shape['width']
+    if shape['kind'] == 'mesa':
+        f = 1.0 - smoothstep(width * 0.35, width * 0.5, np.abs(off))  # today's mesa, to the bit
+    else:
+        knots = np.asarray(BACKDROP_SHAPES[shape['kind']])
+        f = np.interp(off / width * shape['side'], knots[:, 0], knots[:, 1], left=0.0, right=0.0)
+    if shape['tilt']:
+        f = f * (1.0 + 2.0 * shape['tilt'] * np.clip(off / width, -0.5, 0.5))
+    return f
+
+
+def _shape_columns(shape):
+    """The azimuths (degrees) where a landform's outline turns: its knots, or a mesa's smooth sides."""
+    if shape['kind'] == 'mesa':
+        s = np.concatenate([-np.array(MESA_SIDES[::-1]), MESA_SIDES])
+    else:
+        s = np.asarray(BACKDROP_SHAPES[shape['kind']])[:, 0] * shape['side']
+    return shape['azimuth'] + s * shape['width']
+
+
+def _notch_columns(notch):
+    """The azimuths (degrees) of a notch's columns: its floor and both walls."""
+    u = np.array(NOTCH_SAMPLES)
+    return notch[0] + np.concatenate([-u[:0:-1], u]) * 0.5 * notch[1]
+
+
+def _notch_cut(theta, notches):
+    """How far (m) a layer's notches cut its skyline down at azimuths theta: each a soft U (a side canyon's gap), its
+    floor rounded and its rims rolling over, steepest about two thirds of the way out. (A flat floor read as a box cut
+    out of the skyline.) Overlapping notches don't add up: the deeper one wins."""
+    cut = np.zeros(np.shape(theta))
+    for azimuth, width, depth in notches:
+        off = ((theta - azimuth + 180.0) % 360.0) - 180.0
+        u = np.minimum(np.abs(off) / (0.5 * width), 1.0)
+        cut = np.maximum(cut, depth / 100.0 * (1.0 - u * u) ** 1.5)
+    return cut
+
+
+def _relief(theta, layer, li, radius, seed):
+    """A layer's rolling relief (m) at azimuths theta: low swells that hold level for a stretch and break softly to the
+    next (smooth noise through a tanh), not peaks, about as high either way as the direction's amplitude, eased between
+    the directions like the ranges; the swells are the relief's wavelength apart along the circle."""
+    relief = layer['relief']
+    amplitude = _eased(theta, np.array([relief.get(n, 0) for n in DIRECTIONS], dtype=np.float64) / 100.0)
+    wave = relief.get('wavelength', RELIEF_WAVELENGTH) / 100.0
+    a = np.radians(theta)
+    u, v = np.cos(a) * radius / wave, np.sin(a) * radius / wave
+    swell = (0.8 * gradient_noise(u + 47.0 * li, v, seed + li + 41)
+             + 0.2 * gradient_noise(2.3 * u, 2.3 * v + 3.0, seed + li + 43))
+    return amplitude * np.tanh(2.0 * swell)
+
+
+def _backdrop_columns(segments, sector_count, shapes, notches):
+    """A layer's column azimuths (degrees, 0 to 360) and the index each sector starts at (and the last's end). A layer
+    of plain mesas only has them evenly spaced, as ever. Once a layer has a landform of a kind or a notch, every
+    landform and notch also gets columns where its outline turns, and the even ones thin out to keep the count: those
+    right beside a turn make way (no slivers), except where a sector starts."""
+    if not notches and all(s['plain'] for s in shapes):
+        return np.linspace(0.0, 360.0, segments + 1), [s * segments // sector_count for s in range(sector_count + 1)]
+    turns = np.sort(np.concatenate([_shape_columns(s) for s in shapes] + [_notch_columns(n) for n in notches])
+                    % 360.0)
+    turns = turns[np.diff(np.concatenate([[-1.0], turns])) > 1e-4]  # overlapping outlines: one column each
+
+    def merged(count):
+        even = np.linspace(0.0, 360.0, count + 1)
+        starts = np.zeros(count + 1, dtype=bool)
+        starts[::count // sector_count] = True
+        gap = np.min(np.abs(even[:, None] - turns[None, :]), axis=1, initial=1e9)
+        kept = (gap > 0.3 * 360.0 / count) | starts
+        clear = np.min(np.abs(turns[:, None] - even[starts][None, :]), axis=1) > 1e-4
+        theta = np.concatenate([even[kept], turns[clear]])
+        first = np.concatenate([starts[kept], np.zeros(int(clear.sum()), dtype=bool)])
+        order = np.argsort(theta, kind='stable')
+        return theta[order], list(np.nonzero(first[order])[0])
+    count = max(sector_count, (segments - len(turns)) // sector_count * sector_count)
+    theta, starts = merged(count)
+    # The even columns that made way leave some of the count unspent: more even ones, while it lasts.
+    while len(theta) - 1 < segments:
+        more = merged(count + sector_count)
+        if len(more[0]) - 1 > segments:
+            break
+        count += sector_count
+        theta, starts = more
+    return theta, starts
 
 
 def backdrop(area, budget=None, seed=91):
-    """The backdrop's layers: a list per layer of (layer index, sector, vertices (N, 3), triangles, extra (N, 2): the
-    height share up the curtain, 0 at its foot and 1 on the skyline, and the azimuth share round the circle)."""
+    """The backdrop's layers: a list per layer of (layer index, sector, vertices (N, 3), triangles, extra (N, 3): the
+    height share up the curtain, 0 at its foot and 1 on the skyline; the azimuth share round the circle; and the depth
+    below the skyline in meters, 0 on it and the skyline less the base at the foot, for the material's haze).
+
+    Each layer (layout.json region.backdrop.layers, lengths in cm) is a curtain at its distance from its base (or
+    lower: see below) up to a skyline over azimuth (degrees, 0 north, 90 east), within each direction's [low, high]:
+    - north, east, south, west: the skyline's range, eased between the directions; a ridgeline of a few octaves of
+      noise (rougher on the higher ranges) runs within it.
+    - mesas (optional): the landforms standing on it, each over the layer's low there: [azimuth, width, height] is
+      today's flat-topped mesa; [azimuth, width, height, kind] or {"azimuth", "width", "height", "kind", "side",
+      "tilt"} picks a kind: 'mesa', 'butte' (narrow, tall, steep), 'stepped' (a lower shelf on one side), 'broken' (a
+      notch in its top) or 'spire' (a thin pinnacle), all but the mesa on a talus apron (BACKDROP_SHAPES); side -1
+      mirrors it, and tilt (a share of its height) lifts its far side and drops its near one.
+    - relief (optional): {"west": 1500, "east": 2000, "wavelength": 110000}: rolling swells, about that high either way
+      per direction (eased; directions left out have none), the wavelength apart along the circle.
+    - notches (optional): [[azimuth, width (degrees), depth], ...]: the skyline cut down in a soft U, a side canyon's
+      gap.
+    The relief and the notches shape the skyline around the landforms, not through them, easing in across their
+    talus, and may take it under the range's low. A layer of plain mesas only keeps its columns evenly spaced, as it
+    always was; one with kinds or notches also has columns at their corners (_backdrop_columns), within the same
+    count. Each layer's share of the backdrop's triangles (its "triangles") makes two per column."""
     spec = area.layout['region'].get('backdrop', {})
     layers = spec.get('layers', [])
     if not layers:
@@ -505,24 +664,35 @@ def backdrop(area, budget=None, seed=91):
     for li, layer in enumerate(layers):
         radius = layer['distance'] / 100.0
         base = min(layer.get('base', -50000) / 100.0, -radius * math.tan(steepest))
-        theta = np.linspace(0.0, 360.0, segments + 1)
+        shapes = _backdrop_shapes(layer)
+        notches = layer.get('notches', [])
+        theta, starts = _backdrop_columns(segments, sector_count, shapes, notches)
         lo, hi = _direction_range(theta, layer)
-        # The skyline: a ridgeline of a few octaves (rougher on the higher ranges), plus flat-topped mesas.
+        # The skyline: a ridgeline of a few octaves (rougher on the higher ranges) and the landforms standing on it,
+        # then its relief and notches around them.
         a = np.radians(theta)
         ridge = (0.55 * gradient_noise(np.cos(a) * radius / 900.0 + 31.0 * li, np.sin(a) * radius / 900.0, seed + li)
                  + 0.3 * gradient_noise(np.cos(a) * radius / 300.0, np.sin(a) * radius / 300.0 + 7.0, seed + li + 9)
                  + 0.15 * gradient_noise(np.cos(a) * radius / 110.0, np.sin(a) * radius / 110.0, seed + li + 17))
         sky = lo + (hi - lo) * np.clip(0.5 + 0.8 * ridge, 0.0, 1.0)
-        for azimuth, width, height in layer.get('mesas', []):
-            off = ((theta - azimuth + 180.0) % 360.0) - 180.0
-            flat = 1.0 - smoothstep(width * 0.35, width * 0.5, np.abs(off))
-            sky = np.maximum(sky, lo + height / 100.0 * flat)
+        cover = np.zeros(len(theta))
+        for shape in shapes:
+            off = ((theta - shape['azimuth'] + 180.0) % 360.0) - 180.0
+            f = _shape_profile(shape, off)
+            sky = np.maximum(sky, lo + shape['height'] * f)
+            cover = np.maximum(cover, np.minimum(f / SHAPE_COVER, 1.0))
+        # The relief and the notches shape the skyline around the landforms, never through them: they ease in across
+        # each one's talus. (Applied before, they took the skyline under the range's low, and every landform's foot,
+        # at the low, lifted it back.)
+        if layer.get('relief') or notches:
+            shift = _relief(theta, layer, li, radius, seed) if layer.get('relief') else np.zeros(len(theta))
+            if notches:
+                shift = shift - _notch_cut(theta, notches)
+            sky = sky + shift * (1.0 - cover)
         sky[-1] = sky[0]
         x, y = radius * np.cos(a), radius * np.sin(a)
         for sct in range(sector_count):
-            a0 = sct * segments // sector_count
-            a1 = (sct + 1) * segments // sector_count
-            idx = np.arange(a0, a1 + 1)
+            idx = np.arange(starts[sct], starts[sct + 1] + 1)
             bottom = np.column_stack([x[idx], y[idx], np.full(len(idx), base)])
             top = np.column_stack([x[idx], y[idx], sky[idx]])
             verts = np.vstack([bottom, top])
@@ -539,7 +709,8 @@ def backdrop(area, budget=None, seed=91):
             if np.sum(np.einsum('ij,ij->i', normal, toward) > 0.0) < 0.5 * len(tris):
                 tris = tris[:, [0, 2, 1]]
             extra = np.column_stack([np.concatenate([np.zeros(m), np.ones(m)]),
-                                     np.concatenate([theta[idx], theta[idx]]) / 360.0])
+                                     np.concatenate([theta[idx], theta[idx]]) / 360.0,
+                                     np.concatenate([sky[idx] - base, np.zeros(m)])])
             pieces.append((li, sct, verts, tris, extra))
     return pieces
 

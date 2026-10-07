@@ -172,6 +172,7 @@
       ]
     },
     "backdrop": {
+      "about": "The silhouettes past the ring (Art/Levels/area_beyond.py backdrop()): a curtain per layer, distance (cm) out, from base (or lower) up to a skyline over the bearing (0 north, 90 east). Each direction's [low, high] (cm) is the skyline's range, eased between them; relief adds low rolling swells, about that high (cm) either way per direction, wavelength (cm) apart along the circle; notches [bearing, width in degrees, depth (cm)] cut soft U gaps, a side canyon's. Mesas are the landforms standing on the range's low: [bearing, width, height] is the plain flat-topped mesa; [bearing, width, height, kind] or {azimuth, width, height, kind, side, tilt} picks mesa, butte, stepped, broken or spire (side -1 mirrors it, tilt lifts its far side). The landforms and gaps west are composed for Ransom's Point and the deck (bearing 247.5): two close together, a wide gap, the big stepped one, a spire, a broken one, the 6 km layer's peeking between; the nearest layer's relief and gaps east are for the ridge foot (bearing 85).",
       "sectors": 1,
       "triangles": 6000,
       "layers": [
@@ -179,10 +180,18 @@
           "distance": 300000,
           "base": -40000,
           "north": [9000,20000],
-          "east": [4000,11000],
+          "east": [1500,7000],
           "south": [3500,10000],
           "west": [-5000,-2500],
-          "mesas": [[-100,3,9000],[-78,2,6500],[-122,2.5,7500]]
+          "relief": {"west": 1800, "south": 800, "east": 2600, "wavelength": 90000},
+          "notches": [[238,4.0,3000],[277.5,2.2,2000],[66,3.0,2200],[97,4.5,3500]],
+          "mesas": [
+            [219,1.3,9500,"butte"],
+            {"azimuth": 222.9, "width": 2.6, "height": 5500, "kind": "mesa", "tilt": -0.06},
+            {"azimuth": 259.5, "width": 7.5, "height": 12500, "kind": "stepped", "side": -1},
+            [272,2.2,11000,"spire"],
+            [283.5,3.6,9000,"broken"]
+          ]
         },
         {
           "distance": 600000,
@@ -191,7 +200,12 @@
           "east": [9000,20000],
           "south": [9000,20000],
           "west": [-4000,1000],
-          "mesas": [[-108,2.5,13000],[-88,1.5,9000],[-132,1.2,8000]]
+          "mesas": [
+            [214.5,1.5,15000,"butte"],
+            [236,3.4,9500],
+            {"azimuth": 265.5, "width": 3.0, "height": 12000, "kind": "mesa", "tilt": 0.05},
+            {"azimuth": 296, "width": 2.4, "height": 9000, "kind": "stepped"}
+          ]
         },
         {
           "distance": 1200000,
