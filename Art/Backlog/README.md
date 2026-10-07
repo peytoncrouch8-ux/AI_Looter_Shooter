@@ -16,7 +16,7 @@ Previews: run a file with `-- --preview` (see its docstring); the pictures land 
 
 | File | Models | Notes |
 |---|---|---|
-| `Loot/Chests.py` | SupplyCrate (Uncommon), Strongbox (Rare), Reliquary (Legendary), each with a `_Lid`; Strongbox_Wheel, Reliquary_Crystal | Openable chests the user picked on 2026-09-30. Lids pivot on their hinge (SOCKET_Lid on the body); SOCKET_Loot is where loot comes out. |
+| `Loot/Chests.py` (moved) | SupplyCrate (Uncommon), Strongbox (Rare), Reliquary (Legendary), each with a `_Lid`; Strongbox_Wheel, Reliquary_Crystal | Openable chests the user picked on 2026-09-30. Moved to `Art/Models/Loot/Chests.py` on 2026-10-07 for Ransom's Rest's Ranger caches (step 26): it exports the Supply Crate and the Strongbox; the Reliquary is still built there for its previews only, never exported. |
 | `Weapons/AssaultRifles.py` | Homestead, Regulator, Kestrel, Scrapjack, Zephyr (Body, Magazine, Sight each) | The five AR designs the user chose from; Kestrel became the game's AR (Art/Models/Weapons/Bullpup.py). The others are kept for reference (possible legendary bases). |
 | `Weapons/Shotguns.py` | Farmhand, Coachman, Breacher, KestrelS, Thunderdrum (Body; Pump or Magazine) | Five shotgun designs for the user to choose from (2026-10-01). |
 | `Weapons/ShotgunHybrids.py` | Heartwood, Ranchhand, Homesteader (Body, Pump each) | Three Kestrel-S x Farmhand mixes the user asked for after passing on the five shotguns (2026-10-01); Ranchhand became the game's shotgun (Art/Models/Weapons/Ranchhand.py). |

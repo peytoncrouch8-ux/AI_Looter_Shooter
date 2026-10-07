@@ -24,6 +24,7 @@ Every pivot is on the ground at the middle of the footprint and the front faces 
   StoneWall_Broken    a 3 m dry-stone wall segment breached in the middle (the old pound wall)
   StoneWall_Fallen    a 3 m stretch of fallen wall: a low remnant and its spill (the fallen glebe wall)
   StoneWall_Corner    a square corner with 1.5 m arms (the sheep fold)
+  StoneWall_Half      a 1.5 m length of standing wall with a through stone (the sheep fold's gate side)
   Cairn_A, _B, _C     knee-high keeper's cairns (the west road to the Keeper's Gate); C carries a lantern hook
   HangingRope         the hanging tree's frayed rope and noose (20, 46). Pivot at the top, the branch's middle;
                       no collision
@@ -35,6 +36,9 @@ seam:
     StoneWall_Corner turns left (toward +Y): its outgoing end is at (1.5, 1.5), facing +Y, where the next segment
     starts turned 90 degrees, so a corner plus whole walls make sides of 3 m, 6 m, 9 m...
   - StoneWall_Fallen has low remnant ends: it chains with itself (and its spill continues), not with standing wall.
+  - StoneWall_Half has full ends at both joints (x = 0 and x = 1.5): it fits anywhere in a standing run, so runs of
+    corners and walls step by 1.5 m instead of 3 m (a corner's arm, a half and a StoneWallEnd each side of a 1.2 m
+    gateway make a 9 m gate side).
 
 Big pieces keep Nanite (their whole mesh is the fallback, within 1-4k triangles); the walls keep Nanite like
 SM_StoneWall; small ones (blocks, cairns, the rope) have no Nanite and LODs of 50% and 25%.
@@ -1000,13 +1004,15 @@ LOWER = [(-0.37, -0.15), (-0.37, 0.02), (-0.34, 0.16), (-0.31, 0.22), (-0.24, 0.
          (0.24, 0.27), (0.31, 0.22), (0.34, 0.16), (0.37, 0.02), (0.37, -0.15)]
 
 
-def wall_sweep(path, length, height=lambda s: 1.0, top_jitter=None, step=0.1, uv='box', seed=0, low=LOW):
+def wall_sweep(path, length, height=lambda s: 1.0, top_jitter=None, step=0.1, uv='box', seed=0, low=LOW, bumps=None):
     """A dry-stone wall body swept along path(s) -> (point, side) for s in 0..length, with Fences.py's profile and
     stone bulges. height(s) blends the full profile (1) into a low remnant (0: low); at s = 0 and s = length a full
     ring is exactly SM_StoneWall's end ring. uv='arc' maps it by distance along the path (a corner) the way box_uv
-    maps a straight wall; 'box' leaves it to box_uv."""
+    maps a straight wall; 'box' leaves it to box_uv. bumps(s, across, up) replaces Fences.py's stones() (a piece of
+    another length blends its bulges back to the start's by its own end)."""
     rnd = random.Random(seed)
     full = W.wall_profile()
+    bumps = bumps or W.stones
     steps = max(2, int(round(length / step)))
     bm = lp.new_bmesh()
     rings, frames = [], []
@@ -1022,7 +1028,7 @@ def wall_sweep(path, length, height=lambda s: 1.0, top_jitter=None, step=0.1, uv
                 ba += top_jitter(s, j)
             if b > -0.1:
                 n = Vector((0.0, aa, (ba - 0.3) * 0.6 if ba > W.BODY_TOP - 0.1 else 0.0)).normalized()
-                bump = W.stones(s, aa, ba)
+                bump = bumps(s, aa, ba)
                 da, db = aa + n.y * bump, ba + n.z * bump
             else:
                 da, db = aa, ba
@@ -1261,6 +1267,74 @@ def stonewall_corner(name, seed):
     return obj
 
 
+def mirror_box_uv(part, length):
+    """box_uv's projection of a straight wall (StoneWall at the wall's density, no offset) with the distance along it
+    folded back at the middle: the texture runs out from the start and back again, so a piece shorter than a whole
+    wall still meets the next one's texture at both ends (at x = 0 and x = length it is exactly SM_StoneWall's at its
+    joint). The fold is a mirror line, not a seam: no stone is cut."""
+    k = W.WALL_DENSITY / 1024.0
+    half = length * 0.5
+    bm = bmesh.new()
+    bm.from_mesh(part.data)
+    bm.normal_update()
+    layer = bm.loops.layers.uv.active or bm.loops.layers.uv.new('UVMap')
+    for face in bm.faces:
+        n = face.normal
+        axis = max(range(3), key=lambda i: abs(n[i]))
+        for loop in face.loops:
+            x, y, z = loop.vert.co
+            xm = x if x <= half else length - x
+            if axis == 2:
+                loop[layer].uv = (xm * k, (y if n.z > 0.0 else -y) * k)
+            elif axis == 0:
+                loop[layer].uv = ((y if n.x > 0.0 else -y) * k, z * k)
+            else:
+                loop[layer].uv = ((-xm if n.y > 0.0 else xm) * k, z * k)
+    bm.to_mesh(part.data)
+    bm.free()
+    part.data.update()
+
+
+def stonewall_half(name, seed):
+    """Half a wall (1.5 m) for the sheep fold's gate side, where whole walls won't fit: its ends are SM_StoneWall's own
+    end ring (its stone bulges blend back to the start's over its last 0.6 m, as SM_StoneWall's do), so it chains with
+    whole walls, the corner, the broken piece and StoneWallEnd at either end. Its texture is mirrored at the middle
+    (mirror_box_uv), where a through stone sticks out of both faces, as a dry-stone wall has every metre or so."""
+    rnd = random.Random(seed)
+    L = W.WALL_LENGTH * 0.5
+
+    def bumps(s, a, b):
+        blend = min(max((s - (L - 0.6)) / 0.6, 0.0), 1.0)
+        return W.stones(s, a, b) * (1.0 - blend) + W.stones(s - L, a, b) * blend
+    # A ring exactly at the middle, so no face straddles the fold.
+    body = wall_sweep(straight, L, step=L / 16, seed=seed, bumps=bumps)
+    mirror_box_uv(body, L)
+    parts = W.coping(0.0, L, seed + 1)
+    through = lp.block((0.24, 0.84, 0.11), (0.0, 0.0, 0.0), bevel=0.02)
+    lp.rough(through, 0.012, 6.0, seed + 2)
+    lp.place(through, (L * 0.5 + rnd.uniform(-0.03, 0.03), rnd.uniform(-0.02, 0.02), 0.43), (rnd.uniform(-3, 3),
+             rnd.uniform(-4, 4), rnd.uniform(-6, 6)))
+    parts.append(through)
+    # Big face stones above and below it on both faces, set proud of the wall, cover the rest of the fold.
+    for side in (-1.0, 1.0):
+        for z, half_width, size in ((0.13, 0.345, (0.32, 0.12, 0.2)), (0.64, 0.268, (0.3, 0.1, 0.17))):
+            stone = lp.block(size, (0.0, 0.0, 0.0), bevel=0.025)
+            lp.rough(stone, 0.01, 7.0, seed + int(z * 100) + int(side * 7))
+            lp.place(stone, (L * 0.5 + rnd.uniform(-0.04, 0.04), side * (half_width + size[1] * 0.5 - 0.06), z),
+                     (rnd.uniform(-4, 4), rnd.uniform(-5, 5), rnd.uniform(-5, 5)))
+            parts.append(stone)
+    for part in parts:
+        lt.assign(part, lr.material('stone'))
+        lt.box_uv(part, 'StoneWall', texel_density=W.WALL_DENSITY)
+    obj = lp.join(name, [body] + parts)
+    top = W.BODY_TOP + 0.2
+    profile = [(-0.36, -0.15), (0.36, -0.15), (-0.36, 0.02), (0.36, 0.02), (-0.25, top), (0.25, top)]
+    lp.hull_points(obj, [Vector((x, a, b)) for x in (0.0, L) for a, b in profile])
+    lp.finish(obj, ao=0.5, fallback=100, smooth=35.0)
+    lr.preview([obj], name, view=(-1.0, -1.6, 0.6), fit=1.0)
+    return obj
+
+
 # --- Cairns ---
 
 def cairn(name, seed, layers, stake=False):
@@ -1382,6 +1456,8 @@ BUILDERS = [
     ('Cairn_C', cairn, (383, [(0.22, 6, (0.22, 0.3), 0.16), (0.0, 1, (0.24, 0.28), 0.14), (0.14, 4, (0.18, 0.24), 0.14),
                               (0.06, 2, (0.15, 0.19), 0.12), (0.0, 1, (0.14, 0.16), 0.1)], True)),
     ('HangingRope', hanging_rope, (391,)),
+    # Added for the level's dressing; built last, so the pieces above come out exactly as before.
+    ('StoneWall_Half', stonewall_half, (374,)),
 ]
 ONLY = next((a.split('=', 1)[1].split(',') for a in kit._args() if a.startswith('--only=')), None)
 models = [build(name, *args) for name, build, args in BUILDERS if ONLY is None or name in ONLY]

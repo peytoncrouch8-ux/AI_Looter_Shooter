@@ -11,6 +11,8 @@ on the ground; fronts face -Y (a headboard's lettered face, a fence's outside).
   Grave_Cross_A             a weathered oak cross
   Grave_Cross_B             a wrought-iron cross with a ring, on a fieldstone foot
   Grave_MoundFresh          a fresh mound of dirt (put a headboard at its +Y end); a respawn grave
+  Grave_MoundSunken         an old grave on boot hill: a low mound settled over the years, its middle sunk into a
+                            shallow hollow, dry grass grown over it in tufts (put a weathered headboard at its +Y end)
   Grave_Ellis               Ellis's grave, dug open from inside: heaped dirt, the coffin's lid smashed, the headboard
                             ELLIS RANSOM / CAME HOME AT THE LAST knocked askew; the player wakes in the coffin
   Grave_Abel                Abel's grave: a whole mound under frost in the afternoon sun, black dead flowers, the
@@ -22,6 +24,8 @@ on the ground; fronts face -Y (a headboard's lettered face, a fence's outside).
   Fence_IronGate            a 2 m gate: heavy posts at x = 0 and x = 2, the two leaves standing open inward (+Y)
   Fence_PicketSection       2 m of the family plot's picket fence: a post at x = 0, rails, whitewashed pickets to x = 2
   Fence_PicketGate          a 2 m unit: a gate leaf hung on the post at x = 0, standing ajar inward, then pickets
+  Fence_PicketGate_Open     the same unit with its leaf swung right open (105 degrees inward, back past the hinge
+                            post), so the whole gateway (0.95 m between the posts) is clear
   Fence_PicketPost          a single post: ends a picket run
   Coffin_Closed             an old pine coffin, lid nailed down, iron handles (the Sink's floor, the undertaker's)
   Coffin_Broken             an old coffin broken open: lid smashed in two, a side stove in, dirt inside (the Sink)
@@ -39,6 +43,7 @@ Sockets: SOCKET_Interact in front of every headboard and cross (and on the grave
 (the Common Bullpup after "Skip the tutorial"); SOCKET_Lantern under the keeper's lantern hook.
 Collision: a slim box round each board or cross; boxes for fence runs and gate posts, the open leaves, the coffins and
 the keeper's posts; none on the mounds, the wreath and the crepe (Collision 'None'); low boxes round Ellis's heap.
+Grave_MoundSunken's grass is FoliagePalette blades (the wreath's material: dry swatches, a little wind at their tips).
 """
 import math
 import random
@@ -445,6 +450,116 @@ def mound_fresh(name, seed):
     socket(obj, 'Respawn', (0.0, 0.0, 0.02))
     socket(obj, 'Interact', (0.0, -1.1, 0.4))
     return finish(obj, ao=0.4, collision='None')
+
+
+# Dry grass on the old graves: the island's golden scatter (FoliagePalette's dry swatches, a little olive).
+GRASS_SWATCHES = ('GrassDry', 'Straw', 'GrassDry', 'DryTan', 'GrassOlive', 'GrassYellow')
+
+
+def sunken_mesh(length, width, rim, hollow, seed, nx=12, ny=9):
+    """An old grave's mound (x across, y along the grave), settled: a low rounded hummock whose middle has sunk into
+    a shallow hollow, never below the ground (the terrain would cover it), its skirt 6 cm under the ground."""
+    rnd = random.Random(seed)
+    off = Vector((rnd.uniform(0, 50), rnd.uniform(0, 50), rnd.uniform(0, 50)))
+    bm = lp.new_bmesh()
+    grid = []
+    for i in range(nx + 1):
+        row = []
+        for j in range(ny + 1):
+            u, v = i / nx * 2.0 - 1.0, j / ny * 2.0 - 1.0
+            edge = max(abs(u), abs(v)) >= 0.999
+            x, y = u * width * 0.5, v * length * 0.5
+            d = (abs(u) ** 2.5 + abs(v) ** 2.5) ** 0.4
+            hump = 1.0 - smoothstep(0.55, 1.0, d)
+            dip = 1.0 - smoothstep(0.05, 0.62, math.hypot(u * 1.05, v * 0.92))
+            z = -0.06 if edge else rim * hump - hollow * dip + 0.014 * noise.noise(Vector((x * 5.0, y * 5.0, 0.0)) + off)
+            if not edge:
+                z = max(z, 0.012 * hump)
+                x += 0.25 * width / nx * noise.noise(Vector((x * 6.0, y * 6.0, 1.0)) + off)
+                y += 0.25 * length / ny * noise.noise(Vector((x * 6.0, y * 6.0, 7.0)) + off)
+            row.append(bm.verts.new((x, y, z)))
+        grid.append(row)
+    for i in range(nx):
+        for j in range(ny):
+            bm.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
+    bmesh.ops.triangulate(bm, faces=bm.faces[:], quad_method='ALTERNATE')
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    for f in bm.faces:
+        if f.normal.z < 0.0:
+            f.normal_flip()
+    obj = lp.mesh_object(bm)
+    tile(obj, DIRT, seed)
+    return obj
+
+
+def grass_tuft(root, height, blades, swatch, rnd):
+    """A tuft of dry grass: blades fanning out of root, each bent once and tapering to a point (opaque, two-sided on
+    the foliage master), mapped root to tip on a FoliagePalette swatch."""
+    bm = lp.new_bmesh()
+    root = Vector(root)
+    turn = rnd.uniform(0.0, 2.0 * math.pi)
+    for k in range(blades):
+        a = turn + 2.0 * math.pi * k / blades + rnd.uniform(-0.4, 0.4)
+        out = Vector((math.cos(a), math.sin(a), 0.0))
+        side = Vector((-out.y, out.x, 0.0))
+        h = height * rnd.uniform(0.6, 1.1)
+        lean = rnd.uniform(0.25, 0.7)
+        w = rnd.uniform(0.0055, 0.0085)
+        base = root + out * rnd.uniform(0.0, 0.03)
+        mid = base + out * h * lean * 0.35 + Vector((0.0, 0.0, h * 0.55))
+        tip = base + out * h * lean * (1.0 + rnd.uniform(0.0, 0.5)) + Vector((0.0, 0.0, h * (0.8 - lean * 0.3)))
+        verts = [bm.verts.new(base - side * w), bm.verts.new(base + side * w), bm.verts.new(mid + side * w * 0.7),
+                 bm.verts.new(mid - side * w * 0.7), bm.verts.new(tip)]
+        bm.faces.new((verts[0], verts[1], verts[2], verts[3]))
+        bm.faces.new((verts[3], verts[2], verts[4]))
+    obj = lp.mesh_object(bm)
+    lt.assign(obj, LEAVES)
+    lt.swatch_uv(obj, None, swatch, axis='long')
+    return obj
+
+
+def mound_sunken(name, seed):
+    """An old grave on boot hill: the mound settled over the years, its middle sunk into a shallow hollow, dry grass
+    grown back over it in tufts (thicker round its edges, where it meets the hillside's). No collision; put a
+    weathered headboard at its +Y end."""
+    rnd = random.Random(seed)
+    mound = sunken_mesh(2.0, 1.0, 0.14, 0.11, seed)
+    z_at = lc.surface_of(mound)
+    parts = [mound]
+    for k in range(26):
+        # Most tufts on the rim and the skirt, a few in the hollow.
+        a = rnd.uniform(0.0, 2.0 * math.pi)
+        reach = rnd.uniform(0.5, 1.08) if k < 19 else rnd.uniform(0.0, 0.45)
+        x, y = 0.5 * reach * math.cos(a), 1.0 * reach * math.sin(a)
+        z = z_at(x, y)
+        z = -0.01 if z is None else z - 0.01
+        parts.append(grass_tuft((x, y, z), rnd.uniform(0.14, 0.26) if k < 19 else rnd.uniform(0.08, 0.14),
+                                rnd.choice((7, 8, 9)), rnd.choice(GRASS_SWATCHES), rnd))
+    obj = lp.join(name, parts)
+    finish(obj, ao=0.3, collision='None')
+    # The blades: shaded as the ground under them is (so they light like the hillside's scatter), a little wind at
+    # their tips; the dirt keeps its own shading and no sway.
+    mesh = obj.data
+    leaf_slot = mesh.materials.find(LEAVES.name)
+    normals = [Vector(n.vector) for n in mesh.corner_normals]
+    col = lt._read_col(mesh)
+    blade = lt._vertex_islands(mesh)                    # each blade its own sway phase
+    phases = random.Random(seed + 1).random
+    phase = [phases() for _ in range(int(blade.max()) + 1)]
+    for poly in mesh.polygons:
+        leaf = poly.material_index == leaf_slot
+        for li in poly.loop_indices:
+            vi = mesh.loops[li].vertex_index
+            if leaf:
+                normals[li] = (Vector((0.0, 0.0, 1.0)) * 0.8 + poly.normal * 0.2).normalized()
+                col[li, 0] = min(max(mesh.vertices[vi].co.z, 0.0) / 0.25, 1.0) * 0.6
+                col[li, 1] = phase[blade[vi]]
+            else:
+                col[li, 0] = 0.0
+                col[li, 1] = 0.5
+    mesh.normals_split_custom_set(normals)
+    lt._write_col(mesh, col)
+    return obj
 
 
 # --- Coffins ---
@@ -896,8 +1011,9 @@ def fence_picket_post(name, seed):
     return finish(obj, ao=0.25)
 
 
-def fence_picket_gate(name, seed):
-    """A gate leaf hung on the post at x = 0, standing ajar inward; its latch post at 1.05 m, pickets on to 2 m."""
+def fence_picket_gate(name, seed, angle=34.0):
+    """A gate leaf hung on the post at x = 0, standing open inward by angle degrees (34: ajar; 105: swung right back,
+    the gateway clear); its latch post at 1.05 m, pickets on to 2 m."""
     rnd = random.Random(seed)
     parts = [picket_post(0.0, seed), picket_post(1.05, seed + 1, height=1.12)]
     parts += picket_rails(1.05, 2.0, seed + 2) + pickets(1.1, 1.98, seed + 5, rnd=rnd, step=0.14)
@@ -910,7 +1026,7 @@ def fence_picket_gate(name, seed):
     leaf.append(wood(brace, seed + 40, axis=(1.0, 0.0, 0.0)))
     leaf += pickets(0.06, w, seed + 50, rnd=rnd, step=0.135)
     leaf.append(lp.grain(lp.block((0.16, 0.012, 0.05), (0.08, -0.04, 0.62)), 'Iron', axis=(1.0, 0.0, 0.0), seed=seed))
-    m = Matrix.Translation((0.05, 0.0, 0.03)) @ Matrix.Rotation(math.radians(34.0), 4, 'Z')
+    m = Matrix.Translation((0.05, 0.0, 0.03)) @ Matrix.Rotation(math.radians(angle), 4, 'Z')
     transform(leaf, m)
     parts += leaf
     obj = lp.join(name, parts)
@@ -1084,6 +1200,10 @@ models = [
     coffin_broken('Coffin_Broken', 72),
     wreath('Wreath', 81),
     crepe_swag('CrepeSwag', 82),
+    # Added for the level's dressing (boot hill's old rows, the family plot's open gates): built after the others, so
+    # those come out exactly as before.
+    fence_picket_gate('Fence_PicketGate_Open', 62, angle=105.0),
+    mound_sunken('Grave_MoundSunken', 32),
 ]
 
 if lt.want_preview():
@@ -1092,7 +1212,7 @@ if lt.want_preview():
         print(f'GRAVES: {obj.name}: {lp.tri_count(obj)} triangles, '
               f'{len([c for c in obj.children if c.name.startswith("UCX_")])} hulls, '
               f'materials {", ".join(m.name for m in obj.data.materials)}', flush=True)
-    rows = [models[0:8], models[8:12], models[12:18], models[18:22]]
+    rows = [models[0:8], models[8:12] + models[23:24], models[12:18] + models[22:23], models[18:22]]
     y = 0.0
     for row in rows:
         x = 0.0
@@ -1116,10 +1236,11 @@ if lt.want_preview():
     bpy.context.view_layer.update()
     for name, view, fit in (('Grave_Ellis', (-0.6, -1.6, 0.9), 0.75), ('Grave_Abel', (-0.5, -1.6, 0.7), 0.75),
                             ('Grave_Keeper', (-0.7, -1.6, 0.6), 0.85), ('Wreath', (-0.15, -1.6, 0.05), 0.8),
-                            ('CrepeSwag', (-0.15, -1.6, 0.05), 0.8), ('Coffin_Broken', (-0.8, -1.4, 0.9), 0.8)):
+                            ('CrepeSwag', (-0.15, -1.6, 0.05), 0.8), ('Coffin_Broken', (-0.8, -1.4, 0.9), 0.8),
+                            ('Grave_MoundSunken', (-0.6, -1.5, 0.8), 0.8)):
         obj = next(o for o in models if o.name == name)
         lt.preview([obj], lt.preview_path(PREVIEW, name), view=view, fit=fit, ground=name not in ('Wreath', 'CrepeSwag'),
-                   ground_at='origin' if name in ('Grave_Ellis', 'Grave_Abel') else 'bottom')
+                   ground_at='origin' if name in ('Grave_Ellis', 'Grave_Abel', 'Grave_MoundSunken') else 'bottom')
     # The fences chained: iron sections, the gate, a corner turning back; the picket run with its gate and end post.
     by_name = {o.name: o for o in models}
     run = []
@@ -1138,6 +1259,9 @@ if lt.want_preview():
         put(name, (k * 2.0 - 3.0, -3.5, 0.0))
     put('Fence_PicketPost', (3.0, -3.5, 0.0))
     put('Fence_PicketSection', (-3.0, -3.5, 0.0), 90.0)
+    for k, name in enumerate(['Fence_PicketSection', 'Fence_PicketGate_Open', 'Fence_PicketSection']):
+        put(name, (k * 2.0 - 3.0, -6.5, 0.0))
+    put('Fence_PicketPost', (3.0, -6.5, 0.0))
     bpy.context.view_layer.update()
     lt.preview(run, lt.preview_path(PREVIEW, 'Fences'), view=(-0.5, -1.6, 0.55), fit=0.75)
     for copy in run:

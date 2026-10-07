@@ -20,9 +20,14 @@ shutters that slam as Ellis walks by.
                          are lamplit too (WindowGlow), and SOCKET_Light is the shop's lamp, behind the doors. Windows
                          down both sides carry shutter sockets (SOCKET_Shutter_L1..L4 / R1..R4). SOCKET_Smoke tops the
                          stovepipe.
-  FalseFront_Sheriff     the empty sheriff's office: a stone storey (a jail) with quoins, barred windows and an
-                         iron-strapped door hung with black crepe, under a wooden false front lettered SHERIFF with a star.
-                         SOCKET_Smoke tops the (cold) stovepipe.
+  FalseFront_Sheriff     the empty sheriff's office: a stone storey (a jail) with quoins, barred windows and a plank
+                         door hung with black crepe, under a wooden false front lettered SHERIFF with a star. The door
+                         stands open on a walk-in front office (sheriff_office(); Side 1, the gang's Strongbox is here):
+                         plaster walls, a board floor at the walk's height, the desk with its lamp lit (SOCKET_Light),
+                         the chair knocked over, an empty gun rack, a barred cell door standing open on a dark cell.
+                         SOCKET_Strongbox is the Strongbox's spot on the floor against the partition, facing the door;
+                         SOCKET_Decal and SOCKET_Decal_2 are bare plaster for wanted posters. SOCKET_Smoke tops the
+                         (cold) stovepipe.
   Shutter_Left/Right     a plank shutter (0.5 x 1.4 m) whose pivot is its hinge: the game hangs one on each
                          SOCKET_Shutter_L<n> / R<n>, where it hangs closed, and swings it open through 180 degrees (its
                          free edge out toward the street) until it lies flat against the wall. No collision.
@@ -32,7 +37,7 @@ pivot is the middle of its walls' footprint on the ground; the facade faces the 
 runs along the facade: the facade's front face is at y = -depth / 2 (FACADE_Y below), so the walk's pivot line goes
 1.5 m in front of it. The store brings its own 3 m porch in place of the walk. Big roofs are shakes (the trim sheet's
 tin reads as loot colors over a large area). Faces nobody sees are left out (walls' insides, the shakes' and
-clapboards' hidden sides, the backs of trim), which keeps the sources at 4.7-9.3k triangles, and Nanite's fallback
+clapboards' hidden sides, the backs of trim), which keeps the sources at 5.4-9.3k triangles, and Nanite's fallback
 keeps all of them (FALLBACK).
 
 The lamplit windows (the store's and Tilly's) are the lived-in farmhouse's WindowGlow (Farmhouse.py): by day dark warm
@@ -74,27 +79,30 @@ WINDOW_COLOR, WINDOW_GLOW_DAY, WINDOW_GLOW_DUSK = 0x2e2219, 1.0, 14.0
 _LATE = 30          # faces marked for WindowGlow while the building is put together (finish() gives them its slot)
 
 
-class Lamplit(town.Model):
-    """A town Model with lamplit windows, which leaves the rest of the building exactly as it was: the same vertices,
-    corners and faces in the same order, with the same baked AO.
+class Refit(town.Model):
+    """A town Model for changing part of a building in place (the lamplit windows, the sheriff's office), which leaves
+    the rest of it exactly as it was: the same vertices, corners and faces in the same order, with the same baked AO.
 
     While glazing(glass) is on, the openings' panes (the trim sheet's H4 strip) go to glass: 'windowglow' (the WindowGlow
     slot), or (key, move) to be moved too (move, a matrix in the opening's space: a display window's pane goes back to
-    become the shop's back wall, its goods in front of it). They're built in the same order with the same random
-    numbers, and a moved pane moves only once the building is cut into triangles, so it's cut as before. WindowGlow's
-    slot comes after all the others, so theirs keep their order. own(seed) builds new parts on a random stream of their
-    own, into a mesh of their own that finish() adds after the building's own faces (cut with them, the new faces would
-    take numbers among theirs). The AO the building's own faces keep is baked without the new parts, with the moved
-    panes where they were: Blender's ray tree, built over more faces, breaks ties between touching surfaces otherwise
-    and shifts the AO at scattered corners all over the building. The new parts and the moved panes take the AO of the
-    whole model."""
+    become the shop's back wall). While moved(move, picks) is on, the parts built (those numbered in picks, counting
+    from 0, or all of them) are moved (the sheriff's door, swung open). Everything is still built in the same order with
+    the same random numbers, and a moved part moves only once the building is cut into triangles, so it's cut as before.
+    WindowGlow's slot comes after all the others, so theirs keep their order. own(seed) builds new parts on a random
+    stream of their own, into a mesh of their own that finish() adds after the building's own faces (cut with them, the
+    new faces would take numbers among theirs). The AO the building's own faces keep is baked without the new parts,
+    with the moved parts where they were: Blender's ray tree, built over more faces, breaks ties between touching
+    surfaces otherwise and shifts the AO at scattered corners all over the building. The new parts and the moved ones
+    take the AO of the whole model."""
 
     glass = None
+    mover = None                    # (move, picks, [parts counted]) while moved() is on
     late = None
 
     def __init__(self, name, seed=1):
         super().__init__(name, seed)
         self.moves = []             # (vertex, its move in the model's space), for finish()
+        self.main = self.bm         # the building's own mesh (self.bm is the new parts' while own() is on)
 
     def slot(self, key):
         if key == 'windowglow':
@@ -105,6 +113,11 @@ class Lamplit(town.Model):
         move = None
         if self.glass and mat == 'trim' and isinstance(uv, Trim) and uv.strip == 'H4':
             mat, move = (self.glass, None) if isinstance(self.glass, str) else self.glass
+        if self.mover is not None:
+            how, picks, count = self.mover
+            if picks is None or count[0] in picks:
+                move = how
+            count[0] += 1
         first = len(self.bm.verts)
         super().emit(tb, uv, mat, place, space, *args, **kwargs)
         if move is not None:
@@ -113,7 +126,8 @@ class Lamplit(town.Model):
             self.moves += [(v, frame @ move @ frame.inverted()) for v in self.bm.verts[first:]]
 
     def triangles(self):
-        return super().triangles() + (sum(len(f.verts) - 2 for f in self.late.faces) if self.late else 0)
+        return sum(len(f.verts) - 2 for bm in (self.main, self.late) if bm is not None and bm.is_valid
+                   for f in bm.faces)
 
     @contextmanager
     def glazing(self, glass):
@@ -122,6 +136,14 @@ class Lamplit(town.Model):
             yield
         finally:
             self.glass = None
+
+    @contextmanager
+    def moved(self, move, picks=None):
+        self.mover = (move, picks, [0])
+        try:
+            yield
+        finally:
+            self.mover = None
 
     @contextmanager
     def own(self, seed):
@@ -147,18 +169,20 @@ class Lamplit(town.Model):
             for f in marked:
                 f.material_index = index
         cut, bake = kit._triangulate, lt.bake_vertex_ao
-        was = {}                    # moved vertices: where they are -> where they were
+        was = {}                    # moved vertices by number: where they were
         own = []                    # the building's own vertex and face counts
 
         def cut_then_add(bm):
             cut(bm)
+            moved = []
             for v, move in self.moves:
-                before = v.co.copy()
+                moved.append((v, v.co.copy()))
                 v.co = move @ v.co
-                was[tuple(v.co)] = before
+            bm.verts.index_update()
+            was.update((v.index, before) for v, before in moved)
             # The building read back in order (no gaps left by the cut for new elements to fill), then the new parts,
             # cut on their own, after it.
-            mesh = kit.bpy.data.meshes.new('_lamplit')
+            mesh = kit.bpy.data.meshes.new('_refit')
             bm.to_mesh(mesh)
             bm.clear()
             bm.from_mesh(mesh)
@@ -173,24 +197,26 @@ class Lamplit(town.Model):
         def bake_own(obj, *args, **kw):
             import numpy as np
             bake(obj, *args, **kw)
-            # The building's own faces alone, the moved panes put back, baked again: their AO as it always was.
+            # The building's own faces alone, the moved parts put back, baked again: their AO as it always was.
             tb = bmesh.new()
             tb.from_mesh(obj.data)
             tb.verts.ensure_lookup_table()
             bmesh.ops.delete(tb, geom=tb.verts[own[0]:], context='VERTS')
-            for v in tb.verts:
-                v.co = was.get(tuple(v.co), v.co)
-            alone = kit.bpy.data.objects.new('_lamplit_ao', kit.bpy.data.meshes.new('_lamplit_ao'))
+            tb.verts.ensure_lookup_table()
+            for i, co in was.items():
+                tb.verts[i].co = co
+            alone = kit.bpy.data.objects.new('_refit_ao', kit.bpy.data.meshes.new('_refit_ao'))
             tb.to_mesh(alone.data)
             tb.free()
             kit.bpy.context.scene.collection.objects.link(alone)
             alone.matrix_world = obj.matrix_world
             bake(alone, *args, **kw)
             mesh = obj.data
-            corners = sum(len(p.vertices) for p in list(mesh.polygons)[:own[1]])
+            polygons = list(mesh.polygons)[:own[1]]
+            corners = sum(p.loop_total for p in polygons)
             keep = np.ones(corners, dtype=bool)
-            for p in list(mesh.polygons)[:own[1]]:
-                if any(tuple(mesh.vertices[i].co) in was for i in p.vertices):
+            for p in polygons:
+                if any(i in was for i in p.vertices):
                     keep[p.loop_start:p.loop_start + p.loop_total] = False
             raw = lt._read_col(mesh)
             raw[:corners][keep, 3] = lt._read_col(alone.data)[:corners][keep, 3]
@@ -333,7 +359,7 @@ def lamp_room_drapes(m, space, o):
 # --- Bright & Daughter, Undertakers ---
 
 def undertaker():
-    m = Lamplit('FalseFront_Undertaker', seed=301)
+    m = Refit('FalseFront_Undertaker', seed=301)
     rng = m.rng
     XF0, XF1, Y0, Y1 = -3.5, 3.5, -6.0, 6.0
     X0, X1 = -3.2, 3.2
@@ -723,10 +749,10 @@ def quad(m, space, corner, along, up, length, height, cols, rows, uv, mat):
     m.emit(kit._sheet(length, height, cols, rows), uv, mat, kit.basis(Vector(corner), a, u.cross(a), u), space)
 
 
-def turned(m, profile, at, sides, uv, mat, space, phase=0.0, scale=(1.0, 1.0)):
+def turned(m, profile, at, sides, uv, mat, space, phase=0.0, scale=(1.0, 1.0), turn=None):
     """town.lathe with a mapping of its own (town's finishes can't fit a part into a trim strip): profile [(radius, z),
     ...] from bottom to top around a vertical axis through at; a radius of 0 closes it; scale stretches it across
-    (x, y)."""
+    (x, y), and turn (a matrix) turns it about at (a hat hung on a wall)."""
     tb = kit._new_bmesh()
     angles = [phase + 2.0 * math.pi * k / sides for k in range(sides)]
     rings = [[tb.verts.new((0.0, 0.0, z))] if r <= 1e-6 else
@@ -742,7 +768,7 @@ def turned(m, profile, at, sides, uv, mat, space, phase=0.0, scale=(1.0, 1.0)):
                 tb.faces.new((r0[k], r0[k1], r1[k1], r1[k]))
     bmesh.ops.recalc_face_normals(tb, faces=tb.faces[:])
     stretch = Matrix.Diagonal((scale[0], scale[1], 1.0, 1.0))
-    m.emit(tb, uv, mat, Matrix.Translation(Vector(at)) @ stretch, space, smooth=True)
+    m.emit(tb, uv, mat, Matrix.Translation(Vector(at)) @ (turn or Matrix.Identity(4)) @ stretch, space, smooth=True)
 
 
 def paint(name):
@@ -872,7 +898,7 @@ def door_blinds(m, space, o, drawn=0.42):
 
 
 def shop_back(o):
-    """Where display window o's pane goes (a move for Lamplit.glazing, in the facade's space): back to the shop's back
+    """Where display window o's pane goes (a move for Refit.glazing, in the facade's space): back to the shop's back
     wall, stretched across the display. Its face, as town.window builds it, is 1 cm in front of FT * 0.55."""
     cx = o.x + o.w * 0.5
     return (Matrix.Translation((cx, FT + SHOP_DEPTH - (FT * 0.55 - 0.01), 0.0)) @
@@ -910,7 +936,7 @@ def shop_window(m, space, o, goods):
 # --- Pruitt's General Store ---
 
 def store(shutters):
-    m = Lamplit('FalseFront_Store', seed=303)
+    m = Refit('FalseFront_Store', seed=303)
     rng = m.rng
     XF0, XF1, Y0, Y1 = -4.7, 4.7, -6.5, 6.5
     X0, X1 = -4.4, 4.4
@@ -1061,8 +1087,138 @@ def store(shutters):
 
 # --- The sheriff's office ---
 
+# The walk-in front office (Docs/Areas/RansomsRest.md, Side 1: the gang's Strongbox is here), in the model's frame.
+OFFICE_DEPTH = 3.04         # from the front wall's inside to the partition, clear of the right wall's cell window
+OFFICE_CEILING = 2.95       # over the floor (the stone storey stands 3.3)
+STRONGBOX = (0.25, 0.5)     # SOCKET_Strongbox: across from the middle, and this far off the partition (the box's
+                            # back hinges stand 0.36 behind its pivot and its lid swings 12 cm past them)
+CELL_DOOR = (-1.95, 0.9, 2.1)   # the cell door in the partition: its hinge side (x), width, height
+# The front door's leaf as town.door builds a plank leaf (parts in order): its five boards, two battens and brace (0-7),
+# the two straps (8, 10; the pintles on the wall, 9 and 11, stay), the latch (12, 13); then the casing and threshold.
+DOOR_LEAF = frozenset(range(9)) | {10, 12, 13}
+
+
+def wall_face(m, space, outline, holes, uv, mat='trim'):
+    """A wall's face alone, holes and all (the office's plaster, inside walls nobody sees from behind): outline (x, z)
+    counterclockwise seen from the front in space, which faces -Y there."""
+    tb = kit._prism([list(outline)] + [list(h) for h in holes], 0.01)
+    tb.normal_update()
+    bmesh.ops.delete(tb, geom=[f for f in tb.faces if f.normal.y > -0.99], context='FACES')
+    m.emit(tb, uv, mat, None, space)
+
+
+def sheriff_office(m, x_in, y_in, y_p):
+    """The front office behind the sheriff's door, a week after the raid (built in the model's frame): plastered walls
+    and partition over a board floor under a board ceiling on two joists; through the partition a barred cell door
+    standing open on a dark cell (its back wall and ceiling are the front windows' panes, moved there); the
+    sheriff's desk with his lamp still lit, black crepe over it and papers on the floor, his chair knocked over
+    behind it; an empty gun rack; two blank bills on the wall; his hat on a peg by the door. The floor where the
+    Strongbox goes stays clear. x_in: the side walls' inside; y_in, y_p: the front wall's inside and the partition's
+    face. Returns the places the sockets and hulls need."""
+    plaster = Trim('G', world=True, rotate=True, u=5.3)  # its grain upright, from a clean stretch: few chips
+    boards = Trim('A', world=True)
+    top = OFFICE_CEILING
+    depth = y_p - y_in
+    up = (0.0, 0.0, 1.0)
+    # Floor (on under the cell doorway) and ceiling, two joists across.
+    quad(m, None, (-x_in, y_in, BASE), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), 2.0 * x_in, depth + 0.12, 4, 2, boards, 'trim')
+    quad(m, None, (-x_in, y_p, BASE + top), (1.0, 0.0, 0.0), (0.0, -1.0, 0.0), 2.0 * x_in, depth, 2, 2, boards, 'trim')
+    for y in (y_in + 0.75, y_in + 2.25):
+        town.board(m, (-x_in, y, BASE + top - 0.09), (x_in, y, BASE + top - 0.09), 0.18, 0.14, look='C',
+                   drop=('-x', '+x', '+z'))
+    # The plaster: the front wall's inside round the door and windows, the side walls (the right one round its cell
+    # window, 2.3 m from the front wall's inside), the partition round the cell door, with its doorway's reveals.
+    front = kit.wall_space((x_in, y_in), (-x_in, y_in), BASE)
+    openings = [(-0.5, 0.5, 0.0, 2.25), (-2.3, -1.4, 0.95, 2.15), (1.4, 2.3, 0.95, 2.15)]
+    wall_face(m, front, [(0.0, -0.02), (2.0 * x_in, -0.02), (2.0 * x_in, top), (0.0, top)],
+              [kit.rect(x_in - b, z0, b - a, z1 - z0) for a, b, z0, z1 in openings], plaster)
+    left = kit.wall_space((-x_in, y_in), (-x_in, y_p), BASE)
+    quad(m, left, (0.0, 0.0, -0.02), (1.0, 0.0, 0.0), up, depth, top + 0.02, 2, 1, plaster, 'trim')
+    right = kit.wall_space((x_in, y_p), (x_in, y_in), BASE)
+    wall_face(m, right, [(0.0, -0.02), (depth, -0.02), (depth, top), (0.0, top)],
+              [kit.rect(y_p - (y_in + 3.0), 1.55, 0.7, 0.55)], plaster)
+    partition = kit.wall_space((-x_in, y_p), (x_in, y_p), BASE)
+    cx, cw, ch = CELL_DOOR
+    wall_face(m, partition, [(0.0, -0.02), (2.0 * x_in, -0.02), (2.0 * x_in, top), (0.0, top)],
+              [kit.rect(cx + x_in, 0.0, cw, ch)], plaster)
+    quad(m, None, (cx, y_p, BASE), (0.0, 1.0, 0.0), up, 0.12, ch, 1, 1, plaster, 'trim')
+    quad(m, None, (cx + cw, y_p + 0.12, BASE), (0.0, -1.0, 0.0), up, 0.12, ch, 1, 1, plaster, 'trim')
+    quad(m, None, (cx, y_p + 0.12, BASE + ch), (1.0, 0.0, 0.0), (0.0, -1.0, 0.0), cw, 0.12, 1, 1, plaster, 'trim')
+    m.section('office: room')
+
+    # The cell: stone sides and floor round the moved panes, a plank bunk against the back; its door open.
+    stone = Trim('D', world=True)
+    c0, c1, cy0, cy1, ctop = cx - 0.25, cx + cw + 0.25, y_p + 0.12, y_p + 1.22, 2.4
+    quad(m, None, (c0, cy0, BASE), (0.0, 1.0, 0.0), up, cy1 - cy0, ctop, 1, 1, stone, 'trim')
+    quad(m, None, (c1, cy1, BASE), (0.0, -1.0, 0.0), up, cy1 - cy0, ctop, 1, 1, stone, 'trim')
+    quad(m, None, (c0, cy0, BASE), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), c1 - c0, cy1 - cy0, 1, 1, stone, 'trim')
+    town.box(m, (c1 - c0 - 0.2, 0.5, 0.06), at=((c0 + c1) * 0.5, cy1 - 0.26, BASE + 0.45), look='C', drop=('+y',))
+    cell_door = kit.Space(Matrix.Translation((cx, y_p - 0.03, BASE)) @ Matrix.Rotation(math.radians(-100.0), 4, 'Z'))
+    for x in (0.03, cw - 0.03):
+        town.board(m, (x, 0.0, 0.02), (x, 0.0, ch - 0.04), 0.05, 0.025, look='iron', space=cell_door,
+                   drop=('-x', '+x'))
+    for z in (0.1, 1.05, ch - 0.12):
+        town.board(m, (0.0, 0.0, z), (cw, 0.0, z), 0.06, 0.025, look='iron', space=cell_door, drop=('-x', '+x'))
+    for k in range(4):
+        x = 0.21 + 0.18 * k
+        town.board(m, (x, 0.0, 0.1), (x, 0.0, ch - 0.12), 0.022, 0.022, look='iron', space=cell_door,
+                   drop=('-x', '+x'))
+    town.box(m, (0.09, 0.06, 0.13), at=(cw - 0.05, 0.0, 1.05), look='iron', space=cell_door)
+    m.section('office: cell')
+
+    # The desk, toward the right window, facing the door; the lamp on it, still lit; crepe over its front edge.
+    dx, dy, dz = 1.65, y_in + 2.08, BASE + 0.76
+    town.box(m, (1.36, 0.7, 0.04), at=(dx, dy, dz - 0.02), look='C', drop=('-z',))
+    for s in (-1.0, 1.0):
+        town.box(m, (0.36, 0.62, 0.72), at=(dx + s * 0.47, dy, BASE + 0.36), look='C', drop=('-z',))
+    town.box(m, (0.58, 0.02, 0.5), at=(dx, dy - 0.3, BASE + 0.47), look='C', drop=('-z',))
+    lamp = (dx + 0.42, dy + 0.1)                 # toward the right window, seen through it
+    town.cylinder(m, (lamp[0], lamp[1], dz), (lamp[0], lamp[1], dz + 0.1), 0.065, 0.045, sides=6, look='iron',
+                  caps=(False, True))
+    turned(m, [(0.032, 0.0), (0.058, 0.07), (0.03, 0.17), (0.0, 0.17)], (lamp[0], lamp[1], dz + 0.1), 6,
+           Trim('H4', fit=True), 'glow', None)
+    light = (lamp[0], lamp[1], dz + 0.18)
+    sash = [(dx - 0.36, dy + 0.18, dz + 0.004), (dx - 0.22, dy - 0.351, dz + 0.004),
+            (dx - 0.21, dy - 0.365, dz - 0.05), (dx - 0.19, dy - 0.37, dz - 0.34)]
+    town.sheet(m, [[(x - 0.08, y, z), (x + 0.08, y, z)] for x, y, z in sash], look='crepe')
+    # Papers swept off it onto the floor; the chair knocked over on its side behind it.
+    for (px, py), a, u in (((dx - 0.75, dy - 0.62), 18.0, 4.4), ((dx - 0.45, dy - 0.86), -31.0, 5.6)):
+        r = math.radians(a)
+        quad(m, None, (px, py, BASE + 0.003), (math.cos(r), math.sin(r), 0.0), (-math.sin(r), math.cos(r), 0.0),
+             0.22, 0.29, 1, 1, Trim('G', fit=True, u=u), 'trim')
+    chair = kit.Space(Matrix.Translation((dx - 0.6, dy + 0.66, BASE + 0.2175)) @
+                      Matrix.Rotation(math.radians(-5.0), 4, 'Z') @ Matrix.Rotation(math.radians(90.0), 4, 'Y'))
+    town.box(m, (0.42, 0.42, 0.04), at=(0.0, 0.0, 0.45), look='C', space=chair)
+    town.box(m, (0.42, 0.03, 0.42), at=(0.0, 0.195, 0.69), look='C', space=chair)
+    for sx in (-1.0, 1.0):
+        for sy in (-1.0, 1.0):
+            town.board(m, (sx * 0.18, sy * 0.18, 0.0), (sx * 0.18, sy * 0.18, 0.43), 0.035, 0.035, look='C',
+                       space=chair, drop=('-x', '+x'))
+    m.section('office: desk')
+
+    # The gun rack on the left wall, empty: a back board, a butt rest, a rail with pegs between the guns that were.
+    rack_x = 0.95
+    town.box(m, (1.0, 0.03, 0.78), at=(rack_x, -0.015, 1.22), look='C', space=left, drop=('+y',))
+    town.box(m, (1.0, 0.16, 0.05), at=(rack_x, -0.08, 0.78), look='C', space=left, drop=('+y',))
+    town.box(m, (1.0, 0.1, 0.07), at=(rack_x, -0.05, 1.62), look='C', space=left, drop=('+y',))
+    for k in range(4):
+        town.box(m, (0.035, 0.08, 0.09), at=(rack_x - 0.36 + 0.24 * k, -0.14, 1.66), look='C', space=left,
+                 drop=('+y', '-z'))
+    # Two blank bills on the right wall over the desk; his hat on a peg left of the door.
+    for lx, z, a, u in ((1.05, 1.42, -3.0, 4.3), (1.6, 1.5, 4.0, 5.5)):
+        r = math.radians(a)
+        quad(m, right, (lx, -0.002, z), (math.cos(r), 0.0, math.sin(r)), (-math.sin(r), 0.0, math.cos(r)), 0.42,
+             0.56, 1, 1, Trim('G', fit=True, u=u), 'trim')
+    town.cylinder(m, (-0.95, y_in, BASE + 1.72), (-0.95, y_in + 0.11, BASE + 1.74), 0.014, sides=4, look='C',
+                  caps=(False, True), face=(0.0, 0.0, 1.0))
+    turned(m, [(0.19, 0.0), (0.19, 0.012), (0.085, 0.03), (0.08, 0.13), (0.0, 0.12)], (-0.95, y_in + 0.05, BASE + 1.6),
+           6, Tile('Polymer'), 'crepe', None, turn=Matrix.Rotation(math.radians(-78.0), 4, 'X'))
+    m.section('office: rack, bills, hat')
+    return dict(light=light, desk=(dx, dy, dz), cell_door=cell_door)
+
+
 def sheriff():
-    m = town.Model('FalseFront_Sheriff', seed=304)
+    m = Refit('FalseFront_Sheriff', seed=304)
     rng = m.rng
     XF0, XF1, Y0, Y1 = -3.3, 3.3, -5.0, 5.0       # the wooden false front
     X0, X1 = -3.05, 3.05                          # the stone storey and walls
@@ -1073,6 +1229,8 @@ def sheriff():
     FACADE_Y[m.name] = Y0
     LOW = WALL                                    # the stone storey's top, over the floor
     top = [(0.0, 5.85), (2.2, 5.85), (2.2, 6.3), (WF - 2.2, 6.3), (WF - 2.2, 5.85), (WF, 5.85)]
+    X_IN, Y_IN = X1 - THICK, Y0 + STONE_T         # the office: inside the side walls, behind the front wall
+    Y_P = Y_IN + OFFICE_DEPTH                     # the partition's face
     # The stone storey: a jail's walls, stone jambs and lintels round a heavy plank door and two barred windows.
     stone_front = kit.wall_space((X0, Y0), (X1, Y0), BASE)
     DOOR = Opening('door', WS * 0.5 - 0.5, 0.0, 1.0, 2.25, style='plank', finish='A', casing='D', hinge='right',
@@ -1084,7 +1242,35 @@ def sheriff():
     outline = [(0.0, -BASE), (WS, -BASE), (WS, LOW), (0.0, LOW)]
     town.panel(m, outline, [kit.rect(o.x, max(o.z, 0.0), o.w, o.h) for o in items], STONE_T,
                Trim('D', world=True, u=rng.uniform(0.0, 6.4)), space=stone_front, around=items, slices=0, back=False)
-    town.openings(m, stone_front, items, STONE_T)
+    # The door stands open: its leaf swung in on its hinge side right round against the wall's inside face (rehung
+    # there: the leaf's back, 2.5 cm behind the middle of the wall, 3 mm off the plaster), clear of the doorway and of
+    # the desk seen through it; the pintles stay on the wall. The windows' panes go into the cell behind the office
+    # (the left one its back wall, the right one its ceiling), so the windows show the office through their bars.
+    hinge = DOOR.x + DOOR.w
+    leaf_back = STONE_T * 0.3 + 0.025
+    swing = (Matrix.Translation((hinge, STONE_T + 0.003, 0.0)) @ Matrix.Rotation(math.radians(180.0), 4, 'Z') @
+             Matrix.Translation((-hinge, -leaf_back, 0.0)))
+    cell = (CELL_DOOR[0] - 0.25 - X0, CELL_DOOR[0] + CELL_DOOR[1] + 0.25 - X0,
+            Y_P + 0.12 - Y0, Y_P + 1.22 - Y0)                    # the cell's plan in the stone front's space
+    pane_face = STONE_T * 0.55 - 0.01                            # town.window's pane face, inside the wall
+    cell_w, cell_d = cell[1] - cell[0], cell[3] - cell[2]
+    panes = {}
+    for o in (WIN_L, WIN_R):
+        middle = Matrix.Translation((-(o.x + o.w * 0.5), -pane_face, -(o.z + o.h * 0.5)))
+        if o is WIN_L:
+            panes[o] = (Matrix.Translation(((cell[0] + cell[1]) * 0.5, cell[3], 1.2)) @
+                        Matrix.Diagonal((cell_w / o.w, 1.0, 2.4 / o.h, 1.0)) @ middle)
+        else:
+            panes[o] = (Matrix.Translation(((cell[0] + cell[1]) * 0.5, (cell[2] + cell[3]) * 0.5, 2.4)) @
+                        Matrix.Diagonal((cell_w / o.w, cell_d / o.h, 1.0, 1.0)) @
+                        Matrix.Rotation(math.radians(90.0), 4, 'X') @ middle)
+    for o in items:
+        if o is DOOR:
+            with m.moved(swing, DOOR_LEAF):
+                town.openings(m, stone_front, [o], STONE_T)
+        else:
+            with m.glazing(('trim', panes[o])):
+                town.openings(m, stone_front, [o], STONE_T)
     # Quoins: dressed blocks up both corners, long and short in turn, wrapping round onto the side walls.
     for x_edge, sign in ((0.0, 1.0), (WS, -1.0)):
         z, k = -BASE + 0.05, 0
@@ -1098,8 +1284,10 @@ def sheriff():
                      space=stone_front)
             z += h
             k += 1
-    # Black crepe on the door: a bow and tails, and a swag over the lintel.
-    town.crepe_bow(m, stone_front, (DOOR.x + DOOR.w * 0.5, 0.0, 1.78), scale=1.1, tails=0.7, y=STONE_T * 0.3 - 0.07)
+    # Black crepe on the door (a bow and tails, gone in with it), and a swag over the lintel.
+    with m.moved(swing):
+        town.crepe_bow(m, stone_front, (DOOR.x + DOOR.w * 0.5, 0.0, 1.78), scale=1.1, tails=0.7,
+                       y=STONE_T * 0.3 - 0.07)
     town.crepe_swag(m, stone_front, DOOR.x - 0.3, DOOR.x + DOOR.w + 0.3, DOOR.h + 0.34, sag=0.15, y=-0.1)
     m.section('stone storey')
 
@@ -1157,7 +1345,34 @@ def sheriff():
     town.facade_back(m, upper, WF, up_top, lambda x: roof_z(XF0 + x) - BASE - LOW, FT)
     m.section('roof')
 
-    m.hull((WS + 0.1, Y1 - Y0, EAVE), at=(0.0, 0.0, EAVE * 0.5))
+    # The office, built last on a stream of its own (the rest stays as it was), and what the game hangs on it.
+    with m.own(305):
+        office = sheriff_office(m, X_IN, Y_IN, Y_P)
+    m.socket('Light', office['light'])
+    m.socket('Strongbox', (STRONGBOX[0], Y_P - STRONGBOX[1], BASE))
+    m.socket('Decal', (2.2, Y_P - 0.001, BASE + 1.6))
+    m.socket('Decal_2', (-X_IN + 0.001, Y_P - 0.7, BASE + 1.6), (0.0, 0.0, 90.0))
+    m.section('office')
+
+    # Collision: the office walkable, its floor at the walk's height on out through the doorway (1 x 2.25 m clear),
+    # the front wall either side and over the door, the side walls, the ceiling, the desk and the open cell door; the
+    # rest of the building solid behind the partition.
+    mid = (Y_IN + Y_P) * 0.5
+    m.hull((2.0 * X_IN, OFFICE_DEPTH, BASE), at=(0.0, mid, BASE * 0.5))
+    m.hull((DOOR.w, STONE_T, BASE), at=(X0 + DOOR.x + DOOR.w * 0.5, Y0 + STONE_T * 0.5, BASE * 0.5))
+    for a, b in ((X0 - 0.05, X0 + DOOR.x), (X0 + DOOR.x + DOOR.w, X1 + 0.05)):
+        m.hull((b - a, STONE_T, EAVE), at=((a + b) * 0.5, Y0 + STONE_T * 0.5, EAVE * 0.5))
+    m.hull((DOOR.w, STONE_T, EAVE - BASE - DOOR.h), at=(X0 + DOOR.x + DOOR.w * 0.5, Y0 + STONE_T * 0.5,
+                                                        (EAVE + BASE + DOOR.h) * 0.5))
+    for s in (-1.0, 1.0):
+        m.hull((X1 + 0.05 - X_IN, OFFICE_DEPTH, EAVE), at=(s * (X_IN + X1 + 0.05) * 0.5, mid, EAVE * 0.5))
+    ceiling = BASE + OFFICE_CEILING
+    m.hull((2.0 * X_IN, OFFICE_DEPTH, EAVE - ceiling), at=(0.0, mid, (EAVE + ceiling) * 0.5))
+    m.hull((WS + 0.1, Y1 - Y_P, EAVE), at=(0.0, (Y_P + Y1) * 0.5, EAVE * 0.5))
+    dx, dy, dz = office['desk']
+    m.hull((1.36, 0.7, dz - BASE), at=(dx, dy, (dz + BASE) * 0.5))
+    m.hull((CELL_DOOR[1], 0.05, CELL_DOOR[2]), at=(CELL_DOOR[1] * 0.5, 0.0, CELL_DOOR[2] * 0.5),
+           space=office['cell_door'])
     m.hull((WF, FT + 0.06, 5.85 - LOW + 0.12), at=(0.0, Y0 + FT * 0.5, EAVE + (5.85 - LOW + 0.12) * 0.5))
     m.hull((WF - 4.4, FT + 0.04, 0.55), at=(0.0, Y0 + FT * 0.5, BASE + 5.85 + 0.27))
     tan = math.tan(math.radians(PITCH))
