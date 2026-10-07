@@ -16,7 +16,6 @@ class APawn;
 class UAreaDefinition;
 class UEncounterSubsystem;
 class ULineBatchComponent;
-struct FCollisionQueryParams;
 
 /** Where an encounter spawner stands. */
 UENUM(BlueprintType)
@@ -40,8 +39,10 @@ enum class EEncounterState : uint8
  *    one rank: "4, one of them Restless" is three of a group and one of a Restless group), level and size;
  *  - where they stand: spots round it within SpawnRadius, or its SpawnPoints. A spot whose ground is more than
  *    MaxGroundStep above or below the spawner's is skipped, so no group is split by a change of level; so are spots in a
- *    safe zone that's on, outside the playable area, off its hunting ground, on top of an obstacle, with no room for a body
- *    (in a building's hull, a rock, a tree), or too near the player;
+ *    safe zone that's on, outside the playable area, off its hunting ground, on top of an obstacle (the floor inside the
+ *    obstacle it stands in, such as the den in Den Rock, is ground), with no room at all (in a building's hull, a rock, a
+ *    tree), or too near the player. Spots with room for the largest body its groups bring come first; with too few of
+ *    those, the roomiest of the rest (FEncounterGroundProbe);
  *  - its hunting ground (FHuntingGround): its creatures hunt only players within GiveUpRadius of it, or inside
  *    GroundCorners (a fence's line), and give up and go home when their target leaves it;
  *  - waves, if it has more than one: WaveInterval apart, or each once the last is dead (bWaitForClear), at most MaxAlive at
@@ -313,8 +314,6 @@ private:
 	/** Spawns what's owed, as many as the caps and its ground allow; how many. */
 	int32 SpawnOwed();
 	ACreatureBase* SpawnOne(const FOwedCreature& Entry, const FVector& Feet, APawn* Player);
-	TArray<FVector> ChooseSpawnSpots(int32 Wanted, const APawn* Player) const;
-	bool FindSpawnerGround(const FCollisionQueryParams& Params, FVector& OutGround) const;
 	/** Drops the dead from its list, counting them killed. */
 	void PruneLiving();
 	/** Removes every living creature it has out (owed back when bOweThem); how many. */
@@ -325,6 +324,13 @@ private:
 	bool IsAnyInView() const;
 	bool IsAnyFighting() const;
 	const UAreaDefinition* FindArea() const;
+
+	// --- Where they stand (EncounterSpawnerSpots.cpp) ---
+	/**
+	 * Spots for Wanted creatures on its ground (EncounterRules::ChooseSpots): those with room for the largest body its
+	 * groups bring (EncounterRules::LargestBody) first, then the roomiest of the rest; fewer when its ground has fewer.
+	 */
+	TArray<FVector> ChooseSpawnSpots(int32 Wanted, const APawn* Player) const;
 
 	/** One of its creatures died: a Legendary lair's monster is noted beaten in the session. */
 	UFUNCTION()

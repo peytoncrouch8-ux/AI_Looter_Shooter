@@ -3,7 +3,9 @@
 #include "CoreMinimal.h"
 #include "Creatures/CreatureRank.h"
 #include "Templates/Function.h"
+#include "Templates/SubclassOf.h"
 
+class ACreatureBase;
 class UAreaDefinition;
 struct FEncounterGroup;
 
@@ -16,8 +18,25 @@ struct FEncounterGroundHit
 	/** Where feet go on it. */
 	FVector Point = FVector::ZeroVector;
 
-	/** A creature can stand there: walkable, and not on top of something standing on the ground (a rock, a wagon, a roof). */
+	/**
+	 * A creature can stand there: walkable, and not on top of something standing on the ground (a rock, a wagon, a roof).
+	 * The floor inside the obstacle its spawner stands in (a den in a rock) is ground (FEncounterGroundProbe).
+	 */
 	bool bStandable = true;
+
+	/**
+	 * The room over it for the body its creatures need (FEncounterBody): 1 when the whole body fits, a share of its size
+	 * when only a smaller body does, 0 when none does (inside rock or a wall).
+	 */
+	float Room = 1.f;
+};
+
+/** A creature's body, for the room a spot needs: its capsule at the size it will be (cm). */
+struct FEncounterBody
+{
+	/** A man-sized walking body: the room every spot needs when there's no creature class to measure. */
+	float Radius = 40.f;
+	float HalfHeight = 80.f;
 };
 
 /**
@@ -38,11 +57,32 @@ namespace EncounterRules
 	 * Up to Wanted spots from Candidates, in order: ground under it (GroundAt) that a creature can stand on, no more than
 	 * MaxStep above or below HomeZ (the spawner's ground: no group is split by a change of level), not Blocked (a safe zone,
 	 * off the playable area or the group's hunting ground, too near the player), and at least Spacing from each other and
-	 * from Occupied (creatures standing there already). The spots returned are on the ground.
+	 * from Occupied (creatures standing there already). Spots with room for the whole body come first; if too few have it,
+	 * the roomiest of the rest fill in (in candidate order among equals, so a spawner's own points first), never one with
+	 * no room at all. The spots returned are on the ground.
 	 */
 	AI_LOOTER_SHOOTER_API TArray<FVector> ChooseSpots(const TArray<FVector>& Candidates, int32 Wanted, double HomeZ, float MaxStep,
 		float Spacing, const TArray<FVector>& Occupied, TFunctionRef<FEncounterGroundHit(const FVector&)> GroundAt,
 		TFunctionRef<bool(const FVector&)> IsBlocked);
+
+	/**
+	 * The largest of the rank sizes (UCreatureRankSettings) Group's creatures can roll: its fixed rank's, or the biggest
+	 * that Basic, its own chances or Area's promotions give.
+	 */
+	AI_LOOTER_SHOOTER_API float LargestRankSize(const FEncounterGroup& Group, const UAreaDefinition* Area);
+
+	/**
+	 * Class's body as SpawnAtRuntime sizes it: its class default's capsule at BodyScale (0: the class's own) times
+	 * RankSize. Without a class, a man-sized body.
+	 */
+	AI_LOOTER_SHOOTER_API FEncounterBody CreatureBody(TSubclassOf<ACreatureBase> Class, float BodyScale, float RankSize);
+
+	/**
+	 * The room a spawner's spots need: the widest and the tallest of the bodies its Groups bring, each at its group's size
+	 * and the largest rank it can roll (the Gravemother's, nearly three times a man's width). Without any creature class, a
+	 * man-sized body.
+	 */
+	AI_LOOTER_SHOOTER_API FEncounterBody LargestBody(const TArray<FEncounterGroup>& Groups, const UAreaDefinition* Area);
 
 	/** Room under a cap: how many more may be alive (Cap less Alive, never below 0); without a cap (0), as many as asked. */
 	AI_LOOTER_SHOOTER_API int32 Room(int32 Alive, int32 Cap);

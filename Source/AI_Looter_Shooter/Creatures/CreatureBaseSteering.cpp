@@ -173,8 +173,21 @@ bool ACreatureBase::FindGround(const FVector& Point, float Above, float Below, F
 void ACreatureBase::SnapToGround()
 {
 	const float HalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	const FVector Middle = GetActorLocation();
+	// It looks down from over its head, so one placed a little into the ground still finds the surface; but never from
+	// above a roof over it. In the Gravemother's den the ceiling is lower than that: a look from inside a rock's hull
+	// finds the rock right there (a trace starting inside a convex reports a hit at its start), one from over the roof its
+	// top, and either put her in the ceiling.
+	float Above = HalfHeight + 150.f;
+	const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(GetWorld(), TEXT("CreatureRoof"), this);
+	FHitResult Roof;
+	if (GetWorld()->LineTraceSingleByObjectType(Roof, Middle, Middle + FVector(0.f, 0.f, Above), FCollisionObjectQueryParams(ECC_WorldStatic),
+		Params) && !Roof.bStartPenetrating)
+	{
+		Above = FMath::Max(Roof.Distance - 1.f, 0.f);
+	}
 	FVector Ground;
-	if (FindGround(GetActorLocation(), HalfHeight + 150.f, 1500.f, Ground))
+	if (FindGround(Middle, Above, 1500.f, Ground))
 	{
 		SetActorLocation(Ground + FVector(0.f, 0.f, HalfHeight + 2.f), false, nullptr, ETeleportType::TeleportPhysics);
 	}

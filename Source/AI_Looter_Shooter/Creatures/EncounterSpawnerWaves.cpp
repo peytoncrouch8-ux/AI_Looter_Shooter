@@ -1,5 +1,5 @@
-// AEncounterSpawner's waves: what each brings, where its creatures stand, spawning them under the caps, and taking them
-// away while the player is far. Its state, the story and its timer are in EncounterSpawner.cpp.
+// AEncounterSpawner's waves: what each brings, spawning them under the caps, and taking them away while the player is
+// far. Where they stand is in EncounterSpawnerSpots.cpp; its state, the story and its timer are in EncounterSpawner.cpp.
 
 #include "Creatures/EncounterSpawner.h"
 #include "AI_Looter_Shooter.h"
@@ -9,33 +9,14 @@
 #include "Creatures/EncounterRules.h"
 #include "Creatures/EncounterSettings.h"
 #include "Creatures/EncounterSubsystem.h"
-#include "World/PlayableArea.h"
-#include "World/WorldQueries.h"
-#include "CollisionQueryParams.h"
-#include "CollisionShape.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Engine/HitResult.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 
 namespace
 {
-	/** Ground steeper than about 50 degrees (the creatures' walkable floor angle) is no place to stand. */
-	constexpr double WalkableGroundNormalZ = 0.64;
-
-	/** What stands on the ground (rocks, wagons, buildings) carries this tag for the minimap: nothing appears on top of one. */
-	const FName StandingObstacleTag(TEXT("Obstacle"));
-
 	/** Drawn on a screen this lately (seconds) still counts as seen: it isn't taken away under the player's eyes. */
 	constexpr float SeenLatelySeconds = 0.5f;
-
-	/**
-	 * The room a spot needs over its ground (cm): a walking body this size, lifted a little so a walkable slope doesn't
-	 * touch it. Inside a building's hull, a rock or a tree there's none.
-	 */
-	constexpr float RoomRadius = 40.f;
-	constexpr float RoomHalfHeight = 80.f;
-	constexpr float RoomLift = 30.f;
 }
 
 // ---------------------------------------------------------------------------
@@ -254,100 +235,6 @@ ACreatureBase* AEncounterSpawner::SpawnOne(const FOwedCreature& Entry, const FVe
 		Creature->AlertTo(Player);
 	}
 	return Creature;
-}
-
-// ---------------------------------------------------------------------------
-// Where they stand
-// ---------------------------------------------------------------------------
-
-TArray<FVector> AEncounterSpawner::ChooseSpawnSpots(int32 Wanted, const APawn* Player) const
-{
-	UWorld* World = GetWorld();
-	if (!World || Wanted <= 0)
-	{
-		return TArray<FVector>();
-	}
-	const FVector Here = GetActorLocation();
-	const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("EncounterSpot"), this);
-	FVector SpawnerGround;
-	const bool bHasGround = FindSpawnerGround(Params, SpawnerGround);
-	// With no ground anywhere near the spawner (a test level), its creatures stand level with it.
-	const double HomeZ = bHasGround ? SpawnerGround.Z : Here.Z;
-
-	TArray<FVector> Points;
-	for (const FVector& Local : SpawnPoints)
-	{
-		Points.Add(GetActorTransform().TransformPositionNoScale(Local));
-	}
-	const TArray<FVector> Candidates = EncounterRules::CandidateSpots(FVector(Here.X, Here.Y, HomeZ), SpawnRadius, Points, Wanted,
-		Spacing, static_cast<float>(Rolls.FRandRange(0.0, 360.0)));
-	TArray<FVector> Occupied;
-	for (const FLivingCreature& Each : Living)
-	{
-		if (const ACreatureBase* Creature = Each.Creature.Get())
-		{
-			Occupied.Add(Creature->GetActorLocation());
-		}
-	}
-
-	const FHuntingGround Turf = MakeHuntingGround();
-	const UEncounterSubsystem* Encounters = GetEncounters();
-	const APlayableArea* Playable = APlayableArea::Find(World);
-	const double ClearOfPlayerSquared = FMath::Square(static_cast<double>(UEncounterSettings::Get().MinSpawnDistanceFromPlayer));
-	const double Reach = MaxGroundStep + 100.0;
-	// The room check sees everything that stops a walking body, the scattered trees and rocks too (the ground's params skip
-	// what the PCG volume scattered).
-	const FCollisionQueryParams RoomParams(SCENE_QUERY_STAT(EncounterRoom), false, this);
-	const FCollisionShape Room = FCollisionShape::MakeCapsule(RoomRadius, RoomHalfHeight);
-	auto GroundAt = [World, &Params, &RoomParams, &Room, bHasGround, HomeZ, Reach](const FVector& Spot)
-	{
-		FEncounterGroundHit Found;
-		if (!bHasGround)
-		{
-			Found.bFound = true;
-			Found.Point = FVector(Spot.X, Spot.Y, HomeZ);
-			return Found;
-		}
-		// The ground within reach of the spawner's level: one more than a step up or down isn't found at all.
-		FHitResult Hit;
-		if (World->LineTraceSingleByObjectType(Hit, FVector(Spot.X, Spot.Y, HomeZ + Reach), FVector(Spot.X, Spot.Y, HomeZ - Reach),
-			FCollisionObjectQueryParams(ECC_WorldStatic), Params))
-		{
-			const AActor* Under = Hit.GetActor();
-			Found.bFound = true;
-			Found.Point = Hit.ImpactPoint;
-			Found.bStandable = Hit.ImpactNormal.Z >= WalkableGroundNormalZ && !(Under && Under->ActorHasTag(StandingObstacleTag))
-				&& !World->OverlapBlockingTestByChannel(Hit.ImpactPoint + FVector(0.0, 0.0, RoomLift + RoomHalfHeight), FQuat::Identity,
-					ECC_Pawn, Room, RoomParams);
-		}
-		return Found;
-	};
-	auto IsBlocked = [Encounters, Playable, &Turf, &Here, Player, ClearOfPlayerSquared](const FVector& Spot)
-	{
-		return (Encounters && Encounters->IsInSafeZone(Spot))
-			|| (Playable && !Playable->Contains(Spot))
-			|| !Turf.ContainsSpot(Spot, Here)
-			|| (Player && FVector::DistSquared2D(Spot, Player->GetActorLocation()) < ClearOfPlayerSquared);
-	};
-	return EncounterRules::ChooseSpots(Candidates, Wanted, HomeZ, MaxGroundStep, Spacing, Occupied, GroundAt, IsBlocked);
-}
-
-bool AEncounterSpawner::FindSpawnerGround(const FCollisionQueryParams& Params, FVector& OutGround) const
-{
-	const UWorld* World = GetWorld();
-	if (!World)
-	{
-		return false;
-	}
-	const FVector Here = GetActorLocation();
-	FHitResult Hit;
-	if (World->LineTraceSingleByObjectType(Hit, Here + FVector(0.0, 0.0, 300.0), Here - FVector(0.0, 0.0, 2000.0),
-		FCollisionObjectQueryParams(ECC_WorldStatic), Params))
-	{
-		OutGround = Hit.ImpactPoint;
-		return true;
-	}
-	return false;
 }
 
 // ---------------------------------------------------------------------------

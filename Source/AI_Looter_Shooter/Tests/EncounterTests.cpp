@@ -15,6 +15,7 @@
 #include "Creatures/SpiderCreature.h"
 #include "Tests/EncounterTestWorld.h"
 #include "World/SafeGround.h"
+#include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "Tests/AutomationCommon.h"
@@ -49,6 +50,16 @@ bool FEncounterGroupsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...Restless in the 8% after"), EncounterRules::PickRank(ByArea, Valley, 0.05f) == ECreatureRank::Rare);
 	TestTrue(TEXT("...Basic otherwise"), EncounterRules::PickRank(ByArea, Valley, 0.5f) == ECreatureRank::Basic);
 	TestTrue(TEXT("No area: Basic"), EncounterRules::PickRank(ByArea, nullptr, 0.01f) == ECreatureRank::Basic);
+
+	// The largest rank each can roll, for the room its creatures need: its fixed one, or the biggest its own chances or the
+	// area's promotions can give.
+	auto SizeOf = [](ECreatureRank Rank) { return UCreatureRankSettings::Get(Rank).Size; };
+	const float UpToGravebound = FMath::Max3(SizeOf(ECreatureRank::Basic), SizeOf(ECreatureRank::Rare), SizeOf(ECreatureRank::Epic));
+	TestNearlyEqual(TEXT("A fixed group: its rank's size"), EncounterRules::LargestRankSize(Lieutenant, nullptr), SizeOf(ECreatureRank::Rare),
+		0.001f);
+	TestNearlyEqual(TEXT("Its own chances: up to Gravebound's"), EncounterRules::LargestRankSize(OwnChances, nullptr), UpToGravebound, 0.001f);
+	TestNearlyEqual(TEXT("The area's promotions: up to Gravebound's"), EncounterRules::LargestRankSize(ByArea, Valley), UpToGravebound, 0.001f);
+	TestNearlyEqual(TEXT("No area: Basic's"), EncounterRules::LargestRankSize(ByArea, nullptr), SizeOf(ECreatureRank::Basic), 0.001f);
 
 	// Which waves a group joins: every one from its first, or only those up to its last.
 	FEncounterGroup SecondOnly = Lieutenant;
@@ -190,6 +201,55 @@ bool FEncounterGroundTest::RunTest(const FString& Parameters)
 	const TArray<FVector> AtPoints = EncounterRules::CandidateSpots(FVector(0.0, 0.0, 50.0), 0.f, Points, 5, 200.f, 0.f);
 	TestTrue(TEXT("Its points come first, level with its ground"), AtPoints.Num() > 5 && AtPoints[0].Equals(FVector(400.0, 0.0, 50.0), 0.1)
 		&& AtPoints[1].Equals(FVector(-400.0, 300.0, 50.0), 0.1));
+
+	// Room for the body: spots with room for the whole of it come first; with too few, the roomiest of the rest fill in (its
+	// own point first among equals) rather than none, and never one with no room at all. Three spots in a row, 5 m apart:
+	// its point, then one east and one west of it.
+	const TArray<FVector> InRow = { FVector(0.0, 0.0, 0.0), FVector(500.0, 0.0, 0.0), FVector(-500.0, 0.0, 0.0) };
+	auto RoomsInRow = [](float AtPoint, float East, float West)
+	{
+		return [AtPoint, East, West](const FVector& Spot)
+		{
+			FEncounterGroundHit Hit;
+			Hit.bFound = true;
+			Hit.Point = Spot;
+			Hit.Room = Spot.X > 1.0 ? East : (Spot.X < -1.0 ? West : AtPoint);
+			return Hit;
+		};
+	};
+	auto ChooseInRow = [&InRow, &Open](int32 Wanted, TFunctionRef<FEncounterGroundHit(const FVector&)> GroundAt)
+	{
+		return EncounterRules::ChooseSpots(InRow, Wanted, 0.0, 400.f, 200.f, TArray<FVector>(), GroundAt, Open);
+	};
+	const TArray<FVector> PastTight = ChooseInRow(1, RoomsInRow(0.4f, 1.f, 0.f));
+	TestTrue(TEXT("Its point too tight for the whole body: the next spot that fits it"), PastTight.Num() == 1 && PastTight[0].X > 1.0);
+	const TArray<FVector> Roomiest = ChooseInRow(1, RoomsInRow(0.4f, 0.7f, 0.f));
+	TestTrue(TEXT("None fits it whole: the roomiest"), Roomiest.Num() == 1 && Roomiest[0].X > 1.0);
+	const TArray<FVector> Tied = ChooseInRow(1, RoomsInRow(0.7f, 0.7f, 0.7f));
+	TestTrue(TEXT("...its own point first among equals"), Tied.Num() == 1 && FMath::Abs(Tied[0].X) < 1.0);
+	TestEqual(TEXT("No room anywhere: no spot"), ChooseInRow(1, RoomsInRow(0.f, 0.f, 0.f)).Num(), 0);
+	const TArray<FVector> TopUp = ChooseInRow(3, RoomsInRow(1.f, 0.5f, 0.f));
+	TestTrue(TEXT("Too few fit it whole: a tighter one fills in after them, never one with no room"), TopUp.Num() == 2
+		&& FMath::Abs(TopUp[0].X) < 1.0 && TopUp[1].X > 1.0);
+
+	// The room a spawner's spots need is the largest body its groups bring: each class's capsule at its group's size and the
+	// largest rank it can roll. A spawner of spiders and a giant one needs the giant's.
+	const float SpiderRadius = GetDefault<ASpiderCreature>()->GetCapsuleComponent()->GetUnscaledCapsuleRadius();
+	const float BasicSize = UCreatureRankSettings::Get(ECreatureRank::Basic).Size;
+	const float EpicSize = UCreatureRankSettings::Get(ECreatureRank::Epic).Size;
+	FEncounterGroup Giant = EncounterTestWorld::MakeGroup(ASpiderCreature::StaticClass(), 1);
+	Giant.BodyScale = 1.8f;
+	TestNearlyEqual(TEXT("A spider at 1.8: its capsule 1.8 times as wide"), EncounterRules::LargestBody({ Giant }, nullptr).Radius,
+		SpiderRadius * 1.8f * BasicSize, 0.01f);
+	FEncounterGroup MaybeGravebound = EncounterTestWorld::MakeGroup(ASpiderCreature::StaticClass(), 4);
+	MaybeGravebound.RankRoll = EEncounterRankRoll::Chances;
+	MaybeGravebound.EpicChance = 0.1f;
+	const FEncounterBody Mixed = EncounterRules::LargestBody({ MaybeGravebound, Giant,
+		EncounterTestWorld::MakeGroup(ASlimeCreature::StaticClass(), 2) }, nullptr);
+	TestNearlyEqual(TEXT("Spiders that may be Gravebound, a giant one and slimes: room for the biggest"), Mixed.Radius,
+		SpiderRadius * FMath::Max(1.8f * BasicSize, EpicSize), 0.01f);
+	TestNearlyEqual(TEXT("No creature to measure: a man-sized body"), EncounterRules::LargestBody(TArray<FEncounterGroup>(), nullptr).Radius,
+		FEncounterBody().Radius, 0.01f);
 
 	// A hunting ground as a polygon (the churchyard's fence): inside, within its margin past the fence, past it; its height band.
 	FHuntingGround Yard;

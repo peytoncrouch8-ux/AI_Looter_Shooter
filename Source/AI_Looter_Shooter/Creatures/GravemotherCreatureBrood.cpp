@@ -1,39 +1,25 @@
 // AGravemotherCreature's brood (Docs/Areas/RansomsRest.md: "Calls 4 spiderlings at 66% and 33%"; a spiderling is "a
 // configuration of the existing spider, not a new class: 0.45x size, 20% health (60 HP at level 1)", on the Basic table,
 // sharing the spider's Ledger page). They claw up out of the ground round her, on spots chosen by an encounter's rules
-// (EncounterRules: her own level of ground, standable and roomy, out of safe zones and off nobody's head), kept to the
-// level's cap near the player, and go for her target.
+// (EncounterRules and FEncounterGroundProbe: her own level of ground, standable and roomy, out of safe zones and off
+// nobody's head; in her den, its floor), kept to the level's cap near the player, and go for her target.
 
 #include "Creatures/GravemotherCreature.h"
 #include "AI_Looter_Shooter.h"
 #include "Combat/BulletSubsystem.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/EncounterGroundProbe.h"
 #include "Creatures/EncounterRules.h"
 #include "Creatures/EncounterSettings.h"
 #include "Creatures/EncounterSubsystem.h"
 #include "Weapons/WeaponFX.h"
 #include "World/PlayableArea.h"
-#include "World/WorldQueries.h"
-#include "CollisionQueryParams.h"
-#include "CollisionShape.h"
 #include "Components/CapsuleComponent.h"
-#include "Engine/HitResult.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 
 namespace
 {
-	/** Ground steeper than about 50 degrees (the creatures' walkable floor angle) is no place to come up (as a spawner's). */
-	constexpr double WalkableGroundNormalZ = 0.64;
-
-	/** What stands on the ground (rocks, coffins, wagons) carries this tag: nothing comes up on top of one. */
-	const FName StandingObstacleTag(TEXT("Obstacle"));
-
-	/** The room a spiderling needs over its spot (cm): a small body, lifted a little so a walkable slope doesn't touch it. */
-	constexpr float RoomRadius = 30.f;
-	constexpr float RoomHalfHeight = 40.f;
-	constexpr float RoomLift = 20.f;
-
 	/** How hard the ground breaks where one claws up (FWeaponFX::SpawnDirt, 0 to 1). */
 	constexpr float ClawOutDirt = 0.7f;
 }
@@ -124,16 +110,19 @@ int32 AGravemotherCreature::CallBrood()
 		return 0;
 	}
 
-	// Spots round her on her own level of ground, as a spawner chooses them: standable, with room for a small body, not
-	// on top of a rock or a coffin, out of safe zones, inside the playable area and her hunting ground, clear of the
-	// player, and apart from her and each other. With no ground under her at all (a test level), level with her feet.
+	// Spots round her on her own level of ground, as a spawner chooses them: standable, with room for a spiderling, not on
+	// top of a rock or a coffin (in her den, the den's floor in Den Rock is ground), out of safe zones, inside the playable
+	// area and her hunting ground, clear of the player, and apart from her and each other. With no ground under her at all
+	// (a test level), level with her feet.
 	const float Scale = GetSizeScale();
 	const FVector Middle = GetActorLocation();
 	const FVector Feet = GetFeet();
-	FVector Under;
-	const bool bHasGround = FindGround(Feet, 50.f * Scale, 150.f * Scale, Under);
-	const double HomeZ = bHasGround ? Under.Z : Feet.Z;
-	const float Spacing = FMath::Max(BroodSpacing, GetCapsuleComponent()->GetScaledCapsuleRadius() + RoomRadius + 20.f);
+	const FEncounterBody SpiderlingBody = EncounterRules::CreatureBody(ASpiderCreature::StaticClass(), Gravemother::SpiderlingSize,
+		UCreatureRankSettings::Get(ECreatureRank::Basic).Size);
+	FEncounterGroundProbe Probe(World, this, TEXT("GravemotherBrood"), SpiderlingBody, BroodMaxStep);
+	Probe.FindHome(Feet, 50.0 * Scale, 150.0 * Scale);
+	const double HomeZ = Probe.GetHomeZ();
+	const float Spacing = FMath::Max(BroodSpacing, GetCapsuleComponent()->GetScaledCapsuleRadius() + SpiderlingBody.Radius + 20.f);
 	const TArray<FVector> Candidates = EncounterRules::CandidateSpots(FVector(Feet.X, Feet.Y, HomeZ), BroodRadius * Scale,
 		TArray<FVector>(), Wanted, Spacing, FMath::FRandRange(0.f, 360.f));
 	TArray<FVector> Occupied = { Middle };
@@ -142,31 +131,9 @@ int32 AGravemotherCreature::CallBrood()
 		Occupied.Add(Spiderling->GetActorLocation());
 	}
 
-	const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("GravemotherBrood"), this);
-	const FCollisionQueryParams RoomParams(SCENE_QUERY_STAT(GravemotherBroodRoom), false, this);
-	const FCollisionShape Room = FCollisionShape::MakeCapsule(RoomRadius, RoomHalfHeight);
-	const double Reach = BroodMaxStep + 100.0;
-	auto GroundAt = [World, &Params, &RoomParams, &Room, bHasGround, HomeZ, Reach](const FVector& Spot)
+	auto GroundAt = [&Probe](const FVector& Spot)
 	{
-		FEncounterGroundHit Found;
-		if (!bHasGround)
-		{
-			Found.bFound = true;
-			Found.Point = FVector(Spot.X, Spot.Y, HomeZ);
-			return Found;
-		}
-		FHitResult Hit;
-		if (World->LineTraceSingleByObjectType(Hit, FVector(Spot.X, Spot.Y, HomeZ + Reach), FVector(Spot.X, Spot.Y, HomeZ - Reach),
-			FCollisionObjectQueryParams(ECC_WorldStatic), Params))
-		{
-			const AActor* Below = Hit.GetActor();
-			Found.bFound = true;
-			Found.Point = Hit.ImpactPoint;
-			Found.bStandable = Hit.ImpactNormal.Z >= WalkableGroundNormalZ && !(Below && Below->ActorHasTag(StandingObstacleTag))
-				&& !World->OverlapBlockingTestByChannel(Hit.ImpactPoint + FVector(0.0, 0.0, RoomLift + RoomHalfHeight), FQuat::Identity,
-					ECC_Pawn, Room, RoomParams);
-		}
-		return Found;
+		return Probe.Look(Spot);
 	};
 	const APlayableArea* Playable = APlayableArea::Find(World);
 	const APawn* Victim = GetTarget();

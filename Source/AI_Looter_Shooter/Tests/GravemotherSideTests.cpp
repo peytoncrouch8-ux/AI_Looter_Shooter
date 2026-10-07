@@ -4,12 +4,16 @@
 
 // The Gravemother's return and Side 3 (Docs/Areas/RansomsRest.md, Side 3: "She comes back on an arrival after at least 20
 // minutes of play since her last death"): the rule, the session keeping her death with the map's world, her lair (a
-// Legendary encounter) away and back, and the mission. Her body and fight are in GravemotherTests.cpp.
+// Legendary encounter) away and back and where it puts her, and the mission. Her body and fight are in
+// GravemotherTests.cpp.
 
 #include "Creatures/CreatureBase.h"
+#include "Creatures/EncounterGroundProbe.h"
+#include "Creatures/EncounterRules.h"
 #include "Creatures/EncounterSpawner.h"
 #include "Creatures/EncounterSubsystem.h"
 #include "Creatures/GravemotherCreature.h"
+#include "Creatures/SpiderCreature.h"
 #include "Missions/MissionCombatObjectives.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionEventObjectives.h"
@@ -21,7 +25,12 @@
 #include "Tests/BossTestWorld.h"
 #include "Tests/EncounterTestWorld.h"
 #include "Tests/MissionTestWorld.h"
+#include "Components/BoxComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/SceneComponent.h"
+#include "Engine/EngineTypes.h"
 #include "Engine/World.h"
+#include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/PackageName.h"
@@ -43,6 +52,57 @@ namespace
 			Setup.bSpawnOnApproach = bOnApproach;
 			Setup.ActivationRadius = 6000.f;
 			Setup.GiveUpRadius = 3600.f;
+		});
+	}
+
+	/** What the level's rocks and buildings carry for the minimap: nothing spawns on top of one. */
+	const FName ObstacleTag(TEXT("Obstacle"));
+
+	/** Her lair's step (build_area_den.py's GROUND_STEP): her spots stay on the den's level. */
+	constexpr float LairStep = 250.f;
+
+	/**
+	 * Rock or ground for a test level, which otherwise has none: blocking world-static boxes (each from its Min to its Max,
+	 * world cm) as one actor, tagged Tag.
+	 */
+	AActor* SpawnRock(UWorld* World, const TArray<FBox>& Boxes, FName Tag)
+	{
+		AActor* Rock = World->SpawnActor<AActor>();
+		if (!Rock)
+		{
+			return nullptr;
+		}
+		USceneComponent* Root = NewObject<USceneComponent>(Rock, TEXT("Root"));
+		Rock->SetRootComponent(Root);
+		Root->RegisterComponent();
+		for (const FBox& Each : Boxes)
+		{
+			UBoxComponent* Box = NewObject<UBoxComponent>(Rock);
+			Box->SetBoxExtent(Each.GetExtent());
+			Box->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			Box->SetCollisionObjectType(ECC_WorldStatic);
+			Box->SetCollisionResponseToAllChannels(ECR_Block);
+			Box->SetupAttachment(Root);
+			Box->SetRelativeLocation(Each.GetCenter());
+			Box->RegisterComponent();
+		}
+		if (!Tag.IsNone())
+		{
+			Rock->Tags.Add(Tag);
+		}
+		return Rock;
+	}
+
+	/** A lair like the den's at Where with one point of its own (relative to it, as build_area_den.py sets it): one Gravemother. */
+	AEncounterSpawner* SpawnPointLair(UWorld* World, const FVector& Where, FName SpawnerId, const FVector& Point)
+	{
+		return EncounterTestWorld::SpawnSpawner(World, Where, [SpawnerId, &Point](AEncounterSpawner& Setup)
+		{
+			Setup.SpawnerId = SpawnerId;
+			Setup.Groups = { EncounterTestWorld::MakeGroup(AGravemotherCreature::StaticClass(), 1, ECreatureRank::Legendary) };
+			Setup.SpawnPoints = { Point };
+			Setup.MaxGroundStep = LairStep;
+			Setup.bSpawnOnApproach = false;
 		});
 	}
 }
@@ -142,6 +202,117 @@ bool FGravemotherReturnTest::RunTest(const FString& Parameters)
 	const TArray<ACreatureBase*> Lurking = Fresh->GetAliveCreatures();
 	TestTrue(TEXT("Back on an arrival: she's there as the player comes"), Lurking.Num() == 1 && Lurking[0]->IsA<AGravemotherCreature>());
 	TestTrue(TEXT("...hunting her lair's ground"), Lurking.Num() == 1 && Lurking[0]->HuntingGround.IsSet());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGravemotherLairRoomTest, "Looter.Creatures.Gravemother.LairRoom",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FGravemotherLairRoomTest::RunTest(const FString& Parameters)
+{
+	// Where her lair puts her (the play-test of 2026-10-08: she came out at the den's mouth with her legs in its jamb, not
+	// 3 m in): a spot with room for her own body, not a spider's; her den's floor, though the den is carved in a rock
+	// tagged Obstacle; and on that floor once she's begun, under a ceiling lower than her look for the ground starts. A
+	// test level with ground: a field at height 0 with a wall along it, and east of it a den rock (tagged Obstacle) with
+	// its floor 10 cm up, walls 8 m apart, a back, a roof 4.1 m over the floor (the den's at her spot), and a boulder of
+	// the same rock out in the open.
+	FTestWorldWrapper WorldWrapper;
+	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = WorldWrapper.GetTestWorld();
+	const double WallFaceY = 150.0;
+	const FVector DenMouth(10000.0, 30.0, 10.0);
+	const FVector DenSpot(10000.0, 330.0, 10.0);
+	const AActor* Field = SpawnRock(World, { FBox(FVector(-3000.0, -3000.0, -100.0), FVector(14000.0, 3000.0, 0.0)) }, NAME_None);
+	const AActor* Wall = SpawnRock(World, { FBox(FVector(-2000.0, WallFaceY, 0.0), FVector(2000.0, WallFaceY + 250.0, 800.0)) },
+		ObstacleTag);
+	const AActor* DenRock = SpawnRock(World, {
+		FBox(FVector(9600.0, 0.0, -50.0), FVector(10400.0, 900.0, 10.0)),		// its floor
+		FBox(FVector(9100.0, 0.0, -50.0), FVector(9600.0, 1300.0, 700.0)),		// its walls
+		FBox(FVector(10400.0, 0.0, -50.0), FVector(10900.0, 1300.0, 700.0)),
+		FBox(FVector(9600.0, 900.0, -50.0), FVector(10400.0, 1300.0, 700.0)),	// its back
+		FBox(FVector(9600.0, -100.0, 420.0), FVector(10400.0, 900.0, 700.0)),	// its roof, a brow a metre past its mouth
+		FBox(FVector(8400.0, -900.0, 0.0), FVector(8800.0, -500.0, 120.0)) },	// a boulder of it out in the open
+		ObstacleTag);
+	if (!TestTrue(TEXT("The field, the wall and the den rock"), Field && Wall && DenRock))
+	{
+		return false;
+	}
+
+	// The ground under her spots, for her body (her lair's largest), before anything stands on it.
+	const FEncounterBody HerBody = EncounterRules::LargestBody(
+		{ EncounterTestWorld::MakeGroup(AGravemotherCreature::StaticClass(), 1, ECreatureRank::Legendary) }, nullptr);
+	FEncounterGroundProbe FromField(World, nullptr, TEXT("TestLairRoom"), HerBody, LairStep);
+	const bool bFieldHome = FromField.FindHome(FVector(0.0, 0.0, 60.0), 300.0, 2000.0);
+	TestTrue(TEXT("A lair on the field: its ground at 0"), bFieldHome && FMath::IsNearlyZero(FromField.GetHomeZ(), 1.0));
+	const FEncounterGroundHit ByWall = FromField.Look(FVector(0.0, 90.0, 0.0));
+	TestTrue(*FString::Printf(TEXT("60 cm from the wall: room for a smaller body only (%.2f of hers)"), ByWall.Room),
+		ByWall.bFound && ByWall.bStandable && ByWall.Room > 0.f && ByWall.Room < 1.f);
+	TestTrue(TEXT("Out in the field: room for the whole of her"), FromField.Look(FVector(0.0, -800.0, 0.0)).Room >= 1.f);
+	TestFalse(TEXT("The den's floor is a rock's, not the field's ground"), FromField.Look(DenSpot).bStandable);
+	FEncounterGroundProbe FromDen(World, nullptr, TEXT("TestLairRoom"), HerBody, LairStep);
+	const bool bDenHome = FromDen.FindHome(DenMouth + FVector(0.0, 0.0, 50.0), 300.0, 2000.0);
+	TestTrue(TEXT("A lair at the den's mouth: its ground the den's floor"), bDenHome
+		&& FMath::IsNearlyEqual(FromDen.GetHomeZ(), DenMouth.Z, 1.0));
+	const FEncounterGroundHit InDen = FromDen.Look(DenSpot);
+	TestTrue(TEXT("...3 m in, under its roof: ground, with room for the whole of her"),
+		InDen.bFound && InDen.bStandable && InDen.Room >= 1.f);
+	const FEncounterGroundHit OnBoulder = FromDen.Look(FVector(8600.0, -700.0, 0.0));
+	TestTrue(TEXT("...but not the top of a boulder of the same rock out in the open"), OnBoulder.bFound && !OnBoulder.bStandable);
+	// At the real den's lip the Sink's floor and the den's lie within a few centimetres: a lair that finds the field under
+	// it, under the den's brow, has the den's floor for ground all the same.
+	FEncounterGroundProbe FromLip(World, nullptr, TEXT("TestLairRoom"), HerBody, LairStep);
+	const bool bLipHome = FromLip.FindHome(FVector(10000.0, -50.0, 60.0), 300.0, 2000.0);
+	TestTrue(TEXT("A lair on the field under the den's brow: the den's floor is its ground too"),
+		bLipHome && FMath::IsNearlyZero(FromLip.GetHomeZ(), 1.0) && FromLip.Look(DenSpot).bStandable);
+
+	// By the wall: her lair's own point 60 cm from it, where a spider fits and she doesn't. She comes out where she fits.
+	AEncounterSpawner* WallLair = SpawnPointLair(World, FVector(0.0, 0.0, 60.0), TEXT("TestWallLair"), FVector(0.0, 90.0, 0.0));
+	if (!TestNotNull(TEXT("Her lair by the wall"), WallLair) || !TestTrue(TEXT("She comes out"), WallLair->TriggerWave()))
+	{
+		return false;
+	}
+	const TArray<ACreatureBase*> ByWallOut = WallLair->GetAliveCreatures();
+	if (!TestEqual(TEXT("...one Gravemother"), ByWallOut.Num(), 1))
+	{
+		return false;
+	}
+	const float HerRadius = ByWallOut[0]->GetCapsuleComponent()->GetScaledCapsuleRadius();
+	TestNearlyEqual(TEXT("Her lair measures room for her body as it is in play"), HerBody.Radius, HerRadius, 0.5f);
+	const FVector Out = ByWallOut[0]->GetActorLocation();
+	TestTrue(*FString::Printf(TEXT("...where it fits: clear of the wall (%.0f cm from it, %.0f wide)"), WallFaceY - Out.Y, HerRadius),
+		WallFaceY - Out.Y >= HerRadius - 1.0);
+
+	// In the den: her point 3 m in is on the den rock's floor, and she comes out on it.
+	AEncounterSpawner* DenLair = SpawnPointLair(World, DenMouth + FVector(0.0, 0.0, 50.0), TEXT("TestDenLair"), DenSpot - DenMouth);
+	if (!TestNotNull(TEXT("Her lair in the den"), DenLair) || !TestTrue(TEXT("She comes out"), DenLair->TriggerWave()))
+	{
+		return false;
+	}
+	const TArray<ACreatureBase*> InDenOut = DenLair->GetAliveCreatures();
+	if (!TestEqual(TEXT("...one Gravemother"), InDenOut.Num(), 1))
+	{
+		return false;
+	}
+	const FVector Lurk = InDenOut[0]->GetActorLocation();
+	TestTrue(*FString::Printf(TEXT("At her point 3 m into the den (%.0f cm off it)"), FVector::Dist2D(Lurk, DenSpot)),
+		FVector::Dist2D(Lurk, DenSpot) < 5.0);
+	TestNearlyEqual(TEXT("...on its floor"), Lurk.Z - InDenOut[0]->GetSimpleCollisionHalfHeight(), DenSpot.Z, 10.0);
+
+	// Her brood comes up round her there too: the den's floor is ground for them as it is for her.
+	AGravemotherCreature* Mother = Cast<AGravemotherCreature>(InDenOut[0]);
+	if (TestNotNull(TEXT("She's the Gravemother"), Mother) && TestTrue(TEXT("She calls her brood"), Mother->CallBrood() > 0))
+	{
+		int32 InTheDen = 0;
+		for (const ASpiderCreature* Spiderling : Mother->GetBrood())
+		{
+			const FVector At = Spiderling->GetActorLocation();
+			InTheDen += At.X > 9600.0 && At.X < 10400.0 && At.Y > 0.0 && At.Y < 900.0 ? 1 : 0;
+		}
+		TestTrue(*FString::Printf(TEXT("...some of them in the den (%d)"), InTheDen), InTheDen > 0);
+	}
 	return true;
 }
 
