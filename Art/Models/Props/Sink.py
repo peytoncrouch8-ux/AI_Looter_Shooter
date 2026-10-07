@@ -29,9 +29,12 @@ them by hand, at most 20 in a view, with their shadows off (see the placement no
   Web_Strands    seven threads hanging 0.8-2.6 m from an edge along X, some with tufts (Strands). Pivot likewise.
   Web_Line       one 4 m line of twisted silk from the pivot to x = 4, sagging 10 cm (Strands' Rope): scale X to span
                  a gap (and Z by as much to keep the sag in proportion); set it up and down to hang a sac.
-  Web_Funnel     the den's funnel: silk lining Den Rock's den mouth as a tube (Sheet), fitted to its measured mouth,
-                 from just inside the jambs 3.2 m in, narrowing and darkening as Den Rock's den does, anchor lines
-                 out onto the face. Its pivot is Den Rock's SOCKET_DenMouth (place it there, same rotation).
+  Web_Funnel     the den's funnel: a sheet lining Den Rock's den mouth (Sheet), fitted to its measured mouth: the jambs
+                 and the arch from the face's flaring edge 0.6 m out, in over the rim and 2.6 m into the throat,
+                 10-30 cm off the rock and darkening as the den does, anchor threads out under the brow and over the
+                 face. The floor between the jambs stays bare and a way out 6 m wide and 4 m high stays clear (where
+                 the arch's rock comes lower, the sheet lies on it). Its pivot is Den Rock's SOCKET_DenMouth (place it
+                 there, same rotation).
   Web_BranchWrap silk wound round a dead branch (Wrap), 1.3 m along +X from the pivot on the branch's axis (built
                  for a 7 cm radius: scale Y and Z by radius / 0.07), baggy and sagging under it, short threads
                  hanging off it. No long tatters, so it scales to any branch: hang Web_Tatters beside it for those.
@@ -619,57 +622,124 @@ def web_line(name='Web_Line', seed=18, length=4.0, sag=0.1):
     return card_props(card.build([WEB]))
 
 
-# The den mouth's lining, fitted to Den Rock's den (measured on SM_DenRock): its loop round the mouth at the face, as
-# (x, height over the den floor), from the floor at the left round the arch and back along the floor. It sits ~0.2 m
-# inside the rock; the left side of the arch stands higher, as the den's does.
-FUNNEL_LOOP = [(-3.2, 0.03), (-3.18, 1.4), (-3.02, 2.7), (-2.62, 3.75), (-1.86, 4.45), (-0.7, 4.62), (0.5, 4.42),
-               (1.5, 4.02), (2.22, 3.48), (2.58, 2.62), (3.22, 1.4), (3.42, 0.03), (1.7, 0.03), (0.0, 0.03),
-               (-1.6, 0.03)]
-FUNNEL_RINGS = [(-0.62, 1.06, 1.0), (-0.2, 1.02, 1.0), (0.45, 1.0, 1.0), (1.25, 0.94, 0.93), (2.0, 0.86, 0.83),
-                (2.6, 0.8, 0.73)]          # (depth y, scale across, scale up): from just inside the jambs, narrowing
+# The den mouth's lining, fitted to Den Rock's reworked den (Intermediate/DenRock/den_mouth.json, checked against
+# SM_DenRock by rays to 2-3 cm). Its outline at six depths y (SOCKET_DenMouth space: +X right looking in, +Y into the den,
+# Z over the den floor), each from the floor at the left up the jamb, over the arch and down the right jamb to the
+# floor: the face's flaring edge in front of the mouth (y -0.6, -0.2), the rim (each point at its own y: the arch's
+# left side stands deeper than its right), and the throat (1.25, 2.0, 2.6; deeper is the den's back pocket, still being
+# widened). The floor between the jambs is left bare: the mouth is the Gravemother's way out.
+FUNNEL_OUTLINES = [
+    (-0.6, [(-4.245, 0.1), (-4.185, 1.3), (-4.005, 2.4), (-3.875, 2.939), (-3.53, 3.955), (-2.796, 4.716),
+            (-1.912, 5.193), (-0.968, 5.077), (-0.102, 5.048), (0.725, 5.011), (1.374, 4.499), (2.513, 4.318),
+            (3.038, 4.008), (3.298, 3.51), (3.525, 2.4), (4.095, 1.3), (4.365, 0.1)]),     # (-0.968, 5.077): over a joint
+    (-0.2, [(-3.975, 0.1), (-4.095, 1.3), (-4.005, 2.4), (-3.904, 2.943), (-3.557, 3.968), (-2.796, 4.716),
+            (-1.867, 5.115), (-0.857, 4.842), (-0.131, 4.659), (0.495, 4.425), (1.243, 4.335), (2.142, 4.065),
+            (2.47, 3.734), (3.298, 3.51), (3.345, 2.4), (3.885, 1.3), (4.215, 0.1)]),
+    (None, [(-3.585, 0.44, 0.1), (-3.675, 0.68, 1.3), (-3.705, 0.58, 2.4), (-3.726, 0.6, 2.916), (-3.314, 0.86, 3.851),
+            (-2.466, 0.92, 4.41), (-1.492, 0.88, 4.465), (-0.751, 0.58, 4.374), (-0.149, 0.2, 4.419),
+            (0.451, -0.06, 4.313), (1.168, -0.04, 4.241), (2.042, 0.02, 3.997), (2.443, -0.24, 3.721),
+            (2.839, -0.14, 3.368), (3.165, 0.04, 2.4), (3.765, -0.08, 1.3), (4.095, -0.12, 0.1)]),
+    (1.25, [(-3.585, 0.1), (-3.675, 1.3), (-3.735, 2.4), (-3.667, 2.907), (-3.206, 3.799), (-2.356, 4.308),
+            (-1.492, 4.465), (-0.771, 4.462), (-0.131, 4.659), (0.582, 4.648), (1.374, 4.499), (2.216, 4.115),
+            (2.66, 3.825), (3.04, 3.43), (3.885, 2.4), (4.185, 1.3), (4.305, 0.1)]),
+    (2.0, [(-3.615, 0.1), (-3.705, 1.3), (-3.615, 2.4), (-3.489, 2.881), (-2.881, 3.643), (-2.202, 4.165),
+           (-1.477, 4.439), (-0.804, 4.608), (-0.12, 4.808), (0.637, 4.788), (1.43, 4.57), (2.216, 4.115),
+           (2.633, 3.812), (3.097, 3.448), (4.005, 2.4), (4.215, 1.3), (4.245, 0.1)]),
+    (2.6, [(-3.555, 0.1), (-3.735, 1.3), (-3.525, 2.4), (-3.311, 2.854), (-2.665, 3.539), (-2.07, 4.043),
+           (-1.402, 4.31), (-0.771, 4.462), (-0.128, 4.689), (0.637, 4.788), (1.337, 4.452), (2.067, 4.014),
+           (2.443, 3.721), (2.925, 3.395), (3.765, 2.4), (3.975, 1.3), (3.975, 0.1)]),
+]
+# Where the lining's foot meets the floor at each depth, left and right: the floor's height there (measured; rubble
+# banks against the jambs deep in).
+FUNNEL_FOOT = [(0.0, -0.03), (0.03, 0.03), (0.04, -0.01), (0.06, 0.04), (0.28, 0.34), (0.15, 0.09)]
+# The way out: a 6 m wide, 4 m high passage (the Gravemother at 1.8x) the sheet keeps out of, except where the rock
+# itself reaches into it; there the sheet lies on the rock.
+FUNNEL_WAY = (-2.8, 3.2, 4.0)
+FUNNEL_V = (-0.85, 2.6)     # the depths the Sheet cell's rows span: its dense band from about the rim to 1.8 m in
+# Anchor threads from the flaring edge out over the face: (the column of the edge it leaves, its points on from there).
+# Each was pulled taut over SM_DenRock's lip, 9 cm off the rock (none of its segments meets the rock), and is glued
+# 4 cm off the face. The ones from the arch run out under the brow, which stands 0.6 m proud of the mouth, and up it.
+FUNNEL_ANCHORS = [
+    (1, [(-4.18, -0.77, 1.29), (-4.42, -0.91, 1.33), (-4.67, -0.99, 1.38), (-4.93, -1.07, 1.43), (-5.2, -1.1, 1.5)]),
+    (3, [(-3.83, -0.79, 2.96), (-4.08, -0.94, 3.06), (-4.35, -1.04, 3.16), (-4.62, -1.13, 3.27), (-4.9, -1.13, 3.4)]),
+    (5, [(-2.78, -0.86, 4.62), (-2.84, -1.11, 4.62), (-3.02, -1.33, 4.92), (-3.21, -1.4, 5.26), (-3.4, -1.43, 5.6)]),
+    (7, [(-1.15, -0.69, 5.19), (-1.32, -0.79, 5.4), (-1.49, -0.95, 5.52), (-1.68, -1.05, 5.65), (-1.9, -1.06, 5.8)]),
+    (10, [(1.37, -0.86, 4.51), (1.42, -1.11, 4.65), (1.54, -1.29, 4.92), (1.67, -1.3, 5.21), (1.8, -1.26, 5.5)]),
+    (13, [(3.34, -1.01, 3.53), (3.58, -1.19, 3.63), (3.82, -1.37, 3.74), (4.06, -1.55, 3.85), (4.3, -1.72, 4.0)]),
+    (14, [(3.55, -0.85, 2.36), (3.7, -1.09, 2.37), (3.94, -1.3, 2.43), (4.26, -1.41, 2.52), (4.6, -1.41, 2.6)]),
+    (15, [(4.05, -0.9, 1.31), (4.14, -1.19, 1.39), (4.43, -1.4, 1.55), (4.76, -1.45, 1.57), (5.1, -1.43, 1.5)]),
+]
+
+
+def funnel_grid():
+    """The lining's vertices, ring by ring: (position, the outline's inward normal, depth share). It lies 12 cm off the
+    rock round the rim and draws away from it into the throat (to 30 cm), except inside the way out (FUNNEL_WAY)."""
+    rings = []
+    count = len(FUNNEL_OUTLINES)
+    for r, (y, outline) in enumerate(FUNNEL_OUTLINES):
+        pts = [Vector((p[0], y, p[1])) if y is not None else Vector(p) for p in outline]
+        draw = max(0.0, (r - 2) / (count - 3))        # 0 to the rim, then out to 1 at the back
+        ring = []
+        for k, p in enumerate(pts):
+            a, b = pts[max(k - 1, 0)], pts[min(k + 1, len(pts) - 1)]
+            t = Vector((b.x - a.x, 0.0, b.z - a.z)).normalized()
+            n = Vector((t.z, 0.0, -t.x))               # into the opening (the outline runs clockwise seen from outside)
+            if k in (0, len(pts) - 1):
+                n = Vector((1.0 if k == 0 else -1.0, 0.0, 0.0))
+            jitter = 0.04 * noise.noise(Vector((p.x * 1.3, p.y * 1.3, p.z * 1.3 + 19.0)))
+            want = 0.12 + 0.18 * draw + jitter
+            off = want
+            for _ in range(12):                         # inside the way out it stays on the rock
+                q = p + n * off
+                if off <= 0.1 or not (FUNNEL_WAY[0] < q.x < FUNNEL_WAY[1] and q.z < FUNNEL_WAY[2]):
+                    break
+                off -= 0.025
+            q = p + n * max(off, 0.1)
+            if k in (0, len(pts) - 1):
+                q.z = FUNNEL_FOOT[r][0 if k == 0 else 1] + 0.04
+            ring.append((q, n, r / (count - 1)))
+        rings.append(ring)
+    return rings
 
 
 def web_funnel(name='Web_Funnel', seed=19):
+    """The den's funnel: a sheet lining the mouth's jambs and arch from the face's flaring edge in over the rim and 2.6 m
+    into the throat, the floor between left bare; anchor threads out over the face."""
     rnd = random.Random(seed)
     card = Card(name)
     phase = rnd.random()
-    loop = FUNNEL_LOOP + [FUNNEL_LOOP[0]]
-    s = [0.0]
-    for a, b in zip(loop, loop[1:]):
-        s.append(s[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
-    us = [d * lw.PX_M / lw.SIZE for d in s]
+    rings = funnel_grid()
+    # U along the outline (one value per column, the rings' mean arc length, so the felt doesn't shear); V by depth.
+    cols = len(rings[0])
+    arcs = []
+    for ring in rings:
+        s = [0.0]
+        for (a, _, _), (b, _, _) in zip(ring, ring[1:]):
+            s.append(s[-1] + (b - a).length)
+        arcs.append(s)
+    us = [sum(s[k] for s in arcs) / len(arcs) * lw.PX_M / lw.SIZE for k in range(cols)]
     top = lw.REGIONS['Sheet'][1]
-    depth_total = FUNNEL_RINGS[-1][0] - FUNNEL_RINGS[0][0]
     grid = []
-    for y, sx, sz in FUNNEL_RINGS:
-        f = (y - FUNNEL_RINGS[0][0]) / depth_total
-        v = 1.0 - (top + 4.0 + f * 376.0) / lw.SIZE
-        dark = max(0.0, min(1.0, (y + 0.3) / 6.8))
-        occ = 1.0 - 0.8 * dark * dark * (3.0 - 2.0 * dark)          # Den Rock's own darkening into the den
+    for ring in rings:
         row = []
-        for k, (x, h) in enumerate(loop):
-            co = Vector((x * sx, y, h * sz if h > 0.1 else (h - 0.08 if y < -0.6 else h)))
-            axis = Vector((0.0, y, 2.2 * sz))
-            inward = (axis - co)
-            inward.y = 0.0
-            row.append((card.vert(co, shade_normal(inward, 0.3 + 0.6 * (1.0 - f)), 0.08 * (1.0 - f) if h > 0.1 else 0.0,
-                                  phase, occ * (0.78 + 0.22 * min(1.0, h / 1.2))),        # grimy low down
-                        (us[k], v)))
+        for k, (co, n, f) in enumerate(ring):
+            rows = 4.0 + 376.0 * min(1.0, max(0.0, (co.y - FUNNEL_V[0]) / (FUNNEL_V[1] - FUNNEL_V[0])))
+            dark = max(0.0, min(1.0, (co.y + 0.3) / 6.8))
+            occ = 1.0 - 0.8 * dark * dark * (3.0 - 2.0 * dark)          # Den Rock's own darkening into the den
+            foot = k in (0, cols - 1)
+            row.append((card.vert(co, shade_normal(n, 0.3 + 0.6 * (1.0 - f)), 0.0 if foot else 0.08 * (1.0 - f),
+                                  phase, occ * (0.78 + 0.22 * min(1.0, co.z / 1.2))),        # grimy low down
+                        (us[k], 1.0 - (top + rows) / lw.SIZE)))
         grid.append(row)
     for r0, r1 in zip(grid, grid[1:]):
-        for k in range(len(loop) - 1):
+        for k in range(cols - 1):
             (a, ua), (b, ub) = r0[k], r0[k + 1]
             (c, uc), (d, ud) = r1[k + 1], r1[k]
             card.face((a, b, c, d), (ua, ub, uc, ud))
-    # Anchor lines from the rim out onto the face round the mouth.
-    for x, h, out in ((-3.0, 4.1, (-1.0, -0.6, 0.6)), (-1.2, 4.65, (-0.3, -0.9, 0.5)), (0.9, 4.45, (0.4, -1.0, 0.5)),
-                      (2.3, 3.5, (0.9, -0.5, 0.7)), (-3.4, 1.6, (-1.0, -0.5, 0.1)), (3.6, 1.4, (1.0, -0.4, 0.15)),
-                      (-3.6, 0.3, (-0.9, -0.7, -0.05)), (3.7, 0.3, (0.9, -0.8, -0.05))):
-        start = Vector((x * 1.06, -0.62, h))
-        d = Vector(out).normalized() * rnd.uniform(0.8, 1.4)
-        pts = wiggle(catenary(start, start + d, 0.04, 5), 0.01, rnd)
+    for col, line in FUNNEL_ANCHORS:
+        pts = wiggle([rings[0][col][0]] + [Vector(p) for p in line], 0.01, rnd)
         cord(card, pts, 0.05, rnd.choice(('Rope', 'Cord')), rnd.uniform(0.0, 1500.0), 0.0, phase, crossed=False,
-             occ=[1.0, 0.95, 0.9, 0.85, 0.8, 0.72])
+             occ=[1.0 - 0.28 * i / (len(pts) - 1) for i in range(len(pts))])
     return card_props(card.build([WEB]))
 
 
