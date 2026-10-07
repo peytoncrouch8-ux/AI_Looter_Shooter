@@ -1,8 +1,10 @@
 """Ground cover for the PCG scatter (Docs/TutorialIsland.md), sized to cover a meadow at about one model per 0.8 m²:
 GrassClump_A, GrassClump_B, GrassClump_C (grass patches 70-120 cm across, 25-55 cm tall), TallGrass_A (a loose patch,
 80-110 cm tall), Flowers_Yellow, Flowers_White, Flowers_Purple (drifts of flowers in grass, 60-80 cm across) and
-Clover_A (a mat, about 70 cm across). Scripted models (Art/README.md) built with Tools/Blender/looter_plants.py; the
-patch's middle, at ground level, is the origin.
+Clover_A (a mat, about 70 cm across). For Ransom's Rest, blue larkspur along its fences (Docs/Areas/RansomsRest.md):
+Larkspur_A (a clump of five spikes 60-90 cm tall) and Larkspur_B (four spikes strung along 1.2 m of X, for a fence's
+foot), placed along fence lines rather than by the meadow scatter. Scripted models (Art/README.md) built with
+Tools/Blender/looter_plants.py; the patch's middle, at ground level, is the origin.
 
 A patch is a few tufts spread over it rather than one clump, so neighbouring patches blend into an uneven meadow.
 Everything is opaque geometry on one material, FoliagePalette: blades, petals and leaflets are UV-mapped onto its
@@ -67,12 +69,39 @@ def grass_patch(plant, mat, rng, radius, tufts, blades, height, width, lean, col
              tips, dry)
 
 
-def ground_cover(name, seed, build):
-    """A ground cover model: build(plant, mat, rng) makes its parts; its occlusion is authored, not baked."""
+def ground_cover(name, seed, build, lods=LODS, lod_screens=LOD_SCREENS):
+    """A ground cover model: build(plant, mat, rng) makes its parts; its occlusion is authored, not baked. A build may
+    return the pieces that sway with a stem (see share_phase)."""
     rng = random.Random(seed)
     plant = Plant(name, seed)
-    build(plant, lt.material('FoliagePalette'), rng)
-    return finish(plant, None, ao_blend=1.0, lods=LODS, lod_screens=LOD_SCREENS)
+    phases = build(plant, lt.material('FoliagePalette'), rng)
+    obj = finish(plant, None, ao_blend=1.0, lods=lods, lod_screens=lod_screens)
+    if phases:
+        share_phase(obj, phases)
+    return obj
+
+
+def share_phase(obj, phases):
+    """Gives pieces of mesh their stem's wind phase (vertex color G, a random value per connected piece): phases lists
+    (stem's first vertex, first vertex of its pieces, the vertex after them). A floret is a piece of its own, and with a
+    phase of its own it would sway out of step with its stem and drift off it."""
+    import numpy as np
+    mesh = obj.data
+    col = mesh.color_attributes['Col']
+    values = np.empty(4 * len(mesh.loops), dtype=np.float32)
+    col.data.foreach_get('color', values)
+    values = values.reshape(-1, 4)
+    loop_vert = np.empty(len(mesh.loops), dtype=np.int64)
+    mesh.loops.foreach_get('vertex_index', loop_vert)
+    first_loop = np.zeros(len(mesh.vertices), dtype=np.int64)
+    first_loop[loop_vert[::-1]] = np.arange(len(loop_vert))[::-1]
+    owner = np.full(len(mesh.vertices), -1, dtype=np.int64)
+    for stem, start, end in phases:
+        owner[start:end] = stem
+    follows = owner[loop_vert] >= 0
+    values[follows, 1] = values[first_loop[owner[loop_vert[follows]]], 1]
+    col.data.foreach_set('color', values.ravel())
+    mesh.update()
 
 
 # --- Grass ---
@@ -212,6 +241,167 @@ def clover_a():
     return ground_cover('Clover_A', 137, build)
 
 
+# --- Larkspur: Ransom's Rest's blue accent along its fences (Docs/Areas/RansomsRest.md, "The palette") ---
+
+# A thin line of blue along a fence has to hold from 20 to 40 m, and a reduction may thin the small florets, so larkspur
+# keeps its whole mesh to 35-45 m (screen size 0.03; the bounds radii are 0.6 and 0.78 m) and halves past it.
+LARKSPUR_LODS = '50'
+LARKSPUR_SCREENS = '0.03'
+LARKSPUR_GRASS = ['GrassYellow', 'GrassDry', 'Straw', 'GrassOlive']
+
+
+def floret(plant, mat, rng, center, facing, radius, color, wind, normal, tip=0.9, occlusion=1.0):
+    """A larkspur floret as a cup open toward facing, four triangles round a sunken throat: the long top sepal (over
+    the spur), two side sepals a little below level, and the short lower pair as one point. Its swatch runs from the
+    throat (U 0.4, a little darker) to the sepal tips (U tip)."""
+    side = UP.cross(facing)
+    side = side.normalized() if side.length > 1e-6 else Vector((1.0, 0.0, 0.0))
+    up = facing.cross(side)
+    turn = rng.uniform(-0.35, 0.35)
+    hub = plant.vert(center, wind, normal, occlusion * 0.75)
+    rim = []
+    for k, (a, reach) in enumerate(((90.0, 1.35), (195.0, 1.05), (270.0, 0.8), (345.0, 1.05))):
+        a = math.radians(a + rng.uniform(-12.0, 12.0)) + turn
+        reach *= rng.uniform(0.9, 1.1)
+        rim.append(plant.vert(center + (side * math.cos(a) + up * math.sin(a)) * radius * reach + facing * radius * 0.5,
+                              wind, normal, occlusion))
+    for k in range(4):
+        k1 = (k + 1) % 4
+        plant.face((hub, rim[k], rim[k1]), [swatch(color, 0.4, 0.5), swatch(color, tip, 0.12 + 0.25 * k),
+                                            swatch(color, tip, 0.12 + 0.25 * k1)], mat)
+
+
+def bud(plant, mat, center, out, axis, length, color, wind, normal, occlusion=0.9):
+    """A closed bud hugging the stem: a pointed oval along axis, two triangles facing out."""
+    side = axis.cross(out).normalized() * length * 0.2
+    swell = center + axis * length * 0.25 + out * length * 0.12
+    bottom = plant.vert(center - axis * length * 0.3, wind, normal, occlusion * 0.85)
+    right = plant.vert(swell + side, wind, normal, occlusion)
+    top = plant.vert(center + axis * length * 0.7, wind, normal, occlusion)
+    left = plant.vert(swell - side, wind, normal, occlusion)
+    plant.face((bottom, right, top), [swatch(color, 0.05, 0.5), swatch(color, 0.3, 0.9), swatch(color, 0.55, 0.5)], mat)
+    plant.face((bottom, top, left), [swatch(color, 0.05, 0.5), swatch(color, 0.55, 0.5), swatch(color, 0.3, 0.1)], mat)
+
+
+def raceme_core(plant, mat, at, axis, sway, shade, start, end, width, turn):
+    """The spike's shaded inner florets: two narrow crossed diamonds along it from start to end (stem parameters),
+    widest a third of the way up, a deeper, shaded blue, mostly hidden by the florets. Up close they fill the gaps
+    between the florets with shade; from afar they keep the spike a solid streak, and they are big enough to outlast a
+    reduced LOD."""
+    middle = lerp(start, end, 0.35)
+    for k in range(2):
+        out = horizontal(turn + k * math.pi * 0.5)
+        out = (out - axis(middle) * out.dot(axis(middle))).normalized()
+        normal = (shade(at(middle)) + out * 0.5).normalized()
+        bottom = plant.vert(at(start), sway(start), normal, 0.4)
+        left = plant.vert(at(middle) - out * width * 0.5, sway(middle), normal, 0.5)
+        top = plant.vert(at(end), sway(end), normal, 0.6)
+        right = plant.vert(at(middle) + out * width * 0.5, sway(middle), normal, 0.5)
+        plant.face((bottom, right, top), [swatch('FlowerBlue', 0.2, 0.5), swatch('FlowerBlue', 0.5, 0.9),
+                                          swatch('FlowerBlue', 0.35, 0.5)], mat)
+        plant.face((bottom, top, left), [swatch('FlowerBlue', 0.2, 0.5), swatch('FlowerBlue', 0.35, 0.5),
+                                         swatch('FlowerBlue', 0.5, 0.1)], mat)
+
+
+def larkspur_spike(plant, mat, rng, root, heading, height, lean, shade, florets, phases, leaf=False):
+    """One larkspur stem rising height meters from root: slender and bare below (a three-lobed leaf low on it with
+    leaf), its top 40-45% a close spike of open florets round a shaded core, facing out a golden angle apart, smaller
+    toward the top: pale blue, the last one opening violet, ending in two dark violet buds. Each floret takes the stem's
+    wind weight where it sits, and (phases) the stem's wind phase, so the spike sways as one."""
+    first = len(plant.winds)
+    blade(plant, mat, root, heading, height, 0.009, lean, 'Stem', rng, 3, shade, taper=0.15, wind=(0.0, 0.95),
+          occlusion=(0.6, 1.0))
+    pieces = len(plant.winds)
+    flat = Vector((heading.x, heading.y, 0.0)).normalized()
+
+    def at(t):
+        """The stem's centerline, bent as blade() bends it."""
+        return root + flat * (lean * height * t * t) + UP * (height * t * (1.0 - 0.35 * lean * lean * t))
+
+    def axis(t):
+        return (flat * (2.0 * lean * height * t) + UP * (height * (1.0 - 0.7 * lean * lean * t))).normalized()
+
+    def sway(t):
+        return 0.95 * t ** 1.5
+
+    buds = 2
+    count = florets + buds
+    start = rng.uniform(0.55, 0.6)
+    turn = rng.uniform(0.0, 2.0 * math.pi)
+    raceme_core(plant, mat, at, axis, sway, shade, start + 0.03, 0.9, 0.022, turn + 0.4)
+    for i in range(count):
+        s = i / (count - 1)
+        t = start + (0.975 - start) * s ** 0.9
+        along = axis(t)
+        out = horizontal(turn + GOLDEN_ANGLE * i)
+        out = (out - along * out.dot(along)).normalized()
+        if i < florets:
+            # Florets are drawn a little large (stylized), so a spike still shows as a streak of color at 30 m. They
+            # shade out from the spike as much as up, so the low sun catches the side facing it.
+            radius = lerp(0.027, 0.019, s) * rng.uniform(0.9, 1.1)
+            facing = (out + along * 0.25).normalized()
+            center = at(t) + out * (0.007 + radius * 0.55)
+            purple = i == florets - 1
+            floret(plant, mat, rng, center, facing, radius, 'FlowerPurple' if purple else 'FlowerBlue', sway(t),
+                   (shade(center) + facing * 0.8).normalized(), tip=0.3 if purple else 0.95)
+        else:
+            center = at(t) + out * 0.006
+            bud(plant, mat, center, out, along, lerp(0.026, 0.018, (i - florets) / (buds - 1)), 'FlowerPurple',
+                sway(t), (shade(center) + out * 0.4).normalized())
+    if leaf:
+        t = rng.uniform(0.12, 0.3)
+        base = at(t)
+        a = rng.uniform(0.0, 2.0 * math.pi)
+        size = rng.uniform(0.07, 0.09)
+        for k in (-1, 0, 1):
+            d = (horizontal(a + k * 0.55) + UP * rng.uniform(0.5, 0.8)).normalized()
+            petal(plant, mat, base, d, size * (1.0 if k == 0 else 0.8), size * 0.16, 'Stem',
+                  (UP - d * d.z).normalized(), wind=sway(t), occlusion=0.8)
+    phases.append((first, pieces, len(plant.winds)))
+
+
+def larkspur_a():
+    """Blue larkspur, a clump: five spikes 60-90 cm tall, rooted a hand apart and leaning a little apart, over a
+    little golden grass about 60 cm across. The spikes rise above the meadow's grass, so their color shows over it
+    from afar."""
+    def build(plant, mat, rng):
+        grass_patch(plant, mat, rng, 0.32, 5, 15, 0.34, 0.032, 0.55, LARKSPUR_GRASS, segments=2, tips='Straw',
+                    dry=0.35, spread=0.09)
+        phases = []
+        heights = [0.9, 0.84, 0.77, 0.7, 0.63]
+        rng.shuffle(heights)
+        for i, (spot, height) in enumerate(zip(spots(rng, 5, 0.15), heights)):
+            a = rng.uniform(0.0, 2.0 * math.pi)
+            heading = (spot.normalized() if spot.length > 1e-3 else horizontal(a)) + horizontal(a, 0.6)
+            larkspur_spike(plant, mat, rng, spot - UP * 0.02, heading, height * rng.uniform(0.95, 1.05),
+                           rng.uniform(0.04, 0.1), up_normal(Vector((0.0, 0.0, 0.0)), 0.3),
+                           int(round(lerp(7, 10, (height - 0.63) / 0.27))), phases, leaf=i == 0)
+        return phases
+    return ground_cover('Larkspur_A', 139, build, LARKSPUR_LODS, LARKSPUR_SCREENS)
+
+
+def larkspur_b():
+    """Blue larkspur in a strip for a fence's foot: four spikes 60-90 cm tall strung along 1.1 m of X, in short golden
+    grass along 1.2 m (about 50 cm wide). Turn X along the fence."""
+    def build(plant, mat, rng):
+        for k in range(6):
+            center = Vector((lerp(-0.6, 0.6, (k + rng.uniform(0.2, 0.8)) / 6.0), rng.uniform(-0.09, 0.09), 0.0))
+            tuft(plant, mat, rng, 3, rng.uniform(0.28, 0.4), 0.032, 0.08, 0.55, LARKSPUR_GRASS, 2, center,
+                 tips='Straw', dry=0.35)
+        phases = []
+        heights = [0.88, 0.79, 0.7, 0.62]
+        rng.shuffle(heights)
+        for k, height in enumerate(heights):
+            x = lerp(-0.55, 0.55, (k + rng.uniform(0.15, 0.85)) / 4.0)
+            root = Vector((x, rng.uniform(-0.08, 0.08), -0.02))
+            larkspur_spike(plant, mat, rng, root, horizontal(rng.uniform(0.0, 2.0 * math.pi)),
+                           height * rng.uniform(0.95, 1.05), rng.uniform(0.03, 0.09),
+                           up_normal(Vector((x, 0.0, 0.0)), 0.3), int(round(lerp(7, 10, (height - 0.62) / 0.26))),
+                           phases, leaf=k == 1)
+        return phases
+    return ground_cover('Larkspur_B', 149, build, LARKSPUR_LODS, LARKSPUR_SCREENS)
+
+
 # --- The meadow preview ---
 
 def person(height=1.8):
@@ -238,8 +428,9 @@ def meadow(models, out_png, size=4.5, spacing=0.9, seed=5):
     """groundcover.png: a piece of meadow as the PCG scatter would make it (a jittered grid, one model per
     spacing² m²), with a person-height figure for scale."""
     rng = random.Random(seed)
+    # Larkspur grows along fences, not out in the meadow.
     weights = {'GrassClump_A': 10, 'GrassClump_B': 10, 'GrassClump_C': 6, 'TallGrass_A': 2, 'Flowers_Yellow': 2,
-               'Flowers_White': 2, 'Flowers_Purple': 1, 'Clover_A': 3}
+               'Flowers_White': 2, 'Flowers_Purple': 1, 'Clover_A': 3, 'Larkspur_A': 0, 'Larkspur_B': 0}
     pool = [m for m in models for _ in range(weights.get(m.name, 1))]
     copies = []
     steps = int(size * 2.0 / spacing)
@@ -267,7 +458,7 @@ def meadow(models, out_png, size=4.5, spacing=0.9, seed=5):
 
 if __name__ == '__main__':
     models = [grass_clump_a(), grass_clump_b(), grass_clump_c(), tall_grass_a(), flowers_yellow(), flowers_white(),
-              flowers_purple(), clover_a()]
+              flowers_purple(), clover_a(), larkspur_a(), larkspur_b()]
     report(models)
     if lt.want_preview() and '--patch' in sys.argv:
         meadow(models, lt.preview_path('Vegetation', 'groundcover'))
