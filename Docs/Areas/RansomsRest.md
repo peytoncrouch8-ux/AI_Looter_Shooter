@@ -835,11 +835,11 @@ Each step ends with something you can look at or play. Each one names the consol
 - You get: named weapons (fixed parts, a name, a flavor line) and Heirloom.
 - You approve: Heirloom as a named Epic, or a Legendary.
 
-**24. Travel by train, and The Lantern Leans (Main 7)** (in progress).
+**24. Travel by train, and The Lantern Leans (Main 7)** (built on 2026-10-07; waiting for your approval in the bundled review).
 - You get: the train in place of the grey box (the locomotive, the passenger car and Tilly's hearse car, with their LODs and collision), the track kit through Stage Gap with its buffer stop, the depot, the platform, the water tower, the signal and the station board prop; the train's departure and arrival as chosen at step 9 (by default a short shot, then a fade), shown from the console (`Looter.Train.Depart`, `Looter.Train.Arrive`) until the *Lily* opens a real trip; the station board listing the *Gilded Lily* beside “Skyreach (practice)”; and Main 7, with Tilly's hearse car waiting at the platform. Re-measured: the depot view and Ransom's Point.
 - You approve: the train and the depot; the area's ending, after playing from Abel to the station board; and a practice trip from the depot to Skyreach and back.
 
-**25. Unfinished Business (Side 2)** (in progress: Amos's model approved and imported).
+**25. Unfinished Business (Side 2)** (built on 2026-10-07; waiting for your approval of Amos's mission; his lines are drafts).
 - You get: Amos, Whitlock Fields dressed, and Side 2.
 - You approve: Amos's mission.
 
@@ -847,6 +847,12 @@ Each step ends with something you can look at or play. Each one names the consol
 - You get, only with your OK: the Supply Crate and Strongbox out of the backlog, `AChest`, the three caches and the sheriff's Strongbox.
 - You approve: the import, then the chests after opening them.
 
-**27. Ransom's Rest finished** (last).
+**27. Ransom's Rest finished** (checked on 2026-10-07; waiting for your play-through and approval).
 - You get: Ledger pages for every new creature and character, XP tuned so the main path ends near level 9, every `Looter.*` test green, a full Medium tour under 8.3 ms at every view (the horizon and boundary views included), a level check that every respawn grave, spawn point and tour view lies inside the playable boundary, and an entry in `Docs/Performance.md`.
 - You approve: Ransom's Rest as done, after a new session from the tutorial to the station board at the depot and a practice trip to Skyreach and back. Then you decide whether the *Gilded Lily* stays an airship, and only then does it start.
+- Where it stands (2026-10-07):
+  - XP: `Looter.XP.Path` plays the missions on paper with the level as built. The main path ends at level 9.7 after 53 kills (every kill comes from a mission's encounters, egg sacs or Abel's adds; the level has no roaming creatures), and with Sides 1 and 3 at 10.1, the band's top. No retuning was needed.
+  - Tests: all 211 `Looter.*` tests pass, including `Looter.World.RansomsRest.InsideBoundary` (every respawn grave, player start, encounter spot and tour view inside the boundary).
+  - Ledger pages: every new creature and character has one (the Unpaid, the Gravemother, Hob, Sexton, Delia, Aldana, Tilly, Ruth, Abel, Amos, and the seven names).
+  - Performance, Medium with the editor closed: all 28 tour views run at 150-218 fps (heaviest: the Farm, 6.7 ms). The spawn measures 6.5 ms and the deck at dusk with Abel and 10 adds 5.5 ms (`Docs/Performance.md`). The busiest views draw 750-850 (the plan guessed about 700), well inside the frame budget.
+  - Also built since the plan: the layout's fences, walls, grave rows, cairns and yard props (`build_area_dressing.py`, 391 instances), the ridge faces broken up with slope scrub and crease pines, and the Gravemother's den dressed.

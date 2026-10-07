@@ -35,3 +35,5 @@ Target: 120 fps (8.3 ms) at 1080p on the Medium preset on the reference PC (Rade
 | 2026-10-06 | RR town gate, 1 Unpaid chasing (baseline for the 12) | b075ad2 | 1920x1080 | 5.5 | 180 | 6.0 | 2.8 | 5.5 | 1.4 | 4.5 | 465 | 1047482 | 1.22 |
 | 2026-10-06 | RR town gate, 12 Unpaid chasing, with GPU stats (step 16) | b075ad2 | 1920x1080 | 5.9 | 169 | 6.6 | 4.6 | 5.8 | 1.6 | 4.8 | 661 | 1114988 | 1.11 |
 | 2026-10-06 | RR town gate, 12 Unpaid chasing, no GPU stats (step 16) | b075ad2 | 1920x1080 | 5.9 | 169 | 6.3 | 4.3 | 5.9 | 1.6 | 4.9 | 672 | 1115644 | 1.04 |
+| 2026-10-07 | Ransom's Rest finished (step 27), spawn, Medium; tour 150-218 fps at 28 viewpoints (heaviest Farm 6.7 ms; dusk fight with 10 adds 5.6 ms) | a64961d | 1920x1080 | 6.5 | 153 | 6.9 | 2.8 | 6.5 | 1.5 | 5.4 | 715 | 1023251 | 1.73 |
+| 2026-10-07 | RR deck at dusk, Abel and 10 adds hunting (plan view 13, Looter.Abel.Perf 10), Medium | a64961d | 1920x1080 | 5.5 | 182 | 6.1 | 5.0 | 5.4 | 1.7 | 4.4 | 395 | 285509 | 1.73 |
