@@ -1652,7 +1652,7 @@
     },
     "materials": {
       "MI_RockCliff_Ransom": { "parent": "MI_RockCliff", "vectors": { "Tint": [0.66,0.58,0.5] }, "scalars": { "MossAmount": 0.25 } },
-      "MI_LeavesApple_Ransom": { "parent": "MI_LeavesApple", "vectors": { "Tint": [0.5,0.44,0.19] } },
+      "MI_LeavesApple_Ransom": { "parent": "MI_LeavesApple", "vectors": { "Tint": [0.66,0.5,0.16] } },
       "MI_WindowGlow_Dark": { "parent": "MI_WindowGlow", "scalars": { "Glow": 0 } }
     },
     "swaps": { "MI_RockCliff": "MI_RockCliff_Ransom", "MI_LeavesApple": "MI_LeavesApple_Ransom" },

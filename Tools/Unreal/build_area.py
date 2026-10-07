@@ -29,7 +29,9 @@ light, sky and fog from build_area_environment.py; the skiff jetty, the depot's 
 from build_area_travel.py; the story's actors (the cold open's set, the family plot's grave, the headboards, Delia's
 door, Sexton, the bluff's spider nest, the town gate's fight, Tilly's window, the store's shutters, the safe zones,
 Hob) from build_area_story.py, and Main 4's at the chapel (the yard's fight, the bell, the Reliquary, Aldana's door, the
-chapel yard's grave, the Unpaid on boot hill and the north road) from build_area_chapel.py; the wanted posters and
+chapel yard's grave, the Unpaid on boot hill and the north road) from build_area_chapel.py, Main 5's in the Sink (the
+floor's dressing and webs, the egg sacs, the lantern, the floor's spiders, the Webwood) from build_area_sink.py, the
+Gravemother's lair from build_area_den.py, and Delia's farmhouse pieces from build_area_farm.py; the wanted posters and
 Calder's note (layout.json gameplay.posters) from build_area_posters.py.
 """
 import importlib
