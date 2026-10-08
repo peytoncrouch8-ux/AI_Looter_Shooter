@@ -15,7 +15,7 @@ keep it short and put details in the pipeline.
 
 1. **The goal:** the game will be sold on Steam. No copyrighted content anywhere (art, sound, names, text, code), and
    the player's enjoyment comes first. Aim for the quality of the best big-studio games.
-2. **One orchestrator, at most 6 agents.** The main session, running on Opus 5.5, plans, orchestrates and implements.
+2. **One orchestrator, at most 8 agents.** The main session, running on Opus 5.5, plans, orchestrates and implements.
    It reads the docs that bear on the work first, verifies every agent's work, keeps the quality up and keeps the
    agents in step. Roles, as needed: Planning, Story/Logistics, Special FX/Sounds, Art/UI/Assets, Demo (plays the game
    and fixes bugs) and Review (checks code, world and assets for consistency).

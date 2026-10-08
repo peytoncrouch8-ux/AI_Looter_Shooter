@@ -24,7 +24,7 @@ where the work stands.
 ## Who does what
 
 - **The main session** (the orchestrator, on Opus 5.5) owns Unreal, builds, the asset scripts, the tests, play checks,
-  git and the docs. It splits work among at most 6 agents and checks everything they hand back before it goes in.
+  git and the docs. It splits work among at most 8 agents and checks everything they hand back before it goes in.
 - **Models per agent** (the orchestrator's call, to get the most from the usage):
   - the strongest (Opus) for design and tricky code: new systems, rasterizers, widgets with timing and layout logic;
   - Sonnet for well-specified code against a contract, reviews, doc edits and mechanical changes across files;
