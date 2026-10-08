@@ -37,7 +37,9 @@ what they place in Unreal; only the light, sky and fog step is skipped. What C++
 the C++'s asset paths (the Keeper's Lantern and its snare, the depot's building, the train's cars at their layout
 spots, wanted posters as cards over `T_Posters_BC`'s cells). PCG's scatter is exported as rules (`scene.scatter`, from
 `Tools/Unreal/build_island_scatter.py`: cell, keep threshold, slope band, scale, models, masks), with the generator's
-listed scrub (pit tufts and sage, rim and crest junipers, sage groups) as instances.
+listed scrub (pit tufts and sage, rim and crest junipers, sage groups) as instances. `scene.noTrees` holds the boxes
+the tree layers keep out of (build_area.py's no_tree_zones from `level.noTreeZones`), and the rules built with
+`trees=True` (trees, meadow trees, crease pines) carry `noTrees: true`.
 
 **Terrain.** `Terrain_Near`/`Terrain_Far` are the game's own adaptive core mesh (143k triangles over 400 m, the same
 triangles Unreal draws at every quality), cut along the region with shared seam vertices; `heights.bin` is ray-cast

@@ -221,6 +221,7 @@ class Scene:
         self.smoke = []
         self.creatures = []
         self.scatter = []
+        self.no_trees = []
         self.skipped = {}
 
     def add(self, model, matrix, tag=None, label='', folder='', cls='', overrides=None, keep=None):
@@ -315,6 +316,7 @@ def build_scene():
     # The Sink's egg sacs' and the den's ground spiders already come from their spawners; the scrub's listed points.
     scrub_points(sc)
     sc.scatter = scatter_rules()
+    sc.no_trees = no_tree_rects(raw)
     # Instances keep the area's swaps on what PCG scatters too (level.swaps): the listed scrub.
     for inst in sc.instances:
         if not inst['overrides']:
@@ -324,6 +326,29 @@ def build_scene():
     log(f'scene: {len(sc.instances)} instances, {len(sc.lights)} lights, {len(sc.smoke)} smoke, '
         f'{len(sc.creatures)} creatures; not exported: {sc.skipped}')
     return sc, raw
+
+
+def no_tree_rects(raw):
+    """The NoTrees boxes the tree layers keep out of (build_area.py no_tree_zones: level.noTreeZones, each zone polygon's
+    bounding box scaled by its share about its middle; a 64 cm TriggerBox scaled to that size, whose bounds PCG's
+    Difference reads), in three metres [x0, z0, x1, z1]. Cross-checked against the boxes the mocked build placed."""
+    placed = {a['label']: np.asarray(a['world']).reshape(4, 4) for a in raw['actors'] if a['class'] == 'TriggerBox'}
+    zones = {z['id']: z['polygon'] for z in LAYOUT.get('zones', [])}
+    out = []
+    for zone_id, share in LEVEL.get('noTreeZones', []):
+        xs, ys = [p[0] for p in zones[zone_id]], [p[1] for p in zones[zone_id]]
+        cx, cy = (min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0
+        sx, sy = (max(xs) - min(xs)) * share, (max(ys) - min(ys)) * share
+        box = placed.get(f'NoTrees_{zone_id}')
+        if box is not None:
+            # The mock's box: its middle and its 64 cm cube's scale.
+            half = np.abs(np.diag(box[:3, :3])) * 32.0
+            if abs(box[0, 3] - cx) > 1 or abs(box[1, 3] - cy) > 1 or abs(half[0] - sx / 2) > 1 or abs(half[1] - sy / 2) > 1:
+                log(f'warning: NoTrees_{zone_id} differs from the layout\'s rule')
+        out.append({'id': zone_id, 'share': share,
+                    'rect': lc.r([-(cy + sy / 2) / 100.0, (cx - sx / 2) / 100.0, -(cy - sy / 2) / 100.0,
+                                  (cx + sx / 2) / 100.0], 3)})
+    return out
 
 
 CREATURE_MODELS = {'SpiderCreature': ('Spider', 1.0, None), 'UnpaidCreature': ('Unpaid', 1.0, None),
@@ -420,6 +445,11 @@ def scrub_points(sc):
             sc.add(model, ue_matrix(x, y, z, yaw, s), tag='scrub', label=f'Scrub_{key}_{i}', keep=True)
 
 
+# The layers build_island_scatter.py builds with trees=True, whose points take the "No trees" Difference (the NoTrees
+# boxes): Trees, Meadow trees and Crease pines.
+NO_TREE_RULES = ('trees', 'meadowTrees', 'creasePines')
+
+
 def scatter_rules():
     """PCG's layers (Tools/Unreal/build_island_scatter.py build_graph and scrub_layers) as data. Each layer: candidates
     every `cell` metres over the core (moved up to jitter x cell), kept where the mask's value x a random number in
@@ -444,7 +474,8 @@ def scatter_rules():
                     'slopeMax': round(math.acos(max(-1.0, min(1.0, flat))), 4),
                     'slopeMaxDeg': round(math.degrees(math.acos(max(-1.0, min(1.0, flat)))), 1),
                     'scale': list(scale), 'upright': upright, 'sink': sink, 'cull': cull,
-                    'mediumDensity': 0.4 if density_scaling else 1.0, 'avoidTags': list(avoid), 'note': note})
+                    'mediumDensity': 0.4 if density_scaling else 1.0, 'avoidTags': list(avoid),
+                    'noTrees': name in NO_TREE_RULES, 'note': note})
 
     rule('trees', ['Pine_A', 'Pine_B', 'Oak_A', 'Oak_B', 'Birch_A', 'Birch_B', 'DeadTree_A'], [1, 1, 3, 3, 3, 2, 0.4],
          scatter_tex, 'R', 6.0, 0.12, flat=0.8, sink=0.15, note='stands: a noise (2.5x scale) splits pines from '
@@ -963,7 +994,8 @@ def main():
         'terrain': terrain_block(),
     }
     lc.write_json(os.path.join(OUT, 'manifest.json'), manifest, indent=1)
-    scene = {'version': 1, 'instances': sc.instances, 'lights': sc.lights, 'scatter': sc.scatter, 'smoke': sc.smoke,
+    scene = {'version': 1, 'instances': sc.instances, 'lights': sc.lights, 'scatter': sc.scatter,
+             'noTrees': sc.no_trees, 'smoke': sc.smoke,
              'creatures': sc.creatures,
              'notes': {'instances': 'everything the game\'s build (Tools/Unreal/build_area.py RansomsRest, run under '
                                     'mock_unreal.py) places in the region, and the big things past it (buildings, '
@@ -972,7 +1004,10 @@ def main():
                        'creatures': 'the encounter spawners\' creatures (spread over their spawn radius, '
                                     'deterministic) and the story\'s characters standing in the region; the '
                                     'Gravemother is Spider__Pale at scale 1.8',
-                       'scatter': scatter_rules.__doc__.strip()}}
+                       'scatter': scatter_rules.__doc__.strip(),
+                       'noTrees': 'the boxes the rules with noTrees: true keep out of (build_area.py no_tree_zones: '
+                                  'level.noTreeZones, each zone\'s bounding box scaled by its share about its middle), '
+                                  'rect = [x0, z0, x1, z1] in three metres'}}
     lc.write_json(os.path.join(OUT, 'scene.json'), scene)
     log(f'manifest: {len(models)} models in {len(packs)} packs, {len(materials)} materials, '
         f'{len(texture_sets)} texture sets; scene: {len(sc.instances)} instances')
