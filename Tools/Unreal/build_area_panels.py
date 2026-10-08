@@ -27,6 +27,8 @@ top and draw in at the ends, so a run of them follows the wall in short steps. F
 Every piece is labelled Cliff_<group>_<nn> (the seam 00, the panels from 01 along the run) and tagged Obstacle like
 the faces, so the walkways and the platforms treat them as cliff pieces. Everything is drawn from seeds of the group's
 own, so a rebuild places it the same.
+
+The run's feet are banked with talus by build_area_talus.py (the group's talus block), from the gameplay pass.
 """
 import math
 import random
@@ -63,7 +65,6 @@ SEAM_DEFAULTS = dict(
     searchIn=1000.0,            # looked for from this far inside the run's end
     seek=2000.0,                # up to this far past it
 )
-
 
 def vec(x, y, z=0.0):
     return unreal.Vector(float(x), float(y), float(z))
@@ -185,7 +186,8 @@ class Run:
     def __init__(self, build, group, spec, meshes, tiles, terrain_hit, wall_lean):
         self.build, self.group, self.tiles = build, group, tiles
         self.terrain_hit, self.wall_lean = terrain_hit, wall_lean
-        self.spec = dict(DEFAULTS, **{k: v for k, v in spec.items() if k not in ('pieces', 'sequence', 'seam')})
+        self.spec = dict(DEFAULTS, **{k: v for k, v in spec.items()
+                                      if k not in ('pieces', 'sequence', 'seam', 'talus')})
         self.seam_spec = dict(SEAM_DEFAULTS, **spec.get('seam', {})) if spec.get('seam') else None
         self.pieces = {}
         for name, look in spec.get('pieces', {}).items():

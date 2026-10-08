@@ -793,6 +793,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   (CliffPanel_A/B/C, CliffSeam_A) in place of a cliff group's faces, for `build_area.py` (`level.cliffs.panels`;
   the Sink's wall): a run along the pit's outline between its gaps and its ramp, each panel leaning with the wall
   and standing proud of its most forward point, tops under the lip, the seam in the corner by Den Rock.
+- `Tools/Unreal/build_area_talus.py`: talus banking a pit wall's panel run (`level.cliffs.panels.<group>.talus`),
+  for the story scripts: two rows of the cliffs' layered rocks at the panels' feet, measured from where the face
+  stands over the apron, clear of the caller's spots (each one logged).
 - `Tools/Unreal/build_area_platforms.py`: the cliff pieces under the models built over a cliff's top
   (`level.cliffs.under`: the burial deck) cut down so their tops end under the floor, for `build_area.py`.
 - `Tools/Unreal/build_area_walkways.py`: the ramps' walkways kept open for a player, for `build_area.py`: a player's
@@ -838,7 +841,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   (on the town gate's SOCKET_Perch for Main 3).
 - `Tools/Unreal/build_area_sink.py`: Main 5's pieces for `build_area_story.py`: the Sink's floor (blocks and coffins, in
   the Sink's own dusty granite), its web cards (shadows off; corner mats at the walls' feet, the floor's mats in dusty
-  silk, orb webs only across a gap between two solid things), the three egg sacs, kept clear of the rock, on their
+  silk, orb webs only across a gap between two solid things; the pit wall's talus, build_area_talus, clear of the
+  sacs' landings, the spiders' spots, the lantern and the den's way out, touching the blocks at most, with web mats
+  between a few of its rocks), the three egg sacs, kept clear of the rock, on their
   lines (each ending where it first meets rock) and sling, the lantern in its snare, the floor's and ramp
   head's places, the floor's spiders, the den's web funnel, the Webwood's dead trees and Hob's Sink perches; transforms
   in tables in the Sink's own frame.

@@ -14,8 +14,12 @@ below hold every number; Main changes them there after looking in the editor.
   piles inside the obstacle sinkFloorBlocks (the crescent on the north side of the floor, clear of the ramp's foot),
   cover for the fight, and coffins lying loose about the floor. Each pile stands on the floor found under its middle.
   The blocks wear the Sink's own granite, warm and dusty like the walls (BLOCK_LOOK).
+- The pit wall's talus (build_area_talus.py, SINK_WALL's rules): rocks banking the panels' feet in two rows, clear of
+  the sacs' landings, the floor's spiders' spots, the lantern and the den's way out, touching the blocks at most;
+  tagged Obstacle, solid.
 - The web cards (Art/Models/Props/Sink.py's notes; one slot, no collision, no Nanite, no LODs, shadows OFF on every one,
-  about 20 in any view): Web_Corner along the walls' feet (its pivot on the foot, its mat out over the floor), Web_Drape
+  about 20 in any view): Web_Corner along the walls' feet (its pivot on the foot, its mat out over the floor; along the
+  pit wall's run, beside a few of its talus rocks), Web_Drape
   over the long face of a block or a coffin (scaled 1.1 over a B, 1.4 over an A, 0.88 over a coffin), Web_Ground on open
   floor in the Sink's dusty silk (WEB_LOOKS), orb webs only where one spans a gap between two solid things (ORBS: the
   corner under the ramp head), and Web_Tatters and Web_Strands hanging from the ramp's inner edge where it stands high
@@ -47,6 +51,7 @@ below hold every number; Main changes them there after looking in the editor.
 Hob's perches (returned to build_area_story.place_hob): on Den Rock over the den for the way down, on the north pile's
 top block for the sacs and the lantern, on the Sink road's dead tree by the ramp head for the way out and after Main 5.
 """
+import importlib
 import math
 
 import unreal
@@ -155,8 +160,10 @@ SAC_PUSH_MOST = 250.0
 # second card crosses the first at 55 degrees and reaches about 1 m back: to the wall.
 LANTERN = dict(bearing=-8.0, off_wall=100.0, middle_up=175.0)
 
-# Web_Corner along the walls' feet (bearings: the north-west and north walls, and the ramp's inner cliff under its head).
-CORNERS = (-90.0, -55.0, -8.0, 40.0)
+# Web_Corner along the walls' feet (bearings: the ramp's inner cliff under its head; RUN_CORNERS the north-west and
+# north walls, only where the pit wall's run has no talus, whose rocks get mats of their own: TALUS_MATS).
+CORNERS = (-90.0,)
+RUN_CORNERS = (-55.0, -8.0, 40.0)
 # A corner's pivot stands this far out of the wall's foot (cm).
 CORNER_OUT = 8.0
 # Finding the foot: a level line CORNER_PROBE over the floor meets the wall's face (the floor rises gently toward the
@@ -170,6 +177,26 @@ CORNER_SEEK = 600.0
 CORNER_FOOT = 0.6
 CORNER_MAT = 50.0
 CORNER_TIP = 20.0               # degrees at most
+CORNER_HALF = 95.0              # half the mat's length along the wall (cm)
+# The pit wall's talus (build_area_talus.py: the run SINK_WALL of level.cliffs.panels and its talus block): rocks
+# banking the panels' feet, laid once the sacs, the lantern and the blocks stand, clear of where each sac lands
+# (TALUS_SAC_CLEAR round it), the floor's spiders' spots (TALUS_SPIDER_CLEAR), the lantern (TALUS_LANTERN_CLEAR) and the
+# den's way out (DEN_WAY: half its width, how far it reaches from the mouth toward the Sink's middle and back into the
+# den; cm), each measured to the rock's footprint (TALUS_BLOCK_TOUCH of its radius: it's half buried and not round).
+# Beside a block or a coffin a rock is natural talus: it may touch one, its footprint only kept out of the block's.
+# TALUS_MATS Web_Corner mats lie at the feet between two of the rocks, one in each stretch of the run (its rocks in
+# TALUS_MATS shares) in its widest gap between two rocks' edges that's at least TALUS_MAT_GAP (a stretch with none gives
+# its mat to the widest gap left anywhere), the mat shortened to fit with TALUS_MAT_ROOM to spare either end (cm). A
+# landed sac is 1.6 x 1.8 m, so 1.5 m round its landing clears it; 2.5 m left some 6 m of foot bare by each sac.
+SINK_WALL = 'theSink'
+TALUS_SAC_CLEAR = 150.0
+TALUS_SPIDER_CLEAR = 100.0
+TALUS_LANTERN_CLEAR = 150.0
+TALUS_BLOCK_TOUCH = 0.7
+DEN_WAY = (350.0, 900.0, 300.0)
+TALUS_MATS = 3
+TALUS_MAT_GAP = 110.0
+TALUS_MAT_ROOM = 10.0
 # Web_Ground on open floor: (dx, dy, yaw).
 GROUND_WEBS = ((150.0, 120.0, 30.0), (500.0, 300.0, 75.0))
 # Orb webs, each across a gap between two solid things: an inside corner of the rock, two blocks, a block and the wall
@@ -449,10 +476,123 @@ def inside_polygon(point, polygon):
 # The web cards
 # ---------------------------------------------------------------------------
 
-def place_webs(build, sink, piles):
-    """The corners, drapes, ground mats, the orbs, and the ramp edge's tatters and strands."""
+def block_box(actor):
+    """A block's or coffin's footprint: (its middle x, y, its yaw, half its length and width), from its model's bounds."""
+    box = actor.static_mesh_component.static_mesh.get_bounding_box()
+    scale, rotation, at = actor.get_actor_scale3d(), actor.get_actor_rotation(), actor.get_actor_location()
+    cx, cy = (box.min.x + box.max.x) * 0.5 * scale.x, (box.min.y + box.max.y) * 0.5 * scale.y
+    yaw = math.radians(rotation.yaw)
+    return (at.x + cx * math.cos(yaw) - cy * math.sin(yaw), at.y + cx * math.sin(yaw) + cy * math.cos(yaw), rotation.yaw,
+            abs(box.max.x - box.min.x) * 0.5 * abs(scale.x), abs(box.max.y - box.min.y) * 0.5 * abs(scale.y))
+
+
+def talus_blocker(middle, landings, spots, lantern, blocks, mouth):
+    """The talus's blocked(x, y, radius) (SINK_WALL's rules): what keeps a rock there clear ('sac <label>',
+    'spider <n>', 'lantern', 'block <label>', 'den'), or None. middle: the Sink's (x, y); landings: (label, x, y) where
+    each sac lands; spots: the floor's spiders' (x, y); lantern: its (x, y) or None; blocks: (label, block_box()) of each
+    block and coffin; mouth: the den's mouth (x, y) or None."""
+    if mouth is not None:
+        mx, my = mouth
+        span = math.hypot(middle[0] - mx, middle[1] - my) or 1.0
+        ux, uy = (middle[0] - mx) / span, (middle[1] - my) / span
+
+    def blocked(x, y, r):
+        foot = TALUS_BLOCK_TOUCH * r
+        for name, lx, ly in landings:
+            if math.hypot(x - lx, y - ly) < TALUS_SAC_CLEAR + foot:
+                return f'sac {name}'
+        for n, (sx, sy) in enumerate(spots):
+            if math.hypot(x - sx, y - sy) < TALUS_SPIDER_CLEAR + foot:
+                return f'spider {n + 1}'
+        if lantern is not None and math.hypot(x - lantern[0], y - lantern[1]) < TALUS_LANTERN_CLEAR + foot:
+            return 'lantern'
+        for name, (bx, by, yaw, hx, hy) in blocks:
+            a = math.radians(-yaw)
+            lx = (x - bx) * math.cos(a) - (y - by) * math.sin(a)
+            ly = (x - bx) * math.sin(a) + (y - by) * math.cos(a)
+            if math.hypot(max(abs(lx) - hx, 0.0), max(abs(ly) - hy, 0.0)) < foot:
+                return f'block {name}'
+        if mouth is not None:
+            along, across = (x - mx) * ux + (y - my) * uy, abs(-(x - mx) * uy + (y - my) * ux)
+            half, out, back = DEN_WAY
+            if across < half + foot and -back - foot < along < out + foot:
+                return 'den'
+        return None
+    return blocked
+
+
+def sac_landing(sac):
+    """Where a sac lands: under it, burst_out along its front."""
+    at, out = sac.get_actor_location(), sac.get_actor_forward_vector()
+    burst = sac.get_editor_property('burst_out')
+    return at.x + out.x * burst, at.y + out.y * burst
+
+
+def place_talus(build, sink, sacs, lantern, den):
+    """The pit wall's talus (build_area_talus.py), clear of the story's spots (SINK_WALL's rules); each rock solid to
+    the orb's traces. Returns the rocks (build_area_talus.talus's)."""
+    talus = importlib.reload(importlib.import_module('build_area_talus'))
+    mouth = story.socket(den, DEN_MOUTH) if den is not None else None
+    blocked = talus_blocker((sink.cx, sink.cy), [(str(sac.get_actor_label()), *sac_landing(sac)) for sac in sacs],
+                            [sink.at(dx, dy) for dx, dy in FLOOR_SPOTS],
+                            None if lantern is None else (lantern.get_actor_location().x, lantern.get_actor_location().y),
+                            [(str(actor.get_actor_label()), block_box(actor)) for actor in sink.solid],
+                            None if mouth is None else (mouth.translation.x, mouth.translation.y))
+    rocks = talus.talus(build, SINK_WALL, blocked, folder='Gameplay', label='Sink_Talus')
+    for rock in rocks:
+        sink.keep(rock['actor'], solid=True)
+    sink.tiles = talus.terrain_tiles(build.tag) if rocks else []
+    sink.ground = talus.tiles_hit
+    return rocks
+
+
+def place_talus_mats(build, sink, rocks):
+    """Web_Corner mats at the run's feet between its talus rocks (SINK_WALL's rules): its pivot on the foot midway
+    across the gap, the mat out over the floor and tipped with it, shortened to the gap."""
     placed = 0
-    for index, bearing in enumerate(CORNERS):
+    rocks = [rock for rock in rocks if rock.get('row', 1) == 1]
+    count = min(TALUS_MATS, len(rocks) - 1)
+    if count <= 0:
+        return 0
+    gaps = []
+    for i, (a, b) in enumerate(zip(rocks, rocks[1:])):
+        (ax, ay), (bx, by) = a['foot'], b['foot']
+        span = math.hypot(bx - ax, by - ay)
+        room = span - a['radius'] - b['radius']
+        if room >= TALUS_MAT_GAP and span > 1.0:
+            gaps.append((room, i, a, b, (bx - ax) / span, (by - ay) / span))
+    chosen = []
+    for k in range(count):
+        mine = [g for g in gaps if int(g[1] * count / (len(rocks) - 1)) == k]
+        if mine:
+            chosen.append(max(mine, key=lambda g: g[0]))
+    left = sorted((g for g in gaps if g not in chosen), key=lambda g: -g[0])
+    chosen += left[:count - len(chosen)]
+    for k, (room, _, a, b, ux, uy) in enumerate(sorted(chosen, key=lambda g: g[1])):
+        nx, ny = a['facing'][0] + b['facing'][0], a['facing'][1] + b['facing'][1]
+        length = math.hypot(nx, ny) or 1.0
+        nx, ny = nx / length, ny / length
+        along = a['radius'] + room * 0.5
+        x = a['foot'][0] + ux * along + nx * CORNER_OUT
+        y = a['foot'][1] + uy * along + ny * CORNER_OUT
+        here = sink.ground(sink.tiles, unreal.Vector(x, y, sink.fz + 3000.0), unreal.Vector(x, y, sink.fz - 1000.0))
+        there = sink.ground(sink.tiles, unreal.Vector(x + nx * CORNER_MAT, y + ny * CORNER_MAT, sink.fz + 3000.0),
+                            unreal.Vector(x + nx * CORNER_MAT, y + ny * CORNER_MAT, sink.fz - 1000.0))
+        if here is None:
+            continue
+        fall = here.z - there.z if there is not None else 0.0
+        tip = -min(max(math.degrees(math.atan2(fall, CORNER_MAT)), 0.0), CORNER_TIP)
+        fit = min((room - 2.0 * TALUS_MAT_ROOM) / (2.0 * CORNER_HALF), 1.0)
+        placed += card(build, sink, 'Corner', (x, y, here.z), math.degrees(math.atan2(ny, nx)),
+                       f'Sink_Web_Corner_Talus_{k + 1}', pitch=tip, scale=(1.0, fit, 1.0)) is not None
+    return placed
+
+
+def place_webs(build, sink, piles, rocks=()):
+    """The corners (at the run's talus where it has some), drapes, ground mats, the orbs, and the ramp edge's tatters
+    and strands."""
+    placed = place_talus_mats(build, sink, rocks) if rocks else 0
+    for index, bearing in enumerate(CORNERS + (() if rocks else RUN_CORNERS)):
         foot = sink.foot(bearing)
         if foot is None:
             continue
@@ -932,14 +1072,16 @@ def place(build):
         build.warn('no Sink: Main 5 has nowhere to happen')
         return {'way': None, 'block': None, 'rim': None}
     sink = Sink(build, zone)
-    # The story's pieces first (their walls traced before anything stands on the floor), then the floor and its webs.
-    place_sacs(build, sink)
-    place_lantern(build, sink)
+    # The story's pieces first (their walls traced before anything stands on the floor), then the floor, the wall's
+    # talus clear of them all, and the webs.
+    sacs = place_sacs(build, sink)
+    lantern = place_lantern(build, sink)
     piles = place_floor(build, sink, story.layout_entry(build, 'obstacles', 'sinkFloorBlocks'))
-    place_webs(build, sink, piles)
+    den = story.placed(build, 'DenRock')
+    rocks = place_talus(build, sink, sacs, lantern, den)
+    place_webs(build, sink, piles, rocks)
     head = place_markers(build, sink)
     place_floor_spiders(build, sink)
     road_tree = place_webwood(build, sink)
-    den = story.placed(build, 'DenRock')
     place_funnel(build, sink, den)
     return hob_spots(build, sink, piles, head, road_tree, den)
