@@ -67,6 +67,10 @@
     { "id": "dummy_2", "kind": "TargetDummy", "location": [5800,-1600], "yaw": 180 },
     { "id": "dummy_3", "kind": "TargetDummy", "location": [5500,-2200], "yaw": 180 }
   ],
+  "scatter": {
+    "about": "The scatter mask (Art/Levels/area_scatter.py): roadside pebbles keeps every road's surface clear of stones and lines the roads with pebbles only, so no rock or boulder stands in a road (a boulder stood in the forest road, 2026-10-08).",
+    "roadside": "pebbles"
+  },
   "preview": {
     "about": "The terrain model's --preview renders (Art/Levels/area_preview.py): each view's eye and target as [X, Y, height above the ground] (an eye outside the map square takes its height as absolute) and its lens (mm); the plan's labels at [X, Y].",
     "views": {
