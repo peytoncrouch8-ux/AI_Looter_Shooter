@@ -6,6 +6,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreaturePoseAnimInstance.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Player/PlayerSize.h"
 #include "AnimationRuntime.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -108,9 +109,11 @@ AUnpaidCreature::AUnpaidCreature()
 	// The coal is found by the shot's line (IsCriticalSpot), never by a bone's hit zone alone.
 	CriticalSpotBones.Reset();
 
-	// It drifts toward its prey at a little under a walk, and phase-steps when it falls behind.
+	// It drifts toward its prey at a little under a walk, and phase-steps when it falls behind. Tuned against the
+	// full-size player's 600 walk (78% of it) and scaled with the player's speed, as the spiders are: at 470 against the
+	// smaller player's 510 it nearly kept pace (the user's call, 2026-10-08).
 	WalkSpeed = 150.f;
-	ChaseSpeed = 470.f;
+	ChaseSpeed = 470.f * LooterPlayerSize::SpeedScale;
 	WanderRadius = 600.f;
 	// The dead come together: hurt one and those near it turn on you too.
 	PackTag = TEXT("Unpaid");

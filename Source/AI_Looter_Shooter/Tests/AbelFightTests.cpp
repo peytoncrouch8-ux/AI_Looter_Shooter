@@ -10,6 +10,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/UnpaidCreature.h"
 #include "Interaction/InteractionComponent.h"
+#include "Player/PlayerSize.h"
 #include "Scenes/SceneSubsystem.h"
 #include "Scenes/SitWithPa.h"
 #include "Story/AbelOnBoard.h"
@@ -127,7 +128,7 @@ bool FAbelPhasesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...stunned, his coal open"), Abel->IsCoalOpen());
 	const float CooldownBefore = Abel->AttackCooldown;
 	RunUntil(Abel, Abel->StunSeconds + 1.f, [Abel]() { return Abel->GetMove() == EAbelMove::None; });
-	TestTrue(TEXT("Between pulls he fights faster"), Abel->IsHastened() && Abel->AttackCooldown < CooldownBefore && Abel->ChaseSpeed > 430.f);
+	TestTrue(TEXT("Between pulls he fights faster"), Abel->IsHastened() && Abel->AttackCooldown < CooldownBefore && Abel->ChaseSpeed > 430.f * LooterPlayerSize::SpeedScale);
 	return true;
 }
 
