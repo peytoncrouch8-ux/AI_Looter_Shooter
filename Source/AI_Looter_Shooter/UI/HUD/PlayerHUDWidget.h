@@ -96,6 +96,11 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FireModeText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeaponName;
+	/** The gun's name's type size, and the widest it may be: a longer name is set smaller to fit (FitWeaponName). */
+	static constexpr int32 NameFontSize = 18;
+	static constexpr float NameMaxWidth = 300.f;
+	/** Sets the gun's name, smaller when it's too long, so it always ends at the cluster's right edge. */
+	void FitWeaponName(const FString& Name);
 	/** The small diamond after the gun's name, in its rarity's colour. */
 	UPROPERTY(Transient) TObjectPtr<UImage> RarityGem;
 

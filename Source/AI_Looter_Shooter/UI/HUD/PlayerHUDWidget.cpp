@@ -16,6 +16,9 @@
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Engine/LocalPlayer.h"
+#include "Fonts/FontMeasure.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Rendering/SlateRenderer.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 
@@ -180,7 +183,7 @@ void UPlayerHUDWidget::UpdateWeaponCluster(UWeaponManagerComponent* Manager, flo
 		bWeaponTextStale = false;
 		const FWeaponInstanceData& Instance = Active->GetInstance();
 		const FLinearColor Rarity = LooterWeaponText::Color(Instance);
-		WeaponName->SetText(FText::FromString(LooterWeaponText::Name(Instance).ToUpper()));
+		FitWeaponName(LooterWeaponText::Name(Instance).ToUpper());
 		WeaponName->SetColorAndOpacity(FSlateColor(Rarity));
 		RarityGem->SetColorAndOpacity(Rarity);
 		FireModeText->SetText(FText::FromString(LooterWeaponText::FireModeName(Instance).ToUpper()));
@@ -327,4 +330,23 @@ void UPlayerHUDWidget::HandleLevelUp(int32 NewLevel)
 	{
 		LevelUpBanner->Show(NewLevel);
 	}
+}
+
+void UPlayerHUDWidget::FitWeaponName(const FString& Name)
+{
+	const FText Text = FText::FromString(Name);
+	WeaponName->SetText(Text);
+	// Measured once per gun change: a name wider than NameMaxWidth is set smaller in proportion, in whole points.
+	FSlateFontInfo Font = WeaponName->GetFont();
+	Font.Size = NameFontSize;
+	FSlateRenderer* Renderer = FSlateApplication::IsInitialized() ? FSlateApplication::Get().GetRenderer() : nullptr;
+	if (Renderer)
+	{
+		const float Width = static_cast<float>(Renderer->GetFontMeasureService()->Measure(Name, Font).X);
+		if (Width > NameMaxWidth)
+		{
+			Font.Size = FMath::Max(10, FMath::FloorToInt(NameFontSize * NameMaxWidth / Width));
+		}
+	}
+	WeaponName->SetFont(Font);
 }

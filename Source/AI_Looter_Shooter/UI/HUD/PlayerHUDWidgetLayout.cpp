@@ -19,7 +19,6 @@
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
-#include "Components/ScaleBox.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -56,8 +55,6 @@ namespace
 	constexpr float NameLineHeight = 24.f;
 	/** The status sits this far left of the fire mode, on its line. */
 	constexpr float StatusGap = 12.f;
-	/** A long name shrinks to fit this width, so it never reaches across the screen. */
-	constexpr float NameMaxWidth = 300.f;
 	/** The rarity gem before the name: a diamond, tip to tip, over its ink edge (1.6 px wider each side), and the gap after
 	 *  it (the user's call, 2026-10-08: the gem on the name's left, 3 px further from it than before). */
 	constexpr float GemSize = 14.f;
@@ -246,14 +243,11 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			UHorizontalBoxSlot* GemRowSlot = NameRow->AddChildToHorizontalBox(Gem);
 			GemRowSlot->SetVerticalAlignment(VAlign_Center);
 			GemRowSlot->SetPadding(FMargin(0.f, 0.f, GemGap, 0.f));
-			WeaponName = MakeFloatingText(WidgetTree, 18, Color::Text(), 60, ETextJustify::Right);
-			UScaleBox* NameFit = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass());
-			NameFit->SetStretch(EStretch::ScaleToFit);
-			NameFit->SetStretchDirection(EStretchDirection::DownOnly);
-			NameFit->SetContent(WeaponName);
-			USizeBox* NameBox = MakeSized(WidgetTree, NameFit, 0.f);
-			NameBox->SetMaxDesiredWidth(NameMaxWidth);
-			NameRow->AddChildToHorizontalBox(NameBox)->SetVerticalAlignment(VAlign_Center);
+			// No scale box: one centred whatever it shrank (and fitted the 24 px line's height too, shrinking every name),
+			// so the name stopped short of the right edge and the gem stood far from it (seen in the 1080p HUD shots).
+			// FitWeaponName sets a long name smaller instead, measured when the gun changes.
+			WeaponName = MakeFloatingText(WidgetTree, NameFontSize, Color::Text(), 60, ETextJustify::Right);
+			NameRow->AddChildToHorizontalBox(WeaponName)->SetVerticalAlignment(VAlign_Center);
 			AddRight(MakeSized(WidgetTree, NameRow, 0.f, NameLineHeight), LineGap);
 
 			WeaponCluster = Box;
