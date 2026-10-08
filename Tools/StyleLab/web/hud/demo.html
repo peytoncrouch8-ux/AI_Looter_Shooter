@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HUD demo</title>
+<style>
+	html, body { margin: 0; height: 100%; background: #05080b; overflow: hidden; font-family: 'Chakra Petch', sans-serif; }
+	#view { position: absolute; inset: 0; overflow: hidden;
+		background:
+			radial-gradient(ellipse 60% 22% at 30% 62%, #5b6a4a 0, rgba(91, 106, 74, 0) 100%),
+			radial-gradient(ellipse 70% 26% at 78% 64%, #4d5c40 0, rgba(77, 92, 64, 0) 100%),
+			linear-gradient(#7fa6c7 0, #b9c9cf 40%, #d9c8a4 58%, #8a9a62 59%, #6f7f4e 78%, #5a6a3f 100%); }
+	#view::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 55%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, .35)); }
+	#controls { position: fixed; left: 50%; bottom: 8px; transform: translateX(-50%); display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 1100px; z-index: 10; }
+	#controls button { font: 700 13px 'Chakra Petch', sans-serif; letter-spacing: 1px; color: #dcefff; background: #0b2131; border: 1px solid rgba(90, 200, 255, .8); padding: 8px 12px; cursor: pointer; }
+	#controls button:hover { background: #10304a; }
+	#controls button.hot { background: #ff9f1c; color: #140a02; }
+	body.still #controls { display: none; }
+</style>
+</head>
+<body>
+<div id="view"></div>
+<div id="controls"></div>
+<script type="module">
+import { createHud } from './hud.js';
+
+const params = new URLSearchParams(location.search);
+const still = params.get('still') === '1';
+document.body.classList.toggle('still', still);
+
+const hud = createHud(document.getElementById('view'));
+window.hud = hud;
+
+// A stand-in for the game: the state the Style Lab's engine will hand the HUD every frame.
+const STEPS = [
+	{ objective: 'Move and look around', hintKey: 'W A S D', hintText: 'Move' },
+	{ objective: 'Follow the road to the village', hintKey: 'Shift', hintText: 'Hold to run' },
+	{ objective: 'Grab the rifle from the gun rack', hintKey: 'E', hintText: 'Take it' },
+	{ objective: 'Shoot the target dummies', need: 5, hintKey: 'R', hintText: 'Reload' },
+	{ objective: 'Hunt spiders past the pond', need: 2 },
+	{ objective: 'Check your loadout', hintKey: 'Tab', hintText: 'Inventory' },
+];
+const GUNS = [
+	{ icon: 'rifle', rarity: 3, name: 'WHISPER BULLPUP', fireMode: 'AUTO', cap: 30 },
+	{ icon: 'shotgun', rarity: 4, name: 'GILDED RANCHHAND', fireMode: 'PUMP', cap: 6 },
+	{ icon: null, rarity: 0, name: '', fireMode: '' },
+];
+const S = { yawDeg: 38, pos: [0, 0], health: 78, maxHealth: 100, level: 12, xp: 1240, xpNext: 2000, mag: 18, magMax: 30, reserve: 120,
+	slot: 0, slots: GUNS, reloading: false, lowAmmo: false };
+const game = { step: 3, count: 2, boss: null, reloadTimer: 0, spin: false };
+const mission = () => {
+	const st = STEPS[game.step];
+	return { title: 'Welcome to Skyreach', step: game.step + 1, steps: STEPS.length, objective: st.objective, count: st.need ? game.count : undefined,
+		need: st.need, hintKey: st.hintKey, hintText: st.hintText };
+};
+const bossState = () => game.boss && { name: 'Brood Mother', level: 15, fraction: game.boss.f,
+	phase: game.boss.f > 0.7 ? 'THE BROOD STIRS' : game.boss.f > 0.4 ? 'OLD HUNGER' : 'UNDER SILK' };
+
+// A made-up map of the region from above: green ground, a road, a few roofs. x to the right, z down the image.
+function makeMap() {
+	const c = document.createElement('canvas');
+	c.width = c.height = 512;
+	const g = c.getContext('2d');
+	g.fillStyle = '#566b3d'; g.fillRect(0, 0, 512, 512);
+	for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(${60 + (i * 7) % 40}, ${90 + (i * 13) % 40}, 50, .35)`; g.beginPath(); g.arc((i * 97) % 512, (i * 61) % 512, 12 + (i % 5) * 6, 0, 7); g.fill(); }
+	g.strokeStyle = '#a58f66'; g.lineWidth = 16; g.beginPath(); g.moveTo(0, 256); g.lineTo(512, 256); g.moveTo(256, 0); g.lineTo(256, 512); g.stroke();
+	g.fillStyle = '#7b5b45';
+	for (const [x, y, w, h] of [[300, 200, 40, 30], [350, 290, 36, 40], [170, 190, 44, 34], [190, 300, 30, 30], [90, 320, 40, 36], [400, 170, 30, 30]]) g.fillRect(x, y, w, h);
+	g.fillStyle = '#3f7fa6'; g.beginPath(); g.ellipse(120, 120, 46, 30, 0.4, 0, 7); g.fill();
+	g.fillStyle = '#ff5b4a'; g.fillRect(250, 20, 12, 12);   // a red mark due north (z low = top of the image) to check orientation
+	return c;
+}
+hud.setMinimap(makeMap(), [-100, -100, 100, 100]);
+hud.setArea('CROSSROADS', 'SKYREACH');
+hud.setMission(mission());
+
+const A = {
+	hit() { S.health = Math.max(8, S.health - 17); hud.onPlayerHit(17); },
+	heal() { const h = Math.min(S.maxHealth, S.health + 30); hud.onHeal(h - S.health); S.health = h; },
+	low() { S.health = 18; hud.onPlayerHit(S.health); },
+	gain() { S.xp += 160; hud.onXp(160); },
+	levelUp() { S.xp = 140; S.level += 1; S.xpNext = Math.round(S.xpNext * 1.15 / 10) * 10; S.maxHealth = Math.round(S.maxHealth * 1.08); S.health += 8; hud.onXp(160); hud.onLevelUp(S.level); },
+	fire() {
+		if (S.reloading || S.mag <= 0) return;
+		S.mag -= 1; hud.onFire(); hud.onHitMarker(false);
+		const st = STEPS[game.step];
+		if (!game.boss && st.need && game.count < st.need) { game.count += 1; hud.setMission(mission()); if (game.count >= st.need) setTimeout(() => A.next(), 1500); }
+		if (game.boss) game.boss.f = Math.max(0.04, game.boss.f - 0.03);
+	},
+	kill() { hud.onHitMarker(true); },
+	reload() {
+		const cap = GUNS[S.slot].cap;
+		if (S.reloading || S.mag >= cap || S.reserve <= 0) return;
+		S.reloading = true;
+		const secs = S.slot === 0 ? 1.7 : 2.2;
+		setTimeout(() => { const take = Math.min(cap - S.mag, S.reserve); S.mag += take; S.reserve -= take; S.reloading = false; }, secs * 1000);
+	},
+	swap() { S.slot = (S.slot + 1) % 2; S.reloading = false; S.magMax = GUNS[S.slot].cap; S.mag = S.slot ? 5 : 18; S.reserve = S.slot ? 24 : 120; },
+	pickup() { const g = GUNS[S.slot]; const n = S.slot ? 8 : 24; S.reserve += n; hud.onPickup(n, S.slot ? 'SHOTGUN SHELLS' : 'RIFLE ROUNDS', g.icon); },
+	boss() { game.boss = game.boss ? null : { f: 1 }; hud.setBoss(bossState()); },
+	empty() { S.mag = 0; },
+	next() { if (game.step + 1 < STEPS.length) { game.step += 1; game.count = 0; hud.setMission(mission()); } },
+	done() { const st = STEPS[game.step]; game.count = st.need || 1; const m = mission(); if (!st.need) m.done = true; hud.setMission(m); },
+	spin() { game.spin = !game.spin; },
+	freeze() { if (hud.frozen) hud.unfreeze(); else hud.freeze(); },
+};
+const labels = { hit: 'Take a hit', heal: 'Heal', low: 'Low health', gain: 'Gain XP', levelUp: 'Level up', fire: 'Fire', kill: 'Kill marker', reload: 'Reload', swap: 'Swap gun',
+	pickup: 'Pick up ammo', boss: 'Boss fight', empty: 'Empty mag', next: 'Next step', done: 'Complete objective', spin: 'Turn', freeze: 'Freeze' };
+const bar = document.getElementById('controls');
+for (const [k, v] of Object.entries(labels)) {
+	const b = document.createElement('button');
+	b.textContent = v; if (k === 'fire') b.className = 'hot';
+	b.addEventListener('click', () => A[k]());
+	bar.appendChild(b);
+}
+addEventListener('keydown', (e) => { const k = { f: 'fire', r: 'reload', h: 'hit', g: 'gain', b: 'boss' }[e.key]; if (k) A[k](); });
+
+// Still mode: ?still=1&state=<name>[&t=<seconds after the event>] puts the HUD in a repeatable state with its clock frozen.
+const STILLS = {
+	idle: { t: 1.0 },
+	hit: { t: 0.15, go: () => { A.hit(); } },
+	low: { t: 0.45, pre: () => { S.health = 18; } },
+	reload: { t: 0.9, go: () => { S.mag = 6; S.reloading = true; } },
+	empty: { t: 0.15, pre: () => { S.mag = 0; } },
+	levelup: { t: 0.6, go: () => { S.level = 13; S.xp = 140; S.xpNext = 2300; S.maxHealth = 108; S.health = 86; hud.onXp(900); hud.onLevelUp(13); } },
+	xp: { t: 0.3, go: () => { S.xp = 1400; hud.onXp(160); } },
+	objective: { t: 0.4, pre: () => { game.count = 4; hud.setMission(mission()); }, go: () => { game.count = 5; hud.setMission(mission()); } },
+	nextstep: { t: 0.25, pre: () => { game.count = 4; hud.setMission(mission()); }, go: () => { game.count = 5; hud.setMission(mission()); }, then: () => { game.step = 4; game.count = 0; hud.setMission(mission()); }, thenAt: 1.4 },
+	boss: { t: 0.5, pre: () => { game.boss = { f: 0.64 }; hud.setBoss(bossState()); } },
+	shotgun: { t: 1.0, pre: () => { A.swap(); } },
+	kill: { t: 0.05, go: () => { hud.onHitMarker(true); } },
+	fire: { t: 0.04, go: () => { hud.onFire(); hud.onHitMarker(false); } },
+	pickup: { t: 0.5, go: () => { A.pickup(); } },
+	heal: { t: 0.3, pre: () => { S.health = 40; }, go: () => { A.heal(); } },
+};
+
+const sync = () => { S.lowAmmo = S.mag / S.magMax <= 0.25; };
+let last = performance.now();
+function frame(now) {
+	const dt = Math.min(0.1, (now - last) / 1000);
+	last = now;
+	if (game.spin) S.yawDeg += 30 * dt;
+	if (game.boss) hud.setBoss(bossState());
+	if (!still) { sync(); hud.update(dt, S); }
+	requestAnimationFrame(frame);
+}
+
+async function runStill() {
+	const spec = STILLS[params.get('state') || 'idle'] || STILLS.idle;
+	await hud.ready;
+	hud.freeze(0);
+	spec.pre && spec.pre();
+	sync();
+	hud.update(0, S);
+	spec.go && spec.go();
+	sync();
+	hud.update(0, S);
+	const t = params.has('t') ? parseFloat(params.get('t')) : spec.t;
+	if (spec.then) { hud.step(spec.thenAt); spec.then(); sync(); hud.update(0, S); hud.step(Math.max(0, t - 0)); } else hud.step(t);
+	await document.fonts.ready;
+	await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+	window.demoReady = true;
+}
+if (still) { runStill(); } else { hud.ready.then(() => requestAnimationFrame(frame)); }
+</script>
+</body>
+</html>

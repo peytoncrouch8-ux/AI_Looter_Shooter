@@ -1,0 +1,197 @@
+/* The game's gameplay HUD as HTML/CSS, ported from Docs/HudMockup/NewHud.dc.html (sizes, colours, shapes, timings).
+   Differences the user chose for the game: every font size is the mockup's x 4/3, a hit flashes only the screen's edges,
+   and the bottom centre stays empty. Geometry is the mockup's, laid out at 1920 x 1080 design pixels (hud.js scales it).
+   Every class is prefixed "lh-" and nothing leaks out: the host page's own CSS can't touch the HUD or the reverse.
+   All animations are paused here and seeked by hud.js from its own clock, so freeze() can stop them for stills. */
+
+/* The bundled 'Chakra Petch Local' face is declared by hud.js from assets.js. */
+
+.lh-root {
+	position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; pointer-events: none;
+	font-family: 'Chakra Petch', 'Chakra Petch Local', sans-serif; color: #dcefff; font-weight: 700;
+	-webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none;
+}
+.lh-root, .lh-root * { pointer-events: none; }
+.lh-root *, .lh-root *::before, .lh-root *::after { animation-play-state: paused !important; }
+.lh-root.lh-frozen *, .lh-root.lh-frozen *::before, .lh-root.lh-frozen *::after { transition: none !important; }
+.lh-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; --lh-ex: 0; --lh-ey: 0; }
+/* Every group is a full design-sized box moved to its screen corner: at 16:9 they all sit at 0, else each cluster keeps
+   its own corner (as the game's anchors do) instead of huddling in the middle. */
+.lh-g { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+.lh-g-tl { transform: translate(0, 0); }
+.lh-g-tr { transform: translate(calc(var(--lh-ex) * 1px), 0); }
+.lh-g-bl { transform: translate(0, calc(var(--lh-ey) * 1px)); }
+.lh-g-br { transform: translate(calc(var(--lh-ex) * 1px), calc(var(--lh-ey) * 1px)); }
+.lh-g-tc { transform: translate(calc(var(--lh-ex) * 0.5px), 0); }
+.lh-g-c { transform: translate(calc(var(--lh-ex) * 0.5px), calc(var(--lh-ey) * 0.5px)); }
+.lh-a { position: absolute; }
+.lh-ol { font-weight: 700; text-shadow: 0 0 1px #00182a, 1.5px 0 0 #00182a, -1.5px 0 0 #00182a, 0 1.5px 0 #00182a, 0 -1.5px 0 #00182a, 1.1px 1.1px 0 #00182a, -1.1px -1.1px 0 #00182a, 1.1px -1.1px 0 #00182a, -1.1px 1.1px 0 #00182a, 0 2px 6px rgba(0, 8, 14, .5); }
+.lh-sh { filter: drop-shadow(0 2px 3px rgba(0, 10, 18, .55)); }
+.lh-root svg text { font-family: 'Chakra Petch', 'Chakra Petch Local', sans-serif; font-weight: 700; }
+
+/* The screen's edges flash red on a hit and pulse at low health (UHudScreenEdgeWidget): four strips 11% deep, each a
+   faint ramp over its whole depth under a stronger one over its outer 40%, the group's opacity driven by hud.js. */
+.lh-edges { position: absolute; left: 0; top: 0; right: 0; bottom: 0; opacity: 0; display: none; }
+.lh-edge { position: absolute; }
+.lh-edge-l { left: 0; top: 0; bottom: 0; width: 11%; background: linear-gradient(to right, rgba(255, 59, 46, .6), rgba(255, 59, 46, 0) 40%), linear-gradient(to right, rgba(255, 59, 46, .4), rgba(255, 59, 46, 0)); }
+.lh-edge-r { right: 0; top: 0; bottom: 0; width: 11%; background: linear-gradient(to left, rgba(255, 59, 46, .6), rgba(255, 59, 46, 0) 40%), linear-gradient(to left, rgba(255, 59, 46, .4), rgba(255, 59, 46, 0)); }
+.lh-edge-t { left: 0; right: 0; top: 0; height: 11%; background: linear-gradient(to bottom, rgba(255, 59, 46, .6), rgba(255, 59, 46, 0) 40%), linear-gradient(to bottom, rgba(255, 59, 46, .4), rgba(255, 59, 46, 0)); }
+.lh-edge-b { left: 0; right: 0; bottom: 0; height: 11%; background: linear-gradient(to top, rgba(255, 59, 46, .6), rgba(255, 59, 46, 0) 40%), linear-gradient(to top, rgba(255, 59, 46, .4), rgba(255, 59, 46, 0)); }
+
+/* The player frame is drawn at 85% of the sizes in its rules (the user's request, 2026-10-03), shrinking toward its
+   bottom-left corner (18, 1053), where the horn and the lower clamp end. */
+.lh-frame { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform: scale(.85); transform-origin: 18px 1053px; }
+
+/* health bar: slanted like every HUD bar, a gunmetal bezel, quarter cuts, a chip that lingers after a hit */
+.lh-hpbar { position: absolute; left: 150px; top: 920px; width: 540px; height: 32px; transform: skewX(-16deg); background: #0e1116; padding: 2px; box-sizing: border-box; filter: drop-shadow(0 2px 3px rgba(0, 10, 18, .55)); }
+.lh-hpbez { position: relative; width: 100%; height: 100%; background: linear-gradient(#66717e 0, #3a434d 30%, #232a31 70%, #15191e 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), inset 0 -1px 0 rgba(0, 0, 0, .5); }
+.lh-hptrack { position: absolute; left: 40px; right: 4px; top: 4px; bottom: 4px; background: rgba(5, 16, 24, .88); overflow: hidden; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .6); }
+.lh-hpchip { position: absolute; left: 0; top: 0; bottom: 0; background: #ffe1db; }
+.lh-hpfill { position: absolute; left: 0; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, rgba(0, 0, 0, .13) 0 1.4px, transparent 1.4px 6px), linear-gradient(#ffb1a6 0, #ffb1a6 1px, #ff8f80 1px, #ff8f80 36%, #ff5b4a 36%, #ff5b4a 72%, #c63e2f 72%); box-shadow: inset -2px 0 0 #fff3ef; }
+.lh-hpfill.lh-low { animation: lhLowBeat .9s ease-in-out infinite; }
+.lh-hpshine { position: absolute; top: 0; bottom: 0; left: 0; width: 34%; opacity: 0; background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(214, 255, 224, .9), rgba(255, 255, 255, 0)); }
+.lh-hpcut { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: #0e1116; }
+.lh-hpclamp { position: absolute; right: -7px; top: -5px; width: 14px; height: 38px; background: #ff9f1c; box-shadow: inset 0 0 0 2px #0e1116; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 calc(100% - 5px), 9px calc(100% - 5px), 9px 5px, 0 5px); }
+.lh-hpnum { position: absolute; left: 206px; top: 919px; width: 470px; text-align: center; font-size: 28px; color: #fff; line-height: 34px; }
+.lh-hpnum span { font-size: 18.67px; color: #d6e4ee; margin-left: 4px; }
+.lh-hpnum.lh-low { color: #ffd9d3; }
+.lh-healfloat { position: absolute; left: 640px; top: 916px; font-size: 24px; color: #6dff7a; opacity: 0; }
+
+/* experience: ten sections, each a tenth of the level */
+.lh-xpbar { position: absolute; left: 214px; top: 983px; width: 380px; height: 12px; transform: skewX(-16deg); display: flex; gap: 3px; padding: 2px; box-sizing: content-box; background: rgba(5, 16, 24, .8); box-shadow: 0 0 0 1.5px #0e1116; filter: drop-shadow(0 2px 3px rgba(0, 10, 18, .5)); }
+.lh-xpsec { position: relative; flex: 1 1 0; background: rgba(90, 200, 255, .17); overflow: hidden; }
+.lh-xpfill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#c9f1ff 0, #b9ecff 50%, #45b4ee 50%, #45b4ee 100%); }
+.lh-xpgain { position: absolute; top: 0; bottom: 0; background: #f4fdff; opacity: 0; }
+.lh-xptext { position: absolute; left: 606px; top: 978px; font-size: 20px; color: #dcefff; white-space: nowrap; }
+.lh-xptext span { font-size: 16px; color: #8fb3cc; margin-left: 3px; }
+.lh-xpfloat { position: absolute; left: 606px; top: 956px; font-size: 18.67px; color: #9fe0ff; opacity: 0; white-space: nowrap; }
+
+/* the portrait medallion and its reactions */
+.lh-med { position: absolute; left: 20px; top: 850px; width: 220px; height: 220px; overflow: visible; filter: drop-shadow(0 3px 4px rgba(0, 10, 18, .6)); }
+.lh-face { transform-box: view-box; transform-origin: 0 0; }
+.lh-breath { animation: lhBreath 4.2s ease-in-out infinite; }
+.lh-hurtfx { opacity: 0; }
+.lh-lowfx { opacity: 0; }
+.lh-lowfx.lh-low { animation: lhLowGlass .9s ease-in-out infinite; }
+.lh-blink { transform-box: fill-box; transform-origin: center; animation: lhBlink 5.2s linear infinite; }
+.lh-flare { opacity: 0; }
+.lh-gem { position: absolute; left: 160px; top: 964px; width: 52px; height: 52px; overflow: visible; filter: drop-shadow(0 2px 3px rgba(0, 10, 18, .6)); }
+.lh-gemring { opacity: 0; transform-box: fill-box; transform-origin: center; }
+
+/* the weapon slots in a column (slot 1 on top), each with its key tab and ammo on its left; the magazine cartridge
+   standing tip-up on their right with the rounds and the reserve in it; the status, fire mode and gun's name under it */
+.lh-slot { position: absolute; width: 64px; height: 64px; transition: transform .2s ease-out; }
+.lh-slot.lh-on { transform: translateX(-9px) scale(1.14); }
+.lh-slot svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.lh-slot .lh-gun { position: absolute; left: 4px; top: 17px; width: 56px; transform: rotate(-22deg); opacity: .82; }
+.lh-slot .lh-gun.lh-shotgun { top: 25px; width: 58px; left: 3px; }
+.lh-slot.lh-on .lh-gun { opacity: 1; }
+.lh-slot .lh-tab { position: absolute; left: -30px; top: 24px; width: 22px; height: 16px; font-size: 17.33px; line-height: 16px; text-align: center; font-weight: 700; color: #dcefff; background: rgba(7, 26, 40, .85); box-shadow: inset 0 0 0 1.2px rgba(90, 200, 255, .7); clip-path: polygon(0 0, 100% 0, 100% 70%, 78% 100%, 0 100%); }
+.lh-slot.lh-on .lh-tab { background: #ff9f1c; color: #140a02; box-shadow: inset 0 0 0 1.6px #0e1116; }
+.lh-slot.lh-empty .lh-tab { color: #8fb3cc; opacity: .8; }
+.lh-slot .lh-glow { position: absolute; left: -8px; top: -8px; width: 80px; height: 80px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 159, 28, .55) 40%, rgba(255, 159, 28, 0) 70%); opacity: 0; transition: opacity .2s; }
+.lh-slot.lh-on .lh-glow { opacity: 1; }
+.lh-slot .lh-ring { opacity: 0; transition: opacity .2s; }
+.lh-slot.lh-on .lh-ring { opacity: 1; }
+.lh-slot .lh-ammo { position: absolute; left: -58px; top: 22px; width: 20px; height: 20px; opacity: .85; }
+.lh-slot.lh-on .lh-ammo { opacity: 1; }
+.lh-slot.lh-empty .lh-full { display: none; }
+.lh-slot:not(.lh-empty) .lh-void { display: none; }
+.lh-reloadbar { transform-box: fill-box; transform-origin: 0 50%; transform: scaleX(0); }
+.lh-status { position: absolute; right: 106px; top: 1001px; text-align: right; font-size: 16px; letter-spacing: 2.4px; color: #ff9f1c; line-height: 18px; white-space: nowrap; }
+.lh-firemode { position: absolute; right: 48px; top: 1000px; text-align: right; font-size: 17.33px; letter-spacing: 2px; color: #8fb3cc; line-height: 20px; white-space: nowrap; }
+.lh-gunname { position: absolute; right: 64px; top: 1024px; text-align: right; font-size: 24px; letter-spacing: 1px; line-height: 24px; white-space: nowrap; }
+.lh-raritygem { position: absolute; left: 1861px; top: 1031px; width: 10px; height: 10px; transform: rotate(45deg); box-shadow: 0 0 0 1.6px #0a1218; }
+.lh-count { transform-box: fill-box; transform-origin: 50% 100%; }
+
+/* minimap */
+.lh-map { position: absolute; left: 1712px; top: 36px; width: 172px; height: 172px; border-radius: 50%; }
+.lh-area { position: absolute; left: 1648px; width: 300px; text-align: center; white-space: nowrap; }
+
+/* the tracked mission, on the left, in the HUD's own metalwork: a ranger's star in a gunmetal ring, the mission's name
+   in caps over a slanted bar of its steps (cyan done, orange now), a cyan route line down to the objective, whose
+   orange chevron turns into a cyan tick when it's done, and a key hint */
+.lh-track { position: absolute; left: 36px; top: 286px; width: 480px; height: 110px; }
+.lh-trackroute { position: absolute; left: 0; top: 0; width: 48px; height: 70px; overflow: visible; }
+.lh-trackmedal { position: absolute; left: 0; top: 0; width: 34px; height: 34px; overflow: visible; filter: drop-shadow(0 2px 2px rgba(0, 10, 18, .5)); }
+.lh-tracktitle { position: absolute; left: 44px; top: -3px; font-size: 22.67px; letter-spacing: 1.6px; color: #fff; line-height: 24px; white-space: nowrap; }
+.lh-tracksteps { position: absolute; left: 47px; top: 24px; width: 204px; height: 6px; transform: skewX(-16deg); display: flex; gap: 3px; padding: 2px; background: rgba(5, 16, 24, .8); box-shadow: 0 0 0 1.5px #0e1116; filter: drop-shadow(0 2px 3px rgba(0, 10, 18, .5)); }
+.lh-trackseg { flex: 1 1 0; background: rgba(90, 200, 255, .17); }
+.lh-trackseg.lh-done { background: linear-gradient(#c9f1ff 0, #b9ecff 50%, #45b4ee 50%, #45b4ee 100%); }
+.lh-trackseg.lh-now { background: linear-gradient(#ffd49a 0, #ffc06a 50%, #ff9f1c 50%, #e2850f 100%); }
+.lh-trackstep { position: absolute; left: 262px; top: 19px; font-size: 16px; letter-spacing: 1.5px; color: #8fb3cc; line-height: 16px; white-space: nowrap; }
+.lh-trackobj { position: absolute; left: 46px; top: 46px; display: flex; align-items: center; gap: 9px; font-size: 24px; color: #fff; line-height: 24px; white-space: nowrap; }
+.lh-trackobj svg { width: 16px; height: 16px; overflow: visible; flex: none; }
+.lh-trackobj.lh-done .lh-txt { color: #8fb3cc; }
+.lh-trackcount { color: #9fe0ff; }
+.lh-trackhint { position: absolute; left: 71px; top: 76px; display: flex; align-items: center; gap: 2px; font-size: 18.67px; color: #8fb3cc; line-height: 26px; white-space: nowrap; }
+.lh-trackhint .lh-key { height: 22px; min-width: 22px; font-size: 17.33px; line-height: 22px; margin: 0 8px 0 0; }
+.lh-key { box-sizing: border-box; display: inline-block; min-width: 24px; height: 26px; margin: 0 6px; padding: 0 4px; vertical-align: 1px; font-size: 20px; line-height: 26px; text-align: center; color: #fff; text-shadow: none; background: linear-gradient(#24465e, #0e2433); box-shadow: inset 0 0 0 1.4px #5ac8ff, 0 2px 0 #0a1218; clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px)); }
+
+/* boss */
+.lh-boss { position: absolute; left: 600px; top: 30px; width: 720px; height: 110px; display: none; }
+.lh-bossname { position: absolute; left: 62px; top: 0; font-size: 33.33px; letter-spacing: 3px; color: #ff9f1c; line-height: 32px; white-space: nowrap; }
+.lh-bossbar { position: absolute; left: 58px; top: 36px; width: 640px; height: 30px; transform: skewX(-16deg); background: #0e1116; padding: 2px; box-sizing: border-box; }
+.lh-bossphase { position: absolute; left: 58px; top: 72px; width: 640px; text-align: center; font-size: 17.33px; letter-spacing: 3.5px; color: #8fb3cc; line-height: 18px; }
+
+/* level up */
+.lh-banner { position: absolute; left: 610px; top: 170px; width: 700px; height: 290px; opacity: 0; display: none; }
+.lh-banner .lh-big { position: absolute; left: 260px; top: 0; width: 180px; height: 180px; overflow: visible; }
+.lh-banner .lh-title { position: absolute; left: 0; top: 176px; width: 700px; text-align: center; font-size: 61.33px; letter-spacing: 12px; color: #ff9f1c; line-height: 56px; white-space: nowrap; }
+.lh-banner .lh-title .lh-rule { display: inline-block; vertical-align: middle; width: 90px; height: 2px; margin: 0 22px 0 10px; background: linear-gradient(90deg, rgba(90, 200, 255, 0), #5ac8ff); }
+.lh-banner .lh-title .lh-rule:last-child { margin: 0 0 0 10px; background: linear-gradient(90deg, #5ac8ff, rgba(90, 200, 255, 0)); }
+.lh-banner .lh-sub { position: absolute; left: 0; top: 236px; width: 700px; text-align: center; font-size: 22.67px; letter-spacing: 4px; color: #9fe0ff; line-height: 24px; }
+
+/* crosshair, hit marker, pickup feed */
+.lh-xh { position: absolute; left: 940px; top: 520px; width: 40px; height: 40px; }
+.lh-hm { position: absolute; left: 943px; top: 523px; width: 34px; height: 34px; opacity: 0; transform: rotate(45deg); }
+.lh-hm .lh-hmtick { fill: #fff; }
+.lh-hm.lh-kill { left: 937px; top: 517px; width: 46px; height: 46px; }
+.lh-hm.lh-kill .lh-hmtick { fill: #ff5b4a; }
+.lh-feed { position: absolute; left: 584px; width: 300px; height: 26px; display: flex; justify-content: flex-end; align-items: center; gap: 7px; font-size: 20px; color: #fff; line-height: 26px; opacity: 0; transition: top .2s ease-out; }
+.lh-feed img { width: 20px; height: 20px; }
+.lh-feed .lh-n { color: #9fe0ff; }
+
+@keyframes lhLowBeat { 0%, 100% { filter: none; } 50% { filter: brightness(1.35) saturate(.85); } }
+@keyframes lhShine { 0% { opacity: 1; transform: translateX(-100%); } 100% { opacity: 1; transform: translateX(300%); } }
+@keyframes lhFloat { 0% { opacity: 0; transform: translateY(8px); } 15% { opacity: 1; } 100% { opacity: 0; transform: translateY(-22px); } }
+@keyframes lhGain { 0% { opacity: 1; } 55% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes lhFlinch { 0% { transform: translate(0, 0); } 20% { transform: translate(-5px, 2px); } 40% { transform: translate(4px, -2px); } 60% { transform: translate(-3px, 1px); } 80% { transform: translate(2px, 0); } 100% { transform: translate(0, 0); } }
+@keyframes lhHurt { 0% { opacity: .6; } 100% { opacity: 0; } }
+@keyframes lhLowGlass { 0%, 100% { opacity: .1; } 50% { opacity: .34; } }
+@keyframes lhSquint { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes lhCalm { 0%, 70% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes lhBreath { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.6px); } }
+@keyframes lhBlink { 0%, 95%, 100% { transform: scaleY(1); } 96.5% { transform: scaleY(.08); } 98% { transform: scaleY(1); } }
+@keyframes lhFlare { 0% { opacity: 1; } 60% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes lhRing { 0% { opacity: .95; transform: scale(1); } 100% { opacity: 0; transform: scale(2.6); } }
+@keyframes lhGem { 0% { filter: brightness(2.2); } 100% { filter: brightness(1); } }
+@keyframes lhEmpty { 0%, 100% { stroke: #ff9f1c; } 50% { stroke: #ff7a6b; } }
+@keyframes lhPhase { 0% { color: #ff9f1c; transform: scale(1.15); } 100% { color: #8fb3cc; transform: scale(1); } }
+@keyframes lhBanner { 0% { opacity: 0; transform: scale(.7); } 9% { opacity: 1; transform: scale(1.04); } 14% { transform: scale(1); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+@keyframes lhKick { 0% { transform: scale(1.45); } 100% { transform: scale(1); } }
+/* the hit marker as the game plays it (UPlayerHUDWidget): 0.18 s, fading as it settles from 1.3 times its size */
+@keyframes lhHit { 0% { opacity: 1; transform: rotate(45deg) scale(1.3); } 100% { opacity: 0; transform: rotate(45deg) scale(1); } }
+@keyframes lhFeed { 0% { opacity: 0; transform: translateX(-10px); } 8% { opacity: 1; transform: translateX(0); } 75% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes lhObjIn { 0% { opacity: 0; transform: translateX(-14px); } 100% { opacity: 1; transform: translateX(0); } }
+@keyframes lhCount { 0% { transform: scale(1.35); color: #ffffff; } 100% { transform: scale(1); color: #9fe0ff; } }
+
+.lh-fx-flinch { animation: lhFlinch .32s linear; }
+.lh-fx-hurt { animation: lhHurt .45s ease-out; }
+.lh-fx-squint { animation: lhSquint .6s ease-out; }
+.lh-fx-calm { animation: lhCalm .6s ease-out; }
+.lh-fx-flare { animation: lhFlare 1.8s ease-out; }
+.lh-fx-ring { animation: lhRing 1.1s ease-out; }
+.lh-fx-gem { animation: lhGem .9s ease-out; }
+.lh-fx-shine { animation: lhShine .75s ease-out; }
+.lh-fx-heal { animation: lhFloat 1.2s ease-out; }
+.lh-fx-gain { animation: lhGain 1.5s ease-out; }
+.lh-fx-xpfloat { animation: lhFloat 1.4s ease-out; }
+.lh-fx-kick { animation: lhKick .16s ease-out; }
+.lh-fx-hit { animation: lhHit .18s linear; }
+.lh-fx-phase { animation: lhPhase 1.6s ease-out; }
+.lh-fx-banner { animation: lhBanner 2.8s ease-out forwards; }
+.lh-fx-objin { animation: lhObjIn .45s ease-out; }
+.lh-fx-count { animation: lhCount .3s ease-out; }
+.lh-fx-feed { animation: lhFeed 2.6s ease-out forwards; }
+.lh-loop-empty { animation: lhEmpty .6s ease-in-out infinite; }
