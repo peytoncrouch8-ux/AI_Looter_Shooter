@@ -663,7 +663,8 @@ Concept renders come before any human costume. Sexton is first, because he sets 
   - **Approved:** the dead go west down the Sundown Road to the Toll Gate.
   - **Approved:** bodies go back to their graves at dawn, after the night on the burial board.
   - **Approved:** keep the Reaches and the Rim Rangers.
-  - **Deferred until Ransom's Rest is complete:** whether the *Gilded Lily* stays an airship.
+  - **Deferred until Ransom's Rest is complete:** whether the *Gilded Lily* stays an airship. Ransom's Rest is complete
+    (2026-10-08); the *Lily* is on hold while you polish other things, the question still open.
   - **Build Ransom's Rest with several agents, to a professional standard:** buildings, obstacles, the environment and every asset working properly; interesting and interactive; fully optimized, with small files and good graphics; and fleshed out. Building starts at step 3.
 - **Still open, a small choice:** the lookout tower stays at (−100, −86), where the bluff's edge hides it from the grave, unless you want it moved to the top's north-west corner, at about (−106, −66), where the grave sees it.
 - **Step 5a (approved on 2026-10-07, as recommended):** today's two 100 m cascades stay; the far cascade cost 0.2–0.4 ms GPU at the long views for nothing you could see. The horizon and the boundary in the game (with art notes 2 and 3: the blue sky, the blue-violet dusk and the layered far band) and the timings (Medium, the heaviest view 6.5 ms of the 8.3 ms budget) were approved with it.
@@ -698,7 +699,8 @@ Concept renders come before any human costume. Sexton is first, because he sets 
   difficulty and the ending's wording.
 - **Step 23 (decided on 2026-10-07, as recommended):** Heirloom is a named Epic with fixed parts and the line *Hold the door.*, not a Legendary; its special effect waits for unique legendaries. Its parts are the user's pick of the art session's candidates (B, 2026-10-07): the Ranchhand's Heritage body, Trap barrel (56 cm, Abel's length), Crown muzzle, Tube6 magazine, Flip sight, Field stock and Walnut pump; SM_AbelPump is remodeled to match, so the gun Delia hands over is the one Abel fought with.
 - **Step 26:** bringing the Supply Crate and Strongbox out of the backlog.
-- **Step 27:** whether the *Gilded Lily* stays an airship (deferred on 2026-10-01 until Ransom's Rest is complete).
+- **Step 27:** whether the *Gilded Lily* stays an airship (deferred on 2026-10-01 until Ransom's Rest is complete; on
+  2026-10-08, with Ransom's Rest approved, the next level was put on hold while you polish other things).
 - **When the *Lily* starts:** a Hollow's signature legendary guaranteed on the first defeat, or always 15%.
 
 ## Build steps
@@ -811,15 +813,15 @@ Each step ends with something you can look at or play. Each one names the consol
 - You get: concepts, then the false-front kit; Main Street dressed; Main 3 and the posters. Re-measured: Ransom's Point, the orchard, the horizon views and the `Beyond` budget (30 draws, 0.6 ms).
 - You approve: the street, then Main 3 and the posters.
 
-**18. The chapel and Hallowed Ground (Main 4)** (built on 2026-10-07; waiting for your approval).
+**18. The chapel and Hallowed Ground (Main 4)** (built on 2026-10-07; approved on 2026-10-08 with your play-through: “it all looks good”).
 - You get: concepts, then the chapel and the graves kit; the family plot and boot hill dressed; the smashed Reliquary (with your OK); Main 4. Re-measured, with the horizon views and the `Beyond` budget.
 - You approve: the chapel and graves, then Main 4.
 
-**19. The Sink and the Keeper's Lantern (Main 5)** (built on 2026-10-07; waiting for your approval).
+**19. The Sink and the Keeper's Lantern (Main 5)** (built on 2026-10-07; approved on 2026-10-08 with your play-through: “it all looks good”).
 - You get: web cards, egg sacs, the lantern and Main 5. Re-measured, with the horizon views and the `Beyond` budget.
 - You approve: Main 5.
 
-**20. The Gravemother (Side 3)** (built on 2026-10-07; waiting for your approval of the fight).
+**20. The Gravemother (Side 3)** (built on 2026-10-07; approved on 2026-10-08 with your play-through: “it all looks good”).
 - You get: the den mesh, the Gravemother on the spider rig at 1.8×, her charge and spiderlings, her return after 20 minutes of play, and her Ledger page. A tour of the den.
 - You approve: the fight.
 
@@ -827,7 +829,7 @@ Each step ends with something you can look at or play. Each one names the consol
 - You get: phases, untargetable states, add waves, the fog-wall seal, the boss bar, reset on death, and enemy pellets, all shown on a test spider boss on the greybox.
 - You approve: the boss bar and a test fight.
 
-**22. Abel, the Keeper (Main 6)** (built on 2026-10-07; waiting for your approval: the bundled review has the fight's numbers and the drafted lines).
+**22. Abel, the Keeper (Main 6)** (built on 2026-10-07; approved on 2026-10-08 with your play-through: “it all looks good”; the drafted lines stand).
 - You get: Abel concepts, the burial boards deck, Abel as boss and as friend, the fade to dusk, Main 6 and the scene after. Abel's drift goes out into the fog over the canyon. Phase 3 relies on the deck's open edge and fall recovery's outside rule, tested: a gust off the deck returns the player to the deck within a second. A tour at dusk mid-fight.
 - You approve: the difficulty and the ending's wording after fighting him.
 
@@ -835,22 +837,23 @@ Each step ends with something you can look at or play. Each one names the consol
 - You get: named weapons (fixed parts, a name, a flavor line) and Heirloom.
 - You approve: Heirloom as a named Epic, or a Legendary.
 
-**24. Travel by train, and The Lantern Leans (Main 7)** (built on 2026-10-07; waiting for your approval in the bundled review).
+**24. Travel by train, and The Lantern Leans (Main 7)** (built on 2026-10-07; approved on 2026-10-08 with your play-through: “it all looks good”).
 - You get: the train in place of the grey box (the locomotive, the passenger car and Tilly's hearse car, with their LODs and collision), the track kit through Stage Gap with its buffer stop, the depot, the platform, the water tower, the signal and the station board prop; the train's departure and arrival as chosen at step 9 (by default a short shot, then a fade), shown from the console (`Looter.Train.Depart`, `Looter.Train.Arrive`) until the *Lily* opens a real trip; the station board listing the *Gilded Lily* beside “Skyreach (practice)”; and Main 7, with Tilly's hearse car waiting at the platform. Re-measured: the depot view and Ransom's Point.
 - You approve: the train and the depot; the area's ending, after playing from Abel to the station board; and a practice trip from the depot to Skyreach and back.
 
-**25. Unfinished Business (Side 2)** (built on 2026-10-07; waiting for your approval of Amos's mission; his lines are drafts).
+**25. Unfinished Business (Side 2)** (built on 2026-10-07; approved on 2026-10-08 with your play-through: “it all looks good”; Amos's drafted lines stand).
 - You get: Amos, Whitlock Fields dressed, and Side 2.
 - You approve: Amos's mission.
 
-**26. Ranger caches (optional)** (approved on 2026-10-08; built on 2026-10-08, waiting for your approval after opening
-them: the windmill's crate under the tower, the Sink rim's, the bluff path's, and the gang's Strongbox in the sheriff's
+**26. Ranger caches (optional)** (approved on 2026-10-08; built on 2026-10-08, approved with your play-through, “it all looks good”:
+the windmill's crate under the tower, the Sink rim's, the bluff path's, and the gang's Strongbox in the sheriff's
 office).
 - You get, only with your OK: the Supply Crate and Strongbox out of the backlog, `AChest`, the three caches and the sheriff's Strongbox.
 - You approve: the import, then the chests after opening them.
 
-**27. Ransom's Rest finished** (checked again on 2026-10-08 with the art session's notes all closed; waiting for your
-play-through and approval).
+**27. Ransom's Rest finished** (checked again on 2026-10-08 with the art session's notes all closed; approved on 2026-10-08 with your play-through: “it all looks good”).
+Ransom's Rest is done. The next level (the *Gilded Lily*) is on hold: on 2026-10-08 you chose to polish other things
+first, and nothing of it is built until you say so; whether it stays an airship is still open.
 - You get: Ledger pages for every new creature and character, XP tuned so the main path ends near level 9, every `Looter.*` test green, a full Medium tour under 8.3 ms at every view (the horizon and boundary views included), a level check that every respawn grave, spawn point and tour view lies inside the playable boundary, and an entry in `Docs/Performance.md`.
 - You approve: Ransom's Rest as done, after a new session from the tutorial to the station board at the depot and a practice trip to Skyreach and back. Then you decide whether the *Gilded Lily* stays an airship, and only then does it start.
 - Where it stands (2026-10-08):
