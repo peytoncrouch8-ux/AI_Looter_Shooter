@@ -268,11 +268,16 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 		Markers[Index]->SetVisibility(ESlateVisibility::Hidden);
 	}
 
-	// The bezel's ticks and the N turn with the map; the place's name is looked up once.
+	// The bezel's ticks and the N turn with the map; the place's name is looked up until the level's area is found (a few
+	// times a second: it is found as play begins, so this is rarely more than the first look).
 	TurnFrame(Yaw);
 	if (!bPlaceKnown)
 	{
-		UpdatePlace();
+		PlaceRetryLeft -= InDeltaTime;
+		if (PlaceRetryLeft <= 0.f)
+		{
+			UpdatePlace();
+		}
 	}
 
 	UpdateWaypoint(Location, Yaw, Radius, PixelsPerCm);

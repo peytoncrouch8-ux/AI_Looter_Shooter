@@ -114,6 +114,34 @@ void UHudMissionTrackerWidget::NativeTick(const FGeometry& MyGeometry, float InD
 // Following the tracked mission
 // ---------------------------------------------------------------------------
 
+UHudMissionTrackerWidget::EChange UHudMissionTrackerWidget::DecideChange(const FMissionTrackerParts& Shown, const FMissionTrackerParts& Now,
+	bool bJustShown)
+{
+	// Started over: an earlier step, or an earlier objective of the same step (the step played again).
+	if (Now.Step < Shown.Step || (Now.Step == Shown.Step && Now.ObjectiveIndex < Shown.ObjectiveIndex))
+	{
+		return EChange::Present;
+	}
+	const bool bStepMoved = Now.Step > Shown.Step;
+	const bool bObjectiveMoved = Now.Step == Shown.Step && Now.ObjectiveIndex > Shown.ObjectiveIndex;
+	// Nothing was on show to tick: what comes is shown anew. (Empty on both sides and still the same objective: nothing to
+	// show, so nothing to slide in again at every look.)
+	if (Shown.Line.IsEmpty())
+	{
+		return (bStepMoved || bObjectiveMoved || !Now.Line.IsEmpty()) ? EChange::Present : EChange::InPlace;
+	}
+	if (!bStepMoved && !bObjectiveMoved)
+	{
+		// The same objective: its words may differ (a key rebound is resolved into the line), which is no tick.
+		return EChange::InPlace;
+	}
+	if (bJustShown)
+	{
+		return EChange::Present;
+	}
+	return bStepMoved ? EChange::StepDone : EChange::ObjectiveDone;
+}
+
 void UHudMissionTrackerWidget::Refresh()
 {
 	bRefreshPending = false;
@@ -123,28 +151,26 @@ void UHudMissionTrackerWidget::Refresh()
 	{
 		if (Tracked && Tracked->Id == ShownMission)
 		{
-			const FMissionTrackerParts& Now = Tracked->Tracker;
 			// An objective still sliding in was hardly seen (a saved session picking up its step as the level starts):
 			// the next one takes its place without a tick.
 			const bool bJustShown = SlideAge < SlideSeconds;
-			if (Now.Step < Shown.Step || Shown.Line.IsEmpty() || (bJustShown && !Now.Line.Equals(Shown.Line, ESearchCase::CaseSensitive)))
+			switch (DecideChange(Shown, Tracked->Tracker, bJustShown))
 			{
+			case EChange::Present:
 				// Started over, nothing was on show to tick, or it was only just shown.
 				Present(*Tracked);
-			}
-			else if (Now.Step > Shown.Step)
-			{
+				break;
+			case EChange::StepDone:
 				// The step is done (several at once, when the next ones were done already): tick it, then the next.
 				BeginFinish(/*bStepDone*/ true);
-			}
-			else if (!Now.Line.Equals(Shown.Line, ESearchCase::CaseSensitive))
-			{
+				break;
+			case EChange::ObjectiveDone:
 				// One objective of the step done, the next one up.
 				BeginFinish(/*bStepDone*/ false);
-			}
-			else
-			{
+				break;
+			case EChange::InPlace:
 				UpdateInPlace(*Tracked);
+				break;
 			}
 			return;
 		}
@@ -188,8 +214,11 @@ void UHudMissionTrackerWidget::UpdateInPlace(const FMission& Mission)
 {
 	const FMissionTrackerParts& Now = Mission.Tracker;
 	const bool bNewTitle = !Mission.Title.EqualTo(ShownTitle);
+	// The same objective with other words (a rebound key) is repainted, with no tick and no slide.
+	const bool bNewLine = !Now.Line.Equals(Shown.Line, ESearchCase::CaseSensitive);
 	const bool bNewCount = !Now.Count.Equals(Shown.Count, ESearchCase::CaseSensitive);
-	const bool bCountRose = Now.Progress > Shown.Progress;
+	// Only a count of things pops: one of seconds held would pop every second.
+	const bool bCountPops = Now.Progress > Shown.Progress && !Now.bCountIsTime;
 	const bool bNewHint = !Now.HintKey.Equals(Shown.HintKey, ESearchCase::CaseSensitive)
 		|| !Now.HintText.Equals(Shown.HintText, ESearchCase::CaseSensitive);
 	const bool bNewSteps = Now.StepCount != Shown.StepCount;
@@ -199,10 +228,10 @@ void UHudMissionTrackerWidget::UpdateInPlace(const FMission& Mission)
 		ShownTitle = Mission.Title;
 		PaintTitle(ShownTitle);
 	}
-	if (bNewCount)
+	if (bNewLine || bNewCount)
 	{
 		PaintObjective();
-		if (bCountRose)
+		if (bNewCount && bCountPops)
 		{
 			StartPop();
 		}
@@ -230,7 +259,7 @@ void UHudMissionTrackerWidget::BeginFinish(bool bStepDone)
 		Shown.Progress = Shown.Required;
 	}
 	PaintObjective();
-	if (bCountLands)
+	if (bCountLands && !Shown.bCountIsTime)
 	{
 		StartPop();
 	}

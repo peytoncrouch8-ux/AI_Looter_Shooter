@@ -44,10 +44,8 @@ namespace
 	}
 }
 
-void UHudPlayerFrameWidget::NativeConstruct()
+bool UHudPlayerFrameWidget::BindProgression()
 {
-	Super::NativeConstruct();
-
 	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 	UPlayerProgressionSubsystem* Subsystem = LocalPlayer ? LocalPlayer->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
 	if (Progression.Get() != Subsystem)
@@ -64,6 +62,14 @@ void UHudPlayerFrameWidget::NativeConstruct()
 		}
 		Progression = Subsystem;
 	}
+	return Subsystem != nullptr;
+}
+
+void UHudPlayerFrameWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	BindProgression();
 	Retarget(true);
 }
 
@@ -156,7 +162,9 @@ void UHudPlayerFrameWidget::Retarget(bool bSnap)
 	{
 		UpdateXPText();
 	}
-	ShowProgress();
+	// Whatever level this jumped to (a snap, or the skip over a huge gain's levels) shows quietly: only a level the bar
+	// reaches by easing across it is celebrated (NativeTick).
+	ShowProgress(/*bCelebrate*/ false);
 }
 
 void UHudPlayerFrameWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -165,6 +173,12 @@ void UHudPlayerFrameWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 	if (!Cluster)
 	{
 		return;
+	}
+	// The progression subsystem wasn't there when the frame was made (a local player not set up yet): bind as soon as it is,
+	// showing the progress as it stands (no level-up to celebrate).
+	if (!Progression.IsValid() && BindProgression())
+	{
+		Retarget(true);
 	}
 
 	const bool bEasing = ShownProgress < TargetProgress;
@@ -258,7 +272,7 @@ bool UHudPlayerFrameWidget::TickXPEffects(float DeltaTime)
 	return XPFloatTime > 0.f || GemFlashTime > 0.f || RingTime > 0.f;
 }
 
-void UHudPlayerFrameWidget::ShowProgress()
+void UHudPlayerFrameWidget::ShowProgress(bool bCelebrate)
 {
 	if (StretchBodies.Num() != static_cast<int32>(EHudFrameStretch::Count))
 	{
@@ -267,7 +281,7 @@ void UHudPlayerFrameWidget::ShowProgress()
 	// At the top level the bar stays full once it gets there.
 	const bool bFull = bMaxLevel && ShownProgress >= TargetProgress;
 	const double Level = FMath::FloorToDouble(ShownProgress);
-	SetShownLevel(static_cast<int32>(Level));
+	SetShownLevel(static_cast<int32>(Level), bCelebrate);
 	const float Fill = bFull ? 1.f : static_cast<float>(ShownProgress - Level);
 
 	// The stretch still to catch up to runs ahead to the target, or to the bar's end while the target is in a later level
@@ -289,13 +303,14 @@ void UHudPlayerFrameWidget::ShowProgress()
 	PaintStretch(EHudFrameStretch::XPBefore, bGlow ? GainStart : 0.f);
 }
 
-void UHudPlayerFrameWidget::SetShownLevel(int32 Level)
+void UHudPlayerFrameWidget::SetShownLevel(int32 Level, bool bCelebrate)
 {
 	if (Level == ShownLevel || !LevelText || !GemFlash || !GemRing)
 	{
 		return;
 	}
-	const bool bWrapped = ShownLevel != INDEX_NONE && Level > ShownLevel;
+	// A level the bar eased across: celebrated. One it was set to without filling up to it shows its number and nothing more.
+	const bool bWrapped = bCelebrate && ShownLevel != INDEX_NONE && Level > ShownLevel;
 	ShownLevel = Level;
 	LevelText->SetText(FText::AsNumber(Level));
 

@@ -12,6 +12,7 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/ScrollBox.h"
@@ -332,6 +333,11 @@ void USettingsMenuWidget::ShowMinimapScale(float Scale)
 		const float Diameter = UHudMinimapWidget::Diameter * Scale;
 		MinimapPreviewSize->SetWidthOverride(Diameter);
 		MinimapPreviewSize->SetHeightOverride(Diameter);
+		if (UOverlaySlot* BezelSlot = MinimapPreviewBezel ? Cast<UOverlaySlot>(MinimapPreviewBezel->Slot) : nullptr)
+		{
+			// The bezel reaches this far past the map's edge, all round (it grows with the map).
+			BezelSlot->SetPadding(FMargin(-UHudMinimapWidget::BezelReach * Scale));
+		}
 		if (UOverlaySlot* CaptionSlot = MinimapPreviewCaption ? Cast<UOverlaySlot>(MinimapPreviewCaption->Slot) : nullptr)
 		{
 			CaptionSlot->SetPadding(FMargin(0.f, Diameter * 0.62f, 0.f, 0.f));

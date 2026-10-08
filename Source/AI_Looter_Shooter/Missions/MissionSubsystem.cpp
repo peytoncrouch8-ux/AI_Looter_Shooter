@@ -11,8 +11,10 @@ bool FMissionTrackerParts::SameAs(const FMissionTrackerParts& Other) const
 		&& CountDone.Equals(Other.CountDone, ESearchCase::CaseSensitive)
 		&& Progress == Other.Progress
 		&& Required == Other.Required
+		&& bCountIsTime == Other.bCountIsTime
 		&& Step == Other.Step
 		&& StepCount == Other.StepCount
+		&& ObjectiveIndex == Other.ObjectiveIndex
 		&& HintKey.Equals(Other.HintKey, ESearchCase::CaseSensitive)
 		&& HintText.Equals(Other.HintText, ESearchCase::CaseSensitive)
 		&& bOverInventory == Other.bOverInventory

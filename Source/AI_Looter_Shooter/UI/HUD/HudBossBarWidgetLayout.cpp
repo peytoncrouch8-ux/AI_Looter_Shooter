@@ -43,12 +43,18 @@ namespace
 	constexpr float BossTopLineHeight = 1.f;
 	constexpr float BossEdgeWidth = 2.f;
 	/**
-	 * The hatch over the fill: 45-degree lines falling to the right, 1.4 px across and 6 px apart square to them (8.5
-	 * along the bar), black at 13%, in a tile one period wide that repeats along the fill: cut off, never squeezed.
+	 * The hatch over the fill: 45-degree lines falling to the right, 1.4 px across and about 5 px apart square to them (the
+	 * health bar's hatch; the spec in Docs/Handoffs/CloudIslandConcepts_2026-10-05.md), black at 13%. It is a tile one
+	 * period wide that repeats along the fill: cut off, never squeezed.
+	 * Slate repeats a tiled brush every TextureWidth pixels and draws it over the image's height, whatever the brush's
+	 * ImageSize, so the tile's texture is made at 1 texel to the pixel (BossHatchPixelsPerUnit) and its period is a whole
+	 * number of them: 7 along the bar is 4.95 apart square to the lines (5 x sqrt 2 is 7.07), and a line that runs one
+	 * pixel across for each pixel down stays at exactly 45 degrees.
 	 */
-	constexpr float BossHatchPeriod = 8.5f;
+	constexpr float BossHatchPeriod = 7.f;
 	constexpr float BossHatchWidth = 1.4f;
 	constexpr float BossHatchOpacity = 0.13f;
+	constexpr float BossHatchPixelsPerUnit = 1.f;
 	/** A phase's cut across the track. */
 	constexpr float BossCutWidth = 3.f;
 
@@ -157,7 +163,7 @@ namespace
 		return Picture;
 	}
 
-	/** One period of the fill's hatch, as tall as the track; tiled along the fill, its lines join up from tile to tile. */
+	/** One period of the fill's hatch, as tall as the track; tiled along the fill, its lines join up from tile to tile. Made at 1x. */
 	const FPaintedIcon& BossHatchPicture()
 	{
 		static const FPaintedIcon Picture = []
@@ -353,7 +359,8 @@ TSharedRef<SWidget> UHudBossBarWidget::RebuildWidget()
 			BandSlot->SetVerticalAlignment(VAlign_Bottom);
 			FillBands.Add(Band);
 		}
-		FSlateBrush HatchBrush = BossPictureBrush(TEXT("BossBarHatch"), BossHatchPicture());
+		// Not BossPictureBrush: the tile is made at 1x so it repeats every BossHatchPeriod pixels and fills the track's height 1:1.
+		FSlateBrush HatchBrush = PaintedIconBrush(TEXT("BossBarHatch"), BossHatchPicture(), BossHatchPixelsPerUnit, BossHatchPicture().ViewBox);
 		HatchBrush.Tiling = ESlateBrushTileType::Horizontal;
 		FillOverlaySlot(Lit->AddChildToOverlay(MakeImage(WidgetTree, HatchBrush)));
 		FillTopLine = MakeImage(WidgetTree, RectBrush(FLinearColor::White));

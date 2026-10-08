@@ -36,6 +36,9 @@ UWidget* USettingsMenuWidget::MakeMinimapPreview()
 	const FLinearColor Glass = Color::ScreenBg();
 	MarkBackground(AddLayer(CircleBrush(FLinearColor(Glass.R, Glass.G, Glass.B, 0.62f)), true));
 	AddLayer(CircleBrush(FLinearColor::Transparent, Color::TileLine(), 2.f), true);
+	// And the bezel's outer edge, which is the minimap's real footprint: the box is the map's circle, so this layer reaches
+	// out of it by the bezel's width (a negative padding that ShowMinimapScale sets for the size).
+	MinimapPreviewBezel = AddLayer(CircleBrush(FLinearColor::Transparent, Color::TileLine(), 2.f), true);
 	AddLayer(MarkerBrush(EMarker::Arrow, FLinearColor::White), false)->SetDesiredSizeOverride(FVector2D(22.f, 22.f));
 	// The caption sits in the lower part of the circle at any size (ShowMinimapScale places it).
 	MinimapPreviewCaption = MakeText(WidgetTree, TEXT("Minimap"), 10, Color::Title(), true, 200);

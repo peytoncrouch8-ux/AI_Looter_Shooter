@@ -29,7 +29,7 @@ class UWeaponManagerComponent;
  *    name in its rarity's colour ending in a small rarity gem
  *  - top-right: the minimap (UHudMinimapWidget)
  *  - top-left: the frame rate (UHudFrameRateWidget)
- *  - top-centre, 170 px down: the level-up banner (UHudLevelUpBannerWidget), when the frame's experience bar levels up
+ *  - top-centre, its gem 260 px down: the level-up banner (UHudLevelUpBannerWidget), when the frame's experience bar levels up
  *  - left of the crosshair: the ammo pickup feed (UHudPickupFeedWidget)
  *  - bottom-centre: nothing, on purpose
  *  - centre: thin tick crosshair sized by the weapon's spread, kicking out on every shot (it fades out while aiming

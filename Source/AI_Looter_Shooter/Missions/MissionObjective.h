@@ -197,6 +197,9 @@ public:
 	/** Its progress for people: "2 / 4" (holding out: "12 s / 30 s"). */
 	virtual FString FormatProgress(const FMissionObjectiveState& State) const;
 
+	/** Its count is whole seconds held (FormatProgress says "12 s / 30 s"), so the HUD's tracker doesn't pop it each second. */
+	virtual bool CountsSeconds() const { return false; }
+
 	/** What it asks when Text is empty: "Kill 4 Spider Creature". */
 	virtual FString DescribeRule() const { return FString(); }
 
@@ -219,8 +222,8 @@ public:
 
 	/**
 	 * The HUD tracker's parts for it: the short line, the count ("2 / 5", only when it shows a count of more than one), the
-	 * key hint (the bound key, resolved) and whether it's done in the inventory. The step and the step count are the
-	 * runner's to fill; they're left as they are.
+	 * key hint (the bound key, resolved) and whether it's done in the inventory. The step, the step count and which
+	 * objective of the step this is are the runner's to fill; they're left as they are.
 	 */
 	void FillTrackerParts(const UWorld* World, const FMissionObjectiveState& State, FMissionTrackerParts& Out) const;
 

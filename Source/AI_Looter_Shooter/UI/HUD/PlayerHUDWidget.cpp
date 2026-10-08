@@ -237,6 +237,11 @@ void UPlayerHUDWidget::UpdatePlayerFrame(UHealthComponent* Health, float DeltaTi
 		// The frame keeps its own damage chip, low-health beat, portrait reactions and experience bar.
 		PlayerFrame->SetHealth(Health->GetHealth(), Health->GetMaxHealth(), DeltaTime);
 	}
+	else
+	{
+		// No health to show (a pawn without any): the next pawn's health is shown as it is, not as a heal from this one's.
+		PlayerFrame->ForgetHealth();
+	}
 }
 
 void UPlayerHUDWidget::UpdateCrosshair(const AWeaponBase* Active, float DeltaTime)

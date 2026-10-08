@@ -23,9 +23,17 @@ struct AI_LOOTER_SHOOTER_API FMissionTrackerParts
 	/** The count and the count that finishes it, so a rising count can pop (both 0 while the count is hidden). */
 	int32 Progress = 0;
 	int32 Required = 0;
+	/** The count is whole seconds held ("12 s / 30 s"): it rises every second, so the tracker doesn't pop it. */
+	bool bCountIsTime = false;
 	/** The step being played (0-based) and how many the mission has: the step bar's sections. */
 	int32 Step = 0;
 	int32 StepCount = 1;
+	/**
+	 * Which objective of the step the line is (0-based, in the step's order). The tracker takes an objective as done when this
+	 * (or the step) moves on, never when only the words change: a key the player rebinds rewrites the line under the same
+	 * objective.
+	 */
+	int32 ObjectiveIndex = 0;
 	/** The key the hint teaches as the player bound it, as a keycap shows it ("R", "W A S D"); empty: no hint. */
 	FString HintKey;
 	/** What the key does ("Reload", "Hold to run"). */

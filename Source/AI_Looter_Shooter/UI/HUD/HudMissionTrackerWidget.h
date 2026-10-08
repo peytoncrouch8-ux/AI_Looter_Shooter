@@ -19,7 +19,9 @@ class UWidget;
  * stays up through boss fights and takes no part in the idle fade; it steps aside while a menu is open, except over the
  * inventory for an objective done there (the tutorial's last step).
  *
- * A rising count pops; a done objective's chevron turns into a cyan tick and its words dim, its step's section turns
+ * A rising count of things pops (a count of seconds held doesn't); a done objective's chevron turns into a cyan tick and
+ * its words dim (an objective is done when the objective or the step in the mission's parts moves on, never when only its
+ * words change: a rebound key rewrites them in place), its step's section turns
  * cyan, and after DoneHoldSeconds the next objective slides in and its section turns orange. The tutorial's closing
  * line (ShowClosingLine, from ATutorialDirector through ALooterHUD) shows as a last, ticked objective for its seconds of
  * play; then the next tracked mission slides in, or the tracker fades out. ALooterHUD makes it as a viewport widget of
@@ -52,6 +54,26 @@ public:
 
 	/** Takes the closing line away, shown or waiting (the tutorial restarted or skipped). */
 	void ClearClosingLine();
+
+	/** What the tracker does when the tracked mission's parts (Now) differ from the ones on show (Shown). */
+	enum class EChange : uint8
+	{
+		/** The same objective: its words, count, hint or step count are repainted where they stand, with no tick. */
+		InPlace,
+		/** Shown anew, sliding in, with no tick: started over, nothing was on show, or it was hardly seen yet. */
+		Present,
+		/** The objective on show is done (the step's next one is up): it ticks, then the next slides in. */
+		ObjectiveDone,
+		/** The objective on show is done and so is its step (the next step is up, or several at once). */
+		StepDone,
+	};
+
+	/**
+	 * Decides from the parts alone, so a test can run it without a widget. An objective is done when the step or the
+	 * objective's index moves on; the words changing on their own (a key rebound) is no tick. bJustShown: the objective on
+	 * show is still sliding in, so hardly seen.
+	 */
+	static EChange DecideChange(const FMissionTrackerParts& Shown, const FMissionTrackerParts& Now, bool bJustShown);
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;

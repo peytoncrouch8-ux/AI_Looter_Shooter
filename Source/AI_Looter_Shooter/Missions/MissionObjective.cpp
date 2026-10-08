@@ -165,6 +165,7 @@ void UMissionObjective::FillTrackerParts(const UWorld* World, const FMissionObje
 		Out.CountDone = FormatProgress(Full);
 		Out.Progress = FMath::Min(State.Count, Required);
 		Out.Required = Required;
+		Out.bCountIsTime = CountsSeconds();
 	}
 	else
 	{
@@ -172,6 +173,7 @@ void UMissionObjective::FillTrackerParts(const UWorld* World, const FMissionObje
 		Out.CountDone.Reset();
 		Out.Progress = 0;
 		Out.Required = 0;
+		Out.bCountIsTime = false;
 	}
 	if (HintAction.IsNone())
 	{

@@ -16,6 +16,8 @@ namespace
 {
 	/** Health changes smaller than this (in points) are rounding, not a hit or a heal. */
 	constexpr float HealthStep = 0.01f;
+	/** A heal shows only where the bar rises by more than this share of it (health and maximum rising together may not move it). */
+	constexpr float FractionStep = 0.002f;
 	/** After a hit the lost part lingers this long as the chip, then drains over this long, slowly at first. */
 	constexpr float ChipHoldSeconds = 0.45f;
 	constexpr float ChipDrainSeconds = 0.6f;
@@ -92,25 +94,37 @@ void UHudPlayerFrameWidget::SetHealth(float Health, float MaxHealth, float Delta
 	}
 	else if (Points > LastHealth + HealthStep)
 	{
-		// A heal (a level-up's extra health too): the fill rises with a shine sweeping along it, "+30" rises at its end.
-		FillFrom = FillShown;
-		FillTo = Fraction;
-		RiseTime = 0.f;
-		const float Gained = Points - LastHealth;
-		HealAmount = HealFloatTime > 0.f ? HealAmount + Gained : Gained;
-		if (HealAmount >= 1.f)
+		if (Fraction > LastFraction + FractionStep)
 		{
-			HealFloat->SetText(FText::FromString(FString::Printf(TEXT("+%d"), FMath::RoundToInt32(HealAmount))));
-			HealFloat->SetVisibility(ESlateVisibility::HitTestInvisible);
-			HealFloatTime = HealFloatSeconds;
-			PaintFloat(HealFloat, 0.f, HealFloatSeconds);
-			// A shine still near the start keeps going, so a quick run of small heals reads as one sweep.
-			if (ShineTime >= ShineSeconds * 0.5f)
+			// A heal: the fill rises with a shine sweeping along it, "+30" rises at its end.
+			FillFrom = FillShown;
+			FillTo = Fraction;
+			RiseTime = 0.f;
+			const float Gained = Points - LastHealth;
+			HealAmount = HealFloatTime > 0.f ? HealAmount + Gained : Gained;
+			if (HealAmount >= 1.f)
 			{
-				ShineTime = 0.f;
+				HealFloat->SetText(FText::FromString(FString::Printf(TEXT("+%d"), FMath::RoundToInt32(HealAmount))));
+				HealFloat->SetVisibility(ESlateVisibility::HitTestInvisible);
+				HealFloatTime = HealFloatSeconds;
+				PaintFloat(HealFloat, 0.f, HealFloatSeconds);
+				// A shine still near the start keeps going, so a quick run of small heals reads as one sweep.
+				if (ShineTime >= ShineSeconds * 0.5f)
+				{
+					ShineTime = 0.f;
+				}
 			}
+			Activity = ActivityHoldSeconds;
 		}
-		Activity = ActivityHoldSeconds;
+		else if (!FMath::IsNearlyEqual(Fraction, FillTo))
+		{
+			// Health and the maximum rose together (a level-up) and the bar didn't rise: no heal to show, it follows at once.
+			// At full health, full stays full, with no "+8" or shine a second before the level-up banner.
+			FillShown = Fraction;
+			FillFrom = Fraction;
+			FillTo = Fraction;
+			RiseTime = HealRiseSeconds;
+		}
 	}
 	else if (!FMath::IsNearlyEqual(Fraction, FillTo))
 	{
@@ -143,7 +157,8 @@ void UHudPlayerFrameWidget::SetHealth(float Health, float MaxHealth, float Delta
 	PaintStretch(EHudFrameStretch::HealthChip, ChipShown);
 	PaintStretch(EHudFrameStretch::HealthFill, FillShown);
 
-	const bool bLow = Fraction <= LowFraction;
+	// Dead (health 0, until the respawn) isn't low health: the bar is simply empty, as the screen's edges stop beating too.
+	const bool bLow = Points > 0.f && Fraction <= LowFraction;
 	ShowLow(bLow);
 	if (bLow)
 	{
@@ -211,14 +226,15 @@ void UHudPlayerFrameWidget::ShowLow(bool bLow)
 
 void UHudPlayerFrameWidget::UpdateHealthNumbers(float Health, float MaxHealth)
 {
-	// Rounded up, so a sliver of health never reads as 0.
-	const int32 Points = FMath::CeilToInt32(Health);
+	// The maximum rounds to the nearest; health rounds up so a sliver of it never reads as 0, but never past the maximum
+	// (a maximum of 108.0000076 would read "109 / 108").
+	const int32 MaxPoints = FMath::Max(1, FMath::RoundToInt32(MaxHealth));
+	const int32 Points = FMath::Min(FMath::CeilToInt32(Health), MaxPoints);
 	if (Points != ShownPoints)
 	{
 		ShownPoints = Points;
 		HealthValue->SetText(FText::AsNumber(Points));
 	}
-	const int32 MaxPoints = FMath::RoundToInt32(MaxHealth);
 	if (MaxPoints != ShownMaxPoints)
 	{
 		ShownMaxPoints = MaxPoints;

@@ -64,5 +64,6 @@ public:
 	virtual FMissionActorFilter GetTargets() const override { return Place.Actor; }
 	virtual TOptional<FVector> GetAutoWaypoint(const FMissionContext& Context, const FMissionObjectiveState& State) const override;
 	virtual FString FormatProgress(const FMissionObjectiveState& State) const override;
+	virtual bool CountsSeconds() const override { return true; }
 	virtual FString DescribeRule() const override;
 };

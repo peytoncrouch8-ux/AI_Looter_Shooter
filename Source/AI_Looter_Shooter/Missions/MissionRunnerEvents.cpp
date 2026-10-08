@@ -236,12 +236,22 @@ void UMissionRunner::SyncDisplay()
 			{
 				Line = Objective->GetTrackerText(Context.World, State);
 				Objective->FillTrackerParts(Context.World, State, Tracker);
+				// Which one of the step it is: the tracker takes this moving on as the one before it done (a rebound key
+				// only changes the words).
+				Tracker.ObjectiveIndex = Index;
 				bLineFound = true;
 			}
 			if (!Target.IsSet())
 			{
 				Target = Objective->FindWaypoint(Context, State);
 			}
+		}
+		if (!bLineFound)
+		{
+			// Nothing left to ask for (every objective of the step done and the step not moved on yet, as when a run of steps
+			// all done at once outlasts Settle's guard): the display keeps what it shows rather than an empty line, which the
+			// tracker would take for a done objective.
+			continue;
 		}
 		// Unchanged words and parts, and a waypoint that only moved, don't wake the display's listeners, so this is cheap
 		// to repeat.

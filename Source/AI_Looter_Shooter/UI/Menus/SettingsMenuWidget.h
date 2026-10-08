@@ -7,6 +7,7 @@
 
 class UControlSettingsSubsystem;
 class UGraphicsSettingsSubsystem;
+class UImage;
 class UKeyBindingSubsystem;
 class ULooterButton;
 class UScrollBox;
@@ -28,7 +29,8 @@ DECLARE_DELEGATE(FOnSettingsMenuAction);
 /**
  * The settings menu: graphics and interface options, and the controls (look sensitivity and key bindings). Escape
  * opens it over the game (ALooterHUD, which pauses the game) and the main menu's Settings opens it there. The HUD hides
- * under it, so while the minimap size is being set an outline of the minimap shows where it sits, at the size chosen.
+ * under it, so while the minimap size is being set an outline of the minimap (the map's circle and the bezel round it)
+ * shows where it sits, at the size chosen.
  *
  * SettingsMenuWidget.cpp builds and fills it; SettingsMenuRows.cpp makes its rows and the key list;
  * SettingsMenuInput.cpp handles its buttons, sliders and keys.
@@ -162,6 +164,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UWidget> MinimapPreview;
 	UPROPERTY(Transient) TObjectPtr<USizeBox> MinimapPreviewSize;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> MinimapPreviewCaption;
+	/** The preview's outer outline, out at the HUD minimap's bezel (the map's circle and glass sit inside it). */
+	UPROPERTY(Transient) TObjectPtr<UImage> MinimapPreviewBezel;
 
 	/** The minimap slider's handle is held; the preview shows while it is (or the slider is hovered), then lingers a moment. */
 	bool bMinimapSliderHeld = false;

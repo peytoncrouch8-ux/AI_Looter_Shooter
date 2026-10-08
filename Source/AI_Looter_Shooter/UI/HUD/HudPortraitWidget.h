@@ -32,7 +32,7 @@ public:
 	/** A hit: the shake, the window's red flash, the squint (UHudPlayerFrameWidget calls it). */
 	void PlayHit();
 
-	/** Low health: the squint holds and the window pulses red on a 0.9 s beat until it's set false. */
+	/** Low health: the squint holds and the window pulses red on the frame's 0.9 s beat (LowBeat) until it's set false. */
 	void SetLowHealth(bool bLow);
 
 	/** A level-up: the eyes flare, then fade over 1.8 s. */
@@ -61,10 +61,9 @@ private:
 	float FlashTime = -1.f;
 	float SquintTime = -1.f;
 	float FlareTime = -1.f;
-	/** The calm loops and the low-health beat. */
+	/** The calm loops. The low-health beat has no clock of its own: it follows UHudPlayerFrameWidget::LowBeat. */
 	float BlinkClock = 0.f;
 	float BreathClock = 0.f;
-	float PulseClock = 0.f;
 	bool bLowHealth = false;
 
 	/** What's on screen now, so each frame sets only what changed. */

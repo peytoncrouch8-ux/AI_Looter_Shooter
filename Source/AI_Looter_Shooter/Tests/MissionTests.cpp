@@ -141,6 +141,12 @@ bool FMissionTrackingTest::RunTest(const FString& Parameters)
 	Parts.HintKey = TEXT("R");
 	TestTrue(TEXT("A new hint is a change"), Book.SetObjective(Third, ComeBack, TOptional<FVector>(), Parts));
 	TestEqual(TEXT("and kept"), Book.Find(Third)->Tracker.HintKey, FString(TEXT("R")));
+	Parts.ObjectiveIndex = 1;
+	TestTrue(TEXT("The step's next objective is a change, the words the same"), Book.SetObjective(Third, ComeBack, TOptional<FVector>(), Parts));
+	TestEqual(TEXT("and kept"), Book.Find(Third)->Tracker.ObjectiveIndex, 1);
+	Parts.bCountIsTime = true;
+	TestTrue(TEXT("A count that turns out to be seconds is a change"), Book.SetObjective(Third, ComeBack, TOptional<FVector>(), Parts));
+	TestTrue(TEXT("and kept"), Book.Find(Third)->Tracker.bCountIsTime);
 
 	// Removing: an untracked one leaves tracking alone; the tracked one hands over to the mission that took its place.
 	TestTrue(TEXT("Remove untracked"), Book.Remove(First));

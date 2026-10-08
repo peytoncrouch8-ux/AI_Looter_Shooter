@@ -2,12 +2,27 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Styling/SlateBrush.h"
 #include "HudWeaponSlotsWidget.generated.h"
 
 class UImage;
 class UTextBlock;
 class UWeaponManagerComponent;
 class UWidget;
+
+/** The pictures a slot's layers are drawn from (HudWeaponSlotsWidgetPictures.cpp). */
+enum class EHudSlotPicture : uint8
+{
+	Disc,
+	Rim,
+	Metal,
+	Arc,
+	Hairline,
+	Dashed,
+	AccentRing,
+	TabPlate,
+	TabEdge,
+};
 
 /**
  * The HUD's weapon slots (bottom-right), a column of circles with slot 1 on top, beside the magazine cartridge. Each row
@@ -20,8 +35,8 @@ class UWidget;
  *    a soft orange glow, and its icons show at full strength (the others are dimmed); switching eases it over
  *  - an empty slot: a faint rim round a dashed ring, its tab dimmed, and no ammo icon
  * No backing panels: the inner discs and the tabs' glass fade with the UI transparency setting; the rings, icons and
- * numbers stay. The shapes are vector pictures drawn once into shared textures; per frame it only checks whether
- * anything changed and eases the slot in hand.
+ * numbers stay. The shapes are vector pictures drawn once into shared textures (HudWeaponSlotsWidgetPictures.cpp); per
+ * frame it only checks whether anything changed and eases the slot in hand.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UHudWeaponSlotsWidget : public UUserWidget
@@ -37,6 +52,10 @@ public:
 	/** A slot's circle, and how far apart the circles stand, centre to centre (the column's rows). */
 	static constexpr float SlotDiameter = 64.f;
 	static constexpr float SlotSpacing = 76.f;
+	/** The key tab's size, and the room the accent ring's picture has round the circle on every side (the pictures are drawn to these). */
+	static constexpr float TabWidth = 22.f;
+	static constexpr float TabHeight = 16.f;
+	static constexpr float AccentMargin = 4.f;
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -69,6 +88,9 @@ private:
 	};
 
 	void Paint(FSlotWidgets& Cell, int32 Index, const UWeaponManagerComponent* Manager, bool bInHand);
+
+	/** A slot picture as a brush, its texture made once and shared (HudWeaponSlotsWidgetPictures.cpp). */
+	static FSlateBrush PictureBrush(EHudSlotPicture Picture);
 
 	TArray<FSlotWidgets> Slots;
 };

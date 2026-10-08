@@ -349,6 +349,71 @@ bool FMissionTrackerPartsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMissionTrackerObjectiveTest, "Looter.Missions.TrackerObjective",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FMissionTrackerObjectiveTest::RunTest(const FString& Parameters)
+{
+	// Which objective of its step the tracker's line is: it moves on only as the one before it is done, which is how the HUD
+	// tracker knows one is done (the words alone change with a rebound key). A count of seconds says so, so the tracker
+	// doesn't pop it every second. The record outlives the level.
+	FCampaignRecord Campaign;
+	FTestWorldWrapper TestLevel;
+	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = TestLevel.GetTestWorld();
+	UMissionRunner* Runner = World->GetSubsystem<UMissionRunner>();
+	UMissionSubsystem* Display = World->GetSubsystem<UMissionSubsystem>();
+	if (!TestTrue(TEXT("The level has a mission runner and the missions' display"), Runner && Display))
+	{
+		return false;
+	}
+	UPackage* Scratch = CreatePackage(nullptr);
+	UMissionDefinition* Chores = NewMission(Scratch, TEXT("TestChores"), EMissionKind::Side, EMissionStart::Automatic, TEXT("TestValley"));
+	UMissionEventObjective* Bell = AddObjective<UMissionEventObjective>(Chores, 0);
+	Bell->Text = FText::FromString(TEXT("Ring the bell"));
+	Bell->Event = TEXT("Chores.Bell");
+	UMissionEventObjective* Lamp = AddObjective<UMissionEventObjective>(Chores, 0);
+	Lamp->Text = FText::FromString(TEXT("Light the lamp"));
+	Lamp->Event = TEXT("Chores.Lamp");
+	UMissionEventObjective* Home = AddObjective<UMissionEventObjective>(Chores, 1);
+	Home->Text = FText::FromString(TEXT("Go home"));
+	Home->Event = TEXT("Chores.Home");
+
+	AActor* Player = SpawnMarker(World, FVector::ZeroVector);
+	if (!TestNotNull(TEXT("A stand-in for the player"), Player))
+	{
+		return false;
+	}
+	Runner->BeginForTesting({ Chores }, Campaign, Player, TEXT("TestValley"));
+	Runner->Update(0.f);
+	auto Parts = [Display]() { const FMission* Shown = Display->GetTracked(); return Shown ? Shown->Tracker : FMissionTrackerParts(); };
+
+	FMissionTrackerParts Now = Parts();
+	TestTrue(TEXT("The first objective of the first step"), Now.Line == TEXT("Ring the bell") && Now.Step == 0 && Now.ObjectiveIndex == 0);
+	Runner->NotifyEvent(FMissionEvent::Named(TEXT("Chores.Bell")));
+	Now = Parts();
+	TestTrue(TEXT("The bell rung: the second objective of the same step"), Now.Line == TEXT("Light the lamp") && Now.Step == 0 && Now.ObjectiveIndex == 1);
+	Runner->NotifyEvent(FMissionEvent::Named(TEXT("Chores.Lamp")));
+	Now = Parts();
+	TestTrue(TEXT("The lamp lit: the next step's first objective"), Now.Line == TEXT("Go home") && Now.Step == 1 && Now.ObjectiveIndex == 0);
+
+	// Holding out counts seconds; a kill count counts things.
+	UMissionDefendObjective* Hold = NewObject<UMissionDefendObjective>(GetTransientPackage());
+	Hold->HoldSeconds = 30.f;
+	FMissionTrackerParts Timed;
+	Hold->FillTrackerParts(nullptr, FMissionObjectiveState(), Timed);
+	TestTrue(TEXT("Holding out counts seconds"), Timed.bCountIsTime && Timed.Count == TEXT("0 s / 30 s") && Timed.Required == 30);
+	UMissionKillObjective* Killing = NewObject<UMissionKillObjective>(GetTransientPackage());
+	Killing->Count = 4;
+	FMissionTrackerParts Counted;
+	Killing->FillTrackerParts(nullptr, FMissionObjectiveState(), Counted);
+	TestTrue(TEXT("Kills count things"), !Counted.bCountIsTime && Counted.Count == TEXT("0 / 4") && Counted.Required == 4);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMissionRewardsTest, "Looter.Missions.Rewards",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 

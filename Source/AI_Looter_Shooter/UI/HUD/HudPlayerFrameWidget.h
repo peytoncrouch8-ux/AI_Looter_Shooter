@@ -93,6 +93,9 @@ public:
 	/** Shows the player's health; call every frame (it only repaints what changed). */
 	void SetHealth(float Health, float MaxHealth, float DeltaTime);
 
+	/** There is no health to show now (a pawn without any): the next SetHealth shows its health as it is, with no hit or heal. */
+	void ForgetHealth() { LastHealth = -1.f; }
+
 	/** A level-up, once the experience bar gets there: the HUD shows the banner. */
 	FOnHudLevelUp OnLevelUp;
 
@@ -155,11 +158,16 @@ private:
 
 	void HandleXPChanged(int64 Gained, EXPSource Source);
 	void HandleLevelUp(int32 NewLevel);
+	/** Finds the player's progression subsystem and listens to it (once; the subsystem outlives the HUD). False while there is none. */
+	bool BindProgression();
 	/** Aims the bar at the player's current progress; bSnap jumps there instead of easing. */
 	void Retarget(bool bSnap);
-	/** Draws ShownProgress: the level in the gem and the bar, with the stretch still to catch up to. */
-	void ShowProgress();
-	void SetShownLevel(int32 Level);
+	/**
+	 * Draws ShownProgress: the level in the gem and the bar, with the stretch still to catch up to. A level the bar reached
+	 * by easing across it is celebrated (bCelebrate); one it jumped to (a snap, the skip over levels of a huge gain) is shown quietly.
+	 */
+	void ShowProgress(bool bCelebrate = true);
+	void SetShownLevel(int32 Level, bool bCelebrate);
 	void UpdateXPText();
 	/** Moves the floating "+160 XP", the gem's flash and its ring; false once none of them is running. */
 	bool TickXPEffects(float DeltaTime);

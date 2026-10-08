@@ -81,8 +81,14 @@ namespace
 	/** Its top-right and bottom-left corners are cut this far, inside a cyan edge this wide. */
 	constexpr float KeycapCut = 6.f;
 	constexpr float KeycapEdge = 1.4f;
-	/** Its ends, this share of its picture each, stay as drawn while its middle stretches to the key's width. */
-	constexpr float KeycapEndShare = 0.34f;
+	/**
+	 * Its ends stay as drawn while its middle stretches to the key's width: each end is this many pixels wide (the cut
+	 * corner and the round joins fit inside, the middle is a plain run of edge). Slate draws a Box brush's end at
+	 * TextureWidth x Margin pixels showing the same share of the texture, so an end is only the size it was drawn at when
+	 * one texel is one pixel: the keycap's pictures are made at 1x (KeycapPixelsPerUnit), not at the 2x of the others.
+	 */
+	constexpr float KeycapEndWidth = 8.f;
+	constexpr float KeycapPixelsPerUnit = 1.f;
 
 	// --- Type: the mockup's sizes, as every HUD widget sets them; letter spacing in thousandths of an em ---
 
@@ -94,7 +100,7 @@ namespace
 	constexpr int32 KeySize = 13;
 	constexpr int32 HintSize = 14;
 
-	/** The pictures are drawn at twice the size they show at, so they stay crisp. */
+	/** The pictures are drawn at twice the size they show at, so they stay crisp (the keycap's are the exception: see KeycapEndWidth). */
 	constexpr float TrackerPixelsPerUnit = 2.f;
 
 	/** How tall Slate sets one line of Font (its tallest characters and its outline), to line things up on its middle. */
@@ -289,12 +295,15 @@ namespace
 	const FPaintedIcon& KeycapPlateIcon() { static const FPaintedIcon Icon = MakeKeycapPlate(); return Icon; }
 	const FPaintedIcon& KeycapEdgeIcon() { static const FPaintedIcon Icon = MakeKeycapEdge(); return Icon; }
 
-	/** A keycap picture drawn as a box: its ends as drawn, its middle stretched to the key's width. */
+	/**
+	 * A keycap picture drawn as a box: its ends as drawn, its middle stretched to the key's width. The picture's texture is
+	 * KeycapSize texels across (1x), so the margin share below is KeycapEndWidth texels and KeycapEndWidth pixels at once.
+	 */
 	FSlateBrush KeycapBrush(FName Name, const FPaintedIcon& Icon)
 	{
-		FSlateBrush Brush = PaintedIconBrush(Name, Icon, TrackerPixelsPerUnit, FVector2D(KeycapSize, KeycapSize));
+		FSlateBrush Brush = PaintedIconBrush(Name, Icon, KeycapPixelsPerUnit, FVector2D(KeycapSize, KeycapSize));
 		Brush.DrawAs = ESlateBrushDrawType::Box;
-		Brush.Margin = FMargin(KeycapEndShare, 0.f);
+		Brush.Margin = FMargin(KeycapEndWidth / KeycapSize, 0.f);
 		return Brush;
 	}
 }

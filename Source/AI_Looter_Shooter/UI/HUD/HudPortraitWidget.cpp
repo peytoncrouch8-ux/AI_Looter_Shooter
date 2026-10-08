@@ -1,4 +1,5 @@
 #include "UI/HUD/HudPortraitWidget.h"
+#include "UI/HUD/HudPlayerFrameWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/HudPortraitData.inl"
 #include "Blueprint/WidgetTree.h"
@@ -45,8 +46,8 @@ namespace
 	/** The squint holds for this share of its time; over the rest it fades back into the calm eyes. */
 	constexpr float SquintHold = 0.7f;
 
-	// Low health.
-	constexpr float PulsePeriod = 0.9f;
+	// Low health: the window's red beats between these, on the frame's beat (UHudPlayerFrameWidget::LowBeat, the same clock
+	// as the bar's brightening and the screen's edges).
 	constexpr float PulseLow = 0.1f;
 	constexpr float PulseHigh = 0.34f;
 
@@ -261,12 +262,7 @@ void UHudPortraitWidget::SetLowHealth(bool bLow)
 		return;
 	}
 	bLowHealth = bLow;
-	if (bLow)
-	{
-		// The beat starts at its faintest, so the pulse eases in.
-		PulseClock = 0.f;
-	}
-	else
+	if (!bLow)
 	{
 		// Out of danger: the held squint lets go as a hit's does, over the end of its time.
 		SquintTime = SquintSeconds * SquintHold;
@@ -288,7 +284,6 @@ void UHudPortraitWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 
 	BlinkClock = FMath::Fmod(BlinkClock + InDeltaTime, BlinkPeriod);
 	BreathClock = FMath::Fmod(BreathClock + InDeltaTime, BreathPeriod);
-	PulseClock = bLowHealth ? FMath::Fmod(PulseClock + InDeltaTime, PulsePeriod) : 0.f;
 	AdvanceReaction(ShakeTime, InDeltaTime, ShakeSeconds);
 	AdvanceReaction(FlashTime, InDeltaTime, FlashSeconds);
 	AdvanceReaction(SquintTime, InDeltaTime, SquintSeconds);
@@ -323,7 +318,7 @@ void UHudPortraitWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 
 	// The window's red: a hit's flash and the low-health pulse, the one over the other.
 	const float HitRed = FlashTime >= 0.f ? FlashStart * (1.f - PortraitEaseOut(FlashTime / FlashSeconds)) : 0.f;
-	const float LowRed = bLowHealth ? FMath::Lerp(PulseLow, PulseHigh, PortraitSwing(PulseClock, PulsePeriod)) : 0.f;
+	const float LowRed = bLowHealth ? FMath::Lerp(PulseLow, PulseHigh, UHudPlayerFrameWidget::LowBeat(GetWorld())) : 0.f;
 	const float Red = 1.f - (1.f - HitRed) * (1.f - LowRed);
 	if (Red != ShownFlash)
 	{

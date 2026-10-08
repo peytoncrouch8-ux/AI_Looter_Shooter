@@ -8,11 +8,6 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
 
-namespace
-{
-	const FLinearColor HurtColor(0.55f, 0.04f, 0.02f);
-}
-
 TStatId UPlayerVitalsSubsystem::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UPlayerVitalsSubsystem, STATGROUP_Tickables);
@@ -49,12 +44,8 @@ void UPlayerVitalsSubsystem::Tick(float DeltaTime)
 			continue;
 		}
 
-		// Flash red in proportion to the hit.
-		if (Vitals.LastHealth >= 0.f && Current < Vitals.LastHealth - 0.5f && PC->PlayerCameraManager)
-		{
-			const float Strength = FMath::Clamp((Vitals.LastHealth - Current) / Health->GetMaxHealth() * 3.f, 0.2f, 0.55f);
-			PC->PlayerCameraManager->StartCameraFade(Strength, 0.f, 0.35f, HurtColor, false, false);
-		}
+		// A hit shows on the HUD (the screen's red edges, the portrait's flash and flinch, the health bar's chip): the
+		// whole screen no longer flashes red, which hid the fight for a moment and doubled the edges.
 		Vitals.LastHealth = Current;
 
 		if (Health->IsDead())

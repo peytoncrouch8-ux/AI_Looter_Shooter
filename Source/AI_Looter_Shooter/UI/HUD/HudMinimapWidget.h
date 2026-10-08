@@ -50,6 +50,13 @@ public:
 	static constexpr float Margin = 36.f;
 
 	/**
+	 * How far the gunmetal bezel reaches past the map's edge at 100% size (it grows with the map). The widget's box is the
+	 * map alone, so the real footprint on screen is this much further out all round: the settings menu's size preview
+	 * outlines it.
+	 */
+	static constexpr float BezelReach = 9.f;
+
+	/**
 	 * Where a waypoint at WorldDelta from the player shows on a map that turns with the view (ViewYaw up): itself when it
 	 * is within InsideRadius pixels of the center, else on a circle RimRadius pixels out, in its direction.
 	 */
@@ -75,7 +82,10 @@ private:
 	void ScaleFrame();
 	/** Turns the ticks and moves the N round the bezel, so they keep to the world's directions (ViewYaw up). */
 	void TurnFrame(float ViewYaw);
-	/** Names where the player is under the map, once the level's area is known (then never again). */
+	/**
+	 * Names where the player is under the map. With the level's area not found yet it shows the level's file name and looks
+	 * again a few times a second; once the area is found its name is shown and it is never looked up again.
+	 */
 	void UpdatePlace();
 	/** The two lines under the map: Place over Area; with no place (the game names none yet), Area on the big line. */
 	void ShowPlace(const FText& Place, const FText& Area);
@@ -99,8 +109,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UWidget> PlaceBlock;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PlaceLabel;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> AreaLabel;
-	/** The place's name is shown: the level's area is fixed for the life of the HUD, so it's looked up once. */
+	/** The level's area is found and its name shown: it is fixed for the life of the HUD, so it's looked up until then only. */
 	bool bPlaceKnown = false;
+	/** Seconds until the area is looked for again (while it isn't found). */
+	float PlaceRetryLeft = 0.f;
 
 	/** The map picture the brush currently shows (owned by UMinimapSubsystem). */
 	UPROPERTY(Transient) TObjectPtr<UTexture2D> MapTexture;

@@ -22,10 +22,10 @@ namespace
 {
 	/**
 	 * The frame's measures in map pixels at 100% size (the map's radius is 86); all of it grows with the map. The bezel runs
-	 * from the map's edge out to 95, and the N's disc rides its middle.
+	 * from the map's edge out to 95 (UHudMinimapWidget::BezelReach further), and the N's disc rides its middle.
 	 */
 	constexpr float FrameMapRadius = UHudMinimapWidget::Diameter * 0.5f;
-	constexpr float FrameBezelOuter = 95.f;
+	constexpr float FrameBezelOuter = FrameMapRadius + UHudMinimapWidget::BezelReach;
 	constexpr float FrameBezelMiddle = (FrameMapRadius + FrameBezelOuter) * 0.5f;
 	/** The bezel's and the ticks' pictures: a square round the map's centre, just past the bezel's outer ink line. */
 	constexpr float FrameBox = 192.f;
@@ -53,6 +53,8 @@ namespace
 	constexpr int32 PlaceSpacing = 167;
 	constexpr float AreaTextSize = 10.5f;
 	constexpr int32 AreaSpacing = 333;
+	/** Until the level's area is found, it's looked for again this often (the file's name shows meanwhile). */
+	constexpr float PlaceRetrySeconds = 0.5f;
 
 	/** A circle of Radius round Center in Sides points; Closed repeats the first point at the end, for a stroke. */
 	TArray<FVector2D> FrameCircle(const FVector2D& Center, float Radius, int32 Sides, bool bClosed)
@@ -313,7 +315,9 @@ void UHudMinimapWidget::UpdatePlace()
 	const FText AreaName = Area && !Area->DisplayName.IsEmpty() ? Area->DisplayName
 		: FText::FromString(USessionSubsystem::PlaceName(USessionSubsystem::MapOf(World)));
 	ShowPlace(FText::GetEmpty(), AreaName);
-	bPlaceKnown = true;
+	// Known only once the area is found: asked before play begins, the level's file name stands in and is looked at again.
+	bPlaceKnown = Area != nullptr;
+	PlaceRetryLeft = PlaceRetrySeconds;
 }
 
 void UHudMinimapWidget::ShowPlace(const FText& Place, const FText& Area)
