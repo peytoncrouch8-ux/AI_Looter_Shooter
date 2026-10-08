@@ -121,7 +121,10 @@ These phases came from the user's cloud session of 2026-10-02 to 2026-10-05 (its
 The user finds the current look (stylized realism) and the earlier style explorations short of what the game needs,
 and on 2026-10-08 asked for ten very different art styles, previewed in the game's own scene under the new HUD, to
 choose from: the Style Lab (`Tools/StyleLab/`). The chosen style then goes onto every asset.
-- [ ] The user picks a style from the Style Lab.
+- [x] The ten styles built in the Style Lab (2026-10-08): <https://claude.ai/artifact/WhmxkTia9qvvhqGLWDSDbr>.
+- [x] The user's favourites: 3 Painted Frontier, 4 Inkslinger, 5 Teropa Pulp and 6 Sunbleached (2026-10-08). All ten
+      are kept in the art catalog, since the look may change later.
+- [ ] Style 3, Painted Frontier, tried on the tutorial island only; the user judges it in game and may change it.
 - [ ] Its spec and transition plan written down (`Docs/Art/`), then built: post-process, materials, light and sky.
 - [ ] Every asset in the new style; tour and performance recorded.
 
