@@ -81,8 +81,11 @@ public:
 	static constexpr int32 NotchDepthDataIndex = 7;
 	static constexpr int32 SoulLightDataIndex = 8;
 
-	/** How bright a soul-forged gun's soul-light is (M_Gun's rim glow, times its rarity's color). */
-	static constexpr float SoulLightGlow = 1.6f;
+	/**
+	 * How bright a soul-forged gun's soul-light is (M_Gun's rim glow, times its rarity's color). Faint, as the spec says:
+	 * at 1.6 the whole gun in hand glowed blue-white (2026-10-08).
+	 */
+	static constexpr float SoulLightGlow = 0.3f;
 
 protected:
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
