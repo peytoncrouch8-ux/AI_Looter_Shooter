@@ -12,8 +12,16 @@ in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeli
 - **Done on the user's PC (the local session, 2026-10-08):** the sandbox preview deleted (the user confirmed), the cloud's
   gem change built and checked at 1080p. The gun's name now ends at the cluster's right edge: it was set in a scale box
   that shrank and centred it, so it's measured and set smaller only when it's too long (`FitWeaponName`).
-- **The Style Lab** (`Tools/StyleLab/`, being built in the cloud session) previews the ten styles in a real-time page
-  of Ransom's Rest made from the game's own models, textures and terrain, under the new HUD.
+- **The ten styles are ready for the user to pick** in the Style Lab, <https://claude.ai/artifact/WhmxkTia9qvvhqGLWDSDbr>
+  (private to the user): Ransom's Rest rebuilt in three.js from the game's own models, textures, terrain and editor-build
+  placements, under the in-game HUD; walk, shoot spiders, number keys switch styles, `I` shows each style's card
+  (references, the Unreal recipe, its cost on Medium). Six fixed shots per style: `Saved/StyleLab/shots/styles/` in the
+  cloud container (rebuild with `Tools/StyleLab/test/shots.mjs`). The ten, cartoon to real: 1 Clay Frontier, 2 Skyward
+  Anime, 3 Painted Frontier, 4 Inkslinger, 5 Teropa Pulp, 6 Sunbleached, 7 Neon Frontier, 8 Ember Gothic, 9 Celluloid
+  West, 10 Golden Hour; 0 is today's look. The art direction briefs and the research behind them are in the README.
+- **Next:** the user picks a style (or a shortlist); the local session then builds it in Unreal (Plan.md Phase 6), from
+  the style's card and module. Polish still open in the lab: dark Sink shots in 8 and 10, banding in some aerial views,
+  the gun's size.
 - **The Gilded Lily stays on hold**, and the cloud handoff's other decisions (Crossroads Town, gun ideas, ember powers,
   heroes) are not started.
 
