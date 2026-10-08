@@ -112,6 +112,9 @@
     "director": "TutorialDirector",
     "rackWeapon": "/Game/Weapons/Data/DA_AssaultRifle",
     "jetty": { "at": [-6923, 7078], "yaw": 126.3 },
+    "benches": [
+      { "id": "Bench_Village", "at": [850, -700], "yaw": 90, "note": "the gunsmith's bench beside the gun rack, facing the road junction (build_area_benches.py)" }
+    ],
     "seed": 7,
     "creatures": [
       { "class": "SpiderCreature", "label": "Spider", "count": 8, "zone": "forest", "spacing": 900 },

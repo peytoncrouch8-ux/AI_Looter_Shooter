@@ -101,6 +101,8 @@ where the work stands.
   - `panels` is a run of narrow panels along a pit's curve (`build_area_panels.py`), with `talus` at their feet
     (`build_area_talus.py`).
   - Every ramp's walkway is cleared of cliff pieces (`build_area_walkways.py`): a player capsule is tested down its middle.
+    A ramp's own wall moves back into its cut; a ledge's outer face (under the path) sinks until it clears, at most
+    1.5 m (2026-10-08: nine faces on the bluff path and the Sink ramp sank 25-100 cm, no gaps under the lip).
 - **Scatter** (PCG): `Tools/Unreal/build_island_scatter.py <Area>`.
   - It re-imports changed masks by their MD5, then generates. Wait for the instance count to settle, then save.
   - It keeps off the dressing's footprints and wears the area's material swaps.
@@ -110,7 +112,12 @@ where the work stands.
   - `level.swaps` puts them on everything the build placed, and on the scatter.
   - `level.swapsOn` swaps on named actors only (the windmill's steel).
 - **Path checks:** `Tools/Unreal/path_probe.py <Area>` walks a player capsule down every road and ramp;
-  `Tools/Unreal/width_probe.py` probes across one. Run them after cliff or dressing changes.
+  `Tools/Unreal/width_probe.py` probes across one. Run them after cliff, dressing or scatter changes. Both areas use
+  `"scatter": {"roadside": "pebbles"}`, so no rock or boulder lands on a road (the tutorial island had a boulder in its
+  forest road until 2026-10-08). The bridge's one flagged spot on the keeper's path is the step onto its deck.
+- **Gameplay pieces from the layout's `gameplay` block** need no generator run (it's read straight from `layout.json`):
+  the jetty, landings, posters, and the gunsmith's benches (`gameplay.benches`, `build_area_benches.py`). A
+  `build_area.py <Area> gameplay` places them again.
 
 ## The tutorial island and the older levels
 

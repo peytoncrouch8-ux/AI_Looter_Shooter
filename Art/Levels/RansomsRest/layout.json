@@ -1729,6 +1729,9 @@
   "gameplay": {
     "about": "No creatures or director yet: the encounters (Docs/Areas/RansomsRest.md, \"Encounters stay on one level of ground\") are placed with their missions from step 14 on. The story's first arrival (spawnLanding) is a player start of its own beside the level's start by Ellis's grave; the depot's station carries Landing_Depot (build_area_travel.py).",
     "spawnLanding": "Landing_FamilyPlot",
+    "benches": [
+      { "id": "Bench_Farm", "at": [-2620, -6930], "yaw": -90, "note": "the gunsmith's bench against the farm barn's south wall by its front corner, facing out (build_area_benches.py); Ozias takes over after the Lily" }
+    ],
     "posters": [
       { "id": "posterGate", "host": "townGate", "socket": "Decal", "scale": 0.62, "note": "on the town gate's south post, facing the farm road (SOCKET_Decal, TownGate.py); a handbill's size, as the post is 32 cm across" },
       { "id": "posterSheriff", "host": "sheriff", "at": [500, 96, 188], "yaw": 0, "note": "stone front between the left barred window and the door" },

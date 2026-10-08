@@ -45,6 +45,7 @@ import sys
 import unreal
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import build_area_benches  # noqa: E402
 import build_area_bounds  # noqa: E402
 import build_area_environment  # noqa: E402
 import build_area_posters  # noqa: E402
@@ -362,8 +363,8 @@ class AreaBuild:
 
     def gameplay(self, meshes):
         """The spawn (with the area's director, the tutorial's on the tutorial island), the gun rack, the target
-        dummies, the skiff jetty and the landings (build_area_travel.py), and the creature groups (layout.json
-        gameplay.creatures, in order).
+        dummies, the skiff jetty and the landings (build_area_travel.py), the gunsmith's benches
+        (build_area_benches.py), and the creature groups (layout.json gameplay.creatures, in order).
 
         Everything here sits in the <area>/Gameplay folder, which a "gameplay" build clears first: whatever lives
         there must be placed here (the rack once lived in models() and a gameplay build left the island without
@@ -392,6 +393,8 @@ class AreaBuild:
                 self.place(dummy, (x, y, z), spot['yaw'], label=f'TargetDummy_{key[-1]}', folder='Gameplay')
         self.travel.place_jetty(self)
         self.travel.place_landings(self)
+        # Reloaded, as the editor keeps modules between runs, so an edited one takes effect.
+        importlib.reload(build_area_benches).place(self)
         # The story's actors stand on the models placed already (the graves, the lookout, the farmhouse), and so do the
         # posters (on the buildings' walls and the notice board).
         self.story.place(self)
