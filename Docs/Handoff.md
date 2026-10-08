@@ -3,7 +3,7 @@
 Where the work stands, for the next session and every agent. Update it as each request finishes (newest first). Rules are
 in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeline.md`.
 
-## Now (2026-10-08, the cloud session)
+## Now (2026-10-08, end of the local session "UI and HUD changes")
 
 - **The user's three asks (2026-10-08):** the new HUD in the game (it is: built 2026-10-07, 731e0df and 5b5b36a); the
   old art-style preview and the style it showed deleted from every file; and ten very different art styles, previewed
@@ -22,12 +22,11 @@ in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeli
 - **The user's call (2026-10-08):** the best are 3 Painted Frontier, 4 Inkslinger, 5 Teropa Pulp and 6 Sunbleached.
   The ten are catalogued (done 2026-10-08, the local session): `Docs/Art/StyleLab/Catalog.md`, contact sheets in
   `Docs/Art/StyleLab/Sheets/`.
-- **The tutorial island is in style 6, Sunbleached, as a trial (2026-10-08); waiting for the user's verdict.** Style 3
-  was rejected ("I dont like style 3, lets try the sunbleached style instead") and removed from the project (recipe in
-  the catalog, code in git history, 1e21f78). `Tools/Unreal/build_island_style.py sunbleached apply|undo|status`, the
-  island only; switching to 4 or 5 later is a new `style_<name>.py` + json beside it. The user's rule for trials: no
-  tests, no screenshots; full checks only when a style goes into the game. Unmeasured; one frame at spawn read 6.3 ms
-  with the editor open.
+- **The art style stays as it is (the user, 2026-10-08: "I don't want to change the style").** Style 3 was tried
+  and removed; style 6, Sunbleached, was tried and taken off the island; style 4 was stopped before any code. Every level,
+  the tutorial island included, wears today's look. `Tools/Unreal/build_island_style.py <style> apply|undo|status`
+  and Sunbleached's files stay in the project in case the user asks again (its switch on the masters is off, so it
+  costs nothing). Don't start style work unless the user asks.
 - **A test build exists (the local session, 2026-10-08):** `Tools\package.ps1` ("Packaging a test build" in the
   pipeline). The first: `Saved\Packaging61008-163145\AI_Looter_Shooter_Test_20261008-163145.zip`, 605 MB, with
   today's look (made before the painted trial). It runs the menu, sessions, saves and the HUD; the game has no sounds
