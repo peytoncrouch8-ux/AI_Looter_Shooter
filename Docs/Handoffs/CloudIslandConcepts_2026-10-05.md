@@ -1,3 +1,8 @@
+> **Decision 3, the HUD upgrade, is built (2026-10-07, commits 731e0df and 5b5b36a).** Changes from this file: the
+> level-up banner's gem sits 260 px down, as the mockup draws it; a hit no longer tints the whole screen (the user's
+> call: edges only); the HUD's text keeps the mockup's px as Slate sizes, a third bigger in game (the user's call); the
+> place under the minimap is the area's name (there are no named places yet). The other five decisions are not built.
+>
 > **Brought in from the cloud session on 2026-10-07, for future use.** This is `HANDOFF.md` as the cloud session left it
 > on branch `claude/island-concepts` (commit `740a649`, 2026-10-05), unchanged below this note. None of it is built
 > yet. The files it points to were brought in too, at the user's request (2026-10-07): the Screen Print Wash docs and

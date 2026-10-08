@@ -191,7 +191,7 @@ Rules that saved time:
 | Bug | Cause | Fix |
 |---|---|---|
 | The editor crashed in the boss bar test (HUD upgrade) | `Outline.Add(Outline[0])`: TArray asserts when it adds a reference to its own element, since the add may reallocate | Add a copy, `Outline.Add(FVector2D(Outline[0]))`; grep new code for `X.Add(X[` before building |
-| HUD text came out a third bigger than the mockup | Slate sets a font's Size in points at 96 DPI, so Size 18 draws 24 px; the mockups use CSS px | A mockup's px times 0.75 is the Slate Size (the user's call on the HUD pending) |
+| HUD text came out a third bigger than the mockup | Slate sets a font's Size in points at 96 DPI, so Size 18 draws 24 px; the mockups use CSS px | Known and kept: the user chose the larger text (2026-10-07), so mockup px stay the Slate Size; a mockup's px × 0.75 would match it exactly |
 | Keycap corners drew twice their size; the boss hatch leaned 26° | Slate sizes a Box brush's ends and repeats a tiled brush in the texture's own texels, not by `ImageSize` | Make such brushes' textures at 1 texel per slate unit (`PaintedIconBrush` at PixelsPerUnit 1) |
 | A hit tinted the whole screen red | The old hurt camera fade (`PlayerVitalsSubsystem`, up to 55%) on top of the new red edges | The fade on hits removed; the HUD shows hits (edges, portrait, chip); death and respawn fades kept |
 | The Gravemother spawned stuck in her den's wall | The den's floor is part of Den Rock, tagged Obstacle, so its spots were refused; the fallback spot was checked with a man-sized capsule | Room for the largest body; the floor inside a lair's own rock counts as ground (`FEncounterGroundProbe`), f3e3579 |

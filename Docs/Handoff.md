@@ -3,17 +3,38 @@
 Where the work stands, for the next session and every agent. Update it as each request finishes (newest first). Rules are
 in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeline.md`.
 
-## Now (2026-10-08)
+## Now (2026-10-07, evening)
 
-- **Ransom's Rest is done.** The user played it through and approved it ("it all looks good"); steps 18-27 are recorded
-  as approved in `Docs/Areas/RansomsRest.md`. All 226 `Looter.*` tests pass, the terrain rebuilds identically, and every
-  view runs at 149-216 fps on Medium.
-- **The next level, the *Gilded Lily*, is on hold.** The user wants to polish other things first. Build nothing of it
-  until they say so. Airship or riverboat is still open: Main leaned airship (the canyon and fog work carries over; the
-  cost is moving gondolas and a Sky Jumper enemy). The trade-offs are in `Docs/Story.md`, decision 12.
-- **Next:** whatever the user picks to polish. Ask them which first.
+- **The HUD upgrade is built and committed** (the cloud session's decision 3; 731e0df, 5b5b36a). The user picked it
+  first from the cloud handoff and said to do nothing else of it yet. 230 `Looter.*` tests pass; Medium measures
+  5.7 ms at the island's spawn (5.6 before). The user kept the larger in-game text and hits shown on the edges only.
+- **A Screen Print Wash preview exists, uncommitted, outside the game** (the user asked to see decision 1 in the engine
+  without putting anything into the game): `/Game/Sandbox/PrintWash/` (`Content/Sandbox/`), built by
+  `Tools/Unreal/Sandbox/printwash_*.py` (run order in `printwash_shots.py`'s and the scripts' headers: materials, level,
+  shots). Shots in `Saved\Screenshots\PrintWash\` (four views, Medium and High, print and plain). It works on Medium
+  and High; it's a first pass (the paper mottle reads blotchy in the sky and on the grass). The user hasn't said yet
+  whether to keep these files: ask before committing or deleting them.
+- **The Gilded Lily stays on hold**, and the cloud handoff's other decisions (Screen Print Wash for the game, Crossroads
+  Town, gun ideas, ember powers, heroes) are not started.
+- **Next:** the user's reaction to the preview, then whatever they pick. Ask with tap-to-answer choices.
 
-## Finished in the last session (2026-10-07 to 10-08)
+## Finished in this session (2026-10-07)
+
+- **The HUD upgrade** (spec: `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md`, "The HUD upgrade in brief"):
+  - the kit draws painted pictures (`FPaintedIcon`, `PaintedIconBrush`) and glows; gunmetal, gem and health colours
+    in the palette;
+  - the player frame (`UHudPlayerFrameWidget`) with the portrait (`UHudPortraitWidget`, from
+    `Art/Icons/HudPortrait.py`), the level-up banner and red screen edges replace the health ring and the XP bar;
+  - the mission tracker (`UHudMissionTrackerWidget`) replaces the tutorial prompt and follows any tracked mission;
+    objectives carry a short line and a key hint;
+  - the weapon slots stand in a column beside an upright cartridge; the crosshair kicks on each shot;
+  - the minimap's gunmetal bezel and area name; the boss bar built like the health bar;
+  - the old whole-screen red flash on hits is gone (the user's call).
+- **Tools:** `Looter.HudShots` / `Tools\hudshots.ps1` photographs the HUD at 1080p through twelve states.
+- **Rules (the user's):** at most 8 agents; the orchestrator (Opus 5.5) picks each agent's model; parallel agents work
+  from one shared contract; `CLAUDE.md` condensed, its details moved to `Docs/Pipeline.md`.
+
+## Finished in the session before (2026-10-07 to 10-08)
 
 - **The user's asks:**
   - The player 15% smaller and slower.
@@ -47,8 +68,8 @@ in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeli
   user's call.
 - Ledge paths: the outer face pieces of the bluff path and the Sink ramp reach into the walkway's middle band; a 2 m+
   clear lane remains. The cliffs pass logs these as warnings.
-- The cloud session's handoff (`Docs/Handoffs/`: Screen Print Wash, Crossroads Town, the HUD upgrade and more) is not
-  built: the user said "not yet" and will decide which look wins.
+- The cloud session's handoff (`Docs/Handoffs/`): the HUD upgrade is built; Screen Print Wash, Crossroads Town and the rest
+  are not: the user will decide which look wins (the sandbox preview is there to help).
 
 ## Sessions and helpers
 

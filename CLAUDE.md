@@ -85,7 +85,11 @@ and PIE share `Saved\SaveGames`; command-line runs keep theirs under `%LOCALAPPD
 
 - Every UI is built in C++ with the `LooterUI` kit (`UI/Style/LooterUIStyle.h`), "Concept C": dark glass panels,
   orange accents, cyan lines, Chakra Petch. Colors come only from `LooterUI::Color` (or `LooterUI::Hex` inside it).
-- The gameplay HUD has no backing panels: floating outlined text and slim slanted bars, in gunmetal metalwork.
+- The gameplay HUD has no backing panels: floating outlined text and slim slanted bars, in gunmetal metalwork. Its
+  pieces: the player frame (portrait in a medallion, health bar, level gem, experience bar) bottom-left, the mission
+  tracker on the left, the weapon column with its upright cartridge bottom-right, the bezelled minimap top-right.
+  `Tools\hudshots.ps1` photographs it at 1080p through its states. A mockup's CSS px are used as Slate font sizes as
+  they are (the user's call: in game the text is a third bigger than in the mockups).
 - Every background a widget paints calls `LooterUI::MarkBackground`, so the UI transparency setting fades it. Text,
   outlines and bars stay solid.
 - Vector art from mockups goes through the kit's brushes (`IconBrush`, `PaintedIconBrush`), never new texture assets.
