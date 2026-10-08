@@ -21,9 +21,11 @@ obstacle id, so the art session can retune it without touching the code:
   warning sign each by the ramp head's gap. A fence's run stops a metre short of a cliff piece or a rock it would run
   into (Rocks, from what build_area.py placed), ending on its post, and goes on past it.
 - Grave rows get the old headboards and crosses, mixed by a fixed seed, a little out of line and leaning a little, boot
-  hill's and the family plot's each over its sunken mound; the family plot's eight old graves and the churchyard's short
-  rows on the knoll's south face (seen from boot hill and the town), which have no obstacle, come from EXTRA_GRAVE_ROWS,
-  and each fresh mound the placements put down (the respawn graves) gets its fresh headboard (MOUND_BOARDS).
+  hill's and the family plot's each over its sunken mound; the churchyard's east rows re-laid across the knoll's flank,
+  each board turned down its slope as far as it still faces the valley (GRAVE_ROWS' 'downhill'); the family plot's
+  eight old graves and the churchyard's short rows on the knoll's south face (seen from boot hill and the town), which
+  have no obstacle, come from EXTRA_GRAVE_ROWS, and each fresh mound the placements put down (the respawn graves) gets
+  its fresh headboard (MOUND_BOARDS).
 - Cairns stand along their path; the ruins and the keeper's three cairns are layout placements, which build_area.py's
   models() places already (a ruin whose placement is gone is placed here instead, as its own actor).
 - Props become small groups laid out in the obstacle's own frame: along its longest side, facing its road or a
@@ -46,6 +48,7 @@ creatures), and footprints() gives the scatter every piece's own box from the sa
 
 Run plan_all()/footprints() anywhere (plain Python and the layout's JSON); place() needs the editor.
 """
+import copy
 import math
 import random
 
@@ -255,15 +258,34 @@ GRAVE_STYLES = {
 # MOUND_TILT degrees (it has no collision: it only has to hug the slope).
 MOUND_OUT = 110.0
 MOUND_TILT = 12.0
-# Each row: its style and the yaw its boards' faces look (0 north, 90 east): the churchyard's toward the lanes either
-# side of the nave, where the player walks; boot hill's south, down toward the town, as its respawn mound faces.
+# Each row: its style and the yaw its boards' faces look (0 north, 90 east), or 'downhill' (each board as far down the
+# slope under it as it can face and still face the valley: downhill_yaw); and, where the dressing re-lays the layout's
+# row, the rows it stands in instead (paths). The churchyard's west rows face the lane west of the nave, where the player
+# walks; boot hill's south, down toward the town, as its respawn mound faces.
+# The churchyard's east rows (the art session, 2026-10-07: "turn the east rows to face south, down the knoll ... boards
+# facing downhill read better than edge-on rows") stood in three lines down the knoll's east flank facing the nave, so
+# from boot hill, the north road and the town they were seen edge-on. The flank there falls east to north-east (the
+# area model's heights: 105 degrees by the respawn grave, 30-50 at the north fence), away from everywhere the
+# churchyard is seen from, so each board faces down it only as far as it still faces the valley: within DOWNHILL_WITHIN
+# of its bearing to boot hill (GRAVE_TOWARD), about south-east, down the knoll toward boot hill, the Sink road and the
+# quarry flat. Re-laid in the same ground across that facing (rows 40 degrees east of north, 2.3 m apart, the boards
+# 1.7 m apart), so they stand side by side seen from below rather than one behind another: 25 places as before, kept
+# 2.2 m and more from the fight's spots, off the lane to the vestry door, 1.5 m and more inside the fence and clear of
+# the south face's rows and dead tree.
 GRAVE_ROWS = {
     'churchyardGravesWest1': ('churchyard', 90.0), 'churchyardGravesWest2': ('churchyard', 90.0),
-    'churchyardGravesWest3': ('churchyard', 90.0), 'churchyardGravesEast1': ('churchyard', -90.0),
-    'churchyardGravesEast2': ('churchyard', -90.0), 'churchyardGravesEast3': ('churchyard', -90.0),
+    'churchyardGravesWest3': ('churchyard', 90.0),
+    'churchyardGravesEast1': ('churchyard', 'downhill', [[[7326, -943], [7586, -725]], [[6918, -985], [7569, -439]]]),
+    'churchyardGravesEast2': ('churchyard', 'downhill', [[[6509, -1028], [7291, -372]]]),
+    'churchyardGravesEast3': ('churchyard', 'downhill', [[[6231, -961], [6882, -415]], [[6344, -566], [6604, -348]]]),
     'bootHillGraves1': ('bootHill', 180.0), 'bootHillGraves2': ('bootHill', 180.0),
     'bootHillGraves3': ('bootHill', 180.0),
 }
+# A 'downhill' board's valley: the placement it turns toward (boot hill's respawn grave), how far (degrees) from its
+# bearing to it a board may turn to face down its slope, and how far either side of the board (cm) the slope is read.
+GRAVE_TOWARD = 'graveBootHill'
+DOWNHILL_WITHIN = 45.0
+DOWNHILL_PROBE = 75.0
 
 # Grave rows the layout has no obstacle for, by a name of their own: the family plot's eight old headboards ("8 old
 # headboards, Ellis's fresh grave and Abel's frosted one"): one either side of Ellis and Abel in their row (the boards
@@ -627,7 +649,12 @@ class Plan:
                 text += '; inner: ' + self.line(f'{oid}.inner{k + 1}', {'path': inner['path']},
                                                 dict(spec, gates=inner.get('gates', []), inner=[]))
         elif oid in GRAVE_ROWS:
-            text = self.graves(oid, entry, *GRAVE_ROWS[oid])
+            style, face = GRAVE_ROWS[oid][:2]
+            # Re-laid rows stand in the layout's row's place (its obstacle keeps its id and its ground).
+            paths = GRAVE_ROWS[oid][2] if len(GRAVE_ROWS[oid]) > 2 else [entry['path']]
+            text = '; '.join(self.graves(oid, {'path': path}, style, face) for path in paths)
+            if len(GRAVE_ROWS[oid]) > 2:
+                text = f're-laid in {len(paths)} row(s) facing {face}: {text}'
         elif oid in CAIRN_LINES:
             text = self.cairns(oid, entry, CAIRN_LINES[oid])
         elif oid in RUINS:
@@ -916,13 +943,16 @@ class Plan:
     # --- Graves, cairns, ruins ---
 
     def graves(self, oid, entry, style_name, face, spacing=None):
+        """A row of graves along entry's path, their boards facing face (a yaw), or 'downhill': each its bearing to the
+        valley (GRAVE_TOWARD) here, turned down its slope when it stands on the ground (poses(): downhill_yaw); a
+        mound style faces its rows by a yaw, as its mounds are laid in the plan."""
         style = GRAVE_STYLES[style_name]
         path = [tuple(p) for p in entry['path']]
         total = length(path)
         count = max(1, round(total / (spacing or style['spacing']))) + 1
         names = [m for m, _ in style['mix']]
         weights = [w for _, w in style['mix']]
-        across = (math.cos(math.radians(face)), math.sin(math.radians(face)))
+        toward = self.point_ref(GRAVE_TOWARD) if face == 'downhill' else None
         graves = [s['location'][:2] for s in self.placed.values() if str(s.get('kind', '')).startswith('Grave_')]
         left = cleared = 0
         for k in range(count):
@@ -932,10 +962,13 @@ class Plan:
                 continue
             mesh = rnd.choices(names, weights)[0]
             x, y = point_at(path, total * k / max(count - 1, 1) + rnd.uniform(-style['along'], style['along']))
+            facing = math.degrees(math.atan2(toward[1] - y, toward[0] - x)) if toward else face
+            across = (math.cos(math.radians(facing)), math.sin(math.radians(facing)))
             off = rnd.uniform(-style['across'], style['across'])
             lean = (rnd.uniform(-style['lean'], style['lean']), rnd.uniform(-style['lean'], style['lean']))
             at = (x + across[0] * off, y + across[1] * off)
-            yaw = face + rnd.uniform(-style['turn'], style['turn'])
+            turn = rnd.uniform(-style['turn'], style['turn'])
+            yaw = facing + turn
             # Its mound (when the style has one) out in front of the board, where the board faces.
             mound = (at[0] + math.cos(math.radians(yaw)) * MOUND_OUT, at[1] + math.sin(math.radians(yaw)) * MOUND_OUT)
             spots = (at, mound) if style.get('mound') else (at,)
@@ -943,7 +976,8 @@ class Plan:
             if any(self.on_road(p) or any(math.dist(p, g) < GRAVE_CLEAR for g in graves) for p in spots):
                 cleared += 1
                 continue
-            self.pieces.append(Piece(mesh, oid, at, yaw, lean=lean, kind='board'))
+            self.pieces.append(Piece(mesh, oid, at, yaw, lean=lean, kind='board',
+                                     extra=('downhill', toward, turn) if toward else None))
             if style.get('mound'):
                 self.pieces.append(Piece(style['mound'], oid, mound, yaw, kind='mound'))
         return (f'{total / 100.0:.1f} m, {count - left - cleared} of {count} graves'
@@ -1166,6 +1200,11 @@ def poses(plan, ground, stats=None):
         out.append((kit['step_post'], (at[0], at[1], ground(*at)), (0.0, 0.0, yaw), (1.0, 1.0, 1.0), owner))
 
     for piece in plan.pieces:
+        if piece.kind == 'board' and piece.extra and piece.extra[0] == 'downhill':
+            # A board facing down its slope (graves()' 'downhill'): its yaw from the ground it stands on.
+            _, toward, turn = piece.extra
+            piece = copy.copy(piece)
+            piece.yaw = downhill_yaw(piece.a, ground, toward) + turn
         kit = fence_kit(piece.mesh) if piece.b is not None and piece.kind == 'span' else None
         if kit is None:
             out.append((piece.mesh,) + pose(piece, ground, bases) + (piece.owner,))
@@ -1201,6 +1240,20 @@ def poses(plan, ground, stats=None):
                 continue
             step_post(kit, at, following[4], owner, z, following[1])
     return out
+
+
+def downhill_yaw(at, ground, toward):
+    """The yaw a board at at faces down the slope under it (read DOWNHILL_PROBE either side), turned back to within
+    DOWNHILL_WITHIN of its bearing to toward where the ground falls further away from that: as far down the slope as it
+    can face and still face the valley. On flat ground (under about 2 degrees), toward it."""
+    x, y = at
+    bearing = math.degrees(math.atan2(toward[1] - y, toward[0] - x))
+    gx = (ground(x + DOWNHILL_PROBE, y) - ground(x - DOWNHILL_PROBE, y)) / (2.0 * DOWNHILL_PROBE)
+    gy = (ground(x, y + DOWNHILL_PROBE) - ground(x, y - DOWNHILL_PROBE)) / (2.0 * DOWNHILL_PROBE)
+    if math.hypot(gx, gy) < 0.035:
+        return bearing
+    fall = math.degrees(math.atan2(-gy, -gx))
+    return bearing + clamp((fall - bearing + 180.0) % 360.0 - 180.0, DOWNHILL_WITHIN)
 
 
 def fence_kit(mesh):

@@ -886,7 +886,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `run_head()` and `span_heights()` give a
   builder a section's span to stand someone in (Amos). The backlots' woodsheds and lean-tos (set against the false
   fronts' back walls), the undertaker's dray and lumber stack, fallen pines, the Sink fences' warning signs, the picket
-  gates swung open, boot hill's and the family plot's sunken mounds, the churchyard's rows on the knoll's south face,
+  gates swung open, boot hill's and the family plot's sunken mounds, the churchyard's rows on the knoll's south face, its east rows re-laid across the flank (each board turned
+  down its slope as far as it still faces the valley),
   the sheep fold's half walls.
   `Tools/Unreal/island_views.py`: an area's viewpoints as editor cameras and shots.
 - `Tools/terrain_identity.ps1`, `.py`: checks an area regenerates exactly as committed (headless Blender, no editor;
