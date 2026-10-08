@@ -21,8 +21,16 @@ in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeli
   West, 10 Golden Hour; 0 is today's look. The art direction briefs and the research behind them: `Docs/Art/StyleLab/`.
 - **The user's call (2026-10-08):** the best are 3 Painted Frontier, 4 Inkslinger, 5 Teropa Pulp and 6 Sunbleached.
   The ten are catalogued (done 2026-10-08, the local session): `Docs/Art/StyleLab/Catalog.md`, contact sheets in
-  `Docs/Art/StyleLab/Sheets/`. Building **the tutorial island only** in style 3, reversible, is in progress: the user may change it if it doesn't look good in game. **A local session does both:** the brief is
-  `Docs/Handoffs/StyleLab_LocalTasks_2026-10-08.md` (the "UI and HUD changes" session was archived before it got it). The lab's polish round is done (banding in aerial views fixed, a smaller gun, 0 console errors through all eleven looks); the Sink is still dark in 8 and 10.
+  `Docs/Art/StyleLab/Sheets/`.
+- **The tutorial island is in style 3, Painted Frontier, as a trial (the local session, 2026-10-08):** first pass, built
+  by `Tools/Unreal/build_island_painted.py apply` (`undo` restores it exactly; checked in the editor), the island only.
+  Heaviest view 7.5 ms on Medium (6.7 before), all 230 tests pass. **Waiting for the user's verdict** after playing it.
+  Known to tune first: pale speckled edges on the leaves (the lab paints soft blobs). Before/after sheet:
+  `Saved/Screenshots/Island_Painted_vs_Today.jpg` (local).
+- **A test build exists (the local session, 2026-10-08):** `Tools\package.ps1` ("Packaging a test build" in the
+  pipeline). The first: `Saved\Packaging61008-163145\AI_Looter_Shooter_Test_20261008-163145.zip`, 605 MB, with
+  today's look (made before the painted trial). It runs the menu, sessions, saves and the HUD; the game has no sounds
+  yet. Sharing it needs the user's PC (or a cloud-drive tool the user agrees to).
 - **The Gilded Lily stays on hold**, and the cloud handoff's other decisions (Crossroads Town, gun ideas, ember powers,
   heroes) are not started.
 

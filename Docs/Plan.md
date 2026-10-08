@@ -124,7 +124,10 @@ choose from: the Style Lab (`Tools/StyleLab/`). The chosen style then goes onto 
 - [x] The ten styles built in the Style Lab (2026-10-08): <https://claude.ai/artifact/WhmxkTia9qvvhqGLWDSDbr>.
 - [x] The user's favourites: 3 Painted Frontier, 4 Inkslinger, 5 Teropa Pulp and 6 Sunbleached (2026-10-08). All ten
       are kept in the art catalog, since the look may change later.
-- [ ] Style 3, Painted Frontier, tried on the tutorial island only; the user judges it in game and may change it.
+- [x] The ten catalogued with their Unreal recipes: `Docs/Art/StyleLab/Catalog.md` (2026-10-08).
+- [x] Style 3, Painted Frontier, built on the tutorial island only (2026-10-08, `build_island_painted.py apply|undo`):
+      first pass, measured (heaviest view 7.5 ms on Medium, was 6.7) and toured.
+- [ ] The user judges it in game: keep and tune it, or switch to 4, 5 or 6.
 - [ ] Its spec and transition plan written down (`Docs/Art/`), then built: post-process, materials, light and sky.
 - [ ] Every asset in the new style; tour and performance recorded.
 

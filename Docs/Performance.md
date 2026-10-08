@@ -40,3 +40,4 @@ Target: 120 fps (8.3 ms) at 1080p on the Medium preset on the reference PC (Rade
 | 2026-10-07 | Ransom's Rest final (step 27): Sink panels and talus, slopes rounds 3-4, stepped fences, player 0.85; Medium | e2e826a | 1920x1080 | 6.3 | 158 | 6.9 | 2.8 | 6.3 | 1.5 | 5.2 | 913 | 1031386 | 2.09 |
 | 2026-10-07 | Before the HUD upgrade | bd038e4 | 1920x1080 | 5.6 | 178 | 6.3 | 3.0 | 5.6 | 1.5 | 4.6 | 443 | 623271 | 1.05 |
 | 2026-10-07 | After the HUD upgrade (player frame, tracker, weapons column, bezel) | 5b5b36a | 1920x1080 | 5.7 | 175 | 6.2 | 3.1 | 5.7 | 1.5 | 4.7 | 466 | 623975 | 1.03 |
+| 2026-10-08 | Painted Frontier island (style 3 trial) | b519aad | 1920x1080 | 6.7 | 149 | 7.1 | 3.2 | 6.7 | 1.5 | 5.6 | 461 | 595430 | 1.07 |

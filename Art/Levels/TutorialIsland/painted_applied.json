@@ -1,0 +1,1321 @@
+{
+ "about": "Written by Tools/Unreal/build_island_painted.py apply: what painting the tutorial island changed, so undo puts it back exactly. Slots: actor path|component -> its original override list and the slots painted (slot -> the material it wore). Properties: actor path|component|property -> the value before. Day: the lighting state Day's fields before (the \"state\" block only).",
+ "day": {},
+ "level": "/Game/Maps/Lvl_TutorialIsland",
+ "post": true,
+ "properties": {
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.DirectionalLight_0|LightComponent0|light_color": {
+   "Color": [
+    255,
+    255,
+    255,
+    255
+   ]
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.SkyLight_0|SkyLightComponent0|light_color": {
+   "Color": [
+    255,
+    255,
+    255,
+    255
+   ]
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.SkyLight_0|SkyLightComponent0|lower_hemisphere_color": {
+   "LinearColor": [
+    0.25999999046325684,
+    0.30000001192092896,
+    0.18000000715255737,
+    1.0
+   ]
+  }
+ },
+ "slots": {
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Birch_A_2": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkBirch.MI_BarkBirch",
+    "1": "/Game/Art/Materials/MI_LeavesBirch.MI_LeavesBirch"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Birch_A_3": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkBirch.MI_BarkBirch",
+    "1": "/Game/Art/Materials/MI_LeavesBirch.MI_LeavesBirch"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Birch_B_2": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkBirch.MI_BarkBirch",
+    "1": "/Game/Art/Materials/MI_LeavesBirch.MI_LeavesBirch"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Birch_B_3": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkBirch.MI_BarkBirch",
+    "1": "/Game/Art/Materials/MI_LeavesBirch.MI_LeavesBirch"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Boulder_A_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockGranite.MI_RockGranite"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Boulder_B_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockGranite.MI_RockGranite"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Boulder_C_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockGranite.MI_RockGranite"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Bush_A_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesOak.MI_LeavesOak"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Bush_B_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesBirch.MI_LeavesBirch"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Bush_C_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesOak.MI_LeavesOak"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Clover_A_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Fern_A_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Flowers_Purple_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Flowers_White_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Flowers_Yellow_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_GrassClump_A_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_GrassClump_B_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_GrassClump_C_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_LilyPads_A_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Log_A_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_WoodEndGrain.MI_WoodEndGrain",
+    "2": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Oak_A_2": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesOak.MI_LeavesOak"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Oak_A_3": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesOak.MI_LeavesOak"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Oak_B_2": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesOak.MI_LeavesOak"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Oak_B_3": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesOak.MI_LeavesOak"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Oak_C_1": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesOak.MI_LeavesOak"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_PebbleCluster_A_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockGranite.MI_RockGranite"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Pine_A_2": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkPine.MI_BarkPine",
+    "1": "/Game/Art/Materials/MI_NeedlesPine.MI_NeedlesPine"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Pine_A_3": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkPine.MI_BarkPine",
+    "1": "/Game/Art/Materials/MI_NeedlesPine.MI_NeedlesPine"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Pine_B_1": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkPine.MI_BarkPine",
+    "1": "/Game/Art/Materials/MI_NeedlesPine.MI_NeedlesPine"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Reeds_A_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Reeds_B_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Rock_A_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockGranite.MI_RockGranite"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Rock_B_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockGranite.MI_RockGranite"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Rock_C_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Rock_D_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_Stump_A_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_WoodEndGrain.MI_WoodEndGrain"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.PCGVolume_0|ISM_SM_TallGrass_A_0": {
+   "actor": "IslandScatter",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.SkiffJetty_0|Bell": {
+   "actor": "SkiffJetty",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_IronBlack.MI_IronBlack",
+    "1": "/Game/Art/Materials/MI_BrassWorn.MI_BrassWorn"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.SkiffJetty_0|BellPost": {
+   "actor": "SkiffJetty",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim",
+    "1": "/Game/Art/Materials/MI_IronBlack.MI_IronBlack"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.SkiffJetty_0|GangplankPreview": {
+   "actor": "SkiffJetty",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.SkiffJetty_0|Jetty": {
+   "actor": "SkiffJetty",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_WoodPlanks.MI_WoodPlanks",
+    "1": "/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim",
+    "2": "/Game/Art/Materials/MI_IronBlack.MI_IronBlack"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.SkiffJetty_0|SkiffPreview": {
+   "actor": "SkiffJetty",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_WoodTeal.MI_WoodTeal",
+    "1": "/Game/Art/Materials/MI_WoodPlanks.MI_WoodPlanks",
+    "2": "/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim",
+    "3": "/Game/Art/Materials/MI_PaintCream.MI_PaintCream"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.SkiffJetty_0|Slate": {
+   "actor": "SkiffJetty",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim",
+    "1": "/Game/Art/Materials/MI_WoodBlack.MI_WoodBlack",
+    "2": "/Game/Art/Materials/MI_PaintCream.MI_PaintCream"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_0|StaticMeshComponent0": {
+   "actor": "SkyClouds",
+   "overrides": [
+    "/Game/Art/Materials/Masters/M_SkyClouds.M_SkyClouds"
+   ],
+   "painted": {
+    "0": "/Game/Art/Materials/Masters/M_SkyClouds.M_SkyClouds"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_100|StaticMeshComponent0": {
+   "actor": "Cliff_rim_60",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_101|StaticMeshComponent0": {
+   "actor": "farmhouse",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim",
+    "1": "/Game/Art/Materials/MI_MetalRust.MI_MetalRust"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_102|StaticMeshComponent0": {
+   "actor": "barn",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim",
+    "1": "/Game/Art/Materials/MI_MetalRust.MI_MetalRust"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_103|StaticMeshComponent0": {
+   "actor": "well",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim",
+    "1": "/Game/Art/Materials/MI_WoodEndGrain.MI_WoodEndGrain",
+    "2": "/Game/Art/Materials/MI_MetalRust.MI_MetalRust"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_104|StaticMeshComponent0": {
+   "actor": "log_cabin",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim",
+    "1": "/Game/Art/Materials/MI_WoodEndGrain.MI_WoodEndGrain"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_105|StaticMeshComponent0": {
+   "actor": "cottage",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_106|StaticMeshComponent0": {
+   "actor": "outhouse",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_107|StaticMeshComponent0": {
+   "actor": "lookout",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_108|StaticMeshComponent0": {
+   "actor": "Bridge",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim",
+    "1": "/Game/Art/Materials/MI_WoodEndGrain.MI_WoodEndGrain"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_109|StaticMeshComponent0": {
+   "actor": "AppleTree_1_1",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesApple.MI_LeavesApple",
+    "2": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_10|StaticMeshComponent0": {
+   "actor": "Tile_2_1",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_110|StaticMeshComponent0": {
+   "actor": "AppleTree_1_2",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesApple.MI_LeavesApple",
+    "2": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_111|StaticMeshComponent0": {
+   "actor": "AppleTree_2_1",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesApple.MI_LeavesApple",
+    "2": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_112|StaticMeshComponent0": {
+   "actor": "AppleTree_2_2",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesApple.MI_LeavesApple",
+    "2": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_113|StaticMeshComponent0": {
+   "actor": "AppleTree_3_1",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesApple.MI_LeavesApple",
+    "2": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_114|StaticMeshComponent0": {
+   "actor": "AppleTree_3_2",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesApple.MI_LeavesApple",
+    "2": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_115|StaticMeshComponent0": {
+   "actor": "AppleTree_3_3",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesApple.MI_LeavesApple",
+    "2": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_116|StaticMeshComponent0": {
+   "actor": "AppleTree_4_1",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesApple.MI_LeavesApple",
+    "2": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_117|StaticMeshComponent0": {
+   "actor": "AppleTree_4_2",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesApple.MI_LeavesApple",
+    "2": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_118|StaticMeshComponent0": {
+   "actor": "AppleTree_5_1",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesApple.MI_LeavesApple",
+    "2": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_119|StaticMeshComponent0": {
+   "actor": "AppleTree_5_2",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_BarkOak.MI_BarkOak",
+    "1": "/Game/Art/Materials/MI_LeavesApple.MI_LeavesApple",
+    "2": "/Game/Art/Materials/MI_FoliagePalette.MI_FoliagePalette"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_11|StaticMeshComponent0": {
+   "actor": "Tile_2_2",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_120|StaticMeshComponent0": {
+   "actor": "Waterfall",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_Waterfall.MI_Waterfall"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_121|StaticMeshComponent0": {
+   "actor": "WaterfallMist",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_Waterfall.MI_Waterfall"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_122|StaticMeshComponent0": {
+   "actor": "Smoke_farmhouse",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_Smoke.MI_Smoke"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_123|StaticMeshComponent0": {
+   "actor": "Smoke_log_cabin",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_Smoke.MI_Smoke"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_124|StaticMeshComponent0": {
+   "actor": "Smoke_cottage",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_Smoke.MI_Smoke"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_125|StaticMeshComponent0": {
+   "actor": "SkyIsland_1",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff",
+    "1": "/Game/Art/Materials/MI_SkyIslandGrass.MI_SkyIslandGrass"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_126|StaticMeshComponent0": {
+   "actor": "SkyIsland_2",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff",
+    "1": "/Game/Art/Materials/MI_SkyIslandGrass.MI_SkyIslandGrass"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_127|StaticMeshComponent0": {
+   "actor": "SkyIsland_3",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff",
+    "1": "/Game/Art/Materials/MI_SkyIslandGrass.MI_SkyIslandGrass"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_128|StaticMeshComponent0": {
+   "actor": "SkyIsland_4",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff",
+    "1": "/Game/Art/Materials/MI_SkyIslandGrass.MI_SkyIslandGrass"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_12|StaticMeshComponent0": {
+   "actor": "Tile_2_3",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_13|StaticMeshComponent0": {
+   "actor": "Tile_3_0",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_14|StaticMeshComponent0": {
+   "actor": "Tile_3_1",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_15|StaticMeshComponent0": {
+   "actor": "Tile_3_2",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_16|StaticMeshComponent0": {
+   "actor": "Tile_3_3",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_17|StaticMeshComponent0": {
+   "actor": "Underside_0",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_18|StaticMeshComponent0": {
+   "actor": "Underside_1",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_19|StaticMeshComponent0": {
+   "actor": "Underside_2",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_1|StaticMeshComponent0": {
+   "actor": "Tile_0_0",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_20|StaticMeshComponent0": {
+   "actor": "Underside_3",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_21|StaticMeshComponent0": {
+   "actor": "Water",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_Water.MI_Water"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_22|StaticMeshComponent0": {
+   "actor": "Cliff_plateau_01",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_23|StaticMeshComponent0": {
+   "actor": "Cliff_plateau_02",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_24|StaticMeshComponent0": {
+   "actor": "Cliff_plateau_03",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_25|StaticMeshComponent0": {
+   "actor": "Cliff_plateau_04",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_26|StaticMeshComponent0": {
+   "actor": "Cliff_plateau_05",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_27|StaticMeshComponent0": {
+   "actor": "Cliff_plateau_06",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_28|StaticMeshComponent0": {
+   "actor": "Cliff_plateau_07",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_29|StaticMeshComponent0": {
+   "actor": "Cliff_plateau_08",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_2|StaticMeshComponent0": {
+   "actor": "Tile_0_1",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_30|StaticMeshComponent0": {
+   "actor": "Cliff_plateau_09",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_31|StaticMeshComponent0": {
+   "actor": "Cliff_plateau_10",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_32|StaticMeshComponent0": {
+   "actor": "Cliff_plateau_11",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_33|StaticMeshComponent0": {
+   "actor": "Cliff_rampWalls_01",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_34|StaticMeshComponent0": {
+   "actor": "Cliff_rampWalls_02",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_35|StaticMeshComponent0": {
+   "actor": "Cliff_rampWalls_03",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_36|StaticMeshComponent0": {
+   "actor": "Cliff_rampWalls_04",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_37|StaticMeshComponent0": {
+   "actor": "Cliff_rampWalls_05",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_38|StaticMeshComponent0": {
+   "actor": "Cliff_rampWalls_06",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_39|StaticMeshComponent0": {
+   "actor": "Cliff_rampWalls_07",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_3|StaticMeshComponent0": {
+   "actor": "Tile_0_2",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_40|StaticMeshComponent0": {
+   "actor": "Cliff_rampWalls_08",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_41|StaticMeshComponent0": {
+   "actor": "Cliff_rim_01",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_42|StaticMeshComponent0": {
+   "actor": "Cliff_rim_02",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_43|StaticMeshComponent0": {
+   "actor": "Cliff_rim_03",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_44|StaticMeshComponent0": {
+   "actor": "Cliff_rim_04",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_45|StaticMeshComponent0": {
+   "actor": "Cliff_rim_05",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_46|StaticMeshComponent0": {
+   "actor": "Cliff_rim_06",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_47|StaticMeshComponent0": {
+   "actor": "Cliff_rim_07",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_48|StaticMeshComponent0": {
+   "actor": "Cliff_rim_08",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_49|StaticMeshComponent0": {
+   "actor": "Cliff_rim_09",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_4|StaticMeshComponent0": {
+   "actor": "Tile_0_3",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_50|StaticMeshComponent0": {
+   "actor": "Cliff_rim_10",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_51|StaticMeshComponent0": {
+   "actor": "Cliff_rim_11",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_52|StaticMeshComponent0": {
+   "actor": "Cliff_rim_12",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_53|StaticMeshComponent0": {
+   "actor": "Cliff_rim_13",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_54|StaticMeshComponent0": {
+   "actor": "Cliff_rim_14",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_55|StaticMeshComponent0": {
+   "actor": "Cliff_rim_15",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_56|StaticMeshComponent0": {
+   "actor": "Cliff_rim_16",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_57|StaticMeshComponent0": {
+   "actor": "Cliff_rim_17",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_58|StaticMeshComponent0": {
+   "actor": "Cliff_rim_18",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_59|StaticMeshComponent0": {
+   "actor": "Cliff_rim_19",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_5|StaticMeshComponent0": {
+   "actor": "Tile_1_0",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_60|StaticMeshComponent0": {
+   "actor": "Cliff_rim_20",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_61|StaticMeshComponent0": {
+   "actor": "Cliff_rim_21",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_62|StaticMeshComponent0": {
+   "actor": "Cliff_rim_22",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_63|StaticMeshComponent0": {
+   "actor": "Cliff_rim_23",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_64|StaticMeshComponent0": {
+   "actor": "Cliff_rim_24",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_65|StaticMeshComponent0": {
+   "actor": "Cliff_rim_25",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_66|StaticMeshComponent0": {
+   "actor": "Cliff_rim_26",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_67|StaticMeshComponent0": {
+   "actor": "Cliff_rim_27",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_68|StaticMeshComponent0": {
+   "actor": "Cliff_rim_28",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_69|StaticMeshComponent0": {
+   "actor": "Cliff_rim_29",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_6|StaticMeshComponent0": {
+   "actor": "Tile_1_1",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_70|StaticMeshComponent0": {
+   "actor": "Cliff_rim_30",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_71|StaticMeshComponent0": {
+   "actor": "Cliff_rim_31",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_72|StaticMeshComponent0": {
+   "actor": "Cliff_rim_32",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_73|StaticMeshComponent0": {
+   "actor": "Cliff_rim_33",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_74|StaticMeshComponent0": {
+   "actor": "Cliff_rim_34",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_75|StaticMeshComponent0": {
+   "actor": "Cliff_rim_35",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_76|StaticMeshComponent0": {
+   "actor": "Cliff_rim_36",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_77|StaticMeshComponent0": {
+   "actor": "Cliff_rim_37",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_78|StaticMeshComponent0": {
+   "actor": "Cliff_rim_38",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_79|StaticMeshComponent0": {
+   "actor": "Cliff_rim_39",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_7|StaticMeshComponent0": {
+   "actor": "Tile_1_2",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_80|StaticMeshComponent0": {
+   "actor": "Cliff_rim_40",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_81|StaticMeshComponent0": {
+   "actor": "Cliff_rim_41",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_82|StaticMeshComponent0": {
+   "actor": "Cliff_rim_42",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_83|StaticMeshComponent0": {
+   "actor": "Cliff_rim_43",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_84|StaticMeshComponent0": {
+   "actor": "Cliff_rim_44",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_85|StaticMeshComponent0": {
+   "actor": "Cliff_rim_45",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_86|StaticMeshComponent0": {
+   "actor": "Cliff_rim_46",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_87|StaticMeshComponent0": {
+   "actor": "Cliff_rim_47",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_88|StaticMeshComponent0": {
+   "actor": "Cliff_rim_48",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_89|StaticMeshComponent0": {
+   "actor": "Cliff_rim_49",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_8|StaticMeshComponent0": {
+   "actor": "Tile_1_3",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_90|StaticMeshComponent0": {
+   "actor": "Cliff_rim_50",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_91|StaticMeshComponent0": {
+   "actor": "Cliff_rim_51",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_92|StaticMeshComponent0": {
+   "actor": "Cliff_rim_52",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_93|StaticMeshComponent0": {
+   "actor": "Cliff_rim_53",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_94|StaticMeshComponent0": {
+   "actor": "Cliff_rim_54",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_95|StaticMeshComponent0": {
+   "actor": "Cliff_rim_55",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_96|StaticMeshComponent0": {
+   "actor": "Cliff_rim_56",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_97|StaticMeshComponent0": {
+   "actor": "Cliff_rim_57",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_98|StaticMeshComponent0": {
+   "actor": "Cliff_rim_58",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_99|StaticMeshComponent0": {
+   "actor": "Cliff_rim_59",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_RockCliff.MI_RockCliff"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.StaticMeshActor_9|StaticMeshComponent0": {
+   "actor": "Tile_2_0",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_TutorialIslandMacro.MI_TutorialIslandMacro"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.WeaponRack_1|Rack": {
+   "actor": "gun_rack",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.Windmill_0|Fan": {
+   "actor": "windmill",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_MetalRust.MI_MetalRust"
+   }
+  },
+  "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland:PersistentLevel.Windmill_0|Tower": {
+   "actor": "windmill",
+   "overrides": [],
+   "painted": {
+    "0": "/Game/Art/Materials/MI_HouseTrim.MI_HouseTrim",
+    "1": "/Game/Art/Materials/MI_MetalRust.MI_MetalRust"
+   }
+  }
+ }
+}

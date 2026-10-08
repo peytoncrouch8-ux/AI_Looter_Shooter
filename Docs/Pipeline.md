@@ -160,6 +160,28 @@ Rules that saved time:
 - Terrain meshes keep 100% Nanite fallback. Medium draws the fallback and collision is cooked from it.
 - A variant of a model (Farmhouse_Ransom) goes in the same script, with the original exported byte-identical.
 
+## Painted Frontier on the tutorial island (a trial, 2026-10-08)
+
+- **What:** the tutorial island alone wears Style Lab style 3 for the user to judge; it can be undone and touches no
+  other level (the menu shows it, since the menu is the island). The style's numbers: `Docs/Art/StyleLab/Catalog.md`.
+- **Apply:** `build_world_materials.py M_World M_WorldFoliage M_Terrain M_SkyClouds M_PaintedPost` (the masters' Painted
+  switch, off by default, and the screen pass), then `build_island_painted.py apply`.
+  - Every slot on an instance of the painted masters gets an island-only child,
+    `/Game/Art/Materials/Painted/MI_<name>_Painted`: placed actors, dressing, the sky dome and the scatter.
+  - The sun and sky light get warm and blue-violet colour filters; a `PaintedPost` volume above `IslandPost` carries the
+    grade and the screen pass.
+  - Every original is recorded in `Art/Levels/TutorialIsland/painted_applied.json`; commit it with the level.
+- **Undo and status:** `undo` puts everything back and deletes the record; `status` reports what's painted. To drop the
+  style, also delete `Content/Art/Materials/Painted` with git. After an island rebuild or a new scatter, run `apply`
+  again.
+- **Tune** in `Art/Levels/TutorialIsland/painted.json` and run `apply` again; the lab's numbers are in
+  `Tools/Unreal/painted_look.py`.
+- **Lighting states:** the island's Day stays the default, because `Looter.World.Lighting.Levels` requires it. The lab's
+  own sun (165°, 42°, 4500 K) is in the `state` block, off until that test allows a painted Day.
+- **Approximated:** shade from facing only (cast shadows get it from the grade); dark feet from each object's pivot;
+  violet AO from baked occlusion; the macro noise for the lab's noise; Unreal's filmic curve. Guns and creatures aren't
+  painted (they spawn at runtime).
+
 ## Packaging a test build
 
 - **Run:** close the editor (`Tools\close.ps1`; no game running either), then start `Tools\package.ps1` in the
@@ -248,6 +270,7 @@ styles the user chooses from).
 | The first test build failed to compile (11 errors) | `ADirectionalLight::GetComponent()` and `UStaticMesh::IsNaniteEnabled()` exist only in editor builds; the lighting code read the sun through the first, so a packaged game would have broken | `Cast<UDirectionalLightComponent>(Sun->GetLightComponent())`; the test's Nanite check under `WITH_EDITOR`. Editor builds never catch these: package to find them |
 | Editor automation plugins would have shipped in the game | `ModelContextProtocol` and `AllToolsets` had no `TargetAllowList` (one is marked NoRedist) | `"TargetAllowList": ["Editor"]` in the .uproject |
 | The first cook stopped: "Content is missing from cook" | The engine's Landmass plugin loads startup materials that refer to `/Engine/EditorMaterials`, which `-SkipCookingEditorContent` marks never-cook | The flag dropped from `package.ps1` and the ini (`bSkipEditorContent=False`) |
+| `Toolsose.ps1` said "EDITOR DID NOT CLOSE" with no dialog | A floating Content Browser held the process's main window, so closing it only closed the panel | `close.ps1` asks the editor to `QUIT_EDITOR` when the main window isn't the editor |
 | A hit tinted the whole screen red | The old hurt camera fade (`PlayerVitalsSubsystem`, up to 55%) on top of the new red edges | The fade on hits removed; the HUD shows hits (edges, portrait, chip); death and respawn fades kept |
 | The gun's name stopped short of the right edge, its gem far from it | A scale box fitted the name to the 24 px line's height (shrinking every name) and centred the rest | No scale box: `FitWeaponName` measures a long name and sets it smaller |
 | The Gravemother spawned stuck in her den's wall | The den's floor is part of Den Rock, tagged Obstacle, so its spots were refused; the fallback spot was checked with a man-sized capsule | Room for the largest body; the floor inside a lair's own rock counts as ground (`FEncounterGroundProbe`), f3e3579 |

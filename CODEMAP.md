@@ -841,6 +841,15 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   placed, plus `level.environment.states` such as Dusk).
 - `Tools/Unreal/lighting_collection.py`: `MPC_Lighting`, the material parameter collection the lighting states write
   (`BackdropTint`, `CloudTint`, the fog's colors), made by `build_world_materials.py` before `M_Backdrop`, which reads it.
+- `Tools/Unreal/build_world_materials.py`: the textured masters (`M_World`, `M_Gun`, `M_WorldFoliage`, `M_Terrain`,
+  `M_Water`, the sky and backdrop), with the Painted switch (off by default) on `M_World`, `M_WorldFoliage`, `M_Terrain`
+  and `M_SkyClouds`, and `M_PaintedPost` (Painted Frontier's screen pass).
+- `Tools/Unreal/painted_look.py`: Painted Frontier (Style Lab style 3) in Unreal terms: the lab's numbers per role, the
+  ground, the sky and the screen pass, the role rules and the colour conversions; read by the two scripts around it.
+- `Tools/Unreal/build_island_painted.py`: `apply|undo|status`, the tutorial island alone in Painted Frontier:
+  island-only painted instances on every slot of the painted masters (placed actors, dressing, sky dome, scatter), the
+  sun's and sky light's colour filters and the `PaintedPost` volume; originals recorded in
+  `Art/Levels/TutorialIsland/painted_applied.json`, settings in `painted.json`.
 - `Tools/Unreal/build_creature_materials.py`: the creatures' materials beside the world's masters: `M_Ghost` (the
   Unpaid's masked, dithered ghost, its rank, dissolve and flare from the creature's custom primitive data) and the
   clothing tints `MI_Ghost_B` and `_C`, and the Gravemother's pale hide `MI_SpiderBody_Pale` (`Spider.py`'s pale color
