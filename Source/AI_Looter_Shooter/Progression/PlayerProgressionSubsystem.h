@@ -11,6 +11,7 @@ class AActor;
 class AController;
 class APawn;
 class APlayerController;
+class AWeaponBase;
 class UAreaDefinition;
 class UHealthComponent;
 
@@ -114,10 +115,18 @@ public:
 	static void ApplyLevelHealth(UHealthComponent& Health, int32 Level);
 
 	/**
-	 * Credits a kill to the local player whose controller landed the killing blow: its experience, and one more of its
-	 * kind defeated (the bestiary). Nothing for AI kills.
+	 * Credits a kill to the local player whose controller landed the killing blow: its experience, one more of its kind
+	 * defeated (the bestiary), and a notch on the gun that made it (CreditKillWeapon). Nothing for AI kills.
 	 */
 	static void AwardKill(const AController* Killer, const AActor* Victim);
+
+	/**
+	 * The player's kill of Victim counts on the gun behind the killing blow (AWeaponBase::FindKillWeapon) where it gives
+	 * experience, like the experience itself: a creature, outside a practice area. That gun counts a notch
+	 * (AWeaponBase::AddKill) and its curse's kill perks act (Grasping's heal). A dummy counts for nothing, so notches
+	 * can't be farmed. Returns the gun that counted it, or null.
+	 */
+	static AWeaponBase* CreditKillWeapon(const AActor* Victim, int32 PlayerLevel);
 
 	/** Counts one more of the victim's kind defeated. */
 	void RecordDefeat(const AActor* Victim);

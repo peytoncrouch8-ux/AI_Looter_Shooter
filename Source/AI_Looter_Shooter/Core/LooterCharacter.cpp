@@ -1,5 +1,6 @@
 #include "Core/LooterCharacter.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/PlayerSoundComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -39,6 +40,16 @@ ALooterCharacter::ALooterCharacter()
 
 	// Made in C++ so every character has it without touching the Blueprint; the weapon manager offers it the loot.
 	Interaction = CreateDefaultSubobject<UInteractionComponent>(TEXT("Interaction"));
+	Sounds = CreateDefaultSubobject<UPlayerSoundComponent>(TEXT("Sounds"));
+}
+
+void ALooterCharacter::OnJumped_Implementation()
+{
+	Super::OnJumped_Implementation();
+	if (Sounds)
+	{
+		Sounds->Jumped();
+	}
 }
 
 void ALooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

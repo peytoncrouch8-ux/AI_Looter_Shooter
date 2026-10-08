@@ -1,13 +1,22 @@
 #include "Player/PlayerLocomotionComponent.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/LooterSound.h"
+#include "Audio/LooterSoundCues.h"
+#include "Weapons/WeaponCurses.h"
+#include "Components/AudioComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 // UPlayerLocomotionComponent's slide (FPlayerSlide holds its rules), how it ends (back into the sprint with forward
-// held, else in the crouch), and the jump key, which stands a crouched or sliding player up before it jumps.
+// held, else in the crouch), its dust and sounds, and the jump key, which stands a crouched or sliding player up before
+// it jumps.
 
 namespace
 {
+	/** Seconds the slide's scrape takes to fade once it's over. */
+	constexpr float SlideLoopFadeSeconds = 0.25f;
+
 	const TCHAR* SlideEndName(FPlayerSlide::EEnd End)
 	{
 		switch (End)
@@ -38,14 +47,10 @@ void UPlayerLocomotionComponent::HandleJumpPressed()
 	// Crouched or sliding (the user's rule): the press stands the player up instead of jumping, in either crouch mode, and
 	// the next press jumps. Stand at once, through the engine's own headroom test: under something low it can't, and the
 	// press does nothing at all (a slide carries on).
-	if (Owner->bIsCrouched)
+	if (!StandUpNow())
 	{
-		Move->UnCrouch(false);
-		if (Owner->bIsCrouched)
-		{
-			UE_LOG(LogLooter, Verbose, TEXT("Jump while crouched: no room to stand."));
-			return;
-		}
+		UE_LOG(LogLooter, Verbose, TEXT("Jump while crouched: no room to stand."));
+		return;
 	}
 	EndSlide();
 	Intent.StandUp();
@@ -76,6 +81,12 @@ bool UPlayerLocomotionComponent::TryStartSlide()
 	Move->MaxWalkSpeedCrouched = Slide.GetSpeed();
 	Move->Velocity = Slide.GetDirection() * Slide.GetStartSpeed();
 	Owner->AddMovementInput(Slide.GetDirection());
+	bSlideJustStarted = true;
+
+	// The rush of cloth and grit as the body drops, then the scrape along the ground for as long as it runs.
+	LooterSound::PlayAttached(LooterSoundCue::Slide, Owner->GetRootComponent());
+	LooterSound::Stop(SlideLoop.Get());
+	SlideLoop = LooterSound::Start(this, LooterSoundCue::SlideLoop, Owner->GetRootComponent());
 	UE_LOG(LogLooter, Verbose, TEXT("Slide at %.0f cm/s along %s"), Slide.GetStartSpeed(), *Slide.GetDirection().ToCompactString());
 	return true;
 }
@@ -120,6 +131,8 @@ void UPlayerLocomotionComponent::EndSlide()
 	Slide.Stop();
 	bSlideHoldsSpeed = false;
 	bSlideExitsToSprint = false;
+	LooterSound::Stop(SlideLoop.Get(), SlideLoopFadeSeconds);
+	SlideLoop.Reset();
 	// The crouched walk's own speed back; the crouch keys decide from here whether the player stays down.
 	if (UCharacterMovementComponent* Move = Movement.Get())
 	{
@@ -132,9 +145,9 @@ bool UPlayerLocomotionComponent::SlideEndsInSprint() const
 {
 	// The user's rule: still running forward at the end goes back into the sprint, unless the crouch key is held down
 	// (hold mode), which keeps the crouch. Only the keys the character passes on count: through a slide the last move's
-	// input is the slide's own line.
+	// input is the slide's own line. A Cold iron taken in hand mid-slide allows no sprint to go back to.
 	const bool bCrouchHeld = Intent.IsHeldMode(FStanceIntent::EStance::Crouch) && Intent.IsActive(FStanceIntent::EStance::Crouch);
-	return bHasMoveInput && IsMovingForward() && !bCrouchHeld;
+	return bHasMoveInput && IsMovingForward() && !bCrouchHeld && !WeaponCurses::BlocksSprint(GetOwner());
 }
 
 float UPlayerLocomotionComponent::GetSlideExitSpeed() const
@@ -157,15 +170,11 @@ void UPlayerLocomotionComponent::SprintOutOfSlide()
 		return;
 	}
 	// Stand at once, through the engine's headroom test. Under something low the crouch stays, at the crouched walk, and
-	// the keys decide from there as after any slide.
-	if (Owner->bIsCrouched)
+	// the keys decide from there as after any slide. (The view doesn't stand at once: the eye rises on its curve.)
+	if (!StandUpNow())
 	{
-		Move->UnCrouch(false);
-		if (Owner->bIsCrouched)
-		{
-			UE_LOG(LogLooter, Verbose, TEXT("Slide over under something low: stays crouched."));
-			return;
-		}
+		UE_LOG(LogLooter, Verbose, TEXT("Slide over under something low: stays crouched."));
+		return;
 	}
 	// Back into the sprint as if its key were down (a toggled crouch cleared), the movement's crouch wish too, and the
 	// sprint's speed for this frame's move already: the slide eased to it, so there's no dip.
@@ -174,4 +183,44 @@ void UPlayerLocomotionComponent::SprintOutOfSlide()
 	bSprinting = true;
 	Move->MaxWalkSpeed = BaseWalkSpeed * SprintSpeedMultiplier;
 	UE_LOG(LogLooter, Verbose, TEXT("Slide over: back into the sprint."));
+}
+
+bool UPlayerLocomotionComponent::StandUpNow()
+{
+	ACharacter* Owner = Character.Get();
+	UCharacterMovementComponent* Move = Movement.Get();
+	if (!Owner || !Move || !Owner->bIsCrouched)
+	{
+		return Owner != nullptr;
+	}
+	const double FeetBefore = GetFeetHeight();
+	Move->UnCrouch(false);
+	if (Owner->bIsCrouched)
+	{
+		return false;
+	}
+	// On the ground the engine keeps the feet where they were; in the air it stands up about the capsule's middle, so the
+	// feet drop under the eye. The eye takes that back (UpdateCamera), and it's noted here, where it happened, since this
+	// can run after the movement has (the end of a slide) or before it (the jump key).
+	PendingFeetJump += static_cast<float>(GetFeetHeight() - FeetBefore);
+	LastHalfHeight = Owner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	RefreshBodyTransform();
+	return true;
+}
+
+double UPlayerLocomotionComponent::GetFeetHeight() const
+{
+	const ACharacter* Owner = Character.Get();
+	return Owner ? Owner->GetActorLocation().Z - Owner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() : 0.0;
+}
+
+void UPlayerLocomotionComponent::UpdateDust(float DeltaTime)
+{
+	// Thrown at the speed the slide holds (it eases to the exit speed at its end), or what the ground lets it make if less.
+	const ACharacter* Owner = Character.Get();
+	const UCharacterMovementComponent* Move = Movement.Get();
+	const bool bSliding = Slide.IsActive() && Move->IsMovingOnGround();
+	const float Speed = FMath::Min(Slide.GetSpeed(), static_cast<float>(Move->Velocity.Size2D()));
+	Dust.Update(*Owner, bSliding, bSlideJustStarted, Slide.GetDirection(), Speed, Slide.GetTopSpeed(), DeltaTime);
+	bSlideJustStarted = false;
 }

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Settings/AudioSettingsSubsystem.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "SettingsMenuWidget.generated.h"
 
@@ -14,6 +15,7 @@ class UScrollBox;
 class USizeBox;
 class USlider;
 class UTextBlock;
+class UVerticalBox;
 
 /** Where the settings menu is open. */
 enum class ESettingsMenuMode : uint8
@@ -27,13 +29,13 @@ enum class ESettingsMenuMode : uint8
 DECLARE_DELEGATE(FOnSettingsMenuAction);
 
 /**
- * The settings menu: graphics and interface options, and the controls (look sensitivity and key bindings). Escape
- * opens it over the game (ALooterHUD, which pauses the game) and the main menu's Settings opens it there. The HUD hides
- * under it, so while the minimap size is being set an outline of the minimap (the map's circle and the bezel round it)
- * shows where it sits, at the size chosen.
+ * The settings menu: graphics, audio (the volumes) and interface options, and the controls (look sensitivity and key
+ * bindings), one scrolling list between the header and the footer. Escape opens it over the game (ALooterHUD, which
+ * pauses the game) and the main menu's Settings opens it there. The HUD hides under it, so while the minimap size is
+ * being set an outline of the minimap (the map's circle and the bezel round it) shows where it sits, at the size chosen.
  *
  * SettingsMenuWidget.cpp builds and fills it; SettingsMenuRows.cpp makes its rows and the key list;
- * SettingsMenuInput.cpp handles its buttons, sliders and keys.
+ * SettingsMenuInput.cpp handles its buttons, sliders and keys; SettingsMenuAudio.cpp is the Audio section.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API USettingsMenuWidget : public UUserWidget
@@ -63,6 +65,7 @@ private:
 	UKeyBindingSubsystem* GetBindings() const;
 	UGraphicsSettingsSubsystem* GetGraphics() const;
 	UControlSettingsSubsystem* GetControls() const;
+	UAudioSettingsSubsystem* GetAudio() const;
 	ULooterButton* MakeButton(FName Action, int32 Index, const FString& Label, int32 FontSize = 13,
 		LooterUI::EButtonKind Kind = LooterUI::EButtonKind::Normal);
 	/** A labelled two-way switch (On/Off, Hold/Toggle). bKeyListRow indents it under a key binding and aligns it to that list's columns. */
@@ -87,6 +90,30 @@ private:
 	void ApplyMode();
 	/** The size shown beside the minimap slider and by the preview outline. */
 	void ShowMinimapScale(float Scale);
+
+	// --- The Audio section (SettingsMenuAudio.cpp) ---
+
+	/** The four volume sliders (Master, Effects, Interface, Music), each a row with its percentage. */
+	UWidget* MakeAudioRows();
+	void RefreshAudio();
+	/** A volume slider moved: heard at once, with a soft tick at each step; saved when it's let go. */
+	void ChangeVolume(EAudioVolume Which, float Value);
+
+	UFUNCTION()
+	void HandleMasterVolumeChanged(float Value);
+
+	UFUNCTION()
+	void HandleEffectsVolumeChanged(float Value);
+
+	UFUNCTION()
+	void HandleInterfaceVolumeChanged(float Value);
+
+	UFUNCTION()
+	void HandleMusicVolumeChanged(float Value);
+
+	/** Any volume slider let go: the volumes are saved. */
+	UFUNCTION()
+	void HandleVolumeReleased();
 
 	UFUNCTION()
 	void HandleTransparencyChanged(float Value);
@@ -129,7 +156,10 @@ private:
 
 	ESettingsMenuMode Mode = ESettingsMenuMode::Pause;
 
-	UPROPERTY(Transient) TObjectPtr<UScrollBox> ControlsList;
+	/** Everything between the header and the footer, scrolling as one: the sections and, last, the key list. */
+	UPROPERTY(Transient) TObjectPtr<UScrollBox> Body;
+	/** The key bindings' rows (RebuildControls fills it). */
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> KeyList;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusText;
 	/** "Game paused | Esc: resume" or "Esc: back". */
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> HeaderText;
@@ -161,6 +191,9 @@ private:
 	/** The look sensitivity, as a multiple of the game's own turn. */
 	UPROPERTY(Transient) TObjectPtr<USlider> LookSensitivitySlider;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> LookSensitivityValue;
+	/** The volume sliders and their percentages, in EAudioVolume's order. */
+	UPROPERTY(Transient) TArray<TObjectPtr<USlider>> VolumeSliders;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> VolumeValues;
 	UPROPERTY(Transient) TObjectPtr<UWidget> MinimapPreview;
 	UPROPERTY(Transient) TObjectPtr<USizeBox> MinimapPreviewSize;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> MinimapPreviewCaption;
@@ -171,6 +204,9 @@ private:
 	bool bMinimapSliderHeld = false;
 	float PreviewLinger = 0.f;
 	float PreviewOpacity = 0.f;
+
+	/** The volume slider moved last, for the status line when it's let go. */
+	EAudioVolume LastVolumeMoved = EAudioVolume::Master;
 
 	/** Index into the subsystem's binding list we're waiting on a key for, or INDEX_NONE. */
 	int32 ListeningIndex = INDEX_NONE;

@@ -44,6 +44,41 @@ namespace
 	{
 		return Window(P, T - HalfWidth, T, T, T + HalfWidth);
 	}
+
+	/** When shell Shell (from 0) is pushed home: its nudge's peak. */
+	constexpr float ShellAt(int32 Shell)
+	{
+		return ShellStart + (ShellEnd - ShellStart) * (Shell + 0.5f) / ShellPushes;
+	}
+
+	// The sounds land on the motion: the release as the magazine starts to slide, the slap as the fresh one seats, the
+	// handle as it's yanked; each shell at its push, the pump as it starts back.
+	constexpr FReloadStepAt MagazineSteps[] = {
+		{ MagOutStart + 0.01f, EReloadStep::MagOut },
+		{ MagSeated, EReloadStep::MagIn },
+		{ BoltStart + 0.02f, EReloadStep::Bolt },
+	};
+	constexpr FReloadStepAt PumpSteps[] = {
+		{ ShellAt(0), EReloadStep::ShellIn },
+		{ ShellAt(1), EReloadStep::ShellIn },
+		{ ShellAt(2), EReloadStep::ShellIn },
+		{ ShellAt(3), EReloadStep::ShellIn },
+		{ PumpStart, EReloadStep::Pump },
+	};
+	static_assert(ShellPushes == 4, "PumpSteps lists one ShellIn per shell pushed");
+}
+
+TConstArrayView<FReloadStepAt> LooterReload::Steps(EWeaponReloadPart Part)
+{
+	switch (Part)
+	{
+	case EWeaponReloadPart::Magazine:
+		return MakeArrayView(MagazineSteps);
+	case EWeaponReloadPart::Pump:
+		return MakeArrayView(PumpSteps);
+	default:
+		return {};
+	}
 }
 
 float LooterReload::MagazineTravel(float Progress, bool& bOutVisible)

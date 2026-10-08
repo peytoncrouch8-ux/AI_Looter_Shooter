@@ -6,12 +6,14 @@
 #include "Inventory/WeaponManagerComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 
-// UPlayerLocomotionComponent's first-person motion: the eye dropping into a crouch or a slide, and the camera-held gun's
-// stance poses, bob, sway and kicks.
+// UPlayerLocomotionComponent's first-person motion: the eye dropping into a crouch or a slide and the slide's tip of the
+// view, on eased curves that nothing the capsule does can jolt, and the camera-held gun's stance poses, bob, sway and
+// kicks.
 
 namespace
 {
@@ -46,42 +48,150 @@ namespace
 	constexpr float SlideEyeDrop = 22.f;
 	/** Degrees a slide tips the first-person view (and the gun with it). */
 	constexpr float SlideViewRoll = 5.f;
+
+	// How long the eye takes to reach each height (s), on its minimum-jerk curve. Quick enough to sell the drop, never a
+	// snap: the slide's 57 cm drop tops out at about 6 cm a frame at 60 fps and eases in and out of it.
+	constexpr float SlideDropSeconds = 0.28f;
+	constexpr float CrouchEyeSeconds = 0.27f;
+	constexpr float StandEyeSeconds = 0.3f;
+	/**
+	 * As the slide eases out the eye starts rising to the crouch's height, slowly enough that it's still on its way as the
+	 * slide ends: standing up out of it then carries straight on, with no stop between.
+	 */
+	constexpr float SlideRiseSeconds = 0.45f;
+	/** Back to its height after the feet jumped under it (a crouch or stand in the air). */
+	constexpr float FeetJumpSeconds = 0.25f;
+	/** The eye's acceleration at most (cm/s^2): a move that would need a harder turn (a slide cancelled mid-drop) is stretched. */
+	constexpr float MaxEyeAcceleration = 4500.f;
+	/** How fast the measured rest height of the camera over its rig is followed (it only drifts with the arms' pose). */
+	constexpr float EyeRestFollowRate = 4.f;
+	constexpr float RollInSeconds = 0.3f;
+	constexpr float RollOutSeconds = 0.35f;
+	constexpr float MaxRollAcceleration = 400.f;
+	/**
+	 * The gun rides the camera on a spring (the kick spring): the eye's own acceleration pushes it, so it lags a little
+	 * as the view drops or rises and settles after, which is the weight of a stance change without a jolt.
+	 */
+	constexpr float EyeKickCoupling = 0.1f;
 }
 
-void UPlayerLocomotionComponent::UpdateCamera()
+void UPlayerLocomotionComponent::RefreshBodyTransform()
 {
-	UCameraComponent* View = Camera.Get();
-	if (!View)
+	ACharacter* Owner = Character.Get();
+	USkeletalMeshComponent* Body = Owner ? Owner->GetMesh() : nullptr;
+	const USceneComponent* Parent = Body ? Body->GetAttachParent() : nullptr;
+	if (!Parent || Body->IsUsingAbsoluteLocation())
 	{
 		return;
 	}
+	// Where its relative location puts it, against where it is. They differ after the engine's crouch or stand until the
+	// capsule next moves: a one-frame pop of a quarter metre as a slide stood up into a sprint, and a body (and view) left
+	// floating or sunk while the player stood still.
+	const FVector Expected = Parent->GetSocketTransform(Body->GetAttachSocketName()).TransformPosition(Body->GetRelativeLocation());
+	if (!Body->GetComponentLocation().Equals(Expected, 0.05))
+	{
+		Body->UpdateComponentToWorld(EUpdateTransformFlags::None, ETeleportType::TeleportPhysics);
+	}
+}
 
-	// Crouch the first-person view: learn the standing eye height while standing on the ground, then lower the eye rig by the
-	// difference to the crouched head height, eased with the crouch pose so view and body move together; a slide sits it
-	// lower still. Heights are in the full-size body's units: the measured one is divided by the character's scale, and
-	// the drop is scaled back into the rig's parent's space (which the character's scale shrinks too).
+float UPlayerLocomotionComponent::GetViewLowering() const
+{
+	const float CrouchDrop = StandingEye - GetCrouchedHeadHeight() * GetBodyScale();
+	if (!bHaveEye || CrouchDrop < 1.f)
+	{
+		return CrouchAlpha;
+	}
+	return (StandingEye - EyeHeight.GetValue()) / CrouchDrop;
+}
+
+void UPlayerLocomotionComponent::UpdateCamera(float DeltaTime)
+{
+	UCameraComponent* View = Camera.Get();
+	USceneComponent* Rig = EyeRig.Get();
 	const ACharacter* Owner = Character.Get();
-	const float Scale = GetBodyScale();
-	const float Feet = Owner->GetActorLocation().Z - Owner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-	if (CrouchAlpha <= 0.f && SlideAlpha <= 0.f && Movement->IsMovingOnGround())
+	if (!View || !Rig || !Owner)
 	{
-		StandingEyeHeight = (View->GetComponentLocation().Z - Feet) / Scale;
+		return;
 	}
-	if (USceneComponent* Rig = EyeRig.Get())
+	const float Dt = FMath::Min(DeltaTime, 0.1f);
+	const float Scale = GetBodyScale();
+	const double Feet = GetFeetHeight();
+	const float HalfHeight = Owner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+
+	// The capsule changed size since the eye last looked, by the movement's crouch or stand. On the ground the engine
+	// keeps the feet where they were; in the air it keeps the capsule's middle, so the feet jump under the eye (tucked up,
+	// or dropped) and the eye's height above them takes the opposite jump, which leaves the view where it was. (A resize
+	// this component did itself, StandUpNow, noted its own jump.)
+	if (LastHalfHeight > 0.f && !FMath::IsNearlyEqual(HalfHeight, LastHalfHeight, 0.01f) && !bLastResizeKeptFeet)
 	{
-		const float CrouchDrop = StandingEyeHeight > 0.f ? FMath::Max(StandingEyeHeight - GetCrouchedHeadHeight(), 0.f) * CrouchAlpha : 0.f;
-		const USceneComponent* RigParent = Rig->GetAttachParent();
-		const float ParentScale = RigParent ? FMath::Max(static_cast<float>(RigParent->GetComponentScale().Z), UE_KINDA_SMALL_NUMBER) : 1.f;
-		const float Drop = (CrouchDrop + SlideEyeDrop * SlideAlpha) * Scale / ParentScale;
-		const FVector Wanted = EyeRigBaseLocation - FVector(0.f, 0.f, Drop);
-		if (!Rig->GetRelativeLocation().Equals(Wanted, 0.01f))
-		{
-			Rig->SetRelativeLocation(Wanted);
-		}
+		PendingFeetJump += LastHalfHeight - HalfHeight;
+	}
+	LastHalfHeight = HalfHeight;
+	bLastResizeKeptFeet = Movement->bCrouchMaintainsBaseLocation;
+
+	// The eye with nothing lowered, measured afresh: the rig's parent (the body, put in place by RefreshBodyTransform)
+	// above the feet, plus how high the camera sits over the rig's parent once the rig's current lowering is taken off.
+	// Whatever the capsule and the body did this frame is in it, so the camera lands exactly on the eye's curve.
+	const USceneComponent* RigParent = Rig->GetAttachParent();
+	const float ParentScale = RigParent ? FMath::Max(static_cast<float>(RigParent->GetComponentScale().Z), UE_KINDA_SMALL_NUMBER) : 1.f;
+	const double ParentHeight = RigParent ? RigParent->GetSocketLocation(Rig->GetAttachSocketName()).Z : Feet;
+	const float Lowered = static_cast<float>(EyeRigBaseLocation.Z - Rig->GetRelativeLocation().Z) * ParentScale;
+	const float Rest = static_cast<float>(View->GetComponentLocation().Z - ParentHeight) + Lowered;
+	EyeRest = bHaveEye ? FMath::FInterpTo(EyeRest, Rest, Dt, EyeRestFollowRate) : Rest;
+	const float Natural = static_cast<float>(ParentHeight - Feet) + EyeRest;
+	if (!Owner->bIsCrouched || !bHaveEye)
+	{
+		StandingEye = Natural;
 	}
 
-	// A slide tips the view a little: an offset on the camera itself, so the controller's rotation (the aim) stays level.
-	const float Roll = SlideViewRoll * SlideAlpha;
+	// Where the eye heads: down to the slide's height while it holds its speed, back up to the crouch's as it eases out,
+	// the crouch's while crouched, else standing. Heights are the full-size body's, shrunk by the character's scale.
+	const float Crouched = GetCrouchedHeadHeight() * Scale;
+	float Target = StandingEye;
+	float Seconds = StandEyeSeconds;
+	if (Slide.IsActive())
+	{
+		Target = Slide.IsEasingOut() ? Crouched : Crouched - SlideEyeDrop * Scale;
+		Seconds = Slide.IsEasingOut() ? SlideRiseSeconds : SlideDropSeconds;
+	}
+	else if (Owner->bIsCrouched)
+	{
+		Target = Crouched;
+		Seconds = CrouchEyeSeconds;
+	}
+	if (!bHaveEye)
+	{
+		EyeHeight.Reset(Target);
+		bHaveEye = true;
+	}
+	// The standing height is re-measured all the time: a drift of a few millimetres doesn't start a new move.
+	if (!FMath::IsNearlyEqual(Target, EyeHeight.GetTarget(), 0.25f))
+	{
+		EyeHeight.SetTarget(Target, Seconds, MaxEyeAcceleration);
+	}
+	if (!FMath::IsNearlyZero(PendingFeetJump, 0.01f))
+	{
+		EyeHeight.Shift(-PendingFeetJump, FeetJumpSeconds, MaxEyeAcceleration);
+	}
+	PendingFeetJump = 0.f;
+	EyeHeight.Advance(Dt);
+
+	// Lower the rig (the arms the camera rides, or the camera itself) so the camera sits at the eye's height. The drop is
+	// in world cm, scaled into the rig's parent's space. Every height the eye heads for is under the capsule's top (the
+	// crouch's keeps CrouchHeadClearance), so a low ceiling the capsule fits under never cuts the view; on its way down
+	// into a crouch it's where the standing capsule just was, which was clear.
+	const FVector Wanted = EyeRigBaseLocation - FVector(0.f, 0.f, (Natural - EyeHeight.GetValue()) / ParentScale);
+	if (!Rig->GetRelativeLocation().Equals(Wanted, 0.01f))
+	{
+		Rig->SetRelativeLocation(Wanted);
+	}
+
+	// A slide tips the view a little, eased in as it drops and out as it slows: an offset on the camera itself, so the
+	// controller's rotation (the aim) stays level.
+	const bool bTipped = Slide.IsActive() && !Slide.IsEasingOut();
+	ViewRoll.SetTarget(bTipped ? SlideViewRoll : 0.f, bTipped ? RollInSeconds : RollOutSeconds, MaxRollAcceleration);
+	ViewRoll.Advance(Dt);
+	const float Roll = ViewRoll.GetValue();
 	if (!FMath::IsNearlyEqual(Roll, AppliedViewRoll, 0.01f))
 	{
 		View->ClearAdditiveOffset();
@@ -117,6 +227,9 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 		}
 	}
 	bWasFalling = bFalling;
+	// The eye's own easing pushes it too: dropping into a crouch or a slide, the gun lags a touch high and settles; rising,
+	// a touch low. (The eye's acceleration never jumps, so neither does this.)
+	KickVelocity -= EyeHeight.GetAcceleration() * EyeKickCoupling * Dt;
 	KickVelocity += (-KickStiffness * KickOffset - KickDamping * KickVelocity) * Dt;
 	KickOffset += KickVelocity * Dt;
 

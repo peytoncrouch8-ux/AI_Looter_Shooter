@@ -7,7 +7,11 @@
                   map's) and Specular (0.5 is Unreal's 4%) are for cloth and feathers: black wool reflects so little.
   M_Gun           M_World's maps for gun parts, plus per-gun wear: Wear (0 fresh to 1 battered) comes from each part's
                   custom primitive data 0 (set by UWeaponModelComponent, no material copies per gun): scuffs where the
-                  finish is rubbed through to a paler layer, grime in the creases, a duller finish. No moss.
+                  finish is rubbed through to a paler layer, grime in the creases, a duller finish. No moss. Its notches
+                  from the same data: the tally (NotchMarks 1, NotchRow 2-5, NotchHeight 6, NotchDepth 7) cut dark into
+                  the sides of one part along a row in the part's own space (its pre-skinned position, so the
+                  first-person view's own field of view can't move it), and a soul-forged gun's faint rim glow in its
+                  rarity's color (SoulLight 8-11, emissive).
   M_WorldFoliage  masked, two-sided (back faces keep the front's normal), the same maps (opacity from the base
                   color's alpha) plus wind: vertex color R is how far a vertex sways, G offsets its phase;
                   WindStrength (cm), WindSpeed, WindDirection.
@@ -441,6 +445,76 @@ C *= 1.0 - Wear * 0.08;
 return float4(C, Scuff);"""
 
 
+# The tally cut into a gun's stock (UWeaponModelComponent::ShowNotches; Source/AI_Looter_Shooter/Weapons/
+# WeaponModelNotches.cpp places it on each part). Every edge is filtered to the pixel (the overlap of a pixel-wide box
+# with the cut), so far off the marks fade to a dark smudge instead of shimmering.
+TALLY_CODE = """// Marks cuts, four upright and a fifth slashed across them in each group of five, along the row from Row.xy to Row.zw in
+// the part's own space (cm: X along the gun, Z up), Height tall, cut only into the outside of its sides (a sideways
+// surface at least Depth from the part's middle). Returns the cut (x) and a pale lip of chipped finish beside it (y).
+float2 Result = float2(0.0, 0.0);
+float2 Delta = Row.zw - Row.xy;
+float Len = max(length(Delta), 0.01);
+float2 Along = Delta / Len;
+float2 Across = float2(-Along.y, Along.x);
+float S = dot(Local.xz - Row.xy, Along);
+float T = dot(Local.xz - Row.xy, Across);
+// The pixel's footprint, taken before any branch (gradients need every pixel of the quad).
+float Px = max(max(fwidth(S), fwidth(T)), 0.001);
+if (Marks > 0.5)
+{
+    float Side = saturate((abs(normalize(LocalNormal).y) - 0.55) * 5.0) * step(Depth, abs(Local.y));
+    float Group = Len / 5.0;
+    float Pitch = Group / 5.5;
+    float HalfW = Pitch * 0.22;
+    float HalfH = Height * 0.5;
+    float G = floor(S / Group);
+    float X = S - G * Group;
+    float Cut = 0.0;
+    float Lip = 0.0;
+    if (Side > 0.0 && G >= 0.0 && G < 5.0)
+    {
+        // The nearest upright, if it's been cut yet; each leans and runs a little its own way, as if cut by hand.
+        float K = clamp(floor(X / Pitch), 0.0, 3.0);
+        float Hand = frac(sin((G * 4.0 + K + 1.0) * 78.233) * 43758.5453);
+        float D = X - (K + 0.5) * Pitch - T * (Hand - 0.5) * 0.14;
+        float Reach = HalfH * (0.88 + 0.16 * Hand);
+        float AD = abs(D);
+        float AT = abs(T);
+        float Upright = saturate((min(HalfW, AD + Px * 0.5) - max(-HalfW, AD - Px * 0.5)) / Px)
+                      * saturate((min(Reach, AT + Px * 0.5) - max(-Reach, AT - Px * 0.5)) / Px);
+        float LD = abs(D - HalfW * 1.9);
+        float LipW = HalfW * 0.45;
+        float LipCover = saturate((min(LipW, LD + Px * 0.5) - max(-LipW, LD - Px * 0.5)) / Px) * step(AT, Reach);
+        float IsCut = step(G * 5.0 + K + 0.5, Marks);
+        Cut = Upright * IsCut;
+        Lip = LipCover * IsCut;
+        // The fifth slashes across the four once the group is full.
+        if (G * 5.0 + 4.5 < Marks)
+        {
+            float2 A = float2(-0.15 * Pitch, -HalfH * 0.8);
+            float2 AB = float2(4.3 * Pitch, HalfH * 1.6);
+            float2 Q = float2(X, T) - A;
+            float SD = length(Q - AB * saturate(dot(Q, AB) / dot(AB, AB)));
+            float SW = HalfW * 1.1;
+            Cut = max(Cut, saturate((min(SW, SD + Px * 0.5) - max(-SW, SD - Px * 0.5)) / Px));
+        }
+    }
+    Result = float2(Cut * Side, Lip * Side * (1.0 - Cut));
+}
+return Result;"""
+
+# The cut takes the finish off and lies in shadow; beside it the finish is chipped paler.
+CARVE_CODE = """float3 C = Color * (1.0 - 0.8 * Tally.x);
+return lerp(C, C * 1.3 + 0.025, Tally.y * 0.6);"""
+
+# A soul-forged gun's soul-light: faint over it, gathering at its edges as they turn away, breathing slowly. Soul.a is
+# its strength, 0 on every other gun.
+SOUL_CODE = """float Facing = saturate(dot(normalize(N), normalize(V)));
+float Rim = pow(1.0 - Facing, 3.0);
+float Breath = 0.8 + 0.2 * sin(Time * 1.6);
+return Soul.rgb * Soul.a * (0.08 + Rim) * Breath;"""
+
+
 def build_gun(orm_default):
     mat = material('M_Gun')
     g = Graph(mat)
@@ -461,14 +535,52 @@ def build_gun(orm_default):
     g.link(worn, '', rgb, '')
     scuff = g.node(unreal.MaterialExpressionComponentMask, 0, 0, r=False, g=False, b=False, a=True)
     g.link(worn, '', scuff, '')
-    rough = g.custom('return saturate(Roughness + Wear * 0.12 + Scuff * 0.15);', [
-        ('Roughness', orm, 'G'), ('Wear', wear, ''), ('Scuff', scuff, ''),
+
+    # Notches (UWeaponModelComponent::ShowNotches sets the custom primitive data per part; 0 on parts without them).
+    def cpd_scalar(name, index, x, y):
+        return g.node(unreal.MaterialExpressionScalarParameter, x, y, parameter_name=name, default_value=0.0,
+                      use_custom_primitive_data=True, primitive_data_index=index)
+
+    def cpd_vector(name, index, x, y):
+        return g.node(unreal.MaterialExpressionVectorParameter, x, y, parameter_name=name,
+                      default_value=unreal.LinearColor(0.0, 0.0, 0.0, 0.0), use_custom_primitive_data=True,
+                      primitive_data_index=index)
+
+    # The part's own position and normal from the vertex shader (pre-skinned: the mesh's own space, which neither the
+    # gun's place nor the first-person view's field of view and scale can move), handed on to the pixels.
+    local = g.node(unreal.MaterialExpressionVertexInterpolator, -800, 1200)
+    g.link(g.node(unreal.MaterialExpressionPreSkinnedPosition, -1100, 1200), '', local, 'VS')
+    local_normal = g.node(unreal.MaterialExpressionVertexInterpolator, -800, 1350)
+    g.link(g.node(unreal.MaterialExpressionPreSkinnedNormal, -1100, 1350), '', local_normal, 'VS')
+    tally = g.custom(TALLY_CODE, [
+        ('Local', local, ''),
+        ('LocalNormal', local_normal, ''),
+        ('Marks', cpd_scalar('NotchMarks', 1, -800, 1500), ''),
+        ('Row', cpd_vector('NotchRow', 2, -800, 1600), 'RGBA'),
+        ('Height', cpd_scalar('NotchHeight', 6, -800, 1700), ''),
+        ('Depth', cpd_scalar('NotchDepth', 7, -800, 1800), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT2, -300, 1300, 'Notch tally')
+    carved = g.custom(CARVE_CODE, [
+        ('Color', rgb, ''), ('Tally', tally, ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, 200, -300, 'Carved tally')
+    rough = g.custom('return lerp(saturate(Roughness + Wear * 0.12 + Scuff * 0.15), 0.95, Tally.x);', [
+        ('Roughness', orm, 'G'), ('Wear', wear, ''), ('Scuff', scuff, ''), ('Tally', tally, ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, 200, 100, 'Worn roughness')
-    g.out(rgb, '', unreal.MaterialProperty.MP_BASE_COLOR)
+    occlusion = g.custom('return Occlusion * (1.0 - 0.6 * Tally.x);', [
+        ('Occlusion', ao, ''), ('Tally', tally, ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, 200, 300, 'Tally occlusion')
+    soul = g.custom(SOUL_CODE, [
+        ('Soul', cpd_vector('SoulLight', 8, -300, 1900), 'RGBA'),
+        ('N', g.node(unreal.MaterialExpressionPixelNormalWS, -300, 2000), ''),
+        ('V', g.node(unreal.MaterialExpressionCameraVectorWS, -300, 2100), ''),
+        ('Time', g.node(unreal.MaterialExpressionTime, -300, 2200), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, 200, 600, 'Soul-light')
+    g.out(carved, '', unreal.MaterialProperty.MP_BASE_COLOR)
     g.out(nrm, 'RGB', unreal.MaterialProperty.MP_NORMAL)
     g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
     g.out(orm, 'B', unreal.MaterialProperty.MP_METALLIC)
-    g.out(ao, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
+    g.out(occlusion, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
+    g.out(soul, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     finish(mat, [])
     return mat
 

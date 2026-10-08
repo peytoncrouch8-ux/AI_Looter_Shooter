@@ -2,6 +2,7 @@
 #include "Loot/AmmoPickup.h"
 #include "Loot/LootTable.h"
 #include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponCurses.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "AI_Looter_Shooter.h"
@@ -139,9 +140,22 @@ FLootRoll ULootLibrary::RollLoot(const ULootTable* LootTable, int32 Level, float
 	}
 	for (const FLootWeaponPick& Pick : RollWeaponPicks(LootTable, ExtraLuck, Random))
 	{
-		Roll.Weapons.Add(UWeaponRollLibrary::RollWeaponWithRarity(Pick.Definition, Pick.Rarity, Level));
+		Roll.Weapons.Add(RollDroppedWeapon(Pick.Definition, Pick.Rarity, Level));
 	}
 	return Roll;
+}
+
+FWeaponInstanceData ULootLibrary::RollDroppedWeapon(UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level)
+{
+	FWeaponInstanceData Gun = UWeaponRollLibrary::RollWeaponWithRarity(Definition, Rarity, Level);
+	// Only guns that drop can come cursed (the curse is drawn from the gun's own seed, so the loot stream doesn't move);
+	// mission rewards, the tutorial's rack and starting guns are made without this.
+	Gun.Curse = WeaponCurses::Roll(Gun);
+	if (!Gun.Curse.IsNone())
+	{
+		Gun.Stats = UWeaponRollLibrary::ComputeInstanceStats(Gun);
+	}
+	return Gun;
 }
 
 TArray<FAmmoDrop> ULootLibrary::RollAmmo(const ULootTable* LootTable, FRandomStream& Random, TOptional<EAmmoType> KillAmmo)

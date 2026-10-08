@@ -4,6 +4,7 @@
 #include "GameFramework/HUD.h"
 #include "LooterHUD.generated.h"
 
+class UBenchWidget;
 class UBestiaryWidget;
 class UHudCaptionWidget;
 class UHudMissionTrackerWidget;
@@ -25,9 +26,10 @@ enum class EInventoryPage : uint8
 
 /**
  * Owns the player HUD, the mission tracker, the captions, inventory screen, the station board (a jetty's or a station's,
- * opened by holding Interact at it) and pause menu (the settings menu over the paused game), plus the always-on menu
- * hotkeys. Set as the HUD Class on the game mode. The gameplay HUD hides while a menu is open (the mission tracker and
- * the captions step aside by themselves).
+ * opened by holding Interact at it), the gunsmith's bench's screen (opened with Interact at a bench) and pause menu (the
+ * settings menu over the paused game), plus the always-on menu hotkeys. Set as the HUD Class on the game mode. The gameplay
+ * HUD hides while a menu is open (the mission tracker and the captions step aside by themselves). Its pages sound as they
+ * open and close (LooterSoundCue::Open, Close; Tab between the inventory's pages).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ALooterHUD : public AHUD
@@ -69,8 +71,18 @@ public:
 
 	bool IsStationBoardOpen() const { return bStationBoardOpen; }
 
-	/** The inventory, the station board or the pause menu is up (the gameplay HUD is hidden). */
-	bool IsMenuOpen() const { return bInventoryOpen || bPauseMenuOpen || bStationBoardOpen; }
+	/**
+	 * Opens the gunsmith's bench's screen (UBenchWidget) for the guns the player carries, the mouse on it; Bench is the bench
+	 * used (null: the console's). False when it can't (no player with guns to carry, the pause menu up).
+	 */
+	bool OpenBench(AActor* Bench);
+
+	void CloseBench();
+
+	bool IsBenchOpen() const { return bBenchOpen; }
+
+	/** The inventory, the station board, the bench's screen or the pause menu is up (the gameplay HUD is hidden). */
+	bool IsMenuOpen() const { return bInventoryOpen || bPauseMenuOpen || bStationBoardOpen || bBenchOpen; }
 
 	/** The HUD of the local player behind Player (their pawn or controller), or null. */
 	static ALooterHUD* FindFor(const AActor* Player);
@@ -98,6 +110,12 @@ private:
 
 	/** Gives input back to the game after closing a menu. */
 	void RestoreGameInput();
+
+	/** A page opening or closing sounds (closing stays quiet while another page takes its place: bQuietClose). */
+	void PlayPageSound(bool bOpening) const;
+
+	/** Set while one page closes to make way for another, which sounds for both. */
+	bool bQuietClose = false;
 
 	/** Shows or hides the labels drawn over the world (creature tags, loot labels, damage numbers), which sit over menus. */
 	void SetWorldLabelsVisible(bool bVisible);
@@ -143,7 +161,12 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UStationBoardWidget> StationBoardWidget;
 
+	/** The gunsmith's bench's screen, made the first time a bench is used. */
+	UPROPERTY(Transient)
+	TObjectPtr<UBenchWidget> BenchWidget;
+
 	bool bInventoryOpen = false;
 	bool bPauseMenuOpen = false;
 	bool bStationBoardOpen = false;
+	bool bBenchOpen = false;
 };

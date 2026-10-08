@@ -1,6 +1,8 @@
 #include "Weapons/WeaponBase.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/LooterSound.h"
 #include "Combat/BulletSubsystem.h"
+#include "Weapons/WeaponCurseEffects.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Player/PlayerLocomotionComponent.h"
@@ -102,6 +104,9 @@ AWeaponBase::AWeaponBase()
 	SpinMovement = CreateDefaultSubobject<URotatingMovementComponent>(TEXT("SpinMovement"));
 	SpinMovement->bAutoActivate = false;
 	SpinMovement->RotationRate = FRotator(0.f, 90.f, 0.f);
+
+	// Each gun its own luck: a stream left at its default seed would misfire every Unlucky iron on the same shots.
+	ShotRolls.GenerateNewSeed();
 }
 
 void AWeaponBase::InitializeFromInstance(const FWeaponInstanceData& InInstance)
@@ -153,14 +158,19 @@ void AWeaponBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	UpdateReloadPart();
+	if (bReloading)
+	{
+		PlayReloadSteps(GetReloadProgress());
+	}
 	UpdateMuzzleFlash(DeltaSeconds);
+	UpdateBeamGutter();
 	RefreshTick();
 }
 
 void AWeaponBase::RefreshTick()
 {
 	const bool bAnimatingReload = bReloading && GetReloadPart() != EWeaponReloadPart::None;
-	const bool bWanted = bAnimatingReload || FlashTimeLeft > 0.f;
+	const bool bWanted = bAnimatingReload || FlashTimeLeft > 0.f || IsBeamGuttering();
 	if (IsActorTickEnabled() != bWanted)
 	{
 		SetActorTickEnabled(bWanted);
@@ -172,6 +182,11 @@ void AWeaponBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearAllTimersForObject(this);
+	}
+	// A gun destroyed in its holder's hand takes its curse's hold on their health with it.
+	if (EndPlayReason == EEndPlayReason::Destroyed)
+	{
+		WeaponCurseEffects::RefreshHolder(GetOwner(), this);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -236,6 +251,15 @@ void AWeaponBase::OnEquipped(APawn* NewOwner, USceneComponent* AttachTo, FName S
 		ReadySeconds = BaseReadySeconds / FMath::Max(Instance.Stats.Handling, 0.1f);
 		LastFireTime = FMath::Max(LastFireTime, DrawnTime + ReadySeconds - Instance.Stats.GetSecondsBetweenShots());
 	}
+
+	// The manager equips a gun it only puts away too (then holsters it at once): only one taken in hand is heard, and
+	// only the one in hand sets its holder's max health (Grasping).
+	const UWeaponManagerComponent* Inventory = GetHolderInventory();
+	if (Inventory && Inventory->GetActiveWeapon() == this)
+	{
+		PlayCue(LooterSoundCue::Equip);
+	}
+	WeaponCurseEffects::RefreshHolder(NewOwner);
 }
 
 void AWeaponBase::AttachToHolder(USceneComponent* AttachTo, FName Socket, const FTransform& AttachOffset)
@@ -270,6 +294,8 @@ void AWeaponBase::OnHolstered()
 	MuzzleLight->SetVisibility(false);
 	RefreshTick();
 	SetActorHiddenInGame(true);
+	// Out of the hand (the manager may not have moved on yet): the holder's max health is the next gun's, or their own.
+	WeaponCurseEffects::RefreshHolder(GetOwner(), this);
 }
 
 void AWeaponBase::OnDropped()
@@ -348,9 +374,13 @@ void AWeaponBase::RefreshLootBeam()
 	LootBeam->SetVisibility(bShow);
 	if (bShow)
 	{
-		LightBeams::Setup(LootBeam, UWeaponRollLibrary::GetRarityColor(Instance.Definition, Instance.Rarity),
-			Instance.Rarity >= EWeaponRarity::Epic ? 3.f : 2.f, Height, Instance.Rarity >= EWeaponRarity::Epic ? 9.f : 6.f);
+		BeamGlow = Instance.Rarity >= EWeaponRarity::Epic ? 3.f : 2.f;
+		BeamHeight = Height;
+		BeamRadius = Instance.Rarity >= EWeaponRarity::Epic ? 9.f : 6.f;
+		LightBeams::Setup(LootBeam, UWeaponRollLibrary::GetRarityColor(Instance.Definition, Instance.Rarity), BeamGlow, BeamHeight, BeamRadius);
 	}
+	// A cursed one's beam gutters, which takes ticking while it lies there.
+	RefreshTick();
 }
 
 void AWeaponBase::SetLabelState(bool bVisible, bool bFocused)

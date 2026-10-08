@@ -16,6 +16,7 @@ class UPrimitiveComponent;
 class UPointLightComponent;
 class ULootTossComponent;
 class URotatingMovementComponent;
+class USoundBase;
 class UWeaponModelComponent;
 class UWidgetComponent;
 class UWeaponManagerComponent;
@@ -29,8 +30,13 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnWeaponHit, const FHitResult&, 
 /**
  * A single rolled weapon. Fires real bullets (UBulletSubsystem) and supports semi/full-auto/burst and multi-pellet shots.
  * Aims from the owning pawn's view point, so it works for both players and AI. Each shot flashes at the muzzle and
- * kicks (the holder's view and animation read the recoil profile).
+ * kicks (the holder's view and animation read the recoil profile), and every shot, reload step, draw and dry click
+ * plays its sound cue (LooterSound) on the gun.
  * When unowned it acts as a loot pickup: it spins, glows in its rarity color, and shows a label.
+ *
+ * It counts its kills as notches (WeaponBaseNotches.cpp; WeaponNotches has the rules), and a cursed iron's drawbacks act
+ * where they bite: misfires and rounds per shot as it fires, the health a reload costs, the holder's max health while
+ * it's in hand (WeaponCurseEffects). Its loot beam gutters like a dying flame while it's cursed.
  */
 UCLASS(Blueprintable)
 class AI_LOOTER_SHOOTER_API AWeaponBase : public AActor
@@ -145,6 +151,22 @@ public:
 	/** A bullet from this weapon hit something (the bullet system calls this when it lands). Broadcasts OnHit. */
 	void NotifyBulletHit(const FHitResult& Hit, float Damage, bool bCritical);
 
+	/**
+	 * A creature this gun killed (UPlayerProgressionSubsystem::CreditKillWeapon): one more notch. At a milestone its
+	 * stats are rebuilt (its damage), the holder's HUD says so and a chime plays; at 100 notches a curse lifts the same way.
+	 * The tally cut in its stock follows.
+	 */
+	void AddKill();
+
+	/**
+	 * The gun behind Victim's latest damage (UHealthComponent::GetLastDamageCauser): the gun itself, or the gun in the hand
+	 * of whoever dealt it (or owns what did). Null when no gun was behind it.
+	 */
+	static AWeaponBase* FindKillWeapon(const AActor* Victim);
+
+	/** The sights come up: its holder's view calls this as aiming starts, for the aim-in sound. */
+	void PlayAimIn() const;
+
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	bool CanReload() const;
 
@@ -231,8 +253,14 @@ private:
 
 	void HandleFiring();
 	void FireShot();
+	/** A cursed iron's dud (Unlucky): the hammer falls, a dull pop and a wisp of smoke at the muzzle, no bullet. */
+	void Misfire();
+	/** A sound cue on the gun, following it in hand; the definition's own sound in its place when it sets one. */
+	void PlayCue(FName Cue, USoundBase* Override = nullptr) const;
 	void FinishReload();
 	void CancelReload();
+	/** The reload's sounds (LooterReload::Steps) whose moments it has passed since it last looked. */
+	void PlayReloadSteps(float Progress);
 	/** Moves the magazine or pump to where the reload has got to (back in place when not reloading). */
 	void UpdateReloadPart();
 	/** Places the muzzle flash on the current model's muzzle and sets up its quads. */
@@ -244,6 +272,9 @@ private:
 	void BroadcastAmmo();
 	void SetPickupState(bool bPickup);
 	void RefreshLootBeam();
+	/** Lying as loot with a curse on it: its beam gutters (LightBeams::Gutter), so it ticks. */
+	bool IsBeamGuttering() const;
+	void UpdateBeamGutter();
 
 	UFUNCTION()
 	void HandleTossStopped(const FHitResult& ImpactResult);
@@ -269,6 +300,17 @@ private:
 	float FlashStrength = 1.f;
 	/** Full glow of each muzzle flash quad, which fades with the flash. */
 	TArray<float, TInlineAllocator<8>> FlashGlow;
+
+	/** The curses' rolls (Unlucky's misfires): a stream of its own, seeded afresh for each gun. */
+	FRandomStream ShotRolls;
+
+	/** How far through the current reload its sounds have played. */
+	float ReloadSoundProgress = 0.f;
+
+	/** The loot beam's steady numbers (RefreshLootBeam), which a cursed gun's beam gutters about. */
+	float BeamGlow = 0.f;
+	float BeamHeight = 0.f;
+	float BeamRadius = 0.f;
 
 	FTimerHandle FireTimer;
 	FTimerHandle ReloadTimer;

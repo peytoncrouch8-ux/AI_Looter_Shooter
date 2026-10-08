@@ -5,6 +5,7 @@
 #include "UI/HUD/HudWeaponSlotsWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
+#include "Audio/LooterSound.h"
 #include "Combat/HealthComponent.h"
 #include "Interaction/InteractionComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
@@ -291,9 +292,16 @@ void UPlayerHUDWidget::HandleHit(const FHitResult& Hit, float Damage, bool bCrit
 {
 	// Only confirm hits on things that can actually be hurt, not walls.
 	const AActor* HitActor = Hit.GetActor();
-	if (!HitActor || !HitActor->FindComponentByClass<UHealthComponent>())
+	const UHealthComponent* TargetHealth = HitActor ? HitActor->FindComponentByClass<UHealthComponent>() : nullptr;
+	if (!TargetHealth)
 	{
 		return;
+	}
+	// Heard as well as seen. The hit lands before the HUD hears of it, so a dead target is a kill, which has its own sound
+	// (the creature's voice plays UI.Kill once per death), or a body already down, which confirms nothing more.
+	if (!TargetHealth->IsDead())
+	{
+		LooterSound::Play2D(this, bCritical ? LooterSoundCue::HitMarkerCrit : LooterSoundCue::HitMarker);
 	}
 
 	HitMarkerTime = 0.18f;

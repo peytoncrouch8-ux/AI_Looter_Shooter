@@ -8,7 +8,6 @@
 
 class UBoxComponent;
 class USceneComponent;
-class USoundBase;
 class UStaticMeshComponent;
 
 /**
@@ -19,7 +18,7 @@ class UStaticMeshComponent;
  *
  * Holding Interact on the rope for HoldSeconds rings it: the bell swings about its axis, a swing every SwingSeconds dying
  * away over RingSeconds, big enough to read through the belfry's louvres from the yard, and the clapper tolls at each end
- * of a swing while it still swings hard (TollSound, when there is one; none is made yet). It can't be rung again until
+ * of a swing while it still swings hard (World.ChapelBell.Toll, quieter as it dies). It can't be rung again until
  * it's still, nor while RingWhen doesn't hold (empty: always). The player's interaction component tells the missions (a
  * held Interact on the actor tagged Bell_Chapel: Main 4's third step).
  *
@@ -113,10 +112,6 @@ public:
 	/** The clapper strikes while a swing still reaches this share of the first one's strength. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bell|Swing", meta = (ClampMin = "0", ClampMax = "1"))
 	float TollWhileAbove = 0.25f;
-
-	/** The toll at each stroke, quieter as the swing dies (none made yet: it plays when set). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bell")
-	TObjectPtr<USoundBase> TollSound;
 
 protected:
 	virtual void BeginPlay() override;

@@ -5,6 +5,7 @@
 
 #include "Creatures/GravemotherCreature.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/CreatureVoiceComponent.h"
 #include "Combat/BulletSubsystem.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/GroundCrack.h"
@@ -265,6 +266,8 @@ void AGravemotherCreature::BeginDash()
 	{
 		Open->SetOpen(1.f);
 	}
+	// She screams down the crack: the rear's cry was the warning, this is the charge.
+	Voice->Play(LooterSoundCue::SpiderAlert);
 	if (ChargeLength <= 1.f)
 	{
 		// Nowhere to run: she slams down where she stands.

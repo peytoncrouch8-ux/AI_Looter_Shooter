@@ -1,5 +1,6 @@
 #include "Combat/BulletSubsystem.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/LooterSound.h"
 #include "Combat/CombatRules.h"
 #include "Combat/CriticalSpotTarget.h"
 #include "Combat/HealthComponent.h"
@@ -13,10 +14,39 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInterface.h"
 #include "NiagaraFunctionLibrary.h"
 
 namespace
 {
+	/**
+	 * Impacts closer together than this (seconds and cm) make one sound: a shotgun's nine pellets on a wall are one crack,
+	 * and a long burst into the dirt doesn't stack a sound per round.
+	 */
+	constexpr double ImpactSoundGap = 0.05;
+	constexpr float ImpactSoundMerge = 250.f;
+
+	/**
+	 * Words in a material's name that say what a surface is made of. The world's materials are instances named for their
+	 * texture sets (MI_WoodPlanks, MI_MetalRust, MI_LanternIron, MI_Water...), so the name is the best clue there is.
+	 */
+	const TCHAR* const WaterWords[] = { TEXT("Water") };
+	const TCHAR* const MetalWords[] = { TEXT("Metal"), TEXT("Iron"), TEXT("Steel"), TEXT("Brass"), TEXT("Rust"), TEXT("Gun"), TEXT("Bell") };
+	const TCHAR* const WoodWords[] = { TEXT("Wood"), TEXT("Plank"), TEXT("Bark"), TEXT("Walnut"), TEXT("HouseTrim"), TEXT("Paint"), TEXT("Hay") };
+
+	/** Matched as written ("Iron" in MI_LanternIron, not the "iron" in an environment material's name). */
+	bool NameHasAny(const FString& Name, TConstArrayView<const TCHAR*> Words)
+	{
+		for (const TCHAR* Word : Words)
+		{
+			if (Name.Contains(Word, ESearchCase::CaseSensitive))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** Tracer glow strength (the material multiplies the color by it). */
 	constexpr float TracerGlow = 30.f;
 	/** Instant (hitscan) shots flash a thinner beam along their whole path for a frame. */
@@ -66,6 +96,62 @@ EImpactSurface UBulletSubsystem::SurfaceOf(const AActor* Actor)
 		return EImpactSurface::Target;
 	}
 	return EImpactSurface::World;
+}
+
+FName UBulletSubsystem::ImpactCueOf(const FHitResult& Hit, EImpactSurface Surface)
+{
+	if (Surface == EImpactSurface::Flesh)
+	{
+		return NAME_None;
+	}
+	if (Surface == EImpactSurface::Target)
+	{
+		// The training dummies are plated: they ring.
+		return LooterSoundCue::ImpactMetal;
+	}
+	// The material where it struck (the face's, from a complex trace), else the component's first.
+	const UPrimitiveComponent* Component = Hit.GetComponent();
+	if (!Component)
+	{
+		return LooterSoundCue::ImpactWorld;
+	}
+	int32 Section = 0;
+	const UMaterialInterface* Material = Hit.FaceIndex != INDEX_NONE ? Component->GetMaterialFromCollisionFaceIndex(Hit.FaceIndex, Section) : nullptr;
+	if (!Material && Component->GetNumMaterials() > 0)
+	{
+		Material = Component->GetMaterial(0);
+	}
+	const FString Name = Material ? Material->GetName() : FString();
+	if (NameHasAny(Name, MakeArrayView(WaterWords)))
+	{
+		return LooterSoundCue::ImpactWater;
+	}
+	if (NameHasAny(Name, MakeArrayView(MetalWords)))
+	{
+		return LooterSoundCue::ImpactMetal;
+	}
+	if (NameHasAny(Name, MakeArrayView(WoodWords)))
+	{
+		return LooterSoundCue::ImpactWood;
+	}
+	return LooterSoundCue::ImpactWorld;
+}
+
+void UBulletSubsystem::PlayImpactSound(const FHitResult& Hit, EImpactSurface Surface)
+{
+	const UWorld* World = GetWorld();
+	if (!World || Surface == EImpactSurface::Flesh)
+	{
+		return;
+	}
+	const double Now = World->GetTimeSeconds();
+	if (Now - LastImpactSoundTime < ImpactSoundGap && FVector::DistSquared(Hit.ImpactPoint, LastImpactSoundAt) < FMath::Square(ImpactSoundMerge))
+	{
+		return;
+	}
+	LastImpactSoundTime = Now;
+	LastImpactSoundAt = Hit.ImpactPoint;
+	LooterSound::PlayAt(this, ImpactCueOf(Hit, Surface), Hit.ImpactPoint);
 }
 
 FVector UBulletSubsystem::TracerPoint(const FBulletShot& Shot, float Distance)
@@ -125,6 +211,8 @@ void UBulletSubsystem::Advance(FBullet& Bullet, float DeltaSeconds)
 
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(BulletTrace), /*bTraceComplex*/ true);
 	Params.bReturnPhysicalMaterial = true;
+	// The face it hits names the material there, which picks the impact's sound (ImpactCueOf).
+	Params.bReturnFaceIndex = true;
 	if (AActor* Shooter = Shot.Shooter.Get())
 	{
 		Params.AddIgnoredActor(Shooter);
@@ -165,21 +253,22 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 	AWeaponBase* Weapon = Shot.Weapon.Get();
 	const EImpactSurface Surface = SurfaceOf(HitActor);
 
-	// The target says where its critical spots are; the damage rules (range roll, x1.5 crit) are the same for every weapon.
+	// The target says where its critical spots are; the damage rules (range roll, x1.5 crit) are the same for every weapon,
+	// but for a cursed iron's critical multiplier (the gun hands it over with the shot).
 	const ICriticalSpotTarget* Target = Cast<ICriticalSpotTarget>(HitActor);
 	const bool bCritical = Target && Target->IsCriticalSpot(Hit);
 	const float Roll = FMath::FRand();
 	// Past the gun's range the damage falls off with the distance flown.
 	const float Falloff = Shot.FalloffStats.IsSet() ? Shot.FalloffStats->DamageAtDistance(Bullet.Traveled) : 1.f;
-	const float Damage = LooterCombat::HitDamage(Shot.Damage * Falloff, bCritical, Roll);
+	const float Damage = LooterCombat::HitDamage(Shot.Damage * Falloff, bCritical, Roll, Shot.CritMultiplier);
 	const FString Part = Hit.BoneName.IsNone() ? GetNameSafe(Hit.GetComponent())
 		: FString::Printf(TEXT("%s bone %s"), *GetNameSafe(Hit.GetComponent()), *Hit.BoneName.ToString());
 	UE_LOG(LogLooter, Verbose, TEXT("Hit %s on %s after %.0f cm: %.1f (range %.1f-%.1f, roll %.2f) x%.2f = %.1f%s"), *GetNameSafe(HitActor),
 		*Part, Bullet.Traveled, Shot.Damage, LooterCombat::MinHitDamage(Shot.Damage),
-		LooterCombat::MaxHitDamage(Shot.Damage), Roll, bCritical ? LooterCombat::CriticalHitMultiplier : 1.f, Damage,
+		LooterCombat::MaxHitDamage(Shot.Damage), Roll, bCritical ? FMath::Max(Shot.CritMultiplier, 1.f) : 1.f, Damage,
 		bCritical ? TEXT(" CRIT") : TEXT(""));
 
-	// Looks first: the damage below may kill the target.
+	// Looks and sound first: the damage below may kill the target.
 	if (UNiagaraSystem* ImpactFX = Shot.ImpactFX.Get())
 	{
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ImpactFX, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
@@ -189,6 +278,7 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 		Effects.Initialize(GetWorld());
 		Effects.SpawnImpact(Hit.ImpactPoint, Hit.ImpactNormal, Shot.Direction, Surface, bCritical);
 	}
+	PlayImpactSound(Hit, Surface);
 
 	if (HitActor)
 	{

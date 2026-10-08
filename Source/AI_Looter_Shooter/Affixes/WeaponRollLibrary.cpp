@@ -1,7 +1,9 @@
 #include "Affixes/WeaponRollLibrary.h"
 #include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponCurses.h"
 #include "Weapons/WeaponDefinition.h"
+#include "Weapons/WeaponNotches.h"
 #include "Weapons/WeaponParts.h"
 #include "AI_Looter_Shooter.h"
 #include "Engine/World.h"
@@ -104,8 +106,21 @@ FWeaponStats UWeaponRollLibrary::ComputeInstanceStats(const FWeaponInstanceData&
 {
 	// A named gun is one gun: its stats sit at its fixed quality on every copy, and follow that quality if it's tuned.
 	const UNamedWeaponDefinition* Named = Instance.Named;
-	return ComputeStatsWithParts(Instance.Definition, Instance.Rarity, Instance.Level, Instance.Seed, Instance.Parts,
+	FWeaponStats Stats = ComputeStatsWithParts(Instance.Definition, Instance.Rarity, Instance.Level, Instance.Seed, Instance.Parts,
 		Named ? TOptional<float>(Named->StatQuality) : TOptional<float>());
+	if (!Instance.Definition)
+	{
+		return Stats;
+	}
+	// Then what the gun has been through: its notches' damage, and its curse's perk and drawback. A gun with neither (every
+	// gun found before notches and curses) keeps exactly the numbers it had.
+	const float NotchDamage = WeaponNotches::DamageMultiplier(Instance.Kills);
+	if (NotchDamage != 1.f)
+	{
+		Stats.Damage *= NotchDamage;
+	}
+	WeaponCurses::ApplyToStats(Instance, Stats);
+	return Stats;
 }
 
 FWeaponInstanceData UWeaponRollLibrary::RollWeapon(UWeaponDefinition* Definition, int32 Level, float Luck)

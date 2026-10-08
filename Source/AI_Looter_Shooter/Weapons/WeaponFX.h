@@ -18,7 +18,8 @@ enum class EImpactSurface : uint8
 };
 
 /**
- * Code-drawn weapon effects: tracer streaks, impact sparks, flashes, dust puffs and flying chips or droplets. It is all
+ * Code-drawn weapon effects: tracer streaks, impact sparks, flashes, dust puffs and flying chips or droplets (and the
+ * dust and grit a player's slide kicks up, FSlideDust, through SpawnDustPuff and SpawnGrit). It is all
  * instanced quads and chunks on a few instanced static mesh components (redrawn every frame, quads turned to face the
  * camera), so there are no particle assets to author. The look comes from two small materials, M_FX_Glow (additive) and
  * M_FX_Smoke (translucent), which read each instance's color and strength from its custom data.
@@ -47,6 +48,17 @@ public:
 	 * tossed out that fall back. A Strength nearer 1 throws more, farther.
 	 */
 	void SpawnDirt(const FVector& Location, const FVector& Up, float Strength);
+
+	/**
+	 * One puff of dust drifting from Location at Velocity (air drag slows it, it rises a little), growing from StartSize
+	 * to EndSize as it fades over Life seconds. The smoke material is unlit, so Color is the dust as the light where it
+	 * is shows it (FSlideDust works that out): dust in shade or at dusk stays dim instead of glowing.
+	 */
+	void SpawnDustPuff(const FVector& Location, const FVector& Velocity, const FLinearColor& Color, float Opacity, float StartSize,
+		float EndSize, float Life);
+
+	/** One grain of grit or gravel thrown from Location: a tiny lit chip that tumbles and falls. */
+	void SpawnGrit(const FVector& Location, const FVector& Velocity, float Size, float Life);
 
 	/** Advances the particles and redraws everything, turned to face the camera. */
 	void Tick(float DeltaSeconds, const FVector& CameraLocation);

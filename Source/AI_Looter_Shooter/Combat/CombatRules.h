@@ -28,6 +28,16 @@ namespace LooterCombat
 		return BaseDamage * Scale * (bCritical ? CriticalHitMultiplier : 1.f);
 	}
 
+	/**
+	 * HitDamage with a critical hit's own multiplier: a cursed iron's (WeaponCurses::CritMultiplier: Unlucky's triple,
+	 * Cold's extra) in place of CriticalHitMultiplier.
+	 */
+	inline float HitDamage(float BaseDamage, bool bCritical, float Roll, float CritMultiplier)
+	{
+		const float Scale = FMath::Lerp(1.f - DamageVariance, 1.f + DamageVariance, FMath::Clamp(Roll, 0.f, 1.f));
+		return BaseDamage * Scale * (bCritical ? FMath::Max(CritMultiplier, 1.f) : 1.f);
+	}
+
 	/** HitDamage with a fresh random roll. */
 	inline float RollHitDamage(float BaseDamage, bool bCritical)
 	{

@@ -2,6 +2,7 @@
 
 #include "World/ChapelBell.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/LooterSound.h"
 #include "Interaction/InteractionComponent.h"
 #include "Interaction/InteractionSubsystem.h"
 #include "Missions/MissionRunner.h"
@@ -11,9 +12,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
-#include "Kismet/GameplayStatics.h"
 #include "Misc/PackageName.h"
-#include "Sound/SoundBase.h"
 #include "UObject/ConstructorHelpers.h"
 
 const FName AChapelBell::BellTag(TEXT("Bell_Chapel"));
@@ -227,11 +226,9 @@ void AChapelBell::Advance(float DeltaSeconds)
 void AChapelBell::Toll(float Strength)
 {
 	++Strokes;
-	if (TollSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, TollSound, Bell ? Bell->GetComponentLocation() : GetActorLocation(),
-			FMath::Clamp(Strength, 0.1f, 1.f));
-	}
+	// From the belfry, quieter as the swing dies.
+	LooterSound::PlayAt(this, LooterSoundCue::ChapelBellToll, Bell ? Bell->GetComponentLocation() : GetActorLocation(),
+		FMath::Clamp(Strength, 0.1f, 1.f));
 }
 
 void AChapelBell::CaptureRest()

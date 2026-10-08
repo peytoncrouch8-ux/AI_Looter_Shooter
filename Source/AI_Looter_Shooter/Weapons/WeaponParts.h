@@ -239,11 +239,20 @@ namespace WeaponParts
 	 * a draw of its own, so changing one part never changes another's roll), summed per stat and capped. With a
 	 * FixedQuality (a named gun's) nothing is rolled: every percentage sits at that point of its range, 0 the worse end
 	 * and 1 the better (the low end for reload and recoil, where less is better).
+	 * A part's draw is the gun's seed with the part's key and nothing else, so a part fitted at the bench (WeaponPartSwap)
+	 * lands where that gun's seed puts it, exactly as if it had rolled with it, and moving it back and forth never rerolls it.
 	 */
 	AI_LOOTER_SHOOTER_API FWeaponPartTotals CombinedStats(const FWeaponLook& Look, int32 Seed, TOptional<float> FixedQuality = {});
 
 	/** The word the gun's parts put before its name (empty when none does). */
 	AI_LOOTER_SHOOTER_API FText NamePrefix(const FWeaponLook& Look);
+
+	/**
+	 * "Scoped Bullpup": the word its parts give it (if any) and its kind, or a named gun's own name ("Heirloom"); without
+	 * its nickname (LooterWeaponText::Name adds that). Here rather than in the UI, so the gun rules can name a gun in their
+	 * messages too.
+	 */
+	AI_LOOTER_SHOOTER_API FString BaseName(const FWeaponInstanceData& Instance);
 
 	/**
 	 * How worn a gun looks, 0 (factory fresh) to 1 (battered), rolled from its seed: commons come scuffed and grimy,

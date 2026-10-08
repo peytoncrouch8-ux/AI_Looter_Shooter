@@ -60,12 +60,19 @@ public:
 
 	/**
 	 * Decides what one kill drops, without spawning anything. What drops (counts, weapons, rarities, ammo classes and
-	 * amounts) comes from Random, so a seeded stream repeats it; each weapon still gets its own fresh stat seed. KillAmmo,
+	 * amounts) comes from Random, so a seeded stream repeats it; each weapon still gets its own fresh stat seed (and its
+	 * curse, if any, from that seed: RollDroppedWeapon). KillAmmo,
 	 * when set, is the ammo class of the gun that made the kill: each box leans toward it (the table's KillWeaponAmmoBias).
 	 * Without bWeapons the guns aren't drawn at all, so the ammo is what the same stream would have dropped with them.
 	 */
 	static FLootRoll RollLoot(const ULootTable* LootTable, int32 Level, float ExtraLuck, FRandomStream& Random,
 		TOptional<EAmmoType> KillAmmo = {}, bool bWeapons = true);
+
+	/**
+	 * One gun that drops (a kill's or a chest's): rolled with a fresh seed at the rarity and level, and cursed when its
+	 * seed says so (WeaponCurses::Roll: some Rare, Epic and Legendary guns), its stats with the curse in them.
+	 */
+	static FWeaponInstanceData RollDroppedWeapon(UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level);
 
 	/** RollLoot's first half: the ammo pickups one kill drops (how many, each one's class and rounds). */
 	static TArray<FAmmoDrop> RollAmmo(const ULootTable* LootTable, FRandomStream& Random, TOptional<EAmmoType> KillAmmo = {});

@@ -105,6 +105,8 @@ struct FPlayerSlide
 	bool IsEasingOut() const { return bActive && Elapsed > Duration - EaseOutTime; }
 	const FVector& GetDirection() const { return Direction; }
 	float GetStartSpeed() const { return StartSpeed; }
+	/** The most it holds (its speed until it eases out). */
+	float GetTopSpeed() const { return Top; }
 	float GetElapsed() const { return Elapsed; }
 	EEnd GetLastEnd() const { return LastEnd; }
 

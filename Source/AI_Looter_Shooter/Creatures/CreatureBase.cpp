@@ -1,5 +1,6 @@
 #include "Creatures/CreatureBase.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/CreatureVoiceComponent.h"
 #include "Combat/CombatRules.h"
 #include "Combat/HealthComponent.h"
 #include "Combat/LooterDamageTypes.h"
@@ -46,6 +47,7 @@ ACreatureBase::ACreatureBase()
 
 	Health = CreateDefaultSubobject<UHealthComponent>(TEXT("Health"));
 	Loot = CreateDefaultSubobject<ULootDropComponent>(TEXT("Loot"));
+	Voice = CreateDefaultSubobject<UCreatureVoiceComponent>(TEXT("Voice"));
 
 	HealthBar = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBar"));
 	HealthBar->SetupAttachment(GetCapsuleComponent());
@@ -141,6 +143,8 @@ void ACreatureBase::SetState(ECreatureState NewState)
 	StuckTime = 0.f;
 	EscapeTime = 0.f;
 	SteerTimer = 0.f;
+	// Heard as it turns on a player, and at an attack's wind-up (its tell).
+	Voice->HandleStateChanged(OldState, NewState);
 
 	// Hunting and attacking always run every frame, wherever it is.
 	if (NewState == ECreatureState::Chase || NewState == ECreatureState::Attack)

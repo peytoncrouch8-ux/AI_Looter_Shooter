@@ -372,6 +372,27 @@ void FWeaponFX::SpawnDirt(const FVector& Location, const FVector& Up, float Stre
 	}
 }
 
+void FWeaponFX::SpawnDustPuff(const FVector& Location, const FVector& Velocity, const FLinearColor& Color, float Opacity, float StartSize,
+	float EndSize, float Life)
+{
+	FParticle& Puff = AddParticle(EParticle::Smoke, Location, Velocity, Life);
+	Puff.Color = Color;
+	Puff.Intensity = Opacity;
+	Puff.StartSize = StartSize;
+	Puff.EndSize = EndSize;
+	Puff.Gravity = -0.02f;
+	Puff.Drag = 2.8f;
+}
+
+void FWeaponFX::SpawnGrit(const FVector& Location, const FVector& Velocity, float Size, float Life)
+{
+	FParticle& Grain = AddParticle(EParticle::Chip, Location, Velocity, Life);
+	Grain.StartSize = Size;
+	Grain.Rotation = FQuat(Random.GetUnitVector(), Random.FRandRange(0.f, 2.f * UE_PI));
+	Grain.Spin = Random.GetUnitVector() * Random.FRandRange(8.f, 22.f);
+	Grain.Drag = 0.3f;
+}
+
 // ---------------------------------------------------------------------------
 // Simulation and drawing
 // ---------------------------------------------------------------------------
@@ -437,7 +458,9 @@ void FWeaponFX::Redraw(const FVector& Camera)
 		{
 			const float Size = FMath::Lerp(Particle.StartSize, Particle.EndSize, 1.f - FMath::Square(1.f - T));
 			SmokeTransforms.Add(SpriteTransform(Particle.Location, Size, Particle.Roll, Camera));
-			const float Opacity = Particle.Intensity * FMath::Pow(1.f - T, 1.5f) * FMath::Clamp(T * 12.f, 0.f, 1.f);
+			// Thinned as the camera gets into it: a puff drifting past the eye (a slide's dust) would otherwise fill the view.
+			const float Near = FMath::Clamp((static_cast<float>(FVector::Dist(Particle.Location, Camera)) - Size * 0.25f) / 40.f, 0.f, 1.f);
+			const float Opacity = Particle.Intensity * FMath::Pow(1.f - T, 1.5f) * FMath::Clamp(T * 12.f, 0.f, 1.f) * Near;
 			SmokeData.Append({ Particle.Color.R, Particle.Color.G, Particle.Color.B, Opacity });
 			break;
 		}

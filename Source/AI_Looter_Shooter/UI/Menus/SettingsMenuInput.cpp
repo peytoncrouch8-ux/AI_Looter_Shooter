@@ -4,6 +4,7 @@
 #include "UI/Menus/SettingsMenuParts.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "Audio/LooterSound.h"
 #include "Settings/ControlSettingsSubsystem.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
@@ -269,7 +270,7 @@ void USettingsMenuWidget::StartListening(int32 BindingIndex)
 {
 	ListeningIndex = BindingIndex;
 	// Let the mouse wheel be captured as a key instead of scrolling the list.
-	ControlsList->SetConsumeMouseWheel(EConsumeMouseWheel::Never);
+	Body->SetConsumeMouseWheel(EConsumeMouseWheel::Never);
 	SetStatus(TEXT("Press the new key (Esc to cancel)."), LooterUI::Color::Accent());
 	RefreshKeyLabels();
 }
@@ -277,9 +278,9 @@ void USettingsMenuWidget::StartListening(int32 BindingIndex)
 void USettingsMenuWidget::StopListening()
 {
 	ListeningIndex = INDEX_NONE;
-	if (ControlsList)
+	if (Body)
 	{
-		ControlsList->SetConsumeMouseWheel(EConsumeMouseWheel::WhenScrollingPossible);
+		Body->SetConsumeMouseWheel(EConsumeMouseWheel::WhenScrollingPossible);
 	}
 }
 
@@ -337,6 +338,11 @@ FReply USettingsMenuWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, 
 
 	if (Key == EKeys::Escape || Key == EKeys::Gamepad_Special_Right)
 	{
+		// The pause menu's close is the HUD's to sound; the main menu has no HUD to.
+		if (Mode == ESettingsMenuMode::MainMenu)
+		{
+			LooterSound::Play2D(this, LooterSoundCue::Close);
+		}
 		OnClose.ExecuteIfBound();
 		return FReply::Handled();
 	}

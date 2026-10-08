@@ -64,6 +64,11 @@ void ULoadoutWidget::RefreshInspect()
 	}
 	InspectBox->AddChildToVerticalBox(Label(WidgetTree, FString::Printf(TEXT("Lv %d · %s · %s"), Shown->Level,
 		*LooterWeaponText::FireModeName(*Shown), *AmmoName(*Shown)), 9, Color::TextDim(), 140))->SetPadding(FMargin(0.f, 4.f, 0.f, 8.f));
+	// Its notches and its curse (perk and drawback), when it has any: between the name and the stats.
+	if (UWidget* Ideas = MakeGunIdeasRows(WidgetTree, *Shown, 9))
+	{
+		InspectBox->AddChildToVerticalBox(Ideas)->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
+	}
 
 	const FWeaponStats& S = Shown->Stats;
 	const FWeaponStats* B = Baseline ? &Baseline->Stats : nullptr;

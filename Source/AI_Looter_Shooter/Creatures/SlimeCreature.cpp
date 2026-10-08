@@ -1,5 +1,6 @@
 #include "Creatures/SlimeCreature.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/CreatureVoiceComponent.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreaturePoseAnimInstance.h"
 #include "Creatures/CreatureUpdateRate.h"
@@ -276,6 +277,7 @@ void ASlimeCreature::Landed(const FHitResult& Hit)
 	Hop = EHop::Ground;
 	HopTime = 0.f;
 	CoreVelocity += FVector(0.f, 0.f, 110.f);
+	Voice->Play(LooterSoundCue::SlimeHop, bLeaping ? 1.f : (GetTarget() ? 0.8f : 0.5f));
 
 	if (bLeaping)
 	{

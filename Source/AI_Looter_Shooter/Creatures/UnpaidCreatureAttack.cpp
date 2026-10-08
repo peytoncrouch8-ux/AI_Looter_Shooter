@@ -4,6 +4,7 @@
 
 #include "Creatures/UnpaidCreature.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/CreatureVoiceComponent.h"
 #include "Creatures/ShriekRing.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
@@ -67,6 +68,8 @@ void AUnpaidCreature::Strike()
 	LungeLeft = Length > 40.f * Scale ? Length : 0.f;
 	LungeTime = 0.f;
 	bLunging = LungeLeft > 0.f;
+	// The rush of cloth and cold air as it flies (or swipes where it stands); the shriek before it was the wind-up's cry.
+	Voice->Play(LooterSoundCue::UnpaidLunge);
 	if (!bLunging)
 	{
 		// Already in reach, or nowhere to fly: it strikes where it stands.

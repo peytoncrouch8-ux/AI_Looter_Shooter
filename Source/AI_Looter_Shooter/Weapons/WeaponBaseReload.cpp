@@ -1,6 +1,8 @@
 #include "Weapons/WeaponBase.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/LooterSound.h"
 #include "Combat/BulletSubsystem.h"
+#include "Weapons/WeaponCurseEffects.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Player/PlayerLocomotionComponent.h"
@@ -26,6 +28,29 @@
 #include "Materials/MaterialInterface.h"
 #include "NiagaraFunctionLibrary.h"
 #include "TimerManager.h"
+
+namespace
+{
+	/** The sound of a reload's step. */
+	FName ReloadStepCue(EReloadStep Step)
+	{
+		switch (Step)
+		{
+		case EReloadStep::MagOut:
+			return LooterSoundCue::RifleMagOut;
+		case EReloadStep::MagIn:
+			return LooterSoundCue::RifleMagIn;
+		case EReloadStep::Bolt:
+			return LooterSoundCue::RifleBolt;
+		case EReloadStep::ShellIn:
+			return LooterSoundCue::ShotgunShellIn;
+		case EReloadStep::Pump:
+			return LooterSoundCue::ShotgunPump;
+		default:
+			return NAME_None;
+		}
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Ammo
@@ -68,9 +93,11 @@ void AWeaponBase::Reload()
 	GetWorldTimerManager().ClearTimer(FireTimer);
 	BurstShotsRemaining = 0;
 	bReloading = true;
+	ReloadSoundProgress = 0.f;
 	RefreshTick();
 
-	if (Instance.Definition)
+	// A definition's own reload sound plays whole, in place of the steps' cues (PlayReloadSteps).
+	if (Instance.Definition && Instance.Definition->ReloadSound)
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, Instance.Definition->ReloadSound, GetActorLocation());
 	}
@@ -80,8 +107,28 @@ void AWeaponBase::Reload()
 	GetWorldTimerManager().SetTimer(ReloadTimer, this, &AWeaponBase::FinishReload, Duration, false);
 }
 
+void AWeaponBase::PlayReloadSteps(float Progress)
+{
+	if (Progress <= ReloadSoundProgress || (Instance.Definition && Instance.Definition->ReloadSound))
+	{
+		return;
+	}
+	// Each step as the motion reaches it (LooterReload choreographs both), so the clicks land on the hands at any reload time.
+	for (const FReloadStepAt& Step : LooterReload::Steps(GetReloadPart()))
+	{
+		if (Step.Progress > ReloadSoundProgress && Step.Progress <= Progress)
+		{
+			PlayCue(ReloadStepCue(Step.Step));
+		}
+	}
+	ReloadSoundProgress = Progress;
+}
+
 void AWeaponBase::FinishReload()
 {
+	// The last steps, if the reload ended between two frames.
+	PlayReloadSteps(1.f);
+
 	// Reloads draw from the holder's shared pool for this ammo class.
 	UWeaponManagerComponent* Inventory = GetHolderInventory();
 	const int32 Needed = Instance.Stats.MagazineSize - CurrentMagazine;
@@ -89,6 +136,8 @@ void AWeaponBase::FinishReload()
 	bReloading = false;
 	RefreshTick();
 	UpdateReloadPart();
+	// A Hungry iron feeds on its holder for the rounds it took.
+	WeaponCurseEffects::PayReload(*this);
 
 	OnReloadFinished.Broadcast();
 	BroadcastAmmo();

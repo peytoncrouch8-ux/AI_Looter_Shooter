@@ -127,8 +127,11 @@ bool FLootLevelTest::RunTest(const FString& Parameters)
 		for (const FWeaponInstanceData& Gun : Roll.Weapons)
 		{
 			TestEqual(FString::Printf(TEXT("Level %d kill: the gun's level"), KillLevel), Gun.Level, KillLevel);
-			// Its damage is its level's, not just its label: the same gun at level 1 hits that much softer.
-			const FWeaponStats AtOne = UWeaponRollLibrary::ComputeStatsWithParts(Gun.Definition, Gun.Rarity, 1, Gun.Seed, Gun.Parts);
+			// Its damage is its level's, not just its label: the same gun at level 1 hits that much softer. The whole gun at
+			// level 1, so a dropped gun's curse (Hungry, Cold: more damage) is on both sides.
+			FWeaponInstanceData GunAtOne = Gun;
+			GunAtOne.Level = 1;
+			const FWeaponStats AtOne = UWeaponRollLibrary::ComputeInstanceStats(GunAtOne);
 			const float Growth = 1.f + Weapon->DamagePerLevel * static_cast<float>(KillLevel - 1);
 			TestNearlyEqual(FString::Printf(TEXT("Level %d kill: the gun's damage"), KillLevel), Gun.Stats.Damage, AtOne.Damage * Growth,
 				AtOne.Damage * 0.001f);

@@ -103,6 +103,14 @@ namespace LooterUI
 		FLinearColor KeycapBottom();
 		/** The heal number and shine (the same as Better). */
 		FLinearColor Heal();
+
+		// --- Cursed irons: the cracked coin and the curse's name. A tarnished brass, nowhere near a rarity's colour. ---
+
+		/** The curse's name, and the coin's face. */
+		FLinearColor Curse();
+		/** The coin's lit top-left and its shaded inner ring. */
+		FLinearColor CurseLight();
+		FLinearColor CurseDark();
 	}
 
 	enum class EShape : uint8
@@ -248,6 +256,16 @@ namespace LooterUI
 
 	/** A soft round glow: white in the middle, falling smoothly to nothing at the rim, tinted (eye glows, banner, gun glow). */
 	FSlateBrush GlowBrush(const FVector2D& Size, const FLinearColor& Tint);
+
+	/**
+	 * The cursed irons' glyph: an old brass coin with a crack running across it, in its own colors (a dark rim keeps it
+	 * readable over anything) and drawn in code like the other kit pictures. Made for 14 to 20 px; keep Tint white, alpha
+	 * fades it. Its texture is shared per size class, so call it as often as you like.
+	 */
+	FSlateBrush CrackedCoinBrush(const FVector2D& Size, const FLinearColor& Tint = FLinearColor::White);
+
+	/** A notch tally: four cuts and a slash, white to be tinted (the notches' mark on a gun's card, 14 to 20 px). */
+	FSlateBrush TallyBrush(const FVector2D& Size, const FLinearColor& Tint);
 
 	FButtonStyle ButtonStyle(EButtonKind Kind, bool bHighlighted);
 	FLinearColor ButtonTextColor(EButtonKind Kind, bool bHighlighted);

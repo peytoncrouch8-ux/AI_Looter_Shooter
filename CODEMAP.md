@@ -20,13 +20,20 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   look limits.
 - `Core/LooterCharacter`: `ALooterCharacter`, the player character: walking, looking (at the player's look
   sensitivity) and jumping (crouched, the key stands up first), and its interaction component; the whole actor is
-  scaled to the player's size (`Player/PlayerSize.h`). Its data-only child is `/Game/Player/BP_LooterCharacter`.
+  scaled to the player's size (`Player/PlayerSize.h`); its sounds (`UPlayerSoundComponent`). Its data-only child is
+  `/Game/Player/BP_LooterCharacter`.
 
 ## Player
 - `Player/PlayerLocomotionComponent`: sprint, crouch and slide, and the first-person motion that goes with them;
   `PlayerLocomotionViewModel.cpp` lowers and tips the eye (crouch, slide) and moves the camera-held gun (stance poses,
   bob, sway, kicks), `PlayerLocomotionSlide.cpp` runs the slide, its end (forward held: back into the sprint) and the
-  jump key (crouched or sliding, it stands up).
+  jump key (crouched or sliding, it stands up). The view eases on `FViewEase` curves whatever the capsule does
+  (`RefreshBodyTransform`: the engine's crouch leaves the body's transform stale; `StandUpNow`); the slide's dust and
+  sounds; no sprint with a Cold iron in hand.
+- `Player/ViewEase.h`: `FViewEase`, a value easing on a minimum-jerk curve that re-plans from its speed and acceleration
+  (the eye, the roll, the stance blends).
+- `Player/SlideDust`: `FSlideDust`, the slide's dust and grit through `FWeaponFX`, by ground (none on water, a little on
+  wood), lit by the sun or shade and the lighting state.
 - `Player/PlayerSize.h`: `LooterPlayerSize`, the player's size against the full-size mannequin (0.85, the whole actor
   scaled), the speed scale that goes with it, and the full-size walk and crouch speeds.
 - `Player/PlayerSlide.h`: `FPlayerSlide`, a slide's rules: out of a sprint on the ground, 1.1x the speed along the run
@@ -42,11 +49,13 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Combat
 - `Combat/HealthComponent`: `UHealthComponent`, health, damage events, floating damage numbers, and what dealt the
-  latest damage (the kill weapon).
-- `Combat/CombatRules.h`: `LooterCombat`, game-wide rules (critical hit multiplier, damage variance).
+  latest damage (the kill weapon); a max health scale (a Grasping iron in hand), `Heal`, and `Drain` (never kills).
+- `Combat/CombatRules.h`: `LooterCombat`, game-wide rules (critical hit multiplier, damage variance; `HitDamage` with a
+  gun's own critical multiplier).
 - `Combat/CriticalSpotTarget.h`: `ICriticalSpotTarget`, targets that have a critical spot.
 - `Combat/LooterDamageTypes.h`: weapon, critical-hit and creature-attack damage types.
-- `Combat/BulletSubsystem`: `UBulletSubsystem`, every bullet in flight: travel, hits, damage, impact effects.
+- `Combat/BulletSubsystem`: `UBulletSubsystem`, every bullet in flight: travel, hits, damage (each shot's critical
+  multiplier), impact effects and sounds by surface (`ImpactCueOf`, from the hit material's name).
 - `Combat/PlayerVitalsSubsystem`: red flash when hurt; fade out and respawn on death at the open respawn grave nearest
   where the player fell (`ARespawnMarker`), else the level's own start (never a trip's landing).
 - `Combat/TargetDummy`: `ATargetDummy`, a training dummy that takes hits and flashes.
@@ -59,14 +68,30 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   player's sprint and aim), then gives them back.
 
 ## Weapons
-- `Weapons/WeaponBase.cpp`: `AWeaponBase` construction, lifecycle, equip and holster, loot state and looks.
-- `Weapons/WeaponBaseFiring.cpp`: `AWeaponBase` firing (fire modes, shots, aim point) and the muzzle flash.
-- `Weapons/WeaponBaseReload.cpp`: `AWeaponBase` magazine and reload (progress, the moving magazine or pump).
+- `Weapons/WeaponBase.cpp`: `AWeaponBase` construction, lifecycle, equip and holster (its sound, its curse's hold on
+  the holder's max health), loot state and looks.
+- `Weapons/WeaponBaseFiring.cpp`: `AWeaponBase` firing (fire modes, shots, aim point; a cursed iron's misfires and
+  rounds per shot, its critical multiplier on the bullets), the muzzle flash, and the gun's sounds (fire per kind, dry
+  fire, misfire, aim in).
+- `Weapons/WeaponBaseReload.cpp`: `AWeaponBase` magazine and reload (progress, the moving magazine or pump), each
+  reload step's sound, Hungry's toll.
+- `Weapons/WeaponBaseNotches.cpp`: `AWeaponBase`'s notches (`AddKill`: a milestone's stats, message and chime, a lifted
+  curse; `FindKillWeapon`) and a cursed gun's guttering loot beam.
+- `Weapons/WeaponCurseEffects`: `WeaponCurseEffects`, where a cursed iron's drawbacks and kill perks act (`PlanShot`:
+  misfires and rounds; Hungry's reload toll; Grasping's max health in hand and kill heal; Greedy's loot luck).
 - `Weapons/WeaponBase.h`: the weapon actor's declaration.
 - `Weapons/WeaponDefinition`: `UWeaponDefinition`, the data asset for one kind of gun (stats, rarity table, parts,
   looks).
 - `Weapons/WeaponTypes.h`: `EWeaponKind`, `EWeaponReloadPart`, `FWeaponStats`, `FWeaponRarityInfo`,
-  `FWeaponInstanceData` (a rolled gun, or a named one: `Named`).
+  `FWeaponInstanceData` (a rolled gun, or a named one: `Named`; its notches `Kills`, its `Curse` and `bCurseLifted`).
+- `Weapons/WeaponNotches`: `ENotchTier` and `WeaponNotches`, a gun's kills: tally marks, the milestones (Blooded 50,
+  Named 250, Soul-forged 1,000) and their damage, `AddKill`, nicknames per kind, the HUD's milestone and curse-lifted
+  messages.
+- `Weapons/WeaponCurses`: `FWeaponCurse` and `WeaponCurses`, the six cursed irons' curses (Hungry, Greedy, Restless,
+  Cold, Grasping, Unlucky) keyed by names that never change: the 6% roll of dropped Rare+ guns, their stats, critical
+  hits, the curse in hand (`BlocksSprint`, `DrawbackInHand`).
+- `Weapons/WeaponPartSwap`: `FBoxedWeaponPart` (a part in the bench's box) and `WeaponPartSwap`, the gunsmith's rules:
+  what fits (kind, slot, rarity, needs both ways), fitting, scrap choices, previews, the bench's words.
 - `Weapons/NamedWeaponDefinition`: `UNamedWeaponDefinition`, a named gun as a data asset in `/Game/Data/Weapons`
   (`DA_Named_<Id>`, made by `Tools/Unreal/create_named_weapons.py`: Heirloom): its kind, fixed rarity and parts, its own
   name and flavor line, its stats at a fixed quality, its wear and seed; `MakeInstance` makes the gun at a level,
@@ -74,22 +99,32 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Weapons/AmmoTypes`: `EAmmoType` and `LooterAmmo`, ammo classes, carry limits and box sizes.
 - `Weapons/WeaponParts`: `FWeaponPartSlot` and `FWeaponPaint` (a gun's part and color options; each part carries stat
   changes and a name word, the game's affixes) and `WeaponParts::Pick`, which picks a rolled gun's parts and colors by
-  its seed.
+  its seed; `BaseName`, a gun's name without its nickname.
 - `Weapons/WeaponModelComponent`: `UWeaponModelComponent`, a rolled gun assembled from its parts (Blender meshes from
-  `Art/Models/Weapons`), painted, with its muzzle, grips and moving reload part.
+  `Art/Models/Weapons`), painted, with its muzzle, grips and moving reload part; `WeaponModelNotches.cpp` its notches'
+  tally row per bullpup body and Ranchhand stock (fitted to size for unlisted parts) and the marks and soul-light M_Gun
+  draws from custom primitive data (`ShowNotches`).
 - `Weapons/WeaponRecoil`: `FWeaponRecoil` and `FWeaponRecoilProfile`, spring recoil on the gun and the aim.
-- `Weapons/ReloadMotion`: `LooterReload`, the choreography of a reload over its progress.
+- `Weapons/ReloadMotion`: `LooterReload`, the choreography of a reload over its progress, and its sounds' moments
+  (`Steps`).
 - `Weapons/WeaponFX`: `FWeaponFX`, code-drawn tracers, impact sparks, dust and chips; a scene's gunfire without a gun
-  model (`SpawnFlash`) and grave dirt (`SpawnDirt`).
+  model (`SpawnFlash`), grave dirt (`SpawnDirt`) and the slide's dust (`SpawnDustPuff`, `SpawnGrit`); puffs near the
+  camera fade.
 
 ## Inventory
-- `Inventory/WeaponManagerComponent.h`: `UWeaponManagerComponent`, the player's weapons, backpack and ammo.
+- `Inventory/WeaponManagerComponent.h`: `UWeaponManagerComponent`, the player's weapons, backpack, ammo and parts box;
+  `FCarriedGun`, a gun named by its equip slot or backpack index.
 - `Inventory/WeaponManagerComponent.cpp`: its lifecycle, ammo pools, firing passthrough and input.
 - `Inventory/WeaponManagerSlots.cpp`: slots and backpack (give, equip, drop, stash, swap, move) and where guns are held.
 - `Inventory/WeaponManagerPickups.cpp`: the loot it offers the player's interaction component (`IInteractionSource`),
   picking it up (a tap of the interact key) or equipping it in place of the gun in hand (a hold), and the loot labels.
-- `Inventory/WeaponManagerSave.cpp`: what the player carries into a saved session and back, and emptying it.
-- `Inventory/WeaponInventorySave.h`: `FWeaponInventorySave`, the guns, backpack and ammo as a session saves them.
+- `Inventory/WeaponManagerBench.cpp`: the gunsmith's bench's side of the weapon manager: the parts box (100 parts,
+  saved), scrapping a carried gun for one part, fitting a box part (the old one takes its place in the box), throwing
+  parts out.
+- `Inventory/WeaponManagerSave.cpp`: what the player carries into a saved session and back (the parts box too), and
+  emptying it.
+- `Inventory/WeaponInventorySave.h`: `FWeaponInventorySave`, the guns, backpack, ammo and parts box as a session saves
+  them.
 
 ## Interaction
 - `Interaction/Interactable.h`: `IInteractable`, something the player uses with the Interact key (a door, a headboard,
@@ -111,16 +146,17 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Affixes
 - `Affixes/WeaponRollLibrary`: `UWeaponRollLibrary`, rolling rarity and stats from a seed (a named gun's at its fixed
-  quality: `ComputeInstanceStats`), and spawning rolled guns.
+  quality: `ComputeInstanceStats`, with its notches' damage and its curse on top), and spawning rolled guns.
 
 ## Loot
 - `Loot/LootTable`: `ULootTable`, what a kill drops (ammo pickups of 18-36 rounds and their lean toward the kill
   weapon's ammo, weapon odds, luck) and `LooterLoot`, the ammo amounts (a chest's fixed 36).
 - `Loot/LootLibrary`: `ULootLibrary`, rolling a loot table (`RollAmmo` then `RollWeaponPicks`, as a kill draws them)
-  and spawning the results.
+  and spawning the results; `RollDroppedWeapon`, a gun that drops (kills, chests), cursed when its seed says so.
 - `Loot/LootOdds`: `LootOdds`, a loot table's odds worked out exactly and counted over many kills from a seed
   (`Looter.Loot.SimulateDrops`, the `Looter.Loot.RankOdds` test).
-- `Loot/LootDropComponent`: drops its owner's loot when it dies (only ammo in a practice area the player has left).
+- `Loot/LootDropComponent`: drops its owner's loot when it dies (only ammo in a practice area the player has left), at
+  the kill gun's curse luck (Greedy).
 - `Loot/LootTossComponent`: `ULootTossComponent`, throws loot so it pops out, lands and settles.
 - `Loot/WeaponRack`: `AWeaponRack`, a rack with a weapon lying on it as loot and ammo beside it; restocks when the
   weapon is gone and the player has none (the tutorial's first rifle).
@@ -401,7 +437,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   level-up events), the experience a kill gives (the creature's level and the falloff), the player's health for their
   level (the first level reward), and which kinds the player has met and how many defeated (by exact class: a
   Blueprint child counts for its parent's page, a C++ child such as the Gravemother is its own); the session being
-  played gives it its progress and saves it. A practice area's kills give no experience.
+  played gives it its progress and saves it. A practice area's kills give no experience. A kill that gives experience
+  also cuts a notch in the gun that dealt it (`CreditKillWeapon`).
 
 ## Session
 - `Session/SessionSubsystem.h`, `Session/SessionSubsystem.cpp`: `USessionSubsystem`, the three save sessions: the main
@@ -469,7 +506,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   tests.
 - `World/WorldQueries`: `LooterWorld`, trace params for finding the ground (skipping volumes and the playable area's
   walls, and with the PCG volume what it scattered).
-- `World/LightBeam`: `LightBeams`, a soft glowing light pillar (sky beacons, the rarity-colored beam over loot).
+- `World/LightBeam`: `LightBeams`, a soft glowing light pillar (sky beacons, the rarity-colored beam over loot); a
+  cursed gun's beam gutters like a dying flame (`Gutter`).
 - `World/Windmill`: `AWindmill`, a water-pump windmill whose fan (a separate model on the tower's Fan socket) turns in gusts.
 - `World/SkiffJetty`: `ASkiffJetty`, Skyreach's jetty with its bell, slate and landing (Landing_Jetty); the gangplank (up
   until the tutorial is done, always down after the first cast-off; lowering it rings the bell and offers "Board the
@@ -483,12 +521,15 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `World/WantedPoster`: `AWantedPoster`, Ellis's wanted poster as a decal of its atlas cell, torn down by holding
   Interact (it swaps to the remnant and a scrap falls; Hob remarks), or Calder's note read with a tap; torn ones stay
   torn with the session's map world. `WantedPosterTear.cpp` is the tear and the falling scrap.
+- `World/GunsmithBench`: `AGunsmithBench`, the plain gunsmith's bench (Skyreach's village, Ransom Farm; the user's
+  call until Ozias takes over after the Lily): a tap of Interact opens the bench screen; SM_GunsmithBench (plain shapes
+  until it exists) with sockets Interact, Gun and Box; tagged GunsmithBench and Obstacle; never ticks.
 - `World/WindowShutter`: `AWindowShutter`, one of Main Street's shutters on a false front's Shutter socket (Main 3): open
   flat against the wall until the player comes near, then it slams shut (after a moment of its own) and stays shut;
   shut from the start after Main 3.
 - `World/ChapelBell`: `AChapelBell`, the Chapel of Saint Ada's bell (Main 4, tagged Bell_Chapel): held on the rope's grip
   (the chapel's SOCKET_Interact) it rings: SM_ChapelBell on the belfry's SOCKET_Bell swings about its axis, the swings
-  dying away over 9 s, tolling at the ends of the hard ones (a sound when one is made); not again until still, nor
+  dying away over 9 s, tolling at the ends of the hard ones (World.ChapelBell.Toll); not again until still, nor
   while its story condition says not.
 - `World/ChapelReliquary`: `AChapelReliquary`, Saint Ada's smashed Reliquary on the apse's plinth (Main 4, tagged
   Reliquary_Chapel): looked at (a tap, from Main 4's fourth step) it plays the two-second Grave Sight flash and her
@@ -545,7 +586,27 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   fade with the sky light recaptured (the default), at once behind a caller's cover, or blended over seconds; writes
   `MPC_Lighting`; `OnChanged` for the cold open and Main 6. Ticks only during a switch.
 
+## Audio
+- `Audio/LooterSound.h`: `LooterSound`, how code plays a sound cue: at a place, attached, flat (2D), or started and
+  stopped (loops). A cue with no sound yet plays nothing.
+- `Audio/LooterSoundCues.h`: `LooterSoundCue`, every cue's name (its files are named for it in `Art/Sounds/Out`).
+- `Audio/LooterSoundRules`: `LooterSoundRules`, `FLooterVolumes`, `FLooterClassGains`: variation (never the last one),
+  dB, pitch jitter, slider to gain, a creature's pitch for its size, the retrigger time.
+- `Audio/LooterSoundBank`: `ULooterSoundBank` and `FLooterSoundCueEntry`, every cue's sounds and settings
+  (`/Game/Audio/DA_SoundBank`, made by `Tools/Unreal/build_sound_bank.py`).
+- `Audio/LooterSoundSubsystem`: `ULooterSoundSubsystem` (game instance), plays cues from the bank (loaded once): one
+  concurrency per cue, warns once per missing cue, silent outside game and play-in-editor worlds, applies the volumes
+  through `SMX_Volumes` as each world starts; Interface sounds play on while paused.
+- `Audio/SoundSurface`: `ESoundSurface` and `SoundSurface`, the surface a hit or a foot landed on (`Surface.<Name>` tags,
+  then material names; terrain is grass on the flat, dirt on slopes) and its footstep cue.
+- `Audio/PlayerSoundComponent`: `UPlayerSoundComponent`, the player's footsteps by surface and speed, jump, landing (by
+  how hard), hurt, death and the low-health heartbeat loop.
+- `Audio/CreatureVoiceComponent`: `UCreatureVoiceComponent`, a creature's cries (alert, wind-up, hurt, death) pitched
+  for its size, each hit's thud, and the player's kill sound.
+
 ## Settings
+- `Settings/AudioSettingsSubsystem`: saved Master, Effects, Interface and Music volumes (0-100%), handed to the sound
+  system.
 - `Settings/KeyBindingSubsystem`: key rebinding, the global pause/inventory actions and the character actions
   (weapon slots 1-3 among them).
 - `Settings/GraphicsSettingsSubsystem`: saved display options (quality preset, motion blur, first-person field of view, UI transparency, minimap on/off, size and zoom, FPS counter) and the `Looter.Quality` and `Looter.FieldOfView` commands.
@@ -554,25 +615,38 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## UI
 - `UI/Style/LooterUIStyle`: `LooterUI`, the style kit every UI is built with (palette, shapes, icons, text, builders,
-  transparency, the display type for title cards).
+  transparency, the display type for title cards); the cursed irons' brass tones, `CrackedCoinBrush` and `TallyBrush`.
 - `UI/Style/LooterUIInkedIcons.cpp`: the kit's Inked icons (`FInkedIcon`, the weapon and ammo icons) drawn into textures, as
   `Art/Icons/InkedIcons.py` draws its reference pictures.
 - `UI/Style/InkedIconData.inl`: every Inked icon as C++ data, generated by `Art/Icons/InkedIcons.py` (don't edit it).
 - `UI/Style/LooterUIPaintedIcons.cpp`: the kit's painted pictures (`FPaintedIcon`: the portrait, bezels, gems) drawn
-  into textures, anti-aliased, in their own colors, and `GlowBrush`'s soft round glow.
+  into textures, anti-aliased, in their own colors, and `GlowBrush`'s soft round glow; the cracked coin and the notch
+  tally glyphs.
 - `UI/Style/HudPortraitData.inl`: the HUD portrait as painted pictures and eye glows, generated by
   `Art/Icons/HudPortrait.py` from `Art/Icons/HudPortrait.svg` (don't edit it).
-- `UI/Style/LooterButton`: `ULooterButton`, the kit's button.
-- `UI/Style/WeaponText`: `LooterWeaponText`, weapon names (a named gun's own), rarity colors, stat strings, and a
-  named gun's flavor line.
+- `UI/Style/LooterButton`: `ULooterButton`, the kit's button, with hover and click sounds (`bPlaysSounds` off for a
+  screen that plays its own: the bench's rows).
+- `UI/Style/WeaponText`: `LooterWeaponText`, weapon names (a named gun's own; a Named gun's nickname in quotes),
+  rarity colors, stat strings, a named gun's flavor line, notch counts and curse words.
 - `UI/HUD/LooterHUD`: `ALooterHUD`, owns the HUD, the captions, the inventory's pages (loadout, bestiary, missions), the
   station board and the pause menu (the settings menu with Save & Quit), and their hotkeys; a scene that holds the
   player puts the gameplay HUD away. Opening the station board tells the missions it's read. It owns the mission
-  tracker and hands it the tutorial's closing line.
+  tracker and hands it the tutorial's closing line. `LooterHUDBench.cpp`: the gunsmith's bench's screen
+  (`OpenBench`, `CloseBench`) and the pages' sounds as they open and close (`PlayPageSound`).
+- `UI/Bench/BenchWidget.h`: `UBenchWidget`, the gunsmith's bench screen's declaration, its layout (`BenchLayout`) and
+  button actions. `BenchWidget.cpp`: opening, layout, refreshing, queries; `BenchWidgetLists.cpp` its columns (guns
+  carried, the chosen gun's slots, the box's parts for the slot); `BenchWidgetGun.cpp` the chosen gun's card (name,
+  notches and curse, stats as if fitted), the stand's ring and part mark, the status line and prompts;
+  `BenchWidgetInput.cpp` cursor, choosing, fitting, starting a scrap, the mouse; `BenchWidgetKeys.cpp` keys,
+  right-click to throw out, turning the stand; `BenchWidgetConfirm.cpp` the confirm (scrap, throw out) and doing it.
+- `UI/Bench/BenchStage`: `ABenchStage`, the bench screen's off-screen stand with the chosen gun's model (StageStudio
+  spot 2).
+- `UI/Bench/BenchRules`: `BenchRules`, what the bench screen lists and how it words it: carried guns, a slot's box parts
+  (fitting first), stat changes.
 - `UI/HUD/PlayerHUDWidget`: the gameplay HUD: places the player frame, level-up banner and screen edges, runs the
   weapon column with its cartridge, status, fire mode and gun name, and the crosshair with its shot kick, hit marker,
   loot card, interaction prompt and messages, frame by frame; `PlayerHUDWidgetLayout.cpp` builds it; `PlayerHUDWidgetPickupCard.cpp` fills the loot
-  comparison card and the interaction prompt.
+  comparison card (with a gun's notch and curse rows) and the interaction prompt.
 - `UI/HUD/HudPlayerFrameWidget`: the player frame at the bottom left: the portrait in its gunmetal medallion, the
   health bar (chip, heal rise and shine, low-health beat), the level gem and the ten-section experience bar (just-earned
   stretch, level-up flash and ring; it tells the HUD when to show the banner), with the idle fade;
@@ -598,7 +672,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   bar, route line, objective row with its count, key hint), its own viewport widget over the inventory's pages; ticks
   done objectives (when the step or the objective's index moves on, never for a words-only change:
   `DecideChange`), slides the next in, shows the tutorial's closing line; `HudMissionTrackerWidgetLayout.cpp` builds
-  its widgets and pictures.
+  its widgets and pictures; `HudMissionTrackerWidgetSound.cpp` the tick's sound (a step, a mission done).
 - `UI/HUD/HudWeaponSlotsWidget`: the weapon slots in a column (slot 1 on top): gunmetal-ringed circles with a rarity
   arc and the guns' Inked icons (tilted up), each with its key tab and its ammo's icon on its left; the gun in hand
   moves left and grows, with an accent ring and glow. `HudWeaponSlotsWidgetPictures.cpp` draws its rings, rarity arc,
@@ -617,25 +691,30 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/HUD/HudGraveSightWidget`: `UHudGraveSightWidget`, Grave Sight's flash on the screen: the kit's dark glass at the
   edges (a background) under a thin cyan frame with cut corners and brackets, faint scan lines, a sweep down the screen
   and a ring opening from the middle; `UGraveSightSubsystem` drives it.
-- `UI/Menus/SettingsMenuWidget`: `USettingsMenuWidget`, the settings menu (graphics, interface, controls: look
-  sensitivity and key bindings), over the
+- `UI/Menus/SettingsMenuWidget`: `USettingsMenuWidget`, the settings menu (graphics, audio volumes, interface, controls:
+  look sensitivity and key bindings, all one scrolling list), over the
   paused game or from the main menu: its layout. `SettingsMenuRows.cpp` makes its rows and key list,
-  `SettingsMenuInput.cpp` handles its buttons, sliders and keys, `SettingsMenuParts.h` holds what they share.
+  `SettingsMenuAudio.cpp` its volume sliders, `SettingsMenuInput.cpp` handles its buttons, sliders and keys,
+  `SettingsMenuParts.h` holds what they share.
 - `UI/Menus/MainMenuHUD`: `AMainMenuHUD`, the main menu's HUD: the menu and its settings.
 - `UI/Menus/MainMenuWidget`: `UMainMenuWidget`, the main menu (Single Player, Multiplayer, Settings, Quit Game);
   `MainMenuSessions.cpp` is its session picker (each session's area by name), a new game's choice to play or skip the
   tutorial, and the delete confirmation.
-- `UI/Inventory/LoadoutWidget.cpp`: the loadout screen: opening, layout and contents.
+- `UI/Inventory/LoadoutWidget.cpp`: the loadout screen: opening, layout and contents; a cursed gun's cards show the
+  cracked coin before its name.
 - `UI/Inventory/LoadoutWidgetInput.cpp`: its cursor, actions (swap, hold, drop), mouse handling and turning the stand-in.
 - `UI/Inventory/LoadoutWidgetDrag.cpp`: dragging guns between slots, the backpack and the character.
-- `UI/Inventory/LoadoutWidgetInspect.cpp`: the stats card that floats beside the gun under the cursor.
+- `UI/Inventory/LoadoutWidgetInspect.cpp`: the stats card that floats beside the gun under the cursor (with its
+  notches and curse rows).
 - `UI/Inventory/LoadoutWidgetPaint.cpp`: the stand's ring under the stand-in.
 - `UI/Inventory/LoadoutWidget.h`: the loadout screen's declaration.
 - `UI/Inventory/MissionsWidget`: the missions page, the inventory's third: opening, layout and the mission log;
   `MissionsWidgetDetails.cpp` the chosen mission's steps, objectives and rewards, the keys and tracking.
 - `UI/Inventory/LoadoutRules`: `LoadoutRules`, the backpack list's compare and sort rules.
 - `UI/Inventory/LoadoutParts`: `LoadoutParts`, the inventory pages' layout, colors, vector art, card builders and title
-  tabs (the bestiary's titled "Ledger" once it's Sexton's, `TitlePageTabs`).
+  tabs (the bestiary's titled "Ledger" once it's Sexton's, `TitlePageTabs`); `MakeGunIdeasRows`, a gun's notches and
+  curse as card rows (the loadout, the loot card and the bench use it), and `MakeGunNameLine`, a name with the cursed
+  irons' coin.
 - `UI/Inventory/LoadoutPaintLayer`: `ULoadoutPaintLayer`, a see-through layer the screen draws on.
 - `UI/Inventory/LoadoutStage`: `ALoadoutStage`, the off-screen stand-in of the character and its capture.
 - `UI/Inventory/StageStudio`: `StageStudio`, what the inventory's off-screen stands share (spot, capture, studio lights,
@@ -648,7 +727,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/Bestiary/BestiaryWidget.h`: the bestiary's declaration.
 - `UI/Bestiary/BestiaryStage`: `ABestiaryStage`, the off-screen stand that shows an entry's model (skinned, or still
   with its parts on their sockets), framed to its size, wearing what the actor wears on its bones.
-- `UI/World/WeaponLabelWidget`: the label over loot guns (a named gun's flavor line under its name when looked at).
+- `UI/World/WeaponLabelWidget`: the label over loot guns (a named gun's flavor line under its name when looked at; a
+  cursed iron's cracked coin and curse name under its name).
 - `UI/World/CreatureHealthBarWidget`: the tag over a hurt or hunting creature: floating level, rank word (in its rank's
   color) and name over a slim bar of fixed width, cut into quarters whatever the health.
 - `UI/World/DamageNumberActor`, `UI/World/DamageNumberWidget`: floating damage numbers.
@@ -658,7 +738,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Dev
 - `Dev/WeaponDevCommands.cpp`: console commands for testing (`Looter.GiveWeapon`, a named gun too:
-  `Looter.GiveWeapon Heirloom [level]`; `Looter.SpawnAmmo`).
+  `Looter.GiveWeapon Heirloom [level]`, with `curse=<Key>` and `kills=<N>`; `Looter.SpawnAmmo`).
 - `Dev/ProgressionDevCommands.cpp`: console commands for levels (`Looter.GiveXP`, `Looter.SetLevel`,
   `Looter.ResetProgress`, `Looter.XP.Table`) and the bestiary (`Looter.ForgetBestiary`).
 - `Dev/XPPathDevCommands.cpp`: `Looter.XP.Path [open-world share] [sides]`, in the editor with an area's level open:
@@ -707,6 +787,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `Looter.Story.Handoff [force]`, `Looter.Story.Lean [lit|out]`.
 - `Dev/WhitlockDevCommands.cpp`: `Looter.Story.Bales [force | reset]`, `Looter.Story.Hands [force]`,
   `Looter.Story.Amos [sit [now] | lean | talk]`.
+- `Dev/BenchDevCommands.cpp`: `Looter.Bench.Open` (the bench screen without a bench), `Looter.Bench.Spawn` (a bench in
+  front of the player), `Looter.Bench.Box [list|clear|add <slot|all> <key|all> [kind]]`.
 - `Dev/ChestDevCommands.cpp`: `Looter.Chest.Open [all]` (the nearest closed chest as a tap of Interact, the missions
   told), `Looter.Chest.Reset` (every chest shut and full again), `Looter.Chest.List`.
 - `Dev/PosterDevCommands.cpp`: `Looter.Poster.Spawn [note]` (a wanted poster, or Calder's note, on the wall the
@@ -724,7 +806,11 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `MissionTrackerTests.cpp` (when the HUD tracker ticks an objective), `PlayableAreaTests.cpp`, `PosterTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `HallowedGroundTests.cpp` (Main 4: its steps, Main 3 first, the yard's two waves by count and rank, the bell held, the Reliquary's flash ending its step, Aldana's words and the chapel yard's grave; the Unpaid on boot hill and the north road after it; the placed pieces), `ChapelTests.cpp` (the bell's hold, swing and tolls; Grave Sight's flash and the Reliquary's look timing out; Aldana's topics) with `HallowedGroundTestWorld.h`, `EggSacTests.cpp` (the egg sac's fall, burst and spiders, shootable only in its step; the lantern dark, taken in its step, gone after), `KeepersLanternTests.cpp` (with `KeepersLanternTestWorld.h`; Main 5: its steps, Main 4 first, the floor's spiders, Side 3 after it, the placed pieces), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `GravemotherTests.cpp` (her body, charge, brood, pack calls by tag,
   loot), `GravemotherSideTests.cpp` (her return after 20 minutes of play, her lair and where it puts her: room for her body, her den's floor, her brood in it; Side 3), `UnfinishedBusinessTests.cpp` (with `UnfinishedBusinessTestWorld.h`: Side 2 end to end, the bales counted from the world and kept by the save, the hands by count and rank, the placed pieces, its fences and wall counted as the dressing's instances on the layout's lines), `AmosTests.cpp` (his pose table, every bone posed in the game against it, topics by the story, the rail, the seat on the rail, ticking only while he moves, his Ledger page), `RangerCachesTests.cpp` (step 26: a chest's wheel and lid, its loot and odds per kind, once only, kept open by the save; the caches and the Strongbox as Ransom's Rest is built), `RansomsRestLevelTests.cpp` (every respawn grave, player start, encounter spot and tour view inside the playable boundary), `AbelTests.cpp`, `AbelFightTests.cpp` (with `AbelTestWorld.h`: Abel's pose table, rules, body, phases, lanterns, reset, fog wall, the Gravewind and a fall, the kneel and the scene), `GravewindTests.cpp` (with `GravewindTestWorld.h`: Main 6 end to end, Pa on his board, the dusk scenery, the level as built), `TrainTests.cpp` (the train's assembly and rolling wheels, cold until Main 7, its two shots, which trips go by train), `LanternLeansTests.cpp` (with `LanternLeansTestWorld.h`: Main 7's steps after Main 6, Delia's hand-off once, the board read opening the Lily, Ned's page, the flame's lean), `LanternLeansPlacedTests.cpp` (the Lily's area and the board's "isn't open yet"; Main 7's placed pieces), `WeaponTests.cpp`, `NamedWeaponTests.cpp` (named guns: the
   fixed-quality rules, Heirloom's asset and label, its save, the mission reward),
-  `WeaponPartsTests.cpp`, `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
+  `WeaponPartsTests.cpp`, `WeaponNotchesTests.cpp`, `WeaponCursesTests.cpp`, `WeaponPartSwapTests.cpp` (the gun
+  ideas' rules), `GunIdeasPlayTests.cpp` (the gun ideas in play: notches counted, curses' shots and health, the tally
+  and beam), `GunsmithBenchTests.cpp` (`Looter.Weapons.Bench.*`: scrap, fit, the box saved, its cap, named guns, the
+  bench's interaction, the screen's lists), `AudioTests.cpp` (`Looter.Audio.*`: a missing cue silent, variation,
+  concurrency settings, the volumes saved, surfaces, the bank covering every cue), `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)
 - `LooterEditor.Build.cs`: module dependencies (GeometryScript editor functions, asset tools, FBX import, JSON).
@@ -851,6 +937,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Tools/Unreal/build_island_style.py`: `<style> apply|undo|status`, the tutorial island alone in a Style Lab look:
   island-only instances with the style's switch, light filters, the `<Style>Post` volume; originals recorded in
   `Art/Levels/TutorialIsland/style_applied.json`, one style at a time, settings in `style_<name>.json`.
+- `Tools/Unreal/build_sound_bank.py`: `[check]`, the game's sounds from `Art/Sounds/Out` and `Art/Sounds/cues.json`
+  into `/Game/Audio`: the sound waves (`S_<Cue>_<NN>`), the classes, the volume mix and the attenuations, and
+  `DA_SoundBank`; again updates in place and removes stale waves; `check` only reports.
 - `Tools/Unreal/build_creature_materials.py`: the creatures' materials beside the world's masters: `M_Ghost` (the
   Unpaid's masked, dithered ghost, its rank, dissolve and flare from the creature's custom primitive data) and the
   clothing tints `MI_Ghost_B` and `_C`, and the Gravemother's pale hide `MI_SpiderBody_Pale` (`Spider.py`'s pale color
@@ -867,6 +956,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `gameplay.posters` (on a host's face, snapped by a trace, or on a socket), for `build_area.py` or on their own.
 - `Tools/Unreal/create_named_weapons.py`: the named guns' data assets (`DA_Named_Heirloom`), checked (`FindProblems`)
   before they're saved.
+- `Tools/Unreal/build_area_benches.py`: the gunsmith's benches (`AGunsmithBench`) from `layout.json` `gameplay.benches`,
+  for `build_area.py`'s gameplay pass: on the lowest ground under the bench's corners, facing out (Skyreach's village,
+  Ransom Farm's barn).
 - `Tools/Unreal/build_area_travel.py`: where an area's trips start and end, for `build_area.py`: the skiff jetty
   (`gameplay.jetty`), the depot as its station with the landing on the platform, the first arrival's player start
   beside the level's own (`gameplay.spawnLanding`), and markers for other landings.

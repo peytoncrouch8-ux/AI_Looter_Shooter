@@ -5,7 +5,9 @@
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerSize.h"
 #include "Player/PlayerSlide.h"
+#include "Player/SlideDust.h"
 #include "Player/StanceIntent.h"
+#include "Player/ViewEase.h"
 #include "Animation/AnimInstance.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/BlueprintGeneratedClass.h"
@@ -362,6 +364,115 @@ bool FPlayerSlideRulesTest::RunTest(const FString& Parameters)
 	Slide.Start(FVector(Sprint, 0.0, 0.0), FVector::ForwardVector, Top);
 	Slide.Stop();
 	TestTrue(TEXT("A jump stops it"), !Slide.IsActive() && Slide.GetLastEnd() == FPlayerSlide::EEnd::Cancelled);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FViewEaseTest, "Looter.Locomotion.ViewEase",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FViewEaseTest::RunTest(const FString& Parameters)
+{
+	// The curve the view's height, its roll and the stance blends ease on: it arrives on time and at rest, and however the
+	// target changes, its value and speed carry on from where they were (no snap, no bounce).
+	FViewEase Ease;
+	Ease.Reset(0.f);
+	Ease.SetTarget(10.f, 0.3f);
+	float Peak = 0.f;
+	float Highest = 0.f;
+	// 19 frames: just past the 0.3 s, whatever the frame time's rounding.
+	for (int32 Frames = 0; Frames < 19; ++Frames)
+	{
+		Ease.Advance(Frame);
+		Peak = FMath::Max(Peak, Ease.GetVelocity());
+		Highest = FMath::Max(Highest, Ease.GetValue());
+	}
+	TestTrue(FString::Printf(TEXT("Arrives on time (%.4f by 0.3 s)"), Ease.GetValue()), FMath::IsNearlyEqual(Ease.GetValue(), 10.f, 1.e-3f));
+	TestTrue(TEXT("...at rest"), Ease.IsSettled() && FMath::IsNearlyZero(Ease.GetVelocity()));
+	TestTrue(FString::Printf(TEXT("...never past it (%.4f at most)"), Highest), Highest <= 10.f + 1.e-3f);
+	// A minimum-jerk move's top speed is 1.875 times its average.
+	TestTrue(FString::Printf(TEXT("...at a top speed of %.1f a second"), Peak), FMath::IsNearlyEqual(Peak, 1.875f * 10.f / 0.3f, 1.f));
+
+	// Turned back part-way: it sets off from where it was at the speed it had.
+	Ease.Reset(0.f);
+	Ease.SetTarget(10.f, 0.3f);
+	for (int32 Frames = 0; Frames < 6; ++Frames)
+	{
+		Ease.Advance(Frame);
+	}
+	const float Value = Ease.GetValue();
+	const float Speed = Ease.GetVelocity();
+	const float Acceleration = Ease.GetAcceleration();
+	Ease.SetTarget(0.f, 0.3f);
+	TestTrue(TEXT("Turned back: the value carries on"), FMath::IsNearlyEqual(Ease.GetValue(), Value, 1.e-4f));
+	TestTrue(TEXT("...and its speed"), FMath::IsNearlyEqual(Ease.GetVelocity(), Speed, 1.e-3f));
+	TestTrue(TEXT("...and its acceleration"), FMath::IsNearlyEqual(Ease.GetAcceleration(), Acceleration, 1.e-2f));
+	for (int32 Frames = 0; Frames < 60 && !Ease.IsSettled(); ++Frames)
+	{
+		Ease.Advance(Frame);
+	}
+	TestTrue(TEXT("...and arrives back at rest"), Ease.IsSettled() && FMath::IsNearlyZero(Ease.GetValue(), 1.e-3f));
+
+	// Shifted: moved at once, same speed, same target.
+	Ease.Reset(0.f);
+	Ease.SetTarget(10.f, 0.3f);
+	for (int32 Frames = 0; Frames < 6; ++Frames)
+	{
+		Ease.Advance(Frame);
+	}
+	const float Before = Ease.GetValue();
+	const float SpeedBefore = Ease.GetVelocity();
+	Ease.Shift(-4.f, 0.25f);
+	TestTrue(TEXT("Shifted: moved by the jump"), FMath::IsNearlyEqual(Ease.GetValue(), Before - 4.f, 1.e-4f));
+	TestTrue(TEXT("...at the same speed"), FMath::IsNearlyEqual(Ease.GetVelocity(), SpeedBefore, 1.e-3f));
+	TestEqual(TEXT("...for the same target"), Ease.GetTarget(), 10.f);
+
+	// A move that needs a harder turn than allowed is stretched to keep within it.
+	Ease.Reset(0.f);
+	Ease.SetTarget(57.f, 0.1f, 4500.f);
+	TestTrue(FString::Printf(TEXT("Limited: stretched (%.3f s for a 0.1 s ask)"), Ease.GetDuration()), Ease.GetDuration() > 0.1f);
+	float Hardest = 0.f;
+	while (!Ease.IsSettled())
+	{
+		Ease.Advance(Frame / 4.f);
+		Hardest = FMath::Max(Hardest, FMath::Abs(Ease.GetAcceleration()));
+	}
+	TestTrue(FString::Printf(TEXT("...and kept within it (%.0f at most)"), Hardest), Hardest <= 4500.f * 1.05f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSlideDustGroundTest, "Looter.Locomotion.Slide.DustGround",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FSlideDustGroundTest::RunTest(const FString& Parameters)
+{
+	// What the ground's material (or mesh) is called says how much a slide throws up: nothing on water, a little dust and
+	// no grit on wood, the most on dirt (and on ground no name speaks for).
+	struct FNamed
+	{
+		const TCHAR* Name;
+		ESlideGround Ground;
+	};
+	const FNamed Names[] = {
+		{ TEXT("MI_Water"), ESlideGround::Water }, { TEXT("MI_Waterfall"), ESlideGround::Water },
+		{ TEXT("SM_RansomsRest_Water"), ESlideGround::Water }, { TEXT("MI_WoodPlanks"), ESlideGround::Wood },
+		{ TEXT("MI_LanternWood"), ESlideGround::Wood }, { TEXT("MI_SkyIslandGrass"), ESlideGround::Grass },
+		{ TEXT("MI_Hay"), ESlideGround::Grass }, { TEXT("MI_RockGranite_Ransom"), ESlideGround::Stone },
+		{ TEXT("MI_StoneWall"), ESlideGround::Stone }, { TEXT("MI_GroundDirt"), ESlideGround::Dirt },
+		{ TEXT("MI_RansomsRestMacro"), ESlideGround::Dirt }, { TEXT("M_Terrain"), ESlideGround::Dirt },
+		{ TEXT("M_World"), ESlideGround::None }, { TEXT("BasicShapeMaterial"), ESlideGround::None },
+	};
+	for (const FNamed& Named : Names)
+	{
+		TestTrue(FString::Printf(TEXT("%s is %d"), Named.Name, static_cast<int32>(Named.Ground)), FSlideDust::GroundFromName(Named.Name) == Named.Ground);
+	}
+
+	TestTrue(TEXT("Nothing on water"), FSlideDust::DustAmount(ESlideGround::Water) == 0.f && FSlideDust::GritAmount(ESlideGround::Water) == 0.f);
+	TestTrue(TEXT("Nothing off the ground"), FSlideDust::DustAmount(ESlideGround::None) == 0.f && FSlideDust::GritAmount(ESlideGround::None) == 0.f);
+	TestTrue(TEXT("A little dust on wood, no grit"), FSlideDust::DustAmount(ESlideGround::Wood) > 0.f
+		&& FSlideDust::DustAmount(ESlideGround::Wood) < FSlideDust::DustAmount(ESlideGround::Dirt) * 0.5f && FSlideDust::GritAmount(ESlideGround::Wood) == 0.f);
+	TestTrue(TEXT("The most dust on dirt"), FSlideDust::DustAmount(ESlideGround::Dirt) >= FSlideDust::DustAmount(ESlideGround::Stone)
+		&& FSlideDust::DustAmount(ESlideGround::Dirt) >= FSlideDust::DustAmount(ESlideGround::Grass));
+	TestTrue(TEXT("The most grit on stone"), FSlideDust::GritAmount(ESlideGround::Stone) >= FSlideDust::GritAmount(ESlideGround::Dirt));
 	return true;
 }
 

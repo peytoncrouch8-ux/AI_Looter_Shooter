@@ -25,4 +25,14 @@ namespace LightBeams
 
 	/** Setup with a material from CreateMaterial, made for the same Height (the glow fades over it). */
 	AI_LOOTER_SHOOTER_API void Setup(UStaticMeshComponent* Beam, UMaterialInterface* Material, float Height, float Radius);
+
+	/**
+	 * A beam guttering like a dying flame (a cursed gun's loot beam), at Time seconds: it burns low and wavers, and every
+	 * few seconds sputters nearly out and catches again, shrinking and narrowing as it dims. Glow, Height and Radius are
+	 * its steady numbers (as given to Setup, whose material instance of its own it changes); call it every frame it shows.
+	 */
+	AI_LOOTER_SHOOTER_API void Gutter(UStaticMeshComponent* Beam, float Time, float Glow, float Height, float Radius);
+
+	/** How strongly a guttering beam burns at Time: about 0.1 (sputtering, nearly out) to 1. */
+	AI_LOOTER_SHOOTER_API float GutterStrength(float Time);
 }

@@ -3,6 +3,7 @@
 #include "World/SkiffJetty.h"
 #include "AI_Looter_Shooter.h"
 #include "Areas/AreaTravelSubsystem.h"
+#include "Audio/LooterSound.h"
 #include "Core/LooterMenuGameMode.h"
 #include "Interaction/InteractionComponent.h"
 #include "Interaction/InteractionSubsystem.h"
@@ -18,9 +19,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"
-#include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
-#include "Sound/SoundBase.h"
 #include "UObject/ConstructorHelpers.h"
 
 #define LOCTEXT_NAMESPACE "SkiffJetty"
@@ -334,10 +333,7 @@ void ASkiffJetty::ForceGangplank(bool bDown)
 void ASkiffJetty::RingBell()
 {
 	BellTime = 0.f;
-	if (BellSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, BellSound, Bell ? Bell->GetComponentLocation() : GetActorLocation());
-	}
+	LooterSound::PlayAt(this, LooterSoundCue::JettyBell, Bell ? Bell->GetComponentLocation() : GetActorLocation());
 	RefreshTick();
 }
 

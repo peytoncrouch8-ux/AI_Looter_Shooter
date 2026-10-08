@@ -4,13 +4,16 @@
 #include "Components/ActorComponent.h"
 #include "Player/PlayerSize.h"
 #include "Player/PlayerSlide.h"
+#include "Player/SlideDust.h"
 #include "Player/StanceIntent.h"
 #include "Player/PawnInputBinding.h"
+#include "Player/ViewEase.h"
 #include "PlayerLocomotionComponent.generated.h"
 
 class AController;
 class ACharacter;
 class APawn;
+class UAudioComponent;
 class UCameraComponent;
 class UCharacterMovementComponent;
 class UKeyBindingSubsystem;
@@ -30,6 +33,10 @@ class UWeaponManagerComponent;
  *    (PlayerLocomotionViewModel.cpp): the eye dropping into a crouch or slide, sprint carry pose, step bob, look sway,
  *    crouch cant, jump/land kick, and each shot's recoil kick (from the view component). Sprinting and sliding also
  *    widen the FOV a little (via GetFieldOfViewOffset).
+ *  - The view never jumps: the eye's height above the feet and the slide's roll ease on minimum-jerk curves (FViewEase)
+ *    whatever the capsule does. The engine's crouch changes the capsule in one frame (and sets the body's place in it
+ *    without moving it there); the eye absorbs it, so the camera moves only on its curve (UpdateCamera).
+ *  - A slide kicks up dust and grit from the feet (FSlideDust) and plays its sounds (Player.Slide, Player.SlideLoop).
  *
  * Speeds and heights here are for the full-size body (Player/PlayerSize.h): the character's scale shrinks the heights,
  * and the crouch speed default is already scaled. Firing ends a sprint (the gun comes up immediately). Everything
@@ -74,8 +81,27 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Locomotion")
 	float GetSpreadMultiplier() const;
 
-	/** Degrees the camera's field of view should widen right now (sprinting or sliding). Applied by the view component. */
-	float GetFieldOfViewOffset() const { return SprintFovBoost * FMath::Max(SprintAlpha, SlideAlpha); }
+	/**
+	 * Degrees the camera's field of view should widen right now (sprinting or sliding). Applied by the view component.
+	 * The two blend as a smooth union, so handing over from one to the other has no kink.
+	 */
+	float GetFieldOfViewOffset() const { return SprintFovBoost * (1.f - (1.f - SprintAlpha) * (1.f - SlideAlpha)); }
+
+	/**
+	 * How far the view is lowered from standing, as a share of a crouch's drop: 0 standing, 1 crouched, more in a slide.
+	 * Eased and continuous through every change of stance, the capsule's included; the third-person camera follows it.
+	 */
+	float GetViewLowering() const;
+
+	/** The first-person eye's height above the feet right now (world cm), and the standing one it rises back to. */
+	float GetEyeHeight() const { return EyeHeight.GetValue(); }
+	float GetStandingEyeHeight() const { return StandingEye; }
+
+	/** Degrees a slide tips the first-person view by right now. */
+	float GetViewRoll() const { return AppliedViewRoll; }
+
+	/** The dust the slide kicks up (for the tests). */
+	const FSlideDust& GetDust() const { return Dust; }
 
 	// --- The keys (bound to the player's input; public so the tests can press them) ---
 
@@ -164,8 +190,24 @@ private:
 
 	void UpdateStance(float DeltaTime);
 	void UpdateAlphas(float DeltaTime);
-	void UpdateCamera();
+	/** Lowers and tips the first-person view on its eased curves (PlayerLocomotionViewModel.cpp). */
+	void UpdateCamera(float DeltaTime);
 	void UpdateViewModel(float DeltaTime);
+
+	/**
+	 * The engine's crouch and stand set the body's height in the capsule straight into its relative location, without
+	 * moving it there (ACharacter::OnStartCrouch / OnEndCrouch): until the capsule next moves, the body, and the
+	 * first-person camera riding it, sit a quarter metre off. Puts it where it belongs.
+	 */
+	void RefreshBodyTransform();
+	/**
+	 * Stands the capsule up at once, through the engine's headroom test (false, still crouched, when there's no room),
+	 * and notes how far the feet moved doing it (in the air the engine stands up about the capsule's middle), so the eye
+	 * takes the jump back and the view doesn't move.
+	 */
+	bool StandUpNow();
+	/** World height of the capsule's bottom. */
+	double GetFeetHeight() const;
 
 	/** Starts a slide if the character is sprinting on the ground (PlayerLocomotionSlide.cpp). */
 	bool TryStartSlide();
@@ -181,6 +223,8 @@ private:
 	float GetSlideExitSpeed() const;
 	/** Out of a slide with forward held: stands at once (if there's room) and runs on in the sprint. */
 	void SprintOutOfSlide();
+	/** This frame's slide dust (FSlideDust). */
+	void UpdateDust(float DeltaTime);
 
 	/** The movement keys held this frame (HandleMoveInput); zero once they stop coming. */
 	FVector2D GetHeldMoveInput() const;
@@ -202,11 +246,25 @@ private:
 	 */
 	TWeakObjectPtr<USceneComponent> EyeRig;
 	FVector EyeRigBaseLocation = FVector::ZeroVector;
+
+	// The first-person eye (world cm), UpdateCamera.
+	/** The eye's height above the feet: eased to the stance's, and shifted at once when the feet jump under it. */
+	FViewEase EyeHeight;
+	/** The slide's tip of the view (degrees), eased in and out. */
+	FViewEase ViewRoll;
+	/** The eye's height above the feet when standing with nothing lowered (learned while standing). */
+	float StandingEye = 0.f;
 	/**
-	 * Camera height above the feet when standing, measured on the ground, in the full-size body's units (the crouch drop
-	 * is derived from it).
+	 * How high the camera sits over its rig's parent with nothing lowered: the rig's own offset plus the camera's place on
+	 * it (the arms' head socket). Measured each frame, so whatever the capsule and body do, the eye lands on its curve.
 	 */
-	float StandingEyeHeight = -1.f;
+	float EyeRest = 0.f;
+	bool bHaveEye = false;
+	/** The capsule's half height last frame, and whether the movement kept the feet in place resizing it (on the ground). */
+	float LastHalfHeight = -1.f;
+	bool bLastResizeKeptFeet = true;
+	/** How far the feet jumped under the eye since it last looked (a resize in the air): the eye takes it back. */
+	float PendingFeetJump = 0.f;
 	/** The roll a slide tips the first-person view by, as last given to the camera. */
 	float AppliedViewRoll = 0.f;
 
@@ -218,6 +276,11 @@ private:
 	bool bSlideHoldsSpeed = false;
 	/** The slide under way will end in the sprint (as of this frame's keys): the sprint pose comes in as it eases out. */
 	bool bSlideExitsToSprint = false;
+	/** A slide started since the last frame (the dust's burst). */
+	bool bSlideJustStarted = false;
+	FSlideDust Dust;
+	/** The slide's scrape, held while it runs. */
+	TWeakObjectPtr<UAudioComponent> SlideLoop;
 	/** The movement keys as the character last passed them on, and the frame it did (GFrameCounter). */
 	FVector2D MoveInput = FVector2D::ZeroVector;
 	uint64 MoveInputFrame = 0;
@@ -228,13 +291,14 @@ private:
 	float LastFiringTime = -100.f;
 	float NotMovingTime = 0.f;
 
-	// Animation state
-	float SprintAlpha = 0.f;       // eased value handed out
-	float SprintLinear = 0.f;      // linear ramp behind it
+	// Animation state: the alphas handed out, and the minimum-jerk eases behind them (a stance that changes back mid-way
+	// turns around smoothly instead of reversing at once).
+	float SprintAlpha = 0.f;
 	float CrouchAlpha = 0.f;
-	float CrouchLinear = 0.f;
 	float SlideAlpha = 0.f;
-	float SlideLinear = 0.f;
+	FViewEase SprintEase;
+	FViewEase CrouchEase;
+	FViewEase SlideEase;
 	bool bSprintInterrupted = false;
 
 	// View model

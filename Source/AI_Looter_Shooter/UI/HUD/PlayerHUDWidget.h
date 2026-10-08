@@ -110,6 +110,8 @@ private:
 	/** A named gun's flavor line under its name; collapsed for any other gun. */
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupFlavor;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupLevel;
+	/** The gun's notches and curse (LoadoutParts::MakeGunIdeasRows) under its level line; collapsed for a gun with neither. */
+	UPROPERTY(Transient) TObjectPtr<USizeBox> PickupIdeas;
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> PickupStatTexts;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupHint;
 	UPROPERTY(Transient) TObjectPtr<UWidget> PickupHoldBar;
@@ -122,6 +124,12 @@ private:
 
 	TWeakObjectPtr<UWeaponManagerComponent> BoundManager;
 	TWeakObjectPtr<AWeaponBase> BoundWeapon;
+
+	/** What the loot card's notch and curse rows were built for: rebuilt only when another gun is looked at or a count in it changes. */
+	TWeakObjectPtr<const AWeaponBase> IdeasPickup;
+	int32 IdeasKills = 0;
+	FName IdeasCurse;
+	bool bIdeasLifted = false;
 
 	// Weapon display state
 	int32 LastMagazine = INDEX_NONE;

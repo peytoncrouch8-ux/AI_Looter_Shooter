@@ -235,18 +235,20 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 			Pawn->TeleportTo(Save.PlayerLocation, FRotator(0.f, Save.PlayerView.Yaw, 0.f), /*bIsATest*/ false, /*bNoCheck*/ true);
 			Controller->SetControlRotation(FRotator(Save.PlayerView.Pitch, Save.PlayerView.Yaw, 0.f));
 		}
-		if (UHealthComponent* Health = Pawn->FindComponentByClass<UHealthComponent>())
-		{
-			if (Save.Health > 0.f)
-			{
-				Health->SetHealth(Save.Health);
-			}
-		}
+		// The guns first: one in hand can change the player's max health (a Grasping iron's), keeping health's share,
+		// so health set before it would come back lower on every load.
 		if (UWeaponManagerComponent* Manager = Pawn->FindComponentByClass<UWeaponManagerComponent>())
 		{
 			if (Save.bHasInventory)
 			{
 				Manager->RestoreInventory(Save.Inventory);
+			}
+		}
+		if (UHealthComponent* Health = Pawn->FindComponentByClass<UHealthComponent>())
+		{
+			if (Save.Health > 0.f)
+			{
+				Health->SetHealth(Save.Health);
 			}
 		}
 	}

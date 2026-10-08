@@ -81,7 +81,7 @@ void UHealthComponent::SetHealth(float NewHealth)
 void UHealthComponent::SetMaxHealth(float NewMaxHealth)
 {
 	const float OldMaxHealth = MaxHealth;
-	MaxHealth = FMath::Max(NewMaxHealth, 1.f);
+	MaxHealth = FMath::Max(NewMaxHealth * MaxHealthScale, 1.f);
 	if (!HasBegunPlay() || bDead || FMath::IsNearlyEqual(MaxHealth, OldMaxHealth))
 	{
 		return;
@@ -89,6 +89,54 @@ void UHealthComponent::SetMaxHealth(float NewMaxHealth)
 	// A level-up's extra health comes with it, so the wound stays the same size; a smaller maximum takes as much away.
 	Health = FMath::Clamp(Health + (MaxHealth - OldMaxHealth), FMath::Min(1.f, MaxHealth), MaxHealth);
 	OnHealthChanged.Broadcast(Health, MaxHealth);
+}
+
+void UHealthComponent::SetMaxHealthScale(float Scale)
+{
+	const float NewScale = FMath::Max(Scale, 0.01f);
+	if (FMath::IsNearlyEqual(NewScale, MaxHealthScale))
+	{
+		return;
+	}
+	const float OldMaxHealth = MaxHealth;
+	MaxHealth = FMath::Max(MaxHealth / MaxHealthScale * NewScale, 1.f);
+	MaxHealthScale = NewScale;
+	if (!HasBegunPlay() || bDead)
+	{
+		return;
+	}
+	// The same share of the new maximum: a gun swapped in and out again leaves health where it was, and a share of a
+	// living one's health is never none.
+	Health = FMath::Min(Health * MaxHealth / FMath::Max(OldMaxHealth, 1.f), MaxHealth);
+	OnHealthChanged.Broadcast(Health, MaxHealth);
+}
+
+float UHealthComponent::Heal(float Amount)
+{
+	if (bDead || Amount <= 0.f || Health >= MaxHealth)
+	{
+		return 0.f;
+	}
+	const float Healed = FMath::Min(Amount, MaxHealth - Health);
+	Health += Healed;
+	OnHealthChanged.Broadcast(Health, MaxHealth);
+	return Healed;
+}
+
+float UHealthComponent::Drain(float Amount)
+{
+	if (bDead || bInvulnerable || Amount <= 0.f)
+	{
+		return 0.f;
+	}
+	const float Taken = FMath::Clamp(Amount, 0.f, FMath::Max(Health - 1.f, 0.f));
+	if (Taken <= 0.f)
+	{
+		return 0.f;
+	}
+	Health -= Taken;
+	OnHealthChanged.Broadcast(Health, MaxHealth);
+	return Taken;
 }
 
 void UHealthComponent::SpawnDamageNumber(float Damage, bool bCritical, const FVector& Location, AController* InstigatedBy) const

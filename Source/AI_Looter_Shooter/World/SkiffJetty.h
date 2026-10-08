@@ -10,7 +10,6 @@ class AStaticMeshActor;
 class UMaterialInterface;
 class UMissionRunner;
 class USceneComponent;
-class USoundBase;
 class USplineMeshComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
@@ -194,10 +193,6 @@ public:
 	/** The lines' rope, the skiff's own canvas rope. */
 	UPROPERTY(EditAnywhere, Category = "Jetty|Art")
 	TObjectPtr<UMaterialInterface> MooringLineMaterial;
-
-	/** Played as the bell rings; none for now. */
-	UPROPERTY(EditAnywhere, Category = "Jetty|Art")
-	TObjectPtr<USoundBase> BellSound;
 
 	// --- Sockets ---
 

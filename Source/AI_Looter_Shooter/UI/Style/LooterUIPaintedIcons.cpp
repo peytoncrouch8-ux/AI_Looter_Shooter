@@ -336,6 +336,108 @@ namespace
 		}
 		return Texture;
 	}
+
+	// --- The gun cards' glyphs: the cursed irons' cracked coin and the notches' tally ---
+
+	/** A circle as a many-sided polygon; bClosed repeats the first point at the end, which a stroke needs and a fill doesn't. */
+	TArray<FVector2D> CirclePolygon(const FVector2D& Center, double Radius, bool bClosed)
+	{
+		constexpr int32 Steps = 48;
+		TArray<FVector2D> Points;
+		Points.Reserve(Steps + 1);
+		for (int32 Step = 0; Step < Steps; ++Step)
+		{
+			const double Angle = UE_TWO_PI * Step / Steps;
+			Points.Add(Center + FVector2D(FMath::Cos(Angle), FMath::Sin(Angle)) * Radius);
+		}
+		if (bClosed)
+		{
+			// A copy: TArray asserts when it adds a reference to its own element, as the add may reallocate.
+			Points.Add(FVector2D(Points[0]));
+		}
+		return Points;
+	}
+
+	/**
+	 * The cracked coin (24 x 24): a dark rim so it reads over anything, a brass face lit from the top-left, a shaded inner
+	 * ring, and a jagged crack from edge to edge with two side cracks. The crack is thick on purpose: at 14 px it is
+	 * still a dark line you can see, not a hairline the filter loses.
+	 */
+	const LooterUI::FPaintedIcon& CrackedCoinIcon()
+	{
+		static const LooterUI::FPaintedIcon Icon = []
+		{
+			using namespace LooterUI;
+			const FVector2D Middle(12.0, 12.0);
+			FPaintedIcon Coin;
+			Coin.ViewBox = FVector2D(24.f, 24.f);
+
+			FPaintLayer Rim;
+			Rim.Fills.Add(CirclePolygon(Middle, 11.8, false));
+			Rim.Color = Color::Ink();
+			Coin.Layers.Add(Rim);
+
+			// The gradient's dark end lies beyond the coin, so the lower right only dims to a worn brass.
+			FPaintLayer Face;
+			Face.Fills.Add(CirclePolygon(Middle, 10.2, false));
+			Face.Color = Color::CurseLight();
+			Face.GradientTo = Color::CurseDark();
+			Face.GradientStart = FVector2D(4.0, 3.0);
+			Face.GradientEnd = FVector2D(28.0, 30.0);
+			Coin.Layers.Add(Face);
+
+			FPaintLayer Ring;
+			Ring.Strokes.Add(CirclePolygon(Middle, 7.4, true));
+			Ring.StrokeWidth = 1.1f;
+			Ring.Color = Color::CurseDark();
+			Ring.Opacity = 0.75f;
+			Coin.Layers.Add(Ring);
+
+			FPaintLayer Crack;
+			Crack.Strokes.Add({ FVector2D(14.8, 1.0), FVector2D(11.6, 6.4), FVector2D(14.2, 9.6), FVector2D(10.4, 13.4),
+				FVector2D(13.4, 16.6), FVector2D(9.8, 22.8) });
+			Crack.StrokeWidth = 2.3f;
+			Crack.Color = Color::Ink();
+			Coin.Layers.Add(Crack);
+
+			FPaintLayer Branches;
+			Branches.Strokes.Add({ FVector2D(10.4, 13.4), FVector2D(5.4, 14.4), FVector2D(3.8, 17.6) });
+			Branches.Strokes.Add({ FVector2D(14.2, 9.6), FVector2D(18.6, 8.6) });
+			Branches.StrokeWidth = 1.3f;
+			Branches.Color = Color::Ink();
+			Coin.Layers.Add(Branches);
+			return Coin;
+		}();
+		return Icon;
+	}
+
+	/** The notch tally (24 x 24): four upright cuts and the slash across them, as cut into a gun's stock. */
+	const LooterUI::FVectorIcon& TallyIcon()
+	{
+		static const LooterUI::FVectorIcon Icon = []
+		{
+			LooterUI::FVectorIcon Tally;
+			Tally.ViewBox = FVector2D(24.f, 24.f);
+			Tally.StrokeWidth = 2.2f;
+			for (const double X : { 4.0, 9.0, 14.0, 19.0 })
+			{
+				Tally.Strokes.Add({ FVector2D(X, 4.5), FVector2D(X, 19.5) });
+			}
+			Tally.Strokes.Add({ FVector2D(1.5, 17.5), FVector2D(22.5, 6.5) });
+			return Tally;
+		}();
+		return Icon;
+	}
+
+	/**
+	 * A glyph texture's resolution: about twice the drawn size, rounded up to half a pixel per unit, so the few sizes the
+	 * cards use (14 to 20 px) share a handful of textures rather than making one each.
+	 */
+	float GlyphPixelsPerUnit(const FVector2D& Size, float ViewBox)
+	{
+		const float Largest = static_cast<float>(Size.GetMax());
+		return FMath::Max(1.5f, FMath::CeilToFloat(Largest * 4.f / ViewBox) * 0.5f);
+	}
 }
 
 FSlateBrush LooterUI::PaintedIconBrush(FName Name, const FPaintedIcon& Icon, float PixelsPerUnit, const FVector2D& Size, const FLinearColor& Tint)
@@ -364,4 +466,16 @@ FSlateBrush LooterUI::GlowBrush(const FVector2D& Size, const FLinearColor& Tint)
 	Brush.DrawAs = ESlateBrushDrawType::Image;
 	Brush.TintColor = FSlateColor(Tint);
 	return Brush;
+}
+
+FSlateBrush LooterUI::CrackedCoinBrush(const FVector2D& Size, const FLinearColor& Tint)
+{
+	const FPaintedIcon& Coin = CrackedCoinIcon();
+	return PaintedIconBrush(TEXT("CrackedCoin"), Coin, GlyphPixelsPerUnit(Size, static_cast<float>(Coin.ViewBox.X)), Size, Tint);
+}
+
+FSlateBrush LooterUI::TallyBrush(const FVector2D& Size, const FLinearColor& Tint)
+{
+	const FVectorIcon& Tally = TallyIcon();
+	return IconBrush(TEXT("NotchTally"), Tally, GlyphPixelsPerUnit(Size, static_cast<float>(Tally.ViewBox.X)), Size, Tint);
 }

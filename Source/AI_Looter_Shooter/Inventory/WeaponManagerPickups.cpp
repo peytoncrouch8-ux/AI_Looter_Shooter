@@ -2,6 +2,7 @@
 // hold), the loot it offers the player's interaction component, and the loot labels.
 
 #include "Inventory/WeaponManagerComponent.h"
+#include "Audio/LooterSound.h"
 #include "Interaction/InteractionComponent.h"
 #include "Weapons/WeaponBase.h"
 #include "EnhancedPlayerInput.h"
@@ -138,7 +139,19 @@ bool UWeaponManagerComponent::UseOffer(AActor& Offer, bool bHeld)
 	{
 		return false;
 	}
-	return bHeld ? EquipPickup(Weapon) : TryPickup(Weapon);
+	// Where it lay, before it goes to a slot, the backpack or away.
+	const FVector Where = Weapon->GetActorLocation();
+	const bool bTaken = bHeld ? EquipPickup(Weapon) : TryPickup(Weapon);
+	// Taken: the grab (the gun coming up has its own sound); refused (every slot and the backpack full): a refusal.
+	if (bTaken)
+	{
+		LooterSound::PlayAt(this, LooterSoundCue::GunPickup, Where);
+	}
+	else
+	{
+		LooterSound::Play2D(this, LooterSoundCue::Denied);
+	}
+	return bTaken;
 }
 
 // ---------------------------------------------------------------------------

@@ -8,6 +8,8 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Player/PlayerLocomotionComponent.h"
+#include "Player/PlayerViewComponent.h"
+#include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
@@ -71,6 +73,99 @@ namespace LocomotionTestWorld
 	{
 		static_cast<UActorComponent*>(Locomotion)->TickComponent(Frame, LEVELTICK_All, nullptr);
 	}
+
+	/**
+	 * One frame as the game plays it: first what the movement does with the crouch wish before it moves (crouches, or
+	 * stands if there's room: UCharacterMovementComponent::UpdateCharacterStateBeforeMovement), then the locomotion.
+	 */
+	inline void PlayFrame(UPlayerLocomotionComponent* Locomotion)
+	{
+		UCharacterMovementComponent* Movement = BodyOf(Locomotion)->GetCharacterMovement();
+		if (Movement->bWantsToCrouch && !Movement->IsCrouching())
+		{
+			Movement->Crouch(false);
+		}
+		else if (!Movement->bWantsToCrouch && Movement->IsCrouching())
+		{
+			Movement->UnCrouch(false);
+		}
+		Step(Locomotion);
+	}
+
+	inline UCameraComponent* CameraOf(const UPlayerLocomotionComponent* Locomotion)
+	{
+		return UPlayerViewComponent::FindFirstPersonCamera(Locomotion->GetOwner());
+	}
+
+	/** The first-person camera's height above the feet (the capsule's bottom). */
+	inline float EyeAboveFeet(const UPlayerLocomotionComponent* Locomotion)
+	{
+		const ACharacter* Body = BodyOf(Locomotion);
+		const UCameraComponent* Camera = CameraOf(Locomotion);
+		const double Feet = Body->GetActorLocation().Z - Body->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+		return Camera ? static_cast<float>(Camera->GetComponentLocation().Z - Feet) : 0.f;
+	}
+
+	/**
+	 * The first-person view, frame by frame: the camera's height in the world and its roll, the most either moved in one
+	 * frame (a pop), and the most that move changed from one frame to the next (a jolt: a sudden start, stop or turn).
+	 */
+	struct FViewTrack
+	{
+		float MaxStep = 0.f;
+		float MaxStepChange = 0.f;
+		float MaxRollStep = 0.f;
+		float MaxRollStepChange = 0.f;
+		/** The frames the worst step and the worst change came on (counted from the first sample). */
+		int32 WorstStepFrame = -1;
+		int32 WorstChangeFrame = -1;
+		int32 Frames = 0;
+
+		void Sample(const UPlayerLocomotionComponent* Locomotion)
+		{
+			const UCameraComponent* Camera = CameraOf(Locomotion);
+			if (!Camera)
+			{
+				return;
+			}
+			FTransform Offset;
+			float FieldOfView = 0.f;
+			Camera->GetAdditiveOffset(Offset, FieldOfView);
+			const float Z = static_cast<float>(Camera->GetComponentLocation().Z);
+			const float Roll = static_cast<float>(Offset.Rotator().Roll);
+			if (Frames > 0)
+			{
+				const float Moved = Z - LastZ;
+				const float Rolled = Roll - LastRoll;
+				if (FMath::Abs(Moved) > MaxStep)
+				{
+					MaxStep = FMath::Abs(Moved);
+					WorstStepFrame = Frames;
+				}
+				MaxRollStep = FMath::Max(MaxRollStep, FMath::Abs(Rolled));
+				if (Frames > 1)
+				{
+					if (FMath::Abs(Moved - LastMoved) > MaxStepChange)
+					{
+						MaxStepChange = FMath::Abs(Moved - LastMoved);
+						WorstChangeFrame = Frames;
+					}
+					MaxRollStepChange = FMath::Max(MaxRollStepChange, FMath::Abs(Rolled - LastRolled));
+				}
+				LastMoved = Moved;
+				LastRolled = Rolled;
+			}
+			LastZ = Z;
+			LastRoll = Roll;
+			++Frames;
+		}
+
+	private:
+		float LastZ = 0.f;
+		float LastMoved = 0.f;
+		float LastRoll = 0.f;
+		float LastRolled = 0.f;
+	};
 
 	/** Pushing forward at Speed: the keys as the last move read them, and the velocity they made. */
 	inline void MoveForward(UPlayerLocomotionComponent* Locomotion, float Speed)

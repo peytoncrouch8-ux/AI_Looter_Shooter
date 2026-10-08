@@ -422,7 +422,8 @@ ULoadoutWidget::FCard ULoadoutWidget::MakeSlotCard(int32 SlotIndex)
 
 	// Bottom: its name, in its rarity color.
 	const bool bBackpackEmpty = !Manager.IsValid() || Manager->GetBackpack().IsEmpty();
-	Content->AddChildToVerticalBox(Item ? FittedLabel(WidgetTree, LooterWeaponText::Name(*Item), 11, LooterWeaponText::Color(*Item), 50)
+	// (A cursed gun's name has the cracked coin before it.)
+	Content->AddChildToVerticalBox(Item ? MakeGunNameLine(WidgetTree, *Item, 11, LooterWeaponText::Color(*Item), 50)
 		: FittedLabel(WidgetTree, bBackpackEmpty ? TEXT("Free for the next gun you find") : TEXT("Pick a gun from the backpack"), 8, Color::TextDim(), 100));
 
 	UOverlay* Box = MakeCard(WidgetTree, Content, FMargin(14.f, 10.f), 2.f, Card.Fill, Card.Line);
@@ -516,7 +517,7 @@ ULoadoutWidget::FCard ULoadoutWidget::MakeListCard(int32 Row)
 		->SetVerticalAlignment(VAlign_Center);
 
 	UVerticalBox* Text = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	Text->AddChildToVerticalBox(FittedLabel(WidgetTree, LooterWeaponText::Name(*Item), 10, Rarity, 50));
+	Text->AddChildToVerticalBox(MakeGunNameLine(WidgetTree, *Item, 10, Rarity, 50));
 	Text->AddChildToVerticalBox(FittedLabel(WidgetTree, FString::Printf(TEXT("Lv %d · %s dmg · %.0f rpm"), Item->Level,
 		*LooterWeaponText::DamageString(Item->Stats), Item->Stats.FireRate), 8, Color::TextDim(), 120))->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
 	UHorizontalBoxSlot* TextSlot = Line->AddChildToHorizontalBox(Text);

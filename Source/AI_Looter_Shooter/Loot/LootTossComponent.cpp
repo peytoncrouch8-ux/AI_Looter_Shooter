@@ -1,6 +1,14 @@
 #include "Loot/LootTossComponent.h"
+#include "Audio/LooterSound.h"
 #include "Components/PrimitiveComponent.h"
 #include "GameFramework/Actor.h"
+
+namespace
+{
+	/** A touch slower than this (cm/s, into the surface) makes no sound; from it to LoudLandSpeed it grows to full. */
+	constexpr float QuietLandSpeed = 60.f;
+	constexpr float LoudLandSpeed = 600.f;
+}
 
 ULootTossComponent::ULootTossComponent()
 {
@@ -38,6 +46,13 @@ void ULootTossComponent::HandleImpact(const FHitResult& Hit, float TimeSlice, co
 	// can't hold loot on a slope and it slides until the ground flattens out, which can be far from the kill.
 	// Only static world geometry counts as ground; anything else may move or vanish and leave the loot floating.
 	const UPrimitiveComponent* Surface = Hit.GetComponent();
+	// Every knock is heard by how hard it came in: the first landing the loudest, a hop's after it softer.
+	const float IntoSurface = static_cast<float>(-FVector::DotProduct(Velocity, Hit.ImpactNormal));
+	if (!Hit.bStartPenetrating && IntoSurface > QuietLandSpeed)
+	{
+		const float Loudness = FMath::GetMappedRangeValueClamped(FVector2f(QuietLandSpeed, LoudLandSpeed), FVector2f(0.3f, 1.f), IntoSurface);
+		LooterSound::PlayAt(this, LooterSoundCue::LootLand, Hit.ImpactPoint, Loudness);
+	}
 	if (!Hit.bStartPenetrating && Hit.ImpactNormal.Z >= WalkableFloorZ && Surface && Surface->GetCollisionObjectType() == ECC_WorldStatic)
 	{
 		++GroundImpacts;

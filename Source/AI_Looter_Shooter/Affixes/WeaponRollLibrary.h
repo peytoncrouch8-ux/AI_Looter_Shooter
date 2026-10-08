@@ -44,6 +44,7 @@ public:
 	/**
 	 * A gun's stats as it is (AWeaponBase rebuilds them with this whenever it's made or loaded): a named gun's at its
 	 * fixed quality (UNamedWeaponDefinition::StatQuality), so every copy is the same; any other's rolled from its seed.
+	 * Then its notches' damage (WeaponNotches) and its curse's plain numbers (WeaponCurses) on top of its parts.
 	 */
 	static FWeaponStats ComputeInstanceStats(const FWeaponInstanceData& Instance);
 
@@ -51,7 +52,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapons|Loot")
 	static FWeaponInstanceData RollWeapon(UWeaponDefinition* Definition, int32 Level = 1, float Luck = 0.f);
 
-	/** Same as RollWeapon but with a fixed rarity (quest rewards, testing). */
+	/** Same as RollWeapon but with a fixed rarity (quest rewards, testing). Never cursed: only guns that drop are (ULootLibrary). */
 	UFUNCTION(BlueprintCallable, Category = "Weapons|Loot")
 	static FWeaponInstanceData RollWeaponWithRarity(UWeaponDefinition* Definition, EWeaponRarity Rarity, int32 Level = 1);
 

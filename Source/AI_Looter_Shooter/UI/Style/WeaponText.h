@@ -2,7 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "Weapons/NamedWeaponDefinition.h"
+#include "Weapons/WeaponCurses.h"
 #include "Weapons/WeaponDefinition.h"
+#include "Weapons/WeaponNotches.h"
 #include "Weapons/WeaponParts.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -14,21 +16,36 @@ namespace LooterWeaponText
 	/**
 	 * "Scoped Assault Rifle": the word the gun's parts give it (if any) and the kind of gun. No rarity word: every name is
 	 * shown in its rarity's color (Color below), which says it at a glance (the user's call). A named gun goes by its own
-	 * name ("Heirloom") instead.
+	 * name ("Heirloom") instead. Once a gun is Named by its notches its nickname follows in quotes: Scoped Bullpup
+	 * "Lantern Jaw".
 	 */
 	inline FString Name(const FWeaponInstanceData& Instance)
 	{
-		if (Instance.Named && !Instance.Named->DisplayName.IsEmpty())
+		const FString Base = WeaponParts::BaseName(Instance);
+		const FString Nickname = WeaponNotches::Nickname(Instance);
+		return Nickname.IsEmpty() ? Base : FString::Printf(TEXT("%s \"%s\""), *Base, *Nickname);
+	}
+
+	/** "137 NOTCHES" ("1 NOTCH"), for the loot and loadout cards; empty before its first kill. */
+	inline FString NotchesString(const FWeaponInstanceData& Instance)
+	{
+		if (Instance.Kills < 1)
 		{
-			return Instance.Named->DisplayName.ToString();
+			return FString();
 		}
-		if (!Instance.Definition)
+		return FString::Printf(TEXT("%s %s"), *FText::AsNumber(Instance.Kills).ToString(), Instance.Kills == 1 ? TEXT("NOTCH") : TEXT("NOTCHES"));
+	}
+
+	/** The curse's name for labels ("HUNGRY"), empty when not cursed; "HUNGRY · LIFTED" once lifted. */
+	inline FString CurseString(const FWeaponInstanceData& Instance)
+	{
+		const FWeaponCurse* Curse = WeaponCurses::Of(Instance);
+		if (!Curse)
 		{
-			return TEXT("Unknown");
+			return FString();
 		}
-		const FText Prefix = WeaponParts::NamePrefix(WeaponParts::Pick(Instance));
-		const FString Weapon = Instance.Definition->DisplayName.ToString();
-		return Prefix.IsEmpty() ? Weapon : FString::Printf(TEXT("%s %s"), *Prefix.ToString(), *Weapon);
+		const FString Word = Curse->Name.ToString().ToUpper();
+		return Instance.bCurseLifted ? Word + TEXT(" · LIFTED") : Word;
 	}
 
 	/** A named gun's flavor line ("Hold the door."), shown under its name on its cards and label; empty for other guns. */

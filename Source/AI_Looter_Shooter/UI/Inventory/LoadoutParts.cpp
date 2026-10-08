@@ -4,7 +4,9 @@
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/InkedIconData.inl"
 #include "UI/Style/WeaponText.h"
+#include "Weapons/WeaponCurses.h"
 #include "Weapons/WeaponDefinition.h"
+#include "Weapons/WeaponNotches.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
@@ -14,9 +16,48 @@
 #include "Components/OverlaySlot.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 #include "Rendering/DrawElements.h"
 
 using namespace LooterUI;
+
+namespace
+{
+	/** The tier's word on a card, and its color: warmer as the gun earns it, the soul-forged one in the kit's cyan. */
+	const TCHAR* NotchTierWord(ENotchTier Tier)
+	{
+		switch (Tier)
+		{
+		case ENotchTier::Blooded: return TEXT("Blooded");
+		case ENotchTier::Named: return TEXT("Named");
+		case ENotchTier::SoulForged: return TEXT("Soul-forged");
+		default: return TEXT("");
+		}
+	}
+
+	FLinearColor NotchTierColor(ENotchTier Tier)
+	{
+		switch (Tier)
+		{
+		case ENotchTier::Blooded: return Color::Accent();
+		case ENotchTier::Named: return Color::AccentLight();
+		case ENotchTier::SoulForged: return Color::CyanText();
+		default: return Color::TextDim();
+		}
+	}
+
+	/** Content in a column of its own width, so the glyphs of different rows line their words up. */
+	UWidget* InGlyphColumn(UWidgetTree* Tree, UWidget* Content, float Width, EVerticalAlignment Vertical, float Top)
+	{
+		UOverlay* Column = Tree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		UOverlaySlot* ContentSlot = Column->AddChildToOverlay(Content);
+		ContentSlot->SetHorizontalAlignment(HAlign_Center);
+		ContentSlot->SetVerticalAlignment(Vertical);
+		ContentSlot->SetPadding(FMargin(0.f, Top, 0.f, 0.f));
+		return MakeSized(Tree, Column, Width);
+	}
+}
 
 namespace LoadoutParts
 {
@@ -130,6 +171,111 @@ namespace LoadoutParts
 		ImageSlot->SetHorizontalAlignment(HAlign_Center);
 		ImageSlot->SetVerticalAlignment(VAlign_Center);
 		return Picture;
+	}
+
+	UWidget* MakeGunNameLine(UWidgetTree* Tree, const FWeaponInstanceData& Item, int32 FontSize, const FLinearColor& NameColor, int32 LetterSpacing)
+	{
+		UTextBlock* Name = FittedLabel(Tree, LooterWeaponText::Name(Item), FontSize, NameColor, LetterSpacing);
+		if (!WeaponCurses::Of(Item))
+		{
+			return Name;
+		}
+		// The coin is about a line of type tall; the name takes the rest of the row and ends in "..." if it doesn't fit.
+		const float CoinSize = FMath::Clamp(FontSize * 1.5f, 14.f, 20.f);
+		UHorizontalBox* Line = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		const FLinearColor CoinTint(1.f, 1.f, 1.f, Item.bCurseLifted ? 0.55f : 1.f);
+		UHorizontalBoxSlot* CoinSlot = Line->AddChildToHorizontalBox(MakeImage(Tree, CrackedCoinBrush(FVector2D(CoinSize, CoinSize), CoinTint)));
+		CoinSlot->SetVerticalAlignment(VAlign_Center);
+		CoinSlot->SetPadding(FMargin(0.f, 0.f, 6.f, 0.f));
+		UHorizontalBoxSlot* NameSlot = Line->AddChildToHorizontalBox(Name);
+		NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		NameSlot->SetVerticalAlignment(VAlign_Center);
+		return Line;
+	}
+
+	UWidget* MakeGunIdeasRows(UWidgetTree* Tree, const FWeaponInstanceData& Item, int32 FontSize)
+	{
+		const FString Notches = LooterWeaponText::NotchesString(Item);
+		const FWeaponCurse* Iron = WeaponCurses::Of(Item);
+		if (Notches.IsEmpty() && !Iron)
+		{
+			return nullptr;
+		}
+
+		// The glyphs scale with the type but stay where they read; every row keeps a column of that width for its glyph
+		// (the perk's and the drawback's arrows too), so all the words start in a line.
+		static constexpr float GlyphGap = 7.f;
+		const float GlyphSize = FMath::Clamp(FontSize * 1.5f, 14.f, 20.f);
+		const FVector2D GlyphBox(GlyphSize, GlyphSize);
+		// A wrapped perk keeps its arrow level with the first line: about the middle of a line of this type.
+		const float ArrowTop = FontSize * 0.5f;
+
+		UVerticalBox* Rows = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		auto AddLine = [Tree, Rows](float Top)
+		{
+			UHorizontalBox* Line = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			Rows->AddChildToVerticalBox(Line)->SetPadding(FMargin(0.f, Top, 0.f, 0.f));
+			return Line;
+		};
+		auto AddGlyph = [](UHorizontalBox* Line, UWidget* Column)
+		{
+			UHorizontalBoxSlot* GlyphSlot = Line->AddChildToHorizontalBox(Column);
+			GlyphSlot->SetVerticalAlignment(VAlign_Top);
+			GlyphSlot->SetPadding(FMargin(0.f, 0.f, GlyphGap, 0.f));
+		};
+		// A line of text that takes the rest of the row and wraps there.
+		auto AddWords = [Tree](UHorizontalBox* Line, const FString& Words, int32 Size, const FLinearColor& WordsColor, int32 Spacing)
+		{
+			UTextBlock* Text = Label(Tree, Words, Size, WordsColor, Spacing);
+			Text->SetAutoWrapText(true);
+			UHorizontalBoxSlot* TextSlot = Line->AddChildToHorizontalBox(Text);
+			TextSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			TextSlot->SetVerticalAlignment(VAlign_Center);
+		};
+
+		// The notches: a tally mark, the count, and the tier's word once the gun has earned one.
+		if (!Notches.IsEmpty())
+		{
+			const ENotchTier Tier = WeaponNotches::TierFor(Item.Kills);
+			UHorizontalBox* Line = AddLine(0.f);
+			AddGlyph(Line, InGlyphColumn(Tree, MakeImage(Tree, TallyBrush(GlyphBox, NotchTierColor(Tier))), GlyphSize, VAlign_Center, 0.f));
+			Line->AddChildToHorizontalBox(Label(Tree, Notches, FontSize, Color::Text(), 100))->SetVerticalAlignment(VAlign_Center);
+			if (Tier != ENotchTier::None)
+			{
+				UHorizontalBoxSlot* TierSlot = Line->AddChildToHorizontalBox(Label(Tree, NotchTierWord(Tier), FontSize, NotchTierColor(Tier), 200));
+				TierSlot->SetVerticalAlignment(VAlign_Center);
+				TierSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
+			}
+		}
+
+		if (Iron)
+		{
+			const bool bLifted = Item.bCurseLifted;
+
+			// The cracked coin and the curse's name; the coin fades once the curse is lifted. The rarity color stays on the
+			// gun's name, so the curse has its own brass.
+			UHorizontalBox* NameLine = AddLine(Notches.IsEmpty() ? 0.f : 6.f);
+			AddGlyph(NameLine, InGlyphColumn(Tree, MakeImage(Tree, CrackedCoinBrush(GlyphBox, FLinearColor(1.f, 1.f, 1.f, bLifted ? 0.55f : 1.f))),
+				GlyphSize, VAlign_Center, 0.f));
+			NameLine->AddChildToHorizontalBox(Label(Tree, Iron->Name.ToString(), FontSize + 2, Color::Curse(), 120))->SetVerticalAlignment(VAlign_Center);
+			UHorizontalBoxSlot* TagSlot = NameLine->AddChildToHorizontalBox(Label(Tree, bLifted ? TEXT("Lifted") : TEXT("Curse"),
+				FMath::Max(FontSize - 1, 7), bLifted ? Color::Better() : Color::TextDim(), 220));
+			TagSlot->SetVerticalAlignment(VAlign_Center);
+			TagSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
+
+			// What it gives (up, green) and what it costs (down, red). Once lifted the cost stays on the card, dim, so the
+			// player can see what they were rid of.
+			auto AddEffect = [&](bool bPerk, const FText& Words, const FLinearColor& EffectColor, float Top)
+			{
+				UHorizontalBox* Line = AddLine(Top);
+				AddGlyph(Line, InGlyphColumn(Tree, MakeImage(Tree, IconBrush(bPerk ? TEXT("ArrowUp") : TEXT("ArrowDown"), ArrowIcon(bPerk), 4.f,
+					FVector2D(10.f, 8.f), EffectColor)), GlyphSize, VAlign_Top, ArrowTop));
+				AddWords(Line, Words.ToString(), FontSize, EffectColor, 60);
+			};
+			AddEffect(true, Iron->Perk, Color::Better(), 3.f);
+			AddEffect(false, Iron->Drawback, bLifted ? Color::TextDim() : Color::Worse(), 2.f);
+		}
+		return Rows;
 	}
 
 	/** A key cap and what the key does: [E] SWAP. The first (main) action's cap is lit. */

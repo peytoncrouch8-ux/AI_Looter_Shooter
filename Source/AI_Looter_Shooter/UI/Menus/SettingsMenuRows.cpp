@@ -11,11 +11,11 @@
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
-#include "Components/ScrollBox.h"
-#include "Components/ScrollBoxSlot.h"
 #include "Components/SizeBox.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 
 using namespace SettingsMenu;
 
@@ -147,14 +147,14 @@ UWidget* USettingsMenuWidget::MakeSliderRow(const FString& Label, float MinValue
 void USettingsMenuWidget::RebuildControls()
 {
 	using namespace LooterUI;
-	ControlsList->ClearChildren();
+	KeyList->ClearChildren();
 	KeyButtons.Reset();
 	ModeButtons.Reset();
 
 	const UKeyBindingSubsystem* Bindings = GetBindings();
 	if (!Bindings)
 	{
-		ControlsList->AddChild(MakeText(WidgetTree, TEXT("Key bindings unavailable."), 13, LooterUI::Color::Worse()));
+		KeyList->AddChildToVerticalBox(MakeText(WidgetTree, TEXT("Key bindings unavailable."), 13, LooterUI::Color::Worse()));
 		return;
 	}
 
@@ -166,10 +166,7 @@ void USettingsMenuWidget::RebuildControls()
 		if (Binding.Category.ToString() != LastCategory)
 		{
 			LastCategory = Binding.Category.ToString();
-			if (UScrollBoxSlot* HeaderSlot = Cast<UScrollBoxSlot>(ControlsList->AddChild(MakeSection(WidgetTree, LastCategory))))
-			{
-				HeaderSlot->SetPadding(FMargin(0.f, Index == 0 ? 0.f : 10.f, 0.f, 4.f));
-			}
+			KeyList->AddChildToVerticalBox(MakeSection(WidgetTree, LastCategory))->SetPadding(FMargin(0.f, Index == 0 ? 0.f : 10.f, 0.f, 4.f));
 		}
 
 		UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -183,10 +180,7 @@ void USettingsMenuWidget::RebuildControls()
 
 		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeButton(ActionResetOne, Index, TEXT("Default"), 10, EButtonKind::Mini), DefaultColumnWidth));
 
-		if (UScrollBoxSlot* RowSlot = Cast<UScrollBoxSlot>(ControlsList->AddChild(MakeRow(WidgetTree, Line))))
-		{
-			RowSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
-		}
+		KeyList->AddChildToVerticalBox(MakeRow(WidgetTree, Line))->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
 
 		if (Binding.bSupportsToggle)
 		{
@@ -196,10 +190,7 @@ void USettingsMenuWidget::RebuildControls()
 				ActionHoldMode, ActionToggleMode, Index, true, HoldButton, ToggleButton);
 			ModeButtons.Add(HoldButton);
 			ModeButtons.Add(ToggleButton);
-			if (UScrollBoxSlot* ModeSlot = Cast<UScrollBoxSlot>(ControlsList->AddChild(ModeRow)))
-			{
-				ModeSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
-			}
+			KeyList->AddChildToVerticalBox(ModeRow)->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
 		}
 	}
 	RefreshKeyLabels();

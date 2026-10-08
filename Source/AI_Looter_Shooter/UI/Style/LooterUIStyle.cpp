@@ -212,6 +212,10 @@ namespace LooterUI::Color
 	FLinearColor KeycapTop()     { return Hex(36, 70, 94); }
 	FLinearColor KeycapBottom()  { return Hex(14, 36, 51); }
 	FLinearColor Heal()          { return Hex(109, 255, 122); }
+
+	FLinearColor Curse()         { return Hex(199, 178, 96); }
+	FLinearColor CurseLight()    { return Hex(236, 224, 160); }
+	FLinearColor CurseDark()     { return Hex(96, 80, 36); }
 }
 
 // ---------------------------------------------------------------------------

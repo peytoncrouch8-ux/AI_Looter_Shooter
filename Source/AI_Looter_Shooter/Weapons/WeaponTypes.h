@@ -183,4 +183,16 @@ struct FWeaponInstanceData
 	 * isn't stored per weapon: it lives in the holder's shared pool (UWeaponManagerComponent). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	int32 SavedMagazine = -1;
+
+	/** Creatures this gun has killed: its notches (WeaponNotches). Stays with it when dropped, stashed or saved. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "0"))
+	int32 Kills = 0;
+
+	/** Its curse's key (WeaponCurses), none when it isn't cursed. Keys never change once guns drop. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	FName Curse;
+
+	/** Its curse's drawback is gone (100 notches; Tilly's grave salt later); the perk stays. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	bool bCurseLifted = false;
 };

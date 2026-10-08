@@ -4,6 +4,8 @@
 #include "Settings/KeyBindingSubsystem.h"
 #include "Weapons/WeaponBase.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
@@ -38,16 +40,29 @@ TSharedRef<SWidget> UWeaponLabelWidget::RebuildWidget()
 		AddFill(PlateLine, FMargin(0.f));
 
 		UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-		auto AddLine = [Box](UTextBlock* Text)
+		auto AddLine = [Box](UWidget* Line)
 		{
-			Box->AddChildToVerticalBox(Text)->SetHorizontalAlignment(HAlign_Center);
+			Box->AddChildToVerticalBox(Line)->SetHorizontalAlignment(HAlign_Center);
 		};
 
 		NameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Name"));
 		FlavorText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Flavor"));
 		StatsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Stats"));
 		PromptText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Prompt"));
+
+		// A cursed iron's line: the cracked coin and the curse's name, in the curse's own brass, so the name above keeps the
+		// rarity's color. ApplyContent sizes the coin and shows the row only for a cursed gun.
+		UHorizontalBox* CurseLine = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("CurseLine"));
+		CurseGlyph = MakeImage(WidgetTree, CrackedCoinBrush(FVector2D(16.f, 16.f)));
+		CurseLine->AddChildToHorizontalBox(CurseGlyph)->SetVerticalAlignment(VAlign_Center);
+		CurseText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Curse"));
+		UHorizontalBoxSlot* CurseTextSlot = CurseLine->AddChildToHorizontalBox(CurseText);
+		CurseTextSlot->SetVerticalAlignment(VAlign_Center);
+		CurseTextSlot->SetPadding(FMargin(5.f, 0.f, 0.f, 0.f));
+		CurseRow = CurseLine;
+
 		AddLine(NameText);
+		AddLine(CurseRow);
 		AddLine(FlavorText);
 		AddLine(StatsText);
 		AddLine(PromptText);
@@ -70,6 +85,8 @@ void UWeaponLabelWidget::SetWeapon(const AWeaponBase* Weapon)
 	Name = FText::FromString(LooterWeaponText::Name(Instance).ToUpper());
 	// The line in its own words, as written: it's said, not a label.
 	Flavor = FText::FromString(LooterWeaponText::FlavorLine(Instance));
+	// A cursed iron's curse ("HUNGRY"), empty for any other gun.
+	Curse = FText::FromString(LooterWeaponText::CurseString(Instance).ToUpper());
 	Stats = FText::FromString(FString::Printf(TEXT("LV %d   %s DMG   %.0f RPM   %d MAG"),
 		Instance.Level, *LooterWeaponText::DamageString(S), S.FireRate, S.MagazineSize));
 	NameColor = LooterWeaponText::Color(Instance);
@@ -90,6 +107,17 @@ bool UWeaponLabelWidget::IsFlavorShown() const
 {
 	const ESlateVisibility Shown = FlavorText ? FlavorText->GetVisibility() : ESlateVisibility::Collapsed;
 	return Shown != ESlateVisibility::Collapsed && Shown != ESlateVisibility::Hidden && !FlavorText->GetText().IsEmpty();
+}
+
+FText UWeaponLabelWidget::GetCurseText() const
+{
+	return CurseText ? CurseText->GetText() : FText::GetEmpty();
+}
+
+bool UWeaponLabelWidget::IsCurseShown() const
+{
+	const ESlateVisibility Shown = CurseRow ? CurseRow->GetVisibility() : ESlateVisibility::Collapsed;
+	return Shown != ESlateVisibility::Collapsed && Shown != ESlateVisibility::Hidden && !CurseText->GetText().IsEmpty();
 }
 
 void UWeaponLabelWidget::SetFocused(bool bFocused)
@@ -115,6 +143,14 @@ void UWeaponLabelWidget::ApplyContent()
 
 	NameText->SetText(Name);
 	StyleFloatingText(NameText, bIsFocused ? 17 : 14, NameColor, 80);
+
+	// A cursed iron: the coin and the curse's name under the name, from afar as up close (it is the warning), the coin
+	// a size up when the label opens.
+	CurseText->SetText(Curse);
+	StyleFloatingText(CurseText, bIsFocused ? 13 : 12, Color::Curse(), 80);
+	const float CoinSize = bIsFocused ? 19.f : 16.f;
+	CurseGlyph->SetBrush(CrackedCoinBrush(FVector2D(CoinSize, CoinSize)));
+	CurseRow->SetVisibility(Curse.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 
 	// A named gun's line under its name, with the details: the name alone floats over the loot from afar.
 	FlavorText->SetText(Flavor);

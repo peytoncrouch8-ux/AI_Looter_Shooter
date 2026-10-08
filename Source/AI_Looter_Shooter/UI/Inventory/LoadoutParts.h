@@ -105,6 +105,21 @@ namespace LoadoutParts
 	UWidget* MakeGunPicture(UWidgetTree* Tree, const FWeaponInstanceData& Item, const FVector2D& Size,
 		const FLinearColor& Tint = FLinearColor::White);
 
+	/**
+	 * A gun's notches and curse as card rows (the stats card, the loot card and the bench use it): the count with a tally
+	 * mark ("137 NOTCHES", and the tier's word beside it once Blooded), and when the gun is cursed the cracked coin with
+	 * the curse's name, then its perk (green) and its drawback (red; dim once lifted). Null when the gun has neither, so
+	 * a caller adds it only when it's there. FontSize sets the lines' type; the name and the glyphs scale with it
+	 * (the glyphs stay between 14 and 20 px). The rows wrap at the width they are given.
+	 */
+	UWidget* MakeGunIdeasRows(UWidgetTree* Tree, const FWeaponInstanceData& Item, int32 FontSize);
+
+	/**
+	 * A gun's name as one line of a card, in the given color (its rarity's): FittedLabel's text, and for a cursed gun the
+	 * cracked coin before it (faded once the curse is lifted). The name keeps the rarity color; the coin is the only mark.
+	 */
+	UWidget* MakeGunNameLine(UWidgetTree* Tree, const FWeaponInstanceData& Item, int32 FontSize, const FLinearColor& NameColor, int32 LetterSpacing = 0);
+
 	/** A key cap and what the key does: [E] SWAP. The first (main) action's cap is lit. */
 	UWidget* MakeKeyHint(UWidgetTree* Tree, const FString& Key, const FString& Text, bool bPrimary);
 

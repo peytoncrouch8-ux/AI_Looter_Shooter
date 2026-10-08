@@ -267,6 +267,7 @@ void UHudMissionTrackerWidget::BeginFinish(bool bStepDone)
 	{
 		PaintSteps(Shown.Step + 1, INDEX_NONE, Shown.StepCount, Shown.Step + 1);
 	}
+	PlayFinishSound(bStepDone);
 }
 
 void UHudMissionTrackerWidget::ShowClosing()

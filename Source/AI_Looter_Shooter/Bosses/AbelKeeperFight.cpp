@@ -5,6 +5,7 @@
 
 #include "Bosses/AbelKeeper.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/LooterSound.h"
 #include "Bosses/BossComponent.h"
 #include "Combat/EnemyProjectileSubsystem.h"
 #include "Combat/HealthComponent.h"
@@ -263,6 +264,8 @@ void AAbelKeeper::ReleaseBuckshot()
 		Volley.Muzzle = GetActorTransform().InverseTransformPosition(Pump->GetSocketLocation(MuzzleSocket));
 	}
 	Boss->FireVolley(Volley);
+	// The spectral pump's report: a shotgun's, slower and deeper, as a ghost's would be.
+	LooterSound::PlayAt(this, LooterSoundCue::ShotgunFire, GetActorTransform().TransformPosition(Volley.Muzzle), 1.f, 0.75f);
 }
 
 bool AAbelKeeper::DriftOut()

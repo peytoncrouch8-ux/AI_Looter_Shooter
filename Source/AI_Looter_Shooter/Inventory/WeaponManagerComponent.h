@@ -5,6 +5,7 @@
 #include "Interaction/InteractionSource.h"
 #include "Player/PawnInputBinding.h"
 #include "Weapons/AmmoTypes.h"
+#include "Weapons/WeaponPartSwap.h"
 #include "Weapons/WeaponTypes.h"
 #include "WeaponManagerComponent.generated.h"
 
@@ -43,12 +44,42 @@ struct FStartingWeapon
 	int32 Level = 1;
 };
 
+/** A gun the player carries, as the gunsmith's bench names it: in an equip slot, or in the backpack. */
+struct FCarriedGun
+{
+	/** In the backpack; otherwise in an equip slot. */
+	bool bBackpack = false;
+
+	/** The equip slot, or its place in the backpack. */
+	int32 Index = INDEX_NONE;
+
+	static FCarriedGun Equipped(int32 Slot)
+	{
+		FCarriedGun Gun;
+		Gun.Index = Slot;
+		return Gun;
+	}
+
+	static FCarriedGun InBackpack(int32 BackpackIndex)
+	{
+		FCarriedGun Gun;
+		Gun.bBackpack = true;
+		Gun.Index = BackpackIndex;
+		return Gun;
+	}
+
+	bool operator==(const FCarriedGun& Other) const { return bBackpack == Other.bBackpack && Index == Other.Index; }
+};
+
 /**
  * Add to any pawn to let it carry and use weapons. Handles slots, equipping, swapping, dropping,
  * and (for players) binds its own Enhanced Input actions so the character Blueprint needs no wiring.
  *
  * Loot lying in the world is offered to the player's interaction component (IInteractionSource): that finds the gun
  * looked at and owns the Interact key, and a tap or a hold on loot comes back here (TryPickup, EquipPickup).
+ *
+ * It also keeps the gunsmith's bench's parts box (AGunsmithBench): guns scrapped for one of their parts, and parts fitted
+ * from the box onto guns of their kind.
  */
 UCLASS(ClassGroup = (Looter), meta = (BlueprintSpawnableComponent))
 class AI_LOOTER_SHOOTER_API UWeaponManagerComponent : public UActorComponent, public IInteractionSource
@@ -166,8 +197,54 @@ public:
 	/** Carries what a saved session had, in place of whatever it carries now. */
 	void RestoreInventory(const FWeaponInventorySave& Save);
 
-	/** Empties it without dropping anything: the guns are gone, and the backpack and the ammo. */
+	/** Empties it without dropping anything: the guns are gone, and the backpack, the ammo and the parts box. */
 	void ClearInventory();
+
+	// --- The gunsmith's bench: the parts box, scrapping and fitting (WeaponManagerBench.cpp) ---
+
+	/** The most parts the box holds: scrapping stops there until parts are fitted or thrown out. */
+	static constexpr int32 MaxBoxedParts = 100;
+
+	/** The parts box: parts kept from scrapped guns and taken off guns at the bench, oldest first. Saved with the session. */
+	const TArray<FBoxedWeaponPart>& GetPartsBox() const { return PartsBox; }
+
+	/** The gun the player carries there, or null. */
+	const FWeaponInstanceData* FindCarriedGun(const FCarriedGun& Gun) const;
+
+	/** How many guns the player carries, in the equip slots and the backpack. */
+	int32 NumCarriedGuns() const;
+
+	/**
+	 * Whether a carried gun can be scrapped now; OutWhy says why not. A named gun can't (its parts are its own), nor the
+	 * last gun carried, nor the last one in the equip slots (the player is never left with nothing to shoot), nor any while
+	 * the parts box is full.
+	 */
+	bool CanScrap(const FCarriedGun& Gun, FText* OutWhy = nullptr) const;
+
+	/**
+	 * Scraps a carried gun, keeping its part in KeepSlot in the parts box; the rest of the gun is gone. False (nothing
+	 * changed) unless CanScrap and that slot has a part.
+	 */
+	bool ScrapGun(const FCarriedGun& Gun, FName KeepSlot);
+
+	/** Whether the box's part at BoxIndex fits a carried gun (WeaponPartSwap::CanFit; NoSuchPart when either is missing). */
+	WeaponPartSwap::ECheck CheckFit(const FCarriedGun& Gun, int32 BoxIndex) const;
+
+	/**
+	 * Fits the box's part at BoxIndex onto a carried gun, and the part it replaces takes its place in the box (nothing for a
+	 * slot that was empty). A gun in an equip slot is rebuilt with its new part, in hand if it was, keeping the rounds loaded
+	 * up to its new magazine's size; any over go back to the ammo carried. False (nothing changed) unless it fits.
+	 */
+	bool FitPart(const FCarriedGun& Gun, int32 BoxIndex);
+
+	/** Throws the box's part at BoxIndex away. */
+	bool DiscardPart(int32 BoxIndex);
+
+	/** Puts a part in the box (the console, tests). False when the box is full or the part names no kind of gun. */
+	bool AddToPartsBox(const FBoxedWeaponPart& Part);
+
+	/** Empties the parts box. */
+	void ClearPartsBox();
 
 	/** Carried ammo of a class changed (pickups, reloads). */
 	UPROPERTY(BlueprintAssignable, Category = "Weapons|Ammo")
@@ -323,8 +400,21 @@ private:
 	AWeaponBase* RemoveFromSlots(int32 SlotIndex);
 	void SendMessage(const FString& Message);
 
+	/** How many guns are in the equip slots. */
+	int32 NumEquipped() const;
+
+	/**
+	 * Puts a gun made from Instance into an equip slot in place of the one there (WeaponManagerBench.cpp): taken in hand if
+	 * that one was in hand. False (nothing changed) when the gun can't be made.
+	 */
+	bool ReplaceEquipped(int32 SlotIndex, const FWeaponInstanceData& Instance);
+
 	UPROPERTY(Transient)
 	TArray<FWeaponInstanceData> Backpack;
+
+	/** The gunsmith's bench's parts box (GetPartsBox). */
+	UPROPERTY(Transient)
+	TArray<FBoxedWeaponPart> PartsBox;
 
 	/** Rounds carried per ammo class, indexed by EAmmoType. */
 	int32 AmmoPool[LooterAmmo::NumTypes] = {};

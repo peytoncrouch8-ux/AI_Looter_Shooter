@@ -5,19 +5,68 @@
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerSize.h"
 #include "Player/PlayerSlide.h"
+#include "Player/SlideDust.h"
 #include "Tests/LocomotionTestWorld.h"
+#include "Combat/BulletSubsystem.h"
+#include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Materials/MaterialInterface.h"
 #include "Tests/AutomationCommon.h"
 #include "UObject/Script.h"
 
 // The player's stances played out in a test level, on the real character (BP_LooterCharacter): the jump key out of a
-// crouch, and the slide from its start to each of its ends. The rules alone are tested in LocomotionTests.cpp.
+// crouch, the slide from its start to each of its ends, the first-person view through each (no pop, no jolt), and the
+// slide's dust on different ground. The rules alone are tested in LocomotionTests.cpp.
 
 using namespace LocomotionTestWorld;
+
+namespace
+{
+	/**
+	 * The view's limits at 60 fps. The camera moves at most 8 cm in a frame (480 cm/s): the slide's 57 cm drop on its
+	 * quarter-second curve tops out near 6.4, while the pops this test was written for moved 24 cm in one frame. That move
+	 * changes by at most 1.5 cm from one frame to the next (5400 cm/s^2): the eased curves stay under 1.25, while the old
+	 * blends started a slide with a 3.5 cm change and a stance turning back mid-way flipped it by about 10. The roll moves
+	 * at most 0.6 degrees a frame (its 5 degrees ease in over 0.3 s, topping out near 0.5) and changes by 0.15 at most.
+	 */
+	constexpr float ViewStepLimit = 8.f;
+	constexpr float ViewStepChangeLimit = 1.5f;
+	constexpr float RollStepLimit = 0.6f;
+	constexpr float RollStepChangeLimit = 0.15f;
+	/** Frames each ending is followed for after the slide starts: the slide's 0.8 s and the eye settling after it. */
+	constexpr int32 FramesToFollow = 110;
+
+	void CheckView(FAutomationTestBase& Test, const TCHAR* Name, const FViewTrack& Track, const UPlayerLocomotionComponent* Locomotion,
+		float WantedEye)
+	{
+		Test.TestTrue(FString::Printf(TEXT("%s: %d frames of the view followed"), Name, Track.Frames), Track.Frames >= FramesToFollow);
+		Test.TestTrue(FString::Printf(TEXT("%s: no pop (at most %.2f cm in a frame, frame %d)"), Name, Track.MaxStep, Track.WorstStepFrame),
+			Track.MaxStep <= ViewStepLimit);
+		Test.TestTrue(FString::Printf(TEXT("%s: no jolt (a frame's move changed by at most %.2f cm, frame %d)"), Name, Track.MaxStepChange,
+			Track.WorstChangeFrame), Track.MaxStepChange <= ViewStepChangeLimit);
+		Test.TestTrue(FString::Printf(TEXT("%s: the roll eases (at most %.3f degrees in a frame, changing by %.3f)"), Name, Track.MaxRollStep,
+			Track.MaxRollStepChange), Track.MaxRollStep <= RollStepLimit && Track.MaxRollStepChange <= RollStepChangeLimit);
+		const float Eye = EyeAboveFeet(Locomotion);
+		Test.TestTrue(FString::Printf(TEXT("%s: the eye ends where it belongs (%.2f cm above the feet, wants %.2f)"), Name, Eye, WantedEye),
+			FMath::IsNearlyEqual(Eye, WantedEye, 0.5f));
+		Test.TestTrue(FString::Printf(TEXT("%s: ...level again"), Name), FMath::IsNearlyZero(Locomotion->GetViewRoll(), 0.02f));
+	}
+
+	/** Frames standing still, so the eye has its standing height; returns it. */
+	float Settle(UPlayerLocomotionComponent* Locomotion)
+	{
+		for (int32 Frames = 0; Frames < 10; ++Frames)
+		{
+			PlayFrame(Locomotion);
+		}
+		return EyeAboveFeet(Locomotion);
+	}
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FJumpWhileCrouchedTest, "Looter.Locomotion.JumpWhileCrouched",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -212,6 +261,209 @@ bool FPlayerSlideTest::RunTest(const FString& Parameters)
 	BodyOf(Leaper)->GetCharacterMovement()->SetMovementMode(MOVE_Falling);
 	Leaper->HandleCrouchPressed();
 	TestFalse(TEXT("No slide in the air"), Leaper->IsSliding());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSlideViewTest, "Looter.Locomotion.Slide.View",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FSlideViewTest::RunTest(const FString& Parameters)
+{
+	// The user's report (2026-10-08): through a slide "the view jerks or snaps". The first-person camera's height in the
+	// world and its roll, sampled every frame at 60 fps from standing through the slide's start, its run and each way it
+	// ends, never pop or jolt (the limits above), and the eye ends where a stand or a crouch puts it. Each frame plays as
+	// the game does: the movement's crouch or stand first, then the locomotion (PlayFrame).
+	FTestWorldWrapper TestLevel;
+	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	FEditorScriptExecutionGuard RunActorEvents;
+	UWorld* World = TestLevel.GetTestWorld();
+	const AStaticMeshActor* Floor = SpawnBlock(World, FVector(0.0, 0.0, -50.0), FVector(8000.0, 8000.0, 100.0));
+	// Two ledges of their own, away from the floor: taken away mid-slide, they leave the slider in the air.
+	AStaticMeshActor* Ledges[] = { SpawnBlock(World, FVector(8000.0, 0.0, -50.0), FVector(600.0, 600.0, 100.0)),
+		SpawnBlock(World, FVector(8000.0, 1500.0, -50.0), FVector(600.0, 600.0, 100.0)) };
+	if (!TestNotNull(TEXT("A floor"), Floor) || !TestNotNull(TEXT("A ledge"), Ledges[0]) || !TestNotNull(TEXT("Another ledge"), Ledges[1]))
+	{
+		return false;
+	}
+
+	enum class EEnding : uint8 { IntoSprint, IntoCrouch, ToStop, JumpOut, Wall, OffLedge, OffLedgeRunning };
+	struct FCase
+	{
+		const TCHAR* Name;
+		EEnding Ending;
+		FVector Feet;
+		/** It ends standing (else crouched), and how the slide itself ended. */
+		bool bEndsStanding;
+		FPlayerSlide::EEnd End;
+	};
+	const FCase Cases[] = {
+		{ TEXT("Into the sprint (forward held)"), EEnding::IntoSprint, FVector(0.0, -2000.0, 0.0), true, FPlayerSlide::EEnd::Time },
+		{ TEXT("Into the crouch (forward and crouch held)"), EEnding::IntoCrouch, FVector(0.0, -1000.0, 0.0), false, FPlayerSlide::EEnd::Time },
+		{ TEXT("To a stop, then up (nothing held)"), EEnding::ToStop, FVector::ZeroVector, true, FPlayerSlide::EEnd::Time },
+		{ TEXT("Jumped out while still dropping"), EEnding::JumpOut, FVector(0.0, 1000.0, 0.0), true, FPlayerSlide::EEnd::Cancelled },
+		{ TEXT("Into a wall (crouch held)"), EEnding::Wall, FVector(0.0, 2000.0, 0.0), false, FPlayerSlide::EEnd::Stalled },
+		{ TEXT("Off a ledge (nothing held)"), EEnding::OffLedge, FVector(8000.0, 0.0, 0.0), true, FPlayerSlide::EEnd::Airborne },
+		{ TEXT("Off a ledge running (forward held)"), EEnding::OffLedgeRunning, FVector(8000.0, 1500.0, 0.0), true, FPlayerSlide::EEnd::Airborne },
+	};
+	for (const FCase& Case : Cases)
+	{
+		UPlayerLocomotionComponent* Slider = SpawnPlayer(World, Case.Feet);
+		if (!TestNotNull(FString::Printf(TEXT("%s: a player"), Case.Name), Slider)
+			|| !TestNotNull(FString::Printf(TEXT("%s: its first-person camera"), Case.Name), CameraOf(Slider)))
+		{
+			continue;
+		}
+		ACharacter* Body = BodyOf(Slider);
+		UCharacterMovementComponent* Movement = Body->GetCharacterMovement();
+		const float Standing = Settle(Slider);
+		const float Crouched = Slider->GetCrouchedHeadHeight() * static_cast<float>(Body->GetActorScale3D().Z);
+		const bool bForward = Case.Ending == EEnding::IntoSprint || Case.Ending == EEnding::IntoCrouch || Case.Ending == EEnding::OffLedgeRunning;
+		const bool bCrouchHeld = Case.Ending == EEnding::IntoCrouch || Case.Ending == EEnding::Wall;
+		AStaticMeshActor* Ledge = Case.Ending == EEnding::OffLedge ? Ledges[0] : (Case.Ending == EEnding::OffLedgeRunning ? Ledges[1] : nullptr);
+
+		FViewTrack Track;
+		Track.Sample(Slider);
+		if (bForward)
+		{
+			Slider->HandleMoveInput(FVector2D(0.0, 1.0));
+		}
+		StartSprint(Slider);
+		Track.Sample(Slider);
+		Slider->HandleCrouchPressed();
+		TestTrue(FString::Printf(TEXT("%s: sliding"), Case.Name), Slider->IsSliding());
+		if (!bCrouchHeld)
+		{
+			Slider->HandleCrouchReleased();
+		}
+		Slider->HandleSprintReleased();
+		for (int32 FrameIndex = 0; FrameIndex < FramesToFollow; ++FrameIndex)
+		{
+			if (bForward)
+			{
+				Slider->HandleMoveInput(FVector2D(0.0, 1.0));
+			}
+			if (FrameIndex == 6 && Case.Ending == EEnding::JumpOut)
+			{
+				Slider->HandleJumpPressed();
+			}
+			if (FrameIndex == 20 && Case.Ending == EEnding::Wall)
+			{
+				// Ran into something: the slide moved nowhere this frame.
+				Movement->Velocity = FVector::ZeroVector;
+			}
+			if (FrameIndex == 20 && Ledge)
+			{
+				// Slid off the edge: nothing under the feet, falling.
+				Ledge->Destroy();
+				Movement->SetMovementMode(MOVE_Falling);
+			}
+			PlayFrame(Slider);
+			Track.Sample(Slider);
+		}
+
+		TestTrue(FString::Printf(TEXT("%s: the slide ended as it should"), Case.Name), !Slider->IsSliding() && Slider->GetSlide().GetLastEnd() == Case.End);
+		TestTrue(FString::Printf(TEXT("%s: %s"), Case.Name, Case.bEndsStanding ? TEXT("standing") : TEXT("crouched")),
+			static_cast<bool>(Body->bIsCrouched) != Case.bEndsStanding);
+		CheckView(*this, Case.Name, Track, Slider, Case.bEndsStanding ? Standing : Crouched);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSlideDustTest, "Looter.Locomotion.Slide.Dust",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FSlideDustTest::RunTest(const FString& Parameters)
+{
+	// The user's call (2026-10-08): a slide kicks up dust and grit from the feet, thinning as it slows; none on water, a
+	// little on wood. Ground nothing names (the engine cube's own material) counts as dirt.
+	FTestWorldWrapper TestLevel;
+	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	FEditorScriptExecutionGuard RunActorEvents;
+	UWorld* World = TestLevel.GetTestWorld();
+
+	struct FGround
+	{
+		const TCHAR* Name;
+		const TCHAR* Material;
+		ESlideGround Expected;
+		FVector Feet;
+	};
+	const FGround Grounds[] = {
+		{ TEXT("Dirt"), nullptr, ESlideGround::Dirt, FVector::ZeroVector },
+		{ TEXT("Water"), TEXT("/Game/Art/Materials/MI_Water.MI_Water"), ESlideGround::Water, FVector(0.0, 2000.0, 0.0) },
+		{ TEXT("Wood"), TEXT("/Game/Art/Materials/MI_WoodPlanks.MI_WoodPlanks"), ESlideGround::Wood, FVector(0.0, 4000.0, 0.0) },
+	};
+	int32 Puffs[UE_ARRAY_COUNT(Grounds)] = {};
+	int32 Grit[UE_ARRAY_COUNT(Grounds)] = {};
+	int32 FirstPuffs = 0;
+	int32 LastPuffs = 0;
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Grounds); ++Index)
+	{
+		const FGround& Ground = Grounds[Index];
+		AStaticMeshActor* Block = SpawnBlock(World, Ground.Feet - FVector(0.0, 0.0, 50.0), FVector(1500.0, 1500.0, 100.0));
+		if (!TestNotNull(FString::Printf(TEXT("%s: the ground"), Ground.Name), Block))
+		{
+			return false;
+		}
+		if (Ground.Material)
+		{
+			UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, Ground.Material);
+			if (!TestNotNull(FString::Printf(TEXT("%s: its material %s"), Ground.Name, Ground.Material), Material))
+			{
+				continue;
+			}
+			Block->GetStaticMeshComponent()->SetMaterial(0, Material);
+		}
+		UPlayerLocomotionComponent* Slider = SpawnPlayer(World, Ground.Feet);
+		if (!TestNotNull(FString::Printf(TEXT("%s: a player"), Ground.Name), Slider))
+		{
+			continue;
+		}
+		// No keys: the slide runs its full time and eases out to a stop.
+		StartSprint(Slider);
+		Slider->HandleCrouchPressed();
+		Slider->HandleCrouchReleased();
+		Slider->HandleSprintReleased();
+		const int32 EaseStartFrame = FMath::FloorToInt32((FPlayerSlide::Duration - FPlayerSlide::EaseOutTime) / Frame);
+		const int32 FirstFrames = FMath::FloorToInt32(FPlayerSlide::EaseOutTime / Frame);
+		int32 AtEaseStart = 0;
+		for (int32 FrameIndex = 0; Slider->IsSliding() && FrameIndex < 120; ++FrameIndex)
+		{
+			PlayFrame(Slider);
+			if (FrameIndex + 1 == FirstFrames && Index == 0)
+			{
+				FirstPuffs = Slider->GetDust().GetPuffsThrown();
+			}
+			if (FrameIndex + 1 == EaseStartFrame)
+			{
+				AtEaseStart = Slider->GetDust().GetPuffsThrown();
+			}
+		}
+		Puffs[Index] = Slider->GetDust().GetPuffsThrown();
+		Grit[Index] = Slider->GetDust().GetGritThrown();
+		if (Index == 0)
+		{
+			LastPuffs = Puffs[Index] - AtEaseStart;
+		}
+		TestTrue(FString::Printf(TEXT("%s: the slide knows its ground"), Ground.Name), Slider->GetDust().GetGround() == Ground.Expected);
+		AddInfo(FString::Printf(TEXT("%s: %d puffs, %d grains"), Ground.Name, Puffs[Index], Grit[Index]));
+	}
+
+	TestTrue(FString::Printf(TEXT("Dirt: dust kicked up (%d puffs)"), Puffs[0]), Puffs[0] >= 15);
+	TestTrue(FString::Printf(TEXT("Dirt: grit thrown (%d grains)"), Grit[0]), Grit[0] >= 10);
+	TestTrue(FString::Printf(TEXT("Dirt: it thins as the slide slows (%d puffs in its first %.1f s, %d in its last)"), FirstPuffs,
+		FPlayerSlide::EaseOutTime, LastPuffs), LastPuffs * 2 < FirstPuffs);
+	TestTrue(FString::Printf(TEXT("Water: nothing (%d puffs, %d grains)"), Puffs[1], Grit[1]), Puffs[1] == 0 && Grit[1] == 0);
+	TestTrue(FString::Printf(TEXT("Wood: a little dust (%d puffs against dirt's %d), no grit"), Puffs[2], Puffs[0]),
+		Puffs[2] > 0 && Puffs[2] * 2 < Puffs[0] && Grit[2] == 0);
+	UBulletSubsystem* Bullets = World->GetSubsystem<UBulletSubsystem>();
+	TestTrue(TEXT("Drawn by the pooled effects"), Bullets && Bullets->GetEffects().NumParticles() > 0);
 	return true;
 }
 

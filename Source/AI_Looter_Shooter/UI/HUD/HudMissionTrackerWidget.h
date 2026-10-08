@@ -102,6 +102,8 @@ private:
 	void UpdateInPlace(const FMission& Mission);
 	/** Ticks the objective shown and holds it for DoneHoldSeconds; bStepDone turns its step's section cyan too. */
 	void BeginFinish(bool bStepDone);
+	/** The tick's sound (HudMissionTrackerWidgetSound.cpp): a step's, or the mission's when its last step is done. */
+	void PlayFinishSound(bool bStepDone) const;
 	void ShowClosing();
 	/** A done objective or the closing line has shown long enough: what's next. */
 	void EndHold();

@@ -1,11 +1,13 @@
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/HUD/HudInteractPromptWidget.h"
+#include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
 #include "Interaction/InteractionComponent.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Weapons/WeaponBase.h"
 #include "Components/Image.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 
 // What the interact key would do to the thing looked at: the loot comparison card for loot (the weapon, stat by stat
@@ -79,6 +81,19 @@ void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager, const 
 		PickupFlavor->SetVisibility(FlavorShown);
 	}
 	PickupLevel->SetText(FText::FromString(FString::Printf(TEXT("LV %d  |  %s  |  VS WEAPON IN HAND"), New.Level, *LooterWeaponText::FireModeName(New).ToUpper())));
+
+	// Its notches and its curse, perk and drawback. The rows are widgets, so they're rebuilt only when another gun is looked
+	// at (or a count in it differs), not every frame.
+	if (IdeasPickup.Get() != Pickup || IdeasKills != New.Kills || IdeasCurse != New.Curse || bIdeasLifted != New.bCurseLifted)
+	{
+		IdeasPickup = Pickup;
+		IdeasKills = New.Kills;
+		IdeasCurse = New.Curse;
+		bIdeasLifted = New.bCurseLifted;
+		UWidget* Ideas = LoadoutParts::MakeGunIdeasRows(WidgetTree, New, 12);
+		PickupIdeas->SetContent(Ideas);
+		PickupIdeas->SetVisibility(Ideas ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 
 	// Damage shows the weapon's damage, compared on total per-shot damage so shotguns and rifles line up fairly.
 	SetCompareLine(PickupStatTexts[0], TEXT("DAMAGE"), S.Damage * S.PelletsPerShot, Old.Damage * Old.PelletsPerShot, true, 1, TEXT(""), TEXT(""), bHasCurrent,

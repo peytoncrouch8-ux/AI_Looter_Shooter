@@ -8,7 +8,6 @@
 
 class UMissionRunner;
 class USceneComponent;
-class USoundBase;
 class UStaticMeshComponent;
 
 /** Where a window shutter stands. */
@@ -78,10 +77,6 @@ public:
 	/** How long the swing shut takes (s), speeding up all the way to the casing. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shutter", meta = (ClampMin = "0.05", Units = "s"))
 	float SlamSeconds = 0.24f;
-
-	/** The bang as it hits the casing (none made yet: it plays when set). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shutter")
-	TObjectPtr<USoundBase> SlamSound;
 
 	EWindowShutterState GetState() const { return State; }
 	bool IsShut() const { return State == EWindowShutterState::Shut; }

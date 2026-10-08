@@ -34,10 +34,28 @@ public:
 	void SetHealth(float NewHealth);
 
 	/**
-	 * Changes the most health it can have (the player's level reward). A living one gains or loses as much health as the
-	 * maximum moved, never dying of it; before play it starts full anyway, and a dead one stays dead until it's reset.
+	 * Changes the most health it can have (the player's level reward), before MaxHealthScale. A living one gains or loses
+	 * as much health as the maximum moved, never dying of it; before play it starts full anyway, and a dead one stays dead
+	 * until it's reset.
 	 */
 	void SetMaxHealth(float NewMaxHealth);
+
+	/**
+	 * Scales the most health it can have on top of SetMaxHealth's (a cursed iron in hand: Grasping's 0.85; 1 without). A
+	 * living one keeps its health's share as the maximum moves, so swapping guns back and forth never heals or hurts, and
+	 * never kills.
+	 */
+	void SetMaxHealthScale(float Scale);
+	float GetMaxHealthScale() const { return MaxHealthScale; }
+
+	/** Gives back up to Amount, never past the maximum; nothing for a dead one. Returns what it healed. */
+	float Heal(float Amount);
+
+	/**
+	 * Takes up to Amount without it being damage (no numbers, no hit, no killer): never the last point of health, so it
+	 * can't kill. Returns what it took. A cursed iron's toll (Hungry's reload).
+	 */
+	float Drain(float Amount);
 
 	UFUNCTION(BlueprintPure, Category = "Health")
 	float GetHealth() const { return Health; }
@@ -92,6 +110,8 @@ private:
 
 	float Health = 0.f;
 	bool bDead = false;
+	/** MaxHealth is SetMaxHealth's times this (SetMaxHealthScale). */
+	float MaxHealthScale = 1.f;
 	TWeakObjectPtr<AActor> LastDamageCauser;
 
 	// The engine broadcasts point damage right before "any damage" in the same TakeDamage call,

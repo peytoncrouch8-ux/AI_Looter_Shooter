@@ -3,6 +3,7 @@
 #include "Player/PlayerViewComponent.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponCurses.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -32,6 +33,21 @@ namespace
 	/** Seconds the body takes to drop into the slide pose, and to come back up out of it. */
 	constexpr float SlideBlendInTime = 0.12f;
 	constexpr float SlideBlendOutTime = 0.2f;
+	/**
+	 * The stance blends' eases are minimum-jerk curves, steeper in the middle than the smoothstep the blend times were
+	 * tuned with: this much longer keeps their top speed. A blend that turns back part-way takes its share of the time.
+	 */
+	constexpr float EaseTimeScale = 1.25f;
+	constexpr float MinEaseShare = 0.35f;
+
+	/** Eases Ease toward Target (0 or 1) over BlendTime for the whole way, and returns it within 0..1. */
+	float EaseAlpha(FViewEase& Ease, float Target, float BlendTime, float DeltaTime)
+	{
+		const float Share = FMath::Clamp(FMath::Abs(Target - Ease.GetValue()), MinEaseShare, 1.f);
+		Ease.SetTarget(Target, BlendTime * EaseTimeScale * Share);
+		Ease.Advance(DeltaTime);
+		return FMath::Clamp(Ease.GetValue(), 0.f, 1.f);
+	}
 	/**
 	 * The body's animation rate in a full slide. The legs are posed by code then, but the run cycle underneath would
 	 * still pump the arms and twist the feet at the slide's speed; nearly stopped, it reads as one held pose.
@@ -145,11 +161,14 @@ void UPlayerLocomotionComponent::TickComponent(float DeltaTime, ELevelTick TickT
 		return;
 	}
 
+	// The movement has run: first put the body where the capsule says (its crouch may have left it behind).
+	RefreshBodyTransform();
 	UpdateSlide(DeltaTime);
 	UpdateStance(DeltaTime);
 	UpdateAlphas(DeltaTime);
-	UpdateCamera();
+	UpdateCamera(DeltaTime);
 	UpdateViewModel(DeltaTime);
+	UpdateDust(DeltaTime);
 
 #if !UE_BUILD_SHIPPING
 	if (CVarDebugStance.GetValueOnGameThread())
@@ -170,11 +189,11 @@ void UPlayerLocomotionComponent::TickComponent(float DeltaTime, ELevelTick TickT
 		// The body's feet in its own space, for spotting leg jitter from the locomotion clips.
 		const FVector FootL = Body ? Body->GetSocketTransform(TEXT("foot_l"), RTS_Component).GetLocation() : FVector::ZeroVector;
 		const FVector FootR = Body ? Body->GetSocketTransform(TEXT("foot_r"), RTS_Component).GetLocation() : FVector::ZeroVector;
-		const FString Line = FString::Printf(TEXT("Stance: sprint %d a=%.2f crouch %d a=%.2f speed %.0f/%.0f dir %.0f rate %.2f body %s head %.1f (camera parent %s head %.1f, socket %s) eye %.1f fov %.1f cam %.2f,%.2f,%.2f feet %.1f,%.1f,%.1f %.1f,%.1f,%.1f slide %d a=%.2f"),
+		const FString Line = FString::Printf(TEXT("Stance: sprint %d a=%.2f crouch %d a=%.2f speed %.0f/%.0f dir %.0f rate %.2f body %s head %.1f (camera parent %s head %.1f, socket %s) eye %.1f (curve %.1f -> %.1f, standing %.1f, roll %.2f) fov %.1f cam %.2f,%.2f,%.2f feet %.1f,%.1f,%.1f %.1f,%.1f,%.1f slide %d a=%.2f"),
 			bSprinting, SprintAlpha, Owner->bIsCrouched, CrouchAlpha, Velocity.Size2D(), Movement->MaxWalkSpeed, MoveDirection,
 			Body ? Body->GlobalAnimRateScale : 0.f, *GetNameSafe(BodyAnim ? BodyAnim->GetClass() : nullptr), BodyHead,
 			*GetNameSafe(EyeParent), EyeParentHead, Camera.IsValid() ? *Camera->GetAttachSocketName().ToString() : TEXT("-"), Eye,
-			Camera.IsValid() ? Camera->FieldOfView : 0.f, CameraLocal.X, CameraLocal.Y, CameraLocal.Z,
+			EyeHeight.GetValue(), EyeHeight.GetTarget(), StandingEye, AppliedViewRoll, Camera.IsValid() ? Camera->FieldOfView : 0.f, CameraLocal.X, CameraLocal.Y, CameraLocal.Z,
 			FootL.X, FootL.Y, FootL.Z, FootR.X, FootR.Y, FootR.Z, Slide.IsActive(), SlideAlpha);
 		UE_LOG(LogLooter, Log, TEXT("%s"), *Line);
 		if (GEngine)
@@ -384,7 +403,8 @@ void UPlayerLocomotionComponent::UpdateStance(float DeltaTime)
 		}
 	}
 
-	// Sprint: forward only, standing, not shooting, and started on the ground (a sprint jump keeps its speed).
+	// Sprint: forward only, standing, not shooting, and started on the ground (a sprint jump keeps its speed). A Cold
+	// iron in hand (a curse's drawback) won't let the player sprint at all, to start or to go on.
 	const bool bMovingForward = IsMovingForward();
 	NotMovingTime = bMovingForward ? 0.f : NotMovingTime + DeltaTime;
 	if (NotMovingTime > SprintToggleStopGrace)
@@ -393,7 +413,7 @@ void UPlayerLocomotionComponent::UpdateStance(float DeltaTime)
 	}
 
 	const bool bCanSprint = Intent.WantsSprint() && bMovingForward && !Owner->bIsCrouched && !Slide.IsActive() && !bFiring && !bWantsAim
-		&& Now - LastFiringTime >= SprintResumeDelay && (bSprinting || Move->IsMovingOnGround());
+		&& Now - LastFiringTime >= SprintResumeDelay && (bSprinting || Move->IsMovingOnGround()) && !WeaponCurses::BlocksSprint(Owner);
 
 	if (bCanSprint != bSprinting)
 	{
@@ -409,11 +429,10 @@ void UPlayerLocomotionComponent::UpdateStance(float DeltaTime)
 		Move->MaxWalkSpeed = WalkSpeed;
 	}
 
+	// (The gun's weight into a stance change comes from the eye's own easing now, UpdateViewModel: a kick here jolted it.)
 	if (Owner->bIsCrouched != bWasCrouched)
 	{
 		bWasCrouched = Owner->bIsCrouched;
-		// A little weight into the stance change for the gun.
-		KickVelocity -= bWasCrouched ? 28.f : 14.f;
 		UE_LOG(LogLooter, Verbose, TEXT("Crouch %s"), bWasCrouched ? TEXT("on") : TEXT("off"));
 	}
 }
@@ -423,20 +442,17 @@ void UPlayerLocomotionComponent::UpdateAlphas(float DeltaTime)
 	// A slide that ends in the sprint brings the sprint pose (and its wider view) in as it eases out, so they hand over.
 	const bool bSprintPose = bSprinting || (bSlideExitsToSprint && Slide.IsEasingOut());
 	const float SprintTime = bSprintPose ? SprintBlendTime : (bSprintInterrupted ? SprintInterruptBlendTime : SprintBlendTime);
-	SprintLinear = FMath::FInterpConstantTo(SprintLinear, bSprintPose ? 1.f : 0.f, DeltaTime, 1.f / SprintTime);
-	SprintAlpha = FMath::SmoothStep(0.f, 1.f, SprintLinear);
-	if (SprintLinear <= 0.f)
+	SprintAlpha = EaseAlpha(SprintEase, bSprintPose ? 1.f : 0.f, SprintTime, DeltaTime);
+	if (SprintAlpha <= 0.f && SprintEase.IsSettled())
 	{
 		bSprintInterrupted = false;
 	}
 
-	CrouchLinear = FMath::FInterpConstantTo(CrouchLinear, IsCrouching() ? 1.f : 0.f, DeltaTime, 1.f / CrouchBlendTime);
-	CrouchAlpha = FMath::SmoothStep(0.f, 1.f, CrouchLinear);
+	CrouchAlpha = EaseAlpha(CrouchEase, IsCrouching() ? 1.f : 0.f, CrouchBlendTime, DeltaTime);
 
 	// The slide pose comes in fast and starts letting go as the slide slows at its end.
 	const bool bSlidePose = Slide.IsActive() && !Slide.IsEasingOut();
-	SlideLinear = FMath::FInterpConstantTo(SlideLinear, bSlidePose ? 1.f : 0.f, DeltaTime, 1.f / (bSlidePose ? SlideBlendInTime : SlideBlendOutTime));
-	SlideAlpha = FMath::SmoothStep(0.f, 1.f, SlideLinear);
+	SlideAlpha = EaseAlpha(SlideEase, bSlidePose ? 1.f : 0.f, bSlidePose ? SlideBlendInTime : SlideBlendOutTime, DeltaTime);
 
 	// The body's run cycle tops out at walking speed; play it faster while sprinting so the feet don't slide. (Both are
 	// the character's own, so this holds at any size.) A slide holds the body nearly still instead.

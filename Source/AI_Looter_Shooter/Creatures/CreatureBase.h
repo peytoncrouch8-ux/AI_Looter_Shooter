@@ -10,6 +10,7 @@
 #include "Creatures/HuntingGround.h"
 #include "CreatureBase.generated.h"
 
+class UCreatureVoiceComponent;
 class UHealthComponent;
 class ULootDropComponent;
 class ULootTable;
@@ -368,6 +369,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UWidgetComponent> HealthBar;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UCreatureVoiceComponent> Voice;
 
 	/** Height above the capsule center where the health bar floats, at size 1 (it rises with the scaled actor). */
 	float HealthBarHeight = 130.f;

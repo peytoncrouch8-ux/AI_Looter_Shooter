@@ -6,11 +6,12 @@
 
 class UInputAction;
 class UInteractionComponent;
+class UPlayerSoundComponent;
 struct FInputActionValue;
 
 /**
  * The player's character: walking, looking and jumping. Everything else lives in components (view, locomotion,
- * health, weapons, interaction). The Blueprint child, BP_LooterCharacter, holds only data: meshes, animation, camera
+ * health, weapons, interaction, sounds). The Blueprint child, BP_LooterCharacter, holds only data: meshes, animation, camera
  * placement and the component settings. The whole character is the full-size mannequin scaled down
  * (Player/PlayerSize.h), and walks at the full-size speed scaled the same.
  */
@@ -25,12 +26,19 @@ public:
 	/** The standing half height at the player's size (the engine's version misses the capsule's scale). */
 	virtual float GetDefaultHalfHeight() const override;
 
+	/** A jump left the ground: its sound (the engine calls this for real jumps only, never a launch or a fall). */
+	virtual void OnJumped_Implementation() override;
+
 protected:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	/** The Interact key and everything it uses: loot, doors, the bell, lantern posts (made here, not in the Blueprint). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UInteractionComponent> Interaction;
+
+	/** Its own sounds: footsteps by surface, the jump and landing, hurt, death and the low-health heartbeat. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UPlayerSoundComponent> Sounds;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> MoveAction;

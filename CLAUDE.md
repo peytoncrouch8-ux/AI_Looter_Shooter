@@ -99,7 +99,9 @@ and PIE share `Saved\SaveGames`; command-line runs keep theirs under `%LOCALAPPD
 ## Assets
 
 - Git LFS stores every binary. Prefixes: `SM_`, `SK_`, `M_`/`MI_`, `T_`, `DA_`, `BP_`, `UCX_` (collision),
-  `SOCKET_` (attach points).
+  `SOCKET_` (attach points), `S_` (sound waves), `SC_`/`SMX_`/`ATT_` (sound classes, mix, attenuation).
+- Sounds are script-made only (the user's call): recipes in `Art/Sounds` rendered by `Tools\sounds.ps1`, put in the
+  game by `Tools/Unreal/build_sound_bank.py`; code plays them by cue (`Audio/LooterSound.h`, `LooterSoundCues.h`).
 - Never generate meshes while the game runs; bake them into assets.
 - Blender models live in `Art/Models/<Category>/`; `Tools\models.ps1` imports them (`Art/README.md` has the rules).
   Change a model in Blender and import again, never edit the imported mesh. Blender beside a running editor goes

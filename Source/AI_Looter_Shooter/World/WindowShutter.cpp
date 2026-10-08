@@ -1,5 +1,6 @@
 #include "World/WindowShutter.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/LooterSound.h"
 #include "Missions/MissionRunner.h"
 #include "Session/CampaignRecord.h"
 #include "Components/SceneComponent.h"
@@ -8,8 +9,6 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
-#include "Kismet/GameplayStatics.h"
-#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 
 namespace
@@ -179,10 +178,8 @@ void AWindowShutter::AdvanceSlam(float DeltaSeconds)
 		if (!bBanged)
 		{
 			bBanged = true;
-			if (SlamSound && Leaf)
-			{
-				UGameplayStatics::PlaySoundAtLocation(this, SlamSound, Leaf->Bounds.Origin);
-			}
+			// The bang as it hits the casing.
+			LooterSound::PlayAt(this, LooterSoundCue::ShutterSlam, Leaf ? Leaf->Bounds.Origin : GetActorLocation());
 		}
 		const float After = Clock - Duration;
 		if (After < BounceSeconds)

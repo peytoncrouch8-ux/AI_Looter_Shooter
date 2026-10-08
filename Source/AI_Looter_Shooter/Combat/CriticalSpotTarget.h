@@ -13,7 +13,7 @@ class UCriticalSpotTarget : public UInterface
 /**
  * Killable targets with a critical spot (a creature's head, a dummy's head bone) implement this. The target
  * only says *where* its critical spots are; how much a critical hit deals is the game-wide rule in
- * LooterCombat::CriticalHitMultiplier, the same for every weapon.
+ * LooterCombat::CriticalHitMultiplier, unless the gun's curse changes it (WeaponCurses::CritMultiplier: Unlucky, Cold).
  */
 class AI_LOOTER_SHOOTER_API ICriticalSpotTarget
 {

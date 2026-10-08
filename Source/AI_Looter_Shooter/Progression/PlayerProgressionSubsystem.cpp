@@ -5,6 +5,8 @@
 #include "Creatures/CreatureBase.h"
 #include "Progression/ProgressionSettings.h"
 #include "Session/SessionSubsystem.h"
+#include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponCurseEffects.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Pawn.h"
@@ -207,6 +209,24 @@ void UPlayerProgressionSubsystem::AwardKill(const AController* Killer, const AAc
 	{
 		Progression->AddXP(XP, EXPSource::Kill);
 	}
+	// The notch rides on the same kill: the save the defeat asked for keeps it.
+	CreditKillWeapon(Victim, Progression->GetLevel());
+}
+
+AWeaponBase* UPlayerProgressionSubsystem::CreditKillWeapon(const AActor* Victim, int32 PlayerLevel)
+{
+	if (KillXP(Victim, PlayerLevel) <= 0)
+	{
+		return nullptr;
+	}
+	AWeaponBase* Gun = AWeaponBase::FindKillWeapon(Victim);
+	if (!IsValid(Gun))
+	{
+		return nullptr;
+	}
+	Gun->AddKill();
+	WeaponCurseEffects::ApplyKillPerks(*Gun);
+	return Gun;
 }
 
 void UPlayerProgressionSubsystem::RecordDefeat(const AActor* Victim)

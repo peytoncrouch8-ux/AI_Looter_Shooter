@@ -34,6 +34,8 @@ namespace
 {
 	constexpr int32 NumCompareStats = 9;
 	constexpr int32 PickupHoldSegmentCount = 16;
+	/** The loot card's least width (inside its padding); the notch and curse rows wrap at it. */
+	constexpr float PickupCardWidth = 320.f;
 	/** Parallelogram slant of the bars, in degrees (mirrored left/right, like the reference). */
 	constexpr float BarSlant = 16.f;
 	/**
@@ -267,6 +269,11 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			Box->AddChildToVerticalBox(PickupFlavor)->SetPadding(FMargin(0.f, 1.f, 0.f, 0.f));
 			PickupLevel = MakeText(WidgetTree, TEXT(""), 11, Color::TextDim(), false, 120);
 			Box->AddChildToVerticalBox(PickupLevel)->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
+			// A gun's notches and curse (UpdatePickupCard fills it, and collapses it, space and all, for a gun with neither).
+			// As wide as the card's least width, so a long perk wraps there instead of stretching the card.
+			PickupIdeas = MakeSized(WidgetTree, nullptr, PickupCardWidth);
+			PickupIdeas->SetVisibility(ESlateVisibility::Collapsed);
+			Box->AddChildToVerticalBox(PickupIdeas)->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
 			for (int32 Stat = 0; Stat < NumCompareStats; ++Stat)
 			{
 				UTextBlock* StatText = MakeText(WidgetTree, TEXT(""), 13, Color::Text());
@@ -283,7 +290,7 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			HoldSlot->SetPadding(FMargin(4.f, 6.f, 0.f, 0.f));
 
 			USizeBox* CardSize = MakeSized(WidgetTree, Box, 0.f);
-			CardSize->SetMinDesiredWidth(320.f);
+			CardSize->SetMinDesiredWidth(PickupCardWidth);
 			PickupCard = MakePlate(WidgetTree, CardSize, FMargin(16.f, 12.f));
 			PickupCard->SetVisibility(ESlateVisibility::Collapsed);
 			PlaceOnCanvas(Root, PickupCard, FAnchors(1.f, 0.5f), FVector2D(1.f, 0.5f), FVector2D(-32.f, 0.f));

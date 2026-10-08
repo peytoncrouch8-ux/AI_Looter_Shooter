@@ -1,4 +1,5 @@
 #include "UI/Style/LooterButton.h"
+#include "Audio/LooterSound.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/ButtonSlot.h"
 #include "Components/Image.h"
@@ -73,7 +74,22 @@ void ULooterButton::SetupContent(UWidget* Content, FName InAction, int32 InIndex
 
 void ULooterButton::HandleHovered()
 {
+	if (bPlaysSounds && GetIsEnabled())
+	{
+		LooterSound::Play2D(this, LooterSoundCue::Hover);
+	}
 	OnButtonHovered.ExecuteIfBound(this);
+}
+
+FName ULooterButton::ClickCueFor(FName InAction, LooterUI::EButtonKind InKind)
+{
+	static const FName Close(TEXT("Close"));
+	static const FName Back(TEXT("Back"));
+	if (InAction == Close || InAction == Back || InAction.ToString().StartsWith(TEXT("Cancel")))
+	{
+		return LooterSoundCue::Back;
+	}
+	return InKind == LooterUI::EButtonKind::Tab ? FName(LooterSoundCue::Tab) : FName(LooterSoundCue::Click);
 }
 
 void ULooterButton::SetLabel(const FText& Text)
@@ -109,6 +125,11 @@ void ULooterButton::ApplyStyle()
 
 void ULooterButton::HandleClicked()
 {
+	// Heard before the handler runs: it may close the menu, or leave the level.
+	if (bPlaysSounds)
+	{
+		LooterSound::Play2D(this, ClickCue.IsNone() ? ClickCueFor(Action, Kind) : ClickCue);
+	}
 	// Hand keyboard focus straight back to the game so hotkeys keep working.
 	if (FSlateApplication::IsInitialized())
 	{

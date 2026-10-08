@@ -1,8 +1,10 @@
 // UWeaponManagerComponent: what it carries, into a saved session and back.
 
 #include "Inventory/WeaponManagerComponent.h"
+#include "AI_Looter_Shooter.h"
 #include "Inventory/WeaponInventorySave.h"
 #include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponPartSwap.h"
 
 void UWeaponManagerComponent::SaveInventory(FWeaponInventorySave& OutSave) const
 {
@@ -25,6 +27,7 @@ void UWeaponManagerComponent::SaveInventory(FWeaponInventorySave& OutSave) const
 	{
 		OutSave.Ammo[Type] = AmmoPool[Type];
 	}
+	OutSave.PartsBox = PartsBox;
 }
 
 void UWeaponManagerComponent::RestoreInventory(const FWeaponInventorySave& Save)
@@ -52,6 +55,23 @@ void UWeaponManagerComponent::RestoreInventory(const FWeaponInventorySave& Save)
 		const EAmmoType AmmoType = static_cast<EAmmoType>(Type);
 		AmmoPool[Type] = FMath::Clamp(Save.Ammo[Type], 0, GetMaxAmmo(AmmoType));
 		OnAmmoChanged.Broadcast(AmmoType, AmmoPool[Type]);
+	}
+	// Nor can a part whose kind of gun, or whose own option, no longer exists (part keys are never renamed or reused, so
+	// that only happens when a part is taken out of the game).
+	for (const FBoxedWeaponPart& Part : Save.PartsBox)
+	{
+		if (PartsBox.Num() >= MaxBoxedParts)
+		{
+			break;
+		}
+		if (Part.Definition && WeaponPartSwap::FindOption(Part))
+		{
+			PartsBox.Add(Part);
+		}
+		else
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Parts box: the saved part %s %s no longer exists, so it's left out."), *Part.Slot.ToString(), *Part.Key.ToString());
+		}
 	}
 	// The first gun given went into hand; the one that was in hand goes back there.
 	if (Weapons.IsValidIndex(Save.ActiveSlot))
@@ -85,6 +105,7 @@ void UWeaponManagerComponent::ClearInventory()
 		}
 	}
 	Backpack.Reset();
+	PartsBox.Reset();
 	for (int32 Type = 0; Type < LooterAmmo::NumTypes; ++Type)
 	{
 		if (AmmoPool[Type] != 0)

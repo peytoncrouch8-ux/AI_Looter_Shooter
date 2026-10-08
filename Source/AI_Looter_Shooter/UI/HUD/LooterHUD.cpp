@@ -1,5 +1,7 @@
 #include "UI/HUD/LooterHUD.h"
+#include "Audio/LooterSound.h"
 #include "Bestiary/Ledger.h"
+#include "UI/Bench/BenchWidget.h"
 #include "UI/Bestiary/BestiaryWidget.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Inventory/LoadoutWidget.h"
@@ -25,6 +27,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Slate/SGameLayerManager.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace
 {
@@ -171,7 +174,7 @@ void ALooterHUD::HandlePausePressed()
 
 void ALooterHUD::HandleInventoryPressed()
 {
-	if (!bPauseMenuOpen && !bInventoryOpen && !bStationBoardOpen)
+	if (!bPauseMenuOpen && !bInventoryOpen && !bStationBoardOpen && !bBenchOpen)
 	{
 		OpenInventory();
 	}
@@ -196,8 +199,17 @@ void ALooterHUD::OpenInventory()
 	{
 		return;
 	}
+	{
+		// Never over the bench's screen: it shows the same guns.
+		TGuardValue<bool> Quiet(bQuietClose, true);
+		CloseBench();
+	}
 	// It opens on the page it was last closed on.
 	bInventoryOpen = OpenInventoryPage();
+	if (bInventoryOpen)
+	{
+		PlayPageSound(true);
+	}
 }
 
 void ALooterHUD::CloseInventory()
@@ -212,6 +224,7 @@ void ALooterHUD::CloseInventory()
 	}
 	bInventoryOpen = false;
 	RestoreGameInput();
+	PlayPageSound(false);
 }
 
 void ALooterHUD::ShowInventoryPage(EInventoryPage Page)
@@ -235,7 +248,11 @@ void ALooterHUD::ShowInventoryPage(EInventoryPage Page)
 	{
 		bInventoryOpen = false;
 		RestoreGameInput();
+		PlayPageSound(false);
+		return;
 	}
+	// Turning to another page of the open inventory: the tab's own sound, not a whole screen's.
+	LooterSound::Play2D(this, LooterSoundCue::Tab);
 }
 
 bool ALooterHUD::OpenInventoryPage()
@@ -299,7 +316,11 @@ bool ALooterHUD::OpenStationBoard(AActor* From, const FStationBoardWords& Words)
 	{
 		return false;
 	}
-	CloseInventory();
+	{
+		TGuardValue<bool> Quiet(bQuietClose, true);
+		CloseInventory();
+		CloseBench();
+	}
 	if (!StationBoardWidget)
 	{
 		StationBoardWidget = CreateWidget<UStationBoardWidget>(PC, UStationBoardWidget::StaticClass());
@@ -326,6 +347,7 @@ bool ALooterHUD::OpenStationBoard(AActor* From, const FStationBoardWords& Words)
 	if (!bStationBoardOpen)
 	{
 		StationBoardWidget->AddToViewport(25);
+		PlayPageSound(true);
 	}
 	FInputModeUIOnly InputMode;
 	InputMode.SetWidgetToFocus(StationBoardWidget->TakeWidget());
@@ -348,7 +370,10 @@ void ALooterHUD::CloseStationBoard()
 	}
 	bStationBoardOpen = false;
 	RestoreGameInput();
+	PlayPageSound(false);
 }
+
+// The gunsmith's bench's screen: LooterHUDBench.cpp.
 
 // ---------------------------------------------------------------------------
 // Pause / settings
@@ -362,8 +387,12 @@ void ALooterHUD::OpenPauseMenu()
 		return;
 	}
 
-	CloseInventory();
-	CloseStationBoard();
+	{
+		TGuardValue<bool> Quiet(bQuietClose, true);
+		CloseInventory();
+		CloseStationBoard();
+		CloseBench();
+	}
 	if (const APawn* Pawn = PC->GetPawn())
 	{
 		if (UWeaponManagerComponent* Manager = Pawn->FindComponentByClass<UWeaponManagerComponent>())
@@ -374,6 +403,8 @@ void ALooterHUD::OpenPauseMenu()
 
 	PauseMenuWidget->Open(ESettingsMenuMode::Pause);
 	PauseMenuWidget->AddToViewport(40);
+	// Before the pause, which holds the game's sounds.
+	PlayPageSound(true);
 
 	FInputModeUIOnly InputMode;
 	InputMode.SetWidgetToFocus(PauseMenuWidget->TakeWidget());
@@ -400,6 +431,7 @@ void ALooterHUD::ClosePauseMenu()
 	UGameplayStatics::SetGamePaused(this, false);
 	bPauseMenuOpen = false;
 	RestoreGameInput();
+	PlayPageSound(false);
 }
 
 void ALooterHUD::SaveAndQuit()

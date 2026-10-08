@@ -22,6 +22,16 @@ namespace
 {
 	/** The gun in the body's hands flips this much harder than the first-person gun, so the kick reads from behind. */
 	constexpr float ThirdPersonKickScale = 1.35f;
+	/**
+	 * The eye's lowering (crouches' worth) for the third-person pivot: as it is up to a crouch, then easing toward 1.3 (a
+	 * slide's eye goes about 1.5), with no kink where it passes a crouch (its slope is 1 there).
+	 */
+	float ThirdPersonLowering(float Lowering)
+	{
+		constexpr float Room = 0.3f;
+		const float Past = FMath::Max(Lowering - 1.f, 0.f) / Room;
+		return Lowering <= 1.f ? FMath::Max(Lowering, -0.5f) : 1.f + Room * Past / (1.f + Past);
+	}
 
 	// Live tuning for the third-person camera (negative = use the component's settings).
 	TAutoConsoleVariable<float> CVarArmLength(TEXT("Looter.ThirdPerson.ArmLength"), -1.f, TEXT("Override the third-person camera distance (cm)."));
@@ -219,8 +229,14 @@ void UPlayerViewComponent::UpdateAim(float DeltaTime)
 	}
 	// Quicker with better handling: a Handling 1 gun takes BaseAimSeconds to come up to the eye.
 	const float Speed = (Weapon ? Weapon->GetStats().Handling : 1.f) / BaseAimSeconds;
+	const float WasAimAlpha = AimAlpha;
 	AimAlpha = FMath::FInterpConstantTo(AimAlpha, bAimWanted && bCanAim ? 1.f : 0.f, DeltaTime, Speed);
 	AimZoom = Weapon ? FMath::Max(Weapon->GetStats().Zoom, MinAimZoom) : AimZoom;
+	// The sights coming up: the gun's aim-in sound, once as aiming starts.
+	if (WasAimAlpha <= 0.f && AimAlpha > 0.f && Weapon)
+	{
+		Weapon->PlayAimIn();
+	}
 }
 
 float UPlayerViewComponent::GetAimSpreadMultiplier() const
@@ -409,14 +425,16 @@ void UPlayerViewComponent::UpdateBoom(float DeltaTime)
 		return;
 	}
 
-	// The pivot tracks the feet at shoulder height, eased with the crouch pose, so crouching lowers the camera
-	// smoothly even though the capsule itself shrinks in a single frame. The heights and distances are for the full-size
-	// body: the pivot sits in the capsule's own (scaled) space, and the arm, which works in the world's, is scaled to
-	// match, so a smaller character keeps the framing the view was tuned with.
+	// The pivot tracks the feet at shoulder height, lowered as far as the first-person eye is (a share of a crouch's
+	// drop, eased on its curve), so crouching or sliding lowers the camera smoothly even though the capsule itself
+	// shrinks in a single frame, and a crouch or stand in the air (which moves the feet) doesn't jolt it. A slide dips it
+	// a little lower than a crouch, not all the way. The heights and distances are for the full-size body: the pivot sits
+	// in the capsule's own (scaled) space, and the arm, which works in the world's, is scaled to match, so a smaller
+	// character keeps the framing the view was tuned with.
 	const UPlayerLocomotionComponent* Loco = Locomotion.Get();
-	const float Crouch = Loco ? Loco->GetCrouchAlpha() : (Owner->bIsCrouched ? 1.f : 0.f);
+	const float Lowering = Loco ? ThirdPersonLowering(Loco->GetViewLowering()) : (Owner->bIsCrouched ? 1.f : 0.f);
 	const float HalfHeight = Owner->GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
-	Boom->SetRelativeLocation(FVector(0.f, 0.f, FMath::Lerp(PivotHeight, CrouchedPivotHeight, Crouch) - HalfHeight));
+	Boom->SetRelativeLocation(FVector(0.f, 0.f, FMath::Lerp(PivotHeight, CrouchedPivotHeight, Lowering) - HalfHeight));
 	const float Scale = static_cast<float>(Owner->GetActorScale3D().Z);
 
 	PullOut = FMath::FInterpConstantTo(PullOut, 1.f, DeltaTime, 1.f / PullOutTime);

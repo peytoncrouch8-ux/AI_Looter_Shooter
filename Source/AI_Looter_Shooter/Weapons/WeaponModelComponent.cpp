@@ -50,6 +50,9 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 		return Instanced;
 	};
 
+	// Where the tally can go: the stock, or the body (the first part, when no slot is named for it).
+	UStaticMeshComponent* StockPart = nullptr;
+	UStaticMeshComponent* BodyPart = nullptr;
 	for (int32 Index = 0; Index < Definition->Parts.Num(); ++Index)
 	{
 		const FWeaponPartSlot& Slot = Definition->Parts[Index];
@@ -104,12 +107,26 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 		{
 			SightPart = Part;
 		}
+		if (Slot.Name == StockSlot)
+		{
+			StockPart = Part;
+		}
+		if (Slot.Name == BodySlot)
+		{
+			BodyPart = Part;
+		}
+	}
+	if (!BodyPart && !Parts.IsEmpty())
+	{
+		BodyPart = Parts[0];
 	}
 
 	FindSocket(TEXT("Muzzle"), Muzzle);
 	FindSocket(TEXT("Grip"), Grip);
 	FindSocket(TEXT("Foregrip"), Foregrip);
 	FindAimPoint();
+	ChooseNotchPart(StockPart, BodyPart);
+	ShowNotches(Instance);
 	return !Parts.IsEmpty();
 }
 
@@ -147,6 +164,7 @@ void UWeaponModelComponent::Clear()
 	Paints.Reset();
 	ReloadPartMesh = nullptr;
 	SightPart = nullptr;
+	NotchPart = nullptr;
 	AimPoint = FVector::ZeroVector;
 	ReloadPart = EWeaponReloadPart::None;
 	Muzzle = FVector::ZeroVector;

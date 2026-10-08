@@ -3,6 +3,8 @@
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/HUD/HudMinimapWidget.h"
+#include "Audio/LooterSound.h"
+#include "Settings/AudioSettingsSubsystem.h"
 #include "Settings/ControlSettingsSubsystem.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
 #include "Settings/KeyBindingSubsystem.h"
@@ -33,8 +35,14 @@ void USettingsMenuWidget::Open(ESettingsMenuMode InMode)
 	ApplyMode();
 	RefreshKeyLabels();
 	RefreshGraphics();
+	RefreshAudio();
 	RefreshControlSettings();
 	SetStatus(TEXT(""), LooterUI::Color::TextDim());
+	// Over the game the HUD sounds its pages opening and closing (the pause menu among them); the main menu has no HUD.
+	if (Mode == ESettingsMenuMode::MainMenu)
+	{
+		LooterSound::Play2D(this, LooterSoundCue::Open);
+	}
 
 	bMinimapSliderHeld = false;
 	PreviewLinger = 0.f;
@@ -92,11 +100,23 @@ UControlSettingsSubsystem* USettingsMenuWidget::GetControls() const
 	return LocalPlayer ? LocalPlayer->GetSubsystem<UControlSettingsSubsystem>() : nullptr;
 }
 
+UAudioSettingsSubsystem* USettingsMenuWidget::GetAudio() const
+{
+	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
+	return LocalPlayer ? LocalPlayer->GetSubsystem<UAudioSettingsSubsystem>() : nullptr;
+}
+
 ULooterButton* USettingsMenuWidget::MakeButton(FName Action, int32 Index, const FString& Label, int32 FontSize, LooterUI::EButtonKind Kind)
 {
 	ULooterButton* Button = WidgetTree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
 	Button->Setup(WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass()), Action, Index, FText::FromString(Label), FontSize, Kind);
 	Button->OnButtonClicked.BindUObject(this, &USettingsMenuWidget::HandleButton);
+	// Resume, Back and the corner's X close the menu: the page's close (over the game the HUD plays the same cue in the
+	// same moment, and the two are heard as one).
+	if (Action == ActionClose)
+	{
+		Button->ClickCue = LooterSoundCue::Close;
+	}
 	return Button;
 }
 
@@ -134,49 +154,64 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		ResumeButton = MakeButton(ActionClose, 0, TEXT("Resume"), 16, EButtonKind::Primary);
 		Add(ResumeButton, 10.f);
 
-		Add(MakeSection(WidgetTree, TEXT("Graphics")), 18.f);
+		// Every section in one list that scrolls between the header and the footer, so the key bindings at its end are in
+		// reach at any screen size, whatever the sections above them take.
+		Body = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
+		StyleScrollBox(Body);
+		Add(Body, 18.f, true);
+		UVerticalBox* Sections = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		Body->AddChild(Sections);
+		auto AddRow = [Sections](UWidget* Child, float Top)
+		{
+			Sections->AddChildToVerticalBox(Child)->SetPadding(FMargin(0.f, Top, 0.f, 0.f));
+		};
+
+		AddRow(MakeSection(WidgetTree, TEXT("Graphics")), 0.f);
 		TArray<FString> QualityNames;
 		for (const EGraphicsQuality Quality : Qualities)
 		{
 			QualityNames.Add(UGraphicsSettingsSubsystem::QualityName(Quality));
 		}
 		TArray<ULooterButton*> Quality;
-		Add(MakeChoiceRow(TEXT("Quality"), QualityNames, ActionQuality, QualityColumnWidth, Quality), 4.f);
+		AddRow(MakeChoiceRow(TEXT("Quality"), QualityNames, ActionQuality, QualityColumnWidth, Quality), 4.f);
 		for (ULooterButton* Button : Quality)
 		{
 			QualityButtons.Add(Button);
 		}
 		ULooterButton* BlurOn = nullptr;
 		ULooterButton* BlurOff = nullptr;
-		Add(MakeToggleRow(TEXT("Motion blur"), TEXT("On"), TEXT("Off"), ActionMotionBlurOn, ActionMotionBlurOff, 0, false, BlurOn, BlurOff), 4.f);
+		AddRow(MakeToggleRow(TEXT("Motion blur"), TEXT("On"), TEXT("Off"), ActionMotionBlurOn, ActionMotionBlurOff, 0, false, BlurOn, BlurOff), 4.f);
 		MotionBlurOn = BlurOn;
 		MotionBlurOff = BlurOff;
 		// The first-person view only: third person keeps its own over-the-shoulder framing.
 		USlider* FovSlider = nullptr;
 		UTextBlock* FovText = nullptr;
-		Add(MakeSliderRow(TEXT("Field of view (1st person)"), UGraphicsSettingsSubsystem::MinFieldOfView, UGraphicsSettingsSubsystem::MaxFieldOfView,
+		AddRow(MakeSliderRow(TEXT("Field of view (1st person)"), UGraphicsSettingsSubsystem::MinFieldOfView, UGraphicsSettingsSubsystem::MaxFieldOfView,
 			FovSlider, FovText, FieldOfViewStep), 4.f);
 		FieldOfViewSlider = FovSlider;
 		FieldOfViewValue = FovText;
 		FieldOfViewSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleFieldOfViewChanged);
 		FieldOfViewSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleFieldOfViewReleased);
 
-		Add(MakeSection(WidgetTree, TEXT("Interface")), 18.f);
+		AddRow(MakeSection(WidgetTree, TEXT("Audio")), 18.f);
+		AddRow(MakeAudioRows(), 0.f);
+
+		AddRow(MakeSection(WidgetTree, TEXT("Interface")), 18.f);
 		USlider* Transparency = nullptr;
 		UTextBlock* TransparencyText = nullptr;
-		Add(MakeSliderRow(TEXT("UI transparency"), 0.f, 1.f, Transparency, TransparencyText), 4.f);
+		AddRow(MakeSliderRow(TEXT("UI transparency"), 0.f, 1.f, Transparency, TransparencyText), 4.f);
 		TransparencySlider = Transparency;
 		TransparencyValue = TransparencyText;
 		TransparencySlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleTransparencyChanged);
 		TransparencySlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleTransparencyReleased);
 		ULooterButton* MapOn = nullptr;
 		ULooterButton* MapOff = nullptr;
-		Add(MakeToggleRow(TEXT("Minimap"), TEXT("On"), TEXT("Off"), ActionMinimapOn, ActionMinimapOff, 0, false, MapOn, MapOff), 4.f);
+		AddRow(MakeToggleRow(TEXT("Minimap"), TEXT("On"), TEXT("Off"), ActionMinimapOn, ActionMinimapOff, 0, false, MapOn, MapOff), 4.f);
 		MinimapOn = MapOn;
 		MinimapOff = MapOff;
 		USlider* MinimapSize = nullptr;
 		UTextBlock* MinimapText = nullptr;
-		Add(MakeSliderRow(TEXT("Minimap size"), UGraphicsSettingsSubsystem::MinMinimapScale, UGraphicsSettingsSubsystem::MaxMinimapScale,
+		AddRow(MakeSliderRow(TEXT("Minimap size"), UGraphicsSettingsSubsystem::MinMinimapScale, UGraphicsSettingsSubsystem::MaxMinimapScale,
 			MinimapSize, MinimapText), 4.f);
 		MinimapSlider = MinimapSize;
 		MinimapValue = MinimapText;
@@ -185,7 +220,7 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		MinimapSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleMinimapSizeReleased);
 		USlider* MinimapZoom = nullptr;
 		UTextBlock* MinimapZoomText = nullptr;
-		Add(MakeSliderRow(TEXT("Minimap zoom"), UGraphicsSettingsSubsystem::MinMinimapZoom, UGraphicsSettingsSubsystem::MaxMinimapZoom,
+		AddRow(MakeSliderRow(TEXT("Minimap zoom"), UGraphicsSettingsSubsystem::MinMinimapZoom, UGraphicsSettingsSubsystem::MaxMinimapZoom,
 			MinimapZoom, MinimapZoomText), 4.f);
 		MinimapZoomSlider = MinimapZoom;
 		MinimapZoomValue = MinimapZoomText;
@@ -193,15 +228,15 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		MinimapZoomSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleMinimapZoomReleased);
 		ULooterButton* RateOn = nullptr;
 		ULooterButton* RateOff = nullptr;
-		Add(MakeToggleRow(TEXT("FPS counter"), TEXT("On"), TEXT("Off"), ActionFrameRateOn, ActionFrameRateOff, 0, false, RateOn, RateOff), 4.f);
+		AddRow(MakeToggleRow(TEXT("FPS counter"), TEXT("On"), TEXT("Off"), ActionFrameRateOn, ActionFrameRateOff, 0, false, RateOn, RateOff), 4.f);
 		FrameRateOn = RateOn;
 		FrameRateOff = RateOff;
 
-		Add(MakeSection(WidgetTree, TEXT("Controls")), 18.f);
+		AddRow(MakeSection(WidgetTree, TEXT("Controls")), 18.f);
 		// Mouse and stick alike; a zoomed sight still slows the turn by its zoom on top of it.
 		USlider* LookSlider = nullptr;
 		UTextBlock* LookValueText = nullptr;
-		Add(MakeSliderRow(TEXT("Look sensitivity"), UControlSettingsSubsystem::MinLookSensitivity, UControlSettingsSubsystem::MaxLookSensitivity,
+		AddRow(MakeSliderRow(TEXT("Look sensitivity"), UControlSettingsSubsystem::MinLookSensitivity, UControlSettingsSubsystem::MaxLookSensitivity,
 			LookSlider, LookValueText, UControlSettingsSubsystem::LookSensitivityStep), 4.f);
 		LookSensitivitySlider = LookSlider;
 		LookSensitivityValue = LookValueText;
@@ -209,10 +244,9 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		LookSensitivitySlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleLookSensitivityReleased);
 		UTextBlock* Hint = MakeText(WidgetTree, TEXT("Click a key to change it, then press the new key or mouse button. Esc cancels."), 11, Color::TextDim());
 		Hint->SetAutoWrapText(true);
-		Add(Hint, 8.f);
-		ControlsList = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
-		StyleScrollBox(ControlsList);
-		Add(ControlsList, 8.f, true);
+		AddRow(Hint, 8.f);
+		KeyList = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		AddRow(KeyList, 8.f);
 
 		StatusText = MakeText(WidgetTree, TEXT(""), 13, Color::TextDim());
 		StatusText->SetAutoWrapText(true);
@@ -252,6 +286,7 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 
 		RebuildControls();
 		RefreshGraphics();
+		RefreshAudio();
 		RefreshControlSettings();
 		ApplyMode();
 	}

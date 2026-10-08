@@ -178,6 +178,21 @@ FText WeaponParts::NamePrefix(const FWeaponLook& Look)
 	return Namer ? Namer->NamePrefix : FText::GetEmpty();
 }
 
+FString WeaponParts::BaseName(const FWeaponInstanceData& Instance)
+{
+	if (Instance.Named && !Instance.Named->DisplayName.IsEmpty())
+	{
+		return Instance.Named->DisplayName.ToString();
+	}
+	if (!Instance.Definition)
+	{
+		return TEXT("Unknown");
+	}
+	const FText Prefix = NamePrefix(Pick(Instance));
+	const FString Weapon = Instance.Definition->DisplayName.ToString();
+	return Prefix.IsEmpty() ? Weapon : FString::Printf(TEXT("%s %s"), *Prefix.ToString(), *Weapon);
+}
+
 float WeaponParts::Wear(const FWeaponInstanceData& Instance)
 {
 	// A named gun's own wear, the same on every copy (Heirloom's: a keeper's gun, worn but cared for).

@@ -3,6 +3,7 @@
 
 #include "Loot/Chest.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/LooterSound.h"
 #include "Interaction/InteractionComponent.h"
 #include "Interaction/InteractionSubsystem.h"
 #include "Missions/MissionRunner.h"
@@ -263,10 +264,18 @@ bool AChest::Open(AActor* ByWhom, bool bForce)
 	{
 		return false;
 	}
-	// The Strongbox's wheel first, then the lid.
+	// The Strongbox's wheel first, then the lid; each is heard as it starts to move.
 	State = GetKindInfo().WheelTurns > 0.f ? EChestState::Unlocking : EChestState::Opening;
 	Clock = 0.f;
 	SetActorTickEnabled(true);
+	if (State == EChestState::Unlocking)
+	{
+		LooterSound::PlayAt(this, LooterSoundCue::StrongboxWheel, Wheel ? Wheel->GetComponentLocation() : GetActorLocation());
+	}
+	else
+	{
+		LooterSound::PlayAt(this, LooterSoundCue::ChestOpen, Lid ? Lid->GetComponentLocation() : GetActorLocation());
+	}
 	UE_LOG(LogLooter, Log, TEXT("%s (%s): opened%s."), *GetActorNameOrLabel(), *GetSaveKey().ToString(),
 		ByWhom ? *FString::Printf(TEXT(" by %s"), *ByWhom->GetName()) : TEXT(""));
 	return true;
@@ -292,6 +301,7 @@ void AChest::Advance(float DeltaSeconds)
 			Left = Clock - Spin;
 			Clock = 0.f;
 			State = EChestState::Opening;
+			LooterSound::PlayAt(this, LooterSoundCue::ChestOpen, Lid ? Lid->GetComponentLocation() : GetActorLocation());
 		}
 	}
 	if (State == EChestState::Opening)

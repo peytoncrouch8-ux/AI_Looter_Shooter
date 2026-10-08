@@ -3,6 +3,7 @@
 #include "Loot/LootLibrary.h"
 #include "Combat/HealthComponent.h"
 #include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponCurseEffects.h"
 #include "GameFramework/Actor.h"
 
 void ULootDropComponent::BeginPlay()
@@ -29,12 +30,13 @@ void ULootDropComponent::HandleOwnerDeath(AController* Killer)
 		return;
 	}
 	// The ammo leans toward the class of the gun that landed the killing shot, so the gun in use keeps itself fed.
-	const UHealthComponent* Health = GetOwner()->FindComponentByClass<UHealthComponent>();
-	const AWeaponBase* KillWeapon = Health ? Cast<AWeaponBase>(Health->GetLastDamageCauser()) : nullptr;
+	const AWeaponBase* KillWeapon = AWeaponBase::FindKillWeapon(GetOwner());
 	const TOptional<EAmmoType> KillAmmo = KillWeapon ? TOptional<EAmmoType>(KillWeapon->GetAmmoType()) : TOptional<EAmmoType>();
 	// A practice area the player has already left once (Skyreach on a return visit) drops only ammo: practice, not a farm.
 	const bool bWeapons = UAreaRulesSubsystem::DropsGunsAt(this);
-	ULootLibrary::SpawnKillLoot(this, LootTable, GetOwner()->GetActorLocation(), Level, ExtraLuck, KillAmmo, bWeapons);
+	// A Greedy iron's kills roll their loot luckier.
+	const float Luck = ExtraLuck + WeaponCurseEffects::KillLootLuck(KillWeapon);
+	ULootLibrary::SpawnKillLoot(this, LootTable, GetOwner()->GetActorLocation(), Level, Luck, KillAmmo, bWeapons);
 }
 
 TArray<AActor*> ULootDropComponent::DropLoot()
