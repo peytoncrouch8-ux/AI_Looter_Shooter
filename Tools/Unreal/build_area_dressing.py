@@ -18,20 +18,23 @@ obstacle id, so the art session can retune it without touching the code:
   table puts them and wherever a road crosses the line (as much of the line as the road takes up, and a little more),
   so no fence closes a road; the iron and picket fences fill theirs with their gate units, swung open. The sheep fold's
   walls turn on Ruins.py's square corner and take half walls where whole ones won't fit. The Sink's fences carry a
-  warning sign each by the ramp head's gap.
+  warning sign each by the ramp head's gap. A fence's run stops a metre short of a cliff piece or a rock it would run
+  into (Rocks, from what build_area.py placed), ending on its post, and goes on past it.
 - Grave rows get the old headboards and crosses, mixed by a fixed seed, a little out of line and leaning a little, boot
-  hill's and the family plot's each over its sunken mound; the family plot's eight old graves, which have no obstacle,
-  come from EXTRA_GRAVE_ROWS, and each fresh mound the placements put down (the respawn graves) gets its fresh
-  headboard (MOUND_BOARDS).
+  hill's and the family plot's each over its sunken mound; the family plot's eight old graves and the churchyard's short
+  rows on the knoll's south face (seen from boot hill and the town), which have no obstacle, come from EXTRA_GRAVE_ROWS,
+  and each fresh mound the placements put down (the respawn graves) gets its fresh headboard (MOUND_BOARDS).
 - Cairns stand along their path; the ruins and the keeper's three cairns are layout placements, which build_area.py's
   models() places already (a ruin whose placement is gone is placed here instead, as its own actor).
 - Props become small groups laid out in the obstacle's own frame: along its longest side, facing its road or a
   building, and pieces set against a building's wall in its own frame (the backlots' lean-tos). A few pieces stand at
-  spots of their own (SPOTS: Whitlock Fields' round bales, two more fallen pines by the Sink and north roads).
+  spots of their own (SPOTS: Whitlock Fields' round bales, two more fallen pines by the Sink and north roads, the
+  churchyard's dead trees).
 Every piece stands on the terrain's tiles (traced like build_area_whitlock.py's Ground: the tiles alone, never a volume,
-a tree or a building). Sections follow the slope along their length (the roll) and sink where the ground dips under
-their middle; props tilt with the ground by at most MAX_TILT degrees (mounds MOUND_TILT) and sink so no corner hovers;
-stacks and sheds (UPRIGHT) stand level.
+a tree or a building). A fence's sections stand plumb and level, stepped down a slope (fence_steps: split into shorter
+steps where it's steep, a post at each step its own posts can't cover); a wall's follow the slope along their length
+(the roll); both sink where the ground dips under their middle. Props tilt with the ground by at most MAX_TILT degrees
+(mounds MOUND_TILT) and sink so no corner hovers; stacks, sheds and trees (UPRIGHT) stand level.
 
 Performance (the doc's "Performance plan": about 700 draws at the heaviest view): every kit piece is instanced, one
 AInstancedProps per mesh (World/InstancedProps.h: solid like a placed mesh, shadowed, each instance culled on its own
@@ -58,6 +61,7 @@ TAG = 'Dressing'
 SMALL_CULL = 12000.0   # yard props, graves, cairns: about 70 m on Medium
 FENCE_CULL = 16000.0   # fence sections and posts: a line reads further than a crate
 WALL_CULL = 25000.0    # stone walls, the big pieces
+TREE_CULL = 0.0        # trees: never (a tree's silhouette is what tells a place from afar)
 
 # Every kit piece, by its mesh's name without SM_ (build_area.mesh_index()'s keys): its size as it stands (cm: along
 # its length, the actor's Y, which a fence runs along; across, the actor's X, its front; up), where its pivot is along
@@ -112,6 +116,9 @@ PIECES = {
     'Fence_PicketGate_Open': ((200, 100, 108), 'start', FENCE_CULL),
     'Grave_MoundSunken': ((100, 200, 25), 'middle', SMALL_CULL),
     'StoneWall_Half': ((150, 72, 95), 'start', WALL_CULL),
+    # The churchyard's dead trees (DeadTree.py, about 6.5 m): their box the trunk's foot, so the scatter's grass grows
+    # round it; never culled, like the scatter's trees.
+    'DeadTree_A': ((80, 80, 650), 'middle', TREE_CULL),
 }
 # Where a piece's footprint's middle is, ahead of its pivot along its front (cm), where it isn't the pivot: the
 # woodshed's chopping block stands in front of its posts, the lumber stack's planks lean out of its front, the lean-to's
@@ -123,12 +130,30 @@ FOOTPRINT_AHEAD = {'Woodshed': 21.0, 'LumberStack': 28.0, 'LeanTo': 6.0}
 # along it (cm), centred on the gate's spot), the wall's finished end (it reaches end_length past its joint), square
 # corner (arm: how far each arm reaches from the corner, cm) and half section (chained in where whole sections would
 # be squashed or stretched, on the lines that ask for halves).
+# A fence's sections stand plumb on a slope (the art session's churchyard note, 2026-10-07: tilted with the ground the
+# iron fence's pickets and posts leaned off plumb down the knoll), level and stepped down it: the kits are rigid
+# panels (Graves.py, Fences.py), and an instance can't be sheared to rack its rails, so a section steps instead. Each
+# stands with its uphill end sunk at most bury into the slope and its downhill end at most hover over it (the post and
+# pickets reach a little under the pivot, so a few cm doesn't show); a section the slope drops more than bury + hover
+# is split into shorter level steps, down to shortest of its length (squashed, the panel's own post at each step); and
+# where two sections step more than hide, which the section's own post can't cover (the rails' ends would show past
+# it), step_post stands on the ground at the joint, plumb: the iron fence's heavy post at every step; the wooden kits'
+# (step_down) only where the section after the joint stands lower, its own first post sunk there (stepping up, that
+# post stands on the ground and takes the lower rails' ends, and a second post beside it would double it).
+# clear_rock: a run stops this far (cm) short of a cliff piece or a rock it would run into (place() finds them:
+# Rocks). Walls keep following the ground.
 KITS = {
-    'rail': {'section': 'FenceRail', 'length': 300.0, 'broken': 'FenceBroken', 'end': 'FencePost'},
+    'rail': {'section': 'FenceRail', 'length': 300.0, 'broken': 'FenceBroken', 'end': 'FencePost',
+             'bury': 35.0, 'hover': 20.0, 'shortest': 0.34, 'step_post': 'FencePost', 'hide': 20.0, 'step_down': True,
+             'clear_rock': 100.0},
     'picket': {'section': 'Fence_PicketSection', 'length': 200.0, 'end': 'Fence_PicketPost',
-               'gate': 'Fence_PicketGate_Open', 'gate_clear': (4.5, 100.5)},
+               'gate': 'Fence_PicketGate_Open', 'gate_clear': (4.5, 100.5),
+               'bury': 30.0, 'hover': 15.0, 'shortest': 0.5, 'step_post': 'Fence_PicketPost', 'hide': 15.0,
+               'step_down': True, 'clear_rock': 100.0},
     'iron': {'section': 'Fence_IronSection', 'length': 200.0, 'end': 'Fence_IronPost', 'corner_post': 'Fence_IronPost',
-             'gate': 'Fence_IronGate', 'gate_clear': (11.0, 189.0)},
+             'gate': 'Fence_IronGate', 'gate_clear': (11.0, 189.0),
+             'bury': 45.0, 'hover': 15.0, 'shortest': 0.5, 'step_post': 'Fence_IronPost', 'hide': 20.0,
+             'clear_rock': 100.0},
     'stone': {'section': 'StoneWall', 'length': 300.0, 'broken': 'StoneWall_Broken', 'fallen': 'StoneWall_Fallen',
               'end': 'StoneWallEnd', 'end_length': 90.0, 'corner': 'StoneWall_Corner', 'arm': 150.0, 'wall': True,
               'half': 'StoneWall_Half', 'half_length': 150.0},
@@ -187,6 +212,16 @@ SQUARE = 20.0
 # A run shorter than this (cm) between gates, or a leg shorter than this share of a section, is left out.
 MIN_RUN = 150.0
 MIN_LEG = 0.35
+# Rock in a fence's way (a kit's clear_rock): looked for every ROCK_STEP (cm) along the line, on it and ROCK_SIDE either
+# side of it, as rock standing between ROCK_LOW and ROCK_HIGH over the ground there (a cliff's lip or a talus chip lower
+# than ROCK_LOW is something a fence stands over, not one it runs into).
+ROCK_STEP = 25.0
+ROCK_SIDE = 15.0
+ROCK_LOW = 25.0
+ROCK_HIGH = 150.0
+# The placed meshes that are rock (build_area.py's cliff faces, panels and seams, the outcrops, Den Rock, boulders), by
+# name. The scatter's rocks aren't actors; they keep off the fences' lines already (footprints()).
+ROCK_MESHES = ('SM_Cliff', 'SM_Outcrop_', 'SM_DenRock', 'SM_Boulder_')
 
 # The grave rows: the mix (mesh, weight), and how they stand: spacing (cm), how far out of line along and across (cm),
 # how far turned and leaning (degrees), the share left out (a gap in the row).
@@ -201,6 +236,13 @@ GRAVE_STYLES = {
                        ('Grave_Headboard_OldD', 2), ('Grave_Cross_A', 1)],
                'spacing': 200.0, 'along': 8.0, 'across': 6.0, 'turn': 4.0, 'lean': 2.5, 'missing': 0.0,
                'mound': 'Grave_MoundSunken'},
+    # The churchyard's short rows on the knoll's south face (EXTRA_GRAVE_ROWS), seen from boot hill, the north road and
+    # the town: the same boards with more of the tall crosses, which read as a graveyard from 30-70 m, and none left out
+    # (a row of two or five has no board to spare).
+    'churchyardFace': {'mix': [('Grave_Headboard_OldA', 2), ('Grave_Headboard_OldB', 2), ('Grave_Headboard_OldC', 1),
+                               ('Grave_Headboard_OldD', 2), ('Grave_Cross_A', 3), ('Grave_Cross_B', 3),
+                               ('Grave_Headboard_FreshA', 1)],
+                       'spacing': 170.0, 'along': 12.0, 'across': 8.0, 'turn': 5.0, 'lean': 3.0, 'missing': 0.0},
     # Boot hill's: ragged rows, more crosses, each over its settled mound (turned a little less than its looks would
     # like, so the 1 m mounds 1.65 m apart don't run into each other).
     'bootHill': {'mix': [('Grave_Headboard_OldA', 2), ('Grave_Headboard_OldB', 2), ('Grave_Headboard_OldC', 3),
@@ -227,9 +269,21 @@ GRAVE_ROWS = {
 # headboards, Ellis's fresh grave and Abel's frosted one"): one either side of Ellis and Abel in their row (the boards
 # at their spots are left out, as every row's are near a story grave) and six in a row behind them by the north
 # fence, all facing south as theirs do, clear of the wake-up spot at the foot of Ellis's grave.
+# The churchyard's south face (the art session's note from boot hill, 2026-10-07: its 54 boards stand west and east of
+# the nave, the west rows behind the chapel and the knoll's crest and the east ones end-on, so from boot hill, the north
+# road and the town it read empty): three short rows in front of the rows' heads, on the ground those see (the area
+# model's heights: the town sees only the strip west of the tower), their boards facing down the knoll toward them.
+# East of the gate, in front of the east rows' heads (2 m north of the respawn mound's foot, 2 m and more from the
+# fight's spots on the lawn, the tree by the respawn grave to its west); west of the gate, in front of the west rows'
+# heads, between the lawn's two spots there (the dead tree by the fence beside them), and beside the tower, clear of
+# the way from its steps round into the lane west of the nave. build_area_chapel warns if a piece of the dressing comes
+# within its YARD_CLEAR of a fight's spot.
 EXTRA_GRAVE_ROWS = {
     'familyPlotGraves': [('family', 180.0, [[-3520, -9020], [-3520, -8210]], 270.0),
                          ('family', 180.0, [[-3200, -9100], [-3200, -8100]], 200.0)],
+    'churchyardFaceGraves': [('churchyardFace', 170.0, [[6060, -1060], [6060, -330]], 180.0),
+                             ('churchyardFace', 145.0, [[5870, -3200], [5870, -2990]], 210.0),
+                             ('churchyardFace', 145.0, [[5900, -2620], [5900, -2450]], 170.0)],
 }
 
 # A grave row's board is left out on a road (its half width and this, cm) or this near a story grave's placement
@@ -254,6 +308,11 @@ SPOTS = {
     # the Sink, the boundary and the Ranger caches' spots (the ground there was 10.4 m from its nearest break).
     'sinkRoadPine': {'mesh': 'FallenPine', 'from': (2869, 1846), 'to': (3440, 2285)},
     'northRoadPine': {'mesh': 'FallenPine', 'from': (4273, -1157), 'to': (4843, -1598)},
+    # The churchyard's dead trees (the area doc: "about 50 headboards behind an iron fence, with dead trees"; the
+    # scatter keeps its trees out of the chapel's zone): one over the respawn grave on the face boot hill and the north
+    # road see, one inside the fence's south-west corner, one past the west rows' far end against the sky; each 2 m and
+    # more from the fight's spots, the graves and the fence.
+    'churchyardDeadTrees': {'mesh': 'DeadTree_A', 'at': [(5850, -900, 205), (5720, -3100, 60), (7650, -3150, 330)]},
 }
 
 # Cairns along a path: the meshes in turn and the spacing (cm); placements: layout placements that already stand there.
@@ -281,7 +340,7 @@ RUINS = {
 # (its front: +X), cm to its right (+Y), turn from its yaw] (a lean-to on a false front's back wall, beside its back
 # door). A path's items: [mesh, from, to (shares of the path), stretched to fit (default yes)].
 # Pieces in UPRIGHT stand plumb (a shed against a wall, on its posts), sunk to their lowest corner, never tilted.
-UPRIGHT = ('Woodshed', 'LeanTo')
+UPRIGHT = ('Woodshed', 'LeanTo', 'DeadTree_A')
 UPRIGHT_SINK = 40.0
 GROUPS = {
     # A hitch rail and a trough at the town gate, by the street.
@@ -501,11 +560,14 @@ class Piece:
 class Plan:
     """What the dressing places for a layout (layout.json as source, layout_computed.json's placements): the instanced
     pieces, the ruins to place as actors ((model, owner, x, y, yaw)), per obstacle a line of what it got, and per fence
-    or wall its runs' first sections (heads: [(how the run starts: 'open', 'gate' or 'loop', its first joint, its
-    second)], so a builder can stand someone at a span, as build_area_whitlock stands Amos at the one past his gate)."""
+    or wall its runs' first sections (heads: [(how the run starts: 'open', 'gate', 'rock' or 'loop', its first joint,
+    its second)], so a builder can stand someone at a span, as build_area_whitlock stands Amos at the one past his gate).
+    rocks: where rock stands in a fence's way ((x, y) -> bool; place()'s Rocks, from the cliffs and rocks placed), so a
+    run stops short of it; without it (plain Python, footprints(), run_head()) the runs go on as the layout draws them."""
 
-    def __init__(self, source, placements=None, only=None):
+    def __init__(self, source, placements=None, only=None, rocks=None):
         self.source = source
+        self.rocks = rocks
         # layout_computed.json's placements (key: kind, location, yaw), which build_area.py's models() places.
         self.placed = dict(placements or {})
         self.roads = [(r['path'], float(r.get('width', MIN_GATE))) for r in source.get('roads', [])
@@ -672,6 +734,9 @@ class Plan:
                 runs.append((d0, gap[0], kind0, 'gate'))
                 d0, kind0 = gap[1], 'gate'
             runs.append((d0, total, kind0, 'open'))
+        # Where rock stands in its way, a run stops kit['clear_rock'] short of it and goes on as far past it.
+        rock = self.rock_spans(line, total, kit)
+        runs = stop_at_rock(runs, rock, total, closed)
         # A loop is cut from three rounds of it, so a run may start past its end and go round.
         track = line + line[1:] + line[1:] if closed else line
         lengths = []
@@ -701,8 +766,43 @@ class Plan:
                                          stretch=True, kind='span'))
         gap_text = ', '.join(f'{why} {w / 100.0:.1f} m at {((d0 + d1) / 2) % total / 100.0:.1f} m'
                              for d0, d1, why, w in gaps)
+        rock_text = ', '.join(f'{(d1 - d0) / 100.0:.1f} m at {((d0 + d1) / 2) % total / 100.0:.1f} m' for d0, d1 in rock)
         return (f'{total / 100.0:.1f} m {"round" if closed else "long"}, runs {" + ".join(lengths) or "none"} m'
-                + (f', gaps: {gap_text}' if gaps else ''))
+                + (f', gaps: {gap_text}' if gaps else '')
+                + (f', left clear of rock (its margin included): {rock_text}' if rock else ''))
+
+    def rock_spans(self, line, total, kit):
+        """Where along a line (from, to: cm) rock stands in a fence's way, each widened by the kit's clear_rock either
+        side; none without a rocks test or for a kit that runs into rock (a wall)."""
+        clear = kit.get('clear_rock')
+        if not self.rocks or not clear or not self.rocks.near(line, clear + ROCK_SIDE):
+            return []
+        count = max(1, int(math.ceil(total / ROCK_STEP)))
+        hit = []
+        for i in range(count + 1):
+            d = total * i / count
+            p = point_at(line, d)
+            ahead = point_at(line, min(d + 1.0, total))
+            way = unit(point_at(line, max(d - 1.0, 0.0)), ahead)
+            side = (-way[1] * ROCK_SIDE, way[0] * ROCK_SIDE)
+            if any(self.rocks((p[0] + side[0] * s, p[1] + side[1] * s)) for s in (0.0, 1.0, -1.0)):
+                hit.append(d)
+        spans = []
+        step = total / count
+        for d in hit:
+            if spans and d - spans[-1][1] <= step + 1.0:
+                spans[-1][1] = d
+            else:
+                spans.append([d, d])
+        # The rock's edge lies within a step before its first sample and after its last: clear of that whole step.
+        widened = []
+        for d0, d1 in spans:
+            d0, d1 = d0 - step - clear, d1 + step + clear
+            if widened and d0 <= widened[-1][1]:
+                widened[-1][1] = d1
+            else:
+                widened.append([d0, d1])
+        return [(d0, d1) for d0, d1 in widened]
 
     def run(self, oid, index, poly, kit, spec, start, end, first):
         """One run between gates (or round a loop): its legs, corners, sections, and the posts or ends between them."""
@@ -773,13 +873,14 @@ class Plan:
             self.fence_posts(oid, elements, kit, end)
 
     def fence_posts(self, oid, elements, kit, end):
-        """A post where a run's rails stop: before a missing section and at the run's end (a gate unit's own posts close
-        it for the iron and picket fences, and a loop closes on its own first post)."""
+        """A post where a run's rails stop: before a missing section and at the run's end (its open end, or short of the
+        rock it stops at; a gate unit's own posts close it for the iron and picket fences, and a loop closes on its own
+        first post)."""
         for i, e in enumerate(elements):
             if e['state'] == 'M':
                 continue
             last = i == len(elements) - 1
-            if (last and end == 'open') or (last and end == 'gate' and not kit.get('gate')) or \
+            if (last and end in ('open', 'rock')) or (last and end == 'gate' and not kit.get('gate')) or \
                     (not last and elements[i + 1]['state'] == 'M'):
                 self.pieces.append(Piece(kit['end'], oid, e['b'], kit_yaw(*e['dir']), kind='post'))
 
@@ -938,6 +1039,56 @@ def piece_kind(mesh):
     return 'upright' if mesh in UPRIGHT else 'prop'
 
 
+def stop_at_rock(runs, rock, total, closed):
+    """The runs ((from, to along the line, how each starts and ends)) with rock's spans ((from, to)) taken out: a run
+    that meets one ends there ('rock') and the line goes on past it as a run of its own, starting 'rock'. A loop the
+    rock breaks becomes a run from each span's far side round to the next one's near side."""
+    if not rock:
+        return runs
+    if closed and runs and runs[0][2] == 'loop':
+        start = runs[0][0]
+        # The spans in the loop's own frame (0 at the run's start), split where they cross it, merged.
+        parts = []
+        for d0, d1 in rock:
+            if d1 - d0 >= total:
+                return []
+            u0 = (d0 - start) % total
+            u1 = u0 + (d1 - d0)
+            parts.append((u0, min(u1, total)))
+            if u1 > total:
+                parts.append((0.0, u1 - total))
+        merged = []
+        for u0, u1 in sorted(parts):
+            if merged and u0 <= merged[-1][1]:
+                merged[-1][1] = max(merged[-1][1], u1)
+            else:
+                merged.append([u0, u1])
+        if len(merged) > 1 and merged[0][0] <= 0.0 and merged[-1][1] >= total:
+            first = merged.pop(0)
+            merged[-1][1] = first[1] + total
+        out = []
+        for i, (u0, u1) in enumerate(merged):
+            following = merged[(i + 1) % len(merged)][0] + (total if i == len(merged) - 1 else 0.0)
+            if following > u1:
+                out.append((start + u1, start + following, 'rock', 'rock'))
+        return out
+    # A closed line's runs are measured round it from anywhere in its first two rounds: the spans of each round.
+    shifts = (-total, 0.0, total, 2.0 * total) if closed else (0.0,)
+    spans = sorted((d0 + s, d1 + s) for d0, d1 in rock for s in shifts)
+    out = []
+    for d0, d1, start, end in runs:
+        at, how = d0, start
+        for b0, b1 in spans:
+            if b1 <= at or b0 >= d1:
+                continue
+            if b0 > at:
+                out.append((at, b0, how, 'rock'))
+            at, how = max(at, b1), 'rock'
+        if at < d1:
+            out.append((at, d1, how, end))
+    return out
+
+
 def half_joints(leg, section, half):
     """Joints along a leg for whole sections and at most one half one (the last), the mix stretched least (whole ones
     win a tie); and which of the sections is the half."""
@@ -976,36 +1127,123 @@ def frame_axes(points):
     return u, (-u[1], u[0])
 
 
-def plan_all(source, placements=None, only=None):
+def plan_all(source, placements=None, only=None, rocks=None):
     """The plan for a layout (layout.json) and what build_area.py's models() places (layout_computed.json's placements);
-    only: just these obstacle ids (build_area_whitlock could take its fences' plan so)."""
-    return Plan(source, placements, only)
+    only: just these obstacle ids (build_area_whitlock could take its fences' plan so); rocks: Plan's."""
+    return Plan(source, placements, only, rocks)
 
 
 # ---------------------------------------------------------------------------
 # Standing on the ground (plain Python: ground is any (x, y) -> z)
 # ---------------------------------------------------------------------------
 
-def poses(plan, ground):
-    """Each piece's (mesh, (x, y, z), (roll, pitch, yaw), (sx, sy, sz), owner), on the ground ground(x, y) gives."""
+def poses(plan, ground, stats=None):
+    """Each piece's (mesh, (x, y, z), (roll, pitch, yaw), (sx, sy, sz), owner), on the ground ground(x, y) gives: a
+    fence's section as its level steps (fence_steps), and its kit's step post wherever two steps meet further apart
+    than its own posts cover. stats (a dict) counts what the slopes made of the fences: 'split' sections, 'step posts',
+    and 'past': (degrees, owner) of each section steeper than its kit's shortest steps take cleanly."""
+    stats = {} if stats is None else stats
+    for key in ('split', 'step posts'):
+        stats.setdefault(key, 0)
+    stats.setdefault('past', [])
     bases = {}
+    posts = {}
     for piece in plan.pieces:
         if piece.level:
             z = ground(*piece.a)
             bases[piece.level] = min(bases.get(piece.level, z), z)
+        if piece.kind == 'post':
+            posts.setdefault(piece.owner, []).append(piece.a)
     out = []
+    # Each fence section's ends as it stands, by owner: (its joint, its base there, 'a' its start or 'b' its end).
+    ends = {}
+
+    def step_post(kit, at, yaw, owner, before, after):
+        """The kit's step post at a joint between steps whose bases are before and after it, if the step needs one."""
+        if abs(after - before) <= kit['hide'] or (kit.get('step_down') and after > before):
+            return
+        stats['step posts'] += 1
+        out.append((kit['step_post'], (at[0], at[1], ground(*at)), (0.0, 0.0, yaw), (1.0, 1.0, 1.0), owner))
+
     for piece in plan.pieces:
-        out.append((piece.mesh,) + pose(piece, ground, bases) + (piece.owner,))
+        kit = fence_kit(piece.mesh) if piece.b is not None and piece.kind == 'span' else None
+        if kit is None:
+            out.append((piece.mesh,) + pose(piece, ground, bases) + (piece.owner,))
+            continue
+        # A fence's section, or its gate unit (one level piece between its own heavy posts, never split).
+        gate = piece.mesh == kit.get('gate')
+        steps, past = fence_steps(piece.a, piece.b, ground, kit, split=not gate)
+        if len(steps) > 1:
+            stats['split'] += 1
+        if past:
+            drop = abs(ground(*piece.b) - ground(*piece.a))
+            stats['past'].append((math.degrees(math.atan2(drop, math.dist(piece.a, piece.b))), piece.owner))
+        length_ = PIECES[piece.mesh][0][0]
+        for k, (a, b, z) in enumerate(steps):
+            # Plumb and level, from its pivot (its own first post) at a, squashed or stretched to reach b.
+            stretch = math.dist(a, b) / length_ if piece.stretch else 1.0 / len(steps)
+            out.append((piece.mesh, (a[0], a[1], z), (0.0, 0.0, piece.yaw), (1.0, stretch, 1.0), piece.owner))
+            if k:
+                step_post(kit, a, piece.yaw, piece.owner, steps[k - 1][2], z)
+        if not gate:
+            mine = ends.setdefault(piece.owner, [])
+            mine.append((piece.a, steps[0][2], 'a', kit, piece.yaw))
+            mine.append((piece.b, steps[-1][2], 'b', kit, piece.yaw))
+    # Where one section ends and the next starts, a step their own posts don't cover gets a post, unless one stands there
+    # already (a corner's, a run's end).
+    for owner, mine in ends.items():
+        starts = [e for e in mine if e[2] == 'a']
+        for at, z, side, kit, yaw in mine:
+            if side != 'b':
+                continue
+            following = next((e for e in starts if math.dist(e[0], at) < 2.0), None)
+            if following is None or any(math.dist(q, at) < 30.0 for q in posts.get(owner, ())):
+                continue
+            step_post(kit, at, following[4], owner, z, following[1])
     return out
+
+
+def fence_kit(mesh):
+    """The fence kit (one of KITS that steps) whose section, broken section or gate unit mesh is, or None."""
+    return next((kit for kit in KITS.values() if kit.get('bury') is not None
+                 and mesh in (kit['section'], kit.get('broken'), kit.get('gate'))), None)
+
+
+def fence_steps(a, b, ground, kit, split=True):
+    """A fence's section from a to b as it stands: [(from, to, its base's height)], level steps, plumb: one, or as many
+    equal ones as it takes (down to the kit's shortest share of the section) for none to drop more than bury + hover;
+    and whether even the shortest drop more."""
+    most = max(1, int(round(1.0 / kit['shortest']))) if split else 1
+    clean = kit['bury'] + kit['hover']
+    for count in range(1, most + 1):
+        spots = [(a[0] + (b[0] - a[0]) * k / count, a[1] + (b[1] - a[1]) * k / count) for k in range(count + 1)]
+        heights = [ground(*p) for p in spots]
+        drop = max(abs(z1 - z0) for z0, z1 in zip(heights, heights[1:]))
+        if drop <= clean:
+            break
+    steps = []
+    for (p, q), (z0, z1) in zip(zip(spots, spots[1:]), zip(heights, heights[1:])):
+        middle = ground((p[0] + q[0]) * 0.5, (p[1] + q[1]) * 0.5)
+        steps.append((p, q, step_base(z0, z1, middle, kit)))
+    return steps, drop > clean
+
+
+def step_base(z0, z1, middle, kit):
+    """A level step's base between ground z0 and z1 at its ends (middle under its middle): halfway between them while
+    its low end hovers no more than kit hover; up the slope from there, its high end sunk no more than kit bury (past
+    that, it hovers more); sunk under a dip in its middle, at most SAG."""
+    low, high = min(z0, z1), max(z0, z1)
+    base = max(min((low + high) * 0.5, low + kit['hover']), high - kit['bury'])
+    return base + max(min(middle - (z0 + z1) * 0.5, 0.0), -SAG)
 
 
 def pose(piece, ground, bases):
     (length_, depth, _), pivot, _ = PIECES.get(piece.mesh, ((100.0, 100.0, 100.0), 'middle', SMALL_CULL))
     x, y = piece.a
     if piece.b is not None:
-        # A span: along its chord, rolled with the slope (the far end, its -Y, rises with a positive roll), stretched
-        # to reach the next joint over the ground, and sunk under a dip in its middle.
-        za, zb = span_heights(piece.a, piece.b, ground)
+        # A span (a wall, a lying log): along its chord, rolled with the slope (the far end, its -Y, rises with a
+        # positive roll), stretched to reach the next joint over the ground, and sunk under a dip in its middle.
+        za, zb = roll_heights(piece.a, piece.b, ground)
         chord = math.dist(piece.a, piece.b)
         mx, my = (piece.a[0] + piece.b[0]) * 0.5, (piece.a[1] + piece.b[1]) * 0.5
         roll = math.degrees(math.atan2(zb - za, chord))
@@ -1044,12 +1282,24 @@ def clamp(value, limit):
     return max(-limit, min(limit, value))
 
 
-def span_heights(a, b, ground):
-    """A section's ends' heights as it stands from a to b: the ground at each, both sunk by the dip under its middle
-    (at most SAG), so its baseline at any point between is their blend."""
+def roll_heights(a, b, ground):
+    """A wall's section's (or a lying log's) ends' heights as it stands from a to b: the ground at each, both sunk by
+    the dip under its middle (at most SAG), so its baseline at any point between is their blend."""
     za, zb = ground(*a), ground(*b)
     sag = max(min(ground((a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5) - (za + zb) * 0.5, 0.0), -SAG)
     return za + sag, zb + sag
+
+
+def span_heights(a, b, ground, kit=None):
+    """A fence section's baseline heights at its two ends as the dressing stands it from a to b (fence_steps: its first
+    and last level steps' bases; one level step, the same at both), so the rail's foot anywhere between is their blend.
+    kit: its KITS entry; a rail fence's by default (build_area_whitlock stands Amos in one). A kit that doesn't step
+    (a wall) follows the ground (roll_heights)."""
+    kit = KITS['rail'] if kit is None else kit
+    if kit.get('bury') is None:
+        return roll_heights(a, b, ground)
+    steps, _ = fence_steps(a, b, ground, kit)
+    return steps[0][2], steps[-1][2]
 
 
 def run_head(source, placements, oid, start='gate'):
@@ -1117,15 +1367,76 @@ class Ground:
         return self.cache[key]
 
 
+def trace_z(component, start, end):
+    """The height where the line from start to end first meets a component (complex collision), or None."""
+    hit = component.line_trace_component(start, end, True, False, False)
+    if not hit:
+        return None
+    location = hit[0] if isinstance(hit, tuple) else hit.to_tuple()[5]
+    return location.z
+
+
+class Rocks:
+    """Where the rock build_area.py placed (its cliff faces, outcrops, Den Rock: ROCK_MESHES, on actors with the area's
+    build tag; the whole build and "dressing" both place the dressing after the cliffs and models) stands in a fence's
+    way at (x, y): rock between ROCK_LOW and ROCK_HIGH over the terrain there. Two vertical traces against each rock
+    whose bounds hold the point: down from over its top to ROCK_LOW finds a top over that band, and up from ROCK_LOW
+    tells an overhang (its underside higher than ROCK_HIGH: clear under it) from the point standing inside the rock (no
+    underside, or the same surface seen from inside)."""
+
+    def __init__(self, build, ground):
+        self.ground = ground
+        self.parts = []
+        for actor in unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors():
+            if unreal.Name(build.tag) not in actor.tags:
+                continue
+            # Placed rocks only: an instanced component is the scatter's (kept off the fences' lines already).
+            rock = [c for c in actor.get_components_by_class(unreal.StaticMeshComponent)
+                    if not isinstance(c, unreal.InstancedStaticMeshComponent)
+                    and c.static_mesh is not None and c.static_mesh.get_name().startswith(ROCK_MESHES)]
+            if rock:
+                origin, extent = actor.get_actor_bounds(False)
+                self.parts.append((rock, origin.x - extent.x, origin.x + extent.x, origin.y - extent.y,
+                                   origin.y + extent.y, origin.z + extent.z))
+
+    def near(self, line, reach):
+        """Whether any rock's bounds come within reach (cm) of a line's bounds."""
+        xs, ys = [p[0] for p in line], [p[1] for p in line]
+        x0, x1, y0, y1 = min(xs) - reach, max(xs) + reach, min(ys) - reach, max(ys) + reach
+        return any(p[1] <= x1 and p[2] >= x0 and p[3] <= y1 and p[4] >= y0 for p in self.parts)
+
+    def __call__(self, point):
+        x, y = point
+        candidates = [p for p in self.parts if p[1] <= x <= p[2] and p[3] <= y <= p[4]]
+        if not candidates:
+            return False
+        z = self.ground(x, y)
+        low, high = z + ROCK_LOW, z + ROCK_HIGH
+        for components, _, _, _, _, top in candidates:
+            if top < low:
+                continue
+            above, foot = unreal.Vector(x, y, top + 10.0), unreal.Vector(x, y, low)
+            for component in components:
+                down = trace_z(component, above, foot)
+                if down is None:
+                    continue
+                up = trace_z(component, foot, above)
+                if up is None or up <= high or abs(up - down) < 2.0:
+                    return True
+        return False
+
+
 def place(build, meshes):
     """The dressing for build's layout: one AInstancedProps per mesh in the Dressing folder, and any ruin whose
-    placement is gone; logs what each obstacle got."""
-    plan = plan_all(build.source, build.layout.get('placements', {}))
+    placement is gone; logs what each obstacle got, and what the slopes and rocks made of the fences."""
+    ground = Ground(build)
+    rocks = Rocks(build, ground)
+    plan = plan_all(build.source, build.layout.get('placements', {}), rocks=rocks)
     for message in plan.warnings:
         build.warn(message)
-    ground = Ground(build)
     batches, absent = {}, {}
-    for mesh, location, rotation, scale, owner in poses(plan, ground):
+    stats = {}
+    for mesh, location, rotation, scale, owner in poses(plan, ground, stats):
         if mesh not in meshes:
             absent.setdefault(mesh, set()).add(owner)
             continue
@@ -1154,5 +1465,13 @@ def place(build, meshes):
         build.log(f'dressing {oid}: {note}')
     if ground.missed:
         build.warn(f'{ground.missed} dressing traces found no terrain: those pieces stand at height 0')
+    build.log(f'dressing: fences plumb on their slopes: {stats["split"]} sections split into shorter steps, '
+              f'{stats["step posts"]} step posts; {len(rocks.parts)} rocks looked at for the runs to stop short of')
+    if stats['past']:
+        steepest = {}
+        for degrees, owner in stats['past']:
+            steepest[owner] = max(steepest.get(owner, 0.0), degrees)
+        build.warn('sections steeper than their kit steps cleanly (they hover more than its hover): '
+                   + ', '.join(f'{owner} up to {degrees:.0f} degrees' for owner, degrees in sorted(steepest.items())))
     build.log(f'dressing: {sum(len(t) for t in batches.values())} instances of {len(batches)} meshes, '
               f'{len(plan.ruins)} ruins')

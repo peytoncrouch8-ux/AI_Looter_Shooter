@@ -845,7 +845,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Tools/Unreal/build_area_chapel.py`: Main 4's pieces for `build_area_story.py`: the chapel's place, the chapel yard's
   fight (two waves of six Unpaid, the Restless one with the second, inside the churchyard fence), the bell at the rope's
   grip with SM_ChapelBell on the belfry socket, the smashed Reliquary, Aldana's vestry door, the chapel yard's respawn
-  grave (after Main 4), the Unpaid on boot hill and the north road after Main 4, and Hob's chapel perches.
+  grave (after Main 4), the Unpaid on boot hill and the north road after Main 4, and Hob's chapel perches; warns when
+  the dressing stands within 1.5 m of a yard spot.
 - `Tools/Unreal/build_area_farm.py`: Ransom Farm's pieces for `build_area_story.py`, on the lived-in farmhouse's
   sockets: Delia's door (SOCKET_Speaker; after Main 5, her word that starts Main 6), the screen door hung closed and the
   plate on the porch stool.
@@ -878,11 +879,15 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Tools/Unreal/build_area_dressing.py`: the layout's fence, wall, ruin, graves, cairns and props obstacles dressed from
   the art kit for `build_area.py` (in its full build after `models()`, and with `build_area.py <Area> dressing`): tables
   by obstacle id, sections chained along lines and polygons on the terrain's tiles, gates and road gaps, one
-  `AInstancedProps` per mesh; `footprints()` gives the scatter each piece's box. Whitlock Fields' fences and wall
-  included, and pieces at spots of their own (`SPOTS`: its round bales); `run_head()` and `span_heights()` give a
+  `AInstancedProps` per mesh; `footprints()` gives the scatter each piece's box. Fences stand plumb, level sections
+  stepped down slopes (split into shorter steps where steep, a post at each step), and stop a metre short of a cliff or
+  rock they'd run into (`Rocks`, traced against what `build_area.py` placed); walls follow the ground. Whitlock Fields'
+  fences and wall included, and pieces at spots of their own (`SPOTS`: its round bales, the churchyard's dead trees);
+  `run_head()` and `span_heights()` give a
   builder a section's span to stand someone in (Amos). The backlots' woodsheds and lean-tos (set against the false
   fronts' back walls), the undertaker's dray and lumber stack, fallen pines, the Sink fences' warning signs, the picket
-  gates swung open, boot hill's and the family plot's sunken mounds, the sheep fold's half walls.
+  gates swung open, boot hill's and the family plot's sunken mounds, the churchyard's rows on the knoll's south face,
+  the sheep fold's half walls.
   `Tools/Unreal/island_views.py`: an area's viewpoints as editor cameras and shots.
 - `Tools/terrain_identity.ps1`, `.py`: checks an area regenerates exactly as committed (headless Blender, no editor;
   layoutSha1 left out);

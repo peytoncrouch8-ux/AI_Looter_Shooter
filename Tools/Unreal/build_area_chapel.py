@@ -30,6 +30,9 @@ class isn't there yet is left out with a warning.
   three each, their ranks the area's (8% Restless, 2% Gravebound), standing about until they notice the player, tagged
   Unpaid_<id>. On from Main 4's finish for good; like every encounter, a level loaded again starts them over.
 """
+import importlib
+import math
+
 import unreal
 
 import build_area_story as story
@@ -57,10 +60,13 @@ RELIQUARY_MESHES = ('/Game/Art/Props/SM_Reliquary_Smashed', '/Game/Art/Props/SM_
 # away from the vestry (the west grave rows), -Y the vestry's side (the east rows). The spots: the lawn before the door,
 # the lanes either side of the nave between it and the grave rows, behind the apse, and behind the vestry, all inside the
 # fence (X -1200 to 1000, Y -1700 to 1700 here). The spawner takes them in turn, skipping any within 8 m of the player.
+# The dressing's graves, trees and props (build_area_dressing.py) keep YARD_CLEAR (cm) from them, so nobody rises in a
+# headboard or a trunk; place_yard warns of any that doesn't (the fence's line is the yard's edge, and isn't counted).
 YARD_SPOTS = (
     (800.0, 900.0), (800.0, -700.0), (850.0, 1500.0), (850.0, -1450.0), (100.0, 560.0), (-450.0, 560.0),
     (-950.0, 0.0), (-1000.0, 500.0), (-1000.0, -500.0), (150.0, -600.0), (-750.0, -700.0),
 )
+YARD_CLEAR = 150.0
 # Each wave's Basic Unpaid; the second comes this long after the first is down (s).
 YARD_WAVE = 6
 YARD_WAVE_PAUSE = 4.0
@@ -158,6 +164,33 @@ def place_yard(build, chapel):
     yard.set_editor_property('ground_max_rise', YARD_RISE)
     build.log(f'the chapel yard\'s fight ({YARD}: 2 waves of {YARD_WAVE} Unpaid, the Restless one with the second) round '
               f'the chapel, inside the churchyard fence, during {MAIN4}\'s second step')
+    check_yard_clear(build, chapel)
+
+
+def check_yard_clear(build, chapel):
+    """Warns of the dressing's pieces (build_area_dressing.footprints: the churchyard's graves and dead trees among
+    them) standing within YARD_CLEAR of a yard spot, as the spawner turns the spots with the chapel. The fence's line,
+    the yard's edge, isn't counted."""
+    # Reloaded, as the editor keeps modules between runs: a gameplay build may come after the dressing's tables changed.
+    dressing = importlib.reload(importlib.import_module('build_area_dressing'))
+    at = chapel.get_actor_location()
+    yaw = math.radians(chapel.get_actor_rotation().yaw)
+    spots = [(at.x + math.cos(yaw) * x - math.sin(yaw) * y, at.y + math.sin(yaw) * x + math.cos(yaw) * y)
+             for x, y in YARD_SPOTS]
+    crowded = []
+    for x, y, piece_yaw, half_y, half_x, line in dressing.footprints(build.source, build.layout['placements']):
+        if line:
+            continue
+        turn = math.radians(piece_yaw)
+        for sx, sy in spots:
+            # The spot in the piece's own frame (its X its front), and how far it is outside the piece's box.
+            dx, dy = sx - x, sy - y
+            ahead, right = dx * math.cos(turn) + dy * math.sin(turn), -dx * math.sin(turn) + dy * math.cos(turn)
+            if math.hypot(max(abs(ahead) - half_x, 0.0), max(abs(right) - half_y, 0.0)) < YARD_CLEAR:
+                crowded.append(f'({sx:.0f}, {sy:.0f})')
+    if crowded:
+        build.warn(f'the dressing stands within {YARD_CLEAR / 100.0:.1f} m of the chapel yard\'s spots at '
+                   f'{", ".join(sorted(set(crowded)))}: move the piece (build_area_dressing.py) or the spot (YARD_SPOTS)')
 
 
 def place_bell(build, chapel):
