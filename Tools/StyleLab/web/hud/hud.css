@@ -100,7 +100,7 @@
 .lh-reloadbar { transform-box: fill-box; transform-origin: 0 50%; transform: scaleX(0); }
 .lh-status { position: absolute; right: 106px; top: 1001px; text-align: right; font-size: 16px; letter-spacing: 2.4px; color: #ff9f1c; line-height: 18px; white-space: nowrap; }
 .lh-firemode { position: absolute; right: 48px; top: 1000px; text-align: right; font-size: 17.33px; letter-spacing: 2px; color: #8fb3cc; line-height: 20px; white-space: nowrap; }
-.lh-gunname { position: absolute; right: 64px; top: 1024px; text-align: right; font-size: 24px; letter-spacing: 1px; line-height: 24px; white-space: nowrap; }
+.lh-gunname { position: absolute; right: 67px; top: 1024px; text-align: right; font-size: 24px; letter-spacing: 1px; line-height: 24px; white-space: nowrap; }
 .lh-raritygem { position: absolute; left: 1861px; top: 1031px; width: 10px; height: 10px; transform: rotate(45deg); box-shadow: 0 0 0 1.6px #0a1218; }
 .lh-count { transform-box: fill-box; transform-origin: 50% 100%; }
 

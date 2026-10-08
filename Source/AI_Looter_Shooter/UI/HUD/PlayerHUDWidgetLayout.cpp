@@ -58,10 +58,11 @@ namespace
 	constexpr float StatusGap = 12.f;
 	/** A long name shrinks to fit this width, so it never reaches across the screen. */
 	constexpr float NameMaxWidth = 300.f;
-	/** The rarity gem after the name: a diamond, tip to tip, over its ink edge (1.6 px wider each side), and the gap before it. */
+	/** The rarity gem after the name: a diamond, tip to tip, over its ink edge (1.6 px wider each side), and the gap before it
+	 *  (6 px: the user asked for it 3 px further from the name, 2026-10-08). */
 	constexpr float GemSize = 14.f;
 	constexpr float GemEdgeSize = 18.5f;
-	constexpr float GemGap = 3.f;
+	constexpr float GemGap = 6.f;
 
 	/** Where the level-up banner's gem centres, down from the top's middle: the mockup puts the banner's top at 170 and its
 	 *  180 px gem box at the top of it, which keeps the gem clear of the boss bar. */
