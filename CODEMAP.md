@@ -783,9 +783,14 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   town gate), chooses which chimneys smoke (`smoke`) and which houses are lit (`lights`: AHouseLights, or dark windows),
   varies its cliffs' tops and leaves gaps (`cliffs`; in leaning groups no top ends inside the wall's rounded lip, and
   per group the tops spread under it, `leanTop`, and the faces stand out from it, `leanProud`; runs that end at a rock
-  reach into it, `cliffs.abut`; a run's end piece keeps off a ramp's walkway), and wears its own instances of shared
+  reach into it, `cliffs.abut`; a run's end piece keeps off a ramp's walkway; panel runs, `cliffs.panels`,
+  `build_area_panels.py`), and wears its own instances of shared
   materials (`materials`, `swaps`: Ransom's Rest's rock and orchard leaves; `swapsOn`, on the actors it names alone:
   the windmill's steel).
+- `Tools/Unreal/build_area_panels.py`: a pit's wall dressed with the narrow cliff panels and the seam wedge
+  (CliffPanel_A/B/C, CliffSeam_A) in place of a cliff group's faces, for `build_area.py` (`level.cliffs.panels`;
+  the Sink's wall): a run along the pit's outline between its gaps and its ramp, each panel leaning with the wall
+  and standing proud of its most forward point, tops under the lip, the seam in the corner by Den Rock.
 - `Tools/Unreal/build_area_platforms.py`: the cliff pieces under the models built over a cliff's top
   (`level.cliffs.under`: the burial deck) cut down so their tops end under the floor, for `build_area.py`.
 - `Tools/Unreal/build_area_walkways.py`: the ramps' walkways kept open for a player, for `build_area.py`: a player's

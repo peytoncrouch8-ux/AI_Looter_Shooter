@@ -50,6 +50,7 @@ import build_area_environment  # noqa: E402
 import build_area_posters  # noqa: E402
 import build_area_story  # noqa: E402
 import build_area_travel  # noqa: E402
+import build_area_panels  # noqa: E402
 import build_area_platforms  # noqa: E402
 import build_area_walkways  # noqa: E402
 
@@ -598,7 +599,8 @@ class AreaBuild:
         out for gaps (level.cliffs.gaps). In the groups level.cliffs.lean names, every piece leans back with the
         terrain's wall behind it (wall_lean: measured with traces) from that wall's real foot, and no top ends inside
         the wall's rounded lip (the share wall_lean finds; a group's level.cliffs.leanTop spreads its tops under it);
-        a group named in level.cliffs.leanProud stands its faces that far in front of the wall."""
+        a group named in level.cliffs.leanProud stands its faces that far in front of the wall. A group named in
+        level.cliffs.panels (the Sink's pit wall) gets no faces: panel_cliffs() dresses it with narrow panels."""
         pieces = []
         front_of = {}
         for name in CLIFF_PIECES:
@@ -625,6 +627,9 @@ class AreaBuild:
         lean_top = self.cliff_look.get('leanTop')
         lean_proud = self.cliff_look.get('leanProud')
         tiles = terrain_tiles(self.tag) if leaning else []
+        # The groups build_area_panels dresses with its narrow panels instead (level.cliffs.panels, once their pieces
+        # are imported); panel_cliffs() lays them once the rocks their seams meet stand.
+        self.panelled = importlib.reload(build_area_panels).ready(self, meshes)
         walkways = importlib.reload(build_area_walkways)
         corridors = walkways.ramp_corridors(self.source)
         placed = left_out = ends_held = 0
@@ -635,6 +640,13 @@ class AreaBuild:
                     continue  # a sloped bank: no face
                 if kind == 'outcrop':
                     placed += self.outcrop(meshes, group, point)
+                    continue
+                if group in self.panelled:
+                    # Its faces give way to panels; the shared draws are still made, so the groups after it keep theirs.
+                    for _ in point.get('courses') or [None]:
+                        for _ in pieces:
+                            rng.uniform(0.0, 0.25)
+                        rng.uniform(-4.0, 4.0)
                     continue
                 x, y, z = point['location']
                 if 'drop' in point:
@@ -720,6 +732,15 @@ class AreaBuild:
         self.log(f'placed {placed} cliff pieces' + (f' ({left_out} left out for gaps)' if left_out else '')
                  + (f'; {ends_held} run ends kept off a ramp\'s walkway' if ends_held else ''))
 
+    def panel_cliffs(self, meshes):
+        """The walls level.cliffs.panels names dressed with the narrow cliff panels and the seam wedge in place of
+        their faces (build_area_panels.py; reloaded, as the editor keeps modules between runs). After cliffs() and the
+        models: a seam meets a placed rock (Den Rock)."""
+        if not getattr(self, 'panelled', None):
+            return
+        importlib.reload(build_area_panels).place(self, meshes, terrain_tiles(self.tag), terrain_hit, wall_lean,
+                                                  self.panelled)
+
     def keep_under_platforms(self):
         """The cliff pieces under the models level.cliffs.under names cut down under their floors once both stand
         (build_area_platforms.py; reloaded, as the editor keeps modules between runs)."""
@@ -751,6 +772,8 @@ class AreaBuild:
         by_label = {str(a.get_actor_label()): a for a in level}
         stretched = 0
         for group, keys in abut.items():
+            if group in getattr(self, 'panelled', ()):
+                continue  # its seam (build_area_panels) meets the rock
             rocks = [m for k in keys if k in by_label
                      for m in by_label[k].get_components_by_class(unreal.StaticMeshComponent)]
             points = self.layout.get('cliffs', {}).get(group, [])
@@ -1019,8 +1042,10 @@ class AreaBuild:
         if mode == 'cliffs':
             # The cliff faces and the outcrops (cliffs() places both), in the area's look.
             self.open_level(('Cliffs', 'Outcrops'))
-            self.cliffs(mesh_index())
+            meshes = mesh_index()
+            self.cliffs(meshes)
             # The models stand from the whole build (Den Rock among them).
+            self.panel_cliffs(meshes)
             self.abut_cliffs()
             self.clear_walkways()
             self.keep_under_platforms()
@@ -1045,6 +1070,7 @@ class AreaBuild:
         self.cliffs(meshes)
         self.models(meshes)
         # Now that the rocks the runs end against (Den Rock) stand too.
+        self.panel_cliffs(meshes)
         self.abut_cliffs()
         self.clear_walkways()
         self.keep_under_platforms()
