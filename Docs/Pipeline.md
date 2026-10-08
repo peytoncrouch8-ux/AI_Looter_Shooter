@@ -160,6 +160,26 @@ Rules that saved time:
 - Terrain meshes keep 100% Nanite fallback. Medium draws the fallback and collision is cooked from it.
 - A variant of a model (Farmhouse_Ransom) goes in the same script, with the original exported byte-identical.
 
+## The Style Lab (art styles previewed in the game's scene, without Unreal)
+
+`Tools/StyleLab/` (README there) rebuilds a piece of Ransom's Rest in three.js from the game's own sources and lays the
+in-game HUD over it, so art styles can be judged "in game" from a cloud session that has no Unreal (2026-10-08: the ten
+styles the user chooses from).
+
+- **Export** (`Tools/StyleLab/export/export_all.sh`, Blender's `bpy` 4.5 module under Python 3.11): the scripted models
+  (GLB packs), the texture sets (webp), the terrain from the area generator, and every placement the editor build makes:
+  `Tools/Unreal/build_area.py RansomsRest` runs unchanged under `mock_unreal.py`, with traces hitting the exported
+  terrain. PCG scatter goes over as rules plus masks. Output in `Saved/StyleLab/export/`.
+- **Engine** (`web/engine/`): sun with soft cascades, sky dome (clouds, stars, planets, moons), height fog, HDR with
+  MSAA, a post chain, material builders (`pbr`, `toon`, `flat`, terrain) with a GLSL hook, walk-and-shoot play with
+  spiders, and six fixed shots rendered as repeatable stills (`test/shots.mjs`, software WebGL in headless Chromium).
+- **Styles** are one module each (`web/styles/NN_<id>.js`): light, sky, fog, materials, post and effect colours, plus a
+  card with references, an Unreal recipe and a cost estimate. Style 0 is today's look.
+- **HUD** (`web/hud/`): the approved mockup with the in-game differences; its icons and font are inlined (`assets.js`).
+- **Publishing:** `assemble.py` builds `Saved/StyleLab/site/`. The artifact host serves no `.glb` or `.bin`, so models and
+  heights go as base64 JSON (`--b64-glb`; packs under about 9.5 MB so each JSON stays under 16 MB), and a publish over
+  64 MB goes in two calls.
+
 ## Performance
 
 - **Target:** 8.3 ms (120 fps) at 1080p on Medium, at the heaviest view, on an RX 580 class PC. Per-pass budgets are in
@@ -190,6 +210,8 @@ Rules that saved time:
 
 | Bug | Cause | Fix |
 |---|---|---|
+| The cloud session's commit with PNGs and a font would not push | The cloud's network policy refuses Git LFS uploads (`lfs.github.com` verify: Forbidden) | From the cloud, commit text only: inline small assets as data URIs (`Tools/StyleLab/web/hud/assets.js`), keep generated binaries in `Saved/` |
+| The Style Lab's trees had black fringes and the valley's grass turned yellow-red | Pillow's `resize()` premultiplies RGBA, so colour under alpha 0 was lost; lossy WebP drops it too | Resize RGB and alpha separately, save cut-outs lossless with `exact=True`, write macro maps as RGB with the alpha in its own file |
 | The editor crashed in the boss bar test (HUD upgrade) | `Outline.Add(Outline[0])`: TArray asserts when it adds a reference to its own element, since the add may reallocate | Add a copy, `Outline.Add(FVector2D(Outline[0]))`; grep new code for `X.Add(X[` before building |
 | HUD text came out a third bigger than the mockup | Slate sets a font's Size in points at 96 DPI, so Size 18 draws 24 px; the mockups use CSS px | Known and kept: the user chose the larger text (2026-10-07), so mockup px stay the Slate Size; a mockup's px × 0.75 would match it exactly |
 | Keycap corners drew twice their size; the boss hatch leaned 26° | Slate sizes a Box brush's ends and repeats a tiled brush in the texture's own texels, not by `ImageSize` | Make such brushes' textures at 1 texel per slate unit (`PaintedIconBrush` at PixelsPerUnit 1) |

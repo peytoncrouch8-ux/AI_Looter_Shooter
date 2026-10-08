@@ -947,3 +947,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   (`Docs/Art/StyleExploration/`); `Tools/Blender/looter_heroes.py` builds the five
   heroes on the UE5 mannequin's bones (`Art/Backlog/Characters/`); `Docs/HudMockup/`, `Docs/EmberDemo/` and
   `Docs/HeroSelect/` are the HUD mockup's, the ember-powers demo's and the hero page's sources.
+- `Tools/StyleLab/`: the Style Lab, a web page that previews art styles in Ransom's Rest under the in-game HUD
+  (`README.md`). `export/` turns the game's models, textures, terrain and editor-build placements into
+  `Saved/StyleLab/export` (`export_all.sh`; `mock_unreal.py` runs `build_area.py` without Unreal); `web/engine/` is the
+  three.js renderer and play, `web/styles/NN_<id>.js` one art style each (00 is today's look), `web/hud/` the HUD;
+  `test/` serves it, takes stills of every style and shot, and plays it; `assemble.py` builds the site to publish.
