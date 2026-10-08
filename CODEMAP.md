@@ -746,7 +746,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Art/Levels/area_scrub.py`: a grounded area's dry scrub (the art session's kit): the scrub mask `T_<Area>Scrub_BC`
   (R sagebrush, and big sagebrush on 35-50 degree faces; G dry tufts; B rabbitbrush; A junipers in creases, on benches
   and rock-band tops; each a keep/chance encoding with spacing and slopes from `LAYERS`) on the ridge faces and the
-  flats' margins, clustered in patches from bare to twice the density and by the ground's curvature, and the points
+  flats' margins, clustered in patches 15-40 m across from nearly bare to twice the density (sage and big sagebrush
+  one density on a 1.5 m spacing, easing from one to the other over 31-39 degrees) and by the ground's curvature, and
+  the points
   in `layout_computed.json` `"scrub"` (crest and rim junipers, pit-floor tufts and sage, a quarter of the sage in tight
   groups of 3-6); `context()`, the ground it keeps off.
 - `Art/Levels/area_faces.py`: a grounded area's big ridge faces broken up (rock bands at irregular heights with a lit
@@ -868,7 +870,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`); its mask is imported
   again whenever the PNG changes (its MD5 kept on the texture as metadata); a grounded area's crease pines and dry
   scrub from the scrub mask and the computed points (`scrub_layers`), each later layer kept off what earlier ones
-  placed, the kit named only in its `*_MESHES` tables (big sagebrush on the steep faces, the sage's computed tight
+  placed, the kit named only in its `*_MESHES` tables (big sagebrush on the steep faces, scale 1.0-1.8, the sage's computed tight
   groups merged into its spawner, junipers facing west; scattered meshes kept out of far shadow cascades); larkspur along the salt line, the field wall and the farm
   fences; every layer kept off the dressing's pieces (`build_area_dressing.footprints`), grass and flowers off its
   solid ones only; the area's material swaps (`layout.json` `level.swaps`) on the scattered meshes as override

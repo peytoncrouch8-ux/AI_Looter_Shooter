@@ -30,6 +30,10 @@ import sys
 
 import unreal
 
+# Its neighbours (build_area_dressing.py) import from here: run first in an editor session, nothing else has put this
+# folder on the path.
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 PROJECT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
 GRAPH_FOLDER = '/Game/Environment/PCG'
 MATERIALS = '/Game/Art/Materials'
@@ -188,7 +192,8 @@ PIT_TUFT_MESHES = (('DryTuft_A', 1, 6700), ('DryTuft_B', 3, 6700))  # the pit fl
 PIT_SAGE_MESHES = (('Sagebrush_C', 1, 27000),)
 SCRUB_SINK = 4.0        # cm the scrub sinks into the ground
 JUNIPER_YAW = 30.0      # degrees either side of 0 the junipers face: Juniper_B's swept crown (-Y) points west
-SAGE_SCALE = (0.6, 1.4)  # the slopes' sagebrush (the steep faces' big sagebrush: 1.2-1.6)
+SAGE_SCALE = (0.6, 1.4)  # the slopes' sagebrush
+BIG_SAGE_SCALE = (1.0, 1.8)  # the steep faces' big sagebrush
 SAGE_GROUP_CLEAR = 60.0  # cm round each grouped sage the mask's sage keeps clear of
 CREST_TURN = 5.0        # degrees either side of a crest juniper's yaw bin (10 degree bins)
 
@@ -696,7 +701,7 @@ def scrub_layers(s, veg, area, pines=None):
                           entries(SAGE_MESHES, shadow=True), scale=SAGE_SCALE, sink=SCRUB_SINK))
     if 'bigSage' in layers:
         big, y = mask_layer('bigSage', 'Big sagebrush', list(placed))
-        placed.append(s.spawn(big, 'Big sagebrush', 11, y, entries(BIG_SAGE_MESHES, shadow=True), scale=(1.2, 1.6),
+        placed.append(s.spawn(big, 'Big sagebrush', 11, y, entries(BIG_SAGE_MESHES, shadow=True), scale=BIG_SAGE_SCALE,
                               sink=SCRUB_SINK))
     if scrub.get('pitSage'):
         pit_sage, y = listed('Pit sage', scrub['pitSage'])

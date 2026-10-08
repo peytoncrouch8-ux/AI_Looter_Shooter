@@ -9,10 +9,12 @@ session's:
   steep faces (BIG_SLOPE to 50 degrees, most of what's seen of the ridges) big sagebrush 0.06-0.1, junipers
               0.008-0.015 on the benches and ledges (where the face eases off for a step) and the rock bands' tops,
               dry tufts 0.15 in the gaps; past 50 degrees bare (the terrain's rock)
-Never an even dotting: the sage (and less the tufts) comes in patches 10-30 m across, most of them either bare or
-twice its density (PATCHES); thicker in concave swales, gullies, the creases and at a slope's toe, thinner on convex
-spurs and crests (the heights' curvature); and a quarter of it (GROUP_SHARE) stands in tight groups of 3-6, touching
-(points()).
+Never an even dotting: the sage (and less the tufts) comes in patches 15-40 m across, whole stretches of hillside
+either nearly bare or twice its density (PATCHES); thicker in concave swales, gullies, the creases and at a slope's
+toe, thinner on convex spurs and crests (the heights' curvature); and a quarter of it (GROUP_SHARE) stands in tight
+groups of 3-6, touching (points()). The sage and the big sagebrush are one density on the mask (the same candidate
+spacing, so a thick patch never fills every candidate and reads as a grid), easing from the one to the other over the
+slope round BIG_SLOPE; the graph picks which grows by the slope a candidate lands on.
   flats       on the margins only (the roadsides, the slopes' toes, the boundary's edge, the gullies' banks, round the
               ruins; never in the fields, the town, the yards, the zones of EXCLUDED kinds or ground left open on
               purpose): sagebrush 0.03-0.08, dry tufts 0.15-0.3 where the meadow thins, rabbitbrush 0.01-0.02 on
@@ -45,8 +47,8 @@ BIG_SLOPE = 35.0        # degrees: steeper faces grow the big sagebrush instead
 # The mask's layers: channel, candidate spacing (cm), the graph's keep, jitter (share of a cell either way), and the
 # slopes (degrees) the graph takes them on.
 LAYERS = {
-    'sage': {'channel': 'R', 'cell': 190.0, 'keep': 0.1, 'jitter': 0.5, 'slopes': [0.0, BIG_SLOPE]},
-    'bigSage': {'channel': 'R', 'cell': 300.0, 'keep': 0.1, 'jitter': 0.5, 'slopes': [BIG_SLOPE, STEEPEST]},
+    'sage': {'channel': 'R', 'cell': 150.0, 'keep': 0.1, 'jitter': 0.5, 'slopes': [0.0, BIG_SLOPE]},
+    'bigSage': {'channel': 'R', 'cell': 150.0, 'keep': 0.1, 'jitter': 0.5, 'slopes': [BIG_SLOPE, STEEPEST]},
     'tufts': {'channel': 'G', 'cell': 150.0, 'keep': 0.1, 'jitter': 0.5, 'slopes': [0.0, STEEPEST]},
     'rabbitbrush': {'channel': 'B', 'cell': 500.0, 'keep': 0.1, 'jitter': 0.5, 'slopes': [0.0, STEEPEST]},
     # 5 m apart, at most 0.5 m off: never closer than 4 m.
@@ -66,8 +68,9 @@ CREST_YAW = 20.0        # degrees either side of 0: their swept crowns (-Y) poin
 RIM_JUNIPERS = 2        # per pit, on its rim
 PIT_TUFT_SPACING = 1.0  # meters between the pit floors' tuft candidates
 PIT_SAGE_SPACING = 3.0  # and their sage's
-PATCHES = (0.0, 2.0, 20.0)  # the sage's patches: its density times 0 to 2, the noise's wavelength (m)
-PATCH_EDGE = 0.2        # the noise's spread (of about +-0.5) the patches change over: most patches are 0 or 2
+PATCHES = (0.0, 2.0, 70.0)  # the sage's patches: its density times 0 to 2, the noise's wavelength (m): 15-40 m across
+PATCH_EDGE = 0.12       # the noise's spread (of about +-0.5) the patches change over: most of the ground is 0 or 2
+BIG_BLEND = (31.0, 39.0)  # degrees (of the slope smoothed over a few meters) the sage eases into the big sagebrush
 GROUP_SHARE = 0.25      # of the sage stands in tight groups (points()), the rest from the mask
 GROUP_SIZE = (3, 6)     # sage in a group
 GROUP_STEP = 4.0        # meters between the groups' candidate centers
@@ -127,8 +130,8 @@ def densities(area, grid, faces, ctx):
     # creases, and on the steep faces' benches and the bands' tops.
     on_face = face * (1.0 - band) * (1.0 - 0.6 * fan)
     sloped = _ss(16.0, 26.0, slope)
-    sage = on_face * (0.06 + (0.09 + 0.10 * stands) * sloped) * (1.0 - 0.4 * up)
-    big = on_face * (0.06 + 0.04 * stands) * (1.0 - 0.3 * up)
+    sage = on_face * (0.06 + 0.14 * sloped) * (1.0 - 0.4 * up)
+    big = on_face * 0.08 * (1.0 - 0.3 * up)
     tufts = on_face * np.where(slope < BIG_SLOPE, 0.25 + 0.15 * gaps, 0.15) * _ss(10.0, 20.0, slope)
     tufts *= 1.0 - _ss(TUFT_REACH - 6.0, TUFT_REACH, past)
     toe = face * (1.0 - _ss(6.0, 14.0, rel))
@@ -175,15 +178,19 @@ def densities(area, grid, faces, ctx):
     # toes, thinner on spurs and crests (convex ground): the curvature of the heights at a few meters.
     lo, hi, wave = PATCHES
     patches = lo + (hi - lo) * _ss(-PATCH_EDGE, PATCH_EDGE, fbm_raster(grid, wave, seed=711, octaves=2)
-                                   + 0.3 * fbm_raster(grid, wave * 0.3, seed=712))
+                                   + 0.2 * fbm_raster(grid, wave * 0.35, seed=712))
     hb = blur(area.resized(area.h, n), cells(3.0, grid.px))
     gxx = np.gradient(np.gradient(hb, grid.px, axis=0), grid.px, axis=0)
     gyy = np.gradient(np.gradient(hb, grid.px, axis=1), grid.px, axis=1)
     curve = gxx + gyy  # > 0 in hollows
     del hb, gxx, gyy
-    shape = np.clip(1.0 + 0.7 * np.maximum(_ss(0.004, 0.04, curve), crease) + 0.4 * toe
-                    - 0.65 * _ss(0.004, 0.04, -curve), 0.3, 1.8)
-    sage, big = sage * patches * shape, big * patches * shape
+    shape = np.clip(1.0 + 0.5 * np.maximum(_ss(0.004, 0.04, curve), crease) + 0.3 * toe
+                    - 0.5 * _ss(0.004, 0.04, -curve), 0.5, 1.5)
+    # One sage density, easing from the sage's into the big sagebrush's over the smoothed slope (no salt and pepper
+    # where a face hovers round BIG_SLOPE).
+    steepish = _ss(*BIG_BLEND, blur(slope, cells(3.0, grid.px)))
+    sage = (sage * (1.0 - steepish) + big * steepish) * patches * shape
+    big = sage
     tufts = tufts * (0.6 + 0.3 * patches) * (0.7 + 0.3 * shape)
     out = {'sage': sage, 'bigSage': big, 'tufts': tufts, 'rabbitbrush': rabbit, 'junipers': junipers}
     return {k: np.clip(v * ok, 0.0, None).astype(np.float32) for k, v in out.items()}
