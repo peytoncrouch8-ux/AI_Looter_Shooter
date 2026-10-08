@@ -1,5 +1,6 @@
 """The cliff kit for the tutorial island: four large faces of weathered layered rock (RockCliff), CliffFace_A to
-CliffFace_D, for the plateau's 8-10 m cliffs and the island's rim. A scripted model (see Art/README.md).
+CliffFace_D, for the plateau's 8-10 m cliffs and the island's rim; and for walls that curve, such as the Sink's pit in
+Ransom's Rest, three narrow panels and a seam wedge of the same rock (below). A scripted model (see Art/README.md).
 
 Each piece is a slab of rock whose front faces -Y. Its back is a flat plane at y = +depth/2 (it sits against the
 terrain's slope), its top is broken, stepped rock around the piece's height (the plateau's grass meets it) and its
@@ -24,9 +25,37 @@ bottom behind the lower piece's top).
 
 Triangles: a ~10k Nanite source with a 25% fallback (about 2.5k, the cliff budget) for Medium. Collision: three or four
 convex hulls along the face and one per fallen block. Moss on up-facing rock comes from the material (MossAmount).
+
+Panels and the seam (class Panel), for a curving or noisy wall that a 12 m slab with a flat back can't follow:
+
+  piece          width  height  depth   use
+  CliffPanel_A    4 m   11 m    1.8 m   a run of panels follows a curving wall in short straight steps
+  CliffPanel_B    5 m   10 m    2.0 m
+  CliffPanel_C    6 m   12 m    2.2 m
+  CliffSeam_A     3 m    9 m    2.8 m   a wedge in plan (about 1.5 m of front, 3 m of back): stands in the seam
+                                        between a cliff piece and another rock and hides the junction
+
+The same beds, joints, columns, fractures, broken stepped top, fallen blocks and hulls as the faces, at their density
+(the source is SOURCE_TRIS times the front's area over a face's 12 x 10 m, with the same 25% fallback); two hulls along
+each piece (slices every 0.5 m, closing on its back where it is) and one per big fallen block. A narrow front
+keeps one notch in its top, off to a side, fewer and shorter fractures, smaller scars, joints leaning half as far, and
+columns standing forward and back about their mean (0.7 of a face's). Its depth is the slab's at the foot: the median
+front stands 45 cm behind -depth/2 and nothing in the middle goes more than 50 cm behind that, so set a little proud of
+a wall, no joint or parting opens onto the terrain behind. The back isn't a plane: it leans back 5 cm a metre more than
+the front (the slab thickens toward the top, where a pit's wall leans back and rounds over), it bulges and hollows a
+little, its top edge rounds, and toward the ends it comes forward to meet the front where the ends curve back (a lens in
+plan). The corners that would stand out of a curving wall first are the ones drawn in. The ends' sides wander in.
+
+Setting them into a wall: overlap neighbours about 1.5 m (a little more than the wider one's curved end) and the joint
+reads as a shallow gully; stand the median front (45, 55, 65 cm in front of the pivot for A, B, C at the foot; 95 cm
+for the seam) about 0.55 m in front of the wall's most forward point across the middle of the width, and lean each
+panel back with the wall less its own 2 degrees. Sink and stretch them as the faces (each its own), tops under a
+rounded lip. The seam's back goes into the corner: one back corner inside the other rock, the other behind the first
+panel's end, its front about a metre proud of the run.
 """
 import bisect
 import math
+import os
 import random
 
 import bmesh
@@ -86,6 +115,16 @@ BEDS, BEDS_TOP = make_beds()
 class Face:
     """The shape of one piece: the height of its top, and how far its front stands back from the front plane at (x, z)
     (negative: forward)."""
+    step_x = STEP                   # the building grid across the width
+    rows_back = 4                   # points down the back (a plane)
+    cap_drop = 0.35                 # how far the top falls away toward the back
+    talus_counts = (2, 3, 3)        # big fallen blocks at the foot
+    talus_size = (0.15, 0.26, 1.2, 3.0)   # their size: a share of the height, then at least and at most (m)
+    talus_margin = 1.4              # how far from the ends they lie
+    end_drop = 0.9                  # how far the top comes down where the ends curve back
+    hull_step = 1.0                 # hull slices every hull_step m, each following the columns within hull_window m,
+    hull_window = 0.5               # the outer ones hull_inset m in from the ends
+    hull_inset = 0.0
 
     def __init__(self, width, height, depth, seed):
         rnd = random.Random(seed)
@@ -170,6 +209,14 @@ class Face:
         """0 in the middle of the piece, rising to 1 where its ends curve back."""
         return smoothstep(self.width * 0.5 - self.end, self.width * 0.5, abs(x))
 
+    def back_at(self, x, z):
+        """Where the back is at (x, z): a plane against the terrain's slope."""
+        return self.back
+
+    def hull_back_top(self, x, top):
+        """The top of the back, where a hull slice at x closes (top: the slice's highest point)."""
+        return self.back_at(x, top), top
+
     def top(self, x):
         """The height of the top at x: stepped column by column, broken by notches, lower where the ends curve back."""
         z = self.height + 0.1 * noise1(x / 2.2, self.seed + 9) + self.per_column(x, self.height, self.col_top, 0.18)
@@ -177,7 +224,11 @@ class Face:
             z += delta * smoothstep(-0.15, 0.15, (x - sx) * side)
         for nx, nw, nd in self.notches:
             z -= nd * max(0.0, 1.0 - abs(x - nx) / nw) ** 1.2
-        return z - 0.9 * self.ends(x) ** 2
+        return z - self.end_drop * self.ends(x) ** 2
+
+    def bend(self, x, loop):
+        """The points of column x's loop as built (a face's ends are straight)."""
+        return loop
 
     # --- beds ---
 
@@ -214,6 +265,14 @@ class Face:
     # --- the front ---
 
     def recess(self, x, z, top):
+        r = self.relief(x, z, top)
+        r += 0.04 * max(z, 0.0)                                                 # leaning back
+        r -= 0.4 * smoothstep(0.8, -1.0, z)                                     # the foot spreads
+        r += (self.max_recess - 0.4) * self.ends(x) ** 1.4                      # the ends curve back
+        return min(max(r, -1.6), self.max_recess)
+
+    def relief(self, x, z, top):
+        """The front's rock at (x, z): columns, joints, beds, weathering, fractures, breaks and the lip at the top."""
         seed = self.seed
         # Columns: each stands forward or back, leans back a little and is turned a little.
         r = self.per_column(x, z, self.col_offset) + self.per_column(x, z, self.col_lean) * z
@@ -258,13 +317,119 @@ class Face:
         r -= overhang * smoothstep(top - lip - 0.12, top - lip + 0.05, z)
         r += 0.12 * bell(z - (top - lip - 0.35), 0.35) * (1.0 if overhang > 0.0 else 0.0)
         r += 0.2 * smoothstep(top - 0.3, top, z) ** 2
-        r += 0.04 * max(z, 0.0)                                                 # leaning back
-        r -= 0.4 * smoothstep(0.8, -1.0, z)                                     # the foot spreads
-        r += (self.max_recess - 0.4) * self.ends(x) ** 1.4                      # the ends curve back
-        return min(max(r, -1.6), self.max_recess)
+        return r
 
     def column_at(self, x, z):
         return sum(1 for joint in self.joints if x > self.joint_x(joint, z))
+
+
+class Panel(Face):
+    """A narrow panel (CliffPanel_*), or with a wide nose and a straighter curve the seam wedge (CliffSeam_A): a face's
+    beds, joints, columns, fractures and broken top on a thin slab, with less relief and none of it deeper than deep
+    behind the median front. Its back isn't a plane: it leans back further than the front (the slab thickens toward
+    the top), it bulges and hollows a little, its top edge rounds, and toward the ends it comes forward to meet the
+    front where the ends curve back (a lens in plan, deepest in the middle). Set into a wall that curves, hollows or
+    leans back, the parts that would stand out of it first, the back's corners and its top, are the parts drawn in or
+    sunk deeper."""
+    rows_back = 14
+    cap_drop = 0.6
+    end_drop = 0.5
+    talus_counts = (1, 1, 2)
+    talus_size = (0.1, 0.16, 0.8, 1.8)
+
+    def __init__(self, width, height, depth, seed, relief=0.7, nose=None, tip=0.6, roll=0.12, recede=0.05, shape=1.4,
+                 deep=0.5, talus=None, notches=1):
+        Face.__init__(self, width, height, depth, seed)
+        self.back = depth * 0.5                 # the back's deepest point, at the foot in the middle
+        self.thinnest = 0.3
+        self._tops = {}
+        if nose is not None:
+            self.end = nose
+        self.shape = shape                      # how the ends curve back (the faces': 1.4; lower: a straighter wedge)
+        self.talus_margin = min(self.end + 0.2, width * 0.5 - 0.6)
+        if talus is not None:
+            self.talus_counts = talus
+        # A narrow top keeps one notch, smaller and toward a side (a deep one in the middle left two horns), and the
+        # front fewer, shorter fractures (a face's two or three crossed on it).
+        side = width * 0.5
+        self.notches = [(max(min(nx * (side - 0.6) / max(side - 1.5, 0.5), side - 0.6), 0.6 - side), nw * 0.6,
+                         nd * 0.55) for nx, nw, nd in self.notches[:notches]]
+        keep = max(1, int(round(len(self.fractures) * width / 10.0)))
+        self.fractures = [(fx, fz, dx, dz, length * 0.7, crack, wide, shift)
+                          for fx, fz, dx, dz, length, crack, wide, shift in self.fractures[:keep]]
+        self.scars = [(sx, sz, sh * 0.8, sw * 0.7, sd * 0.6) for sx, sz, sh, sw, sd in self.scars]
+        # The columns stand forward or back about their mean (one set far back left a thin slab across most of a
+        # narrow front), less far than a face's; they lean and turn less, the lips overhang less, and the joints lean
+        # half as far (two leaning toward each other met within a narrow front).
+        for joint in self.joints:
+            joint['lean'] *= 0.45
+        mean = sum(self.col_offset) / len(self.col_offset)
+        self.col_offset = [(v - mean) * relief for v in self.col_offset]
+        self.col_turn = [v * relief for v in self.col_turn]
+        self.col_lean = [v * 0.5 for v in self.col_lean]
+        self.col_lip = [(overhang * 0.7, lip) for overhang, lip in self.col_lip]
+        self.lean = 0.025
+        # The back leans with the front and recedes further (recede: m per m), so the slab thickens toward the top,
+        # where a pit's wall leans back and rounds over into the rim and a plumb back would stand out of it first.
+        self.back_lean = self.lean + sum(self.col_lean) / len(self.col_lean) + recede
+        # The front plane goes where the middle's front stands, on the whole (its median), 45 cm behind the piece's
+        # front (-depth / 2), whatever its columns drew; nothing juts more than 45 cm past that.
+        half = width * 0.5 - self.end
+        samples = sorted(self.relief(x, z, self.top(x))
+                         for x in (-half + 2.0 * half * i / 12 for i in range(13))
+                         for z in (0.5 + (height - 1.5) * j / 14 for j in range(15)))
+        middle = samples[len(samples) // 2]
+        self.front = -depth * 0.5 + 0.45 - middle
+        self.jut = middle - 0.9
+        # Between the ends, nothing goes deeper than deep behind that (softly): set a little proud of a wall, a
+        # panel's joints, partings and breaks stay in front of it instead of opening onto the terrain behind.
+        self.deep = middle + deep
+        # Where the ends' front and back meet, a share of the way from the front plane to the back.
+        self.tip = self.front + tip * (self.back - self.front)
+        self.roll = roll * depth
+        # Hull slices every 0.5 m, each following the columns within 0.3 m (a narrow top's notch and the curved ends
+        # change within a metre), the outer ones as far in as the ends' sides wander (bend).
+        self.hull_step, self.hull_window, self.hull_inset = 0.5, 0.3, self.end * 0.2
+
+    def top(self, x):
+        if x not in self._tops:
+            self._tops[x] = Face.top(self, x)
+        return self._tops[x]
+
+    def bend(self, x, loop):
+        """The ends' sides wander in with height (never out), so a narrow piece's edge isn't a ruled line."""
+        weight = self.ends(x) ** 2
+        if weight > 0.0:
+            side = 1.0 if x > 0.0 else -1.0
+            for p in loop:
+                p.x -= side * weight * self.end * 0.24 * (0.6 + 0.6 * noise1(p.z / 2.0 + side * 5.0, self.seed + 41))
+        return loop
+
+    def back_at(self, x, z):
+        u = min(abs(x) / (self.width * 0.5), 1.0)
+        y = self.back + self.back_lean * max(z, 0.0)
+        y -= (self.back - self.tip - self.thinnest * 0.5) * smoothstep(0.2, 1.0, u) ** 1.6   # a lens in plan
+        top = self.top(x)
+        y -= self.roll * smoothstep(top - 1.0, top + 0.2, z) ** 1.5                           # its top edge rounds
+        return y + 0.1 * noise2(x / 1.9 + 17.0, z / 2.7, self.seed + 31)                     # bulges and hollows
+
+    def hull_back_top(self, x, top):
+        # The top falls away toward the back by cap_drop: the hull closes there, not over it.
+        z = top - self.cap_drop
+        return self.back_at(x, z), z
+
+    def recess(self, x, z, top):
+        r = self.relief(x, z, top)
+        r += self.lean * max(z, 0.0)
+        r -= 0.3 * smoothstep(0.8, -1.0, z)
+        limit = self.back_at(x, z) - self.front - self.thinnest
+        ends = self.ends(x)
+        r += max(limit - 0.25, 0.0) * ends ** self.shape
+        deep = self.deep + self.lean * max(z, 0.0)
+        deep += max(limit - deep, 0.0) * ends
+        if r > deep - 0.2:
+            r = deep - 0.2 * math.exp(-(r - deep + 0.2) / 0.2)
+        return min(max(r, self.jut), limit)
 
 
 # --- Fallen blocks ---
@@ -305,8 +470,10 @@ def talus(face, seed):
     rnd = random.Random(seed)
     half = face.width * 0.5
     spots = []
-    for x in sorted(rnd.uniform(-half + 1.4, half - 1.4) for _ in range(rnd.choice((2, 3, 3)))):
-        size = min(max(face.height * rnd.uniform(0.15, 0.26), 1.2), 3.0)
+    low, high, least, most = face.talus_size
+    margin = face.talus_margin
+    for x in sorted(rnd.uniform(-half + margin, half - margin) for _ in range(rnd.choice(face.talus_counts))):
+        size = min(max(face.height * rnd.uniform(low, high), least), most)
         spots.append((x, size, 0.0))
         for _ in range(rnd.choice((1, 1, 2))):
             spots.append((x + rnd.choice((-1.0, 1.0)) * size * rnd.uniform(0.6, 0.95), size * rnd.uniform(0.3, 0.5),
@@ -330,13 +497,13 @@ def talus(face, seed):
 
 # --- Building ---
 
-def build(name, width, height, depth, seed, material_seed):
-    face = Face(width, height, depth, seed)
+def build(name, width, height, depth, seed, material_seed, kind=Face, source=SOURCE_TRIS, **options):
+    face = kind(width, height, depth, seed, **options)
     half = width * 0.5
-    columns = int(round(width / STEP)) + 1
+    columns = int(round(width / face.step_x)) + 1
     xs = [-half + width * i / (columns - 1) for i in range(columns)]
     rows_front = int(round((height + SINK) / STEP)) + 1
-    rows_cap, rows_back, rows_bottom = 16, 4, 4
+    rows_cap, rows_back, rows_bottom = 16, face.rows_back, 4
     zb = -SINK
 
     profiles = []   # per column: the closed loop of points (front up, over the top, down the back, along the bottom)
@@ -347,18 +514,21 @@ def build(name, width, height, depth, seed, material_seed):
             z = zb + (top - zb) * j / (rows_front - 1)
             loop.append(Vector((x, face.front + face.recess(x, z, top), z)))
         y_top = loop[-1].y
+        y_back = face.back_at(x, top - face.cap_drop)
         for k in range(1, rows_cap + 1):
             t = k / rows_cap
-            y = y_top + (face.back - y_top) * t
-            z = top + 0.07 * noise.noise(Vector((x * 1.3, y * 1.3, seed + 3.0))) * (1.0 - t) - 0.35 * t ** 3
+            y = y_top + (y_back - y_top) * t
+            z = top + 0.07 * noise.noise(Vector((x * 1.3, y * 1.3, seed + 3.0))) * (1.0 - t) - face.cap_drop * t ** 3
             loop.append(Vector((x, y, z)))
         z_back = loop[-1].z
         for k in range(1, rows_back):
-            loop.append(Vector((x, face.back, z_back + (zb - z_back) * k / rows_back)))
+            z = z_back + (zb - z_back) * k / rows_back
+            loop.append(Vector((x, face.back_at(x, z), z)))
         y_foot = loop[0].y
+        y_base = face.back_at(x, zb)
         for k in range(rows_bottom + 1):
-            loop.append(Vector((x, face.back + (y_foot - face.back) * k / (rows_bottom + 1), zb)))
-        profiles.append(loop)
+            loop.append(Vector((x, y_base + (y_foot - y_base) * k / (rows_bottom + 1), zb)))
+        profiles.append(face.bend(x, loop))
 
     bm = bmesh.new()
     verts = [[bm.verts.new(p) for p in loop] for loop in profiles]
@@ -386,7 +556,7 @@ def build(name, width, height, depth, seed, material_seed):
     obj.data.name = name
 
     clean(obj)
-    reduce(obj, SOURCE_TRIS)
+    reduce(obj, source)
     clean(obj)
     lm.smooth(obj, 55.0)
     lt.assign(obj, ROCK)
@@ -464,24 +634,30 @@ def hull(obj, points):
 
 def hulls(obj, face, profiles, xs):
     """Convex hulls along the face, each about 4 m wide: slices every metre follow the front's outline (its most
-    forward point in each height band) and close against the back plane."""
+    forward point in each height band) and close against the back (a panel's: where its back is at the slice, so a
+    hull never stands out behind the rock)."""
     pieces = max(2, math.ceil(face.width / 4.2))
     for c in range(pieces):
         x0 = -face.width * 0.5 + face.width * c / pieces
         x1 = -face.width * 0.5 + face.width * (c + 1) / pieces
-        slices = max(3, int(round((x1 - x0) / 1.0)) + 1)
+        if face.hull_inset:
+            x0 += face.hull_inset if c == 0 else 0.0
+            x1 -= face.hull_inset if c == pieces - 1 else 0.0
+        slices = max(3, int(round((x1 - x0) / face.hull_step)) + 1)
         points = []
         for s in range(slices):
             xs_ = x0 + (x1 - x0) * s / (slices - 1)
-            near = [i for i, x in enumerate(xs) if abs(x - xs_) <= 0.5]
+            near = [i for i, x in enumerate(xs) if abs(x - xs_) <= face.hull_window]
             top = max(p.z for i in near for p in profiles[i])
             bands = [-SINK, 0.0, 0.5] + [top * f for f in (0.2, 0.35, 0.5, 0.65, 0.8, 0.92)] + [top]
             for z in bands:
-                candidates = [p.y for i in near for p in profiles[i] if abs(p.z - z) <= 0.45 and p.y < face.back - 0.05]
+                back = face.back_at(xs_, z)
+                candidates = [p.y for i in near for p in profiles[i] if abs(p.z - z) <= 0.45 and p.y < back - 0.05]
                 if candidates:
                     points.append(Vector((xs_, min(candidates), z)))
-            points.append(Vector((xs_, face.back, top)))
-            points.append(Vector((xs_, face.back, -SINK)))
+            y_top, z_top = face.hull_back_top(xs_, top)
+            points.append(Vector((xs_, y_top, z_top)))
+            points.append(Vector((xs_, face.back_at(xs_, -SINK), -SINK)))
         hull(obj, points)
 
 
@@ -492,6 +668,21 @@ PIECES = [
     ('CliffFace_D', 8.0, 12.0, 4.2, 53, 4),
 ]
 models = [build(*piece) for piece in PIECES]
+
+# The panels and the seam: name, width, height, depth, seed, material seed, options. Their Nanite source is the faces'
+# density (SOURCE_TRIS on a 12 x 10 m face) times their front's area; the seam's counts its flanks too.
+PANELS = [
+    ('CliffPanel_A', 4.0, 11.0, 1.8, 61, 5, {}),
+    ('CliffPanel_B', 5.0, 10.0, 2.0, 71, 6, {}),
+    ('CliffPanel_C', 6.0, 12.0, 2.2, 83, 7, {}),
+    ('CliffSeam_A', 3.0, 9.0, 2.8, 97, 8, dict(nose=1.15, tip=0.9, roll=0.15, shape=1.0, talus=(0, 1, 1), notches=0,
+                                               area=42.0)),
+]
+for name, width, height, depth, seed, material_seed, options in PANELS:
+    options = dict(options)
+    area = options.pop('area', width * height)
+    models.append(build(name, width, height, depth, seed, material_seed, kind=Panel,
+                        source=int(round(SOURCE_TRIS * area / 120.0)), **options))
 
 
 def preview_as_placed(model, path, **options):
@@ -514,4 +705,8 @@ def preview_as_placed(model, path, **options):
 
 if lt.want_preview():
     for model in models:
-        preview_as_placed(model, lt.preview_path('RocksProps', model.name), view=(-0.6, -1.6, 0.3), fit=0.88)
+        if model.name.startswith('CliffFace'):
+            preview_as_placed(model, lt.preview_path('RocksProps', model.name), view=(-0.6, -1.6, 0.3), fit=0.88)
+        else:   # tall and narrow: framed a little wider so the top isn't cut
+            preview_as_placed(model, lt.preview_path(os.path.join('RansomsRest', 'CliffPanels'), model.name),
+                              view=(-0.6, -1.6, 0.3), fit=1.05)
