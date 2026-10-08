@@ -22,10 +22,12 @@ in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeli
 - **The user's call (2026-10-08):** the best are 3 Painted Frontier, 4 Inkslinger, 5 Teropa Pulp and 6 Sunbleached.
   The ten are catalogued (done 2026-10-08, the local session): `Docs/Art/StyleLab/Catalog.md`, contact sheets in
   `Docs/Art/StyleLab/Sheets/`.
-- **Style 3 rejected, style 6 next (2026-10-08):** the user: "I dont like style 3, lets try the sunbleached style
-  instead", and chose to remove 3 first. The island is back to today's look; style 6, Sunbleached, is being built on
-  the island only, reversible, by a generalized `build_island_style.py <style> apply|undo|status`. Style 3's code and
-  assets are being removed (its recipe stays in `Docs/Art/StyleLab/Catalog.md` and git history, 1e21f78).
+- **The tutorial island is in style 6, Sunbleached, as a trial (2026-10-08); waiting for the user's verdict.** Style 3
+  was rejected ("I dont like style 3, lets try the sunbleached style instead") and removed from the project (recipe in
+  the catalog, code in git history, 1e21f78). `Tools/Unreal/build_island_style.py sunbleached apply|undo|status`, the
+  island only; switching to 4 or 5 later is a new `style_<name>.py` + json beside it. The user's rule for trials: no
+  tests, no screenshots; full checks only when a style goes into the game. Unmeasured; one frame at spawn read 6.3 ms
+  with the editor open.
 - **A test build exists (the local session, 2026-10-08):** `Tools\package.ps1` ("Packaging a test build" in the
   pipeline). The first: `Saved\Packaging61008-163145\AI_Looter_Shooter_Test_20261008-163145.zip`, 605 MB, with
   today's look (made before the painted trial). It runs the menu, sessions, saves and the HUD; the game has no sounds

@@ -160,27 +160,28 @@ Rules that saved time:
 - Terrain meshes keep 100% Nanite fallback. Medium draws the fallback and collision is cooked from it.
 - A variant of a model (Farmhouse_Ransom) goes in the same script, with the original exported byte-identical.
 
-## Painted Frontier on the tutorial island (a trial, 2026-10-08)
+## Island styles (Style Lab looks on the tutorial island, 2026-10-08)
 
-- **What:** the tutorial island alone wears Style Lab style 3 for the user to judge; it can be undone and touches no
-  other level (the menu shows it, since the menu is the island). The style's numbers: `Docs/Art/StyleLab/Catalog.md`.
-- **Apply:** `build_world_materials.py M_World M_WorldFoliage M_Terrain M_SkyClouds M_PaintedPost` (the masters' Painted
-  switch, off by default, and the screen pass), then `build_island_painted.py apply`.
-  - Every slot on an instance of the painted masters gets an island-only child,
-    `/Game/Art/Materials/Painted/MI_<name>_Painted`: placed actors, dressing, the sky dome and the scatter.
-  - The sun and sky light get warm and blue-violet colour filters; a `PaintedPost` volume above `IslandPost` carries the
-    grade and the screen pass.
-  - Every original is recorded in `Art/Levels/TutorialIsland/painted_applied.json`; commit it with the level.
-- **Undo and status:** `undo` puts everything back and deletes the record; `status` reports what's painted. To drop the
-  style, also delete `Content/Art/Materials/Painted` with git. After an island rebuild or a new scatter, run `apply`
-  again.
-- **Tune** in `Art/Levels/TutorialIsland/painted.json` and run `apply` again; the lab's numbers are in
-  `Tools/Unreal/painted_look.py`.
-- **Lighting states:** the island's Day stays the default, because `Looter.World.Lighting.Levels` requires it. The lab's
-  own sun (165°, 42°, 4500 K) is in the `state` block, off until that test allows a painted Day.
-- **Approximated:** shade from facing only (cast shadows get it from the grade); dark feet from each object's pivot;
-  violet AO from baked occlusion; the macro noise for the lab's noise; Unreal's filmic curve. Guns and creatures aren't
-  painted (they spawn at runtime).
+- **What:** the user judges a Style Lab look in game on the tutorial island alone; it can be undone and no other level
+  changes (the menu shows it, since the menu is the island). Style 3 was tried and rejected; style 6, Sunbleached, is on
+  trial. Trials skip tests and screenshots (the user's call); the full checks come when a style goes into the game.
+- **Parts of a style:** a static switch named for it on the masters, off by default, plus any post material
+  (`build_world_materials.py`; `styled()` chains one style's switch inside another's); its numbers in
+  `Tools/Unreal/style_<name>.py` (shared helpers in `style_common.py`); the island's settings in
+  `Art/Levels/TutorialIsland/style_<name>.json`.
+- **Apply:** `build_world_materials.py M_World M_WorldFoliage M_Terrain M_SkyClouds M_SunbleachedPost`, then
+  `build_island_style.py sunbleached apply`: every slot on those masters gets an island-only instance
+  (`/Game/Art/Materials/IslandStyle/<Style>/`: placed actors, dressing, sky dome, scatter), light filters, and a
+  `<Style>Post` volume (tagged IslandStyle) above `IslandPost`; everything is recorded in `style_applied.json` (commit
+  it with the level).
+- **One style at a time:** undo the one on before applying another (the script refuses otherwise). After an island
+  rebuild or a new scatter, run `apply` again. `undo` restores everything; `status` reports what's styled. To drop a
+  style, delete its `IslandStyle/<Style>` folder once the island no longer wears it.
+- **Lighting states:** the island's Day must stay the default (`Looter.World.Lighting.Levels`). A style's own sun waits
+  in its json's `state` block until that test allows a styled island its own Day (the change is one line in
+  `LightingTests.cpp`: skip the default-Day check on a level with an `IslandStyle` actor).
+- **Lessons from style 3:** rim terms on alpha-tested leaves speckle unless they read the crown's vertex normal; a
+  screen-space edge pass cost the most (+0.8-1.0 ms in all).
 
 ## Packaging a test build
 

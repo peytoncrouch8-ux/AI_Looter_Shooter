@@ -129,7 +129,8 @@ choose from: the Style Lab (`Tools/StyleLab/`). The chosen style then goes onto 
       first pass, measured (heaviest view 7.5 ms on Medium, was 6.7) and toured.
 - [x] The user's verdict (2026-10-08): "I dont like style 3, lets try the sunbleached style instead". Style 3 undone
       and removed from the project (its recipe stays in the catalog).
-- [ ] Style 6, Sunbleached, on the tutorial island only, reversible; the user judges it.
+- [x] Style 6, Sunbleached, on the tutorial island only, reversible (2026-10-08, `build_island_style.py`).
+- [ ] The user judges Sunbleached in game.
 - [ ] Its spec and transition plan written down (`Docs/Art/`), then built: post-process, materials, light and sky.
 - [ ] Every asset in the new style; tour and performance recorded.
 

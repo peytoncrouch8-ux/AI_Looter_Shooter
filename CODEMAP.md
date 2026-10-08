@@ -842,14 +842,15 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Tools/Unreal/lighting_collection.py`: `MPC_Lighting`, the material parameter collection the lighting states write
   (`BackdropTint`, `CloudTint`, the fog's colors), made by `build_world_materials.py` before `M_Backdrop`, which reads it.
 - `Tools/Unreal/build_world_materials.py`: the textured masters (`M_World`, `M_Gun`, `M_WorldFoliage`, `M_Terrain`,
-  `M_Water`, the sky and backdrop), with the Painted switch (off by default) on `M_World`, `M_WorldFoliage`, `M_Terrain`
-  and `M_SkyClouds`, and `M_PaintedPost` (Painted Frontier's screen pass).
-- `Tools/Unreal/painted_look.py`: Painted Frontier (Style Lab style 3) in Unreal terms: the lab's numbers per role, the
-  ground, the sky and the screen pass, the role rules and the colour conversions; read by the two scripts around it.
-- `Tools/Unreal/build_island_painted.py`: `apply|undo|status`, the tutorial island alone in Painted Frontier:
-  island-only painted instances on every slot of the painted masters (placed actors, dressing, sky dome, scatter), the
-  sun's and sky light's colour filters and the `PaintedPost` volume; originals recorded in
-  `Art/Levels/TutorialIsland/painted_applied.json`, settings in `painted.json`.
+  `M_Water`, the sky and backdrop), with the island styles' static switches (off by default; Sunbleached on `M_World`,
+  `M_WorldFoliage`, `M_Terrain` and `M_SkyClouds`) and `M_SunbleachedPost` (its haze and vignette).
+- `Tools/Unreal/style_common.py`: what every island style shares: the roles a material is styled by and the colour
+  conversions between the Style Lab's numbers and Unreal's (inverse filmic, exposure).
+- `Tools/Unreal/style_sunbleached.py`: Sunbleached (Style Lab style 6) in Unreal terms: per-role surface values, the
+  ground, the sky, the post pass and each island instance's values.
+- `Tools/Unreal/build_island_style.py`: `<style> apply|undo|status`, the tutorial island alone in a Style Lab look:
+  island-only instances with the style's switch, light filters, the `<Style>Post` volume; originals recorded in
+  `Art/Levels/TutorialIsland/style_applied.json`, one style at a time, settings in `style_<name>.json`.
 - `Tools/Unreal/build_creature_materials.py`: the creatures' materials beside the world's masters: `M_Ghost` (the
   Unpaid's masked, dithered ghost, its rank, dissolve and flare from the creature's custom primitive data) and the
   clothing tints `MI_Ghost_B` and `_C`, and the Gravemother's pale hide `MI_SpiderBody_Pale` (`Spider.py`'s pale color
