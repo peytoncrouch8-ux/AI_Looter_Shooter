@@ -18,7 +18,7 @@ in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeli
   (references, the Unreal recipe, its cost on Medium). Six fixed shots per style: `Saved/StyleLab/shots/styles/` in the
   cloud container (rebuild with `Tools/StyleLab/test/shots.mjs`). The ten, cartoon to real: 1 Clay Frontier, 2 Skyward
   Anime, 3 Painted Frontier, 4 Inkslinger, 5 Teropa Pulp, 6 Sunbleached, 7 Neon Frontier, 8 Ember Gothic, 9 Celluloid
-  West, 10 Golden Hour; 0 is today's look. The art direction briefs and the research behind them are in the README.
+  West, 10 Golden Hour; 0 is today's look. The art direction briefs and the research behind them: `Docs/Art/StyleLab/`.
 - **Next:** the user picks a style (or a shortlist); the local session then builds it in Unreal (Plan.md Phase 6), from
   the style's card and module. Polish still open in the lab: dark Sink shots in 8 and 10, banding in some aerial views,
   the gun's size.
