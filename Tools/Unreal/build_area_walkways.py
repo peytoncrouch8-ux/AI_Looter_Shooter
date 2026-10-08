@@ -6,8 +6,10 @@ stand in the walkway: the tutorial island's plateau edge ended in a piece across
 and with that one held back, the ramp's first wall piece still left a gap a player barely fit through. So once the
 cliffs stand, a player's capsule is tested down the middle of every walkway (CLEAR_SHARE of its width), a step up off
 the terrain, and each cliff piece it meets is moved off a little at a time until none does: one of the ramp's own walls
-back into its cut wall, any other piece along its run, away from the walkway. A wall that doesn't face its walkway
-(a ledge's outer face, under the path) isn't moved; the log says so.
+back into its cut wall, any other piece along its run, away from the walkway. A wall that doesn't face its walkway (a
+ledge's outer face, under the path: the bluff path's and the Sink ramp's) sinks instead, so its top ends under the
+path's edge rather than standing in the walkway as a kerb (they narrowed both to about 2 m, the user's "narrow areas",
+2026-10-08); one that would have to sink past LEDGE_SINK_MOST moves out from under the path the rest of the way.
 """
 import math
 import re
@@ -24,6 +26,9 @@ STEP_UP = 47.0
 # A piece in the way moves off MOVE_STEP at a time, MOVE_MOST at most (cm).
 MOVE_STEP = 25.0
 MOVE_MOST = 400.0
+# A ledge's outer face sinks at most this far (cm): further, and its top would drop below the ledge's own lip and show a
+# gap under the path's edge.
+LEDGE_SINK_MOST = 150.0
 # A cliff piece's label: Cliff_<group>_<point>[_<course>].
 CLIFF_LABEL = re.compile(r'^Cliff_(.+?)_(\d{2})(?:_\d+)?$')
 OBJECTS = [unreal.ObjectTypeQuery.ECC_WORLD_STATIC, unreal.ObjectTypeQuery.ECC_WORLD_DYNAMIC]
@@ -84,6 +89,17 @@ def blocking(world, centre, tag):
     return out
 
 
+def sink_ledge_face(world, piece, label, where, tag):
+    """Sinks a ledge's outer face under its path a step at a time until no capsule on the walkway meets it: how far it
+    sank (cm), or None when even LEDGE_SINK_MOST wasn't enough (it's left sunk that far for the caller to move out)."""
+    location = piece.get_actor_location()
+    distance = 0.0
+    while distance < LEDGE_SINK_MOST and any(label in blocking(world, c, tag) for c in where):
+        distance += MOVE_STEP
+        piece.set_actor_location(location - unreal.Vector(0.0, 0.0, distance), False, True)
+    return None if any(label in blocking(world, c, tag) for c in where) else distance
+
+
 def clear(build, tiles, terrain_hit):
     """Moves the cliff pieces out of the walkways' middles (see the module's docstring); returns how many moved."""
     corridors = ramp_corridors(build.source)
@@ -108,9 +124,16 @@ def clear(build, tiles, terrain_hit):
             toward = (cx - location.x, cy - location.y)
             if group == walls:
                 if forward.x * toward[0] + forward.y * toward[1] <= 0.0:
-                    build.warn(f'{label} stands in the {ramp_id} walkway from under it (a ledge\'s face): left as it is')
-                    continue
-                way = (-forward.x, -forward.y)
+                    sunk = sink_ledge_face(world, piece, label, where, tag)
+                    if sunk is not None:
+                        build.log(f'{label} sunk {sunk:.0f} cm under the {ramp_id} walkway (a ledge\'s face)')
+                        moved += 1
+                        continue
+                    # Too deep to sink: out from under the path, along its own facing, from where it sank to.
+                    location = piece.get_actor_location()
+                    way = (forward.x, forward.y)
+                else:
+                    way = (-forward.x, -forward.y)
             else:
                 side = 1.0 if right.x * toward[0] + right.y * toward[1] < 0.0 else -1.0
                 way = (right.x * side, right.y * side)
