@@ -139,9 +139,10 @@ export function buildTerrainMaterial(kit, opts = {}, ctx) {
   const src = { name: 'Terrain', master: 'Terrain', set: null, color: '#ffffff', roughness: 0.92, metallic: 0, role: 'ground' };
   const o = Object.assign({}, opts, {
     albedo: 'flat', color: '#ffffff', normalScale: 0, blur,
-    _extra: { pars: PARS, map: MAP, normal: NORMAL, roughness: ROUGH, uniforms, key: 'terrain' },
+    shader: { pars: PARS, map: MAP, normal: NORMAL, roughness: ROUGH, uniforms, key: 'terrain' },
   });
   delete o.toon;
+  delete o._extra;
   const m = opts.toon ? kit.toon(src, o) : kit.pbr(src, o);
   m.roughness = 1;
   m.userData.terrainUniforms = uniforms;

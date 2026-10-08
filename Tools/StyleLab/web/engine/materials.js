@@ -18,6 +18,7 @@ export const SHARED = {
   uSlShadowStrength: { value: 1 },
   uSlCascade: { value: new THREE.Vector4(15, 45, 180, 0.15) },     // far of cascades 0..2, blend band
   uSlShadowRadius: { value: new THREE.Vector4(2, 2, 1.5, 0) },     // filter radius in texels per cascade
+  uSlCascadeTexel: { value: new THREE.Vector4(0.02, 0.05, 0.2, 0) }, // a texel's size in metres per cascade
   uSlMacro: { value: null },                                       // the terrain macro map (ground tint)
   uSlMacroRect: { value: new THREE.Vector4(-100, -100, 100, 100) },
   uSlMacroMean: { value: new THREE.Color(0.3, 0.25, 0.15) },
@@ -107,6 +108,7 @@ uniform float uSlTranslucency;
 uniform float uSlUpNormal;
 uniform float uSlGroundTint;
 uniform float uSlUnlit;
+uniform float uSlNormalBlur;
 uniform sampler2D uSlMacro;
 uniform vec4 uSlMacroRect;
 uniform vec3 uSlMacroMean;
@@ -141,7 +143,16 @@ float slRampLevel(float x) {
 
 #if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 0
 ${POISSON}
-float slShadowPCF(sampler2D map, vec2 size, float bias, vec4 coord, float radius, mat2 R) {
+// The shadow lookup is moved off the surface along its own (faceted) normal, by more the more the surface turns from
+// the sun and the wider the filter: a constant bias leaves acne bands across slopes in the wide far cascade.
+uniform mat4 directionalShadowMatrix[ NUM_DIR_LIGHT_SHADOWS ];
+uniform vec4 uSlCascadeTexel;
+vec3 slShadowN = vec3(0.0, 1.0, 0.0);
+float slShadowPCF(sampler2D map, vec2 size, float bias, mat4 M, float texel, float radius, mat2 R) {
+  float cl = clamp(abs(dot(slShadowN, uSlSunDirW)), 0.05, 1.0);
+  float tanT = sqrt(1.0 - cl * cl) / cl;
+  float off = texel * (0.6 + 0.35 * radius) * clamp(0.6 + 1.1 * tanT, 0.6, 6.0);
+  vec4 coord = M * vec4(vSlWorldPos + slShadowN * off, 1.0);
   vec3 c = coord.xyz / coord.w;
   c.z += bias;
   if (c.x < 0.0 || c.x > 1.0 || c.y < 0.0 || c.y > 1.0 || c.z > 1.0) return -1.0;
@@ -150,28 +161,32 @@ float slShadowPCF(sampler2D map, vec2 size, float bias, vec4 coord, float radius
   for (int i = 0; i < 12; i++) s += step(c.z, unpackRGBAToDepth(texture2D(map, c.xy + R * SL_POISSON[i] * ts)));
   return s / 12.0;
 }
-#define SL_CASC(i, r) slShadowPCF(directionalShadowMap[i], directionalLightShadows[i].shadowMapSize, directionalLightShadows[i].shadowBias, vDirectionalShadowCoord[i], r, R)
+#define SL_CASC(i, r, tx) slShadowPCF(directionalShadowMap[i], directionalLightShadows[i].shadowMapSize, directionalLightShadows[i].shadowBias, directionalShadowMatrix[i], tx, r, R)
 float slFix(float s) { return s < 0.0 ? 1.0 : s; }
 float slSunShadow() {
   float d = length(vSlWorldPos - cameraPosition);
+  // the face's normal, turned toward the camera (two-sided cards), from the world position's derivatives
+  vec3 gn = cross(dFdx(vSlWorldPos), dFdy(vSlWorldPos));
+  slShadowN = dot(gn, gn) > 1e-12 ? normalize(gn) : vec3(0.0, 1.0, 0.0);
+  if (dot(slShadowN, cameraPosition - vSlWorldPos) < 0.0) slShadowN = -slShadowN;
   float a = slIGN(gl_FragCoord.xy) * 6.2831853;
   mat2 R = mat2(cos(a), sin(a), -sin(a), cos(a));
   float band = uSlCascade.w;
   float s0, s1, t;
   if (d < uSlCascade.x) {
-    s0 = SL_CASC(0, uSlShadowRadius.x);
+    s0 = SL_CASC(0, uSlShadowRadius.x, uSlCascadeTexel.x);
     t = smoothstep(uSlCascade.x * (1.0 - band), uSlCascade.x, d);
     #if NUM_DIR_LIGHT_SHADOWS > 1
-    if (t > 0.0) { s1 = SL_CASC(1, uSlShadowRadius.y); if (s1 >= 0.0) s0 = mix(slFix(s0), s1, t); }
+    if (t > 0.0) { s1 = SL_CASC(1, uSlShadowRadius.y, uSlCascadeTexel.y); if (s1 >= 0.0) s0 = mix(slFix(s0), s1, t); }
     #endif
     return slFix(s0);
   }
   #if NUM_DIR_LIGHT_SHADOWS > 1
   if (d < uSlCascade.y) {
-    s0 = SL_CASC(1, uSlShadowRadius.y);
+    s0 = SL_CASC(1, uSlShadowRadius.y, uSlCascadeTexel.y);
     t = smoothstep(uSlCascade.y * (1.0 - band), uSlCascade.y, d);
     #if NUM_DIR_LIGHT_SHADOWS > 2
-    if (t > 0.0) { s1 = SL_CASC(2, uSlShadowRadius.z); if (s1 >= 0.0) s0 = mix(slFix(s0), s1, t); }
+    if (t > 0.0) { s1 = SL_CASC(2, uSlShadowRadius.z, uSlCascadeTexel.z); if (s1 >= 0.0) s0 = mix(slFix(s0), s1, t); }
     #else
     s0 = mix(slFix(s0), 1.0, t);
     #endif
@@ -180,7 +195,7 @@ float slSunShadow() {
   #endif
   #if NUM_DIR_LIGHT_SHADOWS > 2
   if (d < uSlCascade.z) {
-    s0 = SL_CASC(2, uSlShadowRadius.z);
+    s0 = SL_CASC(2, uSlShadowRadius.z, uSlCascadeTexel.z);
     t = smoothstep(uSlCascade.z * (1.0 - band), uSlCascade.z, d);
     return mix(slFix(s0), 1.0, t);
   }
@@ -353,7 +368,8 @@ export function patchFragment(fs, mode, hook = '', hookAfterFog = false, extra =
   // foliage cards: back faces keep the front's normal (as M_WorldFoliage), so a canopy shades as one rounded mass
   fs = fs.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n#if defined( SL_KEEPFRONT ) && defined( DOUBLE_SIDED )\n  normal *= faceDirection;\n#endif');
   if (extra && extra.normal) fs = fs.replace('#include <normal_fragment_maps>', extra.normal);
-  else fs = fs.replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + UPNORMAL);
+  else fs = fs.replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps
+    .replaceAll('texture2D( normalMap, vNormalMapUv )', 'texture( normalMap, vNormalMapUv, uSlNormalBlur )') + '\n' + UPNORMAL);
   if (extra && extra.roughness) fs = fs.replace('#include <roughnessmap_fragment>', extra.roughness);
   fs = fs.replace('#include <lights_fragment_begin>', lightsBegin(mode));
   fs = fs.replace('#include <lights_fragment_maps>', LIGHTS_MAPS);
@@ -400,6 +416,7 @@ export class MaterialKit {
       aoStrength: o.aoStrength ?? 1, rim: o.rim || null, glowBoost: o.glowBoost ?? 1,
       hook: o.hook || '', hookAfterFog: !!o.hookAfterFog,
       envIntensity: o.envIntensity ?? (mode === 'pbr' ? 1 : mode === 'toon' ? 0.3 : 0),
+      normalBlur: o.normalBlur ?? 0,
       color: o.color,
       translucency: o.translucency ?? (foliage ? 0.6 : 0),
       upNormal: o.upNormal ?? (role === 'grass' ? 0.65 : foliage ? 0.3 : 0),
@@ -489,6 +506,7 @@ export class MaterialKit {
       uSlTranslucency: { value: o.translucency },
       uSlUpNormal: { value: o.upNormal },
       uSlGroundTint: { value: o.groundTint },
+      uSlNormalBlur: { value: o.normalBlur },
     };
     m.defines = m.defines || {};
     m.defines.USE_UV = '';
@@ -505,7 +523,8 @@ export class MaterialKit {
     if (o.hook) { m.defines.SL_HOOK = ''; if (o.hookAfterFog) m.defines.SL_HOOK_AFTER_FOG = ''; }
     m.userData.sl = { mode: modeName, src, opts: o, rawOpts: opts, uniforms: u, kit: true, wind: o.wind, alpha };
     m.userData.slUniforms = u;
-    const hook = o.hook, after = o.hookAfterFog, extra = opts && opts._extra;
+    // opts.shader (opts._extra is the older name): the shader slots a builder may replace (see the README)
+    const hook = o.hook, after = o.hookAfterFog, extra = opts && (opts.shader || opts._extra);
     m.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, SHARED, u);
       if (extra && extra.uniforms) Object.assign(shader.uniforms, extra.uniforms);
@@ -516,6 +535,10 @@ export class MaterialKit {
     const key = 'sl:' + modeName + ':' + strHash((hook || '') + (after ? 'A' : '') + (extra ? extra.key : ''));
     m.customProgramCacheKey = () => key;
     this.all.add(m);
+    // opts.setup(material): the style's own changes after building; runs on every copy the engine makes too
+    if (opts && typeof opts.setup === 'function') {
+      try { opts.setup(m); } catch (err) { console.warn('[StyleLab] material setup failed for', m.name, err.message); }
+    }
     return m;
   }
 

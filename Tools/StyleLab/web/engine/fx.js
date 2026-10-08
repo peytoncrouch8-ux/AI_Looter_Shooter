@@ -216,6 +216,8 @@ export class Effects {
     this.colors = { muzzle: linColor('#ffd27a'), tracer: linColor('#ffe6a8'), impact: linColor('#ffcf7a'), blood: linColor('#9be35a'), hitFlash: linColor('#ffffff') };
     this.rand = mulberry32(99);
     this.flash = null;
+    this.flashScale = 1;          // the viewmodel's scale
+    this.flashStyleScale = 1;
     this._motes();
   }
 
@@ -309,7 +311,8 @@ export class Effects {
     merged.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     merged.setIndex(idx);
     this.flashMat = new THREE.ShaderMaterial({
-      uniforms: { uColor: { value: this.colors.muzzle.clone() }, uI: { value: 0 }, uSeed: { value: 0 } },
+      uniforms: { uColor: { value: this.colors.muzzle.clone() }, uI: { value: 0 }, uSeed: { value: 0 },
+        uFlashColors: { value: [0, 1, 2, 3].map(() => this.colors.muzzle.clone()) }, uTime: { value: 0 } },
       vertexShader: 'varying vec2 vUv; varying vec3 vP; void main(){ vUv = uv; vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
       fragmentShader: /* glsl */`varying vec2 vUv; varying vec3 vP; uniform vec3 uColor; uniform float uI, uSeed;
         void main(){ vec2 c = (vUv - 0.5) * 2.0; float r = length(c); float ang = atan(c.y, c.x);
@@ -322,12 +325,40 @@ export class Effects {
     const m = new THREE.Mesh(merged, this.flashMat);
     m.layers.set(GUN_LAYER);
     m.position.copy(at);
-    m.scale.set(0.16, 0.16, 0.28);
+    m.scale.set(0.16, 0.16, 0.28).multiplyScalar(this.flashScale);
     m.frustumCulled = false; m.userData.noNormal = true; m.renderOrder = 50;
     m.visible = false;
     parent.add(m);
     this.flash = m;
+    const fm = this.flashMat;
+    this.flashDefault = { fragmentShader: fm.fragmentShader, blending: fm.blending, depthWrite: fm.depthWrite, transparent: fm.transparent };
     return m;
+  }
+
+  // kit.fx.setFlash: a style's own muzzle flash, put back on the next style switch. opts: fragment (GLSL main() with
+  // varying vec2 vUv, varying vec3 vP (the card's position), uniform vec3 uColor (fx.muzzle), uFlashColors[4],
+  // float uI (0-1 over the flash's life), uSeed (random per shot), uTime), colors (up to four '#hex' for
+  // uFlashColors), blending ('additive' or 'normal'), scale (1), uniforms (more of your own).
+  setFlash(opts = {}) {
+    const m = this.flashMat;
+    if (!m) return;
+    if (opts.fragment) m.fragmentShader = opts.fragment;
+    if (opts.blending) m.blending = opts.blending === 'normal' ? THREE.NormalBlending : THREE.AdditiveBlending;
+    if (opts.colors) opts.colors.slice(0, 4).forEach((c, i) => m.uniforms.uFlashColors.value[i].copy(linColor(c)));
+    if (opts.uniforms) for (const [k, v] of Object.entries(opts.uniforms)) m.uniforms[k] = v && v.value !== undefined ? v : { value: v };
+    if (opts.scale) this.flashStyleScale = opts.scale;
+    m.needsUpdate = true;
+  }
+
+  // Back to the engine's star (called on every style switch, after the old style's deactivate).
+  resetFlash() {
+    const m = this.flashMat, d = this.flashDefault;
+    if (!m || !d) return;
+    const changed = m.fragmentShader !== d.fragmentShader || m.blending !== d.blending;
+    Object.assign(m, d);
+    this.flashStyleScale = 1;
+    for (const c of m.uniforms.uFlashColors.value) c.copy(this.colors.muzzle);
+    if (changed) m.needsUpdate = true;
   }
 
   muzzleFlash(worldPos, intensity = 1) {
@@ -336,7 +367,8 @@ export class Effects {
     if (this.flash) {
       this.flashMat.uniforms.uSeed.value = this.rand();
       this.flash.rotation.z = this.rand() * Math.PI;
-      this.flash.scale.set(0.13 + this.rand() * 0.06, 0.13 + this.rand() * 0.06, 0.24 + this.rand() * 0.1);
+      this.flash.scale.set(0.13 + this.rand() * 0.06, 0.13 + this.rand() * 0.06, 0.24 + this.rand() * 0.1)
+        .multiplyScalar(this.flashScale * (this.flashStyleScale || 1));
     }
     const L = this.e.lighting.muzzle;
     L.position.copy(worldPos).addScaledVector(this.e.camera.getWorldDirection(new THREE.Vector3()), 0.6);
@@ -395,6 +427,7 @@ export class Effects {
     this.add.update(dt); this.alpha.update(dt);
     this.add.upload(); this.alpha.upload();
     const L = this.e.lighting.muzzle;
+    if (this.flashMat) this.flashMat.uniforms.uTime.value = SHARED.uSlAnimTime.value;
     if (this.flashT > 0) {
       this.flashT -= dt;
       const k = Math.max(0, this.flashT / 0.055);

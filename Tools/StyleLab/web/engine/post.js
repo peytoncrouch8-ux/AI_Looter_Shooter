@@ -195,11 +195,13 @@ export function makePostKit(post) {
     const params = { radius: o.radius ?? 1.4, intensity: o.intensity ?? 1.0, power: o.power ?? 1.6, halfRes: o.halfRes ?? true,
       color: o.color || '#000000', maxPixels: o.maxPixels ?? 90 };
     const gtao = post._mat(wrap(/* glsl */`
-      uniform float uRadius, uMaxPx, uPower;
+      uniform float uRadius, uMaxPx, uPower, uDepthErr;
       uniform vec2 uFullRes;
       vec3 vpos(vec2 uv) { return viewPos(uv); }
+      // normals from depth over a baseline that widens with distance: far away the depth buffer's steps would
+      // otherwise tilt the normals in terraces, which the AO draws as bands across distant ground
       vec3 nrm(vec2 uv, vec3 P) {
-        vec2 px = 1.0 / uFullRes;
+        vec2 px = clamp(-P.z / 50.0, 1.0, 6.0) / uFullRes;
         vec3 r = vpos(uv + vec2(px.x, 0.0)) - P, l = P - vpos(uv - vec2(px.x, 0.0));
         vec3 t = vpos(uv + vec2(0.0, px.y)) - P, b = P - vpos(uv - vec2(0.0, px.y));
         vec3 dx = abs(r.z) < abs(l.z) ? r : l; vec3 dy = abs(t.z) < abs(b.z) ? t : b;
@@ -238,7 +240,8 @@ export function makePostKit(post) {
             vec2 off = om * (st * rpx + 1.0) / uFullRes;
             vec3 s0 = vpos(uv + off) - P, s1 = vpos(uv - off) - P;
             float l0 = length(s0), l1 = length(s1);
-            float c0 = dot(s0 / l0, V), c1 = dot(s1 / l1, V);
+            // the depth buffer's step at this distance, kept out of the horizons
+            float c0 = dot(s0 / l0, V) - uDepthErr * P.z * P.z / l0, c1 = dot(s1 / l1, V) - uDepthErr * P.z * P.z / l1;
             c0 = mix(low0, c0, clamp(l0 * fMul + fAdd, 0.0, 1.0));
             c1 = mix(low1, c1, clamp(l1 * fMul + fAdd, 0.0, 1.0));
             h0c = max(h0c, c0); h1c = max(h1c, c1);
@@ -253,7 +256,7 @@ export function makePostKit(post) {
         }
         vis = clamp(vis / float(SL), 0.0, 1.0);
         return vec4(pow(vis, uPower), -P.z, 0.0, 1.0);
-      }`), { uRadius: { value: 1 }, uMaxPx: { value: 90 }, uPower: { value: 1.6 }, uFullRes: { value: new THREE.Vector2() } });
+      }`), { uRadius: { value: 1 }, uMaxPx: { value: 90 }, uPower: { value: 1.6 }, uFullRes: { value: new THREE.Vector2() }, uDepthErr: { value: 0 } });
     const blur = post._mat(wrap(/* glsl */`
       uniform vec2 uTexel;
       vec4 effect(vec2 uv) {
@@ -291,6 +294,8 @@ export function makePostKit(post) {
         const a = pp.target('ao_a', div), b = pp.target('ao_b', div);
         gtao.uniforms.uRadius.value = params.radius; gtao.uniforms.uMaxPx.value = params.maxPixels;
         gtao.uniforms.uPower.value = params.power; gtao.uniforms.uFullRes.value.copy(pp.size);
+        // a 24-bit depth step at distance z is about z^2 / (near * 2^24); three steps' worth is ignored
+        gtao.uniforms.uDepthErr.value = 3.0 / (pp.common.uNear.value * 16777216);
         pp.draw(gtao, a, src);
         blur.uniforms.uTexel.value.set(1 / a.width, 1 / a.height);
         pp.draw(blur, b, a.texture);
@@ -395,18 +400,27 @@ export function makePostKit(post) {
 
   // ---------------- god rays (sky behind the sun, blurred toward it)
   P.godrays = (o = {}) => {
+    // threshold: only what is brighter than this (scene-referred luminance, before exposure) shines, with a soft knee;
+    // the old default of 0 let a whole bright sky shine and washed it white. depthFade (metres, 0 = off): geometry
+    // farther than this joins the sky as a source (hazy distance glowing toward the sun). spread: how far round the
+    // sun on screen the sources reach (6; smaller is wider).
     const params = { strength: o.strength ?? 0.5, decay: o.decay ?? 0.965, density: o.density ?? 0.85, color: o.color || '#ffd9a0',
-      threshold: o.threshold ?? 0.0, samples: o.samples ?? 48 };
+      threshold: o.threshold ?? 1.2, samples: o.samples ?? 48, depthFade: o.depthFade ?? 0, spread: o.spread ?? 6 };
     const mask = post._mat(wrap(/* glsl */`
-      uniform float uThreshold;
+      uniform float uThreshold, uDepthFade, uSpread;
       vec4 effect(vec2 uv) {
-        float sky = step(0.99999, rawDepth(uv));
+        float raw = rawDepth(uv);
+        float src = step(0.99999, raw);
+        if (uDepthFade > 0.0 && src < 0.5 && raw > 0.0011) src = smoothstep(uDepthFade, uDepthFade * 2.0, linearDepth(uv));
         vec3 c = texture2D(tColor, uv).rgb;
         vec2 d = (uv - uSunScreen.xy) * vec2(uResolution.x / uResolution.y, 1.0);
-        float near = exp(-dot(d, d) * 6.0);
-        float b = max(slLuma(c) - uThreshold, 0.0);
-        return vec4(c * sky * near * min(b, 8.0) / max(slLuma(c), 1e-3), 1.0);
-      }`), { uThreshold: { value: 0 } });
+        float near = exp(-dot(d, d) * uSpread);
+        float l = slLuma(c);
+        float knee = max(uThreshold * 0.35, 0.05);
+        float b = l - uThreshold + knee;
+        b = b <= 0.0 ? 0.0 : (b < 2.0 * knee ? b * b / (4.0 * knee) : l - uThreshold);
+        return vec4(c * src * near * min(b, 8.0) / max(l, 1e-3), 1.0);
+      }`), { uThreshold: { value: 1.2 }, uDepthFade: { value: 0 }, uSpread: { value: 6 } });
     const blur = post._mat(wrap(/* glsl */`
       uniform float uDecay, uDensity; uniform int uSamples;
       vec4 effect(vec2 uv) {
@@ -430,6 +444,7 @@ export function makePostKit(post) {
       render(pp, src, dst) {
         const a = pp.target('gr_a', 2), b = pp.target('gr_b', 2);
         mask.uniforms.uThreshold.value = params.threshold;
+        mask.uniforms.uDepthFade.value = params.depthFade; mask.uniforms.uSpread.value = params.spread;
         pp.draw(mask, a, src);
         blur.uniforms.uDecay.value = params.decay; blur.uniforms.uDensity.value = params.density; blur.uniforms.uSamples.value = params.samples;
         pp.draw(blur, b, a.texture);

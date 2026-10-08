@@ -70,7 +70,7 @@ class Engine {
 
     const scene = this.scene = new THREE.Scene();
     scene.matrixWorldAutoUpdate = true;
-    const camera = this.camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.05, 18000);
+    const camera = this.camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.12, 18000);   // near 0.12: the depth buffer's precision at range (the gun starts 0.2 m out)
     camera.layers.enable(0);
     scene.add(camera);
 
@@ -244,8 +244,46 @@ class Engine {
       sky: this.sky,
       shared: SHARED,
       env: null,
+      fx: {
+        setFlash: (o) => e.fx.setFlash(o),
+        resetFlash: () => e.fx.resetFlash(),
+        get colors() { return e.fx.colors; },
+      },
+      heights: this._heightsKit(),
     };
     return kit;
+  }
+
+  // kit.heights: the ground's height for code (height, normal) and for shaders (a half-float texture over the rect).
+  _heightsKit() {
+    const e = this, H = this.heights;
+    let tex = null;
+    const uniforms = { uSlHeights: { value: null }, uSlHeightsRect: { value: new THREE.Vector4(...(H ? H.rect : [-1, -1, 1, 1])) } };
+    const build = () => {
+      if (tex) return tex;
+      if (H) {
+        const n = H.w * H.h, data = new Uint16Array(n);
+        for (let i = 0; i < n; i++) data[i] = THREE.DataUtils.toHalfFloat(H.data[i]);
+        tex = new THREE.DataTexture(data, H.w, H.h, THREE.RedFormat, THREE.HalfFloatType);
+      } else {
+        tex = new THREE.DataTexture(new Uint16Array([0]), 1, 1, THREE.RedFormat, THREE.HalfFloatType);
+      }
+      tex.minFilter = tex.magFilter = THREE.LinearFilter;
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.flipY = false; tex.generateMipmaps = false; tex.needsUpdate = true;
+      uniforms.uSlHeights.value = tex;
+      return tex;
+    };
+    return {
+      rect: H ? H.rect.slice() : null, w: H ? H.w : 0, h: H ? H.h : 0, data: H ? H.data : null,
+      height: (x, z) => e.ground(x, z),
+      normal: (x, z, out = new THREE.Vector3()) => (H ? H.normal(x, z, out) : out.set(0, 1, 0)),
+      get texture() { return build(); },
+      get uniforms() { build(); return uniforms; },
+      glsl: 'uniform sampler2D uSlHeights;\nuniform vec4 uSlHeightsRect;\n'
+        + 'float slGroundHeight(vec2 xz) { vec2 uv = (xz - uSlHeightsRect.xy) / (uSlHeightsRect.zw - uSlHeightsRect.xy); '
+        + 'return texture2D(uSlHeights, clamp(uv, 0.0, 1.0)).r; }\n',
+    };
   }
 
   // ---------------------------------------------------------------- styles
@@ -257,6 +295,7 @@ class Engine {
     const prev = this.style;
     if (prev && prev.deactivate) { try { prev.deactivate(this.kit); } catch (err) { console.warn('[StyleLab] deactivate', err); } }
     for (const c of [...this.styleRoot.children]) this.styleRoot.remove(c);
+    this.fx.resetFlash();
     this.style = style;
     const env = style.env || {};
     this.kit.env = env;
@@ -307,6 +346,7 @@ class Engine {
     this.fx.setParticles(env.particles || {});
     this.fx.lightSmoke(this.lighting.sunColor, this.lighting.sunIntensity, this.lighting.hemi, env.smoke && env.smoke.opacity);
     if (style.activate) { try { style.activate(this.kit); } catch (err) { console.warn('[StyleLab] activate', err); } }
+    this.lighting.repickLamps();
     this.ui.setActive(n, style);
     // compile everything before the first frame in the new look
     try { await this.renderer.compileAsync(this.scene, this.camera); } catch (err) { /* compile on first draw instead */ }
@@ -419,6 +459,7 @@ class Engine {
     this.player.aiming = false; this.player.aim = 0;
     const sh = shot.shadow || { near: 0.1, far: 220, lambda: 0.75 };
     this.lighting.setShadowRange(sh.near, sh.far, sh.lambda);
+    this.lighting.repickLamps();
     this.player.gun.visible = shot.hud !== false;
     this.gunVisible = shot.hud !== false;
     this.hud.setArea(shot.place || '', shot.place ? 'RANSOM’S REST' : '');
@@ -645,7 +686,7 @@ class Engine {
     const cam = this.camera;
     cam.updateMatrixWorld(true);
     this.lighting.update(cam, dt, forceShadows || this.isStill);
-    this.sky.follow(cam);
+    this.sky.follow(cam, this.post.size.y);
     if (this._customSkyMesh) this._customSkyMesh.position.copy(cam.position);
     const c = this.post.common;
     c.uTime.value = this.animTime;

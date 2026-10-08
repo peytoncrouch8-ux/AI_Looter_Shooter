@@ -122,9 +122,24 @@ moons are lit by the sun (phases follow it), rings pass in front of and behind t
 sRGB, n and orm linear; `blur` 0-6 halves the resolution per step), `kit.styleRoot` (a Group emptied on every switch),
 `kit.viewmodel` (the gun's root, a child of the camera), `kit.player` (`{ position, yaw }`, feet, UE yaw),
 `kit.lights` (the scene's lamps: `{ p, color, intensity, range, note, scale, colorOverride }`; set `scale` or
-`colorOverride` (a THREE.Color) to boost or recolour; reset on every switch), `kit.sun` (the lighting: `sunDir`,
-`sunColor`, `hemi`, `cascades`), `kit.sky` (its `uniforms`), `kit.shared` (uniforms every kit material shares:
+`colorOverride` (a THREE.Color) to boost or recolour; you may also push lamps of your own; reset on every switch),
+`kit.sun` (the lighting: `sunDir`, `sunColor`, `sunIntensity`, `hemi`, `cascades`, `pool` (the live PointLights), and
+`repickLamps()`: the six lamps nearest the camera are picked again on the next frame; the engine does this after
+`activate` and on every shot change), `kit.sky` (its `uniforms`), `kit.shared` (uniforms every kit material shares:
 `uSlTime`, `uSlFogColor`, `uSlFog`, `uSlWind`, ...).
+
+`kit.heights`: the ground. `height(x, z)` and `normal(x, z)` in three metres; `rect`, `w`, `h`, `data` (the float
+heights, cell centres, row 0 at z0); for shaders, `uniforms` (`uSlHeights`, a half-float texture over `rect`, and
+`uSlHeightsRect`) and `glsl` (declares them and `float slGroundHeight(vec2 xz)`). For a material, pass both in
+`shader: { pars: kit.heights.glsl, uniforms: kit.heights.uniforms, key: '...' }` and call `slGroundHeight(worldPos.xz)`
+in a hook.
+
+`kit.fx`: `setFlash({ fragment, colors, blending, scale, uniforms })` gives the gun a muzzle flash of the style's own
+until the next switch (the engine puts its star back after `deactivate`). The flash is three crossed cards at the
+muzzle; `fragment` is a GLSL `main()` with `varying vec2 vUv` (0-1 on the card), `varying vec3 vP` (the card's local
+position), `uniform vec3 uColor` (fx.muzzle), `uniform vec3 uFlashColors[4]` (from `colors`, linear), `uniform float uI`
+(1 at the shot, 0 at its end, about 55 ms), `uSeed` (random per shot), `uTime`; write `gl_FragColor` (additive by
+default: rgb is light; `blending: 'normal'` for an opaque look). `resetFlash()`, `colors` (the fx colours, linear).
 
 #### Material builders
 
@@ -143,6 +158,7 @@ fog, vertex occlusion (COLOR_0.a), foliage alpha test (alpha to coverage) + two 
 | `tint` | none | `{ color, amount }`: recolours the albedo toward a hue, keeping its lightness |
 | `posterize` | 0 | levels of the lit colour (0 off) |
 | `normalScale` | 1 (flat: 0) | normal map strength |
+| `normalBlur` | 0 | mip bias on the normal map (softer relief for painted looks) |
 | `roughness` / `roughnessValue` | 1 / - | multiplier on the map / a fixed value |
 | `metalness` | src.metallic | |
 | `aoStrength` | 1 | vertex and texture occlusion |
@@ -157,6 +173,8 @@ fog, vertex occlusion (COLOR_0.a), foliage alpha test (alpha to coverage) + two 
 | `unlit` | src.unlit | albedo times about what sunlit ground shows, no shading |
 | `hook` | '' | GLSL run last on `vec3 col` (linear, before fog), with `vec3 N, V, L` (world), `float NdL, shadow, ao`, `vec2 uvTex`, `vec3 worldPos`; also `uSlTime`, `cameraPosition`, `slIGN(vec2)`, `slVNoise(vec2)`, `slFbm(vec2)`, `slLuma(vec3)` |
 | `hookAfterFog` | false | run the hook after the fog instead |
+| `setup` | - | `function (material)`: changes made after building (blending, alpha to coverage, a define). It also runs on every copy the engine makes (batched meshes and each spider get their own copies, rebuilt from the options), so put such changes here rather than editing a returned material |
+| `shader` | - | shader slots to replace, for looks a hook can't reach: `{ pars, map, normal, roughness, uniforms, key }`. `pars` is GLSL added before `main()`; `map` replaces the albedo stage (`#include <map_fragment>`; set `diffuseColor`, keep `slVAO = mix(1.0, vSlVC.a, uSlAOStrength);`), `normal` replaces `#include <normal_fragment_maps>` (set the view-space `normal`), `roughness` replaces `#include <roughnessmap_fragment>` (declare `float roughnessFactor`); `uniforms` are added to the material; `key` must name the combination (it keys the compiled program). `_extra` is the same thing under its older name |
 
 - `kit.pbr(src, opts)`: three's physically based lighting.
 - `kit.toon(src, opts)`: a ramp. Extra: `steps` (2-5; 3) or `ramp: [[NdL edge, light level], ...]` (NdL -1..1; a point in
@@ -188,7 +206,7 @@ there; a normal buffer is rendered only when a pass needs it (`outline` with inn
 | `ao` | `radius` (1.4 m), `intensity` (1), `power` (1.6), `halfRes` (true), `color` ('#000000'), `maxPixels` (90). GTAO, depth-aware blur |
 | `bloom` | `threshold` (1.0, scene-referred), `strength` (0.35), `radius` (0.75), `tint` |
 | `halation` | `threshold` (0.8), `radius` (0.9), `color` ('#ff5a2a'), `strength` (0.35): film's red glow round highlights |
-| `godrays` | `strength` (0.5), `decay` (0.965), `density` (0.85), `color` ('#ffd9a0'), `threshold` (0), `samples` (48): the sky round the sun, blurred toward it |
+| `godrays` | `strength` (0.5), `decay` (0.965), `density` (0.85), `color` ('#ffd9a0'), `threshold` (1.2: only sky brighter than this, scene-referred luminance, shines, with a soft knee; 0 lets the whole sky shine and washes a bright one white), `depthFade` (0 m = off: geometry farther than this joins the sky as a source, so hazy distance glows toward the sun), `spread` (6: how far round the sun sources reach; smaller is wider), `samples` (48): the sky round the sun, blurred toward it |
 | `dof` | `focus` (12 m), `range` (8 m in focus), `blur` (6 px), `nearBlur` (0.4: how much the gun blurs), `farOnly` (false: true leaves everything nearer than the focus sharp but the gun) |
 | `outline` | `width` (1 px at 1080p), `color` ('#1a1410'), `colorFromScene` (0-1: lines take the scene's darkened colour), `depthEdge` (1), `normalEdge` (1), `innerLines` (1: creases from normals; 0 silhouettes only), `fadeNear` (60 m), `fadeFar` (400 m), `opacity` (1) |
 | `kuwahara` | `radius` (4 px at 1080p, max 6), `sharpness` (8), `halfRes` (false): generalized Kuwahara, painterly |
@@ -212,6 +230,12 @@ two re-rendered every 2nd and 4th frame). Static things are one BatchedMesh per 
 grass and small scatter are instanced around the camera. Full-screen passes cost about 0.1-0.4 ms each at 1080p on a
 mid-range GPU; `kuwahara` (about 1-2 ms), `ao` (0.5-0.8 ms half-res) and `dof` cost the most. A normal buffer (outline
 inner lines) re-draws the scene once more.
+
+Shadows: each cascade is a sphere of its split distance round the camera; the kit's shaders move the lookup off the
+surface along its own normal, by more on slopes turned from the sun and for wider filters (a constant bias drew acne
+bands in the wide far cascade). The camera's near plane is 0.12 m (depth precision at range: the AO ignores the depth
+buffer's steps, which drew terraces as bands across distant ground). The gun is drawn at 0.85 of its size with its
+depth squeezed into the first thousandth of the range, after the world, without clearing the world's depth.
 
 ## Export
 

@@ -22,7 +22,7 @@ const FS = /* glsl */`
 varying vec3 vDir;
 uniform float uSlTime;
 uniform vec3 uZenith, uHorizon, uGround, uSunCol;
-uniform float uSunDisc, uSunGlow, uHorizonFog, uStars, uCapture, uBright;
+uniform float uSunDisc, uSunGlow, uHorizonFog, uStars, uCapture, uBright, uPixAngle;
 uniform vec4 uClouds;     // amount, scale, sharpness, speed
 uniform vec3 uCloudCol, uCloudShade;
 uniform int uBodyN;
@@ -39,7 +39,10 @@ vec3 slBody(int i, vec3 d, vec3 col, inout float occl) {
   vec3 b = uBodyDir[i];
   vec4 P = uBodyP[i];
   float cb = dot(d, b);
-  if (cb <= 0.0) return col;
+  // only directions near the body: its glow and ring reach a few radii, and the projection below (divided by cb)
+  // blows up toward 90 degrees from it
+  float reach = min(P.x * max(uRingP[i].z, 1.0) * 4.0 + 0.05, 1.2);
+  if (cb < cos(reach)) return col;
   vec3 e = normalize(cross(abs(b.y) > 0.999 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0), b));
   vec3 n = cross(b, e);
   float tr = tan(P.x);
@@ -47,7 +50,8 @@ vec3 slBody(int i, vec3 d, vec3 col, inout float occl) {
   float roll = uRingP[i].w;
   q = mat2(cos(roll), sin(roll), -sin(roll), cos(roll)) * q;
   float r2 = dot(q, q);
-  float aa = fwidth(length(q)) * 1.5 + 1e-4;
+  // the edge's anti-aliasing from the pixel's angular size (no derivatives: this runs in a branch)
+  float aa = uPixAngle / (tr * cb * cb) * 1.5 + 1e-4;
   int kind = int(P.y + 0.5);
   float disc = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, sqrt(r2));
   vec3 bodyCol = col;
@@ -179,7 +183,7 @@ export class Sky {
     this.uniforms = Object.assign({
       uZenith: { value: new THREE.Color() }, uHorizon: { value: new THREE.Color() }, uGround: { value: new THREE.Color() },
       uSunCol: { value: new THREE.Color() }, uSunDisc: { value: 1 }, uSunGlow: { value: 1 }, uHorizonFog: { value: 0.6 },
-      uStars: { value: 0 }, uCapture: { value: 0 }, uBright: { value: 1 },
+      uStars: { value: 0 }, uCapture: { value: 0 }, uBright: { value: 1 }, uPixAngle: { value: 0.001 },
       uClouds: { value: new THREE.Vector4(0.4, 1, 0.5, 0.01) },
       uCloudCol: { value: new THREE.Color(1, 1, 1) }, uCloudShade: { value: new THREE.Color(0.7, 0.7, 0.75) },
       uBodyN: { value: 0 },
@@ -242,7 +246,8 @@ export class Sky {
     });
   }
 
-  follow(camera) {
+  follow(camera, heightPx = 1080) {
+    this.uniforms.uPixAngle.value = (camera.fov * Math.PI / 180) / Math.max(1, heightPx);
     const r = Math.min(camera.far * 0.9, this.radius);
     const target = this.custom && this.custom.isMesh ? this.custom : this.mesh;
     target.position.setFromMatrixPosition(camera.matrixWorld);
@@ -265,7 +270,10 @@ export class Sky {
 export function captureEnv(renderer, sky, pmrem, prev) {
   const u = sky.uniforms;
   u.uCapture.value = 1;
+  const pa = u.uPixAngle.value;
+  u.uPixAngle.value = (Math.PI / 2) / 256;
   const rt = pmrem.fromScene(sky.captureScene(), 0.02, 0.1, 100);
+  u.uPixAngle.value = pa;
   u.uCapture.value = 0;
   if (prev) prev.dispose();
   return rt;

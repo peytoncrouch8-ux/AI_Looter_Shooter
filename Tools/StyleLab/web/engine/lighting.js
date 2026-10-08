@@ -129,19 +129,25 @@ export class Lighting {
       cam.near = 0.5; cam.far = back + r + 2;
       cam.updateProjectionMatrix();
       const range = cam.far - cam.near;
-      l.shadow.normalBias = texel * 1.4;
-      l.shadow.bias = -(texel * 0.6 + 0.01) / range;
+      // the normal offset is done per pixel in the kit's shaders (slope-scaled); this only covers depth precision
+      l.shadow.normalBias = 0;
+      l.shadow.bias = -(texel * 0.2 + 0.005) / range;
       c.far = far; c.radius = r; c.texel = texel;
     }
     const cv = SHARED.uSlCascade.value;
     cv.set(this.cascades[0] ? this.cascades[0].far : 0, this.cascades[1] ? this.cascades[1].far : 0,
       this.cascades[2] ? this.cascades[2].far : 0, 0.12);
     const rw = 0.035 * Math.max(0.1, this.softness);
+    SHARED.uSlCascadeTexel.value.set(this.cascades[0] ? this.cascades[0].texel : 0.02, this.cascades[1] ? this.cascades[1].texel : 0.05,
+      this.cascades[2] ? this.cascades[2].texel : 0.2, 0);
     const rv = SHARED.uSlShadowRadius.value;
     const rad = this.cascades.map((c) => clamp(rw / c.texel, 1.0, 6.0));
     rv.set(rad[0] || 1, rad[1] || 1, rad[2] || 1, 0);
     this._updatePool(camPos, dt);
   }
+
+  // Picks the lamps nearest the camera again on the next frame (after a shot change, or a style adding lamps).
+  repickLamps() { this._chosen = null; this._poolTimer = 0; }
 
   _updatePool(camPos, dt) {
     this._poolTimer -= dt;

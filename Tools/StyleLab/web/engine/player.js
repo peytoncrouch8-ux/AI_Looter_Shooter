@@ -24,6 +24,7 @@ export class Player {
     this.gun = new THREE.Group(); this.gun.name = 'Viewmodel';
     this.gunPivot = new THREE.Group(); this.gunPivot.add(this.gun);
     this.muzzleLocal = new THREE.Vector3(0, 0, 0.5);
+    this.viewScale = 0.85;
     this.hipOffset = new THREE.Vector3(0.155, -0.165, -0.36);
     this.adsOffset = new THREE.Vector3(0, -0.06, -0.25);
   }
@@ -39,7 +40,8 @@ export class Player {
     const sockets = rec.sockets || {};
     const bounds = rec.info.bounds || [[-0.05, -0.1, 0], [0.05, 0.1, 0.7]];
     const len = bounds[1][2] - bounds[0][2];
-    const s = len > 0.2 && len < 2.5 ? 1 : 0.7 / Math.max(len, 0.01);
+    // a little under life size reads less dominant on screen (the viewmodel's own scale, as games do)
+    const s = (len > 0.2 && len < 2.5 ? 1 : 0.7 / Math.max(len, 0.01)) * this.viewScale;
     model.scale.setScalar(s);
     const v = (a, d) => (a ? new THREE.Vector3(...a) : new THREE.Vector3(...d)).multiplyScalar(s);
     const rot = (p) => new THREE.Vector3(-p.x, p.y, -p.z);    // turned 180 degrees about y
@@ -51,8 +53,9 @@ export class Player {
     this.gun.add(model);
     this.model = model;
     this.gripToAim = this.aimLocal.clone();
-    this.hipOffset = new THREE.Vector3(0.145, -0.228, -0.3);
-    this.adsOffset = new THREE.Vector3(0, 0, -0.15);
+    this.hipOffset = new THREE.Vector3(0.152, -0.24, -0.3);
+    this.adsOffset = new THREE.Vector3(0, 0, -0.2);
+    this.e.fx.flashScale = this.viewScale;
     this.flash = this.e.fx.makeFlash(this.gun, this.muzzleLocal.clone());
     this.e.camera.add(this.gunPivot);
   }
