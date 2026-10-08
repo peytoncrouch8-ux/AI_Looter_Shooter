@@ -1,24 +1,15 @@
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/HUD/HudFrameRateWidget.h"
 #include "UI/HUD/HudInteractPromptWidget.h"
+#include "UI/HUD/HudLevelUpBannerWidget.h"
 #include "UI/HUD/HudMagazineWidget.h"
 #include "UI/HUD/HudMinimapWidget.h"
 #include "UI/HUD/HudPickupFeedWidget.h"
-#include "UI/HUD/HudVitalsWidget.h"
+#include "UI/HUD/HudPlayerFrameWidget.h"
+#include "UI/HUD/HudScreenEdgeWidget.h"
 #include "UI/HUD/HudWeaponSlotsWidget.h"
-#include "UI/HUD/HudXPBarWidget.h"
-#include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
-#include "Combat/HealthComponent.h"
-#include "Interaction/InteractionComponent.h"
-#include "Player/PlayerLocomotionComponent.h"
-#include "Player/PlayerViewComponent.h"
-#include "Settings/KeyBindingSubsystem.h"
-#include "Weapons/AmmoTypes.h"
-#include "Weapons/WeaponBase.h"
-#include "Weapons/WeaponDefinition.h"
-#include "Inventory/WeaponManagerComponent.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
@@ -30,27 +21,19 @@
 #include "Components/OverlaySlot.h"
 #include "Components/ScaleBox.h"
 #include "Components/SizeBox.h"
-#include "Components/Spacer.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
-#include "Engine/LocalPlayer.h"
-#include "GameFramework/Pawn.h"
-#include "GameFramework/PlayerController.h"
 
-// UPlayerHUDWidget's layout as RebuildWidget builds it: the corner clusters, the crosshair and hit marker, the loot
-// card, the interaction prompt and the feeds. Running it frame by frame is in PlayerHUDWidget.cpp.
+// UPlayerHUDWidget's layout as RebuildWidget builds it: the screen edges, the corner clusters, the crosshair and hit
+// marker, the level-up banner, the loot card, the interaction prompt and the feeds. Running it frame by frame is in
+// PlayerHUDWidget.cpp.
 
 using namespace LooterUI;
 
 namespace
 {
 	constexpr int32 NumCompareStats = 9;
-	/** The reserve count's room beside the magazine, and the gap between them. A fixed width keeps the cartridge still. */
-	constexpr float ReserveWidth = 56.f;
-	constexpr float ReserveGap = 10.f;
-	/** The fire mode and gun's name under the ammo span from the cartridge's base to the reserve's end. */
-	constexpr float NameRowWidth = UHudMagazineWidget::Width + ReserveGap + ReserveWidth;
 	constexpr int32 PickupHoldSegmentCount = 16;
 	/** Parallelogram slant of the bars, in degrees (mirrored left/right, like the reference). */
 	constexpr float BarSlant = 16.f;
@@ -59,6 +42,30 @@ namespace
 	 * to spare, so a line never covers the crosshair or the hit marker.
 	 */
 	constexpr float PickupFeedGap = 76.f;
+
+	// The weapon cluster, in 1080p pixels. It keeps its corner 48 px in from the right edge; its last line (the gun's
+	// name) ends 32 px above the bottom, which puts the slots' circles at y 812, 888 and 964 (x 1775), the cartridge at
+	// (1821, 800) with its base level with the last slot's bottom, and the fire mode's line at y 1000.
+	constexpr float ClusterRight = 48.f;
+	constexpr float ClusterBottom = 32.f;
+	/** The cartridge stands this far right of the slots' column. */
+	constexpr float CartridgeGap = 14.f;
+	/** The two lines under them: the status and fire mode, then the gun's name, each this far below the last. */
+	constexpr float LineGap = 4.f;
+	constexpr float ModeLineHeight = 20.f;
+	constexpr float NameLineHeight = 24.f;
+	/** The status sits this far left of the fire mode, on its line. */
+	constexpr float StatusGap = 12.f;
+	/** A long name shrinks to fit this width, so it never reaches across the screen. */
+	constexpr float NameMaxWidth = 300.f;
+	/** The rarity gem after the name: a diamond, tip to tip, over its ink edge (1.6 px wider each side), and the gap before it. */
+	constexpr float GemSize = 14.f;
+	constexpr float GemEdgeSize = 18.5f;
+	constexpr float GemGap = 3.f;
+
+	/** Where the level-up banner's gem centres, down from the top's middle: the mockup puts the banner's top at 170 and its
+	 *  180 px gem box at the top of it, which keeps the gem clear of the boss bar. */
+	constexpr float BannerTop = 260.f;
 
 	UCanvasPanelSlot* PlaceOnCanvas(UCanvasPanel* Canvas, UWidget* Widget, const FAnchors& Anchors, const FVector2D& Alignment, const FVector2D& Position)
 	{
@@ -123,6 +130,19 @@ namespace
 		}
 		return Overlay;
 	}
+
+	/** A diamond filling its box, white: the rarity gem and its ink edge, tinted per use. */
+	const FVectorIcon& GemIcon()
+	{
+		static const FVectorIcon Icon = []()
+		{
+			FVectorIcon Gem;
+			Gem.ViewBox = FVector2D(24.f, 24.f);
+			Gem.Fills.Add({ FVector2D(12.f, 0.5f), FVector2D(23.5f, 12.f), FVector2D(12.f, 23.5f), FVector2D(0.5f, 12.f) });
+			return Gem;
+		}();
+		return Icon;
+	}
 }
 
 TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
@@ -135,7 +155,17 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 
 		const FAnchors Center(0.5f, 0.5f);
 
-		// Crosshair: four thin ticks with a center dot; the gap follows the weapon's spread.
+		// Behind everything: the screen edges' red flash on a hit and pulse at low health, over the whole screen. It reads
+		// the player's health itself.
+		{
+			UHudScreenEdgeWidget* ScreenEdges = WidgetTree->ConstructWidget<UHudScreenEdgeWidget>(UHudScreenEdgeWidget::StaticClass());
+			UCanvasPanelSlot* EdgeSlot = Root->AddChildToCanvas(ScreenEdges);
+			EdgeSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+			EdgeSlot->SetOffsets(FMargin(0.f));
+			EdgeSlot->SetAutoSize(false);
+		}
+
+		// Crosshair: four thin ticks with a center dot; the gap follows the weapon's spread, and each shot kicks it out.
 		{
 			// 4px ticks with a 1px dark edge leave a 2px white core that reads on any background.
 			UOverlay* Ticks = MakeTicks(WidgetTree, 9.f, 4.f);
@@ -145,6 +175,8 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			DotSlot->SetVerticalAlignment(VAlign_Center);
 
 			CrosshairBox = MakeSized(WidgetTree, Ticks, 20.f, 20.f);
+			// The kick grows it about its middle.
+			CrosshairBox->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
 			PlaceOnCanvas(Root, CrosshairBox, Center, FVector2D(0.5f, 0.5f), FVector2D::ZeroVector);
 		}
 
@@ -157,19 +189,20 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			PlaceOnCanvas(Root, MarkerBox, Center, FVector2D(0.5f, 0.5f), FVector2D::ZeroVector);
 		}
 
-		// Message plate under the crosshair.
+		// Message plate under the crosshair: the weapon manager's messages (level-ups have the banner).
 		MessageText = MakeText(WidgetTree, TEXT(""), 15, Color::Accent(), true, 150);
 		MessagePlate = MakePlate(WidgetTree, MessageText, FMargin(18.f, 8.f));
 		MessagePlate->SetVisibility(ESlateVisibility::Hidden);
 		PlaceOnCanvas(Root, MessagePlate, FAnchors(0.5f, 0.72f), FVector2D(0.5f, 0.5f), FVector2D::ZeroVector);
 
-		// Bottom-left: health, a ring with the number inside and a solid bar out of its lower side, as far in from the
-		// corner as the weapon cluster. (The level shows only by the experience bar.)
-		Vitals = WidgetTree->ConstructWidget<UHudVitalsWidget>(UHudVitalsWidget::StaticClass());
-		PlaceOnCanvas(Root, Vitals, FAnchors(0.f, 1.f), FVector2D(0.f, 1.f), FVector2D(48.f, -32.f));
+		// Bottom-left: the player frame. Its own box holds its pieces measured from the screen's bottom-left corner. When
+		// its experience bar reaches a new level, the banner shows it.
+		PlayerFrame = WidgetTree->ConstructWidget<UHudPlayerFrameWidget>(UHudPlayerFrameWidget::StaticClass());
+		PlayerFrame->OnLevelUp.BindUObject(this, &UPlayerHUDWidget::HandleLevelUp);
+		PlaceOnCanvas(Root, PlayerFrame, FAnchors(0.f, 1.f), FVector2D(0.f, 1.f), FVector2D::ZeroVector);
 
-		// Bottom-right: the weapon slots over the ammo: its status and ammo class, the magazine as a cartridge that drains
-		// as the gun fires, the reserve, and the fire mode and gun's name under that.
+		// Bottom-right: the weapon slots in a column with the cartridge standing on their right, its base level with the
+		// last slot's; under them the status and fire mode, and under those the gun's name ending in its rarity gem.
 		{
 			UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 			auto AddRight = [Box](UWidget* Child, float Top)
@@ -179,49 +212,51 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 				ChildSlot->SetPadding(FMargin(0.f, Top, 0.f, 0.f));
 			};
 
+			UHorizontalBox* Arms = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			WeaponSlots = WidgetTree->ConstructWidget<UHudWeaponSlotsWidget>(UHudWeaponSlotsWidget::StaticClass());
-			AddRight(WeaponSlots, 0.f);
-
-			// The ammo row, everything centered on the cartridge: [status] [ammo icon] [magazine] [reserve].
-			UHorizontalBox* AmmoRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			StatusText = MakeFloatingText(WidgetTree, 12, Color::Accent(), 200, ETextJustify::Right);
-			UHorizontalBoxSlot* StatusSlot = AmmoRow->AddChildToHorizontalBox(StatusText);
-			StatusSlot->SetVerticalAlignment(VAlign_Center);
-			StatusSlot->SetPadding(FMargin(0.f, 0.f, 14.f, 0.f));
-			FSlateBrush NoAmmo;
-			NoAmmo.DrawAs = ESlateBrushDrawType::NoDrawType;
-			NoAmmo.ImageSize = AmmoClassBox;
-			AmmoClassIcon = MakeImage(WidgetTree, NoAmmo);
-			UHorizontalBoxSlot* ClassSlot = AmmoRow->AddChildToHorizontalBox(AmmoClassIcon);
-			ClassSlot->SetVerticalAlignment(VAlign_Center);
-			ClassSlot->SetPadding(FMargin(0.f, 0.f, 10.f, 0.f));
+			Arms->AddChildToHorizontalBox(WeaponSlots)->SetVerticalAlignment(VAlign_Bottom);
 			MagazineGauge = WidgetTree->ConstructWidget<UHudMagazineWidget>(UHudMagazineWidget::StaticClass());
-			AmmoRow->AddChildToHorizontalBox(MagazineGauge)->SetVerticalAlignment(VAlign_Center);
-			ReserveText = MakeFloatingText(WidgetTree, 20, Color::TextDim(), 0, ETextJustify::Left);
-			UHorizontalBoxSlot* ReserveSlot = AmmoRow->AddChildToHorizontalBox(MakeSized(WidgetTree, ReserveText, ReserveWidth));
-			ReserveSlot->SetVerticalAlignment(VAlign_Center);
-			ReserveSlot->SetPadding(FMargin(ReserveGap, 0.f, 0.f, 0.f));
-			AddRight(AmmoRow, 4.f);
+			UHorizontalBoxSlot* CartridgeSlot = Arms->AddChildToHorizontalBox(MagazineGauge);
+			CartridgeSlot->SetVerticalAlignment(VAlign_Bottom);
+			CartridgeSlot->SetPadding(FMargin(CartridgeGap, 0.f, 0.f, 0.f));
+			AddRight(Arms, 0.f);
 
-			// Under the ammo: the fire mode under the cartridge's base, the gun's name ending under the reserve.
+			// The status (orange; "RELOADING", "[R] RELOAD", "NO AMMO") left of the fire mode, right-aligned.
+			UHorizontalBox* ModeRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			StatusText = MakeFloatingText(WidgetTree, 12, Color::Accent(), 200, ETextJustify::Right);
+			UHorizontalBoxSlot* StatusSlot = ModeRow->AddChildToHorizontalBox(StatusText);
+			StatusSlot->SetVerticalAlignment(VAlign_Center);
+			StatusSlot->SetPadding(FMargin(0.f, 0.f, StatusGap, 0.f));
+			FireModeText = MakeFloatingText(WidgetTree, 13, Color::TextDim(), 150, ETextJustify::Right);
+			ModeRow->AddChildToHorizontalBox(FireModeText)->SetVerticalAlignment(VAlign_Center);
+			AddRight(MakeSized(WidgetTree, ModeRow, 0.f, ModeLineHeight), LineGap);
+
+			// The gun's name in its rarity's color, shrinking to fit when it's long, then the rarity gem at the edge.
 			UHorizontalBox* NameRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			FireModeText = MakeFloatingText(WidgetTree, 12, Color::TextDim(), 60, ETextJustify::Left);
-			NameRow->AddChildToHorizontalBox(FireModeText)->SetVerticalAlignment(VAlign_Center);
-			// The name takes the rest of the row, shrinking to fit when it's long, so it never runs into the fire mode.
-			WeaponName = MakeFloatingText(WidgetTree, 16, Color::Text(), 20, ETextJustify::Right);
+			WeaponName = MakeFloatingText(WidgetTree, 18, Color::Text(), 60, ETextJustify::Right);
 			UScaleBox* NameFit = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass());
 			NameFit->SetStretch(EStretch::ScaleToFit);
 			NameFit->SetStretchDirection(EStretchDirection::DownOnly);
 			NameFit->SetContent(WeaponName);
-			UHorizontalBoxSlot* NameSlot = NameRow->AddChildToHorizontalBox(NameFit);
-			NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			NameSlot->SetHorizontalAlignment(HAlign_Right);
-			NameSlot->SetVerticalAlignment(VAlign_Center);
-			NameSlot->SetPadding(FMargin(14.f, 0.f, 0.f, 0.f));
-			AddRight(MakeSized(WidgetTree, NameRow, NameRowWidth, 0.f), 4.f);
+			USizeBox* NameBox = MakeSized(WidgetTree, NameFit, 0.f);
+			NameBox->SetMaxDesiredWidth(NameMaxWidth);
+			NameRow->AddChildToHorizontalBox(NameBox)->SetVerticalAlignment(VAlign_Center);
+			UOverlay* Gem = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+			UOverlaySlot* GemEdgeSlot = Gem->AddChildToOverlay(MakeImage(WidgetTree,
+				IconBrush(TEXT("HudRarityGem"), GemIcon(), 2.f, FVector2D(GemEdgeSize, GemEdgeSize), Color::Ink())));
+			GemEdgeSlot->SetHorizontalAlignment(HAlign_Center);
+			GemEdgeSlot->SetVerticalAlignment(VAlign_Center);
+			RarityGem = MakeImage(WidgetTree, IconBrush(TEXT("HudRarityGem"), GemIcon(), 2.f, FVector2D(GemSize, GemSize), FLinearColor::White));
+			UOverlaySlot* GemSlot = Gem->AddChildToOverlay(RarityGem);
+			GemSlot->SetHorizontalAlignment(HAlign_Center);
+			GemSlot->SetVerticalAlignment(VAlign_Center);
+			UHorizontalBoxSlot* GemRowSlot = NameRow->AddChildToHorizontalBox(Gem);
+			GemRowSlot->SetVerticalAlignment(VAlign_Center);
+			GemRowSlot->SetPadding(FMargin(GemGap, 0.f, 0.f, 0.f));
+			AddRight(MakeSized(WidgetTree, NameRow, 0.f, NameLineHeight), LineGap);
 
 			WeaponCluster = Box;
-			PlaceOnCanvas(Root, Box, FAnchors(1.f, 1.f), FVector2D(1.f, 1.f), FVector2D(-48.f, -26.f));
+			PlaceOnCanvas(Root, Box, FAnchors(1.f, 1.f), FVector2D(1.f, 1.f), FVector2D(-ClusterRight, -ClusterBottom));
 		}
 
 		// Right-middle: comparison card for the loot you're looking at.
@@ -279,10 +314,10 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 		FeedSlot->SetAutoSize(false);
 		FeedSlot->SetSize(FVector2D(UHudPickupFeedWidget::Width, UHudPickupFeedWidget::Height));
 
-		// Bottom-center: the level badge and the experience bar. Level-ups show in the message plate.
-		UHudXPBarWidget* XPBar = WidgetTree->ConstructWidget<UHudXPBarWidget>(UHudXPBarWidget::StaticClass());
-		XPBar->OnAnnouncement.BindUObject(this, &UPlayerHUDWidget::HandleMessage);
-		PlaceOnCanvas(Root, XPBar, FAnchors(0.5f, 1.f), FVector2D(0.5f, 1.f), FVector2D(0.f, -32.f));
+		// Top-centre: the level-up banner, its gem centred 260 px down. It shows nothing until a level-up. (The bottom
+		// centre, where the experience bar was, stays empty: the player frame has it.)
+		LevelUpBanner = WidgetTree->ConstructWidget<UHudLevelUpBannerWidget>(UHudLevelUpBannerWidget::StaticClass());
+		PlaceOnCanvas(Root, LevelUpBanner, FAnchors(0.5f, 0.f), FVector2D(0.5f, 0.5f), FVector2D(0.f, BannerTop));
 	}
 	return Super::RebuildWidget();
 }

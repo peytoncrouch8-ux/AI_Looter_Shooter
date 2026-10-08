@@ -185,6 +185,33 @@ namespace LooterUI::Color
 	FLinearColor IconLight()  { return Hex(244, 239, 230); }
 	FLinearColor IconShade()  { return Hex(142, 163, 180); }
 	FLinearColor Cloud()      { return Hex(246, 245, 240); }
+
+	FLinearColor MetalHi()       { return Hex(118, 129, 142); }
+	FLinearColor MetalMid()      { return Hex(44, 51, 59); }
+	FLinearColor MetalLow()      { return Hex(46, 53, 61); }
+	FLinearColor MetalDeep()     { return Hex(17, 20, 24); }
+	FLinearColor BarMetalHi()    { return Hex(102, 113, 126); }
+	FLinearColor BarMetalLow()   { return Hex(21, 25, 30); }
+	FLinearColor Ink()           { return Hex(14, 17, 22); }
+	FLinearColor Track()         { return Hex(5, 16, 24); }
+	FLinearColor Hairline()      { return Hex(90, 200, 255); }
+	FLinearColor GemLight()      { return Hex(189, 238, 255); }
+	FLinearColor GemDark()       { return Hex(74, 181, 238); }
+	FLinearColor XPLight()       { return Hex(185, 236, 255); }
+	FLinearColor XPDark()        { return Hex(69, 180, 238); }
+	FLinearColor AccentLight()   { return Hex(255, 192, 106); }
+	FLinearColor CyanText()      { return Hex(159, 224, 255); }
+	FLinearColor HealthHi()      { return Hex(255, 143, 128); }
+	FLinearColor HealthLow()     { return Hex(198, 62, 47); }
+	FLinearColor HealthEdge()    { return Hex(255, 243, 239); }
+	FLinearColor HealthChip()    { return Hex(255, 225, 219); }
+	FLinearColor HealthLowText() { return Hex(255, 217, 211); }
+	FLinearColor Hurt()          { return Hex(255, 59, 46); }
+	FLinearColor NumberDim()     { return Hex(214, 228, 238); }
+	FLinearColor ReserveText()   { return Hex(207, 226, 239); }
+	FLinearColor KeycapTop()     { return Hex(36, 70, 94); }
+	FLinearColor KeycapBottom()  { return Hex(14, 36, 51); }
+	FLinearColor Heal()          { return Hex(109, 255, 122); }
 }
 
 // ---------------------------------------------------------------------------

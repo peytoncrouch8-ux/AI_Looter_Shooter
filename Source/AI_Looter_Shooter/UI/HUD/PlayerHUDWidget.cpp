@@ -1,13 +1,8 @@
 #include "UI/HUD/PlayerHUDWidget.h"
-#include "UI/HUD/HudFrameRateWidget.h"
-#include "UI/HUD/HudInteractPromptWidget.h"
+#include "UI/HUD/HudLevelUpBannerWidget.h"
 #include "UI/HUD/HudMagazineWidget.h"
-#include "UI/HUD/HudMinimapWidget.h"
-#include "UI/HUD/HudPickupFeedWidget.h"
-#include "UI/HUD/HudVitalsWidget.h"
+#include "UI/HUD/HudPlayerFrameWidget.h"
 #include "UI/HUD/HudWeaponSlotsWidget.h"
-#include "UI/HUD/HudXPBarWidget.h"
-#include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
 #include "Combat/HealthComponent.h"
@@ -15,25 +10,11 @@
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Settings/KeyBindingSubsystem.h"
-#include "Weapons/AmmoTypes.h"
 #include "Weapons/WeaponBase.h"
-#include "Weapons/WeaponDefinition.h"
 #include "Inventory/WeaponManagerComponent.h"
-#include "Blueprint/WidgetTree.h"
-#include "Components/Border.h"
-#include "Components/CanvasPanel.h"
-#include "Components/CanvasPanelSlot.h"
-#include "Components/HorizontalBox.h"
-#include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
-#include "Components/Overlay.h"
-#include "Components/OverlaySlot.h"
-#include "Components/ScaleBox.h"
 #include "Components/SizeBox.h"
-#include "Components/Spacer.h"
 #include "Components/TextBlock.h"
-#include "Components/VerticalBox.h"
-#include "Components/VerticalBoxSlot.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
@@ -51,19 +32,19 @@ namespace
 	 * part of the raise, so it never shows beside the sight's own reticle.
 	 */
 	constexpr float CrosshairGoneAtAim = 0.6f;
+	/** Each shot kicks the crosshair out to this size, settling back over CrosshairKickTime seconds (easing out). */
+	constexpr float CrosshairKickScale = 1.45f;
+	constexpr float CrosshairKickTime = 0.16f;
 
-	void SetTextIfChanged(UTextBlock* Text, const FString& Value)
+	/** What the status line beside the fire mode says. */
+	enum class EHudWeaponStatus : uint8
 	{
-		if (!Text->GetText().ToString().Equals(Value))
-		{
-			Text->SetText(FText::FromString(Value));
-		}
-	}
+		None,
+		Reloading,
+		ReloadPrompt,
+		NoAmmo
+	};
 }
-
-// A little bigger than the slots' (the icons share one square view box sized for the tall sniper round), so the round
-// stands about as tall as the cartridge's numbers.
-const FVector2D UPlayerHUDWidget::AmmoClassBox(30.f, 30.f);
 
 FString UPlayerHUDWidget::BoundKeyName(FName BindingId, const TCHAR* Fallback) const
 {
@@ -85,7 +66,7 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 
 	BindToPawn(Manager);
 	UpdateWeaponCluster(Manager, InDeltaTime);
-	UpdateVitals(Health, InDeltaTime);
+	UpdatePlayerFrame(Health, InDeltaTime);
 	UpdatePickupCard(Manager, Interaction, InDeltaTime);
 
 	if (HitMarkerTime > 0.f)
@@ -127,18 +108,20 @@ void UPlayerHUDWidget::BindToPawn(UWeaponManagerComponent* Manager)
 		BoundManager = Manager;
 	}
 
-	// Hit markers and reload progress come from whichever weapon is in hand.
+	// Shots, hit markers and reload progress come from whichever weapon is in hand.
 	AWeaponBase* Active = Manager ? Manager->GetActiveWeapon() : nullptr;
 	if (BoundWeapon.Get() != Active)
 	{
 		if (AWeaponBase* Old = BoundWeapon.Get())
 		{
 			Old->OnHit.RemoveDynamic(this, &UPlayerHUDWidget::HandleHit);
+			Old->OnFired.RemoveDynamic(this, &UPlayerHUDWidget::HandleFired);
 			Old->OnReloadStarted.RemoveDynamic(this, &UPlayerHUDWidget::HandleReloadStarted);
 		}
 		if (Active)
 		{
 			Active->OnHit.AddUniqueDynamic(this, &UPlayerHUDWidget::HandleHit);
+			Active->OnFired.AddUniqueDynamic(this, &UPlayerHUDWidget::HandleFired);
 			Active->OnReloadStarted.AddUniqueDynamic(this, &UPlayerHUDWidget::HandleReloadStarted);
 		}
 		BoundWeapon = Active;
@@ -146,6 +129,8 @@ void UPlayerHUDWidget::BindToPawn(UWeaponManagerComponent* Manager)
 		WeaponActivity = ActivityHold;
 		LastMagazine = INDEX_NONE;
 		ReloadDuration = 0.f;
+		bWeaponTextStale = true;
+		ShownStatus = MAX_uint8;
 	}
 }
 
@@ -182,49 +167,23 @@ void UPlayerHUDWidget::UpdateWeaponCluster(UWeaponManagerComponent* Manager, flo
 	const bool bLow = MagazineFraction <= UHudMagazineWidget::LowFraction;
 	const float Pulse = 0.5f + 0.5f * FMath::Sin(PulseTime * 8.f);
 
-	// The magazine: a cartridge that drains as the gun fires and, while reloading, fills with the reload's progress. It
-	// colors itself orange when low and red when empty, its outline beating with the reload prompt.
+	// The magazine: a cartridge that drains from the tip as the gun fires and, while reloading, fills from the base with
+	// the reload's progress, with the rounds and the reserve by its base. It colors itself orange when low and red when
+	// empty, its outline beating with the reload prompt.
 	const float ReloadProgress = ReloadDuration > 0.f ? FMath::Clamp(ReloadElapsed / ReloadDuration, 0.f, 1.f) : 0.f;
-	MagazineGauge->SetMagazine(Magazine, MagazineSize, bReloading, ReloadProgress, bSwitchedWeapon, Pulse, DeltaTime);
-	SetTextIfChanged(ReserveText, FString::FromInt(Reserve));
-	ReserveText->SetColorAndOpacity(FSlateColor(Reserve == 0 ? Color::Worse() : Color::TextDim()));
+	MagazineGauge->SetMagazine(Magazine, MagazineSize, Reserve, bReloading, ReloadProgress, bSwitchedWeapon, Pulse, DeltaTime);
+	UpdateWeaponStatus(bReloading, Magazine, Reserve, Pulse);
 
-	// Status beside the magazine: reloading, a prompt when dry, or nothing.
-	if (bReloading)
+	// The gun's name in its rarity's color, the gem after it and the fire mode only change with the gun in hand.
+	if (bWeaponTextStale)
 	{
-		SetTextIfChanged(StatusText, TEXT("RELOADING"));
-		StatusText->SetColorAndOpacity(FSlateColor(Color::Accent()));
-	}
-	else if (Magazine == 0 && Reserve > 0)
-	{
-		SetTextIfChanged(StatusText, FString::Printf(TEXT("[%s] RELOAD"), *BoundKeyName(TEXT("Reload"), TEXT("R"))));
-		StatusText->SetColorAndOpacity(FSlateColor(FMath::Lerp(Color::Accent(), Color::Worse(), Pulse)));
-	}
-	else if (Magazine == 0)
-	{
-		SetTextIfChanged(StatusText, TEXT("NO AMMO"));
-		StatusText->SetColorAndOpacity(FSlateColor(Color::Worse()));
-	}
-	else
-	{
-		SetTextIfChanged(StatusText, TEXT(""));
-	}
-
-	const FWeaponInstanceData& Instance = Active->GetInstance();
-	SetTextIfChanged(WeaponName, LooterWeaponText::Name(Instance).ToUpper());
-	WeaponName->SetColorAndOpacity(FSlateColor(LooterWeaponText::Color(Instance)));
-	SetTextIfChanged(FireModeText, LooterWeaponText::FireModeName(Instance).ToUpper());
-	// The ammo it takes, as the same Inked icon the slots and the inventory show.
-	const TOptional<EAmmoType> AmmoType = Instance.Definition && LooterAmmo::IsValid(Instance.Definition->AmmoType)
-		? TOptional<EAmmoType>(Instance.Definition->AmmoType) : TOptional<EAmmoType>();
-	if (AmmoType != ShownAmmoType)
-	{
-		ShownAmmoType = AmmoType;
-		if (AmmoType.IsSet())
-		{
-			AmmoClassIcon->SetBrush(InkedIconBrush(LoadoutParts::AmmoIconName(*AmmoType), LoadoutParts::AmmoIcon(*AmmoType), AmmoClassBox));
-		}
-		AmmoClassIcon->SetVisibility(AmmoType.IsSet() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+		bWeaponTextStale = false;
+		const FWeaponInstanceData& Instance = Active->GetInstance();
+		const FLinearColor Rarity = LooterWeaponText::Color(Instance);
+		WeaponName->SetText(FText::FromString(LooterWeaponText::Name(Instance).ToUpper()));
+		WeaponName->SetColorAndOpacity(FSlateColor(Rarity));
+		RarityGem->SetColorAndOpacity(Rarity);
+		FireModeText->SetText(FText::FromString(LooterWeaponText::FireModeName(Instance).ToUpper()));
 	}
 
 	WeaponSlots->Update(Manager, DeltaTime);
@@ -235,13 +194,48 @@ void UPlayerHUDWidget::UpdateWeaponCluster(UWeaponManagerComponent* Manager, flo
 	WeaponCluster->SetRenderOpacity(FMath::FInterpTo(WeaponCluster->GetRenderOpacity(), Target, DeltaTime, 5.f));
 }
 
-void UPlayerHUDWidget::UpdateVitals(UHealthComponent* Health, float DeltaTime)
+void UPlayerHUDWidget::UpdateWeaponStatus(bool bReloading, int32 Magazine, int32 Reserve, float Pulse)
 {
-	Vitals->SetVisibility(Health ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	const EHudWeaponStatus Status = bReloading ? EHudWeaponStatus::Reloading
+		: Magazine > 0 ? EHudWeaponStatus::None
+		: Reserve > 0 ? EHudWeaponStatus::ReloadPrompt
+		: EHudWeaponStatus::NoAmmo;
+	// The words only change with the state (the prompt's key is looked up then).
+	if (static_cast<uint8>(Status) != ShownStatus)
+	{
+		ShownStatus = static_cast<uint8>(Status);
+		switch (Status)
+		{
+		case EHudWeaponStatus::Reloading:
+			StatusText->SetText(FText::FromString(TEXT("RELOADING")));
+			StatusText->SetColorAndOpacity(FSlateColor(Color::Accent()));
+			break;
+		case EHudWeaponStatus::ReloadPrompt:
+			StatusText->SetText(FText::FromString(FString::Printf(TEXT("[%s] RELOAD"), *BoundKeyName(TEXT("Reload"), TEXT("R")))));
+			break;
+		case EHudWeaponStatus::NoAmmo:
+			StatusText->SetText(FText::FromString(TEXT("NO AMMO")));
+			StatusText->SetColorAndOpacity(FSlateColor(Color::Worse()));
+			break;
+		default:
+			StatusText->SetText(FText::GetEmpty());
+			break;
+		}
+	}
+	// Dry with rounds to reload from: the prompt beats toward red, with the cartridge's outline.
+	if (Status == EHudWeaponStatus::ReloadPrompt)
+	{
+		StatusText->SetColorAndOpacity(FSlateColor(FMath::Lerp(Color::Accent(), Color::Worse(), Pulse)));
+	}
+}
+
+void UPlayerHUDWidget::UpdatePlayerFrame(UHealthComponent* Health, float DeltaTime)
+{
+	PlayerFrame->SetVisibility(Health ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	if (Health)
 	{
-		// The readout keeps its own damage chip, low-health beat and idle fade.
-		Vitals->SetHealth(Health->GetHealth(), Health->GetMaxHealth(), DeltaTime);
+		// The frame keeps its own damage chip, low-health beat, portrait reactions and experience bar.
+		PlayerFrame->SetHealth(Health->GetHealth(), Health->GetMaxHealth(), DeltaTime);
 	}
 }
 
@@ -255,6 +249,17 @@ void UPlayerHUDWidget::UpdateCrosshair(const AWeaponBase* Active, float DeltaTim
 		CrosshairSize = CrosshairSize <= 0.f ? Wanted : FMath::FInterpTo(CrosshairSize, Wanted, DeltaTime, 10.f);
 		CrosshairBox->SetWidthOverride(CrosshairSize);
 		CrosshairBox->SetHeightOverride(CrosshairSize);
+	}
+
+	// Each shot kicks it out and it settles back, so every shot is felt where the eyes are. The frame of the shot shows
+	// the full kick.
+	if (bCrosshairKicking)
+	{
+		const float Settled = FMath::Min(CrosshairKickAge / CrosshairKickTime, 1.f);
+		const float Kick = 1.f - FMath::InterpEaseOut(0.f, 1.f, Settled, 2.f);
+		CrosshairBox->SetRenderScale(FVector2D(1.f + (CrosshairKickScale - 1.f) * Kick));
+		CrosshairKickAge += DeltaTime;
+		bCrosshairKicking = Settled < 1.f;
 	}
 
 	// No aiming while the gun is down in the sprint pose, and no crosshair when the camera faces the character.
@@ -291,6 +296,12 @@ void UPlayerHUDWidget::HandleHit(const FHitResult& Hit, float Damage, bool bCrit
 	}
 }
 
+void UPlayerHUDWidget::HandleFired()
+{
+	CrosshairKickAge = 0.f;
+	bCrosshairKicking = true;
+}
+
 void UPlayerHUDWidget::HandleReloadStarted(float Duration)
 {
 	ReloadDuration = Duration;
@@ -303,4 +314,12 @@ void UPlayerHUDWidget::HandleMessage(const FText& Message)
 	MessagePlate->SetVisibility(ESlateVisibility::HitTestInvisible);
 	MessagePlate->SetRenderOpacity(1.f);
 	MessageTime = 2.5f;
+}
+
+void UPlayerHUDWidget::HandleLevelUp(int32 NewLevel)
+{
+	if (LevelUpBanner)
+	{
+		LevelUpBanner->Show(NewLevel);
+	}
 }

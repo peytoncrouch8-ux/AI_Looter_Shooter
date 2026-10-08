@@ -35,10 +35,11 @@ namespace
 	/** Gap between the rim and the waypoint's ring, as the other markers keep. */
 	constexpr float RimGap = 3.f;
 	/**
-	 * Gap between the rim and the arrow: clear of the facing notch at the top (10 px deep), where the arrow sits most
-	 * often (walking toward the waypoint).
+	 * Gap between the rim and the arrow: clear of the bezel's cyan hairline (1.4 px in). The facing notch at the top sits
+	 * on the bezel, outside the map, so the arrow can ride close to the rim where it sits most often (walking toward the
+	 * waypoint).
 	 */
-	constexpr float NeedleGap = 13.f;
+	constexpr float NeedleGap = 5.f;
 
 	/**
 	 * The mission waypoint on the map: a ring around a dot, so it reads apart from the loot dots (an orange one is
@@ -97,7 +98,8 @@ TSharedRef<SWidget> UHudMinimapWidget::RebuildWidget()
 	if (WidgetTree && !WidgetTree->RootWidget)
 	{
 		// Layers, bottom to top: dark glass disc, the map (clipped to the circle), loot/hostile markers, the mission
-		// waypoint and the player arrow, the rim, then the facing notch, the N, and the waypoint's arrow and distance.
+		// waypoint and the player arrow, the frame (bezel, ticks, N, notch and the place's name), then the waypoint's
+		// arrow and distance.
 		const float Radius = Diameter * 0.5f;
 		UOverlay* Stack = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
 		SizeBox = MakeSized(WidgetTree, Stack, Diameter, Diameter);
@@ -138,15 +140,13 @@ TSharedRef<SWidget> UHudMinimapWidget::RebuildWidget()
 		Arrow = MakeImage(WidgetTree, MarkerBrush(EMarker::Arrow, FLinearColor::White));
 		AddToCanvas(MarkerLayer, Arrow, FVector2D(Radius), FVector2D(ArrowSize));
 
-		AddLayer(MakeImage(WidgetTree, CircleBrush(FLinearColor::Transparent, Color::ScreenLine(), 2.f)));
+		// The frame hangs outside the map's box (the size box keeps the widget the map's size), so it's a canvas layer.
+		UCanvasPanel* Frame = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
+		AddLayer(Frame);
+		BuildFrame(Frame);
 
 		UCanvasPanel* Rim = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
 		AddLayer(Rim);
-		Notch = MakeImage(WidgetTree, RectBrush(Color::Accent()));
-		AddToCanvas(Rim, Notch, FVector2D(Radius, 5.f), FVector2D(3.f, 10.f));
-		North = MakeFloatingText(WidgetTree, 12, Color::Accent(), 0, ETextJustify::Center);
-		North->SetText(FText::FromString(TEXT("N")));
-		AddToCanvas(Rim, North, FVector2D(Radius, 12.f), FVector2D::ZeroVector);
 
 		// A waypoint past the rim: a compass needle just inside the rim, turned toward it, with how far it is.
 		WaypointArrow = MakeImage(WidgetTree, MarkerBrush(EMarker::Arrow, Color::Accent()));
@@ -243,7 +243,8 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 		Marker->SetVisibility(ESlateVisibility::HitTestInvisible);
 		++Used;
 	};
-	const FLinearColor AmmoColor(FColor(230, 220, 192));
+	// Ammo in the ammo icons' light (the mockup's ammo dot), smaller than the loot's dots.
+	const FLinearColor AmmoColor = Color::IconLight();
 	for (TActorIterator<AAmmoPickup> It(World); It; ++It)
 	{
 		Mark(It->GetActorLocation(), EMarker::Dot, AmmoColor, 6.f);
@@ -267,11 +268,11 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 		Markers[Index]->SetVisibility(ESlateVisibility::Hidden);
 	}
 
-	// North circles the rim as you turn.
-	if (UCanvasPanelSlot* NorthSlot = Cast<UCanvasPanelSlot>(North->Slot))
+	// The bezel's ticks and the N turn with the map; the place's name is looked up once.
+	TurnFrame(Yaw);
+	if (!bPlaceKnown)
 	{
-		const FVector2D NorthOffset = UMinimapSubsystem::ViewOffset(FVector::ForwardVector, Yaw, 1.f).GetSafeNormal() * (Radius - 13.f);
-		NorthSlot->SetPosition(FVector2D(Radius) + NorthOffset);
+		UpdatePlace();
 	}
 
 	UpdateWaypoint(Location, Yaw, Radius, PixelsPerCm);
@@ -360,7 +361,7 @@ void UHudMinimapWidget::ApplyScale(float NewScale)
 	{
 		return;
 	}
-	// The glass, the map and the rim fill the box, so they follow it; the arrow and the notch are placed by hand.
+	// The glass and the map fill the box, so they follow it; the arrow and the frame are placed by hand.
 	const float Size = GetDiameter();
 	const float Radius = Size * 0.5f;
 	SizeBox->SetWidthOverride(Size);
@@ -370,10 +371,7 @@ void UHudMinimapWidget::ApplyScale(float NewScale)
 		ArrowSlot->SetPosition(FVector2D(Radius));
 		ArrowSlot->SetSize(FVector2D(ArrowSize * FMath::Sqrt(NewScale)));
 	}
-	if (UCanvasPanelSlot* NotchSlot = Cast<UCanvasPanelSlot>(Notch->Slot))
-	{
-		NotchSlot->SetPosition(FVector2D(Radius, 5.f));
-	}
+	ScaleFrame();
 	// The waypoint's ring and needle are markers: they grow like the others (placed every frame by UpdateWaypoint).
 	const float MarkerScale = FMath::Sqrt(NewScale);
 	if (UCanvasPanelSlot* WaypointSlot = Waypoint ? Cast<UCanvasPanelSlot>(Waypoint->Slot) : nullptr)

@@ -6,6 +6,7 @@
 
 class UBestiaryWidget;
 class UHudCaptionWidget;
+class UHudMissionTrackerWidget;
 class ULoadoutWidget;
 class UMissionsWidget;
 class UPlayerHUDWidget;
@@ -23,9 +24,10 @@ enum class EInventoryPage : uint8
 };
 
 /**
- * Owns the player HUD, the captions, inventory screen, the station board (a jetty's or a station's, opened by holding
- * Interact at it) and pause menu (the settings menu over the paused game), plus the always-on menu hotkeys. Set as the
- * HUD Class on the game mode. The gameplay HUD hides while a menu is open (the captions step aside by themselves).
+ * Owns the player HUD, the mission tracker, the captions, inventory screen, the station board (a jetty's or a station's,
+ * opened by holding Interact at it) and pause menu (the settings menu over the paused game), plus the always-on menu
+ * hotkeys. Set as the HUD Class on the game mode. The gameplay HUD hides while a menu is open (the mission tracker and
+ * the captions step aside by themselves).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ALooterHUD : public AHUD
@@ -77,6 +79,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void SaveAndQuit();
 
+	/**
+	 * A mission's closing line (the tutorial's "You're ready..."): the mission tracker shows it as a last, ticked objective
+	 * under Title, every one of its StepCount steps done, for Seconds of play.
+	 */
+	void ShowMissionClosingLine(const FText& Title, int32 StepCount, const FString& Line, float Seconds);
+
+	/** Takes the closing line away, shown or waiting (the tutorial restarted or skipped). */
+	void ClearMissionClosingLine();
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -102,6 +113,13 @@ private:
 	/** What's said aloud, low on the screen over the HUD. */
 	UPROPERTY(Transient)
 	TObjectPtr<UHudCaptionWidget> CaptionWidget;
+
+	/**
+	 * The tracked mission on the left: a viewport widget of its own over the inventory's pages, so it can stay up on a step
+	 * done in the inventory (it steps aside under every other menu by itself).
+	 */
+	UPROPERTY(Transient)
+	TObjectPtr<UHudMissionTrackerWidget> MissionTracker;
 
 	/** The inventory's first page (the loadout: your character with your guns, and the backpack). */
 	UPROPERTY(Transient)

@@ -1,4 +1,5 @@
 #include "Missions/MissionObjective.h"
+#include "Missions/MissionSubsystem.h"
 #include "Missions/MissionText.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -143,6 +144,47 @@ FString UMissionObjective::GetTrackerText(const UWorld* World, const FMissionObj
 		Line += FString::Printf(TEXT(" (%s)"), *FormatProgress(State).Replace(TEXT(" / "), TEXT("/")));
 	}
 	return Line;
+}
+
+FString UMissionObjective::GetShortText(const UWorld* World) const
+{
+	return ShortText.IsEmpty() ? GetDisplayText(World) : MissionText::ResolveKeys(World, ShortText.ToString());
+}
+
+void UMissionObjective::FillTrackerParts(const UWorld* World, const FMissionObjectiveState& State, FMissionTrackerParts& Out) const
+{
+	Out.Line = GetShortText(World);
+	// The count only where it says something: a single thing to do is done or not.
+	const int32 Required = GetRequired();
+	if (bShowCount && Required > 1)
+	{
+		FMissionObjectiveState Full;
+		Full.Count = Required;
+		Full.bDone = true;
+		Out.Count = FormatProgress(State);
+		Out.CountDone = FormatProgress(Full);
+		Out.Progress = FMath::Min(State.Count, Required);
+		Out.Required = Required;
+	}
+	else
+	{
+		Out.Count.Reset();
+		Out.CountDone.Reset();
+		Out.Progress = 0;
+		Out.Required = 0;
+	}
+	if (HintAction.IsNone())
+	{
+		Out.HintKey.Reset();
+		Out.HintText.Reset();
+	}
+	else
+	{
+		Out.HintKey = MissionText::KeyName(World, HintAction);
+		Out.HintText = MissionText::ResolveKeys(World, HintText.ToString());
+	}
+	Out.bOverInventory = IsDoneInInventory();
+	Out.bDone = State.bDone;
 }
 
 float UMissionObjective::GetFraction(const FMissionObjectiveState& State) const

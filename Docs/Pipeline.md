@@ -190,6 +190,8 @@ Rules that saved time:
 
 | Bug | Cause | Fix |
 |---|---|---|
+| The editor crashed in the boss bar test (HUD upgrade) | `Outline.Add(Outline[0])`: TArray asserts when it adds a reference to its own element, since the add may reallocate | Add a copy, `Outline.Add(FVector2D(Outline[0]))`; grep new code for `X.Add(X[` before building |
+| HUD text came out a third bigger than the mockup | Slate sets a font's Size in points at 96 DPI, so Size 18 draws 24 px; the mockups use CSS px | A mockup's px times 0.75 is the Slate Size (the user's call on the HUD pending) |
 | The Gravemother spawned stuck in her den's wall | The den's floor is part of Den Rock, tagged Obstacle, so its spots were refused; the fallback spot was checked with a man-sized capsule | Room for the largest body; the floor inside a lair's own rock counts as ground (`FEncounterGroundProbe`), f3e3579 |
 | A giant rock blocked the tutorial island's lookout ramp | A cliff run's end piece, stretched to meet its one neighbour, reached across the ramp | Walkways cleared with a capsule test (8e0e50c, bd96147) |
 | A lump came through the burial deck | The Rim's top cliff course stood under the deck's open end | `level.cliffs.under` cuts pieces 40 cm under the boards (732b43d) |

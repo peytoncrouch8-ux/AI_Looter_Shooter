@@ -2,7 +2,7 @@
 <!--
 The HUD's portrait of the player character (Docs/Handoffs/CloudIslandConcepts_2026-10-05.md, "The HUD upgrade"; chosen by the user on 2026-10-03): a
 masked gunslinger in the Inked style of the weapon icons (Art/Icons/InkedIcons.py). The HUD shows it through a diamond
-window inscribed in this 200-unit square (its corners are cut away), at 0.75 px a unit on a 1080p screen.
+window inscribed in this 200-unit square (its corners are cut away), at 0.64 px a unit on a 1080p screen (128 px tip to tip).
 
 Layers, back to front (ids below):
   glass       dark blue glass behind the bust, with faint scanlines (the window's background)

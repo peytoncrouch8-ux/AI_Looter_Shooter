@@ -57,26 +57,25 @@ namespace
 		}
 		case ETutorialGoal::HitDummies:
 		{
-			// The middle of the training ground, not one dummy: any of them counts. No dummies: it passes.
+			// The middle of the training ground, not one dummy: any of them counts. No dummies: it passes. The tracker counts
+			// the hits ("2 / 5").
 			UMissionHitObjective* Hit = NewObject<UMissionHitObjective>(Outer);
 			Hit->Target.ActorClass = ATargetDummy::StaticClass();
 			Hit->Count = FMath::Max(1, FMath::RoundToInt32(Step.Amount));
 			Hit->bPlayerHitsOnly = true;
 			Hit->bPassWithoutTargets = true;
-			Hit->bShowCount = false;
 			Hit->Waypoint = EMissionWaypoint::TargetsCenter;
 			return Hit;
 		}
 		case ETutorialGoal::KillCreatures:
 		{
 			// The step asks for spiders, so the nearest one; any creature counts, so with no spider left, the nearest of
-			// those. No creatures: it passes.
+			// those. No creatures: it passes. The tracker counts the kills ("1 / 2").
 			UMissionKillObjective* Kill = NewObject<UMissionKillObjective>(Outer);
 			Kill->Target.ActorClass = ACreatureBase::StaticClass();
 			Kill->Count = FMath::Max(1, FMath::RoundToInt32(Step.Amount));
 			Kill->bPlayerKillsOnly = true;
 			Kill->bPassWithoutTargets = true;
-			Kill->bShowCount = false;
 			Kill->Waypoint = EMissionWaypoint::Actor;
 			Kill->WaypointActor.ActorClass = ASpiderCreature::StaticClass();
 			return Kill;
@@ -109,7 +108,11 @@ UMissionDefinition* ATutorialDirector::MakeBuiltInMission(UObject* Outer) const
 		{
 			continue;
 		}
+		// The full sentence for the Missions page; the short line and the key hint for the HUD's tracker.
 		Objective->Text = FText::FromString(Step.Text);
+		Objective->ShortText = FText::FromString(Step.ShortText);
+		Objective->HintAction = Step.HintAction;
+		Objective->HintText = FText::FromString(Step.HintText);
 		Mission->Steps.AddDefaulted_GetRef().Objectives.Add(Objective);
 	}
 	return Mission;

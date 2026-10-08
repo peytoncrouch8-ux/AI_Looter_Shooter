@@ -9,6 +9,7 @@ class AActor;
 class AController;
 class APlayerController;
 class UWorld;
+struct FMissionTrackerParts;
 
 /** Where the minimap's arrow points while an objective is the one to do. */
 UENUM(BlueprintType)
@@ -116,11 +117,30 @@ class AI_LOOTER_SHOOTER_API UMissionObjective : public UObject
 
 public:
 	/**
-	 * What the tracker and the Missions page say ("Clear the spiders nesting at the top"). {Action} shows the key bound to
-	 * that action ({Interact}, {Inventory}), {Move} the movement keys. Empty: a plain description of the rule.
+	 * What the Missions page says in full, and the HUD's tracker when ShortText is empty ("Clear the spiders nesting at the
+	 * top"). {Action} shows the key bound to that action ({Interact}, {Inventory}), {Move} the movement keys. Empty: a
+	 * plain description of the rule.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Objective", meta = (MultiLine = true))
 	FText Text;
+
+	/**
+	 * The HUD's mission tracker's short line ("Shoot the target dummies"): a few words, the key left to the hint. Empty:
+	 * Text. {Action} works here too.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Objective|Tracker")
+	FText ShortText;
+
+	/**
+	 * A key the tracker teaches under the line, shown as a keycap with the key the player bound: the action's binding id
+	 * (Sprint, Jump, Interact, Reload, Inventory; Move for the four movement keys). None: no hint.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Objective|Tracker")
+	FName HintAction;
+
+	/** What the hint's key does, after the keycap ("Reload", "Hold to run"). */
+	UPROPERTY(EditAnywhere, Category = "Objective|Tracker")
+	FText HintText;
 
 	UPROPERTY(EditAnywhere, Category = "Objective|Waypoint")
 	EMissionWaypoint Waypoint = EMissionWaypoint::Auto;
@@ -138,7 +158,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Objective")
 	bool bPassWithoutTargets = false;
 
-	/** The tracker shows how far along it is, "(2/4)", when it counts more than one. */
+	/** The tracker shows how far along it is ("2 / 4") when it counts more than one. */
 	UPROPERTY(EditAnywhere, Category = "Objective")
 	bool bShowCount = true;
 
@@ -180,6 +200,9 @@ public:
 	/** What it asks when Text is empty: "Kill 4 Spider Creature". */
 	virtual FString DescribeRule() const { return FString(); }
 
+	/** It's done in the inventory (opening a page of it), so the HUD's tracker stays up over the inventory to show it tick. */
+	virtual bool IsDoneInInventory() const { return false; }
+
 	// --- For the runner and the Missions page ---
 
 	/** Where the minimap's arrow points now, by the Waypoint setting; unset: nowhere. */
@@ -188,8 +211,18 @@ public:
 	/** Its words with the player's keys in them, no count. */
 	FString GetDisplayText(const UWorld* World) const;
 
-	/** What the tracker says: its words, and "(2/4)" while a count of more than one is under way. */
+	/** Its full line for the missions' display (FMission::Objective): its words, and "(2/4)" while a count of more than one is under way. */
 	FString GetTrackerText(const UWorld* World, const FMissionObjectiveState& State) const;
+
+	/** The tracker's short line with the player's keys in it: ShortText, else its words. */
+	FString GetShortText(const UWorld* World) const;
+
+	/**
+	 * The HUD tracker's parts for it: the short line, the count ("2 / 5", only when it shows a count of more than one), the
+	 * key hint (the bound key, resolved) and whether it's done in the inventory. The step and the step count are the
+	 * runner's to fill; they're left as they are.
+	 */
+	void FillTrackerParts(const UWorld* World, const FMissionObjectiveState& State, FMissionTrackerParts& Out) const;
 
 	/** How far along, 0 to 1. */
 	float GetFraction(const FMissionObjectiveState& State) const;

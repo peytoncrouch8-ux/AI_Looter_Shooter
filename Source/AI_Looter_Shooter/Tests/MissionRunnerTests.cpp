@@ -6,6 +6,7 @@
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionEventObjectives.h"
 #include "Missions/MissionPlaceObjectives.h"
+#include "Missions/MissionPlayerObjectives.h"
 #include "Missions/MissionRewards.h"
 #include "Missions/MissionRunner.h"
 #include "Missions/MissionSubsystem.h"
@@ -244,6 +245,107 @@ bool FMissionPrerequisitesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Track another"), Runner->GetTrackedMission() == FName(TEXT("TestByHand")));
 	Runner->TrackMission(NAME_None);
 	TestTrue(TEXT("Track none"), Runner->GetTrackedMission().IsNone());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMissionTrackerPartsTest, "Looter.Missions.TrackerParts",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FMissionTrackerPartsTest::RunTest(const FString& Parameters)
+{
+	// What the runner gives the HUD's mission tracker, step by step: the short line (else the full words, keys resolved),
+	// the count only when it counts more than one and shows it, the step and the steps, the key hint (no player in a test
+	// level: the binding's name), and whether it's done in the inventory. The full line stays for the mission list.
+	// The record and the counter outlive the level.
+	FCampaignRecord Campaign;
+	int32 Changes = 0;
+	FTestWorldWrapper TestLevel;
+	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = TestLevel.GetTestWorld();
+	UMissionRunner* Runner = World->GetSubsystem<UMissionRunner>();
+	UMissionSubsystem* Display = World->GetSubsystem<UMissionSubsystem>();
+	if (!TestTrue(TEXT("The level has a mission runner and the missions' display"), Runner && Display))
+	{
+		return false;
+	}
+	const FName RoundsId(TEXT("TestRounds"));
+	UPackage* Scratch = CreatePackage(nullptr);
+	UMissionDefinition* Rounds = NewMission(Scratch, TEXT("TestRounds"), EMissionKind::Side, EMissionStart::Automatic, TEXT("TestValley"));
+	UMissionKillObjective* Nest = AddObjective<UMissionKillObjective>(Rounds, 0);
+	Nest->Text = FText::FromString(TEXT("Clear the nest under the old mill"));
+	Nest->ShortText = FText::FromString(TEXT("Clear the nest"));
+	Nest->HintAction = TEXT("Reload");
+	Nest->HintText = FText::FromString(TEXT("Reload"));
+	Nest->Target.ActorClass = ATargetDummy::StaticClass();
+	Nest->Target.ActorTag = TEXT("Nest");
+	Nest->Count = 2;
+	UMissionInteractObjective* Posters = AddObjective<UMissionInteractObjective>(Rounds, 1);
+	Posters->Text = FText::FromString(TEXT("Tear down the posters"));
+	Posters->Target.ActorTag = TEXT("Poster");
+	Posters->Count = 3;
+	Posters->bShowCount = false;
+	UMissionReachObjective* Spot = AddObjective<UMissionReachObjective>(Rounds, 2);
+	Spot->Text = FText::FromString(TEXT("Press {Interact} at the spot"));
+	Spot->Place.Location = FVector(5000.0, 0.0, 0.0);
+	Spot->Place.Radius = 300.f;
+	UMissionOpenPageObjective* OpenBook = AddObjective<UMissionOpenPageObjective>(Rounds, 3);
+	OpenBook->Text = FText::FromString(TEXT("Open the Ledger"));
+	OpenBook->HintAction = TEXT("Move");
+	OpenBook->HintText = FText::FromString(TEXT("Walk"));
+
+	AActor* Player = SpawnMarker(World, FVector::ZeroVector);
+	APlayerController* Shooter = World->SpawnActor<APlayerController>();
+	ATargetDummy* Dummy = SpawnDummy(World, FVector(1000.0, 0.0, 0.0), TEXT("Nest"));
+	if (!TestTrue(TEXT("Stand-in, shooter and a nest dummy"), Player && Shooter && Dummy))
+	{
+		return false;
+	}
+	Display->OnMissionsChanged.AddLambda([&Changes]() { ++Changes; });
+	Runner->BeginForTesting({ Rounds }, Campaign, Player, TEXT("TestValley"));
+	Runner->Update(0.f);
+	auto Parts = [Display]() { const FMission* Shown = Display->GetTracked(); return Shown ? Shown->Tracker : FMissionTrackerParts(); };
+
+	// Step 1: the short line, a count of two, the hint's key by its binding's name.
+	FMissionTrackerParts Now = Parts();
+	TestEqual(TEXT("The short line"), Now.Line, FString(TEXT("Clear the nest")));
+	TestTrue(TEXT("Counted: 0 / 2, 2 / 2 once done"), Now.Count == TEXT("0 / 2") && Now.CountDone == TEXT("2 / 2") && Now.Progress == 0 && Now.Required == 2);
+	TestTrue(TEXT("Step 1 of 4"), Now.Step == 0 && Now.StepCount == 4);
+	TestTrue(TEXT("The hint: the key and its words"), Now.HintKey == TEXT("Reload") && Now.HintText == TEXT("Reload"));
+	TestFalse(TEXT("Not done in the inventory"), Now.bOverInventory);
+	const FMission* Shown = Display->GetTracked();
+	TestEqual(TEXT("The mission list keeps the full words, counted"), Shown ? Shown->Objective.ToString() : FString(),
+		FString(TEXT("Clear the nest under the old mill (0/2)")));
+	const int32 ChangesBefore = Changes;
+	Hurt(Dummy, 1000.f, Shooter);
+	Now = Parts();
+	TestTrue(TEXT("A kill: 1 / 2"), Now.Count == TEXT("1 / 2") && Now.Progress == 1);
+	TestTrue(TEXT("and the tracker hears of it"), Changes > ChangesBefore);
+
+	// Step 2: no short line (its words), a count it hides, no hint.
+	TestTrue(TEXT("On to the posters"), Runner->CompleteStep(RoundsId) && Runner->GetStep(RoundsId) == 1);
+	Now = Parts();
+	TestEqual(TEXT("No short line: its words"), Now.Line, FString(TEXT("Tear down the posters")));
+	TestTrue(TEXT("A hidden count isn't shown"), Now.Count.IsEmpty() && Now.CountDone.IsEmpty() && Now.Required == 0);
+	TestTrue(TEXT("No hint"), Now.HintKey.IsEmpty() && Now.HintText.IsEmpty());
+	TestTrue(TEXT("Step 2 of 4"), Now.Step == 1 && Now.StepCount == 4);
+
+	// Step 3: one thing to do shows no count; its words' key resolved.
+	TestTrue(TEXT("On to the spot"), Runner->CompleteStep(RoundsId) && Runner->GetStep(RoundsId) == 2);
+	Now = Parts();
+	TestEqual(TEXT("Its words, the key resolved"), Now.Line, FString(TEXT("Press [Interact] at the spot")));
+	TestTrue(TEXT("A single thing: no count"), Now.Count.IsEmpty());
+
+	// Step 4: done in the inventory, so the tracker stays over it; Move's keys together.
+	TestTrue(TEXT("On to the Ledger"), Runner->CompleteStep(RoundsId) && Runner->GetStep(RoundsId) == 3);
+	Now = Parts();
+	TestTrue(TEXT("Done in the inventory"), Now.bOverInventory);
+	TestEqual(TEXT("The movement keys on one keycap"), Now.HintKey, FString(TEXT("MoveForward MoveLeft MoveBackward MoveRight")));
+	TestTrue(TEXT("Step 4 of 4"), Now.Step == 3 && Now.StepCount == 4);
+	TestTrue(TEXT("Finished"), Runner->CompleteStep(RoundsId) && !Runner->IsRunning(RoundsId));
+	TestTrue(TEXT("Off the tracker"), Display->GetTracked() == nullptr);
 	return true;
 }
 

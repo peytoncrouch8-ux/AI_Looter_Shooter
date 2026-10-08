@@ -5,10 +5,12 @@
 #include "Styling/SlateBrush.h"
 #include "HudMinimapWidget.generated.h"
 
+class UCanvasPanel;
 class UImage;
 class USizeBox;
 class UTextBlock;
 class UTexture2D;
+class UWidget;
 
 /** Where the tracked mission's waypoint shows on the minimap (UHudMinimapWidget::PlaceWaypoint). */
 struct FMinimapWaypoint
@@ -23,11 +25,16 @@ struct FMinimapWaypoint
 
 /**
  * The HUD's round minimap (top-right) that turns with the view, so the way you look is up: the island from above
- * (baked by UMinimapSubsystem), hostiles as red diamonds, loot as dots in its rarity color, ammo as small dots, your
- * arrow in the middle, and an N that circles the rim. The tracked mission's waypoint (UMissionSubsystem) is an orange
- * ring on the map when it's in range; farther away, an orange arrow on the rim points the way like a compass needle,
- * with the distance in meters beside it. Its size is the player's choice (Settings > Interface > Minimap size,
- * 60-150%). Reads the possessed pawn every frame.
+ * (baked by UMinimapSubsystem), hostiles as red diamonds, loot as dots in its rarity color, ammo as small dots and your
+ * arrow in the middle. The tracked mission's waypoint (UMissionSubsystem) is an orange ring on the map when it's in
+ * range; farther away, an orange arrow inside the rim points the way like a compass needle, with the distance in meters
+ * beside it. Its size is the player's choice (Settings > Interface > Minimap size, 60-150%). Reads the possessed pawn
+ * every frame.
+ *
+ * The map sits in a gunmetal bezel (HudMinimapWidgetFrame.cpp) with ticks every 30 degrees that turn with the view, the
+ * N on an orange-ringed disc riding the bezel, a fixed orange notch at the top and a cyan hairline inside; under it, the
+ * place's name. The widget's own box is the map's circle (Diameter at 100%): the bezel and the name hang outside it, so
+ * the HUD and the settings menu's preview place the map itself.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UHudMinimapWidget : public UUserWidget
@@ -53,23 +60,47 @@ protected:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 private:
-	/** Resizes the minimap: the map, its rim and the player arrow grow with it, markers a little less. */
+	/** Resizes the minimap: the map and its bezel grow with it, the player arrow, markers and the N a little less. */
 	void ApplyScale(float NewScale);
 	float GetDiameter() const { return Diameter * Scale; }
 
 	/** Shows the tracked mission's waypoint: the ring on the map, or the rim arrow and its distance. */
 	void UpdateWaypoint(const FVector& PlayerLocation, float Yaw, float Radius, float PixelsPerCm);
 
+	// --- The frame round the map (HudMinimapWidgetFrame.cpp) ---
+
+	/** Builds the bezel, its ticks, the N on its disc, the notch and the place's two lines into Layer, over the map. */
+	void BuildFrame(UCanvasPanel* Layer);
+	/** Sizes the frame for Scale: the bezel and its ticks grow with the map, the N's disc and the notch like the markers. */
+	void ScaleFrame();
+	/** Turns the ticks and moves the N round the bezel, so they keep to the world's directions (ViewYaw up). */
+	void TurnFrame(float ViewYaw);
+	/** Names where the player is under the map, once the level's area is known (then never again). */
+	void UpdatePlace();
+	/** The two lines under the map: Place over Area; with no place (the game names none yet), Area on the big line. */
+	void ShowPlace(const FText& Place, const FText& Area);
+
 	UPROPERTY(Transient) TObjectPtr<USizeBox> SizeBox;
 	UPROPERTY(Transient) TObjectPtr<UImage> MapImage;
 	UPROPERTY(Transient) TObjectPtr<UImage> Arrow;
-	UPROPERTY(Transient) TObjectPtr<UImage> Notch;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> North;
 	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> Markers;
 	/** The tracked mission's waypoint: on the map, or as an arrow on the rim with the distance beside it. */
 	UPROPERTY(Transient) TObjectPtr<UImage> Waypoint;
 	UPROPERTY(Transient) TObjectPtr<UImage> WaypointArrow;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WaypointDistance;
+
+	/** The frame: the bezel (fixed, lit from above), its ticks (turning), the notch (fixed, top), the N on its disc. */
+	UPROPERTY(Transient) TObjectPtr<UImage> Bezel;
+	UPROPERTY(Transient) TObjectPtr<UImage> Ticks;
+	UPROPERTY(Transient) TObjectPtr<UImage> Notch;
+	UPROPERTY(Transient) TObjectPtr<UWidget> NorthBadge;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> North;
+	/** Under the map: the place (big) over the area it's in (small, dim; collapsed while there's no place). */
+	UPROPERTY(Transient) TObjectPtr<UWidget> PlaceBlock;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> PlaceLabel;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> AreaLabel;
+	/** The place's name is shown: the level's area is fixed for the life of the HUD, so it's looked up once. */
+	bool bPlaceKnown = false;
 
 	/** The map picture the brush currently shows (owned by UMinimapSubsystem). */
 	UPROPERTY(Transient) TObjectPtr<UTexture2D> MapTexture;

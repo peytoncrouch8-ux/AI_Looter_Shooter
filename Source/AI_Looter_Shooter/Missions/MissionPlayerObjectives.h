@@ -68,4 +68,5 @@ public:
 
 	virtual void Update(const FMissionContext& Context, FMissionObjectiveState& State, float DeltaSeconds) const override;
 	virtual FString DescribeRule() const override;
+	virtual bool IsDoneInInventory() const override { return true; }
 };

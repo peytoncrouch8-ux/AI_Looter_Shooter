@@ -1,19 +1,8 @@
 #include "UI/HUD/HudBossBarWidget.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Style/LooterUIStyle.h"
-#include "Blueprint/WidgetTree.h"
-#include "Components/Border.h"
-#include "Components/CanvasPanel.h"
-#include "Components/CanvasPanelSlot.h"
-#include "Components/HorizontalBox.h"
-#include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
-#include "Components/Overlay.h"
-#include "Components/OverlaySlot.h"
-#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
-#include "Components/VerticalBox.h"
-#include "Components/VerticalBoxSlot.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 
@@ -21,126 +10,24 @@ using namespace LooterUI;
 
 namespace
 {
-	/** How far down from the top of the screen the name sits: clear of the frame rate and the minimap in the corners. */
-	constexpr float BossBarTop = 30.f;
-
-	/** The bar: a core BossCoreHeight tall inside a thin dark rim, leaning like the creatures' tags and the HUD's bars. */
-	constexpr float BossCoreHeight = 8.f;
-	constexpr float BossRim = 2.f;
-	constexpr float BossBarHeight = BossCoreHeight + BossRim * 2.f;
-	constexpr float BossCoreWidth = UHudBossBarWidget::BarWidth - BossRim * 2.f;
-	constexpr float BossBarSlant = 16.f;
-	/** The lit strip along the fill's top, and the ticks across the bar. */
-	constexpr float BossHighlightHeight = 1.5f;
-	constexpr float BossTickWidth = 2.f;
-
-	/** After a hit the lost part lingers this long, then drains at this share of the bar per second (as the vitals bar). */
+	/** After a hit the lost part lingers this long, then drains at this share of the bar per second (as the player's bar). */
 	constexpr float BossChipHoldSeconds = 0.45f;
 	constexpr float BossChipDrainSpeed = 0.6f;
 	/** Seconds to fade fully in or out, to grey or back, and how long a new phase's name flashes. */
 	constexpr float BossFadeSeconds = 0.4f;
 	constexpr float BossGreySeconds = 0.25f;
 	constexpr float BossPhaseFlashSeconds = 1.6f;
+	/** A new phase's name starts this much bigger and settles as its flash fades. */
+	constexpr float BossPhasePop = 0.15f;
+	/** The fill's lit top line: its leading edge's light, this strong over the top band. */
+	constexpr float BossTopLineOpacity = 0.35f;
 
-	/** The empty track: the HUD's dark glass (as the vitals ring's disc and the level badge's inside). */
-	FLinearColor TrackColor() { return Hex(7, 26, 40, 170); }
-	FLinearColor RimColor() { return Color::Outline() * FLinearColor(1.f, 1.f, 1.f, 0.55f); }
-	FLinearColor ChipColor() { return Hex(255, 233, 221, 230); }
-	/** The fill while the boss can't be hurt: a cold grey that still reads against the dark track. */
-	FLinearColor GreyFill() { return Hex(138, 146, 154); }
-	/** A tick is a dark cut through the lit bar and a light line on the empty track: one color would vanish on one of them. */
-	FLinearColor LitTickColor() { return Color::Outline() * FLinearColor(1.f, 1.f, 1.f, 0.8f); }
-	FLinearColor TrackTickColor() { return Color::TextDim() * FLinearColor(1.f, 1.f, 1.f, 0.55f); }
-
-	/** A child of the core, left-aligned, sized by width later (ApplyFill). */
-	USizeBox* AddFill(UWidgetTree* Tree, UOverlay* Core, UWidget* Content)
+	/** Tone, Amount of the way to the grey of its own brightness: an untargetable fill keeps its bands' light and dark. */
+	FLinearColor BossGreyed(const FLinearColor& Tone, float Amount)
 	{
-		USizeBox* Fill = MakeSized(Tree, Content, 0.f, BossCoreHeight);
-		Fill->SetWidthOverride(0.f);
-		UOverlaySlot* FillSlot = Core->AddChildToOverlay(Fill);
-		FillSlot->SetHorizontalAlignment(HAlign_Left);
-		FillSlot->SetVerticalAlignment(VAlign_Fill);
-		return Fill;
+		const float Luminance = Tone.GetLuminance();
+		return FMath::Lerp(Tone, FLinearColor(Luminance, Luminance, Luminance, Tone.A), Amount);
 	}
-}
-
-TSharedRef<SWidget> UHudBossBarWidget::RebuildWidget()
-{
-	if (WidgetTree && !WidgetTree->RootWidget)
-	{
-		UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
-		Root->SetVisibility(ESlateVisibility::HitTestInvisible);
-		WidgetTree->RootWidget = Root;
-
-		UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-
-		// "LV 9  ABEL RANSOM, THE KEEPER": a small dim level, then the name in its rank's color, centered over the bar.
-		UHorizontalBox* Title = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		LevelLabel = MakeFloatingText(WidgetTree, 12, Color::TextDim(), 80);
-		UHorizontalBoxSlot* LevelSlot = Title->AddChildToHorizontalBox(LevelLabel);
-		LevelSlot->SetVerticalAlignment(VAlign_Bottom);
-		LevelSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 2.f));
-		NameLabel = MakeFloatingText(WidgetTree, 19, NameColor, 120);
-		Title->AddChildToHorizontalBox(NameLabel)->SetVerticalAlignment(VAlign_Bottom);
-		Box->AddChildToVerticalBox(Title)->SetHorizontalAlignment(HAlign_Center);
-
-		// The bar's core, back to front: the dark track (a background), the chip, then the health with its lit top edge.
-		UOverlay* Core = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-		UImage* Track = MakeImage(WidgetTree, RectBrush(TrackColor()));
-		MarkBackground(Track);
-		FillOverlaySlot(Core->AddChildToOverlay(Track));
-		UImage* Chip = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
-		Chip->SetColorAndOpacity(ChipColor());
-		ChipBox = AddFill(WidgetTree, Core, Chip);
-		UOverlay* Lit = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-		FillImage = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
-		FillOverlaySlot(Lit->AddChildToOverlay(FillImage));
-		HighlightImage = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
-		UOverlaySlot* HighlightSlot = Lit->AddChildToOverlay(MakeSized(WidgetTree, HighlightImage, 0.f, BossHighlightHeight));
-		HighlightSlot->SetHorizontalAlignment(HAlign_Fill);
-		HighlightSlot->SetVerticalAlignment(VAlign_Top);
-		FillBox = AddFill(WidgetTree, Core, Lit);
-
-		// The thin dark rim round the core keeps the bar readable on bright sky; it is the bar's only backing, so it fades
-		// with the UI transparency setting. The ticks go over the rim too, so they notch its edge.
-		UBorder* RimBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		RimBorder->SetBrush(RectBrush(RimColor()));
-		MarkBackground(RimBorder);
-		RimBorder->SetPadding(FMargin(BossRim));
-		RimBorder->SetContent(Core);
-		UOverlay* Stack = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-		FillOverlaySlot(Stack->AddChildToOverlay(RimBorder));
-		TickLayer = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
-		FillOverlaySlot(Stack->AddChildToOverlay(TickLayer));
-		USizeBox* BarSize = MakeSized(WidgetTree, Stack, BarWidth, BossBarHeight);
-		BarSize->SetRenderShear(FVector2D(BossBarSlant, 0.f));
-		UVerticalBoxSlot* BarSlot = Box->AddChildToVerticalBox(BarSize);
-		BarSlot->SetHorizontalAlignment(HAlign_Center);
-		BarSlot->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
-
-		// Under the bar: the phase's name, or while the boss can't be hurt, what to do about it.
-		PhaseLabel = MakeFloatingText(WidgetTree, 12, Color::TextDim(), 200, ETextJustify::Center);
-		UVerticalBoxSlot* PhaseSlot = Box->AddChildToVerticalBox(PhaseLabel);
-		PhaseSlot->SetHorizontalAlignment(HAlign_Center);
-		PhaseSlot->SetPadding(FMargin(0.f, 5.f, 0.f, 0.f));
-
-		UCanvasPanelSlot* BoxSlot = Root->AddChildToCanvas(Box);
-		BoxSlot->SetAnchors(FAnchors(0.5f, 0.f));
-		BoxSlot->SetAlignment(FVector2D(0.5f, 0.f));
-		BoxSlot->SetPosition(FVector2D(0.f, BossBarTop));
-		BoxSlot->SetAutoSize(true);
-		Box->SetRenderOpacity(Opacity);
-		Box->SetVisibility(Opacity > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-		Cluster = Box;
-
-		ShownFillWidth = -1.f;
-		ShownChipWidth = -1.f;
-		BuildTicks();
-		ApplyTexts();
-		ApplyFill();
-		ApplyColors();
-	}
-	return Super::RebuildWidget();
 }
 
 // ---------------------------------------------------------------------------
@@ -149,7 +36,7 @@ TSharedRef<SWidget> UHudBossBarWidget::RebuildWidget()
 
 TArray<float> UHudBossBarWidget::MakeTickShares(const TArray<float>& PhaseShares)
 {
-	// The first phase starts at full health (no tick at the bar's end); a share at the very ends would sit on the rim.
+	// The first phase starts at full health (no cut at the bar's end); a share at the very ends would sit on the rim.
 	TArray<float> Shares;
 	for (int32 Index = 1; Index < PhaseShares.Num(); ++Index)
 	{
@@ -180,7 +67,8 @@ FText UHudBossBarWidget::GetNameText() const
 
 FText UHudBossBarWidget::GetLevelText() const
 {
-	return LevelLabel ? LevelLabel->GetText() : MakeLevelText(BossLevel);
+	// The gem has room for the number only; its words are the level as people read the gem.
+	return MakeLevelText(BossLevel);
 }
 
 FText UHudBossBarWidget::GetPhaseText() const
@@ -340,7 +228,7 @@ void UHudBossBarWidget::ApplyTexts()
 {
 	if (LevelLabel)
 	{
-		LevelLabel->SetText(MakeLevelText(BossLevel));
+		LevelLabel->SetText(FText::AsNumber(BossLevel));
 	}
 	if (NameLabel)
 	{
@@ -354,78 +242,29 @@ void UHudBossBarWidget::ApplyTexts()
 	}
 }
 
-void UHudBossBarWidget::BuildTicks()
-{
-	if (!TickLayer || !WidgetTree)
-	{
-		return;
-	}
-	TickLayer->ClearChildren();
-	TickImages.Reset();
-	for (const float Share : TickShares)
-	{
-		UImage* Tick = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
-		UCanvasPanelSlot* TickSlot = TickLayer->AddChildToCanvas(Tick);
-		TickSlot->SetPosition(FVector2D(BossRim + BossCoreWidth * Share - BossTickWidth * 0.5f, 0.f));
-		TickSlot->SetSize(FVector2D(BossTickWidth, BossBarHeight));
-		TickImages.Add(Tick);
-	}
-	ShownLitTicks = INDEX_NONE;
-}
-
-void UHudBossBarWidget::ApplyFill()
-{
-	if (!FillBox || !ChipBox)
-	{
-		return;
-	}
-	// In half pixels, so a draining chip only repaints when its edge visibly moves.
-	const float FillWidth = FMath::RoundToFloat(BossCoreWidth * Fraction * 2.f) * 0.5f;
-	const float ChipWidth = FMath::RoundToFloat(BossCoreWidth * ChipFraction * 2.f) * 0.5f;
-	if (FillWidth != ShownFillWidth)
-	{
-		ShownFillWidth = FillWidth;
-		FillBox->SetWidthOverride(FillWidth);
-	}
-	if (ChipWidth != ShownChipWidth)
-	{
-		ShownChipWidth = ChipWidth;
-		ChipBox->SetWidthOverride(ChipWidth);
-	}
-
-	// A tick is on the lit part while the health left is past its line; the ticks are highest first.
-	int32 LitTicks = 0;
-	for (const float Share : TickShares)
-	{
-		LitTicks += Share < Fraction ? 1 : 0;
-	}
-	if (LitTicks == ShownLitTicks)
-	{
-		return;
-	}
-	ShownLitTicks = LitTicks;
-	for (int32 Index = 0; Index < TickImages.Num() && Index < TickShares.Num(); ++Index)
-	{
-		if (UImage* Tick = TickImages[Index])
-		{
-			Tick->SetColorAndOpacity(TickShares[Index] < Fraction ? LitTickColor() : TrackTickColor());
-		}
-	}
-}
-
 void UHudBossBarWidget::ApplyColors()
 {
-	if (!FillImage || !HighlightImage || !NameLabel || !LevelLabel || !PhaseLabel)
+	if (FillBands.Num() < 3 || !FillTopLine || !FillEdge || !GemFace || !NameLabel || !PhaseLabel)
 	{
 		return;
 	}
-	const FLinearColor Fill = FMath::Lerp(Color::Health(), GreyFill(), Grey);
-	FillImage->SetColorAndOpacity(Fill);
-	HighlightImage->SetColorAndOpacity(FMath::Lerp(Fill, FLinearColor::White, 0.45f));
+	// The fill in the health bar's three bands, greying while the boss can't be hurt; its top line and leading edge the
+	// light of its edge.
+	const FLinearColor Bands[3] = { Color::HealthHi(), Color::Health(), Color::HealthLow() };
+	for (int32 Index = 0; Index < 3; ++Index)
+	{
+		FillBands[Index]->SetColorAndOpacity(BossGreyed(Bands[Index], Grey));
+	}
+	const FLinearColor Edge = BossGreyed(Color::HealthEdge(), Grey);
+	FillTopLine->SetColorAndOpacity(Edge.CopyWithNewOpacity(BossTopLineOpacity));
+	FillEdge->SetColorAndOpacity(Edge);
+	GemFace->SetColorAndOpacity(NameColor);
 	NameLabel->SetColorAndOpacity(FSlateColor(FMath::Lerp(NameColor, Color::TextDim(), Grey * 0.6f)));
-	LevelLabel->SetColorAndOpacity(FSlateColor(Color::TextDim()));
-	// A hint reads in the text color (it's what to do now); a new phase's name flashes in the accent, then settles dim.
-	const float Flash = FMath::Clamp(PhaseFlash / BossPhaseFlashSeconds, 0.f, 1.f);
+
+	// A hint reads in the text color (it's what to do now); a new phase's name flashes orange a little bigger, then
+	// settles dim, quickly at first (eased out, as the mockup's).
+	const float Flash = FMath::Square(FMath::Clamp(PhaseFlash / BossPhaseFlashSeconds, 0.f, 1.f));
 	const FLinearColor Line = bGreyed && !Hint.IsEmpty() ? Color::Text() : FMath::Lerp(Color::TextDim(), Color::Accent(), Flash);
 	PhaseLabel->SetColorAndOpacity(FSlateColor(Line));
+	PhaseLabel->SetRenderScale(FVector2D(1.f + BossPhasePop * Flash));
 }

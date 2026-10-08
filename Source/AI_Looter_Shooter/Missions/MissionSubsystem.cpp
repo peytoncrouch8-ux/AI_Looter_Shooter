@@ -1,6 +1,24 @@
 #include "Missions/MissionSubsystem.h"
 #include "Engine/World.h"
 
+// --- FMissionTrackerParts ---
+
+bool FMissionTrackerParts::SameAs(const FMissionTrackerParts& Other) const
+{
+	// FString's == ignores case; a line fixed only in its case is still new words to show.
+	return Line.Equals(Other.Line, ESearchCase::CaseSensitive)
+		&& Count.Equals(Other.Count, ESearchCase::CaseSensitive)
+		&& CountDone.Equals(Other.CountDone, ESearchCase::CaseSensitive)
+		&& Progress == Other.Progress
+		&& Required == Other.Required
+		&& Step == Other.Step
+		&& StepCount == Other.StepCount
+		&& HintKey.Equals(Other.HintKey, ESearchCase::CaseSensitive)
+		&& HintText.Equals(Other.HintText, ESearchCase::CaseSensitive)
+		&& bOverInventory == Other.bOverInventory
+		&& bDone == Other.bDone;
+}
+
 // --- FMissionBook ---
 
 int32 FMissionBook::Add(const FText& Title)
@@ -32,7 +50,7 @@ bool FMissionBook::Remove(int32 Id)
 	return true;
 }
 
-bool FMissionBook::SetObjective(int32 Id, const FText& Text, const TOptional<FVector>& Waypoint)
+bool FMissionBook::SetObjective(int32 Id, const FText& Text, const TOptional<FVector>& Waypoint, const FMissionTrackerParts& Tracker)
 {
 	FMission* Mission = Missions.FindByPredicate([Id](const FMission& Each) { return Each.Id == Id; });
 	if (!Mission)
@@ -40,13 +58,18 @@ bool FMissionBook::SetObjective(int32 Id, const FText& Text, const TOptional<FVe
 		return false;
 	}
 	const bool bNewText = !Mission->Objective.EqualTo(Text);
+	const bool bNewParts = !Mission->Tracker.SameAs(Tracker);
 	const bool bWaypointCameOrWent = Mission->Waypoint.IsSet() != Waypoint.IsSet();
 	if (bNewText)
 	{
 		Mission->Objective = Text;
 	}
+	if (bNewParts)
+	{
+		Mission->Tracker = Tracker;
+	}
 	Mission->Waypoint = Waypoint;
-	return bNewText || bWaypointCameOrWent;
+	return bNewText || bNewParts || bWaypointCameOrWent;
 }
 
 bool FMissionBook::Track(int32 Id)
@@ -88,9 +111,9 @@ void UMissionSubsystem::RemoveMission(int32 Id)
 	}
 }
 
-void UMissionSubsystem::SetObjective(int32 Id, const FText& Text, const TOptional<FVector>& Waypoint)
+void UMissionSubsystem::SetObjective(int32 Id, const FText& Text, const TOptional<FVector>& Waypoint, const FMissionTrackerParts& Tracker)
 {
-	if (Book.SetObjective(Id, Text, Waypoint))
+	if (Book.SetObjective(Id, Text, Waypoint, Tracker))
 	{
 		OnMissionsChanged.Broadcast();
 	}

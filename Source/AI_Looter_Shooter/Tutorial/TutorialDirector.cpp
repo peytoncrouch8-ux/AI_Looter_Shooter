@@ -2,14 +2,10 @@
 #include "AI_Looter_Shooter.h"
 #include "Core/LooterMenuGameMode.h"
 #include "Missions/MissionDefinition.h"
-#include "Missions/MissionObjective.h"
-#include "Missions/MissionPlayerObjectives.h"
 #include "Missions/MissionRunner.h"
 #include "Missions/MissionText.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/HUD/LooterHUD.h"
-#include "UI/HUD/TutorialPromptWidget.h"
-#include "Blueprint/UserWidget.h"
 #include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
@@ -35,13 +31,21 @@ ATutorialDirector::ATutorialDirector()
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.TickInterval = CheckInterval;
 
+	// The full sentences are the objectives' words (the Missions page); the tracker shows the short line, with the key in
+	// its hint. The mission's name is the tracker's title, so the first line doesn't repeat it.
 	Steps = {
-		{ TEXT("Welcome to Skyreach. Move with {Move} and look around with the mouse."), ETutorialGoal::Move, 600.f },
-		{ TEXT("Hold {Sprint} to run. Follow the road to the village."), ETutorialGoal::ReachRack, 900.f },
-		{ TEXT("Grab the rifle on the gun rack: look at it and press {Interact}."), ETutorialGoal::HoldWeapon, 1.f },
-		{ TEXT("Shoot the target dummies in the meadow under the windmill. {Reload} reloads."), ETutorialGoal::HitDummies, 5.f },
-		{ TEXT("Spiders nest in the woods past the pond. Hunt down two of them."), ETutorialGoal::KillCreatures, 2.f },
-		{ TEXT("Press {Inventory} to see your loadout and your weapons' stats."), ETutorialGoal::OpenInventory, 1.f },
+		{ TEXT("Welcome to Skyreach. Move with {Move} and look around with the mouse."), ETutorialGoal::Move, 600.f,
+			TEXT("Move and look around"), TEXT("Move"), TEXT("Move") },
+		{ TEXT("Hold {Sprint} to run. Follow the road to the village."), ETutorialGoal::ReachRack, 900.f,
+			TEXT("Follow the road to the village"), TEXT("Sprint"), TEXT("Hold to run") },
+		{ TEXT("Grab the rifle on the gun rack: look at it and press {Interact}."), ETutorialGoal::HoldWeapon, 1.f,
+			TEXT("Grab the rifle from the gun rack"), TEXT("Interact"), TEXT("Take it") },
+		{ TEXT("Shoot the target dummies in the meadow under the windmill. {Reload} reloads."), ETutorialGoal::HitDummies, 5.f,
+			TEXT("Shoot the target dummies"), TEXT("Reload"), TEXT("Reload") },
+		{ TEXT("Spiders nest in the woods past the pond. Hunt down two of them."), ETutorialGoal::KillCreatures, 2.f,
+			TEXT("Hunt spiders past the pond") },
+		{ TEXT("Press {Inventory} to see your loadout and your weapons' stats."), ETutorialGoal::OpenInventory, 1.f,
+			TEXT("Check your loadout"), TEXT("Inventory"), TEXT("Inventory") },
 	};
 	DoneText = TEXT("You're ready. Explore the island, and climb to the lookout on the plateau for the view.");
 	MissionTitle = TEXT("Welcome to Skyreach");
@@ -78,11 +82,6 @@ void ATutorialDirector::BeginPlay()
 
 void ATutorialDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (Prompt)
-	{
-		Prompt->RemoveFromParent();
-		Prompt = nullptr;
-	}
 	if (UMissionRunner* Runner = GetRunner())
 	{
 		Runner->OnMissionFinished.Remove(FinishedHandle);
@@ -101,24 +100,12 @@ void ATutorialDirector::Tick(float DeltaSeconds)
 		return;
 	}
 	// The runner moves the mission on, several steps at once when they're done already (the player carries a gun); the
-	// prompt follows its step.
+	// director keeps its step for the save. The HUD's mission tracker shows it from the runner's display by itself.
 	const int32 RunnerStep = Runner->GetStep(MissionId);
 	if (RunnerStep != INDEX_NONE && RunnerStep != Current)
 	{
 		Current = RunnerStep;
-		bStepShown = false;
 		UE_LOG(LogLooter, Log, TEXT("Tutorial step %d/%d"), Current + 1, Mission->Steps.Num());
-	}
-	const APlayerController* Controller = GetWorld()->GetFirstPlayerController();
-	if (UTutorialPromptWidget* Widget = GetPrompt())
-	{
-		if (!bStepShown && Mission->Steps.IsValidIndex(Current))
-		{
-			Widget->ShowStep(Current, Mission->Steps.Num(), ResolveKeys(GetStepText(*Mission, Current)));
-			bStepShown = true;
-		}
-		const ALooterHUD* HUD = Controller ? Cast<ALooterHUD>(Controller->GetHUD()) : nullptr;
-		Widget->SetSuppressed(HUD && HUD->IsMenuOpen() && !IsInventoryStep(*Mission, Current));
 	}
 }
 
@@ -128,12 +115,28 @@ void ATutorialDirector::Restart()
 	{
 		Progression->SetTutorialDone(false);
 	}
+	// A closing line still up from the last run goes, so the tracker shows the first step at once.
+	if (ALooterHUD* HUD = GetHUD())
+	{
+		HUD->ClearMissionClosingLine();
+	}
 	SetActorTickEnabled(true);
 	StartStep(0);
+	// The tracker shows the tracked mission: started again beside another one (the skiff), the tutorial takes it back.
+	UMissionRunner* Runner = GetRunner();
+	if (Runner && Runner->IsRunning(MissionId))
+	{
+		Runner->TrackMission(MissionId);
+	}
 }
 
 void ATutorialDirector::Skip()
 {
+	// Skipped: no closing line; the tracker ticks the mission off as it ends and moves on to what's tracked next.
+	if (ALooterHUD* HUD = GetHUD())
+	{
+		HUD->ClearMissionClosingLine();
+	}
 	Finish(/*bShowDone*/ false);
 }
 
@@ -162,7 +165,6 @@ void ATutorialDirector::StartStep(int32 Index)
 		return;
 	}
 	Current = Index;
-	bStepShown = false;
 	UE_LOG(LogLooter, Log, TEXT("Tutorial step %d/%d"), Index + 1, Mission->Steps.Num());
 	// The runner checks the step's objectives from here on, and passes at once the ones already done (it may even finish
 	// the tutorial right here, which ends it through HandleMissionFinished).
@@ -192,17 +194,12 @@ void ATutorialDirector::Finish(bool bShowDone)
 	{
 		Progression->SetTutorialDone(true);
 	}
-	if (UTutorialPromptWidget* Widget = GetPrompt())
+	// The closing line is the tracker's last, ticked line under the tutorial's name, with every step done.
+	const UMissionDefinition* Mission = bShowDone ? GetMission() : nullptr;
+	ALooterHUD* HUD = bShowDone ? GetHUD() : nullptr;
+	if (Mission && HUD)
 	{
-		if (bShowDone)
-		{
-			Widget->SetSuppressed(false);
-			Widget->ShowDone(ResolveKeys(DoneText), DoneSeconds);
-		}
-		else
-		{
-			Widget->HideNow();
-		}
+		HUD->ShowMissionClosingLine(Mission->Title, Mission->Steps.Num(), ResolveKeys(DoneText), DoneSeconds);
 	}
 	UE_LOG(LogLooter, Log, TEXT("Tutorial %s"), bShowDone ? TEXT("complete") : TEXT("skipped"));
 }
@@ -221,6 +218,12 @@ UMissionRunner* ATutorialDirector::GetRunner() const
 	return GetWorld() ? GetWorld()->GetSubsystem<UMissionRunner>() : nullptr;
 }
 
+ALooterHUD* ATutorialDirector::GetHUD() const
+{
+	const UWorld* World = GetWorld();
+	return World ? ALooterHUD::FindFor(World->GetFirstPlayerController()) : nullptr;
+}
+
 const UMissionDefinition* ATutorialDirector::GetMission()
 {
 	UMissionRunner* Runner = GetRunner();
@@ -237,34 +240,6 @@ const UMissionDefinition* ATutorialDirector::GetMission()
 	Runner->RegisterDefinition(BuiltIn);
 	UE_LOG(LogLooter, Log, TEXT("Tutorial: no mission asset has the id %s, so its built-in steps are the mission."), *MissionId.ToString());
 	return Runner->FindDefinition(MissionId);
-}
-
-FString ATutorialDirector::GetStepText(const UMissionDefinition& Mission, int32 Index) const
-{
-	const UMissionObjective* Objective = Mission.GetObjective(Index, 0);
-	return Objective ? Objective->Text.ToString() : FString();
-}
-
-bool ATutorialDirector::IsInventoryStep(const UMissionDefinition& Mission, int32 Index) const
-{
-	return Cast<UMissionOpenPageObjective>(Mission.GetObjective(Index, 0)) != nullptr;
-}
-
-UTutorialPromptWidget* ATutorialDirector::GetPrompt()
-{
-	if (!Prompt)
-	{
-		APlayerController* Controller = GetWorld()->GetFirstPlayerController();
-		if (Controller && Controller->IsLocalController())
-		{
-			Prompt = CreateWidget<UTutorialPromptWidget>(Controller, UTutorialPromptWidget::StaticClass());
-			if (Prompt)
-			{
-				Prompt->AddToViewport(/*ZOrder*/ 5);
-			}
-		}
-	}
-	return Prompt;
 }
 
 FString ATutorialDirector::ResolveKeys(const FString& Text) const

@@ -4,9 +4,10 @@ them. Run it in the open editor once the C++ with UMissionDefinition is built:
 It prints a MISSIONS line per mission and step, and "MISSIONS done" at the end. Running it again rebuilds these
 missions (fields, steps and rewards) from what's written here; other mission assets are left alone.
 
-  DA_Mission_Tutorial  "Welcome to Skyreach", the tutorial island's steps as objectives. It must say what the tutorial
-                       director's built-in steps say (ATutorialDirector's constructor): the director plays the asset,
-                       and Looter.Missions.TutorialMission compares the two objective by objective.
+  DA_Mission_Tutorial  "Welcome to Skyreach", the tutorial island's steps as objectives, with the HUD mission tracker's
+                       short lines and key hints, counting the dummies' hits and the spiders. It must say what the
+                       tutorial director's built-in steps say (ATutorialDirector's constructor): the director plays the
+                       asset, and Looter.Missions.TutorialMission compares the two objective by objective.
   DA_Mission_BoardSkiff "Board the skiff", leaving Skyreach: its own mission, not a seventh tutorial step. Skyreach's
                        jetty (ASkiffJetty) starts it whenever the tutorial is done and the player hasn't cast off for the
                        first time (after the tutorial, after skipping it, and for sessions that finished it before the
@@ -123,11 +124,16 @@ def place(cls_name=None, tag=None, location=(0.0, 0.0, 0.0), radius=500.0, ignor
 
 
 def objective(asset, cls, text, waypoint=None, waypoint_class=None, waypoint_tag=None, pass_without_targets=False,
-              show_count=True, **settings):
+              show_count=True, short='', hint_action='', hint='', **settings):
     """One objective, made inside the asset (its outer) so it's saved with it. With waypoint ACTOR, the arrow points at
-    the nearest actor of waypoint_class and/or carrying waypoint_tag."""
+    the nearest actor of waypoint_class and/or carrying waypoint_tag. text is the full sentence (the Missions page);
+    short is the HUD mission tracker's line (empty: text), and hint_action/hint its key hint (a binding id such as
+    Reload, Move for the movement keys, and what the key does; none when empty)."""
     made = unreal.new_object(cls, asset)
     made.set_editor_property('text', unreal.Text(text))
+    made.set_editor_property('short_text', unreal.Text(short))
+    made.set_editor_property('hint_action', unreal.Name(hint_action))
+    made.set_editor_property('hint_text', unreal.Text(hint))
     if waypoint is not None:
         made.set_editor_property('waypoint', waypoint)
     if waypoint_class or waypoint_tag:
@@ -161,34 +167,42 @@ def rewards(experience_share=0.0, unlock_areas=(), gun=False, gun_rarity_floor='
 
 def tutorial_steps(asset):
     """The tutorial island's six steps, word for word and number for number as ATutorialDirector's built-in ones
-    (TutorialDirectorMission.cpp makes the same objectives from them)."""
+    (TutorialDirectorMission.cpp makes the same objectives from them): the full sentences for the Missions page, and the
+    HUD tracker's short lines and key hints (the mission's name is the tracker's title, so step 1 doesn't repeat it)."""
     waypoint = unreal.MissionWaypoint
     return [
         # Moving at all; the road leads to the village and its gun rack, so the arrow already points there.
         step(objective(asset, unreal.MissionTravelObjective,
                        'Welcome to Skyreach. Move with {Move} and look around with the mouse.',
+                       short='Move and look around', hint_action='Move', hint='Move',
                        waypoint=waypoint.ACTOR, waypoint_class='WeaponRack', distance=600.0)),
         # Within 9 m of the gun rack, on the map; a level without one passes it.
         step(objective(asset, unreal.MissionReachObjective,
                        'Hold {Sprint} to run. Follow the road to the village.',
+                       short='Follow the road to the village', hint_action='Sprint', hint='Hold to run',
                        pass_without_targets=True, place=place('WeaponRack', radius=900.0))),
         # Carrying a gun; the arrow on the rifle lying on the rack (the rack once it's taken).
         step(objective(asset, unreal.MissionCollectObjective,
                        'Grab the rifle on the gun rack: look at it and press {Interact}.',
+                       short='Grab the rifle from the gun rack', hint_action='Interact', hint='Take it',
                        waypoint=waypoint.ACTOR, waypoint_class='WeaponRack', what=unreal.MissionCollect.WEAPONS, count=1)),
-        # Five of the player's hits on any dummy; the arrow on the training ground's middle.
+        # Five of the player's hits on any dummy, counted on the tracker; the arrow on the training ground's middle.
         step(objective(asset, unreal.MissionHitObjective,
                        'Shoot the target dummies in the meadow under the windmill. {Reload} reloads.',
-                       waypoint=waypoint.TARGETS_CENTER, pass_without_targets=True, show_count=False,
+                       short='Shoot the target dummies', hint_action='Reload', hint='Reload',
+                       waypoint=waypoint.TARGETS_CENTER, pass_without_targets=True,
                        target=actor_filter('TargetDummy'), count=5, player_hits_only=True)),
-        # Two of the player's kills of any creature; the arrow on the nearest spider (any creature without one).
+        # Two of the player's kills of any creature, counted on the tracker; the arrow on the nearest spider (any
+        # creature without one).
         step(objective(asset, unreal.MissionKillObjective,
                        'Spiders nest in the woods past the pond. Hunt down two of them.',
-                       waypoint=waypoint.ACTOR, waypoint_class='SpiderCreature', pass_without_targets=True, show_count=False,
+                       short='Hunt spiders past the pond',
+                       waypoint=waypoint.ACTOR, waypoint_class='SpiderCreature', pass_without_targets=True,
                        target=actor_filter('CreatureBase'), count=2, player_kills_only=True)),
         # The inventory, open on any page; no arrow.
         step(objective(asset, unreal.MissionOpenPageObjective,
                        "Press {Inventory} to see your loadout and your weapons' stats.",
+                       short='Check your loadout', hint_action='Inventory', hint='Inventory',
                        waypoint=waypoint.NONE, page=unreal.MissionPage.ANY)),
     ]
 

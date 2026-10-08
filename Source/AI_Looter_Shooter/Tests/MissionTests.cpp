@@ -23,7 +23,10 @@
 
 namespace
 {
-	/** An objective's rule in a line (its kind and every setting that decides when it's done and where it points), to compare two copies. */
+	/**
+	 * An objective's rule in a line (its kind and every setting that decides when it's done and where it points) and its
+	 * words (in full, and the tracker's short line and key hint), to compare two copies.
+	 */
 	FString RuleOf(const UMissionObjective* Objective)
 	{
 		if (!Objective)
@@ -33,6 +36,8 @@ namespace
 		FString Rule = FString::Printf(TEXT("%s \"%s\" waypoint=%d on=%s pass=%d count=%d"), *Objective->GetClass()->GetName(), *Objective->Text.ToString(),
 			static_cast<int32>(Objective->Waypoint), *GetNameSafe(Objective->WaypointActor.ActorClass.Get()),
 			static_cast<int32>(Objective->bPassWithoutTargets), static_cast<int32>(Objective->bShowCount));
+		Rule += FString::Printf(TEXT(" short=\"%s\" hint=%s \"%s\""), *Objective->ShortText.ToString(), *Objective->HintAction.ToString(),
+			*Objective->HintText.ToString());
 		if (const UMissionTravelObjective* Travel = Cast<UMissionTravelObjective>(Objective))
 		{
 			Rule += FString::Printf(TEXT(" distance=%.0f"), Travel->Distance);
@@ -115,6 +120,27 @@ bool FMissionTrackingTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("No waypoint now"), Book.Find(Third)->Waypoint.IsSet());
 	TestTrue(TEXT("New text is a change"), Book.SetObjective(Third, FText::FromString(TEXT("Come back")), TOptional<FVector>()));
 	TestFalse(TEXT("Unknown mission's objective is ignored"), Book.SetObjective(999, FText::FromString(TEXT("Nope")), FVector::ZeroVector));
+
+	// The HUD tracker's parts: new ones are a change to show, the same ones again aren't, and the words count to the letter.
+	const FText ComeBack = FText::FromString(TEXT("Come back"));
+	FMissionTrackerParts Parts;
+	Parts.Line = TEXT("Come back");
+	Parts.Count = TEXT("0 / 2");
+	Parts.CountDone = TEXT("2 / 2");
+	Parts.Required = 2;
+	Parts.Step = 1;
+	Parts.StepCount = 3;
+	TestTrue(TEXT("New tracker parts are a change"), Book.SetObjective(Third, ComeBack, TOptional<FVector>(), Parts));
+	TestTrue(TEXT("The parts are kept"), Book.Find(Third)->Tracker.SameAs(Parts));
+	TestFalse(TEXT("The same parts again are no change"), Book.SetObjective(Third, ComeBack, TOptional<FVector>(), Parts));
+	Parts.Count = TEXT("1 / 2");
+	Parts.Progress = 1;
+	TestTrue(TEXT("A count that rose is a change, the words the same"), Book.SetObjective(Third, ComeBack, TOptional<FVector>(), Parts));
+	Parts.Line = TEXT("come back");
+	TestTrue(TEXT("A line changed only in its case is a change"), Book.SetObjective(Third, ComeBack, TOptional<FVector>(), Parts));
+	Parts.HintKey = TEXT("R");
+	TestTrue(TEXT("A new hint is a change"), Book.SetObjective(Third, ComeBack, TOptional<FVector>(), Parts));
+	TestEqual(TEXT("and kept"), Book.Find(Third)->Tracker.HintKey, FString(TEXT("R")));
 
 	// Removing: an untracked one leaves tracking alone; the tracked one hands over to the mission that took its place.
 	TestTrue(TEXT("Remove untracked"), Book.Remove(First));
@@ -289,6 +315,9 @@ bool FTutorialMissionTest::RunTest(const FString& Parameters)
 			continue;
 		}
 		TestEqual(*(What + TEXT(": the same words")), Objective->Text.ToString(), Step.Text);
+		TestEqual(*(What + TEXT(": the tracker's short line")), Objective->ShortText.ToString(), Step.ShortText);
+		TestTrue(*(What + TEXT(": the tracker's key hint")), Objective->HintAction == Step.HintAction
+			&& Objective->HintText.ToString() == Step.HintText);
 		const int32 Amount = FMath::RoundToInt32(Step.Amount);
 		switch (Step.Goal)
 		{
@@ -316,15 +345,15 @@ bool FTutorialMissionTest::RunTest(const FString& Parameters)
 		case ETutorialGoal::HitDummies:
 		{
 			const UMissionHitObjective* Hit = Cast<UMissionHitObjective>(Objective);
-			TestTrue(*(What + TEXT(": the player's hits on dummies, the arrow on the training ground")), Hit && Hit->Target.ActorClass == ATargetDummy::StaticClass()
-				&& Hit->Count == Amount && Hit->bPlayerHitsOnly && Hit->bPassWithoutTargets && Hit->Waypoint == EMissionWaypoint::TargetsCenter);
+			TestTrue(*(What + TEXT(": the player's hits on dummies, counted, the arrow on the training ground")), Hit && Hit->Target.ActorClass == ATargetDummy::StaticClass()
+				&& Hit->Count == Amount && Hit->bPlayerHitsOnly && Hit->bPassWithoutTargets && Hit->bShowCount && Hit->Waypoint == EMissionWaypoint::TargetsCenter);
 			break;
 		}
 		case ETutorialGoal::KillCreatures:
 		{
 			const UMissionKillObjective* Kill = Cast<UMissionKillObjective>(Objective);
-			TestTrue(*(What + TEXT(": the player's kills of creatures, the arrow on the nearest spider")), Kill && Kill->Target.ActorClass == ACreatureBase::StaticClass()
-				&& Kill->Count == Amount && Kill->bPlayerKillsOnly && Kill->bPassWithoutTargets && Kill->Waypoint == EMissionWaypoint::Actor);
+			TestTrue(*(What + TEXT(": the player's kills of creatures, counted, the arrow on the nearest spider")), Kill && Kill->Target.ActorClass == ACreatureBase::StaticClass()
+				&& Kill->Count == Amount && Kill->bPlayerKillsOnly && Kill->bPassWithoutTargets && Kill->bShowCount && Kill->Waypoint == EMissionWaypoint::Actor);
 			break;
 		}
 		case ETutorialGoal::OpenInventory:

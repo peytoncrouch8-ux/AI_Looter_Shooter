@@ -6,6 +6,7 @@
 #include "UI/Inventory/MissionsWidget.h"
 #include "UI/Menus/SettingsMenuWidget.h"
 #include "UI/HUD/HudCaptionWidget.h"
+#include "UI/HUD/HudMissionTrackerWidget.h"
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/World/StationBoardWidget.h"
 #include "Areas/StationBoard.h"
@@ -60,6 +61,13 @@ void ALooterHUD::BeginPlay()
 	if (CaptionWidget)
 	{
 		CaptionWidget->AddToViewport(UHudCaptionWidget::ViewportZOrder);
+	}
+	// The mission tracker is its own widget too, over the inventory's pages: it stays up on a step done in the inventory
+	// (the tutorial's last), and follows the tracked mission and the menus by itself.
+	MissionTracker = CreateWidget<UHudMissionTrackerWidget>(PC, UHudMissionTrackerWidget::StaticClass());
+	if (MissionTracker)
+	{
+		MissionTracker->AddToViewport(UHudMissionTrackerWidget::ViewportZOrder);
 	}
 	InventoryWidget = CreateWidget<ULoadoutWidget>(PC, ULoadoutWidget::StaticClass());
 	BestiaryWidget = CreateWidget<UBestiaryWidget>(PC, UBestiaryWidget::StaticClass());
@@ -400,5 +408,25 @@ void ALooterHUD::SaveAndQuit()
 	if (USessionSubsystem* Sessions = USessionSubsystem::Get(this))
 	{
 		Sessions->SaveAndQuitToMenu();
+	}
+}
+
+// ---------------------------------------------------------------------------
+// The mission tracker
+// ---------------------------------------------------------------------------
+
+void ALooterHUD::ShowMissionClosingLine(const FText& Title, int32 StepCount, const FString& Line, float Seconds)
+{
+	if (MissionTracker)
+	{
+		MissionTracker->ShowClosingLine(Title, StepCount, Line, Seconds);
+	}
+}
+
+void ALooterHUD::ClearMissionClosingLine()
+{
+	if (MissionTracker)
+	{
+		MissionTracker->ClearClosingLine();
 	}
 }

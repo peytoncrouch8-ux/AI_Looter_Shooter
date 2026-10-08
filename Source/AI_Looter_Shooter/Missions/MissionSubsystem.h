@@ -4,8 +4,40 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "MissionSubsystem.generated.h"
 
-/** Missions changed: one was added or removed, another is tracked, or an objective's text or waypoint came or went. */
+/** Missions changed: one was added or removed, another is tracked, or an objective's text, tracker parts or waypoint came or went. */
 DECLARE_MULTICAST_DELEGATE(FOnMissionsChanged);
+
+/**
+ * What the HUD's mission tracker shows for a mission, in parts: the objective's short line, its count, the step bar and
+ * the key hint. UMissionRunner fills it beside the objective's full words (UMissionObjective::FillTrackerParts, plus the
+ * step); the tracker builds its closing line from one too.
+ */
+struct AI_LOOTER_SHOOTER_API FMissionTrackerParts
+{
+	/** The short line ("Shoot the target dummies"): the objective's ShortText, else its words, with the player's keys. */
+	FString Line;
+	/** How far along, "2 / 5" ("12 s / 30 s" holding out); empty when it counts a single thing or hides its count. */
+	FString Count;
+	/** The count as it reads once done ("5 / 5"), shown as it ticks; empty with Count. */
+	FString CountDone;
+	/** The count and the count that finishes it, so a rising count can pop (both 0 while the count is hidden). */
+	int32 Progress = 0;
+	int32 Required = 0;
+	/** The step being played (0-based) and how many the mission has: the step bar's sections. */
+	int32 Step = 0;
+	int32 StepCount = 1;
+	/** The key the hint teaches as the player bound it, as a keycap shows it ("R", "W A S D"); empty: no hint. */
+	FString HintKey;
+	/** What the key does ("Reload", "Hold to run"). */
+	FString HintText;
+	/** It's done in the inventory (opening a page of it), so the tracker stays up over the inventory to show it tick. */
+	bool bOverInventory = false;
+	/** Shown done, ticked: the tutorial's closing line. */
+	bool bDone = false;
+
+	/** Every part the same, words compared exactly (case too). */
+	bool SameAs(const FMissionTrackerParts& Other) const;
+};
 
 /** One mission the player has going: what it's called, what to do next, and where (if it's somewhere). */
 struct FMission
@@ -13,8 +45,10 @@ struct FMission
 	/** Given when it's added; never reused in the same world. */
 	int32 Id = INDEX_NONE;
 	FText Title;
-	/** What to do next ("Shoot the target dummies..."). */
+	/** What to do next, in full ("Shoot the target dummies in the meadow under the windmill. [R] reloads. (2/5)"). */
 	FText Objective;
+	/** The same for the HUD's mission tracker, in parts (the short line, the count, the step, the hint). */
+	FMissionTrackerParts Tracker;
 	/** Where the objective is, for the minimap's compass arrow; unset when it isn't anywhere in particular. */
 	TOptional<FVector> Waypoint;
 };
@@ -34,11 +68,13 @@ public:
 	bool Remove(int32 Id);
 
 	/**
-	 * Sets a mission's objective and waypoint. Returns true when a mission list would show the change (new text, or a
-	 * waypoint appearing or going away); false when nothing changed or the waypoint only moved, which happens all the time
-	 * (a hunted creature walks) and only the map, which reads it every frame, cares about.
+	 * Sets a mission's objective, its tracker parts and its waypoint. Returns true when a mission list or the tracker would
+	 * show the change (new text or parts, or a waypoint appearing or going away); false when nothing changed or the
+	 * waypoint only moved, which happens all the time (a hunted creature walks) and only the map, which reads it every
+	 * frame, cares about.
 	 */
-	bool SetObjective(int32 Id, const FText& Text, const TOptional<FVector>& Waypoint);
+	bool SetObjective(int32 Id, const FText& Text, const TOptional<FVector>& Waypoint,
+		const FMissionTrackerParts& Tracker = FMissionTrackerParts());
 
 	/** Tracks a mission, or none with INDEX_NONE. False when nothing changed (already tracked, or no such mission). */
 	bool Track(int32 Id);
@@ -73,8 +109,12 @@ public:
 	/** Removes a mission; if it was tracked, the next one is. Unknown ids are ignored. */
 	void RemoveMission(int32 Id);
 
-	/** The mission's next step and where it is (unset: nowhere in particular). Call it as often as the target moves. */
-	void SetObjective(int32 Id, const FText& Text, const TOptional<FVector>& Waypoint);
+	/**
+	 * The mission's next step in full, in the tracker's parts, and where it is (unset: nowhere in particular). Call it as
+	 * often as the target moves.
+	 */
+	void SetObjective(int32 Id, const FText& Text, const TOptional<FVector>& Waypoint,
+		const FMissionTrackerParts& Tracker = FMissionTrackerParts());
 
 	/** Tracks a mission (the map guides to it); INDEX_NONE tracks none. Unknown ids are ignored. */
 	void TrackMission(int32 Id);
@@ -94,7 +134,10 @@ public:
 	/** Every active mission, in the order they were added. */
 	const TArray<FMission>& GetMissions() const { return Book.GetMissions(); }
 
-	/** Missions were added or removed, tracking moved, or an objective's text or waypoint came or went (not mere moves). */
+	/**
+	 * Missions were added or removed, tracking moved, or an objective's text, tracker parts or waypoint came or went (not
+	 * mere moves). The HUD's mission tracker listens.
+	 */
 	FOnMissionsChanged OnMissionsChanged;
 
 protected:

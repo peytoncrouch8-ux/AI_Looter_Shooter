@@ -216,8 +216,13 @@ void UMissionRunner::SyncDisplay()
 		{
 			Run.BookId = Display->AddMission(Mission->Title);
 		}
-		// The first objective not done yet is what the tracker says; the arrow points to the first one that is somewhere.
+		// The first objective not done yet is what the tracker says (in full, and in the HUD tracker's parts: its short
+		// line, count and hint, with the step bar's step); the arrow points to the first one that is somewhere.
 		FString Line;
+		FMissionTrackerParts Tracker;
+		Tracker.Step = Run.Step;
+		Tracker.StepCount = Mission->Steps.Num();
+		bool bLineFound = false;
 		TOptional<FVector> Target;
 		for (int32 Index = 0; Index < Run.States.Num(); ++Index)
 		{
@@ -227,17 +232,20 @@ void UMissionRunner::SyncDisplay()
 			{
 				continue;
 			}
-			if (Line.IsEmpty())
+			if (!bLineFound)
 			{
 				Line = Objective->GetTrackerText(Context.World, State);
+				Objective->FillTrackerParts(Context.World, State, Tracker);
+				bLineFound = true;
 			}
 			if (!Target.IsSet())
 			{
 				Target = Objective->FindWaypoint(Context, State);
 			}
 		}
-		// Unchanged words and a waypoint that only moved don't wake the display's listeners, so this is cheap to repeat.
-		Display->SetObjective(Run.BookId, FText::FromString(Line), Target);
+		// Unchanged words and parts, and a waypoint that only moved, don't wake the display's listeners, so this is cheap
+		// to repeat.
+		Display->SetObjective(Run.BookId, FText::FromString(Line), Target, Tracker);
 	}
 }
 

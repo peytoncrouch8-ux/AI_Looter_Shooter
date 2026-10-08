@@ -58,6 +58,51 @@ namespace LooterUI
 		FLinearColor IconShade();
 		/** The cloud bank's white: the transition screen between places, which the title card rises through. */
 		FLinearColor Cloud();
+
+		// --- The HUD's metalwork and bars (the player frame, weapons, mission tracker, boss bar) ---
+
+		/** Gunmetal bezels lit from the top-left: the upper half runs MetalHi to MetalMid, the lower MetalLow to MetalDeep. */
+		FLinearColor MetalHi();
+		FLinearColor MetalMid();
+		FLinearColor MetalLow();
+		FLinearColor MetalDeep();
+		/** A bar's bezel, top to bottom. */
+		FLinearColor BarMetalHi();
+		FLinearColor BarMetalLow();
+		/** Rims and edges of the metalwork (the same as FrameEdge). */
+		FLinearColor Ink();
+		/** Bar tracks: the dark behind a bar's fill (a background; alpha set per use). */
+		FLinearColor Track();
+		/** Cyan hairlines inside bezels, and keycap edges. */
+		FLinearColor Hairline();
+		/** The level gem's two flat halves. */
+		FLinearColor GemLight();
+		FLinearColor GemDark();
+		/** Experience sections and finished mission steps: the two halves. */
+		FLinearColor XPLight();
+		FLinearColor XPDark();
+		/** The current mission step's upper half, over Accent. */
+		FLinearColor AccentLight();
+		/** Counts, and the level-up banner's line. */
+		FLinearColor CyanText();
+		/** The health fill's top and bottom bands (Health is the middle one), its leading edge and the damage chip. */
+		FLinearColor HealthHi();
+		FLinearColor HealthLow();
+		FLinearColor HealthEdge();
+		FLinearColor HealthChip();
+		/** The health number at low health. */
+		FLinearColor HealthLowText();
+		/** The red flash of the portrait's window and the screen's edges. */
+		FLinearColor Hurt();
+		/** "/ 100" after the health number. */
+		FLinearColor NumberDim();
+		/** The cartridge's reserve count. */
+		FLinearColor ReserveText();
+		/** Keycap plates, top to bottom. */
+		FLinearColor KeycapTop();
+		FLinearColor KeycapBottom();
+		/** The heal number and shine (the same as Better). */
+		FLinearColor Heal();
 	}
 
 	enum class EShape : uint8
@@ -162,6 +207,47 @@ namespace LooterUI
 
 	/** The icon as large as fits inside Box (keeping its shape), drawn at twice that size. */
 	FSlateBrush InkedIconBrush(FName Name, const FInkedIcon& Icon, const FVector2D& Box, const FLinearColor& Tint = FLinearColor::White);
+
+	/**
+	 * One layer of a painted picture: filled polygons (even-odd together, so a polygon inside another cuts a hole) and/or
+	 * stroked polylines (round joins and caps), all in one color or a straight two-color gradient. View-box units, y down.
+	 */
+	struct FPaintLayer
+	{
+		TArray<TArray<FVector2D>> Fills;
+		TArray<TArray<FVector2D>> Strokes;   // open polylines; repeat the first point at the end to close one
+		float StrokeWidth = 1.f;             // view-box units
+		FLinearColor Color = FLinearColor::White;
+		/** When set, the color runs from Color at GradientStart to GradientTo at GradientEnd (projected, clamped). */
+		TOptional<FLinearColor> GradientTo;
+		FVector2D GradientStart = FVector2D::ZeroVector;
+		FVector2D GradientEnd = FVector2D::ZeroVector;
+		/** The whole layer's opacity, on top of its colors' alpha. */
+		float Opacity = 1.f;
+		/**
+		 * The gradient runs out in rings round GradientStart instead: Color there, GradientTo from GradientEnd's distance
+		 * on (the portrait's glass). Gradients mix in display (sRGB) space, as a browser draws the mockups' gradients.
+		 */
+		bool bRadialGradient = false;
+	};
+
+	/** A picture in its own colors (bezels, gems, the portrait): layers painted back to front, anti-aliased. */
+	struct FPaintedIcon
+	{
+		FVector2D ViewBox = FVector2D(24.f, 24.f);
+		TArray<FPaintLayer> Layers;
+	};
+
+	/**
+	 * The picture drawn into a texture once per name and resolution (then shared, kept for the session), as a brush of
+	 * the given size. Keep Tint white to show its own colors; alpha fades it. PixelsPerUnit: aim for about twice the
+	 * drawn size. Colors are FLinearColor (from Hex), stored sRGB in the texture, so they show exactly as given.
+	 */
+	FSlateBrush PaintedIconBrush(FName Name, const FPaintedIcon& Icon, float PixelsPerUnit, const FVector2D& Size,
+		const FLinearColor& Tint = FLinearColor::White);
+
+	/** A soft round glow: white in the middle, falling smoothly to nothing at the rim, tinted (eye glows, banner, gun glow). */
+	FSlateBrush GlowBrush(const FVector2D& Size, const FLinearColor& Tint);
 
 	FButtonStyle ButtonStyle(EButtonKind Kind, bool bHighlighted);
 	FLinearColor ButtonTextColor(EButtonKind Kind, bool bHighlighted);

@@ -133,7 +133,7 @@ The gang's leader and Ellis's mentor, almost a father. He was a preacher thrown 
 Skyreach is where players get their bearings and learn the controls, and later a practice island they can come back to. It has no place in the story.
 - In the game it is `/Game/Maps/Lvl_TutorialIsland`, called Skyreach in its text (“Welcome to Skyreach”). It is not the old sky-islands map (`Lvl_Skyreach`), which stays only for reference.
 - It stays a floating island. Teropa has none, and the story never explains it.
-- It keeps its six neutral steps and their wording. Leaving it is one new mission, “Board the skiff”.
+- It keeps its six neutral steps and their wording: the full sentences stay as the objectives' text, which the Missions page shows, and only the HUD's mission tracker shortens them (“Shoot the target dummies”, with the key in a hint under it). Leaving it is one new mission, “Board the skiff”.
 - It stays reachable as a practice island after the first cast-off (see *Back to Skyreach for practice*).
 - No story character, name, line or plot appears there. Hob doesn't come along or comment there. The story never names Skyreach.
 - Its creatures give no XP, and on return visits they drop only ammo by default.
