@@ -160,6 +160,32 @@ Rules that saved time:
 - Terrain meshes keep 100% Nanite fallback. Medium draws the fallback and collision is cooked from it.
 - A variant of a model (Farmhouse_Ransom) goes in the same script, with the original exported byte-identical.
 
+## Packaging a test build
+
+- **Run:** close the editor (`Tools\close.ps1`; no game running either), then start `Tools\package.ps1` in the
+  background.
+  - Options: `-Clean` (full rebuild and recook), `-NoZip`, `-DebugInfo` (keep .pdb files), `-OutDir <folder>`.
+  - The first run is long (every shader compiles for D3D12 SM6 and D3D11 SM5); later ones reuse the derived data cache.
+  - Progress: `Saved\Logs\Package.log` (UAT's whole log). A failure prints the first errors.
+- **What it makes:** `Saved\Packaging\<date-time>\Windows\` (run `AI_Looter_Shooter.exe`) and beside it
+  `AI_Looter_Shooter_Test_<date-time>.zip`; the script prints the zip's path, size and the time taken. A Windows
+  Development build: logs and the console (`~`, the `Looter.*` commands) stay in. `-prereqs` adds the Visual C++
+  runtime installer.
+- **What is cooked** (`Config/DefaultGame.ini`, `[/Script/UnrealEd.ProjectPackagingSettings]`): `Lvl_TutorialIsland`
+  (also the menu's map) and `Lvl_RansomsRest` with everything they refer to, plus the `DirectoriesToAlwaysCook`.
+  Left out: `Lvl_Skyreach`, `Maps/Dev`, `Developers`, the Skyreach props, editor content. `LooterEditor` is an Editor
+  module, and the MCP plugins (`ModelContextProtocol`, `AllToolsets`) are Editor-only in the .uproject.
+- **Rule: a path in C++ is not a reference.** The cooker follows references only. A `LoadObject`, `FindIfMade`,
+  `TSoftObjectPtr(FSoftObjectPath(...))` or `TryLoadClass` on an asset nothing else refers to finds nothing in a
+  package, and the `FindIfMade` ones quietly draw a cube instead. Keep such assets under a directory in
+  `DirectoriesToAlwaysCook` (or add its directory). After a new package, look for stand-in shapes: the jetty, depot,
+  train, egg sacs, lanterns, chests, fonts.
+- **Share:** a Drive, OneDrive or Dropbox link to the zip (no new upload tool without the user's OK). The friend unzips
+  somewhere writable (not Program Files) and runs `AI_Looter_Shooter.exe`; the first launch compiles pipeline states
+  while the level loads. A GPU without D3D12 SM6 starts it with `-dx11`.
+- **Saves and logs sit beside the game, not in AppData:** a packaged Development build isn't an "installed" one, so
+  they go to `<unzipped>\AI_Looter_Shooter\Saved\` (SaveGames, Logs, Crashes). Ask a tester for the log after a bug.
+
 ## The Style Lab (art styles previewed in the game's scene, without Unreal)
 
 `Tools/StyleLab/` (README there) rebuilds a piece of Ransom's Rest in three.js from the game's own sources and lays the
@@ -219,6 +245,9 @@ styles the user chooses from).
 | The editor crashed in the boss bar test (HUD upgrade) | `Outline.Add(Outline[0])`: TArray asserts when it adds a reference to its own element, since the add may reallocate | Add a copy, `Outline.Add(FVector2D(Outline[0]))`; grep new code for `X.Add(X[` before building |
 | HUD text came out a third bigger than the mockup | Slate sets a font's Size in points at 96 DPI, so Size 18 draws 24 px; the mockups use CSS px | Known and kept: the user chose the larger text (2026-10-07), so mockup px stay the Slate Size; a mockup's px × 0.75 would match it exactly |
 | Keycap corners drew twice their size; the boss hatch leaned 26° | Slate sizes a Box brush's ends and repeats a tiled brush in the texture's own texels, not by `ImageSize` | Make such brushes' textures at 1 texel per slate unit (`PaintedIconBrush` at PixelsPerUnit 1) |
+| The first test build failed to compile (11 errors) | `ADirectionalLight::GetComponent()` and `UStaticMesh::IsNaniteEnabled()` exist only in editor builds; the lighting code read the sun through the first, so a packaged game would have broken | `Cast<UDirectionalLightComponent>(Sun->GetLightComponent())`; the test's Nanite check under `WITH_EDITOR`. Editor builds never catch these: package to find them |
+| Editor automation plugins would have shipped in the game | `ModelContextProtocol` and `AllToolsets` had no `TargetAllowList` (one is marked NoRedist) | `"TargetAllowList": ["Editor"]` in the .uproject |
+| The first cook stopped: "Content is missing from cook" | The engine's Landmass plugin loads startup materials that refer to `/Engine/EditorMaterials`, which `-SkipCookingEditorContent` marks never-cook | The flag dropped from `package.ps1` and the ini (`bSkipEditorContent=False`) |
 | A hit tinted the whole screen red | The old hurt camera fade (`PlayerVitalsSubsystem`, up to 55%) on top of the new red edges | The fade on hits removed; the HUD shows hits (edges, portrait, chip); death and respawn fades kept |
 | The gun's name stopped short of the right edge, its gem far from it | A scale box fitted the name to the 24 px line's height (shrinking every name) and centred the rest | No scale box: `FitWeaponName` measures a long name and sets it smaller |
 | The Gravemother spawned stuck in her den's wall | The den's floor is part of Den Rock, tagged Obstacle, so its spots were refused; the fallback spot was checked with a man-sized capsule | Room for the largest body; the floor inside a lair's own rock counts as ground (`FEncounterGroundProbe`), f3e3579 |

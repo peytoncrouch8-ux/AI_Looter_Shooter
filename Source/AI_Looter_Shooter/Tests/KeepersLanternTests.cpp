@@ -346,7 +346,10 @@ bool FKeepersLanternPlacedTest::RunTest(const FString& Parameters)
 		const UStaticMesh* Mesh = Card->GetStaticMesh();
 		TestTrue(*FString::Printf(TEXT("%s (%s): no shadow, no collision"), *Card->GetOwner()->GetName(), *Mesh->GetName()),
 			!Card->CastShadow && Card->GetCollisionEnabled() == ECollisionEnabled::NoCollision);
+#if WITH_EDITOR
+		// The mesh's Nanite setting is editor-only data (a packaged Development build compiles the tests too).
 		TestFalse(*FString::Printf(TEXT("%s (%s): no Nanite"), *Card->GetOwner()->GetName(), *Mesh->GetName()), Mesh->IsNaniteEnabled());
+#endif
 	}
 	if (TestNotNull(TEXT("Hob"), Hob))
 	{

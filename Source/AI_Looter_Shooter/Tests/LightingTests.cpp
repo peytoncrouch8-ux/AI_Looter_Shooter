@@ -104,8 +104,8 @@ namespace
 		{
 			return nullptr;
 		}
-		Sun->GetComponent()->SetMobility(EComponentMobility::Movable);
-		Sun->GetComponent()->SetAtmosphereSunLight(true);
+		Cast<UDirectionalLightComponent>(Sun->GetLightComponent())->SetMobility(EComponentMobility::Movable);
+		Cast<UDirectionalLightComponent>(Sun->GetLightComponent())->SetAtmosphereSunLight(true);
 		Sky->GetLightComponent()->SetMobility(EComponentMobility::Movable);
 		Post->bUnbound = true;
 		Placed->States = LevelStates;

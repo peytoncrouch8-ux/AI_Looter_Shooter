@@ -74,7 +74,10 @@ FLightingTargets FLightingTargets::Find(const ULevel* Level, const ALightingStat
 		// The sun is the light the sky atmosphere sets by; a level with other directional lights keeps them as they are.
 		Targets.Sun = FirstActorOf<ADirectionalLight>(*Where, [](const ADirectionalLight& Light)
 		{
-			return Light.GetComponent() && Light.GetComponent()->bAtmosphereSunLight;
+			// GetLightComponent, not ADirectionalLight::GetComponent: that one is editor-only data, so a packaged game
+			// couldn't compile it (found by the first test build).
+			const UDirectionalLightComponent* Component = Cast<UDirectionalLightComponent>(Light.GetLightComponent());
+			return Component && Component->bAtmosphereSunLight;
 		});
 	}
 	if (!Targets.Sun)
@@ -133,7 +136,7 @@ void FLightingTargets::Write(const FLightingState& State) const
 	{
 		// The directional light component is the actor's root, so turning the actor turns the light.
 		Sun->SetActorRotation(State.GetSunRotation());
-		if (UDirectionalLightComponent* Light = Sun->GetComponent())
+		if (UDirectionalLightComponent* Light = Cast<UDirectionalLightComponent>(Sun->GetLightComponent()))
 		{
 			Light->SetIntensity(State.SunIntensity);
 			Light->SetUseTemperature(true);
@@ -170,7 +173,7 @@ void FLightingTargets::Write(const FLightingState& State) const
 
 void FLightingTargets::Read(FLightingState& Out) const
 {
-	if (const UDirectionalLightComponent* Light = Sun ? Sun->GetComponent() : nullptr)
+	if (const UDirectionalLightComponent* Light = Sun ? Cast<UDirectionalLightComponent>(Sun->GetLightComponent()) : nullptr)
 	{
 		FLightingState::SunAnglesFromRotation(Light->GetRelativeRotation(), Out.SunBearing, Out.SunElevation);
 		Out.SunIntensity = Light->Intensity;

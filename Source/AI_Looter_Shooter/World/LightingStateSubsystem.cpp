@@ -156,7 +156,7 @@ bool ULightingStateSubsystem::SetState(FName StateName, ELightingSwitch How, flo
 	{
 		UE_LOG(LogLooter, Warning, TEXT("Lighting: %s has no %s; that much stays as it is."), *MapName, *Missing);
 	}
-	const UDirectionalLightComponent* SunLight = Targets.Sun ? Targets.Sun->GetComponent() : nullptr;
+	const UDirectionalLightComponent* SunLight = Targets.Sun ? Cast<UDirectionalLightComponent>(Targets.Sun->GetLightComponent()) : nullptr;
 	if (SunLight && SunLight->Mobility != EComponentMobility::Movable)
 	{
 		UE_LOG(LogLooter, Warning, TEXT("Lighting: %s's sun %s isn't movable, so the game can't turn it (the build scripts place it movable)."),

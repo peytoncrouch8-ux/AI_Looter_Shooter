@@ -5,6 +5,8 @@ DerivedDataCache/
 Saved/
 Plugins/**/Binaries/
 Plugins/**/Intermediate/
+# The cook's file-open-order logs, written by every Tools\package.ps1 run.
+Build/Windows/FileOpenOrder/
 
 # Per-developer content folders.
 Content/Developers/
