@@ -166,6 +166,9 @@ Rules that saved time:
 in-game HUD over it, so art styles can be judged "in game" from a cloud session that has no Unreal (2026-10-08: the ten
 styles the user chooses from).
 
+- **Catalog:** `Docs/Art/StyleLab/Catalog.md` has all ten styles (the user's picks: 3, 4, 5, 6; 3 is on the tutorial
+  island) with each look's numbers in Unreal terms, recipe, cost and refs, plus the contact sheets in
+  `Docs/Art/StyleLab/Sheets/`. Briefs and research are beside it.
 - **Export** (`Tools/StyleLab/export/export_all.sh`, Blender's `bpy` 4.5 module under Python 3.11): the scripted models
   (GLB packs), the texture sets (webp), the terrain from the area generator, and every placement the editor build makes:
   `Tools/Unreal/build_area.py RansomsRest` runs unchanged under `mock_unreal.py`, with traces hitting the exported

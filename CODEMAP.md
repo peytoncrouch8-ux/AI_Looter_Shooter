@@ -952,3 +952,5 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   `Saved/StyleLab/export` (`export_all.sh`; `mock_unreal.py` runs `build_area.py` without Unreal); `web/engine/` is the
   three.js renderer and play, `web/styles/NN_<id>.js` one art style each (00 is today's look), `web/hud/` the HUD;
   `test/` serves it, takes stills of every style and shot, and plays it; `assemble.py` builds the site to publish.
+- `Docs/Art/StyleLab/`: `Briefs.md`, `Research.md`, `Catalog.md` (the ten styles, their Unreal recipes and numbers), `Sheets/`
+  (contact sheets, LFS jpgs).

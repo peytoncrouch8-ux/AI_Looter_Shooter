@@ -1,4 +1,4 @@
-# For the local session: the art catalog, and the tutorial island in style 3
+# For the local session: the tutorial island in style 3 (the art catalog is done)
 
 Written by the cloud session on 2026-10-08 for a session on the user's PC (the cloud has no Unreal and can't upload Git
 LFS files). The user's words: *"Have the local session catalog these in the art files, I may change art styles later
@@ -13,29 +13,12 @@ today's look, `I` shows a style's card.
 
 When a task is done, delete it from this file (and the file once both are), and keep `Docs/Handoff.md` current.
 
-## Task A: the art catalog
-
-Write the ten styles into the art docs so a later switch is quick, for example `Docs/Art/StyleLab/Catalog.md` (an
-index plus one section per style, or a file per style; keep it readable):
-
-- name, number, family, the idea in two lines, why it wows, how it sits under the HUD, its risks;
-- the user's verdict: 3, 4, 5 and 6 are the favourites, and 3 is being tried on the tutorial island;
-- the look in Unreal terms, read from each module's `env` and `post`: sun azimuth, elevation, colour and intensity;
-  sky colours and sky bodies; fog; exposure and tone mapping; the material treatment; the post passes and their key
-  numbers. Add its `unreal.recipe`, `costMs` and `refs` (URLs);
-- each style's contact sheet. They are published as files of the lab artifact: `shots/sheet_00.jpg` (today's look)
-  to `shots/sheet_10.jpg` (six shots each, 1920x1620) and `shots/ten_styles_street.jpg` (all ten on Main Street).
-  With the Artifact tool: `{action: "read", url: "https://claude.ai/artifact/WhmxkTia9qvvhqGLWDSDbr", path:
-  "shots/sheet_03.jpg"}`, then save them under `Docs/Art/StyleLab/Sheets/` (LFS takes .jpg). If you can't fetch them,
-  say so and link the artifact instead.
-- Point `Docs/Pipeline.md`'s Style Lab section and `CODEMAP.md` (if it lists docs) at the catalog.
-
 ## Task B: the tutorial island in style 3, Painted Frontier, and only the tutorial island
 
 Only `/Game/Maps/Lvl_TutorialIsland` changes. Ransom's Rest, the menu and every other level must look exactly as now,
 and the change must be easy to undo: the user will judge it in game and may switch to 4, 5 or 6.
 
-- **The look:** `03_painted.js` with `lib/painted_shaders.js` and `lib/painted_edges.js`, and the shared sky
+- **The look:** `Docs/Art/StyleLab/Catalog.md` section 3 has its numbers in Unreal terms. `03_painted.js` with `lib/painted_shaders.js` and `lib/painted_edges.js`, and the shared sky
   `lib/anime_sky.js`. The brief is "3. Painted Frontier" in `Briefs.md`, and `shots/sheet_03.jpg` shows the target.
   - Its GLSL hook paints the light in: warm, lifted tops; cool, darker undersides; a dark-to-light gradient up each
     object's height; caught convex edges; world-space hue blotches the size of a brush; brush strokes on the ground.
