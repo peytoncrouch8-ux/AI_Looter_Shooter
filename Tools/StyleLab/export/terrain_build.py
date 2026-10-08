@@ -9,11 +9,13 @@ import os
 import sys
 import time
 
-REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
-WORK = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else os.path.join(REPO, 'Saved', 'StyleLab', 'work')
-for p in (os.path.join(REPO, 'Art', 'Levels'), os.path.join(REPO, 'Tools', 'Blender')):
-    if p not in sys.path:
-        sys.path.insert(0, p)
+sys.dont_write_bytecode = True
+import labcommon  # noqa: E402
+
+REPO = labcommon.REPO
+WORK = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else labcommon.WORK
+labcommon.add_paths()
+labcommon.install_write_guard('terrain_build')
 os.makedirs(WORK, exist_ok=True)
 
 import bpy  # noqa: E402
