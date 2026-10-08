@@ -22,11 +22,10 @@ in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeli
 - **The user's call (2026-10-08):** the best are 3 Painted Frontier, 4 Inkslinger, 5 Teropa Pulp and 6 Sunbleached.
   The ten are catalogued (done 2026-10-08, the local session): `Docs/Art/StyleLab/Catalog.md`, contact sheets in
   `Docs/Art/StyleLab/Sheets/`.
-- **The tutorial island is in style 3, Painted Frontier, as a trial (the local session, 2026-10-08):** first pass, built
-  by `Tools/Unreal/build_island_painted.py apply` (`undo` restores it exactly; checked in the editor), the island only.
-  Heaviest view 7.5 ms on Medium (6.7 before), all 230 tests pass. **Waiting for the user's verdict** after playing it.
-  Known to tune first: pale speckled edges on the leaves (the lab paints soft blobs). Before/after sheet:
-  `Saved/Screenshots/Island_Painted_vs_Today.jpg` (local).
+- **Style 3 rejected, style 6 next (2026-10-08):** the user: "I dont like style 3, lets try the sunbleached style
+  instead", and chose to remove 3 first. The island is back to today's look; style 6, Sunbleached, is being built on
+  the island only, reversible, by a generalized `build_island_style.py <style> apply|undo|status`. Style 3's code and
+  assets are being removed (its recipe stays in `Docs/Art/StyleLab/Catalog.md` and git history, 1e21f78).
 - **A test build exists (the local session, 2026-10-08):** `Tools\package.ps1` ("Packaging a test build" in the
   pipeline). The first: `Saved\Packaging61008-163145\AI_Looter_Shooter_Test_20261008-163145.zip`, 605 MB, with
   today's look (made before the painted trial). It runs the menu, sessions, saves and the HUD; the game has no sounds
