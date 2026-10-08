@@ -171,12 +171,15 @@ level. `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md` has the full spec. Buil
 On 2026-10-04 the user picked three ideas for the loot from a brainstorm: notches (each gun counts its kills, cut into
 its stock, and wakes at 50, 250 and 1,000 with small bonuses and a nickname), part swapping at Ozias's bench (scrap a
 gun to keep one part, fit parts onto guns of the same kind) and cursed irons (6% of Rare-or-better drops: a strong perk
-with a real drawback, lifted at 100 notches or with Tilly's grave salt). `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md` has the full spec. Nothing in the
-code has changed yet.
-- [ ] Notches: the kill count on `FWeaponInstanceData`, the tally on the stock, the milestones and their messages.
-- [ ] Cursed irons: the curse table, the roll, the effects, how they show, and lifting.
-- [ ] Part swapping: the bench, scrapping into the parts box, fitting by the rules, the bench screen.
-- [ ] Tests for all three, `CODEMAP.md` updated.
+with a real drawback, lifted at 100 notches or with Tilly's grave salt). `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md` has the full spec. Built
+2026-10-08 (4f6abb1). The user's call on the bench: a plain gunsmith's bench now, in Skyreach's village and at Ransom
+Farm; Ozias takes it over after the *Lily*.
+- [x] Notches: the kill count on `FWeaponInstanceData`, the tally on the stock, the milestones and their messages.
+- [x] Cursed irons: the curse table, the roll, the effects, how they show, and lifting (grave salt waits for Tilly's
+      shop and grave gold).
+- [x] Part swapping: the bench, scrapping into the parts box, fitting by the rules, the bench screen.
+- [x] Tests for all three, `CODEMAP.md` updated.
+- [ ] The user plays them; numbers tuned (notch bonuses, curse rates and effects).
 
 ## Phase 10: Ember powers
 On 2026-10-04 the user played a demo of six ember powers (<https://claude.ai/artifact/MeXAwqdJdX4SYGDzhEy4xR>, sources

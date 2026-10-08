@@ -3,7 +3,30 @@
 Where the work stands, for the next session and every agent. Update it as each request finishes (newest first). Rules are
 in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeline.md`.
 
-## Now (2026-10-08, end of the local session "UI and HUD changes")
+## Now (2026-10-08, the local session "Game Enchancements")
+
+- **The user's asks:** slower creature chases (not the slimes); Skyreach keeps its name and starts the game; fix narrow
+  areas; the gun ideas (notches, cursed irons, part swapping); a smooth slide with dust; start on sounds.
+- **Done, all pushed, 254 tests passing:**
+  - Chases: the Unpaid ~400 and Abel ~365, scaled to the player like the spiders (54b1408). Skyreach was already the
+    island's name everywhere in the game.
+  - Narrow areas: Ransom's Rest's ledge faces sink under the bluff path and the Sink ramp (982127f); Skyreach's roads
+    keep big stones off (a boulder stood in the forest road, a3228f6). Path probes clear in both levels.
+  - Gun ideas, slide and sounds (4f6abb1, dfa6204; Plan Phase 9): see the commit and `CODEMAP.md` (Audio, Weapons,
+    UI/Bench). Benches in Skyreach's village (by the gun rack) and against Ransom Farm's barn (d63bd03).
+  - The sounds: 65 cues, 225 takes, synthesized from scratch (the user's call: script-made only). The listening page:
+    <https://claude.ai/artifact/VDmyrPmAsxiNa6boNuqKxa> (private to the user). Least sure: the creature voices, the
+    gunshots' balance, the hit marker, the mix levels.
+- **Waiting on the user:** to listen and say which sounds to keep or redo (by their names on the page); to play the
+  slide, the bench and the cursed irons.
+- **Choices the agents made that the user may want to change:** notches count only kills that give experience, so none
+  on Skyreach (a practice area); Hungry charges at a reload's end; a cursed gun's beam gutters even once lifted; the
+  last gun in the slots can't be scrapped; the settings menu is now one scrolling list.
+- **Small, open:** the HUD's weapon-name line has no cracked coin for a cursed gun yet (`MakeGunNameLine` or
+  `CrackedCoinBrush` in `PlayerHUDWidget.cpp`); the cold open's `ColdOpenSet` sound fields could play cues; roads carved
+  into terrain sound like grass (tag meshes `Surface.<Name>`); `PlayerViewComponent.cpp` is 566 lines (split it).
+
+## Earlier on 2026-10-08 (the local session "UI and HUD changes")
 
 - **The user's three asks (2026-10-08):** the new HUD in the game (it is: built 2026-10-07, 731e0df and 5b5b36a); the
   old art-style preview and the style it showed deleted from every file; and ten very different art styles, previewed
@@ -29,10 +52,10 @@ in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeli
   costs nothing). Don't start style work unless the user asks.
 - **A test build exists (the local session, 2026-10-08):** `Tools\package.ps1` ("Packaging a test build" in the
   pipeline). The first: `Saved\Packaging61008-163145\AI_Looter_Shooter_Test_20261008-163145.zip`, 605 MB, with
-  today's look (made before the painted trial). It runs the menu, sessions, saves and the HUD; the game has no sounds
-  yet. Sharing it needs the user's PC (or a cloud-drive tool the user agrees to).
-- **The Gilded Lily stays on hold**, and the cloud handoff's other decisions (Crossroads Town, gun ideas, ember powers,
-  heroes) are not started.
+  today's look (made before the painted trial). It runs the menu, sessions, saves and the HUD; it was made before the
+  sounds. Sharing it needs the user's PC (or a cloud-drive tool the user agrees to).
+- **The Gilded Lily stays on hold**, and the cloud handoff's other decisions (Crossroads Town, ember powers, heroes)
+  are not started; the gun ideas are built (above).
 
 ## Finished in this session (2026-10-07)
 
@@ -76,15 +99,9 @@ in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeli
 
 ## Open, small (the user hasn't asked for these)
 
-- The slide is drawn in code (a low pose, a lean, a view roll). A real slide animation, dust and a sound would need an
-  art and sound pass.
-- Creature chase speeds other than the spiders' weren't scaled with the player. The Unpaid chase at 470 against the
-  510 walk (92%, was 78%); Abel at 430.
-- The tutorial island is called "Skyreach" in the game (the menu, the tutorial, the station board). Renaming it is the
-  user's call.
-- Ledge paths: the outer face pieces of the bluff path and the Sink ramp reach into the walkway's middle band; a 2 m+
-  clear lane remains. The cliffs pass logs these as warnings.
-- The cloud session's handoff (`Docs/Handoffs/`): the HUD upgrade is built; Crossroads Town and the rest are not.
+- The slide is still a code-drawn pose (now smooth, with dust and sounds); a real slide animation would need an art pass.
+- The cloud session's handoff (`Docs/Handoffs/`): the HUD upgrade and the gun ideas are built; Crossroads Town, the
+  ember powers and the heroes are not.
 
 ## Sessions and helpers
 

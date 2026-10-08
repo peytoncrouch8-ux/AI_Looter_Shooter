@@ -190,6 +190,23 @@ Rules that saved time:
 - **Lessons from style 3:** rim terms on alpha-tested leaves speckle unless they read the crown's vertex normal; a
   screen-space edge pass cost the most (+0.8-1.0 ms in all).
 
+## Sounds (script-made, 2026-10-08)
+
+- **The user's rule:** sounds are synthesized from scratch, like the scripted models: no recordings, libraries, AI
+  generators or new programs. Blender 4.4's bundled Python has numpy (no system Python on this PC).
+- **Make:** `Art/Sounds/lib` (the synthesis library), `Art/Sounds/recipes/<group>.py` (one recipe per cue, seeded
+  takes), `Tools\sounds.ps1 [cue patterns]` renders `Art/Sounds/Out/<Cue>_NN.wav` and `cues.json` (each cue's mix) and
+  runs `check.py` (peaks, DC, clicks, loop seams, harsh bands; spectrograms and a listening page in
+  `Saved/SoundCheck/`). Agents can't hear: they judge by the numbers and pictures, and the user listens.
+- **Into the game:** `Tools\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_sound_bank.py [check]"` imports the
+  WAVs to `/Game/Audio`, makes the classes (under `SC_Master`), the mix and attenuations, and fills `DA_SoundBank`.
+- **In code:** `LooterSound::PlayAt/PlayAttached/Play2D/Start/Stop` by cue name (`Audio/LooterSoundCues.h`). A cue
+  without sounds plays nothing, so code can call new cues first. Add a cue to the header and to `cues.json` together.
+- **For the user:** the listening page is an Artifact with the WAVs as its files (<https://claude.ai/artifact/VDmyrPmAsxiNa6boNuqKxa>);
+  republish it from the session's scratchpad copy after a render.
+- **Lesson:** setting a USoundClass's `child_classes` all at once parents only the first new child; add them one at a
+  time (`build_sound_bank.py` does).
+
 ## Packaging a test build
 
 - **Run:** close the editor (`Tools\close.ps1`; no game running either), then start `Tools\package.ps1` in the
