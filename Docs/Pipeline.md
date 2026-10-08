@@ -23,8 +23,17 @@ where the work stands.
 
 ## Who does what
 
-- **The main session** owns Unreal, builds, the asset scripts, the tests, play checks, git and the docs. It splits work
-  among at most 6 agents and checks everything they hand back before it goes in.
+- **The main session** (the orchestrator, on Opus 5.5) owns Unreal, builds, the asset scripts, the tests, play checks,
+  git and the docs. It splits work among at most 6 agents and checks everything they hand back before it goes in.
+- **Models per agent** (the orchestrator's call, to get the most from the usage):
+  - the strongest (Opus) for design and tricky code: new systems, rasterizers, widgets with timing and layout logic;
+  - Sonnet for well-specified code against a contract, reviews, doc edits and mechanical changes across files;
+  - Haiku for simple searches and listings.
+- **Parallel agents and a shared contract** (first used for the HUD upgrade, 2026-10-07). Before launching agents
+  that touch each other's code, Main writes one contract file (in its scratchpad) that every brief points to: each new
+  class's public API with exact signatures, new palette entries with values, where each widget is placed and by whom,
+  and which agent owns which files. The agents then write disjoint files at the same time, without waiting for each
+  other, and Main builds them together once.
 - **Agents** write code or scripts on disjoint files. They never build, open Unreal or touch git. They report the files
   they changed, what Main must run, the CODEMAP lines, the tests affected, and the risks they couldn't check. When an
   agent needs editor numbers, it writes a read-only probe (`Saved\<short>.py`) and Main runs it.
@@ -103,6 +112,25 @@ where the work stands.
 - **Path checks:** `Tools/Unreal/path_probe.py <Area>` walks a player capsule down every road and ramp;
   `Tools/Unreal/width_probe.py` probes across one. Run them after cliff or dressing changes.
 
+## The tutorial island and the older levels
+
+- **Tutorial island:** built by scripts from `Art/Levels/TutorialIsland/layout_computed.json` (the terrain model writes
+  it). `Tools/Unreal/build_tutorial_island.py` places the terrain, cliffs, buildings, lighting and gameplay actors, and
+  rebuilding replaces only what it placed; its `gameplay` mode places just the spawn, dummies, spiders and slimes again.
+  `Tools/Unreal/build_island_scatter.py` scatters grass, flowers, trees and rocks with PCG from the scatter mask.
+  `Tools/Unreal/review_stage.py` photographs new models under the island's lighting.
+- **Older levels** are built in the editor. Procedural props are `StylizedProp` actors (shape, seed, two colors).
+  Before committing such a level, run `Looter.BakeLevelProps`: it swaps them for static mesh actors and saves their
+  meshes and materials under `/Game/Environment/Props`.
+- **Seating props:** after placing props or changing terrain, run `Tools/Unreal/conform_hills.py` (terrain changes
+  only: it fits the hills' rims under the ground), then `Looter.SettleProps` (`selected` for the selection), and save.
+  It seats every prop so no edge hovers, leaning low, wide ones with the slope.
+- **Lvl_Skyreach's meadow:** grass and flowers come from the `Meadow` PCG volume (`/Game/Environment/PCG/PCG_Meadow`),
+  which raycasts onto `Ground` actors and avoids `Obstacle` ones. After changing terrain, select it, press Generate and
+  save. Ground cover never collides (a placed static mesh actor takes its mesh's collision unless
+  `bUseDefaultCollision` is off). Patches are about 3.5 m and lie on the slope; `World/PCGGroundFitFilter` drops the
+  ones that would hang off an edge, and `Looter.BakeGroundCover` bakes their meshes again.
+
 ## Making an asset
 
 1. The art session scripts the model in Blender (`Art/Models/<Category>/<File>.py`), with shared material names and
@@ -113,6 +141,17 @@ where the work stands.
    the `.uasset`s.
 4. A colour-only change in the manifest can be set on the MI directly instead of reimporting a skeletal mesh (the
    lantern glow).
+5. **Tools:** `Tools\artrun.ps1` runs a model script (`-Preview` renders it), any Blender script, or an export test,
+   at below-normal priority, waiting while `Saved\ArtPause.flag` exists. `Tools/Blender/tangentcheck.py` checks an
+   exported FBX's tangents as Unreal's import will; with `--log` it sorts the editor log's tangent warnings into the
+   model's own and Unreal's reduced builds'.
+6. **Materials:** the textured masters (`M_World`, `M_Gun` with per-gun wear, `M_WorldFoliage`, `M_Terrain`,
+   `M_Water`) are built by `Tools/Unreal/build_world_materials.py`. Older surfaces use the flat stylized materials
+   (`M_StylizedSurface`, `M_StylizedFoliage`, `M_StylizedGlow`).
+7. **Guns from parts:** `Art/Models/Weapons/<Gun>.py` models the parts (sockets chain them; sights carry `SOCKET_Aim`
+   for aiming down sights). `<Gun>.parts.csv` lists each part's key, name, name word, rarity and stat ranges in percent
+   (capped per stat, `Weapons/WeaponParts.h`). After importing, run `Tools/Unreal/setup_gun_parts.py` in the editor to
+   fill the gun's definition from the spreadsheet.
 
 Rules that saved time:
 - Exports must be repeatable. Never iterate BMesh sets (their order changes between runs). Export twice and compare; only
@@ -123,7 +162,9 @@ Rules that saved time:
 
 ## Performance
 
-- **Target:** 8.3 ms (120 fps) at 1080p on Medium, at the heaviest view, on an RX 580 class PC.
+- **Target:** 8.3 ms (120 fps) at 1080p on Medium, at the heaviest view, on an RX 580 class PC. Per-pass budgets are in
+  `Docs/TutorialIsland.md`. Lumen and Nanite are switched by `UGraphicsSettingsSubsystem::QualitySettings`.
+- `perf.ps1 -GpuStats` records each pass; `Tools\perfdiff.ps1` compares two captures; `-Map` measures another level.
 - **Measure with the editor closed and Blender paused** (create `Saved\ArtPause.flag`, delete it after):
   - `Tools\tour.ps1` for every view;
   - `Tools\perf.ps1 -Label ... -Exec "Looter.Quality Medium" -Map <map>`, which appends `Docs/Performance.md`.
