@@ -2,8 +2,39 @@
 
 A stylized first/third-person looter shooter in Unreal Engine 5.8, written C++-first. The game is the runtime module
 `Source/AI_Looter_Shooter`; `Source/LooterEditor` is an editor-only module of level-building tools that never ships. The
-playable level is the tutorial island, `/Game/Maps/Lvl_TutorialIsland` (`Docs/TutorialIsland.md`); the older
-`/Game/Maps/Lvl_Skyreach` (floating sky islands, the previous art style) is kept for reference.
+levels are the tutorial island, `/Game/Maps/Lvl_TutorialIsland` (`Docs/TutorialIsland.md`), and the campaign's first
+area, Ransom's Rest, `/Game/Maps/Lvl_RansomsRest` (`Docs/Areas/RansomsRest.md`); the older `/Game/Maps/Lvl_Skyreach`
+(floating sky islands, the previous art style) is kept for reference.
+
+## How we work (the user's rules; add new ones here)
+
+1. **The goal:** the game will be sold (on Steam). So: no copyrighted content anywhere (art, sound, names, text, code),
+   and the player's enjoyment comes first. Aim for the quality of the best big-studio games.
+2. **One orchestrator, at most 6 agents.** For each new piece of work the main session plans, orchestrates and
+   implements, with no more than 6 agents doing the heavy lifting as needed. It reads the Markdown docs that bear on the
+   work first, verifies every agent's work, keeps the quality up and keeps the agents working in step. Roles to draw
+   from (as needed, not all at once):
+   - **Planning:** how the request fits into the game.
+   - **Story/Logistics:** the story, and that every piece of gameplay makes sense.
+   - **Special FX/Sounds:** sounds and particle effects.
+   - **Art/UI/Assets:** the art, and what assets go where.
+   - **Demo:** plays the game and fixes bugs.
+   - **Review:** checks code, world and assets for consistency, so the main session doesn't have to.
+   Pick each agent's model to fit its work: the strongest model for heavy code and design, a lighter one for simple,
+   mechanical tasks.
+3. **Any software may help, but ask the user first** before bringing in a new tool or program.
+4. **Ask when a request is unclear,** preferably as tap-to-answer choices (AskUserQuestion), not open questions.
+5. **Report briefly.** Summaries in a few lines; the user doesn't need paragraphs of updates. Less is more.
+6. **Two failures, then ask.** If a task fails twice, don't try a third time: ask the user how to go on.
+7. **Feedback matters.** Every action (keys, shooting, hits, kills, pickups, menus) should feel rewarding, with
+   high-quality visual and sound effects.
+8. **Keep the pipeline written down** in `Docs/Pipeline.md`: how bugs were fixed, how assets and terrain are made, what
+   worked and what didn't, the game's theme and look, and how to divide work among agents. Update it as work finishes,
+   so old problems are never solved twice.
+9. **Keep the handoff current.** `Docs/Handoff.md` says what's finished, where we left off and where we're headed; update
+   it as each request finishes. It's the reference for every future session and agent.
+10. **No working through a degraded context.** When the session grows long enough that quality could suffer (before
+    auto-compaction), tell the user it's time for a new session and make sure the handoff has what the next one needs.
 
 The C++ `ALooterGameMode` (project default) gives each player an `ALooterPlayerController`, the `ALooterHUD` and
 `/Game/Player/BP_LooterCharacter`: a data-only child of `ALooterCharacter` that holds the meshes, animation, camera
@@ -17,6 +48,8 @@ a session: a new game, and nothing is saved. `Looter.Session.Play <1-3>` plays a
 standalone game (the launcher) and Play-In-Editor share the saves in `Saved\SaveGames`. Runs that name a map on the
 command line keep theirs under `%LOCALAPPDATA%\UnrealEngine\5.8\Saved`.
 
+- `Docs/Handoff.md`: where the work stands and what's next (read it first in a new session).
+- `Docs/Pipeline.md`: how things get made and fixed here: workflows, lessons, recorded bug fixes.
 - `Docs/Plan.md`: the pipeline cleanup plan and where it stands.
 - `Docs/Performance.md`: measured performance history.
 - `Docs/Story.md`: the campaign's story; `Docs/Areas/` holds one design per area.

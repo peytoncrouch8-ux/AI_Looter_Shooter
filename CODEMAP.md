@@ -901,6 +901,12 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Tools/terrain_check.ps1`, `.py`: checks an area's layout and computed layout before anything is built (feature rules,
   ramp grades, cliff courses of at most 12 m, the seam band, the boundary and the rock past its closed edges, the far
   trees, open ground).
+- Main's helpers (`Docs/Pipeline.md`): `Tools/commitlib.py` (a commit with CODEMAP edits applied to HEAD's copy, so other
+  uncommitted CODEMAP lines stay out), `Tools/stage_import.ps1` (an export folder's chosen models and their materials
+  into `<folder>_Import` for `Looter.ImportModels`), `Tools/winshot.ps1` (a window captured by handle, such as a Save
+  Content dialog), `Tools/Unreal/open_clean.py` (a map loaded from disk after a garbage collection),
+  `Tools/Unreal/pie_check.py` (whether a play session runs in the editor), `Tools/Unreal/path_probe.py` and
+  `width_probe.py` (a player's capsule walked down every road and ramp, and across one, reporting what blocks it).
 - `Tools/ConceptViewer/`: the island concept viewer, a web page (`README.md`). `web_export.py` and `export_all.sh` export
   the scripted models and the terrain for it; `assemble.py` builds the page from `web/` (engine, procedural kit, the
   four concepts, the interface); `test/` takes screenshots and drives the interface, and `test/dump.js` writes a
