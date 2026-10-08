@@ -5,7 +5,7 @@ build's placements, the terrain) into what the page loads, in Saved/StyleLab/exp
                          texture sets, the terrain's files and M_Terrain's rules
     scene.json           instances (the game's own build, run under mock_unreal.py), lights, PCG's scatter as rules,
                          chimney smoke, creatures (the spawners' and the story's)
-    models/pack_N.glb    the models, one top-level node each, at most 14 MB a pack
+    models/pack_N.glb    the models, one top-level node each, at most 9.5 MB a pack
     tex/<Set>_{BC,N,ORM}.webp
 
     /home/user/bpyenv/bin/python Tools/StyleLab/export/lab_export.py
@@ -33,7 +33,8 @@ import glbtool  # noqa: E402
 OUT = lc.OUT
 MODELS = os.path.join(lc.WORK, 'models')
 TEX = os.path.join(lc.REPO, 'Art', 'Textures')
-PACK_LIMIT = 13_000_000     # bytes: under 14 MB however the limit counts a megabyte
+PACK_LIMIT = 9_500_000      # bytes: the artifact host serves no .glb, so packs go as base64 JSON (a third bigger,
+                            # each under its 16 MB text-file limit: assemble.py --b64-glb)
 STARTED = time.time()
 CORE = [-200.0, -200.0, 200.0, 200.0]
 MARGIN_UE = 2500.0   # instances this far outside the region still count as in it (cm)
