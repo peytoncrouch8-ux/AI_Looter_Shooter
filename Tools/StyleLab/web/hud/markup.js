@@ -114,8 +114,7 @@ const WEAPONS = `
 <text data-r="magreserve" class="lh-count" x="30" y="207" text-anchor="middle" fill="#cfe2ef" font-size="21.33" stroke="#00182a" stroke-width="3.6" paint-order="stroke fill" stroke-linejoin="round">/0</text>
 </svg>
 <div class="lh-firemode lh-ol" data-r="firemode"></div>
-<div class="lh-gunname lh-ol" data-r="gunname"></div>
-<div class="lh-raritygem" data-r="raritygem"></div>
+<div class="lh-namerow"><div class="lh-raritygem" data-r="raritygem"></div><div class="lh-gunname lh-ol" data-r="gunname"></div></div>
 </div>`;
 
 const MINIMAP = `

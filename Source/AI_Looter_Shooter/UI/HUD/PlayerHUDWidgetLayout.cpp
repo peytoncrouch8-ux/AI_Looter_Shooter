@@ -58,8 +58,8 @@ namespace
 	constexpr float StatusGap = 12.f;
 	/** A long name shrinks to fit this width, so it never reaches across the screen. */
 	constexpr float NameMaxWidth = 300.f;
-	/** The rarity gem after the name: a diamond, tip to tip, over its ink edge (1.6 px wider each side), and the gap before it
-	 *  (6 px: the user asked for it 3 px further from the name, 2026-10-08). */
+	/** The rarity gem before the name: a diamond, tip to tip, over its ink edge (1.6 px wider each side), and the gap after
+	 *  it (the user's call, 2026-10-08: the gem on the name's left, 3 px further from it than before). */
 	constexpr float GemSize = 14.f;
 	constexpr float GemEdgeSize = 18.5f;
 	constexpr float GemGap = 6.f;
@@ -232,16 +232,8 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			ModeRow->AddChildToHorizontalBox(FireModeText)->SetVerticalAlignment(VAlign_Center);
 			AddRight(MakeSized(WidgetTree, ModeRow, 0.f, ModeLineHeight), LineGap);
 
-			// The gun's name in its rarity's color, shrinking to fit when it's long, then the rarity gem at the edge.
+			// The rarity gem, then the gun's name in its rarity's color, shrinking to fit when it's long, at the edge.
 			UHorizontalBox* NameRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			WeaponName = MakeFloatingText(WidgetTree, 18, Color::Text(), 60, ETextJustify::Right);
-			UScaleBox* NameFit = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass());
-			NameFit->SetStretch(EStretch::ScaleToFit);
-			NameFit->SetStretchDirection(EStretchDirection::DownOnly);
-			NameFit->SetContent(WeaponName);
-			USizeBox* NameBox = MakeSized(WidgetTree, NameFit, 0.f);
-			NameBox->SetMaxDesiredWidth(NameMaxWidth);
-			NameRow->AddChildToHorizontalBox(NameBox)->SetVerticalAlignment(VAlign_Center);
 			UOverlay* Gem = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
 			UOverlaySlot* GemEdgeSlot = Gem->AddChildToOverlay(MakeImage(WidgetTree,
 				IconBrush(TEXT("HudRarityGem"), GemIcon(), 2.f, FVector2D(GemEdgeSize, GemEdgeSize), Color::Ink())));
@@ -253,7 +245,15 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			GemSlot->SetVerticalAlignment(VAlign_Center);
 			UHorizontalBoxSlot* GemRowSlot = NameRow->AddChildToHorizontalBox(Gem);
 			GemRowSlot->SetVerticalAlignment(VAlign_Center);
-			GemRowSlot->SetPadding(FMargin(GemGap, 0.f, 0.f, 0.f));
+			GemRowSlot->SetPadding(FMargin(0.f, 0.f, GemGap, 0.f));
+			WeaponName = MakeFloatingText(WidgetTree, 18, Color::Text(), 60, ETextJustify::Right);
+			UScaleBox* NameFit = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass());
+			NameFit->SetStretch(EStretch::ScaleToFit);
+			NameFit->SetStretchDirection(EStretchDirection::DownOnly);
+			NameFit->SetContent(WeaponName);
+			USizeBox* NameBox = MakeSized(WidgetTree, NameFit, 0.f);
+			NameBox->SetMaxDesiredWidth(NameMaxWidth);
+			NameRow->AddChildToHorizontalBox(NameBox)->SetVerticalAlignment(VAlign_Center);
 			AddRight(MakeSized(WidgetTree, NameRow, 0.f, NameLineHeight), LineGap);
 
 			WeaponCluster = Box;

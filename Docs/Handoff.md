@@ -12,8 +12,8 @@ in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeli
 - **On the user's PC (a local session must do this; the cloud can't reach it):** delete the uncommitted sandbox
   preview, the user's call on 2026-10-08: `Content/Sandbox/` (`/Game/Sandbox/`), `Tools/Unreal/Sandbox/` and
   `Saved/Screenshots/PrintWash/`. Check the editor isn't holding them (close the sandbox level first). Then build
-  (`Tools\launch.ps1 -Build`): the cloud changed `PlayerHUDWidgetLayout.cpp` without building it (the rarity gem 3 px
-  further from the gun's name, `GemGap` 6, the user's ask), and check it with `Tools\hudshots.ps1`.
+  (`Tools\launch.ps1 -Build`): the cloud changed `PlayerHUDWidgetLayout.cpp` without building it (the rarity gem moved to
+  the left of the gun's name, `GemGap` 6, the user's ask), and check it with `Tools\hudshots.ps1`.
 - **The Style Lab** (`Tools/StyleLab/`, being built in the cloud session) previews the ten styles in a real-time page
   of Ransom's Rest made from the game's own models, textures and terrain, under the new HUD.
 - **The Gilded Lily stays on hold**, and the cloud handoff's other decisions (Crossroads Town, gun ideas, ember powers,
