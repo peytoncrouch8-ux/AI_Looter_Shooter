@@ -21,8 +21,8 @@ in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeli
   West, 10 Golden Hour; 0 is today's look. The art direction briefs and the research behind them: `Docs/Art/StyleLab/`.
 - **The user's call (2026-10-08):** the best are 3 Painted Frontier, 4 Inkslinger, 5 Teropa Pulp and 6 Sunbleached.
   Catalog all ten in the art files (the look may change later), and build **the tutorial island only** in style 3,
-  reversible: the user may change it if it doesn't look good in game. Both handed to the local session ("UI and HUD
-  changes"). Polish still open in the lab: banding in aerial views, dark Sink shots in 8 and 10, the gun's size.
+  reversible: the user may change it if it doesn't look good in game. **A local session does both:** the brief is
+  `Docs/Handoffs/StyleLab_LocalTasks_2026-10-08.md` (the "UI and HUD changes" session was archived before it got it). Polish still open in the lab: banding in aerial views, dark Sink shots in 8 and 10, the gun's size.
 - **The Gilded Lily stays on hold**, and the cloud handoff's other decisions (Crossroads Town, gun ideas, ember powers,
   heroes) are not started.
 
