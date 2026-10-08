@@ -62,8 +62,8 @@ const types = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'applic
   await log('fly up'); await shot('6_flyup');
   await page.mouse.dblclick(640, 400); await wait(3000);
   await log('double click'); await shot('7_dblclick');
-  await page.click('#labelsBtn'); await page.click('#lines'); await wait(600);
-  console.log('labels pressed', await page.getAttribute('#labelsBtn', 'aria-pressed'), 'ink pressed', await page.getAttribute('#lines', 'aria-pressed'));
+  await page.click('#labelsBtn'); await wait(600);
+  console.log('labels pressed', await page.getAttribute('#labelsBtn', 'aria-pressed'));
   await shot('8_toggles');
   await page.click('#fold'); await wait(300);
   console.log('details open', await page.getAttribute('#fold', 'aria-expanded'), 'bullets', await page.$$eval('#bullets li', (l) => l.length));

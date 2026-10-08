@@ -183,7 +183,7 @@
     for (const [x, z] of SLOTS) {
       const disc = new THREE.Mesh(paint(new THREE.CylinderGeometry(0.62, 0.66, 0.06, 40), '#a99273', 1), MAT);
       disc.position.set(x, 0.03, z); disc.receiveShadow = true; scene.add(disc);
-      const rim = new THREE.Mesh(paint(new THREE.TorusGeometry(0.64, 0.018, 6, 48).rotateX(Math.PI / 2), '#5ac8ff', 0.5), MAT);
+      const rim = new THREE.Mesh(paint(new THREE.TorusGeometry(0.64, 0.018, 6, 48).rotateX(Math.PI / 2), '#5ac8ff'), MAT);
       rim.position.set(x, 0.062, z); scene.add(rim);
     }
     sun.position.set(2.6, 4.6, 4.2).normalize().multiplyScalar(40); sun.target.position.set(0, 1, 0);
@@ -191,9 +191,9 @@
     sun.shadow.camera.updateProjectionMatrix(); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
     renderer.shadowMap.autoUpdate = true;
     scene.fog.near = 40; scene.fog.far = 260;
-    camera.near = 0.05; camera.far = 1700; postMat.uniforms.uNear.value = camera.near; postMat.uniforms.uFar.value = camera.far;
+    camera.near = 0.05; camera.far = 1700;
   }
-  // Smoke from Gauge's stacks: print-style puffs that rise, swell and shrink away.
+  // Smoke from Gauge's stacks: puffs that rise, swell and shrink away.
   const puffGeo = paint(new THREE.IcosahedronGeometry(0.5, 1), '#f3eee4', 1);
   const puffMesh = new THREE.InstancedMesh(puffGeo, MAT, 80); puffMesh.count = 0; puffMesh.frustumCulled = false; scene.add(puffMesh);
   const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = V();
@@ -338,7 +338,7 @@
     }
     camera.position.copy(G.cam.pos); camera.lookAt(G.cam.look);
     updatePuffs(dt);
-    sky.position.copy(camera.position); sky.material.uniforms.uTime.value = G.t; postMat.uniforms.uTime.value = G.t;
+    sky.position.copy(camera.position); sky.material.uniforms.uTime.value = G.t;
     renderFrame();
   }
 

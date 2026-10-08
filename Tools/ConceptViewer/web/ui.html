@@ -2,7 +2,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap">
 <style>
 /* Layout: one full-screen 3D view; the game's own UI kit floats over it (Concept C: dark glass, orange accent, cyan
-   hairlines, Chakra Petch). A single dark look by choice: it frames the pastel island the same in any theme. */
+   hairlines, Chakra Petch). A single dark look by choice: it frames the island the same in any theme. */
 :root { --bg:#0e1116; --glass:rgba(13,16,21,.82); --glass2:rgba(13,16,21,.62); --fg:#ece8df; --muted:#9ea8b2; --accent:#ff9640;
         --line:#39d3e0; --dim:rgba(57,211,224,.32); --slime:#7fd494; --spider:#d79be8;
         --font:'Chakra Petch','Segoe UI',system-ui,sans-serif; color-scheme:dark; }
@@ -107,7 +107,7 @@ body.clean .panel, body.clean #hint { display:none !important; }
 <div id="labels" aria-hidden="true"></div>
 <div id="stick"><div class="base"></div><div class="knob"></div></div>
 <section id="top" class="panel" aria-label="Concepts">
-  <div class="head"><div><h1>Skyreach Concepts</h1><span class="sub">Tutorial island · Screen Print Wash</span></div><button id="fold" aria-expanded="false">Details</button></div>
+  <div class="head"><div><h1>Skyreach Concepts</h1><span class="sub">Tutorial island</span></div><button id="fold" aria-expanded="false">Details</button></div>
   <nav class="tabs" id="tabs" aria-label="Concept"></nav>
   <div id="name"></div>
   <p id="tagline"></p>
@@ -121,7 +121,6 @@ body.clean .panel, body.clean #hint { display:none !important; }
     <button class="chip tool" id="compareBtn">Compare all 4</button>
     <button class="chip tool" id="mode">Walk here</button>
     <button class="chip tool" id="labelsBtn" aria-pressed="true">Labels</button>
-    <button class="chip tool" id="lines" aria-pressed="true">Ink</button>
   </div></div>
 </section>
 <aside id="mapwrap" class="panel"><canvas id="map" width="352" height="352" aria-label="Map of the island; tap to walk there"></canvas><small>north up · tap to walk there</small></aside>

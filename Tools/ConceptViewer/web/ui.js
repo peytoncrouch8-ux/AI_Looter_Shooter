@@ -229,10 +229,6 @@ $('#mode').addEventListener('click', () => {
 });
 let labelsOn = true;
 $('#labelsBtn').addEventListener('click', (e) => { labelsOn = !labelsOn; e.currentTarget.setAttribute('aria-pressed', String(labelsOn)); });
-$('#lines').addEventListener('click', (e) => {
-  const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
-  e.currentTarget.setAttribute('aria-pressed', String(on)); postMat.uniforms.uLines.value = on ? 1 : 0;
-});
 let toastTimer = 0;
 function toast(msg, ms = 2200) {
   const t = $('#toast'); t.textContent = msg; t.style.display = 'block';
@@ -415,7 +411,6 @@ map.addEventListener('click', (e) => {
 function updateFog() {
   const h = camera.position.y - groundY(camera.position.x, camera.position.z), t = smooth01((h - 4) / 110);
   scene.fog.near = lerp(60, 520, t); scene.fog.far = lerp(420, 1700, t);
-  postMat.uniforms.uNFar.value = lerp(260, 520, t);
 }
 // Resolution steps down when frames run long (never below 0.75), and back up after a long run of fast ones.
 const AUTO_QUALITY = !navigator.webdriver, MAX_RATIO = pixelRatio;
@@ -439,7 +434,6 @@ function frame(now) {
   sky.position.copy(camera.position); sky.material.uniforms.uTime.value = clockT;
   updateFog();
   animate(current, clockT); animateBase(clockT, dt);
-  postMat.uniforms.uTime.value = clockT;
   renderFrame();
   updateLabels();
   if ((mapTimer += dt) > 0.1) { mapTimer = 0; drawMap(); }

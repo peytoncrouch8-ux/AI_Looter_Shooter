@@ -6,7 +6,7 @@ window inscribed in this 200-unit square (its corners are cut away), at 0.64 px 
 
 Layers, back to front (ids below):
   glass       dark blue glass behind the bust, with faint scanlines (the window's background)
-  colour      the flat fills, offset 1.3 x 0.9 units from the ink like a misregistered screen print
+  colour      the flat fills, offset 1.3 x 0.9 units from the ink so they sit slightly off the lines
   rim         the cyan rim light along the hat and the left shoulder
   ink         the ink lines (#0a1218), 1.2-3 units wide
   eyes-open   the resting eyes: two glowing cyan slits, and the calm brows

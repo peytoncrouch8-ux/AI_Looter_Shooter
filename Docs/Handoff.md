@@ -3,20 +3,19 @@
 Where the work stands, for the next session and every agent. Update it as each request finishes (newest first). Rules are
 in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeline.md`.
 
-## Now (2026-10-07, evening)
+## Now (2026-10-08, the cloud session)
 
-- **The HUD upgrade is built and committed** (the cloud session's decision 3; 731e0df, 5b5b36a). The user picked it
-  first from the cloud handoff and said to do nothing else of it yet. 230 `Looter.*` tests pass; Medium measures
-  5.7 ms at the island's spawn (5.6 before). The user kept the larger in-game text and hits shown on the edges only.
-- **A Screen Print Wash preview exists, uncommitted, outside the game** (the user asked to see decision 1 in the engine
-  without putting anything into the game): `/Game/Sandbox/PrintWash/` (`Content/Sandbox/`), built by
-  `Tools/Unreal/Sandbox/printwash_*.py` (run order in `printwash_shots.py`'s and the scripts' headers: materials, level,
-  shots). Shots in `Saved\Screenshots\PrintWash\` (four views, Medium and High, print and plain). It works on Medium
-  and High; it's a first pass (the paper mottle reads blotchy in the sky and on the grass). The user hasn't said yet
-  whether to keep these files: ask before committing or deleting them.
-- **The Gilded Lily stays on hold**, and the cloud handoff's other decisions (Screen Print Wash for the game, Crossroads
-  Town, gun ideas, ember powers, heroes) are not started.
-- **Next:** the user's reaction to the preview, then whatever they pick. Ask with tap-to-answer choices.
+- **The user's three asks (2026-10-08):** the new HUD in the game (it is: built 2026-10-07, 731e0df and 5b5b36a); the
+  old art-style preview and the style it showed deleted from every file; and ten very different art styles, previewed
+  in the game, to choose from. The user found the current look and every earlier style exploration disappointing:
+  "I need something phenomenal".
+- **On the user's PC (a local session must do this; the cloud can't reach it):** delete the uncommitted sandbox
+  preview, the user's call on 2026-10-08: `Content/Sandbox/` (`/Game/Sandbox/`), `Tools/Unreal/Sandbox/` and
+  `Saved/Screenshots/PrintWash/`. Check the editor isn't holding them (close the sandbox level first).
+- **The Style Lab** (`Tools/StyleLab/`, being built in the cloud session) previews the ten styles in a real-time page
+  of Ransom's Rest made from the game's own models, textures and terrain, under the new HUD.
+- **The Gilded Lily stays on hold**, and the cloud handoff's other decisions (Crossroads Town, gun ideas, ember powers,
+  heroes) are not started.
 
 ## Finished in this session (2026-10-07)
 
@@ -68,8 +67,7 @@ in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeli
   user's call.
 - Ledge paths: the outer face pieces of the bluff path and the Sink ramp reach into the walkway's middle band; a 2 m+
   clear lane remains. The cliffs pass logs these as warnings.
-- The cloud session's handoff (`Docs/Handoffs/`): the HUD upgrade is built; Screen Print Wash, Crossroads Town and the rest
-  are not: the user will decide which look wins (the sandbox preview is there to help).
+- The cloud session's handoff (`Docs/Handoffs/`): the HUD upgrade is built; Crossroads Town and the rest are not.
 
 ## Sessions and helpers
 

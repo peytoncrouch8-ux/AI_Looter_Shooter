@@ -1,6 +1,6 @@
 
 // ================================================================ Ember powers: a playable sketch on the concept viewer's engine
-// The town is the viewer's Crossroads Town (the game's own models in Screen Print Wash). Everything below is the sketch:
+// The town is the viewer's Crossroads Town (the game's own models). Everything below is the sketch:
 // a first-person player with the Whisper Bullpup, spiders raiding the square, the six ember powers, the new HUD with two
 // ember sockets, the ember page, and a scripted "watch all six".
 (() => {
@@ -72,7 +72,7 @@
     DYN.add(m); return m;
   }
 
-  // particles: shaded blobs, unshaded glows, shaded chunks; each fades by shrinking (no transparency, as in print)
+  // particles: shaded blobs, unshaded glows, shaded chunks; each fades by shrinking (no transparency)
   const PART_N = 700;
   const partMeshes = {
     blob: pool(whiteGeo(ico(0.5, 1), 1), MAT, PART_N),
@@ -113,19 +113,19 @@
   }
   const burst = (kind, at, n, o) => { for (let i = 0; i < n; i++) spawnPart(kind, at.clone().add(V3(rand(-1, 1), rand(-1, 1), rand(-1, 1)).multiplyScalar(o.jitter ?? 0.2)), { ...o, vel: V3(rand(-1, 1), rand(o.up ? 0.2 : -1, 1), rand(-1, 1)).normalize().multiplyScalar(rand(o.v0 ?? 1, o.v1 ?? 3)).add(o.base || V3()), s0: rand(o.sa ?? 0.1, o.sb ?? 0.25), life: rand(o.la ?? 0.4, o.lb ?? 0.9) }); };
 
-  // rings on the ground: translucent, kept out of the line pass
+  // rings on the ground: translucent
   const rings = [];
   function ring(at, o) {
     const geo = new THREE.RingGeometry(0.88, 1, 72); geo.rotateX(-Math.PI / 2);
     const mat = new THREE.MeshBasicMaterial({ color: C(o.col || '#ffffff'), transparent: true, opacity: o.op ?? 0.85, depthWrite: false, side: THREE.DoubleSide, fog: true });
     mat.polygonOffset = true; mat.polygonOffsetFactor = -4; mat.polygonOffsetUnits = -8;
-    const m = new THREE.Mesh(geo, mat); m.position.copy(at); m.renderOrder = 4; DYN.add(m); FINE_MESHES.push(m);
+    const m = new THREE.Mesh(geo, mat); m.position.copy(at); m.renderOrder = 4; DYN.add(m);
     rings.push({ m, life: 0, max: o.life ?? 0.6, r0: o.r0 ?? 0.3, r1: o.r1 ?? 5, w0: o.w0 ?? 0.3, w1: o.w1 ?? 0.06, op: o.op ?? 0.85 });
   }
   function updateRings(dt) {
     for (let i = rings.length - 1; i >= 0; i--) {
       const r = rings[i]; r.life += dt; const k = r.life / r.max;
-      if (k >= 1) { DYN.remove(r.m); r.m.geometry.dispose(); r.m.material.dispose(); FINE_MESHES.splice(FINE_MESHES.indexOf(r.m), 1); rings.splice(i, 1); continue; }
+      if (k >= 1) { DYN.remove(r.m); r.m.geometry.dispose(); r.m.material.dispose(); rings.splice(i, 1); continue; }
       const rad = lerp(r.r0, r.r1, ease(k)), w = lerp(r.w0, r.w1, k);
       r.m.geometry.dispose(); r.m.geometry = new THREE.RingGeometry(Math.max(0.01, rad - w), rad, 72); r.m.geometry.rotateX(-Math.PI / 2);
       r.m.material.opacity = r.op * (1 - k * k);
@@ -139,10 +139,10 @@
     const m = new THREE.Mesh(tracerGeo, new THREE.MeshBasicMaterial({ color: C(col), fog: true }));
     const d = b.clone().sub(a), len = d.length();
     m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(V3(0, 0, 1), d.normalize()); m.scale.set(w, w, len);
-    DYN.add(m); FINE_MESHES.push(m); tracers.push({ m, life: 0 });
+    DYN.add(m); tracers.push({ m, life: 0 });
   }
   function updateTracers(dt) {
-    for (let i = tracers.length - 1; i >= 0; i--) { const t = tracers[i]; t.life += dt; if (t.life > (t.m.scale.x > 0.03 ? 0.14 : 0.07)) { DYN.remove(t.m); t.m.material.dispose(); FINE_MESHES.splice(FINE_MESHES.indexOf(t.m), 1); tracers.splice(i, 1); } }
+    for (let i = tracers.length - 1; i >= 0; i--) { const t = tracers[i]; t.life += dt; if (t.life > (t.m.scale.x > 0.03 ? 0.14 : 0.07)) { DYN.remove(t.m); t.m.material.dispose(); tracers.splice(i, 1); } }
   }
 
   // playing cards for Lucky Streak
@@ -246,12 +246,12 @@
     DYN.add(spiderMesh);
     const xm = new THREE.MeshBasicMaterial({ color: C('#ff9f1c'), transparent: true, opacity: 0.8, depthWrite: false, depthFunc: THREE.GreaterDepth, fog: false });
     xrayMesh = new THREE.InstancedMesh(geo, xm, SPIDER_N); xrayMesh.frustumCulled = false; xrayMesh.count = 0; xrayMesh.renderOrder = 8;
-    DYN.add(xrayMesh); FINE_MESHES.push(xrayMesh);
+    DYN.add(xrayMesh);
     const sg = new THREE.CircleGeometry(1, 20); sg.rotateX(-Math.PI / 2);
     const sm = new THREE.MeshBasicMaterial({ color: C('#2a2024'), transparent: true, opacity: 0.2, depthWrite: false, fog: true });
     sm.polygonOffset = true; sm.polygonOffsetFactor = -2; sm.polygonOffsetUnits = -4;
     shadowMesh = new THREE.InstancedMesh(sg, sm, SPIDER_N); shadowMesh.frustumCulled = false; shadowMesh.count = 0;
-    DYN.add(shadowMesh); FINE_MESHES.push(shadowMesh);
+    DYN.add(shadowMesh);
   }
   function addSpider(x, z, o = {}) {
     if (spiders.length >= SPIDER_N) return null;
@@ -455,7 +455,7 @@
     const muzzle = geos[2].clone(); muzzle.computeBoundingBox();
     const bb = muzzle.boundingBox; muzzle.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, -bb.min.z + 0.639);
     gunModel = new THREE.Group();
-    const gunMat = printMaterial(); gunMat.color.setRGB(0.5, 0.52, 0.6);   // the export's flat cream, toned to gunmetal
+    const gunMat = litMaterial(); gunMat.color.setRGB(0.5, 0.52, 0.6);   // the export's flat color, toned to gunmetal
     [geos[0], geos[1], muzzle, geos[4], geos[5]].forEach((g) => { const m = new THREE.Mesh(g, gunMat); gunModel.add(m); });
     gunMag = new THREE.Mesh(geos[3], gunMat); gunModel.add(gunMag);
     gunModel.rotation.y = Math.PI + 0.05;   // the gun's +z (toward the muzzle) to the camera's -z, aimed a touch inward
@@ -1011,7 +1011,6 @@
     camera.fov = baseFov + ease(G.fovKick) * 14; camera.updateProjectionMatrix();
     sky.position.copy(camera.position); sky.material.uniforms.uTime.value = G.t;
     if (G.layer) animate(G.layer, G.t); animateBase(G.t, dt);
-    postMat.uniforms.uTime.value = G.t;
     renderFrame();
     updateWorldLabels(dt);
     if (G.mode === 'play' || G.mode === 'watch') updateHud();
@@ -1027,7 +1026,7 @@
   window.addEventListener('resize', () => { resize(); fitHud(); });
   function showStart() { G.mode = 'menu'; G.paused = false; $id('hud').hidden = true; show('start'); setTimeout(() => $id('playBtn').focus(), 30); placePlayer(START); }
   async function boot() {
-    camera.near = 0.1; postMat.uniforms.uNear.value = 0.1; camera.far = 1700; postMat.uniforms.uFar.value = 1700; camera.updateProjectionMatrix();
+    camera.near = 0.1; camera.far = 1700; camera.updateProjectionMatrix();
     resize(); fitHud();
     const progress = (f, text) => { $id('prog').style.width = Math.round(f * 100) + '%'; if (text) $id('progtext').textContent = text; };
     progress(0.04, 'Reading the island heights…');
@@ -1044,7 +1043,7 @@
     ghost.mesh = new THREE.Mesh(ghostGeometry(), MAT); ghost.mesh.visible = false; DYN.add(ghost.mesh);
     slag.geo = poolGeometry();
     await buildGun(); makeFlash();
-    scene.fog.near = 60; scene.fog.far = 430; postMat.uniforms.uNFar.value = 260;
+    scene.fog.near = 60; scene.fog.far = 430;
     buildSockets();
     progress(1, 'Ready');
     hide('loading');

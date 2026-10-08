@@ -943,7 +943,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   four concepts, the interface); `test/` takes screenshots and drives the interface, and `test/dump.js` writes a
   concept's placements as JSON (`Art/Levels/TutorialIsland/crossroads_town.json`, the chosen concept).
 - From the cloud session (`Docs/Handoffs/CloudIslandConcepts_2026-10-05.md`, nothing in the game uses them yet):
-  `Tools/Blender/style_render.py`, `style_compose.py` and `style_plugins/` render the art-style exploration
-  (`Docs/Art/StyleExploration/`, `Docs/Art/REGENERATE_IMAGES.md`); `Tools/Blender/looter_heroes.py` builds the five
+  `Tools/Blender/style_render.py` and `style_compose.py` render the art-style exploration
+  (`Docs/Art/StyleExploration/`); `Tools/Blender/looter_heroes.py` builds the five
   heroes on the UE5 mannequin's bones (`Art/Backlog/Characters/`); `Docs/HudMockup/`, `Docs/EmberDemo/` and
   `Docs/HeroSelect/` are the HUD mockup's, the ember-powers demo's and the hero page's sources.

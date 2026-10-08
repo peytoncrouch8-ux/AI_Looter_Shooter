@@ -1,9 +1,8 @@
 # Tutorial island: the new look
 
-> **Pending a decision.** In a cloud session on 2026-10-02 the user chose a different look, Screen Print Wash
-> (`Docs/Art/ScreenPrintWash.md`), to replace this one, and on 2026-10-03 a new layout for the island, Crossroads Town
-> (concept 1 of `Docs/TutorialIslandConcepts.md`; plan in `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md`). On
-> 2026-10-07 they said they'll decide later which look wins; until then this document describes the game as it is.
+> **A new layout is planned.** On 2026-10-03 the user chose a new layout for the island, Crossroads Town (concept 1 of
+> `Docs/TutorialIslandConcepts.md`; plan in `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md`). Until it is built, this
+> document describes the game as it is.
 
 The user approved a new art style on 2026-09-30 (mock-up: `Docs/Art/StyleTarget_Outpost.png`) and asked to rebuild the
 tutorial island in it: Skyreach stays a grassy meadow floating in the sky, with rustic houses, roads, varied trees,

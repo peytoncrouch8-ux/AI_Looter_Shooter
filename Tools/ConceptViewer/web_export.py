@@ -1,5 +1,5 @@
-"""Exports the game's scripted models as flat-colored GLBs for the island concept viewer (Screen Print Wash palette
-baked into vertex colors: alpha 1 = a normal fill, 0.5 = a saturated accent, 0 = a glow).
+"""Exports the game's scripted models as flat-colored GLBs for the island concept viewer (each face's average color
+baked into a vertex color: alpha 1 = a lit surface, 0 = a glow, which the page draws unlit).
 Runs under plain Python with the `bpy` module (pip install bpy==4.5.*, numpy, pillow), not inside Blender.
 Usage: python3 web_export.py <outdir> [models|terrain|all] [Art/Models-relative scripts, comma-separated]"""
 import colorsys
@@ -38,10 +38,9 @@ for _kit in ('looter_rail', 'looter_train', 'looter_town'):
     except Exception as _e:
         print(f'EXPORT: could not patch {_kit}: {_e}', flush=True)
 
-CREAM = (0xf6 / 255, 0xee / 255, 0xdc / 255)
 SKIP_PREFIX = ('UCX_', 'USP_', 'UCP_', '_')
 
-# --- the palette: average colors of the trim sheet's strips and of every texture set, lifted by the print rule ---
+# --- the palette: average colors of the trim sheet's strips and of every texture set ---
 def texture_mean(path, alpha=False):
     a = np.asarray(Image.open(path).convert('RGBA'), np.float32) / 255.0
     m = a[..., 3] > 0.5 if alpha else np.ones(a.shape[:2], bool)
@@ -79,14 +78,9 @@ def hsv_adjust(c, sat=1.0, val=1.0):
     return colorsys.hsv_to_rgb(h, min(1.0, s * sat), min(1.0, v * val))
 
 
-def print_lift(c):
-    """The Screen Print Wash fill rule on an sRGB color (Docs/Art/ScreenPrintWash.md). Returns (rgb, accent)."""
-    accent = min(c[1], c[2]) - c[0] > 0.05
-    if accent:
-        c = hsv_adjust(c, sat=1.7, val=1.12)
-    c = hsv_adjust(c, sat=1.22)
-    c = tuple(min(1.0, 0.83 * a + 0.17 * b) for a, b in zip(c, CREAM))
-    return c, accent
+def plain(c):
+    """A color as three plain floats (the averages are numpy values, which json cannot write)."""
+    return tuple(float(v) for v in c)
 
 
 def strip_for_v(v):
@@ -98,9 +92,10 @@ def strip_for_v(v):
 
 
 def material_color(mat, v_mean):
-    """(sRGB rgb, alpha flag) for a face of this material: the set's or strip's average, tinted, print-lifted."""
+    """(sRGB rgb, alpha flag) for a face of this material: the set's or strip's average, tinted. The flag is 1 for a
+    lit surface and 0 for a glow."""
     if mat is None:
-        return print_lift((0.6, 0.6, 0.6))[0], 1.0
+        return (0.6, 0.6, 0.6), 1.0
     set_name = mat.get('TextureSet')
     glow = float(mat.get('Glow', 0.0) or 0.0) > 0.0 or mat.get('Kind') == 'Glow' or 'Glow' in mat.name
     if set_name == 'HouseTrim':
@@ -116,8 +111,7 @@ def material_color(mat, v_mean):
     if glow:
         c = hsv_adjust(base, sat=1.3, val=1.1)
         return c, 0.0
-    c, accent = print_lift(base)
-    return c, (0.5 if accent else 1.0)
+    return plain(base), 1.0
 
 
 def bake_flat_colors(obj):
@@ -190,10 +184,9 @@ def bounds(objs):
     return dict(min=[lo[0], lo[2], -hi[1]], max=[hi[0], hi[2], -lo[1]])
 
 
-MANIFEST = dict(models={}, terrain={}, palette={k: lin_to_srgb((0, 0, 0)) for k in ()})
-MANIFEST['palette'] = {'trim_' + k: print_lift(v)[0] for k, v in TRIM.items()}
-MANIFEST['palette'].update({k: print_lift(v)[0] for k, v in SET_MEAN.items()})
-MANIFEST['cream'] = CREAM
+MANIFEST = dict(models={}, terrain={})
+MANIFEST['palette'] = {'trim_' + k: plain(v) for k, v in TRIM.items()}
+MANIFEST['palette'].update({k: plain(v) for k, v in SET_MEAN.items()})
 
 DECIMATE = {'Rocks/Cliffs.py': 0.25, 'Rocks/Outcrops.py': 0.35, 'Rocks/SkyIslands.py': 0.6}
 
@@ -266,10 +259,10 @@ def export_terrain():
     sample = macro.reshape(-1, 3)[::37].astype(np.float32)
     crit = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.25)
     _, _, centers = cv2.kmeans(sample, 4, None, crit, 4, cv2.KMEANS_PP_CENTERS)
-    lifted = [print_lift(tuple(c))[0] for c in centers]
-    MANIFEST['terrain']['palette'] = lifted
+    tones = [plain(c) for c in centers]
+    MANIFEST['terrain']['palette'] = tones
     grass_k = int(np.argmax(centers[:, 1] - centers[:, 0]))   # the greenest tone
-    print(f'EXPORT: terrain palette {[tuple(round(v, 3) for v in c) for c in lifted]} grass {grass_k}', flush=True)
+    print(f'EXPORT: terrain palette {[tuple(round(v, 3) for v in c) for c in tones]} grass {grass_k}', flush=True)
     for o in tiles:
         mesh = o.data
         uv = mesh.uv_layers[0]
@@ -288,7 +281,7 @@ def export_terrain():
             k = int(((centers - c) ** 2).sum(1).argmin())
             if 0.18 <= macro_alpha[py, px] <= 0.52:   # a painted road or footpath: the concepts lay their own
                 k = grass_k
-            colors[ls, :3] = lifted[k]
+            colors[ls, :3] = tones[k]
         attr.data.foreach_set('color_srgb', colors.reshape(-1))
         mesh.color_attributes.active_color = attr
         mesh.color_attributes.render_color_index = mesh.color_attributes.find('Flat')
@@ -297,7 +290,7 @@ def export_terrain():
     for o in under:
         mesh = o.data
         attr = mesh.color_attributes.get('Flat') or mesh.color_attributes.new('Flat', 'BYTE_COLOR', 'CORNER')
-        c = print_lift(SET_MEAN['RockCliff'])[0]
+        c = plain(SET_MEAN['RockCliff'])
         colors = np.tile(np.array([*c, 1.0], np.float32), (len(mesh.loops), 1))
         attr.data.foreach_set('color_srgb', colors.reshape(-1))
         mesh.color_attributes.active_color = attr
@@ -307,8 +300,8 @@ def export_terrain():
     for o in water:
         mesh = o.data
         attr = mesh.color_attributes.get('Flat') or mesh.color_attributes.new('Flat', 'BYTE_COLOR', 'CORNER')
-        c = print_lift((0.55, 0.72, 0.76))[0]
-        colors = np.tile(np.array([*c, 0.5], np.float32), (len(mesh.loops), 1))
+        c = (0.55, 0.72, 0.76)
+        colors = np.tile(np.array([*c, 1.0], np.float32), (len(mesh.loops), 1))
         attr.data.foreach_set('color_srgb', colors.reshape(-1))
         mesh.color_attributes.active_color = attr
         mesh.color_attributes.render_color_index = mesh.color_attributes.find('Flat')

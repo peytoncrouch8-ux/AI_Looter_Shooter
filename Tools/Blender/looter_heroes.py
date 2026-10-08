@@ -8,14 +8,13 @@ its rig for a skeleton named like the mannequin by itself, whatever the hero's p
 Units are meters. A hero stands on the origin facing -Y (Blender's Front view), as Art/README.md asks; its left side
 is +X. The armature becomes the root bone in Unreal (looter_export.export_rig), so the first bone is pelvis, as in the
 mannequin. A hero is one skinned mesh, Hero_<Name> (SK_Hero_<Name> in Unreal), with one material per palette color
-(Hero_<Name>_<color>), and a 'Flat' color attribute in the Screen Print Wash palette for the concept viewer.
+(Hero_<Name>_<color>), and a 'Flat' color attribute with the palette's colors for the concept viewer's web page.
 
     hero = Hero('Ellis', Build(height=1.80), palette)
     hero.add('Shirt', loft(rings), 'shirt', bones=TORSO)
     ...
     hero.finish()
 """
-import colorsys
 import math
 
 import bmesh
@@ -25,7 +24,6 @@ from mathutils import Vector
 
 import looter_model as lm
 
-CREAM = (0xf6 / 255, 0xee / 255, 0xdc / 255)
 FINGERS = ('index', 'middle', 'ring', 'pinky')
 SIDES = (('l', 1.0), ('r', -1.0))      # the hero's left is +X
 
@@ -412,24 +410,11 @@ def smoothstep(e0, e1, x):
 
 # --------------------------------------------------------------------------------------------------------- the hero
 
-def print_color(hex_value, flag):
-    """The Screen Print Wash fill rule (Docs/Art/ScreenPrintWash.md, as the concept viewer bakes it): fills are lifted
-    toward the paper; accents keep more of their color; glows stay bright and go unshaded. Returns sRGB and the
-    viewer's flag (1 shaded, 0.5 shaded teal, 0 unshaded)."""
+def viewer_color(hex_value, flag):
+    """A palette color for the concept viewer's web page: the color as written, in sRGB, and the viewer's flag (1 for a
+    lit surface, 0 for a glow, which the page draws unlit)."""
     c = (((hex_value >> 16) & 255) / 255.0, ((hex_value >> 8) & 255) / 255.0, (hex_value & 255) / 255.0)
-    h, s, v = colorsys.rgb_to_hsv(*c)
-    if flag == 'glow':
-        return colorsys.hsv_to_rgb(h, min(1.0, s * 1.2), min(1.0, v * 1.08)), 0.0
-    if flag == 'accent':
-        c = colorsys.hsv_to_rgb(h, min(1.0, s * 1.35), min(1.0, v * 1.05))
-        lift = 0.1
-        teal = 0.42 < h < 0.6
-    else:
-        c = colorsys.hsv_to_rgb(h, min(1.0, s * 1.22), v)
-        lift = 0.17
-        teal = False
-    c = tuple(min(1.0, (1.0 - lift) * a + lift * b) for a, b in zip(c, CREAM))
-    return c, (0.5 if teal else 1.0)
+    return c, (0.0 if flag == 'glow' else 1.0)
 
 
 class Hero:
@@ -497,7 +482,7 @@ class Hero:
 
     # --- assembly
     def finish(self):
-        """Builds the armature and the skinned mesh, and bakes the print colors. Returns (armature, mesh)."""
+        """Builds the armature and the skinned mesh, and bakes the viewer colors. Returns (armature, mesh)."""
         arm = bpy.data.objects.new(self.name, bpy.data.armatures.new(self.name))
         bpy.context.scene.collection.objects.link(arm)
         bpy.ops.object.select_all(action='DESELECT')
@@ -525,8 +510,8 @@ class Hero:
             if key not in materials:
                 hex_value, flag = self.palette[color]
                 mat = lm.material(key, hex_value, 'Glow' if flag == 'glow' else 'Surface')
-                mat['PrintHex'] = hex_value
-                mat['PrintFlag'] = flag
+                mat['ViewHex'] = hex_value
+                mat['ViewFlag'] = flag
                 materials[key] = mat
             mesh = bpy.data.meshes.new(part_name)
             mesh.from_pydata([tuple(v) for v in shape.verts], [], [tuple(f) for f in shape.faces])
@@ -557,7 +542,7 @@ class Hero:
         body.name = body.data.name = f'Hero_{self.name}'
         body.parent = arm
         body.modifiers.new('Armature', 'ARMATURE').object = arm
-        bake_print_colors(body)
+        bake_viewer_colors(body)
         for name, (bone, pos, xa, ya) in self.sockets.items():
             empty = bpy.data.objects.new(f'SOCKET_{name}', None)
             bpy.context.scene.collection.objects.link(empty)
@@ -599,8 +584,8 @@ def fix_normals(obj):
     bm.free()
 
 
-def bake_print_colors(obj):
-    """The concept viewer's colors: each face's material color in the print palette, its flag in alpha."""
+def bake_viewer_colors(obj):
+    """The concept viewer's colors: each face's material color, its flag in alpha."""
     mesh = obj.data
     attr = mesh.color_attributes.get('Flat') or mesh.color_attributes.new('Flat', 'BYTE_COLOR', 'CORNER')
     colors = np.empty((len(mesh.loops), 4), np.float32)
@@ -608,7 +593,7 @@ def bake_print_colors(obj):
     for poly in mesh.polygons:
         if poly.material_index not in cache:
             mat = mesh.materials[poly.material_index]
-            rgb, flag = print_color(int(mat['PrintHex']), mat['PrintFlag'])
+            rgb, flag = viewer_color(int(mat['ViewHex']), mat['ViewFlag'])
             cache[poly.material_index] = (*rgb, flag)
         colors[poly.loop_start:poly.loop_start + poly.loop_total] = cache[poly.material_index]
     attr.data.foreach_set('color_srgb', colors.reshape(-1))

@@ -1,0 +1,10 @@
+{
+  "name": "style-lab-tests",
+  "private": true,
+  "description": "Serves the Style Lab page, screenshots its styles and shots in headless Chromium, and drives it like a player.",
+  "type": "module",
+  "dependencies": {
+    "playwright": "1.56.1",
+    "three": "0.170.0"
+  }
+}

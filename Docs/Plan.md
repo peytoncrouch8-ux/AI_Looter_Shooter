@@ -112,28 +112,21 @@ art bible, the asset list, the island layout and the performance plan. The targe
 - [ ] Next: a waterfall and chimney smoke, reeds at the pond, more trees in the meadows, the gun rack's weapon, and the
       tutorial itself (prompts along the road).
 
-## Phases 6-11: decided in the cloud session, not started
+## Phases 6-11: from the cloud session
 These phases came from the user's cloud session of 2026-10-02 to 2026-10-05 (its handoff is
-`Docs/Handoffs/CloudIslandConcepts_2026-10-05.md`; its files were brought in on 2026-10-07). Nothing in them is built.
-The user will decide later whether Phase 6's look replaces the stylized realism Ransom's Rest is being built in, so
-read "the transition starts in the next session" below as waiting on that decision.
-## Phase 6: Screen Print Wash
-The user found stylized realism bland and, from an exploration of eight styles and six mixes
-(`Docs/Art/StyleExploration/`), chose **Screen Print Wash** on 2026-10-02: flat palette fills, a hard violet two-tone
-light with pigment granulation, pencil-under-ink lines, a misregistered color plate and cream paper, with a pastel sky
-(`Docs/Art/ScreenPrintWash.md`, target `Docs/Art/StyleTarget_ScreenPrintWash.png`). The transition starts in the next
-session; its steps are listed in that document. Nothing in the game has changed yet.
-- [ ] Docs: the art bible, `CLAUDE.md`, this phase's boxes.
-- [ ] The post-process material (two-tone light, ink and pencil lines, misregistration, granulation, paper, distance
-      fade), applied from C++, within 0.8 ms on Medium.
-- [ ] Flat texture plates for every set (`looter_textures.py --style print`) and the masters' `Print` switch.
-- [ ] Foliage and terrain as flat tones, with the edge pass excluding leaf cards.
-- [ ] Light, fog and sky dome in the pastel palette.
-- [ ] Guns, creatures and loot; the UI checked over the new world.
-- [ ] Retire the realism texture mode; tour and performance recorded.
+`Docs/Handoffs/CloudIslandConcepts_2026-10-05.md`; its files were brought in on 2026-10-07). Phase 6 was renewed on
+2026-10-08, and Phase 8 is built; the others are not started.
+
+## Phase 6: The art style
+The user finds the current look (stylized realism) and the earlier style explorations short of what the game needs,
+and on 2026-10-08 asked for ten very different art styles, previewed in the game's own scene under the new HUD, to
+choose from: the Style Lab (`Tools/StyleLab/`). The chosen style then goes onto every asset.
+- [ ] The user picks a style from the Style Lab.
+- [ ] Its spec and transition plan written down (`Docs/Art/`), then built: post-process, materials, light and sky.
+- [ ] Every asset in the new style; tour and performance recorded.
 
 ## Phase 7: Crossroads Town
-The user found the tutorial island bland and lonely and, from four 3D layout concepts in the new look
+The user found the tutorial island bland and lonely and, from four 3D layout concepts
 (`Docs/TutorialIslandConcepts.md`), chose **Crossroads Town** on 2026-10-03. The crossroads grows into a small town
 round a cobbled square, the slimes get a bog and the spiders a webbed hollow, and the roads get brick kerbs, lamps and
 cover, with far more trees, hedges, flowers and life. Every placement is in
@@ -141,7 +134,7 @@ cover, with far more trees, hedges, flowers and life. Every placement is in
 in the level has changed yet.
 - [ ] The town with the models that exist: placements, kerbed roads and the cobbled square, the creature groups, the
       scatter and new tour views; measured on Medium.
-- [ ] New models in the print style: stalls, sheds, coop, haystacks, scarecrows, picket fences, hedges, barricades,
+- [ ] New models in the chosen art style: stalls, sheds, coop, haystacks, scarecrows, picket fences, hedges, barricades,
       sandbags, targets, the dock, garden crops, kerbs and cobbles, and the creature grounds' dressing.
 - [ ] Sheep, hens and townsfolk: models, actors and bestiary pages.
 - [ ] Tour and performance recorded at every viewpoint.
@@ -156,12 +149,12 @@ bar: an inked portrait of the player character in a gunmetal diamond that blinks
 flares on a level-up, with a thick health bar with its number, a level gem and the experience bar. A mission tracker
 on the left replaces the tutorial prompt: a ranger's star, the tracked mission's name over a bar of its steps, one
 short objective and a key hint. The weapons, minimap and boss bar get the same metalwork, and a banner announces each
-level. `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md` has the full spec. Nothing in the code has changed yet.
-- [ ] The player frame and the portrait (`Art/Icons/HudPortrait.svg` as vector data), with its reactions.
-- [ ] The level-up banner; the experience bar's logic moved into the frame.
-- [ ] The mission tracker in place of the tutorial prompt, with the tutorial's short lines and key hints.
-- [ ] The weapon slots as a column with the upright cartridge, then the minimap and boss bar, in the new style.
-- [ ] Measured on Medium, tests passing, `CLAUDE.md`'s UI rules updated.
+level. `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md` has the full spec. Built on 2026-10-07 (731e0df, 5b5b36a).
+- [x] The player frame and the portrait (`Art/Icons/HudPortrait.svg` as vector data), with its reactions.
+- [x] The level-up banner; the experience bar's logic moved into the frame.
+- [x] The mission tracker in place of the tutorial prompt, with the tutorial's short lines and key hints.
+- [x] The weapon slots as a column with the upright cartridge, then the minimap and boss bar, in the same metalwork.
+- [x] Measured on Medium, tests passing, `CLAUDE.md`'s UI rules updated.
 
 ## Phase 9: Gun ideas
 On 2026-10-04 the user picked three ideas for the loot from a brainstorm: notches (each gun counts its kills, cut into
@@ -186,7 +179,7 @@ With the heroes (Phase 11) they became four of the heroes' fifteen powers, and t
 powers. `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md` has the full spec. Nothing in the code has changed yet.
 - [ ] The ember component, definitions, keys and saving.
 - [ ] The creatures' knocked, dizzy, burning and marked states.
-- [ ] The fifteen powers and their effects, in the print look, the four from the demo first.
+- [ ] The fifteen powers and their effects, in the chosen art style, the four from the demo first.
 - [ ] The HUD's ember sockets and the inventory's ember page.
 - [ ] Tests, measured on Medium, `CODEMAP.md` updated.
 

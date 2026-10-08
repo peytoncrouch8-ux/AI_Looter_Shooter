@@ -3,7 +3,7 @@
 On 2026-10-03 the user said the tutorial island felt bland and lonely, and asked for four 3D layouts to choose from. Each
 should make the island look alive, with a few more houses that feel like a small town, defined and better-looking grounds
 for the two creatures (slimes and spiders), better dirt roads with bricks, barriers or obstacles, and flowers, bushes
-and other vegetation, all in the Screen Print Wash style (`Docs/Art/ScreenPrintWash.md`).
+and other vegetation.
 
 The four concepts can be explored in the concept viewer, <https://claude.ai/artifact/NoY9cGCEDzz4yB1ZwPb49e>
 (`Tools/ConceptViewer`). The viewer draws the game's own models on the island's real terrain. Use "Compare all 4" to see

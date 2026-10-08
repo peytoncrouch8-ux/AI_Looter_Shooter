@@ -1,37 +1,29 @@
-> **Decision 3, the HUD upgrade, is built (2026-10-07, commits 731e0df and 5b5b36a).** Changes from this file: the
+> **Decision 2, the HUD upgrade, is built (2026-10-07, commits 731e0df and 5b5b36a).** Changes from this file: the
 > level-up banner's gem sits 260 px down, as the mockup draws it; a hit no longer tints the whole screen (the user's
 > call: edges only); the HUD's text keeps the mockup's px as Slate sizes, a third bigger in game (the user's call); the
-> place under the minimap is the area's name (there are no named places yet). The other five decisions are not built.
+> place under the minimap is the area's name (there are no named places yet). The other four decisions are not built.
 >
 > **Brought in from the cloud session on 2026-10-07, for future use.** This is `HANDOFF.md` as the cloud session left it
 > on branch `claude/island-concepts` (commit `740a649`, 2026-10-05), unchanged below this note. None of it is built
-> yet. The files it points to were brought in too, at the user's request (2026-10-07): the Screen Print Wash docs and
-> scripts, `crossroads_town.json`, the concept viewer, the HUD mockup, ember demo and hero page sources, the heroes'
-> backlog models, and `Docs/Plan.md`'s phases 6-11. Where this file says `HANDOFF.md`, read this file. Unlike on the
-> branch, `CLAUDE.md` neither imports it nor carries the branch's "Working with the user" rules (the user: "not yet").
-> Decision 1 (Screen Print Wash everywhere) predates the stylized-realism art the user approved for Ransom's Rest from
-> 2026-10-05 on; the user will decide later which look wins, so build none of decision 1 until they do. The images
-> (style targets and sheets) were never on GitHub: `Docs/Art/REGENERATE_IMAGES.md` makes them again.
-# Handoff: the art style, tutorial island, HUD, gun ideas, ember powers and heroes
+> yet. The files it points to were brought in too, at the user's request (2026-10-07): `crossroads_town.json`, the
+> concept viewer, the HUD mockup, ember demo and hero page sources, the heroes' backlog models, and `Docs/Plan.md`'s
+> phases 6-11. Where this file says `HANDOFF.md`, read this file. Unlike on the branch, `CLAUDE.md` neither imports it
+> nor carries the branch's "Working with the user" rules (the user: "not yet").
+# Handoff: tutorial island, HUD, gun ideas, ember powers and heroes
 
-The user made six decisions in a cloud session from 2026-10-02 to 2026-10-05, and plans to have them built starting
-Monday, 2026-10-05, when their usage resets. Nothing in `Content/`, the materials, the level, the HUD's code, the
-weapons' code or the character's has changed for any of them yet; the heroes' models exist only as Blender scripts in
-the backlog. `CLAUDE.md` imports this file, so every session starts with it. When all six are built, delete this file
-and that import, and record the outcome in `Docs/Plan.md`.
+The user made five decisions in a cloud session from 2026-10-02 to 2026-10-05, and plans to have them built starting
+Monday, 2026-10-05, when their usage resets. Nothing in `Content/`, the level, the HUD's code, the weapons' code or the
+character's has changed for any of them yet; the heroes' models exist only as Blender scripts in the backlog.
+`CLAUDE.md` imports this file, so every session starts with it. When all five are built, delete this file and that
+import, and record the outcome in `Docs/Plan.md`.
 
 ## The decisions
 
-1. **The art style is Screen Print Wash** (chosen 2026-10-02). It replaces textured "stylized realism"
-   (`Docs/Art/StyleTarget_Outpost.png`) everywhere in the game. The user found the old look bland. From eight styles
-   and six mixes rendered on the cottage (`Docs/Art/StyleExploration/README.md`), they picked style 10, a mix of
-   style 1 (ink and flat color, like Sable) and style 4 (gouache storybook). The full spec and a ten-step transition
-   plan are in `Docs/Art/ScreenPrintWash.md`; the plan's boxes are Phase 6 of `Docs/Plan.md`.
-2. **The tutorial island's layout is Crossroads Town** (chosen 2026-10-03), concept 1 of the four in
+1. **The tutorial island's layout is Crossroads Town** (chosen 2026-10-03), concept 1 of the four in
    `Docs/TutorialIslandConcepts.md`. The user had found the island bland and lonely. The crossroads grows into a small
    town, the slimes and spiders get grounds of their own, and the roads get brick kerbs, cover and planting. The user
    liked the 3D model as it is: build what it shows, fixing only the overlaps listed under "Fix while building".
-3. **The HUD upgrade** (chosen 2026-10-03). The user found the gameplay HUD simple and bland. They asked for a more
+2. **The HUD upgrade** (chosen 2026-10-03). The user found the gameplay HUD simple and bland. They asked for a more
    personable HUD that wows, keeping the key concepts of the earlier HUD rounds, and gave a reference: an RPG unit
    frame with a portrait in an ornate diamond, the name, a thick health bar with numbers, a level gem and an
    experience bar. The user liked the mockup and asked for these changes over four rounds, all made in it:
@@ -42,14 +34,14 @@ and that import, and record the outcome in `Docs/Plan.md`.
    - the ammo counts inside the cartridge, and the cartridge standing upright on the right of the weapon slots, which
      stack in a column with slot 1 on top;
    - the player frame 15% smaller, with no name on it.
-4. **Three gun ideas** (chosen 2026-10-04). Asked for ideas the game doesn't have yet, the user picked three of thirteen
+3. **Three gun ideas** (chosen 2026-10-04). Asked for ideas the game doesn't have yet, the user picked three of thirteen
    for the loot: **notches** (each gun counts its kills and wakes at milestones), **part swapping** at a gunsmith's
    bench, and **cursed irons** (a strong perk with a real drawback). See "Three gun ideas".
-5. **Four ember powers** (chosen 2026-10-04). Another idea from the same list: each outlaw's ember leaves Ellis a
+4. **Four ember powers** (chosen 2026-10-04). Another idea from the same list: each outlaw's ember leaves Ellis a
    power. The user played a demo of six and kept **Lucky Streak**, **Dust Devil**, **Slag Bomb** and **Spyglass**, for
-   the main session to revise. With decision 6 they became four of the heroes' powers, and the outlaws' embers stopped
+   the main session to revise. With decision 5 they became four of the heroes' powers, and the outlaws' embers stopped
    giving powers. See "Ember powers".
-6. **Five playable heroes** (chosen 2026-10-05). The user asked for five playable characters to choose from, like
+5. **Five playable heroes** (chosen 2026-10-05). The user asked for five playable characters to choose from, like
    Borderlands' Vault Hunters, each unique and with three ember powers to choose from, modeled to replace the
    mannequin. Asked first, they chose Ellis plus four new heroes (the story stays Ellis's, and the four get their own
    reasons to hunt the gang), the four kept powers spread among the heroes with eleven new ones, and a mixed cast. They
@@ -58,15 +50,10 @@ and that import, and record the outcome in `Docs/Plan.md`.
 
 ## Where everything is
 
-- **Branch `claude/island-concepts`** holds all of it: the art-style docs and the scripts that rendered the styles,
-  the concept viewer, the concept doc, the exact placements, the HUD mockup's sources, the portrait's art, the ember
-  demo's sources, the heroes' models, the hero page's sources and this file. It sits on top of `main` at `cf34a3c`:
-  `git fetch origin claude/island-concepts`, then `git merge origin/claude/island-concepts`. It already contains
-  `claude/art-style-exploration-text`; there is nothing else to merge.
-- **The images are not on GitHub.** The cloud session's network policy blocks the Git LFS host, so the PNGs (the
-  target `Docs/Art/StyleTarget_ScreenPrintWash.png` and the exploration sheets) never got uploaded.
-  `Docs/Art/REGENERATE_IMAGES.md` makes them again in about four minutes with Blender 4.5. The user also has them in
-  that session's chat. The target is the picture the transition is checked against, so make it first.
+- **Branch `claude/island-concepts`** holds all of it: the concept viewer, the concept doc, the exact placements, the
+  HUD mockup's sources, the portrait's art, the ember demo's sources, the heroes' models, the hero page's sources and
+  this file. It sits on top of `main` at `cf34a3c`: `git fetch origin claude/island-concepts`, then
+  `git merge origin/claude/island-concepts`.
 - **The concept viewer** is <https://claude.ai/artifact/NoY9cGCEDzz4yB1ZwPb49e>, private to the user's account. It shows
   the island from above and on foot, and "Compare all 4" shows one viewpoint in every concept. Its source and rebuild
   steps are in `Tools/ConceptViewer/README.md`; `conceptCrossroads()` in `Tools/ConceptViewer/web/concepts.js` is the
@@ -84,39 +71,17 @@ and that import, and record the outcome in `Docs/Plan.md`.
   at 85% of the sizes its rules give (the numbers here are the final ones). `__BG__`, `__RIFLE__` and the like stand
   for the backdrop render and the Inked icons. The portrait's art is `Art/Icons/HudPortrait.svg`.
 - **The ember powers demo** is <https://claude.ai/artifact/MeXAwqdJdX4SYGDzhEy4xR>, private to the user's account. It
-  is playable in Crossroads Town with the game's models, the print look and the new HUD: "Watch all six" shows each
+  is playable in Crossroads Town with the game's models and the new HUD: "Watch all six" shows each
   power, and "Play" starts a spider raid. Its sources are in `Docs/EmberDemo/`: `game.js` holds the powers' numbers,
   timings and effects, and `ui.html` the sockets, the ember page and the HUD around them (`__RIFLE__` and the like
   stand for the Inked icons). They run on the concept viewer's engine (`Tools/ConceptViewer/web`). The demo also has
   the two powers the user passed on, Raise the Flock and Landslide.
 - **The hero page** is <https://claude.ai/artifact/5NVdW7yTzReFkP3wvaxbyg>, private to the user's account: the five
-  heroes on stands, in the print look. Click one, or press 1 to 5, and they step forward with their story and powers;
+  heroes on stands. Click one, or press 1 to 5, and they step forward with their story and powers;
   drag to turn them; Idle, Walk and A-pose show the rig at work. Its sources are in `Docs/HeroSelect/`: `heroes.js`
   holds the stories, the fifteen powers with their glyphs (SVG, vector art for `IconBrush`) and the poses, `ui.html`
   the screen's layout, and `build.py` exports the heroes from their scripts and assembles the page on the concept
   viewer's engine, in a few seconds (`python3 Docs/HeroSelect/build.py`, with the `bpy` module).
-
-## Screen Print Wash in brief
-
-A flat-color print on cream watercolor paper. Pixel sizes are given at 1600 px wide and scale with the resolution.
-
-- **Fills.** Each surface is one flat fill from a small palette, lifted toward the paper:
-  `fill = 0.83 × color + 0.17 × #f6eedc`. Textures carry no detail of their own.
-- **Light.** Two tones with a hard edge. The shade is the fill × (0.70, 0.64, 0.86), a violet tone, and cast shadows
-  use it too. The shade gets pigment granulation (a soft mottle and sparse dark specks); there is no stipple or
-  halftone.
-- **Edges and lines.** Fills darken 10 % along their edges, and the color bleeds slightly. There are two line plates:
-  a sketchy pencil line (`#4a3f44`, 68 %) offset under a thin 1 px ink line (`#2a2024`, 88 %).
-- **Print effects.** The color plate is misregistered 2.5 px right and 1.5 px down from the lines. Cream paper texture
-  covers everything.
-- **Sky and distance.** The sky is a pastel gradient from `#f6dcb8` at the horizon to `#9ec1ea` at the top. Clouds are
-  flat paper-white shapes outlined in pencil. The ground fades toward `#f1dcc0` with distance.
-- **The accent rule.** Only what the player should notice is saturated: doors, loot, rarity, interactables, the
-  lantern. The teal accent shades to deep teal, not violet. Everything else stays pastel.
-- **In Unreal.** One post-process material, `M_PP_ScreenPrint`, is applied from C++ (budget about 0.8 ms on the
-  RX 580). Every texture set gets flat plates from `looter_textures.py --style print`, and the masters get a `Print`
-  switch. A stencil keeps leaf cards out of the line pass. Steps 0 to 10 in `Docs/Art/ScreenPrintWash.md` give the
-  order and what to measure.
 
 ## Crossroads Town in brief
 
@@ -243,7 +208,7 @@ What changes:
 - **Tour** (`Art/Levels/TutorialIsland/views.json`). Add the viewer's on-foot views from the JSON's `views.foot`
   (Square, Farm road, Slimes, Spiders) so `tour.ps1` measures them.
 
-**Models that already exist.** These only need the print look, which the transition gives them:
+**Models that already exist.** These only need the game's chosen art style, which the transition gives them:
 
 - every building above, and the props: `TownMemorial`, `NoticeBoard` and `HitchRail` from Main Street's kit, plus
   `LampPost`, `Bench`, `LaundryLine`, `Signpost`, carts, hay, firewood, barrels, crates, troughs, fences and stone
@@ -255,7 +220,7 @@ What changes:
 The viewer drew its own trees, bushes, reeds, grass and flowers only because it bakes one flat color per face and has
 no texture masks, so the game's leaf cards would show as solid quads. Use the game's.
 
-**Models to make.** These are the viewer's `k:` kit pieces. Make them in the print style from the start.
+**Models to make.** These are the viewer's `k:` kit pieces. Make them in the game's chosen art style from the start.
 
 - Town and farm: market stall (3), shed (3), hen coop, haystack (2), scarecrow (3), picket fence for the gardens,
   cabbage rows, hedge, barricade, sandbags, practice targets (3) and a pond dock.
@@ -540,7 +505,7 @@ numbers are starting points to tune in play.
 ## Ember powers
 
 **Where they come from.** In the demo, Ellis earned a power from each outlaw's ember and carried two, on Q and F. With
-the heroes (decision 6), each hero has three powers of their own instead, and the outlaws' embers no longer give
+the heroes (decision 5), each hero has three powers of their own instead, and the outlaws' embers no longer give
 powers. The four powers kept from the demo went to four heroes: Dust Devil to Ellis, Lucky Streak to Odessa, Slag Bomb
 to Gauge and Spyglass to Pike. This section holds those four's numbers and what all fifteen powers share; the eleven
 new ones are under "Five heroes". The numbers are the demo's, starting points to revise in play. The demo's rifle
@@ -612,8 +577,7 @@ choose the power, or powers, the hero carries.
   (Borrowed Time) and shot modifiers in `UBulletSubsystem` (Double or Nothing, Long Shot).
 - **Lucky Streak's ricochet** goes through `UBulletSubsystem`. While the streak lasts, a hit on a creature sends a
   second bullet from the hit to the nearest other creature.
-- **Spyglass's silhouette** draws the creature's custom depth with a stencil value of its own, because the print
-  look's stencil keeps leaf cards out of its line pass. The post-process draws the silhouette where the creature is
+- **Spyglass's silhouette** draws the creature's custom depth with a stencil value of its own. The post-process draws the silhouette where the creature is
   hidden behind something. The marker goes over the creature's tag (`UCreatureHealthBarWidget`).
 - **Damage** uses a new `UEmberDamageType`. A power's kills give experience (`AwardKill`) but count for no gun's
   notches.
@@ -688,7 +652,7 @@ starting points, and their cooldowns are set in play.
 - **Facing.** Like every model, a hero faces Blender's -Y, which becomes Unreal's +X. The mannequin faces +Y, so a
   hero's mesh doesn't take the mannequin's -90° yaw on the character's mesh component.
 - **Materials.** One flat-colored material per palette color, 10 to 19 per hero. Merge each hero's into one when
-  bringing it in, and give it the print look with everything else (Screen Print Wash).
+  bringing it in, and give it the game's chosen art style with everything else.
 - **First person.** The view shows the hero's own arms, so check each hero's sleeves and hands in first person.
 - **Portraits.** The HUD upgrade's player-frame portrait (`Art/Icons/HudPortrait.svg`) is Ellis's. The other four each
   need one in the same Inked style.
@@ -711,24 +675,19 @@ starting points, and their cooldowns are set in play.
 
 ## Suggested order
 
-1. Merge `claude/island-concepts`, then regenerate the style images.
-2. Screen Print Wash steps 0 to 2: before pictures, docs, then the post-process. The whole game takes the new look at
-   once, and the town is then built under it.
-3. Crossroads Town with the models that exist: placements, roads, gameplay groups, scatter and tour views. Measure.
-4. The HUD upgrade: the player frame and portrait first, then the mission tracker, the weapons, minimap, banner and
-   boss bar. It doesn't depend on the rest; building it after step 2 means its colours are checked over the new
-   pastel world.
-5. Screen Print Wash steps 3 to 7: flat plates, masters, foliage and terrain, light, then guns and creatures.
-6. The new models, in the print style, then the sheep, hens and townsfolk with their bestiary pages.
-7. Screen Print Wash steps 8 to 10, with the final tour and performance record.
+1. Merge `claude/island-concepts`.
+2. Crossroads Town with the models that exist: placements, roads, gameplay groups, scatter and tour views. Measure.
+3. The HUD upgrade: the player frame and portrait first, then the mission tracker, the weapons, minimap, banner and
+   boss bar. It doesn't depend on the rest.
+4. The new models, in the game's chosen art style, then the sheep, hens and townsfolk with their bestiary pages.
 
 The gun ideas don't depend on any of these. Build notches first (curses lift by them), then cursed irons, then part
-swapping, which needs its bench and screen; their cards use the new HUD's look, so after step 4 is best.
+swapping, which needs its bench and screen; their cards use the new HUD's look, so after step 3 is best.
 
-The heroes and their powers also come after step 4: the player frame shows the hero's portrait, and the power sockets
+The heroes and their powers also come after step 3: the player frame shows the hero's portrait, and the power sockets
 sit in the new HUD's empty bottom centre. Bring the five in and retarget them first, then the hero select and saving,
 then the powers: the shared systems with the four from the demo, then the eleven new ones. Make their effects in the
-print look.
+game's chosen art style.
 
 ## Questions for the user
 

@@ -4,6 +4,8 @@ The user finds the approved look (`Docs/Art/StyleTarget_Outpost.png`, "stylized 
 art styles on one game asset to choose from; the chosen style then goes onto every asset. References given: Sable
 (ink lines, flat color, pastel skies) and Jumanji: The Video Game (chunky painted stylized realism).
 
+The user turned down all of these styles on 2026-10-08; the next round is the Style Lab (`Tools/StyleLab/`).
+
 The asset is the village cottage, `Art/Models/Buildings/Cottage.py`, with its real textures. It was built headlessly
 in Blender and rendered once with Cycles (one sun from the left, a soft sky, the game's grass on the ground); every
 style is then composed from the same render passes (albedo, the sun's shading and shadows, sky light, ambient
@@ -41,27 +43,3 @@ or with the `bpy` module from PyPI; compose also needs `numpy`, `opencv-contrib-
     python Tools/Blender/style_compose.py Saved/StyleExplore/Cottage Saved/StyleExplore/Cottage/styles [--only 1,2]
 
 The camera frames the model from the front left at about a player's eye height and scales with the model's size.
-
-## Round 2: mixes of 1 and 4
-
-The user asked for three styles between 1 (ink & flat color) and 4 (gouache storybook). Six candidates were designed
-independently, each from a different brief along that axis (two ink-leaning, two balanced, two wash-leaning), as
-plugin styles in `Tools/Blender/style_plugins/`; three judges then scored each for blend fidelity, craft and game fit
-(1 to 10). `hybrids/` holds all six (`contact_sheet_all_six.png`) and the three put forward (`contact_sheet.png`).
-
-| # | Style | The mix | Blend / craft / game fit |
-|---|---|---|---|
-| 9 | Storybook ink | Balanced. Gouache fills that keep gentle color variation, wet-edge pooling, paper grain and a pencil underdrawing under dark-brown ink; Sable's two-tone shade, pastel sky and outlined flat clouds. | 7 / 7 / 7 |
-| 10 | Screen Print Wash (**chosen**, `Docs/Art/ScreenPrintWash.md`) | Ink-leaning. Style 1's flat quantized fills and hard violet shade; style 4's pencil laid under a thinner ink line, granulation in the shade instead of stipple, cream paper, the color plate misregistered like a screen print. | 7 / 7 / 6 |
-| 11 | Moebius Watercolor | Balanced. Clean uniform ink and a Moebius peach-to-lavender sky; pale luminous washes that grade softly from lit to shade, pigment bleed, paper, soft unlined clouds. | 7 / 6 / 6 |
-| 12 | Inked Wash | Ink-leaning. Style 1's bold black ink, hard violet two-tone and flat outlined clouds over watercolor fills with granulation and pooling; the sky laid as a wash. | 6 / 6 / 7 |
-| 13 | Inked Gouache | Wash-leaning. Style 4's washes, pooling, paper and pencil, with a thick black contour on silhouettes only. | 7 / 5 / 7 |
-| 14 | Pastel flat gouache | Wash-leaning. Quantized flat fills and a three-tone shade with every edge softened into a wash boundary; no ink at all. | 6 / 6 / 5 |
-
-The panel's own pick was 9, 10 and 13 (the best of each axis position); 13 was swapped for 11 on review: the same
-mean score, cleaner contours, and a more distinct position between the parents. In Unreal all six are the pipeline of
-styles 1 and 4 combined: edge-detected ink (one pass, or two for the pencil-under-ink pairs), a two-tone or soft light
-ramp, a screen-space paper and granulation overlay, and regenerated softer texture sets. The doubled line pass is the
-part most likely to swim in motion.
-
-    python Tools/Blender/style_compose.py <passdir> <outdir> --no-builtin --plugins Tools/Blender/style_plugins/hybrid_storybook_ink.py,Tools/Blender/style_plugins/screen_print_wash.py,Tools/Blender/style_plugins/hybrid_moebius_watercolor.py

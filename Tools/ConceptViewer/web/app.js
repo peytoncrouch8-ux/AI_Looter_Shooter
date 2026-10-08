@@ -149,8 +149,7 @@ function roadParts(r, decals, items) {
   const base = kind === 'path' ? PAL.path : PAL.dirt;
   decals.push(ribbon(s, -w / 2, w / 2, base, 0.05));
   if (kind !== 'path') for (const off of [-0.78, 0.78]) decals.push(ribbon(s, off - 0.15, off + 0.15, PAL.rut, 0.06));
-  const edge = kind === 'path' ? PAL.dirtEdge : PAL.pencil;
-  decals.push(ribbon(s, -w / 2 - 0.05, -w / 2 + 0.03, edge, 0.065), ribbon(s, w / 2 - 0.03, w / 2 + 0.05, edge, 0.065));
+  decals.push(ribbon(s, -w / 2 - 0.05, -w / 2 + 0.03, PAL.dirtEdge, 0.065), ribbon(s, w / 2 - 0.03, w / 2 + 0.05, PAL.dirtEdge, 0.065));
   if (kind === 'brick') for (const side of [-1, 1]) for (const [row, start] of [[12, 0], [32, 21]]) {
     alongLine(offsetPolyline(r.points, side * (r.width / 2 + row)), 42, (X, Y, yaw, k) => items.push({ model: 'k:brick', X, Y, yaw: yaw + 90, lift: -0.01, color: (k + (row > 20 ? 1 : 0)) % 2 ? PAL.brickA : PAL.brickB }), start);
   }
@@ -176,7 +175,6 @@ function wavy(pts, amp, every, seed) {
 // ================================================================ building a concept's layer
 const DOUBLE = /^k:(tuft|wheat|flower|reeds|cocoon)|^Reeds_B$|^LilyPads_A$/;
 const NO_SHADOW = /^k:(tuft|wheat|flower|cobble|brick|cabbage|post|puddle)|^LilyPads_A$|^PebbleCluster/;
-const FINE = /^k:(tuft|wheat|flower|cobble|brick|cabbage|post|reeds|mush|stepstone|sacs)|^LilyPads_A$|^PebbleCluster|^Reeds_B$/;
 async function buildLayer(index, progress) {
   const S = CONCEPTS[index]();
   const group = new THREE.Group(); group.visible = false;
@@ -198,7 +196,6 @@ async function buildLayer(index, progress) {
     const geom = name.startsWith('k:') ? proc(name.slice(2)) : await geometry(name);
     if (!geom) { console.warn('skipped', name, list.length); continue; }
     const mesh = instanced(group, geom, list, DOUBLE.test(name) ? MAT2 : MAT, { shadow: !NO_SHADOW.test(name) });
-    if (mesh && FINE.test(name)) FINE_MESHES.push(mesh);
     if (mesh && name.startsWith('k:tuft')) tufts.push(mesh);
   }
   for (const p of S.patches) { const g = patch(p.poly, p.color, p.lift || 0.045, 1, 110); if (g) decals.push(g); }
@@ -238,7 +235,7 @@ async function buildBase(progress) {
   if (under) base.add(new THREE.Mesh(under, MAT));
   if (water) {
     const col = water.attributes.color, wc = C(PAL.water);
-    for (let i = 0; i < col.count; i++) col.setXYZW(i, wc.r, wc.g, wc.b, 0.5);
+    for (let i = 0; i < col.count; i++) col.setXYZW(i, wc.r, wc.g, wc.b, 1);
     col.needsUpdate = true;
     const m = new THREE.Mesh(water, MAT); m.position.y = 0.02; m.receiveShadow = true; base.add(m);
   }

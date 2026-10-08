@@ -49,10 +49,10 @@ function slopeUE(X, Y) {
   return Math.max(Math.abs(b - a), Math.abs(e - c)) / (2 * d);
 }
 
-// ================================================================ palette (display colors, Docs/Art/ScreenPrintWash.md)
+// ================================================================ palette (display colors)
 const PAL = {
   grass: '#68753e', dirt: '#bba47e', dirtEdge: '#a68f6b', rut: '#9a8462', path: '#c4ae8a', brickA: '#ad6b5b', brickB: '#97594c',
-  cobbleA: '#c2baa9', cobbleB: '#aaa293', cobbleC: '#b8ab95', plank: '#ad936f', plankDark: '#8d7656', pencil: '#4a3f44', ink: '#2a2024',
+  cobbleA: '#c2baa9', cobbleB: '#aaa293', cobbleC: '#b8ab95', plank: '#ad936f', plankDark: '#8d7656',
   wheat: '#d8bf72', wheatRow: '#c0a65a', plowed: '#9b7c5e', furrow: '#7e634b', crop: '#86a457', cropRow: '#8a6f55', cabbage: '#9cbf6b',
   pasture: '#7d8c48', hay: '#d4bb6c', bog: '#5b6f40', bogDark: '#4d5f37', needles: '#8b7663', moss: '#7c9a58', puddle: '#a9d0cf',
   oakLeaf: '#6b8a49', oakLeafUp: '#89a55b', oakLeafDark: '#5a7a40', birchLeaf: '#a0b766', birchLeafUp: '#b6c978', pine: '#4e6b47', pineUp: '#5f7f55',
@@ -61,58 +61,36 @@ const PAL = {
   flowerBlue: '#a5b8e8', flowerRed: '#e07a6a', stem: '#6f8a48', reed: '#93a35c', cattail: '#7d5a44', water: '#a9cfd3', web: '#f6f1e8',
   sac: '#f1e8d8', cocoon: '#e9e0cf', mushCap: '#cf6552', mushStem: '#f0e7d6', slimeTrail: '#7d9a5c', picket: '#efe7d6', awningRed: '#c9665a',
   awningCream: '#f3e8d2', smoke: '#f6f1e8', bird: '#3a3036', stone: '#a8a093', stoneDark: '#8f887c', tuftA: '#72863f', tuftB: '#8c9c4d',
-  wheatTuft: '#dcc477', shirt: '#6f9fae', hat: '#5c4b40', target: '#d4c08e', cream: '#f6eedc', lantern: '#f6c97c',
+  wheatTuft: '#dcc477', shirt: '#6f9fae', hat: '#5c4b40', target: '#d4c08e', lantern: '#f6c97c',
   wool: '#f4eee2', sheepFace: '#3d3437', cowA: '#8a5a44', cowB: '#f1e9da', hen: '#f3ece0', henBrown: '#b9774f', comb: '#d65a4a', beak: '#e7b04a',
   skin: '#e6bf98', skinB: '#b98a64', meadow: '#7f8d45', meadowB: '#8a9449',
 };
 const C = (hex) => new THREE.Color(hex);
 
-// ================================================================ the print material (Screen Print Wash)
-// Two tones of light: a toon ramp softened over a short band of N·L (lit above about 0.45), shade = fill x violet, or x
-// deep teal for accents. Vertex color alpha flags the fill: 1 normal, 0.5 accent (teal shade), 0 unshaded (glows,
-// flower heads, webs, smoke). The lit fraction goes to alpha, where the post-process puts pigment granulation.
-function makeGradient() {
-  const n = 64, data = new Uint8Array(n * 4);
-  for (let i = 0; i < n; i++) {
-    const ndl = ((i + 0.5) / n) * 2 - 1, t = clamp((ndl - 0.38) / 0.14, 0, 1), v = Math.round(255 * t * t * (3 - 2 * t));
-    data.set([v, v, v, 255], i * 4);
-  }
-  const t = new THREE.DataTexture(data, n, 1, THREE.RGBAFormat);
-  t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true;
-  return t;
-}
-const GRAD = makeGradient();
+// ================================================================ the material
+// Every mesh shares one lit vertex-color material: Lambert shading from the sun and the sky light. The vertex color's
+// alpha is a flag: 1 for a lit surface, 0 for something drawn unlit at its own color (glows, flower heads, webs, smoke).
 const LIGHT_LINE = 'vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;';
-const PRINT_LIGHT = `
-  float lp_lit = clamp(max(reflectedLight.directDiffuse.r, max(reflectedLight.directDiffuse.g, reflectedLight.directDiffuse.b)) * PI
-                       / max(max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)), 1e-4), 0.0, 1.0);
-  float lp_flag = 1.0;
+const FLAG_LIGHT = `
+  float vf_flag = 1.0;
   #ifdef USE_COLOR_ALPHA
-    lp_flag = vColor.a;
+    vf_flag = vColor.a;
   #endif
-  vec3 lp_tint = (lp_flag > 0.25 && lp_flag < 0.75) ? vec3(0.60, 0.74, 0.80) : vec3(0.70, 0.64, 0.86);
-  lp_tint = pow(lp_tint, vec3(2.2));
-  vec3 outgoingLight = (lp_flag <= 0.25) ? diffuseColor.rgb : diffuseColor.rgb * mix(lp_tint, vec3(1.0), lp_lit);
-  float lp_alpha = (lp_flag <= 0.25) ? 1.0 : lp_lit;`;
-function printMaterial({ side = THREE.FrontSide, decal = false } = {}) {
-  const m = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: GRAD, fog: true, side });
+  vec3 outgoingLight = (vf_flag <= 0.25) ? diffuseColor.rgb : (reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance);`;
+function litMaterial({ side = THREE.FrontSide, decal = false } = {}) {
+  const m = new THREE.MeshLambertMaterial({ vertexColors: true, fog: true, side });
   if (decal) { m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -4; }
-  m.onBeforeCompile = (shader) => {
-    shader.fragmentShader = shader.fragmentShader
-      .replace(LIGHT_LINE, PRINT_LIGHT)
-      .replace('#include <opaque_fragment>', 'gl_FragColor = vec4( outgoingLight, lp_alpha );')
-      .replace('#include <output_fragment>', 'gl_FragColor = vec4( outgoingLight, lp_alpha );');
-  };
-  m.customProgramCacheKey = () => `print-${side}-${decal}`;
+  m.onBeforeCompile = (shader) => { shader.fragmentShader = shader.fragmentShader.replace(LIGHT_LINE, FLAG_LIGHT); };
+  m.customProgramCacheKey = () => `lit-${side}-${decal}`;
   return m;
 }
-const MAT = printMaterial();
-const MAT2 = printMaterial({ side: THREE.DoubleSide });
-const MAT_DECAL = printMaterial({ decal: true });
+const MAT = litMaterial();
+const MAT2 = litMaterial({ side: THREE.DoubleSide });
+const MAT_DECAL = litMaterial({ decal: true });
 
-// ================================================================ sky: Sable's pastel gradient with flat clouds outlined in pencil
+// ================================================================ sky: a gradient with soft clouds
 const SKY_FS = `
-  uniform vec3 cHorizon, cLow, cMid, cTop, cUnder, cCloud, cPencil; uniform float uTime;
+  uniform vec3 cHorizon, cLow, cMid, cTop, cUnder, cCloud; uniform float uTime;
   varying vec3 vDir;
   float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
   float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.-2.*f);
@@ -127,17 +105,16 @@ const SKY_FS = `
       vec2 p = d.xz / (h + 0.22) * 0.9 + vec2(uTime * 0.0025, 0.0);
       float n = fbm(p);
       float band = smoothstep(0.04, 0.16, h) * (1.0 - smoothstep(0.55, 0.92, h));
-      float thr = 0.62, fw = fwidth(n) * 1.1 + 1e-4;
-      float mask = smoothstep(thr - fw, thr + fw, n) * band;
-      float ring = (1.0 - smoothstep(0.0, fw * 1.7, abs(n - thr))) * band;
-      c = mix(c, cCloud, mask);
-      c = mix(c, cPencil, ring * 0.55);
+      float mask = smoothstep(0.56, 0.74, n) * band;
+      c = mix(c, cCloud, mask * 0.92);
     }
     gl_FragColor = vec4(c, 1.0);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
   }`;
 function makeSky() {
-  const u = { cHorizon: { value: C('#f6dcb8') }, cLow: { value: C('#e9cddb') }, cMid: { value: C('#bcd4ee') }, cTop: { value: C('#98bde9') },
-    cUnder: { value: C('#ead9c3') }, cCloud: { value: C('#fefbf4') }, cPencil: { value: C('#5a4c52') }, uTime: { value: 0 } };
+  const u = { cHorizon: { value: C('#dce8f2') }, cLow: { value: C('#c2d9ee') }, cMid: { value: C('#94bde6') }, cTop: { value: C('#6a9fda') },
+    cUnder: { value: C('#c8d0d8') }, cCloud: { value: C('#ffffff') }, uTime: { value: 0 } };
   const m = new THREE.ShaderMaterial({ uniforms: u, side: THREE.BackSide, depthWrite: false, fog: false,
     vertexShader: 'varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: SKY_FS });
@@ -146,61 +123,9 @@ function makeSky() {
   return mesh;
 }
 
-// ================================================================ the print post-process
-// Lines come from inverse depth: on any plane 1/z is linear across the screen, so its second difference is zero and
-// flat ground never draws false lines however grazing the view. A line is drawn on the near side of a depth step or a
-// convex corner only (crisp, one pixel), plus creases from the view-space normals. The color plate lands a couple of
-// pixels off the lines (misregistration), shade carries pigment granulation, and cream paper sits over everything.
-const POST_FS = `
-  precision highp float;
-  varying vec2 vUv;
-  uniform sampler2D tColor, tDepth, tNormal; uniform vec2 uRes;
-  uniform float uNear, uFar, uLines, uNormals, uTime, uS, uNFar;
-  float lin(vec2 uv){ float z = texture2D(tDepth, uv).x * 2.0 - 1.0; return (2.0 * uNear * uFar) / (uFar + uNear - z * (uFar - uNear)); }
-  float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
-  float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.-2.*f);
-    return mix(mix(hash(i), hash(i+vec2(1,0)), f.x), mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y); }
-  float inkAt(vec2 uv, float px){
-    vec2 o = px / uRes; float d0 = lin(uv); float w0 = 1.0 / d0;
-    float wl = 1.0 / lin(uv - vec2(o.x, 0.)), wr = 1.0 / lin(uv + vec2(o.x, 0.));
-    float wd = 1.0 / lin(uv - vec2(0., o.y)), wu = 1.0 / lin(uv + vec2(0., o.y));
-    float lapS = min(wl + wr - 2.0 * w0, wd + wu - 2.0 * w0) / w0;
-    float dEdge = smoothstep(0.022, 0.06, -lapS);
-    float nEdge = 0.0;
-    if (uNormals > 0.5) {
-      vec3 n = texture2D(tNormal, uv).xyz * 2. - 1.;
-      vec3 nr = texture2D(tNormal, uv + vec2(o.x, 0.)).xyz * 2. - 1., nu = texture2D(tNormal, uv + vec2(0., o.y)).xyz * 2. - 1.;
-      float nd = max(1. - dot(n, nr), 1. - dot(n, nu));
-      nEdge = smoothstep(0.2, 0.4, nd) * (1.0 - smoothstep(uNFar * 0.27, uNFar, d0));
-    }
-    return max(dEdge, nEdge) * (1.0 - smoothstep(700.0, 1300.0, d0));
-  }
-  vec3 toSRGB(vec3 c){ return pow(max(c, 0.), vec3(1. / 2.2)); }
-  void main(){
-    float s = uS; vec2 px = 1.0 / uRes; vec2 fc = gl_FragCoord.xy;
-    vec4 cA = texture2D(tColor, vUv - vec2(2.0 * s, -1.2 * s) * px);
-    vec3 c = toSRGB(cA.rgb); float lit = cA.a;
-    float mottle = vnoise(fc / (5.0 * s)) - 0.5;
-    float speck = step(0.955, hash(floor(fc / max(1.0, 1.2 * s))));
-    c *= mix(1.0, 1.0 + mottle * 0.16 - speck * 0.12, (1.0 - lit) * 0.9);
-    float fiber = (vnoise(fc * 0.8 / s) - 0.5) * 2.0, mot2 = (vnoise(fc / (120.0 * s)) - 0.5) * 2.0;
-    float show = 0.35 + 0.65 * dot(c, vec3(0.2126, 0.7152, 0.0722));
-    c *= 1.0 + (0.018 * fiber + 0.03 * mot2) * show;
-    c = (c - 0.55) * 1.05 + 0.55;
-    float lw = max(1.0, s);
-    float ink = inkAt(vUv, lw) * uLines;
-    vec2 cell = floor(fc / (9.0 * s));
-    vec2 pj = (vec2(1.2, -0.8) * s + (vec2(hash(cell), hash(cell + 13.0)) - 0.5) * 1.2 * s) * px;
-    float pencil = inkAt(vUv + pj, lw) * uLines * (1.0 - smoothstep(35.0, 130.0, lin(vUv)));
-    c = mix(c, vec3(0.290, 0.247, 0.267), pencil * 0.45);
-    c = mix(c, vec3(0.165, 0.125, 0.141), ink * 0.86);
-    c += (hash(fc + fract(uTime)) - 0.5) * 0.012;
-    gl_FragColor = vec4(clamp(c, 0., 1.), 1.0);
-  }`;
-
 // ================================================================ renderer, scene, light
 const canvas = $('#view');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: false });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !IS_MOBILE, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: false });
 let pixelRatio = Math.min(window.devicePixelRatio || 1, IS_MOBILE ? 2 : 1.75);
 renderer.setPixelRatio(pixelRatio);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -210,16 +135,17 @@ renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.shadowMap.autoUpdate = false;
 
 const scene = new THREE.Scene();
-const FOG = C('#f1dcc0');
+const FOG = C('#dce8f2');   // the sky's horizon color, so distance fades into it
 scene.fog = new THREE.Fog(FOG, 80, 500);
 const camera = new THREE.PerspectiveCamera(60, 1, 0.4, 3200);
 scene.add(camera);
 const sky = makeSky(); scene.add(sky);
 
-// The game's afternoon sun: from the west-northwest, 38 degrees up (build_area.py's DirectionalLight).
+// The game's afternoon sun: from the west-northwest, 38 degrees up (build_area.py's DirectionalLight). three.js lights
+// are in physical units, so an intensity of 2.7 shows a face turned to the sun at about 0.8 of its color.
 const sunDirUE = new THREE.Vector3(0.295, -0.731, 0.616);
 const sunDir = new THREE.Vector3(-sunDirUE.y, sunDirUE.z, sunDirUE.x).normalize();
-const sun = new THREE.DirectionalLight(0xffffff, 1.0);
+const sun = new THREE.DirectionalLight(0xffffff, 2.7);
 // One fixed shadow map over the whole island (it is about 200 m across), drawn once per concept: crisp and free.
 const SHADOW = IS_MOBILE ? 2048 : 4096, SHADOW_EXT = 116;
 sun.castShadow = true;
@@ -229,52 +155,23 @@ sun.shadow.bias = -0.00012; sun.shadow.normalBias = 0.05;
 sun.position.copy(sunDir).multiplyScalar(420); sun.target.position.set(0, 0, 0);
 scene.add(sun); scene.add(sun.target);
 sun.shadow.camera.updateProjectionMatrix();
+// The sky's light: a soft fill from above (the dome's blue) with warm bounce from the ground, so shade is never black.
+scene.add(new THREE.HemisphereLight(0xcfe2f5, 0x8a7d6a, 1.5));
 
 const base = new THREE.Group(); scene.add(base);   // terrain, cliffs, water, sky islands, birds
 const fx = new THREE.Group(); scene.add(fx);       // animated things shared by all concepts
 
-// Render targets and the post pass.
-let rtColor = null, rtNormal = null;
-const normalMat = new THREE.MeshNormalMaterial();
-const postMat = new THREE.ShaderMaterial({
-  uniforms: { tColor: { value: null }, tDepth: { value: null }, tNormal: { value: null }, uRes: { value: new THREE.Vector2(1, 1) },
-    uNear: { value: camera.near }, uFar: { value: camera.far }, uLines: { value: 1 }, uNormals: { value: 1 }, uTime: { value: 0 }, uS: { value: 1 }, uNFar: { value: 260 } },
-  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
-  fragmentShader: POST_FS, depthTest: false, depthWrite: false });
-const postScene = new THREE.Scene();
-postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat));
-const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+renderer.setClearColor(FOG, 1);
 
 function resize() {
   const w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
   renderer.setPixelRatio(pixelRatio);
   renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.updateProjectionMatrix();
-  const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-  if (rtColor) { rtColor.dispose(); rtNormal.dispose(); }
-  const depthTexture = new THREE.DepthTexture(size.x, size.y); depthTexture.type = THREE.UnsignedIntType;
-  rtColor = new THREE.WebGLRenderTarget(size.x, size.y, { depthTexture, depthBuffer: true, samples: IS_MOBILE ? 0 : 4,
-    minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
-  rtNormal = new THREE.WebGLRenderTarget(size.x, size.y, { depthBuffer: true, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
-  postMat.uniforms.tColor.value = rtColor.texture; postMat.uniforms.tDepth.value = depthTexture;
-  postMat.uniforms.tNormal.value = rtNormal.texture; postMat.uniforms.uRes.value.set(size.x, size.y);
-  postMat.uniforms.uS.value = Math.max(0.75, size.y / 900);
 }
 
-// Small, many things (grass, flowers, cobbles, bricks) stay out of the normal pass: their creases would only speckle the
-// ground from any distance. Their outlines still come from depth, up close.
-const FINE_MESHES = [];
-function renderFrame() {
-  renderer.setRenderTarget(rtColor); renderer.setClearColor(0xf6dcb8, 1); renderer.render(scene, camera);
-  if (postMat.uniforms.uNormals.value > 0.5) {
-    scene.overrideMaterial = normalMat; const skyVisible = sky.visible; sky.visible = false;
-    for (const m of FINE_MESHES) m.visible = false;
-    renderer.setRenderTarget(rtNormal); renderer.setClearColor(0x8080ff, 1); renderer.render(scene, camera);
-    for (const m of FINE_MESHES) m.visible = true;
-    scene.overrideMaterial = null; sky.visible = skyVisible;
-  }
-  renderer.setRenderTarget(null); renderer.render(postScene, postCam);
-}
+// The scene goes straight to the screen; the renderer converts the lit linear colors to sRGB.
+function renderFrame() { renderer.render(scene, camera); }
 
 // ================================================================ geometry helpers
 // Every mesh shares one vertex layout: position, normal (flat), color (RGBA, alpha = the shading flag).

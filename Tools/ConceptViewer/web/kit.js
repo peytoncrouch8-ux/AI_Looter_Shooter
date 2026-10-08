@@ -178,7 +178,7 @@ const BUILDERS = {
   },
   scarecrow() {
     return merged([paint(T(cyl(0.05, 0.05, 2.0, 5), 0, 1.0, 0), PAL.barkOak), paint(T(box(1.5, 0.07, 0.07), 0, 1.45, 0), PAL.barkOak),
-      paint(T(box(0.55, 0.62, 0.25), 0, 1.22, 0), PAL.shirt, 0.5), paint(T(box(1.25, 0.18, 0.2), 0, 1.45, 0), PAL.shirt, 0.5),
+      paint(T(box(0.55, 0.62, 0.25), 0, 1.22, 0), PAL.shirt), paint(T(box(1.25, 0.18, 0.2), 0, 1.45, 0), PAL.shirt),
       paint(T(ico(0.2, 1), 0, 1.84, 0), PAL.hay), paint(T(cyl(0.32, 0.32, 0.03, 10), 0, 2.0, 0), PAL.hat), paint(T(cyl(0.17, 0.14, 0.22, 8), 0, 2.12, 0), PAL.hat)]);
   },
   stall() {
@@ -231,7 +231,7 @@ const BUILDERS = {
     return merged([paint(T(box(0.18, 1.6, 0.18), -0.9, 0.6, 0), PAL.plankDark), paint(T(box(0.18, 1.6, 0.18), 0.9, 0.6, 0), PAL.plankDark),
       paint(T(box(1.9, 0.14, 0.18), 0, 1.35, 0), PAL.plankDark), (() => { const g = box(1.6, 0.9, 0.06); g.rotateZ(0.18); g.translate(0.05, 0.45, 0.1); return paint(g, PAL.plank); })()]);
   },
-  puddle() { const g = new THREE.CircleGeometry(1, 16); g.rotateX(-Math.PI / 2); return paint(g, PAL.puddle, 0.5); },
+  puddle() { const g = new THREE.CircleGeometry(1, 16); g.rotateX(-Math.PI / 2); return paint(g, PAL.puddle); },
   trail() { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2); return paint(g, PAL.slimeTrail, 0); },
   jetty() {
     const parts = [paint(T(box(3.0, 0.16, 22), 0, 0.42, 11), PAL.plank)];
@@ -241,7 +241,7 @@ const BUILDERS = {
     parts.push(paint(T(cyl(0.09, 0.09, 2.4, 6), 1.2, 1.7, 21.5), PAL.barkOak), paint(T(ico(0.22, 1, 1, 1.2, 1), 1.2, 2.95, 21.5), PAL.lantern, 0));
     return merged(parts);
   },
-  // Livestock and townsfolk: simple shapes in the print palette, facing +z like every model.
+  // Livestock and townsfolk: simple flat-colored shapes, facing +z like every model.
   sheep(seed) {
     const parts = [], grazing = seed % 2 === 1;
     parts.push(paint(T(lumpy(ico(0.4, 1, 1.0, 0.8, 1.32), 0.1, 3 + seed), 0, 0.72, 0), PAL.wool));
@@ -288,7 +288,7 @@ const BUILDERS = {
     else parts.push(paint(T(ico(0.145, 1, 1, 0.75, 1), 0, 1.72, -0.02), V.hair));
     return merged(parts);
   },
-  slime() { return merged([paint(lumpy(ico(0.6, 2, 1.1, 0.75, 1.1), 0.04, 2), '#7ccd8f', 0.5), paint(T(ico(0.22, 1), 0, 0.12, 0), '#2d4a33')]); },
+  slime() { return merged([paint(lumpy(ico(0.6, 2, 1.1, 0.75, 1.1), 0.04, 2), '#7ccd8f'), paint(T(ico(0.22, 1), 0, 0.12, 0), '#2d4a33')]); },
   spider() {
     const parts = [paint(T(ico(0.5, 1, 1.1, 0.6, 1.3), 0, 0.5, 0), '#6b5340'), paint(T(ico(0.32, 1, 1, 0.7, 1), 0, 0.45, 0.75), '#6b5340')];
     for (let i = 0; i < 8; i++) { const side = i < 4 ? 1 : -1, k = i % 4, g = cyl(0.03, 0.05, 1.4, 4); g.rotateZ(side * 1.15); g.rotateY((k - 1.5) * 0.45); g.translate(side * 0.55, 0.55, 0.3 - k * 0.3); parts.push(paint(g, '#6b5340')); }

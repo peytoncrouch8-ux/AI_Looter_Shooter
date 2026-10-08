@@ -36,7 +36,7 @@ def export(name):
     body.select_set(True)
     bpy.context.view_layer.objects.active = arm
     path = os.path.join(MODELS, f'Hero_{arm["Hero"]}.glb')
-    # No materials: the page draws the print palette from the 'Flat' vertex color the hero kit bakes.
+    # No materials: the page draws the palette's colors from the 'Flat' vertex color the hero kit bakes.
     bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=True, export_apply=False,
                               export_materials='NONE', export_vertex_color='ACTIVE',
                               export_active_vertex_color_when_no_material=True, export_all_vertex_colors=False,
