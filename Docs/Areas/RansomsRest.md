@@ -849,12 +849,15 @@ office).
 - You get, only with your OK: the Supply Crate and Strongbox out of the backlog, `AChest`, the three caches and the sheriff's Strongbox.
 - You approve: the import, then the chests after opening them.
 
-**27. Ransom's Rest finished** (checked on 2026-10-07; waiting for your play-through and approval).
+**27. Ransom's Rest finished** (checked again on 2026-10-08 with the art session's notes all closed; waiting for your
+play-through and approval).
 - You get: Ledger pages for every new creature and character, XP tuned so the main path ends near level 9, every `Looter.*` test green, a full Medium tour under 8.3 ms at every view (the horizon and boundary views included), a level check that every respawn grave, spawn point and tour view lies inside the playable boundary, and an entry in `Docs/Performance.md`.
 - You approve: Ransom's Rest as done, after a new session from the tutorial to the station board at the depot and a practice trip to Skyreach and back. Then you decide whether the *Gilded Lily* stays an airship, and only then does it start.
-- Where it stands (2026-10-07):
+- Where it stands (2026-10-08):
   - XP: `Looter.XP.Path` plays the missions on paper with the level as built. The main path ends at level 9.7 after 53 kills (every kill comes from a mission's encounters, egg sacs or Abel's adds; the level has no roaming creatures), and with Sides 1 and 3 at 10.1, the band's top. No retuning was needed.
-  - Tests: all `Looter.*` tests pass (219 on 2026-10-08), including `Looter.World.RansomsRest.InsideBoundary` (every respawn grave, player start, encounter spot and tour view inside the boundary).
+  - Tests: all 226 `Looter.*` tests pass, including `Looter.World.RansomsRest.InsideBoundary` (every respawn grave, player start, encounter spot and tour view inside the boundary).
   - Ledger pages: every new creature and character has one (the Unpaid, the Gravemother, Hob, Sexton, Delia, Aldana, Tilly, Ruth, Abel, Amos, and the seven names).
-  - Performance, Medium with the editor closed: all 28 tour views run at 150-218 fps (heaviest: the Farm, 6.7 ms). The spawn measures 6.5 ms and the deck at dusk with Abel and 10 adds 5.5 ms (`Docs/Performance.md`). The busiest views draw 750-850 (the plan guessed about 700), well inside the frame budget.
-  - Also built since the plan: the layout's fences, walls, grave rows, cairns and yard props (`build_area_dressing.py`, 391 instances), the ridge faces broken up with slope scrub and crease pines, and the Gravemother's den dressed.
+  - Performance, Medium with the editor closed (2026-10-08, after the last art round): all 28 tour views run at 149-216 fps; the heaviest are ChapelOverTown with the far shadow cascade on (6.7 ms, a comparison view), the Farm and the aerial at dusk (6.6 ms). The spawn measures 6.3 ms, p95 6.9 ms (`Docs/Performance.md`). A per-pass GPU capture of the tour shows no single art asset as a real cost: the heaviest views spend 1.1-1.2 ms in the base pass, 0.5-0.7 ms in the depth prepass, at most 0.5 ms on shadows, and 0.24 ms on translucency at the deck.
+  - The terrain generator rebuilds Ransom's Rest, Lvl_TerrainTest and the tutorial island byte for byte as committed (`Tools\terrain_identity.ps1`).
+  - Also built since the plan: the layout's fences, walls, grave rows, cairns and yard props (`build_area_dressing.py`), every fence standing plumb and stepped down slopes; the ridge faces broken up with slope scrub in patches, crease pines and far-tree groves; the Gravemother's den dressed; the Sink's pit wall in the art's cliff panels with talus at their feet; the ramps' walkways kept clear of cliff pieces and the burial deck's boards clear of the Rim's rock.
+  - Your play-test notes are all fixed: the spider boss stuck in the wall (f3e3579), the rock in the way to the tutorial island's lookout (bd96147, 8e0e50c), the player 15% smaller and slower, a look-sensitivity setting, space standing up from a crouch, the slide (8fba9e6, 73aa50f), and the spiders slowed with the player (6b03dff).
