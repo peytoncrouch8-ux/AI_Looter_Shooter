@@ -174,6 +174,7 @@ PIECES = {
     'Bench': ((171, 46, 47), 'middle', SMALL_CULL),
     'LaundryLine': ((388, 70, 210), 'middle', FENCE_CULL),
     'NoticeBoard': ((220, 99, 268), 'middle', WALL_CULL),
+    'NoticeBoard_Town': ((220, 99, 268), 'middle', WALL_CULL),     # Skyreach's: the same board, NOTICES on its header
     'TownMemorial': ((130, 104, 178), 'middle', WALL_CULL),
     'Wheelbarrow': ((72, 183, 74), 'middle', SMALL_CULL),
     # Rocks (Rocks.py, Outcrops.py); an outcrop is a landmark, never culled.

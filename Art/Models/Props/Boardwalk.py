@@ -14,6 +14,8 @@ edge, the Rim Rangers' notice board and the town memorial.
   NoticeBoard                 the Rim Rangers' board: two posts, a little shake roof, RIM RANGERS on the header, and a
                               flat face for the posters and Ruth Calder's note (decals). SOCKET_Interact in front,
                               SOCKET_Decal at the middle of the face.
+  NoticeBoard_Town            the same board with NOTICES on its header, for Skyreach's Crossroads Town (the Rim
+                              Rangers are Ransom's Rest's story group). Its own seed; same sockets and hull.
   TownMemorial                two hats on a post, a black felt and a straw, and a mourning wreath, on a little cairn
                               with larkspur laid at its foot.
 
@@ -216,7 +218,7 @@ def hitch_rail(name, seed):
 
 # --- The Rim Rangers' notice board ---
 
-def notice_board(name, seed):
+def notice_board(name, seed, header='RIM RANGERS'):
     m = town.Model(name, seed=seed)
     rng = m.rng
     half = 0.85
@@ -233,10 +235,10 @@ def notice_board(name, seed):
         town.board(m, (x, -0.06, fz0), (x, -0.06, fz1), 0.07, 0.07, look='C')
     town.board(m, (-half - 0.05, -0.07, fz0 - 0.1), (half + 0.05, -0.07, fz0 - 0.1), 0.09, 0.12, look='C',
                face=(0.0, 0.0, 1.0))
-    # The header: an oxide-red board with the Rangers' name.
+    # The header: an oxide-red board with the Rangers' name (Skyreach's town board says NOTICES instead).
     hz = fz1 + 0.2
     town.board(m, (-half + 0.02, -0.07, hz), (half - 0.02, -0.07, hz), 0.2, 0.035, look='H2')
-    town.text(m, 'RIM RANGERS', (0.0, -0.088, hz), height=0.12, width=1.4, look='cream', tol=0.03)
+    town.text(m, header, (0.0, -0.088, hz), height=0.12, width=1.4, look='cream', tol=0.03)
     # A little gable roof of shakes on a crossbeam.
     town.board(m, (-half - 0.12, 0.0, post_top - 0.06), (half + 0.12, 0.0, post_top - 0.06), 0.12, 0.12, look='C')
     front, back = kit.gable(m, -half - 0.1, half + 0.1, -0.16, 0.16, post_top, 38.0, overhang=0.22, rake=0.1, deck=0.035)
@@ -391,11 +393,12 @@ models = [
     hitch_rail('HitchRail', 508),
     notice_board('NoticeBoard', 509),
     memorial('TownMemorial', 510),
+    notice_board('NoticeBoard_Town', 511, header='NOTICES'),
 ]
 
 if lt.want_preview():
     views = {'HitchRail': (-0.6, -1.6, 0.45), 'NoticeBoard': (-0.7, -1.6, 0.3), 'TownMemorial': (-0.6, -1.6, 0.35),
-             'Awning_Post': (-1.0, -1.6, 0.4)}
+             'NoticeBoard_Town': (-0.7, -1.6, 0.3), 'Awning_Post': (-1.0, -1.6, 0.4)}
     for obj in models:
         lt.preview([obj], lt.preview_path(PREVIEW, obj.name), view=views.get(obj.name, (-1.0, -1.6, 0.7)), fit=0.9,
                    ground_at='origin')

@@ -41,3 +41,5 @@ Target: 120 fps (8.3 ms) at 1080p on the Medium preset on the reference PC (Rade
 | 2026-10-07 | Before the HUD upgrade | bd038e4 | 1920x1080 | 5.6 | 178 | 6.3 | 3.0 | 5.6 | 1.5 | 4.6 | 443 | 623271 | 1.05 |
 | 2026-10-07 | After the HUD upgrade (player frame, tracker, weapons column, bezel) | 5b5b36a | 1920x1080 | 5.7 | 175 | 6.2 | 3.1 | 5.7 | 1.5 | 4.7 | 466 | 623975 | 1.03 |
 | 2026-10-08 | Painted Frontier island (style 3 trial) | b519aad | 1920x1080 | 6.7 | 149 | 7.1 | 3.2 | 6.7 | 1.5 | 5.6 | 461 | 595430 | 1.07 |
+| 2026-10-09 | Polish waves 1-2 (fauna, ambience, feedback), Skyreach | 38331af | 1920x1080 | 6.1 | 164 | 6.9 | 4.1 | 6.0 | 1.7 | 4.9 | 663 | 665050 | 1.27 |
+| 2026-10-09 | Polish waves 1-2 (late-summer land, grass 40-50 m, fauna, camps), Ransom's Rest | 38331af | 1920x1080 | 6.8 | 147 | 7.4 | 3.7 | 6.8 | 1.6 | 5.5 | 1001 | 1075257 | 2.44 |

@@ -20,7 +20,8 @@ import unreal
 
 CLASSES = '/Script/AI_Looter_Shooter.'
 DIRECTOR = 'TutorialDirector'
-BOARD_MESH = 'NoticeBoard'
+# Skyreach's town board is NoticeBoard_Town (NOTICES on the header); NoticeBoard is Ransom's Rest's (RIM RANGERS).
+BOARD_MESHES = ('NoticeBoard', 'NoticeBoard_Town')
 BOARD_LABEL = 'NoticeBoard_Square'
 LOOKOUT_TAG = 'Place_Lookout'
 # The marker floats this far over the lookout's foot (cm): the tower's middle, so the minimap's arrow points at it.
@@ -37,7 +38,7 @@ def ground(build, x, y):
 
 
 def board_spot(build):
-    """The town's notice board piece as (x, y, yaw), or None: the first piece whose mesh is NoticeBoard in town.json."""
+    """The town's notice board piece as (x, y, yaw), or None: the first piece whose mesh is NoticeBoard or NoticeBoard_Town in town.json."""
     town_name = build.source.get('level', {}).get('town')
     if not town_name:
         return None
@@ -48,7 +49,7 @@ def board_spot(build):
     with open(path) as f:
         town = json.load(f)
     for piece in town.get('pieces', []):
-        if piece.get('mesh') == BOARD_MESH:
+        if piece.get('mesh') in BOARD_MESHES:
             x, y = piece['at'][0], piece['at'][1]
             return x, y, piece.get('yaw', 0.0)
     return None

@@ -75,6 +75,10 @@ LINE_MODELS = ('FenceRail', 'FencePost', 'FenceBroken', 'StoneWall', 'k:picket')
 # Models today's island already places (build_area.py's gameplay: the jetty with its bell and slate, the skiff; the
 # computed bridge).
 EXISTING_MODELS = ('Bridge', 'SkiffJetty', 'Skiff_A_Packet', 'JettyBellPost', 'JettySlate')
+# Skyreach's own model for a concept piece, written to town.json in place of the concept's mesh. Everything before the
+# write (the checks, the ids, the footprint in MeshBounds, the centre rule) keeps the concept's name: NoticeBoard_Town
+# is the same board, same footprint, with NOTICES on its header (Ransom's Rest's NoticeBoard says RIM RANGERS).
+OUTPUT_MESH = {'NoticeBoard': 'NoticeBoard_Town'}
 ROCKS = ('Rock_A', 'Rock_B', 'Rock_C', 'Rock_D', 'Boulder_A', 'Boulder_B', 'Boulder_C')
 TREES = ('Oak_A', 'Oak_B', 'Oak_C', 'Birch_A', 'Birch_B', 'Pine_A', 'Pine_B', 'Apple_A')
 BUSHES = ('Bush_A', 'Bush_B', 'Bush_C')
@@ -1728,7 +1732,7 @@ def hang_spot(tree, cocoon, limbs):
 # ---------------------------------------------------------------------------
 
 def piece_json(it):
-    out = {'id': it.id, 'mesh': it.mesh, 'at': [rnd1(it.x), rnd1(it.y)], 'yaw': rnd1(it.yaw % 360.0),
+    out = {'id': it.id, 'mesh': OUTPUT_MESH.get(it.mesh, it.mesh), 'at': [rnd1(it.x), rnd1(it.y)], 'yaw': rnd1(it.yaw % 360.0),
            'group': it.group}
     if isinstance(it.scale, (list, tuple)):
         out['scale'] = [round(v, 3) for v in it.scale]

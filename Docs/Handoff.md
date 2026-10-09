@@ -51,9 +51,9 @@ cue (160 cues). Story end: about 786 XP = level 6.87; an explorer about 7.44.
 ambush springs again on every load; camp crates reuse Ruth's Supply Crate; a melee kill notches the gun in hand; the
 Unpaid's shriek still presses its right armpit about 2.5 cm into its waist (invisible through the ghost body; the test
 now allows 3 cm after two fix passes); the spider's death curl is slower (0.8 s) and ends knees up and out.
-**Open:** white rain-like streaks fill the view after `Looter.Boss.Test` in the HUD photos (an agent is on it);
-Skyreach's notice board model still reads "RIM RANGERS"; Docs/TutorialIsland.md and Story.md still describe the old
-tutorial. Next wave: a lootable world (breakables, graves, coffins), a map page and fast travel between graves, Unpaid
+**Open:** the "rain" in the HUD photos was the test boss's fog-wall curtain (thin pale dashes that read as rain, Abel's
+gate too): being restyled to read as a wall; the photo scene now removes the test boss after its shot. Skyreach's notice
+board model still reads "RIM RANGERS" (a NOTICES variant is being made). Wave 3 (running): a lootable world (breakables, graves, coffins), a map page and fast travel between graves, Unpaid
 barks and signs of life in town, a new gun family, a grenade.
 
 **State at 23:30 (2026-10-08):** finished by agents, not yet built or committed (Main is integrating: build errors

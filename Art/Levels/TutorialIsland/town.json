@@ -426,7 +426,7 @@
     {"id": "square_lamppost_13", "mesh": "LampPost", "at": [1274.6, -604.2], "yaw": 318.0, "group": "square", "kind": "upright"},
     {"id": "square_laundryline_01", "mesh": "LaundryLine", "at": [-1499.0, -1759.0], "yaw": 153.0, "group": "square", "kind": "upright"},
     {"id": "square_laundryline_02", "mesh": "LaundryLine", "at": [1194.0, 2104.0], "yaw": 342.0, "group": "square", "kind": "upright"},
-    {"id": "square_noticeboard_01", "mesh": "NoticeBoard", "at": [1150.0, 96.4], "yaw": 200.0, "group": "square", "kind": "upright"},
+    {"id": "square_noticeboard_01", "mesh": "NoticeBoard_Town", "at": [1150.0, 96.4], "yaw": 200.0, "group": "square", "kind": "upright"},
     {"id": "square_townmemorial_01", "mesh": "TownMemorial", "at": [0.0, 0.0], "yaw": 200.0, "group": "square", "kind": "upright"},
     {"id": "square_watertrough_01", "mesh": "WaterTrough", "at": [1044.4, 556.4], "yaw": 195.0, "group": "square", "kind": "prop"},
     {"id": "wallow_boulder_b_01", "mesh": "Boulder_B", "at": [2900.0, -4350.0], "yaw": 120.0, "group": "wallow", "kind": "prop"},
