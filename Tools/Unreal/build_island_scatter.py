@@ -62,10 +62,15 @@ class Area:
         with open(os.path.join(folder, 'layout_computed.json')) as f:
             self.data = json.load(f)
         # The dressing's pieces (build_area_dressing.py): instanced, and tagged Obstacle only in play (a map-wide actor's
-        # bounds would clear the whole valley), so their own boxes keep the layers off them here.
-        # Reloaded, as the editor keeps modules between runs.
+        # bounds would clear the whole valley), so their own boxes keep the layers off them here; a town's included
+        # (layout.json level.town), but not a town piece whose model isn't imported yet: the dressing leaves it out, and
+        # its box would leave the ground bare. Reloaded, as the editor keeps modules between runs.
         dressing = importlib.reload(importlib.import_module('build_area_dressing'))
-        self.dressing = dressing.footprints(layout, self.data.get('placements', {}))
+        placements = self.data.get('placements', {})
+        self.dressing = dressing.footprints(layout, placements, meshes=dressing.build_area.mesh_index())
+        # The town's own reeds and lily pads (the dressing places them): the pond's from the scatter step aside for them.
+        self.town_water = [(p.mesh, p.a) for p in dressing.plan_all(layout, placements).pieces
+                           if p.town and p.mesh.startswith(('Reeds_', 'LilyPads_'))]
         scatter = self.data['macroMap']['scatterMap']
         self.mask_file = scatter['texture']
         # Art/Textures/<Set>/<File>.png is imported as /Game/Art/Textures/<Set>/<File>.
@@ -137,23 +142,32 @@ def point(x, y, z, seed, bounds=None):
     return p
 
 
-def shore_points(data):
+def shore_points(data, town=()):
     """Reed clumps around the pond's edge (a little into the shallows) and along both creek banks, clear of the bridge
     and the waterfall's lip; lily pads in a few drifts on the pond. Deterministic, from the computed layout; an area
-    without a pond or a creek gets none there."""
+    without a pond or a creek gets none there. A town that places its own reeds round the pond, or lily pads on it
+    (town: its pieces' (mesh, (x, y)), Area.town_water), gets none of these there (the same draws are made, so the
+    creek's stay where they were)."""
     rng = random.Random(41)
     pond, creek = data.get('pond'), data.get('creek')
     away = [(p['location'][:2], clear) for p, clear in ((data.get('bridge'), 600), (data.get('waterfall'), 400)) if p]
     reeds = []
+    town_reeds = town_pads = False
     if pond:
         (cx, cy), (rx, ry) = pond['center'], pond['radii']
+
+        def by_pond(p, reach):
+            return ((p[0] - cx) / (rx * reach)) ** 2 + ((p[1] - cy) / (ry * reach)) ** 2 <= 1.0
+        town_reeds = any(m.startswith('Reeds_') and by_pond(at, 1.3) for m, at in town)
+        town_pads = any(m.startswith('LilyPads_') and by_pond(at, 1.0) for m, at in town)
         steps = 64
         for i in range(steps):
             angle = 2 * math.pi * (i + rng.random() * 0.6) / steps
             if rng.random() < 0.3:
                 continue
             f = rng.uniform(0.9, 1.0)
-            reeds.append((cx + rx * f * math.cos(angle), cy + ry * f * math.sin(angle)))
+            if not town_reeds:
+                reeds.append((cx + rx * f * math.cos(angle), cy + ry * f * math.sin(angle)))
     if creek:
         half = creek['waterWidth'] / 2
         for (x0, y0, _), (x1, y1, _) in zip(creek['points'], creek['points'][1:]):
@@ -171,7 +185,7 @@ def shore_points(data):
             px, py = cx + rx * f * math.cos(angle), cy + ry * f * math.sin(angle)
             for _ in range(rng.randint(3, 6)):
                 pads.append((px + rng.uniform(-220, 220), py + rng.uniform(-220, 220)))
-    return reeds, pads, pond['waterZ'] if pond else 0.0
+    return reeds, [] if town_pads else pads, pond['waterZ'] if pond else 0.0
 
 
 # The newer layers' meshes, by name under VEGETATION: (mesh, weight, cull distance in cm), each layer's list its own
@@ -572,7 +586,7 @@ def build_graph(area, mask, scrub_mask=None):
             scale=(0.9, 1.25), sink=15.0)
 
     # Reeds along the pond and the creek, lily pads on the pond.
-    reeds, pads, water = shore_points(area.data)
+    reeds, pads, water = shore_points(area.data, area.town_water)
     reed_points, y = s.listed('Reeds', [(x, yy, 2000.0) for x, yy in reeds])
     reed_meshes = [m for m in (veg('Reeds_A', False), veg('Reeds_B', False)) if m]
     s.spawn(reed_points, 'Reeds', 11, y, [entry(m, 1, 5000) for m in reed_meshes], scale=(0.8, 1.3))

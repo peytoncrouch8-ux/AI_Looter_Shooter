@@ -23,6 +23,11 @@
     { "id": "forest_rise", "type": "hill", "center": [5800,5600], "radius": 3200, "height": 260 },
     { "id": "south_rise", "type": "hill", "center": [-2600,-7000], "radius": 2200, "height": 220 },
     { "id": "pond", "type": "pond", "center": [1800,5600], "radii": [1600,1100], "depth": 180, "waterLevel": -60 },
+    { "id": "wallow_pool_1", "type": "pond", "center": [2200,-5900], "radii": [420,370], "depth": 80, "waterLevel": -20 },
+    { "id": "wallow_pool_2", "type": "pond", "center": [2780,-5280], "radii": [300,260], "depth": 50, "waterLevel": 10 },
+    { "id": "wallow_pool_3", "type": "pond", "center": [1930,-5120], "radii": [240,210], "depth": 60, "waterLevel": 0 },
+    { "id": "wallow_pool_4", "type": "pond", "center": [2480,-4780], "radii": [200,180], "depth": 30, "waterLevel": 25 },
+    { "id": "wallow_pool_5", "type": "pond", "center": [3050,-6080], "radii": [180,160], "depth": 80, "waterLevel": -25 },
     { "id": "creek", "type": "creek", "path": [[2900,5700],[4200,6000],[5200,6900],[6000,8000],[6500,8700]], "width": 350, "depth": 120, "waterfallAtEnd": true },
     { "id": "farm_pad", "type": "pad", "center": [-5200,-4600], "size": [3400,2800], "yaw": 0, "height": 40 },
     { "id": "village_pad", "type": "pad", "center": [0,0], "size": [3400,3400], "yaw": 0, "height": 0 },
@@ -30,9 +35,10 @@
     { "id": "lookout_pad", "type": "pad", "center": [-6200,6000], "size": [900,900], "yaw": 0, "height": 900 }
   ],
   "roads": [
-    { "id": "main", "kind": "dirt", "width": 450, "path": [[-5350,-3750],[-3600,-2000],[-1800,-900],[0,0],[1900,-500],[3600,-900],[4600,-1200]] },
+    { "id": "farm_road", "kind": "dirt", "width": 460, "path": [[-5350,-3750],[-3600,-2000],[-1800,-900],[0,0]] },
+    { "id": "range_road", "kind": "dirt", "width": 440, "path": [[0,0],[1900,-500],[3600,-900],[4600,-1200]] },
     { "id": "forest", "kind": "dirt", "width": 400, "path": [[0,0],[1400,1800],[2800,3200],[3700,4400],[4050,5200],[4080,6000],[4250,6800],[4600,7650]] },
-    { "id": "plateau", "kind": "path", "width": 280, "path": [[0,0],[0,1400],[-1200,2700],[-2600,2600]] },
+    { "id": "plateau", "kind": "path", "width": 260, "path": [[0,1300],[-1200,2700],[-2600,2600]], "note": "starts at the town square's edge, so no path cuts across the square (Crossroads Town)" },
     { "id": "orchard", "kind": "path", "width": 220, "path": [[-5000,-4500],[-4550,-5500],[-4800,-6500],[-5400,-7300]] },
     { "id": "windmill", "kind": "path", "width": 200, "path": [[3600,-900],[4000,-2600],[5100,-3400],[5750,-3650]] }
   ],
@@ -43,23 +49,37 @@
     { "id": "farmstead", "polygon": [[-3600,-2800],[-3400,-6400],[-7400,-7200],[-7800,-3600],[-6000,-2400]] },
     { "id": "orchard", "polygon": [[-4200,-6200],[-4600,-8200],[-7000,-7600],[-6800,-6000]] },
     { "id": "village", "polygon": [[1800,-1800],[1800,1800],[-1800,1800],[-1800,-1800]] },
+    { "id": "town", "polygon": [[3100,-500],[2400,2500],[-1500,2900],[-2900,1200],[-3900,-200],[-3600,-3800],[-1200,-3400],[600,-3300],[2300,-2300]] },
+    { "id": "wallow", "polygon": [[3900,-5600],[3400,-4300],[2400,-3900],[1300,-4400],[900,-5600],[1300,-6700],[2400,-7100],[3500,-6600]] },
+    { "id": "hollow", "polygon": [[7550,5600],[7040,6840],[5800,7350],[4560,6840],[4050,5600],[4560,4360],[5800,3850],[7040,4360]] },
+    { "id": "pasture", "polygon": [[-6800,-1200],[-5000,-1200],[-5000,1000],[-6800,1000]] },
     { "id": "range", "polygon": [[6400,-2600],[6400,-200],[3700,-200],[3700,-2600]] },
     { "id": "forest", "polygon": [[7600,3200],[8400,6000],[6600,7800],[4200,8400],[3400,6800],[4200,4600],[5600,3400]] },
     { "id": "plateau", "polygon": [[-2800,3200],[-3200,6800],[-5000,8800],[-8200,6600],[-9700,3000],[-6400,2400],[-4200,2200]] }
   ],
   "yards": [
     { "id": "farmyard", "kind": "farmyard", "note": "bare dirt between the farm's buildings and the spawn", "around": ["farmhouse", "barn", "well", "spawn"] },
-    { "id": "village_square", "kind": "square", "center": [0,0] }
+    { "id": "village_square", "kind": "townSquare", "center": [0,0] }
   ],
-  "trails": [["farmhouse", "well"], ["barn", "well"], ["log_cabin", "outhouse"], ["cottage", [0,0]], ["log_cabin", [0,0]], ["gun_rack", [0,0]]],
+  "trails": [["farmhouse", "well"], ["barn", "well"], ["cabin_farmroad", "outhouse_farmroad"]],
   "placements": [
     { "id": "spawn", "kind": "PlayerStart", "location": [-5600,-4000], "yaw": 35 },
     { "id": "farmhouse", "kind": "Farmhouse", "location": [-5600,-5400], "yaw": 90 },
     { "id": "barn", "kind": "Barn", "location": [-6700,-3300], "yaw": 0 },
     { "id": "well", "kind": "Well", "location": [-4500,-4100], "yaw": 0 },
-    { "id": "log_cabin", "kind": "LogCabin", "location": [1300,-1500], "yaw": 180 },
-    { "id": "cottage", "kind": "Cottage", "location": [-1100,1400], "yaw": -45 },
-    { "id": "outhouse", "kind": "Outhouse", "location": [2100,-2300], "yaw": 180 },
+    { "id": "saloon", "kind": "FalseFront_Saloon", "location": [2321,622], "yaw": 195 },
+    { "id": "cottage_ne", "kind": "Cottage", "location": [574,1765], "yaw": 252 },
+    { "id": "cabin_se", "kind": "LogCabin", "location": [-1099,1512], "yaw": 306 },
+    { "id": "sheriff", "kind": "FalseFront_Sheriff", "location": [-1887,401], "yaw": 348 },
+    { "id": "cottage_sw", "kind": "Cottage", "location": [-811,-1591], "yaw": 63, "scale": 0.95 },
+    { "id": "store", "kind": "FalseFront_Store", "location": [413,-2340], "yaw": 100 },
+    { "id": "undertaker", "kind": "FalseFront_Undertaker", "location": [1543,-1390], "yaw": 138 },
+    { "id": "well_square", "kind": "Well", "location": [-450,650], "yaw": 20 },
+    { "id": "cabin_farmroad", "kind": "LogCabin", "location": [-2932,-2915], "yaw": 135 },
+    { "id": "cottage_farmroad", "kind": "Cottage", "location": [-3260,-590], "yaw": 301.4 },
+    { "id": "farmhouse_farmroad", "kind": "Farmhouse", "location": [-1915,-2407], "yaw": 121.4, "scale": 0.88, "note": "the concept's (-1148, -1945) ran into the square's south-west cottage: 10 m back along the farm road (Docs/Handoffs/CloudIslandConcepts_2026-10-05.md, Fix while building 1)" },
+    { "id": "outhouse", "kind": "Outhouse", "location": [2450,-2500], "yaw": 160 },
+    { "id": "outhouse_farmroad", "kind": "Outhouse", "location": [-2966,-4073], "yaw": 315 },
     { "id": "gun_rack", "kind": "GunRack", "location": [500,-500], "yaw": 200 },
     { "id": "windmill", "kind": "Windmill", "location": [6200,-3800], "yaw": 30 },
     { "id": "lookout", "kind": "LookoutTower", "location": [-6200,6000], "yaw": 45 },
@@ -93,7 +113,8 @@
     "map": "/Game/Maps/Lvl_TutorialIsland",
     "tag": "IslandBuild",
     "folder": "Island",
-    "noTreeZones": [["range", 1.0], ["village", 0.7]],
+    "noTreeZones": [["range", 1.0], ["village", 0.7], ["wallow", 0.8], ["hollow", 0.75], ["pasture", 1.0]],
+    "town": "town.json",
     "scatterGraph": "PCG_IslandScatter",
     "scatterVolume": "IslandScatter",
     "skyIslands": {
@@ -108,7 +129,7 @@
     }
   },
   "gameplay": {
-    "about": "The gameplay actors build_area.py places (its gameplay mode places only these): the director that comes with the PlayerStart, the gun rack's weapon, the skiff jetty (its origin at [X, Y] on the rim where the drop starts, its yaw out over the drop; level.skyIslands hang from the same point), and creature groups in order, each in a zone (its id) or around a center [X, Y] within spread, spacing apart (cm); the groups share one random stream (seed).",
+    "about": "The gameplay actors build_area.py places (its gameplay mode places only these): the director that comes with the PlayerStart, the gun rack's weapon, the skiff jetty (its origin at [X, Y] on the rim where the drop starts, its yaw out over the drop; level.skyIslands hang from the same point), and creature groups in order, each in a zone (its id) or around a center [X, Y] within spread, spacing apart (cm), with \"respawns\": false for creatures that stay dead once killed (all of Skyreach's); the groups share one random stream (seed).",
     "director": "TutorialDirector",
     "rackWeapon": "/Game/Weapons/Data/DA_AssaultRifle",
     "jetty": { "at": [-6923, 7078], "yaw": 126.3 },
@@ -117,8 +138,8 @@
     ],
     "seed": 7,
     "creatures": [
-      { "class": "SpiderCreature", "label": "Spider", "count": 8, "zone": "forest", "spacing": 900 },
-      { "class": "SlimeCreature", "label": "Slime", "count": 5, "center": [2400,-5600], "spread": 450, "spacing": 250, "note": "one loose group in the open grass west of the target meadow, off the tutorial's road" }
+      { "class": "SpiderCreature", "label": "Spider", "count": 6, "center": [5800,5600], "spread": 1250, "spacing": 700, "respawns": false, "note": "Web Hollow, the webbed clearing on the forest rise (the user, 2026-10-08: six, spread through the hollow, never coming back)" },
+      { "class": "SlimeCreature", "label": "Slime", "count": 5, "center": [2400,-5600], "spread": 1000, "spacing": 300, "respawns": false, "note": "the Wallow, the bog west of the target meadow, off the tutorial's road; they don't come back on Skyreach (the user, 2026-10-08)" }
     ]
   }
 }

@@ -405,8 +405,11 @@ class AreaBuild:
         for group in self.settings.get('creatures', []):
             creature = unreal.load_class(None, CLASSES + group['class'])
             for i, (x, y) in enumerate(self.creature_spots(group, rng)):
-                self.place(creature, (x, y, ground_height(x, y, 0.0) + 60.0), rng.uniform(-180.0, 180.0),
-                           label=f"{group['label']}_{i + 1:02d}", folder='Gameplay')
+                actor = self.place(creature, (x, y, ground_height(x, y, 0.0) + 60.0), rng.uniform(-180.0, 180.0),
+                                   label=f"{group['label']}_{i + 1:02d}", folder='Gameplay')
+                # A group that stays dead once killed (all of Skyreach's, the user's call): ACreatureBase::bRespawns.
+                if group.get('respawns') is False:
+                    actor.set_editor_property('respawns', False)
 
     def creature_spots(self, group, rng):
         """Where a group's creatures start: anywhere in a zone (the zone's id), or around a center within spread
@@ -423,9 +426,18 @@ class AreaBuild:
             (cx, cy), spread = group['center'], group['spread']
             while len(spots) < group['count']:
                 point = (cx + rng.uniform(-spread, spread), cy + rng.uniform(-spread, spread))
-                if all(math.dist(point, s) > group['spacing'] for s in spots):
+                if all(math.dist(point, s) > group['spacing'] for s in spots) and not self.in_water(point):
                     spots.append(point)
         return spots
+
+    def in_water(self, point, margin=1.25):
+        """Whether a point is in a pond (or within margin times its radii: its muddy shore), so no creature starts in
+        the Wallow's pools."""
+        for pond in self.layout.get('ponds', {}).values():
+            (cx, cy), (rx, ry) = pond['center'], pond['radii']
+            if math.hypot((point[0] - cx) / (rx * margin), (point[1] - cy) / (ry * margin)) < 1.0:
+                return True
+        return False
 
     def models(self, meshes):
         """Buildings, structures and props at their placements (each kind's model, or the area's own from level.models),
@@ -464,8 +476,11 @@ class AreaBuild:
                     fan.set_relative_location(unreal.Vector(0.0, 0.0, 1.0), False, True)
                     fan.set_relative_location(unreal.Vector(0.0, 0.0, 0.0), False, True)
             else:
+                # A placement may be scaled in layout.json (Crossroads Town's smaller cottage and farmhouse); the
+                # computed placements keep only kind, location and yaw.
+                scale = self.source_scale(key)
                 self.place(unreal.load_asset(meshes[name]), spot['location'], spot['yaw'], label=key,
-                           folder='Buildings', tags=('Obstacle',))
+                           folder='Buildings', tags=('Obstacle',), scale=(scale,) * 3 if scale != 1.0 else None)
             placed += 1
 
         # The models only the build places stand on the ground under their location, which the terrain now gives.
@@ -505,6 +520,11 @@ class AreaBuild:
                                folder='Orchard', tags=('Tree',))
                     placed += 1
         self.log(f'placed {placed} models')
+
+    def source_scale(self, key):
+        """A placement's uniform scale from layout.json ("scale"), 1 without one."""
+        spot = next((p for p in self.source.get('placements', []) if p['id'] == key), {})
+        return float(spot.get('scale', 1.0))
 
     def sky_islands(self, meshes):
         """Islands hanging in the sky past an island's rim (layout.json level.skyIslands: Skyreach's, seen beyond its
@@ -911,7 +931,8 @@ class AreaBuild:
     def no_tree_zones(self):
         """Invisible boxes tagged NoTrees over the zones that must stay open (layout.json level.noTreeZones: a zone's
         id and the share of its bounding box), which the scatter's tree layers avoid: on the tutorial island the
-        target range, so trees never block a shot at the dummies, and the village square."""
+        target range, so trees never block a shot at the dummies, the village square, the Wallow, Web Hollow and the
+        pasture."""
         for zone_id, shrink in self.tree_free_zones:
             polygon = next(z for z in self.source['zones'] if z['id'] == zone_id)['polygon']
             xs, ys = [p[0] for p in polygon], [p[1] for p in polygon]
@@ -921,6 +942,16 @@ class AreaBuild:
                              # The box is 64 cm across; it reaches 100 m up and down so every ray's hit is inside it.
                              scale=(size[0] / 64.0, size[1] / 64.0, 20000.0 / 64.0))
             box.set_actor_enable_collision(False)
+        # A town's own (layout.json level.town: Skyreach's Crossroads Town): its gardens, pasture and creature grounds,
+        # and a crown's room round each of its trees, so no scattered tree grows into a placed one.
+        if self.source.get('level', {}).get('town'):
+            dressing = importlib.reload(importlib.import_module('build_area_dressing'))
+            boxes = dressing.no_tree_boxes(self.source)
+            for x, y, yaw, half_x, half_y, label in boxes:
+                box = self.place(unreal.TriggerBox, (x, y, 0.0), yaw, label=f'NoTrees_{label}', folder='Scatter',
+                                 tags=('NoTrees',), scale=(half_x / 32.0, half_y / 32.0, 20000.0 / 64.0))
+                box.set_actor_enable_collision(False)
+            self.log(f'{len(boxes)} no-tree boxes for the town')
 
     def effects(self, meshes):
         """The waterfall off the creek's lip, and smoke from the chimneys (the buildings' Smoke sockets), leaning

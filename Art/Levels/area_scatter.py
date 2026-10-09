@@ -59,6 +59,8 @@ CREASE_PINES = (700.0, 0.15)
 YARDS = {
     'farmyard': ((6.5, 2.5), (10.0, 4.0)),
     'square': ((7.5, 2.0), (12.0, 4.0)),
+    # A town's square: no grass across its middle, and no tree before the buildings' fronts (about 14 m out).
+    'townSquare': ((11.5, 2.0), (17.0, 4.0)),
 }
 
 

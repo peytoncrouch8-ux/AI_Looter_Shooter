@@ -36,8 +36,8 @@ ATutorialDirector::ATutorialDirector()
 	Steps = {
 		{ TEXT("Welcome to Skyreach. Move with {Move} and look around with the mouse."), ETutorialGoal::Move, 600.f,
 			TEXT("Move and look around"), TEXT("Move"), TEXT("Move") },
-		{ TEXT("Hold {Sprint} to run. Follow the road to the village."), ETutorialGoal::ReachRack, 900.f,
-			TEXT("Follow the road to the village"), TEXT("Sprint"), TEXT("Hold to run") },
+		{ TEXT("Hold {Sprint} to run. Follow the road into town."), ETutorialGoal::ReachRack, 900.f,
+			TEXT("Follow the road into town"), TEXT("Sprint"), TEXT("Hold to run") },
 		{ TEXT("Grab the rifle on the gun rack: look at it and press {Interact}."), ETutorialGoal::HoldWeapon, 1.f,
 			TEXT("Grab the rifle from the gun rack"), TEXT("Interact"), TEXT("Take it") },
 		{ TEXT("Shoot the target dummies in the meadow under the windmill. {Reload} reloads."), ETutorialGoal::HitDummies, 5.f,

@@ -171,15 +171,15 @@ def tutorial_steps(asset):
     HUD tracker's short lines and key hints (the mission's name is the tracker's title, so step 1 doesn't repeat it)."""
     waypoint = unreal.MissionWaypoint
     return [
-        # Moving at all; the road leads to the village and its gun rack, so the arrow already points there.
+        # Moving at all; the road leads into town and to its gun rack, so the arrow already points there.
         step(objective(asset, unreal.MissionTravelObjective,
                        'Welcome to Skyreach. Move with {Move} and look around with the mouse.',
                        short='Move and look around', hint_action='Move', hint='Move',
                        waypoint=waypoint.ACTOR, waypoint_class='WeaponRack', distance=600.0)),
         # Within 9 m of the gun rack, on the map; a level without one passes it.
         step(objective(asset, unreal.MissionReachObjective,
-                       'Hold {Sprint} to run. Follow the road to the village.',
-                       short='Follow the road to the village', hint_action='Sprint', hint='Hold to run',
+                       'Hold {Sprint} to run. Follow the road into town.',
+                       short='Follow the road into town', hint_action='Sprint', hint='Hold to run',
                        pass_without_targets=True, place=place('WeaponRack', radius=900.0))),
         # Carrying a gun; the arrow on the rifle lying on the rack (the rack once it's taken).
         step(objective(asset, unreal.MissionCollectObjective,

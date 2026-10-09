@@ -3,7 +3,39 @@
 Where the work stands, for the next session and every agent. Update it as each request finishes (newest first). Rules are
 in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeline.md`.
 
-## Now (2026-10-08, the local session "Game Enchancements")
+## Now (2026-10-08 night, the local session after "Game Enchancements")
+
+- **The user's asks:** (1) change the shooting, task-completion and reload sounds; no crit sound; creatures should sound
+  like what they are (slimes squishy); (2) start building Crossroads Town on Skyreach. Then, going to sleep: **a polish
+  loop until they say stop** (below). They said **"The new sounds are good."**
+- **Done, pushed:**
+  - Sounds (d89c720, 68c764e): guns rebuilt twice (heavy and punchy, then less synthetic after Borderlands: a modelled
+    pressure blast through an overloaded mic, ground bounce, loud action, uneven echo tails), weightier reloads, short
+    reward-ping mission sounds, crits play the hit tick 12% higher, per-creature bullet hits, slimes all jelly. Listening
+    page: <https://claude.ai/artifact/VDmyrPmAsxiNa6boNuqKxa>.
+  - Crossroads Town round 1 (this commit): see Plan.md Phase 7 and the pipeline's "Crossroads Town". Six spiders in
+    Web Hollow, slimes in the Wallow, none respawn on Skyreach; the tutorial says "Follow the road into town".
+- **Calls made while the user slept (review):** the town's hedges are passable (bushes have no hulls); the notice
+  board moved in front of the saloon; Web Hollow's tor moved 10 m north; the memorial's benches moved off the roads.
+- **Round 2 of the town (not started):** the cobbled square and kerbs, stalls, scarecrows, coop, haystacks, sandbags,
+  targets, the dock, mushrooms, burrows, cabbages, flowers in pink, red and blue, the Wallow's darker sward and slime
+  trails, townsfolk, sheep and hens (`town.json` `deferred`). The Wallow's pools hide in tall grass.
+
+## The polish loop (the user, 2026-10-08 night: "make the game better and increase the quality on loop until I tell you to stop")
+
+Compare with Borderlands' mechanics and playstyle; surf the web as needed; no new levels or areas (new assets are fine).
+Don't ask the user questions while they sleep (until 5 AM EST): make the calls and list them here. Their examples:
+- [ ] The tutorial feels rushed and unnecessary.
+- [ ] Boss fights lack excitement (the Gravemother, Abel).
+- [ ] Creature and character models clip or animate weirdly.
+- [ ] Random rocks hang out of cliff walls.
+- [ ] Ransom's Rest's intro scene: the map is flat brown terrain (trees alone don't fix it).
+- [ ] The end of Ransom's Rest's story should leave the player at about level 6-7, not 9-10.
+- [ ] No experience for mission steps; missions are turned in, not finished by their last task.
+- [ ] The inventory is confusing and boring, with too much information at once.
+- [ ] And more: whatever makes it feel empty or wonky (ambience, feedback, traversal, encounters...).
+
+## Earlier on 2026-10-08 (the local session "Game Enchancements")
 
 - **The user's asks:** slower creature chases (not the slimes); Skyreach keeps its name and starts the game; fix narrow
   areas; the gun ideas (notches, cursed irons, part swapping); a smooth slide with dust; start on sounds.

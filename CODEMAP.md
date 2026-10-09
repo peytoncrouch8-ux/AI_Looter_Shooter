@@ -560,9 +560,12 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   instances (Ransom's Rest's far trees, one actor per tree mesh, set by `build_area.py`): no collision, navigation
   or shadows, never distance-culled.
 - `World/InstancedProps`: `AInstancedProps`, one mesh's instances of level dressing inside the playable area (Ransom's
-  Rest's fences, walls, graves, cairns and yard props, one actor per mesh, set by `Tools/Unreal/build_area_dressing.py`):
-  solid like a placed mesh (BlockAll), shadowed, each instance culled past `CullDistance`; tagged Obstacle only in game
-  worlds, since the editor's scatter would keep out of its map-wide bounds (the scatter takes the pieces' own boxes).
+  Rest's fences, walls, graves, cairns and yard props; Skyreach's Crossroads Town: its props, fences, trees, bushes,
+  reeds and webs; one actor per mesh and solidity, set by `Tools/Unreal/build_area_dressing.py`): solid like a placed
+  mesh (BlockAll) or, with `bSolid` off, passable (no collision, never an Obstacle: reeds, lily pads, lone bushes, webs),
+  shadowed unless `bCastShadows` is off (cards), each instance culled past `CullDistance`; a solid set is tagged
+  Obstacle only in game worlds, since the editor's scatter would keep out of its map-wide bounds (the scatter takes the
+  pieces' own boxes).
 - `World/Train`: `ATrain`, the train at a station's platform put together from Train.py's parts (Locomotive B, the
   passenger car and Tilly's hearse car coupled at their couplers; wheel sets on their axles, picked by height; the
   coupling rods on the drivers' cranks; the hearse car's door on its hinge; steam on the stack): cold and shut until
@@ -906,7 +909,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   reach into it, `cliffs.abut`; a run's end piece keeps off a ramp's walkway; panel runs, `cliffs.panels`,
   `build_area_panels.py`), and wears its own instances of shared
   materials (`materials`, `swaps`: Ransom's Rest's rock and orchard leaves; `swapsOn`, on the actors it names alone:
-  the windmill's steel).
+  the windmill's steel). A placement may be scaled (`scale`); a creature group with `"respawns": false` stays dead once
+  killed (all of Skyreach's) and no group starts in a pond; `level.town` (Skyreach's `town.json`) adds NoTrees boxes
+  from `build_area_dressing.no_tree_boxes()`.
 - `Tools/Unreal/build_area_panels.py`: a pit's wall dressed with the narrow cliff panels and the seam wedge
   (CliffPanel_A/B/C, CliffSeam_A) in place of a cliff group's faces, for `build_area.py` (`level.cliffs.panels`;
   the Sink's wall): a run along the pit's outline between its gaps and its ramp, each panel leaning with the wall
@@ -1012,8 +1017,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   scrub from the scrub mask and the computed points (`scrub_layers`), each later layer kept off what earlier ones
   placed, the kit named only in its `*_MESHES` tables (big sagebrush on the steep faces, scale 1.0-1.8, the sage's computed tight
   groups merged into its spawner, junipers facing west; scattered meshes kept out of far shadow cascades); larkspur along the salt line, the field wall and the farm
-  fences; every layer kept off the dressing's pieces (`build_area_dressing.footprints`), grass and flowers off its
-  solid ones only; the area's material swaps (`layout.json` `level.swaps`) on the scattered meshes as override
+  fences; every layer kept off the dressing's pieces (`build_area_dressing.footprints`; a town piece whose model isn't
+  imported leaves no box), grass and flowers off its solid ones only; the pond's own reeds and lily pads step aside
+  where a town places its own; the area's material swaps (`layout.json` `level.swaps`) on the scattered meshes as override
   materials.
 - `Tools/Unreal/build_area_dressing.py`: the layout's fence, wall, ruin, graves, cairns and props obstacles dressed from
   the art kit for `build_area.py` (in its full build after `models()`, and with `build_area.py <Area> dressing`): tables
@@ -1027,7 +1033,12 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   fronts' back walls), the undertaker's dray and lumber stack, fallen pines, the Sink fences' warning signs, the picket
   gates swung open, boot hill's and the family plot's sunken mounds, the churchyard's rows on the knoll's south face, its east rows re-laid across the flank (each board turned
   down its slope as far as it still faces the valley),
-  the sheep fold's half walls.
+  the sheep fold's half walls. A town (`level.town` names a JSON beside the layout: Skyreach's `town.json`): its pieces
+  (scale, lift, sink, tilt, kind, solid, floating on a pond with `onWater`; a dead tree's `crown` of webs), its lines
+  through the fence and wall kits, its webs (Web_Line strands tied into the dead trees' trunks with Web_Strands hanging,
+  Web_Ground sheets over burrows); `no_tree_boxes()` for its gardens, grounds and trees' crowns; one `AInstancedProps`
+  per mesh and solidity, town trees tagged Tree. Ransom's Rest's own extras (`EXTRA_GRAVE_ROWS`, `SPOTS`) only in
+  Ransom's Rest.
   `Tools/Unreal/island_views.py`: an area's viewpoints as editor cameras and shots.
 - `Tools/terrain_identity.ps1`, `.py`: checks an area regenerates exactly as committed (headless Blender, no editor;
   layoutSha1 left out);
@@ -1045,6 +1056,11 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   the scripted models and the terrain for it; `assemble.py` builds the page from `web/` (engine, procedural kit, the
   four concepts, the interface); `test/` takes screenshots and drives the interface, and `test/dump.js` writes a
   concept's placements as JSON (`Art/Levels/TutorialIsland/crossroads_town.json`, the chosen concept).
+- `Art/Levels/TutorialIsland/make_town.py`: Crossroads Town's game data, `town.json`, from the concept's placements
+  (plain Python): the concept's fixes applied (the farm road's farmhouse moved back, the corner lamps moved in), its kit
+  pieces mapped to the game's models (trees, bushes, hedges as rows of bushes, reeds, cocoons, egg sacs, sheds), fences
+  and webs as lines, everything kept off buildings, porches, roads, gameplay spots, each other and the rim; pieces with
+  no model yet listed as deferred (round 2). The buildings, roads, bog pools and creatures are in `layout.json`.
 - From the cloud session (`Docs/Handoffs/CloudIslandConcepts_2026-10-05.md`, nothing in the game uses them yet):
   `Tools/Blender/style_render.py` and `style_compose.py` render the art-style exploration
   (`Docs/Art/StyleExploration/`); `Tools/Blender/looter_heroes.py` builds the five

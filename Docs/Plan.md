@@ -141,10 +141,12 @@ The user found the tutorial island bland and lonely and, from four 3D layout con
 (`Docs/TutorialIslandConcepts.md`), chose **Crossroads Town** on 2026-10-03. The crossroads grows into a small town
 round a cobbled square, the slimes get a bog and the spiders a webbed hollow, and the roads get brick kerbs, lamps and
 cover, with far more trees, hedges, flowers and life. Every placement is in
-`Art/Levels/TutorialIsland/crossroads_town.json`; `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md` has the plan and the concept's mistakes to fix. Nothing
-in the level has changed yet.
-- [ ] The town with the models that exist: placements, kerbed roads and the cobbled square, the creature groups, the
-      scatter and new tour views; measured on Medium.
+`Art/Levels/TutorialIsland/crossroads_town.json`; `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md` has the plan and the concept's mistakes to fix.
+- [x] The town with the models that exist (2026-10-08, round 1): the ten buildings, the farm and range roads, the
+      Wallow's pools, 680 instanced props, fences, trees, hedges and Web Hollow's webs (`make_town.py` -> `town.json`),
+      six spiders in Web Hollow and five slimes in the Wallow that never respawn (the user's call), the scatter and five
+      new tour views; Medium 160-226 fps at every view (the heaviest, above the town, 6.3 ms). Kerbs and the cobbled
+      square wait for their models (round 2).
 - [ ] New models in the chosen art style: stalls, sheds, coop, haystacks, scarecrows, picket fences, hedges, barricades,
       sandbags, targets, the dock, garden crops, kerbs and cobbles, and the creature grounds' dressing.
 - [ ] Sheep, hens and townsfolk: models, actors and bestiary pages.

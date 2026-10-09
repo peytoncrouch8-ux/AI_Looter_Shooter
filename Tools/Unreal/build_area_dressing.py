@@ -32,6 +32,20 @@ obstacle id, so the art session can retune it without touching the code:
   building, and pieces set against a building's wall in its own frame (the backlots' lean-tos). A few pieces stand at
   spots of their own (SPOTS: Whitlock Fields' round bales, two more fallen pines by the Sink and north roads, the
   churchyard's dead trees).
+- A town (the layout's level.town names a file beside it, Art/Levels/<Area>/town.json, made by that folder's
+  make_town.py: the tutorial island's Crossroads Town) adds its own pieces, lines and webs, read as they are:
+  - pieces: a mesh at a spot and yaw, scaled, lifted (a cocoon's hanging point over the ground), sunk and tilted (the
+    bogged cart), floating on a pond's water (lily pads: layout_computed.json's ponds), standing plumb, as a prop
+    tilted a little with the ground, or lying flat on it (TOWN_KINDS: trees, lamps, posts, stacks and plants plumb);
+    a dead tree with "crown" wears Web_Crown with its own transform, as the Sink's Webwood does;
+  - lines: picket fences, rail fences and stone walls by the kits above (closed round a garden or open), with their
+    gates and their broken share;
+  - webs: a strand of silk (Web_Line) between two points at heights over the ground, stretched and pitched to the span
+    from the line's real 4 m and tied into a dead tree's leaning trunk where it starts or ends at one, with threads
+    (Web_Strands) hanging from its middle where it's high enough; and a sheet (Web_Ground cards round a middle one,
+    scaled to its radius).
+  Its noTrees zones and a crown's clearance round each of its trees are no_tree_boxes(), which build_area.py turns into
+  the boxes the scatter's trees keep out of.
 Every piece stands on the terrain's tiles (traced like build_area_whitlock.py's Ground: the tiles alone, never a volume,
 a tree or a building). A fence's sections stand plumb and level, stepped down a slope (fence_steps: split into shorter
 steps where it's steep, a post at each step its own posts can't cover); a wall's follow the slope along their length
@@ -40,16 +54,21 @@ steps where it's steep, a post at each step its own posts can't cover); a wall's
 
 Performance (the doc's "Performance plan": about 700 draws at the heaviest view): every kit piece is instanced, one
 AInstancedProps per mesh (World/InstancedProps.h: solid like a placed mesh, shadowed, each instance culled on its own
-past the mesh's distance in PIECES; Medium's view distance scale draws them to 60% of it). A ruin is its own actor.
+past the mesh's distance in PIECES; Medium's view distance scale draws them to 60% of it). A mesh some of whose pieces
+the player walks through (PASSABLE: reeds, bushes, webs, cocoons; a town piece's "solid" overrides it, a hedge's bushes
+are solid) gets a second actor without collision, and cards (SHADOWLESS: webs, reeds) cast no shadow. A ruin is its own
+actor.
 
 The scatter (build_island_scatter.py) keeps its layers out of the bounds of every actor tagged Obstacle, and an
 instanced actor's bounds span the valley: AInstancedProps tags itself Obstacle only in play (for the minimap and the
 creatures), and footprints() gives the scatter every piece's own box from the same plan instead.
 
-Run plan_all()/footprints() anywhere (plain Python and the layout's JSON); place() needs the editor.
+Run plan_all()/footprints()/no_tree_boxes() anywhere (plain Python and the layout's JSON); place() needs the editor.
 """
 import copy
+import json
 import math
+import os
 import random
 
 import unreal
@@ -65,6 +84,10 @@ SMALL_CULL = 12000.0   # yard props, graves, cairns: about 70 m on Medium
 FENCE_CULL = 16000.0   # fence sections and posts: a line reads further than a crate
 WALL_CULL = 25000.0    # stone walls, the big pieces
 TREE_CULL = 0.0        # trees: never (a tree's silhouette is what tells a place from afar)
+BUSH_CULL = 15000.0    # bushes (a hedge is a wall of them): about 90 m on Medium
+REED_CULL = 7000.0     # reeds and flowers: about 42 m on Medium (the scatter's reeds go at 30)
+PAD_CULL = 6000.0      # lily pads, flat on the water: about 36 m on Medium
+WEB_CULL = 8000.0      # silk threads and mats: about 48 m on Medium, past which a thread is less than a pixel
 
 # Every kit piece, by its mesh's name without SM_ (build_area.mesh_index()'s keys): its size as it stands (cm: along
 # its length, the actor's Y, which a fence runs along; across, the actor's X, its front; up), where its pivot is along
@@ -122,11 +145,72 @@ PIECES = {
     # The churchyard's dead trees (DeadTree.py, about 6.5 m): their box the trunk's foot, so the scatter's grass grows
     # round it; never culled, like the scatter's trees.
     'DeadTree_A': ((80, 80, 650), 'middle', TREE_CULL),
+    # A town's (town.json), sized from the imported meshes (Saved/MeshBounds.json, 2026-10-08). The trees (Trees.py,
+    # Pines.py), like the dead tree, by their trunk's foot with its root flare (the scatter's grass grows round it; its
+    # crown is in TREE_CROWNS), their height the mesh's; never culled.
+    'Oak_A': ((100, 100, 960), 'middle', TREE_CULL),
+    'Oak_B': ((120, 120, 1100), 'middle', TREE_CULL),
+    'Oak_C': ((190, 190, 1327), 'middle', TREE_CULL),
+    'Birch_A': ((40, 40, 1095), 'middle', TREE_CULL),
+    'Birch_B': ((60, 40, 1103), 'middle', TREE_CULL),     # two stems from one root, side by side along its Y
+    'Pine_A': ((65, 65, 1175), 'middle', TREE_CULL),
+    'Pine_B': ((75, 75, 1375), 'middle', TREE_CULL),
+    'Apple_A': ((40, 40, 512), 'middle', TREE_CULL),
+    # Plants (Undergrowth.py, Pond.py, GroundCover.py: no collision of their own).
+    'Bush_A': ((185, 172, 132), 'middle', BUSH_CULL),
+    'Bush_B': ((214, 196, 123), 'middle', BUSH_CULL),
+    'Bush_C': ((193, 190, 208), 'middle', BUSH_CULL),
+    'Reeds_A': ((163, 119, 154), 'middle', REED_CULL),
+    'Reeds_B': ((79, 78, 138), 'middle', REED_CULL),
+    'LilyPads_A': ((138, 93, 7), 'middle', PAD_CULL),
+    'Flowers_Yellow': ((58, 68, 43), 'middle', REED_CULL),
+    'Flowers_White': ((62, 74, 48), 'middle', REED_CULL),
+    'Flowers_Purple': ((58, 70, 51), 'middle', REED_CULL),
+    # The village's props (VillageProps.py, Main Street's kit). A lamp post's, lantern post's and signpost's box is its
+    # post (the arm and boards are overhead); they read down a road as far as a fence does.
+    'LampPost': ((25, 25, 275), 'middle', FENCE_CULL),
+    'LanternPost': ((36, 36, 230), 'middle', FENCE_CULL),
+    'Signpost': ((25, 25, 240), 'middle', FENCE_CULL),
+    'Bench': ((171, 46, 47), 'middle', SMALL_CULL),
+    'LaundryLine': ((388, 70, 210), 'middle', FENCE_CULL),
+    'NoticeBoard': ((220, 99, 268), 'middle', WALL_CULL),
+    'TownMemorial': ((130, 104, 178), 'middle', WALL_CULL),
+    'Wheelbarrow': ((72, 183, 74), 'middle', SMALL_CULL),
+    # Rocks (Rocks.py, Outcrops.py); an outcrop is a landmark, never culled.
+    'Rock_A': ((94, 82, 47), 'middle', SMALL_CULL),
+    'Rock_B': ((68, 65, 34), 'middle', SMALL_CULL),
+    'Rock_C': ((65, 73, 28), 'middle', SMALL_CULL),
+    'Rock_D': ((38, 28, 16), 'middle', SMALL_CULL),
+    'Boulder_A': ((201, 255, 133), 'middle', WALL_CULL),
+    'Boulder_B': ((159, 160, 111), 'middle', WALL_CULL),
+    'Boulder_C': ((273, 233, 155), 'middle', WALL_CULL),
+    'Outcrop_TorA': ((935, 703, 454), 'middle', TREE_CULL),
+    'Outcrop_TorB': ((615, 595, 985), 'middle', TREE_CULL),
+    'Outcrop_TorC': ((766, 509, 710), 'middle', TREE_CULL),
+    'Outcrop_TorD': ((656, 389, 461), 'middle', TREE_CULL),
+    # Web Hollow's (Sink.py, DenDressing.py). Cocoon_Hung hangs 2.3 m under its pivot, the hanging point; the threads
+    # and the strands' edge run along the actor's Y (Web_Line from its pivot to Y = -400 cm, sagging 11 cm). Web_Crown
+    # takes its dead tree's transform, so it stands by the tree's trunk box.
+    'Cocoon_Hung': ((49, 46, 236), 'middle', SMALL_CULL),
+    'Cocoon_Lying': ((223, 91, 24), 'middle', SMALL_CULL),
+    'EggSac_A': ((151, 149, 218), 'middle', SMALL_CULL),
+    'EggSac_B': ((162, 125, 189), 'middle', SMALL_CULL),
+    'EggSac_C': ((151, 116, 239), 'middle', SMALL_CULL),
+    'EggSac_Burst': ((168, 260, 72), 'middle', SMALL_CULL),
+    'Web_Line': ((400, 2, 12), 'start', WEB_CULL),
+    'Web_Strands': ((122, 16, 225), 'middle', WEB_CULL),
+    'Web_Tatters': ((133, 12, 239), 'middle', WEB_CULL),
+    'Web_Ground': ((260, 130, 4), 'middle', WEB_CULL),
+    'Web_Crown': ((80, 80, 650), 'middle', WALL_CULL),
 }
 # Where a piece's footprint's middle is, ahead of its pivot along its front (cm), where it isn't the pivot: the
 # woodshed's chopping block stands in front of its posts, the lumber stack's planks lean out of its front, the lean-to's
-# pivot is a little behind its middle (its back is on the wall).
-FOOTPRINT_AHEAD = {'Woodshed': 21.0, 'LumberStack': 28.0, 'LeanTo': 6.0}
+# pivot is a little behind its middle (its back is on the wall). A town's pieces: the memorial's plinth steps, the burst
+# sac's trailing strands, the tors' masses off their pivots (MeshBounds' middles); FOOTPRINT_RIGHT likewise to its right.
+FOOTPRINT_AHEAD = {'Woodshed': 21.0, 'LumberStack': 28.0, 'LeanTo': 6.0,
+                   'TownMemorial': 14.0, 'EggSac_Burst': 32.0, 'Bush_B': 14.0,
+                   'Outcrop_TorA': 15.0, 'Outcrop_TorB': 48.0, 'Outcrop_TorC': -19.0}
+FOOTPRINT_RIGHT = {'EggSac_Burst': -16.0, 'Outcrop_TorA': 33.0, 'Outcrop_TorC': 65.0, 'Outcrop_TorD': 66.0}
 
 # The fence and wall kits: the section and its length (cm), the broken and fallen sections, the piece that closes a run,
 # the iron fence's heavy corner post, the gate unit that fills a gate's gap (gate_clear: its way through, from and to
@@ -300,6 +384,11 @@ DOWNHILL_PROBE = 75.0
 # heads, between the lawn's two spots there (the dead tree by the fence beside them), and beside the tower, clear of
 # the way from its steps round into the lane west of the nave. build_area_chapel warns if a piece of the dressing comes
 # within its YARD_CLEAR of a fight's spot.
+# EXTRA_GRAVE_ROWS and SPOTS have no obstacle to say which layout they belong to (the tables keyed by obstacle id apply
+# only where the obstacle is): they're Ransom's Rest's. Every layout once got them, so Skyreach's dressing build put
+# Ransom's Rest's family plot graves, churchyard face rows, dead trees, bales and fallen pines at those spots on the
+# island (by the range, among them).
+EXTRAS_AREA = 'RansomsRest'
 EXTRA_GRAVE_ROWS = {
     'familyPlotGraves': [('family', 180.0, [[-3520, -9020], [-3520, -8210]], 270.0),
                          ('family', 180.0, [[-3200, -9100], [-3200, -8100]], 200.0)],
@@ -423,6 +512,78 @@ KINDS = ('fence', 'wall', 'ruin', 'graves', 'cairns', 'props')
 MAX_TILT = 4.0
 MAX_SINK = 20.0
 SAG = 25.0
+
+# A town (the layout's level.town: town.json in the layout's folder under LEVELS; layout_computed.json beside it gives
+# the ponds' water).
+LEVELS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'Art', 'Levels'))
+TREES = ('Oak_A', 'Oak_B', 'Oak_C', 'Birch_A', 'Birch_B', 'Pine_A', 'Pine_B', 'Apple_A', 'DeadTree_A')
+# How a town piece stands when it doesn't say ("kind": "prop", "upright" or "flat"): plumb (trees, plants, posts, lamps,
+# stacks, sheds, rocks sunk to their lowest side, sacs, what hangs), flat on the ground (tilted with it up to FLAT_TILT:
+# lily pads on the water, web mats, the lying cocoon, the burst sac), or else a prop tilted a little (MAX_TILT).
+TOWN_KINDS = {
+    'upright': TREES + ('LampPost', 'LanternPost', 'Signpost', 'NoticeBoard', 'TownMemorial', 'FirewoodStack',
+                        'Woodshed', 'LeanTo', 'LumberStack', 'LaundryLine', 'HitchRail', 'Outhouse', 'Cocoon_Hung',
+                        'EggSac_A', 'EggSac_B', 'EggSac_C', 'Web_Crown', 'Web_Strands', 'Web_Tatters', 'Bush_',
+                        'Reeds_', 'Flowers_', 'Rock_', 'Boulder_', 'Outcrop_', 'Cairn_'),
+    'flat': ('LilyPads_', 'Web_Ground', 'Web_Corner', 'Cocoon_Lying', 'EggSac_Burst'),
+}
+FLAT_TILT = 15.0
+# Lily pads float this far (cm) over their pond's water (the scatter's do too).
+WATER_LIFT = 1.0
+# What the player and the creatures go through (no collision, never an Obstacle: AInstancedProps' bSolid off), by the
+# start of the mesh's name; a town piece's "solid" overrides it (a hedge's bushes are solid). Egg sacs and cocoons are
+# shootable story pieces in Ransom's Rest's Sink; here they're dressing.
+PASSABLE = ('Bush_', 'Reeds_', 'LilyPads_', 'Flowers_', 'Web_', 'Cocoon_', 'EggSac_')
+# Cards that cast no shadow (the art's rule for the webs; the scatter's reeds and pads cast none either).
+SHADOWLESS = ('Web_', 'Reeds_', 'LilyPads_', 'Flowers_')
+# A town piece's footprint lets the scatter's grass and flowers grow up to it, as a fence's does (only the woody and
+# rocky layers keep off it): plants, and the laundry's line between its posts.
+GRASS_UNDER = ('Bush_', 'Reeds_', 'Flowers_', 'LaundryLine')
+# Town pieces with no footprint: up in the air (threads, a crown's webs, what hangs) or on the water.
+NO_FOOTPRINT = ('Web_Line', 'Web_Strands', 'Web_Tatters', 'Web_Crown', 'Cocoon_Hung', 'LilyPads_')
+
+# Each tree's crown in its own frame (cm: X from, X to, Y from, Y to; MeshBounds), and how far (cm) past it the
+# scatter's trees keep their trunks (no_tree_boxes), so a scattered crown can touch a placed one but never grow into it.
+TREE_CROWNS = {
+    'Oak_A': (-490.6, 497.6, -647.2, 534.4), 'Oak_B': (-443.3, 467.4, -635.3, 523.4),
+    'Oak_C': (-663.5, 774.9, -733.3, 736.0), 'Birch_A': (-294.3, 275.8, -293.0, 250.8),
+    'Birch_B': (-211.1, 258.5, -319.3, 313.1), 'Pine_A': (-359.6, 367.6, -353.8, 348.9),
+    'Pine_B': (-364.1, 336.1, -371.1, 349.8), 'Apple_A': (-268.5, 263.5, -242.8, 258.8),
+    'DeadTree_A': (-198.8, 133.9, -292.8, 175.4),
+}
+CROWN_CLEAR = 250.0
+# A town's noTrees circle is kept as a cross of two boxes (its width and NO_TREE_CROSS of it, both ways), which covers
+# it and reaches 22% past it at the diagonals where its square would reach 41%; a polygon as its smallest box, or, where
+# that box is more than NO_TREE_FILL empty, as strips across it about NO_TREE_STRIP (cm) wide.
+NO_TREE_CROSS = 0.71
+NO_TREE_FILL = 0.8
+NO_TREE_STRIP = 600.0
+
+# Web strands. A strand tied at a tree (an end within TIE_SNAP cm of a town tree's foot) is tied to its trunk's line at
+# that height: the dead tree's trunk leans off its foot (DeadTree.py's Bezier, without its gnarl: cm off the foot in its
+# own frame, X and Y, by height). Each end reaches TIE_IN past its tie, into the bark. Threads hang from a strand's middle
+# (Web_Strands, scaled down to clear the ground by STRANDS_CLEAR) where they'd still be STRANDS_SHORTEST of their length.
+TIE_SNAP = 80.0
+TIE_IN = 15.0
+TRUNK_LINES = {'DeadTree_A': ((0.0, 0.0, -1.0), (100.0, 0.0, -9.0), (200.0, -1.0, -23.0), (300.0, -4.0, -37.0),
+                              (400.0, -10.0, -45.0), (500.0, -20.0, -35.0))}
+WEB_LINE_SAG = 11.0
+STRANDS_CLEAR = 40.0
+STRANDS_SHORTEST = 0.55
+# A sheet web: a Web_Ground card in its middle (scaled to the radius over SHEET_MIDDLE, within SHEET_SCALE) and a ring of
+# them pointing out from it at SHEET_RING of the radius, one every SHEET_GAP cm round (3 to 6), the ring's cards
+# SHEET_STEP cm over the middle one and its neighbours a step apart (one, two, one, two, and three for an odd one out),
+# so no two overlapping mats fight in one plane. A sheet smaller than SHEET_ALONE is its middle card only.
+SHEET_MIDDLE = 220.0
+SHEET_SCALE = (0.9, 1.8)
+SHEET_RING = 0.55
+SHEET_GAP = 230.0
+SHEET_STEP = 1.0
+SHEET_ALONE = 150.0
+# How far (cm) a hanging piece reaches under its pivot (its hanging point): one whose bottom would come within
+# HANG_CLEAR of the ground at its lift (or under it, without one) is warned of.
+HANGS = {'Cocoon_Hung': 226.0, 'Web_Strands': 225.0, 'Web_Tatters': 239.0}
+HANG_CLEAR = 60.0
 
 
 # ---------------------------------------------------------------------------
@@ -565,14 +726,22 @@ def nearest_on(points, p):
 class Piece:
     """One kit piece: a span from a to b (its pivot at a, or at the middle with a middle pivot), or a piece at a with a
     yaw. stretch: a span stretched to its chord; level: a stack's id (it stands level) or None; lift: cm over its
-    ground; lean: (pitch, roll) added (degrees)."""
+    ground; lean: (pitch, roll) added (degrees). A town's piece (town: town_pose() stands it) also has its scale
+    (x, y, z), how far it sinks (cm), whether it's solid (None: by its mesh, PASSABLE) and the water it floats on (z, cm)
+    or None."""
 
     def __init__(self, mesh, owner, a, yaw=0.0, b=None, stretch=False, kind='prop', level=None, lift=0.0,
-                 lean=(0.0, 0.0), extra=None):
+                 lean=(0.0, 0.0), extra=None, scale=(1.0, 1.0, 1.0), sink=0.0, solid=None, water=None, town=False):
         self.mesh, self.owner, self.a, self.b, self.yaw = mesh, owner, a, b, yaw
         self.stretch, self.kind, self.level, self.lift, self.lean, self.extra = stretch, kind, level, lift, lean, extra
+        self.scale, self.sink, self.solid, self.water, self.town = scale, sink, solid, water, town
         if b is not None:
             self.yaw = kit_yaw(b[0] - a[0], b[1] - a[1])
+
+
+def solid_of(piece):
+    """Whether a piece blocks: its own "solid", or by its mesh (PASSABLE ones don't)."""
+    return piece.solid if piece.solid is not None else not piece.mesh.startswith(PASSABLE)
 
 
 # ---------------------------------------------------------------------------
@@ -585,7 +754,9 @@ class Plan:
     or wall its runs' first sections (heads: [(how the run starts: 'open', 'gate', 'rock' or 'loop', its first joint,
     its second)], so a builder can stand someone at a span, as build_area_whitlock stands Amos at the one past his gate).
     rocks: where rock stands in a fence's way ((x, y) -> bool; place()'s Rocks, from the cliffs and rocks placed), so a
-    run stops short of it; without it (plain Python, footprints(), run_head()) the runs go on as the layout draws them."""
+    run stops short of it; without it (plain Python, footprints(), run_head()) the runs go on as the layout draws them.
+    A layout with a town (level.town) gets its pieces, lines and webs last (town()), unless only some obstacles are
+    asked for."""
 
     def __init__(self, source, placements=None, only=None, rocks=None):
         self.source = source
@@ -601,7 +772,9 @@ class Plan:
             if entry.get('kind') not in KINDS or (only and entry['id'] not in only):
                 continue
             self.obstacle(entry)
-        if not only:
+        if only:
+            return
+        if source.get('name', EXTRAS_AREA) == EXTRAS_AREA:
             for oid, rows in EXTRA_GRAVE_ROWS.items():
                 before = len(self.pieces)
                 texts = [self.graves(oid, {'path': path}, style, face, spacing) for style, face, path, spacing in rows]
@@ -612,7 +785,8 @@ class Plan:
                 if 'from' in spot:
                     self.pieces.append(Piece(spot['mesh'], oid, tuple(spot['from']), b=tuple(spot['to']), kind='log'))
                 self.notes[oid] = f"{len(spot.get('at', ())) + (1 if 'from' in spot else 0)} {spot['mesh']}"
-            self.mound_boards()
+        self.mound_boards()
+        self.town()
 
     def on_road(self, point, margin=GRAVE_CLEAR_ROAD):
         """Whether a point stands on a road (within its half width and margin, cm)."""
@@ -1067,6 +1241,252 @@ class Plan:
             self.pieces.append(Piece(mesh, oid, (x, y), spot.get('yaw', 0.0) + turn, kind=piece_kind(mesh)))
         return f'facing {facing:.0f}'
 
+    # --- A town (town.json) ---
+
+    def town(self):
+        """The town the layout's level.town names: its pieces, then its lines and webs (a strand ties into the trees
+        among the pieces), each group's counted in notes. A town file that's named but missing or broken is a warning
+        and no town."""
+        town, problem = load_town(self.source)
+        if problem:
+            self.warnings.append(problem)
+        if not town:
+            return
+        water = pond_levels(self.source)
+        groups = {}
+
+        def counted(group, pieces):
+            for piece in pieces:
+                groups.setdefault(group, {}).setdefault(piece.mesh, 0)
+                groups[group][piece.mesh] += 1
+
+        crowned, by_id, hung = [], {}, []
+        for entry in town.get('pieces', []):
+            group = entry.get('group', 'town')
+            piece = town_piece(entry, f'town:{group}', water, self.warnings)
+            if piece is None:
+                continue
+            self.pieces.append(piece)
+            counted(group, [piece])
+            by_id[entry.get('id')] = piece
+            if entry.get('crown'):
+                crowned.append((piece, group))
+            if entry.get('hangFrom'):
+                hung.append((piece, entry['hangFrom']))
+        # A cocoon hung from a dead tree's limb measures its lift from that tree's foot, where the tree stands (sunk to
+        # its lowest side), so its top meets the limb on a slope too (town_pose()).
+        for piece, host in hung:
+            if host in by_id:
+                piece.extra = dict(piece.extra or {}, host=by_id[host])
+            else:
+                self.warnings.append(f'town: {piece.mesh} at {piece.a} hangs from {host}, which is not placed: its '
+                                     f'lift is measured from the ground under it')
+        # A dead tree with "crown" wears Web_Crown with its own transform (fitted to DeadTree_A's limbs), unless the
+        # town places one there itself.
+        crowns = [p.a for p in self.pieces if p.town and p.mesh == 'Web_Crown']
+        for tree, group in crowned:
+            if tree.mesh != 'DeadTree_A':
+                self.warnings.append(f'town: Web_Crown is fitted to DeadTree_A, not {tree.mesh}: no crown at {tree.a}')
+            elif not any(math.dist(tree.a, at) < 10.0 for at in crowns):
+                crown = copy.copy(tree)
+                crown.mesh, crown.kind, crown.solid = 'Web_Crown', 'upright', None
+                self.pieces.append(crown)
+                counted(group, [crown])
+        trees = [p for p in self.pieces if p.town and p.mesh in TREES and not p.lift and p.water is None]
+        for entry in town.get('lines', []):
+            self.town_line(entry)
+        for k, web in enumerate(town.get('webs', [])):
+            group = web.get('group', 'webs')
+            name = web.get('id', f'web{k + 1}')
+            made = sheet_cards(web, f'town:{group}', name) if web.get('sheet') else \
+                self.strand(web, f'town:{group}', name, trees)
+            self.pieces += made
+            counted(group, made)
+        for group, counts in sorted(groups.items()):
+            self.notes[f'town {group}'] = (f'{sum(counts.values())} pieces ('
+                                           + ', '.join(f'{n} {m}' for m, n in sorted(counts.items())) + ')')
+        deferred = town.get('deferred') or {}
+        if deferred:
+            self.notes['town deferred'] = 'no model yet, left for round 2: ' + ', '.join(
+                f'{n} {kind}' for kind, n in sorted(deferred.items()))
+
+    def town_line(self, entry):
+        """A town's fence or wall by its kit (KITS: rail, picket, stone), round its points (closed) or along them, with
+        its gates and broken share, laid as the layout's obstacles are (line())."""
+        oid = f"town:{entry.get('id', 'line')}"
+        points = [tuple(p[:2]) for p in entry.get('points', [])]
+        closed = bool(entry.get('closed'))
+        if closed and len(points) > 3 and math.dist(points[0], points[-1]) < 1.0:
+            # Closed round its first point again: line() closes a polygon itself.
+            points = points[:-1]
+        if entry.get('kit') not in KITS or len(points) < (3 if closed else 2):
+            self.warnings.append(f'{oid}: kit {entry.get("kit")} with {len(points)} points: left out')
+            return
+        spec = {'kit': entry['kit'], 'gates': [list(g[:3]) for g in entry.get('gates', [])]}
+        for key in ('broken', 'missing', 'fallen', 'inside', 'corners', 'halves', 'gate_width', 'first_after_gate'):
+            if key in entry:
+                spec[key] = entry[key]
+        before = len(self.pieces)
+        text = self.line(oid, {'polygon': points} if closed else {'path': points}, spec)
+        counts = {}
+        for piece in self.pieces[before:]:
+            counts[piece.mesh] = counts.get(piece.mesh, 0) + 1
+        self.notes[oid] = (f'{len(self.pieces) - before} pieces ('
+                           + ', '.join(f'{n} {m}' for m, n in sorted(counts.items())) + f'); {text}')
+
+    def strand(self, web, owner, name, trees):
+        """A strand of silk between web's from and to ([X, Y, cm over the ground]): one Web_Line, each end tied where it
+        meets a tree (tie()). The threads hanging from its middle are poses()' (they need the ground)."""
+        try:
+            (ax, ay, up_a), (bx, by, up_b) = (tuple(web['from'][:3]), tuple(web['to'][:3]))
+        except (KeyError, TypeError, ValueError):
+            self.warnings.append(f'town web {name}: no from and to [X, Y, up]: left out')
+            return []
+        a, foot_a = tie((ax, ay), float(up_a), trees)
+        b, foot_b = tie((bx, by), float(up_b), trees)
+        if math.dist(a, b) < 50.0:
+            self.warnings.append(f'town web {name}: its ends are {math.dist(a, b):.0f} cm apart: left out')
+            return []
+        return [Piece('Web_Line', owner, a, b=b, stretch=True, kind='strand', town=True,
+                      extra={'up': (float(up_a), float(up_b)), 'feet': (foot_a, foot_b), 'id': name})]
+
+
+def town_path(source):
+    """The town file the layout's level.town names (in its own folder under LEVELS), or None."""
+    name = source.get('level', {}).get('town')
+    return os.path.join(LEVELS, source.get('name', ''), name) if name else None
+
+
+def load_town(source):
+    """The layout's town (town.json, as read) and what's wrong with it, if anything: (None, None) without one."""
+    path = town_path(source)
+    if path is None:
+        return None, None
+    if not os.path.isfile(path):
+        return None, f"level.town names {path}, which isn't there (make_town.py writes it): no town"
+    try:
+        with open(path) as f:
+            return json.load(f), None
+    except ValueError as error:
+        return None, f'{path} is not JSON ({error}): no town'
+
+
+def pond_levels(source):
+    """Each pond's water height (cm) by its id, from layout_computed.json beside the layout (its ponds; one written
+    before ponds had ids gives its one pond as 'pond')."""
+    try:
+        with open(os.path.join(LEVELS, source.get('name', ''), 'layout_computed.json')) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    levels = {key: pond['waterZ'] for key, pond in (data.get('ponds') or {}).items() if 'waterZ' in pond}
+    if 'pond' not in levels and (data.get('pond') or {}).get('waterZ') is not None:
+        levels['pond'] = data['pond']['waterZ']
+    return levels
+
+
+def town_kind(mesh):
+    """How a town piece stands when it doesn't say (TOWN_KINDS): 'flat', 'upright' or 'prop'."""
+    for kind in ('flat', 'upright'):
+        if mesh.startswith(TOWN_KINDS[kind]):
+            return kind
+    return 'prop'
+
+
+def town_piece(entry, owner, water, warnings):
+    """A town.json piece as a Piece: its scale (one number, or X, Y, Z), lift, sink, tilt ([pitch, roll], or a roll
+    alone), solidity, kind (or its mesh's: town_kind()) and, on a pond, that pond's water. None (with a warning) when it
+    can't stand."""
+    mesh, at, label = entry.get('mesh'), entry.get('at'), entry.get('id', '?')
+    if not mesh or not at or len(at) < 2:
+        warnings.append(f'town piece {label}: no mesh or spot: left out')
+        return None
+    scale = entry.get('scale', 1.0)
+    scale = (float(scale),) * 3 if isinstance(scale, (int, float)) else tuple(float(s) for s in scale[:3])
+    if len(scale) != 3:
+        warnings.append(f'town piece {label}: scale {entry.get("scale")} is neither one number nor three: unscaled')
+        scale = (1.0, 1.0, 1.0)
+    tilt = entry.get('tilt') or (0.0, 0.0)
+    tilt = (0.0, float(tilt)) if isinstance(tilt, (int, float)) else (float(tilt[0]), float(tilt[1]))
+    kind = entry.get('kind') or town_kind(mesh)
+    if kind not in ('prop', 'upright', 'flat'):
+        warnings.append(f'town piece {label}: no kind {kind}: it stands as {town_kind(mesh)}')
+        kind = town_kind(mesh)
+    z = None
+    if entry.get('onWater'):
+        z = water.get(entry['onWater'])
+        if z is None:
+            warnings.append(f"town piece {label}: no pond {entry['onWater']} in layout_computed.json (regenerate "
+                            f"it): left out")
+            return None
+    if mesh not in PIECES:
+        warnings.append(f'town piece {label}: no size for {mesh} in PIECES: it stands, and keeps the scatter off, as a '
+                        f'1 m box')
+    lift = float(entry.get('lift', 0.0))
+    if mesh in HANGS and lift - HANGS[mesh] * scale[2] < HANG_CLEAR:
+        warnings.append(f'town piece {label}: {mesh} hangs {HANGS[mesh] * scale[2]:.0f} cm under its pivot, so at lift '
+                        f'{lift:.0f} its bottom is {lift - HANGS[mesh] * scale[2]:.0f} cm over the ground')
+    return Piece(mesh, owner, (float(at[0]), float(at[1])), float(entry.get('yaw', 0.0)), kind=kind, lift=lift,
+                 lean=tilt, scale=scale, sink=float(entry.get('sink', 0.0)), solid=entry.get('solid'), water=z,
+                 town=True)
+
+
+def trunk_line(mesh, height):
+    """Where a tree's trunk is (cm off its foot, X and Y in its own frame) at height cm up it (TRUNK_LINES; a straight
+    trunk is over its foot)."""
+    table = TRUNK_LINES.get(mesh)
+    if not table:
+        return 0.0, 0.0
+    if height <= table[0][0]:
+        return table[0][1:]
+    for (h0, x0, y0), (h1, x1, y1) in zip(table, table[1:]):
+        if height <= h1:
+            t = (height - h0) / (h1 - h0)
+            return x0 + (x1 - x0) * t, y0 + (y1 - y0) * t
+    return table[-1][1:]
+
+
+def tie(end, up, trees):
+    """Where a strand's end at (x, y), up cm over the ground, is tied, and the foot its height is measured from: on the
+    trunk's line of the town tree standing within TIE_SNAP of it (its foot's ground), or where it is."""
+    near = min(trees, key=lambda t: math.dist(t.a, end), default=None)
+    if near is None or math.dist(near.a, end) > TIE_SNAP:
+        return end, end
+    sx, sy, sz = near.scale
+    lx, ly = trunk_line(near.mesh, up / max(sz, 0.1))
+    lx, ly = lx * sx, ly * sy
+    yaw = math.radians(near.yaw)
+    return (near.a[0] + math.cos(yaw) * lx - math.sin(yaw) * ly,
+            near.a[1] + math.sin(yaw) * lx + math.cos(yaw) * ly), near.a
+
+
+def sheet_cards(web, owner, name):
+    """A sheet web at web's at ([X, Y]), r cm across its middle: a Web_Ground card in the middle scaled to it and a ring
+    of them pointing out from it, each its own seeded turn and size, lying flat on the ground."""
+    try:
+        x, y = float(web['at'][0]), float(web['at'][1])
+    except (KeyError, TypeError, IndexError, ValueError):
+        return []
+    r = float(web.get('r', SHEET_MIDDLE))
+    rnd = random.Random(f'{name} sheet')
+    middle = max(SHEET_SCALE[0], min(SHEET_SCALE[1], r / SHEET_MIDDLE))
+    cards = [Piece('Web_Ground', owner, (x, y), rnd.uniform(0.0, 180.0), kind='flat', scale=(middle,) * 3,
+                   town=True, extra={'rise': 0.0})]
+    if r < SHEET_ALONE:
+        return cards
+    ring = r * SHEET_RING
+    count = max(3, min(6, round(2.0 * math.pi * ring / SHEET_GAP)))
+    turn = rnd.uniform(0.0, 360.0)
+    for k in range(count):
+        bearing = turn + 360.0 * k / count + rnd.uniform(-12.0, 12.0)
+        at = (x + math.cos(math.radians(bearing)) * ring, y + math.sin(math.radians(bearing)) * ring)
+        size = max(0.8, min(1.3, r / 300.0 * rnd.uniform(0.9, 1.1)))
+        step = 3 if count % 2 and k == count - 1 else 1 + k % 2
+        # Its length (the card's Y) points out from the middle.
+        cards.append(Piece('Web_Ground', owner, at, (bearing - 90.0 + rnd.uniform(-15.0, 15.0)) % 360.0, kind='flat',
+                           scale=(size,) * 3, town=True, extra={'rise': SHEET_STEP * step}))
+    return cards
+
 
 def piece_kind(mesh):
     """How a free-standing piece stands: plumb (UPRIGHT), or a prop tilted a little with the ground."""
@@ -1172,10 +1592,11 @@ def plan_all(source, placements=None, only=None, rocks=None):
 # ---------------------------------------------------------------------------
 
 def poses(plan, ground, stats=None):
-    """Each piece's (mesh, (x, y, z), (roll, pitch, yaw), (sx, sy, sz), owner), on the ground ground(x, y) gives: a
-    fence's section as its level steps (fence_steps), and its kit's step post wherever two steps meet further apart
-    than its own posts cover. stats (a dict) counts what the slopes made of the fences: 'split' sections, 'step posts',
-    and 'past': (degrees, owner) of each section steeper than its kit's shortest steps take cleanly."""
+    """Each piece's (mesh, (x, y, z), (roll, pitch, yaw), (sx, sy, sz), owner, solid), on the ground ground(x, y) gives:
+    a fence's section as its level steps (fence_steps), and its kit's step post wherever two steps meet further apart
+    than its own posts cover; a town's piece as town_poses() stands it. stats (a dict) counts what the slopes made of
+    the fences: 'split' sections, 'step posts', and 'past': (degrees, owner) of each section steeper than its kit's
+    shortest steps take cleanly."""
     stats = {} if stats is None else stats
     for key in ('split', 'step posts'):
         stats.setdefault(key, 0)
@@ -1197,9 +1618,13 @@ def poses(plan, ground, stats=None):
         if abs(after - before) <= kit['hide'] or (kit.get('step_down') and after > before):
             return
         stats['step posts'] += 1
-        out.append((kit['step_post'], (at[0], at[1], ground(*at)), (0.0, 0.0, yaw), (1.0, 1.0, 1.0), owner))
+        out.append((kit['step_post'], (at[0], at[1], ground(*at)), (0.0, 0.0, yaw), (1.0, 1.0, 1.0), owner,
+                    not kit['step_post'].startswith(PASSABLE)))
 
     for piece in plan.pieces:
+        if piece.town:
+            out += town_poses(piece, ground)
+            continue
         if piece.kind == 'board' and piece.extra and piece.extra[0] == 'downhill':
             # A board facing down its slope (graves()' 'downhill'): its yaw from the ground it stands on.
             _, toward, turn = piece.extra
@@ -1207,7 +1632,7 @@ def poses(plan, ground, stats=None):
             piece.yaw = downhill_yaw(piece.a, ground, toward) + turn
         kit = fence_kit(piece.mesh) if piece.b is not None and piece.kind == 'span' else None
         if kit is None:
-            out.append((piece.mesh,) + pose(piece, ground, bases) + (piece.owner,))
+            out.append((piece.mesh,) + pose(piece, ground, bases) + (piece.owner, solid_of(piece)))
             continue
         # A fence's section, or its gate unit (one level piece between its own heavy posts, never split).
         gate = piece.mesh == kit.get('gate')
@@ -1221,7 +1646,8 @@ def poses(plan, ground, stats=None):
         for k, (a, b, z) in enumerate(steps):
             # Plumb and level, from its pivot (its own first post) at a, squashed or stretched to reach b.
             stretch = math.dist(a, b) / length_ if piece.stretch else 1.0 / len(steps)
-            out.append((piece.mesh, (a[0], a[1], z), (0.0, 0.0, piece.yaw), (1.0, stretch, 1.0), piece.owner))
+            out.append((piece.mesh, (a[0], a[1], z), (0.0, 0.0, piece.yaw), (1.0, stretch, 1.0), piece.owner,
+                        solid_of(piece)))
             if k:
                 step_post(kit, a, piece.yaw, piece.owner, steps[k - 1][2], z)
         if not gate:
@@ -1335,6 +1761,77 @@ def clamp(value, limit):
     return max(-limit, min(limit, value))
 
 
+def town_poses(piece, ground):
+    """A town piece's poses (poses()' tuples): a strand's line and the threads under it (strand_poses()), or the piece
+    as town_pose() stands it."""
+    if piece.kind == 'strand':
+        return strand_poses(piece, ground)
+    return [(piece.mesh,) + town_pose(piece, ground) + (piece.owner, solid_of(piece))]
+
+
+def town_pose(piece, ground):
+    """A town piece's (x, y, z), (roll, pitch, yaw), scale: on its pond's water, level (lily pads); lifted its lift over
+    the ground under it, plumb (a hanging cocoon: its pivot is the hanging point); plumb and sunk to the lowest ground
+    under its sides (an upright piece: UPRIGHT_SINK at most); or tilted with the ground (a prop by at most MAX_TILT, a
+    flat piece by FLAT_TILT) and sunk so no side hovers (MAX_SINK at most). Then sunk its own sink, its tilt added, and a
+    sheet's card raised its rise. Its sides are read at its scaled size."""
+    (length_, depth, _), _, _ = PIECES.get(piece.mesh, ((100.0, 100.0, 100.0), 'middle', SMALL_CULL))
+    x, y = piece.a
+    tilt_pitch, tilt_roll = piece.lean
+    rise = piece.extra.get('rise', 0.0) if isinstance(piece.extra, dict) else 0.0
+    if piece.water is not None:
+        return (x, y, piece.water + WATER_LIFT - piece.sink), (tilt_roll, tilt_pitch, piece.yaw), piece.scale
+    if piece.lift > 0.0:
+        host = piece.extra.get('host') if isinstance(piece.extra, dict) else None
+        base = town_pose(host, ground)[0][2] if host is not None else ground(x, y)
+        return (x, y, base + piece.lift - piece.sink), (tilt_roll, tilt_pitch, piece.yaw), piece.scale
+    yaw = math.radians(piece.yaw)
+    fx, fy = math.cos(yaw), math.sin(yaw)     # the actor's +X
+    hx, hy = max(depth * piece.scale[0] * 0.5, 10.0), max(length_ * piece.scale[1] * 0.5, 10.0)
+    g0 = ground(x, y)
+    gf, gb = ground(x + fx * hx, y + fy * hx), ground(x - fx * hx, y - fy * hx)
+    gr, gl = ground(x - fy * hy, y + fx * hy), ground(x + fy * hy, y - fx * hy)
+    if piece.kind == 'upright':
+        pitch = roll = 0.0
+        z = max(min(g0, gf, gb, gr, gl), g0 - UPRIGHT_SINK)
+    else:
+        tilt = FLAT_TILT if piece.kind == 'flat' else MAX_TILT
+        pitch = clamp(math.degrees(math.atan2(gf - gb, 2.0 * hx)), tilt)
+        roll = clamp(math.degrees(math.atan2(gl - gr, 2.0 * hy)), tilt)
+        tp, tr = math.tan(math.radians(pitch)), math.tan(math.radians(roll))
+        z = max(min(g0, gf - hx * tp, gb + hx * tp, gl - hy * tr, gr + hy * tr), g0 - MAX_SINK)
+    return (x, y, z - piece.sink + rise), (roll + tilt_roll, pitch + tilt_pitch, piece.yaw), piece.scale
+
+
+def strand_poses(piece, ground):
+    """A strand of silk (a 'strand' piece from Plan.strand()): Web_Line from its tie at a to its tie at b, each end its
+    up over its foot's ground and reaching TIE_IN on into the bark; its pivot at a, running along its -Y, rolled to
+    climb or fall to b (a positive roll lifts its -Y end), stretched (Y and Z, so its sag keeps its shape) to the span
+    from the line's real length. Under its middle, where the threads clear the ground by STRANDS_CLEAR at
+    STRANDS_SHORTEST of their length or more, Web_Strands along it, shortened (Z) to clear it."""
+    up_a, up_b = piece.extra['up']
+    foot_a, foot_b = piece.extra['feet']
+    za, zb = ground(*foot_a) + up_a, ground(*foot_b) + up_b
+    chord = math.dist(piece.a, piece.b)
+    way = unit(piece.a, piece.b)
+    climb = (zb - za) / chord
+    a = (piece.a[0] - way[0] * TIE_IN, piece.a[1] - way[1] * TIE_IN, za - climb * TIE_IN)
+    reach = chord + 2.0 * TIE_IN
+    rise = climb * reach
+    stretch = math.hypot(reach, rise) / PIECES['Web_Line'][0][0]
+    roll = math.degrees(math.atan2(rise, reach))
+    out = [('Web_Line', a, (roll, 0.0, piece.yaw), (1.0, stretch, stretch), piece.owner, solid_of(piece))]
+    mx, my = (piece.a[0] + piece.b[0]) * 0.5, (piece.a[1] + piece.b[1]) * 0.5
+    mz = (za + zb) * 0.5 - WEB_LINE_SAG * stretch
+    hang = PIECES['Web_Strands'][0][2]
+    share = min(1.0, (mz - ground(mx, my) - STRANDS_CLEAR) / hang)
+    if share >= STRANDS_SHORTEST:
+        turn = random.Random(f"{piece.extra.get('id')} strands").uniform(-6.0, 6.0)
+        out.append(('Web_Strands', (mx, my, mz), (0.0, 0.0, piece.yaw + turn), (1.0, 1.0, share), piece.owner,
+                    solid_of(piece)))
+    return out
+
+
 def roll_heights(a, b, ground):
     """A wall's section's (or a lying log's) ends' heights as it stands from a to b: the ground at each, both sunk by
     the dip under its middle (at most SAG), so its baseline at any point between is their blend."""
@@ -1368,12 +1865,19 @@ def run_head(source, placements, oid, start='gate'):
 LINE_KINDS = ('span', 'post', 'corner')
 
 
-def footprints(source, placements=None):
+def footprints(source, placements=None, meshes=None):
     """Every piece's box on the ground, for the scatter to keep its layers out of: (x, y, yaw, half along the actor's Y,
-    half along its X, whether it's a fence or wall line) in cm and degrees, the yaw the piece's own (its X its front, its
-    Y along a fence)."""
+    half along its X, whether grass may grow up to it: a fence or wall line, a town's plants) in cm and degrees, the yaw
+    the piece's own (its X its front, its Y along a fence). A town's pieces in the air or on the water have none
+    (NO_FOOTPRINT), and with meshes (names, as build_area.mesh_index()'s) a town piece whose mesh isn't there has none
+    (place() leaves it out)."""
     out = []
     for piece in plan_all(source, placements).pieces:
+        if piece.town:
+            box = town_footprint(piece) if meshes is None or piece.mesh in meshes else None
+            if box:
+                out.append(box)
+            continue
         (length_, depth, _), pivot, _ = PIECES.get(piece.mesh, ((100.0, 100.0, 100.0), 'middle', SMALL_CULL))
         if piece.kind == 'corner':
             (vx, vy), (ex, ey) = piece.extra
@@ -1393,6 +1897,147 @@ def footprints(source, placements=None):
         ahead = FOOTPRINT_AHEAD.get(piece.mesh, 0.0)
         x, y = x + math.cos(math.radians(piece.yaw)) * ahead, y + math.sin(math.radians(piece.yaw)) * ahead
         out.append((x, y, piece.yaw, half, depth * 0.5, piece.kind in LINE_KINDS))
+    return out
+
+
+def town_footprint(piece):
+    """A town piece's box on the ground (footprints()' tuple) at its scaled size, its middle where its mesh's is
+    (FOOTPRINT_AHEAD, FOOTPRINT_RIGHT); None for a strand, a piece on the water or lifted off the ground, or one in the
+    air (NO_FOOTPRINT). A tree's is its trunk's foot, so the grass grows round it."""
+    if piece.kind == 'strand' or piece.water is not None or piece.lift > 0.0 or piece.mesh.startswith(NO_FOOTPRINT):
+        return None
+    (length_, depth, _), _, _ = PIECES.get(piece.mesh, ((100.0, 100.0, 100.0), 'middle', SMALL_CULL))
+    sx, sy, _ = piece.scale
+    ahead, right = FOOTPRINT_AHEAD.get(piece.mesh, 0.0) * sx, FOOTPRINT_RIGHT.get(piece.mesh, 0.0) * sy
+    yaw = math.radians(piece.yaw)
+    x = piece.a[0] + math.cos(yaw) * ahead - math.sin(yaw) * right
+    y = piece.a[1] + math.sin(yaw) * ahead + math.cos(yaw) * right
+    return x, y, piece.yaw, length_ * sy * 0.5, depth * sx * 0.5, piece.mesh.startswith(GRASS_UNDER)
+
+
+def no_tree_boxes(source):
+    """Boxes the scatter's tree layers keep out of, for the layout's town: (x, y, yaw, half along the box's X, half along
+    its Y, a label) in cm and degrees. Its noTrees zones ({"at": [X, Y], "r": R}: a cross of two boxes, NO_TREE_CROSS;
+    {"polygon": [...]}: its smallest box, or strips across it where that's mostly empty), and each of its trees' crowns
+    (TREE_CROWNS at the tree's scale and yaw) and CROWN_CLEAR round it, unless a zone's box holds it already.
+    build_area.py places a NoTrees box for each. None without a town."""
+    town, _ = load_town(source)
+    if not town:
+        return []
+    boxes = []
+    for k, zone in enumerate(town.get('noTrees', [])):
+        label = zone.get('id', f'Town_{k + 1}')
+        if zone.get('polygon'):
+            boxes += polygon_boxes([tuple(p[:2]) for p in zone['polygon']], label)
+        elif zone.get('at') and zone.get('r'):
+            (x, y), r = zone['at'][:2], float(zone['r'])
+            boxes += [(x, y, 0.0, r, r * NO_TREE_CROSS, f'{label}_a'), (x, y, 0.0, r * NO_TREE_CROSS, r, f'{label}_b')]
+    zones = list(boxes)
+    for entry in town.get('pieces', []):
+        crown = TREE_CROWNS.get(entry.get('mesh'))
+        if crown is None or entry.get('lift') or entry.get('onWater') or not entry.get('at'):
+            continue
+        scale = entry.get('scale', 1.0)
+        sx, sy = (scale, scale) if isinstance(scale, (int, float)) else scale[:2]
+        x0, x1, y0, y1 = crown
+        cx, cy = (x0 + x1) * 0.5 * sx, (y0 + y1) * 0.5 * sy
+        yaw = float(entry.get('yaw', 0.0))
+        c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+        x, y = entry['at'][0] + c * cx - s * cy, entry['at'][1] + s * cx + c * cy
+        box = (x, y, yaw, (x1 - x0) * 0.5 * sx + CROWN_CLEAR, (y1 - y0) * 0.5 * sy + CROWN_CLEAR,
+               f"Crown_{entry.get('id', len(boxes))}")
+        if not any(all(in_box(corner, zone) for corner in box_corners(box)) for zone in zones):
+            boxes.append(box)
+    return boxes
+
+
+def box_corners(box):
+    """A (x, y, yaw, half along X, half along Y, ...) box's four corners."""
+    x, y, yaw, hx, hy = box[:5]
+    c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    return [(x + c * u - s * v, y + s * u + c * v) for u, v in ((hx, hy), (hx, -hy), (-hx, -hy), (-hx, hy))]
+
+
+def in_box(point, box):
+    """Whether a point is inside a (x, y, yaw, half along X, half along Y, ...) box."""
+    x, y, yaw, hx, hy = box[:5]
+    c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    dx, dy = point[0] - x, point[1] - y
+    return abs(c * dx + s * dy) <= hx + 1e-6 and abs(-s * dx + c * dy) <= hy + 1e-6
+
+
+def convex_hull(points):
+    """The convex hull of points, counter-clockwise (Andrew's monotone chain)."""
+    pts = sorted(set(points))
+    if len(pts) < 3:
+        return pts
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lower, upper = [], []
+    for p in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0.0:
+            lower.pop()
+        lower.append(p)
+    for p in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0.0:
+            upper.pop()
+        upper.append(p)
+    return lower[:-1] + upper[:-1]
+
+
+def clip_strip(points, u0, u1):
+    """A polygon given in (u, v) cut to the strip u0 <= u <= u1 (Sutherland-Hodgman: kept on the inside of one edge,
+    then of the other)."""
+    for edge, side in ((u0, 1.0), (u1, -1.0)):
+        out = []
+        for a, b in zip(points, points[1:] + points[:1]):
+            a_in, b_in = (a[0] - edge) * side >= 0.0, (b[0] - edge) * side >= 0.0
+            if a_in != b_in:
+                out.append((edge, a[1] + (b[1] - a[1]) * (edge - a[0]) / (b[0] - a[0])))
+            if b_in:
+                out.append(b)
+        points = out
+        if not points:
+            break
+    return points
+
+
+def polygon_boxes(points, label):
+    """A noTrees polygon as boxes (no_tree_boxes()' tuples): its smallest box (along one of its hull's sides), or where
+    that box is more than NO_TREE_FILL empty, strips across its long side about NO_TREE_STRIP wide, each as wide as the
+    polygon is there, so a triangle or an L doesn't take the ground beside it."""
+    hull = convex_hull(points)
+    if len(hull) < 3:
+        return []
+    best = None
+    for a, b in zip(hull, hull[1:] + hull[:1]):
+        u = unit(a, b)
+        us = [p[0] * u[0] + p[1] * u[1] for p in hull]
+        vs = [-p[0] * u[1] + p[1] * u[0] for p in hull]
+        area = (max(us) - min(us)) * (max(vs) - min(vs))
+        if best is None or area < best[0]:
+            best = (area, u, min(us), max(us), min(vs), max(vs))
+    area, u, u0, u1, v0, v1 = best
+    if u1 - u0 < v1 - v0:
+        # Strips go across the long side: turn the frame a quarter so u runs along it.
+        u = (-u[1], u[0])
+        u0, u1, v0, v1 = v0, v1, -u1, -u0
+    yaw = math.degrees(math.atan2(u[1], u[0]))
+
+    def box(a0, a1, b0, b1, name):
+        mu, mv = (a0 + a1) * 0.5, (b0 + b1) * 0.5
+        return (u[0] * mu - u[1] * mv, u[1] * mu + u[0] * mv, yaw, (a1 - a0) * 0.5, (b1 - b0) * 0.5, name)
+    if abs(signed_area(points)) >= NO_TREE_FILL * area:
+        return [box(u0, u1, v0, v1, label)]
+    local = [(p[0] * u[0] + p[1] * u[1], -p[0] * u[1] + p[1] * u[0]) for p in points]
+    count = max(2, min(8, int(round((u1 - u0) / NO_TREE_STRIP))))
+    out = []
+    for k in range(count):
+        cut_ = clip_strip(local, u0 + (u1 - u0) * k / count, u0 + (u1 - u0) * (k + 1) / count)
+        if len(cut_) >= 3:
+            us, vs = [p[0] for p in cut_], [p[1] for p in cut_]
+            out.append(box(min(us), max(us), min(vs), max(vs), f'{label}_{k + 1}'))
     return out
 
 
@@ -1479,33 +2124,53 @@ class Rocks:
         return False
 
 
+def prop_flags(build, actor, mesh, solid, town):
+    """An AInstancedProps' settings past its cull distance, set before its instances: passable (bSolid off) for pieces
+    the player goes through, no shadow for cards (SHADOWLESS), and a town's trees tagged Tree on their component, so the
+    minimap draws their crowns as it does the scatter's."""
+    try:
+        if not solid:
+            actor.set_editor_property('solid', False)
+        if mesh.startswith(SHADOWLESS):
+            actor.set_editor_property('cast_shadows', False)
+    except Exception as error:
+        build.warn(f'Dressing_{mesh}: {error} (build the game module first): it stays solid and shadowed')
+    if town and mesh in TREES:
+        actor.get_editor_property('instances').set_editor_property('component_tags', [unreal.Name('Tree')])
+
+
 def place(build, meshes):
-    """The dressing for build's layout: one AInstancedProps per mesh in the Dressing folder, and any ruin whose
-    placement is gone; logs what each obstacle got, and what the slopes and rocks made of the fences."""
+    """The dressing for build's layout: one AInstancedProps per mesh (two where some of its pieces are passable and
+    some solid) in the Dressing folder, and any ruin whose placement is gone; logs what each obstacle and the town's
+    groups got, and what the slopes and rocks made of the fences."""
     ground = Ground(build)
     rocks = Rocks(build, ground)
     plan = plan_all(build.source, build.layout.get('placements', {}), rocks=rocks)
     for message in plan.warnings:
         build.warn(message)
-    batches, absent = {}, {}
+    batches, absent, towns = {}, {}, set()
     stats = {}
-    for mesh, location, rotation, scale, owner in poses(plan, ground, stats):
+    for mesh, location, rotation, scale, owner, solid in poses(plan, ground, stats):
         if mesh not in meshes:
             absent.setdefault(mesh, set()).add(owner)
             continue
         roll, pitch, yaw = rotation
-        batches.setdefault(mesh, []).append(unreal.Transform(
+        batches.setdefault((mesh, solid), []).append(unreal.Transform(
             location=unreal.Vector(*location), rotation=unreal.Rotator(roll=roll, pitch=pitch, yaw=yaw),
             scale=unreal.Vector(*scale)))
+        if owner.startswith('town:'):
+            towns.add((mesh, solid))
     for mesh, owners in sorted(absent.items()):
         build.warn(f'no SM_{mesh} yet: left out of {", ".join(sorted(owners))}')
     cls = unreal.load_class(None, CLASSES + 'InstancedProps')
     if cls is None:
         build.warn('no InstancedProps class (build the game module first): no fences, walls, graves or yard props')
         batches = {}
-    for mesh, transforms in sorted(batches.items()):
-        actor = build.place(cls, (0.0, 0.0, 0.0), label=f'Dressing_{mesh}', folder=FOLDER, tags=(TAG,))
+    for (mesh, solid), transforms in sorted(batches.items()):
+        label = f'Dressing_{mesh}' if solid else f'Dressing_{mesh}_Passable'
+        actor = build.place(cls, (0.0, 0.0, 0.0), label=label, folder=FOLDER, tags=(TAG,))
         actor.set_editor_property('cull_distance', float(PIECES.get(mesh, (None, None, SMALL_CULL))[2]))
+        prop_flags(build, actor, mesh, solid, (mesh, solid) in towns)
         actor.set_instances(unreal.load_asset(meshes[mesh]), transforms)
     for model, owner, x, y, yaw in plan.ruins:
         if model not in meshes:
@@ -1526,5 +2191,5 @@ def place(build, meshes):
             steepest[owner] = max(steepest.get(owner, 0.0), degrees)
         build.warn('sections steeper than their kit steps cleanly (they hover more than its hover): '
                    + ', '.join(f'{owner} up to {degrees:.0f} degrees' for owner, degrees in sorted(steepest.items())))
-    build.log(f'dressing: {sum(len(t) for t in batches.values())} instances of {len(batches)} meshes, '
-              f'{len(plan.ruins)} ruins')
+    build.log(f'dressing: {sum(len(t) for t in batches.values())} instances of {len(set(m for m, _ in batches))} '
+              f'meshes in {len(batches)} actors, {len(plan.ruins)} ruins')

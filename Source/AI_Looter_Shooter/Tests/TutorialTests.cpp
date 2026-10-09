@@ -89,7 +89,7 @@ bool FTutorialTrackerTest::RunTest(const FString& Parameters)
 	};
 	const FExpected Table[] = {
 		{ TEXT("Move and look around"), TEXT(""), TEXT(""), TEXT("MoveForward MoveLeft MoveBackward MoveRight"), TEXT("Move"), false },
-		{ TEXT("Follow the road to the village"), TEXT(""), TEXT(""), TEXT("Sprint"), TEXT("Hold to run"), false },
+		{ TEXT("Follow the road into town"), TEXT(""), TEXT(""), TEXT("Sprint"), TEXT("Hold to run"), false },
 		{ TEXT("Grab the rifle from the gun rack"), TEXT(""), TEXT(""), TEXT("Interact"), TEXT("Take it"), false },
 		{ TEXT("Shoot the target dummies"), TEXT("0 / 5"), TEXT("5 / 5"), TEXT("Reload"), TEXT("Reload"), false },
 		{ TEXT("Hunt spiders past the pond"), TEXT("0 / 2"), TEXT("2 / 2"), TEXT(""), TEXT(""), false },

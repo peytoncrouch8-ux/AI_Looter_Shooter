@@ -86,6 +86,9 @@ PLATEAU_GRASS = _c(0x7f834a)
 YARDS = {
     'farmyard': ((9.0, SOIL, 0.55, 0.15, 4.0), (6.0, DIRT, 0.5, 0.2, 3.0)),
     'square': ((10.0, DRY, 0.5, None, 4.0), (7.5, DIRT_LIGHT, 0.75, 0.35, 2.5)),
+    # A town's square (Skyreach's Crossroads Town): its buildings' fronts stand about 14 m out, so the trampled ground
+    # reaches them and the bare middle is wide enough to cross and fight in.
+    'townSquare': ((15.0, DRY, 0.5, None, 4.0), (11.5, DIRT_LIGHT, 0.75, 0.35, 3.0)),
 }
 
 

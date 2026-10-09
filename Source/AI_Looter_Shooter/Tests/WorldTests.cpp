@@ -7,6 +7,7 @@
 #include "Creatures/SpiderCreature.h"
 #include "Loot/WeaponRack.h"
 #include "Tutorial/TutorialDirector.h"
+#include "World/InstancedProps.h"
 #include "World/PCGGroundFitFilter.h"
 #include "World/SkiffJetty.h"
 #include "Algo/AnyOf.h"
@@ -109,14 +110,15 @@ bool FTutorialIslandObstaclesTest::RunTest(const FString& Parameters)
 	// The island's scattered trees, rocks, stumps and logs block whoever walks into them, the player and the creatures
 	// alike, with their hulls; the ground cover (grass, flowers, ferns, bushes, reeds, pebbles) never collides. PCG's
 	// instances don't collide unless told to, and for a while the trees and rocks were walk-through: spiders walked
-	// straight through them.
+	// straight through them. The town's dressing (AInstancedProps: Crossroads Town's props, fences and trees) goes by its
+	// own setting: a solid set blocks a walking pawn, a passable one (reeds, lily pads, lone bushes, webs) never collides.
 	const UWorld* Island = LoadObject<UWorld>(nullptr, TEXT("/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland"));
 	if (!TestNotNull(TEXT("The tutorial island loads"), Island) || !TestNotNull(TEXT("It has a level"), Island->PersistentLevel.Get()))
 	{
 		return false;
 	}
 	static const TCHAR* const SolidPrefixes[] = { TEXT("SM_Rock_"), TEXT("SM_Boulder_"), TEXT("SM_Stump_"), TEXT("SM_Log_") };
-	int32 Trees = 0, Solids = 0, GroundCover = 0;
+	int32 Trees = 0, Solids = 0, GroundCover = 0, Dressing = 0;
 	ForEachObjectWithOuter(Island->PersistentLevel.Get(), [&](UObject* Object)
 	{
 		const UInstancedStaticMeshComponent* Instances = Cast<UInstancedStaticMeshComponent>(Object);
@@ -126,6 +128,26 @@ bool FTutorialIslandObstaclesTest::RunTest(const FString& Parameters)
 			return;
 		}
 		const FString Name = Mesh->GetName();
+		if (const AInstancedProps* Props = Cast<AInstancedProps>(Instances->GetOwner()))
+		{
+			Dressing += Instances->GetInstanceCount();
+			if (!Props->bSolid)
+			{
+				TestTrue(Name + TEXT(" (passable dressing) never collides"), Instances->GetCollisionEnabled() == ECollisionEnabled::NoCollision);
+				return;
+			}
+			TestTrue(Name + TEXT(" (dressing) collides"), Instances->GetCollisionEnabled() == ECollisionEnabled::QueryAndPhysics);
+			TestTrue(Name + TEXT(" (dressing) blocks a walking pawn"), Instances->GetCollisionResponseToChannel(ECC_Pawn) == ECR_Block);
+			// The town's trees (Web Hollow's woods, the groves) are the island's trees as much as the scatter's.
+			if (Instances->ComponentHasTag(TEXT("Tree")))
+			{
+				Trees += Instances->GetInstanceCount();
+				const UBodySetup* Body = Mesh->GetBodySetup();
+				TestTrue(Name + TEXT(" (a town tree) collides with its hull only"), Body && Body->AggGeom.GetElementCount() > 0
+					&& Body->CollisionTraceFlag == CTF_UseSimpleAsComplex);
+			}
+			return;
+		}
 		const bool bTree = Instances->ComponentHasTag(TEXT("Tree"));
 		const bool bSolid = bTree || Algo::AnyOf(SolidPrefixes, [&Name](const TCHAR* Prefix) { return Name.StartsWith(Prefix); });
 		if (!bSolid)
@@ -148,7 +170,8 @@ bool FTutorialIslandObstaclesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Trees on the island"), Trees > 0);
 	TestTrue(TEXT("Rocks, stumps and logs on the island"), Solids > 0);
 	TestTrue(TEXT("Ground cover on the island"), GroundCover > 0);
-	AddInfo(FString::Printf(TEXT("%d trees, %d rocks, stumps and logs, %d ground cover meshes"), Trees, Solids, GroundCover));
+	AddInfo(FString::Printf(TEXT("%d trees, %d rocks, stumps and logs, %d ground cover meshes, %d dressing pieces"), Trees, Solids,
+		GroundCover, Dressing));
 	return true;
 }
 

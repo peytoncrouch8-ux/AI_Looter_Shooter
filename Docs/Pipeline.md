@@ -126,6 +126,20 @@ where the work stands.
   rebuilding replaces only what it placed; its `gameplay` mode places just the spawn, dummies, spiders and slimes again.
   `Tools/Unreal/build_island_scatter.py` scatters grass, flowers, trees and rocks with PCG from the scatter mask.
   `Tools/Unreal/review_stage.py` photographs new models under the island's lighting.
+- **Crossroads Town (round 1, 2026-10-08):** the buildings, roads, the Wallow's pools (small `pond` features), zones
+  and creature groups are in `layout.json`; everything else comes from `Art/Levels/TutorialIsland/make_town.py`, which
+  turns the concept's drawing (`crossroads_town.json`) into `town.json`: pieces, fence lines, Web Hollow's webs, the
+  no-tree areas, and the concept pieces still waiting for a model (`deferred`). It applies the concept's fixes, maps its
+  kit to the game's models and keeps every piece off buildings and porches, roads, gameplay spots, each other and the
+  rim (3 m), printing every nudge and drop. `layout.json` `level.town` names `town.json`, and `build_area_dressing.py`
+  places it instanced (one `AInstancedProps` per mesh and solidity: reeds, lily pads, lone bushes, webs and cocoons are
+  passable), its fences through the kits, its strands tied into the dead trees' trunks; `no_tree_boxes()` keeps the
+  scatter's trees off the gardens, creature grounds and the town trees' crowns.
+  - Order: edit `layout.json` -> terrain (`TutorialIsland.py -- --macro --computed`, then `models.ps1 -Only
+    TutorialIsland`) -> `make_town.py` -> full `build_area.py TutorialIsland` (the `dressing` mode doesn't redo the
+    no-tree boxes) -> `build_island_scatter.py TutorialIsland`, wait for the count to settle, save -> `path_probe.py`.
+  - Web Hollow sits on the forest rise's middle, where the scatter's woods grew densest, so its clearing took the
+    forest: the concept's own woods round it are pieces now (the scatter grows no trees on the island any more).
 - **Older levels** are built in the editor. Procedural props are `StylizedProp` actors (shape, seed, two colors).
   Before committing such a level, run `Looter.BakeLevelProps`: it swaps them for static mesh actors and saves their
   meshes and materials under `/Game/Environment/Props`.
@@ -286,6 +300,9 @@ styles the user chooses from).
 
 | Bug | Cause | Fix |
 |---|---|---|
+| The tutorial island's dressing build put 38 of Ransom's Rest's pieces on it (graves, dead trees, bales, fallen pines) | `build_area_dressing`'s `EXTRA_GRAVE_ROWS` and `SPOTS` applied to every layout | Only on Ransom's Rest (`EXTRAS_AREA`) |
+| Skyreach's scattered trees all vanished with the town | Web Hollow's no-tree clearing sits on the forest rise's middle, where the scatter's woods were | The concept's woods round the hollow placed as town pieces (`make_town.py`) |
+| A bench blocked the forest road at the town square | The concept's two memorial benches were exempt from the road check (the plaza core, 6.5 m) | Only the memorial itself is exempt (3 m); the path probe found it |
 | The view jerked at a slide's start and end (the user, 2026-10-08) | The engine's crouch sets the body mesh's relative Z without moving it, so the camera (on the body) sat ~24 cm off for a frame after a stand outside the movement tick; in the air a crouch resizes the capsule about its middle; two added smoothsteps of different lengths, and alphas that reversed speed in one frame | `RefreshBodyTransform` each tick and after our own stand; the eye tracks its height above the feet on one minimum-jerk curve (`FViewEase`, re-planned from speed and acceleration), as do the roll and the stance blends; `Looter.Locomotion.Slide.View` checks every frame of seven endings |
 | The cloud session's commit with PNGs and a font would not push | The cloud's network policy refuses Git LFS uploads (`lfs.github.com` verify: Forbidden) | From the cloud, commit text only: inline small assets as data URIs (`Tools/StyleLab/web/hud/assets.js`), keep generated binaries in `Saved/` |
 | The Style Lab's trees had black fringes and the valley's grass turned yellow-red | Pillow's `resize()` premultiplies RGBA, so colour under alpha 0 was lost; lossy WebP drops it too | Resize RGB and alpha separately, save cut-outs lossless with `exact=True`, write macro maps as RGB with the alpha in its own file |
