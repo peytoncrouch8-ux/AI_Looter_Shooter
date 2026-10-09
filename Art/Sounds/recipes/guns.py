@@ -1,17 +1,21 @@
 """The guns: the bullpup rifle and the Ranchhand pump shotgun firing, dry fire, the cursed misfire, the reload steps,
 taking a gun in hand and raising the sights.
 
-A shot is built in layers, the way action games build theirs, then glued into one dense hit:
-- the crack: the muzzle's shock front (an N-wave), a few milliseconds of bright snap and a short knock that gives it a
-  pitch, the sharp edge you hear first;
-- the punch: a sine whose pitch dives (about 150 Hz to 50 Hz) in a few tens of milliseconds, torn by turbulence so it's
-  a shove of air, overdriven so its harmonics carry it on small speakers too: the hit in the chest (for the shotgun
-  part of it decays slowly: the sub boom);
-- the body: a burst of overdriven noise with a low-mid hump, darkening as it spreads: the blast's mass;
-- the mechanism: the action's steel and polymer parts, so it's a gun and not a drum.
-The bus soft-clips the first peaks, compresses the body up to them (a low crest factor: loud for its peak) and dips
-3 kHz, where the ear tires first. Then a short outdoor tail: two or three slap-backs and a quick dark roll with its lows
-cut, so full-auto stays tight instead of droning. Each shot's weight lands in its first ~80 ms.
+A shot is modelled the way a real one reaches a close microphone, not built from drum-machine parts (a swept sine
+kick and smooth noise read as fake):
+- the blast: the muzzle's pressure wave in Friedlander's form (a near-instant rise, a positive phase of 1-3 ms, a
+  shallower suction after), with the bullet's crack on its front, and a slower pulse of shoved air under it for the
+  weight; all of them roughened and different every take, none of them a tone;
+- the gas: a dense spray of tiny explosions over turbulent noise, flickering and sputtering, then a darker roar;
+- the ground: the blast's bounce off the ground a few milliseconds later, darker, comb-colouring it as on any
+  recording;
+- the recorder: the microphone and preamp overloading (lopsided clipping), the input filter turning that into a low,
+  ringing heave, the gain sagging and swelling back after the overload (the bloom), the proximity lift in the low mids;
+- the mechanism, loud enough to hear on every shot, the way big looter shooters mix it;
+- the land: slap-backs off nearby buildings, then many fainter echoes from farther terrain (each darker and more
+  smeared the farther it is) over a thunder-like rumble whose level wanders. The rifle's rolls for about a second,
+  kept low so full-auto stays clear; the shotgun's for about a second and a half.
+A soft clip rounds the transient before the limiter, and a dip at 3 kHz keeps the ear's touchiest band calm.
 
 The reload steps are built from one piece, the clank: steel parts meeting (their modes held to about 1-4 kHz, so they
 clank rather than tinkle), the polymer or wood around them knocking, and a low pitch-dropping thud for the gun's mass,
@@ -49,48 +53,79 @@ def _crack(r, width, snap_t60, knock_f, snap_db=-4.0, knock_db=-6.0, lo=1800.0, 
     return _loud(layers((front, 0.0, 6.0), (_loud(snap, 0.002), 0.0, snap_db), (_loud(knock, 0.002), 0.0, knock_db)))
 
 
-def _kick(r, f0, f1, tau, t60, dur, drive_db, hold=0.003, tear=0.3, boom=(0.0, 0.3), attack=0.0004, lp=2000.0):
-    """The punch: a sine whose pitch dives from f0 towards f1 (most of the dive within tau seconds) and dies by t60,
-    torn by turbulence so it's a blast of air rather than a drum's tone, and overdriven so it hits like a beater.
-    boom (share, t60) hands part of it to a slower decay: the shotgun's sub boom. All the lows come from here, one
-    deterministic layer, since low noise would swing the weight of every variation (a few random cycles of it add to
-    or cancel the sine)."""
+def _friedlander(r, T, b, dur, jag=0.25):
+    """The muzzle blast's pressure wave as acoustics measures it (Friedlander's form): a near-instant rise, a positive
+    phase T seconds long falling through zero, then a shallower, longer suction. Roughened, since a real front is
+    jagged by the muzzle and the gas behind it, and never twice the same."""
     n = ns(dur)
     t = times(n)
-    f = f1 + (f0 - f1) * np.exp(-t / tau)
-    env = E.perc(dur, attack, t60, hold)
-    if boom[0] > 0:
-        env = env * (1.0 - boom[0]) + boom[0] * E.perc(dur, attack, boom[1], hold)
-    x = np.sin(2.0 * np.pi * O.phase(f, n)) * env
-    if tear > 0:
-        x = x * kit.turbulence(n, child(r, 'tear'), 300.0, tear)
-    x = D.drive(x, drive_db, 'tanh')
-    return _loud(F.filt(x, F.lp(lp, 0.7), F.hp(28.0, 0.7), extend=False))
+    p = (1.0 - t / T) * np.exp(-b * t / T)
+    p = p * (1.0 + jag * N.smooth_random(n, child(r, 'jag'), 2.0 / T))
+    k = max(2, ns(0.00008))
+    p[:k] *= np.linspace(0.0, 1.0, k)
+    return E.end_fade(p)
 
 
-def _body(r, dur, hold, t60, res, lp0, lp1, sweep, drive_db, color=-3.0, hp=220.0, turb=0.35):
-    """The blast's mass: noise with the gun's resonances, overdriven at a steady level (so the drive adds density
-    without stretching the decay), darkened from lp0 to lp1 as the gas spreads, and shaped into a held burst that
-    falls away fast. Turbulence makes it tear rather than hiss. Cut under hp: the punch owns the lows."""
+def _heave(r, T, lp, dur):
+    """The weight: a long, slow pressure pulse (the air the shot shoves) with only its lows kept. One push and pull
+    of air, not a tone: it can't glide in pitch like a drum machine's kick, and every take's is shaped differently."""
+    return _loud(F.filt(_friedlander(r, T, 1.0, dur, 0.15), F.lpn(lp, 4), extend=False), 0.005)
+
+
+def _gas(r, dur, hold, t60, rate0, rate_tau, lo, hi, color, drive_db, roar_db, roar_t60, roar_lp, flick_rate=90.0,
+         flick=0.55, puffs=3):
+    """The gas tearing out of the muzzle: not smooth noise but a dense spray of tiny explosions (random impulses rung
+    through a few bands) over turbulent noise, overdriven so it's dense and torn, its level flickering many times a
+    second and puffing up again a few times as it sputters. Behind it the roar: the cloud still churning, darker and
+    slower."""
     n = ns(dur)
-    x = N.shaped(n, r, color)
-    x = F.filt(x, F.hpn(hp, 4), *[F.peak(f, g, q) for f, g, q in res], extend=False)
-    x = D.drive(normalize(x), drive_db, 'tanh')
-    k = ns(sweep)
-    fc = np.full(n, float(lp1))
-    fc[:k] = O.expsweep(lp0, lp1, sweep, 1.5, n=k)
-    x = F.sweep(x, 'lp', fc, 0.7)
-    x = x * kit.turbulence(n, child(r, 'turb'), 240.0, turb)
-    # Cut again: the drive and the flutter make low difference tones of their own.
-    return _loud(F.filt(x * E.perc(dur, 0.0003, t60, hold), F.hpn(hp * 0.8, 2), extend=False))
+    t = times(n)
+    rate = rate0 * (np.exp(-t / rate_tau) + 0.02)
+    crackle = G.grit(dur, child(r, 'crackle'), rate, lo, hi, 1.4, 5)
+    turb = N.shaped(n, child(r, 'turb'), color) * kit.turbulence(n, child(r, 'tflut'), 500.0, 0.8)
+    turb = F.filt(turb, F.hp(lo * 0.5, 0.7), F.lp(hi * 1.5, 0.7), extend=False)
+    x = D.drive(normalize(normalize(crackle) + 0.8 * normalize(turb)), drive_db, 'tanh')
+    rr = child(r, 'puffs')
+    env = E.perc(dur, 0.0003, t60, hold)
+    for i in range(puffs):
+        at = rr.uniform(0.008, 0.6 * t60 + 0.01)
+        tau = rr.uniform(0.004, 0.012)
+        env = env + rr.uniform(0.15, 0.45) * np.exp(-np.clip(t - at, 0.0, None) / tau) * (t >= at) \
+            * np.exp(-6.9 * at / t60)
+    fl = (1.0 - flick) + flick * np.abs(N.smooth_random(n, child(r, 'flick'), flick_rate)) ** 0.7
+    burst = x * E.end_fade(env * fl)
+    roar = N.shaped(n, child(r, 'roar'), -3.0) * kit.turbulence(n, child(r, 'rflut'), 160.0, 0.75)
+    roar = D.drive(normalize(F.filt(roar, F.hp(120.0, 0.7), F.lp(roar_lp, 0.7), extend=False)), 6.0, 'tanh')
+    rfl = 0.4 + 0.6 * np.abs(N.smooth_random(n, child(r, 'rflick'), 35.0)) ** 0.8
+    roar = roar * E.end_fade(E.perc(dur, 0.002, roar_t60, 0.0) * rfl)
+    return _loud(layers(_loud(burst), (_loud(roar), 0.0, roar_db)))
 
 
-def _bus(dry, drive_db, thresh_db, ratio, dip_db=-3.0):
-    """Glues the dry layers into one hit: a soft clip shaves the crack's and the punch's first peaks, a fast compressor
-    lifts the body up towards them, and a dip at 3 kHz keeps the ear's touchiest band calm over hundreds of shots."""
-    x = D.drive(normalize(dry), drive_db, 'tanh')
-    x = Y.compress(normalize(x), thresh_db, ratio, 0.0008, 0.04, 6.0)
-    return normalize(F.filt(x, F.peak(3100.0, dip_db, 0.9), extend=False), 0.0)
+def _ground(x, taps):
+    """The blast's bounce off the ground and whatever's at the shooter's feet, a few milliseconds behind it: darker
+    copies (soil and grass drink the highs) that comb-colour the shot as they do on every real recording."""
+    out = x
+    for at, db, lp in taps:
+        out = layers(out, (F.filt(x, F.lp(lp, 0.7), extend=False), at, db))
+    return out
+
+
+def _recorder(x, drive_db, asym, hp_f, hp_q, lift_db, bloom_db, bloom_t, lift_f=120.0):
+    """A close microphone and a field recorder taking a shot they can't hold: the diaphragm and preamp overload,
+    clipping harder on the push than the pull; the input's coupling filter turns the lopsided waveform into a low,
+    ringing heave (the boom of real recordings, different every take); the preamp is slow to recover, so the gain
+    sags just after the overload and swells back (the bloom); and the microphone's proximity effect lifts the low
+    mids."""
+    y = D.drive(normalize(x), drive_db, 'tanh', bias=asym)
+    y = np.pad(y, (0, ns(0.08)))
+    y = F.filt(y, F.hp(hp_f, hp_q), extend=False)
+    e = Y.envelope(y, 0.001, bloom_t)
+    e = e / (e.max() + 1e-12)
+    d = ns(0.0015)
+    e = np.concatenate([np.zeros(d), e[:-d]])
+    y = y * db2a(-bloom_db * e)
+    y = F.filt(y, F.peak(lift_f, lift_db, 0.8), extend=False)
+    return normalize(y, 0.0)
 
 
 def _early(dry, r, rel_db, span, lp=5000.0, hp=300.0):
@@ -100,13 +135,56 @@ def _early(dry, r, rel_db, span, lp=5000.0, hp=300.0):
     return layers(dry, kit.set_level(e, dry, rel_db, 0.02))
 
 
-def _tail(dry, r, slaps, t60, lp, dur, rel_db, hp, tail_db, tail_peak):
-    """The land answering: distinct slap-backs, then a quick dark roll. The lows are cut before it (they'd smear into
-    a drone under full-auto), and its loudest 20 ms sit rel_db under the shot's loudest 20 ms."""
-    ir = R.outdoor(child(r, 'ir'), dur=dur, slaps=slaps, slap_lp=2600.0, tail_t60=t60, tail_db=tail_db,
-                   tail_start=0.02, tail_peak=tail_peak, tail_lp=lp)
+def _echo(rr, at, a, lp_ref=9000.0):
+    """One echo off the land at a delay of at seconds: the farther the wall or hill, the darker (air and ground absorb
+    the highs) and the more smeared in time (a rough face sends the sound back along many paths)."""
+    dist = 343.0 * at / 2.0
+    fc = float(np.clip(lp_ref * (25.0 / max(dist, 1.0)) ** 0.7, 450.0, lp_ref))
+    m = ns(0.004 + 0.06 * at)
+    b = N.white(m, rr) * np.exp(-np.arange(m) / (m / 3.0))
+    b = F.filt(b, F.lpn(fc, 2), extend=False)
+    return a * b / (np.sqrt(np.sum(b * b)) + 1e-12)
+
+
+def _land(dry, r, dur, slaps, far, first, last, rumble_db, rumble_t60, rumble_lp, rumble_peak, rel_db, hp):
+    """The land answering, as an outdoor recording hears it: a few strong slap-backs off nearby buildings (slaps:
+    delay, dB), then many fainter echoes from farther terrain at random distances, each a darker, smeared copy of the
+    shot, over a thunder-like rumble whose level wanders rather than decaying smoothly like a reverb's. Lows under hp
+    are left out of it so full-auto can't build a drone, and its loudest 20 ms sit rel_db under the shot's."""
+    rr = child(r, 'land')
+    n = ns(dur)
+    ir = np.zeros(n)
+    events = [(at, float(db2a(db))) for at, db in slaps]
+    for i in range(far):
+        at = first + (last - first) * rr.random() ** 1.2
+        events.append((at, rr.uniform(0.15, 0.6) * (first / at) ** 0.9))
+    top = 0.0
+    for at, a in events:
+        k = ns(at)
+        if k >= n:
+            continue
+        b = _echo(rr, at, a)
+        m = min(b.size, n - k)
+        ir[k:k + m] += b[:m]
+        top = max(top, a)
+    t = times(n)
+    rum = N.pink(n, child(rr, 'rumble'))
+    rum = F.filt(rum, F.lpn(rumble_lp, 4), F.hp(60.0, 0.7), extend=False)
+    wander = (0.3 + 0.7 * np.abs(N.smooth_random(n, child(rr, 'wander'), 5.0))) ** 1.5
+    rise = np.clip(t / rumble_peak, 0.0, 1.0) ** 2
+    rum = E.end_fade(rum * wander * rise * np.exp(-6.9 * np.clip(t - rumble_peak, 0.0, None) / rumble_t60))
+    ir = ir + rum / (np.sqrt(np.sum(rum * rum)) + 1e-12) * top * float(db2a(rumble_db)) * 6.0
+    ir = E.end_fade(ir, 0.02)
     wet = F.convolve(F.filt(dry, F.hpn(hp, 4), extend=False), ir)
     return kit.set_level(wet, dry, rel_db, 0.02)
+
+
+def _master(x, clip_db, push_db, lookahead, release):
+    """The last stage: a soft clip rounds the transient off (it keeps the snap a limiter would squash), a dip at 3 kHz
+    keeps the ear's touchiest band calm over hundreds of shots, then the limiter catches what's left."""
+    x = D.drive(normalize(x), clip_db, 'tanh')
+    x = F.filt(x, F.peak(3100.0, -2.5, 0.9), extend=False)
+    return Y.limit(normalize(x, 0.0) * db2a(push_db), -1.0, lookahead, release)
 
 
 # --- The mechanism's pieces -------------------------------------------------------------------------------------------
@@ -149,50 +227,75 @@ def _rounds(r, count, spread):
 
 @cue('Weapon.Rifle.Fire', variations=6, att='Gun', jitter=0.03, conc=8, level=0.0)
 def rifle_fire(v, r):
-    # A rifle round out of a short bullpup barrel: a hard crack, a tight punch, a bark of gas, the bolt carrier
-    # slamming back into its buffer and home again.
-    crack = _crack(child(r, 'crack'), 0.00028 * jitter(r, 1.0, 0.12), 0.01, 1500.0 * jitter(r, 1.0, 0.06), -1.0, -3.0)
-    punch = _kick(child(r, 'punch'), 158.0 * jitter(r, 1.0, 0.05), 46.0 * jitter(r, 1.0, 0.04), 0.016, 0.12, 0.16, 9.0,
-                  0.004, 0.3)
-    body = _body(child(r, 'body'), 0.13, 0.008, 0.07 * jitter(r, 1.0, 0.1),
-                 [(350.0 * jitter(r, 1.0, 0.06), 3.0, 0.9), (1000.0 * jitter(r, 1.0, 0.06), 4.0, 1.2),
-                  (3000.0, -5.0, 1.0)], 9000.0, 2000.0, 0.04, 10.0, -1.5)
-    carrier = _clank(child(r, 'carrier'), (1100.0, 3800.0, 0.025), (520.0, 0.03), (190.0, 0.03), (0.0, -2.0, -6.0))
-    home = _clank(child(r, 'home'), (900.0, 3200.0, 0.03), (450.0, 0.035), (170.0, 0.035), (0.0, -2.0, -5.0))
-    dry = layers((crack, 0.0, 0.0), (punch, 0.0, 0.0), (body, 0.0, 0.0),
-                 (carrier, 0.006 + 0.003 * r.random(), -28.0), (home, 0.055 + 0.008 * r.random(), -27.0))
-    dry = _bus(dry, 9.0, -16.0, 3.0)
-    dry = _early(dry, r, -11.0, 0.025)
-    # A wall close by, the farm's buildings, a hillside: then a short roll, mostly gone by 0.4 s.
-    s1 = 0.045 + 0.02 * r.random()
-    s2 = 0.14 + 0.05 * r.random()
-    s3 = s2 + 0.11 + 0.05 * r.random()
-    wet = _tail(dry, r, ((s1, -3.0), (s2, -7.0), (s3, -13.0)), 0.4, 1800.0, 0.6, -16.0, 220.0, -7.0, 0.08)
-    return Y.limit(normalize(layers(dry, wet), 0.0) * db2a(5.0), -1.0, 0.001, 0.03)
+    # A rifle round out of a short bullpup barrel, recorded close: the hammer falls, the blast and the bullet's crack
+    # overload the microphone, the gas tears out and roars, the bolt carrier hits its buffer and slams home with a
+    # crisp steel clack, and the farm and the hills answer for about a second.
+    crack = _crack(child(r, 'crack'), 0.00028 * jitter(r, 1.0, 0.12), 0.006, 1600.0 * jitter(r, 1.0, 0.08), -2.0, -4.0)
+    blast = _loud(_friedlander(child(r, 'blast'), 0.0013 * jitter(r, 1.0, 0.15), 1.2 * jitter(r, 1.0, 0.2), 0.03, 0.3),
+                  0.002)
+    gas = _gas(child(r, 'gas'), 0.3, 0.004, 0.1 * jitter(r, 1.0, 0.12), 30000.0, 0.012, 250.0, 5000.0, -2.0, 8.0,
+               -4.0, 0.2, 2200.0)
+    heave = _heave(child(r, 'heave'), 0.006 * jitter(r, 1.0, 0.15), 140.0, 0.08)
+    src = layers((blast, 0.0, 6.0), (crack, 0.0, 0.0), (gas, 0.0004, 0.0), (heave, 0.0, 6.0))
+    g1 = 0.0025 + 0.002 * r.random()
+    src = _ground(src, [(g1, -3.0, 5000.0), (g1 + 0.002 + 0.003 * r.random(), -8.0, 2500.0)])
+    rec = _loud(_recorder(src, 10.0 + 1.5 * (2.0 * r.random() - 1.0), 0.3, 75.0 * jitter(r, 1.0, 0.08), 1.3, 7.0, 3.0,
+                          0.05))
+    # The action, loud enough to hear on every shot: the hammer's tick a hair before the blast (it makes the gun feel
+    # bigger), the carrier hitting the buffer, and the bolt slamming home (hard inharmonic steel, the polymer housing,
+    # the buffer spring ringing faintly).
+    tick = _loud(kit.metal_click(child(r, 'tick'), 2000.0, 6500.0, 0.012, 0.00005, 6, -8.0), 0.005)
+    buffer = _clank(child(r, 'buffer'), (1200.0, 4200.0, 0.03), (600.0, 0.025), (220.0, 0.02), (0.0, -5.0, -10.0),
+                    0.00006)
+    steel = M.strike(M.parts(900.0, 5200.0, child(r, 'home'), 10, 0.05, 0.02, 0.35), M.hammer(0.00005), 0.12)
+    spring = M.strike(M.parts(1800.0, 3600.0, child(r, 'spring'), 3, 0.22, 0.15, 0.2), M.hammer(0.0002), 0.35)
+    home = _loud(layers((_loud(steel, 0.005), 0.0, 0.0), (_loud(spring, 0.005), 0.0, -14.0),
+                        (_clank(child(r, 'housing'), (1000.0, 3000.0, 0.02), (480.0, 0.03), (180.0, 0.03),
+                                (-6.0, 0.0, -6.0)), 0.0, -4.0)))
+    pre = 0.003
+    t_buf = pre + 0.026 + 0.006 * r.random()
+    t_home = pre + 0.058 + 0.008 * r.random()
+    dry = layers((tick, 0.0, -18.0), (rec, pre, 0.0), (buffer, t_buf, -22.0), (home, t_home, -18.0))
+    dry = _early(dry, r, -13.0, 0.03)
+    # A barn close by and the farmhouse, then the hills out to ~160 m, kept low so full-auto stays clear.
+    s1 = 0.05 + 0.03 * r.random()
+    s2 = s1 + 0.09 + 0.06 * r.random()
+    wet = _land(dry, r, 1.4, ((s1, -2.0), (s2, -5.0)), 18, 0.22, 0.95, -6.0, 0.8, 700.0, 0.2, -20.0, 180.0)
+    return _master(layers(dry, wet), 5.0, 2.0, 0.001, 0.03)
 
 
 @cue('Weapon.Shotgun.Fire', variations=5, att='Gun', jitter=0.03, conc=4, level=1.0)
 def shotgun_fire(v, r):
-    # A 12-gauge pump: a wide crack, a deep punch and a sub boom you feel, a heavy dark blast, the barrel ringing
-    # faintly, and a longer roll off the land.
-    crack = _crack(child(r, 'crack'), 0.0005 * jitter(r, 1.0, 0.12), 0.01, 1100.0 * jitter(r, 1.0, 0.06),
-                   -3.0, -2.0, 1400.0, 9000.0)
-    # The punch hands almost half of itself to a slow decay at ~52 Hz: the boom, still ~39 Hz (and its overdriven
-    # harmonics well above) when the boss's coach gun plays it at 0.75.
-    punch = _kick(child(r, 'punch'), 140.0 * jitter(r, 1.0, 0.05), 52.0 * jitter(r, 1.0, 0.04), 0.028, 0.16, 0.7, 10.0,
-                  0.01, 0.35, (0.45, 0.42))
-    body = _body(child(r, 'body'), 0.28, 0.016, 0.14 * jitter(r, 1.0, 0.1),
-                 [(300.0 * jitter(r, 1.0, 0.06), 4.0, 0.8), (600.0 * jitter(r, 1.0, 0.06), 3.0, 1.0),
-                  (1150.0, 2.0, 1.3), (3000.0, -6.0, 1.0)], 7000.0, 1300.0, 0.07, 12.0, -2.5, 180.0)
-    ring = M.strike(M.parts(600.0, 2400.0, child(r, 'ring'), 7, 0.14, 0.06, 0.4), M.hammer(0.0002), 0.26)
-    dry = layers((crack, 0.0, 0.0), (punch, 0.0, 2.0), (body, 0.0, 0.0), (_loud(ring), 0.002, -27.0))
-    dry = _bus(dry, 9.0, -18.0, 3.0)
-    dry = _early(dry, r, -10.0, 0.035, 4000.0)
-    s1 = 0.08 + 0.04 * r.random()
-    s2 = 0.2 + 0.06 * r.random()
-    s3 = s2 + 0.14 + 0.06 * r.random()
-    wet = _tail(dry, r, ((s1, -3.0), (s2, -7.0), (s3, -12.0)), 0.75, 1400.0, 0.95, -12.0, 160.0, -6.0, 0.12)
-    return Y.limit(normalize(layers(dry, wet), 0.0) * db2a(5.0), -1.0, 0.0015, 0.05)
+    # A 12-gauge pump, recorded close: a wide crack and a long, heavy blast (a big bore's pressure wave lasts twice a
+    # rifle's), the shove of air in the chest, the gas roaring out, the pellets hissing away, the receiver ringing and
+    # the forend and action knocking steel-on-wood as the gun kicks, then a long boom rolling across the land.
+    crack = _crack(child(r, 'crack'), 0.0005 * jitter(r, 1.0, 0.12), 0.008, 1100.0 * jitter(r, 1.0, 0.08), -3.0, -3.0,
+                   1400.0, 9000.0)
+    blast = _loud(_friedlander(child(r, 'blast'), 0.0026 * jitter(r, 1.0, 0.15), 1.0 * jitter(r, 1.0, 0.2), 0.05, 0.3),
+                  0.003)
+    # The weight sits around 60-120 Hz (still 45-90 Hz when the boss's coach gun plays it at 0.75).
+    heave = _heave(child(r, 'heave'), 0.009 * jitter(r, 1.0, 0.15), 120.0, 0.12)
+    gas = _gas(child(r, 'gas'), 0.5, 0.008, 0.12 * jitter(r, 1.0, 0.12), 20000.0, 0.018, 180.0, 4000.0, -3.0, 8.0,
+               -8.0, 0.25, 1600.0)
+    src = layers((blast, 0.0, 6.0), (crack, 0.0, 0.0), (gas, 0.0005, 0.0), (heave, 0.0, 10.0))
+    g1 = 0.003 + 0.003 * r.random()
+    src = _ground(src, [(g1, -3.0, 4000.0), (g1 + 0.002 + 0.003 * r.random(), -7.0, 2000.0)])
+    rec = _loud(_recorder(src, 12.0 + 1.5 * (2.0 * r.random() - 1.0), 0.35, 60.0 * jitter(r, 1.0, 0.08), 1.4, 7.0, 1.5,
+                          0.08, 100.0))
+    ring = _loud(M.strike(M.parts(500.0, 2500.0, child(r, 'ring'), 8, 0.25, 0.12, 0.4), M.hammer(0.0002), 0.4), 0.005)
+    chunk = _clank(child(r, 'chunk'), (700.0, 2600.0, 0.05), (260.0 * jitter(r, 1.0, 0.06), 0.07),
+                   (110.0 * jitter(r, 1.0, 0.06), 0.07), (0.0, -1.0, -3.0), 0.0001, drive_db=5.0)
+    n = ns(0.25)
+    sizzle = G.grit(0.25, child(r, 'sizzle'), 9000.0 * np.exp(-times(n) / 0.05), 3000.0, 9000.0, 2.0, 4)
+    sizzle = _loud(sizzle * E.perc(0.25, 0.004, 0.14) * kit.turbulence(n, child(r, 'sflut'), 200.0, 0.6))
+    t_chunk = 0.03 + 0.008 * r.random()
+    dry = layers((rec, 0.0, 0.0), (ring, 0.002, -24.0), (chunk, t_chunk, -10.0), (sizzle, 0.003, -24.0))
+    dry = _early(dry, r, -12.0, 0.04, 4000.0)
+    # The yard's buildings, then hills and the valley out to ~250 m: a boom that rolls for a second and a half.
+    s1 = 0.07 + 0.04 * r.random()
+    s2 = s1 + 0.12 + 0.08 * r.random()
+    wet = _land(dry, r, 2.1, ((s1, -2.0), (s2, -4.0)), 26, 0.3, 1.5, -3.0, 1.4, 500.0, 0.3, -17.0, 110.0)
+    return _master(layers(dry, wet), 5.0, 2.0, 0.0015, 0.05)
 
 
 @cue('Weapon.DryFire', variations=3, att='Near', jitter=0.03, conc=2, level=-15.0)

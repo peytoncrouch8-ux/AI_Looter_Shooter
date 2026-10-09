@@ -8,7 +8,7 @@
       "Weapon_Rifle_Fire_05.wav",
       "Weapon_Rifle_Fire_06.wav"
     ],
-    "volume_db": -2.0,
+    "volume_db": -1.0,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Gun",
@@ -24,7 +24,7 @@
       "Weapon_Shotgun_Fire_04.wav",
       "Weapon_Shotgun_Fire_05.wav"
     ],
-    "volume_db": -3.0,
+    "volume_db": -1.0,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Gun",

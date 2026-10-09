@@ -72,13 +72,19 @@ presence 2-5 kHz, high, air).
 
 ## How the sounds are built
 
-- **Guns** (heavy and punchy, the user's pick, 2026-10-08): built in layers as game audio does. The crack (an N-wave
-  and a short bright snap), the punch (an overdriven sine diving from about 150 Hz to under 50, roughened so it reads as
-  air, not a drum), the body (overdriven noise cut under 220 Hz, humps in the low mids, darkening as it spreads, about
-  70 ms), the mechanism, then a bus of soft clipping and fast compression so the shot is dense, and a short outdoor
-  tail (slap-backs, a dark roll with its lows cut). The rifle is mostly gone in 0.4 s so full auto stays tight; the
-  shotgun hands part of its punch to a slow sub boom and rolls 0.75 s. Reloads are clanks: steel modes held to about
-  1-4 kHz, a polymer or wood knock and a low thud, with the slides kept dark and well under the hits.
+- **Guns** (heavy and punchy, the user's pick; round 2 made them less synthetic, after Borderlands' big, punchy guns,
+  2026-10-08): modelled the way a real shot reaches a close microphone, not built from drum-machine parts. A
+  Friedlander pressure pulse (a near-instant rise, a positive phase of 1.3 ms for the rifle and 2.6 ms for the shotgun,
+  a shallower negative phase, roughened per take) with the crack on its front; the weight as one slow push and pull of
+  air kept in its lows (no pitched sine sweep); the gas as a dense spray of random impulses over turbulent noise,
+  overdriven, its level flickering and puffing; the ground bounce two darker copies 2-8 ms behind; a recorder model
+  (lopsided overload clipping, a ringing input filter that turns it into a low heave, gain bloom after the overload,
+  a proximity lift at 100-120 Hz). The action is loud enough to hear on every shot (the rifle's hammer tick just
+  before the blast, carrier and bolt clacks after; the shotgun's receiver ring, its forend's steel-on-wood knock, a
+  faint pellet hiss). The tail is two slap-backs then 18-26 echoes at random distances, each darker and more smeared
+  the farther it is, over a rumble whose level wanders: about 1 s for the rifle, 1.5 s for the shotgun. A soft clip
+  before the limiter keeps the snap. Reloads are clanks: steel modes held to about 1-4 kHz, a polymer or wood knock
+  and a low thud, with the slides kept dark and well under the hits.
 - **Creatures** sound like what they are: a spider's shell cracks when hit and it clicks, rasps and hisses (no voice);
   a slime is all jelly (slaps, squelches, wobble, bubbles; no voice); the Unpaid are ghostly voices, and a bullet
   through one is a hollow thump and a puff of grave dust. Each kind has its own hit (`Creature.<Kind>.Hit`).
@@ -102,7 +108,10 @@ presence 2-5 kHz, high, air).
   stand in for the resonances the series leaves out.
 - Brown noise's lows wander too much between seeds for a thump layer; pink noise with a low cut weighs the same every
   time.
-- Keep a shot's lows in one deterministic layer (the sine punch): low noise under it adds to or cancels the sine at
+- A pitched sine sweep under a shot is a drum machine's kick: the user heard the guns as fake. Real weight is a
+  broadband pressure pulse and the microphone's overload; judge a shot's lows by how tonal they are (round 2: 0.85 ->
+  0.42) and how alike they are take to take, as well as by their share.
+- Keep a shot's lows in one deterministic layer: low noise under it adds to or cancels the sine at
   random, and swung the low share about 20 points between variations.
 - Mix noise layers by their loudest 10 ms, not their peak sample, so every variation weighs the same.
 - The mix is set against the rifle's loudness: a denser rifle moves every cue (2026-10-08 the whole set shifted
