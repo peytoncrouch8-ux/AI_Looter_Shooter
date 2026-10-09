@@ -1,4 +1,5 @@
 #include "Audio/CreatureVoiceComponent.h"
+#include "Audio/CreatureVoiceDirector.h"
 #include "Audio/LooterSound.h"
 #include "Audio/LooterSoundRules.h"
 #include "Combat/HealthComponent.h"
@@ -19,18 +20,19 @@ UCreatureVoiceComponent::FCries UCreatureVoiceComponent::CriesFor(const ACreatur
 {
 	using namespace LooterSoundCue;
 	// Most specific first: subclasses (the Gravemother, Abel) speak with their kind's voice, at their size's pitch.
+	// The Unpaid have no idle call: they mutter lines instead (their barks).
 	if (Creature.IsA<AUnpaidCreature>())
 	{
-		return { UnpaidAlert, UnpaidShriek, UnpaidHurt, UnpaidDeath, UnpaidHit };
+		return { UnpaidAlert, UnpaidShriek, UnpaidHurt, UnpaidDeath, UnpaidHit, NAME_None };
 	}
 	if (Creature.IsA<ASlimeCreature>())
 	{
 		// A slime has no cry to hunt with: its hops say it's coming.
-		return { NAME_None, SlimeAttack, SlimeHurt, SlimeDeath, SlimeHit };
+		return { NAME_None, SlimeAttack, SlimeHurt, SlimeDeath, SlimeHit, Voice::SlimeIdle };
 	}
 	if (Creature.IsA<ASpiderCreature>())
 	{
-		return { SpiderAlert, SpiderAttack, SpiderHurt, SpiderDeath, SpiderHit };
+		return { SpiderAlert, SpiderAttack, SpiderHurt, SpiderDeath, SpiderHit, Voice::SpiderIdle };
 	}
 	return {};
 }
@@ -49,13 +51,28 @@ void UCreatureVoiceComponent::BeginPlay()
 		Health->OnDamaged.AddDynamic(this, &UCreatureVoiceComponent::HandleDamaged);
 		Health->OnDeath.AddDynamic(this, &UCreatureVoiceComponent::HandleDeath);
 	}
+	// Its own voice, the same for the same creature every time; and its own dice for its barks.
+	VoicePitch = CreatureBarks::VoicePitchFor(Creature->GetFName());
+	Random.Initialize(static_cast<int32>(GetTypeHash(Creature->GetFName().ToString())));
+	// The level's director hears of it: its idle mutters and calls, its pack's last words.
+	if (UCreatureVoiceDirector* Director = UCreatureVoiceDirector::Get(this))
+	{
+		Director->Register(this);
+	}
 }
 
 void UCreatureVoiceComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().ClearTimer(AlertTimer);
+		FTimerManager& Timers = World->GetTimerManager();
+		Timers.ClearTimer(AlertTimer);
+		Timers.ClearTimer(BarkTimer);
+		Timers.ClearTimer(MurmurTimer);
+	}
+	if (UCreatureVoiceDirector* Director = UCreatureVoiceDirector::Get(this))
+	{
+		Director->Unregister(this);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -94,6 +111,11 @@ void UCreatureVoiceComponent::HandleStateChanged(ECreatureState OldState, ECreat
 		NextAlert = World->GetTimeSeconds() + AlertRest;
 		World->GetTimerManager().SetTimer(AlertTimer, this, &UCreatureVoiceComponent::CryAlert, FMath::FRandRange(0.02f, AlertDelayMax), false);
 	}
+	// An Unpaid that has seen the player may say so, once its wail has risen.
+	if (NewState == ECreatureState::Chase && bWasCalm)
+	{
+		TryBark(ECreatureBark::Spot);
+	}
 }
 
 void UCreatureVoiceComponent::CryAlert()
@@ -128,6 +150,8 @@ void UCreatureVoiceComponent::HandleDamaged(float Damage, bool bCritical, FVecto
 	{
 		NextHurtCry = Now + HurtCryInterval * FMath::FRandRange(0.8f, 1.4f);
 		Play(Cries.Hurt, bCritical ? 1.f : 0.85f);
+		// Now and then a word after the cry (an Unpaid's).
+		TryBark(ECreatureBark::Hurt);
 	}
 }
 
@@ -135,9 +159,19 @@ void UCreatureVoiceComponent::HandleDeath(AController* Killer)
 {
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().ClearTimer(AlertTimer);
+		FTimerManager& Timers = World->GetTimerManager();
+		Timers.ClearTimer(AlertTimer);
+		Timers.ClearTimer(BarkTimer);
 	}
+	PendingBark.Reset();
 	Play(Cries.Death);
+	// Whatever it was saying stops; it may have last words, and a packmate near it may answer its fall.
+	StopMurmur();
+	TryBark(ECreatureBark::Death);
+	if (UCreatureVoiceDirector* Director = UCreatureVoiceDirector::Get(this))
+	{
+		Director->NotifyDeath(*this);
+	}
 	// The player's own confirmation of the kill, heard flat whatever the distance.
 	if (Killer && Killer->IsLocalPlayerController())
 	{

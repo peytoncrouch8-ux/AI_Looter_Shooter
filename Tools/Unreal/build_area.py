@@ -410,6 +410,8 @@ class AreaBuild:
         # The encounters between the story's fights (layout gameplay.encounters): camps with their crates, patrols and
         # ambushes (build_area_camps.py), after the story's actors, whose fights' ground they keep off.
         importlib.reload(importlib.import_module('build_area_camps')).place(self)
+        # The town's life behind its walls: townsfolk's doors that mutter and sound (build_area_townlife.py).
+        importlib.reload(importlib.import_module('build_area_townlife')).place(self)
         self.posters.place(self)
 
         # The groups draw from one random stream, in order, so each lands where it did last time.
@@ -1108,6 +1110,8 @@ class AreaBuild:
             # On the terrain's tiles, which stand already; in the area's look (the cairns' granite).
             self.open_level('Dressing')
             self.dressing(mesh_index())
+            # The lootable world takes its crates and barrels from the dressing just placed (build_area_loot.py).
+            importlib.reload(importlib.import_module('build_area_loot')).place(self)
             self.swap_materials()
             levels.save_current_level()
             self.log('dressing placed and saved')
@@ -1133,6 +1137,9 @@ class AreaBuild:
         importlib.reload(build_area_sound).place(self)
         self.no_tree_zones()
         self.gameplay(meshes)
+        # The lootable world (breakable crates and barrels, graves, coffins, mailboxes; build_area_loot.py) reads the dressing
+        # and the gameplay actors that stand now, and goes before the fauna, whose perches are the dressing's instances.
+        importlib.reload(importlib.import_module('build_area_loot')).place(self)
         # Reloaded, as the editor keeps modules between runs, so an edited one takes effect.
         importlib.reload(build_area_bounds).place(self)
         # The ambient life (birds, insects, tumbleweeds, washing; build_area_fauna.py), derived from everything placed

@@ -497,8 +497,10 @@ bool FRangerCachesPlacedTest::RunTest(const FString& Parameters)
 		Windmill = Windmill ? Windmill : Cast<AWindmill>(Actor);
 		if (const AChest* Chest = Cast<AChest>(Actor))
 		{
-			// The camps' Supply Crates (build_area_camps.py) are the same model: only Ruth's carry the RangerCache tag.
-			if (Chest->Kind == EChestKind::Strongbox)
+			// The camps' Supply Crates (build_area_camps.py) are the same model: only Ruth's carry the RangerCache tag. The
+			// lootable world's loose strongboxes (build_area_loot.py: behind the saloon, by the burnt wagons) aren't the
+			// gang's: only the one with its id counts.
+			if (Chest->Kind == EChestKind::Strongbox && Chest->ChestId == StrongboxId)
 			{
 				Strongboxes.Add(Chest);
 			}

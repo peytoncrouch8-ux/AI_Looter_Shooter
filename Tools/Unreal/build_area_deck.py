@@ -320,6 +320,8 @@ def place_keepers_grave(build, gate):
     yaw = story.facing((x, y), gate) if gate else grave.get_actor_rotation().yaw
     marker = build.place(cls, (x, y, story.ground(x, y, heap.z, ignore=[grave])), yaw, label='Respawn_KeepersGrave', folder='Gameplay')
     marker.set_editor_property('marker_id', unreal.Name(KEEPERS_GRAVE))
+    # What the map calls it (the layout has no label for it; the design's words: "the keeper's grave").
+    marker.set_editor_property('display_name', unreal.Text("Keeper's grave"))
     marker.set_editor_property('active_after_mission', unreal.Name(MAIN5))
     build.log(f'the keeper\'s grave\'s respawn at ({x:.0f}, {y:.0f}), open after {MAIN5}')
     return grave

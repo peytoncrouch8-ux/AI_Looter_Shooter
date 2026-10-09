@@ -89,6 +89,25 @@ FName ARespawnMarker::GetMarkerId() const
 	return MarkerId.IsNone() ? GetFName() : MarkerId;
 }
 
+FText ARespawnMarker::GetGraveName() const
+{
+	if (!DisplayName.IsEmpty())
+	{
+		return DisplayName;
+	}
+	// FamilyPlot -> "Family Plot", KeepersGrave -> "Keepers Grave": readable until the build gives it a name of its own.
+	return FText::FromString(FName::NameToDisplayString(GetMarkerId().ToString(), /*bIsBool*/ false));
+}
+
+FRespawnWakeSpot ARespawnMarker::GetWakeSpot() const
+{
+	FRespawnWakeSpot Spot;
+	Spot.Grave = this;
+	Spot.Location = GetActorLocation();
+	Spot.Facing = FRotator(0.0, GetActorRotation().Yaw, 0.0);
+	return Spot;
+}
+
 bool ARespawnMarker::IsActive(const FCampaignRecord& Campaign) const
 {
 	// Its mission counts as well as the record, so a grave opens even where nothing recorded it (finished in a level
@@ -161,10 +180,7 @@ FRespawnWakeSpot ARespawnMarker::ChooseWakeSpot(const UWorld* World, const FVect
 	{
 		if (const ARespawnMarker* Grave = FindNearestActive(World, DeathLocation, *Campaign))
 		{
-			Spot.Grave = Grave;
-			Spot.Location = Grave->GetActorLocation();
-			Spot.Facing = FRotator(0.0, Grave->GetActorRotation().Yaw, 0.0);
-			return Spot;
+			return Grave->GetWakeSpot();
 		}
 	}
 	// No grave open: the level's own start, as before graves, never a trip's landing (a depot's or a jetty's player start).

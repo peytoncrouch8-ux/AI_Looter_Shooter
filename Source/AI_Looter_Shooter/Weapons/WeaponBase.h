@@ -221,7 +221,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Debug")
 	bool bDrawDebugTraces = false;
 
-	/** Only ticks while it has something to animate: the magazine or pump during a reload, or the muzzle flash. */
+	/** Only ticks while it has something to animate: the magazine, pump or cylinder during a reload, a revolver's cylinder
+	 *  turning after a shot, or the muzzle flash. */
 	virtual void Tick(float DeltaSeconds) override;
 
 protected:

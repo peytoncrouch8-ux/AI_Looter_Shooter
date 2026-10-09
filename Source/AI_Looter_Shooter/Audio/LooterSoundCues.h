@@ -33,6 +33,25 @@ namespace LooterSoundCue
 	inline constexpr const TCHAR* ImpactMetal = TEXT("Impact.Metal");
 	inline constexpr const TCHAR* ImpactWater = TEXT("Impact.Water");
 
+	/** The Drover revolver's own sounds (WeaponSounds picks them by the gun's kind and its reload's steps). */
+	namespace Revolver
+	{
+		/** A heavy six-gun's shot: the hammer's fall, a big blast with the cylinder gap's spit, the land answering. */
+		inline constexpr const TCHAR* Fire = TEXT("Weapon.Revolver.Fire");
+		/** The hammer falling on a spent chamber, and the cylinder's hand clicking it round. */
+		inline constexpr const TCHAR* DryFire = TEXT("Weapon.Revolver.DryFire");
+		/** The latch pushed and the cylinder swung out on its crane. */
+		inline constexpr const TCHAR* CylinderOut = TEXT("Weapon.Revolver.CylinderOut");
+		/** The ejector rod punched: six empties tumble out and ring on the ground. */
+		inline constexpr const TCHAR* Eject = TEXT("Weapon.Revolver.Eject");
+		/** A speedloader's rounds dropped into the chambers and let go. */
+		inline constexpr const TCHAR* RoundsIn = TEXT("Weapon.Revolver.RoundsIn");
+		/** The cylinder slapped home and latched. */
+		inline constexpr const TCHAR* CylinderIn = TEXT("Weapon.Revolver.CylinderIn");
+		/** Drawn from the holster: leather, the grip in the palm, the hammer thumbed back. */
+		inline constexpr const TCHAR* Equip = TEXT("Weapon.Revolver.Equip");
+	}
+
 	// --- The player's own feedback (2D) ---
 	/** Every hit on something that can be hurt; a critical hit plays it pitched up (LooterSoundRules::CritPitch). */
 	inline constexpr const TCHAR* HitMarker = TEXT("UI.HitMarker");
@@ -59,6 +78,9 @@ namespace LooterSoundCue
 	inline constexpr const TCHAR* HintDone = TEXT("UI.HintDone");
 	/** A posting turned in at a notice board: a pin pulled and a stamp. */
 	inline constexpr const TCHAR* BoardTurnIn = TEXT("UI.BoardTurnIn");
+	/** Fast travel between respawn graves (the inventory's map): a rush of grave-wind under the fade to black, settling
+	 *  as the screen comes back (UGraveTravelSubsystem). */
+	inline constexpr const TCHAR* TravelWhoosh = TEXT("UI.TravelWhoosh");
 
 	// --- The gunsmith's bench ---
 	inline constexpr const TCHAR* BenchScrap = TEXT("Bench.Scrap");
@@ -289,5 +311,78 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* Drop = TEXT("UI.Drop");
 		/** Inspect opening: a short rising whoosh. */
 		inline constexpr const TCHAR* Inspect = TEXT("UI.Inspect");
+	}
+
+	// --- The lootable world (ABreakableProp, AChest's graves, coffins, mailboxes and footlockers; Art/Sounds/recipes/props.py) ---
+	namespace Lootables
+	{
+		/** A crate bursting: the boards' crack and splinter, the nails' squeal, the pieces clattering down. */
+		inline constexpr const TCHAR* BreakCrate = TEXT("Loot.Break.Crate");
+		/** A barrel bursting: the staves' crack, a hoop's ring as it springs off, the staves clattering down. */
+		inline constexpr const TCHAR* BreakBarrel = TEXT("Loot.Break.Barrel");
+		/** A grave dug up: spade bites into packed earth, dirt thrown on the heap, the spade striking the coffin's lid. */
+		inline constexpr const TCHAR* GraveDig = TEXT("Loot.Grave.Dig");
+		/** A coffin pried open: a crowbar's bite, old nails squealing out of the pine, the wood groaning. */
+		inline constexpr const TCHAR* CoffinPry = TEXT("Loot.Coffin.Pry");
+		/** A coffin's lid shoved off: a dry scrape across the box and its knock coming down. */
+		inline constexpr const TCHAR* CoffinLidOff = TEXT("Loot.Coffin.LidOff");
+		/** A mailbox's tin door dropped open: a rusty squeak and a light clank on its stop. */
+		inline constexpr const TCHAR* MailboxOpen = TEXT("Loot.Mailbox.Open");
+		/** A footlocker opened: its hasp flipped, the hinges' creak, the lid knocking back on its strap. */
+		inline constexpr const TCHAR* FootlockerOpen = TEXT("Loot.Footlocker.Open");
+	}
+
+	// --- The grave-salt grenade (UPlayerThrowComponent, AGraveSaltGrenade, GraveSaltBurst, AGrenadePickup;
+	//     Art/Sounds/recipes/throwables.py; ThrowCue in Player/PlayerThrowRules.h is this namespace) ---
+	namespace Throwable
+	{
+		/** 2D: the tin swung up out of the off hand and slung, salt shifting inside it and a rush of air (every throw). */
+		inline constexpr const TCHAR* Throw = TEXT("Throwable.SaltGrenade.Throw");
+		/** The tin knocking off ground or a wall as it bounces: a hollow tin clink, salt rattling (played louder the harder). */
+		inline constexpr const TCHAR* Bounce = TEXT("Throwable.SaltGrenade.Bounce");
+		/** The waxed fuse burning down (a loop, on the tin): a fizz and sputter that spits. */
+		inline constexpr const TCHAR* Fuse = TEXT("Throwable.SaltGrenade.Fuse");
+		/** The burst: a punchy thump with the salt's bright crystalline crackle over it, carried far like a gunshot. */
+		inline constexpr const TCHAR* Burst = TEXT("Throwable.SaltGrenade.Burst");
+		/** Salt searing one of the Unpaid it burned: a hiss and spit, with a ghostly gasp under it. */
+		inline constexpr const TCHAR* Sear = TEXT("Throwable.SaltGrenade.Sear");
+		/** A grenade taken from a pickup: the tin picked up with a slosh of salt and a tick of its stopper. */
+		inline constexpr const TCHAR* Pickup = TEXT("Throwable.SaltGrenade.Pickup");
+	}
+
+	// --- Voices (Art/Sounds/recipes/voices.py): the Unpaid's barks murmured a syllable at a time (UCreatureVoiceComponent,
+	//     CreatureBarks::BuildMurmur), the spiders' and slimes' idle calls, all 3D ---
+	namespace Voice
+	{
+		/** One breathy voiced syllable of an Unpaid's bark (a spot, a hurt, a fallen packmate), pitched per Unpaid and per syllable. */
+		inline constexpr const TCHAR* UnpaidMurmur = TEXT("Creature.Unpaid.Murmur");
+		/** One whispered syllable: an Unpaid muttering to itself, or its last words. */
+		inline constexpr const TCHAR* UnpaidMutter = TEXT("Creature.Unpaid.Mutter");
+		/** A spider at rest, rarely: its mandibles working slowly, a short dry rasp, a leg's tap. */
+		inline constexpr const TCHAR* SpiderIdle = TEXT("Creature.Spider.Idle");
+		/** A slime at rest, rarely: a contented gurgle, bubbles rising through it, a lazy wobble. */
+		inline constexpr const TCHAR* SlimeIdle = TEXT("Creature.Slime.Idle");
+	}
+
+	// --- Town life (UTownLifeSubsystem; Art/Sounds/recipes/voices.py): the living heard through their walls on Ransom's
+	//     Rest, quietly, as the player passes (3D, muffled through a wall, fading out by about 35 m as the street's own) ---
+	namespace TownLife
+	{
+		/** Two hushed voices behind a wall, trading a few words: only their shape gets out. */
+		inline constexpr const TCHAR* Voices = TEXT("World.TownLife.Voices");
+		/** A cough behind a wall: a man's, a woman's, an old woman's, a child's. */
+		inline constexpr const TCHAR* Cough = TEXT("World.TownLife.Cough");
+		/** A child's music box behind the shutters: a slow little tune on its comb, one take winding down. */
+		inline constexpr const TCHAR* MusicBox = TEXT("World.TownLife.MusicBox");
+		/** A dog barking far off across town, a few barks and the echo off the ridges. */
+		inline constexpr const TCHAR* DogFar = TEXT("World.TownLife.DogFar");
+		/** A door's latch inside: a thumb latch lifted and dropped, a bolt shot home, a chain put on. */
+		inline constexpr const TCHAR* Latch = TEXT("World.TownLife.Latch");
+		/** A floorboard giving under somebody's weight inside, or a rocking chair. */
+		inline constexpr const TCHAR* Creak = TEXT("World.TownLife.Creak");
+		/** A mother's "shh", and a child's small whimper quieted. */
+		inline constexpr const TCHAR* Hush = TEXT("World.TownLife.Hush");
+		/** Tilly at her work: a handsaw's strokes through a board, then a few hammer taps. */
+		inline constexpr const TCHAR* Workshop = TEXT("World.TownLife.Workshop");
 	}
 }

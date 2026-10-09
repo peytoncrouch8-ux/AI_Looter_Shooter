@@ -70,6 +70,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shutter")
 	float OpenYaw = 0.f;
 
+	/**
+	 * Who hides behind it, for the town's life (TownLifeRules): once shut, the house is heard through it now and then as
+	 * the player passes. None: the household of the nearest house it's on (its lights').
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shutter")
+	FName Household;
+
 	/** Up to this long (s) between noticing the player and slamming, rolled for each shutter. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shutter", meta = (ClampMin = "0", Units = "s"))
 	float MaxDelay = 0.5f;

@@ -40,6 +40,23 @@ namespace
 		TEXT("Hailmouth"),
 	};
 
+	const TCHAR* const RevolverNicknames[] = {
+		TEXT("Six Feet Even"),
+		TEXT("Last Word"),
+		TEXT("Parlor Thunder"),
+		TEXT("Undertaker's Friend"),
+		TEXT("Graveside Manner"),
+		TEXT("Hangtree Waltz"),
+		TEXT("Penny for the Ferryman"),
+		TEXT("Quiet Supper"),
+		TEXT("Short Sermon"),
+		TEXT("Brass Psalter"),
+		TEXT("Midnight Ledger"),
+		TEXT("Closing Hymn"),
+		TEXT("Sweet Dismissal"),
+		TEXT("Whistling Widow"),
+	};
+
 	/** The nickname the gun's seed picks from its kind's list, whatever its kills; empty for a named gun (it has a name). */
 	FString PickNickname(const FWeaponInstanceData& Gun)
 	{
@@ -151,6 +168,10 @@ TConstArrayView<const TCHAR*> WeaponNotches::Nicknames(EWeaponKind Kind)
 	if (Kind == EWeaponKind::Shotgun)
 	{
 		return MakeArrayView(ShotgunNicknames);
+	}
+	if (Kind == EWeaponKind::Revolver)
+	{
+		return MakeArrayView(RevolverNicknames);
 	}
 	return MakeArrayView(RifleNicknames);
 }

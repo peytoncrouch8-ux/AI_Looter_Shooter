@@ -111,7 +111,8 @@ void ULoadoutWidget::Open(ALooterHUD* InHUD, UWeaponManagerComponent* InManager)
 
 	// Start on the gun in hand (the swap target too), at a glance, nothing picked up or dragged.
 	PickedSlot.Reset();
-	bPressPending = bItemDrag = false;
+	// A drag still going when it was last closed (Tab mid-drag) would show its ghost card here.
+	ClearItemDrag();
 	bShowcasePress = bTurning = false;
 	bInspecting = false;
 	Zone = EZone::Slots;
@@ -133,8 +134,8 @@ void ULoadoutWidget::Close()
 
 void ULoadoutWidget::NativeDestruct()
 {
-	// Off screen: the showcase stops rendering.
-	bPressPending = bItemDrag = false;
+	// Off screen: the showcase stops rendering, and a gun being dragged is let go (its ghost card is put away with it).
+	ClearItemDrag();
 	bShowcasePress = bTurning = false;
 	TurnInput = 0.f;
 	if (ALoadoutGunStage* StagePtr = Stage.Get())

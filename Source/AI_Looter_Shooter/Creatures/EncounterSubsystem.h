@@ -89,6 +89,13 @@ public:
 	/** Living creatures within Radius (cm) of Point. */
 	int32 CountAliveNear(const FVector& Point, float Radius) const;
 
+	/**
+	 * The level's creatures as tracked (placed ones from the start of play, spawned ones as they appear), living and dead;
+	 * an entry may be gone (null) or being destroyed. For whoever must look at every creature often (spacing, pack calls)
+	 * without walking every actor in the level.
+	 */
+	const TArray<TWeakObjectPtr<ACreatureBase>>& GetTrackedCreatures() const { return Creatures; }
+
 	// --- The player ---
 
 	/** The player's pawn (the first player's, or a test's stand-in); null behind the menu, or before one is spawned. */

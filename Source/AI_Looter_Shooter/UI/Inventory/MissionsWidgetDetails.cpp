@@ -280,6 +280,7 @@ void UMissionsWidget::RefreshPrompts()
 	}
 	Prompts.Add({ TEXT("1"), TEXT("Loadout") });
 	Prompts.Add({ TEXT("2"), Ledger::BookName(Ledger::IsOpenIn(this)) });
+	Prompts.Add({ TEXT("4"), TEXT("Map") });
 	Prompts.Add({ Bindings ? Bindings->GetKey(TEXT("Inventory")).GetDisplayName().ToString() : FString(TEXT("Tab")), TEXT("Close") });
 	for (int32 Index = 0; Index < Prompts.Num(); ++Index)
 	{
@@ -337,6 +338,11 @@ FReply UMissionsWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyE
 	if (Key == EKeys::Two || Key == EKeys::Gamepad_LeftShoulder)
 	{
 		ShowPage(EInventoryPage::Bestiary);
+		return FReply::Handled();
+	}
+	if (Key == EKeys::Four || Key == EKeys::Gamepad_RightShoulder)
+	{
+		ShowPage(EInventoryPage::Map);
 		return FReply::Handled();
 	}
 	if (Key == EKeys::Up || Key == EKeys::W || Key == EKeys::Gamepad_DPad_Up)

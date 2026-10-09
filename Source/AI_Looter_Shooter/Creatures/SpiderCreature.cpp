@@ -381,7 +381,10 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 				// stiffer spring keeps it quick.
 				const float Strike = FMath::Clamp((Time - AttackWindup) / (AttackRecovery * 0.5f), 0.f, 1.f);
 				const FVector Raised = Body.TransformPosition(FVector(Leg.Hip.X + 80.f, Leg.Hip.Y * 1.5f, 50.f));
-				const FVector Slam = GroundUnder(ActorLocation + Yaw.RotateVector(FVector(150.f, Leg.Side * 50.f, 0.f) * Scale));
+				// The ground is looked for only once the strike starts: until then the foot is all Raised, and a probe per front
+				// leg per frame through the whole windup bought nothing.
+				const FVector Slam = Strike > 0.f
+					? GroundUnder(ActorLocation + Yaw.RotateVector(FVector(150.f, Leg.Side * 50.f, 0.f) * Scale)) : Raised;
 				StepHeldFoot(Leg, FMath::Lerp(Raised, Slam, Strike), Strike > 0.f ? 32.f : 14.f, DeltaSeconds);
 				Leg.bStepping = false;
 				Leg.bNeedsReset = true;

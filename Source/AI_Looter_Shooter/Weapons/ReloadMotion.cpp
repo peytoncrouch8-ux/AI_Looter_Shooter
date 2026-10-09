@@ -23,6 +23,15 @@ namespace
 	constexpr float PumpEnd = 0.93f;
 	constexpr float PumpStroke = 7.f;
 
+	// Revolver reload: the cylinder flicks out, the gun tips up and the rod is punched, it tips down for the speedloader,
+	// and the cylinder is slapped home.
+	constexpr float CylOutStart = 0.12f;
+	constexpr float CylOutEnd = 0.20f;
+	constexpr float EjectAt = 0.30f;
+	constexpr float RoundsInAt = 0.56f;
+	constexpr float CylInStart = 0.66f;
+	constexpr float CylInEnd = 0.72f;
+
 	// Getting the gun into and out of the reload pose.
 	constexpr float PoseIn = 0.14f;
 	constexpr float PoseOut = 0.86f;
@@ -66,6 +75,13 @@ namespace
 		{ PumpStart, EReloadStep::Pump },
 	};
 	static_assert(ShellPushes == 4, "PumpSteps lists one ShellIn per shell pushed");
+	// The latch's click as the cylinder starts out, the rod's punch, the rounds dropping in, the cylinder hitting home.
+	constexpr FReloadStepAt CylinderSteps[] = {
+		{ CylOutStart + 0.01f, EReloadStep::CylinderOut },
+		{ EjectAt, EReloadStep::Eject },
+		{ RoundsInAt, EReloadStep::RoundsIn },
+		{ CylInEnd, EReloadStep::CylinderIn },
+	};
 }
 
 TConstArrayView<FReloadStepAt> LooterReload::Steps(EWeaponReloadPart Part)
@@ -76,9 +92,32 @@ TConstArrayView<FReloadStepAt> LooterReload::Steps(EWeaponReloadPart Part)
 		return MakeArrayView(MagazineSteps);
 	case EWeaponReloadPart::Pump:
 		return MakeArrayView(PumpSteps);
+	case EWeaponReloadPart::Cylinder:
+		return MakeArrayView(CylinderSteps);
 	default:
 		return {};
 	}
+}
+
+float LooterReload::CylinderSwing(float Progress)
+{
+	if (Progress < CylOutStart || Progress >= CylInEnd)
+	{
+		return 0.f;
+	}
+	if (Progress < CylOutEnd)
+	{
+		// Flicked out: fast at first, a touch past full as it reaches the stop, then settling on it.
+		const float T = (Progress - CylOutStart) / (CylOutEnd - CylOutStart);
+		return CylinderOpenDegrees * (1.f - FMath::Pow(1.f - T, 3.f) + 0.06f * FMath::Sin(UE_PI * T));
+	}
+	if (Progress < CylInStart)
+	{
+		return CylinderOpenDegrees;
+	}
+	// Pushed home, speeding up until it latches.
+	const float T = (Progress - CylInStart) / (CylInEnd - CylInStart);
+	return CylinderOpenDegrees * (1.f - T * T);
 }
 
 float LooterReload::MagazineTravel(float Progress, bool& bOutVisible)
@@ -137,6 +176,28 @@ void LooterReload::ViewModelPose(EWeaponReloadPart Part, float Progress, FVector
 		const float Bolt = Window(Progress, BoltStart, BoltStart + 0.03f, BoltEnd - 0.05f, BoltEnd);
 		OutOffset += FVector(0.f, 0.f, 0.8f) * Tug + FVector(0.f, 0.f, 1.8f) * Slap + FVector(-2.5f, 0.f, 0.3f) * Bolt;
 		OutRotation += FRotator(3.f, 0.f, -2.f) * Slap + FRotator(0.f, 5.f, -10.f) * Bolt;
+		return;
+	}
+
+	if (Part == EWeaponReloadPart::Cylinder)
+	{
+		// Rolled so its left side (where the cylinder swings out) faces the player, a little higher and nearer than a
+		// long gun, since a six-gun is worked in front of the chest.
+		OutOffset = FVector(-1.5f, -4.5f, 3.f) * Pose;
+		OutRotation = FRotator(8.f, -12.f, 26.f) * Pose;
+
+		// The wrist flicks as the cylinder swings out; the muzzle tips up and the palm punches the rod; it tips down for the
+		// speedloader, which pushes in; the cylinder is slapped home from the left.
+		const float Flick = Pulse(Progress, CylOutEnd, 0.04f);
+		const float TipUp = Window(Progress, 0.22f, 0.29f, 0.34f, 0.44f);
+		const float Punch = Pulse(Progress, EjectAt, 0.03f);
+		const float TipDown = Window(Progress, 0.44f, 0.50f, 0.60f, CylInStart);
+		const float Push = Pulse(Progress, RoundsInAt, 0.035f);
+		const float Slap = Pulse(Progress, CylInEnd, 0.035f);
+		OutOffset += FVector(0.f, -1.f, 0.f) * Flick + FVector(-2.f, 0.f, 3.f) * TipUp + FVector(0.f, 0.f, -1.5f) * Punch
+			+ FVector(0.f, 0.f, -0.5f) * TipDown + FVector(1.f, 0.f, 0.f) * Push + FVector(0.f, 0.8f, 0.4f) * Slap;
+		OutRotation += FRotator(0.f, 0.f, 6.f) * Flick + FRotator(40.f, 0.f, 0.f) * TipUp + FRotator(4.f, 0.f, 0.f) * Punch
+			+ FRotator(-12.f, 0.f, 0.f) * TipDown + FRotator(-2.f, 0.f, 0.f) * Push + FRotator(2.f, 0.f, -8.f) * Slap;
 		return;
 	}
 

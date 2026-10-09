@@ -135,6 +135,33 @@ where the work stands.
   lanes, dust devil spots, washing on laundry lines. All of it is derived from the built level, so re-run it after
   dressing changes. `UFaunaSubsystem` updates it (nothing ticks on its own); `Looter.Fauna 0/1`, `Looter.Fauna.Stats`.
 - **Ambient sound emitters** (`build_area_sound.py`, in the full build): creeks, ponds, falls, open edges, Main Street.
+- **The lootable world** (`build_area_loot.py`, 2026-10-09): runs in the full build and in the `dressing` mode, after the
+  dressing and the gameplay pieces stand and before the fauna; on its own, `Tools\console.ps1 "py
+  C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_area_loot.py RansomsRest"`.
+  - It turns the dressing's wooden crates and barrels (`Crate_A`, `Crate_B`, `Barrel_A`; never the steel drum) into
+    `ABreakableProp`s where they stood, and stands breakables, graves to dig, coffins to pry, mailboxes and footlockers
+    about the area at spots it finds (level, clear, off roads, off the story's and the encounters' spots, never near a
+    respawn grave or the family plot). Everything sits in the area's `Loot` folder, so a rebuild replaces only that.
+  - It reads the built level, so run it after any dressing or story change; it is idempotent (a run gives the dressing's
+    instances back first). Ids come from where each piece stands, so the session keeps the same one broken or opened:
+    moving a piece forgets its state.
+  - Breakables are pooled and nothing ticks idle: the pieces are thrown from one pool of components
+    (`UBreakableDebrisSubsystem`, at most 40 out) and a prop ticks only while a hit rocks it.
+  - The models come from `Art/Models/Props/Lootables.py` (the pieces modeled where they sat, origin the prop's pivot);
+    their sounds are the `props` group. `Looter.Breakable.Break/Mend/List` and `Looter.Chest.Open/Reset/List` check them.
+- **Town life** (`build_area_townlife.py`, 2026-10-09): runs in `build_area.py`'s gameplay pass, after the story's pieces
+  (the shutters must stand; the house lights come from the effects pass), or on its own like the loot script. Ransom's Rest
+  only (a layout with Ellis's grave). It places `ATownLifeDoor`s outside the unnamed townsfolk's doors (folder
+  `Gameplay/TownLife`) and gives the lit houses and the store's shutters a household, which is all `UTownLifeSubsystem`
+  needs; nobody is seen, only heard. The households, their sounds and the mutters' lines are `TownLifeRules`. It places
+  nothing, and says so, when the game module's classes aren't built yet.
+- **The map page and fast travel** (the inventory's fourth page; M, down on the D-pad): the map is the minimap's runtime
+  bake, so a level needs its `Ground` tags and nothing else. Two things are kept by hand: the places' names
+  (`UI/Inventory/MapPlaces.cpp`, copied from the layout's `preview.labels`: change both together) and each grave's name
+  (`ARespawnMarker::DisplayName` on the marker, else the map shows its id in words). Pins come from the level
+  (open respawn graves, stations, benches, chests found or opened, turn-ins, the objective), so a new kind of pin is a
+  `MapPins` change. Check with `Looter.Map` (opens the page), `Looter.Map.Graves` (each grave and whether travel could go
+  there) and `Looter.Map.Travel <grave id>`; the tests are `Looter.UI.Map.*`.
 
 ## The tutorial island and the older levels
 
@@ -190,6 +217,17 @@ where the work stands.
    for aiming down sights). `<Gun>.parts.csv` lists each part's key, name, name word, rarity and stat ranges in percent
    (capped per stat, `Weapons/WeaponParts.h`). After importing, run `Tools/Unreal/setup_gun_parts.py` in the editor to
    fill the gun's definition from the spreadsheet.
+   - **The Drover** (2026-10-09), the third family (Bullpup rifle, Ranchhand shotgun, Drover revolver on pistol ammo):
+     `Art/Models/Weapons/Drover.py` and `Drover.parts.csv`; parts by key as the others (frame, barrel, cylinder, sight,
+     grip; never rename or reuse a key). A new kind needs the C++ first (`EWeaponKind::Revolver`,
+     `EWeaponReloadPart::Cylinder`), then in the editor, in this order: `create_revolver.py` (makes `DA_Revolver` and puts it
+     in the default loot table), `setup_gun_parts.py` (the parts from the CSV), `create_rank_assets.py` (so the ranks'
+     loot tables take the new gun). Its cylinder swings out on SOCKET_Crane and its chambers are the CSV's Magazine for
+     that cylinder (rarity never changes the count). A short gun is held out by its definition's `HoldReach`.
+8. **Throwables:** `Art/Models/Throwables/<Name>.py` (the grave-salt grenade, `SaltGrenade.py`) becomes
+   `/Game/Art/Throwables/SM_<Name>` through `Tools\models.ps1 -Only <Name>`. Code loads it by path
+   (`AGraveSaltGrenade`, `AGrenadePickup`), and a path is not a reference: `/Game/Art/Throwables` is listed under
+   `DirectoriesToAlwaysCook` in `Config/DefaultGame.ini`, so a packaged game has it. A new category folder needs the same line.
 
 Rules that saved time:
 - Exports must be repeatable. Never iterate BMesh sets (their order changes between runs). Export twice and compare; only
@@ -233,6 +271,13 @@ Rules that saved time:
   WAVs to `/Game/Audio`, makes the classes (under `SC_Master`), the mix and attenuations, and fills `DA_SoundBank`.
 - **In code:** `LooterSound::PlayAt/PlayAttached/Play2D/Start/Stop` by cue name (`Audio/LooterSoundCues.h`). A cue
   without sounds plays nothing, so code can call new cues first. Add a cue to the header and to `cues.json` together.
+- **Groups added 2026-10-09** (each is a recipe file listed in `recipes/__init__.py`'s `GROUPS`; list a new file there or
+  it is never rendered): `props` (the lootable world: crates and barrels bursting, a grave dug, a coffin pried, a mailbox,
+  a footlocker), `throwables` (the grave-salt grenade: throw, bounce, fuse loop, burst, sear, pickup) and `voices` (the
+  Unpaid's murmured barks, one syllable a cue; the spiders' and slimes' idle calls; the living heard through walls on
+  Ransom's Rest). The Drover's shots and reload steps are in `guns`, the fast-travel whoosh in `ui`. The cues' names are in
+  `LooterSoundCue::Lootables`, `::Throwable`, `::Voice`, `::TownLife` and `::Revolver`; `WeaponSounds.h` picks a gun's
+  cues by its kind.
 - **For the user:** the listening page is an Artifact with the WAVs as its files (<https://claude.ai/artifact/VDmyrPmAsxiNa6boNuqKxa>);
   republish it from the session's scratchpad copy after a render.
 - **Lesson:** setting a USoundClass's `child_classes` all at once parents only the first new child; add them one at a
@@ -317,6 +362,7 @@ styles the user chooses from).
 
 | Bug | Cause | Fix |
 |---|---|---|
+| The game crashed at start in Enhanced Input ("Unhandled tracking mode", 2026-10-09) though the build and every test passed | An agent added members to `KeyBindingSubsystem.h` while a build was compiling: files that read the old header finished after the edit, so their objects looked newer than it and were never rebuilt, and read `CharacterContext` at the old offset (an input action) | Touch every changed header before the integration build. Don't build while agents edit headers, and after every integration build start the game once (`menushots.ps1`/`hudshots.ps1`): tests don't add input contexts |
 | The tutorial island's dressing build put 38 of Ransom's Rest's pieces on it (graves, dead trees, bales, fallen pines) | `build_area_dressing`'s `EXTRA_GRAVE_ROWS` and `SPOTS` applied to every layout | Only on Ransom's Rest (`EXTRAS_AREA`) |
 | Skyreach's scattered trees all vanished with the town | Web Hollow's no-tree clearing sits on the forest rise's middle, where the scatter's woods were | The concept's woods round the hollow placed as town pieces (`make_town.py`) |
 | A bench blocked the forest road at the town square | The concept's two memorial benches were exempt from the road check (the plaza core, 6.5 m) | Only the memorial itself is exempt (3 m); the path probe found it |

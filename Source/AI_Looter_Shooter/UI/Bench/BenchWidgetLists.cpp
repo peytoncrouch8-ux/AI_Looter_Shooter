@@ -94,7 +94,8 @@ UBenchWidget::FRow UBenchWidget::MakeGunRow(int32 Row)
 	// Where it's carried, its level, and a named gun's fixed parts (it can't be changed here).
 	FString Where = Guns[Row].bBackpack ? FString(TEXT("Backpack"))
 		: FString::Printf(TEXT("Slot %d · %s"), Guns[Row].Index + 1,
-			LoadoutCarry::Label(LoadoutCarry::ForSlot(Guns[Row].Index, Inventory->GetWeapons().Num(), Inventory->GetActiveSlot())));
+			LoadoutCarry::Label(LoadoutCarry::ForSlot(Guns[Row].Index, Inventory->GetWeapons().Num(), Inventory->GetActiveSlot(),
+				LoadoutCarry::KindsOf(Inventory->GetWeapons()))));
 	Where += FString::Printf(TEXT(" · Lv %d"), Item->Level);
 	if (!WeaponPartSwap::CanModify(*Item))
 	{

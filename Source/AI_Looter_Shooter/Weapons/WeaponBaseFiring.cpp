@@ -5,6 +5,7 @@
 #include "Weapons/WeaponCurseEffects.h"
 #include "Weapons/WeaponCurses.h"
 #include "Weapons/WeaponDefinition.h"
+#include "Weapons/WeaponSounds.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerViewComponent.h"
@@ -113,7 +114,7 @@ void AWeaponBase::HandleFiring()
 
 	if (CurrentMagazine <= 0)
 	{
-		PlayCue(LooterSoundCue::DryFire, Instance.Definition->DryFireSound);
+		PlayCue(WeaponSounds::DryFire(Instance.Definition->Kind), Instance.Definition->DryFireSound);
 		BurstShotsRemaining = 0;
 		Reload();
 		return;
@@ -132,6 +133,12 @@ void AWeaponBase::HandleFiring()
 	}
 	CurrentMagazine = FMath::Max(CurrentMagazine - Plan.Rounds, 0);
 	LastFireTime = GetWorld()->GetTimeSeconds();
+	// A revolver's cylinder turns the next round under the hammer (a dud's too), as the gun settles from the kick.
+	if (bUsingModel && Model->GetCylinderChambers() > 0)
+	{
+		Model->TurnCylinder(Plan.Rounds);
+		RefreshTick();
+	}
 
 	BroadcastAmmo();
 	if (!Plan.bMisfire)
@@ -223,7 +230,7 @@ void AWeaponBase::FireShot()
 	{
 		PlayMuzzleFlash();
 	}
-	PlayCue(Definition->Kind == EWeaponKind::Shotgun ? LooterSoundCue::ShotgunFire : LooterSoundCue::RifleFire, Definition->FireSound);
+	PlayCue(WeaponSounds::Fire(Definition->Kind), Definition->FireSound);
 }
 
 void AWeaponBase::Misfire()

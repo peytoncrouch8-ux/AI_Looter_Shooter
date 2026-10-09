@@ -179,7 +179,7 @@ void UControlHintSubsystem::Save() const
 #if !UE_BUILD_SHIPPING
 namespace
 {
-	/** Looter.Hints reset | show <Move|Reload|Melee|Aim|Jump|Sprint|Slide|Swap|Inventory|Bench> */
+	/** Looter.Hints reset | show <Move|Reload|Melee|Grenade|Aim|Jump|Sprint|Slide|Swap|Inventory|Bench> */
 	void HintsCommand(const TArray<FString>& Args, UWorld* World)
 	{
 		UWorld* GameWorld = World && World->IsGameWorld() ? World : nullptr;
@@ -190,7 +190,7 @@ namespace
 		UControlHintSubsystem* Hints = GameWorld ? GameWorld->GetSubsystem<UControlHintSubsystem>() : nullptr;
 		if (!Hints || Args.IsEmpty())
 		{
-			UE_LOG(LogLooter, Warning, TEXT("Usage (in a game): Looter.Hints reset | show <Move|Reload|Melee|Aim|Jump|Sprint|Slide|Swap|Inventory|Bench>"));
+			UE_LOG(LogLooter, Warning, TEXT("Usage (in a game): Looter.Hints reset | show <Move|Reload|Melee|Grenade|Aim|Jump|Sprint|Slide|Swap|Inventory|Bench>"));
 			return;
 		}
 		if (Args[0].Equals(TEXT("reset"), ESearchCase::IgnoreCase))

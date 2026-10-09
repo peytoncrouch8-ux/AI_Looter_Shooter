@@ -280,6 +280,8 @@ def place_yard_grave(build, chapel):
     marker = build.place(marker_cls, (x, y, story.ground(x, y, heap.z, ignore=[grave])), yaw, label='Respawn_ChapelYard',
                          folder='Gameplay')
     marker.set_editor_property('marker_id', unreal.Name(YARD_GRAVE))
+    # What the map calls it (the layout has no label for it; the design's words: "the chapel yard's respawn grave").
+    marker.set_editor_property('display_name', unreal.Text('Chapel yard'))
     marker.set_editor_property('active_after_mission', unreal.Name(MAIN4))
     build.log(f'the chapel yard\'s respawn grave at ({x:.0f}, {y:.0f}), open after {MAIN4}')
 

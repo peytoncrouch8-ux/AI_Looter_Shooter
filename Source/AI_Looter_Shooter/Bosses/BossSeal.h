@@ -18,6 +18,22 @@ enum class EBossSealShape : uint8
 	Gate
 };
 
+/** The fog wall's look as plain functions, apart from the world (the tests check them). */
+namespace BossSealFog
+{
+	/** How much of its full strength a bit of fog Z cm up shows on a wall Height cm high: 1 at the foot, a quarter at the top. */
+	AI_LOOTER_SHOOTER_API float Density(float Z, float Height);
+
+	/** The flare at Distance (cm) from a player: 1 touching the wall, fading to none from about four metres out. */
+	AI_LOOTER_SHOOTER_API float Flare(float Distance);
+
+	/**
+	 * The point on a path (a closed ring, or an open line) nearest Point, seen from above: its height is the path's there.
+	 * Returns the distance to it (cm) flat on the ground plane.
+	 */
+	AI_LOOTER_SHOOTER_API float NearestOnPath(const TArray<FVector>& Path, bool bClosed, const FVector& Point, FVector& OutNearest);
+}
+
 /**
  * A boss fight's fog wall: raised when the fight starts, dropped when it's won or reset. It stops walking pawns (the
  * player and the creatures) and nothing else: bullets, the camera, the creatures' sight and the minimap pass through.
@@ -26,10 +42,13 @@ enum class EBossSealShape : uint8
  * object type is world-dynamic, so no ground trace (world-static) ever lands on top of one, and every other channel
  * ignores them. They exist only while it stands; a character never steps up onto one.
  *
- * It's seen as a curtain of rising ghost-light: thin emissive dashes climbing from the ground along its line over a glowing
- * seam, on two instanced meshes (opaque, M_StylizedSurface's glow: no translucency). It grows up out of the ground as
- * it rises and sinks back as it drops. The boss component makes a ring round its spot (SpawnRing), or uses one placed in
- * the level (a gate) that it's pointed at.
+ * It's seen as a wall of grave-fog (BossSealCurtain.cpp), all of it camera-facing quads on three instanced meshes, so no
+ * assets and few draws: tall faint veils that give the wall its body, wide dense banks hugging the ground, wisps that
+ * climb from the foot curling slowly and thinning with height (all the game's soft smoke, M_FX_Smoke), halos along the foot
+ * and specks of ghost-light climbing (the additive M_FX_Glow), over an opaque glowing seam on the ground (M_StylizedSurface).
+ * The fog near the player flares, and a glow gathers where the wall is touched. It grows up out of the ground as it rises
+ * and sinks back as it drops. The boss component makes a ring round its spot (SpawnRing), or uses one placed in the level
+ * (a gate) that it's pointed at.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ABossSeal : public AActor
@@ -107,14 +126,71 @@ private:
 	void BuildWalls();
 	void SetWallsBlocking(bool bBlocking);
 
-	/** Lays out the curtain's dashes along the line, each standing on the ground under it (game worlds only). */
+	/** What a piece of the curtain is: how it looks and how it moves (the first three are fog, the others light). */
+	enum class EPiece : uint8
+	{
+		/** A tall, faint panel standing on the line: the wall's body, brightest at the foot and gone by the top. */
+		Veil,
+		/** A wide, low billow hugging the ground: the dense foot. */
+		Bank,
+		/** A wisp climbing from the foot, curling and thinning as it goes. */
+		Plume,
+		/** A soft glow along the foot. */
+		Halo,
+		/** A speck of ghost-light that climbs and winks out. */
+		Mote
+	};
+
+	/** One piece of the curtain: where its column stands on the ground, and how it climbs and drifts. */
+	struct FPiece
+	{
+		EPiece Kind = EPiece::Plume;
+		FVector Foot = FVector::ZeroVector;
+		/** The wall's direction there, flat (a piece drifts along it and across it). */
+		FVector Along = FVector::ForwardVector;
+		/** How high its trip climbs (cm), how long it takes (s), and where in it the piece is at time zero (0 to 1). */
+		float Reach = 100.f;
+		float Period = 8.f;
+		float Phase = 0.f;
+		/** Its width at the top of its trip (cm). */
+		float Size = 100.f;
+		/** The circle it drifts round: its radius (cm), turn (rad/s, signed) and where on it at time zero (rad). */
+		float Curl = 40.f;
+		float CurlSpeed = 0.4f;
+		float CurlPhase = 0.f;
+		/** For its shimmer, so no two pulse together (0 to 1). */
+		float Seed = 0.f;
+	};
+
+	/** What a frame's drawing needs to know: where the camera and the player are, and how far up the curtain is. */
+	struct FCurtainView
+	{
+		FVector Viewer = FVector::ZeroVector;
+		FVector Player = FVector::ZeroVector;
+		bool bPlayer = false;
+		/** The curtain's top (cm) for its rise, and how strongly it shows (it fades in over the first of its rise). */
+		float Top = 0.f;
+		float Strength = 1.f;
+	};
+
+	/** Lays out the curtain's pieces along the line, each standing on the ground under it (game worlds only). */
 	void BuildCurtain();
-	/** Moves the dashes up their lines and draws them, cut off at the curtain's height for its rise. */
+	/** Moves every piece, turns it to face the camera and draws it, cut off at the curtain's height for its rise. */
 	void DrawCurtain();
+	void DrawFog(const FCurtainView& View);
+	void DrawLights(const FCurtainView& View);
 	void ClearCurtain();
 
+	/** Where a climbing piece is now, how far through its trip (0 to 1) and how it's moving (cm/s). */
+	FVector Climb(const FPiece& Piece, float& OutTrip, FVector& OutVelocity) const;
+
+	/** The soft smoke: veils, banks and plumes. */
 	UPROPERTY(VisibleAnywhere, Category = "Components")
-	TObjectPtr<UInstancedStaticMeshComponent> Dashes;
+	TObjectPtr<UInstancedStaticMeshComponent> Fog;
+
+	/** The additive light: halos, motes and the glow where the wall is touched. */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UInstancedStaticMeshComponent> Glow;
 
 	/** The glowing seam along the ground under the curtain. */
 	UPROPERTY(VisibleAnywhere, Category = "Components")
@@ -129,18 +205,12 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBoxComponent>> Walls;
 
-	/** One rising dash of light: where its column stands, and how it climbs. */
-	struct FDash
-	{
-		FVector Foot = FVector::ZeroVector;
-		float Phase = 0.f;
-		float Speed = 100.f;
-		float Length = 100.f;
-		float Width = 4.f;
-	};
-	TArray<FDash> Curtain;
+	TArray<FPiece> FogPieces;
+	TArray<FPiece> LightPieces;
 	/** The seam's pieces along the ground, one per span. */
 	TArray<FTransform> SeamPieces;
+	/** The line on the ground (one point per corner of GetPath()), for finding where the player touches it. */
+	TArray<FVector> FloorPath;
 
 	bool bRaised = false;
 	float Rise = 0.f;

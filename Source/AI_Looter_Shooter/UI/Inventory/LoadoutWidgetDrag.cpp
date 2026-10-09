@@ -188,7 +188,7 @@ void ULoadoutWidget::FinishItemDrag(const FVector2D& ScreenPosition)
 	}
 }
 
-void ULoadoutWidget::CancelItemDrag()
+void ULoadoutWidget::ClearItemDrag()
 {
 	bPressPending = false;
 	bItemDrag = false;
@@ -197,6 +197,11 @@ void ULoadoutWidget::CancelItemDrag()
 	{
 		DragGhost->SetVisibility(ESlateVisibility::Collapsed);
 	}
+}
+
+void ULoadoutWidget::CancelItemDrag()
+{
+	ClearItemDrag();
 	Restyle();
 	RefreshPrompts();
 	SetKeyboardFocus();

@@ -95,9 +95,17 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Firing")
 	FWeaponRecoilProfile Recoil;
 
-	/** What kind of gun it is (its icons). */
+	/** What kind of gun it is: its icons, its shot's sound and kick, its nicknames (WeaponSounds, ViewKicks, WeaponNotches). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals")
 	EWeaponKind Kind = EWeaponKind::None;
+
+	/**
+	 * How far ahead of a long gun's hold this one is held out (cm, along its barrel): a six-gun is pushed out toward
+	 * arm's length, where a rifle is tucked in. The third-person arms reach out by it (the stance layer, LooterStancePose),
+	 * and the first-person hold carries the gun forward by it. 0 for long guns.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals", meta = (ClampMin = "0", ClampMax = "40"))
+	float HoldReach = 0.f;
 
 	/**
 	 * The gun's parts, in order: each rolled gun picks its own by its seed (UWeaponModelComponent assembles them).
@@ -114,7 +122,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Parts")
 	FName RarityGlowSlot = TEXT("GunAccentGlow");
 
-	/** The part slot a reload moves: a magazine slides out along the part's -Z, a pump back along its -X. */
+	/**
+	 * The part slot a reload moves: a magazine slides out along the part's -Z, a pump back along its -X, a cylinder swings
+	 * out to the left on its crane (its SOCKET_Crane) and turns a chamber per shot.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals|Parts")
 	FName ReloadSlot;
 

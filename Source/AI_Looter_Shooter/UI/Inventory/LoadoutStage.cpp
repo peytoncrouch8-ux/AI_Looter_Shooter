@@ -4,6 +4,7 @@
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponDefinition.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Weapons/WeaponModelComponent.h"
 #include "Components/PointLightComponent.h"
@@ -26,7 +27,7 @@ namespace
 // Where guns are carried
 // ---------------------------------------------------------------------------
 
-ELoadoutCarry LoadoutCarry::ForSlot(int32 Slot, int32 NumWeapons, int32 ActiveSlot)
+ELoadoutCarry LoadoutCarry::ForSlot(int32 Slot, int32 NumWeapons, int32 ActiveSlot, TConstArrayView<EWeaponKind> Kinds)
 {
 	if (Slot < 0 || Slot >= NumWeapons)
 	{
@@ -36,12 +37,29 @@ ELoadoutCarry LoadoutCarry::ForSlot(int32 Slot, int32 NumWeapons, int32 ActiveSl
 	{
 		return ELoadoutCarry::InHand;
 	}
-	int32 Holstered = 0;
+	const auto IsSixGun = [&Kinds](int32 Index) { return Kinds.IsValidIndex(Index) && Kinds[Index] == EWeaponKind::Revolver; };
+	// Each kind of gun alternates within itself, starting where it's drawn from: a six-gun at the hip, a long gun on the
+	// back (with no kinds given, every gun is a long one: the first on the back, the next at the hip).
+	const bool bSixGun = IsSixGun(Slot);
+	int32 Before = 0;
 	for (int32 Other = 0; Other < Slot; ++Other)
 	{
-		Holstered += Other != ActiveSlot ? 1 : 0;
+		Before += Other != ActiveSlot && IsSixGun(Other) == bSixGun ? 1 : 0;
 	}
-	return Holstered % 2 == 0 ? ELoadoutCarry::Back : ELoadoutCarry::Hip;
+	const bool bFirstPlace = Before % 2 == 0;
+	return bFirstPlace == bSixGun ? ELoadoutCarry::Hip : ELoadoutCarry::Back;
+}
+
+TArray<EWeaponKind> LoadoutCarry::KindsOf(const TArray<AWeaponBase*>& Equipped)
+{
+	TArray<EWeaponKind> Kinds;
+	Kinds.Reserve(Equipped.Num());
+	for (const AWeaponBase* Gun : Equipped)
+	{
+		const UWeaponDefinition* Definition = Gun ? Gun->GetInstance().Definition.Get() : nullptr;
+		Kinds.Add(Definition ? Definition->Kind : EWeaponKind::None);
+	}
+	return Kinds;
 }
 
 const TCHAR* LoadoutCarry::Label(ELoadoutCarry Carry)
@@ -140,6 +158,7 @@ void ALoadoutStage::ShowLoadout(const ACharacter* Character, const UWeaponManage
 		Guns.Pop();
 	}
 	Guns.SetNum(Equipped.Num());
+	const TArray<EWeaponKind> Kinds = LoadoutCarry::KindsOf(Equipped);
 	for (int32 Slot = 0; Slot < Equipped.Num(); ++Slot)
 	{
 		FLoadoutStageGun& Gun = Guns[Slot];
@@ -154,7 +173,7 @@ void ALoadoutStage::ShowLoadout(const ACharacter* Character, const UWeaponManage
 			DestroyGun(Gun);
 			BuildGun(Gun, Instance);
 		}
-		Gun.Carry = LoadoutCarry::ForSlot(Slot, Equipped.Num(), ActiveSlot);
+		Gun.Carry = LoadoutCarry::ForSlot(Slot, Equipped.Num(), ActiveSlot, Kinds);
 	}
 	UpdateHold();
 }

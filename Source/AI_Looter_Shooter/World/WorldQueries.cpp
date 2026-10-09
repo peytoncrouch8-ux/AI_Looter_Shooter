@@ -1,21 +1,21 @@
 #include "World/WorldQueries.h"
-#include "World/PlayableArea.h"
-#include "EngineUtils.h"
-#include "GameFramework/Volume.h"
+#include "World/GroundIgnoreSubsystem.h"
+#include "Engine/World.h"
 
 FCollisionQueryParams LooterWorld::StaticGeometryParams(const UWorld* World, FName TraceTag, const AActor* Ignored, bool bTraceComplex)
 {
 	FCollisionQueryParams Params(TraceTag, bTraceComplex, Ignored);
 	if (World)
 	{
-		for (TActorIterator<AVolume> It(World); It; ++It)
+		// Creatures build these ten times a second: played worlds keep the volumes found (UGroundIgnoreSubsystem), the editor's
+		// own world, which has no such list, looks through its actors each time.
+		if (UGroundIgnoreSubsystem* Cache = World->GetSubsystem<UGroundIgnoreSubsystem>())
 		{
-			Params.AddIgnoredActor(*It);
+			Cache->AddIgnoredTo(Params);
 		}
-		// The playable area's invisible walls are world static too, but they only stop walking pawns.
-		for (TActorIterator<APlayableArea> It(World); It; ++It)
+		else
 		{
-			Params.AddIgnoredActor(*It);
+			UGroundIgnoreSubsystem::AddIgnoredByWalking(*World, Params);
 		}
 	}
 	return Params;

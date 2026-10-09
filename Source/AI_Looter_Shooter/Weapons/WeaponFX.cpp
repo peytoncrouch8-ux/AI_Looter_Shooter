@@ -103,8 +103,10 @@ namespace
 		{
 			return;
 		}
+		bool bCountChanged = false;
 		if (Instances->GetInstanceCount() != Transforms.Num())
 		{
+			bCountChanged = true;
 			Instances->ClearInstances();
 			if (Transforms.Num() > 0)
 			{
@@ -119,7 +121,13 @@ namespace
 		{
 			Instances->SetCustomData(0, Transforms.Num() - 1, CustomData, false);
 		}
-		Instances->MarkRenderStateDirty();
+		// Moved instances need no render state rebuild: the instance data tracks its own changes and sends them at the end of the
+		// frame (FPrimitiveInstanceDataManager), and rebuilding the proxy every frame while any particle lives was the cost. A
+		// changed count (a spark born or gone) still takes the full refresh.
+		if (bCountChanged)
+		{
+			Instances->MarkRenderStateDirty();
+		}
 	}
 
 	void AddGlowData(TArray<float>& Data, const FLinearColor& Color, float Intensity, float Shape)

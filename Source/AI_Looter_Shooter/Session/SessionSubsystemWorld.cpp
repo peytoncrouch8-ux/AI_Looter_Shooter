@@ -8,9 +8,11 @@
 #include "Loot/AmmoPickup.h"
 #include "Loot/Chest.h"
 #include "Loot/WeaponRack.h"
+#include "Player/PlayerThrowComponent.h"
 #include "Session/SessionSave.h"
 #include "Tutorial/TutorialDirector.h"
 #include "Weapons/WeaponBase.h"
+#include "World/BreakableProp.h"
 #include "World/HayBale.h"
 #include "World/WantedPoster.h"
 #include "Engine/World.h"
@@ -65,6 +67,11 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 		Manager->SaveInventory(Save.Inventory);
 		Save.bHasInventory = true;
 	}
+	if (const UPlayerThrowComponent* Throw = UPlayerThrowComponent::Find(Pawn))
+	{
+		Throw->SaveThrowables(Save.Throwables);
+		Save.bHasThrowables = true;
+	}
 
 	// This map's world, filed under its own name so every other map's stays as it was left: what the racks still offer,
 	// every other gun and ammo pickup lying around, the wanted posters torn down, the hay bales loaded, the chests opened,
@@ -104,6 +111,15 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 		if (It->HasGivenLoot())
 		{
 			Here.OpenedChests.Add(It->GetSaveKey());
+		}
+	}
+	// Broken crates and barrels by their ids (what they dropped is kept below, as any loot lying around).
+	Here.BrokenProps.Reset();
+	for (TActorIterator<ABreakableProp> It(World); It; ++It)
+	{
+		if (It->IsBroken())
+		{
+			Here.BrokenProps.Add(It->GetSaveKey());
 		}
 	}
 	Here.LootWeapons.Reset();
@@ -182,6 +198,15 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 			}
 		}
 
+		// The crates and barrels broken before stand as stumps: what they dropped comes back below with the rest of the loot.
+		for (TActorIterator<ABreakableProp> It(World); It; ++It)
+		{
+			if (Here->BrokenProps.Contains(It->GetSaveKey()))
+			{
+				It->RestoreBroken();
+			}
+		}
+
 		// Any other loot the level began with is in the save if it was still lying around: it comes back from there.
 		TArray<AActor*> Stale;
 		for (TActorIterator<AWeaponBase> It(World); It; ++It)
@@ -236,7 +261,15 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 			Controller->SetControlRotation(FRotator(Save.PlayerView.Pitch, Save.PlayerView.Yaw, 0.f));
 		}
 		// The guns first: one in hand can change the player's max health (a Grasping iron's), keeping health's share,
-		// so health set before it would come back lower on every load.
+		// so health set before it would come back lower on every load. The grenades go in before the guns, so the gun
+		// that comes into hand doesn't give the starting two on top (and announce +2) of the count the session kept.
+		if (Save.bHasThrowables)
+		{
+			if (UPlayerThrowComponent* Throw = UPlayerThrowComponent::Find(Pawn))
+			{
+				Throw->RestoreThrowables(Save.Throwables);
+			}
+		}
 		if (UWeaponManagerComponent* Manager = Pawn->FindComponentByClass<UWeaponManagerComponent>())
 		{
 			if (Save.bHasInventory)

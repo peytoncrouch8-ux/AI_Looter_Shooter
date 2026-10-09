@@ -15,7 +15,8 @@ struct FRandomStream;
  * ammo leans toward the class of the gun that made the kill, a Greedy iron's kill rolls at its curse's extra luck, and a
  * practice area the player has already left once (Skyreach, UAreaRulesSubsystem::DropsGuns) drops only the ammo.
  * A creature's death may also leave soul-motes (DropSoulMotes), which heal; they are rolled apart from the table, so
- * the loot's own odds don't move, and they drop in a practice area too.
+ * the loot's own odds don't move, and they drop in a practice area too. So may a grave-salt grenade (AGrenadePickup, by
+ * FThrowRules::DropChance for the creature's rank and the grenades the player carries), also apart from the table.
  */
 UCLASS(ClassGroup = (Looter), meta = (BlueprintSpawnableComponent))
 class AI_LOOTER_SHOOTER_API ULootDropComponent : public UActorComponent

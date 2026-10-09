@@ -129,6 +129,8 @@ private:
 	float HopTime = 0.f;
 	float NextHopDelay = 0.5f;
 	FVector HopDirection = FVector::ForwardVector;
+	/** The hop it's crouching for is a small shuffle aside from a neighbour (it was idle), not a stroll's hop. */
+	bool bShuffleHop = false;
 	FVector LaunchedFrom = FVector::ZeroVector;
 	float PlannedLength = 0.f;
 	/** Hops in a row that got less than a third of the way (something in the way). */

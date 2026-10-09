@@ -24,13 +24,15 @@ enum class EWeaponFireMode : uint8
 	Burst
 };
 
-/** What kind of gun it is: picks its icons. */
+/** What kind of gun it is: picks its icons, its shot's sound and kick, and its nicknames. */
 UENUM(BlueprintType)
 enum class EWeaponKind : uint8
 {
 	None,
 	Rifle,
-	Shotgun
+	Shotgun,
+	/** The Drover: a six-gun on pistol ammo (DA_Revolver). Saved as its name, so the kinds above keep their numbers. */
+	Revolver
 };
 
 /** The part of a gun a reload visibly works on. */
@@ -42,6 +44,11 @@ enum class EWeaponReloadPart : uint8
 	Magazine,
 	/** Shotguns: shells are pushed in one at a time, then the pump is racked. */
 	Pump,
+	/**
+	 * Revolvers: the cylinder swings out to the left on its crane, the empties are punched out, a speedloader drops six
+	 * fresh rounds in and the cylinder is snapped home. The cylinder also turns a chamber with every shot.
+	 */
+	Cylinder,
 };
 
 /** The final numbers a weapon fires with. Produced by rolling a UWeaponDefinition. */

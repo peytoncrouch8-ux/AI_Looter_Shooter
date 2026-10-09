@@ -264,6 +264,79 @@ bool FControlHintMeleeTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FControlHintGrenadeTest, "Looter.Tutorial.Hints.Grenade",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FControlHintGrenadeTest::RunTest(const FString& Parameters)
+{
+	// Grenade: a crowd ahead (the sense reports it only with a grenade in hand and none thrown yet); gone as they throw.
+	FControlHintRules Rules;
+	Rules.Learn(EControlHint::Move);
+	FControlHintInput Crowd = InControl();
+	Crowd.bCrowdAhead = true;
+	Rules.Update(Crowd, 0.1f);
+	TestTrue(TEXT("A crowd ahead: the grenade hint"), Rules.GetShown() == EControlHint::Grenade);
+	TestEqual(TEXT("Its key: Grenade"), FControlHintRules::Action(EControlHint::Grenade), FName(TEXT("Grenade")));
+	TestEqual(TEXT("Its words"), FControlHintRules::Words(EControlHint::Grenade).ToString(), FString(TEXT("Grenade: salt the crowd")));
+	TestTrue(TEXT("A momentary hint: about a crowd, not a habit"), FControlHintRules::IsMomentary(EControlHint::Grenade));
+	TestEqual(TEXT("Three times in all"), FControlHintRules::MaxShows(EControlHint::Grenade), 3);
+	TestTrue(TEXT("Saved by its name"), FControlHintRules::FromId(FControlHintRules::Id(EControlHint::Grenade)) == EControlHint::Grenade);
+	FControlHintInput Threw = Crowd;
+	Threw.bThrew = true;
+	Rules.Update(Threw, 0.1f);
+	TestTrue(TEXT("Thrown: gone, learned"), EndedDone(Rules, EControlHint::Grenade));
+	Run(Rules, Crowd, FControlHintRules::RetrySeconds + 5.f);
+	TestFalse(TEXT("Another crowd, later: never again"), Rules.IsShowing());
+
+	// A creature close comes first (melee is weighed before the grenade), the crowd after it.
+	FControlHintRules Order;
+	Order.Learn(EControlHint::Move);
+	FControlHintInput Both = Crowd;
+	Both.bCloseTarget = true;
+	Order.Update(Both, 0.1f);
+	TestTrue(TEXT("Melee before the grenade"), Order.GetShown() == EControlHint::Melee);
+	FControlHintInput Struck = Both;
+	Struck.bMeleed = true;
+	Order.Update(Struck, 0.1f);
+	Run(Order, Crowd, FControlHintRules::GapSeconds + 0.2f);
+	TestTrue(TEXT("...then the grenade"), Order.GetShown() == EControlHint::Grenade);
+
+	// The crowd breaks up: the hint lingers a moment, then fades unheeded, and may come again for the next one.
+	FControlHintRules Past;
+	Past.Learn(EControlHint::Move);
+	Past.Update(Crowd, 0.1f);
+	Run(Past, InControl(), FControlHintRules::LingerSeconds - 0.3f);
+	TestTrue(TEXT("The crowd just gone: still up a moment"), Past.GetShown() == EControlHint::Grenade);
+	Run(Past, InControl(), 0.6f);
+	TestTrue(TEXT("Gone a while: it fades, unheeded"), !Past.IsShowing() && Past.GetLastEnd() == EControlHintEnd::TimedOut);
+	Run(Past, Crowd, FControlHintRules::RetrySeconds + 1.f);
+	TestTrue(TEXT("The next crowd, after the wait: back"), Past.GetShown() == EControlHint::Grenade);
+
+	// Throwing before ever seeing it (a player who knows the game): learned without a hint, hints off or not.
+	FControlHintRules Knows;
+	Knows.Learn(EControlHint::Move);
+	Knows.Update(Threw, 0.1f);
+	Run(Knows, Crowd, 30.f);
+	TestTrue(TEXT("Thrown unasked: learned without a hint"), Knows.GetMemory(EControlHint::Grenade).bLearned
+		&& Knows.GetMemory(EControlHint::Grenade).Shows == 0);
+	TestFalse(TEXT("...and a crowd shows nothing"), Knows.IsShowing());
+	FControlHintRules Off;
+	Off.Learn(EControlHint::Move);
+	FControlHintInput OffThrew = Threw;
+	OffThrew.bEnabled = false;
+	Off.Update(OffThrew, 0.1f);
+	TestTrue(TEXT("Hints off: a throw still learns it"), Off.GetMemory(EControlHint::Grenade).bLearned);
+
+	// Not in control (a menu, a scene): no hint for a crowd.
+	FControlHintRules Held;
+	Held.Learn(EControlHint::Move);
+	FControlHintInput Away = Crowd;
+	Away.bInControl = false;
+	Run(Held, Away, 5.f);
+	TestFalse(TEXT("A crowd ahead under a menu: nothing"), Held.IsShowing());
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FControlHintSwapTest, "Looter.Tutorial.Hints.Swap",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 

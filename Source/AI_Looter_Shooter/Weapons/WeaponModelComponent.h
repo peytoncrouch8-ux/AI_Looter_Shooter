@@ -46,8 +46,32 @@ public:
 
 	EWeaponReloadPart GetReloadPart() const { return ReloadPartMesh ? ReloadPart : EWeaponReloadPart::None; }
 
-	/** Moves the reload's part this far out of place (cm, along its way out) and shows or hides it. */
+	/**
+	 * Moves the reload's part this far out of place (cm, along its way out) and shows or hides it. A revolver's cylinder
+	 * swings instead: Travel is how far it has swung out on its crane (degrees, to the gun's left).
+	 */
 	void SetReloadTravel(float Travel, bool bShow);
+
+	/**
+	 * A revolver's cylinder turns on by Chambers (the next round under the hammer), eased over CylinderTurnSeconds after a
+	 * short wait (the recoil first); nothing for a gun without one. UpdateCylinder plays it out.
+	 */
+	void TurnCylinder(int32 Chambers);
+
+	/** Advances the cylinder's turn. True while it's still turning (the gun keeps ticking for it). */
+	bool UpdateCylinder(float DeltaSeconds);
+
+	bool IsCylinderTurning() const { return CylinderTurnAge < CylinderTurnDelay + CylinderTurnSeconds; }
+
+	/** The chambers in this gun's cylinder (its part's capacity), 0 without one. */
+	int32 GetCylinderChambers() const { return ReloadPart == EWeaponReloadPart::Cylinder && ReloadPartMesh ? CylinderChambers : 0; }
+
+	/** How far the cylinder has turned since the gun was built, in chambers (fractions mid-turn). */
+	float GetCylinderTurn() const { return CylinderTurnShown; }
+
+	/** The cylinder's turn after a shot: the wait (the hammer's fall and the kick) and the turn itself (seconds). */
+	static constexpr float CylinderTurnDelay = 0.04f;
+	static constexpr float CylinderTurnSeconds = 0.12f;
 
 	/** Draws the parts like first-person arms (own field of view, no clipping) or like the world. */
 	void SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType Type);
@@ -98,13 +122,19 @@ private:
 	/** Picks the part the tally goes on and where on it: the stock's or the body's row (WeaponModelNotches.cpp). */
 	void ChooseNotchPart(UStaticMeshComponent* Stock, UStaticMeshComponent* Body);
 
+	/** Puts the cylinder where its swing and its turn have it: turned about its own axis, swung about its crane. */
+	void PoseCylinder();
+
 	/** The slot (or the socket it hangs from) whose part is the sight. */
 	const FName SightSocket = TEXT("Sight");
 	/** On a sight: the point the eye lines up with when aiming (the dot, an optic's center, the irons' notch). */
 	const FName AimSocket = TEXT("Aim");
-	/** The slots whose parts can take the tally: the stock's, else the body's. */
+	/** The slots whose parts can take the tally: the stock's (a revolver's grip, where gunfighters cut theirs), else the body's. */
 	const FName StockSlot = TEXT("Stock");
+	const FName GripSlot = TEXT("Grip");
 	const FName BodySlot = TEXT("Body");
+	/** On a revolver's cylinder: the crane's hinge it swings out on, in the cylinder's own space. */
+	const FName CraneSocket = TEXT("Crane");
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> Parts;
@@ -127,6 +157,17 @@ private:
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> Paints;
 
 	EWeaponReloadPart ReloadPart = EWeaponReloadPart::None;
+
+	/** A revolver's cylinder: its chambers, its crane's hinge (its own space), its swing (degrees) and its turn (chambers). */
+	int32 CylinderChambers = 0;
+	FVector CranePivot = FVector::ZeroVector;
+	float CylinderSwing = 0.f;
+	float CylinderTurnShown = 0.f;
+	float CylinderTurnFrom = 0.f;
+	float CylinderTurnTo = 0.f;
+	/** Seconds since the last shot's turn began (past its wait and turn: still). */
+	float CylinderTurnAge = 1000.f;
+
 	FVector Muzzle = FVector::ZeroVector;
 	FVector Grip = FVector::ZeroVector;
 	FVector Foregrip = FVector::ZeroVector;

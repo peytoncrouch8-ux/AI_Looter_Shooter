@@ -207,7 +207,38 @@ bool FBossSealTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("One wall across the gap"), Gate->GetWalls().Num(), 1);
 		TestTrue(TEXT("Ahead of the gate is inside"), Gate->IsInside(FVector(300.0, 400.0, 0.0), 150.f));
 		TestFalse(TEXT("Behind it is outside"), Gate->IsInside(FVector(-300.0, 400.0, 0.0)));
+
+		// Where a player stands against the gate's line: the nearest point on it, flat, at its own height.
+		FVector Nearest;
+		const float Away = BossSealFog::NearestOnPath(Gate->GetPath(), Gate->IsClosed(), FVector(300.0, 400.0, 100.0), Nearest);
+		TestNearlyEqual(TEXT("3 m ahead of the gate's middle: 3 m from the line"), Away, 300.f, 0.5f);
+		TestTrue(TEXT("...straight across from it"), Nearest.Equals(FVector(0.0, 400.0, 0.0), 0.5));
+		BossSealFog::NearestOnPath(Gate->GetPath(), Gate->IsClosed(), FVector(300.0, 1200.0, 0.0), Nearest);
+		TestTrue(TEXT("Past the gate's end: the end itself"), Nearest.Equals(FVector(0.0, 800.0, 0.0), 0.5));
 	}
+
+	// The ring's: a point 5 m inside it is about 5 m from its wall (the wall is chords, a few cm in from the circle).
+	FVector Nearest;
+	const float Away = BossSealFog::NearestOnPath(Ring->GetPath(), Ring->IsClosed(), FVector(1000.0, 0.0, 100.0), Nearest);
+	TestNearlyEqual(TEXT("5 m inside the ring: 5 m from its wall"), Away, 500.f, 10.f);
+	TestTrue(TEXT("...at the wall"), Nearest.X > 1480.0 && FMath::Abs(Nearest.Y) < 100.0);
+
+	// The fog's look as rules: thickest at the foot, thinning to a quarter at the top, and never thickening on the way up.
+	TestNearlyEqual(TEXT("Fog: full strength at the foot"), BossSealFog::Density(0.f, 700.f), 1.f, 0.001f);
+	TestNearlyEqual(TEXT("...a quarter at the top"), BossSealFog::Density(700.f, 700.f), 0.25f, 0.001f);
+	bool bOnlyThins = true;
+	float Before = 2.f;
+	for (float Z = 0.f; Z <= 700.f; Z += 35.f)
+	{
+		const float Now = BossSealFog::Density(Z, 700.f);
+		bOnlyThins &= Now <= Before + UE_KINDA_SMALL_NUMBER;
+		Before = Now;
+	}
+	TestTrue(TEXT("...and only thins on the way up"), bOnlyThins);
+	// The flare where the player touches the wall: full against it, none from four metres out, weaker the farther between.
+	TestNearlyEqual(TEXT("Touching the wall: full flare"), BossSealFog::Flare(40.f), 1.f, 0.001f);
+	TestTrue(TEXT("2 m off: some, less than 1 m"), BossSealFog::Flare(200.f) > 0.f && BossSealFog::Flare(200.f) < BossSealFog::Flare(100.f));
+	TestNearlyEqual(TEXT("4 m off: none"), BossSealFog::Flare(400.f), 0.f, 0.001f);
 	return true;
 }
 

@@ -14,6 +14,8 @@ enum class EControlHint : uint8
 	Reload,
 	/** Melee: a creature close in front, and the player hasn't struck yet. */
 	Melee,
+	/** Grenade: a crowd (two or more creatures) ahead, a grenade in hand, and none thrown yet. */
+	Grenade,
 	/** Aim down sights: something to shoot far off under the crosshair. */
 	Aim,
 	/** Jump (and climb, where the mantle is): a knee-to-chest ledge just ahead. */
@@ -59,6 +61,10 @@ struct AI_LOOTER_SHOOTER_API FControlHintInput
 	bool bCloseTarget = false;
 	/** A melee strike started since the last look. */
 	bool bMeleed = false;
+	/** Two or more live creatures ahead in sight, with a grenade to throw and none thrown yet (UPlayerThrowComponent::CountTargetsAhead). */
+	bool bCrowdAhead = false;
+	/** A grenade throw started since the last look. */
+	bool bThrew = false;
 	/** Guns in the equip slots. */
 	int32 GunsEquipped = 0;
 	/** A gun came into the player's hands since the last look, past their first. */
@@ -101,9 +107,10 @@ enum class EControlHintEnd : uint8
  *  - Triggers, in control only: not moved for MoveIdleSeconds since control came (move); WalkSeconds of walking since the
  *    last sprint (sprint); SlideSprintSeconds of sprinting (slide); a ledge ahead (jump); a far target with a gun in hand
  *    and not aiming (aim); a low magazine with a reserve, not reloading (reload); a creature close in front, before the
- *    first strike (melee); two guns in the slots (swap); a gun picked up past the first (inventory, due until learned); at a
- *    bench with two guns of a kind (bench).
- *  - A hint shows up to ShowSeconds; one about a moment (a ledge, a far target, a low magazine, a close creature, the bench) goes LingerSeconds
+ *    first strike (melee); a crowd of two or more ahead with a grenade in hand, before the first throw (grenade); two guns
+ *    in the slots (swap); a gun picked up past the first (inventory, due until learned); at a bench with two guns of a kind
+ *    (bench).
+ *  - A hint shows up to ShowSeconds; one about a moment (a ledge, a far target, a low magazine, a close creature, a crowd, the bench) goes LingerSeconds
  *    after the moment passes. Unheeded, it may come again after RetrySeconds, until it has shown MaxShows times.
  *  - GapSeconds of quiet between two hints. With hints off, the one on show goes and none come.
  */
@@ -148,7 +155,7 @@ public:
 	/** The hint with that name, or Count. */
 	static EControlHint FromId(FName InId);
 
-	/** It's about a moment that passes (a ledge, a far target, a low magazine, a close creature, the bench) rather than a habit. */
+	/** It's about a moment that passes (a ledge, a far target, a low magazine, a close creature, a crowd, the bench) rather than a habit. */
 	static bool IsMomentary(EControlHint Hint);
 
 	/** One look's worth: what the player did is learned, the shown hint's time runs, and the next one may come. */

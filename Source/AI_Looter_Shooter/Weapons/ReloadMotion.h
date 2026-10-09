@@ -15,7 +15,15 @@ enum class EReloadStep : uint8
 	/** A shell pushed into the tube. */
 	ShellIn,
 	/** The pump racked. */
-	Pump
+	Pump,
+	/** The revolver's latch pushed and its cylinder swung out on the crane. */
+	CylinderOut,
+	/** The ejector rod punched: the six empties tumble out. */
+	Eject,
+	/** The speedloader's rounds dropped into the chambers and let go. */
+	RoundsIn,
+	/** The cylinder snapped home into the frame. */
+	CylinderIn
 };
 
 /** Where in a reload (its progress, 0 to 1) a step happens. */
@@ -33,7 +41,8 @@ namespace LooterReload
 {
 	/**
 	 * The reload's sounds where its motion makes them, in order: the magazine out, the fresh one seated, the charging
-	 * handle; or each shell pushed in, then the pump. Empty for None.
+	 * handle; each shell pushed in, then the pump; or the cylinder out, the empties punched out, the fresh rounds in, the
+	 * cylinder home. Empty for None.
 	 */
 	AI_LOOTER_SHOOTER_API TConstArrayView<FReloadStepAt> Steps(EWeaponReloadPart Part);
 
@@ -45,6 +54,15 @@ namespace LooterReload
 
 	/** How far the pump is pulled back (cm). */
 	AI_LOOTER_SHOOTER_API float PumpTravel(float Progress);
+
+	/**
+	 * How far the revolver's cylinder has swung out on its crane (degrees, out to the gun's left): it flicks open early,
+	 * stays out through the ejecting and loading, and snaps home near the end with a little bounce.
+	 */
+	AI_LOOTER_SHOOTER_API float CylinderSwing(float Progress);
+
+	/** The cylinder's swing when fully out (degrees), clear of the frame. */
+	inline constexpr float CylinderOpenDegrees = 100.f;
 
 	/** The first-person gun's motion on top of its hold pose, in camera space (X forward, Y right, Z up; degrees). */
 	AI_LOOTER_SHOOTER_API void ViewModelPose(EWeaponReloadPart Part, float Progress, FVector& OutOffset, FRotator& OutRotation);

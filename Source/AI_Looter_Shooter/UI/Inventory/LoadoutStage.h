@@ -6,6 +6,7 @@
 #include "LoadoutStage.generated.h"
 
 class ACharacter;
+class AWeaponBase;
 class UPointLightComponent;
 class UPrimitiveComponent;
 class USceneCaptureComponent2D;
@@ -27,9 +28,14 @@ namespace LoadoutCarry
 {
 	/**
 	 * The gun in hand is held; the others are carried in slot order, the first on the back and the next at the hip (with
-	 * more slots they keep alternating). Slots past the last weapon carry nothing.
+	 * more slots they keep alternating). Slots past the last weapon carry nothing. Given each slot's kind (KindsOf), a
+	 * holstered Revolver (the Drover) rides on the hip, where a six-gun is drawn from, and the long guns on the back; the
+	 * kinds alternate within themselves as above (two revolvers: the hip, then the back).
 	 */
-	AI_LOOTER_SHOOTER_API ELoadoutCarry ForSlot(int32 Slot, int32 NumWeapons, int32 ActiveSlot);
+	AI_LOOTER_SHOOTER_API ELoadoutCarry ForSlot(int32 Slot, int32 NumWeapons, int32 ActiveSlot, TConstArrayView<EWeaponKind> Kinds = {});
+
+	/** The kind of each equipped gun, in slot order (None for an empty slot), for ForSlot. */
+	AI_LOOTER_SHOOTER_API TArray<EWeaponKind> KindsOf(const TArray<AWeaponBase*>& Equipped);
 
 	/** "In hand", "On back", "On hip", "Empty". */
 	AI_LOOTER_SHOOTER_API const TCHAR* Label(ELoadoutCarry Carry);

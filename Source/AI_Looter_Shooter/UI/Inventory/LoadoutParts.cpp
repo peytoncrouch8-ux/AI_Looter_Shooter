@@ -68,12 +68,14 @@ namespace LoadoutParts
 	{
 		static const FInkedIcon Rifle = InkedIconData::Rifle();
 		static const FInkedIcon Shotgun = InkedIconData::Shotgun();
-		return Kind == EWeaponKind::Shotgun ? Shotgun : Rifle;
+		static const FInkedIcon Revolver = InkedIconData::Revolver();
+		return Kind == EWeaponKind::Shotgun ? Shotgun : (Kind == EWeaponKind::Revolver ? Revolver : Rifle);
 	}
 
 	FName GunIconName(EWeaponKind Kind)
 	{
-		return Kind == EWeaponKind::Shotgun ? FName(TEXT("InkedShotgun")) : FName(TEXT("InkedRifle"));
+		return Kind == EWeaponKind::Shotgun ? FName(TEXT("InkedShotgun"))
+			: (Kind == EWeaponKind::Revolver ? FName(TEXT("InkedRevolver")) : FName(TEXT("InkedRifle")));
 	}
 
 	const FInkedIcon& AmmoIcon(EAmmoType Type)
@@ -370,8 +372,8 @@ namespace LoadoutParts
 
 	UWidget* MakePageTabs(UWidgetTree* Tree, int32 ShownPage, TArray<ULooterButton*>& OutTabs)
 	{
-		static const TCHAR* const Pages[] = { TEXT("Loadout"), Ledger::BookName(false), TEXT("Missions") };
-		// A quiet bar rather than three framed tabs (2026-10-08 redesign): the page's name is the title, the others wait
+		static const TCHAR* const Pages[] = { TEXT("Loadout"), Ledger::BookName(false), TEXT("Missions"), TEXT("Map") };
+		// A quiet bar rather than framed tabs (2026-10-08 redesign): the page's name is the title, the others wait
 		// dim beside it, and each shows the number key that turns to it.
 		UHorizontalBox* Strip = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		OutTabs.Reset();

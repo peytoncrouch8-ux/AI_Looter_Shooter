@@ -27,6 +27,8 @@ FName FControlHintRules::Action(EControlHint Hint)
 	case EControlHint::Reload:    return TEXT("Reload");
 	// UKeyBindingSubsystem::MeleeBindingId(), spelled out here as the others are so the rules need no subsystem.
 	case EControlHint::Melee:     return TEXT("Melee");
+	// UKeyBindingSubsystem::GrenadeBindingId().
+	case EControlHint::Grenade:   return TEXT("Grenade");
 	case EControlHint::Aim:       return TEXT("Aim");
 	case EControlHint::Jump:      return TEXT("Jump");
 	case EControlHint::Sprint:    return TEXT("Sprint");
@@ -47,6 +49,7 @@ FText FControlHintRules::Words(EControlHint Hint, bool bToggle)
 	case EControlHint::Move:      return LOCTEXT("Move", "Move, and look around with the mouse");
 	case EControlHint::Reload:    return LOCTEXT("Reload", "Reload");
 	case EControlHint::Melee:     return LOCTEXT("Melee", "Melee: strike what gets too close");
+	case EControlHint::Grenade:   return LOCTEXT("Grenade", "Grenade: salt the crowd");
 	case EControlHint::Aim:       return LOCTEXT("Aim", "Aim down the sights for a long shot");
 	// Where the mantle is, a jump at a ledge climbs it; where it isn't, a ledge this low still takes a jump.
 	case EControlHint::Jump:      return LOCTEXT("Jump", "Jump up onto ledges");
@@ -67,6 +70,7 @@ FName FControlHintRules::Id(EControlHint Hint)
 	case EControlHint::Move:      return TEXT("Move");
 	case EControlHint::Reload:    return TEXT("Reload");
 	case EControlHint::Melee:     return TEXT("Melee");
+	case EControlHint::Grenade:   return TEXT("Grenade");
 	case EControlHint::Aim:       return TEXT("Aim");
 	case EControlHint::Jump:      return TEXT("Jump");
 	case EControlHint::Sprint:    return TEXT("Sprint");
@@ -94,8 +98,8 @@ EControlHint FControlHintRules::FromId(FName InId)
 
 bool FControlHintRules::IsMomentary(EControlHint Hint)
 {
-	return Hint == EControlHint::Reload || Hint == EControlHint::Melee || Hint == EControlHint::Aim || Hint == EControlHint::Jump
-		|| Hint == EControlHint::Bench;
+	return Hint == EControlHint::Reload || Hint == EControlHint::Melee || Hint == EControlHint::Grenade || Hint == EControlHint::Aim
+		|| Hint == EControlHint::Jump || Hint == EControlHint::Bench;
 }
 
 // ---------------------------------------------------------------------------
@@ -187,6 +191,10 @@ void FControlHintRules::LearnFrom(const FControlHintInput& In)
 	{
 		Learn(EControlHint::Melee);
 	}
+	if (In.bThrew)
+	{
+		Learn(EControlHint::Grenade);
+	}
 	if (In.bSwapped)
 	{
 		Learn(EControlHint::Swap);
@@ -231,7 +239,9 @@ bool FControlHintRules::Wants(EControlHint Hint, const FControlHintInput& In) co
 	case EControlHint::Reload:    return In.bGunInHand && In.bMagazineLow && !In.bReloading;
 	// Fists work too, so no gun needed. The sense only reports a close creature to a body that hasn't struck yet.
 	case EControlHint::Melee:     return In.bCloseTarget;
-	case EControlHint::Aim:       return In.bGunInHand && In.bFarTarget && !In.bAiming;
+	// The sense only reports a crowd to a body with a grenade in hand that hasn't thrown one yet.
+	case EControlHint::Grenade:   return In.bCrowdAhead;
+	case EControlHint::Aim:      return In.bGunInHand && In.bFarTarget && !In.bAiming;
 	case EControlHint::Jump:      return In.bLedgeAhead;
 	case EControlHint::Sprint:    return WalkFor >= WalkSeconds;
 	case EControlHint::Slide:     return SprintFor >= SlideSprintSeconds;

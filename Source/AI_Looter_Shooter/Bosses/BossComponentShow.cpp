@@ -30,6 +30,61 @@ namespace
 
 	/** A crit that would stagger a boss busy with something it can't break off leaves it this near: one more does it. */
 	constexpr float BusyBuildUp = 0.95f;
+
+	/**
+	 * The world's clock at a boss's death belongs to the world, not to a boss: two bosses dying together would otherwise each
+	 * set it and each put it back to full speed under the other. A dying boss claims a speed; the world runs at the slowest
+	 * claimed, and at full speed again once the last claim is let go.
+	 */
+	TMap<TWeakObjectPtr<UWorld>, TMap<const UBossComponent*, float>> DeathSlowClaims;
+
+	void ApplyDeathSlow(UWorld* World)
+	{
+		const TMap<const UBossComponent*, float>* Claims = DeathSlowClaims.Find(World);
+		float Dilation = 1.f;
+		if (Claims)
+		{
+			for (const TPair<const UBossComponent*, float>& Claim : *Claims)
+			{
+				Dilation = FMath::Min(Dilation, Claim.Value);
+			}
+		}
+		if (World->GetWorldSettings())
+		{
+			UGameplayStatics::SetGlobalTimeDilation(World, Dilation);
+		}
+	}
+
+	/** Claims the clock at this speed for Boss (a claim it already has changes to it). */
+	void ClaimDeathSlow(UWorld* World, const UBossComponent* Boss, float Dilation)
+	{
+		// Worlds that have gone (a play session ended) don't stay in the list.
+		for (auto It = DeathSlowClaims.CreateIterator(); It; ++It)
+		{
+			if (!It.Key().IsValid())
+			{
+				It.RemoveCurrent();
+			}
+		}
+		DeathSlowClaims.FindOrAdd(World).Add(Boss, Dilation);
+		ApplyDeathSlow(World);
+	}
+
+	/** Lets Boss's claim go: the world speeds up to the slowest still claimed, or to full speed when none is. */
+	void ReleaseDeathSlow(UWorld* World, const UBossComponent* Boss)
+	{
+		TMap<const UBossComponent*, float>* Claims = DeathSlowClaims.Find(World);
+		if (!Claims)
+		{
+			return;
+		}
+		Claims->Remove(Boss);
+		if (Claims->IsEmpty())
+		{
+			DeathSlowClaims.Remove(World);
+		}
+		ApplyDeathSlow(World);
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -104,7 +159,7 @@ void UBossComponent::StartDeathSlow()
 		return;
 	}
 	const float Slow = FMath::Clamp(Show.DeathSlowMo, 0.05f, 1.f);
-	UGameplayStatics::SetGlobalTimeDilation(World, Slow);
+	ClaimDeathSlow(World, this, Slow);
 	bDeathSlowOn = true;
 	// Timers run on the slowed clock: two thirds of the beat (in real seconds) held slow, the rest half the way back.
 	World->GetTimerManager().SetTimer(DeathSlowTimer, FTimerDelegate::CreateUObject(this, &UBossComponent::EaseDeathSlow),
@@ -121,7 +176,7 @@ void UBossComponent::EaseDeathSlow()
 		return;
 	}
 	const float Half = FMath::Lerp(FMath::Clamp(Show.DeathSlowMo, 0.05f, 1.f), 1.f, 0.5f);
-	UGameplayStatics::SetGlobalTimeDilation(World, Half);
+	ClaimDeathSlow(World, this, Half);
 	World->GetTimerManager().SetTimer(DeathSlowTimer, FTimerDelegate::CreateUObject(this, &UBossComponent::EndDeathSlow),
 		FMath::Max(Show.DeathSlowSeconds * (1.f / 3.f) * Half, 0.01f), false);
 }
@@ -138,10 +193,11 @@ void UBossComponent::EndDeathSlow()
 		return;
 	}
 	bDeathSlowOn = false;
-	// Back to full speed (nothing else in the game holds the world's clock slowed for long; a hit's stop is shorter).
-	if (World && World->GetWorldSettings())
+	// Back to full speed unless another dying boss still holds the clock slow (nothing else in the game holds the world's clock
+	// slowed for long; a hit's stop is shorter).
+	if (World)
 	{
-		UGameplayStatics::SetGlobalTimeDilation(World, 1.f);
+		ReleaseDeathSlow(World, this);
 	}
 }
 

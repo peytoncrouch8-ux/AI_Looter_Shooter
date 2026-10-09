@@ -120,6 +120,9 @@ void UFaunaSubsystem::ReportNoise(const FVector& Location, float Radius, EFaunaN
 {
 	const UWorld* World = GetWorld();
 	const double Now = World ? World->GetTimeSeconds() : 0.0;
+	// Forgotten here, not only in Tick: Tick leaves before pruning when ambient life is off or there are no fauna in the level,
+	// and every shot and bullet strike lands here regardless, so the list would only grow.
+	Noises.RemoveAll([Now](const FFaunaNoise& Noise) { return Now - Noise.Time > NoiseMemory; });
 	for (FFaunaNoise& Known : Noises)
 	{
 		if (Known.Kind == Kind && Now - Known.Time < NoiseMergeSeconds

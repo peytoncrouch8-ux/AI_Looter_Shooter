@@ -9,8 +9,8 @@
 
 using namespace LooterStancePoseDetail;
 
-// The stance pose's body: lean, aim, crouch and slide. The weapon's part (recoil, a melee strike's jab, the left hand on
-// the foregrip) is in LooterStancePoseWeapon.cpp, the mantle's and vault's in LooterStancePoseClimb.cpp.
+// The stance pose's body: lean, aim, crouch and slide. The weapon's part (a short gun held out, recoil, a melee strike's
+// jab, the left hand on the foregrip) is in LooterStancePoseWeapon.cpp, the mantle's and vault's in LooterStancePoseClimb.cpp.
 
 bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Stance)
 {
@@ -129,6 +129,13 @@ bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Sta
 	if (Stance.Climb.Legs > UE_KINDA_SMALL_NUMBER)
 	{
 		ApplyClimbLegs(Pose, Legs, Pelvis, Stance, Forward, Right);
+	}
+
+	// A six-gun is held out along its barrel, where the rifle poses tuck the hand in; the jab, the kick and the left hand
+	// all start from there.
+	if (Stance.bHandOnForegrip && Stance.HoldReach > 0.f)
+	{
+		ApplyHoldReach(Pose, Bones, Stance, Right);
 	}
 
 	// A melee strike drives the right hand (and the gun in it) forward; the left hand finds the foregrip after it.

@@ -62,8 +62,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Respawn")
 	FName ActiveAfterMission;
 
+	/** What the map calls it ("The family plot"). Empty: its id in words ("Family Plot" for FamilyPlot). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Respawn")
+	FText DisplayName;
+
 	/** MarkerId, or the actor's name without one. */
 	FName GetMarkerId() const;
+
+	/** DisplayName, or the id in words. */
+	FText GetGraveName() const;
+
+	/**
+	 * Where the player gets up here (a death's wake-up, a fast travel's arrival): standing on its spot, facing its arrow,
+	 * level. The spot is on the ground: the player's middle goes half their height above it.
+	 */
+	FRespawnWakeSpot GetWakeSpot() const;
 
 	/** It's open in this story: from the start, recorded open, or its mission finished. */
 	bool IsActive(const FCampaignRecord& Campaign) const;

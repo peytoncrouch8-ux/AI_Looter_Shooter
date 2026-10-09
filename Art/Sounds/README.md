@@ -10,9 +10,12 @@ Art/Sounds/recipes/      one recipe per cue, by group: guns, impacts, feedback, 
                          soul-motes), player (and the melee strike, the mantle and vault), creatures (and the rank
                          sting, the ambushes' entrances), world, fauna (the ambient birds, insects, tumbleweeds, dust
                          devils, washing), bosses (the boss fights' stings and voices), ambience (beds by area and
-                         light, sweeteners) and music (the score: themes, combat and boss layers, stingers); kit.py
-                         holds the shared building blocks (clicks, clacks, whooshes, cloth, scrapes, creaks, bubbles,
-                         chimes, plucked strings...) and band.py the score's instruments and mixer
+                         light, sweeteners), music (the score: themes, combat and boss layers, stingers), voices (the
+                         Unpaid's murmured barks, the idle calls, the living heard through walls), throwables (the
+                         grave-salt grenade) and props (the lootable world: crates, barrels, graves, coffins, mailboxes,
+                         footlockers); kit.py holds the shared building blocks (clicks, clacks, whooshes, cloth,
+                         scrapes, creaks, bubbles, chimes, plucked strings...) and band.py the score's instruments and
+                         mixer
 Art/Sounds/render.py     renders, mixes and checks (run by Tools/sounds.ps1)
 Art/Sounds/check.py      the check: numbers, flags, pictures and the listening page
 Art/Sounds/cues.json     every cue's files and mix, read by Tools/Unreal/build_sound_bank.py
@@ -96,7 +99,10 @@ presence 2-5 kHz, high, air).
   faint pellet hiss). The tail is two slap-backs then 18-26 echoes at random distances, each darker and more smeared
   the farther it is, over a rumble whose level wanders: about 1 s for the rifle, 1.5 s for the shotgun. A soft clip
   before the limiter keeps the snap. Reloads are clanks: steel modes held to about 1-4 kHz, a polymer or wood knock
-  and a low thud, with the slides kept dark and well under the hits.
+  and a low thud, with the slides kept dark and well under the hits. The Drover revolver (2026-10-09) follows the same
+  recipe with its own shot (a bigger, slower pulse than the rifle's, a smaller one than the shotgun's, the cylinder gap's
+  spit) and a cue for each reload step (cylinder out, eject, rounds in, cylinder home), each starting where
+  `Weapons/ReloadMotion.cpp`'s step does.
 - **Creatures** sound like what they are: a spider's shell cracks when hit and it clicks, rasps and hisses (no voice);
   a slime is all jelly (slaps, squelches, wobble, bubbles; no voice); the Unpaid are ghostly voices, and a bullet
   through one is a hollow thump and a puff of grave dust. Each kind has its own hit (`Creature.<Kind>.Hit`).
@@ -110,6 +116,16 @@ presence 2-5 kHz, high, air).
   notes, a swallow's twitter swoops past with its Doppler. The crow's caw is a formant voice (beaky tract, rough,
   rasped, overdriven). Wings are pushes of air (a whump and a feather rustle per downstroke; a crow's few, a sparrow's
   a twenty-a-second whirr). The flies loop keeps a whole number of wingbeats per fly, so it loops without a seam.
+- **Props** (2026-10-09, `recipes/props.py`): the lootable world, physical first: crates and barrels bursting (boards
+  cracking, nails squealing, staves and a hoop springing apart, the pieces clattering down), a grave dug, a coffin pried and
+  its lid shoved off, a mailbox's tin door, a footlocker's lid. Heard in every yard, so the cracks stay off the 2-5 kHz band.
+- **Throwables** (2026-10-09, `recipes/throwables.py`): the grave-salt grenade, a steel tin packed with salt: the throw
+  (2D, a rush of air from the off hand), the bounce (a shell ringing, salt rattling behind), the fuse (a loop of fizz and
+  sputter), the burst (built like a gun's shot, with salt crackling on top), the sear on the Unpaid and the pickup.
+- **Voices** (2026-10-09, `recipes/voices.py`): the Unpaid's barks are murmured, never spoken: the game plays one breathy
+  syllable cue (`Creature.Unpaid.Murmur` voiced, `.Mutter` whispered) per syllable of the line shown over them, so each
+  starts at once and fades soon. Spiders and slimes get a rare idle call. The living on Ransom's Rest are heard through
+  their walls (hushed voices, coughs, a music box, a latch, a floorboard, Tilly's saw, a dog far off).
 - **Struck things** are modal: a set of decaying sines whose frequencies follow the object's physics (free bars,
   plates, wood, shells, cast bells), struck by a force pulse as long as the contact (hard steel ~0.1 ms, a heel
   several ms).

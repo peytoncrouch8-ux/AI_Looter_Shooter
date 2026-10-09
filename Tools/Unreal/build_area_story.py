@@ -336,6 +336,8 @@ def place_family_plot(build):
     grave_marker = build.place(marker_cls, (x, y, ground(x, y, hole.z, ignore=[grave])), yaw, label='Respawn_FamilyPlot',
                                folder='Gameplay')
     grave_marker.set_editor_property('marker_id', unreal.Name(FAMILY_PLOT))
+    # What the map calls it (the layout has no label for it; the design's words: "the family plot").
+    grave_marker.set_editor_property('display_name', unreal.Text('Family plot'))
     grave_marker.set_editor_property('active_after_mission', unreal.Name(MAIN1))
     build.log(f'the family plot\'s respawn grave at ({x:.0f}, {y:.0f}), open after {MAIN1}')
     return grave

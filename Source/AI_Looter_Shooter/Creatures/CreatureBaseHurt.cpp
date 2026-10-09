@@ -29,9 +29,11 @@ void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocat
 	{
 		return;
 	}
-	// Getting shot always gets its attention, even from beyond its sight range.
+	// Getting shot always gets its attention, even from beyond its sight range; but not the shot that kills it (this runs
+	// before its death), or a creature that never saw it coming would turn, growl and flash its rank's sting as it falls.
 	APawn* Attacker = InstigatedBy ? InstigatedBy->GetPawn() : nullptr;
-	if (!bPassive && !Target.IsValid() && IsValidTarget(Attacker))
+	const bool bKilled = Health->GetHealth() <= 0.f;
+	if (!bKilled && !bPassive && !Target.IsValid() && IsValidTarget(Attacker))
 	{
 		Target = Attacker;
 		if (State != ECreatureState::Attack)
@@ -41,17 +43,20 @@ void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocat
 	}
 	// A pack turns on whoever hurts one of them: every creature of its pack (its PackTag) within its call, which a rank
 	// can widen (a Gravebound spider calls every spider near it).
+	// (A killing blow still calls them: the fall of one of theirs is heard.)
 	const float CallRadius = GetPackCallRadius();
 	if (CallRadius > 0.f && IsValidTarget(Attacker))
 	{
-		for (TActorIterator<ACreatureBase> It(GetWorld()); It; ++It)
+		const double CallSquared = FMath::Square(static_cast<double>(CallRadius));
+		ForEachCreature([&](ACreatureBase& Other)
 		{
-			if (*It != this && It->SharesPackWith(*this)
-				&& FVector::DistSquared(It->GetActorLocation(), GetActorLocation()) <= FMath::Square(CallRadius))
+			// The level's actor walk skipped ones being destroyed; the creature list may still hold one for a moment.
+			if (&Other != this && !Other.IsActorBeingDestroyed() && Other.SharesPackWith(*this)
+				&& FVector::DistSquared(Other.GetActorLocation(), GetActorLocation()) <= CallSquared)
 			{
-				It->AlertTo(Attacker);
+				Other.AlertTo(Attacker);
 			}
-		}
+		});
 	}
 }
 

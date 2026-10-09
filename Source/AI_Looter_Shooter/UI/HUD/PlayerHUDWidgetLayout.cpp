@@ -1,6 +1,7 @@
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/HUD/HudDamageIndicatorWidget.h"
 #include "UI/HUD/HudFrameRateWidget.h"
+#include "UI/HUD/HudGrenadeWidget.h"
 #include "UI/HUD/HudInteractPromptWidget.h"
 #include "UI/HUD/HudLevelUpBannerWidget.h"
 #include "UI/HUD/HudMagazineWidget.h"
@@ -53,6 +54,8 @@ namespace
 	constexpr float ClusterBottom = 32.f;
 	/** The cartridge stands this far right of the slots' column. */
 	constexpr float CartridgeGap = 14.f;
+	/** The grenade counter sits this far above the column's top (slot 1's circle and the cartridge's tip). */
+	constexpr float GrenadeGap = 10.f;
 	/** The two lines under them: the status and fire mode, then the gun's name, each this far below the last. */
 	constexpr float LineGap = 4.f;
 	constexpr float ModeLineHeight = 20.f;
@@ -223,6 +226,11 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 				ChildSlot->SetPadding(FMargin(0.f, Top, 0.f, 0.f));
 			};
 
+			// Over the column, right-aligned: the grave-salt grenades carried (collapsed until the player has some), its
+			// count over the cartridge and its tin over the slots' circles.
+			GrenadeCounter = WidgetTree->ConstructWidget<UHudGrenadeWidget>(UHudGrenadeWidget::StaticClass());
+			AddRight(GrenadeCounter, 0.f);
+
 			UHorizontalBox* Arms = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			WeaponSlots = WidgetTree->ConstructWidget<UHudWeaponSlotsWidget>(UHudWeaponSlotsWidget::StaticClass());
 			Arms->AddChildToHorizontalBox(WeaponSlots)->SetVerticalAlignment(VAlign_Bottom);
@@ -230,7 +238,7 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			UHorizontalBoxSlot* CartridgeSlot = Arms->AddChildToHorizontalBox(MagazineGauge);
 			CartridgeSlot->SetVerticalAlignment(VAlign_Bottom);
 			CartridgeSlot->SetPadding(FMargin(CartridgeGap, 0.f, 0.f, 0.f));
-			AddRight(Arms, 0.f);
+			AddRight(Arms, GrenadeGap);
 
 			// The status (orange; "RELOADING", "[R] RELOAD", "NO AMMO") left of the fire mode, right-aligned.
 			UHorizontalBox* ModeRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -321,7 +329,7 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 
 		// Left of the crosshair: what was just picked up, where the eyes already are. The feed's lines end at its right
 		// edge, the newest level with the crosshair and the older ones rising above it.
-		UHudPickupFeedWidget* PickupFeed = WidgetTree->ConstructWidget<UHudPickupFeedWidget>(UHudPickupFeedWidget::StaticClass());
+		PickupFeed = WidgetTree->ConstructWidget<UHudPickupFeedWidget>(UHudPickupFeedWidget::StaticClass());
 		UCanvasPanelSlot* FeedSlot = PlaceOnCanvas(Root, PickupFeed, Center, FVector2D(1.f, 1.f),
 			FVector2D(-PickupFeedGap, UHudPickupFeedWidget::LineSpacing * 0.5f));
 		FeedSlot->SetAutoSize(false);

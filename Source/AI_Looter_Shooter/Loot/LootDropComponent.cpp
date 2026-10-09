@@ -5,10 +5,42 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/PlayerVitalsSubsystem.h"
 #include "Creatures/CreatureBase.h"
+#include "Loot/GrenadePickup.h"
+#include "Player/PlayerThrowComponent.h"
+#include "Player/PlayerThrowRules.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponCurseEffects.h"
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "Math/RandomStream.h"
+
+namespace
+{
+	/**
+	 * Rolls a grave-salt grenade for a kill (FThrowRules::DropChance: by rank, doubled with none, nothing when full) and pops
+	 * it out of the body as the ammo is. Only creatures have a rank, and nobody to pick one up (no player, no throw
+	 * component, as in most test levels) means none is made.
+	 */
+	void DropGrenade(const ACreatureBase& Creature)
+	{
+		UWorld* World = Creature.GetWorld();
+		const APlayerController* Player = World ? World->GetFirstPlayerController() : nullptr;
+		const UPlayerThrowComponent* Throw = Player ? UPlayerThrowComponent::Find(Player->GetPawn()) : nullptr;
+		if (!Throw || FMath::FRand() >= FThrowRules::DropChance(Creature.GetRank(), Throw->GetGrenades()))
+		{
+			return;
+		}
+		// A little lower and slower than the guns, like the ammo: it's one tin, not a fan of drops.
+		const FVector Outward = FRotator(0.f, FMath::FRandRange(0.f, 360.f), 0.f).Vector();
+		const FVector Velocity = Outward * FMath::FRandRange(150.f, 300.f) * 0.8f + FVector(0.f, 0.f, FMath::FRandRange(400.f, 550.f) * 0.8f);
+		if (AGrenadePickup* Pickup = AGrenadePickup::SpawnGrenades(World, 1, Creature.GetActorLocation() + FVector(0.f, 0.f, 60.f)))
+		{
+			Pickup->Toss(Velocity);
+		}
+	}
+}
 
 void ULootDropComponent::BeginPlay()
 {
@@ -48,6 +80,9 @@ void ULootDropComponent::HandleOwnerDeath(AController* Killer)
 	{
 		FRandomStream MoteRoll(FMath::Rand());
 		DropSoulMotes(MoteRoll);
+		// The grave-salt grenade is rolled apart from the table too, and a boss always leaves one (its own shower throws the
+		// rest).
+		DropGrenade(*Creature);
 	}
 
 	// Asked at the death rather than when play began, so turning the drop off after its owner has spawned still counts.

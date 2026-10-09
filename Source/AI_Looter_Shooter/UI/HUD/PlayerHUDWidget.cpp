@@ -1,5 +1,7 @@
 #include "UI/HUD/PlayerHUDWidget.h"
+#include "UI/HUD/HudGrenadeWidget.h"
 #include "UI/HUD/HudLevelUpBannerWidget.h"
+#include "UI/HUD/HudPickupFeedWidget.h"
 #include "UI/HUD/HudMagazineWidget.h"
 #include "UI/HUD/HudMissionCompleteWidget.h"
 #include "UI/HUD/HudPlayerFrameWidget.h"
@@ -12,9 +14,11 @@
 #include "Interaction/InteractionComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
+#include "Player/PlayerThrowComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Weapons/WeaponBase.h"
+#include "World/BreakableKinds.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Components/Image.h"
 #include "Components/SizeBox.h"
@@ -72,6 +76,8 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 	const UInteractionComponent* Interaction = Pawn ? Pawn->FindComponentByClass<UInteractionComponent>() : nullptr;
 
 	BindToPawn(Manager);
+	BindThrow(UPlayerThrowComponent::Find(Pawn));
+	UpdateGrenades(InDeltaTime);
 	UpdateWeaponCluster(Manager, InDeltaTime);
 	UpdatePlayerFrame(Health, InDeltaTime);
 	UpdatePickupCard(Manager, Interaction, InDeltaTime);
@@ -316,6 +322,81 @@ void UPlayerHUDWidget::HandleMeleeHit(const FHitResult& Hit, float Damage, bool 
 	}
 }
 
+void UPlayerHUDWidget::BindThrow(UPlayerThrowComponent* Throw)
+{
+	if (BoundThrow.Get() == Throw)
+	{
+		return;
+	}
+	if (UPlayerThrowComponent* Old = BoundThrow.Get())
+	{
+		Old->OnGrenadeHit.RemoveDynamic(this, &UPlayerHUDWidget::HandleGrenadeHit);
+		Old->OnGrenadesChanged.Remove(GrenadesChangedHandle);
+	}
+	GrenadesChangedHandle.Reset();
+	if (Throw)
+	{
+		// A burst's hits have no gun to report them: the hit marker comes from the throw itself.
+		Throw->OnGrenadeHit.AddUniqueDynamic(this, &UPlayerHUDWidget::HandleGrenadeHit);
+		GrenadesChangedHandle = Throw->OnGrenadesChanged.AddUObject(this, &UPlayerHUDWidget::HandleGrenadesChanged);
+	}
+	BoundThrow = Throw;
+}
+
+void UPlayerHUDWidget::UpdateGrenades(float DeltaTime)
+{
+	if (!GrenadeCounter)
+	{
+		return;
+	}
+	const UPlayerThrowComponent* Throw = BoundThrow.Get();
+	GrenadeCounter->Update(Throw ? Throw->GetGrenades() : 0, UPlayerThrowComponent::GetMaxGrenades(), Throw && Throw->IsUnlocked(),
+		BoundKeyName(UKeyBindingSubsystem::GrenadeBindingId(), TEXT("G")), DeltaTime);
+}
+
+void UPlayerHUDWidget::HandleGrenadesChanged(int32 Count, int32 Delta, EGrenadeChange Why)
+{
+	// Worth bringing the weapon column forward for, whatever it was.
+	WeaponActivity = ActivityHold;
+	if (!GrenadeCounter)
+	{
+		return;
+	}
+	switch (Why)
+	{
+	case EGrenadeChange::Thrown:
+		GrenadeCounter->Flash(EHudGrenadeFlash::Thrown);
+		break;
+	case EGrenadeChange::Denied:
+		GrenadeCounter->Flash(EHudGrenadeFlash::Denied);
+		break;
+	case EGrenadeChange::PickedUp:
+	case EGrenadeChange::Given:
+		if (Delta > 0)
+		{
+			GrenadeCounter->Flash(EHudGrenadeFlash::Gained);
+		}
+		if (PickupFeed && (Delta > 0 || Why == EGrenadeChange::PickedUp))
+		{
+			// Told where the eyes are, in the ammo pickups' words ("+36 AR Ammo", "AR Ammo full").
+			PickupFeed->AddLine(Delta > 0 ? FString::Printf(TEXT("+%d Grave Salt"), Delta) : FString(TEXT("Grave Salt full")));
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+void UPlayerHUDWidget::HandleGrenadeHit(const FHitResult& Hit, float Damage, bool bCritical)
+{
+	// One burst lands on many bodies in the same frame: the marker shows them all (a kill's red wins), the sound once.
+	const bool bSameBurst = GrenadeHitFrame == GFrameCounter;
+	GrenadeHitFrame = GFrameCounter;
+	bMuteHitSound = bSameBurst;
+	HandleHit(Hit, Damage, bCritical);
+	bMuteHitSound = false;
+}
+
 void UPlayerHUDWidget::HandleHit(const FHitResult& Hit, float Damage, bool bCritical)
 {
 	// Only confirm hits on things that can actually be hurt, not walls.
@@ -326,9 +407,10 @@ void UPlayerHUDWidget::HandleHit(const FHitResult& Hit, float Damage, bool bCrit
 		return;
 	}
 	// Heard as well as seen. The hit lands before the HUD hears of it, so a dead target is a kill, which has its own sound
-	// (the creature's voice plays UI.Kill once per death), or a body already down, which confirms nothing more.
-	const bool bKill = TargetHealth->IsDead();
-	if (!bKill)
+	// (the creature's voice plays UI.Kill once per death), or a body already down, which confirms nothing more. A crate or
+	// a barrel that breaks isn't a kill: it's a hit like any other (the white marker, the tick), not the red confirm.
+	const bool bKill = TargetHealth->IsDead() && !HitActor->ActorHasTag(FName(LooterBreakables::Tag));
+	if (!bKill && !bMuteHitSound)
 	{
 		LooterSound::Play2D(this, LooterSoundCue::HitMarker, 1.f, bCritical ? LooterSoundRules::CritPitch : 1.f);
 	}

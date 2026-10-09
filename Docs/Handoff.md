@@ -51,9 +51,21 @@ cue (160 cues). Story end: about 786 XP = level 6.87; an explorer about 7.44.
 ambush springs again on every load; camp crates reuse Ruth's Supply Crate; a melee kill notches the gun in hand; the
 Unpaid's shriek still presses its right armpit about 2.5 cm into its waist (invisible through the ghost body; the test
 now allows 3 cm after two fix passes); the spider's death curl is slower (0.8 s) and ends knees up and out.
-**Open:** the "rain" in the HUD photos was the test boss's fog-wall curtain (thin pale dashes that read as rain, Abel's
-gate too): being restyled to read as a wall; the photo scene now removes the test boss after its shot. Skyreach's notice
-board model still reads "RIM RANGERS" (a NOTICES variant is being made). Wave 3 (running): a lootable world (breakables, graves, coffins), a map page and fast travel between graves, Unpaid
+**Wave 3 (built, placed, 420/420 tests, committed ~03:50):** a lootable world (crates and barrels that break, graves
+and coffins to dig or pry, mailboxes, footlockers, loose strongboxes: RR 30 breakables + 16 containers, Skyreach 17 + 3,
+`build_area_loot.py`); a Map tab (key 4, M, D-pad down) with fast travel between opened respawn graves; Unpaid barks (42
+lines, a syllable murmur, one bark at a time) and town life (households heard through walls, a far dog, doors muttering
+captions by story stage); the Drover revolver (third gun family, pistol ammo, swing-out cylinder, 36 parts); the
+grave-salt grenade (G / RB, carry 3, burst 900 at level 1, x1.5 on the Unpaid, edge-safe knock); the boss fog wall
+restyled as fog banks and wisps (it read as rain); review fixes (cached ground-trace ignore list, creature list instead
+of actor scans, boss slow-mo shared per world, inventory drag ghost, hints hidden while dead, idle slime hops).
+**Calls made (review):** Drop weapon moved from G to X (the grenade took G); the Drover keeps the game's 1.5x crit
+(the user's rule) and gets precision from spread; grenades may be strong (one number: FGraveSaltRules::BaseDamage);
+grenade pickups on the ground aren't saved; Skyreach's board reads NOTICES.
+**Open:** the Drover's first-person hip pose sits centred and low (being fixed); third person has no jar in the hand
+or revolver reload animation; found chests on the map are remembered per visit only. Next: currency and vendors, the
+challenges ledger, a shield/ward layer, more enemy kinds (spitter spider, bell-ringer Unpaid).
+Wave 3 (as briefed): a lootable world (breakables, graves, coffins), a map page and fast travel between graves, Unpaid
 barks and signs of life in town, a new gun family, a grenade.
 
 **State at 23:30 (2026-10-08):** finished by agents, not yet built or committed (Main is integrating: build errors

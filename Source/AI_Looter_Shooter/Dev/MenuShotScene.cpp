@@ -16,6 +16,7 @@
 #include "Weapons/WeaponCurses.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponParts.h"
+#include "World/RespawnMarker.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -200,6 +201,47 @@ namespace
 		MenuShotShowPage(World, EInventoryPage::Missions);
 	}
 
+	/**
+	 * The map page. A level with no respawn grave open (Skyreach has none) gets two for the picture, open from the start,
+	 * on the ground near the player, so the page shows its graves, list and travel card.
+	 */
+	void MenuShotBeginMap(UWorld& World)
+	{
+		bool bAnyOpen = false;
+		for (TActorIterator<ARespawnMarker> It(&World); It && !bAnyOpen; ++It)
+		{
+			bAnyOpen = It->bStartActive;
+		}
+		const FMenuShotPlayer Player = MenuShotFindPlayer(World);
+		if (!bAnyOpen && Player.Pawn)
+		{
+			const FVector Feet = Player.Pawn->GetActorLocation() - FVector(0.0, 0.0, Player.Pawn->GetDefaultHalfHeight());
+			const struct { const TCHAR* Id; const TCHAR* Name; FVector Offset; } Graves[] = {
+				{ TEXT("MenuShot_North"), TEXT("Practice grave (north)"), FVector(4000.0, 1500.0, 0.0) },
+				{ TEXT("MenuShot_East"), TEXT("Practice grave (east)"), FVector(-1500.0, 5000.0, 0.0) },
+			};
+			for (const auto& Grave : Graves)
+			{
+				// Named before its play begins (a grave without an id warns as it begins).
+				if (ARespawnMarker* Marker = World.SpawnActorDeferred<ARespawnMarker>(ARespawnMarker::StaticClass(), FTransform(Feet + Grave.Offset)))
+				{
+					Marker->MarkerId = Grave.Id;
+					Marker->DisplayName = FText::FromString(Grave.Name);
+					Marker->bStartActive = true;
+					Marker->FinishSpawning(FTransform(Feet + Grave.Offset));
+				}
+			}
+		}
+		MenuShotParkMouse();
+		MenuShotShowPage(World, EInventoryPage::Map);
+	}
+
+	/** A grave chosen (G): the route to it, its card and Travel. */
+	void MenuShotBeginMapGrave(UWorld& World)
+	{
+		MenuShotPress(EKeys::G);
+	}
+
 	void MenuShotEndClose(UWorld& World)
 	{
 		const FMenuShotPlayer Player = MenuShotFindPlayer(World);
@@ -223,7 +265,9 @@ namespace
 		{ TEXT("swap_target"),  1.0f, &MenuShotBeginSwapTarget,   nullptr,                  nullptr,             DefaultGapSeconds },
 		{ TEXT("sorted"),       0.8f, &MenuShotBeginSort,         nullptr,                  nullptr,             DefaultGapSeconds },
 		{ TEXT("bestiary"),     1.5f, &MenuShotBeginBestiary,     nullptr,                  nullptr,             DefaultGapSeconds },
-		{ TEXT("missions"),     1.2f, &MenuShotBeginMissions,     nullptr,                  &MenuShotEndClose,   LastGapSeconds },
+		{ TEXT("missions"),     1.2f, &MenuShotBeginMissions,     nullptr,                  nullptr,             DefaultGapSeconds },
+		{ TEXT("map"),          1.5f, &MenuShotBeginMap,          nullptr,                  nullptr,             DefaultGapSeconds },
+		{ TEXT("map_grave"),    1.0f, &MenuShotBeginMapGrave,     nullptr,                  &MenuShotEndClose,   LastGapSeconds },
 	};
 }
 

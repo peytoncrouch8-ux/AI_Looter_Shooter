@@ -16,7 +16,8 @@ struct FLooterStanceInput;
  *  - mantle and vault (Player/Animation/LooterClimbPose.h): the torso leans into the climb, the legs tuck up, the hands
  *    reach for the ledge (a vault plants the free hand)
  *  - armed: the torso pitches with the player's aim, and the left hand is solved onto the held gun's foregrip
- *    (the rifle animations were made for a different gun)
+ *    (the rifle animations were made for a different gun); a short gun (HoldReach) is first pushed out along its barrel
+ *    by the right arm, and its foregrip is on its grip, so both hands hold it out like a pistol
  *  - recoil: each shot rocks the chest back and lets the right arm give, so the gun (in that hand) jumps back and the
  *    left hand rides along on the foregrip
  *  - melee: the strike's jab twists the chest into the blow and drives the right hand (the gun's stock, or a fist) forward

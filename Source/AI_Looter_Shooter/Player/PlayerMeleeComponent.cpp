@@ -6,6 +6,7 @@
 #include "Player/CameraShakeModifier.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeMotion.h"
+#include "Player/PlayerThrowComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "Scenes/SceneSubsystem.h"
@@ -118,6 +119,9 @@ FMeleeGateInput UPlayerMeleeComponent::GatherGate() const
 	In.Now = World ? World->GetTimeSeconds() : 0.0;
 	In.LastStrike = LastStrikeTime;
 	In.bSwinging = bSwinging;
+	// A grenade throw has the hands, as a strike keeps the grenade's (EThrowBlock::Busy): one at a time.
+	const UPlayerThrowComponent* Throw = UPlayerThrowComponent::Find(Owner);
+	In.bSwinging |= Throw && Throw->IsThrowing();
 	In.bAlive = Owner && Player && !IsOwnerDead();
 	const UPlayerLocomotionComponent* Locomotion = Owner ? Owner->FindComponentByClass<UPlayerLocomotionComponent>() : nullptr;
 	In.bTraversing = Locomotion && Locomotion->IsTraversing();

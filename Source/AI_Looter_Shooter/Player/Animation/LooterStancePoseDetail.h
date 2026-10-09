@@ -57,6 +57,13 @@ namespace LooterStancePoseDetail
 	void ApplyClimbHands(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Forward,
 		const FVector& Right);
 
+	/**
+	 * A short gun held out (Stance.HoldReach): the right hand, the gun in it, pushed out along the barrel and a little in
+	 * toward the middle, the elbow straightening; eased off through a sprint and a reload. The left hand follows it onto
+	 * the gun after.
+	 */
+	void ApplyHoldReach(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Right);
+
 	/** Each shot rocks the chest back and lets the right arm give. */
 	void ApplyRecoil(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Right);
 

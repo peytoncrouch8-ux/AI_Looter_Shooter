@@ -1,5 +1,5 @@
-"""The guns: the bullpup rifle and the Ranchhand pump shotgun firing, dry fire, the cursed misfire, the reload steps,
-taking a gun in hand and raising the sights.
+"""The guns: the bullpup rifle, the Ranchhand pump shotgun and the Drover revolver firing, dry fire, the cursed misfire,
+the reload steps, taking a gun in hand and raising the sights.
 
 A shot is modelled the way a real one reaches a close microphone, not built from drum-machine parts (a swept sine
 kick and smooth noise read as fake):
@@ -443,3 +443,142 @@ def aim_in(v, r):
     tick = kit.metal_click(child(r, 'tick'), 1800.0, 5000.0, 0.02, 0.00015, tick_db=-18.0)
     t = 0.1 + 0.02 * r.random()
     return layers((swish, 0.0, -4.0), (cheek, t, -6.0), (tick, t + 0.012, -12.0))
+
+
+# --- The Drover revolver (2026-10-09): its shot, its click on a spent chamber, its reload's steps and its draw ---------
+# Built like the rifle's and the shotgun's (the user's "heavy and punchy", not synthetic). Timed to the reload's motion
+# (Weapons/ReloadMotion.cpp): each step's sound starts where the step does, at any reload time.
+
+@cue('Weapon.Revolver.Fire', variations=6, att='Gun', jitter=0.03, conc=6, level=0.5)
+def revolver_fire(v, r):
+    # A heavy six-gun round out of a short barrel, recorded close: the hammer falls, the blast (a bigger, slower pressure
+    # wave than the rifle's, a smaller one than the shotgun's) and the bullet's crack overload the microphone, and the gas
+    # tears out of the gap between the cylinder and the barrel as well as out of the muzzle. No bolt cycles: only the hand
+    # turns the cylinder a chamber on after the kick and the bolt drops into its notch. The land answers for over a second.
+    crack = _crack(child(r, 'crack'), 0.0004 * jitter(r, 1.0, 0.12), 0.007, 1300.0 * jitter(r, 1.0, 0.08), -2.0, -3.0,
+                   1500.0, 10000.0)
+    blast = _loud(_friedlander(child(r, 'blast'), 0.0019 * jitter(r, 1.0, 0.15), 1.1 * jitter(r, 1.0, 0.2), 0.04, 0.3),
+                  0.0025)
+    heave = _heave(child(r, 'heave'), 0.0075 * jitter(r, 1.0, 0.15), 130.0, 0.1)
+    gas = _gas(child(r, 'gas'), 0.4, 0.006, 0.11 * jitter(r, 1.0, 0.12), 26000.0, 0.014, 220.0, 4600.0, -2.5, 8.0,
+               -6.0, 0.22, 1900.0)
+    # The cylinder gap's spit: a short, bright tear of gas out of the frame's side.
+    spit = N.band(ns(0.04), child(r, 'spit'), 2500.0, 9000.0) * E.perc(0.04, 0.0002, 0.012)
+    spit = _loud(D.drive(normalize(spit), 6.0, 'tanh'), 0.003)
+    src = layers((blast, 0.0, 6.0), (crack, 0.0, 0.0), (gas, 0.0005, 0.0), (heave, 0.0, 8.0), (spit, 0.0002, -9.0))
+    g1 = 0.0028 + 0.002 * r.random()
+    src = _ground(src, [(g1, -3.0, 4500.0), (g1 + 0.002 + 0.003 * r.random(), -8.0, 2200.0)])
+    rec = _loud(_recorder(src, 11.0 + 1.5 * (2.0 * r.random() - 1.0), 0.32, 68.0 * jitter(r, 1.0, 0.08), 1.35, 7.0, 2.2,
+                          0.06, 110.0))
+    # The hammer's fall a hair before the blast (heavier than the rifle's tick); after the kick, the hand turning the
+    # cylinder and the bolt catching it: two small steel clicks, well under the shot.
+    hammer = _clank(child(r, 'hammer'), (1100.0, 4200.0, 0.02), (520.0, 0.02), (180.0, 0.02), (0.0, -6.0, -10.0), 0.00006)
+    turn = _loud(kit.metal_click(child(r, 'turn'), 1800.0, 5200.0, 0.02, 0.0001, 5, -10.0), 0.005)
+    stop = _loud(kit.metal_click(child(r, 'stop'), 1500.0, 4600.0, 0.025, 0.0001, 5, -8.0), 0.005)
+    pre = 0.004
+    t_turn = pre + 0.11 + 0.02 * r.random()
+    dry = layers((hammer, 0.0, -16.0), (rec, pre, 0.0), (turn, t_turn, -28.0), (stop, t_turn + 0.03, -26.0))
+    dry = _early(dry, r, -12.0, 0.035, 4500.0)
+    # The yard's buildings, then the hills out to ~200 m: between the rifle's roll and the shotgun's boom.
+    s1 = 0.06 + 0.035 * r.random()
+    s2 = s1 + 0.1 + 0.07 * r.random()
+    wet = _land(dry, r, 1.8, ((s1, -2.0), (s2, -4.5)), 22, 0.25, 1.2, -4.5, 1.1, 600.0, 0.25, -18.0, 140.0)
+    return _master(layers(dry, wet), 5.0, 2.0, 0.0012, 0.04)
+
+
+@cue('Weapon.Revolver.DryFire', variations=3, att='Near', jitter=0.03, conc=2, level=-14.0)
+def revolver_dry_fire(v, r):
+    # The trigger pulled through on a spent chamber: the hand ratchets the cylinder round (a soft run of clicks), the bolt
+    # drops into its notch, then the hammer falls on nothing: a crisp steel snap into the frame.
+    def tooth(rr, i):
+        return kit.metal_click(rr, 2200.0, 6000.0, 0.012, 0.0001, 4, -12.0)
+    ratchet = G.rattle(0.06, child(r, 'ratchet'), 3, 0.05, tooth, 0.0, 0.8)
+    stop = kit.metal_click(child(r, 'stop'), 1600.0, 4800.0, 0.02, 0.0001, 5, -8.0)
+    hammer = _clank(child(r, 'hammer'), (1000.0, 3600.0, 0.035), (560.0 * jitter(r, 1.0, 0.06), 0.03), (190.0, 0.03),
+                    (0.0, -3.0, -9.0))
+    t_stop = 0.07 + 0.01 * r.random()
+    t_fall = t_stop + 0.05 + 0.015 * r.random()
+    return layers((_loud(ratchet), 0.0, -14.0), (_loud(stop), t_stop, -10.0), (hammer, t_fall, 0.0))
+
+
+@cue('Weapon.Revolver.CylinderOut', variations=3, att='Near', jitter=0.03, conc=2, level=-14.0)
+def revolver_cylinder_out(v, r):
+    # The thumb pushes the latch (a small click) and the fingers press the cylinder out: the crane swings on its hinge
+    # with a short steel whisper and stops against its limit with a clack, the rounds shifting in their chambers.
+    latch = _clank(child(r, 'latch'), (1500.0, 4400.0, 0.018), (750.0, 0.018), (240.0, 0.02), (0.0, -6.0, -12.0),
+                   tick_db=-12.0)
+    swing = _slide(0.12, child(r, 'swing'), 650.0, 980.0, 0.2, 0.4)
+    stop = _clank(child(r, 'stop'), (950.0, 3300.0, 0.04), (420.0 * jitter(r, 1.0, 0.05), 0.045), (160.0, 0.05),
+                  (0.0, -2.0, -5.0))
+    rounds = _rounds(r, 4, 0.05)
+    t = 0.15 + 0.02 * r.random()
+    return layers((latch, 0.0, -6.0), (swing, 0.012, -20.0), (stop, t, 0.0), (rounds, t + 0.006, -14.0))
+
+
+@cue('Weapon.Revolver.Eject', variations=3, att='Near', jitter=0.04, conc=2, level=-12.0)
+def revolver_eject(v, r):
+    # The palm slaps the ejector rod: a solid steel knock and the spring's twang; the six empties slide out together and
+    # drop, ringing brass on the ground and bouncing apart.
+    slap = _loud(kit.noise_thump(0.05, child(r, 'palm'), 1200.0, 260.0, 0.02, 0.9, 0.015, 0.0004))
+    rod = _clank(child(r, 'rod'), (900.0, 3200.0, 0.045), (380.0, 0.05), (140.0, 0.05), (0.0, -1.0, -3.0), drive_db=5.0)
+    spring = M.strike(M.parts(1700.0, 3200.0, child(r, 'spring'), 3, 0.12, 0.08, 0.2), M.hammer(0.0002), 0.18)
+    out = _slide(0.03, child(r, 'out'), 1100.0, 1500.0, 0.2, 0.4)
+
+    def empty(rr, i):
+        return kit.brass_tick(rr, 2300.0 * jitter(rr, 1.0, 0.15), 0.06, 4, 0.00008, -14.0, -10.0, 0.5)
+    land = G.rattle(0.45, child(r, 'land'), 9, 0.35, empty, 0.0, 0.82)
+    t_land = 0.22 + 0.04 * r.random()
+    return layers((slap, 0.0, -6.0), (rod, 0.0, 0.0), (_loud(spring), 0.002, -22.0), (out, 0.01, -18.0),
+                  (_loud(land), t_land, -10.0))
+
+
+@cue('Weapon.Revolver.RoundsIn', variations=3, att='Near', jitter=0.04, conc=2, level=-14.0)
+def revolver_rounds_in(v, r):
+    # A speedloader: six rounds drop into their chambers together (a quick brass shuffle and their seating knock), the
+    # knob is twisted to let them go (a click), and the empty loader is pulled away.
+    def round_in(rr, i):
+        return kit.brass_tick(rr, 1500.0 * jitter(rr, 1.0, 0.12), 0.025, 4, 0.0001, -8.0, -14.0, 0.2)
+    drop = G.rattle(0.06, child(r, 'drop'), 6, 0.03, round_in, 0.0, 0.92)
+    slide = _slide(0.035, child(r, 'slide'), 700.0, 520.0, 0.3, 0.4)
+    seat = _clank(child(r, 'seat'), (1000.0, 3200.0, 0.03), (480.0, 0.035), (170.0, 0.04), (-4.0, 0.0, -6.0))
+    knob = kit.metal_click(child(r, 'knob'), 1800.0, 5000.0, 0.02, 0.00012, 5, -10.0)
+    away = kit.thunk(620.0 * jitter(r, 1.0, 0.08), child(r, 'away'), 0.03, 0.001)
+    t_seat = 0.035 + 0.008 * r.random()
+    t_knob = t_seat + 0.09 + 0.02 * r.random()
+    return layers((slide, 0.0, -20.0), (_loud(drop), 0.004, -6.0), (seat, t_seat, -2.0), (_loud(knob), t_knob, -10.0),
+                  (away, t_knob + 0.06, -16.0))
+
+
+@cue('Weapon.Revolver.CylinderIn', variations=3, att='Near', jitter=0.03, conc=2, level=-11.0)
+def revolver_cylinder_in(v, r):
+    # The cylinder slapped home: the crane hits the frame with the heaviest clack in the revolver's kit, the latch snaps
+    # over it, and the cylinder ticks round as the bolt finds its notch.
+    swing = _slide(0.025, child(r, 'swing'), 980.0, 700.0, 0.3, 0.2)
+    home = _clank(child(r, 'home'), (800.0 * jitter(r, 1.0, 0.05), 2900.0, 0.06), (330.0 * jitter(r, 1.0, 0.05), 0.07),
+                  (125.0 * jitter(r, 1.0, 0.05), 0.08), (0.0, 0.0, -2.0), 0.0001, drive_db=6.0)
+    latch = kit.metal_click(child(r, 'latch'), 1700.0, 5200.0, 0.022, 0.0001, 5, -8.0)
+    tick = kit.metal_click(child(r, 'tick'), 2000.0, 5600.0, 0.015, 0.0001, 4, -10.0)
+    t = 0.02 + 0.006 * r.random()
+    return layers((swing, 0.0, -20.0), (home, t, 0.0), (_loud(latch), t + 0.008 + 0.004 * r.random(), -8.0),
+                  (_loud(tick), t + 0.06 + 0.015 * r.random(), -16.0))
+
+
+@cue('Weapon.Revolver.Equip', variations=3, att='Near', jitter=0.04, conc=2, level=-14.0)
+def revolver_equip(v, r):
+    # Drawn from the holster: the gun slides out of the leather, the grip smacks into the palm, then the thumb rolls the
+    # hammer back: the two clicks of a six-gun cocking, the second the louder.
+    leather = kit.scrape(0.16, child(r, 'leather'), 300.0, 520.0, 4.0, 0.8, (1.0, 1.7, 2.6), 0.2, 0.6, 1800.0, -30.0)
+    leather = _loud(F.filt(leather, F.lp(2600.0, 0.7), extend=False))
+    swish = kit.cloth(0.18, child(r, 'cloth'), 300.0, 2600.0, 120.0, 0.25, 0.5)
+    grip = kit.thunk(360.0 * jitter(r, 1, 0.08), child(r, 'grip'), 0.045, 0.0012)
+    slap = kit.burst(0.035, child(r, 'slap'), 0.012, lo=250.0, hi=2600.0)
+    first = kit.metal_click(child(r, 'cock1'), 1700.0, 5200.0, 0.022, 0.0001, 5, -10.0)
+    second = _clank(child(r, 'cock2'), (1300.0, 4400.0, 0.03), (640.0, 0.025), (220.0, 0.025), (0.0, -6.0, -12.0),
+                    tick_db=-10.0)
+    # The holster's strap snapping free at once, so the draw answers the key with no lag.
+    snap = kit.thunk(900.0 * jitter(r, 1, 0.08), child(r, 'snap'), 0.02, 0.0004)
+    t_grip = 0.13 + 0.03 * r.random()
+    t1 = t_grip + 0.12 + 0.03 * r.random()
+    t2 = t1 + 0.07 + 0.015 * r.random()
+    return layers((snap, 0.0, -14.0), (leather, 0.0, -12.0), (swish, 0.0, -10.0), (grip, t_grip, -4.0),
+                  (slap, t_grip, -8.0), (_loud(first), t1, -9.0), (second, t2, -2.0))

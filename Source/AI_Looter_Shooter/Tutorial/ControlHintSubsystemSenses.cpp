@@ -9,6 +9,7 @@
 #include "Missions/MissionTargets.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
+#include "Player/PlayerThrowComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Scenes/SceneSubsystem.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
@@ -92,6 +93,7 @@ FControlHintInput UControlHintSubsystem::Look(float DeltaSeconds)
 		LastGunsCarried = INDEX_NONE;
 		LastSlot = INDEX_NONE;
 		LastMeleeCount = INDEX_NONE;
+		LastThrowCount = INDEX_NONE;
 	}
 
 	const UHealthComponent* Health = Character->FindComponentByClass<UHealthComponent>();
@@ -157,9 +159,20 @@ FControlHintInput UControlHintSubsystem::Look(float DeltaSeconds)
 	In.bMeleed = LastMeleeCount != INDEX_NONE && MeleeCount > LastMeleeCount;
 	LastMeleeCount = MeleeCount;
 
+	// --- Throwing: a throw since the last look teaches the key (0.8 s apart at the quickest, so no look misses one) ---
+	const UPlayerThrowComponent* Throw = UPlayerThrowComponent::Find(Character);
+	const int32 ThrowCount = Throw ? Throw->GetThrowCount() : 0;
+	In.bThrew = LastThrowCount != INDEX_NONE && ThrowCount > LastThrowCount;
+	LastThrowCount = ThrowCount;
+
 	// --- The probes, only while their hint could still show ---
 	if (In.bInControl)
 	{
+		if (!Rules.IsRetired(EControlHint::Grenade) && Throw && Throw->GetGrenades() > 0 && !Throw->HasThrown())
+		{
+			// A crowd worth a grenade: two or more live creatures ahead, in sight, within a throw.
+			In.bCrowdAhead = Throw->CountTargetsAhead() >= 2;
+		}
 		if (!Rules.IsRetired(EControlHint::Melee) && Melee && !Melee->HasMeleed())
 		{
 			// A live creature close in front, in the strike's cone and in sight (the strike's own look, at twice its reach).

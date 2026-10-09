@@ -221,6 +221,8 @@ private:
 	void UpdateItemDrag(const FVector2D& ScreenPosition);
 	void FinishItemDrag(const FVector2D& ScreenPosition);
 	void CancelItemDrag();
+	/** CancelItemDrag's state alone (no restyle, no focus): the screen opening or closing mid-drag leaves no ghost card or press. */
+	void ClearItemDrag();
 	/** What letting the dragged gun go on Target does, in words ("Swap with slot 2"); empty if nothing. */
 	FString DropActionText(const FDropTarget& Target) const;
 	void ApplyDrop(const FDropTarget& Target);

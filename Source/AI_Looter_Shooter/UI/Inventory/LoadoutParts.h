@@ -143,7 +143,7 @@ namespace LoadoutParts
 	ULooterButton* MakeKeyHintButton(UWidgetTree* Tree, const FString& Key, const FString& Text, bool bPrimary, int32 Index);
 
 	/**
-	 * The inventory's title tabs, one per page in EInventoryPage order (Loadout, Bestiary, Missions): each page's name with
+	 * The inventory's title tabs, one per page in EInventoryPage order (Loadout, Bestiary, Missions, Map): each page's name with
 	 * its number key after it, the shown page bright over an orange underline, the others dim, all on one hairline. Each
 	 * tab is a button with ActionPage and its page's index; centered at the top of the page.
 	 */

@@ -108,6 +108,17 @@ FViewKick ViewKicks::ForShot(EWeaponKind Kind, float RecoilStat, float AimAlpha,
 		Kick.Frequency = 6.5f;
 		Kick.Damping = 0.5f;
 	}
+	else if (Kind == EWeaponKind::Revolver)
+	{
+		// A sharp snap up and straight back down: nearly the shotgun's lift, but quick and well damped, so the sights are
+		// back on target before the next pull of the trigger.
+		Kick.Pitch = 0.9f;
+		Kick.Roll = 0.3f * Lean;
+		Kick.Yaw = 0.08f * Side;
+		Kick.FieldOfView = 0.012f;
+		Kick.Frequency = 11.f;
+		Kick.Damping = 0.65f;
+	}
 	else
 	{
 		// A crisp tick per round: quick enough that a full-auto burst reads as a rattle, not a sway.

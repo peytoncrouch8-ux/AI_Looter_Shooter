@@ -7,6 +7,7 @@
 #include "Combat/LooterDamageTypes.h"
 #include "Creatures/CreatureBase.h"
 #include "Weapons/WeaponBase.h"
+#include "World/BreakableKinds.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/PrimitiveComponent.h"
 #include "DrawDebugHelpers.h"
@@ -90,6 +91,11 @@ EImpactSurface UBulletSubsystem::SurfaceOf(const AActor* Actor)
 	if (Cast<ACreatureBase>(Actor))
 	{
 		return EImpactSurface::Flesh;
+	}
+	// A crate or a barrel has health but is wood: a shot splinters it, it doesn't ring like a plated target.
+	if (Actor && Actor->ActorHasTag(FName(LooterBreakables::Tag)))
+	{
+		return EImpactSurface::World;
 	}
 	if (Actor && Actor->FindComponentByClass<UHealthComponent>())
 	{

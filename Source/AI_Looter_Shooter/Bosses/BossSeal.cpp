@@ -1,9 +1,8 @@
 #include "Bosses/BossSeal.h"
-#include "World/WorldQueries.h"
+#include "AI_Looter_Shooter.h"
 #include "Components/BoxComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
-#include "Engine/HitResult.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -12,40 +11,20 @@
 
 namespace
 {
-	/** The curtain's dashes stand this far apart along the line (cm): dense enough to read as a wall, sparse enough to see through. */
-	constexpr float DashSpacing = 24.f;
-	/** How brightly the curtain glows (M_StylizedSurface's emissive multiplier of its color). */
+	/** How brightly the seam glows (M_StylizedSurface's emissive multiplier of its color). */
 	constexpr float CurtainGlow = 3.f;
 	/** Seconds to grow up out of the ground, and to sink back. */
 	constexpr float RiseSeconds = 0.6f;
 	constexpr float SinkSeconds = 0.45f;
-	/** The seam along the ground: a flat glowing strip this wide and tall (cm). */
-	constexpr float SeamWidth = 8.f;
-	constexpr float SeamHeight = 3.f;
 	/** Spans overlap by this much (cm) past their ends, so no gap opens at a ring's corners for a capsule to squeeze through. */
 	constexpr float WallOverlap = 30.f;
 
-	/** Replaces a component's instances with these (moved in place when the count is unchanged). */
-	void DrawInstances(UInstancedStaticMeshComponent* Component, const TArray<FTransform>& Transforms)
-	{
-		if (!Component)
-		{
-			return;
-		}
-		if (Component->GetInstanceCount() != Transforms.Num())
-		{
-			Component->ClearInstances();
-			if (Transforms.Num() > 0)
-			{
-				Component->AddInstances(Transforms, /*bShouldReturnIndices*/ false, /*bWorldSpace*/ true, /*bUpdateNavigation*/ false);
-			}
-		}
-		else if (Transforms.Num() > 0)
-		{
-			Component->BatchUpdateInstancesTransforms(0, Transforms, /*bWorldSpace*/ true, /*bMarkRenderStateDirty*/ false, /*bTeleport*/ true);
-		}
-		Component->MarkRenderStateDirty();
-	}
+	/** The game's soft smoke puff and its additive glow (FWeaponFX's), colored and faded per instance by custom data. */
+	const TCHAR* SmokePath = TEXT("/Game/Weapons/FX/M_FX_Smoke.M_FX_Smoke");
+	const TCHAR* LightPath = TEXT("/Game/Weapons/FX/M_FX_Glow.M_FX_Glow");
+	/** Custom data per instance: R, G, B, opacity (smoke); R, G, B, strength, shape (glow). */
+	constexpr int32 SmokeFloats = 4;
+	constexpr int32 LightFloats = 5;
 
 	UInstancedStaticMeshComponent* MakeGlowInstances(AActor* Owner, USceneComponent* Parent, const TCHAR* Name, UStaticMesh* Mesh)
 	{
@@ -66,14 +45,20 @@ ABossSeal::ABossSeal()
 	PrimaryActorTick.bCanEverTick = true;
 	// It only ticks while the curtain stands or moves.
 	PrimaryActorTick.bStartWithTickEnabled = false;
+	// After the camera has its place for the frame: the fog's quads face where it is now.
+	PrimaryActorTick.TickGroup = TG_PostUpdateWork;
 
 	USceneComponent* Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	Root->SetMobility(EComponentMobility::Movable);
 	RootComponent = Root;
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Plane(TEXT("/Engine/BasicShapes/Plane.Plane"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Surface(TEXT("/Game/Environment/Materials/M_StylizedSurface.M_StylizedSurface"));
-	Dashes = MakeGlowInstances(this, Root, TEXT("Dashes"), Cube.Object);
+	Fog = MakeGlowInstances(this, Root, TEXT("Fog"), Plane.Object);
+	Fog->SetNumCustomDataFloats(SmokeFloats);
+	Glow = MakeGlowInstances(this, Root, TEXT("Glow"), Plane.Object);
+	Glow->SetNumCustomDataFloats(LightFloats);
 	Seam = MakeGlowInstances(this, Root, TEXT("Seam"), Cube.Object);
 	GlowBase = Surface.Object;
 }
@@ -99,16 +84,28 @@ ABossSeal* ABossSeal::SpawnRing(UWorld* World, const FVector& Center, float Ring
 void ABossSeal::BeginPlay()
 {
 	Super::BeginPlay();
-	// Opaque and emissive (M_StylizedSurface's glow): the light reads without translucency's cost and sorting.
+	// The seam is opaque and emissive (M_StylizedSurface's glow): it reads without translucency's cost and sorting.
 	if (GlowBase)
 	{
 		GlowMaterial = UMaterialInstanceDynamic::Create(GlowBase, this);
 		GlowMaterial->SetVectorParameterValue(TEXT("Color"), Color);
 		GlowMaterial->SetScalarParameterValue(TEXT("Glow"), CurtainGlow);
 		GlowMaterial->SetScalarParameterValue(TEXT("Variation"), 0.f);
-		Dashes->SetMaterial(0, GlowMaterial);
 		Seam->SetMaterial(0, GlowMaterial);
 	}
+	// The fog and the light take their color per instance from the game's own FX materials. Without one the quads would draw
+	// as solid squares, so they're left out instead.
+	UMaterialInterface* Smoke = LoadObject<UMaterialInterface>(nullptr, SmokePath);
+	UMaterialInterface* Light = LoadObject<UMaterialInterface>(nullptr, LightPath);
+	if (!Smoke || !Light)
+	{
+		UE_LOG(LogLooter, Warning, TEXT("Boss seal: %s is missing, so the fog wall shows without its %s."),
+			!Smoke ? SmokePath : LightPath, !Smoke ? TEXT("fog") : TEXT("light"));
+	}
+	Fog->SetMaterial(0, Smoke);
+	Fog->SetVisibility(Smoke != nullptr);
+	Glow->SetMaterial(0, Light);
+	Glow->SetVisibility(Light != nullptr);
 }
 
 // ---------------------------------------------------------------------------
@@ -247,63 +244,6 @@ void ABossSeal::SetWallsBlocking(bool bBlocking)
 	}
 }
 
-// ---------------------------------------------------------------------------
-// The curtain
-// ---------------------------------------------------------------------------
-
-void ABossSeal::BuildCurtain()
-{
-	Curtain.Reset();
-	SeamPieces.Reset();
-	UWorld* World = GetWorld();
-	const TArray<FVector> Path = GetPath();
-	if (!World || Path.Num() < 2)
-	{
-		return;
-	}
-	// The ground under each column, so the curtain stands on uneven ground (world-static only: never grass or volumes).
-	const FCollisionQueryParams Ground = LooterWorld::StaticGeometryParams(World, TEXT("BossSealGround"), this);
-	auto GroundUnder = [World, &Ground](const FVector& Point) -> FVector
-	{
-		FHitResult Hit;
-		if (World->LineTraceSingleByObjectType(Hit, Point + FVector(0.0, 0.0, 400.0), Point - FVector(0.0, 0.0, 600.0),
-			FCollisionObjectQueryParams(ECC_WorldStatic), Ground))
-		{
-			return Hit.ImpactPoint;
-		}
-		return Point;
-	};
-
-	// The same random look every time it rises (seeded by its place, so two seals differ).
-	FRandomStream Random(static_cast<int32>(GetActorLocation().X * 0.37 + GetActorLocation().Y * 1.13));
-	const int32 Spans = IsClosed() ? Path.Num() : Path.Num() - 1;
-	for (int32 Index = 0; Index < Spans; ++Index)
-	{
-		const FVector From = GroundUnder(Path[Index]);
-		const FVector To = GroundUnder(Path[(Index + 1) % Path.Num()]);
-		const double Length = FVector::Dist2D(From, To);
-		const int32 Columns = FMath::Max(1, FMath::RoundToInt32(static_cast<float>(Length) / DashSpacing));
-		for (int32 Column = 0; Column < Columns; ++Column)
-		{
-			const float Alpha = (static_cast<float>(Column) + Random.FRandRange(0.2f, 0.8f)) / static_cast<float>(Columns);
-			FDash& Dash = Curtain.AddDefaulted_GetRef();
-			Dash.Foot = GroundUnder(FMath::Lerp(Path[Index], Path[(Index + 1) % Path.Num()], Alpha));
-			Dash.Length = Random.FRandRange(70.f, 190.f);
-			Dash.Speed = Random.FRandRange(80.f, 170.f);
-			Dash.Width = Random.FRandRange(2.5f, 5.f);
-			Dash.Phase = Random.FRandRange(0.f, Height + Dash.Length);
-		}
-		// The seam: a flat strip from end to end of the span, along the ground.
-		const FVector Along = To - From;
-		const float Span = static_cast<float>(Along.Size());
-		if (Span > 1.f)
-		{
-			SeamPieces.Add(FTransform(FRotationMatrix::MakeFromX(Along).ToQuat(), (From + To) * 0.5 + FVector(0.0, 0.0, SeamHeight * 0.5),
-				FVector((Span + SeamWidth) / 100.f, SeamWidth / 100.f, SeamHeight / 100.f)));
-		}
-	}
-}
-
 void ABossSeal::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
@@ -316,46 +256,4 @@ void ABossSeal::Tick(float DeltaSeconds)
 		return;
 	}
 	DrawCurtain();
-}
-
-void ABossSeal::DrawCurtain()
-{
-	// Each dash climbs its column and starts again at the foot; the curtain's top is its height times how far it has risen,
-	// so it grows up out of the ground and sinks back. A dash out of sight keeps its instance at no size, so the count
-	// never changes and the instances are only moved.
-	const float Top = Height * FMath::InterpEaseOut(0.f, 1.f, Rise, 2.f);
-	TArray<FTransform> Transforms;
-	Transforms.Reserve(Curtain.Num());
-	for (const FDash& Dash : Curtain)
-	{
-		const float Head = FMath::Fmod(Dash.Phase + Clock * Dash.Speed, Height + Dash.Length);
-		const float Low = FMath::Max(Head - Dash.Length, 0.f);
-		const float High = FMath::Min(Head, Top);
-		const float Shown = High - Low;
-		if (Shown < 2.f)
-		{
-			Transforms.Add(FTransform(FQuat::Identity, Dash.Foot, FVector::ZeroVector));
-			continue;
-		}
-		// The engine cube is 100 cm a side, centered.
-		Transforms.Add(FTransform(FQuat::Identity, Dash.Foot + FVector(0.0, 0.0, (Low + High) * 0.5f),
-			FVector(Dash.Width / 100.f, Dash.Width / 100.f, Shown / 100.f)));
-	}
-	DrawInstances(Dashes, Transforms);
-
-	// The seam shows whenever the curtain does, flattening into the ground as it sinks.
-	TArray<FTransform> Pieces = SeamPieces;
-	for (FTransform& Piece : Pieces)
-	{
-		FVector Scale = Piece.GetScale3D();
-		Scale.Z *= Rise;
-		Piece.SetScale3D(Scale);
-	}
-	DrawInstances(Seam, Pieces);
-}
-
-void ABossSeal::ClearCurtain()
-{
-	DrawInstances(Dashes, TArray<FTransform>());
-	DrawInstances(Seam, TArray<FTransform>());
 }

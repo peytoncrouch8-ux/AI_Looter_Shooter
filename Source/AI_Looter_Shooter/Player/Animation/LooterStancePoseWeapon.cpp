@@ -9,7 +9,8 @@
 
 using namespace LooterStancePoseDetail;
 
-// The stance pose's gun work: each shot's recoil in the body, a melee strike's jab, and the left hand on the foregrip.
+// The stance pose's gun work: a short gun held out at arm's length, each shot's recoil in the body, a melee strike's jab,
+// and the left hand on the foregrip (on a six-gun's grip: the support hand wrapped round the shooting hand).
 
 namespace
 {
@@ -73,6 +74,35 @@ void LooterStancePoseDetail::ApplyMeleeJab(FCSPose<FCompactPose>& Pose, const FB
 	FTransform Wrist = Pose.GetComponentSpaceTransform(Hand);
 	const FQuat HandRotation = Wrist.GetRotation();
 	const FVector WristTarget = Wrist.GetLocation() + (Forward - Right * 0.25f + FVector::UpVector * 0.15f) * (JabReach * Jab);
+	const FVector ElbowHint = Elbow.GetLocation() - FVector::UpVector * 15.f + Right * 10.f;
+
+	AnimationCore::SolveTwoBoneIK(Shoulder, Elbow, Wrist, ElbowHint, WristTarget,
+		/*bAllowStretching*/ false, /*StartStretchRatio*/ 1.0, /*MaxStretchScale*/ 1.0);
+	Wrist.SetRotation(HandRotation);
+
+	const FBoneTransform Chain[] = { FBoneTransform(UpperArm, Shoulder), FBoneTransform(LowerArm, Elbow), FBoneTransform(Hand, Wrist) };
+	Pose.LocalBlendCSBoneTransforms(MakeArrayView(Chain), 1.f);
+}
+
+void LooterStancePoseDetail::ApplyHoldReach(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Right)
+{
+	// The rifle poses tuck the hand in at the shoulder, where a six-gun would sit under the chin: out along the barrel it
+	// goes instead, a little in toward the body's middle and up, the way a pistol is held out in both hands. A sprint
+	// carries the gun low and a reload brings it in, so the reach eases off through both.
+	const float Reach = Stance.HoldReach * (1.f - Stance.SprintAlpha) * (1.f - Stance.ReloadWeight) * (1.f - Stance.Climb.Hands);
+	const FCompactPoseBoneIndex UpperArm = FindBone(Bones, TEXT("upperarm_r"));
+	const FCompactPoseBoneIndex LowerArm = FindBone(Bones, TEXT("lowerarm_r"));
+	const FCompactPoseBoneIndex Hand = FindBone(Bones, TEXT("hand_r"));
+	if (Reach <= 0.01f || !UpperArm.IsValid() || !LowerArm.IsValid() || !Hand.IsValid())
+	{
+		return;
+	}
+	FTransform Shoulder = Pose.GetComponentSpaceTransform(UpperArm);
+	FTransform Elbow = Pose.GetComponentSpaceTransform(LowerArm);
+	FTransform Wrist = Pose.GetComponentSpaceTransform(Hand);
+	const FQuat HandRotation = Wrist.GetRotation();
+	const FVector Barrel = Stance.WeaponRotation.GetForwardVector();
+	const FVector WristTarget = Wrist.GetLocation() + Barrel * Reach - Right * (Reach * 0.25f) + FVector::UpVector * (Reach * 0.12f);
 	const FVector ElbowHint = Elbow.GetLocation() - FVector::UpVector * 15.f + Right * 10.f;
 
 	AnimationCore::SolveTwoBoneIK(Shoulder, Elbow, Wrist, ElbowHint, WristTarget,

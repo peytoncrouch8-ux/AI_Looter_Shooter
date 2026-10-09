@@ -1,5 +1,5 @@
-// AChest's loot: what it gives (its kind's guns and ammo from the default loot table, at the area's level for the
-// player), thrown out of SOCKET_Loot once as the lid opens.
+// AChest's loot: what it gives (its kind's guns at their chance and ammo from the default loot table, at the area's level
+// for the player; a soul-mote now and then from a grave or a coffin), thrown out of SOCKET_Loot once as the lid opens.
 
 #include "Loot/Chest.h"
 #include "AI_Looter_Shooter.h"
@@ -7,9 +7,13 @@
 #include "Areas/AreaDefinition.h"
 #include "Areas/AreaRulesSubsystem.h"
 #include "Loot/AmmoPickup.h"
+#include "Loot/GrenadePickup.h"
 #include "Loot/LootFanfareSubsystem.h"
 #include "Loot/LootLibrary.h"
 #include "Loot/LootTable.h"
+#include "Loot/SoulMotePickup.h"
+#include "Player/PlayerThrowComponent.h"
+#include "Player/PlayerThrowRules.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "Session/SessionSubsystem.h"
 #include "Weapons/AmmoTypes.h"
@@ -20,6 +24,8 @@
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "Math/RandomStream.h"
 #include "UObject/Package.h"
 
@@ -33,12 +39,33 @@ namespace
 		const UPlayerProgressionSubsystem* Progression = Player ? Player->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
 		return Progression ? FMath::Max(Progression->GetLevel(), 1) : 1;
 	}
+
+	/** The local player's throw component, or null without a player (a test level): then no grenade is made, nobody could pick it up. */
+	const UPlayerThrowComponent* FindPlayerThrow(const UWorld* World)
+	{
+		const APlayerController* Player = World ? World->GetFirstPlayerController() : nullptr;
+		return Player ? UPlayerThrowComponent::Find(Player->GetPawn()) : nullptr;
+	}
 }
 
 
+FChestKindInfo AChest::GetLootInfo() const
+{
+	FChestKindInfo Info = GetKindInfo();
+	if (LootOverride.bOverride)
+	{
+		Info.Guns = LootOverride.Guns;
+		Info.GunChance = LootOverride.GunChance;
+		Info.Luck = LootOverride.Luck;
+		Info.AmmoPickups = LootOverride.AmmoPickups;
+		Info.MoteChance = LootOverride.MoteChance;
+	}
+	return Info;
+}
+
 ULootTable* AChest::MakeLootTable() const
 {
-	const FChestKindInfo Info = GetKindInfo();
+	const FChestKindInfo Info = GetLootInfo();
 	ULootTable* Table = NewObject<ULootTable>(GetTransientPackage(), NAME_None, RF_Transient);
 	// The game's guns by the default table's weights, and its ammo classes; nothing kill-made leans the ammo.
 	if (const ULootTable* Default = ULootLibrary::GetDefaultLootTable())
@@ -46,7 +73,9 @@ ULootTable* AChest::MakeLootTable() const
 		Table->Entries = Default->Entries;
 		Table->AmmoTypes = Default->AmmoTypes;
 	}
-	Table->WeaponDropChance = 1.f;
+	// Its guns at its chance (a Ranger cache's every time, a mailbox's rarely); none at all in a practice area the player
+	// has left (Skyreach on a return visit), as its creatures drop none there.
+	Table->WeaponDropChance = UAreaRulesSubsystem::DropsGunsAt(this) ? FMath::Clamp(Info.GunChance, 0.f, 1.f) : 0.f;
 	Table->MinWeaponDrops = Info.Guns;
 	Table->MaxWeaponDrops = Info.Guns;
 	Table->Luck = Info.Luck;
@@ -120,7 +149,12 @@ void AChest::DropLoot()
 	const int32 Level = GetLootLevel();
 	const FLootRoll Roll = ULootLibrary::RollLoot(Table, Level, 0.f, Random);
 	const FVector From = GetLootOrigin();
-	const int32 Count = Roll.Weapons.Num() + Roll.Ammo.Num();
+	// A grave-salt grenade now and then (always from a Strongbox, or when the player has none), rolled after the table's own
+	// rolls so theirs don't move.
+	const UPlayerThrowComponent* PlayerThrow = FindPlayerThrow(World);
+	const bool bGrenade = PlayerThrow
+		&& Random.FRand() < FThrowRules::ChestChance(Kind == EChestKind::Strongbox, PlayerThrow->GetGrenades());
+	const int32 Count = Roll.Weapons.Num() + Roll.Ammo.Num() + (bGrenade ? 1 : 0);
 	int32 Thrown = 0;
 	TArray<FString> Items;
 	for (const FWeaponInstanceData& Instance : Roll.Weapons)
@@ -147,8 +181,27 @@ void AChest::DropLoot()
 			Items.Add(FString::Printf(TEXT("%d %s"), Drop.Amount, LooterAmmo::GetInfo(Drop.Type).Name));
 		}
 	}
+	if (bGrenade)
+	{
+		const FVector Velocity = TossVelocity(Thrown++, Count, Random);
+		if (AGrenadePickup* Grenade = AGrenadePickup::SpawnGrenades(World, 1, From))
+		{
+			Grenade->Toss(Velocity);
+			DroppedLoot.Add(Grenade);
+			Items.Add(TEXT("1 grave-salt grenade"));
+		}
+	}
 	UE_LOG(LogLooter, Log, TEXT("%s (%s): gave %s (level %d)."), *GetActorNameOrLabel(), *GetSaveKey().ToString(),
 		Items.IsEmpty() ? TEXT("nothing") : *FString::Join(Items, TEXT(", ")), Level);
+	// A grave's or a coffin's dead give something back now and then: a soul-mote rising out of it (it heals a hurt player).
+	const float MoteChance = GetLootInfo().MoteChance;
+	if (MoteChance > 0.f && Random.FRand() < MoteChance)
+	{
+		for (ASoulMotePickup* Mote : ASoulMotePickup::SpawnMotes(World, From + GetActorUpVector() * 20.0, 1))
+		{
+			DroppedLoot.Add(Mote);
+		}
+	}
 	// Progress: the session keeps it open with this map's world (FSavedMapWorld::OpenedChests), and the loot lying there.
 	if (USessionSubsystem* Sessions = USessionSubsystem::Get(this))
 	{

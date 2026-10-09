@@ -112,7 +112,7 @@ and opaque blades, seeded so every run gives the same mesh, and `finish()`, whic
 
 ## Gun parts
 
-A gun is built from parts: `Art/Models/Weapons/<Gun>.py` (the Bullpup AR, the Ranchhand shotgun) makes each part as
+A gun is built from parts: `Art/Models/Weapons/<Gun>.py` (the Bullpup AR, the Ranchhand shotgun, the Drover revolver) makes each part as
 its own model (`SM_BullpupBody_Standard`, `SM_BullpupBarrel_Heavy`, ...) with `Tools/Blender/looter_guns.py`, +X
 toward the muzzle. The body sits at the gun's origin; every other part hangs from a socket on an earlier part (the
 body's `Barrel`, `Magazine`, `Sight`, `Stock`; a barrel's `Muzzle` for muzzle devices) and is modeled around its own
@@ -130,3 +130,19 @@ rename or reuse one.
 - Lenses and sight windows use `lg.LENS` (glass on the Glass master), and optics are open tubes, so they can be aimed
   through.
 - Parts are small and held close: set the model's `Nanite` property to 0.
+- **The Drover** (`Drover.py` and `Drover.parts.csv`, a swing-out revolver on pistol ammo, the third family) hangs its
+  parts differently: the frame (`DroverBody_<Key>`) carries the sockets `Barrel`, `Cylinder` (the cylinder's axis at its
+  rear face), `Sight` and `GripMount` (the grip part hangs from it, and brings the hands' `Grip` and `Foregrip`). The cylinder
+  (`DroverCylinder_<Key>`) turns about its axis a chamber per shot and swings out to the gun's left about its own
+  `SOCKET_Crane` to reload; its chamber count is its capacity (the CSV's Magazine). Every iron rear sight lines up with the
+  barrels' front sight on `SIGHT_LINE`. A gun's notches are cut into its grip panels. Make its definition with
+  `Tools/Unreal/create_revolver.py` before `setup_gun_parts.py`.
+
+## Throwables
+
+`Art/Models/Throwables/<Name>.py` is a thrown or dropped item, a scripted model like the others, imported to
+`/Game/Art/Throwables/SM_<Name>`. The grave-salt grenade (`SaltGrenade.py`) is one model, pivot at the middle of its foot,
+with `SOCKET_Fuse` at the fuse's tip (the sparks and the fizz come from it), no collision (the game sweeps its own ball),
+no Nanite and no LODs. Code loads the mesh by path, so the folder is under `DirectoriesToAlwaysCook` in
+`Config/DefaultGame.ini`; a new throwable goes in the same folder. `--preview` renders it to
+`Saved/ArtPreviews/Throwables/`.

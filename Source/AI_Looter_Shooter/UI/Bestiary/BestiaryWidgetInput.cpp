@@ -68,6 +68,14 @@ FReply UBestiaryWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyE
 		}
 		return FReply::Handled();
 	}
+	if (Key == EKeys::Four)
+	{
+		if (ALooterHUD* HUD = OwningHUD.Get())
+		{
+			HUD->ShowInventoryPage(EInventoryPage::Map);
+		}
+		return FReply::Handled();
+	}
 	if (Key == EKeys::Up || Key == EKeys::W || Key == EKeys::Gamepad_DPad_Up)
 	{
 		Select(Selected - 1, true);

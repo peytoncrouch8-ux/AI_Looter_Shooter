@@ -39,6 +39,10 @@ Skyreach. It teaches controls and stays as a practice island. So no story givers
   it once with its key).
 - Melee: a live creature close in front (about 3.4 m, in the strike's cone and in sight), before the player's first
   strike; gone as they strike (`UPlayerMeleeComponent`, key from `UKeyBindingSubsystem::MeleeBindingId()`).
+- Grenade: two or more live creatures ahead (within 15 m, 35 degrees of the look, in sight) while the player holds a
+  grave-salt grenade and hasn't thrown one yet ("[G] Grenade: salt the crowd"); gone as they throw
+  (`UPlayerThrowComponent::CountTargetsAhead`, `GetThrowCount`; key from `UKeyBindingSubsystem::GrenadeBindingId()`).
+  Momentary like Melee, weighed right after it.
 - Swap guns: the first time a second gun is carried.
 - Inventory: on the first gun pickup from loot ("[I] Inventory: compare and equip").
 - Bench: when near the bench with two guns of the same kind.

@@ -1,4 +1,4 @@
-"""The game's weapon and ammo icons in the Inked style, the user's pick on 2026-10-01 (the five concepts are in
+"""The game's weapon, ammo and grenade icons in the Inked style, the user's pick on 2026-10-01 (the five concepts are in
 Art/Backlog/Icons/IconConcepts.py). An icon is a light top and a shaded underside inside a thick dark ink line, so it
 reads over any background: menus, the HUD over the world, an ammo box in the grass.
 
@@ -168,6 +168,39 @@ def ranchhand():
                 cut_width=0.3)
 
 
+# --- The revolver: the Drover (Blued frame, service barrel, fluted six-shot cylinder, notch sight, walnut plow handle) ---
+
+def drover():
+    rake = lambda pts: [(u + 0.15 * min(v + 3.6, 0.0), v) for u, v in pts]   # the grips lean back as in Drover.py
+    frame = [(-0.4, -3.9), (2.0, -3.9), (7.3, -3.85), (8.4, -3.2), (9.0, -1.05), (9.2, -0.95), (9.2, 1.3), (8.7, 1.8),
+             (1.2, 1.8), (0.5, 1.5), (-0.1, 0.6), (-0.6, -0.8), (-0.6, -3.0)]
+    cylinder = [(2.1, -3.1), (2.32, -3.35), (6.15, -3.35), (6.45, -3.05), (6.45, 0.65), (6.15, 0.95), (2.32, 0.95),
+                (2.1, 0.73)]
+    hammer = [(-0.55, -1.3), (0.45, -1.3), (0.6, 0.6), (0.45, 1.5), (0.0, 2.0), (-0.8, 2.15), (-1.6, 2.35), (-2.3, 2.55),
+              (-2.6, 2.35), (-2.4, 2.05), (-1.6, 1.65), (-1.0, 1.2), (-0.8, 0.3)]
+    grip = rake([(2.15, -3.7), (1.95, -4.6), (1.4, -6.6), (0.75, -9.0), (0.35, -10.9), (0.15, -11.5), (-0.3, -12.05),
+                 (-1.2, -12.3), (-2.6, -12.3), (-3.7, -11.9), (-4.3, -11.1), (-4.15, -9.2), (-3.5, -6.8), (-2.6, -4.6),
+                 (-2.1, -3.7)])
+    tang = rake([(-0.3, -3.95), (-2.15, -3.95), (-1.3, -2.6), (-0.75, -2.15), (-0.5, -2.3)])
+    trigger = [(3.7, -3.8), (4.6, -3.8), (4.55, -4.7), (4.2, -5.6), (3.7, -6.0), (3.9, -4.9)]
+    bow = quad((2.5, -3.75), (2.55, -6.9), (4.6, -6.85)) + quad((4.6, -6.85), (7.0, -6.8), (7.1, -3.8))[1:]
+    shapes = [flip(p) for p in (
+        frame, cylinder, hammer, grip, tang, trigger,
+        rect(9.2, 23.2, -0.9, 0.9), rect(9.2, 10.1, -1.08, 1.08), rect(9.8, 23.1, 0.5, 1.4),          # barrel, collar, rib
+        [(21.3, 1.35), (22.9, 1.35), (22.9, 2.25), (22.3, 2.25)],                                   # the front blade
+        [(1.0, 1.8), (2.7, 1.8), (2.7, 2.25), (1.3, 2.25)],                                         # the notch sight
+        rect(6.45, 10.15, -1.46, -0.94), rect(10.15, 11.05, -1.56, -0.84),                           # the ejector rod
+        [(11.0, -0.6), (11.95, -0.6), (11.95, -1.25), (11.45, -1.7), (11.0, -1.7)])]                # its latch
+    strokes = [flip(bow)]                                                                            # the trigger guard
+    cuts = [flip(p) for p in (
+        cylinder + cylinder[:1],                                                     # the cylinder in its window
+        [(3.45, 0.38), (5.45, 0.38)], [(3.3, -1.2), (5.6, -1.2)], [(3.45, -2.78), (5.45, -2.78)],   # its flutes
+        [(9.2, -0.95), (9.2, 1.3)],                                                  # where the barrel meets the frame
+        [(-0.45, -3.85), (2.1, -3.8)])]                                              # the grip under the frame
+    return Icon('Revolver', shapes, [], strokes, cuts, shade=1.0, outline=OUTLINE['Revolver'], stroke_width=0.42,
+                cut_width=0.16)
+
+
 # --- Ammo, drawn in a 64 x 64 box, told apart by shape and count (never color) ---
 
 def cartridge(cx, base, w, case_top, shoulder_top, neck_w, neck_top, tip, nose):
@@ -230,22 +263,55 @@ def ammo(kind):
                 outline=OUTLINE['Ammo'], cut_width=1.1)
 
 
+def star4(cx, cy, r, waist):
+    """A four-point star (a spark): tips r from the centre up, right, down and left, its waist points waist off both axes."""
+    return [(cx, cy - r), (cx + waist, cy - waist), (cx + r, cy), (cx + waist, cy + waist), (cx, cy + r),
+            (cx - waist, cy + waist), (cx - r, cy), (cx - waist, cy - waist)]
+
+
+def grave_salt_grenade():
+    """The grave-salt grenade (Docs/Polish/BorderlandsComparison.md, item 16; the HUD's counter, UHudGrenadeWidget): a
+    squat stoppered tin in the ammo icons' box and ink line, with its shoulder band and neck, the cork, and the waxed
+    fuse curling up out of it to a spark. The label band has a grave cross cut on it. Told apart from the ammo by being
+    a tin, not a round (never by color)."""
+    shapes = [
+        [(21, 32), (22, 30), (48, 30), (49, 32), (49, 58.5), (47, 61.5), (23, 61.5), (21, 58.5)],   # the body, its feet rounded
+        [(22, 30), (25, 24.5), (45, 24.5), (48, 30)],                                              # the shoulder band
+        rect(30, 40, 19.5, 24.5),                                                                  # the neck
+        [(29.5, 19.5), (28.5, 13.5), (41.5, 13.5), (40.5, 19.5)],                                  # the cork, wider at its top
+        star4(49, 5.8, 4.3, 1.2)]                                                                  # the fuse's spark
+    strokes = [[(35, 13.5), (35.6, 10.2), (37.6, 7.6), (40.8, 6), (44.6, 5.8)]]                    # the waxed fuse
+    cuts = [
+        [(22.5, 30), (47.5, 30)],                                                                  # the lid seam
+        [(21, 38.5), (49, 38.5)], [(21, 52.5), (49, 52.5)],                                        # the label band
+        [(35, 40.8), (35, 50.2)], [(31.2, 43.8), (38.8, 43.8)],                                    # the grave cross on it
+        [(29.4, 17.6), (40.6, 17.6)]]                                                              # the cork's wax seal
+    return Icon('GraveSaltGrenade', shapes, strokes=strokes, cuts=cuts, shade=46, outline=OUTLINE['Ammo'], stroke_width=2.2,
+                cut_width=1.1)
+
+
 # The ink line's width in each icon's units: guns scale it with their length so every gun's line looks the same
-# when they're drawn the same width; the ammo icons share one box and one width.
-OUTLINE = {'Rifle': 1.72, 'Shotgun': 2.56, 'Ammo': 3.2}
+# when they're drawn the same width; the ammo icons and the grenade share one box and one width.
+OUTLINE = {'Rifle': 1.72, 'Shotgun': 2.56, 'Revolver': 0.72, 'Ammo': 3.2}
 AMMO_TYPES = ('AssaultRifle', 'Shotgun', 'Pistol', 'SMG', 'Sniper')   # EAmmoType order
 
 
+def is_square(icon):
+    """Drawn in the ammo icons' square box (the ammo and the grenade), as against a gun's own wide one."""
+    return icon.name.startswith('Ammo') or icon.name == 'GraveSaltGrenade'
+
+
 def icons():
-    """Every icon, placed in its view box: each gun in its own, the ammo types all in one shared box."""
-    guns = [bullpup().place(), ranchhand().place()]
+    """Every icon, placed in its view box: each gun in its own, the ammo types and the grenade all in one shared box
+    (fitted to the ammo, so the grenade can't move the ammo icons)."""
+    guns = [bullpup().place(), ranchhand().place(), drover().place()]
     rounds = [ammo(kind) for kind in AMMO_TYPES]
     boxes = [r.bounds() for r in rounds]
     shared = (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes))
     side = max(shared[2] - shared[0], shared[3] - shared[1])
     cx, cy = (shared[0] + shared[2]) / 2, (shared[1] + shared[3]) / 2
     square = (cx - side / 2, cy - side / 2, cx + side / 2, cy + side / 2)
-    return guns + [r.place(square) for r in rounds]
+    return guns + [r.place(square) for r in rounds] + [grave_salt_grenade().place(square)]
 
 
 # --- The rules the game draws by (see the module's docstring), for the reference pictures ---
@@ -382,13 +448,13 @@ def write_previews(all_icons):
     os.makedirs(PREVIEW_OUT, exist_ok=True)
     files = {}
     for icon in all_icons:
-        sizes = AMMO_SIZES if icon.name.startswith('Ammo') else GUN_SIZES
+        sizes = AMMO_SIZES if is_square(icon) else GUN_SIZES
         for px in sizes:
             image = picture(icon, px)
             name = f'Inked_{icon.name}_{px[0]}.png'
             write_png(os.path.join(PREVIEW_OUT, name), image)
             files[(icon.name, px)] = (name, image.shape[1] // 2, image.shape[0] // 2)
-        big = picture(icon, (150, 150) if icon.name.startswith('Ammo') else (440, 200))
+        big = picture(icon, (150, 150) if is_square(icon) else (440, 200))
         name = f'Inked_{icon.name}_big.png'
         write_png(os.path.join(PREVIEW_OUT, name), big)
         files[(icon.name, 'big')] = (name, big.shape[1] // 2, big.shape[0] // 2)
@@ -402,10 +468,10 @@ def write_sheet(all_icons, files):
     def img(key):
         name, w, h = files[key]
         return f'<img src="{name}" width="{w}" height="{h}">'
-    guns = [i for i in all_icons if not i.name.startswith('Ammo')]
-    rounds = [i for i in all_icons if i.name.startswith('Ammo')]
+    guns = [i for i in all_icons if not is_square(i)]
+    rounds = [i for i in all_icons if is_square(i)]
     big = ''.join(f'<div class="cell">{img((i.name, "big"))}<span>{i.name}</span></div>' for i in guns)
-    big_ammo = ''.join(f'<div class="cell">{img((i.name, "big"))}<span>{i.name[4:]}</span></div>' for i in rounds)
+    big_ammo = ''.join(f'<div class="cell">{img((i.name, "big"))}<span>{i.name.removeprefix("Ammo")}</span></div>' for i in rounds)
     rows = ''
     for bg_name, bg in (('PANEL', '#0E1A24'), ('WORLD', f'url({shot}) -980px -520px')):
         cells = ''.join(f'<div class="s">{img((i.name, px))}</div>' for i in guns for px in GUN_SIZES)

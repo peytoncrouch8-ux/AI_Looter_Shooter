@@ -12,6 +12,7 @@
 #include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponModelComponent.h"
 #include "Weapons/WeaponParts.h"
+#include "Weapons/WeaponSounds.h"
 #include "World/LightBeam.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraTypes.h"
@@ -163,6 +164,7 @@ void AWeaponBase::Tick(float DeltaSeconds)
 		PlayReloadSteps(GetReloadProgress());
 	}
 	UpdateMuzzleFlash(DeltaSeconds);
+	Model->UpdateCylinder(DeltaSeconds);
 	UpdateBeamGutter();
 	RefreshTick();
 }
@@ -170,7 +172,7 @@ void AWeaponBase::Tick(float DeltaSeconds)
 void AWeaponBase::RefreshTick()
 {
 	const bool bAnimatingReload = bReloading && GetReloadPart() != EWeaponReloadPart::None;
-	const bool bWanted = bAnimatingReload || FlashTimeLeft > 0.f || IsBeamGuttering();
+	const bool bWanted = bAnimatingReload || FlashTimeLeft > 0.f || IsBeamGuttering() || Model->IsCylinderTurning();
 	if (IsActorTickEnabled() != bWanted)
 	{
 		SetActorTickEnabled(bWanted);
@@ -257,7 +259,7 @@ void AWeaponBase::OnEquipped(APawn* NewOwner, USceneComponent* AttachTo, FName S
 	const UWeaponManagerComponent* Inventory = GetHolderInventory();
 	if (Inventory && Inventory->GetActiveWeapon() == this)
 	{
-		PlayCue(LooterSoundCue::Equip);
+		PlayCue(WeaponSounds::Equip(Instance.Definition ? Instance.Definition->Kind : EWeaponKind::None));
 	}
 	WeaponCurseEffects::RefreshHolder(NewOwner);
 }

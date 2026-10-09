@@ -17,6 +17,32 @@ namespace
 {
 	/** Drawn on a screen this lately (seconds) still counts as seen: it isn't taken away under the player's eyes. */
 	constexpr float SeenLatelySeconds = 0.5f;
+
+	/**
+	 * Whether a group's kind is under its cap across the level: the group's own, or the class's in the settings (the Unpaid's
+	 * 12). When the kind has a cap, OutCount is its running count in KindAlive (counted on first use); otherwise null.
+	 */
+	bool KindHasRoom(const FEncounterGroup& Group, const UEncounterSettings& Settings, const UEncounterSubsystem* Encounters,
+		TMap<const UClass*, int32>& KindAlive, int32*& OutCount)
+	{
+		const UClass* Counted = Group.CreatureClass;
+		int32 KindCap = Group.MaxAliveOfClass;
+		if (KindCap <= 0)
+		{
+			KindCap = Settings.FindClassCap(Group.CreatureClass, &Counted);
+		}
+		OutCount = nullptr;
+		if (KindCap <= 0 || !Counted)
+		{
+			return true;
+		}
+		OutCount = KindAlive.Find(Counted);
+		if (!OutCount)
+		{
+			OutCount = &KindAlive.Add(Counted, Encounters ? Encounters->CountAlive(Counted) : 0);
+		}
+		return EncounterRules::Room(*OutCount, KindCap) > 0;
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -107,6 +133,29 @@ int32 AEncounterSpawner::SpawnOwed()
 	int32 NearAlive = Encounters && Player ? Encounters->CountAliveNear(PlayerSpot, Settings.NearPlayerRadius) : 0;
 	TMap<const UClass*, int32> KindAlive;
 
+	// Nothing can come while its own cap is full, or every kind it owes is at its cap: leave before looking for spots (up to 240
+	// ground probes), which it would otherwise repeat at every check while its creatures wait here for room.
+	if (EncounterRules::Room(OwnAlive, MaxAlive) <= 0)
+	{
+		return 0;
+	}
+	bool bSomeKindFits = false;
+	for (const FOwedCreature& Entry : Owed)
+	{
+		const FEncounterGroup* Group = Groups.IsValidIndex(Entry.Group) ? &Groups[Entry.Group] : nullptr;
+		int32* KindCount = nullptr;
+		// A group taken out of the data since is cleared out below, so it counts as one that fits.
+		if (!Group || !Group->CreatureClass || KindHasRoom(*Group, Settings, Encounters, KindAlive, KindCount))
+		{
+			bSomeKindFits = true;
+			break;
+		}
+	}
+	if (!bSomeKindFits)
+	{
+		return 0;
+	}
+
 	// Spots for all of them at once, so they spread over its ground instead of piling on the first free one.
 	const TArray<FVector> Spots = ChooseSpawnSpots(Owed.Num(), Player);
 	int32 NextSpot = 0;
@@ -124,26 +173,12 @@ int32 AEncounterSpawner::SpawnOwed()
 		}
 
 		// Its kind's cap across the level: its group's own, or the class's in the settings (the Unpaid's 12).
-		const UClass* Counted = Group->CreatureClass;
-		int32 KindCap = Group->MaxAliveOfClass;
-		if (KindCap <= 0)
-		{
-			KindCap = Settings.FindClassCap(Group->CreatureClass, &Counted);
-		}
 		int32* KindCount = nullptr;
-		if (KindCap > 0 && Counted)
+		if (!KindHasRoom(*Group, Settings, Encounters, KindAlive, KindCount))
 		{
-			KindCount = KindAlive.Find(Counted);
-			if (!KindCount)
-			{
-				KindCount = &KindAlive.Add(Counted, Encounters ? Encounters->CountAlive(Counted) : 0);
-			}
-			if (EncounterRules::Room(*KindCount, KindCap) <= 0)
-			{
-				// One of another kind may still fit; this one waits its turn.
-				++Index;
-				continue;
-			}
+			// One of another kind may still fit; this one waits its turn.
+			++Index;
+			continue;
 		}
 
 		// At most 16 of any kind near the player: a spot near them waits for room, one far off doesn't add to it.

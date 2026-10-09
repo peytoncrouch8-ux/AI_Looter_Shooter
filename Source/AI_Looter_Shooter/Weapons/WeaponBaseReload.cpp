@@ -4,6 +4,7 @@
 #include "Combat/BulletSubsystem.h"
 #include "Weapons/WeaponCurseEffects.h"
 #include "Weapons/WeaponDefinition.h"
+#include "Weapons/WeaponSounds.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerViewComponent.h"
@@ -28,29 +29,6 @@
 #include "Materials/MaterialInterface.h"
 #include "NiagaraFunctionLibrary.h"
 #include "TimerManager.h"
-
-namespace
-{
-	/** The sound of a reload's step. */
-	FName ReloadStepCue(EReloadStep Step)
-	{
-		switch (Step)
-		{
-		case EReloadStep::MagOut:
-			return LooterSoundCue::RifleMagOut;
-		case EReloadStep::MagIn:
-			return LooterSoundCue::RifleMagIn;
-		case EReloadStep::Bolt:
-			return LooterSoundCue::RifleBolt;
-		case EReloadStep::ShellIn:
-			return LooterSoundCue::ShotgunShellIn;
-		case EReloadStep::Pump:
-			return LooterSoundCue::ShotgunPump;
-		default:
-			return NAME_None;
-		}
-	}
-}
 
 // ---------------------------------------------------------------------------
 // Ammo
@@ -124,7 +102,7 @@ void AWeaponBase::PlayReloadSteps(float Progress)
 	{
 		if (Step.Progress > ReloadSoundProgress && Step.Progress <= Progress)
 		{
-			PlayCue(ReloadStepCue(Step.Step));
+			PlayCue(WeaponSounds::ReloadStep(Step.Step));
 		}
 	}
 	ReloadSoundProgress = Progress;
@@ -175,7 +153,18 @@ void AWeaponBase::UpdateReloadPart()
 	float Travel = 0.f;
 	if (Progress >= 0.f)
 	{
-		Travel = Part == EWeaponReloadPart::Magazine ? LooterReload::MagazineTravel(Progress, bVisible) : LooterReload::PumpTravel(Progress);
+		switch (Part)
+		{
+		case EWeaponReloadPart::Magazine:
+			Travel = LooterReload::MagazineTravel(Progress, bVisible);
+			break;
+		case EWeaponReloadPart::Cylinder:
+			Travel = LooterReload::CylinderSwing(Progress);
+			break;
+		default:
+			Travel = LooterReload::PumpTravel(Progress);
+			break;
+		}
 	}
 	Model->SetReloadTravel(Travel, bVisible);
 }

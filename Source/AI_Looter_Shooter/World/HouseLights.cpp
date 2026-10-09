@@ -1,5 +1,7 @@
 #include "World/HouseLights.h"
 #include "World/LightingStateSubsystem.h"
+#include "World/TownLifeRules.h"
+#include "World/TownLifeSubsystem.h"
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
@@ -57,6 +59,13 @@ void AHouseLights::BeginPlay()
 	}
 	// As the level begins, lit as the state it starts in (a level without states is day).
 	ApplyState(Lighting ? Lighting->GetState() : NAME_None);
+	// A lived-in house is heard now and then as the player passes: its household's sounds come from its lamp's spot.
+	const FName Home = GetHousehold();
+	UTownLifeSubsystem* TownLife = Home.IsNone() ? nullptr : UTownLifeSubsystem::Get(this);
+	if (TownLife)
+	{
+		TownLife->AddSource(this, Home);
+	}
 }
 
 void AHouseLights::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -66,7 +75,16 @@ void AHouseLights::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		Lighting->OnChanged.Remove(Listening);
 	}
 	Listening.Reset();
+	if (UTownLifeSubsystem* TownLife = UTownLifeSubsystem::Get(this))
+	{
+		TownLife->RemoveSource(this);
+	}
 	Super::EndPlay(EndPlayReason);
+}
+
+FName AHouseLights::GetHousehold() const
+{
+	return Household.IsNone() ? TownLifeRules::HouseholdForHouse(House) : Household;
 }
 
 void AHouseLights::OnLightingChanged(const FLightingStateChange& Change)

@@ -5,6 +5,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/EncounterSettings.h"
+#include "Creatures/EncounterSubsystem.h"
 #include "Creatures/PackRules.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -139,19 +140,38 @@ void UCreaturePackComponent::LookAtPack()
 	int32 Packmates = 0;
 	TArray<float> Bearings = { PackRules::BearingAround(Prey, Here) };
 	TArray<uint32> TieBreaks = { Me->GetUniqueID() };
-	for (TActorIterator<ACreatureBase> It(World); It; ++It)
+	auto Consider = [&](const ACreatureBase* Other)
 	{
-		const ACreatureBase* Other = *It;
 		if (Other == Me || Other->IsDead() || Other->IsHidden() || Other->IsActorBeingDestroyed() || !Other->SharesPackWith(*Me)
 			|| FVector::DistSquared(Other->GetActorLocation(), Here) > ReachSquared)
 		{
-			continue;
+			return;
 		}
 		++Packmates;
 		if (bFlanks && CanFlank(*Other) && Other->GetTarget() == Victim && IsHunting(Other->GetCreatureState()))
 		{
 			Bearings.Add(PackRules::BearingAround(Prey, Other->GetActorLocation()));
 			TieBreaks.Add(Other->GetUniqueID());
+		}
+	};
+	// Every chaser looks a few times a second, so it reads the encounters' list of the level's creatures instead of walking all
+	// the level's actors. (The flank ranks by bearing, so the order the creatures come in doesn't matter.) A level without
+	// that list walks them.
+	if (const UEncounterSubsystem* Encounters = World->GetSubsystem<UEncounterSubsystem>())
+	{
+		for (const TWeakObjectPtr<ACreatureBase>& Each : Encounters->GetTrackedCreatures())
+		{
+			if (const ACreatureBase* Other = Each.Get())
+			{
+				Consider(Other);
+			}
+		}
+	}
+	else
+	{
+		for (TActorIterator<ACreatureBase> It(World); It; ++It)
+		{
+			Consider(*It);
 		}
 	}
 	FlankDegrees = bFlanks ? PackRules::FlankOffsets(Bearings, TieBreaks, Settings.FlankStepDegrees, Settings.FlankMaxDegrees)[0] : 0.f;

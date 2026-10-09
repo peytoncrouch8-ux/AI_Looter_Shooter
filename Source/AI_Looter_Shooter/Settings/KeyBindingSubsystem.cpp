@@ -60,6 +60,7 @@ void UKeyBindingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	AddBinding(TEXT("Fire"), TEXT("Fire"), TEXT("Combat"), WeaponContext, Fire, EKeys::LeftMouseButton);
 	AddBinding(TEXT("Aim"), TEXT("Aim down sights"), TEXT("Combat"), CharacterContext, AimAction, EKeys::RightMouseButton, true);
 	AddBinding(MeleeBindingId(), TEXT("Melee"), TEXT("Combat"), CharacterContext, MeleeAction, DefaultMeleeKey());
+	AddBinding(GrenadeBindingId(), TEXT("Grenade"), TEXT("Combat"), CharacterContext, GrenadeAction, DefaultGrenadeKey());
 	AddBinding(TEXT("Reload"), TEXT("Reload"), TEXT("Combat"), WeaponContext, Reload, EKeys::R);
 	AddBinding(TEXT("NextWeapon"), TEXT("Next weapon"), TEXT("Combat"), WeaponContext, Next, EKeys::MouseScrollUp);
 	AddBinding(TEXT("PreviousWeapon"), TEXT("Previous weapon"), TEXT("Combat"), WeaponContext, Previous, EKeys::MouseScrollDown);
@@ -68,13 +69,15 @@ void UKeyBindingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		AddBinding(WeaponSlotBindingId(SlotIndex), *FString::Printf(TEXT("Weapon slot %d"), SlotIndex + 1), TEXT("Combat"), WeaponSlotContext,
 			WeaponSlotActions[SlotIndex], DefaultWeaponSlotKey(SlotIndex));
 	}
-	AddBinding(TEXT("DropWeapon"), TEXT("Drop weapon"), TEXT("Combat"), WeaponContext, Drop, EKeys::G);
+	// The asset maps it to G, which the grenade has now: the player's copy takes its own default.
+	AddBinding(TEXT("DropWeapon"), TEXT("Drop weapon"), TEXT("Combat"), WeaponContext, Drop, DefaultDropWeaponKey(), false, DropWeaponAssetKey());
 	AddBinding(TEXT("Interact"), TEXT("Pick up / interact"), TEXT("Combat"), WeaponContext, Interact, EKeys::E);
 
 	AddBinding(TEXT("ToggleView"), TEXT("Camera view (1st / 3rd person)"), TEXT("Camera"), CharacterContext, ToggleViewAction, EKeys::F5);
 
 	AddBinding(TEXT("Inventory"), TEXT("Inventory"), TEXT("Menus"), GlobalContext, InventoryAction, EKeys::Tab);
 	AddBinding(TEXT("InventoryAlt"), TEXT("Inventory (alternate)"), TEXT("Menus"), GlobalContext, InventoryAction, EKeys::I);
+	AddBinding(MapBindingId(), TEXT("Map"), TEXT("Menus"), GlobalContext, MapAction, DefaultMapKey());
 
 	// Forget saved keys for controls that no longer exist, so old saves don't carry them forever.
 	for (auto It = SaveData->Overrides.CreateIterator(); It; ++It)
@@ -99,6 +102,8 @@ void UKeyBindingSubsystem::BuildGlobalContext()
 	GlobalContext->MapKey(InventoryAction, EKeys::Tab);
 	GlobalContext->MapKey(InventoryAction, EKeys::I);
 	GlobalContext->MapKey(InventoryAction, EKeys::Gamepad_Special_Left);
+	// The map is a menu key too: it works whatever pawn is possessed (or none), as the inventory's does.
+	MapAction = AddMapAction(this, *GlobalContext);
 }
 
 void UKeyBindingSubsystem::BuildCharacterContext()
@@ -121,6 +126,7 @@ void UKeyBindingSubsystem::BuildCharacterContext()
 	// Gamepads aim with the left trigger, as shooters do.
 	CharacterContext->MapKey(AimAction, EKeys::Gamepad_LeftTrigger);
 	MeleeAction = AddMeleeAction(this, *CharacterContext);
+	GrenadeAction = AddGrenadeAction(this, *CharacterContext);
 }
 
 FName UKeyBindingSubsystem::MeleeBindingId()
@@ -145,6 +151,73 @@ UInputAction* UKeyBindingSubsystem::AddMeleeAction(UObject* Outer, UInputMapping
 	Context.MapKey(Action, DefaultMeleeKey());
 	Context.MapKey(Action, DefaultMeleeGamepadKey());
 	return Action;
+}
+
+FName UKeyBindingSubsystem::MapBindingId()
+{
+	return TEXT("Map");
+}
+
+FKey UKeyBindingSubsystem::DefaultMapKey()
+{
+	return EKeys::M;
+}
+
+FKey UKeyBindingSubsystem::DefaultMapGamepadKey()
+{
+	// The View button would be the usual one, but it opens the inventory; down on the D-pad is free in play.
+	return EKeys::Gamepad_DPad_Down;
+}
+
+UInputAction* UKeyBindingSubsystem::AddMapAction(UObject* Outer, UInputMappingContext& Context)
+{
+	// Built in code like the other global actions: no input asset to keep in step.
+	UInputAction* Action = NewObject<UInputAction>(Outer, TEXT("IA_Map"));
+	Context.MapKey(Action, DefaultMapKey());
+	Context.MapKey(Action, DefaultMapGamepadKey());
+	return Action;
+}
+
+bool UKeyBindingSubsystem::IsMapKey(const FKey& Key) const
+{
+	// The keyboard's key only: on the open page the D-pad moves the selection (a pad closes it with B or View).
+	return Key == GetKey(MapBindingId());
+}
+
+FName UKeyBindingSubsystem::GrenadeBindingId()
+{
+	return TEXT("Grenade");
+}
+
+FKey UKeyBindingSubsystem::DefaultGrenadeKey()
+{
+	return EKeys::G;
+}
+
+FKey UKeyBindingSubsystem::DefaultGrenadeGamepadKey()
+{
+	return EKeys::Gamepad_RightShoulder;
+}
+
+UInputAction* UKeyBindingSubsystem::AddGrenadeAction(UObject* Outer, UInputMappingContext& Context)
+{
+	// Built in code like the melee action: no input asset to keep in step.
+	UInputAction* Action = NewObject<UInputAction>(Outer, TEXT("IA_Grenade"));
+	Context.MapKey(Action, DefaultGrenadeKey());
+	Context.MapKey(Action, DefaultGrenadeGamepadKey());
+	return Action;
+}
+
+FKey UKeyBindingSubsystem::DefaultDropWeaponKey()
+{
+	// Out of the way of the fight's keys (G throws now; Q and F are kept for the ember powers), and never pressed by
+	// accident while running and gunning.
+	return EKeys::X;
+}
+
+FKey UKeyBindingSubsystem::DropWeaponAssetKey()
+{
+	return EKeys::G;
 }
 
 FName UKeyBindingSubsystem::WeaponSlotBindingId(int32 SlotIndex)
@@ -184,21 +257,23 @@ const UInputAction* UKeyBindingSubsystem::GetWeaponSlotAction(int32 SlotIndex) c
 }
 
 void UKeyBindingSubsystem::AddBinding(FName Id, const TCHAR* Name, const TCHAR* Category, UInputMappingContext* Context, const UInputAction* Action,
-	const FKey& DefaultKey, bool bSupportsToggle)
+	const FKey& DefaultKey, bool bSupportsToggle, const FKey& AssetKey)
 {
 	if (!Context || !Action)
 	{
 		return;
 	}
 
+	// The mapping this row controls, by the key the context maps it to (the runtime copy then takes the player's key).
+	const FKey& MappedKey = AssetKey.IsValid() ? AssetKey : DefaultKey;
 	const TArray<FEnhancedActionKeyMapping>& Mappings = Context->GetMappings();
-	const int32 Index = Mappings.IndexOfByPredicate([Action, &DefaultKey](const FEnhancedActionKeyMapping& Mapping)
+	const int32 Index = Mappings.IndexOfByPredicate([Action, &MappedKey](const FEnhancedActionKeyMapping& Mapping)
 	{
-		return Mapping.Action == Action && Mapping.Key == DefaultKey;
+		return Mapping.Action == Action && Mapping.Key == MappedKey;
 	});
 	if (Index == INDEX_NONE)
 	{
-		UE_LOG(LogLooter, Warning, TEXT("Key bindings: %s has no %s mapping for %s"), *Context->GetName(), *DefaultKey.ToString(), *Action->GetName());
+		UE_LOG(LogLooter, Warning, TEXT("Key bindings: %s has no %s mapping for %s"), *Context->GetName(), *MappedKey.ToString(), *Action->GetName());
 		return;
 	}
 

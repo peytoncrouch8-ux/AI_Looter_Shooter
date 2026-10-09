@@ -200,6 +200,26 @@ bool FInventoryLoadoutTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Two guns, the third slot empty"), Carries(2, 0) == TArray<C>{ C::InHand, C::Back, C::None });
 	TestTrue(TEXT("Nothing in hand"), Carries(2, INDEX_NONE) == TArray<C>{ C::Back, C::Hip, C::None });
 
+	// A holstered six-gun rides on the hip, where it's drawn from; the long guns keep the back.
+	using K = EWeaponKind;
+	auto CarriesOf = [](const TArray<EWeaponKind>& Kinds, int32 ActiveSlot)
+	{
+		TArray<C> Result;
+		for (int32 Slot = 0; Slot < 3; ++Slot)
+		{
+			Result.Add(LoadoutCarry::ForSlot(Slot, Kinds.Num(), ActiveSlot, Kinds));
+		}
+		return Result;
+	};
+	TestTrue(TEXT("Rifle in hand, a shotgun and a revolver holstered: the shotgun on the back, the revolver on the hip"),
+		CarriesOf({ K::Rifle, K::Shotgun, K::Revolver }, 0) == TArray<C>{ C::InHand, C::Back, C::Hip });
+	TestTrue(TEXT("The revolver first in the slots: still the hip, the rifle after it on the back"),
+		CarriesOf({ K::Revolver, K::Rifle, K::Shotgun }, 2) == TArray<C>{ C::Hip, C::Back, C::InHand });
+	TestTrue(TEXT("Revolver in hand: the long guns alternate as before"),
+		CarriesOf({ K::Revolver, K::Rifle, K::Shotgun }, 0) == TArray<C>{ C::InHand, C::Back, C::Hip });
+	TestTrue(TEXT("Two revolvers holstered: the hip, then the back"),
+		CarriesOf({ K::Rifle, K::Revolver, K::Revolver }, 0) == TArray<C>{ C::InHand, C::Hip, C::Back });
+
 	// Sorted best for the slot, the backpack lists the target's kind of gun first, the best of it on top.
 	UWeaponDefinition* RifleKind = NewObject<UWeaponDefinition>();
 	UWeaponDefinition* ShotgunKind = NewObject<UWeaponDefinition>();

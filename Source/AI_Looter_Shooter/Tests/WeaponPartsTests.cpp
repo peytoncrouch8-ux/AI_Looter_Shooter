@@ -17,7 +17,7 @@
 
 namespace
 {
-	const TCHAR* const Guns[] = { TEXT("DA_AssaultRifle"), TEXT("DA_PumpShotgun") };
+	const TCHAR* const Guns[] = { TEXT("DA_AssaultRifle"), TEXT("DA_PumpShotgun"), TEXT("DA_Revolver") };
 	const EWeaponRarity Rarities[] = { EWeaponRarity::Common, EWeaponRarity::Uncommon, EWeaponRarity::Rare, EWeaponRarity::Epic, EWeaponRarity::Legendary };
 
 	const UWeaponDefinition* LoadGun(const TCHAR* Name)

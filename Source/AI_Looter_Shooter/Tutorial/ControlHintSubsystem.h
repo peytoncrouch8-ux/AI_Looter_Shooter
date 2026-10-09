@@ -110,6 +110,7 @@ private:
 	int32 LastGunsCarried = INDEX_NONE;
 	int32 LastSlot = INDEX_NONE;
 	int32 LastMeleeCount = INDEX_NONE;
+	int32 LastThrowCount = INDEX_NONE;
 
 	/** The level's benches, found once. */
 	TArray<TWeakObjectPtr<AActor>> Benches;

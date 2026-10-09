@@ -3,6 +3,7 @@
 
 #include "UI/HUD/HudControlHintWidget.h"
 #include "Audio/LooterSound.h"
+#include "Combat/HealthComponent.h"
 #include "Missions/MissionText.h"
 #include "Scenes/SceneSubsystem.h"
 #include "Tutorial/ControlHintSubsystem.h"
@@ -19,6 +20,7 @@
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 
 using namespace LooterUI;
@@ -243,6 +245,13 @@ bool UHudControlHintWidget::IsCovered() const
 		return true;
 	}
 	if (USceneSubsystem::HidesGameplayHUD(this))
+	{
+		return true;
+	}
+	// A dead player has no use for a nudge about the controls: it waits for them to be back on their feet.
+	const APawn* Pawn = Player ? Player->GetPawn() : nullptr;
+	const UHealthComponent* Health = Pawn ? Pawn->FindComponentByClass<UHealthComponent>() : nullptr;
+	if (Health && Health->IsDead())
 	{
 		return true;
 	}

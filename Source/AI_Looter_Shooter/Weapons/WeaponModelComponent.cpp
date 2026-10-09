@@ -102,12 +102,21 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 		{
 			ReloadPartMesh = Part;
 			ReloadPart = Definition->ReloadPart;
+			if (ReloadPart == EWeaponReloadPart::Cylinder)
+			{
+				// A cylinder holds as many rounds as its part says, and swings out on the crane its model marks (else on a
+				// hinge low on its left, where a swing-out cylinder's is).
+				CylinderChambers = FMath::Max(Option->Stats.Magazine, 1);
+				const FBox PartBounds = Option->Mesh ? Option->Mesh->GetBoundingBox() : FBox(FVector(-2.0), FVector(2.0));
+				CranePivot = Part->DoesSocketExist(CraneSocket) ? Part->GetSocketTransform(CraneSocket, RTS_Component).GetLocation()
+					: FVector(0.0, PartBounds.Min.Y * 0.65, PartBounds.Min.Z * 1.1);
+			}
 		}
 		if (Slot.Socket == SightSocket || Slot.Name == SightSocket)
 		{
 			SightPart = Part;
 		}
-		if (Slot.Name == StockSlot)
+		if (Slot.Name == StockSlot || Slot.Name == GripSlot)
 		{
 			StockPart = Part;
 		}
@@ -167,6 +176,11 @@ void UWeaponModelComponent::Clear()
 	NotchPart = nullptr;
 	AimPoint = FVector::ZeroVector;
 	ReloadPart = EWeaponReloadPart::None;
+	CylinderChambers = 0;
+	CranePivot = FVector::ZeroVector;
+	CylinderSwing = 0.f;
+	CylinderTurnShown = CylinderTurnFrom = CylinderTurnTo = 0.f;
+	CylinderTurnAge = 1000.f;
 	Muzzle = FVector::ZeroVector;
 	Grip = FVector::ZeroVector;
 	Foregrip = FVector::ZeroVector;
@@ -212,10 +226,66 @@ void UWeaponModelComponent::SetReloadTravel(float Travel, bool bShow)
 	{
 		return;
 	}
+	if (ReloadPart == EWeaponReloadPart::Cylinder)
+	{
+		CylinderSwing = Travel;
+		PoseCylinder();
+		ReloadPartMesh->SetVisibility(bShow);
+		return;
+	}
 	// It rests on its socket: a magazine slides out along its -Z, a pump back along its -X.
 	const FVector Way = ReloadPart == EWeaponReloadPart::Pump ? FVector(-1.f, 0.f, 0.f) : FVector(0.f, 0.f, -1.f);
 	ReloadPartMesh->SetRelativeLocation(Way * Travel);
 	ReloadPartMesh->SetVisibility(bShow);
+}
+
+void UWeaponModelComponent::TurnCylinder(int32 Chambers)
+{
+	if (GetCylinderChambers() <= 0 || Chambers <= 0)
+	{
+		return;
+	}
+	// A shot fired mid-turn finishes the last turn at once and starts the next from there.
+	CylinderTurnFrom = CylinderTurnTo;
+	CylinderTurnTo += static_cast<float>(Chambers);
+	CylinderTurnShown = CylinderTurnFrom;
+	CylinderTurnAge = 0.f;
+	PoseCylinder();
+}
+
+bool UWeaponModelComponent::UpdateCylinder(float DeltaSeconds)
+{
+	if (!IsCylinderTurning())
+	{
+		return false;
+	}
+	CylinderTurnAge += FMath::Max(DeltaSeconds, 0.f);
+	// It waits for the kick, then turns quickly and eases onto the next chamber, where the hand's stop catches it.
+	const float T = FMath::Clamp((CylinderTurnAge - CylinderTurnDelay) / CylinderTurnSeconds, 0.f, 1.f);
+	CylinderTurnShown = FMath::Lerp(CylinderTurnFrom, CylinderTurnTo, FMath::InterpEaseOut(0.f, 1.f, T, 2.5f));
+	// The count only matters within a turn of the cylinder: keep it small so the angle stays exact.
+	if (!IsCylinderTurning() && CylinderChambers > 0)
+	{
+		const float Whole = FMath::Fmod(CylinderTurnTo, static_cast<float>(CylinderChambers));
+		CylinderTurnShown = CylinderTurnFrom = CylinderTurnTo = Whole;
+	}
+	PoseCylinder();
+	return IsCylinderTurning();
+}
+
+void UWeaponModelComponent::PoseCylinder()
+{
+	if (!ReloadPartMesh || ReloadPart != EWeaponReloadPart::Cylinder)
+	{
+		return;
+	}
+	// Both turns are about the gun's long axis: the cylinder's own turn about its center (its origin, on the socket), the
+	// swing about the crane's hinge. About +X, a positive angle carries the top over to the left (-Y), out of the frame's
+	// left side, and turns the chambers the same way a swing-out six-gun's do.
+	const float TurnDegrees = CylinderChambers > 0 ? CylinderTurnShown * 360.f / static_cast<float>(CylinderChambers) : 0.f;
+	const FQuat Swing(FVector::ForwardVector, FMath::DegreesToRadians(CylinderSwing));
+	const FQuat Turn(FVector::ForwardVector, FMath::DegreesToRadians(TurnDegrees));
+	ReloadPartMesh->SetRelativeLocationAndRotation(CranePivot - Swing.RotateVector(CranePivot), Swing * Turn);
 }
 
 void UWeaponModelComponent::SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType Type)

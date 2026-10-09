@@ -6,7 +6,9 @@
 
 class AWeaponBase;
 class UHealthComponent;
+class UHudGrenadeWidget;
 class UHudInteractPromptWidget;
+class UHudPickupFeedWidget;
 class UHudLevelUpBannerWidget;
 class UHudMagazineWidget;
 class UHudMissionCompleteWidget;
@@ -15,16 +17,20 @@ class UHudWeaponSlotsWidget;
 class UImage;
 class UInteractionComponent;
 class UPlayerMeleeComponent;
+class UPlayerThrowComponent;
 class USizeBox;
 class UTextBlock;
 class UWidget;
 class UWeaponManagerComponent;
+enum class EGrenadeChange : uint8;
 
 /**
  * In-game HUD in the shared UI style, built to stay out of the way while playing:
  *  - bottom-left: the player frame (UHudPlayerFrameWidget): the portrait in its gunmetal medallion, the health bar, the
  *    level gem and the experience bar
- *  - bottom-right, 48 px in from the edge: the weapon slots in a column, slot 1 on top, each with its key tab and ammo
+ *  - bottom-right, 48 px in from the edge: the grave-salt grenades carried over the column (UHudGrenadeWidget: key tab,
+ *    the tin's icon, the count and its pips, once the player has grenades), then
+ *    the weapon slots in a column, slot 1 on top, each with its key tab and ammo
  *    icon on its left (UHudWeaponSlotsWidget), and on their right the magazine as a cartridge standing tip up, which
  *    drains from the tip as the gun fires, fills with reload progress and holds the rounds and reserve by its base
  *    (UHudMagazineWidget); under them, right-aligned, the status ("RELOADING") and fire mode on one line, and the gun's
@@ -77,6 +83,19 @@ private:
 	UFUNCTION()
 	void HandleMeleeHit(const FHitResult& Hit, float Damage, bool bCritical);
 
+	/** A grenade's burst hurt a body: the hit marker (one sound for a burst's many hits). */
+	UFUNCTION()
+	void HandleGrenadeHit(const FHitResult& Hit, float Damage, bool bCritical);
+
+	/** The grenades carried changed (or the key was pressed with none): the counter flashes, the feed tells of a find. */
+	void HandleGrenadesChanged(int32 Count, int32 Delta, EGrenadeChange Why);
+
+	/** Follows the pawn's throw component: its hits and its count. */
+	void BindThrow(UPlayerThrowComponent* Throw);
+
+	/** The grenade counter, frame by frame. */
+	void UpdateGrenades(float DeltaTime);
+
 	UFUNCTION()
 	void HandleFired();
 
@@ -102,6 +121,10 @@ private:
 
 	// Bottom-right: weapon
 	UPROPERTY(Transient) TObjectPtr<UWidget> WeaponCluster;
+	/** The grenades carried, over the weapon slots. */
+	UPROPERTY(Transient) TObjectPtr<UHudGrenadeWidget> GrenadeCounter;
+	/** Left of the crosshair: what was just picked up (a grenade found says so here too). */
+	UPROPERTY(Transient) TObjectPtr<UHudPickupFeedWidget> PickupFeed;
 	UPROPERTY(Transient) TObjectPtr<UHudWeaponSlotsWidget> WeaponSlots;
 	UPROPERTY(Transient) TObjectPtr<UHudMagazineWidget> MagazineGauge;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusText;
@@ -136,6 +159,11 @@ private:
 	TWeakObjectPtr<UWeaponManagerComponent> BoundManager;
 	TWeakObjectPtr<AWeaponBase> BoundWeapon;
 	TWeakObjectPtr<UPlayerMeleeComponent> BoundMelee;
+	TWeakObjectPtr<UPlayerThrowComponent> BoundThrow;
+	FDelegateHandle GrenadesChangedHandle;
+	/** The frame the last grenade hit came in: a burst's other hits that frame show the marker without its sound again. */
+	uint64 GrenadeHitFrame = 0;
+	bool bMuteHitSound = false;
 
 	/** What the loot card's notch and curse rows were built for: rebuilt only when another gun is looked at or a count in it changes. */
 	TWeakObjectPtr<const AWeaponBase> IdeasPickup;

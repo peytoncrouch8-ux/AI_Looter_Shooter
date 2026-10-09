@@ -11,6 +11,7 @@ class UHudCaptionWidget;
 class UHudControlHintWidget;
 class UHudMissionTrackerWidget;
 class ULoadoutWidget;
+class UMapWidget;
 class UMissionsWidget;
 class UNoticeBoardWidget;
 class UPlayerHUDWidget;
@@ -25,6 +26,8 @@ enum class EInventoryPage : uint8
 	Loadout,
 	Bestiary,
 	Missions,
+	/** The whole level from above, its pins, and fast travel between open respawn graves (UMapWidget). */
+	Map,
 };
 
 /**
@@ -120,6 +123,8 @@ private:
 	void BindMenuInput();
 	void HandlePausePressed();
 	void HandleInventoryPressed();
+	/** The Map key (M, down on the D-pad): the inventory opens on its map page. */
+	void HandleMapPressed();
 
 	/** Gives input back to the game after closing a menu. */
 	void RestoreGameInput();
@@ -163,6 +168,10 @@ private:
 	/** The inventory's third page: the missions, active, available and finished. */
 	UPROPERTY(Transient)
 	TObjectPtr<UMissionsWidget> MissionsWidget;
+
+	/** The inventory's fourth page: the map, and fast travel between graves. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMapWidget> MapWidget;
 
 	EInventoryPage InventoryPage = EInventoryPage::Loadout;
 

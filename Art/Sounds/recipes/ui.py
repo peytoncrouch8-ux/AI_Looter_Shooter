@@ -228,3 +228,24 @@ def board_turn_in(v, r):
                (slap, t, -8.0), (board, t + 0.002, -6.0), (peel, t + 0.14, -22.0))
     x = F.filt(x, F.peak(3300.0, -3.0, 0.9), extend=False)
     return _ui(x, r, 0.25, -18.0, 0.3)
+
+
+# --- The map's fast travel between respawn graves ---------------------------------------------------------------------
+
+@cue('UI.TravelWhoosh', variations=2, space='2D', cls='Interface', jitter=0.02, conc=1, level=-11.0, swell=True)
+def travel_whoosh(v, r):
+    # Taken by the grave-wind: a long rush of air sweeping up as the screen goes black (0.45 s), a hollow low breath at
+    # the cut where the player is carried off, then the wind falling away as the screen comes back, a faint pale chime
+    # hanging in it like the ember-light the graves keep. Wide and roomy, so it feels like being lifted, not a click.
+    rise = kit.whoosh(0.62, child(r, 'rise'), 180.0, jitter(r, 1900.0, 0.05), 0.8, 0.85, -3.0, 1.4)
+    gust = kit.whoosh(0.35, child(r, 'gust'), 900.0, 3200.0, 1.2, 0.7, -1.0, 1.0)
+    breath = kit.noise_thump(0.45, child(r, 'breath'), 260.0, 70.0, 0.22, 1.0, 0.3, 0.004)
+    fall = kit.whoosh(0.75, child(r, 'fall'), 1700.0, 260.0, 0.8, 0.12, -3.0, 1.0)
+    a, b = [('D5', 'A5'), ('C5', 'G5')][v]
+    c1 = kit.chime(kit.note(a), child(r, 'c1'), 0.9, 0.35, 0.0005, 0.8, -40.0)
+    c2 = kit.chime(kit.note(b), child(r, 'c2'), 1.0, 0.35, 0.0005, 0.8, -40.0)
+    t = 0.58
+    x = layers((rise, 0.0, 0.0), (gust, 0.3, -9.0), (breath, t - 0.04, -6.0), (fall, t, -2.0), (c1, t + 0.02, -20.0),
+               (c2, t + 0.1, -23.0))
+    x = F.filt(x, F.hp(90.0, 0.7), F.peak(3300.0, -3.0, 0.9), extend=False)
+    return _ui(x, r, 0.6, -16.0, 0.7)

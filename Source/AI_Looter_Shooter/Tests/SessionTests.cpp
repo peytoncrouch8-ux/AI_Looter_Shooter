@@ -58,6 +58,9 @@ namespace
 		Save.Inventory.ActiveSlot = 1;
 		Save.Inventory.Backpack = { MakeGun(Rifle, 3) };
 		Save.Inventory.Ammo = { 120, 16, 0, 0, 0 };
+		Save.bHasThrowables = true;
+		Save.Throwables.Grenades = 2;
+		Save.Throwables.bUnlocked = true;
 	}
 
 	/** Everything FillPlayer gave the player is still there, the guns by their data asset; with bWithSpot, where they stood. */
@@ -91,6 +94,7 @@ namespace
 		}
 		Test.TestTrue(TEXT("Backpack"), Save.Inventory.Backpack.Num() == 1 && Save.Inventory.Backpack[0].Seed == 3 && Save.Inventory.Backpack[0].Definition == Rifle);
 		Test.TestTrue(TEXT("Ammo"), Save.Inventory.Ammo.Num() == 5 && Save.Inventory.Ammo[0] == 120 && Save.Inventory.Ammo[1] == 16);
+		Test.TestTrue(TEXT("Grenades kept"), Save.bHasThrowables && Save.Throwables.bUnlocked && Save.Throwables.Grenades == 2);
 	}
 
 	/** Through the save format and back, read as the game reads a session (brought up to date); null when it failed. */

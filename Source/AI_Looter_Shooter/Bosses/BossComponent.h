@@ -204,7 +204,7 @@ public:
 	/** Its creature's say on whether a stagger may start now (bound by a boss class; unbound: yes). */
 	FBossCanStagger CanStagger;
 
-	/** The world is slowed for its death right now. */
+	/** Its death's slow beat is running (the world runs at the slowest any dying boss asks for; EndPlay lets its claim go). */
 	bool IsDeathSlowOn() const { return bDeathSlowOn; }
 
 	// --- Volleys ---

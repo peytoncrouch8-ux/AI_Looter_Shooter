@@ -6,6 +6,7 @@
 // round it.
 
 #include "Creatures/CreatureBase.h"
+#include "Creatures/EncounterSubsystem.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -44,6 +45,33 @@ void ACreatureBase::GetFootprintInWorld(FVector& OutFront, FVector& OutBack, flo
 	OutRadius = Footprint.Radius * SizeScale;
 }
 
+void ACreatureBase::ForEachCreature(TFunctionRef<void(ACreatureBase&)> Visit) const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	if (const UEncounterSubsystem* Encounters = UEncounterSubsystem::Get(this))
+	{
+		// A copy of the list (on the stack for any ordinary level): a visit may set a creature on the player, and whatever
+		// that sets off may spawn a creature, which joins the list while it's being walked.
+		const TArray<TWeakObjectPtr<ACreatureBase>, TInlineAllocator<64>> Creatures(Encounters->GetTrackedCreatures());
+		for (const TWeakObjectPtr<ACreatureBase>& Each : Creatures)
+		{
+			if (ACreatureBase* Creature = Each.Get())
+			{
+				Visit(*Creature);
+			}
+		}
+		return;
+	}
+	for (TActorIterator<ACreatureBase> It(World); It; ++It)
+	{
+		Visit(**It);
+	}
+}
+
 FVector ACreatureBase::SpacingPushNow() const
 {
 	const UWorld* World = GetWorld();
@@ -60,30 +88,29 @@ FVector ACreatureBase::SpacingPushNow() const
 	const float MyReach = static_cast<float>(FMath::Max(FVector::Dist2D(MyFront, Middle), FVector::Dist2D(MyBack, Middle))) + MyRadius;
 
 	FVector Push = FVector::ZeroVector;
-	for (TActorIterator<ACreatureBase> It(World); It; ++It)
+	ForEachCreature([&](const ACreatureBase& Other)
 	{
-		const ACreatureBase* Other = *It;
-		if (Other == this || Other->IsDead() || Other->IsHidden() || Other->IsActorBeingDestroyed())
+		if (&Other == this || Other.IsDead() || Other.IsHidden() || Other.IsActorBeingDestroyed())
 		{
-			continue;
+			return;
 		}
-		const FVector OtherMiddle = Other->GetActorLocation();
-		const float Larger = FMath::Max(SizeScale, Other->SizeScale);
+		const FVector OtherMiddle = Other.GetActorLocation();
+		const float Larger = FMath::Max(SizeScale, Other.SizeScale);
 		if (FMath::Abs(OtherMiddle.Z - Middle.Z) > OtherGroundHeight * Larger)
 		{
-			continue;
+			return;
 		}
 		FVector OtherFront;
 		FVector OtherBack;
 		float OtherRadius = 0.f;
-		Other->GetFootprintInWorld(OtherFront, OtherBack, OtherRadius);
+		Other.GetFootprintInWorld(OtherFront, OtherBack, OtherRadius);
 		OtherFront.Z = OtherBack.Z = 0.0;
-		const float Margin = SpacingMargin * 0.5f * (SizeScale + Other->SizeScale);
+		const float Margin = SpacingMargin * 0.5f * (SizeScale + Other.SizeScale);
 		const float OtherReach = static_cast<float>(FMath::Max(FVector::Dist2D(OtherFront, OtherMiddle), FVector::Dist2D(OtherBack, OtherMiddle)))
 			+ OtherRadius;
 		if (FVector::Dist2D(Middle, OtherMiddle) > MyReach + OtherReach + Margin)
 		{
-			continue;
+			return;
 		}
 		FVector Mine;
 		FVector Theirs;
@@ -94,7 +121,7 @@ FVector ACreatureBase::SpacingPushNow() const
 		const float Gap = static_cast<float>(Away.Size());
 		if (Gap >= Apart)
 		{
-			continue;
+			return;
 		}
 		if (Gap < 1.f)
 		{
@@ -103,11 +130,11 @@ FVector ACreatureBase::SpacingPushNow() const
 			Away.Z = 0.0;
 			if (Away.SizeSquared() < 1.0)
 			{
-				Away = GetActorRightVector() * (GetUniqueID() < Other->GetUniqueID() ? 1.0 : -1.0);
+				Away = GetActorRightVector() * (GetUniqueID() < Other.GetUniqueID() ? 1.0 : -1.0);
 			}
 		}
 		Push += Away.GetSafeNormal2D() * ((Apart - Gap) / Apart);
-	}
+	});
 	return Push.GetClampedToMaxSize(1.5f);
 }
 

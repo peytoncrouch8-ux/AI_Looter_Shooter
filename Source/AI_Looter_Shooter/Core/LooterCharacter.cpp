@@ -10,6 +10,7 @@
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
 #include "Player/PlayerSize.h"
+#include "Player/PlayerThrowComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Settings/ControlSettingsSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
@@ -47,6 +48,7 @@ ALooterCharacter::ALooterCharacter()
 	Interaction = CreateDefaultSubobject<UInteractionComponent>(TEXT("Interaction"));
 	Sounds = CreateDefaultSubobject<UPlayerSoundComponent>(TEXT("Sounds"));
 	Melee = CreateDefaultSubobject<UPlayerMeleeComponent>(TEXT("Melee"));
+	Throw = CreateDefaultSubobject<UPlayerThrowComponent>(TEXT("Throw"));
 }
 
 void ALooterCharacter::OnJumped_Implementation()

@@ -8,6 +8,7 @@
 #include "Session/CampaignRecord.h"
 #include "Story/CaptionSubsystem.h"
 #include "Story/StoryLineSet.h"
+#include "World/TownLifeSubsystem.h"
 #include "GameFramework/Actor.h"
 
 USpeakerPointComponent::USpeakerPointComponent()
@@ -21,6 +22,19 @@ void USpeakerPointComponent::BeginPlay()
 	Super::BeginPlay();
 	AActor* Owner = GetOwner();
 	if (!Owner)
+	{
+		return;
+	}
+	// Somebody who mutters as the player passes: the town's life listens for the player near it.
+	if (HasMutters())
+	{
+		if (UTownLifeSubsystem* TownLife = UTownLifeSubsystem::Get(this))
+		{
+			TownLife->AddMutterPoint(this);
+		}
+	}
+	// Townsfolk who only mutter can't be talked to: no prompt, nothing for the Interact key.
+	if (!bTalkable)
 	{
 		return;
 	}
@@ -39,9 +53,13 @@ void USpeakerPointComponent::BeginPlay()
 
 void USpeakerPointComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (UInteractionSubsystem* Registry = UInteractionSubsystem::Get(this))
+	if (UInteractionSubsystem* Registry = bTalkable ? UInteractionSubsystem::Get(this) : nullptr)
 	{
 		Registry->Unregister(GetOwner());
+	}
+	if (UTownLifeSubsystem* TownLife = UTownLifeSubsystem::Get(this))
+	{
+		TownLife->RemoveMutterPoint(this);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -81,7 +99,7 @@ TOptional<FVector> USpeakerPointComponent::GetInteractionLocation() const
 bool USpeakerPointComponent::CanTalk() const
 {
 	const AActor* Owner = GetOwner();
-	return bEnabled && Owner && !Owner->IsHidden() && !IsTalking();
+	return bTalkable && bEnabled && Owner && !Owner->IsHidden() && !IsTalking();
 }
 
 bool USpeakerPointComponent::IsTalking() const
@@ -181,5 +199,96 @@ bool USpeakerPointComponent::Talk(AActor* Listener)
 		}
 	}
 	OnTalked.Broadcast(*this, Listener);
+	return true;
+}
+
+// ---------------------------------------------------------------------------
+// Mutters
+// ---------------------------------------------------------------------------
+
+TArray<FStoryLine> USpeakerPointComponent::GetMutterLinesNow(int32* OutTopic) const
+{
+	int32 Chosen = INDEX_NONE;
+	const UMissionRunner* Runner = UMissionRunner::Get(this);
+	// Without the missions (a test level), only what's always said applies.
+	FCampaignRecord Empty;
+	const FCampaignRecord& Campaign = Runner ? Runner->GetCampaign() : Empty;
+	for (int32 Index = 0; Index < Mutters.Num(); ++Index)
+	{
+		if (Mutters[Index].When.IsMet(Campaign, Runner))
+		{
+			Chosen = Index;
+			break;
+		}
+	}
+	if (OutTopic)
+	{
+		*OutTopic = Chosen;
+	}
+	TArray<FStoryLine> Said;
+	if (Mutters.IsValidIndex(Chosen))
+	{
+		const FSpeakerTopic& Topic = Mutters[Chosen];
+		Said = Topic.LineSet ? Topic.LineSet->Lines : Topic.Lines;
+	}
+	for (FStoryLine& Line : Said)
+	{
+		if (Line.Speaker.IsEmpty())
+		{
+			Line.Speaker = SpeakerName;
+		}
+	}
+	return Said;
+}
+
+int32 USpeakerPointComponent::NextMutterLine(const TArray<FStoryLine>& MutterLines, int32 Topic) const
+{
+	for (int32 Index = 0; Index < MutterLines.Num(); ++Index)
+	{
+		if (!MutterLines[Index].Text.IsEmpty() && !SaidMutters.Contains(Topic * 1000 + Index))
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
+
+bool USpeakerPointComponent::CanMutter(double Now) const
+{
+	const AActor* Owner = GetOwner();
+	if (!HasMutters() || !Owner || Owner->IsHidden() || Now < NextMutter)
+	{
+		return false;
+	}
+	int32 Topic = INDEX_NONE;
+	const TArray<FStoryLine> MutterLines = GetMutterLinesNow(&Topic);
+	return NextMutterLine(MutterLines, Topic) != INDEX_NONE;
+}
+
+bool USpeakerPointComponent::Mutter(double Now)
+{
+	if (!CanMutter(Now))
+	{
+		return false;
+	}
+	// A remark under the breath never talks over anyone: only into silence.
+	UCaptionSubsystem* Captions = UCaptionSubsystem::Get(this);
+	if (!Captions || !Captions->GetQueue().IsEmpty())
+	{
+		return false;
+	}
+	int32 Topic = INDEX_NONE;
+	const TArray<FStoryLine> MutterLines = GetMutterLinesNow(&Topic);
+	const int32 Index = NextMutterLine(MutterLines, Topic);
+	if (Index == INDEX_NONE)
+	{
+		return false;
+	}
+	Captions->Play(TArray<FStoryLine>{ MutterLines[Index] }, ECaptionPlay::Queue);
+	SaidMutters.Add(Topic * 1000 + Index);
+	NextMutter = Now + MutterRest;
+	LastMutter = MutterLines[Index].Text;
+	UE_LOG(LogLooter, Log, TEXT("%s: %s mutters (%s)."), *GetOwner()->GetActorNameOrLabel(), *MutterLines[Index].Speaker.ToString(),
+		*LastMutter.ToString());
 	return true;
 }

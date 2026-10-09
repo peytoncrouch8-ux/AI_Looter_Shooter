@@ -40,6 +40,8 @@ struct FLooterStanceInput
 	FTransform HoldSocketLocal = FTransform::Identity;
 	/** Which way the held gun points, in component space (it follows the aim, see UPlayerViewComponent). */
 	FQuat WeaponRotation = FQuat::Identity;
+	/** How far out along its barrel the hands push the held gun (cm; its definition's HoldReach): a six-gun at arm's length. */
+	float HoldReach = 0.f;
 
 	/** The gun's recoil right now: how far it has kicked back toward the shooter (cm) and flipped up (degrees). */
 	float RecoilBack = 0.f;

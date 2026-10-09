@@ -6,6 +6,7 @@
 #include "Player/PlayerMeleeComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponDefinition.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimSequenceBase.h"
@@ -79,6 +80,8 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 	StanceInput.AimPitch = FMath::Clamp(AimPitch, -MaxTorsoAimPitch, MaxTorsoAimPitch) * (1.f - SprintAlpha);
 	StanceInput.WeaponGrip = Weapon ? Weapon->GetGripPoint() : FVector::ZeroVector;
 	StanceInput.WeaponForegrip = Weapon ? Weapon->GetForegripPoint() : FVector::ZeroVector;
+	const UWeaponDefinition* HeldDefinition = Weapon ? Weapon->GetInstance().Definition.Get() : nullptr;
+	StanceInput.HoldReach = HeldDefinition ? HeldDefinition->HoldReach : 0.f;
 
 	// The hand socket the gun hangs from (the same one the weapon manager attaches to in third person).
 	const FName HoldSocket = WeaponManager.IsValid() ? WeaponManager->ThirdPersonAttachSocket : NAME_None;

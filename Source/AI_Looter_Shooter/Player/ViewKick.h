@@ -74,7 +74,8 @@ namespace ViewKicks
 {
 	/**
 	 * A shot from a gun of Kind: the rifle a crisp tick (0.32 degrees up, a 0.5% wider view, settled in about 80 ms), the
-	 * shotgun a heavy shove (1.15 degrees, 2.2% wider, about 180 ms). The gun's Recoil stat (its parts) scales it (held to
+	 * shotgun a heavy shove (1.15 degrees, 2.2% wider, about 180 ms), the revolver a sharp snap (0.9 degrees, 1.2% wider,
+	 * settled in about 95 ms). The gun's Recoil stat (its parts) scales it (held to
 	 * 0.6-1.5), and looking through the sight (AimAlpha 1) halves the turn and takes 40% off the widening, so the sight
 	 * stays readable. Its roll and yaw go a random way from Random.
 	 */

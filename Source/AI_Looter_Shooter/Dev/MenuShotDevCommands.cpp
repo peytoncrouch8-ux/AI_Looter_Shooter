@@ -202,7 +202,8 @@ namespace
 	FAutoConsoleCommandWithWorldAndArgs MenuShotsCommandRegistration(
 		TEXT("Looter.MenuShots"),
 		TEXT("Looter.MenuShots [quit]: gives the player a realistic loadout and photographs the inventory through its states (the loadout, ")
-		TEXT("a backpack gun and its comparison, an upgrade, Inspect, an equip, a swap target, a sort, the ledger, the missions) into ")
+		TEXT("a backpack gun and its comparison, an upgrade, Inspect, an equip, a swap target, a sort, the ledger, the missions, the map ")
+		TEXT("and a grave chosen on it) into ")
 		TEXT("Saved/Screenshots/MenuShots/<NN>_<state>.png, each with the UI; with quit, the game quits after the last one. ")
 		TEXT("Tools/menushots.ps1 runs it standalone at 1920x1080."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&MenuShotsCommand));

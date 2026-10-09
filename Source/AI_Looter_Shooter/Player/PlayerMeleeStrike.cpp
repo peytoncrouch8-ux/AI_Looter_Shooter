@@ -13,6 +13,7 @@
 #include "Weapons/MeleeDamageType.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponFX.h"
+#include "World/BreakableKinds.h"
 #include "World/WorldQueries.h"
 #include "CollisionQueryParams.h"
 #include "Components/CapsuleComponent.h"
@@ -229,7 +230,9 @@ bool UPlayerMeleeComponent::LandStrike(AActor& Target, const FMeleeContact& Cont
 	}
 	OnMeleeHit.Broadcast(Hit, Damage, false);
 
-	FeelBlow(MeleeMotion::Impact(bKilled, KickRandom.FRandRange(-1.f, 1.f)), bKilled ? MeleeMotion::KillShake : MeleeMotion::ImpactShake,
+	// A crate or a barrel that breaks under the blow is felt as a hit, not as a creature's kill (the hard shake).
+	const bool bFeltAsKill = bKilled && !Target.ActorHasTag(FName(LooterBreakables::Tag));
+	FeelBlow(MeleeMotion::Impact(bFeltAsKill, KickRandom.FRandRange(-1.f, 1.f)), bFeltAsKill ? MeleeMotion::KillShake : MeleeMotion::ImpactShake,
 		FMeleeRules::AttackerHitStop);
 	UE_LOG(LogLooter, Verbose, TEXT("Melee: %s hit %s for %.1f%s (knocked %.0f cm/s)"), bArmedSwing ? TEXT("stock") : TEXT("fist"),
 		*Target.GetName(), Damage, bKilled ? TEXT(", killed") : TEXT(""), Knock.Size2D());

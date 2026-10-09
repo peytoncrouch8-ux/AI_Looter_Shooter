@@ -60,6 +60,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "House Lights", meta = (ClampMin = "0"))
 	float DuskGlow = 14.f;
 
+	/**
+	 * Who lives here, for the town's life (TownLifeRules: Ransom, Bright, Pruitt, CottageNorth, CottageSouth...): the house
+	 * is heard through its walls now and then as the player passes. None: from the house's model (Delia's farmhouse,
+	 * Tilly's shop, Pruitt's store, a settler's cottage), or nobody for any other.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "House Lights")
+	FName Household;
+
+	/** The household it's heard as now: Household, or the house's model's. */
+	FName GetHousehold() const;
+
 	/** Lamp and windows as the named lighting state has them. */
 	void ApplyState(FName State);
 

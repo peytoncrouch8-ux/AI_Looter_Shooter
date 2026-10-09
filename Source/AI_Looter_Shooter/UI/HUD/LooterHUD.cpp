@@ -5,6 +5,7 @@
 #include "UI/Bestiary/BestiaryWidget.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Inventory/LoadoutWidget.h"
+#include "UI/Inventory/MapWidget.h"
 #include "UI/Inventory/MissionsWidget.h"
 #include "UI/Menus/SettingsMenuWidget.h"
 #include "UI/HUD/HudCaptionWidget.h"
@@ -82,6 +83,7 @@ void ALooterHUD::BeginPlay()
 	InventoryWidget = CreateWidget<ULoadoutWidget>(PC, ULoadoutWidget::StaticClass());
 	BestiaryWidget = CreateWidget<UBestiaryWidget>(PC, UBestiaryWidget::StaticClass());
 	MissionsWidget = CreateWidget<UMissionsWidget>(PC, UMissionsWidget::StaticClass());
+	MapWidget = CreateWidget<UMapWidget>(PC, UMapWidget::StaticClass());
 	PauseMenuWidget = CreateWidget<USettingsMenuWidget>(PC, USettingsMenuWidget::StaticClass());
 	if (PauseMenuWidget)
 	{
@@ -109,6 +111,7 @@ void ALooterHUD::BindMenuInput()
 	{
 		Input->BindAction(Bindings->GetPauseAction(), ETriggerEvent::Started, this, &ALooterHUD::HandlePausePressed);
 		Input->BindAction(Bindings->GetInventoryAction(), ETriggerEvent::Started, this, &ALooterHUD::HandleInventoryPressed);
+		Input->BindAction(Bindings->GetMapAction(), ETriggerEvent::Started, this, &ALooterHUD::HandleMapPressed);
 	}
 }
 
@@ -176,6 +179,16 @@ void ALooterHUD::HandlePausePressed()
 	if (!bPauseMenuOpen)
 	{
 		OpenPauseMenu();
+	}
+}
+
+void ALooterHUD::HandleMapPressed()
+{
+	// From play only, as the inventory's key: the inventory opens on its map page. Inside the inventory its tabs turn the
+	// pages (and the loadout uses M for its own Move).
+	if (!bPauseMenuOpen && !bInventoryOpen && !bStationBoardOpen && !bBenchOpen && !bNoticeBoardOpen)
+	{
+		ShowInventoryPage(EInventoryPage::Map);
 	}
 }
 
@@ -282,6 +295,9 @@ bool ALooterHUD::OpenInventoryPage()
 	case EInventoryPage::Missions:
 		MissionsWidget->Open(this);
 		break;
+	case EInventoryPage::Map:
+		MapWidget->Open(this);
+		break;
 	case EInventoryPage::Loadout:
 		InventoryWidget->Open(this, Manager);
 		break;
@@ -307,6 +323,7 @@ UUserWidget* ALooterHUD::GetInventoryPageWidget() const
 	{
 	case EInventoryPage::Bestiary: return BestiaryWidget.Get();
 	case EInventoryPage::Missions: return MissionsWidget.Get();
+	case EInventoryPage::Map:      return MapWidget.Get();
 	case EInventoryPage::Loadout:  break;
 	}
 	return InventoryWidget.Get();

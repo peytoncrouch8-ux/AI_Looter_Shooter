@@ -3,6 +3,7 @@
 #include "Audio/LooterSound.h"
 #include "Missions/MissionRunner.h"
 #include "Session/CampaignRecord.h"
+#include "World/TownLifeSubsystem.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -61,10 +62,19 @@ void AWindowShutter::BeginPlay()
 	{
 		OpenNow();
 	}
+	// Somebody hides behind it once it's shut: the town's life may let them be heard through it.
+	if (UTownLifeSubsystem* TownLife = UTownLifeSubsystem::Get(this))
+	{
+		TownLife->AddSource(this, Household);
+	}
 }
 
 void AWindowShutter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (UTownLifeSubsystem* TownLife = UTownLifeSubsystem::Get(this))
+	{
+		TownLife->RemoveSource(this);
+	}
 	SetLooking(false);
 	if (UMissionRunner* Runner = BoundRunner.Get())
 	{

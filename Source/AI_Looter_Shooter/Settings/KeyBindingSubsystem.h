@@ -48,8 +48,8 @@ public:
 /**
  * Player key rebinding without touching input assets. Every mapping context the game uses is swapped
  * for a runtime copy with the player's keys applied; overrides are saved to the "KeyBindings" slot.
- * Also owns the always-on global actions (pause menu, inventory), the code-built character actions
- * (sprint, crouch, aim, melee, toggle camera view) and the number keys that take a weapon slot in hand.
+ * Also owns the always-on global actions (pause menu, inventory, map), the code-built character actions
+ * (sprint, crouch, aim, melee, grenade, toggle camera view) and the number keys that take a weapon slot in hand.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UKeyBindingSubsystem : public ULocalPlayerSubsystem
@@ -86,6 +86,31 @@ public:
 	const UInputAction* GetToggleViewAction() const { return ToggleViewAction; }
 	const UInputAction* GetAimAction() const { return AimAction; }
 	const UInputAction* GetMeleeAction() const { return MeleeAction; }
+	const UInputAction* GetGrenadeAction() const { return GrenadeAction; }
+	const UInputAction* GetMapAction() const { return MapAction; }
+
+	// --- Map: M, and down on the D-pad on a gamepad (ALooterHUD binds it: the inventory opens on its map page) ---
+
+	/** The map's rebindable binding: "Map". */
+	static FName MapBindingId();
+
+	/** M, as in most games with a map. */
+	static FKey DefaultMapKey();
+
+	/** Down on the D-pad: the View button, the usual one, opens the inventory, and up on the D-pad changes the camera view. */
+	static FKey DefaultMapGamepadKey();
+
+	/**
+	 * Makes the map action in Outer and maps it in Context to its default keys (DefaultMapKey, DefaultMapGamepadKey).
+	 * Static so tests can check the mapping the settings menu rebinds.
+	 */
+	static UInputAction* AddMapAction(UObject* Outer, UInputMappingContext& Context);
+
+	/**
+	 * True if Key is the map's keyboard key now (its page can close on it, as the inventory's pages close on
+	 * IsInventoryKey); never the D-pad, which moves the page's selection.
+	 */
+	bool IsMapKey(const FKey& Key) const;
 
 	// --- Melee: V, and a click of the right stick on a gamepad, Borderlands' way (UPlayerMeleeComponent binds it) ---
 
@@ -104,7 +129,31 @@ public:
 	 */
 	static UInputAction* AddMeleeAction(UObject* Outer, UInputMappingContext& Context);
 
-	/** The player's copy of the character controls (sprint, crouch, aim, melee, camera view). Added while the character is possessed. */
+	// --- Grenade: G, and the right bumper on a gamepad, Borderlands' way (UPlayerThrowComponent binds it) ---
+
+	/** The grave-salt grenade's rebindable binding: "Grenade". */
+	static FName GrenadeBindingId();
+
+	/** G, as in Borderlands (Drop weapon, which had it, moved to DefaultDropWeaponKey). */
+	static FKey DefaultGrenadeKey();
+
+	/** The right bumper (free: the left one is kept for the ember powers to come). */
+	static FKey DefaultGrenadeGamepadKey();
+
+	/**
+	 * Makes the grenade action in Outer and maps it in Context to its default keys (DefaultGrenadeKey,
+	 * DefaultGrenadeGamepadKey). Static so tests can check the mapping the settings menu rebinds.
+	 */
+	static UInputAction* AddGrenadeAction(UObject* Outer, UInputMappingContext& Context);
+
+	/**
+	 * Drop weapon's default key: X, since G is the grenade's. The weapon controls asset still maps the action to G; the
+	 * player's copy of it gets this key (the binding finds the asset's mapping by DropWeaponAssetKey).
+	 */
+	static FKey DefaultDropWeaponKey();
+	static FKey DropWeaponAssetKey();
+
+	/** The player's copy of the character controls (sprint, crouch, aim, melee, grenade, camera view). Added while the character is possessed. */
 	UInputMappingContext* GetCharacterContext() { return GetRuntimeContext(CharacterContext); }
 
 	/** Input priority the character components add GetCharacterContext() with. */
@@ -139,8 +188,12 @@ public:
 private:
 	void BuildGlobalContext();
 	void BuildCharacterContext();
+	/**
+	 * A row of the settings menu's key list for Action's mapping in Context. The mapping is found by its key: DefaultKey,
+	 * or AssetKey when the asset maps it to another key than the game's default (Drop weapon's G).
+	 */
 	void AddBinding(FName Id, const TCHAR* Name, const TCHAR* Category, UInputMappingContext* Context, const UInputAction* Action,
-		const FKey& DefaultKey, bool bSupportsToggle = false);
+		const FKey& DefaultKey, bool bSupportsToggle = false, const FKey& AssetKey = EKeys::Invalid);
 	void ApplyBinding(const FRebindableKey& Binding);
 	void Save();
 	UEnhancedInputLocalPlayerSubsystem* GetInputSubsystem() const;
@@ -159,6 +212,7 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UInputAction> PauseAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> InventoryAction;
+	UPROPERTY(Transient) TObjectPtr<UInputAction> MapAction;
 
 	/** Character-only controls live in their own context so they only work while the player's character is possessed. */
 	UPROPERTY(Transient) TObjectPtr<UInputMappingContext> CharacterContext;
@@ -167,6 +221,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UInputAction> ToggleViewAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> AimAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> MeleeAction;
+	UPROPERTY(Transient) TObjectPtr<UInputAction> GrenadeAction;
 
 	/** The weapon slot keys get their own context: the weapon carrier adds it, whatever the weapon controls asset holds. */
 	UPROPERTY(Transient) TObjectPtr<UInputMappingContext> WeaponSlotContext;

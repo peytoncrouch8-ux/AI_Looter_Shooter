@@ -405,6 +405,12 @@ bool ULoadoutWidget::HandleKey(const FKey& Key)
 		Close();
 		return true;
 	}
+	if (bPressPending)
+	{
+		// A gun pressed or dragged with the mouse is the mouse's until it's let go: swap, equip or drop keys would act on a
+		// gun the cursor isn't on (the pressed index is not the cursor's). Esc and the screen's own key are handled above.
+		return true;
+	}
 	if ((Key == EKeys::Two || Key == EKeys::Gamepad_RightShoulder) && !PickedSlot.IsSet())
 	{
 		if (ALooterHUD* HUD = OwningHUD.Get())
@@ -418,6 +424,14 @@ bool ULoadoutWidget::HandleKey(const FKey& Key)
 		if (ALooterHUD* HUD = OwningHUD.Get())
 		{
 			HUD->ShowInventoryPage(EInventoryPage::Missions);
+		}
+		return true;
+	}
+	if (Key == EKeys::Four && !PickedSlot.IsSet())
+	{
+		if (ALooterHUD* HUD = OwningHUD.Get())
+		{
+			HUD->ShowInventoryPage(EInventoryPage::Map);
 		}
 		return true;
 	}

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
 #include "Inventory/WeaponInventorySave.h"
+#include "Player/PlayerThrowSave.h"
 #include "Progression/PlayerProgressData.h"
 #include "Session/CampaignRecord.h"
 #include "Weapons/AmmoTypes.h"
@@ -100,6 +101,13 @@ struct AI_LOOTER_SHOOTER_API FSavedMapWorld
 	 */
 	UPROPERTY()
 	TArray<FName> OpenedChests;
+
+	/**
+	 * The crates and barrels broken (ABreakableProp), by the prop's id (ABreakableProp::GetSaveKey): they stay broken, as
+	 * stumps, and give nothing again. New within version 2, as TornPosters: a save from before it reads as none broken.
+	 */
+	UPROPERTY()
+	TArray<FName> BrokenProps;
 
 	/** The tutorial step on screen, or INDEX_NONE when it wasn't running (on every map but the tutorial's). */
 	UPROPERTY()
@@ -199,6 +207,16 @@ public:
 
 	UPROPERTY()
 	FWeaponInventorySave Inventory;
+
+	/**
+	 * The grave-salt grenades below were captured. A save from before grenades reads as none captured, so the player is
+	 * given their starting two as their first gun comes into hand, as in a new game.
+	 */
+	UPROPERTY()
+	bool bHasThrowables = false;
+
+	UPROPERTY()
+	FThrowablesSave Throwables;
 
 	/**
 	 * The landing (AreaLandings) the player arrives at when the session next starts in Map without a spot there: a trip

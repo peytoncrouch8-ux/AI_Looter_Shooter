@@ -31,8 +31,9 @@ STATS = {'Damage': 'damage', 'Accuracy': 'accuracy', 'Range': 'range', 'FireRate
          'Recoil': 'recoil', 'Handling': 'handling'}
 
 # Where each slot's part hangs: the socket on an earlier part (the latest one that has it); the body sits at the origin.
+# A revolver's grip hangs from GripMount, since its own Grip socket is where the hand holds it.
 SOCKETS = {'Body': None, 'Barrel': 'Barrel', 'Muzzle': 'Muzzle', 'Magazine': 'Magazine', 'Pump': 'Pump',
-           'Sight': 'Sight', 'Stock': 'Stock'}
+           'Sight': 'Sight', 'Stock': 'Stock', 'Cylinder': 'Cylinder', 'Grip': 'GripMount'}
 
 # Each gun's shell is tinted per gun (sRGB hex, weight): mostly field colors, sometimes a bright one.
 SHELL_PAINTS = [(0xe6d8b6, 3.0), (0xe8e8e4, 2.0), (0xc9ad84, 2.0), (0x8c7a5b, 1.5), (0x6f7550, 1.5), (0x5d6b78, 1.0),
@@ -102,10 +103,10 @@ def paint(material_slot, colors):
     return unreal.WeaponPaint(slot=material_slot, colors=[unreal.WeaponColorOption(color=linear(c), weight=w) for c, w in colors])
 
 
-def setup(asset, gun, kind, reload_slot, reload_part, full_damage_range):
+def setup(asset, gun, kind, reload_slot, reload_part, full_damage_range, base_handling=1.0):
     definition = unreal.load_asset(f'{DATA}/{asset}')
     if definition is None:
-        raise RuntimeError(f'{DATA}/{asset} is missing')
+        raise RuntimeError(f'{DATA}/{asset} is missing (DA_Revolver: run create_revolver.py first)')
     parts = slots(gun)
     definition.set_editor_property('kind', kind)
     definition.set_editor_property('parts', parts)
@@ -113,11 +114,12 @@ def setup(asset, gun, kind, reload_slot, reload_part, full_damage_range):
     definition.set_editor_property('rarity_glow_slot', 'GunAccentGlow')
     definition.set_editor_property('reload_slot', reload_slot)
     definition.set_editor_property('reload_part', reload_part)
-    # The parts set the new stats around these: full damage out to the range, normal recoil and handling, no zoom.
+    # The parts set the new stats around these: full damage out to the range, normal recoil, the kind's handling (a
+    # six-gun comes up and aims quicker than a long gun), no zoom.
     base = definition.get_editor_property('base_stats')
     base.set_editor_property('range', full_damage_range)
     base.set_editor_property('recoil', 1.0)
-    base.set_editor_property('handling', 1.0)
+    base.set_editor_property('handling', base_handling)
     base.set_editor_property('zoom', 1.0)
     definition.set_editor_property('base_stats', base)
     unreal.EditorAssetLibrary.save_loaded_asset(definition, only_if_is_dirty=False)
@@ -126,4 +128,5 @@ def setup(asset, gun, kind, reload_slot, reload_part, full_damage_range):
 
 setup('DA_AssaultRifle', 'Bullpup', unreal.WeaponKind.RIFLE, 'Magazine', unreal.WeaponReloadPart.MAGAZINE, 4000.0)
 setup('DA_PumpShotgun', 'Ranchhand', unreal.WeaponKind.SHOTGUN, 'Pump', unreal.WeaponReloadPart.PUMP, 1500.0)
+setup('DA_Revolver', 'Drover', unreal.WeaponKind.REVOLVER, 'Cylinder', unreal.WeaponReloadPart.CYLINDER, 3000.0, 1.3)
 unreal.log('GUNPARTS done')

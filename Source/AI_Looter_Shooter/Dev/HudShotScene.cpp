@@ -8,7 +8,11 @@
 
 #include "AI_Looter_Shooter.h"
 #include "Affixes/WeaponRollLibrary.h"
+#include "Bosses/BossComponent.h"
+#include "Bosses/BossSeal.h"
+#include "Bosses/BossTestSpider.h"
 #include "Combat/HealthComponent.h"
+#include "Creatures/CreatureBase.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "Progression/XPCurve.h"
@@ -278,6 +282,19 @@ namespace
 		}
 	}
 
+	/** The boss Looter.Boss.Test spawned (it carries the test boss's tag), or none. */
+	ACreatureBase* HudShotFindTestBoss(UWorld& World)
+	{
+		for (TActorIterator<ACreatureBase> It(&World); It; ++It)
+		{
+			if (It->Tags.Contains(BossTestSpider::Tag()))
+			{
+				return *It;
+			}
+		}
+		return nullptr;
+	}
+
 	void HudShotBeginBoss(UWorld& World)
 	{
 		// The test boss may reach the player in the seconds this takes: the health holds.
@@ -287,6 +304,20 @@ namespace
 			Player.Health->bInvulnerable = true;
 		}
 		HudShotConsole(World, TEXT("Looter.Boss.Test"));
+
+		// The test boss's fog wall is a 15 m ring round it with the player inside, so its curtain of grave-fog stands all round
+		// the view. No real fight looks like that (Abel's wall is the gate behind the player, the Gravemother has none), and
+		// these pictures are of the HUD, so the picture shows the bar without it: the ring drops in the frame it rose, before
+		// its curtain draws, and with no radius none closes again.
+		const ACreatureBase* TestBoss = HudShotFindTestBoss(World);
+		if (UBossComponent* Boss = TestBoss ? TestBoss->FindComponentByClass<UBossComponent>() : nullptr)
+		{
+			Boss->SealRadius = 0.f;
+			if (ABossSeal* Wall = Boss->GetActiveSeal())
+			{
+				Wall->Drop();
+			}
+		}
 	}
 
 	bool HudShotBossBarShown(UWorld& World)
@@ -303,8 +334,14 @@ namespace
 
 	void HudShotEndBoss(UWorld& World)
 	{
-		// The fight starts over (the boss goes home, its wall drops, the bar goes), so it doesn't spoil the pictures after it.
-		HudShotConsole(World, TEXT("Looter.Boss.Reset"));
+		// The test boss goes, its fight, wall and bar with it (as a second Looter.Boss.Test replaces the first), so it doesn't
+		// spoil the pictures after it. Looter.Boss.Reset didn't do: the player stands 7 m from it, inside its 12 m engage radius,
+		// so the fight started again the next frame, its bar and wall back up and its bite on the player once the health let go.
+		if (ACreatureBase* TestBoss = HudShotFindTestBoss(World))
+		{
+			UE_LOG(LogLooter, Display, TEXT("Looter.HudShots: the test boss removed."));
+			TestBoss->Destroy();
+		}
 		const FHudShotPlayer Player = HudShotFindPlayer(World);
 		if (Player.IsReady())
 		{

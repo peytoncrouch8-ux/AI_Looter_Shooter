@@ -27,6 +27,9 @@ namespace
 	constexpr float ChaseHopLength[2] = { 200.f, 260.f };
 	constexpr float ChaseHopHeight[2] = { 70.f, 90.f };
 	constexpr float ChaseHopPause[2] = { 0.12f, 0.25f };
+	// A standing slime nudged off a neighbour's footprint (CreatureBaseSpacing.cpp) shuffles a little, not a stroll's hop.
+	constexpr float ShuffleHopLength[2] = { 70.f, 90.f };
+	constexpr float ShuffleHopHeight[2] = { 25.f, 35.f };
 
 	// The leap attack: from a deep squash, up to LeapLength at the player, hurting it if it lands within LeapHitRadius.
 	constexpr float LeapLength = 500.f;
@@ -212,6 +215,9 @@ void ASlimeCreature::TickHops(const FVector& Wanted, float DeltaSeconds)
 			Hop = EHop::Crouch;
 			HopTime = 0.f;
 			HopDirection = Wanted.GetSafeNormal2D();
+			// An idle brain never steers, so the only thing that moves an idle slime is a neighbour's crowding: that's a
+			// shuffle aside, not the stroll's 1.5 to 2 m hop.
+			bShuffleHop = GetCreatureState() == ECreatureState::Idle;
 			Squash.Ramp(CrouchSquash, CrouchTime);
 		}
 		break;
@@ -231,8 +237,8 @@ void ASlimeCreature::Launch()
 	// Hops are the full-size slime's, times its size: a big one bounds farther and higher (and so a little slower).
 	const float Scale = GetSizeScale();
 	const bool bHunting = GetCreatureState() == ECreatureState::Chase || GetCreatureState() == ECreatureState::Return;
-	float Length = RandomIn(bHunting ? ChaseHopLength : WanderHopLength) * Scale;
-	const float Height = RandomIn(bHunting ? ChaseHopHeight : WanderHopHeight) * Scale;
+	float Length = RandomIn(bShuffleHop ? ShuffleHopLength : bHunting ? ChaseHopLength : WanderHopLength) * Scale;
+	const float Height = RandomIn(bShuffleHop ? ShuffleHopHeight : bHunting ? ChaseHopHeight : WanderHopHeight) * Scale;
 	// Never hop off an edge: shorten the hop until it lands on ground, or stay put.
 	FVector Ground;
 	while (Length > 60.f * Scale && !FindGround(GetActorLocation() + HopDirection * Length, 300.f * Scale, 600.f * Scale, Ground))

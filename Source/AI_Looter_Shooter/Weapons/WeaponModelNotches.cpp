@@ -28,7 +28,8 @@ namespace
 	 *
 	 * The bullpup's stocks are only butt pads, so its tally goes on the body: on the side plates of the bodies that have
 	 * them (behind the grip, under the rivet rows), on the plain shell of the others. The Ranchhand's goes on its stock,
-	 * behind the cuff or under the cheek pad; on the pistol grips (Raider, Folding) it runs down the grip.
+	 * behind the cuff or under the cheek pad; on the pistol grips (Raider, Folding) it runs down the grip. The Drover's runs
+	 * down its grip panels.
 	 */
 	struct FTallyPlacement
 	{
@@ -55,6 +56,16 @@ namespace
 		{ TEXT("SM_RanchhandStock_Collapsible"), { { -25.5f, -0.9f }, { -14.5f, -0.9f }, 2.6f, 1.3f } },
 		{ TEXT("SM_RanchhandStock_Raider"), { { -2.7f, -4.6f }, { -3.9f, -11.0f }, 2.4f, 1.2f } },
 		{ TEXT("SM_RanchhandStock_Folding"), { { -2.7f, -4.6f }, { -3.9f, -11.0f }, 2.4f, 1.2f } },
+		// Drover grips (origin at the frame's GripMount; the grip leans back down and away from it): down the middle of
+		// each panel, as gunfighters cut theirs, clear of the coffin's diamond and above the bird's head.
+		{ TEXT("SM_DroverGrip_Plowhandle"), { { -0.67f, -1.4f }, { -2.92f, -6.8f }, 1.6f, 1.35f } },
+		{ TEXT("SM_DroverGrip_Stag"), { { -0.67f, -1.4f }, { -2.92f, -6.8f }, 1.6f, 1.35f } },
+		{ TEXT("SM_DroverGrip_Bone"), { { -0.67f, -1.4f }, { -2.92f, -6.8f }, 1.6f, 1.35f } },
+		{ TEXT("SM_DroverGrip_Pearl"), { { -0.67f, -1.4f }, { -2.92f, -6.8f }, 1.6f, 1.35f } },
+		{ TEXT("SM_DroverGrip_Coffin"), { { -1.14f, -1.8f }, { -2.63f, -6.8f }, 1.6f, 1.35f } },
+		{ TEXT("SM_DroverGrip_Birdshead"), { { -0.68f, -1.4f }, { -2.8f, -5.0f }, 1.5f, 1.35f } },
+		{ TEXT("SM_DroverGrip_Wrapped"), { { -0.96f, -1.6f }, { -3.05f, -6.8f }, 1.6f, 1.45f } },
+		{ TEXT("SM_DroverGrip_Target"), { { -1.17f, -2.0f }, { -2.83f, -6.4f }, 1.6f, 1.5f } },
 	};
 
 	bool FindRow(const UStaticMesh* Mesh, FTallyRow& OutRow)
