@@ -33,11 +33,15 @@ namespace LanternLeansTestWorld
 	inline const FName LilyId(TEXT("GildedLily"));
 	inline const FName DeliasDoor(TEXT("Speaker_Delia"));
 	inline const FName DepotPlace(TEXT("Place_Depot"));
+	inline const FName TillysWindow(TEXT("Speaker_Tilly"));
 	inline const FName HeirloomId(TEXT("Heirloom"));
 	inline const FName Valley(TEXT("TestValley"));
 
-	/** Main 7's steps: home to Delia, the depot, the station board. */
-	inline constexpr int32 MainSevenSteps = 3;
+	/**
+	 * Main 7's steps: home to Delia; then it's turned in to Tilly at her window, on the way to the depot (the depot and the
+	 * station board come after it, once the Lily is open on the board).
+	 */
+	inline constexpr int32 MainSevenSteps = 1;
 
 	/** How close to the hearse car's door counts as at the depot (cm, the mission script's). */
 	inline constexpr float DepotRadius = 800.f;
@@ -62,8 +66,8 @@ namespace LanternLeansTestWorld
 	}
 
 	/**
-	 * Main 7 as the mission script makes it, in code: after Main 6; Delia's door (Talk), the depot's place by the hearse
-	 * car's door, the station board read; 30% of a level, the Lily opened, Heirloom handed over in the story (not dropped).
+	 * Main 7 as the mission script makes it, in code: after Main 6; Delia's door (Talk); turned in to Tilly at her window;
+	 * 45 experience, the Lily opened, Heirloom handed over in the story (not dropped).
 	 */
 	inline UMissionDefinition* MakeMainSeven(UObject* Outer)
 	{
@@ -71,14 +75,9 @@ namespace LanternLeansTestWorld
 		Mission->Title = FText::FromString(TEXT("The Lantern Leans"));
 		Mission->Prerequisites = { MainSix };
 		MissionTestWorld::AddObjective<UMissionTalkObjective>(Mission, 0)->SpeakerTag = DeliasDoor;
-		UMissionReachObjective* Depot = MissionTestWorld::AddObjective<UMissionReachObjective>(Mission, 1);
-		Depot->Place.Actor.ActorTag = DepotPlace;
-		Depot->Place.Radius = DepotRadius;
-		UMissionEventObjective* Board = MissionTestWorld::AddObjective<UMissionEventObjective>(Mission, 2);
-		Board->Event = StationBoard::ReadEvent();
-		Board->Waypoint = EMissionWaypoint::Actor;
-		Board->WaypointActor.ActorClass = ATrainStation::StaticClass();
-		Mission->Rewards.ExperienceShare = 0.3f;
+		Mission->TurnIn.SpeakerTag = TillysWindow;
+		Mission->TurnIn.GiverName = FText::FromString(TEXT("Tilly"));
+		Mission->Rewards.Experience = 45;
 		Mission->Rewards.UnlockAreas = { LilyId };
 		Mission->Rewards.NamedGun = HeirloomId;
 		Mission->Rewards.bNamedGunByHand = true;

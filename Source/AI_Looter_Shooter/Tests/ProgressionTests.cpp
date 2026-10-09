@@ -167,17 +167,23 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKillXPTest, "Looter.Progression.KillXP",
 
 bool FKillXPTest::RunTest(const FString& Parameters)
 {
-	// Level 1 creatures give 10 XP a kill (the user's number); target dummies are for practice and give none.
+	// Level 1 creatures are worth 10 (their XPReward); a kill gives its share of that (the progression settings' kill scale:
+	// 0.4 as shipped, so 4, tuned with the turn-ins for Ransom's Rest's story to end about level 6-7, Docs/Progression.md).
+	// Target dummies are for practice and give none.
 	const ASpiderCreature* Spider = GetDefault<ASpiderCreature>();
+	const FLevelRules GameRules = UPlayerProgressionSubsystem::GetLevelRules();
 	TestEqual(TEXT("Spider level"), Spider->Level, 1);
 	TestEqual(TEXT("Spider XP reward"), Spider->XPReward, 10);
-	TestEqual(TEXT("Killing a level 1 spider at level 1"), UPlayerProgressionSubsystem::KillXP(Spider, 1), int64(10));
+	TestEqual(TEXT("Killing a level 1 spider at level 1: its share of 10"), UPlayerProgressionSubsystem::KillXP(Spider, 1),
+		FMath::Max<int64>(1, FMath::RoundToInt64(10.0 * GameRules.KillXPScale)));
+	TestEqual(TEXT("The shipped kill scale: 4 for a level 1 Basic kill"), FLevelRules().KillXP(10, 1, 1), int64(4));
 	TestEqual(TEXT("Killing a dummy"), UPlayerProgressionSubsystem::KillXP(GetDefault<ATargetDummy>(), 1), int64(0));
 	TestEqual(TEXT("Killing nothing"), UPlayerProgressionSubsystem::KillXP(nullptr, 1), int64(0));
 
-	// The formula (Docs/Story.md, "Kill XP"), with the shipped numbers (its own rules, so tuning the settings can't move
+	// The formula (Docs/Story.md, "Kill XP"), at the full XPReward (its own rules, so tuning the settings can't move
 	// these): 10 x 1.08^(level - 1), rounded.
-	const FLevelRules Rules;
+	FLevelRules Rules;
+	Rules.KillXPScale = 1.0;
 	TestEqual(TEXT("A level 2 kill (10.8)"), Rules.KillXP(10, 2, 2), int64(11));
 	TestEqual(TEXT("A level 5 kill (13.6)"), Rules.KillXP(10, 5, 5), int64(14));
 	TestEqual(TEXT("A level 10 kill (19.99)"), Rules.KillXP(10, 10, 10), int64(20));
@@ -198,14 +204,20 @@ bool FKillXPTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Any kill that's worth something gives at least 1"), Rules.KillXP(1, 1, 70), int64(1));
 	TestEqual(TEXT("Nothing from nothing"), Rules.KillXP(0, 30, 1), int64(0));
 
-	// Kills per level at the player's level grow slowly (Docs/Story.md: 10 at level 1, about 20 at level 20, about 60 at 50),
-	// since the curve grows 12% a level and the kill 8%.
+	// Kills per level at the player's level grow slowly, since the curve grows 12% a level and the kill 8%: twice level 1's
+	// count at level 20, six times it at 50 (at the full XPReward 10, 20 and 60; at the shipped scale 25, 50 and 150).
 	const FXPCurve Curve;
-	for (const TPair<int32, double>& Expected : { TPair<int32, double>(1, 10.0), TPair<int32, double>(20, 20.0), TPair<int32, double>(50, 60.0) })
+	const FLevelRules Shipped;
+	auto KillsFor = [&Curve, &Shipped](int32 Level)
 	{
-		const double Kills = static_cast<double>(Curve.XPToNextLevel(Expected.Key)) / (10.0 * FMath::Pow(Rules.KillXPGrowth, Expected.Key - 1.0));
-		TestTrue(FString::Printf(TEXT("Level %d takes about %.0f kills (%.1f)"), Expected.Key, Expected.Value, Kills),
-			FMath::Abs(Kills - Expected.Value) <= Expected.Value * 0.1);
+		return static_cast<double>(Curve.XPToNextLevel(Level)) / (10.0 * Shipped.KillXPScale * FMath::Pow(Shipped.KillXPGrowth, Level - 1.0));
+	};
+	TestTrue(FString::Printf(TEXT("Level 1 takes about 25 kills (%.1f)"), KillsFor(1)), FMath::Abs(KillsFor(1) - 25.0) <= 2.5);
+	for (const TPair<int32, double>& Expected : { TPair<int32, double>(20, 2.0), TPair<int32, double>(50, 6.0) })
+	{
+		const double Times = KillsFor(Expected.Key) / KillsFor(1);
+		TestTrue(FString::Printf(TEXT("Level %d takes about %.0f times level 1's kills (%.2f)"), Expected.Key, Expected.Value, Times),
+			FMath::Abs(Times - Expected.Value) <= Expected.Value * 0.1);
 	}
 
 	// A ranked creature's XPReward has its rank's multiplier in it already: the kill counts the rank once.
@@ -222,7 +234,6 @@ bool FKillXPTest::RunTest(const FString& Parameters)
 	Restless->StartingRank = ECreatureRank::Rare;
 	Restless->DispatchBeginPlay();
 	const FCreatureRankInfo& Rare = UCreatureRankSettings::Get(ECreatureRank::Rare);
-	const FLevelRules GameRules = UPlayerProgressionSubsystem::GetLevelRules();
 	const int32 RareXP = FMath::RoundToInt32(Spider->XPReward * Rare.XPMultiplier);
 	TestEqual(TEXT("A Restless spider's experience is its rank's share"), Restless->XPReward, RareXP);
 	TestEqual(TEXT("A Restless spider is its rank's levels higher"), Restless->Level, Spider->Level + Rare.LevelOffset);
@@ -288,134 +299,6 @@ bool FLevelHealthTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-namespace
-{
-	/** One main mission on Ransom's Rest (Docs/Areas/RansomsRest.md, "Missions"), with what's killed on the way to it and in it. */
-	struct FMainPathStep
-	{
-		const TCHAR* Mission = TEXT("");
-		/** Kills on the way and in its fights, spawned adds included (the boss not). */
-		int32 Kills = 0;
-		/** Of those, the Restless placed in its scripted fight. */
-		int32 PlacedRestless = 0;
-		/** Abel Ransom, the Keeper. */
-		bool bBoss = false;
-	};
-
-	/** About 80 kills in all: the scripted fights (5, 4, 13, the egg sacs' 6, Abel's adds) and the creatures on the way. */
-	const FMainPathStep RansomsRestMainPath[] = {
-		{ TEXT("Main 1, Seven Days"), 0, 0, false },
-		{ TEXT("Main 2, Shall We Talk Business?"), 10, 1, false },
-		{ TEXT("Main 3, Cold Welcome"), 10, 1, false },
-		{ TEXT("Main 4, Hallowed Ground"), 17, 1, false },
-		{ TEXT("Main 5, The Keeper's Lantern"), 14, 0, false },
-		{ TEXT("Main 6, The Gravewind"), 18, 0, true },
-		{ TEXT("Main 7, The Lantern Leans"), 10, 0, false } };
-
-	/** A main mission's experience (RansomsRest.md, "Missions"): 30% of what the player's current level takes. */
-	constexpr double MainMissionShare = 0.3;
-
-	/** A player climbing the curve. */
-	struct FClimber
-	{
-		FXPCurve Curve;
-		int32 Level = 1;
-		int64 XP = 0;
-
-		void Add(int64 Amount)
-		{
-			Curve.ApplyXP(Level, XP, Amount);
-		}
-
-		/** The level with how far through it, as a number (10.25 is a quarter through level 10). */
-		double Reached() const
-		{
-			const int64 Needed = Curve.XPToNextLevel(Level);
-			return Level + (Needed > 0 ? static_cast<double>(XP) / static_cast<double>(Needed) : 0.0);
-		}
-
-		int64 MainMissionXP() const
-		{
-			return FMath::RoundToInt64(MainMissionShare * static_cast<double>(Curve.XPToNextLevel(Level)));
-		}
-	};
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FXPPacingTest, "Looter.Progression.Pacing",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
-
-bool FXPPacingTest::RunTest(const FString& Parameters)
-{
-	// RansomsRest.md, Risks, "XP pacing": about 80 main-path kills plus the main missions put a player near level 9 at the
-	// end. Spawn counts and mission shares are tuned at step 27; this prints where the game's numbers land.
-	const int32 BaseXP = GetDefault<ACreatureBase>()->XPReward;
-	const FLevelRules Rules = UPlayerProgressionSubsystem::GetLevelRules();
-
-	// As the design counts it: every kill a Basic creature at the player's level (Abel as one more), and each main mission
-	// 30% of the level the player is on.
-	FClimber Design;
-	Design.Curve = UPlayerProgressionSubsystem::GetCurve();
-	int32 Kills = 0;
-	for (const FMainPathStep& Step : RansomsRestMainPath)
-	{
-		for (int32 Kill = 0; Kill < Step.Kills + (Step.bBoss ? 1 : 0); ++Kill)
-		{
-			Design.Add(Rules.KillXP(BaseXP, Design.Level, Design.Level));
-			++Kills;
-		}
-		Design.Add(Design.MainMissionXP());
-		AddInfo(FString::Printf(TEXT("Design: after %s, level %.2f"), Step.Mission, Design.Reached()));
-	}
-	AddInfo(FString::Printf(TEXT("Design: %d Basic kills at the player's level and 7 main missions end at level %.2f."), Kills, Design.Reached()));
-	TestTrue(FString::Printf(TEXT("The main path ends near level 9 (%.2f), inside Ransom's Rest's band"), Design.Reached()),
-		Design.Level >= 8 && Design.Level <= 10);
-
-	// The same path as the game plays it, from a fixed seed: levels rolled around the player's inside Ransom's Rest's band
-	// (1-10), 8% Restless and 2% Gravebound promotions, the Restless placed in Main 2-4, and Abel at his rank's experience.
-	UAreaDefinition* Valley = NewObject<UAreaDefinition>(GetTransientPackage(), NAME_None, RF_Transient);
-	Valley->MinLevel = 1;
-	Valley->MaxLevel = 10;
-	Valley->RarePromotionChance = 0.08f;
-	Valley->EpicPromotionChance = 0.02f;
-	FRandomStream Random(20261002);
-	FClimber Played;
-	Played.Curve = Design.Curve;
-	int64 FromKills = 0;
-	int64 FromMissions = 0;
-	int64 FromBoss = 0;
-	int32 Ranked = 0;
-	for (const FMainPathStep& Step : RansomsRestMainPath)
-	{
-		for (int32 Kill = 0; Kill < Step.Kills; ++Kill)
-		{
-			const ECreatureRank Rank = Kill < Step.PlacedRestless ? ECreatureRank::Rare : UAreaRulesSubsystem::RollPromotionIn(Valley, Random);
-			const FCreatureRankInfo& Info = UCreatureRankSettings::Get(Rank);
-			const int32 KillLevel = UAreaRulesSubsystem::RollLevelIn(Valley, Played.Level, 1, Rank, Random) + Info.LevelOffset;
-			const int64 Earned = Rules.KillXP(FMath::RoundToInt32(BaseXP * Info.XPMultiplier), KillLevel, Played.Level);
-			Ranked += Rank != ECreatureRank::Basic ? 1 : 0;
-			FromKills += Earned;
-			Played.Add(Earned);
-		}
-		if (Step.bBoss)
-		{
-			const FCreatureRankInfo& Boss = UCreatureRankSettings::Get(ECreatureRank::Boss);
-			const int32 BossLevel = UAreaRulesSubsystem::RollLevelIn(Valley, Played.Level, 1, ECreatureRank::Boss, Random) + Boss.LevelOffset;
-			const int64 Earned = Rules.KillXP(FMath::RoundToInt32(BaseXP * Boss.XPMultiplier), BossLevel, Played.Level);
-			AddInfo(FString::Printf(TEXT("Played: Abel at level %d gives %lld XP to a level %d player"), BossLevel, Earned, Played.Level));
-			FromBoss += Earned;
-			Played.Add(Earned);
-		}
-		const int64 MissionXP = Played.MainMissionXP();
-		FromMissions += MissionXP;
-		Played.Add(MissionXP);
-		AddInfo(FString::Printf(TEXT("Played: after %s, level %.2f"), Step.Mission, Played.Reached()));
-	}
-	AddInfo(FString::Printf(TEXT("Played: %d kills (%d of them ranked) and Abel end at level %.2f: %lld XP from kills, %lld from Abel, %lld from missions. ")
-		TEXT("Past the band's top (%d), Ransom's Rest's creatures give less and less, so later kills slow the climb."),
-		Kills - 1, Ranked, Played.Reached(), FromKills, FromBoss, FromMissions, Valley->GetBandTop()));
-	TestTrue(TEXT("Promotions and placed Restless add to the design's count"), Played.Reached() >= Design.Reached());
-	TestTrue(FString::Printf(TEXT("The played path stays within reach of the band (level %d)"), Played.Level), Played.Level <= Valley->GetBandTop() + 4);
-	return true;
-}
+// Ransom's Rest's pacing (the story ending about level 6-7) is ProgressionPacingTests.cpp's.
 
 #endif

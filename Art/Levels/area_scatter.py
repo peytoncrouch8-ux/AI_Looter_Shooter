@@ -7,7 +7,8 @@ built area so it agrees with the terrain:
      water, rock, building footprints, yards (the village square, the farmyard), the target meadow and the orchards
      (their trees stand on the rows in layout_computed.json).
   G  grass: 1 in the meadows, 0 on road and path surfaces (soft 1 m edge), water, steep rock, footprints and bare
-     dirt; about 0.4 under the forest canopy.
+     dirt; about 0.4 under the forest canopy. A late-summer area's grass thins on the bleached rises its macro map
+     paints (area_mosaic.grass_density(): the macro map is painted first).
   B  flowers: a few big drifts across the meadows, never where there's no grass, sparse in the forest.
   A  pebbles and small rocks: a thin band just outside road edges, the feet of cliffs, the island's rim, the creeks'
      banks.
@@ -167,6 +168,11 @@ def paint(area, out_path, preview_dir=None, log=print):
     grass = land * (1.0 - surface_w) * (1.0 - wet) * (1.0 - rock) * (1.0 - bare)
     grass *= 1.0 - 0.6 * forest * (0.6 + 0.4 * variety)
     grass *= 1.0 - 0.7 * scree
+    import area_mosaic
+    density = area_mosaic.grass_density(area, grid)
+    if density is not None:
+        grass *= density  # late summer: thin on the bleached rises, as the macro map paints them (area_mosaic.py)
+        del density
 
     drifts = _ss(0.3, 0.65, 0.5 + 0.5 * fbm_raster(grid, 26.0, seed=203, octaves=3))
     flowers = drifts * _ss(0.35, 0.8, grass) * (1.0 - 0.8 * forest)

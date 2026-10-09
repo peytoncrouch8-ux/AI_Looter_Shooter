@@ -85,6 +85,12 @@ bool AWeaponBase::CanReload() const
 
 void AWeaponBase::Reload()
 {
+	// Mid-strike, a reload asked for waits for the swing to end (EndMeleeSwing starts it).
+	if (bMeleeSwinging)
+	{
+		bReloadAfterMelee = bReloadAfterMelee || CanReload();
+		return;
+	}
 	if (!CanReload())
 	{
 		return;

@@ -286,6 +286,8 @@ void AWeaponBase::AttachToHolder(USceneComponent* AttachTo, FName Socket, const 
 
 void AWeaponBase::OnHolstered()
 {
+	// Put away mid-strike: back in its hold, and nothing the swing held back follows (else it could never fire again).
+	EndMeleeSwing(false);
 	StopFire();
 	GetWorldTimerManager().ClearTimer(FireTimer);
 	CancelReload();

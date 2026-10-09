@@ -57,3 +57,39 @@ TArray<FVector> BossRules::RingPoints(const FVector& Center, float Radius, int32
 	}
 	return Points;
 }
+
+float BossRules::AddCritToStagger(float BuildUp, float CritDamage, float MaxHealth, const FBossStagger& Stagger)
+{
+	const float Needed = Stagger.CritShare * MaxHealth;
+	if (Needed <= 0.f || CritDamage <= 0.f)
+	{
+		return FMath::Clamp(BuildUp, 0.f, 1.f);
+	}
+	return FMath::Clamp(BuildUp + CritDamage / Needed, 0.f, 1.f);
+}
+
+float BossRules::DrainStagger(float BuildUp, float DeltaSeconds, const FBossStagger& Stagger)
+{
+	return FMath::Max(0.f, BuildUp - FMath::Max(DeltaSeconds, 0.f) / FMath::Max(Stagger.DrainSeconds, 0.1f));
+}
+
+float BossRules::ShowerReach(int32 Index, const FBossLootShowerSettings& Shower)
+{
+	// The golden ratio's steps round the unit interval: each lands well away from the one before, and together they fill
+	// the ring evenly from its inside to its outside.
+	const float Low = FMath::Min(Shower.MinReach, Shower.MaxReach);
+	const float High = FMath::Max(Shower.MinReach, Shower.MaxReach);
+	const float Step = FMath::Frac(0.5f + static_cast<float>(FMath::Max(Index, 0)) * 0.6180340f);
+	return FMath::Lerp(Low, High, Step);
+}
+
+FVector BossRules::ShowerThrow(int32 Index, float StartYaw, const FBossLootShowerSettings& Shower, float Gravity)
+{
+	// Up and back down to the same height takes 2U/g: out at the speed that covers the reach in that time.
+	constexpr float GoldenAngle = 137.50776f;
+	const float Up = FMath::Max(Shower.UpSpeed, 100.f);
+	const float Fall = FMath::Max(Gravity, 1.f);
+	const float Out = ShowerReach(Index, Shower) * Fall / (2.f * Up);
+	const float Radians = FMath::DegreesToRadians(StartYaw + GoldenAngle * static_cast<float>(FMath::Max(Index, 0)));
+	return FVector(FMath::Cos(Radians) * Out, FMath::Sin(Radians) * Out, Up);
+}

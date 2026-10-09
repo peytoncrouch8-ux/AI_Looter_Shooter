@@ -403,8 +403,9 @@ bool FGravemotherMissionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Its first step: enter the den, measured with its height"), AssetEnter
 		&& AssetEnter->Place.Actor.ActorTag == Gravemother::DenPlaceTag && !AssetEnter->Place.bIgnoreHeight);
 	TestTrue(TEXT("Its second: her lair cleared"), AssetKill && AssetKill->SpawnerId == Gravemother::LairId);
-	TestTrue(TEXT("A side mission's experience, no reward gun"), FMath::IsNearlyEqual(Asset->Rewards.ExperienceShare, 0.2f)
-		&& !Asset->Rewards.bGun);
+	// A hunt nobody asked for: done as she dies, no one to turn it in to.
+	TestTrue(TEXT("Its experience (40), no reward gun, finished by itself"), Asset->Rewards.Experience == 40 && !Asset->Rewards.bGun
+		&& Asset->TurnIn.bAutomatic);
 	return true;
 }
 

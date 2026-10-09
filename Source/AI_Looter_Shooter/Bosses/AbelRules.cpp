@@ -1,4 +1,5 @@
 #include "Bosses/AbelRules.h"
+#include "Audio/LooterSoundCues.h"
 #include "Bosses/AbelPoses.h"
 #include "Creatures/UnpaidCreature.h"
 #include "Components/LightComponent.h"
@@ -38,6 +39,55 @@ namespace AbelRules
 	FName WalkOffEvent()
 	{
 		return FName(TEXT("WalkOff"));
+	}
+
+	FName FogShotEvent()
+	{
+		return FName(TEXT("FogShot"));
+	}
+
+	FBossShow MakeShow()
+	{
+		FBossShow Show;
+		Show.Title = LOCTEXT("Title", "Waiting on a Dark Saint");
+		Show.IntroCue = LooterSoundCue::AbelIntro;
+		Show.PhaseCue = LooterSoundCue::AbelWail;
+		Show.StaggerCue = LooterSoundCue::AbelStagger;
+		Show.DeathCue = LooterSoundCue::AbelDeath;
+		// His own entrance shakes the view as his lantern flares (AAbelKeeper's intro); the bell and the wind shake it here.
+		Show.IntroShake = 0.f;
+		Show.PhaseShake = 0.5f;
+		Show.StaggerShake = 0.3f;
+		Show.DeathShake = 0.8f;
+		Show.DeathSlowMo = 0.3f;
+		Show.DeathSlowSeconds = 0.9f;
+		Show.DefeatedLine = LOCTEXT("Kneels", "He kneels");
+		return Show;
+	}
+
+	FBossStagger MakeStagger()
+	{
+		FBossStagger Stagger;
+		Stagger.CritShare = 0.05f;
+		// His coal is open for seconds at a time: the build-up keeps a little longer than the windows between.
+		Stagger.DrainSeconds = 3.5f;
+		Stagger.Seconds = 2.5f;
+		Stagger.Cooldown = 8.f;
+		return Stagger;
+	}
+
+	FBossLootShowerSettings MakeLootShower()
+	{
+		FBossLootShowerSettings Shower;
+		Shower.BonusAmmo = 3;
+		// He kneels (2 s) and the scene plays; the loot comes once the player has their eyes back.
+		Shower.Delay = 3.f;
+		Shower.bAfterScene = true;
+		// From the deck's middle: he may fall at the open end, over the canyon.
+		Shower.bFromSpot = true;
+		Shower.MinReach = 160.f;
+		Shower.MaxReach = 400.f;
+		return Shower;
 	}
 
 	FBossVolley Buckshot()
@@ -96,12 +146,15 @@ namespace AbelRules
 		Bell.Events.Add(FBossPhaseEvent::MakeUntargetable(InTheFog));
 		Bell.Events.Add(FBossPhaseEvent::MakeWave(RisingUnpaid(BellWave, 0), 2.5f));
 		Bell.Events.Add(FBossPhaseEvent::MakeWave(RisingUnpaid(BellWave, 0), 2.5f + SecondWaveAfter));
+		// Out in the fog his lantern flares, a beacon over the canyon, and he fires from it: the lanterns are relit under fire,
+		// from behind the biers.
+		Bell.Events.Add(FBossPhaseEvent::MakeCustom(FogShotEvent(), FogShotFirst, FogShotEvery));
 		// Back on the deck he fights on as before (out in the fog these wait for him).
 		Bell.Events.Add(FBossPhaseEvent::MakeCustom(BuckshotEvent(), 8.f, BuckshotEvery));
 		Bell.Events.Add(FBossPhaseEvent::MakeCustom(GrieveEvent(), 14.f, GrieveEvery));
 
 		// "Let me go" (25-0%): the Gravewind pours off the point in gusts; he tries to walk off into it and the dark saint
-		// pulls him back (a stun, his coal open); between pulls he fights faster.
+		// pulls him back (a stun, his coal open); between pulls he fights faster, his buckshot a barrage.
 		FBossPhase Wind;
 		Wind.Name = LOCTEXT("PhaseWind", "Let me go");
 		Wind.HealthShare = WindShare;

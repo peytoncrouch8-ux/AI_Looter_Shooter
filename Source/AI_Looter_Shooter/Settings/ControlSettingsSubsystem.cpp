@@ -11,7 +11,7 @@ namespace
 void UControlSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	// Read once here: everything that turns the view asks for the value as its input arrives, so nothing else to apply.
+	// Read once here: everything that turns or shakes the view asks for its value as it needs it, so nothing to apply.
 	SaveData = LoadControls(ControlsSaveSlot, this);
 }
 
@@ -70,6 +70,38 @@ void UControlSettingsSubsystem::SetLookSensitivity(float Sensitivity, bool bSave
 		return;
 	}
 	SaveData->LookSensitivity = ClampLookSensitivity(Sensitivity);
+	if (bSave)
+	{
+		SaveSettings();
+	}
+}
+
+float UControlSettingsSubsystem::ClampCameraShake(float Shake)
+{
+	if (!FMath::IsFinite(Shake))
+	{
+		return DefaultCameraShake;
+	}
+	return FMath::Clamp(FMath::GridSnap(Shake, CameraShakeStep), MinCameraShake, MaxCameraShake);
+}
+
+float UControlSettingsSubsystem::CameraShakeOf(const ULooterControlsSave* Controls)
+{
+	return Controls ? ClampCameraShake(Controls->CameraShake) : DefaultCameraShake;
+}
+
+float UControlSettingsSubsystem::GetCameraShake() const
+{
+	return CameraShakeOf(SaveData);
+}
+
+void UControlSettingsSubsystem::SetCameraShake(float Shake, bool bSave)
+{
+	if (!SaveData)
+	{
+		return;
+	}
+	SaveData->CameraShake = ClampCameraShake(Shake);
 	if (bSave)
 	{
 		SaveSettings();

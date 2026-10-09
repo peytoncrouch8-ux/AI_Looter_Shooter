@@ -10,7 +10,7 @@
 
 // UPlayerLocomotionComponent's slide (FPlayerSlide holds its rules), how it ends (back into the sprint with forward
 // held, else in the crouch), its dust and sounds, and the jump key, which stands a crouched or sliding player up before
-// it jumps.
+// it jumps (standing, it climbs, vaults or jumps: PlayerLocomotionTraversal.cpp).
 
 namespace
 {
@@ -34,13 +34,15 @@ void UPlayerLocomotionComponent::HandleJumpPressed()
 {
 	ACharacter* Owner = Character.Get();
 	UCharacterMovementComponent* Move = Movement.Get();
-	if (!Owner || !Move)
+	if (!Owner || !Move || Traversal.IsActive())
 	{
+		// Mid-climb the key does nothing: a press mashed through it would hop the player off the top as it lands.
 		return;
 	}
 	if (!Owner->bIsCrouched && !Slide.IsActive())
 	{
-		Owner->Jump();
+		// Standing: a ledge or fence in front is climbed or vaulted, else it's a jump (PlayerLocomotionTraversal.cpp).
+		JumpOrTraverse();
 		return;
 	}
 

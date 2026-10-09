@@ -1,10 +1,15 @@
+// ULoadoutWidget: drag and drop. A gun pressed and moved follows the mouse and lands where it's let go: on a slot (swapping
+// with the gun there), on a backpack gun (trading places), anywhere on the backpack (stowed), or on the showcase (in hand).
+
 #include "UI/Inventory/LoadoutWidget.h"
+#include "Audio/LooterSound.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Image.h"
 #include "Components/ScrollBox.h"
@@ -17,10 +22,6 @@
 using namespace LooterUI;
 using namespace LoadoutParts;
 
-// ---------------------------------------------------------------------------
-// Drag and drop: a gun pressed and moved follows the mouse and lands where it's let go
-// ---------------------------------------------------------------------------
-
 namespace
 {
 	bool IsUnder(const UWidget* Widget, const FVector2D& ScreenPosition)
@@ -31,9 +32,14 @@ namespace
 
 bool ULoadoutWidget::FindGunCard(const FVector2D& ScreenPosition, EZone& OutZone, int32& OutIndex) const
 {
-	for (int32 SlotIndex = 0; SlotIndex < SlotCards.Num(); ++SlotIndex)
+	// On Inspect the list is put away, but its rows keep their last geometry: nothing there to press.
+	if (bInspecting)
 	{
-		if (SlotItem(SlotIndex) && IsUnder(SlotCards[SlotIndex].Button, ScreenPosition))
+		return false;
+	}
+	for (int32 SlotIndex = 0; SlotIndex < SlotRows.Num(); ++SlotIndex)
+	{
+		if (SlotItem(SlotIndex) && IsUnder(SlotRows[SlotIndex].Button, ScreenPosition))
 		{
 			OutZone = EZone::Slots;
 			OutIndex = SlotIndex;
@@ -43,9 +49,9 @@ bool ULoadoutWidget::FindGunCard(const FVector2D& ScreenPosition, EZone& OutZone
 	// Rows scrolled out of the list keep their geometry: only the list's visible part counts.
 	if (IsUnder(ListBox, ScreenPosition))
 	{
-		for (int32 Row = 0; Row < ListCards.Num(); ++Row)
+		for (int32 Row = 0; Row < ListRows.Num(); ++Row)
 		{
-			if (ListItem(Row) && IsUnder(ListCards[Row].Button, ScreenPosition))
+			if (ListItem(Row) && IsUnder(ListRows[Row].Button, ScreenPosition))
 			{
 				OutZone = EZone::Backpack;
 				OutIndex = Row;
@@ -58,23 +64,26 @@ bool ULoadoutWidget::FindGunCard(const FVector2D& ScreenPosition, EZone& OutZone
 
 ULoadoutWidget::FDropTarget ULoadoutWidget::FindDropTarget(const FVector2D& ScreenPosition) const
 {
-	for (int32 SlotIndex = 0; SlotIndex < SlotCards.Num(); ++SlotIndex)
+	if (!bInspecting)
 	{
-		if (IsUnder(SlotCards[SlotIndex].Button, ScreenPosition))
+		for (int32 SlotIndex = 0; SlotIndex < SlotRows.Num(); ++SlotIndex)
 		{
-			return { EDropKind::Slot, SlotIndex };
-		}
-	}
-	if (IsUnder(ListBox, ScreenPosition))
-	{
-		for (int32 Row = 0; Row < ListCards.Num(); ++Row)
-		{
-			if (IsUnder(ListCards[Row].Button, ScreenPosition))
+			if (IsUnder(SlotRows[SlotIndex].Button, ScreenPosition))
 			{
-				return { EDropKind::BackpackRow, Row };
+				return { EDropKind::Slot, SlotIndex };
 			}
 		}
-		return { EDropKind::Backpack, INDEX_NONE };
+		if (IsUnder(ListBox, ScreenPosition))
+		{
+			for (int32 Row = 0; Row < ListRows.Num(); ++Row)
+			{
+				if (IsUnder(ListRows[Row].Button, ScreenPosition))
+				{
+					return { EDropKind::BackpackRow, Row };
+				}
+			}
+			return { EDropKind::Backpack, INDEX_NONE };
+		}
 	}
 	if (IsUnder(StageImage, ScreenPosition))
 	{
@@ -85,12 +94,10 @@ ULoadoutWidget::FDropTarget ULoadoutWidget::FindDropTarget(const FVector2D& Scre
 
 FString ULoadoutWidget::DropActionText(const FDropTarget& Target) const
 {
-	const UWeaponManagerComponent* Inventory = Manager.Get();
-	if (!Inventory)
+	if (!Manager.IsValid())
 	{
 		return FString();
 	}
-	const bool bBackpackRoom = Inventory->GetBackpack().Num() < Inventory->BackpackCapacity;
 	if (PressZone == EZone::Slots)
 	{
 		switch (Target.Kind)
@@ -108,9 +115,9 @@ FString ULoadoutWidget::DropActionText(const FDropTarget& Target) const
 			{
 				return TEXT("Swap with this gun");
 			}
-			return bBackpackRoom ? TEXT("Store in the backpack") : FString();
+			return HasBackpackRoom() ? TEXT("Stow in the backpack") : FString();
 		case EDropKind::Backpack:
-			return bBackpackRoom ? TEXT("Store in the backpack") : FString();
+			return HasBackpackRoom() ? TEXT("Stow in the backpack") : FString();
 		case EDropKind::Stage:
 			return PressIndex != GetActiveSlot() ? TEXT("Take in hand") : FString();
 		default:
@@ -150,11 +157,12 @@ void ULoadoutWidget::BeginItemDrag()
 		->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
 	DragGhost->SetVisibility(ESlateVisibility::HitTestInvisible);
 	UpdateItemDrag(PressPosition);
+	PlayCue(LooterSoundCue::Click);
 }
 
 void ULoadoutWidget::UpdateItemDrag(const FVector2D& ScreenPosition)
 {
-	// Just below and right of the pointer, so the card under it stays in sight.
+	// Just below and right of the pointer, so the row under it stays in sight.
 	GhostSlot->SetPosition(ToPage(ScreenPosition) + FVector2D(18.f, 14.f));
 	const FDropTarget Target = FindDropTarget(ScreenPosition);
 	if (Target == DropTarget)
@@ -204,6 +212,7 @@ void ULoadoutWidget::ApplyDrop(const FDropTarget& Target)
 	// Where the gun ends up, for the cursor to follow it there.
 	int32 NewSlot = INDEX_NONE;
 	int32 NewBackpackIndex = INDEX_NONE;
+	const TCHAR* Cue = Sounds::Equip;
 	{
 		TGuardValue<bool> RefreshAfter(bApplyingAction, true);
 		if (PressZone == EZone::Slots)
@@ -229,17 +238,19 @@ void ULoadoutWidget::ApplyDrop(const FDropTarget& Target)
 					Inventory->SwapSlotWithBackpack(From, NewBackpackIndex);
 					break;
 				}
-				// A free row: stored like anywhere else on the backpack.
+				// A free row: stowed like anywhere else on the backpack.
 				[[fallthrough]];
 			case EDropKind::Backpack:
 				if (Inventory->StashSlot(From))
 				{
 					NewBackpackIndex = Inventory->GetBackpack().Num() - 1;
+					Cue = Sounds::Stow;
 				}
 				break;
 			case EDropKind::Stage:
 				Inventory->EquipSlot(From);
 				NewSlot = From;
+				Cue = LooterSoundCue::Click;
 				break;
 			default:
 				break;
@@ -266,6 +277,7 @@ void ULoadoutWidget::ApplyDrop(const FDropTarget& Target)
 				{
 					NewSlot = FMath::Max(Inventory->GetActiveSlot(), 0);
 				}
+				Cue = LooterSoundCue::Click;
 				break;
 			default:
 				break;
@@ -273,19 +285,30 @@ void ULoadoutWidget::ApplyDrop(const FDropTarget& Target)
 		}
 	}
 
-	// The cursor follows the gun to where it landed.
+	// The cursor follows the gun to where it landed, and the row flashes its rarity.
 	if (NewSlot != INDEX_NONE)
 	{
 		Zone = EZone::Slots;
-		ChosenSlot = CursorIndex = NewSlot;
+		CursorIndex = TargetSlot = NewSlot;
 	}
 	Refresh();
+	if (NewSlot != INDEX_NONE)
+	{
+		FlashRow(EZone::Slots, NewSlot);
+	}
 	if (NewBackpackIndex != INDEX_NONE)
 	{
 		const int32 Row = ListOrder.IndexOfByKey(NewBackpackIndex);
 		if (Row != INDEX_NONE)
 		{
-			MoveCursorTo(EZone::Backpack, Row, true);
+			MoveCursorTo(EZone::Backpack, Row, true, false);
+			FlashRow(EZone::Backpack, Row);
 		}
 	}
+	PlayCue(NewSlot != INDEX_NONE || NewBackpackIndex != INDEX_NONE ? Cue : LooterSoundCue::Denied);
+}
+
+FVector2D ULoadoutWidget::ToPage(const FVector2D& ScreenPosition) const
+{
+	return Page ? Page->GetCachedGeometry().AbsoluteToLocal(ScreenPosition) : ScreenPosition;
 }

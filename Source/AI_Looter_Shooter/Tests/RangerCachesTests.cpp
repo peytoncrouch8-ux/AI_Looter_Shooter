@@ -497,7 +497,15 @@ bool FRangerCachesPlacedTest::RunTest(const FString& Parameters)
 		Windmill = Windmill ? Windmill : Cast<AWindmill>(Actor);
 		if (const AChest* Chest = Cast<AChest>(Actor))
 		{
-			(Chest->Kind == EChestKind::Strongbox ? Strongboxes : Crates).Add(Chest);
+			// The camps' Supply Crates (build_area_camps.py) are the same model: only Ruth's carry the RangerCache tag.
+			if (Chest->Kind == EChestKind::Strongbox)
+			{
+				Strongboxes.Add(Chest);
+			}
+			else if (Chest->ActorHasTag(TEXT("RangerCache")))
+			{
+				Crates.Add(Chest);
+			}
 		}
 	}
 	if (Crates.IsEmpty() && Strongboxes.IsEmpty())

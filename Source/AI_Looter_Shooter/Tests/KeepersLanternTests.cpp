@@ -69,7 +69,7 @@ bool FKeepersLanternMissionTest::RunTest(const FString& Parameters)
 {
 	// Main 5 as its asset has it: id exactly Main5 (Side 3 opens after it), after Main 4 on Ransom's Rest; down to the
 	// Sink's floor (height counted), three egg sacs down (their event, the arrow on the nearest still up), the lantern
-	// taken (a tap), out at the ramp head (height counted); 30% of a level.
+	// taken (a tap), out at the ramp head (height counted); turned in to Father Aldana, with words of its own; 40 experience.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main5")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main5.DA_Mission_Main5"));
@@ -89,7 +89,9 @@ bool FKeepersLanternMissionTest::RunTest(const FString& Parameters)
 				&& Sacs->Count == 3 && Sacs->Waypoint == EMissionWaypoint::Actor && Sacs->WaypointActor.ActorTag == AEggSac::EggSacTag);
 			TestTrue(TEXT("3: the Keeper's Lantern taken, a tap"), Take && Take->Target.ActorTag == AKeepersLantern::LanternTag && !Take->bHold);
 			TestTrue(TEXT("4: out at the ramp head (height counted)"), Out && Out->Place.Actor.ActorTag == RimPlace && !Out->Place.bIgnoreHeight);
-			TestEqual(TEXT("Its reward: 30% of a level"), Asset->Rewards.ExperienceShare, 0.3f);
+			TestTrue(TEXT("Turned in to Father Aldana, with words of its own"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == AldanaTag
+				&& !Asset->TurnIn.Lines.IsEmpty());
+			TestEqual(TEXT("Its reward: 40 experience"), Asset->Rewards.Experience, 40);
 			TestEqual(TEXT("The lantern's step is the one AKeepersLantern takes it on"), AKeepersLantern::TakeStep, 2);
 		}
 	}
@@ -231,12 +233,17 @@ bool FKeepersLanternMissionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...Ellis has it, by the story"), AKeepersLantern::IsTaken(Campaign, Runner));
 	TestFalse(TEXT("...and the floor's spiders' story is over"), Spiders->IsStoryActive());
 
-	// Out at the ramp head: Main 5 is finished.
+	// Out at the ramp head: Main 5's objectives are done, and it waits for Aldana.
 	Player->SetActorLocation(RimHead + FVector(150.0, 0.0, 0.0));
 	Runner->Update(0.2f);
-	TestTrue(TEXT("At the ramp head: Main 5 is finished"), Campaign.HasCompleted(MainFive) && !Runner->IsRunning(MainFive));
-	TestTrue(TEXT("...the lantern stays Ellis's"), AKeepersLantern::IsTaken(Campaign, Runner) && !Lantern->IsHanging());
+	TestTrue(TEXT("At the ramp head: ready to turn in to Aldana, not finished"), Runner->IsReadyToTurnIn(MainFive) && !Campaign.HasCompleted(MainFive));
+	TestTrue(TEXT("...the lantern Ellis's meanwhile"), AKeepersLantern::IsTaken(Campaign, Runner) && !Lantern->IsHanging());
 	TestFalse(TEXT("...and the sacs stay burst"), Sacs.ContainsByPredicate([](const AEggSac* Sac) { return Sac->GetState() != EEggSacState::Burst; }));
+
+	// Turned in at the vestry door (the talk's event, as his speaker point sends it): finished.
+	Runner->NotifyEvent(FMissionEvent::Named(FMissionEvent::Talk, nullptr, AldanaTag));
+	TestTrue(TEXT("Turned in to Aldana: Main 5 is finished"), Campaign.HasCompleted(MainFive) && !Runner->IsRunning(MainFive));
+	TestTrue(TEXT("...the lantern stays Ellis's"), AKeepersLantern::IsTaken(Campaign, Runner) && !Lantern->IsHanging());
 	return true;
 }
 

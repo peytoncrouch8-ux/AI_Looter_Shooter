@@ -237,7 +237,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnfinishedBusinessMissionTest, "Looter.Story.U
 bool FUnfinishedBusinessMissionTest::RunTest(const FString& Parameters)
 {
 	// Side 2 as its asset has it: after Main 4 on Ransom's Rest; talk to Amos, load six bales (held, counted from the world),
-	// drive off the hands (their encounter cleared: six), talk to Amos; 20% of a level and a guaranteed Epic gun.
+	// drive off the hands (their encounter cleared: six); turned in to Amos; 40 experience and a guaranteed Epic gun.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Side2")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Side2.DA_Mission_Side2"));
@@ -246,19 +246,19 @@ bool FUnfinishedBusinessMissionTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("Side2, a side mission starting by itself on Ransom's Rest, after Main4"), Asset->GetMissionId() == SideTwo
 				&& Asset->Kind == EMissionKind::Side && Asset->Start == EMissionStart::Automatic && Asset->Area == FName(TEXT("RansomsRest"))
 				&& Asset->Prerequisites == TArray<FName>({ MainFour }));
-			TestEqual(TEXT("Four steps"), Asset->Steps.Num(), SideTwoSteps);
+			TestEqual(TEXT("Three steps"), Asset->Steps.Num(), SideTwoSteps);
 			const UMissionTalkObjective* Meet = Cast<UMissionTalkObjective>(Asset->GetObjective(0, 0));
 			const UMissionLastingInteractObjective* Load = Cast<UMissionLastingInteractObjective>(Asset->GetObjective(1, 0));
 			const UMissionClearObjective* Hands = Cast<UMissionClearObjective>(Asset->GetObjective(2, 0));
-			const UMissionTalkObjective* Thanks = Cast<UMissionTalkObjective>(Asset->GetObjective(3, 0));
 			TestTrue(TEXT("1: talk to Amos at his fence"), Meet && Meet->SpeakerTag == AAmosWhitlock::SpeakerTag);
 			TestTrue(TEXT("2: six hay bales loaded, held, counted from the world"), Load && Load->Count == BaleCount && Load->bHold
 				&& Load->Target.ActorTag == AHayBale::BaleTag);
 			TestTrue(TEXT("3: the hands driven off (their encounter cleared, six)"), Hands && Hands->SpawnerId == HandsId
 				&& Hands->Count == HandsBasic + 1);
-			TestTrue(TEXT("4: talk to Amos again"), Thanks && Thanks->SpeakerTag == AAmosWhitlock::SpeakerTag);
-			TestTrue(TEXT("Its reward: a side mission's 20% of a level and a guaranteed Epic gun"),
-				FMath::IsNearlyEqual(Asset->Rewards.ExperienceShare, 0.2f) && Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Epic);
+			TestTrue(TEXT("Turned in to Amos (his thanks: the talk that was its fourth step)"), Asset->NeedsTurnIn()
+				&& Asset->TurnIn.SpeakerTag == AAmosWhitlock::SpeakerTag);
+			TestTrue(TEXT("Its reward: 40 experience and a guaranteed Epic gun"),
+				Asset->Rewards.Experience == 40 && Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Epic);
 		}
 	}
 	else
@@ -381,13 +381,14 @@ bool FUnfinishedBusinessMissionTest::RunTest(const FString& Parameters)
 	Hands->UpdateEncounter(0.5f);
 	Runner->Update(UMissionRunner::UpdateInterval);
 	TestTrue(TEXT("Six down: the yard is clear"), Hands->GetState() == EEncounterState::Cleared && Hands->GetKilled() == HandsBasic + 1);
-	TestEqual(TEXT("...talk to Amos"), Runner->GetStep(SideTwo), 3);
+	TestEqual(TEXT("...talk to Amos (its step past the last)"), Runner->GetStep(SideTwo), 3);
+	TestTrue(TEXT("...ready to turn in to him"), Runner->IsReadyToTurnIn(SideTwo) && !Campaign.HasCompleted(SideTwo));
 	TestFalse(TEXT("...and the fight is over"), Hands->IsStoryActive());
 
-	// 4: Amos again; Side 2 is done, and once his words are over he settles onto his fence.
+	// Amos again: Side 2 is turned in, and once his words are over he settles onto his fence.
 	PlayOut(*Captions);
 	TestTrue(TEXT("Amos talked to"), Amos->SpeakerPoint->Talk(Player));
-	TestTrue(TEXT("Side 2 is finished"), Campaign.HasCompleted(SideTwo) && !Runner->IsRunning(SideTwo));
+	TestTrue(TEXT("Side 2 is turned in: finished"), Campaign.HasCompleted(SideTwo) && !Runner->IsRunning(SideTwo));
 	Amos->UpdatePose(0.1f);
 	TestTrue(TEXT("...he leans on while he's talking"), Amos->GetSeat() == EAmosPose::Lean);
 	PlayOut(*Captions);
@@ -533,9 +534,10 @@ bool FUnfinishedBusinessBalesTest::RunTest(const FString& Parameters)
 		}
 	}
 
-	// Side 2 done: the hay's in, whatever this level saw.
+	// Side 2 done and turned in to Amos: the hay's in, whatever this level saw.
 	Runner->NotifyEvent(FMissionEvent::Named(TEXT("Test.Step2")));
-	Runner->NotifyEvent(FMissionEvent::Named(TEXT("Test.Step3")));
+	TestTrue(TEXT("Its objectives done: waiting for Amos"), Runner->IsReadyToTurnIn(SideTwo) && !Campaign.HasCompleted(SideTwo));
+	Runner->NotifyEvent(FMissionEvent::Named(FMissionEvent::Talk, nullptr, AAmosWhitlock::SpeakerTag));
 	TestTrue(TEXT("Side 2 finished"), Campaign.HasCompleted(SideTwo));
 	TestEqual(TEXT("...every bale in the stack"), AHayBale::CountLoaded(Played), BaleCount);
 	return true;

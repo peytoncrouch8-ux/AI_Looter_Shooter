@@ -2,7 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/CreatureBodyHulls.h"
 #include "Creatures/ShroudChain.h"
+#include "Creatures/UnpaidRigBones.h"
 #include "Creatures/UnpaidRules.h"
 #include "UnpaidCreature.generated.h"
 
@@ -22,91 +24,6 @@ namespace UnpaidLook
 	inline constexpr int32 HeatIndex = 5;
 }
 
-/** One arm's bones in SK_Unpaid, from the shoulder out. */
-USTRUCT(BlueprintType)
-struct AI_LOOTER_SHOOTER_API FUnpaidArmBones
-{
-	GENERATED_BODY()
-
-	FUnpaidArmBones() = default;
-
-	/** The arm on one side, named as Unpaid.py names it: Side is "l" or "r". */
-	explicit FUnpaidArmBones(const TCHAR* Side);
-
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	FName UpperArm;
-
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	FName LowerArm;
-
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	FName Hand;
-
-	/** A bone per finger, thumb first and little finger last: they curl together and fan out round the middle one. */
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	TArray<FName> Fingers;
-};
-
-/**
- * The bones AUnpaidCreature poses, by their names in SK_Unpaid (Art/Models/Creatures/Unpaid.py). If the model names one
- * differently, set the name in Config/DefaultGame.ini under [/Script/AI_Looter_Shooter.UnpaidCreature] (Rig=(...)): no code
- * change. The pelvis, spine, chest, neck, head and the arms down to the hands are needed; a jaw, coal, finger or tail bone
- * the model lacks is simply left at rest.
- */
-USTRUCT(BlueprintType)
-struct AI_LOOTER_SHOOTER_API FUnpaidRigBones
-{
-	GENERATED_BODY()
-
-	FUnpaidRigBones();
-
-	/** Carries the body: it hovers and leans here. */
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	FName Pelvis;
-
-	/** The waist and the chest. A shot on the chest's (or the waist's, or the coal's) hit zone may find the coal. */
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	FName Spine;
-
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	FName Chest;
-
-	/** Where the coal burns through the chest, at about 1.3 m: the crit spot is found round it. */
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	FName Coal;
-
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	FName Neck;
-
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	FName Head;
-
-	/** Drops for the shriek. */
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	FName Jaw;
-
-	/** Carries the hat, which is a mesh of its own (SM_UnpaidHat) and follows the head. */
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	FName Hat;
-
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	FUnpaidArmBones LeftArm;
-
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	FUnpaidArmBones RightArm;
-
-	/** The shroud's chain, top first, each bone the child of the one before. */
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	TArray<FName> Shroud;
-
-	/** The short chains of the outer strips at its sides, top first. */
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	TArray<FName> LeftStrip;
-
-	UPROPERTY(EditAnywhere, Category = "Rig")
-	TArray<FName> RightStrip;
-};
-
 /**
  * The Unpaid (Docs/Areas/RansomsRest.md, "Enemies by rank"; Docs/Story.md): the restless dead of Ransom's Rest, pale
  * homesteaders in the clothes they died in, fading below the waist into a trailing shroud, with a coal burning through
@@ -125,9 +42,11 @@ struct AI_LOOTER_SHOOTER_API FUnpaidRigBones
  *  - It wears one of three sets of clothes, hat and all: the model's own (Ghost_A) or MI_Ghost_B and C (OtherClothes).
  *
  * The body is SK_Unpaid (Art/Models/Creatures/Unpaid.py), 33 bones under its root, all posed by code (UnpaidCreatureRig.cpp) on
- * top of the model's rest pose, the idle hang: it bobs, leans into its drift, looks at its target, its arms and fingers
- * reach and claw, and the shroud's chains (FShroudChain) trail its motion. Without the model (a test level, or before it
- * is imported) it hunts as well, unseen: its coal is where the model carries it (CoalPointWithoutRig).
+ * top of the model's rest pose, the idle hang: it bobs, leans into its drift, looks at its target, and the shroud's chains
+ * (FShroudChain) trail its motion, lifting off ground that rises behind it. Its arms (UnpaidCreatureArms.cpp) drift loose
+ * at rest, hang against its lean, reach and claw while it hunts, fling wide for the shriek, lag behind its moves and its
+ * hits on springs, and never pass into its own torso: the model's hit hulls keep them out. Without the model (a test level,
+ * or before it is imported) it hunts as well, unseen: its coal is where the model carries it (CoalPointWithoutRig).
  */
 UCLASS(Config = Game)
 class AI_LOOTER_SHOOTER_API AUnpaidCreature : public ACreatureBase
@@ -141,6 +60,9 @@ public:
 
 	// Crits: a shot onto its chest from the front whose line passes close to the coal.
 	virtual bool IsCriticalSpot(const FHitResult& Hit) const override;
+
+	/** Its body and the top of its shroud trailing behind it (the rest of the shroud is thin and fades, and may pass through). */
+	virtual FFootprint GetFootprint() const override;
 
 	// --- Its coal ---
 
@@ -172,6 +94,16 @@ public:
 
 	/** Whether it's in the middle of a lunge. */
 	bool IsLunging() const { return bLunging; }
+
+	// --- Its arms (UnpaidCreatureArms.cpp) ---
+
+	/**
+	 * How far its arms reach into its own torso past where they sit in the rest pose, as it's posed now (cm, the deepest
+	 * point of either arm's hit hull in the pelvis's, spine's, chest's or shroud top's): 0 when they keep out, as they
+	 * should. Measured on the last pose solved, so a body built on its rig (Abel) is measured in its own pose. For the
+	 * tests and Looter.CastShots; 0 without the model.
+	 */
+	float GetArmIntrusion() const;
 
 	// --- Phase-steps ---
 
@@ -410,6 +342,39 @@ private:
 		float LookYaw = 0.f;
 		float LookPitch = 0.f;
 		float Death = 0.f;
+		/** Hunting (0 to 1): its arms come up and claw at the air in turn while it chases. */
+		float Hunt = 0.f;
+	};
+
+	/** One arm's lag behind the body's moves, on a spring: degrees swung back and out from the body, and their speeds. */
+	struct FArmSway
+	{
+		float Swing = 0.f;
+		float Out = 0.f;
+		float SwingSpeed = 0.f;
+		float OutSpeed = 0.f;
+		/** How far the keep-out has turned it away from the body and swung it back (degrees), easing off once it needn't. */
+		float KeepOut = 0.f;
+		float KeepSwing = 0.f;
+	};
+
+	/** A point on an arm's hit hull (in its arm bone's space) that must keep out of the torso, and how deep it sits in each torso shape at rest. */
+	struct FArmGuardPoint
+	{
+		/** Its arm bone (an index into Bones). */
+		int32 Bone = INDEX_NONE;
+		FVector InBone = FVector::ZeroVector;
+		/** Per TorsoGuards entry: the rest pose's depth (a shoulder's sleeve sits in the chest's hull by design). */
+		TArray<float> RestDepth;
+		/** On the upper arm by the shoulder: the chest it hangs from may take it in (the armpit's fold), nothing else. */
+		bool bNearShoulder = false;
+	};
+
+	/** A torso shape the arms keep out of: its bone (an index into Bones) and its shape in TorsoHulls. */
+	struct FTorsoGuard
+	{
+		int32 Bone = INDEX_NONE;
+		int32 Shape = INDEX_NONE;
 	};
 
 	/** Reads its rig from the skeleton; false without the model or the bones it needs (it then stays at rest). */
@@ -420,6 +385,27 @@ private:
 	FPoseChannels PoseTargets(float Speed, float Time) const;
 	/** Works the bones' poses out from their turns, parents first. */
 	void SolvePose();
+
+	// --- The arms (UnpaidCreatureArms.cpp) ---
+	/** Reads the points of the arms' hit hulls that keep out of the torso, and the torso's hulls, from the model's physics asset. */
+	void SetupArmGuard();
+	/**
+	 * Turns the arms' bones for this frame (after the trunk's): their channels, the drift, the sway and the keep-out. Speed is
+	 * its drift against its chase speed, LocalVelocity its velocity in its own frame, YawRate its turn (degrees a second).
+	 */
+	void PoseArms(float DeltaSeconds, float Time, float Speed, const FVector& LocalVelocity, float YawRate);
+	/** Steps the arms' sway springs on by DeltaSeconds under the body's acceleration (cm/s^2, its own frame) and turn. */
+	void StepArmSway(float DeltaSeconds, const FVector& LocalAcceleration, float YawRate);
+	/** Turns one arm's bones for these angles (degrees: swung back, out from the body, the elbow's bend, the wrist) and finger curl. */
+	void TurnArm(const FArm& Arm, float Swing, float Out, float Bend, float Wrist, float Curl);
+	/** How far one arm (0 left, 1 right) reaches into the torso past its rest, on the pose as solved now (cm), and how far from the shoulder that deepest point is (cm, across the body). */
+	float ArmIntrusion(int32 Side, float* OutLever = nullptr) const;
+	/** Sets the arms' sway swinging (degrees a second, per side: back, and out from the body), for a hit or a twitch. */
+	void KickArm(int32 Side, float SwingSpeed, float OutSpeed);
+	/** A hit (its jolt along FlinchAway): the flinch kicked, both arms flung the other way, a crit harder. */
+	void ReactToHit(bool bCritical);
+	/** The flinch follows its fading kick on a stiff spring, so a hit jolts the body without a one-frame jump. */
+	void StepFlinch(float DeltaSeconds);
 
 	// The rig
 	int32 PelvisBone = INDEX_NONE;
@@ -440,11 +426,29 @@ private:
 	bool bPoseStarted = false;
 	float PoseTime = 0.f;
 	float LastYaw = 0.f;
+	/** How far it banks into its turn now (degrees, eased toward what its turn rate asks). */
+	float Bank = 0.f;
 	/** Each one moves in its own time, so a crowd doesn't bob in step. */
 	float PoseSeed = 0.f;
-	/** A hit's flinch (0 to 1, easing off) and which way it pushed (the body's frame). */
+	/** A hit's flinch (about 0 to 1, its speed, and the fading kick it follows: StepFlinch) and which way it pushed (the body's frame). */
 	float Flinch = 0.f;
+	float FlinchSpeed = 0.f;
+	float FlinchKick = 0.f;
 	FVector FlinchAway = FVector::ZeroVector;
+
+	// The arms
+	FArmSway ArmSway[2];
+	/** The torso's hit hulls the arms keep out of, and the arms' guard points (UnpaidCreatureArms.cpp). */
+	FCreatureBodyHulls TorsoHulls;
+	TArray<FTorsoGuard> TorsoGuards;
+	TArray<FArmGuardPoint> ArmGuards[2];
+	/** The last frame's velocity in its own frame, for its acceleration (the sway). */
+	FVector LastLocalVelocity = FVector::ZeroVector;
+	/** Seconds until an arm twitches next, while it hangs about. */
+	float NextTwitch = 4.f;
+
+	/** How far the shroud lifts (degrees) off ground that rises behind it, eased. */
+	float ShroudLift = 0.f;
 
 	// Rank
 	FUnpaidRankTraits Traits;

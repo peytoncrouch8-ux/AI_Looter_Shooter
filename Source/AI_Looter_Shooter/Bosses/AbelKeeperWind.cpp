@@ -4,6 +4,7 @@
 
 #include "Bosses/AbelKeeper.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/LooterSound.h"
 #include "Bosses/BossComponent.h"
 #include "World/FallRecoverySubsystem.h"
 #include "World/PlayableArea.h"
@@ -40,6 +41,8 @@ void AAbelKeeper::StartWind()
 	bWindBlowing = true;
 	WindTime = 0.f;
 	GustNow = 0.f;
+	// The Gravewind rising off the point: heard all over the deck.
+	LooterSound::Play2D(this, LooterSoundCue::AbelWindRise);
 	ForcedGustLeft = 0.f;
 	WispState.Reset();
 	WispRandom.Initialize(0x47a7e);

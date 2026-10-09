@@ -59,6 +59,12 @@ sounds; sounds are script-made; C++ first; no new levels or areas.
 Sizes: S under a day for one agent, M a day or two, L several days or several agents. Items 1-10 cut the empty and wonky
 feeling for the least work.
 
+**Status (2026-10-09, 01:00):** built: 1 (ambience and music), 2 (hit and kill feedback), 3 (wounds that close and
+soul-motes; no down state yet), 4 (mantle, vault, coyote time, jump buffer, unstick), 5 (ambient life), 7 (camps,
+patrols, ambushes, the rank sting), 8 in part (flanking and retreat; no barks or new kinds yet), 9 (boss shows), 11
+(inventory list and card), 12 (turn-ins and the banner), 16 in part (the melee strike; no grenade yet). Next: 6, 10,
+the rest of 8, 14, 13, 15.
+
 **1. Ambient sound beds and area music (M).** Build: looping, script-made layers (canyon wind, grass, insects by day,
 crickets at dusk, creek, water, creaks, a far bell), placed as positional emitters (windmill, creek, falls, chapel) plus a
 level-wide bed that follows the lighting state (Day, Dusk). Add exploration, combat and boss stems with a small director

@@ -16,12 +16,15 @@ Everything is a function of world position (layout meters) and the heights, work
 
 paint() lays the faces over a macro map after its season's grade (their colors are the ones the faces show), with
 the macro alpha (the detail selector) following them: rock on the bands and the bare faces, scree on the fans, soil
-between, grass detail where the grass climbs. pines() gives the scatter mask's creases' pines their density, and
-area_scrub.py reads the fields for the scrub's.
+between, grass detail where the grass climbs. A late-summer area (area_mosaic.py) paints them in its own palette
+(palette()), with grass holding on the steep faces in patches and tongues by aspect, rusty soil, bands of several
+colors and, on the far faces nobody walks near, painted pine stands. pines() gives the scatter mask's creases' pines
+their density, and area_scrub.py reads the fields for the scrub's.
 """
 import numpy as np
 
-from area_math import Grid, blur, cells, fbm, gradient_noise, raster_size, resize, sample, smoothstep
+import area_mosaic
+from area_math import Grid, blur, cells, fbm, gradient_noise, raster_size, resize, sample, signed_distance, smoothstep
 
 WORK_PX = 0.4            # meters per cell the fields are worked out at (or the raster's own, if coarser)
 CREASE_BLUR = 4.0        # meters: the scale of the hollows a crease follows
@@ -34,6 +37,7 @@ LEDGE = 1.8              # meters down the fall line a band's ledge shadows the 
 CAP = 0.5                # meters of height under a band's top that catch the light (its lip)
 FAN_REACH = 9.0          # meters down the fall line a band's scree fan reaches
 LIC_SPREAD = 0.09        # the usual spread of noise drawn out along the fall line: scaled up to about -1..1
+WOODS_PAST = (50.0, 90.0)  # meters past the playable boundary a late-summer area's painted pine woods fade in over
 
 # Colors (sRGB), as the faces show them: laid on after the macro map's grade, so they sit among its golden meadow
 # (about #908155), its banks (#6b6041) and its rock (#756f61).
@@ -152,6 +156,9 @@ def fields(area, grid, h):
         return gradient_noise(hb / BAND_SPACING, drift, 621) + fine_strata * gradient_noise(hb / 3.4, drift + 7.3, 622)
     strata = strata_at(hband).astype(np.float32)
     above = strata_at(hband + CAP).astype(np.float32)
+    # A late-summer area's bands each take a color of their own (area_mosaic.FACES), by a noise along the same height.
+    band_hue = (gradient_noise(hband / BAND_SPACING, drift + 3.1, 628).astype(np.float32)
+                if area_mosaic.spec(area) is not None else None)
     del hband, lift, drift, fine_strata
     thr = (0.2 + 0.14 * fbm(x, y, 28.0, seed=623, octaves=2)).astype(np.float32)
     # A lens pinches out toward its ends rather than stopping square: the threshold rises there.
@@ -190,10 +197,32 @@ def fields(area, grid, h):
     tone = fbm(x, y, 42.0, seed=641, octaves=2).astype(np.float32)
     warm = fbm(x, y, 70.0, seed=642, octaves=2).astype(np.float32)
     f32 = np.float32
-    return dict(grid=work, face=face, slope=slope, rel=rel, crease=crease.astype(f32), streak=streak,
-                tongue=tongue, band_v=band_v, banded=rocky.astype(f32), band=band.astype(f32),
-                cap=cap.astype(f32), ledge=ledge.astype(f32), fan=fan.astype(f32), scrub=scrub.astype(f32),
-                pines=pines.astype(f32), tone=tone, warm=warm, patch=patch.astype(f32), clumps=clumps)
+    out = dict(grid=work, face=face, slope=slope, rel=rel, crease=crease.astype(f32), streak=streak,
+               tongue=tongue, band_v=band_v, banded=rocky.astype(f32), band=band.astype(f32),
+               cap=cap.astype(f32), ledge=ledge.astype(f32), fan=fan.astype(f32), scrub=scrub.astype(f32),
+               pines=pines.astype(f32), tone=tone, warm=warm, patch=patch.astype(f32), clumps=clumps)
+    if area_mosaic.spec(area) is not None:
+        # A late-summer area's faces (area_mosaic.FACES) wear grass in big patches and tongues, more of it on the
+        # slopes turned from the afternoon sun (north and east), and their bands' rock in several colors: how far a
+        # slope faces away from the sun, the grass cover's noise, and each band's color by its height.
+        ax, ay = np.gradient(blur(hw, cells(3.0, px)), px)
+        g = np.maximum(np.hypot(ax, ay), 1e-4)
+        out['cool'] = ((-0.8 * ax - 0.45 * ay) / g).astype(f32)
+        del ax, ay, g
+        out['cover'] = (0.8 * fbm(x, y, 55.0, seed=651, octaves=2) + 0.45 * fbm(x, y, 18.0, seed=652, octaves=2)
+                        ).astype(f32)
+        out['band_hue'] = band_hue
+        # Pine woods on the far faces nobody walks near (WOODS_PAST m and more past the playable boundary): the higher
+        # forested ridges' stands, painted, where the slope is too steep for the far trees.
+        if getattr(area, 'boundary', None) is not None:
+            # Stands run down the slopes in tongues and up the creases (noise drawn out along the fall line), as trees
+            # on a steep face follow its gullies, rather than sitting on it as round blots.
+            stands = 0.45 * groups + 0.4 * tongue + 0.9 * crease + 0.25 * out['cover'] - 0.2
+            out['woods'] = (_ss(*WOODS_PAST, signed_distance(work, area.boundary, WOODS_PAST[1] + 5.0))
+                            * _ss(0.0, 0.25, stands) * _ss(30.0, 40.0, slope)
+                            * (1.0 - _ss(62.0, 70.0, slope))).astype(f32)
+            del stands
+    return out
 
 
 def ring_fields(area):
@@ -234,11 +263,27 @@ def _paint(rgb, alpha, color, weight, a=None):
         alpha += (np.asarray(a, dtype=np.float32) - alpha) * w
 
 
-def paint(rgba, faces, keep=None, fine=None, grain=None, block=512):
+# The faces' colors (PALETTE), by name. A late-summer area brings its own (area_mosaic.FACES), with the extras
+# _paint_rows() reads when they're there: cover (grass in patches and tongues by the faces' cover noise and aspect),
+# grass_cool (the grass on slopes turned from the sun), soil_red (rusty soil in large patches), strata (each band's
+# color by its height: stops of a ramp over the band noise), pines (the far faces' painted stands; with cover).
+PALETTE = dict(grass=FACE_GRASS, straw=FACE_STRAW, soil=FACE_SOIL, soil_dark=FACE_SOIL_DARK, rock=FACE_ROCK,
+               rock_light=FACE_ROCK_LIGHT, rock_cool=FACE_ROCK_COOL, rock_dark=FACE_ROCK_DARK, ledge=FACE_LEDGE,
+               scree=FACE_SCREE, scree_dark=FACE_SCREE_DARK, scrub=FACE_SCRUB, scrub_dark=FACE_SCRUB_DARK,
+               crease=FACE_CREASE)
+
+
+def palette(area):
+    """The faces' colors for an area: its late summer's, else PALETTE."""
+    return area_mosaic.FACES if area_mosaic.spec(area) is not None else PALETTE
+
+
+def paint(rgba, faces, keep=None, fine=None, grain=None, block=512, colors=None):
     """Lays the faces over an (n, n, 4) macro map (sRGB, alpha the detail selector), after its grade, block rows at a
     time. keep (n x n, 0..1) holds what the map already paints (roads, water, the core's features) back from them;
     fine and grain are that map's own noise (-1..1, about 1 m and finer), for frayed edges and speckle (None on a
-    coarse map)."""
+    coarse map); colors is the palette (PALETTE by default)."""
+    colors = PALETTE if colors is None else colors
     n = rgba.shape[0]
     work, half = faces['grid'], faces['grid'].half
     grid = Grid(n, half)
@@ -257,10 +302,19 @@ def paint(rgba, faces, keep=None, fine=None, grain=None, block=512):
             w = w * (1.0 - keep[a:b])
         if w.any():
             _paint_rows(rgba[a:b], field, w, None if fine is None else fine[a:b],
-                        None if grain is None else grain[a:b])
+                        None if grain is None else grain[a:b], colors)
 
 
-def _paint_rows(rgba, field, w, fine, grain):
+def _ramp(t, stops):
+    xs = np.array([s for s, _ in stops], dtype=np.float32)
+    cs = np.array([c for _, c in stops], dtype=np.float32)
+    out = np.empty(np.shape(t) + (3,), np.float32)
+    for k in range(3):
+        out[..., k] = np.interp(t, xs, cs[:, k])
+    return out
+
+
+def _paint_rows(rgba, field, w, fine, grain, pal=PALETTE):
     rgb, alpha = rgba[..., :3], rgba[..., 3]
     slope, tone, warm, streak, tongue, strata = (field(k) for k in ('slope', 'tone', 'warm', 'streak', 'tongue',
                                                                      'band_v'))
@@ -270,11 +324,30 @@ def _paint_rows(rgba, field, w, fine, grain):
     # tongues; patches lighter and darker, warmer and greyer; streaks down the steeper parts.
     rocky = _ss(50.0, 62.0, slope + 5.0 * tone + 6.0 * _ss(-0.25, 0.2, strata) + 3.0 * jag)
     grassy = (1.0 - _ss(32.0, 46.0, slope + 6.0 * tone - 7.0 * tongue + 3.0 * jag)) * (1.0 - rocky)
+    cool = 0.0
+    if pal.get('cover'):
+        # Late summer: grass holds on the steep faces too, in big patches and tongues down them, a little more on the
+        # slopes turned from the afternoon sun and in the creases, giving way to bare soil and rock toward the
+        # steepest; so a long face isn't one sweep of ochre.
+        cool = field('cool')
+        cover = _ss(-0.25, 0.25, field('cover') + 0.25 * cool + 0.45 * tongue + 0.5 * field('crease') + 0.1 * jag
+                    - 0.8 * _ss(42.0, 60.0, slope))
+        grassy = np.maximum(grassy, cover * (1.0 - rocky))
+        del cover
     # The rock face itself is banded too: lighter and darker strata along the contours.
-    rock = _mix(_mix(FACE_ROCK_COOL, FACE_ROCK, 0.5 + warm), FACE_ROCK_DARK, 0.3 - 0.4 * tone - 0.4 * strata)
-    soil = _mix(FACE_SOIL_DARK, FACE_SOIL, 0.5 + 0.6 * tone + 0.3 * streak)
-    soil = _mix(soil, FACE_ROCK, 0.25 + 0.3 * jag)  # stony
-    grass = _mix(FACE_GRASS, FACE_STRAW, 0.4 + 0.7 * warm + 0.35 * tongue)
+    rock = _mix(_mix(pal['rock_cool'], pal['rock'], 0.5 + warm), pal['rock_dark'], 0.3 - 0.4 * tone - 0.4 * strata)
+    if 'strata' in pal:
+        # Late summer's walls: the layers' own colors across all the bare rock, not just the lenses (a tall wall reads
+        # as cream, rust and grey courses), and darker runoff stains down it.
+        rock = _mix(rock, _ramp(field('band_hue') + 0.05 * jag, pal['strata']), 0.55)
+        rock *= (1.0 - 0.2 * _ss(0.1, 0.6, streak))[..., None]
+    soil = _mix(pal['soil_dark'], pal['soil'], 0.5 + 0.6 * tone + 0.3 * streak)
+    if 'soil_red' in pal:
+        soil = _mix(soil, pal['soil_red'], 0.45 * _ss(0.0, 0.45, warm + 0.3 * streak))  # rusty soil in large patches
+    soil = _mix(soil, pal['rock'], 0.25 + 0.3 * jag)  # stony
+    grass = _mix(pal['grass'], pal['straw'], 0.4 + 0.7 * warm + 0.35 * tongue)
+    if 'grass_cool' in pal:
+        grass = _mix(grass, pal['grass_cool'], 0.35 + 0.65 * cool)  # olive where it's turned from the sun
     ground = _mix(_mix(soil, rock, rocky), grass, grassy)
     ground *= (1.0 + 0.1 * tone + 0.04 * tongue + 0.05 * streak * (1.0 - grassy))[..., None]
     _paint(rgb, alpha, ground, w, 0.45 + 0.4 * rocky - 0.37 * grassy)
@@ -284,14 +357,38 @@ def _paint_rows(rgba, field, w, fine, grain):
     speck = 0.0 if grain is None else grain
     threshold = 0.45 - 0.5 * field('scrub')
     spots = _ss(threshold - 0.05, threshold + 0.05, field('clumps') + 0.15 * speck + 0.08 * jag)
-    _paint(rgb, alpha, FACE_CREASE, 0.45 * w * crease)
-    _paint(rgb, alpha, _mix(FACE_SCRUB, FACE_SCRUB_DARK, crease + 0.3 * speck), 0.8 * w * spots, 0.12)
+    _paint(rgb, alpha, pal['crease'], 0.45 * w * crease)
+    _paint(rgb, alpha, _mix(pal['scrub'], pal['scrub_dark'], crease + 0.3 * speck), 0.8 * w * spots, 0.12)
+    if pal.get('cover'):
+        # Late summer: dark scrub clinging to the steep rock here and there, most on the ledges' tops; and on the far
+        # faces, stands of pine (their dark needle floor and crowns, with ragged edges).
+        clinging = _ss(0.5, 0.6, field('clumps') + 0.35 * field('cap') + 0.1 * speck) * _ss(44.0, 54.0, slope)
+        _paint(rgb, alpha, pal['scrub_dark'], 0.7 * w * clinging)
+        del clinging
+        try:
+            woods = field('woods')
+        except KeyError:
+            woods = None
+        if woods is not None:
+            ragged = _ss(0.25, 0.7, woods + 0.25 * field('clumps') + 0.1 * jag)
+            _paint(rgb, alpha, _mix(pal['pines'], pal['scrub_dark'], 0.3 + 0.4 * field('clumps')), 0.85 * w * ragged,
+                   0.1)
+            del woods, ragged
     del spots, crease
     # Scree fans under some lenses, then the bands (their edges frayed) and the shadow under their ledges.
-    _paint(rgb, alpha, _mix(FACE_SCREE_DARK, FACE_SCREE, 0.5 + 0.6 * streak + 0.3 * jag), 0.8 * w * field('fan'), 0.6)
+    _paint(rgb, alpha, _mix(pal['scree_dark'], pal['scree'], 0.5 + 0.6 * streak + 0.3 * jag), 0.8 * w * field('fan'),
+           0.6)
     band = _ss(0.0, 0.06, strata + 0.04 * jag) * field('banded')
-    # A band is a darker, greyer outcrop with a lighter lip along its top.
-    _paint(rgb, alpha, _mix(FACE_ROCK_DARK, FACE_ROCK, 0.45 + 0.25 * tone + 0.3 * jag + 0.2 * streak), w * band, 1.0)
-    _paint(rgb, alpha, _mix(FACE_ROCK, FACE_ROCK_LIGHT, 0.85 + 0.3 * jag), w * field('cap'))
-    _paint(rgb, alpha, FACE_LEDGE, 0.85 * w * field('ledge') * (1.0 - band), 0.9)
+    # A band is a darker, greyer outcrop with a lighter lip along its top (late summer: each band its own color).
+    shade = 0.45 + 0.25 * tone + 0.3 * jag + 0.2 * streak
+    if 'strata' in pal:
+        layer = _ramp(field('band_hue') + 0.05 * jag, pal['strata'])
+        outcrop = layer * (0.78 + 0.3 * np.clip(shade, 0.0, 1.0))[..., None]
+        del layer
+    else:
+        outcrop = _mix(pal['rock_dark'], pal['rock'], shade)
+    _paint(rgb, alpha, outcrop, w * band, 1.0)
+    del outcrop, shade
+    _paint(rgb, alpha, _mix(pal['rock'], pal['rock_light'], 0.85 + 0.3 * jag), w * field('cap'))
+    _paint(rgb, alpha, pal['ledge'], 0.85 * w * field('ledge') * (1.0 - band), 0.9)
     np.clip(rgb, 0.0, 1.0, out=rgb)

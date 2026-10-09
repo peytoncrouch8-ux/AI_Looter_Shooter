@@ -21,7 +21,8 @@ enum class EMissionStatus : uint8;
  * The missions, the inventory's third page, laid out like the pages beside it:
  *  - left: the mission log by section: active (the tracked one marked), available, completed
  *  - right: the chosen mission: its kind and area, title and summary, Track / Untrack for one running here; under it
- *    its steps (the ones done ticked off, the current one's objectives with their progress) and what it gives
+ *    its steps (the ones done ticked off, the current one's objectives with their progress, or once all are done "Ready
+ *    to turn in: talk to Delia") and what it gives
  *  - bottom: what the keys do
  * W / S, the arrows or the D-pad choose a mission (so does the mouse); E, Enter or the button tracks or untracks it (the
  * minimap guides to the tracked one); 1 and 2 (the left shoulder, or the title tabs) turn to the loadout and the

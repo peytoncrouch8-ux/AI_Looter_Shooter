@@ -29,7 +29,6 @@ namespace
 	const FLinearColor IchorColor(0.55f, 0.66f, 0.1f);
 	const FLinearColor IchorFlashColor(0.85f, 1.f, 0.45f);
 	const FLinearColor CritFlashColor(1.f, 0.85f, 0.3f);
-	const FLinearColor GraveDirtColor(0.24f, 0.17f, 0.1f);
 
 	UInstancedStaticMeshComponent* MakeInstances(AActor* Owner, const TCHAR* Name, UStaticMesh* Mesh, UMaterialInterface* Material, int32 CustomFloats)
 	{
@@ -180,8 +179,37 @@ void FWeaponFX::Shutdown()
 		Actor->Destroy();
 	}
 	Owner.Reset();
+	BitSets.Reset();
 	Particles.Reset();
 	Streaks.Reset();
+}
+
+uint8 FWeaponFX::BitSetFor(bool bRound, const FLinearColor& Color, float Glow)
+{
+	const FColor Key = Color.ToFColor(false);
+	// Sets whose components went with an old effects actor are made again.
+	BitSets.RemoveAll([](const FBitSet& Set) { return !Set.Instances.IsValid(); });
+	for (int32 Index = 0; Index < BitSets.Num(); ++Index)
+	{
+		if (BitSets[Index].Key == Key && BitSets[Index].bRound == bRound)
+		{
+			return static_cast<uint8>(Index);
+		}
+	}
+	AActor* Actor = Owner.Get();
+	if (!Actor || BitSets.Num() >= MaxBitSets)
+	{
+		// No room for another color: the last set's will do (a stray chunk in the wrong shade beats none).
+		return static_cast<uint8>(FMath::Max(BitSets.Num() - 1, 0));
+	}
+	// A component per color: the surface material takes one color per instance of it, not per chunk.
+	UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, bRound ? TEXT("/Engine/BasicShapes/Sphere.Sphere") : TEXT("/Engine/BasicShapes/Cube.Cube"));
+	const FString Name = FString::Printf(TEXT("Bits%d"), BitSets.Num());
+	FBitSet& Set = BitSets.AddDefaulted_GetRef();
+	Set.Instances = MakeInstances(Actor, *Name, Mesh, MakeSurface(Actor, Color, Glow), 0);
+	Set.Key = Key;
+	Set.bRound = bRound;
+	return static_cast<uint8>(BitSets.Num() - 1);
 }
 
 bool FWeaponFX::IsIdle() const
@@ -342,57 +370,6 @@ void FWeaponFX::SpawnFlash(const FVector& Location, const FVector& Direction, fl
 	Puff.Drag = 2.5f;
 }
 
-void FWeaponFX::SpawnDirt(const FVector& Location, const FVector& Up, float Strength)
-{
-	const FVector Rise = Up.IsNearlyZero() ? FVector::UpVector : Up.GetSafeNormal();
-	const float Amount = FMath::Clamp(Strength, 0.f, 1.f);
-	// Dark puffs that hang over the hole and spread...
-	const int32 Puffs = 3 + FMath::RoundToInt32(5.f * Amount);
-	for (int32 Index = 0; Index < Puffs; ++Index)
-	{
-		const FVector Velocity = Rise * Random.FRandRange(40.f, 140.f) * (0.6f + Amount) + Random.GetUnitVector() * 45.f;
-		FParticle& Puff = AddParticle(EParticle::Smoke, Location + Random.GetUnitVector() * 12.f, Velocity, Random.FRandRange(0.9f, 1.6f));
-		Puff.Color = GraveDirtColor;
-		Puff.Intensity = 0.7f;
-		Puff.StartSize = Random.FRandRange(14.f, 24.f);
-		Puff.EndSize = Random.FRandRange(60.f, 110.f) * (0.7f + 0.5f * Amount);
-		Puff.Gravity = 0.02f;
-		Puff.Drag = 2.2f;
-	}
-	// ...and clods tossed up that fall back onto the heap.
-	const int32 Clods = 4 + FMath::RoundToInt32(10.f * Amount);
-	for (int32 Index = 0; Index < Clods; ++Index)
-	{
-		const FVector Direction = (Rise + Random.GetUnitVector() * 0.7f).GetSafeNormal();
-		const float Speed = Random.FRandRange(180.f, 420.f) * (0.6f + 0.6f * Amount);
-		FParticle& Clod = AddParticle(EParticle::Chip, Location, Direction * Speed, Random.FRandRange(0.7f, 1.2f));
-		Clod.StartSize = Random.FRandRange(2.5f, 6.f);
-		Clod.Rotation = FQuat(Random.GetUnitVector(), Random.FRandRange(0.f, 2.f * UE_PI));
-		Clod.Spin = Random.GetUnitVector() * Random.FRandRange(4.f, 12.f);
-	}
-}
-
-void FWeaponFX::SpawnDustPuff(const FVector& Location, const FVector& Velocity, const FLinearColor& Color, float Opacity, float StartSize,
-	float EndSize, float Life)
-{
-	FParticle& Puff = AddParticle(EParticle::Smoke, Location, Velocity, Life);
-	Puff.Color = Color;
-	Puff.Intensity = Opacity;
-	Puff.StartSize = StartSize;
-	Puff.EndSize = EndSize;
-	Puff.Gravity = -0.02f;
-	Puff.Drag = 2.8f;
-}
-
-void FWeaponFX::SpawnGrit(const FVector& Location, const FVector& Velocity, float Size, float Life)
-{
-	FParticle& Grain = AddParticle(EParticle::Chip, Location, Velocity, Life);
-	Grain.StartSize = Size;
-	Grain.Rotation = FQuat(Random.GetUnitVector(), Random.FRandRange(0.f, 2.f * UE_PI));
-	Grain.Spin = Random.GetUnitVector() * Random.FRandRange(8.f, 22.f);
-	Grain.Drag = 0.3f;
-}
-
 // ---------------------------------------------------------------------------
 // Simulation and drawing
 // ---------------------------------------------------------------------------
@@ -426,6 +403,8 @@ void FWeaponFX::Redraw(const FVector& Camera)
 {
 	TArray<FTransform> GlowTransforms, SmokeTransforms, ChipTransforms, DropTransforms;
 	TArray<float> GlowData, SmokeData;
+	TArray<TArray<FTransform>, TInlineAllocator<MaxBitSets>> BitTransforms;
+	BitTransforms.SetNum(BitSets.Num());
 
 	for (const FStreak& Streak : Streaks)
 	{
@@ -476,16 +455,38 @@ void FWeaponFX::Redraw(const FVector& Camera)
 			(Particle.Type == EParticle::Chip ? ChipTransforms : DropTransforms).Add(FTransform(Rotation, Particle.Location, Scale));
 			break;
 		}
+		case EParticle::Bit:
+		{
+			if (!BitTransforms.IsValidIndex(Particle.BitSet))
+			{
+				break;
+			}
+			// Round bits (gel) stretch along their flight like droplets; the rest are thin plates (chitin) that tumble.
+			const float Size = Particle.StartSize * FMath::Clamp((1.f - T) * 5.f, 0.f, 1.f) / 100.f;
+			const bool bRound = BitSets[Particle.BitSet].bRound;
+			const FVector Scale = bRound ? FVector(Size * 1.35f, Size, Size * 0.9f) : FVector(Size, Size * 0.8f, Size * 0.28f);
+			const FQuat Rotation = bRound && !Particle.Velocity.IsNearlyZero() ? FRotationMatrix::MakeFromX(Particle.Velocity).ToQuat() : Particle.Rotation;
+			BitTransforms[Particle.BitSet].Add(FTransform(Rotation, Particle.Location, Scale));
+			break;
+		}
 		}
 	}
 
-	const bool bAnything = !GlowTransforms.IsEmpty() || !SmokeTransforms.IsEmpty() || !ChipTransforms.IsEmpty() || !DropTransforms.IsEmpty();
+	bool bAnything = !GlowTransforms.IsEmpty() || !SmokeTransforms.IsEmpty() || !ChipTransforms.IsEmpty() || !DropTransforms.IsEmpty();
+	for (const TArray<FTransform>& Set : BitTransforms)
+	{
+		bAnything |= !Set.IsEmpty();
+	}
 	if (bAnything || bDrawnAnything)
 	{
 		Draw(Glows.Get(), GlowTransforms, GlowData);
 		Draw(Smoke.Get(), SmokeTransforms, SmokeData);
 		Draw(Chips.Get(), ChipTransforms, {});
 		Draw(Droplets.Get(), DropTransforms, {});
+		for (int32 Index = 0; Index < BitSets.Num(); ++Index)
+		{
+			Draw(BitSets[Index].Instances.Get(), BitTransforms[Index], {});
+		}
 	}
 	bDrawnAnything = bAnything;
 }

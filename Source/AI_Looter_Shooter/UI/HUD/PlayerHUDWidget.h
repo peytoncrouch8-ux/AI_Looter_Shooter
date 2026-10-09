@@ -9,10 +9,12 @@ class UHealthComponent;
 class UHudInteractPromptWidget;
 class UHudLevelUpBannerWidget;
 class UHudMagazineWidget;
+class UHudMissionCompleteWidget;
 class UHudPlayerFrameWidget;
 class UHudWeaponSlotsWidget;
 class UImage;
 class UInteractionComponent;
+class UPlayerMeleeComponent;
 class USizeBox;
 class UTextBlock;
 class UWidget;
@@ -29,11 +31,14 @@ class UWeaponManagerComponent;
  *    name in its rarity's colour ending in a small rarity gem
  *  - top-right: the minimap (UHudMinimapWidget)
  *  - top-left: the frame rate (UHudFrameRateWidget)
- *  - top-centre, its gem 260 px down: the level-up banner (UHudLevelUpBannerWidget), when the frame's experience bar levels up
+ *  - top-centre, its gem 260 px down: the level-up banner (UHudLevelUpBannerWidget), when the frame's experience bar levels up;
+ *    in the same place, taking turns with it, the mission-complete banner (UHudMissionCompleteWidget) as a mission is turned in
  *  - left of the crosshair: the ammo pickup feed (UHudPickupFeedWidget)
  *  - bottom-centre: nothing, on purpose
  *  - centre: thin tick crosshair sized by the weapon's spread, kicking out on every shot (it fades out while aiming
- *    through a sight in first person, where the sight's reticle is the aim point), diagonal hit marker
+ *    through a sight in first person, where the sight's reticle is the aim point), diagonal hit marker (orange on a
+ *    crit; on a kill red, bigger and held longer), and round it the red arcs pointing to where hits came from
+ *    (UHudDamageIndicatorWidget)
  *  - under the crosshair: what the Interact key does to the thing looked at (UHudInteractPromptWidget), for everything
  *    but loot, which has the comparison card (right-middle); lower, the message plate (the weapon manager's messages)
  *  - behind everything: the screen edges' red flash on a hit and pulse at low health (UHudScreenEdgeWidget)
@@ -68,6 +73,10 @@ private:
 	UFUNCTION()
 	void HandleHit(const FHitResult& Hit, float Damage, bool bCritical);
 
+	/** A melee strike landed: the hit marker for a fist (a gun's strike reports through the gun's OnHit). */
+	UFUNCTION()
+	void HandleMeleeHit(const FHitResult& Hit, float Damage, bool bCritical);
+
 	UFUNCTION()
 	void HandleFired();
 
@@ -88,6 +97,8 @@ private:
 	// Bottom-left: the player frame; top-centre: the level-up banner
 	UPROPERTY(Transient) TObjectPtr<UHudPlayerFrameWidget> PlayerFrame;
 	UPROPERTY(Transient) TObjectPtr<UHudLevelUpBannerWidget> LevelUpBanner;
+	/** The mission-complete banner, in the level-up banner's place: a level-up during it waits for it. */
+	UPROPERTY(Transient) TObjectPtr<UHudMissionCompleteWidget> MissionBanner;
 
 	// Bottom-right: weapon
 	UPROPERTY(Transient) TObjectPtr<UWidget> WeaponCluster;
@@ -124,6 +135,7 @@ private:
 
 	TWeakObjectPtr<UWeaponManagerComponent> BoundManager;
 	TWeakObjectPtr<AWeaponBase> BoundWeapon;
+	TWeakObjectPtr<UPlayerMeleeComponent> BoundMelee;
 
 	/** What the loot card's notch and curse rows were built for: rebuilt only when another gun is looked at or a count in it changes. */
 	TWeakObjectPtr<const AWeaponBase> IdeasPickup;
@@ -148,5 +160,10 @@ private:
 	float PulseTime = 0.f;
 
 	float HitMarkerTime = 0.f;
+	/** The marker shows a kill (red, bigger, longer) until it fades. */
+	bool bKillMarker = false;
+	static constexpr float HitMarkerSeconds = 0.18f;
+	static constexpr float KillMarkerSeconds = 0.34f;
+	static constexpr float KillMarkerPop = 0.75f;
 	float MessageTime = 0.f;
 };

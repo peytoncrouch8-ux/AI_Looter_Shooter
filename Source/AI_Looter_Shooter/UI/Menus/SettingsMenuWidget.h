@@ -148,6 +148,12 @@ private:
 
 	UFUNCTION()
 	void HandleLookSensitivityReleased();
+
+	UFUNCTION()
+	void HandleCameraShakeChanged(float Value);
+
+	UFUNCTION()
+	void HandleCameraShakeReleased();
 	void HandleButton(ULooterButton* Button);
 	void StartListening(int32 BindingIndex);
 	void StopListening();
@@ -182,6 +188,9 @@ private:
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> MinimapOff;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> FrameRateOn;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> FrameRateOff;
+	/** The contextual control hints' switch. */
+	UPROPERTY(Transient) TObjectPtr<ULooterButton> HintsOn;
+	UPROPERTY(Transient) TObjectPtr<ULooterButton> HintsOff;
 	UPROPERTY(Transient) TObjectPtr<USlider> TransparencySlider;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TransparencyValue;
 	UPROPERTY(Transient) TObjectPtr<USlider> MinimapSlider;
@@ -191,6 +200,9 @@ private:
 	/** The look sensitivity, as a multiple of the game's own turn. */
 	UPROPERTY(Transient) TObjectPtr<USlider> LookSensitivitySlider;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> LookSensitivityValue;
+	/** How strongly the view kicks and shakes, 0-100%. */
+	UPROPERTY(Transient) TObjectPtr<USlider> CameraShakeSlider;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> CameraShakeValue;
 	/** The volume sliders and their percentages, in EAudioVolume's order. */
 	UPROPERTY(Transient) TArray<TObjectPtr<USlider>> VolumeSliders;
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> VolumeValues;

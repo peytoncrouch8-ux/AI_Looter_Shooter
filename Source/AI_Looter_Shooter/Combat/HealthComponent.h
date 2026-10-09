@@ -69,6 +69,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Health")
 	bool IsDead() const { return bDead; }
 
+	/**
+	 * How many times it has been hurt: each damage that landed and each Drain that took something. It only goes up, so a
+	 * watcher that sees it change knows something hurt since it last looked, however small (the player's wounds-that-close
+	 * restart their wait on it: FWoundsClose). Healing and a smaller maximum are not hurts.
+	 */
+	uint32 GetHurtCount() const { return HurtCount; }
+
 	/** What dealt the latest damage (the gun, for shots), so death handlers can tell what made the kill. */
 	UFUNCTION(BlueprintPure, Category = "Health")
 	AActor* GetLastDamageCauser() const { return LastDamageCauser.Get(); }
@@ -112,6 +119,8 @@ private:
 	bool bDead = false;
 	/** MaxHealth is SetMaxHealth's times this (SetMaxHealthScale). */
 	float MaxHealthScale = 1.f;
+	/** GetHurtCount's. */
+	uint32 HurtCount = 0;
 	TWeakObjectPtr<AActor> LastDamageCauser;
 
 	// The engine broadcasts point damage right before "any damage" in the same TakeDamage call,

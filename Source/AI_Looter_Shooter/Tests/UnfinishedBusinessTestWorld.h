@@ -40,8 +40,8 @@ namespace UnfinishedBusinessTestWorld
 	inline const FName HandsTag(TEXT("Unpaid_WhitlockHands"));
 	inline const FName Valley(TEXT("TestValley"));
 
-	/** Side 2's steps: talk to Amos, load the bales, drive off the hands, talk to Amos. */
-	inline constexpr int32 SideTwoSteps = 4;
+	/** Side 2's steps: talk to Amos, load the bales, drive off the hands; then it's turned in to Amos (that talk was the fourth). */
+	inline constexpr int32 SideTwoSteps = 3;
 	inline constexpr int32 BaleCount = 6;
 	inline constexpr int32 HandsBasic = 5;
 
@@ -98,7 +98,14 @@ namespace UnfinishedBusinessTestWorld
 		return Mission;
 	}
 
-	/** Side 2 as the mission script makes it, in code: after Main 4, its four steps, a side mission's 20% of a level. */
+	/** Side 2's turn-in, as the mission script gives it: to Amos at his fence, with his own words (his thanks). */
+	inline void SetTurnIn(UMissionDefinition* Mission)
+	{
+		Mission->TurnIn.SpeakerTag = AAmosWhitlock::SpeakerTag;
+		Mission->TurnIn.GiverName = FText::FromString(TEXT("Amos"));
+	}
+
+	/** Side 2 as the mission script makes it, in code: after Main 4, its three steps, turned in to Amos, 40 experience. */
 	inline UMissionDefinition* MakeSideTwo(UObject* Outer)
 	{
 		UMissionDefinition* Mission = MissionTestWorld::NewMission(Outer, TEXT("Side2"), EMissionKind::Side, EMissionStart::Automatic, Valley);
@@ -107,7 +114,8 @@ namespace UnfinishedBusinessTestWorld
 		{
 			AddStep(Mission, Step);
 		}
-		Mission->Rewards.ExperienceShare = 0.2f;
+		SetTurnIn(Mission);
+		Mission->Rewards.Experience = 40;
 		return Mission;
 	}
 
@@ -125,6 +133,7 @@ namespace UnfinishedBusinessTestWorld
 			}
 			MissionTestWorld::AddObjective<UMissionEventObjective>(Mission, Index)->Event = FName(*FString::Printf(TEXT("Test.Step%d"), Index));
 		}
+		SetTurnIn(Mission);
 		return Mission;
 	}
 

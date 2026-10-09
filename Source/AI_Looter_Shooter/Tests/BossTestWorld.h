@@ -46,12 +46,16 @@ namespace BossTestWorld
 		}
 	}
 
-	/** Nothing a test kills drops loot: a test level has none to see. */
+	/** Nothing a test kills drops loot: a test level has none to see (a boss's loot shower neither). */
 	inline void NoLoot(AActor* Actor)
 	{
 		if (ULootDropComponent* Loot = Actor ? Actor->FindComponentByClass<ULootDropComponent>() : nullptr)
 		{
 			Loot->bDropOnDeath = false;
+		}
+		if (UBossComponent* Boss = Actor ? Actor->FindComponentByClass<UBossComponent>() : nullptr)
+		{
+			Boss->LootShower.bEnabled = false;
 		}
 	}
 

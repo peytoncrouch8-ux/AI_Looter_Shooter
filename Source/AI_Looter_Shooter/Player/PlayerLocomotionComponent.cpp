@@ -18,7 +18,8 @@
 #include "GameFramework/PlayerController.h"
 
 // The component's lifetime, keys and stance. The first-person view and gun motion are in PlayerLocomotionViewModel.cpp,
-// the slide and the jump key in PlayerLocomotionSlide.cpp.
+// the slide and the jump key in PlayerLocomotionSlide.cpp, mantles and vaults in PlayerLocomotionTraversal.cpp, the
+// jump's forgiveness and the unstick in PlayerLocomotionJumpAssist.cpp.
 
 namespace
 {
@@ -53,6 +54,11 @@ namespace
 	 * still pump the arms and twist the feet at the slide's speed; nearly stopped, it reads as one held pose.
 	 */
 	constexpr float SlideAnimRate = 0.2f;
+
+	/** The climbing pose (the gun lowered and turned in) comes in over this and goes out over that (s); a vault takes this share of it. */
+	constexpr float ClimbPoseInTime = 0.12f;
+	constexpr float ClimbPoseOutTime = 0.25f;
+	constexpr float VaultPoseShare = 0.6f;
 
 	TAutoConsoleVariable<bool> CVarDebugStance(TEXT("Looter.DebugStance"), false,
 		TEXT("Print the player's stance each frame: sprint/crouch alphas, speed, and head/camera heights above the feet."));
@@ -140,6 +146,9 @@ void UPlayerLocomotionComponent::BeginPlay()
 	Owner->ReceiveControllerChangedDelegate.AddDynamic(this, &UPlayerLocomotionComponent::HandleControllerChanged);
 	SetupInput(Owner->GetController());
 	LastControlRotation = Owner->GetControlRotation();
+	LastFloorZ = static_cast<float>(GetFeetHeight());
+	bHaveFloor = true;
+	StuckAnchor = Owner->GetActorLocation();
 }
 
 void UPlayerLocomotionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -161,8 +170,10 @@ void UPlayerLocomotionComponent::TickComponent(float DeltaTime, ELevelTick TickT
 		return;
 	}
 
-	// The movement has run: first put the body where the capsule says (its crouch may have left it behind).
+	// The movement has run: first put the body where the capsule says (its crouch may have left it behind), then carry on
+	// any mantle or vault (or start one caught in the air).
 	RefreshBodyTransform();
+	UpdateTraversal(DeltaTime);
 	UpdateSlide(DeltaTime);
 	UpdateStance(DeltaTime);
 	UpdateAlphas(DeltaTime);
@@ -245,7 +256,17 @@ void UPlayerLocomotionComponent::TeardownInput()
 {
 	InputBinding.Teardown();
 
-	// Losing control (death, unpossess) means release events may never arrive: stop sliding, stand up and walk.
+	// Losing control (death, unpossess) means release events may never arrive: stop sliding, stand up and walk. A mantle
+	// or vault under way finishes where it was going (left half-way, the body would hang on the ledge's corner).
+	if (Traversal.IsActive())
+	{
+		Traversal.Finish();
+		if (ACharacter* Owner = Character.Get())
+		{
+			Owner->SetActorLocation(Traversal.GetCenter(), false, nullptr, ETeleportType::TeleportPhysics);
+		}
+		FinishTraversal();
+	}
 	Intent.Reset();
 	EndSlide();
 	bSprinting = false;
@@ -454,14 +475,23 @@ void UPlayerLocomotionComponent::UpdateAlphas(float DeltaTime)
 	const bool bSlidePose = Slide.IsActive() && !Slide.IsEasingOut();
 	SlideAlpha = EaseAlpha(SlideEase, bSlidePose ? 1.f : 0.f, bSlidePose ? SlideBlendInTime : SlideBlendOutTime, DeltaTime);
 
+	// The climbing pose while a mantle (or, less, a vault) carries the body; an unstick has none.
+	const ETraversalKind Climb = Traversal.IsActive() ? Traversal.GetKind() : ETraversalKind::None;
+	const float ClimbPose = Climb == ETraversalKind::Mantle ? 1.f : (Climb == ETraversalKind::Vault ? VaultPoseShare : 0.f);
+	TraversalAlpha = EaseAlpha(TraversalEase, ClimbPose, ClimbPose > 0.f ? ClimbPoseInTime : ClimbPoseOutTime, DeltaTime);
+
 	// The body's run cycle tops out at walking speed; play it faster while sprinting so the feet don't slide. (Both are
-	// the character's own, so this holds at any size.) A slide holds the body nearly still instead.
+	// the character's own, so this holds at any size.) A slide holds the body nearly still instead. In the air it keeps the
+	// rate it left the ground with: dropping to 1 mid-jump, a sprint jump landed with the cycle a beat slow and the feet
+	// slid for a fifth of a second while it caught up.
 	const ACharacter* Owner = Character.Get();
 	if (USkeletalMeshComponent* Body = Owner->GetMesh())
 	{
-		const float Speed = Owner->GetVelocity().Size2D();
-		const float Running = Movement->IsMovingOnGround() ? FMath::Max(1.f, Speed / FMath::Max(BaseWalkSpeed, 1.f)) : 1.f;
-		const float Rate = FMath::Lerp(Running, SlideAnimRate, SlideAlpha);
+		if (Movement->IsMovingOnGround())
+		{
+			GroundedAnimRate = FMath::Max(1.f, static_cast<float>(Owner->GetVelocity().Size2D()) / FMath::Max(BaseWalkSpeed, 1.f));
+		}
+		const float Rate = FMath::Lerp(GroundedAnimRate, SlideAnimRate, SlideAlpha);
 		Body->GlobalAnimRateScale = FMath::FInterpTo(Body->GlobalAnimRateScale, Rate, DeltaTime, 8.f);
 	}
 }

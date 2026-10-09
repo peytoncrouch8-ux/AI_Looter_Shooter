@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Combat/HealthComponent.h"
 #include "Missions/MissionRunner.h"
+#include "Scenes/SceneSubsystem.h"
 #include "World/RespawnMarker.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/World.h"
@@ -16,6 +17,21 @@ TStatId UPlayerVitalsSubsystem::GetStatId() const
 bool UPlayerVitalsSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
 	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE;
+}
+
+const FRecoverySettings& UPlayerVitalsSubsystem::SettingsFor(const UObject* WorldContext)
+{
+	static const FRecoverySettings Defaults;
+	const UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
+	const UPlayerVitalsSubsystem* Vitals = World ? World->GetSubsystem<UPlayerVitalsSubsystem>() : nullptr;
+	return Vitals ? Vitals->Recovery : Defaults;
+}
+
+bool UPlayerVitalsSubsystem::IsRegenerating(const APlayerController* PC) const
+{
+	const TWeakObjectPtr<APlayerController> Key(const_cast<APlayerController*>(PC));
+	const FPlayerVitals* Vitals = PC ? Players.Find(Key) : nullptr;
+	return Vitals && !Vitals->bDying && Vitals->Wounds.IsRegenerating();
 }
 
 void UPlayerVitalsSubsystem::Tick(float DeltaTime)
@@ -54,12 +70,21 @@ void UPlayerVitalsSubsystem::Tick(float DeltaTime)
 			Vitals.bDying = true;
 			Vitals.DeathTime = 0.f;
 			Vitals.DeathLocation = Character->GetActorLocation();
+			Vitals.Wounds.Reset();
 			PC->SetIgnoreMoveInput(true);
 			PC->SetIgnoreLookInput(true);
 			if (PC->PlayerCameraManager)
 			{
 				PC->PlayerCameraManager->StartCameraFade(0.4f, 1.f, RespawnDelay * 0.6f, FLinearColor(0.12f, 0.f, 0.f), false, true);
 			}
+		}
+		else
+		{
+			// The wounds close on their own after a while without being hurt. Not in a scene (it holds the player, and
+			// takes no damage): the wait is kept, the ramp starts over after it. Dead and dying never reach here.
+			const USceneSubsystem* Scenes = USceneSubsystem::Get(this);
+			const bool bInScene = Scenes && (Scenes->IsPlaying() || Scenes->IsHoldingPlayer());
+			Vitals.Wounds.Tick(Recovery, *Health, DeltaTime, bInScene);
 		}
 	}
 
@@ -113,4 +138,6 @@ void UPlayerVitalsSubsystem::Respawn(APlayerController* PC, FPlayerVitals& Vital
 
 	Vitals.bDying = false;
 	Vitals.LastHealth = Health->GetHealth();
+	// A new life waits the whole delay before its first healing.
+	Vitals.Wounds.Reset();
 }

@@ -22,6 +22,7 @@ namespace
 	/** Spawns the gun a couple of metres ahead of Player, tossed up so it lands and settles as loot does, beam and all. */
 	AWeaponBase* TossAhead(UWorld* World, const FWeaponInstanceData& Instance, const AActor& Player)
 	{
+		// The player faces whoever they turned the mission in to, so the gun comes up between them, as if handed over.
 		const FVector Ahead = Player.GetActorForwardVector().GetSafeNormal2D();
 		const FVector Spot = Player.GetActorLocation() + Ahead * 150.f + FVector(0.f, 0.f, 60.f);
 		AWeaponBase* Gun = UWeaponRollLibrary::SpawnWeapon(World, Instance, FTransform(FRotator(0.f, FMath::FRandRange(0.f, 360.f), 0.f), Spot));
@@ -41,6 +42,16 @@ int64 MissionRewards::ExperienceFor(float Share, int32 Level, const FXPCurve& Cu
 	}
 	const int64 LevelTakes = Curve.XPToNextLevel(Level);
 	return LevelTakes > 0 ? FMath::Max<int64>(1, static_cast<int64>(FMath::RoundToDouble(static_cast<double>(LevelTakes) * Share))) : 0;
+}
+
+int64 MissionRewards::ExperienceOf(const FMissionRewards& Rewards, int32 Level, const FXPCurve& Curve)
+{
+	if (Rewards.Experience > 0)
+	{
+		// Past the last level experience stops counting, fixed amounts too.
+		return Curve.IsMaxLevel(Level) ? 0 : static_cast<int64>(Rewards.Experience);
+	}
+	return ExperienceFor(Rewards.ExperienceShare, Level, Curve);
 }
 
 EWeaponRarity MissionRewards::ApplyFloor(EWeaponRarity Rolled, EWeaponRarity Floor)
@@ -100,10 +111,32 @@ AWeaponBase* MissionRewards::DropNamedGun(UWorld* World, const FMissionRewards& 
 	return Gun;
 }
 
+FText MissionRewards::NamedGunName(const FMissionRewards& Rewards)
+{
+	if (Rewards.NamedGun.IsNone())
+	{
+		return FText::GetEmpty();
+	}
+	// Its own name, or its id as words when its asset isn't there.
+	const UNamedWeaponDefinition* Named = UNamedWeaponDefinition::FindByName(Rewards.NamedGun.ToString());
+	return Named && !Named->DisplayName.IsEmpty() ? Named->DisplayName
+		: FText::FromString(FName::NameToDisplayString(Rewards.NamedGun.ToString(), /*bIsBool*/ false));
+}
+
+FText MissionRewards::AreaName(FName AreaId)
+{
+	const UAreaDefinition* Area = UAreaDefinition::FindByName(AreaId.ToString());
+	return Area && !Area->DisplayName.IsEmpty() ? Area->DisplayName : FText::FromName(AreaId);
+}
+
 TArray<FString> MissionRewards::Describe(const FMissionRewards& Rewards)
 {
 	TArray<FString> Lines;
-	if (Rewards.ExperienceShare > 0.f)
+	if (Rewards.Experience > 0)
+	{
+		Lines.Add(FString::Printf(TEXT("+%s XP"), *FText::AsNumber(Rewards.Experience).ToString()));
+	}
+	else if (Rewards.ExperienceShare > 0.f)
 	{
 		Lines.Add(FString::Printf(TEXT("+%d%% of a level's experience"), FMath::RoundToInt32(Rewards.ExperienceShare * 100.f)));
 	}
@@ -116,15 +149,11 @@ TArray<FString> MissionRewards::Describe(const FMissionRewards& Rewards)
 	}
 	if (!Rewards.NamedGun.IsNone())
 	{
-		// Its own name, or its id as words when its asset isn't there.
-		const UNamedWeaponDefinition* Named = UNamedWeaponDefinition::FindByName(Rewards.NamedGun.ToString());
-		Lines.Add(TEXT("Named gun: ") + (Named && !Named->DisplayName.IsEmpty() ? Named->DisplayName.ToString()
-			: FName::NameToDisplayString(Rewards.NamedGun.ToString(), /*bIsBool*/ false)));
+		Lines.Add(TEXT("Named gun: ") + NamedGunName(Rewards).ToString());
 	}
 	for (const FName AreaId : Rewards.UnlockAreas)
 	{
-		const UAreaDefinition* Area = UAreaDefinition::FindByName(AreaId.ToString());
-		Lines.Add(FString::Printf(TEXT("Opens %s"), Area && !Area->DisplayName.IsEmpty() ? *Area->DisplayName.ToString() : *AreaId.ToString()));
+		Lines.Add(FString::Printf(TEXT("Opens %s"), *AreaName(AreaId).ToString()));
 	}
 	return Lines;
 }

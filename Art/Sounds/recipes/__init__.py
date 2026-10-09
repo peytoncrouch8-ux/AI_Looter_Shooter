@@ -17,7 +17,8 @@
 import importlib
 
 REGISTRY = {}
-GROUPS = ['guns', 'impacts', 'feedback', 'ui', 'loot', 'player', 'creatures', 'world']
+GROUPS = ['guns', 'impacts', 'feedback', 'ui', 'loot', 'player', 'creatures', 'world', 'fauna', 'ambience', 'music',
+          'bosses']
 
 
 class Cue:

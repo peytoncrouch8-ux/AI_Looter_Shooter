@@ -51,6 +51,44 @@ struct AI_LOOTER_SHOOTER_API FAbelGustRules
 	int32 Wisps = 28;
 };
 
+/**
+ * Abel's moments made for the fight's excitement (2026-10-08, beyond the design's draft): his entrance, his shots from the
+ * fog while the lanterns are dark, and his buckshot as a barrage in the wind.
+ */
+USTRUCT(BlueprintType)
+struct AI_LOOTER_SHOOTER_API FAbelShowRules
+{
+	GENERATED_BODY()
+
+	/** As his fight starts he turns to the player and raises his lantern, its light swelling and dying (s); a moment cuts it short. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show", meta = (ClampMin = "0.2", Units = "s"))
+	float IntroSeconds = 1.8f;
+
+	/** Out in the fog his lantern flares this long, a beacon over the canyon, before he fires from it (s): time to find cover. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show", meta = (ClampMin = "0.2", Units = "s"))
+	float FogFlareSeconds = 1.3f;
+
+	/**
+	 * In the wind his buckshot is a barrage: this many shots this far apart (s), each of BarragePellets in a BarrageSpread
+	 * cone; the second leads the player's run by BarrageLead of its flight, the third trails it, so running one way doesn't
+	 * dodge all three.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show", meta = (ClampMin = "1", ClampMax = "5"))
+	int32 BarrageShots = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show", meta = (ClampMin = "0.05", Units = "s"))
+	float BarrageGap = 0.3f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show", meta = (ClampMin = "1", ClampMax = "24"))
+	int32 BarragePellets = 5;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show", meta = (ClampMin = "0", ClampMax = "60", Units = "deg"))
+	float BarrageSpread = 14.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show", meta = (ClampMin = "0", ClampMax = "2"))
+	float BarrageLead = 0.8f;
+};
+
 /** How Abel fights between the dark saint's pulls in his last phase ("Between pulls he fights faster"). */
 USTRUCT(BlueprintType)
 struct AI_LOOTER_SHOOTER_API FAbelPace
@@ -107,10 +145,17 @@ namespace AbelRules
 	inline constexpr float WalkOffEvery = 10.f;
 	inline constexpr float PullStunSeconds = 3.f;
 
-	/** The buckshot: a lantern flare this long before the pellets leave, every this many seconds (faster in the wind). */
+	/**
+	 * The buckshot: a lantern flare this long before the pellets leave, every this many seconds; in the wind a barrage
+	 * (FAbelShowRules), a little more often.
+	 */
 	inline constexpr float FlareSeconds = 1.f;
 	inline constexpr float BuckshotEvery = 7.f;
-	inline constexpr float WindBuckshotEvery = 5.f;
+	inline constexpr float WindBuckshotEvery = 6.5f;
+
+	/** Out in the fog (phase two), a shot from his lantern's flare: the first this long into the phase, then every so often. */
+	inline constexpr float FogShotFirst = 6.f;
+	inline constexpr float FogShotEvery = 6.f;
 
 	/** His custom events (FBossPhaseEvent::Name), as his phases send them. */
 	AI_LOOTER_SHOOTER_API FName BuckshotEvent();
@@ -118,6 +163,19 @@ namespace AbelRules
 	AI_LOOTER_SHOOTER_API FName BellEvent();
 	AI_LOOTER_SHOOTER_API FName GravewindEvent();
 	AI_LOOTER_SHOOTER_API FName WalkOffEvent();
+	AI_LOOTER_SHOOTER_API FName FogShotEvent();
+
+	/**
+	 * His bar's show: "Waiting on a Dark Saint" spelled out under his name, his moan as it sweeps in, his wail at each later
+	 * phase, his gasp as he's staggered, his last breath; the bar's last word is "He kneels".
+	 */
+	AI_LOOTER_SHOOTER_API FBossShow MakeShow();
+
+	/** His coal staggers him: 5% of his health in crits on it (open only while he grieves or is stunned) within a few seconds. */
+	AI_LOOTER_SHOOTER_API FBossStagger MakeStagger();
+
+	/** His Boss table's loot (three guns and ammo, three boxes more) bursts from the deck's middle once he's sat with Ellis. */
+	AI_LOOTER_SHOOTER_API FBossLootShowerSettings MakeLootShower();
 
 	/** His three phases, highest share first, with their events (his name for each under his bar). */
 	AI_LOOTER_SHOOTER_API TArray<FBossPhase> MakePhases();

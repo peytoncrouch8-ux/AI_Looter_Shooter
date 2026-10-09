@@ -18,13 +18,16 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Fonts/FontMeasure.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
+#include "Rendering/SlateRenderer.h"
 
 using namespace LooterUI;
 
 namespace
 {
-	/** The tier's word on a card, and its color: warmer as the gun earns it, the soul-forged one in the kit's cyan. */
+	/** The tier's word on a card (its colour: LoadoutParts::NotchTierColor). */
 	const TCHAR* NotchTierWord(ENotchTier Tier)
 	{
 		switch (Tier)
@@ -33,17 +36,6 @@ namespace
 		case ENotchTier::Named: return TEXT("Named");
 		case ENotchTier::SoulForged: return TEXT("Soul-forged");
 		default: return TEXT("");
-		}
-	}
-
-	FLinearColor NotchTierColor(ENotchTier Tier)
-	{
-		switch (Tier)
-		{
-		case ENotchTier::Blooded: return Color::Accent();
-		case ENotchTier::Named: return Color::AccentLight();
-		case ENotchTier::SoulForged: return Color::CyanText();
-		default: return Color::TextDim();
 		}
 	}
 
@@ -61,6 +53,17 @@ namespace
 
 namespace LoadoutParts
 {
+	FLinearColor NotchTierColor(ENotchTier Tier)
+	{
+		switch (Tier)
+		{
+		case ENotchTier::Blooded: return Color::Accent();
+		case ENotchTier::Named: return Color::AccentLight();
+		case ENotchTier::SoulForged: return Color::CyanText();
+		default: return Color::TextDim();
+		}
+	}
+
 	const FInkedIcon& GunIcon(EWeaponKind Kind)
 	{
 		static const FInkedIcon Rifle = InkedIconData::Rifle();
@@ -173,20 +176,53 @@ namespace LoadoutParts
 		return Picture;
 	}
 
-	UWidget* MakeGunNameLine(UWidgetTree* Tree, const FWeaponInstanceData& Item, int32 FontSize, const FLinearColor& NameColor, int32 LetterSpacing)
+	float MeasureText(const FString& Text, const FSlateFontInfo& Font)
+	{
+		FSlateRenderer* Renderer = FSlateApplication::IsInitialized() ? FSlateApplication::Get().GetRenderer() : nullptr;
+		return Renderer ? static_cast<float>(Renderer->GetFontMeasureService()->Measure(Text, Font).X) : 0.f;
+	}
+
+	void FitTextToWidth(UTextBlock* Text, float MaxWidth, int32 MinSize)
+	{
+		if (!Text || MaxWidth <= 0.f)
+		{
+			return;
+		}
+		// Whatever the size comes to, it ends in "..." and stays inside its own space rather than drawing over its neighbours.
+		Text->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
+		Text->SetClipping(EWidgetClipping::ClipToBounds);
+		// Measured once, as it's made: a name wider than its room is set smaller in proportion, in whole points (the
+		// letter spacing is a share of the size, so it shrinks with it).
+		FSlateFontInfo FontInfo = Text->GetFont();
+		const float Width = MeasureText(Text->GetText().ToString(), FontInfo);
+		if (Width > MaxWidth && FontInfo.Size > MinSize)
+		{
+			FontInfo.Size = FMath::Max(MinSize, FMath::FloorToInt(FontInfo.Size * MaxWidth / Width));
+			Text->SetFont(FontInfo);
+		}
+	}
+
+	UWidget* MakeGunNameLine(UWidgetTree* Tree, const FWeaponInstanceData& Item, int32 FontSize, const FLinearColor& NameColor, int32 LetterSpacing,
+		float MaxWidth, int32 MinFontSize)
 	{
 		UTextBlock* Name = FittedLabel(Tree, LooterWeaponText::Name(Item), FontSize, NameColor, LetterSpacing);
-		if (!WeaponCurses::Of(Item))
+		// The coin is about a line of type tall; the name takes the rest of the row.
+		const bool bCursed = WeaponCurses::Of(Item) != nullptr;
+		const float CoinSize = FMath::Clamp(FontSize * 1.5f, 14.f, 20.f);
+		constexpr float CoinGap = 6.f;
+		if (MaxWidth > 0.f)
+		{
+			FitTextToWidth(Name, MaxWidth - (bCursed ? CoinSize + CoinGap : 0.f), MinFontSize > 0 ? MinFontSize : FMath::Max(FontSize - 3, 7));
+		}
+		if (!bCursed)
 		{
 			return Name;
 		}
-		// The coin is about a line of type tall; the name takes the rest of the row and ends in "..." if it doesn't fit.
-		const float CoinSize = FMath::Clamp(FontSize * 1.5f, 14.f, 20.f);
 		UHorizontalBox* Line = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		const FLinearColor CoinTint(1.f, 1.f, 1.f, Item.bCurseLifted ? 0.55f : 1.f);
 		UHorizontalBoxSlot* CoinSlot = Line->AddChildToHorizontalBox(MakeImage(Tree, CrackedCoinBrush(FVector2D(CoinSize, CoinSize), CoinTint)));
 		CoinSlot->SetVerticalAlignment(VAlign_Center);
-		CoinSlot->SetPadding(FMargin(0.f, 0.f, 6.f, 0.f));
+		CoinSlot->SetPadding(FMargin(0.f, 0.f, CoinGap, 0.f));
 		UHorizontalBoxSlot* NameSlot = Line->AddChildToHorizontalBox(Name);
 		NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		NameSlot->SetVerticalAlignment(VAlign_Center);
@@ -323,30 +359,65 @@ namespace LoadoutParts
 		});
 	}
 
+	ULooterButton* MakeKeyHintButton(UWidgetTree* Tree, const FString& Key, const FString& Text, bool bPrimary, int32 Index)
+	{
+		ULooterButton* Button = Tree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
+		Button->bPlaysSounds = false;
+		Button->SetupContent(MakeKeyHint(Tree, Key, Text, bPrimary), ActionPrompt, Index);
+		Button->SetCursor(EMouseCursor::Hand);
+		return Button;
+	}
+
 	UWidget* MakePageTabs(UWidgetTree* Tree, int32 ShownPage, TArray<ULooterButton*>& OutTabs)
 	{
 		static const TCHAR* const Pages[] = { TEXT("Loadout"), Ledger::BookName(false), TEXT("Missions") };
+		// A quiet bar rather than three framed tabs (2026-10-08 redesign): the page's name is the title, the others wait
+		// dim beside it, and each shows the number key that turns to it.
 		UHorizontalBox* Strip = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		OutTabs.Reset();
 		for (int32 Page = 0; Page < UE_ARRAY_COUNT(Pages); ++Page)
 		{
-			// The page on screen is the title, as bright as the old single title tab; the other waits, dimmer, beside it.
 			const bool bShown = Page == ShownPage;
-			UBorder* Plate = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
-			Plate->SetBrush(bShown ? RectBrush(Color::Plate(), Hex(90, 200, 255, 140), 1.f) : RectBrush(Hex(7, 26, 40, 120), Hex(90, 200, 255, 60), 1.f));
-			Plate->SetPadding(FMargin(26.f, 5.f));
-			Plate->SetContent(Label(Tree, Pages[Page], bShown ? 14 : 12, bShown ? Color::Title() : Color::TextDim(), 350));
-			UWidget* Tab = MakeShapeBox(Tree, EShape::Tab, bShown ? Color::FrameFill() : Color::FrameFill() * FLinearColor(1.f, 1.f, 1.f, 0.55f),
-				bShown ? Color::FrameEdge() : Color::FrameEdge() * FLinearColor(1.f, 1.f, 1.f, 0.5f), Plate, FMargin(18.f, 5.f, 18.f, 3.f));
+			UHorizontalBox* Head = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			// The page's name comes first in the tab: TitlePageTabs renames the first text it finds (the Ledger).
+			Head->AddChildToHorizontalBox(Label(Tree, Pages[Page], bShown ? 15 : 13, bShown ? Color::Title() : Color::TextDim(), 350))
+				->SetVerticalAlignment(VAlign_Center);
+			UBorder* Cap = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
+			Cap->SetBrush(RectBrush(Color::Plate(), Color::Hairline() * FLinearColor(1.f, 1.f, 1.f, bShown ? 0.55f : 0.3f), 1.f));
+			Cap->SetPadding(FMargin(5.f, 0.f));
+			Cap->SetHorizontalAlignment(HAlign_Center);
+			Cap->SetVerticalAlignment(VAlign_Center);
+			Cap->SetContent(MakeText(Tree, FString::FromInt(Page + 1), 8, bShown ? Color::Title() : Color::TextDim()));
+			UHorizontalBoxSlot* CapSlot = Head->AddChildToHorizontalBox(MakeSized(Tree, Cap, 0.f, 16.f));
+			CapSlot->SetVerticalAlignment(VAlign_Center);
+			CapSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
+
+			// The shown page stands on a faint plate over an orange underline.
+			UVerticalBox* Column = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+			Column->AddChildToVerticalBox(Head)->SetPadding(FMargin(24.f, 5.f, 24.f, 7.f));
+			Column->AddChildToVerticalBox(MakeSized(Tree, MakeImage(Tree, RectBrush(bShown ? Color::Accent() : FLinearColor::Transparent)), 0.f, 3.f));
+			UOverlay* Tab = Tree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+			UImage* Plate = MakeImage(Tree, RectBrush(bShown ? Color::Tile() * FLinearColor(1.f, 1.f, 1.f, 0.55f) : FLinearColor::Transparent));
+			MarkBackground(Plate);
+			FillOverlaySlot(Tab->AddChildToOverlay(Plate));
+			FillOverlaySlot(Tab->AddChildToOverlay(Column));
 
 			ULooterButton* Button = Tree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
 			Button->SetupContent(Tab, ActionPage, Page);
 			UHorizontalBoxSlot* TabSlot = Strip->AddChildToHorizontalBox(Button);
 			TabSlot->SetVerticalAlignment(VAlign_Bottom);
-			TabSlot->SetPadding(FMargin(Page > 0 ? 12.f : 0.f, 0.f, 0.f, 0.f));
+			TabSlot->SetPadding(FMargin(Page > 0 ? 6.f : 0.f, 0.f, 0.f, 0.f));
 			OutTabs.Add(Button);
 		}
-		return Strip;
+		// The hairline the tabs stand on, running a little past them either side.
+		UOverlay* Bar = Tree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		UOverlaySlot* LineSlot = Bar->AddChildToOverlay(MakeSized(Tree, MakeImage(Tree, RectBrush(Color::RowLine())), 0.f, 1.f));
+		LineSlot->SetHorizontalAlignment(HAlign_Fill);
+		LineSlot->SetVerticalAlignment(VAlign_Bottom);
+		UOverlaySlot* StripSlot = Bar->AddChildToOverlay(Strip);
+		StripSlot->SetHorizontalAlignment(HAlign_Center);
+		StripSlot->SetPadding(FMargin(90.f, 0.f));
+		return Bar;
 	}
 
 	FString FormatDelta(float Delta, int32 Decimals)

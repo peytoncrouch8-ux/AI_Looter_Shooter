@@ -18,6 +18,7 @@ FXPCurve UProgressionSettings::GetCurve() const
 FLevelRules UProgressionSettings::GetLevelRules() const
 {
 	FLevelRules Rules;
+	Rules.KillXPScale = KillXPScale;
 	Rules.KillXPGrowth = KillXPGrowth;
 	Rules.KillXPFalloff = KillXPFalloff;
 	Rules.KillXPFloor = KillXPFloor;

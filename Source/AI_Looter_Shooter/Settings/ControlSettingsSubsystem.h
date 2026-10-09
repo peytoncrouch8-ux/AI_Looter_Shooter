@@ -19,13 +19,22 @@ public:
 	 */
 	UPROPERTY()
 	float LookSensitivity = 1.f;
+
+	/**
+	 * How strongly the view kicks and shakes (shots, hits, kills, a boss's slam), 0 (still) to 1 (as designed). Saves from
+	 * before it existed load with 1 (UControlSettingsSubsystem::DefaultCameraShake).
+	 */
+	UPROPERTY()
+	float CameraShake = 1.f;
 };
 
 /**
  * The player's control options from the settings menu's Controls section, saved to the "ControlSettings" slot (the
  * keys keep their own, UKeyBindingSubsystem). Look sensitivity scales every turn of the view by mouse or stick: the
  * character's look (ALooterCharacter::Look, where a zoomed sight slows it further on top) and a scene's free look
- * (USceneSubsystem). Both read it as each input arrives, so a change applies from the next move.
+ * (USceneSubsystem). Both read it as each input arrives, so a change applies from the next move. Camera shake scales
+ * every shake and kick of the view, the boss fights' too: the one camera modifier that carries them all
+ * (UCameraShakeModifier) reads it each frame, and the Looter.CameraShake command sets it for a run.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UControlSettingsSubsystem : public ULocalPlayerSubsystem
@@ -63,6 +72,23 @@ public:
 
 	/** Applies from the next look input. bSave writes it to disk; a slider being dragged passes false and saves on release. */
 	void SetLookSensitivity(float Sensitivity, bool bSave = true);
+
+	/** Camera shake, from none (0) to as designed (1, the default), in the slider's steps of CameraShakeStep. */
+	static constexpr float MinCameraShake = 0.f;
+	static constexpr float MaxCameraShake = 1.f;
+	static constexpr float DefaultCameraShake = 1.f;
+	static constexpr float CameraShakeStep = 0.05f;
+
+	/** Rounded to the slider's steps and kept within Min..Max; anything that isn't a number gives the default. */
+	static float ClampCameraShake(float Shake);
+
+	/** A save's camera shake, clamped; the default without one. */
+	static float CameraShakeOf(const ULooterControlsSave* Controls);
+
+	float GetCameraShake() const;
+
+	/** Applies from the next frame, to every shake and kick. bSave as for the sensitivity. */
+	void SetCameraShake(float Shake, bool bSave = true);
 
 	void SaveSettings() const;
 

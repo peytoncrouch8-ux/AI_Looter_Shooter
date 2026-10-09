@@ -215,8 +215,9 @@ EMissionStatus UMissionRunner::GetStatus(const UMissionDefinition& Mission) cons
 {
 	const FName MissionId = Mission.GetMissionId();
 	const FCampaignRecord& Campaign = GetCampaign();
-	// Running beats finished: a mission played again is active while it runs.
-	if (IsRunning(MissionId) || Campaign.ActiveMission == MissionId)
+	// Running beats finished: a mission played again is active while it runs. One waiting for its turn-in in another area
+	// is still under way.
+	if (IsRunning(MissionId) || Campaign.ActiveMission == MissionId || Campaign.IsReadyToTurnIn(MissionId))
 	{
 		return EMissionStatus::Active;
 	}
@@ -236,7 +237,8 @@ TArray<FMissionObjectiveView> UMissionRunner::GetObjectiveViews(FName MissionId)
 	TArray<FMissionObjectiveView> Views;
 	const FRun* Run = FindRun(MissionId);
 	const UMissionDefinition* Mission = Run ? Run->Mission.Get() : nullptr;
-	if (!Mission)
+	// Ready to turn in, it has no objectives left (the Missions page says who to turn it in to).
+	if (!Mission || Run->bReady)
 	{
 		return Views;
 	}

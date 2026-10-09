@@ -3,29 +3,35 @@ saves them, as create_mission_assets.py does for the others (kept apart, so the 
 the open editor once the C++ with AWantedPoster and UMissionLastingInteractObjective is built:
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/create_side_mission_assets.py"
 It prints a SIDEMISSIONS line per mission and step, and "SIDEMISSIONS done" at the end. Running it again rebuilds these
-missions (fields, steps and rewards) from what's written here; other mission assets are left alone.
+missions (fields, steps, turn-in and rewards) from what's written here; other mission assets are left alone.
+
+Side missions are turned in as the main ones are (create_mission_assets.py's docstring): ready once their objectives
+are done, finished by a talk to their giver. Their experience is a fixed amount each (Docs/Progression.md).
 
   DA_Mission_Side1  "Wanted: Already Dead" (Docs/Areas/RansomsRest.md, Side 1), on Ransom's Rest once Main 3 is
-                    finished, starting by itself. Tear down 6 of Ellis's wanted posters around town and the farms (each a
+                    turned in, starting by itself. Tear down 6 of Ellis's wanted posters around town and the farms (each a
                     held Interact on an AWantedPoster tagged WantedPoster), counted from the world
                     (UMissionLastingInteractObjective): posters torn down before it opened count, and so do the ones torn
                     before a reload, since a side mission starts over from its first step. Seven hang, so one can be
                     missed. Then read Ranger Calder's note on the Rim Rangers' board (a tap on the one tagged CalderNote).
-                    Reward: a side mission's share of experience (20% of the player's level) and a guaranteed Rare gun.
-  DA_Mission_Side2  "Unfinished Business" (Side 2), on Ransom's Rest once Main 4 is finished, starting by itself. Talk to
-                    Amos at his fence (AAmosWhitlock, tagged Speaker_Amos); load his 6 hay bales into his barn (each a
+                    Turned in to Tilly at her window, Main Street's one voice (a line of its own). Reward: 35 XP and a
+                    guaranteed Rare gun.
+  DA_Mission_Side2  "Unfinished Business" (Side 2), on Ransom's Rest once Main 4 is turned in, starting by itself. Talk
+                    to Amos at his fence (AAmosWhitlock, tagged Speaker_Amos); load his 6 hay bales into his barn (each a
                     held Interact on an AHayBale tagged HayBale, counted from the world as Side 1's posters are: the session
                     keeps the loaded ones with the map, so a reload loses none); drive off his old hired hands (clear the
-                    encounter WhitlockHands: five Unpaid and a Restless one in his barn yard); talk to Amos again. All
-                    placed by build_area_whitlock.py. Reward: a side mission's share of experience and a guaranteed Epic
-                    gun ("the one Amos was buried with and never needed"). Made once Main 4 exists.
-  DA_Mission_Side3  "The Gravemother" (Side 3), on Ransom's Rest once Main 5 is finished, starting by itself. Enter the
+                    encounter WhitlockHands: five Unpaid and a Restless one in his barn yard); turned in to Amos (the
+                    talk that was its fourth step: his thanks, from build_area_whitlock.py's THANKS_STEP, 3). All placed
+                    by build_area_whitlock.py. Reward: 40 XP and a guaranteed Epic gun ("the one Amos was buried with and
+                    never needed"). Made once Main 4 exists.
+  DA_Mission_Side3  "The Gravemother" (Side 3), on Ransom's Rest once Main 5 is turned in, starting by itself. Enter the
                     den (reach the place tagged Place_Den inside it, within 4.5 m measured with its height, so the Sink's
                     rim over the den doesn't count), then kill the Gravemother (clear her lair's encounter, Gravemother:
                     a kill before the step began counts too, and so does one on an earlier visit while she's still away).
-                    Reward: a side mission's share of experience, once; her Legendary loot table drops on every kill, and
-                    she comes back on an arrival 20 minutes of play after her death. Both made by build_area_den.py.
-                    Made once Main 5 exists (step 19's main mission): until then the script says it waits.
+                    Automatic: a monster hunt nobody asked for. Reward: 40 XP, once; her Legendary loot table drops on
+                    every kill, and she comes back on an arrival 20 minutes of play after her death. Both made by
+                    build_area_den.py. Made once Main 5 exists (step 19's main mission): until then the script says it
+                    waits.
 
 Objectives are instanced objects inside the asset, one class per kind, made with unreal.new_object(<class>, asset) and
 listed in each step's 'objectives'. Classes for actor filters are loaded by their script path
@@ -53,9 +59,9 @@ GRAVEMOTHER_LAIR = 'Gravemother'
 
 def mission_types():
     """The reflected mission types, or a clear error when the C++ isn't built yet."""
-    names = ['MissionDefinition', 'MissionStep', 'MissionRewards', 'MissionActorFilter', 'MissionKind', 'MissionStart',
-             'MissionInteractObjective', 'MissionLastingInteractObjective', 'WantedPoster', 'WeaponRarity',
-             'MissionReachObjective', 'MissionClearObjective', 'MissionPlace', 'MissionTalkObjective']
+    names = ['MissionDefinition', 'MissionStep', 'MissionRewards', 'MissionTurnIn', 'StoryLine', 'MissionActorFilter',
+             'MissionKind', 'MissionStart', 'MissionInteractObjective', 'MissionLastingInteractObjective', 'WantedPoster',
+             'WeaponRarity', 'MissionReachObjective', 'MissionClearObjective', 'MissionPlace', 'MissionTalkObjective']
     missing = [name for name in names if getattr(unreal, name, None) is None]
     if missing:
         raise RuntimeError(f"unreal.{', unreal.'.join(missing)} missing: build the C++ with the wanted posters first")
@@ -96,11 +102,30 @@ def step(*objectives):
     return made
 
 
-def rewards(experience_share=0.0, gun=False, gun_rarity_floor='COMMON'):
+def rewards(experience=0, gun=False, gun_rarity_floor='COMMON'):
+    """FMissionRewards: a fixed amount of experience (Docs/Progression.md), and a gun at the player's feet."""
     made = unreal.MissionRewards()
-    made.set_editor_property('experience_share', experience_share)
+    made.set_editor_property('experience', experience)
+    made.set_editor_property('experience_share', 0.0)
     made.set_editor_property('gun', gun)
     made.set_editor_property('gun_rarity_floor', getattr(unreal.WeaponRarity, gun_rarity_floor))
+    return made
+
+
+def turn_in(automatic=False, speaker='', giver='', lines=()):
+    """FMissionTurnIn, as create_mission_assets.py makes it: the giver's speaker tag and name, and what they say as it's
+    turned in (none: their own lines there); automatic: it finishes by itself after its last objective."""
+    made = unreal.MissionTurnIn()
+    made.set_editor_property('automatic', automatic)
+    made.set_editor_property('speaker_tag', unreal.Name(speaker))
+    made.set_editor_property('giver_name', unreal.Text(giver))
+    said = []
+    for who, words in lines:
+        line = unreal.StoryLine()
+        line.set_editor_property('speaker', unreal.Text(who))
+        line.set_editor_property('text', unreal.Text(words))
+        said.append(line)
+    made.set_editor_property('lines', said)
     return made
 
 
@@ -119,8 +144,9 @@ def side1_steps(asset):
 
 def side2_steps(asset):
     """Talk to Amos at his fence, load his six bales (held, counted from the world), drive off his hired hands (their
-    encounter cleared), talk to Amos again. The arrows find their own: Amos, the nearest bale still in the field, the
-    nearest of the hands (or their spawner before they're up), Amos."""
+    encounter cleared); then it's turned in to Amos (the talk that was its fourth step). The arrows find their own: Amos,
+    the nearest bale still in the field, the nearest of the hands (or their spawner before they're up); then the turn-in's,
+    on Amos."""
     return [
         step(objective(asset, unreal.MissionTalkObjective, 'Talk to Amos at his fence', show_count=False,
                        speaker_tag=unreal.Name(AMOS_TAG))),
@@ -128,8 +154,6 @@ def side2_steps(asset):
                        target=actor_filter('HayBale', BALE_TAG), count=BALES, hold=True)),
         step(objective(asset, unreal.MissionClearObjective, 'Drive off his old hired hands',
                        spawner_id=unreal.Name(HANDS), count=HANDS_COUNT)),
-        step(objective(asset, unreal.MissionTalkObjective, 'Talk to Amos', show_count=False,
-                       speaker_tag=unreal.Name(AMOS_TAG))),
     ]
 
 
@@ -152,21 +176,30 @@ MISSIONS = [
          summary='Your wanted poster hangs all over Ransom\'s Rest, and someone has written ALREADY under DEAD OR ALIVE. '
                  'Tear them down.',
          kind='SIDE', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main3'], sort_order=10, steps=side1_steps,
-         rewards=dict(experience_share=0.2, gun=True, gun_rarity_floor='RARE'),
+         # Back to Tilly at her window, a short walk up Main Street from the Rangers' board: the reward gun is the box of
+         # effects nobody came back for.
+         turn_in=dict(speaker='Speaker_Tilly', giver='Tilly', lines=[
+             ('', "So it was you, tearing the posters down. Good. They were bad for trade."),
+             ('', "A stranger left this with his effects and never came back for it. You'll get more use from it than he "
+                  "did."),
+         ]),
+         rewards=dict(experience=35, gun=True, gun_rarity_floor='RARE'),
          # What setup() checks the stored steps against: each step's objective class.
          expect=['MissionLastingInteractObjective', 'MissionInteractObjective']),
     dict(asset='DA_Mission_Side2', id='Side2', title='Unfinished Business',
          summary=('Amos Whitlock died last harvest with his hay half in. He was still on the Sundown Road when the saint '
                   "went dark, and he drifted home to find it rotting in the field. He isn't angry yet."),
          kind='SIDE', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main4'], sort_order=20, steps=side2_steps,
-         rewards=dict(experience_share=0.2, gun=True, gun_rarity_floor='EPIC'),
-         expect=['MissionTalkObjective', 'MissionLastingInteractObjective', 'MissionClearObjective',
-                 'MissionTalkObjective']),
+         turn_in=dict(speaker=AMOS_TAG, giver='Amos'),
+         rewards=dict(experience=40, gun=True, gun_rarity_floor='EPIC'),
+         expect=['MissionTalkObjective', 'MissionLastingInteractObjective', 'MissionClearObjective']),
     dict(asset='DA_Mission_Side3', id='Side3', title='The Gravemother',
          summary='Something big lives in the Sink\'s den, and it eats what the Unpaid leave behind.',
          kind='SIDE', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main5'], sort_order=30, steps=side3_steps,
-         # Experience the first time; her loot is her own (the Legendary table on every kill), so no reward gun.
-         rewards=dict(experience_share=0.2, gun=False),
+         # A hunt nobody asked for: done as she dies. Experience the first time; her loot is her own (the Legendary table
+         # on every kill), so no reward gun.
+         turn_in=dict(automatic=True),
+         rewards=dict(experience=40, gun=False),
          expect=['MissionReachObjective', 'MissionClearObjective']),
 ]
 
@@ -231,10 +264,14 @@ def setup(spec):
     asset.set_editor_property('sort_order', spec['sort_order'])
     steps = spec['steps'](asset)
     asset.set_editor_property('steps', steps)
+    asset.set_editor_property('turn_in', turn_in(**spec['turn_in']))
     asset.set_editor_property('rewards', rewards(**spec['rewards']))
 
     # Read back what the asset holds before saving: every step with its objective, of the class asked for.
     stored = asset.get_editor_property('steps')
+    if len(stored) != len(spec['expect']):
+        raise RuntimeError(f"{FOLDER}/{spec['asset']}: {len(stored)} steps where {len(spec['expect'])} are expected: "
+                           f"nothing was saved")
     if len(stored) != len(steps):
         raise RuntimeError(f"{FOLDER}/{spec['asset']}: {len(stored)} steps stored of {len(steps)}: nothing was saved")
     for index, (stored_step, expected) in enumerate(zip(stored, spec['expect'])):
@@ -252,9 +289,11 @@ def setup(spec):
     if not unreal.EditorAssetLibrary.save_loaded_asset(asset, only_if_is_dirty=False):
         raise RuntimeError(f"{FOLDER}/{spec['asset']} could not be saved")
     reward = spec['rewards']
+    finish = ('finishes by itself' if spec['turn_in'].get('automatic')
+              else f"turned in to {spec['turn_in'].get('giver')} ({spec['turn_in'].get('speaker')})")
     unreal.log(f"SIDEMISSIONS {spec['asset']} {'made' if created else 'updated'}: id {spec['id']}, \"{spec['title']}\", "
                f"{spec['kind'].lower()}, starts {spec['start'].lower()} after {', '.join(spec['prerequisites'])}, "
-               f"area '{spec['area']}', {len(steps)} steps; rewards {reward['experience_share']:.0%} of a level"
+               f"area '{spec['area']}', {len(steps)} steps, {finish}; rewards {reward['experience']} XP"
                f"{', a ' + reward['gun_rarity_floor'].title() + ' gun' if reward['gun'] else ''}")
 
 

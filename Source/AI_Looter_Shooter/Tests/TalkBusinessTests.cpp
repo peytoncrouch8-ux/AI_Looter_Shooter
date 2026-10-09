@@ -92,7 +92,13 @@ namespace
 		return Mission;
 	}
 
-	/** Main 2 as the mission script makes it, in code: after Main 1, four steps, 30% of a level. */
+	/** Sexton's words as Main 2 is turned in to him (create_mission_assets.py's). */
+	const TCHAR* const SextonsTurnIn[] = {
+		TEXT("You've read them, then. Good."),
+		TEXT("Seven names, friend. The new moon won't wait."),
+	};
+
+	/** Main 2 as the mission script makes it, in code: after Main 1, four steps, turned in to Sexton, 30 experience. */
 	UMissionDefinition* MakeTalkBusiness(UObject* Outer)
 	{
 		UMissionDefinition* Mission = MissionTestWorld::NewMission(Outer, TEXT("Main2"), EMissionKind::Main, EMissionStart::Automatic, Valley);
@@ -106,7 +112,13 @@ namespace
 		Nest->Count = 5;
 		MissionTestWorld::AddObjective<UMissionTalkObjective>(Mission, 2)->SpeakerTag = SextonTag;
 		MissionTestWorld::AddObjective<UMissionOpenPageObjective>(Mission, 3)->Page = EMissionPage::Bestiary;
-		Mission->Rewards.ExperienceShare = 0.3f;
+		Mission->TurnIn.SpeakerTag = SextonTag;
+		Mission->TurnIn.GiverName = FText::FromString(TEXT("Mister Sexton"));
+		for (const TCHAR* Words : SextonsTurnIn)
+		{
+			Mission->TurnIn.Lines.Add(FStoryLine::Make(FText::GetEmpty(), FText::FromString(Words)));
+		}
+		Mission->Rewards.Experience = 30;
 		return Mission;
 	}
 
@@ -182,7 +194,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTalkBusinessMissionTest, "Looter.Story.TalkBus
 bool FTalkBusinessMissionTest::RunTest(const FString& Parameters)
 {
 	// Main 2 as its asset has it, once the mission script has made it: after Main 1, on Ransom's Rest, the climb (height
-	// counted), the nest cleared (five), Sexton, the Ledger (the step the Ledger's rule names), for 30% of a level.
+	// counted), the nest cleared (five), Sexton, the Ledger (the step the Ledger's rule names); turned in to Sexton, for 30
+	// experience.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main2")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main2.DA_Mission_Main2"));
@@ -202,7 +215,9 @@ bool FTalkBusinessMissionTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("3: talk to Mister Sexton"), Talk && Talk->SpeakerTag == SextonTag);
 			TestTrue(TEXT("4: open the Ledger, the step the Ledger is handed over on"), Open && Open->Page == EMissionPage::Bestiary
 				&& Ledger::HandedOverStep == 3);
-			TestEqual(TEXT("Its reward: 30% of a level"), Asset->Rewards.ExperienceShare, 0.3f);
+			TestTrue(TEXT("Turned in to Sexton, with words of its own"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == SextonTag
+				&& Asset->TurnIn.Lines.Num() == static_cast<int32>(UE_ARRAY_COUNT(SextonsTurnIn)) && Asset->TurnIn.Lines[0].Text.ToString() == SextonsTurnIn[0]);
+			TestEqual(TEXT("Its reward: 30 experience"), Asset->Rewards.Experience, 30);
 			TestFalse(TEXT("...and no gun (the Ledger is the other)"), Asset->Rewards.bGun);
 		}
 	}
@@ -297,15 +312,21 @@ bool FTalkBusinessMissionTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("The deal struck: open the Ledger"), Runner->GetStep(MainTwo), Ledger::HandedOverStep);
 	TestTrue(TEXT("The bestiary is his Ledger now"), Ledger::IsOpen(Campaign, Runner));
 
-	// Opening the inventory's second page finishes it (a test level has no HUD: the step is passed by hand).
+	// Opening the inventory's second page does its last objective (a test level has no HUD: the step is passed by hand):
+	// it's ready to turn in to Sexton, still on the rail.
 	Runner->CompleteStep(MainTwo);
-	TestTrue(TEXT("Main 2 is finished"), Campaign.HasCompleted(MainTwo) && !Runner->IsRunning(MainTwo));
+	TestTrue(TEXT("The Ledger read: ready to turn in to Sexton, not finished"), Runner->IsReadyToTurnIn(MainTwo) && !Campaign.HasCompleted(MainTwo));
 	TestTrue(TEXT("The Ledger stays his"), Ledger::IsOpen(Campaign, Runner));
-	TestTrue(TEXT("Sexton, his deal still being said, stays till it's done"), Sexton->IsShown() && Sexton->IsLeaving());
+	TestTrue(TEXT("Sexton still on the rail, to be talked to"), Sexton->IsShown() && !Sexton->IsLeaving());
+	Captions->Update(600.f);
+	TestTrue(TEXT("Sexton talked to"), Sexton->SpeakerPoint->Talk(Player));
+	TestEqual(TEXT("...his words for it"), OnScreen(*Captions), FString(TEXT("Mister Sexton|")) + SextonsTurnIn[0]);
+	TestTrue(TEXT("Main 2 is turned in: finished"), Campaign.HasCompleted(MainTwo) && !Runner->IsRunning(MainTwo));
+	TestTrue(TEXT("The Ledger stays his"), Ledger::IsOpen(Campaign, Runner));
+	TestTrue(TEXT("Sexton, his words still being said, stays till they're done"), Sexton->IsShown() && Sexton->IsLeaving());
 	Captions->Update(600.f);
 	Sexton->Tick(0.25f);
 	TestTrue(TEXT("Said, and nobody looking: he's gone"), !Sexton->IsShown() && !Sexton->IsLeaving() && !Sexton->SpeakerPoint->CanTalk());
-	TestEqual(TEXT("30% of the first level is 30 experience"), MissionRewards::ExperienceFor(0.3f, 1, FXPCurve()), static_cast<int64>(30));
 	return true;
 }
 

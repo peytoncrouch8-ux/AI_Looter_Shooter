@@ -173,12 +173,15 @@ bool FStationPracticeRulesTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Practice after it: ammo only"), UAreaRulesSubsystem::DropsGunsIn(Practice, &After));
 	TestTrue(TEXT("The story's areas drop guns after it"), UAreaRulesSubsystem::DropsGunsIn(StoryArea, &After) && UAreaRulesSubsystem::DropsGunsIn(nullptr, &After));
 
-	// A level 1 spider's 10 experience, none on Skyreach. A class default is in no level: as it always was.
+	// A level 1 spider's experience (its share of its 10, Docs/Progression.md), none on Skyreach. A class default is in no
+	// level: as it always was.
 	const ASpiderCreature* Spider = GetDefault<ASpiderCreature>();
-	TestEqual(TEXT("In the story: 10"), UPlayerProgressionSubsystem::KillXPIn(StoryArea, Spider, 1), int64(10));
+	const int64 SpiderXP = UPlayerProgressionSubsystem::GetLevelRules().KillXP(Spider->XPReward, 1, 1);
+	TestTrue(TEXT("A level 1 spider is worth something"), SpiderXP > 0);
+	TestEqual(TEXT("In the story: its experience"), UPlayerProgressionSubsystem::KillXPIn(StoryArea, Spider, 1), SpiderXP);
 	TestEqual(TEXT("In practice: none"), UPlayerProgressionSubsystem::KillXPIn(Practice, Spider, 1), int64(0));
-	TestEqual(TEXT("No area: 10"), UPlayerProgressionSubsystem::KillXPIn(nullptr, Spider, 1), int64(10));
-	TestEqual(TEXT("Asked of the spider itself, in no level: 10"), UPlayerProgressionSubsystem::KillXP(Spider, 1), int64(10));
+	TestEqual(TEXT("No area: its experience"), UPlayerProgressionSubsystem::KillXPIn(nullptr, Spider, 1), SpiderXP);
+	TestEqual(TEXT("Asked of the spider itself, in no level: its experience"), UPlayerProgressionSubsystem::KillXP(Spider, 1), SpiderXP);
 	TestTrue(TEXT("Asked of no level at all: yes, and yes"), UAreaRulesSubsystem::GivesKillExperienceAt(Spider) && UAreaRulesSubsystem::DropsGunsAt(Spider));
 
 	// A kill that always drops a gun drops none when guns are off, and the very same ammo from the same stream.

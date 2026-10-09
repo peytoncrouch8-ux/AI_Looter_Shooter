@@ -10,6 +10,7 @@ class ACreatureBase;
  * A boss fight as data (UBossComponent::Phases): phases by the share of health left, each starting a few events. The
  * events cover what every boss does (adds, spells it can't be hurt through, volleys of pellets); anything only one boss
  * does (Abel's grief, the bell, the lanterns) is a Custom event its own code answers (UBossComponent::OnCustomEvent).
+ * How the fight is shown (FBossShow), its weak spot's stagger (FBossStagger) and its loot (FBossLootShowerSettings) are data too.
  */
 
 UENUM(BlueprintType)
@@ -221,4 +222,138 @@ struct FBossPhase
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Phase")
 	TArray<FBossPhaseEvent> Events;
+};
+
+/**
+ * How a boss's fight is shown (UBossComponent, BossComponentShow.cpp): the bar sweeping in with its title, a sting and the
+ * boss's own cry at its start, at each later phase, at a stagger and at its death; the camera's shakes; and the slow beat as
+ * it dies. A boss whose own code plays a moment (the Gravemother roars as she rears) leaves that cue empty and its shake 0.
+ */
+USTRUCT(BlueprintType)
+struct FBossShow
+{
+	GENERATED_BODY()
+
+	/** Spelled out under the bar as it sweeps in, before the first phase's name ("Brood of the Sink"). Empty: none. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show")
+	FText Title;
+
+	/** The boss's own cries, played at its body (the bar's stings are every boss's). None: only the sting. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show")
+	FName IntroCue;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show")
+	FName PhaseCue;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show")
+	FName StaggerCue;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show")
+	FName DeathCue;
+
+	/** How hard the camera shakes (0-1, BossCameraShake) as the fight starts, at a later phase, at a stagger, at its death. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show", meta = (ClampMin = "0", ClampMax = "1"))
+	float IntroShake = 0.45f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show", meta = (ClampMin = "0", ClampMax = "1"))
+	float PhaseShake = 0.6f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show", meta = (ClampMin = "0", ClampMax = "1"))
+	float StaggerShake = 0.3f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show", meta = (ClampMin = "0", ClampMax = "1"))
+	float DeathShake = 1.f;
+
+	/**
+	 * At its death the world slows to this (1: not at all) for DeathSlowSeconds of real time, the last third at half the
+	 * way back, then runs on: the killing blow lands, the body falls, the bar empties.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show", meta = (ClampMin = "0.05", ClampMax = "1"))
+	float DeathSlowMo = 0.3f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show", meta = (ClampMin = "0", ClampMax = "3", Units = "s"))
+	float DeathSlowSeconds = 0.7f;
+
+	/** The bar's last line as it empties ("DEFEATED" when empty), and its call as the boss staggers ("STAGGERED" when empty). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show")
+	FText DefeatedLine;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show")
+	FText StaggerCallout;
+};
+
+/**
+ * A weak spot that breaks the boss for a moment (UBossComponent): critical hits build it up, and a build-up of CritShare
+ * of its most health, landed close enough together (the build-up drains away over DrainSeconds), staggers it. The boss's
+ * own code does the reeling (the Gravemother sinks on her legs; Abel drops to a knee, his coal open).
+ */
+USTRUCT(BlueprintType)
+struct FBossStagger
+{
+	GENERATED_BODY()
+
+	/** Critical damage that staggers it, as a share of its most health. 0: it never staggers. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stagger", meta = (ClampMin = "0", ClampMax = "1"))
+	float CritShare = 0.f;
+
+	/** A full build-up drains to nothing over this long (s): the crits must come close together. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stagger", meta = (ClampMin = "0.5", Units = "s"))
+	float DrainSeconds = 4.f;
+
+	/** How long it reels (s). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stagger", meta = (ClampMin = "0.2", Units = "s"))
+	float Seconds = 2.5f;
+
+	/** After a stagger, nothing builds up for this long (s): it can't be kept down. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stagger", meta = (ClampMin = "0", Units = "s"))
+	float Cooldown = 9.f;
+};
+
+/**
+ * A dead boss's loot thrown out Borderlands-style (ABossLootShower) in place of its loot drop component's toss: its table
+ * rolled as its kill rolls it, plus BonusAmmo chest-full boxes, popped out one piece at a time in high arcs all round, the
+ * ammo first and the guns last, rarest last of all.
+ */
+USTRUCT(BlueprintType)
+struct FBossLootShowerSettings
+{
+	GENERATED_BODY()
+
+	/** Off: its loot drops as any creature's does. Turned off after play began (the tests), nothing drops. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	bool bEnabled = true;
+
+	/** Ammo boxes on top of its table's, each a chest's full box (LooterLoot::ChestAmmoAmount), leaning to the kill gun's class. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot", meta = (ClampMin = "0", ClampMax = "10"))
+	int32 BonusAmmo = 2;
+
+	/** After the death, before the first piece flies (s): the body falls first. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot", meta = (ClampMin = "0", Units = "s"))
+	float Delay = 1.f;
+
+	/** Between two ammo boxes (s); a gun waits GunPause on top, so each one is seen. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot", meta = (ClampMin = "0.01", Units = "s"))
+	float Interval = 0.08f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot", meta = (ClampMin = "0", Units = "s"))
+	float GunPause = 0.18f;
+
+	/** Pieces land this near and this far from where they burst out (cm, on level ground). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot", meta = (ClampMin = "0", Units = "cm"))
+	float MinReach = 160.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot", meta = (ClampMin = "0", Units = "cm"))
+	float MaxReach = 430.f;
+
+	/** How fast they're thrown up (cm/s): high arcs, so the shower is seen. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot", meta = (ClampMin = "100", Units = "cm/s"))
+	float UpSpeed = 780.f;
+
+	/** It bursts from the arena's middle (the boss's spot) rather than the body: Abel may die at the deck's open end. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	bool bFromSpot = false;
+
+	/** It waits for a scene playing (or about to, inside Delay) to end: Abel's loot comes after he sits with Ellis. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	bool bAfterScene = false;
 };

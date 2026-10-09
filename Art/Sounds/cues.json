@@ -410,6 +410,100 @@
     "space": "2D",
     "max_concurrent": 2
   },
+  "UI.Equip": {
+    "files": [
+      "UI_Equip_01.wav",
+      "UI_Equip_02.wav",
+      "UI_Equip_03.wav"
+    ],
+    "volume_db": -12.0,
+    "pitch_jitter": 0.03,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "UI.Stow": {
+    "files": [
+      "UI_Stow_01.wav",
+      "UI_Stow_02.wav",
+      "UI_Stow_03.wav"
+    ],
+    "volume_db": -19.0,
+    "pitch_jitter": 0.03,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "UI.Drop": {
+    "files": [
+      "UI_Drop_01.wav",
+      "UI_Drop_02.wav",
+      "UI_Drop_03.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.03,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "UI.Inspect": {
+    "files": [
+      "UI_Inspect_01.wav",
+      "UI_Inspect_02.wav"
+    ],
+    "volume_db": -25.5,
+    "pitch_jitter": 0.03,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "UI.Hint": {
+    "files": [
+      "UI_Hint_01.wav",
+      "UI_Hint_02.wav"
+    ],
+    "volume_db": -24.0,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "UI.HintDone": {
+    "files": [
+      "UI_HintDone_01.wav",
+      "UI_HintDone_02.wav"
+    ],
+    "volume_db": -22.0,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "UI.BoardTurnIn": {
+    "files": [
+      "UI_BoardTurnIn_01.wav",
+      "UI_BoardTurnIn_02.wav"
+    ],
+    "volume_db": -8.0,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
   "Bench.Scrap": {
     "files": [
       "Bench_Scrap_01.wav",
@@ -508,6 +602,85 @@
     "loop": false,
     "space": "3D",
     "max_concurrent": 1
+  },
+  "Loot.Drop.Uncommon": {
+    "files": [
+      "Loot_Drop_Uncommon_01.wav",
+      "Loot_Drop_Uncommon_02.wav",
+      "Loot_Drop_Uncommon_03.wav"
+    ],
+    "volume_db": -22.5,
+    "pitch_jitter": 0.01,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Loot.Drop.Rare": {
+    "files": [
+      "Loot_Drop_Rare_01.wav",
+      "Loot_Drop_Rare_02.wav"
+    ],
+    "volume_db": -21.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Loot.Drop.Epic": {
+    "files": [
+      "Loot_Drop_Epic_01.wav"
+    ],
+    "volume_db": -18.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Loot.Drop.Legendary": {
+    "files": [
+      "Loot_Drop_Legendary_01.wav"
+    ],
+    "volume_db": -16.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Loot.SoulMote.Drop": {
+    "files": [
+      "Loot_SoulMote_Drop_01.wav",
+      "Loot_SoulMote_Drop_02.wav",
+      "Loot_SoulMote_Drop_03.wav"
+    ],
+    "volume_db": -19.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Loot.SoulMote.Pickup": {
+    "files": [
+      "Loot_SoulMote_Pickup_01.wav",
+      "Loot_SoulMote_Pickup_02.wav",
+      "Loot_SoulMote_Pickup_03.wav"
+    ],
+    "volume_db": -18.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
   },
   "Player.Footstep.Dirt": {
     "files": [
@@ -680,6 +853,115 @@
     "loop": true,
     "space": "3D",
     "max_concurrent": 1
+  },
+  "Player.Mantle": {
+    "files": [
+      "Player_Mantle_01.wav",
+      "Player_Mantle_02.wav",
+      "Player_Mantle_03.wav",
+      "Player_Mantle_04.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Player.Vault": {
+    "files": [
+      "Player_Vault_01.wav",
+      "Player_Vault_02.wav",
+      "Player_Vault_03.wav",
+      "Player_Vault_04.wav"
+    ],
+    "volume_db": -15.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Player.Melee.Swing": {
+    "files": [
+      "Player_Melee_Swing_01.wav",
+      "Player_Melee_Swing_02.wav",
+      "Player_Melee_Swing_03.wav",
+      "Player_Melee_Swing_04.wav"
+    ],
+    "volume_db": -18.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Player.Melee.Hit": {
+    "files": [
+      "Player_Melee_Hit_01.wav",
+      "Player_Melee_Hit_02.wav",
+      "Player_Melee_Hit_03.wav",
+      "Player_Melee_Hit_04.wav",
+      "Player_Melee_Hit_05.wav"
+    ],
+    "volume_db": -5.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Player.Melee.HitFlesh": {
+    "files": [
+      "Player_Melee_HitFlesh_01.wav",
+      "Player_Melee_HitFlesh_02.wav",
+      "Player_Melee_HitFlesh_03.wav",
+      "Player_Melee_HitFlesh_04.wav",
+      "Player_Melee_HitFlesh_05.wav"
+    ],
+    "volume_db": -5.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Player.Melee.HitShell": {
+    "files": [
+      "Player_Melee_HitShell_01.wav",
+      "Player_Melee_HitShell_02.wav",
+      "Player_Melee_HitShell_03.wav",
+      "Player_Melee_HitShell_04.wav",
+      "Player_Melee_HitShell_05.wav"
+    ],
+    "volume_db": -6.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Player.Melee.HitGel": {
+    "files": [
+      "Player_Melee_HitGel_01.wav",
+      "Player_Melee_HitGel_02.wav",
+      "Player_Melee_HitGel_03.wav",
+      "Player_Melee_HitGel_04.wav",
+      "Player_Melee_HitGel_05.wav"
+    ],
+    "volume_db": -12.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
   },
   "Creature.Hit": {
     "files": [
@@ -932,6 +1214,91 @@
     "space": "3D",
     "max_concurrent": 3
   },
+  "Creature.Spider.Burst": {
+    "files": [
+      "Creature_Spider_Burst_01.wav",
+      "Creature_Spider_Burst_02.wav",
+      "Creature_Spider_Burst_03.wav",
+      "Creature_Spider_Burst_04.wav"
+    ],
+    "volume_db": -6.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Creature.Slime.Splat": {
+    "files": [
+      "Creature_Slime_Splat_01.wav",
+      "Creature_Slime_Splat_02.wav",
+      "Creature_Slime_Splat_03.wav",
+      "Creature_Slime_Splat_04.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Creature.Unpaid.Dissolve": {
+    "files": [
+      "Creature_Unpaid_Dissolve_01.wav",
+      "Creature_Unpaid_Dissolve_02.wav",
+      "Creature_Unpaid_Dissolve_03.wav"
+    ],
+    "volume_db": -17.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.RankSting": {
+    "files": [
+      "Creature_RankSting_01.wav",
+      "Creature_RankSting_02.wav"
+    ],
+    "volume_db": -12.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Creature.Unpaid.Rise": {
+    "files": [
+      "Creature_Unpaid_Rise_01.wav",
+      "Creature_Unpaid_Rise_02.wav",
+      "Creature_Unpaid_Rise_03.wav"
+    ],
+    "volume_db": -15.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Spider.Drop": {
+    "files": [
+      "Creature_Spider_Drop_01.wav",
+      "Creature_Spider_Drop_02.wav",
+      "Creature_Spider_Drop_03.wav"
+    ],
+    "volume_db": -8.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
   "World.ChapelBell.Toll": {
     "files": [
       "World_ChapelBell_Toll_01.wav",
@@ -973,5 +1340,894 @@
     "loop": false,
     "space": "3D",
     "max_concurrent": 3
+  },
+  "World.Creek": {
+    "files": [
+      "World_Creek_01.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "World.Pond": {
+    "files": [
+      "World_Pond_01.wav"
+    ],
+    "volume_db": -24.0,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "World.Waterfall": {
+    "files": [
+      "World_Waterfall_01.wav"
+    ],
+    "volume_db": -14.5,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "Gun",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Windmill.Fan": {
+    "files": [
+      "World_Windmill_Fan_01.wav"
+    ],
+    "volume_db": -23.5,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Windmill.Creak": {
+    "files": [
+      "World_Windmill_Creak_01.wav",
+      "World_Windmill_Creak_02.wav",
+      "World_Windmill_Creak_03.wav",
+      "World_Windmill_Creak_04.wav"
+    ],
+    "volume_db": -20.5,
+    "pitch_jitter": 0.06,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.ChapelBell.Hum": {
+    "files": [
+      "World_ChapelBell_Hum_01.wav"
+    ],
+    "volume_db": -36.0,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.Train.Hiss": {
+    "files": [
+      "World_Train_Hiss_01.wav"
+    ],
+    "volume_db": -16.0,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.Rim.Wind": {
+    "files": [
+      "World_Rim_Wind_01.wav"
+    ],
+    "volume_db": -23.0,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "Gun",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Sink.Drip": {
+    "files": [
+      "World_Sink_Drip_01.wav"
+    ],
+    "volume_db": -16.5,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.Sink.Creak": {
+    "files": [
+      "World_Sink_Creak_01.wav",
+      "World_Sink_Creak_02.wav",
+      "World_Sink_Creak_03.wav",
+      "World_Sink_Creak_04.wav"
+    ],
+    "volume_db": -28.0,
+    "pitch_jitter": 0.08,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Town.Hush": {
+    "files": [
+      "World_Town_Hush_01.wav"
+    ],
+    "volume_db": -31.0,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Town.Creak": {
+    "files": [
+      "World_Town_Creak_01.wav",
+      "World_Town_Creak_02.wav",
+      "World_Town_Creak_03.wav",
+      "World_Town_Creak_04.wav"
+    ],
+    "volume_db": -18.5,
+    "pitch_jitter": 0.06,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Shutter.Tap": {
+    "files": [
+      "World_Shutter_Tap_01.wav",
+      "World_Shutter_Tap_02.wav",
+      "World_Shutter_Tap_03.wav"
+    ],
+    "volume_db": -11.0,
+    "pitch_jitter": 0.06,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Town.Murmur": {
+    "files": [
+      "World_Town_Murmur_01.wav",
+      "World_Town_Murmur_02.wav",
+      "World_Town_Murmur_03.wav",
+      "World_Town_Murmur_04.wav"
+    ],
+    "volume_db": -19.0,
+    "pitch_jitter": 0.03,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.Fauna.Crow.Caw": {
+    "files": [
+      "World_Fauna_Crow_Caw_01.wav",
+      "World_Fauna_Crow_Caw_02.wav",
+      "World_Fauna_Crow_Caw_03.wav",
+      "World_Fauna_Crow_Caw_04.wav",
+      "World_Fauna_Crow_Caw_05.wav"
+    ],
+    "volume_db": -17.5,
+    "pitch_jitter": 0.04,
+    "class": "Ambience",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Fauna.Crow.TakeOff": {
+    "files": [
+      "World_Fauna_Crow_TakeOff_01.wav",
+      "World_Fauna_Crow_TakeOff_02.wav",
+      "World_Fauna_Crow_TakeOff_03.wav"
+    ],
+    "volume_db": -15.5,
+    "pitch_jitter": 0.04,
+    "class": "Ambience",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Fauna.Sparrow.Chirp": {
+    "files": [
+      "World_Fauna_Sparrow_Chirp_01.wav",
+      "World_Fauna_Sparrow_Chirp_02.wav",
+      "World_Fauna_Sparrow_Chirp_03.wav",
+      "World_Fauna_Sparrow_Chirp_04.wav",
+      "World_Fauna_Sparrow_Chirp_05.wav",
+      "World_Fauna_Sparrow_Chirp_06.wav"
+    ],
+    "volume_db": -23.0,
+    "pitch_jitter": 0.05,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "World.Fauna.Sparrow.TakeOff": {
+    "files": [
+      "World_Fauna_Sparrow_TakeOff_01.wav",
+      "World_Fauna_Sparrow_TakeOff_02.wav",
+      "World_Fauna_Sparrow_TakeOff_03.wav",
+      "World_Fauna_Sparrow_TakeOff_04.wav"
+    ],
+    "volume_db": -19.5,
+    "pitch_jitter": 0.05,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Fauna.Swallow.Twitter": {
+    "files": [
+      "World_Fauna_Swallow_Twitter_01.wav",
+      "World_Fauna_Swallow_Twitter_02.wav",
+      "World_Fauna_Swallow_Twitter_03.wav",
+      "World_Fauna_Swallow_Twitter_04.wav",
+      "World_Fauna_Swallow_Twitter_05.wav"
+    ],
+    "volume_db": -24.5,
+    "pitch_jitter": 0.04,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Fauna.Hawk.Cry": {
+    "files": [
+      "World_Fauna_Hawk_Cry_01.wav",
+      "World_Fauna_Hawk_Cry_02.wav",
+      "World_Fauna_Hawk_Cry_03.wav"
+    ],
+    "volume_db": -16.5,
+    "pitch_jitter": 0.03,
+    "class": "Ambience",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.Fauna.Flies": {
+    "files": [
+      "World_Fauna_Flies_01.wav"
+    ],
+    "volume_db": -24.5,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "Near",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Fauna.Dragonfly.Buzz": {
+    "files": [
+      "World_Fauna_Dragonfly_Buzz_01.wav",
+      "World_Fauna_Dragonfly_Buzz_02.wav",
+      "World_Fauna_Dragonfly_Buzz_03.wav",
+      "World_Fauna_Dragonfly_Buzz_04.wav"
+    ],
+    "volume_db": -13.5,
+    "pitch_jitter": 0.06,
+    "class": "Ambience",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Fauna.Tumbleweed.Bounce": {
+    "files": [
+      "World_Fauna_Tumbleweed_Bounce_01.wav",
+      "World_Fauna_Tumbleweed_Bounce_02.wav",
+      "World_Fauna_Tumbleweed_Bounce_03.wav",
+      "World_Fauna_Tumbleweed_Bounce_04.wav",
+      "World_Fauna_Tumbleweed_Bounce_05.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.08,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "World.Fauna.DustDevil": {
+    "files": [
+      "World_Fauna_DustDevil_01.wav"
+    ],
+    "volume_db": -20.5,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Fauna.Cloth.Flap": {
+    "files": [
+      "World_Fauna_Cloth_Flap_01.wav",
+      "World_Fauna_Cloth_Flap_02.wav",
+      "World_Fauna_Cloth_Flap_03.wav",
+      "World_Fauna_Cloth_Flap_04.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.06,
+    "class": "Ambience",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Ambience.Skyreach.Air": {
+    "files": [
+      "Ambience_Skyreach_Air_01.wav"
+    ],
+    "volume_db": -34.0,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Ambience.Skyreach.Life": {
+    "files": [
+      "Ambience_Skyreach_Life_01.wav"
+    ],
+    "volume_db": -26.5,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Ambience.RansomsRest.DayAir": {
+    "files": [
+      "Ambience_RansomsRest_DayAir_01.wav"
+    ],
+    "volume_db": -32.0,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Ambience.RansomsRest.DayLife": {
+    "files": [
+      "Ambience_RansomsRest_DayLife_01.wav"
+    ],
+    "volume_db": -36.5,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Ambience.RansomsRest.DuskAir": {
+    "files": [
+      "Ambience_RansomsRest_DuskAir_01.wav"
+    ],
+    "volume_db": -31.0,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Ambience.RansomsRest.DuskLife": {
+    "files": [
+      "Ambience_RansomsRest_DuskLife_01.wav"
+    ],
+    "volume_db": -37.5,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Ambience.Bird.Songbird": {
+    "files": [
+      "Ambience_Bird_Songbird_01.wav",
+      "Ambience_Bird_Songbird_02.wav",
+      "Ambience_Bird_Songbird_03.wav",
+      "Ambience_Bird_Songbird_04.wav",
+      "Ambience_Bird_Songbird_05.wav",
+      "Ambience_Bird_Songbird_06.wav"
+    ],
+    "volume_db": -22.0,
+    "pitch_jitter": 0.05,
+    "class": "Ambience",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Ambience.Bird.Crow": {
+    "files": [
+      "Ambience_Bird_Crow_01.wav",
+      "Ambience_Bird_Crow_02.wav",
+      "Ambience_Bird_Crow_03.wav",
+      "Ambience_Bird_Crow_04.wav"
+    ],
+    "volume_db": -15.0,
+    "pitch_jitter": 0.05,
+    "class": "Ambience",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ambience.Bird.Hawk": {
+    "files": [
+      "Ambience_Bird_Hawk_01.wav",
+      "Ambience_Bird_Hawk_02.wav",
+      "Ambience_Bird_Hawk_03.wav"
+    ],
+    "volume_db": -16.0,
+    "pitch_jitter": 0.03,
+    "class": "Ambience",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Ambience.Bird.Owl": {
+    "files": [
+      "Ambience_Bird_Owl_01.wav",
+      "Ambience_Bird_Owl_02.wav",
+      "Ambience_Bird_Owl_03.wav"
+    ],
+    "volume_db": -15.5,
+    "pitch_jitter": 0.03,
+    "class": "Ambience",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Ambience.Insect.Chirp": {
+    "files": [
+      "Ambience_Insect_Chirp_01.wav",
+      "Ambience_Insect_Chirp_02.wav",
+      "Ambience_Insect_Chirp_03.wav",
+      "Ambience_Insect_Chirp_04.wav"
+    ],
+    "volume_db": -8.5,
+    "pitch_jitter": 0.04,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ambience.Insect.Bee": {
+    "files": [
+      "Ambience_Insect_Bee_01.wav",
+      "Ambience_Insect_Bee_02.wav",
+      "Ambience_Insect_Bee_03.wav"
+    ],
+    "volume_db": -21.5,
+    "pitch_jitter": 0.06,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Ambience.Coyote.Far": {
+    "files": [
+      "Ambience_Coyote_Far_01.wav",
+      "Ambience_Coyote_Far_02.wav",
+      "Ambience_Coyote_Far_03.wav"
+    ],
+    "volume_db": -10.0,
+    "pitch_jitter": 0.04,
+    "class": "Ambience",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Ambience.Thunder.Far": {
+    "files": [
+      "Ambience_Thunder_Far_01.wav",
+      "Ambience_Thunder_Far_02.wav",
+      "Ambience_Thunder_Far_03.wav"
+    ],
+    "volume_db": -22.5,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Music.RansomsRest.Explore": {
+    "files": [
+      "Music_RansomsRest_Explore_01.wav"
+    ],
+    "volume_db": -25.0,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Skyreach.Explore": {
+    "files": [
+      "Music_Skyreach_Explore_01.wav"
+    ],
+    "volume_db": -25.0,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Combat": {
+    "files": [
+      "Music_Combat_01.wav"
+    ],
+    "volume_db": -17.0,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Boss.Keeper": {
+    "files": [
+      "Music_Boss_Keeper_01.wav"
+    ],
+    "volume_db": -16.5,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Boss.Gravemother": {
+    "files": [
+      "Music_Boss_Gravemother_01.wav"
+    ],
+    "volume_db": -14.5,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": true,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Music.Sting.Elite": {
+    "files": [
+      "Music_Sting_Elite_01.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Music.Sting.Phase": {
+    "files": [
+      "Music_Sting_Phase_01.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Music.Sting.Victory": {
+    "files": [
+      "Music_Sting_Victory_01.wav"
+    ],
+    "volume_db": -21.5,
+    "pitch_jitter": 0.0,
+    "class": "Music",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Boss.Intro": {
+    "files": [
+      "Boss_Intro_01.wav"
+    ],
+    "volume_db": -15.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Boss.Phase": {
+    "files": [
+      "Boss_Phase_01.wav",
+      "Boss_Phase_02.wav"
+    ],
+    "volume_db": -14.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Boss.Stagger": {
+    "files": [
+      "Boss_Stagger_01.wav",
+      "Boss_Stagger_02.wav",
+      "Boss_Stagger_03.wav"
+    ],
+    "volume_db": -10.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Boss.Death": {
+    "files": [
+      "Boss_Death_01.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Boss.Loot.Burst": {
+    "files": [
+      "Boss_Loot_Burst_01.wav",
+      "Boss_Loot_Burst_02.wav"
+    ],
+    "volume_db": -6.0,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Loot.Pop": {
+    "files": [
+      "Boss_Loot_Pop_01.wav",
+      "Boss_Loot_Pop_02.wav",
+      "Boss_Loot_Pop_03.wav",
+      "Boss_Loot_Pop_04.wav"
+    ],
+    "volume_db": -12.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Boss.Gravemother.Roar": {
+    "files": [
+      "Boss_Gravemother_Roar_01.wav",
+      "Boss_Gravemother_Roar_02.wav"
+    ],
+    "volume_db": -13.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Gravemother.Slam": {
+    "files": [
+      "Boss_Gravemother_Slam_01.wav",
+      "Boss_Gravemother_Slam_02.wav",
+      "Boss_Gravemother_Slam_03.wav"
+    ],
+    "volume_db": -6.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Boss.Gravemother.Quake": {
+    "files": [
+      "Boss_Gravemother_Quake_01.wav",
+      "Boss_Gravemother_Quake_02.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Gravemother.Gurgle": {
+    "files": [
+      "Boss_Gravemother_Gurgle_01.wav",
+      "Boss_Gravemother_Gurgle_02.wav"
+    ],
+    "volume_db": -12.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Gravemother.Spit": {
+    "files": [
+      "Boss_Gravemother_Spit_01.wav",
+      "Boss_Gravemother_Spit_02.wav",
+      "Boss_Gravemother_Spit_03.wav"
+    ],
+    "volume_db": -6.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Boss.Gravemother.CrackBurn": {
+    "files": [
+      "Boss_Gravemother_CrackBurn_01.wav",
+      "Boss_Gravemother_CrackBurn_02.wav",
+      "Boss_Gravemother_CrackBurn_03.wav",
+      "Boss_Gravemother_CrackBurn_04.wav"
+    ],
+    "volume_db": -14.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Boss.Gravemother.Death": {
+    "files": [
+      "Boss_Gravemother_Death_01.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Abel.Intro": {
+    "files": [
+      "Boss_Abel_Intro_01.wav"
+    ],
+    "volume_db": -11.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Abel.Wail": {
+    "files": [
+      "Boss_Abel_Wail_01.wav",
+      "Boss_Abel_Wail_02.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Abel.LanternsOut": {
+    "files": [
+      "Boss_Abel_LanternsOut_01.wav"
+    ],
+    "volume_db": -14.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Abel.FogFlare": {
+    "files": [
+      "Boss_Abel_FogFlare_01.wav",
+      "Boss_Abel_FogFlare_02.wav"
+    ],
+    "volume_db": -12.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Abel.WindRise": {
+    "files": [
+      "Boss_Abel_WindRise_01.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Boss.Abel.Stagger": {
+    "files": [
+      "Boss_Abel_Stagger_01.wav",
+      "Boss_Abel_Stagger_02.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Abel.Death": {
+    "files": [
+      "Boss_Abel_Death_01.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
   }
 }

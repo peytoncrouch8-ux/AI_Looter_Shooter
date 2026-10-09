@@ -8,6 +8,7 @@
 #include "UI/Inventory/MissionsWidget.h"
 #include "UI/Menus/SettingsMenuWidget.h"
 #include "UI/HUD/HudCaptionWidget.h"
+#include "UI/HUD/HudControlHintWidget.h"
 #include "UI/HUD/HudMissionTrackerWidget.h"
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/World/StationBoardWidget.h"
@@ -71,6 +72,12 @@ void ALooterHUD::BeginPlay()
 	if (MissionTracker)
 	{
 		MissionTracker->AddToViewport(UHudMissionTrackerWidget::ViewportZOrder);
+	}
+	// The contextual control hint, above the tracker: it follows UControlHintSubsystem and the menus by itself.
+	ControlHintWidget = CreateWidget<UHudControlHintWidget>(PC, UHudControlHintWidget::StaticClass());
+	if (ControlHintWidget)
+	{
+		ControlHintWidget->AddToViewport(UHudControlHintWidget::ViewportZOrder);
 	}
 	InventoryWidget = CreateWidget<ULoadoutWidget>(PC, ULoadoutWidget::StaticClass());
 	BestiaryWidget = CreateWidget<UBestiaryWidget>(PC, UBestiaryWidget::StaticClass());
@@ -174,7 +181,7 @@ void ALooterHUD::HandlePausePressed()
 
 void ALooterHUD::HandleInventoryPressed()
 {
-	if (!bPauseMenuOpen && !bInventoryOpen && !bStationBoardOpen && !bBenchOpen)
+	if (!bPauseMenuOpen && !bInventoryOpen && !bStationBoardOpen && !bBenchOpen && !bNoticeBoardOpen)
 	{
 		OpenInventory();
 	}
@@ -392,6 +399,7 @@ void ALooterHUD::OpenPauseMenu()
 		CloseInventory();
 		CloseStationBoard();
 		CloseBench();
+		CloseNoticeBoard();
 	}
 	if (const APawn* Pawn = PC->GetPawn())
 	{

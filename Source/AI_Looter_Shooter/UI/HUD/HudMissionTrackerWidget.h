@@ -22,7 +22,8 @@ class UWidget;
  * A rising count of things pops (a count of seconds held doesn't); a done objective's chevron turns into a cyan tick and
  * its words dim (an objective is done when the objective or the step in the mission's parts moves on, never when only its
  * words change: a rebound key rewrites them in place), its step's section turns
- * cyan, and after DoneHoldSeconds the next objective slides in and its section turns orange. The tutorial's closing
+ * cyan, and after DoneHoldSeconds the next objective slides in and its section turns orange. Once every step is done a
+ * mission waiting for its turn-in shows "Turn in to <who>" under a full bar, ticked as it's turned in. The tutorial's closing
  * line (ShowClosingLine, from ATutorialDirector through ALooterHUD) shows as a last, ticked objective for its seconds of
  * play; then the next tracked mission slides in, or the tracker fades out. ALooterHUD makes it as a viewport widget of
  * its own, over the inventory's pages. Floating outlined text and solid shapes, no panels: only the step bar's track,
@@ -100,10 +101,17 @@ private:
 	void Present(const FMission& Mission);
 	/** The same objective, moved on: its count (popping as it rises), its hint, its step count. */
 	void UpdateInPlace(const FMission& Mission);
-	/** Ticks the objective shown and holds it for DoneHoldSeconds; bStepDone turns its step's section cyan too. */
-	void BeginFinish(bool bStepDone);
-	/** The tick's sound (HudMissionTrackerWidgetSound.cpp): a step's, or the mission's when its last step is done. */
-	void PlayFinishSound(bool bStepDone) const;
+	/**
+	 * Ticks the objective shown and holds it for DoneHoldSeconds; bStepDone turns its step's section cyan too. bMissionEnded:
+	 * the mission is over (gone from the list, or the tutorial's closing line follows), not just on to its next step or its
+	 * turn-in.
+	 */
+	void BeginFinish(bool bStepDone, bool bMissionEnded = false);
+	/**
+	 * The tick's sound (HudMissionTrackerWidgetSound.cpp): a step's chime (the last objective done before a turn-in too),
+	 * or the mission's fanfare as it ends, unless the mission-complete banner sounds it.
+	 */
+	void PlayFinishSound(bool bStepDone, bool bMissionEnded) const;
 	void ShowClosing();
 	/** A done objective or the closing line has shown long enough: what's next. */
 	void EndHold();

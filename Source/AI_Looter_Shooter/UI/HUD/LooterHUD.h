@@ -4,12 +4,15 @@
 #include "GameFramework/HUD.h"
 #include "LooterHUD.generated.h"
 
+class ANoticeBoard;
 class UBenchWidget;
 class UBestiaryWidget;
 class UHudCaptionWidget;
+class UHudControlHintWidget;
 class UHudMissionTrackerWidget;
 class ULoadoutWidget;
 class UMissionsWidget;
+class UNoticeBoardWidget;
 class UPlayerHUDWidget;
 class USettingsMenuWidget;
 class UStationBoardWidget;
@@ -81,8 +84,18 @@ public:
 
 	bool IsBenchOpen() const { return bBenchOpen; }
 
-	/** The inventory, the station board, the bench's screen or the pause menu is up (the gameplay HUD is hidden). */
-	bool IsMenuOpen() const { return bInventoryOpen || bPauseMenuOpen || bStationBoardOpen || bBenchOpen; }
+	/**
+	 * Opens a notice board's screen (UNoticeBoardWidget: its postings, to track or turn in) for Board, the mouse on it
+	 * (LooterHUDNoticeBoard.cpp). False when it can't (no player, the pause menu up).
+	 */
+	bool OpenNoticeBoard(ANoticeBoard* Board);
+
+	void CloseNoticeBoard();
+
+	bool IsNoticeBoardOpen() const { return bNoticeBoardOpen; }
+
+	/** The inventory, the station board, the bench's screen, a notice board or the pause menu is up (the gameplay HUD is hidden). */
+	bool IsMenuOpen() const { return bInventoryOpen || bPauseMenuOpen || bStationBoardOpen || bBenchOpen || bNoticeBoardOpen; }
 
 	/** The HUD of the local player behind Player (their pawn or controller), or null. */
 	static ALooterHUD* FindFor(const AActor* Player);
@@ -139,7 +152,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UHudMissionTrackerWidget> MissionTracker;
 
-	/** The inventory's first page (the loadout: your character with your guns, and the backpack). */
+	/** The inventory's first page (the loadout: your guns and the backpack as one list, the chosen gun on show and its card). */
 	UPROPERTY(Transient)
 	TObjectPtr<ULoadoutWidget> InventoryWidget;
 
@@ -165,8 +178,17 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UBenchWidget> BenchWidget;
 
+	/** A notice board's screen, made the first time a board is read. */
+	UPROPERTY(Transient)
+	TObjectPtr<UNoticeBoardWidget> NoticeBoardWidget;
+
+	/** The contextual control hint, a viewport widget of its own over the HUD (it steps aside under menus by itself). */
+	UPROPERTY(Transient)
+	TObjectPtr<UHudControlHintWidget> ControlHintWidget;
+
 	bool bInventoryOpen = false;
 	bool bPauseMenuOpen = false;
 	bool bStationBoardOpen = false;
 	bool bBenchOpen = false;
+	bool bNoticeBoardOpen = false;
 };

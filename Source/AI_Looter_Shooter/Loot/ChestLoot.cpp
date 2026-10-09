@@ -7,6 +7,7 @@
 #include "Areas/AreaDefinition.h"
 #include "Areas/AreaRulesSubsystem.h"
 #include "Loot/AmmoPickup.h"
+#include "Loot/LootFanfareSubsystem.h"
 #include "Loot/LootLibrary.h"
 #include "Loot/LootTable.h"
 #include "Progression/PlayerProgressionSubsystem.h"
@@ -128,8 +129,10 @@ void AChest::DropLoot()
 		const FTransform Spawn(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), From);
 		if (AWeaponBase* Gun = UWeaponRollLibrary::SpawnWeapon(this, Instance, Spawn))
 		{
-			// Loot like any other: it lands and settles, its beam and label with it, and a save keeps it.
+			// Loot like any other: it lands and settles, its beam and label with it, and a save keeps it. Its rarity is heard
+			// and seen as it lands.
 			Gun->Toss(Velocity);
+			ULootFanfareSubsystem::ExpectLanding(Gun);
 			DroppedLoot.Add(Gun);
 			Items.Add(FString::Printf(TEXT("%s %s"), *UEnum::GetDisplayValueAsText(Instance.Rarity).ToString(), *GetNameSafe(Instance.Definition)));
 		}

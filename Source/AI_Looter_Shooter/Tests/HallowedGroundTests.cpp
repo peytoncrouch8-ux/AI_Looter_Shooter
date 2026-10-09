@@ -115,7 +115,7 @@ bool FHallowedGroundMissionTest::RunTest(const FString& Parameters)
 {
 	// Main 4 as its asset has it: id exactly Main4 (Side 2 opens after it, Aldana's Ledger page is known after it), after
 	// Main 3 on Ransom's Rest; up to the chapel, the yard cleared (13), the bell rung (held), the Reliquary seen (its flash's
-	// event, the arrow on it), Aldana talked to; 30% of a level.
+	// event, the arrow on it); turned in to Aldana at the vestry door; 40 experience.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main4")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main4.DA_Mission_Main4"));
@@ -124,19 +124,18 @@ bool FHallowedGroundMissionTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("Main4, a main mission starting by itself on Ransom's Rest, after Main3"), Asset->GetMissionId() == MainFour
 				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Automatic && Asset->Area == FName(TEXT("RansomsRest"))
 				&& Asset->Prerequisites == TArray<FName>({ MainThree }));
-			TestEqual(TEXT("Five steps"), Asset->Steps.Num(), 5);
+			TestEqual(TEXT("Four steps"), Asset->Steps.Num(), MainFourSteps);
 			const UMissionReachObjective* Up = Cast<UMissionReachObjective>(Asset->GetObjective(0, 0));
 			const UMissionClearObjective* Yard = Cast<UMissionClearObjective>(Asset->GetObjective(1, 0));
 			const UMissionInteractObjective* Bell = Cast<UMissionInteractObjective>(Asset->GetObjective(2, 0));
 			const UMissionEventObjective* Sight = Cast<UMissionEventObjective>(Asset->GetObjective(3, 0));
-			const UMissionTalkObjective* Talk = Cast<UMissionTalkObjective>(Asset->GetObjective(4, 0));
 			TestTrue(TEXT("1: up to the Chapel of Saint Ada"), Up && Up->Place.Actor.ActorTag == ChapelPlace && Up->Place.Radius >= 1000.f);
 			TestTrue(TEXT("2: the chapel yard cleared, all thirteen"), Yard && Yard->SpawnerId == YardId && Yard->Count == 13);
 			TestTrue(TEXT("3: the chapel bell rung, held"), Bell && Bell->Target.ActorTag == AChapelBell::BellTag && Bell->bHold);
 			TestTrue(TEXT("4: the Reliquary seen: done at its flash's end, the arrow on it"), Sight && Sight->Event == AChapelReliquary::SightEvent
 				&& Sight->Waypoint == EMissionWaypoint::Actor && Sight->WaypointActor.ActorTag == AChapelReliquary::ReliquaryTag);
-			TestTrue(TEXT("5: Father Aldana at the vestry door"), Talk && Talk->SpeakerTag == AldanaTag);
-			TestEqual(TEXT("Its reward: 30% of a level"), Asset->Rewards.ExperienceShare, 0.3f);
+			TestTrue(TEXT("Turned in to Father Aldana at the vestry door"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == AldanaTag);
+			TestEqual(TEXT("Its reward: 40 experience"), Asset->Rewards.Experience, 40);
 		}
 	}
 	else
@@ -270,12 +269,15 @@ bool FHallowedGroundMissionTest::RunTest(const FString& Parameters)
 		&& Reliquary->GetEmberLocation().Z > Reliquary->GetEmberStart().Z + 50.0 && Runner->GetStep(MainFour) == 3);
 	Reliquary->Advance(1.1f);
 	Sight->Advance(1.1f);
-	TestTrue(TEXT("The flash over: talk to Father Aldana"), !Reliquary->IsFlashing() && !Sight->IsFlashing() && Runner->GetStep(MainFour) == 4);
+	TestTrue(TEXT("The flash over: talk to Father Aldana (its step past the last)"), !Reliquary->IsFlashing() && !Sight->IsFlashing()
+		&& Runner->GetStep(MainFour) == 4);
+	TestTrue(TEXT("...ready to turn in to him, the yard's grave still closed"), Runner->IsReadyToTurnIn(MainFour) && !Campaign.HasCompleted(MainFour)
+		&& !Grave->IsActive(Campaign));
 
-	// Aldana at the vestry door: the doc's words, and Main 4 is finished.
+	// Aldana at the vestry door: the doc's words, and Main 4 is turned in.
 	Captions->Update(30.f);
 	TestTrue(TEXT("Aldana talked to"), Aldana->SpeakerPoint->Talk(Player));
-	TestTrue(TEXT("Main 4 is finished"), Campaign.HasCompleted(MainFour) && !Runner->IsRunning(MainFour));
+	TestTrue(TEXT("Main 4 is turned in: finished"), Campaign.HasCompleted(MainFour) && !Runner->IsRunning(MainFour));
 	TestTrue(TEXT("...and the chapel yard is a respawn grave"), Grave->IsActive(Campaign) && Campaign.IsRespawnActive(YardGrave));
 	bool bSink = false;
 	for (int32 Line = 0; Line < 16 && !bSink && Captions->GetCurrent(); ++Line)

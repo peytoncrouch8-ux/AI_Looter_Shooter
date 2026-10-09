@@ -2,6 +2,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Progression/PlayerProgressionSubsystem.h"
 #include "Session/CampaignRecord.h"
 #include "AnimationRuntime.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -34,7 +35,10 @@ FBestiaryStats UBestiaryEntry::ReadStats() const
 		Stats.Level = Creature->Level;
 		Stats.Health *= Rank.HealthMultiplier;
 		Stats.AttackDamage = Creature->AttackDamage * Rank.DamageMultiplier;
-		Stats.XPReward = FMath::Max(0, FMath::RoundToInt32(Creature->XPReward * Rank.XPMultiplier));
+		// What a kill really gives a player of its level: the kill rules scale the creature's XPReward (0.4 of it since
+		// the pacing pass, 2026-10-08), so the page never promises more than the kill pays.
+		const int32 BaseXP = FMath::Max(0, FMath::RoundToInt32(Creature->XPReward * Rank.XPMultiplier));
+		Stats.XPReward = static_cast<int32>(UPlayerProgressionSubsystem::GetLevelRules().KillXP(BaseXP, Creature->Level, Creature->Level));
 		Stats.bAttacks = Creature->AttackDamage > 0.f;
 	}
 	return Stats;

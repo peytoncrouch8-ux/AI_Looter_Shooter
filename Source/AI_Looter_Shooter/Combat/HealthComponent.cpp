@@ -44,6 +44,7 @@ void UHealthComponent::HandleAnyDamage(AActor* DamagedActor, float Damage, const
 
 	const bool bCritical = DamageType && DamageType->IsA<UWeaponCritDamageType>();
 	LastDamageCauser = DamageCauser;
+	++HurtCount;
 	// Hurting something counts as meeting it (the bestiary's unknown pages); only the player's hits count.
 	UPlayerProgressionSubsystem::RecordEncounter(InstigatedBy, GetOwner());
 
@@ -135,6 +136,8 @@ float UHealthComponent::Drain(float Amount)
 		return 0.f;
 	}
 	Health -= Taken;
+	// A toll is a hurt for the wounds-that-close rule, or they would close the toll at once (a Hungry iron's reload).
+	++HurtCount;
 	OnHealthChanged.Broadcast(Health, MaxHealth);
 	return Taken;
 }

@@ -42,7 +42,8 @@ struct AI_LOOTER_SHOOTER_API FSpeakerTopic
  * open for it) or on a story character. It holds who speaks there and what they say: its Lines (or a line set), or what
  * suits the point in the story (Topics). A tap of the Interact key ("Talk") plays them as captions, cutting off whatever
  * was being said, and tells the missions: a Talk event about the actor it's on, which the talk objective waits for by
- * the actor's tag (Speaker_Delia). While its lines play it can't be talked to again.
+ * the actor's tag (Speaker_Delia), and which turns in a mission ready to turn in to them (its key then says "Turn in",
+ * and the mission's own turn-in lines are said, when it has any). While its lines play it can't be talked to again.
  *
  * It's an IInteractable, but the interaction component asks actors, not components: the actor it's on hands the Interact
  * key on to it (ASpeakerPoint for doors and windows, AStoryCharacter). It enters that actor among the level's interactables.

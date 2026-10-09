@@ -90,6 +90,9 @@ class Area:
         # scatterMap.steep), and it has the dry scrub (computed's "scrub": its mask, layers and points).
         self.steep = 'steep' in scatter
         self.scrub = self.data.get('scrub')
+        # The meadow layers' density and reach where an area asks for its own (layout.json scatter.layers: per layer, a
+        # candidate spacing in cm and a factor on the shared cull distances); every other area keeps the island's.
+        self.layers = layout.get('scatter', {}).get('layers', {})
         self.graph = level.get('scatterGraph', f'PCG_{name}Scatter')
         self.volume = level.get('scatterVolume', f'{name}Scatter')
         self.folder = level.get('folder', name)
@@ -553,6 +556,14 @@ class Scatter:
         return spawner
 
 
+def layer_settings(area, name, cell):
+    """A meadow layer's candidate spacing (cm) and its cull distances (a function of the shared one, cm) for an area:
+    layout.json scatter.layers.<name> may give "cell" and "cull" (a factor); without them the island's."""
+    own = area.layers.get(name, {})
+    factor = own.get('cull')
+    return own.get('cell', cell), (lambda cull: int(round(cull * factor))) if factor else (lambda cull: cull)
+
+
 def build_graph(area, mask, scrub_mask=None):
     path = f'{GRAPH_FOLDER}/{area.graph}'
     if unreal.EditorAssetLibrary.does_asset_exist(path):
@@ -616,17 +627,21 @@ def build_graph(area, mask, scrub_mask=None):
                                            entry(veg('Log_A'), 1, 8000, collide=True, shadow=True, wind=False)],
             scale=(0.8, 1.2), upright=False)
 
-    # Grass: a patch about every 0.8 m², tall grass among it, clover in the gaps.
-    grass, y = s.layer('Grass', 90.0, 'G', 0.12, dressing='solid')
-    s.spawn(grass, 'Grass', 11, y, [entry(veg('GrassClump_A'), 4, 4500, density_scaling=True),
-                                    entry(veg('GrassClump_B'), 3, 4500, density_scaling=True),
-                                    entry(veg('GrassClump_C'), 3, 5000, density_scaling=True),
-                                    entry(veg('TallGrass_A'), 2, 5500, density_scaling=True),
+    # Grass: a patch about every 0.8 m², tall grass among it, clover in the gaps. An area may set its own spacing and
+    # reach (layout.json scatter.layers.grass): Ransom's Rest's grass reaches farther, so its meadows don't turn to
+    # bare ground a few dozen meters out (2026-10-08).
+    grass_cell, grass_cull = layer_settings(area, 'grass', 90.0)
+    grass, y = s.layer('Grass', grass_cell, 'G', 0.12, dressing='solid')
+    s.spawn(grass, 'Grass', 11, y, [entry(veg('GrassClump_A'), 4, grass_cull(4500), density_scaling=True),
+                                    entry(veg('GrassClump_B'), 3, grass_cull(4500), density_scaling=True),
+                                    entry(veg('GrassClump_C'), 3, grass_cull(5000), density_scaling=True),
+                                    entry(veg('TallGrass_A'), 2, grass_cull(5500), density_scaling=True),
                                     entry(veg('Clover_A'), 1, 3500, density_scaling=True)],
             scale=(0.8, 1.25), upright=False, fit=45.0)
 
-    flowers, y = s.layer('Flowers', 230.0, 'B', 0.3, dressing='solid')
-    s.spawn(flowers, 'Flowers', 11, y, [entry(veg(n), 1, 4500, density_scaling=True)
+    flower_cell, flower_cull = layer_settings(area, 'flowers', 230.0)
+    flowers, y = s.layer('Flowers', flower_cell, 'B', 0.3, dressing='solid')
+    s.spawn(flowers, 'Flowers', 11, y, [entry(veg(n), 1, flower_cull(4500), density_scaling=True)
                                         for n in ('Flowers_Yellow', 'Flowers_White', 'Flowers_Purple')],
             scale=(0.85, 1.2), upright=False, fit=35.0)
 

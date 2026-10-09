@@ -42,6 +42,16 @@ struct AI_LOOTER_SHOOTER_API FMissionTrackerParts
 	bool bOverInventory = false;
 	/** Shown done, ticked: the tutorial's closing line. */
 	bool bDone = false;
+	/**
+	 * The line is the mission's turn-in ("Turn in to Delia"): every objective is done (Step is the step count) and talking
+	 * to the giver finishes it.
+	 */
+	bool bTurnIn = false;
+	/**
+	 * The mission's end is announced by the HUD's mission-complete banner, which sounds the fanfare (a main or side
+	 * mission): the tracker's own tick at its end stays quiet. Off for the tutorial's missions, whose tracker plays it.
+	 */
+	bool bAnnouncedEnd = false;
 
 	/** Every part the same, words compared exactly (case too). */
 	bool SameAs(const FMissionTrackerParts& Other) const;

@@ -122,7 +122,10 @@ namespace KeepersLanternTestWorld
 		return Mission;
 	}
 
-	/** Main 5 as the mission script makes it, in code: after Main 4, its four steps, 30% of a level. */
+	/** Father Aldana's tag: Main 5 is turned in to him, who sent Ellis to the Sink. */
+	inline const FName AldanaTag(TEXT("Speaker_Aldana"));
+
+	/** Main 5 as the mission script makes it, in code: after Main 4, its four steps, turned in to Aldana, 40 experience. */
 	inline UMissionDefinition* MakeMainFive(UObject* Outer)
 	{
 		UMissionDefinition* Mission = MissionTestWorld::NewMission(Outer, TEXT("Main5"), EMissionKind::Main, EMissionStart::Automatic, Valley);
@@ -131,7 +134,9 @@ namespace KeepersLanternTestWorld
 		{
 			AddStep(Mission, Step);
 		}
-		Mission->Rewards.ExperienceShare = 0.3f;
+		Mission->TurnIn.SpeakerTag = AldanaTag;
+		Mission->TurnIn.GiverName = FText::FromString(TEXT("Father Aldana"));
+		Mission->Rewards.Experience = 40;
 		return Mission;
 	}
 

@@ -400,17 +400,18 @@ namespace
 				TotalXP += OpenXP;
 				MissionKills += OpenWorldKillsEach;
 			}
-			const int64 Reward = MissionRewards::ExperienceFor(Mission->Rewards.ExperienceShare, LevelNow(), Rules.Curve);
+			// What turning it in gives: its fixed experience, or its share of the level reached.
+			const int64 Reward = MissionRewards::ExperienceOf(Mission->Rewards, LevelNow(), Rules.Curve);
 			TotalXP += Reward;
 			KillXP += MissionKillXP;
 			MissionXP += Reward;
 			Kills += MissionKills;
-			UE_LOG(LogLooter, Log, TEXT("  %-12s %-28s %5.1f kills %+7.0f XP   mission %+5lld XP (%.0f%% of a level)   -> level %.2f"),
+			UE_LOG(LogLooter, Log, TEXT("  %-12s %-28s %5.1f kills %+7.0f XP   turned in %+5lld XP   -> level %.2f"),
 				*Mission->GetMissionId().ToString(), *Mission->Title.ToString().Left(28), MissionKills, MissionKillXP, Reward,
-				Mission->Rewards.ExperienceShare * 100.f, LevelWithProgress(Rules.Curve, TotalXP));
+				LevelWithProgress(Rules.Curve, TotalXP));
 		}
-		UE_LOG(LogLooter, Log, TEXT("Looter.XP.Path: ends at level %.2f after %.0f kills: %.0f XP from kills, %.0f from missions (%.0f in all; level 9 takes %lld)."),
-			LevelWithProgress(Rules.Curve, TotalXP), Kills, KillXP, MissionXP, TotalXP, Rules.Curve.TotalXPToReach(9));
+		UE_LOG(LogLooter, Log, TEXT("Looter.XP.Path: ends at level %.2f after %.0f kills: %.0f XP from kills, %.0f from missions (%.0f in all; level 7 takes %lld)."),
+			LevelWithProgress(Rules.Curve, TotalXP), Kills, KillXP, MissionXP, TotalXP, Rules.Curve.TotalXPToReach(7));
 		if (LairCount > 0 || OffPathCount > 0)
 		{
 			UE_LOG(LogLooter, Log, TEXT("Looter.XP.Path: not counted: %d legendary lairs, and %d encounters of missions off this path."),

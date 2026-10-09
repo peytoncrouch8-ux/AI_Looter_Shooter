@@ -30,6 +30,9 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void Landed(const FHitResult& Hit) override;
 
+	/** Its gel's foot, round (SlimeCreatureBody.cpp). */
+	virtual FFootprint GetFootprint() const override;
+
 	// Crits: the core's hull, or a shot whose line runs on through the core.
 	virtual bool IsCriticalSpot(const FHitResult& Hit) const override;
 
@@ -69,6 +72,22 @@ public:
 	 */
 	static void StepSprings(FSquashSpring& SquashSpring, FVector& CoreLag, FVector& CoreLagSpeed, float DeltaSeconds);
 
+	/** The gel's half-width at its foot at rest (Slime.py: 60 cm, spread 1.3 at the foot), in the mesh's space. */
+	static constexpr float FootRadius = 78.f;
+
+	/** The most the body leans to lie along a slope (degrees): steeper ground leaves its foot a little off it. */
+	static constexpr float MaxGroundTilt = 32.f;
+
+	/**
+	 * The turn that lays a body standing up along ground with this normal (both in the same space), at most MaxGroundTilt:
+	 * its up turned onto the normal the shortest way.
+	 */
+	static FQuat TiltForGround(const FVector& GroundNormal);
+
+	/** The ground's tilt the body wears now (the mesh's space), and how far below the mesh's origin it sits (cm, the mesh's space). */
+	const FQuat& GetGroundTilt() const { return GroundTilt; }
+	float GetGroundDrop() const { return GroundDrop; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnAttackStarted() override;
@@ -93,6 +112,11 @@ private:
 	void TickHops(const FVector& Wanted, float DeltaSeconds);
 	void Launch();
 	void AnimateBody(float DeltaSeconds);
+	/**
+	 * On the ground (or lying dead), measures the ground under its foot when it has moved, and eases the body's tilt and
+	 * seat toward it; in the air, back upright over the capsule's foot (SlimeCreatureBody.cpp).
+	 */
+	void FitToGround(float DeltaSeconds);
 
 	FName BodyBone = TEXT("body");
 	FName CoreBone = TEXT("core");
@@ -119,4 +143,12 @@ private:
 	FVector CoreVelocity = FVector::ZeroVector;
 	float AnimTime = 0.f;
 	float IdlePhase = 0.f;
+
+	/** The body's fit to the ground (FitToGround): its tilt and drop now, where they head, and where it last measured. */
+	FQuat GroundTilt = FQuat::Identity;
+	float GroundDrop = 0.f;
+	FQuat GroundTiltTarget = FQuat::Identity;
+	float GroundDropTarget = 0.f;
+	FVector GroundMeasuredAt = FVector(1.0e9);
+	bool bGroundFitStarted = false;
 };

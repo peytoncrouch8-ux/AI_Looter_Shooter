@@ -21,11 +21,6 @@ namespace
 	/** After a hit the lost part lingers this long as the chip, then drains over this long, slowly at first. */
 	constexpr float ChipHoldSeconds = 0.45f;
 	constexpr float ChipDrainSeconds = 0.6f;
-	/** A heal's fill rises over this long; its shine sweeps along the fill over this long. */
-	constexpr float HealRiseSeconds = 0.5f;
-	constexpr float ShineSeconds = 0.75f;
-	/** The "+30" floats this long. */
-	constexpr float HealFloatSeconds = 1.2f;
 	/** A float starts this far below its spot and rises to this far above it (the mockup's, scaled with the frame). */
 	constexpr float FloatStartDrop = 6.8f;
 	constexpr float FloatRise = 18.7f;
@@ -70,6 +65,8 @@ void UHudPlayerFrameWidget::SetHealth(float Health, float MaxHealth, float Delta
 	}
 	const float Points = FMath::Max(Health, 0.f);
 	const float Fraction = MaxHealth > 0.f ? FMath::Clamp(Points / MaxHealth, 0.f, 1.f) : 0.f;
+	// The wounds are closing (HudPlayerFrameWidgetRegen.cpp): a rise that is theirs, a frame at a time, not a heal.
+	const bool bRegen = IsRegenerating();
 
 	if (LastHealth < 0.f || (LastHealth <= 0.f && Points > 0.f))
 	{
@@ -92,6 +89,10 @@ void UHudPlayerFrameWidget::SetHealth(float Health, float MaxHealth, float Delta
 			Portrait->PlayHit();
 		}
 	}
+	else if (bRegen && Points > LastHealth && ShowRegenGain(Points - LastHealth, Fraction, DeltaTime))
+	{
+		// Shown by ShowRegenGain: the fill follows as the health comes back.
+	}
 	else if (Points > LastHealth + HealthStep)
 	{
 		if (Fraction > LastFraction + FractionStep)
@@ -112,6 +113,12 @@ void UHudPlayerFrameWidget::SetHealth(float Health, float MaxHealth, float Delta
 				if (ShineTime >= ShineSeconds * 0.5f)
 				{
 					ShineTime = 0.f;
+				}
+				// A heal's shine is the full one, even over a regeneration's gentle sweep still going.
+				ShineSpeed = 1.f;
+				if (Shine)
+				{
+					Shine->SetRenderOpacity(1.f);
 				}
 			}
 			Activity = ActivityHoldSeconds;
@@ -134,6 +141,12 @@ void UHudPlayerFrameWidget::SetHealth(float Health, float MaxHealth, float Delta
 		FillTo = Fraction;
 		RiseTime = HealRiseSeconds;
 	}
+	// A regeneration that has just stopped (full health, a hit, a scene): its total rises once, if it filled a real wound.
+	if (bRegenShown && !bRegen)
+	{
+		EndRegenRun(Fraction, MaxHealth);
+	}
+	bRegenShown = bRegen;
 	LastHealth = Points;
 	LastFraction = Fraction;
 
@@ -175,7 +188,7 @@ void UHudPlayerFrameWidget::SetHealth(float Health, float MaxHealth, float Delta
 
 	if (ShineTime < ShineSeconds)
 	{
-		ShineTime += DeltaTime;
+		ShineTime += DeltaTime * ShineSpeed;
 		PaintShine(ShineTime / ShineSeconds, FillShown);
 	}
 	if (HealFloatTime > 0.f)
@@ -208,6 +221,11 @@ void UHudPlayerFrameWidget::SnapHealth(float Fraction)
 	PaintShine(1.f, Fraction);
 	HealFloatTime = 0.f;
 	HealFloat->SetVisibility(ESlateVisibility::Hidden);
+	// No regeneration run goes on across a respawn or a first sight.
+	RegenGained = 0.f;
+	bRegenShown = false;
+	RegenShineWait = 0.f;
+	ShineSpeed = 1.f;
 }
 
 void UHudPlayerFrameWidget::ShowLow(bool bLow)

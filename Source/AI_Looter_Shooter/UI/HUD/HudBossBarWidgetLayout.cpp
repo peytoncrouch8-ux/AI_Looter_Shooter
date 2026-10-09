@@ -450,8 +450,10 @@ void UHudBossBarWidget::ApplyFill()
 		return;
 	}
 	// In half pixels, so a draining chip only repaints when its end visibly moves. An empty one hides (nothing to draw).
-	const float FillWidth = FMath::RoundToFloat(BossTrackWidth * Fraction * 2.f) * 0.5f;
-	const float ChipWidth = FMath::RoundToFloat(BossTrackWidth * ChipFraction * 2.f) * 0.5f;
+	// The intro runs both up from empty.
+	const float Sweep = GetIntroSweep();
+	const float FillWidth = FMath::RoundToFloat(BossTrackWidth * Fraction * Sweep * 2.f) * 0.5f;
+	const float ChipWidth = FMath::RoundToFloat(BossTrackWidth * ChipFraction * Sweep * 2.f) * 0.5f;
 	if (FillWidth != ShownFillWidth)
 	{
 		ShownFillWidth = FillWidth;
@@ -477,11 +479,18 @@ void UHudBossBarWidget::ApplyFill()
 		return;
 	}
 	ShownLitTicks = LitTicks;
+	ColorTicks();
+}
+
+void UHudBossBarWidget::ColorTicks()
+{
+	// Dark while the health left is above it, lit once its phase is reached, orange while a new phase flashes.
+	const FLinearColor Passed = FMath::Lerp(Color::Text(), Color::Accent(), FMath::Clamp(BarFlash, 0.f, 1.f));
 	for (int32 Index = 0; Index < TickImages.Num() && Index < TickShares.Num(); ++Index)
 	{
 		if (UImage* Tick = TickImages[Index])
 		{
-			Tick->SetColorAndOpacity(TickShares[Index] < Fraction ? Color::Ink() : Color::Text());
+			Tick->SetColorAndOpacity(TickShares[Index] < Fraction ? Color::Ink() : Passed);
 		}
 	}
 }

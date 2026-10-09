@@ -375,10 +375,14 @@ UMissionsWidget::FCard UMissionsWidget::MakeMissionCard(int32 Index)
 	WordsSlot->SetVerticalAlignment(VAlign_Center);
 	WordsSlot->SetPadding(FMargin(12.f, 0.f, 8.f, 0.f));
 
-	// On the right: how far along a running one is, or a tick for a finished one.
+	// On the right: how far along a running one is, "Turn in" for one waiting for its giver, or a tick for a finished one.
 	if (Status == EMissionStatus::Completed)
 	{
 		Row->AddChildToHorizontalBox(MakeImage(WidgetTree, DoneBrush))->SetVerticalAlignment(VAlign_Center);
+	}
+	else if (MissionRunner && MissionRunner->IsReadyToTurnIn(Mission.GetMissionId()))
+	{
+		Row->AddChildToHorizontalBox(Label(WidgetTree, TEXT("Turn in"), 9, Color::Accent(), 150))->SetVerticalAlignment(VAlign_Center);
 	}
 	else if (MissionRunner && MissionRunner->IsRunning(Mission.GetMissionId()))
 	{

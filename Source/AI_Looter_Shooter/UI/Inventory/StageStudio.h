@@ -10,15 +10,16 @@ class USceneComponent;
 class UTextureRenderTarget2D;
 
 /**
- * What the off-screen stands share (the loadout's stand-in, the bestiary's model, the gunsmith's bench's gun): a spot far
- * outside any level, a camera that renders only its own actor into a picture the screen shows, and studio lights on
+ * What the off-screen stands share (the loadout's showcase gun, the bestiary's model, the gunsmith's bench's gun): a spot
+ * far outside any level, a camera that renders only its own actor into a picture the screen shows, and studio lights on
  * lighting channel 1 that light nothing else.
  */
 namespace StageStudio
 {
 	/**
 	 * Far outside any level, so nothing there shadows or lights a stand, and the minimap's top-down bake never sees it. Each
-	 * stand has its own index: 0 the loadout's, 1 the bestiary's, 2 the bench's.
+	 * stand has its own index: 0 the loadout's character stand-in (ALoadoutStage, not shown since the 2026-10-08 redesign),
+	 * 1 the bestiary's, 2 the bench's, 3 the loadout's showcase gun (ALoadoutGunStage).
 	 */
 	AI_LOOTER_SHOOTER_API FVector Location(int32 StandIndex);
 

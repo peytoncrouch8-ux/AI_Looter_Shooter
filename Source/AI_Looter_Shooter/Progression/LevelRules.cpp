@@ -37,7 +37,8 @@ int64 FLevelRules::KillXP(int32 BaseXP, int32 EnemyLevel, int32 PlayerLevel) con
 		return 0;
 	}
 	// A shrinking growth would make tougher enemies worth less; never below flat.
-	const double Grown = BaseXP * FMath::Pow(FMath::Max(KillXPGrowth, 1.0), static_cast<double>(FMath::Max(EnemyLevel, 1) - 1));
+	const double Grown = BaseXP * FMath::Max(KillXPScale, 0.0)
+		* FMath::Pow(FMath::Max(KillXPGrowth, 1.0), static_cast<double>(FMath::Max(EnemyLevel, 1) - 1));
 	const double Earned = FMath::Min(Grown * KillXPShare(EnemyLevel, PlayerLevel), MaxKillXP);
 	return FMath::Max<int64>(FMath::RoundToInt64(Earned), 1);
 }

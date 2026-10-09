@@ -1,91 +1,41 @@
 // ATutorialDirector: its built-in steps as a mission (what DA_Mission_Tutorial holds).
 
 #include "Tutorial/TutorialDirector.h"
-#include "Combat/TargetDummy.h"
-#include "Creatures/CreatureBase.h"
-#include "Creatures/SpiderCreature.h"
 #include "Loot/WeaponRack.h"
-#include "Missions/MissionCombatObjectives.h"
 #include "Missions/MissionDefinition.h"
-#include "Missions/MissionPlaceObjectives.h"
+#include "Missions/MissionEventObjectives.h"
 #include "Missions/MissionPlayerObjectives.h"
+#include "World/NoticeBoard.h"
 #include "UObject/Package.h"
 
 namespace
 {
-	/** The weapon rack, where the road to the village leads and the first rifle lies. */
-	FMissionActorFilter WeaponRack()
-	{
-		FMissionActorFilter Rack;
-		Rack.ActorClass = AWeaponRack::StaticClass();
-		return Rack;
-	}
-
-	/** The objective that finishes a step with this goal, pointing where the tutorial has always pointed. */
+	/** The objective that finishes a step with this goal, and where its arrow points. */
 	UMissionObjective* MakeObjective(UObject* Outer, const FTutorialStep& Step)
 	{
 		switch (Step.Goal)
 		{
-		case ETutorialGoal::Move:
-		{
-			// Moving at all; the road leads to the village and its gun rack, so the arrow already points there.
-			UMissionTravelObjective* Travel = NewObject<UMissionTravelObjective>(Outer);
-			Travel->Distance = Step.Amount;
-			Travel->Waypoint = EMissionWaypoint::Actor;
-			Travel->WaypointActor = WeaponRack();
-			return Travel;
-		}
-		case ETutorialGoal::ReachRack:
-		{
-			// No rack in the level: nothing to walk to, so it passes.
-			UMissionReachObjective* Reach = NewObject<UMissionReachObjective>(Outer);
-			Reach->Place.Actor = WeaponRack();
-			Reach->Place.Radius = Step.Amount;
-			Reach->Place.bIgnoreHeight = true;
-			Reach->bPassWithoutTargets = true;
-			return Reach;
-		}
 		case ETutorialGoal::HoldWeapon:
 		{
-			// The rifle itself while it lies on the rack; once it's gone (taken, restocking), the rack.
+			// Carrying a gun; the arrow on the rifle while it lies on the rack (the rack once it's gone), which is also where
+			// the road from the farm leads.
 			UMissionCollectObjective* Collect = NewObject<UMissionCollectObjective>(Outer);
 			Collect->What = EMissionCollect::Weapons;
 			Collect->Count = FMath::Max(1, FMath::RoundToInt32(Step.Amount));
 			Collect->Waypoint = EMissionWaypoint::Actor;
-			Collect->WaypointActor = WeaponRack();
+			Collect->WaypointActor.ActorClass = AWeaponRack::StaticClass();
 			return Collect;
 		}
-		case ETutorialGoal::HitDummies:
+		case ETutorialGoal::ReadBoard:
 		{
-			// The middle of the training ground, not one dummy: any of them counts. No dummies: it passes. The tracker counts
-			// the hits ("2 / 5").
-			UMissionHitObjective* Hit = NewObject<UMissionHitObjective>(Outer);
-			Hit->Target.ActorClass = ATargetDummy::StaticClass();
-			Hit->Count = FMath::Max(1, FMath::RoundToInt32(Step.Amount));
-			Hit->bPlayerHitsOnly = true;
-			Hit->bPassWithoutTargets = true;
-			Hit->Waypoint = EMissionWaypoint::TargetsCenter;
-			return Hit;
-		}
-		case ETutorialGoal::KillCreatures:
-		{
-			// The step asks for spiders, so the nearest one; any creature counts, so with no spider left, the nearest of
-			// those. No creatures: it passes. The tracker counts the kills ("1 / 2").
-			UMissionKillObjective* Kill = NewObject<UMissionKillObjective>(Outer);
-			Kill->Target.ActorClass = ACreatureBase::StaticClass();
-			Kill->Count = FMath::Max(1, FMath::RoundToInt32(Step.Amount));
-			Kill->bPlayerKillsOnly = true;
-			Kill->bPassWithoutTargets = true;
-			Kill->Waypoint = EMissionWaypoint::Actor;
-			Kill->WaypointActor.ActorClass = ASpiderCreature::StaticClass();
-			return Kill;
-		}
-		case ETutorialGoal::OpenInventory:
-		{
-			UMissionOpenPageObjective* Open = NewObject<UMissionOpenPageObjective>(Outer);
-			Open->Page = EMissionPage::Any;
-			Open->Waypoint = EMissionWaypoint::None;
-			return Open;
+			// The board tells the missions it was read; the arrow on it. One read: no count on the tracker.
+			UMissionEventObjective* Read = NewObject<UMissionEventObjective>(Outer);
+			Read->Event = ANoticeBoard::ReadEvent;
+			Read->Count = FMath::Max(1, FMath::RoundToInt32(Step.Amount));
+			Read->bShowCount = false;
+			Read->Waypoint = EMissionWaypoint::Actor;
+			Read->WaypointActor.ActorClass = ANoticeBoard::StaticClass();
+			return Read;
 		}
 		}
 		return nullptr;
@@ -97,10 +47,12 @@ UMissionDefinition* ATutorialDirector::MakeBuiltInMission(UObject* Outer) const
 	UMissionDefinition* Mission = NewObject<UMissionDefinition>(Outer ? Outer : GetTransientPackage(), NAME_None, RF_Transient);
 	Mission->Id = MissionId;
 	Mission->Title = FText::FromString(MissionTitle);
-	Mission->Summary = FText::FromString(TEXT("Learn to move, fight and loot on Skyreach."));
+	Mission->Summary = FText::FromString(TEXT("Find yourself a gun, then see what the town's notice board has going."));
 	Mission->Kind = EMissionKind::Tutorial;
 	Mission->Area = TEXT("Skyreach");
 	Mission->Start = EMissionStart::Manual;
+	// Finished by its last step: the postings it puts up are what's turned in.
+	Mission->TurnIn.bAutomatic = true;
 	for (const FTutorialStep& Step : Steps)
 	{
 		UMissionObjective* Objective = MakeObjective(Mission, Step);
@@ -108,7 +60,7 @@ UMissionDefinition* ATutorialDirector::MakeBuiltInMission(UObject* Outer) const
 		{
 			continue;
 		}
-		// The full sentence for the Missions page; the short line and the key hint for the HUD's tracker.
+		// The full sentence for the Missions page; the short line (and a key hint, when a step has one) for the HUD's tracker.
 		Objective->Text = FText::FromString(Step.Text);
 		Objective->ShortText = FText::FromString(Step.ShortText);
 		Objective->HintAction = Step.HintAction;

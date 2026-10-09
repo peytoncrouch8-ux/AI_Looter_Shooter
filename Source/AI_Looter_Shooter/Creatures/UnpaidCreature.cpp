@@ -67,40 +67,6 @@ namespace
 	}
 }
 
-FUnpaidArmBones::FUnpaidArmBones(const TCHAR* Side)
-	: UpperArm(*FString::Printf(TEXT("upperarm_%s"), Side))
-	, LowerArm(*FString::Printf(TEXT("lowerarm_%s"), Side))
-	, Hand(*FString::Printf(TEXT("hand_%s"), Side))
-{
-	for (const TCHAR* Finger : { TEXT("thumb"), TEXT("index"), TEXT("middle"), TEXT("ring"), TEXT("pinky") })
-	{
-		Fingers.Emplace(*FString::Printf(TEXT("%s_01_%s"), Finger, Side));
-	}
-}
-
-FUnpaidRigBones::FUnpaidRigBones()
-	: Pelvis(TEXT("pelvis"))
-	, Spine(TEXT("spine_01"))
-	, Chest(TEXT("spine_02"))
-	, Coal(TEXT("coal"))
-	, Neck(TEXT("neck"))
-	, Head(TEXT("head"))
-	, Jaw(TEXT("jaw"))
-	, Hat(TEXT("hat"))
-	, LeftArm(TEXT("l"))
-	, RightArm(TEXT("r"))
-{
-	for (int32 Link = 1; Link <= 5; ++Link)
-	{
-		Shroud.Emplace(*FString::Printf(TEXT("tail_%02d"), Link));
-	}
-	for (int32 Link = 1; Link <= 2; ++Link)
-	{
-		LeftStrip.Emplace(*FString::Printf(TEXT("tail_l_%02d"), Link));
-		RightStrip.Emplace(*FString::Printf(TEXT("tail_r_%02d"), Link));
-	}
-}
-
 AUnpaidCreature::AUnpaidCreature()
 {
 	DisplayName = FText::FromString(TEXT("Unpaid"));
@@ -323,6 +289,16 @@ void AUnpaidCreature::OnRankChanged()
 // The coal
 // ---------------------------------------------------------------------------
 
+ACreatureBase::FFootprint AUnpaidCreature::GetFootprint() const
+{
+	// Unpaid.py: its shoulders and arms 25 cm either side, its shroud's top 45 cm behind its middle.
+	FFootprint Footprint;
+	Footprint.Front = 8.f;
+	Footprint.Back = -30.f;
+	Footprint.Radius = CapsuleRadius;
+	return Footprint;
+}
+
 bool AUnpaidCreature::IsCoalShotBone(FName Bone) const
 {
 	// The coal shows through the chest: a shot that lands on an arm, a hand, the head or the shroud has something in the way.
@@ -424,9 +400,9 @@ void AUnpaidCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 	{
 		return;
 	}
-	// A flinch away from the hit; a shot on the coal makes it flare.
-	Flinch = bCritical ? 1.f : 0.6f;
+	// A flinch away from the hit, its arms flung the other way (UnpaidCreatureArms.cpp); a shot on the coal makes it flare.
 	FlinchAway = GetActorRotation().UnrotateVector(GetActorLocation() - HitLocation).GetSafeNormal();
+	ReactToHit(bCritical);
 	if (bCritical)
 	{
 		Heat = CritFlare;
@@ -464,6 +440,13 @@ void AUnpaidCreature::OnRespawned()
 	{
 		Chain.Settle();
 	}
+	// Back still: no flinch, its arms at rest on their springs.
+	Flinch = FlinchSpeed = FlinchKick = 0.f;
+	for (FArmSway& Sway : ArmSway)
+	{
+		Sway = FArmSway();
+	}
+	LastLocalVelocity = FVector::ZeroVector;
 	bPoseStarted = false;
 	ApplyLook(true);
 	if (bRigReady)

@@ -73,6 +73,12 @@ namespace
 	 * as the view drops or rises and settles after, which is the weight of a stance change without a jolt.
 	 */
 	constexpr float EyeKickCoupling = 0.1f;
+	/**
+	 * The climbing pose (a mantle, or 0.6 of it in a vault): the gun drops and turns in, out of the hands' way, so the
+	 * climb reads without an animation and the muzzle never pokes into the ledge.
+	 */
+	const FVector ClimbPoseOffset(-3.f, 2.f, -9.f);
+	const FRotator ClimbPoseRotation(-14.f, 8.f, 14.f);
 }
 
 void UPlayerLocomotionComponent::RefreshBodyTransform()
@@ -101,7 +107,7 @@ float UPlayerLocomotionComponent::GetViewLowering() const
 	{
 		return CrouchAlpha;
 	}
-	return (StandingEye - EyeHeight.GetValue()) / CrouchDrop;
+	return (StandingEye - GetEyeHeight()) / CrouchDrop;
 }
 
 void UPlayerLocomotionComponent::UpdateCamera(float DeltaTime)
@@ -144,43 +150,54 @@ void UPlayerLocomotionComponent::UpdateCamera(float DeltaTime)
 		StandingEye = Natural;
 	}
 
-	// Where the eye heads: down to the slide's height while it holds its speed, back up to the crouch's as it eases out,
-	// the crouch's while crouched, else standing. Heights are the full-size body's, shrunk by the character's scale.
-	const float Crouched = GetCrouchedHeadHeight() * Scale;
-	float Target = StandingEye;
-	float Seconds = StandEyeSeconds;
-	if (Slide.IsActive())
+	if (Traversal.IsActive() && bHaveEye)
 	{
-		Target = Slide.IsEasingOut() ? Crouched : Crouched - SlideEyeDrop * Scale;
-		Seconds = Slide.IsEasingOut() ? SlideRiseSeconds : SlideDropSeconds;
+		// Through a mantle or vault the eye rides its own world path (FPlayerTraversal), smooth however sharply the capsule
+		// hops under it: its height over the feet is whatever that leaves. Its own curve takes over again as the move ends.
+		TraversalEyeHeight = Traversal.GetEyeZ() - static_cast<float>(Feet);
+		PendingFeetJump = 0.f;
 	}
-	else if (Owner->bIsCrouched)
+	else
 	{
-		Target = Crouched;
-		Seconds = CrouchEyeSeconds;
+		// Where the eye heads: down to the slide's height while it holds its speed, back up to the crouch's as it eases out,
+		// the crouch's while crouched, else standing. Heights are the full-size body's, shrunk by the character's scale.
+		const float Crouched = GetCrouchedHeadHeight() * Scale;
+		float Target = StandingEye;
+		float Seconds = StandEyeSeconds;
+		if (Slide.IsActive())
+		{
+			Target = Slide.IsEasingOut() ? Crouched : Crouched - SlideEyeDrop * Scale;
+			Seconds = Slide.IsEasingOut() ? SlideRiseSeconds : SlideDropSeconds;
+		}
+		else if (Owner->bIsCrouched)
+		{
+			Target = Crouched;
+			Seconds = CrouchEyeSeconds;
+		}
+		if (!bHaveEye)
+		{
+			EyeHeight.Reset(Target);
+			bHaveEye = true;
+		}
+		// The standing height is re-measured all the time: a drift of a few millimetres doesn't start a new move.
+		if (!FMath::IsNearlyEqual(Target, EyeHeight.GetTarget(), 0.25f))
+		{
+			EyeHeight.SetTarget(Target, Seconds, MaxEyeAcceleration);
+		}
+		if (!FMath::IsNearlyZero(PendingFeetJump, 0.01f))
+		{
+			EyeHeight.Shift(-PendingFeetJump, FeetJumpSeconds, MaxEyeAcceleration);
+		}
+		PendingFeetJump = 0.f;
+		EyeHeight.Advance(Dt);
 	}
-	if (!bHaveEye)
-	{
-		EyeHeight.Reset(Target);
-		bHaveEye = true;
-	}
-	// The standing height is re-measured all the time: a drift of a few millimetres doesn't start a new move.
-	if (!FMath::IsNearlyEqual(Target, EyeHeight.GetTarget(), 0.25f))
-	{
-		EyeHeight.SetTarget(Target, Seconds, MaxEyeAcceleration);
-	}
-	if (!FMath::IsNearlyZero(PendingFeetJump, 0.01f))
-	{
-		EyeHeight.Shift(-PendingFeetJump, FeetJumpSeconds, MaxEyeAcceleration);
-	}
-	PendingFeetJump = 0.f;
-	EyeHeight.Advance(Dt);
 
 	// Lower the rig (the arms the camera rides, or the camera itself) so the camera sits at the eye's height. The drop is
 	// in world cm, scaled into the rig's parent's space. Every height the eye heads for is under the capsule's top (the
 	// crouch's keeps CrouchHeadClearance), so a low ceiling the capsule fits under never cuts the view; on its way down
-	// into a crouch it's where the standing capsule just was, which was clear.
-	const FVector Wanted = EyeRigBaseLocation - FVector(0.f, 0.f, (Natural - EyeHeight.GetValue()) / ParentScale);
+	// into a crouch it's where the standing capsule just was, which was clear. (A traversal's eye stays under the top too:
+	// its plan checks it.)
+	const FVector Wanted = EyeRigBaseLocation - FVector(0.f, 0.f, (Natural - GetEyeHeight()) / ParentScale);
 	if (!Rig->GetRelativeLocation().Equals(Wanted, 0.01f))
 	{
 		Rig->SetRelativeLocation(Wanted);
@@ -228,8 +245,10 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	}
 	bWasFalling = bFalling;
 	// The eye's own easing pushes it too: dropping into a crouch or a slide, the gun lags a touch high and settles; rising,
-	// a touch low. (The eye's acceleration never jumps, so neither does this.)
-	KickVelocity -= EyeHeight.GetAcceleration() * EyeKickCoupling * Dt;
+	// a touch low; heaved up a ledge, it lags low and swings up over the top. (The eye's acceleration never jumps, so
+	// neither does this.)
+	const float EyeAcceleration = Traversal.IsActive() ? Traversal.GetEyeAcceleration() : EyeHeight.GetAcceleration();
+	KickVelocity -= EyeAcceleration * EyeKickCoupling * Dt;
 	KickVelocity += (-KickStiffness * KickOffset - KickDamping * KickVelocity) * Dt;
 	KickOffset += KickVelocity * Dt;
 
@@ -273,8 +292,8 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	Offset.Y += LookSway.X * 0.35f;
 	Offset.Z += LookSway.Y * 0.25f;
 
-	Offset += SprintPoseOffset * Sprint + CrouchPoseOffset * Crouch;
-	Rotation += SprintPoseRotation * Sprint;
+	Offset += SprintPoseOffset * Sprint + CrouchPoseOffset * Crouch + ClimbPoseOffset * TraversalAlpha;
+	Rotation += SprintPoseRotation * Sprint + ClimbPoseRotation * TraversalAlpha;
 	Rotation.Roll += CrouchPoseRoll * Crouch;
 
 	Offset.Z += KickOffset;

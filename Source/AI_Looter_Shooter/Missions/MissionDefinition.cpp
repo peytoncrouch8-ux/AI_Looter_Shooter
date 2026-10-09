@@ -24,6 +24,32 @@ const UMissionObjective* UMissionDefinition::GetObjective(int32 StepIndex, int32
 	return Steps.IsValidIndex(StepIndex) && Steps[StepIndex].Objectives.IsValidIndex(Index) ? Steps[StepIndex].Objectives[Index].Get() : nullptr;
 }
 
+FText UMissionDefinition::GetGiverName() const
+{
+	if (!TurnIn.GiverName.IsEmpty())
+	{
+		return TurnIn.GiverName;
+	}
+	if (TurnIn.SpeakerTag.IsNone())
+	{
+		return FText::GetEmpty();
+	}
+	// Speakers are tagged Speaker_<Name>, as the talk objective reads them ("Talk to Delia").
+	FString Name = TurnIn.SpeakerTag.ToString();
+	Name.RemoveFromStart(TEXT("Speaker_"));
+	return FText::FromString(FName::NameToDisplayString(Name, /*bIsBool*/ false));
+}
+
+FString UMissionDefinition::GetTurnInShortText() const
+{
+	return FText::Format(LOCTEXT("TurnInShort", "Turn in to {0}"), GetGiverName()).ToString();
+}
+
+FString UMissionDefinition::GetTurnInText() const
+{
+	return FText::Format(LOCTEXT("TurnInFull", "Ready to turn in: talk to {0}"), GetGiverName()).ToString();
+}
+
 bool UMissionDefinition::IsNamed(const FString& Words) const
 {
 	FString Asked = Words.TrimStartAndEnd();

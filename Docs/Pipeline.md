@@ -48,6 +48,13 @@ where the work stands.
     `<folder>_Import`, for `Looter.ImportModels`.
   - `Tools/Unreal/open_clean.py [map]`: collects garbage, then loads a map from disk.
   - `Tools\winshot.ps1 <handle>`: captures a window with PrintWindow; use it on a Save Content dialog.
+  - `Tools\dialogclick.ps1 <handle> <x> <y>`: clicks a point in that dialog, in winshot's pixels, only if the dialog
+    really came to the front (Save Content's Don't Save is 493 502; a one-line Message's OK is 535 127).
+  - `Tools\menushots.ps1 [-Label]`: photographs the inventory through its states with a realistic loadout;
+    `Tools\castshots.ps1 [-Tag]`: every creature and character in its states from three angles, with `numbers.csv`
+    (feet in the ground, limbs through bodies, sliding feet, pops as a change of world velocity per 60 fps frame) and a
+    `past_mark` column. Dead bodies and falling slimes aren't sampled, and a limb's 30% nearest its joint is excused
+    against the part it hangs from. Still read the pictures before trusting a number.
   - `Tools/Unreal/pie_check.py`, `path_probe.py` and `width_probe.py`: described below.
 - **Briefs that worked:** give the agent the user's exact words, the files it owns, the files it must not touch, the
   run order Main will use, and what to report. Say "edit with the Edit/Write tools only" (a PowerShell `-replace` once
@@ -117,7 +124,17 @@ where the work stands.
   forest road until 2026-10-08). The bridge's one flagged spot on the keeper's path is the step onto its deck.
 - **Gameplay pieces from the layout's `gameplay` block** need no generator run (it's read straight from `layout.json`):
   the jetty, landings, posters, and the gunsmith's benches (`gameplay.benches`, `build_area_benches.py`). A
-  `build_area.py <Area> gameplay` places them again.
+  `build_area.py <Area> gameplay` places them again. Also from it (2026-10-09):
+  - the encounters between the story's fights (`gameplay.encounters`, `build_area_camps.py`): camps with a Supply
+    Crate (`CampCache_<id>`), patrols on a road, ambushes that rise or drop when the player walks in. Each waits for a
+    story step and keeps off the safe zones and every scripted fight's ground;
+  - Skyreach's notice board (`build_area_board.py`): the practice postings' board on the town's NoticeBoard piece and
+    the lookout's marker.
+- **Ambient life** (`build_area_fauna.py`, run at the end of a full build or on its own): bird perches traced on fence
+  rails, roofs, graves and dead limbs (crows 15 m clear of Hob), insect zones from flowers, orchards and water, tumbleweed
+  lanes, dust devil spots, washing on laundry lines. All of it is derived from the built level, so re-run it after
+  dressing changes. `UFaunaSubsystem` updates it (nothing ticks on its own); `Looter.Fauna 0/1`, `Looter.Fauna.Stats`.
+- **Ambient sound emitters** (`build_area_sound.py`, in the full build): creeks, ponds, falls, open edges, Main Street.
 
 ## The tutorial island and the older levels
 

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Story/StoryLine.h"
 #include "Weapons/WeaponTypes.h"
 #include "MissionDefinition.generated.h"
 
@@ -43,6 +44,44 @@ struct AI_LOOTER_SHOOTER_API FMissionStep
 	TArray<TObjectPtr<UMissionObjective>> Objectives;
 };
 
+/**
+ * How a mission whose objectives are all done is finished. Borderlands' way: it's turned in to someone (the one who gave
+ * it, or who it's for), and only then are its rewards given. Until then it's "ready to turn in": the tracker says "Turn in
+ * to <who>" with its arrow on them, and a session saves it so.
+ */
+USTRUCT(BlueprintType)
+struct AI_LOOTER_SHOOTER_API FMissionTurnIn
+{
+	GENERATED_BODY()
+
+	/**
+	 * It finishes by itself the moment its last objective is done (Skyreach's tutorial and skiff, the test mission, a boss
+	 * fight that ends in its own scene): no one to turn it in to.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Turn-in")
+	bool bAutomatic = false;
+
+	/**
+	 * Who it's turned in to, by the tag their speaker point's actor carries (Speaker_Delia, Speaker_Tilly): talking to them
+	 * there turns it in, and the tracker's arrow and the minimap point at them meanwhile. When the last objective would be
+	 * talking to them, that talk is the turn-in instead: the steps end one earlier.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Turn-in", meta = (EditCondition = "!bAutomatic"))
+	FName SpeakerTag;
+
+	/** Their name for people: "Delia" ("Turn in to Delia"). Empty: from the tag (Speaker_Delia: "Delia"). */
+	UPROPERTY(EditAnywhere, Category = "Turn-in", meta = (EditCondition = "!bAutomatic"))
+	FText GiverName;
+
+	/**
+	 * What they say as it's turned in, said instead of what they'd say there otherwise (their speaker point's lines at
+	 * this point in the story). Empty: their own lines, for a talk the story already wrote as the mission's end (Delia's,
+	 * Tilly's, Aldana's, Amos's). A line with no speaker is said in their speaker point's name.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Turn-in", meta = (EditCondition = "!bAutomatic"))
+	TArray<FStoryLine> Lines;
+};
+
 /** What finishing a mission gives, once per session (a mission played again gives nothing more). */
 USTRUCT(BlueprintType)
 struct AI_LOOTER_SHOOTER_API FMissionRewards
@@ -50,8 +89,15 @@ struct AI_LOOTER_SHOOTER_API FMissionRewards
 	GENERATED_BODY()
 
 	/**
-	 * Experience: this share of what the player's current level takes, so it's worth the same part of a level at any
-	 * level. 0.3 for a main mission, 0.2 for a side one (Docs/Areas/RansomsRest.md).
+	 * Experience, a fixed amount: what the mission is worth, tuned with the area's kills to the level its story should end
+	 * on (Docs/Progression.md). Above 0 it's what's given, and ExperienceShare is left out.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Rewards", meta = (ClampMin = "0"))
+	int32 Experience = 0;
+
+	/**
+	 * Experience as this share of what the player's current level takes, so it's worth the same part of a level at any
+	 * level; only when Experience is 0 (the test mission's 10%).
 	 */
 	UPROPERTY(EditAnywhere, Category = "Rewards", meta = (ClampMin = "0", ClampMax = "5"))
 	float ExperienceShare = 0.f;
@@ -86,15 +132,18 @@ struct AI_LOOTER_SHOOTER_API FMissionRewards
 	UPROPERTY(EditAnywhere, Category = "Rewards")
 	TArray<FName> UnlockAreas;
 
-	bool IsEmpty() const { return ExperienceShare <= 0.f && !bGun && NamedGun.IsNone() && UnlockAreas.IsEmpty(); }
+	bool GivesExperience() const { return Experience > 0 || ExperienceShare > 0.f; }
+
+	bool IsEmpty() const { return !GivesExperience() && !bGun && NamedGun.IsNone() && UnlockAreas.IsEmpty(); }
 };
 
 /**
  * One mission as a data asset in /Game/Data/Missions (DA_Mission_<Id>; Tools/Unreal/create_mission_assets.py makes the
  * first): its words, whether it's main or side, what must be finished first, the area it's played in, what starts it,
- * its steps of objectives and its rewards. The objectives are instanced objects, one C++ class per kind
- * (UMissionObjective). The mission runner of each level (UMissionRunner) finds every mission by itself, starts the ones
- * that are due, follows their objectives and records them in the session's campaign record by Id.
+ * its steps of objectives, who it's turned in to and its rewards. The objectives are instanced objects, one C++ class per
+ * kind (UMissionObjective). The mission runner of each level (UMissionRunner) finds every mission by itself, starts the
+ * ones that are due, follows their objectives, waits for the turn-in and records them in the session's campaign record
+ * by Id.
  */
 UCLASS(BlueprintType)
 class AI_LOOTER_SHOOTER_API UMissionDefinition : public UPrimaryDataAsset
@@ -143,6 +192,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mission")
 	TArray<FMissionStep> Steps;
 
+	/** Who it's turned in to once its objectives are done, or that it finishes by itself. */
+	UPROPERTY(EditAnywhere, Category = "Mission")
+	FMissionTurnIn TurnIn;
+
 	UPROPERTY(EditAnywhere, Category = "Mission")
 	FMissionRewards Rewards;
 
@@ -155,6 +208,21 @@ public:
 
 	/** The objective at Index of step StepIndex, or null. */
 	const UMissionObjective* GetObjective(int32 StepIndex, int32 Index) const;
+
+	/**
+	 * It waits to be turned in once its objectives are done: it names a giver and isn't automatic. A mission made in code
+	 * with no giver (a test's) finishes by itself, as missions did before turn-ins.
+	 */
+	bool NeedsTurnIn() const { return !TurnIn.bAutomatic && !TurnIn.SpeakerTag.IsNone(); }
+
+	/** The giver's name for people: TurnIn.GiverName, else the speaker tag without "Speaker_" as words. Empty without a giver. */
+	FText GetGiverName() const;
+
+	/** "Turn in to Delia": the HUD tracker's line while it waits. */
+	FString GetTurnInShortText() const;
+
+	/** "Ready to turn in: talk to Delia": the Missions page's and the full objective line while it waits. */
+	FString GetTurnInText() const;
 
 	/** The words name this mission: its id, its asset's name or its title, ignoring case, spaces and punctuation. */
 	bool IsNamed(const FString& Words) const;

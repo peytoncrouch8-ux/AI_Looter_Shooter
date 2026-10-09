@@ -6,6 +6,7 @@
 
 #include "Creatures/GravemotherCreature.h"
 #include "AI_Looter_Shooter.h"
+#include "Bosses/BossComponent.h"
 #include "Combat/BulletSubsystem.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/EncounterGroundProbe.h"
@@ -160,13 +161,18 @@ int32 AGravemotherCreature::CallBrood()
 		{
 			continue;
 		}
-		// They fight on her ground and go for whoever she's after.
+		// They fight on her ground and go for whoever she's after; her boss counts them as its adds (gone with a fight that
+		// starts over, dead with her).
 		Spiderling->HuntingGround = HuntingGround;
 		if (APawn* Hunted = GetTarget())
 		{
 			Spiderling->AlertTo(Hunted);
 		}
 		Brood.Add(Spiderling);
+		if (Boss)
+		{
+			Boss->AdoptAdd(Spiderling);
+		}
 		KickDirt(Spot, ClawOutDirt);
 		++Came;
 	}

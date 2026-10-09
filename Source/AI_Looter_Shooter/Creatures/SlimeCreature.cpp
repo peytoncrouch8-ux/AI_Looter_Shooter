@@ -46,18 +46,7 @@ namespace
 	constexpr float HurtSquash = 0.82f;
 	constexpr float IdleWobble = 0.04f;
 	constexpr float IdleWobbleHz = 1.2f;
-
-	/**
-	 * The squash spring: about 3.2 wobbles a second, lightly damped, so a landing at 0.6 overshoots to about 1.1, dips
-	 * to 0.95 and settles in about a third of a second.
-	 */
-	constexpr float SquashStiffness = 404.f;
-	constexpr float SquashDamping = 14.f;
-	/** The core's spring: a little quicker and looser, so it jiggles inside the gel. */
-	constexpr float CoreStiffness = 632.f;
-	constexpr float CoreDamping = 12.6f;
-	/** The springs' longest step (s): small enough for both to stay steady. */
-	constexpr float SpringStep = 1.f / 120.f;
+	// The squash and the core's springs are SlimeCreatureBody.cpp's.
 
 	// Death: it flattens into a puddle, lies there for the creature's CorpseTime, then dries up.
 	constexpr float FlattenTime = 0.4f;
@@ -408,49 +397,8 @@ void ASlimeCreature::SetHitVolumesEnabled(bool bEnabled)
 }
 
 // ---------------------------------------------------------------------------
-// The body
+// The body (its springs and its fit to the ground: SlimeCreatureBody.cpp)
 // ---------------------------------------------------------------------------
-
-void ASlimeCreature::FSquashSpring::Ramp(float NewTo, float Seconds)
-{
-	From = Value;
-	To = NewTo;
-	RampTime = 0.f;
-	RampLength = FMath::Max(Seconds, KINDA_SMALL_NUMBER);
-	Velocity = 0.f;
-}
-
-void ASlimeCreature::FSquashSpring::Tick(float DeltaSeconds)
-{
-	if (IsRamping())
-	{
-		RampTime += DeltaSeconds;
-		Value = FMath::Lerp(From, To, FMath::InterpEaseOut(0.f, 1.f, FMath::Min(RampTime / RampLength, 1.f), 2.f));
-		// It then springs from rest at the ramp's end, which gives the overshoot after a landing.
-		return;
-	}
-	Velocity += (SquashStiffness * (Target - Value) - SquashDamping * Velocity) * DeltaSeconds;
-	Value += Velocity * DeltaSeconds;
-}
-
-void ASlimeCreature::StepSprings(FSquashSpring& SquashSpring, FVector& CoreLag, FVector& CoreLagSpeed, float DeltaSeconds)
-{
-	const float Seconds = FMath::Min(DeltaSeconds, FCreatureUpdateRate::MaxInterval);
-	if (Seconds <= 0.f)
-	{
-		return;
-	}
-	// Even steps no longer than SpringStep: short enough for both springs to stay steady, and a long update takes the
-	// same steps as the short ones it stands in for (a slow-ticking slime wobbles like a near one).
-	const int32 Steps = FMath::Max(1, FMath::CeilToInt32(Seconds / SpringStep - 0.01f));
-	const float Step = Seconds / Steps;
-	for (int32 Index = 0; Index < Steps; ++Index)
-	{
-		SquashSpring.Tick(Step);
-		CoreLagSpeed += (-CoreStiffness * CoreLag - CoreDamping * CoreLagSpeed) * Step;
-		CoreLag += CoreLagSpeed * Step;
-	}
-}
 
 void ASlimeCreature::AnimateBody(float DeltaSeconds)
 {
@@ -491,10 +439,16 @@ void ASlimeCreature::AnimateBody(float DeltaSeconds)
 
 	// The body bone carries everything but the core: scaling it squashes the slime against the ground. The core rides
 	// with it (half as squashed: it's firmer), offset by its lag. All of it is in the mesh's space, so a slime of another
-	// size squashes and wobbles the same, scaled.
+	// size squashes and wobbles the same, scaled. Then the whole body lies along the ground under it, turned about its foot's
+	// middle (the mesh's origin) and set down onto the ground there (FitToGround): the squash follows the slope, and the foot
+	// neither cuts into the hill on one side nor hangs over it on the other.
+	FitToGround(DeltaSeconds);
+	const FVector Seat(0.f, 0.f, -GroundDrop);
 	const FVector CoreScale = FMath::Lerp(FVector::OneVector, Shape, 0.5f);
 	const FVector CoreLocation = CoreRest.GetLocation() * Shape + CoreOffset;
 	BonePose.SetNum(2);
-	BonePose[0] = { BodyBone, FTransform(BodyRest.GetRotation(), BodyRest.GetLocation(), BoneScale(BodyRest.GetRotation(), Shape)) };
-	BonePose[1] = { CoreBone, FTransform(CoreRest.GetRotation(), CoreLocation, BoneScale(CoreRest.GetRotation(), CoreScale)) };
+	BonePose[0] = { BodyBone, FTransform(GroundTilt * BodyRest.GetRotation(), Seat + GroundTilt.RotateVector(BodyRest.GetLocation()),
+		BoneScale(BodyRest.GetRotation(), Shape)) };
+	BonePose[1] = { CoreBone, FTransform(GroundTilt * CoreRest.GetRotation(), Seat + GroundTilt.RotateVector(CoreLocation),
+		BoneScale(CoreRest.GetRotation(), CoreScale)) };
 }

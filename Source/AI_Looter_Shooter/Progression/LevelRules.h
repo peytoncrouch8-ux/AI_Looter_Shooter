@@ -12,11 +12,19 @@
 struct AI_LOOTER_SHOOTER_API FLevelRules
 {
 	/** The rules the game ships with (UProgressionSettings starts from these). */
+	static constexpr double DefaultKillXPScale = 0.4;
 	static constexpr double DefaultKillXPGrowth = 1.08;
 	static constexpr double DefaultKillXPFalloff = 0.15;
 	static constexpr double DefaultKillXPFloor = 0.1;
 	static constexpr float DefaultEnemyGrowth = 0.08f;
 	static constexpr float DefaultHealthPerLevel = 0.08f;
+
+	/**
+	 * The share of a creature's XPReward a kill gives at its level 1 (0.4: a Basic creature's 10 gives 4). Tuned with the
+	 * missions' turn-in rewards so Ransom's Rest's story ends about level 6-7 (Docs/Progression.md): most of a level's
+	 * experience comes from the turn-ins, Borderlands' way, the kills on the way adding to it.
+	 */
+	double KillXPScale = DefaultKillXPScale;
 
 	/** A kill's experience is this many times the last level's for each level of the enemy (1.08: 8% a level). */
 	double KillXPGrowth = DefaultKillXPGrowth;
@@ -46,9 +54,9 @@ struct AI_LOOTER_SHOOTER_API FLevelRules
 	double KillXPShare(int32 EnemyLevel, int32 PlayerLevel) const;
 
 	/**
-	 * A kill's experience, rounded: BaseXP x KillXPGrowth^(EnemyLevel - 1) x KillXPShare. BaseXP is the creature's
-	 * XPReward, which has its rank's multiplier in it already, so the rank counts once. At least 1 when BaseXP is; 0 for
-	 * none (target dummies, practice).
+	 * A kill's experience, rounded: BaseXP x KillXPScale x KillXPGrowth^(EnemyLevel - 1) x KillXPShare. BaseXP is the
+	 * creature's XPReward, which has its rank's multiplier in it already, so the rank counts once. At least 1 when BaseXP
+	 * is; 0 for none (target dummies, practice).
 	 */
 	int64 KillXP(int32 BaseXP, int32 EnemyLevel, int32 PlayerLevel) const;
 };

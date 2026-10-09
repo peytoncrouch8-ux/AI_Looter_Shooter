@@ -6,12 +6,13 @@
 
 class UInputAction;
 class UInteractionComponent;
+class UPlayerMeleeComponent;
 class UPlayerSoundComponent;
 struct FInputActionValue;
 
 /**
  * The player's character: walking, looking and jumping. Everything else lives in components (view, locomotion,
- * health, weapons, interaction, sounds). The Blueprint child, BP_LooterCharacter, holds only data: meshes, animation, camera
+ * health, weapons, interaction, sounds, melee). The Blueprint child, BP_LooterCharacter, holds only data: meshes, animation, camera
  * placement and the component settings. The whole character is the full-size mannequin scaled down
  * (Player/PlayerSize.h), and walks at the full-size speed scaled the same.
  */
@@ -39,6 +40,10 @@ protected:
 	/** Its own sounds: footsteps by surface, the jump and landing, hurt, death and the low-health heartbeat. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UPlayerSoundComponent> Sounds;
+
+	/** The Melee key's quick strike: the gun's stock, or a fist with no gun in hand (made here, not in the Blueprint). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UPlayerMeleeComponent> Melee;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> MoveAction;

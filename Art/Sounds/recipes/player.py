@@ -228,3 +228,175 @@ def slide_loop(v, r):
     drag *= 0.5 + 0.5 * np.abs(N.smooth_random(n, child(r, 'da'), 30.0, periodic=True))
     x = normalize(grit) + 0.45 * normalize(stones) + 0.5 * normalize(rumble) + 0.3 * normalize(drag)
     return F.filt(x, F.highshelf(6000.0, -4.0), F.peak(3000.0, -3.0, 0.8), circular=True)
+
+
+# --- Climbing: the mantle and the vault (played as the move starts; the top's surface is a footstep of its own) --------
+
+def _palm(r, weight=1.0):
+    """A gloved palm slapping down on a ledge and taking the weight: the hand's soft, broad smack (leather on wood or
+    stone, darker than skin), the arm's thud behind it."""
+    n = ns(0.06)
+    smack = N.band(n, child(r, 'smack'), 350.0, 3200.0) * kit.turbulence(n, child(r, 'st'), 240.0, 0.6)
+    smack = normalize(smack * E.perc(0.06, 0.0008, 0.022))
+    thud = kit.noise_thump(0.09, child(r, 'thud'), 900.0, 130.0, 0.045, 1.0, 0.03)
+    return normalize(layers((smack, 0.0, 0.0), (thud, 0.0, -4.0 + 3.0 * weight)), 0.0)
+
+
+def _effort(r, dur, voiced, f0=135.0):
+    """The breath a climb pushes out: a short grunt through the teeth (voiced, low and rough) or, on lighter takes, a
+    sharp breath out with no voice."""
+    keys = [(0.0, 'uh'), (dur * 0.4, 'uh'), (dur, 'h')]
+    if voiced:
+        n = ns(dur)
+        f = O.glide([(0.0, f0 * 1.06), (dur * 0.25, f0), (dur, f0 * 0.85)], n=n)
+        x = V.voice(f, keys, r, breath=0.6, jitter=0.02, shimmer=0.12, tilt=-2.0, shift=1.05, rough=0.25)
+    else:
+        x = V.whisper(dur, keys, r, 1.05)
+    x = x * E.perc(dur, 0.012, dur * 0.8)
+    return normalize(F.filt(x, F.hp(130.0), F.lp(4500.0), F.peak(3000.0, -3.0, 0.8), extend=False))
+
+
+@cue('Player.Mantle', variations=4, att='Near', jitter=0.04, conc=2, level=-14.0)
+def mantle(v, r):
+    # Hauling up onto a ledge: both hands slapping down on the top a beat apart and taking the weight (the gloves'
+    # leather creaking as they grip), the boots scuffing the face, the coat dragging over the edge, gear knocking, and
+    # the effort pushed out through the teeth.
+    gap = 0.025 + 0.02 * r.random()
+    left = _palm(child(r, 'left'), 1.0)
+    right = _palm(child(r, 'right'), 0.6)
+    leather = kit.creak(0.22, child(r, 'leather'), 38.0, 64.0, (480.0, 1050.0, 2000.0), 6.0, 0.3)
+    scuff = layers(kit.grit_burst(0.16, child(r, 'grit'), 2500.0, 800.0, 3800.0, 0.08),
+                   (kit.noise_thump(0.08, child(r, 'boot'), 700.0, 120.0, 0.035, 0.9, 0.03), 0.0, -2.0))
+    drag = kit.cloth(0.42, child(r, 'drag'), 250.0, 2600.0, 120.0, 0.3, 0.55)
+    gear = kit.jingle(0.3, child(r, 'gear'), 3 + int(r.integers(0, 2)), 1800.0, 5500.0, 0.04, 0.16, 0.04)
+    effort = _effort(child(r, 'effort'), 0.3, v % 2 == 0)
+    x = layers((left, 0.0, 0.0), (right, gap, -3.0), (leather, 0.02, -17.0), (scuff, 0.06, -10.0), (drag, 0.02, -7.0),
+               (gear, 0.03, -19.0), (effort, 0.07, -11.0))
+    return F.filt(x, F.highshelf(6000.0, -3.0), F.peak(3000.0, -2.0, 0.8), extend=False)
+
+
+@cue('Player.Vault', variations=4, att='Near', jitter=0.04, conc=2, level=-14.0)
+def vault(v, r):
+    # Vaulting over: one hand planted hard on the top (a palm's smack, the arm taking the weight), the body swinging
+    # over in a rush of coat and air, the gear rattling, a short breath out. Quicker and lighter than a mantle.
+    plant = _palm(child(r, 'plant'), 1.0)
+    leather = kit.creak(0.12, child(r, 'leather'), 45.0, 70.0, (520.0, 1100.0, 2100.0), 6.0, 0.3)
+    swing = kit.whoosh(0.32, child(r, 'swing'), 260.0, 1300.0, 1.1, 0.55, -3.0, 1.0)
+    coat = kit.cloth(0.34, child(r, 'coat'), 260.0, 2800.0, 150.0, 0.25, 0.6)
+    gear = kit.jingle(0.25, child(r, 'gear'), 3, 1800.0, 5500.0, 0.04, 0.12, 0.08)
+    breath = _effort(child(r, 'breath'), 0.2, False)
+    x = layers((plant, 0.0, 0.0), (leather, 0.01, -18.0), (swing, 0.02, -6.0), (coat, 0.02, -8.0), (gear, 0.06, -18.0),
+               (breath, 0.05, -12.0))
+    return F.filt(x, F.highshelf(6000.0, -3.0), F.peak(3000.0, -2.0, 0.8), extend=False)
+
+
+# --- The melee strike (UPlayerMeleeComponent): the swing, the blow, and what the body struck is made of ----------------
+#
+# A blow that lands plays Player.Melee.Hit and, on a creature, one layer for its body on top (flesh, shell or gel); on
+# the world the bullet's impact is the layer. So Hit is the weight of the blow alone, and the layers are what gives.
+# The layers borrow the creatures' own materials (recipes/creatures.py), imported when they render so the groups keep
+# their order.
+
+def _pan_sweep(x, p0, p1):
+    """Mono to stereo, the place moving from p0 to p1 (-1 left, +1 right) over the sound: a swing crossing the view."""
+    n = x.size
+    a = (np.linspace(p0, p1, n) + 1.0) * np.pi / 4.0
+    return np.vstack([x * np.cos(a), x * np.sin(a)]) * np.sqrt(2.0)
+
+
+@cue('Player.Melee.Swing', variations=4, space='2D', cls='Effects', jitter=0.05, conc=2, level=-13.0)
+def melee_swing(v, r):
+    # The gun swung hard past the ear: the grip tightening and the sleeve snapping as it starts, then a rush of air that
+    # rises and falls as the blow goes through (dark and full, an arm's and a rifle's worth of air, not a blade's
+    # whistle), crossing from right to left, the gear shifting, and on some a short breath of effort.
+    dur = 0.28 + 0.05 * r.random()
+    n = ns(dur)
+    peak_at = 0.42 + 0.06 * r.random()
+    fc = O.glide([(0.0, 260.0), (dur * peak_at, 1700.0 * jitter(r, 1, 0.1)), (dur, 380.0)], n=n)
+    src = N.pink(n, child(r, 'air')) * kit.turbulence(n, child(r, 'turb'), 90.0, 0.35)
+    body = F.sweep(src, 'bp', fc, 1.7)
+    hiss = F.sweep(N.white(n, child(r, 'hiss')), 'bp', np.minimum(fc * 2.6, 9000.0), 1.8)
+    mass = F.filt(N.pink(n, child(r, 'mass'), lo=50.0, hi=320.0), F.lp(260.0, 0.7), extend=False)
+    u = np.arange(n) / n
+    # A narrow swell: quiet as it starts, a full rush as the gun goes by the ear, falling away fast.
+    env = np.where(u < peak_at, np.sin(0.5 * np.pi * np.minimum(u / peak_at, 1.0)) ** 3.0,
+                   np.exp(-6.5 * (u - peak_at) / (1.0 - peak_at)))
+    env = E.end_fade(env, 0.01)
+    rush = normalize(body) + 0.3 * normalize(hiss) + 0.5 * normalize(mass)
+    rush = normalize(rush * env)
+    grip = kit.creak(0.07, child(r, 'grip'), 70.0, 110.0, (520.0, 1150.0, 2200.0), 6.0, 0.3)
+    flick = kit.cloth(0.1, child(r, 'flick'), 400.0, 3500.0, 260.0, 0.03, 0.8)
+    snap = kit.cloth(0.07, child(r, 'snap'), 500.0, 4000.0, 300.0, 0.05, 0.7)
+    gear = kit.jingle(0.18, child(r, 'gear'), 2 + int(r.integers(0, 2)), 1800.0, 5000.0, 0.03, 0.1, 0.02)
+    parts = [(flick, 0.0, -18.0), (grip, 0.0, -24.0), (snap, dur * peak_at - 0.02, -13.0), (gear, 0.04, -24.0)]
+    if v in (1, 3):
+        parts.append((_effort(child(r, 'breath'), 0.18, False), 0.05, -17.0))
+    detail = layers(*parts)
+    wide = _pan_sweep(rush, 0.45, -0.4)
+    x = layers(wide, (S.widen(detail, child(r, 'w'), 0.2), 0.0, 0.0))
+    return F.filt(x, F.highshelf(6500.0, -4.0), F.peak(3000.0, -3.0, 0.8), F.hp(45.0), extend=False)
+
+
+@cue('Player.Melee.Hit', variations=5, att='Near', jitter=0.05, conc=4, level=-8.0)
+def melee_hit(v, r):
+    # The blow landing: a heavy, dull thud (a rifle butt or a fist driven into something), the contact's short dark
+    # knock, a shove of air in the lows, the striker's gear jolting; driven together so it lands as one punch.
+    f0 = 200.0 * jitter(r, 1, 0.12)
+    knock = kit.thunk(f0, child(r, 'knock'), 0.05, 0.0012, 6, 0.1)
+    contact = kit.burst(0.012, child(r, 'contact'), 0.005, lo=350.0, hi=3200.0, color=-3.0)
+    shove = kit.noise_thump(0.24, child(r, 'shove'), 1100.0, 55.0, 0.12, 1.2, 0.06)
+    weight = kit.thump(92.0 * jitter(r, 1, 0.08), 44.0, 0.18, 0.09, attack=0.0015, drive_db=4.0)
+    gear = kit.jingle(0.16, child(r, 'gear'), 2, 1800.0, 5000.0, 0.03, 0.06, 0.006)
+    x = layers((shove, 0.0, 0.0), (knock, 0.0, -2.0), (weight, 0.0, -7.0), (contact, 0.0, -7.0), (gear, 0.012, -24.0))
+    x = D.drive(normalize(x), 7.0, 'tanh')
+    x = F.filt(x, F.highshelf(5000.0, -5.0), F.peak(3000.0, -3.0, 0.8), F.hp(38.0), extend=False)
+    ir = R.outdoor(child(r, 'ir'), dur=0.5, slaps=((0.05, -5.0), (0.13, -10.0)), tail_t60=0.3, tail_db=-14.0,
+                   tail_start=0.02, tail_peak=0.06)
+    return layers(x, kit.set_level(F.convolve(F.filt(x, F.hpn(220.0, 2), extend=False), ir), x, -24.0, 0.02))
+
+
+@cue('Player.Melee.HitFlesh', variations=5, att='Near', jitter=0.06, conc=4, level=-11.0)
+def melee_hit_flesh(v, r):
+    # A blow into flesh: a meaty slap (skin and muscle giving under it: a broad, torn-up smack, darker and wider than a
+    # bullet's), the body's soft give in the low mids, and a wet edge as it squelches. No crack.
+    n = ns(0.1)
+    slap = N.band(n, child(r, 'slap'), 300.0, 3200.0) * kit.turbulence(n, child(r, 'st'), 260.0, 0.65)
+    slap = normalize(slap * E.perc(0.1, 0.0006, 0.045))
+    give = kit.noise_thump(0.13, child(r, 'give'), 900.0, 140.0, 0.06, 1.0, 0.04)
+    squelch = kit.squelch(0.12, child(r, 'squelch'), 1300.0 * jitter(r, 1, 0.12), 380.0, 2.6)
+    wet = np.zeros(1)
+    for i in range(1 + int(r.integers(0, 3))):
+        wet = layers(wet, (kit.bubble(r.uniform(450.0, 1100.0), r, 0.15), r.uniform(0.006, 0.035), r.uniform(-6.0, 0.0)))
+    x = layers((slap, 0.0, 0.0), (give, 0.0, -3.0), (squelch, 0.004, -7.0), (normalize(wet), 0.0, -15.0))
+    return F.filt(x, F.peak(2900.0, -6.0, 0.7), F.highshelf(7000.0, -4.0), F.hp(60.0), extend=False)
+
+
+@cue('Player.Melee.HitShell', variations=5, att='Near', jitter=0.06, conc=4, level=-11.0)
+def melee_hit_shell(v, r):
+    # A blunt blow on a spider's shell: the plate's hard, hollow knock (lower and bigger than a bullet's, the whole
+    # carapace ringing), the crack running across it in brittle snaps, a crunch, and a dry click of a joint or a chip
+    # of shell a beat later.
+    from recipes import creatures as C
+    shell = C._chitin(child(r, 'shell'), 470.0 * jitter(r, 1, 0.12), 0.06, 4 + int(r.integers(0, 2)))
+    knock = kit.thunk(320.0 * jitter(r, 1, 0.1), child(r, 'knock'), 0.09, 0.0006, 6, 0.12)
+    crunch = kit.grit_burst(0.11, child(r, 'crunch'), 5000.0, 900.0, 5000.0, 0.06, 0.001)
+    click = normalize(M.strike(M.parts(1700.0, 5000.0, child(r, 'click'), 4, 0.016, 0.008), M.hammer(0.00005), 0.04))
+    x = layers((shell, 0.0, 0.0), (knock, 0.0, -3.0), (crunch, 0.004, -9.0), (click, 0.055 + 0.03 * r.random(), -11.0))
+    return F.filt(x, F.peak(3300.0, -4.0, 0.8), F.highshelf(7000.0, -3.0), extend=False)
+
+
+@cue('Player.Melee.HitGel', variations=5, att='Near', jitter=0.06, conc=4, level=-11.0)
+def melee_hit_gel(v, r):
+    # A blow into jelly: a wet smack on its skin, the gel giving way with a springy squelch, the dent popping back out
+    # (a bloop gliding up), the whole blob boinging with it, squishing through itself, a few bubbles.
+    from recipes import creatures as C
+    slap = C._wet_slap(0.07, child(r, 'slap'), 150.0, 2400.0, 0.035)
+    weight = kit.noise_thump(0.08, child(r, 'weight'), 600.0, 90.0, 0.045)
+    squelch = kit.squelch(0.15, child(r, 'squelch'), 900.0 * jitter(r, 1, 0.12), 260.0, 3.0)
+    bloop = C._bloop(115.0 * jitter(r, 1, 0.1), 340.0, 0.16, child(r, 'bloop'), 0.13)
+    boing = C._wobble(0.36, child(r, 'boing'), 300.0 * jitter(r, 1, 0.1), 13.0 + 4.0 * r.random(), 0.28, 0.45)
+    squish = C._squish(0.1, child(r, 'squish'), 240.0, 600.0, 2000.0)
+    bub = C._bubbles(0.2, child(r, 'bub'), 20.0, 350.0, 1100.0, 0.03)
+    x = layers((slap, 0.0, -1.0), (weight, 0.0, -5.0), (squelch, 0.003, 0.0), (bloop, 0.03, -3.0), (boing, 0.02, -8.0),
+               (squish, 0.005, -11.0), (bub, 0.0, -15.0))
+    return F.filt(x, F.lp(3500.0, 0.7), F.hp(50.0), extend=False)

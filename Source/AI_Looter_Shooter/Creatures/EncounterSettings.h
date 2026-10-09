@@ -54,6 +54,57 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Spawning", meta = (ClampMin = "0", Units = "cm"))
 	float MinSpawnDistanceFromPlayer = 800.f;
 
+	// --- Packs (UCreaturePackComponent, PackRules): modest, readable behaviours, not tactics ---
+
+	/**
+	 * A pack chasing one player spreads its approaches this far apart (degrees a member, either side of the middle), at
+	 * most FlankMaxDegrees: they come in on spread angles, each spiraling in from its own side, not in a line. 0: no flanking.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Packs", meta = (ClampMin = "0", ClampMax = "60", Units = "deg"))
+	float FlankStepDegrees = 20.f;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Packs", meta = (ClampMin = "0", ClampMax = "75", Units = "deg"))
+	float FlankMaxDegrees = 35.f;
+
+	/** Within this (cm, at size 1) of its target a flanker runs straight at it. */
+	UPROPERTY(Config, EditAnywhere, Category = "Packs", meta = (ClampMin = "0", Units = "cm"))
+	float FlankReleaseDistance = 450.f;
+
+	/** A creature's packmates count within this (cm): those it flanks with, and whether its pack is gone. */
+	UPROPERTY(Config, EditAnywhere, Category = "Packs", meta = (ClampMin = "100", Units = "cm"))
+	float PackRadius = 3000.f;
+
+	/**
+	 * A Basic creature of these kinds (and their children) whose pack is gone, hurt to RetreatHealthShare or less, may
+	 * break off: RetreatChance, rolled once a life. The spiders and slimes, by path; the Unpaid don't (the dead never run,
+	 * and a phase-step would carry one back at once).
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Packs")
+	TArray<TSoftClassPtr<ACreatureBase>> RetreatKinds;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Packs", meta = (ClampMin = "0", ClampMax = "1"))
+	float RetreatHealthShare = 0.35f;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Packs", meta = (ClampMin = "0", ClampMax = "1"))
+	float RetreatChance = 0.5f;
+
+	/** It runs this long (s), this far away at most (cm, at size 1), at this share of its chase speed, then turns again. */
+	UPROPERTY(Config, EditAnywhere, Category = "Packs", meta = (ClampMin = "0", Units = "s"))
+	float RetreatSeconds = 2.5f;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Packs", meta = (ClampMin = "0", Units = "cm"))
+	float RetreatDistance = 700.f;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Packs", meta = (ClampMin = "0.1", ClampMax = "1.5"))
+	float RetreatSpeedShare = 0.85f;
+
+	/** No rank sting within this (s) of the last anywhere in the level: two Restless turning together sting once. */
+	UPROPERTY(Config, EditAnywhere, Category = "Packs", meta = (ClampMin = "0", Units = "s"))
+	float RankStingRest = 1.5f;
+
+	/** Whether Class (or a parent of it) is one of RetreatKinds. */
+	bool MayRetreat(const UClass* Class) const;
+
 	/** The project's settings. */
 	static const UEncounterSettings& Get();
 

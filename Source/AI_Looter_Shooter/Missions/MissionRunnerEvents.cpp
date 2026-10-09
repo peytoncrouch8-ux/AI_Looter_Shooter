@@ -170,12 +170,17 @@ void UMissionRunner::NotifyEvent(const FMissionEvent& Event)
 		return;
 	}
 	// The running missions hear it first; a mission it starts begins after, so the words that start a mission aren't
-	// also taken as its first objective.
+	// also taken as its first objective. A talk then turns in what's ready for that giver (missions it unlocks start, and
+	// don't take the talk either), so a talk that finished an objective doesn't also turn its mission in.
 	const FMissionContext Context = MakeContext();
 	ForEachRunningObjective([&Context, &Event](const UMissionObjective& Objective, FMissionObjectiveState& State)
 	{
 		return Objective.HandleEvent(Context, State, Event);
 	});
+	if (TurnInAt(Event))
+	{
+		StartDue(NAME_None);
+	}
 	StartDue(Event.Name);
 	AfterChange();
 	// Passed on last, so a listener whose story hangs on the step this event just finished sees it finished.
@@ -216,12 +221,21 @@ void UMissionRunner::SyncDisplay()
 		{
 			Run.BookId = Display->AddMission(Mission->Title);
 		}
+		if (Run.bReady)
+		{
+			// Nothing left but its turn-in: who to, and the arrow on them.
+			SyncTurnIn(Run, *Mission, *Display);
+			continue;
+		}
 		// The first objective not done yet is what the tracker says (in full, and in the HUD tracker's parts: its short
 		// line, count and hint, with the step bar's step); the arrow points to the first one that is somewhere.
 		FString Line;
 		FMissionTrackerParts Tracker;
 		Tracker.Step = Run.Step;
 		Tracker.StepCount = Mission->Steps.Num();
+		// The HUD's mission-complete banner announces a story mission's end with the fanfare; the tracker's own tick stays a
+		// chime then (the tutorial's end keeps the tracker's fanfare).
+		Tracker.bAnnouncedEnd = Mission->Kind != EMissionKind::Tutorial;
 		bool bLineFound = false;
 		TOptional<FVector> Target;
 		for (int32 Index = 0; Index < Run.States.Num(); ++Index)

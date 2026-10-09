@@ -4,75 +4,19 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "BonePose.h"
+#include "Player/Animation/LooterStanceInput.h"
+#include "Player/TraversalRules.h"
 #include "LooterCharacterAnimInstance.generated.h"
 
 class FNumericProperty;
 class UPlayerLocomotionComponent;
+class UPlayerMeleeComponent;
 class UPlayerViewComponent;
 class UWeaponManagerComponent;
 
-/** Everything the stance layer needs, copied from the game thread once per update. */
-struct FLooterStanceInput
-{
-	float CrouchAlpha = 0.f;
-	float SprintAlpha = 0.f;
-	float SlideAlpha = 0.f;
-	/** Component-space height the head settles at when fully crouched. */
-	float CrouchedHeadHeight = 120.f;
-	/** The character's facing, in the mesh's component space (horizontal, unit length). */
-	FVector Forward = FVector::YAxisVector;
-
-	float CrouchTorsoLean = 0.f;
-	float SprintTorsoLean = 0.f;
-	float CrouchHipsBack = 0.f;
-	float MaxHipDrop = 0.f;
-	float KneeSplay = 0.f;
-	float SlideTorsoLean = 0.f;
-	float SlideHipHeight = 0.f;
-	float SlideLegReach = 0.f;
-
-	/** Armed Anim Blueprints only: how far the character aims up (+) or down (-), in degrees. */
-	float AimPitch = 0.f;
-	bool bAimWithTorso = false;
-	/** A weapon is in hand: the left hand goes to its foregrip. Grip/foregrip are in the weapon's own space. */
-	bool bHandOnForegrip = false;
-	FVector WeaponGrip = FVector::ZeroVector;
-	FVector WeaponForegrip = FVector::ZeroVector;
-	/** The socket the gun's grip sits in: its bone and its transform relative to that bone. */
-	FName HoldBone = NAME_None;
-	FTransform HoldSocketLocal = FTransform::Identity;
-	/** Which way the held gun points, in component space (it follows the aim, see UPlayerViewComponent). */
-	FQuat WeaponRotation = FQuat::Identity;
-
-	/** The gun's recoil right now: how far it has kicked back toward the shooter (cm) and flipped up (degrees). */
-	float RecoilBack = 0.f;
-	float RecoilPitch = 0.f;
-
-	/** Upper-body pose held over the locomotion (armed): the animation and where in its loop we are. */
-	const UAnimSequenceBase* UpperBodyPose = nullptr;
-	float UpperBodyTime = 0.f;
-
-	/** Upper-body reload overlay: the animation, where in it we are, and how strongly it shows. */
-	const UAnimSequenceBase* ReloadAnimation = nullptr;
-	float ReloadTime = 0.f;
-	float ReloadWeight = 0.f;
-
-	bool NeedsLayer() const
-	{
-		return CrouchAlpha > UE_KINDA_SMALL_NUMBER || SprintAlpha > UE_KINDA_SMALL_NUMBER || SlideAlpha > UE_KINDA_SMALL_NUMBER
-			|| bAimWithTorso || bHandOnForegrip || ReloadWeight > UE_KINDA_SMALL_NUMBER || UpperBodyPose;
-	}
-};
-
 /**
- * Runs the Anim Blueprint's graph as usual, then layers the procedural stance pose on top of the result:
- *  - crouch: torso leans forward, hips drop until the head reaches the crouched head height, and both legs are
- *    solved with two-bone IK back onto the feet the graph planted (so crouch-walking keeps the walk cycle's steps)
- *  - sprint: the torso leans into the run
- *  - armed: the torso pitches with the player's aim, and the left hand is solved onto the held gun's foregrip
- *    (the rifle animations were made for a different gun)
- *  - recoil: each shot rocks the chest back and lets the right arm give, so the gun (in that hand) jumps back and the
- *    left hand rides along on the foregrip
+ * Runs the Anim Blueprint's graph as usual, then layers the procedural stance pose on top of the result
+ * (LooterStancePose::Apply: crouch, sprint, slide, mantle and vault, the aim and the gun in the hands).
  */
 struct FLooterCharacterAnimInstanceProxy : public FAnimInstanceProxy
 {
@@ -84,19 +28,16 @@ protected:
 	virtual bool Evaluate_WithRoot(FPoseContext& Output, FAnimNode_Base* InRootNode) override;
 
 private:
-	void ApplyStance(FPoseContext& Output) const;
 	void ApplyUpperBodyPose(FPoseContext& Output) const;
 	void ApplyReloadOverlay(FPoseContext& Output) const;
-	void ApplyRecoil(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FVector& Right) const;
-	void ApplyLeftHandOnForegrip(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FVector& Right) const;
 
 	FLooterStanceInput Stance;
 };
 
 /**
  * Parent class for character Anim Blueprints (ABP_Unarmed). Reads the owner's UPlayerLocomotionComponent and adds
- * the crouch, sprint and slide body poses the template animations don't have. Characters without that component
- * (target dummies) are left untouched.
+ * the crouch, sprint, slide, mantle and vault body poses the template animations don't have. Characters without that
+ * component (target dummies) are left untouched.
  */
 UCLASS(Transient, Blueprintable, BlueprintType)
 class AI_LOOTER_SHOOTER_API ULooterCharacterAnimInstance : public UAnimInstance
@@ -144,6 +85,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stance|Slide")
 	float SlideLegReach = 58.f;
 
+	/** Forward lean of the torso at the height of a mantle / a vault (degrees, spread over the spine), the head kept up. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stance|Climb")
+	float MantleTorsoLean = 18.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stance|Climb")
+	float VaultTorsoLean = 24.f;
+
 	/**
 	 * The Anim Blueprint's ground speed variable (the template's event graph sets it from the movement component; its
 	 * blend spaces sample it). Rescaled to the body's own size before the graph reads it: see NativeThreadSafeUpdateAnimation.
@@ -187,11 +135,14 @@ protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
 	virtual void DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy) override;
 	virtual void NativeInitializeAnimation() override;
+	virtual void NativeUninitializeAnimation() override;
 	/**
 	 * Worker thread, after the event graph and before the graph's nodes: the blend spaces' clips were made for the
 	 * full-size mannequin, so the ground speed the event graph read off the movement component (world units) goes to
 	 * them in the body's own size. A 0.85-size player walking at 0.85 of the speed then plays exactly the full-size jog,
-	 * each step covering the ground it does, instead of a part-walk blend with sliding feet.
+	 * each step covering the ground it does, instead of a part-walk blend with sliding feet. Above the jog (a sprint) the
+	 * blend space has no faster clip: the locomotion component plays the body's animation faster to match
+	 * (GlobalAnimRateScale, UPlayerLocomotionComponent::UpdateAlphas).
 	 */
 	virtual void NativeThreadSafeUpdateAnimation(float DeltaSeconds) override;
 
@@ -204,6 +155,11 @@ private:
 		FQuat Facing = FQuat::Identity;
 	};
 
+	/** Works out the mantle / vault pose from the locomotion component's move (LooterCharacterAnimInstanceClimb.cpp). */
+	void RefreshClimbInput();
+	/** A mantle or vault starts: the obstacle's top over the feet, which the hands reach for. */
+	void HandleTraversalStarted(ETraversalKind Kind, float TopOverFeet);
+
 	FLooterStanceInput StanceInput;
 	TOptional<FStandaloneHold> StandaloneHold;
 	float UpperBodyTime = 0.f;
@@ -212,7 +168,10 @@ private:
 	/** The Blueprint's ground speed variable (GroundSpeedVariable), if it has one, and the value last written to it. */
 	const FNumericProperty* GroundSpeedProperty = nullptr;
 	double WrittenGroundSpeed = -1.0;
-	TWeakObjectPtr<const UPlayerLocomotionComponent> Locomotion;
+	/** The obstacle's top over the feet as the latest move began (world cm), or LooterClimbPose::UnknownTop. */
+	float ClimbTopOverFeet = LooterClimbPose::UnknownTop;
+	TWeakObjectPtr<UPlayerLocomotionComponent> Locomotion;
 	TWeakObjectPtr<const UWeaponManagerComponent> WeaponManager;
 	TWeakObjectPtr<const UPlayerViewComponent> View;
+	TWeakObjectPtr<const UPlayerMeleeComponent> Melee;
 };

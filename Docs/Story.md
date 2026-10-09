@@ -208,11 +208,11 @@ Areas open when story missions are done. No area, mission or gun ever checks the
 - **Enemy levels.** Every area has an enemy level band. An enemy's level is the player's level plus −1, 0 or +1, kept inside the band, then plus its rank's offset. Bosses skip the ±1 roll: their level is the player's level kept inside the band, plus the offset. A player who rushes the story meets the band's floor; one who comes back strong meets its ceiling.
 - **Health and damage.** Enemy health and damage grow linearly, ×(1 + 0.08 × (level − 1)). That is the rule guns already use (`UWeaponDefinition::DamagePerLevel` 0.08, existing), so a gun of the enemy's level always needs the same number of hits.
 - **Loot level.** Dropped guns take the enemy's level. This is new: today every creature's drop is a level 1 gun, because the creature's level isn't passed to its loot.
-- **Kill XP** = 10 × 1.08^(level − 1) × the rank's XP multiplier.
-  - A level 1 basic kill gives 10 XP, as you set.
-  - Kills per level grow slowly: 10 at level 1, about 20 at level 20 and about 60 at level 50. That lands the campaign near level 50.
+- **Kill XP** = 10 × 0.4 × 1.08^(level − 1) × the rank's XP multiplier (2026-10-08: the kill scale 0.4 brings Ransom's Rest's story to an end about level 6-7, as you asked; `Docs/Progression.md`).
+  - A level 1 basic kill gives 4 XP (10 before the retune).
+  - Kills per level grow slowly: 25 at level 1, about 50 at level 20 and about 150 at level 50.
   - Kill XP falls 15% for each level the enemy is below the player, down to 10%, so farming old areas isn't the fast road.
-- **Mission XP** is a share of the current level's requirement: main missions 30%, side missions 20%.
+- **Mission XP** is a fixed amount per mission, given only when the mission is turned in to its giver (Borderlands' way), never for its steps: 20-45 on Ransom's Rest (`Docs/Progression.md`).
 - **Player health.** The enemies' damage growth assumes the player's health grows too. The proposed first level-up reward is +8% max health per level, to decide at the level step.
 - **After the campaign** every area's band rises to follow the player to 70.
 

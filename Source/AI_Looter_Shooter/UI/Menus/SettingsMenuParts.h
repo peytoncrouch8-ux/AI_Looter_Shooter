@@ -19,6 +19,8 @@ namespace SettingsMenu
 	inline const FName ActionMinimapOff(TEXT("MinimapOff"));
 	inline const FName ActionFrameRateOn(TEXT("FrameRateOn"));
 	inline const FName ActionFrameRateOff(TEXT("FrameRateOff"));
+	inline const FName ActionHintsOn(TEXT("HintsOn"));
+	inline const FName ActionHintsOff(TEXT("HintsOff"));
 	inline const FName ActionHoldMode(TEXT("HoldMode"));
 	inline const FName ActionToggleMode(TEXT("ToggleMode"));
 
@@ -43,5 +45,11 @@ namespace SettingsMenu
 	inline FString LookSensitivityText(float Sensitivity)
 	{
 		return FString::Printf(TEXT("%.2fx"), Sensitivity);
+	}
+
+	/** "85%": a 0-1 share as a slider shows it (the camera shake). */
+	inline FString PercentText(float Share)
+	{
+		return FString::Printf(TEXT("%d%%"), FMath::RoundToInt32(Share * 100.f));
 	}
 }

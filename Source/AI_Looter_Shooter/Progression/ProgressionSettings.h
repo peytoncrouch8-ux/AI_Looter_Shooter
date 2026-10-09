@@ -36,9 +36,17 @@ public:
 	double Growth = FXPCurve::DefaultGrowth;
 
 	/**
-	 * A kill's experience grows by this factor with each level of the enemy: a level 1 creature gives its XPReward (10),
-	 * and 1.08 makes a level 20 one worth 43. Below the level curve's growth, so kills per level rise slowly (10 at level
-	 * 1, about 20 at level 20, about 60 at level 50); Looter.XP.Table prints them.
+	 * The share of a creature's XPReward a kill gives (0.4: a level 1 Basic creature, XPReward 10, gives 4). Tuned with the
+	 * missions' turn-in rewards so Ransom's Rest's story ends about level 6-7: Docs/Progression.md has the count, and
+	 * Looter.Progression.Pacing checks it.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Kills", meta = (ClampMin = "0.0", ClampMax = "5.0"))
+	double KillXPScale = FLevelRules::DefaultKillXPScale;
+
+	/**
+	 * A kill's experience grows by this factor with each level of the enemy: a level 1 creature gives its share of its
+	 * XPReward, and 1.08 makes a level 20 one worth 4.3 times that. Below the level curve's growth, so kills per level rise
+	 * slowly; Looter.XP.Table prints them.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Kills", meta = (ClampMin = "1.0", ClampMax = "2.0"))
 	double KillXPGrowth = FLevelRules::DefaultKillXPGrowth;

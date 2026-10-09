@@ -37,6 +37,6 @@ namespace HudShotScene
 	/** The player has a character with a weapon manager and health, a progression, and a HUD: the scene can be set up. */
 	bool IsPlayerReady(UWorld& World);
 
-	/** The scene before the first picture: level 1 at full health, the rifle in hand, the tutorial on its dummies step. */
+	/** The scene before the first picture: level 1 at full health, the rifle in hand, the tutorial on its notice board step. */
 	void Prepare(UWorld& World);
 }

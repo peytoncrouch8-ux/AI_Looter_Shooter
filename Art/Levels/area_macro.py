@@ -13,7 +13,9 @@ A grounded area's core treats the escarpment's lip as the island treats its rim 
 edge), and its colors blend into the surround ring's map across the seam band. paint_ring() paints that map,
 T_<Area>RingMacro_BC.png, over the ring's square from the same palette and noise: ridges with dark pine floors and
 rock bands, the canyon's ochre floor with its river, the plains past the far wall. Pits, gullies and knobs get their
-own ground (_features). A layout's "macro": {"grade": ...} turns both maps' greens to another season (GRADES).
+own ground (_features). A layout's "macro": {"grade": ...} turns both maps' greens to another season (GRADES); its
+"mosaic": "lateSummer" paints both maps' meadow as late summer's patchwork of grass tones instead of the island's
+(area_mosaic.py; Ransom's Rest), with no grade after it, and the ridges' faces in that palette (area_faces.palette()).
 """
 import math
 import os
@@ -22,6 +24,7 @@ import numpy as np
 
 import area_computed
 import area_faces
+import area_mosaic
 from area_math import Grid, blur, catmull_rom, cells, fbm, fbm_raster, polyline_field, resize, sample, signed_distance
 from area_mesh import extend_nan
 from area_shape import BUILDINGS, to_m
@@ -151,27 +154,15 @@ def paint(area, out_path, preview_dir=None, log=print):
 
     canvas = Canvas(n)
     log('macro: meadow')
-    n_large = fbm_raster(grid, 38.0, seed=101, octaves=2)
     n_mid = fbm_raster(grid, 13.0, seed=102, octaves=2)
-    n_patch = fbm_raster(grid, 7.0, seed=103, octaves=3)
     n_fine = fbm_raster(grid, 1.1, seed=104, octaves=2)
     n_grain = fbm_raster(grid, 0.35, seed=105, octaves=1)
-    canvas.rgb[:] = _mix(GREEN_DEEP, GREEN_MID, 0.5 + 0.8 * n_large)
-    canvas.paint(GREEN_WARM, 0.55 * _ss(-0.1, 0.6, n_mid))
-    # Sun-dried: crowns, the rim, dry patches; wetter ground (hollows, near water) stays lush.
-    n_dry = fbm_raster(grid, 4.0, seed=108, octaves=2)
-    rim_dry = (1.0 - _ss(1.0, 7.0, edge)) * _ss(-0.3, 0.4, n_mid + 0.5 * n_patch)  # island setting
-    dryness = (0.6 * _ss(0.004, 0.045, convex) + 0.4 * _ss(0.1, 0.7, n_patch) + 0.35 * rim_dry
-               - 0.6 * near_water - 0.4 * (1.0 - _ss(0.72, 0.95, ao)) + 0.15 * n_dry + 0.04 * n_fine)
-    dryness = np.clip(dryness, 0.0, 1.0)
-    canvas.paint(DRY, 0.8 * _ss(0.35, 0.85, dryness))
-    canvas.paint(STRAW, 0.55 * _ss(0.75, 1.0, dryness))
-    canvas.paint(GREEN_LUSH, 0.45 * near_water)
-    clover = fbm_raster(grid, 2.4, seed=106, octaves=2)
-    canvas.paint(CLOVER, 0.5 * _ss(0.35, 0.6, clover) * (1.0 - _ss(0.4, 0.8, dryness)))
-    soil_spots = _ss(0.6, 0.78, fbm_raster(grid, 3.2, seed=107, octaves=2)) * _ss(0.5, 0.95, dryness)
-    canvas.paint(SOIL, 0.6 * soil_spots)
-    del dryness, clover, soil_spots, n_patch
+    if area_mosaic.spec(area) is not None:
+        # A late-summer area's own meadow (area_mosaic.py): its grass tones keyed to the ground, in place of the
+        # island's green one below; everything after paints over it as over that.
+        canvas.rgb[:], canvas.alpha[:] = area_mosaic.core(area, grid, n_fine, n_grain, log=log)
+    else:
+        _island_meadow(grid, canvas, convex, ao, edge, near_water, n_mid, n_fine)
 
     _forest(area, grid, canvas, n_mid, n_fine)
     _plateau_tops(area, grid, canvas, n_fine)
@@ -204,7 +195,14 @@ def paint(area, out_path, preview_dir=None, log=print):
             shaped = _ss(0.5, 1.2, area.resized(np.abs(area.h - area.h_region), n))
             keep = np.maximum.reduce([near_water, road_near, shaped, _ss(0.0, 0.08, depth)])
             del shaped
-            area_faces.paint(rgba, faces, keep=keep, fine=n_fine, grain=n_grain)
+            if area_mosaic.spec(area) is not None:
+                # Late summer: a pine wood's floor (a forest zone: Larkspur Ridge's steep pines) half shows through
+                # the faces, so the ridge's dark pines read from the lookout.
+                woods = _zones_weight(area, grid, 'forest', 8.0, 0.0)
+                if woods is not None:
+                    keep = np.maximum(keep, 0.45 * woods)
+                    del woods
+            area_faces.paint(rgba, faces, keep=keep, fine=n_fine, grain=n_grain, colors=area_faces.palette(area))
             del faces, keep
     if getattr(area, 'ring_rgba', None) is not None:
         # Across the seam band the core's colors fade into the ring's, which they meet exactly at the square's edge.
@@ -227,6 +225,28 @@ def paint(area, out_path, preview_dir=None, log=print):
         _save(small, preview)
         written += ' and ' + preview
     log(f'macro: wrote {written}')
+
+
+def _island_meadow(grid, canvas, convex, ao, edge, near_water, n_mid, n_fine):
+    """The island's meadow: warm greens, sun-dried patches and straw on the crowns and the rim, lush ground by the
+    water, clover, soil spots."""
+    n_large = fbm_raster(grid, 38.0, seed=101, octaves=2)
+    n_patch = fbm_raster(grid, 7.0, seed=103, octaves=3)
+    canvas.rgb[:] = _mix(GREEN_DEEP, GREEN_MID, 0.5 + 0.8 * n_large)
+    canvas.paint(GREEN_WARM, 0.55 * _ss(-0.1, 0.6, n_mid))
+    # Sun-dried: crowns, the rim, dry patches; wetter ground (hollows, near water) stays lush.
+    n_dry = fbm_raster(grid, 4.0, seed=108, octaves=2)
+    rim_dry = (1.0 - _ss(1.0, 7.0, edge)) * _ss(-0.3, 0.4, n_mid + 0.5 * n_patch)  # island setting
+    dryness = (0.6 * _ss(0.004, 0.045, convex) + 0.4 * _ss(0.1, 0.7, n_patch) + 0.35 * rim_dry
+               - 0.6 * near_water - 0.4 * (1.0 - _ss(0.72, 0.95, ao)) + 0.15 * n_dry + 0.04 * n_fine)
+    dryness = np.clip(dryness, 0.0, 1.0)
+    canvas.paint(DRY, 0.8 * _ss(0.35, 0.85, dryness))
+    canvas.paint(STRAW, 0.55 * _ss(0.75, 1.0, dryness))
+    canvas.paint(GREEN_LUSH, 0.45 * near_water)
+    clover = fbm_raster(grid, 2.4, seed=106, octaves=2)
+    canvas.paint(CLOVER, 0.5 * _ss(0.35, 0.6, clover) * (1.0 - _ss(0.4, 0.8, dryness)))
+    soil_spots = _ss(0.6, 0.78, fbm_raster(grid, 3.2, seed=107, octaves=2)) * _ss(0.5, 0.95, dryness)
+    canvas.paint(SOIL, 0.6 * soil_spots)
 
 
 def _save(rgba, path):
@@ -512,28 +532,39 @@ def paint_ring(area, out_path, preview_dir=None, log=print):
     ao = resize(area.ring_ao, n, region.half)
     dl = resize(area.ring_dl, n, region.half) if area.ring_dl is not None else np.full((n, n), 1e3, np.float32)
     canvas = Canvas(n)
-    n_large = fbm_raster(grid, 38.0, seed=101, octaves=2)
     n_mid = fbm_raster(grid, 13.0, seed=102, octaves=2)
     n_patch = fbm_raster(grid, 7.0, seed=103, octaves=3)
     n_fine = fbm_raster(grid, 2.2, seed=104, octaves=2)
-    canvas.rgb[:] = _mix(GREEN_DEEP, GREEN_MID, 0.5 + 0.8 * n_large)
-    canvas.paint(GREEN_WARM, 0.55 * _ss(-0.1, 0.6, n_mid))
-    rim_dry = (1.0 - _ss(1.0, 7.0, dl)) * _ss(-0.3, 0.4, n_mid + 0.5 * n_patch)
-    dryness = np.clip(0.6 * _ss(0.004, 0.045, convex) + 0.4 * _ss(0.1, 0.7, n_patch) + 0.35 * rim_dry
-                      - 0.4 * (1.0 - _ss(0.72, 0.95, ao)) + 0.15 * fbm_raster(grid, 4.0, seed=108, octaves=2), 0.0, 1.0)
-    canvas.paint(DRY, 0.8 * _ss(0.35, 0.85, dryness))
-    canvas.paint(STRAW, 0.55 * _ss(0.75, 1.0, dryness))
-    del dryness, rim_dry
-    # The ridges' slopes: a pine floor, thickest on the steeper ground well up from the valley.
-    ridge = _ss(12.0, 24.0, slope) * _ss(3.0, 8.0, h) * _ss(0.0, 2.0, dl)
-    canvas.paint(_mix(FOREST_FLOOR, MOSS, 0.5 + n_mid), 0.75 * ridge)
-    canvas.paint(LITTER, 0.3 * ridge * _ss(0.2, 0.6, n_patch))
+    if area_mosaic.spec(area) is not None:
+        # A late-summer area's own ground (area_mosaic.py), as the core paints it, with the woods' floor under the far
+        # trees in place of an even pine floor up every slope.
+        canvas.rgb[:], canvas.alpha[:] = area_mosaic.ring(area, grid, log=log)
+    else:
+        n_large = fbm_raster(grid, 38.0, seed=101, octaves=2)
+        canvas.rgb[:] = _mix(GREEN_DEEP, GREEN_MID, 0.5 + 0.8 * n_large)
+        canvas.paint(GREEN_WARM, 0.55 * _ss(-0.1, 0.6, n_mid))
+        rim_dry = (1.0 - _ss(1.0, 7.0, dl)) * _ss(-0.3, 0.4, n_mid + 0.5 * n_patch)
+        dryness = np.clip(0.6 * _ss(0.004, 0.045, convex) + 0.4 * _ss(0.1, 0.7, n_patch) + 0.35 * rim_dry
+                          - 0.4 * (1.0 - _ss(0.72, 0.95, ao)) + 0.15 * fbm_raster(grid, 4.0, seed=108, octaves=2),
+                          0.0, 1.0)
+        canvas.paint(DRY, 0.8 * _ss(0.35, 0.85, dryness))
+        canvas.paint(STRAW, 0.55 * _ss(0.75, 1.0, dryness))
+        del dryness, rim_dry
+        # The ridges' slopes: a pine floor, thickest on the steeper ground well up from the valley.
+        ridge = _ss(12.0, 24.0, slope) * _ss(3.0, 8.0, h) * _ss(0.0, 2.0, dl)
+        canvas.paint(_mix(FOREST_FLOOR, MOSS, 0.5 + n_mid), 0.75 * ridge)
+        canvas.paint(LITTER, 0.3 * ridge * _ss(0.2, 0.6, n_patch))
     if region.lip is not None:
         # The canyon: ochre soil and dry grass on its floor, sand and the river's water along it, the plains beyond.
         floor = 1.0 - _ss(-region.wall - 2.0, -region.wall + 2.0, dl)
-        canvas.paint(_mix(DRY, SOIL, 0.45 + 0.7 * n_mid), 0.8 * floor)
-        canvas.paint(STRAW, 0.35 * floor * _ss(0.0, 0.6, n_patch))
-        canvas.paint(GREEN_DEEP, 0.35 * floor * _ss(0.3, 0.6, n_patch))  # scrub
+        if area_mosaic.spec(area) is not None:
+            # Late summer: the canyon's floor and the plains keep the mosaic's patchwork under a dusting of ochre
+            # soil, rather than one ochre sheet.
+            canvas.paint(_mix(DRY, SOIL, 0.45 + 0.7 * n_mid), 0.4 * floor)
+        else:
+            canvas.paint(_mix(DRY, SOIL, 0.45 + 0.7 * n_mid), 0.8 * floor)
+            canvas.paint(STRAW, 0.35 * floor * _ss(0.0, 0.6, n_patch))
+            canvas.paint(GREEN_DEEP, 0.35 * floor * _ss(0.3, 0.6, n_patch))  # scrub
         river = resize(region.river_distance, n, region.half)
         half = region.river_width * 0.5
         canvas.paint(_mix(GREEN_MID, GREEN_LUSH, 0.5 + n_mid), 0.7 * floor * (1.0 - _ss(half + 3.0, half + 22.0, river)))
@@ -558,7 +589,7 @@ def paint_ring(area, out_path, preview_dir=None, log=print):
     # The ridges' faces past the core, as the core paints its own (area_faces.py), so they agree across the seam.
     faces = area_faces.ring_fields(area)
     if faces is not None:
-        area_faces.paint(rgba, faces, fine=n_fine)
+        area_faces.paint(rgba, faces, fine=n_fine, colors=area_faces.palette(area))
     area.ring_faces = faces = None
     area.ring_rgba = rgba
     _save(rgba, out_path)

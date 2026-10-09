@@ -17,12 +17,26 @@ enum class EImpactSurface : uint8
 	Flesh
 };
 
+/** How a creature's body goes when it dies (FWeaponFX::SpawnDeathBurst). */
+enum class EDeathBurst : uint8
+{
+	None,
+	/** A spider's shell cracking open: a puff of dust, chitin bits flung out and a splash of ichor. */
+	Shell,
+	/** A slime splatting: gel droplets flung out round it and a low wet spray. */
+	Gel,
+	/** An Unpaid dissolving: a flash of soul-light in its coal's color, motes rising off it, sparks and a pale wisp. */
+	SoulLight
+};
+
 /**
  * Code-drawn weapon effects: tracer streaks, impact sparks, flashes, dust puffs and flying chips or droplets (and the
- * dust and grit a player's slide kicks up, FSlideDust, through SpawnDustPuff and SpawnGrit). It is all
- * instanced quads and chunks on a few instanced static mesh components (redrawn every frame, quads turned to face the
- * camera), so there are no particle assets to author. The look comes from two small materials, M_FX_Glow (additive) and
- * M_FX_Smoke (translucent), which read each instance's color and strength from its custom data.
+ * dust and grit a player's slide kicks up, FSlideDust, through SpawnDustPuff and SpawnGrit; and creatures' death bursts,
+ * SpawnDeathBurst). It is all instanced quads and chunks on a few instanced static mesh components (redrawn every frame,
+ * quads turned to face the camera), so there are no particle assets to author. The look comes from two small materials,
+ * M_FX_Glow (additive) and M_FX_Smoke (translucent), which read each instance's color and strength from its custom data;
+ * chunks are lit surfaces, one component per color (BitSetFor). WeaponFXWorld.cpp holds the effects that aren't a
+ * gun's (grave dirt, the slide's dust and grit, the death bursts).
  */
 class AI_LOOTER_SHOOTER_API FWeaponFX
 {
@@ -60,6 +74,12 @@ public:
 	/** One grain of grit or gravel thrown from Location: a tiny lit chip that tumbles and falls. */
 	void SpawnGrit(const FVector& Location, const FVector& Velocity, float Size, float Life);
 
+	/**
+	 * A creature's death burst round Center: its body about Size cm across, the burst thrown a little along ShotDirection
+	 * (the killing shot's way). Tint is the shell's chitin, the slime's gel, or the soul-light's color. 25 to 30 particles.
+	 */
+	void SpawnDeathBurst(EDeathBurst Kind, const FVector& Center, const FVector& ShotDirection, float Size, const FLinearColor& Tint);
+
 	/** Advances the particles and redraws everything, turned to face the camera. */
 	void Tick(float DeltaSeconds, const FVector& CameraLocation);
 
@@ -70,7 +90,8 @@ public:
 	int32 NumParticles() const { return Particles.Num(); }
 
 private:
-	enum class EParticle : uint8 { Spark, Flash, Smoke, Chip, Droplet };
+	/** Bit: a lit chunk of a color of its own (chitin, gel), drawn on its BitSet's component. */
+	enum class EParticle : uint8 { Spark, Flash, Smoke, Chip, Droplet, Bit };
 
 	struct FParticle
 	{
@@ -92,7 +113,19 @@ private:
 		/** Air drag per second. */
 		float Drag = 0.f;
 		float Roll = 0.f;
+		/** A Bit's set (BitSets). */
+		uint8 BitSet = 0;
 	};
+
+	/** The lit chunks of one color and shape: chitin bits (cubes), gel drops (spheres). */
+	struct FBitSet
+	{
+		TWeakObjectPtr<UInstancedStaticMeshComponent> Instances;
+		FColor Key;
+		bool bRound = false;
+	};
+	/** Kept to a few: past it, a new color shares the last set's. */
+	static constexpr int32 MaxBitSets = 6;
 
 	struct FStreak
 	{
@@ -105,12 +138,16 @@ private:
 
 	FParticle& AddParticle(EParticle Type, const FVector& Location, const FVector& Velocity, float Life);
 	void Redraw(const FVector& CameraLocation);
+	/** The set for chunks of this Color (round: spheres, else cubes) with Glow, made the first time it's asked for. */
+	uint8 BitSetFor(bool bRound, const FLinearColor& Color, float Glow);
 
 	TWeakObjectPtr<AActor> Owner;
 	TWeakObjectPtr<UInstancedStaticMeshComponent> Glows;
 	TWeakObjectPtr<UInstancedStaticMeshComponent> Smoke;
 	TWeakObjectPtr<UInstancedStaticMeshComponent> Chips;
 	TWeakObjectPtr<UInstancedStaticMeshComponent> Droplets;
+
+	TArray<FBitSet> BitSets;
 
 	TArray<FParticle> Particles;
 	TArray<FStreak> Streaks;

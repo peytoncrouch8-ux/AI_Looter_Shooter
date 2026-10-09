@@ -10,9 +10,10 @@ tree layer closer in) to the ring's edge, never on the backdrop:
   and its trestle);
 - groves from noise with gaps between them (and a few lone trees in the gaps), densest in the "woods" (polygons, each
   with a density and its share of pines; elsewhere BASE), each grove in clumps with clearings, so no stretch reads as
-  an even carpet; far more on the slopes, up the ridges and in their creases (area_faces.py), and along the low ground,
-  than on the flats, in tree lines along the contours on slopes; on the canyon's floor along the river, and only a few
-  on the plains past the far wall;
+  an even carpet ("groves" and "clumps" set the noise's edges and "lone" the gaps' share, so an area can draw its woods
+  tighter, as masses with meadows between); far more on the slopes, up the ridges and in their creases
+  (area_faces.py), and along the low ground, than on the flats, in tree lines along the contours on slopes; on the
+  canyon's floor along the river, and only a few on the plains past the far wall;
 - thinned where nobody sees them: a tree that no standing spot inside the boundary sees (eye height on a VIEW_STEP m
   grid, and the "lookouts") keeps UNSEEN of its chance, so the "count" goes where it shows;
 - pines at least PINE_FLOOR of the trees, more up the slopes and the high ground; broadleaf (cottonwoods) in the
@@ -217,8 +218,13 @@ def place(area):
         soft = np.where(inside, 0.5 + 0.5 * soft, 0.5 - 0.5 * soft)
         wood = np.maximum(wood, w.get('density', 1.0) * soft)
         pines = np.where(soft > 0.5, w.get('pines', BASE[1]), pines)
-    grove = smoothstep(0.0, 0.3, fbm(x, y, 95.0, seed=401, octaves=3) + 0.45 * fbm(x, y, 32.0, seed=402, octaves=2))
-    clump = smoothstep(-0.05, 0.35, fbm(x, y, 22.0, seed=405, octaves=2) + 0.35 * fbm(x, y, 8.0, seed=406))
+    # "groves" and "clumps" (the noise's edges, -1..1) and "lone" may tighten them for an area: Ransom's Rest's woods
+    # stand as masses with meadows between, where the defaults spread the count over half the land in even dots.
+    g0, g1 = spec.get('groves', (0.0, 0.3))
+    c0, c1 = spec.get('clumps', (-0.05, 0.35))
+    lone = spec.get('lone', LONE)
+    grove = smoothstep(g0, g1, fbm(x, y, 95.0, seed=401, octaves=3) + 0.45 * fbm(x, y, 32.0, seed=402, octaves=2))
+    clump = smoothstep(c0, c1, fbm(x, y, 22.0, seed=405, octaves=2) + 0.35 * fbm(x, y, 8.0, seed=406))
     lines = smoothstep(0.3, 0.7, 0.5 + 0.5 * np.sin(2.0 * math.pi * z / 11.0 + 2.5 * fbm(x, y, 70.0, seed=403)))
     sloped = smoothstep(8.0, 20.0, slope)
     crease = _creases(area, x, y)
@@ -226,7 +232,7 @@ def place(area):
     high = smoothstep(10.0, 28.0, z)
     terrain = FLATS + (1.0 - FLATS) * sloped + CREASES * crease + LOWS * low + HIGHS * high
     clumped = 0.12 + 0.88 * clump
-    chance = wood * (grove * clumped + LONE * (1.0 - grove)) * terrain * (1.0 - sloped + sloped * (0.5 + 0.5 * lines))
+    chance = wood * (grove * clumped + lone * (1.0 - grove)) * terrain * (1.0 - sloped + sloped * (0.5 + 0.5 * lines))
     by_water = 1.0 - smoothstep(half_river + 6.0, half_river + 45.0, river)
     if region.lip is not None:
         canyon = sample(area.ring_dl, x, y, region.half) < -(region.wall + 1.0)

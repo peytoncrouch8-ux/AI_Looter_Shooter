@@ -1,7 +1,7 @@
 #pragma once
 
 // What the locomotion play tests build in their test levels: a floor or ceiling, the player standing on it, and the
-// frames and keys they drive it with.
+// frames and keys they drive it with (the slide's, and the mantles' and vaults').
 
 #include "CoreMinimal.h"
 
@@ -166,6 +166,50 @@ namespace LocomotionTestWorld
 		float LastRoll = 0.f;
 		float LastRolled = 0.f;
 	};
+
+	/** The feet's height (the capsule's bottom, world cm). */
+	inline float FeetHeight(const UPlayerLocomotionComponent* Locomotion)
+	{
+		const ACharacter* Body = BodyOf(Locomotion);
+		return static_cast<float>(Body->GetActorLocation().Z - Body->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	}
+
+	/** How far over the floor the movement keeps a walking capsule (the middle of its band): where a climb puts the feet. */
+	inline float WalkingFloorGap()
+	{
+		return 0.5f * (UCharacterMovementComponent::MIN_FLOOR_DIST + UCharacterMovementComponent::MAX_FLOOR_DIST);
+	}
+
+	/** Frames standing still, so the eye has its standing height; returns it. */
+	inline float SettleStanding(UPlayerLocomotionComponent* Locomotion)
+	{
+		for (int32 Frames = 0; Frames < 10; ++Frames)
+		{
+			PlayFrame(Locomotion);
+		}
+		return EyeAboveFeet(Locomotion);
+	}
+
+	/**
+	 * Frames until the mantle, vault or unstick under way is over (2 s at most), following the view and the run; returns
+	 * how long it took. OutPose is the most the climbing pose came in, OutSlowest the slowest the body went along.
+	 */
+	inline float RunTraversalOut(UPlayerLocomotionComponent* Locomotion, FViewTrack& Track, float& OutPose, float& OutSlowest)
+	{
+		const UCharacterMovementComponent* Movement = BodyOf(Locomotion)->GetCharacterMovement();
+		float Time = 0.f;
+		OutPose = 0.f;
+		OutSlowest = UE_BIG_NUMBER;
+		while (Locomotion->IsTraversing() && Time < 2.f)
+		{
+			PlayFrame(Locomotion);
+			Track.Sample(Locomotion);
+			Time += Frame;
+			OutPose = FMath::Max(OutPose, Locomotion->GetTraversalAlpha());
+			OutSlowest = FMath::Min(OutSlowest, static_cast<float>(Movement->Velocity.Size2D()));
+		}
+		return Time;
+	}
 
 	/** Pushing forward at Speed: the keys as the last move read them, and the velocity they made. */
 	inline void MoveForward(UPlayerLocomotionComponent* Locomotion, float Speed)

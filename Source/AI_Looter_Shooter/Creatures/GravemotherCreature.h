@@ -1,10 +1,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Creatures/GravemotherFight.h"
 #include "Creatures/SpiderCreature.h"
 #include "GravemotherCreature.generated.h"
 
 class AGroundCrack;
+class UBossComponent;
 
 /** The Gravemother's numbers that never change in play (Docs/Areas/RansomsRest.md, "Enemies by rank" and Side 3). */
 namespace Gravemother
@@ -43,6 +45,20 @@ enum class EGravemotherCharge : uint8
 	Recover,
 };
 
+/** Which of her attacks she's at (each is the creature's one attack, wound up, struck and recovered, with its own timing). */
+UENUM(BlueprintType)
+enum class EGravemotherMove : uint8
+{
+	Bite,
+	Charge,
+	/** Rearing and screaming (her fight's start, each later phase), her forelegs slamming down at its height. */
+	Roar,
+	/** The Gravequake: rearing high while a ring of cracks spreads out under her, then a slam that bursts it. */
+	Quake,
+	/** Rearing with venom glowing at her fangs, then a cone of slow pellets. */
+	Spit,
+};
+
 /**
  * The Gravemother (Docs/Areas/RansomsRest.md, Side 3 and "Enemies by rank"): Ransom's Rest's Legendary monster, a brown
  * spider grown huge in the Sink's den on what the Unpaid leave behind. SK_Spider and its rig at Gravemother::Size (1.8x)
@@ -62,6 +78,14 @@ enum class EGravemotherCharge : uint8
  * Her lair, an AEncounterSpawner with a LegendaryId (Tools/Unreal/build_area_den.py), brings her, and brings her back
  * only on an arrival 20 minutes of play after her last death (USessionSubsystem::IsLegendaryBack). Hurt, she calls
  * every spider within 30 m onto her attacker (her rank's pack call; spiders share the Spider pack tag).
+ *
+ * She's a boss fight too (her UBossComponent, GravemotherFight for its phases and pace; GravemotherCreatureMoves.cpp): she
+ * lives in her den as any spider does until she turns on a player, and then her bar sweeps in ("The Gravemother, Brood of
+ * the Sink") as she rears and screams. Three phases at her brood's calls; venom spat at a player who keeps away; from the
+ * second the Gravequake for one who hugs her; in the third she's quicker and her cracks burn. A charge she misses leaves
+ * her forelegs in the dirt a while (the window to punish); crits on her head and abdomen close together stagger her
+ * (she sinks, trembling, for a moment). Her brood are her boss's adds and die with her; she falls in a slow beat and her
+ * loot bursts out of her. Gone off her ground a while, the fight stands down and she walks home.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AGravemotherCreature : public ASpiderCreature
@@ -123,6 +147,44 @@ public:
 	/** The charge's crack in the ground, while it's hers (it lingers and closes on its own after). */
 	AGroundCrack* GetCrack() const { return Crack.Get(); }
 
+	/** The crack still burning after a dash in her fury (its seam hurts whoever stands on it), while it burns. */
+	AGroundCrack* GetBurningCrack() const { return BurnLeft > 0.f ? BurningCrack.Get() : nullptr; }
+
+	// --- Her boss fight (GravemotherCreatureMoves.cpp) ---
+
+	UBossComponent* GetBoss() const { return Boss; }
+
+	/** Which of her attacks she's at (or was at last). */
+	EGravemotherMove GetMove() const { return Move; }
+
+	/** Her next attack is a roar (her fight's start, a later phase). */
+	bool IsRoarWanted() const { return bRoarWanted; }
+
+	/** She reels from a stagger (her boss's), sunk on her legs. */
+	bool IsReeling() const { return bReeling; }
+
+	/** The phase her pace is set for, and the pace. */
+	int32 GetPacePhase() const { return PacePhase; }
+	const GravemotherFight::FPace& GetPace() const { return Pace; }
+
+	/** Sets her pace for a phase (her boss's phase changes do). */
+	void ApplyPace(int32 Phase);
+
+	/** Readies her quake and her spit at once (the tests, the console). */
+	void ReadyQuake() { QuakeCooldownLeft = 0.f; }
+	void ReadySpit() { SpitCooldownLeft = 0.f; }
+	bool IsQuakeReady() const { return QuakeCooldownLeft <= 0.f; }
+	bool IsSpitReady() const { return SpitCooldownLeft <= 0.f; }
+
+	/** The ring of cracks spreading under her through a quake's wind-up. */
+	AGroundCrack* GetQuakeCrack() const { return QuakeCrack.Get(); }
+
+	/** Whether a player at Where would be caught by her quake's burst (on her level, inside its ring). */
+	bool IsInQuake(const FVector& Where) const;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UBossComponent> Boss;
+
 	// --- Settings: every distance and speed is at a brown spider's size and grows with hers ---
 
 	/** She charges a target up to this far off (cm), and no nearer than ChargeMinDistance: closer, she bites. */
@@ -147,9 +209,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "0", Units = "s"))
 	float ChargeAimSeconds = 0.6f;
 
-	/** How long she stays down after the slam before she can bite again (s). */
+	/** How long she stays down after the slam before she can bite again (s), having run her target down. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "0", Units = "s"))
 	float ChargeRecover = 1.f;
+
+	/** A charge that ran nobody down leaves her forelegs in the dirt this long (s): the window to punish her. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "0", Units = "s"))
+	float ChargeMissRecover = 2.f;
 
 	/** From one charge's end to the next one's readiness, while she's after someone (s); and from her first sight of them. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Charge", meta = (ClampMin = "0", Units = "s"))
@@ -187,6 +253,55 @@ public:
 	/** None comes up nearer the player than this (cm): out of the ground round her, not under the player's feet. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Brood", meta = (ClampMin = "0", Units = "cm"))
 	float BroodClearOfPlayer = 300.f;
+
+	/** Her roar: rearing and screaming this long, then the slam, then up again (s). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Roar", meta = (ClampMin = "0.1", Units = "s"))
+	float RoarWindup = 0.9f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Roar", meta = (ClampMin = "0.1", Units = "s"))
+	float RoarRecovery = 0.6f;
+
+	/** The Gravequake: she quakes at a target this near (cm, at a spider's size), and its burst reaches this far round her. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Quake", meta = (ClampMin = "50", Units = "cm"))
+	float QuakeRange = 280.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Quake", meta = (ClampMin = "50", Units = "cm"))
+	float QuakeRadius = 300.f;
+
+	/** Its wind-up (the ring of cracks spreading out to its reach: the time to get out of it) and its recovery (s). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Quake", meta = (ClampMin = "0.2", Units = "s"))
+	float QuakeWindup = 1.2f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Quake", meta = (ClampMin = "0.1", Units = "s"))
+	float QuakeRecovery = 0.9f;
+
+	/** Its burst hits this many times as hard as her bite, damage and shove. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Quake", meta = (ClampMin = "0"))
+	float QuakeStrength = 1.5f;
+
+	/** Her venom: she spits at a target between these distances (cm, at a spider's size), rearing this long first (s). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Spit", meta = (ClampMin = "0", Units = "cm"))
+	float SpitMinDistance = 400.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Spit", meta = (ClampMin = "100", Units = "cm"))
+	float SpitMaxDistance = 1200.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Spit", meta = (ClampMin = "0.1", Units = "s"))
+	float SpitWindup = 0.8f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Spit", meta = (ClampMin = "0.1", Units = "s"))
+	float SpitRecovery = 0.5f;
+
+	/** In her fury a charge's crack burns this long after her dash (s), hurting whoever stands on its seam every BurnEvery. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Fury", meta = (ClampMin = "0", Units = "s"))
+	float BurnSeconds = 4.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Fury", meta = (ClampMin = "0.1", Units = "s"))
+	float BurnEvery = 0.5f;
+
+	/** Each burn hits this many times as hard as her bite. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gravemother|Fury", meta = (ClampMin = "0"))
+	float BurnStrength = 0.2f;
 
 protected:
 	virtual void BeginPlay() override;
@@ -229,6 +344,33 @@ private:
 	/** Drops the dead from her brood. */
 	void PruneBrood();
 
+	// --- Her boss fight's moves (GravemotherCreatureMoves.cpp) ---
+	bool WantsToQuake() const;
+	bool WantsToSpit() const;
+	void BeginRoar();
+	void RoarPeak();
+	void BeginQuake();
+	void QuakeSlam();
+	void BeginSpit();
+	void SpitRelease();
+	/** Her moves' clocks, a quake's crack left behind by a broken-off quake, the reel, the burning crack. */
+	void TickMoves(float DeltaSeconds);
+	void TickBurn(float DeltaSeconds);
+	/** Her stagger: whatever she was at broken off, sunk and trembling; and up again. */
+	void BeginReel();
+	void EndReel();
+	/** Sunk on her legs, trembling (the reel, a missed charge's slam): her body pushed down as a hit pushes it, every frame. */
+	void Sink();
+	/** Her boss's events. */
+	void HandleFightStarted();
+	void HandleFightReset();
+	void HandlePhaseChanged(int32 NewPhase, int32 OldPhase);
+	void HandleStaggered(bool bStaggered);
+	/** A shake of the camera from where she is (BossCameraShake). */
+	void ShakeFrom(const FVector& Where, float Strength, float Seconds) const;
+	/** Dirt thrown up in a ring of Count spots Radius round Center (and Center itself), Strength 0 to 1. */
+	void KickDirtRing(const FVector& Center, float Radius, int32 Count, float Strength);
+
 	// The charge
 	EGravemotherCharge ChargeState = EGravemotherCharge::None;
 	float ChargeCooldownLeft = 0.f;
@@ -253,4 +395,26 @@ private:
 	// The brood
 	int32 BroodCallsMade = 0;
 	TArray<TWeakObjectPtr<ASpiderCreature>> Brood;
+
+	// Her boss fight
+	EGravemotherMove Move = EGravemotherMove::Bite;
+	bool bRoarWanted = false;
+	float QuakeCooldownLeft = 0.f;
+	float SpitCooldownLeft = 0.f;
+	TWeakObjectPtr<AGroundCrack> QuakeCrack;
+	bool bReeling = false;
+	float SinkClock = 0.f;
+	/** This charge reached its dash (a telegraph cut short leaves no burning crack). */
+	bool bDashRan = false;
+	TWeakObjectPtr<AGroundCrack> BurningCrack;
+	float BurnLeft = 0.f;
+	float BurnTick = 0.f;
+	int32 PacePhase = 0;
+	GravemotherFight::FPace Pace;
+	/** Her own charge and chase, as her class (or the level) gave them, which her pace scales. */
+	bool bOwnPaceCaptured = false;
+	float OwnChargeCooldown = 8.f;
+	float OwnChargeTelegraph = 1.5f;
+	float OwnChargeAim = 0.6f;
+	float OwnChaseSpeed = 480.f;
 };

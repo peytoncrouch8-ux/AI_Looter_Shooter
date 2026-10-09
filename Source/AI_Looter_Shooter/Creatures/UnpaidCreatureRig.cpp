@@ -11,6 +11,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
 #include "ReferenceSkeleton.h"
 
@@ -51,20 +52,24 @@ namespace
 	constexpr float BobHeight = 3.f;
 	constexpr float BobHz = 0.45f;
 
+	/** How quickly its bank follows its turn (1/s): a full bank builds over about a quarter of a second. */
+	constexpr float BankRate = 8.f;
 	/** How far it looks round at its target before its body has to turn (degrees). */
 	constexpr float LookYawLimit = 60.f;
 	constexpr float LookPitchLimit = 35.f;
 
+	/** The most the shroud lifts off a slope rising behind it (degrees): the steepest ground it drifts over. */
+	constexpr float MaxShroudLift = 40.f;
+
 	/**
 	 * The idle the model rests in (Unpaid.py bakes it into SK_Unpaid's rest pose, so the bestiary's stand and anything
 	 * else that shows it unposed show the approved idle): the fingers curled 25 degrees and fanned 4 per finger, the jaw 6
-	 * past a mouth 10 open, each forearm bent 12. The pose's channels keep meaning what they did on the old rest pose, and
-	 * these come back off at the bones.
+	 * past a mouth 10 open, each forearm bent 12 (that one is UnpaidCreatureArms.cpp's). The pose's channels keep meaning
+	 * what they did on the old rest pose, and these come back off at the bones.
 	 */
 	constexpr float RestCurl = 25.f;
 	constexpr float RestSplay = 4.f;
 	constexpr float RestJaw = 6.f;
-	constexpr float RestBend = 12.f;
 }
 
 // ---------------------------------------------------------------------------
@@ -242,6 +247,8 @@ bool AUnpaidCreature::SetupRig()
 	{
 		BonePose.Add({ Bone.Name, Bone.Rest });
 	}
+	// The arms keep out of the torso by the model's own hit hulls (UnpaidCreatureArms.cpp).
+	SetupArmGuard();
 	bPoseStarted = false;
 	UE_LOG(LogLooter, Verbose, TEXT("%s poses %d bones of %s (shroud %d links, strips %d and %d)."), *GetName(), Bones.Num(), *Model->GetName(),
 		Chains[0].Links.Num(), Chains[1].Links.Num(), Chains[2].Links.Num());
@@ -266,11 +273,12 @@ AUnpaidCreature::FPoseChannels AUnpaidCreature::PoseTargets(float Speed, float T
 	switch (GetCreatureState())
 	{
 	case ECreatureState::Chase:
-		// Hungry: thrust forward, mouth open, hands half clawed.
+		// Hungry: thrust forward, mouth open, the arms up and clawing at the air (UnpaidCreatureArms.cpp).
 		Goal.Lean = 6.f + 16.f * Moving;
 		Goal.Jaw = 12.f;
 		Goal.Curl = 30.f;
 		Goal.Splay = 8.f;
+		Goal.Hunt = 1.f;
 		break;
 
 	case ECreatureState::Attack:
@@ -370,12 +378,16 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 		Follow(Pose.LookPitch, Goal.LookPitch, 5.f);
 		Follow(Pose.Snap, Goal.Snap, Goal.Snap > Pose.Snap ? 25.f : 4.f);
 		Follow(Pose.Death, Goal.Death, 3.f);
+		// The arms come up as the hunt starts, not at once; the shriek's own channels take over quickly.
+		Follow(Pose.Hunt, Goal.Hunt, GetCreatureState() == ECreatureState::Attack ? Rate : 4.f);
 	}
-	Flinch = FMath::FInterpTo(Flinch, 0.f, Dt, 6.f);
+	// A hit's flinch rises over a few frames and eases off (UnpaidCreatureArms.cpp).
+	StepFlinch(Dt);
 	const float Moving = FMath::Min(Speed, 1.f);
 	const float Alive = 1.f - Pose.Death;
-	// It banks into its turns, a little.
-	const float Bank = FMath::Clamp(YawRate * 0.04f, -10.f, 10.f) * Alive;
+	// It banks into its turns a little, eased: followed straight, a turn's start threw the head and hat 30-50 cm in a frame.
+	const float WantedBank = FMath::Clamp(YawRate * 0.04f, -10.f, 10.f) * Alive;
+	Bank = Dt > 0.f ? FMath::FInterpTo(Bank, WantedBank, Dt, BankRate) : WantedBank;
 	const float FlinchBack = 8.f * Flinch * static_cast<float>(FlinchAway.X);
 	const float FlinchSide = 8.f * Flinch * static_cast<float>(FlinchAway.Y);
 
@@ -390,11 +402,13 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 	}
 	if (SpineBone != INDEX_NONE)
 	{
-		Bones[SpineBone].Own = PitchBy(0.3f * Pose.Lean + 1.5f * FMath::Sin(Time * 1.9f));
+		// The shriek's rear bends mostly at the waist: the chest folding back over it presses the armpits into the waist
+		// (all at the chest it did badly, an even split still 2-3 cm). The same 8 degrees back in all.
+		Bones[SpineBone].Own = PitchBy(0.3f * Pose.Lean + 1.5f * FMath::Sin(Time * 1.9f) - 6.f * Pose.Rear);
 	}
 	if (ChestBone != INDEX_NONE)
 	{
-		Bones[ChestBone].Own = PitchBy(0.3f * Pose.Lean - 8.f * Pose.Rear) * RollBy(-0.3f * Bank);
+		Bones[ChestBone].Own = PitchBy(0.3f * Pose.Lean - 2.f * Pose.Rear) * RollBy(-0.3f * Bank);
 	}
 	if (CoalBone != INDEX_NONE)
 	{
@@ -416,33 +430,17 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 		Bones[JawBone].Own = PitchBy(Pose.Jaw - RestJaw);
 	}
 
-	// The arms hang and drift, trail a little as it glides, fling wide for the shriek and reach long in the lunge.
-	for (const FArm& Arm : Arms)
+	// The shroud lifts off ground that rises behind it (it trails a meter back, low): the floor's slope along its facing,
+	// eased so bumps don't jerk it. Read off the movement's floor, so it costs no trace.
+	float WantedLift = 0.f;
+	const FFindFloorResult& Floor = GetCharacterMovement()->CurrentFloor;
+	if (!IsDead() && Floor.bBlockingHit && Floor.HitResult.ImpactNormal.Z > 0.5)
 	{
-		const float Side = Arm.Side;
-		const float Drift = 3.f * FMath::Sin(Time * 1.1f + 0.8f * Side);
-		const float Swing = Drift + 10.f * Moving * (1.f - Pose.Reach) + 15.f * Pose.Spread - 80.f * Pose.Reach + 10.f * Pose.Death;
-		const float Out = 6.f * Moving + 55.f * Pose.Spread + 12.f * Pose.Reach;
-		const float Bend = 12.f + 18.f * Moving + 30.f * Pose.Spread - 6.f * Pose.Reach + 25.f * Pose.Death;
-		if (Arm.UpperArm != INDEX_NONE)
-		{
-			Bones[Arm.UpperArm].Own = PitchBy(Swing) * RollBy(Side * Out);
-		}
-		if (Arm.LowerArm != INDEX_NONE)
-		{
-			Bones[Arm.LowerArm].Own = PitchBy(-(Bend - RestBend));
-		}
-		if (Arm.Hand != INDEX_NONE)
-		{
-			Bones[Arm.Hand].Own = PitchBy(15.f * Pose.Spread - 12.f * Pose.Reach);
-		}
-		for (int32 Finger = 0; Finger < Arm.Fingers.Num(); ++Finger)
-		{
-			// The curl and fan are about axes that don't commute, so the rest's idle comes off as one turn, after them.
-			Bones[Arm.Fingers[Finger]].Own = TurnBy(Arm.CurlAxes[Finger], -Pose.Curl) * PitchBy(Arm.FanOffsets[Finger] * Pose.Splay)
-				* Arm.IdleTurns[Finger].Inverse();
-		}
+		const FVector Normal = Floor.HitResult.ImpactNormal;
+		const double Rise = FVector::DotProduct(Normal, Facing.Vector());
+		WantedLift = FMath::Clamp(static_cast<float>(FMath::RadiansToDegrees(FMath::Atan2(Rise, Normal.Z))), 0.f, MaxShroudLift);
 	}
+	ShroudLift = Dt > 0.f ? FMath::FInterpTo(ShroudLift, WantedLift, Dt, 4.f) : WantedLift;
 
 	// The shroud and its strips trail the drift, out of phase with each other, and snap straight with the lunge.
 	for (int32 Chain = 0; Chain < static_cast<int32>(UE_ARRAY_COUNT(Chains)); ++Chain)
@@ -452,6 +450,10 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 			Chains[Chain].Step(Shroud, Local, YawRate * Alive, Pose.Snap, Dt);
 		}
 	}
+
+	// The arms (UnpaidCreatureArms.cpp), last: adrift at rest, clawing as it hunts, flung wide for the shriek, long in the
+	// lunge, lagging its moves, and kept out of its torso as this frame poses it, shroud and all.
+	PoseArms(Dt, Time, Speed, Local, YawRate);
 
 	// A body built on this rig lays its own pose over the channels' (Abel's pose table).
 	LayerPose(Dt);
@@ -479,9 +481,13 @@ void AUnpaidCreature::SolvePose()
 		Joint += Bone.Shift;
 		if (Bone.Chain != INDEX_NONE)
 		{
-			// A shroud link swings as its chain says, under what the chain hangs from (the pelvis's lean carries it all).
+			// A shroud link swings as its chain says, under what the chain hangs from (the pelvis's lean carries it all). A
+			// chain hung from the body lifts with the ground rising behind it (ShroudLift, about the body's right-hand axis); a
+			// strip hung from the shroud has that lift from its link already.
 			const int32 Anchor = ChainAnchors[Bone.Chain];
-			const FQuat Hung = Anchor != INDEX_NONE ? Bones[Anchor].Turned : FQuat::Identity;
+			const bool bFromBody = Anchor == INDEX_NONE || Bones[Anchor].Chain == INDEX_NONE;
+			const FQuat Lift = bFromBody && ShroudLift > 0.f ? PitchBy(ShroudLift) : FQuat::Identity;
+			const FQuat Hung = Lift * (Anchor != INDEX_NONE ? Bones[Anchor].Turned : FQuat::Identity);
 			const FQuat Swung = Hung * Chains[Bone.Chain].LinkRotation(Bone.Link, ChainRestDirections[Bone.Chain][Bone.Link]);
 			// Knelt or sat (Abel), the links lie as their own turns lay them, the chain's swing blended out.
 			Bone.Turned = ChainSwing >= 1.f ? Swung : FQuat::Slerp(Above * Bone.Own, Swung, FMath::Clamp(ChainSwing, 0.f, 1.f)).GetNormalized();

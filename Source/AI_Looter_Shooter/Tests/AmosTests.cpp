@@ -248,9 +248,9 @@ bool FAmosTopicsTest::RunTest(const FString& Parameters)
 		Amos->GetHeadYaw() > 20.f && Amos->GetHeadYaw() <= Amos->HeadTurnLimit + 0.1f);
 	TestTrue(TEXT("...his jaw moving"), Amos->GetJawOpen() > 0.2f);
 
-	// Side 2 done while he's still talking: he leans on until his words are over, then settles onto the rail.
-	Runner->NotifyEvent(FMissionEvent::Named(TEXT("Test.Step3")));
-	TestTrue(TEXT("Side 2 done"), Campaign.HasCompleted(SideTwo));
+	// That talk turned Side 2 in, so it's done while he's still talking: he leans on until his words are over, then settles
+	// onto the rail.
+	TestTrue(TEXT("Side 2 turned in by that talk: done"), Campaign.HasCompleted(SideTwo));
 	Expect(TEXT("After it"), EAmosTopic::Fence);
 	Amos->UpdatePose(0.1f);
 	TestTrue(TEXT("...still leaning while he talks"), Amos->GetSeat() == EAmosPose::Lean && Amos->WantsToSit());

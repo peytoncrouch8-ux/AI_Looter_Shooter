@@ -2,11 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Engine/HitResult.h"
 #include "Player/PlayerSize.h"
 #include "Player/PlayerSlide.h"
+#include "Player/PlayerTraversal.h"
 #include "Player/SlideDust.h"
 #include "Player/StanceIntent.h"
 #include "Player/PawnInputBinding.h"
+#include "Player/TraversalProbe.h"
 #include "Player/ViewEase.h"
 #include "PlayerLocomotionComponent.generated.h"
 
@@ -19,6 +22,9 @@ class UCharacterMovementComponent;
 class UKeyBindingSubsystem;
 class UPlayerViewComponent;
 class UWeaponManagerComponent;
+
+/** A mantle or vault starting, or landing: its kind and the height climbed (the obstacle's top over the feet, cm). */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerTraversal, ETraversalKind /*Kind*/, float /*Height*/);
 
 /**
  * Sprint, crouch and slide for the player character, plus the first-person motion that sells them.
@@ -37,6 +43,13 @@ class UWeaponManagerComponent;
  *    whatever the capsule does. The engine's crouch changes the capsule in one frame (and sets the body's place in it
  *    without moving it there); the eye absorbs it, so the camera moves only on its curve (UpdateCamera).
  *  - A slide kicks up dust and grit from the feet (FSlideDust) and plays its sounds (Player.Slide, Player.SlideLoop).
+ *  - Traversal (PlayerLocomotionTraversal.cpp): the jump key at a chest-high ledge climbs onto it (a mantle), and at a
+ *    fence or low wall taken at a run vaults over it (FTraversalProbe finds them, FPlayerTraversal plans the move); a
+ *    ledge met in the air with forward held is caught. The movement stands aside during a move (its custom mode) while
+ *    the capsule rides the plan; the eye follows its own smooth curve, the gun lowers a little, and the view settles
+ *    with a soft dip as it ends. The jump forgives (PlayerLocomotionJumpAssist.cpp): a late press off an edge still
+ *    jumps (coyote time), an early one before landing jumps on landing (the buffer); a player hung on rocks or props is
+ *    nudged free.
  *
  * Speeds and heights here are for the full-size body (Player/PlayerSize.h): the character's scale shrinks the heights,
  * and the crouch speed default is already scaled. Firing ends a sprint (the gun comes up immediately). Everything
@@ -93,9 +106,34 @@ public:
 	 */
 	float GetViewLowering() const;
 
-	/** The first-person eye's height above the feet right now (world cm), and the standing one it rises back to. */
-	float GetEyeHeight() const { return EyeHeight.GetValue(); }
+	/**
+	 * The first-person eye's height above the feet right now (world cm), and the standing one it rises back to. Through a
+	 * mantle or vault the eye rides its own world path, so this is that path over the feet (it dips well under standing
+	 * while the body hops); GetViewLowering follows it, and with it the third-person camera.
+	 */
+	float GetEyeHeight() const { return Traversal.IsActive() ? TraversalEyeHeight : EyeHeight.GetValue(); }
 	float GetStandingEyeHeight() const { return StandingEye; }
+
+	// --- Traversal: mantle, vault, unstick (the view and the body's pose read these) ---
+
+	/** A mantle, vault or unstick is carrying the player: the movement stands aside until it ends. */
+	bool IsTraversing() const { return Traversal.IsActive(); }
+	/** The move under way (or the last one), and how far through it it is (0..1). */
+	ETraversalKind GetTraversalKind() const { return Traversal.GetKind(); }
+	float GetTraversalProgress() const { return Traversal.GetProgress(); }
+	/** 0..1, eased: how far the climbing pose (the gun lowered and turned in) has come in. A vault takes 0.6 of it. */
+	float GetTraversalAlpha() const { return TraversalAlpha; }
+	/** The move's whole plan: the capsule's and the eye's paths (the tests, a camera that wants to look ahead). */
+	const FPlayerTraversal& GetTraversal() const { return Traversal; }
+	/** Why the last look for a ledge found none (the tests, the debug line). */
+	ETraversalRefusal GetLastTraversalRefusal() const { return LastTraversalRefusal; }
+	/** Whether the jump key would still jump now though the feet have just walked off an edge (coyote time). */
+	bool CanCoyoteJump() const;
+
+	/** A mantle or vault starts (the view could kick its field of view, the body start a climb pose). */
+	FOnPlayerTraversal OnTraversalStarted;
+	/** It lands, on the ledge's top or the floor beyond (the view could add a landing shake). */
+	FOnPlayerTraversal OnTraversalLanded;
 
 	/** Degrees a slide tips the first-person view by right now. */
 	float GetViewRoll() const { return AppliedViewRoll; }
@@ -111,8 +149,9 @@ public:
 	void HandleCrouchPressed();
 	void HandleCrouchReleased();
 	/**
-	 * The jump key (the character passes it on): jumps, except while crouched or sliding, when it stands up instead
-	 * (or does nothing when there's no room to stand). The next press jumps.
+	 * The jump key (the character passes it on): climbs or vaults what's in front if it can, else jumps (a moment after
+	 * walking off an edge too), and in the air holds the press for the landing. Crouched or sliding it stands up instead
+	 * (or does nothing when there's no room to stand); the next press jumps. Mid-climb it does nothing.
 	 */
 	void HandleJumpPressed();
 	/**
@@ -226,6 +265,37 @@ private:
 	/** This frame's slide dust (FSlideDust). */
 	void UpdateDust(float DeltaTime);
 
+	// --- Traversal (PlayerLocomotionTraversal.cpp) ---
+
+	/** The jump key standing: a mantle or vault in front, else a jump (coyote time in the air), else the press kept. */
+	void JumpOrTraverse();
+	/** Looks for a mantle or vault in front and starts it; bJumpKey: asked by the key (else a catch in the air). */
+	bool TryStartTraversal(bool bJumpKey);
+	/** Plans the move to what the probe found (or to a free spot, unsticking) and hands the capsule to it. */
+	bool StartTraversal(const FTraversalFind& Found);
+	/** The clock, a move under way, and between moves the jump's forgiveness, the catch in the air and the stuck check. */
+	void UpdateTraversal(float DeltaTime);
+	void AdvanceTraversal(float DeltaTime);
+	/** The move reached its end: the movement takes over again (walking, or falling after an unstick). */
+	void FinishTraversal();
+	/** Something else moved the player mid-move (a respawn, fall recovery): let go where they are. */
+	void AbortTraversal();
+	/**
+	 * Remembers the ground (the last floor, walking off an edge) and fires a jump held for the landing
+	 * (PlayerLocomotionJumpAssist.cpp, with the next two).
+	 */
+	void UpdateJumpAssist();
+	void CoyoteJump();
+	/** Hung in the air in one spot (wedged on rocks or props): a short glide to a free spot with ground under it. */
+	void UpdateStuck();
+	/** Which way the player means to go: the keys' way, else the run's, else the look. */
+	FVector GetTraversalHeading() const;
+	/** Something else holds the player (a scene carrying them, move input shut off while dying or on a trip): no climbs, no nudges. */
+	bool IsMovementHeld() const;
+	void PlayTraversalSounds(bool bLanding) const;
+	/** Draws the probe's findings and the planned path (Looter.DebugTraversal). */
+	void DrawTraversalDebug(const FTraversalFind& Found) const;
+
 	/** The movement keys held this frame (HandleMoveInput); zero once they stop coming. */
 	FVector2D GetHeldMoveInput() const;
 	bool IsMovingForward() const;
@@ -281,6 +351,35 @@ private:
 	FSlideDust Dust;
 	/** The slide's scrape, held while it runs. */
 	TWeakObjectPtr<UAudioComponent> SlideLoop;
+	// Traversal (PlayerLocomotionTraversal.cpp)
+	FPlayerTraversal Traversal;
+	ETraversalRefusal LastTraversalRefusal = ETraversalRefusal::None;
+	/** Where the move last put the capsule: anything else moving it ends the move. */
+	FVector TraversalLocation = FVector::ZeroVector;
+	/** The eye's height over the feet through a move (its own world path less the feet), for UpdateCamera. */
+	float TraversalEyeHeight = 0.f;
+	/** The obstacle's top over the feet as the move started, and the floor it ends on (its surface's step). */
+	float TraversalHeight = 0.f;
+	FHitResult TraversalFloor;
+	FHitResult TraversalTop;
+	float TraversalAlpha = 0.f;
+	FViewEase TraversalEase;
+	/**
+	 * The component's own clock (s), for coyote time, the jump buffer and the stuck check: test levels never tick the
+	 * world's.
+	 */
+	double Clock = 0.0;
+	double LeftGroundClock = -100.0;
+	double JumpBufferedClock = -100.0;
+	bool bWasGrounded = false;
+	/** The feet last left the ground by walking off it (not a jump, a launch or a move): a late jump is still allowed. */
+	bool bLeftByWalking = false;
+	/** The feet's height when last on the ground: a ledge in the air is reached for from there. */
+	float LastFloorZ = 0.f;
+	bool bHaveFloor = false;
+	FVector StuckAnchor = FVector::ZeroVector;
+	double StuckSinceClock = 0.0;
+
 	/** The movement keys as the character last passed them on, and the frame it did (GFrameCounter). */
 	FVector2D MoveInput = FVector2D::ZeroVector;
 	uint64 MoveInputFrame = 0;
@@ -300,6 +399,8 @@ private:
 	FViewEase CrouchEase;
 	FViewEase SlideEase;
 	bool bSprintInterrupted = false;
+	/** The body's run cycle rate as of the last frame on the ground: held through a jump, so a sprint jump lands in stride. */
+	float GroundedAnimRate = 1.f;
 
 	// View model
 	float StepPhase = 0.f;

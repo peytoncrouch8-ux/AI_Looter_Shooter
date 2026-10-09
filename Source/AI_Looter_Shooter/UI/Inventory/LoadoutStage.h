@@ -55,10 +55,11 @@ struct FLoadoutStageGun
 };
 
 /**
- * The loadout screen's stand: a stand-in of the player's character (same mesh, materials and animation) carrying copies
- * of the equipped guns, in hand, on the back and at the hip. It stands far outside the level, is visible only to its own
- * camera and is lit only by its own studio lights, and renders into the picture the loadout screen shows, only while
- * the screen is open.
+ * The loadout screen's old stand: a stand-in of the player's character (same mesh, materials and animation) carrying
+ * copies of the equipped guns, in hand, on the back and at the hip. It stands far outside the level, is visible only to its
+ * own camera and is lit only by its own studio lights, and renders into a picture only while active.
+ * Since the 2026-10-08 redesign the loadout shows the chosen gun on its own (ALoadoutGunStage) and spawns this no more;
+ * it's kept while the user decides whether the stand-in comes back (LoadoutCarry, below, is still used everywhere).
  */
 UCLASS(NotPlaceable, Transient)
 class AI_LOOTER_SHOOTER_API ALoadoutStage : public AActor

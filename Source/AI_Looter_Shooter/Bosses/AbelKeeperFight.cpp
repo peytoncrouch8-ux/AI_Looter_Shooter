@@ -50,6 +50,8 @@ void AAbelKeeper::HandleFightStarted()
 	LightAllLanterns();
 	ApplyPace(false);
 	EndMove();
+	// He turns to the player and raises his lantern as his bar sweeps in.
+	BeginIntro();
 }
 
 void AAbelKeeper::HandleFightReset()
@@ -122,6 +124,11 @@ void AAbelKeeper::HandleCustomEvent(FName EventName)
 			WalkOffWaited = 0.f;
 		}
 	}
+	else if (EventName == AbelRules::FogShotEvent())
+	{
+		// Only from the fog itself (not on his way out, nor dragged back).
+		StartFogShot();
+	}
 }
 
 void AAbelKeeper::OnDied()
@@ -143,6 +150,8 @@ void AAbelKeeper::OnDied()
 	const FVector To = Who ? Who->GetActorLocation() - GetActorLocation() : GetActorForwardVector();
 	KneelYaw = static_cast<float>(To.IsNearlyZero() ? GetActorRotation().Yaw : To.Rotation().Yaw);
 	SetLanternFlare(-1.f);
+	// His coal flares once as he falls (his boss's slow beat and shake come with it), then sinks to an ember.
+	FlareCoalAtDeath();
 }
 
 void AAbelKeeper::OnRespawned()
@@ -165,6 +174,9 @@ void AAbelKeeper::BeginMove(EAbelMove NewMove)
 	MoveTime = 0.f;
 	MoveFrom = GetActorLocation();
 	MoveTo = MoveFrom;
+	// A fog shot's flare or a barrage belongs to the moment it began in.
+	FogFlareLeft = 0.f;
+	BarrageFired = 0;
 }
 
 void AAbelKeeper::EndMove()
@@ -172,6 +184,8 @@ void AAbelKeeper::EndMove()
 	LetGo();
 	Move = EAbelMove::None;
 	MoveTime = 0.f;
+	FogFlareLeft = 0.f;
+	BarrageFired = 0;
 	if (!IsDead())
 	{
 		SetLanternFlare(0.f);
@@ -210,7 +224,8 @@ void AAbelKeeper::Rejoin()
 
 bool AAbelKeeper::IsFreeForMoment() const
 {
-	return !IsDead() && Boss->IsFighting() && Move == EAbelMove::None && !IsLunging() && !IsPhasing()
+	// His entrance is cut short by any moment his phase asks for.
+	return !IsDead() && Boss->IsFighting() && (Move == EAbelMove::None || Move == EAbelMove::Intro) && !IsLunging() && !IsPhasing()
 		&& GetCreatureState() != ECreatureState::Attack && !Boss->IsUntargetable();
 }
 
@@ -285,6 +300,7 @@ bool AAbelKeeper::DriftOut()
 			Post->SetDark(true);
 		}
 	}
+	LooterSound::PlayAt(this, LooterSoundCue::AbelLanternsOut, GetHome().GetLocation());
 	UE_LOG(LogLooter, Log, TEXT("%s drifts out into the fog over the canyon; the lanterns go dark."), *GetActorNameOrLabel());
 	return true;
 }

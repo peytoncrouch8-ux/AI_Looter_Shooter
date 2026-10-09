@@ -87,6 +87,46 @@ float LightBeams::GutterStrength(float Time)
 	return FMath::Clamp(Strength, 0.08f, 1.f);
 }
 
+LightBeams::FBeamFlare LightBeams::FlareAt(float Time, bool bGrand)
+{
+	FBeamFlare Flare;
+	if (Time >= FlareSeconds)
+	{
+		return Flare;
+	}
+	const float T = FMath::Max(Time, 0.f);
+	// Up fast from a stub, past its height, then settling back over the rest of the flare.
+	constexpr float Rise = 0.2f;
+	const float Peak = bGrand ? 1.5f : 1.3f;
+	Flare.Lift = T < Rise
+		? FMath::Lerp(0.35f, Peak, FMath::InterpEaseOut(0.f, 1.f, T / Rise, 2.f))
+		: FMath::Lerp(Peak, 1.f, FMath::SmoothStep(Rise, FlareSeconds, T));
+	// The flash: bright at once, gone quickly, and nothing left of it by the end.
+	const float Fade = FMath::Exp(-T / 0.16f) * (1.f - FMath::SmoothStep(FlareSeconds * 0.6f, FlareSeconds, T));
+	Flare.Flash = 1.f + (bGrand ? 4.f : 2.5f) * Fade;
+	Flare.Width = 1.f + 0.8f * Fade;
+	return Flare;
+}
+
+void LightBeams::Flare(UStaticMeshComponent* Beam, float Time, bool bGrand, float Glow, float Height, float Radius)
+{
+	if (!Beam)
+	{
+		return;
+	}
+	const FBeamFlare Flare = FlareAt(Time, bGrand);
+	const float Tall = Height * Flare.Lift;
+	const float Wide = Radius * Flare.Width;
+	Beam->SetRelativeScale3D(FVector(Wide / 50.f, Wide / 50.f, Tall / 100.f));
+	Beam->SetRelativeLocation(FVector(0.f, 0.f, Tall * 0.5f));
+	if (UMaterialInstanceDynamic* Material = Cast<UMaterialInstanceDynamic>(Beam->GetMaterial(0)))
+	{
+		Material->SetScalarParameterValue(TEXT("Glow"), Glow * Flare.Flash);
+		// The glow fades over the beam's height: keep the fade on the beam as it grows.
+		Material->SetScalarParameterValue(TEXT("GradHeight"), Tall);
+	}
+}
+
 void LightBeams::Gutter(UStaticMeshComponent* Beam, float Time, float Glow, float Height, float Radius)
 {
 	if (!Beam)

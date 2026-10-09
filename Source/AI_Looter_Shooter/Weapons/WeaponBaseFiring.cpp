@@ -59,7 +59,8 @@ void AWeaponBase::StartFire()
 {
 	bWantsToFire = true;
 
-	if (bReloading || !Instance.Definition)
+	// Mid-strike the trigger is only remembered: auto fire takes up again as the swing ends (EndMeleeSwing).
+	if (bReloading || bMeleeSwinging || !Instance.Definition)
 	{
 		return;
 	}
@@ -105,7 +106,7 @@ void AWeaponBase::StopFire()
 
 void AWeaponBase::HandleFiring()
 {
-	if (bReloading || !Instance.Definition)
+	if (bReloading || bMeleeSwinging || !Instance.Definition)
 	{
 		return;
 	}

@@ -6,6 +6,7 @@
 #include "Creatures/GravemotherCreature.h"
 #include "AI_Looter_Shooter.h"
 #include "Audio/CreatureVoiceComponent.h"
+#include "Audio/LooterSound.h"
 #include "Combat/BulletSubsystem.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/GroundCrack.h"
@@ -151,17 +152,6 @@ float AGravemotherCreature::MeasureLane(const FVector& Direction, float Wanted) 
 	return Length;
 }
 
-float AGravemotherCreature::GetAttackStartRange() const
-{
-	// Her charge starts from well out; otherwise she closes in to bite.
-	return WantsToCharge() ? ChargeRange * GetSizeScale() : Super::GetAttackStartRange();
-}
-
-bool AGravemotherCreature::CanStartAttack() const
-{
-	return ChargeState == EGravemotherCharge::None && Super::CanStartAttack();
-}
-
 bool AGravemotherCreature::TracksTargetInWindup() const
 {
 	// Once she has taken her aim the line is fixed: the crack shows where she'll run, and she runs there.
@@ -169,29 +159,16 @@ bool AGravemotherCreature::TracksTargetInWindup() const
 }
 
 // ---------------------------------------------------------------------------
-// The telegraph
+// The telegraph (her attack's choice of move is GravemotherCreatureMoves.cpp's)
 // ---------------------------------------------------------------------------
-
-void AGravemotherCreature::OnAttackStarted()
-{
-	// The same attack, two ways: a charge when one is wanted, else her bite with its own timing.
-	if (WantsToCharge())
-	{
-		BeginTelegraph();
-	}
-	else
-	{
-		AttackWindup = BiteWindup;
-		AttackRecovery = BiteRecovery;
-	}
-	Super::OnAttackStarted();
-}
 
 void AGravemotherCreature::BeginTelegraph()
 {
+	Move = EGravemotherMove::Charge;
 	ChargeState = EGravemotherCharge::Telegraph;
 	bAimTaken = false;
 	bChargeHit = false;
+	bDashRan = false;
 	ChargeLength = 0.f;
 	// The attack's wind-up is the whole telegraph (the spider's attack pose rears her up through it, forelegs high); its
 	// recovery is set for this dash once she knows how long it runs (BeginDash), long enough for the longest till then.
@@ -233,28 +210,18 @@ void AGravemotherCreature::TakeAim()
 }
 
 // ---------------------------------------------------------------------------
-// The dash
+// The dash (her attack's strike is GravemotherCreatureMoves.cpp's: a charge's starts this)
 // ---------------------------------------------------------------------------
 
-void AGravemotherCreature::Strike()
+void AGravemotherCreature::BeginDash()
 {
-	if (ChargeState != EGravemotherCharge::Telegraph)
-	{
-		// A bite.
-		Super::Strike();
-		return;
-	}
 	// A wind-up shorter than her aim's time (its settings) aims as it ends.
 	if (!bAimTaken)
 	{
 		TakeAim();
 	}
-	BeginDash();
-}
-
-void AGravemotherCreature::BeginDash()
-{
 	ChargeState = EGravemotherCharge::Dash;
+	bDashRan = true;
 	DashTime = 0.f;
 	DashLast = GetActorLocation();
 	TrailIn = 0.f;
@@ -382,10 +349,11 @@ bool AGravemotherCreature::TryChargeHit(const FVector& From, const FVector& To)
 		return false;
 	}
 	bChargeHit = true;
-	// Thrown off her line to whichever side they stood, and on along it.
+	// Thrown off her line to whichever side they stood, and on along it; the player feels it.
 	const FVector Side(-ChargeDirection.Y, ChargeDirection.X, 0.0);
 	const double Way = FVector::DotProduct(Where - To, Side) >= 0.0 ? 1.0 : -1.0;
 	HitWithAttack(Victim, (ChargeDirection * 0.6 + Side * (Way * 0.8)).GetSafeNormal(), ChargeStrength);
+	ShakeFrom(Where, 0.7f, 0.6f);
 	UE_LOG(LogLooter, Log, TEXT("%s's charge ran down %s."), *GetName(), *GetNameSafe(Victim));
 	return true;
 }
@@ -407,6 +375,12 @@ void AGravemotherCreature::EndDash()
 	const FVector Side(-ChargeDirection.Y, ChargeDirection.X, 0.0);
 	KickDirt(Slam + Side * (ChargeBurstRadius * Scale * 0.5f), 0.6f);
 	KickDirt(Slam - Side * (ChargeBurstRadius * Scale * 0.5f), 0.6f);
+	LooterSound::PlayAt(this, LooterSoundCue::GravemotherSlam, Slam);
+	ShakeFrom(Slam, 0.4f, 0.5f);
+	// Dodged, her forelegs stay in the dirt a while (the window to punish her: she sinks, open); having run her target
+	// down, she's up sooner.
+	const float SinceStrike = FMath::Max(GetStateTime() - AttackWindup, 0.f);
+	AttackRecovery = SinceStrike + (bChargeHit ? ChargeRecover : ChargeMissRecover);
 }
 
 void AGravemotherCreature::FinishCharge()
@@ -416,9 +390,18 @@ void AGravemotherCreature::FinishCharge()
 	bAimTaken = false;
 	if (AGroundCrack* Open = Crack.Get())
 	{
-		Open->Close(CrackLingers);
+		// In her fury the seam of a crack she ran down burns a while: standing on it hurts (TickBurn).
+		const bool bBurns = Pace.bBurningCracks && bDashRan && !IsDead();
+		Open->Close(bBurns ? FMath::Max(BurnSeconds, CrackLingers) : CrackLingers);
+		if (bBurns)
+		{
+			BurningCrack = Open;
+			BurnLeft = BurnSeconds;
+			BurnTick = 0.f;
+		}
 	}
 	Crack = nullptr;
+	bDashRan = false;
 	if (bCharged)
 	{
 		ChargeCooldownLeft = ChargeCooldown;

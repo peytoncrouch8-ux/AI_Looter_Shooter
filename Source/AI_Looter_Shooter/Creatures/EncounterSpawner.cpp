@@ -265,7 +265,7 @@ void AEncounterSpawner::UpdateEncounter(float DeltaSeconds)
 		break;
 
 	case EEncounterState::Waiting:
-		if (WantsApproach() && IsPlayerWithin(ActivationRadius))
+		if (WantsApproach() && CheckApproach())
 		{
 			Engage();
 		}
@@ -306,7 +306,22 @@ void AEncounterSpawner::UpdateEncounter(float DeltaSeconds)
 	default:
 		break;
 	}
+	// A patrol walks on (and its creatures with it) whenever it's on, out or not.
+	if (State == EEncounterState::Waiting || State == EEncounterState::Engaged)
+	{
+		UpdatePack(DeltaSeconds);
+	}
 	UpdateTimer();
+}
+
+bool AEncounterSpawner::CheckApproach()
+{
+	return IsPlayerWithin(ActivationRadius);
+}
+
+FVector AEncounterSpawner::GetSpawnCenter() const
+{
+	return GetActorLocation();
 }
 
 void AEncounterSpawner::HandleCheckTimer()
@@ -367,7 +382,8 @@ bool AEncounterSpawner::IsPlayerWithin(float Distance) const
 {
 	const UEncounterSubsystem* Encounters = GetEncounters();
 	const APawn* Player = Encounters ? Encounters->GetPlayer() : nullptr;
-	return Player && FVector::DistSquared(Player->GetActorLocation(), GetActorLocation()) <= FMath::Square(static_cast<double>(Distance));
+	// From where its creatures are: its spot, or for a patrol its point on the route.
+	return Player && FVector::DistSquared(Player->GetActorLocation(), GetSpawnCenter()) <= FMath::Square(static_cast<double>(Distance));
 }
 
 // ---------------------------------------------------------------------------

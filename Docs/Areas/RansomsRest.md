@@ -16,7 +16,7 @@ Come home dead. Ransom's Rest is the place Ellis ran from at sixteen and helped 
 | Setting | A high valley in the Reaches, on Teropa. Ridges close it on the north, east and south. On the west it ends at the Rim, a 70 m drop into Gravewind Canyon, with plains running to the sunset beyond |
 | Size | About 309 × 205 m with Gravewind Point and Stage Gap: about 42,800 m², roughly 1.5× the tutorial island (about 28,500 m², both measured on their outlines). The valley floor is about 245 × 205 m |
 | Play time | Main path about an hour; 75–90 minutes with the side missions |
-| Enemy levels | 1–10 until the campaign is finished. A main-path player leaves at about level 9 |
+| Enemy levels | 1–10 until the campaign is finished. A player who does the story and both side missions leaves at about level 6.9 (786 XP), about 7.4 after clearing every camp, patrol and ambush once (`Docs/Progression.md`, 2026-10-09) |
 | Missions | 7 main, 3 side (one is the Gravemother), and optional Ranger caches |
 | Boss | Abel Ransom, the Keeper (one of the Unpaid) |
 | Legendary monster | The Gravemother, in the Sink's den |
@@ -176,6 +176,18 @@ Creatures steer without a navmesh. They won't step off a drop of more than about
 | Whitlock hands (Side 2) | The barn yard | The barn yard fence |
 | Slimes | Mill Creek's bottom | The banks |
 | Abel's adds | Spawned on the deck | The deck |
+| Camp SheepFold (after Main 4) | The west field round the sheep fold, stopping at the Dry Wash's north bank | Its own ground |
+| Camp OrchardEdge (after Main 3) | South of the orchard, outside the salt line, under Coffin Rock | Its own ground |
+| Camp MillCreek (after Main 3) | The creek bottom above Mill Falls, with the 2 m bank tops | Its own ground |
+| Patrol WestRoad (after Main 4) | The west road below the chapel knoll, 20 m there and back | The road's corridor |
+| Patrol QuarryTrack (after Main 3) | The quarry track to the Old Quarry, 14 m | The track's corridor |
+| Ambush Churchyard (after Main 4) | The lanes between the west grave rows, rising when the player walks back in | The fence |
+| Ambush Webwood (after Main 4) | Beside the five webbed trees, dropping 3.5 m | Its own ground |
+
+The camps, patrols and ambushes (2026-10-09, `layout.json` `gameplay.encounters`, `build_area_camps.py`) fill the
+walks between the story's fights: 7 more kills on the main path, about 15 more for an explorer. Packs flank (the
+ends swing out up to 35°), a hurt Basic spider or slime may break off once with its pack gone, and a Restless or
+better creature's first turn on the player plays the rank sting.
 
 The obstacles keep to this rule. Inside every fight's ground they are cover standing on it: boulders, low walls, wagons, a rock ring, blocks on the Sink floor. Every new change of level (the Dry Wash, Mill Gorge, Coffin Rock, the Nose) is outside all fights, and nothing new stands within 5 m of the bluff path.
 
@@ -183,7 +195,7 @@ This is checked on the step 5b greybox by spawning each group with `Looter.Spawn
 
 ## Missions
 
-Sexton's deal comes early, about 15 minutes in, on the lookout where Ellis died (decided at step 1). Main missions give 30% of the current level's XP and side missions 20%, on top of kills.
+Sexton's deal comes early, about 15 minutes in, on the lookout where Ellis died (decided at step 1). Missions are turned in, Borderlands' way: once its objectives are done a mission waits for its giver (Delia, Sexton, Tilly, Aldana, Amos), and its rewards come as it's turned in; each gives a fixed amount of experience, on top of kills (2026-10-08: `Docs/Progression.md` has the givers, the amounts and the count). Where a mission's last step below is a talk with its giver, that talk is now its turn-in.
 
 ### Main 1: Seven Days (about 8 minutes)
 The skiff ride and the cold open, then Ellis wakes in the family plot beside Pa's frosted grave. Hob is there. Grandma Delia won't open the screen door to a corpse, but she sets a plate on the porch: *“I was to lay you on the boards tonight. Your Pa got up Wednesday night, came up through the dirt like it was fog. A keeper doesn't lie still while his saint is dark. He walks the boards at dusk.”* Ellis comes out of the grave with the guns they were buried with: whatever the player carried in the tutorial, or a Common Bullpup in the coffin after “Skip the tutorial”.
@@ -632,7 +644,7 @@ Concept renders come before any human costume. Sexton is first, because he sets 
 - **Snagging on rails and the train.** Rails, ties and the gaps between cars catch a walking capsule. The track has no per-rail collision, only one low, sloped box per piece; the platform is under the step height; and each car is one box, with the gaps between cars closed.
 - **Skyreach as a farm.** A reachable practice island could be farmed for XP and guns. Its creatures give 0 XP and, by default, drop only ammo on return visits.
 - **The tutorial itself.** Its steps 2–6 have never been played end to end in a live run. Step 10 starts by doing that.
-- **XP pacing.** With your level 1 numbers (100 XP for the first level, 10 XP a kill), about 80 main-path kills plus missions put a player near level 9 at the end. Spawn counts and mission shares are tuned at step 27.
+- **XP pacing.** With your level 1 numbers (100 XP for the first level, 10 XP a kill), about 80 main-path kills plus missions put a player near level 9 at the end. Spawn counts and mission shares are tuned at step 27. *2026-10-08: retuned for the story to end about level 6-7 (kills at 0.4 of their XPReward, fixed turn-in rewards): `Docs/Progression.md`.*
 - **Legendary feel.** At 0.3% per basic kill, most legendaries come from ranked enemies and bosses, so the 8% and 2% promotions have to show up often enough.
 - **Repeating the tutorial.** The farm, spiders and slimes are reused. The palette, Main Street, the chapel and graves, the Unpaid, the ranks and the boss set Ransom's Rest apart, and there's no gun rack beat and no slime-shooting mission.
 - **Talking doors** read as cheap if they last beyond Ransom's Rest. The *Lily* needs human NPCs and human enemies anyway, so plan that pipeline while Ransom's Rest is built.

@@ -81,6 +81,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon|Loot")
 	bool IsPickup() const { return bIsPickup; }
 
+	/** The rarity-colored pillar over it while it lies as loot (a landing drop's beam flares: ULootFanfareSubsystem). */
+	UStaticMeshComponent* GetLootBeam() const { return LootBeam; }
+
 	/** Shows/hides the floating label. Focused adds stats and the pickup prompt. */
 	void SetLabelState(bool bVisible, bool bFocused);
 
@@ -169,6 +172,29 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	bool CanReload() const;
+
+	// --- A melee strike with the gun in hand (UPlayerMeleeComponent; WeaponBaseMelee.cpp) ---
+
+	/**
+	 * The stock swings: no shots and no reload until EndMeleeSwing (a trigger held or a reload asked for meanwhile waits
+	 * for it). A reload under way is cut short and starts over once the swing is done, Borderlands' way. True if it cut
+	 * a reload short.
+	 */
+	bool BeginMeleeSwing();
+
+	/**
+	 * The swing is over: the gun back in its hold and, with bResume, the reload it cut short or one asked for meanwhile,
+	 * else auto fire if the trigger is still held. Without bResume (the gun left the hand mid-swing) nothing follows.
+	 */
+	void EndMeleeSwing(bool bResume = true);
+
+	bool IsMeleeSwinging() const { return bMeleeSwinging; }
+
+	/**
+	 * Where the swing has the gun the player sees: Offset (cm) and Rotation in the gun's own frame, turned about the middle
+	 * of its hands. Only a gun drawn in first person moves; in third person it stays in the body's hands. Zero puts it back.
+	 */
+	void SetMeleePose(const FVector& Offset, const FRotator& Rotation);
 
 	/** Magazine changed (shots, reloads, equip). Reserve lives in the holder's pool: see UWeaponManagerComponent::OnAmmoChanged. */
 	UPROPERTY(BlueprintAssignable, Category = "Weapon")
@@ -289,6 +315,11 @@ private:
 	bool bAmmoInitialized = false;
 	bool bIsPickup = false;
 	bool bUsingModel = false;
+	/** A melee strike's swing is on (BeginMeleeSwing), and whether a reload waits for its end. */
+	bool bMeleeSwinging = false;
+	bool bReloadAfterMelee = false;
+	/** The visible gun is off its hold by a swing's pose (SetMeleePose), to put back. */
+	bool bMeleePoseApplied = false;
 
 	double LastFireTime = -1000.0;
 	/** When it was last drawn, and how long it takes to come up (see GetReadyAlpha). */

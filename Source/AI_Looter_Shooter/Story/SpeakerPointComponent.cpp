@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Interaction/InteractionComponent.h"
 #include "Interaction/InteractionSubsystem.h"
+#include "Missions/MissionDefinition.h"
 #include "Missions/MissionObjective.h"
 #include "Missions/MissionRunner.h"
 #include "Session/CampaignRecord.h"
@@ -55,7 +56,10 @@ FInteractionOptions USpeakerPointComponent::GetInteractionOptions(const UInterac
 	Options.bUsable = CanTalk();
 	Options.bTap = true;
 	Options.bHold = false;
-	Options.TapPrompt = Prompt;
+	// Someone a mission waits to be turned in to says so on the key, as Borderlands' givers do.
+	const UMissionRunner* Runner = UMissionRunner::Get(this);
+	const bool bTurnIn = Runner && Runner->FindTurnInAt(GetOwner());
+	Options.TapPrompt = bTurnIn ? NSLOCTEXT("LooterSpeaker", "TurnInPrompt", "Turn in") : Prompt;
 	Options.Reach = Reach;
 	return Options;
 }
@@ -135,7 +139,23 @@ bool USpeakerPointComponent::Talk(AActor* Listener)
 	}
 	AActor* Owner = GetOwner();
 	int32 TopicIndex = INDEX_NONE;
-	const TArray<FStoryLine> Said = GetLinesNow(&TopicIndex);
+	TArray<FStoryLine> Said = GetLinesNow(&TopicIndex);
+	// A mission turned in here with words of its own for it: those, instead of what's said here at this point in the story
+	// (which may be the step's words again). Its topic's event isn't sent then: that topic wasn't said.
+	UMissionRunner* Runner = UMissionRunner::Get(this);
+	const UMissionDefinition* TurnedIn = Runner ? Runner->FindTurnInAt(Owner) : nullptr;
+	if (TurnedIn && !TurnedIn->TurnIn.Lines.IsEmpty())
+	{
+		Said = TurnedIn->TurnIn.Lines;
+		TopicIndex = INDEX_NONE;
+		for (FStoryLine& Line : Said)
+		{
+			if (Line.Speaker.IsEmpty())
+			{
+				Line.Speaker = SpeakerName;
+			}
+		}
+	}
 	if (UCaptionSubsystem* Captions = UCaptionSubsystem::Get(this))
 	{
 		// Whoever the player turns to talk to has the floor: whatever was being said stops.
@@ -149,9 +169,10 @@ bool USpeakerPointComponent::Talk(AActor* Listener)
 	UE_LOG(LogLooter, Log, TEXT("%s: %s talks (%d lines%s)."), *Owner->GetActorNameOrLabel(), *SpeakerName.ToString(), Said.Num(),
 		TopicIndex == INDEX_NONE ? TEXT("") : *FString::Printf(TEXT(", topic %d"), TopicIndex + 1));
 
-	// The talk objective waits for this: a Talk event about the actor the point is on, which carries the speaker's tag.
-	// A topic's own event comes after it, so a mission that event starts doesn't take this talk as its first objective.
-	if (UMissionRunner* Runner = UMissionRunner::Get(this))
+	// The talk objective waits for this: a Talk event about the actor the point is on, which carries the speaker's tag;
+	// so does a mission ready to turn in to them, which it finishes. A topic's own event comes after it, so a mission that
+	// event starts doesn't take this talk as its first objective.
+	if (Runner)
 	{
 		Runner->NotifyEvent(FMissionEvent::Talked(Owner));
 		if (Topics.IsValidIndex(TopicIndex) && !Topics[TopicIndex].Event.IsNone())

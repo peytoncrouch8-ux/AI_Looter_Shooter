@@ -5,6 +5,7 @@
 #include "Bestiary/BestiaryEntry.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/SpiderCreature.h"
+#include "Progression/PlayerProgressionSubsystem.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 
@@ -56,7 +57,8 @@ bool FBestiaryEntriesTest::RunTest(const FString& Parameters)
 		const ASpiderCreature* Defaults = GetDefault<ASpiderCreature>();
 		const FBestiaryStats Stats = (*Spider)->ReadStats();
 		TestEqual(TEXT("Its level"), Stats.Level, Defaults->Level);
-		TestEqual(TEXT("Its experience"), Stats.XPReward, Defaults->XPReward);
+		TestEqual(TEXT("Its experience, as a kill pays it"), static_cast<int64>(Stats.XPReward),
+			UPlayerProgressionSubsystem::GetLevelRules().KillXP(Defaults->XPReward, Defaults->Level, Defaults->Level));
 		TestEqual(TEXT("Its attack"), Stats.AttackDamage, Defaults->AttackDamage);
 		TestTrue(TEXT("Its health"), Stats.bHasHealth && Stats.Health > 0.f);
 		TestEqual(TEXT("A creature"), (*Spider)->Category, EBestiaryCategory::Creature);

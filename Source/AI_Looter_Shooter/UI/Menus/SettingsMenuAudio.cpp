@@ -18,11 +18,8 @@ namespace
 	/** The sliders, top to bottom, in EAudioVolume's order (VolumeSliders and VolumeValues follow it). */
 	constexpr EAudioVolume Volumes[] = { EAudioVolume::Master, EAudioVolume::Effects, EAudioVolume::Interface, EAudioVolume::Music };
 
-	/** "80%": a volume as its slider shows it. */
-	FString PercentText(float Share)
-	{
-		return FString::Printf(TEXT("%d%%"), FMath::RoundToInt(Share * 100.f));
-	}
+	// "80%": a volume as its slider shows it is SettingsMenu::PercentText (SettingsMenuParts.h), shared with the camera
+	// shake's slider.
 }
 
 UWidget* USettingsMenuWidget::MakeAudioRows()

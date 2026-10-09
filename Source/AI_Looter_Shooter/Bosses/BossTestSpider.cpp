@@ -105,6 +105,9 @@ void BossTestSpider::Configure(UBossComponent& Boss, int32 PhaseCount)
 	Boss.EngageRadius = SealRadius - 300.f;
 	Boss.MaxAliveAdds = 10;
 	Boss.bShowBar = true;
+	// Every boss's show, to try out: a title on the bar's intro, its head's crits staggering it, its loot as a shower.
+	Boss.Show.Title = FText::FromString(TEXT("Mother of None (test)"));
+	Boss.Stagger.CritShare = 0.05f;
 }
 
 UBossComponent* BossTestSpider::Spawn(UWorld* World, const FVector& Feet, float Yaw, int32 PhaseCount)

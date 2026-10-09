@@ -78,8 +78,11 @@ void UBossComponent::BeginPlay()
 	BossHealth->OnHealthChanged.AddUniqueDynamic(this, &UBossComponent::HandleBossHealthChanged);
 	BossHealth->OnDeath.AddUniqueDynamic(this, &UBossComponent::HandleBossDeath);
 	FightPhases = BossRules::Ordered(Phases);
-	// Until its fight starts it waits at its spot and hunts nobody: a boss never fights without its bar and its wall.
-	if (!bFighting)
+	// Its loot comes as a shower at its death, not its loot drop component's toss.
+	TakeOverLoot();
+	// Until its fight starts it waits at its spot and hunts nobody: a boss never fights without its bar and its wall. (One
+	// that lives as its kind does until it turns on someone starts its fight then: bWaitsPassive off.)
+	if (!bFighting && bWaitsPassive)
 	{
 		GetCreature()->SetPassive(true);
 	}
@@ -94,6 +97,8 @@ void UBossComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		BossHealth->OnDeath.RemoveDynamic(this, &UBossComponent::HandleBossDeath);
 	}
 	UnbindPlayer();
+	// Its death's slow beat never outlives it.
+	EndDeathSlow();
 	// The boss removed from a level that goes on (a dev command replacing it): its fight goes with it, so no adds or wall
 	// are left behind. A level that's ending takes everything with it anyway.
 	if (EndPlayReason == EEndPlayReason::Destroyed)
@@ -148,6 +153,7 @@ void UBossComponent::StartFight(APawn* Player)
 	bFighting = true;
 	BarHideTime = 0.f;
 	PlayerOutsideTime = 0.f;
+	NoTargetTime = 0.f;
 	FightPlayer = Fighter;
 	// Its arena centers on its home, wherever the fight found it; its phases as the data has them now.
 	Spot = Creature->GetHome().GetLocation();
@@ -168,6 +174,8 @@ void UBossComponent::StartFight(APawn* Player)
 	ShowBar();
 	TryRaiseSeal();
 	UE_LOG(LogLooter, Log, TEXT("Boss %s: the fight starts (%d phases)."), *GetLabel(), FightPhases.Num());
+	// The bar sweeps in with its title, the sting, the boss's cry (before its first phase's name comes up).
+	PlayIntro();
 	OnFightStarted.Broadcast();
 	EnterPhase(0);
 	// Started by a hit, it may be past its first lines already.
@@ -188,23 +196,53 @@ void UBossComponent::ResetFight()
 	if (ACreatureBase* Creature = GetCreature())
 	{
 		Creature->ResetToHome();
-		// Waiting again, hunting nobody until something starts the fight.
-		Creature->SetPassive(true);
+		// Waiting again, hunting nobody until something starts the fight (one that lives as its kind does is free again).
+		Creature->SetPassive(bWaitsPassive);
 	}
 	OnFightReset.Broadcast();
 }
 
-void UBossComponent::ClearFight()
+void UBossComponent::StandDown()
+{
+	UE_LOG(LogLooter, Log, TEXT("Boss %s: nobody to fight for %.0f s; the fight stands down."), *GetLabel(), StandDownSeconds);
+	// Its adds stay where they are (they lose interest as it did); it keeps its wounds and walks home on its own.
+	ClearFight(/*bWon*/ false, /*bKeepAdds*/ true);
+	HideBar();
+	Phase = INDEX_NONE;
+	if (ACreatureBase* Creature = GetCreature(); Creature && bWaitsPassive)
+	{
+		// A boss that waits for its fight goes home and waits, as a reset leaves it.
+		Creature->ResetToHome();
+		Creature->SetPassive(true);
+	}
+}
+
+void UBossComponent::ClearFight(bool bFightWon, bool bKeepAdds)
 {
 	bFighting = false;
 	StopUntargetable(/*bRejoin*/ false);
+	// A stagger under way ends with the fight; the next fight builds one up from nothing.
+	EndStagger();
+	StaggerBuildUp = 0.f;
+	StaggerCooldownLeft = 0.f;
 	bVolleyPending = false;
 	ClearShots();
-	DespawnAdds();
+	if (!bKeepAdds)
+	{
+		if (bFightWon && bAddsDieWithBoss)
+		{
+			KillAdds();
+		}
+		else
+		{
+			DespawnAdds();
+		}
+	}
 	DropSeal();
 	UnbindPlayer();
 	Scheduled.Reset();
 	FightPlayer.Reset();
+	NoTargetTime = 0.f;
 	if (ACreatureBase* Creature = GetCreature())
 	{
 		Creature->bShowsHealthTag = bSavedShowsTag;
@@ -213,8 +251,17 @@ void UBossComponent::ClearFight()
 
 void UBossComponent::HandleBossDamaged(float Damage, bool bCritical, FVector HitLocation, AController* InstigatedBy, AActor* DamageCauser)
 {
+	// In the fight, its weak spot's crits build toward a stagger.
+	if (bFighting)
+	{
+		if (bCritical)
+		{
+			AddCritDamage(Damage);
+		}
+		return;
+	}
 	// A player's hit starts the fight (before the health event that follows, so its phases see the hit).
-	if (bFighting || bWon || !bStartWhenHurt)
+	if (bWon || !bStartWhenHurt)
 	{
 		return;
 	}
@@ -238,7 +285,7 @@ void UBossComponent::HandleBossDeath(AController* Killer)
 	}
 	bWon = true;
 	const bool bWasFighting = bFighting;
-	ClearFight();
+	ClearFight(/*bWon*/ true);
 	// The bar shows it empty a moment, then fades.
 	if (bWasFighting && bBarWanted)
 	{
@@ -250,6 +297,8 @@ void UBossComponent::HandleBossDeath(AController* Killer)
 		HideBar();
 	}
 	UE_LOG(LogLooter, Log, TEXT("Boss %s: beaten."), *GetLabel());
+	// The slow beat, the shake, the bar's last word, and its loot thrown out.
+	PlayDeath(bWasFighting);
 
 	// The campaign remembers a story boss beaten (its first defeat's scene and reward come once).
 	if (!BossId.IsNone())
@@ -334,6 +383,11 @@ void UBossComponent::TickFight(float DeltaSeconds)
 				StartFight(Near);
 			}
 		}
+		// One that lives as its kind does starts its fight as it turns on a player (its senses, a pack's call).
+		if (!bFighting && !bWon && bStartWhenHunting && Creature && !Creature->IsDead() && IsLivingPlayer(Creature->GetTarget()))
+		{
+			StartFight(Creature->GetTarget());
+		}
 		return;
 	}
 
@@ -359,12 +413,23 @@ void UBossComponent::TickFight(float DeltaSeconds)
 		ResetFight();
 		return;
 	}
+	// With no wall to keep them in, a boss left with nobody to fight a while (the player gone off its ground) stands down.
+	if (StandDownSeconds > 0.f && !IsSealRaised() && !bWithdrawn)
+	{
+		NoTargetTime = Creature->GetTarget() ? 0.f : NoTargetTime + DeltaSeconds;
+		if (NoTargetTime > StandDownSeconds)
+		{
+			StandDown();
+			return;
+		}
+	}
 
 	PruneAdds();
 	TryRaiseSeal();
 	// What's under way moves on first, so a spell or a volley that this frame's events begin starts its full time now.
 	TickUntargetable(DeltaSeconds);
 	TickVolley(DeltaSeconds);
+	TickStagger(DeltaSeconds);
 	PhaseTime += DeltaSeconds;
 	RunDueEvents();
 	UpdateBar();

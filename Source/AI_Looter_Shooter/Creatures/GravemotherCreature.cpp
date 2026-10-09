@@ -1,7 +1,9 @@
-// AGravemotherCreature: construction (her size, rank, crits and pale hide), her life in the level, and her brood's calls as
-// she's hurt. GravemotherCreatureCharge.cpp has the charge, GravemotherCreatureBrood.cpp her brood and the spiderlings.
+// AGravemotherCreature: construction (her size, rank, crits and pale hide, her boss fight), her life in the level, and her
+// brood's calls as she's hurt. GravemotherCreatureCharge.cpp has the charge, GravemotherCreatureBrood.cpp her brood and
+// the spiderlings, GravemotherCreatureMoves.cpp her boss fight's moves (the roar, the quake, the spit, the reel).
 
 #include "Creatures/GravemotherCreature.h"
+#include "Bosses/BossComponent.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/GroundCrack.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -59,6 +61,27 @@ AGravemotherCreature::AGravemotherCreature()
 	{
 		GetMesh()->SetMaterial(0, PaleHide);
 	}
+
+	// Her boss fight. She lives in her den as any spider does until she turns on a player (her senses, a hit, a pack's
+	// call); then her bar sweeps in as she rears and screams. Her lair's hunting ground keeps her fight in the den and on
+	// the Sink's floor (no fog wall: the floor is open); a player gone off it a while, and her fight stands down. Her brood
+	// are her adds and die with her; her loot bursts out of her.
+	Boss = CreateDefaultSubobject<UBossComponent>(TEXT("Boss"));
+	Boss->BossName = DisplayName;
+	Boss->Phases = GravemotherFight::MakePhases();
+	Boss->bWaitsPassive = false;
+	// A hit turns her on the shooter (a creature's own rule), which starts the fight; a shot from off her ground (the Sink's
+	// rim) doesn't, so a sniper up there doesn't flash her bar on and off.
+	Boss->bStartWhenHunting = true;
+	Boss->bStartWhenHurt = false;
+	Boss->EngageRadius = 0.f;
+	Boss->LeashRadius = 0.f;
+	Boss->SealRadius = 0.f;
+	Boss->StandDownSeconds = GravemotherFight::StandDownSeconds;
+	Boss->bAddsDieWithBoss = true;
+	Boss->Show = GravemotherFight::MakeShow();
+	Boss->Stagger = GravemotherFight::MakeStagger();
+	Boss->LootShower = GravemotherFight::MakeLootShower();
 }
 
 void AGravemotherCreature::BeginPlay()
@@ -67,14 +90,43 @@ void AGravemotherCreature::BeginPlay()
 	// Her bite's timing as her class (or the level) gave it: the charge borrows the attack's and gives it back.
 	BiteWindup = AttackWindup;
 	BiteRecovery = AttackRecovery;
+	// Her own charge and chase, which each phase's pace scales.
+	if (!bOwnPaceCaptured)
+	{
+		bOwnPaceCaptured = true;
+		OwnChargeCooldown = ChargeCooldown;
+		OwnChargeTelegraph = ChargeTelegraph;
+		OwnChargeAim = ChargeAimSeconds;
+		OwnChaseSpeed = ChaseSpeed;
+	}
+	ApplyPace(0);
 	// She sizes up whoever she first sees before she charges them.
 	ChargeCooldownLeft = ChargeFirstDelay;
+
+	Boss->OnFightStarted.AddUObject(this, &AGravemotherCreature::HandleFightStarted);
+	Boss->OnFightReset.AddUObject(this, &AGravemotherCreature::HandleFightReset);
+	Boss->OnPhaseChanged.AddUObject(this, &AGravemotherCreature::HandlePhaseChanged);
+	Boss->OnStaggered.AddUObject(this, &AGravemotherCreature::HandleStaggered);
+	Boss->CanStagger.BindWeakLambda(this, [this]() { return !IsDead(); });
 }
 
 void AGravemotherCreature::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// Taken away alive (her lair's player went far off) or removed: her brood goes with her, as she goes. Killed, she
-	// leaves them fighting, and her body goes later.
+	// Taken away alive (her lair's player went far off) or removed: her brood goes with her, as she goes. Killed, they died
+	// with her (her boss's adds), and her body goes later.
+	for (const TWeakObjectPtr<AGroundCrack>& Left : { QuakeCrack, BurningCrack })
+	{
+		if (AGroundCrack* Open = Left.Get())
+		{
+			Open->Destroy();
+		}
+	}
+	QuakeCrack = nullptr;
+	BurningCrack = nullptr;
+	if (Boss)
+	{
+		Boss->CanStagger.Unbind();
+	}
 	if (EndPlayReason == EEndPlayReason::Destroyed && !IsDead())
 	{
 		for (const TWeakObjectPtr<ASpiderCreature>& Each : Brood)
@@ -102,6 +154,8 @@ void AGravemotherCreature::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	ChargeClock += DeltaSeconds;
 	TickCharge(DeltaSeconds);
+	// Her boss fight's moves: their cooldowns, the reel's sink (laid on the body the spider's code just posed).
+	TickMoves(DeltaSeconds);
 }
 
 // ---------------------------------------------------------------------------
@@ -132,6 +186,16 @@ void AGravemotherCreature::OnDied()
 	{
 		FinishCharge();
 	}
+	if (AGroundCrack* Open = QuakeCrack.Get())
+	{
+		Open->Close(0.f);
+	}
+	QuakeCrack = nullptr;
+	bReeling = false;
+	BurnLeft = 0.f;
+	// She crashes down: the den's dirt thrown up all round her (her boss's slow beat, shake and cry come with it).
+	const float Scale = GetSizeScale();
+	KickDirtRing(GetFeet(), 120.f * Scale, 7, 0.9f);
 }
 
 void AGravemotherCreature::OnRespawned()
@@ -144,4 +208,17 @@ void AGravemotherCreature::OnRespawned()
 	}
 	BroodCallsMade = 0;
 	ChargeCooldownLeft = ChargeFirstDelay;
+	// Nothing of her boss fight's moves left over.
+	if (AGroundCrack* Open = QuakeCrack.Get())
+	{
+		Open->Close(0.f);
+	}
+	QuakeCrack = nullptr;
+	Move = EGravemotherMove::Bite;
+	bRoarWanted = false;
+	bReeling = false;
+	BurnLeft = 0.f;
+	QuakeCooldownLeft = 0.f;
+	SpitCooldownLeft = 0.f;
+	ApplyPace(0);
 }

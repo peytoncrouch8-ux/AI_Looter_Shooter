@@ -49,7 +49,7 @@ public:
  * Player key rebinding without touching input assets. Every mapping context the game uses is swapped
  * for a runtime copy with the player's keys applied; overrides are saved to the "KeyBindings" slot.
  * Also owns the always-on global actions (pause menu, inventory), the code-built character actions
- * (sprint, crouch, aim, toggle camera view) and the number keys that take a weapon slot in hand.
+ * (sprint, crouch, aim, melee, toggle camera view) and the number keys that take a weapon slot in hand.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UKeyBindingSubsystem : public ULocalPlayerSubsystem
@@ -85,8 +85,26 @@ public:
 	const UInputAction* GetCrouchAction() const { return CrouchAction; }
 	const UInputAction* GetToggleViewAction() const { return ToggleViewAction; }
 	const UInputAction* GetAimAction() const { return AimAction; }
+	const UInputAction* GetMeleeAction() const { return MeleeAction; }
 
-	/** The player's copy of the character controls (sprint, crouch, camera view). Added while the character is possessed. */
+	// --- Melee: V, and a click of the right stick on a gamepad, Borderlands' way (UPlayerMeleeComponent binds it) ---
+
+	/** The melee strike's rebindable binding: "Melee". */
+	static FName MeleeBindingId();
+
+	/** V: under the left hand's fingers beside the movement keys, and free (nothing else in the game uses it). */
+	static FKey DefaultMeleeKey();
+
+	/** The right stick's click, as in Borderlands (the camera view moved to the D-pad's up for it). */
+	static FKey DefaultMeleeGamepadKey();
+
+	/**
+	 * Makes the melee action in Outer and maps it in Context to its default keys (DefaultMeleeKey, DefaultMeleeGamepadKey).
+	 * Static so tests can check the mapping the settings menu rebinds.
+	 */
+	static UInputAction* AddMeleeAction(UObject* Outer, UInputMappingContext& Context);
+
+	/** The player's copy of the character controls (sprint, crouch, aim, melee, camera view). Added while the character is possessed. */
 	UInputMappingContext* GetCharacterContext() { return GetRuntimeContext(CharacterContext); }
 
 	/** Input priority the character components add GetCharacterContext() with. */
@@ -148,6 +166,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UInputAction> CrouchAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> ToggleViewAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> AimAction;
+	UPROPERTY(Transient) TObjectPtr<UInputAction> MeleeAction;
 
 	/** The weapon slot keys get their own context: the weapon carrier adds it, whatever the weapon controls asset holds. */
 	UPROPERTY(Transient) TObjectPtr<UInputMappingContext> WeaponSlotContext;

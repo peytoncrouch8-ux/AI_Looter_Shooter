@@ -1,9 +1,11 @@
 #include "UI/HUD/PlayerHUDWidget.h"
+#include "UI/HUD/HudDamageIndicatorWidget.h"
 #include "UI/HUD/HudFrameRateWidget.h"
 #include "UI/HUD/HudInteractPromptWidget.h"
 #include "UI/HUD/HudLevelUpBannerWidget.h"
 #include "UI/HUD/HudMagazineWidget.h"
 #include "UI/HUD/HudMinimapWidget.h"
+#include "UI/HUD/HudMissionCompleteWidget.h"
 #include "UI/HUD/HudPickupFeedWidget.h"
 #include "UI/HUD/HudPlayerFrameWidget.h"
 #include "UI/HUD/HudScreenEdgeWidget.h"
@@ -165,6 +167,15 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			EdgeSlot->SetAutoSize(false);
 		}
 
+		// Round the crosshair: where a hit came from, as red arcs on a ring. It reads the player's health itself.
+		{
+			UHudDamageIndicatorWidget* DamageArcs = WidgetTree->ConstructWidget<UHudDamageIndicatorWidget>(UHudDamageIndicatorWidget::StaticClass());
+			UCanvasPanelSlot* ArcsSlot = Root->AddChildToCanvas(DamageArcs);
+			ArcsSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+			ArcsSlot->SetOffsets(FMargin(0.f));
+			ArcsSlot->SetAutoSize(false);
+		}
+
 		// Crosshair: four thin ticks with a center dot; the gap follows the weapon's spread, and each shot kicks it out.
 		{
 			// 4px ticks with a 1px dark edge leave a 2px white core that reads on any background.
@@ -320,6 +331,11 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 		// centre, where the experience bar was, stays empty: the player frame has it.)
 		LevelUpBanner = WidgetTree->ConstructWidget<UHudLevelUpBannerWidget>(UHudLevelUpBannerWidget::StaticClass());
 		PlaceOnCanvas(Root, LevelUpBanner, FAnchors(0.5f, 0.f), FVector2D(0.5f, 0.5f), FVector2D(0.f, BannerTop));
+
+		// In the same place: the mission-complete banner as a mission is turned in, taking turns with the level-up banner.
+		MissionBanner = WidgetTree->ConstructWidget<UHudMissionCompleteWidget>(UHudMissionCompleteWidget::StaticClass());
+		MissionBanner->SetLevelUpBanner(LevelUpBanner);
+		PlaceOnCanvas(Root, MissionBanner, FAnchors(0.5f, 0.f), FVector2D(0.5f, 0.5f), FVector2D(0.f, BannerTop));
 	}
 	return Super::RebuildWidget();
 }

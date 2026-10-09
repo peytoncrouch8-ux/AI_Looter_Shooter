@@ -1,5 +1,6 @@
 #include "Loot/LootLibrary.h"
 #include "Loot/AmmoPickup.h"
+#include "Loot/LootFanfareSubsystem.h"
 #include "Loot/LootTable.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponCurses.h"
@@ -246,6 +247,8 @@ TArray<AActor*> ULootLibrary::SpawnKillLoot(UObject* WorldContextObject, const U
 		if (AWeaponBase* Weapon = UWeaponRollLibrary::SpawnWeapon(WorldContextObject, Instance, FTransform(SpawnRotation, SpawnLocation)))
 		{
 			Weapon->Toss(RandomTossVelocity());
+			// Its rarity is heard and seen as it lands.
+			ULootFanfareSubsystem::ExpectLanding(Weapon);
 			Spawned.Add(Weapon);
 		}
 	}

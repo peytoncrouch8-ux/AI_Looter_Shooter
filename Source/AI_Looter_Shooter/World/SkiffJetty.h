@@ -283,9 +283,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Jetty|Boarding")
 	FName BoardingMissionId = TEXT("BoardSkiff");
 
-	/** The tutorial's mission: finished, the tutorial is done. */
+	/**
+	 * The mission that ends the tutorial: Skyreach's main posting, Clear Web Hollow, turned in at the notice board
+	 * (ATutorialDirector::MainPostingId). Finished, the tutorial is done. (The first goal, "Tutorial", only puts the board's
+	 * postings up.)
+	 */
 	UPROPERTY(EditAnywhere, Category = "Jetty|Boarding")
-	FName TutorialMissionId = TEXT("Tutorial");
+	FName TutorialMissionId = TEXT("WebHollow");
 
 	/** What casting off tells the missions: Board.<Vehicle>. */
 	UPROPERTY(EditAnywhere, Category = "Jetty|Boarding")

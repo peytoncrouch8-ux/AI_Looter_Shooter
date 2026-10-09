@@ -4,7 +4,8 @@ height field the core square sits in, the core's edge, the playable boundary and
 A grounded area is not an island: it has no rim, no underside and no outline. Its map square is the core, and a regional
 height field R (layout.json "region") is defined all around it, out to the surround ring's square:
 - a valley floor: large-scale noise on a gentle tilt, raised or lowered by benches (a terrace, a lowland past a ridge:
-  "benches", each a polygon whose ground stands "height" above or below the floor, easing out over "blend" outside it);
+  "benches", each a polygon whose ground stands "height" above or below the floor, easing out over "blend" outside it,
+  and rolling in swells where it has a "relief", past the core square only);
 - ridges, each rising from its foot (a polyline, on the side away from the area's center): a cliff band at the foot,
   a slope up to the crest, and an outer slope back down; a saddle ("saddles": a center, a radius and the crest's
   "height" there) brings the crest down near a pass without lowering the band;
@@ -38,6 +39,7 @@ WALL_TOP = 0.3        # the drop starts this far (m) past the lip, so the lip's 
 WALL_BATTER = 0.17    # the canyon wall leans out this far (m) per meter of drop: steep, never overhanging
 SEAM_STEP = 1.2       # meters between the core's edge vertices on the square (the seam); the lip's are 0.7 m
 BAND_FADE = (12.0, 4.0)  # a ridge's cliff band fades out between these distances (m) inside the core square's edge
+RELIEF_CLEAR = (8.0, 60.0)  # a bench's relief eases in between these distances (m) past the core square's edge
 
 
 def _to_m(points):
@@ -125,7 +127,8 @@ class Region:
         """A bench: the valley floor raised (a terrace) or lowered (a lowland) inside a polygon, easing out over its
         blend outside it."""
         poly = catmull_rom(_to_m(spec['polygon']), closed=True, step=2.0)
-        bench = dict(id=spec['id'], polygon=poly, height=spec['height'] / 100.0, blend=spec.get('blend', 1000) / 100.0)
+        bench = dict(id=spec['id'], polygon=poly, height=spec['height'] / 100.0, blend=spec.get('blend', 1000) / 100.0,
+                     relief=spec.get('relief'))
         if bench['blend'] <= 0.0:
             raise ValueError(f"bench {spec['id']}: its blend must be positive")
         return bench
@@ -233,10 +236,19 @@ class Region:
         f['base'] = (noise.get('amplitude', 0.0) / 100.0 * fbm(x, y, noise.get('wavelength', 6000) / 100.0, seed=301,
                                                                 octaves=2, gain=0.35)
                      + tilt[0] * x + tilt[1] * y)
-        for bench in self.benches:
+        for k, bench in enumerate(self.benches):
             # Inside the polygon the bench's full height; outside it, easing out over the blend.
             outside = np.maximum(signed_distance(g, bench['polygon'], bench['blend'] + 2.0), 0.0)
             f['base'] += bench['height'] * (1.0 - smoothstep(0.0, bench['blend'], outside))
+            relief = bench['relief']
+            if relief:
+                # Rolling ground on a lowland ("relief": its swells' amplitude and wavelength, cm), so the valley past
+                # a ridge isn't one flat plain under its woods. Only past the core square (none within RELIEF_CLEAR of
+                # it): the core and its seam stay exactly as they are.
+                clear = smoothstep(RELIEF_CLEAR[0], RELIEF_CLEAR[1], np.maximum(np.abs(x), np.abs(y)) - self.core_half)
+                swells = fbm(x, y, relief.get('wavelength', 12000) / 100.0, seed=331 + k, octaves=3, gain=0.45)
+                f['base'] += (relief.get('amplitude', 400) / 100.0 * swells * clear
+                              * (1.0 - smoothstep(0.0, bench['blend'], outside)))
         f['var'] = fbm(x, y, 45.0, seed=302, octaves=2)
         for i, r in enumerate(self.ridges):
             # Meters past the foot, into the ridge (negative on the valley's side), kept to the range the profile

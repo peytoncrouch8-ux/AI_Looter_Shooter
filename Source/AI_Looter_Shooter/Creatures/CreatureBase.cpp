@@ -4,6 +4,8 @@
 #include "Combat/CombatRules.h"
 #include "Combat/HealthComponent.h"
 #include "Combat/LooterDamageTypes.h"
+#include "Creatures/CreatureHitReactionComponent.h"
+#include "Creatures/CreaturePackComponent.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Loot/LootDropComponent.h"
 #include "Progression/PlayerProgressionSubsystem.h"
@@ -48,6 +50,8 @@ ACreatureBase::ACreatureBase()
 	Health = CreateDefaultSubobject<UHealthComponent>(TEXT("Health"));
 	Loot = CreateDefaultSubobject<ULootDropComponent>(TEXT("Loot"));
 	Voice = CreateDefaultSubobject<UCreatureVoiceComponent>(TEXT("Voice"));
+	HitReaction = CreateDefaultSubobject<UCreatureHitReactionComponent>(TEXT("HitReaction"));
+	Pack = CreateDefaultSubobject<UCreaturePackComponent>(TEXT("Pack"));
 
 	HealthBar = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBar"));
 	HealthBar->SetupAttachment(GetCapsuleComponent());
@@ -128,6 +132,8 @@ void ACreatureBase::Tick(float DeltaSeconds)
 	// First, so the subclass knows whether to pose its body this update.
 	TickUpdateRate(DeltaSeconds);
 	TickBrain(DeltaSeconds);
+	// Standing still, it shuffles out of a neighbour's footprint (moving, its steering keeps clear: CreatureBaseSpacing.cpp).
+	KeepSpacing(DeltaSeconds);
 	UpdateHealthBar(DeltaSeconds);
 }
 
@@ -141,10 +147,10 @@ void ACreatureBase::SetState(ECreatureState NewState)
 	State = NewState;
 	StateTime = 0.f;
 	StuckTime = 0.f;
-	EscapeTime = 0.f;
 	SteerTimer = 0.f;
-	// Heard as it turns on a player, and at an attack's wind-up (its tell).
+	// Heard as it turns on a player, and at an attack's wind-up (its tell); a ranked one's sting, and its pack's flank.
 	Voice->HandleStateChanged(OldState, NewState);
+	Pack->HandleStateChanged(OldState, NewState);
 
 	// Hunting and attacking always run every frame, wherever it is.
 	if (NewState == ECreatureState::Chase || NewState == ECreatureState::Attack)
@@ -168,6 +174,12 @@ void ACreatureBase::TickBrain(float DeltaSeconds)
 	{
 		return;
 	}
+	// Staggered by a heavy hit: its brain waits with its state's clock held, so a wind-up holds rather than lands.
+	if (HitReaction->IsStaggered())
+	{
+		StateTime -= DeltaSeconds;
+		return;
+	}
 
 	PerceptionTimer -= DeltaSeconds;
 	if (PerceptionTimer <= 0.f)
@@ -179,7 +191,8 @@ void ACreatureBase::TickBrain(float DeltaSeconds)
 	switch (State)
 	{
 	case ECreatureState::Idle:
-		if (StateTime >= IdleDuration)
+		// A patrol's creature sets off as soon as its anchor walks on.
+		if (StateTime >= IdleDuration || Pack->WantsToRoam(GetActorLocation()))
 		{
 			if (PickWanderGoal())
 			{
@@ -193,13 +206,20 @@ void ACreatureBase::TickBrain(float DeltaSeconds)
 		break;
 
 	case ECreatureState::Wander:
-		MoveToward(WanderGoal, WalkSpeed, DeltaSeconds);
-		if (FVector::DistSquared2D(GetActorLocation(), WanderGoal) < FMath::Square(90.f * SizeScale) || StateTime > 10.f)
+	{
+		// A patrol's creature walks with its anchor (at its pace) and stands only once the patrol rests.
+		FVector Goal = WanderGoal;
+		float Pace = WalkSpeed;
+		const bool bRoaming = Pack->GetRoamMove(GetActorLocation(), WalkSpeed, Goal, Pace);
+		MoveToward(Goal, Pace, DeltaSeconds);
+		const bool bThere = FVector::DistSquared2D(GetActorLocation(), Goal) < FMath::Square(90.f * SizeScale);
+		if (bRoaming ? (bThere && !Pack->IsRoamAnchorMoving()) : (bThere || StateTime > 10.f))
 		{
 			SetState(ECreatureState::Idle);
 			IdleDuration = FMath::FRandRange(2.f, 5.f);
 		}
 		break;
+	}
 
 	case ECreatureState::Chase:
 	{
@@ -211,14 +231,18 @@ void ACreatureBase::TickBrain(float DeltaSeconds)
 		}
 		const float Distance = FVector::Dist2D(GetActorLocation(), Victim->GetActorLocation());
 		const float StrikeFrom = GetAttackRange();
+		// Its pack: its flank among those chasing the same player, or breaking off once its pack is gone (it then runs and
+		// starts no attack: CreaturePackComponent).
+		Pack->TickChase(DeltaSeconds);
+		const bool bBreakingOff = Pack->IsRetreating();
 		// An attack of its own may start from farther out than its reach (a charge); otherwise it closes in to bite.
-		if (Distance <= GetAttackStartRange() && CooldownRemaining <= 0.f && CanStartAttack())
+		if (!bBreakingOff && Distance <= GetAttackStartRange() && CooldownRemaining <= 0.f && CanStartAttack())
 		{
 			SetState(ECreatureState::Attack);
 		}
-		else if (Distance > StrikeFrom * 0.75f)
+		else if (bBreakingOff || Distance > StrikeFrom * 0.75f)
 		{
-			MoveToward(Victim->GetActorLocation(), ChaseSpeed, DeltaSeconds);
+			MoveToward(Pack->GetChaseGoal(*Victim), bBreakingOff ? ChaseSpeed * Pack->GetRetreatSpeedShare() : ChaseSpeed, DeltaSeconds);
 		}
 		else
 		{
@@ -233,13 +257,17 @@ void ACreatureBase::TickBrain(float DeltaSeconds)
 		break;
 
 	case ECreatureState::Return:
-		MoveToward(Home.GetLocation(), WalkSpeed * 1.5f, DeltaSeconds);
-		if (FVector::DistSquared2D(GetActorLocation(), Home.GetLocation()) < FMath::Square(120.f * SizeScale) || StateTime > 20.f)
+	{
+		// Home, or for a patrol's creature its place in the file, wherever the patrol has got to.
+		const FVector Back = Pack->HasRoamAnchor() ? Pack->GetRoamAnchor() : Home.GetLocation();
+		MoveToward(Back, WalkSpeed * 1.5f, DeltaSeconds);
+		if (FVector::DistSquared2D(GetActorLocation(), Back) < FMath::Square(120.f * SizeScale) || StateTime > 20.f)
 		{
 			SetState(ECreatureState::Idle);
 			IdleDuration = 2.f;
 		}
 		break;
+	}
 
 	default:
 		break;
@@ -372,63 +400,8 @@ void ACreatureBase::HitWithAttack(APawn* Victim, const FVector& Push, float Stre
 }
 
 // ---------------------------------------------------------------------------
-// Damage, death and respawn
+// Death and respawn (being hurt, its pack's call and the tag over it: CreatureBaseHurt.cpp)
 // ---------------------------------------------------------------------------
-
-void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocation, AController* InstigatedBy, AActor* DamageCauser)
-{
-	UE_LOG(LogLooter, Verbose, TEXT("%s took %.1f%s (%.0f / %.0f)"), *GetName(), Damage, bCritical ? TEXT(" CRIT") : TEXT(""),
-		Health->GetHealth(), Health->GetMaxHealth());
-	HealthBarTime = 6.f;
-	// A hurt creature updates every frame for a while, wherever it is, so its flinch (and death) plays smoothly. Before
-	// OnHurt: a frozen body is set up afresh first.
-	FullRateTime = UpdateRate.HurtFullRateTime;
-	WakeUpdateRate();
-	OnHurt(bCritical, HitLocation);
-
-	if (State == ECreatureState::Dead)
-	{
-		return;
-	}
-	// Getting shot always gets its attention, even from beyond its sight range.
-	APawn* Attacker = InstigatedBy ? InstigatedBy->GetPawn() : nullptr;
-	if (!bPassive && !Target.IsValid() && IsValidTarget(Attacker))
-	{
-		Target = Attacker;
-		if (State != ECreatureState::Attack)
-		{
-			SetState(ECreatureState::Chase);
-		}
-	}
-	// A pack turns on whoever hurts one of them: every creature of its pack (its PackTag) within its call, which a rank
-	// can widen (a Gravebound spider calls every spider near it).
-	const float CallRadius = GetPackCallRadius();
-	if (CallRadius > 0.f && IsValidTarget(Attacker))
-	{
-		for (TActorIterator<ACreatureBase> It(GetWorld()); It; ++It)
-		{
-			if (*It != this && It->SharesPackWith(*this)
-				&& FVector::DistSquared(It->GetActorLocation(), GetActorLocation()) <= FMath::Square(CallRadius))
-			{
-				It->AlertTo(Attacker);
-			}
-		}
-	}
-}
-
-void ACreatureBase::AlertTo(APawn* Attacker)
-{
-	if (bPassive || State == ECreatureState::Dead || Target.IsValid() || !IsValidTarget(Attacker))
-	{
-		return;
-	}
-	Target = Attacker;
-	if (State != ECreatureState::Attack)
-	{
-		SetState(ECreatureState::Chase);
-	}
-	UPlayerProgressionSubsystem::RecordEncounter(Attacker->GetController(), this);
-}
 
 void ACreatureBase::HandleDeath(AController* Killer)
 {
@@ -476,22 +449,7 @@ void ACreatureBase::Respawn()
 	CooldownRemaining = 0.f;
 	SetState(ECreatureState::Idle);
 	IdleDuration = 2.f;
+	// A new life: its rank may sting again, and it may break off again.
+	Pack->ResetLife();
 	OnRespawned();
-}
-
-void ACreatureBase::UpdateHealthBar(float DeltaSeconds)
-{
-	HealthBarTime = FMath::Max(0.f, HealthBarTime - DeltaSeconds);
-	const bool bShow = bShowsHealthTag && State != ECreatureState::Dead && (HealthBarTime > 0.f || Target.IsValid());
-	HealthBar->SetVisibility(bShow);
-	if (bShow)
-	{
-		if (UCreatureHealthBarWidget* Bar = Cast<UCreatureHealthBarWidget>(HealthBar->GetUserWidgetObject()))
-		{
-			// A Legendary monster with a name of its own shows its name in the rank's color, with no word before it.
-			const FCreatureRankInfo& RankInfo = UCreatureRankSettings::Get(CurrentRank);
-			Bar->SetCreature(DisplayName, Level, bNameIsRankWord ? FText::GetEmpty() : RankInfo.Word, RankInfo.Color);
-			Bar->SetHealth(Health->GetHealth(), Health->GetMaxHealth());
-		}
-	}
 }

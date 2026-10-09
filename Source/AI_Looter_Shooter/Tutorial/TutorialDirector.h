@@ -8,22 +8,14 @@ class ALooterHUD;
 class UMissionDefinition;
 class UMissionRunner;
 
-/** What finishes a tutorial step. */
+/** What finishes one of the first goal's steps. */
 UENUM()
 enum class ETutorialGoal : uint8
 {
-	/** Walk Amount cm from where the step began. */
-	Move,
-	/** Come within Amount cm of the level's weapon rack. */
-	ReachRack,
-	/** Carry a weapon. */
+	/** Carry Amount guns (the rifle on the gun rack in the square). */
 	HoldWeapon,
-	/** Land Amount hits on target dummies. */
-	HitDummies,
-	/** Kill Amount creatures. */
-	KillCreatures,
-	/** Open the inventory. */
-	OpenInventory,
+	/** Read the notice board (ANoticeBoard::ReadEvent). */
+	ReadBoard,
 };
 
 USTRUCT()
@@ -43,41 +35,61 @@ struct FTutorialStep
 	UPROPERTY(EditAnywhere, Category = "Tutorial")
 	FString Text;
 
-	/** The HUD's mission tracker's short line for it ("Shoot the target dummies"); the key moves into the hint. */
+	/** The HUD's mission tracker's short line for it ("Find a gun in town"). */
 	UPROPERTY(EditAnywhere, Category = "Tutorial")
 	FString ShortText;
 
-	/** The key the tracker's hint teaches, by its binding id (Move, Sprint, Interact, Reload, Inventory); None: no hint. */
+	/**
+	 * A key the tracker teaches under the line, by its binding id; None: no hint. The first goal has none: the keys are
+	 * taught by the contextual hints (UControlHintSubsystem) when they're needed, not on the tracker.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Tutorial")
 	FName HintAction;
 
-	/** What the hint's key does ("Hold to run"). */
+	/** What the hint's key does. */
 	UPROPERTY(EditAnywhere, Category = "Tutorial")
 	FString HintText;
 
 	UPROPERTY(EditAnywhere, Category = "Tutorial")
-	ETutorialGoal Goal = ETutorialGoal::Move;
+	ETutorialGoal Goal = ETutorialGoal::HoldWeapon;
 
-	/** Distance in cm, or a count, depending on the goal. */
+	/** A count, for the goals that count. */
 	UPROPERTY(EditAnywhere, Category = "Tutorial", meta = (ClampMin = "0"))
 	float Amount = 1.f;
 };
 
+/** What the director does as a level begins, from what the session knows. */
+enum class ETutorialStart : uint8
+{
+	/** A new player: the first goal starts (find a gun in town, then read the notice board). */
+	Teach,
+	/** The first goal is behind them and the island's main posting isn't: nothing to start, the postings start by themselves. */
+	Postings,
+	/**
+	 * The tutorial is done (Web Hollow turned in, the island skipped from the main menu, or the old tutorial finished): the
+	 * first goal is recorded finished, so the board's postings are offered on a practice visit.
+	 */
+	Done,
+};
+
 /**
- * Walks a new player through the tutorial island: one objective at a time, each finished by doing it (move, reach the
- * village, take the rifle from the rack, shoot the dummies, hunt spiders, open the loadout). Steps already done are
- * passed at once. Placed once in the level (Tools/Unreal/build_tutorial_island.py); once finished or skipped it stays
- * quiet in later games (the session's progress remembers), and a saved session goes on from its step. Behind the main
- * menu it waits. Looter.Tutorial restart|skip for testing.
+ * Skyreach's tutorial, reworked (Docs/Polish/TutorialRework.md; the user: "the tutorial feels rushed and unnecessary").
+ * No forced checklist: the player starts at the farm free to roam, the contextual control hints teach the keys as they're
+ * needed (UControlHintSubsystem), and the director plays one short first goal, "Welcome to Skyreach": find a gun in town
+ * (the arrow on the gun rack's rifle), then read the notice board in the square (the arrow on the board). Reading it puts
+ * the town's postings up (DA_Mission_WebHollow, RangePractice, Wallow, Lookout: automatic missions waiting on this one,
+ * turned in at the board, ANoticeBoard), and the board tracks the main one, Clear Web Hollow.
  *
- * The tutorial is a mission as data: DA_Mission_Tutorial (UMissionDefinition, id MissionId) holds its steps as
- * objectives, and the level's mission runner (UMissionRunner) plays it like any mission: it checks the objectives,
- * moves from step to step, and shows the tutorial as the tracked mission (UMissionSubsystem: the HUD's mission tracker
- * with each step's short line and key hint, the minimap's arrow) with a waypoint per step (the gun rack, the rifle on
- * it, the dummies, the nearest spider). The director starts it, keeps the progress's tutorial-done flag and the saved
- * step, and finishes with its closing line, which it hands to the tracker through ALooterHUD. Without the asset, Steps
- * become the same mission (MakeBuiltInMission): they're the tutorial's built-in copy, and the asset is made from them
- * (Tools/Unreal/create_mission_assets.py).
+ * The tutorial counts as done (the progress's flag, which the skiff's jetty waits for: its gangplank comes down and "Board
+ * the Skiff" is offered) once Clear Web Hollow is turned in, or when the island is skipped (the main menu's "Skip to
+ * Ransom's Rest", Looter.Tutorial skip). Skyreach stays a practice island after: on a later visit the first goal is
+ * recorded finished, so the board's postings are there to do.
+ *
+ * The first goal is a mission as data, DA_Mission_Tutorial (id MissionId), played by the level's mission runner; without
+ * the asset, Steps become the same mission (MakeBuiltInMission, TutorialDirectorMission.cpp), and the asset is made from
+ * them (Tools/Unreal/create_mission_assets.py). The director starts it and keeps its step for the session's save
+ * (GetCurrentStep, ResumeAtStep). Placed once in the level with the PlayerStart (build_area.py); behind the main menu it
+ * waits. Looter.Tutorial restart|skip for testing.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ATutorialDirector : public AActor
@@ -91,36 +103,42 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaSeconds) override;
 
-	/** The built-in steps: the mission when DA_Mission_Tutorial is missing, and what the asset is made from. */
+	/** The first goal's built-in steps: the mission when DA_Mission_Tutorial is missing, and what the asset is made from. */
 	UPROPERTY(EditAnywhere, Category = "Tutorial")
 	TArray<FTutorialStep> Steps;
 
-	/** Shown when the last step is done: the mission tracker's last, ticked line. */
-	UPROPERTY(EditAnywhere, Category = "Tutorial")
-	FString DoneText;
-
-	/** How long the closing line shows, counting only while the game is on screen (not under a menu). */
-	UPROPERTY(EditAnywhere, Category = "Tutorial", meta = (ClampMin = "1"))
-	float DoneSeconds = 8.f;
-
-	/** The tutorial's name as a mission, while it runs (the built-in mission's title; the asset has its own). */
+	/** The first goal's name as a mission, while it runs (the built-in mission's title; the asset has its own). */
 	UPROPERTY(EditAnywhere, Category = "Tutorial")
 	FString MissionTitle;
 
-	/** The id of the tutorial's mission asset (UMissionDefinition::GetMissionId). */
+	/**
+	 * The first goal's last step, "Read the notice board" (from 0): the point the HUD and menu photo scenes (Dev/HudShotScene,
+	 * Dev/MenuShotScene) rest the tutorial at, with a gun already in hand and one goal still on the tracker. A test pins it
+	 * to the steps, so reworking them again fails there rather than silently emptying the photos.
+	 */
+	static constexpr int32 BoardStep = 1;
+
+	/** The id of the first goal's mission asset (UMissionDefinition::GetMissionId). */
 	UPROPERTY(EditAnywhere, Category = "Tutorial")
 	FName MissionId = TEXT("Tutorial");
 
-	/** From the first step again, even if it was finished before. */
+	/** The island's main posting: turned in, the tutorial is done (ASkiffJetty::TutorialMissionId names it too). */
+	UPROPERTY(EditAnywhere, Category = "Tutorial")
+	FName MainPostingId = TEXT("WebHollow");
+
+	/** What to do as a level begins: teach, leave it to the postings, or count the tutorial done. */
+	static ETutorialStart DecideStart(bool bTutorialDone, bool bFirstGoalDone, bool bMainPostingDone);
+
+	/** The first goal from its first step again, the tutorial no longer done (the postings already up stay up). */
 	void Restart();
 
-	/** Ends it now and remembers it as done. */
+	/** Ends the first goal now and counts the tutorial done: the skiff is offered. */
 	void Skip();
 
-	/** Goes on from step Index (a saved session's), the steps before it done. Nothing when it isn't running. */
+	/** Goes on from step Index (a saved session's), the steps before it done. Nothing when the first goal isn't running. */
 	void ResumeAtStep(int32 Index);
 
-	/** The step being shown, or INDEX_NONE when the tutorial isn't running. */
+	/** The first goal's step being shown, or INDEX_NONE when it isn't running. */
 	int32 GetCurrentStep() const { return Current; }
 
 	/** The text with each {Action} replaced by the key the player has bound to it, in brackets. */
@@ -128,24 +146,31 @@ public:
 
 	/**
 	 * The built-in steps as a mission, what DA_Mission_Tutorial holds: each goal becomes the objective that finishes it,
-	 * with the waypoint the tutorial has always shown for it (TutorialDirectorMission.cpp).
+	 * with its waypoint (the gun rack, the notice board) (TutorialDirectorMission.cpp).
 	 */
 	UMissionDefinition* MakeBuiltInMission(UObject* Outer) const;
 
 private:
 	void StartStep(int32 Index);
-	void Finish(bool bShowDone);
+
+	/** The first goal is over: done, or skipped (bComplete finishes its mission too). */
+	void FinishFirstGoal(bool bComplete);
+
+	/** The tutorial counts as done from now on (the progress's flag): the jetty offers the skiff. */
+	void MarkTutorialDone();
 
 	UMissionRunner* GetRunner() const;
 
-	/** The local player's HUD, whose mission tracker shows the tutorial; null before there is one. */
+	/** The local player's HUD; null before there is one. */
 	ALooterHUD* GetHUD() const;
 
-	/** The tutorial's mission as the runner knows it: the asset, or else the built-in steps, made into one once. */
+	/** The first goal's mission as the runner knows it: the asset, or else the built-in steps, made into one once. */
 	const UMissionDefinition* GetMission();
 
 	void HandleMissionFinished(const UMissionDefinition& Mission, bool bRewarded);
 
 	int32 Current = INDEX_NONE;
+	/** The step the level was last looked at for a notice board (a level without one can't hold the first goal up). */
+	int32 BoardCheckedStep = INDEX_NONE;
 	FDelegateHandle FinishedHandle;
 };

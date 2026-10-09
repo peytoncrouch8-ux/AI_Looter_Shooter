@@ -27,7 +27,8 @@ TArray<FVector> AEncounterSpawner::ChooseSpawnSpots(int32 Wanted, const APawn* P
 	{
 		return TArray<FVector>();
 	}
-	const FVector Here = GetActorLocation();
+	// Round its spot, or a patrol's point on its route (its own spawn points stay its spot's).
+	const FVector Here = GetSpawnCenter();
 	// Every spot needs room for the largest body its groups bring, not a man's: a spot a spider fits beside the den's jamb
 	// put the Gravemother's legs in the rock (the play-test of 2026-10-08).
 	const FEncounterBody Largest = EncounterRules::LargestBody(Groups, FindArea());

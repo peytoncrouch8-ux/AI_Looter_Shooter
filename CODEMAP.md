@@ -20,8 +20,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   look limits.
 - `Core/LooterCharacter`: `ALooterCharacter`, the player character: walking, looking (at the player's look
   sensitivity) and jumping (crouched, the key stands up first), and its interaction component; the whole actor is
-  scaled to the player's size (`Player/PlayerSize.h`); its sounds (`UPlayerSoundComponent`). Its data-only child is
+  scaled to the player's size (`Player/PlayerSize.h`); its sounds (`UPlayerSoundComponent`) and its melee strike
+  (`UPlayerMeleeComponent`). Its data-only child is
   `/Game/Player/BP_LooterCharacter`.
+  Steps up lips to 45 cm (below where a mantle starts); the keys don't steer during a mantle or vault.
 
 ## Player
 - `Player/PlayerLocomotionComponent`: sprint, crouch and slide, and the first-person motion that goes with them;
@@ -30,6 +32,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   jump key (crouched or sliding, it stands up). The view eases on `FViewEase` curves whatever the capsule does
   (`RefreshBodyTransform`: the engine's crouch leaves the body's transform stale; `StandUpNow`); the slide's dust and
   sounds; no sprint with a Cold iron in hand.
+  `PlayerLocomotionTraversal.cpp` the jump key's mantle and vault and a ledge caught in the air (FTraversalProbe finds, FPlayerTraversal plans, the capsule rides the plan in a custom movement mode, the eye on its own curve, the gun lowered, the landing's dip and sounds; Looter.DebugTraversal); `PlayerLocomotionJumpAssist.cpp` coyote time, the jump buffer, nudging a wedged player free.
+- `Player/PlayerTraversal`: `FPlayerTraversal`, a mantle's, vault's or unstick's path planned whole (the capsule, and the eye on a gentler curve), checked clear of the obstacle's corners; `Player/TraversalCurve.h` (`FTraversalCurve`, quintic pieces), `Player/TraversalRules.h` (`ETraversalKind`, `LooterTraversal`: heights, reaches, coyote time, buffer, the `NoClimb` tag), `Player/TraversalProbe` (what's in front to mantle or vault; `TraversalProbeChecks.cpp` what's never climbed and free spots) and `Player/TraversalBodyQuery` (the capsule's channel for the probe).
 - `Player/ViewEase.h`: `FViewEase`, a value easing on a minimum-jerk curve that re-plans from its speed and acceleration
   (the eye, the roll, the stance blends).
 - `Player/SlideDust`: `FSlideDust`, the slide's dust and grit through `FWeaponFX`, by ground (none on water, a little on
@@ -42,14 +46,41 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   wins; jump while crouched stands up; a slide ending with forward held resumes the sprint without its key).
 - `Player/PlayerViewComponent`: first/third-person camera (F5 cycle), field of view (the player's first-person setting
   for the world, a fixed one for the gun), recoil on the aim, armed body animation.
+  Split by topic: `PlayerViewAim.cpp` aiming and recoil, `PlayerViewCamera.cpp` cameras, field of view, the held gun and where shots start, `PlayerViewKicks.cpp` the view's kicks.
+- `Player/CameraShakeModifier`: `UCameraShakeModifier`, the one camera modifier for every shake (a boss's noise, `AddShake`) and kick (`AddKick`), scaled by the camera shake setting; `Looter.CameraShake [0-1]`.
+- `Player/ViewKick`: `FViewKick`, `FViewKickStack` and `ViewKicks`, the view's spring kicks as plain math (a shot by gun, the hurt jolt, a kill's punch).
 - `Player/PawnInputBinding`: `FPawnInputBinding`, a gameplay component's own input component and mapping context.
+- `Player/PlayerMeleeComponent`: `UPlayerMeleeComponent`, the Melee key's quick strike (V, a click of the right stick):
+  the gun's stock, or a fist with no gun, at the creature in front; 0.45 s with the blow at 0.12 s and 0.6 s between
+  presses, never mid-mantle, in a scene or behind a menu. The blow: damage (`UMeleeDamageType`), the creature's stagger
+  and hit-stop, a knock back that never goes over an edge, the thud by body, the hit marker and the view's jolt; it cuts a
+  reload short. `HasMeleed`, `OnMelee` and `FindTargetInReach` serve the tutorial's hint.
+  `PlayerMeleeStrike.cpp` finds the body and lands the blow.
+- `Player/PlayerMeleeRules`: `FMeleeRules` and the `EMeleeBlock` gate: the swing's seconds, the reach (1.7 m) and 50 degree
+  cone, the damage (60 at level 1, growing as enemies do, +/-10%, never critical), the knock's hop (none for a boss or a
+  Soulfed monster), the strike's cues (`MeleeCue`); plain data the tests drive.
+- `Player/PlayerMeleeMotion`: `MeleeMotion`, how a strike moves in code: the first-person gun's cock, drive and
+  recovery (`GunPose`), and the view's kicks (wind-up, strike, impact, wall knock) through the camera modifier.
 - `Player/Animation/LooterCharacterAnimInstance`: parent of the character's Anim Blueprints; layers the procedural stance
   pose (crouch, sprint, slide), holds guns in the loadout stand-in's hands, and gives the blend spaces the ground speed
-  in the body's own size.
+  in the body's own size. `LooterCharacterAnimInstanceClimb.cpp` gathers a mantle's or vault's pose from the locomotion
+  component's plan for the stance layer (third person only).
+- `Player/Animation/LooterStanceInput.h`: `FLooterStanceInput`, everything the stance layer needs, copied from the game
+  thread once an update (the stance alphas and leans, the climb input, the aim, the gun's grip and foregrip, the recoil,
+  the upper-body and reload overlays).
+- `Player/Animation/LooterStancePose`: `LooterStancePose::Apply`, the procedural stance laid on a plain pose (crouch,
+  sprint, slide, aim, climb); a free function so the tests run it on the mannequin's reference pose.
+  `LooterStancePoseWeapon.cpp` the recoil in the chest and right arm and the left hand on the foregrip,
+  `LooterStancePoseClimb.cpp` a mantle's and vault's legs and hands, `LooterStancePoseDetail.h` the bone helpers they share.
+- `Player/Animation/LooterClimbPose`: `FLooterClimbInput` and `LooterClimbPose::Describe`, a mantle's or vault's pose
+  (how strongly the legs tuck and the hands reach, and where the hands hold on the ledge) worked out from the move's plan
+  and the locomotion's pose alpha, so the animation thread only has to pose.
 
 ## Combat
 - `Combat/HealthComponent`: `UHealthComponent`, health, damage events, floating damage numbers, and what dealt the
   latest damage (the kill weapon); a max health scale (a Grasping iron in hand), `Heal`, and `Drain` (never kills).
+  `GetHurtCount()`, a count that goes up on each damage that landed and each drain.
+- `Combat/HitReaction`: `FHitReaction`, hit-stop and stagger rules (crits and kills, cooldowns, burst damage).
 - `Combat/CombatRules.h`: `LooterCombat`, game-wide rules (critical hit multiplier, damage variance; `HitDamage` with a
   gun's own critical multiplier).
 - `Combat/CriticalSpotTarget.h`: `ICriticalSpotTarget`, targets that have a critical spot.
@@ -58,6 +89,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   multiplier), impact effects and sounds by surface (`ImpactCueOf`, from the hit material's name).
 - `Combat/PlayerVitalsSubsystem`: red flash when hurt; fade out and respawn on death at the open respawn grave nearest
   where the player fell (`ARespawnMarker`), else the level's own start (never a trip's landing).
+  Also ticks the wounds that close per player and holds the recovery settings.
+- `Combat/WoundsClose`: `FWoundsClose`, the wounds that close: wait 6 s, ramp, heal, stopped by a hurt, held by a scene or death.
+- `Combat/RecoverySettings`: `FRecoverySettings`, every number of how health comes back (the regen's wait, ramp and rate; soul-mote odds by rank, heal share, life, pull) and their rules.
 - `Combat/TargetDummy`: `ATargetDummy`, a training dummy that takes hits and flashes.
 - `Combat/EnemyProjectileSubsystem`: `UEnemyProjectileSubsystem`, pellets creatures fire (a boss's spectral buckshot) as
   plain data: volleys and their tell, flight, hits on players' capsules; `EnemyProjectileSubsystemDraw.cpp` draws them on
@@ -77,6 +111,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   reload step's sound, Hungry's toll.
 - `Weapons/WeaponBaseNotches.cpp`: `AWeaponBase`'s notches (`AddKill`: a milestone's stats, message and chime, a lifted
   curse; `FindKillWeapon`) and a cursed gun's guttering loot beam.
+- `Weapons/WeaponBaseMelee.cpp`: `AWeaponBase` during a melee strike (`BeginMeleeSwing`, `EndMeleeSwing`): no shots or
+  reload mid-swing (a held trigger or a reload asked for waits), and the visible gun's swing pose (`SetMeleePose`).
+- `Weapons/MeleeDamageType.h`: `UMeleeDamageType`, damage dealt by the player's melee strike (never critical, and not a
+  weapon's shot, so nothing that counts shots counts it).
 - `Weapons/WeaponCurseEffects`: `WeaponCurseEffects`, where a cursed iron's drawbacks and kill perks act (`PlanShot`:
   misfires and rounds; Hungry's reload toll; Grasping's max health in hand and kill heal; Greedy's loot luck).
 - `Weapons/WeaponBase.h`: the weapon actor's declaration.
@@ -110,6 +148,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Weapons/WeaponFX`: `FWeaponFX`, code-drawn tracers, impact sparks, dust and chips; a scene's gunfire without a gun
   model (`SpawnFlash`), grave dirt (`SpawnDirt`) and the slide's dust (`SpawnDustPuff`, `SpawnGrit`); puffs near the
   camera fade.
+  `WeaponFXWorld.cpp`: grave dirt, slide dust and grit, death bursts (`SpawnDeathBurst`), coloured chunks (`BitSetFor`).
 
 ## Inventory
 - `Inventory/WeaponManagerComponent.h`: `UWeaponManagerComponent`, the player's weapons, backpack, ammo and parts box;
@@ -157,6 +196,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   (`Looter.Loot.SimulateDrops`, the `Looter.Loot.RankOdds` test).
 - `Loot/LootDropComponent`: drops its owner's loot when it dies (only ammo in a practice area the player has left), at
   the kill gun's curse luck (Greedy).
+  `DropSoulMotes`: a death may leave soul-motes, rolled by rank.
+- `Loot/LootFanfareSubsystem`: a dropped gun's landing: its rarity's sound, the beam's flare, an Epic or better announcement.
+- `Loot/SoulMotePickup`: `ASoulMotePickup`, the pale-green soul-mote a kill sometimes leaves: it floats, is pulled to a hurt player, heals 15% of max health, flickers out at 30 s.
 - `Loot/LootTossComponent`: `ULootTossComponent`, throws loot so it pops out, lands and settles.
 - `Loot/WeaponRack`: `AWeaponRack`, a rack with a weapon lying on it as loot and ammo beside it; restocks when the
   weapon is gone and the player has none (the tutorial's first rifle).
@@ -172,8 +214,10 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 
 ## Creatures
 - `Creatures/CreatureBase`: `ACreatureBase`, a hostile creature's brain and life cycle (senses, chase, attack, death,
-  respawn, a pack turning on its attacker). `CreatureBaseSteering.cpp` is its steering without a navmesh (obstacle and
-  ledge probes, wander goals, the ground); `CreatureBaseRank.cpp` its rank, its level (from its area's band, with health and damage growing with it) and
+  respawn, a pack turning on its attacker). `CreatureBaseSteering.cpp` is its steering without a navmesh (the
+  planner's looks, wall-following, felt walls through `MoveBlockedBy`, wander goals, the ground); `CreatureBaseUnstick.cpp`
+  gets it free when it's stuck; `CreatureBaseHurt.cpp` being hurt, its pack's call on whoever hurt it and its tag (name,
+  level, rank word, health; the rank's sting flashing the word); `CreatureBaseRank.cpp` its rank, its level (from its area's band, with health and damage growing with it) and
   size (`BodyScale`), which
   creatures come back after a death, pack tags, spawning creatures in play (`SpawnAtRuntime`) and what a boss fight
   asks of one (held back, put home);
@@ -181,6 +225,24 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   turns that off); `CreatureBaseHunting.cpp` says whom it hunts: a living player on its hunting ground
   (`HuntingGround`) and out of every safe zone that's on. An attack can start farther out or hold its aim
   (`GetAttackStartRange`, `TracksTargetInWindup`), and a named Legendary shows its name on its tag (`bNameIsRankWord`).
+  `CreatureBaseSpacing.cpp` keeps bodies apart (`GetFootprint`; steering bends, standing ones shuffle, bosses hold); `CreatureBaseDev.cpp` `DevPutInState` for dev tools; a stagger pauses its brain.
+- `Creatures/CreatureSteerPlanner`: `FCreatureSteerPlanner`, a creature's way round obstacles from looks alone: straight
+  while the way is clear, else it picks a side and follows the wall (round a fence's end, leaving it once the goal's way is
+  clear), remembers the side it took, and keeps felt walls where its body bumped or pressed without getting anywhere; plain
+  logic over a look function, so the tests run it in a flat world.
+- `Creatures/CreatureSteerProbe`: `FCreatureSteerProbe`, the world queries behind its looks, set up once an update: a
+  capsule sweep off the ground, walkability judged by the surface past a touch (a slope or step is walked on, a wall's top
+  edge is not), the ground ahead (never off a drop), and `FindFreeSpot`, the nearest spot it can be slid to.
+- `Creatures/CreatureUnstick`: `FCreatureUnstick`, when a creature is stuck (blocked, wedged against something, hung in the
+  air) as plain rules, and the quarter-second glide that frees it to a free spot with ground under it.
+- `Creatures/PackRules`: `PackRules`, a pack's behaviour as plain functions: flank offsets and the spiral approach, the
+  break-off roll (`WantsRetreatRoll`, `ShouldRetreat`, `RetreatGoal`), who stings (`ShouldRankSting`), a patrol's walk
+  along its route and its file (`AdvancePatrol`, `FormationSpot`), an ambush's walk-in (`IsWalkIn`).
+- `Creatures/CreaturePackComponent`: `UCreaturePackComponent`, a creature's place in its pack (every creature has one,
+  never ticking, called by its brain): flanking while it chases, breaking off when hurt with its pack gone, the rank sting
+  (and its age for the tag's flash), and a patrol's anchor to keep to.
+- `Creatures/CreatureBodyHulls`: `FCreatureBodyHulls`, hit hulls as plain geometry on their bones, and a point's depth in them.
+- `Creatures/CreatureHitReactionComponent`: a creature's hit-stop, stagger shove, death burst and sound, the killer's punch and the corpse's knock (nothing for bosses).
 - `Creatures/CreatureRank.h`: `ECreatureRank`, a creature's rank (Basic, Rare "Restless", Epic "Gravebound", Legendary
   "Soulfed", Boss).
 - `Creatures/CreatureRankSettings`: `UCreatureRankSettings` and `FCreatureRankInfo`, what each rank does (its tag's
@@ -193,16 +255,22 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   posed by code (stepping gait, leg IK, attack and death motion) at any size; its physics asset holds the hit zones.
   `SpiderCreatureRig.cpp` reads its rig from the skeleton (the bones it moves, the legs' layout) and builds the leg
   segments' frames.
+  `SpiderCreatureRig.cpp` also plants its feet, finds their ground along the slope and gives its footprint; early steps near full reach; the hit jolt on a spring.
+  `SpiderCreatureLegs.cpp` the leg poses beyond the gait: the two-bone solve every leg is posed by, a walking knee's
+  spread as its foot comes in, the attack's raised front legs on a spring and the death curl.
 - `Creatures/GravemotherCreature`: `AGravemotherCreature`, the Gravemother (Side 3): the brown spider at 1.8x in a pale
   hide (MI_SpiderBody_Pale), Legendary with her own name on her tag, crits on the head and abdomen.
   `GravemotherCreatureCharge.cpp` is her charge (a long telegraph: she tracks, then holds her aim while the ground
   cracks along her line; a straight dash that runs down whoever is in it; a slam and a burst);
   `GravemotherCreatureBrood.cpp` her brood (four spiderlings at 66% and 33%, each once a life; a spiderling is a brown
   spider at 0.45x with a fifth of its health, `SpawnSpiderling`).
+  Her boss fight (`UBossComponent`, `GravemotherFight`); `GravemotherCreatureMoves.cpp`: her choice of attack, the roar, the Gravequake, the venom spit, her reel when staggered, her fury's burning cracks.
+- `Creatures/GravemotherFight`: her three phases and their pace, her spit volley, her bar's show, stagger and loot shower.
 - `Creatures/GroundCrack`: `AGroundCrack`, a charge's crack in the ground: a jagged fissure with a glowing seam laid on
   the ground, opened along its line, burst round a point, closing and gone by itself.
 - `Creatures/SlimeCreature`: `ASlimeCreature`, the meadow slime: SK_Slime (from `Art/Models/Creatures/Slime.py`) that
   only hops, squashing and stretching on springs, with a leap attack and crits through the gel at its core.
+  `SlimeCreatureBody.cpp` its springs and its fit to the ground (`TiltForGround`).
 - `Creatures/UnpaidCreature`: `AUnpaidCreature`, the Unpaid: SK_Unpaid (from `Art/Models/Creatures/Unpaid.py`; its
   bones are named in `Rig`, settable in `DefaultGame.ini`) floating and posed by code, with its hat (SM_UnpaidHat) on
   the hat bone; 160 health and 8 damage. It crits on its coal by the shot's line from the front, shows its rank in its
@@ -211,6 +279,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   the phase-step (stuck or far behind, it fades out and comes back 3-5 m nearer); `UnpaidCreatureRig.cpp`: its rig and
   pose (hover, lean, look, jaw, arms and fingers, the shroud's chains). A body built on its rig (Abel) adds bones, lays its own pose over the
   rig's and its look over its props (`LookParts`); `RiseIn` for a boss's adds.
+  The shroud lifts off rising ground; `UnpaidCreatureArms.cpp` the arms (drift, hang, hunting claws, sway springs, a keep-out by hit hulls) and the flinch spring; `UnpaidRigBones` the bone names.
 - `Creatures/UnpaidRules`: `UnpaidRules` and `FPhaseStepRules`, the Unpaid's rules as plain functions: rank traits, the
   coal shot, when a phase-step comes and where it lands.
 - `Creatures/ShroudChain`: `FShroudChain` and `FShroudChainSettings`, the shroud and side strips as damped chains: they
@@ -230,7 +299,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   candidate spots in a level: walkable, not on top of an obstacle (the floor inside the rock its lair stands in, her
   den's, is ground), and the share of the body with room over it.
 - `Creatures/EncounterSettings`: `UEncounterSettings`, Project Settings > Game > Encounters: 16 creatures within 80 m of
-  the player, the Unpaid's 12, nothing spawning within 8 m of the player.
+  the player, the Unpaid's 12, nothing spawning within 8 m of the player; and the packs' numbers (flank spread, pack
+  radius, which kinds break off, when and how likely).
 - `Creatures/EncounterSubsystem`: `UEncounterSubsystem`, the level's spawners, safe zones and creatures: cap counts
   without actor iteration, story refresh on mission changes, encounter events (`SendEvent`, and the missions' events
   that some spawner waits for), safe-zone queries.
@@ -239,17 +309,30 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   spawns comes back once killed. `EncounterSpawnerWaves.cpp`: its waves, spawning and taking away;
   `EncounterSpawnerSpots.cpp`: where they stand. A
   Legendary monster's lair (`LegendaryId`): its death kept in the session, the encounter cleared on every arrival until
-  20 minutes of play have passed.
+  20 minutes of play have passed. Kinds of encounter override `CheckApproach`, `OnCreatureSpawned`, `UpdatePack` and
+  `GetSpawnCenter`.
+- `Creatures/PatrolSpawner`: `APatrolSpawner`, a roaming pack on a patrol loop: its creatures walk a route together (the
+  strongest leading, the rest in a staggered file), resting at each end, held by a fight and walking back to their places
+  after; with none out, its point walks on alone so the pack is somewhere else along the road each time. Built by
+  `Tools/Unreal/build_area_camps.py`.
+- `Creatures/AmbushSpawner`: `AAmbushSpawner` and `EAmbushEntrance` (appear, rise, drop), an encounter sprung by the player
+  walking onto its ground (the churchyard, the Webwood), never by being set down there; the dead rise where they stand or
+  spiders drop from above, and come for the player at once.
 
 ## Bosses
 - `Bosses/BossComponent`: `UBossComponent`, makes a creature a boss: the fight around it (started by a hit, a player near
   its spot or `StartFight`; until then it waits, hunting nobody), its phases, the player's death starting it over, its
   death winning it. `BossComponentPhases.cpp` runs the phases' events (untargetable spells, volleys),
   `BossComponentAdds.cpp` the waves of adds, `BossComponentArena.cpp` the fog wall and the bar.
+  `BossComponentShow.cpp` its show (the bar's intro with the title, stings and cries, camera shakes, the slow beat at death), its weak spot's stagger and its loot shower; a boss can live as its kind does until it turns on a player (`bWaitsPassive`, `bStartWhenHunting`) and stand down when nobody's left (`StandDownSeconds`); its adds can die with it.
 - `Bosses/BossTypes.h`: a boss fight as data: `FBossPhase` and its events (`FBossPhaseEvent`: `FBossAddWave`,
   `FBossUntargetable`, `FBossVolley`, custom moments; `bAroundSpot`: adds rising round the arena's middle).
+  `FBossShow`, `FBossStagger`, `FBossLootShowerSettings`.
 - `Bosses/BossRules`: `BossRules`, the fight's rules as plain functions (the phase for a share of health, how many adds a
   wave raises, when a spell ends, where adds rise).
+  Also a stagger's build-up and a loot shower's throws.
+- `Bosses/BossLootShower`: `ABossLootShower`, a dead boss's loot rolled at death and popped out piece by piece in high arcs, ammo first, the rarest gun last; waits for a scene if asked.
+- `Bosses/BossCameraShake`: `BossCameraShake::Kick` and `Falloff`, a boss's shakes, fed to the one camera modifier (`Player/CameraShakeModifier`).
 - `Bosses/BossSeal`: `ABossSeal`, a fight's fog wall (a ring round the boss's spot, or a placed gate): it stops walking
   pawns only, drawn as rising ghost-light.
 - `Bosses/BossTestSpider`: `BossTestSpider`, the test boss (`Looter.Boss.Test` and the boss tests): a big Boss-rank
@@ -261,12 +344,14 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   fog, the lanterns dragging him back, adds, the kneel); `AbelKeeperMoves.cpp`: each moment frame by frame, and the
   scene's hand-off to his board; `AbelKeeperWind.cpp`: the Gravewind (gusts toward the open end, the downdraft past it,
   Hob's word on a fall, the wisps); `AbelKeeperPose.cpp`: his pose table laid over the rig.
+  `AbelKeeperShow.cpp`: his entrance, his stagger, his shots from the fog, his barrage in the wind, his coal's flare at death.
 - `Bosses/AbelPoses`: `AbelPoses`, Abel's pose table (idle, flare, fire, lunge, sunset, kneel, sit) solved for his
   skeleton. `AbelPoseData.inl` is the table, generated by `Tools/abel_poses.py` from the art's
   `Intermediate/AbelModel/Abel_poses.json` (don't edit it).
 - `Bosses/AbelRules`: `AbelRules`, Abel's fight as plain rules: his phases (60% the bell, 25% the Gravewind), the
   buckshot volley, the gusts and the fall past the open end, his and Hob's lines; and his lantern's lighting channel
   (`GhostLightChannel`, 2: the deck, its biers, its posts and his adds take it, never him).
+  `FAbelShowRules`: the fog shot, his bar's show, stagger and loot shower.
 
 ## Bestiary
 - `Bestiary/BestiaryEntry`: `UBestiaryEntry`, `EBestiaryCategory` and `EBestiaryPage`, one bestiary page as a data asset
@@ -277,23 +362,44 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   type: an actor met in the world, a story character with no actor (open once its story condition holds), or one of the
   Ledger's seven names (whereabouts blank until found); pages written in the Ledger only. `Tools/Unreal/create_bestiary_pages.py` writes pages from data (the
   Unpaid's and the Gravemother's; Hob's, Sexton's, Delia's, Tilly's, Aldana's and Ruth's; the seven names).
+  Its experience is what a kill pays (the kill rules' scale).
 - `Bestiary/Ledger`: `Ledger`, the bestiary as Sexton's Ledger from Main 2's "Open the Ledger" step on (read from the
   campaign record), its name on the inventory's tab and key hints, and its words in his voice.
 
 ## Tutorial
-- `Tutorial/TutorialDirector`: `ATutorialDirector`, the tutorial island's steps (move, reach the village, take the rifle,
-  shoot the dummies, hunt spiders, open the loadout) as a data mission (`DA_Mission_Tutorial`) played by the mission
-  runner: it starts it, keeps the done flag and saved step, and hands its closing line to the HUD's mission tracker
-  through `ALooterHUD`; each step carries the tracker's short line and key hint; `TutorialDirectorMission.cpp`
-  makes the built-in steps into the same mission when the asset is missing; `Looter.Tutorial restart|skip`.
+- `Tutorial/TutorialDirector`: `ATutorialDirector`, Skyreach's reworked tutorial (`Docs/Polish/TutorialRework.md`): no
+  forced checklist, the player roams free and the control hints teach the keys as they're needed. The director plays one
+  short first goal as a data mission (`DA_Mission_Tutorial`, played by the mission runner): find a gun in town (the rack's
+  rifle), then read the notice board; reading it puts the board's practice postings up (Clear Web Hollow, Range Practice,
+  the Wallow, Up to the Lookout) and tracks the main one. It starts the goal, keeps its saved step, and counts the tutorial
+  done (the jetty's flag) when Web Hollow is turned in or the island is skipped; on a later visit it is recorded finished
+  so the postings are there to do. `TutorialDirectorMission.cpp` makes the built-in steps into the same mission when the
+  asset is missing; `Looter.Tutorial restart|skip`.
+- `Tutorial/TutorialChoice`: `TutorialChoice`, the main menu's words for a new session: start on Skyreach (learn the
+  basics) or skip to the story's first area, what each means, and the line for when that level isn't in the game yet
+  (`MainMenuSessions.cpp` and the tests use the same ones).
+- `Tutorial/MissionClearZoneObjective`: `UMissionClearZoneObjective`, clear a place of what lives there: done once none of
+  the matching creatures homed in the zone is left alive, read from the world whenever it looks (kills before the posting
+  went up, or before a reload, count); Web Hollow's six spiders and the Wallow's five slimes.
+- `Tutorial/ControlHintRules`: `FControlHintRules`, `EControlHint` and `FControlHintInput`, the contextual hints' rules apart
+  from the world: ten hints (move, reload, melee, aim, jump, sprint, slide, swap guns, inventory, bench), one at a time and
+  never blocking, each only while its control is unlearned and at most a few times, gone the moment its control is used;
+  the triggers' numbers, the keys and words each teaches, and its name in the saved memory (never renamed).
+- `Tutorial/ControlHintSubsystem`: `UControlHintSubsystem`, looks at the local player ten times a second and hands what it
+  sees to the rules (`ControlHintSubsystemSenses.cpp`: moving, a ledge ahead, a far target under the crosshair, a low
+  magazine, a creature close in front, a second gun, the bench; the probes only run while their hint could still show),
+  keeps the profile's memory (`ControlHintsSave.h`: `ULooterControlHintsSave`, slot "ControlHints", so a control learned
+  once is never taught again) and respects Settings > Interface > Control hints; `Looter.Hints reset|show <Hint>`.
 
 ## Missions
 - `Missions/MissionSubsystem`: `UMissionSubsystem`, the missions going on in the world (title, objective, waypoint) and
   which one is tracked, the one the minimap's compass arrow points to, fed by `UMissionRunner`, with the tracker's parts
   (`FMissionTrackerParts`: short line, count, step, key hint); `FMissionBook` is its bookkeeping.
+  `FMissionTrackerParts` carries a turn-in line and whether the banner announces the end.
 - `Missions/MissionDefinition`: `UMissionDefinition`, one mission as a data asset in `/Game/Data/Missions`
   (`DA_Mission_<Id>`, the first made by `Tools/Unreal/create_mission_assets.py`): id, words, main/side/tutorial,
   prerequisites, area, what starts it, steps of instanced objectives (`FMissionStep`) and rewards (`FMissionRewards`).
+  Who it's turned in to (`FMissionTurnIn`: the giver's speaker tag, name and turn-in lines, or automatic); rewards as a fixed experience or a share of a level.
 - `Missions/MissionObjective`: `UMissionObjective`, the base of the objective kinds (a rule; the runner keeps each one's
   progress in `FMissionObjectiveState`), with `FMissionContext`, `FMissionEvent` (Interact, Talk, Collect, Scene.X,
   Board.X), the waypoint setting, and the tracker's short line and key hint (`FillTrackerParts`).
@@ -313,9 +419,11 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   campaign record). `MissionRunnerFlow.cpp` starts, steps, finishes and rewards; `MissionRunnerEvents.cpp` handles
   deaths and hits (spawned actors too), events (passed on as `OnEvent` once the missions have heard them) and the
   display.
+  After its last step a mission with a giver waits, ready to turn in (one step past its last, kept in the campaign record); `MissionRunnerTurnIn.cpp` turns it in (a talk with the giver), the turn-in's tracker line and arrow on the giver, and the turn-in queries; `OnMissionCompleted` with `FMissionRewardsGiven`.
 - `Missions/MissionActorWatch`: `UMissionActorWatch`, one actor's deaths and hits passed to the runner.
 - `Missions/MissionRewards`: `MissionRewards`, the experience share, the reward gun with its rarity floor, the named
   gun (`DropNamedGun`; one given by hand in the story, `bNamedGunByHand`, is never dropped), rewards in words.
+  `ExperienceOf` (fixed or a share), `FMissionRewardsGiven` (what a mission's end gave, for the banner).
 - `Missions/MissionText`: `MissionText::ResolveKeys`, `{Action}` as the player's bound key; `KeyName`, one action's key
   for a keycap.
 
@@ -334,6 +442,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Story/SpeakerPointComponent`: `USpeakerPointComponent` and `FSpeakerTopic`, where someone talks to the player (from up
   to 4 m): a Talk tap plays their lines for this point in the story as captions and sends the missions a Talk event
   (and the topic's own event).
+  A Talk event turns in a mission ready for that giver (its key says Turn in; the mission's own turn-in lines are said).
 - `Story/SpeakerPoint`: `ASpeakerPoint`, someone talking through a door or window (Delia's screen door, Tilly's window):
   a speaker point, and a leaf of its own if needed that never opens.
 - `Story/StoryCharacter`: `AStoryCharacter`, a non-hostile character of the story: a placeholder body posed by code
@@ -429,6 +538,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Progression/LevelRules`: `FLevelRules`, what a level is worth: enemy health and damage growing 8% of their level 1
   values a level, kill experience (8% more a level, 15 points less for each level below the player, at least 10%) and
   the player's +8% health a level.
+  Kill experience is 0.4 of the creature's XPReward (`KillXPScale`, the pacing pass: about level 6.5 at the story's end, `Docs/Progression.md`).
 - `Progression/PlayerProgressData.h`: `FPlayerProgressData`, the player's level, experience, tutorial, kinds met and
   defeat counts, as a session saves them.
 - `Progression/LooterProgressSave.h`: `ULooterProgressSave`, the one progress save from before sessions ("PlayerProgress"
@@ -460,6 +570,7 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   bookkeeping.
 - `Session/CampaignRecord.h`: `FCampaignRecord`, the story so far: missions finished and the one being played, areas
   opened, bosses beaten, respawn graves opened, the first cast-off, the cold open.
+  Also the missions ready to turn in (`ReadyMissions`).
 - `Session/SessionSaveGate`: `FSessionSaveGate`, when the session may save: nothing from a trip's save until its
   destination begins; autosaves held during rides and fades.
 - `Session/SessionSubsystemPromotions.cpp`: when a map's creatures are promoted on arrival: at most once per 20 minutes
@@ -508,7 +619,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   walls, and with the PCG volume what it scattered).
 - `World/LightBeam`: `LightBeams`, a soft glowing light pillar (sky beacons, the rarity-colored beam over loot); a
   cursed gun's beam gutters like a dying flame (`Gutter`).
+  `Flare`: a rare drop's beam shooting up and flashing as it lands.
 - `World/Windmill`: `AWindmill`, a water-pump windmill whose fan (a separate model on the tower's Fan socket) turns in gusts.
+  Its fan sound and head creaks follow the gusts.
 - `World/SkiffJetty`: `ASkiffJetty`, Skyreach's jetty with its bell, slate and landing (Landing_Jetty); the gangplank (up
   until the tutorial is done, always down after the first cast-off; lowering it rings the bell and offers "Board the
   skiff"); holding Interact at it opens the station board. `SkiffJettyMooring.cpp` is the moored skiff (its own actor
@@ -524,6 +637,12 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `World/GunsmithBench`: `AGunsmithBench`, the plain gunsmith's bench (Skyreach's village, Ransom Farm; the user's
   call until Ozias takes over after the Lily): a tap of Interact opens the bench screen; SM_GunsmithBench (plain shapes
   until it exists) with sockets Interact, Gun and Box; tagged GunsmithBench and Obstacle; never ticks.
+- `World/NoticeBoard`: `ANoticeBoard`, `ENoticePosting` and `FNoticeBoardPosting`, a town's notice board as a mission board
+  (Skyreach's, in Crossroads Town's square; the board's model is the dressing's, this actor is only its use, placed by
+  `Tools/Unreal/build_area_board.py`): a tap of Interact reads it (the missions hear `NoticeBoard.Read`) and opens its
+  screen listing the postings as they stand. It is the postings' giver (tag `Speaker_NoticeBoard`): it tracks one, turns
+  a finished one in with its reward (guns, never experience) at the player's feet, and says "Turn in" while one waits;
+  never ticks.
 - `World/WindowShutter`: `AWindowShutter`, one of Main Street's shutters on a false front's Shutter socket (Main 3): open
   flat against the wall until the player comes near, then it slams shut (after a moment of its own) and stays shut;
   shut from the start after Main 3.
@@ -566,6 +685,33 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   shadowed unless `bCastShadows` is off (cards), each instance culled past `CullDistance`; a solid set is tagged
   Obstacle only in game worlds, since the editor's scatter would keep out of its map-wide bounds (the scatter takes the
   pieces' own boxes).
+- `World/FaunaTypes.h`: the ambient fauna's data: `EFaunaPerchKind`, `FFaunaPerch` (where a bird's feet grip and which way
+  it faces), `FFaunaZone` (where insects keep), `FFaunaLane` (open ground a tumbleweed rolls down), `FFaunaClothPiece`
+  (washing on a line), the noises and threats animals react to, `FFaunaContext` and `FFaunaTick` (what every update reads).
+- `World/FaunaRules`: `FaunaRules`, the fauna's rules as plain functions: fear by how boldly a player moves (creeping,
+  walking, sprinting; a hostile creature less), gunfire and impact hearing, update intervals by distance and view, cull
+  hysteresis, swarm caps, seeded randomness, the curves birds fly along, a tumbleweed's bounce, a wing's banking.
+- `World/FaunaSubsystem`: `UFaunaSubsystem`, runs the level's ambient life for a tenth of a millisecond or so: once a frame
+  it reads the view, the threats and the noises, then updates each fauna actor only when it's due; hidden past its cull,
+  outside its lighting state or with `Looter.Fauna 0` (to measure it by difference).
+- `World/FaunaActor`: `AFaunaActor`, the base of the ambient life: never ticks (the subsystem updates it), everything it
+  draws is passable (instanced pieces, no collision, no Obstacle tag), shown or hidden by distance and lighting state.
+- `World/FaunaFlock`: `AFaunaFlock`, a flock of small birds as instances: crows on Ransom's Rest's fences, headboards,
+  roofs and dead trees, sparrows on Skyreach's, swallows and hawks in the air (aerial); they look about, shuffle, call and
+  peck, flush at a player, creature, shot or bullet strike, wheel and come back (or leave over the hills if the player
+  stays). `FaunaFlockFlight.cpp` take-off, wheeling, landing, hops and the wings' beating; `FaunaFlockPose.cpp` the perched
+  life and the drawing.
+- `World/FaunaSwarm`: `AFaunaSwarm`, insects of one kind (butterflies, dragonflies, fireflies at dusk, flies) in zones near
+  the view, no more than a cap out at once, veering off from a player; `FaunaSwarmMotion.cpp` each kind's flight.
+- `World/FaunaTumbleweeds`: `AFaunaTumbleweeds`, tumbleweeds rolling down their lanes with the wind now and then, bouncing
+  over bumps and glancing off fences, rocks and people without pushing anything.
+- `World/FaunaDustDevils`: `AFaunaDustDevils`, a short-lived dust devil now and then on open dusty ground, wandering with
+  the wind and thinning away.
+- `World/FaunaCloth`: `AFaunaCloth`, washing on a laundry line's back line, each piece swinging out along the gusts on its
+  own damped spring.
+- `World/FaunaCues.h`: `FaunaCue`, the fauna's sound cues (the Fauna section of `Audio/LooterSoundCues.h`).
+- `World/FaunaDevCommands.cpp`: `Looter.Fauna.Stats` (what's out and what it costs), `.Scare` (a gunshot's noise at the
+  player, startling every flock that hears it), `.Tumble` and `.DustDevil` (one now); the `Looter.Fauna 0/1` switch is in `FaunaSubsystem.cpp`.
 - `World/Train`: `ATrain`, the train at a station's platform put together from Train.py's parts (Locomotive B, the
   passenger car and Tilly's hearse car coupled at their couplers; wheel sets on their axles, picked by height; the
   coupling rods on the drivers' cranks; the hearse car's door on its hinge; steam on the stack): cold and shut until
@@ -600,6 +746,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Audio/LooterSoundSubsystem`: `ULooterSoundSubsystem` (game instance), plays cues from the bank (loaded once): one
   concurrency per cue, warns once per missing cue, silent outside game and play-in-editor worlds, applies the volumes
   through `SMX_Volumes` as each world starts; Interface sounds play on while paused.
+- `Audio/AmbienceSubsystem`: the bed by area and light, the sweeteners, the chapel bell's hum and the warm train's steam; `Audio/MusicDirectorSubsystem` the score's director (calm, combat on bar lines, boss, stingers, ducking; `MusicDirectorSenses.cpp` reads hunters, bosses, kills and phases); `Audio/AudioDirectorCommands.cpp` `Looter.Music*`, `Looter.Ambience*`.
+- `Audio/AmbientEmitterComponent`, `Audio/AmbientEmitter`: a place that sounds (a loop in earshot following a path's nearest point, one-shots round it), and its placed holder tagged Ambience (`Tools/Unreal/build_area_sound.py`).
+- `Audio/AmbienceRules`, `Audio/MusicRules`: the ambience's and the score's rules as plain functions (beds by area and light, sweetener picking and placing; bars, tempo, combat grace, moods, ducking, victory and elite stings, calm plays and rests).
 - `Audio/SoundSurface`: `ESoundSurface` and `SoundSurface`, the surface a hit or a foot landed on (`Surface.<Name>` tags,
   then material names; terrain is grass on the flat, dirt on slopes) and its footstep cue.
 - `Audio/PlayerSoundComponent`: `UPlayerSoundComponent`, the player's footsteps by surface and speed, jump, landing (by
@@ -612,10 +761,11 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Settings/AudioSettingsSubsystem`: saved Master, Effects, Interface and Music volumes (0-100%), handed to the sound
   system.
 - `Settings/KeyBindingSubsystem`: key rebinding, the global pause/inventory actions and the character actions
-  (weapon slots 1-3 among them).
-- `Settings/GraphicsSettingsSubsystem`: saved display options (quality preset, motion blur, first-person field of view, UI transparency, minimap on/off, size and zoom, FPS counter) and the `Looter.Quality` and `Looter.FieldOfView` commands.
+  (weapon slots 1-3 and the Melee key, V or the right stick's click, among them).
+- `Settings/GraphicsSettingsSubsystem`: saved display options (quality preset, motion blur, first-person field of view, UI transparency, minimap on/off, size and zoom, FPS counter, control hints on/off) and the `Looter.Quality` and `Looter.FieldOfView` commands.
 - `Settings/ControlSettingsSubsystem`: saved control options: look sensitivity (0.1x-3x), which scales every turn of
   the view by mouse or stick (the character's look, under a sight's own slowing, and a scene's free look).
+  Camera shake (0-100%).
 
 ## UI
 - `UI/Style/LooterUIStyle`: `LooterUI`, the style kit every UI is built with (palette, shapes, icons, text, builders,
@@ -637,6 +787,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   player puts the gameplay HUD away. Opening the station board tells the missions it's read. It owns the mission
   tracker and hands it the tutorial's closing line. `LooterHUDBench.cpp`: the gunsmith's bench's screen
   (`OpenBench`, `CloseBench`) and the pages' sounds as they open and close (`PlayPageSound`).
+  `LooterHUDNoticeBoard.cpp`: a notice board's screen (`OpenNoticeBoard`, `CloseNoticeBoard`), opened by reading a board.
+  It also owns the contextual control hint above the mission tracker.
 - `UI/Bench/BenchWidget.h`: `UBenchWidget`, the gunsmith's bench screen's declaration, its layout (`BenchLayout`) and
   button actions. `BenchWidget.cpp`: opening, layout, refreshing, queries; `BenchWidgetLists.cpp` its columns (guns
   carried, the chosen gun's slots, the box's parts for the slot); `BenchWidgetGun.cpp` the chosen gun's card (name,
@@ -651,11 +803,14 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   weapon column with its cartridge, status, fire mode and gun name, and the crosshair with its shot kick, hit marker,
   loot card, interaction prompt and messages, frame by frame; `PlayerHUDWidgetLayout.cpp` builds it; `PlayerHUDWidgetPickupCard.cpp` fills the loot
   comparison card (with a gun's notch and curse rows) and the interaction prompt.
+  The kill marker (red, popped), the mission-complete banner, the damage arcs.
+- `UI/HUD/HudDamageIndicatorWidget`: red arcs round the crosshair pointing to where hits came from.
 - `UI/HUD/HudPlayerFrameWidget`: the player frame at the bottom left: the portrait in its gunmetal medallion, the
   health bar (chip, heal rise and shine, low-health beat), the level gem and the ten-section experience bar (just-earned
   stretch, level-up flash and ring; it tells the HUD when to show the banner), with the idle fade;
   `HudPlayerFrameWidgetXP.cpp` follows experience, `HudPlayerFrameWidgetLayout.cpp` builds it,
   `HudPlayerFrameWidgetPictures.cpp` draws its pictures, `HudPlayerFrameWidgetStretches.cpp` paints its bars' fills.
+  `HudPlayerFrameWidgetRegen.cpp` the health bar's regeneration (a smooth rise, a gentle shine, one "+N" at the run's end).
 - `UI/HUD/HudPlayerFrameShapes`: the player frame's bar measurements and drawing helpers (lean, end wedges, clipping,
   soft shadows, the window cut), shared by its pictures and stretches.
 - `UI/HUD/HudPortraitWidget`: the player's portrait in the player frame's diamond window: glass, bust and eyes clipped
@@ -672,11 +827,17 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   gunmetal bezel whose ticks and N turn with it under a fixed orange notch, the area's name under it; the tracked
   mission's waypoint on it, or a compass arrow and its distance inside the rim. `HudMinimapWidgetFrame.cpp` builds,
   sizes and turns the bezel, ticks, N, notch and the place's name.
+- `UI/HUD/HudControlHintWidget`: `UHudControlHintWidget`, the contextual control hint (`UControlHintSubsystem` decides
+  which): one line in the left column above the mission tracker, the bound key as a keycap then what it does, floating
+  outlined text with no panel; slides in, flashes cyan when the control is used, fades if unheeded, steps aside under menus
+  and scenes.
 - `UI/HUD/HudMissionTrackerWidget`: `UHudMissionTrackerWidget`, the tracked mission on the left (medal, title, step
   bar, route line, objective row with its count, key hint), its own viewport widget over the inventory's pages; ticks
   done objectives (when the step or the objective's index moves on, never for a words-only change:
   `DecideChange`), slides the next in, shows the tutorial's closing line; `HudMissionTrackerWidgetLayout.cpp` builds
   its widgets and pictures; `HudMissionTrackerWidgetSound.cpp` the tick's sound (a step, a mission done).
+  A mission waiting for its turn-in shows 'Turn in to <who>' under a full step bar; a story mission's fanfare is left to the banner.
+- `UI/HUD/HudMissionCompleteWidget`: `UHudMissionCompleteWidget`, the mission-complete banner in the level-up banner's place, taking turns with it: the ranger's star medal with turning rays, MISSION COMPLETE, the mission's name and what it gave (+XP, the gun's rarity in its colour, a named gun, areas opened); waits under menus, scenes and the level-up banner; `HudMissionCompleteWidgetLayout.cpp` its pictures.
 - `UI/HUD/HudWeaponSlotsWidget`: the weapon slots in a column (slot 1 on top): gunmetal-ringed circles with a rarity
   arc and the guns' Inked icons (tilted up), each with its key tab and its ammo's icon on its left; the gun in hand
   moves left and grows, with an accent ring and glow. `HudWeaponSlotsWidgetPictures.cpp` draws its rings, rarity arc,
@@ -686,7 +847,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   bar (bezel, banded hatched fill, chip, end clamp): the level in a gem of its rank's colour, the name, phase cuts that
   light once passed, grey while it can't be hurt, the phase's name under it (flashing orange).
   `HudBossBarWidgetLayout.cpp` builds it and cuts the fill to length.
+  The intro (drop, fill run-up, typed title), hit flash and jolt, phase flash, callouts, the death's word; `HudBossBarWidgetMotion.cpp` animates them.
 - `UI/HUD/HudPickupFeedWidget`: ammo pickups left of the crosshair, in outlined white type that stacks, rises and fades.
+  An Epic or Legendary gun's name flashes in its rarity's colour.
 - `UI/HUD/HudInteractPromptWidget`: what the Interact key does to the thing looked at, under the crosshair ("[E] OPEN
   THE DOOR", "HOLD [E] RING THE BELL" over a bar that fills while held); loot has its card instead.
 - `UI/HUD/HudCaptionWidget`: the captions low on the screen: the speaker's name in the accent
@@ -700,27 +863,36 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   paused game or from the main menu: its layout. `SettingsMenuRows.cpp` makes its rows and key list,
   `SettingsMenuAudio.cpp` its volume sliders, `SettingsMenuInput.cpp` handles its buttons, sliders and keys,
   `SettingsMenuParts.h` holds what they share.
+  The Camera shake slider.
 - `UI/Menus/MainMenuHUD`: `AMainMenuHUD`, the main menu's HUD: the menu and its settings.
 - `UI/Menus/MainMenuWidget`: `UMainMenuWidget`, the main menu (Single Player, Multiplayer, Settings, Quit Game);
   `MainMenuSessions.cpp` is its session picker (each session's area by name), a new game's choice to play or skip the
   tutorial, and the delete confirmation.
 - `UI/Inventory/LoadoutWidget.cpp`: the loadout screen: opening, layout and contents; a cursed gun's cards show the
   cracked coin before its name.
+  Since the 2026-10-08 redesign: one list of the equip slots over the backpack (left), the gun under the cursor on show (middle), its docked card (right), key hints that are buttons (bottom); `LoadoutWidgetRows.cpp` the rows (rarity stripe, icon, name, level, damage, verdict arrow, NEW), `LoadoutWidgetPrompts.cpp` counts, sort, the ammo line and the prompt bar, `LoadoutWidgetMouse.cpp` clicks, drags and the showcase.
 - `UI/Inventory/LoadoutWidgetInput.cpp`: its cursor, actions (swap, hold, drop), mouse handling and turning the stand-in.
 - `UI/Inventory/LoadoutWidgetDrag.cpp`: dragging guns between slots, the backpack and the character.
 - `UI/Inventory/LoadoutWidgetInspect.cpp`: the stats card that floats beside the gun under the cursor (with its
   notches and curse rows).
+  Now the docked card: at a glance a banner, the name, damage big, four stats with compare arrows, the parts' best bonuses, curse and notch badges; on Inspect every stat, fire mode and ammo, parts, bonuses, history.
 - `UI/Inventory/LoadoutWidgetPaint.cpp`: the stand's ring under the stand-in.
+  Now the showcase's ring in the gun's rarity colour, the card's slide-in, a row's flash on equip, the top rarities' breathing glow.
 - `UI/Inventory/LoadoutWidget.h`: the loadout screen's declaration.
 - `UI/Inventory/MissionsWidget`: the missions page, the inventory's third: opening, layout and the mission log;
   `MissionsWidgetDetails.cpp` the chosen mission's steps, objectives and rewards, the keys and tracking.
+  Once all steps are done: 'Ready to turn in: talk to X'.
 - `UI/Inventory/LoadoutRules`: `LoadoutRules`, the backpack list's compare and sort rules.
+  Verdicts, the backpack's four sorts, the card's stats at first glance and on Inspect, compare arrows, the parts' bonuses, NEW marks.
 - `UI/Inventory/LoadoutParts`: `LoadoutParts`, the inventory pages' layout, colors, vector art, card builders and title
   tabs (the bestiary's titled "Ledger" once it's Sexton's, `TitlePageTabs`); `MakeGunIdeasRows`, a gun's notches and
   curse as card rows (the loadout, the loot card and the bench use it), and `MakeGunNameLine`, a name with the cursed
   irons' coin.
+  `MakeKeyHintButton`, `NotchTierColor`, the inventory's cue names (`Sounds` = `LooterSoundCue::Inventory`); the title tabs as one underlined bar with number keys.
 - `UI/Inventory/LoadoutPaintLayer`: `ULoadoutPaintLayer`, a see-through layer the screen draws on.
 - `UI/Inventory/LoadoutStage`: `ALoadoutStage`, the off-screen stand-in of the character and its capture.
+  Not spawned since the redesign (kept).
+- `UI/Inventory/LoadoutGunStage`: `ALoadoutGunStage`, the off-screen showcase: the chosen gun built from its parts, swinging in and swaying under the studio lights.
 - `UI/Inventory/StageStudio`: `StageStudio`, what the inventory's off-screen stands share (spot, capture, studio lights,
   picture, projection).
 - `UI/Bestiary/BestiaryWidget.cpp`: the bestiary, the inventory's second page (Sexton's Ledger from Main 2, with its
@@ -734,8 +906,14 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `UI/World/WeaponLabelWidget`: the label over loot guns (a named gun's flavor line under its name when looked at; a
   cursed iron's cracked coin and curse name under its name).
 - `UI/World/CreatureHealthBarWidget`: the tag over a hurt or hunting creature: floating level, rank word (in its rank's
-  color) and name over a slim bar of fixed width, cut into quarters whatever the health.
+  color) and name over a slim bar of fixed width, cut into quarters whatever the health. A ranked creature's rank word
+  pops for 0.6 s when its rank sting sounds (`SetRankStingAge`).
+- `UI/World/NoticeBoardWidget`: `UNoticeBoardWidget`, a notice board's screen (a LooterUI panel over the dimmed world):
+  the board's postings as cards pinned up (title, notice, count, reward, and what can be done here: turn in, track, done,
+  not up yet), chosen with W/S or the arrows and acted on with E or a click, a turned-in card saying what it gave;
+  `NoticeBoardWidgetCards.cpp` makes the cards and acts on them.
 - `UI/World/DamageNumberActor`, `UI/World/DamageNumberWidget`: floating damage numbers.
+  Crits slam in big and white-hot, cool to orange and arc to one side.
 - `UI/World/StationBoardWidget`: `UStationBoardWidget`, the station board (a LooterUI panel over the dimmed world): its
   lines and keys; `StationBoardWidgetConfirm.cpp` the confirm ("Leave Skyreach? ..." with Cast off and Not yet on the
   first cast-off) and the trip.
@@ -803,18 +981,21 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Dev/HudShotDevCommands.cpp`: `Looter.HudShots [quit]`, photographs the gameplay HUD (with the UI) through its states
   (calm, hit, low health, heal, experience, level-up, reload, empty, two guns, boss, a mission step done) into
   `Saved/Screenshots/HudShots/<NN>_<state>.png` (`Tools/hudshots.ps1`); `HudShotScene` holds the states and how each is made.
+- `Dev/BossShowDevCommands.cpp`: `Looter.Boss.Stagger`, `Looter.Boss.Next`, `Looter.Boss.Shake`; `Dev/FeedbackDevCommands.cpp`: `Looter.Feedback.Drop`, `Looter.Feedback.Hurt`.
+- `Dev/CastShotDevCommands.cpp`, `Dev/CastShotRun`, `Dev/CastShotScene`, `Dev/CastShotProbe`: `Looter.CastShots`, every creature and character photographed in its states from three angles, with `numbers.csv` of feet, limbs, sliding, pops and overlaps (`Tools/castshots.ps1`). `CastShotRun.cpp` is the steps and clock (set a scene up, let it run, stop time, the pictures, put everything back) and `CastShotRunNumbers.cpp` the numbers (the body watched frame by frame, everything measured when time stops, marked "!" past what a player would notice); `CastShotScene.cpp` is the cast (who, how each state is made, which bones are watched, the camera) and `CastShotSceneSpots.cpp` finds the open flat ground and slope they stand on; `CastShotProbe` has the measures.
+- `Dev/MenuShotDevCommands.cpp`, `Dev/MenuShotScene`: `Looter.MenuShots [quit]`, a realistic loadout and the inventory photographed through its states (`Tools/menushots.ps1 [-Label]`).
 - `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: looks from each viewpoint of a level, measures frame times there and takes screenshots (`Tools/tour.ps1`); a view's `exec` and `after` commands measure a hidden group by the difference.
 
 ## Tests (run with `Tools\runtests.ps1`)
-- `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LevelBandTests.cpp`, `LightingTests.cpp`, `LocomotionTests.cpp`, `LocomotionPlayTests.cpp` (with `LocomotionTestWorld.h`), `LootTests.cpp`, `LootRankTests.cpp`,
-  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `MissionTrackerTests.cpp` (when the HUD tracker ticks an objective), `PlayableAreaTests.cpp`, `PosterTests.cpp`, `ProgressionTests.cpp`, `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `HallowedGroundTests.cpp` (Main 4: its steps, Main 3 first, the yard's two waves by count and rank, the bell held, the Reliquary's flash ending its step, Aldana's words and the chapel yard's grave; the Unpaid on boot hill and the north road after it; the placed pieces), `ChapelTests.cpp` (the bell's hold, swing and tolls; Grave Sight's flash and the Reliquary's look timing out; Aldana's topics) with `HallowedGroundTestWorld.h`, `EggSacTests.cpp` (the egg sac's fall, burst and spiders, shootable only in its step; the lantern dark, taken in its step, gone after), `KeepersLanternTests.cpp` (with `KeepersLanternTestWorld.h`; Main 5: its steps, Main 4 first, the floor's spiders, Side 3 after it, the placed pieces), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp`, `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `GravemotherTests.cpp` (her body, charge, brood, pack calls by tag,
-  loot), `GravemotherSideTests.cpp` (her return after 20 minutes of play, her lair and where it puts her: room for her body, her den's floor, her brood in it; Side 3), `UnfinishedBusinessTests.cpp` (with `UnfinishedBusinessTestWorld.h`: Side 2 end to end, the bales counted from the world and kept by the save, the hands by count and rank, the placed pieces, its fences and wall counted as the dressing's instances on the layout's lines), `AmosTests.cpp` (his pose table, every bone posed in the game against it, topics by the story, the rail, the seat on the rail, ticking only while he moves, his Ledger page), `RangerCachesTests.cpp` (step 26: a chest's wheel and lid, its loot and odds per kind, once only, kept open by the save; the caches and the Strongbox as Ransom's Rest is built), `RansomsRestLevelTests.cpp` (every respawn grave, player start, encounter spot and tour view inside the playable boundary), `AbelTests.cpp`, `AbelFightTests.cpp` (with `AbelTestWorld.h`: Abel's pose table, rules, body, phases, lanterns, reset, fog wall, the Gravewind and a fall, the kneel and the scene), `GravewindTests.cpp` (with `GravewindTestWorld.h`: Main 6 end to end, Pa on his board, the dusk scenery, the level as built), `TrainTests.cpp` (the train's assembly and rolling wheels, cold until Main 7, its two shots, which trips go by train), `LanternLeansTests.cpp` (with `LanternLeansTestWorld.h`: Main 7's steps after Main 6, Delia's hand-off once, the board read opening the Lily, Ned's page, the flame's lean), `LanternLeansPlacedTests.cpp` (the Lily's area and the board's "isn't open yet"; Main 7's placed pieces), `WeaponTests.cpp`, `NamedWeaponTests.cpp` (named guns: the
+- `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `BossShowTests.cpp` (every boss's show: the stagger, camera shake, loot shower, the bar's intro, callouts and last word, the death), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `CreatureRankFlashTests.cpp` (the tag's rank-word pop, a pure function of the sting's age), `CreatureAnimTests.cpp` (how the creatures move, measured on their poses: the Unpaid's arms keep out of its torso and don't pop, its shroud lifts off rising ground, a slime lies along a slope, a spider's hit jolt), `CreatureSteeringTests.cpp` (the planner and the unstick's rules in a flat world of fences and pens), `CreatureSteeringRulesTests.cpp` (when the unstick acts, the side the planner keeps), `CreatureSteeringPlayTests.cpp` (the looks and the unstick against real geometry in test levels), `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `EncounterCampTests.cpp` (with `EncounterLayoutReader.h`: Ransom's Rest's camps, patrols and ambushes read from the layout, and when the story lets them on), `EncounterPackTests.cpp` (flanking, breaking off, the rank sting), `EncounterPatrolTests.cpp` (a patrol's walk and file, an ambush sprung by walking in), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LoadoutTests.cpp` (the loadout screen's sort, compare, first glance and NEW marks, and the screen), `LevelBandTests.cpp`, `LightingTests.cpp`, `HouseLightsTests.cpp` (a house's lamp and windows brighten at dusk through an instance of their own), `LocomotionTests.cpp`, `LocomotionPlayTests.cpp` (with `LocomotionTestWorld.h`), `LocomotionTraversalTests.cpp` (the mantle's and vault's curves, rules and plans without a world), `LocomotionTraversalPlayTests.cpp` (mantle, vault and never-climbed things on the real character), `LocomotionJumpAssistTests.cpp` (coyote time, the jump buffer, step-ups, a wedged player nudged free), `LootTests.cpp`, `LootRankTests.cpp`, `RecoveryTests.cpp` (the wounds that close, soul-mote drops by rank), `RecoveryMoteTests.cpp` (with `RecoveryTestWorld.h`: a mote's hook, pull, heal and look), `FeedbackTests.cpp` (`Looter.Feedback.*`: hit-stop and stagger rules, view kicks, the camera shake setting, damage direction, loot fanfare, damage numbers), `MeleeTests.cpp` (the strike's reach, damage, gate, stagger, key and motion), `MeleePlayTests.cpp` (the strike in a test level: the body in front, the knock, sounds by body, a reload cut short), `PlayerAnimTests.cpp` (with `PlayerAnimTestKit.h`: the climbing pose from a plan, the stance layer on the mannequin's reference pose), `PlayerAnimPlayTests.cpp` (with `PlayerAnimPlayKit.h`: the feet's pace against the ground on the real character), `PlayerAnimClimbPlayTests.cpp` (the climbing pose and body clearances played out frame by frame),
+  `MinimapTests.cpp`, `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `MissionTrackerTests.cpp` (when the HUD tracker ticks an objective), `MissionTurnInTests.cpp` (a finished mission waiting for its turn-in: ready, giver, rewards, save, automatic, the talk, old saves), `MissionCompleteBannerTests.cpp` (the mission-complete banner and what is heard), `PlayableAreaTests.cpp`, `PosterTests.cpp`, `ProgressionTests.cpp`, `ProgressionPacingTests.cpp` (the pacing pass: about level 6.5 at the story's end), `RespawnTests.cpp`, `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `SettingsTests.cpp`, `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `HallowedGroundTests.cpp` (Main 4: its steps, Main 3 first, the yard's two waves by count and rank, the bell held, the Reliquary's flash ending its step, Aldana's words and the chapel yard's grave; the Unpaid on boot hill and the north road after it; the placed pieces), `ChapelTests.cpp` (the bell's hold, swing and tolls; Grave Sight's flash and the Reliquary's look timing out; Aldana's topics) with `HallowedGroundTestWorld.h`, `EggSacTests.cpp` (the egg sac's fall, burst and spiders, shootable only in its step; the lantern dark, taken in its step, gone after), `KeepersLanternTests.cpp` (with `KeepersLanternTestWorld.h`; Main 5: its steps, Main 4 first, the floor's spiders, Side 3 after it, the placed pieces), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp` (the reworked first goal, how the tutorial starts and is done, the tracker, the menu's choice, the gun rack), `ControlHintTests.cpp` (each hint's trigger and the moment it goes, one at a time, limits and memory), `NoticeBoardTests.cpp` (Skyreach's notice board: postings up once the first goal is done, tracked and turned in for guns, kept by the save; the zone objective counting Web Hollow's spiders and the Wallow's slimes), `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `GravemotherTests.cpp` (her body, charge, brood, pack calls by tag,
+  loot), `GravemotherFightTests.cpp` (her boss fight: phases and pace, the roar that starts it, her brood as adds, the quake, the spit, her reel, her fury's crack, standing down), `GravemotherSideTests.cpp` (her return after 20 minutes of play, her lair and where it puts her: room for her body, her den's floor, her brood in it; Side 3), `UnfinishedBusinessTests.cpp` (with `UnfinishedBusinessTestWorld.h`: Side 2 end to end, the bales counted from the world and kept by the save, the hands by count and rank, the placed pieces, its fences and wall counted as the dressing's instances on the layout's lines), `AmosTests.cpp` (his pose table, every bone posed in the game against it, topics by the story, the rail, the seat on the rail, ticking only while he moves, his Ledger page), `RangerCachesTests.cpp` (step 26: a chest's wheel and lid, its loot and odds per kind, once only, kept open by the save; the caches and the Strongbox as Ransom's Rest is built), `RansomsRestLevelTests.cpp` (every respawn grave, player start, encounter spot and tour view inside the playable boundary), `AbelTests.cpp`, `AbelFightTests.cpp` (with `AbelTestWorld.h`: Abel's pose table, rules, body, phases, lanterns, reset, fog wall, the Gravewind and a fall, the kneel and the scene), `AbelShowTests.cpp` (his entrance, stagger on a knee, shots from the fog, barrage in the wind, loot waiting for the scene), `GravewindTests.cpp` (with `GravewindTestWorld.h`: Main 6 end to end, Pa on his board, the dusk scenery, the level as built), `TrainTests.cpp` (the train's assembly and rolling wheels, cold until Main 7, its two shots, which trips go by train), `LanternLeansTests.cpp` (with `LanternLeansTestWorld.h`: Main 7's steps after Main 6, Delia's hand-off once, the board read opening the Lily, Ned's page, the flame's lean), `LanternLeansPlacedTests.cpp` (the Lily's area and the board's "isn't open yet"; Main 7's placed pieces), `WeaponTests.cpp`, `NamedWeaponTests.cpp` (named guns: the
   fixed-quality rules, Heirloom's asset and label, its save, the mission reward),
   `WeaponPartsTests.cpp`, `WeaponNotchesTests.cpp`, `WeaponCursesTests.cpp`, `WeaponPartSwapTests.cpp` (the gun
   ideas' rules), `GunIdeasPlayTests.cpp` (the gun ideas in play: notches counted, curses' shots and health, the tally
   and beam), `GunsmithBenchTests.cpp` (`Looter.Weapons.Bench.*`: scrap, fit, the box saved, its cap, named guns, the
   bench's interaction, the screen's lists), `AudioTests.cpp` (`Looter.Audio.*`: a missing cue silent, variation,
-  concurrency settings, the volumes saved, surfaces, the bank covering every cue), `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
+  concurrency settings, the volumes saved, surfaces, the bank covering every cue), `AudioDirectorTests.cpp` (`Looter.Audio.Director.*` and `.Ambience.*`: the score's combat timeout, moods and ducking, bar lines and rules; the ambience's beds, sweeteners and emitter paths; the slider classes), `FaunaTests.cpp` (with `FaunaTestWorld.h`: the fauna's rules for fear, gunfire, culling, motion and bounce), `FaunaPlayTests.cpp` (a flock scattering, hearing gunfire, leaving, passable, aerial), `FaunaSwarmTests.cpp` (insect caps and zones, tumbleweeds, the on/off switch), `FaunaLevelTests.cpp` (each built level's ambient life: inside the playable boundary, clear of Hob's perches, nothing inside a building or rock, counts within the budget), `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)
 - `LooterEditor.Build.cs`: module dependencies (GeometryScript editor functions, asset tools, FBX import, JSON).
@@ -864,6 +1045,13 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   scatter mask `T_<Area>Scatter_BC` (with `scatter.roadside: pebbles`, no rocks or boulders on or beside the roads; a
   pit's floor bare grit; grounded: R carries the crease pines, and the scrub mask is written beside it,
   `area_scrub.py`).
+- `Art/Levels/area_mosaic.py`: a grounded area's late-summer ground (a layout whose `macro` block says `"mosaic":
+  "lateSummer"`: Ransom's Rest), in place of the island's even meadow graded gold: the macro maps' patchwork of grass tones
+  keyed to moisture (hollows, north and east slopes and water banks wetter, rises drier) and sage and copper patches, soft
+  light and shade over a hundred meters, wildflower drifts, bare soil, the hayfields (stubble, windrows, uncut headlands),
+  shade under living trees, contact shadows round rocks' feet, the ring's darker woods floor, the ridge faces' late-summer palette
+  (`FACES`) and the scatter's grass thinning; painted from world position and heights only, so the core's map and the
+  ring's agree at the seam.
 - `Art/Levels/area_scrub.py`: a grounded area's dry scrub (the art session's kit): the scrub mask `T_<Area>Scrub_BC`
   (R sagebrush, and big sagebrush on 35-50 degree faces; G dry tufts; B rabbitbrush; A junipers in creases, on benches
   and rock-band tops; each a keep/chance encoding with spacing and slopes from `LAYERS`) on the ridge faces and the
@@ -912,6 +1100,9 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   the windmill's steel). A placement may be scaled (`scale`); a creature group with `"respawns": false` stays dead once
   killed (all of Skyreach's) and no group starts in a pond; `level.town` (Skyreach's `town.json`) adds NoTrees boxes
   from `build_area_dressing.no_tree_boxes()`.
+  Its full build places the ambient emitters (`build_area_sound.py`) and, last, the area's ambient life
+  (`build_area_fauna.py`); its gameplay pass adds the island's notice board (`build_area_board.py`) and the encounters
+  between the story's fights (`build_area_camps.py`).
 - `Tools/Unreal/build_area_panels.py`: a pit's wall dressed with the narrow cliff panels and the seam wedge
   (CliffPanel_A/B/C, CliffSeam_A) in place of a cliff group's faces, for `build_area.py` (`level.cliffs.panels`;
   the Sink's wall): a run along the pit's outline between its gaps and its ramp, each panel leaning with the wall
@@ -1012,6 +1203,22 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Tools/Unreal/build_area_caches.py`: step 26's pieces for `build_area_story.py`: Ruth's three Ranger caches (Supply
   Crates under the windmill, on the Sink's rim and on the bluff path, each at the first of its spots that's level and
   clear) and the gang's Strongbox on the sheriff's office's SOCKET_Strongbox.
+- `Tools/Unreal/build_area_camps.py`: what happens between the story's fights, for `build_area.py`'s gameplay pass: the
+  layout's `gameplay.encounters` as encounters in the level, each waiting for the story and kept off the safe zones, the
+  arrivals and the scripted fights' grounds. Camps (an `AEncounterSpawner` with its creatures standing about, then its
+  Supply Crate `CampCache_<id>` at the first level, clear spot), patrols (`APatrolSpawner` on a road, there and back or
+  round) and ambushes (`AAmbushSpawner` sprung on a trigger polygon, the dead rising or spiders dropping); run after the
+  story's pieces.
+- `Tools/Unreal/build_area_board.py`: Skyreach's notice board (`ANoticeBoard`, labeled `NoticeBoard_Square`) where the
+  town's square places its board model, and the lookout's marker (a target point tagged `Place_Lookout` that "Up to the
+  Lookout" reaches), for `build_area.py`'s gameplay pass; only the layout whose `gameplay.director` is TutorialDirector.
+- `Tools/Unreal/build_area_fauna.py`: an area's ambient life, derived from the built level with nothing hand-placed (run
+  at the end of `build_area.py`'s full build, or on its own): flocks (perches found by traces on fence rails and posts,
+  walls, headboards, roof ridges, hay bales and dead trees' limbs, with open ground beside them; crows on Ransom's Rest,
+  sparrows on Skyreach, hawks and swallows in the air), insect zones (butterflies, dragonflies, fireflies at dusk, flies),
+  tumbleweed lanes and dust devil spots on open ground running downwind, and washing on every laundry line's back line;
+  all clear of Hob's perches and inside the playable area, from seeded streams so a rebuild places the same, in the
+  area's `Fauna` folder.
 - `Tools/Unreal/build_island_scatter.py`: an area's PCG scatter graph and volume (`[Area]`); its mask is imported
   again whenever the PNG changes (its MD5 kept on the texture as metadata); a grounded area's crease pines and dry
   scrub from the scrub mask and the computed points (`scrub_layers`), each later layer kept off what earlier ones
@@ -1051,7 +1258,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   into `<folder>_Import` for `Looter.ImportModels`), `Tools/winshot.ps1` (a window captured by handle, such as a Save
   Content dialog), `Tools/Unreal/open_clean.py` (a map loaded from disk after a garbage collection),
   `Tools/Unreal/pie_check.py` (whether a play session runs in the editor), `Tools/Unreal/path_probe.py` and
-  `width_probe.py` (a player's capsule walked down every road and ramp, and across one, reporting what blocks it).
+  `width_probe.py` (a player's capsule walked down every road and ramp, and across one, reporting what blocks it),
+  `Tools/dialogclick.ps1` (clicks a point in an editor dialog by handle, in winshot's pixels, only if it came to the front).
 - `Tools/ConceptViewer/`: the island concept viewer, a web page (`README.md`). `web_export.py` and `export_all.sh` export
   the scripted models and the terrain for it; `assemble.py` builds the page from `web/` (engine, procedural kit, the
   four concepts, the interface); `test/` takes screenshots and drives the interface, and `test/dump.js` writes a

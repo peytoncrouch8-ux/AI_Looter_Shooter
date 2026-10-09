@@ -21,6 +21,13 @@ namespace
 	constexpr float BossPhasePop = 0.15f;
 	/** The fill's lit top line: its leading edge's light, this strong over the top band. */
 	constexpr float BossTopLineOpacity = 0.35f;
+	/** A hit's flash: this much for any hit, more for a bigger share of the bar; 2% or more jolts the bar. */
+	constexpr float BossHitFlash = 0.3f;
+	constexpr float BossHitFlashPerShare = 25.f;
+	constexpr float BossJoltShare = 0.02f;
+	/** At full flash the fill goes this far toward white (a hit) or orange (a new phase). */
+	constexpr float BossHitWhite = 0.45f;
+	constexpr float BossPhaseOrange = 0.55f;
 
 	/** Tone, Amount of the way to the grey of its own brightness: an untargetable fill keeps its bands' light and dark. */
 	FLinearColor BossGreyed(const FLinearColor& Tone, float Amount)
@@ -73,7 +80,7 @@ FText UHudBossBarWidget::GetLevelText() const
 
 FText UHudBossBarWidget::GetPhaseText() const
 {
-	return PhaseLabel ? PhaseLabel->GetText() : MakePhaseLine(PhaseName, bGreyed, Hint);
+	return PhaseLabel ? PhaseLabel->GetText() : CurrentLine();
 }
 
 void UHudBossBarWidget::SetBoss(const FText& InName, int32 InLevel, const FLinearColor& InNameColor, const TArray<float>& PhaseShares)
@@ -92,6 +99,15 @@ void UHudBossBarWidget::SetBoss(const FText& InName, int32 InLevel, const FLinea
 	bGreyed = false;
 	Grey = 0.f;
 	PhaseFlash = 0.f;
+	// No intro, callout or flash left over from a fight before.
+	IntroTime = -1.f;
+	ShownTitleChars = INDEX_NONE;
+	Callout = FText::GetEmpty();
+	CalloutLeft = 0.f;
+	bDefeated = false;
+	HitFlash = 0.f;
+	Jolt = 0.f;
+	BarFlash = 0.f;
 	ShownFillWidth = -1.f;
 	ShownChipWidth = -1.f;
 	BuildTicks();
@@ -109,8 +125,14 @@ void UHudBossBarWidget::SetHealth(float Health, float MaxHealth)
 	}
 	if (NewFraction < Fraction)
 	{
-		// A hit: what it took lingers as the chip for a moment.
+		// A hit: what it took lingers as the chip for a moment, the fill flashes, and a big one jolts the bar.
 		ChipHold = BossChipHoldSeconds;
+		const float Drop = Fraction - NewFraction;
+		HitFlash = FMath::Min(1.f, HitFlash + BossHitFlash + Drop * BossHitFlashPerShare);
+		if (Drop >= BossJoltShare)
+		{
+			Jolt = 1.f;
+		}
 	}
 	else
 	{
@@ -128,10 +150,11 @@ void UHudBossBarWidget::SetPhase(int32 Index, const FText& InPhaseName)
 	{
 		return;
 	}
-	// A later phase flashes its name; the first is only the fight starting.
+	// A later phase flashes its name, the fill and the cut it passed; the first is only the fight starting.
 	if (PhaseIndex != INDEX_NONE && Index > PhaseIndex)
 	{
 		PhaseFlash = BossPhaseFlashSeconds;
+		BarFlash = 1.f;
 	}
 	PhaseIndex = Index;
 	PhaseName = InPhaseName;
@@ -210,6 +233,8 @@ void UHudBossBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	{
 		ApplyColors();
 	}
+	// The intro, the flashes, the jolt and the callout (HudBossBarWidgetMotion.cpp).
+	TickMotion(InDeltaTime);
 }
 
 bool UHudBossBarWidget::IsMenuOpen() const
@@ -236,7 +261,7 @@ void UHudBossBarWidget::ApplyTexts()
 	}
 	if (PhaseLabel)
 	{
-		const FText Line = MakePhaseLine(PhaseName, bGreyed, Hint);
+		const FText Line = CurrentLine();
 		PhaseLabel->SetText(Line);
 		PhaseLabel->SetVisibility(Line.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	}
@@ -250,21 +275,41 @@ void UHudBossBarWidget::ApplyColors()
 	}
 	// The fill in the health bar's three bands, greying while the boss can't be hurt; its top line and leading edge the
 	// light of its edge.
+	// A hit flashes the bands toward white, a new phase toward orange; both ease out quickly.
+	const float White = FMath::Square(HitFlash) * BossHitWhite;
+	const float Orange = FMath::Square(BarFlash) * BossPhaseOrange;
+	auto Lit = [White, Orange](const FLinearColor& Tone)
+	{
+		return FMath::Lerp(FMath::Lerp(Tone, Color::Text(), White), Color::Accent(), Orange);
+	};
 	const FLinearColor Bands[3] = { Color::HealthHi(), Color::Health(), Color::HealthLow() };
 	for (int32 Index = 0; Index < 3; ++Index)
 	{
-		FillBands[Index]->SetColorAndOpacity(BossGreyed(Bands[Index], Grey));
+		FillBands[Index]->SetColorAndOpacity(Lit(BossGreyed(Bands[Index], Grey)));
 	}
-	const FLinearColor Edge = BossGreyed(Color::HealthEdge(), Grey);
-	FillTopLine->SetColorAndOpacity(Edge.CopyWithNewOpacity(BossTopLineOpacity));
+	const FLinearColor Edge = Lit(BossGreyed(Color::HealthEdge(), Grey));
+	FillTopLine->SetColorAndOpacity(Edge.CopyWithNewOpacity(FMath::Lerp(BossTopLineOpacity, 1.f, White)));
 	FillEdge->SetColorAndOpacity(Edge);
 	GemFace->SetColorAndOpacity(NameColor);
 	NameLabel->SetColorAndOpacity(FSlateColor(FMath::Lerp(NameColor, Color::TextDim(), Grey * 0.6f)));
+	ColorTicks();
 
 	// A hint reads in the text color (it's what to do now); a new phase's name flashes orange a little bigger, then
-	// settles dim, quickly at first (eased out, as the mockup's).
+	// settles dim, quickly at first (eased out, as the mockup's). A callout (and the death's word) is orange and pops the
+	// same way; the intro's title is cyan.
 	const float Flash = FMath::Square(FMath::Clamp(PhaseFlash / BossPhaseFlashSeconds, 0.f, 1.f));
-	const FLinearColor Line = bGreyed && !Hint.IsEmpty() ? Color::Text() : FMath::Lerp(Color::TextDim(), Color::Accent(), Flash);
+	FLinearColor Line = bGreyed && !Hint.IsEmpty() ? Color::Text() : FMath::Lerp(Color::TextDim(), Color::Accent(), Flash);
+	float Pop = Flash;
+	if (bDefeated || CalloutLeft > 0.f)
+	{
+		const float Called = bDefeated ? 0.f : FMath::Clamp(CalloutLeft / FMath::Max(CalloutSeconds, 0.01f), 0.f, 1.f);
+		Line = Color::Accent();
+		Pop = FMath::Max(Pop, FMath::Square(FMath::Clamp(Called * 4.f - 3.f, 0.f, 1.f)) + (bDefeated ? 0.f : 0.08f));
+	}
+	else if (IsTitleShowing())
+	{
+		Line = Color::CyanText();
+	}
 	PhaseLabel->SetColorAndOpacity(FSlateColor(Line));
-	PhaseLabel->SetRenderScale(FVector2D(1.f + BossPhasePop * Flash));
+	PhaseLabel->SetRenderScale(FVector2D(1.f + BossPhasePop * Pop));
 }

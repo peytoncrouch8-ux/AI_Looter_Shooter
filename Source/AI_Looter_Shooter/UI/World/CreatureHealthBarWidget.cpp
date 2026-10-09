@@ -61,6 +61,9 @@ TSharedRef<SWidget> UCreatureHealthBarWidget::RebuildWidget()
 		RankSlot->SetPadding(FMargin(0.f, 0.f, 5.f, 0.f));
 		NameText = MakeFloatingText(WidgetTree, 13, Color::Text(), 20);
 		Label->AddChildToHorizontalBox(NameText)->SetVerticalAlignment(VAlign_Bottom);
+		// The rank sting's pop scales the word (or the name) from its middle.
+		RankText->SetRenderTransformPivot(FVector2D(0.5, 0.5));
+		NameText->SetRenderTransformPivot(FVector2D(0.5, 0.5));
 		Box->AddChildToVerticalBox(Label)->SetHorizontalAlignment(HAlign_Center);
 		ApplyLabel();
 
@@ -128,7 +131,76 @@ void UCreatureHealthBarWidget::ApplyLabel()
 		RankText->SetVisibility(bHasWord ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 		NameText->SetText(CreatureName);
 		NameText->SetColorAndOpacity(FSlateColor(bHasWord ? Color::Text() : RankColor));
+		// A pop under way carries on over the fresh colors.
+		if (bRankFlashing)
+		{
+			ApplyRankFlash();
+		}
 	}
+}
+
+float UCreatureHealthBarWidget::RankFlashScaleAt(float Seconds)
+{
+	if (Seconds < 0.f || Seconds >= RankFlashSeconds)
+	{
+		return 1.f;
+	}
+	// Ease out, so the word is big for the first instant and settles quickly: a pop, not a swell.
+	const float Left = 1.f - Seconds / RankFlashSeconds;
+	return FMath::Lerp(1.f, RankFlashPeakScale, Left * Left * Left);
+}
+
+FLinearColor UCreatureHealthBarWidget::RankFlashColorAt(float Seconds, const FLinearColor& Normal)
+{
+	if (Seconds < 0.f || Seconds >= RankFlashSeconds)
+	{
+		return Normal;
+	}
+	// The lit color holds a little longer than the size does, then cools to the word's own.
+	const float Left = 1.f - Seconds / RankFlashSeconds;
+	return FMath::Lerp(Normal, Color::Accent(), Left * Left);
+}
+
+void UCreatureHealthBarWidget::SetRankStingAge(float Seconds)
+{
+	const bool bPlaying = Seconds >= 0.f && Seconds < RankFlashSeconds;
+	if (!bPlaying)
+	{
+		if (bRankFlashing)
+		{
+			// Over: the word settles back to its own size and color.
+			bRankFlashing = false;
+			RankFlashClock = RankFlashSeconds;
+			ApplyRankFlash();
+		}
+		return;
+	}
+	// Joined at the creature's own age, so the pop agrees with the sting's sound; the tick below paints it from here on.
+	const bool bStarting = !bRankFlashing;
+	bRankFlashing = true;
+	RankFlashClock = Seconds;
+	if (bStarting)
+	{
+		ApplyRankFlash();
+	}
+}
+
+void UCreatureHealthBarWidget::ApplyRankFlash()
+{
+	if (!RankText || !NameText)
+	{
+		return;
+	}
+	// The word pops; a rank with no word (a boss) has its name in the rank's color instead, and that pops. Either way the
+	// popping text's own color is the rank's.
+	const bool bHasWord = !RankWord.IsEmpty();
+	UTextBlock* Popping = bHasWord ? RankText : NameText;
+	UTextBlock* Resting = bHasWord ? NameText : RankText;
+	const float Clock = bRankFlashing ? RankFlashClock : RankFlashSeconds;
+	const float Scale = RankFlashScaleAt(Clock);
+	Popping->SetRenderScale(FVector2D(Scale, Scale));
+	Popping->SetColorAndOpacity(FSlateColor(RankFlashColorAt(Clock, RankColor)));
+	Resting->SetRenderScale(FVector2D(1.0, 1.0));
 }
 
 TArray<float> UCreatureHealthBarWidget::DividerPositions()
@@ -161,6 +233,13 @@ void UCreatureHealthBarWidget::SetHealth(float Health, float MaxHealth)
 void UCreatureHealthBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	if (bRankFlashing)
+	{
+		// The pop runs on its own clock between the creature's calls, so it stays smooth at any update rate.
+		RankFlashClock += InDeltaTime;
+		bRankFlashing = RankFlashClock < RankFlashSeconds;
+		ApplyRankFlash();
+	}
 	if (GhostFraction <= Fraction)
 	{
 		return;

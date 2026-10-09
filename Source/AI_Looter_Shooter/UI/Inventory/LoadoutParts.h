@@ -1,12 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Audio/LooterSoundCues.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Weapons/AmmoTypes.h"
 #include "Weapons/WeaponTypes.h"
 
 class FSlateWindowElementList;
 class ULooterButton;
+enum class ENotchTier : uint8;
 class UImage;
 class UOverlay;
 class UTextBlock;
@@ -26,32 +28,28 @@ namespace LoadoutParts
 	inline const FName ActionPage(TEXT("Page"));
 	inline const TCHAR* const StageMaterialPath = TEXT("/Game/UI/Loadout/M_UI_LoadoutStage.M_UI_LoadoutStage");
 
-	// The page is laid out at 1600 x 900 and scaled to fit the screen.
+	/** A key hint on a screen's prompt bar that is also a button (the loadout's): its index says which action it runs. */
+	inline const FName ActionPrompt(TEXT("Prompt"));
+
+	// The page is laid out at 1600 x 900 and scaled to fit the screen. (The loadout's own layout is LoadoutLayout, in
+	// LoadoutWidget.h; these are the bestiary's and the missions' columns.)
 	inline const FVector2D PageSize(1600.f, 900.f);
-	inline const FVector2D StageTopLeft(580.f, 130.f);
-	inline const FVector2D StageSize(440.f, 640.f);
 	inline constexpr float LeftX = 60.f;
 	inline constexpr float LeftWidth = 426.f;
 	inline constexpr float RightX = 1110.f;
 	inline constexpr float RightWidth = 430.f;
 	inline constexpr float ColumnTop = 150.f;
-	inline constexpr float SlotCardHeight = 140.f;
 	inline constexpr float ListCardHeight = 61.f;
-	/** Room above each slot card; the SELECTED chip straddles the card's top edge in it. */
-	inline constexpr float SlotGap = 14.f;
-	/** The stand's rings on the floor, and how high its pillars rise (cm). */
-	inline constexpr float OuterRingRadius = 46.f;
-	inline constexpr float InnerRingRadius = 32.f;
-	inline constexpr float PillarHeight = 110.f;
-	/** The stats card that floats beside the gun under the cursor, how far from its card, and the dragged gun's card. */
-	inline constexpr float InspectWidth = 330.f;
-	inline constexpr float InspectGap = 16.f;
+	/** The dragged gun's card. */
 	inline constexpr float GhostWidth = 250.f;
 	/** How far (screen pixels) a pressed gun must move before it's a drag rather than a click. */
 	inline constexpr float DragStartDistance = 8.f;
-	/** Drag speed (degrees per pixel) and stick speed (degrees per second) for turning the stand-in. */
+	/** Drag speed (degrees per pixel) and stick speed (degrees per second) for turning a stand's model. */
 	inline constexpr float DragTurnRate = 0.45f;
 	inline constexpr float StickTurnRate = 160.f;
+
+	/** The loadout's own sounds (Equip, Stow, Drop, Inspect): the Inventory section of Audio/LooterSoundCues.h. */
+	namespace Sounds = LooterSoundCue::Inventory;
 
 	namespace Colors
 	{
@@ -72,6 +70,9 @@ namespace LoadoutParts
 		inline FLinearColor Pillar() { return LooterUI::Hex(92, 202, 255, 36); }
 	}
 
+	/** A notch tier's colour on a card: warmer as the gun earns it, the soul-forged one in the kit's cyan. */
+	FLinearColor NotchTierColor(ENotchTier Tier);
+
 	/** A gun's side view in the Inked style (UI/Style/InkedIconData.inl), and the name its textures are kept under. */
 	const LooterUI::FInkedIcon& GunIcon(EWeaponKind Kind);
 	FName GunIconName(EWeaponKind Kind);
@@ -91,6 +92,16 @@ namespace LoadoutParts
 
 	/** Uppercase text that ends in "..." rather than spilling out of its space. */
 	UTextBlock* FittedLabel(UWidgetTree* Tree, const FString& Text, int32 Size, const FLinearColor& TextColor, int32 LetterSpacing = 0);
+
+	/** How wide Text is drawn in Font (layout units), or 0 when nothing can measure it (no renderer: tests, servers). */
+	float MeasureText(const FString& Text, const FSlateFontInfo& Font);
+
+	/**
+	 * Fits a text block's text into MaxWidth on one line, as the HUD fits a gun's name (FitWeaponName): a longer one is set
+	 * smaller in proportion, in whole points, down to MinSize; what still doesn't fit ends in "..." and is clipped to its
+	 * space, so it never runs over what's beside it. Call it after the text is set.
+	 */
+	void FitTextToWidth(UTextBlock* Text, float MaxWidth, int32 MinSize);
 
 	/**
 	 * A chamfered card: fill and outline shapes, white and tinted per state, around padded content. Scale grows the corner
@@ -117,15 +128,24 @@ namespace LoadoutParts
 	/**
 	 * A gun's name as one line of a card, in the given color (its rarity's): FittedLabel's text, and for a cursed gun the
 	 * cracked coin before it (faded once the curse is lifted). The name keeps the rarity color; the coin is the only mark.
+	 * With a MaxWidth (the whole line's, coin included), a long name is fitted to it (FitTextToWidth, down to MinFontSize).
 	 */
-	UWidget* MakeGunNameLine(UWidgetTree* Tree, const FWeaponInstanceData& Item, int32 FontSize, const FLinearColor& NameColor, int32 LetterSpacing = 0);
+	UWidget* MakeGunNameLine(UWidgetTree* Tree, const FWeaponInstanceData& Item, int32 FontSize, const FLinearColor& NameColor, int32 LetterSpacing = 0,
+		float MaxWidth = 0.f, int32 MinFontSize = 0);
 
 	/** A key cap and what the key does: [E] SWAP. The first (main) action's cap is lit. */
 	UWidget* MakeKeyHint(UWidgetTree* Tree, const FString& Key, const FString& Text, bool bPrimary);
 
 	/**
-	 * The inventory's title tabs, one per page in EInventoryPage order (Loadout, Bestiary, Missions): the shown page lit as the
-	 * title, the others dimmer. Each tab is a button with ActionPage and its page's index; centered at the top of the page.
+	 * MakeKeyHint as a button, so the mouse can click what the keys do: ActionPrompt and Index (the screen's own action
+	 * number). It makes no sound of its own (the screen sounds its actions).
+	 */
+	ULooterButton* MakeKeyHintButton(UWidgetTree* Tree, const FString& Key, const FString& Text, bool bPrimary, int32 Index);
+
+	/**
+	 * The inventory's title tabs, one per page in EInventoryPage order (Loadout, Bestiary, Missions): each page's name with
+	 * its number key after it, the shown page bright over an orange underline, the others dim, all on one hairline. Each
+	 * tab is a button with ActionPage and its page's index; centered at the top of the page.
 	 */
 	UWidget* MakePageTabs(UWidgetTree* Tree, int32 ShownPage, TArray<ULooterButton*>& OutTabs);
 	inline const FVector2D PageTabsPosition(800.f, 36.f);

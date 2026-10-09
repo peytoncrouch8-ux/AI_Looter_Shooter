@@ -132,6 +132,30 @@ void USettingsMenuWidget::HandleLookSensitivityReleased()
 	SetKeyboardFocus();
 }
 
+void USettingsMenuWidget::HandleCameraShakeChanged(float Value)
+{
+	// The next frame's shakes and kicks show the new strength (the boss fights' too).
+	if (UControlSettingsSubsystem* Controls = GetControls())
+	{
+		Controls->SetCameraShake(Value, /*bSave*/ false);
+	}
+	if (CameraShakeValue)
+	{
+		CameraShakeValue->SetText(FText::FromString(PercentText(UControlSettingsSubsystem::ClampCameraShake(Value))));
+	}
+}
+
+void USettingsMenuWidget::HandleCameraShakeReleased()
+{
+	if (UControlSettingsSubsystem* Controls = GetControls())
+	{
+		Controls->SaveSettings();
+		SetStatus(FString::Printf(TEXT("Camera shake %s."), *PercentText(Controls->GetCameraShake())), LooterUI::Color::TextDim());
+	}
+	// Dragging handed focus to the slider's window; take it back so Esc still closes the menu.
+	SetKeyboardFocus();
+}
+
 void USettingsMenuWidget::HandleTransparencyChanged(float Value)
 {
 	// Every UI follows at once, this menu included, so the effect shows while dragging.
@@ -228,6 +252,20 @@ void USettingsMenuWidget::HandleButton(ULooterButton* Button)
 			const bool bFrameRate = Button->Action == ActionFrameRateOn;
 			Graphics->SetFrameRateShown(bFrameRate);
 			SetStatus(bFrameRate ? TEXT("FPS counter on.") : TEXT("FPS counter off."), LooterUI::Color::TextDim());
+		}
+		RefreshGraphics();
+		RefreshKeyLabels();
+		SetKeyboardFocus();
+		return;
+	}
+	if (Button->Action == ActionHintsOn || Button->Action == ActionHintsOff)
+	{
+		StopListening();
+		if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
+		{
+			const bool bHints = Button->Action == ActionHintsOn;
+			Graphics->SetControlHintsShown(bHints);
+			SetStatus(bHints ? TEXT("Control hints on: a key shows until you've used it.") : TEXT("Control hints off."), LooterUI::Color::TextDim());
 		}
 		RefreshGraphics();
 		RefreshKeyLabels();

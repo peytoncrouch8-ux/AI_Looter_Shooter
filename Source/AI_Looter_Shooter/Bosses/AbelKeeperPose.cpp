@@ -49,6 +49,14 @@ EAbelPose AAbelKeeper::WantedPose(float& OutBlendSeconds) const
 	case EAbelMove::Flare:
 		OutBlendSeconds = 0.3f;
 		return EAbelPose::Flare;
+	case EAbelMove::Intro:
+		// His lantern raised to the player, as for the buckshot's flare.
+		OutBlendSeconds = 0.35f;
+		return EAbelPose::Flare;
+	case EAbelMove::Staggered:
+		// Down on a knee, as he'll kneel at the end.
+		OutBlendSeconds = 0.25f;
+		return EAbelPose::Kneel;
 	case EAbelMove::Fire:
 		OutBlendSeconds = 0.08f;
 		return EAbelPose::Fire;
@@ -57,6 +65,9 @@ EAbelPose AAbelKeeper::WantedPose(float& OutBlendSeconds) const
 		OutBlendSeconds = 0.8f;
 		return EAbelPose::Sunset;
 	case EAbelMove::InFog:
+		// A shot from the fog: his lantern raised, flaring, as for the buckshot on the deck.
+		OutBlendSeconds = FogFlareLeft > 0.f ? 0.3f : 0.6f;
+		return FogFlareLeft > 0.f ? EAbelPose::Flare : EAbelPose::Idle;
 	case EAbelMove::DragBack:
 		OutBlendSeconds = 0.6f;
 		return EAbelPose::Idle;

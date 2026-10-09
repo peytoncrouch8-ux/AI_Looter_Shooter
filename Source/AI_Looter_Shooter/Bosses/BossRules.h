@@ -5,8 +5,8 @@
 
 /**
  * The boss fight's rules as plain functions, so the tests check them without a fight: which phase a share of health is in,
- * how many adds a wave may raise, when an untargetable spell ends and where adds rise. (Where a volley's pellets fly is
- * UEnemyProjectileSubsystem::VolleyDirections.)
+ * how many adds a wave may raise, when an untargetable spell ends, where adds rise, how crits build to a stagger, and where
+ * a loot shower's pieces fly. (Where a volley's pellets fly is UEnemyProjectileSubsystem::VolleyDirections.)
  */
 namespace BossRules
 {
@@ -42,4 +42,26 @@ namespace BossRules
 
 	/** Count points evenly round a circle of Radius about Center, level with it, the first at StartDegrees (0 = +X). */
 	AI_LOOTER_SHOOTER_API TArray<FVector> RingPoints(const FVector& Center, float Radius, int32 Count, float StartDegrees);
+
+	// --- The weak spot's stagger (FBossStagger) ---
+
+	/**
+	 * A stagger's build-up (0 nothing, 1 it staggers) after a critical hit of CritDamage on a boss of MaxHealth: each crit
+	 * adds its share of what staggers it. Never past 1; a boss that never staggers (CritShare 0) builds nothing.
+	 */
+	AI_LOOTER_SHOOTER_API float AddCritToStagger(float BuildUp, float CritDamage, float MaxHealth, const FBossStagger& Stagger);
+
+	/** The build-up DeltaSeconds later: a full one drains to nothing over the stagger's DrainSeconds. */
+	AI_LOOTER_SHOOTER_API float DrainStagger(float BuildUp, float DeltaSeconds, const FBossStagger& Stagger);
+
+	// --- The loot shower (FBossLootShowerSettings) ---
+
+	/** How far the Index-th piece of a shower lands (cm): spread between MinReach and MaxReach, never two alike in a row. */
+	AI_LOOTER_SHOOTER_API float ShowerReach(int32 Index, const FBossLootShowerSettings& Shower);
+
+	/**
+	 * The Index-th piece's throw: up at the shower's UpSpeed, out along a turn of the golden angle from StartYaw (so pieces
+	 * thrown one after another spread evenly all round), fast enough to land ShowerReach away on level ground under Gravity.
+	 */
+	AI_LOOTER_SHOOTER_API FVector ShowerThrow(int32 Index, float StartYaw, const FBossLootShowerSettings& Shower, float Gravity = 980.f);
 }

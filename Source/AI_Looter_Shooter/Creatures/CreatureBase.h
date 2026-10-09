@@ -6,10 +6,14 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "Creatures/CreaturePoseAnimInstance.h"
 #include "Creatures/CreatureRank.h"
+#include "Creatures/CreatureSteerPlanner.h"
+#include "Creatures/CreatureUnstick.h"
 #include "Creatures/CreatureUpdateRate.h"
 #include "Creatures/HuntingGround.h"
 #include "CreatureBase.generated.h"
 
+class UCreatureHitReactionComponent;
+class UCreaturePackComponent;
 class UCreatureVoiceComponent;
 class UHealthComponent;
 class ULootDropComponent;
@@ -69,6 +73,12 @@ public:
 
 	/** Turns on Attacker as if it had been hurt by it (its pack heard the fight). Nothing changes if it's busy already. */
 	void AlertTo(APawn* Attacker);
+
+	/** Its place in its pack: its flank, breaking off, its rank's sting, a patrol's anchor (CreaturePackComponent.h). */
+	UCreaturePackComponent* GetPack() const { return Pack; }
+
+	/** Developer tools and tests only (Looter.CastShots; CreatureBaseDev.cpp): its brain put in NewState now, after InTarget or toward Goal. */
+	void DevPutInState(ECreatureState NewState, APawn* InTarget = nullptr, const FVector& Goal = FVector::ZeroVector);
 
 	// --- Boss fights (UBossComponent; CreatureBaseRank.cpp) ---
 
@@ -133,17 +143,48 @@ public:
 	/** How far its strike lands (flat): a little past where it starts the attack, at its size. */
 	float GetStrikeReach() const;
 
-	/** What its steering looks ahead with (IsDirectionClear), at its size. */
+	/** What its steering looks ahead with (FCreatureSteerProbe), at its size. */
 	struct FSteerProbes
 	{
-		/** A sphere this wide swept this far ahead finds anything too steep to walk up. */
+		/** A capsule this wide (radius) swept this far ahead finds what's in its way. */
 		float SweepLength = 0.f;
 		float SweepRadius = 0.f;
 		/** It looks for ground this far ahead, at most this far below its middle: it never walks off a higher drop. */
 		float LedgeDistance = 0.f;
 		float LedgeDrop = 0.f;
+		/** The swept capsule's half height, and its middle against the body's: from a little off the ground to under its top. */
+		float SweepHalfHeight = 0.f;
+		float SweepLift = 0.f;
+		/** The highest step it walks up: anything lower isn't in its way. */
+		float StepHeight = 0.f;
 	};
 	FSteerProbes GetSteerProbes() const;
+
+	/** Its steering's look along Direction (flat) for up to Distance (CreatureBaseSteering.cpp); public for the tests. */
+	FCreatureSteerPlanner::FLookResult LookAlong(const FVector& Direction, float Distance) const;
+
+	/** Its way round obstacles (the side it keeps, its counts); for the tests. */
+	const FCreatureSteerPlanner& GetSteerPlanner() const { return SteerPlanner; }
+
+	/** Gliding free of something it was stuck on (CreatureBaseUnstick.cpp). */
+	bool IsUnsticking() const { return Unstick.IsGliding(); }
+
+	/** Its movement was stopped by something: kept as a felt wall when its looks missed it (CreatureBaseSteering.cpp). */
+	virtual void MoveBlockedBy(const FHitResult& Impact) override;
+
+	/**
+	 * The ground its body covers from above, at size 1: a flat capsule along its facing from Front to Back (cm from its middle)
+	 * and Radius wide, which other creatures keep clear of (CreatureBaseSpacing.cpp). The capsule's circle by default.
+	 */
+	struct FFootprint
+	{
+		float Front = 0.f;
+		float Back = 0.f;
+		float Radius = 0.f;
+	};
+	virtual FFootprint GetFootprint() const;
+	/** Its footprint now, at its size: its line's two ends (world) and its radius. */
+	void GetFootprintInWorld(FVector& OutFront, FVector& OutBack, float& OutRadius) const;
 
 	/** How a creature spawned in play (by a spawner, an egg sac or a command) starts. */
 	struct FRuntimeSpawn
@@ -373,6 +414,14 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UCreatureVoiceComponent> Voice;
 
+	/** Hit-stop, stagger and death burst (a stagger pauses its brain: TickBrain). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UCreatureHitReactionComponent> HitReaction;
+
+	/** Its pack: its chase's flank and breaking off, its rank's sting, a patrol's anchor (the brain asks it). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UCreaturePackComponent> Pack;
+
 	/** Height above the capsule center where the health bar floats, at size 1 (it rises with the scaled actor). */
 	float HealthBarHeight = 130.f;
 
@@ -387,13 +436,27 @@ private:
 	APawn* FindVisibleTarget() const;
 	bool HasLineOfSight(const AActor* Other) const;
 	void MoveToward(const FVector& Goal, float Speed, float DeltaSeconds);
-	FVector ChooseDirection(const FVector& Desired);
+	/** Its way this update toward Goal, Desired already bent round its pack (the planner, from the probe's looks). */
+	FVector ChooseDirection(const FVector& Desired, const FVector& Goal, float Speed);
+	FCreatureSteerPlanner::FRequest MakeSteerRequest(const FVector& Goal, const FVector& Desired, float Speed) const;
 	bool IsDirectionClear(const FVector& Direction) const;
+
+	// --- Getting free when it's stuck (CreatureBaseUnstick.cpp; FCreatureUnstick has the rules) ---
+	void TickUnstick(float DeltaSeconds, const FVector& Goal, float Speed);
+	/** Moves a glide free on; true while it glides (its steering waits). */
+	bool TickNudge(float DeltaSeconds);
+	/** Starts a glide to the nearest free spot; false when there's none. */
+	bool NudgeFree(bool bHung);
 	void FaceToward(const FVector& Point, float DeltaSeconds);
 	bool PickWanderGoal();
 	void SnapToGround();
 	void Respawn();
 	void UpdateHealthBar(float DeltaSeconds);
+
+	// --- Room between creatures (CreatureBaseSpacing.cpp): the crowd's push, bending its way, a shuffle aside standing ---
+	FVector SpacingPushNow() const;
+	FVector SpacedDirection(const FVector& Desired);
+	void KeepSpacing(float DeltaSeconds);
 
 	// --- Rank, level and size (CreatureBaseRank.cpp) ---
 	/**
@@ -461,10 +524,14 @@ private:
 	// Steering
 	FVector SteerDirection = FVector::ZeroVector;
 	float SteerTimer = 0.f;
-	float PreferredSide = 1.f;
+	/** Seconds it has been making its way in its current state: SetState zeroes it, which starts its steering afresh. */
 	float StuckTime = 0.f;
-	FVector EscapeDirection = FVector::ZeroVector;
-	float EscapeTime = 0.f;
+	/** Its way round obstacles (FCreatureSteerPlanner) and its unstick's timers and glide (FCreatureUnstick). */
+	FCreatureSteerPlanner SteerPlanner;
+	FCreatureUnstick Unstick;
+	/** The crowd's push (SpacingPushNow), looked at again when SpacingTimer runs out. */
+	FVector SpacingPush = FVector::ZeroVector;
+	float SpacingTimer = 0.f;
 
 	float HealthBarTime = 0.f;
 	FTimerHandle RespawnTimer;

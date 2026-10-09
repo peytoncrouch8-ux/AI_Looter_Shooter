@@ -46,9 +46,11 @@ import unreal
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import build_area_benches  # noqa: E402
+import build_area_board  # noqa: E402
 import build_area_bounds  # noqa: E402
 import build_area_environment  # noqa: E402
 import build_area_posters  # noqa: E402
+import build_area_sound  # noqa: E402
 import build_area_story  # noqa: E402
 import build_area_travel  # noqa: E402
 import build_area_panels  # noqa: E402
@@ -399,9 +401,15 @@ class AreaBuild:
         self.travel.place_landings(self)
         # Reloaded, as the editor keeps modules between runs, so an edited one takes effect.
         importlib.reload(build_area_benches).place(self)
+        # Skyreach's notice board, the practice postings' board, and the lookout's marker (build_area_board.py: only on a
+        # level whose director is the tutorial's).
+        importlib.reload(build_area_board).place(self)
         # The story's actors stand on the models placed already (the graves, the lookout, the farmhouse), and so do the
         # posters (on the buildings' walls and the notice board).
         self.story.place(self)
+        # The encounters between the story's fights (layout gameplay.encounters): camps with their crates, patrols and
+        # ambushes (build_area_camps.py), after the story's actors, whose fights' ground they keep off.
+        importlib.reload(importlib.import_module('build_area_camps')).place(self)
         self.posters.place(self)
 
         # The groups draw from one random stream, in order, so each lands where it did last time.
@@ -1120,10 +1128,16 @@ class AreaBuild:
         # The level's own dressing (not the story's): it stands on the terrain, beside the models.
         self.dressing(meshes)
         self.effects(meshes)
+        # The places that make sound (creeks, ponds, falls, the Rim's open edges, pits, Main Street): ambient emitters
+        # from the layout (build_area_sound.py; reloaded, as the editor keeps modules between runs).
+        importlib.reload(build_area_sound).place(self)
         self.no_tree_zones()
         self.gameplay(meshes)
         # Reloaded, as the editor keeps modules between runs, so an edited one takes effect.
         importlib.reload(build_area_bounds).place(self)
+        # The ambient life (birds, insects, tumbleweeds, washing; build_area_fauna.py), derived from everything placed
+        # above and kept inside the playable area the bounds just set.
+        importlib.reload(importlib.import_module('build_area_fauna')).place(self)
         self.swap_materials()
         sky_light.recapture_sky()
         levels.save_current_level()

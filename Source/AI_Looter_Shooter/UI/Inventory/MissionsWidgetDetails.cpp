@@ -110,12 +110,14 @@ void UMissionsWidget::AddSteps(const UMissionDefinition& Mission, EMissionStatus
 	const UMissionRunner* MissionRunner = GetRunner();
 	const FName MissionId = Mission.GetMissionId();
 	const bool bRunning = MissionRunner && MissionRunner->IsRunning(MissionId);
+	const bool bReady = MissionRunner && MissionRunner->IsReadyToTurnIn(MissionId);
 	const int32 NumSteps = Mission.Steps.Num();
 
-	// Up to the step being played: the steps before it done. A finished mission shows every step done; one not begun,
-	// none (what it asks is a surprise until it starts).
+	// Up to the step being played: the steps before it done. A finished mission shows every step done, and so does one
+	// waiting for its turn-in (with the turn-in after them); one not begun, none (what it asks is a surprise until it
+	// starts).
 	int32 Reached = INDEX_NONE;
-	if (Status == EMissionStatus::Completed)
+	if (Status == EMissionStatus::Completed || bReady)
 	{
 		Reached = NumSteps;
 	}
@@ -151,6 +153,11 @@ void UMissionsWidget::AddSteps(const UMissionDefinition& Mission, EMissionStatus
 	}
 	if (Reached >= NumSteps)
 	{
+		// Every objective done: what's left is the turn-in, "Ready to turn in: talk to Delia".
+		if (bReady)
+		{
+			AddObjectiveLine(Mission.GetTurnInText(), FString(), 1, 0.f, false);
+		}
 		return;
 	}
 
@@ -387,6 +394,12 @@ FString UMissionsWidget::DescribeStanding(const UMissionDefinition& Mission, EMi
 	switch (Status)
 	{
 	case EMissionStatus::Active:
+		// Its objectives done, waiting for its giver: here, or in its own area.
+		if (MissionRunner && MissionRunner->IsReadyToTurnIn(MissionId))
+		{
+			return MissionRunner->IsRunning(MissionId) || Mission.Area.IsNone() ? Mission.GetTurnInText()
+				: FString::Printf(TEXT("%s in %s"), *Mission.GetTurnInText(), *AreaName(Mission.Area));
+		}
 		if (MissionRunner && MissionRunner->IsRunning(MissionId))
 		{
 			return FString::Printf(TEXT("Step %d of %d"), MissionRunner->GetStep(MissionId) + 1, Mission.Steps.Num());

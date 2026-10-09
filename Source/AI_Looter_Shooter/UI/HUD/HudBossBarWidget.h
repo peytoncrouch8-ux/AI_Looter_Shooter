@@ -20,7 +20,11 @@ class UWidget;
  *  - a cut crosses the bar where each later phase starts: dark on the red, it lights up once that phase is reached
  *  - a hit drops it at once, and the lost part lingers as a pale chip, then drains (as the player's bar does)
  *  - while the boss can't be hurt the fill greys, the name dims, and the line under it says why (its spell's hint)
- *  - a new phase's name flashes orange and pops, then settles
+ *  - a new phase's name flashes orange and pops, then settles; the fill and the passed cut flash orange with it
+ *  - the fight's start (PlayIntro): the bar drops in, its fill runs up from empty, and the boss's title is spelled out in
+ *    cyan on the line under it before the first phase's name pops up
+ *  - every hit flashes the fill toward white a moment; a big one (2% and more) jolts the bar sideways
+ *  - a callout takes the line a moment in orange ("STAGGERED"); the boss's death leaves it there ("DEFEATED")
  * UBossComponent adds it to the viewport for its fight and drives it; it fades in and out, and steps aside while a menu
  * is open. Only the track is a background (it fades with the UI transparency setting); the metal, fill and text stay.
  */
@@ -55,6 +59,18 @@ public:
 	void SetShown(bool bInShown);
 	bool IsShown() const { return bWanted; }
 
+	/** The boss's title, spelled out under the bar as it sweeps in ("Brood of the Sink"); empty: none. */
+	void SetTitle(const FText& InTitle);
+
+	/** The fight starts: the bar drops in, its fill runs up from empty, the title is spelled out, then the phase's name. */
+	void PlayIntro();
+
+	/** Takes the line under the bar for Seconds in orange, a little bigger ("STAGGERED"). */
+	void ShowCallout(const FText& InCallout, float Seconds);
+
+	/** The boss died: the bar flashes and the line says so for good (InLine, or "DEFEATED" when empty). */
+	void PlayDefeated(const FText& InLine);
+
 	// What it shows, for the tests (the text blocks' own text once it's built).
 	FText GetNameText() const;
 	/** The level as words ("LV 9"); the gem shows its number. */
@@ -65,6 +81,19 @@ public:
 	bool IsGreyed() const { return bGreyed; }
 	float GetFraction() const { return Fraction; }
 	float GetChipFraction() const { return ChipFraction; }
+	/** The intro is playing (the fill running up, the title on the line). */
+	bool IsIntroPlaying() const { return IntroTime >= 0.f; }
+	/** How far the intro's fill has run up (1 outside the intro). */
+	float GetIntroSweep() const;
+	/** A hit's flash on the fill (0 none, 1 full). */
+	float GetHitFlash() const { return HitFlash; }
+	bool IsDefeated() const { return bDefeated; }
+
+	/** How long the intro lasts: the drop, the fill's run, the title on the line (s). */
+	static constexpr float IntroSeconds = 3.2f;
+
+	/** The title as the intro has spelled it out Time seconds in (capitals, a letter at a time), empty before it starts. */
+	static FText MakeIntroTitle(const FText& InTitle, float Time);
 
 	/** Where the cuts go along the bar (0-1 from its empty end): every phase's share but the first, inside the bar, highest first. */
 	static TArray<float> MakeTickShares(const TArray<float>& PhaseShares);
@@ -87,6 +116,14 @@ private:
 	void ApplyFill();
 	/** The fill's, gem's, name's and phase line's colors for how grey it is, and the phase line's flash. */
 	void ApplyColors();
+	/** The cuts' colors: dark above the health left, lit once passed, orange while a new phase flashes. */
+	void ColorTicks();
+	/** The line under the bar now: a callout, the boss's death, the intro's title, or the phase line. */
+	FText CurrentLine() const;
+	/** The title has the line (the intro, before the phase's name). */
+	bool IsTitleShowing() const;
+	/** Moves the intro, the flashes, the jolt and the callout on (HudBossBarWidget.cpp's tick). */
+	void TickMotion(float DeltaSeconds);
 	/** The inventory or the pause menu is up, or the game is paused: the bar steps aside. */
 	bool IsMenuOpen() const;
 
@@ -124,6 +161,22 @@ private:
 	float Grey = 0.f;
 	/** Seconds left of the phase line's flash. */
 	float PhaseFlash = 0.f;
+
+	/** The intro's clock (negative: not playing), the title it spells out and how much of it is shown. */
+	float IntroTime = -1.f;
+	FText Title;
+	int32 ShownTitleChars = INDEX_NONE;
+	/** A callout's words and seconds left; the boss's death holds one for good. */
+	FText Callout;
+	float CalloutLeft = 0.f;
+	float CalloutSeconds = 1.f;
+	bool bDefeated = false;
+	/** A hit's flash, a big hit's jolt, a new phase's flash on the fill (each 1 at its start, easing to 0). */
+	float HitFlash = 0.f;
+	float Jolt = 0.f;
+	float BarFlash = 0.f;
+	float MotionClock = 0.f;
+	FVector2D ShownOffset = FVector2D::ZeroVector;
 
 	bool bWanted = false;
 	float Opacity = 0.f;

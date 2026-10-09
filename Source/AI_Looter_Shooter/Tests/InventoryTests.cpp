@@ -200,7 +200,7 @@ bool FInventoryLoadoutTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Two guns, the third slot empty"), Carries(2, 0) == TArray<C>{ C::InHand, C::Back, C::None });
 	TestTrue(TEXT("Nothing in hand"), Carries(2, INDEX_NONE) == TArray<C>{ C::Back, C::Hip, C::None });
 
-	// The swap list shows the chosen slot's kind of gun first, each group in backpack order.
+	// Sorted best for the slot, the backpack lists the target's kind of gun first, the best of it on top.
 	UWeaponDefinition* RifleKind = NewObject<UWeaponDefinition>();
 	UWeaponDefinition* ShotgunKind = NewObject<UWeaponDefinition>();
 	auto Gun = [](UWeaponDefinition* Kind, float Damage, float FireRate)
@@ -212,11 +212,12 @@ bool FInventoryLoadoutTest::RunTest(const FString& Parameters)
 		return Item;
 	};
 	const TArray<FWeaponInstanceData> Backpack = { Gun(RifleKind, 20.f, 600.f), Gun(ShotgunKind, 10.f, 80.f), Gun(RifleKind, 30.f, 600.f), Gun(ShotgunKind, 12.f, 80.f) };
+	const FWeaponInstanceData SlotRifle = Gun(RifleKind, 25.f, 600.f);
 	TArray<int32> Order;
-	TestEqual(TEXT("Two rifles in the backpack"), LoadoutRules::SortForSwap(Backpack, RifleKind, Order), 2);
-	TestTrue(TEXT("Rifles first"), Order == TArray<int32>{ 0, 2, 1, 3 });
-	TestEqual(TEXT("No kind for an empty slot"), LoadoutRules::SortForSwap(Backpack, nullptr, Order), 0);
-	TestTrue(TEXT("Then it's backpack order"), Order == TArray<int32>{ 0, 1, 2, 3 });
+	TestEqual(TEXT("Two rifles in the backpack"), LoadoutRules::SortBackpack(Backpack, &SlotRifle, LoadoutRules::ESort::Match, Order), 2);
+	TestTrue(TEXT("Rifles first, the best on top, then the shotguns"), Order == TArray<int32>{ 2, 0, 3, 1 });
+	TestEqual(TEXT("No kind for an empty slot"), LoadoutRules::SortBackpack(Backpack, nullptr, LoadoutRules::ESort::Match, Order), 0);
+	TestTrue(TEXT("...so by rarity, level, then damage per second"), Order == TArray<int32>{ 2, 0, 3, 1 });
 
 	// Verdicts compare damage per second, and only between guns of the same kind.
 	const FWeaponInstanceData Current = Gun(RifleKind, 25.f, 600.f);

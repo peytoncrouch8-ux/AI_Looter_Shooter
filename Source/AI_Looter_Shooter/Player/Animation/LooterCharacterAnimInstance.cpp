@@ -1,6 +1,9 @@
 #include "Player/Animation/LooterCharacterAnimInstance.h"
 #include "AI_Looter_Shooter.h"
+#include "Player/Animation/LooterStancePose.h"
+#include "Player/Animation/LooterStancePoseDetail.h"
 #include "Player/PlayerLocomotionComponent.h"
+#include "Player/PlayerMeleeComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/WeaponBase.h"
 #include "Inventory/WeaponManagerComponent.h"
@@ -11,36 +14,9 @@
 #include "BonePose.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Pawn.h"
-#include "TwoBoneIK.h"
 #include "UObject/UnrealType.h"
-#include <atomic>
 
-namespace
-{
-	FCompactPoseBoneIndex FindBone(const FBoneContainer& Bones, const TCHAR* Name)
-	{
-		FBoneReference Reference(Name);
-		Reference.Initialize(Bones);
-		return Reference.GetCompactPoseIndex(Bones);
-	}
-
-	void SetBone(FCSPose<FCompactPose>& Pose, FCompactPoseBoneIndex Bone, const FTransform& Transform)
-	{
-		const FBoneTransform Single[] = { FBoneTransform(Bone, Transform) };
-		Pose.LocalBlendCSBoneTransforms(MakeArrayView(Single), 1.f);
-	}
-
-	/** Rotates a bone about its own pivot, in component space; its children follow. */
-	void RotateBone(FCSPose<FCompactPose>& Pose, FCompactPoseBoneIndex Bone, const FQuat& Rotation)
-	{
-		if (Bone.IsValid())
-		{
-			FTransform Transform = Pose.GetComponentSpaceTransform(Bone);
-			Transform.SetRotation(Rotation * Transform.GetRotation());
-			SetBone(Pose, Bone, Transform);
-		}
-	}
-}
+using namespace LooterStancePoseDetail;
 
 // ---------------------------------------------------------------------------
 // Game thread
@@ -53,6 +29,11 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 	if (!Locomotion.IsValid() && Pawn)
 	{
 		Locomotion = Pawn->FindComponentByClass<UPlayerLocomotionComponent>();
+		// A mantle or vault tells where its obstacle's top is as it starts; the hands reach for that.
+		if (UPlayerLocomotionComponent* Found = Locomotion.Get())
+		{
+			Found->OnTraversalStarted.AddUObject(this, &ULooterCharacterAnimInstance::HandleTraversalStarted);
+		}
 	}
 
 	const UPlayerLocomotionComponent* Loco = Locomotion.Get();
@@ -80,6 +61,7 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 		const FVector Forward = Mesh->GetComponentTransform().InverseTransformVectorNoScale(Pawn->GetActorForwardVector()).GetSafeNormal2D();
 		StanceInput.Forward = Forward.IsNearlyZero() ? FVector::YAxisVector : Forward;
 	}
+	RefreshClimbInput();
 
 	// Armed: aim the torso with the view and put the left hand on the gun actually held.
 	if (!WeaponManager.IsValid() && Pawn)
@@ -107,6 +89,13 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 	StanceInput.WeaponRotation = Mesh ? Mesh->GetComponentQuat().Inverse() * WeaponWorld : FQuat::Identity;
 	StanceInput.RecoilBack = Weapon && View.IsValid() ? View->GetKickBack() : 0.f;
 	StanceInput.RecoilPitch = Weapon && View.IsValid() ? View->GetKickRotation().Pitch : 0.f;
+
+	// A melee strike jabs the body (the stock or a fist) as the first-person view swings, on the strike's own clock.
+	if (!Melee.IsValid() && Pawn)
+	{
+		Melee = Pawn->FindComponentByClass<UPlayerMeleeComponent>();
+	}
+	StanceInput.MeleeJab = Melee.IsValid() && Melee->IsSwinging() ? LooterStancePose::MeleeJab(Melee->GetSwingTime()) : 0.f;
 
 	// No pawn (the loadout screen's stand-in): hold the gun it was given, standing still and aiming level.
 	if (!Pawn && Mesh && StandaloneHold.IsSet() && bHoldsWeapon)
@@ -153,6 +142,17 @@ void ULooterCharacterAnimInstance::NativeInitializeAnimation()
 	WrittenGroundSpeed = -1.0;
 	UE_CLOG(!GroundSpeedProperty, LogLooter, Verbose, TEXT("%s has no float %s: its blend spaces get the speed in world units."),
 		*GetClass()->GetName(), *GroundSpeedVariable.ToString());
+}
+
+void ULooterCharacterAnimInstance::NativeUninitializeAnimation()
+{
+	// This instance goes (a weapon change swaps the Anim Blueprint): stop listening to the player's climbs.
+	if (UPlayerLocomotionComponent* Loco = Locomotion.Get())
+	{
+		Loco->OnTraversalStarted.RemoveAll(this);
+	}
+	Locomotion.Reset();
+	Super::NativeUninitializeAnimation();
 }
 
 void ULooterCharacterAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
@@ -211,7 +211,7 @@ bool FLooterCharacterAnimInstanceProxy::Evaluate_WithRoot(FPoseContext& Output, 
 		{
 			ApplyReloadOverlay(Output);
 		}
-		ApplyStance(Output);
+		LooterStancePose::Apply(Output.Pose, Stance);
 	}
 	return true;
 }
@@ -281,204 +281,4 @@ void FLooterCharacterAnimInstanceProxy::ApplyReloadOverlay(FPoseContext& Output)
 			Output.Pose[Bone].BlendWith(ReloadPose[Bone], Stance.ReloadWeight);
 		}
 	}
-}
-
-void FLooterCharacterAnimInstanceProxy::ApplyStance(FPoseContext& Output) const
-{
-	const FBoneContainer& Bones = Output.Pose.GetBoneContainer();
-	const FCompactPoseBoneIndex Pelvis = FindBone(Bones, TEXT("pelvis"));
-	const FCompactPoseBoneIndex Head = FindBone(Bones, TEXT("head"));
-	const FCompactPoseBoneIndex Neck = FindBone(Bones, TEXT("neck_01"));
-	const FCompactPoseBoneIndex Spine[] = { FindBone(Bones, TEXT("spine_01")), FindBone(Bones, TEXT("spine_03")), FindBone(Bones, TEXT("spine_05")) };
-	const float SpineShare[] = { 0.45f, 0.35f, 0.2f };
-
-	struct FLeg
-	{
-		FCompactPoseBoneIndex Thigh, Calf, Foot;
-		float Side; // -1 left, +1 right
-	};
-	const FLeg Legs[] = {
-		{ FindBone(Bones, TEXT("thigh_l")), FindBone(Bones, TEXT("calf_l")), FindBone(Bones, TEXT("foot_l")), -1.f },
-		{ FindBone(Bones, TEXT("thigh_r")), FindBone(Bones, TEXT("calf_r")), FindBone(Bones, TEXT("foot_r")), 1.f } };
-
-	bool bHasLegs = true;
-	for (const FLeg& Leg : Legs)
-	{
-		bHasLegs &= Leg.Thigh.IsValid() && Leg.Calf.IsValid() && Leg.Foot.IsValid();
-	}
-	if (!Pelvis.IsValid() || !Head.IsValid() || !bHasLegs)
-	{
-		// A skeleton without mannequin bone names (or a LOD that strips them): leave the pose alone, say so once.
-		static std::atomic<bool> bWarned = false;
-		if (!bWarned.exchange(true))
-		{
-			UE_LOG(LogLooter, Warning, TEXT("Stance pose skipped: %s lacks pelvis/head/leg bones."), *GetNameSafe(GetSkelMeshComponent()));
-		}
-		return;
-	}
-
-	FCSPose<FCompactPose> Pose;
-	Pose.InitPose(Output.Pose);
-
-	const FVector Up = FVector::UpVector;
-	const FVector Forward = Stance.Forward;
-	const FVector Right = FVector::CrossProduct(Up, Forward).GetSafeNormal(); // rotating about this tips the torso forward
-	const float Crouch = Stance.CrouchAlpha;
-	const float Slide = Stance.SlideAlpha;
-
-	// Feet stay where the graph planted them.
-	FTransform FootTargets[UE_ARRAY_COUNT(Legs)];
-	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Legs); ++Index)
-	{
-		FootTargets[Index] = Pose.GetComponentSpaceTransform(Legs[Index].Foot);
-	}
-
-	// Torso lean, spread down the spine; the neck takes most of it back so the head stays upright. A slide leans back,
-	// taking over from the crouch's forward lean as it comes in.
-	const float Lean = Stance.CrouchTorsoLean * Crouch * (1.f - Slide) + Stance.SprintTorsoLean * Stance.SprintAlpha + Stance.SlideTorsoLean * Slide;
-	if (!FMath::IsNearlyZero(Lean))
-	{
-		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Spine); ++Index)
-		{
-			RotateBone(Pose, Spine[Index], FQuat(Right, FMath::DegreesToRadians(Lean * SpineShare[Index])));
-		}
-		RotateBone(Pose, Neck, FQuat(Right, FMath::DegreesToRadians(-Lean * 0.7f)));
-	}
-
-	// Armed: the torso (and with it the arms and gun) pitches to where the player aims, mostly from the chest up.
-	if (Stance.bAimWithTorso && !FMath::IsNearlyZero(Stance.AimPitch))
-	{
-		const float AimShare[] = { 0.2f, 0.35f, 0.45f };
-		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Spine); ++Index)
-		{
-			RotateBone(Pose, Spine[Index], FQuat(Right, FMath::DegreesToRadians(-Stance.AimPitch * AimShare[Index])));
-		}
-	}
-
-	if (Crouch > UE_KINDA_SMALL_NUMBER || Slide > UE_KINDA_SMALL_NUMBER)
-	{
-		// Hips drop until the head reaches the crouched head height (the capsule's top minus clearance); a slide sits them
-		// down near the ground instead.
-		const float HeadHeight = Pose.GetComponentSpaceTransform(Head).GetLocation().Z;
-		const float CrouchDrop = FMath::Min(FMath::Max(HeadHeight - Stance.CrouchedHeadHeight, 0.f), Stance.MaxHipDrop) * Crouch;
-		FTransform PelvisTransform = Pose.GetComponentSpaceTransform(Pelvis);
-		const float SlideDrop = FMath::Max(static_cast<float>(PelvisTransform.GetLocation().Z) - Stance.SlideHipHeight, 0.f);
-		const float Drop = FMath::Lerp(CrouchDrop, SlideDrop, Slide);
-		PelvisTransform.AddToTranslation(-Up * Drop - Forward * (Stance.CrouchHipsBack * Crouch * (1.f - Slide)));
-		SetBone(Pose, Pelvis, PelvisTransform);
-		const FVector Hips = PelvisTransform.GetLocation();
-
-		// Legs bend to reach the planted feet again, knees forward and a little outward. In a slide the right leg reaches
-		// out ahead, heel near the ground, and the left folds under it with its knee out to the side (a code pose: no
-		// slide animation exists).
-		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Legs); ++Index)
-		{
-			const FLeg& Leg = Legs[Index];
-			FTransform Thigh = Pose.GetComponentSpaceTransform(Leg.Thigh);
-			FTransform Calf = Pose.GetComponentSpaceTransform(Leg.Calf);
-			FTransform Foot = Pose.GetComponentSpaceTransform(Leg.Foot);
-			FVector KneeTarget = Calf.GetLocation() + Forward * 60.f + Right * (Leg.Side * Stance.KneeSplay);
-			FVector FootTarget = FootTargets[Index].GetLocation();
-			if (Slide > UE_KINDA_SMALL_NUMBER)
-			{
-				const bool bLeading = Leg.Side > 0.f;
-				FVector SlideFoot = bLeading ? Hips + Forward * Stance.SlideLegReach + Right * 12.f : Hips + Forward * 22.f + Right * 4.f;
-				SlideFoot.Z = bLeading ? 13.f : 10.f;
-				const FVector SlideKnee = bLeading ? Thigh.GetLocation() + Forward * 50.f + Up * 25.f
-					: Thigh.GetLocation() + Forward * 15.f + Right * (Leg.Side * 40.f) - Up * 10.f;
-				FootTarget = FMath::Lerp(FootTarget, SlideFoot, Slide);
-				KneeTarget = FMath::Lerp(KneeTarget, SlideKnee, Slide);
-			}
-
-			AnimationCore::SolveTwoBoneIK(Thigh, Calf, Foot, KneeTarget, FootTarget,
-				/*bAllowStretching*/ false, /*StartStretchRatio*/ 1.0, /*MaxStretchScale*/ 1.0);
-			Foot.SetRotation(FootTargets[Index].GetRotation());
-
-			const FBoneTransform Chain[] = { FBoneTransform(Leg.Thigh, Thigh), FBoneTransform(Leg.Calf, Calf), FBoneTransform(Leg.Foot, Foot) };
-			Pose.LocalBlendCSBoneTransforms(MakeArrayView(Chain), 1.f);
-		}
-	}
-
-	if (Stance.bHandOnForegrip)
-	{
-		// The kick moves the right hand (and the gun in it) first; the left hand then finds the foregrip where it went.
-		if (Stance.RecoilBack > 0.01f || FMath::Abs(Stance.RecoilPitch) > 0.01f)
-		{
-			ApplyRecoil(Pose, Bones, Right);
-		}
-		ApplyLeftHandOnForegrip(Pose, Bones, Right);
-	}
-
-	FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(MoveTemp(Pose), Output.Pose);
-}
-
-void FLooterCharacterAnimInstanceProxy::ApplyRecoil(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FVector& Right) const
-{
-	// The chest rocks back with the kick, mostly high up. Seen from behind the character a gun's few cm of kick would be
-	// lost, so the body sells it bigger than the first-person view does.
-	const FCompactPoseBoneIndex Chest[] = { FindBone(Bones, TEXT("spine_03")), FindBone(Bones, TEXT("spine_05")) };
-	const float ChestShare[] = { 0.4f, 0.6f };
-	const float ChestPitch = FMath::Min(Stance.RecoilPitch * 0.8f + Stance.RecoilBack * 1.5f, 14.f);
-	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Chest); ++Index)
-	{
-		RotateBone(Pose, Chest[Index], FQuat(Right, FMath::DegreesToRadians(-ChestPitch * ChestShare[Index])));
-	}
-
-	// The right arm gives: the hand is pushed back along the barrel, the elbow bending down and out.
-	const FCompactPoseBoneIndex UpperArm = FindBone(Bones, TEXT("upperarm_r"));
-	const FCompactPoseBoneIndex LowerArm = FindBone(Bones, TEXT("lowerarm_r"));
-	const FCompactPoseBoneIndex Hand = FindBone(Bones, TEXT("hand_r"));
-	if (!UpperArm.IsValid() || !LowerArm.IsValid() || !Hand.IsValid() || Stance.RecoilBack <= 0.f)
-	{
-		return;
-	}
-	FTransform Shoulder = Pose.GetComponentSpaceTransform(UpperArm);
-	FTransform Elbow = Pose.GetComponentSpaceTransform(LowerArm);
-	FTransform Wrist = Pose.GetComponentSpaceTransform(Hand);
-	const FQuat HandRotation = Wrist.GetRotation();
-	const FVector Barrel = Stance.WeaponRotation.GetForwardVector();
-	const FVector WristTarget = Wrist.GetLocation() - Barrel * FMath::Min(Stance.RecoilBack * 2.5f, 14.f);
-	const FVector ElbowHint = Elbow.GetLocation() - FVector::UpVector * 15.f + Right * 10.f;
-
-	AnimationCore::SolveTwoBoneIK(Shoulder, Elbow, Wrist, ElbowHint, WristTarget,
-		/*bAllowStretching*/ false, /*StartStretchRatio*/ 1.0, /*MaxStretchScale*/ 1.0);
-	Wrist.SetRotation(HandRotation);
-
-	const FBoneTransform Chain[] = { FBoneTransform(UpperArm, Shoulder), FBoneTransform(LowerArm, Elbow), FBoneTransform(Hand, Wrist) };
-	Pose.LocalBlendCSBoneTransforms(MakeArrayView(Chain), 1.f);
-}
-
-void FLooterCharacterAnimInstanceProxy::ApplyLeftHandOnForegrip(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FVector& Right) const
-{
-	const FCompactPoseBoneIndex HoldBone = FindBone(Bones, *Stance.HoldBone.ToString());
-	const FCompactPoseBoneIndex UpperArm = FindBone(Bones, TEXT("upperarm_l"));
-	const FCompactPoseBoneIndex LowerArm = FindBone(Bones, TEXT("lowerarm_l"));
-	const FCompactPoseBoneIndex Hand = FindBone(Bones, TEXT("hand_l"));
-	if (!HoldBone.IsValid() || !UpperArm.IsValid() || !LowerArm.IsValid() || !Hand.IsValid())
-	{
-		return;
-	}
-
-	// The gun's grip sits in the right-hand socket and the gun points along the aim, so its foregrip is here:
-	const FVector GripLocation = (Stance.HoldSocketLocal * Pose.GetComponentSpaceTransform(HoldBone)).GetLocation();
-	const FVector Foregrip = GripLocation + Stance.WeaponRotation.RotateVector(Stance.WeaponForegrip - Stance.WeaponGrip);
-
-	FTransform Shoulder = Pose.GetComponentSpaceTransform(UpperArm);
-	FTransform Elbow = Pose.GetComponentSpaceTransform(LowerArm);
-	FTransform Wrist = Pose.GetComponentSpaceTransform(Hand);
-
-	// Aim the palm (the mannequin's HandGrip_L point) at the foregrip, keeping the animation's hand orientation.
-	static const FVector PalmFromWrist(7.5f, -2.5f, 0.f);
-	const FQuat HandRotation = Wrist.GetRotation();
-	const FVector WristTarget = Foregrip - HandRotation.RotateVector(PalmFromWrist);
-	// Keep the elbow bending down and out, the way it already is.
-	const FVector ElbowHint = Elbow.GetLocation() - FVector::UpVector * 20.f + Right * -10.f;
-
-	AnimationCore::SolveTwoBoneIK(Shoulder, Elbow, Wrist, ElbowHint, WristTarget,
-		/*bAllowStretching*/ false, /*StartStretchRatio*/ 1.0, /*MaxStretchScale*/ 1.0);
-	Wrist.SetRotation(HandRotation);
-
-	// During a reload the left hand is busy with the magazine, so it lets go of the foregrip.
-	const FBoneTransform Chain[] = { FBoneTransform(UpperArm, Shoulder), FBoneTransform(LowerArm, Elbow), FBoneTransform(Hand, Wrist) };
-	Pose.LocalBlendCSBoneTransforms(MakeArrayView(Chain), 1.f - Stance.ReloadWeight);
 }

@@ -309,7 +309,11 @@ bool FPosterMissionTest::RunTest(const FString& Parameters)
 	UMissionInteractObjective* ReadNote = MissionTestWorld::AddObjective<UMissionInteractObjective>(Side, 1);
 	ReadNote->Target.ActorClass = AWantedPoster::StaticClass();
 	ReadNote->Target.ActorTag = AWantedPoster::NoteTag;
-	Side->Rewards.ExperienceShare = 0.2f;
+	// Turned in to Tilly at her window (create_side_mission_assets.py), for 35 experience.
+	const FName TillyTag(TEXT("Speaker_Tilly"));
+	Side->TurnIn.SpeakerTag = TillyTag;
+	Side->TurnIn.GiverName = FText::FromString(TEXT("Tilly"));
+	Side->Rewards.Experience = 35;
 
 	// Seven posters in a row ahead of the player, so one can be missed; Calder's note off to the side.
 	AActor* Player = MissionTestWorld::SpawnMarker(World, FVector::ZeroVector);
@@ -319,7 +323,8 @@ bool FPosterMissionTest::RunTest(const FString& Parameters)
 		Posters.Add(SpawnPoster(World, FVector(1000.0 + 300.0 * Index, 0.0, 150.0)));
 	}
 	AWantedPoster* Note = SpawnPoster(World, FVector(0.0, 1000.0, 150.0), EWantedPosterVariant::CalderNote);
-	if (!TestTrue(TEXT("Player, posters and note placed"), Player && Note && !Posters.Contains(nullptr)))
+	AActor* Tilly = MissionTestWorld::SpawnMarker(World, FVector(-1500.0, 0.0, 150.0), TillyTag);
+	if (!TestTrue(TEXT("Player, posters, note and Tilly placed"), Player && Note && Tilly && !Posters.Contains(nullptr)))
 	{
 		return false;
 	}
@@ -365,7 +370,12 @@ bool FPosterMissionTest::RunTest(const FString& Parameters)
 	Runner->NotifyEvent(FMissionEvent::Interaction(Posters[6], /*bHeld*/ true));
 	TestTrue(TEXT("The seventh poster isn't the note"), Runner->IsRunning(SideId) && Runner->GetStep(SideId) == 1);
 	Runner->NotifyEvent(FMissionEvent::Interaction(Note, /*bHeld*/ false));
-	TestFalse(TEXT("The note read: finished"), Runner->IsRunning(SideId));
+	TestTrue(TEXT("The note read: ready to turn in to Tilly, not finished"), Runner->IsReadyToTurnIn(SideId) && !Campaign.HasCompleted(SideId));
+	Shown = Display->GetTracked();
+	TestTrue(TEXT("...the arrow on Tilly's window"), Shown && Shown->Tracker.bTurnIn && Shown->Waypoint.IsSet()
+		&& Shown->Waypoint->Equals(Tilly->GetActorLocation(), 1.0));
+	Runner->NotifyEvent(FMissionEvent::Talked(Tilly));
+	TestFalse(TEXT("Turned in to her: finished"), Runner->IsRunning(SideId));
 	TestTrue(TEXT("Recorded in the campaign"), Campaign.HasCompleted(SideId));
 
 	// The mission asset, once create_side_mission_assets.py has made it, asks for the same.
@@ -385,8 +395,10 @@ bool FPosterMissionTest::RunTest(const FString& Parameters)
 		&& AssetTear->bHold && AssetTear->Target.ActorTag == AWantedPoster::WantedTag);
 	TestTrue(TEXT("Its second: read Calder's note"), AssetRead && !AssetRead->IsA<UMissionLastingInteractObjective>()
 		&& AssetRead->Target.ActorTag == AWantedPoster::NoteTag);
-	TestTrue(TEXT("A side mission's experience and a Rare gun"), FMath::IsNearlyEqual(Asset->Rewards.ExperienceShare, 0.2f)
-		&& Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Rare);
+	TestTrue(TEXT("Turned in to Tilly, with words of her own for it"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == TillyTag
+		&& !Asset->TurnIn.Lines.IsEmpty());
+	TestTrue(TEXT("35 experience and a Rare gun"), Asset->Rewards.Experience == 35 && Asset->Rewards.bGun
+		&& Asset->Rewards.GunRarityFloor == EWeaponRarity::Rare);
 	return true;
 }
 

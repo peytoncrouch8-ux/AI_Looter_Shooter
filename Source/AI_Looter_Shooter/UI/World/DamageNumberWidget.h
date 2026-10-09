@@ -16,6 +16,13 @@ public:
 	/** Safe to call before the widget has been built; the value is applied once it is. */
 	void SetDamage(float Damage, bool bCritical);
 
+	/** A crit's number white-hot (1) cooling into the crit colour (0), as it slams in. */
+	void SetHeat(float Heat);
+
+	/** Type sizes: a crit's twice as loud as a body shot's. */
+	static constexpr int32 NormalSize = 22;
+	static constexpr int32 CriticalSize = 36;
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 
@@ -27,4 +34,5 @@ private:
 
 	float DisplayedDamage = 0.f;
 	bool bDisplayedCritical = false;
+	float DisplayedHeat = -1.f;
 };

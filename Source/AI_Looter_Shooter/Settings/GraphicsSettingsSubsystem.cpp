@@ -333,6 +333,21 @@ void UGraphicsSettingsSubsystem::SetFrameRateShown(bool bShown)
 	SaveSettings();
 }
 
+bool UGraphicsSettingsSubsystem::AreControlHintsShown() const
+{
+	return !SaveData || SaveData->bShowControlHints;
+}
+
+void UGraphicsSettingsSubsystem::SetControlHintsShown(bool bShown)
+{
+	if (!SaveData || SaveData->bShowControlHints == bShown)
+	{
+		return;
+	}
+	SaveData->bShowControlHints = bShown;
+	SaveSettings();
+}
+
 void UGraphicsSettingsSubsystem::SaveSettings() const
 {
 	if (SaveData)

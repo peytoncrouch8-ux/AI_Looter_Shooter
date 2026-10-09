@@ -23,6 +23,8 @@ UENUM(BlueprintType)
 enum class EAbelMove : uint8
 {
 	None,
+	/** His fight's start: turned to the player, his lantern raised and flaring (AbelKeeperShow.cpp); any moment cuts it short. */
+	Intro,
 	/** Turned to the sunset, the lantern lowered: his coal open (phase one's grief, every 12 s for 3 s). */
 	Grieve,
 	/** The lantern's flare before the buckshot (1 s), then the shot. */
@@ -35,6 +37,8 @@ enum class EAbelMove : uint8
 	/** Walking off into the wind (phase three), then the dark saint's pull: a stun, his coal open. */
 	WalkOff,
 	Pulled,
+	/** Staggered by crits on his coal (his boss's stagger): down on a knee facing the player, his coal still open. */
+	Staggered,
 	/** At zero: knelt, his coal sunk to an ember; the scene has him from there. */
 	Kneel,
 	Scene,
@@ -61,6 +65,9 @@ enum class EAbelMove : uint8
  *    from his ghost light, its flame leaning north-east, and sits on his board, where AAbelOnBoard takes his place.
  *  - The player's death starts it all over: he goes home healed, his adds go, the lanterns are lit, the wall drops; he
  *    waits until the player walks back onto the deck. The fog wall is the Keeper's Gate's (ABossSeal, placed).
+ *  - The show (AbelKeeperShow.cpp, AbelRules::MakeShow): his lantern raised as his bar sweeps in, shots from the fog while
+ *    the lanterns are dark, a barrage in the wind, a knee when crits on his coal stagger him, his coal's flare as he falls;
+ *    his Boss table's loot bursts from the deck's middle once he has sat with Ellis.
  *
  * He's in the world during Main 6 only (PresentWhen): hidden, still and ticking nothing otherwise. Until the Keeper's
  * Lantern hangs on the keeper's post (FightWhen) he walks the boards, unhurt by anything; then a player on the deck starts
@@ -114,8 +121,8 @@ public:
 	EAbelMove GetMove() const { return Move; }
 	float GetMoveTime() const { return MoveTime; }
 
-	/** His coal is open to shots: grieving, or stunned by a pull. */
-	bool IsCoalOpen() const { return Move == EAbelMove::Grieve || Move == EAbelMove::Pulled; }
+	/** His coal is open to shots: grieving, stunned by a pull, or staggered. */
+	bool IsCoalOpen() const { return Move == EAbelMove::Grieve || Move == EAbelMove::Pulled || Move == EAbelMove::Staggered; }
 
 	/** Out over the canyon (drifting there, in the fog, or dragged back). */
 	bool IsOutInFog() const { return Move == EAbelMove::DriftOut || Move == EAbelMove::InFog || Move == EAbelMove::DragBack; }
@@ -300,6 +307,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abel|Fight")
 	FAbelGustRules Gust;
 
+	/** His entrance, his shots from the fog, his barrage in the wind (AbelKeeperShow.cpp). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abel|Fight")
+	FAbelShowRules ShowRules;
+
 	// --- Settings: the look ---
 
 	/** His lantern's light: its glow, its flare before the buckshot, its ember once he kneels (candela), and its reach (cm). */
@@ -382,6 +393,16 @@ private:
 	void RiseNewAdds();
 	void Say(const FStoryLine& Line) const;
 
+	// --- His entrance, his stagger, his fog shots, his barrage, his death's flare (AbelKeeperShow.cpp) ---
+	void BeginIntro();
+	void HandleStaggered(bool bStaggered);
+	bool CanBeStaggered() const;
+	void StartFogShot();
+	void TickFogShot(float DeltaSeconds);
+	/** The barrage's next shot (the first at the player, the second leading their run, the third trailing it). */
+	void FireBarrageShot();
+	void FlareCoalAtDeath();
+
 	// --- The Gravewind (AbelKeeperWind.cpp) ---
 	void DrawWisps(float DeltaSeconds);
 	void ClearWisps();
@@ -427,6 +448,9 @@ private:
 	float OwnLunge = 1400.f;
 	float LanternShare = 0.f;
 	TArray<TWeakObjectPtr<ACreatureBase>> KnownAdds;
+	/** A fog shot's flare under way (s left), and the barrage's shots fired so far (0: a single shot). */
+	float FogFlareLeft = 0.f;
+	int32 BarrageFired = 0;
 
 	// Wind
 	bool bWindBlowing = false;

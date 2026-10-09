@@ -79,9 +79,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLanternLeansMissionTest, "Looter.Story.Lantern
 
 bool FLanternLeansMissionTest::RunTest(const FString& Parameters)
 {
-	// Main 7 as its asset has it: id exactly Main7, after Main 6 on Ransom's Rest, starting by itself; Delia's door, the
-	// depot's place by the hearse car's door, the station board read; 30% of a level, the Lily opened, Heirloom handed over
-	// in the story rather than dropped.
+	// Main 7 as its asset has it: id exactly Main7, after Main 6 on Ransom's Rest, starting by itself; Delia's door; turned
+	// in to Tilly at her window on the way to the depot; 45 experience, the Lily opened, Heirloom handed over in the story
+	// rather than dropped.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main7")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main7.DA_Mission_Main7"));
@@ -91,16 +91,12 @@ bool FLanternLeansMissionTest::RunTest(const FString& Parameters)
 				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Automatic && Asset->Area == FName(TEXT("RansomsRest"))
 				&& Asset->Prerequisites == TArray<FName>({ MainSix }));
 			TestEqual(TEXT("Its title"), Asset->Title.ToString(), FString(TEXT("The Lantern Leans")));
-			TestEqual(TEXT("Three steps"), Asset->Steps.Num(), MainSevenSteps);
+			TestEqual(TEXT("One step"), Asset->Steps.Num(), MainSevenSteps);
 			const UMissionTalkObjective* Home = Cast<UMissionTalkObjective>(Asset->GetObjective(0, 0));
-			const UMissionReachObjective* Depot = Cast<UMissionReachObjective>(Asset->GetObjective(1, 0));
-			const UMissionEventObjective* Board = Cast<UMissionEventObjective>(Asset->GetObjective(2, 0));
 			TestTrue(TEXT("1: home to Delia, at her screen door"), Home && Home->SpeakerTag == DeliasDoor);
-			TestTrue(TEXT("2: the depot, by the hearse car's door"), Depot && Depot->Place.Actor.ActorTag == DepotPlace && Depot->Place.Radius <= 1200.f);
-			TestTrue(TEXT("3: the station board read, the arrow on the station"), Board && Board->Event == StationBoard::ReadEvent()
-				&& Board->Waypoint == EMissionWaypoint::Actor && Board->WaypointActor.ActorClass == ATrainStation::StaticClass());
+			TestTrue(TEXT("Turned in to Tilly at her window"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == TillysWindow);
 			const FMissionRewards& Rewards = Asset->Rewards;
-			TestTrue(TEXT("Its reward: 30% of a level and the Lily opened"), FMath::IsNearlyEqual(Rewards.ExperienceShare, 0.3f)
+			TestTrue(TEXT("Its reward: 45 experience and the Lily opened"), Rewards.Experience == 45
 				&& Rewards.UnlockAreas == TArray<FName>({ LilyId }));
 			TestTrue(TEXT("...and Heirloom, handed over by Delia, never dropped"), Rewards.NamedGun == HeirloomId && Rewards.bNamedGunByHand && !Rewards.bGun);
 		}
@@ -186,7 +182,8 @@ bool FLanternLeansMissionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...it hands out the mission's named gun"), Handoff->FindGunId() == HeirloomId);
 
 	TestTrue(TEXT("Talked to at her door"), Door->SpeakerPoint->Talk(Player));
-	TestEqual(TEXT("...on to the depot"), Runner->GetStep(MainSeven), 1);
+	TestEqual(TEXT("...its step done: on to Tilly (its step past the last)"), Runner->GetStep(MainSeven), 1);
+	TestTrue(TEXT("...ready to turn in to Tilly, the Lily not open yet"), Runner->IsReadyToTurnIn(MainSeven) && !Campaign.IsAreaOpen(LilyId));
 	if (Heirloom)
 	{
 		AWeaponBase* Gun = Handoff->GetGun();
@@ -219,16 +216,15 @@ bool FLanternLeansMissionTest::RunTest(const FString& Parameters)
 			&& FMath::IsNearlyZero(FRotator::NormalizeAxis(ScreenDoor->GetActorRotation().Yaw), 0.5));
 	}
 
-	// The depot: Tilly's hearse car's door on the platform.
-	Runner->Update(0.2f);
-	TestEqual(TEXT("Far from the depot, still on the way"), Runner->GetStep(MainSeven), 1);
+	// The depot and its board wait: going there, or reading the board, doesn't turn it in.
 	Player->SetActorLocation(PlatformAt + FVector(300.0, 0.0, 0.0));
 	Runner->Update(0.2f);
-	TestEqual(TEXT("At the hearse car's door: read the station board"), Runner->GetStep(MainSeven), 2);
-
-	// The board read: finished, the Lily open, no second Heirloom from the reward.
 	Runner->NotifyEvent(FMissionEvent::Named(StationBoard::ReadEvent(), Station));
-	TestTrue(TEXT("Read: Main 7 is finished"), Campaign.HasCompleted(MainSeven) && !Runner->IsRunning(MainSeven));
+	TestTrue(TEXT("At the depot, the board read: still waiting for Tilly"), Runner->IsReadyToTurnIn(MainSeven) && !Campaign.HasCompleted(MainSeven));
+
+	// Tilly at her window: turned in, finished, the Lily open, no second Heirloom from the reward.
+	Runner->NotifyEvent(FMissionEvent::Named(FMissionEvent::Talk, nullptr, TillysWindow));
+	TestTrue(TEXT("Turned in to Tilly: Main 7 is finished"), Campaign.HasCompleted(MainSeven) && !Runner->IsRunning(MainSeven));
 	TestTrue(TEXT("...the Gilded Lily opened"), Campaign.IsAreaOpen(LilyId));
 	if (Heirloom)
 	{
@@ -281,13 +277,15 @@ bool FLanternLeansHandoffTest::RunTest(const FString& Parameters)
 	}
 	for (const bool bResumedPast : { true, false })
 	{
-		const FString Case = bResumedPast ? TEXT("Resumed on the depot step") : TEXT("Finished from Delia's step");
+		const FString Case = bResumedPast ? TEXT("Resumed waiting for Tilly") : TEXT("Finished from Delia's step");
 		FCampaignRecord Campaign;
 		Campaign.Complete(MainSix);
 		if (bResumedPast)
 		{
+			// Delia's step done in an earlier session: the mission waits for its turn-in, one step past its last.
 			Campaign.ActiveMission = MainSeven;
-			Campaign.ActiveMissionStep = 1;
+			Campaign.ActiveMissionStep = MainSevenSteps;
+			Campaign.MarkReady(MainSeven);
 		}
 		FTestWorldWrapper TestLevel;
 		if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
@@ -309,7 +307,7 @@ bool FLanternLeansHandoffTest::RunTest(const FString& Parameters)
 		Runner->Update(0.f);
 		if (bResumedPast)
 		{
-			TestEqual(Case + TEXT(": Main 7 goes on from the depot"), Runner->GetStep(MainSeven), 1);
+			TestTrue(Case + TEXT(": Main 7 goes on, waiting for Tilly"), Runner->GetStep(MainSeven) == MainSevenSteps && Runner->IsReadyToTurnIn(MainSeven));
 			TestTrue(Case + TEXT(": nothing handed out"), Handoff->GetState() == EDoorHandoffState::Done && !Handoff->GetGun()
 				&& CountHeirlooms(World, Heirloom) == 0);
 			Runner->CompleteMission(MainSeven);

@@ -120,8 +120,9 @@ bool FStationGangplankTest::RunTest(const FString& Parameters)
 	Runner->Update(0.f);
 	TestFalse(TEXT("No boarding mission yet"), Runner->IsRunning(BoardSkiffId));
 
-	// The tutorial finishes: the plank comes down, the bell rings, and "Board the skiff" shows.
-	Campaign.Complete(TEXT("Tutorial"));
+	// The tutorial finishes (its main posting, Web Hollow, turned in): the plank comes down, the bell rings, and "Board the
+	// skiff" shows.
+	Campaign.Complete(Jetty->TutorialMissionId);
 	Jetty->Advance(0.3f);
 	TestTrue(TEXT("Coming down"), Jetty->IsGangplankDown() && Jetty->GetGangplankRaise() < 1.f);
 	TestTrue(TEXT("The bell rings"), Jetty->IsBellRinging());

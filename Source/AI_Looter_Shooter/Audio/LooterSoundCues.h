@@ -54,6 +54,11 @@ namespace LooterSoundCue
 	inline constexpr const TCHAR* Tab = TEXT("UI.Tab");
 	/** Something the player can't do now (a full backpack, a part that doesn't fit). */
 	inline constexpr const TCHAR* Denied = TEXT("UI.Denied");
+	/** A control hint coming up on the HUD (played quietly: a nudge, not an event), and its key used. */
+	inline constexpr const TCHAR* Hint = TEXT("UI.Hint");
+	inline constexpr const TCHAR* HintDone = TEXT("UI.HintDone");
+	/** A posting turned in at a notice board: a pin pulled and a stamp. */
+	inline constexpr const TCHAR* BoardTurnIn = TEXT("UI.BoardTurnIn");
 
 	// --- The gunsmith's bench ---
 	inline constexpr const TCHAR* BenchScrap = TEXT("Bench.Scrap");
@@ -67,6 +72,15 @@ namespace LooterSoundCue
 	inline constexpr const TCHAR* ChestOpen = TEXT("Loot.ChestOpen");
 	/** The Strongbox's vault wheel spinning before its lid lifts. */
 	inline constexpr const TCHAR* StrongboxWheel = TEXT("Loot.StrongboxWheel");
+
+	/** A soul-mote's sounds (ASoulMotePickup), heard where it is. */
+	namespace SoulMote
+	{
+		/** A kill lets go of its mote or motes: a soft rising chime at the body. */
+		inline constexpr const TCHAR* Drop = TEXT("Loot.SoulMote.Drop");
+		/** A mote taken into the player: a warm little swell. */
+		inline constexpr const TCHAR* Pickup = TEXT("Loot.SoulMote.Pickup");
+	}
 
 	// --- The player ---
 	inline constexpr const TCHAR* FootstepDirt = TEXT("Player.Footstep.Dirt");
@@ -82,6 +96,26 @@ namespace LooterSoundCue
 	/** The slide's start (a rush of cloth and grit), and its scrape along the ground (a loop). */
 	inline constexpr const TCHAR* Slide = TEXT("Player.Slide");
 	inline constexpr const TCHAR* SlideLoop = TEXT("Player.SlideLoop");
+	/** A mantle's and a vault's own sounds, as the move starts: cloth, effort, the hands taking the weight (the top's
+	 *  surface is a footstep cue on its own). */
+	inline constexpr const TCHAR* Mantle = TEXT("Player.Mantle");
+	inline constexpr const TCHAR* Vault = TEXT("Player.Vault");
+
+	/** The melee strike (UPlayerMeleeComponent; MeleeCue in Player/PlayerMeleeRules.h is this namespace). A blow that
+	 *  lands plays Hit and, on a creature, the layer for what its body is made of. */
+	namespace Melee
+	{
+		/** 2D: the swing's whoosh as it starts, a short rush of air past the ear (every strike; a fist's a touch higher). */
+		inline constexpr const TCHAR* Swing = TEXT("Player.Melee.Swing");
+		/** The blow landing: a heavy, dull thud with a low body to it (every strike that lands; a wall's at half volume). */
+		inline constexpr const TCHAR* Hit = TEXT("Player.Melee.Hit");
+		/** Layered on a creature of flesh (an Unpaid, anything not shell or gel): a meaty slap with a wet edge. */
+		inline constexpr const TCHAR* HitFlesh = TEXT("Player.Melee.HitFlesh");
+		/** Layered on a spider: a hard crack of chitin with a brittle click. */
+		inline constexpr const TCHAR* HitShell = TEXT("Player.Melee.HitShell");
+		/** Layered on a slime: a springy, squelching smack. */
+		inline constexpr const TCHAR* HitGel = TEXT("Player.Melee.HitGel");
+	}
 
 	// --- Creatures (a bigger one plays its kind's cues lower: PitchScale) ---
 	/** A creature's body taking a bullet, for a kind with no hit of its own; each kind's is below (its Hit). */
@@ -105,9 +139,155 @@ namespace LooterSoundCue
 	inline constexpr const TCHAR* UnpaidLunge = TEXT("Creature.Unpaid.Lunge");
 	inline constexpr const TCHAR* UnpaidHurt = TEXT("Creature.Unpaid.Hurt");
 	inline constexpr const TCHAR* UnpaidDeath = TEXT("Creature.Unpaid.Death");
+	/** 2D: "a high rank appears", a creature of rank (Restless or better) turning on the player (UCreaturePackComponent). */
+	inline constexpr const TCHAR* RankSting = TEXT("Creature.RankSting");
+	/** An ambush's entrances (AAmbushSpawner): the Unpaid rising from their graves, a spider dropping on its silk. */
+	inline constexpr const TCHAR* UnpaidRise = TEXT("Creature.Unpaid.Rise");
+	inline constexpr const TCHAR* SpiderDrop = TEXT("Creature.Spider.Drop");
 
 	// --- The world ---
 	inline constexpr const TCHAR* ChapelBellToll = TEXT("World.ChapelBell.Toll");
 	inline constexpr const TCHAR* JettyBell = TEXT("World.JettyBell");
 	inline constexpr const TCHAR* ShutterSlam = TEXT("World.ShutterSlam");
+
+	// --- Bosses (UBossComponent's show, ABossLootShower, the Gravemother's and Abel's own moments) ---
+	/** 2D: the sting as a boss's bar sweeps in. */
+	inline constexpr const TCHAR* BossIntro = TEXT("Boss.Intro");
+	/** 2D: the sting at a boss's later phase. */
+	inline constexpr const TCHAR* BossPhase = TEXT("Boss.Phase");
+	/** At the boss: its weak spot broken, it staggers. */
+	inline constexpr const TCHAR* BossStagger = TEXT("Boss.Stagger");
+	/** 2D: the low boom under a boss's slow-motion death. */
+	inline constexpr const TCHAR* BossDeath = TEXT("Boss.Death");
+	/** At the shower: a boss's loot bursting out, and each piece popping out of it. */
+	inline constexpr const TCHAR* BossLootBurst = TEXT("Boss.Loot.Burst");
+	inline constexpr const TCHAR* BossLootPop = TEXT("Boss.Loot.Pop");
+	/** The Gravemother: her scream as she rears, her forelegs slamming down, the ground cracking before her quake. */
+	inline constexpr const TCHAR* GravemotherRoar = TEXT("Boss.Gravemother.Roar");
+	inline constexpr const TCHAR* GravemotherSlam = TEXT("Boss.Gravemother.Slam");
+	inline constexpr const TCHAR* GravemotherQuake = TEXT("Boss.Gravemother.Quake");
+	/** Her venom gurgling up as she rears, and spat. */
+	inline constexpr const TCHAR* GravemotherGurgle = TEXT("Boss.Gravemother.Gurgle");
+	inline constexpr const TCHAR* GravemotherSpit = TEXT("Boss.Gravemother.Spit");
+	/** Her fury's burning crack searing whoever stands on it. */
+	inline constexpr const TCHAR* GravemotherCrackBurn = TEXT("Boss.Gravemother.CrackBurn");
+	inline constexpr const TCHAR* GravemotherDeath = TEXT("Boss.Gravemother.Death");
+	/** Abel: his moan as he raises his lantern, his wail at a phase, the lanterns guttering out, his flare in the fog. */
+	inline constexpr const TCHAR* AbelIntro = TEXT("Boss.Abel.Intro");
+	inline constexpr const TCHAR* AbelWail = TEXT("Boss.Abel.Wail");
+	inline constexpr const TCHAR* AbelLanternsOut = TEXT("Boss.Abel.LanternsOut");
+	inline constexpr const TCHAR* AbelFogFlare = TEXT("Boss.Abel.FogFlare");
+	/** 2D: the Gravewind rising off the point. */
+	inline constexpr const TCHAR* AbelWindRise = TEXT("Boss.Abel.WindRise");
+	/** His gasp as he's staggered to a knee, and his last breath. */
+	inline constexpr const TCHAR* AbelStagger = TEXT("Boss.Abel.Stagger");
+	inline constexpr const TCHAR* AbelDeath = TEXT("Boss.Abel.Death");
+
+	// --- Feedback (the hit and kill pass, the loot fanfare) ---
+	/** A gun dropped by a kill or a chest as it lands, by rarity (ULootFanfareSubsystem::DropCue; a Common has only Loot.Land). */
+	inline constexpr const TCHAR* DropUncommon = TEXT("Loot.Drop.Uncommon");
+	inline constexpr const TCHAR* DropRare = TEXT("Loot.Drop.Rare");
+	/** 2D, like the Legendary's: an Epic or a Legendary landing is heard wherever the player is looking. */
+	inline constexpr const TCHAR* DropEpic = TEXT("Loot.Drop.Epic");
+	inline constexpr const TCHAR* DropLegendary = TEXT("Loot.Drop.Legendary");
+	/** A creature's body as it dies (its death burst), under its death cry: a spider's shell, a slime's splat, an Unpaid's soul-light. */
+	inline constexpr const TCHAR* SpiderBurst = TEXT("Creature.Spider.Burst");
+	inline constexpr const TCHAR* SlimeSplat = TEXT("Creature.Slime.Splat");
+	inline constexpr const TCHAR* UnpaidDissolve = TEXT("Creature.Unpaid.Dissolve");
+
+	// --- Ambience (UAmbienceSubsystem, UAmbientEmitterComponent; Art/Sounds/recipes/ambience.py and world.py) ---
+	/** An area's bed in each light: the air (wind, grass; a 19 s loop) and the life (insects; 13 s), played together. */
+	inline constexpr const TCHAR* SkyreachAir = TEXT("Ambience.Skyreach.Air");
+	inline constexpr const TCHAR* SkyreachLife = TEXT("Ambience.Skyreach.Life");
+	inline constexpr const TCHAR* RansomsRestDayAir = TEXT("Ambience.RansomsRest.DayAir");
+	inline constexpr const TCHAR* RansomsRestDayLife = TEXT("Ambience.RansomsRest.DayLife");
+	inline constexpr const TCHAR* RansomsRestDuskAir = TEXT("Ambience.RansomsRest.DuskAir");
+	inline constexpr const TCHAR* RansomsRestDuskLife = TEXT("Ambience.RansomsRest.DuskLife");
+	/** Sweeteners: single calls placed round the listener at random distances and times (AmbienceRules::SweetenersFor). */
+	inline constexpr const TCHAR* Songbird = TEXT("Ambience.Bird.Songbird");
+	inline constexpr const TCHAR* Crow = TEXT("Ambience.Bird.Crow");
+	inline constexpr const TCHAR* Hawk = TEXT("Ambience.Bird.Hawk");
+	inline constexpr const TCHAR* Owl = TEXT("Ambience.Bird.Owl");
+	inline constexpr const TCHAR* InsectChirp = TEXT("Ambience.Insect.Chirp");
+	inline constexpr const TCHAR* Bee = TEXT("Ambience.Insect.Bee");
+	inline constexpr const TCHAR* CoyoteFar = TEXT("Ambience.Coyote.Far");
+	/** Far thunder rolls in from everywhere: the one sweetener heard flat (2D). */
+	inline constexpr const TCHAR* ThunderFar = TEXT("Ambience.Thunder.Far");
+	/** Places that make sound (loops on emitters; a creek's follows the point on it nearest the listener). */
+	inline constexpr const TCHAR* Creek = TEXT("World.Creek");
+	inline constexpr const TCHAR* Pond = TEXT("World.Pond");
+	inline constexpr const TCHAR* Waterfall = TEXT("World.Waterfall");
+	/** The windmill's fan turning (a loop its speed bends) and its head swinging round on the post (one-shots). */
+	inline constexpr const TCHAR* WindmillFan = TEXT("World.Windmill.Fan");
+	inline constexpr const TCHAR* WindmillCreak = TEXT("World.Windmill.Creak");
+	/** The chapel bell at rest, stirred by the wind in the belfry. */
+	inline constexpr const TCHAR* ChapelBellHum = TEXT("World.ChapelBell.Hum");
+	/** The train's locomotive standing in steam, while it's warm. */
+	inline constexpr const TCHAR* TrainHiss = TEXT("World.Train.Hiss");
+	/** The canyon's hollow wind along the Rim. */
+	inline constexpr const TCHAR* RimWind = TEXT("World.Rim.Wind");
+	/** The Sink's damp drips (a loop) and its webs creaking (one-shots). */
+	inline constexpr const TCHAR* SinkDrip = TEXT("World.Sink.Drip");
+	inline constexpr const TCHAR* SinkCreak = TEXT("World.Sink.Creak");
+	/** Main Street holding its breath (the wind in its gaps, a loop) and its one-shots: boards and signs, a loose
+	 *  shutter, the living muffled behind their walls. */
+	inline constexpr const TCHAR* TownHush = TEXT("World.Town.Hush");
+	inline constexpr const TCHAR* TownCreak = TEXT("World.Town.Creak");
+	inline constexpr const TCHAR* ShutterTap = TEXT("World.Shutter.Tap");
+	inline constexpr const TCHAR* TownMurmur = TEXT("World.Town.Murmur");
+
+	/** The ambient fauna (World/Fauna*; Art/Sounds/recipes/fauna.py; FaunaCue in World/FaunaCues.h is this namespace),
+	 *  all 3D. */
+	namespace Fauna
+	{
+		/** A crow's harsh caw, two or three in a row, from a perched or circling crow (heard to about 60 m). */
+		inline constexpr const TCHAR* CrowCaw = TEXT("World.Fauna.Crow.Caw");
+		/** A crow flock bursting off its perches: heavy wingbeats overlapping, a startled caw. */
+		inline constexpr const TCHAR* CrowTakeOff = TEXT("World.Fauna.Crow.TakeOff");
+		/** A few sparrows chirping and twittering on a fence or roof. */
+		inline constexpr const TCHAR* SparrowChirp = TEXT("World.Fauna.Sparrow.Chirp");
+		/** A small flock's flurry of quick wingbeats as it flushes, a soft "frrrt". */
+		inline constexpr const TCHAR* SparrowTakeOff = TEXT("World.Fauna.Sparrow.TakeOff");
+		/** A swallow's liquid twitter as it swoops past. */
+		inline constexpr const TCHAR* SwallowTwitter = TEXT("World.Fauna.Swallow.Twitter");
+		/** A hawk's thin, falling scream from high overhead. */
+		inline constexpr const TCHAR* HawkCry = TEXT("World.Fauna.Hawk.Cry");
+		/** Loop: a cloud of flies buzzing over an outhouse or the den's larder (about 10 m). */
+		inline constexpr const TCHAR* Flies = TEXT("World.Fauna.Flies");
+		/** A dragonfly's short dry wing rattle as it darts past close by. */
+		inline constexpr const TCHAR* DragonflyBuzz = TEXT("World.Fauna.Dragonfly.Buzz");
+		/** A tumbleweed's dry twiggy scrape and bounce on the ground. */
+		inline constexpr const TCHAR* TumbleweedBounce = TEXT("World.Fauna.Tumbleweed.Bounce");
+		/** Loop: a dust devil's whirl, a hissing gust with grit in it (about 40 m). */
+		inline constexpr const TCHAR* DustDevil = TEXT("World.Fauna.DustDevil");
+		/** Washing snapping and flapping on its line in a gust. */
+		inline constexpr const TCHAR* ClothFlap = TEXT("World.Fauna.Cloth.Flap");
+	}
+
+	// --- Music (UMusicDirectorSubsystem; Art/Sounds/recipes/music.py; bars and tempos in MusicRules) ---
+	/** The exploration themes (32 bars of 6/8 in D at 75), and the combat layer laid over either (16 bars on a D pedal). */
+	inline constexpr const TCHAR* MusicSkyreachExplore = TEXT("Music.Skyreach.Explore");
+	inline constexpr const TCHAR* MusicRansomsRestExplore = TEXT("Music.RansomsRest.Explore");
+	inline constexpr const TCHAR* MusicCombat = TEXT("Music.Combat");
+	/** The boss themes: Abel's (4/4 at 128) and the Gravemother's (4/4 at 120), 16 bars each. */
+	inline constexpr const TCHAR* MusicBossKeeper = TEXT("Music.Boss.Keeper");
+	inline constexpr const TCHAR* MusicBossGravemother = TEXT("Music.Boss.Gravemother");
+	/** Stingers: a creature of high rank comes for the player; a boss's fight begins or turns (its hit lands 0.75 s in,
+	 *  MusicRules::PhaseStingHit); a fight is won. */
+	inline constexpr const TCHAR* StingElite = TEXT("Music.Sting.Elite");
+	inline constexpr const TCHAR* StingPhase = TEXT("Music.Sting.Phase");
+	inline constexpr const TCHAR* StingVictory = TEXT("Music.Sting.Victory");
+
+	// --- Inventory (2D: the loadout screen's gun moves, ULoadoutWidget; LoadoutParts::Sounds is this namespace) ---
+	namespace Inventory
+	{
+		/** A gun seated in an equip slot (from the backpack, or two slots trading places): a firm metal clack. */
+		inline constexpr const TCHAR* Equip = TEXT("UI.Equip");
+		/** A gun put away into the backpack: a slide and a soft thump. */
+		inline constexpr const TCHAR* Stow = TEXT("UI.Stow");
+		/** A gun dropped from the inventory: a heavy drop on boards. */
+		inline constexpr const TCHAR* Drop = TEXT("UI.Drop");
+		/** Inspect opening: a short rising whoosh. */
+		inline constexpr const TCHAR* Inspect = TEXT("UI.Inspect");
+	}
 }

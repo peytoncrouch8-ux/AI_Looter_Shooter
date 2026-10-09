@@ -18,7 +18,9 @@ bool FMissionTrackerParts::SameAs(const FMissionTrackerParts& Other) const
 		&& HintKey.Equals(Other.HintKey, ESearchCase::CaseSensitive)
 		&& HintText.Equals(Other.HintText, ESearchCase::CaseSensitive)
 		&& bOverInventory == Other.bOverInventory
-		&& bDone == Other.bDone;
+		&& bDone == Other.bDone
+		&& bTurnIn == Other.bTurnIn
+		&& bAnnouncedEnd == Other.bAnnouncedEnd;
 }
 
 // --- FMissionBook ---

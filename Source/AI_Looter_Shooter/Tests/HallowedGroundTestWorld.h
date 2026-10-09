@@ -41,8 +41,8 @@ namespace HallowedGroundTestWorld
 	inline const FName AldanaTag(TEXT("Speaker_Aldana"));
 	inline const FName Valley(TEXT("TestValley"));
 
-	/** Main 4's steps: the way up, the yard, the bell, the Reliquary, Aldana. */
-	inline constexpr int32 MainFourSteps = 5;
+	/** Main 4's steps: the way up, the yard, the bell, the Reliquary; then it's turned in to Aldana (his talk was the fifth). */
+	inline constexpr int32 MainFourSteps = 4;
 
 	/**
 	 * The yard round the chapel, in the chapel's frame (cm; build_area_chapel.py): its creatures' spots (YARD_SPOTS) and the
@@ -80,7 +80,7 @@ namespace HallowedGroundTestWorld
 			Bell->bHold = true;
 			break;
 		}
-		case 3:
+		default:
 		{
 			UMissionEventObjective* Sight = MissionTestWorld::AddObjective<UMissionEventObjective>(Mission, 3);
 			Sight->Event = AChapelReliquary::SightEvent;
@@ -88,10 +88,14 @@ namespace HallowedGroundTestWorld
 			Sight->WaypointActor.ActorTag = AChapelReliquary::ReliquaryTag;
 			break;
 		}
-		default:
-			MissionTestWorld::AddObjective<UMissionTalkObjective>(Mission, 4)->SpeakerTag = AldanaTag;
-			break;
 		}
+	}
+
+	/** Main 4's turn-in, as the mission script gives it: to Father Aldana at the vestry door, with his own words. */
+	inline void SetTurnIn(UMissionDefinition* Mission)
+	{
+		Mission->TurnIn.SpeakerTag = AldanaTag;
+		Mission->TurnIn.GiverName = FText::FromString(TEXT("Father Aldana"));
 	}
 
 	/** A stand-in for Main 3: one event finishes it. */
@@ -102,7 +106,7 @@ namespace HallowedGroundTestWorld
 		return Mission;
 	}
 
-	/** Main 4 as the mission script makes it, in code: after Main 3, its five steps, 30% of a level. */
+	/** Main 4 as the mission script makes it, in code: after Main 3, its four steps, turned in to Aldana, 40 experience. */
 	inline UMissionDefinition* MakeMainFour(UObject* Outer)
 	{
 		UMissionDefinition* Mission = MissionTestWorld::NewMission(Outer, TEXT("Main4"), EMissionKind::Main, EMissionStart::Automatic, Valley);
@@ -111,7 +115,8 @@ namespace HallowedGroundTestWorld
 		{
 			AddStep(Mission, Step);
 		}
-		Mission->Rewards.ExperienceShare = 0.3f;
+		SetTurnIn(Mission);
+		Mission->Rewards.Experience = 40;
 		return Mission;
 	}
 
@@ -128,6 +133,7 @@ namespace HallowedGroundTestWorld
 			}
 			MissionTestWorld::AddObjective<UMissionEventObjective>(Mission, Index)->Event = FName(*FString::Printf(TEXT("Test.Step%d"), Index));
 		}
+		SetTurnIn(Mission);
 		return Mission;
 	}
 

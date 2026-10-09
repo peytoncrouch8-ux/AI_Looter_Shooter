@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Bosses/BossTypes.h"
+#include "Engine/TimerHandle.h"
 #include "BossComponent.generated.h"
 
 class ABossSeal;
@@ -16,6 +17,8 @@ DECLARE_MULTICAST_DELEGATE(FOnBossFight);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnBossPhaseChanged, int32 /*NewPhase*/, int32 /*OldPhase*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnBossCustomEvent, FName /*EventName*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnBossUntargetableChanged, bool /*bUntargetable*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnBossStaggered, bool /*bStaggered*/);
+DECLARE_DELEGATE_RetVal(bool, FBossCanStagger);
 
 /**
  * Makes a creature a boss: put it on any ACreatureBase (a default subobject of a boss class, or added in play as the test
@@ -40,6 +43,12 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnBossUntargetableChanged, bool /*bUntarget
  *    adds go, the wall drops, the bar goes. Nothing in the player's death or respawn changes.
  *  - the boss's death wins it: the adds go, the wall drops, the bar empties and fades, and a boss with a BossId is
  *    recorded as beaten in the campaign. Its rank (Boss) keeps it from coming back, and its loot is its rank's.
+ *  - the show (Show, BossComponentShow.cpp): the bar sweeps in with the title and a sting as the fight starts, a later
+ *    phase flashes it with a sting, the boss's cry and a camera shake; the death slows the world a moment, shakes it hard
+ *    and the bar says it's beaten. Its loot is thrown out as a shower (LootShower, ABossLootShower) in place of the toss.
+ *  - its weak spot (Stagger): enough critical damage close together staggers it a moment; its creature does the reeling.
+ *  - a boss that lives as its kind does until it turns on someone (bWaitsPassive off, bStartWhenHunting: the Gravemother)
+ *    starts its fight as it turns on a player, and stands down when it has had nobody to fight a while (StandDownSeconds).
  */
 UCLASS(ClassGroup = (Looter), meta = (BlueprintSpawnableComponent))
 class AI_LOOTER_SHOOTER_API UBossComponent : public UActorComponent
@@ -93,6 +102,40 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Bar")
 	bool bShowBar = true;
 
+	/** How its fight is shown: the title, the cries, the camera's shakes, the slow beat at its death. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Show")
+	FBossShow Show;
+
+	/** Its weak spot's stagger. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Fight")
+	FBossStagger Stagger;
+
+	/** Its loot, thrown out as a shower at its death (with its loot drop component's table, level and luck). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Loot")
+	FBossLootShowerSettings LootShower;
+
+	/**
+	 * Until its fight starts it waits at its spot, hunting nobody (Abel, the test boss). Off: it lives as its kind does until
+	 * the fight starts, and a reset leaves it free too (the Gravemother wandering her den).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Fight")
+	bool bWaitsPassive = true;
+
+	/** The fight starts as the boss itself turns on a living player (its own senses, a pack's call). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Fight")
+	bool bStartWhenHunting = false;
+
+	/**
+	 * With no wall closed, a fight whose boss has had nobody to fight this long (s) stands down: its bar goes and the fight
+	 * ends where it is, with no healing and no trip home (the creature walks back on its own). 0: never.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Fight", meta = (ClampMin = "0", Units = "s"))
+	float StandDownSeconds = 0.f;
+
+	/** Its death kills its adds (the Gravemother's brood dies with her), rather than their fading with the fight. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Adds")
+	bool bAddsDieWithBoss = false;
+
 	// --- The fight ---
 
 	/** Starts the fight against Player (none: the first player). Nothing happens if it's on, won, or the boss is dead. */
@@ -135,6 +178,35 @@ public:
 	/** Removes every add still standing (a reset or a win: they fade with the fight). */
 	void DespawnAdds();
 
+	/**
+	 * Takes a creature the boss's own code raised (the Gravemother's brood) as one of its adds: counted toward its caps, its
+	 * pellets put out, gone with the fight (or killed with the boss, bAddsDieWithBoss) like any of them.
+	 */
+	void AdoptAdd(ACreatureBase* Add);
+
+	// --- The weak spot (BossComponentShow.cpp) ---
+
+	/** Staggered now: its creature reels (OnStaggered), open to punishment. */
+	bool IsStaggered() const { return bStaggered; }
+
+	/** How near a stagger its critical hits have brought it: 0 nothing, 1 it staggers. */
+	float GetStaggerBuildUp() const { return StaggerBuildUp; }
+
+	/**
+	 * Staggers it now for Stagger.Seconds (its build-up full, or the console's say): false while it can't (not fighting,
+	 * dead, untargetable, staggered already, or its creature's CanStagger says no).
+	 */
+	bool BeginStagger();
+
+	/** Ends a stagger now (its creature's code, a reset); it builds nothing up for Stagger.Cooldown after. */
+	void EndStagger();
+
+	/** Its creature's say on whether a stagger may start now (bound by a boss class; unbound: yes). */
+	FBossCanStagger CanStagger;
+
+	/** The world is slowed for its death right now. */
+	bool IsDeathSlowOn() const { return bDeathSlowOn; }
+
 	// --- Volleys ---
 
 	/** A volley at the player after its tell (UEnemyProjectileSubsystem). One winds up at a time. */
@@ -166,6 +238,8 @@ public:
 	/** A Custom event's moment came, for the boss's own code ("Bell", "Grieve"). */
 	FOnBossCustomEvent OnCustomEvent;
 	FOnBossUntargetableChanged OnUntargetableChanged;
+	/** A stagger started, or ended. */
+	FOnBossStaggered OnStaggered;
 
 	/** After a win the empty bar stays this long (seconds) before it fades. */
 	static constexpr float BarHideDelay = 3.f;
@@ -193,8 +267,13 @@ private:
 
 	/** Its name for the log: its bar's name, or the actor's. */
 	FString GetLabel() const;
-	/** What a reset and a win both do: the adds, pellets, wall, spell and the player's death hook all go. */
-	void ClearFight();
+	/**
+	 * What a reset, a stand-down and a win all do: the pellets, wall, spell, stagger and the player's death hook go; the adds
+	 * go too (bWon with bAddsDieWithBoss: they die) unless bKeepAdds.
+	 */
+	void ClearFight(bool bFightWon = false, bool bKeepAdds = false);
+	/** No one to fight a while with no wall closed: the fight ends where it is (no healing, no trip home). */
+	void StandDown();
 	void BindPlayer(APawn* Player);
 	void UnbindPlayer();
 	APawn* FindPlayerNear(const FVector& Center, float Radius) const;
@@ -225,6 +304,27 @@ private:
 	void ReleaseVolley();
 	/** Puts out every pellet and tell the boss and its adds have going. */
 	void ClearShots();
+
+	// --- The show, the weak spot and the loot (BossComponentShow.cpp) ---
+	/** The fight starts: the bar sweeps in with its title, the sting, the boss's cry, the shake. */
+	void PlayIntro();
+	/** A later phase starts: the sting, the boss's cry, the shake (the bar flashes by itself). */
+	void PlayPhaseTell();
+	/** It died: the slow beat, the hard shake, the sting and its cry, the bar's last word (bWasFighting), and its loot. */
+	void PlayDeath(bool bWasFighting);
+	/** Its loot drop component's toss turned off for the shower, if the shower is on (BeginPlay). */
+	void TakeOverLoot();
+	void ThrowLoot();
+	/** A critical hit's damage toward a stagger. */
+	void AddCritDamage(float Damage);
+	void TickStagger(float DeltaSeconds);
+	void PlayCue(FName Cue) const;
+	void Shake(float Strength, float Seconds) const;
+	void StartDeathSlow();
+	void EaseDeathSlow();
+	void EndDeathSlow();
+	/** Kills every add still standing (bAddsDieWithBoss at the win). */
+	void KillAdds();
 
 	// --- Adds (BossComponentAdds.cpp) ---
 	/** Forgets adds that are dead or gone: they never come back. */
@@ -282,4 +382,19 @@ private:
 	bool bBarWanted = false;
 	/** Seconds left before the bar fades after a win. */
 	float BarHideTime = 0.f;
+
+	/** Seconds its boss has had nobody to fight (StandDownSeconds). */
+	float NoTargetTime = 0.f;
+
+	/** Its loot drop component's own toss was turned off: the shower throws its loot. */
+	bool bLootTakenOver = false;
+
+	bool bStaggered = false;
+	float StaggerBuildUp = 0.f;
+	float StaggerTimeLeft = 0.f;
+	float StaggerCooldownLeft = 0.f;
+
+	/** Its death's slow beat: on, and the beat's timer. */
+	bool bDeathSlowOn = false;
+	FTimerHandle DeathSlowTimer;
 };

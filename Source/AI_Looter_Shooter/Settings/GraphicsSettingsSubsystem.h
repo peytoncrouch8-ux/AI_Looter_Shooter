@@ -61,6 +61,13 @@ public:
 	 */
 	UPROPERTY()
 	float FirstPersonFieldOfView = 90.f;
+
+	/**
+	 * The contextual control hints (UControlHintSubsystem: a key and what it does, near the mission tracker, until the
+	 * control is used). Saves from before they existed load with them on.
+	 */
+	UPROPERTY()
+	bool bShowControlHints = true;
 };
 
 /**
@@ -149,6 +156,10 @@ public:
 	/** The HUD's frame rate counter (it follows within half a second). */
 	bool IsFrameRateShown() const;
 	void SetFrameRateShown(bool bShown);
+
+	/** The contextual control hints (UControlHintSubsystem reads it at every look: off, the hint on show goes at once). */
+	bool AreControlHintsShown() const;
+	void SetControlHintsShown(bool bShown);
 
 	void SaveSettings() const;
 

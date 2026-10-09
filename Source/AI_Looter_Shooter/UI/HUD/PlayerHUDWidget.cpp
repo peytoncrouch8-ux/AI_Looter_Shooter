@@ -1,6 +1,7 @@
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/HUD/HudLevelUpBannerWidget.h"
 #include "UI/HUD/HudMagazineWidget.h"
+#include "UI/HUD/HudMissionCompleteWidget.h"
 #include "UI/HUD/HudPlayerFrameWidget.h"
 #include "UI/HUD/HudWeaponSlotsWidget.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -10,6 +11,7 @@
 #include "Combat/HealthComponent.h"
 #include "Interaction/InteractionComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
+#include "Player/PlayerMeleeComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Weapons/WeaponBase.h"
@@ -77,13 +79,14 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 	if (HitMarkerTime > 0.f)
 	{
 		HitMarkerTime -= InDeltaTime;
-		const float Alpha = FMath::Clamp(HitMarkerTime / 0.18f, 0.f, 1.f);
+		const float Alpha = FMath::Clamp(HitMarkerTime / (bKillMarker ? KillMarkerSeconds : HitMarkerSeconds), 0.f, 1.f);
 		HitMarker->SetRenderOpacity(Alpha);
-		// Pops in slightly large and settles.
-		HitMarker->SetRenderScale(FVector2D(1.f + 0.3f * Alpha * Alpha));
+		// Pops in slightly large and settles; a kill's pops bigger, in red, and stays a moment longer.
+		HitMarker->SetRenderScale(FVector2D(1.f + (bKillMarker ? KillMarkerPop : 0.3f) * Alpha * Alpha));
 		if (HitMarkerTime <= 0.f)
 		{
 			HitMarker->SetVisibility(ESlateVisibility::Hidden);
+			bKillMarker = false;
 		}
 	}
 
@@ -111,6 +114,21 @@ void UPlayerHUDWidget::BindToPawn(UWeaponManagerComponent* Manager)
 			Manager->OnMessage.AddUniqueDynamic(this, &UPlayerHUDWidget::HandleMessage);
 		}
 		BoundManager = Manager;
+	}
+
+	// A fist's strike has no gun to report it, so its hit marker comes from the melee itself.
+	UPlayerMeleeComponent* Melee = Manager ? UPlayerMeleeComponent::Find(Manager->GetOwner()) : nullptr;
+	if (BoundMelee.Get() != Melee)
+	{
+		if (UPlayerMeleeComponent* Old = BoundMelee.Get())
+		{
+			Old->OnMeleeHit.RemoveDynamic(this, &UPlayerHUDWidget::HandleMeleeHit);
+		}
+		if (Melee)
+		{
+			Melee->OnMeleeHit.AddUniqueDynamic(this, &UPlayerHUDWidget::HandleMeleeHit);
+		}
+		BoundMelee = Melee;
 	}
 
 	// Shots, hit markers and reload progress come from whichever weapon is in hand.
@@ -289,6 +307,15 @@ void UPlayerHUDWidget::UpdateCrosshair(const AWeaponBase* Active, float DeltaTim
 	}
 }
 
+void UPlayerHUDWidget::HandleMeleeHit(const FHitResult& Hit, float Damage, bool bCritical)
+{
+	// With a gun in hand the strike already came through the gun's OnHit: only a fist's is shown from here.
+	if (!BoundWeapon.IsValid())
+	{
+		HandleHit(Hit, Damage, bCritical);
+	}
+}
+
 void UPlayerHUDWidget::HandleHit(const FHitResult& Hit, float Damage, bool bCritical)
 {
 	// Only confirm hits on things that can actually be hurt, not walls.
@@ -300,17 +327,24 @@ void UPlayerHUDWidget::HandleHit(const FHitResult& Hit, float Damage, bool bCrit
 	}
 	// Heard as well as seen. The hit lands before the HUD hears of it, so a dead target is a kill, which has its own sound
 	// (the creature's voice plays UI.Kill once per death), or a body already down, which confirms nothing more.
-	if (!TargetHealth->IsDead())
+	const bool bKill = TargetHealth->IsDead();
+	if (!bKill)
 	{
 		LooterSound::Play2D(this, LooterSoundCue::HitMarker, 1.f, bCritical ? LooterSoundRules::CritPitch : 1.f);
 	}
 
-	HitMarkerTime = 0.18f;
-	HitMarker->SetVisibility(ESlateVisibility::HitTestInvisible);
-	for (UImage* Tick : HitMarkerTicks)
+	// The kill's confirm: the marker in red, bigger and longer, and no later pellet of the same blast takes it back.
+	if (bKill || !bKillMarker)
 	{
-		Tick->SetColorAndOpacity(bCritical ? Color::Accent() : FLinearColor::White);
+		bKillMarker = bKill;
+		HitMarkerTime = bKill ? KillMarkerSeconds : HitMarkerSeconds;
+		const FLinearColor Tint = bKill ? Color::Hurt() : (bCritical ? Color::Accent() : FLinearColor::White);
+		for (UImage* Tick : HitMarkerTicks)
+		{
+			Tick->SetColorAndOpacity(Tint);
+		}
 	}
+	HitMarker->SetVisibility(ESlateVisibility::HitTestInvisible);
 }
 
 void UPlayerHUDWidget::HandleFired()
@@ -335,6 +369,11 @@ void UPlayerHUDWidget::HandleMessage(const FText& Message)
 
 void UPlayerHUDWidget::HandleLevelUp(int32 NewLevel)
 {
+	// A turn-in's experience levels up while its mission-complete banner shows: the level-up banner follows it.
+	if (MissionBanner && MissionBanner->DeferLevelUp(NewLevel))
+	{
+		return;
+	}
 	if (LevelUpBanner)
 	{
 		LevelUpBanner->Show(NewLevel);

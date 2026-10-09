@@ -67,6 +67,11 @@ void UBossComponent::EnterPhase(int32 NewPhase)
 		*FightPhases[Phase].Name.ToString(), BossHealth ? BossHealth->GetHealthPercent() * 100.f : 0.f);
 	OnPhaseChanged.Broadcast(Phase, OldPhase);
 	UpdateBar();
+	// A later phase is announced: the sting, the boss's cry, the shake (the bar flashes as its phase moves on).
+	if (OldPhase != INDEX_NONE && Phase > OldPhase)
+	{
+		PlayPhaseTell();
+	}
 	// What starts with the phase happens at once.
 	RunDueEvents();
 }

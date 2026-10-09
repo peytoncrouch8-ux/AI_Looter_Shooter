@@ -2,6 +2,7 @@
 #include "Areas/AreaDefinition.h"
 #include "Areas/StationBoard.h"
 #include "Session/SessionSubsystem.h"
+#include "Tutorial/TutorialChoice.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Blueprint/WidgetTree.h"
@@ -295,27 +296,26 @@ void UMainMenuWidget::OpenNewGame(int32 Index)
 	// The places by their areas' names (the session picker shows them too).
 	const UAreaDefinition* Practice = UAreaDefinition::FindByName(TEXT("Skyreach"));
 	const UAreaDefinition* First = UAreaDefinition::FindByName(StationBoard::FirstAreaId().ToString());
-	const FString PracticeName = Practice ? StationBoard::AreaName(*Practice).ToString() : FString(TEXT("Skyreach"));
-	const FString FirstName = First ? StationBoard::AreaName(*First).ToString() : FString(TEXT("Ransom's Rest"));
+	const FText PracticeName = Practice ? StationBoard::AreaName(*Practice) : FText::FromString(TEXT("Skyreach"));
+	const FText FirstName = First ? StationBoard::AreaName(*First) : FText::FromString(TEXT("Ransom's Rest"));
 	const bool bCanSkip = USessionSubsystem::CanSkipTutorial();
 
+	// The choice's words are the tutorial's (TutorialChoice), so the tests read the same.
 	UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	UTextBlock* Body = MakeText(WidgetTree, FString::Printf(TEXT("%s teaches you to move, fight and loot. Skip it to start the story on %s with ")
-		TEXT("a Common Bullpup. You can come back to %s to practice any time."), *PracticeName, *FirstName, *PracticeName), 13, Color::Text());
+	UTextBlock* Body = MakeText(WidgetTree, TutorialChoice::Explain(PracticeName, FirstName).ToString(), 13, Color::Text());
 	Body->SetAutoWrapText(true);
 	Content->AddChildToVerticalBox(Body);
 	if (!bCanSkip)
 	{
-		UTextBlock* Closed = MakeText(WidgetTree, FString::Printf(TEXT("%s isn't in the game yet, so the tutorial can't be skipped."), *FirstName),
-			12, Color::Worse());
+		UTextBlock* Closed = MakeText(WidgetTree, TutorialChoice::SkipClosed(FirstName).ToString(), 12, Color::Worse());
 		Closed->SetAutoWrapText(true);
 		Content->AddChildToVerticalBox(Closed)->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
 	}
 
-	// The tutorial first, the call to action; skipping it under it; Cancel last.
-	Content->AddChildToVerticalBox(MakeSized(WidgetTree, MakeButton(ActionPlayTutorial, Index, TEXT("Play the Tutorial"), 14, EButtonKind::Primary), 0.f, 44.f))
-		->SetPadding(FMargin(0.f, 22.f, 0.f, 0.f));
-	ULooterButton* Skip = MakeButton(ActionSkipTutorial, Index, TEXT("Skip the Tutorial"), 13, EButtonKind::Normal);
+	// Skyreach first, the call to action; the skip under it; Cancel last.
+	Content->AddChildToVerticalBox(MakeSized(WidgetTree, MakeButton(ActionPlayTutorial, Index, TutorialChoice::StartLabel(PracticeName).ToString(), 14,
+		EButtonKind::Primary), 0.f, 44.f))->SetPadding(FMargin(0.f, 22.f, 0.f, 0.f));
+	ULooterButton* Skip = MakeButton(ActionSkipTutorial, Index, TutorialChoice::SkipLabel(FirstName).ToString(), 13, EButtonKind::Normal);
 	Skip->SetIsEnabled(bCanSkip);
 	Content->AddChildToVerticalBox(MakeSized(WidgetTree, Skip, 0.f, 40.f))->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
 	UVerticalBoxSlot* CancelSlot = Content->AddChildToVerticalBox(MakeSized(WidgetTree,

@@ -16,6 +16,7 @@
 #include "Tests/MissionTestWorld.h"
 #include "Tutorial/TutorialDirector.h"
 #include "UI/HUD/HudMinimapWidget.h"
+#include "World/NoticeBoard.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Tests/AutomationCommon.h"
@@ -64,6 +65,10 @@ namespace
 		else if (const UMissionOpenPageObjective* Open = Cast<UMissionOpenPageObjective>(Objective))
 		{
 			Rule += FString::Printf(TEXT(" page=%d"), static_cast<int32>(Open->Page));
+		}
+		else if (const UMissionEventObjective* Event = Cast<UMissionEventObjective>(Objective))
+		{
+			Rule += FString::Printf(TEXT(" event=%s count=%d"), *Event->Event.ToString(), Event->Count);
 		}
 		return Rule;
 	}
@@ -267,6 +272,42 @@ bool FMissionDefinitionsTest::RunTest(const FString& Parameters)
 		}
 		TestTrue(*FString::Printf(TEXT("%s's area %s is an area"), *Label, *Mission->Area.ToString()), Mission->Area.IsNone() || AreaIds.Contains(Mission->Area));
 		TestTrue(*FString::Printf(TEXT("%s starts on an event it names"), *Label), Mission->Start != EMissionStart::OnEvent || !Mission->StartEvent.IsNone());
+
+		// Turned in to someone, or finishing by itself, said so: a mission that isn't automatic names its giver.
+		const FMissionTurnIn& TurnIn = Mission->TurnIn;
+		TestTrue(*FString::Printf(TEXT("%s is turned in to a giver, or automatic"), *Label), TurnIn.bAutomatic || !TurnIn.SpeakerTag.IsNone());
+		if (Mission->NeedsTurnIn() && !Mission->Steps.IsEmpty())
+		{
+			TestFalse(*FString::Printf(TEXT("%s's giver has a name for the tracker"), *Label), Mission->GetGiverName().IsEmpty());
+			// Their talk can't also be its last objective: that talk is the turn-in, so the player never talks twice.
+			bool bLastTalksToGiver = false;
+			for (const TObjectPtr<UMissionObjective>& Objective : Mission->Steps.Last().Objectives)
+			{
+				const UMissionTalkObjective* Talk = Cast<UMissionTalkObjective>(Objective);
+				bLastTalksToGiver |= Talk && Talk->SpeakerTag == TurnIn.SpeakerTag;
+			}
+			TestFalse(*FString::Printf(TEXT("%s's last objective isn't talking to its giver (that talk is the turn-in)"), *Label), bLastTalksToGiver);
+		}
+		// Skyreach's missions are its own, outside the story: they finish by themselves or are turned in at the town's
+		// notice board (no one else is there to give them), and they give no experience.
+		if (Mission->Kind == EMissionKind::Tutorial)
+		{
+			TestTrue(*FString::Printf(TEXT("%s, on Skyreach, finishes by itself or at the notice board"), *Label),
+				TurnIn.bAutomatic || TurnIn.SpeakerTag == ANoticeBoard::GiverTag);
+			TestFalse(*FString::Printf(TEXT("%s, on Skyreach, gives no experience"), *Label), Mission->Rewards.GivesExperience());
+		}
+	}
+
+	// Ransom's Rest's story missions are turned in (the user's call, 2026-10-08), but Main 6, which ends in its own scene
+	// with Pa (his board, the lantern lit and the train's steam follow it finished).
+	const TCHAR* const TurnedIn[] = { TEXT("Main1"), TEXT("Main2"), TEXT("Main3"), TEXT("Main4"), TEXT("Main5"), TEXT("Main7"),
+		TEXT("Side1"), TEXT("Side2") };
+	for (const TCHAR* Id : TurnedIn)
+	{
+		if (const UMissionDefinition* Story = FindMissionAsset(Id))
+		{
+			TestTrue(*FString::Printf(TEXT("%s is turned in to someone"), Id), Story->NeedsTurnIn());
+		}
 	}
 
 	// The test mission: kill, reach and interact objectives and some experience, started only by hand (never in play).
@@ -294,9 +335,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialMissionTest, "Looter.Missions.Tutorial
 
 bool FTutorialMissionTest::RunTest(const FString& Parameters)
 {
-	// The tutorial is a mission as data and behaves as it always did. Its built-in steps make the mission the asset holds
-	// (an objective per goal, finishing it as the goal did, pointing where the tutorial pointed); the asset says the same;
-	// and played by a mission runner, the steps follow each other as the tutorial's did.
+	// The tutorial's first goal is a mission as data. Its built-in steps make the mission the asset holds (an objective per
+	// goal, pointing where the step points); the asset says the same; and played by a mission runner, a gun carried and the
+	// board read finish it, and the board's postings, which wait on it, go up.
 	const ATutorialDirector* Director = GetDefault<ATutorialDirector>();
 	UMissionDefinition* BuiltIn = Director->MakeBuiltInMission(GetTransientPackage());
 	if (!TestNotNull(TEXT("The built-in steps make a mission"), BuiltIn))
@@ -305,8 +346,9 @@ bool FTutorialMissionTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("Its id is the director's"), BuiltIn->GetMissionId() == Director->MissionId);
 	TestEqual(TEXT("Its title is the tutorial's"), BuiltIn->Title.ToString(), Director->MissionTitle);
-	TestTrue(TEXT("Outside the story, started by the director"), BuiltIn->Kind == EMissionKind::Tutorial && BuiltIn->Start == EMissionStart::Manual);
-	if (!TestEqual(TEXT("A step for each tutorial step"), BuiltIn->Steps.Num(), Director->Steps.Num()))
+	TestTrue(TEXT("Outside the story, started by the director, finished by itself"), BuiltIn->Kind == EMissionKind::Tutorial
+		&& BuiltIn->Start == EMissionStart::Manual && BuiltIn->TurnIn.bAutomatic);
+	if (!TestEqual(TEXT("A step for each of the director's steps"), BuiltIn->Steps.Num(), Director->Steps.Num()))
 	{
 		return false;
 	}
@@ -322,50 +364,24 @@ bool FTutorialMissionTest::RunTest(const FString& Parameters)
 		}
 		TestEqual(*(What + TEXT(": the same words")), Objective->Text.ToString(), Step.Text);
 		TestEqual(*(What + TEXT(": the tracker's short line")), Objective->ShortText.ToString(), Step.ShortText);
-		TestTrue(*(What + TEXT(": the tracker's key hint")), Objective->HintAction == Step.HintAction
-			&& Objective->HintText.ToString() == Step.HintText);
+		TestTrue(*(What + TEXT(": no key on the tracker")), Objective->HintAction.IsNone() && Objective->HintText.IsEmpty());
 		const int32 Amount = FMath::RoundToInt32(Step.Amount);
 		switch (Step.Goal)
 		{
-		case ETutorialGoal::Move:
-		{
-			const UMissionTravelObjective* Travel = Cast<UMissionTravelObjective>(Objective);
-			TestTrue(*(What + TEXT(": walk the distance, the arrow on the gun rack")), Travel && Travel->Distance == Step.Amount
-				&& Travel->Waypoint == EMissionWaypoint::Actor && Travel->WaypointActor.ActorClass == AWeaponRack::StaticClass());
-			break;
-		}
-		case ETutorialGoal::ReachRack:
-		{
-			const UMissionReachObjective* Reach = Cast<UMissionReachObjective>(Objective);
-			TestTrue(*(What + TEXT(": reach the gun rack, on the map, passing without one")), Reach && Reach->Place.Actor.ActorClass == AWeaponRack::StaticClass()
-				&& Reach->Place.Radius == Step.Amount && Reach->Place.bIgnoreHeight && Reach->bPassWithoutTargets);
-			break;
-		}
 		case ETutorialGoal::HoldWeapon:
 		{
 			const UMissionCollectObjective* Collect = Cast<UMissionCollectObjective>(Objective);
 			TestTrue(*(What + TEXT(": carry a gun, the arrow on the rack's")), Collect && Collect->What == EMissionCollect::Weapons
-				&& Collect->Count == Amount && Collect->Waypoint == EMissionWaypoint::Actor);
+				&& Collect->Count == Amount && Collect->Waypoint == EMissionWaypoint::Actor
+				&& Collect->WaypointActor.ActorClass == AWeaponRack::StaticClass());
 			break;
 		}
-		case ETutorialGoal::HitDummies:
+		case ETutorialGoal::ReadBoard:
 		{
-			const UMissionHitObjective* Hit = Cast<UMissionHitObjective>(Objective);
-			TestTrue(*(What + TEXT(": the player's hits on dummies, counted, the arrow on the training ground")), Hit && Hit->Target.ActorClass == ATargetDummy::StaticClass()
-				&& Hit->Count == Amount && Hit->bPlayerHitsOnly && Hit->bPassWithoutTargets && Hit->bShowCount && Hit->Waypoint == EMissionWaypoint::TargetsCenter);
-			break;
-		}
-		case ETutorialGoal::KillCreatures:
-		{
-			const UMissionKillObjective* Kill = Cast<UMissionKillObjective>(Objective);
-			TestTrue(*(What + TEXT(": the player's kills of creatures, counted, the arrow on the nearest spider")), Kill && Kill->Target.ActorClass == ACreatureBase::StaticClass()
-				&& Kill->Count == Amount && Kill->bPlayerKillsOnly && Kill->bPassWithoutTargets && Kill->bShowCount && Kill->Waypoint == EMissionWaypoint::Actor);
-			break;
-		}
-		case ETutorialGoal::OpenInventory:
-		{
-			const UMissionOpenPageObjective* Open = Cast<UMissionOpenPageObjective>(Objective);
-			TestTrue(*(What + TEXT(": open the inventory, no arrow")), Open && Open->Page == EMissionPage::Any && Open->Waypoint == EMissionWaypoint::None);
+			const UMissionEventObjective* Read = Cast<UMissionEventObjective>(Objective);
+			TestTrue(*(What + TEXT(": read the board, no count, the arrow on it")), Read && Read->Event == ANoticeBoard::ReadEvent
+				&& Read->Count == Amount && !Read->bShowCount && Read->Waypoint == EMissionWaypoint::Actor
+				&& Read->WaypointActor.ActorClass == ANoticeBoard::StaticClass());
 			break;
 		}
 		}
@@ -377,17 +393,19 @@ bool FTutorialMissionTest::RunTest(const FString& Parameters)
 	{
 		AddError(TEXT("DA_Mission_Tutorial belongs in /Game/Data/Missions: run Tools/Unreal/create_mission_assets.py in the editor."));
 	}
-	else if (TestEqual(TEXT("The asset has the tutorial's steps"), Asset->Steps.Num(), BuiltIn->Steps.Num()))
+	else if (TestEqual(TEXT("The asset has the first goal's steps"), Asset->Steps.Num(), BuiltIn->Steps.Num()))
 	{
 		TestEqual(TEXT("and its title"), Asset->Title.ToString(), BuiltIn->Title.ToString());
-		TestTrue(TEXT("and its kind and start"), Asset->Kind == BuiltIn->Kind && Asset->Start == BuiltIn->Start);
+		TestTrue(TEXT("and its kind, start and turn-in"), Asset->Kind == BuiltIn->Kind && Asset->Start == BuiltIn->Start
+			&& Asset->TurnIn.bAutomatic == BuiltIn->TurnIn.bAutomatic);
 		for (int32 Index = 0; Index < BuiltIn->Steps.Num(); ++Index)
 		{
 			TestEqual(*FString::Printf(TEXT("The asset's step %d"), Index + 1), RuleOf(Asset->GetObjective(Index, 0)), RuleOf(BuiltIn->GetObjective(Index, 0)));
 		}
 	}
 
-	// Played in a test level (the asset when there is one): a gun rack 20 m ahead, two dummies past it, no creatures.
+	// Played in a test level (the asset when there is one): a gun rack 20 m ahead, the notice board past it, and a posting
+	// that waits on the first goal, as the board's do.
 	FCampaignRecord Campaign;
 	int32 Finished = 0;
 	FTestWorldWrapper TestLevel;
@@ -399,56 +417,44 @@ bool FTutorialMissionTest::RunTest(const FString& Parameters)
 	UMissionRunner* Runner = World->GetSubsystem<UMissionRunner>();
 	UMissionSubsystem* Display = World->GetSubsystem<UMissionSubsystem>();
 	AActor* Player = MissionTestWorld::SpawnMarker(World, FVector::ZeroVector);
-	APlayerController* Shooter = World->SpawnActor<APlayerController>();
 	AWeaponRack* Rack = World->SpawnActor<AWeaponRack>(FVector(2000.0, 0.0, 0.0), FRotator::ZeroRotator);
-	ATargetDummy* Left = MissionTestWorld::SpawnDummy(World, FVector(3000.0, 1000.0, 0.0));
-	ATargetDummy* Right = MissionTestWorld::SpawnDummy(World, FVector(3000.0, -1000.0, 0.0));
-	if (!TestTrue(TEXT("Runner, display, stand-in, shooter, rack and dummies"), Runner && Display && Player && Shooter && Rack && Left && Right))
+	ANoticeBoard* Board = World->SpawnActor<ANoticeBoard>(FVector(2500.0, 800.0, 0.0), FRotator::ZeroRotator);
+	if (!TestTrue(TEXT("Runner, display, stand-in, rack and board"), Runner && Display && Player && Rack && Board))
 	{
 		return false;
 	}
+	Board->DispatchBeginPlay();
 	UMissionDefinition* Played = Asset ? Asset : BuiltIn;
 	const FName TutorialId = Played->GetMissionId();
-	Runner->OnMissionFinished.AddLambda([&Finished](const UMissionDefinition&, bool) { ++Finished; });
-	Runner->BeginForTesting({ Played }, Campaign, Player, TEXT("Skyreach"));
+	UMissionDefinition* Posting = MissionTestWorld::NewMission(CreatePackage(nullptr), TEXT("WebHollow"), EMissionKind::Tutorial,
+		EMissionStart::Automatic, TEXT("Skyreach"));
+	MissionTestWorld::AddObjective<UMissionEventObjective>(Posting, 0)->Event = TEXT("Test.Later");
+	Posting->Prerequisites = { TutorialId };
+	Runner->OnMissionFinished.AddLambda([&Finished, TutorialId](const UMissionDefinition& Mission, bool) { Finished += Mission.GetMissionId() == TutorialId ? 1 : 0; });
+	Runner->BeginForTesting({ Played, Posting }, Campaign, Player, TEXT("Skyreach"));
 	Runner->Update(0.f);
 	TestFalse(TEXT("It waits for its director"), Runner->IsRunning(TutorialId));
+	TestFalse(TEXT("...and the posting waits for it"), Runner->IsRunning(Posting->GetMissionId()));
 	TestTrue(TEXT("The director starts it"), Runner->StartMission(TutorialId, 0, /*bForce*/ true) && Runner->GetStep(TutorialId) == 0);
 	auto Waypoint = [Display]() { const FMission* Shown = Display->GetTracked(); return Shown ? Shown->Waypoint : TOptional<FVector>(); };
 	auto IsAt = [&Waypoint](const FVector& Where) { const TOptional<FVector> Spot = Waypoint(); return Spot.IsSet() && Spot->Equals(Where, 1.0); };
-	TestTrue(TEXT("Moving: the arrow points down the road to the gun rack"), IsAt(Rack->GetActorLocation()));
+	TestTrue(TEXT("Find a gun: the arrow on the gun rack (no rifle lies on it in a test level)"), IsAt(Rack->GetActorLocation()));
 
-	Player->SetActorLocation(FVector(500.0, 0.0, 0.0));
-	Runner->Update(UMissionRunner::UpdateInterval);
-	TestTrue(TEXT("5 m isn't far enough"), Runner->GetStep(TutorialId) == 0);
-	Player->SetActorLocation(FVector(700.0, 0.0, 0.0));
-	Runner->Update(UMissionRunner::UpdateInterval);
-	TestTrue(TEXT("7 m is: on to the village"), Runner->GetStep(TutorialId) == 1);
-	Runner->Update(UMissionRunner::UpdateInterval);
-	TestTrue(TEXT("13 m from the rack isn't there yet"), Runner->GetStep(TutorialId) == 1);
-	Player->SetActorLocation(FVector(1200.0, 0.0, 300.0));
-	Runner->Update(UMissionRunner::UpdateInterval);
-	TestTrue(TEXT("8 m from the rack is: take the rifle"), Runner->GetStep(TutorialId) == 2);
-	TestTrue(TEXT("No rifle lying on it in a test level: the arrow points to the rack"), IsAt(Rack->GetActorLocation()));
+	// Reading the board before the gun is taken doesn't count: that step isn't up yet.
+	Board->Read(*Runner);
+	TestTrue(TEXT("Read too soon: still finding a gun"), Runner->GetStep(TutorialId) == 0 && !Runner->IsRunning(Posting->GetMissionId()));
 
 	// The stand-in carries no guns; the rifle is taken as if it had been.
 	Runner->CompleteStep(TutorialId);
-	TestTrue(TEXT("The dummies next"), Runner->GetStep(TutorialId) == 3);
-	TestTrue(TEXT("The arrow points to the middle of the training ground"), IsAt(FVector(3000.0, 0.0, 0.0)));
-	for (int32 Shot = 0; Shot < 4; ++Shot)
-	{
-		MissionTestWorld::Hurt(Shot % 2 == 0 ? Left : Right, 10.f, Shooter);
-	}
-	MissionTestWorld::Hurt(Left, 10.f, nullptr);
-	TestTrue(TEXT("Four of the player's hits (and one not theirs) aren't enough"), Runner->GetStep(TutorialId) == 3);
-	MissionTestWorld::Hurt(Right, 10.f, Shooter);
-	TestTrue(TEXT("Five are; with no creatures in the level the hunt passes at once: open the inventory"), Runner->GetStep(TutorialId) == 5);
-	TestFalse(TEXT("Opening the inventory has no arrow"), Waypoint().IsSet());
-	Runner->CompleteStep(TutorialId);
-	TestFalse(TEXT("The last step finishes it"), Runner->IsRunning(TutorialId));
+	TestTrue(TEXT("Then the notice board"), Runner->GetStep(TutorialId) == 1);
+	TestTrue(TEXT("...the arrow on it"), IsAt(Board->GetActorLocation()));
+	Board->Read(*Runner);
+	TestFalse(TEXT("Read: the first goal is done"), Runner->IsRunning(TutorialId));
 	TestEqual(TEXT("Finished once"), Finished, 1);
 	TestTrue(TEXT("The campaign has it finished"), Campaign.HasCompleted(TutorialId));
 	TestTrue(TEXT("It was never the campaign's main mission"), Campaign.ActiveMission.IsNone());
+	TestTrue(TEXT("The posting waiting on it is up, and the board has the minimap follow it"), Runner->IsRunning(Posting->GetMissionId())
+		&& Runner->GetTrackedMission() == Posting->GetMissionId());
 	return true;
 }
 

@@ -66,13 +66,16 @@ enum class EHudFrameStretch : uint8
  *  - hit: the bar drops at once, the lost part lingers as a pale chip, then drains; the portrait flinches
  *  - low health (30% or less): the fill brightens on a 0.9 s beat, the number turns pale, the portrait squints
  *  - heal: the fill rises with a pale green shine sweeping along it, "+30" rises at the bar's end
+ *  - regeneration (the wounds that close): the fill rises smoothly as health comes back, a softer shine sweeps along
+ *    it every so often, and one "+N" rises when the run has filled the bar
  *  - experience: the stretch just earned shows white, holds and fades as the bar catches up; "+160 XP" rises
  *  - level-up: once the bar gets there the gem flashes, a ring spreads out of it, the portrait's eyes flare, and
  *    OnLevelUp tells the HUD to show the banner
  *  - full health and nothing happening: the whole frame steps back to the HUD's idle opacity
  * Its shapes are painted pictures drawn once into shared textures; per frame it only repaints what changed. Health comes
  * from the HUD (SetHealth), experience from UPlayerProgressionSubsystem's events.
- * Split by topic: HudPlayerFrameWidget.cpp (health), HudPlayerFrameWidgetXP.cpp (experience and level-ups),
+ * Split by topic: HudPlayerFrameWidget.cpp (health), HudPlayerFrameWidgetRegen.cpp (regeneration),
+ * HudPlayerFrameWidgetXP.cpp (experience and level-ups),
  * HudPlayerFrameWidgetLayout.cpp (the widget tree), HudPlayerFrameWidgetPictures.cpp (the pictures) and
  * HudPlayerFrameWidgetStretches.cpp (the bars' stretches), with the bars' measurements in HudPlayerFrameShapes.h.
  */
@@ -130,6 +133,11 @@ private:
 	static constexpr float ActivityHoldSeconds = 3.f;
 	static constexpr float IdleOpacity = 0.6f;
 
+	/** A heal's fill rises over this long; its shine sweeps along the fill over this long; the "+30" floats this long. */
+	static constexpr float HealRiseSeconds = 0.5f;
+	static constexpr float ShineSeconds = 0.75f;
+	static constexpr float HealFloatSeconds = 1.2f;
+
 	/** Floats Text (a "+30" or "+160 XP") Age into its life of Duration: in quickly, rising, fading out. */
 	static void PaintFloat(UTextBlock* Text, float Age, float Duration);
 
@@ -153,6 +161,21 @@ private:
 	void UpdateHealthNumbers(float Health, float MaxHealth);
 	/** The low-health look: the number's color and the portrait's squint, set when it changes. */
 	void ShowLow(bool bLow);
+
+	// --- Regeneration, the wounds that close (HudPlayerFrameWidgetRegen.cpp) ---
+
+	/** The player's wounds are closing now (UPlayerVitalsSubsystem knows: past the wait, below full health). */
+	bool IsRegenerating() const;
+	/**
+	 * Shows Gained points healed this frame as part of a regeneration: the fill rises with it frame by frame, a gentle
+	 * shine sweeps along now and then, and the gains add up for the "+N" at the run's end. False when the gain is too big
+	 * to be regeneration (a soul-mote's heal on top): the heal's own show takes it.
+	 */
+	bool ShowRegenGain(float Gained, float Fraction, float DeltaTime);
+	/** Regeneration stopped (full health, a hit, a scene): once it filled the bar from a real wound, "+N" rises at the bar's end. */
+	void EndRegenRun(float Fraction, float MaxHealth);
+	/** Raises "+Amount" at the health bar's end (a regeneration run's total). */
+	void RaiseHealFloat(float Amount);
 
 	// --- Experience (HudPlayerFrameWidgetXP.cpp) ---
 
@@ -221,6 +244,14 @@ private:
 	float ShineTime = 1000.f;
 	float HealFloatTime = 0.f;
 	float HealAmount = 0.f;
+	/**
+	 * Regeneration: the points the current run has healed, whether the last frame was part of one, how fast the shine
+	 * runs (1 for a heal's; slower for a regeneration's gentle sweeps) and the pause left before the next gentle sweep.
+	 */
+	float RegenGained = 0.f;
+	bool bRegenShown = false;
+	float ShineSpeed = 1.f;
+	float RegenShineWait = 0.f;
 	int32 ShownPoints = INDEX_NONE;
 	int32 ShownMaxPoints = INDEX_NONE;
 	bool bShownLow = false;

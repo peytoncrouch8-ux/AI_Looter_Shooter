@@ -50,8 +50,6 @@ namespace
 	constexpr float ShotgunMagazineShare = 0.5f;
 	constexpr int32 RifleReserve = 90;
 	constexpr int32 ShotgunReserve = 24;
-	/** The tutorial step shown (from 0): "Shoot the target dummies", an objective with a count and a key hint. */
-	constexpr int32 TutorialStepIndex = 3;
 	/** Shares of the maximum health: the damage of the hit, where low health leaves it, where the heal brings it. */
 	constexpr float HitShare = 0.3f;
 	constexpr float LowShare = 0.25f;
@@ -316,7 +314,8 @@ namespace
 
 	void HudShotBeginObjectiveDone(UWorld& World)
 	{
-		// The tutorial's current step is finished as a console command finishes it: the tracker ticks it, holds it, then slides the next in.
+		// The tutorial's current step (the board's, its last) is finished as a console command finishes it: the tracker ticks it
+		// and holds it, then the first goal ends and the board's postings go up, the main one sliding in.
 		const ATutorialDirector* Director = HudShotFindDirector(World);
 		const FString Id = Director ? Director->MissionId.ToString() : FString(TEXT("Tutorial"));
 		HudShotConsole(World, FString::Printf(TEXT("Looter.Mission.Complete %s"), *Id));
@@ -338,7 +337,8 @@ namespace
 		{ TEXT("two_guns"),    1.5f, &HudShotBeginTwoGuns,         nullptr,                    nullptr,               DefaultGapSeconds },
 		{ TEXT("boss"),        2.0f, &HudShotBeginBoss,            &HudShotBossBarShown,       &HudShotEndBoss,       DefaultGapSeconds },
 		// The tick, at 0.35 s: the done objective's tick and its step's section cyan. The tracker holds it for DoneHoldSeconds (1.4 s)
-		// from the completion; the next step's picture, 1.6 s after the completion, catches the next objective sliding in.
+		// from the completion; the next step's picture, 1.6 s after the completion, catches what follows sliding in (the board's
+		// main posting, tracked in its place, or the tracker fading out if none is).
 		{ TEXT("done"),        0.35f, &HudShotBeginObjectiveDone,  nullptr,                    nullptr,               0.1f },
 		{ TEXT("next"),        1.15f, nullptr,                     nullptr,                    nullptr,               LastGapSeconds },
 	};
@@ -385,12 +385,13 @@ namespace HudShotScene
 
 		if (ATutorialDirector* Director = HudShotFindDirector(World))
 		{
-			// A tutorial done or skipped starts again; then it goes on from the step with a count and a hint, as a saved session would.
+			// A tutorial done or skipped starts again; then it goes on from the notice board step (the rifle is in hand already,
+			// so "Find a gun in town" is behind it), as a saved session would.
 			if (Director->GetCurrentStep() == INDEX_NONE)
 			{
 				Director->Restart();
 			}
-			Director->ResumeAtStep(TutorialStepIndex);
+			Director->ResumeAtStep(ATutorialDirector::BoardStep);
 		}
 		else
 		{

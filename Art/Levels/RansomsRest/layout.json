@@ -9,13 +9,17 @@
   },
   "mesh": { "tiles": 5, "triangles": 146000 },
   "macro": {
-    "about": "The macro maps' palette (Art/Levels/area_macro.py GRADES): golden turns the meadow's greens to late-summer gold, the doc's golden grass and ochre soil.",
-    "grade": "golden"
+    "about": "The macro maps' ground: lateSummer paints the meadow as a mosaic of late summer's grass tones keyed to the ground (Art/Levels/area_mosaic.py), bleached straw on the rises through gold and olive to the green of the creek bottoms, in place of the island's meadow graded gold, which read as one flat ochre from the lookout (2026-10-08). shade: the living tree stands (obstacle ids) whose ground is darker and greener (every forest and orchard zone too); hayfields: the openGround polygons mowed into stubble, rows the mowing's heading (degrees, 0 north, 90 east); zones: moisture added by zone kind (a watered farm and orchard greener, the town, the depot and the wind-blasted point dustier).",
+    "mosaic": "lateSummer",
+    "shade": ["washWillows", "creekWillows", "sinkRoadCottonwoods", "widowsPinesEdge"],
+    "hayfields": [{"id": "hayfieldWest", "rows": 90}, {"id": "hayfieldEast", "rows": 0}],
+    "zones": {"home": 0.05, "orchard": 0.15, "town": -0.15, "travel": -0.15, "graveyard": -0.05, "chapel": -0.05, "lookout": -0.1, "boss_arena": -0.12}
   },
   "scatter": {
-    "about": "The scatter mask (Art/Levels/area_scatter.py): roadside pebbles keeps every road's surface clear of stones and lines the roads with pebbles only, so no rock or boulder stands in Main Street, the yards, on the rail bed or across a junction; steep bare keeps every stone off ground too steep to walk up (the rock past the boundary, the cliffs' faces), where it would hang on the slope.",
+    "about": "The scatter mask (Art/Levels/area_scatter.py): roadside pebbles keeps every road's surface clear of stones and lines the roads with pebbles only, so no rock or boulder stands in Main Street, the yards, on the rail bed or across a junction; steep bare keeps every stone off ground too steep to walk up (the rock past the boundary, the cliffs' faces), where it would hang on the slope. layers: the meadow layers' own spacing (cm) and a factor on their shared cull distances (Tools/Unreal/build_island_scatter.py): the grass a little denser and reaching about 40 m on Medium instead of 27-33 m, the flowers 38 m, so the meadows don't turn to bare ground a few dozen meters out (2026-10-08; the macro map carries the grass's color past that).",
     "roadside": "pebbles",
-    "steep": "bare"
+    "steep": "bare",
+    "layers": {"grass": {"cell": 80, "cull": 1.5}, "flowers": {"cull": 1.4}}
   },
   "region": {
     "about": "The regional height field around the core (Art/Levels/area_region.py), in cm: the valley floor's noise and tilt (meters of rise per meter north and east) and its benches (a polygon raised or lowered by height, easing out over blend), the ridges (each from its foot: height, crest = how far behind the foot the crest is, back = the outer slope's reach, band = the cliff band at the foot; a saddle lowers the crest near a pass), the escarpment (its lip, the drop to the canyon floor, how deep the cliff kit's stacked courses reach, the far wall; calm keeps the lip from wandering where a model is fitted to it), the surround ring and the backdrop. The core's outer seamBand fades into the field; no feature may enter it.",
@@ -39,14 +43,16 @@
         "polygon": [[-7000,24500],[7000,24500],[15000,33000],[16000,62000],[-17000,62000],[-16000,33000]],
         "height": -2800,
         "blend": 9000,
-        "note": "the wooded valley past Stage Gap: the ground falls away east of the mouth, and the line runs down into it on its trestle"
+        "relief": {"amplitude": 700, "wavelength": 14000},
+        "note": "the wooded valley past Stage Gap: the ground falls away east of the mouth, and the line runs down into it on its trestle; relief rolls its floor in swells of a few meters (past the core square only, area_region.py), so it isn't one flat plain under its woods (2026-10-08)"
       },
       {
         "id": "southLowland",
         "polygon": [[-20500,3000],[-20500,13000],[-42000,18000],[-42000,-2000]],
         "height": -4000,
         "blend": 8000,
-        "note": "the low ground past the Hogback, where Mill Creek leaves Mill Gorge"
+        "relief": {"amplitude": 700, "wavelength": 16000},
+        "note": "the low ground past the Hogback, where Mill Creek leaves Mill Gorge; rolling like the valley past the gap"
       }
     ],
     "ridges": [
@@ -133,11 +139,14 @@
     "ring": { "half": 55000, "cell": 100, "levels": [1000,500,250], "triangles": 38000, "sectors": 8, "macro": 2048 },
     "canyonWall": { "sectors": 4, "triangles": 18000 },
     "farTrees": {
-      "about": "The far trees on the ring (Art/Levels/area_fartrees.py; the art session's SM_FarPine_A, SM_FarPine_B and SM_FarBroadleaf, one instanced component each, tagged Beyond): from near (cm) past the boundary to the ring's edge, off ground steeper than steep degrees, the river, the roads and the clear corridors; groves from noise, densest in the woods (density, share of pines), tree lines along the slopes, cottonwoods along the canyon's river, few on the plains; thinned where no standing spot inside the boundary (nor the lookouts: [X, Y, eye over the ground] cm) sees them; about count in all.",
+      "about": "The far trees on the ring (Art/Levels/area_fartrees.py; the art session's SM_FarPine_A, SM_FarPine_B and SM_FarBroadleaf, one instanced component each, tagged Beyond): from near (cm) past the boundary to the ring's edge, off ground steeper than steep degrees, the river, the roads and the clear corridors; groves from noise (groves and clumps: the noise's edges, tightened so the woods stand as masses with meadows between rather than even dots, and lone: the few between them, 2026-10-08), densest in the woods (density, share of pines), tree lines along the slopes, cottonwoods along the canyon's river, few on the plains; thinned where no standing spot inside the boundary (nor the lookouts: [X, Y, eye over the ground] cm) sees them; about count in all.",
       "near": 15000,
       "count": 2500,
       "steep": 35,
       "seed": 23,
+      "groves": [0.12, 0.32],
+      "clumps": [0.0, 0.3],
+      "lone": 0.025,
       "woods": [
         {
           "id": "northWoods",
@@ -149,9 +158,9 @@
         {
           "id": "eastValley",
           "polygon": [[-7000,24500],[7000,24500],[15000,33000],[16000,62000],[-17000,62000],[-16000,33000]],
-          "density": 1.6,
+          "density": 3.0,
           "pines": 0.55,
-          "note": "the wooded valley past Stage Gap (the eastLowland bench), the most wooded: it shows through the gap"
+          "note": "the wooded valley past Stage Gap (the eastLowland bench), the most wooded: it shows through the gap; denser (1.6 before 2026-10-08) so its groves close into woods with meadows between, where its few trees on the flats stood apart as even dots"
         },
         {
           "id": "southLowland",
@@ -1727,7 +1736,7 @@
     }
   },
   "gameplay": {
-    "about": "No creatures or director yet: the encounters (Docs/Areas/RansomsRest.md, \"Encounters stay on one level of ground\") are placed with their missions from step 14 on. The story's first arrival (spawnLanding) is a player start of its own beside the level's start by Ellis's grave; the depot's station carries Landing_Depot (build_area_travel.py).",
+    "about": "No director: the story's encounters (Docs/Areas/RansomsRest.md, \"Encounters stay on one level of ground\") are placed with their missions by build_area_story.py and its build_area_<place>.py scripts, and what happens between them is encounters below (build_area_camps.py). The story's first arrival (spawnLanding) is a player start of its own beside the level's start by Ellis's grave; the depot's station carries Landing_Depot (build_area_travel.py).",
     "spawnLanding": "Landing_FamilyPlot",
     "benches": [
       { "id": "Bench_Farm", "at": [-2620, -6930], "yaw": -90, "note": "the gunsmith's bench against the farm barn's south wall by its front corner, facing out (build_area_benches.py); Ozias takes over after the Lily" }
@@ -1741,6 +1750,141 @@
       { "id": "posterWhitlock", "host": "whitlockBarn", "at": [600, 280, 190], "yaw": 0, "note": "Whitlock's barn, left of the big doors" },
       { "id": "posterBoard", "host": "noticeBoard", "socket": "Decal", "offset": [0, 29, 0], "note": "left half of the board, as the art's board render" },
       { "id": "calderNote", "host": "noticeBoard", "socket": "Decal", "offset": [0, -40, 9], "variant": "CalderNote" }
-    ]
+    ],
+    "encounters": {
+      "about": "What happens between the story's fights (Docs/Polish/BorderlandsComparison.md, item 7): camps (a few creatures, a Restless leader and a Supply Crate), patrols (a pack walking a stretch of road there and back) and ambushes (they spring as the player walks onto a landmark's ground). Placed by Tools/Unreal/build_area_camps.py, checked by Looter.Encounters.Camps.Placement and .Gating, counted by Looter.Progression.Pacing (Docs/Progression.md). Layout cm, X north, Y east. after: the missions turned in before it's on; like every encounter it starts over when the level loads (the crates stay opened: the session keeps them). keepOut and storyFights are what they keep off: the safe zones and arrivals, and the scripted fights' grounds while those fights can happen (a fight during a main mission is over once a later main mission is turned in; a roaming group's ground is shared, only its spots kept clear). budget: main (on the story's path, counted before countedBefore's own fights), roaming (with the few roaming kills a normal play makes), optional (an explorer's).",
+      "keepOut": [
+        { "zone": "farm", "note": "Delia's salt line: a safe zone, always" },
+        { "zone": "mainStreet", "note": "safe after Main 3" },
+        { "zone": "depot", "note": "every trip arrives here" },
+        { "zone": "gravewindPoint", "note": "Abel's deck" },
+        { "zone": "sink", "note": "the pit and its own fights on its floor (the floor's spiders, the egg sacs', the Gravemother's)" },
+        { "zone": "ransomsPoint", "note": "the bluff top: the nest's ground and the lookout" }
+      ],
+      "storyFights": [
+        { "id": "BluffNest", "zone": "ransomsPoint", "during": "Main2", "by": "build_area_story.py" },
+        { "id": "TownGate", "between": ["townGateNorth", "townGateSouth"], "radius": 3000, "during": "Main3", "by": "build_area_story.py" },
+        { "id": "ChapelYard", "obstacle": "churchyardFence", "during": "Main4", "by": "build_area_chapel.py" },
+        { "id": "BootHill", "zone": "bootHill", "after": "Main4", "by": "build_area_chapel.py (roaming)" },
+        { "id": "NorthRoad", "at": [4256, 1350], "radius": 2500, "after": "Main4", "by": "build_area_chapel.py (roaming): halfway between the hanging tree and the north road" },
+        { "id": "WhitlockHands", "obstacle": "barnYardFence", "during": "Side2", "by": "build_area_whitlock.py" },
+        { "id": "Abel", "zone": "gravewindPoint", "during": "Main6", "by": "build_area_deck.py" }
+      ],
+      "camps": [
+        {
+          "id": "SheepFold",
+          "where": "the west field: round the sheep fold, between the Dry Wash and the west road",
+          "after": ["Main4"],
+          "budget": "main",
+          "countedBefore": "Main6",
+          "groups": [
+            { "class": "UnpaidCreature", "count": 2, "rank": "Basic" },
+            { "class": "UnpaidCreature", "count": 1, "rank": "Rare" }
+          ],
+          "center": [2800, -7900],
+          "spots": [[2750, -8150], [2750, -7650], [2350, -7150], [2050, -8700], [3050, -7950]],
+          "ground": { "polygon": [[2450, -6850], [3700, -7600], [3300, -8500], [2300, -9300], [1550, -8600], [2050, -7500]], "maxRise": 300 },
+          "crate": [[2100, -8440, -90, true], [2300, -8440, -90, true], [2540, -7900, 0, true], [2100, -7360, 90, true]],
+          "note": "Old herders who never left the fold stand round it. Seen across the wash from the keeper's path and met on the west road (Main 6's two ways to the deck). Its ground is the strip between the wash's north bank and the far side of the road: nobody is hunted in the wash or over it. The crate stands against the fold's wall."
+        },
+        {
+          "id": "OrchardEdge",
+          "where": "the orchard's edge: south of the orchard, just outside Delia's salt line, under Coffin Rock",
+          "after": ["Main3"],
+          "budget": "optional",
+          "countedBefore": "Side1",
+          "groups": [
+            { "class": "UnpaidCreature", "count": 3, "rank": "Basic" },
+            { "class": "UnpaidCreature", "count": 1, "rank": "Rare" }
+          ],
+          "center": [-4400, -2000],
+          "spots": [[-4100, -1800], [-4600, -1500], [-4800, -2150], [-4350, -2350], [-3950, -2150]],
+          "ground": { "radius": 1300, "maxRise": 300 },
+          "crate": [[-4700, -1750, 45, false], [-4250, -1600, 30, false], [-4600, -2400, 60, false]],
+          "note": "Once the Unpaid have come for the corpse at the gate, some wait at the salt line for it: they never cross it (the farm is a safe zone, so they give up at the line), and they stand looking in at the farm."
+        },
+        {
+          "id": "MillCreek",
+          "where": "the fields' south: Mill Creek's bottom above the falls, below the east hayfield",
+          "after": ["Main3"],
+          "budget": "optional",
+          "countedBefore": "Side1",
+          "groups": [
+            { "class": "SlimeCreature", "count": 3, "rank": "Basic" },
+            { "class": "SlimeCreature", "count": 1, "rank": "Rare" }
+          ],
+          "center": [-7100, 7380],
+          "spots": [[-6450, 7480], [-6750, 7440], [-7050, 7390], [-7350, 7340], [-7650, 7300]],
+          "ground": { "radius": 1300, "maxRise": 350 },
+          "crate": [[-7000, 6500, 90, false], [-7300, 6450, 90, false], [-6700, 6550, 90, false], [-7400, 6200, 90, false]],
+          "note": "The design's meadow slimes in the creek bottom, wildlife, on the dry strip west of the water, 19 m and more above Mill Falls. Their ground takes in the banks' tops (2 m up), so a player shooting down from the field is fair game. The crate stands on the flat hay 5 m back from the bank's rounded top, where the first spots weren't level (Side 1 brings the player to Whitlock's barn)."
+        }
+      ],
+      "patrols": [
+        {
+          "id": "WestRoad",
+          "where": "the west road's first stretch below the chapel knoll, from the churchyard's corner to the glebe wall",
+          "after": ["Main4"],
+          "budget": "roaming",
+          "countedBefore": "Main5",
+          "groups": [{ "class": "UnpaidCreature", "count": 3, "rank": "Area" }],
+          "route": [[4800, -4650], [4700, -5100], [4100, -6500]],
+          "loop": false,
+          "pause": 3.0,
+          "corridor": 800,
+          "maxRise": 800,
+          "note": "Three of the Unpaid walking the road there and back, out with the rest of the dead after Main 4. Their ground is the road's corridor, 8 m either side: they give up at the churchyard's fence and short of the sheep fold's camp."
+        },
+        {
+          "id": "QuarryTrack",
+          "where": "the quarry track, from the Spoil Bank's east foot to the Old Quarry's mouth",
+          "after": ["Main3"],
+          "budget": "optional",
+          "countedBefore": "Side1",
+          "groups": [{ "class": "SpiderCreature", "count": 3, "rank": "Area" }],
+          "route": [[7700, 930], [8100, 1050], [8900, 1700]],
+          "loop": false,
+          "pause": 4.0,
+          "corridor": 700,
+          "maxRise": 900,
+          "note": "Spiders working the quarry's rubble, up and down the track. Kept clear of the north road's roaming ground (25 m round its spot)."
+        }
+      ],
+      "ambushes": [
+        {
+          "id": "Churchyard",
+          "where": "the churchyard: the dead rise from the lanes between the west grave rows",
+          "after": ["Main4"],
+          "budget": "main",
+          "countedBefore": "Main5",
+          "groups": [
+            { "class": "UnpaidCreature", "count": 3, "rank": "Basic" },
+            { "class": "UnpaidCreature", "count": 1, "rank": "Rare" }
+          ],
+          "trigger": { "obstacle": "churchyardFence", "maxRise": 1000 },
+          "entrance": "Rise",
+          "spots": [[6350, -3150], [7050, -3150], [6700, -2850], [7300, -2850], [6500, -2460], [7050, -2460]],
+          "ground": { "obstacle": "churchyardFence", "maxStep": 900, "maxRise": 1000 },
+          "note": "After Main 4 the yard is quiet until the player walks in through its fence again (on the way back to Father Aldana to turn in Main 5): four of the dead rise in front of their boards. A player respawning at the yard's grave, or standing inside as it comes on, has to walk out and back in. The knoll's slope is one level of ground here, as for the yard's own fight."
+        },
+        {
+          "id": "Webwood",
+          "where": "the Webwood: spiders drop from the webbed dead trees north of the Sink",
+          "after": ["Main4"],
+          "budget": "optional",
+          "countedBefore": "Main5",
+          "groups": [
+            { "class": "SpiderCreature", "count": 3, "rank": "Basic" },
+            { "class": "SpiderCreature", "count": 1, "rank": "Rare" }
+          ],
+          "trigger": { "obstacle": "webwood", "maxRise": 400 },
+          "entrance": "Drop",
+          "dropHeight": 350,
+          "spots": [[6865, 4757], [7199, 6030], [7034, 7157], [6529, 8620], [5834, 9957]],
+          "ground": { "obstacle": "webwood", "margin": 300, "maxRise": 400 },
+          "note": "Beside the five crowned trees (build_area_sink.py's WEBWOOD), on their outer side, clear of the warning fence and Den Rock. Sprung on the way to Ruth's crate on the Sink's rim, or round the rim to the den; the Sink's floor (12 m down) isn't its ground."
+        }
+      ]
+    }
   }
 }

@@ -8,6 +8,7 @@
 #include "InputActionValue.h"
 #include "Interaction/InteractionComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
+#include "Player/PlayerMeleeComponent.h"
 #include "Player/PlayerSize.h"
 #include "Player/PlayerViewComponent.h"
 #include "Settings/ControlSettingsSubsystem.h"
@@ -28,6 +29,10 @@ ALooterCharacter::ALooterCharacter()
 	// Jumps 15% higher than the engine's 420 cm/s: height grows with the speed squared (v^2 / 2g), 90 cm -> 103.5 cm.
 	// Left as it is at the smaller size: the levels' ledges and fences were placed for this jump.
 	GetCharacterMovement()->JumpZVelocity = 420.f * FMath::Sqrt(1.15f);
+	// Walks up lips and steps to 45 cm on its own (the engine's step, in world cm: over a quarter of the smaller body's
+	// height, a full-size 53 cm). Kept: the levels' curbs, porch steps and grave plinths were made for it, and anything
+	// higher is a mantle (UPlayerLocomotionComponent), which starts just above it.
+	GetCharacterMovement()->MaxStepHeight = 45.f;
 
 	// The full-size mannequin scaled down as one (Player/PlayerSize.h): capsule, body, first-person rig, camera and the
 	// gun in hand together, so first and third person stay lined up with no special cases. The engine works the crouch
@@ -41,6 +46,7 @@ ALooterCharacter::ALooterCharacter()
 	// Made in C++ so every character has it without touching the Blueprint; the weapon manager offers it the loot.
 	Interaction = CreateDefaultSubobject<UInteractionComponent>(TEXT("Interaction"));
 	Sounds = CreateDefaultSubobject<UPlayerSoundComponent>(TEXT("Sounds"));
+	Melee = CreateDefaultSubobject<UPlayerMeleeComponent>(TEXT("Melee"));
 }
 
 void ALooterCharacter::OnJumped_Implementation()
@@ -93,13 +99,13 @@ void ALooterCharacter::JumpPressed()
 
 void ALooterCharacter::Move(const FInputActionValue& Value)
 {
-	// The locomotion component reads the keys too (the sprint, and whether a slide ends in a run), even while a slide
-	// holds its own line; they steer again once it ends.
+	// The locomotion component reads the keys too (the sprint, whether a slide ends in a run, the way a ledge is climbed),
+	// even while a slide holds its own line or a mantle or vault carries the body; they steer again once it ends.
 	const FVector2D Input = Value.Get<FVector2D>();
 	if (UPlayerLocomotionComponent* Locomotion = FindComponentByClass<UPlayerLocomotionComponent>())
 	{
 		Locomotion->HandleMoveInput(Input);
-		if (Locomotion->IsSliding())
+		if (Locomotion->IsSliding() || Locomotion->IsTraversing())
 		{
 			return;
 		}

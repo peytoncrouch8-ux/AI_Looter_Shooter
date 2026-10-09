@@ -47,7 +47,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGravewindMissionTest, "Looter.Story.Gravewind.
 bool FGravewindMissionTest::RunTest(const FString& Parameters)
 {
 	// Main 6 as its asset has it: id exactly Main6, after Main 5 on Ransom's Rest, started by Delia's word at her door;
-	// to Gravewind Point, the lantern hung (a tap on the keeper's post), Abel defeated, the scene; 30% of a level.
+	// to Gravewind Point, the lantern hung (a tap on the keeper's post), Abel defeated, the scene; 45 experience, as it ends.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main6")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main6.DA_Mission_Main6"));
@@ -65,7 +65,10 @@ bool FGravewindMissionTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("2: the lantern hung on the keeper's post, a tap"), Hang && Hang->Target.ActorTag == AKeeperLanternPost::KeepersPostTag && !Hang->bHold);
 			TestTrue(TEXT("3: Abel defeated"), Defeat && Defeat->ActorTag == AAbelKeeper::BossTag);
 			TestTrue(TEXT("4: sit with Pa"), Sit && Sit->Scene == SitWithPa::SceneName());
-			TestEqual(TEXT("Its reward: 30% of a level"), Asset->Rewards.ExperienceShare, 0.3f);
+			// It finishes by itself as Pa sits down: that scene is its hand-in (his board, the lantern lit and the train's steam
+			// follow Main 6 finished), so there's no one to turn it in to.
+			TestTrue(TEXT("It finishes by itself, no turn-in"), Asset->TurnIn.bAutomatic && !Asset->NeedsTurnIn());
+			TestEqual(TEXT("Its reward: 45 experience"), Asset->Rewards.Experience, 45);
 			TestTrue(TEXT("Its steps are the ones Abel's story counts"), AAbelKeeper::HangStep == 1 && AAbelKeeper::FightStep == 2 && AAbelKeeper::SceneStep == 3);
 		}
 	}

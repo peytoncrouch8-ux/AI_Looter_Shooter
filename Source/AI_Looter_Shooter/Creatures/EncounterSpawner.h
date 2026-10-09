@@ -280,6 +280,27 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	// --- What a kind of encounter does its own way (APatrolSpawner, AAmbushSpawner); the defaults are a plain encounter's ---
+
+	/**
+	 * Looks at the player while it waits (every CheckSeconds): whether their approach brings its creatures now. Plain: the
+	 * player within ActivationRadius of GetSpawnCenter. An ambush springs on the player walking onto its ground instead.
+	 */
+	virtual bool CheckApproach();
+
+	/** A creature it just spawned, before it's set on the player (bHuntOnSpawn): an ambush's entrance (rising, dropping). */
+	virtual void OnCreatureSpawned(ACreatureBase& Creature) {}
+
+	/** Moves its pack on by DeltaSeconds at each look while it's on (waiting or engaged): a patrol's walk. */
+	virtual void UpdatePack(float DeltaSeconds) {}
+
+	/** Where its creatures appear round and the player's distance is measured from: its own spot, or a patrol's point on its route. */
+	virtual FVector GetSpawnCenter() const;
+
+	/** The player within Distance (cm) of GetSpawnCenter. */
+	bool IsPlayerWithin(float Distance) const;
+	UEncounterSubsystem* GetEncounters() const;
+
 private:
 	/** One creature still to come: its group, and the rank it was rolled (one taken away keeps its own). */
 	struct FOwedCreature
@@ -305,8 +326,6 @@ private:
 	bool WantsChecks() const;
 	/** Whether the player coming near would bring anything: owed creatures, its first wave, or more timed waves. */
 	bool WantsApproach() const;
-	bool IsPlayerWithin(float Distance) const;
-	UEncounterSubsystem* GetEncounters() const;
 
 	// --- Waves, spawning and taking away (EncounterSpawnerWaves.cpp) ---
 	void Engage();

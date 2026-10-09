@@ -89,7 +89,10 @@ namespace
 		return Mission;
 	}
 
-	/** Main 3 as the mission script makes it, in code (its gun left out: a test level has no loot to drop it in). */
+	/**
+	 * Main 3 as the mission script makes it, in code (its gun left out: a test level has no loot to drop it in): three
+	 * steps, turned in at Tilly's window (the talk that was its fourth step), 30 experience.
+	 */
 	UMissionDefinition* MakeColdWelcome(UObject* Outer)
 	{
 		UMissionDefinition* Mission = MissionTestWorld::NewMission(Outer, TEXT("Main3"), EMissionKind::Main, EMissionStart::Automatic, Valley);
@@ -103,8 +106,9 @@ namespace
 		UMissionReachObjective* Shop = MissionTestWorld::AddObjective<UMissionReachObjective>(Mission, 2);
 		Shop->Place.Actor.ActorTag = TillyTag;
 		Shop->Place.Radius = 800.f;
-		MissionTestWorld::AddObjective<UMissionTalkObjective>(Mission, 3)->SpeakerTag = TillyTag;
-		Mission->Rewards.ExperienceShare = 0.3f;
+		Mission->TurnIn.SpeakerTag = TillyTag;
+		Mission->TurnIn.GiverName = FText::FromString(TEXT("Tilly"));
+		Mission->Rewards.Experience = 30;
 		return Mission;
 	}
 
@@ -194,7 +198,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FColdWelcomeMissionTest, "Looter.Story.ColdWelc
 bool FColdWelcomeMissionTest::RunTest(const FString& Parameters)
 {
 	// Main 3 as its asset has it: id exactly Main3 (Side 1 opens after it), after Main 2 on Ransom's Rest; the farm road
-	// to the gate, the gate's fight cleared (four), Bright & Daughter, Tilly; 30% of a level and an Uncommon gun or better.
+	// to the gate, the gate's fight cleared (four), Bright & Daughter; turned in to Tilly at her window; 30 experience and an
+	// Uncommon gun or better.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main3")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main3.DA_Mission_Main3"));
@@ -203,16 +208,15 @@ bool FColdWelcomeMissionTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("Main3, a main mission starting by itself on Ransom's Rest, after Main2"), Asset->GetMissionId() == MainThree
 				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Automatic && Asset->Area == FName(TEXT("RansomsRest"))
 				&& Asset->Prerequisites == TArray<FName>({ MainTwo }));
-			TestEqual(TEXT("Four steps"), Asset->Steps.Num(), 4);
+			TestEqual(TEXT("Three steps"), Asset->Steps.Num(), 3);
 			const UMissionReachObjective* Road = Cast<UMissionReachObjective>(Asset->GetObjective(0, 0));
 			const UMissionClearObjective* Gate = Cast<UMissionClearObjective>(Asset->GetObjective(1, 0));
 			const UMissionReachObjective* Shop = Cast<UMissionReachObjective>(Asset->GetObjective(2, 0));
-			const UMissionTalkObjective* Talk = Cast<UMissionTalkObjective>(Asset->GetObjective(3, 0));
 			TestTrue(TEXT("1: the farm road into town, to the gate"), Road && Road->Place.Actor.ActorTag == GatePlace);
 			TestTrue(TEXT("2: the Unpaid at the gate fought off, all four"), Gate && Gate->SpawnerId == GateId && Gate->Count == 4);
 			TestTrue(TEXT("3: Bright & Daughter found (Tilly's window)"), Shop && Shop->Place.Actor.ActorTag == TillyTag);
-			TestTrue(TEXT("4: Tilly talked to at the window"), Talk && Talk->SpeakerTag == TillyTag);
-			TestEqual(TEXT("Its reward: 30% of a level"), Asset->Rewards.ExperienceShare, 0.3f);
+			TestTrue(TEXT("Turned in to Tilly at the window"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == TillyTag);
+			TestEqual(TEXT("Its reward: 30 experience"), Asset->Rewards.Experience, 30);
 			TestTrue(TEXT("...and a gun, Uncommon or better"), Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Uncommon);
 			TestTrue(TEXT("...said so on the Missions page"), MissionRewards::Describe(Asset->Rewards).Contains(TEXT("Gun: Uncommon or better")));
 		}
@@ -291,10 +295,11 @@ bool FColdWelcomeMissionTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...and the step stays"), Runner->GetStep(MainThree), 2);
 	Player->SetActorLocation(FVector(0.0, 5400.0, 0.0));
 	Runner->Update(0.2f);
-	TestEqual(TEXT("At Bright & Daughter: talk to Tilly"), Runner->GetStep(MainThree), 3);
+	TestEqual(TEXT("At Bright & Daughter: talk to Tilly (its step past the last)"), Runner->GetStep(MainThree), 3);
+	TestTrue(TEXT("...ready to turn in to her"), Runner->IsReadyToTurnIn(MainThree) && !Campaign.HasCompleted(MainThree));
 	Captions->Update(30.f);
 	TestTrue(TEXT("Tilly talked to"), Tilly->SpeakerPoint->Talk(Player));
-	TestTrue(TEXT("Main 3 is finished"), Campaign.HasCompleted(MainThree) && !Runner->IsRunning(MainThree));
+	TestTrue(TEXT("Main 3 is turned in: finished"), Campaign.HasCompleted(MainThree) && !Runner->IsRunning(MainThree));
 	// Her lines one by one, as they come on screen.
 	bool bCollar = false;
 	for (int32 Line = 0; Line < 12 && !bCollar && Captions->GetCurrent(); ++Line)

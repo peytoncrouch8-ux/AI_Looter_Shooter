@@ -51,7 +51,10 @@ namespace
 		return FStoryLine::Make(FText::FromString(Speaker), FText::FromString(Words), Seconds);
 	}
 
-	/** Main 1 as the mission script makes it (Tools/Unreal/create_mission_assets.py), in code: five steps and 30% of a level. */
+	/**
+	 * Main 1 as the mission script makes it (Tools/Unreal/create_mission_assets.py), in code: four steps, turned in at
+	 * Delia's door (the talk that was its fifth step), 20 experience.
+	 */
 	UMissionDefinition* MakeSevenDays(UObject* Outer, const TCHAR* Id, FName Area)
 	{
 		UMissionDefinition* Mission = MissionTestWorld::NewMission(Outer, Id, EMissionKind::Main, EMissionStart::Automatic, Area);
@@ -61,8 +64,9 @@ namespace
 		UMissionReachObjective* Farmhouse = MissionTestWorld::AddObjective<UMissionReachObjective>(Mission, 3);
 		Farmhouse->Place.Actor.ActorTag = DeliasDoor;
 		Farmhouse->Place.Radius = 900.f;
-		MissionTestWorld::AddObjective<UMissionTalkObjective>(Mission, 4)->SpeakerTag = DeliasDoor;
-		Mission->Rewards.ExperienceShare = 0.3f;
+		Mission->TurnIn.SpeakerTag = DeliasDoor;
+		Mission->TurnIn.GiverName = FText::FromString(TEXT("Delia"));
+		Mission->Rewards.Experience = 20;
 		return Mission;
 	}
 
@@ -102,7 +106,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSevenDaysMissionTest, "Looter.Story.SevenDays.
 bool FSevenDaysMissionTest::RunTest(const FString& Parameters)
 {
 	// Main 1 as its asset has it, once the mission script has made it: the cold open, the claw-out, Abel's headboard, the
-	// farmhouse, Delia's door; a main mission that starts by itself on Ransom's Rest, worth 30% of a level.
+	// farmhouse; turned in at Delia's door (her talk, which was its fifth step); a main mission that starts by itself on
+	// Ransom's Rest, worth 20 experience.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main1")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main1.DA_Mission_Main1"));
@@ -111,25 +116,23 @@ bool FSevenDaysMissionTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("Main1, a main mission starting by itself on Ransom's Rest, after nothing"), Asset->GetMissionId() == MainOne
 				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Automatic && Asset->Area == FName(TEXT("RansomsRest"))
 				&& Asset->Prerequisites.IsEmpty());
-			TestEqual(TEXT("Five steps"), Asset->Steps.Num(), 5);
+			TestEqual(TEXT("Four steps"), Asset->Steps.Num(), 4);
 			const UMissionSceneObjective* Opening = Cast<UMissionSceneObjective>(Asset->GetObjective(0, 0));
 			const UMissionSceneObjective* Claw = Cast<UMissionSceneObjective>(Asset->GetObjective(1, 0));
 			const UMissionInteractObjective* Read = Cast<UMissionInteractObjective>(Asset->GetObjective(2, 0));
 			const UMissionReachObjective* Go = Cast<UMissionReachObjective>(Asset->GetObjective(3, 0));
-			const UMissionTalkObjective* Talk = Cast<UMissionTalkObjective>(Asset->GetObjective(4, 0));
 			TestTrue(TEXT("1: the cold open"), Opening && Opening->Scene == ColdOpen::SceneName());
 			TestTrue(TEXT("2: the claw-out"), Claw && Claw->Scene == GraveWake::SceneName());
 			TestTrue(TEXT("3: read Abel's headboard"), Read && Read->Target.ActorTag == AbelsHeadboard);
 			TestTrue(TEXT("4: go up to the farmhouse (Delia's door)"), Go && Go->Place.Actor.ActorTag == DeliasDoor && Go->Place.Radius >= 300.f);
-			TestTrue(TEXT("5: talk to Delia"), Talk && Talk->SpeakerTag == DeliasDoor);
-			TestEqual(TEXT("Its reward: 30% of a level"), Asset->Rewards.ExperienceShare, 0.3f);
+			TestTrue(TEXT("Turned in to Delia at her door"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == DeliasDoor);
+			TestEqual(TEXT("Its reward: 20 experience"), Asset->Rewards.Experience, 20);
 		}
 	}
 	else
 	{
 		AddWarning(TEXT("DA_Mission_Main1 isn't made yet: run Tools/Unreal/create_mission_assets.py. The flow below runs on a copy."));
 	}
-	TestEqual(TEXT("At level 1 that's 30 experience"), MissionRewards::ExperienceFor(0.3f, 1, FXPCurve()), static_cast<int64>(30));
 
 	// Played through in a test level: the scenes, the headboard read with the Interact key, the walk up to the farmhouse,
 	// the talk at the door; then the family plot's grave is open.
@@ -184,11 +187,13 @@ bool FSevenDaysMissionTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Far from the door, still on the way"), Runner->GetStep(TEXT("TestMain1")), 3);
 	Player->SetActorLocation(FVector(0.0, 2400.0, 0.0));
 	Runner->Update(0.2f);
-	TestEqual(TEXT("At the farmhouse: on to Delia"), Runner->GetStep(TEXT("TestMain1")), 4);
+	TestEqual(TEXT("At the farmhouse: on to Delia (its step past the last)"), Runner->GetStep(TEXT("TestMain1")), 4);
+	TestTrue(TEXT("...ready to turn in to her, not finished"), Runner->IsReadyToTurnIn(TEXT("TestMain1")) && !Campaign.HasCompleted(TEXT("TestMain1")));
+	TestFalse(TEXT("...the family plot still closed"), Grave->IsActive(Campaign));
 
 	Captions->Update(10.f);
 	TestTrue(TEXT("Talked to at her door"), Door->SpeakerPoint->Talk(Player));
-	TestTrue(TEXT("Main 1 is finished"), Campaign.HasCompleted(TEXT("TestMain1")));
+	TestTrue(TEXT("Main 1 is turned in: finished"), Campaign.HasCompleted(TEXT("TestMain1")));
 	TestTrue(TEXT("...and the family plot is a respawn grave"), Grave->IsActive(Campaign) && Campaign.IsRespawnActive(TEXT("FamilyPlot")));
 	return true;
 }

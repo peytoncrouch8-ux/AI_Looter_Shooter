@@ -178,6 +178,9 @@ AAbelKeeper::AAbelKeeper()
 	Boss->bStartWhenHurt = false;
 	Boss->MaxAliveAdds = 10;
 	Boss->SealRadius = 0.f;
+	Boss->Show = AbelRules::MakeShow();
+	Boss->Stagger = AbelRules::MakeStagger();
+	Boss->LootShower = AbelRules::MakeLootShower();
 	Buckshot = AbelRules::Buckshot();
 
 	// Main 6: there all through it; his fight once the lantern hangs; the ending at its last step.
@@ -208,6 +211,8 @@ void AAbelKeeper::BeginPlay()
 	Boss->OnFightWon.AddUObject(this, &AAbelKeeper::HandleFightWon);
 	Boss->OnPhaseChanged.AddUObject(this, &AAbelKeeper::HandlePhaseChanged);
 	Boss->OnCustomEvent.AddUObject(this, &AAbelKeeper::HandleCustomEvent);
+	Boss->OnStaggered.AddUObject(this, &AAbelKeeper::HandleStaggered);
+	Boss->CanStagger.BindUObject(this, &AAbelKeeper::CanBeStaggered);
 
 	if (!bPaceCaptured)
 	{

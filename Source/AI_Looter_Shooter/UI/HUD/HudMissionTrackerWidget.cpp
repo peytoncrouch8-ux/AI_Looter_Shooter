@@ -161,7 +161,8 @@ void UHudMissionTrackerWidget::Refresh()
 				Present(*Tracked);
 				break;
 			case EChange::StepDone:
-				// The step is done (several at once, when the next ones were done already): tick it, then the next.
+				// The step is done (several at once, when the next ones were done already): tick it, then the next (the
+				// turn-in, after the last).
 				BeginFinish(/*bStepDone*/ true);
 				break;
 			case EChange::ObjectiveDone:
@@ -174,11 +175,11 @@ void UHudMissionTrackerWidget::Refresh()
 			}
 			return;
 		}
-		// The mission shown is over (gone from the list): its last objective ticks before whatever comes next. One the
-		// player stopped tracking just makes way.
+		// The mission shown is over (gone from the list: turned in, or done): its last line ticks before whatever comes
+		// next. One the player stopped tracking just makes way.
 		if (!Subsystem || !Subsystem->FindMission(ShownMission))
 		{
-			BeginFinish(/*bStepDone*/ true);
+			BeginFinish(/*bStepDone*/ true, /*bMissionEnded*/ true);
 			return;
 		}
 	}
@@ -246,7 +247,7 @@ void UHudMissionTrackerWidget::UpdateInPlace(const FMission& Mission)
 	}
 }
 
-void UHudMissionTrackerWidget::BeginFinish(bool bStepDone)
+void UHudMissionTrackerWidget::BeginFinish(bool bStepDone, bool bMissionEnded)
 {
 	Phase = EPhase::Finishing;
 	HoldLeft = DoneHoldSeconds;
@@ -267,7 +268,7 @@ void UHudMissionTrackerWidget::BeginFinish(bool bStepDone)
 	{
 		PaintSteps(Shown.Step + 1, INDEX_NONE, Shown.StepCount, Shown.Step + 1);
 	}
-	PlayFinishSound(bStepDone);
+	PlayFinishSound(bStepDone, bMissionEnded);
 }
 
 void UHudMissionTrackerWidget::ShowClosing()
@@ -318,7 +319,7 @@ void UHudMissionTrackerWidget::ShowClosingLine(const FText& Title, int32 StepCou
 		// Its mission's last objective, still on show (the runner's news comes on the next tick): it ticks first.
 		if (ShownTitle.EqualTo(Title))
 		{
-			BeginFinish(/*bStepDone*/ true);
+			BeginFinish(/*bStepDone*/ true, /*bMissionEnded*/ true);
 			return;
 		}
 		ShowClosing();

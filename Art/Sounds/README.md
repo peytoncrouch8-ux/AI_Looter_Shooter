@@ -6,9 +6,13 @@ a WAV by hand.
 
 ```
 Art/Sounds/lib/          the synthesis library (see lib/__init__.py for what each module holds)
-Art/Sounds/recipes/      one recipe per cue, by group: guns, impacts, feedback, ui, loot (and the bench), player,
-                         creatures, world; kit.py holds the shared building blocks (clicks, clacks, whooshes, cloth,
-                         scrapes, creaks, bubbles, chimes, plucked strings...)
+Art/Sounds/recipes/      one recipe per cue, by group: guns, impacts, feedback, ui, loot (and the bench, the
+                         soul-motes), player (and the melee strike, the mantle and vault), creatures (and the rank
+                         sting, the ambushes' entrances), world, fauna (the ambient birds, insects, tumbleweeds, dust
+                         devils, washing), bosses (the boss fights' stings and voices), ambience (beds by area and
+                         light, sweeteners) and music (the score: themes, combat and boss layers, stingers); kit.py
+                         holds the shared building blocks (clicks, clacks, whooshes, cloth, scrapes, creaks, bubbles,
+                         chimes, plucked strings...) and band.py the score's instruments and mixer
 Art/Sounds/render.py     renders, mixes and checks (run by Tools/sounds.ps1)
 Art/Sounds/check.py      the check: numbers, flags, pictures and the listening page
 Art/Sounds/cues.json     every cue's files and mix, read by Tools/Unreal/build_sound_bank.py
@@ -72,6 +76,14 @@ presence 2-5 kHz, high, air).
 
 ## How the sounds are built
 
+- **The score** (2026-10-08): original weird-west music in 6/8 at 75 in D, so the themes, the combat layer and the boss
+  pieces line up on a 1.6 s bar and the director (`Audio/MusicDirectorSubsystem`) crossfades on bar lines: plucked
+  strings in drop D, a reed calling between phrases, a far bell, cello and ghost strings for the themes; galloping toms,
+  a bass ostinato and climbing tremolo strings for combat. Kept about 10 dB under creature cries.
+- **Ambience**: two loops per area and light (19 s and 13 s, played together, so nothing audibly repeats for minutes)
+  and one-shot sweeteners placed round the listener; places that sound (creeks, ponds, falls, the windmill, the Rim's
+  wind, the Sink) are 3D emitters placed by `Tools/Unreal/build_area_sound.py`.
+
 - **Guns** (heavy and punchy, the user's pick; round 2 made them less synthetic, after Borderlands' big, punchy guns,
   2026-10-08): modelled the way a real shot reaches a close microphone, not built from drum-machine parts. A
   Friedlander pressure pulse (a near-instant rise, a positive phase of 1.3 ms for the rifle and 2.6 ms for the shotgun,
@@ -88,6 +100,16 @@ presence 2-5 kHz, high, air).
 - **Creatures** sound like what they are: a spider's shell cracks when hit and it clicks, rasps and hisses (no voice);
   a slime is all jelly (slaps, squelches, wobble, bubbles; no voice); the Unpaid are ghostly voices, and a bullet
   through one is a hollow thump and a puff of grave dust. Each kind has its own hit (`Creature.<Kind>.Hit`).
+- **The melee strike** (2026-10-09) layers: `Player.Melee.Hit` is the blow's weight alone (a dull knock and a shove
+  of air, driven into one punch), and on a creature one layer says what gave (`HitFlesh` a meaty slap, `HitShell` the
+  spiders' chitin cracking, `HitGel` the slimes' springy squelch, built from the creatures' own materials); on the
+  world the bullet's impact is the layer. The swing is a 2D rush of air crossing right to left, quiet as it starts.
+- **Fauna** (2026-10-09, `recipes/fauna.py`): birds are syrinx notes, not voices: a near-pure tone on a curved pitch
+  contour (chevrons, slurs, warbles, rolled 'rup's), weak harmonics, a breath of noise on the note, membrane flutter,
+  louder where the pitch is highest; a sparrow take is two or three birds at their own pitches and distances trading
+  notes, a swallow's twitter swoops past with its Doppler. The crow's caw is a formant voice (beaky tract, rough,
+  rasped, overdriven). Wings are pushes of air (a whump and a feather rustle per downstroke; a crow's few, a sparrow's
+  a twenty-a-second whirr). The flies loop keeps a whole number of wingbeats per fly, so it loops without a seam.
 - **Struck things** are modal: a set of decaying sines whose frequencies follow the object's physics (free bars,
   plates, wood, shells, cast bells), struck by a force pulse as long as the contact (hard steel ~0.1 ms, a heel
   several ms).

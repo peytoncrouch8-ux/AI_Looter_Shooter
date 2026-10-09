@@ -12,6 +12,28 @@ UEncounterSettings::UEncounterSettings()
 	Unpaid.CreatureClass = TSoftClassPtr<ACreatureBase>(FSoftObjectPath(TEXT("/Script/AI_Looter_Shooter.UnpaidCreature")));
 	Unpaid.MaxAlive = 12;
 	ClassCaps.Add(Unpaid);
+
+	// The kinds that may break off when hurt and alone: the animals. By path, as the Unpaid's cap is.
+	RetreatKinds.Add(TSoftClassPtr<ACreatureBase>(FSoftObjectPath(TEXT("/Script/AI_Looter_Shooter.SpiderCreature"))));
+	RetreatKinds.Add(TSoftClassPtr<ACreatureBase>(FSoftObjectPath(TEXT("/Script/AI_Looter_Shooter.SlimeCreature"))));
+}
+
+bool UEncounterSettings::MayRetreat(const UClass* Class) const
+{
+	if (!Class)
+	{
+		return false;
+	}
+	for (const TSoftClassPtr<ACreatureBase>& Kind : RetreatKinds)
+	{
+		// A native class is found by its path without loading anything.
+		const UClass* Allowed = Kind.Get();
+		if (Allowed && Class->IsChildOf(Allowed))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 const UEncounterSettings& UEncounterSettings::Get()

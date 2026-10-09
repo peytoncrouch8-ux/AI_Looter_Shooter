@@ -231,6 +231,12 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		AddRow(MakeToggleRow(TEXT("FPS counter"), TEXT("On"), TEXT("Off"), ActionFrameRateOn, ActionFrameRateOff, 0, false, RateOn, RateOff), 4.f);
 		FrameRateOn = RateOn;
 		FrameRateOff = RateOff;
+		// A key and what it does, near the mission tracker, until the player has used that control.
+		ULooterButton* ShowHints = nullptr;
+		ULooterButton* HideHints = nullptr;
+		AddRow(MakeToggleRow(TEXT("Control hints"), TEXT("On"), TEXT("Off"), ActionHintsOn, ActionHintsOff, 0, false, ShowHints, HideHints), 4.f);
+		HintsOn = ShowHints;
+		HintsOff = HideHints;
 
 		AddRow(MakeSection(WidgetTree, TEXT("Controls")), 18.f);
 		// Mouse and stick alike; a zoomed sight still slows the turn by its zoom on top of it.
@@ -242,6 +248,15 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		LookSensitivityValue = LookValueText;
 		LookSensitivitySlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleLookSensitivityChanged);
 		LookSensitivitySlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleLookSensitivityReleased);
+		// Every kick and shake of the view (shots, hits, kills, a boss's slam); 0% keeps it still.
+		USlider* ShakeSlider = nullptr;
+		UTextBlock* ShakeValueText = nullptr;
+		AddRow(MakeSliderRow(TEXT("Camera shake"), UControlSettingsSubsystem::MinCameraShake, UControlSettingsSubsystem::MaxCameraShake,
+			ShakeSlider, ShakeValueText, UControlSettingsSubsystem::CameraShakeStep), 4.f);
+		CameraShakeSlider = ShakeSlider;
+		CameraShakeValue = ShakeValueText;
+		CameraShakeSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleCameraShakeChanged);
+		CameraShakeSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleCameraShakeReleased);
 		UTextBlock* Hint = MakeText(WidgetTree, TEXT("Click a key to change it, then press the new key or mouse button. Esc cancels."), 11, Color::TextDim());
 		Hint->SetAutoWrapText(true);
 		AddRow(Hint, 8.f);
@@ -315,6 +330,12 @@ void USettingsMenuWidget::RefreshGraphics()
 		FrameRateOn->SetHighlighted(bFrameRate);
 		FrameRateOff->SetHighlighted(!bFrameRate);
 	}
+	if (HintsOn && HintsOff)
+	{
+		const bool bHints = Graphics->AreControlHintsShown();
+		HintsOn->SetHighlighted(bHints);
+		HintsOff->SetHighlighted(!bHints);
+	}
 	for (int32 Index = 0; Index < QualityButtons.Num(); ++Index)
 	{
 		QualityButtons[Index]->SetHighlighted(static_cast<int32>(Graphics->GetQuality()) == Index);
@@ -354,6 +375,12 @@ void USettingsMenuWidget::RefreshControlSettings()
 		const float Sensitivity = Controls->GetLookSensitivity();
 		LookSensitivitySlider->SetValue(Sensitivity);
 		LookSensitivityValue->SetText(FText::FromString(LookSensitivityText(Sensitivity)));
+	}
+	if (Controls && CameraShakeSlider && CameraShakeValue)
+	{
+		const float Shake = Controls->GetCameraShake();
+		CameraShakeSlider->SetValue(Shake);
+		CameraShakeValue->SetText(FText::FromString(PercentText(Shake)));
 	}
 }
 

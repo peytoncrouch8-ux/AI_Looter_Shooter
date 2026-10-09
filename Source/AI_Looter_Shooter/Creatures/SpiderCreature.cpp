@@ -22,28 +22,6 @@ namespace
 		constexpr int32 FirstLeg = 4;
 	}
 
-	/**
-	 * Two-bone IK: places the knee so both segments keep their length, bending toward Pole.
-	 * Unreachable targets are clamped along the hip-to-target line.
-	 */
-	void SolveTwoBone(const FVector& Hip, const FVector& Target, float Upper, float Lower, const FVector& Pole, FVector& OutKnee, FVector& OutFoot)
-	{
-		const FVector ToTarget = Target - Hip;
-		float Distance = ToTarget.Size();
-		const FVector Direction = Distance > KINDA_SMALL_NUMBER ? ToTarget / Distance : FVector::DownVector;
-		Distance = FMath::Clamp(Distance, FMath::Abs(Upper - Lower) + 1.f, (Upper + Lower) * 0.999f);
-		OutFoot = Hip + Direction * Distance;
-
-		const float Along = (Upper * Upper - Lower * Lower + Distance * Distance) / (2.f * Distance);
-		const float Height = FMath::Sqrt(FMath::Max(Upper * Upper - Along * Along, 0.f));
-		FVector Bend = Pole - Direction * FVector::DotProduct(Pole, Direction);
-		if (!Bend.Normalize())
-		{
-			Bend = FVector::UpVector;
-		}
-		OutKnee = Hip + Direction * Along + Bend * Height;
-	}
-
 	// The gait at full size. A spider of another size takes the same gait scaled in space and in time (multiply both by its
 	// size): at the same speed, a big one strides long and slow, a small one scurries.
 
@@ -58,6 +36,25 @@ namespace
 	{
 		return FMath::Clamp(0.26f - Speed * 0.00018f, 0.12f, 0.26f);
 	}
+
+	/** A trailing foot this far into its leg's reach steps with its group's next turn, and this far at once (past full reach it slides). */
+	constexpr float OverreachShare = 0.92f;
+	constexpr float SevereOverreachShare = 0.98f;
+
+	/**
+	 * A hit's jolt: its kick holds HurtKickHold seconds, then fades at HurtKickFade, and the body follows on a critically
+	 * damped spring (HurtOmega, steps of SpringStep): one hit peaks about 90 ms on at 0.84 of its kick, under a quarter of it
+	 * in any frame; a kick renewed every frame (the Gravemother sinking as she reels) holds the body at it, as the old
+	 * flinch held it at 0.83 of its own.
+	 */
+	constexpr float HurtOmega = 40.f;
+	constexpr float HurtKickHold = 0.06f;
+	constexpr float HurtKickFade = 10.f;
+	constexpr float HurtKickShare = 0.85f;
+	constexpr float SpringStep = 1.f / 120.f;
+
+	/** How quickly a knee's spread follows its foot (1/s): well inside a step, smooth across the bite's hand-back. */
+	constexpr float KneeSpreadRate = 15.f;
 }
 
 ASpiderCreature::ASpiderCreature()
@@ -143,34 +140,6 @@ void ASpiderCreature::PosePivot(int32 Index, const FPivotBone& Pivot, const FRot
 	SetBone(Index, Pivot.BoneInPivot, FTransform(Rotation, Pivot.Pivot, Scale) * BodyFrame);
 }
 
-FVector ASpiderCreature::GroundUnder(const FVector& Point) const
-{
-	// Search only a little above the body: feet find footing on bumps and steps, but never climb walls.
-	const float Scale = GetSizeScale();
-	FVector Ground;
-	if (FindGround(Point, 60.f * Scale, 400.f * Scale, Ground))
-	{
-		return Ground;
-	}
-	const float GroundZ = GetActorLocation().Z - GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-	return FVector(Point.X, Point.Y, GroundZ);
-}
-
-void ASpiderCreature::PlantLegs()
-{
-	const FQuat Yaw = FRotator(0.f, GetActorRotation().Yaw, 0.f).Quaternion();
-	const float Scale = GetSizeScale();
-	for (FLeg& Leg : Legs)
-	{
-		Leg.Foot = GroundUnder(GetActorLocation() + Yaw.RotateVector(Leg.Rest * Scale));
-		Leg.bStepping = false;
-		Leg.bNeedsReset = false;
-		Leg.StepAlpha = 1.f;
-	}
-	SteppingGroup = INDEX_NONE;
-	bBodyInitialized = false;
-}
-
 void ASpiderCreature::AnimateBody(float DeltaSeconds)
 {
 	ComponentToWorld = GetMesh()->GetComponentTransform();
@@ -196,6 +165,13 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 	float TargetRoll = FMath::RadiansToDegrees(FMath::Atan2((Left - Right) / Half, 220.f * Scale));
 	float Lunge = 0.f;
 	float TargetFang = 3.f + FMath::Max(0.f, FMath::Sin(AnimTime * 3.1f)) * 4.f;
+	// The ground's tilt as its feet give it, kept for its death: dead, its feet fold in with the body and say nothing of the
+	// ground (and a raised front pair would tip the body back).
+	if (CurrentState != ECreatureState::Dead && CurrentState != ECreatureState::Attack)
+	{
+		GroundPitch = TargetPitch;
+		GroundRoll = TargetRoll;
+	}
 
 	if (CurrentState == ECreatureState::Attack)
 	{
@@ -210,12 +186,12 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 	}
 	else if (CurrentState == ECreatureState::Dead)
 	{
-		// Collapse, then sink out of sight after the corpse time (a big body sinks as much faster as it is bigger, so it's
-		// gone by the time it's hidden).
-		const float Collapse = FMath::Clamp(Time / 0.6f, 0.f, 1.f);
-		TargetZ = FMath::Lerp(TargetZ, GroundZ + 20.f * Scale, Collapse);
-		TargetPitch = FMath::Lerp(TargetPitch, -5.f, Collapse);
-		TargetRoll += 10.f * Collapse;
+		// Collapse onto its folding legs, then sink out of sight after the corpse time (a big body sinks as much faster as it
+		// is bigger, so it's gone by the time it's hidden). It keeps the ground's slope, slumped a little nose down and over.
+		const float Collapse = FMath::Clamp(Time / CurlSeconds, 0.f, 1.f);
+		TargetZ = FMath::Lerp(TargetZ, GroundZ + DeadRide * Scale, Collapse);
+		TargetPitch = GroundPitch - 5.f * Collapse;
+		TargetRoll = GroundRoll + 10.f * Collapse;
 		TargetFang = 25.f;
 		if (Time > CorpseTime)
 		{
@@ -239,7 +215,20 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 	BodyPitch = FMath::FInterpTo(BodyPitch, TargetPitch, DeltaSeconds, 8.f);
 	BodyRoll = FMath::FInterpTo(BodyRoll, TargetRoll, DeltaSeconds, 8.f);
 	FangOpen = FMath::FInterpTo(FangOpen, TargetFang, DeltaSeconds, 14.f);
-	HurtOffset = FMath::VInterpTo(HurtOffset, FVector::ZeroVector, DeltaSeconds, 10.f);
+	// The hit's jolt follows its fading kick on a stiff spring: no one-frame jump.
+	const float SpringSeconds = FMath::Min(DeltaSeconds, 0.5f);
+	if (SpringSeconds > 0.f)
+	{
+		const int32 Steps = FMath::Max(1, FMath::CeilToInt32(SpringSeconds / SpringStep - 0.01f));
+		const float Step = SpringSeconds / Steps;
+		for (int32 Index = 0; Index < Steps; ++Index)
+		{
+			HurtHold -= Step;
+			HurtKick -= HurtHold > 0.f ? FVector::ZeroVector : HurtKick * FMath::Min(HurtKickFade * Step, 1.f);
+			HurtVelocity += (HurtOmega * HurtOmega * (HurtKick - HurtOffset) - 2.f * HurtOmega * HurtVelocity) * Step;
+			HurtOffset += HurtVelocity * Step;
+		}
+	}
 	AbdomenKick = FMath::FInterpTo(AbdomenKick, 0.f, DeltaSeconds, 8.f);
 
 	const FQuat Yaw = FRotator(0.f, GetActorRotation().Yaw, 0.f).Quaternion();
@@ -318,6 +307,26 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 			continue;
 		}
 		const bool bSettle = Speed < 10.f && Offset > 12.f * Scale && AnimTime - Leg.LastStepTime > 0.6f;
+		// A foot left trailing near the end of its leg's reach (its group waited on the other's step while the body ran on)
+		// steps with its group's next turn, and at the very end steps at once: past full reach the IK would pull it off its
+		// spot, sliding.
+		const FVector Hip = Body.TransformPosition(Leg.Hip);
+		const float Reach = (Leg.FemurLength + Leg.TibiaLength) * Scale;
+		const float Stretch = static_cast<float>(FVector::Dist(Hip, Leg.Foot));
+		const bool bTrailing = FVector::DotProduct(Leg.Foot - Hip, Velocity) < 0.0;
+		// Standing, a foot the body has pulled toward the end of its reach (rearing for a bite, settling on a slope) steps
+		// back under it the same way: no velocity says it trails, and it would only slide. One on its spot already stays.
+		const bool bPulled = bTrailing || (Speed < 10.f && Offset > 8.f * Scale);
+		if (bPulled && Stretch > SevereOverreachShare * Reach)
+		{
+			Leg.StepFrom = Leg.Foot;
+			Leg.StepTo = GroundUnder(Rest);
+			Leg.StepAlpha = 0.f;
+			Leg.bStepping = true;
+			Leg.bNeedsReset = false;
+			continue;
+		}
+		Leg.bNeedsReset |= bPulled && Stretch > OverreachShare * Reach;
 		bGroupWants[Leg.Group] |= Offset > StepThreshold || bSettle || Leg.bNeedsReset;
 	}
 
@@ -335,7 +344,8 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 		for (int32 Index = 0; Index < Legs.Num(); ++Index)
 		{
 			FLeg& Leg = Legs[Index];
-			if (Leg.Group == SteppingGroup && !IsHeld(Leg) && (Leg.bNeedsReset || FVector::Dist2D(Leg.Foot, RestSpots[Index]) > 8.f * Scale))
+			if (Leg.Group == SteppingGroup && !IsHeld(Leg) && !Leg.bStepping
+				&& (Leg.bNeedsReset || FVector::Dist2D(Leg.Foot, RestSpots[Index]) > 8.f * Scale))
 			{
 				Leg.StepFrom = Leg.Foot;
 				Leg.StepTo = GroundUnder(RestSpots[Index]);
@@ -352,29 +362,42 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 		const FVector Hip = Body.TransformPosition(Leg.Hip);
 		const FVector Outward = (Hip - BodyCenter).GetSafeNormal2D();
 		FVector Pole = KneePole(Up, Outward); // high, arched knees
+		FVector Knee;
+		FVector Foot;
 
 		if (CurrentState == ECreatureState::Dead)
 		{
-			// Legs curl in under the body with the knees folded high.
-			const FVector Curled = Body.TransformPosition(FVector(Leg.Hip.X * 0.6f + 10.f, Leg.Hip.Y * 1.6f, -8.f));
-			Leg.Foot = FMath::VInterpTo(Leg.Foot, Curled, DeltaSeconds, 6.f);
+			// The legs fold in from where they were, knees up and out, tips under the body (SpiderCreatureLegs.cpp).
+			CurlDeadLeg(Leg, Time, Knee, Foot, Pole);
+			Leg.Foot = Foot;
 			Leg.bStepping = false;
-			Pole = Up * 1.5f + Outward * 0.2f;
 		}
-		else if (CurrentState == ECreatureState::Attack && Leg.Pair == 0)
+		else
 		{
-			// Front legs rise with the body, then slam down ahead of it on the strike. (The body's frame carries the size.)
-			const float Strike = FMath::Clamp((Time - AttackWindup) / (AttackRecovery * 0.5f), 0.f, 1.f);
-			const FVector Raised = Body.TransformPosition(FVector(Leg.Hip.X + 80.f, Leg.Hip.Y * 1.5f, 50.f));
-			const FVector Slam = GroundUnder(ActorLocation + Yaw.RotateVector(FVector(150.f, Leg.Side * 50.f, 0.f) * Scale));
-			Leg.Foot = DeltaSeconds > 0.f ? FMath::VInterpTo(Leg.Foot, FMath::Lerp(Raised, Slam, Strike), DeltaSeconds, 16.f) : Leg.Foot;
-			Leg.bStepping = false;
-			Leg.bNeedsReset = true;
+			if (CurrentState == ECreatureState::Attack && Leg.Pair == 0)
+			{
+				// Front legs rise with the body, then slam down ahead of it on the strike (the body's frame carries the size).
+				// A spring carries them, so they lift off from rest instead of leaping up at full speed, and the slam's
+				// stiffer spring keeps it quick.
+				const float Strike = FMath::Clamp((Time - AttackWindup) / (AttackRecovery * 0.5f), 0.f, 1.f);
+				const FVector Raised = Body.TransformPosition(FVector(Leg.Hip.X + 80.f, Leg.Hip.Y * 1.5f, 50.f));
+				const FVector Slam = GroundUnder(ActorLocation + Yaw.RotateVector(FVector(150.f, Leg.Side * 50.f, 0.f) * Scale));
+				StepHeldFoot(Leg, FMath::Lerp(Raised, Slam, Strike), Strike > 0.f ? 32.f : 14.f, DeltaSeconds);
+				Leg.bStepping = false;
+				Leg.bNeedsReset = true;
+			}
+			else
+			{
+				Leg.HeldVelocity = FVector::ZeroVector;
+			}
+			// A walking knee spreads out as its foot comes in toward the hip; a held one arches as the bite has it. The spread
+			// eases, so a leg the bite hands back to the gait doesn't swing its knee over in a frame.
+			const float WantedSpread = IsHeld(Leg) ? 0.f : WantedKneeSpread(Leg, static_cast<float>(FVector::Dist(Hip, Leg.Foot)) / Scale);
+			Leg.KneeSpread = DeltaSeconds > 0.f ? FMath::FInterpTo(Leg.KneeSpread, WantedSpread, DeltaSeconds, KneeSpreadRate) : WantedSpread;
+			Pole = KneePole(Up, Outward) + Outward * Leg.KneeSpread;
+			SolveTwoBone(Hip, Leg.Foot, Leg.FemurLength * Scale, Leg.TibiaLength * Scale, Pole, Knee, Foot);
 		}
-
-		FVector Knee;
-		FVector Foot;
-		SolveTwoBone(Hip, Leg.Foot, Leg.FemurLength * Scale, Leg.TibiaLength * Scale, Pole, Knee, Foot);
+		Leg.PosedFoot = Foot;
 		SetBone(SpiderBones::FirstLeg + Index * 2, Leg.FemurInSegment, SegmentFrame(Hip, Knee, Pole, Scale));
 		SetBone(SpiderBones::FirstLeg + Index * 2 + 1, Leg.TibiaInSegment, SegmentFrame(Knee, Foot, Pole, Scale));
 	}
@@ -391,8 +414,15 @@ void ASpiderCreature::OnAttackStarted()
 
 void ASpiderCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 {
-	// Flinch away from the hit; headshots rock it harder.
-	HurtOffset = (BodyFrame.GetLocation() - HitLocation).GetSafeNormal() * ((bCritical ? 14.f : 7.f) * GetSizeScale());
+	// Flinch away from the hit; headshots rock it harder. A shotgun's pellets land together: the strongest kick stands, they
+	// don't add up.
+	const float Peak = (bCritical ? 14.f : 7.f) * GetSizeScale();
+	const FVector Kick = (BodyFrame.GetLocation() - HitLocation).GetSafeNormal() * (Peak * HurtKickShare);
+	if (Kick.SizeSquared() >= HurtKick.SizeSquared())
+	{
+		HurtKick = Kick;
+		HurtHold = HurtKickHold;
+	}
 	AbdomenKick = bCritical ? 10.f : 6.f;
 }
 
@@ -403,6 +433,8 @@ void ASpiderCreature::OnDied()
 		Leg.bStepping = false;
 	}
 	SteppingGroup = INDEX_NONE;
+	// The curl starts from where each foot is now.
+	RecordDeathPose();
 }
 
 void ASpiderCreature::OnRespawned()

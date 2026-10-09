@@ -3,6 +3,7 @@
 
 #include "Bosses/AbelKeeper.h"
 #include "AI_Looter_Shooter.h"
+#include "Bosses/BossCameraShake.h"
 #include "Bosses/BossComponent.h"
 #include "Scenes/SceneSubsystem.h"
 #include "Scenes/SitWithPa.h"
@@ -28,6 +29,13 @@ namespace
 
 	/** He turns this fast in his own moments (degrees a second). */
 	constexpr float TurnRate = 160.f;
+
+	/** His entrance: the lantern's light peaks this share of the way in, and the view shakes this hard then. */
+	constexpr float IntroPeakShare = 0.4f;
+	constexpr float IntroShake = 0.4f;
+
+	/** Staggered, his lantern burns low (toward an ember). */
+	constexpr float StaggerLantern = -0.5f;
 }
 
 // ---------------------------------------------------------------------------
@@ -62,6 +70,32 @@ void AAbelKeeper::TickMove(float DeltaSeconds)
 		TryWantedMoments(DeltaSeconds);
 		break;
 
+	case EAbelMove::Intro:
+	{
+		// His lantern raised to the player: its light swells, peaks (the view shakes) and dies back, then he fights.
+		FacePlayer();
+		const float Peak = ShowRules.IntroSeconds * IntroPeakShare;
+		SetLanternFlare(MoveTime < Peak ? MoveTime / Peak : 1.f - FMath::Clamp((MoveTime - Peak) / (ShowRules.IntroSeconds - Peak), 0.f, 1.f));
+		if (MoveTime - DeltaSeconds < Peak && MoveTime >= Peak)
+		{
+			BossCameraShake::Kick(this, GetLanternGlobe(), IntroShake, 0.6f);
+		}
+		if (MoveTime >= ShowRules.IntroSeconds)
+		{
+			EndMove();
+			Rejoin();
+		}
+		// Phase one's moments may start now (they cut the entrance short).
+		TryWantedMoments(DeltaSeconds);
+		break;
+	}
+
+	case EAbelMove::Staggered:
+		// Down on a knee facing the player, his coal open, his light low; his boss ends it (HandleStaggered).
+		FacePlayer();
+		SetLanternFlare(StaggerLantern);
+		break;
+
 	case EAbelMove::Grieve:
 		FaceYaw(SunsetYaw(), DeltaSeconds, TurnRate);
 		if (MoveTime >= GrieveSeconds)
@@ -76,18 +110,40 @@ void AAbelKeeper::TickMove(float DeltaSeconds)
 		SetLanternFlare(FMath::Clamp(MoveTime / FlareSeconds, 0.f, 1.f));
 		if (MoveTime >= FlareSeconds)
 		{
-			ReleaseBuckshot();
+			// In the wind it's a barrage; before it, one shot.
+			const bool bBarrage = bWindBlowing && ShowRules.BarrageShots > 1;
 			BeginMove(EAbelMove::Fire);
+			if (bBarrage)
+			{
+				FireBarrageShot();
+			}
+			else
+			{
+				ReleaseBuckshot();
+			}
 		}
 		break;
 
 	case EAbelMove::Fire:
-		SetLanternFlare(1.f - FMath::Clamp(MoveTime / FireSeconds, 0.f, 1.f));
-		if (MoveTime >= FireSeconds)
+	{
+		// A barrage's next shots, each a gap after the last; the shot's pose held until the last is away.
+		const bool bBarrage = BarrageFired > 0;
+		if (bBarrage)
+		{
+			FacePlayer();
+		}
+		if (bBarrage && BarrageFired < ShowRules.BarrageShots && MoveTime >= BarrageFired * ShowRules.BarrageGap)
+		{
+			FireBarrageShot();
+		}
+		const float Held = bBarrage ? ShowRules.BarrageGap * (ShowRules.BarrageShots - 1) : 0.f;
+		SetLanternFlare(1.f - FMath::Clamp((MoveTime - Held) / FireSeconds, 0.f, 1.f));
+		if (MoveTime >= FireSeconds + Held)
 		{
 			EndMove();
 		}
 		break;
+	}
 
 	case EAbelMove::DriftOut:
 		SetActorLocation(AbelRules::GlideAt(MoveFrom, DragTarget(), MoveTime / DriftSeconds, 60.f * Scale), false, nullptr, ETeleportType::TeleportPhysics);
@@ -103,6 +159,8 @@ void AAbelKeeper::TickMove(float DeltaSeconds)
 		const FVector Goal = DragTarget() + FVector(0.0, 0.0, FogBob * Scale * FMath::Sin(2.f * UE_PI * FogBobHz * MoveTime));
 		SetActorLocation(FMath::VInterpTo(GetActorLocation(), Goal, DeltaSeconds, 2.5f), false, nullptr, ETeleportType::TeleportPhysics);
 		FacePlayer();
+		// A shot from the fog under way: his lantern's flare, then the buckshot.
+		TickFogShot(DeltaSeconds);
 		if (LanternPosts.IsEmpty() && MoveTime >= FogWithoutLanterns)
 		{
 			BeginMove(EAbelMove::DragBack);

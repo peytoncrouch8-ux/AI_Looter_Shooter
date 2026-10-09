@@ -12,6 +12,7 @@ class APawn;
 class AWeaponBase;
 class UAnimInstance;
 class UCameraComponent;
+class UHealthComponent;
 class UPlayerLocomotionComponent;
 class USkeletalMeshComponent;
 class USpringArmComponent;
@@ -42,7 +43,11 @@ enum class EPlayerViewMode : uint8
  *
  * Recoil lives here too: every shot of the gun in hand kicks the aim up (it settles back once you stop, and pulling down
  * against it counts) and kicks the gun on springs. The first-person view model and the third-person arms and chest
- * read the gun's kick from GetKickBack / GetKickRotation.
+ * read the gun's kick from GetKickBack / GetKickRotation. On top, the view itself kicks (ViewKicks, on the camera
+ * through UCameraShakeModifier, never the aim): each shot by its gun, and a jolt away from a hit when the player is hurt.
+ *
+ * PlayerViewComponent.cpp: lifetime, input and modes; PlayerViewAim.cpp: aiming and recoil; PlayerViewCamera.cpp: the
+ * cameras, field of view, held gun and where shots start; PlayerViewKicks.cpp: the view's kicks.
  */
 UCLASS(ClassGroup = (Looter), meta = (BlueprintSpawnableComponent))
 class AI_LOOTER_SHOOTER_API UPlayerViewComponent : public UActorComponent
@@ -173,6 +178,13 @@ private:
 
 	/** Listens to the gun in hand's shots (and stops listening to the last one). */
 	void BindFiringWeapon(AWeaponBase* Weapon);
+	/** The view's kick for a shot of Weapon (ViewKicks::ForShot), on a local player's camera. */
+	void AddShotKick(const AWeaponBase& Weapon);
+	/** Listens to the owner's health for the hurt jolt (or stops). */
+	void BindOwnerHealth(bool bBind);
+
+	UFUNCTION()
+	void HandleOwnerDamaged(float Damage, bool bCritical, FVector HitLocation, AController* InstigatedBy, AActor* DamageCauser);
 	void HandleAimPressed();
 	void HandleAimReleased();
 	/** Raises or lowers the gun toward the sight. */
@@ -219,7 +231,10 @@ private:
 
 	FWeaponRecoil Recoil;
 	FRandomStream RecoilRandom{ 0x2ec011 };
+	/** Which way each shot's view kick rolls. */
+	FRandomStream KickRandom{ 0x6b1c4 };
 	TWeakObjectPtr<AWeaponBase> FiringWeapon;
+	TWeakObjectPtr<UHealthComponent> OwnerHealth;
 	/** The view's pitch right after our own recoil change last tick, to tell the player's mouse movement apart from ours. */
 	float LastViewPitch = 0.f;
 	bool bHaveLastViewPitch = false;
