@@ -69,6 +69,10 @@ CLIFF_INSET = 120.0
 CLIFF_OVERTOP = 20.0
 CLIFF_OVERLAP = 250.0
 CLIFF_COURSE_OVERLAP = 30.0  # a lower course reaches this far up behind the one stacked on it
+# A single-course face squashed under this share of its height is left out: near a ramp's head, where the cut is
+# shallow, the kit's faces came out as flat slabs hanging off the bank (the user, 2026-10-08: "random rocks hanging out
+# of cliff walls"; Skyreach's ramp to the lookout, the Sink's ramp). A bank that low needs no rock face.
+CLIFF_MIN_SHARE = 0.5
 # How far each kit piece's face stands in front of its pivot, on its +X side (Cliffs.py: the front plane, half its
 # depth less 0.9 m, its back flat at half its depth behind; cm). Its columns jut up to 1.2 m in front of that plane or
 # stand up to 0.8 m behind it, about 12 cm in front on average, so one line through a piece meets one column: the
@@ -655,7 +659,7 @@ class AreaBuild:
         self.panelled = importlib.reload(build_area_panels).ready(self, meshes)
         walkways = importlib.reload(build_area_walkways)
         corridors = walkways.ramp_corridors(self.source)
-        placed = left_out = ends_held = 0
+        placed = left_out = ends_held = squashed = 0
         for group, points in self.layout.get('cliffs', {}).items():
             for i, point in enumerate(points):
                 kind = point.get('kind')
@@ -744,6 +748,10 @@ class AreaBuild:
                             back = (width - 1.0) * piece_width * 0.5
                             inward = (inward[0] - ex * back, inward[1] - ey * back)
                             ends_held += 1
+                    if len(courses) == 1 and reach / piece_height < CLIFF_MIN_SHARE:
+                        # After every draw, so the pieces after it keep theirs.
+                        squashed += 1
+                        continue
                     suffix = f'_{k + 1}' if len(courses) > 1 else ''
                     piece = self.place(mesh, (cx + inward[0], cy + inward[1], cz - sink), yaw + turn,
                                        label=f'Cliff_{group}_{i + 1:02d}{suffix}', folder=f'Cliffs/{group}',
@@ -753,6 +761,7 @@ class AreaBuild:
                         piece.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=lean, yaw=yaw + turn), False)
                     placed += 1
         self.log(f'placed {placed} cliff pieces' + (f' ({left_out} left out for gaps)' if left_out else '')
+                 + (f'; {squashed} too low for a face left out' if squashed else '')
                  + (f'; {ends_held} run ends kept off a ramp\'s walkway' if ends_held else ''))
 
     def panel_cliffs(self, meshes):
