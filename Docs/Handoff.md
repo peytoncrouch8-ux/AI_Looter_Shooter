@@ -28,12 +28,23 @@ Don't ask the user questions while they sleep (until 5 AM EST): make the calls a
 - [ ] The tutorial feels rushed and unnecessary.
 - [ ] Boss fights lack excitement (the Gravemother, Abel).
 - [ ] Creature and character models clip or animate weirdly.
-- [ ] Random rocks hang out of cliff walls.
+- [x] Random rocks hang out of cliff walls: cliff faces squashed into slabs near the ramps' heads are left out
+      (11be5fe); a probe of every rock and cliff piece in both levels finds none floating.
 - [ ] Ransom's Rest's intro scene: the map is flat brown terrain (trees alone don't fix it).
 - [ ] The end of Ransom's Rest's story should leave the player at about level 6-7, not 9-10.
 - [ ] No experience for mission steps; missions are turned in, not finished by their last task.
 - [ ] The inventory is confusing and boring, with too much information at once.
-- [ ] And more: whatever makes it feel empty or wonky (ambience, feedback, traversal, encounters...).
+- [ ] And more: whatever makes it feel empty or wonky. The research and its prioritized list:
+      `Docs/Polish/BorderlandsComparison.md` (no ambience or music, no healing, no camera shake or hit-stop, no mantle).
+
+**Wave 1 agents (started 2026-10-08 night; each owns its files, Main builds, checks and commits):**
+missions (turn-ins, no step XP, level 6-7 pacing, a mission-complete banner); bosses (entrances, phases, adds, weak
+spots, loot shower); Ransom's Rest's terrain look (macro mosaic, ridges, distance grass, the ring); the inventory
+(clearer, Borderlands-like card and list, plus `Looter.MenuShots`/`Tools\menushots.ps1`); ambience and music
+(script-made beds, emitters, a music director); feedback (camera kick, hit-stop, stagger, death bursts, loot fanfare,
+damage direction); traversal (mantle, vault, coyote time, jump buffer); creature and character animation and clipping
+(plus `Looter.CastShots`/`Tools\castshots.ps1`). Next after the missions agent: the tutorial rework. Later: the
+recovery loop (out-of-combat regen), encounter pacing, ambient life.
 
 ## Earlier on 2026-10-08 (the local session "Game Enchancements")
 
