@@ -5,9 +5,10 @@
       "Weapon_Rifle_Fire_02.wav",
       "Weapon_Rifle_Fire_03.wav",
       "Weapon_Rifle_Fire_04.wav",
-      "Weapon_Rifle_Fire_05.wav"
+      "Weapon_Rifle_Fire_05.wav",
+      "Weapon_Rifle_Fire_06.wav"
     ],
-    "volume_db": 0.0,
+    "volume_db": -2.0,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Gun",
@@ -23,7 +24,7 @@
       "Weapon_Shotgun_Fire_04.wav",
       "Weapon_Shotgun_Fire_05.wav"
     ],
-    "volume_db": -1.0,
+    "volume_db": -3.0,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Gun",
@@ -37,7 +38,7 @@
       "Weapon_DryFire_02.wav",
       "Weapon_DryFire_03.wav"
     ],
-    "volume_db": -10.0,
+    "volume_db": -8.5,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Near",
@@ -51,7 +52,7 @@
       "Weapon_Misfire_02.wav",
       "Weapon_Misfire_03.wav"
     ],
-    "volume_db": -9.0,
+    "volume_db": -5.5,
     "pitch_jitter": 0.02,
     "class": "Effects",
     "attenuation": "Near",
@@ -65,7 +66,7 @@
       "Weapon_Rifle_MagOut_02.wav",
       "Weapon_Rifle_MagOut_03.wav"
     ],
-    "volume_db": -12.0,
+    "volume_db": -8.5,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Near",
@@ -79,7 +80,7 @@
       "Weapon_Rifle_MagIn_02.wav",
       "Weapon_Rifle_MagIn_03.wav"
     ],
-    "volume_db": -10.0,
+    "volume_db": -8.5,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Near",
@@ -93,7 +94,7 @@
       "Weapon_Rifle_Bolt_02.wav",
       "Weapon_Rifle_Bolt_03.wav"
     ],
-    "volume_db": -11.5,
+    "volume_db": -9.0,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Near",
@@ -108,7 +109,7 @@
       "Weapon_Shotgun_ShellIn_03.wav",
       "Weapon_Shotgun_ShellIn_04.wav"
     ],
-    "volume_db": -10.5,
+    "volume_db": -8.5,
     "pitch_jitter": 0.04,
     "class": "Effects",
     "attenuation": "Near",
@@ -136,7 +137,7 @@
       "Weapon_Equip_02.wav",
       "Weapon_Equip_03.wav"
     ],
-    "volume_db": -17.5,
+    "volume_db": -14.0,
     "pitch_jitter": 0.04,
     "class": "Effects",
     "attenuation": "Near",
@@ -150,7 +151,7 @@
       "Weapon_AimIn_02.wav",
       "Weapon_AimIn_03.wav"
     ],
-    "volume_db": -24.0,
+    "volume_db": -20.5,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Near",
@@ -167,7 +168,7 @@
       "Impact_World_05.wav",
       "Impact_World_06.wav"
     ],
-    "volume_db": -8.0,
+    "volume_db": -5.0,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -184,7 +185,7 @@
       "Impact_Wood_05.wav",
       "Impact_Wood_06.wav"
     ],
-    "volume_db": -4.5,
+    "volume_db": -1.5,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -201,7 +202,7 @@
       "Impact_Metal_05.wav",
       "Impact_Metal_06.wav"
     ],
-    "volume_db": -8.5,
+    "volume_db": -5.5,
     "pitch_jitter": 0.05,
     "class": "Effects",
     "attenuation": "Creature",
@@ -218,7 +219,7 @@
       "Impact_Water_05.wav",
       "Impact_Water_06.wav"
     ],
-    "volume_db": -12.5,
+    "volume_db": -9.0,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -232,22 +233,8 @@
       "UI_HitMarker_02.wav",
       "UI_HitMarker_03.wav"
     ],
-    "volume_db": -9.0,
+    "volume_db": -5.5,
     "pitch_jitter": 0.02,
-    "class": "Interface",
-    "attenuation": "None",
-    "loop": false,
-    "space": "2D",
-    "max_concurrent": 6
-  },
-  "UI.HitMarkerCrit": {
-    "files": [
-      "UI_HitMarkerCrit_01.wav",
-      "UI_HitMarkerCrit_02.wav",
-      "UI_HitMarkerCrit_03.wav"
-    ],
-    "volume_db": -11.0,
-    "pitch_jitter": 0.015,
     "class": "Interface",
     "attenuation": "None",
     "loop": false,
@@ -260,7 +247,7 @@
       "UI_Kill_02.wav",
       "UI_Kill_03.wav"
     ],
-    "volume_db": -15.5,
+    "volume_db": -12.5,
     "pitch_jitter": 0.0,
     "class": "Interface",
     "attenuation": "None",
@@ -272,7 +259,7 @@
     "files": [
       "UI_LevelUp_01.wav"
     ],
-    "volume_db": -15.0,
+    "volume_db": -11.5,
     "pitch_jitter": 0.0,
     "class": "Interface",
     "attenuation": "None",
@@ -285,7 +272,7 @@
       "UI_MissionStep_01.wav",
       "UI_MissionStep_02.wav"
     ],
-    "volume_db": -22.0,
+    "volume_db": -20.0,
     "pitch_jitter": 0.0,
     "class": "Interface",
     "attenuation": "None",
@@ -297,7 +284,7 @@
     "files": [
       "UI_MissionComplete_01.wav"
     ],
-    "volume_db": -18.0,
+    "volume_db": -15.0,
     "pitch_jitter": 0.0,
     "class": "Interface",
     "attenuation": "None",
@@ -309,7 +296,7 @@
     "files": [
       "UI_NotchMilestone_01.wav"
     ],
-    "volume_db": -16.0,
+    "volume_db": -13.0,
     "pitch_jitter": 0.0,
     "class": "Interface",
     "attenuation": "None",
@@ -321,7 +308,7 @@
     "files": [
       "UI_CurseLifted_01.wav"
     ],
-    "volume_db": -20.0,
+    "volume_db": -17.0,
     "pitch_jitter": 0.0,
     "class": "Interface",
     "attenuation": "None",
@@ -335,7 +322,7 @@
       "UI_Click_02.wav",
       "UI_Click_03.wav"
     ],
-    "volume_db": -15.0,
+    "volume_db": -12.0,
     "pitch_jitter": 0.02,
     "class": "Interface",
     "attenuation": "None",
@@ -349,7 +336,7 @@
       "UI_Hover_02.wav",
       "UI_Hover_03.wav"
     ],
-    "volume_db": -21.0,
+    "volume_db": -17.5,
     "pitch_jitter": 0.03,
     "class": "Interface",
     "attenuation": "None",
@@ -362,7 +349,7 @@
       "UI_Back_01.wav",
       "UI_Back_02.wav"
     ],
-    "volume_db": -19.5,
+    "volume_db": -16.5,
     "pitch_jitter": 0.02,
     "class": "Interface",
     "attenuation": "None",
@@ -375,7 +362,7 @@
       "UI_Open_01.wav",
       "UI_Open_02.wav"
     ],
-    "volume_db": -22.5,
+    "volume_db": -19.5,
     "pitch_jitter": 0.02,
     "class": "Interface",
     "attenuation": "None",
@@ -388,7 +375,7 @@
       "UI_Close_01.wav",
       "UI_Close_02.wav"
     ],
-    "volume_db": -19.0,
+    "volume_db": -16.0,
     "pitch_jitter": 0.02,
     "class": "Interface",
     "attenuation": "None",
@@ -402,7 +389,7 @@
       "UI_Tab_02.wav",
       "UI_Tab_03.wav"
     ],
-    "volume_db": -16.0,
+    "volume_db": -12.5,
     "pitch_jitter": 0.03,
     "class": "Interface",
     "attenuation": "None",
@@ -415,7 +402,7 @@
       "UI_Denied_01.wav",
       "UI_Denied_02.wav"
     ],
-    "volume_db": -18.5,
+    "volume_db": -15.0,
     "pitch_jitter": 0.0,
     "class": "Interface",
     "attenuation": "None",
@@ -429,7 +416,7 @@
       "Bench_Scrap_02.wav",
       "Bench_Scrap_03.wav"
     ],
-    "volume_db": -15.0,
+    "volume_db": -12.0,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "None",
@@ -443,7 +430,7 @@
       "Bench_Fit_02.wav",
       "Bench_Fit_03.wav"
     ],
-    "volume_db": -13.5,
+    "volume_db": -10.0,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "None",
@@ -458,7 +445,7 @@
       "Loot_AmmoPickup_03.wav",
       "Loot_AmmoPickup_04.wav"
     ],
-    "volume_db": -18.0,
+    "volume_db": -14.5,
     "pitch_jitter": 0.05,
     "class": "Effects",
     "attenuation": "Near",
@@ -472,7 +459,7 @@
       "Loot_GunPickup_02.wav",
       "Loot_GunPickup_03.wav"
     ],
-    "volume_db": -13.0,
+    "volume_db": -10.0,
     "pitch_jitter": 0.04,
     "class": "Effects",
     "attenuation": "Near",
@@ -487,7 +474,7 @@
       "Loot_Land_03.wav",
       "Loot_Land_04.wav"
     ],
-    "volume_db": -14.0,
+    "volume_db": -11.0,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Near",
@@ -501,7 +488,7 @@
       "Loot_ChestOpen_02.wav",
       "Loot_ChestOpen_03.wav"
     ],
-    "volume_db": -12.0,
+    "volume_db": -8.5,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Near",
@@ -514,7 +501,7 @@
       "Loot_StrongboxWheel_01.wav",
       "Loot_StrongboxWheel_02.wav"
     ],
-    "volume_db": -11.5,
+    "volume_db": -8.0,
     "pitch_jitter": 0.02,
     "class": "Effects",
     "attenuation": "Near",
@@ -533,7 +520,7 @@
       "Player_Footstep_Dirt_07.wav",
       "Player_Footstep_Dirt_08.wav"
     ],
-    "volume_db": -17.5,
+    "volume_db": -14.5,
     "pitch_jitter": 0.05,
     "class": "Effects",
     "attenuation": "Near",
@@ -552,7 +539,7 @@
       "Player_Footstep_Grass_07.wav",
       "Player_Footstep_Grass_08.wav"
     ],
-    "volume_db": -20.0,
+    "volume_db": -17.0,
     "pitch_jitter": 0.05,
     "class": "Effects",
     "attenuation": "Near",
@@ -571,7 +558,7 @@
       "Player_Footstep_Wood_07.wav",
       "Player_Footstep_Wood_08.wav"
     ],
-    "volume_db": -19.5,
+    "volume_db": -16.0,
     "pitch_jitter": 0.05,
     "class": "Effects",
     "attenuation": "Near",
@@ -590,7 +577,7 @@
       "Player_Footstep_Stone_07.wav",
       "Player_Footstep_Stone_08.wav"
     ],
-    "volume_db": -14.0,
+    "volume_db": -11.0,
     "pitch_jitter": 0.05,
     "class": "Effects",
     "attenuation": "Near",
@@ -605,7 +592,7 @@
       "Player_Jump_03.wav",
       "Player_Jump_04.wav"
     ],
-    "volume_db": -20.0,
+    "volume_db": -16.5,
     "pitch_jitter": 0.04,
     "class": "Effects",
     "attenuation": "Near",
@@ -620,7 +607,7 @@
       "Player_Land_03.wav",
       "Player_Land_04.wav"
     ],
-    "volume_db": -12.0,
+    "volume_db": -9.0,
     "pitch_jitter": 0.04,
     "class": "Effects",
     "attenuation": "Near",
@@ -635,7 +622,7 @@
       "Player_Hurt_03.wav",
       "Player_Hurt_04.wav"
     ],
-    "volume_db": -9.5,
+    "volume_db": -6.0,
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "None",
@@ -647,7 +634,7 @@
     "files": [
       "Player_LowHealth_01.wav"
     ],
-    "volume_db": -20.5,
+    "volume_db": -17.0,
     "pitch_jitter": 0.0,
     "class": "Effects",
     "attenuation": "None",
@@ -660,7 +647,7 @@
       "Player_Death_01.wav",
       "Player_Death_02.wav"
     ],
-    "volume_db": -10.5,
+    "volume_db": -7.0,
     "pitch_jitter": 0.0,
     "class": "Effects",
     "attenuation": "None",
@@ -674,7 +661,7 @@
       "Player_Slide_02.wav",
       "Player_Slide_03.wav"
     ],
-    "volume_db": -18.0,
+    "volume_db": -14.5,
     "pitch_jitter": 0.04,
     "class": "Effects",
     "attenuation": "Near",
@@ -686,7 +673,7 @@
     "files": [
       "Player_SlideLoop_01.wav"
     ],
-    "volume_db": -26.0,
+    "volume_db": -23.0,
     "pitch_jitter": 0.0,
     "class": "Effects",
     "attenuation": "Near",
@@ -702,7 +689,23 @@
       "Creature_Hit_04.wav",
       "Creature_Hit_05.wav"
     ],
-    "volume_db": -9.5,
+    "volume_db": -6.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Creature.Spider.Hit": {
+    "files": [
+      "Creature_Spider_Hit_01.wav",
+      "Creature_Spider_Hit_02.wav",
+      "Creature_Spider_Hit_03.wav",
+      "Creature_Spider_Hit_04.wav",
+      "Creature_Spider_Hit_05.wav"
+    ],
+    "volume_db": -5.0,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -716,7 +719,7 @@
       "Creature_Spider_Alert_02.wav",
       "Creature_Spider_Alert_03.wav"
     ],
-    "volume_db": -10.0,
+    "volume_db": -6.5,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -731,7 +734,7 @@
       "Creature_Spider_Attack_03.wav",
       "Creature_Spider_Attack_04.wav"
     ],
-    "volume_db": -9.0,
+    "volume_db": -5.5,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -746,7 +749,7 @@
       "Creature_Spider_Hurt_03.wav",
       "Creature_Spider_Hurt_04.wav"
     ],
-    "volume_db": -10.5,
+    "volume_db": -7.5,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -760,13 +763,29 @@
       "Creature_Spider_Death_02.wav",
       "Creature_Spider_Death_03.wav"
     ],
-    "volume_db": -12.0,
+    "volume_db": -9.0,
     "pitch_jitter": 0.05,
     "class": "Effects",
     "attenuation": "Creature",
     "loop": false,
     "space": "3D",
     "max_concurrent": 3
+  },
+  "Creature.Slime.Hit": {
+    "files": [
+      "Creature_Slime_Hit_01.wav",
+      "Creature_Slime_Hit_02.wav",
+      "Creature_Slime_Hit_03.wav",
+      "Creature_Slime_Hit_04.wav",
+      "Creature_Slime_Hit_05.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
   },
   "Creature.Slime.Hop": {
     "files": [
@@ -775,7 +794,7 @@
       "Creature_Slime_Hop_03.wav",
       "Creature_Slime_Hop_04.wav"
     ],
-    "volume_db": -13.0,
+    "volume_db": -10.0,
     "pitch_jitter": 0.08,
     "class": "Effects",
     "attenuation": "Creature",
@@ -789,7 +808,7 @@
       "Creature_Slime_Attack_02.wav",
       "Creature_Slime_Attack_03.wav"
     ],
-    "volume_db": -6.0,
+    "volume_db": -7.0,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -804,7 +823,7 @@
       "Creature_Slime_Hurt_03.wav",
       "Creature_Slime_Hurt_04.wav"
     ],
-    "volume_db": -13.5,
+    "volume_db": -12.5,
     "pitch_jitter": 0.06,
     "class": "Effects",
     "attenuation": "Creature",
@@ -818,7 +837,7 @@
       "Creature_Slime_Death_02.wav",
       "Creature_Slime_Death_03.wav"
     ],
-    "volume_db": -8.5,
+    "volume_db": -9.5,
     "pitch_jitter": 0.05,
     "class": "Effects",
     "attenuation": "Creature",
@@ -826,13 +845,29 @@
     "space": "3D",
     "max_concurrent": 3
   },
+  "Creature.Unpaid.Hit": {
+    "files": [
+      "Creature_Unpaid_Hit_01.wav",
+      "Creature_Unpaid_Hit_02.wav",
+      "Creature_Unpaid_Hit_03.wav",
+      "Creature_Unpaid_Hit_04.wav",
+      "Creature_Unpaid_Hit_05.wav"
+    ],
+    "volume_db": -8.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
   "Creature.Unpaid.Alert": {
     "files": [
       "Creature_Unpaid_Alert_01.wav",
       "Creature_Unpaid_Alert_02.wav",
       "Creature_Unpaid_Alert_03.wav"
     ],
-    "volume_db": -12.5,
+    "volume_db": -9.5,
     "pitch_jitter": 0.04,
     "class": "Effects",
     "attenuation": "Creature",
@@ -846,7 +881,7 @@
       "Creature_Unpaid_Shriek_02.wav",
       "Creature_Unpaid_Shriek_03.wav"
     ],
-    "volume_db": -14.0,
+    "volume_db": -10.5,
     "pitch_jitter": 0.04,
     "class": "Effects",
     "attenuation": "Creature",
@@ -860,7 +895,7 @@
       "Creature_Unpaid_Lunge_02.wav",
       "Creature_Unpaid_Lunge_03.wav"
     ],
-    "volume_db": -17.5,
+    "volume_db": -14.5,
     "pitch_jitter": 0.05,
     "class": "Effects",
     "attenuation": "Creature",
@@ -875,7 +910,7 @@
       "Creature_Unpaid_Hurt_03.wav",
       "Creature_Unpaid_Hurt_04.wav"
     ],
-    "volume_db": -9.0,
+    "volume_db": -6.0,
     "pitch_jitter": 0.05,
     "class": "Effects",
     "attenuation": "Creature",
@@ -889,7 +924,7 @@
       "Creature_Unpaid_Death_02.wav",
       "Creature_Unpaid_Death_03.wav"
     ],
-    "volume_db": -12.5,
+    "volume_db": -9.5,
     "pitch_jitter": 0.04,
     "class": "Effects",
     "attenuation": "Creature",
@@ -902,7 +937,7 @@
       "World_ChapelBell_Toll_01.wav",
       "World_ChapelBell_Toll_02.wav"
     ],
-    "volume_db": -11.0,
+    "volume_db": -7.5,
     "pitch_jitter": 0.0,
     "class": "Ambience",
     "attenuation": "Gun",
@@ -916,7 +951,7 @@
       "World_JettyBell_02.wav",
       "World_JettyBell_03.wav"
     ],
-    "volume_db": -15.5,
+    "volume_db": -12.0,
     "pitch_jitter": 0.01,
     "class": "Ambience",
     "attenuation": "Gun",
@@ -931,7 +966,7 @@
       "World_ShutterSlam_03.wav",
       "World_ShutterSlam_04.wav"
     ],
-    "volume_db": -3.5,
+    "volume_db": 0.0,
     "pitch_jitter": 0.05,
     "class": "Ambience",
     "attenuation": "Creature",

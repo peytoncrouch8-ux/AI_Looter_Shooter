@@ -6,6 +6,7 @@
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
 #include "Audio/LooterSound.h"
+#include "Audio/LooterSoundRules.h"
 #include "Combat/HealthComponent.h"
 #include "Interaction/InteractionComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
@@ -301,7 +302,7 @@ void UPlayerHUDWidget::HandleHit(const FHitResult& Hit, float Damage, bool bCrit
 	// (the creature's voice plays UI.Kill once per death), or a body already down, which confirms nothing more.
 	if (!TargetHealth->IsDead())
 	{
-		LooterSound::Play2D(this, bCritical ? LooterSoundCue::HitMarkerCrit : LooterSoundCue::HitMarker);
+		LooterSound::Play2D(this, LooterSoundCue::HitMarker, 1.f, bCritical ? LooterSoundRules::CritPitch : 1.f);
 	}
 
 	HitMarkerTime = 0.18f;

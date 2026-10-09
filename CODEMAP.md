@@ -602,7 +602,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Audio/PlayerSoundComponent`: `UPlayerSoundComponent`, the player's footsteps by surface and speed, jump, landing (by
   how hard), hurt, death and the low-health heartbeat loop.
 - `Audio/CreatureVoiceComponent`: `UCreatureVoiceComponent`, a creature's cries (alert, wind-up, hurt, death) pitched
-  for its size, each hit's thud, and the player's kill sound.
+  for its size, each bullet's hit in its kind's own sound (a spider's shell, a slime's jelly, a ghost), and the player's
+  kill sound.
 
 ## Settings
 - `Settings/AudioSettingsSubsystem`: saved Master, Effects, Interface and Music volumes (0-100%), handed to the sound

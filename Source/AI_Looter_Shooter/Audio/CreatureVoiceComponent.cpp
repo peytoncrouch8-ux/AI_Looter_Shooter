@@ -21,16 +21,16 @@ UCreatureVoiceComponent::FCries UCreatureVoiceComponent::CriesFor(const ACreatur
 	// Most specific first: subclasses (the Gravemother, Abel) speak with their kind's voice, at their size's pitch.
 	if (Creature.IsA<AUnpaidCreature>())
 	{
-		return { UnpaidAlert, UnpaidShriek, UnpaidHurt, UnpaidDeath };
+		return { UnpaidAlert, UnpaidShriek, UnpaidHurt, UnpaidDeath, UnpaidHit };
 	}
 	if (Creature.IsA<ASlimeCreature>())
 	{
 		// A slime has no cry to hunt with: its hops say it's coming.
-		return { NAME_None, SlimeAttack, SlimeHurt, SlimeDeath };
+		return { NAME_None, SlimeAttack, SlimeHurt, SlimeDeath, SlimeHit };
 	}
 	if (Creature.IsA<ASpiderCreature>())
 	{
-		return { SpiderAlert, SpiderAttack, SpiderHurt, SpiderDeath };
+		return { SpiderAlert, SpiderAttack, SpiderHurt, SpiderDeath, SpiderHit };
 	}
 	return {};
 }
@@ -114,11 +114,12 @@ void UCreatureVoiceComponent::HandleDamaged(float Damage, bool bCritical, FVecto
 		return;
 	}
 	const double Now = World->GetTimeSeconds();
-	// The bullet going in, at the wound: a critical hit a little louder.
+	// The bullet going in, at the wound, sounding like what it hits (a spider's shell, a slime's jelly, a ghost): a
+	// critical hit a little louder.
 	if (Now >= NextHit)
 	{
 		NextHit = Now + HitInterval;
-		LooterSound::PlayAt(this, LooterSoundCue::CreatureHit, HitLocation, bCritical ? 1.f : 0.8f, GetPitch());
+		LooterSound::PlayAt(this, Cries.Hit, HitLocation, bCritical ? 1.f : 0.8f, GetPitch());
 	}
 	// Its own cry now and then, never on the killing blow (the death cry follows at once).
 	const UHealthComponent* Health = Creature->FindComponentByClass<UHealthComponent>();

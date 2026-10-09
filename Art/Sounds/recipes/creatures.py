@@ -1,9 +1,18 @@
-"""Creatures (3D): any body taking a bullet; the brown spiders (mandible chitter, stridulating rasp, hiss, a thin
-squeal); the meadow slimes (wet squelch, gel wobble, bubbles, a gloopy gulp of a voice); the Unpaid (breathy wails
-of several voices at once, a rasping shriek, a rush of cold air, a long sinking death into the dark).
+"""Creatures (3D): each kind sounds like what it is, down to the bullet going in.
 
-Voices are formant synthesis (lib/voice.py): a glottal source shaped by moving vocal-tract resonances, with breath,
-pitch wobble and roughness, so they sound alive rather than electronic.
+- Any body (the fallback for a creature with no kind of its own): a meaty hit.
+- The brown spiders are hard shells on thin legs, with no voice to speak of: chitin cracking under a bullet, mandibles
+  chittering, a stridulating rasp (a ridged file scraped on a pick), hisses of air from the spiracles, legs skittering.
+- The meadow slimes are blobs of living jelly round a core, with no voice and no bone: wet slaps and squelches, gel
+  squishing through itself and wobbling, gloopy bloops as holes in it close, bubbles, sloshes, a splat into a puddle.
+- The Unpaid are ghosts of the unpaid dead: a bullet meets something not quite there (a hollow thump, grave dust and
+  old cloth, a cold ring); their voices are breathy wails of several voices at once, a rasping shriek, a rush of cold
+  air, a long sinking death into the dark.
+
+Each kind's bullet hit is its own cue, played at the wound for every bullet, so it stays short and gentle in the
+ear's sharpest band; bigger and smaller kin play their kind's cues pitched down or up (the Gravemother, spiderlings,
+Abel). The Unpaid's voices are formant synthesis (lib/voice.py): a glottal source shaped by moving vocal-tract
+resonances, with breath, pitch wobble and roughness, so they sound alive rather than electronic.
 """
 import numpy as np
 
@@ -83,13 +92,31 @@ def _skitter(r, count, start, gap):
     return normalize(out)
 
 
-def _squeal(r, f0_points, dur, keys, shift=1.7, rough=0.3):
-    """A thin, pained squeal from something with a tiny throat, buzzing a little like an insect."""
-    n = ns(dur)
-    f0 = O.glide(f0_points, n=n)
-    x = V.voice(f0, keys, r, breath=0.3, jitter=0.04, shimmer=0.15, tilt=2.0, shift=shift, rough=rough)
-    buzz = 1.0 - 0.35 * (0.5 + 0.5 * np.sin(2 * np.pi * 70.0 * times(n)))
-    return normalize(F.filt(x * buzz, F.peak(3400.0, -5.0, 0.8), F.hp(300.0), extend=False))
+def _chitin(r, f0=650.0, t60=0.03, cracks=3):
+    """A plate of chitin cracking: the shell's hard, hollow knock (a few quick modes, like lacquered wood), brittle
+    snaps as the crack runs across it, each fainter, and the crunch of it breaking up."""
+    out = kit.thunk(f0, child(r, 'knock'), t60, 0.00015, 6, 0.12)
+    t = 0.0
+    for i in range(cracks):
+        snap = normalize(M.strike(M.parts(1100.0, 6000.0, child(r, 'snap', i), 5, 0.009, 0.004), M.hammer(0.00006), 0.025))
+        out = layers(out, (snap, t, -3.0 - 4.0 * i))
+        t += r.uniform(0.006, 0.014)
+    crunch = kit.grit_burst(0.07, child(r, 'crunch'), 8000.0, 800.0, 6500.0, 0.04, 0.0005)
+    return normalize(layers(out, (crunch, 0.001, -2.0)), 0.0)
+
+
+@cue('Creature.Spider.Hit', variations=5, att='Creature', jitter=0.06, conc=6, level=-10.0)
+def spider_hit(v, r):
+    # A bullet cracking chitin: the shell knocks, cracks and crunches as it breaks, the body's weight behind it, and a
+    # small wet splat of what's under the shell.
+    shell = _chitin(child(r, 'shell'), 650.0 * jitter(r, 1, 0.15), 0.03 * jitter(r, 1, 0.2), 2 + int(r.integers(0, 3)))
+    punch = kit.thump(170.0 * jitter(r, 1, 0.1), 85.0, 0.06, 0.03, drive_db=2.0)
+    splat = kit.squelch(0.07, child(r, 'splat'), 1000.0 * jitter(r, 1, 0.1), 350.0, 2.5)
+    wet = np.zeros(1)
+    for i in range(1 + int(r.integers(0, 2))):
+        wet = layers(wet, (kit.bubble(r.uniform(500.0, 1200.0), r, 0.15), r.uniform(0.008, 0.03), r.uniform(-6.0, 0.0)))
+    x = layers((shell, 0.0, 0.0), (punch, 0.0, -8.0), (splat, 0.004, -9.0), (normalize(wet), 0.0, -16.0))
+    return F.filt(x, F.peak(3300.0, -4.0, 0.8), F.highshelf(7000.0, -3.0), extend=False)
 
 
 @cue('Creature.Spider.Alert', variations=3, att='Creature', jitter=0.06, conc=3, level=-7.0)
@@ -122,42 +149,104 @@ def spider_attack(v, r):
 
 @cue('Creature.Spider.Hurt', variations=4, att='Creature', jitter=0.06, conc=3, level=-8.0)
 def spider_hurt(v, r):
-    # A thin squeal and a burst of frantic clicking.
-    f = 680.0 * jitter(r, 1, 0.12)
-    sq = _squeal(child(r, 'squeal'), [(0.0, f), (0.06, f * 1.3), (0.32, f * 0.85)], 0.32, [(0.0, 'i'), (0.32, 'e')])
-    sq *= E.perc(0.32, 0.01, 0.28)
-    ch = chitter(0.3, child(r, 'chitter'), 45.0, 30.0)
-    legs = _skitter(child(r, 'legs'), 4, 0.02, 0.03)
-    x = layers((sq, 0.0, 0.0), (ch, 0.0, -6.0), (legs, 0.0, -12.0))
-    return _outside(x, r, -21.0)
+    # Pain, the way a spider has it: a sharp hiss of air from its spiracles, a burst of harsh rasping as it works its
+    # file in alarm, frantic clicking and legs scrabbling.
+    n = ns(0.3)
+    hs = V.hiss(n, child(r, 'hiss'), (2000.0, 3400.0, 6200.0), levels=(0.7, 0.5, 1.0)) * E.perc(0.3, 0.004, 0.2)
+    rs = rasp(0.24, child(r, 'rasp'), 170.0 * jitter(r, 1, 0.1), 110.0, (1000.0, 2100.0, 3900.0), 3.0)
+    rs = rs * E.perc(0.24, 0.005, 0.22)
+    ch = chitter(0.3, child(r, 'chitter'), 50.0, 30.0)
+    legs = _skitter(child(r, 'legs'), 5, 0.02, 0.03)
+    x = layers((normalize(rs), 0.0, 0.0), (normalize(hs), 0.0, -6.0), (ch, 0.02, -5.0), (legs, 0.0, -12.0))
+    return _outside(F.filt(x, F.peak(3300.0, -4.0, 0.8), extend=False), r, -21.0)
 
 
 @cue('Creature.Spider.Death', variations=3, att='Creature', jitter=0.05, conc=3, level=-7.0)
 def spider_death(v, r):
-    # The squeal sinks, the clicking slows and stops, the legs curl in with a few dry taps, and a last hiss.
-    f = 760.0 * jitter(r, 1, 0.1)
-    sq = _squeal(child(r, 'squeal'), [(0.0, f), (0.1, f * 1.15), (0.9, f * 0.4)], 0.9, [(0.0, 'i'), (0.4, 'e'), (0.9, 'uh')],
-                 1.6, 0.45)
-    sq *= E.swell(0.9, 0.08, 0.8)
-    ch = chitter(1.1, child(r, 'chitter'), 30.0, 4.0, shape=0.6)
+    # It gives out: a hiss as the air goes out of it, the rasp winding down into separate scrapes, the clicking slowing
+    # and stopping, the shell settling with a dry crackle and a knock, the legs curling in with a few taps, a last hiss.
+    n = ns(0.9)
+    hs = V.hiss(n, child(r, 'hiss'), (2000.0, 3500.0, 6000.0)) * E.perc(0.9, 0.006, 0.7)
+    hs = F.sweep(hs, 'lp', O.expsweep(8000.0, 1600.0, 0.9, n=n), 0.8)
+    rs = rasp(0.9, child(r, 'rasp'), 140.0 * jitter(r, 1, 0.1), 18.0, (900.0, 1900.0, 3600.0), 3.0)
+    rs *= np.linspace(1.0, 0.4, rs.size)
+    ch = chitter(1.0, child(r, 'chitter'), 30.0, 4.0, shape=0.6)
     ch *= np.linspace(1.0, 0.3, ch.size)
+    settle = kit.grit_burst(0.25, child(r, 'settle'), 900.0, 700.0, 4000.0, 0.18, 0.01)
+    knock = kit.thunk(600.0 * jitter(r, 1, 0.1), child(r, 'knock'), 0.03, 0.0004)
     curl = _skitter(child(r, 'curl'), 5, 0.0, 0.11)
-    n = ns(0.6)
-    last = V.hiss(n, child(r, 'last'), (2000.0, 3500.0, 5500.0)) * E.swell(0.6, 0.1, 0.5)
-    last = F.sweep(last, 'lp', O.expsweep(7000.0, 1500.0, 0.6, n=n), 0.8)
-    x = layers((sq, 0.0, 0.0), (ch, 0.0, -7.0), (curl, 0.5, -10.0), (normalize(last), 0.95, -12.0))
+    m = ns(0.6)
+    last = V.hiss(m, child(r, 'last'), (2000.0, 3500.0, 5500.0)) * E.swell(0.6, 0.1, 0.5)
+    last = F.sweep(last, 'lp', O.expsweep(7000.0, 1500.0, 0.6, n=m), 0.8)
+    x = layers((normalize(rs), 0.0, 0.0), (normalize(hs), 0.0, -5.0), (ch, 0.0, -6.0), (settle, 0.4, -14.0),
+               (knock, 0.42, -10.0), (curl, 0.55, -10.0), (normalize(last), 1.0, -12.0))
     return _outside(F.filt(x, F.peak(3300.0, -3.0, 0.8), extend=False), r)
 
 
 # --- Slimes ---------------------------------------------------------------------------------------------------------
 
-def _wobble(dur, r, f0, rate, t60):
-    """The gel jiggling after it moves: a low tone pulsing as the blob wobbles, dying away."""
+def _wet_slap(dur, r, lo, hi, t60, attack=0.0008):
+    """Gel smacking something (or being smacked): broadband but soft-edged, torn up by the liquid's turbulence."""
     n = ns(dur)
-    tt = times(n)
-    x = O.sine(f0 * (1.0 + 0.08 * np.sin(2 * np.pi * rate * tt)), n=n)
-    am = 0.5 + 0.5 * np.sin(2 * np.pi * rate * tt)
-    return normalize(x * am * E.perc(dur, 0.005, t60))
+    x = N.band(n, r, lo, hi) * kit.turbulence(n, child(r, 'turb'), 260.0, 0.6)
+    return normalize(x * E.perc(dur, attack, t60), 0.0)
+
+
+def _squish(dur, r, rate, lo=600.0, hi=2200.0, start=0.0):
+    """Gel squeezing through itself: a dense crackle of tiny wet pops, the smallest bubbles opening and snapping shut.
+    It's what makes a thing sound squishy rather than just wet. rate: pops per second (a number, or a function of
+    time)."""
+    out = np.zeros(1)
+    for t in N.times_poisson(dur, r, rate, start):
+        f = float(np.exp(r.uniform(np.log(lo), np.log(hi))))
+        out = layers(out, (kit.bubble(f, r, 0.3), t, r.uniform(-14.0, 0.0)))
+    return normalize(out, 0.0) if out.size > 1 else out
+
+
+def _bloop(f0, f1, dur, r, t60=None):
+    """A cavity in the gel closing (where a bullet or the core went in): a tone gliding up as the hole shrinks, like
+    a big, slow bubble, with a little of its second harmonic, fluttering as the thick walls slap together."""
+    n = ns(dur)
+    ph = 2.0 * np.pi * O.phase(O.expsweep(f0, f1, dur, 0.8, n=n), n)
+    x = (np.sin(ph) + 0.25 * np.sin(2.0 * ph + 0.3)) * (0.75 + 0.25 * N.smooth_random(n, r, 60.0))
+    return normalize(x * E.perc(dur, 0.003, t60 or dur * 0.8), 0.0)
+
+
+def _wobble(dur, r, fc, rate, t60, depth=0.35, body_db=-8.0, attack=0.004):
+    """The gel wobbling after it's struck, lands or flinches: its wet surface noise through a resonance that swings up
+    and down as the blob squashes and stretches, pulsing with it, over a low, wavering note of the whole body; dying
+    away."""
+    n = ns(dur)
+    wob = np.sin(2.0 * np.pi * rate * times(n) + 2.0 * np.pi * r.random())
+    x = N.pink(n, r) * kit.turbulence(n, child(r, 'turb'), 200.0, 0.8)
+    fcs = fc * (1.0 + depth * wob)
+    y = F.sweep(x, 'bp', fcs, 3.0) + 0.5 * F.sweep(x, 'bp', np.minimum(fcs * 2.2, 12000.0), 3.5)
+    y = normalize(y * (0.3 + 0.7 * (0.5 + 0.5 * wob)))
+    body = np.sin(2.0 * np.pi * O.phase(fc * 0.3 * (1.0 + 0.1 * wob), n))
+    return normalize(layers(y, (body, 0.0, body_db)) * E.perc(dur, attack, t60), 0.0)
+
+
+def _stretch(dur, r, f0, f1):
+    """Gel being drawn out: thick wet noise through a resonance that climbs as the jelly thins, sticky little pops in
+    it, swelling until it lets go."""
+    n = ns(dur)
+    x = N.pink(n, r) * kit.turbulence(n, child(r, 'turb'), 90.0, 0.8)
+    fc = O.expsweep(f0, f1, dur, 1.0, n=n)
+    y = normalize(F.sweep(x, 'bp', fc, 4.0) + 0.4 * F.sweep(x, 'bp', np.minimum(fc * 2.3, 12000.0), 4.0))
+    stick = _squish(dur, child(r, 'stick'), lambda t: 60.0 + 400.0 * t / dur, 500.0, 1600.0)
+    y = layers(y, (stick, 0.0, -6.0))[:n]
+    return normalize(y * E.ar(dur, dur * 0.75, dur * 0.12, 2.0), 0.0)
+
+
+def _slosh(dur, r, f0, f1, rate0, rate1):
+    """Liquid settling: low wet noise rising and falling in slow waves as it sloshes and spreads, its resonance
+    sinking as it flattens out into a puddle."""
+    n = ns(dur)
+    x = N.pink(n, r) * kit.turbulence(n, child(r, 'turb'), 120.0, 0.7)
+    fc = O.expsweep(f0, f1, dur, 1.0, n=n)
+    y = F.sweep(x, 'bp', fc, 2.5) + 0.4 * F.sweep(x, 'bp', np.minimum(fc * 2.3, 12000.0), 3.0)
+    waves = 0.5 - 0.5 * np.cos(2.0 * np.pi * O.phase(O.expsweep(rate0, rate1, dur, 1.0, n=n), n))
+    return normalize(y * (0.25 + 0.75 * waves ** 1.5) * E.ar(dur, 0.02, dur * 0.6), 0.0)
 
 
 def _bubbles(dur, r, rate, lo, hi, start=0.0, decay=None):
@@ -169,67 +258,85 @@ def _bubbles(dur, r, rate, lo, hi, start=0.0, decay=None):
     return normalize(out) if out.size > 1 else out
 
 
-def _gloop(r, f0_points, dur, keys, shift=0.7, gurgle=18.0, rough=0.4):
-    """The slime's voice: a deep, wet, gulping sound with no mouth to shape it, gurgling."""
-    n = ns(dur)
-    f0 = O.glide(f0_points, n=n)
-    x = V.voice(f0, keys, r, breath=0.2, jitter=0.03, shimmer=0.2, tilt=-3.0, shift=shift, rough=rough)
-    am = 0.55 + 0.45 * np.abs(np.sin(np.pi * O.phase(gurgle * (1.0 + 0.3 * N.smooth_random(n, r, 4.0)), n)))
-    return normalize(F.filt(x * am, F.lp(2600.0, 0.7), F.hp(60.0), extend=False))
+@cue('Creature.Slime.Hit', variations=5, att='Creature', jitter=0.06, conc=6, level=-10.0)
+def slime_hit(v, r):
+    # A bullet into jelly: a soft wet slap on its skin, the gel squelching round the hole and squishing through
+    # itself, the hole closing with a gloopy bloop, the whole blob wobbling, a few bubbles. No crack, no bone.
+    slap = _wet_slap(0.05, child(r, 'slap'), 200.0, 2200.0, 0.025)
+    weight = kit.noise_thump(0.06, child(r, 'weight'), 500.0, 90.0, 0.04)
+    squelch = kit.squelch(0.11, child(r, 'squelch'), 1000.0 * jitter(r, 1, 0.15), 300.0, 3.0)
+    squish = _squish(0.08, child(r, 'squish'), 260.0, 600.0, 2000.0)
+    bloop = _bloop(170.0 * jitter(r, 1, 0.12), 380.0, 0.11, child(r, 'bloop'))
+    wob = _wobble(0.22, child(r, 'wob'), 380.0 * jitter(r, 1, 0.1), 11.0 + 4.0 * r.random(), 0.16)
+    bub = _bubbles(0.15, child(r, 'bub'), 18.0, 350.0, 1100.0, 0.02)
+    x = layers((slap, 0.0, -2.0), (weight, 0.0, -6.0), (squelch, 0.002, 0.0), (squish, 0.004, -10.0),
+               (bloop, 0.012, -3.0), (wob, 0.02, -11.0), (bub, 0.0, -14.0))
+    return F.filt(x, F.lp(3500.0, 0.7), extend=False)
 
 
 @cue('Creature.Slime.Hop', variations=4, att='Creature', jitter=0.08, conc=4, level=-13.0)
 def slime_hop(v, r):
-    # Landing from a hop (it plays on every landing): a short wet splat with a little weight, the gel wobbling as it
-    # settles, a bubble or two.
-    splat = kit.squelch(0.09, child(r, 'splat'), 1600.0 * jitter(r, 1, 0.1), 350.0)
-    slap = kit.burst(0.05, child(r, 'slap'), 0.03, lo=150.0, hi=3000.0)
-    weight = kit.noise_thump(0.08, child(r, 'weight'), 600.0, 90.0, 0.05, 1.0, 0.04)
-    wob = _wobble(0.25, child(r, 'wob'), 170.0 * jitter(r, 1, 0.1), 13.0 + 3 * r.random(), 0.18)
-    bub = _bubbles(0.15, child(r, 'bub'), 12.0, 400.0, 1200.0)
-    return _outside(layers((splat, 0.0, 0.0), (slap, 0.0, -4.0), (weight, 0.0, -6.0), (wob, 0.02, -12.0),
-                           (bub, 0.02, -13.0)), r, -24.0)
+    # Landing from a hop (it plays on every landing of every slime, so it stays soft and short): the gel's wet plap on
+    # the ground, its weight settling with a soft blop, a little squish, the blob wobbling still.
+    plap = _wet_slap(0.06, child(r, 'plap'), 150.0, 1500.0, 0.035, 0.0015)
+    weight = kit.noise_thump(0.09, child(r, 'weight'), 450.0 * jitter(r, 1, 0.1), 80.0, 0.05, 1.0, 0.04)
+    blop = _bloop(110.0 * jitter(r, 1, 0.1), 190.0, 0.08, child(r, 'blop'), 0.06)
+    squish = kit.squelch(0.07, child(r, 'squish'), 700.0 * jitter(r, 1, 0.1), 280.0, 2.5)
+    wob = _wobble(0.2, child(r, 'wob'), 300.0 * jitter(r, 1, 0.1), 12.0 + 3.0 * r.random(), 0.14)
+    x = layers((plap, 0.0, 0.0), (weight, 0.0, -3.0), (blop, 0.006, -8.0), (squish, 0.004, -6.0), (wob, 0.015, -12.0))
+    if v % 2:
+        x = layers(x, (kit.bubble(r.uniform(400.0, 900.0), r, 0.12), 0.05 + 0.04 * r.random(), -18.0))
+    return _outside(F.filt(x, F.lp(2800.0, 0.7), extend=False), r, -26.0)
 
 
 @cue('Creature.Slime.Attack', variations=3, att='Creature', jitter=0.06, conc=3, level=-9.0)
 def slime_attack(v, r):
-    # It rears and throws itself: a deep gloopy gulp, then the wet slap of the hit, bubbles everywhere.
-    f = 85.0 * jitter(r, 1, 0.1)
-    voice = _gloop(child(r, 'voice'), [(0.0, f), (0.15, f * 1.35), (0.45, f * 0.8)], 0.45,
-                   [(0.0, 'o'), (0.2, 'a'), (0.45, 'u')]) * E.perc(0.45, 0.03, 0.4)
+    # It gathers itself and throws itself at you: the gel peels off the ground and draws back with a sticky,
+    # stretching squelch, flies, and lands on you in a heavy wet slap, bubbles churning.
+    peel = _wet_slap(0.03, child(r, 'peel'), 300.0, 2000.0, 0.015)
+    draw = _stretch(0.3, child(r, 'draw'), 280.0 * jitter(r, 1, 0.1), 900.0)
     t = 0.3 + 0.04 * r.random()
-    splat = layers(kit.squelch(0.12, child(r, 'squelch'), 1600.0, 300.0),
-                   (kit.noise_thump(0.12, child(r, 'thump'), 900.0, 120.0, 0.06), 0.0, -3.0))
-    bub = _bubbles(0.5, child(r, 'bub'), 25.0, 350.0, 1400.0, 0.0, 0.5)
-    return _outside(layers((normalize(voice), 0.0, -2.0), (splat, t, 0.0), (bub, 0.05, -11.0)), r)
+    air = kit.whoosh(0.16, child(r, 'air'), 250.0, 700.0, 1.0, 0.7)
+    splat = layers(_wet_slap(0.08, child(r, 'slap'), 150.0, 2500.0, 0.05),
+                   (kit.noise_thump(0.14, child(r, 'thump'), 900.0, 110.0, 0.07), 0.0, -2.0),
+                   (kit.squelch(0.13, child(r, 'squelch'), 1500.0, 300.0), 0.003, -3.0))
+    wob = _wobble(0.3, child(r, 'wob'), 340.0, 10.0 + 3.0 * r.random(), 0.22)
+    bub = _bubbles(0.4, child(r, 'bub'), 30.0, 350.0, 1300.0, 0.0, 0.4)
+    x = layers((peel, 0.0, -6.0), (draw, 0.0, -10.0), (air, t - 0.15, -16.0), (splat, t, 0.0), (wob, t + 0.02, -10.0),
+               (bub, t + 0.02, -11.0))
+    return _outside(F.filt(x, F.lp(3500.0, 0.7), extend=False), r)
 
 
 @cue('Creature.Slime.Hurt', variations=4, att='Creature', jitter=0.06, conc=3, level=-10.0)
 def slime_hurt(v, r):
-    # A pained, bubbling blub, the gel churning.
-    f = 140.0 * jitter(r, 1, 0.1)
-    voice = _gloop(child(r, 'voice'), [(0.0, f), (0.08, f * 1.15), (0.4, f * 0.7)], 0.4, [(0.0, 'u'), (0.4, 'oo')],
-                   0.8, 26.0, 0.3) * E.perc(0.4, 0.01, 0.35)
-    bub = _bubbles(0.4, child(r, 'bub'), lambda t: 70.0 * np.exp(-t / 0.2), 300.0, 1500.0)
-    splat = kit.squelch(0.08, child(r, 'squelch'), 1200.0, 350.0)
-    return _outside(layers((normalize(voice), 0.0, 0.0), (bub, 0.0, -7.0), (splat, 0.0, -6.0)), r, -21.0)
+    # It flinches: the gel clenches with a squelch that churns as it wobbles, a gloopy blorp from deep in it, bubbles
+    # spurting from the wound.
+    slap = _wet_slap(0.04, child(r, 'slap'), 200.0, 1800.0, 0.02)
+    churn = _wobble(0.32, child(r, 'churn'), 650.0 * jitter(r, 1, 0.12), 9.0 + 3.0 * r.random(), 0.26, 0.45, -16.0)
+    blorp = _bloop(140.0 * jitter(r, 1, 0.1), 320.0, 0.14, child(r, 'blorp'), 0.12)
+    squish = _squish(0.12, child(r, 'squish'), 300.0, 600.0, 2000.0)
+    bub = _bubbles(0.35, child(r, 'bub'), lambda t: 80.0 * np.exp(-t / 0.15), 300.0, 1500.0)
+    x = layers((slap, 0.0, -4.0), (churn, 0.003, 0.0), (blorp, 0.03, -5.0), (squish, 0.0, -8.0), (bub, 0.02, -8.0))
+    return _outside(F.filt(x, F.lp(3500.0, 0.7), extend=False), r, -22.0)
 
 
 @cue('Creature.Slime.Death', variations=3, att='Creature', jitter=0.05, conc=3, level=-8.0)
 def slime_death(v, r):
-    # It bursts: a heavy splat, a gurgle that sinks and slows as it deflates, bubbles popping slower and slower,
-    # the last drips.
-    splat = layers(kit.squelch(0.18, child(r, 'squelch'), 1800.0, 250.0),
-                   (kit.noise_thump(0.25, child(r, 'thump'), 1500.0, 110.0, 0.12, 1.0, 0.08), 0.0, -1.0),
-                   (kit.burst(0.08, child(r, 'wet'), 0.04, lo=400.0, hi=5000.0), 0.0, -6.0))
-    f = 110.0 * jitter(r, 1, 0.08)
-    dur = 1.0
-    voice = _gloop(child(r, 'voice'), [(0.0, f), (dur, 45.0)], dur, [(0.0, 'o'), (0.5, 'u'), (dur, 'u')], 0.75, 22.0, 0.5)
-    voice *= E.swell(dur, 0.05, 0.9)
-    bub = _bubbles(1.1, child(r, 'bub'), lambda t: 55.0 * np.exp(-t / 0.35) + 3.0, 250.0, 1300.0, 0.05, 1.1)
-    drips = layers(*[(kit.bubble(r.uniform(900.0, 2200.0), r, 0.15), 0.85 + 0.12 * i + 0.05 * r.random(), -6.0 * i)
+    # It bursts and collapses: a big wet splat, the jelly slumping and sloshing out into a puddle, the core dropping
+    # into it with a deep bloop, bubbles rising slower and slower, the last drips.
+    splat = layers(_wet_slap(0.1, child(r, 'slap'), 150.0, 3000.0, 0.06, 0.001),
+                   (kit.noise_thump(0.3, child(r, 'thump'), 1400.0, 90.0, 0.14, 1.0, 0.08), 0.0, 0.0),
+                   (kit.squelch(0.22, child(r, 'squelch'), 1600.0, 250.0, 2.5), 0.004, -2.0))
+    squish = _squish(0.35, child(r, 'squish'), lambda t: 500.0 * np.exp(-t / 0.12), 500.0, 2200.0)
+    wob = _wobble(0.5, child(r, 'wob'), 320.0, 9.0 + 2.0 * r.random(), 0.4)
+    slosh = _slosh(1.0, child(r, 'slosh'), 700.0, 220.0, 5.0, 2.0)
+    plop = _bloop(95.0 * jitter(r, 1, 0.08), 230.0, 0.2, child(r, 'plop'), 0.18)
+    bub = _bubbles(1.2, child(r, 'bub'), lambda t: 45.0 * np.exp(-t / 0.4) + 3.0, 220.0, 1100.0, 0.1, 1.2)
+    drips = layers(*[(kit.bubble(r.uniform(900.0, 2000.0), r, 0.15), 0.95 + 0.12 * i + 0.05 * r.random(), -6.0 * i)
                      for i in range(3)])
-    return _outside(layers((splat, 0.0, 0.0), (normalize(voice), 0.04, -5.0), (bub, 0.0, -9.0), (normalize(drips), 0.0, -16.0)), r)
+    x = layers((splat, 0.0, 0.0), (squish, 0.005, -8.0), (wob, 0.03, -10.0), (slosh, 0.06, -6.0), (plop, 0.32, -4.0),
+               (bub, 0.0, -9.0), (normalize(drips), 0.0, -16.0))
+    return _outside(F.filt(x, F.lp(3500.0, 0.7), extend=False), r)
 
 
 # --- The Unpaid -----------------------------------------------------------------------------------------------------
@@ -254,6 +361,45 @@ def _cold(x, r, rate=33.0, depth=0.2):
     """A faint ring modulation: the voice not quite of this world."""
     n = x.size
     return x * (1.0 - depth + depth * np.sin(2 * np.pi * rate * times(n) + 2 * np.pi * r.random()))
+
+
+def _hollow(r, f0, t60=0.12, damp=2200.0):
+    """Something hollow struck: a puff of noise rung through a tube's comb of resonances, so the body sounds like an
+    empty shape rather than flesh."""
+    exc = N.pink(ns(0.006), r) * E.perc(0.006, 0.0005, 0.004)
+    g = 0.001 ** (1.0 / (t60 * f0))
+    y = F.filt(np.pad(exc, (0, ns(t60 * 1.2))), F.comb(1.0 / f0, g, damp), extend=False)
+    return normalize(y * E.end_fade(np.ones(y.size), 0.01), 0.0)
+
+
+def _ghost_ring(f0, dur, r):
+    """A faint, cold ring left hanging: a glassy pair of tones beating slowly against each other with a stretched
+    partial over them, ring-modulated so it isn't quite a note."""
+    n = ns(dur)
+    t = times(n)
+    beat = 3.0 + 4.0 * r.random()
+    x = np.sin(2 * np.pi * f0 * t) + 0.8 * np.sin(2 * np.pi * (f0 + beat) * t + 2 * np.pi * r.random())
+    x += 0.25 * np.sin(2 * np.pi * f0 * 2.76 * t) * np.exp(-E.LN1000 * t / (dur * 0.4))
+    x = _cold(x * E.perc(dur, 0.012, dur * 0.8), r, 41.0, 0.3)
+    return normalize(x, 0.0)
+
+
+@cue('Creature.Unpaid.Hit', variations=5, att='Creature', jitter=0.06, conc=6, level=-10.0)
+def unpaid_hit(v, r):
+    # A bullet through something not quite there: a cold, hollow thump (the body is an empty shape), a puff of grave
+    # dust and a tear of old cloth, and a faint ring hanging after it, not of this world. Nothing meaty.
+    f0 = [150.0, 170.0, 135.0, 185.0, 160.0][v] * jitter(r, 1, 0.04)
+    hollow = _cold(_hollow(child(r, 'hollow'), f0, 0.12), child(r, 'hc'), 37.0, 0.25)
+    thump = kit.thump(110.0 * jitter(r, 1, 0.1), 55.0, 0.08, 0.05)
+    n = ns(0.14)
+    dust = N.pink(n, child(r, 'dust'), lo=300.0, hi=2600.0) * kit.turbulence(n, child(r, 'dt'), 140.0, 0.7)
+    dust = normalize(dust * E.perc(0.14, 0.004, 0.1))
+    tear = kit.creak(0.07, child(r, 'tear'), 700.0, 350.0, (750.0, 1500.0, 2600.0), 2.5, 0.4)
+    ring = _ghost_ring(f0 * 4.5 * jitter(r, 1, 0.05), 0.6, child(r, 'ring'))
+    x = layers((normalize(hollow), 0.0, 0.0), (thump, 0.0, -4.0), (dust, 0.002, -5.0), (tear, 0.004, -11.0),
+               (ring, 0.005, -18.0))
+    x = F.filt(x, F.peak(3200.0, -4.0, 0.8), F.hp(70.0), extend=False)
+    return _haunt(x, r, -17.0, 0.8, 2800.0)
 
 
 @cue('Creature.Unpaid.Alert', variations=3, att='Creature', jitter=0.04, conc=3, level=-6.0, swell=True)

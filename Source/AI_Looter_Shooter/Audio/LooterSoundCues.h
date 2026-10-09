@@ -34,8 +34,8 @@ namespace LooterSoundCue
 	inline constexpr const TCHAR* ImpactWater = TEXT("Impact.Water");
 
 	// --- The player's own feedback (2D) ---
+	/** Every hit on something that can be hurt; a critical hit plays it pitched up (LooterSoundRules::CritPitch). */
 	inline constexpr const TCHAR* HitMarker = TEXT("UI.HitMarker");
-	inline constexpr const TCHAR* HitMarkerCrit = TEXT("UI.HitMarkerCrit");
 	inline constexpr const TCHAR* Kill = TEXT("UI.Kill");
 	inline constexpr const TCHAR* LevelUp = TEXT("UI.LevelUp");
 	inline constexpr const TCHAR* MissionStep = TEXT("UI.MissionStep");
@@ -84,16 +84,22 @@ namespace LooterSoundCue
 	inline constexpr const TCHAR* SlideLoop = TEXT("Player.SlideLoop");
 
 	// --- Creatures (a bigger one plays its kind's cues lower: PitchScale) ---
-	/** Any creature's body taking a bullet, under its kind's own hurt cry. */
+	/** A creature's body taking a bullet, for a kind with no hit of its own; each kind's is below (its Hit). */
 	inline constexpr const TCHAR* CreatureHit = TEXT("Creature.Hit");
+	/** A bullet cracking a spider's chitin. */
+	inline constexpr const TCHAR* SpiderHit = TEXT("Creature.Spider.Hit");
 	inline constexpr const TCHAR* SpiderAlert = TEXT("Creature.Spider.Alert");
 	inline constexpr const TCHAR* SpiderAttack = TEXT("Creature.Spider.Attack");
 	inline constexpr const TCHAR* SpiderHurt = TEXT("Creature.Spider.Hurt");
 	inline constexpr const TCHAR* SpiderDeath = TEXT("Creature.Spider.Death");
+	/** A bullet into a slime's jelly: a wet squelch. */
+	inline constexpr const TCHAR* SlimeHit = TEXT("Creature.Slime.Hit");
 	inline constexpr const TCHAR* SlimeHop = TEXT("Creature.Slime.Hop");
 	inline constexpr const TCHAR* SlimeAttack = TEXT("Creature.Slime.Attack");
 	inline constexpr const TCHAR* SlimeHurt = TEXT("Creature.Slime.Hurt");
 	inline constexpr const TCHAR* SlimeDeath = TEXT("Creature.Slime.Death");
+	/** A bullet through a ghost: a hollow thump and a puff of grave dust. */
+	inline constexpr const TCHAR* UnpaidHit = TEXT("Creature.Unpaid.Hit");
 	inline constexpr const TCHAR* UnpaidAlert = TEXT("Creature.Unpaid.Alert");
 	inline constexpr const TCHAR* UnpaidShriek = TEXT("Creature.Unpaid.Shriek");
 	inline constexpr const TCHAR* UnpaidLunge = TEXT("Creature.Unpaid.Lunge");

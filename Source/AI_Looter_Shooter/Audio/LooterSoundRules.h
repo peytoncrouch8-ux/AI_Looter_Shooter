@@ -59,4 +59,10 @@ namespace LooterSoundRules
 	 * pack's alerts as separate cries rather than one loud, phasing one.
 	 */
 	inline constexpr float RetriggerSeconds = 0.03f;
+
+	/**
+	 * A critical hit's hit marker: the same tick a little higher (the user's call, 2026-10-08: crits need no sound of
+	 * their own), so it reads as a better hit without a second sound in every firefight.
+	 */
+	inline constexpr float CritPitch = 1.12f;
 }

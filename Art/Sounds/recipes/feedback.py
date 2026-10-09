@@ -1,8 +1,10 @@
-"""The player's own feedback (2D): the hit marker's tick, the critical hit, the kill, and the stingers for a level, a
-mission step and a mission's end, a gun's notch milestone and a lifted curse.
+"""The player's own feedback (2D): the hit marker's tick (a critical hit plays it pitched up, from code), the kill,
+the pings for a mission step and a mission's end, and the stingers for a level, a gun's notch milestone and a lifted
+curse.
 
 The voice is brass and steel string: small brass ticks and chimes, plucked strings on a wooden box. Hits are short and
-crisp, kept off the ear's most sensitive band so a long firefight doesn't tire it; the kill and the stingers ring.
+crisp, kept off the ear's most sensitive band so a long firefight doesn't tire it; the mission pings are small, bright
+and sweet, so they can come often; the kill and the stingers ring.
 """
 import numpy as np
 
@@ -34,20 +36,6 @@ def hit_marker(v, r):
     knock = kit.thump(300.0, 220.0, 0.02, 0.012, attack=0.0003)
     x = layers((tick, 0.0, 0.0), (air, 0.0, -13.0), (knock, 0.0, -13.0))
     return _space(x, r, 'room', -22.0, 0.15, 0.2)
-
-
-@cue('UI.HitMarkerCrit', variations=3, space='2D', cls='Interface', jitter=0.015, conc=6, level=-8.0)
-def hit_marker_crit(v, r):
-    # Heavier: the tick, a thunk with weight under it, and a bright ting that rings a moment (a struck steel rod).
-    tick = kit.brass_tick(child(r, 'tick'), 1900.0 * jitter(r, 1, 0.02), 0.03, 4, 0.00006, -8.0, -4.0, 0.3)
-    tick = F.filt(tick, F.peak(3300.0, -4.0, 0.9), extend=False)
-    thunk = kit.thump(210.0, 85.0, 0.09, 0.05, attack=0.0004, drive_db=3.0)
-    knock = kit.noise_thump(0.07, child(r, 'knock'), 2200.0, 300.0, 0.035, 1.0, 0.02)
-    rod = M.bar(2350.0 * jitter(r, 1, 0.02), child(r, 'rod'), 0.28, 0.7, 4, 0.004, 0.9)
-    ting = normalize(M.strike(rod, M.hammer(0.00006), 0.4))
-    ting = F.filt(ting, F.peak(3400.0, -4.0, 1.0), extend=False)
-    x = layers((tick, 0.0, -1.0), (thunk, 0.0, -3.0), (knock, 0.0, -9.0), (ting, 0.004, -7.0))
-    return _space(x, r, 'plate', -18.0, 0.5, 0.3)
 
 
 @cue('UI.Kill', variations=3, space='2D', cls='Interface', jitter=0.0, conc=3, level=-6.0)
@@ -98,41 +86,48 @@ def level_up(v, r):
     return layers(mix, kit.set_level(wet, mix, -14.0, 0.05))
 
 
-def _sting(r, plucks, chimes, low=None, wet_db=-14.0, t60=1.6):
-    """A short stinger: plucked notes [(note, time, dB, pan)], chimes [(note, time, dB, ring)], an optional low hit
-    (time, dB), in a plate."""
+def _ping(name, r, ring=0.4, bright=0.8, body_db=-9.0):
+    """One bright ping: a small brass chime struck with a hard little mallet, and a soft sine on its note under it for
+    a round body, so it sings a clear, sweet note rather than a click."""
+    f0 = kit.note(name)
+    c = kit.chime(f0, child(r, 'chime'), ring, bright, 0.0001, 0.5, -26.0)
+    body = O.sine(f0, n=ns(ring)) * E.perc(ring, 0.003, ring * 0.7)
+    return normalize(layers(c, (normalize(body), 0.0, body_db)), 0.0)
+
+
+def _pings(r, notes, strings=(), wet_db=-16.0, t60=0.5):
+    """Pings [(note, time, dB, pan, ring)] and soft steel strings under them [(note, time, dB, pan, ring)], in a small
+    bright plate."""
     out = np.zeros((2, 1))
-    for i, (nm, t, db, pan) in enumerate(plucks):
-        out = layers(out, (S.pan(kit.twang(kit.note(nm), 1.8, child(r, 'p', i), 0.6, 1.8), pan), t, db))
-    for i, (nm, t, db, ring) in enumerate(chimes):
-        out = layers(out, (S.widen(kit.chime(kit.note(nm), child(r, 'c', i), ring, 0.8), child(r, 'cw', i), 0.2), t, db))
-    if low is not None:
-        hit = kit.thump(95.0, 45.0, 0.45, 0.25, attack=0.002, drive_db=2.0)
-        out = layers(out, (S.widen(hit, child(r, 'lw'), 0.05), low[0], low[1]))
+    for i, (nm, t, db, pan, ring) in enumerate(notes):
+        out = layers(out, (S.pan(_ping(nm, child(r, 'ping', i), ring), pan), t, db))
+    for i, (nm, t, db, pan, ring) in enumerate(strings):
+        # Plucked softly (bright 0.35) so the string adds warmth under the chime, not a twang of its own.
+        s = kit.twang(kit.note(nm), ring * 1.4, child(r, 'string', i), 0.35, ring)
+        out = layers(out, (S.pan(F.filt(s, F.lp(2200.0, 0.7), extend=False), pan), t, db))
     ir = R.stereo_ir(R.plate, child(r, 'ir1'), child(r, 'ir2'), t60=t60)
-    wet = F.convolve(F.filt(mono(out), F.hp(250.0), extend=False), ir)
+    wet = F.convolve(F.filt(mono(out), F.hp(300.0), extend=False), ir)
     return layers(out, kit.set_level(wet, out, wet_db, 0.05))
 
 
-@cue('UI.MissionStep', variations=2, space='2D', cls='Interface', jitter=0.0, conc=2, level=-9.0, align=True)
+@cue('UI.MissionStep', variations=2, space='2D', cls='Interface', jitter=0.0, conc=2, level=-10.0)
 def mission_step(v, r):
-    # Two notes up a fifth, the second capped by a soft chime: something done, the road goes on.
-    a, b, c = [('A4', 'E5', 'E6'), ('G4', 'D5', 'D6')][v]
-    return _sting(r, [(a, 0.0, 0.0, -0.25), (b, 0.11, 0.0, 0.25)], [(c, 0.115, -9.0, 1.4)], None, -15.0, 1.4)
+    # An objective done: two quick bright pings up a fifth, the second left ringing a moment. Small and sweet, so it
+    # can come often without nagging.
+    a, b = [('C6', 'G6'), ('D6', 'A6')][v]
+    return _pings(r, [(a, 0.0, -2.0, -0.2, 0.28), (b, 0.085, 0.0, 0.2, 0.4)], (), -17.0, 0.45)
 
 
-@cue('UI.MissionComplete', variations=1, space='2D', cls='Interface', jitter=0.0, conc=1, level=-5.0)
+@cue('UI.MissionComplete', variations=1, space='2D', cls='Interface', jitter=0.0, conc=1, level=-6.0)
 def mission_complete(v, r):
-    # A phrase that resolves: D, A, D climbing, then the whole chord strummed with a drum under it and chimes over.
-    plucks = [('D4', 0.0, -1.0, -0.4), ('A4', 0.11, -1.0, 0.0), ('D5', 0.22, -1.0, 0.4)]
-    strum = ['D3', 'A3', 'D4', 'F#4', 'A4', 'D5']
-    for i, nm in enumerate(strum):
-        plucks.append((nm, 0.4 + 0.018 * i, -3.0, -0.5 + 0.2 * i))
-    chimes = [('D6', 0.42, -6.0, 2.0), ('A6', 0.46, -12.0, 1.6), ('F#6', 0.5, -14.0, 1.4)]
-    x = _sting(r, plucks, chimes, (0.4, -2.0), -13.0, 2.2)
-    drum = O.membrane(88.0, 0.8, child(r, 'drum'), 0.5, 0.15, 0.04)
-    drum = F.filt(drum, F.lp(1800.0), extend=False)
-    return layers(x, (S.widen(normalize(drum), child(r, 'dw'), 0.1), 0.4, -6.0))
+    # A mission done: the step's ping grown into a three-note flourish up a major chord, each note warmed by a soft
+    # steel string an octave down, the last one ringing over a low root with a faint octave shimmering above it, the
+    # first two still sounding under it so it lands on the whole chord.
+    pings = [('C6', 0.0, -3.0, -0.3, 0.45), ('E6', 0.09, -2.0, 0.0, 0.55), ('G6', 0.18, 0.0, 0.3, 0.85),
+             ('C7', 0.2, -17.0, 0.1, 0.6)]
+    strings = [('C5', 0.0, -13.0, -0.3, 0.5), ('E5', 0.09, -13.0, 0.0, 0.5), ('G5', 0.18, -11.0, 0.3, 1.0),
+               ('C4', 0.18, -10.0, 0.0, 1.1)]
+    return _pings(r, pings, strings, -15.0, 0.9)
 
 
 @cue('UI.NotchMilestone', variations=1, space='2D', cls='Interface', jitter=0.0, conc=1, level=-5.0)

@@ -72,11 +72,16 @@ presence 2-5 kHz, high, air).
 
 ## How the sounds are built
 
-- **Guns**: the muzzle's shock front (an N-wave crack), the gas burst (noise saturated at a steady level, then shaped,
-  bright at first and darkening, with turbulence so it tears rather than hisses), the weight (a short sine thump and a
-  dark burst of air), the action (small steel modes), early reflections off the ground, and an outdoor tail: distinct
-  slap-backs, then a rolling diffuse tail, its lows cut so they don't drone. The rifle is tight and bright; the
-  shotgun a wide, dark boom with a longer roll.
+- **Guns** (heavy and punchy, the user's pick, 2026-10-08): built in layers as game audio does. The crack (an N-wave
+  and a short bright snap), the punch (an overdriven sine diving from about 150 Hz to under 50, roughened so it reads as
+  air, not a drum), the body (overdriven noise cut under 220 Hz, humps in the low mids, darkening as it spreads, about
+  70 ms), the mechanism, then a bus of soft clipping and fast compression so the shot is dense, and a short outdoor
+  tail (slap-backs, a dark roll with its lows cut). The rifle is mostly gone in 0.4 s so full auto stays tight; the
+  shotgun hands part of its punch to a slow sub boom and rolls 0.75 s. Reloads are clanks: steel modes held to about
+  1-4 kHz, a polymer or wood knock and a low thud, with the slides kept dark and well under the hits.
+- **Creatures** sound like what they are: a spider's shell cracks when hit and it clicks, rasps and hisses (no voice);
+  a slime is all jelly (slaps, squelches, wobble, bubbles; no voice); the Unpaid are ghostly voices, and a bullet
+  through one is a hollow thump and a puff of grave dust. Each kind has its own hit (`Creature.<Kind>.Hit`).
 - **Struck things** are modal: a set of decaying sines whose frequencies follow the object's physics (free bars,
   plates, wood, shells, cast bells), struck by a force pulse as long as the contact (hard steel ~0.1 ms, a heel
   several ms).
@@ -97,5 +102,10 @@ presence 2-5 kHz, high, air).
   stand in for the resonances the series leaves out.
 - Brown noise's lows wander too much between seeds for a thump layer; pink noise with a low cut weighs the same every
   time.
+- Keep a shot's lows in one deterministic layer (the sine punch): low noise under it adds to or cancels the sine at
+  random, and swung the low share about 20 points between variations.
+- Mix noise layers by their loudest 10 ms, not their peak sample, so every variation weighs the same.
+- The mix is set against the rifle's loudness: a denser rifle moves every cue (2026-10-08 the whole set shifted
+  -2.2 dB when World.ShutterSlam reached the 0 dB cap). ShutterSlam and Impact.Wood now set the headroom.
 - Every layer cut at its length gets a short end fade (envelopes and modal rings do it themselves), or the check finds
   clicks in the quiet tails.

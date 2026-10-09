@@ -12,8 +12,9 @@ enum class ECreatureState : uint8;
 
 /**
  * A creature's voice (every ACreatureBase has one): a cry as it turns from calm to hunting (a pack's cries a moment
- * apart, not as one), its attack's cry at the wind-up, the thud of each bullet it takes (Creature.Hit) under its kind's
- * hurt cry now and then, and its death cry. A kill by a local player plays the player's kill sound (UI.Kill) here, once
+ * apart, not as one), its attack's cry at the wind-up, the sound of each bullet going into its body (its kind's own: a
+ * spider's shell cracks, a slime squelches; Creature.Hit for a kind without one) under its hurt cry now and then, and its
+ * death cry. A kill by a local player plays the player's kill sound (UI.Kill) here, once
  * per death, where the death is certain (the HUD only sees hits, the corpse's too).
  *
  * The cries are its kind's (CriesFor: the spider's, the slime's, the Unpaid's) at a pitch for its size, so the Gravemother
@@ -27,13 +28,14 @@ class AI_LOOTER_SHOOTER_API UCreatureVoiceComponent : public UActorComponent
 public:
 	UCreatureVoiceComponent();
 
-	/** A kind's cries; none plays nothing. */
+	/** A kind's cries; none plays nothing. Hit is a bullet going into its body. */
 	struct FCries
 	{
 		FName Alert;
 		FName Attack;
 		FName Hurt;
 		FName Death;
+		FName Hit = LooterSoundCue::CreatureHit;
 	};
 
 	/** The cries of a creature's kind: the spider's (the Gravemother and spiderlings too), the slime's, the Unpaid's (Abel too). */

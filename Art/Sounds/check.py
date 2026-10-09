@@ -22,7 +22,7 @@ CHECK = os.path.join(ROOT, 'Saved', 'SoundCheck')
 # Sounds the player hears over and over: these must not bite in the 2-5 kHz band, where the ear is most sensitive.
 FREQUENT = ['Weapon.Rifle.Fire', 'Weapon.Shotgun.Fire', 'Impact.*', 'UI.HitMarker', 'UI.Click', 'UI.Hover', 'UI.Tab',
             'Player.Footstep.*', 'Loot.AmmoPickup', 'Weapon.Shotgun.ShellIn', 'Creature.Hit', 'Player.SlideLoop',
-            'Weapon.AimIn']
+            'Weapon.AimIn', 'Creature.Spider.Hit', 'Creature.Slime.Hit', 'Creature.Unpaid.Hit']
 
 
 def _frequent(name):
