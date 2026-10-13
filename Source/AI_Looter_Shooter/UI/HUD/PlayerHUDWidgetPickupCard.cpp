@@ -1,6 +1,7 @@
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/HUD/HudInteractPromptWidget.h"
 #include "UI/Inventory/LoadoutParts.h"
+#include "UI/Style/LooterProgressRingWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
 #include "Interaction/InteractionComponent.h"
@@ -130,14 +131,7 @@ void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager, const 
 
 	// The hold that equips it (looking away cancels a hold, so a hold under way is always on the loot looked at).
 	const float Hold = Interaction->GetHoldProgress();
+	LooterUI::SetHoldKeyLabel(PickupHoldKey, Key);
+	LooterUI::UpdateHoldKeyCap(PickupHoldRing, PickupHoldKey, Hold, DeltaTime);
 	PickupHoldBar->SetVisibility(Hold > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
-	if (Hold > 0.f)
-	{
-		const int32 Segments = PickupHoldSegments.Num();
-		const int32 Lit = FMath::Clamp(FMath::CeilToInt32(Hold * Segments), 0, Segments);
-		for (int32 Index = 0; Index < PickupHoldSegments.Num(); ++Index)
-		{
-			PickupHoldSegments[Index]->SetColorAndOpacity(Index < Lit ? Color::Accent() : Color::SegmentOff());
-		}
-	}
 }

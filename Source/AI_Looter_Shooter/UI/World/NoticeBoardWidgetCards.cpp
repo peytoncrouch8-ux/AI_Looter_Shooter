@@ -7,8 +7,10 @@
 #include "Missions/MissionRewards.h"
 #include "Missions/MissionRunner.h"
 #include "UI/Inventory/LoadoutParts.h"
+#include "UI/HUD/LooterHUD.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "UI/Style/MissionMarkIcons.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/HorizontalBox.h"
@@ -93,6 +95,8 @@ FText UNoticeBoardWidget::StateWord(const FNoticeBoardPosting& Posting) const
 	{
 	case ENoticePosting::Locked:
 		return LOCTEXT("StateLocked", "Not posted yet");
+	case ENoticePosting::Offered:
+		return LOCTEXT("StateOffered", "Up for the taking");
 	case ENoticePosting::Open:
 	{
 		const FText Word = Posting.bTracked ? LOCTEXT("StateTracked", "Tracked") : LOCTEXT("StateOpen", "Open");
@@ -111,6 +115,7 @@ FLinearColor UNoticeBoardWidget::StateColor(const FNoticeBoardPosting& Posting) 
 	switch (Posting.State)
 	{
 	case ENoticePosting::Locked: return Color::TextDim();
+	case ENoticePosting::Offered: return MissionMarkIcons::Color(Posting.Mission && Posting.Mission->Kind == EMissionKind::Main);
 	case ENoticePosting::Open:   return Posting.bTracked ? Color::Accent() : Color::CyanText();
 	case ENoticePosting::Ready:  return Color::Accent();
 	case ENoticePosting::Done:   return Color::Better();
@@ -129,16 +134,36 @@ UWidget* UNoticeBoardWidget::MakeCard(int32 Index)
 	const bool bFaint = Posting.State == ENoticePosting::Done || Posting.State == ENoticePosting::Locked;
 	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 
-	// A strip down the left side: orange to turn in, cyan while open, faint once done or while locked.
-	const FLinearColor Strip = Posting.State == ENoticePosting::Ready ? Color::Accent() : bFaint ? Color::RowLine() : Color::Title();
+	// A strip down the left side: orange to turn in, gold or white for a job to take, cyan while open, faint once done or
+	// while locked.
+	const bool bOffered = Posting.State == ENoticePosting::Offered;
+	const bool bMain = Mission && Mission->Kind == EMissionKind::Main;
+	const FLinearColor Strip = Posting.State == ENoticePosting::Ready ? Color::Accent() : bOffered ? MissionMarkIcons::Color(bMain)
+		: bFaint ? Color::RowLine() : Color::Title();
 	Row->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Strip)), 3.f));
 
-	// The notice: its title, its words in the town's voice, and its reward (what it gave, once turned in here).
+	// The notice: its title (a job to take with its !), its words in the town's voice, and its reward (what it gave, once
+	// turned in here).
 	UVerticalBox* Info = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	const FString Title = Mission ? Mission->Title.ToString() : Posting.MissionId.ToString();
 	UTextBlock* TitleText = MakeText(WidgetTree, Title, 17, bFaint ? Color::TextDim() : Color::Title(), false, 40);
 	TitleText->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
-	Info->AddChildToVerticalBox(TitleText);
+	if (bOffered)
+	{
+		UHorizontalBox* TitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		UHorizontalBoxSlot* MarkSlot = TitleRow->AddChildToHorizontalBox(MakeImage(WidgetTree,
+			MissionMarkIcons::MarkBrush(MissionMarkIcons::EMark::Offer, bMain, FVector2D(22.f))));
+		MarkSlot->SetVerticalAlignment(VAlign_Center);
+		MarkSlot->SetPadding(FMargin(0.f, 0.f, 6.f, 0.f));
+		UHorizontalBoxSlot* TitleSlot = TitleRow->AddChildToHorizontalBox(TitleText);
+		TitleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		TitleSlot->SetVerticalAlignment(VAlign_Center);
+		Info->AddChildToVerticalBox(TitleRow);
+	}
+	else
+	{
+		Info->AddChildToVerticalBox(TitleText);
+	}
 	if (Mission && !Mission->Summary.IsEmpty())
 	{
 		UTextBlock* Notice = MakeText(WidgetTree, Mission->Summary.ToString(), 12, bFaint ? Color::TextDim() : Color::Text());
@@ -166,8 +191,9 @@ UWidget* UNoticeBoardWidget::MakeCard(int32 Index)
 	if (CanAct(Index))
 	{
 		const bool bTurnIn = Posting.State == ENoticePosting::Ready;
-		const FText Does = bTurnIn ? LOCTEXT("ActTurnIn", "Turn in") : LOCTEXT("ActTrack", "Track");
-		UVerticalBoxSlot* KeySlot = Side->AddChildToVerticalBox(LoadoutParts::MakeKeyHint(WidgetTree, TEXT("E"), Does.ToString(), bTurnIn));
+		const FText Does = bTurnIn ? LOCTEXT("ActTurnIn", "Turn in") : bOffered ? LOCTEXT("ActTake", "Take a look") : LOCTEXT("ActTrack", "Track");
+		UVerticalBoxSlot* KeySlot = Side->AddChildToVerticalBox(LoadoutParts::MakeKeyHint(WidgetTree, TEXT("E"), Does.ToString(),
+			bTurnIn || bOffered));
 		KeySlot->SetHorizontalAlignment(HAlign_Right);
 		KeySlot->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
 	}
@@ -201,7 +227,8 @@ bool UNoticeBoardWidget::CanAct(int32 Index) const
 		return false;
 	}
 	const FNoticeBoardPosting& Posting = Postings[Index];
-	return (Posting.State == ENoticePosting::Ready && Posting.bTurnedInHere) || (Posting.State == ENoticePosting::Open && !Posting.bTracked);
+	return (Posting.State == ENoticePosting::Ready && Posting.bTurnedInHere) || (Posting.State == ENoticePosting::Open && !Posting.bTracked)
+		|| (Posting.State == ENoticePosting::Offered && Posting.bOfferedHere);
 }
 
 void UNoticeBoardWidget::Act(int32 Index)
@@ -216,6 +243,17 @@ void UNoticeBoardWidget::Act(int32 Index)
 	// A copy: the list is read again below.
 	const FNoticeBoardPosting Posting = Postings[Index];
 	const FText Title = Posting.Mission ? Posting.Mission->Title : FText::FromName(Posting.MissionId);
+
+	if (Posting.State == ENoticePosting::Offered)
+	{
+		// A job to take: the offer card over the board, which comes back as it closes (HandleOfferClosed).
+		ALooterHUD* HUD = OwningHUD.Get();
+		if (!HUD || !Posting.Mission || !HUD->OpenMissionOffer(Posting.Mission, Board.Get()))
+		{
+			LooterSound::Play2D(this, LooterSoundCue::Denied);
+		}
+		return;
+	}
 
 	if (Posting.State == ENoticePosting::Ready)
 	{

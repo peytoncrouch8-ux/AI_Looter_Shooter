@@ -6,6 +6,7 @@
 
 class AWeaponBase;
 class UHealthComponent;
+class UHudGraveMarkedWidget;
 class UHudGrenadeWidget;
 class UHudInteractPromptWidget;
 class UHudPickupFeedWidget;
@@ -16,6 +17,7 @@ class UHudPlayerFrameWidget;
 class UHudWeaponSlotsWidget;
 class UImage;
 class UInteractionComponent;
+class ULooterProgressRing;
 class UPlayerMeleeComponent;
 class UPlayerThrowComponent;
 class USizeBox;
@@ -41,7 +43,8 @@ enum class ESilverChange : uint8;
  *  - top-right: the minimap (UHudMinimapWidget)
  *  - top-left: the frame rate (UHudFrameRateWidget)
  *  - top-centre, its gem 260 px down: the level-up banner (UHudLevelUpBannerWidget), when the frame's experience bar levels up;
- *    in the same place, taking turns with it, the mission-complete banner (UHudMissionCompleteWidget) as a mission is turned in
+ *    in the same place, taking turns with it, the mission-complete banner (UHudMissionCompleteWidget) as a mission is turned in;
+ *    a little higher, the "GRAVE MARKED" banner (UHudGraveMarkedWidget) when the player walks up to a respawn grave for the first time
  *  - left of the crosshair: the ammo pickup feed (UHudPickupFeedWidget)
  *  - bottom-centre: nothing, on purpose
  *  - centre: thin tick crosshair sized by the weapon's spread, kicking out on every shot (it fades out while aiming
@@ -62,6 +65,13 @@ UCLASS()
 class AI_LOOTER_SHOOTER_API UPlayerHUDWidget : public UUserWidget
 {
 	GENERATED_BODY()
+
+public:
+	/** Shows the "GRAVE MARKED" banner over GraveName (ALooterHUD::ShowGraveMarked): queued behind a banner showing. */
+	void ShowGraveMarked(const FText& GraveName);
+
+	/** The grave banner, for the tests; null before the HUD is built. */
+	UHudGraveMarkedWidget* GetGraveBanner() const { return GraveBanner; }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -145,6 +155,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UHudLevelUpBannerWidget> LevelUpBanner;
 	/** The mission-complete banner, in the level-up banner's place: a level-up during it waits for it. */
 	UPROPERTY(Transient) TObjectPtr<UHudMissionCompleteWidget> MissionBanner;
+	/** The "GRAVE MARKED" banner, a little above them; it waits for them. */
+	UPROPERTY(Transient) TObjectPtr<UHudGraveMarkedWidget> GraveBanner;
 
 	// Bottom-right: weapon
 	UPROPERTY(Transient) TObjectPtr<UWidget> WeaponCluster;
@@ -175,8 +187,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<USizeBox> PickupIdeas;
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> PickupStatTexts;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupHint;
+	/** The hold's key cap with its progress ring (LooterUI::MakeHoldKeyCap), and the ring and the key's name inside it. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> PickupHoldBar;
-	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> PickupHoldSegments;
+	UPROPERTY(Transient) TObjectPtr<ULooterProgressRing> PickupHoldRing;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupHoldKey;
 	UPROPERTY(Transient) TObjectPtr<UWidget> MessagePlate;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> MessageText;
 

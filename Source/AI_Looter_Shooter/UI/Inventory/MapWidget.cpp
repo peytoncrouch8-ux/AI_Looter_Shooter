@@ -10,6 +10,7 @@
 #include "UI/Inventory/LoadoutPaintLayer.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Inventory/MapDiscoverySubsystem.h"
+#include "UI/Inventory/MapCompass.h"
 #include "UI/Inventory/MapIcons.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -45,7 +46,7 @@ namespace
 
 	/** The legend's rows, top to bottom (the player's own arrow comes first, apart). */
 	const EMapPinKind LegendKinds[] = {
-		EMapPinKind::Objective, EMapPinKind::TurnIn, EMapPinKind::Grave, EMapPinKind::Station, EMapPinKind::Vendor, EMapPinKind::Bench,
+		EMapPinKind::Objective, EMapPinKind::Offer, EMapPinKind::TurnIn, EMapPinKind::Grave, EMapPinKind::Station, EMapPinKind::Vendor, EMapPinKind::Bench,
 		EMapPinKind::Shrine, EMapPinKind::Chest, EMapPinKind::ChestLooted,
 	};
 
@@ -358,18 +359,15 @@ void UMapWidget::BuildMapFrame(UCanvasPanel& Page)
 	LoadingText->SetText(FText::FromString(TEXT("CHARTING THE MAP...")));
 	PlaceOn(Map, LoadingText, MapSize * 0.5, FVector2D::ZeroVector, FVector2D(0.5f, 0.5f));
 
-	// The frame's own marks over the map: the area's name, the compass's N, the zoom, and the kit's orange brackets.
+	// The frame's own marks over the map: the area's name (with "north up" under it), the compass's N, E, S and W on the
+	// middles of the frame's edges, the zoom, and the kit's orange brackets.
 	AreaTitle = MakeFloatingText(WidgetTree, 15, Color::Title(), 350, ETextJustify::Left);
 	PlaceOn(Page, AreaTitle, FramePosition + FVector2D(26.0, 20.0), FVector2D::ZeroVector);
 	UTextBlock* NorthUp = MakeFloatingText(WidgetTree, 8, Color::TextDim(), 220, ETextJustify::Left);
 	NorthUp->SetText(FText::FromString(TEXT("MAP  ·  NORTH UP")));
 	PlaceOn(Page, NorthUp, FramePosition + FVector2D(27.0, 44.0), FVector2D::ZeroVector);
 
-	const FVector2D Compass = FramePosition + FVector2D(FrameSize.X - 44.0, 26.0);
-	PlaceOn(Page, MakeImage(WidgetTree, MarkerBrush(EMarker::Arrow, Color::Accent())), Compass, FVector2D(16.f), FVector2D(0.5f, 0.5f));
-	UTextBlock* North = MakeFloatingText(WidgetTree, 12, Color::Accent(), 0, ETextJustify::Center);
-	North->SetText(FText::FromString(TEXT("N")));
-	PlaceOn(Page, North, Compass + FVector2D(0.0, 20.0), FVector2D::ZeroVector, FVector2D(0.5f, 0.5f));
+	MapCompass::Build(WidgetTree, Page, FramePosition, FrameSize);
 
 	ZoomText = MakeFloatingText(WidgetTree, 8, Color::TextDim(), 200, ETextJustify::Right);
 	PlaceOn(Page, ZoomText, FramePosition + FrameSize - FVector2D(24.0, 22.0), FVector2D::ZeroVector, FVector2D(1.f, 1.f));

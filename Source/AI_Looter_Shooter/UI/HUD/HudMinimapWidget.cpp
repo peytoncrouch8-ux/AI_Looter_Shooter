@@ -1,6 +1,8 @@
 #include "UI/HUD/HudMinimapWidget.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "UI/Style/MissionMarkIcons.h"
 #include "UI/Style/WeaponText.h"
+#include "UI/World/GiverMarkSubsystem.h"
 #include "Creatures/CreatureBase.h"
 #include "Loot/AmmoPickup.h"
 #include "Missions/MissionSubsystem.h"
@@ -24,14 +26,14 @@ using namespace LooterUI;
 
 namespace
 {
-	/** How much of the world the minimap shows (radius, cm) at zoom 1, at any size. */
-	constexpr float BaseRange = 3500.f;
 	/** How many things it can mark at once (SplitMarkers shares them out). */
 	constexpr int32 MaxMarkers = 32;
 	/** Marker sizes at 100%: an ammo dot, a loot dot, a hostile's diamond. */
 	constexpr float AmmoMarkerSize = 6.f;
 	constexpr float GunMarkerSize = 9.f;
 	constexpr float HostileMarkerSize = 12.f;
+	/** A giver's ! or ?: the tallest marker, so a job reads at a glance among the dots. */
+	constexpr float GiverMarkerSize = 17.f;
 	constexpr float ArrowSize = 22.f;
 	/** The mission waypoint's ring (a bit bigger than a loot dot), and the arrow on the rim that points to it. */
 	constexpr float WaypointSize = 16.f;
@@ -265,7 +267,27 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 			Gather(HostileSpots, It->GetActorLocation(), Color::Health(), HostileMarkerSize);
 		}
 	}
-	const FMinimapMarkerSplit Split = SplitMarkers(Markers.Num(), HostileSpots.Num(), GunSpots.Num(), AmmoSpots.Num());
+	// The givers' marks within the rim, from the marks over the world (a few looks a second): a ! for a mission to pick
+	// up, a ? for one to turn in, gold or white, each spot beside its mark. Givers are few, so they're never thinned out
+	// by distance as loot is: the split only keeps the hostiles first.
+	FMarkerSpots GiverSpots;
+	TArray<const FGiverMark*, TInlineAllocator<MaxMarkers>> GiverMarks;
+	if (const UGiverMarkSubsystem* Givers = UGiverMarkSubsystem::Get(World))
+	{
+		for (const FGiverMark& Giver : Givers->GetMarks())
+		{
+			const int32 Before = GiverSpots.Num();
+			if (Giver.Giver.IsValid() && Before < MaxMarkers)
+			{
+				Gather(GiverSpots, Giver.Giver->GetActorLocation(), FLinearColor::White, GiverMarkerSize);
+				if (GiverSpots.Num() > Before)
+				{
+					GiverMarks.Add(&Giver);
+				}
+			}
+		}
+	}
+	const FMinimapMarkerSplit Split = SplitMarkers(Markers.Num(), HostileSpots.Num(), GiverSpots.Num(), GunSpots.Num(), AmmoSpots.Num());
 	KeepNearest(HostileSpots, Split.Hostiles);
 	KeepNearest(GunSpots, Split.Guns);
 	KeepNearest(AmmoSpots, Split.Ammo);
@@ -295,7 +317,7 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 		Marker->SetVisibility(ESlateVisibility::HitTestInvisible);
 		++Used;
 	};
-	// Drawn bottom to top: ammo, loot, hostiles.
+	// Drawn bottom to top: ammo, loot, givers, hostiles.
 	for (int32 Index = 0; Index < Split.Ammo; ++Index)
 	{
 		Mark(AmmoSpots[Index], EMarker::Dot, AmmoMarkerSize);
@@ -303,6 +325,26 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	for (int32 Index = 0; Index < Split.Guns; ++Index)
 	{
 		Mark(GunSpots[Index], EMarker::Dot, GunMarkerSize);
+	}
+	// The givers over the loot, under the hostiles: the glyph in its own colours, its brush kept while it shows the same.
+	for (int32 Index = 0; Index < Split.Givers && Used < Markers.Num(); ++Index)
+	{
+		const FGiverMark& Giver = *GiverMarks[Index];
+		const uint32 Key = 0x6000u | (Giver.Mark == MissionMarkIcons::EMark::TurnIn ? 2u : 0u) | (Giver.bMain ? 1u : 0u);
+		const float Size = GiverMarkerSize * MarkerScale;
+		UImage* Marker = Markers[Used];
+		if (MarkerKeys[Used] != Key)
+		{
+			Marker->SetBrush(MissionMarkIcons::MarkBrush(Giver.Mark, Giver.bMain, FVector2D(GiverMarkerSize)));
+			MarkerKeys[Used] = Key;
+		}
+		if (UCanvasPanelSlot* MarkerSlot = Cast<UCanvasPanelSlot>(Marker->Slot))
+		{
+			MarkerSlot->SetSize(FVector2D(Size));
+			MarkerSlot->SetPosition(FVector2D(Radius) + GiverSpots[Index].Offset);
+		}
+		Marker->SetVisibility(ESlateVisibility::HitTestInvisible);
+		++Used;
 	}
 	for (int32 Index = 0; Index < Split.Hostiles; ++Index)
 	{
@@ -328,49 +370,7 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	UpdateWaypoint(Location, Yaw, Radius, PixelsPerCm);
 }
 
-float UHudMinimapWidget::RangeAtZoom(float Zoom)
-{
-	return BaseRange / FMath::Max(Zoom, UGraphicsSettingsSubsystem::MinMinimapZoom);
-}
-
-FMinimapMarkerSplit UHudMinimapWidget::SplitMarkers(int32 Pool, int32 Hostiles, int32 Guns, int32 Ammo)
-{
-	FMinimapMarkerSplit Split;
-	int32 Left = FMath::Max(Pool, 0);
-	Split.Hostiles = FMath::Clamp(Hostiles, 0, Left);
-	Left -= Split.Hostiles;
-	Split.Guns = FMath::Clamp(Guns, 0, Left);
-	Left -= Split.Guns;
-	Split.Ammo = FMath::Clamp(Ammo, 0, Left);
-	return Split;
-}
-
-void UHudMinimapWidget::SetPreviewZoom(float Zoom)
-{
-	PreviewZoom = Zoom > 0.f ? FMath::Clamp(Zoom, UGraphicsSettingsSubsystem::MinMinimapZoom, UGraphicsSettingsSubsystem::MaxMinimapZoom) : 0.f;
-}
-
-float UHudMinimapWidget::ZoomFor(const UGraphicsSettingsSubsystem* Settings) const
-{
-	return PreviewZoom > 0.f ? PreviewZoom : (Settings ? Settings->GetMinimapZoom() : 1.f);
-}
-
-float UHudMinimapWidget::GetZoom() const
-{
-	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	return ZoomFor(LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr);
-}
-
-FMinimapWaypoint UHudMinimapWidget::PlaceWaypoint(const FVector& WorldDelta, float ViewYaw, float PixelsPerCm, float InsideRadius, float RimRadius)
-{
-	FMinimapWaypoint Result;
-	const FVector2D Offset = UMinimapSubsystem::ViewOffset(WorldDelta, ViewYaw, PixelsPerCm);
-	// Up on screen is -Y, so the angle clockwise from up is atan2(right, up); Slate turns widgets clockwise too.
-	Result.Angle = Offset.IsNearlyZero() ? 0.f : static_cast<float>(FMath::RadiansToDegrees(FMath::Atan2(Offset.X, -Offset.Y)));
-	Result.bInside = Offset.Size() <= InsideRadius;
-	Result.Position = Result.bInside ? Offset : Offset.GetSafeNormal() * RimRadius;
-	return Result;
-}
+// RangeAtZoom, SplitMarkers, the zoom and PlaceWaypoint, the plain rules: HudMinimapWidgetRules.cpp.
 
 void UHudMinimapWidget::UpdateWaypoint(const FVector& PlayerLocation, float Yaw, float Radius, float PixelsPerCm)
 {

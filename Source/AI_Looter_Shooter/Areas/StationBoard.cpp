@@ -104,7 +104,8 @@ namespace StationBoard
 	{
 		TArray<FStationBoardLine> Lines;
 
-		// Before the first cast-off there is one trip: off Skyreach, to the story's first arrival.
+		// Before the first cast-off there is one trip: off Skyreach, to the story's first arrival. Only a session begun on
+		// Skyreach before the story was the start can still be there; a new game begins past it.
 		if (!Campaign.bFirstCastOff)
 		{
 			for (UAreaDefinition* Area : Areas)
@@ -127,7 +128,9 @@ namespace StationBoard
 			}
 		}
 
-		// The blank line: what opens the next area, without naming the place.
+		// The blank line: what opens the next area, without naming the place. No practice line after it any more: Skyreach
+		// is the story's third area now, reached later from the Lily (the user's call, 2026-10-13); Looter.Travel Skyreach
+		// still goes there for testing.
 		if (const UMissionDefinition* Next = FindNextMission(Campaign, Missions, Areas))
 		{
 			FStationBoardLine& Line = Lines.AddDefaulted_GetRef();
@@ -135,26 +138,12 @@ namespace StationBoard
 			Line.MissionId = Next->GetMissionId();
 			Line.Name = NextMissionText(*Next);
 		}
-
-		// Practice, from every board but its own: a plain trip to its jetty.
-		for (UAreaDefinition* Area : Areas)
-		{
-			if (Area && Area->bPractice && Area->GetAreaId() != HereAreaId)
-			{
-				Lines.Add(MakeAreaLine(*Area, EStationLine::Practice, PracticeName(*Area), Area->GetDefaultLanding(), HereAreaId));
-			}
-		}
 		return Lines;
 	}
 
 	FText AreaName(const UAreaDefinition& Area)
 	{
 		return Area.DisplayName.IsEmpty() ? FText::FromName(Area.GetAreaId()) : Area.DisplayName;
-	}
-
-	FText PracticeName(const UAreaDefinition& Area)
-	{
-		return FText::Format(LOCTEXT("PracticeName", "{0} (practice)"), AreaName(Area));
 	}
 
 	FText NextMissionText(const UMissionDefinition& Mission)

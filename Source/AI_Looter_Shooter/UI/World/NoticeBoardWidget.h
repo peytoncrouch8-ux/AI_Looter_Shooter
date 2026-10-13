@@ -25,7 +25,9 @@ struct FMissionRewards;
  *  - one ready to turn in shows "[E] Turn in": turned in, its card says what it gave (the gun lands at the player's feet,
  *    in front of the board) in the reward's rarity colour, and a stamp and the mission's fanfare are heard;
  *  - one open and not tracked shows "[E] Track": the minimap and the HUD's tracker follow it;
- *  - one done is stamped done; one not up yet is faint, with the board's note (Skyreach's: bring a gun first).
+ *  - one done is stamped done; one not up yet is faint, with the board's note (Skyreach's: bring a gun first);
+ *  - one up for the taking (a bounty board's job: the board offers it) shows its ! and "[E] Take a look": the offer card
+ *    opens over the board (ALooterHUD::OpenMissionOffer), and the board shows it taken once accepted.
  * W / S, the arrows or the D-pad choose among the cards that can be acted on; E, Enter or the face button act; a click on a
  * card acts on it; Esc closes. Every background it paints follows the UI transparency setting (MarkBackground).
  *
@@ -45,6 +47,9 @@ public:
 
 	/** The postings shown, in order. */
 	const TArray<FNoticeBoardPosting>& GetPostings() const { return Postings; }
+
+	/** The offer card opened from one of its postings closed (bAccepted: taken): the board reads its postings again and says so. */
+	void HandleOfferClosed(FName MissionId, bool bAccepted);
 
 	/** What a posting's reward is, in a few words for its card ("Reward: Pump Shotgun", "No reward: it's practice"). */
 	static FText DescribeReward(const FMissionRewards& Rewards);
@@ -88,9 +93,9 @@ private:
 	/** The card's state on its right: its word and colour ("Open  3 / 6", "Ready to turn in", "Done"). */
 	FText StateWord(const FNoticeBoardPosting& Posting) const;
 	FLinearColor StateColor(const FNoticeBoardPosting& Posting) const;
-	/** Card Index can be acted on here: turned in (ready, given here) or tracked (open, not tracked yet). */
+	/** Card Index can be acted on here: turned in (ready, given here), tracked (open, not tracked yet) or taken (offered). */
 	bool CanAct(int32 Index) const;
-	/** Turns in or tracks card Index. */
+	/** Turns in, tracks or offers card Index (the offer card over the board). */
 	void Act(int32 Index);
 	/** The runner finished a mission: a turn-in here keeps what it gave, for its card. */
 	void HandleMissionCompleted(const UMissionDefinition& Mission, const FMissionRewardsGiven& Given);

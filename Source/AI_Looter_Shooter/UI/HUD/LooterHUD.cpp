@@ -154,7 +154,7 @@ void ALooterHUD::Tick(float DeltaSeconds)
 bool ALooterHUD::IsMenuOpen() const
 {
 	// A Vigil Stone's menu is its own widget (UI/World), not one of the HUD's pages, so it's asked directly.
-	return bInventoryOpen || bPauseMenuOpen || bStationBoardOpen || bBenchOpen || bNoticeBoardOpen || bVendorOpen
+	return bInventoryOpen || bPauseMenuOpen || bStationBoardOpen || bBenchOpen || bNoticeBoardOpen || bVendorOpen || bMissionOfferOpen
 		|| UBossShrineWidget::GetOpen() != nullptr;
 }
 
@@ -186,7 +186,7 @@ void ALooterHUD::HandleMapPressed()
 {
 	// From play only, as the inventory's key: the inventory opens on its map page. Inside the inventory its tabs turn the
 	// pages (and the loadout uses M for its own Move).
-	if (!bPauseMenuOpen && !bInventoryOpen && !bStationBoardOpen && !bBenchOpen && !bNoticeBoardOpen)
+	if (!bPauseMenuOpen && !bInventoryOpen && !bStationBoardOpen && !bBenchOpen && !bNoticeBoardOpen && !bMissionOfferOpen)
 	{
 		ShowInventoryPage(EInventoryPage::Map);
 	}
@@ -194,7 +194,7 @@ void ALooterHUD::HandleMapPressed()
 
 void ALooterHUD::HandleInventoryPressed()
 {
-	if (!bPauseMenuOpen && !bInventoryOpen && !bStationBoardOpen && !bBenchOpen && !bNoticeBoardOpen)
+	if (!bPauseMenuOpen && !bInventoryOpen && !bStationBoardOpen && !bBenchOpen && !bNoticeBoardOpen && !bMissionOfferOpen)
 	{
 		OpenInventory();
 	}
@@ -416,6 +416,8 @@ void ALooterHUD::OpenPauseMenu()
 		CloseInventory();
 		CloseStationBoard();
 		CloseBench();
+		// An offer left open goes back to its giver unanswered (it's offered again), before the board under it closes.
+		CloseMissionOffer();
 		CloseNoticeBoard();
 	}
 	if (const APawn* Pawn = PC->GetPawn())

@@ -1,5 +1,6 @@
 #include "UI/Inventory/MapIcons.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "UI/Style/MissionMarkIcons.h"
 
 using namespace LooterUI;
 
@@ -140,18 +141,6 @@ namespace
 		Icon.Fills.Add(MoveTemp(Middle));
 	}
 
-	/** A five-pointed star: a mission waiting to be turned in (the mission-complete banner's medal). */
-	const FVectorIcon& StarIcon()
-	{
-		static const FVectorIcon Icon = []
-		{
-			FVectorIcon Result;
-			AddStar(Result, FVector2D(12.0, 12.8), 10.0, 4.1);
-			return Result;
-		}();
-		return Icon;
-	}
-
 	/** A coin: a heavy rim round a small star struck in its middle, as the silver coin beside every amount has it. A store. */
 	const FVectorIcon& VendorIcon()
 	{
@@ -200,7 +189,8 @@ namespace MapIcons
 		switch (Kind)
 		{
 		case EMapPinKind::Objective:   return LooterUI::Color::Accent();
-		case EMapPinKind::TurnIn:      return LooterUI::Color::Better();
+		case EMapPinKind::Offer:       return MissionMarkIcons::Color(true);
+		case EMapPinKind::TurnIn:      return MissionMarkIcons::Color(true);
 		case EMapPinKind::Grave:       return LooterUI::Color::CyanText();
 		case EMapPinKind::Station:     return LooterUI::Color::Title();
 		case EMapPinKind::Vendor:      return LooterUI::Color::IconShade();
@@ -218,6 +208,7 @@ namespace MapIcons
 		switch (Kind)
 		{
 		case EMapPinKind::Objective:   return 22.f;
+		case EMapPinKind::Offer:       return 24.f;
 		case EMapPinKind::TurnIn:      return 24.f;
 		case EMapPinKind::Grave:       return 26.f;
 		case EMapPinKind::Station:     return 24.f;
@@ -241,7 +232,8 @@ namespace MapIcons
 		switch (Kind)
 		{
 		case EMapPinKind::Objective:   return LooterUI::IconBrush(TEXT("MapObjective"), ObjectiveIcon(), PixelsPerUnit, Box, Tint);
-		case EMapPinKind::TurnIn:      return LooterUI::IconBrush(TEXT("MapTurnIn"), StarIcon(), PixelsPerUnit, Box, Tint);
+		case EMapPinKind::Offer:       return MissionMarkIcons::MarkBrush(MissionMarkIcons::EMark::Offer, true, Box);
+		case EMapPinKind::TurnIn:      return MissionMarkIcons::MarkBrush(MissionMarkIcons::EMark::TurnIn, true, Box);
 		case EMapPinKind::Grave:       return LooterUI::IconBrush(TEXT("MapGrave"), GraveIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Station:     return LooterUI::IconBrush(TEXT("MapStation"), StationIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Vendor:      return LooterUI::IconBrush(TEXT("MapVendor"), VendorIcon(), PixelsPerUnit, Box, Tint);

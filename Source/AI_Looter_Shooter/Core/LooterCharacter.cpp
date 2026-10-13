@@ -41,9 +41,9 @@ ALooterCharacter::ALooterCharacter()
 	// from the scaled capsule; the step height and walkable slopes stay the world's.
 	GetCapsuleComponent()->SetRelativeScale3D(FVector(LooterPlayerSize::Scale));
 	BaseEyeHeight *= LooterPlayerSize::Scale;
-	// Walking at the full-size speed scaled the same, so each step covers the ground the animation's does; sprint and
-	// aim are shares of it (UPlayerLocomotionComponent).
-	GetCharacterMovement()->MaxWalkSpeed = LooterPlayerSize::FullSizeWalkSpeed * LooterPlayerSize::SpeedScale;
+	// Walking at the full-size speed scaled the same, and slowed to the game's pace (the user's 10%); sprint, slide and
+	// aim are shares of it (UPlayerLocomotionComponent), so they slow with it.
+	GetCharacterMovement()->MaxWalkSpeed = LooterPlayerSize::FullSizeWalkSpeed * LooterPlayerSize::MoveScale;
 
 	// Made in C++ so every character has it without touching the Blueprint; the weapon manager offers it the loot.
 	Interaction = CreateDefaultSubobject<UInteractionComponent>(TEXT("Interaction"));

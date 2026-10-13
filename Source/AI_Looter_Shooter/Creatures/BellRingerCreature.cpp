@@ -98,7 +98,7 @@ ABellRingerCreature::ABellRingerCreature()
 	XPReward = 15;
 	// Slower than the pack it follows, so it trails behind them, and slower than a player backing off.
 	WalkSpeed = 130.f;
-	ChaseSpeed = 400.f * LooterPlayerSize::SpeedScale;
+	ChaseSpeed = 400.f * LooterPlayerSize::MoveScale;
 	// The brain's chase stops it at HoldDistance (BeginPlay sets it again from the tuning a level may have changed).
 	AttackRange = Tuning.HoldDistance / ChaseStopShare;
 	// Its attack is the swipe, run down: quick to wind up, slow to recover.

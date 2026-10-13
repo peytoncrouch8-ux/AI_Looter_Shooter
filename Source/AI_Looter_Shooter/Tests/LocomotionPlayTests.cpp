@@ -149,17 +149,17 @@ bool FPlayerSlideTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
-	// Sprint, then crouch: a slide at 1.1x the sprint, along the run, in the crouched capsule. All at the player's speeds:
-	// walk 510, sprint 790.5, slide 869.55 cm/s.
+	// Sprint, then crouch: a slide at 1.1x the sprint, along the run, in the crouched capsule. All at the player's speeds,
+	// the size's and the game's pace together: walk 459, sprint 711.45, slide 782.6 cm/s.
 	ACharacter* SliderBody = BodyOf(Slider);
 	UCharacterMovementComponent* Movement = SliderBody->GetCharacterMovement();
 	const float Walk = Movement->MaxWalkSpeed;
-	TestEqual(TEXT("The player walks at 85% of 600"), Walk, LooterPlayerSize::FullSizeWalkSpeed * LooterPlayerSize::SpeedScale, 0.01f);
+	TestEqual(TEXT("The player walks at 85% of 600, at the game's pace"), Walk, LooterPlayerSize::FullSizeWalkSpeed * LooterPlayerSize::MoveScale, 0.01f);
 	StartSprint(Slider);
 	const float Sprint = static_cast<float>(Movement->Velocity.Size2D());
 	const float Top = Sprint * FPlayerSlide::SpeedMultiplier;
 	TestEqual(TEXT("Sprinting"), Movement->MaxWalkSpeed, Sprint, 0.5f);
-	TestEqual(TEXT("...at 85% of 930"), Movement->MaxWalkSpeed, 930.f * LooterPlayerSize::SpeedScale, 0.5f);
+	TestEqual(TEXT("...at 85% of 930, at the game's pace"), Movement->MaxWalkSpeed, 930.f * LooterPlayerSize::MoveScale, 0.5f);
 	Slider->HandleCrouchPressed();
 	TestTrue(TEXT("Sprint and crouch: a slide"), Slider->IsSliding());
 	TestEqual(TEXT("...at 1.1x the sprint"), static_cast<float>(Movement->Velocity.Size2D()), Top, 0.5f);

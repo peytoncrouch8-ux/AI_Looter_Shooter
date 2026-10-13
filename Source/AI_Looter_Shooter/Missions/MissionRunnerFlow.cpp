@@ -46,6 +46,8 @@ bool UMissionRunner::StartMission(FName MissionId, int32 Step, bool bForce)
 		// Started over on purpose (the console): it's played from Step, not waiting for its turn-in any more.
 		AskToSave();
 	}
+	// One picked up from a giver, started from code or the console: taken, so the next level plays it on too.
+	UpgradeAccepted(*Mission);
 	StartRun(*Mission, Step);
 	AfterChange();
 	return true;
@@ -80,11 +82,12 @@ void UMissionRunner::StartRun(UMissionDefinition& Mission, int32 Step)
 
 void UMissionRunner::StartDue(FName StartedBy)
 {
-	// Automatic missions whenever they're due; OnEvent ones only on their event.
+	// Automatic missions whenever they're due, and missions taken from their givers (in their area's level again); OnEvent
+	// ones only on their event. One offered and not taken waits at its giver (AcceptMission starts it).
 	for (UMissionDefinition* Mission : Definitions)
 	{
 		const bool bDue = Mission && (StartedBy.IsNone()
-			? Mission->Start == EMissionStart::Automatic
+			? StartsByItself(*Mission)
 			: Mission->Start == EMissionStart::OnEvent && Mission->StartEvent == StartedBy);
 		if (bDue && !Mission->Steps.IsEmpty() && !IsRunning(Mission->GetMissionId()) && CanStart(*Mission))
 		{
@@ -102,6 +105,8 @@ void UMissionRunner::ResumeRecorded()
 	if (Mission && Mission->Start != EMissionStart::Manual && !Mission->Steps.IsEmpty() && !IsRunning(Campaign.ActiveMission)
 		&& !Campaign.HasCompleted(Campaign.ActiveMission) && IsInArea(*Mission))
 	{
+		// Being played, it was taken: a save from before offers keeps it so.
+		UpgradeAccepted(*Mission);
 		StartRun(*Mission, Campaign.ActiveMissionStep);
 	}
 
@@ -113,6 +118,7 @@ void UMissionRunner::ResumeRecorded()
 		UMissionDefinition* Ready = FindDefinition(ReadyId);
 		if (Ready && !Ready->Steps.IsEmpty() && !IsRunning(ReadyId) && !Campaign.HasCompleted(ReadyId) && IsInArea(*Ready))
 		{
+			UpgradeAccepted(*Ready);
 			StartRun(*Ready, Ready->Steps.Num());
 		}
 	}

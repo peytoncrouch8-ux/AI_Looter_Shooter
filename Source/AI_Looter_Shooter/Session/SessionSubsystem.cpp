@@ -142,8 +142,14 @@ bool USessionSubsystem::PlaySession(int32 Index)
 	{
 		return false;
 	}
-	// It continues in the level it was saved in, when that still exists.
+	// An empty slot starts the story at its first arrival (SessionSubsystemNewGame.cpp); only while the story's first level
+	// isn't in the game does a new game open on the game's first level, as it did before.
 	const ULooterSessionSave* Save = LoadSlot(Index);
+	if (!Save && !UGameplayStatics::DoesSaveGameExist(SlotName(Index), 0) && CanStartStory())
+	{
+		return StartNewGame(Index);
+	}
+	// It continues in the level it was saved in, when that still exists.
 	const FString Map = ContinueMap(Save ? Save->Map : FString());
 	if (Save && !Save->Map.IsEmpty() && !Save->Map.Equals(Map, ESearchCase::IgnoreCase))
 	{
@@ -181,13 +187,6 @@ void USessionSubsystem::OpenMainMenu()
 		Options = MenuOptions;
 	}
 	UGameplayStatics::OpenLevel(World, FName(*NewGameMap()), /*bAbsolute*/ true, Options);
-}
-
-FString USessionSubsystem::NewGameMap()
-{
-	// "/Game/Maps/Lvl_TutorialIsland.Lvl_TutorialIsland" is the object; OpenLevel and the saves use the package.
-	const FString DefaultMap = UGameMapsSettings::GetGameDefaultMap();
-	return FPackageName::ObjectPathToPackageName(DefaultMap);
 }
 
 FString USessionSubsystem::ContinueMap(const FString& SavedMap)

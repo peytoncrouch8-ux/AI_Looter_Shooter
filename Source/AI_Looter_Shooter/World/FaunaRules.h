@@ -21,8 +21,8 @@ namespace FaunaRules
 	constexpr float BusyFullRateDistance = 6000.f;
 
 	/** A player's speed (cm/s) at which a bird's flee radius is as set; still they scare less, sprinting more. */
-	constexpr float WalkSpeed = 500.f;
-	constexpr float SprintSpeed = 780.f;
+	constexpr float WalkSpeed = 459.f;
+	constexpr float SprintSpeed = 711.f;
 
 	/**
 	 * How far off a threat scares an animal, as a share of its flee radius: a player standing still 0.8, walking 1, sprinting

@@ -33,7 +33,25 @@ namespace
 		{
 			return ENoticePosting::Done;
 		}
-		return Runner.IsReadyToTurnIn(MissionId) ? ENoticePosting::Ready : ENoticePosting::Locked;
+		if (Runner.IsReadyToTurnIn(MissionId))
+		{
+			return ENoticePosting::Ready;
+		}
+		return Runner.IsAvailable(MissionId) ? ENoticePosting::Offered : ENoticePosting::Locked;
+	}
+
+	/** A bounty board's order for what its tags bring: jobs to take first, then ones to turn in, under way, done. */
+	int32 BoardRank(ENoticePosting State)
+	{
+		switch (State)
+		{
+		case ENoticePosting::Offered: return 0;
+		case ENoticePosting::Ready:   return 1;
+		case ENoticePosting::Open:    return 2;
+		case ENoticePosting::Done:    return 3;
+		case ENoticePosting::Locked:  break;
+		}
+		return 4;
 	}
 }
 
@@ -168,28 +186,24 @@ bool ANoticeBoard::Gives(const UMissionDefinition& Mission) const
 	return Mission.NeedsTurnIn() && ActorHasTag(Mission.TurnIn.SpeakerTag);
 }
 
+bool ANoticeBoard::Offers(const UMissionDefinition& Mission) const
+{
+	return Mission.IsOffered() && ActorHasTag(Mission.Offer.GiverTag);
+}
+
 TArray<FNoticeBoardPosting> ANoticeBoard::GatherPostings(const UMissionRunner& Runner) const
 {
 	TArray<FNoticeBoardPosting> Found;
 	const FName Tracked = Runner.GetTrackedMission();
-	for (const FName MissionId : Postings)
+	auto Pin = [&](const UMissionDefinition& Mission, ENoticePosting State)
 	{
-		const UMissionDefinition* Mission = Runner.FindDefinition(MissionId);
-		if (!Mission)
-		{
-			continue;
-		}
-		const ENoticePosting State = StateOf(Runner, *Mission);
-		// One the game starts itself (the skiff, once Web Hollow is turned in) isn't on the board until it's up.
-		if (State == ENoticePosting::Locked && Mission->Start == EMissionStart::Manual)
-		{
-			continue;
-		}
+		const FName MissionId = Mission.GetMissionId();
 		FNoticeBoardPosting& Posting = Found.AddDefaulted_GetRef();
 		Posting.MissionId = MissionId;
-		Posting.Mission = Mission;
+		Posting.Mission = &Mission;
 		Posting.State = State;
-		Posting.bTurnedInHere = Gives(*Mission);
+		Posting.bTurnedInHere = Gives(Mission);
+		Posting.bOfferedHere = Offers(Mission);
 		Posting.bTracked = State != ENoticePosting::Done && Tracked == MissionId;
 		if (State == ENoticePosting::Open)
 		{
@@ -203,6 +217,45 @@ TArray<FNoticeBoardPosting> ANoticeBoard::GatherPostings(const UMissionRunner& R
 				}
 			}
 		}
+	};
+	for (const FName MissionId : Postings)
+	{
+		const UMissionDefinition* Mission = Runner.FindDefinition(MissionId);
+		if (!Mission)
+		{
+			continue;
+		}
+		const ENoticePosting State = StateOf(Runner, *Mission);
+		// One the game starts itself (the skiff, once Web Hollow is turned in) isn't on the board until it's up.
+		if (State == ENoticePosting::Locked && Mission->Start == EMissionStart::Manual)
+		{
+			continue;
+		}
+		Pin(*Mission, State);
+	}
+
+	// The bounty board: what its tags bring that its list doesn't name, the jobs to take first. What isn't offered yet
+	// stays off it, as a job not posted yet.
+	TArray<TPair<const UMissionDefinition*, ENoticePosting>> Tagged;
+	for (const UMissionDefinition* Mission : Runner.GetDefinitions())
+	{
+		if (!Mission || Postings.Contains(Mission->GetMissionId()) || (!Offers(*Mission) && !Gives(*Mission)))
+		{
+			continue;
+		}
+		const ENoticePosting State = StateOf(Runner, *Mission);
+		if (State != ENoticePosting::Locked)
+		{
+			Tagged.Emplace(Mission, State);
+		}
+	}
+	Tagged.StableSort([](const TPair<const UMissionDefinition*, ENoticePosting>& A, const TPair<const UMissionDefinition*, ENoticePosting>& B)
+	{
+		return BoardRank(A.Value) < BoardRank(B.Value);
+	});
+	for (const TPair<const UMissionDefinition*, ENoticePosting>& Each : Tagged)
+	{
+		Pin(*Each.Key, Each.Value);
 	}
 	return Found;
 }

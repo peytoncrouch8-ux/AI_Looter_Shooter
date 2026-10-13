@@ -56,7 +56,7 @@ namespace MapLayout
  *  - left, framed: the whole level from above, north up, from the minimap's runtime bake (UMinimapSubsystem): the player's
  *    arrow, the tracked mission's objective, missions waiting to be turned in at their givers, the open respawn graves, the
  *    stations, the stores open to trade, the gunsmith's benches, the chests found, and the places' names (the minor ones once zoomed in); a grid, a
- *    scale bar and the compass's N
+ *    scale bar and the compass's N, E, S and W on the middles of the frame's edges (MapCompass), with "north up" in its header
  *  - right: the legend with each kind's count, then fast travel: the chosen grave, how far, and Travel or why not (a fight,
  *    a scene, a boss's fight: GraveTravelRules), and the open graves as a list to pick from
  *  - bottom: what the keys do

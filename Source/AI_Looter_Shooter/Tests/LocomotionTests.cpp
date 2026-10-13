@@ -148,7 +148,7 @@ bool FLocomotionDefaultsTest::RunTest(const FString& Parameters)
 {
 	const UPlayerLocomotionComponent* Defaults = GetDefault<UPlayerLocomotionComponent>();
 	TestTrue(TEXT("Sprint is faster than walking"), Defaults->SprintSpeedMultiplier > 1.f);
-	TestTrue(TEXT("Crouch is slower than walking"), Defaults->CrouchSpeed < LooterPlayerSize::FullSizeWalkSpeed * LooterPlayerSize::SpeedScale);
+	TestTrue(TEXT("Crouch is slower than walking"), Defaults->CrouchSpeed < LooterPlayerSize::FullSizeWalkSpeed * LooterPlayerSize::MoveScale);
 	TestTrue(TEXT("Crouched capsule is shorter than standing (96)"), Defaults->CrouchedHalfHeight < 96.f);
 	TestTrue(TEXT("Crouching tightens spread"), Defaults->CrouchSpreadMultiplier < 1.f);
 	TestTrue(TEXT("Crouched head stays under the crouched capsule top"), Defaults->GetCrouchedHeadHeight() < Defaults->CrouchedHalfHeight * 2.f);
@@ -187,14 +187,16 @@ bool FPlayerSizeTest::RunTest(const FString& Parameters)
 		Capsule->GetUnscaledCapsuleHalfHeight() * LooterPlayerSize::Scale, 0.01f);
 	TestEqual(TEXT("...its eyes at that size"), Character->BaseEyeHeight, GetDefault<APawn>()->BaseEyeHeight * LooterPlayerSize::Scale, 0.01f);
 
-	const float Walk = LooterPlayerSize::FullSizeWalkSpeed * LooterPlayerSize::SpeedScale;
-	TestEqual(TEXT("Walks at 85% of the full-size 600 cm/s"), Character->GetCharacterMovement()->MaxWalkSpeed, Walk, 0.01f);
+	// The user's pace (2026-10-13): every speed a further 10% slower, apart from the size (Tests/PlayerPaceTests.cpp).
+	const float Walk = LooterPlayerSize::FullSizeWalkSpeed * LooterPlayerSize::MoveScale;
+	TestEqual(TEXT("Walks at 85% of the full-size 600 cm/s, at the game's pace"), Character->GetCharacterMovement()->MaxWalkSpeed, Walk, 0.01f);
 	if (const UPlayerLocomotionComponent* Locomotion = FindBlueprintComponent<UPlayerLocomotionComponent>(Player);
 		TestNotNull(TEXT("The Blueprint's locomotion component"), Locomotion))
 	{
-		TestEqual(TEXT("Sprints at 85% of the full-size 930 cm/s"), Walk * Locomotion->SprintSpeedMultiplier, 930.f * LooterPlayerSize::SpeedScale, 0.5f);
-		TestEqual(TEXT("Crouches at 85% of the full-size 300 cm/s"), Locomotion->CrouchSpeed,
-			LooterPlayerSize::FullSizeCrouchSpeed * LooterPlayerSize::SpeedScale, 0.01f);
+		TestEqual(TEXT("Sprints at 85% of the full-size 930 cm/s, at the game's pace"), Walk * Locomotion->SprintSpeedMultiplier,
+			930.f * LooterPlayerSize::MoveScale, 0.5f);
+		TestEqual(TEXT("Crouches at 85% of the full-size 300 cm/s, at the game's pace"), Locomotion->CrouchSpeed,
+			LooterPlayerSize::FullSizeCrouchSpeed * LooterPlayerSize::MoveScale, 0.01f);
 	}
 
 	// The body's Anim Blueprints hand their blend spaces the speed in the body's own size (ULooterCharacterAnimInstance),
@@ -311,8 +313,8 @@ bool FPlayerSlideRulesTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("No slide in the air"), FPlayerSlide::CanStart(true, false));
 
 	// Going in at the player's sprint, across the way they face: the slide follows the run.
-	const float Sprint = LooterPlayerSize::FullSizeWalkSpeed * LooterPlayerSize::SpeedScale * GetDefault<UPlayerLocomotionComponent>()->SprintSpeedMultiplier;
-	const float Crouched = LooterPlayerSize::FullSizeCrouchSpeed * LooterPlayerSize::SpeedScale;
+	const float Sprint = LooterPlayerSize::FullSizeWalkSpeed * LooterPlayerSize::MoveScale * GetDefault<UPlayerLocomotionComponent>()->SprintSpeedMultiplier;
+	const float Crouched = LooterPlayerSize::FullSizeCrouchSpeed * LooterPlayerSize::MoveScale;
 	const float Top = Sprint * FPlayerSlide::SpeedMultiplier;
 	FPlayerSlide Slide;
 	Slide.Start(FVector(0.0, Sprint, 0.0), FVector::ForwardVector, Top);

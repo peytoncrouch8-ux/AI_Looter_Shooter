@@ -23,6 +23,7 @@ there yet is left out with a warning.
   Gravewind Point" ends within 10 m of it (both roads end at the keeper's grave; the cairns lead on to the gate).
 - The keeper's grave's respawn grave (ARespawnMarker KeepersGrave, open after Main 5, so a death in Abel's fight wakes Ellis
   there) at the foot of its mound (the placement graveKeeper), facing the gate.
+  A save point: its lantern post (story.set_save_point) beside the spot, lit when the player walks up to it.
 - The story's dusk (AStoryLighting): Main 6 (and Main 7, which goes on in the evening) in the Dusk lighting state; once
   lit, the dusk lasts until the level loads again.
 - The Gravewind's wisps and the canyon's fog (ADuskScenery, one per mesh, tagged Gravewind; the art session's
@@ -323,6 +324,8 @@ def place_keepers_grave(build, gate):
     # What the map calls it (the layout has no label for it; the design's words: "the keeper's grave").
     marker.set_editor_property('display_name', unreal.Text("Keeper's grave"))
     marker.set_editor_property('active_after_mission', unreal.Name(MAIN5))
+    # A save point: walking up to it marks it (after Main 5, which opens it), its lantern post on the side away from the grave.
+    story.set_save_point(build, marker, (heap.x, heap.y), ignore=[grave])
     build.log(f'the keeper\'s grave\'s respawn at ({x:.0f}, {y:.0f}), open after {MAIN5}')
     return grave
 

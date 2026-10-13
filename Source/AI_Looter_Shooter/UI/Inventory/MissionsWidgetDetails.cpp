@@ -12,6 +12,8 @@
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "UI/Style/MissionMarkIcons.h"
+#include "UI/World/MissionOfferWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
@@ -76,7 +78,9 @@ void UMissionsWidget::RefreshDetails()
 	DetailsBox->AddChildToVerticalBox(NameText);
 	const UMissionRunner* MissionRunner = GetRunner();
 	const bool bTracked = MissionRunner && MissionRunner->GetTrackedMission() == Mission->GetMissionId();
-	FString Standing = DescribeStanding(*Mission, Status);
+	// One to pick up says where under its summary, beside its mark: here, only that it waits for the player.
+	const bool bToPickUp = Status == EMissionStatus::Available && Mission->IsOffered();
+	FString Standing = bToPickUp ? FString(TEXT("Up for the taking")) : DescribeStanding(*Mission, Status);
 	if (bTracked)
 	{
 		Standing += TEXT(" · Tracked: the minimap guides you");
@@ -88,6 +92,22 @@ void UMissionsWidget::RefreshDetails()
 		UTextBlock* Summary = MakeText(WidgetTree, Mission->Summary.ToString(), 10, Color::Text());
 		Summary->SetAutoWrapText(true);
 		DetailsBox->AddChildToVerticalBox(Summary)->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
+	}
+	if (bToPickUp)
+	{
+		// Where to pick it up, beside its giver's mark: the ! the player looks for over them, on the map and the minimap.
+		const bool bMain = Mission->Kind == EMissionKind::Main;
+		UHorizontalBox* Where = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		UHorizontalBoxSlot* MarkSlot = Where->AddChildToHorizontalBox(MakeImage(WidgetTree,
+			MissionMarkIcons::MarkBrush(MissionMarkIcons::EMark::Offer, bMain, FVector2D(24.f))));
+		MarkSlot->SetVerticalAlignment(VAlign_Center);
+		MarkSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
+		UTextBlock* WhereText = MakeText(WidgetTree, DescribeOffer(*Mission), 11, MissionMarkIcons::Color(bMain));
+		WhereText->SetAutoWrapText(true);
+		UHorizontalBoxSlot* WhereSlot = Where->AddChildToHorizontalBox(WhereText);
+		WhereSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		WhereSlot->SetVerticalAlignment(VAlign_Center);
+		DetailsBox->AddChildToVerticalBox(Where)->SetPadding(FMargin(0.f, 14.f, 0.f, 0.f));
 	}
 	if (CanTrackSelected())
 	{
@@ -134,8 +154,9 @@ void UMissionsWidget::AddSteps(const UMissionDefinition& Mission, EMissionStatus
 	StepsBox->AddChildToVerticalBox(Label(WidgetTree, TEXT("Objectives"), 10, Color::Accent(), 300))->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
 	if (Reached == INDEX_NONE)
 	{
-		UTextBlock* Waiting = MakeText(WidgetTree, Status == EMissionStatus::Available
-			? TEXT("Its objectives show once it starts.") : TEXT("Finish what comes before it first."), 10, Color::TextDim());
+		const TCHAR* Words = Status != EMissionStatus::Available ? TEXT("Finish what comes before it first.")
+			: Mission.IsOffered() ? TEXT("Its objectives show once you take it on from its giver.") : TEXT("Its objectives show once it starts.");
+		UTextBlock* Waiting = MakeText(WidgetTree, Words, 10, Color::TextDim());
 		Waiting->SetAutoWrapText(true);
 		StepsBox->AddChildToVerticalBox(Waiting);
 		return;
@@ -388,6 +409,16 @@ EMissionStatus UMissionsWidget::GetSelectedStatus() const
 	return Statuses.IsValidIndex(Selected) ? Statuses[Selected] : EMissionStatus::Locked;
 }
 
+FString UMissionsWidget::DescribeOffer(const UMissionDefinition& Mission) const
+{
+	// Another area's giver isn't in this level: named with the area. Here, with the place nearest them on the map.
+	const UMissionRunner* MissionRunner = GetRunner();
+	const bool bElsewhere = !Mission.Area.IsNone() && MissionRunner && Mission.Area != MissionRunner->GetAreaHere();
+	const AActor* Giver = !bElsewhere && MissionRunner ? MissionRunner->FindOfferGiverActor(Mission) : nullptr;
+	const FText Elsewhere = bElsewhere ? FText::FromString(AreaName(Mission.Area)) : FText::GetEmpty();
+	return FMissionOfferCard::WhereToGet(Mission, Giver, GetWorld(), Elsewhere).ToString();
+}
+
 FString UMissionsWidget::AreaName(FName AreaId) const
 {
 	const FString* Found = AreaNames.Find(AreaId);
@@ -414,6 +445,11 @@ FString UMissionsWidget::DescribeStanding(const UMissionDefinition& Mission, EMi
 		// The campaign's mission, waiting in its own area.
 		return Mission.Area.IsNone() ? FString(TEXT("Waiting")) : FString::Printf(TEXT("Continue in %s"), *AreaName(Mission.Area));
 	case EMissionStatus::Available:
+		// One picked up from a giver: who, and where.
+		if (Mission.IsOffered())
+		{
+			return DescribeOffer(Mission);
+		}
 		if (!Mission.Area.IsNone() && MissionRunner && Mission.Area != MissionRunner->GetAreaHere())
 		{
 			return FString::Printf(TEXT("Ready in %s"), *AreaName(Mission.Area));

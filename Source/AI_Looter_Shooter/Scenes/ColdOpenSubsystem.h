@@ -15,8 +15,9 @@ namespace GraveWake
 /**
  * The story's opening on its first area (Docs/Areas/RansomsRest.md, Main 1 "Seven Days"): the cold open, then the grave
  * wake-up, once per session. The level's travel calls it as the level begins (UAreaTravelSubsystem): where the level has
- * the cold open's set (AColdOpenSet: Ransom's Rest) and the story has just begun (the first cast-off, or "Skip the
- * tutorial", which counts as one) without having seen it, it takes the screen: the white held through the trip (held
+ * the cold open's set (AColdOpenSet: Ransom's Rest) and the story has just begun (a new game,
+ * USessionSubsystem::StartNewGame, or the old first cast-off off Skyreach) without having seen it, it takes the screen:
+ * the white held through the trip (held
  * here if nothing held it) is revealed with REVENANT on the gang's skiff, the dusk scene plays, and Ellis claws out of the
  * grave. Its end, played or skipped, is recorded in the campaign (bColdOpenSeen), so it never plays again; a session
  * quit before the claw-out was done sees it again from the start.

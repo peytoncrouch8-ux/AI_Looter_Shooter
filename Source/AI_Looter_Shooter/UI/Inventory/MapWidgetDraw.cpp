@@ -5,6 +5,7 @@
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Inventory/MapIcons.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "UI/Style/MissionMarkIcons.h"
 #include "World/MinimapSubsystem.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -27,6 +28,8 @@ namespace
 	constexpr double EdgeInset = 18.0;
 	/** The chosen grave's ring breathes at this rate (radians per second). */
 	constexpr float PulseRate = 4.f;
+	/** The share of a badge a giver's ! or ? fills: a tall, narrow glyph wants more of it than the pictures do. */
+	constexpr float GiverMarkShare = 0.8f;
 
 	/** A page point for the painted lines (Slate draws in floats). */
 	FVector2f Point2f(double X, double Y)
@@ -173,16 +176,21 @@ void UMapWidget::LayoutPins()
 		const bool bSelected = Pin.Kind == EMapPinKind::Grave && !SelectedGrave.IsNone() && Pin.Id == SelectedGrave;
 		const bool bLit = bSelected || Index == Hovered;
 		const float Grow = bLit ? 1.18f : 1.f;
-		const FLinearColor Tint = bSelected ? Color::Accent() : MapIcons::Color(Pin.Kind);
+		// A giver's pin is its mark, as over their head and on the minimap: a ! to pick up, a ? to turn in, gold or white.
+		const bool bGiverMark = Pin.Kind == EMapPinKind::Offer || Pin.Kind == EMapPinKind::TurnIn;
+		const FLinearColor Tint = bSelected ? Color::Accent() : bGiverMark ? MissionMarkIcons::Color(Pin.bMain) : MapIcons::Color(Pin.Kind);
 		const bool bBadge = MapIcons::HasBadge(Pin.Kind);
 		const float BadgeSize = PinSize * Grow;
-		const float IconSize = bBadge ? BadgeSize * MapIcons::IconShare : BadgeSize;
-		// What the slot shows: its kind, lit or not, chosen or not (never 0, the empty slot's key).
-		const uint32 Key = 0x100u | (static_cast<uint32>(Pin.Kind) << 2) | (bLit ? 2u : 0u) | (bSelected ? 1u : 0u);
+		const float IconSize = bBadge ? BadgeSize * (bGiverMark ? GiverMarkShare : MapIcons::IconShare) : BadgeSize;
+		// What the slot shows: its kind, gold or white, lit or not, chosen or not (never 0, the empty slot's key).
+		const uint32 Key = 0x100u | (static_cast<uint32>(Pin.Kind) << 3) | (Pin.bMain ? 4u : 0u) | (bLit ? 2u : 0u) | (bSelected ? 1u : 0u);
 		if (PinSlot.StyleKey != Key)
 		{
 			PinSlot.Badge->SetBrush(MapIcons::BadgeBrush(Tint, bLit));
-			PinSlot.Icon->SetBrush(MapIcons::IconBrush(Pin.Kind, IconSize, Tint));
+			PinSlot.Icon->SetBrush(bGiverMark
+				? MissionMarkIcons::MarkBrush(Pin.Kind == EMapPinKind::TurnIn ? MissionMarkIcons::EMark::TurnIn : MissionMarkIcons::EMark::Offer,
+					Pin.bMain, FVector2D(IconSize))
+				: MapIcons::IconBrush(Pin.Kind, IconSize, Tint));
 			PinSlot.StyleKey = Key;
 		}
 		ShowIf(PinSlot.Badge, bBadge);

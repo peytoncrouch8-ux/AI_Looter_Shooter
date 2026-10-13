@@ -1,11 +1,18 @@
 // UControlHintSubsystem: what it sees of the player at each look, for FControlHintRules. Everything is read from the
-// player's own components (movement, locomotion, view, weapons) and the HUD; the three probes (a ledge, a far target, a
-// bench) only run while their hint could still show, so a player who knows the game costs a few comparisons a look.
+// player's own components (movement, locomotion, view, weapons, interaction), the HUD, the missions and the captions; the
+// looks into the world (a ledge, a target, a bench: ControlHintSubsystemProbes.cpp) only run while their hint could still
+// show, so a player who knows the game costs a few comparisons a look.
 
 #include "Tutorial/ControlHintSubsystem.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
+#include "Interaction/InteractionComponent.h"
+#include "Interaction/InteractionTypes.h"
 #include "Inventory/WeaponManagerComponent.h"
+#include "Missions/MissionDefinition.h"
+#include "Missions/MissionPlayerObjectives.h"
+#include "Missions/MissionRunner.h"
+#include "Missions/MissionSubsystem.h"
 #include "Missions/MissionTargets.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
@@ -15,14 +22,8 @@
 #include "Settings/GraphicsSettingsSubsystem.h"
 #include "UI/HUD/LooterHUD.h"
 #include "Weapons/WeaponBase.h"
-#include "Weapons/WeaponDefinition.h"
-#include "World/GunsmithBench.h"
-#include "World/WorldQueries.h"
-#include "Components/CapsuleComponent.h"
-#include "Engine/HitResult.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -38,28 +39,8 @@ namespace
 	/** Leaving the ground this fast upward (cm/s) is a jump, not a step off an edge. */
 	constexpr float JumpSpeed = 150.f;
 
-	/** The ledge probe's two heights over the feet (cm): blocked at the knee, open over the chest. */
-	constexpr float KneeHeight = 40.f;
-	constexpr float OverChestHeight = 170.f;
-
-	/** A face steeper than this (its normal's Z) is a wall or a fence, not a slope; a top flatter than TopFlatness is one to stand on. */
-	constexpr float WallSteepness = 0.5f;
-	constexpr float TopFlatness = 0.7f;
-
-	/** How far past the ledge's face the look for its top comes down (cm). */
-	constexpr float TopInset = 20.f;
-
 	/** The melee hint looks twice as far as a strike reaches (UPlayerMeleeComponent::FindTargetInReach), so it comes a step early. */
 	constexpr float MeleeHintReachScale = 2.f;
-
-	/** What the ledge probe sees: anything solid placed in the level, static or moving. */
-	FCollisionObjectQueryParams SolidObjects()
-	{
-		FCollisionObjectQueryParams Objects;
-		Objects.AddObjectTypesToQuery(ECC_WorldStatic);
-		Objects.AddObjectTypesToQuery(ECC_WorldDynamic);
-		return Objects;
-	}
 }
 
 FControlHintInput UControlHintSubsystem::Look(float DeltaSeconds)
@@ -70,11 +51,23 @@ FControlHintInput UControlHintSubsystem::Look(float DeltaSeconds)
 	const ULocalPlayer* LocalPlayer = Controller ? Controller->GetLocalPlayer() : nullptr;
 	const UGraphicsSettingsSubsystem* Settings = LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
 	In.bEnabled = !Settings || Settings->AreControlHintsShown();
+	In.bCaptionsOn = IsSomeoneTalking(World);
 
-	// The menus the hints teach are seen whatever else holds the player.
+	// The menus the hints teach are seen whatever else holds the player: the loadout, the Ledger, the Missions page, the map.
 	const ALooterHUD* HUD = ALooterHUD::FindFor(Controller);
-	In.bInventoryOpen = HUD && HUD->IsInventoryOpen();
+	const bool bInventory = HUD && HUD->IsInventoryOpen();
+	const EInventoryPage Page = HUD ? HUD->GetInventoryPage() : EInventoryPage::Loadout;
+	In.bInventoryOpen = bInventory && Page == EInventoryPage::Loadout;
+	In.bLedgerOpen = bInventory && Page == EInventoryPage::Bestiary;
+	In.bMissionsOpen = bInventory && Page == EInventoryPage::Missions;
+	In.bMapOpen = bInventory && Page == EInventoryPage::Map;
 	In.bBenchOpen = HUD && HUD->IsBenchOpen();
+
+	// What the Interact key used since the last look, menus or not.
+	In.bInteracted = bUsedSinceLook;
+	In.bHeldUse = bHeldSinceLook;
+	bUsedSinceLook = false;
+	bHeldSinceLook = false;
 
 	ACharacter* Character = Controller ? Cast<ACharacter>(Controller->GetPawn()) : nullptr;
 	if (!Character)
@@ -94,6 +87,10 @@ FControlHintInput UControlHintSubsystem::Look(float DeltaSeconds)
 		LastSlot = INDEX_NONE;
 		LastMeleeCount = INDEX_NONE;
 		LastThrowCount = INDEX_NONE;
+		LastGrenades = INDEX_NONE;
+		LastGun.Reset();
+		LastMagazine = INDEX_NONE;
+		BindInteraction(Character);
 	}
 
 	const UHealthComponent* Health = Character->FindComponentByClass<UHealthComponent>();
@@ -113,6 +110,7 @@ FControlHintInput UControlHintSubsystem::Look(float DeltaSeconds)
 	const UPlayerLocomotionComponent* Locomotion = Character->FindComponentByClass<UPlayerLocomotionComponent>();
 	In.bSprinting = In.bInControl && bOnGround && Speed > WalkSpeed && Locomotion && Locomotion->GetSprintAlpha() > 0.5f;
 	In.bSliding = In.bInControl && Locomotion && Locomotion->IsSliding();
+	In.bCrouching = In.bInControl && Locomotion && Locomotion->IsCrouching() && !Locomotion->IsSliding();
 	In.bWalking = In.bInControl && bOnGround && Speed > WalkSpeed && !In.bSprinting;
 
 	// --- Jumping and climbing: off the ground going up, or down again a good step higher than where it was left ---
@@ -128,17 +126,22 @@ FControlHintInput UControlHintSubsystem::Look(float DeltaSeconds)
 	}
 	bWasOnGround = bOnGround;
 
-	// --- The gun in hand ---
+	// --- The gun in hand: low, reloading, and fired (the trigger held, or a round gone from the same gun's magazine) ---
 	UWeaponManagerComponent* Weapons = Character->FindComponentByClass<UWeaponManagerComponent>();
 	const AWeaponBase* Gun = Weapons ? Weapons->GetActiveWeapon() : nullptr;
 	In.bGunInHand = Gun != nullptr;
+	const int32 Magazine = Gun ? Gun->GetCurrentMagazine() : INDEX_NONE;
 	if (Gun)
 	{
 		const int32 MagazineSize = FMath::Max(Gun->GetStats().MagazineSize, 1);
 		const int32 LowAt = FMath::FloorToInt32(static_cast<float>(MagazineSize) * FControlHintRules::LowMagazineShare);
 		In.bReloading = Gun->IsReloading();
 		In.bMagazineLow = Gun->GetReserveAmmo() > 0 && Gun->GetCurrentMagazine() <= LowAt;
+		const bool bRoundGone = LastGun.Get() == Gun && LastMagazine != INDEX_NONE && Magazine < LastMagazine && !In.bReloading;
+		In.bFired = (In.bInControl && Gun->WantsToFire()) || bRoundGone;
 	}
+	LastGun = Gun;
+	LastMagazine = Magazine;
 	const UPlayerViewComponent* View = Character->FindComponentByClass<UPlayerViewComponent>();
 	In.bAiming = View && View->IsAiming();
 
@@ -164,6 +167,26 @@ FControlHintInput UControlHintSubsystem::Look(float DeltaSeconds)
 	const int32 ThrowCount = Throw ? Throw->GetThrowCount() : 0;
 	In.bThrew = LastThrowCount != INDEX_NONE && ThrowCount > LastThrowCount;
 	LastThrowCount = ThrowCount;
+	// Grenades picked up (a salt tin) before the first throw: the hint's moment even with no crowd about. A count put back
+	// as the level begins is no pickup: the first look of a pawn only notes it.
+	const int32 Grenades = Throw ? Throw->GetGrenades() : 0;
+	In.bGrenadesGained = In.bInControl && LastGrenades != INDEX_NONE && Grenades > LastGrenades && Throw && !Throw->HasThrown();
+	LastGrenades = Grenades;
+
+	// --- The Interact key: something to use in front (its prompt is up), by a press, a hold or both ---
+	const UInteractionComponent* Interaction = BoundInteraction.Get();
+	if (In.bInControl && Interaction && Interaction->GetFocusedActor())
+	{
+		const FInteractionOptions& Options = Interaction->GetFocusedOptions();
+		In.bTapFocused = Options.bUsable && Options.bTap;
+		In.bHoldFocused = Options.bUsable && Options.bHold;
+	}
+
+	// --- The missions: how many are going, the page the tracked one asks for, how far off its objective is ---
+	if (In.bInControl)
+	{
+		LookAtMissions(*Character, In);
+	}
 
 	// --- The probes, only while their hint could still show ---
 	if (In.bInControl)
@@ -183,9 +206,14 @@ FControlHintInput UControlHintSubsystem::Look(float DeltaSeconds)
 		{
 			In.bLedgeAhead = ProbeLedge(*Character, Movement->Velocity);
 		}
-		if (!Rules.IsRetired(EControlHint::Aim) && Gun && !In.bAiming)
+		// Something under the crosshair: to fire at (before the first shot), to aim at from afar, to crouch for.
+		const bool bWantsTarget = !Rules.IsRetired(EControlHint::Fire) || (!Rules.IsRetired(EControlHint::Aim) && !In.bAiming)
+			|| (!Rules.IsRetired(EControlHint::Crouch) && In.bAiming);
+		if (bWantsTarget && Gun)
 		{
-			In.bFarTarget = ProbeFarTarget(*Controller, *Character, *Gun);
+			const float Distance = ProbeTarget(*Controller, *Character, *Gun);
+			In.bTargetInSights = Distance >= 0.f;
+			In.bFarTarget = Distance > FControlHintRules::FarTargetDistance;
 		}
 		if (!Rules.IsRetired(EControlHint::Bench) && Weapons && Carried >= 2)
 		{
@@ -195,115 +223,74 @@ FControlHintInput UControlHintSubsystem::Look(float DeltaSeconds)
 	return In;
 }
 
-bool UControlHintSubsystem::ProbeLedge(const ACharacter& Character, const FVector& Heading) const
+void UControlHintSubsystem::LookAtMissions(const APawn& Pawn, FControlHintInput& In) const
 {
 	const UWorld* World = GetWorld();
-	const FVector Forward = Heading.GetSafeNormal2D();
-	if (!World || Forward.IsNearlyZero())
+	const UMissionSubsystem* Book = World ? World->GetSubsystem<UMissionSubsystem>() : nullptr;
+	if (!Book)
 	{
-		return false;
+		return;
 	}
-	const UCapsuleComponent* Capsule = Character.GetCapsuleComponent();
-	const float Radius = Capsule ? Capsule->GetScaledCapsuleRadius() : 30.f;
-	const float HalfHeight = Capsule ? Capsule->GetScaledCapsuleHalfHeight() : 80.f;
-	const FVector Feet = Character.GetActorLocation() - FVector(0.0, 0.0, HalfHeight);
-	const FVector Ahead = Forward * (Radius + LedgeReach);
-	// The level's solid pieces: volumes, the playable area's invisible walls and the scatter's grass are no ledges.
-	const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("ControlHintLedge"), &Character, /*bTraceComplex*/ false);
-	const FCollisionObjectQueryParams Objects = SolidObjects();
+	In.MissionsGoing = Book->GetMissions().Num();
+	FVector Waypoint = FVector::ZeroVector;
+	if (!Rules.IsRetired(EControlHint::Map) && Book->GetTrackedWaypoint(Waypoint))
+	{
+		In.bFarWaypoint = FVector::Dist2D(Waypoint, Pawn.GetActorLocation()) > FControlHintRules::MapWaypointDistance;
+	}
 
-	// Something steep at knee height ahead (a wall, a fence, a crate's side; not a slope)...
-	FHitResult Low;
-	const FVector LowStart = Feet + FVector(0.0, 0.0, KneeHeight);
-	if (!World->LineTraceSingleByObjectType(Low, LowStart, LowStart + Ahead, Objects, Params) || Low.ImpactNormal.Z > WallSteepness)
+	// The page the tracked mission's step asks to open (Main 2's "Open the Ledger"), read from its objectives.
+	if (Rules.IsRetired(EControlHint::Inventory) && Rules.IsRetired(EControlHint::Ledger) && Rules.IsRetired(EControlHint::Missions))
 	{
-		return false;
+		return;
 	}
-	// ...open over the chest (a building's wall would block it too)...
-	FHitResult High;
-	const FVector HighStart = Feet + FVector(0.0, 0.0, OverChestHeight);
-	if (World->LineTraceSingleByObjectType(High, HighStart, HighStart + Ahead, Objects, Params))
+	const UMissionRunner* Runner = World->GetSubsystem<UMissionRunner>();
+	const FName Tracked = Runner && Runner->IsActive() ? Runner->GetTrackedMission() : NAME_None;
+	const UMissionDefinition* Mission = Tracked.IsNone() ? nullptr : Runner->FindDefinition(Tracked);
+	const int32 Step = Mission ? Runner->GetStep(Tracked) : INDEX_NONE;
+	if (!Mission || !Mission->Steps.IsValidIndex(Step))
 	{
-		return false;
+		return;
 	}
-	// ...and a top to stand on just past its face, from knee to chest height.
-	const FVector Over = Low.ImpactPoint + Forward * TopInset;
-	FHitResult Top;
-	if (!World->LineTraceSingleByObjectType(Top, FVector(Over.X, Over.Y, HighStart.Z), FVector(Over.X, Over.Y, LowStart.Z - 10.0), Objects, Params))
+	for (int32 Index = 0; Index < Mission->Steps[Step].Objectives.Num(); ++Index)
 	{
-		return false;
+		const UMissionOpenPageObjective* Open = Cast<UMissionOpenPageObjective>(Mission->GetObjective(Step, Index));
+		if (!Open)
+		{
+			continue;
+		}
+		switch (Open->Page)
+		{
+		case EMissionPage::Bestiary: In.bAskedLedger = true; break;
+		case EMissionPage::Missions: In.bAskedMissions = true; break;
+		case EMissionPage::Loadout:
+		case EMissionPage::Any:      In.bAskedInventory = true; break;
+		}
 	}
-	const float Height = static_cast<float>(Top.ImpactPoint.Z - Feet.Z);
-	return Top.ImpactNormal.Z >= TopFlatness && Height >= LedgeMinHeight && Height <= LedgeMaxHeight;
 }
 
-bool UControlHintSubsystem::ProbeFarTarget(const APlayerController& Controller, const APawn& Pawn, const AWeaponBase& Gun) const
+void UControlHintSubsystem::BindInteraction(APawn* Pawn)
 {
-	const UWorld* World = GetWorld();
-	if (!World)
+	UInteractionComponent* Interaction = Pawn ? Pawn->FindComponentByClass<UInteractionComponent>() : nullptr;
+	if (Interaction == BoundInteraction.Get())
 	{
-		return false;
+		return;
 	}
-	// Along the crosshair, on the gun's own channel: what a shot would hit (pawn capsules let it through to the bodies).
-	FVector Eye = FVector::ZeroVector;
-	FRotator Facing = FRotator::ZeroRotator;
-	Controller.GetPlayerViewPoint(Eye, Facing);
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(ControlHintTarget), /*bTraceComplex*/ false, &Pawn);
-	Params.AddIgnoredActor(&Gun);
-	FHitResult Hit;
-	if (!World->LineTraceSingleByChannel(Hit, Eye, Eye + Facing.Vector() * TargetProbeLength, Gun.TraceChannel, Params))
+	if (UInteractionComponent* Old = BoundInteraction.Get())
 	{
-		return false;
+		Old->OnInteracted.RemoveDynamic(this, &UControlHintSubsystem::HandleInteracted);
 	}
-	const AActor* Target = Hit.GetActor();
-	if (!Target || Target == &Pawn || !Target->FindComponentByClass<UHealthComponent>() || !MissionTargets::IsAlive(*Target))
+	BoundInteraction = Interaction;
+	if (Interaction)
 	{
-		return false;
+		Interaction->OnInteracted.AddUniqueDynamic(this, &UControlHintSubsystem::HandleInteracted);
 	}
-	return FVector::Dist(Pawn.GetActorLocation(), Hit.ImpactPoint) > FControlHintRules::FarTargetDistance;
+	bUsedSinceLook = false;
+	bHeldSinceLook = false;
 }
 
-bool UControlHintSubsystem::IsAtBenchWithPair(const APawn& Pawn, const UWeaponManagerComponent& Weapons)
+void UControlHintSubsystem::HandleInteracted(AActor* Target, bool bHeld)
 {
-	// Two guns of one kind among the slots and the backpack: the bench trades parts between guns of a kind.
-	TArray<const UObject*, TInlineAllocator<16>> Kinds;
-	bool bPair = false;
-	auto Count = [&Kinds, &bPair](const UObject* Kind)
-	{
-		if (Kind)
-		{
-			bPair |= Kinds.Contains(Kind);
-			Kinds.Add(Kind);
-		}
-	};
-	for (const AWeaponBase* Gun : Weapons.GetWeapons())
-	{
-		Count(Gun ? Gun->GetInstance().Definition.Get() : nullptr);
-	}
-	for (const FWeaponInstanceData& Item : Weapons.GetBackpack())
-	{
-		Count(Item.Definition.Get());
-	}
-	if (!bPair)
-	{
-		return false;
-	}
-	if (!bBenchesFound)
-	{
-		// Benches are placed with the level and never move: found once.
-		bBenchesFound = true;
-		for (TActorIterator<AGunsmithBench> It(GetWorld()); It; ++It)
-		{
-			Benches.Add(*It);
-		}
-	}
-	const FVector Where = Pawn.GetActorLocation();
-	for (const TWeakObjectPtr<AActor>& Bench : Benches)
-	{
-		if (Bench.IsValid() && FVector::Dist(Bench->GetActorLocation(), Where) <= BenchDistance)
-		{
-			return true;
-		}
-	}
-	return false;
+	// Taken at the next look: a tap teaches the key, a hold run its full time teaches holding it too.
+	bUsedSinceLook = true;
+	bHeldSinceLook = bHeldSinceLook || bHeld;
 }

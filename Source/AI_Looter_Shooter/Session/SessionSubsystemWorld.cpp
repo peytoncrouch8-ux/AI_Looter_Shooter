@@ -15,7 +15,9 @@
 #include "Tutorial/TutorialDirector.h"
 #include "Weapons/WeaponBase.h"
 #include "World/BreakableProp.h"
+#include "World/GraveTravelSubsystem.h"
 #include "World/HayBale.h"
+#include "World/RespawnMarker.h"
 #include "World/WantedPoster.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -304,16 +306,30 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 	}
 
 	// The player, who has just been put at the level's start (or a trip's landing). Their spot is only good in the level
-	// it was saved in.
+	// it was saved in, and only a Continue has one: a trip's arrival has none, and lands at its landing.
 	APlayerController* Controller = World->GetFirstPlayerController();
 	APawn* Pawn = Controller ? Controller->GetPawn() : nullptr;
 	if (Pawn)
 	{
 		if (Save.HasPlayerSpotOn(MapPackage))
 		{
-			// Upright, facing the saved way; the view takes the saved pitch too.
-			Pawn->TeleportTo(Save.PlayerLocation, FRotator(0.f, Save.PlayerView.Yaw, 0.f), /*bIsATest*/ false, /*bNoCheck*/ true);
-			Controller->SetControlRotation(FRotator(Save.PlayerView.Pitch, Save.PlayerView.Yaw, 0.f));
+			// Borderlands' way: a Continue wakes at the grave the player last marked in this area (a save point), else at the
+			// open grave nearest where they stood, else where they stood (a level with no graves: Skyreach).
+			const ARespawnMarker* Grave = ARespawnMarker::ChooseContinueGrave(World, Save.PlayerLocation, Save.Campaign,
+				ARespawnMarker::FindAreaId(World));
+			if (Grave)
+			{
+				// On the grave's spot, facing its arrow, level, as a death's wake-up and a fast travel put them.
+				UGraveTravelSubsystem::MoveToGrave(*Pawn, *Grave);
+				UE_LOG(LogLooter, Log, TEXT("Session continued at the grave %s (%s)"), *Grave->GetMarkerId().ToString(),
+					Grave->IsSavePoint(Save.Campaign, ARespawnMarker::FindAreaId(World)) ? TEXT("the save point") : TEXT("the open grave nearest where it was saved"));
+			}
+			else
+			{
+				// Upright, facing the saved way; the view takes the saved pitch too.
+				Pawn->TeleportTo(Save.PlayerLocation, FRotator(0.f, Save.PlayerView.Yaw, 0.f), /*bIsATest*/ false, /*bNoCheck*/ true);
+				Controller->SetControlRotation(FRotator(Save.PlayerView.Pitch, Save.PlayerView.Yaw, 0.f));
+			}
 		}
 		// The guns first: one in hand can change the player's max health (a Grasping iron's), keeping health's share,
 		// so health set before it would come back lower on every load. The grenades go in before the guns, so the gun

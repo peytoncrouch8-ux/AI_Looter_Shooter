@@ -19,7 +19,8 @@ enum class EMissionStatus : uint8;
 
 /**
  * The missions, the inventory's third page, laid out like the pages beside it:
- *  - left: the mission log by section: active (the tracked one marked), available, completed
+ *  - left: the mission log by section: active (the tracked one marked), available (a mission to pick up from its giver
+ *    with its ! and where to get it), completed
  *  - right: the chosen mission: its kind and area, title and summary, Track / Untrack for one running here; under it
  *    its steps (the ones done ticked off, the current one's objectives with their progress, or once all are done "Ready
  *    to turn in: talk to Delia") and what it gives
@@ -81,8 +82,14 @@ private:
 	/** "Ransom's Rest" for the area id RansomsRest (its asset's name), or the id. */
 	FString AreaName(FName AreaId) const;
 
-	/** What a card's second line says: its step, where it waits, or that it's done. */
+	/** What a card's second line says: its step, where it waits, who offers it, or that it's done. */
 	FString DescribeStanding(const UMissionDefinition& Mission, EMissionStatus Status) const;
+
+	/**
+	 * Where a mission picked up from a giver is to be had: "Offered by Delia, at Ransom Farm", "Posted on the notice board",
+	 * "Offered by Tilly, in Ransom's Rest" (FMissionOfferCard::WhereToGet).
+	 */
+	FString DescribeOffer(const UMissionDefinition& Mission) const;
 
 	TWeakObjectPtr<ALooterHUD> OwningHUD;
 	TWeakObjectPtr<UMissionRunner> Runner;

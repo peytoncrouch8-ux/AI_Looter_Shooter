@@ -15,6 +15,8 @@ enum class ENoticePosting : uint8
 {
 	/** Not up yet: what it waits for isn't done (Skyreach's, until the player has a gun and has read the board). */
 	Locked,
+	/** Up for the taking: a mission this board offers (FMissionOffer), not taken yet. Choosing it opens the offer card. */
+	Offered,
 	/** Up and being played. */
 	Open,
 	/** Its objectives done: it waits to be turned in. */
@@ -32,6 +34,8 @@ struct AI_LOOTER_SHOOTER_API FNoticeBoardPosting
 	ENoticePosting State = ENoticePosting::Locked;
 	/** It's turned in here (its giver is this board), rather than finishing by itself. */
 	bool bTurnedInHere = false;
+	/** It's picked up here (the board offers it), as a bounty board's jobs are. */
+	bool bOfferedHere = false;
 	/** The tracked mission: the minimap and the HUD's tracker follow it. */
 	bool bTracked = false;
 	/** Its current objective's count ("3 / 6") while it's open and counts several; empty otherwise. */
@@ -51,6 +55,12 @@ struct AI_LOOTER_SHOOTER_API FNoticeBoardPosting
  * console's Looter.Mission.Event Talk Speaker_NoticeBoard) turns them in as a speaker point's talk would. It has no
  * speaker point of its own: a board doesn't talk, it turns in through its screen (TurnIn). Rewards (Skyreach's are guns)
  * land at the player's feet, in front of the board.
+ *
+ * Any town's board is a bounty board too (2026-10-13: every mission is picked up from a giver): the missions offered by a
+ * tag it carries (FMissionOffer::GiverTag: NoticeBoard_Rangers) are pinned up with its Postings while they're offered,
+ * under way, ready or done, and choosing one up for the taking opens the offer card over the board's screen
+ * (ALooterHUD::OpenMissionOffer); a ! floats over the board while one is. Placed on any layout by
+ * Tools/Unreal/build_area_board.py (gameplay.boards), with its own tags, title and postings.
  *
  * Its Face is a thin box over the board's face that only the Visibility channel sees, so the Interact key's line finds
  * it there; nothing else (shots, walking, the camera) notices it. It never ticks.
@@ -92,9 +102,13 @@ public:
 
 	/**
 	 * Its postings as they stand, in Postings' order: each that exists, open, ready, done, or locked; one started from code
-	 * (the skiff, which the jetty offers) only once it's up.
+	 * (the skiff, which the jetty offers) only once it's up. After them the missions offered or turned in here by its tags:
+	 * up for the taking first, then ready, open and done; what isn't offered yet stays off the board.
 	 */
 	TArray<FNoticeBoardPosting> GatherPostings(const UMissionRunner& Runner) const;
+
+	/** Mission is picked up here: its offer names a giver tag this board carries. */
+	bool Offers(const UMissionDefinition& Mission) const;
 
 	/** Turns in a posting given here that's ready: finished, with its rewards at the player's feet. False otherwise. */
 	bool TurnIn(UMissionRunner& Runner, FName MissionId) const;

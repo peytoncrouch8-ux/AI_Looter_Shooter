@@ -60,7 +60,68 @@ struct AI_LOOTER_SHOOTER_API FCampaignRecord
 	UPROPERTY()
 	TArray<FName> ReadyMissions;
 
+	/**
+	 * Missions taken from their giver (EMissionStart::Offered: a notice board, someone, an artifact), by id, in the order
+	 * they were accepted: they run from then on, wherever the session goes on, until finished. A mission offered but not
+	 * accepted isn't listed, so it's offered again. New within version 2 (2026-10-13): a save from before reads as none
+	 * accepted, and the runner treats a mission an old save already had running (ActiveMission) as accepted.
+	 */
+	UPROPERTY()
+	TArray<FName> AcceptedMissions;
+
+	/**
+	 * The last respawn grave the player marked in each area (area id -> ARespawnMarker::MarkerId), Borderlands' save
+	 * stations: walking up to a grave marks it, and Continue wakes the player there. New within version 2 (2026-10-13): a
+	 * save from before reads as none marked, and Continue falls back as it did.
+	 */
+	UPROPERTY()
+	TMap<FName, FName> LastGraves;
+
+	/**
+	 * Every respawn grave the player has marked by walking up to it, by MarkerId, in the order first marked: its lantern
+	 * stays lit for good, and a grave the story opened still gets its first mark (the banner) when the player first comes.
+	 * New within version 2 (2026-10-13): a save from before reads as none marked, which is right.
+	 */
+	UPROPERTY()
+	TArray<FName> MarkedGraves;
+
 	bool HasCompleted(FName Mission) const { return !Mission.IsNone() && CompletedMissions.Contains(Mission); }
+
+	bool IsAccepted(FName Mission) const { return !Mission.IsNone() && AcceptedMissions.Contains(Mission); }
+
+	/** Records a mission taken from its giver. False when it already was, or it's finished. */
+	bool Accept(FName Mission)
+	{
+		if (Mission.IsNone() || AcceptedMissions.Contains(Mission) || HasCompleted(Mission))
+		{
+			return false;
+		}
+		AcceptedMissions.Add(Mission);
+		return true;
+	}
+
+	/** The grave last marked in Area, or None. */
+	FName GetLastGrave(FName Area) const
+	{
+		const FName* Found = LastGraves.Find(Area);
+		return Found ? *Found : NAME_None;
+	}
+
+	/** Records Marker as the grave last marked in Area. False when it already was. */
+	bool SetLastGrave(FName Area, FName Marker)
+	{
+		if (Marker.IsNone())
+		{
+			return false;
+		}
+		FName& Slot = LastGraves.FindOrAdd(Area);
+		if (Slot == Marker)
+		{
+			return false;
+		}
+		Slot = Marker;
+		return true;
+	}
 
 	/** Records a mission as finished (once): it's no longer the one being played, nor waiting to be turned in. */
 	void Complete(FName Mission)

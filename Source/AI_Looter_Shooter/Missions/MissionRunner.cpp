@@ -140,6 +140,11 @@ void UMissionRunner::RegisterDefinition(UMissionDefinition* Mission)
 			*Mission->GetMissionId().ToString());
 		return;
 	}
+	if (Mission->Start == EMissionStart::Offered && Mission->Offer.GiverTag.IsNone())
+	{
+		UE_LOG(LogLooter, Warning, TEXT("Missions: %s is picked up from a giver but names none (Offer.GiverTag): nobody can offer it."),
+			*Mission->GetMissionId().ToString());
+	}
 	Definitions.Add(Mission);
 }
 
@@ -224,6 +229,15 @@ EMissionStatus UMissionRunner::GetStatus(const UMissionDefinition& Mission) cons
 	if (Campaign.HasCompleted(MissionId))
 	{
 		return EMissionStatus::Completed;
+	}
+	// One picked up from a giver: under way once taken (waiting in its own area), else offered once what comes first is done.
+	if (Mission.IsOffered())
+	{
+		if (IsAccepted(MissionId))
+		{
+			return EMissionStatus::Active;
+		}
+		return ArePrerequisitesMet(Mission) ? EMissionStatus::Available : EMissionStatus::Locked;
 	}
 	if (Mission.Start != EMissionStart::Manual && ArePrerequisitesMet(Mission))
 	{

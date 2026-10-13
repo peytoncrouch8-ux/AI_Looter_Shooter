@@ -9,8 +9,20 @@ where the work stands.
 - **Story:** *Revenant* (`Docs/Story.md`). A weird-west campaign on the planet Teropa. Ellis Ransom is shot dead at
   Ransom's Point by the gang that stole the saints' embers, wakes in the family plot, and makes a deal with Mister Sexton:
   seven embers at the new moon, and Pa crosses. One area per Hollow; each area has its own design in `Docs/Areas/`.
-- **Areas:** the tutorial island (called Skyreach in the game) teaches the basics; Ransom's Rest is the first campaign
-  area (done 2026-10-08). The next, the *Gilded Lily* (Lucky Ned's casino), is on hold.
+- **Areas (map order since 2026-10-13):** 1 Ransom's Rest (a new game starts on its cold open; the controls are taught by
+  contextual hints in its first missions), 2 the *Gilded Lily* (behind the north mountain, by train; not built), 3
+  Skyreach (the old tutorial island, later reached from the Lily by a skylift; off the station boards for now,
+  `Looter.Travel Skyreach` for testing). Ransom's Rest's expansion up the mountain: `Docs/Areas/RansomsRest_Expansion.md`.
+- **Missions (2026-10-13):** every mission but Main 1 is picked up from a giver (`EMissionStart::Offered`,
+  `FMissionOffer`): someone at a speaker point, a notice board, or an artifact (`AMissionArtifact`). A **?** marks a
+  mission to pick up and a **!** one to turn in (the user's call, the other way round from Borderlands), gold for the
+  story, white for sides, on the map, the minimap and over the giver (`UGiverMarkSubsystem`). The offer card
+  (`UMissionOfferWidget`) has Accept / Not now; the Missions tab lists only missions taken up. `Looter.Mission.Offer <id>`
+  opens a card.
+- **Save points (2026-10-13):** respawn graves are marked by walking up to them (lantern, banner, an early autosave);
+  Continue wakes the player at the area's last marked grave (`FCampaignRecord::LastGraves`), deaths at the nearest open
+  one. `Looter.Grave.List`, `Looter.Grave.Mark <id> | forget <id|all>`.
+- **Holds:** every hold-to-use shows the kit's round ring (`SLooterProgressRing`, `LooterUI::MakeHoldKeyCap`).
 - **Look:** stylized realism: real lighting and textured materials, still a little stylized. The user rejected faceted
   low-poly. Golden-hour palettes on Ransom's Rest (ochre, olive, sandstone), late summer. Loot colours (rarity orange,
   teal, gold) stay off the world.
@@ -18,8 +30,9 @@ where the work stands.
   has no panels. Icons are Inked icons drawn in code.
 - **Feel:** every action should reward the player: tracers, impacts, muzzle flash, spring recoil, hit flash, sound.
 - **Selling:** nothing copyrighted. All models are scripted in Blender here, textures are made here, names are original.
-- **Player numbers (2026-10-08):** 0.85 of the mannequin's size; walk 510, sprint 790, crouch 255 cm/s; eye at about
-  140 cm; jump 103.5 cm. A slide comes out of sprint plus crouch. Creature speeds scale with `LooterPlayerSize::SpeedScale`.
+- **Player numbers (2026-10-13):** 0.85 of the mannequin's size, and 0.9 pace on top (the user: "pace of play is super
+  fast"): walk 459, sprint 711, crouch 230, slide 783 cm/s; eye at about 140 cm; jump 103.5 cm. A slide comes out of
+  sprint plus crouch. Chasing creatures scale with `LooterPlayerSize::MoveScale` (size and pace); slimes don't.
 
 ## Who does what
 

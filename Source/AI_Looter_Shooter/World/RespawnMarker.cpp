@@ -4,19 +4,80 @@
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRunner.h"
 #include "Session/CampaignRecord.h"
+#include "World/RespawnMarkerLanternKit.h"
 #include "Components/ArrowComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/CollisionProfile.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
+#include "Materials/MaterialInterface.h"
+#include "TimerManager.h"
+
+namespace
+{
+	/** Seconds between looks at the player: a grave is a landmark, so a walk up to it is noticed within a third of a second. */
+	constexpr float PollSeconds = 0.3f;
+}
 
 ARespawnMarker::ARespawnMarker()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	// Ticks only for the second of a lantern's flare (AdvanceLantern); the poll for the player is a timer.
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = false;
 
 	USceneComponent* Anchor = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	Anchor->SetMobility(EComponentMobility::Movable);
 	RootComponent = Anchor;
+
+	// The lantern post beside the spot, the models found only once they're in this checkout so the class works, and its tests
+	// run, without them.
+	static UStaticMesh* const PostModel = RespawnLantern::FindIfMade<UStaticMesh>(RespawnLantern::PostPath);
+	static UMaterialInterface* const TrimGlass = RespawnLantern::FindIfMade<UMaterialInterface>(RespawnLantern::DarkGlassPath);
+	LanternMesh = PostModel;
+	DarkGlass = TrimGlass;
+
+	Lantern = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Lantern"));
+	Lantern->SetupAttachment(Anchor);
+	Lantern->SetMobility(EComponentMobility::Movable);
+	Lantern->SetStaticMesh(PostModel);
+	// A post stops the player and shots as a post does, and no creature plans round it.
+	Lantern->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+	Lantern->SetCanEverAffectNavigation(false);
+	Lantern->SetCastShadow(true);
+
+	LanternLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("LanternLight"));
+	LanternLight->SetupAttachment(Lantern);
+	LanternLight->SetMobility(EComponentMobility::Movable);
+	// A lantern's light: small, warm, never a shadow (the area's rule for every lantern), and gone beyond a long walk.
+	LanternLight->SetCastShadows(false);
+	LanternLight->SetIntensityUnits(ELightUnits::Candelas);
+	LanternLight->SetIntensity(LanternCandela);
+	LanternLight->SetAttenuationRadius(RespawnLantern::LightRadius);
+	LanternLight->SetLightColor(RespawnLantern::Warm());
+	LanternLight->SetMaxDrawDistance(RespawnLantern::LightDrawDistance);
+	LanternLight->SetMaxDistanceFadeRange(RespawnLantern::LightFadeRange);
+	LanternLight->SetVisibility(false);
+
+	// The flame's glow cards (the gunfire's additive glow on the engine's plane), dark until the grave is marked.
+	static UStaticMesh* const Plane = RespawnLantern::FindIfMade<UStaticMesh>(RespawnLantern::PlanePath);
+	static UMaterialInterface* const Glow = RespawnLantern::FindIfMade<UMaterialInterface>(RespawnLantern::GlowPath);
+	Flame = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Flame"));
+	Flame->SetupAttachment(Lantern);
+	Flame->SetMobility(EComponentMobility::Movable);
+	Flame->SetStaticMesh(Plane);
+	Flame->SetMaterial(0, Glow);
+	Flame->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+	Flame->SetGenerateOverlapEvents(false);
+	Flame->SetCanEverAffectNavigation(false);
+	Flame->SetCastShadow(false);
+	Flame->bReceivesDecals = false;
+	Flame->SetNumCustomDataFloats(RespawnLantern::GlowFloats);
+	Flame->SetVisibility(false);
 
 #if WITH_EDITORONLY_DATA
 	Arrow = CreateEditorOnlyDefaultSubobject<UArrowComponent>(TEXT("Arrow"));
@@ -41,12 +102,21 @@ void ARespawnMarker::BeginPlay()
 		UE_LOG(LogLooter, Warning, TEXT("Respawn grave %s has no MarkerId: its opening is kept under its actor name, which a rebuilt level may change."),
 			*GetActorNameOrLabel());
 	}
+	FitLantern();
 	UMissionRunner* Runner = UMissionRunner::Get(this);
+	// A grave marked in an earlier visit stands lit from the start, with no flare: the story is in the session's record.
+	SetLit(Runner && Runner->IsActive() && IsMarked(Runner->GetCampaign()));
+	if (bMarkOnApproach)
+	{
+		// A few looks a second, each grave off the others' beat; the work is one distance until the player is near.
+		GetWorldTimerManager().SetTimer(PollTimer, this, &ARespawnMarker::PollApproach, PollSeconds, true, FMath::FRandRange(0.f, PollSeconds));
+	}
 	if (!Runner || ActiveAfterMission.IsNone())
 	{
 		return;
 	}
-	// Its mission may have been finished before this level began (elsewhere, or before graves existed): recorded now.
+	// Its mission may have been finished before this level began (elsewhere, or before graves existed): recorded now. That
+	// opens the grave but never marks it: a save point is a grave the player has walked up to.
 	if (Runner->GetCampaign().HasCompleted(ActiveAfterMission) && Activate(Runner->GetCampaign()))
 	{
 		UE_LOG(LogLooter, Log, TEXT("Respawn grave %s is open: %s was finished."), *GetMarkerId().ToString(), *ActiveAfterMission.ToString());
@@ -57,6 +127,10 @@ void ARespawnMarker::BeginPlay()
 
 void ARespawnMarker::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (const UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(PollTimer);
+	}
 	if (UMissionRunner* Runner = BoundRunner.Get())
 	{
 		Runner->OnMissionFinished.Remove(FinishedHandle);

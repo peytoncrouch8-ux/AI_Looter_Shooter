@@ -76,10 +76,10 @@ AUnpaidCreature::AUnpaidCreature()
 	CriticalSpotBones.Reset();
 
 	// It drifts toward its prey at a little under a walk, and phase-steps when it falls behind. Tuned against the
-	// full-size player's 600 walk (78% of it) and scaled with the player's speed, as the spiders are: at 470 against the
-	// smaller player's 510 it nearly kept pace (the user's call, 2026-10-08).
+	// full-size player's 600 walk (78% of it) and scaled with the player's speed and pace, as the spiders are: at 470
+	// against the smaller player's 510 it nearly kept pace (the user's call, 2026-10-08).
 	WalkSpeed = 150.f;
-	ChaseSpeed = 470.f * LooterPlayerSize::SpeedScale;
+	ChaseSpeed = 470.f * LooterPlayerSize::MoveScale;
 	WanderRadius = 600.f;
 	// The dead come together: hurt one and those near it turn on you too.
 	PackTag = TEXT("Unpaid");

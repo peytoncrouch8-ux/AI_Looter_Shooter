@@ -452,4 +452,36 @@ namespace LooterSoundCue
 		 *  grave-wind rising under it with whispering voices, a deep thud as the dead answer. */
 		inline constexpr const TCHAR* Summon = TEXT("World.Shrine.Summon");
 	}
+
+	// --- Mission givers (2026-10-13: UMissionOfferWidget, mission artifacts; Art/Sounds/recipes/givers.py) ---
+	namespace Giver
+	{
+		/** The offer card opening (2D): paper drawn across wood, a soft low chime under it. */
+		inline constexpr const TCHAR* Offer = TEXT("UI.Mission.Offer");
+		/** A mission accepted (2D, rewarding): a stamp pressed onto paper, a bright two-note rise. */
+		inline constexpr const TCHAR* Accept = TEXT("UI.Mission.Accept");
+		/** "Not now" (2D, quiet): the paper set back down. */
+		inline constexpr const TCHAR* Decline = TEXT("UI.Mission.Decline");
+		/** A new mission offered nearby for the first time (2D, light): a short distant chime, as the ! appears. */
+		inline constexpr const TCHAR* NewOffer = TEXT("UI.Mission.NewOffer");
+		/** Picking up a mission artifact (3D, near): a letter unfolded, a tag or a journal lifted. */
+		inline constexpr const TCHAR* ArtifactRead = TEXT("World.Artifact.Read");
+	}
+
+	// --- Respawn graves as save points (2026-10-13: ARespawnMarker marked on approach; Art/Sounds/recipes/graves.py) ---
+	namespace GraveMark
+	{
+		/** A grave marked as the save point (3D, near, carried): its lantern catching with a breath of flame, a low warm
+		 *  bell-like swell, a whisper of the Gravewind settling. */
+		inline constexpr const TCHAR* Marked = TEXT("World.Grave.Marked");
+		/** Walking past a grave already marked elsewhere, making it the save point again (3D, quieter): the flame lifting. */
+		inline constexpr const TCHAR* Remarked = TEXT("World.Grave.Remarked");
+	}
+
+	// --- Hold to interact (2026-10-13: the round hold ring, HudInteractPromptWidget, the scene skip) ---
+	namespace Hold
+	{
+		/** The ring filling all the way (2D, short, crisp): a soft click with a bright tick on top. */
+		inline constexpr const TCHAR* Complete = TEXT("UI.Hold.Complete");
+	}
 }

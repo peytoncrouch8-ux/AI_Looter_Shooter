@@ -155,7 +155,8 @@ FText UStationBoardWidget::ConfirmBody(const FStationBoardLine& Line) const
 {
 	if (Line.bFirstCastOff)
 	{
-		return LOCTEXT("StoryBegins", "Your story begins. You can come back to practice any time.");
+		// No promise of practice trips back: the boards don't list Skyreach any more (it's the story's third area now).
+		return LOCTEXT("StoryBegins", "Your story begins.");
 	}
 	if (Line.Kind == EStationLine::Practice)
 	{

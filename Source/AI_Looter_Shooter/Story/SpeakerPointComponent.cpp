@@ -53,6 +53,7 @@ void USpeakerPointComponent::BeginPlay()
 
 void USpeakerPointComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	ClearPendingOffer();
 	if (UInteractionSubsystem* Registry = bTalkable ? UInteractionSubsystem::Get(this) : nullptr)
 	{
 		Registry->Unregister(GetOwner());
@@ -159,27 +160,35 @@ bool USpeakerPointComponent::Talk(AActor* Listener)
 	int32 TopicIndex = INDEX_NONE;
 	TArray<FStoryLine> Said = GetLinesNow(&TopicIndex);
 	// A mission turned in here with words of its own for it: those, instead of what's said here at this point in the story
-	// (which may be the step's words again). Its topic's event isn't sent then: that topic wasn't said.
+	// (which may be the step's words again). Its topic's event isn't sent then: that topic wasn't said. With nothing to
+	// turn in, a mission offered here with words of its own: those, the same way.
 	UMissionRunner* Runner = UMissionRunner::Get(this);
 	const UMissionDefinition* TurnedIn = Runner ? Runner->FindTurnInAt(Owner) : nullptr;
+	const TArray<const UMissionDefinition*> OffersNow = !TurnedIn && Runner ? Runner->GetOffersAt(Owner) : TArray<const UMissionDefinition*>();
+	const UMissionDefinition* Offered = OffersNow.IsEmpty() ? nullptr : OffersNow[0];
 	if (TurnedIn && !TurnedIn->TurnIn.Lines.IsEmpty())
 	{
-		Said = TurnedIn->TurnIn.Lines;
+		Said = InOwnName(TurnedIn->TurnIn.Lines);
 		TopicIndex = INDEX_NONE;
-		for (FStoryLine& Line : Said)
-		{
-			if (Line.Speaker.IsEmpty())
-			{
-				Line.Speaker = SpeakerName;
-			}
-		}
 	}
-	if (UCaptionSubsystem* Captions = UCaptionSubsystem::Get(this))
+	else if (Offered && !Offered->Offer.Lines.IsEmpty())
+	{
+		Said = InOwnName(Offered->Offer.Lines);
+		TopicIndex = INDEX_NONE;
+	}
+	UCaptionSubsystem* Captions = UCaptionSubsystem::Get(this);
+	if (Captions)
 	{
 		// Whoever the player turns to talk to has the floor: whatever was being said stops.
 		Conversation = Captions->Play(Said, ECaptionPlay::Interrupt);
 	}
-	if (Said.IsEmpty())
+	// Someone with nothing waiting to be turned in offers the job once these words are said.
+	ClearPendingOffer();
+	if (Offered)
+	{
+		QueueOffer(*Offered, Listener, Conversation);
+	}
+	if (Said.IsEmpty() && !Offered)
 	{
 		UE_LOG(LogLooter, Warning, TEXT("%s: %s has nothing to say here (no lines for this point in the story)."), *Owner->GetActorNameOrLabel(),
 			*SpeakerName.ToString());
@@ -198,8 +207,38 @@ bool USpeakerPointComponent::Talk(AActor* Listener)
 			Runner->NotifyEvent(FMissionEvent::Named(Topics[TopicIndex].Event, Owner));
 		}
 	}
+	// The turn-in came first; what they have next (a mission it opened, or one waiting behind it) is offered once its words
+	// are said, after its own words when it has any.
+	if (TurnedIn && Runner)
+	{
+		const TArray<const UMissionDefinition*> OffersAfter = Runner->GetOffersAt(Owner);
+		if (!OffersAfter.IsEmpty())
+		{
+			const UMissionDefinition& Next = *OffersAfter[0];
+			if (Captions && !Next.Offer.Lines.IsEmpty())
+			{
+				// Queued after the turn-in's words, as one conversation: no second talk until both are said.
+				const int32 Queued = Captions->Play(InOwnName(Next.Offer.Lines), ECaptionPlay::Queue);
+				Conversation = Queued != 0 ? Queued : Conversation;
+			}
+			QueueOffer(Next, Listener, Conversation);
+		}
+	}
 	OnTalked.Broadcast(*this, Listener);
 	return true;
+}
+
+TArray<FStoryLine> USpeakerPointComponent::InOwnName(TArray<FStoryLine> Said) const
+{
+	// Written once on the point, not on every line.
+	for (FStoryLine& Line : Said)
+	{
+		if (Line.Speaker.IsEmpty())
+		{
+			Line.Speaker = SpeakerName;
+		}
+	}
+	return Said;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 #include "UI/HUD/PlayerHUDWidget.h"
+#include "UI/HUD/HudGraveMarkedWidget.h"
 #include "UI/HUD/HudGrenadeWidget.h"
 #include "UI/HUD/HudLevelUpBannerWidget.h"
 #include "UI/HUD/HudPickupFeedWidget.h"
@@ -460,6 +461,14 @@ void UPlayerHUDWidget::HandleLevelUp(int32 NewLevel)
 	if (LevelUpBanner)
 	{
 		LevelUpBanner->Show(NewLevel);
+	}
+}
+
+void UPlayerHUDWidget::ShowGraveMarked(const FText& GraveName)
+{
+	if (GraveBanner)
+	{
+		GraveBanner->Announce(GraveName);
 	}
 }
 

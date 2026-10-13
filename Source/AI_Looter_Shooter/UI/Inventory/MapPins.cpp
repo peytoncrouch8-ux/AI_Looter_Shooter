@@ -5,6 +5,7 @@
 #include "Missions/MissionRunner.h"
 #include "Missions/MissionSubsystem.h"
 #include "Session/CampaignRecord.h"
+#include "UI/World/MissionOfferWidget.h"
 #include "World/BossShrine.h"
 #include "World/GunsmithBench.h"
 #include "World/RespawnMarker.h"
@@ -12,6 +13,7 @@
 #include "World/TrainStation.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "GameFramework/Actor.h"
 
 #define LOCTEXT_NAMESPACE "MapPins"
 
@@ -151,11 +153,65 @@ namespace MapPins
 		const bool bTrackedTurnIn = Tracked && Tracked->Waypoint.IsSet() && Tracked->Tracker.bTurnIn;
 		if (Tracked && Tracked->Waypoint.IsSet())
 		{
+			const UMissionDefinition* TrackedMission = Sources.Runner ? Sources.Runner->FindDefinition(Sources.Runner->GetTrackedMission()) : nullptr;
 			FMapPin& Pin = Pins.AddDefaulted_GetRef();
 			Pin.Kind = bTrackedTurnIn ? EMapPinKind::TurnIn : EMapPinKind::Objective;
 			Pin.Location = Tracked->Waypoint.GetValue();
 			Pin.Name = Tracked->Title;
 			Pin.Detail = FText::FromString(Tracked->Tracker.Line.IsEmpty() ? Tracked->Objective.ToString() : Tracked->Tracker.Line);
+			Pin.bMain = TrackedMission && TrackedMission->Kind == EMissionKind::Main;
+		}
+
+		// The givers with a mission to offer now: one pin a giver (its main mission's, when it has one), saying who and how
+		// many. What isn't offered yet stays off the map, as the story's to reveal.
+		if (const UMissionRunner* Runner = Sources.Runner)
+		{
+			struct FGiverPin
+			{
+				FVector Location;
+				const UMissionDefinition* Shown;
+				const AActor* Giver;
+				int32 Count;
+			};
+			TArray<FGiverPin> Givers;
+			for (const UMissionDefinition* Mission : Runner->GetDefinitions())
+			{
+				if (!Mission || !Runner->IsAvailable(Mission->GetMissionId()))
+				{
+					continue;
+				}
+				const AActor* Giver = Runner->FindOfferGiverActor(*Mission);
+				if (!Giver)
+				{
+					continue;
+				}
+				FGiverPin* Same = Givers.FindByPredicate([Giver](const FGiverPin& Each) { return Each.Giver == Giver; });
+				if (Same)
+				{
+					++Same->Count;
+					Same->Shown = Mission->Kind == EMissionKind::Main && Same->Shown->Kind != EMissionKind::Main ? Mission : Same->Shown;
+					continue;
+				}
+				Givers.Add({ Giver->GetActorLocation(), Mission, Giver, 1 });
+			}
+			for (const FGiverPin& Each : Givers)
+			{
+				FMapPin& Pin = Pins.AddDefaulted_GetRef();
+				Pin.Kind = EMapPinKind::Offer;
+				Pin.Location = Each.Location;
+				Pin.Name = Each.Shown->Title;
+				const FText Who = FMissionOfferCard::GiverNameOf(*Each.Shown, Each.Giver);
+				FText Detail;
+				switch (FMissionOfferCard::GiverKindOf(*Each.Shown, Each.Giver))
+				{
+				case EMissionGiverKind::Board:    Detail = FText::Format(LOCTEXT("OfferBoard", "Posted on {0}"), Who); break;
+				case EMissionGiverKind::Artifact: Detail = FText::Format(LOCTEXT("OfferArtifact", "Something to find: {0}"), Who); break;
+				case EMissionGiverKind::Someone:  Detail = FText::Format(LOCTEXT("OfferSomeone", "Offered by {0}"), Who); break;
+				}
+				Pin.Detail = Each.Count > 1 ? FText::Format(LOCTEXT("OfferMore", "{0}, and {1} more"), Detail, Each.Count - 1) : Detail;
+				Pin.Id = Each.Shown->GetMissionId();
+				Pin.bMain = Each.Shown->Kind == EMissionKind::Main;
+			}
 		}
 
 		// Every other mission waiting to be turned in here, at its giver.
@@ -178,6 +234,7 @@ namespace MapPins
 				Pin.Name = Mission->Title;
 				Pin.Detail = FText::FromString(Mission->GetTurnInText());
 				Pin.Id = Mission->GetMissionId();
+				Pin.bMain = Mission->Kind == EMissionKind::Main;
 			}
 		}
 
@@ -197,6 +254,7 @@ namespace MapPins
 		case EMapPinKind::Vendor:     return LOCTEXT("KindVendor", "Store");
 		case EMapPinKind::Station:    return LOCTEXT("KindStation", "Station");
 		case EMapPinKind::Grave:       return LOCTEXT("KindGrave", "Respawn grave");
+		case EMapPinKind::Offer:       return LOCTEXT("KindOffer", "Mission offered");
 		case EMapPinKind::TurnIn:      return LOCTEXT("KindTurnIn", "Turn in");
 		case EMapPinKind::Objective:   return LOCTEXT("KindObjective", "Objective");
 		}

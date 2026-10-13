@@ -2,11 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
+#include "Engine/TimerHandle.h"
 #include "Interaction/Interactable.h"
 #include "Story/StoryCondition.h"
 #include "Story/StoryLine.h"
 #include "SpeakerPointComponent.generated.h"
 
+class UMissionDefinition;
 class USpeakerPointComponent;
 class UStoryLineSet;
 
@@ -44,6 +46,11 @@ struct AI_LOOTER_SHOOTER_API FSpeakerTopic
  * was being said, and tells the missions: a Talk event about the actor it's on, which the talk objective waits for by
  * the actor's tag (Speaker_Delia), and which turns in a mission ready to turn in to them (its key then says "Turn in",
  * and the mission's own turn-in lines are said, when it has any). While its lines play it can't be talked to again.
+ *
+ * Someone with a mission to offer (FMissionOffer::GiverTag on the actor) offers it as they talk, Borderlands' way: they say
+ * the offer's lines (else their own), and once those are said the offer card opens (ALooterHUD::OpenMissionOffer). A
+ * mission waiting to be turned in to them comes first: that talk turns it in, and what they have next is offered after the
+ * turn-in's words. Walking off before the words end leaves the offer for the next talk (its ! stays).
  *
  * It's an IInteractable, but the interaction component asks actors, not components: the actor it's on hands the Interact
  * key on to it (ASpeakerPoint for doors and windows, AStoryCharacter). It enters that actor among the level's interactables.
@@ -123,6 +130,23 @@ public:
 	/** Someone talked here (its lines have begun and the missions have heard). */
 	FOnSpeakerTalked OnTalked;
 
+	// --- Offers: a mission offered once the talk's words are said ---
+
+	/** The player farther than this from the point (cm) once the words are said has walked off: nothing is offered. */
+	static constexpr float OfferWalkAway = 900.f;
+
+	/** How long an offer waits for a menu or a scene to get out of the way (s) before it's left for the next talk. */
+	static constexpr float OfferPatience = 20.f;
+
+	/** The mission the last talk will offer once its words are said, or None. */
+	FName GetPendingOffer() const { return PendingOffer; }
+
+	/**
+	 * Opens the offer card on the pending offer if its words are said, the listener is still near and nothing covers the
+	 * game: true when it opened. A timer asks a few times a second while one waits; tests may ask.
+	 */
+	bool UpdatePendingOffer();
+
 	// --- Mutters: said unasked as the player passes (UTownLifeSubsystem decides when) ---
 
 	/**
@@ -165,6 +189,21 @@ protected:
 private:
 	/** The next unsaid line of the topic that applies now (its index in Lines), or INDEX_NONE. */
 	int32 NextMutterLine(const TArray<FStoryLine>& MutterLines, int32 Topic) const;
+
+	/** Lines in this point's speaker's name where they name none. */
+	TArray<FStoryLine> InOwnName(TArray<FStoryLine> Said) const;
+
+	/** Mission is offered once the conversation's words are said, to Listener. */
+	void QueueOffer(const UMissionDefinition& Mission, AActor* Listener, int32 AfterConversation);
+	void ClearPendingOffer();
+	void TickPendingOffer();
+
+	/** The offer waiting for the talk's words, the conversation it waits for, who it's for and since when (world seconds). */
+	FName PendingOffer;
+	int32 OfferConversation = 0;
+	TWeakObjectPtr<AActor> OfferListener;
+	double OfferQueuedAt = 0.0;
+	FTimerHandle OfferTimer;
 
 	/** The captions' conversation of the last talk here. */
 	int32 Conversation = 0;

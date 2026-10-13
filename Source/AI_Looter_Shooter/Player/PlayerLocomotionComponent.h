@@ -52,7 +52,8 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerTraversal, ETraversalKind /*Kind*/
  *    nudged free.
  *
  * Speeds and heights here are for the full-size body (Player/PlayerSize.h): the character's scale shrinks the heights,
- * and the crouch speed default is already scaled. Firing ends a sprint (the gun comes up immediately). Everything
+ * and the crouch speed default is already scaled (size and pace); the sprint, the slide and the walk with the sights up
+ * are shares of the character's walk, so they follow its pace. Firing ends a sprint (the gun comes up immediately). Everything
  * resets when the character loses its controller (death, unpossess), so no key can get stuck.
  */
 UCLASS(ClassGroup = (Looter), meta = (BlueprintSpawnableComponent))
@@ -186,9 +187,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Locomotion|Crouch", meta = (ClampMin = "30"))
 	float CrouchedHalfHeight = 68.f;
 
-	/** Crouched walking speed (cm/s): the full-size 300, scaled with the player (Player/PlayerSize.h). */
+	/** Crouched walking speed (cm/s): the full-size 300, scaled with the player and the game's pace (Player/PlayerSize.h). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Locomotion|Crouch", meta = (ClampMin = "0"))
-	float CrouchSpeed = LooterPlayerSize::FullSizeCrouchSpeed * LooterPlayerSize::SpeedScale;
+	float CrouchSpeed = LooterPlayerSize::FullSizeCrouchSpeed * LooterPlayerSize::MoveScale;
 
 	/** How far below the crouched capsule's top the head (and camera) sits, so low ceilings never clip the view. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Locomotion|Crouch", meta = (ClampMin = "0"))
@@ -302,6 +303,12 @@ private:
 	bool IsWeaponFiring() const;
 	/** The character's scale against the full-size body (1 for any character not scaled). */
 	float GetBodyScale() const;
+	/**
+	 * The fastest the body's run cycle goes on its own at this size (cm/s): the locomotion blend spaces top out at the
+	 * full-size jog. Faster than this the cycle is played faster so the feet keep up with the ground. The clips' own
+	 * speed, not the walk's: at the game's pace the walk is under it, and the blend spaces fit that by themselves.
+	 */
+	float GetRunCycleTopSpeed() const { return LooterPlayerSize::FullSizeWalkSpeed * GetBodyScale(); }
 
 	TWeakObjectPtr<ACharacter> Character;
 	TWeakObjectPtr<UCharacterMovementComponent> Movement;

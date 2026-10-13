@@ -31,6 +31,42 @@ enum class EMissionStart : uint8
 	OnEvent,
 	/** Only when code or the console starts it (the tutorial director's mission, test missions); listed once started. */
 	Manual,
+	/**
+	 * Picked up from its giver (Offer), Borderlands' way: someone at a speaker point, a notice board or an artifact found in
+	 * the world offers it once its prerequisites are finished, with a ! over them, and it starts only when the player accepts
+	 * it on the offer card. Accepted, it runs from then on wherever the session goes on (FCampaignRecord::AcceptedMissions).
+	 */
+	Offered,
+};
+
+/**
+ * Who offers a mission picked up from its giver (EMissionStart::Offered) and what the offer says: the giver is found by a
+ * tag its actor carries (someone's speaker point, a notice board, a mission artifact), as turn-ins find theirs. A speaker
+ * says Lines first, then the offer card opens with the Briefing; a board or an artifact opens the card at once.
+ */
+USTRUCT(BlueprintType)
+struct AI_LOOTER_SHOOTER_API FMissionOffer
+{
+	GENERATED_BODY()
+
+	/** The giver actor's tag: Speaker_Delia, NoticeBoard_Rangers, Artifact_MinersTag. None: nobody offers it. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Offer")
+	FName GiverTag;
+
+	/** The giver's name for people ("Delia", "The Rim Rangers' board", "A miner's tag"). Empty: from the tag. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Offer")
+	FText GiverName;
+
+	/**
+	 * What a speaker says as they offer it, before the card opens, said instead of their lines at this point in the story. A
+	 * line with no speaker is said in their speaker point's name. Empty: their own lines (boards and artifacts say nothing).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Offer")
+	TArray<FStoryLine> Lines;
+
+	/** The offer card's story, two to four sentences in the giver's voice; an artifact's own words when it's one. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Offer", meta = (MultiLine = true))
+	FText Briefing;
 };
 
 /** One step of a mission: objectives that are all done before the next step begins. */
@@ -191,6 +227,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mission|Start", meta = (EditCondition = "Start == EMissionStart::OnEvent", EditConditionHides))
 	FName StartEvent;
 
+	/** Who offers it and what the offer says (Offered). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mission|Start", meta = (EditCondition = "Start == EMissionStart::Offered", EditConditionHides))
+	FMissionOffer Offer;
+
 	UPROPERTY(EditAnywhere, Category = "Mission")
 	TArray<FMissionStep> Steps;
 
@@ -225,6 +265,15 @@ public:
 
 	/** "Ready to turn in: talk to Delia": the Missions page's and the full objective line while it waits. */
 	FString GetTurnInText() const;
+
+	/** It's picked up from a giver: it starts Offered and names its giver's tag. */
+	bool IsOffered() const { return Start == EMissionStart::Offered && !Offer.GiverTag.IsNone(); }
+
+	/**
+	 * The offering giver's name for people: Offer.GiverName, else the tag as words without its kind (Speaker_Delia: "Delia",
+	 * NoticeBoard_Rangers: "Rangers", Artifact_MinersTag: "Miners Tag"). Empty when nobody offers it.
+	 */
+	FText GetOfferGiverName() const;
 
 	/** The words name this mission: its id, its asset's name or its title, ignoring case, spaces and punctuation. */
 	bool IsNamed(const FString& Words) const;

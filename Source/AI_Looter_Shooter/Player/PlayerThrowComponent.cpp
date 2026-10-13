@@ -110,7 +110,7 @@ void UPlayerThrowComponent::BindWeaponManager()
 
 void UPlayerThrowComponent::HandleInventoryChanged()
 {
-	// The first gun in the player's hands brings the starting two: the tutorial's rifle, the skip's bullpup, or the guns
+	// The first gun in the player's hands brings the starting two: a new game's bullpup, Skyreach's rack rifle, or the guns
 	// of a session saved before grenades existed (a newer save puts its own count back afterwards, RestoreThrowables).
 	const UWeaponManagerComponent* Manager = BoundManager.Get();
 	if (!bUnlocked && Manager && Manager->GetWeapons().Num() > 0)

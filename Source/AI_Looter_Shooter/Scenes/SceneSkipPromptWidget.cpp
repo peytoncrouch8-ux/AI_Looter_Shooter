@@ -1,16 +1,13 @@
 #include "Scenes/SceneSkipPromptWidget.h"
+#include "UI/Style/LooterProgressRingWidget.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "Audio/LooterSound.h"
 #include "Blueprint/WidgetTree.h"
-#include "Components/Border.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
-#include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
-#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
-#include "Components/VerticalBox.h"
-#include "Components/VerticalBoxSlot.h"
 
 using namespace LooterUI;
 
@@ -20,18 +17,14 @@ namespace
 	constexpr int32 TextSize = 15;
 	constexpr int32 TextSpacing = 100;
 
-	/** The hold bar: as slim and slanted as the HUD's other bars. */
-	constexpr int32 BarSegments = 16;
-	constexpr float BarWidth = 170.f;
-	constexpr float BarHeight = 6.f;
-	constexpr float BarSlant = 16.f;
-	constexpr float SegmentGap = 2.f;
-
 	/** In from the screen's bottom right corner, clear of where the HUD's ammo sits. */
 	constexpr float ScreenMargin = 56.f;
 
 	/** Seconds to fade fully in or out. */
 	constexpr float FadeSeconds = 0.15f;
+
+	/** The lead word of the variant that is held. */
+	constexpr const TCHAR* HoldLead = TEXT("HOLD");
 
 	void SetTextIfChanged(UTextBlock* Text, const FString& Value)
 	{
@@ -51,6 +44,11 @@ namespace
 	}
 }
 
+bool USceneSkipPromptWidget::IsHoldLead(const FString& Lead)
+{
+	return Lead.Equals(HoldLead, ESearchCase::IgnoreCase);
+}
+
 TSharedRef<SWidget> USceneSkipPromptWidget::RebuildWidget()
 {
 	if (WidgetTree && !WidgetTree->RootWidget)
@@ -58,54 +56,37 @@ TSharedRef<SWidget> USceneSkipPromptWidget::RebuildWidget()
 		UOverlay* Root = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("Root"));
 		Root->SetVisibility(ESlateVisibility::HitTestInvisible);
 
-		UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Prompt"));
-		Box->SetVisibility(ESlateVisibility::Collapsed);
-		Box->SetRenderOpacity(0.f);
-
-		// One line: the lead word, the key in brackets in the accent color, the words.
-		UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		// One line: the lead word, then the key (in brackets in the accent color for a press, or inside its progress ring
+		// for a hold), then the words. The ring is taller than the words: everything sits on the line's middle.
+		UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("Prompt"));
+		Line->SetVisibility(ESlateVisibility::Collapsed);
+		Line->SetRenderOpacity(0.f);
 		LeadText = MakeFloatingText(WidgetTree, TextSize, Color::Text(), TextSpacing);
-		Line->AddChildToHorizontalBox(LeadText)->SetPadding(FMargin(0.f, 0.f, 7.f, 0.f));
+		UHorizontalBoxSlot* LeadSlot = Line->AddChildToHorizontalBox(LeadText);
+		LeadSlot->SetVerticalAlignment(VAlign_Center);
+		LeadSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
 		KeyText = MakeFloatingText(WidgetTree, TextSize, Color::Accent(), TextSpacing);
-		Line->AddChildToHorizontalBox(KeyText)->SetPadding(FMargin(0.f, 0.f, 7.f, 0.f));
+		UHorizontalBoxSlot* KeySlot = Line->AddChildToHorizontalBox(KeyText);
+		KeySlot->SetVerticalAlignment(VAlign_Center);
+		KeySlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
+		ULooterProgressRing* Ring = nullptr;
+		UTextBlock* Key = nullptr;
+		HoldCap = MakeHoldKeyCap(WidgetTree, Ring, Key);
+		HoldRing = Ring;
+		HoldKey = Key;
+		HoldCap->SetVisibility(ESlateVisibility::Collapsed);
+		UHorizontalBoxSlot* CapSlot = Line->AddChildToHorizontalBox(HoldCap);
+		CapSlot->SetVerticalAlignment(VAlign_Center);
+		CapSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
 		WordsText = MakeFloatingText(WidgetTree, TextSize, Color::Text(), TextSpacing);
-		Line->AddChildToHorizontalBox(WordsText);
-		Box->AddChildToVerticalBox(Line)->SetHorizontalAlignment(HAlign_Right);
+		Line->AddChildToHorizontalBox(WordsText)->SetVerticalAlignment(VAlign_Center);
 
-		// The hold bar: segments on a faint dark backing, sheared like the HUD's other bars.
-		UBorder* Backing = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		FLinearColor BackingColor = Color::Backdrop();
-		BackingColor.A *= 0.6f;
-		Backing->SetBrush(RectBrush(BackingColor));
-		MarkBackground(Backing);
-		Backing->SetPadding(FMargin(2.f));
-		UHorizontalBox* Segments = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		HoldSegments.Reset();
-		for (int32 Index = 0; Index < BarSegments; ++Index)
-		{
-			// White, tinted per segment as the hold fills.
-			UImage* Segment = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
-			Segment->SetColorAndOpacity(Color::SegmentOff());
-			UHorizontalBoxSlot* SegmentSlot = Segments->AddChildToHorizontalBox(Segment);
-			SegmentSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			SegmentSlot->SetPadding(FMargin(0.f, 0.f, Index + 1 < BarSegments ? SegmentGap : 0.f, 0.f));
-			HoldSegments.Add(Segment);
-		}
-		Backing->SetContent(Segments);
-		USizeBox* BarBox = MakeSized(WidgetTree, Backing, BarWidth, BarHeight);
-		BarBox->SetRenderShear(FVector2D(BarSlant, 0.f));
-		BarBox->SetVisibility(ESlateVisibility::Hidden);
-		HoldBar = BarBox;
-		UVerticalBoxSlot* BarSlot = Box->AddChildToVerticalBox(BarBox);
-		BarSlot->SetHorizontalAlignment(HAlign_Right);
-		BarSlot->SetPadding(FMargin(0.f, 5.f, 4.f, 0.f));
-
-		UOverlaySlot* PromptSlot = Root->AddChildToOverlay(Box);
+		UOverlaySlot* PromptSlot = Root->AddChildToOverlay(Line);
 		PromptSlot->SetHorizontalAlignment(HAlign_Right);
 		PromptSlot->SetVerticalAlignment(VAlign_Bottom);
 		PromptSlot->SetPadding(FMargin(0.f, 0.f, ScreenMargin, ScreenMargin));
 
-		Prompt = Box;
+		Prompt = Line;
 		WidgetTree->RootWidget = Root;
 	}
 	return Super::RebuildWidget();
@@ -117,30 +98,67 @@ void USceneSkipPromptWidget::Update(bool bShown, const FString& Lead, const FStr
 	{
 		return;
 	}
+	const bool bHold = IsHoldLead(Lead);
 	if (bShown)
 	{
 		SetShown(LeadText, !Lead.IsEmpty());
 		SetTextIfChanged(LeadText, Lead);
-		SetTextIfChanged(KeyText, Key);
 		SetTextIfChanged(WordsText, Words);
-		// The bar keeps its room under the line, and fills while the key is held.
-		SetShown(HoldBar, Hold > 0.f, ESlateVisibility::Hidden);
-		if (Hold > 0.f)
+		// The hold wears its key inside the ring (which shows its empty track until the key is held); a press, its key in
+		// brackets.
+		SetShown(HoldCap, bHold);
+		SetShown(KeyText, !bHold && !Key.IsEmpty());
+		if (bHold)
 		{
-			const int32 Lit = FMath::Clamp(FMath::CeilToInt32(Hold * BarSegments), 0, BarSegments);
-			for (int32 Index = 0; Index < HoldSegments.Num(); ++Index)
-			{
-				HoldSegments[Index]->SetColorAndOpacity(Index < Lit ? Color::Accent() : Color::SegmentOff());
-			}
+			SetHoldKeyLabel(HoldKey, Key);
+		}
+		else
+		{
+			SetTextIfChanged(KeyText, Key);
+		}
+
+		// The hold's end pops the ring once, with its sound; the key let go lets it start over.
+		if (bHold && Hold >= 1.f && !bHoldDone)
+		{
+			bHoldDone = true;
+			LooterSound::Play2D(this, LooterSoundCue::Hold::Complete);
+			HoldRing->Pop();
+		}
+		else if (Hold < 0.5f)
+		{
+			bHoldDone = false;
 		}
 	}
 
-	// Quick fades; the last words stay while it fades out.
-	const float Target = bShown ? 1.f : 0.f;
+	// The ring runs every frame: its fill, and the pop (which outlasts the prompt's reason to show, as the scene is skipped).
+	UpdateHoldKeyCap(HoldRing, HoldKey, bShown && bHold ? Hold : 0.f, DeltaSeconds);
+
+	// Quick fades; the last words stay while it fades out, and a pop is seen out first.
+	const bool bPopping = HoldRing && HoldRing->IsPopping();
+	const bool bShow = bShown || bPopping;
+	const float Target = bShow ? 1.f : 0.f;
 	if (Opacity != Target)
 	{
-		Opacity = FMath::Clamp(Opacity + (bShown ? 1.f : -1.f) * DeltaSeconds / FadeSeconds, 0.f, 1.f);
+		Opacity = FMath::Clamp(Opacity + (bShow ? 1.f : -1.f) * DeltaSeconds / FadeSeconds, 0.f, 1.f);
 		Prompt->SetRenderOpacity(Opacity);
 	}
 	SetShown(Prompt, Opacity > 0.f);
+}
+
+USceneSkipPromptWidget::FShown USceneSkipPromptWidget::GetShown() const
+{
+	FShown Shown;
+	if (!Prompt)
+	{
+		return Shown;
+	}
+	Shown.bVisible = Prompt->GetVisibility() != ESlateVisibility::Collapsed;
+	Shown.bRing = Shown.bVisible && HoldCap && HoldCap->GetVisibility() != ESlateVisibility::Collapsed;
+	if (HoldRing)
+	{
+		Shown.RingProgress = HoldRing->GetProgress();
+		Shown.bRingPopping = HoldRing->IsPopping();
+	}
+	Shown.Key = Shown.bRing && HoldKey ? HoldKey->GetText().ToString() : (KeyText ? KeyText->GetText().ToString() : FString());
+	return Shown;
 }

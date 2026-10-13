@@ -279,18 +279,19 @@ bool FLanternLeansMissionTest::RunTest(const FString& Parameters)
 		AddWarning(TEXT("DA_Bestiary_Ned isn't made: run Tools/Unreal/create_bestiary_pages.py."));
 	}
 
-	// The depot's board now: Ransom's Rest (here), the Lily (its level not in the game), Skyreach (practice).
+	// The depot's board now: Ransom's Rest (here) and the Lily (its level not in the game). No Skyreach: since 2026-10-13
+	// it's the story's third area, reached later from the Lily.
 	UAreaDefinition* Skyreach = NewArea(Scratch, TEXT("DA_Area_Skyreach"), TEXT("Skyreach"), IslandMap, TEXT("Landing_Jetty"), true);
 	UAreaDefinition* Rest = NewArea(Scratch, TEXT("DA_Area_RansomsRest"), TEXT("Ransom's Rest"), IslandMap, TEXT("Landing_Depot"), false);
 	UAreaDefinition* Lily = NewLily(Scratch);
 	StationBoard::RecordFirstCastOff(Campaign);
 	const TArray<FStationBoardLine> Lines = StationBoard::BuildLines(Campaign, { Skyreach, Rest, Lily }, { MainSevenMission }, Rest->GetAreaId());
-	if (TestEqual(TEXT("The depot's board: three lines"), Lines.Num(), 3))
+	if (TestEqual(TEXT("The depot's board: two lines"), Lines.Num(), 2))
 	{
 		TestTrue(TEXT("Ransom's Rest, here"), Lines[0].AreaId == Rest->GetAreaId() && Lines[0].bHere);
 		TestTrue(TEXT("The Gilded Lily, a destination whose level isn't in the game yet"), Lines[1].AreaId == LilyId && Lines[1].IsDestination()
 			&& !Lines[1].bLevelBuilt && Lines[1].Name.ToString() == TEXT("The Gilded Lily"));
-		TestTrue(TEXT("...beside Skyreach (practice)"), Lines[2].Kind == EStationLine::Practice && Lines[2].Name.ToString() == TEXT("Skyreach (practice)"));
+		TestFalse(TEXT("...and no Skyreach"), Lines.ContainsByPredicate([Skyreach](const FStationBoardLine& Line) { return Line.AreaId == Skyreach->GetAreaId(); }));
 		TestEqual(TEXT("Choosing the Lily says so, and nobody goes"), StationBoard::NotOpenText(FStationBoardWords::Station(), Lines[1]).ToString(),
 			FString(TEXT("The line to the Lily isn't open yet.")));
 	}

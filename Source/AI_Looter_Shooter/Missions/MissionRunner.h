@@ -20,7 +20,10 @@ enum class EMissionStatus : uint8
 {
 	/** Its prerequisites aren't finished (or it starts only from code and hasn't). */
 	Locked,
-	/** Ready: in another area's level, or waiting for its start event. */
+	/**
+	 * Ready: in another area's level, or waiting for its start event; a mission picked up from a giver (Offered) whose
+	 * prerequisites are finished and that hasn't been accepted (UMissionRunner::IsAvailable: offered here, now).
+	 */
 	Available,
 	/**
 	 * Being played: running here, or the campaign's main mission waiting in its own area; a mission ready to turn in too
@@ -31,7 +34,10 @@ enum class EMissionStatus : uint8
 	Completed,
 };
 
-/** Something a mission list shows changed: a mission started or finished, a step, progress, tracking. */
+/**
+ * Something a mission list shows changed: a mission started or finished, a step, progress, tracking, and so what's
+ * offered (a prerequisite finished, a mission accepted).
+ */
 DECLARE_MULTICAST_DELEGATE(FOnMissionRunnerChanged);
 
 /** A mission was finished; bRewarded is false when it had been finished before (played again: no second reward). */
@@ -70,6 +76,10 @@ struct FMissionObjectiveView
  * (or its turn-in) and waypoint to UMissionSubsystem, so the minimap's arrow and the Missions page follow it, and keeps
  * the session's campaign record (completed missions, the ones ready to turn in, the main mission being played and its
  * step), which a session saves and the next level starts from.
+ *
+ * A mission picked up from a giver (EMissionStart::Offered) is offered, not started, once it's due: available at its giver
+ * (a speaker point, a notice board, a mission artifact), it starts when the player accepts it on the offer card
+ * (AcceptMission) and from then on in every level of its area, as an automatic one does.
  *
  * Kills and hits come from the health components of every actor in the level, ones spawned later too
  * (UWorld::AddOnActorSpawnedHandler). Nothing runs behind the main menu. Tests use an editor preview world, where it
@@ -168,6 +178,39 @@ public:
 	/** Where a mission's giver stands, nearest the player: the actor carrying its turn-in's speaker tag. Unset when it's not in the level. */
 	TOptional<FVector> FindGiver(const UMissionDefinition& Mission) const;
 
+	// --- Offers: missions picked up from their givers (MissionRunnerOffers.cpp) ---
+
+	/**
+	 * Offered at its giver now: it's picked up from a giver (UMissionDefinition::IsOffered), its prerequisites are finished,
+	 * it's played in this level's area, and it hasn't been accepted, finished or started.
+	 */
+	bool IsAvailable(FName MissionId) const;
+
+	/**
+	 * Taken from its giver: accepted (the campaign record), or, from a save made before missions were offered, already
+	 * played (the campaign's main mission, one waiting for its turn-in, or one running here).
+	 */
+	bool IsAccepted(FName MissionId) const;
+
+	/** The missions Giver offers now (available, its actor carrying their giver's tag): main ones first, then by the list's order. */
+	TArray<const UMissionDefinition*> GetOffersAt(const AActor* Giver) const;
+
+	/**
+	 * The player takes a mission from its giver: it's recorded accepted (FCampaignRecord::Accept), then started here; the
+	 * minimap and the tracker follow it when nothing else was tracked. One already running is only recorded. False when it
+	 * can't be taken now (finished, its prerequisites not finished, another area's, no steps).
+	 */
+	bool AcceptMission(FName MissionId);
+
+	/** Where a mission's offering giver stands, nearest the player: a shown actor carrying its Offer.GiverTag. Unset when none is in the level. */
+	TOptional<FVector> FindOfferGiver(const UMissionDefinition& Mission) const;
+
+	/** The actor offering Mission nearest the player (shown ones only), or null. */
+	AActor* FindOfferGiverActor(const UMissionDefinition& Mission) const;
+
+	/** Where the player stands (a test's stand-in in tests); unset while there's no one. */
+	TOptional<FVector> GetPlayerLocation() const;
+
 	bool ArePrerequisitesMet(const UMissionDefinition& Mission) const;
 
 	/** A running mission's current step's objectives and their progress (empty when it isn't running). */
@@ -228,6 +271,12 @@ private:
 	const FRun* FindRun(FName MissionId) const;
 	bool IsInArea(const UMissionDefinition& Mission) const;
 	bool CanStart(const UMissionDefinition& Mission) const;
+
+	// MissionRunnerOffers.cpp
+	/** Due to start without a word from anyone: an automatic one, or one picked up from its giver and already accepted. */
+	bool StartsByItself(const UMissionDefinition& Mission) const;
+	/** Records a mission played before offers existed as accepted, so an old save's mission stays taken. */
+	void UpgradeAccepted(const UMissionDefinition& Mission);
 
 	// MissionRunnerFlow.cpp
 	/** Starts (or restarts) a run at Step; a mission the campaign keeps ready to turn in starts ready instead. */

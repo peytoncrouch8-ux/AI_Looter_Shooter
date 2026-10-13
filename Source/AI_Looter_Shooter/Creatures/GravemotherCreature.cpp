@@ -45,11 +45,11 @@ AGravemotherCreature::AGravemotherCreature()
 	CriticalSpotBones = { TEXT("head"), TEXT("abdomen") };
 
 	// Heavy and unhurried until she means it (the charge is her speed), keeping close to her den while nobody's about. Her
-	// chase and charge were tuned against the full-size player and scale with the player's speed, as a spider's do, so
-	// the charge still gives the same time to sidestep.
+	// chase and charge were tuned against the full-size player and scale with the player's speed and pace, as a spider's
+	// do, so the charge still gives the same time to sidestep.
 	WalkSpeed = 140.f;
-	ChaseSpeed = 480.f * LooterPlayerSize::SpeedScale;
-	ChargeSpeed = 900.f * LooterPlayerSize::SpeedScale;
+	ChaseSpeed = 480.f * LooterPlayerSize::MoveScale;
+	ChargeSpeed = 900.f * LooterPlayerSize::MoveScale;
 	WanderRadius = 400.f;
 	// Her body lies a while longer: she's the fight's end.
 	CorpseTime = 10.f;

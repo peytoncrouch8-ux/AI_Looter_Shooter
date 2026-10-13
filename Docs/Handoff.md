@@ -3,6 +3,27 @@
 Where the work stands, for the next session and every agent. Update it as each request finishes (newest first). Rules are
 in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeline.md`.
 
+## Now (2026-10-13, session "Ransom's Rest map expansion")
+
+**The user's ask:** Ransom's Rest grows up the north mountain (the Gilded Lily is behind it; don't build the Lily);
+map order 1 Ransom's Rest, 2 the Lily, 3 Skyreach; the cold open plays as a new game starts (skippable); hold-E is a
+circular ring; the map shows N/E/S/W; player 10% slower; every mission picked up from a giver (board, NPC, artifact)
+with ! icons and turned in, with more substance; a side mission opens the way up; Borderlands-style save points; house
+variety (no shared or spammed models) and more enterable buildings. **Their answers** are in the memory note
+`rr-expansion` and in `Docs/Areas/RansomsRest_Expansion.md` (being drafted): the Lily by train, Skyreach reached from
+the Lily by a skylift, the tutorial inside Ransom's Rest's opening, the Old Quarry's ore lift, all missions from givers,
+rework every mission + 4-5 new sides, graves become save points, the mountain about +50% with a Rim Rangers' outpost and
+a silver mine, dead miners + a Foreman Legendary, Ransom's Rest's own house kit now (Skyreach later), interiors for the
+mountain buildings, the depot and Tilly's workshop/cellar.
+
+**Wave 1 (running, unbuilt):** contract in the session scratchpad (`contract_wave1.md`); Main pre-wrote
+`FCampaignRecord::AcceptedMissions/LastGraves`, `ALooterHUD::OpenMissionOffer/ShowGraveMarked` and the new sound cue
+names. Agents: A the hold ring + compass letters, B new game on the cold open + hints in Ransom's Rest + no Skyreach on
+the boards + pace 0.9, C mission givers (offers, offer card, ! and ? markers, artifacts, boards anywhere), D graves as
+save points (marked on approach, Continue at the last marked), the design doc, and the art agent's house kit (look sheet
+`Saved/ArtPreviews/RansomsRest/LookSheets/35_Homes.jpg` for the user). After the wave: build, tests, a sound agent for the
+new cues, then the user approves the design before the missions' data, the mountain and the interiors.
+
 ## Start here (2026-10-13, end of the "polish loop" session; the user is opening a new session)
 
 **State:** everything below is built, placed in both levels, committed and pushed; 470 tests pass; the game starts

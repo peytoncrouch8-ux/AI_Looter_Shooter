@@ -81,7 +81,7 @@ void UMainMenuWidget::ClosePopupNav()
 		return;
 	}
 	PopupNav.Reset();
-	// Back on what opened it (the card's Delete, its New Game).
+	// Back on what opened it (the card's Delete).
 	RebuildNavigation(PopupReturn.Get());
 	PopupReturn.Reset();
 }
@@ -97,11 +97,6 @@ bool UMainMenuWidget::StepBack()
 	if (DeleteIndex != INDEX_NONE)
 	{
 		CloseDeleteConfirm();
-		return true;
-	}
-	if (NewGameIndex != INDEX_NONE)
-	{
-		CloseNewGame();
 		return true;
 	}
 	if (bPickerShown)

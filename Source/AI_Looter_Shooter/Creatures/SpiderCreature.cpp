@@ -66,8 +66,9 @@ ASpiderCreature::ASpiderCreature()
 
 	WalkSpeed = 170.f;
 	// Tuned against the full-size player's 600 walk (90% of it, so a walking player just outpaces one) and scaled with the
-	// player's speed: at 540 against the smaller player's 510 a spider caught anyone walking (the user's call, 2026-10-08).
-	ChaseSpeed = 540.f * LooterPlayerSize::SpeedScale;
+	// player's speed, size and pace: at 540 against the smaller player's 510 a spider caught anyone walking (the user's
+	// call, 2026-10-08), and the slower pace (2026-10-13) keeps the same odds.
+	ChaseSpeed = 540.f * LooterPlayerSize::MoveScale;
 	AttackRange = 220.f;
 	AttackDamage = 12.f;
 	HealthBarHeight = 120.f;

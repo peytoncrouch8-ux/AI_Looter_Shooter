@@ -20,9 +20,9 @@ struct FSessionSummary;
  * The main menu, drawn over the tutorial island (a camera circles it behind the menu). A tall glass column on the left
  * holds the game's title and the menu; the rest of the screen is left to the island.
  *  - Single Player shows the session picker in place of the main buttons: a card per session (USessionSubsystem) naming
- *    the area it's in (Skyreach, Ransom's Rest), each continued or started from its card, and a saved one deleted after
- *    a confirmation popup. A new game asks first whether to play the tutorial or skip it (straight to the story's first
- *    arrival with a Common Bullpup; USessionSubsystem::PlaySessionSkippingTutorial).
+ *    the area it's in (Ransom's Rest, Skyreach), each continued or started from its card, and a saved one deleted after
+ *    a confirmation popup. An empty slot's New Game starts the story at once: the cold open on Ransom's Rest, then the
+ *    grave, with a Common Bullpup (USessionSubsystem::StartNewGame; the controls are taught there by the hints).
  *  - Multiplayer doesn't exist yet: it shows dimmed, with a SOON tag, and does nothing.
  *  - Settings opens the settings menu over this one (AMainMenuHUD owns both).
  *  - Quit Game closes the game.
@@ -63,7 +63,7 @@ public:
 	/** The key hints at the bottom as they stand, for the device last used. */
 	TArray<MenuNav::FPrompt> GetPrompts() const;
 	bool IsPickerShown() const { return bPickerShown; }
-	bool IsPopupOpen() const { return DeleteIndex != INDEX_NONE || NewGameIndex != INDEX_NONE; }
+	bool IsPopupOpen() const { return DeleteIndex != INDEX_NONE; }
 	/** A main button by its action ("SinglePlayer", "Multiplayer", "Settings", "Quit"), for the tests. */
 	ULooterButton* GetMainButton(FName Action) const;
 	ULooterButton* GetPickerBackButton() const;
@@ -126,14 +126,11 @@ private:
 	void RefreshSessions();
 	UWidget* MakeSessionCard(int32 Index, const FSessionSummary& Summary);
 	void HandleSessionButton(ULooterButton* Button);
-	/** Continues session Index, or starts a new game in it (with the tutorial, or skipping it), which opens its level. */
-	void StartSession(int32 Index, bool bSkipTutorial = false);
+	/** Continues session Index, or starts a new game in it (the story from its start), which opens its level. */
+	void StartSession(int32 Index);
 	void OpenDeleteConfirm(int32 Index);
 	void CloseDeleteConfirm();
 	void ConfirmDelete();
-	/** A new game in the empty slot Index: the tutorial, or skip it. */
-	void OpenNewGame(int32 Index);
-	void CloseNewGame();
 
 	/** The main buttons, and the session picker shown in their place. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> MainButtons;
@@ -168,8 +165,6 @@ private:
 	bool bPickerShown = false;
 	/** The session the delete confirmation asks about, or INDEX_NONE while it's closed. */
 	int32 DeleteIndex = INDEX_NONE;
-	/** The empty slot the new game asks about (the tutorial or skip it), or INDEX_NONE while it's closed. */
-	int32 NewGameIndex = INDEX_NONE;
 	/** A session's level is opening: the menu goes with this world, so it takes no more clicks or keys. */
 	bool bLoading = false;
 };

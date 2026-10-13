@@ -107,8 +107,8 @@ public:
 
 	/**
 	 * Outside the story, for practice (Skyreach): its creatures give no experience, and once the player has left it for
-	 * the first time they drop only ammo (GivesKillExperience, DropsGuns; UAreaRulesSubsystem plays them). Every station
-	 * board lists it as "Skyreach (practice)" after the first cast-off.
+	 * the first time they drop only ammo (GivesKillExperience, DropsGuns; UAreaRulesSubsystem plays them). No station board
+	 * lists it: since 2026-10-13 Skyreach is the story's third area, reached later from the Gilded Lily by a skylift.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area")
 	bool bPractice = false;

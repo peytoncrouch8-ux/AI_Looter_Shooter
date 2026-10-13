@@ -64,8 +64,8 @@ ASpitterSpider::ASpitterSpider()
 
 	WalkSpeed = 160.f;
 	// A little slower than the brown spider (540 at the full-size player's scale): a walking player gains on it as it
-	// backs away, so closing in on it works.
-	ChaseSpeed = 480.f * LooterPlayerSize::SpeedScale;
+	// backs away, so closing in on it works. Scaled with the player's speed and pace, as the spider's is.
+	ChaseSpeed = 480.f * LooterPlayerSize::MoveScale;
 	// Its bite, for when it's caught; its glob, splash and puddle are shares of it, so they grow with its level and rank.
 	AttackDamage = 10.f;
 	AttackWindup = 0.5f;

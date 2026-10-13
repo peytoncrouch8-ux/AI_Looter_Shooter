@@ -1,8 +1,5 @@
 #include "UI/Menus/MainMenuWidget.h"
-#include "Areas/AreaDefinition.h"
-#include "Areas/StationBoard.h"
 #include "Session/SessionSubsystem.h"
-#include "Tutorial/TutorialChoice.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Blueprint/WidgetTree.h"
@@ -28,9 +25,6 @@ namespace
 	const FName ActionBack(TEXT("Back"));
 	const FName ActionCancelDelete(TEXT("CancelDelete"));
 	const FName ActionConfirmDelete(TEXT("ConfirmDelete"));
-	const FName ActionPlayTutorial(TEXT("PlayTutorial"));
-	const FName ActionSkipTutorial(TEXT("SkipTutorial"));
-	const FName ActionCancelNewGame(TEXT("CancelNewGame"));
 
 	/** Every card is at least as tall as a saved session's, so the three line up like slots, used or not. */
 	constexpr float CardMinHeight = 140.f;
@@ -230,29 +224,8 @@ void UMainMenuWidget::HandleSessionButton(ULooterButton* Button)
 {
 	if (Button->Action == ActionPlay)
 	{
-		// A saved session continues; an empty slot asks first whether to play the tutorial.
-		const USessionSubsystem* Sessions = USessionSubsystem::Get(this);
-		if (Sessions && !Sessions->GetSummary(Button->Index).bExists)
-		{
-			OpenNewGame(Button->Index);
-		}
-		else
-		{
-			StartSession(Button->Index);
-		}
-	}
-	else if (Button->Action == ActionPlayTutorial || Button->Action == ActionSkipTutorial)
-	{
-		const int32 Index = NewGameIndex;
-		CloseNewGame();
-		if (Index != INDEX_NONE)
-		{
-			StartSession(Index, Button->Action == ActionSkipTutorial);
-		}
-	}
-	else if (Button->Action == ActionCancelNewGame)
-	{
-		CloseNewGame();
+		// A saved session continues; an empty slot starts the story at once (no choice to make: USessionSubsystem::StartNewGame).
+		StartSession(Button->Index);
 	}
 	else if (Button->Action == ActionDelete)
 	{
@@ -272,7 +245,7 @@ void UMainMenuWidget::HandleSessionButton(ULooterButton* Button)
 	}
 }
 
-void UMainMenuWidget::StartSession(int32 Index, bool bSkipTutorial)
+void UMainMenuWidget::StartSession(int32 Index)
 {
 	USessionSubsystem* Sessions = USessionSubsystem::Get(this);
 	if (!Sessions)
@@ -284,90 +257,12 @@ void UMainMenuWidget::StartSession(int32 Index, bool bSkipTutorial)
 	bLoading = true;
 	SetStatus(FString::Printf(TEXT("Loading %s..."), *SessionName(Index)), Color::Accent());
 	RefreshFooter();
-	const bool bStarted = bSkipTutorial ? Sessions->PlaySessionSkippingTutorial(Index) : Sessions->PlaySession(Index);
-	if (!bStarted)
+	if (!Sessions->PlaySession(Index))
 	{
 		bLoading = false;
 		SetStatus(FString::Printf(TEXT("%s couldn't be started."), *SessionName(Index)), Color::Worse());
 		RefreshFooter();
 	}
-}
-
-// ---------------------------------------------------------------------------
-// A new game: the tutorial, or skip it
-// ---------------------------------------------------------------------------
-
-void UMainMenuWidget::OpenNewGame(int32 Index)
-{
-	if (!PopupLayer)
-	{
-		StartSession(Index);
-		return;
-	}
-	NewGameIndex = Index;
-	const FString SessionLabel = SessionName(Index);
-	// The places by their areas' names (the session picker shows them too).
-	const UAreaDefinition* Practice = UAreaDefinition::FindByName(TEXT("Skyreach"));
-	const UAreaDefinition* First = UAreaDefinition::FindByName(StationBoard::FirstAreaId().ToString());
-	const FText PracticeName = Practice ? StationBoard::AreaName(*Practice) : FText::FromString(TEXT("Skyreach"));
-	const FText FirstName = First ? StationBoard::AreaName(*First) : FText::FromString(TEXT("Ransom's Rest"));
-	const bool bCanSkip = USessionSubsystem::CanSkipTutorial();
-
-	// The choice's words are the tutorial's (TutorialChoice), so the tests read the same.
-	UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	UTextBlock* Body = MakeText(WidgetTree, TutorialChoice::Explain(PracticeName, FirstName).ToString(), 13, Color::Text());
-	Body->SetAutoWrapText(true);
-	Content->AddChildToVerticalBox(Body);
-	if (!bCanSkip)
-	{
-		UTextBlock* Closed = MakeText(WidgetTree, TutorialChoice::SkipClosed(FirstName).ToString(), 12, Color::Worse());
-		Closed->SetAutoWrapText(true);
-		Content->AddChildToVerticalBox(Closed)->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
-	}
-
-	// Skyreach first, the call to action; the skip under it; Cancel last.
-	ULooterButton* Tutorial = MakeButton(ActionPlayTutorial, Index, TutorialChoice::StartLabel(PracticeName).ToString(), 14, EButtonKind::Primary);
-	Content->AddChildToVerticalBox(MakeSized(WidgetTree, Tutorial, 0.f, 44.f))->SetPadding(FMargin(0.f, 22.f, 0.f, 0.f));
-	ULooterButton* Skip = MakeButton(ActionSkipTutorial, Index, TutorialChoice::SkipLabel(FirstName).ToString(), 13, EButtonKind::Normal);
-	Skip->SetIsEnabled(bCanSkip);
-	Content->AddChildToVerticalBox(MakeSized(WidgetTree, Skip, 0.f, 40.f))->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
-	ULooterButton* Cancel = MakeButton(ActionCancelNewGame, Index, TEXT("Cancel"), 11, EButtonKind::Mini);
-	UVerticalBoxSlot* CancelSlot = Content->AddChildToVerticalBox(MakeSized(WidgetTree, Cancel, 140.f, 30.f));
-	CancelSlot->SetHorizontalAlignment(HAlign_Right);
-	CancelSlot->SetPadding(FMargin(0.f, 14.f, 0.f, 0.f));
-
-	// The whole screen dims behind it and takes every click, as behind the delete confirmation.
-	UBorder* Backdrop = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Backdrop->SetBrush(RectBrush(Color::Backdrop()));
-	Backdrop->SetVisibility(ESlateVisibility::Visible);
-	Backdrop->SetHorizontalAlignment(HAlign_Center);
-	Backdrop->SetVerticalAlignment(VAlign_Center);
-	MarkBackground(Backdrop);
-	Backdrop->SetContent(MakeSized(WidgetTree, MakePanel(WidgetTree, FString::Printf(TEXT("New game in %s"), *SessionLabel), Content), PopupWidth));
-
-	PopupLayer->ClearChildren();
-	FillOverlaySlot(PopupLayer->AddChildToOverlay(Backdrop));
-	PopupLayer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	// The keys and controller in the popup only, top to bottom (the skip passed over while it's shut), on the tutorial.
-	OpenPopupNav({ FMenuNavRow{ FMenuNavItem::MakeButton(Tutorial) }, FMenuNavRow{ FMenuNavItem::MakeButton(Skip) },
-		FMenuNavRow{ FMenuNavItem::MakeButton(Cancel) } }, Tutorial);
-	RefreshFooter();
-}
-
-void UMainMenuWidget::CloseNewGame()
-{
-	if (NewGameIndex == INDEX_NONE)
-	{
-		return;
-	}
-	NewGameIndex = INDEX_NONE;
-	if (PopupLayer)
-	{
-		PopupLayer->ClearChildren();
-		PopupLayer->SetVisibility(ESlateVisibility::Collapsed);
-	}
-	ClosePopupNav();
-	RefreshFooter();
 }
 
 // ---------------------------------------------------------------------------

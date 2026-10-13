@@ -1,6 +1,7 @@
-#include "Tutorial/ControlHintRules.h"
+// FControlHintRules: when hints come and go, and what they remember. The hints' table (keys, words, saved names, how
+// often each may show) is ControlHintRulesTable.cpp's.
 
-#define LOCTEXT_NAMESPACE "ControlHints"
+#include "Tutorial/ControlHintRules.h"
 
 namespace
 {
@@ -8,98 +9,6 @@ namespace
 
 	/** A step this small (cm) between looks is standing still: a capsule settling, a nudge from a creature. */
 	constexpr float StillStep = 1.f;
-}
-
-// ---------------------------------------------------------------------------
-// The hints' table
-// ---------------------------------------------------------------------------
-
-int32 FControlHintRules::MaxShows(EControlHint Hint)
-{
-	return Hint == EControlHint::Jump || Hint == EControlHint::Slide ? 1 : 3;
-}
-
-FName FControlHintRules::Action(EControlHint Hint)
-{
-	switch (Hint)
-	{
-	case EControlHint::Move:      return TEXT("Move");
-	case EControlHint::Reload:    return TEXT("Reload");
-	// UKeyBindingSubsystem::MeleeBindingId(), spelled out here as the others are so the rules need no subsystem.
-	case EControlHint::Melee:     return TEXT("Melee");
-	// UKeyBindingSubsystem::GrenadeBindingId().
-	case EControlHint::Grenade:   return TEXT("Grenade");
-	case EControlHint::Aim:       return TEXT("Aim");
-	case EControlHint::Jump:      return TEXT("Jump");
-	case EControlHint::Sprint:    return TEXT("Sprint");
-	case EControlHint::Slide:     return TEXT("Crouch");
-	case EControlHint::Swap:      return TEXT("NextWeapon");
-	case EControlHint::Inventory: return TEXT("Inventory");
-	case EControlHint::Bench:     return TEXT("Interact");
-	case EControlHint::Count:     break;
-	}
-	return NAME_None;
-}
-
-FText FControlHintRules::Words(EControlHint Hint, bool bToggle)
-{
-	// Short, as the HUD's floating lines are: the keycap says which key, these say what it does.
-	switch (Hint)
-	{
-	case EControlHint::Move:      return LOCTEXT("Move", "Move, and look around with the mouse");
-	case EControlHint::Reload:    return LOCTEXT("Reload", "Reload");
-	case EControlHint::Melee:     return LOCTEXT("Melee", "Melee: strike what gets too close");
-	case EControlHint::Grenade:   return LOCTEXT("Grenade", "Grenade: salt the crowd");
-	case EControlHint::Aim:       return LOCTEXT("Aim", "Aim down the sights for a long shot");
-	// Where the mantle is, a jump at a ledge climbs it; where it isn't, a ledge this low still takes a jump.
-	case EControlHint::Jump:      return LOCTEXT("Jump", "Jump up onto ledges");
-	case EControlHint::Sprint:    return bToggle ? LOCTEXT("SprintToggle", "Press to sprint") : LOCTEXT("SprintHold", "Hold to sprint");
-	case EControlHint::Slide:     return LOCTEXT("Slide", "Crouch while sprinting to slide");
-	case EControlHint::Swap:      return LOCTEXT("Swap", "Swap guns");
-	case EControlHint::Inventory: return LOCTEXT("Inventory", "Inventory: compare and equip");
-	case EControlHint::Bench:     return LOCTEXT("Bench", "Use the bench: two guns of a kind can trade parts");
-	case EControlHint::Count:     break;
-	}
-	return FText::GetEmpty();
-}
-
-FName FControlHintRules::Id(EControlHint Hint)
-{
-	switch (Hint)
-	{
-	case EControlHint::Move:      return TEXT("Move");
-	case EControlHint::Reload:    return TEXT("Reload");
-	case EControlHint::Melee:     return TEXT("Melee");
-	case EControlHint::Grenade:   return TEXT("Grenade");
-	case EControlHint::Aim:       return TEXT("Aim");
-	case EControlHint::Jump:      return TEXT("Jump");
-	case EControlHint::Sprint:    return TEXT("Sprint");
-	case EControlHint::Slide:     return TEXT("Slide");
-	case EControlHint::Swap:      return TEXT("Swap");
-	case EControlHint::Inventory: return TEXT("Inventory");
-	case EControlHint::Bench:     return TEXT("Bench");
-	case EControlHint::Count:     break;
-	}
-	return NAME_None;
-}
-
-EControlHint FControlHintRules::FromId(FName InId)
-{
-	for (int32 Index = 0; Index < HintCount; ++Index)
-	{
-		const EControlHint Hint = static_cast<EControlHint>(Index);
-		if (!InId.IsNone() && Id(Hint) == InId)
-		{
-			return Hint;
-		}
-	}
-	return EControlHint::Count;
-}
-
-bool FControlHintRules::IsMomentary(EControlHint Hint)
-{
-	return Hint == EControlHint::Reload || Hint == EControlHint::Melee || Hint == EControlHint::Grenade || Hint == EControlHint::Aim
-		|| Hint == EControlHint::Jump || Hint == EControlHint::Bench;
 }
 
 // ---------------------------------------------------------------------------
@@ -127,6 +36,12 @@ void FControlHintRules::Update(const FControlHintInput& In, float DeltaSeconds)
 	for (float& Cooldown : Cooldowns)
 	{
 		Cooldown = FMath::Max(Cooldown - DeltaSeconds, 0.f);
+	}
+	// Someone is talking: nothing new comes over the conversation, and the hint on show waits it out with its time
+	// stopped (the widget steps aside meanwhile).
+	if (In.bCaptionsOn)
+	{
+		return;
 	}
 
 	if (IsShowing())
@@ -175,9 +90,17 @@ void FControlHintRules::LearnFrom(const FControlHintInput& In)
 	{
 		Learn(EControlHint::Slide);
 	}
+	if (In.bCrouching)
+	{
+		Learn(EControlHint::Crouch);
+	}
 	if (In.bJumped)
 	{
 		Learn(EControlHint::Jump);
+	}
+	if (In.bFired)
+	{
+		Learn(EControlHint::Fire);
 	}
 	if (In.bAiming)
 	{
@@ -195,6 +118,14 @@ void FControlHintRules::LearnFrom(const FControlHintInput& In)
 	{
 		Learn(EControlHint::Grenade);
 	}
+	if (In.bInteracted || In.bHeldUse)
+	{
+		Learn(EControlHint::Interact);
+	}
+	if (In.bHeldUse)
+	{
+		Learn(EControlHint::Hold);
+	}
 	if (In.bSwapped)
 	{
 		Learn(EControlHint::Swap);
@@ -203,6 +134,19 @@ void FControlHintRules::LearnFrom(const FControlHintInput& In)
 	{
 		Learn(EControlHint::Inventory);
 		bInventoryDue = false;
+	}
+	// The inventory's pages: each one opened is its lesson (the inventory's own comes with it).
+	if (In.bLedgerOpen)
+	{
+		Learn(EControlHint::Ledger);
+	}
+	if (In.bMissionsOpen)
+	{
+		Learn(EControlHint::Missions);
+	}
+	if (In.bMapOpen)
+	{
+		Learn(EControlHint::Map);
 	}
 	if (In.bBenchOpen)
 	{
@@ -225,9 +169,28 @@ void FControlHintRules::Notice(const FControlHintInput& In, float DeltaSeconds)
 	}
 	// One unbroken sprint's time.
 	SprintFor = In.bSprinting ? SprintFor + DeltaSeconds : 0.f;
+	// One unbroken aim at a target while standing; one unbroken look at something to press, or to hold.
+	AimAtTargetFor = In.bAiming && In.bTargetInSights && !In.bCrouching ? AimAtTargetFor + DeltaSeconds : 0.f;
+	TappableFor = In.bTapFocused ? TappableFor + DeltaSeconds : 0.f;
+	HoldableFor = In.bHoldFocused ? HoldableFor + DeltaSeconds : 0.f;
+	// Two missions going at once (past the new one's banner).
+	TwoMissionsFor = In.MissionsGoing >= 2 ? TwoMissionsFor + DeltaSeconds : 0.f;
+	// Walking toward a far objective, kept through stops (a fight on the way); an objective near at hand starts it over.
+	if (!In.bFarWaypoint)
+	{
+		FarWalkFor = 0.f;
+	}
+	else if (In.bWalking || In.bSprinting)
+	{
+		FarWalkFor += DeltaSeconds;
+	}
 	if (In.bPickedUpGun && !GetMemory(EControlHint::Inventory).bLearned)
 	{
 		bInventoryDue = true;
+	}
+	if (In.bGrenadesGained && !GetMemory(EControlHint::Grenade).bLearned)
+	{
+		bGrenadeDue = true;
 	}
 }
 
@@ -237,16 +200,24 @@ bool FControlHintRules::Wants(EControlHint Hint, const FControlHintInput& In) co
 	{
 	case EControlHint::Move:      return IdleFor >= MoveIdleSeconds;
 	case EControlHint::Reload:    return In.bGunInHand && In.bMagazineLow && !In.bReloading;
+	case EControlHint::Fire:      return In.bGunInHand && In.bTargetInSights;
 	// Fists work too, so no gun needed. The sense only reports a close creature to a body that hasn't struck yet.
 	case EControlHint::Melee:     return In.bCloseTarget;
-	// The sense only reports a crowd to a body with a grenade in hand that hasn't thrown one yet.
-	case EControlHint::Grenade:   return In.bCrowdAhead;
-	case EControlHint::Aim:      return In.bGunInHand && In.bFarTarget && !In.bAiming;
+	// The sense only reports a crowd to a body with a grenade in hand that hasn't thrown one yet; a pickup asks once.
+	case EControlHint::Grenade:   return In.bCrowdAhead || bGrenadeDue;
+	case EControlHint::Aim:       return In.bGunInHand && In.bFarTarget && !In.bAiming;
+	case EControlHint::Crouch:    return AimAtTargetFor >= CrouchAimSeconds;
 	case EControlHint::Jump:      return In.bLedgeAhead;
+	case EControlHint::Interact:  return TappableFor >= InteractDwellSeconds;
+	// Loot takes a tap and a hold: pressing comes first, the hold (taking it in hand) once pressing is known.
+	case EControlHint::Hold:      return HoldableFor >= HoldDwellSeconds && (!In.bTapFocused || GetMemory(EControlHint::Interact).bLearned);
 	case EControlHint::Sprint:    return WalkFor >= WalkSeconds;
 	case EControlHint::Slide:     return SprintFor >= SlideSprintSeconds;
 	case EControlHint::Swap:      return In.GunsEquipped >= 2;
-	case EControlHint::Inventory: return bInventoryDue;
+	case EControlHint::Inventory: return bInventoryDue || In.bAskedInventory;
+	case EControlHint::Ledger:    return In.bAskedLedger;
+	case EControlHint::Missions:  return TwoMissionsFor >= MissionsSettleSeconds || In.bAskedMissions;
+	case EControlHint::Map:       return FarWalkFor >= MapWalkSeconds;
 	case EControlHint::Bench:     return In.bAtBenchWithPair;
 	case EControlHint::Count:     break;
 	}
@@ -277,6 +248,14 @@ void FControlHintRules::Show(EControlHint Hint)
 	{
 		SprintFor = 0.f;
 	}
+	else if (Hint == EControlHint::Missions)
+	{
+		TwoMissionsFor = 0.f;
+	}
+	else if (Hint == EControlHint::Map)
+	{
+		FarWalkFor = 0.f;
+	}
 }
 
 void FControlHintRules::End(EControlHintEnd How)
@@ -284,6 +263,11 @@ void FControlHintRules::End(EControlHintEnd How)
 	if (!IsShowing())
 	{
 		return;
+	}
+	// A pickup's grenade hint has had its show: only a crowd brings it back.
+	if (Shown == EControlHint::Grenade)
+	{
+		bGrenadeDue = false;
 	}
 	LastEnded = Shown;
 	LastEnd = How;
@@ -358,7 +342,13 @@ void FControlHintRules::ResetMemory()
 	MovedTotal = 0.f;
 	WalkFor = 0.f;
 	SprintFor = 0.f;
+	AimAtTargetFor = 0.f;
+	TappableFor = 0.f;
+	HoldableFor = 0.f;
+	TwoMissionsFor = 0.f;
+	FarWalkFor = 0.f;
 	bInventoryDue = false;
+	bGrenadeDue = false;
 	bChanged = true;
 }
 
@@ -368,5 +358,3 @@ bool FControlHintRules::ConsumeChanged()
 	bChanged = false;
 	return bWas;
 }
-
-#undef LOCTEXT_NAMESPACE

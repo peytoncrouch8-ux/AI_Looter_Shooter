@@ -1,6 +1,7 @@
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/HUD/HudDamageIndicatorWidget.h"
 #include "UI/HUD/HudFrameRateWidget.h"
+#include "UI/HUD/HudGraveMarkedWidget.h"
 #include "UI/HUD/HudGrenadeWidget.h"
 #include "UI/HUD/HudInteractPromptWidget.h"
 #include "UI/HUD/HudLevelUpBannerWidget.h"
@@ -11,6 +12,7 @@
 #include "UI/HUD/HudPlayerFrameWidget.h"
 #include "UI/HUD/HudScreenEdgeWidget.h"
 #include "UI/HUD/HudWeaponSlotsWidget.h"
+#include "UI/Style/LooterProgressRingWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/WeaponText.h"
 #include "Blueprint/WidgetTree.h"
@@ -36,11 +38,8 @@ using namespace LooterUI;
 namespace
 {
 	constexpr int32 NumCompareStats = 9;
-	constexpr int32 PickupHoldSegmentCount = 16;
 	/** The loot card's least width (inside its padding); the notch and curse rows wrap at it. */
 	constexpr float PickupCardWidth = 320.f;
-	/** Parallelogram slant of the bars, in degrees (mirrored left/right, like the reference). */
-	constexpr float BarSlant = 16.f;
 	/**
 	 * How far left of the screen's middle the pickup feed's lines end: past half the widest crosshair (80 px) with room
 	 * to spare, so a line never covers the crosshair or the hit marker.
@@ -74,6 +73,10 @@ namespace
 	 *  180 px gem box at the top of it, which keeps the gem clear of the boss bar. */
 	constexpr float BannerTop = 260.f;
 
+	/** Where the "GRAVE MARKED" banner's lantern and words centre, down from the top's middle: above the level-up banner's gem
+	 *  (it waits for that banner and the mission-complete one), under the boss bar's cluster, which ends 126 px down. */
+	constexpr float GraveBannerTop = 175.f;
+
 	UCanvasPanelSlot* PlaceOnCanvas(UCanvasPanel* Canvas, UWidget* Widget, const FAnchors& Anchors, const FVector2D& Alignment, const FVector2D& Position)
 	{
 		UCanvasPanelSlot* CanvasSlot = Canvas->AddChildToCanvas(Widget);
@@ -82,36 +85,6 @@ namespace
 		CanvasSlot->SetPosition(Position);
 		CanvasSlot->SetAutoSize(true);
 		return CanvasSlot;
-	}
-
-	/** A white rectangle, tinted per use (segments, pips). */
-	UImage* TintableRect(UWidgetTree* Tree)
-	{
-		return MakeImage(Tree, RectBrush(FLinearColor::White));
-	}
-
-	/** Slim segmented bar, sheared into a parallelogram, on a faint dark backing. */
-	UWidget* MakeSlantBar(UWidgetTree* Tree, int32 Count, float Width, float Height, float Shear, TArray<TObjectPtr<UImage>>& OutSegments,
-		float Gap = 2.f)
-	{
-		UBorder* Backing = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Backing->SetBrush(RectBrush(FLinearColor(0.f, 0.02f, 0.04f, 0.45f)));
-		MarkBackground(Backing);
-		Backing->SetPadding(FMargin(2.f));
-		UHorizontalBox* Bar = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		for (int32 Index = 0; Index < Count; ++Index)
-		{
-			UImage* Segment = TintableRect(Tree);
-			Segment->SetColorAndOpacity(Color::SegmentOff());
-			UHorizontalBoxSlot* SegmentSlot = Bar->AddChildToHorizontalBox(Segment);
-			SegmentSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			SegmentSlot->SetPadding(FMargin(0.f, 0.f, Index + 1 < Count ? Gap : 0.f, 0.f));
-			OutSegments.Add(Segment);
-		}
-		Backing->SetContent(Bar);
-		USizeBox* Size = MakeSized(Tree, Backing, Width, Height);
-		Size->SetRenderShear(FVector2D(Shear, 0.f));
-		return Size;
 	}
 
 	/** Four thin ticks around a gap (crosshair, and rotated 45 degrees for the hit marker). */
@@ -306,8 +279,13 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			}
 			PickupHint = MakeText(WidgetTree, TEXT(""), 13, Color::Accent(), false, 150);
 			Box->AddChildToVerticalBox(PickupHint)->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
-			// Fills while the interact key is held to equip; hidden (keeping its space, so the card doesn't jump) otherwise.
-			PickupHoldBar = MakeSlantBar(WidgetTree, PickupHoldSegmentCount, 200.f, 6.f, BarSlant, PickupHoldSegments);
+			// The key cap with its ring: fills while the interact key is held to equip; hidden (keeping its space, so the card
+			// doesn't jump) otherwise.
+			ULooterProgressRing* HoldRing = nullptr;
+			UTextBlock* HoldKey = nullptr;
+			PickupHoldBar = LooterUI::MakeHoldKeyCap(WidgetTree, HoldRing, HoldKey);
+			PickupHoldRing = HoldRing;
+			PickupHoldKey = HoldKey;
 			PickupHoldBar->SetVisibility(ESlateVisibility::Hidden);
 			UVerticalBoxSlot* HoldSlot = Box->AddChildToVerticalBox(PickupHoldBar);
 			HoldSlot->SetHorizontalAlignment(HAlign_Left);
@@ -349,6 +327,11 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 		MissionBanner = WidgetTree->ConstructWidget<UHudMissionCompleteWidget>(UHudMissionCompleteWidget::StaticClass());
 		MissionBanner->SetLevelUpBanner(LevelUpBanner);
 		PlaceOnCanvas(Root, MissionBanner, FAnchors(0.5f, 0.f), FVector2D(0.5f, 0.5f), FVector2D(0.f, BannerTop));
+
+		// A little above them: "GRAVE MARKED" when the player walks up to a respawn grave for the first time.
+		GraveBanner = WidgetTree->ConstructWidget<UHudGraveMarkedWidget>(UHudGraveMarkedWidget::StaticClass());
+		GraveBanner->SetOtherBanners(LevelUpBanner, MissionBanner);
+		PlaceOnCanvas(Root, GraveBanner, FAnchors(0.5f, 0.f), FVector2D(0.5f, 0.5f), FVector2D(0.f, GraveBannerTop));
 	}
 	return Super::RebuildWidget();
 }

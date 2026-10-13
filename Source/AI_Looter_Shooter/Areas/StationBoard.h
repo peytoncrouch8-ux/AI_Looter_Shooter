@@ -12,7 +12,10 @@ enum class EStationLine : uint8
 {
 	/** An opened area of the story: a trip to its station (the first cast-off's: to the story's first arrival). */
 	Area,
-	/** A practice area (Skyreach): outside the story, listed once the player has left it for the first time. */
+	/**
+	 * A practice area (Skyreach). No board lists one since 2026-10-13 (Skyreach is the story's third area, reached later
+	 * from the Lily); kept for the board's words and the console's listing should a practice line come back.
+	 */
 	Practice,
 	/** The blank line: no destination, only the mission that opens the next area ("Finish ‘The Lantern Leans’"). */
 	NextMission,
@@ -27,7 +30,7 @@ struct AI_LOOTER_SHOOTER_API FStationBoardLine
 	TWeakObjectPtr<UAreaDefinition> Area;
 	FName AreaId;
 
-	/** What the line says: "Ransom's Rest", "Skyreach (practice)", "Finish ‘The Lantern Leans’". */
+	/** What the line says: "Ransom's Rest", "The Gilded Lily", "Finish ‘The Lantern Leans’". */
 	FText Name;
 
 	/** What a sentence calls its place ("the Lily"): the area's spoken name, else Name. */
@@ -73,18 +76,20 @@ struct AI_LOOTER_SHOOTER_API FStationBoardWords
 
 /**
  * The station boards' rules, apart from the world so the tests feed them (Docs/Areas/RansomsRest.md, "The exit and the
- * unlock"). Every board (the depot on Ransom's Rest, every later station, Skyreach's jetty) lists:
- *  - every opened area of the story (the campaign record's, and the story's first area once the player has left Skyreach),
- *    the one it stands in marked as here; later areas aren't shown;
- *  - one blank line naming the mission that opens the next area;
- *  - "Skyreach (practice)" once the player has left it for the first time, on every board but Skyreach's own.
- * Before the first cast-off a board offers one trip only: off Skyreach to the story's first arrival (the family plot on
- * Ransom's Rest, where the cold open plays and Ellis claws out of the grave). "Skip the tutorial" counts as that first
- * cast-off.
+ * unlock"). The story's areas in order (the user's call, 2026-10-13): 1 Ransom's Rest, 2 the Gilded Lily (behind the north
+ * mountain, by train), 3 Skyreach (a sky island reached from the Lily by a skylift). Every board (the depot on Ransom's
+ * Rest, every later station, Skyreach's jetty) lists:
+ *  - every opened area of the story (the campaign record's, and the story's first area once the story has begun), the
+ *    one it stands in marked as here; later areas aren't shown;
+ *  - one blank line naming the mission that opens the next area.
+ * A practice area (Skyreach while it's still marked practice) is never listed: Looter.Travel Skyreach goes there for
+ * testing. A new game begins the story at once (USessionSubsystem::StartNewGame records the first cast-off); only a
+ * session begun on Skyreach before that, still there, sees a board offering one trip: off Skyreach to the story's first
+ * arrival (the family plot on Ransom's Rest, where the cold open plays and Ellis claws out of the grave).
  */
 namespace StationBoard
 {
-	/** The story's first area: the first cast-off (and "Skip the tutorial") goes there. */
+	/** The story's first area: a new game (and the old first cast-off) goes there. */
 	AI_LOOTER_SHOOTER_API FName FirstAreaId();
 
 	/** Where the story's first arrival puts the player: the family plot, by Ellis's grave (the cold open plays from there). */
@@ -112,9 +117,6 @@ namespace StationBoard
 
 	/** An area's name on a board: its display name, else its id. */
 	AI_LOOTER_SHOOTER_API FText AreaName(const UAreaDefinition& Area);
-
-	/** "Skyreach (practice)". */
-	AI_LOOTER_SHOOTER_API FText PracticeName(const UAreaDefinition& Area);
 
 	/** "Finish ‘The Lantern Leans’". */
 	AI_LOOTER_SHOOTER_API FText NextMissionText(const UMissionDefinition& Mission);

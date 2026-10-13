@@ -273,8 +273,9 @@ bool UAreaTravelSubsystem::CompleteFirstCastOff()
 		return false;
 	}
 
-	// Written before the trip, so the trip's own save carries it: the story has begun, its first area is open, and the
-	// tutorial is behind the player (a practice visit never sends them through it again). Put back if nobody goes.
+	// Written before the trip, so the trip's own save carries it: the story has begun, its first area is open, and
+	// Skyreach's old tutorial is behind the player (a later visit never sends them through it again). Put back if nobody
+	// goes.
 	const FCampaignRecord Before = *Campaign;
 	UPlayerProgressionSubsystem* Progression = FindProgression(World);
 	const bool bTutorialWasDone = Progression && Progression->IsTutorialDone();

@@ -16,9 +16,9 @@ namespace
 	/** The first step after setting off comes this share of a stride in: at once it would sound like a stomp. */
 	constexpr float FirstStepShare = 0.35f;
 
-	/** Creeping on the stick, and the sprint (the player's speeds, Player/PlayerSize.h: the jog is 510). */
+	/** Creeping on the stick, and the sprint (the player's speeds, Player/PlayerSize.h: the walk is 459). */
 	constexpr float CreepSpeed = 150.f;
-	constexpr float SprintSpeed = 790.f;
+	constexpr float SprintSpeed = 711.f;
 
 	/** Landings slower than this are a step's worth (a hop, a curb); from it to HardLandSpeed they grow to a full thud. */
 	constexpr float SoftLandSpeed = 300.f;

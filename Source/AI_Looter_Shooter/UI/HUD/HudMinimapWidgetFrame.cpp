@@ -1,10 +1,10 @@
-// The minimap's frame: the gunmetal bezel round the map, its turning ticks and N, the notch, and the place's name.
+// The minimap's frame: the gunmetal bezel round the map, its turning ticks and the compass letters, the notch, and the place's name.
 #include "UI/HUD/HudMinimapWidget.h"
+#include "UI/HUD/MinimapCompass.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Areas/AreaDefinition.h"
 #include "Areas/AreaRulesSubsystem.h"
 #include "Session/SessionSubsystem.h"
-#include "World/MinimapSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -39,6 +39,14 @@ namespace
 	constexpr float BadgeBox = 22.f;
 	constexpr float BadgeRadius = 9.5f;
 	constexpr int32 BadgeTextSize = 12;
+	/**
+	 * E, S and W ride the bezel on smaller, dimmer discs (16 across in a 19 box) with smaller letters, which never shrink
+	 * below a size that stays readable on the smallest map.
+	 */
+	constexpr float SideBadgeBox = 19.f;
+	constexpr float SideBadgeRadius = 8.f;
+	constexpr int32 SideTextSize = 10;
+	constexpr int32 SideTextSmallest = 8;
 	/**
 	 * The notch: a triangle 14 wide and 9.5 tall in a box with room for its ink edge, centred this far above the map's
 	 * centre, so its tip reaches into the bezel and its top stands a little proud of it.
@@ -152,26 +160,44 @@ namespace
 		return Picture;
 	}
 
-	/** The N's disc: ink with an orange ring; the letter goes over it. */
+	/** A compass disc: ink with a ring in Tone; the letter goes over it. */
+	FPaintedIcon MakeBadgePicture(float Box, float Radius, float RingWidth, const FLinearColor& Tone, float RingOpacity)
+	{
+		FPaintedIcon Result;
+		Result.ViewBox = FVector2D(Box);
+		const FVector2D Center(Box * 0.5f);
+		FPaintLayer Disc;
+		Disc.Fills.Add(FrameCircle(Center, Radius, 48, false));
+		Disc.Color = Color::Ink();
+		Result.Layers.Add(Disc);
+		FPaintLayer Ring;
+		Ring.Strokes.Add(FrameCircle(Center, Radius, 48, true));
+		Ring.StrokeWidth = RingWidth;
+		Ring.Color = Tone;
+		Ring.Opacity = RingOpacity;
+		Result.Layers.Add(Ring);
+		return Result;
+	}
+
+	/** The N's disc: ink with an orange ring. */
 	const FPaintedIcon& BadgePicture()
 	{
-		static const FPaintedIcon Picture = []
-		{
-			FPaintedIcon Result;
-			Result.ViewBox = FVector2D(BadgeBox);
-			const FVector2D Center(BadgeBox * 0.5f);
-			FPaintLayer Disc;
-			Disc.Fills.Add(FrameCircle(Center, BadgeRadius, 48, false));
-			Disc.Color = Color::Ink();
-			Result.Layers.Add(Disc);
-			FPaintLayer Ring;
-			Ring.Strokes.Add(FrameCircle(Center, BadgeRadius, 48, true));
-			Ring.StrokeWidth = 1.6f;
-			Ring.Color = Color::Accent();
-			Result.Layers.Add(Ring);
-			return Result;
-		}();
+		static const FPaintedIcon Picture = MakeBadgePicture(BadgeBox, BadgeRadius, 1.6f, Color::Accent(), 1.f);
 		return Picture;
+	}
+
+	/** E, S and W's disc: the same ink, with a thinner, fainter ring in the dim text color. */
+	const FPaintedIcon& SideBadgePicture()
+	{
+		static const FPaintedIcon Picture = MakeBadgePicture(SideBadgeBox, SideBadgeRadius, 1.2f, Color::TextDim(), 0.65f);
+		return Picture;
+	}
+
+	/** A compass letter's text block in the panel: the badge's second child. */
+	UTextBlock* CompassLetter(UWidget* Badge)
+	{
+		const UOverlay* Layers = Cast<UOverlay>(Badge);
+		return Layers ? Cast<UTextBlock>(Layers->GetChildAt(1)) : nullptr;
 	}
 
 	/** The notch: an orange triangle with an ink edge, pointing down at the map, the way you face. */
@@ -217,18 +243,35 @@ void UHudMinimapWidget::BuildFrame(UCanvasPanel* Layer)
 	Ticks->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
 	AddPiece(Ticks, FVector2D(0.5f, 0.5f));
 
-	// The N on its disc, upright as it circles.
-	UOverlay* Badge = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-	Badge->SetVisibility(ESlateVisibility::HitTestInvisible);
-	FillOverlaySlot(Badge->AddChildToOverlay(
-		MakeImage(WidgetTree, PaintedIconBrush(TEXT("MinimapNorthDisc"), BadgePicture(), FramePixelsPerUnit, FVector2D(BadgeBox)))));
-	North = MakeFloatingText(WidgetTree, BadgeTextSize, Color::Accent(), 0, ETextJustify::Center);
-	North->SetText(FText::FromString(TEXT("N")));
-	UOverlaySlot* LetterSlot = Badge->AddChildToOverlay(North);
-	LetterSlot->SetHorizontalAlignment(HAlign_Center);
-	LetterSlot->SetVerticalAlignment(VAlign_Center);
-	NorthBadge = Badge;
-	AddPiece(Badge, FVector2D(0.5f, 0.5f));
+	// The compass: the N on its orange-ringed disc, and E, S and W on smaller, dimmer ones, each upright as it circles the
+	// bezel. They share one panel the size of the bezel's picture (NorthBadge holds it), in MinimapCompass::All's order, which
+	// ScaleFrame and TurnFrame walk. The letters are named for the tests.
+	UCanvasPanel* Compass = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
+	Compass->SetVisibility(ESlateVisibility::HitTestInvisible);
+	for (const MinimapCompass::EPoint Point : MinimapCompass::All)
+	{
+		const bool bNorth = Point == MinimapCompass::EPoint::North;
+		UOverlay* Badge = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		Badge->SetVisibility(ESlateVisibility::HitTestInvisible);
+		const FSlateBrush Disc = bNorth
+			? PaintedIconBrush(TEXT("MinimapNorthDisc"), BadgePicture(), FramePixelsPerUnit, FVector2D(BadgeBox))
+			: PaintedIconBrush(TEXT("MinimapSideDisc"), SideBadgePicture(), FramePixelsPerUnit, FVector2D(SideBadgeBox));
+		FillOverlaySlot(Badge->AddChildToOverlay(MakeImage(WidgetTree, Disc)));
+		UTextBlock* LetterText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(),
+			FName(*FString::Printf(TEXT("Compass_%s"), MinimapCompass::Letter(Point))));
+		StyleFloatingText(LetterText, bNorth ? BadgeTextSize : SideTextSize, bNorth ? Color::Accent() : Color::TextDim(), 0, ETextJustify::Center);
+		LetterText->SetText(FText::FromString(MinimapCompass::Letter(Point)));
+		UOverlaySlot* LetterSlot = Badge->AddChildToOverlay(LetterText);
+		LetterSlot->SetHorizontalAlignment(HAlign_Center);
+		LetterSlot->SetVerticalAlignment(VAlign_Center);
+		Compass->AddChildToCanvas(Badge)->SetAlignment(FVector2D(0.5f, 0.5f));
+		if (bNorth)
+		{
+			North = LetterText;
+		}
+	}
+	NorthBadge = Compass;
+	AddPiece(Compass, FVector2D(0.5f, 0.5f));
 
 	// The way you face, fixed at the top; over the N as it passes.
 	Notch = MakeImage(WidgetTree, PaintedIconBrush(TEXT("MinimapNotch"), NotchPicture(), FramePixelsPerUnit, FVector2D(NotchWidth, NotchHeight)));
@@ -269,14 +312,26 @@ void UHudMinimapWidget::ScaleFrame()
 	SetPiece(Bezel, Center, FVector2D(FrameBox * Scale));
 	SetPiece(Ticks, Center, FVector2D(FrameBox * Scale));
 	SetPiece(Notch, Center - FVector2D(0.f, NotchCenter * Scale), FVector2D(NotchWidth, NotchHeight) * MarkerScale);
-	// The disc moves every frame (TurnFrame); only its size changes here.
-	if (UCanvasPanelSlot* BadgeSlot = NorthBadge ? Cast<UCanvasPanelSlot>(NorthBadge->Slot) : nullptr)
+	// The compass panel is the bezel's size and sits on the map's centre; its discs move every frame (TurnFrame), so only
+	// their sizes and letters change here.
+	SetPiece(NorthBadge, Center, FVector2D(FrameBox * Scale));
+	if (const UCanvasPanel* Compass = Cast<UCanvasPanel>(NorthBadge))
 	{
-		BadgeSlot->SetSize(FVector2D(BadgeBox * MarkerScale));
-	}
-	if (North)
-	{
-		StyleFloatingText(North, FMath::Max(1, FMath::RoundToInt32(BadgeTextSize * MarkerScale)), Color::Accent(), 0, ETextJustify::Center);
+		for (int32 Index = 0; Index < Compass->GetChildrenCount(); ++Index)
+		{
+			UWidget* Badge = Compass->GetChildAt(Index);
+			const bool bNorth = Index == 0;
+			if (UCanvasPanelSlot* BadgeSlot = Badge ? Cast<UCanvasPanelSlot>(Badge->Slot) : nullptr)
+			{
+				BadgeSlot->SetSize(FVector2D((bNorth ? BadgeBox : SideBadgeBox) * MarkerScale));
+			}
+			if (UTextBlock* LetterText = CompassLetter(Badge))
+			{
+				const int32 Size = FMath::RoundToInt32((bNorth ? BadgeTextSize : SideTextSize) * MarkerScale);
+				StyleFloatingText(LetterText, FMath::Max(bNorth ? 1 : SideTextSmallest, Size), bNorth ? Color::Accent() : Color::TextDim(), 0,
+					ETextJustify::Center);
+			}
+		}
 	}
 	if (UCanvasPanelSlot* LinesSlot = PlaceBlock ? Cast<UCanvasPanelSlot>(PlaceBlock->Slot) : nullptr)
 	{
@@ -286,17 +341,26 @@ void UHudMinimapWidget::ScaleFrame()
 
 void UHudMinimapWidget::TurnFrame(float ViewYaw)
 {
-	// The map is drawn north up and turned back by the view's yaw (NativeTick), so the ticks turn the same way and the N
-	// rides the bezel's middle toward the north, as the needle does toward a waypoint.
+	// The map is drawn north up and turned back by the view's yaw (NativeTick), so the ticks turn the same way and the
+	// compass letters ride the bezel's middle toward their directions, as the needle does toward a waypoint.
 	if (Ticks)
 	{
 		Ticks->SetRenderTransformAngle(-ViewYaw);
 	}
-	if (UCanvasPanelSlot* BadgeSlot = NorthBadge ? Cast<UCanvasPanelSlot>(NorthBadge->Slot) : nullptr)
+	if (const UCanvasPanel* Compass = Cast<UCanvasPanel>(NorthBadge))
 	{
-		const float Radius = GetDiameter() * 0.5f;
-		const FVector2D Toward = UMinimapSubsystem::ViewOffset(FVector::ForwardVector, ViewYaw, 1.f).GetSafeNormal();
-		BadgeSlot->SetPosition(FVector2D(Radius) + Toward * (FrameBezelMiddle * Scale));
+		// The panel's own middle is the map's centre.
+		const FVector2D Middle(FrameBox * Scale * 0.5f);
+		const float Reach = FrameBezelMiddle * Scale;
+		const int32 Count = FMath::Min(Compass->GetChildrenCount(), static_cast<int32>(UE_ARRAY_COUNT(MinimapCompass::All)));
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			UWidget* Badge = Compass->GetChildAt(Index);
+			if (UCanvasPanelSlot* BadgeSlot = Badge ? Cast<UCanvasPanelSlot>(Badge->Slot) : nullptr)
+			{
+				BadgeSlot->SetPosition(Middle + MinimapCompass::BezelOffset(MinimapCompass::All[Index], ViewYaw, Reach));
+			}
+		}
 	}
 }
 

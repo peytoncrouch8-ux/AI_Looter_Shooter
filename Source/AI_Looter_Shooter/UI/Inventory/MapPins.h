@@ -25,7 +25,9 @@ enum class EMapPinKind : uint8
 	Station,
 	/** A respawn grave open in this story: fast travel goes there. */
 	Grave,
-	/** A mission waiting to be turned in, at its giver. */
+	/** A giver with a mission to offer (a gold ! for the story, a white ! for a side job): someone, a board, an artifact. */
+	Offer,
+	/** A mission waiting to be turned in, at its giver (a ?, gold or white). */
 	TurnIn,
 	/** The tracked mission's objective. */
 	Objective,
@@ -44,6 +46,8 @@ struct AI_LOOTER_SHOOTER_API FMapPin
 	TWeakObjectPtr<const ARespawnMarker> Grave;
 	/** The grave's marker id, the chest's save key, the vigil stone's boss key or the mission's id. */
 	FName Id;
+	/** An offer's or a turn-in's mission is the story's (its mark gold), not a side job's (white). */
+	bool bMain = false;
 };
 
 /** Where the pins come from: the level, the story's record, the chests found, the missions. Any may be missing. */
@@ -56,15 +60,15 @@ struct FMapPinSources
 	const TSet<FName>* FoundChests = nullptr;
 	/** The tracked mission's objective and its turn-in. */
 	const UMissionSubsystem* Missions = nullptr;
-	/** The missions waiting to be turned in, and their givers. */
+	/** The missions offered and waiting to be turned in, and their givers. */
 	const UMissionRunner* Runner = nullptr;
 };
 
 /**
  * The map page's pins gathered from a level (apart from the widget, so the tests read them from a test level): the open
  * respawn graves, the stations, the gunsmith's benches, the vigil stones risen beside the boss arenas, the stores open to
- * trade, the chests found (or opened), the missions waiting to be turned in at their givers, and the tracked mission's
- * objective. Closed graves, stores the story keeps shut, unfound chests and stones not yet risen stay off the map: what's
+ * trade, the chests found (or opened), the givers with a mission to offer (one pin a giver), the missions waiting to be
+ * turned in at their givers, and the tracked mission's objective. Closed graves, stores the story keeps shut, unfound chests and stones not yet risen stay off the map: what's
  * ahead is the player's to find. The player's own arrow is the
  * widget's.
  */

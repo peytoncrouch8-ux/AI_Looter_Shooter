@@ -6,6 +6,7 @@
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "UI/Style/MissionMarkIcons.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
@@ -35,8 +36,11 @@ namespace
 	constexpr float DetailsX = 540.f;
 	constexpr float DetailsWidth = 1000.f;
 
-	/** The list's sections, in order. Locked missions aren't listed: what's ahead stays a surprise. */
-	const EMissionStatus Sections[] = { EMissionStatus::Active, EMissionStatus::Available, EMissionStatus::Completed };
+	/**
+	 * The list's sections, in order. Only missions taken up are listed (the user's call, 2026-10-13): one not yet accepted
+	 * shows only as its giver's ? on the map, the minimap and over them, and locked ones stay a surprise.
+	 */
+	const EMissionStatus Sections[] = { EMissionStatus::Active, EMissionStatus::Completed };
 
 	FString SectionName(EMissionStatus Status)
 	{
@@ -388,6 +392,12 @@ UMissionsWidget::FCard UMissionsWidget::MakeMissionCard(int32 Index)
 	{
 		const FString Steps = FString::Printf(TEXT("%d/%d"), MissionRunner->GetStep(Mission.GetMissionId()) + 1, Mission.Steps.Num());
 		Row->AddChildToHorizontalBox(Label(WidgetTree, Steps, 12, Color::Text(), 40))->SetVerticalAlignment(VAlign_Center);
+	}
+	else if (Status == EMissionStatus::Available && Mission.IsOffered())
+	{
+		// Its giver's mark, the ! the player looks for over them.
+		Row->AddChildToHorizontalBox(MakeImage(WidgetTree, MissionMarkIcons::MarkBrush(MissionMarkIcons::EMark::Offer,
+			Mission.Kind == EMissionKind::Main, FVector2D(22.f))))->SetVerticalAlignment(VAlign_Center);
 	}
 
 	UOverlay* Box = MakeCard(WidgetTree, Row, FMargin(12.f, 7.f), 1.3f, Card.Fill, Card.Line);

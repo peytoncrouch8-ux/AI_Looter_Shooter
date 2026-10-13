@@ -1,11 +1,13 @@
 // UControlHintSubsystem: its life in the level, the profile's memory, and what the HUD asks of it. What it sees of the
-// player is ControlHintSubsystemSenses.cpp's.
+// player is ControlHintSubsystemSenses.cpp's, its looks into the world ControlHintSubsystemProbes.cpp's.
 
 #include "Tutorial/ControlHintSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Core/LooterMenuGameMode.h"
+#include "Interaction/InteractionComponent.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Settings/KeyBindingSubsystem.h"
+#include "Story/CaptionSubsystem.h"
 #include "Tutorial/ControlHintsSave.h"
 #include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
@@ -30,6 +32,13 @@ UControlHintSubsystem* UControlHintSubsystem::Get(const UObject* WorldContextObj
 	return World ? World->GetSubsystem<UControlHintSubsystem>() : nullptr;
 }
 
+bool UControlHintSubsystem::IsSomeoneTalking(const UWorld* World)
+{
+	// A line on screen, held under a menu or not: the hints never sit over a conversation (the user's rule for the opening).
+	const UCaptionSubsystem* Captions = World ? World->GetSubsystem<UCaptionSubsystem>() : nullptr;
+	return Captions && Captions->GetCurrent() != nullptr;
+}
+
 bool UControlHintSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
 	// Only where someone plays: the tests drive FControlHintRules by themselves, without a world.
@@ -51,7 +60,9 @@ void UControlHintSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 void UControlHintSubsystem::Deinitialize()
 {
 	bActive = false;
+	BindInteraction(nullptr);
 	LastPawn.Reset();
+	LastGun.Reset();
 	Benches.Reset();
 	Super::Deinitialize();
 }
@@ -179,7 +190,18 @@ void UControlHintSubsystem::Save() const
 #if !UE_BUILD_SHIPPING
 namespace
 {
-	/** Looter.Hints reset | show <Move|Reload|Melee|Grenade|Aim|Jump|Sprint|Slide|Swap|Inventory|Bench> */
+	/** Every hint's name, for the console's usage line ("Move|Reload|..."). */
+	FString HintNames()
+	{
+		FString Names;
+		for (int32 Index = 0; Index < static_cast<int32>(EControlHint::Count); ++Index)
+		{
+			Names += (Index > 0 ? TEXT("|") : TEXT("")) + FControlHintRules::Id(static_cast<EControlHint>(Index)).ToString();
+		}
+		return Names;
+	}
+
+	/** Looter.Hints reset | show <Hint> (its name in the saved memory: Move, Fire, Interact, Ledger, Map...) */
 	void HintsCommand(const TArray<FString>& Args, UWorld* World)
 	{
 		UWorld* GameWorld = World && World->IsGameWorld() ? World : nullptr;
@@ -190,7 +212,7 @@ namespace
 		UControlHintSubsystem* Hints = GameWorld ? GameWorld->GetSubsystem<UControlHintSubsystem>() : nullptr;
 		if (!Hints || Args.IsEmpty())
 		{
-			UE_LOG(LogLooter, Warning, TEXT("Usage (in a game): Looter.Hints reset | show <Move|Reload|Melee|Grenade|Aim|Jump|Sprint|Slide|Swap|Inventory|Bench>"));
+			UE_LOG(LogLooter, Warning, TEXT("Usage (in a game): Looter.Hints reset | show <%s>"), *HintNames());
 			return;
 		}
 		if (Args[0].Equals(TEXT("reset"), ESearchCase::IgnoreCase))

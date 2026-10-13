@@ -113,9 +113,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerAnimFootPaceTest, "Looter.PlayerAnim.Foo
 bool FPlayerAnimFootPaceTest::RunTest(const FString& Parameters)
 {
 	// The user's report (2026-10-08): feet that slide. The locomotion blend spaces top out at the jog (600 cm/s, the full-size
-	// walk); the player walks at that, scaled to its size, and sprints 1.55 times faster than any clip there, so the body's
-	// animation is played faster to match (UPlayerLocomotionComponent::UpdateAlphas). Walking, crouch-walking and sprinting
-	// are followed here with the real Anim Blueprints: the planted feet must travel as fast as the ground goes by.
+	// walk); the player walks a little under that, scaled to its size and slowed to the game's pace (2026-10-13), and sprints
+	// faster than any clip there, so the body's animation is played faster to match (UPlayerLocomotionComponent::UpdateAlphas,
+	// against the jog at the body's size). Walking, crouch-walking and sprinting are followed here with the real Anim
+	// Blueprints: the planted feet must travel as fast as the ground goes by.
 	const UBlendSpace* Space = LoadObject<UBlendSpace>(nullptr, TEXT("/Game/Characters/Mannequins/Anims/Unarmed/BS_Idle_Walk_Run.BS_Idle_Walk_Run"));
 	if (TestNotNull(TEXT("The locomotion blend space"), Space))
 	{
@@ -185,8 +186,8 @@ bool FPlayerAnimFootPaceTest::RunTest(const FString& Parameters)
 			Locomotion->HandleCrouchPressed();
 		}
 
-		const float Walk = LooterPlayerSize::FullSizeWalkSpeed * LooterPlayerSize::SpeedScale;
-		const float Wanted = Scenario.bCrouch ? LooterPlayerSize::FullSizeCrouchSpeed * LooterPlayerSize::SpeedScale
+		const float Walk = LooterPlayerSize::FullSizeWalkSpeed * LooterPlayerSize::MoveScale;
+		const float Wanted = Scenario.bCrouch ? LooterPlayerSize::FullSizeCrouchSpeed * LooterPlayerSize::MoveScale
 			: (Scenario.bSprint ? Walk * Locomotion->SprintSpeedMultiplier : Walk);
 		const FPace Pace = MeasurePace(Locomotion, 60, 120);
 		AddInfo(FString::Printf(TEXT("%s: the body goes %.0f cm/s (wanted %.0f), the planted feet travel %.0f cm/s under it over %d planted frames, animation rate %.2f"),
@@ -206,8 +207,10 @@ bool FPlayerAnimFootPaceTest::RunTest(const FString& Parameters)
 
 		TestTrue(FString::Printf(TEXT("%s: the feet don't slide (they travel %.0f cm/s under a body going %.0f)"), Scenario.Name, Pace.Foot, Pace.Ground),
 			FMath::Abs(Pace.Foot - Pace.Ground) <= Pace.Ground * PaceTolerance);
-		// Up to the full-size walk the blend space plays the right clips at their own pace; past it the whole animation is sped up.
-		const float WantedRate = FMath::Max(1.f, Pace.Ground / Walk);
+		// Up to the full-size jog at the body's size the blend space plays the right clips at their own pace (the walk is
+		// under it at the game's pace); past it the whole animation is sped up.
+		const float CycleTop = LooterPlayerSize::FullSizeWalkSpeed * LooterPlayerSize::Scale;
+		const float WantedRate = FMath::Max(1.f, Pace.Ground / CycleTop);
 		TestTrue(FString::Printf(TEXT("%s: the animation rate is %.2f (wanted %.2f)"), Scenario.Name, Pace.Rate, WantedRate),
 			FMath::IsNearlyEqual(Pace.Rate, WantedRate, 0.08f));
 	}

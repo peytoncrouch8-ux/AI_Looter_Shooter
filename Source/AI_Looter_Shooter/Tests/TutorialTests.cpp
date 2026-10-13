@@ -14,15 +14,14 @@
 #include "Session/SessionSave.h"
 #include "Session/SessionSubsystem.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
-#include "Tutorial/TutorialChoice.h"
 #include "Tutorial/TutorialDirector.h"
 #include "World/NoticeBoard.h"
 #include "World/SkiffJetty.h"
 #include "UObject/Package.h"
 
 // Skyreach's tutorial, reworked (Docs/Polish/TutorialRework.md): no forced checklist, one short first goal (find a gun in
-// town, read the notice board), the board's postings after it, the tutorial done once Web Hollow is turned in, and the main
-// menu's choice to start there or skip to the story.
+// town, read the notice board), the board's postings after it, the tutorial done once Web Hollow is turned in. A new game
+// no longer starts there (2026-10-13: Tests/NewGameTests.cpp); it runs for sessions begun on Skyreach before that.
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialFirstGoalTest, "Looter.Tutorial.FirstGoal",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -75,7 +74,7 @@ bool FTutorialStartTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Web Hollow turned in: done"), ATutorialDirector::DecideStart(true, true, true) == ETutorialStart::Done);
 	TestTrue(TEXT("Turned in but the flag missed the save: done all the same"), ATutorialDirector::DecideStart(false, true, true)
 		== ETutorialStart::Done);
-	TestTrue(TEXT("Skipped from the main menu (the flag, nothing played): done, the postings there for practice"),
+	TestTrue(TEXT("A new game, begun on the story (the flag, nothing played here): done, the postings there to do"),
 		ATutorialDirector::DecideStart(true, false, false) == ETutorialStart::Done);
 	return true;
 }
@@ -141,39 +140,6 @@ bool FTutorialTrackerTest::RunTest(const FString& Parameters)
 		&& Read->Waypoint == EMissionWaypoint::Actor && Read->WaypointActor.ActorClass == ANoticeBoard::StaticClass());
 	TestTrue(TEXT("Outside the story, started by the director, finished by its last step"), Mission->Kind == EMissionKind::Tutorial
 		&& Mission->Start == EMissionStart::Manual && Mission->TurnIn.bAutomatic && !Mission->Rewards.GivesExperience());
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialMenuChoiceTest, "Looter.Tutorial.MenuChoice",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
-
-bool FTutorialMenuChoiceTest::RunTest(const FString& Parameters)
-{
-	// A new session asks: "Start on Skyreach (learn the basics)" or "Skip to Ransom's Rest". The skip is the session's own
-	// (USessionSubsystem::ApplyTutorialSkip): the tutorial counts as done and the first cast-off as taken, so a practice
-	// visit later finds the board's postings up and never offers the skiff's first trip.
-	const FText Skyreach = FText::FromString(TEXT("Skyreach"));
-	const FText Rest = FText::FromString(TEXT("Ransom's Rest"));
-	TestEqual(TEXT("The call to action"), TutorialChoice::StartLabel(Skyreach).ToString(), FString(TEXT("Start on Skyreach (learn the basics)")));
-	TestEqual(TEXT("The skip"), TutorialChoice::SkipLabel(Rest).ToString(), FString(TEXT("Skip to Ransom's Rest")));
-	const FString Explained = TutorialChoice::Explain(Skyreach, Rest).ToString();
-	TestTrue(TEXT("The words name both places"), Explained.Contains(TEXT("Skyreach")) && Explained.Contains(TEXT("Ransom's Rest")));
-	TestFalse(TEXT("...and no story character (Skyreach is outside the story)"), Explained.Contains(TEXT("Ellis")) || Explained.Contains(TEXT("Delia")));
-
-	UPackage* Scratch = CreatePackage(nullptr);
-	UAreaDefinition* First = NewObject<UAreaDefinition>(Scratch, TEXT("DA_Area_RansomsRest"), RF_Transient);
-	First->DisplayName = Rest;
-	First->Map = FSoftObjectPath(TEXT("/Game/Maps/Lvl_RansomsRest.Lvl_RansomsRest"));
-	ULooterSessionSave* Save = NewObject<ULooterSessionSave>();
-	Save->Version = ULooterSessionSave::CurrentVersion;
-	USessionSubsystem::ApplyTutorialSkip(*Save, *First, USessionSubsystem::LoadBullpup());
-	TestTrue(TEXT("Skipped: the tutorial is done"), Save->Progress.bTutorialDone);
-	TestTrue(TEXT("...and the first cast-off taken"), Save->Campaign.bFirstCastOff);
-	TestTrue(TEXT("On a practice visit the director counts it done: the first goal recorded, the postings up"),
-		ATutorialDirector::DecideStart(Save->Progress.bTutorialDone, Save->Campaign.HasCompleted(TEXT("Tutorial")),
-			Save->Campaign.HasCompleted(TEXT("WebHollow"))) == ETutorialStart::Done);
-	TestFalse(TEXT("...and the skiff's first trip is never offered"), ASkiffJetty::ShowsBoardingFor(Save->Progress.bTutorialDone,
-		Save->Campaign.bFirstCastOff));
 	return true;
 }
 

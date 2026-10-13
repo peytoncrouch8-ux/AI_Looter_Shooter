@@ -26,6 +26,7 @@ class isn't there yet is left out with a warning.
   lantern found after Main 5 (take it home to Delia).
 - The chapel yard's respawn grave (ARespawnMarker ChapelYard, open after Main 4) at the foot of its fresh mound (the
   placement graveChapelYard), facing the chapel.
+  A save point: its lantern post (story.set_save_point) beside the spot, lit when the player walks up to it.
 - The roaming Unpaid after Main 4 ("From now on the Unpaid walk the north road and boot hill"): AEncounterSpawner BootHill
   on boot hill (the zone bootHill its ground) and NorthRoad between the hanging tree and the north road (25 m round it),
   three each, their ranks the area's (8% Restless, 2% Gravebound), standing about until they notice the player, tagged
@@ -285,6 +286,8 @@ def place_yard_grave(build, chapel):
     # What the map calls it (the layout has no label for it; the design's words: "the chapel yard's respawn grave").
     marker.set_editor_property('display_name', unreal.Text('Chapel yard'))
     marker.set_editor_property('active_after_mission', unreal.Name(MAIN4))
+    # A save point: walking up to it marks it (after Main 4, which opens it), its lantern post on the side away from the mound.
+    story.set_save_point(build, marker, (heap.x, heap.y), ignore=[grave])
     build.log(f'the chapel yard\'s respawn grave at ({x:.0f}, {y:.0f}), open after {MAIN4}')
 
 

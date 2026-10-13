@@ -98,6 +98,12 @@ checks that the story ends about level 6-7).
                        "Main7" and Delia's step the first: the hand-off, Ned's Ledger page and the train's steam follow it
                        (Tools/Unreal/build_area_depot.py; its depot place is no step now: the board is read after).
 
+Missions picked up from a giver (the user's call, 2026-10-13: every mission but Main 1, Borderlands' way) start 'OFFERED'
+and name their giver in the spec's 'offer' (offer(): giver_tag, giver, lines, briefing): a speaker point's actor tag
+(Speaker_Delia), a notice board's (NoticeBoard_Rangers, build_area_board.py) or a mission artifact's (Artifact_MinersTag,
+AMissionArtifact). Every other mission's offer is cleared. Which missions are offered, and by whom, is the story's data
+(wave 2); this script only carries the fields.
+
 Objectives are instanced objects inside the asset, one class per kind (UMissionReachObjective, UMissionKillObjective, ...),
 made with unreal.new_object(<class>, asset) and listed in each step's 'objectives'. Classes for actor filters are loaded
 by their script path ('/Script/AI_Looter_Shooter.WeaponRack').
@@ -110,7 +116,7 @@ CLASSES = '/Script/AI_Looter_Shooter.'
 
 def mission_types():
     """The reflected mission types, or a clear error when the C++ isn't built yet."""
-    names = ['MissionDefinition', 'MissionStep', 'MissionRewards', 'MissionTurnIn', 'StoryLine', 'MissionActorFilter',
+    names = ['MissionDefinition', 'MissionStep', 'MissionRewards', 'MissionTurnIn', 'MissionOffer', 'StoryLine', 'MissionActorFilter',
              'MissionPlace', 'MissionKind', 'MissionStart', 'MissionWaypoint', 'MissionCollect', 'MissionPage',
              'MissionTravelObjective', 'MissionReachObjective', 'MissionCollectObjective', 'MissionHitObjective',
              'MissionKillObjective', 'MissionOpenPageObjective', 'MissionInteractObjective', 'MissionBoardObjective',
@@ -215,6 +221,26 @@ def turn_in(automatic=False, speaker='', giver='', lines=()):
         line.set_editor_property('text', unreal.Text(words))
         said.append(line)
     made.set_editor_property('lines', said)
+    return made
+
+
+def offer(giver_tag='', giver='', lines=(), briefing=''):
+    """FMissionOffer: who offers a mission picked up from its giver (start='OFFERED'), by the tag their actor carries
+    (Speaker_Delia, NoticeBoard_Rangers, Artifact_MinersTag), their name for people (empty: from the tag), what a speaker
+    says as they offer it (lines of (speaker, words); an empty speaker is their speaker point's name; none: their own lines),
+    and the offer card's story, two to four sentences (an artifact's own words when it's one). Without a giver tag the
+    offer is empty, as every mission that isn't offered keeps it."""
+    made = unreal.MissionOffer()
+    made.set_editor_property('giver_tag', unreal.Name(giver_tag))
+    made.set_editor_property('giver_name', unreal.Text(giver))
+    said = []
+    for who, words in lines:
+        line = unreal.StoryLine()
+        line.set_editor_property('speaker', unreal.Text(who))
+        line.set_editor_property('text', unreal.Text(words))
+        said.append(line)
+    made.set_editor_property('lines', said)
+    made.set_editor_property('briefing', unreal.Text(briefing))
     return made
 
 
@@ -560,6 +586,11 @@ def setup(spec):
     asset.set_editor_property('start', getattr(unreal.MissionStart, spec['start']))
     # What starts an ON_EVENT mission (Main 6: Delia's word at her door); the others have none.
     asset.set_editor_property('start_event', unreal.Name(spec.get('start_event', '')))
+    # Who offers an OFFERED mission (spec 'offer': offer()'s fields); every other mission's offer is cleared.
+    offered = spec.get('offer', {})
+    if spec['start'] == 'OFFERED' and not offered.get('giver_tag'):
+        raise RuntimeError(f"{FOLDER}/{spec['asset']}: it starts OFFERED but names no giver_tag: nothing was saved")
+    asset.set_editor_property('offer', offer(**offered))
     asset.set_editor_property('area', unreal.Name(spec['area']))
     asset.set_editor_property('prerequisites', [unreal.Name(each) for each in spec['prerequisites']])
     asset.set_editor_property('sort_order', spec['sort_order'])

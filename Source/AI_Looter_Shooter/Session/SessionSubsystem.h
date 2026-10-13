@@ -86,8 +86,9 @@ public:
 	FSessionSummary GetSummary(int32 Index) const;
 
 	/**
-	 * Plays slot Index: continues where it was saved, or starts a new game when it's empty. Opens its level (on the next
-	 * frame); false when it couldn't start.
+	 * Plays slot Index: continues where it was saved, or starts a new game when it's empty (StartNewGame: the story's
+	 * first arrival, or the game's first level while the story's isn't in the game). Opens its level (on the next frame);
+	 * false when it couldn't start.
 	 */
 	bool PlaySession(int32 Index);
 
@@ -100,26 +101,28 @@ public:
 	/** Opens the main menu: the game's first level with the menu over it (DefaultEngine.ini's LocalMapOptions). */
 	void OpenMainMenu();
 
-	// --- "Skip the tutorial" (SessionSubsystemSkip.cpp) ---
+	// --- A new game: the story from its start (SessionSubsystemNewGame.cpp) ---
 
 	/**
-	 * A new game in the empty slot Index that skips the tutorial: it counts as the first cast-off (the story begun, the
-	 * tutorial done, so a practice visit never sends the player through it), the player starts with a Common Bullpup in
-	 * hand ("in the coffin"), and the session opens straight on the story's first arrival behind the white, which comes
-	 * off with the title. Written to the slot first. False when the slot isn't empty or the first area's level isn't in the
-	 * game (CanSkipTutorial).
+	 * A new game in the empty slot Index (the user's call, 2026-10-13: the game starts on the story, Skyreach comes later):
+	 * the story begun (the first cast-off recorded, Skyreach's old tutorial counted done, so a later visit there never sends
+	 * the player through it), a Common Bullpup in hand (the iron Ellis was buried with), and the session opening straight on
+	 * the story's first arrival behind the white: the cold open takes it (skippable like every scene), then the grave.
+	 * Written to the slot first. False when the slot isn't empty or the first area's level isn't in the game
+	 * (CanStartStory).
 	 */
-	bool PlaySessionSkippingTutorial(int32 Index);
+	bool StartNewGame(int32 Index);
 
-	/** The tutorial can be skipped: the story's first area and its level are in the game. */
-	static bool CanSkipTutorial();
+	/** A new game can start on the story: its first area and that area's level are in the game. */
+	static bool CanStartStory();
 
 	/**
-	 * What skipping the tutorial writes into a session's save: the tutorial done, the first cast-off recorded, a Common
-	 * Bullpup (of Bullpup, with its starting magazines) in hand in place of whatever was carried, and the session pointed at
-	 * FirstArea's level to arrive at the story's first arrival. False (the gun left out) without Bullpup.
+	 * What a new game writes into a session's save: the first cast-off recorded (the story begun), the old tutorial done, a
+	 * Common Bullpup (of Bullpup, with its starting magazines) in hand in place of whatever was carried, and the session
+	 * pointed at FirstArea's level to arrive at the story's first arrival. False (the gun left out) without Bullpup. The
+	 * console's Looter.Station.SkipTutorial does the same to a session already played.
 	 */
-	static bool ApplyTutorialSkip(ULooterSessionSave& Save, const UAreaDefinition& FirstArea, UWeaponDefinition* Bullpup);
+	static bool ApplyNewGame(ULooterSessionSave& Save, const UAreaDefinition& FirstArea, UWeaponDefinition* Bullpup);
 
 	/** The Bullpup's kind: the assault rifle's definition, whose parts build the white bullpup. */
 	static UWeaponDefinition* LoadBullpup();
@@ -311,7 +314,10 @@ private:
 	void SetPlayerProgress(const FPlayerProgressData& Progress) const;
 	void GetPlayerProgress(FPlayerProgressData& OutProgress) const;
 
-	/** The level the main menu's new games start in: the game's default map. */
+	/**
+	 * The game's first level (the default map): the main menu's backdrop, where a session continues when its level is gone,
+	 * and where a new game starts only while the story's first level isn't in the game.
+	 */
 	static FString NewGameMap();
 
 	/** Saves the session being played for Reason when the gate lets it; a save held back saves once the holds end. */

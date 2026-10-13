@@ -101,10 +101,10 @@ AAbelKeeper::AAbelKeeper()
 	bRespawns = false;
 	// He never sinks away: he kneels, and the scene sits him on his board.
 	CorpseTime = 1.0e5f;
-	// He walks the boards slowly, and comes at the player a little slower than an Unpaid (scaled with the player's speed,
-	// as the Unpaid's chase is).
+	// He walks the boards slowly, and comes at the player a little slower than an Unpaid (scaled with the player's speed
+	// and pace, as the Unpaid's chase is).
 	WalkSpeed = 110.f;
-	ChaseSpeed = 430.f * LooterPlayerSize::SpeedScale;
+	ChaseSpeed = 430.f * LooterPlayerSize::MoveScale;
 	WanderRadius = 450.f;
 	AttackRange = 330.f;
 	LungeSpeed = 1300.f;

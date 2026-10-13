@@ -16,7 +16,7 @@ struct FInputActionValue;
  * The player's character: walking, looking and jumping. Everything else lives in components (view, locomotion,
  * health, weapons, interaction, sounds, melee, grenades). The Blueprint child, BP_LooterCharacter, holds only data: meshes, animation, camera
  * placement and the component settings. The whole character is the full-size mannequin scaled down
- * (Player/PlayerSize.h), and walks at the full-size speed scaled the same.
+ * (Player/PlayerSize.h), and walks at the full-size speed scaled the same, slowed to the game's pace.
  */
 UCLASS(Abstract)
 class AI_LOOTER_SHOOTER_API ALooterCharacter : public ACharacter

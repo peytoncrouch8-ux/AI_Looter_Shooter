@@ -14,9 +14,9 @@ class UWidget;
  * above the mission tracker, in the tracker's own key-hint style: the bound key as a keycap, then what it does, floating
  * outlined text with no panel (only the keycap's plate is a background, which the UI transparency setting fades). It
  * slides in; when the player uses the control its words turn cyan and the keycap pops before it fades, and an unheeded
- * one simply fades. It steps aside under every menu, under a scene that puts the HUD away, and while paused, picking up
- * where it was after. ALooterHUD makes it as a viewport widget of its own. It does nothing per frame but compare one value
- * unless something is moving.
+ * one simply fades. It steps aside under every menu, under a scene that puts the HUD away, while someone talks (a caption
+ * on screen) and while paused, picking up where it was after. ALooterHUD makes it as a viewport widget of its own. It
+ * does nothing per frame but compare a few values unless something is moving.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UHudControlHintWidget : public UUserWidget
@@ -59,7 +59,7 @@ private:
 	/** The hint on show went: with its control used (bDone) it flashes first. */
 	void BeginLeave(bool bDone);
 
-	/** A menu covers the game, a scene puts the HUD away, or the game is paused. */
+	/** A menu covers the game, a scene puts the HUD away, someone is talking, or the game is paused. */
 	bool IsCovered() const;
 
 	/** The line's offset, opacity, colours and the keycap's pop for where the phase is. */

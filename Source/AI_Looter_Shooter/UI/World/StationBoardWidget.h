@@ -17,11 +17,12 @@ class UVerticalBox;
 /**
  * The station board (Docs/Areas/RansomsRest.md, "The exit and the unlock"), one LooterUI panel for every station and for
  * Skyreach's jetty, opened by holding Interact at it (ALooterHUD::OpenStationBoard). Over the dimmed world it lists the
- * board's lines as the story stands (StationBoard::BuildLines): every opened area (the one it stands in marked as here),
- * the blank line naming the mission that opens the next, and "Skyreach (practice)" after the first cast-off.
- *  - Choosing a line asks to confirm, then travels (UAreaTravelSubsystem::Depart): the first cast-off asks "Leave
- *    Skyreach? Your story begins. You can come back to practice any time." with Cast off and Not yet, opened by itself
- *    when it's the board's one trip; every later trip is a plain fade to the destination's station.
+ * board's lines as the story stands (StationBoard::BuildLines): every opened area (the one it stands in marked as here)
+ * and the blank line naming the mission that opens the next. Skyreach isn't listed (the story's third area now).
+ *  - Choosing a line asks to confirm, then travels (UAreaTravelSubsystem::Depart): the first cast-off (a session begun on
+ *    Skyreach before the story was the start) asks "Leave Skyreach? Your story begins." with Cast off and Not yet, opened
+ *    by itself when it's the board's one trip; every later trip is a plain fade to the destination's station, or the
+ *    train's.
  *  - A destination whose level isn't in the game yet says so, and nobody goes.
  * W / S, the arrows or the D-pad choose; E, Enter or the face button take the line; Esc closes the confirm, then the
  * board. Every background it paints follows the UI transparency setting (MarkBackground).

@@ -50,6 +50,28 @@ FString UMissionDefinition::GetTurnInText() const
 	return FText::Format(LOCTEXT("TurnInFull", "Ready to turn in: talk to {0}"), GetGiverName()).ToString();
 }
 
+FText UMissionDefinition::GetOfferGiverName() const
+{
+	if (!Offer.GiverName.IsEmpty())
+	{
+		return Offer.GiverName;
+	}
+	if (Offer.GiverTag.IsNone())
+	{
+		return FText::GetEmpty();
+	}
+	// Givers are tagged by their kind and name (Speaker_Delia, NoticeBoard_Rangers, Artifact_MinersTag): people read the name.
+	FString Name = Offer.GiverTag.ToString();
+	for (const TCHAR* Prefix : { TEXT("Speaker_"), TEXT("NoticeBoard_"), TEXT("Artifact_") })
+	{
+		if (Name.RemoveFromStart(Prefix))
+		{
+			break;
+		}
+	}
+	return FText::FromString(FName::NameToDisplayString(Name, /*bIsBool*/ false));
+}
+
 bool UMissionDefinition::IsNamed(const FString& Words) const
 {
 	FString Asked = Words.TrimStartAndEnd();

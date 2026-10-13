@@ -248,6 +248,11 @@ bool UHudControlHintWidget::IsCovered() const
 	{
 		return true;
 	}
+	// Someone talking: the conversation has the screen, and the hint waits it out (its time stopped by the rules too).
+	if (UControlHintSubsystem::IsSomeoneTalking(GetWorld()))
+	{
+		return true;
+	}
 	// A dead player has no use for a nudge about the controls: it waits for them to be back on their feet.
 	const APawn* Pawn = Player ? Player->GetPawn() : nullptr;
 	const UHealthComponent* Health = Pawn ? Pawn->FindComponentByClass<UHealthComponent>() : nullptr;

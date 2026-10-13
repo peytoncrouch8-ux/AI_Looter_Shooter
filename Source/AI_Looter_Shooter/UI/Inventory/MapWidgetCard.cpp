@@ -111,8 +111,10 @@ void UMapWidget::RefreshTravelCard()
 	if (Pin)
 	{
 		Name = Pin->Name.ToString().ToUpper();
-		Detail = Player ? FString::Printf(TEXT("Respawn grave · %s from you"), *DistanceWords(FVector::Dist2D(Player->GetActorLocation(), Pin->Location)))
-			: FString(TEXT("Respawn grave"));
+		// The grave last marked is the save point: Continue wakes the player there.
+		const ARespawnMarker* PinGrave = Pin->Grave.Get();
+		const FString Kind = PinGrave && PinGrave->IsSavePoint() ? TEXT("Save point") : TEXT("Respawn grave");
+		Detail = Player ? FString::Printf(TEXT("%s · %s from you"), *Kind, *DistanceWords(FVector::Dist2D(Player->GetActorLocation(), Pin->Location))) : Kind;
 	}
 	else if (Graves > 0)
 	{

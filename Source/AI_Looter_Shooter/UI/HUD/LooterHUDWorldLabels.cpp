@@ -1,6 +1,8 @@
-// ALooterHUD: the labels drawn over the world (creature tags, loot labels, damage numbers, barks), hidden under menus.
+// ALooterHUD: the labels drawn over the world (creature tags, loot labels, damage numbers, barks, the givers' ! and ?),
+// hidden under menus and scenes.
 
 #include "UI/HUD/LooterHUD.h"
+#include "UI/World/GiverMarkSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
@@ -49,5 +51,11 @@ void ALooterHUD::SetWorldLabelsVisible(bool bVisible)
 	if (LayerManager.IsValid())
 	{
 		ShowWorldLabels(*LayerManager, LocalPlayer, bVisible);
+	}
+	// The givers' ! and ? float on the same layer (AGiverMarkActor), so they go with it; a mission newly offered nearby
+	// waits to chime until they can be seen again.
+	if (UGiverMarkSubsystem* GiverMarks = UGiverMarkSubsystem::Get(this))
+	{
+		GiverMarks->SetLabelsShown(bVisible);
 	}
 }

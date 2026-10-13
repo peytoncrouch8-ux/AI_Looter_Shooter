@@ -480,16 +480,16 @@ void UPlayerLocomotionComponent::UpdateAlphas(float DeltaTime)
 	const float ClimbPose = Climb == ETraversalKind::Mantle ? 1.f : (Climb == ETraversalKind::Vault ? VaultPoseShare : 0.f);
 	TraversalAlpha = EaseAlpha(TraversalEase, ClimbPose, ClimbPose > 0.f ? ClimbPoseInTime : ClimbPoseOutTime, DeltaTime);
 
-	// The body's run cycle tops out at walking speed; play it faster while sprinting so the feet don't slide. (Both are
-	// the character's own, so this holds at any size.) A slide holds the body nearly still instead. In the air it keeps the
-	// rate it left the ground with: dropping to 1 mid-jump, a sprint jump landed with the cycle a beat slow and the feet
-	// slid for a fifth of a second while it caught up.
+	// The body's run cycle tops out at the full-size jog (at the body's size); play it faster beyond, while sprinting, so
+	// the feet don't slide. The walk is under it at the game's pace, and the blend spaces fit that themselves. A slide
+	// holds the body nearly still instead. In the air it keeps the rate it left the ground with: dropping to 1 mid-jump, a
+	// sprint jump landed with the cycle a beat slow and the feet slid for a fifth of a second while it caught up.
 	const ACharacter* Owner = Character.Get();
 	if (USkeletalMeshComponent* Body = Owner->GetMesh())
 	{
 		if (Movement->IsMovingOnGround())
 		{
-			GroundedAnimRate = FMath::Max(1.f, static_cast<float>(Owner->GetVelocity().Size2D()) / FMath::Max(BaseWalkSpeed, 1.f));
+			GroundedAnimRate = FMath::Max(1.f, static_cast<float>(Owner->GetVelocity().Size2D()) / FMath::Max(GetRunCycleTopSpeed(), 1.f));
 		}
 		const float Rate = FMath::Lerp(GroundedAnimRate, SlideAnimRate, SlideAlpha);
 		Body->GlobalAnimRateScale = FMath::FInterpTo(Body->GlobalAnimRateScale, Rate, DeltaTime, 8.f);

@@ -68,8 +68,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStationBoardLinesTest, "Looter.Station.BoardLi
 bool FStationBoardLinesTest::RunTest(const FString& Parameters)
 {
 	// A station board's lines as the story moves on (Docs/Areas/RansomsRest.md, "The exit and the unlock"), from areas
-	// and missions made in code: Skyreach for practice, Ransom's Rest (the story's first area), the Lily (not built yet)
-	// opened by Main 7, Dustwater by Main 14.
+	// and missions made in code: Skyreach (still marked practice), Ransom's Rest (the story's first area), the Lily (not
+	// built yet) opened by Main 7, Dustwater by Main 14. Since 2026-10-13 no board lists Skyreach: it's the story's third
+	// area, reached later from the Lily.
 	UPackage* Scratch = CreatePackage(nullptr);
 	UAreaDefinition* Skyreach = NewArea(Scratch, TEXT("DA_Area_Skyreach"), TEXT("Skyreach"), IslandMap, TEXT("Landing_Jetty"), true);
 	UAreaDefinition* Rest = NewArea(Scratch, TEXT("DA_Area_RansomsRest"), TEXT("Ransom's Rest"), IslandMap, TEXT("Landing_Depot"), false);
@@ -83,7 +84,8 @@ bool FStationBoardLinesTest::RunTest(const FString& Parameters)
 	};
 	TestTrue(TEXT("Ransom's Rest is the story's first area"), Rest->GetAreaId() == StationBoard::FirstAreaId());
 
-	// Before the first cast-off, Skyreach's jetty offers one trip: to the story's first arrival, the family plot's grave.
+	// Before the first cast-off (a session begun on Skyreach before the story was the start), Skyreach's jetty offers one
+	// trip: to the story's first arrival, the family plot's grave.
 	FCampaignRecord Fresh;
 	TArray<FStationBoardLine> Lines = StationBoard::BuildLines(Fresh, Areas, Missions, Skyreach->GetAreaId());
 	if (TestEqual(TEXT("Before the first cast-off: one line"), Lines.Num(), 1))
@@ -105,22 +107,21 @@ bool FStationBoardLinesTest::RunTest(const FString& Parameters)
 	FlagOnly.bFirstCastOff = true;
 	TestTrue(TEXT("A record with only the flag still has the first area open"), StationBoard::IsAreaOpen(FlagOnly, Rest->GetAreaId()));
 
-	// At the depot on Ransom's Rest: the area itself (here), the blank line naming Main 7, and Skyreach for practice.
+	// At the depot on Ransom's Rest: the area itself (here) and the blank line naming Main 7; no practice line.
 	Lines = StationBoard::BuildLines(Story, Areas, Missions, Rest->GetAreaId());
-	if (TestEqual(TEXT("The depot's board: three lines"), Lines.Num(), 3))
+	if (TestEqual(TEXT("The depot's board: two lines"), Lines.Num(), 2))
 	{
 		TestTrue(TEXT("1: Ransom's Rest, here: it goes nowhere"), Lines[0].AreaId == Rest->GetAreaId() && Lines[0].bHere && !Lines[0].IsDestination()
 			&& Lines[0].Kind == EStationLine::Area);
 		TestTrue(TEXT("2: the blank line, naming the mission that opens the next area"), Lines[1].Kind == EStationLine::NextMission
 			&& Lines[1].MissionId == FName(TEXT("TestMain7")) && !Lines[1].IsDestination());
 		TestEqual(TEXT("Its words"), Lines[1].Name.ToString(), FString(TEXT("Finish ‘The Lantern Leans’")));
-		TestTrue(TEXT("3: Skyreach for practice, to its jetty"), Lines[2].Kind == EStationLine::Practice && Lines[2].AreaId == Skyreach->GetAreaId()
-			&& Lines[2].Landing == FName(TEXT("Landing_Jetty")) && Lines[2].IsDestination() && !Lines[2].bFirstCastOff);
-		TestEqual(TEXT("Its name"), Lines[2].Name.ToString(), FString(TEXT("Skyreach (practice)")));
 	}
 	TestFalse(TEXT("Later areas aren't shown"), Lines.ContainsByPredicate([Lily](const FStationBoardLine& Line) { return Line.AreaId == Lily->GetAreaId(); }));
+	TestFalse(TEXT("No board lists Skyreach (the story's third area, reached later from the Lily)"), Lines.ContainsByPredicate(
+		[Skyreach](const FStationBoardLine& Line) { return Line.AreaId == Skyreach->GetAreaId() || Line.Kind == EStationLine::Practice; }));
 
-	// Back on Skyreach's jetty: every opened area, each a trip to its station, and no practice line for itself.
+	// Back on Skyreach's jetty (Looter.Travel Skyreach, or an old session): every opened area, each a trip to its station.
 	Lines = StationBoard::BuildLines(Story, Areas, Missions, Skyreach->GetAreaId());
 	if (TestEqual(TEXT("The jetty's board after the first cast-off: two lines"), Lines.Num(), 2))
 	{
@@ -215,62 +216,7 @@ bool FStationPracticeRulesTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStationSkipTutorialTest, "Looter.Station.SkipTutorial",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
-
-bool FStationSkipTutorialTest::RunTest(const FString& Parameters)
-{
-	// "Skip the tutorial" in a new game's save: it counts as the first cast-off, the tutorial is done (a practice visit
-	// never strands the player), a Common Bullpup is in hand ("in the coffin"), and the session opens on the story's first
-	// arrival at level 1. Read back through the save format, as the level reads it.
-	UWeaponDefinition* Bullpup = USessionSubsystem::LoadBullpup();
-	UPackage* Scratch = CreatePackage(nullptr);
-	UAreaDefinition* First = NewArea(Scratch, TEXT("DA_Area_RansomsRest"), TEXT("Ransom's Rest"), TEXT("/Game/Maps/Lvl_RansomsRest"),
-		TEXT("Landing_Depot"), false);
-	if (!TestNotNull(TEXT("The Bullpup's definition"), Bullpup))
-	{
-		return false;
-	}
-	ULooterSessionSave* Save = NewObject<ULooterSessionSave>();
-	Save->Version = ULooterSessionSave::CurrentVersion;
-	TestTrue(TEXT("Applied, armed"), USessionSubsystem::ApplyTutorialSkip(*Save, *First, Bullpup));
-
-	const ULooterSessionSave* Read = WriteAndRead(Save);
-	if (!TestNotNull(TEXT("Read back"), Read))
-	{
-		return false;
-	}
-	TestTrue(TEXT("The tutorial is done"), Read->Progress.bTutorialDone);
-	TestTrue(TEXT("It counts as the first cast-off, and the story's first area is open"), Read->Campaign.bFirstCastOff
-		&& Read->Campaign.IsAreaOpen(StationBoard::FirstAreaId()));
-	TestEqual(TEXT("Level 1, as every new session arrives"), Read->Progress.Level, 1);
-	TestTrue(TEXT("It carries what the save says"), Read->bHasInventory);
-	if (TestEqual(TEXT("One gun"), Read->Inventory.Equipped.Num(), 1))
-	{
-		const FWeaponInstanceData& Gun = Read->Inventory.Equipped[0];
-		TestTrue(TEXT("A Bullpup"), Gun.Definition == Bullpup);
-		TestTrue(TEXT("Common"), Gun.Rarity == EWeaponRarity::Common);
-		TestEqual(TEXT("Level 1"), Gun.Level, 1);
-		TestTrue(TEXT("Built from its parts"), Gun.Parts.Num() > 0);
-		const int32 Rounds = Read->Inventory.Ammo.IsValidIndex(static_cast<int32>(Bullpup->AmmoType)) ? Read->Inventory.Ammo[static_cast<int32>(Bullpup->AmmoType)] : 0;
-		TestEqual(TEXT("Its starting magazines"), Rounds, Gun.Stats.MagazineSize * Bullpup->StartingReserveMagazines);
-	}
-	TestEqual(TEXT("In hand"), Read->Inventory.ActiveSlot, 0);
-	TestTrue(TEXT("Nothing in the backpack"), Read->Inventory.Backpack.IsEmpty());
-	TestEqual(TEXT("It continues on the first area's level"), Read->Map, FString(TEXT("/Game/Maps/Lvl_RansomsRest")));
-	TestTrue(TEXT("At the family plot, with no spot of its own"), !Read->bHasPlayerSpot
-		&& Read->GetArrivalOn(TEXT("/Game/Maps/Lvl_RansomsRest")) == StationBoard::FirstArrivalLanding());
-
-	// On a practice visit later: the gangplank is down and "Board the skiff" never shows.
-	TestTrue(TEXT("Skyreach's gangplank is down for them"), ASkiffJetty::IsGangplankDownFor(Read->Progress.bTutorialDone, Read->Campaign.bFirstCastOff));
-	TestFalse(TEXT("No boarding mission for them"), ASkiffJetty::ShowsBoardingFor(Read->Progress.bTutorialDone, Read->Campaign.bFirstCastOff));
-
-	// Without the Bullpup's kind the rest still holds, unarmed.
-	ULooterSessionSave* Unarmed = NewObject<ULooterSessionSave>();
-	TestFalse(TEXT("No Bullpup: not armed"), USessionSubsystem::ApplyTutorialSkip(*Unarmed, *First, nullptr));
-	TestTrue(TEXT("... but skipped all the same"), Unarmed->Progress.bTutorialDone && Unarmed->Campaign.bFirstCastOff && !Unarmed->bHasInventory);
-	return true;
-}
+// A new game's save (it begins on the story's first arrival with a Common Bullpup) is Tests/NewGameTests.cpp's.
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStationArrivalsTest, "Looter.Station.Arrivals",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)

@@ -15,14 +15,16 @@ struct FStationBoardLine;
 
 /**
  * Trips from the station boards (Areas/StationBoard.h) and how the player arrives, one per level:
- *  - the first cast-off, off Skyreach: its jetty plays the skiff's ride (ASkiffJetty::CastOff), and behind the white the
- *    ride ends in, CompleteFirstCastOff records it and travels to the story's first arrival: the family plot on Ransom's
- *    Rest (Landing_FamilyPlot). Without a jetty or a ride it goes at once, behind the white (LeaveForFirstArrival).
- *  - every later trip (practice to Skyreach and back, every station board): a plain fade to black, then the session's
- *    travel to the destination's station (its first landing). No cutscene: a default the user can change. Except by
- *    train: a trip to an opened area of the story from a station whose train stands at its platform plays the train's
- *    departure (Scenes/TrainShots.h: it pulls out, then black), and arrives by train (it backs in, then the player's
- *    view), as step 9 chose. Practice trips stay plain fades both ways.
+ *  - the first cast-off, off Skyreach, for a session begun there before the story was the start (a new game begins on the
+ *    story's first arrival itself, USessionSubsystem::StartNewGame): its jetty plays the skiff's ride
+ *    (ASkiffJetty::CastOff), and behind the white the ride ends in, CompleteFirstCastOff records it and travels to the
+ *    story's first arrival: the family plot on Ransom's Rest (Landing_FamilyPlot). Without a jetty or a ride it goes at
+ *    once, behind the white (LeaveForFirstArrival).
+ *  - every later trip (every station board): a plain fade to black, then the session's travel to the destination's
+ *    station (its first landing). No cutscene: a default the user can change. Except by train: a trip to an opened area
+ *    of the story from a station whose train stands at its platform plays the train's departure (Scenes/TrainShots.h: it
+ *    pulls out, then black), and arrives by train (it backs in, then the player's view), as step 9 chose. Trips from
+ *    Skyreach's jetty and the console's (Looter.Travel) stay plain fades both ways.
  *  - arriving: the story's first area opens on the cold open while it's due (UColdOpenSubsystem takes the held white and
  *    reveals it with REVENANT on the gang's skiff, then Ellis claws out of the grave). Otherwise a white held through the
  *    level load (UTransitionScreenSubsystem) is revealed, with the title REVENANT on the story's first arrival and none

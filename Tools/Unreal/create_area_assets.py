@@ -38,7 +38,7 @@ PROJECT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
 
 AREAS = [
     dict(asset='DA_Area_Skyreach', name='Skyreach', map='/Game/Maps/Lvl_TutorialIsland', landings=['Landing_Jetty'],
-         practice=True, opening_mission='', sort_order=0, layout='Art/Levels/TutorialIsland/layout.json',
+         practice=True, opening_mission='', sort_order=30, layout='Art/Levels/TutorialIsland/layout.json',
          promotions=dict(rare=0.0, epic=0.0)),
     dict(asset='DA_Area_RansomsRest', name="Ransom's Rest", map='/Game/Maps/Lvl_RansomsRest', landings=['Landing_Depot'],
          practice=False, opening_mission='Main1', sort_order=10, layout='Art/Levels/RansomsRest/layout.json',

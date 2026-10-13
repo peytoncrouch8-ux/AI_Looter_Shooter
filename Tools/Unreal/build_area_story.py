@@ -11,6 +11,7 @@ Main 1:
   lookout's (Scenes/ColdOpenSet.h); the gang's skiff's course is in the world's own frame.
 - The family plot's respawn grave (ARespawnMarker FamilyPlot, open once Main1 is finished) at the foot of Ellis's grave,
   where the wake-up stands the player (GraveWake::StandOut), facing as the level's start does (toward the bell tower).
+  A save point (2026-10-13): walking up to it marks it, its lantern post (SM_LanternPost, set_save_point) beside the spot.
 - The two headboards to read (ASpeakerPoint tagged Headboard_Ellis and Headboard_Abel: "Read", from 2.5 m) at the graves'
   Interact sockets.
 - Grandma Delia's screen door (ASpeakerPoint tagged Speaker_Delia) on the farmhouse's front door, and her house's screen
@@ -235,6 +236,63 @@ def ground(x, y, z, ignore=()):
     return z if hit is None else hit.to_tuple()[5].z
 
 
+# A respawn grave is a save point (ARespawnMarker marks on approach): its lantern is a post of this model beside the spot the
+# player wakes on, a little off to the side (cm), its lantern hanging toward the spot. The model's glass is dark until the
+# grave is marked.
+LANTERN_MESH = '/Game/Art/Props/SM_LanternPost'
+LANTERN_SIDE = 140.0
+# A sphere this wide (cm) at chest height must find nothing solid where the post stands.
+LANTERN_CLEAR = 35.0
+
+
+def _lantern_spot_clear(world, x, y, z, ignore):
+    """Nothing solid stands at (x, y, z) where the lantern post goes (a headboard, a rock, another post). True when the
+    check can't be made: the post goes there all the same."""
+    try:
+        found = unreal.SystemLibrary.sphere_overlap_actors(world, unreal.Vector(x, y, z + 110.0), LANTERN_CLEAR,
+                                                           [unreal.ObjectTypeQuery.OBJECT_TYPE_QUERY1], None, list(ignore))
+        actors = found[1] if isinstance(found, tuple) else found
+        return not [actor for actor in actors if actor is not None]
+    except Exception as error:  # the lantern is dressing: a failed check never stops the build
+        unreal.log_warning(f'the lantern spot could not be checked ({error}): the post stands there all the same')
+        return True
+
+
+def set_save_point(build, marker, heap, ignore=()):
+    """Gives a respawn grave's marker its save-point lantern: the post (LANTERN_MESH) beside the spot the player wakes on,
+    on the side away from the grave's heap (heap: its (x, y)) unless something solid stands there, its lantern hanging
+    toward the spot, on the ground there. ARespawnMarker marks the grave when the player walks up to it; the lantern is
+    dark until then. The grave's mission gate stays what it was (MarkAfterMission is left to ActiveAfterMission)."""
+    lantern = unreal.EditorAssetLibrary.load_asset(LANTERN_MESH) if unreal.EditorAssetLibrary.does_asset_exist(LANTERN_MESH) else None
+    if lantern is None:
+        build.warn(f'no {LANTERN_MESH} yet (Art/Models/Props/LanternPost.py): the respawn grave keeps the lantern it was built with')
+        return
+    at = marker.get_actor_location()
+    yaw = marker.get_actor_rotation().yaw
+    right = (math.cos(math.radians(yaw + 90.0)), math.sin(math.radians(yaw + 90.0)))
+    # The side away from the heap: the heap's offset along the marker's right decides.
+    along = (heap[0] - at.x) * right[0] + (heap[1] - at.y) * right[1]
+    sides = (-1.0, 1.0) if along > 0.0 else (1.0, -1.0)
+    world = unreal.EditorLevelLibrary.get_editor_world()
+    chosen = None
+    for side in sides:
+        x, y = at.x + right[0] * side * LANTERN_SIDE, at.y + right[1] * side * LANTERN_SIDE
+        z = ground(x, y, at.z, ignore=ignore)
+        if _lantern_spot_clear(world, x, y, z, [marker]):
+            chosen = (side, z)
+            break
+    if chosen is None:
+        build.warn('both sides of the respawn grave have something solid where its lantern goes: it stands on the far side of the heap anyway')
+        side = sides[0]
+        chosen = (side, ground(at.x + right[0] * side * LANTERN_SIDE, at.y + right[1] * side * LANTERN_SIDE, at.z, ignore=ignore))
+    side, z = chosen
+    marker.set_editor_property('lantern_mesh', lantern)
+    marker.set_editor_property('lantern_offset', unreal.Vector(0.0, side * LANTERN_SIDE, z - at.z))
+    # The model's front (where its lantern hangs) toward the spot: a post to the marker's right faces left.
+    marker.set_editor_property('lantern_yaw', -90.0 * side)
+    build.log(f'its lantern post {LANTERN_SIDE / 100.0:.1f} m to the {"right" if side > 0 else "left"}, {z - at.z:+.0f} cm')
+
+
 def ground_at(x, y, default=0.0, warn=True):
     """The first thing under (x, y) from high over the level: the terrain, or the top of a rock or a post standing there.
     Nothing there (open canyon past a rim, or no terrain placed) gives default, with a warning unless warn is off."""
@@ -339,6 +397,8 @@ def place_family_plot(build):
     # What the map calls it (the layout has no label for it; the design's words: "the family plot").
     grave_marker.set_editor_property('display_name', unreal.Text('Family plot'))
     grave_marker.set_editor_property('active_after_mission', unreal.Name(MAIN1))
+    # A save point: walking up to it marks it (after Main 1, which opens it), its lantern post on the side away from the grave.
+    set_save_point(build, grave_marker, (hole.x, hole.y), ignore=[grave])
     build.log(f'the family plot\'s respawn grave at ({x:.0f}, {y:.0f}), open after {MAIN1}')
     return grave
 

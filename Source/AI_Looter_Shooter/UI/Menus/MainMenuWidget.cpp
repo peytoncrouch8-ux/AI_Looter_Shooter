@@ -161,7 +161,7 @@ UWidget* UMainMenuWidget::MakeTitle()
 	// A thin cyan rule, then the world the game is set in, small and dim.
 	Title->AddChildToVerticalBox(MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(Color::ScreenLine())), 0.f, 1.f))
 		->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
-	Title->AddChildToVerticalBox(MakeText(WidgetTree, TEXT("Skyreach"), 12, Color::TextDim(), true, 800))
+	Title->AddChildToVerticalBox(MakeText(WidgetTree, TEXT("Teropa"), 12, Color::TextDim(), true, 800))
 		->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
 	return Title;
 }
@@ -221,7 +221,6 @@ ULooterButton* UMainMenuWidget::GetMainButton(FName Action) const
 void UMainMenuWidget::ShowMainButtons()
 {
 	CloseDeleteConfirm();
-	CloseNewGame();
 	bPickerShown = false;
 	if (MainButtons)
 	{

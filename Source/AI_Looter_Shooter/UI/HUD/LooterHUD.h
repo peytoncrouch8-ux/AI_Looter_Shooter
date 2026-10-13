@@ -14,6 +14,8 @@ class UHudControlHintWidget;
 class UHudMissionTrackerWidget;
 class ULoadoutWidget;
 class UMapWidget;
+class UMissionDefinition;
+class UMissionOfferWidget;
 class UMissionsWidget;
 class UNoticeBoardWidget;
 class AVendor;
@@ -110,6 +112,20 @@ public:
 	void CloseVendor();
 
 	bool IsVendorOpen() const { return bVendorOpen; }
+
+	/**
+	 * Opens the mission offer card (UMissionOfferWidget) for Mission, offered by Giver (someone at a speaker point, a notice
+	 * board, a mission artifact): its story, objectives and rewards with Accept and Not now. False when another menu is open
+	 * or the mission can't be offered now. LooterHUDMissionOffer.cpp.
+	 */
+	bool OpenMissionOffer(const UMissionDefinition* Mission, AActor* Giver);
+
+	void CloseMissionOffer();
+
+	bool IsMissionOfferOpen() const { return bMissionOfferOpen; }
+
+	/** The short banner over the HUD when a respawn grave is marked as the save point ("GRAVE MARKED", its name). LooterHUDGraves.cpp. */
+	void ShowGraveMarked(const FText& GraveName);
 
 	/** The inventory, the station board, the bench's screen, a notice board, a vendor or the pause menu is up (the gameplay HUD is hidden). */
 	bool IsMenuOpen() const;
@@ -227,4 +243,10 @@ private:
 	bool bBenchOpen = false;
 	bool bNoticeBoardOpen = false;
 	bool bVendorOpen = false;
+
+	/** The mission offer card, made the first time a mission is offered. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMissionOfferWidget> MissionOfferWidget;
+
+	bool bMissionOfferOpen = false;
 };

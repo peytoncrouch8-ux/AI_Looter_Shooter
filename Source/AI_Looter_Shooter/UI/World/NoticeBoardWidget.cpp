@@ -2,7 +2,9 @@
 // acting on one does are NoticeBoardWidgetCards.cpp's.
 
 #include "UI/World/NoticeBoardWidget.h"
+#include "Missions/MissionDefinition.h"
 #include "Missions/MissionRunner.h"
+#include "UI/Style/MissionMarkIcons.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterButton.h"
@@ -53,6 +55,12 @@ namespace
 		if (bChosen)
 		{
 			return Color::Accent();
+		}
+		// A job up for the taking is edged in its mark's colour, gold or white, as its ! is.
+		if (Posting.State == ENoticePosting::Offered)
+		{
+			const bool bMain = Posting.Mission && Posting.Mission->Kind == EMissionKind::Main;
+			return MissionMarkIcons::Color(bMain) * FLinearColor(1.f, 1.f, 1.f, 0.55f);
 		}
 		return Posting.State == ENoticePosting::Ready ? Color::AccentDark() : Color::RowLine();
 	}
@@ -229,7 +237,7 @@ void UNoticeBoardWidget::BuildPanel()
 	};
 	const FKeyHint Hints[] = {
 		{ TEXT("W/S"), LOCTEXT("HintSelect", "Select") },
-		{ TEXT("E"), LOCTEXT("HintAct", "Track or turn in") },
+		{ TEXT("E"), LOCTEXT("HintAct", "Take, track or turn in") },
 		{ TEXT("Esc"), LOCTEXT("HintClose", "Close") },
 	};
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Hints); ++Index)
@@ -250,11 +258,14 @@ void UNoticeBoardWidget::BuildPanel()
 	const FText Title = From && !From->Title.IsEmpty() ? From->Title : LOCTEXT("Title", "Notice Board");
 	PanelBox->SetContent(MakePanel(WidgetTree, Title.ToString(), Content));
 
-	// What wants doing first: a posting to turn in, else the first that can be tracked.
+	// What wants doing first: a posting to turn in, then a job to take, else the first that can be tracked.
 	Selected = INDEX_NONE;
-	for (int32 Index = 0; Index < Postings.Num() && Selected == INDEX_NONE; ++Index)
+	for (const ENoticePosting First : { ENoticePosting::Ready, ENoticePosting::Offered })
 	{
-		Selected = Postings[Index].State == ENoticePosting::Ready && CanAct(Index) ? Index : INDEX_NONE;
+		for (int32 Index = 0; Index < Postings.Num() && Selected == INDEX_NONE; ++Index)
+		{
+			Selected = Postings[Index].State == First && CanAct(Index) ? Index : INDEX_NONE;
+		}
 	}
 	for (int32 Index = 0; Index < Postings.Num() && Selected == INDEX_NONE; ++Index)
 	{
@@ -319,6 +330,23 @@ void UNoticeBoardWidget::SetStatus(const FText& Message, const FLinearColor& Tex
 	{
 		StatusText->SetText(Message);
 		StatusText->SetColorAndOpacity(FSlateColor(TextColor));
+	}
+}
+
+void UNoticeBoardWidget::HandleOfferClosed(FName MissionId, bool bAccepted)
+{
+	// Taken: its card reads Tracked now, and the board says so. Put back: as it was, still up for the taking.
+	const FNoticeBoardPosting* Was = Postings.FindByPredicate([MissionId](const FNoticeBoardPosting& Each) { return Each.MissionId == MissionId; });
+	const FText Title = Was && Was->Mission ? Was->Mission->Title : FText::FromName(MissionId);
+	const bool bMain = Was && Was->Mission && Was->Mission->Kind == EMissionKind::Main;
+	Refresh();
+	if (bAccepted)
+	{
+		SetStatus(FText::Format(LOCTEXT("Taken", "{0}: taken. The tracker follows it."), Title), MissionMarkIcons::Color(bMain));
+	}
+	if (IsInViewport())
+	{
+		SetKeyboardFocus();
 	}
 }
 

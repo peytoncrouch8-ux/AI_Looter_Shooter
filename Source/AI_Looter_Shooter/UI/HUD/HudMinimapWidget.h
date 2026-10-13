@@ -28,15 +28,17 @@ struct FMinimapWaypoint
 struct FMinimapMarkerSplit
 {
 	int32 Hostiles = 0;
+	/** The givers' ! and ? (UGiverMarkSubsystem). */
+	int32 Givers = 0;
 	int32 Guns = 0;
 	int32 Ammo = 0;
 };
 
 /**
  * The HUD's round minimap (top-right) that turns with the view, so the way you look is up: the island from above
- * (baked by UMinimapSubsystem), hostiles as red diamonds, loot as dots in its rarity color, ammo as small dots and your
- * arrow in the middle. The tracked mission's waypoint (UMissionSubsystem) is an orange ring on the map when it's in
- * range; farther away, an orange arrow inside the rim points the way like a compass needle, with the distance in meters
+ * (baked by UMinimapSubsystem), hostiles as red diamonds, the givers' marks (a gold or white ? where a mission is offered,
+ * a ! where one waits to be turned in), loot as dots in its rarity color, ammo as small dots and your arrow in the middle.
+ * The tracked mission's waypoint (UMissionSubsystem) is an orange ring on the map when it's in range; farther away, an orange arrow inside the rim points the way like a compass needle, with the distance in meters
  * beside it. Its size is the player's choice (Settings > Interface > Minimap size, 60-150%). Reads the possessed pawn
  * every frame.
  *
@@ -80,6 +82,12 @@ public:
 	 * it must never crowd the hostiles off the map.
 	 */
 	static FMinimapMarkerSplit SplitMarkers(int32 Pool, int32 Hostiles, int32 Guns, int32 Ammo);
+
+	/**
+	 * The same with the givers' marks (a ? where a mission is offered, a ! where one waits to be turned in): after every
+	 * hostile, before the loot, so a fight never loses its creatures to them and loot never hides a giver.
+	 */
+	static FMinimapMarkerSplit SplitMarkers(int32 Pool, int32 Hostiles, int32 Givers, int32 Guns, int32 Ammo);
 
 	/**
 	 * Makes this one a live copy for the settings menu's zoom preview: the HUD's own is put away under the menu, so the menu
