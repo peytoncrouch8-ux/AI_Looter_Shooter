@@ -24,7 +24,20 @@ Foreman set 7; ? = pick up, ! = turn in; the Missions tab lists only accepted mi
 **The user added Lost Loot** (memory `rr-expansion`): ground guns despawn after 5 min into the depot's LOST PROPERTY
 window (30 spots, +10 upgrades for silver, oldest out when full, all guns).
 
-**Wave 2 (running, 8 agents; contract `contract_wave2.md` in the session scratchpad):** code 2a mission features
+**Wave 2: code DONE, committed and pushed (c378037), 557/557 tests.** Checked in PIE: the Lost Property screen (empty),
+the Foreman's boss bar on a spawn (SK_Unpaid stand-in). Sounds: 69 new cues in the bank. Approved and committed (not
+imported): the town art (sheet 36) and the miners' concepts (sheet 38: miners A, Foreman A, Hiram, Thaddeus).
+**Still running:** the mountain art (sheet 37, lift/Calder's Post/mine kit), the character game models (sheet 40),
+terrain (core 512 m + Larkspur Bench, sheet 39). Their files are uncommitted on purpose (Art/Levels/*, layout.json,
+Art/Models/Buildings/OreLift.py, CalderPost.py, Diggings.py, Art/Models/Mine, Props/Tramway.py, Creatures/DeadMiner.py,
+Foreman.py, Hiram.py, Tools/Blender/looter_ghosts/miners/friends/mine/mountain.py, terrain_compare.*, terrain_dump.py).
+**Pending for Main after the terrain agent:** layout.json `gameplay.levels.kinds` += ForemanCreature level 5 (then
+create_area_assets.py); level step 3 (notes in the session scratchpad `level_step3_notes.md` and `codemap_wave2.md`:
+imports, house swaps, depot/workshop/barn placements, lift/mine/post placements, graves, encounters, Lost Property on
+SOCKET_LostProperty, build_area_vendors for Pruitt's voice); step 4 (all missions' data per the design, XP retune to
+story ~5.5 / full ~6.8). Lost Loot prices: only two upgrades are affordable in Ransom's Rest (~1,270 silver a play).
+
+**Wave 2 (as launched; contract `contract_wave2.md` in the session scratchpad):** code 2a mission features
 (optional objectives, mission items, choice turn-ins, story flags, UNDERGROUND minimap, porch plate, readable props),
 2b ore lift + watch fire + far light + interior visibility + build_area_lift.py, 2c dead miners + Foreman + Hiram +
 Thaddeus + Ledger pages, 2e Lost Loot; art: the town (3 fronts, Whitlock barn, coal stage, the enterable depot with
