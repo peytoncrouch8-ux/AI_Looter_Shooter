@@ -49,6 +49,10 @@ uncommitted: Art/Levels/*, layout.json, Art/Models/Terrain/Waterfall.py, Art/Tex
 and placements (scratchpad level_step3_notes.md), lift/mine/post, roosts, Lost Property on the new depot's socket,
 vendors, loot, fauna, scatter, Keeper's Bridge fix (below); then step 4 (all missions' data, XP retune).
 
+**At the session swap (the user's call, 2026-10-13):** condense ALL docs for the AI's tokens (the user never reads them),
+CLAUDE.md included: terse plain-English notes, every rule/name/number/decision kept, history archived to a file not loaded
+by default, each fact in one place, Story's quoted lines word for word. Details in the memory note `docs-for-ai`.
+
 **To do (the user's calls, 2026-10-13):**
 - [ ] **Ground grenades saved like ammo** (the user said yes): AGrenadePickup saved with its remaining life, gone when
       it runs out (as FSavedAmmoPickup / FSavedSilverPickup); not Lost Loot. Fold into the level build.
