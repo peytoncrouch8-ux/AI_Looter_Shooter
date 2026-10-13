@@ -1,45 +1,38 @@
 # Performance history
 
-Measured with `Tools\perf.ps1`: standalone game window, CSV profiler, first frames (loading) skipped. Times are averages in ms.
-Target: 120 fps (8.3 ms) at 1080p on the Medium preset on the reference PC (Radeon RX 580, Core i7-8700, 16 GB); it was 60 fps until 2026-09-30.
+**Target:** 120 fps (8.3 ms) at 1080p on the Medium preset, at the heaviest view, on the reference PC (Radeon RX 580, Core i7-8700,
+16 GB). It was 60 fps until 2026-09-30. Lumen and Nanite are for High and Epic only, so everything must look right on the Nanite
+fallback. Per-pass budgets: `Docs/TutorialIsland.md`. How to measure: `Docs/Pipeline.md`, "Performance".
+
+Measured with `Tools\perf.ps1`: standalone game window, CSV profiler, first frames (loading) skipped; times are averages in ms.
+Run it before and after anything that could change cost; it appends a row to the table below. Keep the table to the latest runs;
+move older rows to `Docs/Archive/Performance_history.md` (the full log of every run since 2026-09-29).
+
+## Rules
+
+- Presets Low, Medium, High, Epic = the engine's scalability level + Lumen + anti-aliasing method + Nanite. Lumen only on High and
+  Epic; TSR only on Epic (TAA otherwise); Nanite off below High (it costs the RX 580 about 2.5 ms). All presets render at full
+  resolution (the engine's own Medium renders at 71%). A fresh install starts on Medium.
+- Hardware ray tracing off. Substrate off (same frame time, fewer shaders to compile).
+- The outline (0.18 ms) and the clouds (0.4 ms) are cheap enough for every preset; the outline needs no optimizing.
+- Medium for 120 fps (2026-09-30): cascaded shadows, no SSAO/DFAO, motion blur off by default.
+- Every PCG scatter instance scales with `foliage.DensityScale`, for the presets.
+- Volumetric clouds were the big cost on the island (9.5 ms with the engine's layer, 2 ms thinned); the sky dome costs almost
+  nothing.
+- Preset costs on the old sky-island scene (2026-09-29): Low 7.4 ms, Medium 12.3, High 22.0, Epic 38.1.
+
+## Current reference numbers (Medium, 1080p)
+
+- Ransom's Rest (2026-10-08): all 28 views at 149-216 fps (6.7 ms at the heaviest); spawn 6.3 ms; base pass 1.1-1.2 ms, prepass
+  0.5-0.7, shadows at most 0.5; no single art asset is a real cost.
+- Skyreach with Crossroads Town round 1 (2026-10-08): 160-226 fps at every view (heaviest, above the town, 6.3 ms).
+- Hostile load (2026-10-06, RR town gate): 1 Unpaid chasing 5.5 ms; 12 chasing 5.9 ms.
+
+## Latest runs
 
 | Date | Change | Commit | Resolution | Frame | fps | p95 | Game | Render | RHI | GPU | Draws | Triangles | Load (s) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-09-29 | Baseline before cleanup | 78a9c94 | 1920x1080 | 23.8 | 42 | 24.9 | 7.2 | 23.8 | 2.5 | 21.5 | 2125 | 1194674 | 5.08 |
-| 2026-09-29 | Props baked to Nanite static meshes | e6a165d | 1920x1080 | 28.6 | 35 | 29.9 | 7.3 | 28.6 | 2.6 | 25.9 | 1813 | 177977 | 0.88 |
-| 2026-09-29 | PCG meadow replaces placed grass (604 instances) + soft collision fix + shared shaders | dd073a5 | 1920x1080 | 29.7 | 34 | 31.0 | 7.3 | 29.7 | 2.7 | 27.0 | 2011 | 190089 | 0.89 |
-| 2026-09-29 | Quality preset Epic (the presets commit, measured on top of e99da87) | e99da87 | 1920x1080 | 38.0 | 26 | 39.5 | 7.4 | 38.0 | 2.7 | 35.2 | 1957 | 186765 | 0.83 |
-| 2026-09-29 | Quality preset High (the presets commit, measured on top of e99da87) | e99da87 | 1920x1080 | 22.0 | 45 | 23.3 | 7.2 | 22.0 | 2.5 | 19.7 | 1649 | 186871 | 0.80 |
-| 2026-09-29 | Quality preset Low (the presets commit, measured on top of e99da87) | e99da87 | 1920x1080 | 7.4 | 134 | 9.0 | 7.4 | 4.6 | 1.8 | 5.1 | 1602 | 219279 | 0.80 |
-| 2026-09-29 | Quality preset Medium (the presets commit, measured on top of e99da87) | e99da87 | 1920x1080 | 12.3 | 81 | 13.4 | 6.3 | 12.3 | 2.0 | 10.9 | 1703 | 223596 | 0.78 |
-| 2026-09-29 | Quality preset Medium, no Substrate or ray tracing | 7e88635 | 1920x1080 | 12.5 | 80 | 13.5 | 6.3 | 12.4 | 2.0 | 10.8 | 1729 | 225499 | 0.77 |
-| 2026-09-29 | Quality preset Epic, no Substrate or ray tracing | 7e88635 | 1920x1080 | 38.1 | 26 | 39.4 | 7.3 | 38.1 | 2.7 | 35.3 | 1950 | 186900 | 0.78 |
-| 2026-09-29 | Skeletal spider, Medium | c540328 | 1920x1080 | 11.9 | 84 | 13.2 | 5.3 | 11.9 | 2.0 | 10.4 | 487 | 209196 | 0.79 |
-| 2026-09-30 | Guns from parts, baked ammo boxes, Medium | 886339d | 1920x1080 | 11.8 | 85 | 12.4 | 4.8 | 11.8 | 2.0 | 10.3 | 498 | 208386 | 0.66 |
-| 2026-09-30 | Ground fixes: full terrain fallback, 3.5 m meadow patches fitted to the ground, props settled, Medium | 3402b1b | 1920x1080 | 12.1 | 83 | 12.9 | 4.9 | 12.1 | 2.0 | 10.6 | 489 | 238332 | 0.50 |
-| 2026-09-30 | Medium for 120 fps: cascaded shadows, no SSAO/DFAO, motion blur off by default | 48dccdc | 1920x1080 | 6.7 | 148 | 7.3 | 5.2 | 6.7 | 1.9 | 5.6 | 490 | 315514 | 0.59 |
-| 2026-09-30 | Tutorial island (new style), spawn view, Medium; tour.ps1: 139-182 fps at all 7 viewpoints | c536389 | 1920x1080 | 6.2 | 162 | 7.3 | 3.3 | 6.0 | 1.6 | 4.6 | 363 | 606664 | 0.85 |
-| 2026-10-01 | Finished tutorial island (waterfall, smoke, pond plants, meadow trees, tutorial, XP bar), spawn, Medium; tour 151-201 fps | 32673d6 | 1920x1080 | 5.6 | 179 | 6.0 | 3.9 | 5.6 | 1.6 | 4.6 | 452 | 614310 | 0.77 |
-| 2026-10-01 | FPS counter on the HUD, hold-to-equip, kill-weapon ammo | 4284e2c | 1920x1080 | 5.6 | 177 | 6.0 | 3.9 | 5.6 | 1.6 | 4.6 | 455 | 615448 | 0.77 |
-| 2026-10-01 | Bestiary page, slim creature tags, ammo pickup radius | e8a6e4d | 1920x1080 | 5.6 | 179 | 6.0 | 3.9 | 5.6 | 1.6 | 4.6 | 456 | 616177 | 0.76 |
-| 2026-10-01 | Ammo pickup feed, divided creature bars, bestiary unknown pages | ba7cff7 | 1920x1080 | 5.7 | 176 | 6.4 | 4.3 | 5.6 | 1.7 | 4.6 | 457 | 617539 | 0.76 |
-| 2026-10-01 | Guns from Bullpup/Ranchhand parts (rifle in hand), Meadow Wolf spider with LODs, Medium | a5d9770 | 1920x1080 | 5.6 | 179 | 6.0 | 4.2 | 5.6 | 1.5 | 4.6 | 461 | 643017 | 0.82 |
-| 2026-10-01 | New HUD (hex weapon slots), drag-and-drop inventory, per-gun wear (rifle in hand), Medium | 30f0d97 | 1920x1080 | 5.6 | 179 | 6.0 | 4.7 | 5.6 | 1.6 | 4.5 | 449 | 622828 | 0.82 |
-| 2026-10-01 | HUD ammo ticks repaint only on change (rifle in hand), Medium | 30f0d97 | 1920x1080 | 5.6 | 178 | 6.2 | 4.8 | 5.5 | 1.6 | 4.6 | 443 | 621581 | 0.80 |
-| 2026-10-01 | Main menu + save sessions (dev play, no session), Medium | 79ac9f2 | 1920x1080 | 5.6 | 180 | 6.0 | 4.2 | 5.6 | 1.5 | 4.6 | 395 | 601805 | 0.81 |
-| 2026-10-01 | Round slots, magazine gauge, minimap compass, no ammo light, Medium | 45260c4 | 1920x1080 | 5.7 | 176 | 6.9 | 5.0 | 4.9 | 1.8 | 4.5 | 428 | 627705 | 0.95 |
-| 2026-10-01 | Round 2: distant creatures update less often, health ring, XP bar, FOV setting (90), ammo beams | 0175bcd | 1920x1080 | 5.6 | 179 | 6.0 | 3.0 | 5.6 | 1.4 | 4.6 | 445 | 629243 | 1.00 |
-| 2026-10-01 | Scattered trees, rocks, stumps and logs collide; XP bar with the level in the middle; 1.5 m ammo beams | 52c06af | 1920x1080 | 5.7 | 176 | 6.1 | 3.0 | 5.7 | 1.5 | 4.5 | 449 | 630955 | 1.10 |
-| 2026-10-06 | Ransom's Rest greybox (step 5a), grave spawn, Medium; tour 174-228 fps at 20 viewpoints (Beyond 0.2-0.3 ms, dusk no dearer) | db5f8ec | 1920x1080 | 5.5 | 180 | 6.0 | 2.7 | 5.5 | 1.4 | 4.6 | 489 | 970407 | 1.05 |
-| 2026-10-06 | Tutorial island with the jetty and sky islands (steps 10, 13), spawn, Medium; tour 153-231 fps at 10 viewpoints | db5f8ec | 1920x1080 | 5.6 | 179 | 6.0 | 3.0 | 5.6 | 1.5 | 4.6 | 448 | 628868 | 1.01 |
-| 2026-10-06 | RR town gate, 1 Unpaid chasing (baseline for the 12) | b075ad2 | 1920x1080 | 5.5 | 180 | 6.0 | 2.8 | 5.5 | 1.4 | 4.5 | 465 | 1047482 | 1.22 |
-| 2026-10-06 | RR town gate, 12 Unpaid chasing, with GPU stats (step 16) | b075ad2 | 1920x1080 | 5.9 | 169 | 6.6 | 4.6 | 5.8 | 1.6 | 4.8 | 661 | 1114988 | 1.11 |
 | 2026-10-06 | RR town gate, 12 Unpaid chasing, no GPU stats (step 16) | b075ad2 | 1920x1080 | 5.9 | 169 | 6.3 | 4.3 | 5.9 | 1.6 | 4.9 | 672 | 1115644 | 1.04 |
-| 2026-10-07 | Ransom's Rest finished (step 27), spawn, Medium; tour 150-218 fps at 28 viewpoints (heaviest Farm 6.7 ms; dusk fight with 10 adds 5.6 ms) | a64961d | 1920x1080 | 6.5 | 153 | 6.9 | 2.8 | 6.5 | 1.5 | 5.4 | 715 | 1023251 | 1.73 |
 | 2026-10-07 | RR deck at dusk, Abel and 10 adds hunting (plan view 13, Looter.Abel.Perf 10), Medium | a64961d | 1920x1080 | 5.5 | 182 | 6.1 | 5.0 | 5.4 | 1.7 | 4.4 | 395 | 285509 | 1.73 |
-| 2026-10-07 | Ransom's Rest final (step 27): Sink panels and talus, slopes rounds 3-4, stepped fences, player 0.85; Medium | e2e826a | 1920x1080 | 6.3 | 158 | 6.9 | 2.8 | 6.3 | 1.5 | 5.2 | 913 | 1031386 | 2.09 |
-| 2026-10-07 | Before the HUD upgrade | bd038e4 | 1920x1080 | 5.6 | 178 | 6.3 | 3.0 | 5.6 | 1.5 | 4.6 | 443 | 623271 | 1.05 |
-| 2026-10-07 | After the HUD upgrade (player frame, tracker, weapons column, bezel) | 5b5b36a | 1920x1080 | 5.7 | 175 | 6.2 | 3.1 | 5.7 | 1.5 | 4.7 | 466 | 623975 | 1.03 |
-| 2026-10-08 | Painted Frontier island (style 3 trial) | b519aad | 1920x1080 | 6.7 | 149 | 7.1 | 3.2 | 6.7 | 1.5 | 5.6 | 461 | 595430 | 1.07 |
 | 2026-10-09 | Polish waves 1-2 (fauna, ambience, feedback), Skyreach | 38331af | 1920x1080 | 6.1 | 164 | 6.9 | 4.1 | 6.0 | 1.7 | 4.9 | 663 | 665050 | 1.27 |
 | 2026-10-09 | Polish waves 1-2 (late-summer land, grass 40-50 m, fauna, camps), Ransom's Rest | 38331af | 1920x1080 | 6.8 | 147 | 7.4 | 3.7 | 6.8 | 1.6 | 5.5 | 1001 | 1075257 | 2.44 |

@@ -1,13 +1,17 @@
 # Progression: experience and pacing
 
-How the player earns experience, and where Ransom's Rest leaves them. The user's calls: missions are **turned in**, not
-finished the moment their last objective is done, and give no experience for their steps (2026-10-08); since the mountain
-and the givers (2026-10-13, `Docs/Areas/RansomsRest_Expansion.md` section 13) **the story alone ends about level 5.5, and
-a full clear of Ransom's Rest about level 6.8**, so a player reaches the *Gilded Lily* about level 6-7 whichever way they
-played; and (2026-10-13, the same day) **levelling works like Borderlands': it takes more experience, the top level is 65,
-and kills give real numbers again**. In the user's words: "Just make it take more XP to level up. Find something similar
-to the way Borderlands handles their level up system and do that. We plan on making a bunch of maps or areas with a max
-level of 65 so we don't want to get to too high a level too soon."
+How the player earns experience, and where Ransom's Rest leaves them. The old curve: `Docs/Archive/Progression_history.md`.
+
+The user's calls:
+- Missions are **turned in**, not finished the moment their last objective is done, and give no experience for their
+  steps (2026-10-08).
+- Since the mountain and the givers (2026-10-13, `Docs/Areas/RansomsRest_Expansion.md` section 13): **the story alone
+  ends about level 5.5, a full clear of Ransom's Rest about level 6.8**, so a player reaches the *Gilded Lily* about
+  level 6-7 whichever way they played.
+- (2026-10-13) **Levelling works like Borderlands': it takes more experience, the top level is 65, and kills give real
+  numbers again.** In the user's words: "Just make it take more XP to level up. Find something similar to the way
+  Borderlands handles their level up system and do that. We plan on making a bunch of maps or areas with a max level of
+  65 so we don't want to get to too high a level too soon."
 
 ## How Borderlands does it (the research, 2026-10-13)
 
@@ -15,12 +19,11 @@ level of 65 so we don't want to get to too high a level too soon."
   players: [the Borderlands wiki's formula thread](https://borderlands.fandom.com/wiki/Forum:Experience_Points_Formula%3F),
   [its talk page](https://borderlands.fandom.com/wiki/Talk:Experience_Points)); it matches the game's own totals, about
   9.5 million at level 72 and 12.8 million at 80 ([Steam](https://steamcommunity.com/app/49520/discussions/0/612823460257469706/)).
-  358 for level 2, 1,240 for 3, about 270,000 for one level in the 60s: each level a little more than the last, the late
-  ones far more than the early ones.
+  358 for level 2, 1,240 for 3, about 270,000 for one level in the 60s: each level a little more than the last.
 - **Missions** give a share of a level that falls as the levels go up: My First Gun 71 XP and Blindsided 53 at level 1,
   Cleaning Up the Berg 321 at level 3 ([Game Guides](https://www.gamerguides.com/borderlands-2/guide/borderlands-2/main-story-missions/cleaning-up-the-berg)),
-  about 15-20% of a level; players report about 9,800 for a level 50 mission, 5% of that level. So the first levels come
-  fast and the last ones slowly.
+  about 15-20% of a level; players report about 9,800 for a level 50 mission, 5% of that level. The first levels come
+  fast, the last ones slowly.
 - **Kills** give experience by the enemy's level against the player's: more from one above, less and less from one
   below, until a player far over it gets next to nothing; mission experience falls the same way when the player is over
   the mission's level. The exact kill formula was never published. (Players' reports on Steam,
@@ -31,19 +34,18 @@ level of 65 so we don't want to get to too high a level too soon."
 ## Our curve and kills (since 2026-10-13)
 
 - **The curve** (`FXPCurve`): reaching level L takes **180 × (L^2.8 − 1)** in all, rounded: Borderlands 2's shape at
-  three times its experience, so every level takes three times as long to earn as it would there. **The top level is 65**
-  (about 21.4 million in all). It was 100 XP for level 2 and 12% more each level, up to 70, until then.
+  three times its experience. **The top level is 65** (about 21.4 million in all).
 - **Kills** (`FLevelRules::KillXP`): the creature's `XPReward` (10; times its rank's multiplier: Restless ×2,
   Gravebound ×4, Soulfed ×10, Boss ×20) × the kill scale (**1**) × **its level^1.2**, less 15 points a level when it's
   below the player (never under 10%), never under 1. A Basic creature gives **10** at level 1, 23 at 2, 69 at 5, 103 at
   7, 364 at 20 and 1,361 at 60; a Restless one at level 3 gives 75, a level 5-6 miner 76-94, the Gravemother 859, the
-  Foreman 1,136, Abel 2,066. The creature's level is where it stands, never the player's (below).
+  Foreman 1,136, Abel 2,066. The creature's level is where it stands, never the player's (*Creature levels*).
 - **Missions turned in.** Each mission has a fixed amount (`FMissionRewards::Experience`), given only when it's turned in
   to its giver, never for its objectives or steps. Skyreach's postings give none. Sized as a share of the level where
   it's met: on Ransom's Rest a main mission about a third to two thirds of a level, a side mission an eighth to a fifth
-  (a short errand less), generous as a first area should be (Borderlands' first hours go the same way).
+  (a short errand less), generous as a first area should be (as Borderlands' first hours are).
 
-Only those two give experience, nothing else (checked by `Looter.Missions.TurnIn.Rewards`).
+Only those two give experience (checked by `Looter.Missions.TurnIn.Rewards`).
 
 | Level | To the next | In all, to reach it | A Basic kill at it | Basic kills a level |
 |---:|---:|---:|---:|---:|
@@ -65,9 +67,9 @@ Only those two give experience, nothing else (checked by `Looter.Missions.TurnIn
 | 65 | (the top) | 21,449,949 | | |
 
 **Why the kills grow slower than the levels.** A level's experience grows about as level^1.8, a kill's as level^1.2, so
-the kills a level takes climb from about 110 to 600 over the campaign and the turn-ins carry more and more of each level,
-as in Borderlands. **For the areas to come:** an area of Ransom's Rest's size (about 150 kills, 7 main missions, 9 side)
-gives about 2 levels at the campaign's middle when its main missions are about 15% of a level at its band and its side
+the kills a level takes climb from about 110 to 600 over the campaign and the turn-ins carry more of each level, as in
+Borderlands. **For the areas to come:** an area of Ransom's Rest's size (about 150 kills, 7 main missions, 9 side) gives
+about 2 levels at the campaign's middle when its main missions are about 15% of a level at its band and its side
 missions about 6%, so some 30 areas reach 65 near the end. Ransom's Rest's bigger shares are the first area's (levels
 1-7 come quickly, as in Borderlands' opening). A mission given far below the player's level still pays its fixed amount
 (Borderlands would take some off; not needed while the areas' bands follow the story).
@@ -80,7 +82,7 @@ about 800 XP on the old curve), and with it their health and their place against
 The knobs (Project Settings > Game > Progression, `UProgressionSettings`, saved to `Config/DefaultGame.ini`; defaults in
 `Progression/XPCurve.h` and `Progression/LevelRules.h`): `MaxLevel`, `CurveScale`, `CurvePower`, `KillXPScale`,
 `KillXPPower`, the falloff; each mission's `experience` in `Tools/Unreal/create_mission_assets.py` and
-`create_side_mission_assets.py`; and the creatures' levels (below). `Looter.XP.Table` prints the curve and the kills.
+`create_side_mission_assets.py`; the creatures' levels (below). `Looter.XP.Table` prints the curve and the kills.
 
 ## Creature levels
 
@@ -97,7 +99,7 @@ areas". A creature's level is **where it stands**:
 The player's own melee and grenade still grow with the player's level (`FLevelRules::EnemyScale` of theirs). Chests'
 guns still follow the player inside the band (`AChest::GetLootLevel`).
 
-The data is the area's layout, `gameplay.levels` (`band`, `zones`, `kinds`), written into `DA_Area_<Area>` by
+Data: the area's layout, `gameplay.levels` (`band`, `zones`, `kinds`), written into `DA_Area_<Area>` by
 `Tools/Unreal/create_area_assets.py` (`UAreaDefinition::LevelZones`, `KindLevels`). `UAreaRulesSubsystem::RollLevelFor`
 gives a creature its level as it begins play and each time it comes back. Tests: `Looter.Areas.LevelBand` (the rules),
 `Looter.Areas.Bands` (the assets match the layouts), `Looter.Creatures.AreaLevels` (every fight's and encounter's levels,
@@ -125,16 +127,16 @@ rising along the story, the mountain 5-6 (the user's call):
 | **Abel** (set) | the deck | Main 6's boss: 6, Boss +1 | **7** | 4 / 6 |
 | **The Foreman** (set) | the Providence's stope | Back Pay's Legendary monster: 5, Soulfed +2 | **7** | — / 5 |
 
-Abel stays the story's hardest fight, about three levels over a player who only follows the story; the Foreman is level with
-him, a Legendary over the mine as the Gravemother is over the Sink. No Restless creature anywhere is above them.
+Abel stays the story's hardest fight, about three levels over a player who only follows the story; the Foreman is level
+with him, a Legendary over the mine as the Gravemother is over the Sink. No Restless creature anywhere is above them.
 
 ## Givers and turn-ins (Borderlands' way)
 
 Every mission but Main 1 is **picked up from a giver** (the user's call, 2026-10-13): a ? over them once the mission
-before it is turned in, their offer's lines and the offer card when talked to (or the card alone from a board or a found
+before it is turned in; talked to, their offer's lines and the offer card (or the card alone from a board or a found
 artifact). A mission whose objectives are all done is **ready to turn in**: the tracker says "Turn in to <giver>", a !
 over them; talking to them finishes it (the experience, the purse, the reward gun at the player's feet, MISSION COMPLETE)
-and a mission they offer next is offered straight after, as one conversation. The state is saved
+and any mission they offer next is offered straight after, as one conversation. The state is saved
 (`FCampaignRecord::ReadyMissions`). Steps, givers and words: `Tools/Unreal/create_mission_assets.py` and
 `create_side_mission_assets.py`'s docstrings; what's said where: `Tools/Unreal/story_texts.py`.
 
@@ -185,8 +187,8 @@ sheep fold's camp before Main 6), and the roaming dead once (boot hill's, the no
 | Main 7, The Lantern Leans | none | 0 | 4,600 | **21,478** | **5.49** |
 
 **62 kills give about 5,800 XP, seven missions 15,700 (73%): about 21,500 XP, level 5.5** (5.44 without the roaming
-dead). Each level-up lands on a turn-in: 2 at Main 2's, 3 at Main 4's, 4 at Main 5's, 5 at Main 6's. Each
-further visit's roaming kills add about 550.
+dead). Each level-up lands on a turn-in: 2 at Main 2's, 3 at Main 4's, 4 at Main 5's, 5 at Main 6's. Each further
+visit's roaming kills add about 550.
 
 ### Everything once
 
@@ -211,13 +213,14 @@ Every mission as soon as it opens (the valley's side missions before Main 5, the
 | Main 7 | none | 0 | 4,600 | **39,324** | **6.84** |
 
 **About 149 kills give about 14,800 XP, sixteen missions 24,550: about 39,300 XP, level 6.8.** A side mission is worth
-about an eighth to a fifth of a level where it's met, Borderlands' share (Calder's Caches, a short errand, a twentieth). A player who does the mountain after Main 6
-instead meets Abel at about 5 and ends about the same (the falloff takes a little more of the mountain's kills). The
-Gravemother's and the Foreman's Vigil Stones (a kill each again) add about 860 and 1,140 a time.
+about an eighth to a fifth of a level where it's met, Borderlands' share (Calder's Caches, a short errand, a twentieth).
+A player who does the mountain after Main 6 instead meets Abel at about 5 and ends about the same (the falloff takes a
+little more of the mountain's kills). The Gravemother's and the Foreman's Vigil Stones (a kill each again) add about 860
+and 1,140 a time.
 
-These are the paper model's (the test's own sums, with the layout's levels, print in its log and may differ by a few
-hundredths: the mountain's zones come from `patches/missions.json`; without them its fights would count at the valley's
-2-3 and a full clear end about 6.7).
+These are the paper model's; the test's own sums, with the layout's levels, print in its log and may differ by a few
+hundredths. The mountain's zones come from `patches/missions.json`; without them its fights would count at the valley's
+2-3 and a full clear end about 6.7.
 
 **The encounters between the fights** (`Art/Levels/RansomsRest/layout.json` gameplay.encounters, placed by
 `Tools/Unreal/build_area_camps.py`; the user's budget, 2026-10-08: about 15 more kills on the story's way at most, which
@@ -238,9 +241,9 @@ cellar's, the mountain's) are the paths' own, counted once even when the layout 
 
 ## Changing the numbers
 
-1. Change a mission's `experience` in the asset scripts (or the curve or the kill rules in the settings), an encounter's creatures
-   or budget in `layout.json` gameplay.encounters, or a zone's or a set kind's level in gameplay.levels (a new encounter
-   needs its levels planned in `Tests/CreatureAreaLevelTests.cpp` too; a new mission fight its kills in
+1. Change a mission's `experience` in the asset scripts (or the curve or the kill rules in the settings), an encounter's
+   creatures or budget in `layout.json` gameplay.encounters, or a zone's or a set kind's level in gameplay.levels (a new
+   encounter needs its levels planned in `Tests/CreatureAreaLevelTests.cpp` too; a new mission fight its kills in
    `Tests/PacingPaths.h`).
 2. Run the scripts (`create_area_assets.py` for levels), then `Tools\runtests.ps1 -Filter Looter.Progression.Pacing`:
    its log prints both tables again; `Looter.Areas.Bands` and `Looter.Creatures.AreaLevels` check the levels.
@@ -275,8 +278,8 @@ Silver pops out as a small pile of coins (`ASilverPickup`) that flies to a livin
 
 Rolled apart from the loot tables (their own random streams), so the guns', ammo's, grenades' and motes' odds don't move.
 
-**Mission purses** (fixed, paid at the turn-in and shown on the MISSION COMPLETE banner): the older missions' are kept by
-id (`MissionRewards::SilverFor`), the newer ones' are their own (`FMissionRewards::Silver`, the mission scripts';
+**Mission purses** (fixed, paid at the turn-in, shown on the MISSION COMPLETE banner): the older missions' are kept by id
+(`MissionRewards::SilverFor`), the newer ones' are their own (`FMissionRewards::Silver`, the mission scripts';
 `MissionRewards::PurseOf` takes the mission's own first). Each optional objective done adds 10 more (at level 1).
 
 | Mission | Giver | Silver |
@@ -341,7 +344,7 @@ and twenty guns sold (twelve Common, six Uncommon, two Rare):
 | **In all** | **about 1,420** |
 
 Steady supplies (ten boxes of ammo, six jars of salt) cost about 375; what's left buys **about five or six Uncommon or two
-Rare guns of the day** (186 and 397 at level 4), a Legendary (2,100 at level 6) costs more than the whole playthrough
+Rare guns of the day** (186 and 397 at level 4). A Legendary (2,100 at level 6) costs more than the whole playthrough
 earns, and a Basic kill is worth under a box of ammo: drops stay about the guns. An explorer (the mountain, the bounty,
 every container and camp) earns about 2,000, and 400 more with the payroll kept. The test holds the normal play between
 1,000 and 1,800 and the guns of the day to "a few"; Lost Property's shelving upgrades (150 to 1,200) are what the

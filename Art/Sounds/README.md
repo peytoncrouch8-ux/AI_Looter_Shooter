@@ -1,42 +1,42 @@
 # Sounds
 
 Every sound in the game is synthesized from scratch by the scripts here: numpy in Blender's bundled Python, no
-recordings, no sample libraries, no generators. Change a sound by changing its recipe and rendering again; never edit
-a WAV by hand.
+recordings, no sample libraries, no generators. Change a sound by changing its recipe and rendering again; never edit a
+WAV by hand.
+
+## Files
 
 ```
 Art/Sounds/lib/          the synthesis library (see lib/__init__.py for what each module holds)
-Art/Sounds/recipes/      one recipe per cue, by group: guns, impacts, feedback, ui, loot (and the bench, the
-                         soul-motes), player (and the melee strike, the mantle and vault), creatures (and the rank
-                         sting, the ambushes' entrances), world, fauna (the ambient birds, insects, tumbleweeds, dust
-                         devils, washing), bosses (the boss fights' stings and voices), ambience (beds by area and
-                         light, sweeteners), music (the score: themes, combat and boss layers, stingers), voices (the
-                         Unpaid's murmured barks, the idle calls, the living heard through walls), throwables (the
-                         grave-salt grenade) and props (the lootable world: crates, barrels, graves, coffins, mailboxes,
-                         footlockers), economy (silver found, the vendor's counter: buy, sell, not enough),
-                         bells (the Bell-Ringer's hand bell: toll, cracked toll, lift, clang, raising, swipe) and
-                         shrines (the vigil stones: rising, kneeling, the refusal, the iron bell's summons),
-                         givers (mission offers, the stamp, found letters; its paper and stamp helpers are shared),
-                         graves (a save point marked: the lantern, a bell's hum, the Gravewind), holds (the hold
-                         ring's click), lostloot (the depot's Lost Property window), missions (optional ticks, mission
-                         items, the turn-in's choice, readables, the porch plate, going underground), orelift (the
-                         ore lift: signal bells, the steam whistle, the winch and cable loops, the cage's creaks and
-                         clanks), watchfire (the tower's brazier), miners (the dead miners, Thaddeus, Hiram; its
-                         rock-gallery space is shared), foreman (the Foreman's fight, fuses and roof), roosts
-                         (Hob's roosts: found, the loop near one, the crows' carry and the death drag) and fittings
-                         (the mountain's mission fittings: the lift's crank, boiler and clamp pin, the manway gate);
-                         impacts
-                         also has a cue per surface (dirt, grass, gravel, sand, stone, sheet metal, glass, cloth,
-                         hay, bone) and the ricochet layered on glancing hits;
-                         kit.py holds the shared building blocks (clicks, clacks, whooshes, cloth,
-                         scrapes, creaks, bubbles, chimes, plucked strings...) and band.py the score's instruments and
-                         mixer
+Art/Sounds/recipes/      one recipe per cue, by group (below); kit.py holds the shared building blocks (clicks, clacks,
+                         whooshes, cloth, scrapes, creaks, bubbles, chimes, plucked strings...), band.py the score's
+                         instruments and mixer
 Art/Sounds/render.py     renders, mixes and checks (run by Tools/sounds.ps1)
 Art/Sounds/check.py      the check: numbers, flags, pictures and the listening page
 Art/Sounds/cues.json     every cue's files and mix, read by Tools/Unreal/build_sound_bank.py
 Art/Sounds/Out/          the rendered WAVs (Git LFS): <Cue_With_Underscores>_<NN>.wav
 Saved/SoundCheck/        the check's output (not in git): index.html, <Cue>.png, report.txt, report.json
 ```
+
+Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__init__.py`'s `GROUPS` or it never renders):
+- guns; impacts (also a cue per surface: dirt, grass, gravel, sand, stone, sheet metal, glass, cloth, hay, bone; and the
+  ricochet layered on glancing hits); feedback; ui; loot (and the bench, the soul-motes); player (and the melee strike,
+  the mantle and vault); creatures (and the rank sting, the ambushes' entrances); world.
+- fauna (the ambient birds, insects, tumbleweeds, dust devils, washing); bosses (the boss fights' stings and voices);
+  ambience (beds by area and light, sweeteners); music (the score: themes, combat and boss layers, stingers).
+- voices (the Unpaid's murmured barks, the idle calls, the living heard through walls); throwables (the grave-salt
+  grenade); props (the lootable world: crates, barrels, graves, coffins, mailboxes, footlockers); economy (silver found,
+  the vendor's counter: buy, sell, not enough).
+- bells (the Bell-Ringer's hand bell: toll, cracked toll, lift, clang, raising, swipe); shrines (the vigil stones:
+  rising, kneeling, the refusal, the iron bell's summons).
+- givers (mission offers, the stamp, found letters; its paper and stamp helpers are shared); graves (a save point
+  marked: the lantern, a bell's hum, the Gravewind); holds (the hold ring's click); lostloot (the depot's Lost Property
+  window); missions (optional ticks, mission items, the turn-in's choice, readables, the porch plate, going
+  underground).
+- orelift (the ore lift: signal bells, the steam whistle, the winch and cable loops, the cage's creaks and clanks);
+  watchfire (the tower's brazier); miners (the dead miners, Thaddeus, Hiram; its rock-gallery space is shared); foreman
+  (the Foreman's fight, fuses and roof); roosts (Hob's roosts: found, the loop near one, the crows' carry and the death
+  drag); fittings (the mountain's mission fittings: the lift's crank, boiler and clamp pin, the manway gate).
 
 ## Render
 
@@ -47,22 +47,24 @@ Tools\sounds.ps1 -Zoom 0.12 Impact.* also a picture of each cue's first 0.12 s (
 Tools\sounds.ps1 -CheckOnly          only the mix and the check
 ```
 
-Like `Tools\artrun.ps1`, it waits while `Saved\ArtPause.flag` exists and runs at below-normal priority, so it's safe
-beside a running editor. Several Blenders share the cues (`-Jobs`, default cores - 2). Rendering is deterministic:
-every random number comes from a generator seeded by the cue's name and variation, so the same recipe always gives
-the same files. After a render, Main runs `build_sound_bank.py` to bring them into Unreal.
+- Like `Tools\artrun.ps1`, it waits while `Saved\ArtPause.flag` exists and runs at below-normal priority: safe beside a
+  running editor.
+- Several Blenders share the cues (`-Jobs`, default cores - 2).
+- Deterministic: every random number comes from a generator seeded by the cue's name and variation, so the same recipe
+  always gives the same files.
+- After a render, Main runs `build_sound_bank.py` to bring them into Unreal.
 
 ## The format (the contract)
 
 - 48 kHz, 16-bit PCM with triangular dither. Mono for 3D cues; 2D cues may be stereo.
 - Each cue's variations share one gain: the loudest peak sits at -1.05 dBFS, under the contract's -1. Variations are
   matched in loudness first (unless the cue sets `align=False`), so the game's random pick never jumps in level.
-- One-shots start at once (trimmed to the first sound) and end in silence (trimmed with a fade). Loops (`loop=True`)
-  are built in a circle (periodic noise, circular filters, tails folded round to the start) and left whole.
+- One-shots start at once (trimmed to the first sound) and end in silence (trimmed with a fade). Loops (`loop=True`) are
+  built in a circle (periodic noise, circular filters, tails folded round to the start) and left whole.
 - `cues.json`: one entry per cue with `files`, `volume_db`, `pitch_jitter`, `class`, `attenuation`, `loop`, `space`,
-  `max_concurrent`. `volume_db` is the mix: each cue's `level` (how loud it should sound against the rifle's shot)
-  less its measured loudness (the loudest 200 ms, K-weighted as in ITU-R BS.1770) against the rifle's, so the rifle
-  plays at 0 dB and everything else sits under it.
+  `max_concurrent`. `volume_db` is the mix: each cue's `level` (how loud it should sound against the rifle's shot) less
+  its measured loudness (the loudest 200 ms, K-weighted as in ITU-R BS.1770) against the rifle's, so the rifle plays at
+  0 dB and everything else sits under it.
 
 ## Add a cue
 
@@ -78,94 +80,82 @@ the same files. After a render, Main runs `build_sound_bank.py` to bring them in
    ```
 
    `v` is the variation (0..), `r` its seeded generator; give each layer its own stream with `child(r, 'name')` so
-   adding a layer doesn't change the others. Return mono for 3D, mono or stereo `(2, n)` for 2D. `@cue`'s arguments
-   are documented in `recipes/__init__.py` (`swell=True` for sounds meant to fade in, `loop=True` for loops).
-3. Render it (`Tools\sounds.ps1 World.Windmill.*`), look at `Saved\SoundCheck\<Cue>.png` and its line in
-   `report.txt`, listen on `index.html`, and fix what the flags say.
+   adding a layer doesn't change the others. Return mono for 3D, mono or stereo `(2, n)` for 2D. `@cue`'s arguments are
+   documented in `recipes/__init__.py` (`swell=True` for sounds meant to fade in, `loop=True` for loops).
+3. Render it (`Tools\sounds.ps1 World.Windmill.*`), look at `Saved\SoundCheck\<Cue>.png` and its line in `report.txt`,
+   listen on `index.html`, and fix what the flags say.
 
 ## The check's flags
 
-`PEAK` over -1 dBFS, `CLIP` full-scale samples, `DC` offset, `CLICK` a sharp spike where the sound is quiet (a layer
-cut off), `LATE START` more than 5 ms before the sound reaches -40 dB under its peak (feels laggy), `CUT TAIL` not
-ending near silence, `SEAM JUMP` / `SEAM CLICK` a loop's join, `STEREO IN 3D`, and `HARSH 2-5K` for sounds heard over
-and over (guns, impacts, footsteps, hit markers, clicks) carrying too much in the ear's most sensitive band or a sharp
-spike there. `report.txt` also lists each file's loudness, spectral centroid and band shares (sub, low, low-mid, mid,
-presence 2-5 kHz, high, air).
+- `PEAK` over -1 dBFS; `CLIP` full-scale samples; `DC` offset; `CLICK` a sharp spike where the sound is quiet (a layer
+  cut off); `LATE START` more than 5 ms before the sound reaches -40 dB under its peak (feels laggy); `CUT TAIL` not
+  ending near silence; `SEAM JUMP` / `SEAM CLICK` a loop's join; `STEREO IN 3D`.
+- `HARSH 2-5K`: sounds heard over and over (guns, impacts, footsteps, hit markers, clicks) carrying too much in the
+  ear's most sensitive band, or a sharp spike there.
+- `report.txt` also lists each file's loudness, spectral centroid and band shares (sub, low, low-mid, mid, presence
+  2-5 kHz, high, air).
 
 ## How the sounds are built
 
 - **The score** (2026-10-08): original weird-west music in 6/8 at 75 in D, so the themes, the combat layer and the boss
-  pieces line up on a 1.6 s bar and the director (`Audio/MusicDirectorSubsystem`) crossfades on bar lines: plucked
-  strings in drop D, a reed calling between phrases, a far bell, cello and ghost strings for the themes; galloping toms,
-  a bass ostinato and climbing tremolo strings for combat. Kept about 10 dB under creature cries.
+  pieces line up on a 1.6 s bar and the director (`Audio/MusicDirectorSubsystem`) crossfades on bar lines. Themes:
+  plucked strings in drop D, a reed calling between phrases, a far bell, cello and ghost strings. Combat: galloping
+  toms, a bass ostinato, climbing tremolo strings. Kept about 10 dB under creature cries.
 - **Ambience**: two loops per area and light (19 s and 13 s, played together, so nothing audibly repeats for minutes)
   and one-shot sweeteners placed round the listener; places that sound (creeks, ponds, falls, the windmill, the Rim's
   wind, the Sink) are 3D emitters placed by `Tools/Unreal/build_area_sound.py`.
-
-- **Guns** (heavy and punchy, the user's pick; round 2 made them less synthetic, after Borderlands' big, punchy guns,
-  2026-10-08): modelled the way a real shot reaches a close microphone, not built from drum-machine parts. A
-  Friedlander pressure pulse (a near-instant rise, a positive phase of 1.3 ms for the rifle and 2.6 ms for the shotgun,
-  a shallower negative phase, roughened per take) with the crack on its front; the weight as one slow push and pull of
-  air kept in its lows (no pitched sine sweep); the gas as a dense spray of random impulses over turbulent noise,
-  overdriven, its level flickering and puffing; the ground bounce two darker copies 2-8 ms behind; a recorder model
-  (lopsided overload clipping, a ringing input filter that turns it into a low heave, gain bloom after the overload,
-  a proximity lift at 100-120 Hz). The action is loud enough to hear on every shot (the rifle's hammer tick just
-  before the blast, carrier and bolt clacks after; the shotgun's receiver ring, its forend's steel-on-wood knock, a
-  faint pellet hiss). The tail is two slap-backs then 18-26 echoes at random distances, each darker and more smeared
-  the farther it is, over a rumble whose level wanders: about 1 s for the rifle, 1.5 s for the shotgun. A soft clip
-  before the limiter keeps the snap. Reloads are clanks: steel modes held to about 1-4 kHz, a polymer or wood knock
-  and a low thud, with the slides kept dark and well under the hits. The Drover revolver (2026-10-09) follows the same
-  recipe with its own shot (a bigger, slower pulse than the rifle's, a smaller one than the shotgun's, the cylinder gap's
-  spit) and a cue for each reload step (cylinder out, eject, rounds in, cylinder home), each starting where
-  `Weapons/ReloadMotion.cpp`'s step does.
-- **Creatures** sound like what they are: a spider's shell cracks when hit and it clicks, rasps and hisses (no voice);
-  a slime is all jelly (slaps, squelches, wobble, bubbles; no voice); the Unpaid are ghostly voices, and a bullet
-  through one is a hollow thump and a puff of grave dust. Each kind has its own hit (`Creature.<Kind>.Hit`).
-- **The melee strike** (2026-10-09) layers: `Player.Melee.Hit` is the blow's weight alone (a dull knock and a shove
-  of air, driven into one punch), and on a creature one layer says what gave (`HitFlesh` a meaty slap, `HitShell` the
-  spiders' chitin cracking, `HitGel` the slimes' springy squelch, built from the creatures' own materials); on the
-  world the bullet's impact is the layer. The swing is a 2D rush of air crossing right to left, quiet as it starts.
-- **Fauna** (2026-10-09, `recipes/fauna.py`): birds are syrinx notes, not voices: a near-pure tone on a curved pitch
-  contour (chevrons, slurs, warbles, rolled 'rup's), weak harmonics, a breath of noise on the note, membrane flutter,
-  louder where the pitch is highest; a sparrow take is two or three birds at their own pitches and distances trading
-  notes, a swallow's twitter swoops past with its Doppler. The crow's caw is a formant voice (beaky tract, rough,
-  rasped, overdriven). Wings are pushes of air (a whump and a feather rustle per downstroke; a crow's few, a sparrow's
-  a twenty-a-second whirr). The flies loop keeps a whole number of wingbeats per fly, so it loops without a seam.
-- **Props** (2026-10-09, `recipes/props.py`): the lootable world, physical first: crates and barrels bursting (boards
-  cracking, nails squealing, staves and a hoop springing apart, the pieces clattering down), a grave dug, a coffin pried and
-  its lid shoved off, a mailbox's tin door, a footlocker's lid. Heard in every yard, so the cracks stay off the 2-5 kHz band.
-- **Throwables** (2026-10-09, `recipes/throwables.py`): the grave-salt grenade, a steel tin packed with salt: the throw
-  (2D, a rush of air from the off hand), the bounce (a shell ringing, salt rattling behind), the fuse (a loop of fizz and
-  sputter), the burst (built like a gun's shot, with salt crackling on top), the sear on the Unpaid and the pickup.
-- **Voices** (2026-10-09, `recipes/voices.py`): the Unpaid's barks are murmured, never spoken: the game plays one breathy
-  syllable cue (`Creature.Unpaid.Murmur` voiced, `.Mutter` whispered) per syllable of the line shown over them, so each
-  starts at once and fades soon. Spiders and slimes get a rare idle call. The living on Ransom's Rest are heard through
-  their walls (hushed voices, coughs, a music box, a latch, a floorboard, Tilly's saw, a dog far off).
-- **The economy** (2026-10-12, `recipes/economy.py`): silver is a thin coin, struck: a small plate's few inharmonic
-  modes, short and bright, with a hard tick of metal on metal, pitched low for a coin, with the 2-5 kHz band cut since a
-  fight's worth of pickups chimes over and over. The pickup (2D) is a few coins dropping into a palm and a small two-note
-  chime for the find. The vendor's counter is pine boards, a small brass till bell, leather and a purse: a purchase counts
-  coins onto the counter and slides the goods across, a sale sets the gun down with a knock and counts coins into the hand,
-  and a refusal shakes a light purse and pushes one coin back.
-- **The Bell-Ringer's bell** (2026-10-12, `recipes/bells.py`): an oversized bronze hand bell, thin-walled, so struck it rings
-  partials that are not a harmonic series, each split into a slowly beating pair by the casting's roundness, the upper
-  ones dying first, with little hum; the iron clapper's contact is short and bright. Rung in the hand it keeps swinging, so
-  the ring waxes and wanes. The toll is carried across the fight like a gunshot (slap-backs off the buildings and ridges);
-  a Gravebound ringer's cracked bell splits its pairs wide and buzzes, sour and choked. The tell (`Lift`) is the clapper
-  knocking about as the bell is shaken, faster toward the stroke, and a cold breath drawn in; `Raise` is whispering voices
-  drawing up out of the ground over the bell's long hum. The vigil stones' iron bell (`recipes/shrines.py`) is this bell
-  made duller and shorter, its upper partials dying fast, with candle flames (combustion's breath, low and soft) and stone
-  grinding up through earth (a rough judder with grit and clods).
-- **The Venom Spitter** (2026-10-12, `recipes/creatures.py`): the spider's hiss and rasp, wetter, with the sac sloshing,
-  and its venom a thick bubbling liquid that splats, spreads and sizzles. The tell is the cue the player learns to move
-  on, so `Creature.Spitter.Tell` rises clearly to its end (a glug quickening and climbing, bubbles coming faster, a hiss
-  rising to the fangs), 0.9 s long, the tell's length in the game.
-- **Struck things** are modal: a set of decaying sines whose frequencies follow the object's physics (free bars,
-  plates, wood, shells, cast bells), struck by a force pulse as long as the contact (hard steel ~0.1 ms, a heel
-  several ms).
+- **Guns** (heavy and punchy, the user's pick; round 2, 2026-10-08, made them less synthetic, after Borderlands' big,
+  punchy guns): modelled the way a real shot reaches a close microphone, not built from drum-machine parts.
+  - A Friedlander pressure pulse (a near-instant rise, a positive phase of 1.3 ms for the rifle and 2.6 ms for the
+    shotgun, a shallower negative phase, roughened per take) with the crack on its front.
+  - The weight: one slow push and pull of air kept in its lows (no pitched sine sweep).
+  - The gas: a dense spray of random impulses over turbulent noise, overdriven, its level flickering and puffing.
+  - The ground bounce: two darker copies 2-8 ms behind.
+  - A recorder model: lopsided overload clipping, a ringing input filter that turns it into a low heave, gain bloom
+    after the overload, a proximity lift at 100-120 Hz.
+  - The action is loud enough to hear on every shot: the rifle's hammer tick just before the blast, carrier and bolt
+    clacks after; the shotgun's receiver ring, its forend's steel-on-wood knock, a faint pellet hiss.
+  - The tail: two slap-backs then 18-26 echoes at random distances, each darker and more smeared the farther it is, over
+    a rumble whose level wanders: about 1 s for the rifle, 1.5 s for the shotgun. A soft clip before the limiter keeps
+    the snap.
+  - Reloads are clanks: steel modes held to about 1-4 kHz, a polymer or wood knock and a low thud; slides kept dark and
+    well under the hits.
+  - The Drover revolver (2026-10-09): the same recipe with its own shot (a bigger, slower pulse than the rifle's, a
+    smaller one than the shotgun's, the cylinder gap's spit) and a cue per reload step (cylinder out, eject, rounds in,
+    cylinder home), each starting where `Weapons/ReloadMotion.cpp`'s step does.
+- Each recipe module's docstring describes its sounds in full; below are only the choices that hold across cues.
+- **Creatures** sound like what they are: a spider's shell cracks when hit and it clicks, rasps and hisses (no voice); a
+  slime is all jelly (no voice); the Unpaid are ghostly voices, a bullet through one a hollow thump and a puff of grave
+  dust. Each kind has its own hit (`Creature.<Kind>.Hit`).
+- **The melee strike** (2026-10-09): `Player.Melee.Hit` is the blow's weight alone; on a creature one layer says what
+  gave (`HitFlesh`, `HitShell` the spiders' chitin, `HitGel` the slimes' gel, built from the creatures' own materials);
+  on the world the bullet's impact is the layer. The swing is a 2D rush of air crossing right to left, quiet as it
+  starts.
+- **Fauna** (2026-10-09, `recipes/fauna.py`): birds are syrinx notes (near-pure tones on curved pitch contours), not
+  voices; the crow's caw is a formant voice; wings are pushes of air. The flies loop keeps a whole number of wingbeats per
+  fly, so it loops without a seam.
+- **Props** (2026-10-09, `recipes/props.py`): physical first; heard in every yard, so the cracks stay off the 2-5 kHz
+  band.
+- **Throwables** (2026-10-09, `recipes/throwables.py`): the grave-salt grenade's throw (2D, from the off hand), bounce,
+  fuse (a loop), burst (built like a gun's shot, salt crackling on top), the sear on the Unpaid and the pickup.
+- **Voices** (2026-10-09, `recipes/voices.py`): the Unpaid's barks are murmured, never spoken: the game plays one
+  breathy syllable cue (`Creature.Unpaid.Murmur` voiced, `.Mutter` whispered) per syllable of the line shown over them,
+  so each starts at once and fades soon. Spiders and slimes get a rare idle call; the living on Ransom's Rest are heard
+  through their walls.
+- **The economy** (2026-10-12, `recipes/economy.py`): silver is a thin struck coin, pitched low, its 2-5 kHz band cut
+  since a fight's worth of pickups chimes over and over; the pickup is 2D. The vendor's counter: pine boards, a small
+  brass till bell, leather and a purse.
+- **The Bell-Ringer's bell** (2026-10-12, `recipes/bells.py`): bronze, inharmonic partials split into slowly beating
+  pairs, the upper ones dying first; the toll carries across the fight like a gunshot; a Gravebound ringer's cracked
+  bell splits its pairs wide and buzzes. The tell is `Lift`; `Raise` is whispering voices over the bell's long hum. The
+  vigil stones' iron bell (`recipes/shrines.py`) is this bell made duller and shorter.
+- **The Venom Spitter** (2026-10-12, `recipes/creatures.py`): the tell is the cue the player learns to move on, so
+  `Creature.Spitter.Tell` rises clearly to its end, 0.9 s long, the tell's length in the game.
+- **Struck things** are modal: a set of decaying sines whose frequencies follow the object's physics (free bars, plates,
+  wood, shells, cast bells), struck by a force pulse as long as the contact (hard steel ~0.1 ms, a heel several ms).
 - **Friction** (scrapes, creaks, stridulation) is stick-slip: trains of tiny slips rung through the thing's resonances.
-- **Voices** (creatures, breath) are formant synthesis: a harmonic glottal source with jitter, shimmer and breath,
-  each harmonic weighted by a cascade of vocal-tract resonances that glide between vowels.
+- **Voices** (creatures, breath) are formant synthesis: a harmonic glottal source with jitter, shimmer and breath, each
+  harmonic weighted by a cascade of vocal-tract resonances that glide between vowels.
 - **Spaces** are convolution with impulse responses made from noise: band-wise decays (highs die first), sparse early
   reflections, outdoor slap-backs.
 - **The interface** speaks in brass and steel string: small brass ticks and chimes, plucked strings on a wooden box,
@@ -176,18 +166,18 @@ presence 2-5 kHz, high, air).
 - Saturate noise *before* shaping its envelope: driving an already-decaying burst flattens the decay and turns a shot
   into a long hiss.
 - Set a reverb's level against the dry sound's loudest 20 ms, not its single peak sample, or a crack spike skews it.
-- A five-formant cascade dies off far too fast above 4 kHz; the upper formants' falls are eased (`voice.EASE`) to
-  stand in for the resonances the series leaves out.
+- A five-formant cascade dies off far too fast above 4 kHz; the upper formants' falls are eased (`voice.EASE`) to stand
+  in for the resonances the series leaves out.
 - Brown noise's lows wander too much between seeds for a thump layer; pink noise with a low cut weighs the same every
   time.
 - A pitched sine sweep under a shot is a drum machine's kick: the user heard the guns as fake. Real weight is a
   broadband pressure pulse and the microphone's overload; judge a shot's lows by how tonal they are (round 2: 0.85 ->
   0.42) and how alike they are take to take, as well as by their share.
-- Keep a shot's lows in one deterministic layer: low noise under it adds to or cancels the sine at
-  random, and swung the low share about 20 points between variations.
+- Keep a shot's lows in one deterministic layer: low noise under it adds to or cancels the sine at random, and swung the
+  low share about 20 points between variations.
 - Mix noise layers by their loudest 10 ms, not their peak sample, so every variation weighs the same.
-- The mix is set against the rifle's loudness: a denser rifle moves every cue (2026-10-08 the whole set shifted
-  -2.2 dB when World.ShutterSlam reached the 0 dB cap). ShutterSlam and Impact.Wood now set the headroom.
+- The mix is set against the rifle's loudness: a denser rifle moves every cue (2026-10-08 the whole set shifted -2.2 dB
+  when World.ShutterSlam reached the 0 dB cap). ShutterSlam and Impact.Wood now set the headroom.
 - Every layer cut at its length gets a short end fade (envelopes and modal rings do it themselves), or the check finds
   clicks in the quiet tails.
 - A cue that opens on something slow (a rub, a creak, a whoosh) starts with the small physical touch that begins it (the
@@ -195,5 +185,5 @@ presence 2-5 kHz, high, air).
   land on a card's slam (0.12 s) is led by the hand's swish (`givers.swish`, already moving at the first sample).
 - A loop made of loud, sparse events (an engine's chuffs) puts its seam in a lull between two of them: the seam check
   compares the join's jump with the median step, which the quiet between events keeps small.
-- Mix a loop's layers by loudness (`analysis.loudness_max`, `orelift._lv`), not by peak: a creak's peak says little
-  about how it sits over a continuous hum.
+- Mix a loop's layers by loudness (`analysis.loudness_max`, `orelift._lv`), not by peak: a creak's peak says little about
+  how it sits over a continuous hum.

@@ -1,122 +1,122 @@
 # AI_Looter_Shooter
 
-A stylized first/third-person looter shooter in Unreal Engine 5.8, C++-first. The game is the runtime module
-`Source/AI_Looter_Shooter`; `Source/LooterEditor` holds editor-only level tools and never ships. Levels: the tutorial
-island `/Game/Maps/Lvl_TutorialIsland` (`Docs/TutorialIsland.md`) and the campaign's first area, Ransom's Rest,
-`/Game/Maps/Lvl_RansomsRest` (`Docs/Areas/RansomsRest.md`). `/Game/Maps/Lvl_Skyreach` (the old sky-island style) is
-kept for reference.
+Stylized first/third-person looter shooter, Unreal Engine 5.8, C++-first. Game: runtime module
+`Source/AI_Looter_Shooter`. `Source/LooterEditor`: editor-only level tools, never ships. Levels: Ransom's Rest
+`/Game/Maps/Lvl_RansomsRest` (campaign area 1; `Docs/Areas/RansomsRest.md`, mountain in `RansomsRest_Expansion.md`);
+the tutorial island `/Game/Maps/Lvl_TutorialIsland` (menu backdrop; `Docs/TutorialIsland.md`); `/Game/Maps/Lvl_Skyreach`
+(old sky-island style, kept).
 
-Read first: `Docs/Handoff.md` (where the work stands), `Docs/Pipeline.md` (how things get made: tools, level and asset
-workflows, lessons, bug fixes), `CODEMAP.md` (every source file in one line). Also `Docs/Plan.md`, `Docs/Performance.md`,
-`Docs/Story.md` and `Docs/Areas/` (one design per area). This file rides along with every request, every agent's too:
-keep it short and put details in the pipeline.
+Read first: `Docs/Handoff.md` (state, next steps), `Docs/Pipeline.md` (tools, workflows, lessons, bug fixes),
+`CODEMAP.md` (every source file, one line each). As needed: `Docs/Plan.md`, `Docs/Performance.md`, `Docs/Story.md`,
+`Docs/Progression.md`, `Docs/Areas/`. History and background (`Docs/Archive`, `Docs/Art`, `Docs/Handoffs`,
+`Docs/Polish`, `*Concepts.md`, `*_Review.md`): only when pointed to. This file rides with every request and every agent:
+keep it short; details go in the pipeline.
 
 ## How we work (the user's rules; add new ones here)
 
-1. **The goal:** the game will be sold on Steam. No copyrighted content anywhere (art, sound, names, text, code), and
-   the player's enjoyment comes first. Aim for the quality of the best big-studio games.
-2. **One orchestrator, at most 8 agents.** The main session, running on Opus 5.5, plans, orchestrates and implements.
-   It reads the docs that bear on the work first, verifies every agent's work, keeps the quality up and keeps the
-   agents in step. Roles, as needed: Planning, Story/Logistics, Special FX/Sounds, Art/UI/Assets, Demo (plays the game
-   and fixes bugs) and Review (checks code, world and assets for consistency).
-   - **The orchestrator picks each agent's model** to get the most from the usage: the strongest for design and tricky
-     code, a lighter one (Sonnet, Haiku) for reviews, mechanical edits and simple searches.
-   - **Parallel agents work on disjoint files against one shared contract** the orchestrator writes first: the names,
-     signatures, palette and placements they all code to (`Docs/Pipeline.md`, "Who does what").
+1. **Goal:** sold on Steam. No copyrighted content anywhere (art, sound, names, text, code). Player enjoyment first.
+   Quality of the best big-studio games.
+2. **One orchestrator, at most 8 agents.** The main session (Opus 5.5) plans, orchestrates, implements; reads the docs
+   that bear on the work first; verifies every agent's work; keeps quality up and agents in step. Roles as needed:
+   Planning, Story/Logistics, Special FX/Sounds, Art/UI/Assets, Demo (plays the game, fixes bugs), Review (code, world,
+   assets consistency).
+   - The orchestrator picks each agent's model: strongest for design and tricky code; Sonnet/Haiku for reviews,
+     mechanical edits, simple searches.
+   - Parallel agents work on disjoint files against one shared contract the orchestrator writes first (names,
+     signatures, palette, placements; `Docs/Pipeline.md`, "Who does what").
 3. **Ask the user first** before bringing in a new tool or program.
-4. **Ask when a request is unclear,** as tap-to-answer choices (AskUserQuestion), not open questions.
+4. **Unclear request: ask** with tap-to-answer choices (AskUserQuestion), not open questions.
 5. **Report briefly:** a few lines, not paragraphs.
-6. **Two failures, then ask.** If a task fails twice, ask the user how to go on.
-7. **Feedback matters.** Every action (keys, shooting, hits, kills, pickups, menus) should feel rewarding, with
-   high-quality visual and sound effects.
-8. **Keep the pipeline written down** in `Docs/Pipeline.md`: bug fixes, how assets and terrain are made, what worked
-   and what didn't, the theme and look, how work is divided. Update it as work finishes.
-9. **Keep the handoff current.** `Docs/Handoff.md` says what's finished, where we left off and where we're headed.
-   Update it as each request finishes.
+6. **Two failures, then ask** the user how to go on.
+7. **Feedback matters:** every action (keys, shooting, hits, kills, pickups, menus) feels rewarding, with high-quality
+   visual and sound effects.
+8. **Keep `Docs/Pipeline.md` current:** bug fixes, how assets and terrain are made, what worked and didn't, theme and
+   look, how work is divided. Update as work finishes.
+9. **Keep `Docs/Handoff.md` current:** what's finished, where we left off, where we're headed. Update as each request
+   finishes.
 10. **No working through a degraded context.** Before auto-compaction, tell the user it's time for a new session and
     make sure the handoff has what the next one needs.
+11. **Docs are for the AI** (the user never reads them; 2026-10-13): terse plain-English notes, each fact in one place,
+    every name, number, rule and user decision kept; history goes to `Docs/Archive`.
 
 ## The game's flow
 
-`ALooterGameMode` (the default) gives each player an `ALooterPlayerController`, the `ALooterHUD` and
-`/Game/Player/BP_LooterCharacter`, a data-only child of `ALooterCharacter`. The game starts at the main menu: the
-default map opened with `?game=Menu` (`LocalMapOptions` in DefaultEngine.ini; `ALooterMenuGameMode`). Single Player picks one of three sessions
-(`USessionSubsystem`) and opens the level with `?Session=N`; the session saves the player and the world, and the pause
-menu's Save & Quit goes back to the menu. Play-In-Editor opens the menu too; `Looter.PlayLevel [map]` (which `pie.ps1`
-runs) or a map named on the command line (`perf.ps1`, `tour.ps1`) plays a new game and saves nothing.
-`Looter.Session.Play <1-3>` plays a session from the console. The standalone game
-and PIE share `Saved\SaveGames`; command-line runs keep theirs under `%LOCALAPPDATA%\UnrealEngine\5.8\Saved`.
+- `ALooterGameMode` (default) gives each player `ALooterPlayerController`, `ALooterHUD` and
+  `/Game/Player/BP_LooterCharacter` (data-only child of `ALooterCharacter`).
+- Starts at the main menu: default map opened with `?game=Menu` (`LocalMapOptions` in DefaultEngine.ini;
+  `ALooterMenuGameMode`). Single Player picks one of three sessions (`USessionSubsystem`), opens the level with
+  `?Session=N`; the session saves player and world; pause menu's Save & Quit returns to the menu.
+- PIE opens the menu too. `Looter.PlayLevel [map]` (`pie.ps1` runs it) or a map on the command line (`perf.ps1`,
+  `tour.ps1`) plays a new game and saves nothing. `Looter.Session.Play <1-3>` plays a session from the console.
+- Standalone game and PIE share `Saved\SaveGames`; command-line runs use `%LOCALAPPDATA%\UnrealEngine\5.8\Saved`.
 
 ## Build, run, test
 
-- **Build** with the editor closed: `Tools\launch.ps1 -Build` closes it, builds, reopens it and waits for the MCP
-  server. A full rebuild takes about 2.5 minutes. The module builds without unity, so every `.cpp` includes what it
-  uses and anonymous-namespace names can't clash. For people: `Launch AI_Looter_Shooter.bat` plays the game, and
-  `Launch AI_Looter_Shooter Editor (backup).bat` builds and opens the editor.
-- **Tests:** `Tools\runtests.ps1` runs every `Looter.*` test (editor open). Keep them all passing.
-- **Performance:** `Tools\perf.ps1 -Label "what changed" -Exec "Looter.Quality Medium"` with the editor closed,
-  before and after anything that could change cost; `Tools\tour.ps1` for every viewpoint of a level. Options and
-  per-pass captures are in the pipeline.
-- **Editor automation** goes over MCP on port 8000: `Tools\mcp.ps1 <toolset> <tool> '<json>'`, `Tools\runscript.ps1`
-  (sandboxed Python), `Tools\describe.ps1 <toolset>`, `Tools\console.ps1 "<command>" [-Until <regex>]` (no window
-  focus needed), `Tools\pie.ps1`, `Tools\input.ps1` (keys, mouse) and `Tools\grab.ps1` (screenshots). Unreal Python
-  runs as `Tools\console.ps1 "py <absolute path>"`; use it for editor-only properties the MCP tools refuse
-  (`set_editor_property`, bools without the `b`).
+- **Build** with the editor closed: `Tools\launch.ps1 -Build` closes it, builds, reopens, waits for the MCP server
+  (full rebuild ~2.5 min). No unity build: every `.cpp` includes what it uses; anonymous-namespace names can't clash.
+  For people: `Launch AI_Looter_Shooter.bat` plays; `Launch AI_Looter_Shooter Editor (backup).bat` builds and opens.
+- **Tests:** `Tools\runtests.ps1` runs every `Looter.*` test (editor open). Keep all passing.
+- **Performance:** `Tools\perf.ps1 -Label "what changed" -Exec "Looter.Quality Medium"` (editor closed) before and
+  after anything that could change cost; `Tools\tour.ps1` for every viewpoint. Options in the pipeline.
+- **Editor automation** over MCP, port 8000: `Tools\mcp.ps1 <toolset> <tool> '<json>'`, `Tools\runscript.ps1`
+  (sandboxed Python), `Tools\describe.ps1 <toolset>`, `Tools\console.ps1 "<command>" [-Until <regex>]` (no focus
+  needed), `Tools\pie.ps1`, `Tools\input.ps1` (keys, mouse), `Tools\grab.ps1` (screenshots). Unreal Python:
+  `Tools\console.ps1 "py <absolute path>"`; use it for editor-only properties MCP refuses (`set_editor_property`,
+  bools without the `b`).
 
 ## Safety
 
-- Never send Ctrl+key or Delete through `Tools\input.ps1` unless a text box verifiably has focus (this once deleted
-  every actor in the loaded level).
-- `Tools\input.ps1` stops when the Unreal Editor isn't the foreground window. Keep that guard: a crashed editor once
-  let a console command get typed into the Claude chat and sent.
+- Never send Ctrl+key or Delete through `Tools\input.ps1` unless a text box verifiably has focus (once deleted every
+  actor in the loaded level).
+- `Tools\input.ps1` stops when the Unreal Editor isn't the foreground window. Keep that guard (a crashed editor once let
+  a console command be typed into the Claude chat and sent).
 - A modal editor dialog blocks every MCP call until answered. `Tools\editorwindows.ps1` lists the editor's windows.
-- Stop play-in-editor before closing the editor. Check what an asset tool will overwrite before running it.
-- Commit after every working step. Messages end with the co-author trailer the session asks for.
+- Stop PIE before closing the editor. Check what an asset tool will overwrite before running it.
+- Commit after every working step; messages end with the co-author trailer the session asks for.
 
 ## Code rules
 
 - C++ first. Blueprints and data assets hold data and configuration only, never gameplay logic.
-- One class per file, under about 500 lines per file; a bigger class spreads its `.cpp` over files named by topic
-  (`WeaponBaseFiring.cpp`). Private helpers go in the `.cpp`.
-- Organize code by game area (`Docs/Plan.md`). Update `CODEMAP.md` when you add, move or delete a file.
-- Comments explain why, in plain words. Match the style: tabs, UE naming, `F`/`U`/`A`/`E` prefixes. Log to
-  `LogLooter`.
+- One class per file, under ~500 lines per file; a bigger class splits its `.cpp` by topic (`WeaponBaseFiring.cpp`).
+  Private helpers in the `.cpp`.
+- Code organized by game area (`Docs/Plan.md`). Update `CODEMAP.md` when adding, moving or deleting a file.
+- Comments explain why, in plain words. Style: tabs, UE naming, `F`/`U`/`A`/`E` prefixes. Log to `LogLooter`.
 
 ## UI rules (the user requires these)
 
-- Every UI is built in C++ with the `LooterUI` kit (`UI/Style/LooterUIStyle.h`), "Concept C": dark glass panels,
-  orange accents, cyan lines, Chakra Petch. Colors come only from `LooterUI::Color` (or `LooterUI::Hex` inside it).
-- The gameplay HUD has no backing panels: floating outlined text and slim slanted bars, in gunmetal metalwork. Its
-  pieces: the player frame (portrait in a medallion, health bar, level gem, experience bar) bottom-left, the mission
-  tracker on the left, the weapon column with its upright cartridge bottom-right, the bezelled minimap top-right.
-  `Tools\hudshots.ps1` photographs it at 1080p through its states. A mockup's CSS px are used as Slate font sizes as
-  they are (the user's call: in game the text is a third bigger than in the mockups).
-- Every background a widget paints calls `LooterUI::MarkBackground`, so the UI transparency setting fades it. Text,
+- Every UI is C++ with the `LooterUI` kit (`UI/Style/LooterUIStyle.h`), "Concept C": dark glass panels, orange accents,
+  cyan lines, Chakra Petch. Colors only from `LooterUI::Color` (or `LooterUI::Hex` inside it).
+- Gameplay HUD has no backing panels: floating outlined text, slim slanted bars, gunmetal metalwork. Pieces: player
+  frame (portrait in a medallion, health bar, level gem, experience bar) bottom-left; mission tracker left; weapon
+  column with upright cartridge bottom-right; bezelled minimap top-right. `Tools\hudshots.ps1` photographs it at 1080p
+  through its states. Mockup CSS px are used as Slate font sizes as they are (the user's call: in game text is a third
+  bigger than in mockups).
+- Every background a widget paints calls `LooterUI::MarkBackground` (the UI transparency setting fades it). Text,
   outlines and bars stay solid.
 - Vector art from mockups goes through the kit's brushes (`IconBrush`, `PaintedIconBrush`), never new texture assets.
-- Weapon and ammo icons are Inked icons, generated from `Art/Icons/InkedIcons.py` into `UI/Style/InkedIconData.inl`
-  and drawn with `LooterUI::InkedIconBrush`, tinted white (grey dims them).
+- Weapon and ammo icons are Inked icons: `Art/Icons/InkedIcons.py` -> `UI/Style/InkedIconData.inl`, drawn with
+  `LooterUI::InkedIconBrush`, tinted white (grey dims them).
 
 ## Assets
 
-- Git LFS stores every binary. Prefixes: `SM_`, `SK_`, `M_`/`MI_`, `T_`, `DA_`, `BP_`, `UCX_` (collision),
-  `SOCKET_` (attach points), `S_` (sound waves), `SC_`/`SMX_`/`ATT_` (sound classes, mix, attenuation).
-- Sounds are script-made only (the user's call): recipes in `Art/Sounds` rendered by `Tools\sounds.ps1`, put in the
-  game by `Tools/Unreal/build_sound_bank.py`; code plays them by cue (`Audio/LooterSound.h`, `LooterSoundCues.h`).
+- Git LFS stores every binary. Prefixes: `SM_`, `SK_`, `M_`/`MI_`, `T_`, `DA_`, `BP_`, `UCX_` (collision), `SOCKET_`
+  (attach points), `S_` (sound waves), `SC_`/`SMX_`/`ATT_` (sound classes, mix, attenuation).
+- Sounds are script-made only (the user's call): recipes in `Art/Sounds`, rendered by `Tools\sounds.ps1`, imported by
+  `Tools/Unreal/build_sound_bank.py`; code plays them by cue (`Audio/LooterSound.h`, `LooterSoundCues.h`).
 - Never generate meshes while the game runs; bake them into assets.
-- Blender models live in `Art/Models/<Category>/`; `Tools\models.ps1` imports them (`Art/README.md` has the rules).
-  Change a model in Blender and import again, never edit the imported mesh. Blender beside a running editor goes
-  through `Tools\artrun.ps1`, which waits while `Saved\ArtPause.flag` exists (create it before measuring, delete after).
-- Guns are assembled from parts (`Art/Models/Weapons/<Gun>.py` and `<Gun>.parts.csv`; see the pipeline). A dropped gun
-  saves its parts by key: never rename or reuse a key.
-- The look is textured "stylized realism": the masters in `/Game/Art/Materials/Masters` with texture sets from
-  `Art/Textures/<Set>`, always through material instances. Nanite can't draw the additive glow; use an emissive surface.
-- Level building (area builds, the tutorial island's scripts, props, scatter, ground fit) is in the pipeline. Terrain
-  meshes keep every triangle in their Nanite fallback: Medium draws it and collision is cooked from it.
-- The minimap reads tags: `Ground` (walkable terrain, its extent) and `Obstacle` (solid things on it). Tag meshes you
-  place; props tag themselves.
-- Every new creature, enemy, NPC or friend gets a bestiary page (`/Game/Data/Bestiary/DA_Bestiary_<Name>`, with
-  `ActorClass` set). `Looter.Bestiary.Entries` checks them.
-- Volumes answer world-static queries: a trace looking for real geometry uses `LooterWorld::StaticGeometryParams`.
-- **Performance target:** 120 fps (8.3 ms) at 1080p on Medium on the reference PC (RX 580, i7-8700, 16 GB), at the
-  heaviest view. Lumen and Nanite are for High and Epic only, so everything must look right on the Nanite fallback.
+- Blender models in `Art/Models/<Category>/`; `Tools\models.ps1` imports them (rules: `Art/README.md`). Change the
+  model in Blender and reimport, never edit the imported mesh. Blender beside a running editor goes through
+  `Tools\artrun.ps1` (waits while `Saved\ArtPause.flag` exists: create it before measuring, delete after).
+- Guns are assembled from parts (`Art/Models/Weapons/<Gun>.py`, `<Gun>.parts.csv`; pipeline). A dropped gun saves its
+  parts by key: never rename or reuse a key.
+- Look: textured "stylized realism": masters in `/Game/Art/Materials/Masters`, texture sets from `Art/Textures/<Set>`,
+  always through material instances. Nanite can't draw additive glow; use an emissive surface.
+- Level building (area builds, tutorial island scripts, props, scatter, ground fit): the pipeline. Terrain meshes keep
+  every triangle in their Nanite fallback (Medium draws it; collision is cooked from it).
+- Minimap reads tags: `Ground` (walkable terrain, its extent), `Obstacle` (solid things on it). Tag meshes you place;
+  props tag themselves.
+- Every new creature, enemy, NPC or friend gets a bestiary page (`/Game/Data/Bestiary/DA_Bestiary_<Name>`, `ActorClass`
+  set); `Looter.Bestiary.Entries` checks them.
+- Volumes answer world-static queries: a trace for real geometry uses `LooterWorld::StaticGeometryParams`.
+- **Performance target:** 120 fps (8.3 ms), 1080p Medium, reference PC (RX 580, i7-8700, 16 GB), heaviest view.
+  Lumen and Nanite are High/Epic only: everything must look right on the Nanite fallback.
