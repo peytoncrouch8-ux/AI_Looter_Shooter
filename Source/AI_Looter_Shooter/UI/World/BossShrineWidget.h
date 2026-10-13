@@ -16,7 +16,7 @@ struct FBossShrineView;
 /**
  * A vigil stone's menu (ABossShrine; the user's "a pedestal with a menu"), one LooterUI panel over the dimmed world, opened by
  * a tap of Interact at the stone: its boss's name and level, when it was last laid to rest, how many times it was beaten,
- * what it drops (with the call back's lesser luck), and "Call it back". While the boss can't be called the button refuses
+ * what it drops (the same on a call back), and "Call it back". While the boss can't be called the button refuses
  * (the stone's refusal sound) and the panel says why: the countdown to its call back (mm:ss, running by the frame), the
  * boss out there now, or not yet; and the rule under it (five minutes, or at once after a Save & Quit).
  *

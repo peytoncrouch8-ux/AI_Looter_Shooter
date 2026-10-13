@@ -448,6 +448,13 @@ TOptional<FVector> ASkiffJetty::GetInteractionLocation() const
 	return TOptional<FVector>();
 }
 
+bool ASkiffJetty::IsInteractionPart(const UPrimitiveComponent* Part) const
+{
+	// The plank and nothing else: walking the jetty and looking at its deck, its posts, the slate or the skiff's side offers
+	// nothing, and they hide the plank's foot like any scenery would.
+	return Part && Part == Gangplank.Get();
+}
+
 FStationBoardWords ASkiffJetty::GetBoardWords() const
 {
 	return FStationBoardWords::Jetty();

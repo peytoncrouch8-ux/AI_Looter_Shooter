@@ -131,8 +131,18 @@ void UHudPickupFeedWidget::BindToPawn()
 
 void UHudPickupFeedWidget::HandleAmmoPickedUp(EAmmoType Type, int32 Amount)
 {
-	const TCHAR* Name = LooterAmmo::GetInfo(Type).Name;
-	AddLine(Amount > 0 ? FString::Printf(TEXT("+%d %s"), Amount, Name) : FString::Printf(TEXT("%s full"), Name));
+	const FString Line = AmmoLine(Type, Amount);
+	if (!Line.IsEmpty())
+	{
+		AddLine(Line);
+	}
+}
+
+FString UHudPickupFeedWidget::AmmoLine(EAmmoType Type, int32 Amount)
+{
+	// Only ammo that was actually added is told ("+36 AR Ammo"). A pickup the pool had no room for is collected without a
+	// word (the user's call): "full" lines on every drop walked over would only crowd the feed.
+	return Amount > 0 && LooterAmmo::IsValid(Type) ? FString::Printf(TEXT("+%d %s"), Amount, LooterAmmo::GetInfo(Type).Name) : FString();
 }
 
 void UHudPickupFeedWidget::HandleLootAnnounced(const AWeaponBase* Weapon)

@@ -24,6 +24,14 @@ struct FMinimapWaypoint
 	float Angle = 0.f;
 };
 
+/** How many of the minimap's markers go to each kind of thing within its rim (UHudMinimapWidget::SplitMarkers). */
+struct FMinimapMarkerSplit
+{
+	int32 Hostiles = 0;
+	int32 Guns = 0;
+	int32 Ammo = 0;
+};
+
 /**
  * The HUD's round minimap (top-right) that turns with the view, so the way you look is up: the island from above
  * (baked by UMinimapSubsystem), hostiles as red diamonds, loot as dots in its rarity color, ammo as small dots and your
@@ -65,6 +73,13 @@ public:
 
 	/** How much of the world the map shows (the radius, in cm) at a zoom: 1 shows 35 m around the player, 2 half that. */
 	static float RangeAtZoom(float Zoom);
+
+	/**
+	 * How its Pool markers go round what lies within the rim: every hostile first (what a minimap is looked at for), then
+	 * the guns, then the ammo with what's left. Loot piles up after long fights, and lies there still after a Save & Quit:
+	 * it must never crowd the hostiles off the map.
+	 */
+	static FMinimapMarkerSplit SplitMarkers(int32 Pool, int32 Hostiles, int32 Guns, int32 Ammo);
 
 	/**
 	 * Makes this one a live copy for the settings menu's zoom preview: the HUD's own is put away under the menu, so the menu

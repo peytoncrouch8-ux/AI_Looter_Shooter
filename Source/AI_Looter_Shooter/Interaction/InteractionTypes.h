@@ -67,6 +67,12 @@ struct AI_LOOTER_SHOOTER_API FInteractionCandidate
 	/** How far from the eyes it can be (cm). */
 	float Reach = 0.f;
 
+	/**
+	 * How directly it must be looked at: the cosine of its cone's half angle (the component narrows it with distance for
+	 * the level's interactables). Unset: the cone the focus is chosen with (loot's).
+	 */
+	TOptional<float> MinAim;
+
 	/** It must be in plain sight of the eyes (not behind a wall). Loot never asked that, and keeps not asking. */
 	bool bCheckSight = true;
 

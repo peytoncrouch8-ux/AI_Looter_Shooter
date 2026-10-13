@@ -19,8 +19,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnInteractionUsed, AActor*, Target
  * windows, headboards, the bell, lantern posts, hay bales, posters, the skiff's gangplank (IInteractable, found through
  * UInteractionSubsystem).
  *
- * Every frame it finds what the player means to use: what the crosshair's line meets, or else the best of what lies in a
- * forgiving cone within reach of the eyes and in plain sight (InteractionFocus::Select). It owns the key's tap and hold:
+ * Every frame it finds what the player means to use: the thing the crosshair's line meets (only its part to use counts:
+ * the station's board, not the depot round it), or else the best of what lies in a cone within reach of the eyes and in
+ * plain sight (InteractionFocus::Select). Loot keeps its forgiving cone; the level's interactables are looked at, a
+ * slightly wider cone up close narrowing with distance. It owns the key's tap and hold:
  * a thing with only a tap is used as the key goes down; one with a hold fills while the key is held and is used when the
  * hold runs its time, and letting go early is its tap when it takes one (loot's rule: tap to pick up, hold to equip).
  * Looking away or letting go early cancels a hold. Every use that does something is told to the mission runner once
@@ -67,11 +69,22 @@ public:
 	float Reach = 250.f;
 
 	/**
-	 * How directly the player must look at something to use it: the cosine of its angle off the crosshair (0.8 is about 37
+	 * How directly the player must look at loot to pick it up: the cosine of its angle off the crosshair (0.8 is about 37
 	 * degrees, loot's rule all along). Something the crosshair is right on always counts.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction", meta = (ClampMin = "-1", ClampMax = "1"))
 	float AimThreshold = 0.8f;
+
+	/**
+	 * How directly the player must look at the level's interactables (doors, chests, boards, the gangplank, vendors): the
+	 * cosine of the cone's half angle within a meter of the eyes (0.866 is 30 degrees, a little help for a pad's stick)...
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction", meta = (ClampMin = "-1", ClampMax = "1"))
+	float InteractableNearAim = 0.866f;
+
+	/** ...narrowing evenly to this at the edge of their reach (0.966 is 15 degrees): from a few steps off, really looked at. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction", meta = (ClampMin = "-1", ClampMax = "1"))
+	float InteractableFarAim = 0.966f;
 
 	/**
 	 * The Interact action. Its key ("Pick up / interact" in the settings, E) is mapped in the weapon controls (IMC_Weapons),
@@ -121,10 +134,10 @@ private:
 	/** Adds Actor if it's an interactable not too far to ask, at AtPoint (where the crosshair meets it) or its own point. */
 	FInteractionCandidate* AddInteractable(const FInteractionView& View, AActor* Actor, const FVector* AtPoint, TArray<FInteractionCandidate>& OutCandidates) const;
 
-	/** What the crosshair's line meets, when it's an interactable: looked straight at, wherever its middle is. */
+	/** What the crosshair's line meets, when it's an interactable's part to use: looked straight at, wherever its middle is. */
 	void AddLookedAt(const FInteractionView& View, TArray<FInteractionCandidate>& OutCandidates) const;
 
-	/** Nothing solid stands between the eyes and the candidate's point. */
+	/** Nothing solid stands between the eyes and the candidate's point (InteractionFocus::DoesHitHide). */
 	bool IsInSight(const FInteractionView& View, const FInteractionCandidate& Candidate) const;
 
 	/** Traces skip the player and what they carry. */

@@ -6,13 +6,13 @@
 
 /**
  * The map page's pin art, drawn as the kit's vector icons (LooterUI::IconBrush; no texture assets): a headstone with a
- * cross for a respawn grave, a locomotive for a station, an anvil for a gunsmith's bench, a coin for a store, a chest, a
- * star for a turn-in and the waypoint's ring for the objective. Most sit in a dark glass badge ringed in their colour, so
- * they read over any ground; the colours come from the kit's palette.
+ * cross for a respawn grave, a locomotive for a station, an anvil for a gunsmith's bench, a candlelit stele for a vigil
+ * stone, a coin for a store, a chest, a star for a turn-in and the waypoint's ring for the objective. Most sit in a dark
+ * glass badge ringed in their colour, so they read over any ground; the colours come from the kit's palette.
  */
 namespace MapIcons
 {
-	/** A pin's colour: the objective orange, a turn-in green, graves cyan, stations pale, stores silver, benches ivory, chests gold. */
+	/** A pin's colour: the objective orange, a turn-in green, graves cyan, stations pale, vigil stones brass, stores silver, benches ivory, chests gold. */
 	AI_LOOTER_SHOOTER_API FLinearColor Color(EMapPinKind Kind);
 
 	/** A pin's size on the page (page units): its badge's, or its icon's where it has none. */

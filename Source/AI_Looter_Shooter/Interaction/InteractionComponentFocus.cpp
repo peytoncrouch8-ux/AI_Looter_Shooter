@@ -14,24 +14,11 @@
 
 namespace
 {
-	/** Nothing is used from farther than this (cm): interactables beyond it aren't even asked how they're used. */
-	constexpr float MaxReach = 1000.f;
-
-	/** A sight line blocked this close to the point looked at still sees it (a poster's own wall, a door's frame). */
-	constexpr float SightTolerance = 15.f;
-
-	/** The interactable a hit belongs to: the actor hit, or the one it's fixed to (a door's parts). */
-	AActor* FindInteractableOwner(AActor* Hit)
-	{
-		for (AActor* Candidate = Hit; Candidate; Candidate = Candidate->GetAttachParentActor())
-		{
-			if (Candidate->Implements<UInteractable>())
-			{
-				return Candidate;
-			}
-		}
-		return nullptr;
-	}
+	/**
+	 * Nothing is used from farther than this (cm), a conversation's reach (the story's talk points ask 4 m; hands reach
+	 * 2.5 m): interactables beyond it aren't even asked how they're used.
+	 */
+	constexpr float MaxReach = 400.f;
 }
 
 bool UInteractionComponent::GetView(FInteractionView& OutView) const
@@ -142,6 +129,10 @@ FInteractionCandidate* UInteractionComponent::AddInteractable(const FInteraction
 	Candidate.Location = Point;
 	Candidate.Options = Interactable->GetInteractionOptions(*this);
 	Candidate.Reach = FMath::Min(Candidate.Options.Reach > 0.f ? Candidate.Options.Reach : Reach, MaxReach);
+	// Looked at, not just near: a little help up close, really looked at from a few steps off. (The crosshair's own point
+	// lies dead ahead, so a thing found by the line always passes.)
+	Candidate.MinAim = InteractionFocus::NarrowingCone(InteractableNearAim, InteractableFarAim,
+		static_cast<float>(FVector::Dist(Point, View.ReachOrigin)), Candidate.Reach);
 	// Found by the crosshair's line, it's in sight already.
 	Candidate.bCheckSight = AtPoint == nullptr;
 	return &Candidate;
@@ -163,7 +154,8 @@ void UInteractionComponent::AddLookedAt(const FInteractionView& View, TArray<FIn
 	{
 		return;
 	}
-	AActor* LookedAt = FindInteractableOwner(Hit.GetActor());
+	// Only an interactable's part to use: the depot's wall beside the board, or the jetty's deck, is a wall and a deck.
+	AActor* LookedAt = InteractionFocus::FindLookedAt(Hit.GetActor(), Hit.GetComponent());
 	if (!LookedAt)
 	{
 		return;
@@ -195,13 +187,7 @@ bool UInteractionComponent::IsInSight(const FInteractionView& View, const FInter
 	{
 		return true;
 	}
-	// Its own parts don't hide it, nor does what it stands against right at the point (a poster's wall).
-	const AActor* HitActor = Hit.GetActor();
-	if (HitActor && Candidate.Actor && (HitActor == Candidate.Actor || HitActor->IsAttachedTo(Candidate.Actor)))
-	{
-		return true;
-	}
-	return FVector::Dist(Hit.ImpactPoint, Candidate.Location) <= SightTolerance;
+	return !InteractionFocus::DoesHitHide(Candidate, Hit.GetActor(), Hit.GetComponent(), Hit.ImpactPoint);
 }
 
 void UInteractionComponent::IgnorePlayer(FCollisionQueryParams& Params) const

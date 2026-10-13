@@ -81,6 +81,30 @@ namespace
 		return Icon;
 	}
 
+	/**
+	 * A small stele with a candle burning on it: the vigil stone (a peaked slab on a plinth, a candle stub and its flame). The
+	 * shapes are bold and few: in a badge the icon is hardly fourteen pixels across. Every fill is convex.
+	 */
+	const FVectorIcon& ShrineIcon()
+	{
+		static const FVectorIcon Icon = []
+		{
+			FVectorIcon Result;
+			// The flame: a teardrop, its tip up.
+			Result.Fills.Add(TArray<FVector2D>{FVector2D(12.0, 0.8), FVector2D(14.2, 3.9), FVector2D(14.7, 5.8), FVector2D(13.5, 7.5),
+				FVector2D(12.0, 8.1), FVector2D(10.5, 7.5), FVector2D(9.3, 5.8), FVector2D(9.8, 3.9) });
+			// The candle stub, standing in the stele's peak.
+			Result.Fills.Add(TArray<FVector2D>{FVector2D(10.9, 8.1), FVector2D(13.1, 8.1), FVector2D(13.1, 11.0), FVector2D(10.9, 11.0) });
+			// The stele: a slab with sloped shoulders.
+			Result.Fills.Add(TArray<FVector2D>{FVector2D(7.6, 19.0), FVector2D(7.6, 13.2), FVector2D(12.0, 10.4), FVector2D(16.4, 13.2),
+				FVector2D(16.4, 19.0) });
+			// The plinth it stands on.
+			Result.Fills.Add(TArray<FVector2D>{FVector2D(4.6, 19.0), FVector2D(19.4, 19.0), FVector2D(19.4, 22.0), FVector2D(4.6, 22.0) });
+			return Result;
+		}();
+		return Icon;
+	}
+
 	/** A chest, its lid apart from its body by a dark seam. */
 	const FVectorIcon& ChestIcon()
 	{
@@ -181,7 +205,9 @@ namespace MapIcons
 		case EMapPinKind::Station:     return LooterUI::Color::Title();
 		case EMapPinKind::Vendor:      return LooterUI::Color::IconShade();
 		case EMapPinKind::Bench:       return LooterUI::Color::IconLight();
-		case EMapPinKind::Chest:       return LooterUI::Color::AccentLight();
+		// The vigil stone's candlelit brass (the cursed irons' tarnished gold): apart from the chest's orange-gold and the bench's ivory.
+		case EMapPinKind::Shrine:      return LooterUI::Color::Curse();
+		case EMapPinKind::Chest:      return LooterUI::Color::AccentLight();
 		case EMapPinKind::ChestLooted: return LooterUI::Color::TextDim() * FLinearColor(1.f, 1.f, 1.f, 0.75f);
 		}
 		return LooterUI::Color::Text();
@@ -197,6 +223,7 @@ namespace MapIcons
 		case EMapPinKind::Station:     return 24.f;
 		case EMapPinKind::Vendor:      return 24.f;
 		case EMapPinKind::Bench:       return 22.f;
+		case EMapPinKind::Shrine:      return 26.f;
 		case EMapPinKind::Chest:       return 20.f;
 		case EMapPinKind::ChestLooted: return 13.f;
 		}
@@ -219,6 +246,7 @@ namespace MapIcons
 		case EMapPinKind::Station:     return LooterUI::IconBrush(TEXT("MapStation"), StationIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Vendor:      return LooterUI::IconBrush(TEXT("MapVendor"), VendorIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Bench:       return LooterUI::IconBrush(TEXT("MapBench"), BenchIcon(), PixelsPerUnit, Box, Tint);
+		case EMapPinKind::Shrine:      return LooterUI::IconBrush(TEXT("MapShrine"), ShrineIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Chest:
 		case EMapPinKind::ChestLooted: return LooterUI::IconBrush(TEXT("MapChest"), ChestIcon(), PixelsPerUnit, Box, Tint);
 		}

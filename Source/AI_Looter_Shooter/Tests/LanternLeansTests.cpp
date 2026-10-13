@@ -5,6 +5,8 @@
 #include "Areas/AreaDefinition.h"
 #include "Areas/StationBoard.h"
 #include "Bestiary/BestiaryEntry.h"
+#include "Inventory/WeaponManagerComponent.h"
+#include "Loot/LootTossComponent.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionEventObjectives.h"
 #include "Missions/MissionObjective.h"
@@ -24,6 +26,7 @@
 #include "World/LanternFlame.h"
 #include "World/TrainStation.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Misc/PackageName.h"
@@ -55,6 +58,31 @@ namespace
 			Found += !It->IsActorBeingDestroyed() && Heirloom && It->GetInstance().Named == Heirloom ? 1 : 0;
 		}
 		return Found;
+	}
+
+	/** The Heirlooms in a backpack. */
+	int32 CountCarried(const UWeaponManagerComponent* Inventory, const UNamedWeaponDefinition* Heirloom)
+	{
+		if (!Inventory || !Heirloom)
+		{
+			return 0;
+		}
+		return Inventory->GetBackpack().FilterByPredicate([Heirloom](const FWeaponInstanceData& Gun) { return Gun.Named == Heirloom; }).Num();
+	}
+
+	/**
+	 * A backpack for the player's stand-in, every slot full as a player's are by Main 7: a gun taken with a tap goes into
+	 * the backpack, as Heirloom does in play.
+	 */
+	UWeaponManagerComponent* GiveBackpack(AActor* Player)
+	{
+		UWeaponManagerComponent* Inventory = Player ? NewObject<UWeaponManagerComponent>(Player, TEXT("Weapons")) : nullptr;
+		if (Inventory)
+		{
+			Inventory->RegisterComponent();
+			Inventory->MaxWeapons = 0;
+		}
+		return Inventory;
 	}
 
 	/** Moves a hand-off's beat on for Seconds in tenths. */
@@ -154,12 +182,13 @@ bool FLanternLeansMissionTest::RunTest(const FString& Parameters)
 	UMissionRunner* Runner = World->GetSubsystem<UMissionRunner>();
 	UCaptionSubsystem* Captions = UCaptionSubsystem::Get(World);
 	AActor* Player = MissionTestWorld::SpawnMarker(World, FVector(0.0, 0.0, 90.0));
+	UWeaponManagerComponent* Inventory = GiveBackpack(Player);
 	ASpeakerPoint* Door = PlaceDeliasDoor(World, DoorAt, 180.0);
 	AActor* ScreenDoor = MissionTestWorld::SpawnMarker(World, FVector(300.0, -45.0, 60.0));
 	ADoorHandoff* Handoff = PlaceHandoff(World, HandoffAt, 180.0, ScreenDoor);
 	ATrainStation* Station = World->SpawnActor<ATrainStation>(FVector(6000.0, 0.0, 0.0), FRotator::ZeroRotator);
 	AActor* Platform = MissionTestWorld::SpawnMarker(World, PlatformAt, DepotPlace);
-	if (!Runner || !Captions || !Player || !Door || !ScreenDoor || !Handoff || !Station || !Platform)
+	if (!Runner || !Captions || !Player || !Inventory || !Door || !ScreenDoor || !Handoff || !Station || !Platform)
 	{
 		AddError(TEXT("The test level isn't whole."));
 		return false;
@@ -186,20 +215,25 @@ bool FLanternLeansMissionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...ready to turn in to Tilly, the Lily not open yet"), Runner->IsReadyToTurnIn(MainSeven) && !Campaign.IsAreaOpen(LilyId));
 	if (Heirloom)
 	{
-		AWeaponBase* Gun = Handoff->GetGun();
+		// Nothing in the world while she speaks: an unseen gun at the crack was taken unseen by the next tap of Interact (her
+		// door can't be talked to while she talks), into the backpack, and Heirloom never appeared.
 		TestTrue(TEXT("Her step done: the hand-off begins"), Handoff->GetState() == EDoorHandoffState::Handing);
-		TestTrue(TEXT("...Heirloom in the world at once, as loot, unseen at the crack"), Gun && Gun->IsPickup() && Gun->IsHidden()
-			&& Gun->GetInstance().Named == Heirloom && Gun->GetActorLocation().Equals(HandoffAt, 1.0));
-		TestEqual(TEXT("...one Heirloom"), CountHeirlooms(World, Heirloom), 1);
+		TestTrue(TEXT("...with nothing in the world yet, nothing to take unseen"), !Handoff->GetGun() && CountHeirlooms(World, Heirloom) == 0);
 		TestEqual(TEXT("The door shut as she starts"), Handoff->GetDoorAngle(), 0.f);
 		AdvanceBeat(*Handoff, Handoff->OpenAfter + Handoff->SwingSeconds + 0.1f);
 		TestNearlyEqual(TEXT("...then open a crack as she says she kept it back"), Handoff->GetDoorAngle(), Handoff->CrackDegrees, 0.01f);
 		TestNearlyEqual(TEXT("...the screen door turned on its hinge"), static_cast<float>(FRotator::NormalizeAxis(ScreenDoor->GetActorRotation().Yaw)),
 			Handoff->CrackDegrees, 0.5f);
-		TestTrue(TEXT("...the gun not out yet"), Gun && Gun->IsHidden() && !Handoff->IsHeldOut());
+		TestTrue(TEXT("...the gun not out yet"), !Handoff->GetGun() && !Handoff->IsGunOut() && CountHeirlooms(World, Heirloom) == 0);
 		AdvanceBeat(*Handoff, Handoff->GunOutAfter - Handoff->OpenAfter - Handoff->SwingSeconds);
-		TestTrue(TEXT("Held out through the crack: seen, loot, where she holds it (not dropped)"), Handoff->GetState() == EDoorHandoffState::Holding
-			&& Handoff->IsHeldOut() && Gun && !Gun->IsHidden() && Gun->GetActorLocation().Equals(HandoffAt, 1.0));
+		AWeaponBase* Gun = Handoff->GetGun();
+		TestTrue(TEXT("Out through the crack as she says he'd want you to have it: Heirloom, seen, loot"), Handoff->GetState() == EDoorHandoffState::Out
+			&& Handoff->IsGunOut() && Gun && !Gun->IsHidden() && Gun->IsPickup() && Gun->GetInstance().Named == Heirloom);
+		const ULootTossComponent* Toss = Gun ? Gun->FindComponentByClass<ULootTossComponent>() : nullptr;
+		TestTrue(TEXT("...a world drop: from the crack, tossed out of the door (it faces -X) and up, to land on the porch"), Gun && Toss
+			&& Gun->GetActorLocation().Equals(HandoffAt, 1.0) && Toss->IsActive() && Toss->Velocity.X < -100.0 && Toss->Velocity.Z > 0.0);
+		TestTrue(TEXT("...its beam up"), Gun && Gun->GetLootBeam() && Gun->GetLootBeam()->IsVisible());
+		TestEqual(TEXT("...one Heirloom"), CountHeirlooms(World, Heirloom), 1);
 		TestFalse(TEXT("...and it waits without ticking"), Handoff->IsActorTickEnabled());
 
 		// Talked to again: her words, and nothing more handed out.
@@ -207,8 +241,8 @@ bool FLanternLeansMissionTest::RunTest(const FString& Parameters)
 		Door->SpeakerPoint->Talk(Player);
 		TestEqual(TEXT("Talked to again: still one Heirloom"), CountHeirlooms(World, Heirloom), 1);
 
-		// Taken (the backpack takes it: the loot goes): the door eases shut.
-		Gun->Destroy();
+		// Taken with a tap (every slot full: the backpack takes it, the loot goes): the door eases shut.
+		TestTrue(TEXT("Taken into the backpack"), Gun && Inventory->TryPickup(Gun) && CountCarried(Inventory, Heirloom) == 1);
 		Runner->NotifyEvent(FMissionEvent::Interaction(Gun, /*bHeld*/ false));
 		TestTrue(TEXT("Taken: the door starts to shut"), Handoff->GetState() == EDoorHandoffState::Closing);
 		AdvanceBeat(*Handoff, Handoff->CloseAfterTaken + Handoff->SwingSeconds + 0.1f);
@@ -228,7 +262,8 @@ bool FLanternLeansMissionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...the Gilded Lily opened"), Campaign.IsAreaOpen(LilyId));
 	if (Heirloom)
 	{
-		TestEqual(TEXT("...and no Heirloom dropped: Delia's was the reward"), CountHeirlooms(World, Heirloom), 0);
+		TestTrue(TEXT("...and no Heirloom dropped: Delia's, in the backpack, was the reward"), CountHeirlooms(World, Heirloom) == 0
+			&& CountCarried(Inventory, Heirloom) == 1);
 	}
 
 	// Ned's page in the Ledger: his whereabouts, blank until now.
@@ -267,9 +302,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLanternLeansHandoffTest, "Looter.Story.Lantern
 
 bool FLanternLeansHandoffTest::RunTest(const FString& Parameters)
 {
-	// Heirloom is handed out once: a session that comes back past Delia's step gets nothing more (its gun is in hand, or on
-	// the porch where it was saved), and Main 7 finished from her step (the console) hands it out once, with no drop.
-	const UNamedWeaponDefinition* Heirloom = UNamedWeaponDefinition::FindByName(HeirloomId.ToString());
+	// Heirloom is handed out once: a session that comes back past Delia's step gets nothing more from her door (its gun is in
+	// the backpack here, and the turn-in gives no second), and Main 7 finished from her step (the console) gets it from the
+	// turn-in, once, with no beat at her door. (Every order of door, save and turn-in: HeirloomRewardTests.cpp.)
+	UNamedWeaponDefinition* Heirloom = UNamedWeaponDefinition::FindByName(HeirloomId.ToString());
 	if (!Heirloom)
 	{
 		AddWarning(TEXT("DA_Named_Heirloom isn't made (Tools/Unreal/create_named_weapons.py): skipped."));
@@ -295,8 +331,9 @@ bool FLanternLeansHandoffTest::RunTest(const FString& Parameters)
 		UWorld* World = TestLevel.GetTestWorld();
 		UMissionRunner* Runner = World->GetSubsystem<UMissionRunner>();
 		AActor* Player = MissionTestWorld::SpawnMarker(World, FVector(0.0, 0.0, 90.0));
+		UWeaponManagerComponent* Inventory = GiveBackpack(Player);
 		ADoorHandoff* Handoff = PlaceHandoff(World, HandoffAt, 180.0, nullptr);
-		if (!Runner || !Player || !Handoff)
+		if (!Runner || !Player || !Inventory || !Handoff)
 		{
 			AddError(TEXT("The test level isn't whole."));
 			return false;
@@ -307,21 +344,25 @@ bool FLanternLeansHandoffTest::RunTest(const FString& Parameters)
 		Runner->Update(0.f);
 		if (bResumedPast)
 		{
+			// Taken from her porch in that earlier session: in the backpack.
+			Inventory->AddToBackpack(Heirloom->MakeInstance(4));
 			TestTrue(Case + TEXT(": Main 7 goes on, waiting for Tilly"), Runner->GetStep(MainSeven) == MainSevenSteps && Runner->IsReadyToTurnIn(MainSeven));
 			TestTrue(Case + TEXT(": nothing handed out"), Handoff->GetState() == EDoorHandoffState::Done && !Handoff->GetGun()
 				&& CountHeirlooms(World, Heirloom) == 0);
 			Runner->CompleteMission(MainSeven);
-			TestEqual(Case + TEXT(": finished, still no Heirloom (the session has it)"), CountHeirlooms(World, Heirloom), 0);
+			TestTrue(Case + TEXT(": finished, still the one Heirloom (the backpack's)"), CountHeirlooms(World, Heirloom) == 0
+				&& CountCarried(Inventory, Heirloom) == 1);
 		}
 		else
 		{
 			TestEqual(Case + TEXT(": Main 7 at Delia's door"), Runner->GetStep(MainSeven), 0);
 			Runner->CompleteMission(MainSeven);
-			TestTrue(Case + TEXT(": finished, Heirloom handed out"), Campaign.HasCompleted(MainSeven) && Handoff->GetState() == EDoorHandoffState::Handing);
-			TestEqual(Case + TEXT(": one Heirloom, none dropped beside it"), CountHeirlooms(World, Heirloom), 1);
-			TestFalse(Case + TEXT(": no second one"), Handoff->HandOut());
+			TestTrue(Case + TEXT(": finished: the turn-in gave Heirloom, and her door has nothing to hand"), Campaign.HasCompleted(MainSeven)
+				&& Handoff->GetState() == EDoorHandoffState::Done && !Handoff->GetGun());
+			TestEqual(Case + TEXT(": one Heirloom"), CountHeirlooms(World, Heirloom), 1);
+			TestFalse(Case + TEXT(": no second one from her door"), Handoff->HandOut());
 			AdvanceBeat(*Handoff, Handoff->GunOutAfter + 0.1f);
-			TestTrue(Case + TEXT(": held out in the end, with no door to open"), Handoff->IsHeldOut());
+			TestEqual(Case + TEXT(": still one"), CountHeirlooms(World, Heirloom), 1);
 		}
 	}
 	return true;

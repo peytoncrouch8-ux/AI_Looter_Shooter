@@ -321,8 +321,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGravemotherMissionTest, "Looter.Story.Gravemot
 
 bool FGravemotherMissionTest::RunTest(const FString& Parameters)
 {
-	// Side 3 as create_side_mission_assets.py makes it: shut until Main 5 is finished, then enter the den (its place,
-	// measured with its height: the Sink's rim over it doesn't count), then kill the Gravemother (her lair's encounter
+	// Side 3 as create_side_mission_assets.py makes it: shut until Main 5 is finished, then "Find where the Gravemother
+	// hungers" (done on entering the Sink: the floor's place, 19.5 m measured with its height, so the whole floor and the
+	// ramp from about 2 m under the rim count, and the rim doesn't), then kill the Gravemother (her lair's encounter
 	// cleared: a kill before the step began counts). Experience, and no reward gun: her loot is her own.
 	FCampaignRecord Campaign;
 	FTestWorldWrapper TestLevel;
@@ -339,7 +340,7 @@ bool FGravemotherMissionTest::RunTest(const FString& Parameters)
 	const FName Rest(TEXT("TestRest"));
 	const FName MainId(TEXT("TestMain5"));
 	const FName SideId(TEXT("TestSide3"));
-	const FName DenTag(TEXT("TestDen"));
+	const FName SinkTag(TEXT("TestSinkFloor"));
 	const FName LairId(TEXT("TestDenLair"));
 	UPackage* Scratch = CreatePackage(nullptr);
 	UMissionDefinition* Main = MissionTestWorld::NewMission(Scratch, TEXT("TestMain5"), EMissionKind::Main, EMissionStart::Manual, Rest);
@@ -347,18 +348,19 @@ bool FGravemotherMissionTest::RunTest(const FString& Parameters)
 	UMissionDefinition* Side = MissionTestWorld::NewMission(Scratch, TEXT("TestSide3"), EMissionKind::Side, EMissionStart::Automatic, Rest);
 	Side->Prerequisites = { MainId };
 	UMissionReachObjective* Enter = MissionTestWorld::AddObjective<UMissionReachObjective>(Side, 0);
-	Enter->Place.Actor.ActorTag = DenTag;
-	Enter->Place.Radius = 450.f;
+	Enter->Place.Actor.ActorTag = SinkTag;
+	Enter->Place.Radius = 1950.f;
 	Enter->Place.bIgnoreHeight = false;
 	UMissionClearObjective* Kill = MissionTestWorld::AddObjective<UMissionClearObjective>(Side, 1);
 	Kill->SpawnerId = LairId;
 	Side->Rewards.ExperienceShare = 0.2f;
 
-	// The den's place 30 m off, her lair at its mouth (she comes only when called, here), the player at the Sink's middle.
-	AActor* Player = MissionTestWorld::SpawnMarker(World, FVector::ZeroVector);
-	AActor* Den = MissionTestWorld::SpawnMarker(World, FVector(3000.0, 0.0, 90.0), DenTag);
+	// The Sink's floor place at its middle, 90 cm over a floor 12 m under the rim (build_area_sink.py's Place_SinkFloor);
+	// her lair 27 m off (she comes only when called, here); the player on the rim, 23 m out.
+	AActor* Player = MissionTestWorld::SpawnMarker(World, FVector(2300.0, 0.0, 90.0));
+	AActor* Sink = MissionTestWorld::SpawnMarker(World, FVector(0.0, 0.0, -1110.0), SinkTag);
 	AEncounterSpawner* Lair = SpawnLair(World, FVector(2700.0, 0.0, 0.0), LairId, TEXT("TestDenMother"), false);
-	if (!TestTrue(TEXT("Player, den and lair placed"), Player && Den && Lair))
+	if (!TestTrue(TEXT("Player, Sink and lair placed"), Player && Sink && Lair))
 	{
 		return false;
 	}
@@ -366,24 +368,29 @@ bool FGravemotherMissionTest::RunTest(const FString& Parameters)
 	Runner->Update(0.f);
 	TestFalse(TEXT("Shut until Main 5 is finished"), Runner->IsRunning(SideId));
 	TestTrue(TEXT("Main 5 finished"), Runner->CompleteMission(MainId));
-	TestTrue(TEXT("It opens after Main 5, at entering the den"), Runner->IsRunning(SideId) && Runner->GetStep(SideId) == 0);
+	TestTrue(TEXT("It opens after Main 5, at finding where she hungers"), Runner->IsRunning(SideId) && Runner->GetStep(SideId) == 0);
 
-	// She comes out and is killed on the Sink's floor before the player ever enters the den.
+	// She comes out and is killed before the player has gone down into the Sink.
 	TestTrue(TEXT("She comes out"), Lair->TriggerWave());
 	EncounterTestWorld::KillAll(*Lair);
 	Lair->UpdateEncounter(0.5f);
-	TestTrue(TEXT("Killed on the floor: her lair is cleared"), Lair->GetState() == EEncounterState::Cleared);
+	TestTrue(TEXT("Killed: her lair is cleared"), Lair->GetState() == EEncounterState::Cleared);
 	Runner->Update(UMissionRunner::UpdateInterval);
-	TestEqual(TEXT("Still at entering the den"), Runner->GetStep(SideId), 0);
+	TestEqual(TEXT("Still at finding where she hungers"), Runner->GetStep(SideId), 0);
 
-	// Over the den on the rim, 12 m up: not in it.
-	Player->SetActorLocation(FVector(3000.0, 0.0, 1290.0));
+	// On the rim's lip (17.5 m out, standing on the ground 12 m over the floor): not in the Sink. Nor is the ramp's head:
+	// its 4th point (17.3 m out, 1.4 m under the rim, +90 for the player's middle) is still 20.3 m from the floor's place.
+	Player->SetActorLocation(FVector(1750.0, 0.0, 90.0));
 	Runner->Update(UMissionRunner::UpdateInterval);
-	TestEqual(TEXT("On the rim over the den: not entered"), Runner->GetStep(SideId), 0);
-	Player->SetActorLocation(FVector(2900.0, 100.0, 90.0));
+	TestEqual(TEXT("On the rim: not entered"), Runner->GetStep(SideId), 0);
+	Player->SetActorLocation(FVector(1732.0, 0.0, -52.0));
+	Runner->Update(UMissionRunner::UpdateInterval);
+	TestEqual(TEXT("At the ramp's head, 1.4 m under the rim: not entered"), Runner->GetStep(SideId), 0);
+	// Down the ramp (its 5th point: 16.1 m out, 1.9 m under the rim): in the Sink, and the kill before counts, so it's done.
+	Player->SetActorLocation(FVector(1612.0, 0.0, -104.0));
 	Runner->Update(UMissionRunner::UpdateInterval);
 	Runner->Update(UMissionRunner::UpdateInterval);
-	TestFalse(TEXT("In the den: and the kill before counts, so it's done"), Runner->IsRunning(SideId));
+	TestFalse(TEXT("Down the ramp: and the kill before counts, so it's done"), Runner->IsRunning(SideId));
 	TestTrue(TEXT("Recorded in the campaign"), Campaign.HasCompleted(SideId));
 
 	// The mission asset, once create_side_mission_assets.py has made it (it waits for Main 5), asks for the same.
@@ -400,8 +407,14 @@ bool FGravemotherMissionTest::RunTest(const FString& Parameters)
 	const UMissionClearObjective* AssetKill = Cast<UMissionClearObjective>(Asset->GetObjective(1, 0));
 	TestTrue(TEXT("Side 3 is a side mission after Main 5 on Ransom's Rest"), Asset->Kind == EMissionKind::Side
 		&& Asset->Prerequisites.Contains(FName(TEXT("Main5"))) && Asset->Area == FName(TEXT("RansomsRest")) && Asset->Steps.Num() == 2);
-	TestTrue(TEXT("Its first step: enter the den, measured with its height"), AssetEnter
-		&& AssetEnter->Place.Actor.ActorTag == Gravemother::DenPlaceTag && !AssetEnter->Place.bIgnoreHeight);
+	// "Find where the Gravemother hungers": the Sink's floor place (Main 5's own marker), 19.5 m measured with its height
+	// (the whole floor and the ramp from about 2 m under the rim, not the rim), its arrow on the ramp head's marker.
+	TestTrue(TEXT("Its first step: enter the Sink, measured with its height"), AssetEnter
+		&& AssetEnter->Place.Actor.ActorTag == FName(TEXT("Place_SinkFloor")) && !AssetEnter->Place.bIgnoreHeight
+		&& FMath::IsNearlyEqual(AssetEnter->Place.Radius, 1950.f, 1.f));
+	TestTrue(TEXT("...with its arrow on the ramp head, and the words the user asked for"), AssetEnter
+		&& AssetEnter->Waypoint == EMissionWaypoint::Actor && AssetEnter->WaypointActor.ActorTag == FName(TEXT("Place_SinkRim"))
+		&& AssetEnter->Text.ToString() == TEXT("Find where the Gravemother hungers"));
 	TestTrue(TEXT("Its second: her lair cleared"), AssetKill && AssetKill->SpawnerId == Gravemother::LairId);
 	// A hunt nobody asked for: done as she dies, no one to turn it in to.
 	TestTrue(TEXT("Its experience (40), no reward gun, finished by itself"), Asset->Rewards.Experience == 40 && !Asset->Rewards.bGun

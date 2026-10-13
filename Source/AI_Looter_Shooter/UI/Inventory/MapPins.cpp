@@ -5,6 +5,7 @@
 #include "Missions/MissionRunner.h"
 #include "Missions/MissionSubsystem.h"
 #include "Session/CampaignRecord.h"
+#include "World/BossShrine.h"
 #include "World/GunsmithBench.h"
 #include "World/RespawnMarker.h"
 #include "World/SkiffJetty.h"
@@ -62,6 +63,23 @@ namespace MapPins
 			Pin.Name = LOCTEXT("Bench", "Gunsmith's bench");
 			Pin.Detail = LOCTEXT("BenchDetail", "Swap and scrap gun parts");
 			Pin.Id = It->GetFName();
+		}
+
+		// The vigil stones that have risen: a stone not yet risen isn't there to find (its boss is still unbeaten). The pin's
+		// second line is the stone's own word on its boss: ready to call back, ready in mm:ss, or out there now.
+		for (TActorIterator<ABossShrine> It(World); It; ++It)
+		{
+			const ABossShrine* Stone = *It;
+			if (!IsValid(Stone) || Stone->IsActorBeingDestroyed() || !Stone->IsRisen())
+			{
+				continue;
+			}
+			FMapPin& Pin = Pins.AddDefaulted_GetRef();
+			Pin.Kind = EMapPinKind::Shrine;
+			Pin.Location = Stone->GetActorLocation();
+			Pin.Name = LOCTEXT("Shrine", "Vigil Stone");
+			Pin.Detail = Stone->GetMapDetail();
+			Pin.Id = Stone->BossKey;
 		}
 
 		// The stores that trade now: a vendor waiting on the story (OpenWhen, read from the same record as the graves') isn't
@@ -175,7 +193,8 @@ namespace MapPins
 		case EMapPinKind::ChestLooted: return LOCTEXT("KindLooted", "Looted chest");
 		case EMapPinKind::Chest:       return LOCTEXT("KindChest", "Chest");
 		case EMapPinKind::Bench:       return LOCTEXT("KindBench", "Gunsmith's bench");
-		case EMapPinKind::Vendor:      return LOCTEXT("KindVendor", "Store");
+		case EMapPinKind::Shrine:      return LOCTEXT("KindShrine", "Vigil Stone");
+		case EMapPinKind::Vendor:     return LOCTEXT("KindVendor", "Store");
 		case EMapPinKind::Station:    return LOCTEXT("KindStation", "Station");
 		case EMapPinKind::Grave:       return LOCTEXT("KindGrave", "Respawn grave");
 		case EMapPinKind::TurnIn:      return LOCTEXT("KindTurnIn", "Turn in");

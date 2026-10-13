@@ -6,9 +6,10 @@ placement), so they follow the level whenever it's rebuilt. build_area_story's p
 run, as the editor keeps modules between runs); it uses build_area_story's helpers. Everything goes in the area's
 Gameplay folder; a piece whose class isn't built yet is left out with a warning.
 
-- The den's place (a target point tagged Place_Den) halfway into the den, at about a player's middle over its floor:
-  Side 3's "Enter the den" (Tools/Unreal/create_side_mission_assets.py) ends within 4.5 m of it, measured with its
-  height, so the Sink's rim over the den doesn't count. Without the den's model, at its mouth.
+- The den's place (a target point tagged Place_Den) halfway into the den, at about a player's middle over its floor.
+  Side 3 no longer asks for it (2026-10-13: its first step, "Find where the Gravemother hungers", is done on entering
+  the Sink, by Place_SinkFloor and Place_SinkRim from build_area_sink.py; Tools/Unreal/create_side_mission_assets.py):
+  the marker stays for anything that wants the den's spot. Without the den's model, at its mouth.
 - The Gravemother's lair (AEncounterSpawner Gravemother, its LegendaryId Gravemother) on the den's floor at the mouth,
   facing out over the Sink: one AGravemotherCreature, Legendary, lurking a few metres into the den until she notices
   someone, tagged Gravemother (Side 3's "Kill the Gravemother" clears this encounter). On after Main 5 ("Side 3 opens

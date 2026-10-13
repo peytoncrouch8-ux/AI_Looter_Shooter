@@ -1,4 +1,6 @@
 #include "Interaction/InteractionFocus.h"
+#include "Interaction/Interactable.h"
+#include "GameFramework/Actor.h"
 
 float InteractionFocus::AimOf(const FInteractionView& View, const FInteractionCandidate& Candidate)
 {
@@ -11,6 +13,14 @@ float InteractionFocus::AimOf(const FInteractionView& View, const FInteractionCa
 	return static_cast<float>(FVector::DotProduct(ToCandidate.GetSafeNormal(), View.Direction.GetSafeNormal()));
 }
 
+float InteractionFocus::NarrowingCone(float NearAim, float FarAim, float Distance, float Reach)
+{
+	// Evenly from the close distance out to the reach (a reach inside the close distance: the near cone all the way).
+	const float Span = Reach - ConeCloseDistance;
+	const float Along = Span > UE_KINDA_SMALL_NUMBER ? FMath::Clamp((Distance - ConeCloseDistance) / Span, 0.f, 1.f) : 0.f;
+	return FMath::Lerp(NearAim, FarAim, Along);
+}
+
 bool InteractionFocus::IsInReach(const FInteractionView& View, const FInteractionCandidate& Candidate, float MinAim)
 {
 	if (!Candidate.Options.CanUse())
@@ -18,7 +28,36 @@ bool InteractionFocus::IsInReach(const FInteractionView& View, const FInteractio
 		return false;
 	}
 	const double ReachSquared = FMath::Square(static_cast<double>(Candidate.Reach));
-	return FVector::DistSquared(Candidate.Location, View.ReachOrigin) <= ReachSquared && AimOf(View, Candidate) > MinAim;
+	return FVector::DistSquared(Candidate.Location, View.ReachOrigin) <= ReachSquared && AimOf(View, Candidate) > Candidate.MinAim.Get(MinAim);
+}
+
+AActor* InteractionFocus::FindLookedAt(AActor* HitActor, const UPrimitiveComponent* Part)
+{
+	// The interactable the hit belongs to: the actor hit, or the one it's fixed to.
+	for (AActor* Candidate = HitActor; Candidate; Candidate = Candidate->GetAttachParentActor())
+	{
+		if (const IInteractable* Interactable = Cast<IInteractable>(Candidate))
+		{
+			// Only its part to use offers it: the jetty's deck under the gangplank is just a deck.
+			return Interactable->IsInteractionPart(Part) ? Candidate : nullptr;
+		}
+	}
+	return nullptr;
+}
+
+bool InteractionFocus::DoesHitHide(const FInteractionCandidate& Candidate, const AActor* HitActor, const UPrimitiveComponent* Part, const FVector& HitPoint)
+{
+	if (HitActor && Candidate.Actor && (HitActor == Candidate.Actor || HitActor->IsAttachedTo(Candidate.Actor)))
+	{
+		// Its own part to use doesn't hide it. What it only stands in does (the depot's walls), as any wall would; something
+		// offered by a player's component (loot) keeps the old rule: none of its own parts hide it.
+		const IInteractable* Interactable = Cast<IInteractable>(Candidate.Actor);
+		if (!Interactable || Interactable->IsInteractionPart(Part))
+		{
+			return false;
+		}
+	}
+	return FVector::Dist(HitPoint, Candidate.Location) > SightTolerance;
 }
 
 float InteractionFocus::ScoreOf(const FInteractionView& View, const FInteractionCandidate& Candidate)

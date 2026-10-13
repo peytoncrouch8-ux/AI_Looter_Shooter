@@ -20,15 +20,27 @@ in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeli
 4. Creatures chase until a real reason (dead, 80 m, safe zone, scene, unreachable 10 s patience), search the last known
    spot, wait and watch at their ground's edge; lock-on radius +20% (Project Settings > Game > Encounters > Pursuit).
 5. The Vigil Stone beside each boss arena (after the first defeat): call the boss back after 5 minutes of play or after a
-   save and quit; no story replay (Abel goes back on his board), repeats at -0.3 luck.
+   save and quit; no story replay (Abel goes back on his board), same loot as the first kill; a map pin.
 6. Abel is level 7 (Boss rank on a set 6), the Gravemother 6.
 7. The FOV slider previews live behind the menu (which steps aside), the minimap zoom slider shows a live minimap.
 Also: controller/keyboard navigation for the main, pause and settings menus (focus look only in pad/keys mode), wave 4
 (silver currency, Pruitt's hatch vendor after Main 3 and Skyreach's honesty box, selling junk with J/R; the Venom Spitter
 and the Bell-Ringer with bestiary pages; third-person grenade toss and Drover reload; the Drover's own hip hold).
 
-**Next (not started):** a map pin for Vigil Stones (MapPins: `EMapPinKind::Shrine`, spec in the shrine agent's notes:
-pin risen stones with `GetMapDetail()`); third person follows the FOV slider only if the user wants (one line in
+**The user's ten fixes of 2026-10-13, all done (480 tests pass):** (1, 5) after Save & Quit and Continue the world
+labels layer (damage numbers, creature tags with levels, loot labels, barks) stayed hidden from the pause menu — the HUD
+now sets it every frame (`LooterHUDWorldLabels.cpp`) — and the minimap's 32 markers went to ammo first, so creatures were
+dropped — creatures first now, and saved pickups keep their remaining life instead of a fresh 5 minutes each load;
+(2) interactables offer only through their real part (the skiff's gangplank, the departures board) in a narrowing cone,
+never through walls (`InteractionFocus`); (3) Side 3's first step "Find where the Gravemother hungers" completes on
+entering the Sink; (4) the editor's Play opens the main menu like the game (`InEditorGameURLOptions`), `Looter.PlayLevel
+[map]` skips it (pie.ps1 runs it); (6) semi-auto/pump clicks buffer at most one shot within 0.12 s of ready
+(`WeaponTrigger`); (7) Delia's Heirloom was being taken unseen during her talk (hidden loot offered): now tossed onto the
+porch when the door opens, turn-ins make sure it exists once, reward guns land on the player's side of windows and fences;
+(8) full-pool ammo and salt tins are collected silently, feed lines only when something was added; (9) called-back bosses
+drop as the first kill; (10) the Vigil Stone map pin.
+**Next (not started):** loot guns never despawn and the save keeps them all (112 in one session; a design call);
+third person follows the FOV slider only if the user wants (one line in
 `UpdateFieldOfView`); fast travel and combat music still count a searching creature as a fight (GraveTravelSubsystem
 could count only Chase/Attack); grenade pickups and found chests aren't saved; `CreatureBase.h` is ~640 lines (split);
 Story.md's endgame "levels follow the player" lines wait for the user's endgame call; the user hasn't heard the newest

@@ -60,8 +60,8 @@ struct FBossShrineView
  *  - Calling it back rings the bell: the candles flare and go out, soul-light rises at the stone and in the arena, the boss
  *    answers from its arena. A lair brings its boss anew (AEncounterSpawner::TriggerWave); a placed boss is readied at its
  *    spot (UBossComponent::PrepareRematch). Either way its fight starts as the first did (its seal, intro, phases), its
- *    story kept as it is: no scene, no mission, no story reward again. Its loot shower is its own, with a little less luck
- *    (UBossComponent::RematchLuckDrop). Abel: Pa leaves his board while the Keeper walks the boards again; beaten, he
+ *    story kept as it is: no scene, no mission, no story reward again. Its loot shower rolls exactly as the first kill's
+ *    did: the same table and luck (the user's call). Abel: Pa leaves his board while the Keeper walks the boards again; beaten, he
  *    kneels, and before "Sit with Pa" could play again he's back on his board (BossShrineCallBack.cpp).
  *  - A lair's boss away for this visit (the Gravemother's twenty-minute rule) comes back as a level loaded from the session
  *    begins after a Save & Quit (BossShrineRules::ComesBackOnLoad): the user's "or the boss respawns after a save and quit".
@@ -304,7 +304,7 @@ private:
 	bool CallFromLair();
 	bool CallPlaced();
 	bool CallAbel(AAbelKeeper& Abel);
-	/** Marks its lair's boss out there a called-back fight (its loot's luck), while a call from the lair is on. */
+	/** Marks its lair's boss out there a called-back fight (its text says "again"), while a call from the lair is on. */
 	void MarkLairBosses();
 	/** Abel's called-back fight, frame by frame: once he has knelt a moment, his ending without its scene. */
 	void TickAbelRematch();

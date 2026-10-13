@@ -32,6 +32,8 @@ public:
 	virtual FInteractionOptions GetInteractionOptions(const UInteractionComponent& User) const override;
 	virtual bool Interact(UInteractionComponent& User, bool bHeld) override;
 	virtual TOptional<FVector> GetInteractionLocation() const override;
+	/** Only the board: the depot round it is a building like any other (nothing offered from beside it, behind it or through it). */
+	virtual bool IsInteractionPart(const UPrimitiveComponent* Part) const override;
 
 	/** The board's words here: "Departures", "Travel", "The line to {0} isn't open yet." */
 	FStationBoardWords GetBoardWords() const;
@@ -83,9 +85,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Station|Travel", meta = (ClampMin = "0.05"))
 	float HoldSeconds = 1.f;
 
-	/** How far from the player's eyes the board can be used (cm); 0: the player's reach. */
+	/**
+	 * How far from the player's eyes the board can be read (cm), measured to its slate: from the platform a step or two
+	 * back, as a notice board is (0: the player's 2.5 m reach).
+	 */
 	UPROPERTY(EditAnywhere, Category = "Station|Travel", meta = (ClampMin = "0"))
-	float Reach = 0.f;
+	float Reach = 300.f;
 
 protected:
 	virtual void BeginPlay() override;

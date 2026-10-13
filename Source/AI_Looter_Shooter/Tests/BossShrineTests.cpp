@@ -282,7 +282,7 @@ bool FBossShrineSaveAndQuitTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Loaded again after a Save & Quit: she's back"), Stone->BringBackAfterLoad());
 	const TArray<ACreatureBase*> Back = Lair->GetAliveCreatures();
 	const UBossComponent* HerFight = Back.Num() == 1 ? Back[0]->FindComponentByClass<UBossComponent>() : nullptr;
-	TestTrue(TEXT("...the Gravemother, as a called-back fight (a little less luck)"), Back.Num() == 1 && Back[0]->IsA<AGravemotherCreature>()
+	TestTrue(TEXT("...the Gravemother, as a called-back fight"), Back.Num() == 1 && Back[0]->IsA<AGravemotherCreature>()
 		&& HerFight && HerFight->IsRematch());
 	Stone->Refresh();
 	TestTrue(TEXT("...and her stone says she's out there"), Stone->GetState() == EBossShrineState::Present);

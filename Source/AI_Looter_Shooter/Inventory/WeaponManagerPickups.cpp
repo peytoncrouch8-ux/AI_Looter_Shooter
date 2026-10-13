@@ -102,7 +102,9 @@ void UWeaponManagerComponent::GatherInteractions(const FInteractionView& View, T
 	for (TActorIterator<AWeaponBase> It(World); It; ++It)
 	{
 		AWeaponBase* Weapon = *It;
-		if (!Weapon->IsPickup() || FVector::DistSquared(Weapon->GetActorLocation(), View.ReachOrigin) > RangeSquared)
+		// A hidden gun (one a scene hasn't shown yet) is never offered: Delia's Heirloom was once taken unseen this way.
+		if (!Weapon->IsPickup() || Weapon->IsHidden()
+			|| FVector::DistSquared(Weapon->GetActorLocation(), View.ReachOrigin) > RangeSquared)
 		{
 			continue;
 		}

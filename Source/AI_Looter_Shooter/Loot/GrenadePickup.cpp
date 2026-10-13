@@ -134,15 +134,6 @@ void AGrenadePickup::TryCollect()
 	TArray<AActor*> Overlapping;
 	Trigger->GetOverlappingActors(Overlapping, APawn::StaticClass());
 
-	// Forget players who walked away, so they hear "full" again next time.
-	for (auto It = ToldFull.CreateIterator(); It; ++It)
-	{
-		if (!It->IsValid() || !Overlapping.Contains(It->Get()))
-		{
-			It.RemoveCurrent();
-		}
-	}
-
 	for (AActor* Actor : Overlapping)
 	{
 		// Only a pawn a player is actually controlling collects.
@@ -152,25 +143,23 @@ void AGrenadePickup::TryCollect()
 		{
 			continue;
 		}
-		const int32 Taken = Throw->AddGrenades(Amount, EGrenadeChange::PickedUp);
-		if (Taken > 0)
-		{
-			Amount -= Taken;
-			LooterSound::PlayAt(this, ThrowCue::Pickup, GetActorLocation());
-			UE_LOG(LogLooter, Verbose, TEXT("%s picked up %d grave salt (now %d, %d left on the ground)"), *Pawn->GetName(), Taken,
-				Throw->GetGrenades(), Amount);
-		}
-		else if (!ToldFull.Contains(Actor))
-		{
-			ToldFull.Add(Actor);
-			// Full: the feed's once-a-visit word (a pickup that gave none), heard as a soft refusal.
-			Throw->OnGrenadesChanged.Broadcast(Throw->GetGrenades(), 0, EGrenadeChange::PickedUp);
-			LooterSound::Play2D(this, LooterSoundCue::Denied, 0.5f);
-		}
-		if (Amount <= 0)
-		{
-			Destroy();
-			return;
-		}
+		CollectInto(*Throw);
+		return;
 	}
+}
+
+int32 AGrenadePickup::CollectInto(UPlayerThrowComponent& Throw)
+{
+	// As the ammo drops do (AAmmoPickup::CollectInto): whatever fits goes in and the pickup is spent either way, so a full
+	// count clears the tin from the ground quietly. The counter's flash, the feed's "+N" line (both from the count changing)
+	// and the pickup sound come only with grenades actually added.
+	const int32 Taken = Throw.AddGrenades(Amount, EGrenadeChange::PickedUp);
+	if (Taken > 0)
+	{
+		LooterSound::PlayAt(this, ThrowCue::Pickup, GetActorLocation());
+	}
+	UE_LOG(LogLooter, Verbose, TEXT("%s: %d grave salt collected, %d added (now %d)"), *GetName(), Amount, Taken, Throw.GetGrenades());
+	Amount = 0;
+	Destroy();
+	return Taken;
 }

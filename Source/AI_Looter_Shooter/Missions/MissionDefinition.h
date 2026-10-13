@@ -123,7 +123,9 @@ struct AI_LOOTER_SHOOTER_API FMissionRewards
 
 	/**
 	 * The named gun is handed over in the story rather than dropped as the mission ends (Main 7: Delia hands Heirloom out
-	 * through her door, ADoorHandoff): it's listed among the rewards, and the hand-off gives it, once.
+	 * through her door, ADoorHandoff): it's listed among the rewards, and the hand-off gives it, once. The turn-in makes sure
+	 * of it (MissionRewards::EnsureNamedGun): one never taken is brought to the player, one never handed out is given, and
+	 * one they carry gets no second.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Rewards")
 	bool bNamedGunByHand = false;

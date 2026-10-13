@@ -33,7 +33,8 @@ ATrainStation::ATrainStation()
 	Building->SetStaticMesh(BuildingMesh);
 	Building->SetupAttachment(Root);
 
-	// Solid, so the crosshair's line finds it (it blocks Visibility) and the player reads it from in front.
+	// Solid, so the crosshair's line finds it (it blocks Visibility) and the player reads it from in front. It is the only
+	// part that offers the station (IsInteractionPart).
 	Board = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Board"));
 	Board->SetMobility(EComponentMobility::Static);
 	Board->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
@@ -121,6 +122,13 @@ TOptional<FVector> ATrainStation::GetInteractionLocation() const
 		return Board->GetSocketLocation(InteractSocket);
 	}
 	return Board ? TOptional<FVector>(Board->Bounds.Origin) : TOptional<FVector>();
+}
+
+bool ATrainStation::IsInteractionPart(const UPrimitiveComponent* Part) const
+{
+	// The board itself, never the depot it hangs on: its walls hide the board like any wall, so it isn't read from inside
+	// the waiting room or round the back, and the crosshair on the building offers nothing.
+	return Part && Part == Board.Get();
 }
 
 FStationBoardWords ATrainStation::GetBoardWords() const

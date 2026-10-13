@@ -39,6 +39,14 @@ struct AI_LOOTER_SHOOTER_API FSavedAmmoPickup
 
 	UPROPERTY()
 	FVector Location = FVector::ZeroVector;
+
+	/**
+	 * Seconds it had left before it would have gone (AActor::GetLifeSpan), so a Save & Quit doesn't give it a whole new
+	 * life: loaded every few minutes, ammo never ran out and piled up round the fights. 0: not kept (an older save), a
+	 * whole life.
+	 */
+	UPROPERTY()
+	float LifeLeft = 0.f;
 };
 
 /** Silver lying in the world (ASilverPickup). */
@@ -52,6 +60,10 @@ struct AI_LOOTER_SHOOTER_API FSavedSilverPickup
 
 	UPROPERTY()
 	FVector Location = FVector::ZeroVector;
+
+	/** Seconds it had left before it would have gone, as an ammo pickup keeps them (0: a whole life). */
+	UPROPERTY()
+	float LifeLeft = 0.f;
 };
 
 /** What a weapon rack still offered. */

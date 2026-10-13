@@ -113,7 +113,8 @@ void ASkiffJetty::SpawnSkiff()
 	Boat->AddInstanceComponent(Plank);
 	Plank->RegisterComponent();
 
-	// Fixed to the jetty while moored, so the crosshair on the plank or the hull finds the jetty, the thing to use.
+	// Fixed to the jetty while moored, so the crosshair on the plank finds the jetty, the thing to use (the hull doesn't:
+	// IsInteractionPart).
 	Boat->AttachToComponent(Jetty, FAttachmentTransformRules::KeepWorldTransform);
 	Skiff = Boat;
 	Gangplank = Plank;

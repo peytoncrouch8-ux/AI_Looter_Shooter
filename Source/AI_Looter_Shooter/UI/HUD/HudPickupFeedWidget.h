@@ -15,7 +15,8 @@ class UWeaponManagerComponent;
  * What the player just picked up, left of the crosshair where the eyes already are: "+36 AR Ammo" in bold white rounded
  * type with a black outline, deliberately not in the menus' style (the user's call: it should feel like a game pickup,
  * not a UI message). Each pickup adds a line under the last; the stack drifts slowly upward and each line fades away a
- * second or two after it came. A handful of text blocks are reused, so a stream of pickups costs nothing new.
+ * second or two after it came. A handful of text blocks are reused, so a stream of pickups costs nothing new. Only ammo
+ * that was actually added gets a line: a pickup collected with the pool full says nothing (no "ammo full" line).
  *
  * An Epic or a Legendary gun landing as a drop (ULootFanfareSubsystem::OnAnnounced) flashes its name in the feed: bigger,
  * popping in white-hot and shimmering in its rarity's colour for longer than a pickup's line.
@@ -31,6 +32,9 @@ public:
 
 	/** Adds a flashing line (a rare drop's name): bigger, white-hot as it pops in, shimmering in Color, lasting longer. */
 	void AddFlashLine(const FString& Text, const FLinearColor& Color);
+
+	/** The line an ammo pickup earns: "+36 AR Ammo" for rounds added, empty (no line at all) when none were. */
+	static FString AmmoLine(EAmmoType Type, int32 Amount);
 
 	/** The feed's box; lines end at its right edge, start at its bottom and rise. */
 	static constexpr float Width = 300.f;

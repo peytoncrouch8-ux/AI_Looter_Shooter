@@ -26,8 +26,12 @@ namespace
 {
 	/** How much of the world the minimap shows (radius, cm) at zoom 1, at any size. */
 	constexpr float BaseRange = 3500.f;
-	/** How many things it can mark at once. */
+	/** How many things it can mark at once (SplitMarkers shares them out). */
 	constexpr int32 MaxMarkers = 32;
+	/** Marker sizes at 100%: an ammo dot, a loot dot, a hostile's diamond. */
+	constexpr float AmmoMarkerSize = 6.f;
+	constexpr float GunMarkerSize = 9.f;
+	constexpr float HostileMarkerSize = 12.f;
 	constexpr float ArrowSize = 22.f;
 	/** The mission waypoint's ring (a bit bigger than a loot dot), and the arrow on the rim that points to it. */
 	constexpr float WaypointSize = 16.f;
@@ -214,20 +218,68 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 		MapImage->SetRenderTransformAngle(-Yaw);
 	}
 
-	// Markers: ammo and loot first, hostiles last so they draw on top. Anything past the rim is left off.
+	// Markers. What lies within the rim is gathered first, so the pool goes to what matters most (SplitMarkers): every
+	// hostile, then the guns, then the ammo, the nearest first. Long fights leave more loot about than the pool holds, and a
+	// session saved and loaded again keeps all of it lying there: handed out in drawing order, the hostiles were the ones
+	// crowded off the map. They're still drawn last, on top. Anything past the rim is left off.
+	struct FMarkerSpot
+	{
+		FVector2D Offset;
+		FLinearColor Tint;
+	};
+	using FMarkerSpots = TArray<FMarkerSpot, TInlineAllocator<MaxMarkers>>;
+	auto Gather = [&](FMarkerSpots& Spots, const FVector& Where, const FLinearColor& Tint, float BaseSize)
+	{
+		const FVector2D Offset = UMinimapSubsystem::ViewOffset(Where - Location, Yaw, PixelsPerCm);
+		if (Offset.Size() <= Radius - BaseSize * MarkerScale * 0.5f - 3.f)
+		{
+			Spots.Add({ Offset, Tint });
+		}
+	};
+	auto KeepNearest = [](FMarkerSpots& Spots, int32 Count)
+	{
+		if (Spots.Num() > Count)
+		{
+			Spots.Sort([](const FMarkerSpot& A, const FMarkerSpot& B) { return A.Offset.SizeSquared() < B.Offset.SizeSquared(); });
+		}
+	};
+	FMarkerSpots AmmoSpots;
+	FMarkerSpots GunSpots;
+	FMarkerSpots HostileSpots;
+	// Ammo in the ammo icons' light (the mockup's ammo dot), smaller than the loot's dots.
+	for (TActorIterator<AAmmoPickup> It(World); It; ++It)
+	{
+		Gather(AmmoSpots, It->GetActorLocation(), Color::IconLight(), AmmoMarkerSize);
+	}
+	for (TActorIterator<AWeaponBase> It(World); It; ++It)
+	{
+		if (It->IsPickup())
+		{
+			Gather(GunSpots, It->GetActorLocation(), LooterWeaponText::Color(It->GetInstance()), GunMarkerSize);
+		}
+	}
+	for (TActorIterator<ACreatureBase> It(World); It; ++It)
+	{
+		if (!It->IsDead())
+		{
+			Gather(HostileSpots, It->GetActorLocation(), Color::Health(), HostileMarkerSize);
+		}
+	}
+	const FMinimapMarkerSplit Split = SplitMarkers(Markers.Num(), HostileSpots.Num(), GunSpots.Num(), AmmoSpots.Num());
+	KeepNearest(HostileSpots, Split.Hostiles);
+	KeepNearest(GunSpots, Split.Guns);
+	KeepNearest(AmmoSpots, Split.Ammo);
+
 	int32 Used = 0;
-	auto Mark = [&](const FVector& Where, EMarker Kind, const FLinearColor& Tint, float BaseSize)
+	auto Mark = [&](const FMarkerSpot& Spot, EMarker Kind, float BaseSize)
 	{
 		if (Used >= Markers.Num())
 		{
 			return;
 		}
 		const float Size = BaseSize * MarkerScale;
-		const FVector2D Offset = UMinimapSubsystem::ViewOffset(Where - Location, Yaw, PixelsPerCm);
-		if (Offset.Size() > Radius - Size * 0.5f - 3.f)
-		{
-			return;
-		}
+		const FVector2D& Offset = Spot.Offset;
+		const FLinearColor& Tint = Spot.Tint;
 		UImage* Marker = Markers[Used];
 		const uint32 Key = HashCombine(GetTypeHash(static_cast<uint8>(Kind)), GetTypeHash(Tint.ToFColor(true))) | 1u;
 		if (MarkerKeys[Used] != Key)
@@ -243,25 +295,18 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 		Marker->SetVisibility(ESlateVisibility::HitTestInvisible);
 		++Used;
 	};
-	// Ammo in the ammo icons' light (the mockup's ammo dot), smaller than the loot's dots.
-	const FLinearColor AmmoColor = Color::IconLight();
-	for (TActorIterator<AAmmoPickup> It(World); It; ++It)
+	// Drawn bottom to top: ammo, loot, hostiles.
+	for (int32 Index = 0; Index < Split.Ammo; ++Index)
 	{
-		Mark(It->GetActorLocation(), EMarker::Dot, AmmoColor, 6.f);
+		Mark(AmmoSpots[Index], EMarker::Dot, AmmoMarkerSize);
 	}
-	for (TActorIterator<AWeaponBase> It(World); It; ++It)
+	for (int32 Index = 0; Index < Split.Guns; ++Index)
 	{
-		if (It->IsPickup())
-		{
-			Mark(It->GetActorLocation(), EMarker::Dot, LooterWeaponText::Color(It->GetInstance()), 9.f);
-		}
+		Mark(GunSpots[Index], EMarker::Dot, GunMarkerSize);
 	}
-	for (TActorIterator<ACreatureBase> It(World); It; ++It)
+	for (int32 Index = 0; Index < Split.Hostiles; ++Index)
 	{
-		if (!It->IsDead())
-		{
-			Mark(It->GetActorLocation(), EMarker::Diamond, Color::Health(), 12.f);
-		}
+		Mark(HostileSpots[Index], EMarker::Diamond, HostileMarkerSize);
 	}
 	for (int32 Index = Used; Index < Markers.Num(); ++Index)
 	{
@@ -286,6 +331,18 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 float UHudMinimapWidget::RangeAtZoom(float Zoom)
 {
 	return BaseRange / FMath::Max(Zoom, UGraphicsSettingsSubsystem::MinMinimapZoom);
+}
+
+FMinimapMarkerSplit UHudMinimapWidget::SplitMarkers(int32 Pool, int32 Hostiles, int32 Guns, int32 Ammo)
+{
+	FMinimapMarkerSplit Split;
+	int32 Left = FMath::Max(Pool, 0);
+	Split.Hostiles = FMath::Clamp(Hostiles, 0, Left);
+	Left -= Split.Hostiles;
+	Split.Guns = FMath::Clamp(Guns, 0, Left);
+	Left -= Split.Guns;
+	Split.Ammo = FMath::Clamp(Ammo, 0, Left);
+	return Split;
 }
 
 void UHudMinimapWidget::SetPreviewZoom(float Zoom)

@@ -5,9 +5,22 @@
 
 class AActor;
 class AWeaponBase;
+class UNamedWeaponDefinition;
 class UWorld;
 struct FMissionRewards;
 struct FXPCurve;
+
+/**
+ * Where a named gun is in a level: carried by the player (in a slot, in hand or on their back, or in their backpack), and
+ * the copies lying there as loot. A named gun is one of a kind: what a reward gives is checked against this.
+ */
+struct AI_LOOTER_SHOOTER_API FNamedGunWhereabouts
+{
+	bool bCarried = false;
+	TArray<AWeaponBase*> Lying;
+
+	bool IsAnywhere() const { return bCarried || !Lying.IsEmpty(); }
+};
 
 /**
  * What a mission's end actually gave, for whoever announces it (the HUD's mission-complete banner): the experience as
@@ -50,8 +63,16 @@ namespace MissionRewards
 	EWeaponRarity ApplyFloor(EWeaponRarity Rolled, EWeaponRarity Floor);
 
 	/**
+	 * Every reward gun's way into the world: Instance comes up a little ahead of Player (toward whoever they turned the
+	 * mission in to) and is tossed up to land and settle as loot, its beam up and its rarity heard and seen as it lands
+	 * (ULootFanfareSubsystem). Never through what stands between them: a shop window, a screen door or a fence ahead keeps
+	 * it on the player's side, tossed straight up. Null when it couldn't be spawned.
+	 */
+	AWeaponBase* DropInFront(UWorld* World, const FWeaponInstanceData& Instance, const AActor& Player);
+
+	/**
 	 * Rolls the reward gun (its kind, or one from the default loot table) at Level, with the rarity floor, and drops it in
-	 * front of Player like loot. Null when the rewards have no gun, there's no player, or no kind could be found.
+	 * front of Player (DropInFront). Null when the rewards have no gun, there's no player, or no kind could be found.
 	 */
 	AWeaponBase* DropGun(UWorld* World, const FMissionRewards& Rewards, int32 Level, const AActor* Player);
 
@@ -60,6 +81,17 @@ namespace MissionRewards
 	 * gun is. Null when the rewards name none, there's no player, or no named gun has that id.
 	 */
 	AWeaponBase* DropNamedGun(UWorld* World, const FMissionRewards& Rewards, int32 Level, const AActor* Player);
+
+	/** Where Named is in World (FNamedGunWhereabouts): in Player's slots or backpack, lying as loot. Player may be null. */
+	FNamedGunWhereabouts FindNamedGun(UWorld* World, const UNamedWeaponDefinition* Named, const AActor* Player);
+
+	/**
+	 * A named gun handed over in the story (bNamedGunByHand: Heirloom through Delia's door) made sure of as its mission is
+	 * turned in, so the player never goes without it and never gets two: nothing when they carry it; one never taken (left
+	 * on her porch, or dropped here) is brought to them, the very same gun; one never handed out (a save before it came
+	 * out, or the turn-in before her words were done) is dropped in front of them. The gun dropped now, or null.
+	 */
+	AWeaponBase* EnsureNamedGun(UWorld* World, const FMissionRewards& Rewards, int32 Level, const AActor* Player);
 
 	/** The named gun's name for people ("Heirloom"): its asset's display name, else its id as words. Empty for none. */
 	FText NamedGunName(const FMissionRewards& Rewards);

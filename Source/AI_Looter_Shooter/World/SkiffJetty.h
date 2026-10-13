@@ -47,8 +47,8 @@ struct AI_LOOTER_SHOOTER_API FSkiffMooringLine
  *  - It carries its landing (Landing_Jetty, on the jetty's Landing socket): practice trips back to Skyreach arrive there.
  *
  * The skiff is an actor of its own in play (its hull the root, its Deck socket the ride's), spawned moored and fixed to
- * the jetty, so the crosshair on the plank finds the jetty; the editor shows it with stand-ins. Placed by the area's build
- * script.
+ * the jetty, so the crosshair on the plank finds the jetty (the plank alone offers it: IsInteractionPart); the editor
+ * shows it with stand-ins. Placed by the area's build script.
  *
  * SkiffJetty.cpp is the jetty, the story it reads, the plank's and the bell's motion and boarding; SkiffJettyMooring.cpp
  * the moored skiff (where it lies, the plank's swing) and its mooring lines; SkiffJettyCastOff.cpp casting off.
@@ -68,6 +68,8 @@ public:
 	virtual FInteractionOptions GetInteractionOptions(const UInteractionComponent& User) const override;
 	virtual bool Interact(UInteractionComponent& User, bool bHeld) override;
 	virtual TOptional<FVector> GetInteractionLocation() const override;
+	/** Only the gangplank: the jetty's deck, its posts and slate, and the skiff's hull are scenery like any other. */
+	virtual bool IsInteractionPart(const UPrimitiveComponent* Part) const override;
 
 	// --- The rules (apart from the world, for the tests) ---
 
@@ -271,7 +273,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Jetty|Boarding", meta = (ClampMin = "0.05"))
 	float HoldSeconds = 1.f;
 
-	/** How far from the player's eyes the gangplank can be used (cm); 0: the player's reach. */
+	/** How far from the player's eyes the gangplank can be used (cm), measured to the plank; 0: the player's reach (2.5 m). */
 	UPROPERTY(EditAnywhere, Category = "Jetty|Boarding", meta = (ClampMin = "0"))
 	float Reach = 0.f;
 

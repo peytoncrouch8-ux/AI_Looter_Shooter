@@ -177,16 +177,6 @@ void AAmmoPickup::TryCollect()
 	TArray<AActor*> Overlapping;
 	Trigger->GetOverlappingActors(Overlapping, APawn::StaticClass());
 
-	// Forget players who walked away, so they hear "full" again next time.
-	for (auto It = ToldFull.CreateIterator(); It; ++It)
-	{
-		if (!It->IsValid() || !Overlapping.Contains(It->Get()))
-		{
-			It.RemoveCurrent();
-		}
-	}
-
-	const LooterAmmo::FInfo& Info = LooterAmmo::GetInfo(AmmoType);
 	for (AActor* Actor : Overlapping)
 	{
 		// Only a pawn a player is actually controlling collects.
@@ -197,28 +187,26 @@ void AAmmoPickup::TryCollect()
 			continue;
 		}
 
-		const int32 Taken = Inventory->AddAmmo(AmmoType, Amount);
-		if (Taken > 0)
-		{
-			Amount -= Taken;
-			// Shown in the HUD's pickup feed, not its message plate, and heard where it lay.
-			Inventory->OnAmmoPickedUp.Broadcast(AmmoType, Taken);
-			LooterSound::PlayAt(this, LooterSoundCue::AmmoPickup, GetActorLocation());
-			UE_LOG(LogLooter, Verbose, TEXT("%s picked up %d %s (now %d / %d, %d left on the ground)"), *Pawn->GetName(), Taken, Info.Name,
-				Inventory->GetAmmo(AmmoType), Inventory->GetMaxAmmo(AmmoType), Amount);
-		}
-		else if (!ToldFull.Contains(Actor))
-		{
-			ToldFull.Add(Actor);
-			Inventory->OnAmmoPickedUp.Broadcast(AmmoType, 0);
-			// Full: the feed's once-a-visit word, heard as a soft refusal.
-			LooterSound::Play2D(this, LooterSoundCue::Denied, 0.5f);
-		}
-
-		if (Amount <= 0)
-		{
-			Destroy();
-			return;
-		}
+		CollectInto(*Inventory);
+		return;
 	}
+}
+
+int32 AAmmoPickup::CollectInto(UWeaponManagerComponent& Inventory)
+{
+	// Whatever fits goes in, up to the pool's carry limit; the pickup is spent either way. A field of drops would otherwise
+	// have to be cleared by hand once the pool is full, so what doesn't fit is simply gone, and nothing says so.
+	const int32 Taken = Inventory.AddAmmo(AmmoType, Amount);
+	if (Taken > 0)
+	{
+		// Shown in the HUD's pickup feed, not its message plate, and heard where it lay. A pickup that added nothing makes
+		// neither: the player is told only of ammo they actually got.
+		Inventory.OnAmmoPickedUp.Broadcast(AmmoType, Taken);
+		LooterSound::PlayAt(this, LooterSoundCue::AmmoPickup, GetActorLocation());
+	}
+	UE_LOG(LogLooter, Verbose, TEXT("%s: %d %s collected, %d added (now %d / %d)"), *GetName(), Amount, LooterAmmo::GetInfo(AmmoType).Name, Taken,
+		Inventory.GetAmmo(AmmoType), Inventory.GetMaxAmmo(AmmoType));
+	Amount = 0;
+	Destroy();
+	return Taken;
 }

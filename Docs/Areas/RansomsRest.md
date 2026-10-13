@@ -279,7 +279,7 @@ Amos Whitlock died last harvest with his hay half in. He was still on the Sundow
 
 ### Side 3: The Gravemother (after Main 5; Legendary monster)
 Something big lives in the Sink's den, and it eats what the Unpaid leave behind.
-1. Enter the den.
+1. Find where the Gravemother hungers. Done as you go down into the Sink: anywhere on its floor, or on its ramp from about 2 m below the rim (the rim and the ramp's head don't count, and the den needn't be entered). The arrow points at the ramp head on the rim.
 2. Kill the Gravemother.
 
 **Reward:** XP the first time, and the Legendary loot table on every kill. She comes back on an arrival after at least 20 minutes of play since her last death. An arrival is coming in at the station, by train or back from Skyreach, or loading a session. Until the *Lily* exists, that means loading the session or coming back from Skyreach.
@@ -361,7 +361,7 @@ The Unpaid rig at 1.3× in a keeper's coat, with his ghost lantern in one hand a
 
 **Loot.** The Boss table once: 3 guns at Luck 1.3, a 30% chance of a legendary. In the story Abel is fought once; afterwards he is a friend (a separate, non-hostile actor). His adds use the Basic table.
 
-**The Vigil Stone** (2026-10-12, the user's call: a pedestal with a menu beside each boss arena, to fight the boss again). Once a boss has been beaten, a stone with grave candles and an iron bell rises out of the ground beside its arena the first time the player comes near: the Gravemother's at the Sink's ramp head, Abel's outside the Keeper's Gate (`build_area_shrines.py`). A tap of Interact opens its menu: the boss's name and level, when it was last laid to rest, how many times it was beaten, what it drops. “Call it back” works five minutes of play after the boss's last death, or at once after a Save & Quit; until then the menu shows the countdown. The fight starts as the first did (seal, intro, phases) but with no scene, no mission and no story reward, and its loot shower has 0.3 less luck (1.3 becomes 1.0). Abel's call waits until Main 6 is finished; while he walks the boards again Pa leaves his board, and he is back on it before “Sit with Pa” could replay.
+**The Vigil Stone** (2026-10-12, the user's call: a pedestal with a menu beside each boss arena, to fight the boss again). Once a boss has been beaten, a stone with grave candles and an iron bell rises out of the ground beside its arena the first time the player comes near: the Gravemother's at the Sink's ramp head, Abel's outside the Keeper's Gate (`build_area_shrines.py`). A tap of Interact opens its menu: the boss's name and level, when it was last laid to rest, how many times it was beaten, what it drops. “Call it back” works five minutes of play after the boss's last death, or at once after a Save & Quit; until then the menu shows the countdown. The fight starts as the first did (seal, intro, phases) but with no scene, no mission and no story reward, and its loot shower rolls exactly as the first kill's (the same table and luck, the user's call 2026-10-13). Abel's call waits until Main 6 is finished; while he walks the boards again Pa leaves his board, and he is back on it before “Sit with Pa” could replay.
 
 ## Loot and chests
 

@@ -93,6 +93,19 @@ void ALooterHUD::BeginPlay()
 	}
 
 	BindMenuInput();
+	// The world's labels show from the start, whatever an earlier level's menu left them as (LooterHUDWorldLabels.cpp).
+	SetWorldLabelsVisible(true);
+}
+
+void ALooterHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// Going with the level, maybe under the menu it was left from (Save & Quit, a trip): the labels' layer outlives it, so
+	// it's handed back showing.
+	if (HUDWidget)
+	{
+		SetWorldLabelsVisible(true);
+	}
+	Super::EndPlay(EndPlayReason);
 }
 
 void ALooterHUD::BindMenuInput()
@@ -154,27 +167,6 @@ ALooterHUD* ALooterHUD::FindFor(const AActor* Player)
 		Controller = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
 	}
 	return Controller && Controller->IsLocalController() ? Cast<ALooterHUD>(Controller->GetHUD()) : nullptr;
-}
-
-void ALooterHUD::SetWorldLabelsVisible(bool bVisible)
-{
-	if (bWorldLabelsVisible == bVisible)
-	{
-		return;
-	}
-	// Creature tags, loot labels and damage numbers are widget components drawn in screen space: the engine puts them on
-	// one layer of their own, in front of every menu. A menu covers the game, so the layer goes with it. The layer only
-	// exists once the first of them has been shown; until then there's nothing to hide (and this tries again).
-	APlayerController* PC = GetOwningPlayerController();
-	ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
-	const UGameViewportClient* Viewport = LocalPlayer ? LocalPlayer->ViewportClient.Get() : nullptr;
-	const TSharedPtr<IGameLayerManager> LayerManager = Viewport ? Viewport->GetGameLayerManager() : nullptr;
-	const TSharedPtr<IGameLayer> Layer = LayerManager.IsValid() ? LayerManager->FindLayerForPlayer(LocalPlayer, TEXT("WidgetComponentScreenLayer")) : nullptr;
-	if (Layer.IsValid())
-	{
-		Layer->AsWidget()->SetVisibility(bVisible ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed);
-		bWorldLabelsVisible = bVisible;
-	}
 }
 
 // ---------------------------------------------------------------------------

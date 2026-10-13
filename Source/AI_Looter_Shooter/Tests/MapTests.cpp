@@ -10,6 +10,7 @@
 #include "UI/Inventory/MapPins.h"
 #include "UI/Inventory/MapView.h"
 #include "UI/Inventory/MapWidget.h"
+#include "World/BossShrine.h"
 #include "World/GraveTravelRules.h"
 #include "World/GraveTravelSubsystem.h"
 #include "World/GunsmithBench.h"
@@ -171,8 +172,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMapPinsTest, "Looter.UI.Map.Pins",
 bool FMapPinsTest::RunTest(const FString& Parameters)
 {
 	// The map's pins from a level: the open graves only (from the start, or by the story's record), the station and the
-	// bench, the stores that trade (one waiting on the story shows once it's past), chests once found or opened; drawn in
-	// order, the story's pins on top; graves named by their id in words.
+	// bench, the vigil stones that have risen (not those whose boss is unbeaten), the stores that trade (one waiting on the
+	// story shows once it's past), chests once found or opened; drawn in order, the story's pins on top; graves named by
+	// their id in words.
 	FTestWorldWrapper TestLevel;
 	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -194,6 +196,17 @@ bool FMapPinsTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
+	// Two vigil stones: one has risen beside its boss's arena, the other's boss is still unbeaten.
+	ABossShrine* RisenStone = World->SpawnActor<ABossShrine>(FVector(4000.0, 3000.0, 0.0), FRotator::ZeroRotator);
+	ABossShrine* BuriedStone = World->SpawnActor<ABossShrine>(FVector(-4000.0, 3000.0, 0.0), FRotator::ZeroRotator);
+	if (!TestTrue(TEXT("Both vigil stones placed"), RisenStone && BuriedStone))
+	{
+		return false;
+	}
+	RisenStone->BossKey = TEXT("TestGravemother");
+	RisenStone->BossName = FText::FromString(TEXT("The Test Gravemother"));
+	RisenStone->Rise(/*bShow*/ false);
+	BuriedStone->BossKey = TEXT("TestAbel");
 	Looted->RestoreOpened();
 	ChapelYard->DisplayName = FText::FromString(TEXT("The chapel yard"));
 	Mercantile->Title = FText::FromString(TEXT("Crossroads Mercantile"));
@@ -221,6 +234,13 @@ bool FMapPinsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...and it knows its grave"), ChapelPin && ChapelPin->Grave.Get() == ChapelYard);
 	TestEqual(TEXT("The bench"), MapPins::Count(Pins, EMapPinKind::Bench), 1);
 	TestEqual(TEXT("The station"), MapPins::Count(Pins, EMapPinKind::Station), 1);
+	TestEqual(TEXT("One vigil stone has risen: only it is pinned"), MapPins::Count(Pins, EMapPinKind::Shrine), 1);
+	const FMapPin* StonePin = Find(EMapPinKind::Shrine, TEXT("TestGravemother"));
+	TestTrue(TEXT("...the risen one, by its boss key, named Vigil Stone, where it stands"), StonePin && StonePin->Name.ToString() == TEXT("Vigil Stone")
+		&& StonePin->Location.Equals(RisenStone->GetActorLocation()));
+	TestTrue(TEXT("...its second line the stone's word on its boss"), StonePin && !StonePin->Detail.IsEmpty()
+		&& StonePin->Detail.ToString() == RisenStone->GetMapDetail().ToString() && StonePin->Detail.ToString().Contains(TEXT("Test Gravemother")));
+	TestNull(TEXT("...not the one whose boss is unbeaten"), Find(EMapPinKind::Shrine, TEXT("TestAbel")));
 	TestEqual(TEXT("One store trades: the other waits on the story"), MapPins::Count(Pins, EMapPinKind::Vendor), 1);
 	const FMapPin* StorePin = Find(EMapPinKind::Vendor, Mercantile->GetFName());
 	TestTrue(TEXT("...the one with no gate, by its title"), StorePin && StorePin->Name.ToString() == TEXT("Crossroads Mercantile")
@@ -252,8 +272,9 @@ bool FMapPinsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("...and only the store with no gate"), MapPins::Count(BarePins, EMapPinKind::Vendor), 1);
 	TestEqual(TEXT("No finds: no closed chest"), MapPins::Count(BarePins, EMapPinKind::Chest), 0);
 	TestEqual(TEXT("...the opened one still there"), MapPins::Count(BarePins, EMapPinKind::ChestLooted), 1);
+	TestEqual(TEXT("...a stone is a stone with or without the story"), MapPins::Count(BarePins, EMapPinKind::Shrine), 1);
 	TestFalse(TEXT("Every kind has a legend name"), MapPins::KindName(EMapPinKind::Grave).IsEmpty() || MapPins::KindName(EMapPinKind::TurnIn).IsEmpty()
-		|| MapPins::KindName(EMapPinKind::Vendor).IsEmpty());
+		|| MapPins::KindName(EMapPinKind::Vendor).IsEmpty() || MapPins::KindName(EMapPinKind::Shrine).IsEmpty());
 	return true;
 }
 

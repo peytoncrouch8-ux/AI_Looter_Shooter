@@ -24,12 +24,15 @@ are done, finished by a talk to their giver. Their experience is a fixed amount 
                     talk that was its fourth step: his thanks, from build_area_whitlock.py's THANKS_STEP, 3). All placed
                     by build_area_whitlock.py. Reward: 40 XP and a guaranteed Epic gun ("the one Amos was buried with and
                     never needed"). Made once Main 4 exists.
-  DA_Mission_Side3  "The Gravemother" (Side 3), on Ransom's Rest once Main 5 is turned in, starting by itself. Enter the
-                    den (reach the place tagged Place_Den inside it, within 4.5 m measured with its height, so the Sink's
-                    rim over the den doesn't count), then kill the Gravemother (clear her lair's encounter, Gravemother:
-                    a kill before the step began counts too, and so does one on an earlier visit while she's still away).
+  DA_Mission_Side3  "The Gravemother" (Side 3), on Ransom's Rest once Main 5 is turned in, starting by itself. "Find
+                    where the Gravemother hungers": done on entering the Sink, not the den (a reach of the place tagged
+                    Place_SinkFloor, the floor's middle that build_area_sink.py places for Main 5, within 19.5 m measured
+                    with its height: the whole floor, and the ramp from about 2 m below the rim down; the rim and the
+                    ramp's head stay outside it, and the den needn't be entered). Its arrow points at the ramp head (the
+                    marker tagged Place_SinkRim). Then kill the Gravemother (clear her lair's encounter, Gravemother: a
+                    kill before the step began counts too, and so does one on an earlier visit while she's still away).
                     Automatic: a monster hunt nobody asked for. Reward: 40 XP, once; her Legendary loot table drops on
-                    every kill, and she comes back on an arrival 20 minutes of play after her death. Both made by
+                    every kill, and she comes back on an arrival 20 minutes of play after her death. Her lair is made by
                     build_area_den.py. Made once Main 5 exists (step 19's main mission): until then the script says it
                     waits.
 
@@ -50,10 +53,15 @@ BALE_TAG = 'HayBale'
 BALES = 6
 HANDS = 'WhitlockHands'
 HANDS_COUNT = 6
-# The Gravemother's den and lair (Creatures/GravemotherCreature.h: Gravemother::DenPlaceTag and LairId; placed by
-# Tools/Unreal/build_area_den.py).
-DEN_TAG = 'Place_Den'
-DEN_REACH = 450.0
+# The Sink's markers (Tools/Unreal/build_area_sink.py: the floor's middle, 90 cm over the floor 12 m under the rim, and
+# the ramp head on the west rim) and the Gravemother's lair (Creatures/GravemotherCreature.h: Gravemother::LairId; placed
+# by Tools/Unreal/build_area_den.py).
+SINK_TAG = 'Place_SinkFloor'
+SINK_RIM_TAG = 'Place_SinkRim'
+# Entering the Sink, measured with height from the floor's middle (layout.json: the floor is a 12-gon of 18 m, the rim is
+# 17.5 m or more out and 12 m up, so 21.2 m or more away): 19.5 m covers the whole floor, leaves the rim 1.7 m outside,
+# and takes in the sinkRamp (layout_computed.json) from its 5th point, about 2 m under the rim.
+SINK_REACH = 1950.0
 GRAVEMOTHER_LAIR = 'Gravemother'
 
 
@@ -61,7 +69,8 @@ def mission_types():
     """The reflected mission types, or a clear error when the C++ isn't built yet."""
     names = ['MissionDefinition', 'MissionStep', 'MissionRewards', 'MissionTurnIn', 'StoryLine', 'MissionActorFilter',
              'MissionKind', 'MissionStart', 'MissionInteractObjective', 'MissionLastingInteractObjective', 'WantedPoster',
-             'WeaponRarity', 'MissionReachObjective', 'MissionClearObjective', 'MissionPlace', 'MissionTalkObjective']
+             'WeaponRarity', 'MissionReachObjective', 'MissionClearObjective', 'MissionPlace', 'MissionTalkObjective',
+             'MissionWaypoint']
     missing = [name for name in names if getattr(unreal, name, None) is None]
     if missing:
         raise RuntimeError(f"unreal.{', unreal.'.join(missing)} missing: build the C++ with the wanted posters first")
@@ -158,14 +167,17 @@ def side2_steps(asset):
 
 
 def side3_steps(asset):
-    """Enter the den (its place, measured with its height), then kill the Gravemother (her lair's encounter cleared). The
-    arrows find their own: the den's place, then the Gravemother herself (or her lair while she's in her den)."""
-    den = unreal.MissionPlace()
-    den.set_editor_property('actor', actor_filter(tag=DEN_TAG))
-    den.set_editor_property('radius', DEN_REACH)
-    den.set_editor_property('ignore_height', False)
+    """Find where the Gravemother hungers (done on entering the Sink: the floor's place, SINK_REACH measured with its
+    height), then kill the Gravemother (her lair's encounter cleared). The first arrow points at the ramp head on the rim
+    (the Sink's way in), not the floor's middle; the second finds its own: the Gravemother herself (or her lair while she's
+    in her den)."""
+    sink = unreal.MissionPlace()
+    sink.set_editor_property('actor', actor_filter(tag=SINK_TAG))
+    sink.set_editor_property('radius', SINK_REACH)
+    sink.set_editor_property('ignore_height', False)
     return [
-        step(objective(asset, unreal.MissionReachObjective, 'Enter the den', show_count=False, place=den)),
+        step(objective(asset, unreal.MissionReachObjective, 'Find where the Gravemother hungers', show_count=False,
+                       place=sink, waypoint=unreal.MissionWaypoint.ACTOR, waypoint_actor=actor_filter(tag=SINK_RIM_TAG))),
         step(objective(asset, unreal.MissionClearObjective, 'Kill the Gravemother', show_count=False,
                        spawner_id=unreal.Name(GRAVEMOTHER_LAIR), count=1)),
     ]
@@ -226,6 +238,8 @@ def describe(objective_object):
         words.append(f"the place tagged {place.get_editor_property('actor').get_editor_property('actor_tag')} within "
                      f"{place.get_editor_property('radius'):.0f} cm"
                      f"{'' if place.get_editor_property('ignore_height') else ', measured with its height'}")
+    if editor_property(objective_object, 'waypoint') == unreal.MissionWaypoint.ACTOR:
+        words.append(f"arrow on the actor tagged {objective_object.get_editor_property('waypoint_actor').get_editor_property('actor_tag')}")
     spawner = editor_property(objective_object, 'spawner_id')
     if spawner is not None:
         words.append(f'the encounter {spawner} cleared')

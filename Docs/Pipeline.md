@@ -406,6 +406,10 @@ styles the user chooses from).
   - A movement component gets no capsule there: call `SetUpdatedComponent` and set the movement mode yourself.
   - Blueprint native events are dropped: open an `FEditorScriptExecutionGuard`. See `Tests/LocomotionTestWorld.h` and
     `BossTestWorld.h`.
+  - Damage through `UGameplayStatics::Apply*Damage` is dropped before play begins: broadcast the actor's damage events
+    the way `BossTestWorld::Hurt` does.
+- A test's name must not be the start of another test's name (`Looter.Economy.Offer` beside `Looter.Economy.Offer.Odds`):
+  the runner takes it for a group and reports it "Not Run". It happened twice on 2026-10-13.
 
 ## Bugs and how they were fixed
 
@@ -440,6 +444,8 @@ styles the user chooses from).
 | The scatter script failed in a fresh editor | It imported a neighbour module, relying on `build_area.py` having added its folder to the path | It adds its own folder now |
 | Gravewind blades drew black | The material lacked the instanced-mesh usage flag | Flag set (3a04a48) |
 | Saves failed quietly | The user's standalone game held the content files | Check for a running game before editor work |
+| After Save & Quit then Continue, no damage numbers, creature tags or loot labels (the user, 2026-10-13) | They draw on the engine's `WidgetComponentScreenLayer`, which the game viewport keeps per player for the whole run; the pause menu collapsed it, Save & Quit left from there, and the next level's HUD remembered "shown" for itself (`bWorldLabelsVisible`) so never showed it again. A trip from the map page or a station board did the same | `ALooterHUD::ShowWorldLabels` sets it from what the layer shows now, every frame, and at BeginPlay/EndPlay (`Looter.LevelReload.WorldLabels`). Rule: anything kept by the viewport, local player or game instance (layers, input mode, cursor, mixes) outlives the level; set it from its real state, never a per-level copy |
+| After Save & Quit, hostiles stopped showing on the minimap (2026-10-13) | Its 32 markers were handed out in drawing order (ammo, loot, hostiles), and every Continue gave every ammo and silver pickup a fresh 5 minutes, so a player saving every few minutes kept every drop round the fights (a log: 59 to 260 ammo pickups over six loads) | Hostiles get markers first (`SplitMarkers`, `Looter.UI.Minimap.MarkerPool`); the session keeps each pickup's time left (`LifeLeft`, `Looter.LevelReload.LootLife`) |
 
 ## What worked, and what didn't
 

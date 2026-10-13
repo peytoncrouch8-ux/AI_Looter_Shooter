@@ -11,6 +11,10 @@
 #include "Session/CampaignRecord.h"
 #include "Tests/InteractionTestWorld.h"
 #include "Tests/MissionTestWorld.h"
+#include "World/SkiffJetty.h"
+#include "World/TrainStation.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Tests/AutomationCommon.h"
@@ -339,6 +343,108 @@ bool FInteractionMissionEventTest::RunTest(const FString& Parameters)
 	Interaction->PressInteract();
 	Interaction->ReleaseInteract();
 	TestEqual(TEXT("The door shut: one more event"), Counts(), FString(TEXT("3 / 5")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInteractionLookedAtTest, "Looter.Interaction.LookedAt",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FInteractionLookedAtTest::RunTest(const FString& Parameters)
+{
+	// The level's interactables are looked at, not just stood near: a 30 degree cone within a meter, narrowing to 15 at
+	// the edge of their reach (loot keeps its 37). Only an interactable's part to use offers it or leaves its point in sight:
+	// the station's board, not the depot round it; the gangplank, not the jetty's deck or the skiff's hull.
+	TestTrue(TEXT("Up close: the near cone"), FMath::IsNearlyEqual(InteractionFocus::NarrowingCone(0.866f, 0.966f, 60.f, 250.f), 0.866f, 0.001f));
+	TestTrue(TEXT("At its reach: the far cone"), FMath::IsNearlyEqual(InteractionFocus::NarrowingCone(0.866f, 0.966f, 250.f, 250.f), 0.966f, 0.001f));
+	TestTrue(TEXT("Halfway out: halfway between"), FMath::IsNearlyEqual(InteractionFocus::NarrowingCone(0.866f, 0.966f, 175.f, 250.f), 0.916f, 0.001f));
+
+	FInteractionView View;
+	View.Location = Ahead(0.0);
+	View.ReachOrigin = View.Location;
+	View.Direction = FVector::ForwardVector;
+	FInteractionCandidate Off;
+	Off.Location = Ahead(0.0) + FRotator(0.0, 20.0, 0.0).Vector() * 240.0;
+	Off.Reach = 250.f;
+	auto InSight = [](const FInteractionCandidate&) { return true; };
+	TArray<FInteractionCandidate> Offs = { Off };
+	TestEqual(TEXT("20 degrees off at 2.4 m: loot's cone takes it"), InteractionFocus::Select(View, Offs, 0.8f, InSight), 0);
+	Offs[0].MinAim = InteractionFocus::NarrowingCone(0.866f, 0.966f, 240.f, Off.Reach);
+	TestEqual(TEXT("...a level's thing there must be looked at"), InteractionFocus::Select(View, Offs, 0.8f, InSight), static_cast<int32>(INDEX_NONE));
+
+	FTestWorldWrapper TestLevel;
+	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = TestLevel.GetTestWorld();
+	UInteractionComponent* Interaction = nullptr;
+	APawn* Player = SpawnPlayer(World, Interaction);
+	AInteractableProp* Door = SpawnDoor(World, Ahead(150.0));
+	if (!TestTrue(TEXT("Stand-in and door placed"), Player && Interaction && Door))
+	{
+		return false;
+	}
+	// A turn of the head at three distances (30 degrees within a meter, 26 at 1.5 m, 16 at 2.4 m).
+	struct FLook { double Distance; double Degrees; bool bOffered; };
+	const FLook Looks[] = { { 60.0, 28.0, true }, { 150.0, 20.0, true }, { 150.0, 30.0, false }, { 240.0, 12.0, true }, { 240.0, 20.0, false } };
+	for (const FLook& Look : Looks)
+	{
+		Door->SetActorLocation(Ahead(Look.Distance));
+		Face(Player, Look.Degrees);
+		Interaction->UpdateInteraction(0.f);
+		TestTrue(FString::Printf(TEXT("A door %.0f cm off, %.0f degrees aside: %s"), Look.Distance, Look.Degrees, Look.bOffered ? TEXT("offered") : TEXT("not offered")),
+			(Interaction->GetFocusedActor() == Door) == Look.bOffered);
+	}
+	TestTrue(TEXT("Any part of a plain prop is its part to use"), InteractionFocus::FindLookedAt(Door, Door->Mesh) == Door);
+
+	// The station, its front (the models' -Y, the actor's +X in Unreal) turned toward the stand-in: only its board.
+	ATrainStation* Station = World->SpawnActor<ATrainStation>(FVector(0.0, -4000.0, 0.0), FRotator(0.0, 180.0, 0.0));
+	if (!TestNotNull(TEXT("A station"), Station))
+	{
+		return false;
+	}
+	Station->DispatchBeginPlay();
+	TestTrue(TEXT("The crosshair on the board offers the station"), InteractionFocus::FindLookedAt(Station, Station->Board) == Station);
+	TestNull(TEXT("...on the depot's wall, nothing"), InteractionFocus::FindLookedAt(Station, Station->Building));
+	FInteractionCandidate AtBoard;
+	AtBoard.Actor = Station;
+	AtBoard.Location = Station->GetInteractionLocation().Get(Station->GetActorLocation());
+	TestTrue(TEXT("The depot's wall between the eyes and the board hides it"),
+		InteractionFocus::DoesHitHide(AtBoard, Station, Station->Building, AtBoard.Location + FVector(-60.0, 0.0, 0.0)));
+	TestFalse(TEXT("...the board's own frame doesn't"), InteractionFocus::DoesHitHide(AtBoard, Station, Station->Board, AtBoard.Location + FVector(0.0, 30.0, 0.0)));
+	TestFalse(TEXT("...nor the wall right behind it"), InteractionFocus::DoesHitHide(AtBoard, Station, Station->Building, AtBoard.Location + FVector(0.0, 0.0, 10.0)));
+	FInteractionCandidate Loot;
+	Loot.Actor = World->SpawnActor<AActor>();
+	TestTrue(TEXT("Loot keeps its rule: its own parts never hide it"), Loot.Actor && !InteractionFocus::DoesHitHide(Loot, Loot.Actor, nullptr, FVector(500.0, 0.0, 0.0)));
+
+	// Its board straight in front of the stand-in: read from the platform two or three meters off, not from across it.
+	Door->bEnabled = false;
+	Station->SetActorLocation(Ahead(150.0) - (AtBoard.Location - Station->GetActorLocation()));
+	Face(Player, 0.0);
+	Interaction->UpdateInteraction(0.f);
+	TestTrue(TEXT("The board looked at, a step back: offered"), Interaction->GetFocusedActor() == Station);
+	Station->SetActorLocation(Station->GetActorLocation() + FVector(130.0, 0.0, 0.0));
+	Interaction->UpdateInteraction(0.f);
+	TestTrue(TEXT("...from 2.8 m: offered"), Interaction->GetFocusedActor() == Station);
+	Station->SetActorLocation(Station->GetActorLocation() + FVector(80.0, 0.0, 0.0));
+	Interaction->UpdateInteraction(0.f);
+	TestNull(TEXT("...from 3.6 m: not"), Interaction->GetFocusedActor());
+
+	// The jetty: only its gangplank, never the deck, the slate or the skiff's hull.
+	ASkiffJetty* Jetty = World->SpawnActor<ASkiffJetty>(FVector(0.0, 4000.0, 0.0), FRotator::ZeroRotator);
+	if (!TestNotNull(TEXT("A jetty"), Jetty))
+	{
+		return false;
+	}
+	Jetty->DispatchBeginPlay();
+	AStaticMeshActor* Skiff = Jetty->GetSkiff();
+	if (TestTrue(TEXT("Its skiff and plank"), Skiff && Jetty->GetGangplank()))
+	{
+		TestTrue(TEXT("The crosshair on the plank offers the jetty"), InteractionFocus::FindLookedAt(Skiff, Jetty->GetGangplank()) == Jetty);
+		TestNull(TEXT("...on the skiff's hull, nothing"), InteractionFocus::FindLookedAt(Skiff, Skiff->GetStaticMeshComponent()));
+	}
+	TestNull(TEXT("...on the jetty's deck, nothing"), InteractionFocus::FindLookedAt(Jetty, Jetty->Jetty));
+	TestNull(TEXT("...on its slate, nothing"), InteractionFocus::FindLookedAt(Jetty, Jetty->Slate));
 	return true;
 }
 

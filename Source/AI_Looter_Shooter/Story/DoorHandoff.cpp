@@ -3,9 +3,10 @@
 #include "Story/DoorHandoff.h"
 #include "AI_Looter_Shooter.h"
 #include "Affixes/WeaponRollLibrary.h"
-#include "Loot/LootTossComponent.h"
+#include "Loot/LootFanfareSubsystem.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionObjective.h"
+#include "Missions/MissionRewards.h"
 #include "Missions/MissionRunner.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "Weapons/NamedWeaponDefinition.h"
@@ -14,7 +15,8 @@
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
-#include "GameFramework/RotatingMovementComponent.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 
 namespace
 {
@@ -25,6 +27,13 @@ namespace
 		const ULocalPlayer* Player = GameInstance ? GameInstance->GetFirstGamePlayer() : nullptr;
 		const UPlayerProgressionSubsystem* Progression = Player ? Player->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
 		return Progression ? FMath::Max(Progression->GetLevel(), 1) : 1;
+	}
+
+	/** The player's body, whose backpack may hold the gun already; null without one (a test level). */
+	const AActor* PlayerBody(const UWorld* World)
+	{
+		const APlayerController* Controller = World ? World->GetFirstPlayerController() : nullptr;
+		return Controller ? Controller->GetPawn() : nullptr;
 	}
 }
 
@@ -49,7 +58,8 @@ void ADoorHandoff::BeginPlay()
 		EventHandle = Runner->OnEvent.AddUObject(this, &ADoorHandoff::HandleMissionEvent);
 	}
 	// Where the story stands as the level begins: only a step ending from here on hands anything out. A session that's past
-	// it has the gun already (in hand, or on the porch where it was saved).
+	// it has had its beat: the gun is in hand, or on the porch where it was saved, or (saved before it came out) the turn-in
+	// gives it.
 	LastStep = ReadStep(bLastFinished);
 	if (bLastFinished || LastStep > Step)
 	{
@@ -91,30 +101,38 @@ void ADoorHandoff::HandleMissionsChanged()
 {
 	bool bFinished = false;
 	const int32 Now = ReadStep(bFinished);
-	// Its step done here and now: the mission was on it, and has gone past it (or finished from it, the console's way).
+	// Its step done here and now: the mission was on it, and has gone past it (waiting for its turn-in at Tilly's), or
+	// finished from it (the console's way).
 	const bool bWasOnStep = LastStep == Step && !bLastFinished;
 	const bool bPast = bFinished || Now > Step;
 	LastStep = Now;
 	bLastFinished = bFinished;
+	// The gun gone from the porch with no use heard (brought to the player as Main 7 was turned in): the door shuts too.
+	if (State == EDoorHandoffState::Out && !IsGunOut())
+	{
+		StartClosing();
+		return;
+	}
 	if (State != EDoorHandoffState::Waiting || !bPast)
 	{
 		return;
 	}
-	if (bWasOnStep)
+	if (bWasOnStep && !bFinished)
 	{
 		HandOut();
 	}
 	else
 	{
 		// Past it without this level seeing it done (a session resumed on a later step): the gun is the session's already.
+		// Or finished from it (the console): its turn-in gave the gun (MissionRewards::EnsureNamedGun).
 		State = EDoorHandoffState::Done;
 	}
 }
 
 void ADoorHandoff::HandleMissionEvent(const FMissionEvent& Event)
 {
-	// Anything used may be the gun taken (picked up, or stashed and gone): once it isn't held out any more, the door shuts.
-	if (State == EDoorHandoffState::Holding && Event.Name == FMissionEvent::Interact && !IsHeldOut())
+	// Anything used may be the gun taken (picked up, or stashed and gone): once it isn't out any more, the door shuts.
+	if (State == EDoorHandoffState::Out && Event.Name == FMissionEvent::Interact && !IsGunOut())
 	{
 		StartClosing();
 	}
@@ -131,6 +149,20 @@ FName ADoorHandoff::FindGunId() const
 	return Definition && Definition->Rewards.bNamedGunByHand ? Definition->Rewards.NamedGun : FName();
 }
 
+UNamedWeaponDefinition* ADoorHandoff::FindGun() const
+{
+	const FName GunId = FindGunId();
+	UNamedWeaponDefinition* Named = GunId.IsNone() ? nullptr : UNamedWeaponDefinition::FindByName(GunId.ToString());
+	if (!Named || !Named->Weapon)
+	{
+		UE_LOG(LogLooter, Warning, TEXT("%s: no named gun to hand out (%s; %s's rewards name one given by hand, made by "
+			"Tools/Unreal/create_named_weapons.py)."), *GetActorNameOrLabel(), GunId.IsNone() ? TEXT("none named") : *GunId.ToString(),
+			*Mission.ToString());
+		return nullptr;
+	}
+	return Named;
+}
+
 // ---------------------------------------------------------------------------
 // The beat
 // ---------------------------------------------------------------------------
@@ -141,56 +173,54 @@ bool ADoorHandoff::HandOut(bool bForce)
 	{
 		return false;
 	}
-	SpawnGun();
-	if (!Gun.IsValid())
+	if (!FindGun())
 	{
 		State = EDoorHandoffState::Done;
 		return false;
 	}
+	// Words first: nothing is in the world until the gun comes out, so there's nothing to take unseen while she speaks.
 	State = EDoorHandoffState::Handing;
 	Clock = 0.f;
+	Gun.Reset();
+	bForced = bForce;
 	if (Door && Door->GetRootComponent())
 	{
 		DoorShut = Door->GetActorQuat();
 		bDoorShutKnown = true;
 	}
 	SetActorTickEnabled(true);
-	UE_LOG(LogLooter, Log, TEXT("%s: %s handed out through the door."), *GetActorNameOrLabel(), *FindGunId().ToString());
+	UE_LOG(LogLooter, Log, TEXT("%s: %s to be handed out through the door."), *GetActorNameOrLabel(), *FindGunId().ToString());
 	return true;
 }
 
-void ADoorHandoff::SpawnGun()
+bool ADoorHandoff::BringGunOut()
 {
-	const FName GunId = FindGunId();
-	UNamedWeaponDefinition* Named = GunId.IsNone() ? nullptr : UNamedWeaponDefinition::FindByName(GunId.ToString());
-	if (!Named || !Named->Weapon)
+	UNamedWeaponDefinition* Named = FindGun();
+	if (!Named)
 	{
-		UE_LOG(LogLooter, Warning, TEXT("%s: no named gun to hand out (%s; %s's rewards name one given by hand, made by "
-			"Tools/Unreal/create_named_weapons.py)."), *GetActorNameOrLabel(), GunId.IsNone() ? TEXT("none named") : *GunId.ToString(),
-			*Mission.ToString());
-		return;
+		return false;
 	}
-	const FTransform Held = FTransform(HeldRotation, HeldOffset) * GetActorTransform();
-	AWeaponBase* Spawned = UWeaponRollLibrary::SpawnWeapon(this, Named->MakeInstance(PlayerLevel(GetWorld())), Held);
+	// One of a kind: the session has it already when Main 7 was turned in before her words were done (the turn-in gave it).
+	if (!bForced && MissionRewards::FindNamedGun(GetWorld(), Named, PlayerBody(GetWorld())).IsAnywhere())
+	{
+		UE_LOG(LogLooter, Log, TEXT("%s: %s is the player's already: nothing comes out."), *GetActorNameOrLabel(), *Named->GetNamedId().ToString());
+		return false;
+	}
+	// Out through the crack and down onto the porch, a world drop like any loot: its beam, and its rarity heard and its beam
+	// flaring as it lands (an Epic announced).
+	const FTransform Frame = GetActorTransform();
+	const FVector Where = Frame.TransformPosition(OutOffset);
+	AWeaponBase* Spawned = UWeaponRollLibrary::SpawnWeapon(this, Named->MakeInstance(PlayerLevel(GetWorld())),
+		FTransform(FRotator(0.f, Frame.Rotator().Yaw, 0.f), Where));
 	if (!Spawned)
 	{
-		return;
+		return false;
 	}
-	// Loot, so the player takes it as any gun and a save keeps it; but held at the crack: not falling, not spinning.
-	Spawned->Toss(FVector::ZeroVector);
-	if (ULootTossComponent* Toss = Spawned->FindComponentByClass<ULootTossComponent>())
-	{
-		Toss->StopMovementImmediately();
-		Toss->Deactivate();
-	}
-	if (URotatingMovementComponent* Spin = Spawned->FindComponentByClass<URotatingMovementComponent>())
-	{
-		Spin->Deactivate();
-	}
-	Spawned->SetActorTransform(Held, /*bSweep*/ false, nullptr, ETeleportType::TeleportPhysics);
-	Spawned->SetActorHiddenInGame(true);
+	Spawned->Toss(Frame.TransformVectorNoScale(OutVelocity));
+	ULootFanfareSubsystem::ExpectLanding(Spawned);
 	Gun = Spawned;
-	bGunShown = false;
+	UE_LOG(LogLooter, Log, TEXT("%s: %s handed out through the door."), *GetActorNameOrLabel(), *Named->GetNamedId().ToString());
+	return true;
 }
 
 void ADoorHandoff::Advance(float DeltaSeconds)
@@ -200,23 +230,24 @@ void ADoorHandoff::Advance(float DeltaSeconds)
 	case EDoorHandoffState::Handing:
 		Clock += DeltaSeconds;
 		SetDoorAngle(CrackDegrees * FMath::SmoothStep(OpenAfter, OpenAfter + SwingSeconds, Clock));
-		if (!Gun.IsValid() || !Gun->IsPickup())
-		{
-			// Taken before it was shown (it's loot from the first): nothing to hold out.
-			StartClosing();
-		}
-		else if (Clock >= GunOutAfter)
+		if (Clock >= GunOutAfter)
 		{
 			SetDoorAngle(CrackDegrees);
-			Gun->SetActorHiddenInGame(false);
-			bGunShown = true;
-			State = EDoorHandoffState::Holding;
-			// Still until it's taken: the missions' Interact event says when.
-			SetActorTickEnabled(false);
+			if (BringGunOut())
+			{
+				State = EDoorHandoffState::Out;
+				// Still until it's taken: the missions' Interact event says when.
+				SetActorTickEnabled(false);
+			}
+			else
+			{
+				// Nothing to come out (the session has it): the door shuts again.
+				StartClosing();
+			}
 		}
 		break;
-	case EDoorHandoffState::Holding:
-		if (!IsHeldOut())
+	case EDoorHandoffState::Out:
+		if (!IsGunOut())
 		{
 			StartClosing();
 		}
@@ -270,7 +301,7 @@ AWeaponBase* ADoorHandoff::GetGun() const
 	return Gun.Get();
 }
 
-bool ADoorHandoff::IsHeldOut() const
+bool ADoorHandoff::IsGunOut() const
 {
-	return bGunShown && Gun.IsValid() && Gun->IsPickup() && !Gun->IsActorBeingDestroyed();
+	return Gun.IsValid() && Gun->IsPickup() && !Gun->IsActorBeingDestroyed();
 }

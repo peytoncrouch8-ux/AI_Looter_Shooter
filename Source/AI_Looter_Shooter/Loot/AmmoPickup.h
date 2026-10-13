@@ -11,14 +11,18 @@ class URotatingMovementComponent;
 class USphereComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
+class UWeaponManagerComponent;
 
 /**
  * Ammo of one class dropped as loot: a spinning bundle of its rounds, the class's HUD icon modeled in 3D with the same
  * ink line (SM_Ammo<Type>, from Art/Models/Loot/Ammo.py), under a small white light beam so it can be found in the
  * grass from a distance. Run past it to collect (anything within CollectRadius of it): it goes into the player's shared
- * pool for that class, up to the carry limit. If you can't carry all of it, the rest stays on the ground. The rounds
- * themselves tell the classes apart (brass rifle rounds, oxblood shells, long sniper rounds...), never colors, which
- * belong to rarity: hence the plain white beam, shorter and fainter than any gun's. Despawns after a while.
+ * pool for that class, up to the carry limit. It is always collected, though: with the pool full, or short of room for
+ * all of it, what doesn't fit is simply lost, so a field of drops needn't be cleared by hand (the user's call). Only
+ * rounds actually added are announced (the feed's "+N" line and the pickup sound); a pickup that adds nothing vanishes
+ * quietly, with no "full" message. The rounds themselves tell the classes apart (brass rifle rounds, oxblood shells,
+ * long sniper rounds...), never colors, which belong to rarity: hence the plain white beam, shorter and fainter than
+ * any gun's. Despawns after a while.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AAmmoPickup : public AActor
@@ -36,6 +40,12 @@ public:
 
 	EAmmoType GetAmmoType() const { return AmmoType; }
 	int32 GetAmount() const { return Amount; }
+
+	/**
+	 * The player collects it: as many rounds as fit go into Inventory's pool (the feed's "+N" line and the sound only if
+	 * any did), and the pickup is spent and removed either way. Returns the rounds added (0 when the pool was full).
+	 */
+	int32 CollectInto(UWeaponManagerComponent& Inventory);
 
 	/** The spinning bundle of rounds, and the beam standing over it. */
 	UStaticMeshComponent* GetModel() const { return Model; }
@@ -68,7 +78,7 @@ private:
 	UFUNCTION()
 	void HandleTossStopped(const FHitResult& ImpactResult);
 
-	/** Gives ammo to any player standing in the pickup radius. Runs on overlap and every so often while someone is inside. */
+	/** Gives ammo to a player standing in the pickup radius. Runs on overlap and every so often while someone is inside. */
 	void TryCollect();
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
@@ -97,7 +107,5 @@ private:
 	EAmmoType AmmoType = EAmmoType::AssaultRifle;
 	int32 Amount = 0;
 	double SpawnTime = 0.0;
-	/** Players already told "full" during their current visit, so standing on a pickup doesn't spam the message. */
-	TSet<TWeakObjectPtr<AActor>> ToldFull;
 	FTimerHandle RetryTimer;
 };

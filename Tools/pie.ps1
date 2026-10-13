@@ -1,8 +1,10 @@
 # Starts PIE, optionally runs console commands (through console.ps1, which types nothing), then focuses the game viewport.
-# Usage: pie.ps1 [-Commands "Looter.DebugStance 1","..."]
+# Usage: pie.ps1 [-Commands "Looter.DebugStance 1","..."] [-Map TutorialIsland|RansomsRest] [-Menu]
+# The editor's Play opens the main menu (like the game), so this skips past it with Looter.PlayLevel (Skyreach, or
+# -Map) before the commands; -Menu stays on the menu.
 # Sends no input unless the editor is running and the play session really started (input.ps1 also refuses to type into
 # any window that isn't the editor).
-param([string[]]$Commands = @())
+param([string[]]$Commands = @(), [string]$Map = '', [switch]$Menu)
 if (-not (Get-Process UnrealEditor -ErrorAction SilentlyContinue)) { "editor not running"; exit 1 }
 & "$PSScriptRoot\mcp.ps1" 'EditorToolset.LogsToolset' 'SetVerbosity' '{"category":"LogLooter","verbosity":"Verbose"}' | Out-Null
 & "$PSScriptRoot\mcp.ps1" 'EditorToolset.EditorAppToolset' 'StartPIE' '{"options":{}}' | Out-Null
@@ -11,6 +13,11 @@ $running = & "$PSScriptRoot\mcp.ps1" 'EditorToolset.EditorAppToolset' 'IsPIERunn
 if ($running -notmatch 'true' -or -not (Get-Process UnrealEditor -ErrorAction SilentlyContinue)) { "PIE did not start (editor crashed or refused); no input sent"; exit 1 }
 # Commands go through the Slate inspector, not typed keys: a click meant for the console box once missed it and the
 # command was typed into the game instead (letters are game keys there).
+if (-not $Menu) {
+    $level = if ($Map) { $Map } else { 'TutorialIsland' }
+    & "$PSScriptRoot\console.ps1" "Looter.PlayLevel $level" | Out-Null
+    Start-Sleep 8
+}
 foreach ($c in $Commands) { & "$PSScriptRoot\console.ps1" $c | Out-Null }
 $steps = @("focus", "clickat 0.43 0.7", "wait 800")
 $sent = & "$PSScriptRoot\input.ps1" @steps 2>$null

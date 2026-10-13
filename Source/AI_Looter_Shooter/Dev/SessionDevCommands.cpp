@@ -361,6 +361,33 @@ namespace
 			bCopied ? TEXT("copied into") : TEXT("could NOT be copied into"), To + 1, SaveBytes.Num());
 	}
 
+	/**
+	 * The editor's Play opens the main menu like the real game (DefaultEngine.ini InEditorGameURLOptions), so testing gets a
+	 * shortcut past it: the level straight away, as a new game that saves nothing (no ?Session=), as Play used to.
+	 */
+	void PlayLevel(const TArray<FString>& Args, UWorld* World)
+	{
+		if (!World || !World->IsGameWorld())
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.PlayLevel: run it in a game (the editor's Play or the game itself)."));
+			return;
+		}
+		FString Map = Args.Num() > 0 ? Args[0] : FString(TEXT("TutorialIsland"));
+		if (!Map.StartsWith(TEXT("/")))
+		{
+			Map = Map.Equals(TEXT("Island"), ESearchCase::IgnoreCase) || Map.Equals(TEXT("Skyreach"), ESearchCase::IgnoreCase)
+				? FString(TEXT("/Game/Maps/Lvl_TutorialIsland"))
+				: FString::Printf(TEXT("/Game/Maps/Lvl_%s"), *Map);
+		}
+		UE_LOG(LogLooter, Log, TEXT("Looter.PlayLevel: %s as a new game (no session, nothing saved)."), *Map);
+		UGameplayStatics::OpenLevel(World, FName(*Map), true);
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs PlayLevelCommand(
+		TEXT("Looter.PlayLevel"),
+		TEXT("Plays a level straight away as a new game that saves nothing (skips the main menu): Looter.PlayLevel [TutorialIsland|RansomsRest|/Game/Maps/...]"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&PlayLevel));
+
 	FAutoConsoleCommandWithWorldAndArgs PlaySessionCommand(
 		TEXT("Looter.Session.Play"),
 		TEXT("Plays a session as the main menu would (a new game when it's empty): Looter.Session.Play <1-3>"),

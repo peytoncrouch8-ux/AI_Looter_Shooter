@@ -8,14 +8,16 @@ class ULootTossComponent;
 class UPrimitiveComponent;
 class URotatingMovementComponent;
 class USphereComponent;
+class UPlayerThrowComponent;
 class UStaticMeshComponent;
 
 /**
  * Grave-salt grenades dropped as loot: the tin itself (SM_SaltGrenade, oversized to read in the grass like the ammo
  * bundles) spinning under the small white beam every ammo drop has, collected by running past it (within CollectRadius),
- * into the player's grenades (UPlayerThrowComponent::AddGrenades), up to the three they can carry; what doesn't fit stays
- * on the ground, and the feed says "Grave Salt full" once a visit. The orchestrator's loot hooks spawn it (SpawnGrenades,
- * then Toss) where a kill or a chest drops it (FThrowRules::DropChance, ChestChance). Despawns after a while.
+ * into the player's grenades (UPlayerThrowComponent::AddGrenades), up to the three they can carry. Like the ammo drops it
+ * is always collected: what doesn't fit is lost, and the sound and the feed's "+N Grave Salt" line come only with grenades
+ * actually added (a full count clears the tin quietly, with no message). The orchestrator's loot hooks spawn it
+ * (SpawnGrenades, then Toss) where a kill or a chest drops it (FThrowRules::DropChance, ChestChance). Despawns after a while.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AGrenadePickup : public AActor
@@ -33,8 +35,14 @@ public:
 
 	int32 GetAmount() const { return Amount; }
 
-	/** Gives the grenades to any player in reach now (the overlap and a timer call it; tests call it). */
+	/** Gives the grenades to a player in reach now (the overlap and a timer call it; tests call it). */
 	void TryCollect();
+
+	/**
+	 * The player collects it: as many grenades as fit go into Throw's count (the sound and the feed's line only if any
+	 * did), and the pickup is spent and removed either way. Returns the grenades added (0 when the count was full).
+	 */
+	int32 CollectInto(UPlayerThrowComponent& Throw);
 
 	/** Seconds before an uncollected pickup disappears. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grenade", meta = (ClampMin = "0"))
@@ -83,7 +91,5 @@ private:
 
 	int32 Amount = 1;
 	double SpawnTime = 0.0;
-	/** Players already told "full" during their current visit. */
-	TSet<TWeakObjectPtr<AActor>> ToldFull;
 	FTimerHandle RetryTimer;
 };

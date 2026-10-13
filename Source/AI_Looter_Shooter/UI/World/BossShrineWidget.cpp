@@ -222,10 +222,10 @@ void UBossShrineWidget::BuildPanel()
 	Content->AddChildToVerticalBox(MakeInfoRow(LOCTEXT("LastKill", "Last laid to rest"), LastKillText));
 	Content->AddChildToVerticalBox(MakeInfoRow(LOCTEXT("Times", "Times beaten"), TimesText))->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
 	Content->AddChildToVerticalBox(MakeInfoRow(LOCTEXT("Drops", "Drops"), LootText))->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
-	UTextBlock* Luck = MakeText(WidgetTree, LOCTEXT("Luck", "Called back, it carries a little less luck than it did the first time.")
+	UTextBlock* Same = MakeText(WidgetTree, LOCTEXT("SameLoot", "Called back, it drops just what it did the first time.")
 		.ToString(), 10, Color::TextDim());
-	Luck->SetAutoWrapText(true);
-	Content->AddChildToVerticalBox(Luck)->SetPadding(FMargin(LabelWidth + 12.f, 4.f, 0.f, 0.f));
+	Same->SetAutoWrapText(true);
+	Content->AddChildToVerticalBox(Same)->SetPadding(FMargin(LabelWidth + 12.f, 4.f, 0.f, 0.f));
 
 	// The call: the countdown (while it waits), the status, the rule.
 	CountdownText = MakeText(WidgetTree, FString(), 34, Color::Accent(), false, 80);

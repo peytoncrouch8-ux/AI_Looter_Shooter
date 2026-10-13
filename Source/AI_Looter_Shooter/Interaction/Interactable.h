@@ -6,6 +6,7 @@
 #include "Interactable.generated.h"
 
 class UInteractionComponent;
+class UPrimitiveComponent;
 
 UINTERFACE(MinimalAPI, meta = (CannotImplementInterfaceInBlueprint))
 class UInteractable : public UInterface
@@ -21,7 +22,8 @@ class UInteractable : public UInterface
  * prompt and the mission event.
  *
  * An actor implementing it joins UInteractionSubsystem as its play begins and leaves as its play ends, so the
- * component's forgiving cone finds it; one that forgot is still found when the crosshair is right on it.
+ * component's cone finds it (a little help up close, narrowing with distance); one that forgot is still found when the
+ * crosshair is right on its part to use.
  */
 class AI_LOOTER_SHOOTER_API IInteractable
 {
@@ -39,6 +41,14 @@ public:
 
 	/** The point the player looks at to use it (the middle of a door's leaf); unset: the actor's location. */
 	virtual TOptional<FVector> GetInteractionLocation() const { return TOptional<FVector>(); }
+
+	/**
+	 * Part (one of its own components, or one on an actor fixed to it) is the thing to use: the crosshair on it offers it,
+	 * and it never hides its own point from the eyes. False for what it only stands in or carries (the depot's walls round a
+	 * station's board, the jetty's deck and the moored skiff's hull round the gangplank): those are looked at as any wall
+	 * is, so nothing is offered from beside it, behind it or through it. Every part counts unless it says otherwise.
+	 */
+	virtual bool IsInteractionPart(const UPrimitiveComponent* Part) const { return true; }
 
 	/**
 	 * Used for good, and the world keeps it so (a wanted poster torn down, a hay bale loaded): lasting interact objectives

@@ -40,6 +40,19 @@ namespace
 		}
 		return Racks;
 	}
+
+	/**
+	 * A pickup put back goes on with the seconds it had left, never more than the life it has just begun with. An older
+	 * save kept none (0): it keeps the life it begins with.
+	 */
+	void ContinueLife(AActor& Pickup, float LifeLeft)
+	{
+		const float Whole = Pickup.GetLifeSpan();
+		if (LifeLeft > 0.f && (Whole <= 0.f || LifeLeft < Whole))
+		{
+			Pickup.SetLifeSpan(LifeLeft);
+		}
+	}
 }
 
 void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
@@ -149,6 +162,7 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 			Ammo.Type = It->GetAmmoType();
 			Ammo.Amount = It->GetAmount();
 			Ammo.Location = It->GetActorLocation();
+			Ammo.LifeLeft = It->GetLifeSpan();
 		}
 	}
 	// Silver lying around, as the ammo is (a pile on its way to the player is theirs in a moment: it's kept too).
@@ -160,6 +174,7 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 			FSavedSilverPickup& Silver = Here.SilverPickups.AddDefaulted_GetRef();
 			Silver.Amount = It->GetAmount();
 			Silver.Location = It->GetActorLocation();
+			Silver.LifeLeft = It->GetLifeSpan();
 		}
 	}
 
@@ -262,11 +277,13 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 				}
 			}
 		}
+		// Ammo and silver go on with the life they had left (a fresh one on every load kept them lying there for good).
 		for (const FSavedAmmoPickup& Ammo : Here->AmmoPickups)
 		{
 			if (AAmmoPickup* Pickup = AAmmoPickup::SpawnAmmo(World, Ammo.Type, Ammo.Amount, Ammo.Location))
 			{
 				Pickup->Toss(FVector::ZeroVector);
+				ContinueLife(*Pickup, Ammo.LifeLeft);
 			}
 		}
 		for (const FSavedSilverPickup& Silver : Here->SilverPickups)
@@ -274,6 +291,7 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 			if (ASilverPickup* Pickup = ASilverPickup::SpawnSilver(World, Silver.Amount, Silver.Location))
 			{
 				Pickup->Toss(FVector::ZeroVector);
+				ContinueLife(*Pickup, Silver.LifeLeft);
 			}
 		}
 	}

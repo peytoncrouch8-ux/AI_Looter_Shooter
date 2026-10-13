@@ -50,11 +50,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void InitializeFromInstance(const FWeaponInstanceData& InInstance);
 
+	/**
+	 * The trigger goes down. A gun that's ready fires; one still cycling remembers the press only if it's about to be ready
+	 * (WeaponTrigger::BufferSeconds) and only once, so spammed clicks never queue shots that fire after the clicking stops.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void StartFire();
 
+	/** StartFire as of the world time Now (a test steps through a gun's cooldown with it, as the level never ticks). */
+	void StartFireAt(double Now);
+
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void StopFire();
+
+	/** A shot is on its way after the gun's cooldown: a remembered press, auto fire under a held trigger, or a burst's next round. */
+	bool HasShotPending() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void Reload();

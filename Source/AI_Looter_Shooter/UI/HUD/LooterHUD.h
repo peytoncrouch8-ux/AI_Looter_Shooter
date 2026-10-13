@@ -5,6 +5,8 @@
 #include "LooterHUD.generated.h"
 
 class ANoticeBoard;
+class IGameLayerManager;
+class ULocalPlayer;
 class UBenchWidget;
 class UBestiaryWidget;
 class UHudCaptionWidget;
@@ -128,8 +130,17 @@ public:
 	/** Takes the closing line away, shown or waiting (the tutorial restarted or skipped). */
 	void ClearMissionClosingLine();
 
+	/**
+	 * Shows or hides Player's labels drawn over the world (creature tags, loot labels, damage numbers, barks): the engine's
+	 * layer of screen-space widget components in Layers. That layer belongs to the game's viewport, not to a level, so it
+	 * outlives every HUD; it's set from what it shows now, never from what a HUD last asked of it. False while the layer
+	 * doesn't exist yet (it's made as the first of them is shown).
+	 */
+	static bool ShowWorldLabels(IGameLayerManager& Layers, ULocalPlayer* Player, bool bVisible);
+
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
 	void BindMenuInput();
@@ -149,7 +160,6 @@ private:
 
 	/** Shows or hides the labels drawn over the world (creature tags, loot labels, damage numbers), which sit over menus. */
 	void SetWorldLabelsVisible(bool bVisible);
-	bool bWorldLabelsVisible = true;
 
 	/** Puts the current inventory page on screen with the keyboard on it. False when it can't open (no player). */
 	bool OpenInventoryPage();

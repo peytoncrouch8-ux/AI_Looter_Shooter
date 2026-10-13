@@ -46,7 +46,8 @@ if not errorlevel 1 (
 )
 
 rem -game runs the project as a standalone game instead of opening the editor. -fullscreen uses borderless fullscreen
-rem at the desktop resolution; Alt+Enter switches to a window and back.
+rem at the desktop resolution; Alt+Enter switches to a window and back. Name no map here: with none, the game opens the
+rem main menu (DefaultEngine.ini's LocalMapOptions); any word without a dash would be taken as a level to play instead.
 echo Starting AI_Looter_Shooter...
 start "" "%UE_EXE%" "%PROJECT%" -game -fullscreen
 if errorlevel 1 (

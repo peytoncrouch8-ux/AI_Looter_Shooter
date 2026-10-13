@@ -42,8 +42,9 @@ keep it short and put details in the pipeline.
 `/Game/Player/BP_LooterCharacter`, a data-only child of `ALooterCharacter`. The game starts at the main menu: the
 default map opened with `?game=Menu` (`LocalMapOptions` in DefaultEngine.ini; `ALooterMenuGameMode`). Single Player picks one of three sessions
 (`USessionSubsystem`) and opens the level with `?Session=N`; the session saves the player and the world, and the pause
-menu's Save & Quit goes back to the menu. Play-In-Editor, or a map named on the command line (`perf.ps1`, `tour.ps1`),
-plays a new game and saves nothing. `Looter.Session.Play <1-3>` plays a session from the console. The standalone game
+menu's Save & Quit goes back to the menu. Play-In-Editor opens the menu too; `Looter.PlayLevel [map]` (which `pie.ps1`
+runs) or a map named on the command line (`perf.ps1`, `tour.ps1`) plays a new game and saves nothing.
+`Looter.Session.Play <1-3>` plays a session from the console. The standalone game
 and PIE share `Saved\SaveGames`; command-line runs keep theirs under `%LOCALAPPDATA%\UnrealEngine\5.8\Saved`.
 
 ## Build, run, test

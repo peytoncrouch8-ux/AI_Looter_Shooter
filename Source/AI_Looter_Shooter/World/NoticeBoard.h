@@ -135,9 +135,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Notice Board")
 	FText Prompt;
 
-	/** How far from the player's eyes it can be read (cm): a notice is read from a step or two back. */
+	/** How far from the player's eyes it can be read (cm): a notice is read from a step back, never from across the square. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Notice Board", meta = (ClampMin = "0", Units = "cm"))
-	float Reach = 350.f;
+	float Reach = 300.f;
 
 	/**
 	 * The middle of the board's face in the actor's space (+X the way the face looks, Z up from the board's feet), a hand's

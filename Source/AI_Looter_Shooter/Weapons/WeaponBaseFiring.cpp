@@ -6,6 +6,7 @@
 #include "Weapons/WeaponCurses.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Weapons/WeaponSounds.h"
+#include "Weapons/WeaponTrigger.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerViewComponent.h"
@@ -58,6 +59,12 @@ namespace
 
 void AWeaponBase::StartFire()
 {
+	const UWorld* World = GetWorld();
+	StartFireAt(World ? World->GetTimeSeconds() : 0.0);
+}
+
+void AWeaponBase::StartFireAt(double Now)
+{
 	bWantsToFire = true;
 
 	// Mid-strike the trigger is only remembered: auto fire takes up again as the swing ends (EndMeleeSwing).
@@ -66,10 +73,15 @@ void AWeaponBase::StartFire()
 		return;
 	}
 
+	// Respect the fire rate however the trigger is worked. A press while the gun is still cycling is remembered only if it
+	// comes just before the gun is ready, and only once (WeaponTrigger::Decide): clicks made earlier are lost, so spamming
+	// never stacks shots that go off after the clicking has stopped.
 	FTimerManager& Timers = GetWorldTimerManager();
-	if (Timers.IsTimerActive(FireTimer))
+	const double Interval = Instance.Stats.GetSecondsBetweenShots();
+	const double SecondsUntilReady = Interval - (Now - LastFireTime);
+	const WeaponTrigger::EPress Press = WeaponTrigger::Decide(Instance.Definition->FireMode, SecondsUntilReady, Timers.IsTimerActive(FireTimer));
+	if (Press == WeaponTrigger::EPress::Ignore)
 	{
-		// Already cycling (auto fire, a burst in progress, or a queued shot).
 		return;
 	}
 
@@ -78,24 +90,28 @@ void AWeaponBase::StartFire()
 		BurstShotsRemaining = Instance.Definition->BurstCount;
 	}
 
-	const double Elapsed = GetWorld()->GetTimeSeconds() - LastFireTime;
-	const float Interval = Instance.Stats.GetSecondsBetweenShots();
-	if (Elapsed >= Interval)
+	if (Press == WeaponTrigger::EPress::FireNow)
 	{
 		HandleFiring();
 	}
 	else
 	{
-		// Respect fire rate even when the trigger is spammed.
-		Timers.SetTimer(FireTimer, this, &AWeaponBase::HandleFiring, static_cast<float>(Interval - Elapsed), false);
+		Timers.SetTimer(FireTimer, this, &AWeaponBase::HandleFiring, static_cast<float>(SecondsUntilReady), false);
 	}
+}
+
+bool AWeaponBase::HasShotPending() const
+{
+	const UWorld* World = GetWorld();
+	return World && World->GetTimerManager().IsTimerActive(FireTimer);
 }
 
 void AWeaponBase::StopFire()
 {
 	bWantsToFire = false;
 
-	// Bursts finish on their own and semi-auto keeps a queued shot, so only auto stops immediately.
+	// Bursts finish on their own and semi-auto keeps its one remembered press (made just before the gun was ready), so only
+	// auto stops immediately.
 	// Without a world (its holder ending play as the world is collected) there's no timer left to clear: asking for the
 	// timer manager then crashed the editor between test batches.
 	UWorld* World = GetWorld();

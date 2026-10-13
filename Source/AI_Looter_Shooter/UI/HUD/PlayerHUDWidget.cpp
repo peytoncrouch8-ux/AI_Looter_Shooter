@@ -377,10 +377,10 @@ void UPlayerHUDWidget::HandleGrenadesChanged(int32 Count, int32 Delta, EGrenadeC
 		{
 			GrenadeCounter->Flash(EHudGrenadeFlash::Gained);
 		}
-		if (PickupFeed && (Delta > 0 || Why == EGrenadeChange::PickedUp))
+		if (PickupFeed && Delta > 0)
 		{
-			// Told where the eyes are, in the ammo pickups' words ("+36 AR Ammo", "AR Ammo full").
-			PickupFeed->AddLine(Delta > 0 ? FString::Printf(TEXT("+%d Grave Salt"), Delta) : FString(TEXT("Grave Salt full")));
+			// Told where the eyes are, in the ammo pickups' words ("+36 AR Ammo"); a full count says nothing.
+			PickupFeed->AddLine(FString::Printf(TEXT("+%d Grave Salt"), Delta));
 		}
 		break;
 	default:

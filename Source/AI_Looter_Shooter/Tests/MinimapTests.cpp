@@ -2,6 +2,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "UI/HUD/HudMinimapWidget.h"
 #include "World/MinimapSubsystem.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMinimapMappingTest, "Looter.UI.Minimap.Mapping",
@@ -24,6 +25,29 @@ bool FMinimapMappingTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Facing east, north is left"), UMinimapSubsystem::ViewOffset(FVector(100.f, 0.f, 0.f), 90.f, Scale).Equals(FVector2D(-10.0, 0.0), 1e-3));
 	TestTrue(TEXT("Behind you is down"), UMinimapSubsystem::ViewOffset(FVector(-100.f, 0.f, 0.f), 0.f, Scale).Equals(FVector2D(0.0, 10.0), 1e-3));
 	TestTrue(TEXT("Height doesn't move a marker"), UMinimapSubsystem::ViewOffset(FVector(0.f, 0.f, 500.f), 37.f, Scale).IsNearlyZero(1e-3));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMinimapMarkerPoolTest, "Looter.UI.Minimap.MarkerPool",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FMinimapMarkerPoolTest::RunTest(const FString& Parameters)
+{
+	// The markers go to the hostiles first, then the guns, then the ammo. They once went in drawing order (ammo, loot,
+	// hostiles), so a fight's pile of drops (kept lying there through every Save & Quit) left no marker for the creatures.
+	const FMinimapMarkerSplit Fight = UHudMinimapWidget::SplitMarkers(32, 3, 10, 50);
+	TestEqual(TEXT("Every hostile is marked beside a pile of drops"), Fight.Hostiles, 3);
+	TestEqual(TEXT("Then every gun"), Fight.Guns, 10);
+	TestEqual(TEXT("And ammo with what's left"), Fight.Ammo, 19);
+
+	const FMinimapMarkerSplit Swarm = UHudMinimapWidget::SplitMarkers(32, 40, 5, 5);
+	TestTrue(TEXT("A swarm takes every marker"), Swarm.Hostiles == 32 && Swarm.Guns == 0 && Swarm.Ammo == 0);
+
+	const FMinimapMarkerSplit Quiet = UHudMinimapWidget::SplitMarkers(32, 2, 1, 4);
+	TestTrue(TEXT("With room for all, all are marked"), Quiet.Hostiles == 2 && Quiet.Guns == 1 && Quiet.Ammo == 4);
+
+	const FMinimapMarkerSplit None = UHudMinimapWidget::SplitMarkers(0, 3, 3, 3);
+	TestTrue(TEXT("No markers, nothing marked"), None.Hostiles == 0 && None.Guns == 0 && None.Ammo == 0);
 	return true;
 }
 

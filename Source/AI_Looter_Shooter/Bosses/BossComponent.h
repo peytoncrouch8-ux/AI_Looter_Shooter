@@ -45,7 +45,7 @@ DECLARE_DELEGATE_RetVal(bool, FBossCanStagger);
  *    adds go, the wall drops, the bar goes. Nothing in the player's death or respawn changes.
  *  - the boss's death wins it: the adds go, the wall drops, the bar empties and fades, and a boss with a BossId is
  *    recorded as beaten in the campaign. Its rank (Boss) keeps it from coming back, and its loot is its rank's. A vigil
- *    stone (World/BossShrine) calls it back for another fight (PrepareRematch), its loot with a little less luck.
+ *    stone (World/BossShrine) calls it back for another fight (PrepareRematch), its loot rolled as the first kill's.
  *  - the show (Show, BossComponentShow.cpp): the bar sweeps in with the title and a sting as the fight starts, a later
  *    phase flashes it with a sting, the boss's cry and a camera shake; the death slows the world a moment, shakes it hard
  *    and the bar says it's beaten. Its loot is thrown out as a shower (LootShower, ABossLootShower) in place of the toss.
@@ -257,13 +257,10 @@ public:
 	 */
 	bool PrepareRematch();
 
-	/** This fight is a call back (PrepareRematch, or a boss spawned anew by whoever called it): its loot has less luck. */
+	/** This fight is a call back (PrepareRematch, or a boss spawned anew by whoever called it). Its loot rolls as the first kill's. */
 	void MarkRematch() { bRematch = true; }
 	bool IsRematch() const { return bRematch; }
 
-	/** A called-back fight's loot rolls with this much less luck (never below its table's own odds): 1.3 becomes 1.0. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Loot", meta = (ClampMin = "0"))
-	float RematchLuckDrop = 0.3f;
 	FOnBossUntargetableChanged OnUntargetableChanged;
 	/** A stagger started, or ended. */
 	FOnBossStaggered OnStaggered;

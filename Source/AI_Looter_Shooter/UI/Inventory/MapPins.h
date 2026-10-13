@@ -17,6 +17,8 @@ enum class EMapPinKind : uint8
 	Chest,
 	/** A gunsmith's bench. */
 	Bench,
+	/** A vigil stone (ABossShrine) that has risen beside a boss's arena. */
+	Shrine,
 	/** A store (AVendor) that is open to trade: Pruitt's General Store, Crossroads Mercantile. */
 	Vendor,
 	/** Where trips leave from: the train's depot, Skyreach's skiff jetty. */
@@ -40,7 +42,7 @@ struct AI_LOOTER_SHOOTER_API FMapPin
 	FText Detail;
 	/** The grave, for a Grave pin. */
 	TWeakObjectPtr<const ARespawnMarker> Grave;
-	/** The grave's marker id, the chest's save key or the mission's id. */
+	/** The grave's marker id, the chest's save key, the vigil stone's boss key or the mission's id. */
 	FName Id;
 };
 
@@ -60,9 +62,10 @@ struct FMapPinSources
 
 /**
  * The map page's pins gathered from a level (apart from the widget, so the tests read them from a test level): the open
- * respawn graves, the stations, the gunsmith's benches, the stores open to trade, the chests found (or opened), the
- * missions waiting to be turned in at their givers, and the tracked mission's objective. Closed graves, stores the story
- * keeps shut and unfound chests stay off the map: what's ahead is the player's to find. The player's own arrow is the
+ * respawn graves, the stations, the gunsmith's benches, the vigil stones risen beside the boss arenas, the stores open to
+ * trade, the chests found (or opened), the missions waiting to be turned in at their givers, and the tracked mission's
+ * objective. Closed graves, stores the story keeps shut, unfound chests and stones not yet risen stay off the map: what's
+ * ahead is the player's to find. The player's own arrow is the
  * widget's.
  */
 namespace MapPins

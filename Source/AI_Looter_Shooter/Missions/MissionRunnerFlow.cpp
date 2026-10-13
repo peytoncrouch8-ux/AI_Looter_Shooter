@@ -418,8 +418,9 @@ FMissionRewardsGiven UMissionRunner::GrantRewards(const UMissionDefinition& Miss
 	// Silver: the giver's fixed purse (MissionRewards::SilverFor; Docs/Progression.md, "Economy"), into the wallet.
 	Given.Silver = MissionRewards::GiveSilver(Context.World, Mission.GetMissionId());
 
-	// A gun at the player's feet, at their level, and a named gun the same way, unless the story hands that one over itself
-	// (Heirloom through Delia's door).
+	// A gun in front of the player, at their level, and a named gun the same way. One the story hands over itself (Heirloom
+	// through Delia's door) is made sure of rather than dropped again: brought to them if it was never taken, given if it was
+	// never handed out, nothing if they carry it.
 	if (Rewards.bGun)
 	{
 		if (const AWeaponBase* Gun = MissionRewards::DropGun(Context.World, Rewards, PlayerLevel, Context.Player))
@@ -432,7 +433,11 @@ FMissionRewardsGiven UMissionRunner::GrantRewards(const UMissionDefinition& Miss
 	}
 	if (!Rewards.NamedGun.IsNone())
 	{
-		if (!Rewards.bNamedGunByHand)
+		if (Rewards.bNamedGunByHand)
+		{
+			MissionRewards::EnsureNamedGun(Context.World, Rewards, PlayerLevel, Context.Player);
+		}
+		else
 		{
 			MissionRewards::DropNamedGun(Context.World, Rewards, PlayerLevel, Context.Player);
 		}

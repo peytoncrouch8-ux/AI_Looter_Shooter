@@ -114,7 +114,7 @@ public:
 	/**
 	 * Rounds in each ammo pickup: a random amount from AmmoAmountMin to AmmoAmountMax, both included, whatever the class.
 	 * Kills drop 18 to 36 (the user's rule); set both the same for a fixed amount. The player takes what fits under the
-	 * carry limit and the rest stays on the ground.
+	 * carry limit and the rest is lost: the pickup is collected either way (AAmmoPickup::CollectInto).
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Ammo", meta = (ClampMin = "1"))
 	int32 AmmoAmountMin = LooterLoot::KillAmmoAmountMin;
