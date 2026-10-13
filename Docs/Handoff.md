@@ -49,6 +49,12 @@ uncommitted: Art/Levels/*, layout.json, Art/Models/Terrain/Waterfall.py, Art/Tex
 and placements (scratchpad level_step3_notes.md), lift/mine/post, roosts, Lost Property on the new depot's socket,
 vendors, loot, fauna, scatter, Keeper's Bridge fix (below); then step 4 (all missions' data, XP retune).
 
+**To do (the user's calls, 2026-10-13):**
+- [ ] **Ground grenades saved like ammo** (the user said yes): AGrenadePickup saved with its remaining life, gone when
+      it runs out (as FSavedAmmoPickup / FSavedSilverPickup); not Lost Loot. Fold into the level build.
+- [ ] **Found chests remembered across saves** (yes): UMapDiscoverySubsystem's found-but-unopened chests kept per map in
+      the session save, so their map pins survive Save & Quit / Continue.
+
 **To do (the user's play notes, 2026-10-13):**
 - [ ] **Keeper's Bridge** (the bridge by Abel, over the Dry Wash on the keeper's path, (-95, 2)) floats above the
       ground, and walking up the hill to it stops the player: it takes several jumps to get up. Ground the bridge (its
