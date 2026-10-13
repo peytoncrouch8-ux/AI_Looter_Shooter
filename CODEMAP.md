@@ -1581,6 +1581,9 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Tools/Blender/looter_homes.py`, `looter_rr_town.py`, `town_sheet.py`: Ransom's Rest's own buildings (`Homestead.py`: ten homes,
   well, privy, windpump; `FrontsRR.py`, `DepotRR.py`, `WorkshopBright.py`, `BarnWhitlock.py`): wall shells, clapboard and
   batten, sash windows, roofs, porches, rooms, stairs, lamps and furniture, cutaway previews, and the look sheet.
+- `Tools/Blender/looter_mountain.py`, `looter_mine.py`, `mountain_sheet.py`: the mountain's models (`OreLift.py`, `CalderPost.py`,
+  `Diggings.py`, `Props/Tramway.py`, `Mine/Mine.py` with `Mine.layout.json`, the mine's pieces in its own frame): shared
+  builders, the mine's watertight rock (a surface-nets mesh with a manifold pass), the look sheet.
 - `Tools/Blender/looter_ghosts.py`, `looter_miners.py`, `looter_friends.py`, `miners_sheet.py`: the Providence's dead
   (SK_DeadMiner, SK_Foreman, SK_Hiram, SK_Thaddeus; `Art/Models/Creatures/*.py`): the ghost toolkit, the miners' lamp and
   pick, the friendly dead's faces and rigs (Unpaid.py and Amos.py run as libraries up to their build lines), the sheet.
