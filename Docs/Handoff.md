@@ -37,6 +37,13 @@ imports, house swaps, depot/workshop/barn placements, lift/mine/post placements,
 SOCKET_LostProperty, build_area_vendors for Pruitt's voice); step 4 (all missions' data per the design, XP retune to
 story ~5.5 / full ~6.8). Lost Loot prices: only two upgrades are affordable in Ransom's Rest (~1,270 silver a play).
 
+**To do (the user's play notes, 2026-10-13):**
+- [ ] **Keeper's Bridge** (the bridge by Abel, over the Dry Wash on the keeper's path, (-95, 2)) floats above the
+      ground, and walking up the hill to it stops the player: it takes several jumps to get up. Ground the bridge (its
+      ends on the banks, no gap under them) and make the walk up and over fluent (a walkable ramp/slope, no step the
+      player can't walk up; check with `Tools/Unreal/path_probe.py` both ways). Do it in level step 3, after the terrain
+      agent's valley-identity check, as its own change (it alters the wash's banks).
+
 **Wave 2 (as launched; contract `contract_wave2.md` in the session scratchpad):** code 2a mission features
 (optional objectives, mission items, choice turn-ins, story flags, UNDERGROUND minimap, porch plate, readable props),
 2b ore lift + watch fire + far light + interior visibility + build_area_lift.py, 2c dead miners + Foreman + Hiram +
