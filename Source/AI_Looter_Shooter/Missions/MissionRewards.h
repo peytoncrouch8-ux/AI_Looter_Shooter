@@ -25,8 +25,10 @@ struct AI_LOOTER_SHOOTER_API FMissionRewardsGiven
 	FText NamedGun;
 	/** The areas opened to travel, by their names ("The Gilded Lily"). */
 	TArray<FText> AreasOpened;
+	/** The silver its purse paid into the wallet (MissionRewards::GiveSilver). */
+	int32 Silver = 0;
 
-	bool IsEmpty() const { return Experience <= 0 && !bGun && NamedGun.IsEmpty() && AreasOpened.IsEmpty(); }
+	bool IsEmpty() const { return Experience <= 0 && !bGun && NamedGun.IsEmpty() && AreasOpened.IsEmpty() && Silver <= 0; }
 };
 
 /** What finishing a mission gives, worked out and handed over (the runner grants them once per session, at the turn-in). */
@@ -66,8 +68,19 @@ namespace MissionRewards
 	FText AreaName(FName AreaId);
 
 	/**
-	 * The rewards in words, one line each, for the Missions page: "+40 XP" (or "+30% of a level's experience"), "Gun: Rare
-	 * or better", "Named gun: Heirloom", "Opens The Gilded Lily".
+	 * The silver a mission's turn-in pays (Docs/Progression.md, "Economy"): a fixed purse per mission, by its id, the same at
+	 * any level. 0 for the ones that pay none: Sexton's (he pays in grave gold, and not to Ellis), the boss's and the
+	 * Gravemother's (their loot is the reward), Skyreach's practice postings and the tutorial.
 	 */
-	TArray<FString> Describe(const FMissionRewards& Rewards);
+	int32 SilverFor(FName MissionId);
+
+	/** Pays a mission's purse into World's wallet (UWalletSubsystem); what went in, 0 without a wallet or a purse. */
+	int32 GiveSilver(UWorld* World, FName MissionId);
+
+	/**
+	 * The rewards in words, one line each, for the Missions page: "+40 XP" (or "+30% of a level's experience"), "+40 silver",
+	 * "Gun: Rare or better", "Named gun: Heirloom", "Opens The Gilded Lily". The purse isn't part of FMissionRewards (it is
+	 * kept by mission id, SilverFor), so the silver line comes only when MissionId is given and its purse isn't 0.
+	 */
+	TArray<FString> Describe(const FMissionRewards& Rewards, FName MissionId = NAME_None);
 }

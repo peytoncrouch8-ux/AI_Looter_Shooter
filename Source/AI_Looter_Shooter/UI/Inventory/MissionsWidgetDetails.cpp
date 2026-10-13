@@ -230,7 +230,8 @@ void UMissionsWidget::AddObjectiveLine(const FString& Text, const FString& Progr
 
 void UMissionsWidget::AddRewards(const UMissionDefinition& Mission)
 {
-	const TArray<FString> Lines = MissionRewards::Describe(Mission.Rewards);
+	// The purse is kept by mission id, not in the rewards, so the id goes with them.
+	const TArray<FString> Lines = MissionRewards::Describe(Mission.Rewards, Mission.GetMissionId());
 	if (Lines.IsEmpty())
 	{
 		return;

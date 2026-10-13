@@ -6,6 +6,45 @@ struct FCompactPose;
 struct FLooterStanceInput;
 
 /**
+ * A grenade throw's body at one moment (LooterStancePose::DescribeThrow), as plain numbers: where the left arm throws
+ * from and to, how the chest turns into it, how far the gun hand dips out of its way. Offsets are the full-size
+ * mannequin's (cm) from the left shoulder, in the body's facing: X ahead, Y out to its left, Z up.
+ */
+struct FLooterThrowStance
+{
+	/** How strongly the left arm follows the throw (0: wherever the rest of the pose has it; 1: on the throw's path). */
+	float Arm = 0.f;
+	/** The left wrist, from the left shoulder. */
+	FVector Hand = FVector::ZeroVector;
+	/** Where the left elbow points, from the left shoulder. */
+	FVector Elbow = FVector::ZeroVector;
+	/** The chest's turn (degrees; + brings the left shoulder forward) and its lean (degrees; + forward). */
+	float Twist = 0.f;
+	float Lean = 0.f;
+	/** How far the gun in the right hand has dipped out of the throw's way (0-1, ThrowMotion::GunDipShare). */
+	float GunDip = 0.f;
+
+	bool IsActive() const
+	{
+		return Arm > UE_KINDA_SMALL_NUMBER || GunDip > UE_KINDA_SMALL_NUMBER || !FMath::IsNearlyZero(Twist) || !FMath::IsNearlyZero(Lean);
+	}
+};
+
+/**
+ * A revolver's reload at one moment (LooterStancePose::DescribeCylinderReload): where the left hand works on the gun, or
+ * how far it has gone to the belt for the speedloader, and the gun hand's flick as the cylinder shuts.
+ */
+struct FLooterCylinderReload
+{
+	/** The left palm's spot on the gun, from its grip in the gun's own space (cm: X along the barrel, Y right, Z up). */
+	FVector OnGun = FVector::ZeroVector;
+	/** How far the left hand has gone down to the belt for the speedloader (0: at OnGun, 1: at the belt). */
+	float Pouch = 0.f;
+	/** The gun hand's flick as the cylinder is shut (0-1, its peak as it latches). */
+	float Flick = 0.f;
+};
+
+/**
  * The procedural stance pose, layered on whatever the Anim Blueprint's graph produced (ULooterCharacterAnimInstance
  * calls it from the animation thread). A free function on a plain pose so the tests can run it on the mannequin's
  * reference pose, bone by bone, without a world:
@@ -17,10 +56,16 @@ struct FLooterStanceInput;
  *    reach for the ledge (a vault plants the free hand)
  *  - armed: the torso pitches with the player's aim, and the left hand is solved onto the held gun's foregrip
  *    (the rifle animations were made for a different gun); a short gun (HoldReach) is first pushed out along its barrel
- *    by the right arm, and its foregrip is on its grip, so both hands hold it out like a pistol
+ *    by the right arm, and its foregrip is on its grip, so both hands hold it out like a pistol, the support hand
+ *    wrapped round the shooting hand's fingers
  *  - recoil: each shot rocks the chest back and lets the right arm give, so the gun (in that hand) jumps back and the
  *    left hand rides along on the foregrip
  *  - melee: the strike's jab twists the chest into the blow and drives the right hand (the gun's stock, or a fist) forward
+ *  - grenade: an overarm toss with the left hand (cocked by the ear, slung out to where the jar leaves it), the chest
+ *    winding up and turning into it, the gun hand dipping out of its way (LooterStancePoseThrow.cpp)
+ *  - a revolver's reload: no animation; the gun comes in, the left hand rides the cylinder out, punches the ejector rod,
+ *    fetches a speedloader from the belt and pushes it in, and bats the cylinder home as the gun hand flicks
+ *    (LooterStancePoseReload.cpp), on the gun's own reload steps (Weapons/ReloadMotion)
  */
 namespace LooterStancePose
 {
@@ -33,4 +78,25 @@ namespace LooterStancePose
 	 * (ContactSeconds), held a moment and eased back to 0 by the swing's end. 0 outside a swing.
 	 */
 	float MeleeJab(float SwingTime);
+
+	/**
+	 * A grenade throw ThrowTime seconds in, on FThrowRules' and ThrowMotion's clock: the arm comes up to the ear as the
+	 * first-person jar comes up to the cheek (ThrowMotion::DrawSeconds), is slung out to the release (ReleaseSeconds),
+	 * follows through across the body and goes back to what it was doing by the throw's end. Nothing at 0 or after.
+	 */
+	FLooterThrowStance DescribeThrow(float ThrowTime);
+
+	/**
+	 * A revolver's reload Progress (0 to 1) of the way through, on Weapons/ReloadMotion's steps for a cylinder: the left
+	 * hand at the cylinder as the latch clicks, riding it out (LooterReload::CylinderSwing), the palm's punch on the
+	 * ejector rod (Eject), down to the belt and back with a speedloader pushed in (RoundsIn), the cylinder batted home
+	 * as the gun hand flicks (CylinderIn), then on it until the reload lets go.
+	 */
+	FLooterCylinderReload DescribeCylinderReload(float Progress);
+
+	/**
+	 * The middle of the Drover's cylinder swung SwingDegrees out on its crane, from the gun's grip in its own space (cm):
+	 * Art/Models/Weapons/Drover.py's layout.
+	 */
+	FVector CylinderCenter(float SwingDegrees);
 }

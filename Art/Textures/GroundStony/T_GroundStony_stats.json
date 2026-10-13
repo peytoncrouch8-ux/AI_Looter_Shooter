@@ -1,0 +1,9 @@
+{
+ "about": "Mean linear RGB and luma (0.299, 0.587, 0.114) of the color map; M_Terrain normalizes by them (Tools/Unreal/build_world_materials.py reads this file).",
+ "meanLinear": [
+  0.2511,
+  0.18021,
+  0.10679
+ ],
+ "meanLuma": 0.19285
+}

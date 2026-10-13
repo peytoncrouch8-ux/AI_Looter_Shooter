@@ -94,6 +94,8 @@ public:
 		TArray<int32> ListOrder;
 		/** What the prompt bar says, "E: Swap into slot 1" and so on, in order. */
 		TArray<FString> Prompts;
+		/** For each backpack row, in the list's order: it carries the JUNK tag (its gun is marked junk). */
+		TArray<bool> JunkRows;
 	};
 	FView GetView() const;
 
@@ -150,6 +152,8 @@ private:
 		UTextBlock* ChipText = nullptr;
 		/** NEW, until the cursor has been on the gun. */
 		UWidget* NewMark = nullptr;
+		/** JUNK, on a backpack row whose gun is marked junk (null on the others; the list is rebuilt when the mark changes). */
+		UWidget* JunkMark = nullptr;
 		/** Its gun's identity (LoadoutRules::GunIdentity), 0 for an empty slot. */
 		uint32 Identity = 0;
 		FLinearColor Rarity = FLinearColor::White;

@@ -101,11 +101,23 @@ public:
 
 	/**
 	 * How far ahead of a long gun's hold this one is held out (cm, along its barrel): a six-gun is pushed out toward
-	 * arm's length, where a rifle is tucked in. The third-person arms reach out by it (the stance layer, LooterStancePose),
-	 * and the first-person hold carries the gun forward by it. 0 for long guns.
+	 * arm's length, where a rifle is tucked in. The third-person arms reach out by it (the stance layer, LooterStancePose).
+	 * 0 for long guns. (First person has its own hip hold: FirstPersonGrip.)
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals", meta = (ClampMin = "0", ClampMax = "40"))
 	float HoldReach = 0.f;
+
+	/**
+	 * A first-person hip hold of its own (a six-gun's): where its grip sits in the view (cm, the hold's space: X ahead,
+	 * Y right, Z up), turned by FirstPersonRotation. Zero: the long guns' hold (the weapon manager's AttachOffset, lined up
+	 * by the grip). Aiming still puts the sight's SOCKET_Aim on the line of sight, whatever this is.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals")
+	FVector FirstPersonGrip = FVector::ZeroVector;
+
+	/** The hip hold's turn (with FirstPersonGrip): a cant in toward the middle, the barrel toed in to meet the crosshair at range. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Visuals")
+	FRotator FirstPersonRotation = FRotator::ZeroRotator;
 
 	/**
 	 * The gun's parts, in order: each rolled gun picks its own by its seed (UWeaponModelComponent assembles them).

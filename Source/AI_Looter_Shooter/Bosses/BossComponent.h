@@ -10,10 +10,12 @@ class ABossSeal;
 class AController;
 class ACreatureBase;
 class APawn;
+class UBossComponent;
 class UHealthComponent;
 class UHudBossBarWidget;
 
 DECLARE_MULTICAST_DELEGATE(FOnBossFight);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnBossWonAnywhere, UBossComponent& /*Boss*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnBossPhaseChanged, int32 /*NewPhase*/, int32 /*OldPhase*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnBossCustomEvent, FName /*EventName*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnBossUntargetableChanged, bool /*bUntargetable*/);
@@ -42,7 +44,8 @@ DECLARE_DELEGATE_RetVal(bool, FBossCanStagger);
  *  - the player's death (their health component's OnDeath) resets it all: the boss heals and goes back to its spot, the
  *    adds go, the wall drops, the bar goes. Nothing in the player's death or respawn changes.
  *  - the boss's death wins it: the adds go, the wall drops, the bar empties and fades, and a boss with a BossId is
- *    recorded as beaten in the campaign. Its rank (Boss) keeps it from coming back, and its loot is its rank's.
+ *    recorded as beaten in the campaign. Its rank (Boss) keeps it from coming back, and its loot is its rank's. A vigil
+ *    stone (World/BossShrine) calls it back for another fight (PrepareRematch), its loot with a little less luck.
  *  - the show (Show, BossComponentShow.cpp): the bar sweeps in with the title and a sting as the fight starts, a later
  *    phase flashes it with a sting, the boss's cry and a camera shake; the death slows the world a moment, shakes it hard
  *    and the bar says it's beaten. Its loot is thrown out as a shower (LootShower, ABossLootShower) in place of the toss.
@@ -237,6 +240,30 @@ public:
 	FOnBossPhaseChanged OnPhaseChanged;
 	/** A Custom event's moment came, for the boss's own code ("Bell", "Grieve"). */
 	FOnBossCustomEvent OnCustomEvent;
+
+	// --- A fight again (a vigil stone's call back, World/BossShrine; BossComponentRematch.cpp) ---
+
+	/**
+	 * Any boss in any world was beaten, after its own OnFightWon (its loot already thrown): the vigil stones note their
+	 * bosses' defeats, whoever spawned them.
+	 */
+	static FOnBossWonAnywhere OnAnyBossWon;
+
+	/**
+	 * Readies a won fight to be fought again as it was the first time: the boss alive at full health at its spot, waiting
+	 * for its fight (or living as its kind does), unwon, its loot shower armed again, no bar, no wall, no adds. The fight
+	 * starts as it first did (a player near its spot, a hit, StartFight) with its intro, phases and wall. Marks it a rematch.
+	 * False when it can't (no creature or health, or a fight under way).
+	 */
+	bool PrepareRematch();
+
+	/** This fight is a call back (PrepareRematch, or a boss spawned anew by whoever called it): its loot has less luck. */
+	void MarkRematch() { bRematch = true; }
+	bool IsRematch() const { return bRematch; }
+
+	/** A called-back fight's loot rolls with this much less luck (never below its table's own odds): 1.3 becomes 1.0. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boss|Loot", meta = (ClampMin = "0"))
+	float RematchLuckDrop = 0.3f;
 	FOnBossUntargetableChanged OnUntargetableChanged;
 	/** A stagger started, or ended. */
 	FOnBossStaggered OnStaggered;
@@ -388,6 +415,9 @@ private:
 
 	/** Its loot drop component's own toss was turned off: the shower throws its loot. */
 	bool bLootTakenOver = false;
+
+	/** A call back, not the first fight (MarkRematch). */
+	bool bRematch = false;
 
 	bool bStaggered = false;
 	float StaggerBuildUp = 0.f;

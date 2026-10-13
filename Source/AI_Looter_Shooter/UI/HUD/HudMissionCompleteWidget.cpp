@@ -242,6 +242,11 @@ void UHudMissionCompleteWidget::ApplyTexts()
 	{
 		AddReward(FString::Printf(TEXT("+%s XP"), *FText::AsNumber(Given.Experience).ToString()), Color::CyanText());
 	}
+	if (Given.Silver > 0)
+	{
+		// The giver's purse, in the silver readout's white (the experience keeps the cyan).
+		AddReward(FString::Printf(TEXT("+%s SILVER"), *FText::AsNumber(Given.Silver).ToString()), Color::Text());
+	}
 	if (Given.bGun)
 	{
 		// The rarity in its own colour, as the gun's name is shown wherever it goes.

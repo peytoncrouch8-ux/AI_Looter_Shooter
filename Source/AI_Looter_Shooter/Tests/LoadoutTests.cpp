@@ -328,6 +328,25 @@ bool FLoadoutScreenTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A: back to the target slot"), View.bOnSlot && View.Cursor == 1);
 	Screen->HandleKey(EKeys::C);
 	TestTrue(TEXT("C: the shotgun stowed"), Inventory->GetWeapons().Num() == 1 && Inventory->GetBackpack().Num() == 3);
+
+	// J marks the backpack gun under the cursor junk and its row carries the JUNK tag; J again takes both off.
+	Screen->HandleKey(EKeys::D);
+	View = Screen->GetView();
+	if (TestTrue(TEXT("D: into the backpack, three rows"), !View.bOnSlot && View.ListOrder.Num() == 3 && View.JunkRows.Num() == 3)
+		&& TestTrue(TEXT("...the cursor on a row"), View.ListOrder.IsValidIndex(View.Cursor)))
+	{
+		const int32 Marked = View.ListOrder[View.Cursor];
+		const int32 MarkedRow = View.Cursor;
+		TestFalse(TEXT("No row is junk to begin with"), View.JunkRows.Contains(true));
+		Screen->HandleKey(EKeys::J);
+		View = Screen->GetView();
+		TestTrue(TEXT("J: the gun is marked junk"), Inventory->GetBackpack().IsValidIndex(Marked) && Inventory->GetBackpack()[Marked].bJunk);
+		TestTrue(TEXT("...its row alone carries the JUNK tag"), View.JunkRows.IsValidIndex(MarkedRow) && View.JunkRows[MarkedRow]
+			&& View.JunkRows.FilterByPredicate([](bool bJunk) { return bJunk; }).Num() == 1);
+		Screen->HandleKey(EKeys::J);
+		View = Screen->GetView();
+		TestTrue(TEXT("J again: not junk, no tag"), !Inventory->GetBackpack()[Marked].bJunk && !View.JunkRows.Contains(true));
+	}
 	return true;
 }
 

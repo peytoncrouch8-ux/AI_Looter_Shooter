@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
+#include "Creatures/CreaturePursuit.h"
 #include "UObject/SoftObjectPtr.h"
 #include "EncounterSettings.generated.h"
 
@@ -101,6 +102,51 @@ public:
 	/** No rank sting within this (s) of the last anywhere in the level: two Restless turning together sting once. */
 	UPROPERTY(Config, EditAnywhere, Category = "Packs", meta = (ClampMin = "0", Units = "s"))
 	float RankStingRest = 1.5f;
+
+	// --- Pursuit (FCreaturePursuit): a hunt goes on until there's a real reason to stop; bosses keep their fights' rules ---
+
+	/** A hunting creature hears its target this near (cm, at size 1) without seeing it: no sight line is looked along. */
+	UPROPERTY(Config, EditAnywhere, Category = "Pursuit", meta = (ClampMin = "0", Units = "cm"))
+	float SenseRadius = 700.f;
+
+	/** Out of sight, it keeps after them this long (s), then goes to where it last knew them to be. */
+	UPROPERTY(Config, EditAnywhere, Category = "Pursuit", meta = (ClampMin = "0", Units = "s"))
+	float UnseenGrace = 2.f;
+
+	/** There it noses round for this long (s), this far round the spot (cm, at size 1). */
+	UPROPERTY(Config, EditAnywhere, Category = "Pursuit", meta = (ClampMin = "0", Units = "s"))
+	float SniffSeconds = 5.f;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Pursuit", meta = (ClampMin = "0", Units = "cm"))
+	float SniffRadius = 400.f;
+
+	/**
+	 * Unseen this long (s) with its target farther than its lock-on radius (AggroRadius), its sniff done: it has lost them.
+	 * Nearer than that it catches their scent again. Unseen for MaxUnseenSeconds it has lost them wherever they are.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Pursuit", meta = (ClampMin = "0", Units = "s"))
+	float LostSeconds = 13.f;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Pursuit", meta = (ClampMin = "0", Units = "s"))
+	float MaxUnseenSeconds = 30.f;
+
+	/**
+	 * Its patience a hunt (s) where it can't get to them (off its ground, or up out of its reach): it waits there pacing and
+	 * watching, then gives up. Reaching them, or a hit, fills it again.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Pursuit", meta = (ClampMin = "0", Units = "s"))
+	float ProwlSeconds = 10.f;
+
+	/** Making its way toward a target who stands, getting no nearer for this long (s): they're out of its reach. */
+	UPROPERTY(Config, EditAnywhere, Category = "Pursuit", meta = (ClampMin = "0", Units = "s"))
+	float StuckSeconds = 10.f;
+
+	/** Given up on a target out of its reach, it doesn't take them up again by sight for this long (s) while they stay put. */
+	UPROPERTY(Config, EditAnywhere, Category = "Pursuit", meta = (ClampMin = "0", Units = "s"))
+	float SpurnSeconds = 20.f;
+
+	/** The pursuit's rules with these numbers. */
+	FCreaturePursuit::FRules MakePursuitRules() const;
 
 	/** Whether Class (or a parent of it) is one of RetreatKinds. */
 	bool MayRetreat(const UClass* Class) const;

@@ -10,7 +10,7 @@
 
 // The player's body animation without a world: the climbing pose worked out from a mantle's and a vault's plan, and the
 // stance layer run on the mannequin's reference pose, bone by bone. Played on the real character, with the real Anim
-// Blueprints: PlayerAnimPlayTests.cpp.
+// Blueprints: PlayerAnimPlayTests.cpp. The grenade throw and the Drover's reload: PlayerAnimActionTests.cpp.
 
 using namespace PlayerAnimTestKit;
 

@@ -11,6 +11,7 @@ class UAreaDefinition;
 class ULooterSessionSave;
 class UWeaponDefinition;
 class UWorld;
+struct FBossRecallRecord;
 struct FCampaignRecord;
 struct FPlayerProgressData;
 
@@ -223,6 +224,26 @@ public:
 
 	/** Whether a monster last beaten at DefeatedAt (time played; negative: never) is back on an arrival at PlayedSeconds. */
 	static bool IsLegendaryReturnDue(double DefeatedAt, double PlayedSeconds);
+
+	// --- The vigil stones' bosses (SessionSubsystemBossShrines.cpp; World/BossShrine) ---
+
+	/** BossKey's last defeat as its vigil stone keeps it, or null: never kept in this session (or nothing played). */
+	const FBossRecallRecord* FindBossRecall(FName BossKey) const;
+
+	/**
+	 * Notes BossKey beaten now: World's time played, the clock, this load of the session and its Level, one more defeat;
+	 * saves soon. Played without a session it's kept in memory for this play, as the story is.
+	 */
+	void NoteBossRecallDefeat(UWorld* World, FName BossKey, int32 Level);
+
+	/** Notes BossKey's vigil stone risen beside its arena: it stands there from the start of every later visit. */
+	void NoteBossShrineRisen(FName BossKey);
+
+	/** How many times the session being played has been loaded from its slot (0 with none). */
+	int32 GetSessionLoads() const;
+
+	/** Forgets BossKey's kept defeat (None: every one), as if beaten before the stones kept them (the console). How many. */
+	int32 ForgetBossRecalls(FName BossKey = NAME_None);
 
 	// --- For the game modes ---
 

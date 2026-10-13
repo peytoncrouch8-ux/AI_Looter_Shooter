@@ -4,6 +4,7 @@
 
 #include "Creatures/CreatureBase.h"
 #include "Creatures/SpiderCreature.h"
+#include "Economy/Vendor.h"
 #include "Loot/Chest.h"
 #include "Session/CampaignRecord.h"
 #include "UI/Inventory/MapPins.h"
@@ -170,7 +171,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMapPinsTest, "Looter.UI.Map.Pins",
 bool FMapPinsTest::RunTest(const FString& Parameters)
 {
 	// The map's pins from a level: the open graves only (from the start, or by the story's record), the station and the
-	// bench, chests once found or opened; drawn in order, the story's pins on top; graves named by their id in words.
+	// bench, the stores that trade (one waiting on the story shows once it's past), chests once found or opened; drawn in
+	// order, the story's pins on top; graves named by their id in words.
 	FTestWorldWrapper TestLevel;
 	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -185,12 +187,18 @@ bool FMapPinsTest::RunTest(const FString& Parameters)
 	AChest* Found = PlaceMapChest(World, TEXT("Cache_Found"), FVector(2000.0, 2000.0, 0.0));
 	AChest* Hidden = PlaceMapChest(World, TEXT("Cache_Hidden"), FVector(-2000.0, 2000.0, 0.0));
 	AChest* Looted = PlaceMapChest(World, TEXT("Cache_Looted"), FVector(2000.0, -2000.0, 0.0));
-	if (!TestTrue(TEXT("Everything placed"), BootHill && ChapelYard && FamilyPlot && Bench && Station && Found && Hidden && Looted))
+	// Two stores: one trades from the start, one opens after a mission is finished.
+	AVendor* Mercantile = World->SpawnActor<AVendor>(FVector(-1500.0, 9000.0, 0.0), FRotator::ZeroRotator);
+	AVendor* Pruitts = World->SpawnActor<AVendor>(FVector(800.0, 1200.0, 0.0), FRotator::ZeroRotator);
+	if (!TestTrue(TEXT("Everything placed"), BootHill && ChapelYard && FamilyPlot && Bench && Station && Found && Hidden && Looted && Mercantile && Pruitts))
 	{
 		return false;
 	}
 	Looted->RestoreOpened();
 	ChapelYard->DisplayName = FText::FromString(TEXT("The chapel yard"));
+	Mercantile->Title = FText::FromString(TEXT("Crossroads Mercantile"));
+	Pruitts->Title = FText::FromString(TEXT("Pruitt's General Store"));
+	Pruitts->OpenWhen.AfterMissions = { FName(TEXT("TestMain3")) };
 
 	FCampaignRecord Campaign;
 	Campaign.ActivateRespawn(TEXT("ChapelYard"));
@@ -213,6 +221,19 @@ bool FMapPinsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...and it knows its grave"), ChapelPin && ChapelPin->Grave.Get() == ChapelYard);
 	TestEqual(TEXT("The bench"), MapPins::Count(Pins, EMapPinKind::Bench), 1);
 	TestEqual(TEXT("The station"), MapPins::Count(Pins, EMapPinKind::Station), 1);
+	TestEqual(TEXT("One store trades: the other waits on the story"), MapPins::Count(Pins, EMapPinKind::Vendor), 1);
+	const FMapPin* StorePin = Find(EMapPinKind::Vendor, Mercantile->GetFName());
+	TestTrue(TEXT("...the one with no gate, by its title"), StorePin && StorePin->Name.ToString() == TEXT("Crossroads Mercantile")
+		&& StorePin->Location.Equals(Mercantile->GetActorLocation()) && !StorePin->Detail.IsEmpty());
+	TestNull(TEXT("...not Pruitt's, still shut"), Find(EMapPinKind::Vendor, Pruitts->GetFName()));
+	FCampaignRecord PastMainThree = Campaign;
+	PastMainThree.Complete(TEXT("TestMain3"));
+	FMapPinSources Later = Sources;
+	Later.Campaign = &PastMainThree;
+	const TArray<FMapPin> LaterPins = MapPins::Gather(Later);
+	const FMapPin* PruittsPin = LaterPins.FindByPredicate([Pruitts](const FMapPin& Pin) { return Pin.Kind == EMapPinKind::Vendor && Pin.Id == Pruitts->GetFName(); });
+	TestEqual(TEXT("Past Main 3: both stores"), MapPins::Count(LaterPins, EMapPinKind::Vendor), 2);
+	TestTrue(TEXT("...Pruitt's by its title"), PruittsPin && PruittsPin->Name.ToString() == TEXT("Pruitt's General Store"));
 	TestTrue(TEXT("The chest found"), Find(EMapPinKind::Chest, TEXT("Cache_Found")) != nullptr);
 	TestTrue(TEXT("The chest opened, dim"), Find(EMapPinKind::ChestLooted, TEXT("Cache_Looted")) != nullptr);
 	TestTrue(TEXT("Not the chest nobody has come across"), !Find(EMapPinKind::Chest, TEXT("Cache_Hidden")) && !Find(EMapPinKind::ChestLooted, TEXT("Cache_Hidden")));
@@ -228,9 +249,11 @@ bool FMapPinsTest::RunTest(const FString& Parameters)
 	Bare.World = World;
 	const TArray<FMapPin> BarePins = MapPins::Gather(Bare);
 	TestEqual(TEXT("No story: only the grave open from the start"), MapPins::Count(BarePins, EMapPinKind::Grave), 1);
+	TestEqual(TEXT("...and only the store with no gate"), MapPins::Count(BarePins, EMapPinKind::Vendor), 1);
 	TestEqual(TEXT("No finds: no closed chest"), MapPins::Count(BarePins, EMapPinKind::Chest), 0);
 	TestEqual(TEXT("...the opened one still there"), MapPins::Count(BarePins, EMapPinKind::ChestLooted), 1);
-	TestFalse(TEXT("Every kind has a legend name"), MapPins::KindName(EMapPinKind::Grave).IsEmpty() || MapPins::KindName(EMapPinKind::TurnIn).IsEmpty());
+	TestFalse(TEXT("Every kind has a legend name"), MapPins::KindName(EMapPinKind::Grave).IsEmpty() || MapPins::KindName(EMapPinKind::TurnIn).IsEmpty()
+		|| MapPins::KindName(EMapPinKind::Vendor).IsEmpty());
 	return true;
 }
 

@@ -6,6 +6,7 @@
 #include "LooterButton.generated.h"
 
 class UImage;
+class UOverlay;
 class UTextBlock;
 class ULooterButton;
 
@@ -33,6 +34,23 @@ public:
 
 	void SetLabel(const FText& Text);
 	void SetHighlighted(bool bHighlighted);
+	bool IsHighlighted() const { return bIsHighlighted; }
+	LooterUI::EButtonKind GetKind() const { return Kind; }
+
+	/**
+	 * What a click does, for the keyboard or a controller: its sound, then OnButtonClicked (the keyboard focus stays where
+	 * it is, with the menu that pressed it). False, and nothing, while it's disabled.
+	 */
+	bool Press();
+
+	/**
+	 * The menus' focus look (LooterUIFocus.h) in the button's frame: an orange outline doubled inside and a lit edge, a
+	 * warm white on an orange button. Only a button made by Setup shows it; it's made the first time it's lit.
+	 */
+	void SetFocusLit(bool bLit);
+	bool IsFocusLit() const { return bFocusLit; }
+	/** How bright the lit focus look shows, 0 to 1 (it breathes). */
+	void SetFocusGlow(float Glow);
 
 	/**
 	 * A click's sound: UI.Back for a button that closes or goes back (its action Close or Back, or one starting Cancel),
@@ -58,6 +76,8 @@ private:
 	void HandleHovered();
 
 	void ApplyStyle();
+	/** Makes, remakes (orange or not changed) or shows the focus look as bFocusLit says. */
+	void UpdateFocusFrame();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> Label;
@@ -65,8 +85,18 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UImage> Outline;
 
+	/** What Setup put in the button (its outline and label), where the focus look goes. */
+	UPROPERTY(Transient)
+	TObjectPtr<UOverlay> Body;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> FocusFrame;
+
 	LooterUI::EButtonKind Kind = LooterUI::EButtonKind::Normal;
 	bool bIsHighlighted = false;
+	bool bFocusLit = false;
+	/** The focus look was made for an orange button (FocusOnAccent). */
+	bool bFocusFrameOnAccent = false;
 	bool bUppercase = true;
 	FText RawText;
 };

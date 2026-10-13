@@ -1,4 +1,5 @@
 #include "Areas/AreaDefinition.h"
+#include "Creatures/CreatureBase.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
@@ -27,6 +28,76 @@ bool UAreaDefinition::HasMap() const
 FName UAreaDefinition::GetDefaultLanding() const
 {
 	return Landings.Num() > 0 ? Landings[0] : NAME_None;
+}
+
+bool FAreaLevelZone::Contains(const FVector2D& Point) const
+{
+	// Even-odd: a line from the point crosses the outline an odd number of times when it's inside.
+	bool bInside = false;
+	for (int32 Index = 0, Previous = Outline.Num() - 1; Index < Outline.Num(); Previous = Index++)
+	{
+		const FVector2D& A = Outline[Index];
+		const FVector2D& B = Outline[Previous];
+		if ((A.Y > Point.Y) != (B.Y > Point.Y) && Point.X < (B.X - A.X) * (Point.Y - A.Y) / (B.Y - A.Y) + A.X)
+		{
+			bInside = !bInside;
+		}
+	}
+	return Outline.Num() >= 3 && bInside;
+}
+
+int32 UAreaDefinition::KeepInBand(int32 Level) const
+{
+	return HasLevelBand() ? FMath::Clamp(Level, MinLevel, GetBandTop()) : FMath::Max(Level, 1);
+}
+
+const FAreaLevelZone* UAreaDefinition::FindLevelZone(const FVector& Spot) const
+{
+	const FVector2D Point(Spot.X, Spot.Y);
+	return LevelZones.FindByPredicate([&Point](const FAreaLevelZone& Zone) { return Zone.Contains(Point); });
+}
+
+void UAreaDefinition::GetLevelsAt(const FVector& Spot, int32& OutLowest, int32& OutHighest) const
+{
+	if (const FAreaLevelZone* Zone = FindLevelZone(Spot))
+	{
+		OutLowest = Zone->MinLevel;
+		OutHighest = Zone->GetTop();
+	}
+	else
+	{
+		// Somewhere no zone covers (an area whose zones aren't drawn yet): the band's floor, or one above.
+		OutLowest = MinLevel;
+		OutHighest = MinLevel + 1;
+	}
+	OutLowest = KeepInBand(OutLowest);
+	OutHighest = FMath::Max(KeepInBand(OutHighest), OutLowest);
+}
+
+int32 UAreaDefinition::FindKindLevel(const UClass* Kind) const
+{
+	if (!Kind)
+	{
+		return 0;
+	}
+	const FAreaKindLevel* Found = KindLevels.FindByPredicate([Kind](const FAreaKindLevel& Each)
+	{
+		return Each.Kind.Get() && Each.Level > 0 && Kind->IsChildOf(Each.Kind.Get());
+	});
+	return Found ? KeepInBand(Found->Level) : 0;
+}
+
+int32 UAreaDefinition::PickLevel(const FVector& Spot, const UClass* Kind, float Roll) const
+{
+	if (const int32 Set = FindKindLevel(Kind))
+	{
+		return Set;
+	}
+	int32 Lowest = 1;
+	int32 Highest = 1;
+	GetLevelsAt(Spot, Lowest, Highest);
+	const int32 Choices = Highest - Lowest + 1;
+	return Lowest + FMath::Clamp(FMath::FloorToInt32(FMath::Clamp(Roll, 0.f, 1.f) * Choices), 0, Choices - 1);
 }
 
 int32 UAreaDefinition::LevelFor(int32 PlayerLevel, int32 Spread, int32 OwnLevel) const
@@ -123,6 +194,18 @@ UAreaDefinition* UAreaDefinition::FindByName(const FString& Words)
 		}
 	}
 	return nullptr;
+}
+
+int32 UAreaDefinition::FindKindLevelInAnyArea(const UClass* Kind)
+{
+	for (const UAreaDefinition* Area : LoadAll())
+	{
+		if (const int32 Set = Area->FindKindLevel(Kind))
+		{
+			return Set;
+		}
+	}
+	return 0;
 }
 
 UAreaDefinition* UAreaDefinition::FindByMap(const FString& MapPackage)

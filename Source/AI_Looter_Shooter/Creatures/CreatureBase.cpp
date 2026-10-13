@@ -152,8 +152,8 @@ void ACreatureBase::SetState(ECreatureState NewState)
 	Voice->HandleStateChanged(OldState, NewState);
 	Pack->HandleStateChanged(OldState, NewState);
 
-	// Hunting and attacking always run every frame, wherever it is.
-	if (NewState == ECreatureState::Chase || NewState == ECreatureState::Attack)
+	// Hunting, searching and attacking always run every frame, wherever it is.
+	if (NewState == ECreatureState::Chase || NewState == ECreatureState::Attack || NewState == ECreatureState::Search)
 	{
 		WakeUpdateRate();
 	}
@@ -162,6 +162,8 @@ void ACreatureBase::SetState(ECreatureState NewState)
 	{
 		bStruck = false;
 		GetCharacterMovement()->StopMovementImmediately();
+		// It got to them: its patience where it can't reach them is full again.
+		Pursuit.NoteReached();
 		OnAttackStarted();
 	}
 }
@@ -230,17 +232,19 @@ void ACreatureBase::TickBrain(float DeltaSeconds)
 			break;
 		}
 		const float Distance = FVector::Dist2D(GetActorLocation(), Victim->GetActorLocation());
-		const float StrikeFrom = GetAttackRange();
 		// Its pack: its flank among those chasing the same player, or breaking off once its pack is gone (it then runs and
 		// starts no attack: CreaturePackComponent).
 		Pack->TickChase(DeltaSeconds);
 		const bool bBreakingOff = Pack->IsRetreating();
-		// An attack of its own may start from farther out than its reach (a charge); otherwise it closes in to bite.
-		if (!bBreakingOff && Distance <= GetAttackStartRange() && CooldownRemaining <= 0.f && CanStartAttack())
+		// An attack of its own may start from farther out than its reach (a charge); otherwise it closes in to bite. Never at
+		// a player up on a rock over it, which its strike can't reach: it stands there instead, and soon finds them out of its
+		// reach (CreatureBasePursuit.cpp). A boss's attacks keep their own rules.
+		if (!bBreakingOff && Distance <= GetAttackStartRange() && CooldownRemaining <= 0.f && CanStartAttack()
+			&& (CanReachHeight(static_cast<float>(Victim->GetActorLocation().Z - GetActorLocation().Z)) || KeepsBossRules()))
 		{
 			SetState(ECreatureState::Attack);
 		}
-		else if (bBreakingOff || Distance > StrikeFrom * 0.75f)
+		else if (bBreakingOff || Distance > GetChaseHold())
 		{
 			MoveToward(Pack->GetChaseGoal(*Victim), bBreakingOff ? ChaseSpeed * Pack->GetRetreatSpeedShare() : ChaseSpeed, DeltaSeconds);
 		}
@@ -254,6 +258,11 @@ void ACreatureBase::TickBrain(float DeltaSeconds)
 
 	case ECreatureState::Attack:
 		TickAttack(DeltaSeconds);
+		break;
+
+	case ECreatureState::Search:
+		// Still after its target, out of sight or out of reach: tracking, sniffing or watching (CreatureBasePursuit.cpp).
+		TickSearch(DeltaSeconds);
 		break;
 
 	case ECreatureState::Return:
@@ -291,22 +300,16 @@ void ACreatureBase::UpdatePerception()
 		return;
 	}
 
-	if (const APawn* Current = Target.Get())
+	// Hunting (chasing or searching): its look at its target decides whether the hunt goes on (CreatureBasePursuit.cpp).
+	if (Target.IsValid())
 	{
-		const bool bLost = !IsValidTarget(Current)
-			|| FVector::Dist(GetActorLocation(), Current->GetActorLocation()) > LoseInterestRadius;
-		if (bLost)
-		{
-			Target.Reset();
-			SetState(ECreatureState::Return);
-		}
+		UpdatePursuit(PerceptionInterval);
 		return;
 	}
 
 	if (APawn* Seen = FindVisibleTarget())
 	{
-		Target = Seen;
-		SetState(ECreatureState::Chase);
+		BeginHunt(Seen);
 		// Being hunted counts as meeting it: its bestiary page opens.
 		UPlayerProgressionSubsystem::RecordEncounter(Seen->GetController(), this);
 	}
@@ -314,12 +317,21 @@ void ACreatureBase::UpdatePerception()
 
 APawn* ACreatureBase::FindVisibleTarget() const
 {
+	// Nothing but a boss notices anyone while a scene holds the player; and one it gave up on as out of its reach it leaves
+	// be a while if they haven't moved (FCreaturePursuit::Spurn; a boss never spurns anyone).
+	if (IsSceneHoldingPlayer() && !KeepsBossRules())
+	{
+		return nullptr;
+	}
+	const double Now = GetWorld()->GetTimeSeconds();
+	const float ResumeShift = FCreaturePursuit::FRules().ResumeShift * SizeScale;
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
 		const APlayerController* PC = It->Get();
 		APawn* Pawn = PC ? PC->GetPawn() : nullptr;
 		if (IsValidTarget(Pawn)
 			&& FVector::DistSquared(GetActorLocation(), Pawn->GetActorLocation()) <= FMath::Square(AggroRadius)
+			&& !Pursuit.IsSpurned(Pawn->GetUniqueID(), Pawn->GetActorLocation(), Now, ResumeShift)
 			&& HasLineOfSight(Pawn))
 		{
 			return Pawn;
@@ -360,7 +372,7 @@ void ACreatureBase::TickAttack(float DeltaSeconds)
 	if (StateTime >= AttackWindup + AttackRecovery)
 	{
 		CooldownRemaining = AttackCooldown;
-		SetState(IsValidTarget(Victim) ? ECreatureState::Chase : ECreatureState::Return);
+		ResumeHunt();
 	}
 }
 
@@ -372,7 +384,7 @@ void ACreatureBase::Strike()
 	{
 		const FVector ToVictim = Victim->GetActorLocation() - GetActorLocation();
 		// Up and down, a small creature still reaches a player standing over it, as a full-size one does.
-		const bool bInReach = ToVictim.Size2D() <= GetStrikeReach() && FMath::Abs(ToVictim.Z) < 220.f * FMath::Max(SizeScale, 1.f);
+		const bool bInReach = ToVictim.Size2D() <= GetStrikeReach() && FMath::Abs(static_cast<float>(ToVictim.Z)) < GetStrikeHeight();
 		const bool bInFront = FVector::DotProduct(GetActorForwardVector(), ToVictim.GetSafeNormal2D()) > 0.4f;
 		if (bInReach && bInFront)
 		{
@@ -437,7 +449,7 @@ void ACreatureBase::HandleDeath(AController* Killer)
 
 void ACreatureBase::Respawn()
 {
-	// It comes back as it started (a promotion lasts one life), at a level that follows the player's now. (Before the move
+	// It comes back as it started (a promotion lasts one life), at a level rolled again for where it stands. (Before the move
 	// home: the size it comes back at is the one its home spot was found for.)
 	RespawnRankAndLevel();
 	SetActorLocationAndRotation(Home.GetLocation(), Home.GetRotation(), false, nullptr, ETeleportType::ResetPhysics);
@@ -449,7 +461,8 @@ void ACreatureBase::Respawn()
 	CooldownRemaining = 0.f;
 	SetState(ECreatureState::Idle);
 	IdleDuration = 2.f;
-	// A new life: its rank may sting again, and it may break off again.
+	// A new life: its rank may sting again, and it may break off again; it holds nothing against anyone.
 	Pack->ResetLife();
+	Pursuit = FCreaturePursuit();
 	OnRespawned();
 }

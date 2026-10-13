@@ -4,6 +4,7 @@
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/HUD/HudMinimapWidget.h"
 #include "Audio/LooterSound.h"
+#include "Player/PlayerViewComponent.h"
 #include "Settings/AudioSettingsSubsystem.h"
 #include "Settings/ControlSettingsSubsystem.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
@@ -24,12 +25,15 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Engine/LocalPlayer.h"
+#include "GameFramework/PlayerController.h"
 
 using namespace SettingsMenu;
 
 void USettingsMenuWidget::Open(ESettingsMenuMode InMode)
 {
 	Mode = InMode;
+	// Nothing held by a key from the last time (a slider let go now saves, before the status is cleared below).
+	StopNavHold();
 	StopListening();
 	SetIsFocusable(true);
 	ApplyMode();
@@ -44,12 +48,40 @@ void USettingsMenuWidget::Open(ESettingsMenuMode InMode)
 		LooterSound::Play2D(this, LooterSoundCue::Open);
 	}
 
-	bMinimapSliderHeld = false;
-	PreviewLinger = 0.f;
-	PreviewOpacity = 0.f;
+	// No preview carries over from the last time it was open (the view goes back to the saved field of view, the menu to
+	// its usual look, the minimap's two previews away).
+	SizeState.Reset();
+	ZoomState.Reset();
+	FieldOfViewState.Reset();
+	bFieldOfViewInView = false;
+	if (UPlayerViewComponent* View = FindPlayerView())
+	{
+		View->EndFieldOfViewPreview();
+	}
+	ApplyViewFade(0.f);
 	if (MinimapPreview)
 	{
 		MinimapPreview->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (MinimapZoomPreview)
+	{
+		MinimapZoomPreview->SetPreviewZoom(0.f);
+		MinimapZoomPreview->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	// The keyboard and controller focus starts at the top again.
+	NavStick = FVector2D::ZeroVector;
+	NavStickMove = MenuNav::EMove::None;
+	// Opened by the controller's Start (still down as the menu opens): the controller drives it from its first press.
+	if (const APlayerController* PC = GetOwningPlayer(); PC && PC->IsInputKeyDown(EKeys::Gamepad_Special_Right))
+	{
+		LooterUI::SetMenuDevice(LooterUI::EMenuDevice::Gamepad);
+	}
+	ResetNavigation();
+	RefreshNavLook();
+	if (LooterUI::IsMenuFocusShown() && Body)
+	{
+		Body->ScrollToStart();
 	}
 }
 
@@ -59,7 +91,9 @@ void USettingsMenuWidget::ApplyMode()
 	const bool bPause = Mode == ESettingsMenuMode::Pause;
 	if (HeaderText)
 	{
-		HeaderText->SetText(FText::FromString(bPause ? TEXT("Game paused   |   Esc: resume") : TEXT("Esc: back")));
+		// How to resume or go back is the prompts' to say, for the keyboard or the controller.
+		HeaderText->SetText(FText::FromString(TEXT("Game paused")));
+		HeaderText->SetVisibility(bPause ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
 	const ESlateVisibility PauseOnly = bPause ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
 	if (ResumeButton) { ResumeButton->SetVisibility(PauseOnly); }
@@ -70,16 +104,8 @@ void USettingsMenuWidget::ApplyMode()
 void USettingsMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
-	if (!MinimapPreview)
-	{
-		return;
-	}
-	// The minimap's outline shows while its size is being set (the slider held or pointed at), and fades a moment after.
-	const bool bSetting = bMinimapSliderHeld || (MinimapSlider && MinimapSlider->IsHovered());
-	PreviewLinger = bSetting ? 0.8f : FMath::Max(PreviewLinger - InDeltaTime, 0.f);
-	PreviewOpacity = FMath::FInterpConstantTo(PreviewOpacity, PreviewLinger > 0.f ? 1.f : 0.f, InDeltaTime, 6.f);
-	MinimapPreview->SetRenderOpacity(PreviewOpacity);
-	MinimapPreview->SetVisibility(PreviewOpacity > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	AdvancePreviews(InDeltaTime);
+	AdvanceNav(InDeltaTime);
 }
 
 UKeyBindingSubsystem* USettingsMenuWidget::GetBindings() const
@@ -111,6 +137,7 @@ ULooterButton* USettingsMenuWidget::MakeButton(FName Action, int32 Index, const 
 	ULooterButton* Button = WidgetTree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
 	Button->Setup(WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass()), Action, Index, FText::FromString(Label), FontSize, Kind);
 	Button->OnButtonClicked.BindUObject(this, &USettingsMenuWidget::HandleButton);
+	Button->OnButtonHovered.BindUObject(this, &USettingsMenuWidget::HandleButtonHovered);
 	// Resume, Back and the corner's X close the menu: the page's close (over the game the HUD plays the same cue in the
 	// same moment, and the two are heard as one).
 	if (Action == ActionClose)
@@ -128,15 +155,15 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		UOverlay* Root = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("Root"));
 		WidgetTree->RootWidget = Root;
 
-		UBorder* Backdrop = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Backdrop"));
-		Backdrop->SetBrush(RectBrush(Color::Backdrop()));
-		Backdrop->SetVisibility(ESlateVisibility::Visible);
-		Backdrop->SetHorizontalAlignment(HAlign_Center);
-		Backdrop->SetVerticalAlignment(VAlign_Center);
-		MarkBackground(Backdrop);
-		UOverlaySlot* BackdropSlot = Root->AddChildToOverlay(Backdrop);
-		BackdropSlot->SetHorizontalAlignment(HAlign_Fill);
-		BackdropSlot->SetVerticalAlignment(VAlign_Fill);
+		// The dimming over the game: a layer of its own (it takes the clicks), so the field of view preview can fade it apart
+		// from the panel in front of it and let the view show.
+		Dimmer = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Dimmer"));
+		Dimmer->SetBrush(RectBrush(Color::Backdrop()));
+		Dimmer->SetVisibility(ESlateVisibility::Visible);
+		MarkBackground(Dimmer);
+		UOverlaySlot* DimmerSlot = Root->AddChildToOverlay(Dimmer);
+		DimmerSlot->SetHorizontalAlignment(HAlign_Fill);
+		DimmerSlot->SetVerticalAlignment(VAlign_Fill);
 
 		UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		auto Add = [Column](UWidget* Child, float Top, bool bFill = false)
@@ -166,100 +193,130 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 			Sections->AddChildToVerticalBox(Child)->SetPadding(FMargin(0.f, Top, 0.f, 0.f));
 		};
 
-		AddRow(MakeSection(WidgetTree, TEXT("Graphics")), 0.f);
+		// The keyboard and controller stops are noted as the rows are made, section by section (SettingsMenuNav.cpp).
+		BodyNav.Reset();
+		SectionHeaders.Reset();
+		BuildSection = INDEX_NONE;
+
+		AddRow(NavSection(MakeSection(WidgetTree, TEXT("Graphics"))), 0.f);
 		TArray<FString> QualityNames;
 		for (const EGraphicsQuality Quality : Qualities)
 		{
 			QualityNames.Add(UGraphicsSettingsSubsystem::QualityName(Quality));
 		}
 		TArray<ULooterButton*> Quality;
-		AddRow(MakeChoiceRow(TEXT("Quality"), QualityNames, ActionQuality, QualityColumnWidth, Quality), 4.f);
+		UWidget* QualityRow = MakeChoiceRow(TEXT("Quality"), QualityNames, ActionQuality, QualityColumnWidth, Quality);
+		AddRow(NavChoices(QualityRow, Quality), 4.f);
 		for (ULooterButton* Button : Quality)
 		{
 			QualityButtons.Add(Button);
 		}
 		ULooterButton* BlurOn = nullptr;
 		ULooterButton* BlurOff = nullptr;
-		AddRow(MakeToggleRow(TEXT("Motion blur"), TEXT("On"), TEXT("Off"), ActionMotionBlurOn, ActionMotionBlurOff, 0, false, BlurOn, BlurOff), 4.f);
+		UWidget* BlurRow = MakeToggleRow(TEXT("Motion blur"), TEXT("On"), TEXT("Off"), ActionMotionBlurOn, ActionMotionBlurOff, 0, false, BlurOn, BlurOff);
+		AddRow(NavChoices(BlurRow, { BlurOn, BlurOff }), 4.f);
 		MotionBlurOn = BlurOn;
 		MotionBlurOff = BlurOff;
 		// The first-person view only: third person keeps its own over-the-shoulder framing.
 		USlider* FovSlider = nullptr;
 		UTextBlock* FovText = nullptr;
-		AddRow(MakeSliderRow(TEXT("Field of view (1st person)"), UGraphicsSettingsSubsystem::MinFieldOfView, UGraphicsSettingsSubsystem::MaxFieldOfView,
-			FovSlider, FovText, FieldOfViewStep), 4.f);
+		UWidget* FovRow = MakeSliderRow(TEXT("Field of view (1st person)"), UGraphicsSettingsSubsystem::MinFieldOfView,
+			UGraphicsSettingsSubsystem::MaxFieldOfView, FovSlider, FovText, FieldOfViewStep);
+		AddRow(NavSlider(FovRow, FovSlider), 4.f);
 		FieldOfViewSlider = FovSlider;
 		FieldOfViewValue = FovText;
 		FieldOfViewSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleFieldOfViewChanged);
+		// Taken and let go by the mouse or a controller (a controller's lock on a focused slider), the same to the preview.
+		FieldOfViewSlider->OnMouseCaptureBegin.AddDynamic(this, &USettingsMenuWidget::HandleFieldOfViewGrabbed);
 		FieldOfViewSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleFieldOfViewReleased);
+		FieldOfViewSlider->OnControllerCaptureBegin.AddDynamic(this, &USettingsMenuWidget::HandleFieldOfViewGrabbed);
+		FieldOfViewSlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleFieldOfViewReleased);
 
-		AddRow(MakeSection(WidgetTree, TEXT("Audio")), 18.f);
+		AddRow(NavSection(MakeSection(WidgetTree, TEXT("Audio"))), 18.f);
 		AddRow(MakeAudioRows(), 0.f);
 
-		AddRow(MakeSection(WidgetTree, TEXT("Interface")), 18.f);
+		AddRow(NavSection(MakeSection(WidgetTree, TEXT("Interface"))), 18.f);
 		USlider* Transparency = nullptr;
 		UTextBlock* TransparencyText = nullptr;
-		AddRow(MakeSliderRow(TEXT("UI transparency"), 0.f, 1.f, Transparency, TransparencyText), 4.f);
+		UWidget* TransparencyRow = MakeSliderRow(TEXT("UI transparency"), 0.f, 1.f, Transparency, TransparencyText);
+		AddRow(NavSlider(TransparencyRow, Transparency), 4.f);
 		TransparencySlider = Transparency;
 		TransparencyValue = TransparencyText;
 		TransparencySlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleTransparencyChanged);
+		// Let go by the mouse, or by the key or stick that stepped it (the menu's keys hold a slider as a controller does).
 		TransparencySlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleTransparencyReleased);
+		TransparencySlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleTransparencyReleased);
 		ULooterButton* MapOn = nullptr;
 		ULooterButton* MapOff = nullptr;
-		AddRow(MakeToggleRow(TEXT("Minimap"), TEXT("On"), TEXT("Off"), ActionMinimapOn, ActionMinimapOff, 0, false, MapOn, MapOff), 4.f);
+		UWidget* MapRow = MakeToggleRow(TEXT("Minimap"), TEXT("On"), TEXT("Off"), ActionMinimapOn, ActionMinimapOff, 0, false, MapOn, MapOff);
+		AddRow(NavChoices(MapRow, { MapOn, MapOff }), 4.f);
 		MinimapOn = MapOn;
 		MinimapOff = MapOff;
 		USlider* MinimapSize = nullptr;
 		UTextBlock* MinimapText = nullptr;
-		AddRow(MakeSliderRow(TEXT("Minimap size"), UGraphicsSettingsSubsystem::MinMinimapScale, UGraphicsSettingsSubsystem::MaxMinimapScale,
-			MinimapSize, MinimapText), 4.f);
+		UWidget* MinimapSizeRow = MakeSliderRow(TEXT("Minimap size"), UGraphicsSettingsSubsystem::MinMinimapScale,
+			UGraphicsSettingsSubsystem::MaxMinimapScale, MinimapSize, MinimapText);
+		AddRow(NavSlider(MinimapSizeRow, MinimapSize), 4.f);
 		MinimapSlider = MinimapSize;
 		MinimapValue = MinimapText;
 		MinimapSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleMinimapSizeChanged);
 		MinimapSlider->OnMouseCaptureBegin.AddDynamic(this, &USettingsMenuWidget::HandleMinimapSizeGrabbed);
 		MinimapSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleMinimapSizeReleased);
+		MinimapSlider->OnControllerCaptureBegin.AddDynamic(this, &USettingsMenuWidget::HandleMinimapSizeGrabbed);
+		MinimapSlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleMinimapSizeReleased);
 		USlider* MinimapZoom = nullptr;
 		UTextBlock* MinimapZoomText = nullptr;
-		AddRow(MakeSliderRow(TEXT("Minimap zoom"), UGraphicsSettingsSubsystem::MinMinimapZoom, UGraphicsSettingsSubsystem::MaxMinimapZoom,
-			MinimapZoom, MinimapZoomText), 4.f);
+		UWidget* MinimapZoomRow = MakeSliderRow(TEXT("Minimap zoom"), UGraphicsSettingsSubsystem::MinMinimapZoom,
+			UGraphicsSettingsSubsystem::MaxMinimapZoom, MinimapZoom, MinimapZoomText);
+		AddRow(NavSlider(MinimapZoomRow, MinimapZoom), 4.f);
 		MinimapZoomSlider = MinimapZoom;
 		MinimapZoomValue = MinimapZoomText;
 		MinimapZoomSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleMinimapZoomChanged);
+		MinimapZoomSlider->OnMouseCaptureBegin.AddDynamic(this, &USettingsMenuWidget::HandleMinimapZoomGrabbed);
 		MinimapZoomSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleMinimapZoomReleased);
+		MinimapZoomSlider->OnControllerCaptureBegin.AddDynamic(this, &USettingsMenuWidget::HandleMinimapZoomGrabbed);
+		MinimapZoomSlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleMinimapZoomReleased);
 		ULooterButton* RateOn = nullptr;
 		ULooterButton* RateOff = nullptr;
-		AddRow(MakeToggleRow(TEXT("FPS counter"), TEXT("On"), TEXT("Off"), ActionFrameRateOn, ActionFrameRateOff, 0, false, RateOn, RateOff), 4.f);
+		UWidget* RateRow = MakeToggleRow(TEXT("FPS counter"), TEXT("On"), TEXT("Off"), ActionFrameRateOn, ActionFrameRateOff, 0, false, RateOn, RateOff);
+		AddRow(NavChoices(RateRow, { RateOn, RateOff }), 4.f);
 		FrameRateOn = RateOn;
 		FrameRateOff = RateOff;
 		// A key and what it does, near the mission tracker, until the player has used that control.
 		ULooterButton* ShowHints = nullptr;
 		ULooterButton* HideHints = nullptr;
-		AddRow(MakeToggleRow(TEXT("Control hints"), TEXT("On"), TEXT("Off"), ActionHintsOn, ActionHintsOff, 0, false, ShowHints, HideHints), 4.f);
+		UWidget* HintsRow = MakeToggleRow(TEXT("Control hints"), TEXT("On"), TEXT("Off"), ActionHintsOn, ActionHintsOff, 0, false, ShowHints, HideHints);
+		AddRow(NavChoices(HintsRow, { ShowHints, HideHints }), 4.f);
 		HintsOn = ShowHints;
 		HintsOff = HideHints;
 
-		AddRow(MakeSection(WidgetTree, TEXT("Controls")), 18.f);
+		AddRow(NavSection(MakeSection(WidgetTree, TEXT("Controls"))), 18.f);
 		// Mouse and stick alike; a zoomed sight still slows the turn by its zoom on top of it.
 		USlider* LookSlider = nullptr;
 		UTextBlock* LookValueText = nullptr;
-		AddRow(MakeSliderRow(TEXT("Look sensitivity"), UControlSettingsSubsystem::MinLookSensitivity, UControlSettingsSubsystem::MaxLookSensitivity,
-			LookSlider, LookValueText, UControlSettingsSubsystem::LookSensitivityStep), 4.f);
+		UWidget* LookRow = MakeSliderRow(TEXT("Look sensitivity"), UControlSettingsSubsystem::MinLookSensitivity,
+			UControlSettingsSubsystem::MaxLookSensitivity, LookSlider, LookValueText, UControlSettingsSubsystem::LookSensitivityStep);
+		AddRow(NavSlider(LookRow, LookSlider), 4.f);
 		LookSensitivitySlider = LookSlider;
 		LookSensitivityValue = LookValueText;
 		LookSensitivitySlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleLookSensitivityChanged);
 		LookSensitivitySlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleLookSensitivityReleased);
+		LookSensitivitySlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleLookSensitivityReleased);
 		// Every kick and shake of the view (shots, hits, kills, a boss's slam); 0% keeps it still.
 		USlider* ShakeSlider = nullptr;
 		UTextBlock* ShakeValueText = nullptr;
-		AddRow(MakeSliderRow(TEXT("Camera shake"), UControlSettingsSubsystem::MinCameraShake, UControlSettingsSubsystem::MaxCameraShake,
-			ShakeSlider, ShakeValueText, UControlSettingsSubsystem::CameraShakeStep), 4.f);
+		UWidget* ShakeRow = MakeSliderRow(TEXT("Camera shake"), UControlSettingsSubsystem::MinCameraShake,
+			UControlSettingsSubsystem::MaxCameraShake, ShakeSlider, ShakeValueText, UControlSettingsSubsystem::CameraShakeStep);
+		AddRow(NavSlider(ShakeRow, ShakeSlider), 4.f);
 		CameraShakeSlider = ShakeSlider;
 		CameraShakeValue = ShakeValueText;
 		CameraShakeSlider->OnValueChanged.AddDynamic(this, &USettingsMenuWidget::HandleCameraShakeChanged);
 		CameraShakeSlider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleCameraShakeReleased);
-		UTextBlock* Hint = MakeText(WidgetTree, TEXT("Click a key to change it, then press the new key or mouse button. Esc cancels."), 11, Color::TextDim());
-		Hint->SetAutoWrapText(true);
-		AddRow(Hint, 8.f);
+		CameraShakeSlider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleCameraShakeReleased);
+		// The key list's own section for the bumpers, headed by how to change a key (RefreshNavLook words it per device).
+		KeyHintText = MakeText(WidgetTree, TEXT(""), 11, Color::TextDim());
+		KeyHintText->SetAutoWrapText(true);
+		AddRow(NavSection(KeyHintText), 8.f);
 		KeyList = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		AddRow(KeyList, 8.f);
 
@@ -269,7 +326,8 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 
 		// Reset all, then Save & Quit over the game or Back in the main menu (ApplyMode shows one of them).
 		UHorizontalBox* Footer = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		UHorizontalBoxSlot* ResetSlot = Footer->AddChildToHorizontalBox(MakeButton(ActionResetAll, 0, TEXT("Reset all"), 14));
+		ResetAllButton = MakeButton(ActionResetAll, 0, TEXT("Reset all"), 14);
+		UHorizontalBoxSlot* ResetSlot = Footer->AddChildToHorizontalBox(ResetAllButton);
 		ResetSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		ResetSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
 		SaveQuitButton = MakeButton(ActionSaveQuit, 0, TEXT("Save & Quit"), 14, EButtonKind::Danger);
@@ -278,32 +336,49 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		Footer->AddChildToHorizontalBox(BackButton)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		Add(Footer, 10.f);
 
+		// What the keys or the controller's buttons do now, along the bottom (SettingsMenuNav.cpp fills it).
+		PromptBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		Add(PromptBar, 10.f);
+
 		// Close button in the frame corner does the same as Resume or Back.
 		UWidget* CloseSize = MakeSized(WidgetTree, MakeButton(ActionClose, 0, TEXT("X"), 15, EButtonKind::Normal), 34.f, 34.f);
 
-		USizeBox* Size = MakeSized(WidgetTree, MakePanel(WidgetTree, TEXT("Settings"), Column, CloseSize), 640.f);
-		Size->SetMaxDesiredHeight(860.f);
-		Backdrop->SetContent(Size);
+		Panel = MakeSized(WidgetTree, MakePanel(WidgetTree, TEXT("Settings"), Column, CloseSize), 640.f);
+		Panel->SetMaxDesiredHeight(860.f);
+		UOverlaySlot* PanelSlot = Root->AddChildToOverlay(Panel);
+		PanelSlot->SetHorizontalAlignment(HAlign_Center);
+		PanelSlot->SetVerticalAlignment(VAlign_Center);
 
-		// On top, in the HUD minimap's corner: its outline, shown while its size is being set.
+		// On top, in the HUD minimap's corner: its outline, shown while its size is being set, and a live copy of the
+		// minimap while its zoom is (the HUD's own is put away under the menu).
 		UCanvasPanel* PreviewLayer = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
 		PreviewLayer->SetVisibility(ESlateVisibility::HitTestInvisible);
 		UOverlaySlot* PreviewSlot = Root->AddChildToOverlay(PreviewLayer);
 		PreviewSlot->SetHorizontalAlignment(HAlign_Fill);
 		PreviewSlot->SetVerticalAlignment(VAlign_Fill);
+		auto PlaceInCorner = [PreviewLayer](UWidget* Widget)
+		{
+			UCanvasPanelSlot* CornerSlot = PreviewLayer->AddChildToCanvas(Widget);
+			CornerSlot->SetAnchors(FAnchors(1.f, 0.f));
+			CornerSlot->SetAlignment(FVector2D(1.f, 0.f));
+			CornerSlot->SetPosition(FVector2D(-UHudMinimapWidget::Margin, UHudMinimapWidget::Margin));
+			CornerSlot->SetAutoSize(true);
+		};
 		MinimapPreview = MakeMinimapPreview();
 		MinimapPreview->SetVisibility(ESlateVisibility::Collapsed);
-		UCanvasPanelSlot* MinimapSlot = PreviewLayer->AddChildToCanvas(MinimapPreview);
-		MinimapSlot->SetAnchors(FAnchors(1.f, 0.f));
-		MinimapSlot->SetAlignment(FVector2D(1.f, 0.f));
-		MinimapSlot->SetPosition(FVector2D(-UHudMinimapWidget::Margin, UHudMinimapWidget::Margin));
-		MinimapSlot->SetAutoSize(true);
+		PlaceInCorner(MinimapPreview);
+		MinimapZoomPreview = WidgetTree->ConstructWidget<UHudMinimapWidget>(UHudMinimapWidget::StaticClass());
+		MinimapZoomPreview->SetPreview(true);
+		MinimapZoomPreview->SetVisibility(ESlateVisibility::Collapsed);
+		PlaceInCorner(MinimapZoomPreview);
 
 		RebuildControls();
 		RefreshGraphics();
 		RefreshAudio();
 		RefreshControlSettings();
 		ApplyMode();
+		ResetNavigation();
+		RefreshNavLook();
 	}
 	return Super::RebuildWidget();
 }
@@ -315,6 +390,8 @@ void USettingsMenuWidget::RefreshGraphics()
 	{
 		return;
 	}
+	// Giving a slider its saved value fires its change event: not a move, so nothing previews.
+	TGuardValue<bool> Refreshing(bRefreshingSliders, true);
 	const bool bBlur = Graphics->IsMotionBlurEnabled();
 	MotionBlurOn->SetHighlighted(bBlur);
 	MotionBlurOff->SetHighlighted(!bBlur);

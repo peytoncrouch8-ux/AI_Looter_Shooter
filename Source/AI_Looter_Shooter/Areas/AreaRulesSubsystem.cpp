@@ -1,14 +1,12 @@
 #include "Areas/AreaRulesSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Areas/AreaDefinition.h"
+#include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Missions/MissionRunner.h"
-#include "Progression/PlayerProgressionSubsystem.h"
 #include "Session/CampaignRecord.h"
 #include "Session/SessionSubsystem.h"
 #include "Engine/Engine.h"
-#include "Engine/GameInstance.h"
-#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 
 namespace
@@ -48,9 +46,15 @@ const UAreaDefinition* UAreaRulesSubsystem::GetArea() const
 	return Area;
 }
 
-int32 UAreaRulesSubsystem::RollLevel(int32 OwnLevel, ECreatureRank Rank)
+int32 UAreaRulesSubsystem::RollLevelFor(const ACreatureBase& Creature, int32 OwnLevel)
 {
-	return RollLevelIn(Area, GetPlayerLevel(), OwnLevel, Rank, Rolls);
+	// A level other than its class's was chosen for it where it was placed (a spawned one asked for a level keeps it without
+	// asking). Where it stands: as it begins play its spot, as it comes back its home (it may have died far from it).
+	const ACreatureBase* Defaults = Creature.GetClass()->GetDefaultObject<ACreatureBase>();
+	const bool bOwnLevelChosen = Defaults && FMath::Max(OwnLevel, 1) != FMath::Max(Defaults->Level, 1);
+	const FVector Spot = Creature.HasActorBegunPlay() ? Creature.GetHome().GetLocation() : Creature.GetActorLocation();
+	LevelsGiven += Area && Area->HasLevelBand() ? 1 : 0;
+	return RollLevelIn(Area, Spot, Creature.GetClass(), OwnLevel, bOwnLevelChosen, Rolls);
 }
 
 ECreatureRank UAreaRulesSubsystem::RollPromotion()
@@ -66,26 +70,20 @@ ECreatureRank UAreaRulesSubsystem::RollPromotion()
 	return Promoted;
 }
 
-int32 UAreaRulesSubsystem::GetPlayerLevel() const
-{
-	// The progression the session gave the player as the level started (before anything began play).
-	const UWorld* World = GetWorld();
-	const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
-	const ULocalPlayer* Player = GameInstance ? GameInstance->GetFirstGamePlayer() : nullptr;
-	const UPlayerProgressionSubsystem* Progression = Player ? Player->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
-	return Progression ? Progression->GetLevel() : 1;
-}
-
-int32 UAreaRulesSubsystem::RollLevelIn(const UAreaDefinition* InArea, int32 PlayerLevel, int32 OwnLevel, ECreatureRank Rank,
-	const FRandomStream& Random)
+int32 UAreaRulesSubsystem::RollLevelIn(const UAreaDefinition* InArea, const FVector& Spot, const UClass* Kind, int32 OwnLevel,
+	bool bOwnLevelChosen, const FRandomStream& Random)
 {
 	if (!InArea || !InArea->HasLevelBand())
 	{
 		return FMath::Max(OwnLevel, 1);
 	}
-	// A boss is the player's level kept inside the band; anything else a level either side of it, or the same.
-	const int32 Spread = Rank == ECreatureRank::Boss ? 0 : Random.RandRange(-1, 1);
-	return InArea->LevelFor(PlayerLevel, Spread, OwnLevel);
+	if (bOwnLevelChosen)
+	{
+		return InArea->KeepInBand(OwnLevel);
+	}
+	// Drawn whatever it is, so a boss among them doesn't shift the rolls of the creatures after it.
+	const float Roll = Random.FRand();
+	return InArea->PickLevel(Spot, Kind, Roll);
 }
 
 ECreatureRank UAreaRulesSubsystem::RollPromotionIn(const UAreaDefinition* InArea, const FRandomStream& Random)
@@ -141,8 +139,10 @@ void UAreaRulesSubsystem::HandleLevelBegun()
 	const FString AreaName = Area->DisplayName.ToString();
 	if (Area->HasLevelBand())
 	{
-		UE_LOG(LogLooter, Log, TEXT("%s: creatures at levels %d-%d, following the player's %d (their ranks' levels on top)"), *AreaName,
-			Area->MinLevel, Area->GetBandTop(), GetPlayerLevel());
+		// The count shows the creatures ask where they stand (none would mean they keep their classes' levels).
+		UE_LOG(LogLooter, Log, TEXT("%s: creatures at levels %d-%d by where they stand (%d zones, %d kinds at set levels; their ranks' ")
+			TEXT("levels on top), never the player's: %d placed ones given theirs."), *AreaName, Area->MinLevel, Area->GetBandTop(),
+			Area->LevelZones.Num(), Area->KindLevels.Num(), LevelsGiven);
 	}
 	if (bPromotionsRoll)
 	{

@@ -2,6 +2,8 @@
 #include "AI_Looter_Shooter.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Areas/AreaDefinition.h"
+#include "Economy/EconomyRules.h"
+#include "Economy/WalletSubsystem.h"
 #include "Loot/LootLibrary.h"
 #include "Missions/MissionDefinition.h"
 #include "Progression/XPCurve.h"
@@ -129,7 +131,48 @@ FText MissionRewards::AreaName(FName AreaId)
 	return Area && !Area->DisplayName.IsEmpty() ? Area->DisplayName : FText::FromName(AreaId);
 }
 
-TArray<FString> MissionRewards::Describe(const FMissionRewards& Rewards)
+int32 MissionRewards::SilverFor(FName MissionId)
+{
+	// Each giver's purse on Ransom's Rest, by the mission ids the campaign record keeps (never renamed). Docs/Progression.md
+	// has the table and the playthrough it's balanced for.
+	struct FPurse
+	{
+		const TCHAR* Mission;
+		int32 Silver;
+	};
+	static const FPurse Purses[] = {
+		{ TEXT("Main1"), 20 },   // Delia, through the screen door: Grandpa's egg money, pushed under it
+		{ TEXT("Main3"), 40 },   // Tilly: what was in the pockets of the undertaker's unclaimed dead
+		{ TEXT("Side1"), 50 },   // Tilly, once the posters are down: the reward money the town put up, which nobody can claim now
+		{ TEXT("Main4"), 40 },   // Father Aldana: the poor box, for the bell rung again
+		{ TEXT("Side2"), 60 },   // Amos: a season's wages he never drew
+		{ TEXT("Main5"), 50 },   // Father Aldana, for the lantern brought home
+		{ TEXT("Main7"), 60 },   // Tilly, for the road: her father's fare money
+	};
+	for (const FPurse& Purse : Purses)
+	{
+		if (MissionId == FName(Purse.Mission))
+		{
+			return Purse.Silver;
+		}
+	}
+	return 0;
+}
+
+int32 MissionRewards::GiveSilver(UWorld* World, FName MissionId)
+{
+	const int32 Purse = SilverFor(MissionId);
+	UWalletSubsystem* Wallet = Purse > 0 ? UWalletSubsystem::Get(World) : nullptr;
+	if (!Wallet)
+	{
+		return 0;
+	}
+	const int32 Given = Wallet->Add(Purse, ESilverChange::Reward);
+	UE_LOG(LogLooter, Log, TEXT("Missions: %s pays %d silver."), *MissionId.ToString(), Given);
+	return Given;
+}
+
+TArray<FString> MissionRewards::Describe(const FMissionRewards& Rewards, FName MissionId)
 {
 	TArray<FString> Lines;
 	if (Rewards.Experience > 0)
@@ -139,6 +182,11 @@ TArray<FString> MissionRewards::Describe(const FMissionRewards& Rewards)
 	else if (Rewards.ExperienceShare > 0.f)
 	{
 		Lines.Add(FString::Printf(TEXT("+%d%% of a level's experience"), FMath::RoundToInt32(Rewards.ExperienceShare * 100.f)));
+	}
+	// The giver's purse, beside the experience (a fixed amount at any level, so it can be named plainly).
+	if (const int32 Purse = SilverFor(MissionId); Purse > 0)
+	{
+		Lines.Add(FString::Printf(TEXT("+%s silver"), *LooterEconomy::Format(Purse)));
 	}
 	if (Rewards.bGun)
 	{

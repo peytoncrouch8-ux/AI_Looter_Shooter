@@ -75,7 +75,8 @@ void ACreatureBase::MoveBlockedBy(const FHitResult& Impact)
 	Super::MoveBlockedBy(Impact);
 	// Only while it makes its own way, and only something solid: bumping a creature or the player is its pack's spacing's
 	// business, and the floor or a ceiling isn't in its way.
-	const bool bMakingWay = State == ECreatureState::Wander || State == ECreatureState::Chase || State == ECreatureState::Return;
+	const bool bMakingWay = State == ECreatureState::Wander || State == ECreatureState::Chase || State == ECreatureState::Return
+		|| State == ECreatureState::Search;
 	const AActor* Other = Impact.GetActor();
 	if (!bMakingWay || Unstick.IsGliding() || (Other && Other->IsA<APawn>()) || FMath::Abs(Impact.Normal.Z) > 0.7)
 	{

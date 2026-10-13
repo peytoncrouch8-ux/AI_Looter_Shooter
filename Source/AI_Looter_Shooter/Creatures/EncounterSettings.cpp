@@ -18,6 +18,18 @@ UEncounterSettings::UEncounterSettings()
 	RetreatKinds.Add(TSoftClassPtr<ACreatureBase>(FSoftObjectPath(TEXT("/Script/AI_Looter_Shooter.SlimeCreature"))));
 }
 
+FCreaturePursuit::FRules UEncounterSettings::MakePursuitRules() const
+{
+	FCreaturePursuit::FRules Rules;
+	Rules.UnseenGrace = UnseenGrace;
+	Rules.SniffSeconds = SniffSeconds;
+	Rules.LostSeconds = LostSeconds;
+	Rules.MaxUnseenSeconds = FMath::Max(MaxUnseenSeconds, LostSeconds);
+	Rules.ProwlSeconds = ProwlSeconds;
+	Rules.StuckSeconds = StuckSeconds;
+	return Rules;
+}
+
 bool UEncounterSettings::MayRetreat(const UClass* Class) const
 {
 	if (!Class)

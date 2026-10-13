@@ -13,7 +13,22 @@ namespace
 	constexpr ECreatureBark PackmateDeath = ECreatureBark::PackmateDeath;
 	constexpr ECreatureBark Death = ECreatureBark::Death;
 
+	/** The Bell-Ringer's own lines (ABellRingerCreature::BarkKind): the chapel's old ringer, still ringing for service. */
+	const TCHAR* const BellRinger = TEXT("BellRinger");
+
 	const FCreatureBarkLine Lines[] = {
+		// --- The Bell-Ringer's: forty years at the chapel's rope, and nobody rang for him ---
+		{ Idle, false, TEXT("Forty years I rang that bell. Who rings for me?"), BellRinger },
+		{ Idle, false, TEXT("Service at six. Service at six. Nobody comes."), BellRinger },
+		{ Idle, true, TEXT("She's dark, and still I ring. Still I ring."), BellRinger },
+		{ Spot, false, TEXT("Late for service! The bell's been ringing!"), BellRinger },
+		{ Spot, true, TEXT("Keeper's whelp. I'll ring your mourners in."), BellRinger },
+		{ Hurt, false, TEXT("Mind the bell! Mind the bell!"), BellRinger },
+		{ PackmateDeath, false, TEXT("Up, Wilbur. The bell's not done with you."), BellRinger },
+		{ PackmateDeath, true, TEXT("Up! All of you, up! The bell's calling!"), BellRinger },
+		{ Death, false, TEXT("Who'll ring... for me?"), BellRinger },
+		{ Death, true, TEXT("Toll me out, Ransom. Toll me out."), BellRinger },
+
 		// --- Idle: muttered to itself, rarely ---
 		{ Idle, false, TEXT("Forty acres, and not one of 'em dry.") },
 		{ Idle, false, TEXT("Somebody owes me for a mule.") },

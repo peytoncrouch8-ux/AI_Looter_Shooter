@@ -7,6 +7,7 @@
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -128,6 +129,9 @@ void UPlayerViewComponent::BeginPlay()
 
 void UPlayerViewComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	// A settings-menu preview's lock on the camera manager's field of view goes with us.
+	UnlockCameraFieldOfView();
+	bFieldOfViewPreview = false;
 	InputBinding.Teardown();
 	if (ACharacter* Owner = Character.Get())
 	{
@@ -148,6 +152,11 @@ void UPlayerViewComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 	if (!Character.IsValid())
 	{
 		return;
+	}
+	// The settings menu's field of view preview lasts while the game is paused under it: a frame that runs ends it.
+	if (bFieldOfViewPreview && !GetWorld()->IsPaused())
+	{
+		EndFieldOfViewPreview();
 	}
 	UpdateAim(DeltaTime);
 	UpdateRecoil(DeltaTime);

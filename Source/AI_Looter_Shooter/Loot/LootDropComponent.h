@@ -16,7 +16,8 @@ struct FRandomStream;
  * practice area the player has already left once (Skyreach, UAreaRulesSubsystem::DropsGuns) drops only the ammo.
  * A creature's death may also leave soul-motes (DropSoulMotes), which heal; they are rolled apart from the table, so
  * the loot's own odds don't move, and they drop in a practice area too. So may a grave-salt grenade (AGrenadePickup, by
- * FThrowRules::DropChance for the creature's rank and the grenades the player carries), also apart from the table.
+ * FThrowRules::DropChance for the creature's rank and the grenades the player carries), also apart from the table, and
+ * silver (ASilverPickup, SilverDrops::DropForKill: by rank, the Unpaid more often than beasts; not where guns don't drop).
  */
 UCLASS(ClassGroup = (Looter), meta = (BlueprintSpawnableComponent))
 class AI_LOOTER_SHOOTER_API ULootDropComponent : public UActorComponent

@@ -130,7 +130,7 @@ bool UCreatureVoiceDirector::RequestBark(UCreatureVoiceComponent& Speaker, ECrea
 	{
 		return false;
 	}
-	const int32 Line = CreatureBarks::PickLine(Situation, Creature->GetRank(), Random, RecentLines);
+	const int32 Line = CreatureBarks::PickLine(Situation, Creature->GetRank(), Random, RecentLines, Speaker.BarkKind);
 	if (Line == INDEX_NONE)
 	{
 		return false;

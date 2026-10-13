@@ -50,11 +50,27 @@ struct FLooterStanceInput
 	/** A melee strike's jab right now (LooterStancePose::MeleeJab): a little below 0 cocked back, 1 at the blow, 0 at rest. */
 	float MeleeJab = 0.f;
 
+	/**
+	 * A grenade throw's clock (seconds in, UPlayerThrowComponent::GetThrowTime; negative with none under way): the left
+	 * arm's toss, the chest's turn and the gun hand's dip (LooterStancePose::DescribeThrow).
+	 */
+	float ThrowTime = -1.f;
+
+	/**
+	 * A revolver's reload (the Drover's cylinder): its progress, 0 to 1, or negative when the gun in hand isn't reloading
+	 * one. It replaces the reload animation (ReloadAnimation is null then) and shows by ReloadWeight like it
+	 * (LooterStancePose::DescribeCylinderReload).
+	 */
+	float CylinderReload = -1.f;
+
 	/** Upper-body pose held over the locomotion (armed): the animation and where in its loop we are. */
 	const UAnimSequenceBase* UpperBodyPose = nullptr;
 	float UpperBodyTime = 0.f;
 
-	/** Upper-body reload overlay: the animation, where in it we are, and how strongly it shows. */
+	/**
+	 * Upper-body reload overlay: the animation, where in it we are, and how strongly the reload shows (a revolver's too,
+	 * with no animation: CylinderReload).
+	 */
 	const UAnimSequenceBase* ReloadAnimation = nullptr;
 	float ReloadTime = 0.f;
 	float ReloadWeight = 0.f;
@@ -63,6 +79,6 @@ struct FLooterStanceInput
 	{
 		return CrouchAlpha > UE_KINDA_SMALL_NUMBER || SprintAlpha > UE_KINDA_SMALL_NUMBER || SlideAlpha > UE_KINDA_SMALL_NUMBER
 			|| Climb.IsActive() || bAimWithTorso || bHandOnForegrip || ReloadWeight > UE_KINDA_SMALL_NUMBER || UpperBodyPose
-			|| !FMath::IsNearlyZero(MeleeJab);
+			|| !FMath::IsNearlyZero(MeleeJab) || ThrowTime > 0.f;
 	}
 };

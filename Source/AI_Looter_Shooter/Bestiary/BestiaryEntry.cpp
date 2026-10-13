@@ -1,4 +1,5 @@
 #include "Bestiary/BestiaryEntry.h"
+#include "Areas/AreaDefinition.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRankSettings.h"
@@ -30,15 +31,21 @@ FBestiaryStats UBestiaryEntry::ReadStats() const
 	if (const ACreatureBase* Creature = Cast<ACreatureBase>(Defaults))
 	{
 		// A creature that is always of one rank (the Gravemother, Legendary) shows what that rank makes of it, as it's
-		// met; a Basic one, its own numbers (a promotion is luck, not the creature).
+		// met; a Basic one, its own numbers (a promotion is luck, not the creature). A kind at a set level in its area (a
+		// boss or a Legendary monster: UAreaDefinition::KindLevels, Abel 6 and the Gravemother 4 on Ransom's Rest) shows
+		// that level with its rank's on top and its numbers grown for it, as it's met (Abel 7); any other kind's level is
+		// where it's met (its zone's), so its page keeps its class's.
 		const FCreatureRankInfo& Rank = UCreatureRankSettings::Get(Creature->StartingRank);
-		Stats.Level = Creature->Level;
-		Stats.Health *= Rank.HealthMultiplier;
-		Stats.AttackDamage = Creature->AttackDamage * Rank.DamageMultiplier;
-		// What a kill really gives a player of its level: the kill rules scale the creature's XPReward (0.4 of it since
-		// the pacing pass, 2026-10-08), so the page never promises more than the kill pays.
+		const FLevelRules Rules = UPlayerProgressionSubsystem::GetLevelRules();
+		const int32 SetLevel = UAreaDefinition::FindKindLevelInAnyArea(Class);
+		Stats.Level = SetLevel > 0 ? SetLevel + Rank.LevelOffset : Creature->Level;
+		const float Growth = SetLevel > 0 ? Rules.EnemyScale(Stats.Level) : 1.f;
+		Stats.Health *= Rank.HealthMultiplier * Growth;
+		Stats.AttackDamage = Creature->AttackDamage * Rank.DamageMultiplier * Growth;
+		// What a kill really gives a player of its level: the kill rules scale the creature's XPReward (0.37 of it since
+		// creatures stopped following the player's level, 2026-10-12), so the page never promises more than the kill pays.
 		const int32 BaseXP = FMath::Max(0, FMath::RoundToInt32(Creature->XPReward * Rank.XPMultiplier));
-		Stats.XPReward = static_cast<int32>(UPlayerProgressionSubsystem::GetLevelRules().KillXP(BaseXP, Creature->Level, Creature->Level));
+		Stats.XPReward = static_cast<int32>(Rules.KillXP(BaseXP, Stats.Level, Stats.Level));
 		Stats.bAttacks = Creature->AttackDamage > 0.f;
 	}
 	return Stats;

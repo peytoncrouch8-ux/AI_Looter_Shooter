@@ -130,6 +130,34 @@ where the work stands.
     story step and keeps off the safe zones and every scripted fight's ground;
   - Skyreach's notice board (`build_area_board.py`): the practice postings' board on the town's NoticeBoard piece and
     the lookout's marker.
+
+  From 2026-10-12, also in the gameplay pass:
+  - **Vendors** (`build_area_vendors.py`): an `AVendor` at a shop's door, derived from the built level, so the store must
+    stand first (it comes from the full build's models; the script runs after the town life). It stands 0.95 m out from the
+    store's lamp socket, facing out, in `Gameplay/Vendors`. Ransom's Rest gets Pruitt's General Store (`Vendor_Pruitt`,
+    open after Main 3), Skyreach the practice store on the square (`Vendor_Crossroads`, always open); any other layout
+    gets none. A new shop is a new entry in the script, with its `OpenWhen`. On its own: `Tools\console.ps1 "py
+    C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_area_vendors.py RansomsRest"`. It places nothing, and says so, when the game
+    module's `AVendor` isn't built yet.
+  - **Vigil Stones** (`build_area_shrines.py`): a stone beside each boss arena, after the story's pieces and before the
+    camps, derived from the arena (the Gravemother's at the Sink's ramp head, Abel's outside the Keeper's Gate): on level
+    walkable ground clear of the layout's roads, ramps, obstacles and rocks, off the boss's ground, facing where the player
+    comes out. Each choice is logged; a boss whose arena or actor isn't in the level gets a warning and no stone.
+  - **Creature levels** (`gameplay.levels` in the layout: `band`, `zones`, `kinds`). A creature's level is where it stands,
+    never the player's: the first zone holding its spot gives it a level rolled between its two (`zones`: a layout `zone`,
+    an `obstacle`, its own `polygon`, or a `radius` round a point `at` or `between` two obstacles); a `kinds` entry sets a
+    class's level (the bosses). Run `Tools\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/create_area_assets.py"` in
+    the open editor after editing it: it writes the band, zones and kinds into `DA_Area_<Area>` (`UAreaDefinition`), and
+    `Looter.Areas.Bands` checks the assets against the layouts. An area with no layout yet (the Lily) keeps a plain `band` in
+    the script. The tests are `Looter.Areas.LevelBand`, `Looter.Areas.Bands` and `Looter.Creatures.AreaLevels` (every fight's
+    and encounter's levels, the bosses'). Never read the player's level for a creature. `Docs/Progression.md`, "Creature
+    levels", has the table.
+  - **Creature pursuit** (`FCreaturePursuit`, `CreatureBasePursuit.cpp`): a hunt goes on until there is a real reason to stop;
+    a creature that can't get to the player waits at its ground's edge (or under them), watching, then walks home when its
+    patience runs out. The tunables are Project Settings > Game > Encounters > Pursuit (`UEncounterSettings`): sense radius,
+    grace out of sight, sniff time and radius, lost-after, unseen limit, patience (`ProwlSeconds`), stuck time, spurn. A group
+    that hangs back (the Spitter, the Bell-Ringer) tracks no nearer than its hold distance. Bosses keep their fights' own
+    rules. The tests are `Looter.Creatures.Pursuit.*`.
 - **Ambient life** (`build_area_fauna.py`, run at the end of a full build or on its own): bird perches traced on fence
   rails, roofs, graves and dead limbs (crows 15 m clear of Hob), insect zones from flowers, orchards and water, tumbleweed
   lanes, dust devil spots, washing on laundry lines. All of it is derived from the built level, so re-run it after
@@ -213,6 +241,20 @@ where the work stands.
 6. **Materials:** the textured masters (`M_World`, `M_Gun` with per-gun wear, `M_WorldFoliage`, `M_Terrain`,
    `M_Water`) are built by `Tools/Unreal/build_world_materials.py`. Older surfaces use the flat stylized materials
    (`M_StylizedSurface`, `M_StylizedFoliage`, `M_StylizedGlow`).
+   - **The ground's layers** (2026-10-12, `M_Terrain`): under the macro map's colour the ground has three detail layers
+     and damp soil. The macro map picks them: grass on green ground, matted thatch (`GroundThatch`) on gold and dry
+     ground, stony ground (`GroundStony`: crust, gravel, stones, and leaf litter under trees) on bare soil, roads and
+     scree, and darker, glossier damp soil in the hollows (the terrain's baked occlusion). Each layer is normalized by its
+     own mean (`T_<Set>_stats.json`, written with the textures), so a texture change moves the pattern, never the ground's
+     colour from afar.
+     - The textures come from `Tools/Blender/looter_textures.py` (sets `GroundThatch`, `GroundStony`, `GroundNoise`; the
+       thatch's height and the stony ground's leaf litter ride in the colour map's alpha). The master is rebuilt by
+       `build_world_materials.py M_Terrain`; its numbers are `GROUND_DEFAULTS` (repeats, how far the borders wander, the
+       damp, where the contrast fades out), and an area's instance may change any of them.
+     - Judge a change without Unreal first: `Tools\artrun.ps1 -Script Tools\Blender\ground_preview.py` renders the
+       layers from tour viewpoints at eye height (before above, after below) into `Saved/ArtPreviews/Terrain/`. It is a
+       numpy port of the master's code, so keep it in step with `GROUND_WEIGHTS` and `GROUND_DEFAULTS`; it has no shadows,
+       grass or hollows' damp, so look in the editor too.
 7. **Guns from parts:** `Art/Models/Weapons/<Gun>.py` models the parts (sockets chain them; sights carry `SOCKET_Aim`
    for aiming down sights). `<Gun>.parts.csv` lists each part's key, name, name word, rarity and stat ranges in percent
    (capped per stat, `Weapons/WeaponParts.h`). After importing, run `Tools/Unreal/setup_gun_parts.py` in the editor to
@@ -278,6 +320,13 @@ Rules that saved time:
   Ransom's Rest). The Drover's shots and reload steps are in `guns`, the fast-travel whoosh in `ui`. The cues' names are in
   `LooterSoundCue::Lootables`, `::Throwable`, `::Voice`, `::TownLife` and `::Revolver`; `WeaponSounds.h` picks a gun's
   cues by its kind.
+- **Groups added 2026-10-12** (also in `GROUPS`): `economy` (silver found, 2D and the player's own: `Loot.Silver.Pickup`;
+  the vendor's counter: `Vendor.Buy`, `Vendor.Sell`, `Vendor.NotEnough`; names in `LooterSoundCue::Economy`), `bells` (the
+  Bell-Ringer's bronze hand bell: the toll, the cracked toll of a Gravebound ringer, the lift before it, a bullet's clang, the
+  raising at a grave, the swipe; `::BellRinger`) and `shrines` (the Vigil Stones: rising, kneeling, the refused call, the iron
+  bell's summons; `::Shrine`; the iron bell is `bells.py`'s hand bell made duller, so `shrines.py` imports from it). The Venom
+  Spitter's cues (tell, spit, splat, puddle sizzle and burn, hurt, death; `::Spitter`) are in `creatures`. The pickup chime
+  keeps the 2-5 kHz band cut, since a fight's worth of pickups sounds it over and over.
 - **For the user:** the listening page is an Artifact with the WAVs as its files (<https://claude.ai/artifact/VDmyrPmAsxiNa6boNuqKxa>);
   republish it from the session's scratchpad copy after a render.
 - **Lesson:** setting a USoundClass's `child_classes` all at once parents only the first new child; add them one at a
@@ -402,6 +451,24 @@ styles the user chooses from).
   - Data-driven rules in `layout.json`, so another area can reuse them.
   - One commit per step, and partial CODEMAP staging.
   - Asking the art session for its call on looks, with in-game shots.
+  - Settings that preview live under the pause menu (2026-10-12): a paused world doesn't tick the player controller's
+    camera updates, so a camera setting set from the menu shows only once the game runs again. The field of view slider
+    calls `UPlayerViewComponent::PreviewFieldOfView`, which sets the camera and locks `APlayerCameraManager::SetFOV` to it
+    until the first frame that runs; the menu's dimming is its own layer so the slider can fade it and ghost the panel
+    (`SettingsMenuPreview.cpp`). The HUD's minimap is collapsed under the menu, so its zoom preview is a second
+    `UHudMinimapWidget` (`SetPreview`) in the same corner. The previews count a controller's capture and a held key's
+    repeated moves as holding, so a slider stepped from the keyboard or a gamepad (below) shows its preview while it is held.
+  - Menus for a controller and the keyboard (2026-10-12), the main menu's and the settings menu's alike: `FMenuNavigator`
+    (`UI/Menus/MenuNavigator.h`) keeps the focus over a menu's stops (a button, a slider, a row of choices) in rows, which
+    the menu hands it with `SetRows` each time it rebuilds; `MenuNav` has the keys as plain rules (arrows, W A S D, the
+    D-pad and the left stick move; Enter, Space, E and A pick; Esc and B back out; Page Up and Down or the bumpers turn the
+    sections; a slider held steps faster). `SettingsMenuNav.cpp` and `MainMenuNav.cpp` wire each menu to it. A new menu
+    gets the same by building its stops and calling the navigator, not by handling keys itself. The focus look
+    (`LooterUIFocus.h`: an orange outline doubled inside, a lit edge on the left, a faint wash on a row) is drawn only
+    while the last input in a menu was a key or the gamepad (`LooterUI::IsMenuFocusShown`); under the mouse the buttons keep
+    their hover look, and the prompts along the bottom name the gamepad's buttons or the keyboard's keys by
+    `IsMenuGamepad`. Give a new row its look with `LooterUI::AddFocusFrame` while building. The tests are
+    `MenuNavTests.cpp`.
 - **Didn't work:**
   - Pushing generic cliff faces proud of a noisy pit wall: they poked through as fragments.
   - Level-wide material swaps for one actor (use `swapsOn`).

@@ -1,10 +1,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Economy/VendorOffer.h"
 #include "GameFramework/SaveGame.h"
 #include "Inventory/WeaponInventorySave.h"
 #include "Player/PlayerThrowSave.h"
 #include "Progression/PlayerProgressData.h"
+#include "Session/BossRecallRecord.h"
 #include "Session/CampaignRecord.h"
 #include "Weapons/AmmoTypes.h"
 #include "Weapons/WeaponTypes.h"
@@ -31,6 +33,19 @@ struct AI_LOOTER_SHOOTER_API FSavedAmmoPickup
 
 	UPROPERTY()
 	EAmmoType Type = EAmmoType::AssaultRifle;
+
+	UPROPERTY()
+	int32 Amount = 0;
+
+	UPROPERTY()
+	FVector Location = FVector::ZeroVector;
+};
+
+/** Silver lying in the world (ASilverPickup). */
+USTRUCT()
+struct AI_LOOTER_SHOOTER_API FSavedSilverPickup
+{
+	GENERATED_BODY()
 
 	UPROPERTY()
 	int32 Amount = 0;
@@ -108,6 +123,13 @@ struct AI_LOOTER_SHOOTER_API FSavedMapWorld
 	 */
 	UPROPERTY()
 	TArray<FName> BrokenProps;
+
+	/**
+	 * Silver lying around (ASilverPickup), as ammo is kept: it comes back where it lay. New within version 2, as TornPosters:
+	 * a save from before it reads as none, which is right.
+	 */
+	UPROPERTY()
+	TArray<FSavedSilverPickup> SilverPickups;
 
 	/** The tutorial step on screen, or INDEX_NONE when it wasn't running (on every map but the tutorial's). */
 	UPROPERTY()
@@ -219,6 +241,17 @@ public:
 	FThrowablesSave Throwables;
 
 	/**
+	 * The silver carried (UWalletSubsystem; Docs/Progression.md, "Economy"). New within version 2: a save from before money
+	 * reads as none carried, which is right, so it needs no upgrade.
+	 */
+	UPROPERTY()
+	int32 Silver = 0;
+
+	/** The vendors' gun of the day as it stood (FVendorOffer). A save from before it reads as none rolled: the first vendor opened rolls one. */
+	UPROPERTY()
+	FVendorOffer VendorOffer;
+
+	/**
 	 * The landing (AreaLandings) the player arrives at when the session next starts in Map without a spot there: a trip
 	 * writes it, and it's cleared once they have arrived. None: the level's start.
 	 */
@@ -235,6 +268,24 @@ public:
 
 	UPROPERTY()
 	FCampaignRecord Campaign;
+
+	// --- The vigil stones (World/BossShrine; SessionSubsystemBossShrines.cpp) ---
+
+	/**
+	 * Each vigil stone's boss by its boss key ("Gravemother", "Abel"): its last defeat, for its call back (five minutes of
+	 * play after it, or at once after a Save & Quit), and whether its stone has risen. New within version 2: a save from
+	 * before it has none, which is right (a boss beaten then is ready at once), so it needs no upgrade.
+	 */
+	UPROPERTY()
+	TMap<FName, FBossRecallRecord> BossRecalls;
+
+	/**
+	 * How many times the session has been loaded from its slot (Continue, or a new game's first save read back; never a
+	 * trip's arrival): a boss beaten in an earlier load has had a Save & Quit since. New within version 2: a save from
+	 * before it reads as 0, which is right.
+	 */
+	UPROPERTY()
+	int32 SessionLoads = 0;
 
 	// --- Version 1's one world: only read to upgrade a version 1 save (Upgrade files it under its map), empty after ---
 

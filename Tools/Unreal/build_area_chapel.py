@@ -11,9 +11,10 @@ class isn't there yet is left out with a warning.
   spots round the chapel in the chapel's own frame (YARD_SPOTS): "12 Unpaid in two waves, and one Restless", two waves of
   six, the second once the first is down (and 4 s more) and with the Restless one, tagged Unpaid_ChapelYard. On during
   Main 4's second step only, coming for the player as they appear, hunting only inside the churchyard's iron fence (the
-  obstacle churchyardFence) and its 2 m margin. The knoll falls about 8 m from the chapel's door to the fence's far
-  corners, all one walkable slope with no drop in it, so the yard is one level of ground here: spots up to 9 m above or
-  below the chapel's floor, and players up to 10 m, rather than the defaults (4 m and 6 m).
+  obstacle churchyardFence) and its 2 m margin. The yard is levelled on the knoll's top (layout churchyardPad, 7.5 m;
+  2026-10-12: before, the knoll fell about 8 m from the chapel's door to the fence's far corners and the limits were 9 m
+  and 10 m), so it's one level of ground with the spawner's own limits: spots up to 4 m above or below the chapel's
+  floor, players up to 6 m.
 - The bell (AChapelBell tagged Bell_Chapel) at the rope's grip (SOCKET_Interact), its bell (SM_ChapelBell) hung on the
   belfry's SOCKET_Bell: "Ring the chapel bell", any time.
 - The smashed Reliquary (AChapelReliquary tagged Reliquary_Chapel) on the apse's plinth (SOCKET_Reliquary), facing the
@@ -70,9 +71,10 @@ YARD_CLEAR = 150.0
 # Each wave's Basic Unpaid; the second comes this long after the first is down (s).
 YARD_WAVE = 6
 YARD_WAVE_PAUSE = 4.0
-# The yard as one level of ground (cm): spots this far above or below the chapel's floor, players this far.
-YARD_STEP = 900.0
-YARD_RISE = 1000.0
+# The yard as one level of ground (cm): spots this far above or below the chapel's floor, players this far (the
+# spawner's defaults, now the yard is flat).
+YARD_STEP = 400.0
+YARD_RISE = 600.0
 
 # The yard's respawn grave: this far out of the fresh mound's foot (cm), clear of its heap (1.95 m long).
 MOUND_STAND_OUT = 140.0

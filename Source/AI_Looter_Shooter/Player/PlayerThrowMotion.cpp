@@ -3,6 +3,12 @@
 
 namespace
 {
+	/**
+	 * The tin's middle above its foot (cm; Art/Models/Throwables/SaltGrenade.py): the poses place its foot, its pivot,
+	 * while the flying jar (AGraveSaltGrenade) is held about its middle.
+	 */
+	constexpr float JarMiddleUp = 5.f;
+
 	FThrowPose Blend(const FThrowPose& From, const FThrowPose& To, float Alpha)
 	{
 		FThrowPose Pose;
@@ -41,16 +47,26 @@ FThrowPose ThrowMotion::JarDrawnPose()
 
 FThrowPose ThrowMotion::JarReleasePose()
 {
-	// Slung forward and up toward the middle of the view, the wrist snapping it over.
+	// Slung forward and in from the cheek, the wrist snapping it over, to just where the real jar starts its flight
+	// (FThrowRules::ReleasePoint, low on the view's left), which then carries it on up toward the middle. Released at
+	// 40 cm ahead and 5 under the eye, it left the hand near the crosshair and the flying one appeared 17 cm back and
+	// down from it, a jump of a fifth of the view. (The jar here rides the camera at the player's size, the flying one
+	// is full size: both scale about the eye, so on screen they meet.)
 	FThrowPose Pose;
-	Pose.Offset = FVector(40.f, -9.f, -5.f);
 	Pose.Rotation = FRotator(-25.f, -5.f, 5.f);
+	const FVector Middle(FThrowRules::ReleaseForward, FThrowRules::ReleaseRight, FThrowRules::ReleaseUp);
+	Pose.Offset = Middle - Pose.Rotation.RotateVector(FVector(0.f, 0.f, JarMiddleUp));
 	return Pose;
+}
+
+bool ThrowMotion::IsJarInHand(float ThrowTime)
+{
+	return ThrowTime > 0.f && ThrowTime < FThrowRules::ReleaseSeconds;
 }
 
 FThrowPose ThrowMotion::JarPose(float ThrowTime, bool& bOutShown)
 {
-	bOutShown = ThrowTime > 0.f && ThrowTime < FThrowRules::ReleaseSeconds;
+	bOutShown = IsJarInHand(ThrowTime);
 	if (ThrowTime <= 0.f)
 	{
 		return JarStartPose();
@@ -74,22 +90,27 @@ FThrowPose ThrowMotion::GunDipPose()
 	return Pose;
 }
 
-FThrowPose ThrowMotion::GunPose(float ThrowTime)
+float ThrowMotion::GunDipShare(float ThrowTime)
 {
 	if (ThrowTime <= 0.f || ThrowTime >= FThrowRules::ThrowSeconds)
 	{
-		return FThrowPose();
+		return 0.f;
 	}
-	float Share = 1.f;
 	if (ThrowTime < DipInSeconds)
 	{
-		Share = FMath::SmoothStep(0.f, 1.f, ThrowTime / DipInSeconds);
+		return FMath::SmoothStep(0.f, 1.f, ThrowTime / DipInSeconds);
 	}
-	else if (ThrowTime > DipHoldSeconds)
+	if (ThrowTime > DipHoldSeconds)
 	{
-		Share = 1.f - FMath::SmoothStep(0.f, 1.f, (ThrowTime - DipHoldSeconds) / (FThrowRules::ThrowSeconds - DipHoldSeconds));
+		return 1.f - FMath::SmoothStep(0.f, 1.f, (ThrowTime - DipHoldSeconds) / (FThrowRules::ThrowSeconds - DipHoldSeconds));
 	}
-	return Scaled(GunDipPose(), Share);
+	return 1.f;
+}
+
+FThrowPose ThrowMotion::GunPose(float ThrowTime)
+{
+	const float Share = GunDipShare(ThrowTime);
+	return Share > 0.f ? Scaled(GunDipPose(), Share) : FThrowPose();
 }
 
 FViewKick ThrowMotion::WindUp()

@@ -202,4 +202,11 @@ struct FWeaponInstanceData
 	/** Its curse's drawback is gone (100 notches; Tilly's grave salt later); the perk stays. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
 	bool bCurseLifted = false;
+
+	/**
+	 * The player marked it junk (J in the inventory or at a vendor): a vendor's "Sell all junk" sells it with the rest. It
+	 * rides with the gun wherever it goes. New: a gun saved before it reads as not junk.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	bool bJunk = false;
 };

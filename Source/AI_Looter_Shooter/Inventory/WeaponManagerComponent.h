@@ -246,6 +246,20 @@ public:
 	/** Empties the parts box. */
 	void ClearPartsBox();
 
+	// --- The vendors: selling from the backpack and the junk mark (WeaponManagerVendor.cpp) ---
+
+	/**
+	 * Takes the backpack's gun at BackpackIndex out for good (sold to a vendor) into OutGun; the guns after it move up one.
+	 * False, nothing changed, when there's none there. Equipped guns are never sold, so there's no slot version.
+	 */
+	bool TakeFromBackpack(int32 BackpackIndex, FWeaponInstanceData& OutGun);
+
+	/**
+	 * Marks the backpack's gun at BackpackIndex junk, or not (FWeaponInstanceData::bJunk), for a vendor's "Sell all junk".
+	 * False when there's none there or it's a named gun (never sold, so never junk).
+	 */
+	bool SetBackpackJunk(int32 BackpackIndex, bool bJunk);
+
 	/** Carried ammo of a class changed (pickups, reloads). */
 	UPROPERTY(BlueprintAssignable, Category = "Weapons|Ammo")
 	FOnAmmoPoolChanged OnAmmoChanged;
@@ -310,7 +324,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapons|Attachment")
 	FVector AttachGrip = FVector(5.f, 0.f, -5.f);
 
-	/** The first-person hold for this gun: AttachOffset, moved so the gun's grip is where AttachGrip would be. */
+	/**
+	 * The first-person hold for this gun: AttachOffset, moved so the gun's grip is where AttachGrip would be; or, for a gun
+	 * with a hip hold of its own (its definition's FirstPersonGrip and FirstPersonRotation: the Drover), its grip there,
+	 * turned its way.
+	 */
 	FTransform GetFirstPersonHold(const AWeaponBase* Weapon) const;
 
 	/** Socket on the character's body mesh (in the right hand) that holds the gun by its grip in third person. */

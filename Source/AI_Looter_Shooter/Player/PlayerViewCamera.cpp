@@ -5,9 +5,11 @@
 #include "Weapons/WeaponBase.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/PlayerController.h"
@@ -107,8 +109,10 @@ void UPlayerViewComponent::UpdateFieldOfView()
 	// First person uses the player's setting, read every frame so a change in the settings menu shows without a restart.
 	// Aiming narrows the view by the sight's magnification (2x shows half as wide) from there, so a sight zooms the same
 	// whatever the setting; its aim point sits on the camera's axis, which no field of view moves, so it stays true.
+	// The settings menu's slider being dragged stands in for the setting (PreviewFieldOfView).
 	const float Aim = GetAimAlpha();
-	const float Unzoomed = (IsFirstPerson() ? FirstPersonFieldOfViewSetting(Character.Get(), FirstPersonFieldOfView) : ThirdPersonFieldOfView) + Offset;
+	const float Setting = bFieldOfViewPreview ? PreviewFieldOfViewDegrees : FirstPersonFieldOfViewSetting(Character.Get(), FirstPersonFieldOfView);
+	const float Unzoomed = (IsFirstPerson() ? Setting : ThirdPersonFieldOfView) + Offset;
 	const float Wanted = SightFieldOfView(Unzoomed, AimZoom, Aim);
 	if (Active && !FMath::IsNearlyEqual(Active->FieldOfView, Wanted, 0.01f))
 	{
@@ -127,6 +131,58 @@ void UPlayerViewComponent::UpdateFieldOfView()
 		if (!FMath::IsNearlyEqual(Camera->FirstPersonFieldOfView, ViewModel, 0.01f))
 		{
 			Camera->SetFirstPersonFieldOfView(ViewModel);
+		}
+	}
+}
+
+bool UPlayerViewComponent::PreviewFieldOfView(float Degrees)
+{
+	// Third person keeps its own field of view, so the slider has nothing to show there.
+	if (!Character.IsValid() || !IsFirstPerson())
+	{
+		return false;
+	}
+	bFieldOfViewPreview = true;
+	PreviewFieldOfViewDegrees = UGraphicsSettingsSubsystem::ClampFieldOfView(Degrees);
+	UpdateFieldOfView();
+
+	// Under the pause menu the game doesn't tick, and a paused player controller doesn't update its camera manager, which
+	// would go on drawing the world at the field of view it had when the menu opened. Locking the manager's field of view to
+	// the camera's puts the new one on screen at once (the first frame the game runs again ends the preview and the lock).
+	const UWorld* World = GetWorld();
+	const APlayerController* Player = Cast<APlayerController>(Character->GetController());
+	APlayerCameraManager* CameraManager = Player ? Player->PlayerCameraManager.Get() : nullptr;
+	const UCameraComponent* Camera = FirstPersonCamera.Get();
+	if (CameraManager && Camera && World && World->IsPaused())
+	{
+		CameraManager->SetFOV(Camera->FieldOfView);
+		bFieldOfViewLocked = true;
+	}
+	return true;
+}
+
+void UPlayerViewComponent::UnlockCameraFieldOfView()
+{
+	if (bFieldOfViewLocked)
+	{
+		const APlayerController* Player = Character.IsValid() ? Cast<APlayerController>(Character->GetController()) : nullptr;
+		if (APlayerCameraManager* CameraManager = Player ? Player->PlayerCameraManager.Get() : nullptr)
+		{
+			CameraManager->UnlockFOV();
+		}
+		bFieldOfViewLocked = false;
+	}
+}
+
+void UPlayerViewComponent::EndFieldOfViewPreview()
+{
+	UnlockCameraFieldOfView();
+	if (bFieldOfViewPreview)
+	{
+		bFieldOfViewPreview = false;
+		if (Character.IsValid())
+		{
+			UpdateFieldOfView();
 		}
 	}
 }

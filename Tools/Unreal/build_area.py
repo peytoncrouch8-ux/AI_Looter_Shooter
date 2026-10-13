@@ -407,11 +407,15 @@ class AreaBuild:
         # The story's actors stand on the models placed already (the graves, the lookout, the farmhouse), and so do the
         # posters (on the buildings' walls and the notice board).
         self.story.place(self)
+        # Each boss arena's Vigil Stone, hidden until that boss's first defeat (build_area_shrines.py).
+        importlib.reload(importlib.import_module('build_area_shrines')).place(self)
         # The encounters between the story's fights (layout gameplay.encounters): camps with their crates, patrols and
         # ambushes (build_area_camps.py), after the story's actors, whose fights' ground they keep off.
         importlib.reload(importlib.import_module('build_area_camps')).place(self)
         # The town's life behind its walls: townsfolk's doors that mutter and sound (build_area_townlife.py).
         importlib.reload(importlib.import_module('build_area_townlife')).place(self)
+        # The vendors at their store doors (build_area_vendors.py): Pruitt's hatch, Skyreach's honesty box.
+        importlib.reload(importlib.import_module('build_area_vendors')).place(self)
         self.posters.place(self)
 
         # The groups draw from one random stream, in order, so each lands where it did last time.

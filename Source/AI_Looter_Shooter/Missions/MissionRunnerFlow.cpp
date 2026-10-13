@@ -415,6 +415,9 @@ FMissionRewardsGiven UMissionRunner::GrantRewards(const UMissionDefinition& Miss
 		Progression->AddXP(Given.Experience, EXPSource::Mission);
 	}
 
+	// Silver: the giver's fixed purse (MissionRewards::SilverFor; Docs/Progression.md, "Economy"), into the wallet.
+	Given.Silver = MissionRewards::GiveSilver(Context.World, Mission.GetMissionId());
+
 	// A gun at the player's feet, at their level, and a named gun the same way, unless the story hands that one over itself
 	// (Heirloom through Delia's door).
 	if (Rewards.bGun)

@@ -28,7 +28,8 @@ import os
 import numpy as np
 
 import area_boundary
-from area_features import GORGE_STREAM, GORGE_WALL, FeatureSteps, ramp_drop_sides, seam_conflicts
+from area_features import (GORGE_STREAM, GORGE_WALL, PAD_BANK_REACH, FeatureSteps, ramp_drop_sides,
+                           seam_conflicts)
 from area_math import (Grid, arc_length, blur, catmull_rom, cells, fbm, fbm_raster, gauss_smooth_1d, normals_of,
                        points_in_polygon, polygon_area, polyline_field, raster_size, resample, resize, sample,
                        signed_distance, smax, smin, smoothstep)
@@ -398,6 +399,10 @@ class Area(FeatureSteps):
         return h
 
     def _pads(self, x, y, h):
+        """Each pad: a rounded rectangle ("center", "size", "yaw") made level at "height" (cm, absolute), blending
+        into the ground around it over 3 m (a small pad) or 12 m. Optional: "corner", the corners' radius as a share of
+        the shorter half side (0.35); "grade" [north, east], a gentle tilt (m of rise per m; a hillside graveyard); and
+        "bank" {slope, round, toe, reach}, a graded edge instead of the blend (_pad_bank)."""
         self.pad_weight = np.zeros(h.shape, dtype=np.float32)
         wobble = 0.9 * fbm_raster(self.grid, 9.0, seed=15)
         micro = 0.05 * fbm_raster(self.grid, 5.0, seed=16)
@@ -407,14 +412,46 @@ class Area(FeatureSteps):
             yaw = math.radians(f.get('yaw', 0.0))
             lx = (x - cx) * math.cos(yaw) + (y - cy) * math.sin(yaw)
             ly = -(x - cx) * math.sin(yaw) + (y - cy) * math.cos(yaw)
-            corner = min(sx, sy) * 0.35
+            corner = min(sx, sy) * f.get('corner', 0.35)
             qx, qy = np.abs(lx) - (sx - corner), np.abs(ly) - (sy - corner)
             sd = np.hypot(np.maximum(qx, 0.0), np.maximum(qy, 0.0)) + np.minimum(np.maximum(qx, qy), 0.0) - corner
-            blend = 3.0 if min(sx, sy) < 6.0 else 12.0
-            w = 1.0 - smoothstep(-1.0, blend, sd + wobble)
-            h = h + (f['height'] / 100.0 + micro - h) * w
+            top = f['height'] / 100.0 + micro
+            if 'grade' in f:
+                gx, gy = f['grade']
+                top = top + gx * (x - cx) + gy * (y - cy)
+            if 'bank' in f:
+                h, w = self._pad_bank(f['bank'], h, sd + wobble, top)
+            else:
+                blend = 3.0 if min(sx, sy) < 6.0 else 12.0
+                w = 1.0 - smoothstep(-1.0, blend, sd + wobble)
+                h = h + (top - h) * w
             self.pad_weight = np.maximum(self.pad_weight, w)
         return h
+
+    def _pad_bank(self, bank, h, d, top):
+        """A pad's graded edge, the way a yard is levelled on a hillside: inside (d, meters past the pad's edge, <= 0)
+        the ground is the pad's top exactly; outside, it's kept within a batter of bank "slope" degrees from the edge:
+        filled up to the line falling away from the top, cut down to the line rising from it, and left alone where the
+        ground already lies between (a bank never steeper than the slope, unless the ground was). The batter starts
+        level and turns down over "round" cm (a rounded crest), and its foot meets the ground over "toe" cm (a smooth
+        minimum, not a crease). It works only within "reach" cm of the edge (PAD_BANK_REACH at most), letting go over
+        its last 3 m: the batter's lines run on forever, and unbounded they filled a canyon 70 m down a hundred meters
+        off and cut a ridge's foot (Ransom's Rest's churchyard, 2026-10-12). The pad's flat is left out of _relax().
+        Returns the heights and the pad's weight."""
+        t = math.tan(math.radians(bank['slope']))
+        rounding = max(bank.get('round', 200) / 100.0, 0.01)
+        toe = bank.get('toe', 150) / 100.0
+        limit = min(bank.get('reach', 1200) / 100.0, PAD_BANK_REACH)
+        out = np.maximum(d, 0.0)
+        reach = np.where(out < rounding, out * out / (2.0 * rounding), out - 0.5 * rounding)
+        low, high = top - t * reach, top + t * reach
+        # The toe's blend grows in over the crest, so the edge itself is exact.
+        k = np.maximum(toe * smoothstep(0.0, rounding, d), 1e-4)
+        graded = smin(smax(h, low, k), high, k)
+        graded = h + (graded - h) * (1.0 - smoothstep(limit - min(3.0, 0.5 * limit), limit, d))
+        flat = d <= 0.0
+        self.designed |= flat
+        return np.where(flat, top, graded), (1.0 - smoothstep(0.0, rounding, d)).astype(np.float32)
 
     def _footprints(self, h):
         self.footprints = []

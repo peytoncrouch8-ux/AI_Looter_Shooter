@@ -3,7 +3,40 @@
 Where the work stands, for the next session and every agent. Update it as each request finishes (newest first). Rules are
 in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeline.md`.
 
-## Now (2026-10-08 night, the local session after "Game Enchancements")
+## Start here (2026-10-13, end of the "polish loop" session; the user is opening a new session)
+
+**State:** everything below is built, placed in both levels, committed and pushed; 470 tests pass; the game starts
+(menushots/hudshots). The editor may be left open on Skyreach.
+
+**The user's seven asks of 2026-10-12, all done:**
+1. Churchyard: the chapel and yard stand on one flat pad (7.5 m, graded 30° bank; was 7 m of fall and 23° median slope),
+   graves upright, the iron fence steps level (55 sections, 4 posts), boot hill on a gentle terrace, a `churchyardPath`
+   through the yard (the path probe passes). Generator pads gained bank/tilt/corner settings (`area_shape.py`).
+2. Ground texture: M_Terrain picks dry thatch, stony crust (pebbles, cracks, leaf litter) or damp soil per pixel from the
+   macro map, three new script-made texture sets (Ground Thatch/Stony/Noise), colour unchanged at distance, +5 samples
+   (`GROUND_DEFAULTS`; `Tools/Blender/ground_preview.py`).
+3. Creature levels by area, never the player's: Ransom's Rest 1-6 by zone (bluff 1-2 ... Webwood/quarry/deck 5-6),
+   layout `gameplay.levels`, `create_area_assets.py`; kill XP x0.37 keeps the story's end at 794 XP (level 6.9).
+4. Creatures chase until a real reason (dead, 80 m, safe zone, scene, unreachable 10 s patience), search the last known
+   spot, wait and watch at their ground's edge; lock-on radius +20% (Project Settings > Game > Encounters > Pursuit).
+5. The Vigil Stone beside each boss arena (after the first defeat): call the boss back after 5 minutes of play or after a
+   save and quit; no story replay (Abel goes back on his board), repeats at -0.3 luck.
+6. Abel is level 7 (Boss rank on a set 6), the Gravemother 6.
+7. The FOV slider previews live behind the menu (which steps aside), the minimap zoom slider shows a live minimap.
+Also: controller/keyboard navigation for the main, pause and settings menus (focus look only in pad/keys mode), wave 4
+(silver currency, Pruitt's hatch vendor after Main 3 and Skyreach's honesty box, selling junk with J/R; the Venom Spitter
+and the Bell-Ringer with bestiary pages; third-person grenade toss and Drover reload; the Drover's own hip hold).
+
+**Next (not started):** a map pin for Vigil Stones (MapPins: `EMapPinKind::Shrine`, spec in the shrine agent's notes:
+pin risen stones with `GetMapDetail()`); third person follows the FOV slider only if the user wants (one line in
+`UpdateFieldOfView`); fast travel and combat music still count a searching creature as a fight (GraveTravelSubsystem
+could count only Chase/Attack); grenade pickups and found chests aren't saved; `CreatureBase.h` is ~640 lines (split);
+Story.md's endgame "levels follow the player" lines wait for the user's endgame call; the user hasn't heard the newest
+sounds (listening page version 5 has up to wave 3; the economy, Spitter, Bell-Ringer and shrine sounds came after);
+5 sounds flagged by the check (Saved/SoundCheck) to review; perf with the editor closed after the ground layers (editor-open
+tours: about +0.3 ms GPU, all views under 7.5 ms).
+
+## Earlier: the 2026-10-08 night session after "Game Enchancements"
 
 - **The user's asks:** (1) change the shooting, task-completion and reload sounds; no crit sound; creatures should sound
   like what they are (slimes squishy); (2) start building Crossroads Town on Skyreach. Then, going to sleep: **a polish
@@ -59,6 +92,13 @@ captions by story stage); the Drover revolver (third gun family, pistol ammo, sw
 grave-salt grenade (G / RB, carry 3, burst 900 at level 1, x1.5 on the Unpaid, edge-safe knock); the boss fog wall
 restyled as fog banks and wisps (it read as rain); review fixes (cached ground-trace ignore list, creature list instead
 of actor scans, boss slow-mo shared per world, inventory drag ghost, hints hidden while dead, idle slime hops).
+**2026-10-12:** the weekly usage limit stopped wave 4's agents mid-task on 10-09 ~04:10; resumed today from what they
+had written (Economy/ started, Spitter glob/puddle/rules, throw and reload pose files; the Bell-Ringer had nothing on disk).
+The Drover's first-person hip hold (WeaponDefinition FirstPersonGrip/FirstPersonRotation, WeaponManagerSlots) is in
+source, unbuilt: rerun create_revolver.py after the next build.
+The listening page (<https://claude.ai/artifact/VDmyrPmAsxiNa6boNuqKxa>, version 5) has all 126 new sounds at the top
+(music and ambience trimmed to 25 s there). Wave 4 (running at 04:00): currency and vendors, the Spitter spider, the
+Bell-Ringer Unpaid, third-person throw and revolver poses.
 **Calls made (review):** Drop weapon moved from G to X (the grenade took G); the Drover keeps the game's 1.5x crit
 (the user's rule) and gets precision from spread; grenades may be strong (one number: FGraveSaltRules::BaseDamage);
 grenade pickups on the ground aren't saved; Skyreach's board reads NOTICES.

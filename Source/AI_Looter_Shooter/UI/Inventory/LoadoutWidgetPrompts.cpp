@@ -2,7 +2,10 @@
 // bar at the bottom saying what the keys do right now (each hint a button too).
 
 #include "UI/Inventory/LoadoutWidget.h"
+#include "Economy/EconomyRules.h"
+#include "Economy/WalletSubsystem.h"
 #include "UI/Inventory/LoadoutParts.h"
+#include "UI/Vendor/SilverUI.h"
 #include "UI/Inventory/LoadoutRules.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -62,6 +65,11 @@ void ULoadoutWidget::RefreshAmmo()
 		Gauge->SetToolTipText(FText::FromString(FString::Printf(TEXT("%s: %d / %d"), LooterAmmo::GetInfo(Type).Name, Carried, Max)));
 		AmmoRow->AddChildToHorizontalBox(Gauge)->SetPadding(FMargin(Index > 0 ? 16.f : 0.f, 0.f, 0.f, 0.f));
 	}
+	// After the ammo, set apart: the silver carried (Docs/Progression.md, "Economy").
+	const int32 Silver = UWalletSubsystem::SilverOf(this);
+	UHorizontalBox* Purse = SilverUI::MakeAmount(WidgetTree, Silver, 10, Silver > 0 ? Color::Text() : Color::TextDim(), false);
+	Purse->SetToolTipText(LooterEconomy::Words(Silver));
+	AmmoRow->AddChildToHorizontalBox(Purse)->SetPadding(FMargin(28.f, 0.f, 0.f, 0.f));
 }
 
 // ---------------------------------------------------------------------------
@@ -131,6 +139,12 @@ TArray<ULoadoutWidget::FPrompt> ULoadoutWidget::CurrentPrompts() const
 		Prompts.Add({ TEXT("F"), TEXT("Hold"), EAction::Hold });
 		Prompts.Add({ TEXT("X"), TEXT("Inspect"), EAction::Inspect });
 		Prompts.Add({ TEXT("Q"), TEXT("Drop"), EAction::Drop });
+		// J marks it junk for a vendor's "Sell all junk" (a named gun is never sold, so never junk).
+		const FWeaponInstanceData* Item = ListItem(CursorIndex);
+		if (!Item->Named)
+		{
+			Prompts.Add({ TEXT("J"), Item->bJunk ? FString(TEXT("Not junk")) : FString(TEXT("Junk")), EAction::None });
+		}
 	}
 	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 	const UKeyBindingSubsystem* Bindings = LocalPlayer ? LocalPlayer->GetSubsystem<UKeyBindingSubsystem>() : nullptr;

@@ -6,6 +6,8 @@
 #include "Audio/LooterSound.h"
 #include "Combat/BulletSubsystem.h"
 #include "Combat/HealthComponent.h"
+#include "Economy/SilverDrops.h"
+#include "Economy/WalletSubsystem.h"
 #include "Loot/LootLibrary.h"
 #include "Loot/LootTable.h"
 #include "Loot/SoulMotePickup.h"
@@ -363,6 +365,10 @@ void ABreakableProp::DropLoot(AController* By)
 			DroppedLoot.Add(Mote);
 		}
 	}
+	// A little silver now and then (Docs/Progression.md, "Economy"), at the player's level, on a stream of its own; not kept
+	// with what it gave, since it comes to the player by itself. None where guns don't drop.
+	FRandomStream SilverRoll(FMath::Rand());
+	SilverDrops::DropForBreakable(World, UWalletSubsystem::PlayerLevelOf(this), GetMiddle(), SilverRoll);
 }
 
 ULootTable* ABreakableProp::MakeLootTable() const

@@ -4,6 +4,7 @@
 #include "GameFramework/Character.h"
 #include "LooterCharacter.generated.h"
 
+class UHandJarComponent;
 class UInputAction;
 class UInteractionComponent;
 class UPlayerMeleeComponent;
@@ -49,6 +50,10 @@ protected:
 	/** The Grenade key's grave-salt grenade: the throw and the count carried (made here, not in the Blueprint). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UPlayerThrowComponent> Throw;
+
+	/** The jar seen in the body's left hand through a throw's wind-up, in third person (on the hand's grip socket). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UHandJarComponent> HandJar;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> MoveAction;

@@ -39,17 +39,20 @@ void USettingsMenuWidget::HandleMinimapSizeChanged(float Value)
 		Graphics->SetMinimapScale(Value, /*bSave*/ false);
 	}
 	ShowMinimapScale(Value);
-	PreviewLinger = 0.8f;
+	if (!bRefreshingSliders)
+	{
+		SizeState.Nudge();
+	}
 }
 
 void USettingsMenuWidget::HandleMinimapSizeGrabbed()
 {
-	bMinimapSliderHeld = true;
+	SizeState.Grab(MinimapSlider ? MinimapSlider->GetValue() : 0.f);
 }
 
 void USettingsMenuWidget::HandleMinimapSizeReleased()
 {
-	bMinimapSliderHeld = false;
+	SizeState.Release();
 	if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
 	{
 		Graphics->SaveSettings();
@@ -59,53 +62,7 @@ void USettingsMenuWidget::HandleMinimapSizeReleased()
 	SetKeyboardFocus();
 }
 
-void USettingsMenuWidget::HandleMinimapZoomChanged(float Value)
-{
-	// The HUD's map follows the moment the menu closes.
-	if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
-	{
-		Graphics->SetMinimapZoom(Value, /*bSave*/ false);
-	}
-	if (MinimapZoomValue)
-	{
-		MinimapZoomValue->SetText(FText::FromString(FString::Printf(TEXT("%.1fx"), Value)));
-	}
-}
-
-void USettingsMenuWidget::HandleMinimapZoomReleased()
-{
-	if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
-	{
-		Graphics->SaveSettings();
-		SetStatus(FString::Printf(TEXT("Minimap zoom %.1fx."), Graphics->GetMinimapZoom()), LooterUI::Color::TextDim());
-	}
-	// Dragging handed focus to the slider's window; take it back so Esc still closes the menu.
-	SetKeyboardFocus();
-}
-
-void USettingsMenuWidget::HandleFieldOfViewChanged(float Value)
-{
-	// The first-person view follows on the game's next frame (as soon as it resumes, under the pause menu).
-	if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
-	{
-		Graphics->SetFirstPersonFieldOfView(Value, /*bSave*/ false);
-	}
-	if (FieldOfViewValue)
-	{
-		FieldOfViewValue->SetText(FText::FromString(DegreesText(UGraphicsSettingsSubsystem::ClampFieldOfView(Value))));
-	}
-}
-
-void USettingsMenuWidget::HandleFieldOfViewReleased()
-{
-	if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
-	{
-		Graphics->SaveSettings();
-		SetStatus(FString::Printf(TEXT("First-person field of view %s."), *DegreesText(Graphics->GetFirstPersonFieldOfView())), LooterUI::Color::TextDim());
-	}
-	// Dragging handed focus to the slider's window; take it back so Esc still closes the menu.
-	SetKeyboardFocus();
-}
+// The field of view and minimap zoom sliders, which preview what they set, are in SettingsMenuPreview.cpp.
 
 void USettingsMenuWidget::HandleLookSensitivityChanged(float Value)
 {
@@ -307,10 +264,14 @@ void USettingsMenuWidget::HandleButton(ULooterButton* Button)
 void USettingsMenuWidget::StartListening(int32 BindingIndex)
 {
 	ListeningIndex = BindingIndex;
+	StopNavHold();
 	// Let the mouse wheel be captured as a key instead of scrolling the list.
 	Body->SetConsumeMouseWheel(EConsumeMouseWheel::Never);
-	SetStatus(TEXT("Press the new key (Esc to cancel)."), LooterUI::Color::Accent());
+	// The list is the keyboard's and the mouse's: a controller's buttons keep their own (B lets go instead).
+	SetStatus(LooterUI::IsMenuGamepad() ? TEXT("Press the new keyboard key or mouse button (B to cancel).") : TEXT("Press the new key (Esc to cancel)."),
+		LooterUI::Color::Accent());
 	RefreshKeyLabels();
+	RefreshPrompts();
 }
 
 void USettingsMenuWidget::StopListening()
@@ -320,6 +281,7 @@ void USettingsMenuWidget::StopListening()
 	{
 		Body->SetConsumeMouseWheel(EConsumeMouseWheel::WhenScrollingPossible);
 	}
+	RefreshPrompts();
 }
 
 void USettingsMenuWidget::AssignKey(const FKey& Key)
@@ -361,10 +323,17 @@ FReply USettingsMenuWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, 
 
 	if (ListeningIndex != INDEX_NONE)
 	{
-		if (Key == EKeys::Escape)
+		// The key that started the wait (Enter, A) may still be held and repeating: only a fresh press is the new key. A
+		// stick's nudge (its direction keys) is no answer either.
+		if (InKeyEvent.IsRepeat() || MenuNav::IsStickKey(Key))
+		{
+			return FReply::Handled();
+		}
+		if (MenuNav::IsBack(Key))
 		{
 			StopListening();
 			SetStatus(TEXT("Cancelled."), LooterUI::Color::TextDim());
+			LooterSound::Play2D(this, LooterSoundCue::Back);
 			RefreshKeyLabels();
 		}
 		else
@@ -374,21 +343,13 @@ FReply USettingsMenuWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, 
 		return FReply::Handled();
 	}
 
-	if (Key == EKeys::Escape || Key == EKeys::Gamepad_Special_Right)
-	{
-		// The pause menu's close is the HUD's to sound; the main menu has no HUD to.
-		if (Mode == ESettingsMenuMode::MainMenu)
-		{
-			LooterSound::Play2D(this, LooterSoundCue::Close);
-		}
-		OnClose.ExecuteIfBound();
-		return FReply::Handled();
-	}
-	return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
+	// Everything else, Esc and the controller included: SettingsMenuNav.cpp.
+	return HandleNavKey(Key, InKeyEvent.IsRepeat()) ? FReply::Handled() : Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
 }
 
 FReply USettingsMenuWidget::NativeOnPreviewMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
+	NotePointer();
 	if (ListeningIndex != INDEX_NONE)
 	{
 		AssignKey(InMouseEvent.GetEffectingButton());
@@ -404,5 +365,6 @@ FReply USettingsMenuWidget::NativeOnMouseWheel(const FGeometry& InGeometry, cons
 		AssignKey(InMouseEvent.GetWheelDelta() > 0.f ? EKeys::MouseScrollUp : EKeys::MouseScrollDown);
 		return FReply::Handled();
 	}
+	NotePointer();
 	return Super::NativeOnMouseWheel(InGeometry, InMouseEvent);
 }

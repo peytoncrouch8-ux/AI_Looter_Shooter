@@ -111,6 +111,15 @@ namespace LooterUI
 		/** The coin's lit top-left and its shaded inner ring. */
 		FLinearColor CurseLight();
 		FLinearColor CurseDark();
+
+		// --- The menus' keyboard and controller focus (LooterUIFocus.h) ---
+
+		/** The focus outline and its lit edge on dark glass: a brighter orange than Accent. */
+		FLinearColor Focus();
+		/** The same on an orange button (Primary, or a lit segment), where orange wouldn't show: a warm white. */
+		FLinearColor FocusOnAccent();
+		/** The faint orange wash over a focused row (a background: it fades with the UI transparency). */
+		FLinearColor FocusWash();
 	}
 
 	enum class EShape : uint8

@@ -131,6 +131,7 @@
   "gameplay": {
     "about": "The gameplay actors build_area.py places (its gameplay mode places only these): the director that comes with the PlayerStart, the gun rack's weapon, the skiff jetty (its origin at [X, Y] on the rim where the drop starts, its yaw out over the drop; level.skyIslands hang from the same point), and creature groups in order, each in a zone (its id) or around a center [X, Y] within spread, spacing apart (cm), with \"respawns\": false for creatures that stay dead once killed (all of Skyreach's); the groups share one random stream (seed).",
     "director": "TutorialDirector",
+    "levels": { "about": "Skyreach's creatures are level 1, wherever they stand and whatever the player's level: a practice island (Docs/Progression.md, \"Creature levels\"; Tools/Unreal/create_area_assets.py writes the band into DA_Area_Skyreach).", "band": [1, 1] },
     "rackWeapon": "/Game/Weapons/Data/DA_AssaultRifle",
     "jetty": { "at": [-6923, 7078], "yaw": 126.3 },
     "benches": [

@@ -5,6 +5,7 @@
 #include "Combat/CriticalSpotTarget.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Creatures/CreaturePoseAnimInstance.h"
+#include "Creatures/CreaturePursuit.h"
 #include "Creatures/CreatureRank.h"
 #include "Creatures/CreatureSteerPlanner.h"
 #include "Creatures/CreatureUnstick.h"
@@ -28,7 +29,8 @@ enum class ECreatureState : uint8
 	Wander,   // strolling to a random spot near home
 	Chase,    // closing in on its target
 	Attack,   // wind-up, strike, recovery
-	Return,   // lost its target, walking home
+	Return,   // gave up its hunt, walking home
+	Search,   // still after its target but not chasing: tracking where it lost them, sniffing there, or watching from its edge
 	Dead
 };
 
@@ -46,6 +48,9 @@ enum class ECreatureState : uint8
  * by GetSizeScale(). CreatureBaseRank.cpp holds the rank, level and size, and which creatures come back after a death;
  * the area being played gives a creature its level and may promote it (UAreaRulesSubsystem). CreatureBaseHunting.cpp says
  * whom it hunts: a living player on its HuntingGround and out of every safe zone that's on (ASafeGround).
+ * CreatureBasePursuit.cpp keeps a hunt going until there's a real reason to stop (FCreaturePursuit): out of sight it goes
+ * where it lost them and sniffs round (Search), where it can't get to them it waits watching, and it gives up only for a
+ * reason (the player dead or gone, sheltered, in a scene, lost for long, or out of its reach past its patience).
  */
 UCLASS(Abstract)
 class AI_LOOTER_SHOOTER_API ACreatureBase : public ACharacter, public ICriticalSpotTarget
@@ -72,8 +77,14 @@ public:
 	/** This frame's pose of the bones the code moves (component space), for UCreaturePoseAnimInstance. */
 	const TArray<FCreatureBonePose>& GetBonePose() const { return BonePose; }
 
-	/** Turns on Attacker as if it had been hurt by it (its pack heard the fight). Nothing changes if it's busy already. */
+	/**
+	 * Turns on Attacker as if it had been hurt by it (its pack heard the fight): one off its ground it goes to its edge to
+	 * watch. Already after them, it knows where they are again (a search becomes the hunt); after someone else, nothing.
+	 */
 	void AlertTo(APawn* Attacker);
+
+	/** How its hunt is going (CreatureBasePursuit.cpp): its step, its last known spot, why it gave up; for tests and tools. */
+	const FCreaturePursuit& GetPursuit() const { return Pursuit; }
 
 	/** Its place in its pack: its flank, breaking off, its rank's sting, a patrol's anchor (CreaturePackComponent.h). */
 	UCreaturePackComponent* GetPack() const { return Pack; }
@@ -192,8 +203,8 @@ public:
 	{
 		ECreatureRank Rank = ECreatureRank::Basic;
 		/**
-		 * Its level before its rank's, kept whatever the area's band. 0: as a placed creature's, from the area's band and the
-		 * player's level, or the class's where the area has no band.
+		 * Its level before its rank's, kept whatever the area's band. 0: as a placed creature's, from the levels where it stands
+		 * in its area (UAreaDefinition), or the class's where the area has none.
 		 */
 		int32 Level = 0;
 		/** Its BodyScale; 0 keeps the class's. */
@@ -227,7 +238,7 @@ public:
 	/**
 	 * The creature's level, shown on its health bar; the guns it drops take it, and its health and damage grow with it
 	 * (8% of their level 1 values a level, as guns' damage does). Placed in an area with a level band (UAreaDefinition),
-	 * play gives it one from the band around the player's level; elsewhere it keeps the level it was placed at. Its
+	 * play gives it the levels where it stands (or its kind's set level); elsewhere it keeps the level it was placed at. Its
 	 * rank's levels come on top (a Restless one placed at 3, with no band, is level 4). In play, set it with SetLevel.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Progression", meta = (ClampMin = "1"))
@@ -271,9 +282,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature")
 	TArray<FName> CriticalSpotBones;
 
-	/** Notices a visible player within this distance. */
+	/**
+	 * Notices a visible player within this distance: its lock-on radius (26 m until the user's 20% more, 2026-10-12). Hunting,
+	 * it also stands for the reach of its nose: an unseen target nearer than this is tracked again (FCreaturePursuit).
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Senses", meta = (ClampMin = "0"))
-	float AggroRadius = 2600.f;
+	float AggroRadius = 3120.f;
 
 	/**
 	 * When it's hurt, every creature of its pack (PackTag) within this distance turns on the attacker too (0 = only itself).
@@ -282,14 +296,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Senses", meta = (ClampMin = "0"))
 	float PackAlertRadius = 0.f;
 
-	/** Gives up and walks home when its target gets this far away. */
+	/**
+	 * Its target farther than this is gone (a fast travel, a trip away): it gives up at once and walks home. Nearer, seen, it
+	 * keeps after them; out of sight it searches (FCreaturePursuit). A boss lets go at 55 m at most, as creatures used to.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Senses", meta = (ClampMin = "0"))
-	float LoseInterestRadius = 5500.f;
+	float LoseInterestRadius = 8000.f;
 
 	/**
-	 * Where it fights (FHuntingGround): it hunts only players standing on it, and gives up and walks home when its target
-	 * leaves it. Spawners give their creatures their own (AEncounterSpawner). Unset, the default: anywhere, as far as
-	 * LoseInterestRadius. Wherever it is, nothing hunts a player in a safe zone that's on (ASafeGround).
+	 * Where it fights (FHuntingGround): it hunts only players standing on it; a target who leaves it is watched from its edge
+	 * for a while, then given up. Spawners give their creatures their own (AEncounterSpawner). Unset, the default: anywhere,
+	 * as far as LoseInterestRadius. Wherever it is, nothing hunts a player in a safe zone that's on (ASafeGround).
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Creature|Senses")
 	FHuntingGround HuntingGround;
@@ -388,12 +405,18 @@ protected:
 	/** How far off it may begin an attack now: its reach, or farther for an attack of its own that's ready (a charge). */
 	virtual float GetAttackStartRange() const { return GetAttackRange(); }
 
+	/**
+	 * Whether it can hurt a target this far above (or below) it (cm): its strike's reach by default, and a ranged attack
+	 * reaches higher (the Spitter's lob). Out of it while near, it starts no attack, and stays there a while out of its reach.
+	 */
+	virtual bool CanReachHeight(float Rise) const;
+
 	/** Whether it keeps turning to its target through a wind-up: a charge that has taken its aim holds it (the Gravemother's). */
 	virtual bool TracksTargetInWindup() const { return true; }
 
 	/**
 	 * A player it may hunt: a living character on its HuntingGround and out of every safe zone that's on
-	 * (CreatureBaseHunting.cpp). A target who leaves its ground or steps into a safe zone ends the chase: it walks home.
+	 * (CreatureBaseHunting.cpp). A target in a safe zone ends the hunt; one off its ground is watched from its edge a while.
 	 */
 	bool IsValidTarget(const APawn* Pawn) const;
 
@@ -436,6 +459,46 @@ private:
 	void UpdatePerception();
 	APawn* FindVisibleTarget() const;
 	bool HasLineOfSight(const AActor* Other) const;
+	/** It closes in to this (flat) and there stands squared up: three quarters of its attack range, at its size. */
+	float GetChaseHold() const { return GetAttackRange() * 0.75f; }
+	/** How far up or down its strike lands (at its size, at least size 1's). */
+	float GetStrikeHeight() const { return 220.f * FMath::Max(SizeScale, 1.f); }
+
+	// --- Whom it hunts (CreatureBaseHunting.cpp) ---
+	enum class EHuntCheck : uint8
+	{
+		Huntable,
+		/** Not a living player character (dead, a creature, nothing). */
+		NotPrey,
+		/** Alive and out of every safe zone, but off its hunting ground. */
+		OffGround,
+		/** In a safe zone that's on. */
+		Sheltered,
+	};
+	EHuntCheck CheckHunt(const APawn* Pawn) const;
+	/** A scene plays or holds the player: nothing but a boss hunts them meanwhile. */
+	bool IsSceneHoldingPlayer() const;
+
+	// --- Its hunt going on (CreatureBasePursuit.cpp; FCreaturePursuit has the rules) ---
+	/** A boss (Boss rank, or a creature a boss fight is built round) keeps its fight's own rules: no search, no prowl. */
+	bool KeepsBossRules() const;
+	/** Sets it on Prey, a new hunt (one off its ground is watched from its edge). */
+	void BeginHunt(APawn* Prey);
+	/** A hit (bHit) or a pack's call from Prey: a new hunt, or word of where its target is. True when it newly turned on them. */
+	bool TakeUpHunt(APawn* Prey, bool bHit);
+	/** Its look at its target (every perception, Interval apart): the hunt goes on, turns to a search or a wait, or ends. */
+	void UpdatePursuit(float Interval);
+	/** The hunt is over (its pursuit says why): it lets go and walks home, calmly. */
+	void GiveUpHunt();
+	/** An attack played out: after its target again, or as its pursuit says if they're out of its hunt. */
+	void ResumeHunt();
+	/** Between chasing and searching: one hunt, so its way round what's in the way carries on (SetState starts it afresh). */
+	void SetHuntState(ECreatureState NewState);
+	void TickSearch(float DeltaSeconds);
+	void TickSniff(float DeltaSeconds);
+	void TickProwl(float DeltaSeconds, const APawn& Prey);
+
+	// --- Steering (CreatureBaseSteering.cpp) ---
 	void MoveToward(const FVector& Goal, float Speed, float DeltaSeconds);
 	/** Its way this update toward Goal, Desired already bent round its pack (the planner, from the probe's looks). */
 	FVector ChooseDirection(const FVector& Desired, const FVector& Goal, float Speed);
@@ -476,7 +539,7 @@ private:
 	void RespawnRankAndLevel();
 	/** The rank it begins play with: StartingRank, or for a placed Basic creature its area's promotion this arrival. */
 	ECreatureRank RollArrivalRank() const;
-	/** Its own level before its rank's: from its area's band and the player's level, or GivenLevel (no band, or spawned at one). */
+	/** Its own level before its rank's: from where it stands in its area, or GivenLevel (no band, or spawned at one). */
 	int32 RollOwnLevel(ECreatureRank Rank) const;
 	/** Takes Rank with OwnLevel plus the rank's levels, and applies them (ApplyRank). */
 	void TakeRankAndLevel(ECreatureRank Rank, int32 OwnLevel);
@@ -519,6 +582,8 @@ private:
 
 	ECreatureState State = ECreatureState::Idle;
 	TWeakObjectPtr<APawn> Target;
+	/** How its hunt is going: searching, waiting where it can't reach, why it gave up (CreatureBasePursuit.cpp). */
+	FCreaturePursuit Pursuit;
 	FTransform Home;
 	FVector WanderGoal = FVector::ZeroVector;
 	float StateTime = 0.f;

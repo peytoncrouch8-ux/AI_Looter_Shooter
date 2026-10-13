@@ -433,10 +433,17 @@ FTransform UWeaponManagerComponent::GetFirstPersonHold(const AWeaponBase* Weapon
 	FTransform Hold = AttachOffset;
 	if (Weapon && !Weapon->GetGripPoint().IsZero())
 	{
-		// A six-gun (the Drover) is held a little forward along its barrel, half its HoldReach (the third-person arms
-		// reach the rest of the way, LooterStancePose); a long gun's is 0, so it sits where it did.
-		const UWeaponDefinition* Def = Weapon->GetInstance().Definition.Get();
-		Hold.AddToTranslation(Hold.TransformVector(AttachGrip - Weapon->GetGripPoint() + FVector(Def ? Def->HoldReach * 0.5f : 0.f, 0.f, 0.f)));
+		// A gun with a hip hold of its own (the Drover: raised and canted in on the right, where a long gun's hold would
+		// sink its short frame low with its grip off the screen's bottom) puts its grip there, turned its way. Aiming
+		// still slerps to the sight line (PlayerLocomotionViewModel), so its SOCKET_Aim lands as every gun's does.
+		const UWeaponDefinition* Definition = Weapon->GetInstance().Definition.Get();
+		if (Definition && !Definition->FirstPersonGrip.IsZero())
+		{
+			Hold.SetRotation(Hold.GetRotation() * Definition->FirstPersonRotation.Quaternion());
+			Hold.SetTranslation(Definition->FirstPersonGrip - Hold.TransformVector(Weapon->GetGripPoint()));
+			return Hold;
+		}
+		Hold.AddToTranslation(Hold.TransformVector(AttachGrip - Weapon->GetGripPoint()));
 	}
 	return Hold;
 }

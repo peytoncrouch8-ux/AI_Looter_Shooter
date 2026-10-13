@@ -20,15 +20,18 @@ class UPlayerMeleeComponent;
 class UPlayerThrowComponent;
 class USizeBox;
 class UTextBlock;
+class UWalletSubsystem;
 class UWidget;
 class UWeaponManagerComponent;
 enum class EGrenadeChange : uint8;
+enum class ESilverChange : uint8;
 
 /**
  * In-game HUD in the shared UI style, built to stay out of the way while playing:
  *  - bottom-left: the player frame (UHudPlayerFrameWidget): the portrait in its gunmetal medallion, the health bar, the
  *    level gem and the experience bar
- *  - bottom-right, 48 px in from the edge: the grave-salt grenades carried over the column (UHudGrenadeWidget: key tab,
+ *  - bottom-right, 48 px in from the edge: at the column's top the silver carried (the coin and the amount, flashing "+N" on
+ *    a find; PlayerHUDWidgetMoney.cpp), then the grave-salt grenades carried over the column (UHudGrenadeWidget: key tab,
  *    the tin's icon, the count and its pips, once the player has grenades), then
  *    the weapon slots in a column, slot 1 on top, each with its key tab and ammo
  *    icon on its left (UHudWeaponSlotsWidget), and on their right the magazine as a cartridge standing tip up, which
@@ -95,6 +98,30 @@ private:
 
 	/** The grenade counter, frame by frame. */
 	void UpdateGrenades(float DeltaTime);
+
+	// --- The silver readout at the top of the weapon column (PlayerHUDWidgetMoney.cpp) ---
+
+	/** Builds it: the coin and the amount in floating type with no panel, and left of them the "+N" of a find. */
+	UWidget* BuildMoneyReadout();
+
+	/** Follows the level's wallet (it changes with the level), frame by frame: the amount counts up to a find, "+N" pops and fades. */
+	void UpdateMoney(float DeltaTime);
+
+	/** The wallet's silver changed: a find, a purse or a sale shows "+N" and brings the column forward; a spend or a load just sets it. */
+	void HandleSilverChanged(int32 Total, int32 Delta, ESilverChange Why);
+
+	UPROPERTY(Transient) TObjectPtr<UWidget> MoneyReadout;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> MoneyText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> MoneyGainText;
+	TWeakObjectPtr<UWalletSubsystem> BoundWallet;
+	FDelegateHandle SilverChangedHandle;
+	/** The amount as shown (counting toward MoneyTarget), the "+N" summed over finds close together, and its age (negative: none). */
+	float ShownMoney = 0.f;
+	int32 MoneyTarget = 0;
+	int32 MoneyGain = 0;
+	float MoneyGainAge = -1.f;
+	/** The readout shows once the player has had any silver (an unarmed new game's empty purse stays out of the way). */
+	bool bMoneySeen = false;
 
 	UFUNCTION()
 	void HandleFired();

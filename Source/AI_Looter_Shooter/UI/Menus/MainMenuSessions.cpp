@@ -130,8 +130,8 @@ UWidget* UMainMenuWidget::MakePicker()
 	StatusBox->SetMinDesiredHeight(20.f);
 	Content->AddChildToVerticalBox(StatusBox)->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
 
-	UVerticalBoxSlot* BackSlot = Content->AddChildToVerticalBox(MakeSized(WidgetTree,
-		MakeButton(ActionBack, 0, TEXT("Back"), 14, EButtonKind::Normal), 180.f, 40.f));
+	PickerBackButton = MakeButton(ActionBack, 0, TEXT("Back"), 14, EButtonKind::Normal);
+	UVerticalBoxSlot* BackSlot = Content->AddChildToVerticalBox(MakeSized(WidgetTree, PickerBackButton, 180.f, 40.f));
 	BackSlot->SetHorizontalAlignment(HAlign_Left);
 	BackSlot->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
 
@@ -147,6 +147,9 @@ void UMainMenuWidget::RefreshSessions()
 		return;
 	}
 	SessionList->ClearChildren();
+	// The cards' buttons by slot, for the keyboard and controller focus (filled as the cards are made).
+	PlayButtons.Reset();
+	DeleteButtons.Reset();
 	const USessionSubsystem* Sessions = USessionSubsystem::Get(this);
 	if (!Sessions)
 	{
@@ -155,6 +158,8 @@ void UMainMenuWidget::RefreshSessions()
 		SessionList->AddChildToVerticalBox(Missing);
 		return;
 	}
+	PlayButtons.SetNum(USessionSubsystem::MaxSessions);
+	DeleteButtons.SetNum(USessionSubsystem::MaxSessions);
 	for (int32 Index = 0; Index < USessionSubsystem::MaxSessions; ++Index)
 	{
 		SessionList->AddChildToVerticalBox(MakeSessionCard(Index, Sessions->GetSummary(Index)))
@@ -199,12 +204,20 @@ UWidget* UMainMenuWidget::MakeSessionCard(int32 Index, const FSessionSummary& Su
 	// Its buttons on the right: Continue and a smaller Delete for a saved session; New Game for an empty slot, which
 	// has nothing to delete.
 	UVerticalBox* Actions = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	Actions->AddChildToVerticalBox(MakeSized(WidgetTree,
-		MakeButton(ActionPlay, Index, bSaved ? TEXT("Continue") : TEXT("New Game"), 13, EButtonKind::Primary), 0.f, 40.f));
+	ULooterButton* Play = MakeButton(ActionPlay, Index, bSaved ? TEXT("Continue") : TEXT("New Game"), 13, EButtonKind::Primary);
+	Actions->AddChildToVerticalBox(MakeSized(WidgetTree, Play, 0.f, 40.f));
+	if (PlayButtons.IsValidIndex(Index))
+	{
+		PlayButtons[Index] = Play;
+	}
 	if (bSaved)
 	{
-		Actions->AddChildToVerticalBox(MakeSized(WidgetTree, MakeButton(ActionDelete, Index, TEXT("Delete"), 10, EButtonKind::Danger), 0.f, 28.f))
-			->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
+		ULooterButton* Delete = MakeButton(ActionDelete, Index, TEXT("Delete"), 10, EButtonKind::Danger);
+		Actions->AddChildToVerticalBox(MakeSized(WidgetTree, Delete, 0.f, 28.f))->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
+		if (DeleteButtons.IsValidIndex(Index))
+		{
+			DeleteButtons[Index] = Delete;
+		}
 	}
 	Line->AddChildToHorizontalBox(MakeSized(WidgetTree, Actions, CardActionsWidth))->SetVerticalAlignment(VAlign_Center);
 
@@ -313,13 +326,13 @@ void UMainMenuWidget::OpenNewGame(int32 Index)
 	}
 
 	// Skyreach first, the call to action; the skip under it; Cancel last.
-	Content->AddChildToVerticalBox(MakeSized(WidgetTree, MakeButton(ActionPlayTutorial, Index, TutorialChoice::StartLabel(PracticeName).ToString(), 14,
-		EButtonKind::Primary), 0.f, 44.f))->SetPadding(FMargin(0.f, 22.f, 0.f, 0.f));
+	ULooterButton* Tutorial = MakeButton(ActionPlayTutorial, Index, TutorialChoice::StartLabel(PracticeName).ToString(), 14, EButtonKind::Primary);
+	Content->AddChildToVerticalBox(MakeSized(WidgetTree, Tutorial, 0.f, 44.f))->SetPadding(FMargin(0.f, 22.f, 0.f, 0.f));
 	ULooterButton* Skip = MakeButton(ActionSkipTutorial, Index, TutorialChoice::SkipLabel(FirstName).ToString(), 13, EButtonKind::Normal);
 	Skip->SetIsEnabled(bCanSkip);
 	Content->AddChildToVerticalBox(MakeSized(WidgetTree, Skip, 0.f, 40.f))->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
-	UVerticalBoxSlot* CancelSlot = Content->AddChildToVerticalBox(MakeSized(WidgetTree,
-		MakeButton(ActionCancelNewGame, Index, TEXT("Cancel"), 11, EButtonKind::Mini), 140.f, 30.f));
+	ULooterButton* Cancel = MakeButton(ActionCancelNewGame, Index, TEXT("Cancel"), 11, EButtonKind::Mini);
+	UVerticalBoxSlot* CancelSlot = Content->AddChildToVerticalBox(MakeSized(WidgetTree, Cancel, 140.f, 30.f));
 	CancelSlot->SetHorizontalAlignment(HAlign_Right);
 	CancelSlot->SetPadding(FMargin(0.f, 14.f, 0.f, 0.f));
 
@@ -335,6 +348,9 @@ void UMainMenuWidget::OpenNewGame(int32 Index)
 	PopupLayer->ClearChildren();
 	FillOverlaySlot(PopupLayer->AddChildToOverlay(Backdrop));
 	PopupLayer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	// The keys and controller in the popup only, top to bottom (the skip passed over while it's shut), on the tutorial.
+	OpenPopupNav({ FMenuNavRow{ FMenuNavItem::MakeButton(Tutorial) }, FMenuNavRow{ FMenuNavItem::MakeButton(Skip) },
+		FMenuNavRow{ FMenuNavItem::MakeButton(Cancel) } }, Tutorial);
 	RefreshFooter();
 }
 
@@ -350,6 +366,7 @@ void UMainMenuWidget::CloseNewGame()
 		PopupLayer->ClearChildren();
 		PopupLayer->SetVisibility(ESlateVisibility::Collapsed);
 	}
+	ClosePopupNav();
 	RefreshFooter();
 }
 
@@ -369,6 +386,7 @@ void UMainMenuWidget::OpenDeleteConfirm(int32 Index)
 	if (!Summary.bExists)
 	{
 		RefreshSessions();
+		RebuildNavigation(PlayButtons.IsValidIndex(Index) ? PlayButtons[Index].Get() : nullptr);
 		return;
 	}
 	DeleteIndex = Index;
@@ -383,11 +401,12 @@ void UMainMenuWidget::OpenDeleteConfirm(int32 Index)
 	Content->AddChildToVerticalBox(MakeText(WidgetTree, TEXT("This can't be undone."), 13, Color::Worse()))->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
 
 	UHorizontalBox* Buttons = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	UHorizontalBoxSlot* CancelSlot = Buttons->AddChildToHorizontalBox(MakeButton(ActionCancelDelete, Index, TEXT("Cancel"), 14, EButtonKind::Normal));
+	ULooterButton* Cancel = MakeButton(ActionCancelDelete, Index, TEXT("Cancel"), 14, EButtonKind::Normal);
+	UHorizontalBoxSlot* CancelSlot = Buttons->AddChildToHorizontalBox(Cancel);
 	CancelSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	CancelSlot->SetPadding(FMargin(0.f, 0.f, 10.f, 0.f));
-	Buttons->AddChildToHorizontalBox(MakeButton(ActionConfirmDelete, Index, TEXT("Delete Session"), 14, EButtonKind::Danger))
-		->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	ULooterButton* Confirm = MakeButton(ActionConfirmDelete, Index, TEXT("Delete Session"), 14, EButtonKind::Danger);
+	Buttons->AddChildToHorizontalBox(Confirm)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	Content->AddChildToVerticalBox(MakeSized(WidgetTree, Buttons, 0.f, 42.f))->SetPadding(FMargin(0.f, 22.f, 0.f, 0.f));
 
 	// The whole screen dims behind it and takes every click, so nothing under it can be pressed while it's open.
@@ -402,6 +421,8 @@ void UMainMenuWidget::OpenDeleteConfirm(int32 Index)
 	PopupLayer->ClearChildren();
 	FillOverlaySlot(PopupLayer->AddChildToOverlay(Backdrop));
 	PopupLayer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	// The two side by side for the keys and controller, the focus on Cancel: a stray A never deletes a session.
+	OpenPopupNav({ FMenuNavRow{ FMenuNavItem::MakeButton(Cancel), FMenuNavItem::MakeButton(Confirm) } }, Cancel);
 	RefreshFooter();
 }
 
@@ -413,6 +434,7 @@ void UMainMenuWidget::CloseDeleteConfirm()
 		PopupLayer->ClearChildren();
 		PopupLayer->SetVisibility(ESlateVisibility::Collapsed);
 	}
+	ClosePopupNav();
 	RefreshFooter();
 }
 
@@ -426,8 +448,9 @@ void UMainMenuWidget::ConfirmDelete()
 		return;
 	}
 	const bool bDeleted = Sessions->DeleteSession(Index);
-	// The cards show what's saved now, whichever way it went.
+	// The cards show what's saved now, whichever way it went, the focus on that slot's card again.
 	RefreshSessions();
+	RebuildNavigation(PlayButtons.IsValidIndex(Index) ? PlayButtons[Index].Get() : nullptr);
 	if (bDeleted)
 	{
 		SetStatus(FString::Printf(TEXT("%s deleted."), *SessionName(Index)), Color::TextDim());

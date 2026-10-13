@@ -41,8 +41,13 @@ namespace
 		ECreatureRank Rank = ECreatureRank::Basic;
 		float RareChance = 0.f;
 		float EpicChance = 0.f;
-		/** A level the spawner's group asks for is kept (ACreatureBase::SpawnAtRuntime); else the area's band gives one. */
+		/**
+		 * A level kept whatever the area says: a spawner group's or boss wave's (ACreatureBase::SpawnAtRuntime), or a placed
+		 * creature's set apart from its class's. 0: the area gives one where it stands.
+		 */
 		int32 KeptLevel = 0;
+		/** Where it stands (its spawner, boss, egg sac or own spot): its area's levels there are its. */
+		FVector Spot = FVector::ZeroVector;
 	};
 
 	/** The game's rules, read once. */
@@ -53,7 +58,10 @@ namespace
 		FLevelRules Levels;
 	};
 
-	/** A kill's experience on average for a player at PlayerLevel: over its rank's odds, and the band's level either side. */
+	/**
+	 * A kill's experience on average for a player at PlayerLevel: over its rank's odds and the levels it may be where it
+	 * stands (its kind's set level, or its zone's, each as likely), never the player's.
+	 */
 	double ExpectedKillXP(const FPathFoe& Foe, int32 PlayerLevel, const FPathRules& Rules)
 	{
 		if (!Foe.Creature || (Rules.Area && !Rules.Area->GivesKillExperience()))
@@ -87,6 +95,24 @@ namespace
 			Ranks.Add({ECreatureRank::Basic, 1.0});
 		}
 
+		// Its own levels as the area gives them (UAreaRulesSubsystem::RollLevelIn): one kept, a kind's set level, or its spot's.
+		int32 Lowest = FMath::Max(Foe.Creature->Level, 1);
+		int32 Highest = Lowest;
+		if (Foe.KeptLevel > 0)
+		{
+			Lowest = Highest = Foe.KeptLevel;
+		}
+		else if (Rules.Area && Rules.Area->HasLevelBand())
+		{
+			if (const int32 Set = Rules.Area->FindKindLevel(Foe.Creature->GetClass()))
+			{
+				Lowest = Highest = Set;
+			}
+			else
+			{
+				Rules.Area->GetLevelsAt(Foe.Spot, Lowest, Highest);
+			}
+		}
 		double XP = 0.0;
 		for (const TPair<ECreatureRank, double>& Odds : Ranks)
 		{
@@ -96,18 +122,12 @@ namespace
 			}
 			const FCreatureRankInfo& Info = UCreatureRankSettings::Get(Odds.Key);
 			const int32 RankedXP = FMath::Max(0, FMath::RoundToInt32(Foe.Creature->XPReward * Info.XPMultiplier));
-			// A boss is the player's level kept in the band; anything else a level either side, or the same, a third each.
-			const bool bBoss = Odds.Key == ECreatureRank::Boss;
 			double Average = 0.0;
-			int32 Rolls = 0;
-			for (int32 Spread = bBoss ? 0 : -1; Spread <= (bBoss ? 0 : 1); ++Spread)
+			for (int32 OwnLevel = Lowest; OwnLevel <= Highest; ++OwnLevel)
 			{
-				const int32 OwnLevel = Foe.KeptLevel > 0 ? Foe.KeptLevel
-					: Rules.Area ? Rules.Area->LevelFor(PlayerLevel, Spread, Foe.Creature->Level) : FMath::Max(Foe.Creature->Level, 1);
 				Average += Rules.Levels.KillXP(RankedXP, OwnLevel + Info.LevelOffset, PlayerLevel);
-				++Rolls;
 			}
-			XP += Odds.Value * Average / Rolls;
+			XP += Odds.Value * Average / (Highest - Lowest + 1);
 		}
 		return XP;
 	}
@@ -135,6 +155,7 @@ namespace
 					Foe.RareChance = Group.RareChance;
 					Foe.EpicChance = Group.EpicChance;
 					Foe.KeptLevel = Group.Level;
+					Foe.Spot = Spawner.GetActorLocation();
 				}
 			}
 		}
@@ -168,6 +189,7 @@ namespace
 						Add.RankRoll = EEncounterRankRoll::Fixed;
 						Add.Rank = Event.Wave.Rank;
 						Add.KeptLevel = Event.Wave.Level;
+						Add.Spot = Boss.GetActorLocation();
 					}
 				}
 			}
@@ -185,16 +207,23 @@ namespace
 			Spider.Creature = Default;
 			Spider.RankRoll = EEncounterRankRoll::Fixed;
 			Spider.Rank = Sac.SpiderRank;
+			Spider.Spot = Sac.GetActorLocation();
 		}
 	}
 
-	/** A creature placed in the level, as it begins play: its own rank, or a Basic one promoted by the area's odds. */
+	/**
+	 * A creature placed in the level, as it begins play: its own rank, or a Basic one promoted by the area's odds; its level
+	 * where it stands, or the one it was placed at when that isn't its class's (UAreaRulesSubsystem::RollLevelFor).
+	 */
 	FPathFoe PlacedFoe(const ACreatureBase& Creature)
 	{
 		FPathFoe Foe;
 		Foe.Creature = &Creature;
 		Foe.RankRoll = Creature.StartingRank == ECreatureRank::Basic ? EEncounterRankRoll::Area : EEncounterRankRoll::Fixed;
 		Foe.Rank = Creature.StartingRank;
+		Foe.Spot = Creature.GetActorLocation();
+		const ACreatureBase* Defaults = Creature.GetClass()->GetDefaultObject<ACreatureBase>();
+		Foe.KeptLevel = Defaults && Creature.Level != Defaults->Level ? Creature.Level : 0;
 		return Foe;
 	}
 

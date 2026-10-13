@@ -39,6 +39,7 @@ from area_math import (arc_length, catmull_rom, fbm, fbm_raster, gauss_smooth_1d
 K = 4.2              # the cliff profile's steepness: steep in the middle, a rounded lip at the top, a foot below
 GORGE_WALL = 5.0     # a cliff-walled channel's walls rise this many meters per meter (79 degrees)
 GORGE_STREAM = 0.25  # the stream in a gorge stands this deep on its floor
+PAD_BANK_REACH = 20.0  # the farthest (m) a pad's graded edge (its "bank", area_shape.py) may reach past the pad
 
 
 def to_m(points):
@@ -300,7 +301,10 @@ def feature_extents(layout):
             yaw = math.radians(f.get('yaw', 0.0))
             corners = np.array([[sx, sy], [-sx, sy], [-sx, -sy], [sx, -sy]])
             rot = np.array([[math.cos(yaw), -math.sin(yaw)], [math.sin(yaw), math.cos(yaw)]])
-            out.append((label, to_m(f['center']) + corners @ rot.T, 3.0 if min(sx, sy) < 6.0 else 12.0))
+            # A graded edge (a bank) reaches its "reach" (cm), PAD_BANK_REACH m at most.
+            margin = (min(f['bank'].get('reach', 1200) / 100.0, PAD_BANK_REACH) if 'bank' in f
+                      else 3.0 if min(sx, sy) < 6.0 else 12.0)
+            out.append((label, to_m(f['center']) + corners @ rot.T, margin))
         elif kind == 'pond':
             rx, ry = np.asarray(f['radii'], dtype=np.float64) / 100.0
             a = np.linspace(0.0, 2.0 * math.pi, 32, endpoint=False)

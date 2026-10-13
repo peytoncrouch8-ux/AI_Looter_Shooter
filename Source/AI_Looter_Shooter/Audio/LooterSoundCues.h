@@ -385,4 +385,71 @@ namespace LooterSoundCue
 		/** Tilly at her work: a handsaw's strokes through a board, then a few hammer taps. */
 		inline constexpr const TCHAR* Workshop = TEXT("World.TownLife.Workshop");
 	}
+
+	// --- The economy (ASilverPickup, the vendors' screen UVendorWidget; Art/Sounds/recipes/economy.py): silver found,
+	//     a purchase, a sale and a refusal at the counter, all 2D (the player's own) ---
+	namespace Economy
+	{
+		/** Silver picked up as it reaches the player: a bright little chime of silver coins landing in a palm (a big find
+		 *  plays a touch lower and fuller). */
+		inline constexpr const TCHAR* SilverPickup = TEXT("Loot.Silver.Pickup");
+		/** Something bought: coins counted out onto a wooden counter, a small bell over the till, the goods slid across. */
+		inline constexpr const TCHAR* Buy = TEXT("Vendor.Buy");
+		/** A gun sold: set down on the counter with a solid knock, then coins counted into the hand. */
+		inline constexpr const TCHAR* Sell = TEXT("Vendor.Sell");
+		/** Not enough silver: a light purse shaken (two lonely coins), a coin pushed back across the counter. */
+		inline constexpr const TCHAR* NotEnough = TEXT("Vendor.NotEnough");
+	}
+
+	// --- The Venom Spitter (ASpitterSpider, ASpitterGlob, ASpitterPuddle; Art/Sounds/recipes/creatures.py), all 3D ---
+	namespace Spitter
+	{
+		/** The spit's tell, on its body: venom gurgling up through the sac, quickening, and a hiss rising to its fangs. */
+		inline constexpr const TCHAR* Tell = TEXT("Creature.Spitter.Tell");
+		/** The glob spat: a wet hawk out of its fangs, a slap of air, a spray of droplets. */
+		inline constexpr const TCHAR* Spit = TEXT("Creature.Spitter.Spit");
+		/** A glob bursting where it lands (and a sac bursting: pitched up): a thick wet splat, a slosh, a hiss of acid. */
+		inline constexpr const TCHAR* Splat = TEXT("Creature.Spitter.Splat");
+		/** A puddle as it lands: venom sizzling on the ground, popping bubbles, fading as it settles. */
+		inline constexpr const TCHAR* Sizzle = TEXT("Creature.Spitter.Sizzle");
+		/** A puddle burning the player standing in it (every half second): a short sharp sizzle under the feet. */
+		inline constexpr const TCHAR* Burn = TEXT("Creature.Spitter.Burn");
+		/** Its hurt and death cries: the spider's hiss and rasp, wetter, with the sac sloshing (UCreatureVoiceComponent's
+		 *  CriesFor plays them once it knows the Spitter; until then it cries as a brown spider). */
+		inline constexpr const TCHAR* Hurt = TEXT("Creature.Spitter.Hurt");
+		inline constexpr const TCHAR* Death = TEXT("Creature.Spitter.Death");
+	}
+
+	// --- The Bell-Ringer (ABellRingerCreature; Art/Sounds/recipes/bells.py), all 3D ---
+	namespace BellRinger
+	{
+		/** The toll's tell, on the bell: the clapper rattling as the bell comes up and is shaken, a breath drawn in. */
+		inline constexpr const TCHAR* Lift = TEXT("Creature.BellRinger.Lift");
+		/** The toll: a bronze hand bell swung and struck, ringing out across the fight (carried like a gunshot). */
+		inline constexpr const TCHAR* Toll = TEXT("Creature.BellRinger.Toll");
+		/** A Gravebound ringer's toll: the bell cracked, sour and buzzing, choked short. */
+		inline constexpr const TCHAR* TollCracked = TEXT("Creature.BellRinger.TollCracked");
+		/** A bullet ringing off the bell (and, low and soft, its last knock as the ringer falls): a bright clang, the clapper clattering. */
+		inline constexpr const TCHAR* Struck = TEXT("Creature.BellRinger.Struck");
+		/** At a fallen one's grave as a toll raises it: many whispering voices rising over the bell's hum. */
+		inline constexpr const TCHAR* Raise = TEXT("Creature.BellRinger.Raise");
+		/** The bell swung as a club when it's run down: its rush through the air and a dull, choked clank. */
+		inline constexpr const TCHAR* Swipe = TEXT("Creature.BellRinger.Swipe");
+	}
+
+	// --- The vigil stones (ABossShrine; Art/Sounds/recipes/shrines.py): a boss's stone by its arena ---
+	namespace Shrine
+	{
+		/** The stone rising out of the ground the first time (3D): stone grinding up through earth, dirt pattering off it,
+		 *  the candles catching with a soft breath of flame. */
+		inline constexpr const TCHAR* Rise = TEXT("World.Shrine.Rise");
+		/** Kneeling at it, its menu opening (3D, near): the candle flames gusting, a low hum in the stone, the bell's clapper
+		 *  stirring once. */
+		inline constexpr const TCHAR* Activate = TEXT("World.Shrine.Activate");
+		/** The call refused (2D, the player's own): the iron bell's clapper caught in a hand, a dull choked knock. */
+		inline constexpr const TCHAR* Unavailable = TEXT("World.Shrine.Unavailable");
+		/** The boss called back (3D, carried like a gunshot): the iron bell rung three times, the candles flaring, the
+		 *  grave-wind rising under it with whispering voices, a deep thud as the dead answer. */
+		inline constexpr const TCHAR* Summon = TEXT("World.Shrine.Summon");
+	}
 }

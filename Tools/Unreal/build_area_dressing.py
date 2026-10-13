@@ -50,7 +50,8 @@ Every piece stands on the terrain's tiles (traced like build_area_whitlock.py's 
 a tree or a building). A fence's sections stand plumb and level, stepped down a slope (fence_steps: split into shorter
 steps where it's steep, a post at each step its own posts can't cover); a wall's follow the slope along their length
 (the roll); both sink where the ground dips under their middle. Props tilt with the ground by at most MAX_TILT degrees
-(mounds MOUND_TILT) and sink so no corner hovers; stacks, sheds and trees (UPRIGHT) stand level.
+(mounds MOUND_TILT) and sink so no corner hovers; stacks, sheds and trees (UPRIGHT) stand level, and grave boards and
+crosses plumb (their own small lean kept), sunk to the lowest ground under their sides so their foot never shows.
 
 Performance (the doc's "Performance plan": about 700 draws at the heaviest view): every kit piece is instanced, one
 AInstancedProps per mesh (World/InstancedProps.h: solid like a placed mesh, shadowed, each instance culled on its own
@@ -228,6 +229,10 @@ FOOTPRINT_RIGHT = {'EggSac_Burst': -16.0, 'Outcrop_TorA': 33.0, 'Outcrop_TorC': 
 # it), step_post stands on the ground at the joint, plumb: the iron fence's heavy post at every step; the wooden kits'
 # (step_down) only where the section after the joint stands lower, its own first post sunk there (stepping up, that
 # post stands on the ground and takes the lower rails' ends, and a second post beside it would double it).
+# The iron fence's bury and hover keep its bottom rail (14 cm up, Graves.py) out of the ground and its pickets' feet (5 cm
+# under the pivot) on it (the user, 2026-10-12: "the metal fences overlap in the terrain": at 45 cm its rails went into
+# the knoll's 25-degree slope on the uphill side of every step): a section steps once its ends differ by 20 cm. The
+# churchyard now stands on a levelled yard (layout churchyardPad), so its sections stand whole and level.
 # clear_rock: a run stops this far (cm) short of a cliff piece or a rock it would run into (place() finds them:
 # Rocks). Walls keep following the ground.
 KITS = {
@@ -240,7 +245,7 @@ KITS = {
                'step_down': True, 'clear_rock': 100.0},
     'iron': {'section': 'Fence_IronSection', 'length': 200.0, 'end': 'Fence_IronPost', 'corner_post': 'Fence_IronPost',
              'gate': 'Fence_IronGate', 'gate_clear': (11.0, 189.0),
-             'bury': 45.0, 'hover': 15.0, 'shortest': 0.5, 'step_post': 'Fence_IronPost', 'hide': 20.0,
+             'bury': 12.0, 'hover': 8.0, 'shortest': 0.5, 'step_post': 'Fence_IronPost', 'hide': 20.0,
              'clear_rock': 100.0},
     'stone': {'section': 'StoneWall', 'length': 300.0, 'broken': 'StoneWall_Broken', 'fallen': 'StoneWall_Fallen',
               'end': 'StoneWallEnd', 'end_length': 90.0, 'corner': 'StoneWall_Corner', 'arm': 150.0, 'wall': True,
@@ -356,7 +361,9 @@ MOUND_TILT = 12.0
 # quarry flat. Re-laid in the same ground across that facing (rows 40 degrees east of north, 2.3 m apart, the boards
 # 1.7 m apart), so they stand side by side seen from below rather than one behind another: 25 places as before, kept
 # 2.2 m and more from the fight's spots, off the lane to the vestry door, 1.5 m and more inside the fence and clear of
-# the south face's rows and dead tree.
+# the south face's rows and dead tree. Since the churchyard was levelled (layout churchyardPad, 2026-10-12) there's no
+# flank under them, so each faces its bearing to boot hill (downhill_yaw on ground flatter than DOWNHILL_FLAT); they
+# keep 1.3 m off the churchyard's walk (layout road churchyardPath), as every row keeps off a road.
 GRAVE_ROWS = {
     'churchyardGravesWest1': ('churchyard', 90.0), 'churchyardGravesWest2': ('churchyard', 90.0),
     'churchyardGravesWest3': ('churchyard', 90.0),
@@ -367,10 +374,13 @@ GRAVE_ROWS = {
     'bootHillGraves3': ('bootHill', 180.0),
 }
 # A 'downhill' board's valley: the placement it turns toward (boot hill's respawn grave), how far (degrees) from its
-# bearing to it a board may turn to face down its slope, and how far either side of the board (cm) the slope is read.
+# bearing to it a board may turn to face down its slope, and how far either side of the board (cm) the slope is read;
+# under DOWNHILL_FLAT (rise per run, about 5 degrees) the ground counts as flat and the board faces the valley: a levelled
+# yard's own unevenness (its 5 cm swell) mustn't turn boards every which way.
 GRAVE_TOWARD = 'graveBootHill'
 DOWNHILL_WITHIN = 45.0
 DOWNHILL_PROBE = 75.0
+DOWNHILL_FLAT = 0.09
 
 # Grave rows the layout has no obstacle for, by a name of their own: the family plot's eight old headboards ("8 old
 # headboards, Ellis's fresh grave and Abel's frosted one"): one either side of Ellis and Abel in their row (the boards
@@ -1672,12 +1682,12 @@ def poses(plan, ground, stats=None):
 def downhill_yaw(at, ground, toward):
     """The yaw a board at at faces down the slope under it (read DOWNHILL_PROBE either side), turned back to within
     DOWNHILL_WITHIN of its bearing to toward where the ground falls further away from that: as far down the slope as it
-    can face and still face the valley. On flat ground (under about 2 degrees), toward it."""
+    can face and still face the valley. On flat ground (under DOWNHILL_FLAT), toward it."""
     x, y = at
     bearing = math.degrees(math.atan2(toward[1] - y, toward[0] - x))
     gx = (ground(x + DOWNHILL_PROBE, y) - ground(x - DOWNHILL_PROBE, y)) / (2.0 * DOWNHILL_PROBE)
     gy = (ground(x, y + DOWNHILL_PROBE) - ground(x, y - DOWNHILL_PROBE)) / (2.0 * DOWNHILL_PROBE)
-    if math.hypot(gx, gy) < 0.035:
+    if math.hypot(gx, gy) < DOWNHILL_FLAT:
         return bearing
     fall = math.degrees(math.atan2(-gy, -gx))
     return bearing + clamp((fall - bearing + 180.0) % 360.0 - 180.0, DOWNHILL_WITHIN)
@@ -1740,7 +1750,9 @@ def pose(piece, ground, bases):
     if piece.level:
         return (x, y, bases[piece.level] + piece.lift), (0.0, 0.0, piece.yaw), (1.0, 1.0, 1.0)
     # A prop: tilted with the ground under its sides (at most MAX_TILT; a mound, MOUND_TILT), sunk so no side hovers;
-    # an upright piece isn't tilted, and sinks to its lowest side (at most UPRIGHT_SINK).
+    # an upright piece isn't tilted, and sinks to its lowest side (at most UPRIGHT_SINK); a grave's board or cross stands
+    # plumb too (the user, 2026-10-12: the graves stood sloped oddly, tilted with the knoll), only its own lean added,
+    # sunk to its lowest side (at most MAX_SINK; its foot runs 22 cm into the ground).
     yaw = math.radians(piece.yaw)
     fx, fy = math.cos(yaw), math.sin(yaw)     # the actor's +X
     hx, hy = max(depth * 0.5, 10.0), max(length_ * 0.5, 10.0)
@@ -1748,7 +1760,7 @@ def pose(piece, ground, bases):
     gf, gb = ground(x + fx * hx, y + fy * hx), ground(x - fx * hx, y - fy * hx)
     # The actor's +Y is the front turned right: (-fy, fx) seen as (X north, Y east) is +Y.
     gr, gl = ground(x - fy * hy, y + fx * hy), ground(x + fy * hy, y - fx * hy)
-    upright = piece.kind in ('cairn', 'upright')
+    upright = piece.kind in ('cairn', 'upright', 'board')
     tilt = MOUND_TILT if piece.kind == 'mound' else MAX_TILT
     pitch = 0.0 if upright else clamp(math.degrees(math.atan2(gf - gb, 2.0 * hx)), tilt)
     roll = 0.0 if upright else clamp(math.degrees(math.atan2(gl - gr, 2.0 * hy)), tilt)

@@ -42,7 +42,7 @@ ECreatureRank ACreatureBase::RollArrivalRank() const
 int32 ACreatureBase::RollOwnLevel(ECreatureRank Rank) const
 {
 	UAreaRulesSubsystem* Rules = !bKeepsGivenLevel && GetWorld() ? GetWorld()->GetSubsystem<UAreaRulesSubsystem>() : nullptr;
-	return Rules ? Rules->RollLevel(GivenLevel, Rank) : GivenLevel;
+	return Rules ? Rules->RollLevelFor(*this, GivenLevel) : GivenLevel;
 }
 
 void ACreatureBase::TakeRankAndLevel(ECreatureRank Rank, int32 OwnLevel)

@@ -76,8 +76,14 @@ def run():
     gun.set_editor_property('tracer_width', 2.4)
     gun.set_editor_property('tracer_length', 300.0)
     gun.set_editor_property('muzzle_flash_scale', 1.35)
-    # Held out at arm's length in the third person (the stance layer) and pushed out ahead of a long gun's hold in the first.
+    # Held out at arm's length in the third person (the stance layer).
     gun.set_editor_property('hold_reach', 14.0)
+    # Its own first-person hip hold (the hold's space, cm: X ahead, Y right, Z up; the long guns' grip sits at 50, 20,
+    # -26): its grip a little nearer and higher, so the frame and cylinder show bottom-right (the cylinder about 1300, 760
+    # on a 1920 x 1080 screen) and the grip ends just above the bottom edge (about 1035); canted 8 degrees in toward the
+    # middle, the barrel toed in to meet the crosshair at about 9 m. Aiming still puts SOCKET_Aim on the line of sight.
+    gun.set_editor_property('first_person_grip', unreal.Vector(46.7, 19.6, -18.3))
+    gun.set_editor_property('first_person_rotation', unreal.Rotator(roll=-8.0, pitch=0.7, yaw=-1.2))
 
     if not unreal.EditorAssetLibrary.save_loaded_asset(gun, only_if_is_dirty=False):
         raise RuntimeError(f'{DATA}/{ASSET} could not be saved')

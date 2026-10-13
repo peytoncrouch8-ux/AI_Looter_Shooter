@@ -65,6 +65,7 @@ ULooterButton* UMainMenuWidget::MakeButton(FName Action, int32 Index, const FStr
 	ULooterButton* Button = WidgetTree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
 	Button->Setup(WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass()), Action, Index, FText::FromString(Label), FontSize, Kind);
 	Button->OnButtonClicked.BindUObject(this, &UMainMenuWidget::HandleButton);
+	Button->OnButtonHovered.BindUObject(this, &UMainMenuWidget::HandleButtonHovered);
 	return Button;
 }
 
@@ -87,6 +88,7 @@ TSharedRef<SWidget> UMainMenuWidget::RebuildWidget()
 		FillOverlaySlot(Root->AddChildToOverlay(PopupLayer));
 
 		ShowMainButtons();
+		RefreshNavLook();
 	}
 	return Super::RebuildWidget();
 }
@@ -132,8 +134,8 @@ UWidget* UMainMenuWidget::MakeColumn()
 	Picker = MakePicker();
 	Content->AddChildToVerticalBox(Picker)->SetPadding(FMargin(0.f, 48.f, 0.f, 0.f));
 	Content->AddChildToVerticalBox(MakeSized(WidgetTree, nullptr, 0.f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	FooterText = MakeText(WidgetTree, TEXT(""), 10, Color::TextDim(), true, 200);
-	Content->AddChildToVerticalBox(FooterText);
+	FooterPrompts = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	Content->AddChildToVerticalBox(FooterPrompts);
 	FillOverlaySlot(Column->AddChildToOverlay(Content), FMargin(56.f, 88.f, 44.f, 36.f));
 	return Column;
 }
@@ -173,15 +175,18 @@ UWidget* UMainMenuWidget::MakeMainButtons()
 		RowSlot->SetHorizontalAlignment(HAlign_Left);
 		RowSlot->SetPadding(FMargin(0.f, Top, 0.f, 0.f));
 	};
+	// Each made button is a stop for the keyboard and a controller too, top to bottom.
+	MainNavButtons.Reset();
 	auto Sized = [this](ULooterButton* Button)
 	{
+		MainNavButtons.Add(Button);
 		return MakeSized(WidgetTree, Button, MainButtonWidth, MainButtonHeight);
 	};
 
 	Add(Sized(MakeButton(ActionSinglePlayer, 0, TEXT("Single Player"), 16, EButtonKind::Primary)), 0.f);
 
 	// Multiplayer doesn't exist yet. Disabled, the kit's button draws dimmed, doesn't light up under the mouse and can't
-	// be clicked; the tag beside it says why.
+	// be clicked (the focus passes over it); the tag beside it says why.
 	ULooterButton* Multiplayer = MakeButton(ActionMultiplayer, 0, TEXT("Multiplayer"), 16, EButtonKind::Normal);
 	Multiplayer->SetIsEnabled(false);
 	UHorizontalBox* MultiplayerRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -195,6 +200,18 @@ UWidget* UMainMenuWidget::MakeMainButtons()
 	// A little apart from the others: it ends the game.
 	Add(Sized(MakeButton(ActionQuit, 0, TEXT("Quit Game"), 16, EButtonKind::Danger)), MainButtonGap * 2.f);
 	return List;
+}
+
+ULooterButton* UMainMenuWidget::GetMainButton(FName Action) const
+{
+	for (ULooterButton* Button : MainNavButtons)
+	{
+		if (Button && Button->Action == Action)
+		{
+			return Button;
+		}
+	}
+	return nullptr;
 }
 
 // ---------------------------------------------------------------------------
@@ -215,6 +232,8 @@ void UMainMenuWidget::ShowMainButtons()
 		Picker->SetVisibility(ESlateVisibility::Collapsed);
 	}
 	SetStatus(FString(), Color::TextDim());
+	// Back on the main buttons, the focus on Single Player (where the picker was opened from).
+	RebuildNavigation(GetMainButton(TEXT("SinglePlayer")));
 	RefreshFooter();
 }
 
@@ -232,6 +251,8 @@ void UMainMenuWidget::ShowPicker()
 	{
 		Picker->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	}
+	// The focus on the first session's Continue or New Game.
+	RebuildNavigation(PlayButtons.IsEmpty() ? nullptr : PlayButtons[0].Get());
 	RefreshFooter();
 }
 
@@ -244,24 +265,7 @@ void UMainMenuWidget::SetStatus(const FString& Message, const FLinearColor& Text
 	}
 }
 
-void UMainMenuWidget::RefreshFooter()
-{
-	if (!FooterText)
-	{
-		return;
-	}
-	// Only what Escape does right now; on the main buttons it does nothing, so there's nothing to say.
-	FString Hint;
-	if (!bLoading && (DeleteIndex != INDEX_NONE || NewGameIndex != INDEX_NONE))
-	{
-		Hint = TEXT("Esc: cancel");
-	}
-	else if (!bLoading && bPickerShown)
-	{
-		Hint = TEXT("Esc: back");
-	}
-	FooterText->SetText(FText::FromString(Hint.ToUpper()));
-}
+// The key hints at the bottom (RefreshFooter) are in MainMenuNav.cpp, with the keyboard and controller focus.
 
 // ---------------------------------------------------------------------------
 // Buttons and keys
@@ -311,28 +315,8 @@ void UMainMenuWidget::HandleButton(ULooterButton* Button)
 
 FReply UMainMenuWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
-	if (InKeyEvent.GetKey() == EKeys::Escape)
-	{
-		// One step back at a time: the popup, then the picker. On the main buttons it does nothing (the game is left
-		// with its own button, never by a stray key), and nothing while a session's level opens.
-		if (!bLoading)
-		{
-			if (DeleteIndex != INDEX_NONE)
-			{
-				CloseDeleteConfirm();
-			}
-			else if (NewGameIndex != INDEX_NONE)
-			{
-				CloseNewGame();
-			}
-			else if (bPickerShown)
-			{
-				ShowMainButtons();
-			}
-		}
-		return FReply::Handled();
-	}
-	return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
+	// Esc, B and the rest of the keyboard and controller: MainMenuNav.cpp.
+	return HandleNavKey(InKeyEvent.GetKey(), InKeyEvent.IsRepeat()) ? FReply::Handled() : Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
 }
 
 FReply UMainMenuWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)

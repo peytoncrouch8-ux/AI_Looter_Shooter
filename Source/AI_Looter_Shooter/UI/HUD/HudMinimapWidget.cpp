@@ -176,7 +176,7 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	// hides and skips all its work below.
 	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 	const UGraphicsSettingsSubsystem* Settings = LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
-	if (!Minimap || !Pawn || (Settings && !Settings->IsMinimapShown()))
+	if (!Minimap || !Pawn || (Settings && !bPreview && !Settings->IsMinimapShown()))
 	{
 		SizeBox->SetVisibility(ESlateVisibility::Hidden);
 		return;
@@ -184,7 +184,7 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	SizeBox->SetVisibility(ESlateVisibility::HitTestInvisible);
 
 	const float WantedScale = Settings ? Settings->GetMinimapScale() : 1.f;
-	const float Range = BaseRange / (Settings ? Settings->GetMinimapZoom() : 1.f);
+	const float Range = RangeAtZoom(ZoomFor(Settings));
 	if (!FMath::IsNearlyEqual(WantedScale, Scale))
 	{
 		ApplyScale(WantedScale);
@@ -281,6 +281,27 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	}
 
 	UpdateWaypoint(Location, Yaw, Radius, PixelsPerCm);
+}
+
+float UHudMinimapWidget::RangeAtZoom(float Zoom)
+{
+	return BaseRange / FMath::Max(Zoom, UGraphicsSettingsSubsystem::MinMinimapZoom);
+}
+
+void UHudMinimapWidget::SetPreviewZoom(float Zoom)
+{
+	PreviewZoom = Zoom > 0.f ? FMath::Clamp(Zoom, UGraphicsSettingsSubsystem::MinMinimapZoom, UGraphicsSettingsSubsystem::MaxMinimapZoom) : 0.f;
+}
+
+float UHudMinimapWidget::ZoomFor(const UGraphicsSettingsSubsystem* Settings) const
+{
+	return PreviewZoom > 0.f ? PreviewZoom : (Settings ? Settings->GetMinimapZoom() : 1.f);
+}
+
+float UHudMinimapWidget::GetZoom() const
+{
+	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
+	return ZoomFor(LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr);
 }
 
 FMinimapWaypoint UHudMinimapWidget::PlaceWaypoint(const FVector& WorldDelta, float ViewYaw, float PixelsPerCm, float InsideRadius, float RimRadius)

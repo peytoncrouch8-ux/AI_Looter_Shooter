@@ -205,7 +205,7 @@ Areas open when story missions are done. No area, mission or gun ever checks the
 - Side areas can open from side missions later, for example the wreck of the *Gilded Lily* for “The House Always Wins”.
 
 **What levels still mean: difficulty, XP and loot level.**
-- **Enemy levels.** Every area has an enemy level band. An enemy's level is the player's level plus −1, 0 or +1, kept inside the band, then plus its rank's offset. Bosses skip the ±1 roll: their level is the player's level kept inside the band, plus the offset. A player who rushes the story meets the band's floor; one who comes back strong meets its ceiling.
+- **Enemy levels.** Enemies don't scale with the player (the user's call, 2026-10-12): an enemy's level is where it stands. Every area has an enemy level band and zones (its layout's `gameplay.levels`); a creature takes a level rolled between its zone's two levels, then plus its rank's offset. Bosses and Legendary monsters have set levels (the Gravemother 6, Abel 7). A player who rushes the story meets the same levels as one who comes back strong. `Docs/Progression.md`, "Creature levels", has the zones.
 - **Health and damage.** Enemy health and damage grow linearly, ×(1 + 0.08 × (level − 1)). That is the rule guns already use (`UWeaponDefinition::DamagePerLevel` 0.08, existing), so a gun of the enemy's level always needs the same number of hits.
 - **Loot level.** Dropped guns take the enemy's level. This is new: today every creature's drop is a level 1 gun, because the creature's level isn't passed to its loot.
 - **Kill XP** = 10 × 0.4 × 1.08^(level − 1) × the rank's XP multiplier (2026-10-08: the kill scale 0.4 brings Ransom's Rest's story to an end about level 6-7, as you asked; `Docs/Progression.md`).

@@ -36,7 +36,7 @@ public:
 	double Growth = FXPCurve::DefaultGrowth;
 
 	/**
-	 * The share of a creature's XPReward a kill gives (0.4: a level 1 Basic creature, XPReward 10, gives 4). Tuned with the
+	 * The share of a creature's XPReward a kill gives (0.37: a level 1 Basic creature, XPReward 10, gives 4). Tuned with the
 	 * missions' turn-in rewards so Ransom's Rest's story ends about level 6-7: Docs/Progression.md has the count, and
 	 * Looter.Progression.Pacing checks it.
 	 */

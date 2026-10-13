@@ -5,8 +5,8 @@
 
 /**
  * Where a creature fights: its group's own level of ground (Docs/Areas/RansomsRest.md, "Encounters stay on one level of
- * ground"). It hunts only players standing on it, and a target who leaves it ends the chase: the creature lets go and
- * walks home (ACreatureBase, CreatureBaseHunting.cpp). Seen from above it is a radius round a middle or a polygon (a
+ * ground"). It hunts only players standing on it, and a target who leaves it ends the chase at its edge: the creature waits
+ * there watching a while, then walks home (ACreatureBase, CreatureBasePursuit.cpp). Seen from above it is a radius round a middle or a polygon (a
  * fence's line, a pit's floor), and a height band round the middle keeps a pit's floor from reaching up to its rim. A
  * spawner gives the creatures it spawns its own (AEncounterSpawner); a placed creature can be given one in the level (the
  * bluff spiders, on the top of Ransom's Point). An unset hunting ground holds everywhere: a creature without one hunts

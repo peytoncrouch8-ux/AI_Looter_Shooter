@@ -13,7 +13,10 @@ Art/Sounds/recipes/      one recipe per cue, by group: guns, impacts, feedback, 
                          light, sweeteners), music (the score: themes, combat and boss layers, stingers), voices (the
                          Unpaid's murmured barks, the idle calls, the living heard through walls), throwables (the
                          grave-salt grenade) and props (the lootable world: crates, barrels, graves, coffins, mailboxes,
-                         footlockers); kit.py holds the shared building blocks (clicks, clacks, whooshes, cloth,
+                         footlockers), economy (silver found, the vendor's counter: buy, sell, not enough),
+                         bells (the Bell-Ringer's hand bell: toll, cracked toll, lift, clang, raising, swipe) and
+                         shrines (the vigil stones: rising, kneeling, the refusal, the iron bell's summons);
+                         kit.py holds the shared building blocks (clicks, clacks, whooshes, cloth,
                          scrapes, creaks, bubbles, chimes, plucked strings...) and band.py the score's instruments and
                          mixer
 Art/Sounds/render.py     renders, mixes and checks (run by Tools/sounds.ps1)
@@ -126,6 +129,25 @@ presence 2-5 kHz, high, air).
   syllable cue (`Creature.Unpaid.Murmur` voiced, `.Mutter` whispered) per syllable of the line shown over them, so each
   starts at once and fades soon. Spiders and slimes get a rare idle call. The living on Ransom's Rest are heard through
   their walls (hushed voices, coughs, a music box, a latch, a floorboard, Tilly's saw, a dog far off).
+- **The economy** (2026-10-12, `recipes/economy.py`): silver is a thin coin, struck: a small plate's few inharmonic
+  modes, short and bright, with a hard tick of metal on metal, pitched low for a coin, with the 2-5 kHz band cut since a
+  fight's worth of pickups chimes over and over. The pickup (2D) is a few coins dropping into a palm and a small two-note
+  chime for the find. The vendor's counter is pine boards, a small brass till bell, leather and a purse: a purchase counts
+  coins onto the counter and slides the goods across, a sale sets the gun down with a knock and counts coins into the hand,
+  and a refusal shakes a light purse and pushes one coin back.
+- **The Bell-Ringer's bell** (2026-10-12, `recipes/bells.py`): an oversized bronze hand bell, thin-walled, so struck it rings
+  partials that are not a harmonic series, each split into a slowly beating pair by the casting's roundness, the upper
+  ones dying first, with little hum; the iron clapper's contact is short and bright. Rung in the hand it keeps swinging, so
+  the ring waxes and wanes. The toll is carried across the fight like a gunshot (slap-backs off the buildings and ridges);
+  a Gravebound ringer's cracked bell splits its pairs wide and buzzes, sour and choked. The tell (`Lift`) is the clapper
+  knocking about as the bell is shaken, faster toward the stroke, and a cold breath drawn in; `Raise` is whispering voices
+  drawing up out of the ground over the bell's long hum. The vigil stones' iron bell (`recipes/shrines.py`) is this bell
+  made duller and shorter, its upper partials dying fast, with candle flames (combustion's breath, low and soft) and stone
+  grinding up through earth (a rough judder with grit and clods).
+- **The Venom Spitter** (2026-10-12, `recipes/creatures.py`): the spider's hiss and rasp, wetter, with the sac sloshing,
+  and its venom a thick bubbling liquid that splats, spreads and sizzles. The tell is the cue the player learns to move
+  on, so `Creature.Spitter.Tell` rises clearly to its end (a glug quickening and climbing, bubbles coming faster, a hiss
+  rising to the fangs), 0.9 s long, the tell's length in the game.
 - **Struck things** are modal: a set of decaying sines whose frequencies follow the object's physics (free bars,
   plates, wood, shells, cast bells), struck by a force pulse as long as the contact (hard steel ~0.1 ms, a heel
   several ms).

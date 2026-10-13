@@ -78,6 +78,7 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 	BindToPawn(Manager);
 	BindThrow(UPlayerThrowComponent::Find(Pawn));
 	UpdateGrenades(InDeltaTime);
+	UpdateMoney(InDeltaTime);
 	UpdateWeaponCluster(Manager, InDeltaTime);
 	UpdatePlayerFrame(Health, InDeltaTime);
 	UpdatePickupCard(Manager, Interaction, InDeltaTime);

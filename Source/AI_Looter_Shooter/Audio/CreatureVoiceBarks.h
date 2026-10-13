@@ -24,12 +24,16 @@ enum class ECreatureBark : uint8
 	Death,
 };
 
-/** One line a creature can say: when, whether it's one of the angrier ones (a Restless or Gravebound soul's), and the words. */
+/**
+ * One line a creature can say: when, whether it's one of the angrier ones (a Restless or Gravebound soul's), and the words.
+ * Kind: null for any Unpaid; a kind's own line (the Bell-Ringer's) is said only by voices of that BarkKind.
+ */
 struct FCreatureBarkLine
 {
 	ECreatureBark Situation = ECreatureBark::Idle;
 	bool bAngry = false;
 	const TCHAR* Text = TEXT("");
+	const TCHAR* Kind = nullptr;
 };
 
 /** One syllable of a murmured line: when it starts (s from the line's start), its pitch and its loudness against the voice's own. */
@@ -61,10 +65,11 @@ namespace CreatureBarks
 	/**
 	 * The line (an index into AllLines) a creature of Rank says in Situation, never one of Recent while another is left.
 	 * An angry rank says an angry line most of the time (AngryShare), a plain one now and then; a Basic one only plain
-	 * lines. INDEX_NONE for a rank that never barks.
+	 * lines. INDEX_NONE for a rank that never barks. A Kind with lines of its own for the situation says only those (the
+	 * Bell-Ringer's); without (or with none), the common lines.
 	 */
 	AI_LOOTER_SHOOTER_API int32 PickLine(ECreatureBark Situation, ECreatureRank Rank, FRandomStream& Random,
-		TConstArrayView<int32> Recent = {});
+		TConstArrayView<int32> Recent = {}, FName Kind = NAME_None);
 
 	/** How likely a creature is to say something when its moment comes (0-1): a spot often, a hurt now and then. */
 	AI_LOOTER_SHOOTER_API float ChanceFor(ECreatureBark Situation);

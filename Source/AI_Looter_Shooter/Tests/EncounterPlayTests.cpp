@@ -6,6 +6,7 @@
 #include "Creatures/CreatureRank.h"
 #include "Creatures/EncounterGroup.h"
 #include "Creatures/EncounterRules.h"
+#include "Creatures/EncounterSettings.h"
 #include "Creatures/EncounterSpawner.h"
 #include "Creatures/EncounterSubsystem.h"
 #include "Creatures/SlimeCreature.h"
@@ -252,7 +253,8 @@ bool FEncounterSafeZoneTest::RunTest(const FString& Parameters)
 {
 	// Delia's salt line: a creature chasing the player into a safe zone gives up and walks home, and takes up no hunt while
 	// they stay in it; out of it, they're fair game again. A zone that's off shelters nobody. And a spawner's creatures keep
-	// to their hunting ground: off it, the chase is over too.
+	// to their hunting ground: off it, the chase stops at its edge, where they wait watching (the user's call, 2026-10-12:
+	// FCreaturePursuit) until the player comes back on or their patience runs out; no call brings them off it.
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -301,7 +303,7 @@ bool FEncounterSafeZoneTest::RunTest(const FString& Parameters)
 	Hunter->Tick(0.3f);
 	TestTrue(TEXT("In a zone that's off, the hunt goes on"), Hunter->GetCreatureState() == ECreatureState::Chase);
 
-	// Its hunting ground: a spawner's creature hunts only a player within 15 m of the spawner, and gives up past it.
+	// Its hunting ground: a spawner's creature hunts only a player within 15 m of the spawner; past it, it waits at its edge.
 	AEncounterSpawner* Yard = EncounterTestWorld::SpawnSpawner(World, FVector(0.0, 8000.0, 0.0), [](AEncounterSpawner& Setup)
 	{
 		Setup.Groups = { EncounterTestWorld::MakeGroup(ASpiderCreature::StaticClass(), 1) };
@@ -327,9 +329,25 @@ bool FEncounterSafeZoneTest::RunTest(const FString& Parameters)
 	Guard->SetActorLocation(FVector(0.0, 6800.0, Guard->GetActorLocation().Z));
 	Player->SetActorLocation(FVector(0.0, 6000.0, PlayerZ));
 	Guard->Tick(0.3f);
-	TestTrue(TEXT("20 m out, off its ground: it gives up and walks home"), Guard->GetCreatureState() == ECreatureState::Return);
+	auto Watching = [Guard, Player]()
+	{
+		return Guard->GetCreatureState() == ECreatureState::Search && Guard->GetPursuit().IsProwlingOffGround() && Guard->GetTarget() == Player;
+	};
+	TestTrue(TEXT("20 m out, off its ground: it stops at its edge and watches them"), Watching());
 	Guard->AlertTo(Player);
-	TestTrue(TEXT("...and won't be called back out to them"), Guard->GetCreatureState() == ECreatureState::Return);
+	Guard->Tick(0.3f);
+	TestTrue(TEXT("...and won't be called out after them"), Watching());
+	Player->SetActorLocation(FVector(0.0, 7600.0, PlayerZ));
+	Guard->Tick(0.3f);
+	TestTrue(TEXT("Back on its ground: after them again"), Guard->GetCreatureState() == ECreatureState::Chase && Guard->GetTarget() == Player);
+	Player->SetActorLocation(FVector(0.0, 6000.0, PlayerZ));
+	for (float Waited = 0.f; Waited < UEncounterSettings::Get().ProwlSeconds + 0.5f; Waited += 0.2f)
+	{
+		Guard->Tick(0.2f);
+	}
+	TestTrue(TEXT("Off it again, its patience out: it gives up and walks home"), Guard->GetCreatureState() == ECreatureState::Return && !Guard->GetTarget());
+	Guard->AlertTo(Player);
+	TestTrue(TEXT("...a call sends it back to its edge, never off its ground"), Guard->GetCreatureState() != ECreatureState::Chase);
 	TestTrue(TEXT("...its home is where it appeared, on its ground"), FVector::Dist2D(GuardHome, Yard->GetActorLocation()) <= 301.0);
 	return true;
 }

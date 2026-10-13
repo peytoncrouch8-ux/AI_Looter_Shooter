@@ -16,9 +16,11 @@ struct FThrowPose
  * shake setting scales it and the aim never moves.
  *
  * Over FThrowRules' 0.5 s: the jar comes up from under the view on the left (the off hand; the first-person arms are
- * hidden, so the jar is what's seen), draws back by the cheek (0.1 s), and is slung forward and up, leaving the hand at
- * 0.16 s, where the real grenade takes over. Meanwhile the gun dips down and to the right with a cant, out of the
- * throw's way, holds there through the release and comes back up to its hold by the end.
+ * hidden, so the jar is what's seen), draws back by the cheek (0.1 s), and is slung forward and in, leaving the hand at
+ * 0.16 s just where the real grenade starts its flight (FThrowRules::ReleasePoint), which carries it on up toward the
+ * middle. Meanwhile the gun dips down and to the right with a cant, out of the throw's way: all the way down (0.08 s)
+ * before the jar is up, held through the release and back up to its hold by the end. The third-person body follows the
+ * same clock (LooterStancePose::DescribeThrow, UHandJarComponent).
  */
 namespace ThrowMotion
 {
@@ -34,6 +36,12 @@ namespace ThrowMotion
 	AI_LOOTER_SHOOTER_API FThrowPose JarReleasePose();
 
 	/**
+	 * The jar is in the off hand ThrowTime seconds in: from the press until it leaves the hand at the release (the first
+	 * person's jar under the view and the third person's in the body's hand alike).
+	 */
+	AI_LOOTER_SHOOTER_API bool IsJarInHand(float ThrowTime);
+
+	/**
 	 * The jar off the first-person camera ThrowTime seconds in, and whether it shows (it rises from out of sight below
 	 * the view and leaves the hand at the release).
 	 */
@@ -41,6 +49,9 @@ namespace ThrowMotion
 
 	/** The gun's deepest dip, in its own frame (X along the barrel, Y right, Z up), turned about its hands. */
 	AI_LOOTER_SHOOTER_API FThrowPose GunDipPose();
+
+	/** How far into its dip the gun is ThrowTime seconds in (0 in its hold, 1 all the way down): easing down, held, easing back up. */
+	AI_LOOTER_SHOOTER_API float GunDipShare(float ThrowTime);
 
 	/** The gun ThrowTime seconds into a throw: easing down, held, easing back up; rest (zero) before and after. */
 	AI_LOOTER_SHOOTER_API FThrowPose GunPose(float ThrowTime);

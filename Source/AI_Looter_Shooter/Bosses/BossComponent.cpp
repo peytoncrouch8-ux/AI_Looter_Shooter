@@ -312,6 +312,8 @@ void UBossComponent::HandleBossDeath(AController* Killer)
 		}
 	}
 	OnFightWon.Broadcast();
+	// And to whoever keeps count of every boss (the vigil stones).
+	OnAnyBossWon.Broadcast(*this);
 }
 
 void UBossComponent::HandlePlayerDeath(AController* Killer)

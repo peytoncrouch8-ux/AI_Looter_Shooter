@@ -61,6 +61,8 @@ namespace
 	constexpr float PackNumberMinWidth = 58.f;
 	/** The NEW tag and its gap, left free beside a new gun's name. */
 	constexpr float NewMarkRoom = 40.f;
+	/** The JUNK tag (a word longer than NEW, with its outline) and its gap, left free beside a gun marked junk. */
+	constexpr float JunkMarkRoom = 48.f;
 
 	/** The damage column: as wide as its number is drawn ("125 x12" is wider than "34"), and never narrower than MinWidth. */
 	float NumberColumnWidth(const FString& Number, int32 Size, float MinWidth)
@@ -88,13 +90,37 @@ namespace
 		return Tag;
 	}
 
-	/** A name and the NEW tag after it, the name taking the room there is. */
-	UWidget* NameWithMark(UWidgetTree* Tree, UWidget* Name, UWidget* Mark)
+	/**
+	 * JUNK: a small outlined tag, in the dim text colour, on a backpack gun marked junk (J, or the vendor's right-click). Quieter
+	 * than NEW's filled cyan: the gun is waiting to be sold, not to be looked at. Built only for a gun marked (the list is
+	 * rebuilt when the mark changes).
+	 */
+	UWidget* MakeJunkMark(UWidgetTree* Tree)
+	{
+		UTextBlock* Word = Label(Tree, TEXT("Junk"), 7, Color::TextDim(), 150);
+		Word->SetShadowColorAndOpacity(FLinearColor::Transparent);
+		UBorder* Tag = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Tag->SetBrush(RectBrush(Color::Plate(), Color::TextDim() * FLinearColor(1.f, 1.f, 1.f, 0.6f), 1.f));
+		Tag->SetPadding(FMargin(5.f, 0.f));
+		Tag->SetVerticalAlignment(VAlign_Center);
+		Tag->SetContent(Word);
+		Tag->SetVisibility(ESlateVisibility::HitTestInvisible);
+		return Tag;
+	}
+
+	/** A name and the tags after it (JUNK when it has one, then NEW), the name taking the room there is. */
+	UWidget* NameWithMark(UWidgetTree* Tree, UWidget* Name, UWidget* Mark, UWidget* JunkMark = nullptr)
 	{
 		UHorizontalBox* Line = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		UHorizontalBoxSlot* NameSlot = Line->AddChildToHorizontalBox(Name);
 		NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		NameSlot->SetVerticalAlignment(VAlign_Center);
+		if (JunkMark)
+		{
+			UHorizontalBoxSlot* JunkSlot = Line->AddChildToHorizontalBox(MakeSized(Tree, JunkMark, 0.f, 13.f));
+			JunkSlot->SetVerticalAlignment(VAlign_Center);
+			JunkSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
+		}
 		UHorizontalBoxSlot* MarkSlot = Line->AddChildToHorizontalBox(MakeSized(Tree, Mark, 0.f, 13.f));
 		MarkSlot->SetVerticalAlignment(VAlign_Center);
 		MarkSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
@@ -310,16 +336,18 @@ ULoadoutWidget::FRow ULoadoutWidget::MakeBackpackRow(int32 Row)
 	Line->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeGunPicture(WidgetTree, *Item, FVector2D(PackIconWidth, PackIconHeight)),
 		PackIconWidth, PackIconHeight))->SetVerticalAlignment(VAlign_Center);
 
-	// As on a slot's row: the damage as wide as its number, the name fitted to the rest.
+	// As on a slot's row: the damage as wide as its number, the name fitted to the rest (less the NEW and JUNK tags' room while
+	// they show: the JUNK tag is built only for a gun marked junk, so its room is known now).
 	const FString Damage = LooterWeaponText::DamageString(Item->Stats);
 	const float NumberWidth = NumberColumnWidth(Damage, PackNumberSize, PackNumberMinWidth);
 	const float NameWidth = LoadoutLayout::ListWidth - ListRightGap - RowPaddingLeft - RowPaddingRight - PackIconWidth - PackWordsPadding
-		- NumberWidth - PackMarkRoom - (IsNew(LoadoutRules::GunIdentity(*Item)) ? NewMarkRoom : 0.f);
+		- NumberWidth - PackMarkRoom - (IsNew(LoadoutRules::GunIdentity(*Item)) ? NewMarkRoom : 0.f) - (Item->bJunk ? JunkMarkRoom : 0.f);
 
 	UVerticalBox* Words = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	UWidget* NewMark = MakeNewMark(WidgetTree);
+	UWidget* JunkMark = Item->bJunk ? MakeJunkMark(WidgetTree) : nullptr;
 	Words->AddChildToVerticalBox(NameWithMark(WidgetTree, MakeGunNameLine(WidgetTree, *Item, PackNameSize, Rarity, 50, NameWidth, PackNameMinSize),
-		NewMark));
+		NewMark, JunkMark));
 	Words->AddChildToVerticalBox(FittedLabel(WidgetTree, FString::Printf(TEXT("%s · Lv %d"), *KindLabel(*Item), Item->Level), 7,
 		Color::TextDim(), 140))->SetPadding(FMargin(0.f, 1.f, 0.f, 0.f));
 	UHorizontalBoxSlot* WordsSlot = Line->AddChildToHorizontalBox(Words);
@@ -354,6 +382,7 @@ ULoadoutWidget::FRow ULoadoutWidget::MakeBackpackRow(int32 Row)
 
 	FRow Card = WrapRow(Line, Rarity, true, LoadoutLayout::BackpackRowHeight, ActionBackpack, Row);
 	Card.NewMark = NewMark;
+	Card.JunkMark = JunkMark;
 	Card.Identity = LoadoutRules::GunIdentity(*Item);
 	return Card;
 }

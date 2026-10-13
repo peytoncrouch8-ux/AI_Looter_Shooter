@@ -35,6 +35,12 @@ namespace SettingsMenu
 	/** The field of view slider moves a whole degree at a time. */
 	inline constexpr float FieldOfViewStep = 1.f;
 
+	/**
+	 * The sections the controller's bumpers (or Page Up / Down) turn through, in order: Graphics, Audio, Interface,
+	 * Controls and the key list (SettingsMenuNav.cpp). Resume is above the first, the footer below the last.
+	 */
+	inline constexpr int32 NumNavSections = 5;
+
 	/** "90°": an angle as the field of view slider shows it. */
 	inline FString DegreesText(float Degrees)
 	{

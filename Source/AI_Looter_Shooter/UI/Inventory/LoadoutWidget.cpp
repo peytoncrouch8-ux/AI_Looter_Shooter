@@ -413,6 +413,10 @@ ULoadoutWidget::FView ULoadoutWidget::GetView() const
 	View.bInspecting = bInspecting;
 	View.Sort = Sort;
 	View.ListOrder = ListOrder;
+	for (const FRow& Row : ListRows)
+	{
+		View.JunkRows.Add(Row.JunkMark != nullptr);
+	}
 	for (const FPrompt& Prompt : CurrentPrompts())
 	{
 		View.Prompts.Add(FString::Printf(TEXT("%s: %s"), *Prompt.Key, *Prompt.Text));

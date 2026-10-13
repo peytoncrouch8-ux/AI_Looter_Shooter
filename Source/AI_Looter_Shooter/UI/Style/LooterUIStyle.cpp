@@ -216,6 +216,10 @@ namespace LooterUI::Color
 	FLinearColor Curse()         { return Hex(199, 178, 96); }
 	FLinearColor CurseLight()    { return Hex(236, 224, 160); }
 	FLinearColor CurseDark()     { return Hex(96, 80, 36); }
+
+	FLinearColor Focus()         { return Hex(255, 186, 72); }
+	FLinearColor FocusOnAccent() { return Hex(255, 246, 228); }
+	FLinearColor FocusWash()     { return Hex(255, 159, 28, 38); }
 }
 
 // ---------------------------------------------------------------------------

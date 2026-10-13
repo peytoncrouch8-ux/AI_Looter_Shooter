@@ -11,6 +11,11 @@ void ACreatureBase::DevPutInState(ECreatureState NewState, APawn* InTarget, cons
 		return;
 	}
 	Target = InTarget;
+	if (InTarget)
+	{
+		// A hunt from here, as a sighting would start one.
+		Pursuit.Begin(InTarget->GetActorLocation());
+	}
 	WanderGoal = Goal;
 	CooldownRemaining = 0.f;
 	SetState(NewState);

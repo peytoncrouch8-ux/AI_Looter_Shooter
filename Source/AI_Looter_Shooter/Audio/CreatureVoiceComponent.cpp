@@ -6,6 +6,7 @@
 #include "Creatures/CreatureBase.h"
 #include "Creatures/SlimeCreature.h"
 #include "Creatures/SpiderCreature.h"
+#include "Creatures/SpitterSpider.h"
 #include "Creatures/UnpaidCreature.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
@@ -29,6 +30,11 @@ UCreatureVoiceComponent::FCries UCreatureVoiceComponent::CriesFor(const ACreatur
 	{
 		// A slime has no cry to hunt with: its hops say it's coming.
 		return { NAME_None, SlimeAttack, SlimeHurt, SlimeDeath, SlimeHit, Voice::SlimeIdle };
+	}
+	// The Spitter is a spider with its own hurt and death (its tell has its own hiss, so its attack cry stays the spider's).
+	if (Creature.IsA<ASpitterSpider>())
+	{
+		return { SpiderAlert, SpiderAttack, LooterSoundCue::Spitter::Hurt, LooterSoundCue::Spitter::Death, SpiderHit, Voice::SpiderIdle };
 	}
 	if (Creature.IsA<ASpiderCreature>())
 	{

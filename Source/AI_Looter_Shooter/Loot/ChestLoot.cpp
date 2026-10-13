@@ -6,6 +6,7 @@
 #include "Affixes/WeaponRollLibrary.h"
 #include "Areas/AreaDefinition.h"
 #include "Areas/AreaRulesSubsystem.h"
+#include "Economy/SilverDrops.h"
 #include "Loot/AmmoPickup.h"
 #include "Loot/GrenadePickup.h"
 #include "Loot/LootFanfareSubsystem.h"
@@ -154,7 +155,11 @@ void AChest::DropLoot()
 	const UPlayerThrowComponent* PlayerThrow = FindPlayerThrow(World);
 	const bool bGrenade = PlayerThrow
 		&& Random.FRand() < FThrowRules::ChestChance(Kind == EChestKind::Strongbox, PlayerThrow->GetGrenades());
-	const int32 Count = Roll.Weapons.Num() + Roll.Ammo.Num() + (bGrenade ? 1 : 0);
+	// Silver (Docs/Progression.md, "Economy"), on a stream of its own so the table's, the grenade's and the mote's rolls don't
+	// move; none where guns don't drop.
+	FRandomStream SilverRoll(FMath::Rand());
+	const int32 Silver = SilverDrops::RollForContainer(this, Kind, Level, SilverRoll);
+	const int32 Count = Roll.Weapons.Num() + Roll.Ammo.Num() + (bGrenade ? 1 : 0) + (Silver > 0 ? 1 : 0);
 	int32 Thrown = 0;
 	TArray<FString> Items;
 	for (const FWeaponInstanceData& Instance : Roll.Weapons)
@@ -189,6 +194,15 @@ void AChest::DropLoot()
 			Grenade->Toss(Velocity);
 			DroppedLoot.Add(Grenade);
 			Items.Add(TEXT("1 grave-salt grenade"));
+		}
+	}
+	if (Silver > 0)
+	{
+		// Not kept with what it gave (DroppedLoot): it comes to the player by itself, and the session keeps it if it lies.
+		const FVector Velocity = TossVelocity(Thrown++, Count, SilverRoll);
+		if (SilverDrops::Spill(World, Silver, From, Velocity))
+		{
+			Items.Add(FString::Printf(TEXT("%d silver"), Silver));
 		}
 	}
 	UE_LOG(LogLooter, Log, TEXT("%s (%s): gave %s (level %d)."), *GetActorNameOrLabel(), *GetSaveKey().ToString(),

@@ -19,17 +19,20 @@
 #include "Progression/XPCurve.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "Tests/AreaLevelsLayout.h"
+#include "Tests/EncounterLayoutReader.h"
 #include "UObject/Package.h"
 #include "UObject/TopLevelAssetPath.h"
 
 // Ransom's Rest's pacing (Docs/Progression.md, the user's call of 2026-10-08): a player who fights every fight on the main
 // path, does both side missions and kills a few roaming creatures ends the story (Main 7 turned in) about level 6-7, not
 // 9-10. Experience comes only from kills and turned-in missions. This plays that path on paper from the same data the game
-// uses: the mission assets' rewards, the creatures' own XPReward, the rank settings, Ransom's Rest's level band and its
-// promotion odds, the progression settings' curve and kill rules; the kills on the way are the documented budget below
-// (the counts the level's scripts place, Docs/Progression.md) and the encounters between the fights, read from the layout
-// (layout.json gameplay.encounters: camps, patrols, ambushes, each counted by its budget). An edit that moves the end out
-// of 6-7 fails here.
+// uses: the mission assets' rewards, the creatures' own XPReward, the rank settings, the creatures' levels where each fight
+// stands (layout.json gameplay.levels: its zones and the bosses' set levels, never the player's, since 2026-10-12) and
+// Ransom's Rest's promotion odds, the progression settings' curve and kill rules; the kills on the way are the documented
+// budget below (the counts the level's scripts place, Docs/Progression.md) and the encounters between the fights, read
+// from the layout (gameplay.encounters: camps, patrols, ambushes, each counted by its budget). An edit that moves the end
+// out of 6-7 fails here.
 
 namespace
 {
@@ -49,6 +52,10 @@ namespace
 		const ACreatureBase* Creature = nullptr;
 		EPathRank Rank = EPathRank::Basic;
 		int32 Count = 0;
+		/** Where the fight stands: a story fight's id in the layout ("BluffNest") or a layout zone ("sink"). */
+		FString Where;
+		/** Where Where is (found from the layout), or an encounter's middle: its levels are this spot's. */
+		FVector Spot = FVector::ZeroVector;
 	};
 
 	/** One stop on the story: a mission turned in (with the kills on the way to it), or kills alone (no mission). */
@@ -75,29 +82,30 @@ namespace
 		Path.Add({ TEXT("Main 1, Seven Days"), TEXT("Main1"), {}, 20 });
 		// The bluff nest: four spiders and a Restless one (build_area_story.py, BluffNest).
 		Path.Add({ TEXT("Main 2, Shall We Talk Business?"), TEXT("Main2"),
-			{ { Spider, EPathRank::Basic, 4 }, { Spider, EPathRank::Restless, 1 } }, 30 });
+			{ { Spider, EPathRank::Basic, 4, TEXT("BluffNest") }, { Spider, EPathRank::Restless, 1, TEXT("BluffNest") } }, 30 });
 		// The town gate: three Unpaid and a Restless one (TownGate).
 		Path.Add({ TEXT("Main 3, Cold Welcome"), TEXT("Main3"),
-			{ { Unpaid, EPathRank::Basic, 3 }, { Unpaid, EPathRank::Restless, 1 } }, 30 });
+			{ { Unpaid, EPathRank::Basic, 3, TEXT("TownGate") }, { Unpaid, EPathRank::Restless, 1, TEXT("TownGate") } }, 30 });
 		// The posters: no fights.
 		Path.Add({ TEXT("Side 1, Wanted: Already Dead"), TEXT("Side1"), {}, 35 });
 		// The chapel yard: twelve Unpaid in two waves and a Restless one (build_area_chapel.py, ChapelYard).
 		Path.Add({ TEXT("Main 4, Hallowed Ground"), TEXT("Main4"),
-			{ { Unpaid, EPathRank::Basic, 12 }, { Unpaid, EPathRank::Restless, 1 } }, 40 });
+			{ { Unpaid, EPathRank::Basic, 12, TEXT("ChapelYard") }, { Unpaid, EPathRank::Restless, 1, TEXT("ChapelYard") } }, 40 });
 		// Amos's old hands: five Unpaid and a Restless one (build_area_whitlock.py, WhitlockHands).
 		Path.Add({ TEXT("Side 2, Unfinished Business"), TEXT("Side2"),
-			{ { Unpaid, EPathRank::Basic, 5 }, { Unpaid, EPathRank::Restless, 1 } }, 40 });
+			{ { Unpaid, EPathRank::Basic, 5, TEXT("WhitlockHands") }, { Unpaid, EPathRank::Restless, 1, TEXT("WhitlockHands") } }, 40 });
 		// A few roaming creatures: boot hill's and the north road's Unpaid, three each, once (build_area_chapel.py, after
 		// Main 4; they're back on every level load, which is what takes a player on to level 7). The layout's roaming
 		// encounters (the west road's walkers) join them.
-		Path.Add({ RoamingLabel, NAME_None, { { Unpaid, EPathRank::AreaRolled, 6 } }, 0 });
+		Path.Add({ RoamingLabel, NAME_None,
+			{ { Unpaid, EPathRank::AreaRolled, 3, TEXT("BootHill") }, { Unpaid, EPathRank::AreaRolled, 3, TEXT("NorthRoad") } }, 0 });
 		// The Sink: its floor's four spiders and the egg sacs' six (build_area_sink.py, SinkFloor; two to a sac).
 		Path.Add({ TEXT("Main 5, The Keeper's Lantern"), TEXT("Main5"),
-			{ { Spider, EPathRank::AreaRolled, 4 }, { Spider, EPathRank::Basic, 6 } }, 40 });
+			{ { Spider, EPathRank::AreaRolled, 4, TEXT("sink") }, { Spider, EPathRank::Basic, 6, TEXT("sink") } }, 40 });
 		// The deck: about twelve of Abel's adds in a 3-4 minute fight (phase 1's two every 25 s, phase 2's two waves of four),
 		// then Abel.
 		Path.Add({ TEXT("Main 6, The Gravewind"), TEXT("Main6"),
-			{ { Unpaid, EPathRank::Basic, 12 }, { Abel, EPathRank::Own, 1 } }, 45 });
+			{ { Unpaid, EPathRank::Basic, 12, TEXT("Abel") }, { Abel, EPathRank::Own, 1, TEXT("Abel") } }, 45 });
 		// Main 7: no fights.
 		Path.Add({ TEXT("Main 7, The Lantern Leans"), TEXT("Main7"), {}, 45 });
 		return Path;
@@ -167,10 +175,35 @@ namespace
 					Kills.Creature = Class->GetDefaultObject<ACreatureBase>();
 					Kills.Rank = Rank == TEXT("Rare") ? EPathRank::Restless : Rank == TEXT("Area") ? EPathRank::AreaRolled : EPathRank::Basic;
 					Kills.Count = static_cast<int32>(Group->GetNumberField(TEXT("count")));
+					Kills.Where = Made.Id;
 				}
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * Finds where each kill stands (FPathKills::Spot): its camp's, patrol's or ambush's middle, a story fight's ground or a
+	 * layout zone, by the name in Where. False (with the test's errors) when one isn't in the layout.
+	 */
+	bool PlaceKills(FAutomationTestBase& Test, const EncounterLayout::FAreaLayout& Layout, TArray<FPathKills>& Kills)
+	{
+		bool bAllPlaced = true;
+		for (FPathKills& Each : Kills)
+		{
+			const EncounterLayout::FAreaEncounter* Encounter = Layout.Encounters.FindByPredicate(
+				[&Each](const EncounterLayout::FAreaEncounter& Found) { return Found.Id == Each.Where; });
+			if (Encounter)
+			{
+				Each.Spot = AreaLevelsLayout::EncounterSpot(*Encounter);
+			}
+			else
+			{
+				bAllPlaced &= Test.TestTrue(FString::Printf(TEXT("%s is a place in the layout"), *Each.Where),
+					AreaLevelsLayout::FindPlace(Layout, Each.Where, Each.Spot));
+			}
+		}
+		return bAllPlaced;
 	}
 
 	/** The path with the layout's encounters of these budgets added, each before the fights of the stop it's counted before. */
@@ -198,8 +231,12 @@ namespace
 		return Made;
 	}
 
-	/** A kill's experience on average for a player at PlayerLevel, over its rank's odds and the band's level either side. */
-	double ExpectedKillXP(const ACreatureBase& Creature, EPathRank PathRank, int32 PlayerLevel, const UAreaDefinition& Area, const FLevelRules& Rules)
+	/**
+	 * A kill's experience on average for a player at PlayerLevel, over its rank's odds and the levels where it stands (its
+	 * kind's set level, or its zone's levels, each as likely): the player's level only takes its share off a kill below it.
+	 */
+	double ExpectedKillXP(const ACreatureBase& Creature, EPathRank PathRank, const FVector& Spot, int32 PlayerLevel, const UAreaDefinition& Area,
+		const FLevelRules& Rules)
 	{
 		TArray<TPair<ECreatureRank, double>, TInlineAllocator<3>> Odds;
 		switch (PathRank)
@@ -224,22 +261,28 @@ namespace
 			break;
 		}
 		}
+		// Its own levels as the area gives them (UAreaDefinition::PickLevel): a boss's set level, else its spot's, evenly.
+		int32 Lowest = 1;
+		int32 Highest = 1;
+		if (const int32 Set = Area.FindKindLevel(Creature.GetClass()))
+		{
+			Lowest = Highest = Set;
+		}
+		else
+		{
+			Area.GetLevelsAt(Spot, Lowest, Highest);
+		}
 		double XP = 0.0;
 		for (const TPair<ECreatureRank, double>& Each : Odds)
 		{
 			const FCreatureRankInfo& Info = UCreatureRankSettings::Get(Each.Key);
 			const int32 RankedXP = FMath::Max(0, FMath::RoundToInt32(Creature.XPReward * Info.XPMultiplier));
-			// A boss is the player's level kept in the band; anything else a level either side, or the same, a third each.
-			const bool bBoss = Each.Key == ECreatureRank::Boss;
 			double Sum = 0.0;
-			int32 Rolls = 0;
-			for (int32 Spread = bBoss ? 0 : -1; Spread <= (bBoss ? 0 : 1); ++Spread)
+			for (int32 OwnLevel = Lowest; OwnLevel <= Highest; ++OwnLevel)
 			{
-				const int32 Level = Area.LevelFor(PlayerLevel, Spread, Creature.Level) + Info.LevelOffset;
-				Sum += static_cast<double>(Rules.KillXP(RankedXP, Level, PlayerLevel));
-				++Rolls;
+				Sum += static_cast<double>(Rules.KillXP(RankedXP, OwnLevel + Info.LevelOffset, PlayerLevel));
 			}
-			XP += Each.Value * Sum / Rolls;
+			XP += Each.Value * Sum / (Highest - Lowest + 1);
 		}
 		return XP;
 	}
@@ -292,7 +335,8 @@ namespace
 				}
 				for (int32 Each = 0; Each < Group.Count; ++Each)
 				{
-					const double XP = ExpectedKillXP(*Group.Creature, Group.Rank, FMath::FloorToInt32(LevelOf(Curve, Result.Total)), Area, Rules);
+					const double XP = ExpectedKillXP(*Group.Creature, Group.Rank, Group.Spot, FMath::FloorToInt32(LevelOf(Curve, Result.Total)), Area,
+						Rules);
 					StopKillXP += XP;
 					Result.Total += XP;
 					++StopKills;
@@ -350,18 +394,25 @@ bool FXPPacingTest::RunTest(const FString& Parameters)
 	const FXPCurve Curve = UPlayerProgressionSubsystem::GetCurve();
 	const FLevelRules Rules = UPlayerProgressionSubsystem::GetLevelRules();
 
-	// Ransom's Rest's band and promotions: its asset's, or the area script's numbers when it isn't made.
-	const UAreaDefinition* Area = UAreaDefinition::FindByName(TEXT("RansomsRest"));
-	if (!Area || !Area->HasLevelBand())
+	// Ransom's Rest's creature levels as its layout gives them (gameplay.levels, which create_area_assets.py writes into the
+	// asset; Looter.Areas.Bands holds the two the same), with the asset's promotions, or the script's when it isn't made.
+	EncounterLayout::FAreaLayout Layout;
+	if (!EncounterLayout::ReadLayout(*this, Layout))
 	{
-		AddWarning(TEXT("DA_Area_RansomsRest isn't made (Tools/Unreal/create_area_assets.py): its band (1-10) and promotions (8%, 2%) as the script sets them."));
-		UAreaDefinition* Stand = NewObject<UAreaDefinition>(GetTransientPackage(), NAME_None, RF_Transient);
-		Stand->MinLevel = 1;
-		Stand->MaxLevel = 10;
-		Stand->RarePromotionChance = 0.08f;
-		Stand->EpicPromotionChance = 0.02f;
-		Area = Stand;
+		return false;
 	}
+	UAreaDefinition* Area = AreaLevelsLayout::ReadArea(*this, Layout);
+	if (!Area)
+	{
+		return false;
+	}
+	const UAreaDefinition* Asset = UAreaDefinition::FindByName(TEXT("RansomsRest"));
+	if (!Asset)
+	{
+		AddWarning(TEXT("DA_Area_RansomsRest isn't made (Tools/Unreal/create_area_assets.py): its promotions (8%, 2%) as the script sets them."));
+	}
+	Area->RarePromotionChance = Asset ? Asset->RarePromotionChance : 0.08f;
+	Area->EpicPromotionChance = Asset ? Asset->EpicPromotionChance : 0.02f;
 
 	// The encounters between the fights (layout.json gameplay.encounters): the user's budget is about 15 more kills on the
 	// main path at most.
@@ -373,7 +424,20 @@ bool FXPPacingTest::RunTest(const FString& Parameters)
 	int32 MainAdded = 0;
 	int32 RoamingAdded = 0;
 	int32 OptionalAdded = 0;
-	const TArray<FPathStop> Story = RansomsRestPath();
+	TArray<FPathStop> Story = RansomsRestPath();
+	bool bPlaced = true;
+	for (FPathStop& Stop : Story)
+	{
+		bPlaced &= PlaceKills(*this, Layout, Stop.Kills);
+	}
+	for (FLayoutEncounter& Each : Encounters)
+	{
+		bPlaced &= PlaceKills(*this, Layout, Each.Kills);
+	}
+	if (!bPlaced)
+	{
+		return false;
+	}
 	for (const FLayoutEncounter& Each : Encounters)
 	{
 		int32 Count = 0;
@@ -414,6 +478,18 @@ bool FXPPacingTest::RunTest(const FString& Parameters)
 	const double Explorer = LevelOf(Curve, Explored.Total);
 	AddInfo(FString::Printf(TEXT("An explorer who clears everything once: level %.2f, %.0f XP after %d kills."), Explorer, Explored.Total, Explored.Kills));
 	TestTrue(FString::Printf(TEXT("...an explorer ends about level 7 (%.2f, under 7.75)"), Explorer), Explored.bValid && Explorer < 7.75);
+
+	// The bluff's spiders stay level 1-2 whoever comes: a player back there at the story's end (level 7) gets a share of what
+	// a level 1 player gets, as the kill rules take it off a creature below the player.
+	FVector Bluff = FVector::ZeroVector;
+	if (TestTrue(TEXT("The bluff's nest is in the layout"), AreaLevelsLayout::FindPlace(Layout, TEXT("BluffNest"), Bluff)))
+	{
+		const ACreatureBase* Spider = GetDefault<ASpiderCreature>();
+		const double Fresh = ExpectedKillXP(*Spider, EPathRank::Basic, Bluff, 1, *Area, Rules);
+		const double Strong = ExpectedKillXP(*Spider, EPathRank::Basic, Bluff, 7, *Area, Rules);
+		TestTrue(FString::Printf(TEXT("A bluff spider: %.1f XP to a level 1 player, %.1f to a level 7 one (under half)"), Fresh, Strong),
+			Strong < Fresh * 0.5);
+	}
 
 	// Skyreach gives none: its tutorial and the skiff reward nothing (its kills give none either: Looter.Station tests that).
 	for (const UMissionDefinition* Mission : Missions)

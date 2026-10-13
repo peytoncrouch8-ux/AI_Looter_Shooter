@@ -98,28 +98,51 @@ namespace
 		return Icon;
 	}
 
+	/** A five-pointed star, top point up, as fills (its five tips and the pentagon between them: each one convex). */
+	void AddStar(FVectorIcon& Icon, const FVector2D& Center, double Outer, double Inner)
+	{
+		auto At = [&Center](double Degrees, double Radius)
+		{
+			const double Radians = FMath::DegreesToRadians(Degrees);
+			return Center + Radius * FVector2D(FMath::Cos(Radians), FMath::Sin(Radians));
+		};
+		TArray<FVector2D> Middle;
+		for (int32 Tip = 0; Tip < 5; ++Tip)
+		{
+			const double Angle = -90.0 + 72.0 * Tip;
+			Icon.Fills.Add(TArray<FVector2D>{At(Angle - 36.0, Inner), At(Angle, Outer), At(Angle + 36.0, Inner) });
+			Middle.Add(At(Angle + 36.0, Inner));
+		}
+		Icon.Fills.Add(MoveTemp(Middle));
+	}
+
 	/** A five-pointed star: a mission waiting to be turned in (the mission-complete banner's medal). */
 	const FVectorIcon& StarIcon()
 	{
 		static const FVectorIcon Icon = []
 		{
 			FVectorIcon Result;
-			const FVector2D Center(12.0, 12.8);
-			constexpr double Outer = 10.0;
-			constexpr double Inner = 4.1;
-			auto At = [&Center](double Degrees, double Radius)
+			AddStar(Result, FVector2D(12.0, 12.8), 10.0, 4.1);
+			return Result;
+		}();
+		return Icon;
+	}
+
+	/** A coin: a heavy rim round a small star struck in its middle, as the silver coin beside every amount has it. A store. */
+	const FVectorIcon& VendorIcon()
+	{
+		static const FVectorIcon Icon = []
+		{
+			FVectorIcon Result;
+			Result.StrokeWidth = 2.2f;
+			TArray<FVector2D>& Rim = Result.Strokes.AddDefaulted_GetRef();
+			constexpr int32 Sides = 32;
+			for (int32 Step = 0; Step <= Sides; ++Step)
 			{
-				const double Radians = FMath::DegreesToRadians(Degrees);
-				return Center + Radius * FVector2D(FMath::Cos(Radians), FMath::Sin(Radians));
-			};
-			TArray<FVector2D> Middle;
-			for (int32 Tip = 0; Tip < 5; ++Tip)
-			{
-				const double Angle = -90.0 + 72.0 * Tip;
-				Result.Fills.Add(TArray<FVector2D>{At(Angle - 36.0, Inner), At(Angle, Outer), At(Angle + 36.0, Inner) });
-				Middle.Add(At(Angle + 36.0, Inner));
+				const double Angle = UE_TWO_PI * Step / Sides;
+				Rim.Add(FVector2D(12.0 + 9.3 * FMath::Cos(Angle), 12.0 + 9.3 * FMath::Sin(Angle)));
 			}
-			Result.Fills.Add(MoveTemp(Middle));
+			AddStar(Result, FVector2D(12.0, 12.6), 5.4, 2.3);
 			return Result;
 		}();
 		return Icon;
@@ -156,6 +179,7 @@ namespace MapIcons
 		case EMapPinKind::TurnIn:      return LooterUI::Color::Better();
 		case EMapPinKind::Grave:       return LooterUI::Color::CyanText();
 		case EMapPinKind::Station:     return LooterUI::Color::Title();
+		case EMapPinKind::Vendor:      return LooterUI::Color::IconShade();
 		case EMapPinKind::Bench:       return LooterUI::Color::IconLight();
 		case EMapPinKind::Chest:       return LooterUI::Color::AccentLight();
 		case EMapPinKind::ChestLooted: return LooterUI::Color::TextDim() * FLinearColor(1.f, 1.f, 1.f, 0.75f);
@@ -171,6 +195,7 @@ namespace MapIcons
 		case EMapPinKind::TurnIn:      return 24.f;
 		case EMapPinKind::Grave:       return 26.f;
 		case EMapPinKind::Station:     return 24.f;
+		case EMapPinKind::Vendor:      return 24.f;
 		case EMapPinKind::Bench:       return 22.f;
 		case EMapPinKind::Chest:       return 20.f;
 		case EMapPinKind::ChestLooted: return 13.f;
@@ -192,6 +217,7 @@ namespace MapIcons
 		case EMapPinKind::TurnIn:      return LooterUI::IconBrush(TEXT("MapTurnIn"), StarIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Grave:       return LooterUI::IconBrush(TEXT("MapGrave"), GraveIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Station:     return LooterUI::IconBrush(TEXT("MapStation"), StationIcon(), PixelsPerUnit, Box, Tint);
+		case EMapPinKind::Vendor:      return LooterUI::IconBrush(TEXT("MapVendor"), VendorIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Bench:       return LooterUI::IconBrush(TEXT("MapBench"), BenchIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Chest:
 		case EMapPinKind::ChestLooted: return LooterUI::IconBrush(TEXT("MapChest"), ChestIcon(), PixelsPerUnit, Box, Tint);

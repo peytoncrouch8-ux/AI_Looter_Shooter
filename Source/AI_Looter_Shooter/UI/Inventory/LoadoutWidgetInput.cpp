@@ -471,6 +471,17 @@ bool ULoadoutWidget::HandleKey(const FKey& Key)
 		RunAction(EAction::Activate);
 		return true;
 	}
+	// J marks the backpack gun under the cursor junk, or not, for a vendor's "Sell all junk" (Economy/VendorTrade).
+	if (Key == EKeys::J && !PickedSlot.IsSet())
+	{
+		UWeaponManagerComponent* Inventory = Manager.Get();
+		const FWeaponInstanceData* Item = Zone == EZone::Backpack ? ListItem(CursorIndex) : nullptr;
+		const bool bMarked = Inventory && Item && ListOrder.IsValidIndex(CursorIndex)
+			&& Inventory->SetBackpackJunk(ListOrder[CursorIndex], !Item->bJunk);
+		Refresh();
+		PlayCue(bMarked ? LooterSoundCue::Tab : LooterSoundCue::Denied);
+		return true;
+	}
 	struct FBinding { FKey Keys[2]; EAction Action; };
 	const FBinding Actions[] = {
 		{ { EKeys::F, EKeys::Gamepad_FaceButton_Top }, EAction::Hold },

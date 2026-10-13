@@ -3,6 +3,7 @@
 #include "UI/Menus/SettingsMenuWidget.h"
 #include "UI/Menus/SettingsMenuParts.h"
 #include "UI/Style/LooterButton.h"
+#include "UI/Style/LooterUIFocus.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "Blueprint/WidgetTree.h"
@@ -132,7 +133,8 @@ UWidget* USettingsMenuWidget::MakeSliderRow(const FString& Label, float MinValue
 	OutSlider->SetMaxValue(MaxValue);
 	OutSlider->SetStepSize(StepSize);
 	OutSlider->MouseUsesStep = true;
-	// The menu keeps keyboard focus (Esc closes it); and the world behind keeps redrawing while the handle is dragged.
+	// The menu keeps keyboard focus (Esc closes it) and steps its sliders itself for the keys and a controller
+	// (SettingsMenuNav.cpp); and the world behind keeps redrawing while the handle is dragged.
 	OutSlider->IsFocusable = false;
 	OutSlider->bPreventThrottling = true;
 
@@ -150,11 +152,16 @@ void USettingsMenuWidget::RebuildControls()
 	KeyList->ClearChildren();
 	KeyButtons.Reset();
 	ModeButtons.Reset();
+	DefaultButtons.Reset();
+	KeyNav.Reset();
+	// The key list is the bumpers' last section: each key and its Default a row of two stops, each hold/toggle switch one.
+	constexpr int32 KeySection = NumNavSections - 1;
 
 	const UKeyBindingSubsystem* Bindings = GetBindings();
 	if (!Bindings)
 	{
 		KeyList->AddChildToVerticalBox(MakeText(WidgetTree, TEXT("Key bindings unavailable."), 13, LooterUI::Color::Worse()));
+		RebuildNavigation();
 		return;
 	}
 
@@ -178,9 +185,13 @@ void USettingsMenuWidget::RebuildControls()
 		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, KeyButton, KeyColumnWidth))->SetPadding(FMargin(8.f, 0.f));
 		KeyButtons.Add(KeyButton);
 
-		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, MakeButton(ActionResetOne, Index, TEXT("Default"), 10, EButtonKind::Mini), DefaultColumnWidth));
+		ULooterButton* DefaultButton = MakeButton(ActionResetOne, Index, TEXT("Default"), 10, EButtonKind::Mini);
+		Line->AddChildToHorizontalBox(MakeSized(WidgetTree, DefaultButton, DefaultColumnWidth));
+		DefaultButtons.Add(DefaultButton);
 
-		KeyList->AddChildToVerticalBox(MakeRow(WidgetTree, Line))->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
+		UWidget* KeyRow = MakeRow(WidgetTree, Line);
+		KeyList->AddChildToVerticalBox(KeyRow)->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
+		KeyNav.Add(FMenuNavRow{ FMenuNavItem::MakeButton(KeyButton, KeySection, KeyRow), FMenuNavItem::MakeButton(DefaultButton, KeySection, KeyRow) });
 
 		if (Binding.bSupportsToggle)
 		{
@@ -191,9 +202,11 @@ void USettingsMenuWidget::RebuildControls()
 			ModeButtons.Add(HoldButton);
 			ModeButtons.Add(ToggleButton);
 			KeyList->AddChildToVerticalBox(ModeRow)->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
+			KeyNav.Add(FMenuNavRow{ FMenuNavItem::MakeChoices({ HoldButton, ToggleButton }, LooterUI::AddFocusFrame(ModeRow), ModeRow, KeySection) });
 		}
 	}
 	RefreshKeyLabels();
+	RebuildNavigation();
 }
 
 void USettingsMenuWidget::RefreshKeyLabels()

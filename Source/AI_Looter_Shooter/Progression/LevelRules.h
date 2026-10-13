@@ -12,7 +12,7 @@
 struct AI_LOOTER_SHOOTER_API FLevelRules
 {
 	/** The rules the game ships with (UProgressionSettings starts from these). */
-	static constexpr double DefaultKillXPScale = 0.4;
+	static constexpr double DefaultKillXPScale = 0.37;
 	static constexpr double DefaultKillXPGrowth = 1.08;
 	static constexpr double DefaultKillXPFalloff = 0.15;
 	static constexpr double DefaultKillXPFloor = 0.1;
@@ -20,9 +20,11 @@ struct AI_LOOTER_SHOOTER_API FLevelRules
 	static constexpr float DefaultHealthPerLevel = 0.08f;
 
 	/**
-	 * The share of a creature's XPReward a kill gives at its level 1 (0.4: a Basic creature's 10 gives 4). Tuned with the
-	 * missions' turn-in rewards so Ransom's Rest's story ends about level 6-7 (Docs/Progression.md): most of a level's
-	 * experience comes from the turn-ins, Borderlands' way, the kills on the way adding to it.
+	 * The share of a creature's XPReward a kill gives at its level 1 (0.37: a Basic creature's 10 gives 4, rounded). Tuned
+	 * with the missions' turn-in rewards so Ransom's Rest's story ends about level 6-7 (Docs/Progression.md): most of a
+	 * level's experience comes from the turn-ins, Borderlands' way, the kills on the way adding to it. 0.4 until creatures
+	 * stopped following the player's level (2026-10-12): standing a level or so above a player on the story's pace, they're
+	 * worth their full share more often, so the share came down to keep the same end.
 	 */
 	double KillXPScale = DefaultKillXPScale;
 

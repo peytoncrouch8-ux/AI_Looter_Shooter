@@ -1,4 +1,5 @@
 #include "UI/HUD/LooterHUD.h"
+#include "UI/World/BossShrineWidget.h"
 #include "Audio/LooterSound.h"
 #include "Bestiary/Ledger.h"
 #include "UI/Bench/BenchWidget.h"
@@ -135,6 +136,13 @@ void ALooterHUD::Tick(float DeltaSeconds)
 	const bool bHideHUD = IsMenuOpen() || USceneSubsystem::HidesGameplayHUD(this);
 	HUDWidget->SetVisibility(bHideHUD ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	SetWorldLabelsVisible(!bHideHUD);
+}
+
+bool ALooterHUD::IsMenuOpen() const
+{
+	// A Vigil Stone's menu is its own widget (UI/World), not one of the HUD's pages, so it's asked directly.
+	return bInventoryOpen || bPauseMenuOpen || bStationBoardOpen || bBenchOpen || bNoticeBoardOpen || bVendorOpen
+		|| UBossShrineWidget::GetOpen() != nullptr;
 }
 
 ALooterHUD* ALooterHUD::FindFor(const AActor* Player)

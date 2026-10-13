@@ -317,6 +317,7 @@ bool FCreatureUpdateRateTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("Chasing needs every frame"), ACreatureBase::NeedsFullRate(ECreatureState::Chase, false, false));
 	TestTrue(TEXT("Attacking needs every frame"), ACreatureBase::NeedsFullRate(ECreatureState::Attack, false, false));
+	TestTrue(TEXT("Searching for the player needs every frame"), ACreatureBase::NeedsFullRate(ECreatureState::Search, false, false));
 	TestTrue(TEXT("Alerted (a target) needs every frame"), ACreatureBase::NeedsFullRate(ECreatureState::Return, true, false));
 	TestTrue(TEXT("Just hurt needs every frame"), ACreatureBase::NeedsFullRate(ECreatureState::Idle, false, true));
 	TestTrue(TEXT("Just killed needs every frame (its death plays)"), ACreatureBase::NeedsFullRate(ECreatureState::Dead, false, true));

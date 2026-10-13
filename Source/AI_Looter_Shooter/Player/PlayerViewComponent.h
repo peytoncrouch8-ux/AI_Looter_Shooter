@@ -80,6 +80,19 @@ public:
 	static UCameraComponent* FindFirstPersonCamera(const AActor* Owner);
 
 	/**
+	 * The settings menu is dragging the first-person field of view slider: the world view takes Degrees (kept within the
+	 * setting's range) at once, ahead of the saved setting, and holds it while the game is paused under the menu (a paused
+	 * game leaves the camera manager alone, so its field of view is locked to it). Call it again on every move.
+	 * Returns whether the view shows it: false in third person, which keeps its own field of view.
+	 */
+	bool PreviewFieldOfView(float Degrees);
+
+	/** Back to the saved setting. The preview also ends by itself the first frame the game runs again. */
+	void EndFieldOfViewPreview();
+
+	bool IsPreviewingFieldOfView() const { return bFieldOfViewPreview; }
+
+	/**
 	 * Where the character looks and aims: the controller's rotation, which is always the way the character faces.
 	 * Not the camera's rotation: the front-view camera looks back at the character, and anything following it (the held
 	 * gun, the torso's aim) would turn around too.
@@ -197,6 +210,8 @@ private:
 	void RefreshBodyAnimation();
 	void UpdateBoom(float DeltaTime);
 	void UpdateFieldOfView();
+	/** Hands the camera manager's field of view back (PreviewFieldOfView locked it). */
+	void UnlockCameraFieldOfView();
 	/** Third person: grip in the right hand (which the animation moves), barrel along the aim. */
 	void UpdateHeldWeapon();
 
@@ -228,6 +243,11 @@ private:
 	 * use their setting), and the angle the first-person view model is drawn at whatever the setting.
 	 */
 	float FirstPersonFieldOfView = 90.f;
+	/** The settings menu's preview (PreviewFieldOfView): its degrees stand in for the setting while it lasts. */
+	bool bFieldOfViewPreview = false;
+	float PreviewFieldOfViewDegrees = 90.f;
+	/** The camera manager's field of view is locked to the preview's (the game is paused under the menu). */
+	bool bFieldOfViewLocked = false;
 
 	FWeaponRecoil Recoil;
 	FRandomStream RecoilRandom{ 0x2ec011 };

@@ -46,7 +46,7 @@ struct FBossAddWave
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave", meta = (ClampMin = "0", ClampMax = "5"))
 	float BodyScale = 0.f;
 
-	/** Their own level, before their rank's. 0: what the area gives a creature spawned in play (its band). */
+	/** Their own level, before their rank's. 0: what the area gives a creature where it rises (Abel's deck: 5-6). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave", meta = (ClampMin = "0"))
 	int32 Level = 0;
 

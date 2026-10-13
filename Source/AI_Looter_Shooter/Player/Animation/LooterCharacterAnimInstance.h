@@ -11,6 +11,7 @@
 class FNumericProperty;
 class UPlayerLocomotionComponent;
 class UPlayerMeleeComponent;
+class UPlayerThrowComponent;
 class UPlayerViewComponent;
 class UWeaponManagerComponent;
 
@@ -107,7 +108,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stance", meta = (ClampMin = "0", ClampMax = "90"))
 	float MaxTorsoAimPitch = 65.f;
 
-	/** Armed Anim Blueprints: played on the upper body (over any locomotion) while the held weapon reloads. */
+	/**
+	 * Armed Anim Blueprints: played on the upper body (over any locomotion) while the held weapon reloads; not a
+	 * revolver's, whose cylinder the stance layer works in code (LooterStancePose::DescribeCylinderReload).
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stance")
 	TObjectPtr<UAnimSequenceBase> ReloadAnimation;
 
@@ -174,4 +178,5 @@ private:
 	TWeakObjectPtr<const UWeaponManagerComponent> WeaponManager;
 	TWeakObjectPtr<const UPlayerViewComponent> View;
 	TWeakObjectPtr<const UPlayerMeleeComponent> Melee;
+	TWeakObjectPtr<const UPlayerThrowComponent> Throw;
 };

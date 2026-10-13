@@ -4,6 +4,7 @@
 #include "Animation/BoneReference.h"
 #include "BoneContainer.h"
 #include "BonePose.h"
+#include "Player/Animation/LooterStancePose.h"
 
 struct FLooterStanceInput;
 
@@ -59,8 +60,8 @@ namespace LooterStancePoseDetail
 
 	/**
 	 * A short gun held out (Stance.HoldReach): the right hand, the gun in it, pushed out along the barrel and a little in
-	 * toward the middle, the elbow straightening; eased off through a sprint and a reload. The left hand follows it onto
-	 * the gun after.
+	 * toward the middle, the elbow straightening; eased off through a sprint, a reload and a throw's dip. The left hand
+	 * follows it onto the gun after.
 	 */
 	void ApplyHoldReach(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Right);
 
@@ -73,4 +74,42 @@ namespace LooterStancePoseDetail
 
 	/** The left hand solved onto the held gun's foregrip, and let go of during a reload. */
 	void ApplyLeftHandOnForegrip(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Right);
+
+	/**
+	 * The left palm (the mannequin's HandGrip_L point, where a held thing sits) from the hand_l bone, in that bone's space:
+	 * the hand's IK aims this point, not the wrist, at what it holds.
+	 */
+	inline FVector LeftPalmFromWrist()
+	{
+		return FVector(7.5f, -2.5f, 0.f);
+	}
+
+	/**
+	 * Two-bone IK on one arm, blended in by Weight: the wrist to WristTarget, the elbow toward ElbowHint. bTurnHand turns
+	 * the hand with the forearm (a big swing, so the wrist doesn't wrench); otherwise it keeps the pose's orientation.
+	 */
+	void SolveArm(FCSPose<FCompactPose>& Pose, FCompactPoseBoneIndex UpperArm, FCompactPoseBoneIndex LowerArm, FCompactPoseBoneIndex Hand,
+		const FVector& WristTarget, const FVector& ElbowHint, float Weight, bool bTurnHand);
+
+	/**
+	 * A grenade throw's chest (its wind-up and turn into the toss) and, with a gun in hand, the right hand dipping out of the
+	 * throw's way (LooterStancePoseThrow.cpp). Before the left hand finds the foregrip, so it follows the dipped gun.
+	 */
+	void ApplyThrowBody(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FLooterThrowStance& Throw,
+		const FVector& Forward, const FVector& Right);
+
+	/** A grenade throw's left arm, cocked and slung, blended in by Throw.Arm; after the foregrip, so it lets go of the gun. */
+	void ApplyThrowArm(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FLooterThrowStance& Throw,
+		const FVector& Forward, const FVector& Right);
+
+	/**
+	 * A revolver's reload, the gun hand's part (LooterStancePoseReload.cpp): the gun brought in front of the chest and the
+	 * flick that shuts the cylinder. Before the left hand, which works on the gun where this puts it.
+	 */
+	void ApplyCylinderReloadGun(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance,
+		const FLooterCylinderReload& Reload, const FVector& Forward, const FVector& Right);
+
+	/** A revolver's reload, the left hand's part: on the cylinder, the rod, the belt; blended in by the reload's weight. */
+	void ApplyCylinderReloadHand(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance,
+		const FLooterCylinderReload& Reload, const FVector& Forward, const FVector& Right);
 }

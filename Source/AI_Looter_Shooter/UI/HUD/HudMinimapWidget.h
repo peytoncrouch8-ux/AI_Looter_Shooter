@@ -6,6 +6,7 @@
 #include "HudMinimapWidget.generated.h"
 
 class UCanvasPanel;
+class UGraphicsSettingsSubsystem;
 class UImage;
 class USizeBox;
 class UTextBlock;
@@ -62,11 +63,29 @@ public:
 	 */
 	static FMinimapWaypoint PlaceWaypoint(const FVector& WorldDelta, float ViewYaw, float PixelsPerCm, float InsideRadius, float RimRadius);
 
+	/** How much of the world the map shows (the radius, in cm) at a zoom: 1 shows 35 m around the player, 2 half that. */
+	static float RangeAtZoom(float Zoom);
+
+	/**
+	 * Makes this one a live copy for the settings menu's zoom preview: the HUD's own is put away under the menu, so the menu
+	 * shows a second one in its corner (it draws the same bake, markers and waypoint) while the zoom is being set. A copy
+	 * also shows with the minimap switched off in the settings, so the zoom can be set before it is turned on.
+	 */
+	void SetPreview(bool bInPreview) { bPreview = bInPreview; }
+
+	/** The zoom a preview copy shows, whatever the saved setting is, as the slider moves (kept in range). 0 follows the setting again. */
+	void SetPreviewZoom(float Zoom);
+
+	/** The zoom the map shows now: the preview's if it has one, else the player's setting (1 with no settings). */
+	float GetZoom() const;
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 private:
+	/** The zoom to draw at: the preview's if it has one, else Settings' (1 with none). */
+	float ZoomFor(const UGraphicsSettingsSubsystem* Settings) const;
 	/** Resizes the minimap: the map and its bezel grow with it, the player arrow, markers and the N a little less. */
 	void ApplyScale(float NewScale);
 	float GetDiameter() const { return Diameter * Scale; }
@@ -126,4 +145,8 @@ private:
 
 	/** The minimap's size right now, relative to Diameter. */
 	float Scale = 1.f;
+
+	/** A live copy for the settings menu (SetPreview), and the zoom it shows instead of the setting's (0: the setting's). */
+	bool bPreview = false;
+	float PreviewZoom = 0.f;
 };

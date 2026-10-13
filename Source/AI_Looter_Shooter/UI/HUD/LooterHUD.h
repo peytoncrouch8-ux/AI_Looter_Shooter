@@ -14,6 +14,8 @@ class ULoadoutWidget;
 class UMapWidget;
 class UMissionsWidget;
 class UNoticeBoardWidget;
+class AVendor;
+class UVendorWidget;
 class UPlayerHUDWidget;
 class USettingsMenuWidget;
 class UStationBoardWidget;
@@ -97,8 +99,18 @@ public:
 
 	bool IsNoticeBoardOpen() const { return bNoticeBoardOpen; }
 
-	/** The inventory, the station board, the bench's screen, a notice board or the pause menu is up (the gameplay HUD is hidden). */
-	bool IsMenuOpen() const { return bInventoryOpen || bPauseMenuOpen || bStationBoardOpen || bBenchOpen || bNoticeBoardOpen; }
+	/**
+	 * Opens a vendor's screen (UVendorWidget: buy ammo, grave salt and the gun of the day, sell guns) for Vendor, the mouse
+	 * on it (LooterHUDVendor.cpp). False when it can't (no player, the pause menu up).
+	 */
+	bool OpenVendor(AVendor* Vendor);
+
+	void CloseVendor();
+
+	bool IsVendorOpen() const { return bVendorOpen; }
+
+	/** The inventory, the station board, the bench's screen, a notice board, a vendor or the pause menu is up (the gameplay HUD is hidden). */
+	bool IsMenuOpen() const;
 
 	/** The HUD of the local player behind Player (their pawn or controller), or null. */
 	static ALooterHUD* FindFor(const AActor* Player);
@@ -191,6 +203,10 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UNoticeBoardWidget> NoticeBoardWidget;
 
+	/** A vendor's screen, made the first time one is used. */
+	UPROPERTY(Transient)
+	TObjectPtr<UVendorWidget> VendorWidget;
+
 	/** The contextual control hint, a viewport widget of its own over the HUD (it steps aside under menus by itself). */
 	UPROPERTY(Transient)
 	TObjectPtr<UHudControlHintWidget> ControlHintWidget;
@@ -200,4 +216,5 @@ private:
 	bool bStationBoardOpen = false;
 	bool bBenchOpen = false;
 	bool bNoticeBoardOpen = false;
+	bool bVendorOpen = false;
 };

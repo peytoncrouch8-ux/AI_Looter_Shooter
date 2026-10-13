@@ -161,7 +161,7 @@ void UPlayerThrowComponent::UpdatePoses()
 		Gun->SetMeleePose(Pose.Offset, Pose.Rotation);
 	}
 
-	// The jar is only seen in first person: a third-person body has no throw to carry it (the grenade flies all the same).
+	// This jar is the first-person view's; in third person the body's own hand carries one (UHandJarComponent).
 	const APawn* Owner = Cast<APawn>(GetOwner());
 	const UPlayerViewComponent* View = Owner ? Owner->FindComponentByClass<UPlayerViewComponent>() : nullptr;
 	bool bShown = false;

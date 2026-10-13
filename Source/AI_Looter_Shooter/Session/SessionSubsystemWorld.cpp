@@ -4,6 +4,8 @@
 #include "AI_Looter_Shooter.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Combat/HealthComponent.h"
+#include "Economy/SilverPickup.h"
+#include "Economy/WalletSubsystem.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Loot/AmmoPickup.h"
 #include "Loot/Chest.h"
@@ -71,6 +73,12 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 	{
 		Throw->SaveThrowables(Save.Throwables);
 		Save.bHasThrowables = true;
+	}
+	// The purse and the vendors' gun of the day, which live with the level's wallet and travel with the player.
+	if (const UWalletSubsystem* Wallet = UWalletSubsystem::Get(World))
+	{
+		Save.Silver = Wallet->GetSilver();
+		Save.VendorOffer = Wallet->GetOffer();
 	}
 
 	// This map's world, filed under its own name so every other map's stays as it was left: what the racks still offer,
@@ -141,6 +149,17 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 			Ammo.Type = It->GetAmmoType();
 			Ammo.Amount = It->GetAmount();
 			Ammo.Location = It->GetActorLocation();
+		}
+	}
+	// Silver lying around, as the ammo is (a pile on its way to the player is theirs in a moment: it's kept too).
+	Here.SilverPickups.Reset();
+	for (TActorIterator<ASilverPickup> It(World); It; ++It)
+	{
+		if (It->GetAmount() > 0 && !It->IsActorBeingDestroyed())
+		{
+			FSavedSilverPickup& Silver = Here.SilverPickups.AddDefaulted_GetRef();
+			Silver.Amount = It->GetAmount();
+			Silver.Location = It->GetActorLocation();
 		}
 	}
 
@@ -223,6 +242,10 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 				Stale.Add(*It);
 			}
 		}
+		for (TActorIterator<ASilverPickup> It(World); It; ++It)
+		{
+			Stale.Add(*It);
+		}
 		for (AActor* Actor : Stale)
 		{
 			Actor->Destroy();
@@ -246,6 +269,20 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 				Pickup->Toss(FVector::ZeroVector);
 			}
 		}
+		for (const FSavedSilverPickup& Silver : Here->SilverPickups)
+		{
+			if (ASilverPickup* Pickup = ASilverPickup::SpawnSilver(World, Silver.Amount, Silver.Location))
+			{
+				Pickup->Toss(FVector::ZeroVector);
+			}
+		}
+	}
+
+	// The purse and the gun of the day, as the session kept them (a save from before money: none, and none rolled).
+	if (UWalletSubsystem* Wallet = UWalletSubsystem::Get(World))
+	{
+		Wallet->SetSilver(Save.Silver);
+		Wallet->SetOffer(Save.VendorOffer);
 	}
 
 	// The player, who has just been put at the level's start (or a trip's landing). Their spot is only good in the level

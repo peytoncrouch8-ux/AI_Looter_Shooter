@@ -6,13 +6,16 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "AreaRulesSubsystem.generated.h"
 
+class ACreatureBase;
 class UAreaDefinition;
 struct FCampaignRecord;
 
 /**
  * The rules of the area being played for the creatures in it (UAreaDefinition, found by the level as play begins):
- *  - the level band: a creature's level follows the player's inside it, give or take one (a boss's doesn't vary), and its
- *    rank's levels come on top (ACreatureBase, as it begins play and each time it comes back);
+ *  - levels: a creature's level is where it stands, never the player's (the user's call, 2026-10-12): its kind's set
+ *    level here (the area's boss, a Legendary monster), else its zone's levels, rolled for a level of variety; one placed
+ *    or spawned at a level of its own keeps it. Its rank's levels come on top (ACreatureBase, as it begins play and each
+ *    time it comes back). So a player who comes back strong finds the bluff's spiders still level 1-2, worth little.
  *  - promotions: as the player arrives, each placed Basic creature may be Restless or Gravebound for one life, by the
  *    area's chances. In a session a map rolls at most once per 20 minutes of play (USessionSubsystem::ClaimPromotionRoll),
  *    so reloading doesn't reroll them; without a session every start rolls.
@@ -35,20 +38,25 @@ public:
 	/** Whether this arrival promotes placed creatures (the area has chances, and the session's cooldown allowed it). */
 	bool ArePromotionsRolling() const { return bPromotionsRoll; }
 
-	/** A creature's own level here, before its rank's: RollLevelIn with this level's area, the player's level and its rolls. */
-	int32 RollLevel(int32 OwnLevel, ECreatureRank Rank);
+	// --- Levels ---
+
+	/**
+	 * Creature's own level here before its rank's (it asks as it begins play, and again each time it comes back): RollLevelIn
+	 * with this level's area and rolls, at the spot it stands on (its home, once it has one), a level of its own when it was
+	 * placed at another than its class's. Never the player's.
+	 */
+	int32 RollLevelFor(const ACreatureBase& Creature, int32 OwnLevel);
+
+	/**
+	 * A creature's own level in InArea before its rank's, standing at Spot: OwnLevel (kept inside the band) when it was
+	 * chosen for it (bOwnLevelChosen: placed at a level other than its class's); else Kind's set level, or Spot's levels
+	 * rolled from Random (UAreaDefinition::PickLevel). OwnLevel as it is without an area or a band.
+	 */
+	static int32 RollLevelIn(const UAreaDefinition* InArea, const FVector& Spot, const UClass* Kind, int32 OwnLevel, bool bOwnLevelChosen,
+		const FRandomStream& Random);
 
 	/** The rank a placed Basic creature starts this arrival with: a promotion when this arrival rolls them, else Basic. */
 	ECreatureRank RollPromotion();
-
-	/** The local player's level (1 when there's no player). */
-	int32 GetPlayerLevel() const;
-
-	/**
-	 * A creature's own level in InArea, before its rank's: the player's level plus -1, 0 or +1 from Random (a boss: plus 0),
-	 * kept inside the area's band; OwnLevel (as placed or spawned) without an area or a band.
-	 */
-	static int32 RollLevelIn(const UAreaDefinition* InArea, int32 PlayerLevel, int32 OwnLevel, ECreatureRank Rank, const FRandomStream& Random);
 
 	/** A placed Basic creature's rank when InArea's promotions roll, drawn from Random against its chances. */
 	static ECreatureRank RollPromotionIn(const UAreaDefinition* InArea, const FRandomStream& Random);
@@ -86,7 +94,8 @@ private:
 
 	bool bPromotionsRoll = false;
 
-	/** What this arrival's promotions made, for the log. */
+	/** What this arrival made of its creatures, for the log: levels given by where they stand, and promotions. */
+	int32 LevelsGiven = 0;
 	int32 PromotionsAsked = 0;
 	int32 PromotedRare = 0;
 	int32 PromotedEpic = 0;

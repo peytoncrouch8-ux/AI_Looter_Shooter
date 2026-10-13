@@ -59,7 +59,10 @@ struct AI_LOOTER_SHOOTER_API FEncounterGroup
 		meta = (ClampMin = "0", ClampMax = "1", EditCondition = "RankRoll == EEncounterRankRoll::Chances", EditConditionHides))
 	float EpicChance = 0.f;
 
-	/** Their own level, before their rank's. 0: from the area's band round the player's level, as placed creatures get theirs. */
+	/**
+	 * Their own level, before their rank's, kept whatever the area says. 0: the area's level where each stands (its zone's,
+	 * or its kind's set level: the Gravemother's), as placed creatures get theirs; never the player's.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Group", meta = (ClampMin = "0"))
 	int32 Level = 0;
 

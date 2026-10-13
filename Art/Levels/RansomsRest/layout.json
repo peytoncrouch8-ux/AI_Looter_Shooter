@@ -299,10 +299,10 @@
     {
       "id": "chapelKnoll",
       "type": "hill",
-      "center": [6200,-1900],
-      "radius": 3200,
+      "center": [6550,-1900],
+      "radius": 3600,
       "height": 1000,
-      "note": "the chapel knoll (+10 m); the chapel and its churchyard on its top"
+      "note": "the chapel knoll (+10 m); the chapel and its churchyard on its top, levelled to churchyardPad's 7.5 m (2026-10-12: centred under the churchyard and 4 m wider, so its flanks carry the yard's banks; it stood 5 m south of the yard, which sat on its north flank, 23 degrees across inside the fence)"
     },
     {
       "id": "bootHill",
@@ -564,6 +564,29 @@
       "yaw": 0,
       "height": 30,
       "note": "the depot's floor stands on it at the platform's height"
+    },
+    {
+      "id": "churchyardPad",
+      "type": "pad",
+      "center": [6500,-1925],
+      "size": [3000,3750],
+      "yaw": 0,
+      "corner": 0.2,
+      "height": 750,
+      "bank": { "slope": 30, "round": 300, "toe": 150, "reach": 1400 },
+      "note": "the churchyard levelled on the knoll's top (2026-10-12, the user: the church and graves sloped oddly, hard to get around, the iron fence in the ground): the chapel, its graves and Main 4's fight on one flat yard, the fence 2 m inside the edge (3.5 m on the gate side, a forecourt where the north and west roads meet), a 30-degree graded bank round it (worked within 14 m of its edge, the farthest its fill needs), its crest rounded over 3 m and its foot over 1.5 m (a wider foot lifts the ground under the quarry track); the roads meet on the forecourt 4.5 m short of the fence, so their shoulders keep off its line"
+    },
+    {
+      "id": "bootHillPad",
+      "type": "pad",
+      "center": [3250,-225],
+      "size": [1400,1450],
+      "yaw": 0,
+      "corner": 0.4,
+      "height": 430,
+      "grade": [0.03, 0],
+      "bank": { "slope": 28, "round": 250, "toe": 150, "reach": 700 },
+      "note": "boot hill's graves on a gentle face falling south toward the town (under 2 degrees, the way its boards look), its rows level across: the hill's top cut 0.7 m and its flanks filled at most 1.8 m, banked at 28 degrees so the fill reaches no more than 7 m out (west, toward the Dry Wash's head), kept west of the north road"
     }
   ],
   "roads": [
@@ -613,7 +636,7 @@
       "id": "northRoad",
       "kind": "dirt",
       "width": 400,
-      "path": [[550,1850],[2300,1700],[4200,500],[5400,-1400]],
+      "path": [[550,1850],[2300,1700],[4200,500],[5150,-1500]],
       "note": "from Main Street north past boot hill and the hanging tree to the chapel"
     },
     {
@@ -627,8 +650,15 @@
       "id": "westRoad",
       "kind": "dirt",
       "width": 400,
-      "path": [[5400,-1400],[5250,-2600],[4700,-5100],[3300,-8400],[1900,-11200],[1460,-12500],[1200,-13700]],
+      "path": [[5150,-1500],[5100,-2600],[4700,-5100],[3300,-8400],[1900,-11200],[1460,-12500],[1200,-13700]],
       "note": "from the chapel between the wash and Widow's Pines to the keeper's grave, the Keeper's Gate and the deck"
+    },
+    {
+      "id": "churchyardPath",
+      "kind": "path",
+      "width": 200,
+      "path": [[5550,-1900],[5700,-1900],[5700,-2150],[6050,-2280],[6350,-2420],[7350,-2420],[7560,-2150],[7560,-1650],[7350,-1250],[6450,-1180],[6050,-1300]],
+      "note": "the churchyard's walk (2026-10-12): in through the gate from the forecourt, past the tower's steps, up the lane west of the nave, behind the apse, down the east lane past the vestry door and back to the lawn; worn into the yard so the way round reads, and the path probe walks it (graves keep 1.3 m off its middle)"
     },
     {
       "id": "fieldsPath",
@@ -641,8 +671,8 @@
       "id": "quarryTrack",
       "kind": "dirt",
       "width": 350,
-      "path": [[4000,850],[6000,600],[8000,1000],[9000,1800],[9300,2000]],
-      "note": "up past the Spoil Bank to the Old Quarry"
+      "path": [[4000,850],[5500,1300],[6400,1550],[7200,1500],[8000,1150],[9000,1800],[9300,2000]],
+      "note": "up past the Spoil Bank to the Old Quarry; between the churchyard's bank and the Spoil Bank since the yard was levelled (2026-10-12: it ran 8 m off the iron fence, where the bank now stands)"
     },
     {
       "id": "railBed",
@@ -1023,9 +1053,9 @@
     { "id": "churchyardGravesEast1", "kind": "graves", "path": [[6200,-1050],[7500,-1050]], "height": 100 },
     { "id": "churchyardGravesEast2", "kind": "graves", "path": [[6200,-750],[7500,-750]], "height": 100 },
     { "id": "churchyardGravesEast3", "kind": "graves", "path": [[6200,-450],[7500,-450]], "height": 100 },
-    { "id": "bootHillGraves1", "kind": "graves", "path": [[2900,-700],[3000,600]], "height": 100 },
-    { "id": "bootHillGraves2", "kind": "graves", "path": [[3300,-700],[3400,600]], "height": 100 },
-    { "id": "bootHillGraves3", "kind": "graves", "path": [[3700,-700],[3800,600]], "height": 100 },
+    { "id": "bootHillGraves1", "kind": "graves", "path": [[2900,-750],[2980,350]], "height": 100, "note": "boot hill's rows end 2.5-3.5 m short of where they did in the east (2026-10-12): their ends stood on the hill's 30-degree flank above the north road, which took the last boards anyway; they stand on bootHillPad" },
+    { "id": "bootHillGraves2", "kind": "graves", "path": [[3300,-750],[3380,350]], "height": 100 },
+    { "id": "bootHillGraves3", "kind": "graves", "path": [[3700,-750],[3770,250]], "height": 100 },
     {
       "id": "gateTrough",
       "kind": "props",
@@ -1588,6 +1618,24 @@
         "steep": 50,
         "obstacles": false,
         "note": "the tour view NorthBoundary: the north edge by the quarry, clay, the cliff pieces as solid blocks where the build stands them, bare ground over 50 degrees red (eye 1.7 m, level)"
+      },
+      "churchyard_from_boot_hill": {
+        "eye": [3400, -300, 170],
+        "target": [6600, -1900, 500],
+        "lens": 24,
+        "sun": [247.5, 15],
+        "obstacles": true,
+        "note": "the tour view ChapelFromBootHill: the levelled churchyard on its knoll, its fence and graves as stand-ins (churchyardPad, 2026-10-12)"
+      },
+      "clay_churchyard_above": {
+        "eye": [1800, -1900, 3600],
+        "target": [6400, -1900, 0],
+        "lens": 24,
+        "clay": true,
+        "steep": 32,
+        "obstacles": true,
+        "light": [225, 40],
+        "note": "the chapel knoll, boot hill and the roads between from above the town, clay, ground over 32 degrees red: the yard flat inside the fence, its banks at 30 degrees, boot hill's graves on their gentle face"
       }
     },
     "labels": {
@@ -1738,6 +1786,27 @@
   "gameplay": {
     "about": "No director: the story's encounters (Docs/Areas/RansomsRest.md, \"Encounters stay on one level of ground\") are placed with their missions by build_area_story.py and its build_area_<place>.py scripts, and what happens between them is encounters below (build_area_camps.py). The story's first arrival (spawnLanding) is a player start of its own beside the level's start by Ellis's grave; the depot's station carries Landing_Depot (build_area_travel.py).",
     "spawnLanding": "Landing_FamilyPlot",
+    "levels": {
+      "about": "The creatures' levels (Docs/Progression.md, \"Creature levels\"; the user's call, 2026-10-12: never the player's, always where they stand), rising along the story: 1-2 near the start, 2-4 round the town and the fields, 4-6 for the Sink, the Webwood, the quarry and the west, the bosses above their ground. band: the lowest and highest own level here, before ranks (Restless and Gravebound +1, Soulfed +2, a boss +1); the station board shows it. zones: looked through in order, the first holding a spot gives the creatures there their levels, each rolled evenly from the first to the second; a zone is a layout zone, an obstacle, its own polygon, or a radius round a point (at). kinds: a boss or Legendary monster at a set level wherever it stands. A spawner group's or boss wave's own level, or a creature placed at a level other than its class's, is kept. Tools/Unreal/create_area_assets.py writes all of it into DA_Area_RansomsRest; Looter.Creatures.AreaLevels and Looter.Progression.Pacing read it here.",
+      "band": [1, 6],
+      "zones": [
+        { "id": "deck", "zone": "gravewindPoint", "levels": [5, 6], "note": "Main 6: Abel's adds rising through the boards" },
+        { "id": "bluff", "zone": "ransomsPoint", "levels": [1, 2], "note": "Main 2's spider nest, the story's first fight (the player about level 1)" },
+        { "id": "sink", "zone": "sink", "levels": [4, 5], "note": "Main 5: the floor's spiders and the egg sacs' (the player about 4-5)" },
+        { "id": "webwood", "obstacle": "webwood", "levels": [5, 6], "note": "the Webwood's drop: optional from Main 4, a level over the Sink" },
+        { "id": "quarry", "at": [8300, 1300], "radius": 1500, "levels": [5, 6], "note": "the quarry track's spiders: optional from Main 3, ground to come back to" },
+        { "id": "chapel", "zone": "chapel", "levels": [3, 4], "note": "Main 4's chapel yard, and the churchyard's dead rising after it" },
+        { "id": "bootHill", "zone": "bootHill", "levels": [3, 4], "note": "the roaming Unpaid after Main 4" },
+        { "id": "northRoad", "at": [4256, 1350], "radius": 2500, "levels": [3, 4], "note": "the roaming Unpaid after Main 4, round the hanging tree and the north road" },
+        { "id": "whitlock", "zone": "whitlock", "levels": [3, 4], "note": "Side 2's hired hands, and Mill Creek's slimes" },
+        { "id": "west", "polygon": [[1000, -4300], [5600, -4300], [5600, -13000], [1000, -13000]], "levels": [4, 5], "note": "the west road, the sheep fold and the keeper's grave: the roads to the deck, after Main 4" },
+        { "id": "valley", "polygon": [[-20000, -20000], [20000, -20000], [20000, 20000], [-20000, 20000]], "levels": [2, 3], "note": "everywhere else: the town gate (Main 3), the orchard's edge, the farm road and Main Street" }
+      ],
+      "kinds": [
+        { "class": "GravemotherCreature", "level": 4, "note": "Side 3, after Main 5: the Sink's floor, with her Soulfed rank's two on top level 6, over the Sink and a player there (about 5)" },
+        { "class": "AbelKeeper", "level": 6, "note": "Main 6's boss: the deck's top, with his Boss rank's one on top level 7, the area's hardest fight, a level over a player who's done the story (about 6)" }
+      ]
+    },
     "benches": [
       { "id": "Bench_Farm", "at": [-2620, -6930], "yaw": -90, "note": "the gunsmith's bench against the farm barn's south wall by its front corner, facing out (build_area_benches.py); Ozias takes over after the Lily" }
     ],
@@ -1795,7 +1864,8 @@
           "countedBefore": "Side1",
           "groups": [
             { "class": "UnpaidCreature", "count": 3, "rank": "Basic" },
-            { "class": "UnpaidCreature", "count": 1, "rank": "Rare" }
+            { "class": "UnpaidCreature", "count": 1, "rank": "Rare" },
+            { "class": "BellRingerCreature", "count": 1, "rank": "Basic" }
           ],
           "center": [-4400, -2000],
           "spots": [[-4100, -1800], [-4600, -1500], [-4800, -2150], [-4350, -2350], [-3950, -2150]],
@@ -1841,7 +1911,7 @@
           "after": ["Main3"],
           "budget": "optional",
           "countedBefore": "Side1",
-          "groups": [{ "class": "SpiderCreature", "count": 3, "rank": "Area" }],
+          "groups": [{ "class": "SpiderCreature", "count": 3, "rank": "Area" }, { "class": "SpitterSpider", "count": 1, "rank": "Area" }],
           "route": [[7700, 930], [8100, 1050], [8900, 1700]],
           "loop": false,
           "pause": 4.0,
@@ -1859,7 +1929,8 @@
           "countedBefore": "Main5",
           "groups": [
             { "class": "UnpaidCreature", "count": 3, "rank": "Basic" },
-            { "class": "UnpaidCreature", "count": 1, "rank": "Rare" }
+            { "class": "UnpaidCreature", "count": 1, "rank": "Rare" },
+            { "class": "BellRingerCreature", "count": 1, "rank": "Basic" }
           ],
           "trigger": { "obstacle": "churchyardFence", "maxRise": 1000 },
           "entrance": "Rise",
@@ -1875,7 +1946,8 @@
           "countedBefore": "Main5",
           "groups": [
             { "class": "SpiderCreature", "count": 3, "rank": "Basic" },
-            { "class": "SpiderCreature", "count": 1, "rank": "Rare" }
+            { "class": "SpiderCreature", "count": 1, "rank": "Rare" },
+            { "class": "SpitterSpider", "count": 1, "rank": "Basic" }
           ],
           "trigger": { "obstacle": "webwood", "maxRise": 400 },
           "entrance": "Drop",

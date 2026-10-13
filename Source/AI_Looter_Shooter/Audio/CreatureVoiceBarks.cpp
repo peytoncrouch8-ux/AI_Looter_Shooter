@@ -107,13 +107,18 @@ bool CreatureBarks::IsAngryRank(ECreatureRank Rank)
 	return Rank == ECreatureRank::Rare || Rank == ECreatureRank::Epic || Rank == ECreatureRank::Legendary;
 }
 
-int32 CreatureBarks::PickLine(ECreatureBark Situation, ECreatureRank Rank, FRandomStream& Random, TConstArrayView<int32> Recent)
+int32 CreatureBarks::PickLine(ECreatureBark Situation, ECreatureRank Rank, FRandomStream& Random, TConstArrayView<int32> Recent, FName Kind)
 {
 	if (!CanBarkRank(Rank))
 	{
 		return INDEX_NONE;
 	}
 	const TConstArrayView<FCreatureBarkLine> All = AllLines();
+	// A kind with lines of its own for the situation (the Bell-Ringer's) says those; everyone else, the common ones.
+	auto KindOf = [](const FCreatureBarkLine& Line) { return Line.Kind ? FName(Line.Kind) : FName(); };
+	const bool bOwnLines = !Kind.IsNone()
+		&& All.ContainsByPredicate([&](const FCreatureBarkLine& Line) { return Line.Situation == Situation && KindOf(Line) == Kind; });
+	const FName Speaking = bOwnLines ? Kind : FName();
 	// A Basic soul only grumbles; one fed on the dark is angry most of the time.
 	const bool bWantAngry = IsAngryRank(Rank) && Random.FRand() < AngryShare;
 	auto Gather = [&](bool bAngry, bool bSkipRecent)
@@ -121,7 +126,8 @@ int32 CreatureBarks::PickLine(ECreatureBark Situation, ECreatureRank Rank, FRand
 		TArray<int32, TInlineAllocator<16>> Found;
 		for (int32 Index = 0; Index < All.Num(); ++Index)
 		{
-			if (All[Index].Situation == Situation && All[Index].bAngry == bAngry && !(bSkipRecent && Recent.Contains(Index)))
+			if (All[Index].Situation == Situation && All[Index].bAngry == bAngry && KindOf(All[Index]) == Speaking
+				&& !(bSkipRecent && Recent.Contains(Index)))
 			{
 				Found.Add(Index);
 			}

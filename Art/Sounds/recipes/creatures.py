@@ -674,3 +674,153 @@ def spider_drop(v, r):
     x = layers((zip_, 0.0, -6.0), (thread, 0.0, -11.0), (fall, 0.0, -14.0), (feet, t, -3.0), (thump, t, 0.0),
                (knock, t + 0.002, -6.0), (dust, t, -14.0), (after, t + 0.1, -10.0), (ch, t + 0.12, -15.0))
     return _outside(F.filt(x, F.peak(3300.0, -3.0, 0.8), extend=False), r, -22.0)
+
+
+# --- The Venom Spitter ----------------------------------------------------------------------------------------------
+# A brown spider's cousin with a swollen sac of venom on its back (ASpitterSpider): its voice is the spider's hiss and
+# rasp, wetter, with the sac sloshing; its venom is a thick, bubbling liquid that splats, spreads and sizzles where it
+# lands. The tell is the cue the player learns to move on, so it rises clearly to its end (the glob flies there).
+
+@cue('Creature.Spitter.Tell', variations=3, att='Creature', jitter=0.05, conc=3, level=-8.0, swell=True)
+def spitter_tell(v, r):
+    # Venom welling up through the sac as it rears (0.9 s, the tell's length): a thick glug quickening and climbing,
+    # bubbles coming faster, its rasp working under it, and a hiss rising to its fangs right at the end.
+    dur = 0.9
+    n = ns(dur)
+    glug = N.pink(n, child(r, 'glug')) * kit.turbulence(n, child(r, 'gt'), 70.0, 0.85)
+    fc = O.expsweep(300.0 * jitter(r, 1, 0.08), 720.0, dur, 1.0, n=n)
+    glug = F.sweep(glug, 'bp', fc, 3.5) + 0.4 * F.sweep(glug, 'bp', fc * 2.3, 4.0)
+    pulse = 0.5 - 0.5 * np.cos(2.0 * np.pi * O.phase(O.expsweep(6.0, 15.0, dur, 1.0, n=n), n))
+    glug = normalize(glug) * (0.25 + 0.75 * pulse ** 1.5)
+    bub = _bubbles(dur, child(r, 'bub'), lambda u: 10.0 + 70.0 * (u / dur) ** 1.4, 220.0, 900.0)
+    rs = rasp(0.6, child(r, 'rasp'), 70.0 * jitter(r, 1, 0.1), 130.0, (1100.0, 2300.0, 3800.0), 3.0)
+    rs = rs[:ns(0.6)]
+    rs = normalize(rs) * E.swell(0.6, 0.5, 0.2)[:rs.size]
+    m = ns(0.35)
+    hs = V.hiss(m, child(r, 'hiss'), (2200.0, 3600.0, 6200.0)) * E.swell(0.35, 0.3, 0.08)
+    x = layers((glug, 0.0, 0.0), (bub, 0.0, -4.0), (rs, 0.2, -12.0), (normalize(hs), dur - 0.3, -8.0))
+    # It grows toward the spit.
+    x = x * np.linspace(0.55, 1.0, x.size)
+    x = F.filt(x, F.peak(3300.0, -3.0, 0.8), F.hp(80.0), extend=False)
+    return _outside(x, r, -22.0)
+
+
+@cue('Creature.Spitter.Spit', variations=3, att='Creature', jitter=0.05, conc=3, level=-7.0)
+def spitter_spit(v, r):
+    # The glob hawked out of its fangs: a wet burst and a slap of air, the liquid's formant rising as it leaves, a hiss of
+    # venom trailing it, the glob whooshing up and away, droplets pattering off its jaws, a quick click of its mandibles.
+    burst = layers(_wet_slap(0.05, child(r, 'slap'), 400.0, 3800.0, 0.025, 0.0005),
+                   (kit.noise_thump(0.08, child(r, 'push'), 1600.0, 220.0, 0.04, 1.0, 0.025), 0.0, -5.0))
+    hawk = kit.squelch(0.12, child(r, 'hawk'), 900.0 * jitter(r, 1, 0.1), 1900.0, 3.0)
+    m = ns(0.35)
+    hiss = V.hiss(m, child(r, 'hiss'), (2200.0, 3500.0, 6400.0), levels=(0.7, 0.6, 1.0)) * E.perc(0.35, 0.004, 0.25)
+    hiss = F.sweep(hiss, 'lp', O.expsweep(9000.0, 2800.0, 0.35, n=m), 0.7)
+    fly = kit.whoosh(0.28, child(r, 'fly'), 1800.0, 600.0, 1.0, 0.2, -3.0, 0.8)
+    drops = np.zeros(1)
+    dr = child(r, 'drops')
+    for tt in N.times_poisson(0.3, dr, lambda u: 45.0 * np.exp(-u / 0.1), 0.01):
+        drops = layers(drops, (kit.bubble(dr.uniform(1300.0, 3400.0), dr, 0.12), tt, dr.uniform(-10.0, 0.0) - 30.0 * tt))
+    ch = chitter(0.12, child(r, 'chitter'), 45.0, 30.0)
+    x = layers((burst, 0.0, 0.0), (hawk, 0.002, -4.0), (normalize(hiss), 0.0, -6.0), (fly, 0.01, -12.0),
+               (normalize(drops), 0.0, -15.0), (ch, 0.03, -16.0))
+    x = F.filt(x, F.peak(3300.0, -4.0, 0.8), F.highshelf(8000.0, -3.0), extend=False)
+    return _outside(x, r, -21.0)
+
+
+@cue('Creature.Spitter.Splat', variations=4, att='Creature', jitter=0.06, conc=4, level=-9.0)
+def spitter_splat(v, r):
+    # A glob bursting on the ground (or on someone): a thick, low wet slap with a dull thud of its weight, the venom
+    # squishing as it spreads, a slosh as it settles into a pool, a short hiss of acid, a few drops falling back into it.
+    slap = _wet_slap(0.09, child(r, 'slap'), 180.0, 2600.0, 0.05, 0.0006)
+    thud = kit.noise_thump(0.12, child(r, 'thud'), 900.0, 120.0, 0.05, 1.0, 0.04)
+    squish = _squish(0.18, child(r, 'squish'), lambda t: 500.0 * np.exp(-t / 0.06) + 40.0, 500.0, 1800.0)
+    slosh = _slosh(0.45, child(r, 'slosh'), 700.0 * jitter(r, 1, 0.1), 260.0, 9.0, 3.0)
+    m = ns(0.4)
+    acid = F.filt(N.white(m, child(r, 'acid')), F.hp(4500.0, 0.7), F.lp(10000.0, 0.7), extend=False)
+    acid = normalize(acid * kit.turbulence(m, child(r, 'at'), 150.0, 0.7)) * E.perc(0.4, 0.01, 0.3)
+    drops = np.zeros(1)
+    dr = child(r, 'drops')
+    for tt in N.times_poisson(0.35, dr, lambda u: 30.0 * np.exp(-u / 0.15), 0.04):
+        drops = layers(drops, (kit.bubble(dr.uniform(700.0, 2000.0), dr, 0.12), tt, dr.uniform(-10.0, 0.0) - 25.0 * tt))
+    x = layers((slap, 0.0, 0.0), (thud, 0.0, -4.0), (squish, 0.005, -8.0), (slosh, 0.02, -9.0), (acid, 0.03, -16.0),
+               (normalize(drops), 0.0, -15.0))
+    x = F.filt(x, F.peak(3300.0, -4.0, 0.8), F.highshelf(9000.0, -3.0), extend=False)
+    return _outside(x, r, -22.0)
+
+
+@cue('Creature.Spitter.Sizzle', variations=3, att='Creature', jitter=0.05, conc=3, level=-14.0)
+def spitter_sizzle(v, r):
+    # A puddle as it lands (about 2 s): venom eating at the ground, a fine fizzing crackle thinning out, an airy hiss over
+    # it, a low simmer under it, and bubbles popping slower and slower as it settles. Kept off the ear's sharpest band.
+    dur = 2.2
+    n = ns(dur)
+    t = times(n)
+    env = (1.0 - np.exp(-t / 0.01)) * np.exp(-t / 0.7)
+    sizzle = G.grit(dur, child(r, 'sizzle'), 4500.0 * np.exp(-t / 0.5) + 250.0, 4000.0, 10000.0, 2.0, 4)
+    sizzle = normalize(sizzle) * env
+    hiss = F.filt(N.white(n, child(r, 'hiss')), F.hp(5000.0, 0.7), F.lp(11000.0, 0.7), extend=False)
+    hiss = normalize(hiss * kit.turbulence(n, child(r, 'ht'), 120.0, 0.7)) * (1.0 - np.exp(-t / 0.01)) * np.exp(-t / 0.35)
+    simmer = N.band(n, child(r, 'simmer'), 250.0, 900.0) * kit.turbulence(n, child(r, 'st'), 40.0, 0.8)
+    simmer = normalize(simmer) * env
+    pops = _bubbles(dur * 0.8, child(r, 'pops'), lambda u: 30.0 * np.exp(-u / 0.5) + 3.0, 600.0, 2200.0, decay=1.2)
+    x = layers((sizzle, 0.0, 0.0), (hiss, 0.0, -6.0), (simmer, 0.0, -12.0), (pops, 0.02, -8.0))
+    x = F.filt(x, F.peak(3300.0, -6.0, 0.7), F.highshelf(11000.0, -6.0), extend=False)
+    return _outside(x, r, -26.0)
+
+
+@cue('Creature.Spitter.Burn', variations=4, att='Creature', jitter=0.06, conc=2, level=-14.0)
+def spitter_burn(v, r):
+    # Venom burning the player standing in it (every half second): a short, sharp sizzle under the feet, a hiss and a
+    # bubble's pop. Short and soft-edged in the 2-5 kHz band, since it repeats.
+    dur = 0.3
+    n = ns(dur)
+    t = times(n)
+    sizzle = G.grit(dur, child(r, 'sizzle'), 6000.0 * np.exp(-t / 0.1) + 500.0, 4000.0, 9500.0, 2.0, 4)
+    sizzle = normalize(sizzle) * E.perc(dur, 0.002, 0.22)
+    hiss = F.filt(N.white(n, child(r, 'hiss')), F.hp(5500.0, 0.7), F.lp(11000.0, 0.7), extend=False)
+    hiss = normalize(hiss * kit.turbulence(n, child(r, 'ht'), 120.0, 0.7)) * E.perc(dur, 0.003, 0.18)
+    pop = kit.bubble(r.uniform(700.0, 1400.0), child(r, 'pop'), 0.12)
+    x = layers((sizzle, 0.0, 0.0), (hiss, 0.0, -5.0), (pop, 0.01, -10.0))
+    x = F.filt(x, F.peak(3300.0, -6.0, 0.7), F.highshelf(12000.0, -6.0), extend=False)
+    return _outside(x, r, -24.0)
+
+
+@cue('Creature.Spitter.Hurt', variations=4, att='Creature', jitter=0.06, conc=3, level=-8.0)
+def spitter_hurt(v, r):
+    # A spider's pain (a hiss from its spiracles, a burst of rasping, frantic clicks), with the sac on its back sloshing
+    # and a gulp of venom gurgling in it.
+    n = ns(0.3)
+    hs = V.hiss(n, child(r, 'hiss'), (2000.0, 3400.0, 6200.0), levels=(0.7, 0.5, 1.0)) * E.perc(0.3, 0.004, 0.2)
+    rs = rasp(0.24, child(r, 'rasp'), 150.0 * jitter(r, 1, 0.1), 100.0, (1000.0, 2100.0, 3900.0), 3.0)
+    rs = rs * E.perc(0.24, 0.005, 0.22)
+    ch = chitter(0.25, child(r, 'chitter'), 45.0, 28.0)
+    slosh = _slosh(0.3, child(r, 'slosh'), 600.0 * jitter(r, 1, 0.1), 300.0, 10.0, 5.0)
+    bloop = _bloop(260.0 * jitter(r, 1, 0.1), 520.0, 0.14, child(r, 'bloop'))
+    x = layers((normalize(rs), 0.0, 0.0), (normalize(hs), 0.0, -6.0), (ch, 0.02, -6.0), (slosh, 0.0, -9.0), (bloop, 0.03, -12.0))
+    return _outside(F.filt(x, F.peak(3300.0, -4.0, 0.8), extend=False), r, -21.0)
+
+
+@cue('Creature.Spitter.Death', variations=3, att='Creature', jitter=0.05, conc=3, level=-7.0)
+def spitter_death(v, r):
+    # It gives out and its sac bursts: a hiss as the air goes out of it, the rasp winding down and the clicking slowing,
+    # a thick wet pop and its weight's thud as the sac gives, venom sloshing out and gurgling away, the shell settling,
+    # the legs curling in with a few taps, a last hiss.
+    n = ns(0.9)
+    hs = V.hiss(n, child(r, 'hiss'), (2000.0, 3500.0, 6000.0)) * E.perc(0.9, 0.006, 0.7)
+    hs = F.sweep(hs, 'lp', O.expsweep(8000.0, 1600.0, 0.9, n=n), 0.8)
+    rs = rasp(0.9, child(r, 'rasp'), 130.0 * jitter(r, 1, 0.1), 18.0, (900.0, 1900.0, 3600.0), 3.0)
+    rs *= np.linspace(1.0, 0.4, rs.size)
+    ch = chitter(1.0, child(r, 'chitter'), 28.0, 4.0, shape=0.6)
+    ch *= np.linspace(1.0, 0.3, ch.size)
+    pop = layers(_wet_slap(0.1, child(r, 'pop'), 200.0, 3000.0, 0.06, 0.0006),
+                 (kit.noise_thump(0.14, child(r, 'pt'), 900.0, 110.0, 0.06, 1.0, 0.04), 0.0, -3.0))
+    slosh = _slosh(0.7, child(r, 'slosh'), 650.0 * jitter(r, 1, 0.1), 220.0, 8.0, 2.5)
+    gurgle = _bubbles(0.9, child(r, 'gurgle'), lambda u: 40.0 * np.exp(-u / 0.3) + 4.0, 200.0, 800.0)
+    settle = kit.grit_burst(0.25, child(r, 'settle'), 900.0, 700.0, 4000.0, 0.18, 0.01)
+    curl = _skitter(child(r, 'curl'), 5, 0.0, 0.11)
+    m = ns(0.6)
+    last = V.hiss(m, child(r, 'last'), (2000.0, 3500.0, 5500.0)) * E.swell(0.6, 0.1, 0.5)
+    last = F.sweep(last, 'lp', O.expsweep(7000.0, 1500.0, 0.6, n=m), 0.8)
+    x = layers((normalize(rs), 0.0, 0.0), (normalize(hs), 0.0, -5.0), (ch, 0.0, -7.0), (pop, 0.06, -1.0), (slosh, 0.1, -7.0),
+               (gurgle, 0.15, -10.0), (settle, 0.45, -14.0), (curl, 0.55, -10.0), (normalize(last), 1.0, -12.0))
+    return _outside(F.filt(x, F.peak(3300.0, -3.0, 0.8), extend=False), r)

@@ -1,4 +1,5 @@
 #include "UI/Inventory/MapPins.h"
+#include "Economy/Vendor.h"
 #include "Loot/Chest.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRunner.h"
@@ -61,6 +62,28 @@ namespace MapPins
 			Pin.Name = LOCTEXT("Bench", "Gunsmith's bench");
 			Pin.Detail = LOCTEXT("BenchDetail", "Swap and scrap gun parts");
 			Pin.Id = It->GetFName();
+		}
+
+		// The stores that trade now: a vendor waiting on the story (OpenWhen, read from the same record as the graves') isn't
+		// there to use yet, so it stays off the map; one with no gate is always there.
+		for (TActorIterator<AVendor> It(World); It; ++It)
+		{
+			const AVendor* Vendor = *It;
+			if (!IsValid(Vendor) || Vendor->IsActorBeingDestroyed())
+			{
+				continue;
+			}
+			const bool bOpen = Vendor->OpenWhen.IsEmpty() || (Sources.Campaign && Vendor->OpenWhen.IsMet(*Sources.Campaign, Sources.Runner));
+			if (!bOpen)
+			{
+				continue;
+			}
+			FMapPin& Pin = Pins.AddDefaulted_GetRef();
+			Pin.Kind = EMapPinKind::Vendor;
+			Pin.Location = Vendor->GetActorLocation();
+			Pin.Name = Vendor->Title.IsEmpty() ? LOCTEXT("Store", "Store") : Vendor->Title;
+			Pin.Detail = LOCTEXT("StoreDetail", "Buy ammo and salt, sell your guns");
+			Pin.Id = Vendor->GetFName();
 		}
 
 		// Where trips leave from: a station's board (the train), and Skyreach's jetty (the skiff).
@@ -152,7 +175,8 @@ namespace MapPins
 		case EMapPinKind::ChestLooted: return LOCTEXT("KindLooted", "Looted chest");
 		case EMapPinKind::Chest:       return LOCTEXT("KindChest", "Chest");
 		case EMapPinKind::Bench:       return LOCTEXT("KindBench", "Gunsmith's bench");
-		case EMapPinKind::Station:     return LOCTEXT("KindStation", "Station");
+		case EMapPinKind::Vendor:      return LOCTEXT("KindVendor", "Store");
+		case EMapPinKind::Station:    return LOCTEXT("KindStation", "Station");
 		case EMapPinKind::Grave:       return LOCTEXT("KindGrave", "Respawn grave");
 		case EMapPinKind::TurnIn:      return LOCTEXT("KindTurnIn", "Turn in");
 		case EMapPinKind::Objective:   return LOCTEXT("KindObjective", "Objective");

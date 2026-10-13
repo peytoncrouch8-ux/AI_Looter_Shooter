@@ -19,7 +19,8 @@ namespace
 
 bool ACreatureBase::NeedsFullRate(ECreatureState CreatureState, bool bHasTarget, bool bRecentlyHurt)
 {
-	return CreatureState == ECreatureState::Chase || CreatureState == ECreatureState::Attack || bHasTarget || bRecentlyHurt;
+	return CreatureState == ECreatureState::Chase || CreatureState == ECreatureState::Attack || CreatureState == ECreatureState::Search
+		|| bHasTarget || bRecentlyHurt;
 }
 
 void ACreatureBase::TickUpdateRate(float DeltaSeconds)

@@ -241,6 +241,12 @@ void USessionSubsystem::BeginPlayWorld(UWorld* World, const FString& Options)
 			// A new game in this slot. Nothing is written until it is first saved.
 			Current = NewSave();
 		}
+		else if (!bFromTrip)
+		{
+			// Loaded from its slot (Continue), not a trip's arrival: a vigil stone's boss beaten before this is ready again
+			// (BossShrineRules: the user's "or the boss respawns after a save and quit").
+			++Current->SessionLoads;
+		}
 		AutosaveTicker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &USessionSubsystem::HandleAutosave), AutosaveInterval);
 		UE_LOG(LogLooter, Log, TEXT("Playing session %d (%s)"), ActiveIndex + 1, bLoaded ? TEXT("saved") : TEXT("new game"));
 	}

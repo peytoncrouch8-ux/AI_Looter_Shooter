@@ -168,7 +168,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKillXPTest, "Looter.Progression.KillXP",
 bool FKillXPTest::RunTest(const FString& Parameters)
 {
 	// Level 1 creatures are worth 10 (their XPReward); a kill gives its share of that (the progression settings' kill scale:
-	// 0.4 as shipped, so 4, tuned with the turn-ins for Ransom's Rest's story to end about level 6-7, Docs/Progression.md).
+	// 0.37 as shipped, so 4 rounded, tuned with the turn-ins for Ransom's Rest's story to end about level 6-7,
+	// Docs/Progression.md).
 	// Target dummies are for practice and give none.
 	const ASpiderCreature* Spider = GetDefault<ASpiderCreature>();
 	const FLevelRules GameRules = UPlayerProgressionSubsystem::GetLevelRules();
@@ -205,14 +206,14 @@ bool FKillXPTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Nothing from nothing"), Rules.KillXP(0, 30, 1), int64(0));
 
 	// Kills per level at the player's level grow slowly, since the curve grows 12% a level and the kill 8%: twice level 1's
-	// count at level 20, six times it at 50 (at the full XPReward 10, 20 and 60; at the shipped scale 25, 50 and 150).
+	// count at level 20, six times it at 50 (at the full XPReward 10, 20 and 60; at the shipped scale about 27, 54 and 162).
 	const FXPCurve Curve;
 	const FLevelRules Shipped;
 	auto KillsFor = [&Curve, &Shipped](int32 Level)
 	{
 		return static_cast<double>(Curve.XPToNextLevel(Level)) / (10.0 * Shipped.KillXPScale * FMath::Pow(Shipped.KillXPGrowth, Level - 1.0));
 	};
-	TestTrue(FString::Printf(TEXT("Level 1 takes about 25 kills (%.1f)"), KillsFor(1)), FMath::Abs(KillsFor(1) - 25.0) <= 2.5);
+	TestTrue(FString::Printf(TEXT("Level 1 takes about 27 kills (%.1f)"), KillsFor(1)), FMath::Abs(KillsFor(1) - 27.0) <= 2.5);
 	for (const TPair<int32, double>& Expected : { TPair<int32, double>(20, 2.0), TPair<int32, double>(50, 6.0) })
 	{
 		const double Times = KillsFor(Expected.Key) / KillsFor(1);

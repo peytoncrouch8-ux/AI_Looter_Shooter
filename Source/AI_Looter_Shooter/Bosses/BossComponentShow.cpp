@@ -7,6 +7,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Loot/LootDropComponent.h"
+#include "Loot/LootTable.h"
 #include "UI/HUD/HudBossBarWidget.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
@@ -232,7 +233,20 @@ void UBossComponent::ThrowLoot()
 	}
 	const float Half = Creature->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 	const FVector Middle = LootShower.bFromSpot ? Creature->GetHome().GetLocation() : Creature->GetActorLocation();
+	// A called-back fight (a vigil stone's) carries a little less luck: the shower rolls as it's thrown, so its loot drop
+	// component's luck is lowered for that roll alone, never below its table's own odds.
+	ULootDropComponent* Loot = bRematch ? Creature->FindComponentByClass<ULootDropComponent>() : nullptr;
+	const float LuckBefore = Loot ? Loot->ExtraLuck : 0.f;
+	if (Loot)
+	{
+		const float TableLuck = Loot->LootTable ? Loot->LootTable->Luck : 0.f;
+		Loot->ExtraLuck = LuckBefore - FMath::Clamp(RematchLuckDrop, 0.f, FMath::Max(TableLuck + LuckBefore, 0.f));
+	}
 	ABossLootShower::Throw(*Creature, Middle - FVector(0.0, 0.0, Half), LootShower);
+	if (Loot)
+	{
+		Loot->ExtraLuck = LuckBefore;
+	}
 }
 
 // ---------------------------------------------------------------------------

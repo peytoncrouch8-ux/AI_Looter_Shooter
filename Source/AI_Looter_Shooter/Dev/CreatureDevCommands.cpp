@@ -12,6 +12,8 @@
 #include "Creatures/SlimeCreature.h"
 #include "Creatures/SpiderCreature.h"
 #include "Creatures/UnpaidCreature.h"
+#include "Creatures/BellRingerCreature.h"
+#include "Creatures/SpitterSpider.h"
 #include "World/WorldQueries.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/Engine.h"
@@ -93,7 +95,7 @@ namespace
 		bool bSpiderling = false;
 	};
 
-	/** The creature kind a command names ("Spider", "slime", "Unpaid", "Gravemother", "Spiderling"), or none. */
+	/** The creature kind a command names ("Spider", "slime", "Unpaid", "Gravemother", "Spiderling", "Spitter", "BellRinger"), or none. */
 	FCreatureKind FindCreatureKind(const FString& Kind)
 	{
 		FCreatureKind Found;
@@ -117,6 +119,14 @@ namespace
 		else if (Kind.Equals(TEXT("Unpaid"), ESearchCase::IgnoreCase))
 		{
 			Found.Class = AUnpaidCreature::StaticClass();
+		}
+		else if (Kind.Equals(TEXT("Spitter"), ESearchCase::IgnoreCase))
+		{
+			Found.Class = ASpitterSpider::StaticClass();
+		}
+		else if (Kind.Equals(TEXT("BellRinger"), ESearchCase::IgnoreCase))
+		{
+			Found.Class = ABellRingerCreature::StaticClass();
 		}
 		return Found;
 	}

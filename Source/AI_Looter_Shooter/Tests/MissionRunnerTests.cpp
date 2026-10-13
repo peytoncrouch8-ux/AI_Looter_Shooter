@@ -446,6 +446,21 @@ bool FMissionRewardsTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("A named gun"), Lines[2], FString(TEXT("Named gun: Heirloom")));
 		TestEqual(TEXT("An area, by its id when it has no asset"), Lines[3], FString(TEXT("Opens SomewhereNew")));
 	}
+
+	// The giver's purse reads on the page too, by the mission's id (it isn't in the rewards): "+40 silver" right after the
+	// experience. No id, or a mission that pays none, and there's no line; a purse alone is still a line.
+	FMissionRewards Fixed;
+	Fixed.Experience = 40;
+	const TArray<FString> Paid = MissionRewards::Describe(Fixed, TEXT("Main3"));
+	if (TestEqual(TEXT("Experience and the purse"), Paid.Num(), 2))
+	{
+		TestEqual(TEXT("The experience first"), Paid[0], FString(TEXT("+40 XP")));
+		TestEqual(TEXT("...then the purse"), Paid[1], FString(TEXT("+40 silver")));
+	}
+	TestEqual(TEXT("Without a mission id, no purse"), MissionRewards::Describe(Fixed).Num(), 1);
+	TestEqual(TEXT("A mission that pays none: no line"), MissionRewards::Describe(Fixed, TEXT("Main2")).Num(), 1);
+	const TArray<FString> PurseOnly = MissionRewards::Describe(FMissionRewards(), TEXT("Main5"));
+	TestTrue(TEXT("A purse alone is a line"), PurseOnly.Num() == 1 && PurseOnly[0] == TEXT("+50 silver"));
 	return true;
 }
 

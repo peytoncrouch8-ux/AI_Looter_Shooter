@@ -10,7 +10,8 @@
 using namespace LooterStancePoseDetail;
 
 // The stance pose's body: lean, aim, crouch and slide. The weapon's part (a short gun held out, recoil, a melee strike's
-// jab, the left hand on the foregrip) is in LooterStancePoseWeapon.cpp, the mantle's and vault's in LooterStancePoseClimb.cpp.
+// jab, the left hand on the foregrip) is in LooterStancePoseWeapon.cpp, the mantle's and vault's in LooterStancePoseClimb.cpp,
+// a grenade throw's in LooterStancePoseThrow.cpp and a revolver's reload in LooterStancePoseReload.cpp.
 
 bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Stance)
 {
@@ -144,6 +145,22 @@ bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Sta
 		ApplyMeleeJab(Pose, Bones, Stance, Forward, Right);
 	}
 
+	// A grenade throw winds the chest up and turns it into the toss, and dips the gun hand out of the way; the left arm
+	// throws after the foregrip, below, so it lets go of the gun where the dip took it.
+	const FLooterThrowStance Throw = LooterStancePose::DescribeThrow(Stance.ThrowTime);
+	if (Throw.IsActive())
+	{
+		ApplyThrowBody(Pose, Bones, Stance, Throw, Forward, Right);
+	}
+
+	// A revolver's reload brings the gun in (and flicks it shut) before the left hand goes to work on it.
+	const bool bCylinderReload = Stance.bHandOnForegrip && Stance.CylinderReload >= 0.f && Stance.ReloadWeight > UE_KINDA_SMALL_NUMBER;
+	const FLooterCylinderReload Cylinder = bCylinderReload ? LooterStancePose::DescribeCylinderReload(Stance.CylinderReload) : FLooterCylinderReload();
+	if (bCylinderReload)
+	{
+		ApplyCylinderReloadGun(Pose, Bones, Stance, Cylinder, Forward, Right);
+	}
+
 	if (Stance.bHandOnForegrip)
 	{
 		// The kick moves the right hand (and the gun in it) first; the left hand then finds the foregrip where it went.
@@ -152,6 +169,16 @@ bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Sta
 			ApplyRecoil(Pose, Bones, Stance, Right);
 		}
 		ApplyLeftHandOnForegrip(Pose, Bones, Stance, Right);
+	}
+
+	// The left hand's own work, off the foregrip: the revolver's cylinder, then the throw (which cuts any reload short).
+	if (bCylinderReload)
+	{
+		ApplyCylinderReloadHand(Pose, Bones, Stance, Cylinder, Forward, Right);
+	}
+	if (Throw.Arm > UE_KINDA_SMALL_NUMBER)
+	{
+		ApplyThrowArm(Pose, Bones, Stance, Throw, Forward, Right);
 	}
 
 	// The hands last: they blend away from the foregrip toward the obstacle.

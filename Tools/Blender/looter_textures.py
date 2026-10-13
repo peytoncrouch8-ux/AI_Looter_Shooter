@@ -2,10 +2,14 @@
 
 1. THE TEXTURE GENERATOR (numpy; runs in Blender's Python, or any Python with numpy). It writes every set into
    Art/Textures/<Set>/:
-       T_<Set>_BC.png    base color, sRGB (the leaf atlases carry their mask in alpha)
+       T_<Set>_BC.png    base color, sRGB (the leaf atlases carry their mask in alpha; M_Terrain's ground layers carry
+                         data in it: GroundThatch its height, GroundStony a leaf-litter layer)
        T_<Set>_N.png     normal map, DirectX convention (green down), as Unreal expects
        T_<Set>_ORM.png   linear: R ambient occlusion, G roughness, B metallic
-       T_MacroNoise_M.png  (the one exception: a linear grayscale mask, soft large-scale variation)
+       T_MacroNoise_M.png  (the exceptions: linear masks; MacroNoise is grayscale, soft large-scale variation, and
+       T_GroundNoise_M.png  GroundNoise four unrelated noises in RGBA for M_Terrain's ground layers)
+   The ground layers also write T_<Set>_stats.json: their mean linear color and luma, which build_world_materials.py
+   reads, so M_Terrain keeps the macro map's brightness however the textures change.
    Every set is seamless (tiles in U and V) except WoodEndGrain (one log end, for cap_uv) and the leaf atlases (four
    sprites). Tileables are 1024 px, the house trim sheet and the leaf atlases 2048, the foliage palette and the end
    grain 512. Generation is reproducible (fixed seeds, numpy only: no mathutils.noise, which is seeded by the clock).
@@ -171,6 +175,10 @@ SETS = {
     'FoliagePalette': dict(size=512, density=0, color=0x6c8a3c, roughness=0.7, master='WorldFoliage'),
     'MacroNoise':     dict(size=1024, density=0, color=0x808080, roughness=1.0, mask=True),
     'WoodEndGrain':   dict(size=512, density=0, color=0xa4876a, roughness=0.8),
+    # M_Terrain's ground layers (Tools/Unreal/build_world_materials.py sets them on the master, not per instance).
+    'GroundThatch':   dict(size=1024, density=320, color=0x8f7f5c, roughness=0.92),
+    'GroundStony':    dict(size=1024, density=366, color=0x84705a, roughness=0.9),
+    'GroundNoise':    dict(size=512, density=0, color=0x808080, roughness=1.0, mask=True),
 }
 
 # The house trim sheet (T_HouseTrim, 2048 px): V ranges from the bottom of the texture, and the strip height in the
@@ -228,7 +236,7 @@ def _hex_int(value):
 
 
 def texture_path(set_name, kind):
-    """The PNG of a set: kind is 'BC', 'N' or 'ORM' ('M' for MacroNoise)."""
+    """The PNG of a set: kind is 'BC', 'N' or 'ORM' ('M' for the masks, MacroNoise and GroundNoise)."""
     return os.path.join(TEXTURE_DIR, set_name, f'T_{set_name}_{kind}.png')
 
 
@@ -1421,12 +1429,19 @@ def fill_transparent(color, alpha, threshold=0.5):
 
 
 def save_set(name, color, height, px_m, rough, metal=None, normal_strength=1.0, ao=None, alpha=None, normal=None,
-             look=True):
+             look=True, data_alpha=None):
     """Writes T_<name>_BC, _N and _ORM into Art/Textures/<name>/. ao is the occlusion (default: none); normal (uint8
-    RGB) replaces the one made from height. look also writes a scratch quick-look."""
+    RGB) replaces the one made from height. alpha is a cut-out's mask (the color under it is spread into the holes);
+    data_alpha is data a master reads from the color map's alpha (a height, a second layer), written as it is.
+    look also writes a scratch quick-look."""
     folder = os.path.join(TEXTURE_DIR, name)
     color = np.clip(color, 0.0, 1.0)
-    if alpha is not None:
+    if data_alpha is not None:
+        # Never exactly 0: Unreal's PNG import fills the color under zero alpha (its infill), which would wipe the color
+        # wherever the data is 0.
+        data = np.maximum(to8(data_alpha), 1).astype(np.uint8)
+        write_png(os.path.join(folder, f'T_{name}_BC.png'), np.concatenate([to8(color), data[..., None]], axis=-1))
+    elif alpha is not None:
         color = fill_transparent(color, alpha)
         write_png(os.path.join(folder, f'T_{name}_BC.png'), np.concatenate([to8(color), to8(alpha)[..., None]], axis=-1))
     else:
@@ -2248,6 +2263,292 @@ def make_ground_dirt():
     kind = canvas.get('kind')
     rough = np.where(kind == 1.0, 0.8, 0.95) - 0.05 * damp
     save_set('GroundDirt', color, height, px_m, rough, ao=ao, normal_strength=0.9)
+
+
+# --- M_Terrain's ground layers ---
+# M_Terrain (Tools/Unreal/build_world_materials.py) keeps the macro map's color and takes each layer's light and dark
+# (and a little of its color), normalized by the layer's own mean, so these change the pattern on the ground, never its
+# color from afar. They tile on the terrain's UV 1 (meters) at M_Terrain's ThatchScale and StonyScale.
+THATCH_TILE_M = 3.2     # meters a repeat (ThatchScale 1 / 3.2)
+STONY_TILE_M = 2.8      # (StonyScale 1 / 2.8; a different repeat, so the two never line up)
+GROUND_NOISE_M = 51.2   # GroundNoise's repeat (GroundNoiseTile)
+
+
+def _srgb_to_linear(c):
+    c = np.asarray(c, np.float32)
+    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+
+
+def _write_stats(name, color):
+    """T_<name>_stats.json: the mean linear color and luma Unreal samples from the color map (its 8-bit sRGB values,
+    decoded), which M_Terrain divides by, so a layer averages out to the macro map's own brightness."""
+    import json
+    lin = _srgb_to_linear(to8(np.clip(color, 0.0, 1.0)).astype(np.float32) / 255.0).reshape(-1, 3)
+    mean = lin.mean(axis=0)
+    luma = float((lin @ np.array([0.299, 0.587, 0.114], np.float32)).mean())
+    stats = {'about': 'Mean linear RGB and luma (0.299, 0.587, 0.114) of the color map; M_Terrain normalizes by them '
+                      '(Tools/Unreal/build_world_materials.py reads this file).',
+             'meanLinear': [round(float(v), 5) for v in mean], 'meanLuma': round(luma, 5)}
+    with open(os.path.join(TEXTURE_DIR, name, f'T_{name}_stats.json'), 'w', newline='\n') as f:
+        json.dump(stats, f, indent=1)
+        f.write('\n')
+    _log(f'{name}: mean linear color {stats["meanLinear"]}, luma {stats["meanLuma"]}')
+
+
+def _at(field, x, y):
+    """field at pixel positions (nearest, wrapping)."""
+    h, w = field.shape[:2]
+    return field[np.floor(y).astype(np.int64) % h, np.floor(x).astype(np.int64) % w]
+
+
+def _sunk_stones(canvas, rng, cx, cy, radius, colors, px_m, sink, grit, ground, flatten=0.55):
+    """Stones at (cx, cy) (px), each an irregular, flattened dome of radius px turned its own way, sunk by `sink` of its
+    height into the ground (the height field `ground`, so only its top shows, soil all round), mottled by grit and
+    lighter on top."""
+    n = len(cx)
+    reach = (radius * 1.25).astype(np.float32)
+    x, y, i, r = disc_points(cx.astype(np.float32), cy.astype(np.float32), reach)
+    ox, oy = x - cx[i], y - cy[i]
+    turn = rng.uniform(0.0, np.pi, n).astype(np.float32)
+    squash = rng.uniform(0.62, 1.0, n).astype(np.float32)
+    c, s = np.cos(turn)[i], np.sin(turn)[i]
+    u = (ox * c + oy * s) / radius[i]
+    v = (-ox * s + oy * c) / (radius[i] * squash[i])
+    ang = np.arctan2(v, u)
+    p3, p5 = rng.uniform(0, 2 * np.pi, n).astype(np.float32), rng.uniform(0, 2 * np.pi, n).astype(np.float32)
+    a3, a5 = rng.uniform(0.04, 0.16, n).astype(np.float32), rng.uniform(0.0, 0.08, n).astype(np.float32)
+    rr = np.hypot(u, v) * (1.0 + a3[i] * np.sin(3.0 * ang + p3[i]) + a5[i] * np.sin(5.0 * ang + p5[i]))
+    keep = rr <= 1.0
+    x, y, i, rr = x[keep], y[keep], i[keep], rr[keep]
+    dome = np.sqrt(np.clip(1.0 - rr * rr, 0.0, 1.0))
+    tall = radius * px_m * flatten
+    depth = _at(ground, x, y) + tall[i] * (dome - sink)
+    table = np.array([rgb(colors[k]) for k in rng.integers(0, len(colors), n)], np.float32)
+    table *= rng.uniform(0.82, 1.15, n).astype(np.float32)[:, None]
+    mottle = (1.0 + 0.1 * _at(grit, x, y))[:, None]
+    canvas.paint(x, y, depth, color=table[i] * (0.78 + 0.27 * dome)[:, None] * mottle, kind=np.ones_like(dome))
+
+
+@generator('GroundThatch')
+def make_ground_thatch():
+    """The meadow floor between the grass blades, for M_Terrain: last year's grass matted flat over dark soil, laid one
+    way patch by patch (wind and rain), grass-root clumps (tussocks: a dark crown with blades fanning out, a third of them
+    still olive), fresh blades here and there, chaff and a few twigs, the soil showing where the thatch is thin. Alpha is
+    the height, for M_Terrain's height blend. 1024 px over 3.2 m."""
+    shape = (TILE, TILE)
+    px_m = THATCH_TILE_M / TILE
+    rng = np.random.default_rng(301)
+    soil_n = noise(shape, 302, 2.5, 2.5, octaves=3)
+    soil = mix(rgb(0x45382a), rgb(0x5e4d35), smooth(-1.5, 1.5, noise(shape, 303, 50.0, 50.0, octaves=2)))
+    soil = soil * (1.0 + 0.14 * soil_n)[..., None]
+    canvas = Canvas(shape, 0.0, color=soil)
+    canvas.top[:] = (0.0012 * soil_n + 0.002 * noise(shape, 304, 30.0, 30.0)).ravel()
+    flow = noise(shape, 305, 110.0, 110.0, octaves=2) * 1.5     # the way the thatch lies, patch by patch
+    thin = noise(shape, 306, 70.0, 70.0, octaves=2)              # where it's thin and the soil shows
+    straws = np.array([rgb(c) for c in (0xb9a77a, 0xa89566, 0xc6b68a, 0x9c8a60, 0x8c7c58, 0xd2c59c, 0x9a948a,
+                                        0xae9f78)], np.float32)
+    # Matted strands, the oldest (lowest) greyest and darkest.
+    for batch in range(5):
+        count = 5600
+        x0 = rng.uniform(0, TILE, count).astype(np.float32)
+        y0 = rng.uniform(0, TILE, count).astype(np.float32)
+        keep = rng.random(count) < 0.3 + 0.7 * smooth(1.1, -0.9, _at(thin, x0, y0))
+        x0, y0 = x0[keep], y0[keep]
+        n = len(x0)
+        angle = (_at(flow, x0, y0) + rng.normal(0.0, 0.32, n) + np.pi * (rng.random(n) < 0.5)).astype(np.float32)
+        length = rng.uniform(25.0, 85.0, n).astype(np.float32)
+        width = rng.uniform(1.5, 2.6, n).astype(np.float32)
+        bend = rng.normal(0.0, 0.12, n).astype(np.float32)
+        x, y, t, i, across = stroke_points(x0, y0, angle, length, width, bend, taper=0.5)
+        tone = straws[rng.integers(0, len(straws), n)] * rng.uniform(0.82, 1.08, n).astype(np.float32)[:, None]
+        tone *= 0.74 + 0.065 * batch
+        lift = (batch * 0.0012 + rng.uniform(0.0, 0.0015, n)).astype(np.float32)
+        arch = rng.uniform(0.0, 0.001, n).astype(np.float32)
+        round_ = np.sqrt(np.clip(1.0 - across ** 2, 0.0, 1.0))
+        depth = lift[i] + 0.0012 * round_ + arch[i] * np.sin(np.pi * t)
+        canvas.paint(x, y, depth, color=tone[i] * (0.76 + 0.26 * round_)[:, None])
+    # Fresh blades poking through, short and olive.
+    count = 1600
+    x0, y0 = rng.uniform(0, TILE, count).astype(np.float32), rng.uniform(0, TILE, count).astype(np.float32)
+    x, y, t, i, across = stroke_points(x0, y0, rng.uniform(0, 2 * np.pi, count).astype(np.float32),
+                                       rng.uniform(10.0, 26.0, count).astype(np.float32),
+                                       rng.uniform(1.5, 2.2, count).astype(np.float32), taper=0.7)
+    greens = np.array([rgb(c) for c in (0x6f7a3c, 0x7d8445, 0x667236, 0x8a8a4a)], np.float32)
+    tone = greens[rng.integers(0, len(greens), count)]
+    canvas.paint(x, y, 0.006 + 0.004 * t, color=tone[i] * (0.7 + 0.4 * t)[:, None])
+    # Tussocks: soft mounds of blades, dense and short at the middle, longer ones flopping out mostly downwind (the way
+    # the thatch round it lies), each curved its own way; darker low down, so the clump reads by its shading, not as a
+    # star of lines.
+    clumps = 30
+    cx, cy = rng.uniform(0, TILE, clumps).astype(np.float32), rng.uniform(0, TILE, clumps).astype(np.float32)
+    radius = rng.uniform(12.0, 34.0, clumps).astype(np.float32)
+    lift = rng.uniform(0.004, 0.007, clumps).astype(np.float32)
+    per = np.maximum((radius * 9.0).astype(np.int64), 24)
+    owner = np.repeat(np.arange(clumps), per)
+    n = len(owner)
+    downwind = _at(flow, cx, cy) + np.pi * (rng.random(clumps) < 0.5)
+    angle = (downwind[owner] + rng.normal(0.0, 1.3, n)).astype(np.float32)
+    loose = rng.random(n) < 0.35
+    angle[loose] = rng.uniform(0.0, 2.0 * np.pi, int(loose.sum()))
+    start = np.sqrt(rng.uniform(0.0, 1.0, n)).astype(np.float32) * 0.55 * radius[owner]
+    spot = rng.uniform(0.0, 2.0 * np.pi, n).astype(np.float32)
+    x0 = cx[owner] + np.cos(spot) * start
+    y0 = cy[owner] + np.sin(spot) * start
+    length = (radius[owner] * (0.25 + 1.2 * rng.random(n) ** 1.6)).astype(np.float32)
+    bend = rng.normal(0.0, 0.5, n).astype(np.float32)
+    x, y, t, i, across = stroke_points(x0, y0, angle, length, rng.uniform(1.3, 2.1, n).astype(np.float32), bend,
+                                       taper=0.6)
+    green = rng.random(n) < 0.18
+    tone = straws[rng.integers(0, len(straws), n)]
+    tone[green] = np.array([rgb(c) for c in (0x7d8048, 0x86884f, 0x74783f)], np.float32)[rng.integers(0, 3, int(green.sum()))]
+    tone *= rng.uniform(0.85, 1.08, n).astype(np.float32)[:, None]
+    # Where along the clump each point is (0 its middle, 1 its rim): the mound falls away and darkens toward the middle.
+    reach = np.hypot(x - cx[owner][i], y - cy[owner][i]) / (radius[owner][i] * 1.45)
+    mound = np.clip(1.0 - reach, 0.0, 1.0)
+    depth = lift[owner][i] + 0.008 * mound ** 0.7 + 0.0005 * (1.0 - across ** 2) + 0.002 * t
+    canvas.paint(x, y, depth, color=tone[i] * (0.62 + 0.4 * np.clip(reach + 0.3 * t, 0.0, 1.0))[:, None])
+    # Chaff (pale husks and seed) and a few dark twigs on top.
+    count = 1400
+    x, y, i, r = disc_points(rng.uniform(0, TILE, count).astype(np.float32), rng.uniform(0, TILE, count).astype(np.float32),
+                             rng.uniform(0.8, 1.7, count).astype(np.float32))
+    chaff = np.array([rgb(c) for c in (0xc9bd94, 0xb8aa80, 0xcfc39e)], np.float32)[rng.integers(0, 3, count)]
+    canvas.paint(x, y, 0.0075 + 0.0005 * (1.0 - r), color=chaff[i])
+    count = 45
+    x, y, t, i, across = stroke_points(rng.uniform(0, TILE, count).astype(np.float32),
+                                       rng.uniform(0, TILE, count).astype(np.float32),
+                                       rng.uniform(0, 2 * np.pi, count).astype(np.float32),
+                                       rng.uniform(40.0, 110.0, count).astype(np.float32),
+                                       rng.uniform(1.8, 3.0, count).astype(np.float32),
+                                       rng.normal(0.0, 0.05, count).astype(np.float32), taper=0.3)
+    bark = np.array([rgb(c) for c in (0x4f4134, 0x5e4c3a, 0x6b5a47)], np.float32)[rng.integers(0, 3, count)]
+    canvas.paint(x, y, 0.0065 + 0.0015 * (1.0 - across ** 2), color=bark[i] * (0.8 + 0.25 * (1.0 - across ** 2))[:, None])
+    height = canvas.height()
+    color = canvas.get('color')
+    ao = occlusion(height, px_m, (2, 5, 12, 30), 1.3)
+    color = color * (0.55 + 0.45 * ao)[..., None]
+    low, high = np.percentile(height, (1.0, 99.5))
+    alpha = np.clip((height - low) / max(high - low, 1e-6), 0.0, 1.0)
+    rough = 0.9 + 0.06 * (1.0 - ao)
+    save_set('GroundThatch', color, height, px_m, rough, ao=ao, normal_strength=0.9, data_alpha=alpha)
+    _write_stats('GroundThatch', color)
+
+
+@generator('GroundStony')
+def make_ground_stony():
+    """Bare dry ground for M_Terrain (roads, footpaths, scree, bare spots, the forest floor): sun-dried soil, patches of
+    crust cracked into plates that curl at their edges, fine gravel in drifts, small stones and a few bigger ones sunk in,
+    straw and twigs blown in. Alpha is a separate leaf-litter layer M_Terrain lays on in the shade of trees (1/255 no
+    leaf; a leaf 0.62 to 1, its light and dark: midrib, rim, the curl), not drawn into the color. 1024 px over 2.8 m."""
+    shape = (TILE, TILE)
+    px_m = STONY_TILE_M / TILE
+    rng = np.random.default_rng(321)
+    x, y = coords(shape)
+    grain = noise(shape, 322, 0.8, 0.8)
+    clods = noise(shape, 323, 4.0, 4.0, octaves=2)
+    base = mix(rgb(0x8c7659), rgb(0x725e47), smooth(-1.5, 1.5, noise(shape, 324, 80.0, 70.0, octaves=2)))
+    base = mix(base, rgb(0x9e8a6b), smooth(0.4, 1.8, noise(shape, 325, 60.0, 60.0)) * 0.4)
+    base = base * (1.0 + 0.07 * grain + 0.06 * clods)[..., None]
+    height = 0.0012 * noise(shape, 326, 25.0, 25.0, octaves=3) + 0.0005 * grain + 0.0009 * clods
+    # Crust: patches of sun-dried mud cracked into plates (bigger ones split again), lifting at their edges.
+    crust = smooth(0.15, 0.7, noise(shape, 327, 120.0, 120.0, octaves=2))
+    wx = x + 6.0 * noise(shape, 328, 9.0, 9.0)
+    wy = y + 6.0 * noise(shape, 329, 9.0, 9.0)
+    big = worley(shape, (13, 13), 330, jitter=0.95, x=wx, y=wy)
+    small = worley(shape, (29, 29), 331, jitter=0.95, x=wx, y=wy)
+    width = 1.0 + 1.3 * smooth(-1.0, 1.5, noise(shape, 332, 40.0, 40.0))
+    crack = 1.0 - smooth(0.25, width, big['edge'])
+    split = (1.0 - smooth(0.2, 0.9, small['edge'])) * smooth(-0.2, 0.8, noise(shape, 333, 30.0, 30.0)) * 0.8
+    crack = np.maximum(crack, split) * crust
+    curl = (1.0 - smooth(0.0, 12.0, np.minimum(big['edge'], small['edge'] * 1.5))) * crust
+    plate = per_cell(big['id'], big['count'], 334, -1.0, 1.0)
+    height = height + 0.0012 * curl - 0.004 * crack + 0.0006 * plate * crust
+    base = mix(base, rgb(0xa8916f), crust * 0.35)
+    base = base * (1.0 + 0.05 * plate * crust)[..., None]
+    base = mix(base, rgb(0x46382a), crack * 0.75)
+    canvas = Canvas(shape, 0.0, color=base, kind=np.zeros(shape))
+    canvas.top[:] = height.ravel()
+    grit = noise(shape, 336, 1.2, 1.2, octaves=2)
+    drift = smooth(-0.3, 1.2, noise(shape, 335, 60.0, 60.0, octaves=2))   # where gravel gathers
+    palette = [0x8e8a82, 0x9f9688, 0x7b776f, 0xaa9e8a, 0x6e6962, 0xb5aa96, 0xa0836a, 0x8b8b85]
+    for count, rmin, rmax, sink, floor in ((10000, 0.9, 2.6, 0.2, 0.15), (800, 3.0, 9.0, 0.3, 0.4),
+                                           (95, 10.0, 22.0, 0.45, 1.0), (12, 24.0, 34.0, 0.55, 1.0)):
+        cx = rng.uniform(0, TILE, count).astype(np.float32)
+        cy = rng.uniform(0, TILE, count).astype(np.float32)
+        keep = rng.random(count) < floor + (1.0 - floor) * _at(drift, cx, cy)
+        cx, cy = cx[keep], cy[keep]
+        radius = (rmin + (rmax - rmin) * rng.random(len(cx)) ** 1.8).astype(np.float32)
+        _sunk_stones(canvas, rng, cx, cy, radius, palette, px_m, sink, grit, height)
+    # Straw and dry grass blown in, and a few twigs, lying on the soil.
+    for count, lengths, widths, colors, lift in ((380, (12.0, 40.0), (1.4, 2.2), (0xb8a572, 0xa69462, 0xc9b98a), 0.0012),
+                                                 (30, (30.0, 90.0), (2.0, 3.2), (0x4f4134, 0x5e4c3a, 0x6b5a47), 0.002)):
+        x0 = rng.uniform(0, TILE, count).astype(np.float32)
+        y0 = rng.uniform(0, TILE, count).astype(np.float32)
+        x1, y1, t, i, across = stroke_points(x0, y0, rng.uniform(0, 2 * np.pi, count).astype(np.float32),
+                                             rng.uniform(*lengths, count).astype(np.float32),
+                                             rng.uniform(*widths, count).astype(np.float32),
+                                             rng.normal(0.0, 0.08, count).astype(np.float32), taper=0.4)
+        tone = np.array([rgb(c) for c in colors], np.float32)[rng.integers(0, len(colors), count)]
+        round_ = np.sqrt(np.clip(1.0 - across ** 2, 0.0, 1.0))
+        canvas.paint(x1, y1, _at(height, x1, y1) + lift + 0.0008 * round_,
+                     color=tone[i] * (0.78 + 0.25 * round_)[:, None], kind=np.full(len(t), 2.0))
+    height = canvas.height()
+    color = canvas.get('color')
+    kind = canvas.get('kind')
+    ao = occlusion(height, px_m, (2, 5, 12), 1.1)
+    color = color * (0.62 + 0.38 * ao)[..., None]
+    rough = np.where(kind == 1.0, 0.8, 0.94) + 0.03 * crack
+    # Leaf litter (alpha only): fallen leaves gathered in drifts, oval or lobed, lying every way and over each other.
+    leaves = Canvas(shape, 0.0, a=np.zeros(shape))
+    gather = smooth(-0.7, 1.0, noise(shape, 341, 90.0, 90.0, octaves=2))
+    count = 2800
+    cx = rng.uniform(0, TILE, count).astype(np.float32)
+    cy = rng.uniform(0, TILE, count).astype(np.float32)
+    keep = rng.random(count) < _at(gather, cx, cy)
+    cx, cy = cx[keep], cy[keep]
+    n = len(cx)
+    half = rng.uniform(6.0, 13.0, n).astype(np.float32)            # half the leaf's length: 3.3 to 7 cm long
+    broad = rng.uniform(0.35, 0.62, n).astype(np.float32)
+    lobed = (rng.random(n) < 0.4).astype(np.float32)
+    turn = rng.uniform(0.0, 2.0 * np.pi, n).astype(np.float32)
+    phase = rng.uniform(0.0, 2.0 * np.pi, n).astype(np.float32)
+    bright = rng.uniform(0.7, 1.0, n).astype(np.float32)
+    lx, ly, i, r = disc_points(cx, cy, half)
+    c, s = np.cos(turn)[i], np.sin(turn)[i]
+    u = ((lx - cx[i]) * c + (ly - cy[i]) * s) / half[i]
+    v = (-(lx - cx[i]) * s + (ly - cy[i]) * c) / (half[i] * broad[i])
+    profile = np.clip(1.0 - u * u, 0.0, 1.0) ** 0.75 * (1.0 + lobed[i] * 0.28 * np.sin(u * np.pi * 3.5 + phase[i]))
+    inside = (np.abs(u) <= 1.0) & (np.abs(v) <= profile)
+    lx, ly, i, u, v, profile = lx[inside], ly[inside], i[inside], u[inside], v[inside], profile[inside]
+    across = np.abs(v) / np.maximum(profile, 1e-3)
+    rim = 1.0 - 0.3 * smooth(0.65, 1.0, across)
+    midrib = 1.0 - 0.28 * np.exp(-(v * half[i] * broad[i] / 0.9) ** 2) * (np.abs(u) < 0.92)
+    curl = 0.9 + 0.12 * np.sign(v) * across
+    shade = np.clip(bright[i] * rim * midrib * curl, 0.0, 1.0)
+    layer = rng.uniform(0.0, 1.0, n).astype(np.float32)
+    leaves.paint(lx, ly, layer[i] + 0.001 * (1.0 - across), a=0.62 + 0.38 * shade)
+    litter = np.where(leaves.covered() > 0.5, leaves.get('a'), 0.0)
+    save_set('GroundStony', color, height, px_m, rough, ao=ao, normal_strength=1.0, data_alpha=litter)
+    _write_stats('GroundStony', color)
+
+
+@generator('GroundNoise')
+def make_ground_noise():
+    """Four unrelated soft noises for M_Terrain's ground layers (linear RGBA, each spread evenly over 0..1), over
+    GROUND_NOISE_M (51.2 m) a repeat: R where the kinds of ground meet (patches of 2 to 6 m), G the bare spots in the dry
+    grass (about a meter), B how damp the hollows are, A a slow drift that slides the layers' repeats apart.
+    T_GroundNoise_M.png, 512 px."""
+    size = 512
+    shape = (size, size)
+    channels = []
+    for seed, sigma, octaves in ((351, 24.0, 3), (352, 9.0, 3), (353, 16.0, 3), (354, 40.0, 2)):
+        n = noise(shape, seed, sigma, sigma, octaves=octaves)
+        channels.append(np.argsort(np.argsort(n.ravel())).reshape(shape).astype(np.float32) / (n.size - 1))
+    value = np.stack(channels, axis=-1)
+    # Alpha never exactly 0: Unreal's PNG import would fill the other channels under it (its infill).
+    value[..., 3] = np.maximum(value[..., 3], 1.0 / 255.0)
+    write_png(os.path.join(TEXTURE_DIR, 'GroundNoise', 'T_GroundNoise_M.png'), to8(value))
+    write_png(os.path.join(SCRATCH_DIR, 'look_GroundNoise.png'), to8(np.concatenate([value[..., k] for k in range(4)], axis=1)))
+    _log(f'GroundNoise: {size} x {size} written')
 
 
 def _layers(size, seed, thickness):
@@ -3222,8 +3523,8 @@ def render_contact_sheet(out_png=None):
         r, c = divmod(index, columns)
         x = (c - (columns - 1) * 0.5) * slot
         z = ((rows - 1) * 0.5 - r) * (slot + 0.25) + 0.12
-        if name == 'MacroNoise':
-            mat = _mask_material('_MacroNoise', os.path.join(TEXTURE_DIR, 'MacroNoise', 'T_MacroNoise_M.png'))
+        if SETS[name].get('mask'):
+            mat = _mask_material('_' + name, texture_path(name, 'M'))
         else:
             mat = material(name)
         tilt = 0.0 if SETS[name].get('alpha') else 28.0

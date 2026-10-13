@@ -71,6 +71,10 @@ public:
 	/** Whether it has words at all: an Unpaid below a boss (Abel has his own). Spiders and slimes never speak. */
 	bool CanBark() const;
 
+	/** Whose lines it says: none for the common Unpaid's, or a kind's own (the Bell-Ringer's: CreatureVoiceBarkLines.cpp). */
+	UPROPERTY(VisibleAnywhere, Category = "Voice")
+	FName BarkKind;
+
 	/**
 	 * Its moment to say something of Situation: on its chance (CreatureBarks::ChanceFor), and not within SpeakerRest of its
 	 * own last bark (its last words excepted), the bark comes after the situation's delay (after the cry it comes with), when

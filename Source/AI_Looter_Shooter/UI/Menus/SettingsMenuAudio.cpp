@@ -31,9 +31,11 @@ UWidget* USettingsMenuWidget::MakeAudioRows()
 	{
 		USlider* Slider = nullptr;
 		UTextBlock* Value = nullptr;
-		Rows->AddChildToVerticalBox(MakeSliderRow(UAudioSettingsSubsystem::VolumeName(Which), 0.f, 1.f, Slider, Value,
-			UAudioSettingsSubsystem::VolumeStep))->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
+		UWidget* Row = MakeSliderRow(UAudioSettingsSubsystem::VolumeName(Which), 0.f, 1.f, Slider, Value, UAudioSettingsSubsystem::VolumeStep);
+		Rows->AddChildToVerticalBox(NavSlider(Row, Slider))->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
+		// Let go by the mouse, or by the key or stick that stepped it (held as a controller holds a slider).
 		Slider->OnMouseCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleVolumeReleased);
+		Slider->OnControllerCaptureEnd.AddDynamic(this, &USettingsMenuWidget::HandleVolumeReleased);
 		VolumeSliders.Add(Slider);
 		VolumeValues.Add(Value);
 	}

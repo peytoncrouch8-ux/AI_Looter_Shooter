@@ -1,4 +1,5 @@
 #include "UI/Style/LooterButton.h"
+#include "UI/Style/LooterUIFocus.h"
 #include "Audio/LooterSound.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/ButtonSlot.h"
@@ -24,6 +25,7 @@ void ULooterButton::Setup(UTextBlock* InLabel, FName InAction, int32 InIndex, co
 
 	UWidgetTree* Tree = Cast<UWidgetTree>(GetOuter());
 	UOverlay* Content = Tree ? Tree->ConstructWidget<UOverlay>(UOverlay::StaticClass()) : nullptr;
+	Body = Content;
 	if (Content)
 	{
 		Outline = Tree->ConstructWidget<UImage>(UImage::StaticClass());
@@ -120,6 +122,70 @@ void ULooterButton::ApplyStyle()
 	if (Label)
 	{
 		Label->SetColorAndOpacity(FSlateColor(LooterUI::ButtonTextColor(Kind, bIsHighlighted)));
+	}
+	if (FocusFrame)
+	{
+		// Lit or not, the look may need its other colour (a key button lit orange while it waits for a key).
+		UpdateFocusFrame();
+	}
+}
+
+bool ULooterButton::Press()
+{
+	if (!GetIsEnabled())
+	{
+		return false;
+	}
+	// Heard before the handler runs, as a click's is. Unlike a click, the keyboard focus isn't handed to the game: the menu
+	// that pressed it keeps it.
+	if (bPlaysSounds)
+	{
+		LooterSound::Play2D(this, ClickCue.IsNone() ? ClickCueFor(Action, Kind) : ClickCue);
+	}
+	OnButtonClicked.ExecuteIfBound(this);
+	return true;
+}
+
+void ULooterButton::SetFocusLit(bool bLit)
+{
+	if (bFocusLit != bLit || (bLit && !FocusFrame))
+	{
+		bFocusLit = bLit;
+		UpdateFocusFrame();
+	}
+}
+
+void ULooterButton::SetFocusGlow(float Glow)
+{
+	if (FocusFrame)
+	{
+		LooterUI::SetFocusGlow(FocusFrame, Glow);
+	}
+}
+
+void ULooterButton::UpdateFocusFrame()
+{
+	// Orange buttons (Primary, or lit) take the warm white look; the rest the orange one.
+	const bool bOnAccent = bIsHighlighted || Kind == LooterUI::EButtonKind::Primary;
+	if (FocusFrame && bFocusFrameOnAccent != bOnAccent)
+	{
+		FocusFrame->RemoveFromParent();
+		FocusFrame = nullptr;
+	}
+	if (bFocusLit && !FocusFrame && Body)
+	{
+		// Made the first time it's needed, so the many buttons never focused (the HUD's, the inventory's) carry none. Over
+		// the label (a live overlay only takes children on top), but only at the edges, clear of the centred text.
+		FocusFrame = LooterUI::MakeFocusFrame(Cast<UWidgetTree>(GetOuter()), bOnAccent, false);
+		if (FocusFrame)
+		{
+			LooterUI::FillOverlaySlot(Body->AddChildToOverlay(FocusFrame));
+			bFocusFrameOnAccent = bOnAccent;
+		}
+	}
+	if (FocusFrame)
+	{
+		LooterUI::SetFocusLit(FocusFrame, bFocusLit);
 	}
 }
 

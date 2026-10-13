@@ -86,7 +86,8 @@ ASlimeCreature::ASlimeCreature()
 	// Slow and weak alone; dangerous as a group, which turns on you together.
 	WalkSpeed = 170.f;
 	ChaseSpeed = 220.f;
-	AggroRadius = 1800.f;
+	// 18 m until the user's 20% more (2026-10-12), kept at the spiders' share.
+	AggroRadius = 2160.f;
 	WanderRadius = 600.f;
 	PackAlertRadius = 2500.f;
 	AttackRange = 450.f;
@@ -236,7 +237,8 @@ void ASlimeCreature::Launch()
 {
 	// Hops are the full-size slime's, times its size: a big one bounds farther and higher (and so a little slower).
 	const float Scale = GetSizeScale();
-	const bool bHunting = GetCreatureState() == ECreatureState::Chase || GetCreatureState() == ECreatureState::Return;
+	const bool bHunting = GetCreatureState() == ECreatureState::Chase || GetCreatureState() == ECreatureState::Return
+		|| GetCreatureState() == ECreatureState::Search;
 	float Length = RandomIn(bShuffleHop ? ShuffleHopLength : bHunting ? ChaseHopLength : WanderHopLength) * Scale;
 	const float Height = RandomIn(bShuffleHop ? ShuffleHopHeight : bHunting ? ChaseHopHeight : WanderHopHeight) * Scale;
 	// Never hop off an edge: shorten the hop until it lands on ground, or stay put.

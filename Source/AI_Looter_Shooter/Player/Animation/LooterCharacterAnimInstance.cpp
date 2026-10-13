@@ -4,6 +4,7 @@
 #include "Player/Animation/LooterStancePoseDetail.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
+#include "Player/PlayerThrowComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
@@ -100,6 +101,13 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 	}
 	StanceInput.MeleeJab = Melee.IsValid() && Melee->IsSwinging() ? LooterStancePose::MeleeJab(Melee->GetSwingTime()) : 0.f;
 
+	// A grenade throw tosses with the left hand on the throw's own clock (the first-person jar and gun follow it too).
+	if (!Throw.IsValid() && Pawn)
+	{
+		Throw = Pawn->FindComponentByClass<UPlayerThrowComponent>();
+	}
+	StanceInput.ThrowTime = Throw.IsValid() && Throw->IsThrowing() ? Throw->GetThrowTime() : -1.f;
+
 	// No pawn (the loadout screen's stand-in): hold the gun it was given, standing still and aiming level.
 	if (!Pawn && Mesh && StandaloneHold.IsSet() && bHoldsWeapon)
 	{
@@ -116,11 +124,16 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 		StanceInput.WeaponRotation = Mesh->GetComponentQuat().Inverse() * Hold.Facing;
 	}
 
-	// Reloads play the reload animation on the upper body, stretched to the weapon's actual reload time.
+	// Reloads play the reload animation on the upper body, stretched to the weapon's actual reload time. A revolver's
+	// cylinder has no magazine for that animation's hands to swap: the stance layer works it in code instead, on the
+	// gun's own reload steps.
 	const float ReloadProgress = Weapon ? Weapon->GetReloadProgress() : -1.f;
-	StanceInput.ReloadAnimation = ReloadAnimation;
-	StanceInput.ReloadWeight = ReloadAnimation && ReloadProgress >= 0.f ? Weapon->GetReloadBlend() : 0.f;
-	StanceInput.ReloadTime = ReloadAnimation ? FMath::Max(ReloadProgress, 0.f) * ReloadAnimation->GetPlayLength() : 0.f;
+	const bool bCylinder = Weapon && Weapon->GetReloadPart() == EWeaponReloadPart::Cylinder;
+	const UAnimSequenceBase* Overlay = bCylinder ? nullptr : ReloadAnimation.Get();
+	StanceInput.ReloadAnimation = Overlay;
+	StanceInput.CylinderReload = bCylinder ? ReloadProgress : -1.f;
+	StanceInput.ReloadWeight = (Overlay || bCylinder) && ReloadProgress >= 0.f ? Weapon->GetReloadBlend() : 0.f;
+	StanceInput.ReloadTime = Overlay ? FMath::Max(ReloadProgress, 0.f) * Overlay->GetPlayLength() : 0.f;
 
 	// The held upper-body pose loops on its own clock (breathing, small sway), independent of the legs.
 	StanceInput.UpperBodyPose = bHoldsWeapon ? UpperBodyPose.Get() : nullptr;

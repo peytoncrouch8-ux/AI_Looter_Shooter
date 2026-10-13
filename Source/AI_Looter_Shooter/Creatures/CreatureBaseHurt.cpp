@@ -29,23 +29,23 @@ void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocat
 	{
 		return;
 	}
-	// Getting shot always gets its attention, even from beyond its sight range; but not the shot that kills it (this runs
-	// before its death), or a creature that never saw it coming would turn, growl and flash its rank's sting as it falls.
+	// Getting shot always gets its attention, even from beyond its sight range (and from off its ground it goes to its edge
+	// to watch: CreatureBasePursuit.cpp); hunting already, it knows where they are again. But not the shot that kills it
+	// (this runs before its death), or a creature that never saw it coming would turn, growl and flash its rank's sting as it
+	// falls.
 	APawn* Attacker = InstigatedBy ? InstigatedBy->GetPawn() : nullptr;
 	const bool bKilled = Health->GetHealth() <= 0.f;
-	if (!bKilled && !bPassive && !Target.IsValid() && IsValidTarget(Attacker))
+	if (!bKilled)
 	{
-		Target = Attacker;
-		if (State != ECreatureState::Attack)
-		{
-			SetState(ECreatureState::Chase);
-		}
+		TakeUpHunt(Attacker, true);
 	}
 	// A pack turns on whoever hurts one of them: every creature of its pack (its PackTag) within its call, which a rank
-	// can widen (a Gravebound spider calls every spider near it).
+	// can widen (a Gravebound spider calls every spider near it). Each answers by its own ground.
 	// (A killing blow still calls them: the fall of one of theirs is heard.)
 	const float CallRadius = GetPackCallRadius();
-	if (CallRadius > 0.f && IsValidTarget(Attacker))
+	const EHuntCheck AttackerCheck = CheckHunt(Attacker);
+	const bool bCalls = AttackerCheck == EHuntCheck::Huntable || (AttackerCheck == EHuntCheck::OffGround && !KeepsBossRules());
+	if (CallRadius > 0.f && bCalls)
 	{
 		const double CallSquared = FMath::Square(static_cast<double>(CallRadius));
 		ForEachCreature([&](ACreatureBase& Other)
@@ -62,16 +62,11 @@ void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocat
 
 void ACreatureBase::AlertTo(APawn* Attacker)
 {
-	if (bPassive || State == ECreatureState::Dead || Target.IsValid() || !IsValidTarget(Attacker))
+	// Its pack heard the fight: a new hunt (one off its ground watched from its edge), or word of where its target is.
+	if (TakeUpHunt(Attacker, false))
 	{
-		return;
+		UPlayerProgressionSubsystem::RecordEncounter(Attacker->GetController(), this);
 	}
-	Target = Attacker;
-	if (State != ECreatureState::Attack)
-	{
-		SetState(ECreatureState::Chase);
-	}
-	UPlayerProgressionSubsystem::RecordEncounter(Attacker->GetController(), this);
 }
 
 void ACreatureBase::UpdateHealthBar(float DeltaSeconds)

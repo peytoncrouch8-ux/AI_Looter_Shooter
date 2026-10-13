@@ -16,7 +16,13 @@
                   color's alpha) plus wind: vertex color R is how far a vertex sways, G offsets its phase;
                   WindStrength (cm), WindSpeed, WindDirection.
   M_Terrain       MacroMap on UV 0 covers the whole island (its alpha picks the detail: 0 grass/soil, 1 rock); the
-                  Grass* and Rock* maps tile on UV 1 (meters) and only modulate the macro color's brightness. Faces
+                  Grass* and Rock* maps tile on UV 1 (meters) and only modulate the macro color's brightness. The
+                  ground between (alpha under 0.55) shares three patterns, picked per pixel from the macro map's own
+                  color and alpha, the terrain's baked occlusion and GroundNoise (group Ground; GROUND_WEIGHTS): the
+                  grass on green ground, matted thatch with grass-root clumps (GroundThatch) on gold and dry ground,
+                  stony ground (GroundStony: cracked crust, gravel, stones; leaf litter under trees) on bare soil,
+                  roads, footpaths, scree and bare spots, and damp soil in the hollows; each normalized by its own mean
+                  (T_<Set>_stats.json), so from afar the macro map's color and brightness are what they were. Faces
                   steeper than SteepStart degrees (fully past SteepFull) take the rock map laid on from the side as
                   their detail, with no detail normal: maps laid on from above smear down a cliff. The face keeps the
                   macro map's color with the rock's light and dark on it (SteepDetail), darkened by SteepTint, some
@@ -644,10 +650,84 @@ def build_foliage(orm_default):
     return mat
 
 
-TERRAIN_CODE = """float3 Detail = lerp(Grass, Rock, Select);
-float Luma = dot(Detail, float3(0.299, 0.587, 0.114));
-float Mean = lerp(GrassMean, RockMean, Select);
-float3 Color = Macro * lerp(1.0, Luma / max(Mean, 0.05), Strength);
+# The ground layers (2026-10-12, the user: "The ground should be slightly more textured, its literally just dirt right
+# now"): between the grass blades the ground was one fine stubble tile, which a few meters off mips to flat dirt. Now
+# three patterns share it, chosen per pixel from what the macro map already says, so they follow any regenerated map:
+# the grass (GroundGrass, the instance's Grass maps) on green ground, matted thatch with grass-root clumps
+# (GroundThatch) on gold and dry ground, and stony ground (GroundStony: cracked crust, gravel, small stones, leaf litter
+# in its alpha) on bare soil, roads, footpaths, scree, bare spots and the dark floor under trees; damp, darker, glossier
+# soil in the hollows (the terrain's baked occlusion). GroundNoise (four soft noises over 51.2 m) makes the borders wander
+# in patches, opens the bare spots, varies the damp and slides the layers' repeats apart. Every layer is normalized by
+# its own mean (T_<Set>_stats.json), so from afar the ground has exactly the brightness and the color it had: the macro
+# map stays in charge, and the layers' contrast fades with distance (GroundFade). Rock (the macro alpha past 0.55) and
+# steep faces keep the rock detail as before.
+# GROUND_WEIGHTS is shared by the color, normal and roughness nodes (the shader compiler merges the repeats): it sets
+# Wt (the grass, thatch and stony weights), Damp, Leaf, RockAmt and Fd (the distance fade).
+GROUND_WEIGHTS = """const float3 Wl = float3(0.299, 0.587, 0.114);
+// The layers' contrast fades from GroundFade.x to .y meters away to .z of it: the macro map carries the distance.
+float Fd = lerp(1.0, Fade.z, smoothstep(Fade.x * 100.0, Fade.y * 100.0, Depth));
+// The macro map's cues, from its linear color: how warm it is (red over green: bare soil, then gold, then green), how
+// dark and how saturated.
+float Lm = dot(Macro, Wl);
+float Warm = (Macro.r - Macro.g) / max(Macro.r + Macro.g, 0.002);
+float Hi = max(Macro.r, max(Macro.g, Macro.b));
+float Sat = (Hi - min(Macro.r, min(Macro.g, Macro.b))) / max(Hi, 0.002);
+// Where one kind of ground gives way to another wanders in patches (Noise.r), so it never traces the macro map's own
+// contours.
+float W = Warm + (Noise.r - 0.5) * Cues.z;
+float Lush = 1.0 - smoothstep(Cues.x - 0.05, Cues.x + 0.05, W);
+float Soil = smoothstep(Cues.y - 0.04, Cues.y + 0.04, W);
+// Stony ground: bare soil, roads, footpaths and scree (the macro alpha between grass and rock), bare spots in the dry
+// grass (Noise.g's highest), and the dark, dull ground under trees (Shade), which takes the leaf litter.
+float Road = smoothstep(0.1, 0.2, Select);
+float Bare = smoothstep(1.0 - Cues.w, 1.0 - Cues.w + 0.05, Noise.g) * (1.0 - 0.7 * Lush);
+float Shade = (1.0 - smoothstep(Cues2.y * 0.65, Cues2.y, Lm)) * (1.0 - smoothstep(0.66, 0.76, Sat));
+float S = saturate(max(max(Soil, Road), max(Bare, Shade * 0.85)));
+// Green ground shares itself between the grass and the thatch (matted under a green macro color, it reads as green
+// grass laid flat), in patches (Noise.a).
+float G = (1.0 - S) * Lush * saturate(Cues2.x * (0.4 + 1.2 * Noise.a));
+float T = max(1.0 - S - G, 0.0);
+// Height blend: each layer's own height (the thatch's alpha; the grass's and the stony ground's light and dark) decides
+// which shows where two meet, so stones and tussocks stand out of the next layer instead of fading into it.
+float HG = saturate(dot(Grass, Wl) / GrassStats.a * 0.5);
+float HT = Thatch.a;
+float HS = saturate(dot(Stony.rgb, Wl) / StonyStats.a * 0.5);
+float3 Bl = float3(G, T, S) + float3(HG, HT, HS) * Cues2.w * saturate(float3(G, T, S) * 4.0);
+float3 Wt = max(Bl - (max(Bl.x, max(Bl.y, Bl.z)) - 0.2), 0.0);
+Wt /= max(Wt.x + Wt.y + Wt.z, 1e-4);
+// Damp: the hollows (the terrain's baked occlusion) darker and glossier, in patches (Noise.b), drying off the tops of
+// the layers' relief; and dark, warm low ground (mud by the water).
+float H = dot(Wt, float3(HG, HT, HS));
+float Damp = (1.0 - smoothstep(DampP.y, DampP.x, Occlusion)) * saturate(0.3 + 1.4 * Noise.b);
+Damp = max(Damp, Shade * Soil * 0.6);
+Damp = saturate(Damp * (1.25 - 0.6 * H)) * DampP.w * Fd;
+// Leaf litter on the stony ground: thick where it's shaded (under trees), a few leaves anywhere it's bare.
+float Leaf = saturate((Stony.a - 0.01) * 1.65) * Wt.z * saturate(Shade * Cues2.z + 0.12) * Fd;
+// Rock and the steeper scree keep the rock detail.
+float RockAmt = smoothstep(0.55, 0.9, Select);
+"""
+
+TERRAIN_CODE = GROUND_WEIGHTS + """// From afar the ground keeps the brightness it always had: the old grass and rock detail at their true means
+// (GrassStats.a, RockTrue: measured from the textures) over the means it was set against (GrassMean, RockMean).
+float K = lerp(1.0, lerp(GrassStats.a, RockTrue, Select) / max(lerp(GrassMean, RockMean, Select), 0.05), Strength);
+// Each layer's light and dark (Layers.xyz) and a little of its own color (Layers.w), around 1 from its own mean: the
+// macro map keeps the color, the layer brings the pattern. <Layer>Stats: rgb its mean luma over each channel's mean
+// (so its average color comes out white), a its mean luma.
+float LG = max(dot(Grass, Wl), 0.004);
+float LT = max(dot(Thatch.rgb, Wl), 0.004);
+float LS = max(dot(Stony.rgb, Wl), 0.004);
+const float3 One = float3(1.0, 1.0, 1.0);
+float3 PG = lerp(1.0, LG / GrassStats.a, Layers.x) * lerp(One, clamp(Grass / LG * GrassStats.rgb, 0.6, 1.5), Layers.w);
+float3 PT = lerp(1.0, LT / ThatchStats.a, Layers.y) * lerp(One, clamp(Thatch.rgb / LT * ThatchStats.rgb, 0.6, 1.5), Layers.w);
+float3 PS = lerp(1.0, LS / StonyStats.a, Layers.z) * lerp(One, clamp(Stony.rgb / LS * StonyStats.rgb, 0.6, 1.5), Layers.w);
+float3 Pattern = Wt.x * PG + Wt.y * PT + Wt.z * PS;
+// The leaves: LeafTint (a fallen leaf's color over the ground's), lit by their own light and dark in the alpha.
+Pattern = lerp(Pattern, LeafTint * lerp(0.75, 1.15, saturate((Stony.a - 0.62) / 0.38)), Leaf);
+float3 Ground = Macro * K * lerp(One, Pattern, Fd) * lerp(1.0, DampP.z, Damp);
+// Rock: the macro map with the rock detail's light and dark, as before.
+float3 Old = lerp(Grass, Rock, Select);
+float3 RockColor = Macro * lerp(1.0, dot(Old, Wl) / max(lerp(GrassMean, RockMean, Select), 0.05), Strength);
+float3 Color = lerp(Ground, RockColor, RockAmt);
 // A steep face takes the rock's own color, laid on from the side it faces (the X and Y planes, blended by how far it
 // faces each): the macro map and the detail maps are laid on from above, so down a cliff they smear into streaks.
 float2 Facing = pow(abs(normalize(Normal).xy), 4.0);
@@ -663,6 +743,41 @@ float B = (Band - 0.5) * 2.0 * SteepVariation;
 float3 Banding = (1.0 - 0.5 * max(-B, 0.0)) * lerp(float3(1.0, 1.0, 1.0), float3(1.1, 0.9, 0.78), max(B, 0.0));
 Color = lerp(Color, Macro * SteepTint * Banding * lerp(1.0, SideLuma / max(RockMean, 0.05), SteepDetail), Steep);
 return Color * lerp(1.0, Occlusion, DiffuseAO);"""
+# The ground's detail normal: the layers' normals by the same weights, flattened under leaves and where it's damp (wet
+# soil is smooth), and the rock's where it's rock. The caller fades it on steep faces, as before.
+GROUND_NORMAL_CODE = GROUND_WEIGHTS + """float3 N = Wt.x * GrassN + Wt.y * ThatchN + Wt.z * StonyN;
+N = lerp(N, float3(0.0, 0.0, 1.0), saturate(Leaf * 0.8 + Damp * 0.5));
+return lerp(N, RockN, RockAmt);"""
+# Roughness: dry grass and soil matte, stones a little smoother, damp ground glossier (GroundFade.w), rock and steep
+# faces 0.82 as before.
+GROUND_ROUGHNESS_CODE = GROUND_WEIGHTS + """float R = dot(Wt, float3(0.93, 0.92, lerp(0.95, 0.8, saturate(HS * 2.0 - 1.0))));
+R = lerp(R, Fade.w, Damp);
+return lerp(R, 0.82, max(RockAmt, Steep));"""
+# The layers' UVs on UV 1 (meters) at their own repeats, slid by GroundNoise's slow drift (A, up to Warp meters, the
+# two layers opposite ways), so neither repeat lines up for long.
+LAYER_UV_CODE = 'return UV * Scale + (Noise.a - 0.5) * 2.0 * Warp * Scale * {sign} + {offset};'
+LAYER_UV_SLIDE = {'Thatch': ('1.0', 'float2(0.0, 0.0)'), 'Stony': ('-1.0', 'float2(0.37, 0.61)')}
+# The ground layers' parameters (group Ground) as the master sets them; an area's instance may change any.
+# Tools/Blender/ground_preview.py reads this table too.
+GROUND_DEFAULTS = {
+    'GroundNoiseTile': 51.2,             # meters a repeat of GroundNoise (Tools/Blender/looter_textures.py)
+    'GroundWarp': 0.5,                   # meters the layers' repeats slide
+    'ThatchScale': 1.0 / 3.2,            # repeats a meter (looter_textures THATCH_TILE_M)
+    'StonyScale': 1.0 / 2.8,             # (STONY_TILE_M)
+    # x where green ends (warmth: red over green), y where bare soil starts, z how far the borders wander, w the share
+    # of the dry grass opened into bare spots
+    'GroundCues': (-0.05, 0.13, 0.14, 0.1),
+    # x the grass's share of green ground (the rest is thatch), y how dark the ground under trees is (linear luma),
+    # z its leaf litter, w the height blend
+    'GroundCues2': (0.4, 0.15, 0.9, 0.5),
+    # x, y the baked occlusion where the damp starts and where it's full, z its darkening, w how much of it
+    'GroundDamp': (0.9, 0.62, 0.75, 1.0),
+    # x, y where the layers' contrast starts and ends fading (m), z the share left past it, w damp ground's roughness
+    'GroundFade': (20.0, 80.0, 0.5, 0.62),
+    # the grass's, the thatch's and the stony ground's light and dark, w how much of their own color they bring
+    'GroundLayers': (0.45, 0.6, 0.7, 0.25),
+    'LeafTint': (1.18, 0.96, 0.78),      # a fallen leaf's color over the ground's (luma about 1)
+}
 # The rock's relief on a steep face, from the same two side-laid projections as its color (the rock normal map sampled
 # with the X- and the Y-side UVs): each sample turned into the world (its red along the projection's U axis, its green up
 # the face by Green's sign, its blue out of the face), blended by the same side weights. The caller turns it back into
@@ -685,6 +800,78 @@ W += (N - 0.5) * 2.0 * Warp * Scale;
 return float2(A * Scale * 0.01, -P.z * Scale * 0.01 + W);"""
 # How steep the ground is, from 0 (gentler than SteepStart degrees) to 1 (steeper than SteepFull).
 STEEP_CODE = 'return 1.0 - smoothstep(cos(radians(Full)), cos(radians(Start)), normalize(Normal).z);'
+
+TEXTURES = 'C:/Dev/AI_Looter_Shooter/Art/Textures'
+# GroundGrass's and RockCliff's mean linear color and luma, measured from their color maps (2026-10-12): every terrain
+# instance's Grass and Rock maps (Art/Levels/area_model.py DETAIL_SETS). The ground's old brightness from afar comes from
+# these against GrassMeanLuma and RockMeanLuma, so the layers keep it.
+GRASS_MEAN = (0.0987, 0.1359, 0.0286, 0.1125)
+ROCK_TRUE_LUMA = 0.2976
+
+
+def import_texture(file, path, kind):
+    """A texture from the library with the settings the model importer gives a set's maps (kind 'BC': color, sRGB; 'N':
+    normal map; 'M': a linear mask, kept uncompressed), imported again whenever the PNG changes (its MD5 is kept on the
+    asset as SourceMD5): importing only when the asset was missing once left a regenerated mask out of the scatter."""
+    import hashlib
+    with open(file, 'rb') as source:
+        digest = hashlib.md5(source.read()).hexdigest()
+    library = unreal.EditorAssetLibrary
+    texture = unreal.load_asset(path) if library.does_asset_exist(path) else None
+    if texture is None or library.get_metadata_tag(texture, 'SourceMD5') != digest:
+        task = unreal.AssetImportTask()
+        task.set_editor_property('filename', file)
+        task.set_editor_property('destination_path', path.rsplit('/', 1)[0])
+        task.set_editor_property('destination_name', path.rsplit('/', 1)[1])
+        task.set_editor_property('replace_existing', True)
+        task.set_editor_property('automated', True)
+        task.set_editor_property('save', False)
+        unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+        texture = unreal.load_asset(path)
+        unreal.log(f'{path} imported from {file} (MD5 {digest})')
+    if kind == 'N':
+        texture.set_editor_property('srgb', False)
+        texture.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_NORMALMAP)
+        texture.set_editor_property('lod_group', unreal.TextureGroup.TEXTUREGROUP_WORLD_NORMAL_MAP)
+        texture.set_editor_property('flip_green_channel', False)
+    elif kind == 'M':
+        texture.set_editor_property('srgb', False)
+        texture.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_VECTOR_DISPLACEMENTMAP)
+        texture.set_editor_property('lod_group', unreal.TextureGroup.TEXTUREGROUP_WORLD)
+    else:
+        texture.set_editor_property('srgb', True)
+        texture.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_DEFAULT)
+        texture.set_editor_property('lod_group', unreal.TextureGroup.TEXTUREGROUP_WORLD)
+    library.set_metadata_tag(texture, 'SourceMD5', digest)
+    library.save_loaded_asset(texture)
+    return texture
+
+
+def ground_texture(set_name, kind):
+    """One of M_Terrain's ground layers' maps (Tools/Blender/looter_textures.py makes them), imported to
+    /Game/Art/Textures/<Set>/T_<Set>_<kind>, where the model importer would put it; returns its path."""
+    path = f'/Game/Art/Textures/{set_name}/T_{set_name}_{kind}'
+    import_texture(f'{TEXTURES}/{set_name}/T_{set_name}_{kind}.png', path, kind)
+    return path
+
+
+def layer_stats(set_name=None, mean=None):
+    """A ground layer's <Layer>Stats for M_Terrain from its mean linear color and luma (T_<Set>_stats.json, written with
+    its textures, or mean as (r, g, b, luma)): the luma over each channel's mean (the shader multiplies a texel's color
+    over its luma by these, so the layer's average color comes out white), and the luma."""
+    if mean is None:
+        import json
+        with open(f'{TEXTURES}/{set_name}/T_{set_name}_stats.json') as source:
+            stats = json.load(source)
+        mean = tuple(stats['meanLinear']) + (stats['meanLuma'],)
+    luma = mean[3]
+    return tuple(luma / max(c, 0.004) for c in mean[:3]) + (luma,)
+
+
+def shared_wrap(sample):
+    """A texture sample on the shared wrap sampler (the world group's filtering), which takes no sampler slot."""
+    sample.set_editor_property('sampler_source', unreal.SamplerSourceMode.SSM_WRAP_WORLD_GROUP_SETTINGS)
+    return sample
 
 
 def build_terrain():
@@ -723,12 +910,54 @@ def build_terrain():
         ('Full', g.scalar('SteepFull', 65.0, -2000, 1750), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -1400, 1800, 'Steepness')
     vc = g.node(unreal.MaterialExpressionVertexColor, -1400, 1000)
-    color = g.custom(TERRAIN_CODE, [
-        ('Macro', macro, 'RGB'), ('Grass', grass, 'RGB'), ('Rock', rock, 'RGB'), ('Select', macro, 'A'),
-        ('GrassMean', g.scalar('GrassMeanLuma', 0.3, -1000, 900), ''),
-        ('RockMean', g.scalar('RockMeanLuma', 0.35, -1000, 1000), ''),
+    # The ground layers (GROUND_WEIGHTS): GroundNoise over GroundNoiseTile meters, the thatch and the stony ground on
+    # UV 1 at their own repeats, slid apart by the noise's drift. They're the master's own textures (no instance sets
+    # them), on the shared wrap sampler, so they take no sampler slots of their own.
+    ground = 'Ground'
+    noise_uv = g.custom('return UV / Tile;', [
+        ('UV', detail_coords, ''),
+        ('Tile', sparam(g, ground, 'GroundNoiseTile', GROUND_DEFAULTS['GroundNoiseTile'], -2600, -900), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT2, -2300, -900, 'Ground noise UV')
+    ground_noise = shared_wrap(g.texture('GroundNoiseMap', unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_COLOR,
+                                         ground_texture('GroundNoise', 'M'), noise_uv, -2000, -900))
+    layer_warp = sparam(g, ground, 'GroundWarp', GROUND_DEFAULTS['GroundWarp'], -2600, -700)
+    layer_uvs = {}
+    for name, y in (('Thatch', -700), ('Stony', -500)):
+        sign, offset = LAYER_UV_SLIDE[name]
+        layer_uvs[name] = g.custom(LAYER_UV_CODE.format(sign=sign, offset=offset), [
+            ('UV', detail_coords, ''),
+            ('Scale', sparam(g, ground, f'{name}Scale', GROUND_DEFAULTS[f'{name}Scale'], -2600, y), ''),
+            ('Noise', ground_noise, 'RGBA'), ('Warp', layer_warp, ''),
+        ], unreal.CustomMaterialOutputType.CMOT_FLOAT2, -2300, y, f'{name} UV')
+    thatch = shared_wrap(g.texture('ThatchBaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR,
+                                   ground_texture('GroundThatch', 'BC'), layer_uvs['Thatch'], -2000, -700))
+    thatch_n = shared_wrap(g.texture('ThatchNormalMap', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL,
+                                     ground_texture('GroundThatch', 'N'), layer_uvs['Thatch'], -2000, -600))
+    stony = shared_wrap(g.texture('StonyBaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR,
+                                  ground_texture('GroundStony', 'BC'), layer_uvs['Stony'], -2000, -500))
+    stony_n = shared_wrap(g.texture('StonyNormalMap', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL,
+                                    ground_texture('GroundStony', 'N'), layer_uvs['Stony'], -2000, -400))
+    # The Ground group's parameters: GROUND_DEFAULTS says what each number is.
+    grass_mean = g.scalar('GrassMeanLuma', 0.3, -1000, 900)
+    rock_mean = g.scalar('RockMeanLuma', 0.35, -1000, 1000)
+    weights = [
+        ('Macro', macro, 'RGB'), ('Select', macro, 'A'), ('Noise', ground_noise, 'RGBA'), ('Occlusion', vc, 'A'),
+        ('Depth', g.node(unreal.MaterialExpressionPixelDepth, -1300, -1100), ''),
+        ('Grass', grass, 'RGB'), ('Thatch', thatch, 'RGBA'), ('Stony', stony, 'RGBA'),
+        ('Cues', svector(g, ground, 'GroundCues', GROUND_DEFAULTS['GroundCues'], -1300, -1300), 'RGBA'),
+        ('Cues2', svector(g, ground, 'GroundCues2', GROUND_DEFAULTS['GroundCues2'], -1300, -1240), 'RGBA'),
+        ('DampP', svector(g, ground, 'GroundDamp', GROUND_DEFAULTS['GroundDamp'], -1300, -1180), 'RGBA'),
+        ('Fade', svector(g, ground, 'GroundFade', GROUND_DEFAULTS['GroundFade'], -1300, -1120), 'RGBA'),
+        ('GrassStats', svector(g, ground, 'GrassStats', layer_stats(mean=GRASS_MEAN), -1300, -1060), 'RGBA'),
+        ('StonyStats', svector(g, ground, 'StonyStats', layer_stats('GroundStony'), -1300, -1000), 'RGBA'),
+    ]
+    color = g.custom(TERRAIN_CODE, weights + [
+        ('Rock', rock, 'RGB'), ('GrassMean', grass_mean, ''), ('RockMean', rock_mean, ''),
         ('Strength', g.scalar('DetailStrength', 0.6, -1000, 1100), ''),
-        ('Occlusion', vc, 'A'),
+        ('RockTrue', sparam(g, ground, 'RockTrueLuma', ROCK_TRUE_LUMA, -1300, -940), ''),
+        ('ThatchStats', svector(g, ground, 'ThatchStats', layer_stats('GroundThatch'), -1300, -880), 'RGBA'),
+        ('Layers', svector(g, ground, 'GroundLayers', GROUND_DEFAULTS['GroundLayers'], -1300, -820), 'RGBA'),
+        ('LeafTint', svector(g, ground, 'LeafTint', GROUND_DEFAULTS['LeafTint'], -1300, -760), ''),
         ('DiffuseAO', g.scalar('DiffuseAO', 0.45, -1000, 1200), ''),
         ('RockX', rock_x, 'RGB'), ('RockY', rock_y, 'RGB'), ('Normal', vertex_normal, ''), ('Steep', steep, ''),
         ('SteepDetail', g.scalar('SteepDetail', 0.75, -1000, 1300), ''),
@@ -740,10 +969,9 @@ def build_terrain():
     base_b, light_b = bleached(g, color, '', vc, 'A', style_numbers('sunbleached').GROUND_DEFAULTS, -300, 2600)
     g.out(styled(g, SUNBLEACHED, base_b, color, 0, -200), '', unreal.MaterialProperty.MP_BASE_COLOR)
     g.out(styled(g, SUNBLEACHED, light_b, black(g, 0, -400), 200, -400), '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
-    normal = g.node(unreal.MaterialExpressionLinearInterpolate, -900, 400)
-    g.link(grass_n, 'RGB', normal, 'A')
-    g.link(rock_n, 'RGB', normal, 'B')
-    g.link(macro, 'A', normal, 'Alpha')
+    normal = g.custom(GROUND_NORMAL_CODE, weights + [
+        ('GrassN', grass_n, 'RGB'), ('ThatchN', thatch_n, 'RGB'), ('StonyN', stony_n, 'RGB'), ('RockN', rock_n, 'RGB'),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -900, 400, 'Ground normal')
     flatten = g.node(unreal.MaterialExpressionLinearInterpolate, -600, 400)
     g.link(g.node(unreal.MaterialExpressionConstant3Vector, -900, 600, constant=unreal.LinearColor(0.0, 0.0, 1.0, 1.0)), '', flatten, 'A')
     g.link(normal, '', flatten, 'B')
@@ -771,9 +999,8 @@ def build_terrain():
         ('Steep', steep, ''), ('Strength', g.scalar('SteepNormalStrength', 0.0, -700, 2200), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -700, 2300, 'Steep relief'), '', relief, 'Alpha')
     g.out(relief, '', unreal.MaterialProperty.MP_NORMAL)
-    rough = g.node(unreal.MaterialExpressionLinearInterpolate, -600, 700, const_a=0.92, const_b=0.82)
-    g.link(g.custom('return max(Select, Steep);', [('Select', macro, 'A'), ('Steep', steep, '')],
-                    unreal.CustomMaterialOutputType.CMOT_FLOAT1, -900, 950, 'Rock amount'), '', rough, 'Alpha')
+    rough = g.custom(GROUND_ROUGHNESS_CODE, weights + [('Steep', steep, '')],
+                     unreal.CustomMaterialOutputType.CMOT_FLOAT1, -900, 950, 'Ground roughness')
     g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
     g.out(vc, 'A', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
     finish(mat, [unreal.MaterialUsage.MATUSAGE_NANITE])

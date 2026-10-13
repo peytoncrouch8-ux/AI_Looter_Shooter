@@ -19,8 +19,12 @@ Pages ledger_only (and every Ledger name) are listed only once Sexton has handed
 are written in his voice (first drafts, for the user to judge).
 
   DA_Bestiary_Unpaid      The Unpaid (AUnpaidCreature), in Enemies; written before the Ledger, in the field guide's voice.
+  DA_Bestiary_BellRinger  The Bell-Ringer (ABellRingerCreature), in Enemies after the Unpaid; in the Ledger (met after
+                          Main 3), in Sexton's voice. Its stand is SK_Unpaid wearing the bell and the rope.
   DA_Bestiary_Gravemother The Gravemother (AGravemotherCreature, Side 3), in Creatures after the brown spider; in the
                           Ledger, in Sexton's voice.
+  DA_Bestiary_Spitter     The Venom Spitter (ASpitterSpider), in Creatures after the brown spider; written before the
+                          Ledger, in the field guide's voice (as the brown spider's page). Waits for SK_Spitter.
   DA_Bestiary_Hob         Hob, in Friends: a story character's page with SK_Hob on the stand; in the Ledger, known after
                           Main 1 (he never fights, so the player never "meets" him the way they meet a creature).
   DA_Bestiary_Sexton      Mister Sexton, NPCs, seated on the stand; in the Ledger, known from the start (he wrote it).
@@ -69,6 +73,35 @@ PAGES = {
         ],
         sort_order=0,
     ),
+    'BellRinger': dict(
+        asset='DA_Bestiary_BellRinger',
+        name='The Bell-Ringer',
+        section='ENEMY',
+        kind="The chapel's ringer",
+        actor='/Script/AI_Looter_Shooter.BellRingerCreature',
+        model='/Game/Art/Creatures/SK_Unpaid',
+        ledger_only=True,
+        habitat="Ransom's Rest: behind the Unpaid at the orchard's edge, and among the churchyard's graves",
+        description=("He rang Saint Ada's bell for forty years, friend: Sundays, weddings, and every burial on the Rest, "
+                     "walking ahead of the coffin with his hand bell. Nobody rang one for him. He came home with the rest "
+                     "of the Unpaid when she went dark, and he still walks ahead of the dead. They heed that bell. When it "
+                     "tolls over a fight, the fallen get back up."),
+        notes=[
+            "Kill him first. He hangs back behind the others, ten meters or so off, and backs away if you close on him. Run "
+            "him down and he swings the bell at you, though not hard.",
+            "Before he tolls he lifts the bell high beside his head and shakes it, and a halo of light gathers round it. "
+            "Shoot the bell then and the toll is lost: he reels, and it's a while before he tries again.",
+            "The bell is a weak spot whenever you can hit it: critical, for 1.5 times the damage. So is his coal.",
+            "His toll raises one of the Unpaid that fell near him in the last twenty seconds, at half its strength. He raises "
+            "two at most, and the ones he raises stay down the second time.",
+            "With nobody fallen to raise, the toll quickens the Unpaid round him, and him, for a few seconds: a pale ring "
+            "at their feet.",
+            "A Restless ringer tolls sooner. A Gravebound one's bell is cracked, and its sour toll slows you, as their "
+            "shriek does.",
+            "He drops ammo, most often for the gun that killed him, and about one in three times a weapon.",
+        ],
+        sort_order=1,
+    ),
     'Gravemother': dict(
         asset='DA_Bestiary_Gravemother',
         name='The Gravemother',
@@ -91,6 +124,32 @@ PAGES = {
             "She keeps to the Sink and her den. Go up the ramp and she lets you be.",
             "Every kill drops two guns, at the best odds this side of a Keeper. Kill her and she's gone a while: come back "
             "after twenty minutes or more and she'll be home.",
+        ],
+        sort_order=1,
+    ),
+    'Spitter': dict(
+        asset='DA_Bestiary_Spitter',
+        name='Venom Spitter',
+        section='CREATURE',
+        kind='Spitting spider',
+        actor='/Script/AI_Looter_Shooter.SpitterSpider',
+        model='/Game/Art/Creatures/SK_Spitter',
+        habitat="Ransom's Rest: the quarry track and the Webwood",
+        description=("A thin-legged cousin of the hunting spider that would rather not come near you. It carries its venom "
+                     "in a swollen sac on its back, glowing green through the skin, and lobs it from a safe distance: a "
+                     "glob that bursts where it lands and leaves a puddle that eats at whatever stands in it."),
+        notes=[
+            "The glowing sac on its back is its soft spot, and so is its head: hits there are critical, for 1.5 times the "
+            "damage.",
+            "Before it spits it rears up, its sac swells and throbs bright, and it hisses. Keep moving and change direction "
+            "then: it aims a little ahead of you.",
+            "Burst the sac while it's swelling and the spit chokes. Nothing flies, and it has to start over.",
+            "Its puddles burn for a few seconds. Step out of them.",
+            "It keeps fifteen meters or so between you, backing off as you come and sidestepping while you shoot. It backs "
+            "up slower than you walk, and it only bites when it's caught or cornered.",
+            "A Restless one spits sooner. A Gravebound one throws three globs at once.",
+            "Every Spitter drops ammo, most often for the gun that killed it, and about one in three drops a weapon. The "
+            "ones a fight brings don't come back.",
         ],
         sort_order=1,
     ),
