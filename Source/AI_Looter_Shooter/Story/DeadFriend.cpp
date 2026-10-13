@@ -97,18 +97,12 @@ ADeadFriend::ADeadFriend()
 	Figure->SetCastShadow(false);
 	Figure->SetBoundsScale(1.4f);
 
-	auto MakePart = [this](const TCHAR* Name)
-	{
-		UStaticMeshComponent* Part = CreateDefaultSubobject<UStaticMeshComponent>(Name);
-		Part->SetupAttachment(Figure);
-		Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		Part->SetGenerateOverlapEvents(false);
-		Part->SetCanEverAffectNavigation(false);
-		Part->SetCastShadow(false);
-		return Part;
-	};
-	Hat = MakePart(TEXT("Hat"));
-	Prop = MakePart(TEXT("Prop"));
+	Hat = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Hat"));
+	Hat->SetupAttachment(Figure);
+	Hat->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Hat->SetGenerateOverlapEvents(false);
+	Hat->SetCanEverAffectNavigation(false);
+	Hat->SetCastShadow(false);
 }
 
 void ADeadFriend::WearModel(USkeletalMesh* Model, UMaterialInterface* Tint)

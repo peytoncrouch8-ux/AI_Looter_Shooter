@@ -7,9 +7,7 @@
 
 const FName AThaddeusBright::SpeakerTag(TEXT("Speaker_Thaddeus"));
 const TCHAR* const AThaddeusBright::ModelPath = TEXT("/Game/Art/Creatures/SK_Thaddeus.SK_Thaddeus");
-const TCHAR* const AThaddeusBright::ApronPath = TEXT("/Game/Art/Creatures/SM_ThaddeusApron.SM_ThaddeusApron");
-const TCHAR* const AThaddeusBright::TapePath = TEXT("/Game/Art/Creatures/SM_ThaddeusTape.SM_ThaddeusTape");
-const TCHAR* const AThaddeusBright::HatPath = TEXT("/Game/Art/Creatures/SM_ThaddeusHat.SM_ThaddeusHat");
+const TCHAR* const AThaddeusBright::SpectaclesPath = TEXT("/Game/Art/Creatures/SM_ThaddeusSpectacles.SM_ThaddeusSpectacles");
 
 namespace
 {
@@ -37,19 +35,10 @@ AThaddeusBright::AThaddeusBright()
 
 	static USkeletalMesh* const Model = FindModel(ModelPath);
 	static UMaterialInterface* const Tint = FindTint(TintPath);
-	static UStaticMesh* const ApronModel = FindPart(ApronPath);
-	static UStaticMesh* const TapeModel = FindPart(TapePath);
-	static UStaticMesh* const HatModel = FindPart(HatPath);
+	static UStaticMesh* const Spectacles = FindPart(SpectaclesPath);
 	WearModel(Model, Model ? nullptr : Tint);
-	// Bare-headed at his work unless he's given a hat; his tape in his left fist; his apron over his chest and lap.
-	WearOnBone(Hat, HatModel, DeadFriendPoses::Hat);
-	WearOnBone(Prop, TapeModel, DeadFriendPoses::ArmBone(0, 2));
-	Apron = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Apron"));
-	Apron->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	Apron->SetGenerateOverlapEvents(false);
-	Apron->SetCanEverAffectNavigation(false);
-	Apron->SetCastShadow(false);
-	WearOnBone(Apron, ApronModel, DeadFriendPoses::Spine);
+	// His apron and tape are his model's own skin (the tape stretches as his hands part); his spectacles ride the hat bone.
+	WearOnBone(Hat, Spectacles, DeadFriendPoses::Hat);
 }
 
 void AThaddeusBright::BeginPlay()
@@ -60,19 +49,19 @@ void AThaddeusBright::BeginPlay()
 	Super::BeginPlay();
 }
 
-EThaddeusPose AThaddeusBright::GetActivity() const
+EThaddeusActivity AThaddeusBright::GetActivity() const
 {
 	if (IsTalking())
 	{
-		return EThaddeusPose::Look;
+		return EThaddeusActivity::Look;
 	}
 	if (KnockClock >= 0.f)
 	{
-		return EThaddeusPose::Knock;
+		return EThaddeusActivity::Knock;
 	}
 	using namespace ThaddeusPoses;
 	const float Phase = FMath::Fmod(MeasureClock, CycleSeconds);
-	return Phase >= StretchSeconds + HoldSeconds && Phase < StretchSeconds + HoldSeconds + MarkSeconds ? EThaddeusPose::Mark : EThaddeusPose::Measure;
+	return Phase >= StretchSeconds + HoldSeconds && Phase < StretchSeconds + HoldSeconds + MarkSeconds ? EThaddeusActivity::Mark : EThaddeusActivity::Measure;
 }
 
 void AThaddeusBright::KnockNow()
@@ -125,21 +114,20 @@ void AThaddeusBright::TickFriend(float DeltaSeconds)
 FDeadFriendPose AThaddeusBright::WantedPose(float Time) const
 {
 	using namespace ThaddeusPoses;
-	const EThaddeusPose Activity = GetActivity();
 	FDeadFriendPose Wanted;
-	switch (Activity)
+	switch (GetActivity())
 	{
-	case EThaddeusPose::Look:
+	case EThaddeusActivity::Look:
 		Wanted = Make(EThaddeusPose::Look);
 		break;
-	case EThaddeusPose::Knock:
+	case EThaddeusActivity::Knock:
 	{
 		// Two raps: the fist down, up, down, up.
 		const float Rap = 0.5f - 0.5f * FMath::Cos(2.f * UE_PI * KnockClock / RapSeconds);
-		Wanted = Make(EThaddeusPose::Knock, Rap);
+		Wanted = ThaddeusPoses::Knock(Rap);
 		break;
 	}
-	case EThaddeusPose::Mark:
+	case EThaddeusActivity::Mark:
 		Wanted = Make(EThaddeusPose::Mark);
 		break;
 	default:
@@ -155,7 +143,7 @@ FDeadFriendPose AThaddeusBright::WantedPose(float Time) const
 		{
 			Stretch = 1.f - Smooth((Phase - StretchSeconds - HoldSeconds - MarkSeconds) / ReleaseSeconds);
 		}
-		Wanted = Make(EThaddeusPose::Measure, Stretch);
+		Wanted = ThaddeusPoses::Measure(Stretch);
 		break;
 	}
 	}

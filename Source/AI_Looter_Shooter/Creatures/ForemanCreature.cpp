@@ -129,15 +129,26 @@ AForemanCreature::AForemanCreature()
 	{
 		Pick->SetStaticMesh(PickHandleModel);
 	}
-	// His satchel on his chest bone as the model rests (the bone's rest turn taken back off: it sits in the model's axes).
+	// His things where SK_Foreman holds them (Intermediate/ForemanModel/Foreman_parts.json): the handle on his pick bone (or
+	// off his right hand), the lamp on the bowler (its SOCKET_Lamp in play; on the hat bone without it).
+	const USkeletalMesh* Model = Body->GetSkeletalMeshAsset();
+	PickFromHand = FVector(4.16f, -3.11f, -8.06f);
+	PickTurn = FQuat(0.04972f, 0.49584f, -0.08651f, 0.86266f);
+	LampOnHat = FVector(10.04f, -0.16f, 5.23f);
+	LampTurnOnHat = FQuat(0.01744f, -0.00873f, 0.00076f, 0.99981f);
+	FName PickOn;
+	FTransform Held;
+	HoldPick(Model, PickOn, Held);
+	Pick->SetupAttachment(Body, PickOn);
+	Pick->SetRelativeTransform(Held);
+	if (Model && Model->GetRefSkeleton().FindBoneIndex(Rig.Hat) != INDEX_NONE)
+	{
+		Lamp->SetRelativeTransform(PartOnBone(Model, Rig.Hat, LampOnHat, LampTurnOnHat));
+	}
+	// His satchel on his chest bone, modelled in place with its pivot at the bone's head.
 	Satchel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Satchel"));
 	Satchel->SetupAttachment(Body, Rig.Chest);
-	const USkeletalMesh* Model = Body->GetSkeletalMeshAsset();
-	const int32 ChestIndex = Model ? Model->GetRefSkeleton().FindBoneIndex(Rig.Chest) : INDEX_NONE;
-	if (ChestIndex != INDEX_NONE)
-	{
-		Satchel->SetRelativeRotation(FAnimationRuntime::GetComponentSpaceTransformRefPose(Model->GetRefSkeleton(), ChestIndex).GetRotation().Inverse());
-	}
+	Satchel->SetRelativeTransform(PartOnBone(Model, Rig.Chest, FVector::ZeroVector, FQuat::Identity));
 	Satchel->SetStaticMesh(SatchelModel);
 	Satchel->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Satchel->SetGenerateOverlapEvents(false);

@@ -6,8 +6,11 @@
 #include "DeadMinerCreature.generated.h"
 
 class UInstancedStaticMeshComponent;
+class UMaterialInterface;
 class UPointLightComponent;
+class USkeletalMesh;
 class USphereComponent;
+class UStaticMesh;
 class UStaticMeshComponent;
 
 /**
@@ -31,13 +34,15 @@ class UStaticMeshComponent;
  *    stands over its lunch pail. It never wanders: it works where it was put.
  *  - It barks in its own words (its voice's BarkKind: CreatureVoiceBarkLines.cpp's DeadMiner lines), shown over it.
  *
- * Its body is SK_DeadMiner once the art drops it in (the Unpaid's skeleton), else SK_Unpaid; its parts are found by name
- * when they exist and left off otherwise, so the class works and its tests run without them: SM_DeadMinerHat on the hat
- * bone (in place of the Unpaid's hat; its socket SOCKET_Lamp is where the lamp goes), SM_DeadMinerLamp (its pivot at its
- * mount, its lens along +X, SOCKET_Light at the lens), SM_DeadMinerPick in the right fist (its pivot where the fist grips
- * the haft, the haft along +Z to the head, the point along +X) and SM_DeadMinerPail in the left (the lunch pail, its pivot
- * at the bail). Tints: MI_DeadMiner_A, B and C on the body's slot. Posed by code (DeadMinerCreaturePose.cpp): its arms
- * laid over the Unpaid's pose, the pick held to its right forearm's line.
+ * Its body is SK_DeadMiner once the art drops it in (the Unpaid's skeleton and a pick bone under hand_r; its body slot
+ * DeadMiner_A), else SK_Unpaid; its parts are found by name when they exist and left off otherwise, so the class works and
+ * its tests run without them (Art/Models/Creatures/DeadMiner.py; where each sits is its Intermediate/DeadMinerModel/
+ * DeadMiner_parts.json): SM_DeadMinerHat (felt) on the hat bone, or SM_DeadMinerCap with outfit B, each carrying
+ * SOCKET_Lamp where the lamp goes; SM_DeadMinerLamp (SOCKET_Light at its flame; its reflector is plain silver, never the
+ * ember channel: the glow cards are the flame); SM_DeadMinerPick on the pick bone (or held in the right fist as modelled
+ * without one); SM_DeadMinerPail in the left fist, hanging plumb from its handle's top. Outfits: the model's own (A),
+ * MI_DeadMiner_B and _C on the body's slot, the hat's too. Posed by code (DeadMinerCreaturePose.cpp): its arms laid over
+ * the Unpaid's pose; the pick held in the fist as modelled, swung along the forearm's line for its blow.
  */
 UCLASS(Config = Game)
 class AI_LOOTER_SHOOTER_API ADeadMinerCreature : public AUnpaidCreature
@@ -56,14 +61,25 @@ public:
 
 	static const TCHAR* const ModelPath;
 	static const TCHAR* const HatPath;
+	static const TCHAR* const CapPath;
 	static const TCHAR* const LampPath;
 	static const TCHAR* const PickPath;
 	static const TCHAR* const PailPath;
 	static const TCHAR* const ClothesPaths[3];
 
-	/** The hat's socket for the lamp, and the lamp's at its lens. */
+	/** The hat's socket for the lamp, and the lamp's at its flame. */
 	static const FName LampSocket;
 	static const FName LightSocket;
+
+	/** The bone the models carry the pick (the Foreman's handle) on, under hand_r. */
+	static const FName PickBone;
+
+	/**
+	 * Where a part sits on Bone of Model, as the parts table gives it (Intermediate/<Model>/<Model>_parts.json): FromBone its
+	 * pivot off the bone's head and Turn its axes, both in component space at rest. The part's transform relative to the
+	 * bone (the bone's rest turn taken back off), so it sits as modelled and rides the bone; identity without the bone.
+	 */
+	static FTransform PartOnBone(const USkeletalMesh* Model, FName Bone, const FVector& FromBone, const FQuat& Turn);
 
 	/** Its voice's lines (CreatureVoiceBarkLines.cpp's own for it). */
 	static const FName BarkKind;
@@ -97,6 +113,11 @@ public:
 	USphereComponent* GetLampHitZone() const { return LampHitZone; }
 	UPointLightComponent* GetLampLight() const { return LampLight; }
 	UStaticMeshComponent* GetPick() const { return Pick; }
+	UStaticMeshComponent* GetPail() const { return Pail; }
+
+	/** The pick as held in the fist (relative to the bone it hangs on: the pick bone, else hand_r), and how far it's swung to the forearm's line now (0-1). */
+	const FTransform& GetPickHeld() const { return PickHeld; }
+	float GetPickLineShare() const { return PickLineShare; }
 
 	/** The middle of the lamp's lens (world): its hit zone's, its light's. */
 	FVector GetLampCenter() const;
@@ -135,11 +156,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dead Miner")
 	FDeadMinerTuning Tuning;
 
-	/** Where the lamp sits on the hat bone without the hat's SOCKET_Lamp (cm, the model's axes: X forward, Z up). */
+	/**
+	 * Where the lamp sits off the hat bone's head without the hat's SOCKET_Lamp (cm, component space at rest: the felt hat's,
+	 * from the parts table), and its turn there (LampTurnOnHat).
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dead Miner")
-	FVector LampOnHat = FVector(11.f, 0.f, 3.f);
+	FVector LampOnHat = FVector(12.04f, -0.49f, 6.44f);
 
-	/** The lens's middle from the lamp's pivot without the lamp's SOCKET_Light (cm, the lamp's axes). */
+	/** The flame's middle from the lamp's pivot without the lamp's SOCKET_Light (cm, the lamp's axes). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dead Miner")
 	FVector LensOnLamp = FVector(5.f, 0.f, 0.f);
 
@@ -149,9 +173,9 @@ public:
 
 	/**
 	 * Where its arms point and what its trunk does (WantedArms), laid over the Unpaid's pose (component space: X forward, Y
-	 * right, Z up; the chest's lean and look stay on top). LeftWeight: how much of the Unpaid's own left arm gives way to
-	 * LeftUpper and LeftFore. Bow bends it forward at the waist, Kneel lowers it (cm), HeadPitch nods its head (degrees,
-	 * + down).
+	 * right, Z up; the chest's lean and look stay on top). RightWeight and LeftWeight: how much of the Unpaid's own arms give
+	 * way to these (0: the Unpaid's arms hang and drift, the pick held as modelled). Bow bends it forward at the waist, Kneel
+	 * lowers it (cm), HeadPitch nods its head (degrees, + down).
 	 */
 	struct FMinerArms
 	{
@@ -160,6 +184,7 @@ public:
 		FVector LeftUpper = FVector::DownVector;
 		FVector LeftFore = FVector::DownVector;
 		float Wrist = 0.f;
+		float RightWeight = 1.f;
 		float LeftWeight = 1.f;
 		/** How quickly the arms ease there (1/s). */
 		float Rate = 6.f;
@@ -180,8 +205,13 @@ protected:
 	virtual void OnRankChanged() override;
 	virtual void SetHitVolumesEnabled(bool bEnabled) override;
 	virtual void LayerPose(float DeltaSeconds) override;
+	/** The pick bone (its models carry the pick on it): posed with the rest, so the pick can be laid against it. */
+	virtual void GetExtraRigBones(TArray<FName>& OutBones) const override;
 
 	// --- For a body built on the dead miner (the Foreman: Creatures/ForemanCreature.h) ---
+
+	/** Whether the pick swings along the right forearm's line now (its blow) rather than sitting in the fist as modelled. */
+	virtual bool HoldsPickOnLine() const;
 
 	/** What the arms and trunk want now, for what it's doing (DeadMinerCreaturePose.cpp). */
 	virtual void WantedArms(FMinerArms& Out) const;
@@ -222,6 +252,22 @@ protected:
 	/** The lamp's glow and light scale on top of the flare (the Foreman's lamp burns brighter). */
 	float LampBrightness = 1.f;
 
+	/**
+	 * Where the pick sits off hand_r's head, and its turn, at rest (component space: the parts table's "on hand_r"), for a
+	 * model with no pick bone; on the pick bone it sits at the bone's head with the same turn. The Foreman's handle has its own.
+	 */
+	FVector PickFromHand = FVector(3.85f, -2.88f, -7.46f);
+	FQuat PickTurn = FQuat(0.04972f, 0.49584f, -0.08651f, 0.86266f);
+
+	/** The pail's grip (the top of its handle) off hand_l's head, hanging plumb (component space at rest). */
+	FVector PailFromHand = FVector(4.78f, 2.92f, -6.88f);
+
+	/** The lamp's turn on the hat bone without the hat's SOCKET_Lamp (component space at rest: the felt hat's). */
+	FQuat LampTurnOnHat = FQuat(0.04338f, 0.03487f, 0.00456f, 0.99844f);
+
+	/** Where the pick hangs on Model as modelled: the bone (the pick bone, else hand_r) and its place there. */
+	void HoldPick(const USkeletalMesh* Model, FName& OutBone, FTransform& OutHeld) const;
+
 	UPROPERTY(VisibleAnywhere, Category = "Dead Miner")
 	TObjectPtr<UStaticMeshComponent> Pick;
 
@@ -241,6 +287,13 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "Dead Miner")
 	TObjectPtr<UStaticMeshComponent> Pail;
+
+	/** Outfit B's leather cap (SM_DeadMinerCap) in place of the felt hat, and outfit B's tint that calls for it. */
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> CapMesh;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> OutfitBTint;
 
 private:
 	// --- The lamp (DeadMinerCreatureLamp.cpp) ---
@@ -269,8 +322,14 @@ private:
 	void SetupArmLayer();
 	void LayArm(int32 UpperBone, int32 LowerBone, int32 HandBone, const FVector& RestUpper, const FVector& RestFore, const FVector& Upper,
 		const FVector& Fore, float Wrist, float Weight);
-	/** The pick held to the right forearm's line, as this frame posed it. */
-	void UpdatePick();
+	/** Hangs the pick (the pick bone, else hand_r) and the pail (hand_l) as the model holds them. */
+	void PlaceHeldParts();
+	/** The pick as this frame posed it: held as modelled, swung to the forearm's line for the blow (eased between). */
+	void UpdatePick(float DeltaSeconds);
+	/** The pail hanging plumb from the left fist while it stands over it. */
+	void UpdatePail();
+	/** Outfit B's cap in place of the felt hat (before the Unpaid's start puts the hat on and tints it). */
+	void PutOnOutfitHat();
 
 	EAct Act = EAct::None;
 	float ActTime = 0.f;
@@ -322,8 +381,22 @@ private:
 	float NowBow = 0.f;
 	float NowKneel = 0.f;
 	float NowHeadPitch = 0.f;
+	float NowRightWeight = 0.f;
 	float NowLeftWeight = 0.f;
 	float LayerWeight = 1.f;
 	/** Its own clock for the arms' small drift, so a crowd doesn't move in step. */
 	float ArmClock = 0.f;
+
+	// The pick and the pail in its fists
+	/** The bone the pick hangs on (the pick bone, else hand_r), its index in the posed rig, and the pick there as held. */
+	FName PickAttachBone;
+	int32 PickAttachIndex = INDEX_NONE;
+	FTransform PickHeld = FTransform::Identity;
+	/** How far the pick is swung to the forearm's line (0 held as modelled, 1 on the line), and whether it sits as held now. */
+	float PickLineShare = 0.f;
+	bool bPickAsHeld = true;
+	/** The pail's grip on hand_l (its handle's top), as the model holds it. */
+	FTransform PailHeld = FTransform::Identity;
+	/** The lamp's dissolve as last written (it takes only the body's fade: its reflector is no ember). */
+	float ShownLampPhase = -1.f;
 };

@@ -18,7 +18,8 @@ class UStaticMeshComponent;
  * whoever it catches away. Dropped instead (the Foreman staggered or killed with it lit), it bursts at his feet and hurts
  * him and his shift too (him capped, as the grave salt caps a boss).
  *
- * Its model is SM_ForemanFuseStick (its pivot at its middle, the fuse end along +Z) once made; a thin cylinder stands in.
+ * Its model is SM_ForemanFuseStick (its pivot at its middle, the fuse along +Z, SOCKET_Fuse at its end) once made; a thin
+ * cylinder stands in. Lit, it sits in his left fist's grip as SK_Foreman holds it (Foreman_parts.json).
  * Ticks while it's out; it goes after its burst, or put out (Defuse) when his fight starts over.
  */
 UCLASS(NotPlaceable)
@@ -31,8 +32,8 @@ public:
 
 	AForemanFuseStick();
 
-	/** Lit in a fist: on Hand's Bone at OnHand (the bone's space), hissing and sparking. By is its thrower (credited). */
-	static AForemanFuseStick* SpawnLit(UWorld* World, AActor* By, USceneComponent* Hand, FName Bone, const FVector& OnHand);
+	/** Lit in a fist: on Hand's Bone at OnHand (relative to the bone), hissing and sparking. By is its thrower (credited). */
+	static AForemanFuseStick* SpawnLit(UWorld* World, AActor* By, USceneComponent* Hand, FName Bone, const FTransform& OnHand);
 
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

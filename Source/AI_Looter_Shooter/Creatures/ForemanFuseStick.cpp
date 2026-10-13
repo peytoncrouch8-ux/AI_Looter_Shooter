@@ -40,6 +40,9 @@ namespace
 	constexpr float StandInLong = 22.f;
 	constexpr float FuseEndUp = 13.f;
 
+	/** SM_ForemanFuseStick's socket at the fuse's end (its pivot at the stick's middle, the fuse along +Z). */
+	const FName FuseSocket(TEXT("Fuse"));
+
 	/** Its fall: the world's gravity, a 5 cm ball for its sweep. */
 	constexpr float Gravity = 980.f;
 	constexpr float SweepRadius = 5.f;
@@ -125,7 +128,7 @@ AForemanFuseStick::AForemanFuseStick()
 	Glow->SetUsingAbsoluteScale(true);
 }
 
-AForemanFuseStick* AForemanFuseStick::SpawnLit(UWorld* World, AActor* By, USceneComponent* Hand, FName Bone, const FVector& OnHand)
+AForemanFuseStick* AForemanFuseStick::SpawnLit(UWorld* World, AActor* By, USceneComponent* Hand, FName Bone, const FTransform& OnHand)
 {
 	if (!World)
 	{
@@ -142,8 +145,11 @@ AForemanFuseStick* AForemanFuseStick::SpawnLit(UWorld* World, AActor* By, UScene
 	Lit->Thrower = By;
 	if (Hand)
 	{
+		// In the fist's grip as the model holds it, the fuse up the fist's tunnel (the stand-in keeps its own thin size).
 		Lit->AttachToComponent(Hand, FAttachmentTransformRules::KeepRelativeTransform, Bone);
-		Lit->SetActorRelativeLocation(OnHand);
+		FTransform Placed = OnHand;
+		Placed.SetScale3D(Lit->Stick->GetRelativeScale3D());
+		Lit->SetActorRelativeTransform(Placed);
 	}
 	Lit->Stage = EStage::Held;
 	// The match struck and the fuse catching, then its hiss for as long as it burns.
@@ -154,6 +160,11 @@ AForemanFuseStick* AForemanFuseStick::SpawnLit(UWorld* World, AActor* By, UScene
 
 FVector AForemanFuseStick::GetFuseEnd() const
 {
+	// The model's SOCKET_Fuse; the stand-in's end up its axis.
+	if (Stick->GetStaticMesh() && Stick->DoesSocketExist(FuseSocket))
+	{
+		return Stick->GetSocketLocation(FuseSocket);
+	}
 	return Stick->GetComponentLocation() + Stick->GetUpVector() * FuseEndUp;
 }
 

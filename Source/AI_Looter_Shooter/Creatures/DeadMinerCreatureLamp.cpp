@@ -66,10 +66,9 @@ void ADeadMinerCreature::PlaceLamp()
 	}
 	else if (HatBone != INDEX_NONE)
 	{
-		// On the hat bone at the brow, in the model's own axes (the bone's rest turn taken back off).
-		const FQuat Turn = FAnimationRuntime::GetComponentSpaceTransformRefPose(Model->GetRefSkeleton(), HatBone).GetRotation().Inverse();
+		// On the hat bone where the felt hat carries it (the parts table's place and turn), riding the head.
 		Lamp->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, Rig.Hat);
-		Lamp->SetRelativeLocationAndRotation(Turn.RotateVector(LampOnHat), Turn);
+		Lamp->SetRelativeTransform(PartOnBone(Model, Rig.Hat, LampOnHat, LampTurnOnHat));
 	}
 	else
 	{
@@ -129,7 +128,14 @@ float ADeadMinerCreature::WantedLampFlare() const
 
 void ADeadMinerCreature::ApplyLamp(float DeltaSeconds)
 {
-	// The lamp fades with the body (a phase-step, its death), flares with the wind-up, and is dark once shot out.
+	// The lamp fades with the body (a phase-step, its death), flares with the wind-up, and is dark once shot out. The lamp
+	// itself takes only the body's dissolve, never its rank's ember: its reflector is plain silver, and the glow cards are
+	// its flame.
+	if (!FMath::IsNearlyEqual(GetPhase(), ShownLampPhase, 0.002f))
+	{
+		Lamp->SetCustomPrimitiveDataFloat(UnpaidLook::PhaseIndex, GetPhase());
+		ShownLampPhase = GetPhase();
+	}
 	const float Fade = FMath::Clamp(1.f - GetPhase(), 0.f, 1.f);
 	const float Flare = FMath::Clamp(LampFlare, 0.f, 1.f);
 	const float Glow = bLampLit ? Tuning.LampGlowStrength * LampBrightness * (1.f + 2.f * Flare) * Fade : 0.f;

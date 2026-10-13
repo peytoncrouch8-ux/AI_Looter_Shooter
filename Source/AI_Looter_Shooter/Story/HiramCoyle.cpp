@@ -36,7 +36,6 @@ AHiramCoyle::AHiramCoyle()
 	static UStaticMesh* const UnpaidHat = FindPart(TEXT("/Game/Art/Creatures/SM_UnpaidHat.SM_UnpaidHat"));
 	WearModel(Model, Model ? nullptr : Tint);
 	WearOnBone(Hat, Cap ? Cap : (MinerHat ? MinerHat : UnpaidHat), DeadFriendPoses::Hat);
-	Prop->SetVisibility(false);
 }
 
 void AHiramCoyle::BeginPlay()
@@ -116,7 +115,8 @@ void AHiramCoyle::TickFriend(float DeltaSeconds)
 
 FDeadFriendPose AHiramCoyle::WantedPose(float Time) const
 {
-	FDeadFriendPose Wanted = HiramPoses::Make(bAtTube ? EHiramPose::Tube : EHiramPose::Sit, TubeSide);
+	// His model's rest is his idle, seated on his stool; at the tube he leans to the side it's on.
+	FDeadFriendPose Wanted = bAtTube ? HiramPoses::AtTube(TubeSide) : HiramPoses::Make(EHiramPose::Idle);
 	// A slow breath in his shoulders, so he never sits like a post.
 	Wanted.Bend(DeadFriendPoses::Chest, 1.2f * FMath::Sin(Time * 1.3f));
 	return Wanted;

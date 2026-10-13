@@ -17,11 +17,19 @@
 #include "Session/CampaignRecord.h"
 #include "Tests/EncounterTestWorld.h"
 #include "Tests/LocomotionTestWorld.h"
+#include "AnimationRuntime.h"
 #include "Components/PointLightComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/SphereComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/HitResult.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "Materials/MaterialInterface.h"
+#include "Misc/PackageName.h"
+#include "ReferenceSkeleton.h"
 #include "Tests/AutomationCommon.h"
 #include "UObject/Script.h"
 
@@ -51,6 +59,32 @@ namespace
 			Miner.Tick(Frame);
 		}
 	}
+
+	/** Whether an asset's been imported (looked for by path: nothing's loaded while it's missing). */
+	bool IsMade(const TCHAR* ObjectPath)
+	{
+		return FPackageName::DoesPackageExist(FPackageName::ObjectPathToPackageName(FString(ObjectPath)));
+	}
+
+	/** A bone's place in Skeleton at rest (component space), or identity without it. */
+	FTransform BoneRest(const FReferenceSkeleton& Skeleton, FName Bone)
+	{
+		const int32 Index = Skeleton.FindBoneIndex(Bone);
+		return Index == INDEX_NONE ? FTransform::Identity : FAnimationRuntime::GetComponentSpaceTransformRefPose(Skeleton, Index);
+	}
+
+	/** Where a part worn on a bone sits at rest (component space): its place on the bone, the bone at rest. */
+	FTransform PartAtRest(const FReferenceSkeleton& Skeleton, const USceneComponent& Part)
+	{
+		return Part.GetRelativeTransform() * BoneRest(Skeleton, Part.GetAttachSocketName());
+	}
+
+	// DeadMiner.py's parts table (Intermediate/DeadMinerModel/DeadMiner_parts.json): off the bone's head at rest, and the turn.
+	const FVector PickOffHand(3.85, -2.88, -7.46);
+	const FQuat PickTurn(0.04972, 0.49584, -0.08651, 0.86266);
+	const FVector PailOffHand(4.78, 2.92, -6.88);
+	const FVector LampOffHat(12.04, -0.49, 6.44);
+	const FQuat LampTurn(0.04338, 0.03487, 0.00456, 0.99844);
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDeadMinerRulesTest, "Looter.Creatures.DeadMiner.Rules",
@@ -269,6 +303,114 @@ bool FDeadMinerWorkTest::RunTest(const FString& Parameters)
 	Worker->AlertTo(Player);
 	Run(*Worker, 0.1f);
 	TestFalse(TEXT("Alerted, it drops its work"), Worker->IsWorking());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDeadMinerGearTest, "Looter.Creatures.DeadMiner.Gear",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FDeadMinerGearTest::RunTest(const FString& Parameters)
+{
+	// Its things where the model has them at rest (DeadMiner.py's parts table): the pick on the pick bone (or in the right
+	// fist), never along the forearm while it's calm; the pail's handle in the left fist, hanging plumb; the lamp on the hat.
+	const ADeadMinerCreature* Defaults = GetDefault<ADeadMinerCreature>();
+	const USkeletalMesh* Model = Defaults->GetMesh()->GetSkeletalMeshAsset();
+	if (!TestNotNull(TEXT("Its body (SK_DeadMiner, else SK_Unpaid)"), Model))
+	{
+		return false;
+	}
+	const FReferenceSkeleton& Skeleton = Model->GetRefSkeleton();
+	const FName HandR = Defaults->Rig.RightArm.Hand;
+	const FName HandL = Defaults->Rig.LeftArm.Hand;
+	const FTransform HandRest = BoneRest(Skeleton, HandR);
+
+	// A part on a bone: at the bone's head and its offset, turned as given (the bone's own rest turn taken back off).
+	const FTransform OnHand = ADeadMinerCreature::PartOnBone(Model, HandR, PickOffHand, PickTurn) * HandRest;
+	TestTrue(*FString::Printf(TEXT("A part on a bone sits at its head and offset at rest (%s)"), *OnHand.GetLocation().ToCompactString()),
+		OnHand.GetLocation().Equals(HandRest.GetLocation() + PickOffHand, 0.01));
+	TestTrue(TEXT("...turned as the table has it"), OnHand.GetRotation().AngularDistance(PickTurn.GetNormalized()) < 0.001);
+	TestTrue(TEXT("...and on a bone the model lacks, left where it is"),
+		ADeadMinerCreature::PartOnBone(Model, TEXT("no_such_bone"), PickOffHand, PickTurn).Equals(FTransform::Identity));
+
+	// As it's made (what the Ledger's stand shows).
+	const bool bPickBone = Skeleton.FindBoneIndex(ADeadMinerCreature::PickBone) != INDEX_NONE;
+	const FTransform Pick = PartAtRest(Skeleton, *Defaults->GetPick());
+	const FVector PickAt = bPickBone ? BoneRest(Skeleton, ADeadMinerCreature::PickBone).GetLocation() : HandRest.GetLocation() + PickOffHand;
+	TestTrue(*FString::Printf(TEXT("Its pick in its fist as modelled (%s)"), *Pick.GetLocation().ToCompactString()),
+		Defaults->GetPick()->GetAttachSocketName() == (bPickBone ? ADeadMinerCreature::PickBone : HandR) && Pick.GetLocation().Equals(PickAt, 0.1)
+		&& Pick.GetRotation().AngularDistance(PickTurn.GetNormalized()) < 0.01);
+	if (bPickBone)
+	{
+		TestTrue(TEXT("...its model's pick bone where the parts table has the pick off its right hand"),
+			BoneRest(Skeleton, ADeadMinerCreature::PickBone).GetLocation().Equals(HandRest.GetLocation() + PickOffHand, 0.5));
+	}
+	const FTransform Pail = PartAtRest(Skeleton, *Defaults->GetPail());
+	TestTrue(*FString::Printf(TEXT("Its pail by its handle's top in its left fist, hanging plumb (%s)"), *Pail.GetLocation().ToCompactString()),
+		Defaults->GetPail()->GetAttachSocketName() == HandL && Pail.GetLocation().Equals(BoneRest(Skeleton, HandL).GetLocation() + PailOffHand, 0.1)
+		&& Pail.GetRotation().AngularDistance(FQuat::Identity) < 0.01);
+	if (Skeleton.FindBoneIndex(Defaults->Rig.Hat) != INDEX_NONE)
+	{
+		const FTransform Lamp = PartAtRest(Skeleton, *Defaults->GetLamp());
+		TestTrue(*FString::Printf(TEXT("Its lamp on the hat bone where the felt hat carries it (%s)"), *Lamp.GetLocation().ToCompactString()),
+			Lamp.GetLocation().Equals(BoneRest(Skeleton, Defaults->Rig.Hat).GetLocation() + LampOffHat, 0.1)
+			&& Lamp.GetRotation().AngularDistance(LampTurn.GetNormalized()) < 0.01);
+	}
+
+	// In play: calm, the pick stays in its fist as held; its lamp's reflector takes no ember (only the body's fade).
+	FTestWorldWrapper WorldWrapper;
+	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = WorldWrapper.GetTestWorld();
+	LocomotionTestWorld::SpawnBlock(World, FVector(0.0, 0.0, -50.0), FVector(6000.0, 6000.0, 100.0));
+	ADeadMinerCreature* Miner = SpawnMiner(World, FVector::ZeroVector);
+	if (!TestNotNull(TEXT("Miner spawned"), Miner))
+	{
+		return false;
+	}
+	Run(*Miner, 0.5f);
+	TestTrue(TEXT("Calm, its pick sits in its fist as held, not along its forearm"), Miner->GetPickLineShare() == 0.f
+		&& Miner->GetPick()->GetRelativeTransform().Equals(Miner->GetPickHeld(), 0.01));
+	const TArray<float>& LampData = Miner->GetLamp()->GetCustomPrimitiveData().Data;
+	bool bNoEmber = true;
+	for (int32 Index = UnpaidLook::RankColorIndex; Index < UnpaidLook::RankColorIndex + 4; ++Index)
+	{
+		bNoEmber &= !LampData.IsValidIndex(Index) || LampData[Index] == 0.f;
+	}
+	TestTrue(TEXT("Its lamp keeps off the ember: polished silver, the glow cards its flame"), bNoEmber);
+
+	// Outfit B wears the leather cap, A and C the felt hat (once the hats and the tint are made).
+	if (IsMade(ADeadMinerCreature::HatPath) && IsMade(ADeadMinerCreature::CapPath) && IsMade(ADeadMinerCreature::ClothesPaths[1]))
+	{
+		const int32 OutfitB = Defaults->OtherClothes.IndexOfByPredicate([](const TObjectPtr<UMaterialInterface>& Each)
+		{
+			return Each && Each->GetFName() == FName(TEXT("MI_DeadMiner_B"));
+		});
+		if (TestTrue(TEXT("Outfit B among its clothes"), OutfitB != INDEX_NONE))
+		{
+			// Dressed before it begins (a test level begins nothing by itself), as a placed miner's Clothes would be.
+			ADeadMinerCreature* Capped = Cast<ADeadMinerCreature>(ACreatureBase::SpawnAtRuntime(World, ADeadMinerCreature::StaticClass(),
+				FVector(1500.0, 0.0, 0.0), 0.f, ACreatureBase::FRuntimeSpawn()));
+			if (TestNotNull(TEXT("A miner in outfit B"), Capped) && !Capped->HasActorBegunPlay())
+			{
+				Capped->Clothes = OutfitB + 1;
+				Capped->DispatchBeginPlay();
+				BossTestWorld::NoLoot(Capped);
+				const UStaticMesh* Worn = Capped->GetHat()->GetStaticMesh();
+				TestTrue(TEXT("Outfit B wears the leather cap"), Worn && Worn->GetFName() == FName(TEXT("SM_DeadMinerCap")));
+				if (Worn && Worn->FindSocket(ADeadMinerCreature::LampSocket))
+				{
+					TestTrue(TEXT("...its lamp on the cap's own socket"), Capped->GetLamp()->GetAttachParent() == Capped->GetHat()
+						&& Capped->GetLamp()->GetAttachSocketName() == ADeadMinerCreature::LampSocket);
+				}
+			}
+			else if (Capped)
+			{
+				AddWarning(TEXT("The outfit-B miner began play as it spawned: its cap isn't checked"));
+			}
+		}
+	}
 	return true;
 }
 

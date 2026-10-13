@@ -27,6 +27,10 @@ namespace
 	/** "Fire in the hole!" with his first stick, then now and then, never twice within this long (s). */
 	constexpr float FuseLineRest = 14.f;
 	constexpr float FuseLineChance = 0.5f;
+
+	/** The lit stick's grip in his left fist: off hand_l's head and its turn, in component space at rest (Foreman_parts.json). */
+	const FVector FuseFromHand(5.16f, 3.16f, -7.43f);
+	const FQuat FuseTurn(-0.07278f, 0.42818f, 0.15094f, 0.88802f);
 }
 
 bool AForemanCreature::WantsFuse() const
@@ -52,7 +56,9 @@ void AForemanCreature::BeginFuse()
 	Move = EForemanMove::Fuse;
 	AttackWindup = FuseLightSeconds;
 	AttackRecovery = FuseRecovery;
-	if (AForemanFuseStick* Stick = AForemanFuseStick::SpawnLit(GetWorld(), this, GetMesh(), Rig.LeftArm.Hand, FVector::ZeroVector))
+	// In his left fist's grip as SK_Foreman holds it (Foreman_parts.json: off hand_l's head, the fuse up the fist's tunnel).
+	const FTransform Grip = PartOnBone(GetMesh()->GetSkeletalMeshAsset(), Rig.LeftArm.Hand, FuseFromHand, FuseTurn);
+	if (AForemanFuseStick* Stick = AForemanFuseStick::SpawnLit(GetWorld(), this, GetMesh(), Rig.LeftArm.Hand, Grip))
 	{
 		Stick->Damage = AttackDamage * FuseStrength;
 		Stick->Radius = FuseRadius;

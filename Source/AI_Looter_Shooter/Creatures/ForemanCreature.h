@@ -56,9 +56,11 @@ enum class EForemanMove : uint8
  * His lair (an AEncounterSpawner, or the shift's own ADeadMinerShiftSpawner, with LegendaryId Foreman) brings him, and his
  * vigil stone calls him back. A player gone from his stope a while stands his fight down: he heals and goes back to the fall.
  *
- * His parts are found by name once made, else the dead miners' (or nothing): SK_Foreman (the Unpaid's skeleton),
- * SM_ForemanBowler on the hat bone (its SOCKET_Lamp for the lamp), SM_ForemanLamp, SM_ForemanPickHandle in his right fist,
- * SM_ForemanSatchel on his chest (its pivot at the strap's middle on the chest bone), SM_ForemanFuseStick.
+ * His parts are found by name once made, else the dead miners' (or nothing), each where Intermediate/ForemanModel/
+ * Foreman_parts.json puts it: SK_Foreman (38 bones, the Unpaid's among them, with the pick bone under hand_r),
+ * SM_ForemanBowler on the hat bone (its SOCKET_Lamp for the lamp), SM_ForemanLamp, SM_ForemanPickHandle on the pick bone
+ * (else in his right fist as modelled), SM_ForemanSatchel modelled in place on his chest (its pivot at spine_02's head),
+ * SM_ForemanFuseStick lit in his left fist (its pivot at its middle, fuse along +Z to its SOCKET_Fuse).
  */
 UCLASS(Config = Game)
 class AI_LOOTER_SHOOTER_API AForemanCreature : public ADeadMinerCreature
@@ -263,6 +265,7 @@ protected:
 	virtual bool UsesLampBudget() const override { return false; }
 	virtual float WantedLampFlare() const override;
 	virtual bool HoldsPoseInDeath() const override { return true; }
+	virtual bool HoldsPickOnLine() const override;
 
 private:
 	// --- His fight (ForemanCreature.cpp; his boss's events and ClearFightState in ForemanCreatureEvents.cpp) ---

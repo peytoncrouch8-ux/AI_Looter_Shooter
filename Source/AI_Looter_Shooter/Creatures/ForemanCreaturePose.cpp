@@ -136,6 +136,17 @@ void AForemanCreature::WantedArms(FMinerArms& Out) const
 	Super::WantedArms(Out);
 }
 
+bool AForemanCreature::HoldsPickOnLine() const
+{
+	// His handle swings along his forearm in his swing, his entrance's slam and the roof's blow; lighting and throwing a
+	// fuse, and knocked to a knee, it stays in his fist as the model holds it.
+	if (GetCreatureState() != ECreatureState::Attack || bStaggeredNow)
+	{
+		return false;
+	}
+	return Move == EForemanMove::Swing || Move == EForemanMove::Intro || Move == EForemanMove::Roof;
+}
+
 bool AForemanCreature::WantsToWork() const
 {
 	// Digging at the fall while he waits for his fight; never in it.

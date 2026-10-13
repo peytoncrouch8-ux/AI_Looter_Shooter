@@ -36,13 +36,12 @@ are written in his voice (first drafts, for the user to judge).
                           stand wearing his hat and hay fork on their bones (he has no actor class to read them from:
                           bone_parts); in the Ledger, known after Main 4 (when Side 2 opens).
   DA_Bestiary_DeadMiner   The dead miners (ADeadMinerCreature), in Enemies after the Bell-Ringer; in the Ledger, in Sexton's
-                          voice. Its stand is SK_Unpaid wearing the miner's hat, lamp and pick once they're made; switch
-                          model to SK_DeadMiner when the art drops it in.
+                          voice. Its stand is SK_DeadMiner with the felt hat and pick (bone_parts).
   DA_Bestiary_Foreman     The Foreman, Cyrus Teague (AForemanCreature, Back Pay), in Enemies after the dead miners; in the
-                          Ledger, in Sexton's voice. SK_Unpaid on the stand until SK_Foreman is made.
-  DA_Bestiary_Hiram       Hiram Coyle, Friends: a story character's page, SK_Unpaid on the stand until SK_Hiram (and his cap,
-                          bone_parts) is made; in the Ledger, known after Main 5 (when Dead Lift opens).
-  DA_Bestiary_Thaddeus    Thaddeus Bright, Friends: as Hiram's, SK_Unpaid until SK_Thaddeus; known after Knocking Below
+                          Ledger, in Sexton's voice. SK_Foreman with his bowler, pick handle and satchel on the stand.
+  DA_Bestiary_Hiram       Hiram Coyle, Friends: a story character's page, SK_Hiram and his cap (bone_parts); in the Ledger,
+                          known after Main 5 (when Dead Lift opens).
+  DA_Bestiary_Thaddeus    Thaddeus Bright, Friends: as Hiram's, SK_Thaddeus and his spectacles; known after Knocking Below
                           (he's its discovery, not its giver).
   DA_Bestiary_Ned ... _Deacon  the seven names, in Enemies before the Unpaid, in the order the lantern finds them.
 """
@@ -118,7 +117,8 @@ PAGES = {
         section='ENEMY',
         kind="The Providence's dead",
         actor='/Script/AI_Looter_Shooter.DeadMinerCreature',
-        model='/Game/Art/Creatures/SK_Unpaid',
+        model='/Game/Art/Creatures/SK_DeadMiner',
+        bone_parts=[('/Game/Art/Creatures/SM_DeadMinerHat', 'hat'), ('/Game/Art/Creatures/SM_DeadMinerPick', 'pick')],
         ledger_only=True,
         habitat="Ransom's Rest: the Old Quarry, Larkspur Bench, Calder's Post and the Providence mine",
         description=("Men who went down for silver and were owed for it, friend. Forty years of the Providence's buried dead "
@@ -144,7 +144,9 @@ PAGES = {
         section='ENEMY',
         kind='Soulfed foreman',
         actor='/Script/AI_Looter_Shooter.ForemanCreature',
-        model='/Game/Art/Creatures/SK_Unpaid',
+        model='/Game/Art/Creatures/SK_Foreman',
+        bone_parts=[('/Game/Art/Creatures/SM_ForemanBowler', 'hat'), ('/Game/Art/Creatures/SM_ForemanPickHandle', 'pick'),
+                    ('/Game/Art/Creatures/SM_ForemanSatchel', 'spine_02')],
         ledger_only=True,
         habitat="Ransom's Rest: the stope at the bottom of the Providence, digging at the fall",
         description=("Cyrus Teague, foreman of the Providence Mining Company. He brought the roof down on eleven men to save "
@@ -376,15 +378,16 @@ PAGES = {
         ],
         sort_order=4,
     ),
-    # The friendly dead of the expansion (Docs/Areas/RansomsRest_Expansion.md, section 4): story characters on the Unpaid's
-    # body until their own models are made (then model=SK_Hiram / SK_Thaddeus, and their things as bone_parts).
+    # The friendly dead of the expansion (Docs/Areas/RansomsRest_Expansion.md, section 4): story characters, each on their
+    # own model (sheet 40) with their things as bone parts.
     'Hiram': dict(
         asset='DA_Bestiary_Hiram',
         page='STORY_CHARACTER',
         name='Hiram Coyle',
         section='FRIEND',
         kind="The ore lift's engineman",
-        model='/Game/Art/Creatures/SK_Unpaid',
+        model='/Game/Art/Creatures/SK_Hiram',
+        bone_parts=[('/Game/Art/Creatures/SM_HiramCap', 'hat')],
         ledger_only=True,
         known_when=dict(after=['Main5']),
         habitat="Ransom's Rest: the winch house at the Old Quarry, on his stool by the boiler",
@@ -403,7 +406,8 @@ PAGES = {
         name='Thaddeus Bright',
         section='FRIEND',
         kind="Tilly's father",
-        model='/Game/Art/Creatures/SK_Unpaid',
+        model='/Game/Art/Creatures/SK_Thaddeus',
+        bone_parts=[('/Game/Art/Creatures/SM_ThaddeusSpectacles', 'hat')],
         ledger_only=True,
         known_when=dict(after=['KnockingBelow']),
         habitat="Main Street: the cold room under Bright & Daughter, Undertakers",

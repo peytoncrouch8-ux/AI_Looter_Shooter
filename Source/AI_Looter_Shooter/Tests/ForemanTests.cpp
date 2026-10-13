@@ -17,8 +17,13 @@
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "Tests/EncounterTestWorld.h"
 #include "Tests/LocomotionTestWorld.h"
+#include "AnimationRuntime.h"
 #include "Components/PointLightComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
+#include "ReferenceSkeleton.h"
 #include "EngineUtils.h"
 #include "GameFramework/Character.h"
 #include "Math/RandomStream.h"
@@ -188,6 +193,41 @@ bool FForemanStatsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...his coal staggers him; his loot showers"), Boss->Stagger.CritShare > 0.f && Boss->LootShower.bEnabled);
 	TestEqual(TEXT("...four phases"), Boss->Phases.Num(), 4);
 	TestEqual(TEXT("...titled"), Boss->Show.Title.ToString(), FString(TEXT("Foreman of the Providence")));
+
+	// His things where his model has them at rest (Foreman_parts.json): the pick handle on the pick bone or in his right
+	// fist, the satchel modelled in place at the chest bone's head.
+	const USkeletalMesh* Model = Defaults->GetMesh()->GetSkeletalMeshAsset();
+	if (!TestNotNull(TEXT("His body (SK_Foreman, else the dead miners' or the Unpaid's)"), Model))
+	{
+		return false;
+	}
+	const FReferenceSkeleton& Skeleton = Model->GetRefSkeleton();
+	const auto AtRest = [&Skeleton](const USceneComponent* Part)
+	{
+		const int32 Bone = Skeleton.FindBoneIndex(Part->GetAttachSocketName());
+		return Bone == INDEX_NONE ? FTransform::Identity
+			: Part->GetRelativeTransform() * FAnimationRuntime::GetComponentSpaceTransformRefPose(Skeleton, Bone);
+	};
+	const auto BoneHead = [&Skeleton](FName Bone)
+	{
+		const int32 Index = Skeleton.FindBoneIndex(Bone);
+		return Index == INDEX_NONE ? FVector::ZeroVector : FAnimationRuntime::GetComponentSpaceTransformRefPose(Skeleton, Index).GetLocation();
+	};
+	const FQuat PickTurn = FQuat(0.04972, 0.49584, -0.08651, 0.86266).GetNormalized();
+	const bool bPickBone = Skeleton.FindBoneIndex(ADeadMinerCreature::PickBone) != INDEX_NONE;
+	const FVector PickAt = bPickBone ? BoneHead(ADeadMinerCreature::PickBone) : BoneHead(Defaults->Rig.RightArm.Hand) + FVector(4.16, -3.11, -8.06);
+	const FTransform Handle = AtRest(Defaults->GetPick());
+	TestTrue(*FString::Printf(TEXT("His pick handle in his fist as modelled (%s)"), *Handle.GetLocation().ToCompactString()),
+		Defaults->GetPick()->GetAttachSocketName() == (bPickBone ? ADeadMinerCreature::PickBone : Defaults->Rig.RightArm.Hand)
+		&& Handle.GetLocation().Equals(PickAt, 0.1) && Handle.GetRotation().AngularDistance(PickTurn) < 0.01);
+	if (bPickBone)
+	{
+		TestTrue(TEXT("...his model's pick bone where the parts table has the handle off his right hand"),
+			BoneHead(ADeadMinerCreature::PickBone).Equals(BoneHead(Defaults->Rig.RightArm.Hand) + FVector(4.16, -3.11, -8.06), 0.5));
+	}
+	const FTransform Bag = AtRest(Defaults->Satchel.Get());
+	TestTrue(TEXT("His satchel modelled in place: its pivot at the chest bone's head, unturned"),
+		Bag.GetLocation().Equals(BoneHead(Defaults->Rig.Chest), 0.1) && Bag.GetRotation().AngularDistance(FQuat::Identity) < 0.01);
 	return true;
 }
 
@@ -228,6 +268,15 @@ bool FForemanFightTest::RunTest(const FString& Parameters)
 	TestTrue(FString::Printf(TEXT("8 m off, he lights a fuse (%.2f s)"), LitAt), LitAt >= 0.f && Teague->GetHeldStick() != nullptr);
 	TestTrue(TEXT("...his coal open while it hisses"), Teague->IsCoalOpen());
 	AForemanFuseStick* Stick = Teague->GetHeldStick();
+	if (Stick && Stick->GetRootComponent())
+	{
+		// In his left fist's grip as SK_Foreman holds it (Foreman_parts.json): off hand_l's head, the fuse up the fist's tunnel.
+		const FTransform Grip = ADeadMinerCreature::PartOnBone(Teague->GetMesh()->GetSkeletalMeshAsset(), Teague->Rig.LeftArm.Hand,
+			FVector(5.16, 3.16, -7.43), FQuat(-0.07278, 0.42818, 0.15094, 0.88802).GetNormalized());
+		const USceneComponent* Held = Stick->GetRootComponent();
+		TestTrue(TEXT("...in his left fist's grip, as his model holds it"), Held->GetAttachSocketName() == Teague->Rig.LeftArm.Hand
+			&& Held->GetRelativeLocation().Equals(Grip.GetLocation(), 0.1) && Held->GetRelativeTransform().GetRotation().AngularDistance(Grip.GetRotation()) < 0.01);
+	}
 	TickFor(Teague, Teague->FuseLightSeconds + 0.1f);
 	TestEqual(TEXT("...then he lobs it"), Teague->GetFusesThrown(), 1);
 	TestFalse(TEXT("...his coal covered again"), Teague->IsCoalOpen());

@@ -28,6 +28,7 @@
 
 const TCHAR* const ADeadMinerCreature::ModelPath = TEXT("/Game/Art/Creatures/SK_DeadMiner.SK_DeadMiner");
 const TCHAR* const ADeadMinerCreature::HatPath = TEXT("/Game/Art/Creatures/SM_DeadMinerHat.SM_DeadMinerHat");
+const TCHAR* const ADeadMinerCreature::CapPath = TEXT("/Game/Art/Creatures/SM_DeadMinerCap.SM_DeadMinerCap");
 const TCHAR* const ADeadMinerCreature::LampPath = TEXT("/Game/Art/Creatures/SM_DeadMinerLamp.SM_DeadMinerLamp");
 const TCHAR* const ADeadMinerCreature::PickPath = TEXT("/Game/Art/Creatures/SM_DeadMinerPick.SM_DeadMinerPick");
 const TCHAR* const ADeadMinerCreature::PailPath = TEXT("/Game/Art/Creatures/SM_DeadMinerPail.SM_DeadMinerPail");
@@ -38,6 +39,7 @@ const TCHAR* const ADeadMinerCreature::ClothesPaths[3] = {
 };
 const FName ADeadMinerCreature::LampSocket(TEXT("Lamp"));
 const FName ADeadMinerCreature::LightSocket(TEXT("Light"));
+const FName ADeadMinerCreature::PickBone(TEXT("pick"));
 const FName ADeadMinerCreature::BarkKind(TEXT("DeadMiner"));
 
 namespace
@@ -46,6 +48,12 @@ namespace
 	const TCHAR* const GlowPath = TEXT("/Game/Weapons/FX/M_FX_Glow.M_FX_Glow");
 	const TCHAR* const PlanePath = TEXT("/Engine/BasicShapes/Plane.Plane");
 	constexpr int32 GlowFloats = 5;
+
+	/** SK_DeadMiner's body slot (its outfits go on it, and on its hat's), against the Unpaid's Ghost_A. */
+	const FName MinerBodySlot(TEXT("DeadMiner_A"));
+
+	/** The felt hat outfit B trades for the cap (by name: the Foreman's bowler never is). */
+	const FName FeltHatName(TEXT("SM_DeadMinerHat"));
 
 	/**
 	 * An asset made after this code (the miners' models and tints are with the user as concepts), found only once it
@@ -75,20 +83,36 @@ namespace
 		return Part;
 	}
 
-	/**
-	 * A bone's rest turn taken back off: a part on that bone turned by it sits in the model's own axes at rest, as the
-	 * Unpaid's hat does. False without the bone.
-	 */
-	bool RestTurnBack(const USkeletalMesh* Model, FName Bone, FQuat& OutTurn)
+	bool HasBone(const USkeletalMesh* Model, FName Bone)
 	{
-		const int32 Index = Model && !Bone.IsNone() ? Model->GetRefSkeleton().FindBoneIndex(Bone) : INDEX_NONE;
-		if (Index == INDEX_NONE)
-		{
-			return false;
-		}
-		OutTurn = FAnimationRuntime::GetComponentSpaceTransformRefPose(Model->GetRefSkeleton(), Index).GetRotation().Inverse();
-		return true;
+		return Model && !Bone.IsNone() && Model->GetRefSkeleton().FindBoneIndex(Bone) != INDEX_NONE;
 	}
+}
+
+FTransform ADeadMinerCreature::PartOnBone(const USkeletalMesh* Model, FName Bone, const FVector& FromBone, const FQuat& Turn)
+{
+	const int32 Index = Model && !Bone.IsNone() ? Model->GetRefSkeleton().FindBoneIndex(Bone) : INDEX_NONE;
+	if (Index == INDEX_NONE)
+	{
+		return FTransform::Identity;
+	}
+	// The bone's rest turn taken back off: on the bone, the part sits as modelled (at the bone's head plus FromBone, turned
+	// by Turn, in component space at rest) and rides the bone from there.
+	const FQuat Back = FAnimationRuntime::GetComponentSpaceTransformRefPose(Model->GetRefSkeleton(), Index).GetRotation().Inverse();
+	return FTransform((Back * Turn).GetNormalized(), Back.RotateVector(FromBone));
+}
+
+void ADeadMinerCreature::HoldPick(const USkeletalMesh* Model, FName& OutBone, FTransform& OutHeld) const
+{
+	// The models carry it on a pick bone under the right hand, at that bone's head; without one, held off the hand's head.
+	if (HasBone(Model, PickBone))
+	{
+		OutBone = PickBone;
+		OutHeld = PartOnBone(Model, PickBone, FVector::ZeroVector, PickTurn);
+		return;
+	}
+	OutBone = Rig.RightArm.Hand;
+	OutHeld = PartOnBone(Model, OutBone, PickFromHand, PickTurn);
 }
 
 ADeadMinerCreature::ADeadMinerCreature()
@@ -117,13 +141,15 @@ ADeadMinerCreature::ADeadMinerCreature()
 	PhaseStep.Cooldown = 5.f;
 	Voice->BarkKind = BarkKind;
 
-	// Its own body once the art drops it in (the Unpaid's skeleton and rig), else the Unpaid's. Its tints: the model's own
-	// is A, and B and C go on the body's slot; on the Unpaid's body all three do, never the Unpaid's own clothes.
+	// Its own body once the art drops it in (the Unpaid's skeleton and rig), else the Unpaid's. Its outfits: the model's own
+	// is A, and B and C go on its body's slot (DeadMiner_A, its hat's too); on the Unpaid's body all three do, never the
+	// Unpaid's own clothes.
 	USkeletalMeshComponent* Body = GetMesh();
 	static USkeletalMesh* const MinerModel = FindIfMade<USkeletalMesh>(ModelPath);
 	if (MinerModel)
 	{
 		Body->SetSkeletalMeshAsset(MinerModel);
+		BodySlot = MinerBodySlot;
 	}
 	static UMaterialInterface* const TintModels[] = {
 		FindIfMade<UMaterialInterface>(ClothesPaths[0]),
@@ -148,28 +174,36 @@ ADeadMinerCreature::ADeadMinerCreature()
 		OtherClothes.Reset();
 	}
 
-	// The miner's hat in place of the Unpaid's (the Unpaid's stays until it's made).
+	// The miner's felt hat in place of the Unpaid's (the Unpaid's stays until it's made); outfit B wears the leather cap.
 	static UStaticMesh* const MinerHat = FindIfMade<UStaticMesh>(HatPath);
+	static UStaticMesh* const MinerCap = FindIfMade<UStaticMesh>(CapPath);
 	if (MinerHat)
 	{
 		GetHat()->SetStaticMesh(MinerHat);
 	}
+	CapMesh = MinerCap;
+	OutfitBTint = TintModels[1];
 
+	// Its things as the model holds them (the parts table), so what reads the defaults (the Ledger's stand) sees them so:
+	// the pick on its pick bone (or in the right fist), the pail hanging plumb from the left (shown only at its pail).
 	const USkeletalMesh* Model = Body->GetSkeletalMeshAsset();
 	static UStaticMesh* const PickModel = FindIfMade<UStaticMesh>(PickPath);
 	static UStaticMesh* const PailModel = FindIfMade<UStaticMesh>(PailPath);
 	static UStaticMesh* const LampModel = FindIfMade<UStaticMesh>(LampPath);
-	Pick = MakePart(*this, TEXT("Pick"), Body, Rig.RightArm.Hand, PickModel);
+	FName PickOn;
+	FTransform Held;
+	HoldPick(Model, PickOn, Held);
+	Pick = MakePart(*this, TEXT("Pick"), Body, PickOn, PickModel);
+	Pick->SetRelativeTransform(Held);
 	Pail = MakePart(*this, TEXT("Pail"), Body, Rig.LeftArm.Hand, PailModel);
+	Pail->SetRelativeTransform(PartOnBone(Model, Rig.LeftArm.Hand, PailFromHand, FQuat::Identity));
 	Pail->SetVisibility(false);
 
-	// The lamp on the hat bone, as the model rests, so what reads the defaults (the Ledger's stand) sees it on its brow;
-	// play puts it on the hat's socket when the hat has one (PlaceLamp).
+	// The lamp on the hat bone where the felt hat carries it; play puts it on the hat's own SOCKET_Lamp (PlaceLamp).
 	Lamp = MakePart(*this, TEXT("Lamp"), Body, Rig.Hat, LampModel);
-	FQuat HatTurn;
-	if (RestTurnBack(Model, Rig.Hat, HatTurn))
+	if (HasBone(Model, Rig.Hat))
 	{
-		Lamp->SetRelativeLocationAndRotation(HatTurn.RotateVector(LampOnHat), HatTurn);
+		Lamp->SetRelativeTransform(PartOnBone(Model, Rig.Hat, LampOnHat, LampTurnOnHat));
 	}
 	else
 	{
@@ -221,27 +255,27 @@ ADeadMinerCreature::ADeadMinerCreature()
 
 void ADeadMinerCreature::BeginPlay()
 {
-	// Its things wear the body's look (its dissolve, its rank's ember), as the Bell-Ringer's bell does: listed before the
-	// Unpaid's start applies it.
+	// Its pick and pail wear the body's look (its dissolve, its rank's ember), as the Bell-Ringer's bell does: listed before
+	// the Unpaid's start applies it. Not the lamp: its reflector is plain silver, never the ember (ApplyLamp fades it).
 	LookParts.AddUnique(Pick);
-	LookParts.AddUnique(Lamp);
 	LookParts.AddUnique(Pail);
-	if (bMinerTints && Clothes < 0 && OtherClothes.Num() > 0)
+	// Its outfit, chosen here rather than by the Unpaid's start, so its hat goes with it (outfit B's cap).
+	if (Clothes < 0 && OtherClothes.Num() > 0)
 	{
-		Clothes = FMath::RandRange(1, OtherClothes.Num());
+		Clothes = bMinerTints ? FMath::RandRange(1, OtherClothes.Num()) : FMath::RandRange(0, OtherClothes.Num());
 	}
-	// Its rank (the swing's timing: OnRankChanged), level, size, clothes and rig first.
+	PutOnOutfitHat();
+	// Its rank (the swing's timing: OnRankChanged), level, size, clothes, hat and rig first.
 	Super::BeginPlay();
 
-	// On the fists the configured rig names (DefaultGame.ini may rename them), as the Unpaid puts its hat on.
-	Pick->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, Rig.RightArm.Hand);
-	Pail->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, Rig.LeftArm.Hand);
+	// On the bones the configured rig names (DefaultGame.ini may rename them), as the Unpaid puts its hat on.
+	PlaceHeldParts();
 	PlaceLamp();
 	BuildLampGlow();
 	SetupArmLayer();
 	if (bRigReady)
 	{
-		UpdatePick();
+		UpdatePick(0.f);
 	}
 	ApplyLampHitZone();
 	ApplyLamp(0.f);
@@ -267,6 +301,19 @@ void ADeadMinerCreature::SetAct(EAct NewAct)
 	ActTime = 0.f;
 }
 
+void ADeadMinerCreature::PutOnOutfitHat()
+{
+	// Outfit B wears the leather cap in place of the felt hat (DeadMiner.py's outfits); A and C the felt hat. Only the miner's
+	// own felt hat is ever traded: the Foreman's bowler stays his.
+	UStaticMeshComponent* HatPart = GetHat();
+	const UStaticMesh* Worn = HatPart ? HatPart->GetStaticMesh() : nullptr;
+	const UMaterialInterface* Outfit = Clothes > 0 && OtherClothes.IsValidIndex(Clothes - 1) ? OtherClothes[Clothes - 1].Get() : nullptr;
+	if (CapMesh && OutfitBTint && Outfit == OutfitBTint && Worn && Worn->GetFName() == FeltHatName)
+	{
+		HatPart->SetStaticMesh(CapMesh);
+	}
+}
+
 // ---------------------------------------------------------------------------
 // The frame
 // ---------------------------------------------------------------------------
@@ -283,10 +330,11 @@ void ADeadMinerCreature::Tick(float DeltaSeconds)
 		TickReel(DeltaSeconds);
 		TickWork(DeltaSeconds);
 	}
-	// The pick in its fist as this frame posed it.
+	// The pick in its fist and the pail as this frame posed them.
 	if (bRigReady && !IsPoseFrozen())
 	{
-		UpdatePick();
+		UpdatePick(DeltaSeconds);
+		UpdatePail();
 	}
 	// The lamp flares through the wind-up and snaps back at the blow.
 	const float WantedFlare = bLampLit ? WantedLampFlare() : 0.f;
@@ -347,6 +395,10 @@ void ADeadMinerCreature::OnRespawned()
 	bLampZoneWanted = true;
 	ShownGlow = -1.f;
 	ShownLight = -1.f;
+	ShownLampPhase = -1.f;
+	// The pick back in its fist as held.
+	PickLineShare = 0.f;
+	bPickAsHeld = false;
 	ApplyLampHitZone();
 	ApplyLamp(0.f);
 	RefreshLampLight();

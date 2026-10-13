@@ -2,17 +2,8 @@
 #include "AnimationRuntime.h"
 #include "ReferenceSkeleton.h"
 
-namespace
-{
-	FVector Ease(const FVector& From, const FVector& To, float Alpha)
-	{
-		const FVector Eased = FMath::Lerp(From, To, static_cast<double>(Alpha)).GetSafeNormal();
-		return Eased.IsNearlyZero() ? To : Eased;
-	}
-}
-
 // ---------------------------------------------------------------------------
-// Building a pose
+// A pose
 // ---------------------------------------------------------------------------
 
 FDeadFriendPose& FDeadFriendPose::Bend(FName Bone, float Forward, float TurnRight, float LeanRight)
@@ -25,16 +16,6 @@ FDeadFriendPose& FDeadFriendPose::Bend(FName Bone, float Forward, float TurnRigh
 FDeadFriendPose& FDeadFriendPose::Move(FName Bone, const FVector& Shift)
 {
 	Shifts.FindOrAdd(Bone, FVector::ZeroVector) += Shift;
-	return *this;
-}
-
-FDeadFriendPose& FDeadFriendPose::Arm(int32 Side, const FVector& Upper, const FVector& Fore, float Wrist)
-{
-	FDeadFriendArm& Laid = Arms[FMath::Clamp(Side, 0, 1)];
-	Laid.bSet = true;
-	Laid.Upper = Upper.GetSafeNormal();
-	Laid.Fore = Fore.GetSafeNormal();
-	Laid.Wrist = Wrist;
 	return *this;
 }
 
@@ -66,30 +47,31 @@ FDeadFriendPose FDeadFriendPose::Blend(const FDeadFriendPose& A, const FDeadFrie
 		const FVector* To = B.Shifts.Find(Bone);
 		Blended.Shifts.Add(Bone, FMath::Lerp(From ? *From : FVector::ZeroVector, To ? *To : FVector::ZeroVector, static_cast<double>(Share)));
 	}
-	for (int32 Side = 0; Side < 2; ++Side)
-	{
-		const FDeadFriendArm& From = A.Arms[Side];
-		const FDeadFriendArm& To = B.Arms[Side];
-		FDeadFriendArm& Out = Blended.Arms[Side];
-		if (!From.bSet && !To.bSet)
-		{
-			continue;
-		}
-		// An arm laid in one pose only eases from (or to) hanging at rest.
-		const FDeadFriendArm Rest;
-		const FDeadFriendArm& F = From.bSet ? From : Rest;
-		const FDeadFriendArm& T = To.bSet ? To : Rest;
-		Out.bSet = true;
-		Out.Upper = Ease(F.Upper, T.Upper, Share);
-		Out.Fore = Ease(F.Fore, T.Fore, Share);
-		Out.Wrist = FMath::Lerp(F.Wrist, T.Wrist, Share);
-	}
 	return Blended;
 }
 
 // ---------------------------------------------------------------------------
-// The solver
+// Tables and the solvers
 // ---------------------------------------------------------------------------
+
+namespace
+{
+	/** A bone's whole turn: its parent's with its own on top, the layer's head turn and jaw added where they belong. */
+	FQuat Turned(const FQuat& Above, FQuat Own, FName Name, const FDeadFriendLayer& Layer)
+	{
+		if (Name == DeadFriendPoses::Jaw && Layer.JawOpen != 0.f)
+		{
+			Own = (Own * FQuat(FVector::RightVector, FMath::DegreesToRadians(Layer.JawOpen))).GetNormalized();
+		}
+		const FQuat Whole = (Above * Own).GetNormalized();
+		// Turned to the listener about the body's up at the head's joint; the jaw and the hat ride it as its children.
+		if (Name == DeadFriendPoses::Head && Layer.HeadYaw != 0.f)
+		{
+			return (FQuat(FVector::UpVector, FMath::DegreesToRadians(Layer.HeadYaw)) * Whole).GetNormalized();
+		}
+		return Whole;
+	}
+}
 
 namespace DeadFriendPoses
 {
@@ -111,52 +93,104 @@ namespace DeadFriendPoses
 		return (Yaw * Pitch * Roll).GetNormalized();
 	}
 
+	FDeadFriendPose FromTable(const FDeadFriendPoseTable& Table, int32 Pose)
+	{
+		FDeadFriendPose Made;
+		if (!Table.Bones || !Table.Rows || Pose < 0 || Pose >= Table.NumPoses)
+		{
+			return Made;
+		}
+		for (int32 Bone = 0; Bone < Table.NumBones; ++Bone)
+		{
+			const FDeadFriendPoseBone& Row = Table.Rows[Pose * Table.NumBones + Bone];
+			const FName Name(Table.Bones[Bone].Name);
+			const FQuat Own = FQuat(Row.Own[0], Row.Own[1], Row.Own[2], Row.Own[3]).GetNormalized();
+			if (!Own.Equals(FQuat::Identity, 1.e-5f))
+			{
+				Made.Turns.Add(Name, Own);
+			}
+			const FVector Shift(Row.Shift[0], Row.Shift[1], Row.Shift[2]);
+			if (!Shift.IsNearlyZero(0.01))
+			{
+				Made.Shifts.Add(Name, Shift);
+			}
+		}
+		return Made;
+	}
+
+	int32 FindTableBone(const FDeadFriendPoseTable& Table, FName Bone)
+	{
+		for (int32 Index = 0; Table.Bones && Index < Table.NumBones; ++Index)
+		{
+			if (Bone == FName(Table.Bones[Index].Name))
+			{
+				return Index;
+			}
+		}
+		return INDEX_NONE;
+	}
+
+	FTableHeads SolveTable(const FDeadFriendPoseTable& Table, const FDeadFriendPose& Pose, const FDeadFriendLayer& Layer)
+	{
+		// Parents come before their children in the table, so one pass poses them all: a bone's joint rides where its
+		// parent's turn carries it, then its own shift; its turn is its parent's with its own on top.
+		FTableHeads Solved;
+		Solved.Heads.SetNum(Table.NumBones);
+		Solved.Turns.SetNum(Table.NumBones);
+		for (int32 Bone = 0; Table.Bones && Bone < Table.NumBones; ++Bone)
+		{
+			const FDeadFriendPoseBoneInfo& Info = Table.Bones[Bone];
+			const FName Name(Info.Name);
+			const FVector Rest(Info.Rest[0], Info.Rest[1], Info.Rest[2]);
+			const int32 Parent = Info.Parent;
+			const bool bParent = Parent >= 0 && Parent < Bone;
+			const FQuat Above = bParent ? Solved.Turns[Parent] : FQuat::Identity;
+			const FVector ParentRest = bParent ? FVector(Table.Bones[Parent].Rest[0], Table.Bones[Parent].Rest[1], Table.Bones[Parent].Rest[2]) : FVector::ZeroVector;
+			FVector BoneHead = bParent ? Solved.Heads[Parent] + Above.RotateVector(Rest - ParentRest) : Rest;
+			if (const FVector* Shift = Pose.Shifts.Find(Name))
+			{
+				BoneHead += *Shift;
+			}
+			const FQuat* Own = Pose.Turns.Find(Name);
+			Solved.Heads[Bone] = BoneHead;
+			Solved.Turns[Bone] = Turned(Above, Own ? *Own : FQuat::Identity, Name, Layer);
+		}
+		return Solved;
+	}
+
+	FVector TableHead(const FDeadFriendPoseTable& Table, const FTableHeads& Solved, FName Bone)
+	{
+		const int32 Index = FindTableBone(Table, Bone);
+		return Solved.Heads.IsValidIndex(Index) ? Solved.Heads[Index] : FVector::ZeroVector;
+	}
+
+	float TableYaw(const FDeadFriendPoseTable& Table, const FTableHeads& Solved, FName Bone)
+	{
+		const int32 Index = FindTableBone(Table, Bone);
+		if (!Solved.Turns.IsValidIndex(Index))
+		{
+			return 0.f;
+		}
+		const FVector Looking = Solved.Turns[Index].RotateVector(FVector::ForwardVector);
+		return FMath::RadiansToDegrees(static_cast<float>(FMath::Atan2(Looking.Y, Looking.X)));
+	}
+
 	TArray<FTransform> Solve(const FReferenceSkeleton& Skeleton, const FDeadFriendPose& Pose, const FDeadFriendLayer& Layer)
 	{
 		const int32 Count = Skeleton.GetNum();
 		TArray<FTransform> Rest;
 		TArray<FTransform> Posed;
-		TArray<FQuat> Turned;
+		TArray<FQuat> Whole;
 		Rest.SetNum(Count);
 		Posed.SetNum(Count);
-		Turned.SetNum(Count);
+		Whole.SetNum(Count);
+		// A skeleton lists every bone after its parent: one pass poses them all.
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
 			Rest[Index] = FAnimationRuntime::GetComponentSpaceTransformRefPose(Skeleton, Index);
-		}
-
-		// The arms' own turns from their directions: the upper arm taken from its rest to Upper, the forearm's turn
-		// undoing the upper arm's first so it points along Fore, the hand bent at the wrist.
-		TMap<int32, FQuat> ArmOwn;
-		for (int32 Side = 0; Side < 2; ++Side)
-		{
-			const FDeadFriendArm& Laid = Pose.Arms[Side];
-			const int32 Upper = Skeleton.FindBoneIndex(ArmBone(Side, 0));
-			const int32 Lower = Skeleton.FindBoneIndex(ArmBone(Side, 1));
-			const int32 Hand = Skeleton.FindBoneIndex(ArmBone(Side, 2));
-			if (!Laid.bSet || Upper == INDEX_NONE || Lower == INDEX_NONE || Hand == INDEX_NONE)
-			{
-				continue;
-			}
-			auto RestWay = [&Rest](int32 From, int32 To)
-			{
-				const FVector Way = (Rest[To].GetLocation() - Rest[From].GetLocation()).GetSafeNormal();
-				return Way.IsNearlyZero() ? FVector::DownVector : Way;
-			};
-			const FQuat UpperTurn = FQuat::FindBetweenNormals(RestWay(Upper, Lower), Laid.Upper);
-			const FQuat ForeTurn = FQuat::FindBetweenNormals(RestWay(Lower, Hand), Laid.Fore);
-			ArmOwn.Add(Upper, UpperTurn);
-			ArmOwn.Add(Lower, (UpperTurn.Inverse() * ForeTurn).GetNormalized());
-			ArmOwn.Add(Hand, FQuat(FVector::RightVector, FMath::DegreesToRadians(Laid.Wrist)));
-		}
-
-		// A skeleton lists every bone after its parent: one pass poses them all.
-		const FQuat HeadTurn(FVector::UpVector, FMath::DegreesToRadians(Layer.HeadYaw));
-		for (int32 Index = 0; Index < Count; ++Index)
-		{
 			const FName Name = Skeleton.GetBoneName(Index);
 			const int32 Parent = Skeleton.GetParentIndex(Index);
-			const FQuat Above = Parent != INDEX_NONE ? Turned[Parent] : FQuat::Identity;
+			const FQuat Above = Parent != INDEX_NONE ? Whole[Parent] : FQuat::Identity;
 			FVector Joint = Parent != INDEX_NONE
 				? Posed[Parent].GetLocation() + Above.RotateVector(Rest[Index].GetLocation() - Rest[Parent].GetLocation())
 				: Rest[Index].GetLocation();
@@ -164,27 +198,9 @@ namespace DeadFriendPoses
 			{
 				Joint += *Shift;
 			}
-			FQuat Own = FQuat::Identity;
-			if (const FQuat* Laid = ArmOwn.Find(Index))
-			{
-				Own = *Laid;
-			}
-			else if (const FQuat* Bent = Pose.Turns.Find(Name))
-			{
-				Own = *Bent;
-			}
-			if (Name == Jaw && Layer.JawOpen != 0.f)
-			{
-				Own = (Own * FQuat(FVector::RightVector, FMath::DegreesToRadians(Layer.JawOpen))).GetNormalized();
-			}
-			FQuat Whole = (Above * Own).GetNormalized();
-			// Turned to the listener about the body's up at the head's joint; the jaw and the hat ride it as its children.
-			if (Name == Head && Layer.HeadYaw != 0.f)
-			{
-				Whole = (HeadTurn * Whole).GetNormalized();
-			}
-			Turned[Index] = Whole;
-			Posed[Index] = FTransform(Whole * Rest[Index].GetRotation(), Joint, Rest[Index].GetScale3D());
+			const FQuat* Own = Pose.Turns.Find(Name);
+			Whole[Index] = Turned(Above, Own ? *Own : FQuat::Identity, Name, Layer);
+			Posed[Index] = FTransform(Whole[Index] * Rest[Index].GetRotation(), Joint, Rest[Index].GetScale3D());
 		}
 		return Posed;
 	}

@@ -14,11 +14,11 @@ class USpeakerPointComponent;
  * his stool (his origin at the stool's foot, facing out from the boiler) and says which side the speaking tube is
  * (TubeSide). There from Main 5's finish, when Dead Lift opens (ShownWhen).
  *
- * He sits (HiramPoses::Sit), now and then leaning to the speaking tube to listen for the lift head (every half a minute or
- * so, a few seconds), and leans to it while anyone talks through the tube at the lift head (the speaker point tagged
- * Speaker_LiftTube: Dead Lift's turn-in comes up it in his voice). Talked to, he turns his head to the listener. His body is
- * SK_Hiram once made (the dead miners' costume set), else SK_Unpaid in a miner's tint; his cap SM_HiramCap on the hat bone
- * (else the dead miners' hat).
+ * He sits (his idle: SK_Hiram's rest pose, on a 56 cm stool), now and then leaning to the speaking tube to listen for the
+ * lift head (every half a minute or so, a few seconds; HiramPoses::AtTube, to the side it's on), and leans to it while
+ * anyone talks through the tube at the lift head (the speaker point tagged Speaker_LiftTube: Dead Lift's turn-in comes up it
+ * in his voice). Talked to, he turns his head to the listener. His body is SK_Hiram (the dead miners' costume set), else
+ * SK_Unpaid in a miner's tint until it's imported; his cap SM_HiramCap on the hat bone (else the dead miners' hat).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AHiramCoyle : public ADeadFriend

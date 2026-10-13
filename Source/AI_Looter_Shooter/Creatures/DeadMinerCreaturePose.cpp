@@ -1,17 +1,20 @@
 // ADeadMinerCreature's body: its arms laid over the Unpaid's pose (LayerPose, the hook a body on the Unpaid's rig uses, as
-// the Bell-Ringer's bell arm does) and the pick held in its right fist. Calm, the pick rides on its shoulder; hunting, it's
-// held low across the body in both hands; the swing heaves it overhead (the wind-up), brings it down in front (snapped) and
-// leaves it in the floor (the recovery); at work it's raised and driven level into the wall; at the pail both hands are low
-// before it, head bowed; a lamp shot in the wind-up flings both arms wide and snaps the head back.
+// the Bell-Ringer's bell arm does), the pick in its right fist and the pail in its left. Calm, its arms hang and drift as the
+// Unpaid's do, the pick held as the model holds it; hunting, it's held low across the body in both hands; the swing heaves it
+// overhead (the wind-up), brings it down in front (snapped) and leaves it in the floor (the recovery); at work it's raised
+// and driven level into the wall; at the pail both hands are low before it, head bowed; a lamp shot in the wind-up flings
+// both arms wide and snaps the head back.
 //
 // Each arm is laid by where its upper arm and forearm point (component space: X forward, Y its right, Z up), eased toward
 // what it wants: a bone's turn is in the rest pose's frame under its parent's, so the upper arm's turn takes its rest
-// direction to the wanted one and the forearm's undoes that first. The pick's haft runs along the right forearm's line out
-// of the fist, its point turned along the swing.
+// direction to the wanted one and the forearm's undoes that first. The pick sits in the fist as modelled (on the models'
+// pick bone, or held off the hand as the parts table puts it), so it never stands up before the face and the lamp; for the
+// swing it's eased onto the right forearm's line out of the fist, its point turned along the blow, and back after.
 
 #include "Creatures/DeadMinerCreature.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Math/RotationMatrix.h"
 
 namespace
@@ -21,9 +24,6 @@ namespace
 		return FVector(X, Y, Z).GetSafeNormal();
 	}
 
-	/** Calm: the pick on its right shoulder, the fist at the collarbone, the head of the pick behind it. */
-	const FVector CarryUpper = Dir(0.15f, 0.28f, -0.95f);
-	const FVector CarryFore = Dir(0.2f, -0.3f, 0.93f);
 	/** Hunting: held low across the body in both hands. */
 	const FVector HuntUpperR = Dir(0.35f, 0.25f, -0.9f);
 	const FVector HuntForeR = Dir(0.85f, -0.25f, 0.45f);
@@ -89,9 +89,13 @@ namespace
 		Out.RightFore = ForeR;
 		Out.LeftUpper = UpperL;
 		Out.LeftFore = ForeL;
+		Out.RightWeight = 1.f;
 		Out.LeftWeight = 1.f;
 		Out.Rate = Rate;
 	}
+
+	/** The pick eases onto the forearm's line for the blow, and back into the fist as held after (1/s). */
+	constexpr float PickLineEase = 12.f;
 }
 
 void ADeadMinerCreature::SetupArmLayer()
@@ -198,9 +202,8 @@ void ADeadMinerCreature::WantedArms(FMinerArms& Out) const
 		Out.Bow = 6.f;
 		return;
 	}
-	// Calm: the pick on its shoulder, its free arm the Unpaid's own.
-	Out.RightUpper = CarryUpper;
-	Out.RightFore = (CarryFore + FVector(0.f, Drift, 0.f)).GetSafeNormal();
+	// Calm: both arms the Unpaid's own, hanging and drifting, the pick held low in its fist as the model holds it.
+	Out.RightWeight = 0.f;
 	Out.LeftWeight = 0.f;
 	Out.Rate = EaseCalm;
 }
@@ -234,6 +237,7 @@ void ADeadMinerCreature::LayerPose(float DeltaSeconds)
 		NowRightFore = Want.RightFore;
 		NowLeftUpper = Want.LeftUpper;
 		NowLeftFore = Want.LeftFore;
+		NowRightWeight = Want.RightWeight;
 		NowLeftWeight = Want.LeftWeight;
 		NowBow = Want.Bow;
 		NowKneel = Want.Kneel;
@@ -246,6 +250,7 @@ void ADeadMinerCreature::LayerPose(float DeltaSeconds)
 		NowRightFore = EaseDirection(NowRightFore, Want.RightFore, Want.Rate, DeltaSeconds);
 		NowLeftUpper = EaseDirection(NowLeftUpper, Want.LeftUpper, Want.Rate, DeltaSeconds);
 		NowLeftFore = EaseDirection(NowLeftFore, Want.LeftFore, Want.Rate, DeltaSeconds);
+		NowRightWeight = FMath::FInterpTo(NowRightWeight, Want.RightWeight, DeltaSeconds, 6.f);
 		NowLeftWeight = FMath::FInterpTo(NowLeftWeight, Want.LeftWeight, DeltaSeconds, 6.f);
 		const float TrunkRate = FMath::Min(Want.Rate, 12.f);
 		NowBow = FMath::FInterpTo(NowBow, Want.Bow, DeltaSeconds, TrunkRate);
@@ -255,7 +260,8 @@ void ADeadMinerCreature::LayerPose(float DeltaSeconds)
 	// Dying, a miner lets go: the Unpaid's slump takes it back (the Foreman holds his kneel).
 	const bool bLetGo = IsDead() && !HoldsPoseInDeath();
 	LayerWeight = DeltaSeconds > 0.f ? FMath::FInterpConstantTo(LayerWeight, bLetGo ? 0.f : 1.f, DeltaSeconds, DeathFade) : (bLetGo ? 0.f : 1.f);
-	LayArm(RightUpper, RightLower, RightHand, RestRightUpper, RestRightFore, NowRightUpper, NowRightFore, Want.Wrist, LayerWeight);
+	LayArm(RightUpper, RightLower, RightHand, RestRightUpper, RestRightFore, NowRightUpper, NowRightFore, Want.Wrist,
+		LayerWeight * NowRightWeight);
 	LayArm(LeftUpper, LeftLower, LeftHand, RestLeftUpper, RestLeftFore, NowLeftUpper, NowLeftFore, 0.f, LayerWeight * NowLeftWeight);
 
 	// The trunk: bent at the waist, lowered (a kneel), the head nodded, on top of the Unpaid's own motion.
@@ -273,19 +279,71 @@ void ADeadMinerCreature::LayerPose(float DeltaSeconds)
 	}
 }
 
-void ADeadMinerCreature::UpdatePick()
+// ---------------------------------------------------------------------------
+// The pick and the pail in its fists
+// ---------------------------------------------------------------------------
+
+void ADeadMinerCreature::GetExtraRigBones(TArray<FName>& OutBones) const
 {
-	if (!bArmLayerReady || !Pick || !Bones.IsValidIndex(RightHand) || !Bones.IsValidIndex(RightLower))
+	// Posed with the rest (at rest under the hand), so the pick can be laid against it as this frame poses it.
+	OutBones.Add(PickBone);
+}
+
+bool ADeadMinerCreature::HoldsPickOnLine() const
+{
+	// The swing: heaved, driven down and left in the floor along the forearm (a broken one is flung wide as held).
+	return GetCreatureState() == ECreatureState::Attack && !bSwingBroken && Act != EAct::Reel;
+}
+
+void ADeadMinerCreature::PlaceHeldParts()
+{
+	// As the model holds them (the parts table): the pick on the pick bone (or off the right hand), the pail's handle in the
+	// left fist hanging plumb.
+	const USkeletalMesh* Model = GetMesh()->GetSkeletalMeshAsset();
+	HoldPick(Model, PickAttachBone, PickHeld);
+	Pick->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, PickAttachBone);
+	Pick->SetRelativeTransform(PickHeld);
+	PickAttachIndex = bRigReady ? FindPosedBone(PickAttachBone) : INDEX_NONE;
+	PickLineShare = 0.f;
+	bPickAsHeld = true;
+	PailHeld = PartOnBone(Model, Rig.LeftArm.Hand, PailFromHand, FQuat::Identity);
+	Pail->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, Rig.LeftArm.Hand);
+	Pail->SetRelativeTransform(PailHeld);
+}
+
+void ADeadMinerCreature::UpdatePick(float DeltaSeconds)
+{
+	if (!Pick)
 	{
 		return;
 	}
+	// Onto the forearm's line for the blow, back into the fist as held after; eased, so it never jumps.
+	const float Wanted = HoldsPickOnLine() ? 1.f : 0.f;
+	PickLineShare = DeltaSeconds > 0.f ? FMath::FInterpTo(PickLineShare, Wanted, DeltaSeconds, PickLineEase) : Wanted;
+	if (PickLineShare < 0.002f)
+	{
+		PickLineShare = 0.f;
+		if (!bPickAsHeld)
+		{
+			Pick->SetRelativeTransform(PickHeld);
+			bPickAsHeld = true;
+		}
+		return;
+	}
+	if (!bArmLayerReady || !Bones.IsValidIndex(RightHand) || !Bones.IsValidIndex(RightLower) || !Bones.IsValidIndex(PickAttachIndex))
+	{
+		return;
+	}
+	bPickAsHeld = false;
 	// This frame's pose, solved already: the mesh takes the same pose this frame, so the pick sits where it's set here.
+	const FTransform& Holder = Bones[PickAttachIndex].Posed;
+	const FTransform AsHeld = PickHeld * Holder;
 	const FTransform& HandPose = Bones[RightHand].Posed;
 	const FVector Wrist = HandPose.GetLocation();
 	const FVector Knuckle = Bones.IsValidIndex(RightKnuckle) ? Bones[RightKnuckle].Posed.GetLocation() : Wrist;
 	const FVector Grip = FMath::Lerp(Wrist, Knuckle, 0.8);
-	// The haft runs on along the forearm's line out of the fist; the point is square to it, leading the swing (forward and
-	// up with the pick raised, down into the floor with it driven in).
+	// On the line: the haft runs on along the forearm out of the fist; the point is square to it, leading the swing
+	// (forward and up with the pick raised, down into the floor with it driven in).
 	FVector Haft = (Wrist - Bones[RightLower].Posed.GetLocation()).GetSafeNormal();
 	if (Haft.IsNearlyZero())
 	{
@@ -296,6 +354,20 @@ void ADeadMinerCreature::UpdatePick()
 	{
 		Point = FVector::ForwardVector;
 	}
-	const FQuat Held = FRotationMatrix::MakeFromZX(Haft, Point).ToQuat();
-	Pick->SetRelativeTransform(FTransform(Held, Grip).GetRelativeTransform(HandPose));
+	const FQuat OnLine = FRotationMatrix::MakeFromZX(Haft, Point).ToQuat();
+	const FTransform Swung(FQuat::Slerp(AsHeld.GetRotation(), OnLine, PickLineShare).GetNormalized(),
+		FMath::Lerp(AsHeld.GetLocation(), Grip, static_cast<double>(PickLineShare)), AsHeld.GetScale3D());
+	Pick->SetRelativeTransform(Swung.GetRelativeTransform(Holder));
+}
+
+void ADeadMinerCreature::UpdatePail()
+{
+	if (!Pail || !Pail->IsVisible() || !bArmLayerReady || !Bones.IsValidIndex(LeftHand))
+	{
+		return;
+	}
+	// Hanging plumb from its handle in the left fist, square to the body, however the hand turns.
+	const FTransform& HandPose = Bones[LeftHand].Posed;
+	const FTransform Plumb(FQuat::Identity, HandPose.TransformPosition(PailHeld.GetLocation()));
+	Pail->SetRelativeTransform(Plumb.GetRelativeTransform(HandPose));
 }
