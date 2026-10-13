@@ -1,0 +1,3448 @@
+{
+ "frame": "the mine's frame: metres, x east, y north (into Larkspur High), z up; origin the adit's mouth on its floor at the portal (design (74, 230), +58 m). Unreal: the portal's frame, X = y * 100 (north), Y = x * 100 (east), Z = z * 100 cm; every mine piece is built in the frame's own axes, so a piece with yaw 0 here is yaw 180 in Unreal (unreal_rotator_* gives each one exactly).",
+ "world_origin_design_m": [
+  74.0,
+  230.0,
+  58.0
+ ],
+ "floors_m": {
+  "adit, gallery, office, manway top": 0.0,
+  "drift, side stopes, stope, manway foot": -8.0,
+  "decline": "0 at the gallery wall (x -8) to -4 at the landing (x -19..-23) to -8 at the drift (y 48)"
+ },
+ "mouth": {
+  "opening_m": "the rock ends at y = -1.0 in a ring about 4.0 wide and 3.0-3.5 high; SM_RR_MinePortal (Diggings.py) covers y -3.6..0 with its lagged entry (clear 3.6 x 2.95 m), its wings and brow reaching x -4.85..4.85 and up to z 5.3; its doors open out to y -5.2",
+  "portal_asset": "SM_RR_MinePortal at the mine origin, same transform as the pieces (yaw 180 in Unreal)",
+  "terrain": "the cliff band notched round the portal (about 10 m wide, 5.5 m high, its face near y -3.4); the ground over the whole footprint (x -34..16, y 2..106) above z +8 (+66 m), the mine shell (SM_RR_Mine_Shell) reaching z +6.6"
+ },
+ "rooms": [
+  {
+   "name": "adit",
+   "box_min_m": [
+    -4.0,
+    -8.0,
+    -1.0
+   ],
+   "box_max_m": [
+    4.0,
+    35.0,
+    4.5
+   ]
+  },
+  {
+   "name": "gallery",
+   "box_min_m": [
+    -9.5,
+    28.5,
+    -1.0
+   ],
+   "box_max_m": [
+    9.5,
+    55.5,
+    6.2
+   ]
+  },
+  {
+   "name": "office_door",
+   "box_min_m": [
+    5.6,
+    40.6,
+    -1.0
+   ],
+   "box_max_m": [
+    11.0,
+    43.4,
+    3.3
+   ]
+  },
+  {
+   "name": "office",
+   "box_min_m": [
+    7.5,
+    37.5,
+    -1.0
+   ],
+   "box_max_m": [
+    15.5,
+    46.5,
+    3.85
+   ]
+  },
+  {
+   "name": "decline_a",
+   "box_min_m": [
+    -24.0,
+    30.5,
+    -5.0
+   ],
+   "box_max_m": [
+    -3.0,
+    38.5,
+    4.5
+   ]
+  },
+  {
+   "name": "landing",
+   "box_min_m": [
+    -24.7,
+    30.8,
+    -5.0
+   ],
+   "box_max_m": [
+    -17.3,
+    38.2,
+    0.6
+   ]
+  },
+  {
+   "name": "sump",
+   "box_min_m": [
+    -24.65,
+    31.3,
+    -5.5
+   ],
+   "box_max_m": [
+    -20.25,
+    37.7,
+    -2.9
+   ]
+  },
+  {
+   "name": "decline_b",
+   "box_min_m": [
+    -25.0,
+    31.5,
+    -9.0
+   ],
+   "box_max_m": [
+    -17.0,
+    53.0,
+    0.5
+   ]
+  },
+  {
+   "name": "drift",
+   "box_min_m": [
+    -25.5,
+    46.5,
+    -9.0
+   ],
+   "box_max_m": [
+    -16.5,
+    86.5,
+    -2.9
+   ]
+  },
+  {
+   "name": "stope_w",
+   "box_min_m": [
+    -33.5,
+    54.5,
+    -9.0
+   ],
+   "box_max_m": [
+    -21.5,
+    63.5,
+    -3.6
+   ]
+  },
+  {
+   "name": "stope_e",
+   "box_min_m": [
+    -20.5,
+    66.5,
+    -9.0
+   ],
+   "box_max_m": [
+    -8.5,
+    75.5,
+    -3.6
+   ]
+  },
+  {
+   "name": "stope",
+   "box_min_m": [
+    -31.5,
+    82.5,
+    -9.0
+   ],
+   "box_max_m": [
+    -2.5,
+    105.5,
+    0.0
+   ]
+  },
+  {
+   "name": "manway_gate",
+   "box_min_m": [
+    -7.4,
+    84.6,
+    -9.0
+   ],
+   "box_max_m": [
+    5.1,
+    89.4,
+    -4.4
+   ]
+  },
+  {
+   "name": "manway_stair",
+   "box_min_m": [
+    -0.9,
+    69.1,
+    -9.0
+   ],
+   "box_max_m": [
+    3.9,
+    91.4,
+    4.1
+   ]
+  },
+  {
+   "name": "manway_top",
+   "box_min_m": [
+    -0.9,
+    50.6,
+    -1.0
+   ],
+   "box_max_m": [
+    3.9,
+    75.4,
+    3.7
+   ]
+  }
+ ],
+ "pieces": [
+  {
+   "asset": "SM_RR_Mine_Adit",
+   "mine_m": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "rock piece (mesh collision)"
+  },
+  {
+   "asset": "SM_RR_Mine_Gallery",
+   "mine_m": [
+    0.0,
+    42.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4200.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "rock piece (mesh collision)"
+  },
+  {
+   "asset": "SM_RR_Mine_Office",
+   "mine_m": [
+    11.5,
+    42.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4200.0,
+    1150.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "rock piece (mesh collision)"
+  },
+  {
+   "asset": "SM_RR_Mine_Decline",
+   "mine_m": [
+    -21.0,
+    34.5,
+    -4.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    3450.0,
+    -2100.0,
+    -400.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "rock piece (mesh collision)"
+  },
+  {
+   "asset": "SM_RR_Mine_Drift",
+   "mine_m": [
+    -21.0,
+    66.0,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    6600.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "rock piece (mesh collision)"
+  },
+  {
+   "asset": "SM_RR_Mine_Stope",
+   "mine_m": [
+    -17.0,
+    94.0,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    9400.0,
+    -1700.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "rock piece (mesh collision)"
+  },
+  {
+   "asset": "SM_RR_Mine_Manway",
+   "mine_m": [
+    1.5,
+    86.5,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8650.0,
+    150.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "rock piece (mesh collision)"
+  },
+  {
+   "asset": "SM_RR_Mine_Shell",
+   "mine_m": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "closed hull for the sun's shadow; no collision"
+  },
+  {
+   "asset": "SM_RR_Mine_Fall",
+   "mine_m": [
+    -17.0,
+    95.5,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    9550.0,
+    -1700.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "the stope's north end"
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    0.0,
+    1.25,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    125.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    0.0,
+    3.75,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    375.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    0.0,
+    6.25,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    625.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    0.0,
+    8.75,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    875.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    0.0,
+    11.25,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    1125.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    0.0,
+    13.75,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    1375.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    0.0,
+    16.25,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    1625.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    0.0,
+    18.75,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    1875.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    0.0,
+    21.25,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    2125.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    0.0,
+    23.75,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    2375.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    0.0,
+    26.25,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    2625.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    0.0,
+    28.75,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    2875.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    -9.1747,
+    34.5,
+    -0.4272
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    90.0,
+    -19.983,
+    0.0
+   ],
+   "unreal_cm": [
+    3450.0,
+    -917.47,
+    -42.72
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    19.983,
+    90.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    -11.5242,
+    34.5,
+    -1.2815
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    90.0,
+    -19.983,
+    0.0
+   ],
+   "unreal_cm": [
+    3450.0,
+    -1152.42,
+    -128.15
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    19.983,
+    90.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    -13.8737,
+    34.5,
+    -2.1359
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    90.0,
+    -19.983,
+    0.0
+   ],
+   "unreal_cm": [
+    3450.0,
+    -1387.37,
+    -213.59
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    19.983,
+    90.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    -16.2232,
+    34.5,
+    -2.9903
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    90.0,
+    -19.983,
+    0.0
+   ],
+   "unreal_cm": [
+    3450.0,
+    -1622.32,
+    -299.03
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    19.983,
+    90.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    -21.0,
+    37.6806,
+    -4.4107
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    -19.179,
+    0.0
+   ],
+   "unreal_cm": [
+    3768.06,
+    -2100.0,
+    -441.07
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    19.179,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    -21.0,
+    40.0419,
+    -5.232
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    -19.179,
+    0.0
+   ],
+   "unreal_cm": [
+    4004.19,
+    -2100.0,
+    -523.2
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    19.179,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    -21.0,
+    42.4031,
+    -6.0533
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    -19.179,
+    0.0
+   ],
+   "unreal_cm": [
+    4240.31,
+    -2100.0,
+    -605.33
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    19.179,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSet",
+   "mine_m": [
+    -21.0,
+    44.7643,
+    -6.8746
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    -19.179,
+    0.0
+   ],
+   "unreal_cm": [
+    4476.43,
+    -2100.0,
+    -687.46
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    19.179,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSetWide",
+   "mine_m": [
+    -21.0,
+    49.5,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4950.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSetWide",
+   "mine_m": [
+    -21.0,
+    52.5,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    5250.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSetWide",
+   "mine_m": [
+    -21.0,
+    55.5,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    5550.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSetWide",
+   "mine_m": [
+    -21.0,
+    64.5,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    6450.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSetWide",
+   "mine_m": [
+    -21.0,
+    67.5,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    6750.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSetWide",
+   "mine_m": [
+    -21.0,
+    76.5,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    7650.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_TimberSetWide",
+   "mine_m": [
+    -21.0,
+    79.5,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    7950.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_Pillar",
+   "mine_m": [
+    -4.0,
+    36.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    3600.0,
+    -400.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_Pillar",
+   "mine_m": [
+    4.0,
+    36.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    3600.0,
+    400.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_Pillar",
+   "mine_m": [
+    -4.0,
+    42.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4200.0,
+    -400.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_Pillar",
+   "mine_m": [
+    4.0,
+    42.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4200.0,
+    400.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_Pillar",
+   "mine_m": [
+    -4.0,
+    48.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4800.0,
+    -400.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_Pillar",
+   "mine_m": [
+    4.0,
+    48.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4800.0,
+    400.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_StopeProp",
+   "mine_m": [
+    -25.0,
+    88.5,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8850.0,
+    -2500.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "SOCKET_Prop_1; swap for RR_Mine_StopePropBroken"
+  },
+  {
+   "asset": "SM_RR_Mine_StopeProp",
+   "mine_m": [
+    -17.5,
+    88.5,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8850.0,
+    -1750.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "SOCKET_Prop_2; swap for RR_Mine_StopePropBroken"
+  },
+  {
+   "asset": "SM_RR_Mine_StopeProp",
+   "mine_m": [
+    -10.0,
+    88.5,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8850.0,
+    -1000.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "SOCKET_Prop_3; swap for RR_Mine_StopePropBroken"
+  },
+  {
+   "asset": "SM_RR_Mine_StopeProp",
+   "mine_m": [
+    -21.5,
+    93.0,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    9300.0,
+    -2150.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "SOCKET_Prop_4; swap for RR_Mine_StopePropBroken"
+  },
+  {
+   "asset": "SM_RR_Mine_StopeProp",
+   "mine_m": [
+    -14.0,
+    93.0,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    9300.0,
+    -1400.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "SOCKET_Prop_5; swap for RR_Mine_StopePropBroken"
+  },
+  {
+   "asset": "SM_RR_Mine_StopeProp",
+   "mine_m": [
+    -7.5,
+    93.0,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    9300.0,
+    -750.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "SOCKET_Prop_6; swap for RR_Mine_StopePropBroken"
+  },
+  {
+   "asset": "SM_RR_Mine_Barricade",
+   "mine_m": [
+    -21.0,
+    82.5,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8250.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": ""
+  },
+  {
+   "asset": "SM_RR_Mine_BarricadeTags",
+   "mine_m": [
+    -21.0,
+    82.5,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8250.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "taken at Back Pay step 5"
+  },
+  {
+   "asset": "SM_RR_Mine_ManwayGate",
+   "mine_m": [
+    -3.3,
+    86.25,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8625.0,
+    -330.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "note": "shut; open by turning about Z (hinge)"
+  },
+  {
+   "asset": "SM_RR_Mine_Winch",
+   "mine_m": [
+    -5.3,
+    34.5,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    3450.0,
+    -530.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    -90.0,
+    0.0
+   ],
+   "note": "at the decline's head"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "adit and the gallery spur"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    0.0,
+    4.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    400.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "adit and the gallery spur"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    0.0,
+    8.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    800.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "adit and the gallery spur"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    0.0,
+    12.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    1200.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "adit and the gallery spur"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    0.0,
+    16.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    1600.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "adit and the gallery spur"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    0.0,
+    20.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    2000.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "adit and the gallery spur"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    0.0,
+    24.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    2400.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "adit and the gallery spur"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    0.0,
+    28.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    2800.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "adit and the gallery spur"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    0.0,
+    32.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    3200.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "adit and the gallery spur"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    0.0,
+    36.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    3600.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "adit and the gallery spur"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    0.0,
+    40.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4000.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "adit and the gallery spur"
+  },
+  {
+   "asset": "SM_RR_TramTrack_End",
+   "mine_m": [
+    0.0,
+    44.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4400.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "the gallery spur's end"
+  },
+  {
+   "asset": "SM_RR_TramTrack_2m",
+   "mine_m": [
+    -6.0,
+    34.5,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    3450.0,
+    -600.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    -90.0,
+    0.0
+   ],
+   "note": "from the winch to the decline's head"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    -8.0,
+    34.5,
+    -0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    19.983,
+    0.0
+   ],
+   "unreal_cm": [
+    3450.0,
+    -800.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    -19.983,
+    -90.0,
+    0.0
+   ],
+   "note": "the decline's first run (torn up 1.7 m short of the landing)"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    -11.7592,
+    34.5,
+    -1.367
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    19.983,
+    0.0
+   ],
+   "unreal_cm": [
+    3450.0,
+    -1175.92,
+    -136.7
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    -19.983,
+    -90.0,
+    0.0
+   ],
+   "note": "the decline's first run (torn up 1.7 m short of the landing)"
+  },
+  {
+   "asset": "SM_RR_TramTrack_2m",
+   "mine_m": [
+    -15.5183,
+    34.5,
+    -2.7339
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    19.983,
+    0.0
+   ],
+   "unreal_cm": [
+    3450.0,
+    -1551.83,
+    -273.39
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    -19.983,
+    -90.0,
+    0.0
+   ],
+   "note": "the decline's first run (torn up 1.7 m short of the landing)"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    -21.0,
+    36.5,
+    -4.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    19.179,
+    0.0
+   ],
+   "unreal_cm": [
+    3650.0,
+    -2100.0,
+    -400.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    -19.179,
+    0.0,
+    0.0
+   ],
+   "note": "the decline's second run"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    -21.0,
+    40.278,
+    -5.3141
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    19.179,
+    0.0
+   ],
+   "unreal_cm": [
+    4027.8,
+    -2100.0,
+    -531.41
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    -19.179,
+    0.0,
+    0.0
+   ],
+   "note": "the decline's second run"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    -21.0,
+    44.056,
+    -6.6282
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    19.179,
+    0.0
+   ],
+   "unreal_cm": [
+    4405.6,
+    -2100.0,
+    -662.82
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    -19.179,
+    0.0,
+    0.0
+   ],
+   "note": "the decline's second run"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    -21.0,
+    48.0,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4800.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "the drift"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    -21.0,
+    52.0,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    5200.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "the drift"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    -21.0,
+    56.0,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    5600.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "the drift"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    -21.0,
+    60.0,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    6000.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "the drift"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    -21.0,
+    64.0,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    6400.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "the drift"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    -21.0,
+    68.0,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    6800.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "the drift"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    -21.0,
+    72.0,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    7200.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "the drift"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    -21.0,
+    76.0,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    7600.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "the drift"
+  },
+  {
+   "asset": "SM_RR_TramTrack_2m",
+   "mine_m": [
+    -21.0,
+    80.0,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8000.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "the drift, to the barricade"
+  },
+  {
+   "asset": "SM_RR_TramTrack_4m",
+   "mine_m": [
+    -21.0,
+    83.2,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8320.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "the stope's stub"
+  },
+  {
+   "asset": "SM_RR_TramTrack_2m",
+   "mine_m": [
+    -21.0,
+    87.2,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8720.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "the stope's stub"
+  },
+  {
+   "asset": "SM_RR_TramTrack_End",
+   "mine_m": [
+    -21.0,
+    89.2,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8920.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "the stope's stub's end"
+  },
+  {
+   "asset": "SM_RR_OreCar",
+   "mine_m": [
+    0.0,
+    37.0,
+    0.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    3700.0,
+    0.0,
+    0.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "on the gallery spur"
+  },
+  {
+   "asset": "SM_RR_OreCar",
+   "mine_m": [
+    5.6,
+    51.4,
+    0.5
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    32.0,
+    0.0,
+    90.0
+   ],
+   "unreal_cm": [
+    5140.0,
+    560.0,
+    50.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    148.0,
+    -90.0
+   ],
+   "note": "on its side in the gallery's north-east corner"
+  },
+  {
+   "asset": "SM_RR_OreCar",
+   "mine_m": [
+    -22.45,
+    34.5,
+    -4.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    90.0
+   ],
+   "unreal_cm": [
+    3450.0,
+    -2245.0,
+    -400.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    -90.0
+   ],
+   "note": "the runaway, on its side in the landing's sump"
+  },
+  {
+   "asset": "SM_RR_OreCar",
+   "mine_m": [
+    -21.0,
+    86.4,
+    -8.0
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8640.0,
+    -2100.0,
+    -800.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "on the stope's stub"
+  },
+  {
+   "asset": "SM_RR_OreCar",
+   "mine_m": [
+    -11.6,
+    93.4,
+    -7.5
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    75.0,
+    0.0,
+    90.0
+   ],
+   "unreal_cm": [
+    9340.0,
+    -1160.0,
+    -750.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    105.0,
+    -90.0
+   ],
+   "note": "on its side by the fall"
+  }
+ ],
+ "lanterns": [
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    1.42,
+    3.75,
+    2.15
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    375.0,
+    142.0,
+    215.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    -90.0,
+    0.0
+   ],
+   "note": "Adit SOCKET_Light_1"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -1.42,
+    11.25,
+    2.15
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    1125.0,
+    -142.0,
+    215.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "note": "Adit SOCKET_Light_2"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    1.42,
+    18.75,
+    2.15
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    1875.0,
+    142.0,
+    215.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    -90.0,
+    0.0
+   ],
+   "note": "Adit SOCKET_Light_3"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -1.42,
+    26.25,
+    2.15
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    2625.0,
+    -142.0,
+    215.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "note": "Adit SOCKET_Light_4"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -3.53,
+    36.0,
+    2.4
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    3600.0,
+    -353.0,
+    240.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "note": "Gallery SOCKET_Light_1"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    3.53,
+    36.0,
+    2.4
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    3600.0,
+    353.0,
+    240.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    -90.0,
+    0.0
+   ],
+   "note": "Gallery SOCKET_Light_2"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -3.53,
+    42.0,
+    2.4
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4200.0,
+    -353.0,
+    240.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "note": "Gallery SOCKET_Light_3"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    3.53,
+    42.0,
+    2.4
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4200.0,
+    353.0,
+    240.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    -90.0,
+    0.0
+   ],
+   "note": "Gallery SOCKET_Light_4"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -3.53,
+    48.0,
+    2.4
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4800.0,
+    -353.0,
+    240.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "note": "Gallery SOCKET_Light_5"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    3.53,
+    48.0,
+    2.4
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4800.0,
+    353.0,
+    240.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    -90.0,
+    0.0
+   ],
+   "note": "Gallery SOCKET_Light_6"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    11.5,
+    44.57,
+    1.95
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4457.0,
+    1150.0,
+    195.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "Office SOCKET_Light_1"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -14.6085,
+    35.92,
+    -0.1153
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    3592.0,
+    -1460.85,
+    -11.53
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "Decline SOCKET_Light_1"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -19.58,
+    43.1094,
+    -4.0226
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    4310.94,
+    -1958.0,
+    -402.26
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    -90.0,
+    0.0
+   ],
+   "note": "Decline SOCKET_Light_2"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -23.37,
+    52.5,
+    -5.7
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    5250.0,
+    -2337.0,
+    -570.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "note": "Drift SOCKET_Light_1"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -18.63,
+    64.5,
+    -5.7
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    6450.0,
+    -1863.0,
+    -570.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    -90.0,
+    0.0
+   ],
+   "note": "Drift SOCKET_Light_2"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -23.37,
+    76.5,
+    -5.7
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    7650.0,
+    -2337.0,
+    -570.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "note": "Drift SOCKET_Light_3"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -18.63,
+    79.5,
+    -5.7
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    7950.0,
+    -1863.0,
+    -570.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    -90.0,
+    0.0
+   ],
+   "note": "Drift SOCKET_Light_4"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -11.0,
+    84.493,
+    -5.4
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8449.3,
+    -1100.0,
+    -540.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "Stope SOCKET_Light_1"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -29.8663,
+    87.5,
+    -5.4
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8750.0,
+    -2986.63,
+    -540.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "note": "Stope SOCKET_Light_2"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -29.6691,
+    93.0,
+    -5.4
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    9300.0,
+    -2966.91,
+    -540.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "note": "Stope SOCKET_Light_3"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -4.2659,
+    91.0,
+    -5.4
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    9100.0,
+    -426.59,
+    -540.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    -90.0,
+    0.0
+   ],
+   "note": "Stope SOCKET_Light_4"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -4.41,
+    95.6,
+    -5.4
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    9560.0,
+    -441.0,
+    -540.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    -90.0,
+    0.0
+   ],
+   "note": "Stope SOCKET_Light_5"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -15.5,
+    84.1451,
+    -5.4
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -180.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8414.51,
+    -1550.0,
+    -540.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "note": "Stope SOCKET_Light_6"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    -1.2,
+    87.9081,
+    -6.3
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -0.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    8790.81,
+    -120.0,
+    -630.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "note": "Manway SOCKET_Light_1"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    0.6458,
+    63.0,
+    1.95
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    6300.0,
+    64.58,
+    195.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    90.0,
+    0.0
+   ],
+   "note": "Manway SOCKET_Light_2"
+  },
+  {
+   "asset": "SM_RR_Mine_Lantern",
+   "mine_m": [
+    2.4035,
+    77.5,
+    -2.4
+   ],
+   "yaw_pitch_roll_mine_deg": [
+    -90.0,
+    0.0,
+    0.0
+   ],
+   "unreal_cm": [
+    7750.0,
+    240.35,
+    -240.0
+   ],
+   "unreal_rotator_pitch_yaw_roll": [
+    0.0,
+    -90.0,
+    0.0
+   ],
+   "note": "Manway SOCKET_Light_3"
+  }
+ ],
+ "sockets": {
+  "Adit": [
+   {
+    "name": "SOCKET_Light_1",
+    "mine_m": [
+     1.42,
+     3.75,
+     2.15
+    ],
+    "yaw_deg": -90.0
+   },
+   {
+    "name": "SOCKET_Light_2",
+    "mine_m": [
+     -1.42,
+     11.25,
+     2.15
+    ],
+    "yaw_deg": 90.0
+   },
+   {
+    "name": "SOCKET_Light_3",
+    "mine_m": [
+     1.42,
+     18.75,
+     2.15
+    ],
+    "yaw_deg": -90.0
+   },
+   {
+    "name": "SOCKET_Light_4",
+    "mine_m": [
+     -1.42,
+     26.25,
+     2.15
+    ],
+    "yaw_deg": 90.0
+   }
+  ],
+  "Gallery": [
+   {
+    "name": "SOCKET_Light_1",
+    "mine_m": [
+     -3.53,
+     36.0,
+     2.4
+    ],
+    "yaw_deg": 90.0
+   },
+   {
+    "name": "SOCKET_Light_2",
+    "mine_m": [
+     3.53,
+     36.0,
+     2.4
+    ],
+    "yaw_deg": -90.0
+   },
+   {
+    "name": "SOCKET_Light_3",
+    "mine_m": [
+     -3.53,
+     42.0,
+     2.4
+    ],
+    "yaw_deg": 90.0
+   },
+   {
+    "name": "SOCKET_Light_4",
+    "mine_m": [
+     3.53,
+     42.0,
+     2.4
+    ],
+    "yaw_deg": -90.0
+   },
+   {
+    "name": "SOCKET_Light_5",
+    "mine_m": [
+     -3.53,
+     48.0,
+     2.4
+    ],
+    "yaw_deg": 90.0
+   },
+   {
+    "name": "SOCKET_Light_6",
+    "mine_m": [
+     3.53,
+     48.0,
+     2.4
+    ],
+    "yaw_deg": -90.0
+   },
+   {
+    "name": "SOCKET_FightCenter",
+    "mine_m": [
+     0.0,
+     42.0,
+     0.0
+    ],
+    "yaw_deg": 0.0
+   },
+   {
+    "name": "SOCKET_ChalkTally",
+    "mine_m": [
+     -7.57,
+     40.6,
+     1.6
+    ],
+    "yaw_deg": 90.0
+   },
+   {
+    "name": "SOCKET_LunchPail_1",
+    "mine_m": [
+     6.95,
+     47.2,
+     0.455
+    ],
+    "yaw_deg": -90.0
+   },
+   {
+    "name": "SOCKET_LunchPail_2",
+    "mine_m": [
+     6.95,
+     48.45,
+     0.455
+    ],
+    "yaw_deg": -90.0
+   },
+   {
+    "name": "SOCKET_Winch",
+    "mine_m": [
+     -5.3,
+     34.5,
+     0.0
+    ],
+    "yaw_deg": -90.0
+   }
+  ],
+  "Office": [
+   {
+    "name": "SOCKET_Light_1",
+    "mine_m": [
+     11.5,
+     44.57,
+     1.95
+    ],
+    "yaw_deg": 0.0
+   },
+   {
+    "name": "SOCKET_PayrollBook",
+    "mine_m": [
+     13.3,
+     40.75,
+     0.82
+    ],
+    "yaw_deg": -90.0
+   },
+   {
+    "name": "SOCKET_CompanySafe",
+    "mine_m": [
+     13.15,
+     44.2,
+     0.06
+    ],
+    "yaw_deg": -68.2
+   },
+   {
+    "name": "SOCKET_Notices",
+    "mine_m": [
+     11.85,
+     44.7,
+     1.6
+    ],
+    "yaw_deg": 0.0
+   }
+  ],
+  "Decline": [
+   {
+    "name": "SOCKET_Light_1",
+    "mine_m": [
+     -14.6085,
+     35.92,
+     -0.1153
+    ],
+    "yaw_deg": -0.0
+   },
+   {
+    "name": "SOCKET_Light_2",
+    "mine_m": [
+     -19.58,
+     43.1094,
+     -4.0226
+    ],
+    "yaw_deg": -90.0
+   },
+   {
+    "name": "SOCKET_Sump",
+    "mine_m": [
+     -22.45,
+     34.5,
+     -4.5
+    ],
+    "yaw_deg": 0.0
+   }
+  ],
+  "Drift": [
+   {
+    "name": "SOCKET_Light_1",
+    "mine_m": [
+     -23.37,
+     52.5,
+     -5.7
+    ],
+    "yaw_deg": 90.0
+   },
+   {
+    "name": "SOCKET_Light_2",
+    "mine_m": [
+     -18.63,
+     64.5,
+     -5.7
+    ],
+    "yaw_deg": -90.0
+   },
+   {
+    "name": "SOCKET_Light_3",
+    "mine_m": [
+     -23.37,
+     76.5,
+     -5.7
+    ],
+    "yaw_deg": 90.0
+   },
+   {
+    "name": "SOCKET_Light_4",
+    "mine_m": [
+     -18.63,
+     79.5,
+     -5.7
+    ],
+    "yaw_deg": -90.0
+   },
+   {
+    "name": "SOCKET_FightCenter",
+    "mine_m": [
+     -21.0,
+     66.0,
+     -8.0
+    ],
+    "yaw_deg": 0.0
+   },
+   {
+    "name": "SOCKET_LunchPail_3",
+    "mine_m": [
+     -23.35,
+     58.6,
+     -8.0
+    ],
+    "yaw_deg": 90.0
+   },
+   {
+    "name": "SOCKET_LunchPail_4",
+    "mine_m": [
+     -18.65,
+     71.2,
+     -8.0
+    ],
+    "yaw_deg": -90.0
+   },
+   {
+    "name": "SOCKET_LunchPail_5",
+    "mine_m": [
+     -29.0,
+     60.4,
+     -8.0
+    ],
+    "yaw_deg": 90.0
+   }
+  ],
+  "Stope": [
+   {
+    "name": "SOCKET_Light_1",
+    "mine_m": [
+     -11.0,
+     84.493,
+     -5.4
+    ],
+    "yaw_deg": -180.0
+   },
+   {
+    "name": "SOCKET_Light_2",
+    "mine_m": [
+     -29.8663,
+     87.5,
+     -5.4
+    ],
+    "yaw_deg": 90.0
+   },
+   {
+    "name": "SOCKET_Light_3",
+    "mine_m": [
+     -29.6691,
+     93.0,
+     -5.4
+    ],
+    "yaw_deg": 90.0
+   },
+   {
+    "name": "SOCKET_Light_4",
+    "mine_m": [
+     -4.2659,
+     91.0,
+     -5.4
+    ],
+    "yaw_deg": -90.0
+   },
+   {
+    "name": "SOCKET_Light_5",
+    "mine_m": [
+     -4.41,
+     95.6,
+     -5.4
+    ],
+    "yaw_deg": -90.0
+   },
+   {
+    "name": "SOCKET_Light_6",
+    "mine_m": [
+     -15.5,
+     84.1451,
+     -5.4
+    ],
+    "yaw_deg": -180.0
+   },
+   {
+    "name": "SOCKET_FightCenter",
+    "mine_m": [
+     -17.0,
+     90.0,
+     -8.0
+    ],
+    "yaw_deg": 0.0
+   },
+   {
+    "name": "SOCKET_PayrollChest",
+    "mine_m": [
+     -7.6,
+     94.2,
+     -8.0
+    ],
+    "yaw_deg": 0.0
+   },
+   {
+    "name": "SOCKET_Foreman",
+    "mine_m": [
+     -15.0,
+     95.0,
+     -8.0
+    ],
+    "yaw_deg": 180.0
+   },
+   {
+    "name": "SOCKET_LunchPail_6",
+    "mine_m": [
+     -28.4,
+     89.6,
+     -8.0
+    ],
+    "yaw_deg": 90.0
+   },
+   {
+    "name": "SOCKET_Rise_1",
+    "mine_m": [
+     -22.0,
+     96.7,
+     -6.8471
+    ],
+    "yaw_deg": 0.0
+   },
+   {
+    "name": "SOCKET_Rise_2",
+    "mine_m": [
+     -12.5,
+     96.9,
+     -6.76
+    ],
+    "yaw_deg": 0.0
+   },
+   {
+    "name": "SOCKET_Rise_3",
+    "mine_m": [
+     -17.5,
+     96.3,
+     -7.131
+    ],
+    "yaw_deg": 0.0
+   },
+   {
+    "name": "SOCKET_Prop_1",
+    "mine_m": [
+     -25.0,
+     88.5,
+     -8.0
+    ],
+    "yaw_deg": 0.0
+   },
+   {
+    "name": "SOCKET_Prop_2",
+    "mine_m": [
+     -17.5,
+     88.5,
+     -8.0
+    ],
+    "yaw_deg": 0.0
+   },
+   {
+    "name": "SOCKET_Prop_3",
+    "mine_m": [
+     -10.0,
+     88.5,
+     -8.0
+    ],
+    "yaw_deg": 0.0
+   },
+   {
+    "name": "SOCKET_Prop_4",
+    "mine_m": [
+     -21.5,
+     93.0,
+     -8.0
+    ],
+    "yaw_deg": 0.0
+   },
+   {
+    "name": "SOCKET_Prop_5",
+    "mine_m": [
+     -14.0,
+     93.0,
+     -8.0
+    ],
+    "yaw_deg": 0.0
+   },
+   {
+    "name": "SOCKET_Prop_6",
+    "mine_m": [
+     -7.5,
+     93.0,
+     -8.0
+    ],
+    "yaw_deg": 0.0
+   }
+  ],
+  "Manway": [
+   {
+    "name": "SOCKET_Light_1",
+    "mine_m": [
+     -1.2,
+     87.9081,
+     -6.3
+    ],
+    "yaw_deg": -0.0
+   },
+   {
+    "name": "SOCKET_Light_2",
+    "mine_m": [
+     0.6458,
+     63.0,
+     1.95
+    ],
+    "yaw_deg": 90.0
+   },
+   {
+    "name": "SOCKET_Light_3",
+    "mine_m": [
+     2.4035,
+     77.5,
+     -2.4
+    ],
+    "yaw_deg": -90.0
+   },
+   {
+    "name": "SOCKET_ManwayGate",
+    "mine_m": [
+     -3.3,
+     86.25,
+     -8.0
+    ],
+    "yaw_deg": 90.0
+   }
+  ]
+ }
+}
