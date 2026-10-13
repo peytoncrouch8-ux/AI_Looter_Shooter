@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Weapons/ImpactSurface.h"
 
 class AActor;
 class UInstancedStaticMeshComponent;
@@ -50,6 +51,16 @@ public:
 
 	/** Sparks, flash, dust and chips (or an ichor splash) where a bullet hit, thrown off the surface. */
 	void SpawnImpact(const FVector& Location, const FVector& Normal, const FVector& ShotDirection, EImpactSurface Surface, bool bCritical);
+
+	/**
+	 * A bullet's hit on the world in the look of what it struck (WeaponFXImpacts.cpp): dirt kicks up a brown puff and
+	 * clods, grass bits of green, sand a pale spray, gravel and stone grit, chips and a few sparks, wood pale splinters
+	 * and sawdust, metal a shower of hot sparks, sheet metal sparks and paint flakes, glass glinting shards, water a splash
+	 * and mist, cloth lint, hay straws, bone pale chips. Scale sizes it to the gun (a shotgun's pellet is smaller and
+	 * throws less); a critical hit adds its pop as SpawnImpact's does.
+	 */
+	void SpawnSurfaceImpact(const FVector& Location, const FVector& Normal, const FVector& ShotDirection, EImpactMaterial Material,
+		float Scale, bool bCritical);
 
 	/**
 	 * A shot's flash in the open, with no gun model to wear one (a scene's gunfire): a hot core, a wider burst a hair
@@ -117,15 +128,21 @@ private:
 		uint8 BitSet = 0;
 	};
 
-	/** The lit chunks of one color and shape: chitin bits (cubes), gel drops (spheres). */
+	/** How a set's chunks are drawn: thin plates (chitin, chips of paint or glass), round drops (gel, water), long splinters (wood, straw). */
+	enum class EBitShape : uint8 { Plate, Round, Splinter };
+
+	/** The lit chunks of one color and shape: chitin bits (cubes), gel drops (spheres), splinters (stretched cubes). */
 	struct FBitSet
 	{
 		TWeakObjectPtr<UInstancedStaticMeshComponent> Instances;
 		FColor Key;
-		bool bRound = false;
+		EBitShape Shape = EBitShape::Plate;
 	};
-	/** Kept to a few: past it, a new color shares the last set's. */
-	static constexpr int32 MaxBitSets = 6;
+	/**
+	 * Kept to a few (a component each, empty and free while unused): the creatures' chitin and gel, and the world's
+	 * impacts' clods, splinters, shards and drops. Past it, a new color shares the last set's.
+	 */
+	static constexpr int32 MaxBitSets = 16;
 
 	struct FStreak
 	{
@@ -140,6 +157,9 @@ private:
 	void Redraw(const FVector& CameraLocation);
 	/** The set for chunks of this Color (round: spheres, else cubes) with Glow, made the first time it's asked for. */
 	uint8 BitSetFor(bool bRound, const FLinearColor& Color, float Glow);
+	uint8 BitSetFor(EBitShape Shape, const FLinearColor& Color, float Glow);
+	/** One lit chunk of a set thrown from Location: tumbling, falling, shrinking away at the end of its life. */
+	FParticle& AddBit(uint8 Set, const FVector& Location, const FVector& Velocity, float Size, float Life);
 
 	TWeakObjectPtr<AActor> Owner;
 	TWeakObjectPtr<UInstancedStaticMeshComponent> Glows;

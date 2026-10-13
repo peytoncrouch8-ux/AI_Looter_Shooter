@@ -7,46 +7,37 @@
 #include "Combat/LooterDamageTypes.h"
 #include "Creatures/CreatureBase.h"
 #include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponDefinition.h"
 #include "World/BreakableKinds.h"
 #include "Camera/PlayerCameraManager.h"
+#include "CoreGlobals.h"
 #include "Components/PrimitiveComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
-#include "Materials/MaterialInterface.h"
 #include "NiagaraFunctionLibrary.h"
 
 namespace
 {
 	/**
-	 * Impacts closer together than this (seconds and cm) make one sound: a shotgun's nine pellets on a wall are one crack,
-	 * and a long burst into the dirt doesn't stack a sound per round.
+	 * Impacts of one sound closer together than this (seconds and cm) make one: a shotgun's nine pellets on a wall are one
+	 * crack, and a long burst into the dirt doesn't stack a sound per round. A blast across two surfaces sounds both.
 	 */
 	constexpr double ImpactSoundGap = 0.05;
 	constexpr float ImpactSoundMerge = 250.f;
 
 	/**
-	 * Words in a material's name that say what a surface is made of. The world's materials are instances named for their
-	 * texture sets (MI_WoodPlanks, MI_MetalRust, MI_LanternIron, MI_Water...), so the name is the best clue there is.
+	 * A ricochet's whine: on a hit off stone, gravel or metal that met the surface at less than about 25 degrees (the
+	 * cosine between the shot and the surface's normal under this), on about half of them, never two within the gap.
 	 */
-	const TCHAR* const WaterWords[] = { TEXT("Water") };
-	const TCHAR* const MetalWords[] = { TEXT("Metal"), TEXT("Iron"), TEXT("Steel"), TEXT("Brass"), TEXT("Rust"), TEXT("Gun"), TEXT("Bell") };
-	const TCHAR* const WoodWords[] = { TEXT("Wood"), TEXT("Plank"), TEXT("Bark"), TEXT("Walnut"), TEXT("HouseTrim"), TEXT("Paint"), TEXT("Hay") };
+	constexpr float RicochetSquare = 0.42f;
+	constexpr float RicochetChance = 0.5f;
+	constexpr double RicochetGap = 0.35;
 
-	/** Matched as written ("Iron" in MI_LanternIron, not the "iron" in an environment material's name). */
-	bool NameHasAny(const FString& Name, TConstArrayView<const TCHAR*> Words)
-	{
-		for (const TCHAR* Word : Words)
-		{
-			if (Name.Contains(Word, ESearchCase::CaseSensitive))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
+	/** How many volleys' mark counts are kept: pellets of one blast land within a frame or two of each other. */
+	constexpr int32 VolleysKept = 4;
 
 	/** Tracer glow strength (the material multiplies the color by it). */
 	constexpr float TracerGlow = 30.f;
@@ -70,6 +61,13 @@ bool UBulletSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) co
 	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE || WorldType == EWorldType::EditorPreview;
 }
 
+void UBulletSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+	// Each play starts from the materials as they are now (a surface map baked since the last one is seen).
+	ImpactSurface::ResetCache();
+}
+
 void UBulletSubsystem::Deinitialize()
 {
 	Bullets.Reset();
@@ -77,6 +75,7 @@ void UBulletSubsystem::Deinitialize()
 	if (!World || !World->bIsTearingDown)
 	{
 		Effects.Shutdown();
+		Marks.Shutdown();
 	}
 	Super::Deinitialize();
 }
@@ -115,49 +114,66 @@ FName UBulletSubsystem::ImpactCueOf(const FHitResult& Hit, EImpactSurface Surfac
 		// The training dummies are plated: they ring.
 		return LooterSoundCue::ImpactMetal;
 	}
-	// The material where it struck (the face's, from a complex trace), else the component's first.
-	const UPrimitiveComponent* Component = Hit.GetComponent();
-	if (!Component)
-	{
-		return LooterSoundCue::ImpactWorld;
-	}
-	int32 Section = 0;
-	const UMaterialInterface* Material = Hit.FaceIndex != INDEX_NONE ? Component->GetMaterialFromCollisionFaceIndex(Hit.FaceIndex, Section) : nullptr;
-	if (!Material && Component->GetNumMaterials() > 0)
-	{
-		Material = Component->GetMaterial(0);
-	}
-	const FString Name = Material ? Material->GetName() : FString();
-	if (NameHasAny(Name, MakeArrayView(WaterWords)))
-	{
-		return LooterSoundCue::ImpactWater;
-	}
-	if (NameHasAny(Name, MakeArrayView(MetalWords)))
-	{
-		return LooterSoundCue::ImpactMetal;
-	}
-	if (NameHasAny(Name, MakeArrayView(WoodWords)))
-	{
-		return LooterSoundCue::ImpactWood;
-	}
-	return LooterSoundCue::ImpactWorld;
+	// What the world is made of there (ImpactSurface): tags, the trim sheet's strip, the terrain's map, the material's name.
+	return ImpactSurface::PlayableCue(Hit.GetComponent(), ImpactSurface::Of(Hit));
 }
 
-void UBulletSubsystem::PlayImpactSound(const FHitResult& Hit, EImpactSurface Surface)
+void UBulletSubsystem::PlayImpactSound(const FHitResult& Hit, EImpactSurface Surface, EImpactMaterial Material, const FVector& ShotDirection)
 {
 	const UWorld* World = GetWorld();
 	if (!World || Surface == EImpactSurface::Flesh)
 	{
 		return;
 	}
+	const FName Cue = Surface == EImpactSurface::Target ? FName(LooterSoundCue::ImpactMetal) : ImpactSurface::PlayableCue(this, Material);
 	const double Now = World->GetTimeSeconds();
-	if (Now - LastImpactSoundTime < ImpactSoundGap && FVector::DistSquared(Hit.ImpactPoint, LastImpactSoundAt) < FMath::Square(ImpactSoundMerge))
+	if (Cue == LastImpactCue && Now - LastImpactSoundTime < ImpactSoundGap
+		&& FVector::DistSquared(Hit.ImpactPoint, LastImpactSoundAt) < FMath::Square(ImpactSoundMerge))
 	{
 		return;
 	}
+	LastImpactCue = Cue;
 	LastImpactSoundTime = Now;
 	LastImpactSoundAt = Hit.ImpactPoint;
-	LooterSound::PlayAt(this, ImpactCueOf(Hit, Surface), Hit.ImpactPoint);
+	LooterSound::PlayAt(this, Cue, Hit.ImpactPoint);
+
+	// A round that glanced off stone or metal whines away: the gunfight's ricochets.
+	if (Surface == EImpactSurface::World && ImpactSurface::Ricochets(Material) && Now - LastRicochetTime >= RicochetGap)
+	{
+		const float Square = static_cast<float>(FVector::DotProduct(-ShotDirection.GetSafeNormal(), Hit.ImpactNormal));
+		if (Square < RicochetSquare && FMath::FRand() < RicochetChance)
+		{
+			LastRicochetTime = Now;
+			LooterSound::PlayAt(this, LooterSoundCue::Impact::Ricochet, Hit.ImpactPoint);
+		}
+	}
+}
+
+void UBulletSubsystem::LeaveMark(const FBullet& Bullet, const FHitResult& Hit, EImpactMaterial Material)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	// One mark a pellet, but at most MarksPerVolley from one blast.
+	int32 Entry = VolleyMarks.IndexOfByPredicate([&Bullet](const FVolleyMarks& Each) { return Each.Volley == Bullet.Volley; });
+	if (Entry == INDEX_NONE)
+	{
+		if (VolleyMarks.Num() >= VolleysKept)
+		{
+			VolleyMarks.RemoveAt(0, 1, EAllowShrinking::No);
+		}
+		Entry = VolleyMarks.Add({ Bullet.Volley, 0 });
+	}
+	if (VolleyMarks[Entry].Count >= FBulletMarks::MarksPerVolley)
+	{
+		return;
+	}
+	if (Marks.Add(*World, Hit, Bullet.Shot.Direction, Material, Bullet.MarkScale, FMath::FRand()))
+	{
+		++VolleyMarks[Entry].Count;
+	}
 }
 
 FVector UBulletSubsystem::TracerPoint(const FBulletShot& Shot, float Distance)
@@ -168,10 +184,23 @@ FVector UBulletSubsystem::TracerPoint(const FBulletShot& Shot, float Distance)
 
 void UBulletSubsystem::Fire(const FBulletShot& Shot)
 {
+	// Shots fired by one gun in one frame are one volley (a shotgun's pellets from one pull): they share the cap on marks.
+	if (GFrameCounter != LastFireFrame || Shot.Weapon != LastFireWeapon || Shot.Shooter != LastFireShooter)
+	{
+		++VolleyCount;
+		LastFireFrame = GFrameCounter;
+		LastFireWeapon = Shot.Weapon;
+		LastFireShooter = Shot.Shooter;
+	}
+	const AWeaponBase* Gun = Shot.Weapon.Get();
+	const UWeaponDefinition* Definition = Gun ? Gun->GetInstance().Definition.Get() : nullptr;
+
 	FBullet& Bullet = Bullets.AddDefaulted_GetRef();
 	Bullet.Shot = Shot;
 	Bullet.Shot.Direction = Shot.Direction.GetSafeNormal();
 	Bullet.Position = Shot.Start;
+	Bullet.Volley = VolleyCount;
+	Bullet.MarkScale = FBulletMarks::GunScale(Definition ? Definition->Kind : EWeaponKind::None);
 	if (Shot.Speed <= 0.f)
 	{
 		// Instant: the whole flight happens now (the tracer still flashes along it this frame).
@@ -274,7 +303,8 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 		LooterCombat::MaxHitDamage(Shot.Damage), Roll, bCritical ? FMath::Max(Shot.CritMultiplier, 1.f) : 1.f, Damage,
 		bCritical ? TEXT(" CRIT") : TEXT(""));
 
-	// Looks and sound first: the damage below may kill the target.
+	// Looks, sound and the mark first: the damage below may kill the target. The world shows what it's made of.
+	const EImpactMaterial Material = Surface == EImpactSurface::World ? ImpactSurface::Of(Hit) : EImpactMaterial::Unknown;
 	if (UNiagaraSystem* ImpactFX = Shot.ImpactFX.Get())
 	{
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ImpactFX, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
@@ -282,9 +312,20 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 	else
 	{
 		Effects.Initialize(GetWorld());
-		Effects.SpawnImpact(Hit.ImpactPoint, Hit.ImpactNormal, Shot.Direction, Surface, bCritical);
+		if (Surface == EImpactSurface::World)
+		{
+			Effects.SpawnSurfaceImpact(Hit.ImpactPoint, Hit.ImpactNormal, Shot.Direction, Material, Bullet.MarkScale, bCritical);
+		}
+		else
+		{
+			Effects.SpawnImpact(Hit.ImpactPoint, Hit.ImpactNormal, Shot.Direction, Surface, bCritical);
+		}
 	}
-	PlayImpactSound(Hit, Surface);
+	PlayImpactSound(Hit, Surface, Material, Shot.Direction);
+	if (Surface == EImpactSurface::World)
+	{
+		LeaveMark(Bullet, Hit, Material);
+	}
 
 	if (HitActor)
 	{

@@ -11,6 +11,7 @@
 #include "Session/CampaignRecord.h"
 #include "Session/SessionSubsystem.h"
 #include "World/RespawnMarker.h"
+#include "World/RoostCarrySubsystem.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -160,9 +161,11 @@ bool UGraveTravelSubsystem::TravelTo(APawn* Player, const ARespawnMarker& Grave,
 	{
 		Sessions->HoldSaves(TravelHold);
 	}
-	// The player stops where they stand while the screen goes black. The world's sound carries on under the whoosh (a
-	// camera fade's audio fade would take the whoosh with it).
-	if (APlayerController* Controller = Cast<APlayerController>(Player->GetController()))
+	// The player stops where they stand while Hob's crows pour across the screen and carry them off. The camera fades under
+	// the crows (the screen goes black with or without them); the world's sound carries on under the wings (a camera fade's
+	// audio fade would take the wings with it).
+	APlayerController* Controller = Cast<APlayerController>(Player->GetController());
+	if (Controller)
 	{
 		Controller->SetIgnoreMoveInput(true);
 		Controller->SetIgnoreLookInput(true);
@@ -172,9 +175,13 @@ bool UGraveTravelSubsystem::TravelTo(APawn* Player, const ARespawnMarker& Grave,
 				/*bShouldFadeAudio*/ false, /*bHoldWhenFinished*/ true);
 		}
 	}
-	// The move comes once the black has held (Advance, on the subsystem's tick).
-	LooterSound::Play2D(this, LooterSoundCue::TravelWhoosh);
-	UE_LOG(LogLooter, Log, TEXT("Fast travel: to the grave %s (%.0f m away)"), *Grave.GetMarkerId().ToString(),
+	// The crows and their rush of wings (URoostCarrySubsystem); the move comes once the black has held (Advance, on the
+	// subsystem's tick).
+	if (URoostCarrySubsystem* Carry = URoostCarrySubsystem::Get(this))
+	{
+		Carry->BeginTravel(Controller, GraveTravelRules::FadeOutSeconds);
+	}
+	UE_LOG(LogLooter, Log, TEXT("Fast travel: Hob's crows carry the player to the roost %s (%.0f m away)"), *Grave.GetMarkerId().ToString(),
 		FVector::Dist2D(Player->GetActorLocation(), Grave.GetActorLocation()) / 100.0);
 	return true;
 }
@@ -186,21 +193,23 @@ void UGraveTravelSubsystem::Arrive()
 	const UHealthComponent* Health = Player ? Player->FindComponentByClass<UHealthComponent>() : nullptr;
 	if (Health && Health->IsDead())
 	{
-		// Killed in the black (a fall): the death's own fade and wake-up take over, keys and all.
+		// Killed in the black (a fall): the death's own carry and wake-up take over, keys, crows and all.
 		UE_LOG(LogLooter, Warning, TEXT("Fast travel: the player died in the black; the wake-up takes over."));
 		EndTravel(nullptr);
 		return;
 	}
-	// The grave or the player may have gone in the black (a level going): nobody moves, the screen comes back.
+	// The roost or the player may have gone in the black (a level going): nobody moves, the screen comes back.
 	if (Player && Grave)
 	{
 		MoveToGrave(*Player, *Grave);
-		UE_LOG(LogLooter, Log, TEXT("Fast travel: arrived at the grave %s"), *Grave->GetMarkerId().ToString());
+		UE_LOG(LogLooter, Log, TEXT("Fast travel: set down at the roost %s"), *Grave->GetMarkerId().ToString());
 		EndTravel(Player);
+		// The roost's own crows burst off round the player as the screen's crows tear away, and Hob has his word.
+		Grave->Welcome(ERoostArrival::Travel, Player);
 		OnTravelled.Broadcast(Player, *Grave);
 		return;
 	}
-	UE_LOG(LogLooter, Warning, TEXT("Fast travel: the player or the grave went away in the black; nobody moved."));
+	UE_LOG(LogLooter, Warning, TEXT("Fast travel: the player or the roost went away in the black; nobody moved."));
 	EndTravel(Player);
 }
 
@@ -209,7 +218,7 @@ void UGraveTravelSubsystem::EndTravel(APawn* Player)
 	bTravelling = false;
 	Traveller.Reset();
 	Destination.Reset();
-	// Null: someone else has the screen and the keys now (a death's fade).
+	// Null: someone else has the screen and the keys now (a death's carry).
 	if (APlayerController* Controller = Player ? Cast<APlayerController>(Player->GetController()) : nullptr)
 	{
 		Controller->ResetIgnoreMoveInput();
@@ -218,6 +227,12 @@ void UGraveTravelSubsystem::EndTravel(APawn* Player)
 		{
 			Controller->PlayerCameraManager->StartCameraFade(1.f, 0.f, GraveTravelRules::FadeInSeconds, FLinearColor::Black, false, false);
 		}
+	}
+	// The crows burst off the screen as it comes back (a death taking over keeps them: its own wake-up reveals).
+	URoostCarrySubsystem* Carry = Player ? URoostCarrySubsystem::Get(this) : nullptr;
+	if (Carry)
+	{
+		Carry->Reveal();
 	}
 	if (USessionSubsystem* Sessions = USessionSubsystem::Get(this))
 	{

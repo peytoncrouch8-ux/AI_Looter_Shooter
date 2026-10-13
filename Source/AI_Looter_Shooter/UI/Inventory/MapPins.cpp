@@ -126,7 +126,8 @@ namespace MapPins
 			Pin.Id = It->GetFName();
 		}
 
-		// The respawn graves open in this story: a closed one is the story's to reveal.
+		// Hob's roosts found (or opened by the story) in this one: shown however far, a travel point each. One not found yet
+		// is the player's to find, and stays off the map.
 		for (TActorIterator<ARespawnMarker> It(World); It; ++It)
 		{
 			const ARespawnMarker* Grave = *It;
@@ -134,8 +135,8 @@ namespace MapPins
 			{
 				continue;
 			}
-			const bool bOpen = Sources.Campaign ? Grave->IsActive(*Sources.Campaign) : Grave->bStartActive;
-			if (!bOpen)
+			const bool bFound = Sources.Campaign ? Grave->IsFound(*Sources.Campaign) : Grave->bStartActive;
+			if (!bFound)
 			{
 				continue;
 			}
@@ -143,7 +144,7 @@ namespace MapPins
 			Pin.Kind = EMapPinKind::Grave;
 			Pin.Location = Grave->GetActorLocation();
 			Pin.Name = Grave->GetGraveName();
-			Pin.Detail = LOCTEXT("GraveDetail", "Respawn grave: fast travel");
+			Pin.Detail = LOCTEXT("GraveDetail", "Hob's roost: fast travel");
 			Pin.Grave = Grave;
 			Pin.Id = Grave->GetMarkerId();
 		}
@@ -253,7 +254,7 @@ namespace MapPins
 		case EMapPinKind::Shrine:      return LOCTEXT("KindShrine", "Vigil Stone");
 		case EMapPinKind::Vendor:     return LOCTEXT("KindVendor", "Store");
 		case EMapPinKind::Station:    return LOCTEXT("KindStation", "Station");
-		case EMapPinKind::Grave:       return LOCTEXT("KindGrave", "Respawn grave");
+		case EMapPinKind::Grave:       return LOCTEXT("KindGrave", "Hob's roost");
 		case EMapPinKind::Offer:       return LOCTEXT("KindOffer", "Mission offered");
 		case EMapPinKind::TurnIn:      return LOCTEXT("KindTurnIn", "Turn in");
 		case EMapPinKind::Objective:   return LOCTEXT("KindObjective", "Objective");

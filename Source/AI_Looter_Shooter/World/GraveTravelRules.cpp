@@ -57,13 +57,13 @@ namespace GraveTravelRules
 	{
 		switch (Block)
 		{
-		case EGraveTravelBlock::NoPlayer:     return LOCTEXT("NoPlayer", "There's nobody to send.");
+		case EGraveTravelBlock::NoPlayer:     return LOCTEXT("NoPlayer", "There's nobody for the crows to carry.");
 		case EGraveTravelBlock::Dying:        return LOCTEXT("Dying", "Not while you're down.");
 		case EGraveTravelBlock::Scene:        return LOCTEXT("Scene", "Not now: the story has you here.");
 		case EGraveTravelBlock::BossFight:    return LOCTEXT("BossFight", "Not in the middle of a boss fight.");
 		case EGraveTravelBlock::Hunted:       return LOCTEXT("Hunted", "Something is hunting you. Lose it or put it down first.");
 		case EGraveTravelBlock::Travelling:   return LOCTEXT("Travelling", "You're already on your way.");
-		case EGraveTravelBlock::GraveClosed:  return LOCTEXT("GraveClosed", "This grave hasn't opened to you yet.");
+		case EGraveTravelBlock::GraveClosed:  return LOCTEXT("GraveClosed", "Hob's crows don't know this roost yet. Find it first.");
 		case EGraveTravelBlock::AlreadyThere: return LOCTEXT("AlreadyThere", "You're standing at it.");
 		case EGraveTravelBlock::None:         break;
 		}

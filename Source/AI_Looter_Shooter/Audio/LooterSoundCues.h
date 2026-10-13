@@ -33,6 +33,43 @@ namespace LooterSoundCue
 	inline constexpr const TCHAR* ImpactMetal = TEXT("Impact.Metal");
 	inline constexpr const TCHAR* ImpactWater = TEXT("Impact.Water");
 
+	// --- Bullet impacts by surface (2026-10-13, wave 3a: UBulletSubsystem through ImpactSurface::Cue, and a melee blow on a
+	//     wall; Art/Sounds/recipes/impacts.py). All 3D at the hit, short and punchy, dry under the gun's own report;
+	//     several takes each (a long burst lands on one surface), varied in pitch and texture. Until a cue has its sounds
+	//     the old Impact.World, .Wood, .Metal or .Water plays in its place (ImpactSurface::FallbackCue). ---
+	namespace Impact
+	{
+		/** Packed dry earth (roads, paths, bare ground): a dull, heavy thud and a gritty spray of soil pattering down. */
+		inline constexpr const TCHAR* Dirt = TEXT("Impact.Dirt");
+		/** Grass over soil: a softer, muffled thud with a quick tearing swish of blades and a little soil thrown. */
+		inline constexpr const TCHAR* Grass = TEXT("Impact.Grass");
+		/** Gravel, scree and rail ballast: a sharp crunch and small stones skittering and clicking apart. */
+		inline constexpr const TCHAR* Gravel = TEXT("Impact.Gravel");
+		/** Dry sand and dust: a soft, breathy puff with a fine hiss of grains settling. */
+		inline constexpr const TCHAR* Sand = TEXT("Impact.Sand");
+		/** Rock and masonry (cliffs, outcrops, boulders, stone walls, chimneys): a hard, bright crack and chip, a short rattle of grit. */
+		inline constexpr const TCHAR* Stone = TEXT("Impact.Stone");
+		/** Timber (buildings, fences, crates, the depot, trunks): a solid knock with a splintering crackle (made already: 6 takes). */
+		inline constexpr const TCHAR* Wood = TEXT("Impact.Wood");
+		/** Heavy iron and steel (rails, the lift, the windmill, straps): a bright clank with a short ring (made already: 6 takes). */
+		inline constexpr const TCHAR* Metal = TEXT("Impact.Metal");
+		/** Thin sheet metal (tin roofs, drums, mailboxes, buckets, wire screens): a hollow, tinny bang, a rattle, a wobbling ring. */
+		inline constexpr const TCHAR* SheetMetal = TEXT("Impact.SheetMetal");
+		/** Window glass: the pane's sharp crack and a spill of shards tinkling down after it. */
+		inline constexpr const TCHAR* Glass = TEXT("Impact.Glass");
+		/** Water: a quick plop and splash, droplets falling back (made already: 6 takes). */
+		inline constexpr const TCHAR* Water = TEXT("Impact.Water");
+		/** Cloth, canvas, rope and leather: a muffled thwip, the fabric snapping taut and a soft flutter. */
+		inline constexpr const TCHAR* Cloth = TEXT("Impact.Cloth");
+		/** Hay and straw (bales, stacks): a soft, rustling thump and straws scattering. */
+		inline constexpr const TCHAR* Hay = TEXT("Impact.Hay");
+		/** Bone and skulls: a dry, hollow crack, brittle and light. */
+		inline constexpr const TCHAR* Bone = TEXT("Impact.Bone");
+		/** A glancing round off stone or metal: a ricochet's high, falling whine tumbling away (layered on about half the
+		 *  grazing hits, never two within 0.35 s); 6 takes, varied in pitch and length. */
+		inline constexpr const TCHAR* Ricochet = TEXT("Impact.Ricochet");
+	}
+
 	/** The Drover revolver's own sounds (WeaponSounds picks them by the gun's kind and its reload's steps). */
 	namespace Revolver
 	{
@@ -660,5 +697,32 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* Burn = TEXT("World.WatchFire.Burn");
 		/** The dry brazier tried (near, short): a knuckle on an empty iron bowl, cold ash shifting. */
 		inline constexpr const TCHAR* Dry = TEXT("World.WatchFire.Dry");
+	}
+
+	// --- Hob's roosts (2026-10-13, wave 3: ARespawnMarker as the roost, URoostCarrySubsystem's carry): the one save, respawn
+	//     and fast-travel point on every map, its beacon, its crows; a weathered post, an old iron bell, crows, a cold light ---
+	namespace RoostMark
+	{
+		/** A roost found (3D at its bell, carried far): the bell struck once and ringing on, a deep warm swell rushing upward as
+		 *  the beacon's light climbs into the sky, the roost's crows bursting off in a clatter of wings and a chorus of caws. */
+		inline constexpr const TCHAR* Found = TEXT("World.Roost.Found");
+		/** A roost found before, made the save point again (3D, near, quieter): one soft tap of the bell, a low caw, the light's
+		 *  hum lifting for a moment. */
+		inline constexpr const TCHAR* Remarked = TEXT("World.Roost.Remarked");
+		/** Loop near a roost (3D, about 25 m): crows muttering and shuffling on the perches, a low caw now and then, the bell's
+		 *  clapper ticking in the wind, the beacon's faint low hum. */
+		inline constexpr const TCHAR* Ambient = TEXT("World.Roost.Ambient");
+		/** Fast travel leaving (2D, the player's own): a rush of wings closing in from every side, caws all round, a gust as the
+		 *  crows lift Ellis off the ground and away. */
+		inline constexpr const TCHAR* CarryOut = TEXT("UI.Roost.CarryOut");
+		/** Set down at a roost by the crows (3D at the roost, near): wings bursting outward, crows scattering with caws, boots
+		 *  landing on dirt. */
+		inline constexpr const TCHAR* CarryIn = TEXT("World.Roost.CarryIn");
+		/** A death, Hob's crows coming for Ellis (2D, under the dying): wingbeats gathering and circling closer, harsh caws, then a
+		 *  heavy drag through dirt and gravel under a rush of wings. */
+		inline constexpr const TCHAR* DeathDrag = TEXT("UI.Roost.DeathDrag");
+		/** Woken at a roost after a death (3D at the roost, near): the flock exploding off Ellis, a sharp breath drawn in, Hob's
+		 *  single dry croak. */
+		inline constexpr const TCHAR* DeathWake = TEXT("World.Roost.DeathWake");
 	}
 }

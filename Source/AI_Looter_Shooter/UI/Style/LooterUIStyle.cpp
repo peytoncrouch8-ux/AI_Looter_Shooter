@@ -1,4 +1,5 @@
 #include "UI/Style/LooterUIStyle.h"
+#include "World/RoostSettings.h"
 #include "Blueprint/WidgetTree.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "Components/Border.h"
@@ -216,6 +217,10 @@ namespace LooterUI::Color
 	FLinearColor Curse()         { return Hex(199, 178, 96); }
 	FLinearColor CurseLight()    { return Hex(236, 224, 160); }
 	FLinearColor CurseDark()     { return Hex(96, 80, 36); }
+
+	// The roost's colour lives in its settings (one place to change it), read here so every UI uses the same.
+	FLinearColor Roost()         { const FColor C = URoostSettings::Get().BeaconColor; return Hex(C.R, C.G, C.B); }
+	FLinearColor RoostCore()     { const FColor C = URoostSettings::Get().FlameCoreColor; return Hex(C.R, C.G, C.B); }
 
 	FLinearColor Focus()         { return Hex(255, 186, 72); }
 	FLinearColor FocusOnAccent() { return Hex(255, 246, 228); }

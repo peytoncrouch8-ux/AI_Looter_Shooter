@@ -663,27 +663,30 @@ Only where the new missions and the house kit need ground:
   **Bright & Daughter's workshop** behind the undertaker's front at about (62, −24), over its cellar; and **Amos's house**,
   small and empty, at (20, −72) west of his barn, with his grave beside it at (16, −66).
 
-## 8. Save graves
+## 8. Hob's roosts (were the save graves)
 
-Ten graves, each with its lantern post (dark until marked). Walking up to one (within 6 m, alive, outside a scene)
-marks it: the lantern catches, GRAVE MARKED and the grave's name, and the session saves. Continue wakes at the area's last
-marked grave; death at the nearest open one; fast travel joins the open ones. "Mark after" is `MarkAfterMission`.
+**Superseded (2026-10-13, the user's call):** the save points are Hob's roosts, not graves: the Crow's Mast (look sheet
+41, design B), the one save, respawn and fast-travel point on every map, its beacon in Hob's Ember once found. Walking
+within 9 m with a clear line finds one (the column shoots up, the bell rings, the crows lift, ROOST FOUND, an early
+save). Continue wakes at the area's last found roost; a death is dragged by Hob's crows to the nearest found one; fast
+travel is Hob's crows carrying Ellis between found ones. Placed from `layout.json` `gameplay.roosts`
+(`build_area_roosts.py`); the grave wake in the cold open stays a scene, and the first roost stands by the farm.
 
-| Grave (id) | Where | Near | Mark after |
-|---|---|---|---|
-| The Family Plot (FamilyPlot) | (−87, −35), Ellis's own grave | the farm, the bluff path's foot | marked as Ellis climbs out (Main 1) |
-| Boot Hill (BootHill) | (0, 32) | Main Street's back, the north road, the hanging tree | anytime |
-| The Memorial (Memorial) **new** | (24, 2), at the foot of the town memorial: two Rim Rangers of the Rest lie under it | Main Street's middle, the board, the store | Main 3 |
-| The Potter's Field (PottersField) **new** | (92, −14), the unclaimed dead behind the coffin shed | the undertaker's yard, the depot, Tilly's workshop | Main 3 |
-| The Whitlock Plot (WhitlockPlot) **new** | (16, −66), Amos's own grave | Whitlock Fields, Mill Creek, Coffin Rock | Main 3 |
-| The Chapel Yard (ChapelYard) | (−6, 58) | the chapel, the west road's head | Main 4 (the yard cleared) |
-| The Keeper's Grave (KeepersGrave) | (−112, 16) | the crossroads, the Keeper's Gate, the deck | Main 4 (was Main 5) |
-| The Lift-men's Plot (LiftmensPlot) **new** | (6, 114), the quarry's west side | the winch house, the Goat Steps' foot | Main 3 |
-| The Ranger's Grave (RangersGrave) **new** | (−64, 178) | Calder's Post, the Rim | the first lift ride |
-| The Miners' Plot (MinersPlot) **new** | (50, 214) | the Providence's mouth, the Foreman's stone | the first lift ride |
+| Roost (id) | Name | Mast at (m) | Faces | Where | Opens |
+|---|---|---|---|---|---|
+| FamilyPlot | Ransom Farm | (−74.4, −34.5) | 95° | outside the family plot's east gate by the farm path | found as Ellis leaves the plot |
+| MainStreet | Main Street | (30.5, 0) | 90° | the street's middle, 6.5 m east of the memorial | anytime |
+| ChapelYard | Chapel of Saint Ada | (−7, 52.5) | 120° | the knoll's forecourt east of the churchyard gate | Main 4 |
+| Depot | The Depot | (102.5, 7.5) | 135° | the yard road's end at the platform's west end | anytime |
+| KeepersGrave | Keeper's Crossroads | (−110, 9) | −81° | the crossroads, facing the Keeper's Gate | Main 5 |
+| WhitlockFields | Whitlock Fields | (46.5, −51) | −150° | by the barn yard's NE corner and the fields path | anytime |
+| SinkRim | The Sink | (43, 33) | 59° | the SW rim by the fence's end, short of the ramp head | anytime |
+| OldQuarry | Old Quarry | (30, 95) | 0° | the quarry mouth where the track enters | anytime |
+| LiftHead | Lift Head | (18.5, 147) | 180° | the crest, where the crest path and the Bench trail part | (the lift) |
+| CaldersPost | Calder's Post | (−53, 163.5) | −100° | the post's yard entrance from the Bench trail | (the lift) |
+| Diggings | The Diggings | (57, 213) | 45° | between the miners' plot and the ore bin, facing the mine | (the lift) |
 
-No point in the valley is more than about 70 m from a grave, and none on the mountain more than 90 m (the mine's stope,
-through rock, is the farthest; the manway shortens the way back).
+The ids FamilyPlot, ChapelYard and KeepersGrave are the old graves' (saves keep them).
 
 ## 9. Buildings
 

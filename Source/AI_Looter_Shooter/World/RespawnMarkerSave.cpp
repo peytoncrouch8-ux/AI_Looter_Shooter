@@ -1,4 +1,4 @@
-// ARespawnMarker as a save point: walking up to a grave marks it, the last one marked in each area is where Continue wakes.
+// ARespawnMarker as a save point: walking up to a roost finds it, the last one found in each area is where Continue wakes.
 
 #include "World/RespawnMarker.h"
 #include "AI_Looter_Shooter.h"
@@ -12,8 +12,13 @@
 #include "Scenes/SceneSubsystem.h"
 #include "Session/CampaignRecord.h"
 #include "Session/SessionSubsystem.h"
+#include "Story/CaptionSubsystem.h"
 #include "UI/HUD/LooterHUD.h"
 #include "World/GraveTravelSubsystem.h"
+#include "World/RoostBeacon.h"
+#include "World/RoostCrows.h"
+#include "World/RoostKit.h"
+#include "World/RoostSettings.h"
 #include "World/WorldQueries.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -22,11 +27,17 @@
 
 namespace
 {
-	/** The poll skips the rules until the player is within this far past the mark radius (cm), so a far-off grave costs one distance. */
+	/** The poll skips the rules until the player is within this far past the find radius (cm), so a far-off roost costs one distance. */
 	constexpr double NearPast = 400.0;
 
-	/** A line to the grave's own spot is aimed this high over it (cm): the height of a standing man's chest. */
-	constexpr double SpotHeight = 120.0;
+	/** A line to the roost's post is aimed this high over its foot (cm): a standing man's chest, under the crossbar. */
+	constexpr double PostChest = 140.0;
+
+	/** The beacon follows the camera's nearness from this far past the settings' NearFull (cm): it starts fading in time. */
+	constexpr double WatchPast = 1500.0;
+
+	/** The roost's sound stops this far past where it starts (cm): no stutter at the edge. */
+	constexpr double AmbientHysteresis = 400.0;
 }
 
 // ---------------------------------------------------------------------------
@@ -68,18 +79,18 @@ FName ARespawnMarker::FindAreaId(const UWorld* World)
 const ARespawnMarker* ARespawnMarker::ChooseContinueGrave(const UWorld* World, const FVector& SavedLocation, const FCampaignRecord& Campaign,
 	FName Area)
 {
-	// The grave the player last marked here, when it's in this level and open (a level rebuilt without it falls through).
+	// The roost the player last found here, when it's in this level and open (a level rebuilt without it falls through).
 	const ARespawnMarker* Marked = FindById(World, Campaign.GetLastGrave(Area));
 	if (Marked && !AreaLandings::IsLanding(Marked) && Marked->IsActive(Campaign))
 	{
 		return Marked;
 	}
-	// None marked (a save from before save points, or a death before the first): the open grave nearest where they stood.
+	// None found (a save from before save points, or a death before the first): the open roost nearest where they stood.
 	return FindNearestActive(World, SavedLocation, Campaign);
 }
 
 // ---------------------------------------------------------------------------
-// Marked or not
+// Found or not
 // ---------------------------------------------------------------------------
 
 FName ARespawnMarker::GetMarkGate() const
@@ -90,6 +101,17 @@ FName ARespawnMarker::GetMarkGate() const
 bool ARespawnMarker::IsMarked(const FCampaignRecord& Campaign) const
 {
 	return GraveMarkRules::IsMarked(Campaign, GetMarkerId());
+}
+
+bool ARespawnMarker::IsFound(const FCampaignRecord& Campaign) const
+{
+	return IsMarked(Campaign) || IsActive(Campaign);
+}
+
+bool ARespawnMarker::IsFound() const
+{
+	const UMissionRunner* Runner = UMissionRunner::Get(this);
+	return Runner && Runner->IsActive() ? IsFound(Runner->GetCampaign()) : bStartActive;
 }
 
 bool ARespawnMarker::IsSavePoint(const FCampaignRecord& Campaign, FName Area) const
@@ -135,7 +157,7 @@ FGraveMarkSenses ARespawnMarker::GatherSenses(const AActor* Player) const
 		const UMissionRunner* Runner = UMissionRunner::Get(this);
 		Senses.bStoryAllows = Runner && Runner->GetCampaign().HasCompleted(Gate);
 	}
-	// Measured from their feet, through the air: a grave on the knoll is no nearer for a player on the cliff above it.
+	// Measured from their feet, through the air: a roost on the knoll is no nearer for a player on the cliff above it.
 	const FVector Feet = Player->GetActorLocation() - FVector(0.0, 0.0, Player->GetSimpleCollisionHalfHeight());
 	Senses.Distance = FVector::Dist(Feet, GetActorLocation());
 	return Senses;
@@ -150,12 +172,16 @@ bool ARespawnMarker::HasSightLine(const AActor* Player) const
 	}
 	const APawn* Pawn = Cast<APawn>(Player);
 	const FVector Eyes = Pawn ? Pawn->GetPawnViewLocation() : Player->GetActorLocation();
-	// The world's solid shapes only (walls, rocks, the ground; volumes are skipped), and the post itself and the player never
-	// stand in the way. Either the flame or the grave's own spot in plain view is enough: a fence post between is no wall.
-	FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("GraveMarkSight"), this, /*bTraceComplex*/ false);
+	// The world's solid shapes only (walls, rocks, the ground; volumes are skipped), and the roost itself and the player
+	// never stand in the way. Either the beacon on its top or the post at chest height in plain view is enough: a fence
+	// post between is no wall.
+	FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("RoostSight"), this, /*bTraceComplex*/ false);
 	Params.AddIgnoredActor(Player);
+	FTransform Foot;
+	const FVector Post = GetRoostSocket(NAME_None, Foot) ? Foot.GetLocation() + FVector(0.0, 0.0, PostChest)
+		: GetActorLocation() + FVector(0.0, 0.0, PostChest);
 	const FCollisionObjectQueryParams Solid(ECC_WorldStatic);
-	for (const FVector& Target : { GetLanternLocation(), GetActorLocation() + FVector(0.0, 0.0, SpotHeight) })
+	for (const FVector& Target : { GetBeaconLocation(), Post })
 	{
 		FHitResult Block;
 		if (!World->LineTraceSingleByObjectType(Block, Eyes, Target, Solid, Params))
@@ -173,7 +199,7 @@ EGraveMarkBlock ARespawnMarker::CheckMark(const AActor* Player) const
 	{
 		return Block;
 	}
-	// The line is the dearest question: asked last, and only of a player already near enough and free to mark.
+	// The line is the dearest question: asked last, and only of a player already near enough and free to find it.
 	return HasSightLine(Player) ? EGraveMarkBlock::None : EGraveMarkBlock::NoSight;
 }
 
@@ -184,15 +210,35 @@ void ARespawnMarker::PollApproach()
 	APawn* Pawn = Controller ? Controller->GetPawn() : nullptr;
 	if (!Pawn)
 	{
+		UpdateAmbient(false);
 		return;
 	}
 	// Most of the time the player is nowhere near: one squared distance, and nothing else.
+	const URoostSettings& Settings = URoostSettings::Get();
+	const double Away = FVector::DistSquared(Pawn->GetActorLocation(), GetActorLocation());
+	const double Watch = Settings.NearFull + WatchPast;
+	const double Ambient = Settings.AmbientRadius + (IsAmbientPlaying() ? AmbientHysteresis : 0.0);
 	const double Near = MarkRadius + NearPast;
-	if (FVector::DistSquared(Pawn->GetActorLocation(), GetActorLocation()) > Near * Near)
+	const double Farthest = FMath::Max3(Watch, Ambient, Near);
+	if (Away > Farthest * Farthest)
 	{
+		UpdateAmbient(false);
+		if (Beacon)
+		{
+			Beacon->WatchView(false);
+		}
 		return;
 	}
-	TryMark(Pawn);
+	// Near: its crows heard, and its beacon fading as the camera comes under it.
+	UpdateAmbient(Away <= Ambient * Ambient);
+	if (Beacon)
+	{
+		Beacon->WatchView(bLit && Away <= Watch * Watch);
+	}
+	if (Away <= Near * Near)
+	{
+		TryMark(Pawn);
+	}
 }
 
 EGraveMark ARespawnMarker::TryMark(AActor* Player, bool bForce)
@@ -205,7 +251,7 @@ EGraveMark ARespawnMarker::TryMark(AActor* Player, bool bForce)
 	}
 	if (bForce)
 	{
-		// The console marks a grave from anywhere, past its story and a wall: only a player who is down or none, and a landing, stop it.
+		// The console finds a roost from anywhere, past its story and a wall: only a player who is down or none, and a landing, stop it.
 		FGraveMarkSenses Senses = GatherSenses(Player);
 		Senses.bMarkOnApproach = true;
 		Senses.bInScene = false;
@@ -230,26 +276,42 @@ EGraveMark ARespawnMarker::TryMark(AActor* Player, bool bForce)
 	}
 	if (Result == EGraveMark::First)
 	{
-		// A first mark opens the grave when the story hadn't (fast travel and a death's wake-up use it from now on).
+		// A first find opens the roost when the story hadn't (fast travel and a death's wake-up use it from now on).
 		Activate(Campaign);
 	}
 	StartFlare(Result);
 	Announce(Result, Player);
-	UE_LOG(LogLooter, Log, TEXT("Respawn grave %s: %s, now the save point of %s."), *GetMarkerId().ToString(),
-		Result == EGraveMark::First ? TEXT("marked") : TEXT("marked again"), *FindAreaId(GetWorld()).ToString());
+	UE_LOG(LogLooter, Log, TEXT("Roost %s: %s, now the save point of %s."), *GetMarkerId().ToString(),
+		Result == EGraveMark::First ? TEXT("found") : TEXT("found again"), *FindAreaId(GetWorld()).ToString());
 	return Result;
 }
 
 void ARespawnMarker::Announce(EGraveMark Result, AActor* Player)
 {
 	const bool bFirst = Result == EGraveMark::First;
-	// In the world, from the lantern, for as far as the grave is marked from.
-	LooterSound::PlayAt(this, bFirst ? LooterSoundCue::GraveMark::Marked : LooterSoundCue::GraveMark::Remarked, GetLanternLocation());
+	// In the world, from the bell, carried as far as the roost is found from.
+	FTransform BellSpot;
+	const FVector Ring = GetRoostSocket(RoostKit::BellSocket(), BellSpot) ? BellSpot.GetLocation() : GetBeaconLocation();
+	LooterSound::PlayAt(this, bFirst ? LooterSoundCue::RoostMark::Found : LooterSoundCue::RoostMark::Remarked, Ring);
 	if (bFirst)
 	{
+		// The crows lift off as its light catches, wheel once and settle.
+		if (ARoostCrows* Birds = Crows.Get())
+		{
+			Birds->Lift(Player ? Player->GetActorLocation() : GetActorLocation());
+		}
 		if (ALooterHUD* HUD = ALooterHUD::FindFor(Player))
 		{
 			HUD->ShowGraveMarked(GetGraveName());
+		}
+		// The story's first roost: Hob says what they're for, once (the story keeps it said).
+		UMissionRunner* Runner = UMissionRunner::Get(this);
+		if (Runner && Runner->IsActive() && Runner->GetCampaign().SetFlag(RoostRules::FirstRoostFlag))
+		{
+			if (UCaptionSubsystem* Captions = UCaptionSubsystem::Get(this))
+			{
+				Captions->Play({ RoostRules::FirstRoostLine() }, ECaptionPlay::Queue);
+			}
 		}
 	}
 	// Saved soon rather than at the next minute's autosave: a player who quits right after still wakes here.

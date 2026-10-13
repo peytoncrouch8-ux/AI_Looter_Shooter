@@ -25,6 +25,26 @@ struct FMinimapWaypoint
 	float Angle = 0.f;
 };
 
+/** One of Hob's roosts as the minimap knows it (UHudMinimapWidget::PlaceRoosts): where, and whether it's found. */
+struct FMinimapRoost
+{
+	FVector Location = FVector::ZeroVector;
+	/** Found (or opened by the story): lit, a travel point, shown on the rim from afar. Else only once on the map. */
+	bool bFound = false;
+};
+
+/** Where one of the roosts shows on the minimap (UHudMinimapWidget::PlaceRoosts). */
+struct FMinimapRoostSpot
+{
+	/** Which of the roosts given. */
+	int32 Index = INDEX_NONE;
+	/** On the map at its place, or on the rim toward it (found ones only). */
+	bool bInside = true;
+	bool bFound = false;
+	/** Pixels from the map's center (+X right, +Y down). */
+	FVector2D Position = FVector2D::ZeroVector;
+};
+
 /** How many of the minimap's markers go to each kind of thing within its rim (UHudMinimapWidget::SplitMarkers). */
 struct FMinimapMarkerSplit
 {
@@ -40,7 +60,8 @@ struct FMinimapMarkerSplit
  * (baked by UMinimapSubsystem), hostiles as red diamonds, the givers' marks (a gold or white ? where a mission is offered,
  * a ! where one waits to be turned in), loot as dots in its rarity color, ammo as small dots and your arrow in the middle.
  * The tracked mission's waypoint (UMissionSubsystem) is an orange ring on the map when it's in range; farther away, an orange arrow inside the rim points the way like a compass needle, with the distance in meters
- * beside it. Its size is the player's choice (Settings > Interface > Minimap size, 60-150%). Reads the possessed pawn
+ * beside it. Hob's roosts show as the map's roost icon in their beacon's colour: at their place when near (dim until
+ * found), and the nearest found ones on the rim toward them from farther off (PlaceRoosts). Its size is the player's choice (Settings > Interface > Minimap size, 60-150%). Reads the possessed pawn
  * every frame.
  *
  * The map sits in a gunmetal bezel (HudMinimapWidgetFrame.cpp) with ticks every 30 degrees that turn with the view, the
@@ -91,6 +112,19 @@ public:
 	static FMinimapMarkerSplit SplitMarkers(int32 Pool, int32 Hostiles, int32 Givers, int32 Guns, int32 Ammo);
 
 	/**
+	 * Where Hob's roosts show, the same icon as the map's (the user's call, 2026-10-13): every roost within InsideRadius
+	 * pixels at its place (one not found yet dim, so a player nearby can find it); found ones farther off on the rim
+	 * (RimRadius) toward them, like a compass, but only those within RimReach (cm, across the ground) and the MaxOnRim
+	 * nearest, so the rim never crowds. The map turns with the view (ViewYaw up).
+	 */
+	static TArray<FMinimapRoostSpot> PlaceRoosts(TConstArrayView<FMinimapRoost> Roosts, const FVector& Player, float ViewYaw, float PixelsPerCm,
+		float InsideRadius, float RimRadius, float RimReach, int32 MaxOnRim);
+
+	/** How far off (cm) a found roost still shows on the rim, and how many at most. */
+	static constexpr float RoostRimReach = 15000.f;
+	static constexpr int32 RoostsOnRim = 3;
+
+	/**
 	 * Makes this one a live copy for the settings menu's zoom preview: the HUD's own is put away under the menu, so the menu
 	 * shows a second one in its corner (it draws the same bake, markers and waypoint) while the zoom is being set. A copy
 	 * also shows with the minimap switched off in the settings, so the zoom can be set before it is turned on.
@@ -132,6 +166,21 @@ private:
 
 	/** Shows the tracked mission's waypoint: the ring on the map, or the rim arrow and its distance. */
 	void UpdateWaypoint(const FVector& PlayerLocation, float Yaw, float Radius, float PixelsPerCm);
+
+	// --- Hob's roosts (HudMinimapWidgetRoosts.cpp) ---
+
+	/** Builds the roosts' markers (a dark badge ringed in the roost's colour, the icon over it) into Layer, under the other markers. */
+	void BuildRoosts(UCanvasPanel* Layer);
+	/** Looks the level's roosts up again now and then (they don't move; found ones change rarely), and places their markers. */
+	void UpdateRoosts(const FVector& PlayerLocation, float Yaw, float Radius, float PixelsPerCm, float DeltaSeconds);
+
+	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> RoostBadges;
+	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> RoostIcons;
+	/** What each roost marker last showed (found or not, on the rim or not), so brushes only change when needed. */
+	TArray<int32> RoostKeys;
+	/** The level's roosts as last looked up, and the seconds until the next look. */
+	TArray<FMinimapRoost> RoostCache;
+	float RoostLookLeft = 0.f;
 
 	// --- The frame round the map (HudMinimapWidgetFrame.cpp) ---
 

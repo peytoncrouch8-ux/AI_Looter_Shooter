@@ -125,7 +125,7 @@ namespace GraveMarkRules
 		switch (Block)
 		{
 		case EGraveMarkBlock::Off:
-			return TEXT("it doesn't mark on approach");
+			return TEXT("it isn't found on approach");
 		case EGraveMarkBlock::Landing:
 			return TEXT("it is a trip's landing");
 		case EGraveMarkBlock::NoPlayer:
@@ -141,7 +141,7 @@ namespace GraveMarkRules
 		case EGraveMarkBlock::TooFar:
 			return TEXT("too far");
 		case EGraveMarkBlock::NoSight:
-			return TEXT("no clear line to its lantern");
+			return TEXT("no clear line to the roost");
 		default:
 			return FString();
 		}

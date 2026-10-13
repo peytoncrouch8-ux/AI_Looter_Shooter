@@ -9,9 +9,9 @@ Everything goes in the area's Gameplay folder, so a "gameplay" build places it a
 Main 1:
 - The cold open's set (AColdOpenSet) where the lookout stands, facing as it faces: its marks on Ransom's Point are the
   lookout's (Scenes/ColdOpenSet.h); the gang's skiff's course is in the world's own frame.
-- The family plot's respawn grave (ARespawnMarker FamilyPlot, open once Main1 is finished) at the foot of Ellis's grave,
-  where the wake-up stands the player (GraveWake::StandOut), facing as the level's start does (toward the bell tower).
-  A save point (2026-10-13): walking up to it marks it, its lantern post (SM_LanternPost, set_save_point) beside the spot.
+- Hob's roosts (2026-10-13, wave 3: they replaced the respawn graves as the one save, respawn and fast-travel point):
+  build_area_roosts.py places every one from the layout's gameplay.roosts, the farm's (FamilyPlot) outside the family
+  plot's east gate first; the cold open's grave wake stays a scene of its own.
 - The two headboards to read (ASpeakerPoint tagged Headboard_Ellis and Headboard_Abel: "Read", from 2.5 m) at the graves'
   Interact sockets.
 - Grandma Delia's screen door (ASpeakerPoint tagged Speaker_Delia) on the farmhouse's front door, and her house's screen
@@ -36,15 +36,14 @@ Main 3:
 - The safe zones (ASafeGround) from the layout's zones: Delia's salt line round the farm (zone farm, always) and Main
   Street (zone mainStreet, after Main 3).
 Main 4 (build_area_chapel.py, with these helpers): the chapel's place, the chapel yard's fight, the bell, the smashed
-  Reliquary, Father Aldana's vestry door, the chapel yard's respawn grave, and the Unpaid on boot hill and the north road
-  after Main 4.
+  Reliquary, Father Aldana's vestry door, and the Unpaid on boot hill and the north road after Main 4.
 Main 5 (build_area_sink.py, with these helpers): the Sink's floor dressed (collapsed blocks and coffins, web cards),
   its three egg sacs (shot down in Main 5's second step, two spiders each), the Keeper's Lantern in the webbing (taken
   in its third), the floor's and the ramp head's places, the floor's spiders, the den's web funnel and the Webwood's
   trees.
 Main 6 (build_area_deck.py, with these helpers): the burial deck's biers and keeper's lantern posts, Abel on the boards
-  (during Main 6), Pa's board after it, the fog wall across the Keeper's Gate, Gravewind Point's place, the keeper's grave's
-  respawn (after Main 5), the story's dusk, and the Gravewind's wisps and canyon fog (seen only at dusk).
+  (during Main 6), Pa's board after it, the fog wall across the Keeper's Gate, Gravewind Point's place, the story's dusk, and
+  the Gravewind's wisps and canyon fog (seen only at dusk).
 Main 7 (build_area_depot.py, with these helpers): the train at the depot's platform (cold until Main 7), the depot's
   place at the hearse car's door, Delia's hand-off of Heirloom through her screen door, and the lit lantern's leaning flame.
 Side 2 (build_area_whitlock.py, with these helpers): Amos leaning on his fence by the gate (its span from
@@ -92,7 +91,6 @@ MAIN4 = 'Main4'
 MAIN5 = 'Main5'
 MAIN6 = 'Main6'
 MAIN7 = 'Main7'
-FAMILY_PLOT = 'FamilyPlot'
 PLACE_POINT = 'Place_RansomsPoint'
 PLACE_GATE = 'Place_TownGate'
 NEST = 'BluffNest'
@@ -100,8 +98,6 @@ NEST_TAG = 'Spider_BluffNest'
 GATE = 'TownGate'
 GATE_TAG = 'Unpaid_TownGate'
 
-# How far out of the grave's foot the wake-up stands the player, from the hole's middle (cm; GraveWake::StandOut).
-STAND_OUT = 190.0
 # Hob's grip on top of a headboard, from its Interact socket (55 cm up its face): up to the board's top, and back over
 # its thickness and lean (cm).
 PERCH_UP = 30.0
@@ -236,63 +232,6 @@ def ground(x, y, z, ignore=()):
     return z if hit is None else hit.to_tuple()[5].z
 
 
-# A respawn grave is a save point (ARespawnMarker marks on approach): its lantern is a post of this model beside the spot the
-# player wakes on, a little off to the side (cm), its lantern hanging toward the spot. The model's glass is dark until the
-# grave is marked.
-LANTERN_MESH = '/Game/Art/Props/SM_LanternPost'
-LANTERN_SIDE = 140.0
-# A sphere this wide (cm) at chest height must find nothing solid where the post stands.
-LANTERN_CLEAR = 35.0
-
-
-def _lantern_spot_clear(world, x, y, z, ignore):
-    """Nothing solid stands at (x, y, z) where the lantern post goes (a headboard, a rock, another post). True when the
-    check can't be made: the post goes there all the same."""
-    try:
-        found = unreal.SystemLibrary.sphere_overlap_actors(world, unreal.Vector(x, y, z + 110.0), LANTERN_CLEAR,
-                                                           [unreal.ObjectTypeQuery.OBJECT_TYPE_QUERY1], None, list(ignore))
-        actors = found[1] if isinstance(found, tuple) else found
-        return not [actor for actor in actors if actor is not None]
-    except Exception as error:  # the lantern is dressing: a failed check never stops the build
-        unreal.log_warning(f'the lantern spot could not be checked ({error}): the post stands there all the same')
-        return True
-
-
-def set_save_point(build, marker, heap, ignore=()):
-    """Gives a respawn grave's marker its save-point lantern: the post (LANTERN_MESH) beside the spot the player wakes on,
-    on the side away from the grave's heap (heap: its (x, y)) unless something solid stands there, its lantern hanging
-    toward the spot, on the ground there. ARespawnMarker marks the grave when the player walks up to it; the lantern is
-    dark until then. The grave's mission gate stays what it was (MarkAfterMission is left to ActiveAfterMission)."""
-    lantern = unreal.EditorAssetLibrary.load_asset(LANTERN_MESH) if unreal.EditorAssetLibrary.does_asset_exist(LANTERN_MESH) else None
-    if lantern is None:
-        build.warn(f'no {LANTERN_MESH} yet (Art/Models/Props/LanternPost.py): the respawn grave keeps the lantern it was built with')
-        return
-    at = marker.get_actor_location()
-    yaw = marker.get_actor_rotation().yaw
-    right = (math.cos(math.radians(yaw + 90.0)), math.sin(math.radians(yaw + 90.0)))
-    # The side away from the heap: the heap's offset along the marker's right decides.
-    along = (heap[0] - at.x) * right[0] + (heap[1] - at.y) * right[1]
-    sides = (-1.0, 1.0) if along > 0.0 else (1.0, -1.0)
-    world = unreal.EditorLevelLibrary.get_editor_world()
-    chosen = None
-    for side in sides:
-        x, y = at.x + right[0] * side * LANTERN_SIDE, at.y + right[1] * side * LANTERN_SIDE
-        z = ground(x, y, at.z, ignore=ignore)
-        if _lantern_spot_clear(world, x, y, z, [marker]):
-            chosen = (side, z)
-            break
-    if chosen is None:
-        build.warn('both sides of the respawn grave have something solid where its lantern goes: it stands on the far side of the heap anyway')
-        side = sides[0]
-        chosen = (side, ground(at.x + right[0] * side * LANTERN_SIDE, at.y + right[1] * side * LANTERN_SIDE, at.z, ignore=ignore))
-    side, z = chosen
-    marker.set_editor_property('lantern_mesh', lantern)
-    marker.set_editor_property('lantern_offset', unreal.Vector(0.0, side * LANTERN_SIDE, z - at.z))
-    # The model's front (where its lantern hangs) toward the spot: a post to the marker's right faces left.
-    marker.set_editor_property('lantern_yaw', -90.0 * side)
-    build.log(f'its lantern post {LANTERN_SIDE / 100.0:.1f} m to the {"right" if side > 0 else "left"}, {z - at.z:+.0f} cm')
-
-
 def ground_at(x, y, default=0.0, warn=True):
     """The first thing under (x, y) from high over the level: the terrain, or the top of a rock or a post standing there.
     Nothing there (open canyon past a rim, or no terrain placed) gives default, with a warning unless warn is off."""
@@ -381,26 +320,10 @@ def place_cold_open(build):
 
 
 def place_family_plot(build):
-    grave = placed(build, 'Grave_Ellis')
-    marker_cls = actor_class('RespawnMarker')
-    if grave is None or marker_cls is None:
-        return None
-    rise = socket(grave, 'Respawn')
-    hole = rise.translation if rise else grave.get_actor_location()
-    foot = grave.get_actor_forward_vector()
-    x, y = hole.x + foot.x * STAND_OUT, hole.y + foot.y * STAND_OUT
-    spawn = next((s for s in build.layout['placements'].values() if s['kind'] == 'PlayerStart'), None)
-    yaw = spawn['yaw'] if spawn else grave.get_actor_rotation().yaw
-    grave_marker = build.place(marker_cls, (x, y, ground(x, y, hole.z, ignore=[grave])), yaw, label='Respawn_FamilyPlot',
-                               folder='Gameplay')
-    grave_marker.set_editor_property('marker_id', unreal.Name(FAMILY_PLOT))
-    # What the map calls it (the layout has no label for it; the design's words: "the family plot").
-    grave_marker.set_editor_property('display_name', unreal.Text('Family plot'))
-    grave_marker.set_editor_property('active_after_mission', unreal.Name(MAIN1))
-    # A save point: walking up to it marks it (after Main 1, which opens it), its lantern post on the side away from the grave.
-    set_save_point(build, grave_marker, (hole.x, hole.y), ignore=[grave])
-    build.log(f'the family plot\'s respawn grave at ({x:.0f}, {y:.0f}), open after {MAIN1}')
-    return grave
+    """Ellis's grave, as build_area.py placed it (its headboard and Hob's first perch stand on it). Its respawn grave is gone:
+    Hob's roost by the family plot's gate replaced it (build_area_roosts.py, the layout's gameplay.roosts FamilyPlot, the same
+    id, so a save's marks carry over)."""
+    return placed(build, 'Grave_Ellis')
 
 
 def place_headboards(build, grave_ellis):
@@ -807,3 +730,6 @@ def place(build):
     # Dead Lift and The Last Watch: the ore lift, its bell pulls and speaking tube, Calder's watch fire and the far light.
     importlib.reload(importlib.import_module('build_area_lift')).place(build)
     place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_spots, deck_spots, depot_spots)
+    # Hob's roosts, last, so each keeps clear of everything the story stands on the ground (its own module, reloaded as the
+    # chapel's is; it places nothing for a layout without gameplay.roosts).
+    importlib.reload(importlib.import_module('build_area_roosts')).place(build)

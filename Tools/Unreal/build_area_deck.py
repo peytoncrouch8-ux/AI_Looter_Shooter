@@ -21,9 +21,9 @@ there yet is left out with a warning.
   radius, so nobody slips round its ends), the deck ahead of it.
 - Gravewind Point's place (a target point tagged Place_GravewindPoint) at the Keeper's Gate: "Carry the lantern to
   Gravewind Point" ends within 10 m of it (both roads end at the keeper's grave; the cairns lead on to the gate).
-- The keeper's grave's respawn grave (ARespawnMarker KeepersGrave, open after Main 5, so a death in Abel's fight wakes Ellis
-  there) at the foot of its mound (the placement graveKeeper), facing the gate.
-  A save point: its lantern post (story.set_save_point) beside the spot, lit when the player walks up to it.
+- (The keeper's grave's respawn grave is gone: Hob's roost at the keeper's crossroads replaced it, build_area_roosts.py,
+  the layout's gameplay.roosts KeepersGrave, the same id and still open after Main 5, so a death in Abel's fight wakes Ellis
+  there. The grave stays, Hob's first Main 6 perch on its board.)
 - The story's dusk (AStoryLighting): Main 6 (and Main 7, which goes on in the evening) in the Dusk lighting state; once
   lit, the dusk lasts until the level loads again.
 - The Gravewind's wisps and the canyon's fog (ADuskScenery, one per mesh, tagged Gravewind; the art session's
@@ -46,7 +46,6 @@ import build_area_story as story
 
 # The story's ids and tags, as the C++ (AAbelKeeper, AKeeperLanternPost, AAbelOnBoard) and the mission asset
 # (Tools/Unreal/create_mission_assets.py, DA_Mission_Main6) name them.
-MAIN5 = 'Main5'
 MAIN6 = 'Main6'
 MAIN7 = 'Main7'
 BOSS_TAG = 'Boss_Abel'
@@ -54,7 +53,6 @@ DECK_POST_TAG = 'LanternPost_Deck'
 KEEPERS_POST_TAG = 'LanternPost_Keeper'
 ABEL_TAG = 'Speaker_Abel'
 PLACE_POINT = 'Place_GravewindPoint'
-KEEPERS_GRAVE = 'KeepersGrave'
 DUSK = 'Dusk'
 GRAVEWIND_TAG = 'Gravewind'
 # Main 6's steps, from 0: to the point, the lantern hung, Abel, the scene.
@@ -90,8 +88,6 @@ BIER_TOP = 92.0
 GHOST_LIGHT_CHANNEL = 'channel2'
 # The fog wall's ends go this share of each rock's radius into it, so the wall meets the stone with no gap at its ends.
 GATE_INSET = 0.6
-# The Keeper's Grave's respawn: this far out of the mound's foot (cm), clear of its kerb.
-GRAVE_STAND_OUT = 150.0
 
 # --- The Gravewind's wisps and the canyon's fog (the art session's; plan metres turned into the level's cm) ---
 WISP_MESHES = {key: PROPS + f'SM_GravewindWisp_{key}' for key in 'ABCD'}
@@ -309,25 +305,9 @@ def place_gate(build, deck):
 
 
 def place_keepers_grave(build, gate):
-    """The keeper's grave's respawn grave, open after Main 5, facing the gate. Returns the grave."""
-    grave = story.placed(build, 'Grave_Keeper')
-    cls = story.actor_class('RespawnMarker')
-    if grave is None or cls is None:
-        return grave
-    rise = story.socket(grave, 'Respawn')
-    heap = rise.translation if rise else grave.get_actor_location()
-    foot = grave.get_actor_forward_vector()
-    x, y = heap.x + foot.x * GRAVE_STAND_OUT, heap.y + foot.y * GRAVE_STAND_OUT
-    yaw = story.facing((x, y), gate) if gate else grave.get_actor_rotation().yaw
-    marker = build.place(cls, (x, y, story.ground(x, y, heap.z, ignore=[grave])), yaw, label='Respawn_KeepersGrave', folder='Gameplay')
-    marker.set_editor_property('marker_id', unreal.Name(KEEPERS_GRAVE))
-    # What the map calls it (the layout has no label for it; the design's words: "the keeper's grave").
-    marker.set_editor_property('display_name', unreal.Text("Keeper's grave"))
-    marker.set_editor_property('active_after_mission', unreal.Name(MAIN5))
-    # A save point: walking up to it marks it (after Main 5, which opens it), its lantern post on the side away from the grave.
-    story.set_save_point(build, marker, (heap.x, heap.y), ignore=[grave])
-    build.log(f'the keeper\'s grave\'s respawn at ({x:.0f}, {y:.0f}), open after {MAIN5}')
-    return grave
+    """The keeper's grave as build_area.py placed it, for Hob's perch on its board. Its respawn grave is gone: Hob's roost at
+    the keeper's crossroads replaced it (build_area_roosts.py, gameplay.roosts KeepersGrave, the same id, open after Main 5)."""
+    return story.placed(build, 'Grave_Keeper')
 
 
 def place_dusk(build, at):

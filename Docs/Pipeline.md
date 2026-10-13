@@ -19,9 +19,23 @@ where the work stands.
   story, white for sides, on the map, the minimap and over the giver (`UGiverMarkSubsystem`). The offer card
   (`UMissionOfferWidget`) has Accept / Not now; the Missions tab lists only missions taken up. `Looter.Mission.Offer <id>`
   opens a card.
-- **Save points (2026-10-13):** respawn graves are marked by walking up to them (lantern, banner, an early autosave);
-  Continue wakes the player at the area's last marked grave (`FCampaignRecord::LastGraves`), deaths at the nearest open
-  one. `Looter.Grave.List`, `Looter.Grave.Mark <id> | forget <id|all>`.
+- **Hob's roosts (2026-10-13, the user's pick):** the ONE save / respawn / fast-travel point on every map: the Crow's
+  Mast (`SM_HobRoost`, its bell `SM_HobRoostBell`), its beacon in Hob's Ember (#D8321C, core #FF8A52; `URoostSettings`,
+  Project Settings > Game > Hob's Roosts; `LooterUI::Color::Roost`). Walking within 9 m (with a clear line) finds one:
+  the column shoots up, the bell rings, crows lift and three circle the beacon, ROOST FOUND, an early autosave. Continue
+  wakes the player at the area's last found roost (`FCampaignRecord::LastGraves`); fast travel and deaths are carried by
+  Hob's crows across the screen (`URoostCarrySubsystem`, `UHudCrowVeilWidget`), Hob speaking at every death. The actor
+  is still `ARespawnMarker` (save ids unchanged). Placed from `layout.json` `gameplay.roosts` by
+  `Tools/Unreal/build_area_roosts.py`. `Looter.Grave.List`, `Looter.Grave.Mark <id> | forget <id|all>`.
+- **Impacts and bullet marks (2026-10-13):** a hit's surface (13: dirt, grass, gravel, sand, stone, wood, metal, sheet
+  metal, glass, water, cloth, hay, bone) comes from tags, the trim sheet's strip under the hit (collision UVs), the
+  terrain's baked surface map, then material-name words; no physical surface types. Each has its sound, puff and mark;
+  ricochets on glancing hits. Marks are pooled DBuffer decals (`Looter.BulletMarks.Max/.Hold/.Fade`, 64, 20 s + 15 s
+  fade), their atlas script-made (`Art/Textures/BulletMarks/make_bullet_marks.py`). Re-run
+  `Tools/Unreal/build_impact_surfaces.py` after a macro map, scatter map or new trim-sheet model changes.
+- **Objective highlight (2026-10-13):** within 13 m, what the tracked mission's current objective is about (optional
+  ones too, the giver once it waits; never a fight's creatures) glows orange as an overlay on its meshes (a spot of a
+  building round a door); `M_ObjectiveHighlight` from `build_highlight_material.py`; `Looter.Highlight.List`.
 - **Holds:** every hold-to-use shows the kit's round ring (`SLooterProgressRing`, `LooterUI::MakeHoldKeyCap`).
 - **Mission features (2026-10-13):** optional objectives (`bOptional`: never hold a step, pay `OptionalSilver` at the
   turn-in), mission items (`AMissionItem`, carried, dropped by a creature), a turn-in with a choice of two (held to choose;

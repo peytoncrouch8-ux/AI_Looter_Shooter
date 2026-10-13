@@ -22,7 +22,10 @@ Art/Sounds/recipes/      one recipe per cue, by group: guns, impacts, feedback, 
                          items, the turn-in's choice, readables, the porch plate, going underground), orelift (the
                          ore lift: signal bells, the steam whistle, the winch and cable loops, the cage's creaks and
                          clanks), watchfire (the tower's brazier), miners (the dead miners, Thaddeus, Hiram; its
-                         rock-gallery space is shared) and foreman (the Foreman's fight, fuses and roof);
+                         rock-gallery space is shared), foreman (the Foreman's fight, fuses and roof) and roosts
+                         (Hob's roosts: found, the loop near one, the crows' carry and the death drag); impacts
+                         also has a cue per surface (dirt, grass, gravel, sand, stone, sheet metal, glass, cloth,
+                         hay, bone) and the ricochet layered on glancing hits;
                          kit.py holds the shared building blocks (clicks, clacks, whooshes, cloth,
                          scrapes, creaks, bubbles, chimes, plucked strings...) and band.py the score's instruments and
                          mixer

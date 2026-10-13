@@ -21,26 +21,23 @@ namespace
 		return Points;
 	}
 
-	/** A headstone with a cross on it, standing on the ground: the respawn grave. */
-	const FVectorIcon& GraveIcon()
+	/**
+	 * Hob's roost, the same on the map, the minimap and its rim: the crow's-foot mark burnt in a board on every roost (look
+	 * sheet 41), a bird's track: three toes spread up from the pad, the hind toe down. Four bold strokes and the pad: on the
+	 * minimap's rim it is hardly ten pixels across and still reads.
+	 */
+	const FVectorIcon& RoostIcon()
 	{
 		static const FVectorIcon Icon = []
 		{
 			FVectorIcon Result;
-			Result.StrokeWidth = 1.9f;
-			TArray<FVector2D>& Stone = Result.Strokes.AddDefaulted_GetRef();
-			Stone.Add(FVector2D(6.5, 20.0));
-			constexpr int32 ArcSteps = 14;
-			for (int32 Step = 0; Step <= ArcSteps; ++Step)
-			{
-				// Over the top from the left side to the right (angles from pi to 2 pi run up and over, y down).
-				const double Angle = UE_PI + UE_PI * Step / ArcSteps;
-				Stone.Add(FVector2D(12.0 + 5.5 * FMath::Cos(Angle), 10.0 + 5.5 * FMath::Sin(Angle)));
-			}
-			Stone.Add(FVector2D(17.5, 20.0));
-			Result.Strokes.Add(TArray<FVector2D>{FVector2D(4.0, 20.5), FVector2D(20.0, 20.5) });
-			Result.Strokes.Add(TArray<FVector2D>{FVector2D(12.0, 7.8), FVector2D(12.0, 16.6) });
-			Result.Strokes.Add(TArray<FVector2D>{FVector2D(9.1, 10.8), FVector2D(14.9, 10.8) });
+			Result.StrokeWidth = 2.6f;
+			const FVector2D Pad(12.0, 13.2);
+			Result.Strokes.Add(TArray<FVector2D>{Pad, FVector2D(12.0, 2.4) });
+			Result.Strokes.Add(TArray<FVector2D>{Pad, FVector2D(4.4, 5.0) });
+			Result.Strokes.Add(TArray<FVector2D>{Pad, FVector2D(19.6, 5.0) });
+			Result.Strokes.Add(TArray<FVector2D>{Pad, FVector2D(12.0, 21.8) });
+			Result.Fills.Add(Circle(Pad, 2.4, 16));
 			return Result;
 		}();
 		return Icon;
@@ -191,7 +188,8 @@ namespace MapIcons
 		case EMapPinKind::Objective:   return LooterUI::Color::Accent();
 		case EMapPinKind::Offer:       return MissionMarkIcons::Color(true);
 		case EMapPinKind::TurnIn:      return MissionMarkIcons::Color(true);
-		case EMapPinKind::Grave:       return LooterUI::Color::CyanText();
+		// Hob's roost in its beacon's own colour, the one the world shows (URoostSettings::BeaconColor).
+		case EMapPinKind::Grave:       return LooterUI::Color::Roost();
 		case EMapPinKind::Station:     return LooterUI::Color::Title();
 		case EMapPinKind::Vendor:      return LooterUI::Color::IconShade();
 		case EMapPinKind::Bench:       return LooterUI::Color::IconLight();
@@ -234,7 +232,7 @@ namespace MapIcons
 		case EMapPinKind::Objective:   return LooterUI::IconBrush(TEXT("MapObjective"), ObjectiveIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Offer:       return MissionMarkIcons::MarkBrush(MissionMarkIcons::EMark::Offer, true, Box);
 		case EMapPinKind::TurnIn:      return MissionMarkIcons::MarkBrush(MissionMarkIcons::EMark::TurnIn, true, Box);
-		case EMapPinKind::Grave:       return LooterUI::IconBrush(TEXT("MapGrave"), GraveIcon(), PixelsPerUnit, Box, Tint);
+		case EMapPinKind::Grave:       return RoostBrush(IconSize, Tint);
 		case EMapPinKind::Station:     return LooterUI::IconBrush(TEXT("MapStation"), StationIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Vendor:      return LooterUI::IconBrush(TEXT("MapVendor"), VendorIcon(), PixelsPerUnit, Box, Tint);
 		case EMapPinKind::Bench:       return LooterUI::IconBrush(TEXT("MapBench"), BenchIcon(), PixelsPerUnit, Box, Tint);
@@ -249,5 +247,12 @@ namespace MapIcons
 	{
 		const FLinearColor Glass = LooterUI::Color::ScreenBg();
 		return CircleBrush(FLinearColor(Glass.R, Glass.G, Glass.B, 0.9f), Ring, bLit ? 2.2f : 1.4f);
+	}
+
+	FSlateBrush RoostBrush(float IconSize, const FLinearColor& Tint)
+	{
+		// Small on the minimap, so the texture's resolution follows the size it's drawn at.
+		const float Pixels = IconSize < 16.f ? 4.f : PixelsPerUnit;
+		return LooterUI::IconBrush(TEXT("MapRoost"), RoostIcon(), Pixels, FVector2D(IconSize, IconSize), Tint);
 	}
 }

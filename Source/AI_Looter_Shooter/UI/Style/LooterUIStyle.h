@@ -112,6 +112,13 @@ namespace LooterUI
 		FLinearColor CurseLight();
 		FLinearColor CurseDark();
 
+		// --- Hob's roosts (2026-10-13: the user's pick, Hob's Ember) ---
+
+		/** Hob's roosts' one colour (URoostSettings::BeaconColor, Hob's Ember): the roost icon everywhere, the ROOST FOUND banner. */
+		FLinearColor Roost();
+		/** The roost flame's hot core (URoostSettings::FlameCoreColor). */
+		FLinearColor RoostCore();
+
 		// --- The menus' keyboard and controller focus (LooterUIFocus.h) ---
 
 		/** The focus outline and its lit edge on dark glass: a brighter orange than Accent. */

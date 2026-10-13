@@ -3,59 +3,69 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "World/GraveMarkRules.h"
+#include "World/RoostRules.h"
 #include "RespawnMarker.generated.h"
 
 class ARespawnMarker;
+class ARoostCrows;
 class UArrowComponent;
+class UAudioComponent;
 class UInstancedStaticMeshComponent;
-class UMaterialInterface;
 class UMissionDefinition;
 class UMissionRunner;
 class UPointLightComponent;
+class URoostBeaconComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
 struct FCampaignRecord;
 
-/** Where a death or a Continue wakes the player (ARespawnMarker::ChooseWakeSpot): a grave, or the level's own start. */
+/** Where a death or a Continue wakes the player (ARespawnMarker::ChooseWakeSpot): a roost, or the level's own start. */
 struct AI_LOOTER_SHOOTER_API FRespawnWakeSpot
 {
-	/** A grave's spot on the ground (the player stands on it), or a player start's (the middle of the player goes there). */
+	/** A roost's spot on the ground (the player stands on it), or a player start's (the middle of the player goes there). */
 	FVector Location = FVector::ZeroVector;
 
-	/** Which way they face: the grave's or the start's, level. */
+	/** Which way they face: the roost's or the start's, level. */
 	FRotator Facing = FRotator::ZeroRotator;
 
-	/** The grave they wake at; null at the level's start. */
+	/** The roost they wake at; null at the level's start. (Named for the graves the roosts replaced.) */
 	const ARespawnMarker* Grave = nullptr;
 
-	/** The level's start they wake at when no grave is open; null at a grave. */
+	/** The level's start they wake at when no roost is open; null at a roost. */
 	const AActor* Start = nullptr;
 
-	/** Somewhere was found (a level with neither a grave open nor a start of its own has nowhere). */
+	/** Somewhere was found (a level with neither a roost open nor a start of its own has nowhere). */
 	bool IsSet() const { return Grave || Start; }
 };
 
 /**
- * A respawn grave (the family plot, the chapel yard, boot hill, the keeper's grave), and Borderlands' save station: a death
- * wakes the player at the open one nearest where they fell, standing on it and facing its arrow, or else at the level's own
- * start as before, never at a trip's landing (UPlayerVitalsSubsystem). The wake-up is the death fade for now; the grave
- * wake-up camera is a scene.
+ * One of Hob's roosts (the user's call, 2026-10-13): the one save, respawn and fast-travel point on every map, the same
+ * everywhere: the Crow's Mast (the user's pick from look sheet 41: a mast on a cairn, its yard cockbilled, crosstrees, a
+ * stork's nest round the topmast, a fire basket on top, an old bell, the crow's-foot mark burnt in a board; SM_HobRoost, its
+ * bell SM_HobRoostBell; a greybox stand-in until they're imported), Hob's crows on its perches and, once found, circling its
+ * beacon (ARoostCrows), and the beacon itself, a flame in the basket under a tall column of light in the roost's one colour
+ * (Hob's Ember) seen from across the map (URoostBeaconComponent), dark until the roost is found. It replaced the respawn
+ * graves and keeps their class, ids and save data: a save's marked graves are found roosts (MarkerId,
+ * FCampaignRecord::LastGraves, MarkedGraves and ActiveRespawns are unchanged), so the code's names still say grave where the
+ * player now reads roost.
  *
- * A grave opens with the story: it's open from the start (bStartActive), opens when ActiveAfterMission is finished (Main 1
- * opens the family plot, Main 4 the chapel yard), when the player walks up to it (below), or from the console. Openings are
- * kept in the session's campaign record by MarkerId, so they last through saves and trips. Place it on the ground beside its
- * grave, where the player gets up; it's never streamed out, since the nearest open grave can be far from where the player
- * fell.
+ * The actor stands where the player wakes (on the ground, facing its arrow); the mast stands behind them, placed by the
+ * model's Wake socket (or the stand-in's), so the player waking or arriving looks out over the land with the crows bursting
+ * off over their head. Tools/Unreal/build_area_roosts.py places every roost from the layout's gameplay.roosts. It's never
+ * streamed out: a death far away may wake the player here.
  *
- * Save points (the user's call, 2026-10-13): walking up to a grave (alive, outside a scene, within MarkRadius with a clear
- * line to its lantern) marks it. Its lantern, a post beside the grave (SM_LanternPost by default; the build scripts place
- * it), is dark until then. The first mark opens the grave if the story hadn't, makes it the last marked grave of its area
- * (FCampaignRecord::LastGraves, which Continue wakes at), catches the lantern with a flare of light and flame, sounds
- * (GraveMark::Marked), shows the "GRAVE MARKED" banner and asks the session to save soon. Walking up to a grave marked
- * before, when another is the save point, only moves the save point back: the flame lifts (GraveMark::Remarked), no banner.
- * A marked grave stays lit for good. Death and fast travel are unchanged: the nearest open grave, and the open graves.
+ * Found (marked): walking up to it (alive, outside a scene, within MarkRadius with a clear line to the roost) marks it. The
+ * first time: the beacon's column shoots up out of the basket, the bell rings and swings, the crows lift off and settle and
+ * a few take to circling the beacon (RoostMark::Found), the ROOST FOUND banner, the session saved soon, and it opens (if the
+ * story hadn't) and becomes its area's save point (FCampaignRecord::LastGraves, where Continue wakes). The first roost of a
+ * story, Hob explains them. Walking up to one found before, when another is the save point, makes it the save point again
+ * with a quieter sound, a tap of the bell and a pulse up its column. Open (fast travel goes there, a death may wake there):
+ * from the start (bStartActive), with its mission's finish (ActiveAfterMission), recorded open, or found. Its crows carry
+ * Ellis to it (Welcome).
  *
- * It checks the player a few times a second on a timer, never every frame; its lantern ticks only for the second of a flare.
+ * Cheap: it checks the player a few times a second on a timer, never every frame (one distance while they're far); its
+ * crows are updated by the fauna's subsystem; the beacon ticks only for its show or a near camera; the actor ticks only for
+ * its light's flare and its bell's swing; its sound plays only while the player is near.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ARespawnMarker : public AActor
@@ -66,84 +76,83 @@ public:
 	ARespawnMarker();
 
 	/**
-	 * Its name in the campaign record ("FamilyPlot", "KeepersGrave"): unique in the campaign, and never changed once a
-	 * session may have saved it. None: the actor's name, which a rebuilt level may change.
+	 * Its name in the campaign record ("FamilyPlot", "MainStreet"): unique in the campaign, and never changed once a session
+	 * may have saved it (the roosts that replaced the graves kept the graves' ids). None: the actor's name, which a rebuilt
+	 * level may change.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Respawn")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Roost")
 	FName MarkerId;
 
 	/** Open from the start. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Respawn")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Roost")
 	bool bStartActive = false;
 
-	/** Opens when this mission is finished (its id). None: only the start, a walk up to it or the console opens it. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Respawn")
+	/** Opens when this mission is finished (its id). None: only the start, being found or the console opens it. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Roost")
 	FName ActiveAfterMission;
 
-	/** What the map calls it ("The family plot"). Empty: its id in words ("Family Plot" for FamilyPlot). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Respawn")
+	/** What the map and the banner call it ("Main Street"). Empty: its id in words ("Main Street" for MainStreet). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Roost")
 	FText DisplayName;
 
-	// --- Save point (marking on approach) ---
+	// --- Found on approach (the save point) ---
 
-	/** Walking up to it marks it as the save point. Off: only the console marks it. */
+	/** Walking up to it finds it (marks it as the save point). Off: only the console does. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Save point")
 	bool bMarkOnApproach = true;
 
-	/** How close the player's feet come to mark it (cm). */
+	/** How close the player's feet come to find it (cm): a roost stands beside a road, so passing by finds it. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Save point", meta = (ClampMin = "50", Units = "cm"))
-	float MarkRadius = 600.f;
+	float MarkRadius = GraveMarkRules::DefaultRadius;
 
 	/**
-	 * It can't be marked before this mission is finished (its id). None: ActiveAfterMission's, so a grave the story opens
-	 * can't be opened early by a walk; with neither, any time.
+	 * It can't be found before this mission is finished (its id). None: ActiveAfterMission's, so a roost the story opens
+	 * can't be found early; with neither, any time.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Save point")
 	FName MarkAfterMission;
 
-	/** The lantern's model, a post with the lantern hanging from it (glass slot LanternGlow, a Light socket at the flame). Set by the build scripts. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Save point|Lantern")
-	TObjectPtr<UStaticMesh> LanternMesh;
+	// --- The roost's model ---
 
-	/** Where the lantern stands, from the marker's spot in its own frame (cm): beside it, so the player never wakes inside the post. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Save point|Lantern")
-	FVector LanternOffset = FVector(0.0, 130.0, 0.0);
+	/** SM_HobRoost (found by itself once it's imported; the build script sets it too). None: the greybox stand-in. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Roost|Model")
+	TObjectPtr<UStaticMesh> RoostMesh;
 
-	/** The lantern's turn from the marker's (degrees): the model's front, where its lantern hangs, toward the marker's spot. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Save point|Lantern", meta = (Units = "deg"))
-	float LanternYaw = -90.f;
+	/** SM_HobRoostBell, hung on the roost's Bell socket by the top of its loop. None: a box stands in for it. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Roost|Model")
+	TObjectPtr<UStaticMesh> BellMesh;
 
-	/** The model's glass slot, and what it shows while the lantern is dark. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Save point|Lantern")
-	FName GlassSlot = TEXT("LanternGlow");
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Save point|Lantern")
-	TObjectPtr<UMaterialInterface> DarkGlass;
-
-	/** The lit lantern's light at rest (candela): a first mark spikes it and it eases down to this. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Save point|Lantern", meta = (ClampMin = "0"))
-	float LanternCandela = 10.f;
-
-	/** The flame's glow: three crossed cards this wide (cm) and this strong, round the lantern's glass (the glass is opaque, so the glow rings it). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Save point|Lantern", meta = (ClampMin = "1", Units = "cm"))
-	float FlameSize = 56.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Save point|Lantern", meta = (ClampMin = "0"))
-	float FlameStrength = 5.f;
+	/** How far the mast's foot stands above the player's spot (cm; the build script measures the ground at both). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Roost|Model", meta = (Units = "cm"))
+	float RoostLift = 0.f;
 
 	// --- Components ---
 
-	/** The lantern post. */
+	/** The roost: SM_HobRoost, placed so its Wake socket is this actor's spot. Solid, as a mast is. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<UStaticMeshComponent> Lantern;
+	TObjectPtr<UStaticMeshComponent> Roost;
 
-	/** Its light once the grave is marked: warm, small, never a shadow. */
+	/** Its bell on the Bell socket: it swings and rings when the roost is found, made the save point again, or the crows land. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<UPointLightComponent> LanternLight;
+	TObjectPtr<UStaticMeshComponent> Bell;
 
-	/** Its flame: crossed glow cards on the lantern's Light socket (one instanced draw), shown once the grave is marked. */
+	/** The greybox stand-in while there's no model: the mast, yard, crosstrees and nest in weathered wood, the basket in iron, the cairn in stone. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<UInstancedStaticMeshComponent> Flame;
+	TObjectPtr<UInstancedStaticMeshComponent> GreyboxWood;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UInstancedStaticMeshComponent> GreyboxIron;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UInstancedStaticMeshComponent> GreyboxStone;
+
+	/** The beacon on the post's top: the column of light seen from across the map, dark until found. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<URoostBeaconComponent> Beacon;
+
+	/** Its light on the post once found: small, in the roost's colour, never a shadow. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UPointLightComponent> BeaconLight;
 
 	/** MarkerId, or the actor's name without one. */
 	FName GetMarkerId() const;
@@ -152,8 +161,8 @@ public:
 	FText GetGraveName() const;
 
 	/**
-	 * Where the player gets up here (a death's wake-up, a fast travel's arrival, a Continue): standing on its spot, facing
-	 * its arrow, level. The spot is on the ground: the player's middle goes half their height above it.
+	 * Where the player gets up here (a death's wake-up, a fast travel's arrival, a Continue): standing on its spot, facing its
+	 * arrow, level. The spot is on the ground: the player's middle goes half their height above it.
 	 */
 	FRespawnWakeSpot GetWakeSpot() const;
 
@@ -166,37 +175,43 @@ public:
 	/** Why it's open ("open from the start", "open: Main1 finished", "opened"), or "closed", for logs and the console. */
 	FString DescribeState(const FCampaignRecord& Campaign) const;
 
-	/** The open grave nearest From in World, never one that is also a trip's landing; null when none is open. */
+	/** The open roost nearest From in World, never one that is also a trip's landing; null when none is open. */
 	static ARespawnMarker* FindNearestActive(const UWorld* World, const FVector& From, const FCampaignRecord& Campaign);
 
 	/**
-	 * Where a death at DeathLocation wakes the player: the nearest open grave, else the level's own start, never a trip's
+	 * Where a death at DeathLocation wakes the player: the nearest open roost, else the level's own start, never a trip's
 	 * landing. Without a campaign (no story to have opened anything) only the start. Unset when the level has neither.
 	 */
 	static FRespawnWakeSpot ChooseWakeSpot(const UWorld* World, const FVector& DeathLocation, const FCampaignRecord* Campaign);
 
-	// --- Save points (RespawnMarkerSave.cpp) ---
+	// --- Found and the save point (RespawnMarkerSave.cpp) ---
 
-	/** The grave in World with this id, or null. */
+	/** The roost in World with this id, or null. */
 	static ARespawnMarker* FindById(const UWorld* World, FName Id);
 
 	/** The area the level plays (the mission runner's, else its map's), None for a level that is no area's. */
 	static FName FindAreaId(const UWorld* World);
 
 	/**
-	 * The grave a Continue wakes the player at: the last one marked in Area when it's here and open, else the open grave
-	 * nearest SavedLocation, else null (they stand where they were saved, as before graves). Never a trip's landing.
+	 * The roost a Continue wakes the player at: the last one found in Area when it's here and open, else the open roost
+	 * nearest SavedLocation, else null (they stand where they were saved). Never a trip's landing.
 	 */
 	static const ARespawnMarker* ChooseContinueGrave(const UWorld* World, const FVector& SavedLocation, const FCampaignRecord& Campaign,
 		FName Area);
 
-	/** The mission whose finish lets a walk mark it: MarkAfterMission, else ActiveAfterMission, else None. */
+	/** The mission whose finish lets a walk find it: MarkAfterMission, else ActiveAfterMission, else None. */
 	FName GetMarkGate() const;
 
-	/** It has been marked at some point in this story (its lantern is lit). */
+	/** It has been found at some point in this story (its beacon is lit). */
 	bool IsMarked(const FCampaignRecord& Campaign) const;
 
-	/** It is Area's save point: the last grave marked there, where Continue wakes. */
+	/** Found or open: the map shows it, and the minimap from afar (one the story opened is a travel point). */
+	bool IsFound(const FCampaignRecord& Campaign) const;
+
+	/** The same in the story being played here; without a story, open from the start. */
+	bool IsFound() const;
+
+	/** It is Area's save point: the last roost found there, where Continue wakes. */
 	bool IsSavePoint(const FCampaignRecord& Campaign, FName Area) const;
 
 	/** It is the save point of the story being played here (the map page's "Save point"). False without a story. */
@@ -205,80 +220,133 @@ public:
 	/** What the rules see for Player now (Check decides). bClearLine is left true: HasSightLine looks, only when the rest allows. */
 	FGraveMarkSenses GatherSenses(const AActor* Player) const;
 
-	/** A line from Player's eyes (or the grave's own spot) to the lantern is clear of the world's solid shapes. */
+	/** A line from Player's eyes to the roost (its beacon, or its post at chest height) is clear of the world's solid shapes. */
 	bool HasSightLine(const AActor* Player) const;
 
-	/** Why Player's walk up to it marks nothing now (None: it marks), looking at the line last. */
+	/** Why Player's walk up to it finds nothing now (None: it does), looking at the line last. */
 	EGraveMarkBlock CheckMark(const AActor* Player) const;
 
 	/**
-	 * The poll's work, for Player: marks the grave when the rules allow (see the class), with the lantern, sound, banner and
-	 * save soon. Returns what it did; None when it was blocked or it is the save point already. bForce skips the walk's
-	 * rules (distance, sight, story, scene) for the console; a dead or missing player never marks.
+	 * The poll's work, for Player: finds it when the rules allow (see the class), with the beacon, sound, crows, banner and
+	 * save soon. Returns what it did; None when it was blocked or it is the save point already. bForce skips the walk's rules
+	 * (distance, sight, story, scene) for the console; a dead or missing player never finds it.
 	 */
 	EGraveMark TryMark(AActor* Player, bool bForce = false);
 
-	// --- The lantern (RespawnMarkerLantern.cpp) ---
+	// --- Its look and its crows (RespawnMarkerRoost.cpp) ---
 
-	/** Its lantern is lit (the grave has been marked). */
+	/** Its beacon is lit (it has been found). */
 	bool IsLit() const { return bLit; }
 
-	/** Lights or darkens the lantern at once, no flare (a level beginning with the grave marked; tests). */
+	/** Lights or darkens it at once, no show (a level beginning with it found; a mark taken back; tests). */
 	void SetLit(bool bInLit);
 
-	/** Lights it with a flare (a first mark) or lifts the flame (a mark again): the light spikes and eases down over about a second. */
+	/** Found (a first mark): the column shoots up, the light flares. Marked again: a pulse climbs it, the light lifts. */
 	void StartFlare(EGraveMark Kind);
 
-	/** Moves a flare on by DeltaSeconds (the tick does; a test level never ticks, so tests call it). */
-	void AdvanceLantern(float DeltaSeconds);
+	/** Moves the light's flare and the bell's swing on by DeltaSeconds (the tick does; a test level never ticks, so tests call it). */
+	void AdvanceLook(float DeltaSeconds);
 
-	/** A flare is running. */
+	/** The light's flare is running. */
 	bool IsFlaring() const { return FlareAge >= 0.f; }
 
-	/** The light's intensity now (candela), for the tests; zero when dark. */
-	float GetLanternCandela() const;
+	/** The light on the post now (candela), for the tests; zero when dark. */
+	float GetLightCandela() const;
 
-	/** The flame's height scale now, for the tests (1 at rest). */
-	float GetFlameScale() const;
+	/** The roost's model is in (not the stand-in). */
+	bool HasModel() const { return RoostMesh != nullptr; }
 
-	/** Where the flame burns (world): the lantern's Light socket, or its place on the post without the model. */
-	FVector GetLanternLocation() const;
+	/** Where one of the roost's sockets is in the world (RoostKit's names): the model's, or the stand-in's. False without one. */
+	bool GetRoostSocket(FName Socket, FTransform& OutWorld) const;
+
+	/** Where the beacon burns (world): the Beacon socket. */
+	FVector GetBeaconLocation() const;
+
+	/** The crows' perches (world), Perch_1 to Perch_6. */
+	TArray<FTransform> GetPerches() const;
+
+	/** Hob's crows on it (made as play begins; null before). */
+	ARoostCrows* GetCrows() const;
+
+	/** The crows circling its beacon (made once it's found and play has begun; null while dark). */
+	ARoostCrows* GetCirclingCrows() const;
+
+	/** Rings its bell: it swings out on its loop and settles (Strength 0 to 1: a find 1, a mark again a tap). */
+	void RingBell(float Strength);
+
+	/** The bell's swing now (degrees off its rest), for the tests; 0 at rest. */
+	float GetBellSwing() const;
+
+	/**
+	 * Hob's crows have just set the player down here (UGraveTravelSubsystem's arrival, UPlayerVitalsSubsystem's wake-up):
+	 * the roost's crows burst off round them, the sound of it, a pulse up a lit beacon, and Hob's word
+	 * (URoostCarrySubsystem::SayOnArrival).
+	 */
+	void Welcome(ERoostArrival Arrival, APawn* Player) const;
+
+	/** Its sound is playing (the player is near). */
+	bool IsAmbientPlaying() const;
 
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void Destroyed() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void Tick(float DeltaSeconds) override;
 
 private:
+	/** Its crows are its own: they go with it (an end of play, or a removal without one). */
+	void DestroyCrows();
+
 	void HandleMissionFinished(const UMissionDefinition& Mission, bool bRewarded);
 
-	/** The timer's look at the player: walking up to the grave marks it. */
+	/** The timer's look at the player: its sound and its beacon near them, and walking up to it finds it. */
 	void PollApproach();
 
-	/** Says the mark out loud: the sound at the lantern, the banner for a first mark, the session asked to save soon. */
+	/** Says the find out loud: the sound at the bell, the crows, the banner for a first find, Hob's word, the save soon. */
 	void Announce(EGraveMark Result, AActor* Player);
 
-	/** Puts the lantern's pieces where the model's sockets are, its model in, its glass lit or dark, its light and flame shown or not. */
-	void FitLantern();
-	void ApplyLantern();
-	void ApplyFlare();
-	/** The flame's cards: three tongues crossed about its axis and a round heart. */
-	void BuildFlame();
+	/** Puts the model (or the stand-in) where its Wake socket is this spot, and the beacon and light on its sockets. */
+	void FitRoost();
+	void BuildGreybox();
+	void ApplyLook();
+	void ApplyLightFlare();
+
+	/** Hob's crows on its perches, as play begins. */
+	void SpawnCrows();
+
+	/** Crows circling the beacon while it's lit (made in play only): on as it's found, gone as it goes dark. */
+	void UpdateCirclingCrows();
+
+	/** Its sound on while the player is within the settings' reach, off a little past it. */
+	void UpdateAmbient(bool bNear);
+
+	/** Moves the bell's swing on (the tick). */
+	void SwingBell(float DeltaSeconds);
+
+	/** Ticks only while the light flares or the bell swings. */
+	void UpdateTicking();
 
 	TWeakObjectPtr<UMissionRunner> BoundRunner;
 	FDelegateHandle FinishedHandle;
 	FTimerHandle PollTimer;
 
 	bool bLit = false;
-	/** Seconds into a flare (below zero: none), how long it lasts, and the kind. */
+	/** Its play has begun (and not ended): only then does it make crows (never in the editor's construction). */
+	bool bInPlay = false;
+	/** Seconds into the light's flare (below zero: none), how long it lasts, and the kind. */
 	float FlareAge = -1.f;
 	float FlareLength = 1.f;
 	EGraveMark FlareKind = EGraveMark::None;
 
-	/** The model's own glass material, kept for lighting the lantern again after the dark one. */
-	UPROPERTY(Transient)
-	TObjectPtr<UMaterialInterface> LitGlass;
+	/** The bell's swing: how hard it was rung, seconds since, and its rest on the socket. */
+	float BellStrength = 0.f;
+	float BellTime = 0.f;
+	FQuat BellRest = FQuat::Identity;
+
+	TWeakObjectPtr<ARoostCrows> Crows;
+	TWeakObjectPtr<ARoostCrows> CirclingCrows;
+	TWeakObjectPtr<UAudioComponent> AmbientSound;
 
 #if WITH_EDITORONLY_DATA
 	/** The way the player faces on waking (the editor shows it; the game never does). */

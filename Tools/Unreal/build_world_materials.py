@@ -55,6 +55,16 @@
                   height fog and the atmosphere haze them, the farther layers more. Also the cold open's black
                   silhouettes: the gang and Abel (skinned, so it's set for skeletal meshes) and Sexton on the rail.
 
+  M_BulletMark    a deferred decal, translucent (DBuffer colour, normal, roughness and metallic: drawn before the lighting,
+                  so it's lit as its surface is, on Medium's Nanite fallback without Lumen as on High): the bullet marks
+                  (Source/AI_Looter_Shooter/Weapons/BulletMarks). The atlas T_BulletMarks_BC (colour, alpha the opacity),
+                  _N and _ORM (G roughness, B metallic) is script-made by Art/Textures/BulletMarks/make_bullet_marks.py: 8
+                  cells across and 4 down, a style's two variants side by side. Each decal's colour picks its cell (R: the
+                  style, (style + 0.5) / 16; G: the seed, past 0.5 the second variant; A: its strength). The opacity fades
+                  with the decal's life (DecalLifetimeOpacity: FBulletMarks sets its hold and fade) and where the surface
+                  doesn't face back up the decal's axis (the back of a thin board in its box, a face it would smear along).
+                  Opacity and NormalStrength scale the whole look; Tint its colour. It isn't built until the atlas exists.
+
   M_SunbleachedPost  post process (before depth of field): Sunbleached's screen pass, the lab's luminous cream haze over
                   everything solid (its height fog, thick with distance and glowing toward the sun) and its lavender
                   vignette. Only the tutorial island's style volume uses it (build_island_style.py sunbleached).
@@ -1532,13 +1542,94 @@ def build_sunbleached_post():
     return mat
 
 
+MARK_TEXTURES = 'C:/Dev/AI_Looter_Shooter/Art/Textures/BulletMarks'
+# The decal's colour picks the mark's cell in the atlas (make_bullet_marks.py: COLUMNS x ROWS cells, VARIANTS per style
+# side by side): R carries the style ((style + 0.5) / 16, FBulletMarks::Code), G the seed.
+MARK_CELL_UV = """float Style = floor(Code.r * 16.0);
+float Cell = Style * 2.0 + (Code.g >= 0.5 ? 1.0 : 0.0);
+float2 Corner = float2(fmod(Cell, 8.0), floor(Cell / 8.0));
+return (Corner + saturate(UV)) / float2(8.0, 4.0);"""
+# Only on surfaces facing back up the decal's way (Axis, its X, points into the surface): never the back of a thin board
+# inside its box, nor a face the mark would only smear along. The surface's facing comes from the depth buffer's own
+# positions (camera-relative, for their precision), turned toward the eye.
+MARK_FACING = """float3 N = normalize(cross(ddx(P), ddy(P)));
+N *= dot(N, V) < 0.0 ? -1.0 : 1.0;
+return smoothstep(0.2, 0.5, dot(N, -normalize(Axis)));"""
+MARK_OPACITY = 'return saturate(Alpha * Facing * Life * Code.a * Strength);'
+MARK_NORMAL = 'return normalize(float3(N.xy * Strength, N.z));'
+
+
+def mark_texture(kind):
+    """One of the marks' atlas maps (make_bullet_marks.py writes them) at /Game/Art/Textures/BulletMarks: the colour (sRGB,
+    its alpha the opacity), the normal map, or the ORM (linear masks); clamped at the atlas's edges. None while the PNG is
+    missing."""
+    import os
+    file = f'{MARK_TEXTURES}/T_BulletMarks_{kind}.png'
+    if not os.path.isfile(file):
+        return None
+    path = f'/Game/Art/Textures/BulletMarks/T_BulletMarks_{kind}'
+    texture = import_texture(file, path, {'BC': 'BC', 'N': 'N'}.get(kind, 'M'))
+    if kind == 'ORM':
+        texture.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_MASKS)
+    texture.set_editor_property('address_x', unreal.TextureAddress.TA_CLAMP)
+    texture.set_editor_property('address_y', unreal.TextureAddress.TA_CLAMP)
+    unreal.EditorAssetLibrary.save_loaded_asset(texture)
+    return path
+
+
+def build_bullet_mark():
+    maps = {kind: mark_texture(kind) for kind in ('BC', 'N', 'ORM')}
+    missing = [kind for kind, path in maps.items() if path is None]
+    if missing:
+        # A stand-in would print white squares on every wall: no material, and the game leaves no marks until there is one.
+        unreal.log_error(f'M_BulletMark not built: the atlas ({", ".join(missing)}) is missing from {MARK_TEXTURES}; run '
+                         'Tools\\artrun.ps1 -Script Art\\Textures\\BulletMarks\\make_bullet_marks.py first')
+        return None
+    mat = material('M_BulletMark')
+    mat.set_editor_property('material_domain', unreal.MaterialDomain.MD_DEFERRED_DECAL)
+    mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_TRANSLUCENT)
+    g = Graph(mat)
+    coords = g.node(unreal.MaterialExpressionTextureCoordinate, -1800, 0, coordinate_index=0)
+    # Its RGBA output: the first (unnamed) one is RGB only, and the opacity reads the decal colour's alpha (Code.a).
+    code = g.node(unreal.MaterialExpressionDecalColor, -1800, 200)
+    uv = g.custom(MARK_CELL_UV, [('UV', coords, ''), ('Code', code, 'RGBA')],
+                  unreal.CustomMaterialOutputType.CMOT_FLOAT2, -1500, 100, 'Mark cell')
+    bc = g.texture('MarkColor', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, maps['BC'], uv, -1100, -200)
+    nrm = g.texture('MarkNormal', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, maps['N'], uv, -1100, 100)
+    orm = g.texture('MarkORM', unreal.MaterialSamplerType.SAMPLERTYPE_MASKS, maps['ORM'], uv, -1100, 400)
+    world = g.node(unreal.MaterialExpressionWorldPosition, -1500, 650)
+    try:
+        world.set_editor_property('world_position_shader_offset', unreal.WorldPositionIncludedOffsets.WPT_CAMERA_RELATIVE)
+    except Exception as error:  # noqa: BLE001 - the absolute position works too, a little less precisely far from the origin
+        unreal.log_warning(f'M_BulletMark: camera-relative world position not set ({error}); using the absolute one')
+    facing = g.custom(MARK_FACING, [
+        ('P', world, ''), ('V', g.node(unreal.MaterialExpressionCameraVectorWS, -1500, 750), ''),
+        ('Axis', g.node(unreal.MaterialExpressionObjectOrientation, -1500, 850), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -1100, 700, 'Facing')
+    life = g.node(unreal.MaterialExpressionDecalLifetimeOpacity, -1100, 850)
+    opacity = g.custom(MARK_OPACITY, [
+        ('Alpha', bc, 'A'), ('Facing', facing, ''), ('Life', life, ''), ('Code', code, 'RGBA'),
+        ('Strength', g.scalar('Opacity', 1.0, -1100, 950), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -700, 600, 'Opacity')
+    color = g.mul(bc, 'RGB', g.vector('Tint', (1.0, 1.0, 1.0, 1.0), -1100, -400), '', -700, -300)
+    normal = g.custom(MARK_NORMAL, [('N', nrm, 'RGB'), ('Strength', g.scalar('NormalStrength', 1.0, -1100, 250), '')],
+                      unreal.CustomMaterialOutputType.CMOT_FLOAT3, -700, 100, 'Normal strength')
+    g.out(color, '', unreal.MaterialProperty.MP_BASE_COLOR)
+    g.out(opacity, '', unreal.MaterialProperty.MP_OPACITY)
+    g.out(normal, '', unreal.MaterialProperty.MP_NORMAL)
+    g.out(orm, 'G', unreal.MaterialProperty.MP_ROUGHNESS)
+    g.out(orm, 'B', unreal.MaterialProperty.MP_METALLIC)
+    finish(mat, [])
+    return mat
+
+
 BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'M_Gun': lambda: build_gun(DEFAULT_ORM),
             'M_WorldFoliage': lambda: build_foliage(DEFAULT_ORM),
             'M_Terrain': build_terrain, 'M_Water': build_water, 'M_SkyClouds': build_sky_clouds,
             'M_Waterfall': build_waterfall, 'M_Smoke': build_smoke, 'M_Glass': build_glass, 'M_Gel': build_gel,
             'M_Backdrop': build_backdrop, 'M_GravewindWisp': build_gravewind_wisp, 'M_CanyonFog': build_canyon_fog,
-            'M_SunbleachedPost': build_sunbleached_post}
+            'M_SunbleachedPost': build_sunbleached_post, 'M_BulletMark': build_bullet_mark}
 wanted = [name for name in sys.argv[1:] if name in BUILDERS] or list(BUILDERS)
 orm = default_orm()
-built = [BUILDERS[name]() for name in wanted]
+built = [made for made in (BUILDERS[name]() for name in wanted) if made is not None]
 unreal.log('LOOTER world materials: ' + ', '.join(m.get_path_name() for m in built))

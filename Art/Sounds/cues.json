@@ -328,6 +328,181 @@
     "space": "3D",
     "max_concurrent": 8
   },
+  "Impact.Dirt": {
+    "files": [
+      "Impact_Dirt_01.wav",
+      "Impact_Dirt_02.wav",
+      "Impact_Dirt_03.wav",
+      "Impact_Dirt_04.wav",
+      "Impact_Dirt_05.wav",
+      "Impact_Dirt_06.wav"
+    ],
+    "volume_db": -5.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 8
+  },
+  "Impact.Grass": {
+    "files": [
+      "Impact_Grass_01.wav",
+      "Impact_Grass_02.wav",
+      "Impact_Grass_03.wav",
+      "Impact_Grass_04.wav",
+      "Impact_Grass_05.wav",
+      "Impact_Grass_06.wav"
+    ],
+    "volume_db": -6.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 8
+  },
+  "Impact.Gravel": {
+    "files": [
+      "Impact_Gravel_01.wav",
+      "Impact_Gravel_02.wav",
+      "Impact_Gravel_03.wav",
+      "Impact_Gravel_04.wav",
+      "Impact_Gravel_05.wav"
+    ],
+    "volume_db": -5.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 8
+  },
+  "Impact.Sand": {
+    "files": [
+      "Impact_Sand_01.wav",
+      "Impact_Sand_02.wav",
+      "Impact_Sand_03.wav",
+      "Impact_Sand_04.wav"
+    ],
+    "volume_db": -7.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 8
+  },
+  "Impact.Stone": {
+    "files": [
+      "Impact_Stone_01.wav",
+      "Impact_Stone_02.wav",
+      "Impact_Stone_03.wav",
+      "Impact_Stone_04.wav",
+      "Impact_Stone_05.wav",
+      "Impact_Stone_06.wav"
+    ],
+    "volume_db": -1.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 8
+  },
+  "Impact.SheetMetal": {
+    "files": [
+      "Impact_SheetMetal_01.wav",
+      "Impact_SheetMetal_02.wav",
+      "Impact_SheetMetal_03.wav",
+      "Impact_SheetMetal_04.wav",
+      "Impact_SheetMetal_05.wav"
+    ],
+    "volume_db": -6.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 8
+  },
+  "Impact.Glass": {
+    "files": [
+      "Impact_Glass_01.wav",
+      "Impact_Glass_02.wav",
+      "Impact_Glass_03.wav",
+      "Impact_Glass_04.wav"
+    ],
+    "volume_db": -1.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 6
+  },
+  "Impact.Cloth": {
+    "files": [
+      "Impact_Cloth_01.wav",
+      "Impact_Cloth_02.wav",
+      "Impact_Cloth_03.wav",
+      "Impact_Cloth_04.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 8
+  },
+  "Impact.Hay": {
+    "files": [
+      "Impact_Hay_01.wav",
+      "Impact_Hay_02.wav",
+      "Impact_Hay_03.wav",
+      "Impact_Hay_04.wav"
+    ],
+    "volume_db": -8.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 8
+  },
+  "Impact.Bone": {
+    "files": [
+      "Impact_Bone_01.wav",
+      "Impact_Bone_02.wav",
+      "Impact_Bone_03.wav",
+      "Impact_Bone_04.wav"
+    ],
+    "volume_db": -1.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 8
+  },
+  "Impact.Ricochet": {
+    "files": [
+      "Impact_Ricochet_01.wav",
+      "Impact_Ricochet_02.wav",
+      "Impact_Ricochet_03.wav",
+      "Impact_Ricochet_04.wav",
+      "Impact_Ricochet_05.wav",
+      "Impact_Ricochet_06.wav"
+    ],
+    "volume_db": -19.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
   "UI.HitMarker": {
     "files": [
       "UI_HitMarker_01.wav",
@@ -3945,6 +4120,98 @@
     "pitch_jitter": 0.03,
     "class": "Effects",
     "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.Roost.Found": {
+    "files": [
+      "World_Roost_Found_01.wav",
+      "World_Roost_Found_02.wav"
+    ],
+    "volume_db": -13.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.Roost.Remarked": {
+    "files": [
+      "World_Roost_Remarked_01.wav",
+      "World_Roost_Remarked_02.wav",
+      "World_Roost_Remarked_03.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.Roost.Ambient": {
+    "files": [
+      "World_Roost_Ambient_01.wav"
+    ],
+    "volume_db": -26.5,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "UI.Roost.CarryOut": {
+    "files": [
+      "UI_Roost_CarryOut_01.wav",
+      "UI_Roost_CarryOut_02.wav"
+    ],
+    "volume_db": -14.0,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "World.Roost.CarryIn": {
+    "files": [
+      "World_Roost_CarryIn_01.wav",
+      "World_Roost_CarryIn_02.wav",
+      "World_Roost_CarryIn_03.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "UI.Roost.DeathDrag": {
+    "files": [
+      "UI_Roost_DeathDrag_01.wav",
+      "UI_Roost_DeathDrag_02.wav"
+    ],
+    "volume_db": -14.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "World.Roost.DeathWake": {
+    "files": [
+      "World_Roost_DeathWake_01.wav",
+      "World_Roost_DeathWake_02.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Near",
     "loop": false,
     "space": "3D",
     "max_concurrent": 1

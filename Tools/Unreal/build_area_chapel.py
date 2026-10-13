@@ -24,9 +24,8 @@ class isn't there yet is left out with a warning.
 - Father Aldana's vestry door (ASpeakerPoint tagged Speaker_Aldana) on SOCKET_Speaker: barred before the yard is quiet
   (and before Main 4), the bell and the Reliquary next, the doc's words at Main 4's last step, the Sink after, and the
   lantern found after Main 5 (take it home to Delia).
-- The chapel yard's respawn grave (ARespawnMarker ChapelYard, open after Main 4) at the foot of its fresh mound (the
-  placement graveChapelYard), facing the chapel.
-  A save point: its lantern post (story.set_save_point) beside the spot, lit when the player walks up to it.
+- (The chapel yard's respawn grave is gone: Hob's roost at the chapel knoll's gate replaced it, build_area_roosts.py, the
+  layout's gameplay.roosts ChapelYard, the same id and still open after Main 4. The fresh mound stays, as dressing.)
 - The roaming Unpaid after Main 4 ("From now on the Unpaid walk the north road and boot hill"): AEncounterSpawner BootHill
   on boot hill (the zone bootHill its ground) and NorthRoad between the hanging tree and the north road (25 m round it),
   three each, their ranks the area's (8% Restless, 2% Gravebound), standing about until they notice the player, tagged
@@ -49,7 +48,6 @@ YARD_TAG = 'Unpaid_ChapelYard'
 BELL_TAG = 'Bell_Chapel'
 RELIQUARY_TAG = 'Reliquary_Chapel'
 ALDANA_TAG = 'Speaker_Aldana'
-YARD_GRAVE = 'ChapelYard'
 BOOT_HILL = 'BootHill'
 NORTH_ROAD = 'NorthRoad'
 
@@ -77,27 +75,12 @@ YARD_WAVE_PAUSE = 4.0
 YARD_STEP = 400.0
 YARD_RISE = 600.0
 
-# The yard's respawn grave: this far out of the fresh mound's foot (cm), clear of its heap (1.95 m long).
-MOUND_STAND_OUT = 140.0
-
 # The roaming Unpaid after Main 4: how many on each stretch, how far the north road's runs round its spawner, and how
 # far each spreads them out (cm).
 ROAMING_COUNT = 3
 ROAD_STRETCH = 2500.0
 ROAD_SPREAD = 900.0
 HILL_SPREAD = 600.0
-
-
-def placed_key(build, key):
-    """The actor build_area.py placed for a placement key (it labels each with its key), or None (with a warning)."""
-    if key not in build.layout['placements']:
-        build.warn(f'layout_computed.json has no placement {key}: what stands on it is left out')
-        return None
-    for actor in unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors():
-        if actor.get_actor_label() == key and unreal.Name(build.tag) in actor.tags:
-            return actor
-    build.warn(f'no {key} placed (build the whole level first): what stands on it is left out')
-    return None
 
 
 def nearest_on_path(path, point):
@@ -264,33 +247,6 @@ def place_aldana(build, chapel):
     build.log(f'Father Aldana\'s vestry door at ({at.x:.0f}, {at.y:.0f}, {at.z:.0f})')
 
 
-def place_yard_grave(build, chapel):
-    """The chapel yard's respawn grave at the foot of its fresh mound, open after Main 4, facing the chapel."""
-    grave = placed_key(build, 'graveChapelYard')
-    marker_cls = story.actor_class('RespawnMarker')
-    if grave is None or marker_cls is None:
-        return
-    rise = story.socket(grave, 'Respawn')
-    heap = rise.translation if rise else grave.get_actor_location()
-    # Out of the grave's foot (the kit's front), as the family plot's.
-    foot = grave.get_actor_forward_vector()
-    x, y = heap.x + foot.x * MOUND_STAND_OUT, heap.y + foot.y * MOUND_STAND_OUT
-    if chapel is not None:
-        door = chapel.get_actor_location()
-        yaw = story.facing((x, y), (door.x, door.y))
-    else:
-        yaw = grave.get_actor_rotation().yaw
-    marker = build.place(marker_cls, (x, y, story.ground(x, y, heap.z, ignore=[grave])), yaw, label='Respawn_ChapelYard',
-                         folder='Gameplay')
-    marker.set_editor_property('marker_id', unreal.Name(YARD_GRAVE))
-    # What the map calls it (the layout has no label for it; the design's words: "the chapel yard's respawn grave").
-    marker.set_editor_property('display_name', unreal.Text('Chapel yard'))
-    marker.set_editor_property('active_after_mission', unreal.Name(MAIN4))
-    # A save point: walking up to it marks it (after Main 4, which opens it), its lantern post on the side away from the mound.
-    story.set_save_point(build, marker, (heap.x, heap.y), ignore=[grave])
-    build.log(f'the chapel yard\'s respawn grave at ({x:.0f}, {y:.0f}), open after {MAIN4}')
-
-
 # ---------------------------------------------------------------------------
 # After Main 4: the Unpaid walk boot hill and the north road
 # ---------------------------------------------------------------------------
@@ -370,6 +326,5 @@ def place(build):
         place_aldana(build, chapel)
     else:
         build.warn('no chapel: Main 4 has nowhere to happen (import Chapel.py and build the whole level)')
-    place_yard_grave(build, chapel)
     place_roaming(build)
     return hob_spots(chapel)

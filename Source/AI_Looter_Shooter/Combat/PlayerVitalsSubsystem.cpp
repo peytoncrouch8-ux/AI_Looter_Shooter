@@ -4,6 +4,8 @@
 #include "Missions/MissionRunner.h"
 #include "Scenes/SceneSubsystem.h"
 #include "World/RespawnMarker.h"
+#include "World/RoostCarrySubsystem.h"
+#include "World/RoostVeil.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
@@ -73,9 +75,19 @@ void UPlayerVitalsSubsystem::Tick(float DeltaTime)
 			Vitals.Wounds.Reset();
 			PC->SetIgnoreMoveInput(true);
 			PC->SetIgnoreLookInput(true);
+			// Where they'll wake decides how they go: to a roost, Hob's crows gather round the dying and drag them back (the
+			// screen goes slower to black under the crows, URoostCarrySubsystem); with none, the plain fade.
+			const UMissionRunner* Runner = UMissionRunner::Get(this);
+			Vitals.bByCrows = ARespawnMarker::ChooseWakeSpot(GetWorld(), Vitals.DeathLocation, Runner ? &Runner->GetCampaign() : nullptr).Grave != nullptr;
 			if (PC->PlayerCameraManager)
 			{
-				PC->PlayerCameraManager->StartCameraFade(0.4f, 1.f, RespawnDelay * 0.6f, FLinearColor(0.12f, 0.f, 0.f), false, true);
+				PC->PlayerCameraManager->StartCameraFade(Vitals.bByCrows ? 0.25f : 0.4f, 1.f, RespawnDelay * (Vitals.bByCrows ? CrowsCover : 0.6f),
+					FLinearColor(0.12f, 0.f, 0.f), false, true);
+			}
+			URoostCarrySubsystem* Carry = Vitals.bByCrows ? URoostCarrySubsystem::Get(this) : nullptr;
+			if (Carry)
+			{
+				Carry->BeginDeath(PC, RespawnDelay * CrowsCover);
 			}
 		}
 		else
@@ -106,8 +118,8 @@ void UPlayerVitalsSubsystem::Respawn(APlayerController* PC, FPlayerVitals& Vital
 		return;
 	}
 
-	// The open grave nearest where they fell, standing on it and facing its way; with none open, the level's own start.
-	// Never a trip's landing. The story's graves come from the session's campaign record.
+	// The open roost nearest where they fell, standing on it and facing its way; with none open, the level's own start.
+	// Never a trip's landing. The story's roosts come from the session's campaign record.
 	FVector Location = Character->GetActorLocation();
 	FRotator Rotation = Character->GetActorRotation();
 	const UMissionRunner* Runner = UMissionRunner::Get(this);
@@ -116,14 +128,14 @@ void UPlayerVitalsSubsystem::Respawn(APlayerController* PC, FPlayerVitals& Vital
 	{
 		Location = Spot.Location;
 		Rotation = Spot.Facing;
-		// A grave is a spot on the ground: the player stands on it, half their height higher. A player start already
+		// A roost's spot is on the ground: the player stands on it, half their height higher. A player start already
 		// marks where their middle goes.
 		if (Spot.Grave)
 		{
 			Location.Z += Character->GetDefaultHalfHeight();
 		}
 	}
-	UE_LOG(LogLooter, Log, TEXT("Player wakes %s"), Spot.Grave ? *FString::Printf(TEXT("at the grave %s"), *Spot.Grave->GetMarkerId().ToString())
+	UE_LOG(LogLooter, Log, TEXT("Player wakes %s"), Spot.Grave ? *FString::Printf(TEXT("at the roost %s"), *Spot.Grave->GetMarkerId().ToString())
 		: Spot.Start ? TEXT("at the level's start") : TEXT("where they fell (the level has no start of its own)"));
 
 	Character->TeleportTo(Location, Rotation, false, true);
@@ -133,10 +145,21 @@ void UPlayerVitalsSubsystem::Respawn(APlayerController* PC, FPlayerVitals& Vital
 	PC->ResetIgnoreLookInput();
 	if (PC->PlayerCameraManager)
 	{
-		PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, 0.8f, FLinearColor(0.12f, 0.f, 0.f), false, false);
+		// At a roost the world comes back as the crows burst off the screen; elsewhere, the plain fade.
+		PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, Spot.Grave ? FRoostVeil::RevealSeconds : 0.8f, FLinearColor(0.12f, 0.f, 0.f), false, false);
+	}
+	if (URoostCarrySubsystem* Carry = URoostCarrySubsystem::Get(this))
+	{
+		Carry->Reveal();
+	}
+	if (Spot.Grave)
+	{
+		// The crows that dragged them burst off the roost round them, and Hob has his word.
+		Spot.Grave->Welcome(ERoostArrival::Death, Character);
 	}
 
 	Vitals.bDying = false;
+	Vitals.bByCrows = false;
 	Vitals.LastHealth = Health->GetHealth();
 	// A new life waits the whole delay before its first healing.
 	Vitals.Wounds.Reset();

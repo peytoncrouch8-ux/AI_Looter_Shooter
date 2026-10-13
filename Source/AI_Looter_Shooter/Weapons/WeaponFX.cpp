@@ -194,12 +194,17 @@ void FWeaponFX::Shutdown()
 
 uint8 FWeaponFX::BitSetFor(bool bRound, const FLinearColor& Color, float Glow)
 {
+	return BitSetFor(bRound ? EBitShape::Round : EBitShape::Plate, Color, Glow);
+}
+
+uint8 FWeaponFX::BitSetFor(EBitShape Shape, const FLinearColor& Color, float Glow)
+{
 	const FColor Key = Color.ToFColor(false);
 	// Sets whose components went with an old effects actor are made again.
 	BitSets.RemoveAll([](const FBitSet& Set) { return !Set.Instances.IsValid(); });
 	for (int32 Index = 0; Index < BitSets.Num(); ++Index)
 	{
-		if (BitSets[Index].Key == Key && BitSets[Index].bRound == bRound)
+		if (BitSets[Index].Key == Key && BitSets[Index].Shape == Shape)
 		{
 			return static_cast<uint8>(Index);
 		}
@@ -211,12 +216,13 @@ uint8 FWeaponFX::BitSetFor(bool bRound, const FLinearColor& Color, float Glow)
 		return static_cast<uint8>(FMath::Max(BitSets.Num() - 1, 0));
 	}
 	// A component per color: the surface material takes one color per instance of it, not per chunk.
+	const bool bRound = Shape == EBitShape::Round;
 	UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, bRound ? TEXT("/Engine/BasicShapes/Sphere.Sphere") : TEXT("/Engine/BasicShapes/Cube.Cube"));
 	const FString Name = FString::Printf(TEXT("Bits%d"), BitSets.Num());
 	FBitSet& Set = BitSets.AddDefaulted_GetRef();
 	Set.Instances = MakeInstances(Actor, *Name, Mesh, MakeSurface(Actor, Color, Glow), 0);
 	Set.Key = Key;
-	Set.bRound = bRound;
+	Set.Shape = Shape;
 	return static_cast<uint8>(BitSets.Num() - 1);
 }
 
@@ -469,10 +475,13 @@ void FWeaponFX::Redraw(const FVector& Camera)
 			{
 				break;
 			}
-			// Round bits (gel) stretch along their flight like droplets; the rest are thin plates (chitin) that tumble.
+			// Round bits (gel, water) stretch along their flight like droplets; splinters (wood, straw) are long and thin; the
+			// rest are thin plates (chitin, chips of paint and glass). Splinters and plates tumble.
 			const float Size = Particle.StartSize * FMath::Clamp((1.f - T) * 5.f, 0.f, 1.f) / 100.f;
-			const bool bRound = BitSets[Particle.BitSet].bRound;
-			const FVector Scale = bRound ? FVector(Size * 1.35f, Size, Size * 0.9f) : FVector(Size, Size * 0.8f, Size * 0.28f);
+			const EBitShape Shape = BitSets[Particle.BitSet].Shape;
+			const bool bRound = Shape == EBitShape::Round;
+			const FVector Scale = bRound ? FVector(Size * 1.35f, Size, Size * 0.9f)
+				: (Shape == EBitShape::Splinter ? FVector(Size * 2.4f, Size * 0.3f, Size * 0.22f) : FVector(Size, Size * 0.8f, Size * 0.28f));
 			const FQuat Rotation = bRound && !Particle.Velocity.IsNearlyZero() ? FRotationMatrix::MakeFromX(Particle.Velocity).ToQuat() : Particle.Rotation;
 			BitTransforms[Particle.BitSet].Add(FTransform(Rotation, Particle.Location, Scale));
 			break;

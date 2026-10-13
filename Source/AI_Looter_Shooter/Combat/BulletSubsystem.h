@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "Combat/CombatRules.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "Weapons/BulletMarks.h"
+#include "Weapons/ImpactSurface.h"
 #include "Weapons/WeaponFX.h"
 #include "Weapons/WeaponTypes.h"
 #include "BulletSubsystem.generated.h"
@@ -53,8 +55,12 @@ struct FBulletShot
  * speed, is traced segment by segment every frame, and deals its damage to whatever is in its path when it gets there
  * (the same damage rules as ever: the per-hit roll and the x1.5 critical spots, or a cursed iron's own critical
  * multiplier). Its tracer is drawn from the muzzle the player sees, closing onto the aim line over the first few meters,
- * so shots still land exactly on the crosshair. Impacts throw sparks and dust off the world, sparks off training dummies,
- * and ichor out of creatures (FWeaponFX), and sound by what they hit (ImpactCueOf).
+ * so shots still land exactly on the crosshair.
+ *
+ * Where it lands, the world shows what it hit (ImpactSurface finds the surface: dirt, grass, gravel, stone, wood, metal,
+ * glass, water...): its own puff (FWeaponFX::SpawnSurfaceImpact), its own sound (ImpactCueOf, with a ricochet's whine on
+ * some glancing hits off stone and metal) and a mark that fades away (FBulletMarks, at most MarksPerVolley from one
+ * shotgun blast). Creatures splash and cry their own hit, training dummies spark and ring, as before.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UBulletSubsystem : public UTickableWorldSubsystem
@@ -69,13 +75,16 @@ public:
 	/** The effects drawn for bullets and their impacts. */
 	FWeaponFX& GetEffects() { return Effects; }
 
+	/** The marks bullets leave on the world. */
+	FBulletMarks& GetMarks() { return Marks; }
+
 	/** How a hit on this actor looks: creatures splash, anything else with health sparks, the world sparks and dusts. */
 	static EImpactSurface SurfaceOf(const AActor* Actor);
 
 	/**
-	 * The sound of a bullet meeting what it hit (LooterSoundCues): wood, metal or water by the name of the material it
-	 * struck (the project has no physical surface types), else ground and stone; a target's metal ring. None for a
-	 * creature, whose own hit cry plays (Creature.Hit).
+	 * The sound of a bullet (or a melee blow) meeting what it hit (LooterSoundCues): the world's by its surface
+	 * (ImpactSurface: its own cue once it has sounds, else the old Impact.World, .Wood, .Metal or .Water); a training
+	 * dummy's metal ring. None for a creature, whose own hit cry plays.
 	 */
 	static FName ImpactCueOf(const FHitResult& Hit, EImpactSurface Surface);
 
@@ -88,6 +97,7 @@ public:
 	/** Any bullet hit something (its damage has been dealt). */
 	FOnBulletHit OnBulletHit;
 
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UBulletSubsystem, STATGROUP_Tickables); }
 	virtual void Deinitialize() override;
@@ -101,21 +111,44 @@ private:
 		FBulletShot Shot;
 		FVector Position = FVector::ZeroVector;
 		float Traveled = 0.f;
+		/** The shot it was fired with: a shotgun's pellets from one pull share it (for the cap on marks). */
+		int32 Volley = 0;
+		/** How big its marks are (its gun's: FBulletMarks::GunScale), and its puff. */
+		float MarkScale = 1.f;
 		/** Hit something or flew its full range: drawn one last time, then removed. */
 		bool bSpent = false;
 		bool bDrawn = false;
 	};
 
+	/** How many marks one volley has left so far. */
+	struct FVolleyMarks
+	{
+		int32 Volley = 0;
+		int32 Count = 0;
+	};
+
 	void Advance(FBullet& Bullet, float DeltaSeconds);
 	void ResolveHit(const FBullet& Bullet, const FHitResult& Hit);
-	void PlayImpactSound(const FHitResult& Hit, EImpactSurface Surface);
+	void PlayImpactSound(const FHitResult& Hit, EImpactSurface Surface, EImpactMaterial Material, const FVector& ShotDirection);
+	void LeaveMark(const FBullet& Bullet, const FHitResult& Hit, EImpactMaterial Material);
 	void DrawTracer(const FBullet& Bullet, const FVector& Camera);
 	FVector GetCameraLocation() const;
 
 	TArray<FBullet> Bullets;
 	FWeaponFX Effects;
+	FBulletMarks Marks;
 
-	/** The last impact sound, so a shotgun's pellets landing together make one crack rather than nine. */
+	/** The last impact sound, so a shotgun's pellets landing together on one surface make one crack rather than nine. */
 	double LastImpactSoundTime = -1000.0;
 	FVector LastImpactSoundAt = FVector::ZeroVector;
+	FName LastImpactCue;
+	/** The last ricochet's whine (never two at once). */
+	double LastRicochetTime = -1000.0;
+
+	/** Shots fired in one frame by one gun are one volley (a shotgun's pellets). */
+	uint64 LastFireFrame = TNumericLimits<uint64>::Max();
+	TWeakObjectPtr<AWeaponBase> LastFireWeapon;
+	TWeakObjectPtr<AActor> LastFireShooter;
+	int32 VolleyCount = 0;
+	TArray<FVolleyMarks, TInlineAllocator<4>> VolleyMarks;
 };

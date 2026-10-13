@@ -23,11 +23,11 @@ enum class EMapPinKind : uint8
 	Vendor,
 	/** Where trips leave from: the train's depot, Skyreach's skiff jetty. */
 	Station,
-	/** A respawn grave open in this story: fast travel goes there. */
+	/** One of Hob's roosts found (or opened) in this story: fast travel goes there. (Named for the graves the roosts replaced.) */
 	Grave,
-	/** A giver with a mission to offer (a gold ! for the story, a white ! for a side job): someone, a board, an artifact. */
+	/** A giver with a mission to offer (a gold ? for the story, a white ? for a side job): someone, a board, an artifact. */
 	Offer,
-	/** A mission waiting to be turned in, at its giver (a ?, gold or white). */
+	/** A mission waiting to be turned in, at its giver (a !, gold or white). */
 	TurnIn,
 	/** The tracked mission's objective. */
 	Objective,
@@ -38,13 +38,13 @@ struct AI_LOOTER_SHOOTER_API FMapPin
 {
 	EMapPinKind Kind = EMapPinKind::Chest;
 	FVector Location = FVector::ZeroVector;
-	/** The pin's name ("Boot Hill", "Gunsmith's bench", "Pruitt's General Store", the mission's title). */
+	/** The pin's name ("Main Street", "Gunsmith's bench", "Pruitt's General Store", the mission's title). */
 	FText Name;
-	/** A second line under it, when it has one ("Turn in to Delia", "Fast travel"). */
+	/** A second line under it, when it has one ("Turn in to Delia", "Hob's roost: fast travel"). */
 	FText Detail;
-	/** The grave, for a Grave pin. */
+	/** The roost, for a Grave pin. */
 	TWeakObjectPtr<const ARespawnMarker> Grave;
-	/** The grave's marker id, the chest's save key, the vigil stone's boss key or the mission's id. */
+	/** The roost's marker id, the chest's save key, the vigil stone's boss key or the mission's id. */
 	FName Id;
 	/** An offer's or a turn-in's mission is the story's (its mark gold), not a side job's (white). */
 	bool bMain = false;
@@ -54,7 +54,7 @@ struct AI_LOOTER_SHOOTER_API FMapPin
 struct FMapPinSources
 {
 	const UWorld* World = nullptr;
-	/** Which graves are open (without one, only those open from the start) and which stores trade (without one, only those with no gate). */
+	/** Which roosts are found or open (without one, only those open from the start) and which stores trade (without one, only those with no gate). */
 	const FCampaignRecord* Campaign = nullptr;
 	/** The chests the player has come across (UMapDiscoverySubsystem); without it, only opened ones show. */
 	const TSet<FName>* FoundChests = nullptr;
@@ -65,18 +65,18 @@ struct FMapPinSources
 };
 
 /**
- * The map page's pins gathered from a level (apart from the widget, so the tests read them from a test level): the open
- * respawn graves, the stations, the gunsmith's benches, the vigil stones risen beside the boss arenas, the stores open to
- * trade, the chests found (or opened), the givers with a mission to offer (one pin a giver), the missions waiting to be
- * turned in at their givers, and the tracked mission's objective. Closed graves, stores the story keeps shut, unfound chests and stones not yet risen stay off the map: what's
- * ahead is the player's to find. The player's own arrow is the
- * widget's.
+ * The map page's pins gathered from a level (apart from the widget, so the tests read them from a test level): Hob's roosts
+ * found (or opened by the story), the stations, the gunsmith's benches, the vigil stones risen beside the boss arenas, the
+ * stores open to trade, the chests found (or opened), the givers with a mission to offer (one pin a giver), the missions
+ * waiting to be turned in at their givers, and the tracked mission's objective. Roosts not found yet, stores the story keeps
+ * shut, unfound chests and stones not yet risen stay off the map: what's ahead is the player's to find. The player's own
+ * arrow is the widget's.
  */
 namespace MapPins
 {
 	AI_LOOTER_SHOOTER_API TArray<FMapPin> Gather(const FMapPinSources& Sources);
 
-	/** The legend's words for a kind ("Respawn grave"). */
+	/** The legend's words for a kind ("Hob's roost"). */
 	AI_LOOTER_SHOOTER_API FText KindName(EMapPinKind Kind);
 
 	/** How many pins of Kind there are. */

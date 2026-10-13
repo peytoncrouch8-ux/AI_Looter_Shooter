@@ -11,14 +11,16 @@ class ARespawnMarker;
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGraveTravelled, APawn* /*Player*/, const ARespawnMarker& /*Grave*/);
 
 /**
- * Fast travel between the open respawn graves of the level being played (the inventory's map page asks for it): the
- * screen fades to black under a rush of grave-wind (UI.TravelWhoosh), the player is put at the grave as a death's
- * wake-up puts them (on its spot, facing its arrow), and the screen fades back. Never in a fight (a creature hunting the
- * player), a scene or a boss's fight, nor while a trip is under way (GraveTravelRules). The autosave waits through the
- * fade; the travel saves nothing of its own: where the player stands goes into the session as it always does. Graves
- * open with the story (ARespawnMarker), so the session already keeps which ones the player may travel to.
+ * Fast travel between Hob's open roosts in the level being played (the inventory's map page asks for it; the user's call,
+ * 2026-10-13: Hob's crows carry Ellis): a flock pours across the screen under a rush of wings until it's black
+ * (URoostCarrySubsystem; the camera fades under the crows), the player is put at the roost as a death's wake-up puts them
+ * (on its spot, facing its arrow), and the crows burst away as the world comes back, the roost's own crows scattering off
+ * it round the player (ARespawnMarker::Welcome). Never in a fight (a creature hunting the player), a scene or a boss's
+ * fight, nor while a trip is under way (GraveTravelRules). The autosave waits through the carry; the travel saves nothing
+ * of its own: where the player stands goes into the session as it always does. Roosts open as they're found or with the
+ * story (ARespawnMarker), so the session already keeps which ones the player may travel to.
  *
- * The fade runs on the subsystem's own clock (Advance, from its tick; it pauses with the game), not a timer: a timer set
+ * The carry runs on the subsystem's own clock (Advance, from its tick; it pauses with the game), not a timer: a timer set
  * before the timer manager has ticked that frame only starts on its next tick, which a test level never gives it.
  */
 UCLASS()
@@ -50,25 +52,25 @@ public:
 	bool IsOpen(const ARespawnMarker& Grave) const;
 
 	/**
-	 * Starts the travel to Grave: the fade out and its whoosh, then the move, then the fade in. False (with the reason in
-	 * OutBlock) when the rules say no.
+	 * Starts the travel to Grave: the crows covering the screen and their rush of wings, then the move, then the crows
+	 * bursting away. False (with the reason in OutBlock) when the rules say no.
 	 */
 	bool TravelTo(APawn* Player, const ARespawnMarker& Grave, EGraveTravelBlock* OutBlock = nullptr);
 
-	/** A travel is fading out or holding the black. */
+	/** A travel is covering the screen or holding the black. */
 	bool IsTravelling() const { return bTravelling; }
 
 	/** Puts Player at Grave's wake spot at once (the travel's move; tests): standing on it, facing its arrow, stopped. */
 	static void MoveToGrave(APawn& Player, const ARespawnMarker& Grave);
 
-	/** A travel has put the player at a grave (the screen is fading back in). */
+	/** A travel has put the player at a roost (the crows are bursting away). */
 	FOnGraveTravelled OnTravelled;
 
 private:
-	/** The black is held: the player is moved, the screen comes back, the saves go on. */
+	/** The black is held: the player is moved, the crows burst away, the saves go on. */
 	void Arrive();
 
-	/** Gives the player back their keys and the screen, and lets the autosave run again. */
+	/** Gives the player back their keys and the screen (the crows away, the camera's fade back), and lets the autosave run again. */
 	void EndTravel(APawn* Player);
 
 	TWeakObjectPtr<APawn> Traveller;

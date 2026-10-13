@@ -10,12 +10,13 @@ class UTextBlock;
 class UWidget;
 
 /**
- * The "GRAVE MARKED" banner, near the top of the screen (the user's call, 2026-10-13: respawn graves are save points the
- * player marks by walking up to them): a small painted lantern, "GRAVE MARKED" in orange between fading cyan rules, and the
- * grave's name in white under it. It eases in (a small pop, as the level-up banner does), holds and eases out over 2.5 s.
- * Floating outlined text and solid shapes, no panel.
+ * The "ROOST FOUND" banner, near the top of the screen (the user's call, 2026-10-13: Hob's roosts are the save, respawn and
+ * fast-travel points, found by walking up to them): a small painted roost (Hob's crow on the post's top, the beacon's glow in
+ * the roost's colour behind it: the map's roost icon, painted), "ROOST FOUND" in orange between fading cyan rules, and the
+ * roost's name in white under it. It eases in (a small pop, as the level-up banner does), holds and eases out over 2.5 s.
+ * Floating outlined text and solid shapes, no panel. (Named for the graves the roosts replaced.)
  *
- * ARespawnMarker announces a first mark through ALooterHUD::ShowGraveMarked, which hands it here. Marks that come close
+ * ARespawnMarker announces a first find through ALooterHUD::ShowGraveMarked, which hands it here. Finds that come close
  * together show one after the other. It waits while a menu is open, a scene holds the player or the game is paused (that time
  * doesn't count, so the whole show is seen), and while the level-up or mission-complete banner shows, so they never overlap.
  */
@@ -35,7 +36,7 @@ public:
 	/** The banners it takes turns with: it waits while either shows. */
 	void SetOtherBanners(UHudLevelUpBannerWidget* InLevelUpBanner, UHudMissionCompleteWidget* InMissionBanner);
 
-	/** Announces a grave marked: queued behind any being shown. */
+	/** Announces a roost found: queued behind any being shown. */
 	void Announce(const FText& GraveName);
 
 	/** It's on screen, or has an announcement waiting. */
@@ -51,7 +52,7 @@ public:
 	static float OpacityAt(float Time);
 	static float ScaleAt(float Time);
 
-	/** What it shows now, for the tests: the grave's name as set. */
+	/** What it shows now, for the tests: the roost's name as set. */
 	FString GetShownName() const;
 
 	/** Announcements waiting behind the one showing. */

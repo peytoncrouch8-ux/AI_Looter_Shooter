@@ -89,7 +89,7 @@ EGraveTravelBlock UMapWidget::CheckTravel(FString& OutStatus) const
 	}
 	else
 	{
-		OutStatus = Grave ? TEXT("Ready. The grave-wind will carry you there.") : TEXT("");
+		OutStatus = Grave ? TEXT("Ready. Hob's crows will carry you there.") : TEXT("");
 	}
 	return Block;
 }
@@ -113,13 +113,13 @@ void UMapWidget::RefreshTravelCard()
 		Name = Pin->Name.ToString().ToUpper();
 		// The grave last marked is the save point: Continue wakes the player there.
 		const ARespawnMarker* PinGrave = Pin->Grave.Get();
-		const FString Kind = PinGrave && PinGrave->IsSavePoint() ? TEXT("Save point") : TEXT("Respawn grave");
+		const FString Kind = PinGrave && PinGrave->IsSavePoint() ? TEXT("Save point") : TEXT("Hob's roost");
 		Detail = Player ? FString::Printf(TEXT("%s · %s from you"), *Kind, *DistanceWords(FVector::Dist2D(Player->GetActorLocation(), Pin->Location))) : Kind;
 	}
 	else if (Graves > 0)
 	{
-		Name = TEXT("CHOOSE A GRAVE");
-		Detail = TEXT("Click an open respawn grave on the map or in the list below (G, or the D-pad), then Travel.");
+		Name = TEXT("CHOOSE A ROOST");
+		Detail = TEXT("Click a roost on the map or in the list below (G, or the D-pad), then Travel.");
 		// With none chosen, only a reason that holds whatever the grave is shown.
 		if (Block == EGraveTravelBlock::None)
 		{
@@ -128,8 +128,8 @@ void UMapWidget::RefreshTravelCard()
 	}
 	else
 	{
-		Name = TEXT("NO GRAVE OPEN");
-		Detail = TEXT("Respawn graves open as the story goes on. Once one has, you can travel to it from here.");
+		Name = TEXT("NO ROOST FOUND");
+		Detail = TEXT("Find Hob's roosts (a crow's mast, its beacon dark until you reach it). Once you have, his crows carry you between them from here.");
 		Status.Reset();
 	}
 	SetTextIfChanged(CardName, Name);
@@ -172,7 +172,7 @@ void UMapWidget::RebuildGraveList()
 	GraveList->ClearChildren();
 	GraveRows.Reset();
 	const int32 Graves = MapPins::Count(Pins, EMapPinKind::Grave);
-	SetTextIfChanged(GraveListHeader, Graves > 0 ? FString::Printf(TEXT("OPEN GRAVES  ·  %d"), Graves) : FString(TEXT("NO OPEN GRAVES YET")));
+	SetTextIfChanged(GraveListHeader, Graves > 0 ? FString::Printf(TEXT("HOB'S ROOSTS  ·  %d"), Graves) : FString(TEXT("NO ROOSTS FOUND YET")));
 
 	for (const FMapPin& Pin : Pins)
 	{
@@ -245,7 +245,7 @@ void UMapWidget::RefreshPrompts()
 	}
 	if (MapPins::Count(Pins, EMapPinKind::Grave) > 0)
 	{
-		Prompts.Add({ TEXT("G"), TEXT("Next grave") });
+		Prompts.Add({ TEXT("G"), TEXT("Next roost") });
 	}
 	Prompts.Add({ TEXT("C"), TEXT("Find me") });
 	Prompts.Add({ TEXT("Drag"), TEXT("Pan") });

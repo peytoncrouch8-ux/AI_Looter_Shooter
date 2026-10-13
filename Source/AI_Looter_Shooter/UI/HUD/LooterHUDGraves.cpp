@@ -1,4 +1,5 @@
-// ALooterHUD: the "GRAVE MARKED" banner, shown when the player walks up to a respawn grave for the first time (ARespawnMarker).
+// ALooterHUD: the "ROOST FOUND" banner, shown when the player walks up to one of Hob's roosts for the first time
+// (ARespawnMarker; named for the graves the roosts replaced).
 
 #include "UI/HUD/LooterHUD.h"
 #include "UI/HUD/PlayerHUDWidget.h"

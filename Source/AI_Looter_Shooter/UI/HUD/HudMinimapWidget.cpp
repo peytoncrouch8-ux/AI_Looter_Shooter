@@ -131,6 +131,8 @@ TSharedRef<SWidget> UHudMinimapWidget::RebuildWidget()
 
 		UCanvasPanel* MarkerLayer = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
 		AddLayer(MarkerLayer);
+		// Hob's roosts first, under every other marker: a landmark, never in the way of a fight (HudMinimapWidgetRoosts.cpp).
+		BuildRoosts(MarkerLayer);
 		for (int32 Index = 0; Index < MaxMarkers; ++Index)
 		{
 			UImage* Marker = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
@@ -370,6 +372,7 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 		}
 	}
 
+	UpdateRoosts(Location, Yaw, Radius, PixelsPerCm, InDeltaTime);
 	UpdateWaypoint(Location, Yaw, Radius, PixelsPerCm);
 }
 
