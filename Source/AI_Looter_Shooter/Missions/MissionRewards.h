@@ -11,15 +11,18 @@ struct FMissionRewards;
 struct FXPCurve;
 
 /**
- * Where a named gun is in a level: carried by the player (in a slot, in hand or on their back, or in their backpack), and
- * the copies lying there as loot. A named gun is one of a kind: what a reward gives is checked against this.
+ * Where a named gun is in a level: carried by the player (in a slot, in hand or on their back, or in their backpack), kept
+ * at the depot's Lost Property, and the copies lying there as loot. A named gun is one of a kind: what a reward gives is
+ * checked against this.
  */
 struct AI_LOOTER_SHOOTER_API FNamedGunWhereabouts
 {
 	bool bCarried = false;
+	/** Kept at the depot's Lost Property (ULostLootSubsystem): left on the ground past its time, or at a quit. */
+	bool bInLostLoot = false;
 	TArray<AWeaponBase*> Lying;
 
-	bool IsAnywhere() const { return bCarried || !Lying.IsEmpty(); }
+	bool IsAnywhere() const { return bCarried || bInLostLoot || !Lying.IsEmpty(); }
 };
 
 /**
@@ -38,8 +41,13 @@ struct AI_LOOTER_SHOOTER_API FMissionRewardsGiven
 	FText NamedGun;
 	/** The areas opened to travel, by their names ("The Gilded Lily"). */
 	TArray<FText> AreasOpened;
-	/** The silver its purse paid into the wallet (MissionRewards::GiveSilver). */
+	/** The silver its purse paid into the wallet (MissionRewards::GiveSilver), the optional objectives' bonus with it. */
 	int32 Silver = 0;
+	/** Optional objectives done (each paid OptionalSilver, inside Silver), and what they paid. */
+	int32 OptionalDone = 0;
+	int32 OptionalSilver = 0;
+	/** The choice it was turned in with ("Pay the eleven"); empty without one. */
+	FText Choice;
 
 	bool IsEmpty() const { return Experience <= 0 && !bGun && NamedGun.IsEmpty() && AreasOpened.IsEmpty() && Silver <= 0; }
 };
@@ -109,10 +117,23 @@ namespace MissionRewards
 	/** Pays a mission's purse into World's wallet (UWalletSubsystem); what went in, 0 without a wallet or a purse. */
 	int32 GiveSilver(UWorld* World, FName MissionId);
 
+	/** The purse the rewards pay: their own Silver when set, else the giver's kept by MissionId (SilverFor; none for None). */
+	int32 PurseOf(const FMissionRewards& Rewards, FName MissionId);
+
+	/** Pays Amount (a purse, a bonus) into World's wallet as a mission's reward; what went in, 0 without a wallet. */
+	int32 GiveAmount(UWorld* World, int32 Amount, FName MissionId);
+
+	/** The optional objectives' bonus for Done of them at a player's Level: OptionalSilver grown as the economy grows. */
+	int32 OptionalBonus(const FMissionRewards& Rewards, int32 Done, int32 Level);
+
+	/** A choice's rewards in a few words for a line ("a Rare or better gun", "+400 silver"), or empty. */
+	FString DescribeShort(const FMissionRewards& Rewards);
+
 	/**
 	 * The rewards in words, one line each, for the Missions page: "+40 XP" (or "+30% of a level's experience"), "+40 silver",
-	 * "Gun: Rare or better", "Named gun: Heirloom", "Opens The Gilded Lily". The purse isn't part of FMissionRewards (it is
-	 * kept by mission id, SilverFor), so the silver line comes only when MissionId is given and its purse isn't 0.
+	 * "Gun: Rare or better", "Named gun: Heirloom", "Opens The Gilded Lily". The purse is the rewards' own Silver, else the one
+	 * kept by mission id (SilverFor), so without its own the silver line comes only when MissionId is given and its purse
+	 * isn't 0.
 	 */
 	TArray<FString> Describe(const FMissionRewards& Rewards, FName MissionId = NAME_None);
 }

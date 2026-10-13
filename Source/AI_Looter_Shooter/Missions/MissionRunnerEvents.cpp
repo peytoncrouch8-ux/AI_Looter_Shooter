@@ -78,8 +78,9 @@ bool UMissionRunner::RefreshDone(const UMissionObjective& Objective, const FMiss
 		return false;
 	}
 	const int32 Required = Objective.GetRequired();
-	// A level without its targets (no dummies, no weapon rack) can't leave the mission stuck, when the objective says so.
-	const bool bNothingThere = Objective.bPassWithoutTargets && !Objective.HasTargets(Context);
+	// A level without its targets (no dummies, no weapon rack) can't leave the mission stuck, when the objective says so. An
+	// optional one never holds anything up, and passing it would pay a bonus nobody earned.
+	const bool bNothingThere = !Objective.bOptional && Objective.bPassWithoutTargets && !Objective.HasTargets(Context);
 	if (State.Count >= Required || bNothingThere)
 	{
 		State.Count = FMath::Max(State.Count, Required);
@@ -94,10 +95,12 @@ void UMissionRunner::ForEachRunningObjective(TFunctionRef<bool(const UMissionObj
 	const FMissionContext Context = MakeContext();
 	for (FRun& Run : Runs)
 	{
+		// A mission waiting for its turn-in still has its last step's optional objectives to do (its others are done).
 		const UMissionDefinition* Mission = Run.Mission.Get();
+		const int32 Step = StatesStep(Run);
 		for (int32 Index = 0; Mission && Index < Run.States.Num(); ++Index)
 		{
-			const UMissionObjective* Objective = Mission->GetObjective(Run.Step, Index);
+			const UMissionObjective* Objective = Mission->GetObjective(Step, Index);
 			FMissionObjectiveState& State = Run.States[Index];
 			if (!Objective || State.bDone)
 			{
@@ -107,7 +110,14 @@ void UMissionRunner::ForEachRunningObjective(TFunctionRef<bool(const UMissionObj
 			{
 				bChanged = true;
 			}
-			bChanged |= RefreshDone(*Objective, Context, State);
+			if (RefreshDone(*Objective, Context, State))
+			{
+				bChanged = true;
+				if (Objective->bOptional)
+				{
+					NoteOptionalDone(Run, Index);
+				}
+			}
 		}
 	}
 }
@@ -124,6 +134,8 @@ void UMissionRunner::Update(float DeltaSeconds)
 		ResumeRecorded();
 		StartDue(NAME_None);
 	}
+	// A mission item dropped and lost to a level change never strands its mission.
+	RecoverLostItems();
 	const FMissionContext Context = MakeContext();
 	ForEachRunningObjective([&Context, DeltaSeconds](const UMissionObjective& Objective, FMissionObjectiveState& State)
 	{
@@ -146,6 +158,8 @@ void UMissionRunner::HandleKill(AActor& Victim, AController* Killer)
 	{
 		return Objective.HandleKill(Context, State, Victim, Killer);
 	});
+	// A creature carrying a mission item lets it fall (Abe Haskett's clamp pin, the Gravemother's fang).
+	DropCarriedItems(Victim);
 	AfterChange();
 }
 
@@ -242,7 +256,8 @@ void UMissionRunner::SyncDisplay()
 		{
 			const UMissionObjective* Objective = Mission->GetObjective(Run.Step, Index);
 			const FMissionObjectiveState& State = Run.States[Index];
-			if (!Objective || State.bDone)
+			// Optional ones go under the line (FillOptionalParts), never on it or on the arrow: the step goes on without them.
+			if (!Objective || State.bDone || Objective->bOptional)
 			{
 				continue;
 			}
@@ -267,6 +282,7 @@ void UMissionRunner::SyncDisplay()
 			// tracker would take for a done objective.
 			continue;
 		}
+		FillOptionalParts(Run, Tracker);
 		// Unchanged words and parts, and a waypoint that only moved, don't wake the display's listeners, so this is cheap
 		// to repeat.
 		Display->SetObjective(Run.BookId, FText::FromString(Line), Target, Tracker);

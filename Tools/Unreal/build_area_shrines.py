@@ -14,6 +14,11 @@ ground, derived from the arena as it's built (nothing hand-placed):
     beside the road where the player walks out after the fight and the scene; far enough from his spot that calling him
     back doesn't start his fight (his deck radius, 14 m), clear of the road, the gate's rocks and the cairns. Abel (the
     placed AAbelKeeper labelled Abel) is called back at his spot.
+  - The Foreman (the Providence, Docs/Areas/RansomsRest_Expansion.md): on the surface by the mine's portal, at design metres
+    (80, 224), facing the portal; his fight is in the stope far under the ridge, so the stone is never on his ground. His lair
+    (the spawner whose SpawnerId is Foreman) brings him back: found by its label (Encounter_Foreman) when the build gave it
+    one, else by the stone itself at run time (ABossShrine::Lair's "none"). While the Diggings aren't built (no walkable
+    ground at the stone's place) he gets no stone (a warning).
 Each spot is chosen from candidates round its anchor: inside the playable boundary, on walkable ground (tagged Ground) level
 enough under the stone's corners, clear of the layout's roads, ramps, obstacles, placements, rocks and pits; the nearest to
 its anchor wins, facing it (the player coming up the ramp or out through the gate sees its front). Every choice is logged;
@@ -56,6 +61,11 @@ MAX_RISE = 300.0
 # Abel (build_area_deck.py, AAbelKeeper::DeckRadius): a player this near his spot starts his fight once he's back.
 ABEL_LABEL = 'Abel'
 DECK_RADIUS = 1400.0
+# The Foreman (the Providence's stope, ForemanFight.h's Foreman::LairId): his stone stands by the mine's portal at design
+# metres (80, 224) (x east, y north), the portal at (74, 230) facing south. Level cm is X north = y * 100, Y east = x * 100.
+FOREMAN_LABEL = 'Encounter_Foreman'
+FOREMAN_STONE = (22400.0, 8000.0)
+FOREMAN_PORTAL = (23000.0, 7400.0)
 
 # Each boss's stone: its key (FBossRecallRecord's; Abel's is also his campaign boss id), its class, how it comes back, the
 # menu's words, its answer from the arena after the bell, and the story that counts it beaten (a save from before the
@@ -67,6 +77,9 @@ SHRINES = (
     dict(key='Abel', boss_class='AbelKeeper', kind='PLACED', name='Abel Ransom, the Keeper',
          loot="Three guns from a boss's table, a fair chance of a legendary, and ammo",
          answer='Boss.Abel.Wail', beaten_after=['Main6'], callable_after=['Main6']),
+    dict(key='Foreman', boss_class='ForemanCreature', kind='LAIR', name='The Foreman',
+         loot="Two guns from a Legendary monster's table, a chance of a legendary, and ammo",
+         answer='Boss.Foreman.Intro', beaten_after=['BackPay'], callable_after=[]),
 )
 
 actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
@@ -286,6 +299,31 @@ def abel_spot(build):
     return spot, abel
 
 
+def foreman_spot(build):
+    """By the Providence's portal, facing it. Returns (the spot, his lair or None), or (None, None) while the Diggings aren't
+    built. His lair is optional: a stone without one finds the spawner whose SpawnerId is Foreman when the game runs."""
+    if ground(*FOREMAN_STONE) is None:
+        build.warn(f"no walkable ground at the Providence's portal ({FOREMAN_STONE[0]:.0f}, {FOREMAN_STONE[1]:.0f}) (the Diggings "
+                   "aren't built yet): no vigil stone for the Foreman")
+        return None, None
+    lair = labelled(build, FOREMAN_LABEL)
+    sx, sy = FOREMAN_STONE
+    candidates = [FOREMAN_STONE] + [(sx + math.cos(math.radians(a)) * r, sy + math.sin(math.radians(a)) * r)
+                                    for r in range(150, 760, 100) for a in range(0, 360, 15)]
+
+    def off_fight(x, y, z):
+        # His stope lies 40-60 m under the ridge: a stone on the surface is never on his ground.
+        return True
+
+    spot = choose(build, 'The Foreman', candidates, FOREMAN_PORTAL, off_fight,
+                  lambda x, y: math.hypot(x - FOREMAN_STONE[0], y - FOREMAN_STONE[1]))
+    return spot, lair
+
+
+# Where each boss's stone goes (SHRINES' keys).
+SPOTS = {'Gravemother': gravemother_spot, 'Abel': abel_spot, 'Foreman': foreman_spot}
+
+
 # ---------------------------------------------------------------------------
 # Placing them
 # ---------------------------------------------------------------------------
@@ -307,10 +345,7 @@ def place(build):
         boss_class = unreal.load_class(None, CLASSES + spec['boss_class'])
         if boss_class is None:
             continue
-        if spec['kind'] == 'LAIR':
-            spot, boss = gravemother_spot(build)
-        else:
-            spot, boss = abel_spot(build)
+        spot, boss = SPOTS[spec['key']](build)
         if spot is None:
             continue
         x, y, z, yaw = spot
@@ -319,7 +354,8 @@ def place(build):
         stone.set_editor_property('boss_class', boss_class)
         if spec['kind'] == 'LAIR':
             stone.set_editor_property('call_kind', unreal.BossShrineCall.LAIR)
-            stone.set_editor_property('lair', boss)
+            if boss is not None:
+                stone.set_editor_property('lair', boss)
         else:
             stone.set_editor_property('call_kind', unreal.BossShrineCall.PLACED)
             stone.set_editor_property('placed_boss', boss)

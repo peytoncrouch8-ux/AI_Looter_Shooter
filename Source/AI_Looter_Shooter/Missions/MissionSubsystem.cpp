@@ -5,6 +5,17 @@
 
 bool FMissionTrackerParts::SameAs(const FMissionTrackerParts& Other) const
 {
+	if (Optionals.Num() != Other.Optionals.Num())
+	{
+		return false;
+	}
+	for (int32 Index = 0; Index < Optionals.Num(); ++Index)
+	{
+		if (!Optionals[Index].SameAs(Other.Optionals[Index]))
+		{
+			return false;
+		}
+	}
 	// FString's == ignores case; a line fixed only in its case is still new words to show.
 	return Line.Equals(Other.Line, ESearchCase::CaseSensitive)
 		&& Count.Equals(Other.Count, ESearchCase::CaseSensitive)

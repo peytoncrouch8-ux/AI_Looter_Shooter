@@ -8,9 +8,10 @@ struct FCampaignRecord;
 
 /**
  * When something of the story applies, read from the campaign record: after some missions are finished, before others
- * are, while one is being played. An empty condition always applies. Story characters use it to be in the world or not
- * (Abel on his board after his fight), and speaker points to pick what they say (Delia's door after each mission).
- * Missions are named by id, as the campaign record keeps them.
+ * are, while one is being played, once the story has settled something (a story flag set) or not. An empty condition
+ * always applies. Story characters use it to be in the world or not (Abel on his board after his fight), and speaker
+ * points to pick what they say (Delia's door after each mission). Missions are named by id, as the campaign record keeps
+ * them; flags by name, as it keeps them (FCampaignRecord::StoryFlags).
  */
 USTRUCT(BlueprintType)
 struct AI_LOOTER_SHOOTER_API FStoryCondition
@@ -24,6 +25,14 @@ struct AI_LOOTER_SHOOTER_API FStoryCondition
 	/** None of these missions is finished yet. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story")
 	TArray<FName> BeforeMissions;
+
+	/** Every one of these story flags is set (a turn-in's choice: BackPay.Paid, the porch plate: PorchPlate.Taken). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story")
+	TArray<FName> WithFlags;
+
+	/** None of these story flags is set. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story")
+	TArray<FName> WithoutFlags;
 
 	/**
 	 * This mission is being played: the campaign's main mission (even while the player is in another area), or a mission
@@ -53,6 +62,6 @@ struct AI_LOOTER_SHOOTER_API FStoryCondition
 	/** It applies in Campaign. Runner adds the missions running in this level; without it only the campaign's main mission counts as being played. */
 	bool IsMet(const FCampaignRecord& Campaign, const UMissionRunner* Runner = nullptr) const;
 
-	/** "after Main1; before Main6; during Main2 from step 2, before step 3", or "always", for logs and the console. */
+	/** "after Main1; before Main6; with flags BackPay.Paid; without flags BackPay.Kept; during Main2 from step 2, before step 3", or "always", for logs and the console. */
 	FString Describe() const;
 };

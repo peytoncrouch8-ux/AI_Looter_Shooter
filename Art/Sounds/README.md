@@ -15,7 +15,14 @@ Art/Sounds/recipes/      one recipe per cue, by group: guns, impacts, feedback, 
                          grave-salt grenade) and props (the lootable world: crates, barrels, graves, coffins, mailboxes,
                          footlockers), economy (silver found, the vendor's counter: buy, sell, not enough),
                          bells (the Bell-Ringer's hand bell: toll, cracked toll, lift, clang, raising, swipe) and
-                         shrines (the vigil stones: rising, kneeling, the refusal, the iron bell's summons);
+                         shrines (the vigil stones: rising, kneeling, the refusal, the iron bell's summons),
+                         givers (mission offers, the stamp, found letters; its paper and stamp helpers are shared),
+                         graves (a save point marked: the lantern, a bell's hum, the Gravewind), holds (the hold
+                         ring's click), lostloot (the depot's Lost Property window), missions (optional ticks, mission
+                         items, the turn-in's choice, readables, the porch plate, going underground), orelift (the
+                         ore lift: signal bells, the steam whistle, the winch and cable loops, the cage's creaks and
+                         clanks), watchfire (the tower's brazier), miners (the dead miners, Thaddeus, Hiram; its
+                         rock-gallery space is shared) and foreman (the Foreman's fight, fuses and roof);
                          kit.py holds the shared building blocks (clicks, clacks, whooshes, cloth,
                          scrapes, creaks, bubbles, chimes, plucked strings...) and band.py the score's instruments and
                          mixer
@@ -178,3 +185,10 @@ presence 2-5 kHz, high, air).
   -2.2 dB when World.ShutterSlam reached the 0 dB cap). ShutterSlam and Impact.Wood now set the headroom.
 - Every layer cut at its length gets a short end fade (envelopes and modal rings do it themselves), or the check finds
   clicks in the quiet tails.
+- A cue that opens on something slow (a rub, a creak, a whoosh) starts with the small physical touch that begins it (the
+  fingertips on the paper, the rope going taut, the valve lever's clank), or the check calls it late; a stamp that must
+  land on a card's slam (0.12 s) is led by the hand's swish (`givers.swish`, already moving at the first sample).
+- A loop made of loud, sparse events (an engine's chuffs) puts its seam in a lull between two of them: the seam check
+  compares the join's jump with the median step, which the quiet between events keeps small.
+- Mix a loop's layers by loudness (`analysis.loudness_max`, `orelift._lv`), not by peak: a creak's peak says little
+  about how it sits over a continuous hum.

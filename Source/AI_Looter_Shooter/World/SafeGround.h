@@ -25,6 +25,9 @@ class ULineBatchComponent;
  *     when = unreal.StoryCondition()
  *     when.set_editor_property('after_missions', ['Main3'])
  *     zone.set_editor_property('active_when', when)
+ *     zone.set_editor_property('height_band', True)         # Main Street, not Tilly's cellar under it
+ *     zone.set_editor_property('min_z', street_z - 150.0)
+ *     zone.set_editor_property('max_z', street_z + 1500.0)
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ASafeGround : public AActor
@@ -50,9 +53,27 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Safe Zone")
 	FStoryCondition ActiveWhen;
 
-	/** Whether a point lies inside it, seen from above, on or not. */
+	/**
+	 * It covers only a band of heights (world Z, cm, MinZ to MaxZ), so a cellar under it isn't safe (Main Street over Tilly's
+	 * cellar, where Knocking Below's fight is). Off: every height over its outline.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Safe Zone")
+	bool bHeightBand = false;
+
+	/** The band's floor (world Z, cm): a point below it is outside. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Safe Zone", meta = (EditCondition = "bHeightBand", Units = "cm"))
+	float MinZ = -100000.f;
+
+	/** The band's top (world Z, cm): a point above it is outside. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Safe Zone", meta = (EditCondition = "bHeightBand", Units = "cm"))
+	float MaxZ = 100000.f;
+
+	/** Whether a point lies inside it, seen from above (and within its height band when it has one), on or not. */
 	UFUNCTION(BlueprintPure, Category = "Safe Zone")
 	bool Contains(const FVector& Point) const;
+
+	/** Point's height is within the band (always, without one). */
+	bool IsWithinHeight(const FVector& Point) const;
 
 	/** It's on now: its condition held when it last looked. */
 	UFUNCTION(BlueprintPure, Category = "Safe Zone")

@@ -4,6 +4,7 @@
 #include "Economy/VendorOffer.h"
 #include "GameFramework/SaveGame.h"
 #include "Inventory/WeaponInventorySave.h"
+#include "Loot/LostLootStore.h"
 #include "Player/PlayerThrowSave.h"
 #include "Progression/PlayerProgressData.h"
 #include "Session/BossRecallRecord.h"
@@ -12,7 +13,10 @@
 #include "Weapons/WeaponTypes.h"
 #include "SessionSave.generated.h"
 
-/** A gun lying in the world. */
+/**
+ * A gun lying in the world when the session was saved. Since Lost Property (2026-10-13) a load never puts it back on the
+ * ground: it's handed in to the shelves (ULostLootSubsystem, from USessionSubsystem::RestoreWorld), the longest lain first.
+ */
 USTRUCT()
 struct AI_LOOTER_SHOOTER_API FSavedLootWeapon
 {
@@ -23,6 +27,14 @@ struct AI_LOOTER_SHOOTER_API FSavedLootWeapon
 
 	UPROPERTY()
 	FTransform Transform;
+
+	/**
+	 * Seconds of its five minutes on the ground it had left (LostLootRules::GroundLifeSeconds; negative: overdue, waiting by
+	 * the player), as ammo keeps its life: the guns handed in at the next load go on the shelves oldest first by it. 0: not
+	 * kept (a save from before Lost Property), counted as the oldest.
+	 */
+	UPROPERTY()
+	float LifeLeft = 0.f;
 };
 
 /** An ammo pickup lying in the world. */
@@ -96,6 +108,10 @@ struct AI_LOOTER_SHOOTER_API FSavedMapWorld
 {
 	GENERATED_BODY()
 
+	/**
+	 * The guns lying loose here when the session was saved (never a rack's). Handed in to Lost Property as the session is
+	 * loaded, never put back on the ground; a trip leaves none (TravelToMap hands them in as it goes).
+	 */
 	UPROPERTY()
 	TArray<FSavedLootWeapon> LootWeapons;
 
@@ -262,6 +278,15 @@ public:
 	/** The vendors' gun of the day as it stood (FVendorOffer). A save from before it reads as none rolled: the first vendor opened rolls one. */
 	UPROPERTY()
 	FVendorOffer VendorOffer;
+
+	/**
+	 * Lost Property's shelves (FLostLootStore: the guns handed in, the shelving bought, the ticket counter, what the HUD has
+	 * still to tell), one for the whole session like the purse: ULostLootSubsystem has them while a level plays. New within
+	 * version 2: a save from before it reads as empty shelves of 30, which is right; its guns on the ground are handed in as
+	 * it's loaded (RestoreWorld).
+	 */
+	UPROPERTY()
+	FLostLootStore LostLoot;
 
 	/**
 	 * The landing (AreaLandings) the player arrives at when the session next starts in Map without a spot there: a trip

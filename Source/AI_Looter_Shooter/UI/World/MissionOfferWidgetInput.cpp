@@ -26,11 +26,32 @@ namespace
 
 void UMissionOfferWidget::RebuildNav()
 {
-	// One row, Not now then Accept; the focus starts on Accept, the choice a giver hopes for.
 	TArray<FMenuNavRow> Rows;
-	Rows.Add(FMenuNavRow{ FMenuNavItem::MakeButton(DeclineButton.Get()), FMenuNavItem::MakeButton(AcceptButton.Get()) });
 	Nav.SetWrap(true);
+	if (Mode == EMissionCardMode::Choice && ChoiceButtons.Num() >= 2)
+	{
+		// The two choices side by side; the focus starts on the first, and nothing is chosen by a press alone.
+		Rows.Add(FMenuNavRow{ FMenuNavItem::MakeButton(ChoiceButtons[0].Get()), FMenuNavItem::MakeButton(ChoiceButtons[1].Get()) });
+		Nav.SetRows(MoveTemp(Rows), ChoiceButtons[0].Get());
+		return;
+	}
+	if (Mode == EMissionCardMode::Read)
+	{
+		Rows.Add(FMenuNavRow{ FMenuNavItem::MakeButton(DeclineButton.Get()) });
+		Nav.SetRows(MoveTemp(Rows), DeclineButton.Get());
+		return;
+	}
+	// One row, Not now then Accept; the focus starts on Accept, the choice a giver hopes for.
+	Rows.Add(FMenuNavRow{ FMenuNavItem::MakeButton(DeclineButton.Get()), FMenuNavItem::MakeButton(AcceptButton.Get()) });
 	Nav.SetRows(MoveTemp(Rows), AcceptButton.Get());
+}
+
+FKey UMissionOfferWidget::GetInteractKey() const
+{
+	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
+	const UKeyBindingSubsystem* Bindings = LocalPlayer ? LocalPlayer->GetSubsystem<UKeyBindingSubsystem>() : nullptr;
+	const FKey Interact = Bindings ? Bindings->GetKey(TEXT("Interact")) : EKeys::E;
+	return Interact.IsValid() ? Interact : EKeys::E;
 }
 
 void UMissionOfferWidget::RefreshNavLook()
@@ -42,6 +63,33 @@ void UMissionOfferWidget::RefreshNavLook()
 		return;
 	}
 	PromptBar->ClearChildren();
+	const bool bPadNow = LooterUI::IsMenuGamepad();
+	if (Mode != EMissionCardMode::Offer)
+	{
+		// Choosing: the keys that move between the two, the hold that chooses (E, or a pad's A), and the way out. Reading:
+		// only the way out.
+		struct FPromptWords
+		{
+			FString Key;
+			FString Words;
+		};
+		TArray<FPromptWords, TInlineAllocator<3>> Prompts;
+		if (Mode == EMissionCardMode::Choice)
+		{
+			Prompts.Add({ bPadNow ? FString(TEXT("D-pad")) : FString(TEXT("A / D")), NSLOCTEXT("MissionOffer", "PromptPick", "Pick").ToString() });
+			Prompts.Add({ bPadNow ? PromptKeyName(EPromptKey::Select, true) : GetInteractKey().GetDisplayName().ToString(),
+				NSLOCTEXT("MissionOffer", "PromptHold", "Hold to choose").ToString() });
+		}
+		Prompts.Add({ PromptKeyName(EPromptKey::Back, bPadNow), Card.Decline.ToString() });
+		for (int32 Index = 0; Index < Prompts.Num(); ++Index)
+		{
+			UHorizontalBoxSlot* PromptSlot = PromptBar->AddChildToHorizontalBox(LoadoutParts::MakeKeyHint(WidgetTree, Prompts[Index].Key,
+				Prompts[Index].Words, Index == Prompts.Num() - 2 || Prompts.Num() == 1));
+			PromptSlot->SetVerticalAlignment(VAlign_Center);
+			PromptSlot->SetPadding(FMargin(Index > 0 ? PromptGap : 0.f, 0.f, 0.f, 0.f));
+		}
+		return;
+	}
 	// The keyboard's E (wherever Interact is bound) always accepts; a pad's A presses what has the focus, so its prompt
 	// names that.
 	const bool bPad = LooterUI::IsMenuGamepad();
@@ -94,6 +142,20 @@ void UMissionOfferWidget::HandleButton(ULooterButton* Button)
 {
 	if (!Button || bClosing)
 	{
+		return;
+	}
+	// A choice is held, never clicked: a click only says so (the press and its release drove the hold).
+	const int32 ChoiceIndex = ChoiceButtons.IndexOfByKey(Button);
+	if (ChoiceIndex != INDEX_NONE)
+	{
+		if (Chosen == INDEX_NONE && HoldProgress < 1.f)
+		{
+			SetStatus(NSLOCTEXT("MissionOffer", "HoldToChooseHint", "Hold it down to choose: this can't be undone."));
+		}
+		if (IsInViewport())
+		{
+			SetKeyboardFocus();
+		}
 		return;
 	}
 	if (Button == AcceptButton.Get())
@@ -154,6 +216,20 @@ FReply UMissionOfferWidget::NativeOnKeyDown(const FGeometry& InGeometry, const F
 	{
 		return FReply::Handled();
 	}
+	if (Mode == EMissionCardMode::Choice && HandleChoiceKeyDown(InKeyEvent))
+	{
+		return FReply::Handled();
+	}
+	if (Mode == EMissionCardMode::Read && !IsStickKey(Key) && (IsBack(Key) || IsAccept(Key) || Key == GetInteractKey()))
+	{
+		// Read: any of the usual keys puts it away (once it's had a moment, so the key that opened it doesn't).
+		RevealNav(Key);
+		if (!InKeyEvent.IsRepeat() && (IsBack(Key) || IsArmed()))
+		{
+			Decline();
+		}
+		return FReply::Handled();
+	}
 	if (IsBack(Key))
 	{
 		RevealNav(Key);
@@ -203,6 +279,16 @@ FReply UMissionOfferWidget::NativeOnKeyDown(const FGeometry& InGeometry, const F
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
+FReply UMissionOfferWidget::NativeOnKeyUp(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	// Letting a choice's key go before its ring is full drains it back.
+	if (Mode == EMissionCardMode::Choice && HandleChoiceKeyUp(InKeyEvent))
+	{
+		return FReply::Handled();
+	}
+	return Super::NativeOnKeyUp(InGeometry, InKeyEvent);
+}
+
 FReply UMissionOfferWidget::NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogEvent)
 {
 	const FKey Key = InAnalogEvent.GetKey();
@@ -236,5 +322,11 @@ void UMissionOfferWidget::NativeOnFocusLost(const FFocusEvent& InFocusEvent)
 {
 	NavStick = FVector2D::ZeroVector;
 	NavStickMove = EMove::None;
+	// A key held on a choice never sees its release once the focus has gone: the hold lets go with it. A mouse hold
+	// keeps going (a click on the button hands the keyboard to the viewport for a moment).
+	if (HoldKey.IsValid())
+	{
+		EndHold();
+	}
 	Super::NativeOnFocusLost(InFocusEvent);
 }

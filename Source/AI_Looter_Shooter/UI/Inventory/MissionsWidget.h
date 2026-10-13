@@ -23,7 +23,8 @@ enum class EMissionStatus : uint8;
  *    with its ! and where to get it), completed
  *  - right: the chosen mission: its kind and area, title and summary, Track / Untrack for one running here; under it
  *    its steps (the ones done ticked off, the current one's objectives with their progress, or once all are done "Ready
- *    to turn in: talk to Delia") and what it gives
+ *    to turn in: talk to Delia"; optional ones dimmed with "Optional:", done, missed or still to be had), the mission items
+ *    carried for it, what it gives (with the optional objectives' bonus) and the choice it ends in
  *  - bottom: what the keys do
  * W / S, the arrows or the D-pad choose a mission (so does the mouse); E, Enter or the button tracks or untracks it (the
  * minimap guides to the tracked one); 1 and 2 (the left shoulder, or the title tabs) turn to the loadout and the
@@ -75,6 +76,18 @@ private:
 	void ToggleTrack();
 	void HandleTrackClicked(ULooterButton* Button);
 
+	// MissionsWidgetFeatures.cpp: optional objectives, the items carried, the turn-in's choice
+	/** An optional objective of a step played: done (ticked), missed, or still to be had while the mission waits for its turn-in. */
+	void AddPastOptional(const UMissionDefinition& Mission, int32 StepIndex, int32 Index, bool bReady);
+	/** An optional objective's line: "Optional:" before it, dimmed, a hollow mark (a tick once done, a dash once missed). */
+	void AddOptionalLine(const FString& Text, const FString& Progress, bool bDone, bool bMissed);
+	/** "Carried": the mission's items in the player's pocket, each with its line. */
+	void AddCarried(const UMissionDefinition& Mission);
+	/** "Your call": the turn-in's two choices and what each gives; once turned in, the one chosen. */
+	void AddChoice(const UMissionDefinition& Mission, EMissionStatus Status);
+	/** "Optional objectives: +12 silver each (2 done)", or empty when it has none. */
+	FString DescribeOptionalBonus(const UMissionDefinition& Mission) const;
+
 	UMissionRunner* GetRunner() const;
 	const UMissionDefinition* GetSelected() const;
 	EMissionStatus GetSelectedStatus() const;
@@ -117,4 +130,7 @@ private:
 
 	FSlateBrush DoneBrush;
 	FSlateBrush CurrentBrush;
+	/** An optional objective's hollow mark, and a missed one's dash. */
+	FSlateBrush OptionalBrush;
+	FSlateBrush MissedBrush;
 };

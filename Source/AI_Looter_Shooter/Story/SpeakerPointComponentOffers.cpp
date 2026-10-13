@@ -18,8 +18,16 @@ namespace
 	constexpr float OfferCheckSeconds = 0.1f;
 }
 
+void USpeakerPointComponent::QueueChoice(const UMissionDefinition& Mission, AActor* Listener, int32 AfterConversation)
+{
+	// The same wait as an offer's (the words said, the player still there, nothing over the game), then the choice card.
+	QueueOffer(Mission, Listener, AfterConversation);
+	bPendingChoice = true;
+}
+
 void USpeakerPointComponent::QueueOffer(const UMissionDefinition& Mission, AActor* Listener, int32 AfterConversation)
 {
+	bPendingChoice = false;
 	PendingOffer = Mission.GetMissionId();
 	OfferConversation = AfterConversation;
 	OfferListener = Listener;
@@ -36,6 +44,7 @@ void USpeakerPointComponent::QueueOffer(const UMissionDefinition& Mission, AActo
 void USpeakerPointComponent::ClearPendingOffer()
 {
 	PendingOffer = NAME_None;
+	bPendingChoice = false;
 	OfferConversation = 0;
 	OfferListener.Reset();
 	if (UWorld* World = GetWorld())
@@ -56,10 +65,12 @@ bool USpeakerPointComponent::UpdatePendingOffer()
 		ClearPendingOffer();
 		return false;
 	}
-	// Taken another way meanwhile (a board, the console), or no longer offered: nothing to open.
+	// Taken another way meanwhile (a board, the console), or no longer offered: nothing to open. A choice still waits for it
+	// here, ready to turn in.
 	UMissionRunner* Runner = UMissionRunner::Get(this);
 	const UMissionDefinition* Mission = Runner ? Runner->FindDefinition(PendingOffer) : nullptr;
-	if (!Mission || !Runner->IsAvailable(PendingOffer))
+	const bool bStillDue = Mission && (bPendingChoice ? Runner->FindTurnInAt(GetOwner()) == Mission : Runner->IsAvailable(PendingOffer));
+	if (!bStillDue)
 	{
 		ClearPendingOffer();
 		return false;
@@ -88,7 +99,7 @@ bool USpeakerPointComponent::UpdatePendingOffer()
 		}
 		return false;
 	}
-	const bool bOpened = HUD->OpenMissionOffer(Mission, GetOwner());
+	const bool bOpened = bPendingChoice ? HUD->OpenTurnInChoice(Mission, GetOwner()) : HUD->OpenMissionOffer(Mission, GetOwner());
 	ClearPendingOffer();
 	return bOpened;
 }

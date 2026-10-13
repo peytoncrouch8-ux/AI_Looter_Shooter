@@ -13,6 +13,8 @@ class AController;
 class UMissionActorWatch;
 class UMissionDefinition;
 class UMissionSubsystem;
+struct FMissionItemInfo;
+struct FMissionTrackerParts;
 
 /** Where a mission stands for this session. */
 UENUM(BlueprintType)
@@ -63,6 +65,8 @@ struct FMissionObjectiveView
 	int32 Required = 1;
 	float Fraction = 0.f;
 	bool bDone = false;
+	/** Optional (UMissionObjective::bOptional): the step goes on without it. */
+	bool bOptional = false;
 };
 
 /**
@@ -80,6 +84,10 @@ struct FMissionObjectiveView
  * A mission picked up from a giver (EMissionStart::Offered) is offered, not started, once it's due: available at its giver
  * (a speaker point, a notice board, a mission artifact), it starts when the player accepts it on the offer card
  * (AcceptMission) and from then on in every level of its area, as an automatic one does.
+ *
+ * Optional objectives (UMissionObjective::bOptional) never hold a step and pay a bonus at the turn-in; mission items
+ * (FMissionItemInfo) are carried in the campaign while their mission runs; a turn-in may ask the player to choose between
+ * two rewards, each setting a story flag (FMissionTurnIn::Choices).
  *
  * Kills and hits come from the health components of every actor in the level, ones spawned later too
  * (UWorld::AddOnActorSpawnedHandler). Nothing runs behind the main menu. Tests use an editor preview world, where it
@@ -141,9 +149,55 @@ public:
 
 	/**
 	 * Turns in a mission ready to turn in, as talking to its giver does: it's finished, with its rewards
-	 * (MissionRunnerTurnIn.cpp, as are the turn-in queries below). False when it isn't ready here.
+	 * (MissionRunnerTurnIn.cpp, as are the turn-in queries below). False when it isn't ready here. One turned in with a
+	 * choice of two takes its first here (the console, a board's screen): the player's way is TurnInWithChoice.
 	 */
 	bool TurnIn(FName MissionId);
+
+	/**
+	 * Turns in a mission ready to turn in with one of its two choices (0 or 1; FMissionTurnIn::Choices), as the choice card
+	 * does: the choice's flag set and recorded, its rewards given in place of the mission's own (MissionRunnerRewards.cpp).
+	 * False when it isn't ready here or has no such choice.
+	 */
+	bool TurnInWithChoice(FName MissionId, int32 Choice);
+
+	/** The choice a mission was turned in with (0 or 1), or INDEX_NONE. */
+	int32 GetTurnInChoice(FName MissionId) const;
+
+	/** A story flag the campaign keeps (FCampaignRecord::StoryFlags: BackPay.Kept, PorchPlate.Taken). */
+	bool HasFlag(FName Flag) const;
+
+	/** Sets a story flag, saved soon after, and tells listeners. False when it already was set. */
+	bool SetFlag(FName Flag);
+
+	// --- Mission items (MissionRunnerItems.cpp) ---
+
+	/**
+	 * A mission item into the player's pocket (an AMissionItem picked up, a console command): kept by the campaign until its
+	 * mission finishes, and the missions hear a Collect event about From (else the item's id as the event's tag). False when
+	 * no mission has it, its mission is finished, or it's carried already.
+	 */
+	bool GiveItem(FName ItemId, AActor* From = nullptr);
+
+	/** The player carries it (FCampaignRecord::CarriedItems). */
+	bool IsCarrying(FName ItemId) const;
+
+	/** The mission an item belongs to, and the item (OutItem), or null. */
+	const UMissionDefinition* FindItemMission(FName ItemId, const FMissionItemInfo** OutItem = nullptr) const;
+
+	/** A mission's items the player carries, in the order they were picked up (its Missions page's Carried list). */
+	TArray<FMissionItemInfo> GetCarriedItems(FName MissionId) const;
+
+	// --- Optional objectives (MissionRunnerOptional.cpp) ---
+
+	/**
+	 * A running mission's optional objectives still in play and their progress: the step being played's, or the last step's
+	 * while it waits for its turn-in (they stay doable until it's turned in). Empty when it isn't running.
+	 */
+	TArray<FMissionObjectiveView> GetOptionalViews(FName MissionId) const;
+
+	/** How many of a mission's optional objectives are done so far (each pays its bonus at the turn-in). */
+	int32 CountOptionalDone(FName MissionId) const;
 
 	/** Records a mission as finished without playing it or rewarding it (the tutorial, done before missions were data). */
 	void RecordCompleted(FName MissionId);
@@ -252,7 +306,8 @@ public:
 private:
 	/**
 	 * A mission running here: its step and that step's objectives' progress, and its line in UMissionSubsystem. Ready to
-	 * turn in, its step is one past its last and it has no objectives left.
+	 * turn in, its step is one past its last and every objective it asks for is done; States then still holds the last
+	 * step's, so its optional objectives stay doable (StatesStep).
 	 */
 	struct FRun
 	{
@@ -285,21 +340,49 @@ private:
 	bool IsStepDone(const FRun& Run) const;
 	/** Moves a run to its next step; false when that was its last (the mission is finished, or ready to turn in). */
 	bool AdvanceStep(FRun& Run);
-	/** Past its last step, waiting for its turn-in: no objectives, recorded in the campaign. */
+	/** Past its last step, waiting for its turn-in, recorded in the campaign: only the last step's optional objectives left. */
 	void EnterReady(FRun& Run);
 	/** Steps done as they begin pass at once; finished missions end, and missions they unlock start. */
 	void Settle();
-	void FinishRun(FName MissionId);
-	/** Records Mission finished and, the first time, gives its rewards (into OutGiven). True when it was the first time. */
-	bool RecordCompletion(const UMissionDefinition& Mission, bool bGiveRewards, FMissionRewardsGiven* OutGiven = nullptr);
-	FMissionRewardsGiven GrantRewards(const UMissionDefinition& Mission);
+	/** Ends a run, finished with Choice (one of its turn-in's two; INDEX_NONE: none). */
+	void FinishRun(FName MissionId, int32 Choice = INDEX_NONE);
+	/**
+	 * Records Mission finished and, the first time, gives its rewards (into OutGiven), with Choice's in place of its own.
+	 * Its items, drops and optional records go with it. True when it was the first time.
+	 */
+	bool RecordCompletion(const UMissionDefinition& Mission, bool bGiveRewards, FMissionRewardsGiven* OutGiven = nullptr,
+		int32 Choice = INDEX_NONE);
 	void RecordStep(const FRun& Run);
 	void ResumeRecorded();
 	void StartDue(FName StartedBy);
 	void AskToSave() const;
 
+	// MissionRunnerRewards.cpp
+	/** What finishing Mission gives, with Choice's rewards in place of its own (INDEX_NONE: its own), given now. */
+	FMissionRewardsGiven GrantRewards(const UMissionDefinition& Mission, int32 Choice);
+	/** The player's level for rewards (1 without a player). */
+	int32 GetPlayerLevel() const;
+	/** Forgets what the campaign kept for a mission under way: its items carried and dropped, its optional objectives done. */
+	void ForgetMissionThings(const UMissionDefinition& Mission);
+
+	// MissionRunnerItems.cpp
+	/** A creature carrying a mission item died: the item falls at its body (FMissionItemInfo::DroppedBy). */
+	void DropCarriedItems(AActor& Victim);
+	/** Items their carrier dropped that lie nowhere now (a level left before they were picked up): given. */
+	void RecoverLostItems();
+
+	// MissionRunnerOptional.cpp
+	/** The step whose objectives a run's States hold: its step, or its last while it waits for its turn-in. */
+	int32 StatesStep(const FRun& Run) const;
+	/** An optional objective of a run just done: kept by the campaign and saved soon. */
+	void NoteOptionalDone(const FRun& Run, int32 Index);
+	/** A ready run's States as the last step's: what it asks for done, its optional objectives as the campaign kept them. */
+	void PrepareReadyStates(FRun& Run);
+	/** Fills a run's optional objectives into the tracker's parts. */
+	void FillOptionalParts(const FRun& Run, FMissionTrackerParts& Tracker) const;
+
 	// MissionRunnerTurnIn.cpp
-	/** A talk at a speaker turns in every mission ready to turn in to them. True when one was. */
+	/** A talk at a speaker turns in every mission ready to turn in to them (not one with a choice to make). True when one was. */
 	bool TurnInAt(const FMissionEvent& Event);
 	/** Tells listeners a mission ended, with what it gave. */
 	void BroadcastFinished(const UMissionDefinition& Mission, bool bRewarded, const FMissionRewardsGiven& Given);

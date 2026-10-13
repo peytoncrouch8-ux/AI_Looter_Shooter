@@ -2,11 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Missions/MissionTargets.h"
 #include "Story/StoryLine.h"
 #include "Weapons/WeaponTypes.h"
 #include "MissionDefinition.generated.h"
 
 class UMissionObjective;
+class UStaticMesh;
 class UWeaponDefinition;
 
 /** Main or side story, or Skyreach's own missions outside it. */
@@ -80,49 +82,25 @@ struct AI_LOOTER_SHOOTER_API FMissionStep
 	TArray<TObjectPtr<UMissionObjective>> Objectives;
 };
 
-/**
- * How a mission whose objectives are all done is finished. Borderlands' way: it's turned in to someone (the one who gave
- * it, or who it's for), and only then are its rewards given. Until then it's "ready to turn in": the tracker says "Turn in
- * to <who>" with its arrow on them, and a session saves it so.
- */
-USTRUCT(BlueprintType)
-struct AI_LOOTER_SHOOTER_API FMissionTurnIn
-{
-	GENERATED_BODY()
-
-	/**
-	 * It finishes by itself the moment its last objective is done (Skyreach's tutorial and skiff, the test mission, a boss
-	 * fight that ends in its own scene): no one to turn it in to.
-	 */
-	UPROPERTY(EditAnywhere, Category = "Turn-in")
-	bool bAutomatic = false;
-
-	/**
-	 * Who it's turned in to, by the tag their speaker point's actor carries (Speaker_Delia, Speaker_Tilly): talking to them
-	 * there turns it in, and the tracker's arrow and the minimap point at them meanwhile. When the last objective would be
-	 * talking to them, that talk is the turn-in instead: the steps end one earlier.
-	 */
-	UPROPERTY(EditAnywhere, Category = "Turn-in", meta = (EditCondition = "!bAutomatic"))
-	FName SpeakerTag;
-
-	/** Their name for people: "Delia" ("Turn in to Delia"). Empty: from the tag (Speaker_Delia: "Delia"). */
-	UPROPERTY(EditAnywhere, Category = "Turn-in", meta = (EditCondition = "!bAutomatic"))
-	FText GiverName;
-
-	/**
-	 * What they say as it's turned in, said instead of what they'd say there otherwise (their speaker point's lines at
-	 * this point in the story). Empty: their own lines, for a talk the story already wrote as the mission's end (Delia's,
-	 * Tilly's, Aldana's, Amos's). A line with no speaker is said in their speaker point's name.
-	 */
-	UPROPERTY(EditAnywhere, Category = "Turn-in", meta = (EditCondition = "!bAutomatic"))
-	TArray<FStoryLine> Lines;
-};
-
 /** What finishing a mission gives, once per session (a mission played again gives nothing more). */
 USTRUCT(BlueprintType)
 struct AI_LOOTER_SHOOTER_API FMissionRewards
 {
 	GENERATED_BODY()
+
+	/**
+	 * The silver its purse holds at the turn-in, the same at any level (Back Pay's payroll). 0: the giver's purse kept by
+	 * mission id (MissionRewards::SilverFor), as the first missions' are.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Rewards", meta = (ClampMin = "0"))
+	int32 Silver = 0;
+
+	/**
+	 * Silver for each optional objective done (UMissionObjective::bOptional), paid at the turn-in: this at level 1, growing
+	 * with the player's level as the economy's amounts do (LooterEconomy::AtLevel). Never experience.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Rewards", meta = (ClampMin = "0"))
+	int32 OptionalSilver = 10;
 
 	/**
 	 * Experience, a fixed amount: what the mission is worth, tuned with the area's kills to the level its story should end
@@ -172,7 +150,132 @@ struct AI_LOOTER_SHOOTER_API FMissionRewards
 
 	bool GivesExperience() const { return Experience > 0 || ExperienceShare > 0.f; }
 
-	bool IsEmpty() const { return !GivesExperience() && !bGun && NamedGun.IsNone() && UnlockAreas.IsEmpty(); }
+	bool IsEmpty() const { return !GivesExperience() && !bGun && NamedGun.IsNone() && UnlockAreas.IsEmpty() && Silver <= 0; }
+};
+
+/**
+ * One of a turn-in's two choices (FMissionTurnIn::Choices): what it's called on the card, what it means in a line, what it
+ * gives in place of the mission's own rewards, the story flag it sets for other code to read, and what's said once it's
+ * chosen. Back Pay's: "Pay the eleven" (BackPay.Paid, a Rare gun) and "Keep the payroll" (BackPay.Kept, 400 silver).
+ */
+USTRUCT(BlueprintType)
+struct AI_LOOTER_SHOOTER_API FMissionTurnInChoice
+{
+	GENERATED_BODY()
+
+	/** The choice on its button ("Pay the eleven"). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Choice")
+	FText Title;
+
+	/** What it means, a sentence or two under it ("The tags go on OUT with their wages. The Providence's dead rest."). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Choice", meta = (MultiLine = true))
+	FText Line;
+
+	/**
+	 * What it gives instead of the mission's own rewards: its silver, gun, named gun and areas. Its experience left at 0,
+	 * the mission's own experience is given either way (the card says so above the two).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Choice")
+	FMissionRewards Rewards;
+
+	/** The campaign flag it sets (FCampaignRecord::StoryFlags): BackPay.Paid. None: none. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Choice")
+	FName Flag;
+
+	/** What's said once it's chosen; a line with no speaker in the giver's speaker point's name. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Choice")
+	TArray<FStoryLine> Lines;
+
+	/** The word stamped over the card as it's chosen ("PAID", "KEPT"). Empty: "SETTLED". */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Choice")
+	FText Stamp;
+};
+
+/**
+ * How a mission whose objectives are all done is finished. Borderlands' way: it's turned in to someone (the one who gave
+ * it, or who it's for), and only then are its rewards given. Until then it's "ready to turn in": the tracker says "Turn in
+ * to <who>" with its arrow on them, and a session saves it so. Anyone at a speaker point can take it (a door, a window, a
+ * talking coffin, a speaking tube, a tag board), and so can a notice board or a mission artifact carrying the tag.
+ */
+USTRUCT(BlueprintType)
+struct AI_LOOTER_SHOOTER_API FMissionTurnIn
+{
+	GENERATED_BODY()
+
+	/**
+	 * It finishes by itself the moment its last objective is done (Skyreach's tutorial and skiff, the test mission, a boss
+	 * fight that ends in its own scene): no one to turn it in to.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Turn-in")
+	bool bAutomatic = false;
+
+	/**
+	 * Who it's turned in to, by the tag their speaker point's actor carries (Speaker_Delia, Speaker_Tilly): talking to them
+	 * there turns it in, and the tracker's arrow and the minimap point at them meanwhile. When the last objective would be
+	 * talking to them, that talk is the turn-in instead: the steps end one earlier.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Turn-in", meta = (EditCondition = "!bAutomatic"))
+	FName SpeakerTag;
+
+	/** Their name for people: "Delia" ("Turn in to Delia"). Empty: from the tag (Speaker_Delia: "Delia"). */
+	UPROPERTY(EditAnywhere, Category = "Turn-in", meta = (EditCondition = "!bAutomatic"))
+	FText GiverName;
+
+	/**
+	 * What they say as it's turned in, said instead of what they'd say there otherwise (their speaker point's lines at
+	 * this point in the story). Empty: their own lines, for a talk the story already wrote as the mission's end (Delia's,
+	 * Tilly's, Aldana's, Amos's). A line with no speaker is said in their speaker point's name.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Turn-in", meta = (EditCondition = "!bAutomatic"))
+	TArray<FStoryLine> Lines;
+
+	/**
+	 * A choice of two at the turn-in (Back Pay: pay the eleven, or keep the payroll): with two choices the talk that turns it
+	 * in opens the offer card in its choice mode (ALooterHUD::OpenTurnInChoice) once Lines are said, and the mission finishes
+	 * only when the player holds one of them down: its flag set, its own rewards given, its own lines said. Only the first
+	 * two count; with fewer than two there's no choice.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Turn-in", meta = (EditCondition = "!bAutomatic"))
+	TArray<FMissionTurnInChoice> Choices;
+
+	/** The choice card's question over the two ("Their wages, or the company's silver?"). Empty: the card's own words. */
+	UPROPERTY(EditAnywhere, Category = "Turn-in", meta = (EditCondition = "!bAutomatic", MultiLine = true))
+	FText ChoiceQuestion;
+};
+
+/**
+ * A thing that belongs to a mission (Pa's lantern bail, the winch crank, the Gravemother's fang): picked up from an
+ * AMissionItem in the world, or dropped by the creature that carries it as it dies, kept by the campaign while its mission
+ * runs (FCampaignRecord::CarriedItems), listed under Carried on the Missions page and taken away as the mission finishes.
+ * A UMissionCollectItemObjective counts it carried.
+ */
+USTRUCT(BlueprintType)
+struct AI_LOOTER_SHOOTER_API FMissionItemInfo
+{
+	GENERATED_BODY()
+
+	/** What the campaign keeps it by: never change or reuse one once a session may have saved it. Unique across missions. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+	FName Id;
+
+	/** Its name for people ("Pa's lantern bail"). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+	FText Name;
+
+	/** A short line about it, for the Carried list ("The ring it hangs by, snapped off in his fist."). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item", meta = (MultiLine = true))
+	FText Line;
+
+	/** Its model, for a pickup that names none and for one dropped by a creature. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+	TSoftObjectPtr<UStaticMesh> Mesh;
+
+	/**
+	 * Who carries it, when a creature does (Abe Haskett, tagged; the Gravemother, by class): as one of them dies with the
+	 * mission not finished and the item neither carried nor dropped before, it falls at the body as a pickup. Empty: none.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+	FMissionActorFilter DroppedBy;
 };
 
 /**
@@ -241,6 +344,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mission")
 	FMissionRewards Rewards;
 
+	/** The things that belong to it (mission items), picked up or dropped by a creature, carried until it finishes. */
+	UPROPERTY(EditAnywhere, Category = "Mission")
+	TArray<FMissionItemInfo> Items;
+
 	/** Order in lists, lower first (within main, side and tutorial), then by id. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mission")
 	int32 SortOrder = 0;
@@ -268,6 +375,24 @@ public:
 
 	/** It's picked up from a giver: it starts Offered and names its giver's tag. */
 	bool IsOffered() const { return Start == EMissionStart::Offered && !Offer.GiverTag.IsNone(); }
+
+	/** Its turn-in asks the player to choose between two (FMissionTurnIn::Choices): it waits for a giver and has two. */
+	bool HasTurnInChoice() const { return NeedsTurnIn() && TurnIn.Choices.Num() >= 2; }
+
+	/** One of the turn-in's two choices (0 or 1), or null (no choice, or out of range). */
+	const FMissionTurnInChoice* GetTurnInChoice(int32 Choice) const;
+
+	/**
+	 * What finishing it gives with a choice (0 or 1): the choice's rewards in place of its own, with its own experience when
+	 * the choice names none, and its optional bonus always. Without a choice (INDEX_NONE, or none to make): Rewards.
+	 */
+	FMissionRewards RewardsFor(int32 Choice) const;
+
+	/** One of its items by id, or null. */
+	const FMissionItemInfo* FindItem(FName ItemId) const;
+
+	/** How many optional objectives it has, in every step. */
+	int32 CountOptional() const;
 
 	/**
 	 * The offering giver's name for people: Offer.GiverName, else the tag as words without its kind (Speaker_Delia: "Delia",

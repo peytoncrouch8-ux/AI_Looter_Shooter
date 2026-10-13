@@ -1,4 +1,5 @@
-// USessionSubsystem: what a session keeps of the player and each map's world, and putting it back.
+// USessionSubsystem: what a session keeps of the player and each map's world, and putting it back (Lost Property's shelves
+// too, and the guns a save kept lying handed in to them rather than put back on the ground).
 
 #include "Session/SessionSubsystem.h"
 #include "AI_Looter_Shooter.h"
@@ -9,6 +10,9 @@
 #include "Inventory/WeaponManagerComponent.h"
 #include "Loot/AmmoPickup.h"
 #include "Loot/Chest.h"
+#include "Loot/LostLootRules.h"
+#include "Loot/LostLootStore.h"
+#include "Loot/LostLootSubsystem.h"
 #include "Loot/WeaponRack.h"
 #include "Player/PlayerThrowComponent.h"
 #include "Session/SessionSave.h"
@@ -95,6 +99,12 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 		Save.Silver = Wallet->GetSilver();
 		Save.VendorOffer = Wallet->GetOffer();
 	}
+	// Lost Property's shelves, the session's one store like the purse (a trip has handed in this map's ground guns already).
+	const ULostLootSubsystem* LostLoot = ULostLootSubsystem::Get(World);
+	if (LostLoot)
+	{
+		Save.LostLoot = LostLoot->GetStore();
+	}
 
 	// This map's world, filed under its own name so every other map's stays as it was left: what the racks still offer,
 	// every other gun and ammo pickup lying around, the wanted posters torn down, the hay bales loaded, the chests opened,
@@ -145,6 +155,7 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 			Here.BrokenProps.Add(It->GetSaveKey());
 		}
 	}
+	// The guns lying loose, with their time on the ground: the next load hands them in to Lost Property, oldest first.
 	Here.LootWeapons.Reset();
 	for (TActorIterator<AWeaponBase> It(World); It; ++It)
 	{
@@ -153,6 +164,9 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 			FSavedLootWeapon& Loot = Here.LootWeapons.AddDefaulted_GetRef();
 			Loot.Weapon = It->GetInstanceForStorage();
 			Loot.Transform = It->GetActorTransform();
+			// Never exactly 0, which marks a save from before the life was kept.
+			const float Life = LostLoot ? LostLoot->GetLifeLeft(**It) : LostLootRules::GroundLifeSeconds;
+			Loot.LifeLeft = Life == 0.f ? -0.01f : Life;
 		}
 	}
 	Here.AmmoPickups.Reset();
@@ -191,6 +205,15 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 		return;
 	}
 	const FString MapPackage = MapOf(World);
+
+	// Lost Property's shelves as the session kept them (a save from before them: empty shelves of 30), first: this map's
+	// ground guns are handed in to them below.
+	ULostLootSubsystem* LostLoot = ULostLootSubsystem::Get(World);
+	if (LostLoot)
+	{
+		LostLoot->SetStore(Save.LostLoot);
+	}
+	int32 HandedIn = 0;
 
 	// This map's world, when the session has been here before; on a first visit the level starts as it was built.
 	const FSavedMapWorld* Here = Save.FindWorld(MapPackage);
@@ -267,15 +290,35 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 		{
 			Actor->Destroy();
 		}
-		for (const FSavedLootWeapon& Loot : Here->LootWeapons)
+		// The guns the save kept lying here never go back on the ground (the user's call, 2026-10-13): every load follows a
+		// quit (Save & Quit, closing the game, a stopped play session), and a gun left on the ground then goes to Lost
+		// Property, the longest lain first; an older save's too. The HUD tells how many once the player can see it. A gun
+		// whose kind no longer exists (its data asset gone) can't come back anywhere.
+		if (LostLoot)
 		{
-			// A gun whose kind no longer exists (its data asset gone) can't come back.
-			if (Loot.Weapon.Definition)
+			TArray<FLostLootArrival> Older;
+			TArray<FLostLootArrival> LeftAtQuit;
+			for (const FSavedLootWeapon& Loot : Here->LootWeapons)
 			{
-				if (AWeaponBase* Weapon = UWeaponRollLibrary::SpawnWeapon(World, Loot.Weapon, Loot.Transform))
+				if (Loot.Weapon.Definition)
 				{
-					// Loot again, settling where it lay.
-					Weapon->Toss(FVector::ZeroVector);
+					(Loot.LifeLeft == 0.f ? Older : LeftAtQuit).Add({ Loot.Weapon, Loot.LifeLeft });
+				}
+			}
+			HandedIn += LostLoot->Receive(MoveTemp(Older), ELostLootReason::OldSave, MapPackage, /*bAnnounce*/ true);
+			HandedIn += LostLoot->Receive(MoveTemp(LeftAtQuit), ELostLootReason::LeftAtQuit, MapPackage, /*bAnnounce*/ true);
+		}
+		else
+		{
+			// A kind of world without Lost Property: the guns lie where they lay, as before it.
+			for (const FSavedLootWeapon& Loot : Here->LootWeapons)
+			{
+				if (Loot.Weapon.Definition)
+				{
+					if (AWeaponBase* Weapon = UWeaponRollLibrary::SpawnWeapon(World, Loot.Weapon, Loot.Transform))
+					{
+						Weapon->Toss(FVector::ZeroVector);
+					}
 				}
 			}
 		}
@@ -365,6 +408,7 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 			It->ResumeAtStep(Here->TutorialStep);
 		}
 	}
-	UE_LOG(LogLooter, Log, TEXT("Session restored in %s: %d guns carried, %d guns and %d ammo pickups on the ground"),
-		*FPackageName::GetShortName(MapPackage), Save.CountGuns(), Here ? Here->LootWeapons.Num() : 0, Here ? Here->AmmoPickups.Num() : 0);
+	UE_LOG(LogLooter, Log, TEXT("Session restored in %s: %d guns carried, %d ground guns handed in to Lost Property (%d on its shelves), %d ammo pickups on the ground"),
+		*FPackageName::GetShortName(MapPackage), Save.CountGuns(), HandedIn, LostLoot ? LostLoot->GetStore().Num() : Save.LostLoot.Num(),
+		Here ? Here->AmmoPickups.Num() : 0);
 }

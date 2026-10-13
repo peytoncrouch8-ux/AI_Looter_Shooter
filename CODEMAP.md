@@ -276,6 +276,15 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
   under the ammo drops' small white beam, collected by running past it into the player's grenades (up to the three they
   carry; always collected like ammo, what doesn't fit lost, and the sound and "+N Grave Salt" line only when some were
   added: `CollectInto`); a kill or a chest drops it by `FThrowRules`' odds.
+- `Loot/LostLootStore`: `FLostLootStore`, `FLostLootEntry` and `FLostLootArrival`, Lost Property's shelves as plain data: guns
+  handed in oldest first with claim tickets, the reason and the map; shelving bought; what the HUD has still to tell. When
+  full, the oldest unnamed gun goes out.
+- `Loot/LostLootRules`: `LostLootRules`, a ground gun's five minutes (6 m / 60 s grace by the player), 30 spaces +10 per
+  upgrade (five, up to 80), prices grown as the vendors' are, claiming into the backpack or a free slot, the HUD's lines.
+- `Loot/LostLootSubsystem`: `ULostLootSubsystem`, the shelves while a level plays (the session puts them back and keeps
+  them), handing guns in, named guns held and taken back, the HUD's word. `LostLootGround.cpp` is the ground's clock and the
+  hand-in on leaving.
+- `Loot/LostLootCommands.cpp`: `Looter.LostLoot.List`, `.Send`, `.Clear`, `.Life <s>`, `.Shelving <0-5>`, `.Open`.
 
 ## Economy
 Silver, the living's coin (`Docs/Progression.md`, "Economy"); grave gold stays rare and the story's. The vendors' screen is
@@ -299,7 +308,10 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Economy/Vendor`: `AVendor`, a shop's door (no model of its own, tagged Vendor): a tap of Interact opens the vendor's
   screen (`ALooterHUD::OpenVendor`), once its story allows (`OpenWhen`). Pruitt's General Store on Main Street (the hatch in
   the Pruitts' door, open after Main 3) and Skyreach's practice store front (an honesty box, always open); placed by
-  `Tools/Unreal/build_area_vendors.py`. The map shows an open one as a coin.
+  `Tools/Unreal/build_area_vendors.py`. The map shows an open one as a coin. It carries a `Voice` (`USpeakerPointComponent`,
+  missions-only; `VoiceName` and `VoiceTag` set by the build script): while a mission is offered or waits to be turned in at
+  the hatch, Interact talks to the voice instead of opening the screen, shut shop or not (Mrs. Pruitt takes the Gravemother's
+  bounty).
 - `Economy/SilverPickup`: `ASilverPickup`, silver on the ground: a little pile of coins (`SM_SilverCoins`, from
   `Art/Models/Loot/Coins.py`; a disc stands in until it is imported) spinning under the ammo drops' small white beam. Once
   landed, a living player within `MagnetRadius` pulls it in, faster and faster, and the wallet takes it as it arrives (a
@@ -456,6 +468,25 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Creatures/AmbushSpawner`: `AAmbushSpawner` and `EAmbushEntrance` (appear, rise, drop), an encounter sprung by the player
   walking onto its ground (the churchyard, the Webwood), never by being set down there; the dead rise where they stand or
   spiders drop from above, and come for the player at once.
+- `Creatures/DeadMinerCreature`: `ADeadMinerCreature`, the Providence's dead miners (a kind of the Unpaid): the pick's
+  overhead swing with a lamp-flare tell, the head lamp as a weak spot (shot out; breaks a swing in its wind-up), lamp lights
+  kept to a budget of two, work at the walls or the lunch pail; optional SK_DeadMiner/SM_DeadMiner* parts.
+  `DeadMinerCreatureLamp.cpp`, `DeadMinerCreatureSwing.cpp`, `DeadMinerCreatureWork.cpp` and `DeadMinerCreaturePose.cpp`
+  are its lamp, swing, work and pose.
+- `Creatures/DeadMinerRules`: `FDeadMinerTuning` and `DeadMinerRules`, the miners' rules as plain functions (the shift rule,
+  swing hit, lamp flare and budget, work blows).
+- `Creatures/DeadMinerShiftSpawner`: `ADeadMinerShiftSpawner`, a Providence encounter on while Back Pay is unfinished or
+  kept, off once paid.
+- `Creatures/ForemanCreature`: `AForemanCreature`, Cyrus Teague, Back Pay's Legendary boss (set level 7): entrance, fuses,
+  roof, shift, dark, coal windows, kneel and last word, his own engagement. `ForemanCreatureEvents.cpp`,
+  `ForemanCreatureFuse.cpp`, `ForemanCreatureRoof.cpp`, `ForemanCreatureShift.cpp` (with the dark) and
+  `ForemanCreaturePose.cpp` are its events, fuses, roof, shift and pose.
+- `Creatures/ForemanFight`: `Foreman` constants and stope tags, and `ForemanFight`, his fight as plain rules: phases, pace,
+  show, stagger, loot, coal windows, burst falloff, roof spots, lines.
+- `Creatures/ForemanFuseStick`: `AForemanFuseStick`, the lit, lobbed (or dropped) powder stick and its burst.
+- `Creatures/ForemanRockFall`: `AForemanRockFall`, one marked roof spot: dust and cracks, then the rock, the hurt and the
+  splintering.
+- `Creatures/ForemanTimberProp`: `AForemanTimberProp`, the stope's timber cover, cracked, splintered and mended.
 
 ## Bosses
 - `Bosses/BossComponent`: `UBossComponent`, makes a creature a boss: the fight around it (started by a hit, a player near
@@ -503,7 +534,7 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   hat) for the stand, or the page's own still parts on its model's bones (`PreviewBoneParts`: Amos's hat and fork). Its page
   type: an actor met in the world, a story character with no actor (open once its story condition holds), or one of the
   Ledger's seven names (whereabouts blank until found); pages written in the Ledger only. `Tools/Unreal/create_bestiary_pages.py` writes pages from data (the
-  Unpaid's, the Bell-Ringer's, the Venom Spitter's and the Gravemother's; Hob's, Sexton's, Delia's, Tilly's, Aldana's and Ruth's; the seven names).
+  Unpaid's, the Bell-Ringer's, the Venom Spitter's, the Gravemother's, the Dead Miner's and the Foreman's; Hob's, Sexton's, Delia's, Tilly's, Aldana's, Ruth's, Hiram's and Thaddeus's; the seven names).
   Its experience is what a kill pays (the kill rules' scale).
 - `Bestiary/Ledger`: `Ledger`, the bestiary as Sexton's Ledger from Main 2's "Open the Ledger" step on (read from the
   campaign record), its name on the inventory's tab and key hints, and its words in his voice.
@@ -538,15 +569,20 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Missions/MissionSubsystem`: `UMissionSubsystem`, the missions going on in the world (title, objective, waypoint) and
   which one is tracked, the one the minimap's compass arrow points to, fed by `UMissionRunner`, with the tracker's parts
   (`FMissionTrackerParts`: short line, count, step, key hint); `FMissionBook` is its bookkeeping.
-  `FMissionTrackerParts` carries a turn-in line and whether the banner announces the end.
+  `FMissionTrackerParts` carries a turn-in line and whether the banner announces the end. `FMissionTrackerOptional` is the
+  step's optional objectives in the tracker's parts.
 - `Missions/MissionDefinition`: `UMissionDefinition`, one mission as a data asset in `/Game/Data/Missions`
   (`DA_Mission_<Id>`, the first made by `Tools/Unreal/create_mission_assets.py`): id, words, main/side/tutorial,
   prerequisites, area, what starts it, steps of instanced objectives (`FMissionStep`) and rewards (`FMissionRewards`).
   Who it's turned in to (`FMissionTurnIn`: the giver's speaker tag, name and turn-in lines, or automatic); rewards as a fixed experience or a share of a level.
   `EMissionStart::Offered` and `FMissionOffer` (giver tag, name, lines, briefing): a mission picked up from its giver.
+  Also `FMissionTurnInChoice` (a turn-in's choice of two: title, line, rewards in place of the mission's, story flag, lines,
+  stamp; `HasTurnInChoice`, `RewardsFor`), `FMissionItemInfo` and `Items` (mission items: id, name, line, model, the creature
+  that drops one), `FMissionRewards::Silver` (a purse of its own) and `OptionalSilver`.
 - `Missions/MissionObjective`: `UMissionObjective`, the base of the objective kinds (a rule; the runner keeps each one's
   progress in `FMissionObjectiveState`), with `FMissionContext`, `FMissionEvent` (Interact, Talk, Collect, Scene.X,
-  Board.X), the waypoint setting, and the tracker's short line and key hint (`FillTrackerParts`).
+  Board.X), the waypoint setting, and the tracker's short line and key hint (`FillTrackerParts`). `bOptional` makes an
+  optional objective (never holds its step; pays its mission's optional silver at the turn-in).
 - `Missions/MissionPlaceObjectives`: reach a place, travel a distance, defend for a time.
 - `Missions/MissionCombatObjectives`: kill N (class, tag, zone), kill a named actor, hit N, clear an encounter
   (`UMissionClearObjective`: done once a spawner is cleared, its count read from the spawner, so kills before the step
@@ -556,7 +592,9 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Missions/MissionLastingInteractObjective`: `UMissionLastingInteractObjective`, Interact whose count lives in the
   world: what stays used (`IInteractable::IsUsedUp`, a poster torn down) counts whenever it looks, so a side mission
   started over after a reload, or opened late, loses nothing.
-- `Missions/MissionPlayerObjectives`: collect (guns carried, items picked up), open an inventory page.
+- `Missions/MissionPlayerObjectives`: collect (guns carried, items picked up), open an inventory page, and
+  `UMissionCollectItemObjective`, have mission items (counted from the campaign's pocket; the arrow on one lying, or on its
+  carrier).
 - `Missions/MissionTargets`: `FMissionActorFilter`, `FMissionPlace` and `MissionTargets` (finding an objective's actors:
   nearest living, middle).
 - `Missions/MissionRunner`: `UMissionRunner`, each level's mission runner (due missions, steps, objectives, display,
@@ -566,6 +604,10 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   After its last step a mission with a giver waits, ready to turn in (one step past its last, kept in the campaign record); `MissionRunnerTurnIn.cpp` turns it in (a talk with the giver), the turn-in's tracker line and arrow on the giver, and the turn-in queries; `OnMissionCompleted` with `FMissionRewardsGiven`.
   `MissionRunnerOffers.cpp`: missions picked up from their givers: available, accepted (old saves' running ones count as
   taken), offers at a giver, accepting, the giver's whereabouts.
+  `MissionRunnerRewards.cpp`: what a mission's end gives (a choice's rewards in place of its own, the optional bonus),
+  `TurnInWithChoice`, the story's flags. `MissionRunnerItems.cpp`: mission items (`GiveItem`, carried, dropped by their
+  carrier on death, given when a drop is lost). `MissionRunnerOptional.cpp`: optional objectives (kept by the campaign, the
+  last step's still doable while it waits, the tracker's parts).
 - `Missions/MissionActorWatch`: `UMissionActorWatch`, one actor's deaths and hits passed to the runner.
 - `Missions/MissionRewards`: `MissionRewards`, the experience share, the reward gun with its rarity floor, the named
   gun (`DropNamedGun`), every reward gun into the world by `DropInFront` (ahead of the player but on their side of a
@@ -573,8 +615,11 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   of at the turn-in (`EnsureNamedGun`, `FindNamedGun`: carried, nothing; left lying, brought; never handed out, given),
   rewards in words.
   `ExperienceOf` (fixed or a share), `FMissionRewardsGiven` (what a mission's end gave, for the banner).
+  Also `PurseOf`, `GiveAmount`, `OptionalBonus` and `DescribeShort`; a named gun at Lost Property is brought back, never a
+  second.
 - `Missions/MissionText`: `MissionText::ResolveKeys`, `{Action}` as the player's bound key; `KeyName`, one action's key
   for a keycap.
+- `Missions/MissionFeatureCommands.cpp`: `Looter.Mission.Items`, `.GiveItem`, `.Choose`, `.Optional`, `Looter.Story.Flag`.
 
 ## Story
 - `Story/StoryLine`: `FStoryLine`, one line said aloud: who says it, the words and its seconds (without seconds, a
@@ -583,7 +628,8 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   made by `Tools/Unreal/create_story_lines.py`: Delia's, the headboards', Hob's, Sexton's deal, Tilly's, Aldana's,
   Abel's, Amos's).
 - `Story/StoryCondition`: `FStoryCondition`, when something of the story applies (after missions, before others, while
-  one is played, from one of its steps and before a later one), read from the campaign record.
+  one is played, from one of its steps and before a later one), read from the campaign record; also story flags set
+  (`WithFlags`) or not (`WithoutFlags`), read from the campaign record.
 - `Story/CaptionQueue`: `FCaptionQueue`, the captions' rules apart from the world: lines one at a time in order, each
   for its seconds with its fades; a conversation that interrupts cuts the line on screen short.
 - `Story/CaptionSubsystem`: `UCaptionSubsystem`, the level's captions: plays lines (interrupting, or after what's
@@ -595,7 +641,8 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   A point may also mutter unasked (`Mutters`, `Mutter`, `CanMutter`): one line at a time as the player passes, as a caption
   (`UTownLifeSubsystem` decides when), and be off the Interact key (`bTalkable`).
   `SpeakerPointComponentOffers.cpp`: a mission offered as someone talks, the card once their words are said (a ready turn-in
-  first).
+  first). A point may be missions-only (`bMissionsOnly`, `HasMissionBusiness`); a turn-in with a choice says its words,
+  then opens the choice card (`QueueChoice`).
 - `Story/SpeakerPoint`: `ASpeakerPoint`, someone talking through a door or window (Delia's screen door, Tilly's window):
   a speaker point, and a leaf of its own if needed that never opens.
 - `Story/StoryCharacter`: `AStoryCharacter`, a non-hostile character of the story: a placeholder body posed by code
@@ -628,6 +675,11 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   say so does the gun come out of the farmhouse's SOCKET_Handoff, tossed onto the porch as a world drop (beam, landing
   fanfare); nothing before (an unseen gun used to be taken unseen); none when the session has it already; the door
   shuts once it's taken; ticks only while the door moves.
+- `Story/DeadFriendPoses`: `FDeadFriendPose` and `DeadFriendPoses`, plain-angle poses on the Unpaid's rig, blended and
+  solved.
+- `Story/DeadFriend`: `ADeadFriend`, a friendly dead story character posed by code (parts, ember, head and jaw, hull).
+- `Story/HiramPoses`, `Story/HiramCoyle`: Hiram's sit and tube lean; `AHiramCoyle`.
+- `Story/ThaddeusPoses`, `Story/ThaddeusBright`: Thaddeus's measure, mark, knock and look; `AThaddeusBright`.
 
 ## Scenes
 - `Scenes/SceneTimeline`: `FSceneTimeline`, a scene as a timeline with nothing in Sequencer: moves over spans of it,
@@ -674,6 +726,8 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   keeper's post and sits on his board facing the sunset; Hob speaks, and the player is handed back facing him.
 - `Scenes/TrainShots`: `TrainShots`, the train's departure (it pulls out, then black) and arrival (out of black it backs
   in, then the player's view) as scenes from its platform camera; its course is plain math.
+- `Scenes/OreLiftRide`: `OreLiftRide`, a lift ride as a scene (look only, skippable, about 24 s): the boarding turn, the
+  view at the rider's eye in the swinging cage, the body let go on the far landing.
 - `Scenes/SceneCloudBank`: `ASceneCloudBank`, soft cloud for a scene to sail into (or out of, tinted for the evening):
   the game's smoke puff on a dozen camera-facing quads in one draw, thinning near the camera
   (`Looter.Scene.CloudBrightness`).
@@ -711,22 +765,26 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Session/SessionSubsystemWorld.cpp`: what a session keeps of the player and each map's world (where the player
   stands, health, guns, loot on the ground, the gun racks, the wanted posters torn down, the hay bales loaded, the
   chests opened, the crates and barrels broken, the
-  tutorial's step, and the grenades carried) and putting it back. Ammo and silver go on with the life they had left.
+  tutorial's step, and the grenades carried) and putting it back. Ammo and silver go on with the life they had left. Lost
+  Property's shelves too; the guns a save kept lying are handed in at a load, never put back.
 - `Session/SessionSubsystemTravel.cpp`: travel between maps (`TravelToArea`, `TravelToMap`): the world left kept under
   its map, the trip's save, the destination opened with the session, and arriving at the trip's landing (by train
-  when the trip is one).
+  when the trip is one). The ground's guns are handed in to Lost Property as the player leaves.
 - `Session/SessionSubsystemNewGame.cpp`: a new game, the story from its start: the first cast-off recorded, a Common
   Bullpup in hand, opening on Ransom's Rest's first arrival behind the white (the cold open takes it); `CanStartStory`,
   `ApplyNewGame`, the game's first level (`NewGameMap`: the menu's backdrop and the fallback).
 - `Session/SessionSubsystemWords.cpp`: the session picker's words: play time, when saved, and places by area name or
   level file.
 - `Session/SessionSave`: `ULooterSessionSave`, one session's save ("Session1" to "Session3"), version 2: the player, a
-  world per map (`FSavedMapWorld`), the campaign record and where a trip arrives; the version 1 upgrade and a trip's
+  world per map (`FSavedMapWorld`), the campaign record, Lost Property's shelves (`LostLoot`) and where a trip arrives; the
+  version 1 upgrade and a trip's
   bookkeeping.
 - `Session/CampaignRecord.h`: `FCampaignRecord`, the story so far: missions finished and the one being played, areas
   opened, bosses beaten, respawn graves opened, the first cast-off, the cold open.
   Also the missions ready to turn in (`ReadyMissions`), the graves walked up to and marked (`MarkedGraves`) and each area's
   last marked grave (`LastGraves`).
+  And the story flags (`StoryFlags`, `HasFlag`/`SetFlag`), mission items carried and dropped, optional objectives done
+  (`OptionalDone`, `OptionalKey`) and the turn-in choices made.
 - `Session/SessionSaveGate`: `FSessionSaveGate`, when the session may save: nothing from a trip's save until its
   destination begins; autosaves held during rides and fades.
 - `Session/SessionSubsystemPromotions.cpp`: when a map's creatures are promoted on arrival: at most once per 20 minutes
@@ -744,7 +802,8 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   (a practice area gives no kill experience, and only ammo once the player has left it), opening mission, its creatures'
   levels (`FAreaLevelZone`: zones and their levels, the first holding a spot wins; `FAreaKindLevel`: bosses at set levels;
   the band they're kept in; from the layout's `gameplay.levels`) and promotion chances, a spoken name ("the Lily");
-  finding areas by name or level.
+  finding areas by name or level. `create_area_assets.py` checks before saving that the layout sets the kinds the area
+  requires (`required_kinds`: Ransom's Rest's `ForemanCreature`, a set 5).
 - `Areas/AreaLandings`: `AreaLandings`, where trips arrive: an actor or player start tagged `Landing_<Place>`, or a
   component of an actor so tagged (the jetty's, the station's), found in a level; a level's own start is never one.
 - `Areas/AreaRulesSubsystem`: `UAreaRulesSubsystem`, the area being played's rules for its creatures: each one's level
@@ -816,13 +875,16 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `World/TrainStation`: `ATrainStation`, an area's station (the depot by default) with its departures board (hold
   Interact to open the station board) and its landing on the platform (Landing_Depot).
 - `World/SafeGround`: `ASafeGround`, a safe zone: ground where nothing hunts the player (Delia's salt line; Main
-  Street after Main 3), a polygon or circle switched by its story condition.
+  Street after Main 3), a polygon or circle switched by its story condition, with an optional height band (`bHeightBand`,
+  `MinZ`, `MaxZ`).
 - `World/WantedPoster`: `AWantedPoster`, Ellis's wanted poster as a decal of its atlas cell, torn down by holding
   Interact (it swaps to the remnant and a scrap falls; Hob remarks), or Calder's note read with a tap; torn ones stay
   torn with the session's map world. `WantedPosterTear.cpp` is the tear and the falling scrap.
 - `World/GunsmithBench`: `AGunsmithBench`, the plain gunsmith's bench (Skyreach's village, Ransom Farm; the user's
   call until Ozias takes over after the Lily): a tap of Interact opens the bench screen; SM_GunsmithBench (plain shapes
   until it exists) with sockets Interact, Gun and Box; tagged GunsmithBench and Obstacle; never ticks.
+- `World/LostPropertyWindow`: `ALostPropertyWindow`, the depot's LOST PROPERTY window: a tap of Interact opens Lost
+  Property's screen (`ULostLootWidget`); placed by `Tools/Unreal/build_area_lostloot.py`.
 - `World/BossShrine`: `ABossShrine`, a vigil stone beside a boss arena (the user's respawn pedestal): dormant until its boss's
   first defeat, then rising out of the ground the first time the player comes near; a tap of Interact opens its menu;
   "Call it back" five minutes of play after the boss's last death or at once after a Save & Quit; its candles burn while
@@ -840,6 +902,12 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   any town's board is a bounty board for the missions its tags offer; never ticks.
 - `World/MissionArtifact`: `AMissionArtifact`, a found thing (letter, tag, journal) that offers a mission: Interact reads it
   and opens the offer card with its words; gone once its mission is taken (`bTakeOnAccept`).
+- `World/MissionItem`: `AMissionItem`, a thing that belongs to a mission: shown while its mission is under way, taken with
+  Interact or a touch, a creature's drop falling with a gold beam; tagged MissionItem and Item_<Id>.
+- `World/ReadableProp`: `AReadableProp`, something to read or look at: its words on the card's reading mode, lines after,
+  the mission event `Readable.<Id>`.
+- `World/PorchPlate`: `APorchPlate`, Delia's plate: two grave-salt grenades once, the biscuits eaten later, kept by story
+  flags.
 - `World/WindowShutter`: `AWindowShutter`, one of Main Street's shutters on a false front's Shutter socket (Main 3): open
   flat against the wall until the player comes near, then it slams shut (after a moment of its own) and stays shut;
   shut from the start after Main 3. Once shut, its `Household` (else the nearest house's) is heard through it by the
@@ -942,6 +1010,21 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `World/LanternFlame`: `ALanternFlame` and `LanternLean`, the lit Keeper's Lantern's flame leaning toward the next
   saint's light (north-east, the Lily): crossed glow cards on the lantern's SOCKET_Light with a world-fixed turn, lit
   with the keeper's post's lantern (`OnKeepersLanternLit`) or after Main 6; never ticks.
+- `World/OreLift`: `AOreLift`, the ore lift: the cage on its cable from the quarry landing over one tower to the lift head
+  (`BottomRest`, `TopRest`, `TowerSheave` from the art's sockets), cable spans, winch spot, stand-ins. Closed until Dead
+  Lift's ride step, with the reason on the bell pulls. A held pull rides, or calls the cage (8 s). A ride parks the body on
+  the far landing, holds the autosave, sends `Board.Lift` and `Lift.Arrived.<End>`. `OreLiftRuns.cpp`: rules, calls, rides,
+  rider. `OreLiftUnderWay.cpp`: the run under way and its sounds. `OreLiftDevCommands.cpp`: `Looter.Lift.*`,
+  `Looter.WatchFire.*`, `Looter.FarLight`, `Looter.Interior.Status`.
+- `World/OreLiftMotion`: `OreLiftMotion`, the lift's motion as plain math: eased travel, sheave clanks, swing on the grip
+  (a fixed-step pendulum kicked by the bend and the clanks), bob, lift-off and set-down, rider jolt.
+- `World/OreLiftBellPull`: `AOreLiftBellPull`, a landing's bell cord: hold to ride or call; a tap on a closed lift gives the
+  clunk and its reason.
+- `World/WatchFire`: `AWatchFire`, Calder's Post's watch fire: lit by a hold in The Last Watch, kept by
+  `WatchFire.Larkspur`; glow cards, halo, one light, flickers only near the player.
+- `World/FarSignalLight`: `AFarSignalLight`, the far post's Morse-keyed glow card on a backdrop mesa, shown by the story.
+- `World/InteriorVisibility`: `AInteriorVisibility`, hides an interior from outside and the heavy outside from inside, by
+  boxes and tags.
 - `World/PCGGroundFitFilter`: `UPCGGroundFitFilterSettings`, the meadow's PCG node that drops ground cover patches
   hanging off an edge and presses ones floating over a bump into the ground (editor-time; the graph ships with the level).
 - `World/LightingState`: `FLightingState`, one way a level can be lit (Day, Dusk): the sun by bearing and elevation with
@@ -1046,7 +1129,7 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   `LooterHUDNoticeBoard.cpp`: a notice board's screen (`OpenNoticeBoard`, `CloseNoticeBoard`), opened by reading a board.
   `LooterHUDVendor.cpp`: a vendor's screen (`OpenVendor`, `CloseVendor`), opened by trading at an `AVendor`.
   `LooterHUDMissionOffer.cpp`: the offer card (`OpenMissionOffer`, `CloseMissionOffer`), over the game or a notice board's
-  screen. `LooterHUDGraves.cpp`: `ShowGraveMarked`, forwarded to the gameplay HUD's banner.
+  screen; also `OpenTurnInChoice`, and the reading mode (`OpenMissionOffer` with no mission, from an `AReadableProp`). `LooterHUDGraves.cpp`: `ShowGraveMarked`, forwarded to the gameplay HUD's banner.
   `LooterHUDWorldLabels.cpp`: the labels over the world (creature tags, loot labels, damage numbers) hidden under menus
   (`ShowWorldLabels`); their layer is the viewport's and outlives the level, so it's set from what it shows now.
   It also owns the contextual control hint above the mission tracker.
@@ -1106,6 +1189,7 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   `HudMinimapWidgetFrame.cpp` builds, sizes and turns the bezel, ticks, compass letters, notch and the place's name;
   `HudMinimapWidgetRules.cpp` the plain rules (range, `SplitMarkers`, zoom, `PlaceWaypoint`). The settings menu shows a
   second one (`SetPreview`, `SetPreviewZoom`) in the corner while the zoom slider moves.
+  `HudMinimapWidgetUnderground.cpp` the UNDERGROUND plate (actors tagged Underground).
 - `UI/HUD/MinimapCompass`: `MinimapCompass`, where the letters N, E, S, W ride the minimap's bezel for a heading and sit on the
   map page's frame edges, as plain geometry.
 - `UI/HUD/HudControlHintWidget`: `UHudControlHintWidget`, the contextual control hint (`UControlHintSubsystem` decides
@@ -1118,6 +1202,7 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   `DecideChange`), slides the next in, shows the tutorial's closing line; `HudMissionTrackerWidgetLayout.cpp` builds
   its widgets and pictures; `HudMissionTrackerWidgetSound.cpp` the tick's sound (a step, a mission done).
   A mission waiting for its turn-in shows 'Turn in to <who>' under a full step bar; a story mission's fanfare is left to the banner.
+  `HudMissionTrackerWidgetPaint.cpp` its painting; `HudMissionTrackerWidgetOptional.cpp` the optional rows and their tick.
 - `UI/HUD/HudMissionCompleteWidget`: `UHudMissionCompleteWidget`, the mission-complete banner in the level-up banner's place, taking turns with it: the ranger's star medal with turning rays, MISSION COMPLETE, the mission's name and what it gave (+XP, the gun's rarity in its colour, a named gun, areas opened); waits under menus, scenes and the level-up banner; `HudMissionCompleteWidgetLayout.cpp` its pictures.
 - `UI/HUD/HudWeaponSlotsWidget`: the weapon slots in a column (slot 1 on top): gunmetal-ringed circles with a rarity
   arc and the guns' Inked icons (tilted up), each with its key tab and its ammo's icon on its left; the gun in hand
@@ -1182,7 +1267,8 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   Now the showcase's ring in the gun's rarity colour, the card's slide-in, a row's flash on equip, the top rarities' breathing glow.
 - `UI/Inventory/LoadoutWidget.h`: the loadout screen's declaration.
 - `UI/Inventory/MissionsWidget`: the missions page, the inventory's third: opening, layout and the mission log;
-  `MissionsWidgetDetails.cpp` the chosen mission's steps, objectives and rewards, the keys and tracking.
+  `MissionsWidgetDetails.cpp` the chosen mission's steps, objectives and rewards, the keys and tracking;
+  `MissionsWidgetFeatures.cpp` the optional lines, Carried and the choice.
   Once all steps are done: 'Ready to turn in: talk to X'. It lists only missions taken up (active, completed); one not
   yet accepted shows only as its giver's ? (the user's call, 2026-10-13).
 - `UI/Inventory/MapWidget`: `UMapWidget`, the map, the inventory's fourth page (the Map key, M or down on the D-pad, opens
@@ -1246,7 +1332,9 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   `NoticeBoardWidgetCards.cpp` makes the cards and acts on them.
 - `UI/World/MissionOfferWidget`: `UMissionOfferWidget` and `FMissionOfferCard`, the offer card (kind, title, giver and place,
   briefing, first step, rewards, Accept / Not now, the ACCEPTED stamp). `MissionOfferWidgetCard.cpp` the words,
-  `MissionOfferWidgetInput.cpp` keys / pad / mouse, `MissionOfferWidgetMotion.cpp` the motion.
+  `MissionOfferWidgetInput.cpp` keys / pad / mouse, `MissionOfferWidgetMotion.cpp` the motion. `EMissionCardMode` (Offer,
+  Choice, Read) and `FMissionChoiceCard`; `MissionOfferWidgetChoice.cpp` is the turn-in's choice of two,
+  `MissionOfferWidgetRead.cpp` the reading mode.
 - `UI/World/GiverMarkSubsystem`: `UGiverMarkSubsystem` and `FGiverMark`, the givers' marks (since the user's call of
   2026-10-13: ? for a mission to pick up, ! for one to turn in; gold or white) for the minimap and the world, the NewOffer
   chime.
@@ -1260,6 +1348,10 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `UI/World/BossShrineWidget`: `UBossShrineWidget`, a vigil stone's menu (a LooterUI panel over the dimmed world): the boss's
   name and level, its last laying to rest, times beaten, drops, the countdown or why not, and "Call it back"; opens and
   closes itself (`OpenFor`), closing if the player walks off.
+- `UI/World/LostLootWidget`: `ULostLootWidget`, Lost Property's screen (a LooterUI panel over the dimmed world): tickets
+  newest first with stubs and NEXT TO GO, more shelving, the gun's card with Claim, the CLAIMED stamp, the confirm, keys, pad
+  and mouse. `LostLootWidgetOpen.cpp`, `LostLootWidgetRows.cpp`, `LostLootWidgetCard.cpp`, `LostLootWidgetActions.cpp` and
+  `LostLootWidgetInput.cpp` are opening, the rows, the gun's card, the actions and the input.
 
 ## Dev
 - `Dev/WeaponDevCommands.cpp`: console commands for testing (`Looter.GiveWeapon`, a named gun too:
@@ -1280,7 +1372,7 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   save's upgrade checked on a copy), `.Copy <from> <to>` (into an empty slot only), `Looter.Travel <area or level>
   [landing]`, `Looter.Area.List`.
 - `Dev/CreatureDevCommands.cpp`: `Looter.CreatureHealth`, gives the nearest creatures chosen health (to compare their
-  bars); `Looter.SpawnCreature <Spider|Spiderling|Gravemother|Slime|Unpaid> [rank] [count] [chase] [size=] [level=]` (no rank:
+  bars); `Looter.SpawnCreature <Spider|Spiderling|Gravemother|Slime|Unpaid|DeadMiner|Foreman> [rank] [count] [chase] [size=] [level=]` (no rank:
   the kind's own), spawns ranked creatures in front of the player (gone for good once killed); `Looter.Perf.Horde <kind> <count> [rank] [x y yaw]`, a fight measured where it
   happens (the player put there, unhurtable, the creatures coming at them; for `perf.ps1 -Exec`).
 - `Dev/BossDevCommands.cpp`: `Looter.Boss.Test [phases]`, the test boss in front of the player with its fight started;
@@ -1339,8 +1431,8 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `BossShowTests.cpp` (every boss's show: the stagger, camera shake, loot shower, the bar's intro, callouts and last word, the death), `BossShrineTests.cpp` (the vigil stones: only after a first defeat, the five-minute and Save & Quit rules, a lair's boss back on a load, Abel called back with no second scene, the session's record through a save), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `CreatureRankFlashTests.cpp` (the tag's rank-word pop, a pure function of the sting's age), `CreatureBarkTests.cpp` (the Unpaid's barks: the lines by situation and rank, none twice, the board's one at a time with its pauses and rests, the murmur's syllables and contour, the director near the player and out of hearing), `CreatureAnimMotionTests.cpp` (`Looter.Creatures.Anim.*`: the moments `Looter.CastShots` caught going wrong, a spider's death curl and its bite's raised front legs, an Unpaid banking into a turn), `CreatureAnimTests.cpp` (how the creatures move, measured on their poses: the Unpaid's arms keep out of its torso and don't pop, its shroud lifts off rising ground, a slime lies along a slope, a spider's hit jolt), `CreatureSteeringTests.cpp` (the planner and the unstick's rules in a flat world of fences and pens), `CreatureSteeringRulesTests.cpp` (when the unstick acts, the side the planner keeps), `CreatureSteeringPlayTests.cpp` (the looks and the unstick against real geometry in test levels), `CreaturePursuitTests.cpp` (`Looter.Creatures.Pursuit.*`: a hunt kept up until a real reason, the search at the last known spot, the wait at its edge or under a player out of reach, the lock-on radii a fifth bigger, bosses' own rules), `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `EncounterCampTests.cpp` (with `EncounterLayoutReader.h`: Ransom's Rest's camps, patrols and ambushes read from the layout, and when the story lets them on), `EncounterPackTests.cpp` (flanking, breaking off, the rank sting), `EncounterPatrolTests.cpp` (a patrol's walk and file, an ambush sprung by walking in), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LoadoutTests.cpp` (the loadout screen's sort, compare, first glance and NEW marks, and the screen), `LevelBandTests.cpp` (with `AreaLevelsLayout.h`: the layout's `gameplay.levels` as an area), `CreatureAreaLevelTests.cpp` (`Looter.Creatures.AreaLevels`: every fight's and encounter's levels by where it stands, the bosses' set levels, never the player's), `LightingTests.cpp`, `HouseLightsTests.cpp` (a house's lamp and windows brighten at dusk through an instance of their own), `TownLifeTests.cpp` (Ransom's Rest's town life: each household's sounds, a first pass against lingering, the pauses between sounds, the townsfolk's doors muttering by the story's point, the dog far off), `LocomotionTests.cpp`, `LocomotionPlayTests.cpp` (with `LocomotionTestWorld.h`), `LocomotionTraversalTests.cpp` (the mantle's and vault's curves, rules and plans without a world), `LocomotionTraversalPlayTests.cpp` (mantle, vault and never-climbed things on the real character), `LocomotionJumpAssistTests.cpp` (coyote time, the jump buffer, step-ups, a wedged player nudged free), `PlayerPaceTests.cpp` (`Looter.Locomotion.Pace*`: the game's pace, every player speed at size times pace, and the chases still holding their odds against it), `LootTests.cpp`, `LootRankTests.cpp`, `RecoveryTests.cpp` (the wounds that close, soul-mote drops by rank), `RecoveryMoteTests.cpp` (with `RecoveryTestWorld.h`: a mote's hook, pull, heal and look), `FeedbackTests.cpp` (`Looter.Feedback.*`: hit-stop and stagger rules, view kicks, the camera shake setting, damage direction, loot fanfare, damage numbers), `MeleeTests.cpp` (the strike's reach, damage, gate, stagger, key and motion), `MeleePlayTests.cpp` (the strike in a test level: the body in front, the knock, sounds by body, a reload cut short), `GrenadeTests.cpp` (`Looter.Grenade.*`: the grave-salt grenade's rules alone: the toss's arc, the bounce and roll, the fuse, the burst's damage and falloff, the count and its save, when a throw can start, its key and its motion), `GrenadePlayTests.cpp` (the grenade in a test level: its flight and fuse, a body bursting it on contact, what the burst reaches, the knock, the count and the save), `PlayerAnimTests.cpp` (with `PlayerAnimTestKit.h`: the climbing pose from a plan, the stance layer on the mannequin's reference pose, the melee jab), `PlayerAnimActionTests.cpp` (the stance layer's grenade throw and the Drover's reload, and the support hand clear of the shooting hand), `PlayerAnimPlayTests.cpp` (with `PlayerAnimPlayKit.h`: the feet's pace against the ground on the real character), `PlayerAnimClimbPlayTests.cpp` (the climbing pose and body clearances played out frame by frame),
-  `MinimapTests.cpp`, `MapTests.cpp` (the map page: its view as plain math, when fast travel may go and why not, the pins gathered from a level, a travel run through its fade, the page driven by its keys), `ProgressRingTests.cpp` (`Looter.UI.ProgressRing.*`: the ring's geometry and pop, the Interact and scene-skip prompts' rings, the compass letters), `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `MissionTrackerTests.cpp` (when the HUD tracker ticks an objective), `MissionTurnInTests.cpp` (a finished mission waiting for its turn-in: ready, giver, rewards, save, automatic, the talk, old saves), `MissionGiverTests.cpp` (`Looter.Missions.Givers.*`: missions picked up from their givers: available, the offers at a giver, accepting, old saves' running missions counting as taken, a talk offering, an artifact read), `MissionGiverViewTests.cpp` (the givers' side on screen: the map's pins, the marks, a notice board's bounties, the offer card), `MissionCompleteBannerTests.cpp` (the mission-complete banner and what is heard), `PlayableAreaTests.cpp`, `GroundIgnoreTests.cpp` (the ground traces' ignore list: cached, and it still skips a volume spawned later), `PosterTests.cpp`, `ProgressionTests.cpp`, `ProgressionPacingTests.cpp` (the pacing pass: about level 6.9 at the story's end, each kill at its spot's levels), `RespawnTests.cpp`, `GraveSaveTests.cpp` (`Looter.Grave.Save.*`: the rules for when a walk up marks a grave, the walk-up itself, where a Continue wakes, the lantern dark then lit), `GraveMarkedBannerTests.cpp` (`Looter.UI.GraveMarked.*`: the banner's easing and its queue), `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `NewGameTests.cpp` (`Looter.NewGame.*`: a new game's save and the story from its start: the first cast-off recorded, a Common Bullpup in hand, Ransom's Rest first), `LevelReloadTests.cpp` (`Looter.LevelReload.*`: after Save & Quit and Continue, the world's labels show again though a menu hid them in the last level, and ammo and silver go on with the life they had left), `SettingsTests.cpp`, `SettingsPreviewTests.cpp` (the settings menu's live previews: a slider's hold, linger and fade, the field of view driving the first-person camera and the menu stepping aside, the minimap zoom's live copy, Esc cancelling a drag), `MenuNavTests.cpp` (the menus for a controller and the keyboard: the plain rules, the shared focus over real widgets, the settings menu and the main menu driven by keys: focus order, A, B, LB / RB, a slider stepped and held faster, B cancelling a held preview, the focus look only under keys or a gamepad, the prompts by device), `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `HallowedGroundTests.cpp` (Main 4: its steps, Main 3 first, the yard's two waves by count and rank, the bell held, the Reliquary's flash ending its step, Aldana's words and the chapel yard's grave; the Unpaid on boot hill and the north road after it; the placed pieces), `ChapelTests.cpp` (the bell's hold, swing and tolls; Grave Sight's flash and the Reliquary's look timing out; Aldana's topics) with `HallowedGroundTestWorld.h`, `EggSacTests.cpp` (the egg sac's fall, burst and spiders, shootable only in its step; the lantern dark, taken in its step, gone after), `KeepersLanternTests.cpp` (with `KeepersLanternTestWorld.h`; Main 5: its steps, Main 4 first, the floor's spiders, Side 3 after it, the placed pieces), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `SpitterTests.cpp` (`Looter.Creatures.Spitter.*`: the Venom Spitter's rules, the lob's arc and a miss on a moving target, its tell before every spit, its puddle's burn and drying, its weak spots and a spit choked by a shot to the sac, its Ledger page), `SpitterPlayTests.cpp` (the Spitter keeping its distance on a floor: backing away, settling in its band, closing in from far, cornered it bites), `BellRingerTests.cpp` (`Looter.Creatures.BellRinger.*`: the Bell-Ringer's stats and rules, keeping its distance, the tell before every toll, a toll raising one of the Unpaid fallen lately or steadying its pack, a shot to the bell losing the toll, its Ledger page), `StationTests.cpp`, `StoryTests.cpp`, `TutorialTests.cpp` (the reworked first goal, how the tutorial starts and is done, the tracker, the gun rack), `ControlHintTests.cpp` (each hint's trigger and the moment it goes, one at a time, limits and memory), `ControlHintOpeningTests.cpp` (`Looter.Tutorial.Hints.*`: the hints that make the game's whole tutorial: fire, crouch, interact and hold, the Ledger, the missions page, the map, a grenade picked up; none over a conversation; every hint covered), `NoticeBoardTests.cpp` (Skyreach's notice board: postings up once the first goal is done, tracked and turned in for guns, kept by the save; the zone objective counting Web Hollow's spiders and the Wallow's slimes), `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `GravemotherTests.cpp` (her body, charge, brood, pack calls by tag,
-  loot), `GravemotherFightTests.cpp` (her boss fight: phases and pace, the roar that starts it, her brood as adds, the quake, the spit, her reel, her fury's crack, standing down), `GravemotherSideTests.cpp` (her return after 20 minutes of play, her lair and where it puts her: room for her body, her den's floor, her brood in it; Side 3), `UnfinishedBusinessTests.cpp` (with `UnfinishedBusinessTestWorld.h`: Side 2 end to end, the bales counted from the world and kept by the save, the hands by count and rank, the placed pieces, its fences and wall counted as the dressing's instances on the layout's lines), `AmosTests.cpp` (his pose table, every bone posed in the game against it, topics by the story, the rail, the seat on the rail, ticking only while he moves, his Ledger page), `RangerCachesTests.cpp` (step 26: a chest's wheel and lid, its loot and odds per kind, once only, kept open by the save; the caches and the Strongbox as Ransom's Rest is built), `LootContainersTests.cpp` (the lootable world's containers: a coffin pried and a grave dug with a hold, a mailbox and a footlocker opened with a tap, each one's loot and the way it opens, kept open by the save, and where `build_area_loot.py` put them in the two levels), `BreakableTests.cpp` (the crates and barrels: one strike breaks each, a round never does, the pieces thrown, landing and shrinking from a capped pool, the ammo and mote odds counted, never a gun, kept broken by the save), `RansomsRestLevelTests.cpp` (every respawn grave, player start, encounter spot and tour view inside the playable boundary), `AbelTests.cpp`, `AbelFightTests.cpp` (with `AbelTestWorld.h`: Abel's pose table, rules, body, phases, lanterns, reset, fog wall, the Gravewind and a fall, the kneel and the scene), `AbelShowTests.cpp` (his entrance, stagger on a knee, shots from the fog, barrage in the wind, loot waiting for the scene), `GravewindTests.cpp` (with `GravewindTestWorld.h`: Main 6 end to end, Pa on his board, the dusk scenery, the level as built), `TrainTests.cpp` (the train's assembly and rolling wheels, cold until Main 7, its two shots, which trips go by train), `LanternLeansTests.cpp` (with `LanternLeansTestWorld.h`: Main 7's steps after Main 6, Delia's hand-off once, the board read opening the Lily, Ned's page, the flame's lean), `LanternLeansPlacedTests.cpp` (the Lily's area and the board's "isn't open yet"; Main 7's placed pieces), `HeirloomRewardTests.cpp` (reward guns coming up on the player's side of a giver's window or fence, tossed and landing as loot; Heirloom exactly once whatever order Delia's door, a save and the turn-in come in), `WeaponTests.cpp`, `WeaponTriggerTests.cpp` (`Looter.Weapons.Trigger.*`: spammed clicks queue nothing late: the buffer's rule over random clicking, then the pump, the Drover and the rifle with a gun's cooldown stepped by hand), `AmmoCollectTests.cpp` (`Looter.Loot.AmmoCollect`, `.GrenadeCollect`: a drop is always collected, partly added or silently spent when the pool is full), `NamedWeaponTests.cpp` (named guns: the
+  `MinimapTests.cpp`, `MapTests.cpp` (the map page: its view as plain math, when fast travel may go and why not, the pins gathered from a level, a travel run through its fade, the page driven by its keys), `ProgressRingTests.cpp` (`Looter.UI.ProgressRing.*`: the ring's geometry and pop, the Interact and scene-skip prompts' rings, the compass letters), `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `MissionTrackerTests.cpp` (when the HUD tracker ticks an objective), `MissionTurnInTests.cpp` (a finished mission waiting for its turn-in: ready, giver, rewards, save, automatic, the talk, old saves), `MissionGiverTests.cpp` (`Looter.Missions.Givers.*`: missions picked up from their givers: available, the offers at a giver, accepting, old saves' running missions counting as taken, a talk offering, an artifact read), `MissionGiverViewTests.cpp` (the givers' side on screen: the map's pins, the marks, a notice board's bounties, the offer card), `MissionCompleteBannerTests.cpp` (the mission-complete banner and what is heard), `MissionOptionalTests.cpp` (`Looter.Missions.Optional.*`: an optional objective never holds its step, is kept by the save and pays its bonus), `MissionItemTests.cpp` (`Looter.Missions.Items.*`: mission items carried and dropped by their carrier, counted by the collect objective), `MissionChoiceTests.cpp` (`Looter.Missions.Choice.*`: a turn-in's choice of two, its rewards in place of the mission's, a speaker point opening the card), `MissionPropsTests.cpp` (the mission features' props: `Looter.World.SafeGround.HeightBand`, `Looter.UI.Minimap.Underground`, `Looter.World.PorchPlate`, `Looter.World.Readable`), `PlayableAreaTests.cpp`, `GroundIgnoreTests.cpp` (the ground traces' ignore list: cached, and it still skips a volume spawned later), `PosterTests.cpp`, `ProgressionTests.cpp`, `ProgressionPacingTests.cpp` (the pacing pass: about level 6.9 at the story's end, each kill at its spot's levels), `RespawnTests.cpp`, `GraveSaveTests.cpp` (`Looter.Grave.Save.*`: the rules for when a walk up marks a grave, the walk-up itself, where a Continue wakes, the lantern dark then lit), `GraveMarkedBannerTests.cpp` (`Looter.UI.GraveMarked.*`: the banner's easing and its queue), `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `NewGameTests.cpp` (`Looter.NewGame.*`: a new game's save and the story from its start: the first cast-off recorded, a Common Bullpup in hand, Ransom's Rest first), `LevelReloadTests.cpp` (`Looter.LevelReload.*`: after Save & Quit and Continue, the world's labels show again though a menu hid them in the last level, and ammo and silver go on with the life they had left), `SettingsTests.cpp`, `SettingsPreviewTests.cpp` (the settings menu's live previews: a slider's hold, linger and fade, the field of view driving the first-person camera and the menu stepping aside, the minimap zoom's live copy, Esc cancelling a drag), `MenuNavTests.cpp` (the menus for a controller and the keyboard: the plain rules, the shared focus over real widgets, the settings menu and the main menu driven by keys: focus order, A, B, LB / RB, a slider stepped and held faster, B cancelling a held preview, the focus look only under keys or a gamepad, the prompts by device), `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `HallowedGroundTests.cpp` (Main 4: its steps, Main 3 first, the yard's two waves by count and rank, the bell held, the Reliquary's flash ending its step, Aldana's words and the chapel yard's grave; the Unpaid on boot hill and the north road after it; the placed pieces), `ChapelTests.cpp` (the bell's hold, swing and tolls; Grave Sight's flash and the Reliquary's look timing out; Aldana's topics) with `HallowedGroundTestWorld.h`, `EggSacTests.cpp` (the egg sac's fall, burst and spiders, shootable only in its step; the lantern dark, taken in its step, gone after), `KeepersLanternTests.cpp` (with `KeepersLanternTestWorld.h`; Main 5: its steps, Main 4 first, the floor's spiders, Side 3 after it, the placed pieces), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `SpitterTests.cpp` (`Looter.Creatures.Spitter.*`: the Venom Spitter's rules, the lob's arc and a miss on a moving target, its tell before every spit, its puddle's burn and drying, its weak spots and a spit choked by a shot to the sac, its Ledger page), `SpitterPlayTests.cpp` (the Spitter keeping its distance on a floor: backing away, settling in its band, closing in from far, cornered it bites), `BellRingerTests.cpp` (`Looter.Creatures.BellRinger.*`: the Bell-Ringer's stats and rules, keeping its distance, the tell before every toll, a toll raising one of the Unpaid fallen lately or steadying its pack, a shot to the bell losing the toll, its Ledger page), `DeadMinerTests.cpp` (`Looter.Creatures.DeadMiner.*`: the miners' rules and stats, the lamp budget, the swing, the work, the shift spawner), `ForemanTests.cpp` (`Looter.Creatures.Foreman.*`: the Foreman's rules and stats, his fight, a reset, his engagement), `DeadFriendTests.cpp` (`Looter.Story.DeadFriends.*`: Hiram's and Thaddeus's pose tables and the characters in a test level), `StationTests.cpp`, `StoryTests.cpp`, `StoryFlagConditionTests.cpp` (`Looter.Story.Condition.Flags`; `Looter.Economy.VendorVoice`: a vendor's hatch as a mission giver and turn-in, ahead of the shop's screen), `TutorialTests.cpp` (the reworked first goal, how the tutorial starts and is done, the tracker, the gun rack), `ControlHintTests.cpp` (each hint's trigger and the moment it goes, one at a time, limits and memory), `ControlHintOpeningTests.cpp` (`Looter.Tutorial.Hints.*`: the hints that make the game's whole tutorial: fire, crouch, interact and hold, the Ledger, the missions page, the map, a grenade picked up; none over a conversation; every hint covered), `NoticeBoardTests.cpp` (Skyreach's notice board: postings up once the first goal is done, tracked and turned in for guns, kept by the save; the zone objective counting Web Hollow's spiders and the Wallow's slimes), `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `GravemotherTests.cpp` (her body, charge, brood, pack calls by tag,
+  loot), `GravemotherFightTests.cpp` (her boss fight: phases and pace, the roar that starts it, her brood as adds, the quake, the spit, her reel, her fury's crack, standing down), `GravemotherSideTests.cpp` (her return after 20 minutes of play, her lair and where it puts her: room for her body, her den's floor, her brood in it; Side 3), `UnfinishedBusinessTests.cpp` (with `UnfinishedBusinessTestWorld.h`: Side 2 end to end, the bales counted from the world and kept by the save, the hands by count and rank, the placed pieces, its fences and wall counted as the dressing's instances on the layout's lines), `AmosTests.cpp` (his pose table, every bone posed in the game against it, topics by the story, the rail, the seat on the rail, ticking only while he moves, his Ledger page), `RangerCachesTests.cpp` (step 26: a chest's wheel and lid, its loot and odds per kind, once only, kept open by the save; the caches and the Strongbox as Ransom's Rest is built), `LootContainersTests.cpp` (the lootable world's containers: a coffin pried and a grave dug with a hold, a mailbox and a footlocker opened with a tap, each one's loot and the way it opens, kept open by the save, and where `build_area_loot.py` put them in the two levels), `BreakableTests.cpp` (the crates and barrels: one strike breaks each, a round never does, the pieces thrown, landing and shrinking from a capped pool, the ammo and mote odds counted, never a gun, kept broken by the save), `RansomsRestLevelTests.cpp` (every respawn grave, player start, encounter spot and tour view inside the playable boundary), `AbelTests.cpp`, `AbelFightTests.cpp` (with `AbelTestWorld.h`: Abel's pose table, rules, body, phases, lanterns, reset, fog wall, the Gravewind and a fall, the kneel and the scene), `AbelShowTests.cpp` (his entrance, stagger on a knee, shots from the fog, barrage in the wind, loot waiting for the scene), `GravewindTests.cpp` (with `GravewindTestWorld.h`: Main 6 end to end, Pa on his board, the dusk scenery, the level as built), `TrainTests.cpp` (the train's assembly and rolling wheels, cold until Main 7, its two shots, which trips go by train), `OreLiftTests.cpp` (`Looter.OreLift.*`: the lift's motion and rules, a ride both ways, the call), `OreLiftRideTests.cpp` (with `OreLiftTestWorld.h`: closed until its step, the autosave held through a ride, a death mid-ride), `WatchFireTests.cpp` (`Looter.WatchFire.Lit`, `Looter.FarSignalLight.*`: the watch fire lit by a hold and kept, the far light's Morse and the story showing it), `InteriorVisibilityTests.cpp` (`Looter.InteriorVisibility.Views`: an interior hidden from outside and the outside from inside), `LanternLeansTests.cpp` (with `LanternLeansTestWorld.h`: Main 7's steps after Main 6, Delia's hand-off once, the board read opening the Lily, Ned's page, the flame's lean), `LanternLeansPlacedTests.cpp` (the Lily's area and the board's "isn't open yet"; Main 7's placed pieces), `HeirloomRewardTests.cpp` (reward guns coming up on the player's side of a giver's window or fence, tossed and landing as loot; Heirloom exactly once whatever order Delia's door, a save and the turn-in come in), `WeaponTests.cpp`, `WeaponTriggerTests.cpp` (`Looter.Weapons.Trigger.*`: spammed clicks queue nothing late: the buffer's rule over random clicking, then the pump, the Drover and the rifle with a gun's cooldown stepped by hand), `AmmoCollectTests.cpp` (`Looter.Loot.AmmoCollect`, `.GrenadeCollect`: a drop is always collected, partly added or silently spent when the pool is full), `LostLootTests.cpp` (`Looter.LostLoot.Rules`, `.Shelves`: Lost Property's rules and shelves without a level), `LostLootPlayTests.cpp` (`.GroundLife`, `.Leaving`, `.QuitAndLoad`, `.OldSaves`, `.Claim`: the ground's five minutes, the hand-in on leaving, the shelves through a quit and load, an old save reading as none, a claim), `LostLootScreenTests.cpp` (`.Screen`: Lost Property's screen), `NamedWeaponTests.cpp` (named guns: the
   fixed-quality rules, Heirloom's asset and label, its save, the mission reward),
   `RevolverTests.cpp` (the Drover: its definition against the rifle's and the shotgun's, its parts and keys, the cylinder's swing and turn, the reload's choreography and sounds, its kick, nicknames and the arms holding it out), `WeaponPartsTests.cpp`, `WeaponNotchesTests.cpp`, `WeaponCursesTests.cpp`, `WeaponPartSwapTests.cpp` (the gun
   ideas' rules), `GunIdeasPlayTests.cpp` (the gun ideas in play: notches counted, curses' shots and health, the tally
@@ -1454,8 +1546,8 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   Its full build places the ambient emitters (`build_area_sound.py`) and, last, the area's ambient life
   (`build_area_fauna.py`); its gameplay pass adds the island's notice board (`build_area_board.py`) and the encounters
   between the story's fights (`build_area_camps.py`) and Ransom's Rest's town life (`build_area_townlife.py`), the vendors
-  (`build_area_vendors.py`) and the vigil stones (`build_area_shrines.py`); the lootable
-  world (`build_area_loot.py`) goes in before the fauna, in the full build and the `dressing` mode.
+  (`build_area_vendors.py`), Lost Property's window (`build_area_lostloot.py`) and the vigil stones
+  (`build_area_shrines.py`); the lootable world (`build_area_loot.py`) goes in before the fauna, in the full build and the `dressing` mode.
 - `Tools/Unreal/build_area_panels.py`: a pit's wall dressed with the narrow cliff panels and the seam wedge
   (CliffPanel_A/B/C, CliffSeam_A) in place of a cliff group's faces, for `build_area.py` (`level.cliffs.panels`;
   the Sink's wall): a run along the pit's outline between its gaps and its ramp, each panel leaning with the wall
@@ -1528,6 +1620,11 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   (or on its own): derived from the built level at a shop's door, 0.95 m out from the store's lamp socket, facing out.
   Ransom's Rest: Pruitt's General Store on Main Street (`Vendor_Pruitt`, open after Main 3); Skyreach: the practice store
   front on Crossroads Town's square (`Vendor_Crossroads`, always open). In the area's `Gameplay/Vendors` folder.
+  Pruitt's hatch gets its `Voice` (name and tag) here.
+- `Tools/Unreal/build_area_lostloot.py`: Lost Property's window (`ALostPropertyWindow`) for `build_area.py`'s gameplay pass,
+  after the vendors (or on its own: `py .../build_area_lostloot.py <Area>`): on the depot's SOCKET_LostProperty (SM_RR_Depot),
+  else beside the old depot's station board with a placeholder sign; an area with no station (Skyreach) gets none. In the
+  area's `Gameplay/LostProperty` folder.
 - `Tools/Unreal/build_area_travel.py`: where an area's trips start and end, for `build_area.py`: the skiff jetty
   (`gameplay.jetty`), the depot as its station with the landing on the platform, the first arrival's player start
   beside the level's own (`gameplay.spawnLanding`), and markers for other landings.
@@ -1539,7 +1636,8 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   shutters, the farm's and Main Street's safe zones (Main 3); Main 4's pieces from `build_area_chapel.py`; Main 5's
   from `build_area_sink.py`; the Gravemother's lair from `build_area_den.py`; the Ranger caches from
   `build_area_caches.py`; Side 2's from `build_area_whitlock.py`;
-  Main 6's from `build_area_deck.py`; Main 7's from `build_area_depot.py`; and Hob with his perches through Main 7
+  Main 6's from `build_area_deck.py`; Main 7's from `build_area_depot.py`; the ore lift, watch fire and far light from
+  `build_area_lift.py`; and Hob with his perches through Main 7
   (on the town gate's SOCKET_Perch for Main 3).
 - `Tools/Unreal/build_area_sink.py`: Main 5's pieces for `build_area_story.py`: the Sink's floor (blocks and coffins, in
   the Sink's own dusty granite), its web cards (shadows off; corner mats at the walls' feet, the floor's mats in dusty
@@ -1566,6 +1664,9 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Tools/Unreal/build_area_depot.py`: Main 7's pieces for `build_area_story.py`: the train in place of `build_area.py`'s
   plain bodies and steam, the depot's place at the hearse car's door, Delia's hand-off, the lantern's leaning flame,
   and Hob's Main 7 spots.
+- `Tools/Unreal/build_area_lift.py`: the ore lift (`AOreLift`), its bell pulls, the lift head's speaking tube, the watch fire
+  and the far light for `build_area_story.py` (Ransom's Rest only), placed from the layout and the art's sockets, with
+  greybox stand-ins for models not yet in, in `Gameplay/Lift`.
 - `Tools/Unreal/build_area_whitlock.py`: Side 2's pieces for `build_area_story.py`: Amos at his fence (in the first
   span past his gate, from `build_area_dressing`'s plan: `run_head`, `span_heights`), his six bales and their stack by
   the barn, the hired hands' fight in the barn yard; Whitlock Fields' fences, wall and round bales are

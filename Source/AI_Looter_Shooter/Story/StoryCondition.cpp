@@ -12,7 +12,7 @@ namespace
 
 bool FStoryCondition::IsEmpty() const
 {
-	return AfterMissions.IsEmpty() && BeforeMissions.IsEmpty() && DuringMission.IsNone();
+	return AfterMissions.IsEmpty() && BeforeMissions.IsEmpty() && WithFlags.IsEmpty() && WithoutFlags.IsEmpty() && DuringMission.IsNone();
 }
 
 bool FStoryCondition::IsMet(const FCampaignRecord& Campaign, const UMissionRunner* Runner) const
@@ -27,6 +27,20 @@ bool FStoryCondition::IsMet(const FCampaignRecord& Campaign, const UMissionRunne
 	for (const FName NotYet : BeforeMissions)
 	{
 		if (!NotYet.IsNone() && Campaign.HasCompleted(NotYet))
+		{
+			return false;
+		}
+	}
+	for (const FName Needed : WithFlags)
+	{
+		if (!Needed.IsNone() && !Campaign.HasFlag(Needed))
+		{
+			return false;
+		}
+	}
+	for (const FName NotSet : WithoutFlags)
+	{
+		if (!NotSet.IsNone() && Campaign.HasFlag(NotSet))
 		{
 			return false;
 		}
@@ -63,6 +77,14 @@ FString FStoryCondition::Describe() const
 	if (!BeforeMissions.IsEmpty())
 	{
 		Parts.Add(TEXT("before ") + JoinIds(BeforeMissions));
+	}
+	if (!WithFlags.IsEmpty())
+	{
+		Parts.Add(TEXT("with flags ") + JoinIds(WithFlags));
+	}
+	if (!WithoutFlags.IsEmpty())
+	{
+		Parts.Add(TEXT("without flags ") + JoinIds(WithoutFlags));
 	}
 	if (!DuringMission.IsNone())
 	{

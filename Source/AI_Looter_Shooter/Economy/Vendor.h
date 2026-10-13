@@ -7,11 +7,17 @@
 #include "Vendor.generated.h"
 
 class USceneComponent;
+class USpeakerPointComponent;
 
 /**
  * A vendor (Docs/Polish/BorderlandsComparison.md, item 13; Docs/Progression.md, "Economy"): a tap of Interact at its
  * spot opens the vendor's screen (ALooterHUD::OpenVendor, UVendorWidget), where the player buys ammo by the box, grave
  * salt by the jar and the gun of the day, and sells guns from the backpack (VendorTrade).
+ *
+ * It can also be where the story's missions are given and turned in (Mrs. Pruitt takes the Gravemother's bounty at the
+ * store's hatch): its Voice, a speaker point that speaks only for the story. While a mission waits to be turned in here, or
+ * one is offered here, or one of the voice's topics applies, Interact talks to the voice (the offer card, the turn-in) in
+ * place of opening the screen, shut or open; the rest of the time it's the shop it always was.
  *
  * It has no model of its own: it stands at a shop's door, whose building is the dressing's. Placed by
  * Tools/Unreal/build_area_vendors.py from the built level:
@@ -51,6 +57,13 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<USceneComponent> Root;
 
+	/**
+	 * The voice the story's missions speak through here (bMissionsOnly: quiet unless a mission is offered or waits to be
+	 * turned in). It sits at the vendor's spot, where the player looks to trade.
+	 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<USpeakerPointComponent> Voice;
+
 	/** The screen's title: "Pruitt's General Store". */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vendor")
 	FText Title;
@@ -71,7 +84,23 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vendor", meta = (ClampMin = "0", Units = "cm"))
 	float Reach = 0.f;
 
+	/** Who the voice is ("Mrs. Pruitt"): the name on the lines it says. Empty: the lines name their own speakers. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vendor|Voice")
+	FText VoiceName;
+
+	/**
+	 * The speaker tag the missions find the voice by ("Speaker_Pruitt": the tag of a turn-in's SpeakerTag or an offer's
+	 * GiverTag), added to the actor's Tags as it starts. None: no tag added.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vendor|Voice")
+	FName VoiceTag;
+
 protected:
+	virtual void PostInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+private:
+	/** The voice takes its name and the actor its tag from what the build script set (not known in the constructor). */
+	void ApplyVoice();
 };

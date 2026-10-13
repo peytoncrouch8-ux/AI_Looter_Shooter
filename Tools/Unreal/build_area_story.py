@@ -804,4 +804,6 @@ def place(build):
     deck_spots = importlib.reload(importlib.import_module('build_area_deck')).place(build)
     # Main 7: the train, the depot's place, Delia's hand-off, the lantern's flame (after the deck: its lantern must stand).
     depot_spots = importlib.reload(importlib.import_module('build_area_depot')).place(build)
+    # Dead Lift and The Last Watch: the ore lift, its bell pulls and speaking tube, Calder's watch fire and the far light.
+    importlib.reload(importlib.import_module('build_area_lift')).place(build)
     place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_spots, deck_spots, depot_spots)

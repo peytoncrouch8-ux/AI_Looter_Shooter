@@ -16,13 +16,23 @@ rework every mission + 4-5 new sides, graves become save points, the mountain ab
 a silver mine, dead miners + a Foreman Legendary, Ransom's Rest's own house kit now (Skyreach later), interiors for the
 mountain buildings, the depot and Tilly's workshop/cellar.
 
-**Wave 1 (running, unbuilt):** contract in the session scratchpad (`contract_wave1.md`); Main pre-wrote
-`FCampaignRecord::AcceptedMissions/LastGraves`, `ALooterHUD::OpenMissionOffer/ShowGraveMarked` and the new sound cue
-names. Agents: A the hold ring + compass letters, B new game on the cold open + hints in Ransom's Rest + no Skyreach on
-the boards + pace 0.9, C mission givers (offers, offer card, ! and ? markers, artifacts, boards anywhere), D graves as
-save points (marked on approach, Continue at the last marked), the design doc, and the art agent's house kit (look sheet
-`Saved/ArtPreviews/RansomsRest/LookSheets/35_Homes.jpg` for the user). After the wave: build, tests, a sound agent for the
-new cues, then the user approves the design before the missions' data, the mountain and the interiors.
+**Wave 1: DONE, committed and pushed (701ebf6)**, 509/511 tests (BankCoversCues waits for the new cues' sounds; the
+pace test renamed `.Pace.Speeds`, unbuilt). Checked in PIE: the offer card (refuses Accept until the prerequisite is
+done), the GRAVE MARKED banner, N/E/S/W on the minimap, the hold ring on a bell. The homes kit is committed (e5a3d6d),
+not imported. **The design is approved** with the user's answers in its section 13 (XP: story ~5.5, full clear ~6.8;
+Foreman set 7; ? = pick up, ! = turn in; the Missions tab lists only accepted missions).
+**The user added Lost Loot** (memory `rr-expansion`): ground guns despawn after 5 min into the depot's LOST PROPERTY
+window (30 spots, +10 upgrades for silver, oldest out when full, all guns).
+
+**Wave 2 (running, 8 agents; contract `contract_wave2.md` in the session scratchpad):** code 2a mission features
+(optional objectives, mission items, choice turn-ins, story flags, UNDERGROUND minimap, porch plate, readable props),
+2b ore lift + watch fire + far light + interior visibility + build_area_lift.py, 2c dead miners + Foreman + Hiram +
+Thaddeus + Ledger pages, 2e Lost Loot; art: the town (3 fronts, Whitlock barn, coal stage, the enterable depot with
+Lost Property, Tilly's workshop + cellar; sheet 36), the mountain (lift set, Calder's Post, mine portal and kit; sheet
+37), character concepts (miners, Foreman, Hiram, Thaddeus; sheet 38, the user picks); terrain (core 400 -> 512 m with the
+valley identical, Larkspur Bench; sheet 39). Main pre-wrote `ALooterHUD::OpenTurnInChoice` and `IsMenuOpen` counting
+`ULostLootWidget::GetOpen()` (unbuilt until 2a/2e land). Next: a sound agent for wave 1's 8 cues and wave 2's; then build
+step 3 (the level: houses swapped, mountain, interiors, graves) and step 4 (all missions' data, XP retune).
 
 ## Start here (2026-10-13, end of the "polish loop" session; the user is opening a new session)
 

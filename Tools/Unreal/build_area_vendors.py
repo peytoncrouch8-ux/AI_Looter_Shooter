@@ -4,7 +4,8 @@ vendor's screen. Its spot is derived from the built level, as the town's doors a
 
 - Ransom's Rest (the layout with Ellis's grave): Pruitt's General Store on Main Street (placement 'store',
   FalseFront_Store). The Pruitts trade through the hatch in their door once Main Street is safe: open after Main 3 (Cold
-  Welcome). Labelled Vendor_Pruitt.
+  Welcome). Labelled Vendor_Pruitt. Its voice is Mrs. Pruitt (tag Speaker_Pruitt): missions are given and turned in at the
+  hatch (AVendor::Voice), ahead of the shop's screen.
 - Skyreach (the layout whose gameplay.director is TutorialDirector): the store front on Crossroads Town's square (its
   'store', the same model), a practice store with an honesty box on the counter, always open. Labelled Vendor_Crossroads.
 
@@ -38,7 +39,8 @@ LAMP_DOWN = 80.0
 # the front, the floor at 0), as the lamp would put it.
 DOOR_FALLBACK = unreal.Vector(30.0, 0.0, 145.0)
 
-# Each area's vendor: its label, the screen's title and greeting, the Interact prompt, and the missions before it opens.
+# Each area's vendor: its label, the screen's title and greeting, the Interact prompt, and the missions before it opens;
+# optionally the voice the story's missions speak through at its door (voice_name, voice_tag).
 VENDORS = {
     'RansomsRest': dict(
         label='Vendor_Pruitt',
@@ -47,6 +49,10 @@ VENDORS = {
                   '"Ammunition, salt, whatever\'s on the shelf. I\'ll take guns off your hands, too."'),
         prompt="Trade at Pruitt's",
         after=('Main3',),
+        # Missions are given and turned in at the hatch (the Gravemother's bounty to Mrs. Pruitt): the vendor's voice, by
+        # name and by the speaker tag the missions find it with (AVendor::VoiceName, VoiceTag).
+        voice_name="Mrs. Pruitt",
+        voice_tag='Speaker_Pruitt',
     ),
     'TutorialIsland': dict(
         label='Vendor_Crossroads',
@@ -122,6 +128,10 @@ def place(build):
     vendor.set_editor_property('greeting', unreal.Text(spec['greeting']))
     vendor.set_editor_property('prompt', unreal.Text(spec['prompt']))
     vendor.set_editor_property('open_when', condition(spec['after']))
+    if spec.get('voice_name'):
+        vendor.set_editor_property('voice_name', unreal.Text(spec['voice_name']))
+    if spec.get('voice_tag'):
+        vendor.set_editor_property('voice_tag', unreal.Name(spec['voice_tag']))
     opens = f'after {", ".join(spec["after"])}' if spec['after'] else 'always'
     build.log(f'{spec["label"]} at ({at.x:.0f}, {at.y:.0f}, {at.z:.0f}) facing {yaw:.0f}, open {opens}')
 

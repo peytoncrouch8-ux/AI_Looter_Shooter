@@ -18,3 +18,9 @@ void UHudMissionTrackerWidget::PlayFinishSound(bool bStepDone, bool bMissionEnde
 	}
 	LooterSound::Play2D(this, LooterSoundCue::MissionStep, bStepDone ? 1.f : 0.7f);
 }
+
+void UHudMissionTrackerWidget::PlayOptionalSound() const
+{
+	// Its own, lighter than a step's chime: something extra done, not the job moving on.
+	LooterSound::Play2D(this, LooterSoundCue::MissionFeatures::OptionalDone);
+}

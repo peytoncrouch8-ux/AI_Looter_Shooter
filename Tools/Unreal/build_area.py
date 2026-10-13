@@ -416,6 +416,8 @@ class AreaBuild:
         importlib.reload(importlib.import_module('build_area_townlife')).place(self)
         # The vendors at their store doors (build_area_vendors.py): Pruitt's hatch, Skyreach's honesty box.
         importlib.reload(importlib.import_module('build_area_vendors')).place(self)
+        # The depot's LOST PROPERTY window, where ground guns are handed in (build_area_lostloot.py).
+        importlib.reload(importlib.import_module('build_area_lostloot')).place(self)
         self.posters.place(self)
 
         # The groups draw from one random stream, in order, so each lands where it did last time.

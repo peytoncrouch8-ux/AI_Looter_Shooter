@@ -7,6 +7,21 @@
 /** Missions changed: one was added or removed, another is tracked, or an objective's text, tracker parts or waypoint came or went. */
 DECLARE_MULTICAST_DELEGATE(FOnMissionsChanged);
 
+/** An optional objective of the step on show, as the tracker lists it under the objective: its short line, count and whether it's done. */
+struct AI_LOOTER_SHOOTER_API FMissionTrackerOptional
+{
+	/** Its short line, with the player's keys in it (the tracker puts "Optional:" before it). */
+	FString Line;
+	/** "1 / 3" while it counts more than one thing; empty otherwise, and once done. */
+	FString Count;
+	bool bDone = false;
+
+	bool SameAs(const FMissionTrackerOptional& Other) const
+	{
+		return Line.Equals(Other.Line, ESearchCase::CaseSensitive) && Count.Equals(Other.Count, ESearchCase::CaseSensitive) && bDone == Other.bDone;
+	}
+};
+
 /**
  * What the HUD's mission tracker shows for a mission, in parts: the objective's short line, its count, the step bar and
  * the key hint. UMissionRunner fills it beside the objective's full words (UMissionObjective::FillTrackerParts, plus the
@@ -52,6 +67,11 @@ struct AI_LOOTER_SHOOTER_API FMissionTrackerParts
 	 * mission): the tracker's own tick at its end stays quiet. Off for the tutorial's missions, whose tracker plays it.
 	 */
 	bool bAnnouncedEnd = false;
+	/**
+	 * The step's optional objectives, in its order (the last step's while the mission waits for its turn-in): never the
+	 * line above, shown under it, dimmed, ticked as each is done.
+	 */
+	TArray<FMissionTrackerOptional> Optionals;
 
 	/** Every part the same, words compared exactly (case too). */
 	bool SameAs(const FMissionTrackerParts& Other) const;

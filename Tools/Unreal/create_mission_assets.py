@@ -104,6 +104,17 @@ and name their giver in the spec's 'offer' (offer(): giver_tag, giver, lines, br
 AMissionArtifact). Every other mission's offer is cleared. Which missions are offered, and by whom, is the story's data
 (wave 2); this script only carries the fields.
 
+The mission features (wave 2a, Docs/Areas/RansomsRest_Expansion.md sections 3-4), each a helper below, for the data step:
+  - optional objectives: objective(..., optional=True) (or event_objective / read_objective / collect_items with
+    optional=True), in a step beside what it asks for; each done pays rewards(optional_silver=10) at the turn-in.
+  - mission items: the spec's 'items' (item(): id, name, line, mesh, the creature that drops it), counted carried by
+    collect_items(asset, text, [ids]); placed in the level as AMissionItem (its item_id) by the level's build script.
+  - readables and the porch plate: read_objective(asset, text, 'KeepersRoll') counts reading the AReadableProp whose
+    readable_id is KeepersRoll; event_objective(asset, text, PORCH_TAKEN / PORCH_EATEN) the porch plate's two uses.
+  - a turn-in with a choice of two: turn_in(..., choices=[choice(...), choice(...)], question=...), each choice with its
+    flag (BackPay.Paid), stamp, lines and rewards (rewards()'s fields, in place of the mission's own).
+  - a purse of its own: rewards(silver=...) (the old missions' purses stay kept by id in MissionRewards::SilverFor).
+
 Objectives are instanced objects inside the asset, one class per kind (UMissionReachObjective, UMissionKillObjective, ...),
 made with unreal.new_object(<class>, asset) and listed in each step's 'objectives'. Classes for actor filters are loaded
 by their script path ('/Script/AI_Looter_Shooter.WeaponRack').
@@ -121,7 +132,9 @@ def mission_types():
              'MissionTravelObjective', 'MissionReachObjective', 'MissionCollectObjective', 'MissionHitObjective',
              'MissionKillObjective', 'MissionOpenPageObjective', 'MissionInteractObjective', 'MissionBoardObjective',
              'MissionSceneObjective', 'MissionTalkObjective', 'MissionClearObjective', 'MissionEventObjective',
-             'MissionKillNamedObjective', 'MissionClearZoneObjective', 'WeaponRarity']
+             'MissionKillNamedObjective', 'MissionClearZoneObjective', 'WeaponRarity',
+             # The mission features (wave 2a): a turn-in's choice, mission items and their objective.
+             'MissionTurnInChoice', 'MissionItemInfo', 'MissionCollectItemObjective']
     missing = [name for name in names if getattr(unreal, name, None) is None]
     if missing:
         raise RuntimeError(f"unreal.{', unreal.'.join(missing)} missing: build the C++ with Missions/ first")
@@ -155,11 +168,14 @@ def place(cls_name=None, tag=None, location=(0.0, 0.0, 0.0), radius=500.0, ignor
 
 
 def objective(asset, cls, text, waypoint=None, waypoint_class=None, waypoint_tag=None, pass_without_targets=False,
-              show_count=True, short='', hint_action='', hint='', **settings):
+              show_count=True, short='', hint_action='', hint='', optional=False, **settings):
     """One objective, made inside the asset (its outer) so it's saved with it. With waypoint ACTOR, the arrow points at
     the nearest actor of waypoint_class and/or carrying waypoint_tag. text is the full sentence (the Missions page);
     short is the HUD mission tracker's line (empty: text), and hint_action/hint its key hint (a binding id such as
-    Reload, Move for the movement keys, and what the key does; none when empty)."""
+    Reload, Move for the movement keys, and what the key does; none when empty). optional: it never holds its step, stays
+    doable until the step ends (the last step's until the turn-in), pays the mission's optional_silver at the turn-in and
+    reads "Optional:" on the tracker and the Missions page (UMissionObjective::bOptional). Write the words without
+    "Optional:", the game adds it; put it in a step beside what the step asks for, never alone."""
     made = unreal.new_object(cls, asset)
     made.set_editor_property('text', unreal.Text(text))
     made.set_editor_property('short_text', unreal.Text(short))
@@ -171,8 +187,91 @@ def objective(asset, cls, text, waypoint=None, waypoint_class=None, waypoint_tag
         made.set_editor_property('waypoint_actor', actor_filter(waypoint_class, waypoint_tag))
     made.set_editor_property('pass_without_targets', pass_without_targets)
     made.set_editor_property('show_count', show_count)
+    made.set_editor_property('optional', optional)
     for name, value in settings.items():
         made.set_editor_property(name, value)
+    return made
+
+
+# ---------------------------------------------------------------------------
+# The mission features (wave 2a, Docs/Areas/RansomsRest_Expansion.md sections 3-4): helpers the missions' data uses
+# ---------------------------------------------------------------------------
+
+# Events the game's things send (the C++ names): reading a readable (AReadableProp::EventFor), the porch plate's two uses
+# (APorchPlate's TakenFlag and EatenFlag, the same names as their story flags).
+PORCH_TAKEN = 'PorchPlate.Taken'
+PORCH_EATEN = 'PorchPlate.Eaten'
+
+
+def readable_event(readable_id):
+    """'Readable.KeepersRoll': the event reading the AReadableProp whose readable_id is readable_id sends."""
+    return f'Readable.{readable_id}'
+
+
+def story_lines(lines):
+    """A list of FStoryLine from (speaker, words) pairs; an empty speaker is whoever's point says it."""
+    said = []
+    for who, words in lines:
+        line = unreal.StoryLine()
+        line.set_editor_property('speaker', unreal.Text(who))
+        line.set_editor_property('text', unreal.Text(words))
+        said.append(line)
+    return said
+
+
+def event_objective(asset, text, event, count=1, optional=False, **kwargs):
+    """An Event objective: done when the named event happens count times (a readable read, the porch plate eaten)."""
+    return objective(asset, unreal.MissionEventObjective, text, optional=optional, show_count=count > 1,
+                     event=unreal.Name(event), count=count, **kwargs)
+
+
+def read_objective(asset, text, readable_id, optional=False, **kwargs):
+    """Read an AReadableProp (its Readable.<id> event): the keepers' roll, the wages chalk, Ruth's journal. Its arrow is
+    on the prop (every readable tags itself Readable_<id>, AReadableProp::TagFor)."""
+    kwargs.setdefault('waypoint', unreal.MissionWaypoint.ACTOR)
+    kwargs.setdefault('waypoint_tag', f'Readable_{readable_id}')
+    return event_objective(asset, text, readable_event(readable_id), optional=optional, **kwargs)
+
+
+def collect_items(asset, text, items, optional=False, **kwargs):
+    """Have mission items (UMissionCollectItemObjective): done once every one of items (their ids, from this mission's
+    'items') is carried; the arrow on the nearest lying in the level, else on the living creature carrying one."""
+    return objective(asset, unreal.MissionCollectItemObjective, text, optional=optional, show_count=len(items) > 1,
+                     items=[unreal.Name(each) for each in items], **kwargs)
+
+
+def item(item_id, name, line='', mesh='', dropped_by_class=None, dropped_by_tag=None):
+    """FMissionItemInfo: a thing that belongs to the mission. item_id is what the campaign keeps it by (never rename or
+    reuse one; unique across missions); name and line are the Carried list's; mesh (an asset path, may not exist yet: the
+    pickup then shows a stand-in) is its model for a pickup that names none and for a drop; dropped_by_class/_tag name the
+    creature that carries it, which drops it at its body on dying (the Gravemother by class, Abe Haskett by his tag)."""
+    made = unreal.MissionItemInfo()
+    made.set_editor_property('id', unreal.Name(item_id))
+    made.set_editor_property('name', unreal.Text(name))
+    made.set_editor_property('line', unreal.Text(line))
+    if mesh:
+        model = unreal.load_asset(mesh) if unreal.EditorAssetLibrary.does_asset_exist(mesh) else None
+        if model is None:
+            unreal.log_warning(f"MISSIONS item {item_id}: {mesh} isn't made yet: its pickup shows a stand-in until it is")
+        else:
+            made.set_editor_property('mesh', model)
+    if dropped_by_class or dropped_by_tag:
+        made.set_editor_property('dropped_by', actor_filter(dropped_by_class, dropped_by_tag))
+    return made
+
+
+def choice(title, line, flag='', stamp='', lines=(), **reward_settings):
+    """FMissionTurnInChoice: one of a turn-in's two choices. title is its button's words ("Pay the eleven"), line what it
+    means; flag the story flag it sets (BackPay.Paid; other code reads it); stamp the word slammed over the card ("PAID");
+    lines what's said once it's chosen ((speaker, words); an empty speaker is the giver's point). reward_settings are
+    rewards()'s: what it gives in place of the mission's own (experience left at 0 keeps the mission's)."""
+    made = unreal.MissionTurnInChoice()
+    made.set_editor_property('title', unreal.Text(title))
+    made.set_editor_property('line', unreal.Text(line))
+    made.set_editor_property('flag', unreal.Name(flag))
+    made.set_editor_property('stamp', unreal.Text(stamp))
+    made.set_editor_property('lines', story_lines(lines))
+    made.set_editor_property('rewards', rewards(**reward_settings))
     return made
 
 
@@ -183,12 +282,16 @@ def step(*objectives):
 
 
 def rewards(experience=0, experience_share=0.0, unlock_areas=(), gun=False, gun_rarity_floor='COMMON', named_gun='',
-            named_gun_by_hand=False, gun_kind=''):
+            named_gun_by_hand=False, gun_kind='', silver=0, optional_silver=10):
     """FMissionRewards: a fixed amount of experience (Docs/Progression.md tunes each; or a share of a level's when it's 0),
     areas opened, a gun at the player's feet (at least as rare as the floor; of gun_kind, a weapon definition's asset
     path, or else one from the default loot table), and a named gun by id, dropped, or handed over in the story (by hand:
-    listed, never dropped)."""
+    listed, never dropped). silver: the purse at the turn-in, the same at any level (0: the giver's purse kept by mission
+    id in MissionRewards::SilverFor, which the old missions use); optional_silver: what each optional objective done adds
+    at the turn-in, at level 1 (it grows with the player's level as the economy does)."""
     made = unreal.MissionRewards()
+    made.set_editor_property('silver', silver)
+    made.set_editor_property('optional_silver', optional_silver)
     made.set_editor_property('experience', experience)
     made.set_editor_property('experience_share', experience_share)
     made.set_editor_property('unlock_areas', [unreal.Name(area) for area in unlock_areas])
@@ -205,22 +308,24 @@ def rewards(experience=0, experience_share=0.0, unlock_areas=(), gun=False, gun_
     return made
 
 
-def turn_in(automatic=False, speaker='', giver='', lines=()):
+def turn_in(automatic=False, speaker='', giver='', lines=(), choices=(), question=''):
     """FMissionTurnIn: who the mission is turned in to once its objectives are done (their speaker tag and their name for
     "Turn in to <giver>"), and what they say then (lines of (speaker, words); an empty speaker is the giver's speaker
     point's name; none: what they'd say there anyway, for a talk the story already wrote). automatic: it finishes by
-    itself after its last objective (no one to turn it in to)."""
+    itself after its last objective (no one to turn it in to). Anyone at a speaker point can be the giver: a door, a
+    window, a talking coffin, a speaking tube, a tag board (ASpeakerPoint, its bMissionsOnly keeping it quiet otherwise).
+    choices: none, or two choice()s: the talk says lines, then the card asks the player to hold one of the two down
+    (question over them; empty: the card's own words); the mission finishes with that choice's rewards and flag."""
+    if len(choices) not in (0, 2):
+        raise RuntimeError(f'a turn-in takes no choices or two, not {len(choices)}: nothing was changed')
     made = unreal.MissionTurnIn()
     made.set_editor_property('automatic', automatic)
     made.set_editor_property('speaker_tag', unreal.Name(speaker))
     made.set_editor_property('giver_name', unreal.Text(giver))
-    said = []
-    for who, words in lines:
-        line = unreal.StoryLine()
-        line.set_editor_property('speaker', unreal.Text(who))
-        line.set_editor_property('text', unreal.Text(words))
-        said.append(line)
-    made.set_editor_property('lines', said)
+    made.set_editor_property('lines', story_lines(lines))
+    # A choice as a dict of choice()'s fields, or one made already.
+    made.set_editor_property('choices', [choice(**each) if isinstance(each, dict) else each for each in choices])
+    made.set_editor_property('choice_question', unreal.Text(question))
     return made
 
 
@@ -233,13 +338,7 @@ def offer(giver_tag='', giver='', lines=(), briefing=''):
     made = unreal.MissionOffer()
     made.set_editor_property('giver_tag', unreal.Name(giver_tag))
     made.set_editor_property('giver_name', unreal.Text(giver))
-    said = []
-    for who, words in lines:
-        line = unreal.StoryLine()
-        line.set_editor_property('speaker', unreal.Text(who))
-        line.set_editor_property('text', unreal.Text(words))
-        said.append(line)
-    made.set_editor_property('lines', said)
+    made.set_editor_property('lines', story_lines(lines))
     made.set_editor_property('briefing', unreal.Text(briefing))
     return made
 
@@ -577,6 +676,35 @@ def load_or_create(asset_name, cls):
     return asset, True
 
 
+def check_features(spec, asset, steps, items):
+    """The mission features' rules, before anything is saved: item ids unique and named, collect objectives naming this
+    mission's items, optional objectives never alone in a step, a choice only with a giver. Raises (nothing saved) when
+    one is broken; logs what the mission has."""
+    path = f"{FOLDER}/{spec['asset']}"
+    ids = [str(each.get_editor_property('id')) for each in items]
+    if any(not each or each == 'None' for each in ids) or len(set(ids)) != len(ids):
+        raise RuntimeError(f'{path}: its items need ids, each its own ({ids}): nothing was saved')
+    optional = 0
+    for index, each_step in enumerate(steps):
+        objectives = each_step.get_editor_property('objectives')
+        flags = [bool(each.get_editor_property('optional')) for each in objectives if each]
+        optional += sum(flags)
+        if flags and all(flags):
+            raise RuntimeError(f'{path}: step {index + 1} has only optional objectives (it would pass at once): nothing was saved')
+        for each in objectives:
+            if isinstance(each, unreal.MissionCollectItemObjective):
+                missing = [str(name) for name in each.get_editor_property('items') if str(name) not in ids]
+                if missing:
+                    raise RuntimeError(f"{path}: step {index + 1} collects {', '.join(missing)}, which aren't its items: nothing was saved")
+    choices = spec['turn_in'].get('choices', ())
+    if choices and (spec['turn_in'].get('automatic') or not spec['turn_in'].get('speaker')):
+        raise RuntimeError(f'{path}: a choice at the turn-in needs someone to turn it in to: nothing was saved')
+    if optional or items or choices:
+        unreal.log(f"MISSIONS {spec['asset']}: {optional} optional objective{'' if optional == 1 else 's'}, "
+                   f"{len(items)} item{'' if len(items) == 1 else 's'} ({', '.join(ids) or 'none'}), "
+                   f"{'a choice of two at the turn-in' if choices else 'no choice'}")
+
+
 def setup(spec):
     asset, created = load_or_create(spec['asset'], unreal.MissionDefinition)
     asset.set_editor_property('id', unreal.Name(spec['id']))
@@ -594,10 +722,14 @@ def setup(spec):
     asset.set_editor_property('area', unreal.Name(spec['area']))
     asset.set_editor_property('prerequisites', [unreal.Name(each) for each in spec['prerequisites']])
     asset.set_editor_property('sort_order', spec['sort_order'])
+    # Its items first: the steps' collect objectives name them (spec 'items': item()s or dicts of item()'s fields).
+    items = [item(**each) if isinstance(each, dict) else each for each in spec.get('items', ())]
+    asset.set_editor_property('items', items)
     steps = spec['steps'](asset)
     asset.set_editor_property('steps', steps)
     asset.set_editor_property('turn_in', turn_in(**spec['turn_in']))
     asset.set_editor_property('rewards', rewards(**spec['rewards']))
+    check_features(spec, asset, steps, items)
 
     # A giver's talk can't also be the last objective: that talk is the turn-in (Looter.Missions.Definitions checks it).
     giver = spec['turn_in'].get('speaker', '')

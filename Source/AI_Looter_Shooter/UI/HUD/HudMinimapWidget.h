@@ -8,6 +8,7 @@
 class UCanvasPanel;
 class UGraphicsSettingsSubsystem;
 class UImage;
+class UOverlay;
 class USizeBox;
 class UTextBlock;
 class UTexture2D;
@@ -102,6 +103,22 @@ public:
 	/** The zoom the map shows now: the preview's if it has one, else the player's setting (1 with no settings). */
 	float GetZoom() const;
 
+	/**
+	 * The tag that marks underground space (the Providence's galleries, Tilly's cellar): any actor carrying it (a trigger box
+	 * the build script places, an interior's volume) covers its bounds, and inside them the minimap draws its markers over a
+	 * dark plate marked UNDERGROUND instead of the top-down bake, which sees only the ground above.
+	 */
+	static const FName UndergroundTag;
+
+	/** Where lies underground: inside one of Zones (their boxes). The rule apart from the world, for the tests. */
+	static bool IsUnderground(const TArray<FBox>& Zones, const FVector& Where);
+
+	/** The boxes of every actor tagged UndergroundTag in World (their components' bounds; one with none adds nothing). */
+	static void GatherUndergroundZones(const UWorld* World, TArray<FBox>& OutZones);
+
+	/** The plate is up (or coming up): the player is underground. */
+	bool IsShowingUnderground() const { return bUnderground; }
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -131,6 +148,22 @@ private:
 	void UpdatePlace();
 	/** The two lines under the map: Place over Area; with no place (the game names none yet), Area on the big line. */
 	void ShowPlace(const FText& Place, const FText& Area);
+
+	// --- Underground (HudMinimapWidgetUnderground.cpp) ---
+
+	/** Builds the underground plate (a dark disc, faint rings, UNDERGROUND) into the map's stack, over the bake. */
+	void BuildUnderground(UOverlay* Stack);
+	/** Looks whether the player is underground and fades the plate in over the bake, or out. */
+	void UpdateUnderground(const FVector& PlayerLocation, float DeltaSeconds);
+
+	UPROPERTY(Transient) TObjectPtr<UWidget> UndergroundPlate;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> UndergroundLabel;
+	/** The underground spaces' boxes, looked for again every few seconds (they don't move). */
+	TArray<FBox> UndergroundZones;
+	float UndergroundLookLeft = 0.f;
+	/** The plate's fade (0 the bake, 1 the plate) and whether it's heading in. */
+	float UndergroundAlpha = 0.f;
+	bool bUnderground = false;
 
 	UPROPERTY(Transient) TObjectPtr<USizeBox> SizeBox;
 	UPROPERTY(Transient) TObjectPtr<UImage> MapImage;

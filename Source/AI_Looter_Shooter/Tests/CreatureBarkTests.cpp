@@ -40,10 +40,16 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCreatureBarksLinesTest, "Looter.Creatures.Bark
 
 bool FCreatureBarksLinesTest::RunTest(const FString& Parameters)
 {
-	// About forty lines, each situation with plain ones for any Unpaid and angrier ones for the ranked souls, every line
-	// short enough to read over a creature in a fight (a few wrapped lines at most), and none twice.
+	// About forty common lines, each situation with plain ones for any Unpaid and angrier ones for the ranked souls, and a
+	// kind's own lines on top (the Bell-Ringer, the dead miners, the Foreman); every line short enough to read over a
+	// creature in a fight (a few wrapped lines at most), and none twice.
 	const TConstArrayView<FCreatureBarkLine> Lines = CreatureBarks::AllLines();
-	TestTrue(TEXT("About forty lines"), Lines.Num() >= 36 && Lines.Num() <= 60);
+	int32 Common = 0;
+	for (const FCreatureBarkLine& Line : Lines)
+	{
+		Common += Line.Kind == nullptr ? 1 : 0;
+	}
+	TestTrue(TEXT("About forty common lines"), Common >= 36 && Common <= 60);
 	TSet<FString> Seen;
 	for (const FCreatureBarkLine& Line : Lines)
 	{

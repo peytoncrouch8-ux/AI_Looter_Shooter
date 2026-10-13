@@ -6,11 +6,21 @@
 #include "Interaction/InteractionSubsystem.h"
 #include "Missions/MissionRunner.h"
 #include "Session/CampaignRecord.h"
+#include "Story/SpeakerPointComponent.h"
 #include "UI/HUD/LooterHUD.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
 
 const FName AVendor::VendorTag(TEXT("Vendor"));
+
+namespace
+{
+	/** The story has business at this vendor's voice now (a mission to turn in or offer): it comes ahead of the shop. */
+	bool VoiceHasBusiness(const USpeakerPointComponent* Voice)
+	{
+		return Voice && Voice->HasMissionBusiness();
+	}
+}
 
 AVendor::AVendor()
 {
@@ -21,16 +31,42 @@ AVendor::AVendor()
 	Root->SetMobility(EComponentMobility::Movable);
 	RootComponent = Root;
 
+	// The story's voice at the shop: quiet unless a mission is offered or waits to be turned in here, so a shop with no
+	// missions behaves exactly as before.
+	Voice = CreateDefaultSubobject<USpeakerPointComponent>(TEXT("Voice"));
+	Voice->SetupAttachment(Root);
+	Voice->bMissionsOnly = true;
+
 	Title = NSLOCTEXT("LooterVendor", "DefaultTitle", "General Store");
 	Prompt = NSLOCTEXT("LooterVendor", "DefaultPrompt", "Trade");
 	Tags.Add(VendorTag);
 }
 
+void AVendor::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	// Before any actor's play begins, so a mission looking for the voice's tag finds it whatever starts first.
+	ApplyVoice();
+}
+
+void AVendor::ApplyVoice()
+{
+	if (Voice && !VoiceName.IsEmpty())
+	{
+		Voice->SpeakerName = VoiceName;
+	}
+	if (!VoiceTag.IsNone())
+	{
+		Tags.AddUnique(VoiceTag);
+	}
+}
+
 void AVendor::BeginPlay()
 {
 	Super::BeginPlay();
-	// The build script sets its tags whole; this one it always carries.
+	// The build script sets its tags whole; this one it always carries (and the voice's, as set by then).
 	Tags.AddUnique(VendorTag);
+	ApplyVoice();
 	if (UInteractionSubsystem* Registry = UInteractionSubsystem::Get(this))
 	{
 		Registry->Register(this);
@@ -61,6 +97,12 @@ bool AVendor::IsOpen() const
 
 FInteractionOptions AVendor::GetInteractionOptions(const UInteractionComponent& User) const
 {
+	// A mission to turn in or take here is the story's, said by the voice (its "Turn in" or "Talk"), even while the shop is
+	// shut: the hatch opens for a bounty before it opens for trade.
+	if (VoiceHasBusiness(Voice))
+	{
+		return Voice->GetInteractionOptions(User);
+	}
 	// Shut by the story, it isn't there to use at all (the Pruitts mutter through the door meanwhile).
 	if (!IsOpen())
 	{
@@ -76,6 +118,11 @@ FInteractionOptions AVendor::GetInteractionOptions(const UInteractionComponent& 
 
 bool AVendor::Interact(UInteractionComponent& User, bool bHeld)
 {
+	// The same choice as the options: what the key said is what it does.
+	if (VoiceHasBusiness(Voice))
+	{
+		return Voice->Interact(User, bHeld);
+	}
 	return !bHeld && Use(User.GetOwner());
 }
 

@@ -5,6 +5,8 @@
 #include "Affixes/WeaponRollLibrary.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Loot/LootTossComponent.h"
+#include "Loot/LostLootStore.h"
+#include "Loot/LostLootSubsystem.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionObjective.h"
 #include "Missions/MissionRewards.h"
@@ -138,10 +140,18 @@ namespace
 			return Found;
 		}
 
-		/** Every Heirloom the session has here: lying in the level, or in the backpack. */
+		/** On Lost Property's shelves: a gun left on the ground at a save is handed in there as the session is loaded. */
+		int32 InLostProperty(const UNamedWeaponDefinition* Heirloom) const
+		{
+			const ULostLootSubsystem* LostLoot = ULostLootSubsystem::Get(World);
+			return LostLoot ? LostLoot->GetStore().Entries.FilterByPredicate([Heirloom](const FLostLootEntry& Entry) { return Entry.Weapon.Named == Heirloom; }).Num()
+				: 0;
+		}
+
+		/** Every Heirloom the session has here: lying in the level, in the backpack, or in Lost Property. */
 		int32 Heirlooms(const UNamedWeaponDefinition* Heirloom) const
 		{
-			return Lying(Heirloom).Num() + InBackpack(Heirloom);
+			return Lying(Heirloom).Num() + InBackpack(Heirloom) + InLostProperty(Heirloom);
 		}
 	};
 }
@@ -309,6 +319,12 @@ bool FHeirloomOnceTest::RunTest(const FString& Parameters)
 				TestTrue(Case + TEXT(": loaded, Main 7 back waiting for Tilly, her door done"), Second.Runner->IsReadyToTurnIn(MainSeven)
 					&& Second.Handoff->GetState() == EDoorHandoffState::Done);
 				TestEqual(Case + TEXT(": what the session kept"), Second.Heirlooms(Heirloom), Until == EUntil::Words ? 0 : 1);
+				if (Until == EUntil::Out)
+				{
+					// Left on her porch at the save: handed in to Lost Property as the session loaded, not back on the porch.
+					TestTrue(Case + TEXT(": handed in to Lost Property, not lying on her porch"), Second.InLostProperty(Heirloom) == 1
+						&& Second.Lying(Heirloom).IsEmpty());
+				}
 				Played = &Second;
 			}
 
@@ -326,6 +342,8 @@ bool FHeirloomOnceTest::RunTest(const FString& Parameters)
 				const TArray<AWeaponBase*> Given = Played->Lying(Heirloom);
 				TestTrue(Case + TEXT(": in front of the player at Tilly's window, as loot, none left at the farm"), Given.Num() == 1
 					&& Given[0]->IsPickup() && FVector::Dist2D(Given[0]->GetActorLocation(), TillyAt) < 300.0);
+				// One handed in to Lost Property is the very gun brought out (MissionRewards::EnsureNamedGun), never a second.
+				TestEqual(Case + TEXT(": none left in Lost Property"), Played->InLostProperty(Heirloom), 0);
 				TestTrue(Case + TEXT(": her door shut again, with nothing out"), !Played->Handoff->IsGunOut()
 					&& (Played->Handoff->GetState() == EDoorHandoffState::Done || Played->Handoff->GetState() == EDoorHandoffState::Closing));
 			}

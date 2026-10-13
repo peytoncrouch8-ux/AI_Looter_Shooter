@@ -124,6 +124,13 @@ public:
 
 	bool IsMissionOfferOpen() const { return bMissionOfferOpen; }
 
+	/**
+	 * Opens the card in its choice mode for a mission turned in with a choice of two rewards (Back Pay: pay the eleven, or
+	 * keep the payroll), at Giver. False when another menu is open or the mission has no choice waiting.
+	 * LooterHUDMissionOffer.cpp; bMissionOfferOpen covers it.
+	 */
+	bool OpenTurnInChoice(const UMissionDefinition* Mission, AActor* Giver);
+
 	/** The short banner over the HUD when a respawn grave is marked as the save point ("GRAVE MARKED", its name). LooterHUDGraves.cpp. */
 	void ShowGraveMarked(const FText& GraveName);
 

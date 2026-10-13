@@ -66,8 +66,18 @@ void ASafeGround::Rebuild()
 	Outline = FPlayableBoundary(MoveTemp(Flat), TArray<bool>());
 }
 
+bool ASafeGround::IsWithinHeight(const FVector& Point) const
+{
+	return !bHeightBand || (Point.Z >= MinZ && Point.Z <= MaxZ);
+}
+
 bool ASafeGround::Contains(const FVector& Point) const
 {
+	// A cellar under the street is under the band: a fight there is a fight.
+	if (!IsWithinHeight(Point))
+	{
+		return false;
+	}
 	if (Outline.IsValid())
 	{
 		return Outline.Contains(FVector2D(Point.X, Point.Y));
@@ -126,6 +136,13 @@ void ASafeGround::DrawZone(ULineBatchComponent& Lines, uint32 BatchID) const
 				Lines.DrawLine(Corner + FVector(0.0, 0.0, Rise), NextCorner + FVector(0.0, 0.0, Rise), Tint, SDPG_World, 8.f, Forever, BatchID);
 			}
 			Lines.DrawLine(Corner, Corner + FVector(0.0, 0.0, 400.0), Tint, SDPG_World, 8.f, Forever, BatchID);
+			// A height band's floor, dashed by its posts' feet: the cellar under it is outside.
+			if (bHeightBand)
+			{
+				const FVector Floor(0.0, 0.0, MinZ - Corner.Z);
+				const FVector NextFloor(0.0, 0.0, MinZ - NextCorner.Z);
+				Lines.DrawLine(Corner + Floor, NextCorner + NextFloor, LooterUI::Color::Accent(), SDPG_World, 6.f, Forever, BatchID);
+			}
 		}
 		return;
 	}

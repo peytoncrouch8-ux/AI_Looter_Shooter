@@ -3,17 +3,12 @@
 
 #include "Missions/MissionRunner.h"
 #include "AI_Looter_Shooter.h"
-#include "Affixes/WeaponRollLibrary.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionObjective.h"
 #include "Missions/MissionRewards.h"
-#include "Progression/PlayerProgressionSubsystem.h"
 #include "Session/SessionSubsystem.h"
-#include "Weapons/WeaponBase.h"
-#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
-#include "GameFramework/PlayerController.h"
 
 namespace
 {
@@ -149,18 +144,31 @@ void UMissionRunner::BeginStep(FRun& Run)
 			State.bDone = true;
 			continue;
 		}
+		// An optional objective done before (the step played again after a reload, as side missions are) starts done.
+		if (Objective->bOptional && GetCampaign().HasDoneOptional(Run.Id, Run.Step, Index))
+		{
+			State.Count = Objective->GetRequired();
+			State.bDone = true;
+			continue;
+		}
 		// A look at once, as the tutorial did: a gun already carried, a place already stood in, pass straight away.
 		Objective->Begin(Context, State);
 		Objective->Update(Context, State, 0.f);
-		RefreshDone(*Objective, Context, State);
+		if (RefreshDone(*Objective, Context, State) && Objective->bOptional)
+		{
+			NoteOptionalDone(Run, Index);
+		}
 	}
 }
 
 bool UMissionRunner::IsStepDone(const FRun& Run) const
 {
-	for (const FMissionObjectiveState& State : Run.States)
+	// Optional objectives never hold a step: only what it asks for counts.
+	const UMissionDefinition* Mission = Run.Mission.Get();
+	for (int32 Index = 0; Index < Run.States.Num(); ++Index)
 	{
-		if (!State.bDone)
+		const UMissionObjective* Objective = Mission ? Mission->GetObjective(StatesStep(Run), Index) : nullptr;
+		if (!Run.States[Index].bDone && !(Objective && Objective->bOptional))
 		{
 			return false;
 		}
@@ -186,11 +194,19 @@ bool UMissionRunner::AdvanceStep(FRun& Run)
 void UMissionRunner::EnterReady(FRun& Run)
 {
 	const UMissionDefinition* Mission = Run.Mission.Get();
+	// Come from playing its last step, it keeps that step's objectives: its optional ones stay doable until it's turned in.
+	// One that starts ready (a save, another level) has them made as the campaign kept them.
+	const int32 Last = Mission ? Mission->Steps.Num() - 1 : INDEX_NONE;
+	const bool bFromLastStep = Mission && !Run.bReady && Run.Step == Last && Mission->Steps.IsValidIndex(Last)
+		&& Run.States.Num() == Mission->Steps[Last].Objectives.Num();
 	Run.bReady = true;
 	// One past its last step, so the story's "from the last step" conditions still hold while it waits (a giver's lines for
 	// that talk, Hob's perch for it), and "before the last step" ones don't.
 	Run.Step = Mission ? Mission->Steps.Num() : Run.Step;
-	Run.States.Reset();
+	if (!bFromLastStep)
+	{
+		PrepareReadyStates(Run);
+	}
 	if (GetCampaign().MarkReady(Run.Id))
 	{
 		AskToSave();
@@ -238,7 +254,12 @@ bool UMissionRunner::CompleteStep(FName MissionId)
 	}
 	for (int32 Index = 0; Index < Run->States.Num(); ++Index)
 	{
+		// What the step asks for, not its optional objectives: they'd pay a bonus nobody earned.
 		const UMissionObjective* Objective = Mission->GetObjective(Run->Step, Index);
+		if (Objective && Objective->bOptional)
+		{
+			continue;
+		}
 		FMissionObjectiveState& State = Run->States[Index];
 		State.Count = Objective ? FMath::Max(State.Count, Objective->GetRequired()) : State.Count;
 		State.bDone = true;
@@ -359,7 +380,7 @@ void UMissionRunner::RecordCompleted(FName MissionId)
 	}
 }
 
-void UMissionRunner::FinishRun(FName MissionId)
+void UMissionRunner::FinishRun(FName MissionId, int32 Choice)
 {
 	const int32 Index = Runs.IndexOfByPredicate([MissionId](const FRun& Run) { return Run.Id == MissionId; });
 	if (Index == INDEX_NONE)
@@ -373,95 +394,42 @@ void UMissionRunner::FinishRun(FName MissionId)
 	if (const UMissionDefinition* Mission = Finished.Mission.Get())
 	{
 		FMissionRewardsGiven Given;
-		const bool bRewarded = RecordCompletion(*Mission, /*bGiveRewards*/ true, &Given);
+		const bool bRewarded = RecordCompletion(*Mission, /*bGiveRewards*/ true, &Given, Choice);
 		BroadcastFinished(*Mission, bRewarded, Given);
 	}
 }
 
-bool UMissionRunner::RecordCompletion(const UMissionDefinition& Mission, bool bGiveRewards, FMissionRewardsGiven* OutGiven)
+bool UMissionRunner::RecordCompletion(const UMissionDefinition& Mission, bool bGiveRewards, FMissionRewardsGiven* OutGiven, int32 Choice)
 {
 	const FName MissionId = Mission.GetMissionId();
 	FCampaignRecord& Campaign = GetCampaign();
 	// Rewards come once per session: a mission finished before (played again, or from the console) gives nothing more.
 	const bool bFirstTime = !Campaign.HasCompleted(MissionId);
+	// The choice is kept first, its flag with it, so whoever hears of the end (and the next level) reads it.
+	const FMissionTurnInChoice* Chosen = bFirstTime ? Mission.GetTurnInChoice(Choice) : nullptr;
+	if (Chosen)
+	{
+		Campaign.TurnInChoices.Add(MissionId, Choice);
+		Campaign.SetFlag(Chosen->Flag);
+	}
 	Campaign.Complete(MissionId);
 	if (bFirstTime && bGiveRewards)
 	{
-		const FMissionRewardsGiven Given = GrantRewards(Mission);
+		const FMissionRewardsGiven Given = GrantRewards(Mission, Chosen ? Choice : INDEX_NONE);
 		if (OutGiven)
 		{
 			*OutGiven = Given;
 		}
 	}
+	// Its things go with it: the items carried and dropped, the optional objectives kept (their bonus is paid above).
+	ForgetMissionThings(Mission);
 	AskToSave();
 	UE_LOG(LogLooter, Log, TEXT("Mission %s finished%s"), *MissionId.ToString(),
 		!bFirstTime ? TEXT(" again (no rewards)") : bGiveRewards ? TEXT(", rewards given") : TEXT(" (recorded)"));
 	return bFirstTime && bGiveRewards;
 }
 
-FMissionRewardsGiven UMissionRunner::GrantRewards(const UMissionDefinition& Mission)
-{
-	const FMissionRewards& Rewards = Mission.Rewards;
-	const FMissionContext Context = MakeContext();
-	FMissionRewardsGiven Given;
-
-	// Experience: the mission's fixed amount (or its share of the level the player is on). This and a kill are the only
-	// ways experience is earned: never for an objective or a step on the way. Without a player (a test level) it's still
-	// worked out, at level 1, for whoever hears what the mission gave.
-	int32 PlayerLevel = 1;
-	const ULocalPlayer* LocalPlayer = Context.Controller ? Context.Controller->GetLocalPlayer() : nullptr;
-	UPlayerProgressionSubsystem* Progression = LocalPlayer ? LocalPlayer->GetSubsystem<UPlayerProgressionSubsystem>() : nullptr;
-	if (Progression)
-	{
-		PlayerLevel = Progression->GetLevel();
-	}
-	Given.Experience = MissionRewards::ExperienceOf(Rewards, PlayerLevel, UPlayerProgressionSubsystem::GetCurve());
-	if (Progression && Given.Experience > 0)
-	{
-		Progression->AddXP(Given.Experience, EXPSource::Mission);
-	}
-
-	// Silver: the giver's fixed purse (MissionRewards::SilverFor; Docs/Progression.md, "Economy"), into the wallet.
-	Given.Silver = MissionRewards::GiveSilver(Context.World, Mission.GetMissionId());
-
-	// A gun in front of the player, at their level, and a named gun the same way. One the story hands over itself (Heirloom
-	// through Delia's door) is made sure of rather than dropped again: brought to them if it was never taken, given if it was
-	// never handed out, nothing if they carry it.
-	if (Rewards.bGun)
-	{
-		if (const AWeaponBase* Gun = MissionRewards::DropGun(Context.World, Rewards, PlayerLevel, Context.Player))
-		{
-			const FWeaponInstanceData& Instance = Gun->GetInstance();
-			Given.bGun = true;
-			Given.GunRarity = Instance.Rarity;
-			Given.GunColor = UWeaponRollLibrary::GetRarityColor(Instance.Definition, Instance.Rarity);
-		}
-	}
-	if (!Rewards.NamedGun.IsNone())
-	{
-		if (Rewards.bNamedGunByHand)
-		{
-			MissionRewards::EnsureNamedGun(Context.World, Rewards, PlayerLevel, Context.Player);
-		}
-		else
-		{
-			MissionRewards::DropNamedGun(Context.World, Rewards, PlayerLevel, Context.Player);
-		}
-		Given.NamedGun = MissionRewards::NamedGunName(Rewards);
-	}
-
-	// Areas opened to travel.
-	FCampaignRecord& Campaign = GetCampaign();
-	for (const FName AreaId : Rewards.UnlockAreas)
-	{
-		if (Campaign.OpenArea(AreaId))
-		{
-			Given.AreasOpened.Add(MissionRewards::AreaName(AreaId));
-			UE_LOG(LogLooter, Log, TEXT("Missions: %s opens %s"), *Mission.GetMissionId().ToString(), *AreaId.ToString());
-		}
-	}
-	return Given;
-}
+// What a mission gives (GrantRewards), with a choice's in place of its own: MissionRunnerRewards.cpp.
 
 void UMissionRunner::AskToSave() const
 {

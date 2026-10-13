@@ -162,6 +162,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Objective")
 	bool bShowCount = true;
 
+	/**
+	 * Optional, Borderlands' way: it never holds its step (the step moves on once its other objectives are done) and stays
+	 * doable until the step ends (the last step's, until the mission is turned in). Each one done pays its mission's
+	 * FMissionRewards::OptionalSilver at the turn-in, never experience. The tracker and the Missions page say "Optional:"
+	 * and dim it; the campaign keeps it done (FCampaignRecord::OptionalDone), so a step played again starts with it done.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Objective")
+	bool bOptional = false;
+
 	// --- The rule (the runner calls these; State is this objective's progress in the running mission) ---
 
 	/** The count that finishes it (kills, hits, things; whole seconds for holding out). */

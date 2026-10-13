@@ -42,6 +42,33 @@ public:
 	virtual FString DescribeRule() const override;
 };
 
+/**
+ * Have mission items (FMissionItemInfo, by id: the winch crank, the coal sack, the clamp pin): done once the player carries
+ * every one of Items. Counted from the campaign's pocket (FCampaignRecord::CarriedItems), so one picked up before the step
+ * began, or in an earlier session, counts as it begins. The arrow points at the nearest one lying in the level
+ * (AMissionItem), else at the living creature carrying one (FMissionItemInfo::DroppedBy: Abe Haskett, the Gravemother).
+ */
+UCLASS(BlueprintType, meta = (DisplayName = "Collect mission items"))
+class AI_LOOTER_SHOOTER_API UMissionCollectItemObjective : public UMissionObjective
+{
+	GENERATED_BODY()
+
+public:
+	/** The items, by id, from this mission's Items (one each). */
+	UPROPERTY(EditAnywhere, Category = "Objective")
+	TArray<FName> Items;
+
+	virtual int32 GetRequired() const override { return FMath::Max(Items.Num(), 1); }
+	virtual void Begin(const FMissionContext& Context, FMissionObjectiveState& State) const override;
+	virtual void Update(const FMissionContext& Context, FMissionObjectiveState& State, float DeltaSeconds) const override;
+	virtual bool HandleEvent(const FMissionContext& Context, FMissionObjectiveState& State, const FMissionEvent& Happened) const override;
+	virtual TOptional<FVector> GetAutoWaypoint(const FMissionContext& Context, const FMissionObjectiveState& State) const override;
+	virtual FString DescribeRule() const override;
+
+	/** How many of Items the player carries now. */
+	int32 CountCarried(const FMissionContext& Context) const;
+};
+
 /** The inventory's pages, as an objective names them. */
 UENUM(BlueprintType)
 enum class EMissionPage : uint8

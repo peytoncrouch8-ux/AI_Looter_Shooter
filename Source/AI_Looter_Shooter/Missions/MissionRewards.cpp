@@ -7,6 +7,7 @@
 #include "Inventory/WeaponManagerComponent.h"
 #include "Loot/LootFanfareSubsystem.h"
 #include "Loot/LootLibrary.h"
+#include "Loot/LostLootSubsystem.h"
 #include "Missions/MissionDefinition.h"
 #include "Progression/XPCurve.h"
 #include "Weapons/NamedWeaponDefinition.h"
@@ -185,6 +186,11 @@ FNamedGunWhereabouts MissionRewards::FindNamedGun(UWorld* World, const UNamedWea
 	{
 		Found.bCarried = true;
 	}
+	// At the depot's Lost Property: left lying past its time, or on the ground at a quit.
+	if (const ULostLootSubsystem* LostLoot = ULostLootSubsystem::Get(World))
+	{
+		Found.bInLostLoot = LostLoot->HoldsNamed(Named);
+	}
 	return Found;
 }
 
@@ -217,6 +223,17 @@ AWeaponBase* MissionRewards::EnsureNamedGun(UWorld* World, const FMissionRewards
 		AWeaponBase* Brought = DropInFront(World, Instance, *Player);
 		UE_LOG(LogLooter, Log, TEXT("Missions: %s was never taken: brought to the player at the turn-in."), *Named->GetNamedId().ToString());
 		return Brought;
+	}
+	// Gone to Lost Property before it was taken (left past its time, or at a quit): that very gun is brought, never a second.
+	if (Where.bInLostLoot)
+	{
+		FWeaponInstanceData Instance;
+		ULostLootSubsystem* LostLoot = ULostLootSubsystem::Get(World);
+		if (LostLoot && LostLoot->TakeNamed(Named, Instance))
+		{
+			UE_LOG(LogLooter, Log, TEXT("Missions: %s was at Lost Property: brought to the player at the turn-in."), *Named->GetNamedId().ToString());
+			return DropInFront(World, Instance, *Player);
+		}
 	}
 	// Never handed out in this session (saved before it came out, or turned in before her words were done): given now.
 	UE_LOG(LogLooter, Log, TEXT("Missions: %s was never handed over: given at the turn-in."), *Named->GetNamedId().ToString());
@@ -271,15 +288,53 @@ int32 MissionRewards::SilverFor(FName MissionId)
 
 int32 MissionRewards::GiveSilver(UWorld* World, FName MissionId)
 {
-	const int32 Purse = SilverFor(MissionId);
-	UWalletSubsystem* Wallet = Purse > 0 ? UWalletSubsystem::Get(World) : nullptr;
+	return GiveAmount(World, SilverFor(MissionId), MissionId);
+}
+
+int32 MissionRewards::PurseOf(const FMissionRewards& Rewards, FName MissionId)
+{
+	return Rewards.Silver > 0 ? Rewards.Silver : SilverFor(MissionId);
+}
+
+int32 MissionRewards::GiveAmount(UWorld* World, int32 Amount, FName MissionId)
+{
+	UWalletSubsystem* Wallet = Amount > 0 ? UWalletSubsystem::Get(World) : nullptr;
 	if (!Wallet)
 	{
 		return 0;
 	}
-	const int32 Given = Wallet->Add(Purse, ESilverChange::Reward);
+	const int32 Given = Wallet->Add(Amount, ESilverChange::Reward);
 	UE_LOG(LogLooter, Log, TEXT("Missions: %s pays %d silver."), *MissionId.ToString(), Given);
 	return Given;
+}
+
+int32 MissionRewards::OptionalBonus(const FMissionRewards& Rewards, int32 Done, int32 Level)
+{
+	// Each the same, grown with the player's level as a kill's or a chest's silver grows (Docs/Progression.md, "Economy").
+	return Done > 0 && Rewards.OptionalSilver > 0 ? LooterEconomy::AtLevel(Rewards.OptionalSilver, Level) * Done : 0;
+}
+
+FString MissionRewards::DescribeShort(const FMissionRewards& Rewards)
+{
+	TArray<FString> Parts;
+	if (Rewards.Silver > 0)
+	{
+		Parts.Add(FString::Printf(TEXT("+%s silver"), *LooterEconomy::Format(Rewards.Silver)));
+	}
+	if (Rewards.bGun)
+	{
+		Parts.Add(Rewards.GunRarityFloor == EWeaponRarity::Common ? FString(TEXT("a gun"))
+			: FString::Printf(TEXT("a %s or better gun"), *RarityName(Rewards.GunRarityFloor)));
+	}
+	if (!Rewards.NamedGun.IsNone())
+	{
+		Parts.Add(NamedGunName(Rewards).ToString());
+	}
+	for (const FName AreaId : Rewards.UnlockAreas)
+	{
+		Parts.Add(FString::Printf(TEXT("the way to %s"), *AreaName(AreaId).ToString()));
+	}
+	return FString::Join(Parts, TEXT(", "));
 }
 
 TArray<FString> MissionRewards::Describe(const FMissionRewards& Rewards, FName MissionId)
@@ -294,7 +349,7 @@ TArray<FString> MissionRewards::Describe(const FMissionRewards& Rewards, FName M
 		Lines.Add(FString::Printf(TEXT("+%d%% of a level's experience"), FMath::RoundToInt32(Rewards.ExperienceShare * 100.f)));
 	}
 	// The giver's purse, beside the experience (a fixed amount at any level, so it can be named plainly).
-	if (const int32 Purse = SilverFor(MissionId); Purse > 0)
+	if (const int32 Purse = PurseOf(Rewards, MissionId); Purse > 0)
 	{
 		Lines.Add(FString::Printf(TEXT("+%s silver"), *LooterEconomy::Format(Purse)));
 	}

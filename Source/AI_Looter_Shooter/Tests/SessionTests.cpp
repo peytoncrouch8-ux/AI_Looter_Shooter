@@ -4,6 +4,7 @@
 
 #include "Affixes/WeaponRollLibrary.h"
 #include "Loot/AmmoPickup.h"
+#include "Loot/LostLootSubsystem.h"
 #include "Session/SessionSave.h"
 #include "Session/SessionSaveGate.h"
 #include "Session/SessionSubsystem.h"
@@ -384,9 +385,11 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSessionRoundTripTest, "Looter.Session.RoundTri
 
 bool FSessionRoundTripTest::RunTest(const FString& Parameters)
 {
-	// A trip there and back keeps each map's world: what was left lying on one level is there again on the way back, and
-	// the other level keeps its own. Two test levels stand in for the tutorial island and Skyreach; the session's real
-	// capture and restore run on them, and the save is written and read at every trip.
+	// A trip there and back keeps each map's world: the ammo left lying on one level is there again on the way back, and
+	// the other level keeps its own. A gun left lying goes to Lost Property instead (2026-10-13): a real trip hands it in as
+	// it leaves (LostLootPlayTests.cpp); kept as ground loot here, it's handed in as the world is put back, never lying
+	// there again. Two test levels stand in for the tutorial island and Skyreach; the session's real capture and restore run
+	// on them, and the save is written and read at every trip.
 	UWeaponDefinition* Rifle = LoadRifle();
 	FTestWorldWrapper IslandLevel;
 	FTestWorldWrapper SkyLevel;
@@ -443,7 +446,7 @@ bool FSessionRoundTripTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Skyreach's rounds, and no gun"), SkyWorld->LootWeapons.IsEmpty() && SkyWorld->AmmoPickups.Num() == 1 && SkyWorld->AmmoPickups[0].Amount == 30);
 
 	// Back on the island the level isn't as it was left (the gun gone, shells that were never there): the session puts
-	// back exactly what was left lying there, and Skyreach gets its own.
+	// back exactly the ammo left lying there and hands the gun in to Lost Property, and Skyreach gets its own.
 	Dropped->Destroy();
 	AAmmoPickup::SpawnAmmo(Island, EAmmoType::Pistol, 5, FVector(0.0, 900.0, 50.0));
 	USessionSubsystem::RestoreWorld(Island, *Back);
@@ -469,7 +472,9 @@ bool FSessionRoundTripTest::RunTest(const FString& Parameters)
 		}
 		return Amounts;
 	};
-	TestTrue(TEXT("The island has its gun again"), GunSeeds(Island) == TArray<int32>{ 1234 });
+	const ULostLootSubsystem* IslandLoot = ULostLootSubsystem::Get(Island);
+	TestTrue(TEXT("The island's gun went to Lost Property, not back on the ground"), GunSeeds(Island).IsEmpty() && IslandLoot
+		&& IslandLoot->GetStore().Num() == 1 && IslandLoot->GetStore().Entries[0].Weapon.Seed == 1234);
 	TestTrue(TEXT("The island has its shells, and only those"), AmmoAmounts(Island) == TArray<int32>{ 12 });
 	TestTrue(TEXT("Skyreach has no gun"), GunSeeds(Sky).IsEmpty());
 	TestTrue(TEXT("Skyreach has its rounds"), AmmoAmounts(Sky) == TArray<int32>{ 30 });

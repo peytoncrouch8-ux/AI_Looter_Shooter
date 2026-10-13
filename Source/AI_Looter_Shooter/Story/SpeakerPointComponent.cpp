@@ -100,7 +100,24 @@ TOptional<FVector> USpeakerPointComponent::GetInteractionLocation() const
 bool USpeakerPointComponent::CanTalk() const
 {
 	const AActor* Owner = GetOwner();
-	return bTalkable && bEnabled && Owner && !Owner->IsHidden() && !IsTalking();
+	return bTalkable && bEnabled && Owner && !Owner->IsHidden() && !IsTalking() && (!bMissionsOnly || HasMissionBusiness());
+}
+
+bool USpeakerPointComponent::HasMissionBusiness() const
+{
+	const UMissionRunner* Runner = UMissionRunner::Get(this);
+	const AActor* Owner = GetOwner();
+	if (!Runner || !Owner)
+	{
+		return false;
+	}
+	if (Runner->FindTurnInAt(Owner) || !Runner->GetOffersAt(Owner).IsEmpty())
+	{
+		return true;
+	}
+	int32 Topic = INDEX_NONE;
+	GetLinesNow(&Topic);
+	return Topic != INDEX_NONE;
 }
 
 bool USpeakerPointComponent::IsTalking() const
@@ -164,6 +181,8 @@ bool USpeakerPointComponent::Talk(AActor* Listener)
 	// turn in, a mission offered here with words of its own: those, the same way.
 	UMissionRunner* Runner = UMissionRunner::Get(this);
 	const UMissionDefinition* TurnedIn = Runner ? Runner->FindTurnInAt(Owner) : nullptr;
+	// A turn-in with a choice of two: its words, then the choice card; the talk itself finishes nothing.
+	const bool bChoice = TurnedIn && TurnedIn->HasTurnInChoice();
 	const TArray<const UMissionDefinition*> OffersNow = !TurnedIn && Runner ? Runner->GetOffersAt(Owner) : TArray<const UMissionDefinition*>();
 	const UMissionDefinition* Offered = OffersNow.IsEmpty() ? nullptr : OffersNow[0];
 	if (TurnedIn && !TurnedIn->TurnIn.Lines.IsEmpty())
@@ -182,13 +201,18 @@ bool USpeakerPointComponent::Talk(AActor* Listener)
 		// Whoever the player turns to talk to has the floor: whatever was being said stops.
 		Conversation = Captions->Play(Said, ECaptionPlay::Interrupt);
 	}
-	// Someone with nothing waiting to be turned in offers the job once these words are said.
+	// Someone with nothing waiting to be turned in offers the job once these words are said; a turn-in with a choice asks it
+	// then.
 	ClearPendingOffer();
 	if (Offered)
 	{
 		QueueOffer(*Offered, Listener, Conversation);
 	}
-	if (Said.IsEmpty() && !Offered)
+	else if (bChoice)
+	{
+		QueueChoice(*TurnedIn, Listener, Conversation);
+	}
+	if (Said.IsEmpty() && !Offered && !bChoice)
 	{
 		UE_LOG(LogLooter, Warning, TEXT("%s: %s has nothing to say here (no lines for this point in the story)."), *Owner->GetActorNameOrLabel(),
 			*SpeakerName.ToString());
@@ -208,8 +232,8 @@ bool USpeakerPointComponent::Talk(AActor* Listener)
 		}
 	}
 	// The turn-in came first; what they have next (a mission it opened, or one waiting behind it) is offered once its words
-	// are said, after its own words when it has any.
-	if (TurnedIn && Runner)
+	// are said, after its own words when it has any. A choice still to make comes before anything else they have.
+	if (TurnedIn && !bChoice && Runner)
 	{
 		const TArray<const UMissionDefinition*> OffersAfter = Runner->GetOffersAt(Owner);
 		if (!OffersAfter.IsEmpty())

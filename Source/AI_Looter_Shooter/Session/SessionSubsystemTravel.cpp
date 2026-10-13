@@ -1,9 +1,12 @@
-// USessionSubsystem: travel between maps, and arriving at a trip's landing.
+// USessionSubsystem: travel between maps (the guns left on the ground handed in to Lost Property as the player leaves), and
+// arriving at a trip's landing.
 
 #include "Session/SessionSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Areas/AreaDefinition.h"
 #include "Areas/AreaLandings.h"
+#include "Loot/LostLootStore.h"
+#include "Loot/LostLootSubsystem.h"
 #include "Session/SessionSave.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -43,6 +46,14 @@ bool USessionSubsystem::TravelToMap(const FString& MapPackage, FName Landing, bo
 	{
 		UE_LOG(LogLooter, Warning, TEXT("Travel: there's no level %s in the game, so nobody goes."), *MapPackage);
 		return false;
+	}
+
+	// Every gun left lying here goes to Lost Property as the player leaves (the user's call, 2026-10-13), before the world
+	// is kept: nothing waits on this map's ground to pile up, and the shelves going into the trip's save have them. The
+	// destination's HUD tells how many.
+	if (ULostLootSubsystem* LostLoot = ULostLootSubsystem::Get(World))
+	{
+		LostLoot->SendAllGroundWeapons(ELostLootReason::LeftArea);
 	}
 
 	// The player and the world being left go into the session first, the world under its own map, where it waits for

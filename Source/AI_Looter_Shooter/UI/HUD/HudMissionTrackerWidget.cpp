@@ -30,28 +30,6 @@ namespace
 		const float Remaining = 1.f - FMath::Clamp(Share, 0.f, 1.f);
 		return 1.f - Remaining * Remaining;
 	}
-
-	/** A step bar section's two flat halves, light over dark. */
-	struct FTrackerSectionColors
-	{
-		FLinearColor Upper;
-		FLinearColor Lower;
-	};
-
-	/** A step done: the experience bar's cyan; the current one: orange; one still to come: a faint cyan on the dark track. */
-	FTrackerSectionColors SectionColorsFor(int32 Index, int32 DoneCount, int32 Current)
-	{
-		if (Index < DoneCount)
-		{
-			return { Color::XPLight(), Color::XPDark() };
-		}
-		if (Index == Current)
-		{
-			return { Color::AccentLight(), Color::Accent() };
-		}
-		const FLinearColor Faint = Color::Hairline().CopyWithNewOpacity(0.17f);
-		return { Faint, Faint };
-	}
 }
 
 void UHudMissionTrackerWidget::NativeConstruct()
@@ -206,14 +184,43 @@ void UHudMissionTrackerWidget::Present(const FMission& Mission)
 	PaintSteps(Shown.Step, Shown.Step, Shown.StepCount, Shown.Step + 1);
 	PaintObjective();
 	PaintHint();
+	OptionalTickAges.Reset();
+	PaintOptionals();
 	PopAge = PopSeconds;
 	ApplyPop(1.f);
 	StartSlide();
 }
 
+TArray<int32> UHudMissionTrackerWidget::NewlyDoneOptionals(const FMissionTrackerParts& Shown, const FMissionTrackerParts& Now)
+{
+	// The same optional objectives (as many, the same words), one done that wasn't: never a whole new list.
+	TArray<int32> Done;
+	if (Now.Optionals.Num() != Shown.Optionals.Num())
+	{
+		return Done;
+	}
+	for (int32 Index = 0; Index < Now.Optionals.Num(); ++Index)
+	{
+		const FMissionTrackerOptional& Was = Shown.Optionals[Index];
+		const FMissionTrackerOptional& Is = Now.Optionals[Index];
+		if (Is.bDone && !Was.bDone && Is.Line.Equals(Was.Line, ESearchCase::CaseSensitive))
+		{
+			Done.Add(Index);
+		}
+	}
+	return Done;
+}
+
 void UHudMissionTrackerWidget::UpdateInPlace(const FMission& Mission)
 {
 	const FMissionTrackerParts& Now = Mission.Tracker;
+	// Optional objectives done since the last look tick where they stand; any other change to them is repainted.
+	const TArray<int32> OptionalsDone = NewlyDoneOptionals(Shown, Now);
+	bool bNewOptionals = Now.Optionals.Num() != Shown.Optionals.Num();
+	for (int32 Index = 0; !bNewOptionals && Index < Now.Optionals.Num(); ++Index)
+	{
+		bNewOptionals = !Now.Optionals[Index].SameAs(Shown.Optionals[Index]);
+	}
 	const bool bNewTitle = !Mission.Title.EqualTo(ShownTitle);
 	// The same objective with other words (a rebound key) is repainted, with no tick and no slide.
 	const bool bNewLine = !Now.Line.Equals(Shown.Line, ESearchCase::CaseSensitive);
@@ -244,6 +251,18 @@ void UHudMissionTrackerWidget::UpdateInPlace(const FMission& Mission)
 	if (bNewSteps)
 	{
 		PaintSteps(Shown.Step, Shown.Step, Shown.StepCount, Shown.Step + 1);
+	}
+	if (bNewOptionals)
+	{
+		PaintOptionals();
+		for (const int32 Index : OptionalsDone)
+		{
+			StartOptionalTick(Index);
+		}
+		if (!OptionalsDone.IsEmpty())
+		{
+			PlayOptionalSound();
+		}
 	}
 }
 
@@ -288,6 +307,7 @@ void UHudMissionTrackerWidget::ShowClosing()
 	PaintSteps(ClosingSteps, INDEX_NONE, ClosingSteps, ClosingSteps);
 	PaintObjective();
 	PaintHint();
+	PaintOptionals();
 	PopAge = PopSeconds;
 	ApplyPop(1.f);
 	StartSlide();
@@ -369,79 +389,8 @@ bool UHudMissionTrackerWidget::IsCovered() const
 	return World && World->IsPaused();
 }
 
-// ---------------------------------------------------------------------------
-// Painting what's shown (only when it changes)
-// ---------------------------------------------------------------------------
-
-void UHudMissionTrackerWidget::PaintTitle(const FText& Title)
-{
-	if (TitleText)
-	{
-		TitleText->SetText(Title.ToUpper());
-	}
-}
-
-void UHudMissionTrackerWidget::PaintSteps(int32 DoneCount, int32 Current, int32 StepCount, int32 Number)
-{
-	if (!StepBar || !StepText)
-	{
-		return;
-	}
-	// A mission of one step has no bar.
-	const bool bBar = StepCount > 1;
-	const ESlateVisibility BarVisibility = bBar ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-	StepBar->SetVisibility(BarVisibility);
-	StepText->SetVisibility(BarVisibility);
-	if (!bBar)
-	{
-		return;
-	}
-	EnsureSections(StepCount);
-	for (int32 Index = 0; Index < Sections.Num(); ++Index)
-	{
-		if (Index >= StepCount)
-		{
-			Sections[Index]->SetVisibility(ESlateVisibility::Collapsed);
-			continue;
-		}
-		Sections[Index]->SetVisibility(ESlateVisibility::HitTestInvisible);
-		const FTrackerSectionColors Colors = SectionColorsFor(Index, DoneCount, Current);
-		SectionUppers[Index]->SetColorAndOpacity(Colors.Upper);
-		SectionLowers[Index]->SetColorAndOpacity(Colors.Lower);
-	}
-	StepText->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), FMath::Clamp(Number, 1, StepCount), StepCount)));
-}
-
-void UHudMissionTrackerWidget::PaintObjective()
-{
-	if (!LineText || !CountText || !Chevron || !TickMark)
-	{
-		return;
-	}
-	// Done: the chevron turns into the tick and the words dim; the count keeps its cyan.
-	LineText->SetText(FText::FromString(Shown.Line));
-	LineText->SetColorAndOpacity(FSlateColor(Shown.bDone ? Color::TextDim() : FLinearColor::White));
-	Chevron->SetVisibility(Shown.bDone ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
-	TickMark->SetVisibility(Shown.bDone ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-	CountText->SetText(FText::FromString(Shown.Count));
-	CountText->SetVisibility(Shown.Count.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
-}
-
-void UHudMissionTrackerWidget::PaintHint()
-{
-	if (!Hint || !KeyText || !HintText)
-	{
-		return;
-	}
-	// Only for objectives that teach a key.
-	const bool bHint = !Shown.HintKey.IsEmpty();
-	Hint->SetVisibility(bHint ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-	if (bHint)
-	{
-		KeyText->SetText(FText::FromString(Shown.HintKey));
-		HintText->SetText(FText::FromString(Shown.HintText));
-	}
-}
+// Painting what's shown (the title, the step bar, the objective, the hint): HudMissionTrackerWidgetPaint.cpp; the optional
+// objectives under them: HudMissionTrackerWidgetOptional.cpp.
 
 // ---------------------------------------------------------------------------
 // Motion
@@ -466,6 +415,7 @@ void UHudMissionTrackerWidget::Animate(float DeltaTime, bool bVisible)
 		PopAge = FMath::Min(PopAge + DeltaTime, PopSeconds);
 		ApplyPop(PopAge / PopSeconds);
 	}
+	AnimateOptionals(DeltaTime);
 }
 
 void UHudMissionTrackerWidget::StartSlide()

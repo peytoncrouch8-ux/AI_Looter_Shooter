@@ -47,11 +47,15 @@ void UMissionOfferWidget::Advance(float DeltaSeconds)
 {
 	Age += DeltaSeconds;
 	Nav.Tick(DeltaSeconds);
+	if (Mode == EMissionCardMode::Choice)
+	{
+		// The hold's ring and the columns' light, which a choice made may close the card from.
+		AdvanceChoice(DeltaSeconds);
+	}
 	if (bClosing)
 	{
 		CloseAge += DeltaSeconds;
-		const float Done = bAccepted ? StampSlamSeconds + StampHoldSeconds + StampOutSeconds : DeclineSeconds;
-		if (CloseAge >= Done)
+		if (CloseAge >= GetCloseSeconds())
 		{
 			FinishClose();
 			return;
@@ -68,8 +72,9 @@ void UMissionOfferWidget::ApplyMotion()
 	float Slide = (1.f - In) * SlideDistance;
 	if (bClosing && bAccepted)
 	{
-		// Out after the stamp has been seen: lifting away, taken.
-		const float Out = EaseIn((CloseAge - StampSlamSeconds - StampHoldSeconds) / StampOutSeconds);
+		// Out after the stamp has been seen: lifting away, taken (a choice's stamp is held a little longer).
+		const float Held = Mode == EMissionCardMode::Choice ? ChoiceStampHoldSeconds : StampHoldSeconds;
+		const float Out = EaseIn((CloseAge - StampSlamSeconds - Held) / StampOutSeconds);
 		Shown *= 1.f - Out;
 		Slide -= Out * SlideDistance;
 	}

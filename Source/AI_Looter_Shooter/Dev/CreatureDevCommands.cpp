@@ -8,6 +8,8 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/DeadMinerCreature.h"
+#include "Creatures/ForemanCreature.h"
 #include "Creatures/GravemotherCreature.h"
 #include "Creatures/SlimeCreature.h"
 #include "Creatures/SpiderCreature.h"
@@ -95,7 +97,7 @@ namespace
 		bool bSpiderling = false;
 	};
 
-	/** The creature kind a command names ("Spider", "slime", "Unpaid", "Gravemother", "Spiderling", "Spitter", "BellRinger"), or none. */
+	/** The creature kind a command names ("Spider", "slime", "Unpaid", "Gravemother", "Spiderling", "Spitter", "BellRinger", "DeadMiner", "Foreman"), or none. */
 	FCreatureKind FindCreatureKind(const FString& Kind)
 	{
 		FCreatureKind Found;
@@ -127,6 +129,14 @@ namespace
 		else if (Kind.Equals(TEXT("BellRinger"), ESearchCase::IgnoreCase))
 		{
 			Found.Class = ABellRingerCreature::StaticClass();
+		}
+		else if (Kind.Equals(TEXT("DeadMiner"), ESearchCase::IgnoreCase))
+		{
+			Found.Class = ADeadMinerCreature::StaticClass();
+		}
+		else if (Kind.Equals(TEXT("Foreman"), ESearchCase::IgnoreCase))
+		{
+			Found.Class = AForemanCreature::StaticClass();
 		}
 		return Found;
 	}

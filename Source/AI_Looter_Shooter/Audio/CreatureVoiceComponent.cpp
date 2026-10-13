@@ -4,6 +4,7 @@
 #include "Audio/LooterSoundRules.h"
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
+#include "Creatures/DeadMinerCreature.h"
 #include "Creatures/SlimeCreature.h"
 #include "Creatures/SpiderCreature.h"
 #include "Creatures/SpitterSpider.h"
@@ -22,6 +23,12 @@ UCreatureVoiceComponent::FCries UCreatureVoiceComponent::CriesFor(const ACreatur
 	using namespace LooterSoundCue;
 	// Most specific first: subclasses (the Gravemother, Abel) speak with their kind's voice, at their size's pitch.
 	// The Unpaid have no idle call: they mutter lines instead (their barks).
+	// The Providence's dead miners (and the Foreman, one of them) have their own heave at the wind-up, so no Unpaid shriek goes
+	// on top of it; their alert, hurt, death and bullet-hit voices are the Unpaid's. Before the Unpaid's, which they are one of.
+	if (Creature.IsA<ADeadMinerCreature>())
+	{
+		return { UnpaidAlert, NAME_None, UnpaidHurt, UnpaidDeath, UnpaidHit, NAME_None };
+	}
 	if (Creature.IsA<AUnpaidCreature>())
 	{
 		return { UnpaidAlert, UnpaidShriek, UnpaidHurt, UnpaidDeath, UnpaidHit, NAME_None };

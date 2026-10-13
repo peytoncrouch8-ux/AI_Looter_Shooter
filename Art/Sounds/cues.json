@@ -3018,5 +3018,935 @@
     "loop": false,
     "space": "3D",
     "max_concurrent": 1
+  },
+  "UI.Mission.Offer": {
+    "files": [
+      "UI_Mission_Offer_01.wav",
+      "UI_Mission_Offer_02.wav",
+      "UI_Mission_Offer_03.wav"
+    ],
+    "volume_db": -22.0,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "UI.Mission.Accept": {
+    "files": [
+      "UI_Mission_Accept_01.wav",
+      "UI_Mission_Accept_02.wav",
+      "UI_Mission_Accept_03.wav"
+    ],
+    "volume_db": -15.5,
+    "pitch_jitter": 0.0,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "UI.Mission.Decline": {
+    "files": [
+      "UI_Mission_Decline_01.wav",
+      "UI_Mission_Decline_02.wav"
+    ],
+    "volume_db": -23.0,
+    "pitch_jitter": 0.03,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "UI.Mission.NewOffer": {
+    "files": [
+      "UI_Mission_NewOffer_01.wav",
+      "UI_Mission_NewOffer_02.wav",
+      "UI_Mission_NewOffer_03.wav"
+    ],
+    "volume_db": -27.5,
+    "pitch_jitter": 0.0,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "World.Artifact.Read": {
+    "files": [
+      "World_Artifact_Read_01.wav",
+      "World_Artifact_Read_02.wav",
+      "World_Artifact_Read_03.wav"
+    ],
+    "volume_db": -12.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Grave.Marked": {
+    "files": [
+      "World_Grave_Marked_01.wav",
+      "World_Grave_Marked_02.wav",
+      "World_Grave_Marked_03.wav"
+    ],
+    "volume_db": -15.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.Grave.Remarked": {
+    "files": [
+      "World_Grave_Remarked_01.wav",
+      "World_Grave_Remarked_02.wav",
+      "World_Grave_Remarked_03.wav"
+    ],
+    "volume_db": -18.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "UI.Hold.Complete": {
+    "files": [
+      "UI_Hold_Complete_01.wav",
+      "UI_Hold_Complete_02.wav",
+      "UI_Hold_Complete_03.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "World.LostProperty.Open": {
+    "files": [
+      "World_LostProperty_Open_01.wav",
+      "World_LostProperty_Open_02.wav",
+      "World_LostProperty_Open_03.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.LostProperty.Close": {
+    "files": [
+      "World_LostProperty_Close_01.wav",
+      "World_LostProperty_Close_02.wav",
+      "World_LostProperty_Close_03.wav"
+    ],
+    "volume_db": -15.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "UI.LostProperty.Claim": {
+    "files": [
+      "UI_LostProperty_Claim_01.wav",
+      "UI_LostProperty_Claim_02.wav",
+      "UI_LostProperty_Claim_03.wav"
+    ],
+    "volume_db": -9.0,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "UI.LostProperty.NoRoom": {
+    "files": [
+      "UI_LostProperty_NoRoom_01.wav",
+      "UI_LostProperty_NoRoom_02.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.0,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "UI.LostProperty.Upgrade": {
+    "files": [
+      "UI_LostProperty_Upgrade_01.wav",
+      "UI_LostProperty_Upgrade_02.wav"
+    ],
+    "volume_db": -12.5,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "UI.LostProperty.Sent": {
+    "files": [
+      "UI_LostProperty_Sent_01.wav",
+      "UI_LostProperty_Sent_02.wav"
+    ],
+    "volume_db": -23.0,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "UI.Mission.OptionalDone": {
+    "files": [
+      "UI_Mission_OptionalDone_01.wav",
+      "UI_Mission_OptionalDone_02.wav"
+    ],
+    "volume_db": -22.0,
+    "pitch_jitter": 0.0,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "World.MissionItem.Take": {
+    "files": [
+      "World_MissionItem_Take_01.wav",
+      "World_MissionItem_Take_02.wav",
+      "World_MissionItem_Take_03.wav"
+    ],
+    "volume_db": -13.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.MissionItem.Drop": {
+    "files": [
+      "World_MissionItem_Drop_01.wav",
+      "World_MissionItem_Drop_02.wav",
+      "World_MissionItem_Drop_03.wav"
+    ],
+    "volume_db": -7.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "UI.Mission.ChoiceOpen": {
+    "files": [
+      "UI_Mission_ChoiceOpen_01.wav",
+      "UI_Mission_ChoiceOpen_02.wav"
+    ],
+    "volume_db": -19.0,
+    "pitch_jitter": 0.0,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "UI.Mission.ChoiceHold": {
+    "files": [
+      "UI_Mission_ChoiceHold_01.wav"
+    ],
+    "volume_db": -21.5,
+    "pitch_jitter": 0.0,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "UI.Mission.ChoiceMade": {
+    "files": [
+      "UI_Mission_ChoiceMade_01.wav",
+      "UI_Mission_ChoiceMade_02.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.0,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "World.Readable.Read": {
+    "files": [
+      "World_Readable_Read_01.wav",
+      "World_Readable_Read_02.wav",
+      "World_Readable_Read_03.wav"
+    ],
+    "volume_db": -17.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "UI.Readable.Close": {
+    "files": [
+      "UI_Readable_Close_01.wav",
+      "UI_Readable_Close_02.wav"
+    ],
+    "volume_db": -18.5,
+    "pitch_jitter": 0.03,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "World.PorchPlate.Take": {
+    "files": [
+      "World_PorchPlate_Take_01.wav",
+      "World_PorchPlate_Take_02.wav"
+    ],
+    "volume_db": -10.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.PorchPlate.Eat": {
+    "files": [
+      "World_PorchPlate_Eat_01.wav",
+      "World_PorchPlate_Eat_02.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "UI.Minimap.Underground": {
+    "files": [
+      "UI_Minimap_Underground_01.wav"
+    ],
+    "volume_db": -29.5,
+    "pitch_jitter": 0.0,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "World.OreLift.BellSignal": {
+    "files": [
+      "World_OreLift_BellSignal_01.wav",
+      "World_OreLift_BellSignal_02.wav",
+      "World_OreLift_BellSignal_03.wav"
+    ],
+    "volume_db": -17.0,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.OreLift.BellAnswer": {
+    "files": [
+      "World_OreLift_BellAnswer_01.wav",
+      "World_OreLift_BellAnswer_02.wav"
+    ],
+    "volume_db": -19.5,
+    "pitch_jitter": 0.01,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.OreLift.BellArrive": {
+    "files": [
+      "World_OreLift_BellArrive_01.wav",
+      "World_OreLift_BellArrive_02.wav",
+      "World_OreLift_BellArrive_03.wav"
+    ],
+    "volume_db": -18.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.OreLift.BellDead": {
+    "files": [
+      "World_OreLift_BellDead_01.wav",
+      "World_OreLift_BellDead_02.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.OreLift.Whistle": {
+    "files": [
+      "World_OreLift_Whistle_01.wav",
+      "World_OreLift_Whistle_02.wav"
+    ],
+    "volume_db": -16.0,
+    "pitch_jitter": 0.01,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.OreLift.WinchRun": {
+    "files": [
+      "World_OreLift_WinchRun_01.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.OreLift.CableRun": {
+    "files": [
+      "World_OreLift_CableRun_01.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.OreLift.TakeUp": {
+    "files": [
+      "World_OreLift_TakeUp_01.wav",
+      "World_OreLift_TakeUp_02.wav",
+      "World_OreLift_TakeUp_03.wav"
+    ],
+    "volume_db": -8.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.OreLift.SheaveClank": {
+    "files": [
+      "World_OreLift_SheaveClank_01.wav",
+      "World_OreLift_SheaveClank_02.wav",
+      "World_OreLift_SheaveClank_03.wav",
+      "World_OreLift_SheaveClank_04.wav",
+      "World_OreLift_SheaveClank_05.wav"
+    ],
+    "volume_db": -5.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "World.OreLift.CageLand": {
+    "files": [
+      "World_OreLift_CageLand_01.wav",
+      "World_OreLift_CageLand_02.wav",
+      "World_OreLift_CageLand_03.wav"
+    ],
+    "volume_db": -7.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.OreLift.GateLatch": {
+    "files": [
+      "World_OreLift_GateLatch_01.wav",
+      "World_OreLift_GateLatch_02.wav",
+      "World_OreLift_GateLatch_03.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.WatchFire.Light": {
+    "files": [
+      "World_WatchFire_Light_01.wav",
+      "World_WatchFire_Light_02.wav"
+    ],
+    "volume_db": -10.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.WatchFire.Burn": {
+    "files": [
+      "World_WatchFire_Burn_01.wav"
+    ],
+    "volume_db": -19.0,
+    "pitch_jitter": 0.0,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.WatchFire.Dry": {
+    "files": [
+      "World_WatchFire_Dry_01.wav",
+      "World_WatchFire_Dry_02.wav"
+    ],
+    "volume_db": -20.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Creature.DeadMiner.Heave": {
+    "files": [
+      "Creature_DeadMiner_Heave_01.wav",
+      "Creature_DeadMiner_Heave_02.wav",
+      "Creature_DeadMiner_Heave_03.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.DeadMiner.Swing": {
+    "files": [
+      "Creature_DeadMiner_Swing_01.wav",
+      "Creature_DeadMiner_Swing_02.wav",
+      "Creature_DeadMiner_Swing_03.wav"
+    ],
+    "volume_db": -15.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.DeadMiner.PickBite": {
+    "files": [
+      "Creature_DeadMiner_PickBite_01.wav",
+      "Creature_DeadMiner_PickBite_02.wav",
+      "Creature_DeadMiner_PickBite_03.wav",
+      "Creature_DeadMiner_PickBite_04.wav"
+    ],
+    "volume_db": -3.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.DeadMiner.PickWall": {
+    "files": [
+      "Creature_DeadMiner_PickWall_01.wav",
+      "Creature_DeadMiner_PickWall_02.wav",
+      "Creature_DeadMiner_PickWall_03.wav",
+      "Creature_DeadMiner_PickWall_04.wav"
+    ],
+    "volume_db": -14.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.DeadMiner.LampBreak": {
+    "files": [
+      "Creature_DeadMiner_LampBreak_01.wav",
+      "Creature_DeadMiner_LampBreak_02.wav",
+      "Creature_DeadMiner_LampBreak_03.wav"
+    ],
+    "volume_db": -3.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.DeadMiner.LampStruck": {
+    "files": [
+      "Creature_DeadMiner_LampStruck_01.wav",
+      "Creature_DeadMiner_LampStruck_02.wav",
+      "Creature_DeadMiner_LampStruck_03.wav",
+      "Creature_DeadMiner_LampStruck_04.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Creature.DeadMiner.Reel": {
+    "files": [
+      "Creature_DeadMiner_Reel_01.wav",
+      "Creature_DeadMiner_Reel_02.wav",
+      "Creature_DeadMiner_Reel_03.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.DeadMiner.Pail": {
+    "files": [
+      "Creature_DeadMiner_Pail_01.wav",
+      "Creature_DeadMiner_Pail_02.wav",
+      "Creature_DeadMiner_Pail_03.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.DeadMiner.Drop": {
+    "files": [
+      "Creature_DeadMiner_Drop_01.wav",
+      "Creature_DeadMiner_Drop_02.wav",
+      "Creature_DeadMiner_Drop_03.wav"
+    ],
+    "volume_db": -8.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "World.Thaddeus.Knock": {
+    "files": [
+      "World_Thaddeus_Knock_01.wav",
+      "World_Thaddeus_Knock_02.wav",
+      "World_Thaddeus_Knock_03.wav"
+    ],
+    "volume_db": -16.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.Thaddeus.Tape": {
+    "files": [
+      "World_Thaddeus_Tape_01.wav",
+      "World_Thaddeus_Tape_02.wav"
+    ],
+    "volume_db": -25.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.Hiram.Tube": {
+    "files": [
+      "World_Hiram_Tube_01.wav",
+      "World_Hiram_Tube_02.wav"
+    ],
+    "volume_db": -23.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Foreman.Intro": {
+    "files": [
+      "Boss_Foreman_Intro_01.wav"
+    ],
+    "volume_db": -11.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Foreman.Phase": {
+    "files": [
+      "Boss_Foreman_Phase_01.wav",
+      "Boss_Foreman_Phase_02.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.02,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Foreman.Stagger": {
+    "files": [
+      "Boss_Foreman_Stagger_01.wav",
+      "Boss_Foreman_Stagger_02.wav"
+    ],
+    "volume_db": -9.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Foreman.Death": {
+    "files": [
+      "Boss_Foreman_Death_01.wav"
+    ],
+    "volume_db": -12.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Foreman.Slam": {
+    "files": [
+      "Boss_Foreman_Slam_01.wav",
+      "Boss_Foreman_Slam_02.wav",
+      "Boss_Foreman_Slam_03.wav"
+    ],
+    "volume_db": -5.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Boss.Foreman.CoalOpen": {
+    "files": [
+      "Boss_Foreman_CoalOpen_01.wav",
+      "Boss_Foreman_CoalOpen_02.wav"
+    ],
+    "volume_db": -15.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Foreman.FuseLight": {
+    "files": [
+      "Boss_Foreman_FuseLight_01.wav",
+      "Boss_Foreman_FuseLight_02.wav"
+    ],
+    "volume_db": -15.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Boss.Foreman.FuseHiss": {
+    "files": [
+      "Boss_Foreman_FuseHiss_01.wav"
+    ],
+    "volume_db": -18.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": true,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Boss.Foreman.FuseThrow": {
+    "files": [
+      "Boss_Foreman_FuseThrow_01.wav",
+      "Boss_Foreman_FuseThrow_02.wav",
+      "Boss_Foreman_FuseThrow_03.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Boss.Foreman.FuseLand": {
+    "files": [
+      "Boss_Foreman_FuseLand_01.wav",
+      "Boss_Foreman_FuseLand_02.wav",
+      "Boss_Foreman_FuseLand_03.wav",
+      "Boss_Foreman_FuseLand_04.wav"
+    ],
+    "volume_db": -5.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Boss.Foreman.FuseBurst": {
+    "files": [
+      "Boss_Foreman_FuseBurst_01.wav",
+      "Boss_Foreman_FuseBurst_02.wav",
+      "Boss_Foreman_FuseBurst_03.wav",
+      "Boss_Foreman_FuseBurst_04.wav"
+    ],
+    "volume_db": -3.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Boss.Foreman.RoofStrike": {
+    "files": [
+      "Boss_Foreman_RoofStrike_01.wav",
+      "Boss_Foreman_RoofStrike_02.wav",
+      "Boss_Foreman_RoofStrike_03.wav"
+    ],
+    "volume_db": -6.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Boss.Foreman.RoofGroan": {
+    "files": [
+      "Boss_Foreman_RoofGroan_01.wav",
+      "Boss_Foreman_RoofGroan_02.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Foreman.RockFall": {
+    "files": [
+      "Boss_Foreman_RockFall_01.wav",
+      "Boss_Foreman_RockFall_02.wav",
+      "Boss_Foreman_RockFall_03.wav"
+    ],
+    "volume_db": -7.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Boss.Foreman.PropSplinter": {
+    "files": [
+      "Boss_Foreman_PropSplinter_01.wav",
+      "Boss_Foreman_PropSplinter_02.wav",
+      "Boss_Foreman_PropSplinter_03.wav"
+    ],
+    "volume_db": -7.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Boss.Foreman.LanternsOut": {
+    "files": [
+      "Boss_Foreman_LanternsOut_01.wav"
+    ],
+    "volume_db": -14.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Foreman.LanternsBack": {
+    "files": [
+      "Boss_Foreman_LanternsBack_01.wav"
+    ],
+    "volume_db": -13.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Boss.Foreman.ShiftRise": {
+    "files": [
+      "Boss_Foreman_ShiftRise_01.wav",
+      "Boss_Foreman_ShiftRise_02.wav"
+    ],
+    "volume_db": -10.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
   }
 }

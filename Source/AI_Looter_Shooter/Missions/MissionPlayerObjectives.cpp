@@ -1,8 +1,13 @@
 #include "Missions/MissionPlayerObjectives.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Loot/WeaponRack.h"
+#include "Missions/MissionDefinition.h"
+#include "Missions/MissionRunner.h"
+#include "Missions/MissionTargets.h"
 #include "UI/HUD/LooterHUD.h"
 #include "Weapons/WeaponBase.h"
+#include "World/MissionItem.h"
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerController.h"
 
@@ -60,6 +65,104 @@ FString UMissionCollectObjective::DescribeRule() const
 		return GetRequired() > 1 ? FString::Printf(TEXT("Carry %d guns"), GetRequired()) : FString(TEXT("Take a gun"));
 	}
 	return FString::Printf(TEXT("Collect %d %s"), GetRequired(), *Item.Describe());
+}
+
+// --- Collect mission items ---
+
+int32 UMissionCollectItemObjective::CountCarried(const FMissionContext& Context) const
+{
+	const UMissionRunner* Runner = Context.World ? Context.World->GetSubsystem<UMissionRunner>() : nullptr;
+	if (!Runner)
+	{
+		return 0;
+	}
+	int32 Carried = 0;
+	for (const FName ItemId : Items)
+	{
+		Carried += Runner->IsCarrying(ItemId) ? 1 : 0;
+	}
+	return Carried;
+}
+
+void UMissionCollectItemObjective::Begin(const FMissionContext& Context, FMissionObjectiveState& State) const
+{
+	State.Count = CountCarried(Context);
+}
+
+void UMissionCollectItemObjective::Update(const FMissionContext& Context, FMissionObjectiveState& State, float DeltaSeconds) const
+{
+	State.Count = CountCarried(Context);
+}
+
+bool UMissionCollectItemObjective::HandleEvent(const FMissionContext& Context, FMissionObjectiveState& State, const FMissionEvent& Happened) const
+{
+	// A pickup counts at once rather than at the next look.
+	if (Happened.Name != FMissionEvent::Collect)
+	{
+		return false;
+	}
+	const int32 Before = State.Count;
+	State.Count = CountCarried(Context);
+	return State.Count != Before;
+}
+
+TOptional<FVector> UMissionCollectItemObjective::GetAutoWaypoint(const FMissionContext& Context, const FMissionObjectiveState& State) const
+{
+	const UMissionRunner* Runner = Context.World ? Context.World->GetSubsystem<UMissionRunner>() : nullptr;
+	const UMissionDefinition* Mission = GetTypedOuter<UMissionDefinition>();
+	if (!Runner)
+	{
+		return TOptional<FVector>();
+	}
+	const TOptional<FVector> From = Context.GetPlayerLocation();
+	TOptional<FVector> Best;
+	double BestDistance = TNumericLimits<double>::Max();
+	auto Consider = [&](const FVector& Where)
+	{
+		const double Distance = From.IsSet() ? FVector::DistSquared2D(Where, *From) : 0.0;
+		if (!Best.IsSet() || Distance < BestDistance)
+		{
+			Best = Where;
+			BestDistance = Distance;
+		}
+	};
+	for (const FName ItemId : Items)
+	{
+		if (Runner->IsCarrying(ItemId))
+		{
+			continue;
+		}
+		// Lying there to take (as its mission stands now, which the item may not have looked at yet); else on whoever carries
+		// it, alive.
+		const AMissionItem* Lying = AMissionItem::FindIn(Context.World, ItemId);
+		if (Lying && Lying->ShouldShow())
+		{
+			Consider(Lying->GetActorLocation());
+			continue;
+		}
+		const FMissionItemInfo* Info = Mission ? Mission->FindItem(ItemId) : nullptr;
+		if (Info && Info->DroppedBy.IsSet())
+		{
+			if (const AActor* Carrier = MissionTargets::FindNearest(Context.World, Info->DroppedBy, From, /*bLivingOnly*/ true))
+			{
+				Consider(Carrier->GetActorLocation());
+			}
+		}
+	}
+	return Best;
+}
+
+FString UMissionCollectItemObjective::DescribeRule() const
+{
+	// "Find the winch crank", or "Collect 3 things" when there are several (the data names them in its own words).
+	const UMissionDefinition* Mission = GetTypedOuter<UMissionDefinition>();
+	const FMissionItemInfo* First = Mission && Items.Num() == 1 ? Mission->FindItem(Items[0]) : nullptr;
+	if (First && !First->Name.IsEmpty())
+	{
+		return TEXT("Find ") + First->Name.ToString();
+	}
+	return Items.Num() == 1 ? FString::Printf(TEXT("Find %s"), *FName::NameToDisplayString(Items[0].ToString(), false))
+		: FString::Printf(TEXT("Collect %d things"), GetRequired());
 }
 
 // --- Open an inventory page ---

@@ -120,9 +120,11 @@ void UMissionsWidget::RefreshDetails()
 		TrackSlot->SetPadding(FMargin(0.f, 14.f, 0.f, 0.f));
 	}
 
-	// Under the card: the steps, then what it gives.
+	// Under the card: the steps, what's carried for it, then what it gives (and the choice it ends in).
 	AddSteps(*Mission, Status);
+	AddCarried(*Mission);
 	AddRewards(*Mission);
+	AddChoice(*Mission, Status);
 }
 
 void UMissionsWidget::AddSteps(const UMissionDefinition& Mission, EMissionStatus Status)
@@ -164,9 +166,16 @@ void UMissionsWidget::AddSteps(const UMissionDefinition& Mission, EMissionStatus
 
 	for (int32 StepIndex = 0; StepIndex < FMath::Min(Reached, NumSteps); ++StepIndex)
 	{
-		for (const TObjectPtr<UMissionObjective>& Objective : Mission.Steps[StepIndex].Objectives)
+		const TArray<TObjectPtr<UMissionObjective>>& Objectives = Mission.Steps[StepIndex].Objectives;
+		for (int32 Index = 0; Index < Objectives.Num(); ++Index)
 		{
-			if (Objective)
+			const UMissionObjective* Objective = Objectives[Index];
+			if (Objective && Objective->bOptional)
+			{
+				// Done, missed, or (the last step's while it waits for its turn-in) still to be had.
+				AddPastOptional(Mission, StepIndex, Index, bReady);
+			}
+			else if (Objective)
 			{
 				AddStepLine(Objective->GetDisplayText(GetWorld()), /*bDone*/ true, /*bCurrent*/ false);
 			}
@@ -188,14 +197,25 @@ void UMissionsWidget::AddSteps(const UMissionDefinition& Mission, EMissionStatus
 	{
 		for (const FMissionObjectiveView& View : Views)
 		{
-			AddObjectiveLine(View.Text, View.Progress, View.Required, View.Fraction, View.bDone);
+			if (View.bOptional)
+			{
+				AddOptionalLine(View.Text, View.Progress, View.bDone, /*bMissed*/ false);
+			}
+			else
+			{
+				AddObjectiveLine(View.Text, View.Progress, View.Required, View.Fraction, View.bDone);
+			}
 		}
 	}
 	else
 	{
 		for (const TObjectPtr<UMissionObjective>& Objective : Mission.Steps[Reached].Objectives)
 		{
-			if (Objective)
+			if (Objective && Objective->bOptional)
+			{
+				AddOptionalLine(Objective->GetDisplayText(GetWorld()), FString(), /*bDone*/ false, /*bMissed*/ false);
+			}
+			else if (Objective)
 			{
 				AddObjectiveLine(Objective->GetDisplayText(GetWorld()), FString(), 1, 0.f, false);
 			}
@@ -251,8 +271,13 @@ void UMissionsWidget::AddObjectiveLine(const FString& Text, const FString& Progr
 
 void UMissionsWidget::AddRewards(const UMissionDefinition& Mission)
 {
-	// The purse is kept by mission id, not in the rewards, so the id goes with them.
-	const TArray<FString> Lines = MissionRewards::Describe(Mission.Rewards, Mission.GetMissionId());
+	// The purse may be kept by mission id rather than in the rewards, so the id goes with them; the optional objectives'
+	// bonus after it.
+	TArray<FString> Lines = MissionRewards::Describe(Mission.Rewards, Mission.GetMissionId());
+	if (const FString Optional = DescribeOptionalBonus(Mission); !Optional.IsEmpty())
+	{
+		Lines.Add(Optional);
+	}
 	if (Lines.IsEmpty())
 	{
 		return;

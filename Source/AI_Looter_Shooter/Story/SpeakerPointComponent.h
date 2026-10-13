@@ -50,7 +50,13 @@ struct AI_LOOTER_SHOOTER_API FSpeakerTopic
  * Someone with a mission to offer (FMissionOffer::GiverTag on the actor) offers it as they talk, Borderlands' way: they say
  * the offer's lines (else their own), and once those are said the offer card opens (ALooterHUD::OpenMissionOffer). A
  * mission waiting to be turned in to them comes first: that talk turns it in, and what they have next is offered after the
- * turn-in's words. Walking off before the words end leaves the offer for the next talk (its ! stays).
+ * turn-in's words. Walking off before the words end leaves the offer for the next talk (its ! stays). A turn-in with a
+ * choice of two (FMissionTurnIn::Choices) isn't finished by the talk: once its words are said the card opens in its choice
+ * mode (ALooterHUD::OpenTurnInChoice), and the mission finishes when the player chooses.
+ *
+ * Anything can speak: a door, a window, a story character, a talking coffin, a speaking tube, a tag board, a store's hatch.
+ * Place the point where the voice comes from (its owner's speaker socket); bMissionsOnly keeps a thing that speaks only for
+ * the story quiet the rest of the time.
  *
  * It's an IInteractable, but the interaction component asks actors, not components: the actor it's on hands the Interact
  * key on to it (ASpeakerPoint for doors and windows, AStoryCharacter). It enters that actor among the level's interactables.
@@ -127,6 +133,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Speaker")
 	bool bTalkable = true;
 
+	/**
+	 * It talks only while it has something for the player: a mission to turn in or to offer here, or a topic that applies
+	 * now (its plain Lines don't count). For things that speak only for the story (a tag board's voice out of the dark, a
+	 * speaking tube, a talking coffin, a store's hatch beside its vendor): no prompt the rest of the time.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Speaker")
+	bool bMissionsOnly = false;
+
+	/** A mission waits to be turned in here, one is offered here, or a topic applies now: what bMissionsOnly asks for. */
+	bool HasMissionBusiness() const;
+
 	/** Someone talked here (its lines have begun and the missions have heard). */
 	FOnSpeakerTalked OnTalked;
 
@@ -140,6 +157,9 @@ public:
 
 	/** The mission the last talk will offer once its words are said, or None. */
 	FName GetPendingOffer() const { return PendingOffer; }
+
+	/** The pending mission is a turn-in waiting for the player's choice (the choice card opens after the words), not an offer. */
+	bool IsChoicePending() const { return bPendingChoice && !PendingOffer.IsNone(); }
 
 	/**
 	 * Opens the offer card on the pending offer if its words are said, the listener is still near and nothing covers the
@@ -195,11 +215,17 @@ private:
 
 	/** Mission is offered once the conversation's words are said, to Listener. */
 	void QueueOffer(const UMissionDefinition& Mission, AActor* Listener, int32 AfterConversation);
+	/** Mission's turn-in choice card opens once the conversation's words are said, for Listener (SpeakerPointComponentOffers.cpp). */
+	void QueueChoice(const UMissionDefinition& Mission, AActor* Listener, int32 AfterConversation);
 	void ClearPendingOffer();
 	void TickPendingOffer();
 
-	/** The offer waiting for the talk's words, the conversation it waits for, who it's for and since when (world seconds). */
+	/**
+	 * The offer (or the turn-in choice, bPendingChoice) waiting for the talk's words, the conversation it waits for, who
+	 * it's for and since when (world seconds).
+	 */
 	FName PendingOffer;
+	bool bPendingChoice = false;
 	int32 OfferConversation = 0;
 	TWeakObjectPtr<AActor> OfferListener;
 	double OfferQueuedAt = 0.0;

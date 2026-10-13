@@ -22,6 +22,10 @@ leaves every other field as it is.
                    ranks' levels, with no zones: its creatures are at the band's floor or one above until it has some.
   promotions       chances a placed Basic creature is Restless (rare) or Gravebound (epic) on an arrival, rolled at most
                    once per 20 minutes of play per map. Legendary monsters are hand-placed.
+  required_kinds   kinds the area's layout must set, at these levels (its bosses and Legendary monsters, never rolled from a
+                   zone): checked before anything is saved, so a layout that loses one is caught here. Ransom's Rest's
+                   Foreman (Back Pay) is a set 5 before his Soulfed rank's 2, so level 7, level with Abel (the user's call,
+                   2026-10-13).
 
 A level zone's shape in the layout is a layout zone ("zone"), an obstacle ("obstacle"), its own "polygon", or a "radius"
 round a point ("at") or between two obstacles ("between"), made a 16-sided outline as the tests read it
@@ -42,7 +46,7 @@ AREAS = [
          promotions=dict(rare=0.0, epic=0.0)),
     dict(asset='DA_Area_RansomsRest', name="Ransom's Rest", map='/Game/Maps/Lvl_RansomsRest', landings=['Landing_Depot'],
          practice=False, opening_mission='Main1', sort_order=10, layout='Art/Levels/RansomsRest/layout.json',
-         promotions=dict(rare=0.08, epic=0.02)),
+         promotions=dict(rare=0.08, epic=0.02), required_kinds=dict(ForemanCreature=5)),
     dict(asset='DA_Area_GildedLily', name='The Gilded Lily', spoken='the Lily', map='/Game/Maps/Lvl_GildedLily',
          landings=['Landing_Platform'], practice=False, opening_mission='', sort_order=20, band=(9, 15),
          promotions=dict(rare=0.08, epic=0.02)),
@@ -203,8 +207,19 @@ def check_levels(spec, asset, band, zones, kinds):
             raise RuntimeError(f"{label}: {kind['name']}'s set level reads back wrong: nothing was saved")
 
 
+def check_required_kinds(spec, kinds):
+    """The kinds the area must set at set levels are in its layout at those levels; raises before anything is saved."""
+    set_levels = {kind['name']: kind['level'] for kind in kinds}
+    for name, level in spec.get('required_kinds', {}).items():
+        if set_levels.get(name) != level:
+            raise RuntimeError(f"{spec['asset']}: {spec.get('layout', 'its band')} must set {name} at level {level} (found "
+                               f"{set_levels.get(name)}): add {{ \"class\": \"{name}\", \"level\": {level} }} to "
+                               f"gameplay.levels.kinds; nothing was saved")
+
+
 def setup(spec, cls):
     band, zones, kinds = read_levels(spec)
+    check_required_kinds(spec, kinds)
     if not 1 <= band[0] <= band[1]:
         raise RuntimeError(f"{spec['asset']}: the band {band} must be 1 or more, lowest first")
     asset, created = load_or_create(spec['asset'], cls)

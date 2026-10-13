@@ -179,9 +179,15 @@ bool AMissionArtifact::Use(AActor* Player)
 	}
 	const FVector Where = GetInteractionLocation().Get(GetActorLocation());
 	// A mission turned in here comes first, as at someone's door: the talk's event finishes it.
-	if (Runner->FindTurnInAt(this))
+	if (const UMissionDefinition* Waiting = Runner->FindTurnInAt(this))
 	{
 		LooterSound::PlayAt(this, LooterSoundCue::Giver::ArtifactRead, Where);
+		// A turn-in with a choice of two (Back Pay at the tag board) asks first; the card turns it in.
+		if (Waiting->HasTurnInChoice())
+		{
+			ALooterHUD* ChoiceHUD = ALooterHUD::FindFor(Player);
+			return ChoiceHUD && ChoiceHUD->OpenTurnInChoice(Waiting, this);
+		}
 		Runner->NotifyEvent(FMissionEvent::Talked(this));
 		return true;
 	}

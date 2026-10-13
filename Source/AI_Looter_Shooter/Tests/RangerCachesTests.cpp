@@ -7,6 +7,7 @@
 #include "Loot/Chest.h"
 #include "Loot/LootOdds.h"
 #include "Loot/LootTable.h"
+#include "Loot/LostLootSubsystem.h"
 #include "Session/SessionSave.h"
 #include "Session/SessionSubsystem.h"
 #include "Tests/InteractionTestWorld.h"
@@ -465,7 +466,12 @@ bool FRangerCachesSaveTest::RunTest(const FString& Parameters)
 		&& OpenedAgain->HasGivenLoot() && FMath::IsNearlyEqual(OpenedAgain->GetLidAngle(), Angle, 0.01f) && !OpenedAgain->IsActorTickEnabled());
 	TestTrue(TEXT("...the lid itself up"), FMath::IsNearlyEqual(LidPitch(OpenedAgain), static_cast<double>(Angle), 0.5));
 	TestEqual(TEXT("...nothing came out of it: the loot here is the save's"), OpenedAgain->GetDroppedLoot().Num(), 0);
-	TestEqual(TEXT("...all of it back"), CountGuns(Again) + FindAmmo(Again).Num(), Given);
+	// Its ammo lies where it did; its guns, left on the ground at the save, went to Lost Property as it was loaded
+	// (2026-10-13), never back on the ground.
+	const ULostLootSubsystem* LostLoot = ULostLootSubsystem::Get(Again);
+	const int32 Shelved = LostLoot ? LostLoot->GetStore().Num() : 0;
+	TestEqual(TEXT("...all of it back: the ammo lying there, the guns in Lost Property"), Shelved + FindAmmo(Again).Num(), Given);
+	TestEqual(TEXT("...no gun lying on the ground"), CountGuns(Again), 0);
 	TestFalse(TEXT("...and it gives nothing more"), OpenedAgain->Open(nullptr, /*bForce*/ true));
 	TestTrue(TEXT("The one never opened is shut and full"), UntouchedAgain->GetState() == EChestState::Closed && UntouchedAgain->CanOpen());
 	TestTrue(TEXT("The one saved mid-swing is shut and full: nothing was lost"), MidSwingAgain->GetState() == EChestState::Closed

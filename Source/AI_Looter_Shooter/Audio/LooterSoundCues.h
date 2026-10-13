@@ -484,4 +484,181 @@ namespace LooterSoundCue
 		/** The ring filling all the way (2D, short, crisp): a soft click with a bright tick on top. */
 		inline constexpr const TCHAR* Complete = TEXT("UI.Hold.Complete");
 	}
+
+	// --- The Providence's dead (2026-10-13, wave 2c: ADeadMinerCreature, AForemanCreature and his fuse sticks, rock falls and
+	//     timber props; Hiram Coyle and Thaddeus Bright). A silver mine: iron on rock, carbide hiss, old pine, black powder ---
+	namespace DeadMiner
+	{
+		/** The swing's wind-up (3D, on it): a dead man's grunt heaving a pick overhead, the haft creaking, its lamp's hiss rising. */
+		inline constexpr const TCHAR* Heave = TEXT("Creature.DeadMiner.Heave");
+		/** The pick coming down (3D, on it): a heavy whoosh through the air, short. */
+		inline constexpr const TCHAR* Swing = TEXT("Creature.DeadMiner.Swing");
+		/** The pick biting the floor (3D, carried): a heavy iron chunk into rock, stone chips skittering. */
+		inline constexpr const TCHAR* PickBite = TEXT("Creature.DeadMiner.PickBite");
+		/** Working a wall unaware (3D, quieter, heard across a gallery): one pick strike ringing on rock, a dull iron ping. */
+		inline constexpr const TCHAR* PickWall = TEXT("Creature.DeadMiner.PickWall");
+		/** Its head lamp shot out (3D, near): a small glass pop, a hiss of carbide gas dying, a tinkle of glass. */
+		inline constexpr const TCHAR* LampBreak = TEXT("Creature.DeadMiner.LampBreak");
+		/** A bullet off a lamp already out (3D, near): a small bright tink on brass. */
+		inline constexpr const TCHAR* LampStruck = TEXT("Creature.DeadMiner.LampStruck");
+		/** Its swing broken by a shot on the lamp (3D): a choked gasp, the pick's haft clattering in its hands. */
+		inline constexpr const TCHAR* Reel = TEXT("Creature.DeadMiner.Reel");
+		/** At its lunch pail (3D, quiet): a tin lid lifted and set back down. */
+		inline constexpr const TCHAR* Pail = TEXT("Creature.DeadMiner.Pail");
+		/** Its pick falling as it dies (3D): iron clattering onto stone, a bounce. */
+		inline constexpr const TCHAR* Drop = TEXT("Creature.DeadMiner.Drop");
+	}
+
+	namespace Foreman
+	{
+		/** His fight's start, as his bar sweeps in (3D, carried): a mine whistle shrieking down the stope under a big man's bellow. */
+		inline constexpr const TCHAR* Intro = TEXT("Boss.Foreman.Intro");
+		/** A later phase (3D, carried): his roar of anger echoing off rock, a hammer rung on a steel plate. */
+		inline constexpr const TCHAR* Phase = TEXT("Boss.Foreman.Phase");
+		/** Knocked to a knee (3D): a heavy grunt, his coat's buckles rattling, the pick handle scraping stone. */
+		inline constexpr const TCHAR* Stagger = TEXT("Boss.Foreman.Stagger");
+		/** His last breath (3D, carried): a long exhale that breaks, the mine settling round it, a distant drip. */
+		inline constexpr const TCHAR* Death = TEXT("Boss.Foreman.Death");
+		/** His pick handle slammed on the floor (3D, carried): a heavy wooden crack on stone, grit pattering down after. */
+		inline constexpr const TCHAR* Slam = TEXT("Boss.Foreman.Slam");
+		/** His coal bared (3D, on him): a low ember roar with a crackle, the weak spot opening. */
+		inline constexpr const TCHAR* CoalOpen = TEXT("Boss.Foreman.CoalOpen");
+		/** A fuse lit (3D, near): a match scratched hard, then the fuse catching with a spit of sparks. */
+		inline constexpr const TCHAR* FuseLight = TEXT("Boss.Foreman.FuseLight");
+		/** A lit fuse (3D loop, on the stick): a steady angry hiss, sparks spitting in it now and then. */
+		inline constexpr const TCHAR* FuseHiss = TEXT("Boss.Foreman.FuseHiss");
+		/** The stick lobbed (3D): a grunt and a short whoosh. */
+		inline constexpr const TCHAR* FuseThrow = TEXT("Boss.Foreman.FuseThrow");
+		/** The stick landing (3D): a wooden clack on rock, a skitter. */
+		inline constexpr const TCHAR* FuseLand = TEXT("Boss.Foreman.FuseLand");
+		/** A powder stick going off in a tunnel (3D, carried far): a hard crack, a deep boom, rock rattling down after it. */
+		inline constexpr const TCHAR* FuseBurst = TEXT("Boss.Foreman.FuseBurst");
+		/** His pick handle hammered into a timber prop (3D, carried): a deep wooden thud, the prop groaning under it. */
+		inline constexpr const TCHAR* RoofStrike = TEXT("Boss.Foreman.RoofStrike");
+		/** The roof answering (3D, carried, about 2 s, building): timbers creaking, stone grinding overhead, dust starting to sift. */
+		inline constexpr const TCHAR* RoofGroan = TEXT("Boss.Foreman.RoofGroan");
+		/** Rock falling from the roof onto the floor (3D, carried): a heavy crash and a slide of gravel. */
+		inline constexpr const TCHAR* RockFall = TEXT("Boss.Foreman.RockFall");
+		/** A timber prop splintering (3D, carried): a loud crack of splitting pine, splinters clattering down. */
+		inline constexpr const TCHAR* PropSplinter = TEXT("Boss.Foreman.PropSplinter");
+		/** The stope's lanterns blown out at once (3D, carried): a gust through the drift, flames guttering, a sudden hush. */
+		inline constexpr const TCHAR* LanternsOut = TEXT("Boss.Foreman.LanternsOut");
+		/** The lanterns catching again (3D, carried): a soft whump of flame, glass ticking as it warms. */
+		inline constexpr const TCHAR* LanternsBack = TEXT("Boss.Foreman.LanternsBack");
+		/** His shift rising out of the rubble (3D, carried): rocks shoved aside, several voices groaning low under them. */
+		inline constexpr const TCHAR* ShiftRise = TEXT("Boss.Foreman.ShiftRise");
+	}
+
+	namespace DeadFriends
+	{
+		/** Thaddeus at his bench (3D, quiet; heard through the cold-room door as the cellar's knocking): two knocks of knuckles
+		 *  on a coffin board. */
+		inline constexpr const TCHAR* BenchKnock = TEXT("World.Thaddeus.Knock");
+		/** Thaddeus's tape (3D, quiet): a cloth measuring tape drawn out, then let slide back. */
+		inline constexpr const TCHAR* Tape = TEXT("World.Thaddeus.Tape");
+		/** Hiram leaning to his speaking tube (3D, quiet): the tube's whistle cap pulled, a hollow breath down the pipe. */
+		inline constexpr const TCHAR* Tube = TEXT("World.Hiram.Tube");
+	}
+
+	// --- Lost Property (2026-10-13, wave 2e: the depot's LOST PROPERTY window, ALostPropertyWindow and ULostLootWidget;
+	//     guns handed in by ULostLootSubsystem). An old railway baggage office: wood, brass, paper tickets, a rubber stamp ---
+	namespace LostLoot
+	{
+		/** The window opened (3D at the window, near): a wooden shutter run up in its grooves, then one small brass counter
+		 *  bell, dinged by a palm. */
+		inline constexpr const TCHAR* WindowOpen = TEXT("World.LostProperty.Open");
+		/** The window closed (3D at the window, near): the shutter drawn down on its runners and a latch dropping. */
+		inline constexpr const TCHAR* WindowClose = TEXT("World.LostProperty.Close");
+		/** A gun claimed (2D, rewarding): a rubber stamp thumped onto a paper ticket (CLAIMED), the stub torn off along its
+		 *  perforation, the gun lifted off a wooden shelf with a light metal knock. */
+		inline constexpr const TCHAR* Claim = TEXT("UI.LostProperty.Claim");
+		/** A claim refused, no room (2D, short): the ticket slid back across the counter and a dull knuckle-rap on wood. */
+		inline constexpr const TCHAR* NoRoom = TEXT("UI.LostProperty.NoRoom");
+		/** More shelving bought (2D, rewarding): coins counted onto the counter, then three hammer blows and a plank set down
+		 *  on its brackets. */
+		inline constexpr const TCHAR* Upgrade = TEXT("UI.LostProperty.Upgrade");
+		/** Guns sent to Lost Property, with the HUD's line (2D, soft, under the line): a ledger page turned, a quick pen
+		 *  scratch, and a faint station bell far off. */
+		inline constexpr const TCHAR* Sent = TEXT("UI.LostProperty.Sent");
+	}
+
+	// --- Mission features (2026-10-13, wave 2a: optional objectives, mission items, the turn-in's choice, readables, the
+	//     porch plate, the minimap's underground plate) ---
+	namespace MissionFeatures
+	{
+		/** An optional objective ticked on the tracker (2D, short, rewarding, lighter than a step's chime): a crisp pencil
+		 *  tick on paper with a small bright two-note sparkle rising after it. */
+		inline constexpr const TCHAR* OptionalDone = TEXT("UI.Mission.OptionalDone");
+		/** A mission item picked up (3D, near): a small weighty thing lifted and pocketed, cloth and leather, with a soft
+		 *  bright metallic glint on top so it reads as the mission's. */
+		inline constexpr const TCHAR* ItemTaken = TEXT("World.MissionItem.Take");
+		/** A mission item falling from the creature that carried it (3D): a small hard thing thudding into dirt, then a
+		 *  soft rising shimmer as its gold beam comes up. */
+		inline constexpr const TCHAR* ItemDrop = TEXT("World.MissionItem.Drop");
+		/** The turn-in's choice card opening (2D): heavier than the offer card, paper drawn across wood under a low held
+		 *  string note that leaves the question hanging. */
+		inline constexpr const TCHAR* ChoiceOpen = TEXT("UI.Mission.ChoiceOpen");
+		/** Holding a choice down (2D, about a second, faded out if let go): a low swell rising in pitch as the ring fills,
+		 *  like a breath drawn in. */
+		inline constexpr const TCHAR* ChoiceHold = TEXT("UI.Mission.ChoiceHold");
+		/** A choice made (2D, weighty, final): a heavy stamp on paper, then a deep resonant chord settling, a debt paid. */
+		inline constexpr const TCHAR* ChoiceMade = TEXT("UI.Mission.ChoiceMade");
+		/** Reading something (3D, near): a page turned, a board brushed off, a little chalk dust. */
+		inline constexpr const TCHAR* Read = TEXT("World.Readable.Read");
+		/** The reading card put away (2D, quiet): the paper set back down. */
+		inline constexpr const TCHAR* ReadClose = TEXT("UI.Readable.Close");
+		/** The jars taken off the porch plate (3D, near): two glass jars of salt clinking off a tin plate, a folded slip of
+		 *  paper opened. */
+		inline constexpr const TCHAR* PorchPlateTake = TEXT("World.PorchPlate.Take");
+		/** The biscuits eaten (3D, near, slow): a cold dry biscuit broken in two, chewed without hurry, a swallow. */
+		inline constexpr const TCHAR* PorchPlateEat = TEXT("World.PorchPlate.Eat");
+		/** The minimap going underground (2D, soft, under the music): a muffled low hush, like a door shut on the wind. */
+		inline constexpr const TCHAR* Underground = TEXT("UI.Minimap.Underground");
+	}
+
+	// --- The ore lift (2026-10-13, wave 2b: AOreLift, its bell pulls and the ride; a steam winch, a haul rope over one
+	//     timber tower, an open iron ore cage; all 3D) ---
+	namespace OreLift
+	{
+		/** A bell pull rung to ride or call (near): a bronze signal bell struck twice on its spring, the cord creaking. */
+		inline constexpr const TCHAR* BellSignal = TEXT("World.OreLift.BellSignal");
+		/** The far landing's bell answering a call (carried a long way, thin with distance): one bright stroke. */
+		inline constexpr const TCHAR* BellAnswer = TEXT("World.OreLift.BellAnswer");
+		/** The landing's bell as the cage is set down (near): one clear stroke, ringing on a moment. */
+		inline constexpr const TCHAR* BellArrive = TEXT("World.OreLift.BellArrive");
+		/** The closed lift's cord tugged (near, short): the cord jerked, a cold bell's dull clunk, nothing answering. */
+		inline constexpr const TCHAR* BellDead = TEXT("World.OreLift.BellDead");
+		/** The winch house's steam whistle as the winch takes up (carried like a gunshot across the valley): two short
+		 *  blasts, a little breathy, the second lower. */
+		inline constexpr const TCHAR* Whistle = TEXT("World.OreLift.Whistle");
+		/** Loop at the winch house while the cage runs: the steam engine's steady chuff, the drum's gear whine, the cable
+		 *  paying in or out over its sheave. */
+		inline constexpr const TCHAR* WinchRun = TEXT("World.OreLift.WinchRun");
+		/** Loop on the cage while it runs (what the rider hears): the rope singing over the grip in a low hum, the splices
+		 *  ticking past, chains and planks creaking with the sway, a high wind. */
+		inline constexpr const TCHAR* CableRun = TEXT("World.OreLift.CableRun");
+		/** The cage lifting off its landing (on the cage): iron straps and timbers groaning as the cable takes the strain,
+		 *  a heavy jolt, the chains snapping taut. */
+		inline constexpr const TCHAR* TakeUp = TEXT("World.OreLift.TakeUp");
+		/** The grip over one of the tower's three sheaves (at the tower, carried): a heavy iron clank and the wheel's short
+		 *  ring, a shudder down the cable; heard three times in about a second, so vary each take. */
+		inline constexpr const TCHAR* SheaveClank = TEXT("World.OreLift.SheaveClank");
+		/** The cage set down on its landing (on the cage): a heavy wooden thump, chains slackening, an iron latch dropping. */
+		inline constexpr const TCHAR* CageLand = TEXT("World.OreLift.CageLand");
+		/** The cage's gate swung shut behind the rider and latched (near, short): an iron gate's squeal and clack. */
+		inline constexpr const TCHAR* GateLatch = TEXT("World.OreLift.GateLatch");
+	}
+
+	// --- The watch fire on Calder's Post's tower (2026-10-13, wave 2b: AWatchFire; all 3D) ---
+	namespace WatchFire
+	{
+		/** The oiled brazier catching (near, carried a little): a breathy whump of lamp oil going up, the fire rushing up
+		 *  through the kindling, crackling. */
+		inline constexpr const TCHAR* Light = TEXT("World.WatchFire.Light");
+		/** Loop while it burns: a big open fire in an iron brazier on a windy tower: crackle and pops over a wind-blown roar
+		 *  that rises and falls. */
+		inline constexpr const TCHAR* Burn = TEXT("World.WatchFire.Burn");
+		/** The dry brazier tried (near, short): a knuckle on an empty iron bowl, cold ash shifting. */
+		inline constexpr const TCHAR* Dry = TEXT("World.WatchFire.Dry");
+	}
 }

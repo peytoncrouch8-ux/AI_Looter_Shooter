@@ -72,6 +72,49 @@ FText UMissionDefinition::GetOfferGiverName() const
 	return FText::FromString(FName::NameToDisplayString(Name, /*bIsBool*/ false));
 }
 
+const FMissionTurnInChoice* UMissionDefinition::GetTurnInChoice(int32 Choice) const
+{
+	// Only the first two count: the card has room for two, and a choice of three would be a different design.
+	return HasTurnInChoice() && Choice >= 0 && Choice < 2 ? &TurnIn.Choices[Choice] : nullptr;
+}
+
+FMissionRewards UMissionDefinition::RewardsFor(int32 Choice) const
+{
+	const FMissionTurnInChoice* Chosen = GetTurnInChoice(Choice);
+	if (!Chosen)
+	{
+		return Rewards;
+	}
+	FMissionRewards Given = Chosen->Rewards;
+	// The mission's own experience either way, unless the choice names its own: the card says it above the two.
+	if (!Given.GivesExperience())
+	{
+		Given.Experience = Rewards.Experience;
+		Given.ExperienceShare = Rewards.ExperienceShare;
+	}
+	// The optional objectives were done before the choice: their bonus is the mission's.
+	Given.OptionalSilver = Rewards.OptionalSilver;
+	return Given;
+}
+
+const FMissionItemInfo* UMissionDefinition::FindItem(FName ItemId) const
+{
+	return ItemId.IsNone() ? nullptr : Items.FindByPredicate([ItemId](const FMissionItemInfo& Item) { return Item.Id == ItemId; });
+}
+
+int32 UMissionDefinition::CountOptional() const
+{
+	int32 Count = 0;
+	for (const FMissionStep& Step : Steps)
+	{
+		for (const TObjectPtr<UMissionObjective>& Objective : Step.Objectives)
+		{
+			Count += Objective && Objective->bOptional ? 1 : 0;
+		}
+	}
+	return Count;
+}
+
 bool UMissionDefinition::IsNamed(const FString& Words) const
 {
 	FString Asked = Words.TrimStartAndEnd();

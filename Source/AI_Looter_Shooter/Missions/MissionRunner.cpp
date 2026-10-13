@@ -6,6 +6,7 @@
 #include "Core/LooterMenuGameMode.h"
 #include "Missions/MissionActorWatch.h"
 #include "Missions/MissionDefinition.h"
+#include "Missions/MissionObjective.h"
 #include "Missions/MissionSubsystem.h"
 #include "Session/SessionSubsystem.h"
 #include "Engine/Engine.h"
@@ -145,6 +146,36 @@ void UMissionRunner::RegisterDefinition(UMissionDefinition* Mission)
 		UE_LOG(LogLooter, Warning, TEXT("Missions: %s is picked up from a giver but names none (Offer.GiverTag): nobody can offer it."),
 			*Mission->GetMissionId().ToString());
 	}
+	// A step of optional objectives alone passes the moment it begins: they belong beside what a step asks for.
+	for (int32 StepIndex = 0; StepIndex < Mission->Steps.Num(); ++StepIndex)
+	{
+		const TArray<TObjectPtr<UMissionObjective>>& Objectives = Mission->Steps[StepIndex].Objectives;
+		const bool bAllOptional = !Objectives.IsEmpty() && !Objectives.ContainsByPredicate([](const TObjectPtr<UMissionObjective>& Objective)
+		{
+			return Objective && !Objective->bOptional;
+		});
+		if (bAllOptional)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Missions: %s's step %d has only optional objectives: it passes at once. Put them in a step with ")
+				TEXT("something it asks for."), *Mission->GetMissionId().ToString(), StepIndex + 1);
+		}
+	}
+	// An item is kept by its id across missions: two of one id would be carried as one.
+	for (const FMissionItemInfo& Item : Mission->Items)
+	{
+		const UMissionDefinition* Other = Item.Id.IsNone() ? nullptr : FindItemMission(Item.Id);
+		if (Item.Id.IsNone() || Other)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Missions: %s has an item %s: %s."), *Mission->GetMissionId().ToString(), *Item.Id.ToString(),
+				Item.Id.IsNone() ? TEXT("with no id, so it can't be carried") : *FString::Printf(TEXT("%s has one of that id already"),
+				*Other->GetMissionId().ToString()));
+		}
+	}
+	if (Mission->TurnIn.Choices.Num() == 1 || Mission->TurnIn.Choices.Num() > 2)
+	{
+		UE_LOG(LogLooter, Warning, TEXT("Missions: %s's turn-in names %d choices: it takes two (only the first two count)."),
+			*Mission->GetMissionId().ToString(), Mission->TurnIn.Choices.Num());
+	}
 	Definitions.Add(Mission);
 }
 
@@ -270,6 +301,7 @@ TArray<FMissionObjectiveView> UMissionRunner::GetObjectiveViews(FName MissionId)
 		View.Progress = View.Required > 1 ? Objective->FormatProgress(State) : FString();
 		View.Fraction = Objective->GetFraction(State);
 		View.bDone = State.bDone;
+		View.bOptional = Objective->bOptional;
 	}
 	return Views;
 }

@@ -9,6 +9,7 @@ class UHorizontalBox;
 class UImage;
 class UMissionSubsystem;
 class UTextBlock;
+class UVerticalBox;
 class UWidget;
 
 /**
@@ -22,8 +23,10 @@ class UWidget;
  * A rising count of things pops (a count of seconds held doesn't); a done objective's chevron turns into a cyan tick and
  * its words dim (an objective is done when the objective or the step in the mission's parts moves on, never when only its
  * words change: a rebound key rewrites them in place), its step's section turns
- * cyan, and after DoneHoldSeconds the next objective slides in and its section turns orange. Once every step is done a
- * mission waiting for its turn-in shows "Turn in to <who>" under a full bar, ticked as it's turned in. The tutorial's closing
+ * cyan, and after DoneHoldSeconds the next objective slides in and its section turns orange. The step's optional objectives
+ * sit under it, smaller and dimmed, "Optional:" before each, a hollow diamond for a mark: one done ticks where it stands (the
+ * tick pops, the line flashes cyan and settles, its own small sound) and stays ticked until the step ends. Once every step
+ * is done a mission waiting for its turn-in shows "Turn in to <who>" under a full bar, ticked as it's turned in. The tutorial's closing
  * line (ShowClosingLine, from ATutorialDirector through ALooterHUD) shows as a last, ticked objective for its seconds of
  * play; then the next tracked mission slides in, or the tracker fades out. ALooterHUD makes it as a viewport widget of
  * its own, over the inventory's pages. Floating outlined text and solid shapes, no panels: only the step bar's track,
@@ -72,9 +75,15 @@ public:
 	/**
 	 * Decides from the parts alone, so a test can run it without a widget. An objective is done when the step or the
 	 * objective's index moves on; the words changing on their own (a key rebound) is no tick. bJustShown: the objective on
-	 * show is still sliding in, so hardly seen.
+	 * show is still sliding in, so hardly seen. Optional objectives never move it: they change in place.
 	 */
 	static EChange DecideChange(const FMissionTrackerParts& Shown, const FMissionTrackerParts& Now, bool bJustShown);
+
+	/** The optional objectives (by index) done in Now that weren't in Shown: each ticks where it stands, with its sound. */
+	static TArray<int32> NewlyDoneOptionals(const FMissionTrackerParts& Shown, const FMissionTrackerParts& Now);
+
+	/** How long an optional objective's tick pops and its line flashes. */
+	static constexpr float OptionalTickSeconds = 0.7f;
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -141,6 +150,20 @@ private:
 	/** Makes sure the step bar has at least Count sections (made once, kept). */
 	void EnsureSections(int32 Count);
 
+	// --- Optional objectives under the objective (HudMissionTrackerWidgetOptional.cpp) ---
+
+	/** The box their rows go in, under the objective and its hint (BuildTree places it). */
+	UWidget* BuildOptionals();
+	/** Makes sure there are at least Count rows (made once, kept). */
+	void EnsureOptionalRows(int32 Count);
+	/** The rows from Shown.Optionals: "Optional:" and the line, dimmed; a hollow diamond, or the tick once done. */
+	void PaintOptionals();
+	/** An optional objective just done: its tick pops, its line flashes cyan and settles dim. */
+	void StartOptionalTick(int32 Index);
+	void AnimateOptionals(float DeltaTime);
+	/** An optional objective's tick sound (HudMissionTrackerWidgetSound.cpp). */
+	void PlayOptionalSound() const;
+
 	/** Everything, faded in and out as one. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> Block;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TitleText;
@@ -160,6 +183,15 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UWidget> Hint;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> KeyText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> HintText;
+	/** The optional objectives' rows, each a mark (hollow diamond), its tick, "Optional:", the line and a count. */
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> OptionalBox;
+	UPROPERTY(Transient) TArray<TObjectPtr<UWidget>> OptionalRows;
+	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> OptionalMarks;
+	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> OptionalTicks;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> OptionalLines;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> OptionalCounts;
+	/** Seconds into each row's tick (at or past OptionalTickSeconds: at rest). */
+	TArray<float> OptionalTickAges;
 
 	TWeakObjectPtr<UMissionSubsystem> Missions;
 	FDelegateHandle ChangedHandle;

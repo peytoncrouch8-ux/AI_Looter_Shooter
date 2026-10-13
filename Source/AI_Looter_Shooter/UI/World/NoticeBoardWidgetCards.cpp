@@ -257,6 +257,16 @@ void UNoticeBoardWidget::Act(int32 Index)
 
 	if (Posting.State == ENoticePosting::Ready)
 	{
+		// A turn-in with a choice of two asks on its card over the board; the card turns it in.
+		if (Posting.Mission && Posting.Mission->HasTurnInChoice())
+		{
+			ALooterHUD* HUD = OwningHUD.Get();
+			if (!HUD || !HUD->OpenTurnInChoice(Posting.Mission, Board.Get()))
+			{
+				LooterSound::Play2D(this, LooterSoundCue::Denied);
+			}
+			return;
+		}
 		if (!From->TurnIn(*Runner, Posting.MissionId))
 		{
 			LooterSound::Play2D(this, LooterSoundCue::Denied);

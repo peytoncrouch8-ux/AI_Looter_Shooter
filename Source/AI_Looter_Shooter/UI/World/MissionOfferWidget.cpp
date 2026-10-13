@@ -1,6 +1,7 @@
-// UMissionOfferWidget: the card (its ! and kind line, title, giver, story, objectives, rewards and the two choices), opening,
-// accepting, declining. Its motion is MissionOfferWidgetMotion.cpp's, its words MissionOfferWidgetCard.cpp's, its keys,
-// stick and mouse MissionOfferWidgetInput.cpp's.
+// UMissionOfferWidget: the card (its ! and kind line, title, giver, story, objectives, rewards and the two buttons), opening
+// in each mode, accepting, declining. Its motion is MissionOfferWidgetMotion.cpp's, its words MissionOfferWidgetCard.cpp's,
+// its keys, stick and mouse MissionOfferWidgetInput.cpp's; the choice mode MissionOfferWidgetChoice.cpp's, the reading mode
+// MissionOfferWidgetRead.cpp's.
 
 #include "UI/World/MissionOfferWidget.h"
 #include "Audio/LooterSound.h"
@@ -12,6 +13,7 @@
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/MissionMarkIcons.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/AudioComponent.h"
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
@@ -34,6 +36,8 @@ namespace
 	const FName ActionDecline(TEXT("Decline"));
 
 	constexpr float PanelWidth = 720.f;
+	/** The choice mode's panel: room for two columns of words side by side. */
+	constexpr float ChoicePanelWidth = 900.f;
 	/** The ! in the card's corner, and the glow round it. */
 	constexpr float MarkBox = 68.f;
 	constexpr float MarkSize = 52.f;
@@ -66,6 +70,15 @@ void UMissionOfferWidget::NativeOnInitialized()
 
 void UMissionOfferWidget::Open(ALooterHUD* InHUD, const UMissionDefinition* InMission, AActor* InGiver, bool bInOverScreen)
 {
+	Card = InMission ? FMissionOfferCard::Make(*InMission, InGiver, GetWorld()) : FMissionOfferCard();
+	OpenAs(EMissionCardMode::Offer, InHUD, InMission, InGiver, bInOverScreen);
+	LooterSound::Play2D(this, LooterSoundCue::Giver::Offer);
+}
+
+void UMissionOfferWidget::OpenAs(EMissionCardMode InMode, ALooterHUD* InHUD, const UMissionDefinition* InMission, AActor* InGiver,
+	bool bInOverScreen)
+{
+	Mode = InMode;
 	OwningHUD = InHUD;
 	Mission = InMission;
 	Giver = InGiver;
@@ -74,9 +87,13 @@ void UMissionOfferWidget::Open(ALooterHUD* InHUD, const UMissionDefinition* InMi
 	bClosing = false;
 	Age = 0.f;
 	CloseAge = 0.f;
+	Chosen = INDEX_NONE;
+	HoldChoice = INDEX_NONE;
+	HoldProgress = 0.f;
+	bHoldDown = false;
+	HoldKey = FKey();
 	NavStick = FVector2D::ZeroVector;
 	NavStickMove = MenuNav::EMove::None;
-	Card = InMission ? FMissionOfferCard::Make(*InMission, InGiver, GetWorld()) : FMissionOfferCard();
 
 	// Opened before it was first shown, the card is built as the widget is.
 	if (WidgetTree && WidgetTree->RootWidget)
@@ -84,12 +101,29 @@ void UMissionOfferWidget::Open(ALooterHUD* InHUD, const UMissionDefinition* InMi
 		BuildCard();
 	}
 	ApplyMotion();
-	LooterSound::Play2D(this, LooterSoundCue::Giver::Offer);
+}
+
+void UMissionOfferWidget::NativeDestruct()
+{
+	// A hold's swell never outlives the card.
+	LooterSound::Stop(HoldSound.Get());
+	HoldSound.Reset();
+	Super::NativeDestruct();
+}
+
+float UMissionOfferWidget::GetCloseSeconds() const
+{
+	if (!bAccepted)
+	{
+		return DeclineSeconds;
+	}
+	// A choice's stamp stays a moment longer: it ends the mission, not only takes it on.
+	return StampSlamSeconds + (Mode == EMissionCardMode::Choice ? ChoiceStampHoldSeconds : StampHoldSeconds) + StampOutSeconds;
 }
 
 bool UMissionOfferWidget::Accept()
 {
-	if (!IsArmed())
+	if (!IsArmed() || Mode != EMissionCardMode::Offer)
 	{
 		return false;
 	}
@@ -127,7 +161,9 @@ void UMissionOfferWidget::Decline()
 	bAccepted = false;
 	CloseAge = 0.f;
 	Nav.SetShown(false);
-	LooterSound::Play2D(this, LooterSoundCue::Giver::Decline);
+	EndHold();
+	// Put back: the paper set down (a choice left for later is the same mission card; a page read, its own).
+	LooterSound::Play2D(this, Mode == EMissionCardMode::Read ? FName(LooterSoundCue::MissionFeatures::ReadClose) : FName(LooterSoundCue::Giver::Decline));
 }
 
 void UMissionOfferWidget::FinishClose()
@@ -177,6 +213,8 @@ void UMissionOfferWidget::BuildCard()
 	{
 		return;
 	}
+	// The choice mode is wider: two columns side by side.
+	PanelBox->SetWidthOverride(Mode == EMissionCardMode::Choice ? ChoicePanelWidth : PanelWidth);
 	UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Content->AddChildToVerticalBox(MakeHeader());
 
@@ -184,31 +222,55 @@ void UMissionOfferWidget::BuildCard()
 	UImage* Rule = MakeImage(WidgetTree, RectBrush(Color::ScreenLine()));
 	Content->AddChildToVerticalBox(MakeSized(WidgetTree, Rule, 0.f, 1.f))->SetPadding(FMargin(0.f, 14.f, 0.f, 14.f));
 
-	if (UWidget* Briefing = MakeBriefing())
-	{
-		Content->AddChildToVerticalBox(Briefing)->SetPadding(FMargin(0.f, 0.f, 0.f, 16.f));
-	}
-	if (UWidget* Objectives = MakeObjectives())
-	{
-		Content->AddChildToVerticalBox(Objectives)->SetPadding(FMargin(0.f, 0.f, 0.f, 16.f));
-	}
-	Content->AddChildToVerticalBox(MakeRewards());
-
-	// A word when Accept can't be done (what comes first isn't finished); it keeps no room while empty.
+	// A word when Accept (or a choice) can't be done; it keeps no room while empty.
 	StatusText = MakeText(WidgetTree, FString(), 12, Color::Worse());
 	StatusText->SetAutoWrapText(true);
 	StatusText->SetVisibility(ESlateVisibility::Collapsed);
-	Content->AddChildToVerticalBox(StatusText)->SetPadding(FMargin(0.f, 14.f, 0.f, 0.f));
+	ChoiceButtons.Reset();
+	ChoiceBodies.Reset();
+	ChoiceEdges.Reset();
+	ChoiceFills.Reset();
+	ChoiceHoldRows.Reset();
+	ChoiceRings.Reset();
+	ChoiceKeys.Reset();
+	ChoiceHoldWords.Reset();
+	AcceptButton = nullptr;
+	DeclineButton = nullptr;
 
-	Content->AddChildToVerticalBox(MakeButtons())->SetPadding(FMargin(0.f, 20.f, 0.f, 0.f));
+	FString PanelTitle = LOCTEXT("PanelTitle", "New mission").ToString();
+	if (Mode == EMissionCardMode::Choice)
+	{
+		PanelTitle = LOCTEXT("ChoiceTitle", "Turn in").ToString();
+		BuildChoiceContent(Content);
+		Content->AddChildToVerticalBox(StatusText)->SetPadding(FMargin(0.f, 12.f, 0.f, 0.f));
+	}
+	else if (Mode == EMissionCardMode::Read)
+	{
+		PanelTitle = LOCTEXT("ReadTitle", "Read").ToString();
+		BuildReadContent(Content);
+	}
+	else
+	{
+		if (UWidget* Briefing = MakeBriefing())
+		{
+			Content->AddChildToVerticalBox(Briefing)->SetPadding(FMargin(0.f, 0.f, 0.f, 16.f));
+		}
+		if (UWidget* Objectives = MakeObjectives())
+		{
+			Content->AddChildToVerticalBox(Objectives)->SetPadding(FMargin(0.f, 0.f, 0.f, 16.f));
+		}
+		Content->AddChildToVerticalBox(MakeRewards());
+		Content->AddChildToVerticalBox(StatusText)->SetPadding(FMargin(0.f, 14.f, 0.f, 0.f));
+		Content->AddChildToVerticalBox(MakeButtons())->SetPadding(FMargin(0.f, 20.f, 0.f, 0.f));
+	}
 	PromptBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	UVerticalBoxSlot* PromptSlot = Content->AddChildToVerticalBox(PromptBar);
 	PromptSlot->SetHorizontalAlignment(HAlign_Center);
 	PromptSlot->SetPadding(FMargin(0.f, 12.f, 0.f, 2.f));
 
-	// The panel, and the stamp over it once accepted.
+	// The panel, and the stamp over it once accepted (or chosen).
 	UOverlay* Body = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-	FillOverlaySlot(Body->AddChildToOverlay(MakePanel(WidgetTree, LOCTEXT("PanelTitle", "New mission").ToString(), Content)));
+	FillOverlaySlot(Body->AddChildToOverlay(MakePanel(WidgetTree, PanelTitle, Content)));
 	Stamp = MakeStamp();
 	UOverlaySlot* StampSlot = Body->AddChildToOverlay(Stamp);
 	StampSlot->SetHorizontalAlignment(HAlign_Center);
@@ -224,21 +286,29 @@ UWidget* UMissionOfferWidget::MakeHeader()
 {
 	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 
-	// The giver's mark, as it floats over them in the world: gold for the story, white for a side job, in its glow.
-	UOverlay* Mark = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-	MarkHalo = MakeImage(WidgetTree, MissionMarkIcons::HaloBrush(Card.bMain, FVector2D(MarkBox), 0.55f));
-	FillOverlaySlot(Mark->AddChildToOverlay(MarkHalo));
-	MarkImage = MakeImage(WidgetTree, MissionMarkIcons::MarkBrush(MissionMarkIcons::EMark::Offer, Card.bMain, FVector2D(MarkSize)));
-	MarkImage->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
-	UOverlaySlot* GlyphSlot = Mark->AddChildToOverlay(MarkImage);
-	GlyphSlot->SetHorizontalAlignment(HAlign_Center);
-	GlyphSlot->SetVerticalAlignment(VAlign_Center);
-	UHorizontalBoxSlot* MarkSlot = Row->AddChildToHorizontalBox(MakeSized(WidgetTree, Mark, MarkBox, MarkBox));
-	MarkSlot->SetVerticalAlignment(VAlign_Top);
+	// The giver's mark, as it floats over them in the world: gold for the story, white for a side job, in its glow; the !
+	// of a turn-in in the choice mode. A page read has none.
+	MarkHalo = nullptr;
+	MarkImage = nullptr;
+	if (Mode != EMissionCardMode::Read)
+	{
+		const MissionMarkIcons::EMark Glyph = Mode == EMissionCardMode::Choice ? MissionMarkIcons::EMark::TurnIn : MissionMarkIcons::EMark::Offer;
+		UOverlay* Mark = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		MarkHalo = MakeImage(WidgetTree, MissionMarkIcons::HaloBrush(Card.bMain, FVector2D(MarkBox), 0.55f));
+		FillOverlaySlot(Mark->AddChildToOverlay(MarkHalo));
+		MarkImage = MakeImage(WidgetTree, MissionMarkIcons::MarkBrush(Glyph, Card.bMain, FVector2D(MarkSize)));
+		MarkImage->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+		UOverlaySlot* GlyphSlot = Mark->AddChildToOverlay(MarkImage);
+		GlyphSlot->SetHorizontalAlignment(HAlign_Center);
+		GlyphSlot->SetVerticalAlignment(VAlign_Center);
+		UHorizontalBoxSlot* MarkSlot = Row->AddChildToHorizontalBox(MakeSized(WidgetTree, Mark, MarkBox, MarkBox));
+		MarkSlot->SetVerticalAlignment(VAlign_Top);
+	}
 
-	// The kind in the mark's colour over the title, and who offers it under them.
+	// The kind in the mark's colour over the title (a page's heading in worn brass), and who offers it under them.
 	UVerticalBox* Words = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	Words->AddChildToVerticalBox(LoadoutParts::Label(WidgetTree, Card.Kind.ToString(), 11, MissionMarkIcons::Color(Card.bMain), 320));
+	const FLinearColor KindColor = Mode == EMissionCardMode::Read ? Color::Curse() : MissionMarkIcons::Color(Card.bMain);
+	Words->AddChildToVerticalBox(LoadoutParts::Label(WidgetTree, Card.Kind.ToString(), 11, KindColor, 320));
 	UTextBlock* Title = MakeText(WidgetTree, Card.Title.ToString(), 26, Color::Text(), true, 40);
 	Title->SetAutoWrapText(true);
 	Words->AddChildToVerticalBox(Title)->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
@@ -250,7 +320,7 @@ UWidget* UMissionOfferWidget::MakeHeader()
 	UHorizontalBoxSlot* WordsSlot = Row->AddChildToHorizontalBox(Words);
 	WordsSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	WordsSlot->SetVerticalAlignment(VAlign_Center);
-	WordsSlot->SetPadding(FMargin(16.f, 0.f, 0.f, 0.f));
+	WordsSlot->SetPadding(FMargin(MarkImage ? 16.f : 0.f, 0.f, 0.f, 0.f));
 	return Row;
 }
 
@@ -370,6 +440,8 @@ UWidget* UMissionOfferWidget::MakeStamp()
 	UTextBlock* Word = MakeFloatingText(WidgetTree, 34, Ink, 520, ETextJustify::Center);
 	Word->SetText(LOCTEXT("Accepted", "ACCEPTED"));
 	Plate->SetContent(Word);
+	// The choice mode stamps the chosen one's own word (Choose sets it).
+	StampWord = Word;
 	Plate->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
 	Plate->SetVisibility(ESlateVisibility::Collapsed);
 	return Plate;

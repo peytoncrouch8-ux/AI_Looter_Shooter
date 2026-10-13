@@ -126,6 +126,8 @@ TSharedRef<SWidget> UHudMinimapWidget::RebuildWidget()
 		MapImage->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
 		MapImage->SetVisibility(ESlateVisibility::Hidden);
 		AddLayer(MapImage);
+		// Over the bake, under the markers: the dark UNDERGROUND plate, faded in below ground (HudMinimapWidgetUnderground.cpp).
+		BuildUnderground(Stack);
 
 		UCanvasPanel* MarkerLayer = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
 		AddLayer(MarkerLayer);
@@ -219,6 +221,7 @@ void UHudMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 		MapImage->SetBrush(MapBrush);
 		MapImage->SetRenderTransformAngle(-Yaw);
 	}
+	UpdateUnderground(Location, InDeltaTime);
 
 	// Markers. What lies within the rim is gathered first, so the pool goes to what matters most (SplitMarkers): every
 	// hostile, then the guns, then the ammo, the nearest first. Long fights leave more loot about than the pool holds, and a

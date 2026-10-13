@@ -35,6 +35,15 @@ are written in his voice (first drafts, for the user to judge).
   DA_Bestiary_Amos        Amos Whitlock, Friends (Docs/Story.md: "Friend"): a story character's page with SK_Amos on the
                           stand wearing his hat and hay fork on their bones (he has no actor class to read them from:
                           bone_parts); in the Ledger, known after Main 4 (when Side 2 opens).
+  DA_Bestiary_DeadMiner   The dead miners (ADeadMinerCreature), in Enemies after the Bell-Ringer; in the Ledger, in Sexton's
+                          voice. Its stand is SK_Unpaid wearing the miner's hat, lamp and pick once they're made; switch
+                          model to SK_DeadMiner when the art drops it in.
+  DA_Bestiary_Foreman     The Foreman, Cyrus Teague (AForemanCreature, Back Pay), in Enemies after the dead miners; in the
+                          Ledger, in Sexton's voice. SK_Unpaid on the stand until SK_Foreman is made.
+  DA_Bestiary_Hiram       Hiram Coyle, Friends: a story character's page, SK_Unpaid on the stand until SK_Hiram (and his cap,
+                          bone_parts) is made; in the Ledger, known after Main 5 (when Dead Lift opens).
+  DA_Bestiary_Thaddeus    Thaddeus Bright, Friends: as Hiram's, SK_Unpaid until SK_Thaddeus; known after Knocking Below
+                          (he's its discovery, not its giver).
   DA_Bestiary_Ned ... _Deacon  the seven names, in Enemies before the Unpaid, in the order the lantern finds them.
 """
 import sys
@@ -101,6 +110,59 @@ PAGES = {
             "He drops ammo, most often for the gun that killed him, and about one in three times a weapon.",
         ],
         sort_order=1,
+    ),
+    # The Providence's dead (Docs/Areas/RansomsRest_Expansion.md, section 6): the mountain's enemies, after the Bell-Ringer.
+    'DeadMiner': dict(
+        asset='DA_Bestiary_DeadMiner',
+        name='Dead Miners',
+        section='ENEMY',
+        kind="The Providence's dead",
+        actor='/Script/AI_Looter_Shooter.DeadMinerCreature',
+        model='/Game/Art/Creatures/SK_Unpaid',
+        ledger_only=True,
+        habitat="Ransom's Rest: the Old Quarry, Larkspur Bench, Calder's Post and the Providence mine",
+        description=("Men who went down for silver and were owed for it, friend. Forty years of the Providence's buried dead "
+                     "came home to the mine when Saint Ada went dark, and the eleven of the fall never left it: nobody brought "
+                     "them up to be given to the wind. They still work for wages that will never come. Some debts outlive the "
+                     "debtor."),
+        notes=[
+            "The lamp on its cap is a weak spot: a shot on it is critical, for 1.5 times the damage, and the first one puts "
+            "it out. So is its coal.",
+            "Before it swings it heaves the pick over its head and its lamp flares. Back off then, or shoot the lamp: the "
+            "swing is lost and it reels.",
+            "After a swing its pick sits in the floor a moment. That's your moment.",
+            "Left alone they work, picks at the walls or over their lunch pails. Listen for the ringing in the dark.",
+            "A Restless one swings sooner. A Gravebound one's blow rings through the rock and slows you, as the Unpaid's "
+            "shriek does.",
+            "They drop ammo, most often for the gun that killed them, and about one in three times a weapon.",
+        ],
+        sort_order=2,
+    ),
+    'Foreman': dict(
+        asset='DA_Bestiary_Foreman',
+        name='The Foreman',
+        section='ENEMY',
+        kind='Soulfed foreman',
+        actor='/Script/AI_Looter_Shooter.ForemanCreature',
+        model='/Game/Art/Creatures/SK_Unpaid',
+        ledger_only=True,
+        habitat="Ransom's Rest: the stope at the bottom of the Providence, digging at the fall",
+        description=("Cyrus Teague, foreman of the Providence Mining Company. He brought the roof down on eleven men to save "
+                     "the company a quarter's wages, and has dug at it every night since. Remorse is a poor shovel, friend."),
+        notes=[
+            "His coat covers his coal. It shows while he lights a fuse, and for a few seconds after he strikes the roof: then "
+            "a shot through it is critical, for 1.5 times the damage. Enough of those close together and he goes down on a "
+            "knee.",
+            "A fuse hissing in his fist means it's coming your way. Where it lands the floor cracks in a ring: be out of it "
+            "before it goes. Knock him down while it's lit and he drops it at his own feet.",
+            "Past two thirds he takes to the props. When dust sifts from the roof, move: rock follows, and the prop you were "
+            "behind may not be there after.",
+            "He calls up his shift at two thirds and again at one third: three of the dead out of the rubble each time.",
+            "At half he puts the lamps out. Watch for the miners' lamps and their coals.",
+            "Every kill drops two guns from a Legendary's table. Beaten, he's gone a while; the vigil stone by the mine's "
+            "mouth calls him back.",
+        ],
+        sort_order=3,
     ),
     'Gravemother': dict(
         asset='DA_Bestiary_Gravemother',
@@ -313,6 +375,46 @@ PAGES = {
             "Since his hay went in he sits on his fence, waiting for Saint Ada to come home.",
         ],
         sort_order=4,
+    ),
+    # The friendly dead of the expansion (Docs/Areas/RansomsRest_Expansion.md, section 4): story characters on the Unpaid's
+    # body until their own models are made (then model=SK_Hiram / SK_Thaddeus, and their things as bone_parts).
+    'Hiram': dict(
+        asset='DA_Bestiary_Hiram',
+        page='STORY_CHARACTER',
+        name='Hiram Coyle',
+        section='FRIEND',
+        kind="The ore lift's engineman",
+        model='/Game/Art/Creatures/SK_Unpaid',
+        ledger_only=True,
+        known_when=dict(after=['Main5']),
+        habitat="Ransom's Rest: the winch house at the Old Quarry, on his stool by the boiler",
+        description=("Hiram Coyle ran the Providence's ore lift for twenty years and died at his brake. He hasn't left, "
+                     "friend. He sits by a boiler he can't light and waits for a passenger, as he has since the mine shut."),
+        notes=[
+            "Bring him his lift's crank, coal for the boiler and its clamp pin, and he'll take you up the mountain.",
+            "He talks to the lift head through the speaking tube. Anyone talking up there is talking to Hiram.",
+            "He keeps an account of the coal the Rangers owe him. He means to collect.",
+        ],
+        sort_order=5,
+    ),
+    'Thaddeus': dict(
+        asset='DA_Bestiary_Thaddeus',
+        page='STORY_CHARACTER',
+        name='Thaddeus Bright',
+        section='FRIEND',
+        kind="Tilly's father",
+        model='/Game/Art/Creatures/SK_Unpaid',
+        ledger_only=True,
+        known_when=dict(after=['KnockingBelow']),
+        habitat="Main Street: the cold room under Bright & Daughter, Undertakers",
+        description=("Thaddeus Bright, undertaker, and Tilly's father. He measured every soul on the Rest for its box, yours "
+                     "among them, friend. He came home from the Sundown Road to his work, and his work is in his cellar."),
+        notes=[
+            "He measures at his bench in the cold room, a coffin that isn't there.",
+            "The knocking under Main Street at night is his knuckles on the board.",
+            "He wrote his own order: pine, no brass. Tilly put brass on it anyway. He liked it.",
+        ],
+        sort_order=6,
     ),
 
     # --- The seven names: Enemies, before the Unpaid, whereabouts blank until the lantern finds them ---

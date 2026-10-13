@@ -36,6 +36,13 @@ bool UMissionRunner::TurnIn(FName MissionId)
 	{
 		return false;
 	}
+	// One with a choice to make, turned in without asking (the console, a board's screen): its first choice.
+	const UMissionDefinition* Mission = Run->Mission.Get();
+	if (Mission && Mission->HasTurnInChoice())
+	{
+		UE_LOG(LogLooter, Log, TEXT("Mission %s turned in with its first choice: nobody asked the player."), *MissionId.ToString());
+		return TurnInWithChoice(MissionId, 0);
+	}
 	UE_LOG(LogLooter, Log, TEXT("Mission %s turned in"), *MissionId.ToString());
 	FinishRun(MissionId);
 	// What it was the last prerequisite of starts now (Main N+1 after Main N is turned in).
@@ -54,8 +61,9 @@ bool UMissionRunner::TurnInAt(const FMissionEvent& Event)
 	TArray<FName> Due;
 	for (const FRun& Run : Runs)
 	{
+		// One with a choice to make waits for the player's choice on the card (the speaker point opens it after its words).
 		const UMissionDefinition* Mission = Run.Mission.Get();
-		if (Run.bReady && Mission && Mission->NeedsTurnIn() && IsGiver(*Mission, Speaker, Event.Tag))
+		if (Run.bReady && Mission && Mission->NeedsTurnIn() && !Mission->HasTurnInChoice() && IsGiver(*Mission, Speaker, Event.Tag))
 		{
 			Due.Add(Run.Id);
 		}
@@ -136,5 +144,7 @@ void UMissionRunner::SyncTurnIn(const FRun& Run, const UMissionDefinition& Missi
 	Tracker.ObjectiveIndex = 0;
 	Tracker.bTurnIn = true;
 	Tracker.bAnnouncedEnd = Mission.Kind != EMissionKind::Tutorial;
+	// The last step's optional objectives can still be done before it's turned in.
+	FillOptionalParts(Run, Tracker);
 	Display.SetObjective(Run.BookId, FText::FromString(Mission.GetTurnInText()), FindGiver(Mission), Tracker);
 }

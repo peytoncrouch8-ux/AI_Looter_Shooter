@@ -11,10 +11,13 @@ class UStaticMeshComponent;
 
 /**
  * Someone talking through a door or a window without coming out (Grandma Delia won't open her screen door to a corpse;
- * Tilly talks through her shop window; Father Aldana through the vestry door). Place it on the door's face, its arrow
- * pointing out to where the player stands. The building's own mesh is usually the door, so it has no mesh of its own;
- * Mesh can hold a separate leaf or shutter, which never opens. Its speaker point does the talking (who, what, the Talk
- * event); tag the actor (Speaker_Delia) for missions to find it.
+ * Tilly talks through her shop window; Father Aldana through the vestry door), or anything else with a voice: a talking
+ * coffin, a speaking tube at the lift head, the shift's voice at the Providence's tag board, the Pruitts' hatch. Place it
+ * on the door's face (or the thing's speaker socket), its arrow pointing out to where the player stands, and set the
+ * point's height where the voice comes from (a coffin's lid is low; the build scripts move SpeakerPoint). The building's
+ * own mesh is usually the door, so it has no mesh of its own; Mesh can hold a separate leaf or shutter, which never opens.
+ * Its speaker point does the talking (who, what, the Talk event, turn-ins and offers); tag the actor (Speaker_Delia) for
+ * missions to find it. A thing that speaks only for the story sets the point's bMissionsOnly.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ASpeakerPoint : public AActor, public IInteractable

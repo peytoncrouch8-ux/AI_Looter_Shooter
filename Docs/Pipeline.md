@@ -23,6 +23,16 @@ where the work stands.
   Continue wakes the player at the area's last marked grave (`FCampaignRecord::LastGraves`), deaths at the nearest open
   one. `Looter.Grave.List`, `Looter.Grave.Mark <id> | forget <id|all>`.
 - **Holds:** every hold-to-use shows the kit's round ring (`SLooterProgressRing`, `LooterUI::MakeHoldKeyCap`).
+- **Mission features (2026-10-13):** optional objectives (`bOptional`: never hold a step, pay `OptionalSilver` at the
+  turn-in), mission items (`AMissionItem`, carried, dropped by a creature), a turn-in with a choice of two (held to choose;
+  story flags in `FCampaignRecord::StoryFlags`, read by `FStoryCondition::WithFlags`), readable props, the porch plate,
+  an UNDERGROUND minimap plate (actors tagged `Underground`), any speaker point or a vendor's hatch as a turn-in.
+- **Lost Loot (the user's call, 2026-10-13, to stop ground guns piling up and costing frame time):** a gun on the ground
+  lasts 5 minutes (not while the player stands within 6 m), then goes to the depot's LOST PROPERTY window; leaving a map
+  or quitting sends every ground gun there, and a load never puts one back. 30 spaces, +10 per upgrade (five, bought
+  with silver), the oldest unnamed gun goes out when full. `Looter.LostLoot.*`.
+- **The ore lift (2026-10-13):** `AOreLift` rides as a skippable look-only scene; the body is parked on the far landing
+  at the start (a save, death or load mid-ride finds it there). `Looter.Lift.*`.
 - **Look:** stylized realism: real lighting and textured materials, still a little stylized. The user rejected faceted
   low-poly. Golden-hour palettes on Ransom's Rest (ochre, olive, sandstone), late summer. Loot colours (rarity orange,
   teal, gold) stay off the world.
@@ -340,6 +350,14 @@ Rules that saved time:
   bell's summons; `::Shrine`; the iron bell is `bells.py`'s hand bell made duller, so `shrines.py` imports from it). The Venom
   Spitter's cues (tell, spit, splat, puddle sizzle and burn, hurt, death; `::Spitter`) are in `creatures`. The pickup chime
   keeps the 2-5 kHz band cut, since a fight's worth of pickups sounds it over and over.
+- **Groups added 2026-10-13** (also in `GROUPS`; 69 cues): `givers` (the offer card, accept, decline, a new offer nearby,
+  an artifact read), `graves` (a grave marked as the save point, marked again), `holds` (the hold ring's completion, kept in
+  the frequent-cue 2-5 kHz check), `lostloot` (the Lost Property window, claim, no room, more shelving, guns sent there),
+  `missions` (optional objectives, mission items, the choice card, readables, the porch plate, the UNDERGROUND plate),
+  `orelift` (bells, whistle, winch and cable loops, sheave clanks, the cage), `watchfire`, `miners` (the dead miners and
+  Hiram's and Thaddeus's sounds) and `foreman` (his fight). Stamps on the cards land 0.11 s in, on the cards' slam.
+  Lessons (Art/Sounds/README.md): start soft cues on a small physical touch (the check flags a late start), put a loop's
+  seam in a lull between events, mix loop layers by loudness, not peak.
 - **For the user:** the listening page is an Artifact with the WAVs as its files (<https://claude.ai/artifact/VDmyrPmAsxiNa6boNuqKxa>);
   republish it from the session's scratchpad copy after a render.
 - **Lesson:** setting a USoundClass's `child_classes` all at once parents only the first new child; add them one at a
@@ -493,3 +511,11 @@ styles the user chooses from).
   - Level-wide material swaps for one actor (use `swapsOn`).
   - Judging scrub in stand-in renders at Blender culls; preview at the game's Medium cull distances instead.
   - Starting a build without checking whether the user was playing.
+  - Line-by-line `perl -pi` or regex edits with `\n` in the pattern on CRLF source files: they match nothing and fail
+    silently. Use the Edit tool, or allow `\r?` before the newline, and check the result.
+  - A test named as the prefix of another (`Looter.Locomotion.Pace` beside `.Pace.Chases`) shows "Not Run": name
+    every test as a leaf (`.Pace.Speeds`).
+  - A file-scope name in a test (`const FName Extra`) that an engine header also uses: C4459 fails the build.
+  - A foreground build or test run longer than the tool's 10 minutes is killed with no log: run them in the background.
+  - Chaining `git add -u && ... ; git commit`: when `git add` failed on the transient "Permission denied", the commit
+    still ran with whatever was staged. Stage, check, then commit.

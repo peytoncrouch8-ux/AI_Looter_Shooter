@@ -453,6 +453,8 @@ void UHudMissionTrackerWidget::BuildTree()
 	UVerticalBoxSlot* HintSlot = Lower->AddChildToVerticalBox(HintBox);
 	HintSlot->SetHorizontalAlignment(HAlign_Left);
 	HintSlot->SetPadding(FMargin(HintIndent, HintDrop, 0.f, 0.f));
+	// The step's optional objectives under them, dimmed (HudMissionTrackerWidgetOptional.cpp).
+	Lower->AddChildToVerticalBox(BuildOptionals())->SetHorizontalAlignment(HAlign_Left);
 	Place(Lower, ObjectiveX, RowTop);
 	Objective = Lower;
 
