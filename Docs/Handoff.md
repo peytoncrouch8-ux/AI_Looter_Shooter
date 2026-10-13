@@ -37,6 +37,18 @@ imports, house swaps, depot/workshop/barn placements, lift/mine/post placements,
 SOCKET_LostProperty, build_area_vendors for Pruitt's voice); step 4 (all missions' data per the design, XP retune to
 story ~5.5 / full ~6.8). Lost Loot prices: only two upgrades are affordable in Ransom's Rest (~1,270 silver a play).
 
+**Wave 3 DONE, committed and pushed (3d8f232), 582/582 tests:** impacts by surface (13, sounds, puffs, ricochets),
+fading bullet marks, the orange objective highlight (13 m), Hob's roosts (the Crow's Mast in Hob's Ember red; replace
+graves as save/respawn/fast travel; the crows carry Ellis). All approved art is imported (homes, town, mountain, the
+Providence's dead, the roost). Checked in PIE: the highlight on Abel's grave (Glow lowered to 1.2 so it reads orange),
+marks on the ground (the pale-blob bug was a material compile error, fixed), a fence reads as wood.
+**Waiting on the terrain agent** (core 512 m, Larkspur Bench, the waterfall off the Rim by Abel's deck; its files are
+uncommitted: Art/Levels/*, layout.json, Art/Models/Terrain/Waterfall.py, Art/Textures/RansomsRestMacro*, terrain tools).
+**Then, level step 3:** layout.json gameplay.roosts (scratchpad codemap_wave3.md) + ForemanCreature kind; terrain import
+(build_area.py RansomsRest), build_impact_surfaces.py (the new macro windows MI_RansomsRestMacroSW/SE/NW/NE), house swaps
+and placements (scratchpad level_step3_notes.md), lift/mine/post, roosts, Lost Property on the new depot's socket,
+vendors, loot, fauna, scatter, Keeper's Bridge fix (below); then step 4 (all missions' data, XP retune).
+
 **To do (the user's play notes, 2026-10-13):**
 - [ ] **Keeper's Bridge** (the bridge by Abel, over the Dry Wash on the keeper's path, (-95, 2)) floats above the
       ground, and walking up the hill to it stops the player: it takes several jumps to get up. Ground the bridge (its
