@@ -5,6 +5,12 @@ layout_computed.json "waterfall"). A scripted model (Art/README.md) for M_Waterf
                   ragged strands that thin out 40-58 m down (the island's rock retreats below about 6 m, so the arc
                   clears it). Each strand is a bowed ribbon with a narrower crossed one, so it reads from the side.
   WaterfallMist   soft crossed cards of spray hanging at the lip.
+  WaterfallTall   a fall off a hanging valley's lip down a canyon wall (Ransom's Rest's Larkspur Falls, 115 m off
+                  Larkspur Bench's west end into Gravewind Canyon): the sheet off the lip, then a cascade widening down
+                  the wall's lean (0.17 m out per m down) and fraying into spray, with veils across it for side views.
+                  Designed for a 115 m drop: the level scales it in Z to its own (layout_computed.json waterfalls with
+                  "canyon": true, location to dropTo).
+  WaterfallFootMist  soft crossed cards of spray up to about 14 m where a tall fall lands (pivot: its foot).
 
 Pivot: the middle of the lip, at the water surface; front (-Y) is the flow direction (the level turns it to the
 creek's yaw). UV0: U across each ribbon (0..1), V along the flow in meters from the sheet's upstream end (the material
@@ -207,11 +213,90 @@ def mist(mat):
     return rib.finish('WaterfallMist', mat)
 
 
+TALL_DROP = 115.0  # WaterfallTall's design drop (m): Larkspur Falls off the Bench's west end; the level scales it in Z
+BATTER = 0.17      # the canyon wall under an escarpment's lip leans out this far per meter down (area_region.py)
+CLEAR = 2.2        # meters the tall fall keeps off that lean (the wall's ledges and ribs reach out about that far)
+
+
+def tall_offset(drop):
+    """How far out from the lip (local -Y, meters) the tall fall is, drop meters down: thrown off the lip, then down
+    the canyon wall's lean, a little clear of it."""
+    t = math.sqrt(2.0 * max(drop, 0.0) / G)
+    wall = 0.3 + BATTER * drop + CLEAR * smoothstep(0.0, 8.0, drop)
+    return -max(V0 * t, wall)
+
+
+def waterfall_tall(mat):
+    """WaterfallTall: a stream off a hanging valley's lip and TALL_DROP m down the canyon wall (Larkspur Falls): the
+    sheet over the creek's last meter and off the lip, then a widening cascade down the wall's lean that frays into
+    spray over its lowest 25 m; three veils across it (in the flow's plane) so it reads from the side, as from the
+    burial deck to its south-west. Pivot, axes, UVs and colors as Waterfall's; the level scales it in Z to the drop."""
+    rib = Ribbons()
+    rng = random.Random(115)
+    drops = [0.0, 0.3, 0.8, 1.5, 2.5, 4.0, 6.0, 9.0, 13.0, 18.0, 24.0, 31.0, 39.0, 48.0, 57.0, 66.0, 75.0, 84.0, 92.0,
+             99.0, 105.0, 110.0, 113.0, 115.0]
+    upstream = [1.0, 0.6, 0.25, 0.08]
+    cols = 7
+    rows = []
+    for y in upstream:
+        v = 1.0 - y
+        rows.append([(Vector(((j / (cols - 1) - 0.5) * WIDTH, y, LIFT)), (j / (cols - 1), v),
+                      (0.15 + 0.35 * smoothstep(0.6, 1.0, v), smoothstep(0.0, 0.5, v) * edge(j, cols, 0.35)))
+                     for j in range(cols)])
+    length, prev = 1.0, Vector((0.0, 0.0, LIFT))
+    rows_v = []
+    for drop in drops:
+        p = Vector((0.0, tall_offset(drop), LIFT - drop))
+        length += (p - prev).length
+        prev = p
+        share = drop / TALL_DROP
+        width = WIDTH + 6.5 * share ** 0.8
+        alpha = 0.92 * (1.0 - smoothstep(TALL_DROP - 25.0, TALL_DROP, drop))
+        foam = min(1.0, 0.55 + 0.45 * smoothstep(0.0, 4.0, drop))
+        streak = [0.78 + 0.22 * rng.random() for _ in range(cols)]
+        rows.append([(Vector(((j / (cols - 1) - 0.5) * width, p.y - 0.25 * share * math.sin(j * 1.3 + drop * 0.1),
+                              p.z)), (j / (cols - 1), length),
+                      (foam, alpha * edge(j, cols, 0.45) * streak[j])) for j in range(cols)])
+        rows_v.append((p, width, length, alpha, foam, share))
+    rib.grid(rows)
+    # The veils: spray standing out from the wall across the cascade, so a view along the wall still sees it.
+    for x_share in (-0.3, 0.0, 0.3):
+        veil = []
+        for p, width, length, alpha, foam, share in rows_v:
+            depth = 0.6 + 3.2 * share
+            veil.append([(Vector((x_share * width, p.y + s * depth, p.z)), ((s + 1.0) * 0.5, length),
+                          (foam, 0.55 * alpha * (1.0 - abs(s) ** 2 * 0.9) * smoothstep(1.0, 6.0, p.y * -1.0)))
+                         for s in (-1.0, -0.33, 0.33, 1.0)])
+        rib.grid(veil)
+    return rib.finish('WaterfallTall', mat)
+
+
+def foot_mist(mat):
+    """WaterfallFootMist: the spray where a tall fall lands, soft crossed cards up to about 14 m. Pivot: the foot on
+    the floor (layout_computed.json waterfalls' foot)."""
+    rib = Ribbons()
+    for cx, angle, w, h in [(0.0, 0.0, 20.0, 14.0), (0.0, 60.0, 16.0, 12.0), (0.0, -60.0, 16.0, 12.0),
+                            (0.0, 90.0, 12.0, 10.0)]:
+        a = math.radians(angle)
+        across = Vector((math.cos(a), math.sin(a), 0.0))
+        center = Vector((cx, 0.0, h * 0.5 - 1.0))
+        rows = []
+        for r in range(3):
+            rows.append([(center + across * ((c - 1) * w * 0.5) + Vector((0.0, 0.0, (1 - r) * h * 0.5)),
+                          (c * 0.5, r * 0.5), (0.9, 0.45 if (r == 1 and c == 1) else 0.0)) for c in range(3)])
+        rib.grid(rows)
+    return rib.finish('WaterfallFootMist', mat)
+
+
 mat = material('Waterfall')
 fall_obj = waterfall(mat)
 mist_obj = mist(mat)
 mist_obj.location.x = 5.0   # beside it in the scene; positions don't matter to the export
-for obj in (fall_obj, mist_obj):
+tall_obj = waterfall_tall(mat)
+tall_obj.location.x = 15.0
+foot_obj = foot_mist(mat)
+foot_obj.location.x = 40.0
+for obj in (fall_obj, mist_obj, tall_obj, foot_obj):
     tris = sum(len(p.vertices) - 2 for p in obj.data.polygons)
     lt._log(f'{obj.name}: {tris} triangles')
 

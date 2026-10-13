@@ -42,8 +42,8 @@ namespace TownLifeRules
 
 	/**
 	 * The household of a lived-in house from its model, for a house whose lights name none: Delia's farmhouse, Tilly's shop,
-	 * Pruitt's store, a settler's cottage (the generic one). None for anything else (the tutorial island's houses have
-	 * nobody in them).
+	 * Pruitt's store, a settler's cottage or one of Ransom's Rest's lived-in homes (SM_RR_Home_A, B, D, E, H: the generic
+	 * one). None for anything else (the tutorial island's houses, and the empty homes, have nobody in them).
 	 */
 	AI_LOOTER_SHOOTER_API FName HouseholdForMesh(const FString& MeshName);
 

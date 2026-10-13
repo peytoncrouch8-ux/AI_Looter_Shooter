@@ -764,11 +764,15 @@ def clamp_pin():
 def cellar_key():
     m = Model('CellarKey', seed=SEED + 50)
     BOW = Vector((0.0, 0.0, -0.058))
-    # The cord loop over the hook: its top's inner side is the pivot; it passes through the bow under its top bar.
+    # The cord loop over the hook: its top's inner side is the pivot. It passes front to back through the bow under its
+    # top bar, and its strands twist a quarter turn as they rise, so its top lies across the key's plane and a peg
+    # pointing out of the wall at the viewer (along Y) passes through it, clear of both strands (the peg up to 12 mm
+    # wide, its top at the pivot).
     rc = 0.0022
-    cord = [(0.0, -0.0045, -0.0475), (0.0, -0.0062, -0.03), (0.0, -0.005, -0.012), (0.0, -0.0025, -0.001),
-            (0.0, 0.0, rc), (0.0, 0.0025, -0.001), (0.0, 0.005, -0.012), (0.0, 0.0062, -0.03), (0.0, 0.0045, -0.0475),
-            (0.0, 0.0, -0.0492), (0.0, -0.0045, -0.0475)]
+    cord = [(0.0, 0.0, -0.0492), (-0.001, -0.0058, -0.047), (-0.004, -0.006, -0.032), (-0.0085, -0.003, -0.018),
+            (-0.0095, 0.0, -0.006), (-0.0085, 0.0, 0.0003), (-0.004, 0.0, 0.0021), (0.0, 0.0, rc), (0.004, 0.0, 0.0021),
+            (0.0085, 0.0, 0.0003), (0.0095, 0.0, -0.006), (0.0085, 0.003, -0.018), (0.004, 0.006, -0.032),
+            (0.001, 0.0058, -0.047), (0.0, 0.0, -0.0492)]
     loop = tube(cord, rc, 'RopeHemp', sides=4, caps=(False, False), seed=SEED + 51, density=640.0)
     bow = upright([circle(0.0, BOW.z, 0.025, 20), circle(0.0, BOW.z, 0.013, 12, reverse=True)], -0.0035, 0.0035,
                   'IronBlack', density=FINE, seed=SEED + 52)

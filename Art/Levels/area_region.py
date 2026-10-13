@@ -11,7 +11,11 @@ height field R (layout.json "region") is defined all around it, out to the surro
   "height" there) brings the crest down near a pass without lowering the band;
 - an escarpment: a lip (a polyline) past which the ground drops into a canyon, with the canyon's floor, its river and
   its far wall below. The lip wanders a meter or so, except in its "calm" stretches (a center and a radius), where a
-  model is fitted to it (Ransom's Rest's burial deck).
+  model is fitted to it (Ransom's Rest's burial deck);
+- floors ("floors": a hanging valley behind a ridge's crest, Larkspur Bench): the ground raised to a level inside a
+  polygon, the higher of the two, so a ridge's back fills up to it and its crest stays the valley's lip; ridges marked
+  "onFloor" stand on the floors (Larkspur High, the East Shoulder) as far as they reach, and a ridge's "bandGaps" leave
+  stretches of its band undressed (a quarry cut through it).
 R is worked out on one raster over the ring's square (the region grid, 1 m cells): its smooth parts (noise, the canyon
 floor) as heights and its sharp parts (the ridges' feet, the lip) as distance fields. heights() turns sampled fields
 into R, so the core's raster, the ring's raster and single points (the seam's vertices) all see the same field, each at
@@ -30,7 +34,7 @@ import math
 import numpy as np
 
 from area_math import (Grid, catmull_rom, fbm, normals_of, points_in_polygon, polygon_mask, polyline_field,
-                       raster_size, resample, sample, signed_distance, smoothstep)
+                       raster_size, resample, sample, signed_distance, smax, smoothstep)
 
 LIP_STEP = 0.5        # meters between the lip's points
 LIP_NEAR = 40.0       # how far (m) the lip's exact distance field reaches; past it a coarse one is enough
@@ -90,6 +94,7 @@ class Region:
         self.seam = spec.get('seamBand', 2500) / 100.0
         self.ridges = [self._ridge(r) for r in spec.get('ridges', [])]
         self.benches = [self._bench(b) for b in spec.get('benches', [])]
+        self.floors = [self._floor(b) for b in spec.get('floors', [])]
         self.escarpment = spec.get('escarpment')
         self.lip = self.lip_coarse = self.canyon_polygon = self.river = None
         if self.escarpment:
@@ -106,6 +111,11 @@ class Region:
         ridge['band_width'] = spec.get('bandWidth', max(150.0, 25.0 * ridge['band'])) / 100.0
         if ridge['band'] > ridge['height'] or ridge['band_width'] >= ridge['depth']:
             raise ValueError(f"ridge {spec['id']}: its band must be lower than the ridge and narrower than its crest")
+        # A ridge "onFloor" rises from the floors' ground (region.floors) rather than the valley's: its band stands on
+        # a hanging valley's floor and its crest is its height over that floor (Larkspur High over Larkspur Bench).
+        ridge['on_floor'] = bool(spec.get('onFloor', False))
+        # Stretches of its foot whose band gets no cliff dressing ({center, radius} cm: a quarry cut through it).
+        ridge['band_gaps'] = [(_to_m(g['center']), g['radius'] / 100.0) for g in spec.get('bandGaps', [])]
         # The ridge rises on the side of its foot away from the area's center.
         ridge['side'] = -side_at(ridge['foot'], (0.0, 0.0))
         # A polygon round the ridge's side (the foot closed far out that way): the side of points past the foot's
@@ -132,6 +142,38 @@ class Region:
         if bench['blend'] <= 0.0:
             raise ValueError(f"bench {spec['id']}: its blend must be positive")
         return bench
+
+    def _floor(self, spec):
+        """A floor (region.floors): ground raised to a level inside a polygon, a hanging valley's (Larkspur Bench behind
+        Larkspur Ridge's crest). Unlike a bench it doesn't add to the ground: the ground inside becomes the higher of
+        what the ridges make it and the floor's level, a smooth maximum "round" (cm) wide, so a ridge's back slope fills
+        up to it while a crest at its edge stays a crest; it eases out over "blend" outside the polygon. Its level is
+        "height" at "at" ([X, Y] cm; the polygon's middle by default), rising "grade" [north, east] meters per meter,
+        rolling by its "relief" ({amplitude, wavelength} cm); or, with "levels" ({"X": [x0, x1], "Y": [y0, y1],
+        "heights": [[at x0 y0, at x0 y1], [at x1 y0, at x1 y1]]}, cm), between four corners' heights over that
+        rectangle and held at its edges' past it. Ridges marked "onFloor" stand on it, as far as it reaches."""
+        poly = catmull_rom(_to_m(spec['polygon']), closed=True, step=2.0)
+        at = _to_m(spec['at']) if 'at' in spec else _to_m(spec['polygon']).mean(axis=0)
+        floor = dict(id=spec['id'], polygon=poly, height=spec.get('height', 0) / 100.0, at=at,
+                     grade=np.asarray(spec.get('grade', [0.0, 0.0]), dtype=np.float64),
+                     blend=spec.get('blend', 1000) / 100.0, round=spec.get('round', 150) / 100.0,
+                     relief=spec.get('relief'), levels=None)
+        if 'levels' in spec:
+            lv = spec['levels']
+            floor['levels'] = (_to_m(lv['X']), _to_m(lv['Y']), np.asarray(lv['heights'], dtype=np.float64) / 100.0)
+        if floor['blend'] <= 0.0 or floor['round'] <= 0.0:
+            raise ValueError(f"floor {spec['id']}: its blend and round must be positive")
+        return floor
+
+    @staticmethod
+    def _floor_level(fl, x, y):
+        """A floor's level (m) at points, before its relief."""
+        if fl['levels'] is None:
+            return fl['height'] + fl['grade'][0] * (x - fl['at'][0]) + fl['grade'][1] * (y - fl['at'][1])
+        (x0, x1), (y0, y1), hs = fl['levels']
+        u = np.clip((x - x0) / (x1 - x0), 0.0, 1.0)
+        v = np.clip((y - y0) / (y1 - y0), 0.0, 1.0)
+        return (hs[0, 0] * (1 - u) * (1 - v) + hs[0, 1] * (1 - u) * v + hs[1, 0] * u * (1 - v) + hs[1, 1] * u * v)
 
     def _lip(self, area):
         esc = self.escarpment
@@ -179,10 +221,11 @@ class Region:
             return np.ones(np.shape(x), dtype=bool)
         return ~points_in_polygon(np.asarray(x, np.float64), np.asarray(y, np.float64), self.canyon_polygon)
 
-    def core_outline(self):
+    def core_outline(self, half=None):
         """The core mesh's edge, counter-clockwise in (x, y): the square on the upland side of the lip. Returns the
-        polygon (N, 2) and, for each point, whether it lies on the lip (else on the square: the seam)."""
-        h = self.core_half
+        polygon (N, 2) and, for each point, whether it lies on the lip (else on the square: the seam). half: another
+        square's half side (m) than the core's (the square a grown map grew from, map.grownFrom)."""
+        h = self.core_half if half is None else half
         # The square's corners in order around it (south-west, north-west, north-east, south-east).
         corners = np.array([[-h, -h], [h, -h], [h, h], [-h, h]], dtype=np.float64)
         if self.lip is None:
@@ -249,6 +292,16 @@ class Region:
                 swells = fbm(x, y, relief.get('wavelength', 12000) / 100.0, seed=331 + k, octaves=3, gain=0.45)
                 f['base'] += (relief.get('amplitude', 400) / 100.0 * swells * clear
                               * (1.0 - smoothstep(0.0, bench['blend'], outside)))
+        for k, fl in enumerate(self.floors):
+            # The floor's weight (1 inside, easing out over its blend) and its level, both as fields.
+            outside = np.maximum(signed_distance(g, fl['polygon'], fl['blend'] + 2.0), 0.0)
+            f[f'floorw{k}'] = 1.0 - smoothstep(0.0, fl['blend'], outside)
+            level = self._floor_level(fl, x, y)
+            relief = fl['relief']
+            if relief:
+                level = level + relief.get('amplitude', 100) / 100.0 * fbm(
+                    x, y, relief.get('wavelength', 4000) / 100.0, seed=341 + k, octaves=3, gain=0.45)
+            f[f'floorh{k}'] = level
         f['var'] = fbm(x, y, 45.0, seed=302, octaves=2)
         for i, r in enumerate(self.ridges):
             # Meters past the foot, into the ridge (negative on the valley's side), kept to the range the profile
@@ -301,6 +354,7 @@ class Region:
         """R (m) from fields sampled at points (x, y)."""
         x, y = np.broadcast_arrays(np.asarray(x, dtype=np.float64), np.asarray(y, dtype=np.float64))
         z = np.zeros(x.shape)
+        raised = None  # the ridges standing on the floors (onFloor), met as the others meet
         if self.ridges:
             fade = 1.0 - smoothstep(BAND_FADE[0], BAND_FADE[1], self.core_half - np.maximum(np.abs(x), np.abs(y)))
             # Short noise, worked out at the points themselves (a 1 m raster would facet it), only near the feet: the
@@ -313,12 +367,26 @@ class Region:
                 xa, ya = x[active], y[active]
                 fine[active] = fbm(xa, ya, 14.0, seed=303, octaves=2)
                 wob[active] = 1.2 * fbm(xa, ya, 16.0, seed=304, octaves=2) + 0.3 * fbm(xa, ya, 4.0, seed=305)
+            first = True
             for i, r in enumerate(self.ridges):
                 s = f[f'ridge{i}']
                 zi = self._ridge_height(r, s + wob * (1.0 - smoothstep(r['depth'] - 6.0, r['depth'], s)), f['var'],
                                         fine, fade, self._saddle_top(r, x, y))
-                z = zi if i == 0 else _soft_max(z, zi, 3.0)
+                if r['on_floor']:
+                    raised = zi if raised is None else _soft_max(raised, zi, 3.0)
+                    continue
+                z = zi if first else _soft_max(z, zi, 3.0)
+                first = False
         upland = f['base'] + z
+        # The floors (region.floors): the ground raised to each one's level inside it (a smooth maximum), then the
+        # ridges that stand on them on top, as far as the floors reach (their feet run on past the floors' ends).
+        floored = None
+        for k, fl in enumerate(self.floors):
+            w = f[f'floorw{k}']
+            upland = upland + (smax(upland, f[f'floorh{k}'], fl['round']) - upland) * w
+            floored = w if floored is None else np.maximum(floored, w)
+        if raised is not None:
+            upland = upland + (raised if floored is None else raised * floored)
         if self.lip is None:
             return upland
         dl = f['dl']

@@ -3,7 +3,7 @@
 namespace
 {
 	/**
-	 * No single kill gives more than this. It only matters for wild settings (a steep growth on a high level) and keeps the
+	 * No single kill gives more than this. It only matters for wild settings (a steep power on a high level) and keeps the
 	 * result far inside int64.
 	 */
 	constexpr double MaxKillXP = 1e12;
@@ -36,9 +36,9 @@ int64 FLevelRules::KillXP(int32 BaseXP, int32 EnemyLevel, int32 PlayerLevel) con
 	{
 		return 0;
 	}
-	// A shrinking growth would make tougher enemies worth less; never below flat.
+	// A negative power would make tougher enemies worth less; never below flat.
 	const double Grown = BaseXP * FMath::Max(KillXPScale, 0.0)
-		* FMath::Pow(FMath::Max(KillXPGrowth, 1.0), static_cast<double>(FMath::Max(EnemyLevel, 1) - 1));
+		* FMath::Pow(static_cast<double>(FMath::Max(EnemyLevel, 1)), FMath::Max(KillXPPower, 0.0));
 	const double Earned = FMath::Min(Grown * KillXPShare(EnemyLevel, PlayerLevel), MaxKillXP);
 	return FMath::Max<int64>(FMath::RoundToInt64(Earned), 1);
 }

@@ -3,27 +3,69 @@
   "name": "RansomsRest",
   "setting": "grounded",
   "map": {
-    "about": "The core square (half its side, cm) and the cell size (cm) each raster aims at: 400 m at 12.5 cm heights (the doc's fallback is 15 cm), a 4096 px macro map (about 10 cm a pixel).",
-    "half": 20000,
-    "cells": { "shape": 12.5, "curvature": 20, "ao": 20, "scatter": 40, "macro": 10 }
+    "about": "The core square (half its side, cm) and the cell size (cm) each raster aims at: 512 m at 12.5 cm heights since the mountain (Docs/Areas/RansomsRest_Expansion.md, section 6), grown from the 400 m square (grownFrom: the noise and the lip's outline worked out as that square had them, so the valley's heights came out the same: Tools/terrain_compare.ps1); caps lets the curvature and occlusion keep 20 cm, the scatter mask 25 cm and the macro map 6.25 cm, which macroSplit 2 paints as four 4096 px windows (RansomsRestMacroSW, SE, NW, NE), one per quarter of the square, each its own texture set worn by the tiles over it.",
+    "half": 25600,
+    "cells": { "shape": 12.5, "curvature": 20, "ao": 20, "scatter": 25, "macro": 6.25 },
+    "grownFrom": 20000,
+    "caps": { "curvature": 2560, "ao": 2560, "scatter": 2048, "macro": 8192 },
+    "macroSplit": 2
   },
-  "mesh": { "tiles": 5, "triangles": 146000 },
+  "mesh": {
+    "tiles": 6,
+    "triangles": 190000,
+    "coarse": [
+      {
+        "polygon": [[14100,-8600],[12800,10800],[22600,10800],[22600,-9000]],
+        "spacing": 240,
+        "note": "Larkspur Bench's gentle meadow: vertices up to 2.4 m apart where it barely bends"
+      }
+    ],
+    "holes": [
+      {
+        "id": "providenceMouth",
+        "polygon": [[22905,7190],[22905,7610],[22960,7610],[22960,7190]],
+        "note": "the notch's back wall where it stands in the adit's mouth (mine x +-2.1, y -0.95..-0.4): the mine's rock takes over at y -1, the portal's lagging and roof cover the hole's edges"
+      },
+      {
+        "id": "cellarStair",
+        "polygon": [[-2100,6000],[-2100,6427],[-2352,6427],[-2352,6000]],
+        "note": "Tilly's cellar stair: the workshop's floor and walls frame it, the cellar's stone stair under it"
+      }
+    ],
+    "about": "The top in 6 x 6 tiles over the map square (the macro map's windows' edges are tiles' edges), about 190k triangles; coarse lets Larkspur Bench's gentle meadow spread its vertices to 2.4 m where it barely bends, so the valley keeps its 1.2 m (Art/Levels/area_mesh.py); holes leaves the top open where an interior goes into the ground: the Providence's mouth in Larkspur High's band, framed by the portal model."
+  },
   "macro": {
-    "about": "The macro maps' ground: lateSummer paints the meadow as a mosaic of late summer's grass tones keyed to the ground (Art/Levels/area_mosaic.py), bleached straw on the rises through gold and olive to the green of the creek bottoms, in place of the island's meadow graded gold, which read as one flat ochre from the lookout (2026-10-08). shade: the living tree stands (obstacle ids) whose ground is darker and greener (every forest and orchard zone too); hayfields: the openGround polygons mowed into stubble, rows the mowing's heading (degrees, 0 north, 90 east); zones: moisture added by zone kind (a watered farm and orchard greener, the town, the depot and the wind-blasted point dustier).",
+    "about": "The macro maps' ground: lateSummer paints the meadow as a mosaic of late summer's grass tones keyed to the ground (Art/Levels/area_mosaic.py), bleached straw on the rises through gold and olive to the green of the creek bottoms, in place of the island's meadow graded gold, which read as one flat ochre from the lookout (2026-10-08). shade: the living tree stands (obstacle ids) whose ground is darker and greener (every forest and orchard zone too); hayfields: the openGround polygons mowed into stubble, rows the mowing's heading (degrees, 0 north, 90 east); zones: moisture added by zone kind (a watered farm and orchard greener, the town, the depot and the wind-blasted point dustier). blooms colors the wildflower drifts by zone kind (hue: where on the mosaic's flower ramp, larkspur blue about 0.04; pull toward it; more: the drifts' density times this): the alpine meadow's blue larkspur.",
     "mosaic": "lateSummer",
     "shade": ["washWillows", "creekWillows", "sinkRoadCottonwoods", "widowsPinesEdge"],
     "hayfields": [{"id": "hayfieldWest", "rows": 90}, {"id": "hayfieldEast", "rows": 0}],
-    "zones": {"home": 0.05, "orchard": 0.15, "town": -0.15, "travel": -0.15, "graveyard": -0.05, "chapel": -0.05, "lookout": -0.1, "boss_arena": -0.12}
+    "zones": {
+      "home": 0.05,
+      "orchard": 0.15,
+      "town": -0.15,
+      "travel": -0.15,
+      "graveyard": -0.05,
+      "chapel": -0.05,
+      "lookout": -0.1,
+      "boss_arena": -0.12,
+      "alpine": 0.3,
+      "outpost": -0.12,
+      "mine": -0.2,
+      "quarry": -0.25,
+      "crest": -0.05
+    },
+    "blooms": { "alpine": { "hue": 0.04, "pull": 0.75, "more": 1.8 } }
   },
   "scatter": {
-    "about": "The scatter mask (Art/Levels/area_scatter.py): roadside pebbles keeps every road's surface clear of stones and lines the roads with pebbles only, so no rock or boulder stands in Main Street, the yards, on the rail bed or across a junction; steep bare keeps every stone off ground too steep to walk up (the rock past the boundary, the cliffs' faces), where it would hang on the slope. layers: the meadow layers' own spacing (cm) and a factor on their shared cull distances (Tools/Unreal/build_island_scatter.py): the grass a little denser and reaching about 40 m on Medium instead of 27-33 m, the flowers 38 m, so the meadows don't turn to bare ground a few dozen meters out (2026-10-08; the macro map carries the grass's color past that).",
+    "about": "The scatter mask (Art/Levels/area_scatter.py): roadside pebbles keeps every road's surface clear of stones and lines the roads with pebbles only, so no rock or boulder stands in Main Street, the yards, on the rail bed or across a junction; steep bare keeps every stone off ground too steep to walk up (the rock past the boundary, the cliffs' faces), where it would hang on the slope. layers: the meadow layers' own spacing (cm) and a factor on their shared cull distances (Tools/Unreal/build_island_scatter.py): the grass a little denser and reaching about 40 m on Medium instead of 27-33 m, the flowers 38 m, so the meadows don't turn to bare ground a few dozen meters out (2026-10-08; the macro map carries the grass's color past that). blooms: more flowers by zone kind (times): Larkspur Bench's larkspur drifts. The Bench's forest zones are lodgepole stands: pines only (Tools/Unreal/build_island_scatter.py's split should keep them to Pine_A and Pine_B).",
     "roadside": "pebbles",
     "steep": "bare",
-    "layers": {"grass": {"cell": 80, "cull": 1.5}, "flowers": {"cull": 1.4}}
+    "layers": {"grass": {"cell": 80, "cull": 1.5}, "flowers": {"cull": 1.4}},
+    "blooms": { "alpine": 1.8 }
   },
   "region": {
-    "about": "The regional height field around the core (Art/Levels/area_region.py), in cm: the valley floor's noise and tilt (meters of rise per meter north and east) and its benches (a polygon raised or lowered by height, easing out over blend), the ridges (each from its foot: height, crest = how far behind the foot the crest is, back = the outer slope's reach, band = the cliff band at the foot; a saddle lowers the crest near a pass), the escarpment (its lip, the drop to the canyon floor, how deep the cliff kit's stacked courses reach, the far wall; calm keeps the lip from wandering where a model is fitted to it), the surround ring and the backdrop. The core's outer seamBand fades into the field; no feature may enter it.",
-    "seamBand": 2500,
+    "about": "The regional height field around the core (Art/Levels/area_region.py), in cm: the valley floor's noise and tilt (meters of rise per meter north and east) and its benches (a polygon raised or lowered by height, easing out over blend), the ridges (each from its foot: height, crest = how far behind the foot the crest is, back = the outer slope's reach, band = the cliff band at the foot; a saddle lowers the crest near a pass), the escarpment (its lip, the drop to the canyon floor, how deep the cliff kit's stacked courses reach, the far wall; calm keeps the lip from wandering where a model is fitted to it), the surround ring and the backdrop. The core's outer seamBand fades into the field; no feature may enter it. floors raises a hanging valley's ground to a level inside a polygon (the higher of the two, round: the smooth maximum's width; levels: four corners' heights over a rectangle, held past it; relief: rolling swells): Larkspur Bench behind Larkspur Ridge's crest, +44 m in the south-west to +58.5 m in the north-east; ridges marked onFloor stand on the floors (Larkspur High, the East Shoulder), and bandGaps leaves a ridge's band undressed where the Old Quarry cuts through it.",
+    "seamBand": 2000,
     "noise": { "amplitude": 110, "wavelength": 7000 },
     "microNoise": { "amplitude": 20, "wavelength": 600 },
     "tilt": [0.006,0.002],
@@ -68,16 +110,22 @@
           [1620,12920],[1400,13700],[1260,14600],[1800,15800],[3300,17500],[5600,20000]
         ],
         "saddles": [{ "center": [300,13700], "radius": 5000, "height": 1700 }],
-        "note": "Larkspur Ridge (north) and the East Ridge north of Stage Gap: steep pines over an 8-12 m band, the crest 40-45 m up; the Old Quarry is a notch in its foot; it turns east along the gap's north wall and out north-east past the mouth. Its west end runs into the canyon"
+        "note": "Larkspur Ridge (north) and the East Ridge north of Stage Gap: steep pines over an 8-12 m band, the crest 40-45 m up; the Old Quarry is a notch in its foot; it turns east along the gap's north wall and out north-east past the mouth. Its west end runs into the canyon",
+        "bandGaps": [{ "center": [10100,2000], "radius": 1900 }]
       },
       {
         "id": "larkspurHigh",
-        "height": 7500,
-        "crest": 4500,
+        "height": 6300,
+        "crest": 4600,
         "back": 9000,
-        "band": 0,
-        "foot": [[16600,-30000],[16600,-10000],[16400,0],[16600,10000],[17400,20000],[19000,35000]],
-        "note": "the higher forested ridge behind Larkspur, seen over it from Ransom's Point (no band)"
+        "band": 1400,
+        "foot": [
+          [22900,-40000],[22900,-15000],[22860,-9000],[22940,-4000],[22900,1000],[22820,3500],[22830,6000],
+          [22940,10000],[23100,13000],[23600,20000],[24800,30000],[26200,45000]
+        ],
+        "note": "Larkspur High, moved north for the mountain (2026-10-13): its foot at y 229 with a 14 m cliff band, standing on Larkspur Bench's floor (onFloor), its crest 63 m over it (about +120 m) at y 275, past the boundary; its far side falls toward the Lily's country, never seen",
+        "onFloor": true,
+        "bandGaps": [{ "center": [22940,7400], "radius": 1300 }]
       },
       {
         "id": "eastRidge",
@@ -104,6 +152,16 @@
           [-9760,-1500],[-10160,-5000],[-10360,-8400],[-10700,-11200],[-11200,-15000],[-11800,-25000]
         ],
         "note": "the Hogback (south): a grass ridge about 30 m high with a 6-10 m rock band; Mill Gorge between it and the East Ridge; its west end is Ransom's Point, cut by the Mooring Notch and the canyon"
+      },
+      {
+        "id": "eastShoulder",
+        "height": 3200,
+        "crest": 2600,
+        "back": 6000,
+        "band": 600,
+        "onFloor": true,
+        "foot": [[11200,11250],[14000,11150],[17000,11100],[20000,11200],[22500,11300],[24000,11500]],
+        "note": "the East Shoulder: a steep spur of the East Ridge's north arm closing Larkspur Bench on the east (its foot at x 111-113), standing on the Bench's floor, 32 m over it"
       }
     ],
     "escarpment": {
@@ -130,10 +188,10 @@
       "river": {
         "width": 600,
         "path": [
-          [-62000,-25200],[-43000,-24000],[-27000,-25400],[-13000,-23800],[0,-25000],[13000,-23600],[28000,-25100],
-          [44000,-23900],[62000,-25200]
+          [-62000,-25200],[-43000,-24000],[-27000,-25400],[-13000,-23800],[0,-25000],[13000,-23600],[15000,-21500],
+          [17200,-15000],[19300,-11400],[21400,-15000],[24000,-22500],[28000,-25100],[44000,-23900],[62000,-25200]
         ],
-        "note": "the thin river down the canyon floor, about 120 m out from the Rim"
+        "note": "the thin river down the canyon floor, about 120 m out from the Rim; it swings in under the Bench's west end, where Larkspur Falls lands at about (-114, 193)"
       }
     },
     "ring": { "half": 55000, "cell": 100, "levels": [1000,500,250], "triangles": 38000, "sectors": 8, "macro": 2048 },
@@ -170,7 +228,7 @@
           "note": "the low ground past the Hogback, where Mill Creek runs on out of Mill Gorge"
         }
       ],
-      "lookouts": [[-8600,-10000,820]],
+      "lookouts": [[-8600,-10000,820],[16000,-7200,1370],[14600,2700,170]],
       "clear": [
         {
           "id": "lineOut",
@@ -225,31 +283,72 @@
           "west": [3000,18000]
         }
       ]
-    }
+    },
+    "floors": [
+      {
+        "id": "larkspurBench",
+        "polygon": [
+          [13200,-60000],[13200,-8800],[13100,-7500],[13350,-6000],[13700,-4500],[13950,-3000],[13950,-1500],
+          [13650,-300],[13500,1000],[13650,2200],[13850,3500],[13700,4800],[13400,6200],[13150,7600],[12600,9000],
+          [12100,10200],[12100,10600],[15000,12500],[17500,20000],[19000,33000],[23000,60000],[60000,60000],
+          [60000,-60000]
+        ],
+        "levels": { "X": [13800,23000], "Y": [-8800,11200], "heights": [[4400,4700],[4950,5850]] },
+        "relief": { "amplitude": 120, "wavelength": 4500 },
+        "blend": 600,
+        "round": 150,
+        "note": "Larkspur Bench (Docs/Areas/RansomsRest_Expansion.md, section 6): the hanging valley behind Larkspur Ridge's crest, x -88 to 112, y 138 to 230; its south edge is the crest's lip, its north and east run on under Larkspur High and the East Shoulder"
+      }
+    ]
   },
   "boundary": {
-    "about": "The playable boundary as approved (Docs/Areas/RansomsRest.plan.json), corners [X, Y] in cm in order; open lists runs of open edges (from corner a to corner b), where a drop is part of play; blocked lists runs closed by something built (Stage Gap's mouth: the parked locomotive and the rockslide). The other edges stand at the foot of rock too steep to climb: the ridges' bands, and wherever a band stands back or fades, the rock foot makes (Art/Levels/area_boundary.py).",
+    "about": "The playable boundary as approved (Docs/Areas/RansomsRest.plan.json), corners [X, Y] in cm in order; open lists runs of open edges (from corner a to corner b), where a drop is part of play; blocked lists runs closed by something built (Stage Gap's mouth: the parked locomotive and the rockslide). The other edges stand at the foot of rock too steep to climb: the ridges' bands, and wherever a band stands back or fades, the rock foot makes (Art/Levels/area_boundary.py). Since the mountain the polygon takes in the Old Quarry, the Goat Steps' neck up to the crest and Larkspur Bench (its lip and its west end on the Rim open, Larkspur High's band and the East Shoulder rock); interiors splices the Providence's galleries in as a tongue under Larkspur High, after the surface corner at its mouth, for the game's polygon only (layout_computed.json): its edges closed, its corners at its floor, and the terrain's rules never see it.",
     "polygon": [
-      [-400,14600],[1000,14600],[1400,12700],[3700,12100],[6700,10400],[8800,7600],[9300,4200],[9300,3400],
-      [10000,3200],[10000,800],[9200,600],[9000,-200],[9300,-3300],[8600,-6500],[6500,-9300],[3900,-11000],
-      [2800,-12100],[2400,-14100],[2100,-15600],[2100,-16300],[300,-16300],[100,-15500],[-200,-13300],[-800,-11400],
-      [-4000,-11600],[-6800,-11800],[-9400,-11100],[-10400,-10900],[-10500,-9600],[-10100,-8400],[-9900,-5000],
-      [-9500,-1500],[-9600,2000],[-9400,5500],[-9000,6900],[-9000,8100],[-8000,8700],[-6200,10600],[-3600,12000],
-      [-1400,12600],[-600,12800]
+      [-400,14600],[1000,14600],[1400,12700],[3700,12100],[6700,10400],[8800,7600],[9300,4200],[9500,3850],[11650,3850],
+      [11650,3000],[11650,2000],[11650,250],[13750,250],[13650,1000],[13800,2200],[14000,3500],[13850,4800],
+      [13550,6200],[13300,7600],[12800,9000],[12450,10000],[12250,10600],[13500,10950],[17000,10950],[20000,11050],
+      [22600,11100],[22750,10000],[22600,8600],[22600,7700],[22600,7100],[22600,6200],[22740,4000],[22750,1000],
+      [22780,-4000],[22730,-7000],[22700,-9330],[20000,-9180],[17000,-9060],[16000,-8970],[14000,-8860],[13350,-8830],
+      [13300,-7500],[13550,-6000],[13900,-4500],[14150,-3000],[14150,-1500],[13850,-300],[10600,-300],[10300,250],
+      [9400,250],[9000,-200],[9300,-3300],[8600,-6500],[6500,-9300],[3900,-11000],[2800,-12100],[2400,-14100],
+      [2100,-15600],[2100,-16300],[300,-16300],[100,-15500],[-200,-13300],[-800,-11400],[-4000,-11600],[-6800,-11800],
+      [-9400,-11100],[-10400,-10900],[-10500,-9600],[-10100,-8400],[-9900,-5000],[-9500,-1500],[-9600,2000],
+      [-9400,5500],[-9000,6900],[-9000,8100],[-8000,8700],[-6200,10600],[-3600,12000],[-1400,12600],[-600,12800]
     ],
     "open": [
       {
-        "from": 14,
-        "to": 29,
+        "from": 12,
+        "to": 21,
+        "note": "the crest's lip over Larkspur Ridge's face, from the Goat Steps' head east"
+      },
+      { "from": 35, "to": 46, "note": "the Bench's west end on the Rim over Gravewind Canyon (115 m), and the crest's lip west of the Goat Steps" },
+      {
+        "from": 53,
+        "to": 68,
         "note": "the Rim's lip, from where Larkspur Ridge meets it round Gravewind Point and its deck to the Mooring Ledge's south edge over the Mooring Notch"
       },
-      { "from": 34, "to": 35, "note": "Mill Falls, over Mill Gorge" }
+      { "from": 73, "to": 74, "note": "Mill Falls, over Mill Gorge" }
     ],
     "blocked": [
       {
         "from": 0,
         "to": 1,
         "note": "Stage Gap's mouth: the line runs out through it, and the parked train and the rockslide close it (step 5b)"
+      },
+      {
+        "from": 27,
+        "to": 30,
+        "note": "the Providence's cut face and its mouth (x 62-86): the portal, its cribs and the face cut for them close it; the mine's tongue goes on in at the mouth"
+      },
+      {
+        "from": 11,
+        "to": 12,
+        "note": "the Goat Steps' east side over the quarry's back wall: the game's wall keeps a player on the ledges"
+      },
+      {
+        "from": 9,
+        "to": 10,
+        "note": "the quarry's back wall behind the winch house and under the lift's first span: kept clear of the rock dressing (the house's landing and the cage pass close)"
       }
     ],
     "foot": {
@@ -259,7 +358,16 @@
       "height": 600,
       "back": 35,
       "reach": 1600
-    }
+    },
+    "interiors": [
+      {
+        "id": "providence",
+        "after": 28,
+        "floor": 4800,
+        "polygon": [[22860,7650],[23600,8950],[33600,8950],[33600,4050],[23600,4050],[22860,7150]],
+        "note": "the Providence's galleries under Larkspur High (Art/Models/Mine/Mine.py's plan: x 41.6-88.2, y 229-334.6, floors +50 and +58 m)"
+      }
+    ]
   },
   "openGround": {
     "about": "The open-ground metric (Art/Levels/area_open.py): every walkable meter inside the boundary is measured to its nearest break (a building, wall, fence, outcrop or boulder group, tree stand, cliff, or a 1.5 m rise within 6 m). target is the most it should be (cm); open marks ground left open on purpose, which isn't measured (Docs/Areas/RansomsRest.md: the hayfields, Main Street, the crossroads at the keeper's grave and the grave's line to the bell tower).",
@@ -559,11 +667,11 @@
     {
       "id": "depotPad",
       "type": "pad",
-      "center": [780,11400],
-      "size": [700,1150],
+      "center": [865,11400],
+      "size": [870,1500],
       "yaw": 0,
       "height": 30,
-      "note": "the depot's floor stands on it at the platform's height"
+      "note": "the depot's floor stands on it at the platform's height: RR_Depot (14 x 8 m) from the platform's back edge (y 4.65) north, x 107-121"
     },
     {
       "id": "churchyardPad",
@@ -587,6 +695,411 @@
       "grade": [0.03, 0],
       "bank": { "slope": 28, "round": 250, "toe": 150, "reach": 700 },
       "note": "boot hill's graves on a gentle face falling south toward the town (under 2 degrees, the way its boards look), its rows level across: the hill's top cut 0.7 m and its flanks filled at most 1.8 m, banked at 28 degrees so the fill reaches no more than 7 m out (west, toward the Dry Wash's head), kept west of the north road"
+    },
+    {
+      "id": "quarryFloor",
+      "type": "pad",
+      "center": [10440,2075],
+      "size": [2880,3850],
+      "yaw": 0,
+      "corner": 0.1166666667,
+      "height": 55,
+      "bank": { "slope": 72, "round": 60, "toe": 80, "reach": 2000 },
+      "note": "the Old Quarry's floor, cut deeper and wider into Larkspur Ridge's foot (x 1.5-40, y 90-118.8): the winch house and its bottom landing on it, the back wall standing clear of the lift's first span"
+    },
+    {
+      "id": "quarryBench1",
+      "type": "pad",
+      "center": [12660,2400],
+      "size": [420,3400],
+      "yaw": 0,
+      "corner": 0.1,
+      "height": 1950,
+      "bank": { "slope": 80, "round": 40, "toe": 40, "reach": 800 },
+      "note": "the quarry's first bench (+19.5 m, y 124.5-128.7): the lift tower's footing on the cable's line at (25.6, 126), its saddle 12 m up at +31.5, the cable 7.4 m over the bench's edge"
+    },
+    {
+      "id": "quarryBench2",
+      "type": "pad",
+      "center": [13180,2500],
+      "size": [300,3000],
+      "yaw": 0,
+      "corner": 0.1,
+      "height": 2900,
+      "bank": { "slope": 80, "round": 40, "toe": 40, "reach": 800 },
+      "note": "the quarry's second bench (+29 m, y 130.3-133.3), under the cable"
+    },
+    {
+      "id": "goatStepsHead",
+      "type": "pad",
+      "center": [13950,-50],
+      "size": [600,700],
+      "yaw": 0,
+      "corner": 0.25,
+      "height": 4560,
+      "bank": { "slope": 35, "round": 200, "toe": 150, "reach": 600 },
+      "note": "the Goat Steps' head on the crest"
+    },
+    {
+      "id": "liftHead",
+      "type": "pad",
+      "center": [14600,2700],
+      "size": [1000,1200],
+      "yaw": 0,
+      "corner": 0.25,
+      "height": 4700,
+      "bank": { "slope": 35, "round": 200, "toe": 150, "reach": 500 },
+      "note": "the lift head's granite shoulder (+47 m)"
+    },
+    {
+      "id": "liftCut",
+      "type": "pad",
+      "center": [13875,2649],
+      "size": [1093,700],
+      "yaw": 4.0,
+      "corner": 0.02,
+      "height": 3893,
+      "grade": [1.0479,0.0734],
+      "exact": true,
+      "bank": { "slope": 82, "round": 20, "toe": 20, "reach": 600 },
+      "note": "the lift's cutting through the crest's lip along the cable's line, from bench 2's back (y 133.3) to the head's landing (1.8 m short of its pivot): its floor 6 m under the cable, rising with it"
+    },
+    {
+      "id": "liftHeadSlot",
+      "type": "pad",
+      "center": [14479,2782],
+      "size": [170,180],
+      "yaw": 4.0,
+      "corner": 0.02,
+      "height": 4535,
+      "grade": [1.0479,0.0734],
+      "exact": true,
+      "bank": { "slope": 85, "round": 10, "toe": 10, "reach": 200 },
+      "note": "the slot under the lift head's landing notch: the cage drops out of its dock into it (its floor 6 m under the cable, 0.9 m east of it, from 2 m to 0.3 m short of the head's pivot)"
+    },
+    {
+      "id": "calderKnoll",
+      "type": "hill",
+      "center": [16800,-6500],
+      "radius": 2600,
+      "height": 350,
+      "note": "Calder's Post's knoll on the Rim"
+    },
+    {
+      "id": "calderYard",
+      "type": "pad",
+      "center": [17000,-6500],
+      "size": [2600,3000],
+      "yaw": 0,
+      "corner": 0.25,
+      "height": 5000,
+      "bank": { "slope": 28, "round": 250, "toe": 150, "reach": 1200 },
+      "note": "Calder's Post's yard (+50 m), level: N2's fight ground; the watchtower at (-72, 160)"
+    },
+    {
+      "id": "dinnerPailCamp",
+      "type": "pad",
+      "center": [17000,-500],
+      "size": [1800,2200],
+      "yaw": 0,
+      "corner": 0.25,
+      "height": 4800,
+      "bank": { "slope": 25, "round": 200, "toe": 150, "reach": 1000 },
+      "note": "Camp Dinner Pail, level"
+    },
+    {
+      "id": "diggingsYard",
+      "type": "pad",
+      "center": [21250,7300],
+      "size": [2300,3800],
+      "yaw": 0,
+      "corner": 0.25,
+      "height": 5760,
+      "bank": { "slope": 30, "round": 200, "toe": 150, "reach": 500 },
+      "note": "the Diggings' yard (+57.6 m), level: Ambush Spoil's ground; the ore bin at (62, 204)"
+    },
+    {
+      "id": "portalApron",
+      "type": "pad",
+      "center": [22425,7400],
+      "size": [450,1000],
+      "yaw": 0,
+      "corner": 0.1,
+      "height": 5800,
+      "bank": { "slope": 30, "round": 100, "toe": 100, "reach": 400 },
+      "note": "the Providence's apron (+58 m, the adit's floor) in front of the portal"
+    },
+    {
+      "id": "portalFace",
+      "type": "pad",
+      "center": [22968,7400],
+      "size": [565,2200],
+      "yaw": 0,
+      "corner": 0.25,
+      "height": 6700,
+      "exact": true,
+      "bank": { "slope": 87, "round": 10, "toe": 10, "reach": 300 },
+      "note": "Larkspur High's band brought forward at the mouth: a 9 m face (+67) at the portal's front (mine y -3.4: its foot at y 226.4, its top at 226.85), x 63-85"
+    },
+    {
+      "id": "portalNotchTop",
+      "type": "pad",
+      "center": [22975,7400],
+      "size": [350,1010],
+      "yaw": 0,
+      "corner": 0.02,
+      "height": 6350,
+      "exact": true,
+      "bank": { "slope": 87, "round": 10, "toe": 10, "reach": 300 },
+      "note": "the notch's top behind the portal's brow (+63.5, the brow reaching +63.3), back to mine y 1.5"
+    },
+    {
+      "id": "portalNotchCut",
+      "type": "pad",
+      "center": [22558,7400],
+      "size": [715,1010],
+      "yaw": 0,
+      "corner": 0.02,
+      "height": 5800,
+      "exact": true,
+      "bank": { "slope": 87, "round": 10, "toe": 10, "reach": 300 },
+      "note": "the notch cut to the floor (+58) under the portal, 0.2 m past the cribs' outer ends (x 69.15 and 78.85: the mesh's 0.3 m spacing), back to mine y -0.85: the entry's floor"
+    },
+    {
+      "id": "portalCribWest",
+      "type": "pad",
+      "center": [22815,7028],
+      "size": [260,265],
+      "yaw": 0,
+      "corner": 0.02,
+      "height": 6130,
+      "exact": true,
+      "bank": { "slope": 87, "round": 10, "toe": 10, "reach": 300 },
+      "note": "the ground inside the west crib (+61.3, under its top logs; mine x -5.05..-2.4, its bank's foot clear of the entry's lagging at x -2.03 by the mesh's spacing)"
+    },
+    {
+      "id": "portalCribEast",
+      "type": "pad",
+      "center": [22815,7772],
+      "size": [260,265],
+      "yaw": 0,
+      "corner": 0.02,
+      "height": 6130,
+      "exact": true,
+      "bank": { "slope": 87, "round": 10, "toe": 10, "reach": 300 },
+      "note": "the ground inside the east crib (+61.3)"
+    },
+    {
+      "id": "powderHousePad",
+      "type": "pad",
+      "center": [21400,9600],
+      "size": [800,900],
+      "yaw": 0,
+      "corner": 0.25,
+      "height": 5760,
+      "bank": { "slope": 30, "round": 200, "toe": 150, "reach": 500 },
+      "note": "the powder house (95, 214)"
+    },
+    {
+      "id": "smithyPad",
+      "type": "pad",
+      "center": [19500,8800],
+      "size": [900,1100],
+      "yaw": 0,
+      "corner": 0.25,
+      "height": 5440,
+      "bank": { "slope": 28, "round": 200, "toe": 150, "reach": 600 },
+      "note": "the smithy (88, 196)"
+    },
+    {
+      "id": "minersPlotPad",
+      "type": "pad",
+      "center": [21400,4750],
+      "size": [1200,1300],
+      "yaw": 0,
+      "corner": 0.25,
+      "height": 5660,
+      "bank": { "slope": 28, "round": 200, "toe": 150, "reach": 600 },
+      "note": "the miners' plot (50, 214)"
+    },
+    {
+      "id": "spoilHeap",
+      "type": "hill",
+      "center": [19600,10200],
+      "radius": 1300,
+      "height": 500,
+      "note": "the Providence's spoil heap, down toward the East Shoulder"
+    },
+    {
+      "id": "goatSteps",
+      "type": "steps",
+      "path": [[13950,-50],[13300,-50],[12400,0],[11500,-50],[10550,50]],
+      "count": 9,
+      "top": 4560,
+      "bottom": 55,
+      "lead": 200,
+      "riser": 40,
+      "width": 500,
+      "note": "the Goat Steps: nine 4.9 m drops from the crest down the quarry's west wall to its floor, a one-way way down"
+    },
+    {
+      "id": "larkspurTarn",
+      "type": "pond",
+      "center": [20000,-2000],
+      "radii": [600,900],
+      "waterLevel": 4930,
+      "bottom": 4760,
+      "note": "the tarn on the Bench"
+    },
+    {
+      "id": "liftHeadGranite",
+      "type": "knob",
+      "center": [14200,3500],
+      "radius": 250,
+      "height": 30,
+      "rock": { "piece": "TorB", "height": 400, "yaw": 30 },
+      "note": "the granite of the lift head's shoulder"
+    },
+    {
+      "id": "benchGraniteA",
+      "type": "knob",
+      "center": [18400,-3200],
+      "radius": 250,
+      "height": 30,
+      "rock": { "piece": "TorA", "height": 450, "yaw": 110 },
+      "note": ""
+    },
+    {
+      "id": "benchGraniteB",
+      "type": "knob",
+      "center": [16600,4200],
+      "radius": 250,
+      "height": 30,
+      "rock": { "piece": "TorB", "height": 500, "yaw": -40 },
+      "note": ""
+    },
+    {
+      "id": "benchGraniteC",
+      "type": "knob",
+      "center": [14800,-5200],
+      "radius": 250,
+      "height": 30,
+      "rock": { "piece": "Slab", "height": 400, "yaw": 15 },
+      "note": ""
+    },
+    {
+      "id": "benchGraniteD",
+      "type": "knob",
+      "center": [20600,2200],
+      "radius": 250,
+      "height": 30,
+      "rock": { "piece": "TorD", "height": 550, "yaw": 70 },
+      "note": ""
+    },
+    {
+      "id": "benchGraniteE",
+      "type": "knob",
+      "center": [21600,-1000],
+      "radius": 250,
+      "height": 30,
+      "rock": { "piece": "Spine", "height": 500, "yaw": -20 },
+      "note": ""
+    },
+    {
+      "id": "benchGraniteF",
+      "type": "knob",
+      "center": [16000,8600],
+      "radius": 250,
+      "height": 30,
+      "rock": { "piece": "TorB", "height": 400, "yaw": 160 },
+      "note": ""
+    },
+    {
+      "id": "benchGraniteG",
+      "type": "knob",
+      "center": [20200,-7800],
+      "radius": 250,
+      "height": 30,
+      "rock": { "piece": "TorA", "height": 450, "yaw": 45 },
+      "note": ""
+    },
+    {
+      "id": "benchGraniteH",
+      "type": "knob",
+      "center": [16300,-1800],
+      "radius": 250,
+      "height": 30,
+      "rock": { "piece": "TorD", "height": 300, "yaw": 80 },
+      "note": "cover on Camp Dinner Pail's west side"
+    },
+    {
+      "id": "benchGraniteI",
+      "type": "knob",
+      "center": [15200,6200],
+      "radius": 250,
+      "height": 30,
+      "rock": { "piece": "TorA", "height": 400, "yaw": -15 },
+      "note": ""
+    },
+    {
+      "id": "benchGraniteJ",
+      "type": "knob",
+      "center": [15500,1200],
+      "radius": 250,
+      "height": 30,
+      "rock": { "piece": "Slab", "height": 350, "yaw": 140 },
+      "note": ""
+    },
+    {
+      "id": "benchGraniteK",
+      "type": "knob",
+      "center": [17700,6700],
+      "radius": 250,
+      "height": 30,
+      "rock": { "piece": "TorB", "height": 350, "yaw": 20 },
+      "note": ""
+    },
+    {
+      "id": "tarnRun",
+      "type": "creek",
+      "width": 300,
+      "depth": 80,
+      "waterfallAtEnd": true,
+      "path": [[19960,-3000],[19850,-4000],[19700,-5200],[19550,-6400],[19430,-7600],[19360,-8600],[19320,-9400]],
+      "note": "Tarn Run: the tarn's stream west across Larkspur Bench (shallow, walkable, crossable), over the Rim's lip at about (-91.4, 193.4) as Larkspur Falls: about 115 m down the canyon wall into the river (its lip and foot in layout_computed.json waterfalls.tarnRun)"
+    },
+    {
+      "id": "hotelPad",
+      "type": "pad",
+      "center": [1257,4420],
+      "size": [1700,1150],
+      "yaw": 0,
+      "corner": 0.15,
+      "height": 35,
+      "bank": { "slope": 25, "round": 200, "toe": 150, "reach": 500 },
+      "note": "the Larkspur House's lot, level (Main Street N, (44, 11))"
+    },
+    {
+      "id": "workshopPad",
+      "type": "pad",
+      "center": [-2715,6195],
+      "size": [1480,1520],
+      "yaw": 0,
+      "corner": 0.1,
+      "height": 48,
+      "bank": { "slope": 25, "round": 200, "toe": 150, "reach": 600 },
+      "note": "Bright & Daughter's workshop yard, level over its cellar"
+    },
+    {
+      "id": "whitlockYardPad",
+      "type": "pad",
+      "center": [-6400,3350],
+      "size": [1900,1700],
+      "yaw": 0,
+      "corner": 0.4,
+      "height": -27,
+      "bank": { "slope": 18, "round": 300, "toe": 200, "reach": 500 },
+      "note": "the Whitlock barn yard, level"
     }
   ],
   "roads": [
@@ -681,6 +1194,34 @@
       "path": [[-100,10600],[-100,12800],[-100,14600],[-70,15200]],
       "level": 30,
       "note": "the rail bed through Stage Gap to the buffer stop, level with the platform's ground"
+    },
+    {
+      "id": "oreTramway",
+      "kind": "rail",
+      "width": 300,
+      "path": [[20200,6200],[19000,5600],[17500,4700],[16000,3800],[15000,3100],[14750,2800]],
+      "note": "the ore tramway's bed from the ore bin to the lift head, narrow gauge"
+    },
+    {
+      "id": "crestPath",
+      "kind": "path",
+      "width": 250,
+      "path": [[14650,2200],[14250,1600],[14050,600],[13950,0]],
+      "note": "along the crest from the lift head to the Goat Steps' head (Patrol Crest)"
+    },
+    {
+      "id": "benchTrail",
+      "kind": "path",
+      "width": 250,
+      "path": [[14250,1600],[15000,900],[15700,-800],[16150,-2500],[16450,-4000],[16700,-5000]],
+      "note": "from the lift head west across the Bench to Calder's Post"
+    },
+    {
+      "id": "penLane",
+      "kind": "path",
+      "width": 250,
+      "path": [[-480,2060],[-1500,2060],[-2300,2110],[-2450,2300],[-2450,3700]],
+      "note": "Pen Lane: a back lane behind Pruitt's, two empty houses on it"
     }
   ],
   "bridges": [
@@ -768,9 +1309,7 @@
       "id": "larkspurPines",
       "kind": "forest",
       "polygon": [
-        [11042,-8871],[12189,-6567],[13192,-3454],[12890,-369],[13795,1873],[13272,4789],[12601,8135],[10847,10966],
-        [8954,12558],[7046,10242],[8553,9034],[9799,7065],[10328,4211],[10805,2127],[9910,-31],[10208,-3146],
-        [9411,-5433],[8358,-7529]
+        [11040,-8870],[12190,-6570],[13190,-3450],[13150,-600],[10000,-600],[10210,-3150],[9410,-5430],[8360,-7530]
       ],
       "note": "Larkspur Ridge's steep pines (past the boundary: the forest floor in the macro map)"
     },
@@ -782,6 +1321,29 @@
         [6500,-9300],[4100,-10800]
       ],
       "note": "Widow's Pines: a dark pine wood filling the north-west, 10 m or more off the west road"
+    },
+    { "id": "oldQuarry", "kind": "quarry", "polygon": [[9000,150],[9000,4000],[11800,4000],[11800,150]] },
+    { "id": "crest", "kind": "crest", "polygon": [[13300,-1000],[13500,4000],[15000,4000],[15000,-1000]] },
+    { "id": "calderPost", "kind": "outpost", "polygon": [[14000,-8800],[14000,-4500],[19000,-4500],[19000,-8800]] },
+    { "id": "larkspurBench", "kind": "alpine", "polygon": [[14000,-4500],[14000,6000],[22800,6000],[22800,-4500]] },
+    { "id": "diggings", "kind": "mine", "polygon": [[17000,4000],[17000,11000],[22800,11000],[22800,4000]] },
+    { "id": "providence", "kind": "interior", "polygon": [[22800,4050],[22800,8950],[33600,8950],[33600,4050]] },
+    { "id": "benchPinesNorth", "kind": "forest", "polygon": [[20800,-7000],[21000,-4000],[22500,-3600],[22500,-6800]] },
+    {
+      "id": "benchPinesMid",
+      "kind": "forest",
+      "polygon": [[17400,500],[17200,2400],[18600,2800],[19300,1200],[18600,400]]
+    },
+    { "id": "benchPinesEast", "kind": "forest", "polygon": [[13800,9300],[13600,10700],[16800,10800],[16600,9700]] },
+    { "id": "benchPinesWest", "kind": "forest", "polygon": [[20000,-8600],[20000,-7300],[22200,-7000],[22200,-8700]] },
+    {
+      "id": "larkspurPinesEast",
+      "kind": "forest",
+      "polygon": [
+        [13400,4400],[13270,4790],[12600,8130],[10850,10970],[8950,12560],[7050,10240],[8550,9030],[9800,7070],
+        [10300,4400]
+      ],
+      "note": "Larkspur Ridge's steep pines east of the Old Quarry"
     }
   ],
   "yards": [
@@ -792,7 +1354,7 @@
       "around": ["farmhouse","barn","well"]
     }
   ],
-  "trails": [["farmhouse","well"],["barn","well"],["farmhouse","outhouse"]],
+  "trails": [["farmhouse","well"],["barn","well"],["farmhouse","outhouse"],[[-500,6950],"workshop"],["dugout",[700,-1050]]],
   "obstacles": [
     {
       "id": "saltLine",
@@ -1179,9 +1741,7 @@
       "id": "larkspurPines",
       "kind": "trees",
       "polygon": [
-        [11042,-8871],[12189,-6567],[13192,-3454],[12890,-369],[13795,1873],[13272,4789],[12601,8135],[10847,10966],
-        [8954,12558],[7046,10242],[8553,9034],[9799,7065],[10328,4211],[10805,2127],[9910,-31],[10208,-3146],
-        [9411,-5433],[8358,-7529]
+        [11040,-8870],[12190,-6570],[13190,-3450],[13150,-600],[10000,-600],[10210,-3150],[9410,-5430],[8360,-7530]
       ],
       "height": 1600,
       "note": "Larkspur Ridge's steep pines, from above its band to over its crest"
@@ -1291,6 +1851,88 @@
       "kind": "outcrop",
       "polygon": [[2555,10716],[2188,10544],[2365,10164],[2732,10336]],
       "height": 800
+    },
+    {
+      "id": "larkspurPinesEast",
+      "kind": "trees",
+      "height": 1600,
+      "polygon": [
+        [13400,4400],[13270,4790],[12600,8130],[10850,10970],[8950,12560],[7050,10240],[8550,9030],[9800,7070],
+        [10300,4400]
+      ],
+      "note": "Larkspur Ridge's steep pines east of the Old Quarry"
+    },
+    {
+      "id": "liftHeadGraniteRock",
+      "kind": "outcrop",
+      "height": 400,
+      "polygon": [[14000,3300],[14000,3700],[14400,3700],[14400,3300]]
+    },
+    {
+      "id": "benchGraniteARock",
+      "kind": "outcrop",
+      "height": 450,
+      "polygon": [[18200,-3400],[18200,-3000],[18600,-3000],[18600,-3400]]
+    },
+    {
+      "id": "benchGraniteBRock",
+      "kind": "outcrop",
+      "height": 500,
+      "polygon": [[16400,4000],[16400,4400],[16800,4400],[16800,4000]]
+    },
+    {
+      "id": "benchGraniteCRock",
+      "kind": "outcrop",
+      "height": 400,
+      "polygon": [[14600,-5400],[14600,-5000],[15000,-5000],[15000,-5400]]
+    },
+    {
+      "id": "benchGraniteDRock",
+      "kind": "outcrop",
+      "height": 550,
+      "polygon": [[20400,2000],[20400,2400],[20800,2400],[20800,2000]]
+    },
+    {
+      "id": "benchGraniteERock",
+      "kind": "outcrop",
+      "height": 500,
+      "polygon": [[21400,-1200],[21400,-800],[21800,-800],[21800,-1200]]
+    },
+    {
+      "id": "benchGraniteFRock",
+      "kind": "outcrop",
+      "height": 400,
+      "polygon": [[15800,8400],[15800,8800],[16200,8800],[16200,8400]]
+    },
+    {
+      "id": "benchGraniteGRock",
+      "kind": "outcrop",
+      "height": 450,
+      "polygon": [[20000,-8000],[20000,-7600],[20400,-7600],[20400,-8000]]
+    },
+    {
+      "id": "benchGraniteHRock",
+      "kind": "outcrop",
+      "height": 300,
+      "polygon": [[16100,-2000],[16100,-1600],[16500,-1600],[16500,-2000]]
+    },
+    {
+      "id": "benchGraniteIRock",
+      "kind": "outcrop",
+      "height": 400,
+      "polygon": [[15000,6000],[15000,6400],[15400,6400],[15400,6000]]
+    },
+    {
+      "id": "benchGraniteJRock",
+      "kind": "outcrop",
+      "height": 350,
+      "polygon": [[15300,1000],[15300,1400],[15700,1400],[15700,1000]]
+    },
+    {
+      "id": "benchGraniteKRock",
+      "kind": "outcrop",
+      "height": 350,
+      "polygon": [[17500,6500],[17500,6900],[17900,6900],[17900,6500]]
     }
   ],
   "placements": [
@@ -1365,7 +2007,13 @@
     },
     { "id": "hangingTree", "kind": "DeadTree_A", "location": [4600,2000], "yaw": 0 },
     { "id": "coffinRockTree", "kind": "DeadTree_A", "location": [-6000,-1500], "yaw": 120 },
-    { "id": "cabinNorthWest", "kind": "LogCabin", "location": [1125,0], "yaw": 180 },
+    {
+      "id": "cabinNorthWest",
+      "kind": "RR_Front_Assay",
+      "location": [800,0],
+      "yaw": 180,
+      "note": "the Providence Mining Co.'s assay office, shut since the fall (iron shutters, a chained door)"
+    },
     {
       "id": "sheriff",
       "kind": "FalseFront_Sheriff",
@@ -1373,7 +2021,13 @@
       "yaw": 180,
       "note": "the empty sheriff's office and the Rim Rangers' notice board"
     },
-    { "id": "cottageNorth", "kind": "Cottage", "location": [1125,2550], "yaw": 180 },
+    {
+      "id": "cottageNorth",
+      "kind": "RR_Home_A",
+      "location": [870,2480],
+      "yaw": 180,
+      "note": "the Haskett house (lived in): the saltbox, crepe on its door"
+    },
     {
       "id": "saloon",
       "kind": "FalseFront_Saloon",
@@ -1381,10 +2035,34 @@
       "yaw": 180,
       "note": "the Gilt Spur, boarded up"
     },
-    { "id": "cabinNorth", "kind": "LogCabin", "location": [1125,4400], "yaw": 180 },
-    { "id": "cottageNorthEast", "kind": "Cottage", "location": [1125,5700], "yaw": 180 },
-    { "id": "cottageSouthWest", "kind": "Cottage", "location": [-1125,200], "yaw": 0 },
-    { "id": "cabinSouth", "kind": "LogCabin", "location": [-1125,1300], "yaw": 0 },
+    {
+      "id": "cabinNorth",
+      "kind": "RR_Front_Hotel",
+      "location": [800,4420],
+      "yaw": 180,
+      "note": "the Larkspur House hotel, boarded up"
+    },
+    {
+      "id": "cottageNorthEast",
+      "kind": "RR_Home_H",
+      "location": [1000,5600],
+      "yaw": 180,
+      "note": "the Mercer house (lived in): the porch house"
+    },
+    {
+      "id": "cottageSouthWest",
+      "kind": "RR_Home_J",
+      "location": [-850,250],
+      "yaw": 0,
+      "note": "an empty shack by the town gate"
+    },
+    {
+      "id": "cabinSouth",
+      "kind": "RR_Front_Barber",
+      "location": [-800,1485],
+      "yaw": 0,
+      "note": "the barber's, shut, its blinds drawn"
+    },
     {
       "id": "store",
       "kind": "FalseFront_Store",
@@ -1392,7 +2070,13 @@
       "yaw": 0,
       "note": "Pruitt's General Store, with its own porch"
     },
-    { "id": "cottageSouth", "kind": "Cottage", "location": [-1125,5050], "yaw": 0 },
+    {
+      "id": "cottageSouth",
+      "kind": "RR_Home_D",
+      "location": [-1000,5200],
+      "yaw": 0,
+      "note": "the company manager's house, shut up, dark"
+    },
     {
       "id": "undertaker",
       "kind": "FalseFront_Undertaker",
@@ -1406,9 +2090,9 @@
     {
       "id": "depot",
       "kind": "Depot",
-      "location": [765,11400],
+      "location": [465,11150],
       "yaw": 180,
-      "note": "its front wall on the platform's back edge, facing the track"
+      "note": "the station house: the platform doors on the platform's back edge, facing the track"
     },
     { "id": "platform1", "kind": "DepotPlatform_4m", "location": [265,10900], "yaw": 180 },
     { "id": "platform2", "kind": "DepotPlatform_4m", "location": [265,11300], "yaw": 180 },
@@ -1470,11 +2154,145 @@
     { "id": "cairn1", "kind": "Cairn_A", "location": [1320,-11500], "yaw": 0 },
     { "id": "cairn2", "kind": "Cairn_B", "location": [1220,-12000], "yaw": 37 },
     { "id": "cairn3", "kind": "Cairn_C", "location": [1120,-12500], "yaw": 74 },
-    { "id": "whitlockBarn", "kind": "Barn", "location": [-6400,3200], "yaw": 90 },
-    { "id": "windmill", "kind": "Windmill", "location": [-7600,4100], "yaw": 30 }
+    {
+      "id": "whitlockBarn",
+      "kind": "RR_Barn_Whitlock",
+      "location": [-6150,3600],
+      "yaw": 90,
+      "note": "Amos Whitlock's long, low hay barn, its bay open toward the gate"
+    },
+    { "id": "windmill", "kind": "Windmill", "location": [-7600,4100], "yaw": 30 },
+    {
+      "id": "liftHouse",
+      "kind": "RR_LiftHouse",
+      "location": [11000,2800],
+      "yaw": 183.6,
+      "note": "the winch house on the Old Quarry's floor; its bottom landing against its north side under the first span"
+    },
+    {
+      "id": "liftTower",
+      "kind": "RR_LiftTower",
+      "location": [12600,2560],
+      "yaw": 183.8,
+      "note": "the one timber tower on the ridge face"
+    },
+    {
+      "id": "liftHead",
+      "kind": "RR_LiftHead",
+      "location": [14600,2700],
+      "yaw": 184.0,
+      "note": "the top station behind the crest"
+    },
+    {
+      "id": "watchtower",
+      "kind": "RR_Watchtower",
+      "location": [16000,-7200],
+      "yaw": 180,
+      "note": "Calder's Post's watchtower, its deck 12 m up"
+    },
+    {
+      "id": "rangerCabin",
+      "kind": "RR_RangerCabin",
+      "location": [17200,-5800],
+      "yaw": 180,
+      "note": "Ruth Calder's cabin and woodshed"
+    },
+    {
+      "id": "leanTo",
+      "kind": "RR_LeanTo",
+      "location": [18200,-5000],
+      "yaw": 180,
+      "note": "the lean-to stable; the corral runs 9 m south of it"
+    },
+    {
+      "id": "outhouseCalder",
+      "kind": "RR_Outhouse",
+      "location": [18000,-6900],
+      "yaw": 180,
+      "note": "Calder's Post's outhouse"
+    },
+    { "id": "oreBin", "kind": "RR_OreBin", "location": [20400,6200], "yaw": 180, "note": "the Diggings' ore bin" },
+    {
+      "id": "powderHouse",
+      "kind": "RR_PowderHouse",
+      "location": [21400,9500],
+      "yaw": 270,
+      "note": "the powder house, padlocked"
+    },
+    { "id": "smithy", "kind": "RR_Smithy", "location": [19600,8800], "yaw": 180, "note": "the smithy, the forge cold" },
+    {
+      "id": "minePortal",
+      "kind": "RR_MinePortal",
+      "location": [23000,7400,5800],
+      "yaw": 180,
+      "note": "the Providence's mouth in Larkspur High's band"
+    },
+    {
+      "id": "workshop",
+      "kind": "RR_Workshop_Bright",
+      "location": [-2900,6700],
+      "yaw": 90,
+      "note": "Bright & Daughter's workshop, its cellar under it: Knocking Below"
+    },
+    {
+      "id": "penLaneWest",
+      "kind": "RR_Home_C",
+      "location": [-2780,2480],
+      "yaw": 0,
+      "note": "an empty shotgun house on Pen Lane"
+    },
+    {
+      "id": "penLaneEast",
+      "kind": "RR_Home_F",
+      "location": [-2680,3380],
+      "yaw": 0,
+      "note": "an empty stone house at Pen Lane's end, its roof fallen in at one end"
+    },
+    {
+      "id": "dugout",
+      "kind": "RR_Home_E",
+      "location": [2050,-1400],
+      "yaw": 180,
+      "note": "a dugout dug into boot hill's south slope, lived in"
+    },
+    {
+      "id": "amosHouse",
+      "kind": "RR_Home_G",
+      "location": [-7000,1700],
+      "yaw": 0,
+      "note": "Amos Whitlock's house, empty since last harvest"
+    },
+    {
+      "id": "amosGrave",
+      "kind": "Grave_Headboard_FreshB",
+      "location": [-6650,1350],
+      "yaw": 0,
+      "note": "Amos Whitlock's headboard"
+    },
+    {
+      "id": "amosGraveMound",
+      "kind": "Grave_MoundSunken",
+      "location": [-6540,1350],
+      "yaw": 0,
+      "note": "Amos Whitlock's grave"
+    },
+    {
+      "id": "coalStage",
+      "kind": "RR_CoalStage",
+      "location": [-470,10760],
+      "yaw": 0,
+      "note": "the coal stage by the buffer stop, its chute over the track"
+    },
+    {
+      "id": "wellTown",
+      "kind": "Well",
+      "location": [1050,-780],
+      "yaw": 90,
+      "note": "the town's sweep well by the gate"
+    }
   ],
   "preview": {
-    "about": "The terrain model's --preview renders (Art/Levels/area_preview.py): each view's eye and target as [X, Y, height above the ground] (an eye outside the map square takes its height as absolute) and its lens (mm); sun [azimuth from north, elevation] in degrees sets the light (else from the view's upper left), clay shows the terrain in clay with the cliff kit, the outcrops, the obstacles and the buildings as stand-ins; the plan's labels at [X, Y]; features lists the step 3b features that get a clay view of their own.",
+    "about": "The terrain model's --preview renders (Art/Levels/area_preview.py): each view's eye and target as [X, Y, height above the ground] (an eye outside the map square takes its height as absolute) and its lens (mm); sun [azimuth from north, elevation] in degrees sets the light (else from the view's upper left), clay shows the terrain in clay with the cliff kit, the outcrops, the obstacles and the buildings as stand-ins; the plan's labels at [X, Y]; features lists the step 3b features that get a clay view of their own. standIns: the buildings planned but not placed yet ({id, location, yaw, box [length, width, height] m}), as clay blocks in the views. falls: stand-ins for the falls into the canyon (a pale ribbon from each lip down to its foot, layout_computed.json waterfalls).",
     "features": ["theSink","coffinRock","theNose","dryWash"],
     "views": {
       "point_over_valley": {
@@ -1636,6 +2454,110 @@
         "obstacles": true,
         "light": [225, 40],
         "note": "the chapel knoll, boot hill and the roads between from above the town, clay, ground over 32 degrees red: the yard flat inside the fence, its banks at 30 degrees, boot hill's graves on their gentle face"
+      },
+      "mtn_lift_head_bench": {
+        "eye": [14880,3060,170],
+        "target": [21500,6000,300],
+        "lens": 24,
+        "sun": [247.5,15],
+        "obstacles": true,
+        "note": "from the lift head over the Bench to the Diggings and the Providence"
+      },
+      "mtn_lift_head_post": {
+        "eye": [14700,2340,170],
+        "target": [16200,-7200,800],
+        "lens": 24,
+        "sun": [247.5,15],
+        "obstacles": true,
+        "note": "from the lift head west to Calder's watchtower on the Rim"
+      },
+      "mtn_watchtower_valley": {
+        "eye": [15740,-7100,1370],
+        "target": [2000,4000,-1000],
+        "lens": 22,
+        "sun": [247.5,15],
+        "obstacles": true,
+        "note": "from the watchtower's deck (+62 m) south-east over the valley"
+      },
+      "mtn_watchtower_bench": {
+        "eye": [16100,-6940,1370],
+        "target": [21500,7000,0],
+        "lens": 22,
+        "sun": [247.5,15],
+        "obstacles": true,
+        "note": "from the watchtower's deck east over the Bench to the Diggings"
+      },
+      "mtn_valley_north": {
+        "eye": [500,2000,170],
+        "target": [13000,1500,3500],
+        "lens": 26,
+        "sun": [247.5,15],
+        "obstacles": true,
+        "note": "from Main Street looking north at Larkspur Ridge, the quarry and the mountain over it"
+      },
+      "mtn_quarry_clay": {
+        "eye": [7000,3000,2600],
+        "target": [12000,1800,-500],
+        "lens": 24,
+        "clay": true,
+        "cliffs": true,
+        "light": [150,40],
+        "note": "the grown Old Quarry from the south: its floor, benches, back wall and the Goat Steps"
+      },
+      "mtn_goat_steps_clay": {
+        "eye": [11200,1600,800],
+        "target": [12400,-100,-200],
+        "lens": 24,
+        "clay": true,
+        "cliffs": true,
+        "light": [120,45],
+        "note": "the Goat Steps down the quarry's west wall, from inside the quarry"
+      },
+      "mtn_plan_clay": {
+        "eye": [18000,1000,0],
+        "target": [18000,1000,0],
+        "lens": 50,
+        "clay": true,
+        "ortho": 26000,
+        "light": [247.5,30],
+        "obstacles": true,
+        "note": "the mountain from straight above, in clay"
+      },
+      "mtn_deck_falls": {
+        "eye": [1200,-15000,230],
+        "target": [19000,-9800,5500],
+        "lens": 24,
+        "sun": [247.5,5],
+        "obstacles": true,
+        "note": "from Abel's burial deck at dusk, north-north-east to Larkspur Falls over the canyon"
+      },
+      "mtn_westroad_falls": {
+        "eye": [1900,-11200,170],
+        "target": [19000,-9200,1500],
+        "lens": 28,
+        "sun": [247.5,15],
+        "obstacles": true,
+        "note": "from the west road at the keeper's grave, north along the Rim to Larkspur Falls"
+      },
+      "mtn_portal_clay": {
+        "eye": [21100,6900,300],
+        "target": [22850,7400,300],
+        "lens": 26,
+        "clay": true,
+        "cliffs": true,
+        "light": [200,35],
+        "obstacles": true,
+        "note": "the Providence's portal notch from the Diggings' yard, the portal's stand-in in it"
+      },
+      "mtn_lift_clay": {
+        "eye": [10000,2000,170],
+        "target": [12800,2550,1500],
+        "lens": 20,
+        "clay": true,
+        "cliffs": true,
+        "light": [150,40],
+        "obstacles": true,
+        "note": "the lift's line from the quarry's floor: the wall, bench 1 and the tower, the cutting, the head"
       }
     },
     "labels": {
@@ -1671,8 +2593,44 @@
       "Spoil Bank": [6600,2900],
       "Webwood": [7400,8200],
       "Rimrock": [-3500,-10000],
-      "Keeper's grave": [2300,-11000]
-    }
+      "Keeper's grave": [2300,-11000],
+      "Larkspur Bench": [18600,-1500],
+      "Calder's Post": [19000,-6600],
+      "Watchtower": [15600,-7200],
+      "Ruth's cabin": [17600,-5600],
+      "Tarn": [19200,-2000],
+      "Lift head": [15100,3000],
+      "Lift tower": [12600,3000],
+      "Winch house": [10800,3400],
+      "Cage landing": [11400,1400],
+      "Goat Steps": [12400,-1200],
+      "The Diggings": [20500,7500],
+      "Ore bin": [20000,6000],
+      "Powder house": [22000,9600],
+      "Smithy": [19000,8800],
+      "Miners' plot": [22000,4600],
+      "Providence mouth": [23400,7400],
+      "Spoil heap": [18800,10200],
+      "Dinner Pail camp": [16400,-500],
+      "Larkspur High": [24500,0],
+      "East Shoulder": [18500,12400],
+      "Larkspur Falls": [18900,-8000],
+      "Tarn Run": [20300,-5500],
+      "Falls foot": [18600,-12200]
+    },
+    "standIns": [
+      { "id": "watchtower", "location": [16000,-7200], "yaw": 180, "box": [4.0,4.0,15.0] },
+      { "id": "rangerCabin", "location": [17200,-5800], "yaw": 180, "box": [6.0,8.0,5.0] },
+      { "id": "leanTo", "location": [18200,-5000], "yaw": 180, "box": [4.0,6.0,3.0] },
+      { "id": "liftHouse", "location": [11000,2800], "yaw": 183.6, "box": [8.0,10.0,8.5] },
+      { "id": "liftTower", "location": [12600,2560], "yaw": 180, "box": [3.9,3.4,12.5] },
+      { "id": "liftHead", "location": [14600,2700], "yaw": 180, "box": [4.0,5.7,8.0] },
+      { "id": "oreBin", "location": [20400,6200], "yaw": 180, "box": [6.0,8.0,7.0] },
+      { "id": "powderHouse", "location": [21400,9500], "yaw": 270, "box": [4.0,5.0,4.0] },
+      { "id": "smithy", "location": [19600,8800], "yaw": 180, "box": [6.0,8.0,5.0] },
+      { "id": "minePortal", "location": [22820,7400], "yaw": 180, "box": [3.6,9.7,5.3] }
+    ],
+    "falls": true
   },
   "level": {
     "about": "How Tools/Unreal/build_area.py builds the level (step 5a): the map, the tag and outliner folder of everything it places, the zones scattered trees keep out of ([zone id, share of its bounding box]), the scatter's PCG graph and volume (Tools/Unreal/build_island_scatter.py RansomsRest), and how far behind the closed edges the walls stand (wallSetback, cm: at the rock's foot, which rises about 2.5 m past the line). models: a placement kind's model where this area has its own (Grandma Delia's lived-in house, SM_Farmhouse_Ransom, for the farmhouse; the clapboard SM_Cottage_Ransom and the shake-roofed SM_Barn_Ransom for the tutorial island's cottage and barn). lights: the lived-in houses' lamps and lamplit windows, brighter at dusk (AHouseLights on each one's SOCKET_Light: the lamp's candelas by day and at dusk, its reach in cm), and the empty cottages' windows left dark. props: models only the build places, on the ground at their location (x, y cm), turned by yaw and tagged Obstacle like the placements; their footprints are the layout's obstacles already, so the generator needs nothing of them (the town gate over its posts, townGateNorth and townGateSouth). smoke: the buildings whose chimneys smoke (placement keys), in a half-empty town in mourning only the lived-in ones: Delia's, Pruitt's store, Tilly's, two cottages and the waiting locomotive. cliffs: the walls varied piece by piece (varied: the cliff groups), their tops reaching 72-112% of the wall (top) and one point in ten left out (gaps), so the ring at the valley's foot isn't one even picket wall; in the Sink (lean: its pit and ramp groups) every piece leans back with the generated wall behind it (measured by traces at build time), which slopes, so no piece stands buried in the slope with only its top poking out: from the floor those read as rocks hanging off the rim. materials and swaps: the area's own instances of shared materials, worn by everything the build places: the rock (MI_RockCliff_Ransom, on the cliff kit, the outcrops and Den Rock) warmer and darker than the tutorial island's pale cream, toward the valley's ochre, with only a little dry lichen on its tops in dry country (MossAmount 0.12 in a dusty grey-ochre MossColor, on the granite too: olive-green tops read damp), and the den's own rock (MI_RockCliffDen_Ransom: its pale tint times the same warming); the terrain's and the ring's steepest faces taking the rock from 40 degrees, full by 55 (MI_RansomsRestMacro_Steep, MI_RansomsRestRingMacro_Steep: the 35-50 degree faces dominate the views, and banded ochre past 50 read bare); the dressed granite blocks with no moss (MI_RockGranite_Ransom: bright moss turned the Sink's dead floor green); the orchard's leaves (MI_LeavesApple_Ransom) olive-amber with half the trees turning gold-amber (its apples are their own slot and stay red), late summer's, as the palette asks, and the scattered oaks and birches olive-drab and gold with a third of each turning (MI_LeavesOak_Ransom, MI_LeavesBirch_Ransom: Tint, and TintVariation on VariationAmount of the trees; the scatter takes the swaps as its override materials). The Sink keeps its own looks, set by build_area_sink.py on its pieces alone (not swaps): its floor's web mats in dusty silk (MI_Web_SinkFloor) and its dressed blocks in a dusty granite with no moss beside the walls (MI_RockGranite_Sink). In the Sink (lean: its pit and ramp groups) every piece leans back with the wall behind it, from the wall's real foot, and no top ends inside the wall's rounded lip (a top that would comes down under it; the ramp's walls spread their tops under it, leanTop, and stand 50 cm out from the wall, leanProud); runs that end at Den Rock reach into it (abut). The Sink's pit wall (panels: theSink) is dressed with the narrow cliff panels in short steps along its curve, each leaning with the wall and standing 0.55 m proud of its most forward point, tops under the lip, and the seam wedge in the corner by Den Rock (build_area_panels.py); its feet banked with talus (talus: Rocks.py's cliff-rock slabs and chunks a third buried every 1.5-2.5 m, with smaller chunks in front where the foot's gap is deep, laid by build_area_sink.py's gameplay pass clear of the sacs, the spiders' spots, the lantern, the blocks and the den's way out, with web mats between a few). The cliff pieces under the burial deck end under its boards (under): the escarpment's top course stood through the deck's open end. The windmill alone (swapsOn) trades its teal and orange rust for weathered galvanized steel (MI_MetalWorn_Windmill: the worn metal set tinted 0xb8b5ac), as the art brief keeps loot colours off the world; the barns, well and crates keep their rust.",
@@ -1691,17 +2649,27 @@
     "scatterGraph": "PCG_RansomsRestScatter",
     "scatterVolume": "RansomsRestScatter",
     "wallSetback": 250,
-    "models": { "Farmhouse": "Farmhouse_Ransom", "Cottage": "Cottage_Ransom", "Barn": "Barn_Ransom" },
+    "models": {
+      "Farmhouse": "Farmhouse_Ransom",
+      "Cottage": "Cottage_Ransom",
+      "Barn": "Barn_Ransom",
+      "Depot": "RR_Depot",
+      "Well": "RR_Well",
+      "Outhouse": "RR_Outhouse",
+      "Windmill": "RR_Windmill",
+      "WindmillFan": "RR_WindmillFan"
+    },
     "lights": {
       "farmhouse": { "lamp": [2,5.5], "reach": 175 },
       "store": { "lamp": [3.5,30], "reach": 350 },
       "undertaker": { "lamp": [1.75,5.5], "reach": 175 },
       "cottageNorth": { "lamp": [3,16], "reach": 400 },
-      "cottageSouth": { "lamp": [3,16], "reach": 400 },
-      "cottageNorthEast": { "dark": true },
-      "cottageSouthWest": { "dark": true }
+      "cottageSouth": { "dark": true },
+      "cottageNorthEast": { "lamp": [3,16], "reach": 400 },
+      "cottageSouthWest": { "dark": true },
+      "dugout": { "lamp": [2,9], "reach": 300 }
     },
-    "smoke": ["farmhouse","store","undertaker","cottageNorth","cottageSouth","locomotive"],
+    "smoke": ["farmhouse","store","undertaker","cottageNorth","cottageNorthEast","dugout","depot","locomotive"],
     "cliffs": {
       "varied": ["boundaryFoot","eastRidge","hogback","larkspurEast","escarpment","bluffPath","ransomsPoint","coffinRock","theSink","sinkRamp","theNose","millGorge"],
       "top": [0.72,1.12],
@@ -1734,14 +2702,77 @@
       "MI_RockCliffDen_Ransom": { "parent": "MI_RockCliffDen", "vectors": { "Tint": [0.473,0.39,0.309] } },
       "MI_RockGranite_Ransom": { "parent": "MI_RockGranite", "scalars": { "MossAmount": 0.12 }, "vectors": { "MossColor": [0.3,0.27,0.17] } },
       "MI_LeavesOak_Ransom": { "parent": "MI_LeavesOak", "vectors": { "Tint": [2.2,1.2,2.1], "TintVariation": [2.6,1.3,1.0] }, "scalars": { "VariationAmount": 0.33 } },
-      "MI_RansomsRestMacro_Steep": { "parent": "MI_RansomsRestMacro", "scalars": { "SteepStart": 40, "SteepFull": 55, "SteepDetail": 1.15, "SteepNormalStrength": 0.6, "StrataWarp": 1.5, "StrataWave": 45, "SteepVariation": 0.6 }, "vectors": { "SteepTint": [0.8,0.74,0.68] } },
       "MI_RansomsRestRingMacro_Steep": { "parent": "MI_RansomsRestRingMacro", "scalars": { "SteepStart": 40, "SteepFull": 55, "SteepDetail": 1.15, "SteepNormalStrength": 0.6, "StrataWarp": 1.5, "StrataWave": 45, "SteepVariation": 0.6 }, "vectors": { "SteepTint": [0.8,0.74,0.68] } },
       "MI_LeavesBirch_Ransom": { "parent": "MI_LeavesBirch", "vectors": { "Tint": [2.35,1.05,1.2], "TintVariation": [2.2,1.2,2.1] }, "scalars": { "VariationAmount": 0.35 } },
       "MI_Web_SinkFloor": { "parent": "MI_Web", "vectors": { "Tint": [0.434,0.402,0.352] } },
       "MI_RockGranite_Sink": { "parent": "MI_RockGranite", "vectors": { "Tint": [0.8,0.68,0.56] }, "scalars": { "MossAmount": 0 } },
-      "MI_MetalWorn_Windmill": { "parent": "MI_IronBlack", "vectors": { "Tint": [0.479,0.462,0.413] } }
+      "MI_MetalWorn_Windmill": { "parent": "MI_IronBlack", "vectors": { "Tint": [0.479,0.462,0.413] } },
+      "MI_RansomsRestMacroSW_Steep": {
+        "parent": "MI_RansomsRestMacroSW",
+        "scalars": {
+          "SteepStart": 40,
+          "SteepFull": 55,
+          "SteepDetail": 1.15,
+          "SteepNormalStrength": 0.6,
+          "StrataWarp": 1.5,
+          "StrataWave": 45,
+          "SteepVariation": 0.6
+        },
+        "vectors": { "SteepTint": [0.8,0.74,0.68] }
+      },
+      "MI_RansomsRestMacroSE_Steep": {
+        "parent": "MI_RansomsRestMacroSE",
+        "scalars": {
+          "SteepStart": 40,
+          "SteepFull": 55,
+          "SteepDetail": 1.15,
+          "SteepNormalStrength": 0.6,
+          "StrataWarp": 1.5,
+          "StrataWave": 45,
+          "SteepVariation": 0.6
+        },
+        "vectors": { "SteepTint": [0.8,0.74,0.68] }
+      },
+      "MI_RansomsRestMacroNW_Steep": {
+        "parent": "MI_RansomsRestMacroNW",
+        "scalars": {
+          "SteepStart": 40,
+          "SteepFull": 55,
+          "SteepDetail": 1.15,
+          "SteepNormalStrength": 0.6,
+          "StrataWarp": 1.5,
+          "StrataWave": 45,
+          "SteepVariation": 0.6
+        },
+        "vectors": { "SteepTint": [0.8,0.74,0.68] }
+      },
+      "MI_RansomsRestMacroNE_Steep": {
+        "parent": "MI_RansomsRestMacroNE",
+        "scalars": {
+          "SteepStart": 40,
+          "SteepFull": 55,
+          "SteepDetail": 1.15,
+          "SteepNormalStrength": 0.6,
+          "StrataWarp": 1.5,
+          "StrataWave": 45,
+          "SteepVariation": 0.6
+        },
+        "vectors": { "SteepTint": [0.8,0.74,0.68] }
+      }
     },
-    "swaps": { "MI_RockCliff": "MI_RockCliff_Ransom", "MI_LeavesApple": "MI_LeavesApple_Ransom", "MI_RockCliffDen": "MI_RockCliffDen_Ransom", "MI_RockGranite": "MI_RockGranite_Ransom", "MI_LeavesOak": "MI_LeavesOak_Ransom", "MI_LeavesBirch": "MI_LeavesBirch_Ransom", "MI_RansomsRestMacro": "MI_RansomsRestMacro_Steep", "MI_RansomsRestRingMacro": "MI_RansomsRestRingMacro_Steep" },
+    "swaps": {
+      "MI_RockCliff": "MI_RockCliff_Ransom",
+      "MI_LeavesApple": "MI_LeavesApple_Ransom",
+      "MI_RockCliffDen": "MI_RockCliffDen_Ransom",
+      "MI_RockGranite": "MI_RockGranite_Ransom",
+      "MI_LeavesOak": "MI_LeavesOak_Ransom",
+      "MI_LeavesBirch": "MI_LeavesBirch_Ransom",
+      "MI_RansomsRestRingMacro": "MI_RansomsRestRingMacro_Steep",
+      "MI_RansomsRestMacroSW": "MI_RansomsRestMacroSW_Steep",
+      "MI_RansomsRestMacroSE": "MI_RansomsRestMacroSE_Steep",
+      "MI_RansomsRestMacroNW": "MI_RansomsRestMacroNW_Steep",
+      "MI_RansomsRestMacroNE": "MI_RansomsRestMacroNE_Steep"
+    },
     "swapsOn": { "windmill": { "MI_MetalRust": "MI_MetalWorn_Windmill" } },
     "props": [
       {
@@ -1788,23 +2819,86 @@
     "spawnLanding": "Landing_FamilyPlot",
     "levels": {
       "about": "The creatures' levels (Docs/Progression.md, \"Creature levels\"; the user's call, 2026-10-12: never the player's, always where they stand), rising along the story: 1-2 near the start, 2-4 round the town and the fields, 4-6 for the Sink, the Webwood, the quarry and the west, the bosses above their ground. band: the lowest and highest own level here, before ranks (Restless and Gravebound +1, Soulfed +2, a boss +1); the station board shows it. zones: looked through in order, the first holding a spot gives the creatures there their levels, each rolled evenly from the first to the second; a zone is a layout zone, an obstacle, its own polygon, or a radius round a point (at). kinds: a boss or Legendary monster at a set level wherever it stands. A spawner group's or boss wave's own level, or a creature placed at a level other than its class's, is kept. Tools/Unreal/create_area_assets.py writes all of it into DA_Area_RansomsRest; Looter.Creatures.AreaLevels and Looter.Progression.Pacing read it here.",
-      "band": [1, 6],
+      "band": [1,7],
       "zones": [
         { "id": "deck", "zone": "gravewindPoint", "levels": [5, 6], "note": "Main 6: Abel's adds rising through the boards" },
         { "id": "bluff", "zone": "ransomsPoint", "levels": [1, 2], "note": "Main 2's spider nest, the story's first fight (the player about level 1)" },
-        { "id": "sink", "zone": "sink", "levels": [4, 5], "note": "Main 5: the floor's spiders and the egg sacs' (the player about 4-5)" },
+        { "id": "sink", "zone": "sink", "levels": [4, 5], "note": "Main 5: the floor's spiders and the egg sacs (the player about 4)" },
         { "id": "webwood", "obstacle": "webwood", "levels": [5, 6], "note": "the Webwood's drop: optional from Main 4, a level over the Sink" },
-        { "id": "quarry", "at": [8300, 1300], "radius": 1500, "levels": [5, 6], "note": "the quarry track's spiders: optional from Main 3, ground to come back to" },
-        { "id": "chapel", "zone": "chapel", "levels": [3, 4], "note": "Main 4's chapel yard, and the churchyard's dead rising after it" },
-        { "id": "bootHill", "zone": "bootHill", "levels": [3, 4], "note": "the roaming Unpaid after Main 4" },
-        { "id": "northRoad", "at": [4256, 1350], "radius": 2500, "levels": [3, 4], "note": "the roaming Unpaid after Main 4, round the hanging tree and the north road" },
-        { "id": "whitlock", "zone": "whitlock", "levels": [3, 4], "note": "Side 2's hired hands, and Mill Creek's slimes" },
-        { "id": "west", "polygon": [[1000, -4300], [5600, -4300], [5600, -13000], [1000, -13000]], "levels": [4, 5], "note": "the west road, the sheep fold and the keeper's grave: the roads to the deck, after Main 4" },
-        { "id": "valley", "polygon": [[-20000, -20000], [20000, -20000], [20000, 20000], [-20000, 20000]], "levels": [2, 3], "note": "everywhere else: the town gate (Main 3), the orchard's edge, the farm road and Main Street" }
+        {
+          "id": "quarryBowl",
+          "zone": "oldQuarry",
+          "levels": [5,6],
+          "note": "Dead Lift (after Main 5): the lift crew and the raising-steam fight on the quarry floor, the bowl cut into Larkspur Ridge's foot"
+        },
+        {
+          "id": "quarry",
+          "at": [8300,1300],
+          "radius": 1500,
+          "levels": [5,6],
+          "note": "the quarry track's spiders: optional from Main 3, ground to come back to"
+        },
+        { "id": "crest", "zone": "crest", "levels": [5,6], "note": "the lift head and the crest path, over the valley (Dead Lift's ride and after)" },
+        {
+          "id": "calderPost",
+          "zone": "calderPost",
+          "levels": [5,6],
+          "note": "The Last Watch: the post's yard and the watch, on the Rim at the Bench's west end"
+        },
+        { "id": "diggings", "zone": "diggings", "levels": [5,6], "note": "Back Pay's way in: the spoil heap's ambush and the Diggings under Larkspur High" },
+        {
+          "id": "bench",
+          "zone": "larkspurBench",
+          "levels": [5,6],
+          "note": "Larkspur Bench: the Dinner Pail camp and the Bench's roaming dead (the user's call: the mountain 5-6)"
+        },
+        {
+          "id": "providence",
+          "zone": "providence",
+          "levels": [5,6],
+          "note": "Back Pay inside the Providence: the upper gallery's and the lower drift's shifts and the Foreman's adds (the Foreman is set: kinds)"
+        },
+        {
+          "id": "chapel",
+          "zone": "chapel",
+          "levels": [3,4],
+          "note": "Main 4's chapel yard, and the churchyard's dead rising after it"
+        },
+        { "id": "bootHill", "zone": "bootHill", "levels": [3,4], "note": "the roaming Unpaid after Main 4" },
+        {
+          "id": "northRoad",
+          "at": [4256,1350],
+          "radius": 2500,
+          "levels": [3,4],
+          "note": "the roaming Unpaid after Main 4, round the hanging tree and the north road"
+        },
+        {
+          "id": "whitlock",
+          "zone": "whitlock",
+          "levels": [3,4],
+          "note": "Side 2's hired hands, and Mill Creek's slimes"
+        },
+        {
+          "id": "west",
+          "polygon": [[1000,-4300],[5600,-4300],[5600,-13000],[1000,-13000]],
+          "levels": [4,5],
+          "note": "the west road, the sheep fold and the keeper's grave: the roads to the deck, after Main 4"
+        },
+        {
+          "id": "valley",
+          "polygon": [[-40000,-40000],[40000,-40000],[40000,40000],[-40000,40000]],
+          "levels": [2,3],
+          "note": "everywhere else: the town gate (Main 3), the orchard's edge, the farm road, Main Street and the depot's waiting room (The Old Fare); grown past the 512 m core so nothing falls outside every zone"
+        }
       ],
       "kinds": [
         { "class": "GravemotherCreature", "level": 4, "note": "Side 3, after Main 5: the Sink's floor, with her Soulfed rank's two on top level 6, over the Sink and a player there (about 5)" },
-        { "class": "AbelKeeper", "level": 6, "note": "Main 6's boss: the deck's top, with his Boss rank's one on top level 7, the area's hardest fight, a level over a player who's done the story (about 6)" }
+        { "class": "AbelKeeper", "level": 6, "note": "Main 6's boss: the deck's top, with his Boss rank's one on top level 7, the area's hardest fight, a level over a player who's done the story (about 6)" },
+        {
+          "class": "ForemanCreature",
+          "level": 5,
+          "note": "Back Pay's Legendary monster in the Providence's stope: his Soulfed rank's two on top, level 7, level with Abel (the user's call, 2026-10-13)"
+        }
       ]
     },
     "benches": [
@@ -1814,9 +2908,19 @@
       { "id": "posterGate", "host": "townGate", "socket": "Decal", "scale": 0.62, "note": "on the town gate's south post, facing the farm road (SOCKET_Decal, TownGate.py); a handbill's size, as the post is 32 cm across" },
       { "id": "posterSheriff", "host": "sheriff", "at": [500, 96, 188], "yaw": 0, "note": "stone front between the left barred window and the door" },
       { "id": "posterSaloon", "host": "saloon", "at": [700, 111.5, 243], "yaw": 0, "note": "siding between the boarded left window and the doors, over CLOSED FOR MOURNING" },
-      { "id": "posterDepot", "host": "depot", "at": [300, -259, 205], "yaw": 0, "note": "siding between the agent's bay and the east window; trips arrive facing it" },
+      {
+        "id": "posterDepot",
+        "host": "depot",
+        "socket": "Decal",
+        "note": "on the station house's siding by the platform doors (SM_RR_Depot's SOCKET_Decal); trips arrive facing it"
+      },
       { "id": "posterFarm", "host": "barn", "at": [600, 280, 190], "yaw": 0, "note": "Ransom Farm's barn, left of the big doors" },
-      { "id": "posterWhitlock", "host": "whitlockBarn", "at": [600, 280, 190], "yaw": 0, "note": "Whitlock's barn, left of the big doors" },
+      {
+        "id": "posterWhitlock",
+        "host": "whitlockBarn",
+        "socket": "Decal",
+        "note": "Whitlock's barn, on the end wall by the bay (SM_RR_Barn_Whitlock's SOCKET_Decal)"
+      },
       { "id": "posterBoard", "host": "noticeBoard", "socket": "Decal", "offset": [0, 29, 0], "note": "left half of the board, as the art's board render" },
       { "id": "calderNote", "host": "noticeBoard", "socket": "Decal", "offset": [0, -40, 9], "variant": "CalderNote" }
     ],
@@ -1837,7 +2941,57 @@
         { "id": "BootHill", "zone": "bootHill", "after": "Main4", "by": "build_area_chapel.py (roaming)" },
         { "id": "NorthRoad", "at": [4256, 1350], "radius": 2500, "after": "Main4", "by": "build_area_chapel.py (roaming): halfway between the hanging tree and the north road" },
         { "id": "WhitlockHands", "obstacle": "barnYardFence", "during": "Side2", "by": "build_area_whitlock.py" },
-        { "id": "Abel", "zone": "gravewindPoint", "during": "Main6", "by": "build_area_deck.py" }
+        { "id": "Abel", "zone": "gravewindPoint", "during": "Main6", "by": "build_area_deck.py" },
+        {
+          "id": "CalderPost",
+          "polygon": [[15800,-7900],[15800,-5100],[18200,-5100],[18200,-7900]],
+          "after": "DeadLift",
+          "by": "build_area_fights_mountain.py"
+        },
+        {
+          "id": "Watch",
+          "polygon": [[15800,-7900],[15800,-3700],[18200,-3700],[18200,-7900]],
+          "during": "LastWatch",
+          "by": "build_area_fights_mountain.py"
+        },
+        {
+          "id": "DinnerPail",
+          "at": [17000,-500],
+          "radius": 1300,
+          "after": "DeadLift",
+          "by": "build_area_fights_mountain.py"
+        },
+        {
+          "id": "SpoilAmbush",
+          "polygon": [[20000,5500],[20000,10600],[22450,10600],[22450,5500]],
+          "after": "DeadLift",
+          "by": "build_area_fights_mountain.py"
+        },
+        {
+          "id": "CrestPatrol",
+          "at": [14350,1400],
+          "radius": 1300,
+          "after": "DeadLift",
+          "by": "build_area_fights_mountain.py"
+        },
+        {
+          "id": "MineUpper",
+          "polygon": [[25850,6450],[25850,8950],[28550,8950],[28550,6450]],
+          "after": "DeadLift",
+          "by": "build_area_fights_mountain.py"
+        },
+        {
+          "id": "MineLower",
+          "polygon": [[27650,4050],[27650,6550],[31650,6550],[31650,4050]],
+          "after": "DeadLift",
+          "by": "build_area_fights_mountain.py"
+        },
+        {
+          "id": "Foreman",
+          "polygon": [[31250,4250],[31250,7150],[33550,7150],[33550,4250]],
+          "after": "DeadLift",
+          "by": "build_area_fights_mountain.py"
+        }
       ],
       "camps": [
         {
@@ -1956,7 +3110,311 @@
           "ground": { "obstacle": "webwood", "margin": 300, "maxRise": 400 },
           "note": "Beside the five crowned trees (build_area_sink.py's WEBWOOD), on their outer side, clear of the warning fence and Den Rock. Sprung on the way to Ruth's crate on the Sink's rim, or round the rim to the den; the Sink's floor (12 m down) isn't its ground."
         }
+      ],
+      "fights": [
+        {
+          "id": "QuarryCrew",
+          "spawner": "AmbushSpawner",
+          "mission": "DeadLift",
+          "budget": "main",
+          "where": "the Old Quarry's floor, south of the winch house: the lift crew rise as Ellis walks out after taking Dead Lift",
+          "when": { "during": "DeadLift", "fromStep": 0, "beforeStep": 1 },
+          "groups": [{ "class": "DeadMinerCreature", "count": 4, "rank": "Basic" }],
+          "tags": ["DeadMiner_QuarryCrew"],
+          "spots": [[10000,1300],[10350,1000],[9950,2650],[10300,3500]],
+          "entrance": "Rise",
+          "trigger": { "polygon": [[9000,250],[9000,3850],[10450,3850],[10450,250]], "maxRise": 400 },
+          "ground": { "polygon": [[8900,250],[8900,3850],[11650,3850],[11650,250]], "maxRise": 400, "maxStep": 300 }
+        },
+        {
+          "id": "AbeHaskett",
+          "spawner": "AmbushSpawner",
+          "mission": "DeadLift",
+          "budget": "main",
+          "where": "Abe Haskett, the lift crew's Restless brakeman, the clamp pin on a cord round his neck",
+          "conditionOf": "QuarryCrew",
+          "when": { "during": "DeadLift", "fromStep": 0, "beforeStep": 1 },
+          "groups": [{ "class": "DeadMinerCreature", "count": 1, "rank": "Rare" }],
+          "tags": ["AbeHaskett","DeadMiner_QuarryCrew"],
+          "spots": [[10200,1900]],
+          "entrance": "Rise",
+          "trigger": { "polygon": [[9000,250],[9000,3850],[10450,3850],[10450,250]], "maxRise": 400 },
+          "ground": { "polygon": [[8900,250],[8900,3850],[11650,3850],[11650,250]], "maxRise": 400, "maxStep": 300 }
+        },
+        {
+          "id": "RaisingSteam",
+          "spawner": "EncounterSpawner",
+          "mission": "DeadLift",
+          "budget": "main",
+          "where": "the quarry's mouth: two spiders and a Venom Spitter off the quarry track, then two dead miners, while she raises steam (60 s)",
+          "when": { "during": "DeadLift", "fromStep": 2, "beforeStep": 3 },
+          "groups": [
+            { "class": "SpiderCreature", "count": 2, "rank": "Basic" },
+            { "class": "SpitterSpider", "count": 1, "rank": "Basic" },
+            { "class": "DeadMinerCreature", "count": 2, "rank": "Basic", "firstWave": 2 }
+          ],
+          "tags": ["RaisingSteam"],
+          "spots": [[9150,1500],[9200,2100],[9050,1800],[9300,2500]],
+          "huntOnSpawn": true,
+          "activation": 4000,
+          "waves": { "count": 2, "interval": 22, "waitForClear": false },
+          "ground": { "polygon": [[8600,250],[8600,3850],[11650,3850],[11650,250]], "maxRise": 400, "maxStep": 300 }
+        },
+        {
+          "id": "CrestPatrol",
+          "spawner": "PatrolSpawner",
+          "budget": "optional",
+          "where": "the crest path from the lift head toward the Goat Steps' head, there and back (Patrol Crest)",
+          "when": { "after": ["DeadLift"] },
+          "groups": [{ "class": "SpiderCreature", "count": 3, "rank": "Area" }],
+          "tags": ["Spider_CrestPatrol"],
+          "route": [[14650,2200],[14250,1600],[14050,600]],
+          "corridor": 600,
+          "pause": 4.0,
+          "loop": false,
+          "maxRise": 600
+        },
+        {
+          "id": "CalderPost",
+          "spawner": "EncounterSpawner",
+          "mission": "LastWatch",
+          "budget": "main",
+          "where": "Calder's Post's yard: four dead miners and a Restless one, come up from the Bench since the post emptied (The Last Watch's first step counts them, cleared before it or not)",
+          "when": { "after": ["DeadLift"] },
+          "groups": [
+            { "class": "DeadMinerCreature", "count": 4, "rank": "Basic" },
+            { "class": "DeadMinerCreature", "count": 1, "rank": "Rare" }
+          ],
+          "tags": ["DeadMiner_CalderPost"],
+          "center": [16800,-6600],
+          "spots": [[16300,-6500],[16550,-7000],[16950,-7250],[16500,-6150],[16800,-6650]],
+          "huntOnSpawn": false,
+          "activation": 4500,
+          "ground": { "polygon": [[15800,-7900],[15800,-5100],[18200,-5100],[18200,-7900]], "maxRise": 400 }
+        },
+        {
+          "id": "Watch",
+          "spawner": "EncounterSpawner",
+          "mission": "LastWatch",
+          "budget": "main",
+          "where": "three dead miners come up from the Bench at the post while the watch fire burns (45 s)",
+          "when": { "during": "LastWatch", "fromStep": 3, "beforeStep": 4 },
+          "groups": [{ "class": "DeadMinerCreature", "count": 3, "rank": "Basic" }],
+          "tags": ["DeadMiner_Watch"],
+          "spots": [[16400,-4400],[16900,-4000],[16200,-4900]],
+          "huntOnSpawn": true,
+          "activation": 5000,
+          "ground": { "polygon": [[15800,-7900],[15800,-3700],[18200,-3700],[18200,-7900]], "maxRise": 400 }
+        },
+        {
+          "id": "DinnerPail",
+          "spawner": "EncounterSpawner",
+          "budget": "optional",
+          "where": "Camp Dinner Pail on the Bench's middle round: three dead miners round a cold cookfire with their lunch pails, a Restless one and a Bell-Ringer",
+          "when": { "after": ["DeadLift"] },
+          "groups": [
+            { "class": "DeadMinerCreature", "count": 3, "rank": "Basic" },
+            { "class": "DeadMinerCreature", "count": 1, "rank": "Rare" },
+            { "class": "BellRingerCreature", "count": 1, "rank": "Basic" }
+          ],
+          "tags": ["Camp_DinnerPail"],
+          "center": [17000,-500],
+          "spots": [[17300,-300],[16750,-250],[16800,-800],[17250,-750],[17000,-50]],
+          "huntOnSpawn": false,
+          "ground": { "radius": 1300, "maxRise": 300 },
+          "crate": [[17600,-1050,138,false],[16400,100,-45,false],[17650,150,225,false]]
+        },
+        {
+          "id": "SpoilAmbush",
+          "spawner": "AmbushSpawner",
+          "budget": "main",
+          "where": "the Diggings: three dead miners rise out of the spoil heap's foot as Ellis crosses the yard to the mouth",
+          "when": { "after": ["DeadLift"], "withoutFlags": ["BackPay.Paid"] },
+          "groups": [{ "class": "DeadMinerCreature", "count": 3, "rank": "Basic" }],
+          "tags": ["DeadMiner_SpoilAmbush"],
+          "spots": [[20100,9350],[20550,9650],[20900,10050]],
+          "entrance": "Rise",
+          "trigger": { "polygon": [[20600,6400],[20600,8800],[22300,8800],[22300,6400]], "maxRise": 500 },
+          "ground": { "polygon": [[20000,5500],[20000,10600],[22450,10600],[22450,5500]], "maxRise": 500 }
+        },
+        {
+          "id": "MineUpper",
+          "spawner": "DeadMinerShiftSpawner",
+          "mission": "BackPay",
+          "budget": "main",
+          "frame": "mine",
+          "where": "the upper gallery: dead miners swinging picks at the walls, working for no one; their Restless one by the lunch pails",
+          "when": {},
+          "groups": [
+            { "class": "DeadMinerCreature", "count": 4, "rank": "Basic" },
+            { "class": "DeadMinerCreature", "count": 1, "rank": "Rare" }
+          ],
+          "tags": ["DeadMiner_MineUpper"],
+          "center": [0.0,42.0,0.0],
+          "spots": [[-6.0,39.0],[6.0,44.5],[-2.0,51.5],[6.0,33.5],[-6.0,46.0]],
+          "huntOnSpawn": false,
+          "activation": 3200,
+          "despawn": 7000,
+          "ground": { "rooms": ["gallery","office","office_door"], "maxRise": 300, "margin": 100 }
+        },
+        {
+          "id": "MineLower",
+          "spawner": "DeadMinerShiftSpawner",
+          "mission": "BackPay",
+          "budget": "main",
+          "frame": "mine",
+          "where": "the lower drift and its two side stopes, up to the eleven's barricade: four dead miners, a Restless one and a Bell-Ringer",
+          "when": {},
+          "groups": [
+            { "class": "DeadMinerCreature", "count": 4, "rank": "Basic" },
+            { "class": "DeadMinerCreature", "count": 1, "rank": "Rare" },
+            { "class": "BellRingerCreature", "count": 1, "rank": "Basic" }
+          ],
+          "tags": ["DeadMiner_MineLower"],
+          "center": [-21.0,66.0,-8.0],
+          "spots": [[-22.5,54.0],[-19.5,61.0],[-28.0,58.5],[-14.0,71.0],[-22.0,75.0],[-20.0,69.5]],
+          "huntOnSpawn": false,
+          "activation": 3000,
+          "despawn": 7000,
+          "ground": { "rooms": ["drift","stope_w","stope_e"], "maxRise": 300, "margin": 100 }
+        },
+        {
+          "id": "Foreman",
+          "spawner": "DeadMinerShiftSpawner",
+          "mission": "BackPay",
+          "budget": "main",
+          "frame": "mine",
+          "legendaryId": "Foreman",
+          "where": "the stope where the roof came down: Cyrus Teague digging at the fall (SOCKET_Foreman), Legendary at his kind's set level; his shift is his own",
+          "when": {},
+          "groups": [{ "class": "ForemanCreature", "count": 1, "rank": "Legendary" }],
+          "tags": ["Foreman"],
+          "center": [-17.0,90.0,-8.0],
+          "spots": [[-15.0,95.0]],
+          "huntOnSpawn": false,
+          "activation": 2600,
+          "despawn": 6000,
+          "ground": { "rooms": ["stope"], "maxRise": 300, "margin": 100 }
+        }
       ]
-    }
+    },
+    "mountain": {
+      "about": "Ransom's Rest's mountain (Docs/Areas/RansomsRest_Expansion.md, section 6). mine: the Providence's frame (Art/Models/Mine/Mine.layout.json: origin the adit's mouth on its floor, [X, Y, Z] cm; yaw turns the whole mine, 0 = the design's), which lanterns carry a light (by piece, the SOCKET_Light numbers; at most three in any view) and how bright. foremanStone: the Foreman's vigil stone's anchor (design (80, 224)), looked round for level ground (build_area_shrines.py). steps: the missions' steps the mountain's props follow, counted from 0, by what each asks (build_area_missionprops_mountain.py STEPS); change them here if the missions' data numbers them otherwise. places: [X, Y] to move a Place_<Name> marker.",
+      "mine": {
+        "origin": [23000,7400,5800],
+        "yaw": 0,
+        "lights": {
+          "Adit": [1,3],
+          "Gallery": [2,3,6],
+          "Office": [1],
+          "Decline": [2],
+          "Drift": [2,3],
+          "Stope": [3,4,6],
+          "Manway": [3]
+        },
+        "lantern": { "candela": 8.0, "radius": 800.0, "temperature": 2300.0 }
+      },
+      "foremanStone": [22400,8000],
+      "steps": {
+        "DeadLift": { "items": 0, "fittings": 1, "steam": 2, "ride": 3 },
+        "LastWatch": { "yard": 0, "oil": 1, "fire": 2, "watch": 3, "codeBook": 4 },
+        "BackPay": { "gallery": 0, "upper": 1, "office": 2, "lower": 3, "barricade": 4, "foreman": 5, "payroll": 6 }
+      },
+      "places": {}
+    },
+    "roosts": [
+      {
+        "id": "FamilyPlot",
+        "name": "Ransom Farm",
+        "at": [-3454,-7437],
+        "yaw": 95,
+        "note": "outside the family plot's east gate by the farm path: found as Ellis leaves the plot"
+      },
+      {
+        "id": "MainStreet",
+        "name": "Main Street",
+        "at": [0,3050],
+        "yaw": 90,
+        "onRoad": true,
+        "note": "the street's middle, 6.5 m east of the memorial"
+      },
+      {
+        "id": "ChapelYard",
+        "name": "Chapel of Saint Ada",
+        "at": [5250,-700],
+        "yaw": 120,
+        "openAfter": "Main4",
+        "note": "the knoll's forecourt east of the churchyard gate"
+      },
+      {
+        "id": "Depot",
+        "name": "The Depot",
+        "at": [750,10250],
+        "yaw": 135,
+        "note": "the yard road's end at the platform's west end"
+      },
+      {
+        "id": "KeepersGrave",
+        "name": "Keeper's Crossroads",
+        "at": [900,-11000],
+        "yaw": -81,
+        "openAfter": "Main5",
+        "note": "the crossroads, facing the Keeper's Gate"
+      },
+      {
+        "id": "WhitlockFields",
+        "name": "Whitlock Fields",
+        "at": [-5100,4650],
+        "yaw": -150,
+        "note": "by the barn yard's north-east corner and the fields path"
+      },
+      {
+        "id": "SinkRim",
+        "name": "The Sink",
+        "at": [3300,4300],
+        "yaw": 59,
+        "note": "the south-west rim by the fence's end, short of the ramp head"
+      },
+      {
+        "id": "OldQuarry",
+        "name": "Old Quarry",
+        "at": [9500,3000],
+        "yaw": 0,
+        "note": "the quarry's mouth where the track comes in"
+      },
+      {
+        "id": "LiftHead",
+        "name": "Lift Head",
+        "at": [14700,1850],
+        "yaw": 180,
+        "note": "the crest, where the crest path and the Bench trail part"
+      },
+      {
+        "id": "CaldersPost",
+        "name": "Calder's Post",
+        "at": [16350,-5300],
+        "yaw": -100,
+        "note": "the post's yard entrance from the Bench trail"
+      },
+      {
+        "id": "Diggings",
+        "name": "The Diggings",
+        "at": [21300,5700],
+        "yaw": 45,
+        "note": "between the miners' plot and the ore bin, facing the mine"
+      }
+    ],
+    "boards": [
+      {
+        "label": "NoticeBoard_Rangers",
+        "at": [660,1680],
+        "yaw": 180,
+        "tags": ["NoticeBoard_Rangers"],
+        "title": "Rim Rangers",
+        "subtitle": "Bounties and notices, posted for any Ranger riding through",
+        "prompt": "Read the board",
+        "note": "the sheriff's office's board on Main Street"
+      }
+    ]
   }
 }

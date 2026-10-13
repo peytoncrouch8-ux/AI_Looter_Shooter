@@ -1,116 +1,83 @@
 """Makes the mission data assets (UMissionDefinition, Missions/MissionDefinition.h) in /Game/Data/Missions and saves
-them. Run it in the open editor once the C++ with UMissionDefinition is built:
+them. Run it in the open editor once the C++ with UMissionDefinition is built, after create_story_lines.py:
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/create_mission_assets.py"
 It prints a MISSIONS line per mission and step, and "MISSIONS done" at the end. Running it again rebuilds these
 missions (fields, steps, turn-in and rewards) from what's written here; other mission assets are left alone.
+create_side_mission_assets.py makes the side missions the same way (run it after this one).
 
-The story's missions are turned in, Borderlands' way (FMissionTurnIn): once every objective is done the mission is
-"ready to turn in" (the tracker says "Turn in to <giver>", the arrow on them), and talking to the giver at their speaker
-point finishes it, with its rewards. Where a mission's last objective was talking to its giver, that talk is the turn-in
-and the steps end one earlier; the ready state's step is that talk's old step, so the story's "from step N" conditions
-for it (the giver's lines, Hob's perch) hold as before. Missions with no one to turn in to finish by themselves
-(automatic). Experience is a fixed amount per mission (Docs/Progression.md has the count; Looter.Progression.Pacing
-checks that the story ends about level 6-7).
+The story's missions are picked up from a giver and turned in, Borderlands' way (the user's calls of 2026-10-08 and
+2026-10-13; Docs/Areas/RansomsRest_Expansion.md sections 2-3). Every one but Main 1 starts OFFERED: once what comes before
+it is turned in, a ? floats over its giver (someone at a speaker point, a notice board or a found artifact), and talking
+to them says the offer's lines and opens the offer card with its briefing. Once every objective is done the mission is
+"ready to turn in" (a ! over whoever takes it, the tracker's "Turn in to <giver>"), and talking to them finishes it, with
+its turn-in lines and its rewards; a mission they offer next is offered straight after, as one conversation. Where a
+mission's last objective was talking to its giver, that talk is the turn-in. Experience is a fixed amount per mission,
+on the Borderlands-like curve of 2026-10-13: a main mission about a third to two thirds of a level where it's turned in, a
+side mission about an eighth to a fifth (Docs/Progression.md has the count: the story alone ends about level 5.5,
+everything about 6.8; Looter.Progression.Pacing checks both).
 
   Skyreach's own missions (Docs/Polish/TutorialRework.md, 2026-10-08: no forced checklist; the town's notice board is the
-  giver). None names anything of the story (Docs/Story.md, "The tutorial island, outside the story"), and none gives
-  experience: Skyreach's rewards are guns, handed out at the board.
+  giver). None names anything of the story, and none gives experience: Skyreach's rewards are guns, handed out at the board.
   DA_Mission_Tutorial  "Welcome to Skyreach", the first goal: find a gun in town (carrying one; the arrow on the gun rack's
                        rifle), then read the notice board in the square (ANoticeBoard sends NoticeBoard.Read; the arrow on
                        the board). It must say what the tutorial director's built-in steps say (ATutorialDirector's
                        constructor): the director plays the asset, and Looter.Missions.TutorialMission compares the two
                        objective by objective. Started by the director (manual); automatic. Its id must stay "Tutorial".
   DA_Mission_WebHollow "Clear Web Hollow", the board's main posting, up once the first goal is done (automatic, after
-                       Tutorial): the six spiders of Web Hollow on the forest rise, read from the world (a zone around the
-                       hollow, UMissionClearZoneObjective, so spiders killed before it went up count). Turned in at the
-                       notice board (Speaker_NoticeBoard) for a pump shotgun. Turning it in ends the tutorial: the skiff's
-                       gangplank comes down (ASkiffJetty::TutorialMissionId). Its id must stay "WebHollow".
-  DA_Mission_RangePractice "Range Practice", optional: twelve of the player's hits on the target dummies under the windmill.
-                       No reward, so it finishes on the spot (automatic) rather than send the player back to the board.
-  DA_Mission_Wallow    "The Wallow", optional: the five slimes in the bog west of the range (a zone, as Web Hollow). Turned in
-                       at the notice board for a gun of Uncommon or better.
-  DA_Mission_Lookout   "Up to the Lookout", optional: up the plateau ramp to the ruined lookout (within 8 m of the marker
-                       tagged Place_Lookout, which Tools/Unreal/build_area_board.py places). No reward: automatic.
-  DA_Mission_BoardSkiff "Board the Skiff", leaving Skyreach: its own mission, which the board lists once it's up. Skyreach's
-                       jetty (ASkiffJetty) starts it whenever the tutorial is done (Web Hollow turned in, or the island
-                       skipped) and the player hasn't cast off for the first time, so it starts from code (manual) and asks
-                       for nothing first. Its arrow is on the jetty; casting off sends Board.Skiff, which finishes it
-                       (automatic). No reward.
-  DA_Mission_Test      a small mission for trying the runner in a game: kill two creatures, reach the windmill, use two
-                       things tagged MissionTest (no level has them: Looter.Mission.Event Interact MissionTest stands in
-                       for the interaction component), for 10% of a level's experience. It starts only from the console
-                       (Looter.Mission.Start Test), so players never see it. Automatic.
-  DA_Mission_Main1     "Seven Days", the story's first mission on Ransom's Rest (Docs/Areas/RansomsRest.md, Main 1): the
-                       cold open and the claw-out (scenes UColdOpenSubsystem plays on the story's first arrival, or
-                       passes when it can't), reading Abel's headboard (tagged Headboard_Abel) and going up to the
-                       farmhouse (within 9 m of Delia's door, tagged Speaker_Delia); turned in to Grandma Delia at her
-                       door (her Main 1 lines). It starts by itself on Ransom's Rest. 20 XP; the family plot's respawn
-                       grave opens with it (ARespawnMarker FamilyPlot, Tools/Unreal/build_area_story.py).
-  DA_Mission_Main2     "Shall We Talk Business?" (Main 2), once Main 1 is turned in: up the bluff path onto Ransom's
-                       Point (within 18 m of its middle, the marker tagged Place_RansomsPoint, height counted, so the path
-                       under the edge isn't the top), clearing the spider nest there (the encounter BluffNest: four
-                       spiders and a Restless one, counted from the spawner, so one shot from the path still counts),
-                       talking to Mister Sexton on the lookout's rail (Speaker_Sexton), and opening the Ledger (the
-                       inventory's second page, which is his book from that step: Bestiary/Ledger.h); turned in to
-                       Sexton, still on the rail (a line of its own). 30 XP; the Ledger is the other reward.
-  DA_Mission_Main3     "Cold Welcome" (Main 3), once Main 2 is turned in: the farm road through the orchard to the town
-                       gate (within 10 m of the marker tagged Place_TownGate), fighting off the Unpaid there (the encounter
-                       TownGate: three and a Restless one) and finding Bright & Daughter, Undertakers (within 8 m of
-                       Tilly's window, tagged Speaker_Tilly); turned in to Tilly there (her Main 3 lines). 30 XP and an
-                       Uncommon gun or better, the undertaker's unclaimed effects. Its id must stay "Main3": Side 1 opens
-                       after it (create_side_mission_assets.py), and Main Street's safe zone and shutters follow it.
-  DA_Mission_Main4     "Hallowed Ground" (Main 4), once Main 3 is turned in: up to the Chapel of Saint Ada (within 15 m of
-                       the chapel's middle, the marker tagged Place_Chapel), clearing the chapel yard (the encounter
-                       ChapelYard: 12 Unpaid in two waves and a Restless one, 13 in all), ringing the chapel bell (holding
-                       Interact on its rope, the AChapelBell tagged Bell_Chapel) and looking at the Reliquary (the end of
-                       its two-second Grave Sight flash sends GraveSight.Reliquary, AChapelReliquary::SightEvent; the arrow
-                       on the one tagged Reliquary_Chapel); turned in to Father Aldana at the vestry door (Speaker_Aldana,
-                       his Main 4 lines). 40 XP; the chapel yard's respawn grave opens with it (ARespawnMarker ChapelYard),
-                       and the Unpaid walk boot hill and the north road from then on (Tools/Unreal/build_area_chapel.py).
-                       Its id must stay "Main4": Side 2 opens after it, and Aldana's Ledger page is known after it
-                       (create_bestiary_pages.py).
-  DA_Mission_Main5     "The Keeper's Lantern" (Main 5), once Main 4 is turned in: down the ramp into the Sink (within 9 m
-                       of its floor's middle, the marker tagged Place_SinkFloor, height counted, so the rim and the ramp's
-                       upper half aren't the floor), shooting down its three egg sacs (each sends EggSac.Burst,
-                       AEggSac::BurstEvent, as it lands and lets out its two spiders; the arrow on the nearest sac still
-                       up, tagged EggSac), taking the Keeper's Lantern from the webbing (a tap on the AKeepersLantern
-                       tagged Lantern_Keeper) and climbing out (within 6 m of the ramp head on the west rim, the marker
-                       tagged Place_SinkRim, height counted); turned in to Father Aldana, who sent Ellis there (a line of
-                       its own: take it home to your grandmother). 40 XP. Its id must stay "Main5" and the lantern's step
-                       the third (AKeepersLantern::TakeStep): Side 3 opens after it (create_side_mission_assets.py), and
-                       Ellis has the lantern from its last step on (AKeepersLantern::IsTaken), which Main 6 carries to
-                       Gravewind Point (Tools/Unreal/build_area_sink.py places the Sink's pieces).
-  DA_Mission_Main6     "The Gravewind" (Main 6), once Main 5 is turned in, started by Grandma Delia's word through the
-                       door ("Take him the lantern...": her topic sends Delia.Main6, Tools/Unreal/build_area_farm.py),
-                       which fades the Rest to dusk (AStoryLighting): carrying the lantern to Gravewind Point (within 10 m
-                       of the Keeper's Gate, the marker tagged Place_GravewindPoint: both roads end at the keeper's grave
-                       and the cairns lead on), hanging it on the keeper's post (a tap on the AKeeperLanternPost tagged
-                       LanternPost_Keeper), defeating Abel (the AAbelKeeper tagged Boss_Abel, his boss loot at his death)
-                       and sitting with Pa (the scene SitWithPa). Automatic: the scene is its hand-in to Pa, and his
-                       board, the lantern lit and the train's steam follow Main 6 finished. 45 XP. Its id must stay
-                       "Main6" and its steps in this order: Abel's story counts them (AAbelKeeper::HangStep, FightStep,
-                       SceneStep), and his board, the lantern lit and the dusk follow it (Tools/Unreal/build_area_deck.py).
-  DA_Mission_Main7     "The Lantern Leans" (Main 7), starting by itself once Main 6 is done: home to Delia (talking at
-                       her door, Speaker_Delia: she hands Heirloom out through it, ADoorHandoff); turned in to Tilly at
-                       her window on the way to the depot (her Main 7 lines: her father's car coupled up at the
-                       platform). 45 XP, the Gilded Lily opened on the station board (GildedLily, create_area_assets.py),
-                       and Heirloom, given by Delia's hand rather than dropped (named_gun_by_hand). Its id must stay
-                       "Main7" and Delia's step the first: the hand-off, Ned's Ledger page and the train's steam follow it
-                       (Tools/Unreal/build_area_depot.py; its depot place is no step now: the board is read after).
+                       Tutorial): the six spiders of Web Hollow, read from the world (UMissionClearZoneObjective). Turned in
+                       at the notice board (Speaker_NoticeBoard) for a pump shotgun. Its id must stay "WebHollow".
+  DA_Mission_RangePractice "Range Practice", optional: twelve hits on the target dummies under the windmill; automatic.
+  DA_Mission_Wallow    "The Wallow", optional: the five slimes in the bog west of the range; turned in at the board for a
+                       gun of Uncommon or better.
+  DA_Mission_Lookout   "Up to the Lookout", optional: up the plateau ramp to the ruined lookout (Place_Lookout); automatic.
+  DA_Mission_BoardSkiff "Board the Skiff", started by Skyreach's jetty (manual), finished by casting off (Board.Skiff).
+  DA_Mission_Test      a small mission for trying the runner in a game (Looter.Mission.Start Test only); automatic.
 
-Missions picked up from a giver (the user's call, 2026-10-13: every mission but Main 1, Borderlands' way) start 'OFFERED'
-and name their giver in the spec's 'offer' (offer(): giver_tag, giver, lines, briefing): a speaker point's actor tag
-(Speaker_Delia), a notice board's (NoticeBoard_Rangers, build_area_board.py) or a mission artifact's (Artifact_MinersTag,
-AMissionArtifact). Every other mission's offer is cleared. Which missions are offered, and by whom, is the story's data
-(wave 2); this script only carries the fields.
+  Ransom's Rest's story (steps counted from 0, as the build scripts' conditions count them; "+ optional" is an optional
+  objective in that step, Docs/Areas/RansomsRest_Expansion.md section 3):
+  DA_Mission_Main1 "Seven Days", automatic on a new game: 0 the cold open (scene ColdOpen), 1 the claw-out (GraveWake),
+                   2 Abel's headboard (Headboard_Abel) + optional Ellis's own (readable HeadboardEllis), 3 up to the
+                   farmhouse (within 9 m of Speaker_Delia), 4 the porch plate taken (PorchPlate.Taken: two jars of grave
+                   salt; APorchPlate's take_when is "during Main1 from step 4"). Turned in to Delia at her door: the doc's
+                   three lines and "eat what's on that plate". 450 XP, her purse (20).
+  DA_Mission_Main2 "Shall We Talk Business?", offered by Hob (Speaker_Hob) after Main 1: 0 up onto Ransom's Point
+                   (Place_RansomsPoint, height counted), 1 the nest cleared (BluffNest, 5), 2 Mister Sexton
+                   (Speaker_Sexton) + optional the boards where it happened (LookoutStains), 3 the Ledger opened (it must
+                   stay step 3: Ledger::HandedOverStep). Turned in to Sexton, who sends Ellis to Delia about the lantern.
+                   550 XP and the Ledger.
+  DA_Mission_Main3 "Cold Welcome", offered by Delia after Main 2: 0 the farm road to the town gate (Place_TownGate),
+                   1 the gate's Unpaid (TownGate, 4), 2 Bright & Daughter (within 8 m of Speaker_Tilly). Turned in to Tilly
+                   at her window, her whole talk (DA_Lines_TillyMain3 the same, her topic "during Main3 from step 3"):
+                   Pa's lantern bail out on the sill (Main 6's item LanternBail, lying there from Main 3's end) and the box
+                   of effects. 1,200 XP, an Uncommon gun or better, her purse (40). Its id must stay "Main3" (Main Street's
+                   safe ground and shutters, Pruitt's hatch follow it).
+  DA_Mission_Main4 "Hallowed Ground", offered by Tilly after Main 3: 0 the chapel (Place_Chapel), 1 the chapel yard
+                   (ChapelYard, 13), 2 the knock at the vestry door (Speaker_Aldana: "ring her bell"), 3 the bell held
+                   (Bell_Chapel), 4 the Reliquary seen (GraveSight.Reliquary; its look_when "during Main4 from step 4") +
+                   optional the keepers' roll (KeepersRoll). Turned in to Aldana: a keeper's lantern can find an ember, and
+                   Pa's fell whole. 1,400 XP, the poor box (40).
+  DA_Mission_Main5 "The Keeper's Lantern", offered by Aldana after Main 4 (straight after its turn-in, one conversation):
+                   0 into the Sink (Place_SinkFloor, height counted), 1 the three egg sacs, 2 the lantern taken (it must
+                   stay step 2: AKeepersLantern::TakeStep), 3 out at the ramp head (Place_SinkRim) + optional the
+                   sheriff's hat by the den (SheriffHat). Turned in to Aldana: the altar candle won't take; take it home.
+                   2,500 XP, his purse (50).
+  DA_Mission_Main6 "The Gravewind", offered by Delia after Main 5 (accepting fades the Rest to dusk): 0 Gravewind Point
+                   (Place_GravewindPoint) + optional by the keeper's path (Place_KeepersBridge) + Pa's lantern bail carried
+                   (its item LanternBail, off Tilly's sill since Main 3), 1 the lantern on the keeper's post, 2 Abel,
+                   3 sitting with Pa (Abel's steps: HangStep 1, FightStep 2, SceneStep 3). Finishes with the scene. 5,000 XP.
+  DA_Mission_Main7 "The Lantern Leans", offered by Pa on his board (Speaker_Abel) after Main 6: 0 home to Delia (her step
+                   must stay 0: ADoorHandoff) + optional eat what's on the porch plate (PorchPlate.Eaten). Turned in to
+                   Tilly (her father's car). 4,600 XP, the Gilded Lily opened, Heirloom by Delia's hand, her purse (60).
 
-The mission features (wave 2a, Docs/Areas/RansomsRest_Expansion.md sections 3-4), each a helper below, for the data step:
+The mission features (wave 2a, sections 3-4), each a helper below:
   - optional objectives: objective(..., optional=True) (or event_objective / read_objective / collect_items with
     optional=True), in a step beside what it asks for; each done pays rewards(optional_silver=10) at the turn-in.
   - mission items: the spec's 'items' (item(): id, name, line, mesh, the creature that drops it), counted carried by
-    collect_items(asset, text, [ids]); placed in the level as AMissionItem (its item_id) by the level's build script.
+    collect_items(asset, text, [ids]); placed in the level as AMissionItem (its item_id) by the level's build script
+    (Tools/Unreal/story_texts.py ITEMS says where and from when).
   - readables and the porch plate: read_objective(asset, text, 'KeepersRoll') counts reading the AReadableProp whose
-    readable_id is KeepersRoll; event_objective(asset, text, PORCH_TAKEN / PORCH_EATEN) the porch plate's two uses.
+    readable_id is KeepersRoll (its words: story_texts.py READABLES); event_objective(asset, text, PORCH_TAKEN /
+    PORCH_EATEN) the porch plate's two uses.
   - a turn-in with a choice of two: turn_in(..., choices=[choice(...), choice(...)], question=...), each choice with its
     flag (BackPay.Paid), stamp, lines and rewards (rewards()'s fields, in place of the mission's own).
   - a purse of its own: rewards(silver=...) (the old missions' purses stay kept by id in MissionRewards::SilverFor).
@@ -123,6 +90,8 @@ import unreal
 
 FOLDER = '/Game/Data/Missions'
 CLASSES = '/Script/AI_Looter_Shooter.'
+# Where the mission props' models are imported (Art/Models/Props/MissionProps.py through Tools/models.ps1).
+PROPS = '/Game/Art/Props/'
 
 
 def mission_types():
@@ -201,6 +170,8 @@ def objective(asset, cls, text, waypoint=None, waypoint_class=None, waypoint_tag
 # (APorchPlate's TakenFlag and EatenFlag, the same names as their story flags).
 PORCH_TAKEN = 'PorchPlate.Taken'
 PORCH_EATEN = 'PorchPlate.Eaten'
+# APorchPlate::PlateTag: the arrow's actor for the plate's step.
+PORCH_TAG = 'PorchPlate'
 
 
 def readable_event(readable_id):
@@ -244,7 +215,8 @@ def item(item_id, name, line='', mesh='', dropped_by_class=None, dropped_by_tag=
     """FMissionItemInfo: a thing that belongs to the mission. item_id is what the campaign keeps it by (never rename or
     reuse one; unique across missions); name and line are the Carried list's; mesh (an asset path, may not exist yet: the
     pickup then shows a stand-in) is its model for a pickup that names none and for a drop; dropped_by_class/_tag name the
-    creature that carries it, which drops it at its body on dying (the Gravemother by class, Abe Haskett by his tag)."""
+    creature that carries it, which drops it at its body on dying (the Gravemother by class, Abe Haskett's crew by
+    theirs)."""
     made = unreal.MissionItemInfo()
     made.set_editor_property('id', unreal.Name(item_id))
     made.set_editor_property('name', unreal.Text(name))
@@ -426,11 +398,19 @@ def board_skiff_steps(asset):
     ]
 
 
+# ---------------------------------------------------------------------------
+# Ransom's Rest's story
+# ---------------------------------------------------------------------------
+
+ELLIS = 'Ellis'
+HOB = 'Hob'
+
+
 def main1_steps(asset):
-    """Main 1, "Seven Days": the cold open, the claw-out, the headboard beside Ellis's, the farmhouse; then it's turned in
-    at Delia's door (the talk that was its fifth step: her Main 1 lines, as the turn-in's own step is the old talk's, 4).
-    The scenes' names are the C++'s (ColdOpen::SceneName, GraveWake::SceneName); the tags are the ones
-    Tools/Unreal/build_area_story.py gives what it places."""
+    """Main 1, "Seven Days": the cold open, the claw-out, the headboard beside Ellis's (and, if they like, their own), the
+    farmhouse, and the porch plate's jars (Delia's grave salt: the first grenades); then it's turned in at Delia's door.
+    The scenes' names are the C++'s (ColdOpen::SceneName, GraveWake::SceneName); the tags are the ones the build scripts
+    give what they place; the plate's step must stay the fifth (APorchPlate's take_when: during Main1 from step 4)."""
     waypoint = unreal.MissionWaypoint
     return [
         step(objective(asset, unreal.MissionSceneObjective, 'Seven days ago.',
@@ -438,16 +418,21 @@ def main1_steps(asset):
         step(objective(asset, unreal.MissionSceneObjective, 'Claw out of the grave: press {Jump}.',
                        waypoint=waypoint.NONE, scene=unreal.Name('GraveWake'))),
         step(objective(asset, unreal.MissionInteractObjective, 'Read the headboard beside yours.',
-                       target=actor_filter(tag='Headboard_Abel'), count=1)),
+                       target=actor_filter(tag='Headboard_Abel'), count=1),
+             read_objective(asset, 'Read your own headboard.', 'HeadboardEllis', optional=True)),
         step(objective(asset, unreal.MissionReachObjective, 'Go up to the farmhouse.',
                        place=place(tag='Speaker_Delia', radius=900.0))),
+        # The arrow on the plate; done as the jars are taken (the plate's TakenFlag, sent as an event).
+        step(event_objective(asset, "Take what's on the porch plate.", PORCH_TAKEN,
+                             waypoint=waypoint.ACTOR, waypoint_tag=PORCH_TAG)),
     ]
 
 
 def main2_steps(asset):
-    """Main 2, "Shall We Talk Business?": up onto Ransom's Point, the spider nest cleared, Sexton's deal, the Ledger. The
-    tags and the encounter's id are the ones Tools/Unreal/build_area_story.py gives what it places; the Ledger's step must
-    stay the fourth (Ledger::HandedOverStep, counted from 0: 3), as the book is his from it."""
+    """Main 2, "Shall We Talk Business?": up onto Ransom's Point, the spider nest cleared, Sexton's deal (and the boards
+    where it happened, if Ellis looks), the Ledger. The tags and the encounter's id are the ones
+    Tools/Unreal/build_area_story.py gives what it places; the Ledger's step must stay the fourth
+    (Ledger::HandedOverStep, counted from 0: 3), as the book is his from it."""
     return [
         # Height counted: the bluff path runs under the top's edge, a few metres from its middle as the crow flies.
         step(objective(asset, unreal.MissionReachObjective, "Climb the bluff path to Ransom's Point.",
@@ -455,16 +440,20 @@ def main2_steps(asset):
         step(objective(asset, unreal.MissionClearObjective, 'Clear the spiders nesting at the top.',
                        spawner_id=unreal.Name('BluffNest'), count=5)),
         step(objective(asset, unreal.MissionTalkObjective, 'Talk to Mister Sexton.',
-                       speaker_tag=unreal.Name('Speaker_Sexton'))),
+                       speaker_tag=unreal.Name('Speaker_Sexton')),
+             read_objective(asset, 'Look at the boards where it happened.', 'LookoutStains', optional=True)),
         step(objective(asset, unreal.MissionOpenPageObjective, 'Open the Ledger: {Inventory}, then 2.',
                        page=unreal.MissionPage.BESTIARY)),
     ]
 
 
 def main3_steps(asset):
-    """Main 3, "Cold Welcome": the farm road into town, the Unpaid at the gate, Bright & Daughter; then it's turned in at
-    Tilly's window (the talk that was its fourth step: her Main 3 lines, from step 3, and the box of effects on the
-    step: the reward gun)."""
+    """Main 3, "Cold Welcome": the farm road into town, the Unpaid at the gate, Bright & Daughter found; then it's turned
+    in at Tilly's window, her whole talk (DA_Lines_TillyMain3 holds the same words, her topic from step 3, the step past
+    the last): Pa's lantern wasn't on him, only its bail, which she puts out on the sill (Main 6's item, lying there from
+    Main 3's end), and the box of effects on the step (the reward gun); Main 4 offered after it. The design's optional
+    "read the poster on the gate" is left out: the gate's poster is torn by holding, and it offers Side 1 only after Main 3
+    (the valley-placement step, 2026-10-13)."""
     return [
         step(objective(asset, unreal.MissionReachObjective, 'Follow the farm road through the orchard into town.',
                        place=place(tag='Place_TownGate', radius=1000.0))),
@@ -476,32 +465,36 @@ def main3_steps(asset):
 
 
 def main4_steps(asset):
-    """Main 4, "Hallowed Ground": up to the chapel, the yard cleared, the bell rung, the Reliquary seen; then it's turned
-    in at Father Aldana's vestry door (the talk that was its fifth step: his Main 4 lines, from step 4). The tags, the
-    encounter's id and the event are the ones build_area_chapel.py and the C++ give them (AChapelBell::BellTag,
-    AChapelReliquary::ReliquaryTag and SightEvent)."""
+    """Main 4, "Hallowed Ground": up to the chapel, the yard cleared, the knock at the vestry door (Aldana sends Ellis to
+    the bell), the bell rung, the Reliquary seen (and the keepers' roll read, if Ellis does); then it's turned in at
+    Aldana's vestry door, and Main 5 offered after it. The tags, the encounter's id and the event are the ones
+    build_area_chapel.py and the C++ give them (AChapelBell::BellTag, AChapelReliquary::ReliquaryTag and SightEvent)."""
     waypoint = unreal.MissionWaypoint
     return [
-        step(objective(asset, unreal.MissionReachObjective, 'Go up to the Chapel of Saint Ada.',
+        step(objective(asset, unreal.MissionReachObjective, 'Go up the north road to the Chapel of Saint Ada.',
                        place=place(tag='Place_Chapel', radius=1500.0))),
         # "12 Unpaid in two waves, and one Restless": 13, counted from the spawner.
         step(objective(asset, unreal.MissionClearObjective, 'Clear the chapel yard.',
                        spawner_id=unreal.Name('ChapelYard'), count=13)),
+        step(objective(asset, unreal.MissionTalkObjective, 'Knock at the vestry door.',
+                       speaker_tag=unreal.Name('Speaker_Aldana'))),
         step(objective(asset, unreal.MissionInteractObjective,
                        'Ring the chapel bell: hold {Interact} on the rope inside the door.',
                        target=actor_filter(tag='Bell_Chapel'), count=1, hold=True)),
-        # Done as the flash ends, so the next step comes after the vision; the arrow on the Reliquary meanwhile.
+        # Done as the flash ends, so the turn-in comes after the vision; the arrow on the Reliquary meanwhile.
         step(objective(asset, unreal.MissionEventObjective, 'Look at the Reliquary.',
                        waypoint=waypoint.ACTOR, waypoint_tag='Reliquary_Chapel', show_count=False,
-                       event=unreal.Name('GraveSight.Reliquary'), count=1)),
+                       event=unreal.Name('GraveSight.Reliquary'), count=1),
+             read_objective(asset, "Read the keepers' roll in the nave.", 'KeepersRoll', optional=True)),
     ]
 
 
 def main5_steps(asset):
     """Main 5, "The Keeper's Lantern": down into the Sink, its three egg sacs shot down, the Keeper's Lantern taken from the
-    webbing, and out at the ramp head. The tags and the event are the ones build_area_sink.py and the C++ give them
-    (AEggSac::EggSacTag and BurstEvent, AKeepersLantern::LanternTag); the lantern's step must stay the third
-    (AKeepersLantern::TakeStep, counted from 0: 2), as Ellis has it from the step after."""
+    webbing, and out at the ramp head (the sheriff's hat by the den on the way, if Ellis looks). The tags and the event are
+    the ones build_area_sink.py and the C++ give them (AEggSac::EggSacTag and BurstEvent, AKeepersLantern::LanternTag); the
+    lantern's step must stay the third (AKeepersLantern::TakeStep, counted from 0: 2), as Ellis has it from the step
+    after."""
     waypoint = unreal.MissionWaypoint
     return [
         # Height counted: the rim and the ramp's upper half are within a few metres of the floor's middle as the crow flies.
@@ -514,21 +507,30 @@ def main5_steps(asset):
                        target=actor_filter(tag='Lantern_Keeper'), count=1)),
         # The ramp head on the west rim, by the fence's gap; height counted, so the ramp just under it isn't out yet.
         step(objective(asset, unreal.MissionReachObjective, 'Climb out of the Sink.',
-                       place=place(tag='Place_SinkRim', radius=600.0, ignore_height=False))),
+                       place=place(tag='Place_SinkRim', radius=600.0, ignore_height=False)),
+             read_objective(asset, 'Look at the hat by the den.', 'SheriffHat', optional=True)),
     ]
 
 
 def main6_steps(asset):
-    """Main 6, "The Gravewind": the lantern carried to Gravewind Point and hung on the keeper's post, Abel defeated, the
-    scene after. The tags and the scene are the ones build_area_deck.py and the C++ give them (AKeeperLanternPost's
+    """Main 6, "The Gravewind": Pa's lantern bail in Ellis's pocket (off Tilly's sill, where it lies from Main 3's end:
+    most players took it then, and it counts at once), the lantern carried to Gravewind Point (by the keeper's path over
+    Keeper's Bridge, if Ellis walks it the Ransoms' way) and hung on the keeper's post by its bail, Abel defeated, the scene
+    after. The tags and the scene are the ones build_area_deck.py and the C++ give them (AKeeperLanternPost's
     KeepersPostTag, AAbelKeeper's BossTag, SitWithPa::SceneName); the steps' order is Abel's (HangStep 1, FightStep 2,
     SceneStep 3, counted from 0)."""
     waypoint = unreal.MissionWaypoint
     return [
         # Either road: the west road or the keeper's path; both end at the keeper's grave, and the cairns lead to the gate.
+        # The bail third, so the point's objective keeps its place (0, 0) and the keeper's path its (0, 1).
         step(objective(asset, unreal.MissionReachObjective,
                        "Carry the lantern to Gravewind Point, by the west road or the keeper's path.",
-                       place=place(tag='Place_GravewindPoint', radius=1000.0))),
+                       place=place(tag='Place_GravewindPoint', radius=1000.0)),
+             objective(asset, unreal.MissionReachObjective,
+                       "Take the keeper's path over Keeper's Bridge, the way the Ransoms walked their dead.",
+                       short="Take the keeper's path", place=place(tag='Place_KeepersBridge', radius=600.0), optional=True),
+             collect_items(asset, "Bring Pa's lantern bail from Tilly's window sill.", ['LanternBail'],
+                           short="Bring Pa's lantern bail")),
         step(objective(asset, unreal.MissionInteractObjective, "Hang the Keeper's Lantern on the keeper's post.",
                        target=actor_filter(tag='LanternPost_Keeper'), count=1)),
         # A boss falling off the deck is still beaten (any kill counts).
@@ -540,13 +542,16 @@ def main6_steps(asset):
 
 
 def main7_steps(asset):
-    """Main 7, "The Lantern Leans": home to Delia (Heirloom out through her door); then it's turned in at Tilly's window,
-    which Main Street passes on the way to the depot (her Main 7 lines: her father's car coupled up at the platform). The
-    Lily opens on the station board as it's turned in, so the depot and the board come after it, not as steps that would
-    find the Lily still shut. Delia's step must stay the first (ADoorHandoff's Step 0), as Heirloom comes out as it
-    ends."""
+    """Main 7, "The Lantern Leans": home to Delia (Heirloom out through her door), and the biscuits on the porch plate
+    eaten if Ellis will (Pa asked it; the plate's eat_when is "during Main7"); then it's turned in at Tilly's window, which
+    Main Street passes on the way to the depot (her Main 7 lines: her father's car coupled up at the platform). The Lily
+    opens on the station board as it's turned in, so the depot and the board come after it. Delia's step must stay the
+    first (ADoorHandoff's Step 0), as Heirloom comes out as it ends; its optional stays doable until the turn-in."""
+    waypoint = unreal.MissionWaypoint
     return [
-        step(objective(asset, unreal.MissionTalkObjective, 'Go home to Delia.', speaker_tag=unreal.Name('Speaker_Delia'))),
+        step(objective(asset, unreal.MissionTalkObjective, 'Go home to Delia.', speaker_tag=unreal.Name('Speaker_Delia')),
+             event_objective(asset, "Eat what's on the porch plate.", PORCH_EATEN, optional=True,
+                             waypoint=waypoint.ACTOR, waypoint_tag=PORCH_TAG)),
     ]
 
 
@@ -599,65 +604,146 @@ MISSIONS = [
                  "reward. Only Looter.Mission.Start Test starts it.",
          kind='SIDE', start='MANUAL', area='', prerequisites=[], sort_order=100, steps=test_steps,
          turn_in=dict(automatic=True), rewards=dict(experience_share=0.1)),
-    # The story's missions are turned in (Borderlands' way): each gives its experience and the rest only then. Their
-    # experience is a fixed amount each, tuned with the kills on the way so the story ends about level 6-7
-    # (Docs/Progression.md; Looter.Progression.Pacing checks it).
+
+    # Ransom's Rest's story. Each is picked up from its giver once the one before is turned in (Main 1 starts with a new
+    # game), and turned in for a fixed amount of experience (Docs/Progression.md: the story alone ends about level 5.5).
+    # Their purses are the givers' kept by id (MissionRewards::SilverFor: Main 1 20, Main 3 40, Main 4 40, Main 5 50,
+    # Main 7 60).
     dict(asset='DA_Mission_Main1', id='Main1', title='Seven Days',
          summary="Seven days after the Dunne Gang's last job, Ellis claws out of a fresh grave in the Ransom family plot, "
-                 "beside Pa's. Read the board beside yours, then go up to the farmhouse: Grandma Delia won't open the "
-                 "door to a corpse.",
+                 "beside Pa's. Read the board beside yours, then go up to the farmhouse. Grandma Delia won't open the door "
+                 "to a corpse, but she has left a plate on the porch.",
          kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=[], sort_order=1, steps=main1_steps,
-         turn_in=dict(speaker='Speaker_Delia', giver='Delia'), rewards=dict(experience=20)),
+         # The whole talk is the turn-in, once the plate's taken (knocked at before it, she sends Ellis to the plate:
+         # DA_Lines_DeliaMain1). The biscuits stay on the plate until Main 7.
+         turn_in=dict(speaker='Speaker_Delia', giver='Delia', lines=[
+             ('', "I was to lay you on the boards tonight."),
+             ('', "Your Pa got up Wednesday night, came up through the dirt like it was fog."),
+             ('', "A keeper doesn't lie still while his saint is dark. He walks the boards at dusk."),
+             ('', "And eat what's on that plate. I'll know if you don't."),
+         ]),
+         rewards=dict(experience=450)),
     dict(asset='DA_Mission_Main2', id='Main2', title='Shall We Talk Business?',
-         summary="Someone's waiting up top, on Ransom's Point, where it happened. Spiders nest there now, and a tall man in "
-                 "a stovepipe hat sits on the lookout's rail with a ledger on his knee. Reward: experience, and the "
-                 "Ledger.",
-         kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main1'], sort_order=2, steps=main2_steps,
-         # Back to him once his ledger is read; he's still on the rail (shown all through Main 2).
+         summary="Someone is waiting on Ransom's Point, the lookout where the Deacon shot Ellis seven days ago. Spiders nest "
+                 "at the top now, and a tall man in a stovepipe hat sits on the lookout's rail with a ledger on his knee.",
+         kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main1'], sort_order=2, steps=main2_steps,
+         offer=dict(giver_tag='Speaker_Hob', giver='Hob', lines=[
+             ('', "Someone's waiting on you, sunshine. Up top, where it happened."),
+             (ELLIS, 'Who?'),
+             ('', "Tall. Polite. Keeps a ledger. You'll like him. Nobody does."),
+         ], briefing="Someone is waiting on Ransom's Point, the lookout where the Deacon shot you seven days ago. Spiders "
+                     "have nested at the top since. Hob won't say who it is, only that he keeps a ledger."),
+         # Back to him once his ledger is read; he's still on the rail (shown all through Main 2). Asked about Pa's
+         # lantern, he sends Ellis to Delia, whose offer is Main 3's.
          turn_in=dict(speaker='Speaker_Sexton', giver='Mister Sexton', lines=[
              ('', "You've read them, then. Good."),
              ('', "Seven names, friend. The new moon won't wait."),
+             (ELLIS, "Pa's lantern. Where is it?"),
+             ('', "I attend deaths, friend, not lost property. Ask your grandmother what he ran out with."),
          ]),
-         rewards=dict(experience=30)),
+         rewards=dict(experience=550)),
     dict(asset='DA_Mission_Main3', id='Main3', title='Cold Welcome',
-         summary="Into town by the farm road. The living shutter their windows, and the Unpaid come for the corpse at the "
-                 "gate. Tilly Bright, the undertaker's daughter, talks through her shop window.",
-         kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main2'], sort_order=3, steps=main3_steps,
-         turn_in=dict(speaker='Speaker_Tilly', giver='Tilly'),
-         rewards=dict(experience=30, gun=True, gun_rarity_floor='UNCOMMON')),
-    dict(asset='DA_Mission_Main4', id='Main4', title='Hallowed Ground',
-         summary="The Unpaid hold the chapel yard, and the bell won't call them to rest: Saint Ada's Reliquary lies smashed "
-                 "and dark. Father Aldana keeps to the vestry door. Reward: experience, and the chapel yard's grave to wake "
-                 "at.",
-         kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main3'], sort_order=4, steps=main4_steps,
-         turn_in=dict(speaker='Speaker_Aldana', giver='Father Aldana'), rewards=dict(experience=40)),
-    dict(asset='DA_Mission_Main5', id='Main5', title="The Keeper's Lantern",
-         summary="The keepers walk the dead to the boards by lantern light, and Abel's lantern fell in the dark, whole. "
-                 "Spiders hoard anything a saint has touched: it's down in the Sink, in the webbing, among their egg "
-                 "sacs.",
-         kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main4'], sort_order=5, steps=main5_steps,
-         # Back to Aldana, who sent Ellis to the Sink: his words after it (DA_Lines_AldanaAfterMain5's) send Ellis home to
-         # Delia, whose "Take him the lantern" starts Main 6 once this is turned in.
-         turn_in=dict(speaker='Speaker_Aldana', giver='Father Aldana', lines=[
-             ('', "You found it. Dark, but whole."),
-             ('', "Take it home to your grandmother, Ellis. She'll know what's owed a keeper."),
+         summary="Pa ran up the bluff path with his keeper's lantern lit, and nobody has seen it since. Go into town by the "
+                 "farm road and ask Tilly Bright, who laid him out, what came home with him. The living shutter their "
+                 "windows, and the Unpaid come for the corpse at the gate.",
+         kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main2'], sort_order=3, steps=main3_steps,
+         offer=dict(giver_tag='Speaker_Delia', giver='Grandma Delia', lines=[
+             ('', "You've been up there. I can smell the cold on you."),
+             (ELLIS, "Pa's lantern. Where is it?"),
+             ('', "He ran out with it lit. They carried him down without it."),
+             ('', "Tilly Bright laid him out. Whatever came home with him, she has."),
+             ('', "Go by the farm road. They'll shutter up at you. Let them."),
+         ], briefing="Pa ran up the bluff path with his keeper's lantern lit, and nobody has seen it since. Tilly Bright, "
+                     "the undertaker's daughter, laid him out. Go into town and ask her what came home with him."),
+         # Her whole talk is the turn-in (DA_Lines_TillyMain3 says the same, her topic from step 3): the doc's lines, the
+         # bail out onto the sill (Main 6's item: Main 3's own would vanish as it's turned in), the box of effects on the
+         # step (the reward gun); then Tilly offers Main 4.
+         turn_in=dict(speaker='Speaker_Tilly', giver='Tilly', lines=[
+             ('', "Well. They said you might be up and about."),
+             ('', "I laid you out, you know. You and your Pa, the same morning."),
+             ('', "You've ruined my collar, by the way."),
+             (ELLIS, "Pa's lantern. Was it with him?"),
+             ('', "No. A keeper goes in the ground with his lantern, and his wasn't on him. I looked."),
+             ('', "Only its bail, the ring it hangs by, snapped off in his fist. I couldn't open his hand till morning."),
+             ('', "It's on the sill. Take it. A lantern's no use to anyone if it can't be hung."),
+             ('', "There's a box of unclaimed effects on the step. Take what's useful. Nobody's coming back for it."),
          ]),
-         rewards=dict(experience=40)),
+         rewards=dict(experience=1200, gun=True, gun_rarity_floor='UNCOMMON')),
+    dict(asset='DA_Mission_Main4', id='Main4', title='Hallowed Ground',
+         summary="Father Aldana blessed Pa's lantern every spring and sat up with his body the night he died. He has barred "
+                 "himself in the chapel's vestry since the dead came home, and the chapel yard is full of them.",
+         kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main3'], sort_order=4, steps=main4_steps,
+         offer=dict(giver_tag='Speaker_Tilly', giver='Tilly', lines=[
+             ('', "Father Aldana sat up with your Pa the night they brought him down."),
+             ('', "If anyone knows where a keeper's lantern goes, it's the man who blessed it."),
+             ('', "He's barred himself in the vestry since the dead came home. Knock loud."),
+         ], briefing="Father Aldana blessed your father's lantern every spring and sat up with his body the night he died. "
+                     "Since the dead came home he has barred himself in the chapel's vestry. The chapel yard is full of "
+                     "them."),
+         # The doc's words, word for word (DA_Lines_AldanaMain4 holds the same); his offer of Main 5 follows them as one
+         # conversation.
+         turn_in=dict(speaker='Speaker_Aldana', giver='Father Aldana', lines=[
+             ('', "You rang her bell, and she didn't answer. Now you've seen why."),
+             (ELLIS, 'How do I find them?'),
+             ('', "A keeper's lantern can find an ember."),
+             ('', "In every town they robbed, the gang shot the keeper first and smashed his lantern."),
+             ('', "Your father's fell in the dark, whole."),
+             ('', "Spiders hoard anything a saint has touched."),
+             ('', "Look in the Sink."),
+         ]),
+         rewards=dict(experience=1400)),
+    dict(asset='DA_Mission_Main5', id='Main5', title="The Keeper's Lantern",
+         summary="The gang smashed the keeper's lantern in every town they robbed, but Pa's fell in the dark, whole. "
+                 "Spiders hoard anything a saint has touched: it's down in the Sink, in the webbing, among their egg sacs.",
+         kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main4'], sort_order=5, steps=main5_steps,
+         # Said straight after Main 4's turn-in ("...Look in the Sink."), as one conversation.
+         offer=dict(giver_tag='Speaker_Aldana', giver='Father Aldana', lines=[
+             ('', "His was lit from her every night for thirty years. To a spider it would shine like a lamp."),
+             ('', "Go down and bring it back, Ellis. I'd stake the chapel on it being whole."),
+         ], briefing="The gang smashed the keeper's lantern in every town they robbed, but Pa's fell in the dark, whole. "
+                     "Spiders hoard anything a saint has touched. Go down into the Sink and bring it back."),
+         # The twist: the altar candle won't light it. Delia's word starts Main 6 (her offer).
+         turn_in=dict(speaker='Speaker_Aldana', giver='Father Aldana', lines=[
+             ('', "You found it. Dark, but whole. Hold it to the altar candle, Ellis."),
+             ('', "...It won't take. A keeper's lantern is lit from the saint, and the saint is out."),
+             (ELLIS, 'Then how do I light it?'),
+             ('', "I don't know. Take it home to your grandmother, Ellis. She'll know what's owed a keeper."),
+         ]),
+         rewards=dict(experience=2500)),
     dict(asset='DA_Mission_Main6', id='Main6', title='The Gravewind',
-         summary="Grandma Delia, through the door: take him the lantern. At dusk Pa walks the burial boards on Gravewind "
-                 "Point, where the wind pours off the Rim. Hang the Keeper's Lantern on his post and show him the way, even "
-                 "if he can't go. Reward: experience, and what Abel leaves when he kneels.",
-         kind='MAIN', start='ON_EVENT', start_event='Delia.Main6', area='RansomsRest', prerequisites=['Main5'], sort_order=6,
+         summary="At dusk Pa walks the burial boards on Gravewind Point, where the wind pours off the Rim. Hang the Keeper's "
+                 "Lantern on his post and show him the way, even if he can't go.",
+         kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main5'], sort_order=6,
+         # Accepting it fades the Rest to dusk (AStoryLighting, during Main 6).
+         offer=dict(giver_tag='Speaker_Delia', giver='Grandma Delia', lines=[
+             (ELLIS, "Father Aldana couldn't light it."),
+             ('', "No. That was never a priest's to do."),
+             ('', "Take him the lantern. Show him the way, even if he can't go."),
+             ('', "He'll be on the boards at dusk. He won't know you, Ellis. Go anyway."),
+         ], briefing="At dusk Pa walks the burial boards on Gravewind Point, where the wind pours off the Rim. Hang the "
+                     "Keeper's Lantern on his post and show him the way, even if he can't go."),
+         # Pa's lantern bail, put out on Tilly's sill at Main 3's turn-in: this mission's item, so it lies there from then
+         # (story_texts.py ITEMS: shown after Main 3) and goes with the lantern onto the post as this one finishes.
+         items=[dict(item_id='LanternBail', name="Pa's lantern bail",
+                     line="The ring Pa's lantern hung by, snapped off in his fist. Tilly couldn't open his hand till "
+                          "morning.",
+                     mesh=PROPS + 'SM_LanternBail')],
          # It ends with sitting with Pa, its own hand-in: Pa on his board, the lantern lit and the train's steam all follow
-         # Main 6 finished, so it finishes as that scene ends (and Main 7 sends Ellis home to Delia).
-         steps=main6_steps, turn_in=dict(automatic=True), rewards=dict(experience=45)),
+         # Main 6 finished, so it finishes as that scene ends (and Pa offers Main 7 from his board).
+         steps=main6_steps, turn_in=dict(automatic=True), rewards=dict(experience=5000)),
     dict(asset='DA_Mission_Main7', id='Main7', title='The Lantern Leans',
-         summary="Pa lit the Keeper's Lantern, and its flame leans north-east, over the ridges, toward Lucky Ned Purcell. "
-                 "Go home to Delia first; then Tilly's hearse car waits at the depot. Reward: experience, Heirloom, and the "
-                 "line to the Gilded Lily.",
-         kind='MAIN', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main6'], sort_order=7, steps=main7_steps,
+         summary="Pa lit the Keeper's Lantern, and its flame leans north-east, over the ridges, toward Lucky Ned Purcell "
+                 "and the Gilded Lily. Go home to Delia first. Then Tilly's hearse car waits at the depot.",
+         kind='MAIN', start='OFFERED', area='RansomsRest', prerequisites=['Main6'], sort_order=7, steps=main7_steps,
+         offer=dict(giver_tag='Speaker_Abel', giver='Pa', lines=[
+             ('', "She leans north-east, El. Over the ridges. That's Ned Purcell."),
+             ('', "Your grandmother's kept something back for you. Go home and get it before you go."),
+             ('', "And she still sets a plate, I'd wager. Eat it, even if you can't taste it. She needs to see it gone."),
+         ], briefing="Pa lit the Keeper's Lantern, and its flame leans north-east, over the ridges, toward Lucky Ned "
+                     "Purcell and the Gilded Lily. Go home to Delia first: she has kept something back. Tilly's hearse "
+                     "car waits at the depot."),
          turn_in=dict(speaker='Speaker_Tilly', giver='Tilly'),
-         rewards=dict(experience=45, unlock_areas=['GildedLily'], named_gun='Heirloom', named_gun_by_hand=True)),
+         rewards=dict(experience=4600, unlock_areas=['GildedLily'], named_gun='Heirloom', named_gun_by_hand=True)),
 ]
 
 
@@ -678,8 +764,8 @@ def load_or_create(asset_name, cls):
 
 def check_features(spec, asset, steps, items):
     """The mission features' rules, before anything is saved: item ids unique and named, collect objectives naming this
-    mission's items, optional objectives never alone in a step, a choice only with a giver. Raises (nothing saved) when
-    one is broken; logs what the mission has."""
+    mission's items, optional objectives never alone in a step, a choice only with a giver, an offered mission's card with
+    words. Raises (nothing saved) when one is broken; logs what the mission has."""
     path = f"{FOLDER}/{spec['asset']}"
     ids = [str(each.get_editor_property('id')) for each in items]
     if any(not each or each == 'None' for each in ids) or len(set(ids)) != len(ids):
@@ -699,6 +785,8 @@ def check_features(spec, asset, steps, items):
     choices = spec['turn_in'].get('choices', ())
     if choices and (spec['turn_in'].get('automatic') or not spec['turn_in'].get('speaker')):
         raise RuntimeError(f'{path}: a choice at the turn-in needs someone to turn it in to: nothing was saved')
+    if spec['start'] == 'OFFERED' and not spec.get('offer', {}).get('briefing'):
+        raise RuntimeError(f'{path}: an offered mission needs its card\'s briefing: nothing was saved')
     if optional or items or choices:
         unreal.log(f"MISSIONS {spec['asset']}: {optional} optional objective{'' if optional == 1 else 's'}, "
                    f"{len(items)} item{'' if len(items) == 1 else 's'} ({', '.join(ids) or 'none'}), "
@@ -712,7 +800,7 @@ def setup(spec):
     asset.set_editor_property('summary', unreal.Text(spec['summary']))
     asset.set_editor_property('kind', getattr(unreal.MissionKind, spec['kind']))
     asset.set_editor_property('start', getattr(unreal.MissionStart, spec['start']))
-    # What starts an ON_EVENT mission (Main 6: Delia's word at her door); the others have none.
+    # What starts an ON_EVENT mission; the others have none (Main 6 is offered by Delia now, no longer started by her word).
     asset.set_editor_property('start_event', unreal.Name(spec.get('start_event', '')))
     # Who offers an OFFERED mission (spec 'offer': offer()'s fields); every other mission's offer is cleared.
     offered = spec.get('offer', {})
@@ -749,14 +837,16 @@ def setup(spec):
         for each in objectives:
             if each.get_outer() != asset:
                 raise RuntimeError(f"{FOLDER}/{spec['asset']}: step {index + 1}'s {each.get_name()} lives outside the asset: nothing was saved")
-            unreal.log(f"MISSIONS {spec['asset']} step {index + 1}: {each.get_class().get_name()} "
-                       f"\"{each.get_editor_property('text')}\"")
+            unreal.log(f"MISSIONS {spec['asset']} step {index + 1}: {each.get_class().get_name()}"
+                       f"{' (optional)' if each.get_editor_property('optional') else ''} \"{each.get_editor_property('text')}\"")
     if not unreal.EditorAssetLibrary.save_loaded_asset(asset, only_if_is_dirty=False):
         raise RuntimeError(f"{FOLDER}/{spec['asset']} could not be saved")
     finish = ('finishes by itself' if spec['turn_in'].get('automatic')
               else f"turned in to {spec['turn_in'].get('giver')} ({giver})")
+    start = (f"offered by {offered.get('giver')} ({offered.get('giver_tag')})" if spec['start'] == 'OFFERED'
+             else f"starts {spec['start'].lower()}")
     unreal.log(f"MISSIONS {spec['asset']} {'made' if created else 'updated'}: id {spec['id']}, \"{spec['title']}\", "
-               f"{spec['kind'].lower()}, starts {spec['start'].lower()}, area '{spec['area']}', {len(steps)} steps, "
+               f"{spec['kind'].lower()}, {start}, area '{spec['area']}', {len(steps)} steps, "
                f"{finish}, {spec['rewards'].get('experience', 0)} XP")
 
 

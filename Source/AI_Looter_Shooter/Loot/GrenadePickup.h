@@ -18,6 +18,9 @@ class UStaticMeshComponent;
  * is always collected: what doesn't fit is lost, and the sound and the feed's "+N Grave Salt" line come only with grenades
  * actually added (a full count clears the tin quietly, with no message). The orchestrator's loot hooks spawn it
  * (SpawnGrenades, then Toss) where a kill or a chest drops it (FThrowRules::DropChance, ChestChance). Despawns after a while.
+ * The session keeps one lying on the ground like ammo and silver (FSavedMapWorld::GrenadePickups): it comes back where it
+ * lay with the seconds it had left (GetLifeSpan; the same timer, so it vanishes when they run out), never a whole new life,
+ * and never to Lost Property, which keeps only guns.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AGrenadePickup : public AActor

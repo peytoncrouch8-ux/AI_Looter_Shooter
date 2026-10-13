@@ -153,7 +153,8 @@ def waterfall(area):
 
 def waterfalls(area):
     """Every creek's falls into its gorge, by the creek's id: the lip at the water surface, the way the water goes,
-    and dropTo, the stream on the gorge's floor below."""
+    and dropTo, the stream on the gorge's floor below. Then (grounded) every creek that runs off the escarpment's lip
+    ("waterfallAtEnd": a hanging valley's stream over the Rim): its lip, and its foot far below on the canyon's floor."""
     found = {}
     for g in getattr(area, 'gorges', []):
         lip, direction = g['lip'], g['direction']
@@ -163,7 +164,37 @@ def waterfalls(area):
             'dropTo': _cm(g['floor'][0] + 0.25), 'gorge': g['id'],
             'note': 'the lip: where the creek falls into its gorge, at the water surface; yaw is the flow direction',
         }
+    for c in area.creeks:
+        if c['feature'].get('waterfallAtEnd') and area.setting == 'grounded' and area.region.lip is not None:
+            found[c['id']] = _canyon_fall(area, c)
     return found
+
+
+def _canyon_fall(area, c):
+    """A creek's fall off the escarpment's lip into the canyon: where it leaves the core's edge (at the water surface),
+    the way it goes, and where it lands: the canyon wall leans out region.wall / region.drop of a meter per meter down,
+    so the water cascades down its face and meets the floor that far out from the lip, plus a little."""
+    region = area.region
+    k = c['k_lip']
+    seg = c['pts'][max(k - 1, 0):k + 1]
+    found = _intersect(seg, np.vstack([area.outline, area.outline[:1]]))
+    point = found[0] if found else c['pts'][k]
+    water = float(np.interp(_along(c, point), c['s'], c['water']))
+    direction = c['pts'][min(k + 2, len(c['pts']) - 1)] - c['pts'][max(k - 4, 0)]
+    direction = direction / max(float(np.linalg.norm(direction)), 1e-9)
+    batter = region.wall / region.drop
+    foot = point + direction * (batter * 100.0 + 2.5)
+    for _ in range(3):
+        floor = float(region.height(*foot))
+        foot = point + direction * (batter * (water - floor) + 2.5)
+    floor = float(region.height(*foot))
+    return {
+        'location': [_cm(point[0]), _cm(point[1]), _cm(water)], 'yaw': _yaw(*direction),
+        'width': _cm(2.0 * CREEK_WATER_HALF), 'bedZ': _cm(area.height(*point)),
+        'dropTo': _cm(floor + 0.25), 'foot': [_cm(foot[0]), _cm(foot[1]), _cm(floor + 0.25)], 'canyon': True,
+        'note': "the lip: where the creek runs over the escarpment's lip, at the water surface; yaw is the flow "
+                "direction; foot is where it lands on the canyon's floor (dropTo there), the canyon wall leaning out "
+                "under it so it cascades down the face"}
 
 
 def plateau_cliffs(area, p):
@@ -209,10 +240,11 @@ def _near_ramp(area, point, margin):
     return False
 
 
-def ramp_walls(area, r, step=5.0):
+def ramp_walls(area, r, step=5.0, walls_too=True):
     """Both walls of a ramp's cut through the cliff, where they're more than 1.5 m high: the wall's foot, its
     height and the direction it faces (toward the path). A ramp whose side drops as a cliff ("drop") gets that face
-    too, after the cut's walls: a standing face from the ground below up to the ramp's edge, facing away from it."""
+    too, after the cut's walls: a standing face from the ground below up to the ramp's edge, facing away from it.
+    walls_too=False gives the drops' faces alone (a flight of steps dresses its cut walls in stacked courses itself)."""
     walls, drops = [], []
     pts, s = r['pts'], r['s']
     half = r['width'] * 0.5
@@ -231,7 +263,7 @@ def ramp_walls(area, r, step=5.0):
                 point = _ramp_drop(area, line, ground, sign * side)
                 if point:
                     drops.append(point)
-            if rise.max() < 1.5:
+            if rise.max() < 1.5 or not walls_too:
                 continue
             foot = line[int(np.argmax(rise > 0.25))]
             walls.append({'location': [_cm(foot[0]), _cm(foot[1]), _cm(zr)], 'height': _cm(rise.max()),
@@ -308,6 +340,12 @@ def cliff_groups(area):
         add(g['cliff_group'], area_cliffs.gully_walls(area, g))
     for g in getattr(area, 'gorges', []):
         add(g['cliff_group'], area_cliffs.gorge_walls(area, g))
+    for st in getattr(area, 'steps', []):
+        # A flight of steps: its risers, its cut walls in stacked courses (a channel's walls over its ledges), and
+        # the faces where it drops as a ramp's ledge does.
+        add(st['cliff_group'], area_cliffs.steps_risers(area, st)
+            + area_cliffs.channel_walls(area, st['pts'], st['s'], st['z'], st['width'] * 0.5, True, reach=10.0)
+            + ramp_walls(area, dict(st, drop=[-1, 1]), walls_too=False))
     if area.setting == 'grounded':
         for r in area.region.ridges:
             # Where boundary.foot's rock stands, its own dressing covers the band from the wall's foot.
@@ -389,6 +427,17 @@ def compute(area):
         'footprints': [{'id': f['id'], 'center': [_cm(f['center'][0]), _cm(f['center'][1]), _cm(f['z'])],
                         'flatRadius': _cm(f['radius']), 'blend': _cm(f['blend'])} for f in area.footprints],
     }
+    windows = area.macro_windows()
+    if len(windows) > 1:
+        # A split macro map (map.macroSplit): each window its own texture set, worn by the tiles over it.
+        macro = data['macroMap']
+        macro['texture'] = area.macro_texture_of(windows[0][0])
+        macro['windows'] = [{'texture': area.macro_texture_of(suffix), 'material': f'{area.name}Macro{suffix}',
+                             'covers': [[round(v, 1) for v in corner] for corner in grid.covers()],
+                             'size': grid.n} for suffix, grid in windows]
+        macro['uv0'] = ('per window: U = (Y - its Y0) / its side, V = (X - its X0) / its side (V up from the bottom of '
+                        'the image, as in Blender; north is up in the image); each tile wears the window under it '
+                        '(texture is the first window\'s, for the readers of one map)')
     for p in area.layout['placements']:
         # [X, Y] stands on the terrain; [X, Y, Z] keeps its own height (a model seated on something the heights
         # don't show: Den Rock's pivot on the Sink's rim, over the pocket its den goes into).
@@ -509,14 +558,54 @@ def _grounded(area, data):
         flags = area.open_edges
         corners = [[_cm(x), _cm(y), _cm(_ground_near(area, x, y, flags[i] or flags[i - 1]))]
                    for i, (x, y) in enumerate(area.boundary)]
+        open_edges = [bool(f) for f in area.open_edges]
+        interiors = area.layout.get('boundary', {}).get('interiors', [])
+        if interiors:
+            corners, open_edges = _with_interiors(corners, open_edges, interiors)
         data['boundary'] = {
-            'corners': corners, 'openEdges': [bool(f) for f in area.open_edges],
+            'corners': corners, 'openEdges': open_edges,
             'note': "APlayableArea's corners (world cm; Z is the ground at the corner, or the nearest ground on the "
                     "core within 2 m for a corner on an open edge, which stands out over a drop) and open_edges (edge i runs from corner i to corner "
                     "i + 1, the last back to corner 0; true where a drop is part of play)"}
+        if interiors:
+            data['boundary']['interiors'] = [
+                {'id': i['id'], 'after': i['after'], 'corners': len(i['polygon'])} for i in interiors]
+            data['boundary']['note'] += (
+                "; interiors lists the tongues spliced in for interiors under the ground (layout.json "
+                "boundary.interiors: a mine's galleries), each after its surface corner, its corners at its floor, its "
+                "edges closed: no wall closes its mouth, and the terrain's rules never see it")
         rise = area_boundary.summary(area)
         if rise is not None:
             data['boundary']['rise'] = rise
+
+
+def _with_interiors(corners, open_edges, interiors):
+    """The playable polygon for the game with each interior's tongue (layout.json boundary.interiors: {id, after, polygon
+    [[X, Y] or [X, Y, Z], ...] cm, floor cm}) spliced in after its surface corner "after": the surface edge from that
+    corner to the next (across the interior's mouth) gives way to the tongue's corners, all closed edges (the game's walls
+    stand behind them, inside the rock), so fall recovery keeps safe spots inside and no wall closes the mouth. Its
+    corners stand at their own Z, else its floor."""
+    count = len(corners)
+    inserts = {}
+    for spot in interiors:
+        k = int(spot['after'])
+        if not 0 <= k < count or k in inserts:
+            raise ValueError(f"boundary.interiors {spot['id']}: after must name a surface corner, once")
+        floor = float(spot.get('floor', 0.0))
+        inserts[k] = [[round(float(p[0]), 1), round(float(p[1]), 1), round(float(p[2] if len(p) > 2 else floor), 1)]
+                      for p in spot['polygon']]
+    out_corners, out_open = [], []
+    for k in range(count):
+        out_corners.append(corners[k])
+        if k in inserts:
+            # The mouth's edge (k to k + 1) gives way to the tongue's: k to its first corner, round it, its last to k + 1.
+            out_open.append(False)
+            for p in inserts[k]:
+                out_corners.append(p)
+                out_open.append(False)
+        else:
+            out_open.append(open_edges[k])
+    return out_corners, out_open
 
 
 def _ground_near(area, x, y, open_edge):

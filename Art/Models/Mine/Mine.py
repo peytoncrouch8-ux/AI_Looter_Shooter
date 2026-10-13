@@ -16,7 +16,8 @@ The rooms (the design's order: adit -> gallery (+ office) -> decline -> drift ->
                     timber pillars; the chalk on its west wall; the decline's head (and its winch) in the west wall,
                     the office door in the east wall, the manway's level passage in the north wall. Fight: MineUpper.
   RR_Mine_Office    the Foreman's office off the gallery's east side: a 5 x 6 m pocket (x 9..14, y 39..45) lined with
-                    boards, 2.5 m to its board ceiling: desk (the payroll book), chair, cot, notices, a shelf of
+                    boards, 2.5 m to its board ceiling: desk (SOCKET_PayrollBook on its top: the payroll book is a prop
+                    of its own, SM_PayrollBook in Art/Models/Props/MissionProps.py), chair, cot, notices, a shelf of
                     ledgers, the mine's plan on the wall, a lamp; the company safe's place in its north-east corner.
   RR_Mine_Decline   from the gallery's west wall 11 m west and down 4 m (20 deg), a landing (the dog-leg) with a sump
                     where the runaway car lies, 11.5 m north and down 4 m more to the drift; 8 pitched timber sets.
@@ -689,7 +690,14 @@ def office_dressing():
         town.box(m, (dx1 - dx0 - 0.06, 0.4, dz - 0.04 - FL), at=((dx0 + dx1) * 0.5, y, FL + (dz - 0.04 - FL) * 0.5),
                  look='C')
     town.box(m, (0.02, dy1 - dy0 - 0.9, 0.5), at=(dx0 + 0.04, (dy0 + dy1) * 0.5, dz - 0.3), look='C')
-    mtn.book(m, (13.3, 40.75, dz), size=(0.26, 0.34, 0.04), turn=8.0, cover='black', open_=False)
+    # The payroll book is its own prop now (SM_PayrollBook) on SOCKET_PayrollBook. Its old book is left unbuilt: built into
+    # a stand-in that draws on the same random stream and material slots, then thrown away, so the rest comes out the same.
+    sink = mtn.Model('_Unbuilt', seed=0)
+    sink.rng, sink.slots = m.rng, m.slots
+    mtn.book(sink, (13.3, 40.75, dz), size=(0.26, 0.34, 0.04), turn=8.0, cover='black', open_=False)
+    sink.bm.free()
+    bpy.data.objects.remove(sink._obj)
+    bpy.data.meshes.remove(sink._mesh)
     town.cylinder(m, (13.55, 41.55, dz), (13.55, 41.55, dz + 0.06), 0.03, sides=6, look='black', face=(0.0, -1.0, 0.0))
     for k in range(3):
         mtn.paper(m, (13.0 + rng.uniform(-0.05, 0.1), 41.2 + 0.18 * k, dz + 0.003 + 0.002 * k), (1.0, 0.0, 0.0),
@@ -878,7 +886,7 @@ def sockets(rocks, fall_obj):
                        ('LunchPail_2', (6.95, 48.45, 0.455), yaw_facing((-1.0, 0.0))),
                        ('Winch', WINCH, yaw_facing((-1.0, 0.0)))]
     out['Office'] += [('Light_1', (11.5, 44.57, 1.95), 0.0),
-                      ('PayrollBook', (13.3, 40.75, 0.82), yaw_facing((-1.0, 0.0))),
+                      ('PayrollBook', (13.3, 40.75, 0.78), yaw_facing((-1.0, 0.0)) + 8.0),   # on the desk's top
                       ('CompanySafe', (13.15, 44.2, 0.06), yaw_facing((-1.0, -0.4))),
                       ('Notices', (11.85, 44.7, 1.6), 0.0)]
     dec_a = [s for s in all_sets if s[2] == 90.0]

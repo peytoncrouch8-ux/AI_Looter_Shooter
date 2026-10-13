@@ -286,7 +286,13 @@ def _onto(field, half, grid):
 def core(area, grid, fine, grain, log=print):
     """The core map's ground (rgb, alpha) on its grid; fine and grain are that map's own noise (about 1 m and 35 cm)."""
     settings = spec(area)
-    f = core_fields(area, log)
+    cache = getattr(area, '_macro_cache', None)  # a split macro map's windows share them (area_macro.paint_windows)
+    if cache is not None:
+        if 'mosaic' not in cache:
+            cache['mosaic'] = core_fields(area, log)
+        f = cache['mosaic']
+    else:
+        f = core_fields(area, log)
     m, b, under, half = f['m'], f['broad'], f['under'], f['half']
     del f
     # Onto the map's grid.
@@ -310,6 +316,17 @@ def core_fields(area, log=print):
     half = area.half + PAD
     n = int(round(2.0 * half / WORK_PX / 8.0)) * 8
     work = Grid(n, half)
+    grown = getattr(area, 'grown_from', None)
+    if grown is not None:
+        # A grown map square (map.grownFrom): the old square's working grid carried on outward, cell for cell, with
+        # its noise lattice, so the broad fields over the old ground come out as they did.
+        ref_half = grown['half'] + PAD
+        ref_n = int(round(2.0 * ref_half / WORK_PX / 8.0)) * 8
+        px = 2.0 * ref_half / ref_n
+        extra = int(math.ceil((half - ref_half) / px - 1e-9))
+        half, n = ref_half + extra * px, ref_n + 2 * extra
+        work = Grid(n, half)
+        work.lattice = (ref_half, ref_n)
     x, y = work.mesh()
     # The heights past the square are the ring's (the regional field), so the broad terms see over the core's edge.
     hw = np.asarray(sample(area.ring_h, x, y, area.region.half) if getattr(area, 'ring_h', None) is not None
@@ -335,6 +352,8 @@ def core_fields(area, log=print):
                   + _zones(area, work, settings))
     del water, gully
     b = _broad(m, t, nz)
+    if settings.get('blooms'):
+        _blooms(area, work, b, settings['blooms'])
     # The shares over the open ground a player sees as meadow: inside the boundary, gentle.
     meadow = inside & (t['slope'] < 20.0)
     if area.boundary is not None:
@@ -347,6 +366,23 @@ def core_fields(area, log=print):
     # it rather than on it.
     b['value'] = b['value'] * (1.0 - 0.22 * _feet(area, work))
     return dict(m=m, broad=b, under=under, work=work, half=half)
+
+
+def _blooms(area, grid, b, blooms):
+    """Wildflower drifts of one color by zone kind (the layout's macro "blooms": {kind: {"hue": where on the FLOWERS
+    ramp (larkspur blue about 0.04), "pull": how far toward it, 0 to 1, "more": the drifts' density times this}}: an
+    alpine meadow's larkspur), softened across the zones' edges as their moisture is."""
+    fray = None
+    for zone in area.layout.get('zones', []):
+        spec = blooms.get(zone.get('kind', zone['id']))
+        if not spec:
+            continue
+        if fray is None:
+            fray = 6.0 * fbm_raster(grid, 20.0, seed=861, octaves=2)
+        sd = signed_distance(grid, catmull_rom(to_m(zone['polygon']), closed=True, step=0.5), 24.0)
+        w = 1.0 - _ss(-10.0, 12.0, sd + fray)
+        b['kind'] = (b['kind'] + (spec.get('hue', 0.04) - b['kind']) * spec.get('pull', 0.7) * w).astype(np.float32)
+        b['flowers'] = (b['flowers'] * (1.0 + (spec.get('more', 1.0) - 1.0) * w)).astype(np.float32)
 
 
 def _shares(m):
@@ -367,7 +403,7 @@ def _hayfields(area, grid, rgb, alpha, settings, fine):
         poly = to_m(polygons[field['id']])
         lo, hi = poly.min(axis=0) - 2.0, poly.max(axis=0) + 2.0
         i0, i1 = grid.index_range(lo[0], hi[0])
-        j0, j1 = grid.index_range(lo[1], hi[1])
+        j0, j1 = grid.index_range_y(lo[1], hi[1])
         x, y = grid.mesh(i0, i1, j0, j1)
         sd = _window_sd(poly, x, y)
         jag = fine[i0:i1, j0:j1]

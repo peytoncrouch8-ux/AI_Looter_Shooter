@@ -42,8 +42,8 @@ FBestiaryStats UBestiaryEntry::ReadStats() const
 		const float Growth = SetLevel > 0 ? Rules.EnemyScale(Stats.Level) : 1.f;
 		Stats.Health *= Rank.HealthMultiplier * Growth;
 		Stats.AttackDamage = Creature->AttackDamage * Rank.DamageMultiplier * Growth;
-		// What a kill really gives a player of its level: the kill rules scale the creature's XPReward (0.37 of it since
-		// creatures stopped following the player's level, 2026-10-12), so the page never promises more than the kill pays.
+		// What a kill really gives a player of its level: the kill rules grow the creature's XPReward with its level (Abel's
+		// 200 is 2,066 at his 7), so the page shows what the kill pays.
 		const int32 BaseXP = FMath::Max(0, FMath::RoundToInt32(Creature->XPReward * Rank.XPMultiplier));
 		Stats.XPReward = static_cast<int32>(Rules.KillXP(BaseXP, Stats.Level, Stats.Level));
 		Stats.bAttacks = Creature->AttackDamage > 0.f;

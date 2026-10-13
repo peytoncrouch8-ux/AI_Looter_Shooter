@@ -54,6 +54,7 @@ RAMP_WARN_GRADE = 0.30
 RAMP_WINDOW = 300.0      # cm: grades are measured over at least this run
 SCARP_RANGE = (200.0, 600.0)
 FALLS_JOIN = 200.0       # cm: a gorge starts this close to its creek's end
+STEP_MIN_DROP = 300.0    # cm: a flight of steps' step must be taller than a jump and a mantle reach (about 2.7 m)
 
 
 class Findings:
@@ -82,8 +83,14 @@ def check_layout(area, out):
     groups = []
     for f in layout['features']:
         kind, fid = f['type'], f['id']
-        if kind in ('plateau', 'mesa', 'pit', 'ridge', 'scarp', 'knob', 'gully'):
+        if kind in ('plateau', 'mesa', 'pit', 'ridge', 'scarp', 'knob', 'gully', 'steps'):
             groups.append(f.get('cliffGroup', fid))
+        if kind == 'steps':
+            if f.get('count', 0) < 1 or f.get('top', 0) <= f.get('bottom', 0):
+                out.error(f'steps {fid}: needs a count of ledges and a top over its bottom')
+            elif (f['top'] - f['bottom']) / f['count'] < STEP_MIN_DROP:
+                out.warn(f'steps {fid}: {(f["top"] - f["bottom"]) / f["count"] / 100.0:.2f} m a step can be climbed '
+                         f'back up (a jump and a mantle reach about {STEP_MIN_DROP / 100.0:g} m)')
         ramp = f.get('ramp')
         if ramp:
             groups.append(ramp.get('cliffGroup', ramp.get('id', fid + '_ramp')))
@@ -168,6 +175,27 @@ def check_grounded(area, out):
         blocked = kinds.count('blocked')
         out.ok(f'the boundary: {len(corners)} corners, a simple polygon, {sum(flags)} open edges'
                + (f', {blocked} blocked' if blocked else ''))
+    interiors = area.layout.get('boundary', {}).get('interiors', [])
+    if interiors:
+        # The tongues the game's polygon takes in for interiors under the ground (area_computed._with_interiors).
+        import area_computed
+        try:
+            flat = [[x * 100.0, y * 100.0, 0.0] for x, y in corners]
+            spliced, _ = area_computed._with_interiors(flat, list(flags), interiors)
+        except (ValueError, KeyError, IndexError) as error:
+            out.error(f'boundary.interiors: {error}')
+        else:
+            whole = np.asarray([c[:2] for c in spliced], dtype=np.float64) / 100.0
+            bad = area_region.edges_cross(whole)
+            for i, j in bad:
+                out.error(f'the boundary with its interiors: edges {i} and {j} cross')
+            if not bad:
+                out.ok(f'the boundary with its {len(interiors)} interior tongue(s): {len(whole)} corners, a simple '
+                       'polygon for the game')
+    holes = area.layout.get('mesh', {}).get('holes', [])
+    for hole in holes:
+        if len(hole.get('polygon', [])) < 3:
+            out.error(f'mesh.holes {hole.get("id")}: needs a polygon of at least three points')
     spec = area_boundary.foot_spec(area)
     if spec is not None:
         least = float(area_boundary.profile(spec, np.array([area_boundary.RISE_RUN]))[0])

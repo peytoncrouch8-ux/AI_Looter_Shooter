@@ -41,7 +41,11 @@ namespace HallowedGroundTestWorld
 	inline const FName AldanaTag(TEXT("Speaker_Aldana"));
 	inline const FName Valley(TEXT("TestValley"));
 
-	/** Main 4's steps: the way up, the yard, the bell, the Reliquary; then it's turned in to Aldana (his talk was the fifth). */
+	/**
+	 * The steps the flows play: the way up, the yard, the bell, the Reliquary; then it's turned in to Aldana. The asset has a
+	 * fifth since 2026-10-13, the knock at the vestry door between the yard and the bell (Looter.Story.HallowedGround.Mission
+	 * checks it); the bell's, the Reliquary's and the yard's own rules are the same either way.
+	 */
 	inline constexpr int32 MainFourSteps = 4;
 
 	/**

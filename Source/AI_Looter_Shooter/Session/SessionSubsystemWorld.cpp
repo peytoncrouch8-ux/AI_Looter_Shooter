@@ -10,6 +10,7 @@
 #include "Inventory/WeaponManagerComponent.h"
 #include "Loot/AmmoPickup.h"
 #include "Loot/Chest.h"
+#include "Loot/GrenadePickup.h"
 #include "Loot/LostLootRules.h"
 #include "Loot/LostLootStore.h"
 #include "Loot/LostLootSubsystem.h"
@@ -17,6 +18,7 @@
 #include "Player/PlayerThrowComponent.h"
 #include "Session/SessionSave.h"
 #include "Tutorial/TutorialDirector.h"
+#include "UI/Inventory/MapDiscoverySubsystem.h"
 #include "Weapons/WeaponBase.h"
 #include "World/BreakableProp.h"
 #include "World/GraveTravelSubsystem.h"
@@ -146,6 +148,12 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 			Here.OpenedChests.Add(It->GetSaveKey());
 		}
 	}
+	// The chests found but not opened, so their map pins survive a Save & Quit. The map's discovery keeps the finds; a world
+	// without it (a kind of level that has no map page) leaves what the save had.
+	if (const UMapDiscoverySubsystem* Discovery = World->GetSubsystem<UMapDiscoverySubsystem>())
+	{
+		Here.FoundChests = Discovery->GetUnopenedFound();
+	}
 	// Broken crates and barrels by their ids (what they dropped is kept below, as any loot lying around).
 	Here.BrokenProps.Reset();
 	for (TActorIterator<ABreakableProp> It(World); It; ++It)
@@ -191,6 +199,18 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 			Silver.Amount = It->GetAmount();
 			Silver.Location = It->GetActorLocation();
 			Silver.LifeLeft = It->GetLifeSpan();
+		}
+	}
+	// Grave-salt grenade tins the same way, with the seconds they had left. Not Lost Property's: only guns go there.
+	Here.GrenadePickups.Reset();
+	for (TActorIterator<AGrenadePickup> It(World); It; ++It)
+	{
+		if (It->GetAmount() > 0 && !It->IsActorBeingDestroyed())
+		{
+			FSavedGrenadePickup& Tin = Here.GrenadePickups.AddDefaulted_GetRef();
+			Tin.Amount = It->GetAmount();
+			Tin.Location = It->GetActorLocation();
+			Tin.LifeLeft = It->GetLifeSpan();
 		}
 	}
 
@@ -256,6 +276,12 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 				It->RestoreOpened();
 			}
 		}
+		// The chests found but not opened are found again, so their pins are on the map page (an opened one pins as looted by
+		// itself). Added to what this visit has found already, never replacing it.
+		if (UMapDiscoverySubsystem* Discovery = World->GetSubsystem<UMapDiscoverySubsystem>())
+		{
+			Discovery->RestoreFound(Here->FoundChests);
+		}
 
 		// The crates and barrels broken before stand as stumps: what they dropped comes back below with the rest of the loot.
 		for (TActorIterator<ABreakableProp> It(World); It; ++It)
@@ -283,6 +309,10 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 			}
 		}
 		for (TActorIterator<ASilverPickup> It(World); It; ++It)
+		{
+			Stale.Add(*It);
+		}
+		for (TActorIterator<AGrenadePickup> It(World); It; ++It)
 		{
 			Stale.Add(*It);
 		}
@@ -322,7 +352,8 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 				}
 			}
 		}
-		// Ammo and silver go on with the life they had left (a fresh one on every load kept them lying there for good).
+		// Ammo, silver and grenade tins go on with the life they had left (a fresh one on every load kept them lying there for
+		// good): a tin whose seconds run out is gone, as on the ground.
 		for (const FSavedAmmoPickup& Ammo : Here->AmmoPickups)
 		{
 			if (AAmmoPickup* Pickup = AAmmoPickup::SpawnAmmo(World, Ammo.Type, Ammo.Amount, Ammo.Location))
@@ -337,6 +368,16 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 			{
 				Pickup->Toss(FVector::ZeroVector);
 				ContinueLife(*Pickup, Silver.LifeLeft);
+			}
+		}
+		for (const FSavedGrenadePickup& Tin : Here->GrenadePickups)
+		{
+			if (AGrenadePickup* Pickup = AGrenadePickup::SpawnGrenades(World, Tin.Amount, Tin.Location))
+			{
+				Pickup->Toss(FVector::ZeroVector);
+				// Its own whole life is the cap, and the life when none was kept: set outright, so a tin put back before
+				// its BeginPlay has run (a world not yet playing) still ends.
+				Pickup->SetLifeSpan(Tin.LifeLeft > 0.f ? FMath::Min(Tin.LifeLeft, Pickup->LifeSeconds) : Pickup->LifeSeconds);
 			}
 		}
 	}
@@ -408,7 +449,7 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 			It->ResumeAtStep(Here->TutorialStep);
 		}
 	}
-	UE_LOG(LogLooter, Log, TEXT("Session restored in %s: %d guns carried, %d ground guns handed in to Lost Property (%d on its shelves), %d ammo pickups on the ground"),
+	UE_LOG(LogLooter, Log, TEXT("Session restored in %s: %d guns carried, %d ground guns handed in to Lost Property (%d on its shelves), %d ammo pickups and %d grenade tins on the ground, %d chests found"),
 		*FPackageName::GetShortName(MapPackage), Save.CountGuns(), HandedIn, LostLoot ? LostLoot->GetStore().Num() : Save.LostLoot.Num(),
-		Here ? Here->AmmoPickups.Num() : 0);
+		Here ? Here->AmmoPickups.Num() : 0, Here ? Here->GrenadePickups.Num() : 0, Here ? Here->FoundChests.Num() : 0);
 }

@@ -114,6 +114,9 @@ protected:
 	void WearModel(USkeletalMesh* Model, UMaterialInterface* Tint);
 	/** A thing on one of his bones as the model has it at rest (at the bone, its rest turn taken back off). */
 	void WearOnBone(UStaticMeshComponent* Part, UStaticMesh* Mesh, FName Bone);
+	/** The body WearModel gave him, for WearOnBone in the same constructor: asking the component for it before it's
+	 * registered trips the editor's "SkinnedAsset overwritten" check. */
+	USkeletalMesh* WornModel = nullptr;
 
 	static USkeletalMesh* FindModel(const TCHAR* Path);
 	static UStaticMesh* FindPart(const TCHAR* Path);

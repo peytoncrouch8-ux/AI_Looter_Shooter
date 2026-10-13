@@ -113,29 +113,37 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHallowedGroundMissionTest, "Looter.Story.Hallo
 
 bool FHallowedGroundMissionTest::RunTest(const FString& Parameters)
 {
-	// Main 4 as its asset has it: id exactly Main4 (Side 2 opens after it, Aldana's Ledger page is known after it), after
-	// Main 3 on Ransom's Rest; up to the chapel, the yard cleared (13), the bell rung (held), the Reliquary seen (its flash's
-	// event, the arrow on it); turned in to Aldana at the vestry door; 40 experience.
+	// Main 4 as its asset has it: id exactly Main4 (Side 2 opens after it, Aldana's Ledger page is known after it), offered
+	// by Tilly after Main 3 on Ransom's Rest; up to the chapel, the yard cleared (13), the knock at the vestry door (Aldana
+	// sends Ellis to the bell), the bell rung (held), the Reliquary seen (its flash's event, the arrow on it; the keepers'
+	// roll beside it, optional); turned in to Aldana at the vestry door with the doc's words; 1,400 experience. (The flows
+	// below play the four steps it had before the knock: AddStep's.)
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main4")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main4.DA_Mission_Main4"));
 		if (TestNotNull(TEXT("DA_Mission_Main4 loads"), Asset))
 		{
-			TestTrue(TEXT("Main4, a main mission starting by itself on Ransom's Rest, after Main3"), Asset->GetMissionId() == MainFour
-				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Automatic && Asset->Area == FName(TEXT("RansomsRest"))
+			TestTrue(TEXT("Main4, a main mission Tilly offers on Ransom's Rest, after Main3"), Asset->GetMissionId() == MainFour
+				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Offered
+				&& Asset->Offer.GiverTag == FName(TEXT("Speaker_Tilly")) && Asset->Area == FName(TEXT("RansomsRest"))
 				&& Asset->Prerequisites == TArray<FName>({ MainThree }));
-			TestEqual(TEXT("Four steps"), Asset->Steps.Num(), MainFourSteps);
+			TestEqual(TEXT("Five steps"), Asset->Steps.Num(), 5);
 			const UMissionReachObjective* Up = Cast<UMissionReachObjective>(Asset->GetObjective(0, 0));
 			const UMissionClearObjective* Yard = Cast<UMissionClearObjective>(Asset->GetObjective(1, 0));
-			const UMissionInteractObjective* Bell = Cast<UMissionInteractObjective>(Asset->GetObjective(2, 0));
-			const UMissionEventObjective* Sight = Cast<UMissionEventObjective>(Asset->GetObjective(3, 0));
+			const UMissionTalkObjective* Knock = Cast<UMissionTalkObjective>(Asset->GetObjective(2, 0));
+			const UMissionInteractObjective* Bell = Cast<UMissionInteractObjective>(Asset->GetObjective(3, 0));
+			const UMissionEventObjective* Sight = Cast<UMissionEventObjective>(Asset->GetObjective(4, 0));
+			const UMissionObjective* Roll = Asset->GetObjective(4, 1);
 			TestTrue(TEXT("1: up to the Chapel of Saint Ada"), Up && Up->Place.Actor.ActorTag == ChapelPlace && Up->Place.Radius >= 1000.f);
 			TestTrue(TEXT("2: the chapel yard cleared, all thirteen"), Yard && Yard->SpawnerId == YardId && Yard->Count == 13);
-			TestTrue(TEXT("3: the chapel bell rung, held"), Bell && Bell->Target.ActorTag == AChapelBell::BellTag && Bell->bHold);
-			TestTrue(TEXT("4: the Reliquary seen: done at its flash's end, the arrow on it"), Sight && Sight->Event == AChapelReliquary::SightEvent
+			TestTrue(TEXT("3: the knock at the vestry door"), Knock && Knock->SpeakerTag == AldanaTag);
+			TestTrue(TEXT("4: the chapel bell rung, held"), Bell && Bell->Target.ActorTag == AChapelBell::BellTag && Bell->bHold);
+			TestTrue(TEXT("5: the Reliquary seen: done at its flash's end, the arrow on it"), Sight && Sight->Event == AChapelReliquary::SightEvent
 				&& Sight->Waypoint == EMissionWaypoint::Actor && Sight->WaypointActor.ActorTag == AChapelReliquary::ReliquaryTag);
-			TestTrue(TEXT("Turned in to Father Aldana at the vestry door"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == AldanaTag);
-			TestEqual(TEXT("Its reward: 40 experience"), Asset->Rewards.Experience, 40);
+			TestTrue(TEXT("...and, optional, the keepers' roll"), Roll && Roll->bOptional);
+			TestTrue(TEXT("Turned in to Father Aldana at the vestry door, with the doc's words"), Asset->NeedsTurnIn()
+				&& Asset->TurnIn.SpeakerTag == AldanaTag && HoldsAldanasWords(Asset->TurnIn.Lines, /*bNamed*/ false));
+			TestEqual(TEXT("Its reward: 1,400 experience"), Asset->Rewards.Experience, 1400);
 		}
 	}
 	else
@@ -418,7 +426,8 @@ bool FHallowedGroundPlacedTest::RunTest(const FString& Parameters)
 	if (TestNotNull(TEXT("The Reliquary"), Reliquary))
 	{
 		TestTrue(TEXT("...tagged for the arrow"), Reliquary->ActorHasTag(AChapelReliquary::ReliquaryTag));
-		TestTrue(TEXT("...looked at from Main 4's fourth step"), Reliquary->LookWhen.DuringMission == MainFour && Reliquary->LookWhen.FromStep == 3);
+		TestTrue(TEXT("...looked at from Main 4's fifth step (after the knock and the bell)"), Reliquary->LookWhen.DuringMission == MainFour
+			&& Reliquary->LookWhen.FromStep == 4);
 		if (!Reliquary->HasModel())
 		{
 			AddInfo(TEXT("The smashed Reliquary's model isn't placed: its stand-in shows until Reliquary.py is imported and the build runs again."));
@@ -427,9 +436,15 @@ bool FHallowedGroundPlacedTest::RunTest(const FString& Parameters)
 	if (TestNotNull(TEXT("Father Aldana's vestry door"), Aldana))
 	{
 		TestEqual(TEXT("...his name"), Aldana->SpeakerPoint->SpeakerName.ToString(), FString(TEXT("Father Aldana")));
-		TestTrue(TEXT("...his words at Main 4's last step"), Aldana->SpeakerPoint->Topics.ContainsByPredicate([](const FSpeakerTopic& Topic)
+		// The knock is Main 4's third step (his words to it from step 2), the bell and the Reliquary after (from 3); his Main 4
+		// words are the mission's turn-in lines (create_mission_assets.py).
+		TestTrue(TEXT("...his words at the knock"), Aldana->SpeakerPoint->Topics.ContainsByPredicate([](const FSpeakerTopic& Topic)
 		{
-			return Topic.When.DuringMission == MainFour && Topic.When.FromStep == 4 && Topic.LineSet != nullptr;
+			return Topic.When.DuringMission == MainFour && Topic.When.FromStep == 2 && Topic.LineSet != nullptr;
+		}));
+		TestTrue(TEXT("...and while the bell and the Reliquary wait"), Aldana->SpeakerPoint->Topics.ContainsByPredicate([](const FSpeakerTopic& Topic)
+		{
+			return Topic.When.DuringMission == MainFour && Topic.When.FromStep == 3 && Topic.LineSet != nullptr;
 		}));
 	}
 	if (TestNotNull(TEXT("The chapel yard's respawn grave"), Grave))

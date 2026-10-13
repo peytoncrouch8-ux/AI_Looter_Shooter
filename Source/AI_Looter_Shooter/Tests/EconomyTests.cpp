@@ -5,6 +5,7 @@
 #include "Creatures/CreatureRank.h"
 #include "Economy/EconomyRules.h"
 #include "Loot/Chest.h"
+#include "Missions/MissionDefinition.h"
 #include "Missions/MissionRewards.h"
 #include "Weapons/NamedWeaponDefinition.h"
 #include "Weapons/WeaponDefinition.h"
@@ -256,6 +257,36 @@ bool FEconomyMissionPursesTest::RunTest(const FString& Parameters)
 	}
 	TestEqual(TEXT("Cold Welcome pays 40"), MissionRewards::SilverFor(TEXT("Main3")), 40);
 	TestEqual(TEXT("Without a world, nothing is paid"), MissionRewards::GiveSilver(nullptr, TEXT("Main3")), 0);
+
+	// The missions of 2026-10-13 carry purses of their own (FMissionRewards::Silver, the mission scripts'): Calder's 30,
+	// Fenn's 30, Thaddeus's 40, the sheriff's bounty at Pruitt's 80, Hiram's 40, the post's 60; Back Pay's is its choice's
+	// (the kept payroll, 400). Checked where their assets are made.
+	struct FOwnPurse
+	{
+		const TCHAR* Mission;
+		int32 Silver;
+	};
+	const FOwnPurse OwnPurses[] = { { TEXT("CaldersCaches"), 30 }, { TEXT("OldFare"), 30 }, { TEXT("KnockingBelow"), 40 },
+		{ TEXT("Side3"), 80 }, { TEXT("DeadLift"), 40 }, { TEXT("LastWatch"), 60 } };
+	const TArray<UMissionDefinition*> Missions = UMissionDefinition::LoadAll();
+	for (const FOwnPurse& Purse : OwnPurses)
+	{
+		const FName Id(Purse.Mission);
+		UMissionDefinition* const* Found = Missions.FindByPredicate([Id](const UMissionDefinition* Mission) { return Mission && Mission->GetMissionId() == Id; });
+		if (Found)
+		{
+			TestEqual(FString::Printf(TEXT("%s pays its own purse"), Purse.Mission), MissionRewards::PurseOf((*Found)->Rewards, Id), Purse.Silver);
+		}
+	}
+	UMissionDefinition* const* BackPay = Missions.FindByPredicate([](const UMissionDefinition* Mission)
+	{
+		return Mission && Mission->GetMissionId() == FName(TEXT("BackPay"));
+	});
+	if (BackPay)
+	{
+		TestEqual(TEXT("Back Pay's kept payroll: 400 silver"), MissionRewards::PurseOf((*BackPay)->RewardsFor(1), TEXT("BackPay")), 400);
+		TestEqual(TEXT("...the eleven paid: none (a Rare gun instead)"), MissionRewards::PurseOf((*BackPay)->RewardsFor(0), TEXT("BackPay")), 0);
+	}
 	FMissionRewardsGiven Given;
 	TestTrue(TEXT("Nothing given is empty"), Given.IsEmpty());
 	Given.Silver = 40;
@@ -269,16 +300,18 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEconomyBalanceTest, "Looter.Economy.Balance",
 bool FEconomyBalanceTest::RunTest(const FString& Parameters)
 {
 	// A normal playthrough of Ransom's Rest as Docs/Progression.md counts it, at the levels it's played at (1 to 7, about 4
-	// on average): every main fight, both sides, the roaming walkers, about twelve containers opened, fifteen crates broken,
-	// twenty guns sold. It should buy a few guns of the day and steady ammo, and never so much that loot stops mattering.
+	// on average): every main fight, the valley's side missions (the posters, Calder's caches, the old fare, Amos's hay,
+	// Tilly's cellar), the roaming walkers, about twelve containers opened, fifteen crates broken, twenty guns sold. It
+	// should buy a few guns of the day and steady ammo, and never so much that loot stops mattering. (The mountain, the
+	// Gravemother's bounty and a kept payroll come on top, for an explorer.)
 	constexpr int32 Level = 4;
 	double Earned = 0.0;
 	auto Kills = [&Earned](ECreatureRank Rank, bool bUnpaid, int32 Count)
 	{
 		Earned += Count * LooterEconomy::Expected(LooterEconomy::KillOdds(Rank, bUnpaid), Level);
 	};
-	Kills(ECreatureRank::Basic, true, 46);   // the gate, the chapel yard, Amos's hands, the roaming, the churchyard, the fold, Abel's adds
-	Kills(ECreatureRank::Rare, true, 5);     // a Restless in each of five fights
+	Kills(ECreatureRank::Basic, true, 53);   // the gate, the chapel yard, Amos's hands, the roaming, the churchyard, the fold, Abel's adds, the depot, the cellar
+	Kills(ECreatureRank::Rare, true, 7);     // a Restless in each of seven fights
 	Kills(ECreatureRank::Basic, false, 14);  // the bluff nest and the Sink's spiders
 	Kills(ECreatureRank::Rare, false, 1);
 	Kills(ECreatureRank::Boss, true, 1);     // Abel
@@ -294,6 +327,8 @@ bool FEconomyBalanceTest::RunTest(const FString& Parameters)
 	{
 		Earned += MissionRewards::SilverFor(FName(Mission));
 	}
+	// The valley's new purses, their missions' own (Looter.Economy.Missions checks the assets): Calder's, Fenn's, Thaddeus's.
+	Earned += 30 + 30 + 40;
 	// Twenty guns sold, as they drop: twelve Common, six Uncommon, two Rare.
 	Earned += 12 * LooterEconomy::AtLevel(LooterEconomy::SellBase(EWeaponRarity::Common), Level)
 		+ 6 * LooterEconomy::AtLevel(LooterEconomy::SellBase(EWeaponRarity::Uncommon), Level)

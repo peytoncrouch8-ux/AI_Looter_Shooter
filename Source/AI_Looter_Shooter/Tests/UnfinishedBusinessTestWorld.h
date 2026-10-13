@@ -40,7 +40,12 @@ namespace UnfinishedBusinessTestWorld
 	inline const FName HandsTag(TEXT("Unpaid_WhitlockHands"));
 	inline const FName Valley(TEXT("TestValley"));
 
-	/** Side 2's steps: talk to Amos, load the bales, drive off the hands; then it's turned in to Amos (that talk was the fourth). */
+	/**
+	 * Side 2's steps, three either way. The flows here play the order it had before the givers (talk to Amos, load the bales,
+	 * drive off the hands); since 2026-10-13 Amos offers it with his meet lines and the asset loads the bales first, then asks
+	 * him who's on the road (Looter.Story.UnfinishedBusiness.Mission checks the asset). The bales', the hands' and his
+	 * topics' own rules are the same either way.
+	 */
 	inline constexpr int32 SideTwoSteps = 3;
 	inline constexpr int32 BaleCount = 6;
 	inline constexpr int32 HandsBasic = 5;

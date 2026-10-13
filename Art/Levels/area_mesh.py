@@ -16,7 +16,7 @@ import numpy as np
 from mathutils import Vector
 from mathutils.geometry import delaunay_2d_cdt
 
-from area_math import Grid, blur, cells, gradient_noise, points_in_polygon, resample, sample
+from area_math import Grid, blur, cells, gradient_noise, points_in_polygon, polygon_mask, resample, sample
 
 LEVELS = (1.2, 0.6, 0.3)  # quadtree cell sizes (m): the spacing of the top's vertices
 # A grounded core is larger and much of it lies past the playable boundary (the ridges' slopes, the seam band): there
@@ -35,8 +35,13 @@ def _spacing(area, eps):
     levels = _levels(area)
     spacing = np.clip(np.sqrt(8.0 * eps / np.maximum(area._curvature, 1e-6)), levels[-1], levels[0])
     if area.setting == 'grounded':
+        loose = spacing
         # The coarser levels only past the boundary, and not next to the core's edge (its vertices are 1.2 m apart).
         spacing = np.where(area._dense, np.minimum(spacing, LEVELS[0]), spacing)
+        coarse = getattr(area, '_coarse', None)
+        if coarse is not None:
+            # Gentle playable ground the layout lets spread (mesh.coarse: a hanging valley's meadow), as its bends ask.
+            spacing = np.where(coarse, np.minimum(loose, area._coarse_spacing), spacing)
     # Waterlines stay crisp: where the water meets a gentle shore, a centimeter of height moves it a hand's width.
     return np.where(area._waterline, np.minimum(spacing, LEVELS[-1]), spacing).astype(np.float32)
 
@@ -129,6 +134,7 @@ def top_surface(area, max_triangles, boundary_step=0.7, log=print):
     levels = _levels(area)
     if area.setting == 'grounded':
         area._dense = (area.play_edge > -8.0) | (area.edge < 3.0)
+        _coarse_ground(area)
     # Pick the height error that fills the budget (triangles ~ 2 x interior points + boundary points).
     lo, hi = math.log(1e-4), math.log(1.0 if area.setting != 'grounded' else 4.0)
     for _ in range(14):
@@ -152,18 +158,39 @@ def top_surface(area, max_triangles, boundary_step=0.7, log=print):
         interior = np.vstack([interior, shore])
     log(f'terrain: top surface, height tolerance {eps * 100:.1f} cm, {len(interior)} interior points '
         f'({len(shore)} on waterlines)')
+    # Lines the triangles mustn't cross (a split macro map's window edges) and holes (mesh.holes: an interior's
+    # mouth), both as constraint edges; the holes' triangles go after.
+    lines, holes = _cut_lines(area), _holes(area)
+    extra = [line for line in lines] + [h for h in holes]
+    if extra:
+        interior = interior[_clear_of(interior, extra, 0.3)]
 
     # Triangulate in Blender's plane (x_b = -y, y_b = -x), the boundary as the constraint.
-    pts2 = np.vstack([boundary, interior])
+    pts2 = np.vstack([boundary, interior] + extra)
     bx, by = -pts2[:, 1], -pts2[:, 0]
     loop = list(range(len(boundary)))
     lx, ly = bx[:len(boundary)], by[:len(boundary)]
     if np.sum(lx * np.roll(ly, -1) - np.roll(lx, -1) * ly) < 0.0:  # the constraint loop must run counter-clockwise
         loop.reverse()
+    edges = []
+    start = len(boundary) + len(interior)
+    for k, run in enumerate(extra):
+        closed = k >= len(lines)
+        edges += [(start + i, start + i + 1) for i in range(len(run) - 1)]
+        if closed:
+            edges.append((start + len(run) - 1, start))
+        start += len(run)
     verts = [Vector((float(a), float(b))) for a, b in zip(bx, by)]
-    out_verts, _, out_faces, orig_verts, _, _ = delaunay_2d_cdt(verts, [], [loop], 1, 1e-6, True)
+    out_verts, _, out_faces, orig_verts, _, _ = delaunay_2d_cdt(verts, edges, [loop], 1, 1e-6, True)
     coords = np.array([(v.x, v.y) for v in out_verts])
     tris = np.array([f for f in out_faces if len(f) == 3], dtype=np.int64)
+    if holes:
+        cx, cy = -coords[tris].mean(axis=1)[:, 1], -coords[tris].mean(axis=1)[:, 0]
+        inside = np.zeros(len(tris), dtype=bool)
+        for h in holes:
+            inside |= points_in_polygon(cx, cy, h)
+        tris = tris[~inside]
+        log(f'terrain: {int(inside.sum())} triangles left out in {len(holes)} holes')
     # Back to layout meters, and the boundary's vertex indices in the output.
     x, y = -coords[:, 1], -coords[:, 0]
     index_of = {}
@@ -177,6 +204,77 @@ def top_surface(area, max_triangles, boundary_step=0.7, log=print):
         seam = ring[kinds >= 1]
         z[seam] = area.region.height(x[seam], y[seam])
     return np.column_stack([x, y, z]), tris, ring
+
+
+def _coarse_ground(area):
+    """The layout's coarse ground (mesh.coarse: [{polygon [[X, Y], ...] cm, spacing cm}]: gentle playable ground, a
+    hanging valley's meadow, whose vertices may spread to that spacing where it barely bends, where the rest of the
+    playable ground keeps 1.2 m), as area._coarse (a mask on the shape raster) and area._coarse_spacing (m); nothing
+    without it. Never next to the core's edge."""
+    spots = area.layout.get('mesh', {}).get('coarse', [])
+    if not spots:
+        return
+    mask = np.zeros(area.h.shape, dtype=bool)
+    for spot in spots:
+        mask |= polygon_mask(area.grid, np.asarray(spot['polygon'], dtype=np.float64) / 100.0)
+    area._coarse = mask & (area.edge >= 3.0)
+    area._coarse_spacing = max(spot.get('spacing', 240) for spot in spots) / 100.0
+
+
+def _cut_lines(area, step=1.2):
+    """A split macro map's window edges inside the core (area.macro_windows), as runs of points step meters apart:
+    the top's triangles keep to one side of them, so every tile wears one window's map with UVs inside it."""
+    windows = area.macro_windows() if hasattr(area, 'macro_windows') else []
+    if len(windows) < 2:
+        return []
+    grid = windows[0][1]
+    side = grid.n * grid.px
+    count = int(round(2.0 * area.half / side))
+    runs = []
+    t = np.arange(-area.half + step * 0.5, area.half, step)
+    for k in range(1, count):
+        at = -area.half + k * side
+        for pts in (np.column_stack([np.full(len(t), at), t]), np.column_stack([t, np.full(len(t), at)])):
+            inside = area.at(area.edge, pts[:, 0], pts[:, 1]) > 1.0
+            # Each stretch inside the core's edge is a run of its own.
+            breaks = np.nonzero(np.diff(inside.astype(np.int8)))[0] + 1
+            for piece, keep in zip(np.split(pts, breaks), np.split(inside, breaks)):
+                if keep.all() and len(piece) >= 2:
+                    runs.append(piece)
+    # Where the lines cross, one point serves both.
+    if len(runs) > 1:
+        cross = np.array([[-area.half + i * side, -area.half + j * side] for i in range(1, count)
+                          for j in range(1, count)])
+        runs = [r[_clear_of(r, [cross], 0.5)] if len(r) else r for r in runs]
+    return [r for r in runs if len(r) >= 2]
+
+
+def _holes(area):
+    """The layout's holes in the top (mesh.holes: [{id, polygon [[X, Y], ...] cm}]: an interior's mouth, where a model
+    goes into the ground), each a loop of points about 0.5 m apart (corners kept)."""
+    out = []
+    for hole in area.layout.get('mesh', {}).get('holes', []):
+        poly = np.asarray(hole['polygon'], dtype=np.float64) / 100.0
+        loop = []
+        for a, b in zip(poly, np.roll(poly, -1, axis=0)):
+            count = max(1, int(math.ceil(np.linalg.norm(b - a) / 0.5)))
+            loop.append(a + (b - a) * np.linspace(0.0, 1.0, count + 1)[:-1, None])
+        out.append(np.vstack(loop))
+    return out
+
+
+def _clear_of(points, runs, distance):
+    """Which points (N, 2) stand more than distance from every point of the runs."""
+    keep = np.ones(len(points), dtype=bool)
+    if not len(points):
+        return keep
+    cell = distance
+    taken = set()
+    for run in runs:
+        for di in (-1, 0, 1):
+            for dj in (-1, 0, 1):
+                taken.update(_cell_keys(run + np.array([di * cell, dj * cell]), cell).tolist())
+    return ~np.isin(_cell_keys(points, cell), np.array(sorted(taken), dtype=np.int64))
 
 
 def vertex_normals(verts_b, tris):

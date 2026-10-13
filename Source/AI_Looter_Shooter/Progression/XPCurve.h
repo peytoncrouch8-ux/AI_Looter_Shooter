@@ -3,26 +3,30 @@
 #include "CoreMinimal.h"
 
 /**
- * How much experience each level takes. Going from level L to L+1 takes round(BaseXP x Growth^(L-1)): 100 for the
- * first level-up, then each one Growth times the last (exponential, so later levels take far longer than early ones).
- * At MaxLevel the climb ends and experience stops counting. Plain numbers, no assets: the game reads them from
- * UProgressionSettings (Project Settings > Game > Progression), and tests build their own.
+ * How much experience each level takes: Borderlands 2's curve, steeper. Reaching level L takes CurveScale x
+ * (L^CurvePower - 1) experience in all, rounded; Borderlands 2's is 60 x (L^2.8 - 1), ours three times that (the user's
+ * call of 2026-10-13: levelling takes more, so a campaign of many areas reaches the top level only near its end). Each
+ * level asks for more than the last (1,074 for level 2, 18,967 from 7 to 8, about 812,000 from 60 to 61), and the top is
+ * level 65, about 21.4 million in all. At MaxLevel the climb ends and experience stops counting. Plain numbers, no
+ * assets: the game reads them from UProgressionSettings (Project Settings > Game > Progression), and tests build their own.
+ * Docs/Progression.md has the table and the reasoning.
  */
 struct AI_LOOTER_SHOOTER_API FXPCurve
 {
 	/** The rules the game ships with (UProgressionSettings starts from these). */
-	static constexpr int32 DefaultMaxLevel = 70;
-	static constexpr int64 DefaultBaseXP = 100;
-	static constexpr double DefaultGrowth = 1.12;
+	static constexpr int32 DefaultMaxLevel = 65;
+	static constexpr double DefaultCurveScale = 180.0;
+	static constexpr double DefaultCurvePower = 2.8;
 
 	int32 MaxLevel = DefaultMaxLevel;
-	int64 BaseXP = DefaultBaseXP;
-	double Growth = DefaultGrowth;
+	/** The experience to reach level L is CurveScale x (L^CurvePower - 1). */
+	double CurveScale = DefaultCurveScale;
+	double CurvePower = DefaultCurvePower;
 
 	/** Experience needed to go from Level to Level + 1; 0 at MaxLevel and above (there is no next level). */
 	int64 XPToNextLevel(int32 Level) const;
 
-	/** Experience earned in total by the time a new player reaches Level (0 for level 1). */
+	/** Experience earned in total by the time a new player reaches Level (0 for level 1; MaxLevel's above it). */
 	int64 TotalXPToReach(int32 Level) const;
 
 	bool IsMaxLevel(int32 Level) const { return Level >= MaxLevel; }

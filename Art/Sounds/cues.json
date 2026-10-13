@@ -4215,5 +4215,63 @@
     "loop": false,
     "space": "3D",
     "max_concurrent": 1
+  },
+  "World.LiftFitting.Crank": {
+    "files": [
+      "World_LiftFitting_Crank_01.wav",
+      "World_LiftFitting_Crank_02.wav",
+      "World_LiftFitting_Crank_03.wav",
+      "World_LiftFitting_Crank_04.wav"
+    ],
+    "volume_db": -8.0,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.LiftFitting.Boiler": {
+    "files": [
+      "World_LiftFitting_Boiler_01.wav",
+      "World_LiftFitting_Boiler_02.wav",
+      "World_LiftFitting_Boiler_03.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.LiftFitting.Pin": {
+    "files": [
+      "World_LiftFitting_Pin_01.wav",
+      "World_LiftFitting_Pin_02.wav",
+      "World_LiftFitting_Pin_03.wav",
+      "World_LiftFitting_Pin_04.wav"
+    ],
+    "volume_db": -11.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "World.ManwayGate.Open": {
+    "files": [
+      "World_ManwayGate_Open_01.wav",
+      "World_ManwayGate_Open_02.wav",
+      "World_ManwayGate_Open_03.wav"
+    ],
+    "volume_db": -7.5,
+    "pitch_jitter": 0.03,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
   }
 }

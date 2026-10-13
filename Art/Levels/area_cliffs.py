@@ -176,6 +176,19 @@ def knob_points(area, kn):
              'radius': _cm(kn['radius'])}]
 
 
+def steps_risers(area, st):
+    """A flight of steps' risers (area_features._steps): a face at each, in the flight's middle, facing down it, from
+    the ledge below up to the one above. (Its side walls are a ramp's: area_computed.ramp_walls.)"""
+    points = []
+    for front in st['fronts']:
+        k = min(int(np.searchsorted(st['s'], front)), len(st['pts']) - 1)
+        reach = st['riser'] * 0.5 + 0.8
+        point = face(area, st['pts'][k], _tangent(st['pts'], k), reach, reach)
+        if point:
+            points.append(point)
+    return points
+
+
 def channel_walls(area, pts, s, floor, half, cliff, start=0.0, reach=8.0):
     """Both walls of a channel (a gully or a gorge) every WALL_STEP m from start along it, where they're more than
     MIN_FACE high: each wall's foot on the floor, its top where the ground stops rising (looking at most reach meters
@@ -238,6 +251,8 @@ def ridge_bands(area, r):
         p = pts[k]
         if max(abs(p[0]), abs(p[1])) > area.half - 6.0 or not _inside(area, p, 2.0):
             continue
+        if any(np.linalg.norm(p - center) < radius for center, radius in r.get('band_gaps', ())):
+            continue  # cut away there (a quarry through the band: the layout's bandGaps)
         t = _tangent(pts, k)
         into = r['side'] * np.array([-t[1], t[0]])  # toward the ridge
         foot = p - into * float(region.wobble(*p))
@@ -262,8 +277,12 @@ def escarpment_points(area, lip_points):
     pts = lip_points
     s = arc_length(pts)
     points = []
+    # A creek running over the lip ("waterfallAtEnd") keeps its stretch of the lip clear: its fall goes there.
+    falls = [c['pts'][c['k_lip']] for c in getattr(area, 'creeks', []) if c['feature'].get('waterfallAtEnd')]
     for k in _along(pts, s, CLIFF_STEP, CLIFF_STEP * 0.5):
         a = pts[k]
+        if any(np.linalg.norm(a - f) < 6.0 for f in falls):
+            continue
         t = _tangent(pts, k)
         out = np.array([-t[1], t[0]])
         if region.height(*(a + out * 4.0)) > region.height(*(a - out * 4.0)):

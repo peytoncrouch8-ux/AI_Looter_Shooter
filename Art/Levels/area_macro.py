@@ -126,12 +126,70 @@ def _mix(a, b, t):
 
 
 def paint(area, out_path, preview_dir=None, log=print):
+    """Paints the macro map over the map square into out_path (and macro.png into preview_dir)."""
     n = area.sizes['macro']
-    grid = Grid(n, area.half)
+    rgba = _paint_grid(area, Grid(n, area.half), log)
+    _save(rgba, out_path)
+    written = out_path
+    if preview_dir:
+        # A preview for people, at most 1024 px (the map is a power of two, so it scales down evenly).
+        preview = os.path.join(preview_dir, 'macro.png')
+        p = min(n, 1024)
+        small = rgba.reshape(p, n // p, p, n // p, 4).mean(axis=(1, 3))
+        small[..., 3] = 1.0
+        os.makedirs(os.path.dirname(preview), exist_ok=True)
+        _save(small, preview)
+        written += ' and ' + preview
+    log(f'macro: wrote {written}')
+
+
+def paint_windows(area, paths, preview_dir=None, log=print):
+    """A split macro map (map.macroSplit, Area.macro_windows): each window painted as the whole map would paint those
+    pixels, into paths[suffix]; macro.png in preview_dir puts them together again. The ridges' faces and the
+    late-summer ground's broad fields are worked out once for all of them."""
+    pieces = area.macro_windows()
+    split = int(round(len(pieces) ** 0.5))
+    p = min(pieces[0][1].n, 1024 // split)
+    sheet = np.zeros((p * split, p * split, 4), np.float32)
+    area._macro_cache = {}
+    try:
+        for k, (suffix, grid) in enumerate(pieces):
+            log(f'macro: window {suffix} ({grid.n} px over {grid.n * grid.px:g} m)')
+            rgba = _paint_grid(area, grid, log)
+            _save(rgba, paths[suffix])
+            m = grid.n
+            i, j = divmod(k, split)
+            sheet[i * p:(i + 1) * p, j * p:(j + 1) * p] = rgba.reshape(p, m // p, p, m // p, 4).mean(axis=(1, 3))
+            del rgba
+            log(f'macro: wrote {paths[suffix]}')
+    finally:
+        del area._macro_cache
+    if preview_dir:
+        sheet[..., 3] = 1.0
+        preview = os.path.join(preview_dir, 'macro.png')
+        os.makedirs(os.path.dirname(preview), exist_ok=True)
+        _save(sheet, preview)
+        log(f'macro: wrote {preview}')
+
+
+def _cached(area, key, make):
+    """make() once per split map (paint_windows keeps the cache), every time for a whole map."""
+    cache = getattr(area, '_macro_cache', None)
+    if cache is None:
+        return make()
+    if key not in cache:
+        cache[key] = make()
+    return cache[key]
+
+
+def _paint_grid(area, grid, log=print):
+    """The macro map's pixels (n, n, 4: sRGB and the detail selector, row 0 the south) over a grid: the map square at
+    its size, or a window of it."""
+    n = grid.n
     log('macro: fields')
-    h = area.resized(area.h, n)
+    h = area.onto(area.h, grid)
     gx, gy = np.gradient(area.h.astype(np.float32), area.grid.px)
-    slope = area.resized(np.degrees(np.arctan(np.hypot(gx, gy))).astype(np.float32), n)
+    slope = area.onto(np.degrees(np.arctan(np.hypot(gx, gy))).astype(np.float32), grid)
     del gx, gy
     # Convexity at the scale of hills (about 4 m of blur), so small bumps don't count: > 0 on crowns and ridges. It
     # and the wetness are worked out on the curvature raster (20 cm on the tutorial island).
@@ -139,17 +197,17 @@ def paint(area, out_path, preview_dir=None, log=print):
     pf = 2.0 * area.half / nf
     h_fields = blur(area.resized(area.h, nf), cells(2.4, pf))
     lap = np.gradient(np.gradient(h_fields, axis=0), axis=0) + np.gradient(np.gradient(h_fields, axis=1), axis=1)
-    convex = area.resized(-lap / pf ** 2, n)
-    ao = area.resized(area.ao, n) if getattr(area, 'ao', None) is not None else np.ones((n, n), np.float32)
+    convex = area.onto(-lap / pf ** 2, grid)
+    ao = area.onto(area.ao, grid) if getattr(area, 'ao', None) is not None else np.ones((n, n), np.float32)
     if area.setting == 'grounded':
         # The escarpment's lip stands in for the island's rim (and there's none without an escarpment).
-        edge = area.resized(area.dl, n) if area.dl is not None else np.full((n, n), 1e3, np.float32)
+        edge = area.onto(area.dl, grid) if area.dl is not None else np.full((n, n), 1e3, np.float32)
     else:
-        edge = area.resized(area.edge, n)
+        edge = area.onto(area.edge, grid)
     surface = area.water_surface()
     wet_fields = area.resized(np.where(np.isfinite(surface) & (surface > area.h), 1.0, 0.0).astype(np.float32), nf)
-    near_water = area.resized(np.clip(blur(wet_fields, cells(2.4, pf)) * 3.0, 0.0, 1.0), n)  # about 5 m around water
-    water = area.resized(np.nan_to_num(extend_nan(surface, cells(4.0, area.grid.px)), nan=-100.0), n)
+    near_water = area.onto(np.clip(blur(wet_fields, cells(2.4, pf)) * 3.0, 0.0, 1.0), grid)  # about 5 m around water
+    water = area.onto(np.nan_to_num(extend_nan(surface, cells(4.0, area.grid.px)), nan=-100.0), grid)
     depth = water - h  # > 0 under water
 
     canvas = Canvas(n)
@@ -174,7 +232,7 @@ def paint(area, out_path, preview_dir=None, log=print):
     _roads(area, grid, canvas, h, n_fine, n_grain)
     log('macro: water and rock')
     _water(canvas, depth, near_water, n_mid, n_fine)
-    road_near = 1.0 - _ss(1.5, 4.0, area.resized(np.minimum(area.road_gap, 50.0), n))
+    road_near = 1.0 - _ss(1.5, 4.0, area.onto(np.minimum(area.road_gap, 50.0), grid))
     _rock(area, grid, canvas, slope, ao, edge, depth, n_fine, n_grain, np.maximum(near_water, road_near))
 
     # Grain everywhere: a little brightness noise at 35 cm and 1 m, so no area is flat.
@@ -189,10 +247,10 @@ def paint(area, out_path, preview_dir=None, log=print):
     if area.setting == 'grounded':
         # The ridges' big faces (area_faces.py), after the grade: kept off what the core itself shapes and paints
         # there (water, roads, its features, the rock raised past the boundary's closed edges).
-        faces = area_faces.fields(area, area.grid, area.h)
+        faces = _cached(area, 'faces', lambda: area_faces.fields(area, area.grid, area.h))
         if faces is not None:
             log('macro: ridge faces')
-            shaped = _ss(0.5, 1.2, area.resized(np.abs(area.h - area.h_region), n))
+            shaped = _ss(0.5, 1.2, area.onto(np.abs(area.h - area.h_region), grid))
             keep = np.maximum.reduce([near_water, road_near, shaped, _ss(0.0, 0.08, depth)])
             del shaped
             if area_mosaic.spec(area) is not None:
@@ -202,7 +260,8 @@ def paint(area, out_path, preview_dir=None, log=print):
                 if woods is not None:
                     keep = np.maximum(keep, 0.45 * woods)
                     del woods
-            area_faces.paint(rgba, faces, keep=keep, fine=n_fine, grain=n_grain, colors=area_faces.palette(area))
+            area_faces.paint(rgba, faces, keep=keep, fine=n_fine, grain=n_grain, colors=area_faces.palette(area),
+                             grid=grid)
             del faces, keep
     if getattr(area, 'ring_rgba', None) is not None:
         # Across the seam band the core's colors fade into the ring's, which they meet exactly at the square's edge.
@@ -213,18 +272,7 @@ def paint(area, out_path, preview_dir=None, log=print):
             ring = sample(area.ring_rgba[..., c], x, y, area.region.half).astype(np.float32)
             rgba[..., c] = ring + (rgba[..., c] - ring) * w
         del x, y, w
-    _save(rgba, out_path)
-    written = out_path
-    if preview_dir:
-        # A preview for people, at most 1024 px (the map is a power of two, so it scales down evenly).
-        preview = os.path.join(preview_dir, 'macro.png')
-        p = min(n, 1024)
-        small = rgba.reshape(p, n // p, p, n // p, 4).mean(axis=(1, 3))
-        small[..., 3] = 1.0
-        os.makedirs(os.path.dirname(preview), exist_ok=True)
-        _save(small, preview)
-        written += ' and ' + preview
-    log(f'macro: wrote {written}')
+    return rgba
 
 
 def _island_meadow(grid, canvas, convex, ao, edge, near_water, n_mid, n_fine):
@@ -275,7 +323,7 @@ def _zones_weight(area, grid, kind, soft, wobble):
     weights = []
     for zone in area.zones_of(kind):
         poly = to_m(zone['polygon'])
-        sd = area.resized(signed_distance(area.grid, catmull_rom(poly, closed=True, step=0.5), soft + 8.0), grid.n)
+        sd = area.onto(signed_distance(area.grid, catmull_rom(poly, closed=True, step=0.5), soft + 8.0), grid)
         weights.append(1.0 - _ss(-soft, soft, sd + wobble))
     return np.maximum.reduce(weights) if weights else None
 
@@ -297,12 +345,12 @@ def _features(area, grid, canvas, n_fine, n_grain):
     """The ground of step 3b's features: a pit's damp, dark floor and the scree at its wall's foot, a gully's gravel
     bed and earthen banks, the trampled soil a knob's rock stands on."""
     for p in getattr(area, 'pits', []):
-        sink = area.resized(p['rise'], grid.n)
+        sink = area.onto(p['rise'], grid)
         canvas.paint(_mix(SOIL_DARK, LITTER, 0.5 + 0.8 * n_fine), 0.75 * _ss(0.9, 0.99, sink), alpha=0.15)
         foot = _ss(0.55, 0.85, sink) * (1.0 - _ss(0.95, 0.995, sink))
         canvas.paint(_mix(SCREE, ROCK_DARK, 0.4 + 0.6 * n_grain), 0.8 * foot, alpha=0.65)
         # Away from the walls the floor is bare grit and dust (it grows little: area_scatter.py).
-        from_wall = -area.resized(p['sd'], grid.n) - p['width'] * 0.5
+        from_wall = -area.onto(p['sd'], grid) - p['width'] * 0.5
         grit = _ss(0.9, 0.99, sink) * _ss(2.0, 6.0, from_wall + 1.5 * n_fine)
         del from_wall
         canvas.paint(_mix(DIRT, PEBBLE_LIGHT, 0.4 + 0.8 * n_grain), 0.5 * grit, alpha=0.3)
@@ -326,7 +374,7 @@ def _features(area, grid, canvas, n_fine, n_grain):
 def _plateau_tops(area, grid, canvas, n_fine):
     """Drier grass on each plateau, thin soil and rock breaking through."""
     for p in area.plateaus:
-        top = area.resized(p['rise'], grid.n)
+        top = area.onto(p['rise'], grid)
         canvas.paint(PLATEAU_GRASS, 0.4 * _ss(0.85, 0.99, top))
         thin = _ss(0.25, 0.5, fbm_raster(grid, 5.0, seed=121, octaves=2) + 0.3 * n_fine) * _ss(0.9, 0.99, top)
         canvas.paint(SOIL, 0.55 * thin)
@@ -354,7 +402,7 @@ def _disc(grid, canvas, center, radius, color, strength, alpha, soft=0.8):
     """A worn patch: a disc whose edge wanders (by a fifth of its radius) and frays."""
     reach = radius * 1.25 + soft + 1.0
     i0, i1 = grid.index_range(center[0] - reach, center[0] + reach)
-    j0, j1 = grid.index_range(center[1] - reach, center[1] + reach)
+    j0, j1 = grid.index_range_y(center[1] - reach, center[1] + reach)
     x, y = grid.mesh(i0, i1, j0, j1)
     d = (np.hypot(x - center[0], y - center[1]) + 0.2 * radius * fbm(x, y, max(2.0, radius * 0.7), seed=130)
          + 0.35 * fbm(x, y, 1.2, seed=131))
@@ -492,7 +540,7 @@ def _rock(area, grid, canvas, slope, ao, edge, depth, n_fine, n_grain, earthy):
     canvas.paint(bank, 0.8 * _ss(24.0, 34.0, slope + jitter) * _ss(-0.2, 0.3, -depth),
                  alpha=0.2)
     for p in area.plateaus:
-        sd = area.resized(p['sd'], grid.n)
+        sd = area.onto(p['sd'], grid)
         width = p['width']
         scree = (1.0 - _ss(width * 0.5, width * 0.5 + 3.5, sd + 1.2 * n_fine)) * _ss(width * 0.2, width * 0.5, sd)
         canvas.paint(_mix(SCREE, ROCK_DARK, 0.4 + 0.6 * n_grain), 0.85 * scree, alpha=0.65)

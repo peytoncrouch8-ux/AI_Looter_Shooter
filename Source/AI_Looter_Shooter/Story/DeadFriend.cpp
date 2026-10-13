@@ -110,6 +110,7 @@ void ADeadFriend::WearModel(USkeletalMesh* Model, UMaterialInterface* Tint)
 	static USkeletalMesh* const Unpaid = FindModel(UnpaidPath);
 	USkeletalMesh* Worn = Model ? Model : Unpaid;
 	Figure->SetSkinnedAsset(Worn);
+	WornModel = Worn;
 	Body->SetHiddenInGame(Worn != nullptr);
 	if (Tint && Worn)
 	{
@@ -125,7 +126,7 @@ void ADeadFriend::WearOnBone(UStaticMeshComponent* Part, UStaticMesh* Mesh, FNam
 {
 	Part->SetStaticMesh(Mesh);
 	Part->SetupAttachment(Figure, Bone);
-	const USkeletalMesh* Model = Cast<USkeletalMesh>(Figure->GetSkinnedAsset());
+	const USkeletalMesh* Model = WornModel;
 	const int32 Index = Model ? Model->GetRefSkeleton().FindBoneIndex(Bone) : INDEX_NONE;
 	if (Index != INDEX_NONE)
 	{

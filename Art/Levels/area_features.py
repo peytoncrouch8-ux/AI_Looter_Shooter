@@ -20,6 +20,9 @@ layout.json are centimeters; "left" and "right" are as seen on the plan (north u
   gully  A dry creek bed (the Dry Wash): a floor "width" wide, "depth" below the ground along "path", always running
          down toward the path's end, with banks rising "bank" meters per meter (sloped), or near-vertical walls
          ("walls": "cliff").
+  steps  A flight of rock ledges down a wall (the Goat Steps): "count" level ledges along "path" from "top" down to
+         "bottom", "width" wide, each riser too tall to climb back up: a one-way way down. Cut into the ground on
+         its high side, standing as a cliff over its low side; its risers and walls are its cliff group.
   creek  ... with "falls": {"drop", "gorge": {path, width, fall}}: the creek ends in a falls "drop" high into a slot
          gorge with cliff walls, which starts at the creek's end and whose floor falls "fall" more along its path. A
          shallow stream runs on in the gorge. With "bottom": {width, depth, bank} the creek runs in a flat bottom cut
@@ -34,10 +37,12 @@ import math
 import numpy as np
 
 from area_math import (arc_length, catmull_rom, fbm, fbm_raster, gauss_smooth_1d, polyline_field, sample,
-                       signed_distance, smin, smoothstep)
+                       signed_distance, smax, smin, smoothstep)
 
 K = 4.2              # the cliff profile's steepness: steep in the middle, a rounded lip at the top, a foot below
 GORGE_WALL = 5.0     # a cliff-walled channel's walls rise this many meters per meter (79 degrees)
+STEP_WALL = 3.0      # a flight of steps' cut walls rise this many meters per meter (72 degrees)
+STEP_REACH = 14.0    # meters past a flight's ledges its cut and fill reach
 GORGE_STREAM = 0.25  # the stream in a gorge stands this deep on its floor
 PAD_BANK_REACH = 20.0  # the farthest (m) a pad's graded edge (its "bank", area_shape.py) may reach past the pad
 
@@ -247,6 +252,61 @@ class FeatureSteps:
                                      pts=pts, s=s, bed=bed, half=half, bank=bank, depth=depth, walls=walls))
         return h
 
+    def _steps(self, h):
+        """Each flight of steps (the Goat Steps): level ledges down a wall along "path" (from its top to its foot),
+        "count" of them, the first one step under "top" and the last at "bottom" (cm), each "width" wide; the path's
+        first "lead" cm stays at the top (the lip they start from). Between the ledges a riser "riser" cm long drops one
+        step, (top - bottom) / count: each taller than a player can climb back up and than a creature will step off,
+        so the flight is a one-way way down. Across the path the ground higher than a ledge is cut down to it in walls
+        rising WALL m per m, and ground lower is filled up to it in a cliff (GORGE_WALL), so the ledges stand cut
+        into a wall and over a drop as the ground there asks."""
+        self.steps = []
+        for f in self.by_type.get('steps', []):
+            pts = catmull_rom(to_m(f['path']), step=0.5)
+            s = arc_length(pts)
+            count = int(f['count'])
+            top, bottom = f['top'] / 100.0, f['bottom'] / 100.0
+            drop = (top - bottom) / count
+            lead = f.get('lead', 100) / 100.0
+            riser = f.get('riser', 40) / 100.0
+            run = (s[-1] - lead) / count
+            if count < 1 or run <= riser + 1.0:
+                raise ValueError(f"steps {f['id']}: {count} ledges don't fit along its {s[-1]:.1f} m path")
+            fronts = lead + run * np.arange(count)  # where each riser is (its middle), down the path
+
+            def level(a, fronts=fronts, drop=drop, top=top, riser=riser):
+                z = np.full(np.shape(a), top, dtype=np.float64)
+                for front in fronts:
+                    z -= drop * rise((a - front) / riser + 0.5)
+                return z
+            z_path = level(s)
+            half = f.get('width', 450) / 200.0
+            reach = half + STEP_REACH
+            dist, along, _ = polyline_field(self.grid, pts, reach)
+            near = np.isfinite(dist)
+            d = dist[near].astype(np.float64)
+            x, y = self.x[near], self.y[near]
+            zr = level(along[near].astype(np.float64)) + 0.06 * fbm(x, y, 1.7, seed=131)
+            e = np.maximum(d - half, 0.0)
+            rough = 0.3 * fbm(x, y, 2.2, seed=132)
+            hn = h[near]
+            hn = smin(hn, zr + STEP_WALL * e + np.maximum(rough, 0.0) * np.minimum(e, 1.0), 0.3)  # walls cut down
+            hn = smax(hn, zr - GORGE_WALL * e, 0.3)                                               # cliffs filled up
+            w = 1.0 - smoothstep(half - 0.25, half + 0.25, d)
+            hn = hn + (zr - hn) * w
+            # Its cut and fill stay near it, letting go over the last 3 m of their reach.
+            hn = h[near] + (hn - h[near]) * (1.0 - smoothstep(reach - 3.0, reach, d))
+            changed = np.abs(hn - h[near]) > 0.05
+            h[near] = hn
+            # The ledges, their risers and the walls are designed: _relax() leaves them alone (eased, the risers smear
+            # into the ledges and none stays level).
+            self.designed[near] |= changed | (d < half + 0.5)
+            self.steps.append(dict(id=f['id'], feature=f, kind='steps', cliff_group=f.get('cliffGroup', f['id']),
+                                   pts=pts, s=s, z=z_path, width=2.0 * half, fronts=fronts, riser=riser,
+                                   drop=drop, top=top, bottom=bottom, levels=[top - drop * (k + 1)
+                                                                              for k in range(count)]))
+        return h
+
     def _gorges(self, h):
         """Each creek's falls: a slot gorge with cliff walls from the creek's end, its floor the falls' drop below the
         water at the lip and falling on along its path. Its head wall is the falls' face, at the lip."""
@@ -330,6 +390,8 @@ def feature_extents(layout):
         elif kind == 'knob':
             radius = f.get('radius', 400) / 100.0
             out.append((label, to_m([f['center']]), radius + f.get('blend', max(200.0, 80.0 * radius)) / 100.0))
+        elif kind == 'steps':
+            out.append((label, catmull_rom(to_m(f['path']), step=1.0), f.get('width', 450) / 200.0 + STEP_REACH))
         for ramp in [f['ramp']] if 'ramp' in f else []:
             out.append((label + ' ramp', catmull_rom(to_m(ramp['path']), step=1.0), ramp['width'] / 200.0 + 8.0))
     for road in layout.get('roads', []):

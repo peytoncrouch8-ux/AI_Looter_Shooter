@@ -105,10 +105,18 @@ def fields(area, grid, h):
     # Which ground is a ridge's face: past its band's top, out to its back's foot, on the upland.
     f = region.at(x.ravel(), y.ravel())
     on = np.zeros(x.size, np.float32)
+    # Inside a floor (region.floors: a hanging valley's) the ridges it fills over have no face there; the ridges
+    # standing on it (onFloor) keep theirs.
+    floored = None
+    for k in range(len(getattr(region, 'floors', ()))):
+        floored = f[f'floorw{k}'] if floored is None else np.maximum(floored, f[f'floorw{k}'])
     for i, r in enumerate(region.ridges):
         s = f[f'ridge{i}']
-        on = np.maximum(on, _ss(r['band_width'] + 0.3, r['band_width'] + 2.5, s)
-                        * (1.0 - _ss(r['depth'] + r['back'] - 8.0, r['depth'] + r['back'], s)))
+        face_i = (_ss(r['band_width'] + 0.3, r['band_width'] + 2.5, s)
+                  * (1.0 - _ss(r['depth'] + r['back'] - 8.0, r['depth'] + r['back'], s)))
+        if floored is not None and not r.get('on_floor'):
+            face_i = face_i * (1.0 - floored)
+        on = np.maximum(on, face_i)
     if region.lip is not None:
         on *= _ss(0.5, 3.0, f['dl'])
     face = on.reshape(n, n)
@@ -278,18 +286,20 @@ def palette(area):
     return area_mosaic.FACES if area_mosaic.spec(area) is not None else PALETTE
 
 
-def paint(rgba, faces, keep=None, fine=None, grain=None, block=512, colors=None):
+def paint(rgba, faces, keep=None, fine=None, grain=None, block=512, colors=None, grid=None):
     """Lays the faces over an (n, n, 4) macro map (sRGB, alpha the detail selector), after its grade, block rows at a
     time. keep (n x n, 0..1) holds what the map already paints (roads, water, the core's features) back from them;
     fine and grain are that map's own noise (-1..1, about 1 m and finer), for frayed edges and speckle (None on a
-    coarse map); colors is the palette (PALETTE by default)."""
+    coarse map); colors is the palette (PALETTE by default); grid is the map's (a split map's window: area_math.Window),
+    else the faces' square at the map's size."""
     colors = PALETTE if colors is None else colors
     n = rgba.shape[0]
     work, half = faces['grid'], faces['grid'].half
-    grid = Grid(n, half)
+    window = getattr(grid, 'window', False)
+    grid = Grid(n, half) if grid is None or not window else grid
     for a in range(0, n, block):
         b = min(n, a + block)
-        if n == work.n:
+        if n == work.n and not window:
             def field(name, a=a, b=b):
                 return faces[name][a:b]
         else:

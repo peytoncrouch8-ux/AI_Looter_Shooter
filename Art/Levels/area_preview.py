@@ -50,6 +50,11 @@ STAND_INS = {  # kind: length along the actor's forward, width, height (m)
     'Grave_MoundFresh': (2.0, 1.0, 0.9), 'DeadTree_A': (0.8, 0.8, 9.0),
     'Ruin_Chimney': (1.6, 2.2, 6.6), 'Ruin_Derrick': (16.0, 2.0, 1.5), 'Wagon_BurntA': (4.0, 2.0, 2.0),
     'Wagon_BurntB': (4.0, 2.0, 1.4), 'Cairn_A': (0.8, 0.8, 1.0), 'Cairn_B': (0.8, 0.8, 1.0), 'Cairn_C': (0.8, 0.8, 1.2),
+    # The mountain's (Docs/Areas/RansomsRest_Expansion.md, sections 6 and 9).
+    'RR_LiftHouse': (8.0, 10.0, 8.5), 'RR_LiftTower': (3.9, 3.4, 12.5), 'RR_LiftHead': (4.0, 5.7, 8.0),
+    'RR_Watchtower': (4.0, 4.0, 15.0), 'RR_RangerCabin': (6.0, 8.0, 5.0), 'RR_LeanTo': (4.0, 6.0, 3.0),
+    'RR_MinePortal': (3.0, 7.0, 6.5), 'RR_OreBin': (6.0, 8.0, 7.0), 'RR_PowderHouse': (4.0, 5.0, 4.0),
+    'RR_Smithy': (6.0, 8.0, 5.0),
 }
 # The planned light for views with a "sun": golden late afternoon.
 GOLDEN_SUN = (1.0, 0.8, 0.58)
@@ -177,10 +182,14 @@ def _world_sun(azimuth, elevation, added, strength=4.6, color=GOLDEN_SUN, disc=F
 
 def _stand_ins(area, added):
     clay = _material('_Clay', (0.55, 0.52, 0.47, 1.0))
-    for p in area.layout['placements']:
-        if p['kind'] not in STAND_INS:
+    # Besides the placements, the previews' own stand-ins (preview.standIns: {id, location [X, Y] cm, yaw, box [length
+    # along the forward, width, height] m}): buildings planned but not placed yet, so the views show their bulk.
+    planned = [dict(id=s['id'], kind='_planned', location=s['location'], yaw=s.get('yaw', 0.0), box=s['box'])
+               for s in area.layout.get('preview', {}).get('standIns', [])]
+    for p in area.layout['placements'] + planned:
+        if p['kind'] not in STAND_INS and 'box' not in p:
             continue
-        spec = STAND_INS[p['kind']]
+        spec = tuple(p['box']) if 'box' in p else STAND_INS[p['kind']]
         boxes = spec if isinstance(spec, list) else [tuple(spec) + (0.0, 0.0, 0.0)]
         x, y = np.asarray(p['location'][:2]) / 100.0
         z = float(area.height(x, y))
@@ -347,6 +356,44 @@ def _obstacle_stand_ins(area, added, clay=False):
     batch.finish(materials, added)
 
 
+def _fall_stand_ins(data, added):
+    """A stand-in for each fall into the canyon (layout_computed.json waterfalls with a foot; with preview.falls): a
+    pale ribbon off its lip and down the canyon wall's lean to its foot, widening, and one across it, so it reads from
+    any side (the game's is the waterfall model)."""
+    mat = _material('_Falls', (0.86, 0.9, 0.9, 1.0), emission=0.6)
+    for fall in (data.get('waterfalls') or {}).values():
+        if 'foot' not in fall:
+            continue
+        top = np.array(fall['location'], dtype=np.float64) / 100.0
+        foot = np.array(fall['foot'], dtype=np.float64) / 100.0
+        a = math.radians(fall['yaw'])
+        flow = np.array([math.cos(a), math.sin(a)])
+        across = np.array([-flow[1], flow[0]])
+        verts, faces = [], []
+        rows = 16
+        for k in range(rows + 1):
+            t = k / rows
+            # Off the lip in a short arc, then down the wall's lean.
+            out = (foot[:2] - top[:2]) * (t ** 0.8)
+            z = top[2] + (foot[2] - top[2]) * t
+            c = top[:2] + out
+            half = 1.3 + 3.2 * t
+            for side, axis in ((-1.0, across), (1.0, across), (-1.0, flow), (1.0, flow)):
+                width = half if axis is across else 0.6 * half
+                p = c + axis * side * width
+                verts.append(tuple(_to_b(p[0], p[1], z)))
+        for k in range(rows):
+            b0, b1 = 4 * k, 4 * (k + 1)
+            faces += [(b0, b0 + 1, b1 + 1, b1), (b0 + 2, b0 + 3, b1 + 3, b1 + 2)]
+        mesh = bpy.data.meshes.new('_Falls')
+        mesh.from_pydata(verts, [], faces)
+        mesh.materials.append(mat)
+        obj = bpy.data.objects.new('_Falls', mesh)
+        obj.visible_shadow = False
+        bpy.context.scene.collection.objects.link(obj)
+        added.append(obj)
+
+
 def _camera(eye, target, lens, added, ortho=None, far=2000.0):
     cam = bpy.data.objects.new('_Camera', bpy.data.cameras.new('_Camera'))
     cam.data.lens = lens
@@ -413,6 +460,8 @@ def render_views(area, out_dir, log=print, only=None):
                 _cliff_stand_ins(area, _computed(area), added)
         if view.get('obstacles', bool(view.get('clay'))):
             _obstacle_stand_ins(area, added, clay=bool(view.get('clay')))
+        if area.setting == 'grounded' and area.layout.get('preview', {}).get('falls'):
+            _fall_stand_ins(_computed(area), added)
         inside = abs(ex) < area.half and abs(ey) < area.half
         eye = _to_b(ex, ey, float(area.height(ex, ey)) + eh if inside else eh)
         aimed = abs(tx) < area.half and abs(ty) < area.half

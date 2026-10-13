@@ -444,6 +444,13 @@ def place_town_gate(build):
     return gx, gy, gz
 
 
+def texts_topics(build, tag):
+    """A speaker's topics from the missions' data (Tools/Unreal/story_texts.py TOPICS[tag]), in its order."""
+    import story_texts
+    texts = importlib.reload(story_texts)
+    return topics(build, *[(texts.condition(when), name) for when, name in texts.TOPICS[tag]['topics']])
+
+
 def place_tilly(build, shop):
     """Tilly's window: her speaker point on Bright & Daughter's Speaker socket."""
     cls = actor_class('SpeakerPoint')
@@ -453,14 +460,10 @@ def place_tilly(build, shop):
             build.warn('Bright & Daughter has no Speaker socket: Tilly can\'t be talked to')
         return
     at = window.translation
-    # Closed until Main 3's last step (from 0: 3); her lines then; a word after.
+    # Closed until Main 3's last step (from 0: 3); her lines then, Knocking Below's, a word after (story_texts.py TOPICS).
     speaker(build, cls, (at.x, at.y, at.z), window.rotation.rotator().yaw, 'Speaker_Tilly', 'Speaker_Tilly',
             name='Tilly Bright', reach=TALK_REACH, line_set=lines(build, 'DA_Lines_TillyClosed'),
-            topics=topics(build,
-                          (condition(during=MAIN3, from_step=3), 'DA_Lines_TillyMain3'),
-                          (condition(during=MAIN7), 'DA_Lines_TillyMain7'),
-                          (condition(after=[MAIN7]), 'DA_Lines_TillyAfterMain7'),
-                          (condition(after=[MAIN3]), 'DA_Lines_TillyAfterMain3')))
+            topics=texts_topics(build, 'Speaker_Tilly'))
     build.log(f'Tilly\'s window at ({at.x:.0f}, {at.y:.0f}, {at.z:.0f})')
 
 
@@ -588,6 +591,11 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
     board = hob_on_board(grave_ellis)
     if cls is None or board is None:
         return
+    import story_texts
+    texts = importlib.reload(story_texts)
+    # The mountain's mouth (build_area_providence.hob_spots: the Providence's tag board's roof).
+    mountain = importlib.reload(importlib.import_module('build_area_providence')).hob_spots(build) \
+        if importlib.import_module('build_area_mountain').is_mountain(build) else {}
     spots = {
         'path': hob_at_path_foot(build),
         'rock': hob_on_bluff_rock(build, nest),
@@ -608,6 +616,8 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
         # Main 7's: the keeper's post's top, Tilly's hearse car's roof (build_area_depot.place).
         'keeperPost': depot_spots.get('post'),
         'hearse': depot_spots.get('hearse'),
+        # Back Pay's (story_texts.py PERCHES): the Providence's mouth.
+        'mineMouth': mountain.get('mineMouth'),
     }
 
     def perch(spot, when, arrival=None):
@@ -641,11 +651,11 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
         perch(spots['sign'], condition(during=MAIN3, from_step=2), 'DA_Lines_HobMain3Tilly'),
         perch(spots['gate'], condition(during=MAIN3, from_step=1), 'DA_Lines_HobMain3Gate'),
         perch(spots['gate'], condition(during=MAIN3), 'DA_Lines_HobMain3Road'),
-        # Main 4: on the vestry lantern's bracket for Aldana; on the door hood for the Reliquary, the bell, the yard's fight
-        # and the way up (no flights between those: the same spot, a word at each).
-        perch(spots['lantern'], condition(during=MAIN4, from_step=4), 'DA_Lines_HobMain4Aldana'),
-        perch(spots['hood'], condition(during=MAIN4, from_step=3), 'DA_Lines_HobMain4Reliquary'),
-        perch(spots['hood'], condition(during=MAIN4, from_step=2), 'DA_Lines_HobMain4Bell'),
+        # Main 4: on the door hood for the Reliquary and the bell; on the vestry lantern's bracket for the knock at
+        # Aldana's door (step 2); on the door hood again for the yard's fight and the way up.
+        perch(spots['hood'], condition(during=MAIN4, from_step=4), 'DA_Lines_HobMain4Reliquary'),
+        perch(spots['hood'], condition(during=MAIN4, from_step=3), 'DA_Lines_HobMain4Bell'),
+        perch(spots['lantern'], condition(during=MAIN4, from_step=2), 'DA_Lines_HobMain4Aldana'),
         perch(spots['hood'], condition(during=MAIN4, from_step=1), 'DA_Lines_HobMain4Yard'),
         perch(spots['hood'], condition(during=MAIN4), 'DA_Lines_HobMain4Road'),
         # Main 5: on the Sink road's tree by the ramp head once the lantern is taken; on the floor's block for the
@@ -659,11 +669,14 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
         perch(spots['deckBier'], condition(during=MAIN6, from_step=3)),
         perch(spots['gateRock'], condition(during=MAIN6, from_step=2), 'DA_Lines_HobMain6Fight'),
         perch(spots['gateRock'], condition(during=MAIN6, from_step=1), 'DA_Lines_HobMain6Post'),
+        # (story_texts.PERCHES' keepersBridge isn't one: it holds when this does, so it would take him off the main way.)
         perch(spots['keeperGrave'], condition(during=MAIN6), 'DA_Lines_HobMain6Way'),
         # Main 7: on the hearse car's roof for the depot and the board (a word at each); on the keeper's post by the lantern.
         perch(spots['hearse'], condition(during=MAIN7, from_step=2), 'DA_Lines_HobMain7Board'),
         perch(spots['hearse'], condition(during=MAIN7, from_step=1), 'DA_Lines_HobMain7Depot'),
         perch(spots['keeperPost'], condition(during=MAIN7), 'DA_Lines_HobMain7Lean'),
+        # Back Pay's first step, while no main mission holds him: on the Providence's tag board.
+        perch(spots['mineMouth'], texts.condition(texts.PERCHES['mineMouth'][0]), texts.PERCHES['mineMouth'][1]),
         # After each, where the last left him.
         perch(spots['hearse'], condition(after=[MAIN7])),
         perch(spots['deckBier'], condition(after=[MAIN6])),
@@ -674,17 +687,8 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
         perch(board, condition(after=[MAIN1])),
     ]
     hob.set_editor_property('perches', [each for each in perches if each is not None])
-    hob.get_editor_property('speaker_point').set_editor_property('topics', topics(
-        build,
-        (condition(during=MAIN7), 'DA_Lines_HobMain7'),
-        (condition(during=MAIN6), 'DA_Lines_HobMain6'),
-        (condition(during=MAIN5), 'DA_Lines_HobMain5'),
-        (condition(during=MAIN4), 'DA_Lines_HobMain4'),
-        (condition(during=MAIN3), 'DA_Lines_HobMain3'),
-        (condition(during=MAIN2), 'DA_Lines_HobMain2'),
-        (condition(during=MAIN1), 'DA_Lines_HobMain1'),
-        (condition(after=[MAIN1]), 'DA_Lines_HobAfterMain1'),
-    ))
+    # His talk: the missions' data's (story_texts.py TOPICS), the side missions after the main ones.
+    hob.get_editor_property('speaker_point').set_editor_property('topics', texts_topics(build, 'Speaker_Hob'))
     missing = [name for name, spot in spots.items() if spot is None]
     build.log(f'Hob on Ellis\'s headboard at ({x:.0f}, {y:.0f}, {z:.0f}), {len([p for p in perches if p is not None])} perches'
               f'{" (without " + ", ".join(missing) + ")" if missing else ""}')

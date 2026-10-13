@@ -309,11 +309,11 @@ bool FPosterMissionTest::RunTest(const FString& Parameters)
 	UMissionInteractObjective* ReadNote = MissionTestWorld::AddObjective<UMissionInteractObjective>(Side, 1);
 	ReadNote->Target.ActorClass = AWantedPoster::StaticClass();
 	ReadNote->Target.ActorTag = AWantedPoster::NoteTag;
-	// Turned in to Tilly at her window (create_side_mission_assets.py), for 35 experience.
+	// Turned in to Tilly at her window (create_side_mission_assets.py), for 400 experience.
 	const FName TillyTag(TEXT("Speaker_Tilly"));
 	Side->TurnIn.SpeakerTag = TillyTag;
 	Side->TurnIn.GiverName = FText::FromString(TEXT("Tilly"));
-	Side->Rewards.Experience = 35;
+	Side->Rewards.Experience = 400;
 
 	// Seven posters in a row ahead of the player, so one can be missed; Calder's note off to the side.
 	AActor* Player = MissionTestWorld::SpawnMarker(World, FVector::ZeroVector);
@@ -395,10 +395,13 @@ bool FPosterMissionTest::RunTest(const FString& Parameters)
 		&& AssetTear->bHold && AssetTear->Target.ActorTag == AWantedPoster::WantedTag);
 	TestTrue(TEXT("Its second: read Calder's note"), AssetRead && !AssetRead->IsA<UMissionLastingInteractObjective>()
 		&& AssetRead->Target.ActorTag == AWantedPoster::NoteTag);
+	TestTrue(TEXT("Offered by the poster on the town gate (an artifact), the poster's words on the card"), Asset->Start == EMissionStart::Offered
+		&& Asset->Offer.GiverTag == FName(TEXT("Artifact_PosterGate")) && Asset->Offer.Briefing.ToString().Contains(TEXT("ALREADY")));
+	TestTrue(TEXT("...and, optional, the sheriff's daybook beside the note"), Asset->GetObjective(1, 1) && Asset->GetObjective(1, 1)->bOptional);
 	TestTrue(TEXT("Turned in to Tilly, with words of her own for it"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == TillyTag
 		&& !Asset->TurnIn.Lines.IsEmpty());
-	TestTrue(TEXT("35 experience and a Rare gun"), Asset->Rewards.Experience == 35 && Asset->Rewards.bGun
-		&& Asset->Rewards.GunRarityFloor == EWeaponRarity::Rare);
+	TestTrue(TEXT("Its experience (400, about a sixth of a level where it's met) and a Rare gun"),
+		Asset->Rewards.Experience == 400 && Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Rare);
 	return true;
 }
 

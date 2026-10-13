@@ -1,55 +1,98 @@
 """Makes the side missions' data assets (UMissionDefinition, Missions/MissionDefinition.h) in /Game/Data/Missions and
 saves them, as create_mission_assets.py does for the others (kept apart, so the two can change side by side). Run it in
-the open editor once the C++ with AWantedPoster and UMissionLastingInteractObjective is built:
+the open editor after create_story_lines.py and create_mission_assets.py:
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/create_side_mission_assets.py"
 It prints a SIDEMISSIONS line per mission and step, and "SIDEMISSIONS done" at the end. Running it again rebuilds these
 missions (fields, steps, turn-in and rewards) from what's written here; other mission assets are left alone.
 
-Side missions are turned in as the main ones are (create_mission_assets.py's docstring): ready once their objectives
-are done, finished by a talk to their giver. Their experience is a fixed amount each (Docs/Progression.md).
+Side missions are picked up from a giver and turned in as the main ones are (create_mission_assets.py's docstring;
+Docs/Areas/RansomsRest_Expansion.md sections 2-4, with the user's decisions of 2026-10-13 in its section 13). Each is
+worth about an eighth to a fifth of a level where it's met, as a Borderlands side mission is, besides its purse and its
+gun (Docs/Progression.md: everything done ends about level 6.8, the story alone about 5.5). Steps are counted from 0, as
+the build scripts' conditions count them; "+
+optional" is an optional objective in that step. Where things are placed and what's said where is in
+Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
 
-  DA_Mission_Side1  "Wanted: Already Dead" (Docs/Areas/RansomsRest.md, Side 1), on Ransom's Rest once Main 3 is
-                    turned in, starting by itself. Tear down 6 of Ellis's wanted posters around town and the farms (each a
-                    held Interact on an AWantedPoster tagged WantedPoster), counted from the world
-                    (UMissionLastingInteractObjective): posters torn down before it opened count, and so do the ones torn
-                    before a reload, since a side mission starts over from its first step. Seven hang, so one can be
-                    missed. Then read Ranger Calder's note on the Rim Rangers' board (a tap on the one tagged CalderNote).
-                    Turned in to Tilly at her window, Main Street's one voice (a line of its own). Reward: 35 XP and a
-                    guaranteed Rare gun.
-  DA_Mission_Side2  "Unfinished Business" (Side 2), on Ransom's Rest once Main 4 is turned in, starting by itself. Talk
-                    to Amos at his fence (AAmosWhitlock, tagged Speaker_Amos); load his 6 hay bales into his barn (each a
-                    held Interact on an AHayBale tagged HayBale, counted from the world as Side 1's posters are: the session
-                    keeps the loaded ones with the map, so a reload loses none); drive off his old hired hands (clear the
-                    encounter WhitlockHands: five Unpaid and a Restless one in his barn yard); turned in to Amos (the
-                    talk that was its fourth step: his thanks, from build_area_whitlock.py's THANKS_STEP, 3). All placed
-                    by build_area_whitlock.py. Reward: 40 XP and a guaranteed Epic gun ("the one Amos was buried with and
-                    never needed"). Made once Main 4 exists.
-  DA_Mission_Side3  "The Gravemother" (Side 3), on Ransom's Rest once Main 5 is turned in, starting by itself. "Find
-                    where the Gravemother hungers": done on entering the Sink, not the den (a reach of the place tagged
-                    Place_SinkFloor, the floor's middle that build_area_sink.py places for Main 5, within 19.5 m measured
-                    with its height: the whole floor, and the ramp from about 2 m below the rim down; the rim and the
-                    ramp's head stay outside it, and the den needn't be entered). Its arrow points at the ramp head (the
-                    marker tagged Place_SinkRim). Then kill the Gravemother (clear her lair's encounter, Gravemother: a
-                    kill before the step began counts too, and so does one on an earlier visit while she's still away).
-                    Automatic: a monster hunt nobody asked for. Reward: 40 XP, once; her Legendary loot table drops on
-                    every kill, and she comes back on an arrival 20 minutes of play after her death. Her lair is made by
-                    build_area_den.py. Made once Main 5 exists (step 19's main mission): until then the script says it
-                    waits.
+  The valley, after Main 3:
+  DA_Mission_Side1  "Wanted: Already Dead", offered by the poster on the town gate (Artifact_PosterGate): 0 six of the
+                    seven wanted posters torn down (held; counted from the world, so the ones torn before count), 1 Ruth
+                    Calder's note on the Rim Rangers' board read (the AWantedPoster tagged CalderNote) + optional the
+                    sheriff's daybook (OdellDaybook). Turned in to Tilly: she wrote ALREADY. 400 XP, a Rare gun, her purse
+                    (50).
+  DA_Mission_CaldersCaches "Calder's Caches", offered by Ruth's note (Artifact_CalderNote): 0 the three caches' tags
+                    (items CacheTag1-3, shown from Main 1 on, so the bluff path's can be taken in Main 2) + optional the
+                    three caches opened (counted from the world), 1 the gang's strongbox in the sheriff's lockup opened
+                    (counted from the world), 2 the Deacon's slip in it read (DeaconsSlip). Turned in at the Rangers' board
+                    (NoticeBoard_Rangers). 250 XP, 30 silver.
+  DA_Mission_OldFare "The Old Fare", offered by Mr. Sloane through his upstairs door (Speaker_Agent): 0 the depot's waiting
+                    room cleared (DepotWaiting, 5), 1 the baggage room (Place_BaggageRoom), 2 Fenn's coffin looked at
+                    (FennCoffin, a tap: its words DA_Lines_FennLook), 3 Mr. Sloane asked about the coins (his talk: the
+                    confession, DA_Lines_AgentCoins) + optional his desk (AgentDesk), 4 the coins under his door (item
+                    FennsFare, shown from step 4), 5 laid back on Fenn's eyes (FennCoffin again, a tap: DA_Lines_FennCoins;
+                    the look is its first Interact FennCoffin, the lay its last). Turned in to Josiah Fenn in his coffin
+                    (Speaker_Fenn, the same actor). 600 XP, a Rare Drover revolver, 30 silver.
+  The valley, after Main 4:
+  DA_Mission_Side2  "Unfinished Business", offered by Amos at his fence (Speaker_Amos: his meet lines): 0 his six hay
+                    bales loaded (held; counted from the world), 1 asked who's on the road (his talk: the Merritt brothers
+                    and Sol Tanner, his unpaid hands), 2 his old hired hands driven off (WhitlockHands, 6) + optional what
+                    he owed, chalked in the barn (WagesChalk). Turned in to Amos (his thanks, the topic from step 3). 800
+                    XP, an Epic gun, his purse (60).
+  DA_Mission_KnockingBelow "Knocking Below", offered by Tilly: 0 the workshop door in the undertaker's yard
+                    (Place_WorkshopDoor), 1 the cellar key (item CellarKey) + optional the coffin orders (OrdersSlate),
+                    2 down into the cellar (Place_CellarFloor, height counted), 3 the cellar's dead quieted (TillyCellar,
+                    4), 4 the cold room's door (ColdRoomDoor), 5 Thaddeus at his bench (Speaker_Thaddeus: his words
+                    DA_Lines_ThaddeusTalk), 6 his tape (item ThaddeusTape, shown from step 6). Turned in to Tilly. 800 XP,
+                    a Rare gun, 40 silver.
+  After Main 5:
+  DA_Mission_Side3  "The Gravemother", offered by Sheriff Odell's bounty on the Rangers' board (NoticeBoard_Rangers):
+                    0 where she hungers (entering the Sink: Place_SinkFloor within 19.5 m, height counted; the arrow on the
+                    ramp head), 1 her lair cleared (Gravemother: a kill on an earlier visit counts while she's away), 2 her
+                    fang (item GravemotherFang, dropped where she falls the first time) + optional the sheriff's badge in
+                    her den (SheriffBadge). Turned in to Mrs. Pruitt at the store's hatch (Speaker_Pruitt). 1,200 XP, 80
+                    silver; her Legendary table on every kill.
+  DA_Mission_DeadLift "Dead Lift", offered by Hiram Coyle in the winch house (Speaker_Hiram): 0 the winch crank (item
+                    WinchCrank, the sheriff's lockup) + optional Odell's report on the fall (OdellReport), a coal sack
+                    (item CoalSack, the depot's coal stage), the clamp pin (item ClampPin, dropped by Abe Haskett, the
+                    lift crew's Restless brakeman, tagged AbeHaskett), 1 the crank fitted, the boiler stoked and the pin
+                    driven (held; each AMissionFitting counted done from the world: LiftFitting_Crank, LiftFitting_Boiler,
+                    LiftFitting_Pin), 2 the quarry held for 60 s while she raises
+                    steam (Place_OldQuarry; RaisingSteam), 3 the lift ridden up (Board.Lift: AOreLift opens at step 3).
+                    Turned in to Hiram through the speaking tube at the lift head (Speaker_LiftTube). 1,500 XP, a Rare
+                    rifle, 40 silver.
+  After Dead Lift:
+  DA_Mission_LastWatch "The Last Watch", offered by the board at Calder's Post (NoticeBoard_CalderPost): 0 the post's yard
+                    cleared (CalderPost, 5), 1 lamp oil in Ruth's cabin (item LampOil) + optional her journal
+                    (RuthJournal), 2 the watch fire lit (WatchFire, held: AWatchFire's LightStep 2), 3 the post kept for 45 s
+                    (Place_CalderPost; Watch), 4 the far light's answer read with Ruth's code book (CodeBook: the far light
+                    shows from step 4) + optional the post's log signed (PostLog). Turned in at the post's board. 1,300 XP,
+                    60 silver (and Calder's fourth cache in the cabin opens, the placing script's).
+  DA_Mission_BackPay "Back Pay", offered by No. 7's tag on the Providence's tag board (Artifact_MinersTag): 0 into the
+                    Providence (Place_UpperGallery, height counted), 1 the upper gallery cleared (MineUpper, 5), 2 the
+                    Foreman's payroll book read (PayrollBook) + optional the chalk on the wall (ChalkTally), 3 the lower
+                    drift cleared (MineLower, 6), 4 the eleven's tags from their barricade (Barricade), 5 the Foreman put
+                    down (his lair, Foreman), 6 the payroll from the stope (item Payroll). Turned in at the tag board
+                    (Speaker_TagBoard) with a choice: pay the eleven (story flag BackPay.Paid, a Rare gun) or keep the
+                    payroll (BackPay.Kept, 400 silver). 2,000 XP either way.
 
 Objectives are instanced objects inside the asset, one class per kind, made with unreal.new_object(<class>, asset) and
 listed in each step's 'objectives'. Classes for actor filters are loaded by their script path
-('/Script/AI_Looter_Shooter.WantedPoster').
+('/Script/AI_Looter_Shooter.WantedPoster'). A spec's 'expect' names each step's objective class, or a list of them in
+order for a step of several (one with optional objectives).
 
 The mission features (wave 2a) are here as in create_mission_assets.py (which runs on import, so its helpers are copied):
-a spec's 'offer' (offer(): a mission picked up from its giver, start 'OFFERED') and 'start_event'; optional objectives
-(objective(..., optional=True), event_objective, read_objective); 'items' (item()) counted by collect_items(); a turn-in
-with two choice()s (turn_in(choices=..., question=...)); rewards(silver=..., optional_silver=...). A spec's 'expect' names
-each step's objective class, or a list of them in order for a step of several (one with optional objectives).
+a spec's 'offer' (offer(): a mission picked up from its giver, start 'OFFERED'); optional objectives (objective(...,
+optional=True), event_objective, read_objective); 'items' (item()) counted by collect_items(); a turn-in with two choice()s
+(turn_in(choices=..., question=...)); rewards(silver=..., optional_silver=...).
 """
 import unreal
 
 FOLDER = '/Game/Data/Missions'
 CLASSES = '/Script/AI_Looter_Shooter.'
+# Where the mission props' models are imported (Art/Models/Props/MissionProps.py through Tools/models.ps1).
+PROPS = '/Game/Art/Props/'
+# The reward guns of a kind (UWeaponDefinition assets).
+REVOLVER = '/Game/Weapons/Data/DA_Revolver'
+RIFLE = '/Game/Weapons/Data/DA_AssaultRifle'
 # AWantedPoster's tags (World/WantedPoster.h).
 WANTED_TAG = 'WantedPoster'
 NOTE_TAG = 'CalderNote'
@@ -69,6 +112,16 @@ SINK_RIM_TAG = 'Place_SinkRim'
 # and takes in the sinkRamp (layout_computed.json) from its 5th point, about 2 m under the rim.
 SINK_REACH = 1950.0
 GRAVEMOTHER_LAIR = 'Gravemother'
+# The Ranger caches and the gang's strongbox (Tools/Unreal/build_area_caches.py: AChest, tagged Chest and these).
+CACHE_TAG = 'RangerCache'
+STRONGBOX_TAG = 'GangStrongbox'
+# Givers and turn-ins (the shared names of the wave 4 contract).
+TILLY_TAG = 'Speaker_Tilly'
+RANGERS_BOARD = 'NoticeBoard_Rangers'
+POST_BOARD = 'NoticeBoard_CalderPost'
+
+ELLIS = 'Ellis'
+HOB = 'Hob'
 
 
 def mission_types():
@@ -76,12 +129,12 @@ def mission_types():
     names = ['MissionDefinition', 'MissionStep', 'MissionRewards', 'MissionTurnIn', 'StoryLine', 'MissionActorFilter',
              'MissionKind', 'MissionStart', 'MissionInteractObjective', 'MissionLastingInteractObjective', 'WantedPoster',
              'WeaponRarity', 'MissionReachObjective', 'MissionClearObjective', 'MissionPlace', 'MissionTalkObjective',
-             'MissionWaypoint', 'MissionOffer', 'MissionEventObjective',
+             'MissionWaypoint', 'MissionOffer', 'MissionEventObjective', 'MissionDefendObjective', 'MissionBoardObjective',
              # The mission features (wave 2a): a turn-in's choice, mission items and their objective.
              'MissionTurnInChoice', 'MissionItemInfo', 'MissionCollectItemObjective']
     missing = [name for name in names if getattr(unreal, name, None) is None]
     if missing:
-        raise RuntimeError(f"unreal.{', unreal.'.join(missing)} missing: build the C++ with the wanted posters first")
+        raise RuntimeError(f"unreal.{', unreal.'.join(missing)} missing: build the C++ with the mission features first")
 
 
 def actor_class(name):
@@ -99,6 +152,15 @@ def actor_filter(cls_name=None, tag=None):
     if tag:
         actors.set_editor_property('actor_tag', unreal.Name(tag))
     return actors
+
+
+def place(tag, radius, ignore_height=True):
+    """FMissionPlace: the nearest actor carrying tag, and how close counts as there (height counted unless ignored)."""
+    where = unreal.MissionPlace()
+    where.set_editor_property('actor', actor_filter(tag=tag))
+    where.set_editor_property('radius', radius)
+    where.set_editor_property('ignore_height', ignore_height)
+    return where
 
 
 def objective(asset, cls, text, waypoint=None, show_count=True, short='', hint_action='', hint='', optional=False,
@@ -133,11 +195,6 @@ def step(*objectives):
 # The mission features (wave 2a), as create_mission_assets.py has them (that script runs on import, so they're copied)
 # ---------------------------------------------------------------------------
 
-# Events the game's things send: the porch plate's two uses (APorchPlate), reading a readable (AReadableProp::EventFor).
-PORCH_TAKEN = 'PorchPlate.Taken'
-PORCH_EATEN = 'PorchPlate.Eaten'
-
-
 def readable_event(readable_id):
     """'Readable.WagesChalk': the event reading the AReadableProp whose readable_id is readable_id sends."""
     return f'Readable.{readable_id}'
@@ -171,6 +228,34 @@ def collect_items(asset, text, items, optional=False, **kwargs):
     """Have mission items (UMissionCollectItemObjective): done once every one of items (ids from 'items') is carried."""
     return objective(asset, unreal.MissionCollectItemObjective, text, optional=optional, show_count=len(items) > 1,
                      items=[unreal.Name(each) for each in items], **kwargs)
+
+
+def interact(asset, text, tag, cls_name=None, count=1, hold=False, lasting=False, **kwargs):
+    """Use count things carrying tag (held when hold); lasting counts what stays used in the world (a poster torn down,
+    a chest opened), so the ones used before the step began count too."""
+    cls = unreal.MissionLastingInteractObjective if lasting else unreal.MissionInteractObjective
+    return objective(asset, cls, text, target=actor_filter(cls_name, tag), count=count, hold=hold,
+                     show_count=count > 1, **kwargs)
+
+
+def clear(asset, text, spawner_id, count, **kwargs):
+    """An encounter's creatures all down (UMissionClearObjective: counted from its spawner, so kills before count)."""
+    return objective(asset, unreal.MissionClearObjective, text, spawner_id=unreal.Name(spawner_id), count=count, **kwargs)
+
+
+def reach(asset, text, tag, radius, ignore_height=True, **kwargs):
+    return objective(asset, unreal.MissionReachObjective, text, place=place(tag, radius, ignore_height), show_count=False,
+                     **kwargs)
+
+
+def talk(asset, text, tag, **kwargs):
+    return objective(asset, unreal.MissionTalkObjective, text, speaker_tag=unreal.Name(tag), show_count=False, **kwargs)
+
+
+def defend(asset, text, tag, radius, seconds, **kwargs):
+    """Stay within radius of the place tagged tag for seconds (UMissionDefendObjective): the count is the time."""
+    return objective(asset, unreal.MissionDefendObjective, text, place=place(tag, radius), hold_seconds=seconds,
+                     stay_inside=True, **kwargs)
 
 
 def item(item_id, name, line='', mesh='', dropped_by_class=None, dropped_by_tag=None):
@@ -216,7 +301,8 @@ def rewards(experience=0, gun=False, gun_rarity_floor='COMMON', gun_kind='', nam
 
 def choice(title, line, flag='', stamp='', lines=(), **reward_settings):
     """FMissionTurnInChoice: one of a turn-in's two choices (its title, what it means, the story flag it sets, the word
-    stamped as it's chosen, what's said then) and rewards()'s fields for what it gives in place of the mission's own."""
+    stamped as it's chosen, what's said then) and rewards()'s fields for what it gives in place of the mission's own
+    (experience left at 0 keeps the mission's)."""
     made = unreal.MissionTurnInChoice()
     made.set_editor_property('title', unreal.Text(title))
     made.set_editor_property('line', unreal.Text(line))
@@ -229,9 +315,9 @@ def choice(title, line, flag='', stamp='', lines=(), **reward_settings):
 
 def offer(giver_tag='', giver='', lines=(), briefing=''):
     """FMissionOffer, as create_mission_assets.py makes it: who offers a mission picked up from its giver (start='OFFERED')
-    by the tag their actor carries (Speaker_Agent, NoticeBoard_CalderPost, Artifact_MinersTag), their name for people,
-    what a speaker says as they offer it (lines of (speaker, words)), and the offer card's two to four sentences. Without a
-    giver tag the offer is empty, as every mission that isn't offered keeps it."""
+    by the tag their actor carries (Speaker_Agent, NoticeBoard_CalderPost, Artifact_MinersTag), their name for people
+    (empty: an artifact's own title), what a speaker says as they offer it (lines of (speaker, words)), and the offer
+    card's story. Without a giver tag the offer is empty, as every mission that isn't offered keeps it."""
     made = unreal.MissionOffer()
     made.set_editor_property('giver_tag', unreal.Name(giver_tag))
     made.set_editor_property('giver_name', unreal.Text(giver))
@@ -242,9 +328,9 @@ def offer(giver_tag='', giver='', lines=(), briefing=''):
 
 def turn_in(automatic=False, speaker='', giver='', lines=(), choices=(), question=''):
     """FMissionTurnIn, as create_mission_assets.py makes it: the giver's speaker tag and name (anyone at a speaker point: a
-    door, a coffin, a speaking tube, a tag board), what they say as it's turned in (none: their own lines there), and none
-    or two choice()s (or dicts of its fields) with the card's question; automatic: it finishes by itself after its last
-    objective."""
+    door, a coffin, a speaking tube, a tag board; or a notice board, which turns it in through its screen and says
+    nothing), what they say as it's turned in (none: their own lines there), and none or two choice()s (or dicts of its
+    fields) with the card's question; automatic: it finishes by itself after its last objective."""
     if len(choices) not in (0, 2):
         raise RuntimeError(f'a turn-in takes no choices or two, not {len(choices)}: nothing was changed')
     made = unreal.MissionTurnIn()
@@ -257,81 +343,408 @@ def turn_in(automatic=False, speaker='', giver='', lines=(), choices=(), questio
     return made
 
 
+# ---------------------------------------------------------------------------
+# The valley's side missions
+# ---------------------------------------------------------------------------
+
 def side1_steps(asset):
-    """Tear down the posters (any 6 of the 7, held), then read Calder's note. The arrows find their own: the nearest
-    poster still up, then the note."""
+    """Tear down the posters (any 6 of the 7, held), then read Calder's note on the Rangers' board (the sheriff's daybook
+    in the office beside it, if Ellis looks). The arrows find their own: the nearest poster still up, then the note."""
     return [
-        step(objective(asset, unreal.MissionLastingInteractObjective,
-                       'Tear down your wanted posters around town and on the farms',
-                       target=actor_filter('WantedPoster', WANTED_TAG), count=6, hold=True)),
-        step(objective(asset, unreal.MissionInteractObjective,
-                       "Read the note on the Rim Rangers' board by the sheriff's office",
-                       target=actor_filter('WantedPoster', NOTE_TAG), count=1, hold=False)),
+        step(interact(asset, 'Tear down your wanted posters around town and on the farms.', WANTED_TAG, 'WantedPoster',
+                      count=6, hold=True, lasting=True, short='Tear down your wanted posters')),
+        step(interact(asset, "Read the note on the Rim Rangers' board by the sheriff's office.", NOTE_TAG, 'WantedPoster',
+                      short="Read the note on the Rangers' board"),
+             read_objective(asset, "Look round the sheriff's office: the daybook on his desk.", 'OdellDaybook',
+                            optional=True, short="Read the sheriff's daybook")),
+    ]
+
+
+def caches_steps(asset):
+    """Ruth's three caches by her riddles (the windmill, the Sink's rim, the bluff path): the tag pinned to each, taken
+    (the arrow on the nearest tag still lying; one taken before the mission counts), and the crates opened if Ellis
+    likes (counted from the world: Main 2's bluff crate counts); then the gang's strongbox in the lockup (counted from the
+    world too) and the Deacon's slip in it."""
+    return [
+        step(collect_items(asset, "Find Calder's three caches and take the Ranger's tag from each.",
+                           ['CacheTag1', 'CacheTag2', 'CacheTag3'], short="Take the tags from Calder's caches"),
+             interact(asset, "Open Calder's three caches: hold {Interact}.", CACHE_TAG, 'Chest', count=3, hold=True,
+                      lasting=True, optional=True, short="Open Calder's caches")),
+        step(interact(asset, "Open the gang's strongbox in the sheriff's lockup. You know the combination.", STRONGBOX_TAG,
+                      'Chest', hold=True, lasting=True, short="Open the gang's strongbox")),
+        step(read_objective(asset, 'Read the slip folded in with the banknotes.', 'DeaconsSlip',
+                            short='Read the slip in the strongbox')),
+    ]
+
+
+def old_fare_steps(asset):
+    """The depot's waiting room cleared, the baggage room, Fenn's coffin, Mr. Sloane's confession through his door (his
+    desk's marker, if Ellis looks), Fenn's coins under the door, the coins back on Fenn's eyes."""
+    return [
+        step(clear(asset, "Clear the dead out of the depot's waiting room.", 'DepotWaiting', 5,
+                   short='Clear the waiting room')),
+        step(reach(asset, 'Find what they were waiting on, in the baggage room.', 'Place_BaggageRoom', 450.0,
+                   ignore_height=False, short='Search the baggage room')),
+        step(interact(asset, 'Look at the coffin tagged for Gravesend.', 'FennCoffin', short='Look at the coffin')),
+        step(talk(asset, "Ask Mr. Sloane about Fenn's coins.", 'Speaker_Agent'),
+             read_objective(asset, "Look in the agent's desk.", 'AgentDesk', optional=True)),
+        step(collect_items(asset, "Take Fenn's coins from under Mr. Sloane's door.", ['FennsFare'],
+                           short="Take Fenn's coins")),
+        # Any use of the coffin counts (a held one too), whatever the placing script makes of it.
+        step(interact(asset, "Lay the coins back on Fenn's eyes.", 'FennCoffin', short="Lay the coins on Fenn's eyes")),
     ]
 
 
 def side2_steps(asset):
-    """Talk to Amos at his fence, load his six bales (held, counted from the world), drive off his hired hands (their
-    encounter cleared); then it's turned in to Amos (the talk that was its fourth step). The arrows find their own: Amos,
-    the nearest bale still in the field, the nearest of the hands (or their spawner before they're up); then the turn-in's,
-    on Amos."""
+    """Amos's six bales loaded (held, counted from the world: the session keeps the loaded ones with the map), then his
+    talk about the men on the road (the twist), then his old hired hands driven off (their encounter cleared; what he owed
+    them chalked in the barn, if Ellis reads it); then it's turned in to Amos (his thanks: the topic from step 3)."""
     return [
-        step(objective(asset, unreal.MissionTalkObjective, 'Talk to Amos at his fence', show_count=False,
-                       speaker_tag=unreal.Name(AMOS_TAG))),
-        step(objective(asset, unreal.MissionLastingInteractObjective, 'Load the hay bales into his barn',
-                       target=actor_filter('HayBale', BALE_TAG), count=BALES, hold=True)),
-        step(objective(asset, unreal.MissionClearObjective, 'Drive off his old hired hands',
-                       spawner_id=unreal.Name(HANDS), count=HANDS_COUNT)),
+        step(interact(asset, 'Load the hay bales into his barn.', BALE_TAG, 'HayBale', count=BALES, hold=True, lasting=True,
+                      short='Load the hay bales')),
+        step(talk(asset, "Ask Amos who's on the road.", AMOS_TAG)),
+        step(clear(asset, 'Drive off his old hired hands.', HANDS, HANDS_COUNT),
+             read_objective(asset, 'Read what Amos owed, chalked inside the barn door.', 'WagesChalk', optional=True,
+                            short='Read what Amos owed')),
     ]
 
 
+def knocking_steps(asset):
+    """Round to the workshop, the key on Thaddeus's hook (his coffin orders on the slate, if Ellis reads them), down into
+    the cellar, its dead quieted, the cold room's door, Thaddeus at his bench, his tape for Tilly."""
+    return [
+        step(reach(asset, 'Go round to the workshop door in the undertaker\'s yard.', 'Place_WorkshopDoor', 400.0,
+                   short='Go round to the workshop')),
+        step(collect_items(asset, 'Find the cellar key.', ['CellarKey']),
+             read_objective(asset, 'Read the coffin orders on the slate.', 'OrdersSlate', optional=True)),
+        # Height counted, and under the 3.6 m between the workshop's floor and the cellar's, so standing over it upstairs
+        # isn't down.
+        step(reach(asset, 'Go down into the cellar.', 'Place_CellarFloor', 350.0, ignore_height=False)),
+        step(clear(asset, 'Quiet the dead in the cellar.', 'TillyCellar', 4)),
+        step(interact(asset, "Find what's still knocking: open the cold room.", 'ColdRoomDoor',
+                      short="Find what's still knocking")),
+        step(talk(asset, 'Talk to the man at the bench.', 'Speaker_Thaddeus')),
+        step(collect_items(asset, "Take Thaddeus's tape measure for Tilly.", ['ThaddeusTape'],
+                           short="Take Thaddeus's tape")),
+    ]
+
+
+# ---------------------------------------------------------------------------
+# After Main 5: the Gravemother, and the mountain
+# ---------------------------------------------------------------------------
+
 def side3_steps(asset):
     """Find where the Gravemother hungers (done on entering the Sink: the floor's place, SINK_REACH measured with its
-    height), then kill the Gravemother (her lair's encounter cleared). The first arrow points at the ramp head on the rim
-    (the Sink's way in), not the floor's middle; the second finds its own: the Gravemother herself (or her lair while she's
-    in her den)."""
+    height; the arrow on the ramp head on the rim, the Sink's way in), kill her (her lair's encounter cleared; the arrow
+    finds her), take her fang where she fell (the sheriff's badge in her den, if Ellis looks)."""
     sink = unreal.MissionPlace()
     sink.set_editor_property('actor', actor_filter(tag=SINK_TAG))
     sink.set_editor_property('radius', SINK_REACH)
     sink.set_editor_property('ignore_height', False)
     return [
+        # The user's own words, to the letter (Looter.Story.Gravemother checks them).
         step(objective(asset, unreal.MissionReachObjective, 'Find where the Gravemother hungers', show_count=False,
                        place=sink, waypoint=unreal.MissionWaypoint.ACTOR, waypoint_actor=actor_filter(tag=SINK_RIM_TAG))),
-        step(objective(asset, unreal.MissionClearObjective, 'Kill the Gravemother', show_count=False,
-                       spawner_id=unreal.Name(GRAVEMOTHER_LAIR), count=1)),
+        step(clear(asset, 'Kill the Gravemother.', GRAVEMOTHER_LAIR, 1, show_count=False)),
+        step(collect_items(asset, 'Take her fang.', ['GravemotherFang']),
+             read_objective(asset, "Find what's left of Sheriff Odell in her den.", 'SheriffBadge', optional=True,
+                            short="Find what's left of the sheriff")),
+    ]
+
+
+def dead_lift_steps(asset):
+    """Three things in any order (the crank in the lockup, with Odell's report on the fall beside it if Ellis reads it;
+    coal from the depot's stage; the clamp pin off Abe Haskett's crew on the quarry floor), the three fittings, the quarry
+    held while she raises steam, the ride up. The ride must stay the fourth step (AOreLift::OpensAtStep 3)."""
+    return [
+        step(collect_items(asset, "Take the winch crank from the sheriff's lockup.", ['WinchCrank'],
+                           short='Take the winch crank'),
+             read_objective(asset, "Read Sheriff Odell's report on the fall.", 'OdellReport', optional=True,
+                            short="Read Odell's report"),
+             collect_items(asset, "Fill a coal sack at the depot's coal stage.", ['CoalSack'], short='Fill a coal sack'),
+             collect_items(asset, 'Get the clamp pin back from Abe Haskett, out on the quarry floor.', ['ClampPin'],
+                           short='Get the clamp pin from Abe Haskett')),
+        # The fittings (AMissionFitting) count as used up once done, so each is counted from the world (lasting).
+        step(interact(asset, 'Fit the crank to the winch: hold {Interact}.', 'LiftFitting_Crank', hold=True, lasting=True,
+                      short='Fit the crank'),
+             interact(asset, 'Stoke the boiler: hold {Interact}.', 'LiftFitting_Boiler', hold=True, lasting=True,
+                      short='Stoke the boiler'),
+             interact(asset, 'Drive the clamp pin at the bottom sheave: hold {Interact}.', 'LiftFitting_Pin', hold=True,
+                      lasting=True, short='Drive the clamp pin')),
+        step(defend(asset, 'Hold the quarry while she raises steam.', 'Place_OldQuarry', 2500.0, 60.0,
+                    short='Hold the quarry')),
+        step(objective(asset, unreal.MissionBoardObjective, 'Ride the lift to the top: hold {Interact} on the bell pull.',
+                       short='Ride the lift up', waypoint=unreal.MissionWaypoint.ACTOR, waypoint_tag='OreLift',
+                       vehicle=unreal.Name('Lift'), show_count=False)),
+    ]
+
+
+def last_watch_steps(asset):
+    """The post's yard cleared, the oil in Ruth's cabin (her journal, if Ellis reads it), the watch fire lit (it must stay
+    the third step: AWatchFire's LightStep 2), the post kept until a post down the Rim answers, the answer read with
+    Ruth's code book (the far light shows from the fifth: AFarSignalLight's AnswerStep 4; the post's log signed, if
+    Ellis will)."""
+    return [
+        step(clear(asset, "Clear the post's yard.", 'CalderPost', 5)),
+        step(collect_items(asset, "Find oil for the watch fire in Ruth's cabin.", ['LampOil'], short='Find lamp oil'),
+             read_objective(asset, "Read Ruth Calder's journal.", 'RuthJournal', optional=True)),
+        step(interact(asset, 'Light the watch fire on the tower: hold {Interact}.', 'WatchFire', hold=True,
+                      short='Light the watch fire')),
+        step(defend(asset, 'Keep the post until a post down the Rim answers.', 'Place_CalderPost', 2000.0, 45.0,
+                    short='Keep the post')),
+        step(read_objective(asset, "Read the answer with Ruth's code book.", 'CodeBook', short='Read the answer'),
+             read_objective(asset, "Sign the post's log.", 'PostLog', optional=True)),
+    ]
+
+
+def back_pay_steps(asset):
+    """Into the Providence, the upper gallery's shift cleared, the Foreman's payroll book (the chalk on the wall, if Ellis
+    reads it), the lower drift cleared, the eleven's tags off their barricade, the Foreman put down, the payroll taken
+    from the stope; then the choice at the tag board."""
+    return [
+        step(reach(asset, 'Go into the Providence.', 'Place_UpperGallery', 1200.0, ignore_height=False)),
+        step(clear(asset, 'Clear the upper gallery.', 'MineUpper', 5)),
+        step(read_objective(asset, "Search the Foreman's office.", 'PayrollBook'),
+             read_objective(asset, 'Read the chalk on the gallery wall.', 'ChalkTally', optional=True)),
+        step(clear(asset, 'Go down the decline and clear the lower drift.', 'MineLower', 6, short='Clear the lower drift')),
+        step(read_objective(asset, "Take the eleven's tags from their barricade.", 'Barricade')),
+        step(clear(asset, 'Put the Foreman down.', 'Foreman', 1, show_count=False)),
+        step(collect_items(asset, 'Take the payroll from the stope.', ['Payroll'])),
     ]
 
 
 MISSIONS = [
+    # --- The valley, after Main 3 ---
     dict(asset='DA_Mission_Side1', id='Side1', title='Wanted: Already Dead',
-         summary='Your wanted poster hangs all over Ransom\'s Rest, and someone has written ALREADY under DEAD OR ALIVE. '
-                 'Tear them down.',
-         kind='SIDE', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main3'], sort_order=10, steps=side1_steps,
-         # Back to Tilly at her window, a short walk up Main Street from the Rangers' board: the reward gun is the box of
-         # effects nobody came back for.
-         turn_in=dict(speaker='Speaker_Tilly', giver='Tilly', lines=[
-             ('', "So it was you, tearing the posters down. Good. They were bad for trade."),
+         summary="Your wanted poster hangs all over Ransom's Rest, and someone has written ALREADY under DEAD OR ALIVE. "
+                 "Tear them down, and find out who keeps putting them up.",
+         kind='SIDE', start='OFFERED', area='RansomsRest', prerequisites=['Main3'], sort_order=10, steps=side1_steps,
+         offer=dict(giver_tag='Artifact_PosterGate', giver='', briefing=(
+             "WANTED: ELLIS RANSOM, OF THE DUNNE GANG. DEAD OR ALIVE. Somebody has written ALREADY under the last line. "
+             "There's one on every post in town and on both farms.")),
+         # Back to Tilly at her window, a short walk up Main Street from the Rangers' board: the twist, then the reward
+         # gun, the box of effects nobody came back for.
+         turn_in=dict(speaker=TILLY_TAG, giver='Tilly', lines=[
+             ('', "So it was you, tearing them down. Good. They were bad for trade."),
+             (ELLIS, 'Who wrote ALREADY?'),
+             ('', "I did. On the first one. Somebody had to."),
              ('', "A stranger left this with his effects and never came back for it. You'll get more use from it than he "
                   "did."),
          ]),
-         rewards=dict(experience=35, gun=True, gun_rarity_floor='RARE'),
-         # What setup() checks the stored steps against: each step's objective class.
-         expect=['MissionLastingInteractObjective', 'MissionInteractObjective']),
+         rewards=dict(experience=400, gun=True, gun_rarity_floor='RARE'),
+         expect=['MissionLastingInteractObjective', ['MissionInteractObjective', 'MissionEventObjective']]),
+    dict(asset='DA_Mission_CaldersCaches', id='CaldersCaches', title="Calder's Caches",
+         summary="Ruth Calder of the Rim Rangers laid three caches on Ransom's Rest for her Rangers, and left a riddle for "
+                 "each. Find them and take their tags, then open the gang's strongbox in the sheriff's lockup.",
+         kind='SIDE', start='OFFERED', area='RansomsRest', prerequisites=['Main3'], sort_order=11, steps=caches_steps,
+         offer=dict(giver_tag='Artifact_CalderNote', giver='', briefing=(
+             "RIM RANGERS. Three caches laid for any Ranger riding through: under the iron flower that drinks the wind; on "
+             "the lip of the hungry hole; on the path where the Ransom kid used to go to sulk. Take what you need and pin "
+             "the tag. The gang's strongbox is in the sheriff's lockup as evidence. The fourth cache is at the Larkspur "
+             "post, if the lift ever runs again. \u2014 Capt. R. Calder")),
+         items=[dict(item_id='CacheTag1', name="Ranger's tag: the windmill",
+                     line="A Rim Rangers' brass tag from the cache under the iron flower that drinks the wind.",
+                     mesh=PROPS + 'SM_CacheTag'),
+                dict(item_id='CacheTag2', name="Ranger's tag: the Sink",
+                     line="A Rim Rangers' brass tag from the cache on the lip of the hungry hole.",
+                     mesh=PROPS + 'SM_CacheTag'),
+                dict(item_id='CacheTag3', name="Ranger's tag: the bluff path",
+                     line="A Rim Rangers' brass tag from the cache where the Ransom kid used to go to sulk.",
+                     mesh=PROPS + 'SM_CacheTag')],
+         # Pinned on Calder's tally at the board, Ranger fashion (a board turns it in through its screen and says
+         # nothing: Hob's word is for when it does).
+         turn_in=dict(speaker=RANGERS_BOARD, giver="the Rangers' board", lines=[
+             (HOB, "Three tags for the Rangers. She'll still hang you, sunshine."),
+         ]),
+         rewards=dict(experience=250, silver=30),
+         expect=[['MissionCollectItemObjective', 'MissionLastingInteractObjective'], 'MissionLastingInteractObjective',
+                 'MissionEventObjective']),
+    dict(asset='DA_Mission_OldFare', id='OldFare', title='The Old Fare',
+         summary="Mr. Sloane, the station agent, has locked himself upstairs in the depot. Every night the dead stand in his "
+                 "waiting room as if for a train. Clear them out, and find out what they're waiting on.",
+         kind='SIDE', start='OFFERED', area='RansomsRest', prerequisites=['Main3'], sort_order=12, steps=old_fare_steps,
+         offer=dict(giver_tag='Speaker_Agent', giver='Mr. Sloane', lines=[
+             ('', "Who's there? ...Lord. The Ransom kid."),
+             ('', "Every night since Wednesday they come and stand in my waiting room like they've a train to catch. I "
+                  "can hear them breathing."),
+             ('', "If you're dead too, maybe they'll listen to you."),
+         ], briefing="Mr. Sloane, the station agent, has locked himself upstairs. Every night since the saint went dark "
+                     "the dead have stood in his waiting room as if for a train. Clear them out, and find out what "
+                     "they're waiting on."),
+         items=[dict(item_id='FennsFare', name="Fenn's fare",
+                     line="Two old gold coins, worn thin: grave gold, the fare the dead once paid. Mr. Sloane borrowed "
+                          "them off Josiah Fenn's eyes.",
+                     mesh=PROPS + 'SM_GraveCoins')],
+         # Josiah Fenn, a talking coffin bound for Gravesend: the waiting room stays quiet from then on, and Mr. Sloane
+         # comes down to his ticket window.
+         turn_in=dict(speaker='Speaker_Fenn', giver='Josiah Fenn', lines=[
+             ('', "Much obliged. A man likes to pay his own way."),
+             ('', "Tell Sloane I forgive him. Don't tell him I said it like that."),
+             ('', "There's a pistol under me. Never fired it once. Take it."),
+         ]),
+         rewards=dict(experience=600, gun=True, gun_rarity_floor='RARE', gun_kind=REVOLVER, silver=30),
+         expect=['MissionClearObjective', 'MissionReachObjective', 'MissionInteractObjective',
+                 ['MissionTalkObjective', 'MissionEventObjective'], 'MissionCollectItemObjective',
+                 'MissionInteractObjective']),
+
+    # --- The valley, after Main 4 ---
     dict(asset='DA_Mission_Side2', id='Side2', title='Unfinished Business',
-         summary=('Amos Whitlock died last harvest with his hay half in. He was still on the Sundown Road when the saint '
-                  "went dark, and he drifted home to find it rotting in the field. He isn't angry yet."),
-         kind='SIDE', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main4'], sort_order=20, steps=side2_steps,
+         summary=("Amos Whitlock died last harvest with his hay half in. He was still on the Sundown Road when the saint "
+                  "went dark, and drifted home to find it rotting in the field. He isn't angry yet. He'd like it in."),
+         kind='SIDE', start='OFFERED', area='RansomsRest', prerequisites=['Main4'], sort_order=20, steps=side2_steps,
+         offer=dict(giver_tag=AMOS_TAG, giver='Amos Whitlock', lines=[
+             ('', "Well, now. You're looking right at me. Folks in town look clean through me, like a window."),
+             (ELLIS, 'Amos Whitlock?'),
+             ('', "What's left of him. And you're Abel's young'un. I heard the shooting from the Sundown Road the night the "
+                  "saint went out. I'm sorry for it."),
+             ('', "I died last harvest with the hay half in. Got turned back on the road and came home to find it rotting "
+                  "where I left it."),
+             ('', "My hands go through a bale like it was smoke. Would you load it for me? Six bales, stacked under the "
+                  "hoist by the big doors."),
+         ], briefing="Amos Whitlock died last harvest with his hay half in. He was still on the Sundown Road when the saint "
+                     "went dark, and drifted home to find it rotting in the field. He isn't angry yet. He'd like it in."),
+         # His thanks are his topic at the turn-in's step (DA_Lines_AmosThanks, build_area_whitlock's THANKS_STEP 3).
          turn_in=dict(speaker=AMOS_TAG, giver='Amos'),
-         rewards=dict(experience=40, gun=True, gun_rarity_floor='EPIC'),
-         expect=['MissionTalkObjective', 'MissionLastingInteractObjective', 'MissionClearObjective']),
+         rewards=dict(experience=800, gun=True, gun_rarity_floor='EPIC'),
+         expect=['MissionLastingInteractObjective', 'MissionTalkObjective', ['MissionClearObjective', 'MissionEventObjective']]),
+    dict(asset='DA_Mission_KnockingBelow', id='KnockingBelow', title='Knocking Below',
+         summary="Bright & Daughter keeps the Rest's dead in its cellar until their seven days are up. Since the saint went "
+                 "dark something down there knocks all night. The way in is through Tilly's father's workshop.",
+         kind='SIDE', start='OFFERED', area='RansomsRest', prerequisites=['Main4'], sort_order=21, steps=knocking_steps,
+         offer=dict(giver_tag=TILLY_TAG, giver='Tilly', lines=[
+             ('', "You've been in a grave and out of it, Ellis, so you'll understand me."),
+             ('', "Something's knocked in my cellar every night since Wednesday. I've four down there waiting out their "
+                  "seven days, and no keeper to walk them."),
+             ('', "I'd go down myself, except I'd rather not."),
+         ], briefing="Bright & Daughter keeps the Rest's dead in its cellar until their seven days are up. Since the saint "
+                     "went dark something down there knocks all night, and Tilly hasn't been below since. The way in is "
+                     "through her father's workshop, off the undertaker's yard."),
+         items=[dict(item_id='CellarKey', name='The cellar key',
+                     line="Iron, from Thaddeus Bright's measuring hook. Tilly never moved it.",
+                     mesh=PROPS + 'SM_CellarKey'),
+                dict(item_id='ThaddeusTape', name="Thaddeus's tape measure",
+                     line="Brass-cased, the initials worn off. For Tilly, with a word about the brass.",
+                     mesh=PROPS + 'SM_TapeMeasure')],
+         turn_in=dict(speaker=TILLY_TAG, giver='Tilly', lines=[
+             ('', "...He's down there."),
+             ('', "Of course he is. He never once came up for supper."),
+             ('', "Brass handles. He'd have hated them."),
+             ('', "There's a box of his under the counter. It's yours. Don't make me look at it."),
+         ]),
+         rewards=dict(experience=800, gun=True, gun_rarity_floor='RARE', silver=40),
+         expect=['MissionReachObjective', ['MissionCollectItemObjective', 'MissionEventObjective'], 'MissionReachObjective',
+                 'MissionClearObjective', 'MissionInteractObjective', 'MissionTalkObjective', 'MissionCollectItemObjective']),
+
+    # --- After Main 5 ---
     dict(asset='DA_Mission_Side3', id='Side3', title='The Gravemother',
-         summary='Something big lives in the Sink\'s den, and it eats what the Unpaid leave behind.',
-         kind='SIDE', start='AUTOMATIC', area='RansomsRest', prerequisites=['Main5'], sort_order=30, steps=side3_steps,
-         # A hunt nobody asked for: done as she dies. Experience the first time; her loot is her own (the Legendary table
-         # on every kill), so no reward gun.
-         turn_in=dict(automatic=True),
-         rewards=dict(experience=40, gun=False),
-         expect=['MissionReachObjective', 'MissionClearObjective']),
+         summary="A month ago Sheriff Odell posted a bounty on the big one in the Sink's den, then went down after her "
+                 "himself. The town's purse is paid at Pruitt's for her fang.",
+         kind='SIDE', start='OFFERED', area='RansomsRest', prerequisites=['Main5'], sort_order=30, steps=side3_steps,
+         offer=dict(giver_tag=RANGERS_BOARD, giver="Sheriff Odell's bounty", briefing=(
+             "BOUNTY. The big one in the Sink's den. She took my dog and the Haskett mule. The town's purse to whoever "
+             "brings me her fang, paid at Pruitt's. I'm going down after her myself. \u2014 Sheriff W. Odell")),
+         items=[dict(item_id='GravemotherFang', name="The Gravemother's fang",
+                     line="As long as a forearm and still wet. The sheriff's bounty is paid on it at Pruitt's.",
+                     mesh=PROPS + 'SM_GravemotherFang', dropped_by_class='GravemotherCreature')],
+         # Mrs. Pruitt at the store's hatch: the purse, and her brother.
+         turn_in=dict(speaker='Speaker_Pruitt', giver='Mrs. Pruitt', lines=[
+             ('', "Lord, the size of it."),
+             ('', "That's the town's purse, what's left of it."),
+             ('', "Wade was my brother. He always said he'd die with his boots on. Never said a word about his hat."),
+         ]),
+         rewards=dict(experience=1200, silver=80),
+         expect=['MissionReachObjective', 'MissionClearObjective', ['MissionCollectItemObjective', 'MissionEventObjective']]),
+    dict(asset='DA_Mission_DeadLift', id='DeadLift', title='Dead Lift',
+         summary="The Providence Mining Company's ore lift still hangs over the Old Quarry, and its engineman, Hiram Coyle, "
+                 "still waits by its cold boiler. Find its crank, coal and clamp pin, and he'll take you up Larkspur Ridge.",
+         kind='SIDE', start='OFFERED', area='RansomsRest', prerequisites=['Main5'], sort_order=31, steps=dead_lift_steps,
+         offer=dict(giver_tag='Speaker_Hiram', giver='Hiram Coyle', lines=[
+             ('', "Ain't had a passenger in four years. You riding up, or just looking?"),
+             (ELLIS, 'Riding.'),
+             ('', "Then she wants three things. Her crank: the sheriff took it when they shut her."),
+             ('', "Coal: boiler's stone cold."),
+             ('', "And her clamp pin, which went down the hill in Abe Haskett's pocket the day of the fall."),
+             (HOB, "Dead lift. I'll let you have that one, sunshine."),
+         ], briefing="The old ore lift still hangs over the Old Quarry, and its engineman, Hiram Coyle, still waits by its "
+                     "boiler. Find its winch crank, coal for its boiler and the clamp pin its brakeman carried down, and "
+                     "Hiram will take you up the mountain."),
+         items=[dict(item_id='WinchCrank', name='The winch crank',
+                     line="The ore lift's crank, taken off when the company shut her. Sheriff Odell kept it in the lockup.",
+                     mesh=PROPS + 'SM_WinchCrank'),
+                dict(item_id='CoalSack', name='A sack of coal',
+                     line="Railroad coal from the depot's stage, for the lift's cold boiler.",
+                     mesh=PROPS + 'SM_CoalSack'),
+                # Abe Haskett carries it, the lift crew's Restless brakeman (the dead miner the mountain's script tags
+                # AbeHaskett): it falls where he does.
+                dict(item_id='ClampPin', name='The clamp pin',
+                     line="The pin that locks the lift's cable at the bottom sheave, on a cord. Abe Haskett wore it to the "
+                          "end.",
+                     mesh=PROPS + 'SM_ClampPin', dropped_by_tag='AbeHaskett')],
+         # Through the speaking tube at the lift head: from now on the lift runs both ways.
+         turn_in=dict(speaker='Speaker_LiftTube', giver='Hiram, by the speaking tube', lines=[
+             ('', "Hear that? She still runs."),
+             ('', "Tell the Rangers Hiram Coyle says they owe him for coal."),
+             ('', "There's a carbine in the head's tool box. Company's. They'll never miss it."),
+         ]),
+         rewards=dict(experience=1500, gun=True, gun_rarity_floor='RARE', gun_kind=RIFLE, silver=40),
+         expect=[['MissionCollectItemObjective', 'MissionEventObjective', 'MissionCollectItemObjective',
+                  'MissionCollectItemObjective'],
+                 ['MissionLastingInteractObjective', 'MissionLastingInteractObjective', 'MissionLastingInteractObjective'],
+                 'MissionDefendObjective', 'MissionBoardObjective']),
+
+    # --- After Dead Lift: Calder's Post and the Providence ---
+    dict(asset='DA_Mission_LastWatch', id='LastWatch', title='The Last Watch',
+         summary="Calder's Post on the Rim stands empty: Ruth Calder rode south after the Dunne Gang. Light the watch fire "
+                 "so the posts down the Rim know Larkspur stands.",
+         kind='SIDE', start='OFFERED', area='RansomsRest', prerequisites=['DeadLift'], sort_order=32, steps=last_watch_steps,
+         offer=dict(giver_tag=POST_BOARD, giver="Calder's Post's board", briefing=(
+             "RIM RANGERS, LARKSPUR POST. Post unmanned: gone after the Dunne Gang's trail. Any Ranger riding through, "
+             "light the watch fire on the tower, so the posts down the Rim know Larkspur stands. If it stays dark they'll "
+             "take the post for fallen and pull back. \u2014 Capt. R. Calder")),
+         items=[dict(item_id='LampOil', name='Lamp oil',
+                     line="A can of Ruth Calder's lamp oil, for the watch fire on the tower.",
+                     mesh=PROPS + 'SM_LampOil')],
+         # Signed off at the post's board (it says nothing; Hob's word is for when it does). Calder's fourth cache, the
+         # Supply Crate in the cabin, opens with it (the placing script's).
+         turn_in=dict(speaker=POST_BOARD, giver="the post's board", lines=[
+             (HOB, "Larkspur stands, sunshine. On a dead outlaw's word."),
+         ]),
+         rewards=dict(experience=1300, silver=60),
+         expect=['MissionClearObjective', ['MissionCollectItemObjective', 'MissionEventObjective'], 'MissionInteractObjective',
+                 'MissionDefendObjective', ['MissionEventObjective', 'MissionEventObjective']]),
+    dict(asset='DA_Mission_BackPay', id='BackPay', title='Back Pay',
+         summary="Eleven brass tags still hang on the IN side of the Providence's tag board. Go down into the mine and find "
+                 "out why eleven men never came up, and what still works the dark.",
+         kind='SIDE', start='OFFERED', area='RansomsRest', prerequisites=['DeadLift'], sort_order=33, steps=back_pay_steps,
+         offer=dict(giver_tag='Artifact_MinersTag', giver='', briefing=(
+             "No. 7. J. ODELL. IN. Eleven brass tags still hang on the IN side of the Providence's tag board. A miner hung "
+             "his tag there going down and took it off coming up. These eleven never came up, and something has worked "
+             "the dark galleries ever since.")),
+         items=[dict(item_id='Payroll', name='The Providence payroll',
+                     line="The company's strongbox: three months' wages for eleven men, never paid out.",
+                     mesh=PROPS + 'SM_PayrollChest')],
+         # The shift's voice out of the dark at the tag board, then the choice; the chosen one's lines, flag and rewards.
+         turn_in=dict(speaker='Speaker_TagBoard', giver='the tag board', lines=[
+             ('', "Who's at the board? ...Shift's not over."),
+             (ELLIS, "It is. I've got your tags. And Teague's payroll."),
+             ('', "Three months owed. Eleven men. Pay us, and we come up."),
+         ], question="The company's silver is in your hands, and eleven tags still hang on IN.", choices=[
+             dict(title='Pay the eleven', line="Hang their tags on OUT with their wages. The shift ends, and the "
+                                               "Providence's dead rest.",
+                  flag='BackPay.Paid', stamp='PAID', lines=[
+                      ('', "Paid in full. Shift's over, boys."),
+                      (HOB, "First honest pay this mine ever made."),
+                  ], gun=True, gun_rarity_floor='RARE'),
+             dict(title='Keep the payroll', line="Leave the tags on IN and pocket the company's silver. The dead go on "
+                                                 "working the dark.",
+                  flag='BackPay.Kept', stamp='KEPT', lines=[
+                      ('', "...Company man after all."),
+                      (HOB, "Can't spend it in the ground, sunshine. Good thing you're not staying there."),
+                  ], silver=400),
+         ]),
+         rewards=dict(experience=2000),
+         expect=['MissionReachObjective', 'MissionClearObjective', ['MissionEventObjective', 'MissionEventObjective'],
+                 'MissionClearObjective', 'MissionEventObjective', 'MissionClearObjective', 'MissionCollectItemObjective']),
 ]
 
 
@@ -352,11 +765,11 @@ def describe(objective_object):
         words.append(f"{count} of tag {target.get_editor_property('actor_tag')}")
     elif count is not None:
         words.append(f'{count}')
-    place = editor_property(objective_object, 'place')
-    if place is not None:
-        words.append(f"the place tagged {place.get_editor_property('actor').get_editor_property('actor_tag')} within "
-                     f"{place.get_editor_property('radius'):.0f} cm"
-                     f"{'' if place.get_editor_property('ignore_height') else ', measured with its height'}")
+    place_set = editor_property(objective_object, 'place')
+    if place_set is not None:
+        words.append(f"the place tagged {place_set.get_editor_property('actor').get_editor_property('actor_tag')} within "
+                     f"{place_set.get_editor_property('radius'):.0f} cm"
+                     f"{'' if place_set.get_editor_property('ignore_height') else ', measured with its height'}")
     if editor_property(objective_object, 'waypoint') == unreal.MissionWaypoint.ACTOR:
         words.append(f"arrow on the actor tagged {objective_object.get_editor_property('waypoint_actor').get_editor_property('actor_tag')}")
     spawner = editor_property(objective_object, 'spawner_id')
@@ -365,6 +778,15 @@ def describe(objective_object):
     speaker = editor_property(objective_object, 'speaker_tag')
     if speaker is not None:
         words.append(f'the speaker tagged {speaker}')
+    carried = editor_property(objective_object, 'items')
+    if carried:
+        words.append(f"carrying {', '.join(str(each) for each in carried)}")
+    event = editor_property(objective_object, 'event')
+    if event is not None:
+        words.append(f'the event {event}')
+    seconds = editor_property(objective_object, 'hold_seconds')
+    if seconds is not None:
+        words.append(f'held {seconds:.0f} s')
     if editor_property(objective_object, 'hold'):
         words.append('held')
     return ', '.join(words)
@@ -395,8 +817,8 @@ def setup(spec):
     # What starts an ON_EVENT mission, and who offers an OFFERED one (spec 'offer': offer()'s fields); others have none.
     asset.set_editor_property('start_event', unreal.Name(spec.get('start_event', '')))
     offered = spec.get('offer', {})
-    if spec['start'] == 'OFFERED' and not offered.get('giver_tag'):
-        raise RuntimeError(f"{FOLDER}/{spec['asset']}: it starts OFFERED but names no giver_tag: nothing was saved")
+    if spec['start'] == 'OFFERED' and (not offered.get('giver_tag') or not offered.get('briefing')):
+        raise RuntimeError(f"{FOLDER}/{spec['asset']}: it starts OFFERED but names no giver_tag or briefing: nothing was saved")
     asset.set_editor_property('offer', offer(**offered))
     asset.set_editor_property('area', unreal.Name(spec['area']))
     asset.set_editor_property('prerequisites', [unreal.Name(each) for each in spec['prerequisites']])
@@ -411,6 +833,16 @@ def setup(spec):
     asset.set_editor_property('steps', steps)
     asset.set_editor_property('turn_in', turn_in(**spec['turn_in']))
     asset.set_editor_property('rewards', rewards(**spec['rewards']))
+    choices = spec['turn_in'].get('choices', ())
+    if choices and (spec['turn_in'].get('automatic') or not spec['turn_in'].get('speaker')):
+        raise RuntimeError(f"{FOLDER}/{spec['asset']}: a choice at the turn-in needs someone to turn it in to: nothing was saved")
+
+    # A giver's talk can't also be the last objective: that talk is the turn-in (Looter.Missions.Definitions checks it).
+    giver = spec['turn_in'].get('speaker', '')
+    last = steps[-1].get_editor_property('objectives') if steps else []
+    if giver and any(isinstance(each, unreal.MissionTalkObjective) and str(each.get_editor_property('speaker_tag')) == giver
+                     for each in last):
+        raise RuntimeError(f"{FOLDER}/{spec['asset']}: its last step talks to {giver}, who it's turned in to: nothing was saved")
 
     # Read back what the asset holds before saving: every step with its objectives, of the classes asked for. A step's
     # expectation is one class name for all its objectives, or a list of them in order (a step with optional objectives).
@@ -450,11 +882,11 @@ def setup(spec):
     reward = spec['rewards']
     finish = ('finishes by itself' if spec['turn_in'].get('automatic')
               else f"turned in to {spec['turn_in'].get('giver')} ({spec['turn_in'].get('speaker')})")
-    choices = spec['turn_in'].get('choices', ())
     unreal.log(f"SIDEMISSIONS {spec['asset']} {'made' if created else 'updated'}: id {spec['id']}, \"{spec['title']}\", "
-               f"{spec['kind'].lower()}, starts {spec['start'].lower()} after {', '.join(spec['prerequisites'])}, "
+               f"{spec['kind'].lower()}, offered by {offered.get('giver_tag')} after {', '.join(spec['prerequisites'])}, "
                f"area '{spec['area']}', {len(steps)} steps, {finish}; rewards {reward.get('experience', 0)} XP"
                f"{', a ' + reward.get('gun_rarity_floor', 'COMMON').title() + ' gun' if reward.get('gun') else ''}"
+               f"{', ' + str(reward['silver']) + ' silver' if reward.get('silver') else ''}"
                f"{', a choice of two' if choices else ''}{', items ' + ', '.join(item_ids) if item_ids else ''}")
 
 
@@ -471,7 +903,7 @@ def mission_ids():
 def run():
     mission_types()
     # A side mission waits for its prerequisites: Looter.Missions.Definitions wants every prerequisite to be a mission
-    # (Side 1 opens after Main 3, which comes with step 17's main mission).
+    # (the main ones are create_mission_assets.py's; the mountain's later ones follow Dead Lift, made here first).
     known = mission_ids()
     waiting = []
     for spec in MISSIONS:
@@ -481,6 +913,7 @@ def run():
             waiting.append(spec['asset'])
             continue
         setup(spec)
+        known.add(spec['id'])
     unreal.log('SIDEMISSIONS done' + (f"; waiting for their prerequisites: {', '.join(waiting)}" if waiting else ''))
 
 

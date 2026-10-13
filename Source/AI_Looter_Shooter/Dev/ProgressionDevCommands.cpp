@@ -97,8 +97,8 @@ namespace
 		const FXPCurve Curve = UPlayerProgressionSubsystem::GetCurve();
 		const FLevelRules Rules = UPlayerProgressionSubsystem::GetLevelRules();
 		const int32 BaseXP = GetDefault<ACreatureBase>()->XPReward;
-		UE_LOG(LogLooter, Log, TEXT("Looter.XP.Table: a Basic kill at the player's level gives %d x %.2f^(level - 1) XP; level L takes %lld x %.2f^(L - 1)."),
-			BaseXP, Rules.KillXPGrowth, Curve.BaseXP, Curve.Growth);
+		UE_LOG(LogLooter, Log, TEXT("Looter.XP.Table: a Basic kill at the player's level gives %d x %.2f x level^%.2f XP; reaching level L takes %.0f x (L^%.2f - 1) in all."),
+			BaseXP, Rules.KillXPScale, Rules.KillXPPower, Curve.CurveScale, Curve.CurvePower);
 		UE_LOG(LogLooter, Log, TEXT("  level   XP to next   XP a kill   kills   kills so far   XP so far"));
 		int32 Level = 1;
 		int64 XP = 0;

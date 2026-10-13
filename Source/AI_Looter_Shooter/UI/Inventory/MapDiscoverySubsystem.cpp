@@ -7,7 +7,8 @@
 
 bool UMapDiscoverySubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
-	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE;
+	// Editor preview worlds too, for the automated tests (nobody walks there, so nothing is found by itself).
+	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE || WorldType == EWorldType::EditorPreview;
 }
 
 void UMapDiscoverySubsystem::Tick(float DeltaTime)
@@ -18,6 +19,37 @@ void UMapDiscoverySubsystem::Tick(float DeltaTime)
 	{
 		SinceLook = 0.f;
 		LookAround();
+	}
+}
+
+TArray<FName> UMapDiscoverySubsystem::GetUnopenedFound() const
+{
+	TArray<FName> Unopened;
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return Unopened;
+	}
+	for (TActorIterator<AChest> It(World); It; ++It)
+	{
+		// HasGivenLoot is what the session's OpenedChests go by, so a chest is in exactly one of the two lists.
+		const AChest* Chest = *It;
+		if (IsValid(Chest) && Chest->ShowsOnMap() && !Chest->HasGivenLoot() && FoundChests.Contains(Chest->GetSaveKey()))
+		{
+			Unopened.AddUnique(Chest->GetSaveKey());
+		}
+	}
+	return Unopened;
+}
+
+void UMapDiscoverySubsystem::RestoreFound(const TArray<FName>& ChestKeys)
+{
+	for (const FName Key : ChestKeys)
+	{
+		if (!Key.IsNone())
+		{
+			FoundChests.Add(Key);
+		}
 	}
 }
 

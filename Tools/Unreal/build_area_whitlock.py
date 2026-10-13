@@ -50,8 +50,8 @@ BALE_TAG = 'HayBale'
 HANDS = 'WhitlockHands'
 HANDS_TAG = 'Unpaid_WhitlockHands'
 
-# Side 2's steps, counted from 0: talk to Amos, load the bales, drive off the hands, talk to Amos.
-LOAD_STEP = 1
+# Side 2's steps, counted from 0: load the bales, the road talk, drive off the hands, talk to Amos (the missions' data).
+LOAD_STEP = 0
 FIGHT_STEP = 2
 THANKS_STEP = 3
 
@@ -79,6 +79,15 @@ HANDS_SPOTS = ((-5700.0, 2700.0), (-5700.0, 3600.0), (-5700.0, 4400.0), (-6300.0
                (-8000.0, 2600.0), (-7400.0, 3400.0), (-8000.0, 3500.0), (-8000.0, 4450.0), (-7050.0, 4450.0))
 HANDS_BASIC = 5
 HANDS_ACTIVATION = 2200.0
+# Amos's own barn (SM_RR_Barn_Whitlock, 2026-10-13, patches/town.json): 15 x 8 m, its pivot the middle of the hay bay's
+# open front at (-6150, 3600) facing east, so its walls stand at x -7150 to -5650, y 2800 to 3600 and the yard opens in
+# front of the bay toward the gate. The fight's spawner stands in that yard and its spots keep 3 m off the barn and the
+# fence, 4.5 m off the windmill and out of the bay where the stack is. The bales' stack is in the bay (SOCKET_BaleStack).
+RR_BARN_PREFIX = 'SM_RR_Barn'
+BALE_STACK_SOCKET = 'BaleStack'
+RR_HANDS_AT = (-6900.0, 4100.0)
+RR_HANDS_SPOTS = ((-5750.0, 4350.0), (-6300.0, 4450.0), (-6850.0, 4350.0), (-7150.0, 4450.0), (-8000.0, 4450.0),
+                  (-8000.0, 3400.0), (-7600.0, 3300.0), (-7700.0, 2600.0), (-6400.0, 4000.0))
 
 
 class Ground:
@@ -135,22 +144,26 @@ def place_amos(build, leans):
     meet = story.lines(build, 'DA_Lines_AmosMeet')
     if meet:
         talk.set_editor_property('line_set', meet)
-    talk.set_editor_property('topics', story.topics(
-        build,
-        (story.condition(during=SIDE2, from_step=THANKS_STEP), 'DA_Lines_AmosThanks'),
-        (story.condition(during=SIDE2, from_step=FIGHT_STEP), 'DA_Lines_AmosHands'),
-        (story.condition(during=SIDE2, from_step=LOAD_STEP), 'DA_Lines_AmosBales'),
-        (story.condition(during=SIDE2), 'DA_Lines_AmosMeet'),
-        (story.condition(after=[SIDE2, MAIN6]), 'DA_Lines_AmosAfterMain6'),
-        (story.condition(after=[SIDE2]), 'DA_Lines_AmosFence'),
-    ))
+    talk.set_editor_property('topics', story.texts_topics(build, AMOS_TAG))
     build.log(f'Amos at his fence ({x:.0f}, {y:.0f}, {z:.0f}) facing {yaw:.0f}, after {MAIN4}; on the rail after {SIDE2}')
 
 
 def stack_spots(build, ground, barn):
-    """The stack's six places by the barn's big doors (world location, yaw), bottom row first."""
+    """The stack's six places by the barn's big doors (world location, yaw), bottom row first. Amos's own barn
+    (SM_RR_Barn_Whitlock, since 2026-10-13) says where in its hay bay: its SOCKET_BaleStack is the stack's middle on the
+    earth floor, its rows running along the bay's open front."""
     frame = barn.get_actor_transform()
     yaw = barn.get_actor_rotation().yaw
+    mesh = barn.static_mesh_component
+    if mesh is not None and mesh.does_socket_exist(BALE_STACK_SOCKET):
+        local = mesh.get_socket_transform(BALE_STACK_SOCKET, unreal.RelativeTransformSpace.RTS_COMPONENT).translation
+        middle = frame.transform_location(local)
+        base = ground(middle.x, middle.y, middle.z)
+        spots = []
+        for out, side, up in STACK_SLOTS:
+            at = frame.transform_location(unreal.Vector(local.x + out, local.y + side, 0.0))
+            spots.append((unreal.Vector(at.x, at.y, base + up), yaw))
+        return spots
     middle = frame.transform_location(unreal.Vector(BARN_FRONT + STACK_OUT, 0.0, 0.0))
     base = ground(middle.x, middle.y, middle.z)
     spots = []
@@ -216,7 +229,12 @@ def place_hands(build, ground):
         if unpaid is None or cls is None:
             build.warn('no EncounterSpawner or UnpaidCreature class (build the game module first): no hired hands')
         return
-    hx, hy = HANDS_AT
+    # The yard round Amos's own barn when it stands (its bay faces the gate), else round the older barn.
+    barn = next((actor for actor in unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
+                 if actor.get_actor_label() == 'whitlockBarn' and unreal.Name(build.tag) in actor.tags), None)
+    mesh = barn.static_mesh_component.static_mesh if barn is not None and barn.static_mesh_component else None
+    own_barn = mesh is not None and mesh.get_name().startswith(RR_BARN_PREFIX)
+    (hx, hy), spots = (RR_HANDS_AT, RR_HANDS_SPOTS) if own_barn else (HANDS_AT, HANDS_SPOTS)
     hz = ground(hx, hy)
     hands = build.place(cls, (hx, hy, hz + 50.0), 0.0, label=f'Encounter_{HANDS}', folder='Gameplay')
     hands.set_editor_property('spawner_id', unreal.Name(HANDS))
@@ -225,7 +243,7 @@ def place_hands(build, ground):
     hands.set_editor_property('creature_tags', [unreal.Name(HANDS_TAG)])
     # Side 2's third step only (from 0: from 2, before 3): a fight already won doesn't come back on a later load.
     hands.set_editor_property('active_when', story.condition(during=SIDE2, from_step=FIGHT_STEP, before_step=THANKS_STEP))
-    hands.set_editor_property('spawn_points', [unreal.Vector(x - hx, y - hy, 0.0) for x, y in HANDS_SPOTS])
+    hands.set_editor_property('spawn_points', [unreal.Vector(x - hx, y - hy, 0.0) for x, y in spots])
     hands.set_editor_property('activation_radius', HANDS_ACTIVATION)
     hands.set_editor_property('hunt_on_spawn', True)
     # "Lives on the barn yard; gives up at the barn yard fence."

@@ -8,6 +8,7 @@
 #include "Combat/HealthComponent.h"
 #include "Interaction/InteractionComponent.h"
 #include "Missions/MissionDefinition.h"
+#include "Missions/MissionPlayerObjectives.h"
 #include "Missions/MissionRunner.h"
 #include "Scenes/SceneSubsystem.h"
 #include "Scenes/SitWithPa.h"
@@ -46,17 +47,25 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGravewindMissionTest, "Looter.Story.Gravewind.
 
 bool FGravewindMissionTest::RunTest(const FString& Parameters)
 {
-	// Main 6 as its asset has it: id exactly Main6, after Main 5 on Ransom's Rest, started by Delia's word at her door;
-	// to Gravewind Point, the lantern hung (a tap on the keeper's post), Abel defeated, the scene; 45 experience, as it ends.
+	// Main 6 as its asset has it: id exactly Main6, after Main 5 on Ransom's Rest, offered by Delia at her door (since the
+	// givers, 2026-10-13: the flows below still start it by her topic's event, as it was); to Gravewind Point (by Keeper's
+	// Bridge, optional) with Pa's lantern bail carried (its item, off Tilly's sill since Main 3), the lantern hung (a tap on
+	// the keeper's post), Abel defeated, the scene; 5,000 experience, as it ends.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main6")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main6.DA_Mission_Main6"));
 		if (TestNotNull(TEXT("DA_Mission_Main6 loads"), Asset))
 		{
-			TestTrue(TEXT("Main6, a main mission on Ransom's Rest after Main5, started at Delia's door"), Asset->GetMissionId() == MainSix
-				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::OnEvent && Asset->StartEvent == DeliaEvent
+			TestTrue(TEXT("Main6, a main mission on Ransom's Rest after Main5, offered at Delia's door"), Asset->GetMissionId() == MainSix
+				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Offered
+				&& Asset->Offer.GiverTag == FName(TEXT("Speaker_Delia")) && !Asset->Offer.Lines.IsEmpty()
 				&& Asset->Area == FName(TEXT("RansomsRest")) && Asset->Prerequisites == TArray<FName>({ MainFive }));
 			TestEqual(TEXT("Four steps"), Asset->Steps.Num(), MainSixSteps);
+			const UMissionObjective* Bridge = Asset->GetObjective(0, 1);
+			TestTrue(TEXT("...the keeper's path over Keeper's Bridge, optional, beside the first"), Bridge && Bridge->bOptional);
+			const UMissionCollectItemObjective* Bail = Cast<UMissionCollectItemObjective>(Asset->GetObjective(0, 2));
+			TestTrue(TEXT("...and Pa's lantern bail carried (required), the mission's own item"), Bail && !Bail->bOptional
+				&& Bail->Items == TArray<FName>({ FName(TEXT("LanternBail")) }) && Asset->FindItem(TEXT("LanternBail")) != nullptr);
 			const UMissionReachObjective* Point = Cast<UMissionReachObjective>(Asset->GetObjective(0, 0));
 			const UMissionInteractObjective* Hang = Cast<UMissionInteractObjective>(Asset->GetObjective(1, 0));
 			const UMissionKillNamedObjective* Defeat = Cast<UMissionKillNamedObjective>(Asset->GetObjective(2, 0));
@@ -68,7 +77,7 @@ bool FGravewindMissionTest::RunTest(const FString& Parameters)
 			// It finishes by itself as Pa sits down: that scene is its hand-in (his board, the lantern lit and the train's steam
 			// follow Main 6 finished), so there's no one to turn it in to.
 			TestTrue(TEXT("It finishes by itself, no turn-in"), Asset->TurnIn.bAutomatic && !Asset->NeedsTurnIn());
-			TestEqual(TEXT("Its reward: 45 experience"), Asset->Rewards.Experience, 45);
+			TestEqual(TEXT("Its reward: 5,000 experience"), Asset->Rewards.Experience, 5000);
 			TestTrue(TEXT("Its steps are the ones Abel's story counts"), AAbelKeeper::HangStep == 1 && AAbelKeeper::FightStep == 2 && AAbelKeeper::SceneStep == 3);
 		}
 	}

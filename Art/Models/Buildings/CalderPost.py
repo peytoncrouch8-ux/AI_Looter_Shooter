@@ -15,8 +15,9 @@ glass is dark, the stove cold.
   RR_RangerCabin  Ruth's cabin: 8 x 6 m of hewn logs on a fieldstone footing under a shake roof, a log woodshed lean-to
                   on its west end, a plank door (standing open) between two front windows, a window each in the back and
                   the east end. Inside, on a board floor: her bunk, a cold box stove and its pipe, the table under the front
-                  window with the post's log open on it (SOCKET_PostLog) and her journal (SOCKET_Journal), a shelf with
-                  cans, the code book (SOCKET_CodeBook) and the oil's place (SOCKET_LampOil), the Rim map pinned on the east
+                  window with the places of the post's log (SOCKET_PostLog) and her journal (SOCKET_Journal) on its top,
+                  a shelf with cans, the code book's place (SOCKET_CodeBook) and the oil's (SOCKET_LampOil) on it (the
+                  books and the oil are props of their own: Art/Models/Props/MissionProps.py), the Rim map pinned on the east
                   wall: six pins down the Rim a month apart and a seventh, fresh, on Ransom's Rest (SOCKET_RimMap); the
                   footlocker's place at the bunk's foot (SOCKET_Footlocker) and the fourth cache's in the north-east
                   corner (SOCKET_Cache); the post's board stands at the door (SOCKET_NoticeBoard: the existing
@@ -45,6 +46,21 @@ from looter_buildings import Opening, Space, Tile, Trim, place
 
 def yaw_facing(fx, fy):
     return math.degrees(math.atan2(fx, -fy))
+
+
+def unbuilt(m):
+    """A stand-in for a part taken out of m because it's a mission prop of its own now (the books: MissionProps.py): it
+    draws on m's random stream and registers m's material slots exactly as building into m did, but its faces are thrown
+    away (discard), so everything after it in m comes out as it did before."""
+    sink = mtn.Model('_Unbuilt', seed=0)
+    sink.rng, sink.slots = m.rng, m.slots
+    return sink
+
+
+def discard(sink):
+    sink.bm.free()
+    bpy.data.objects.remove(sink._obj)
+    bpy.data.meshes.remove(sink._mesh)
 
 
 def board_wall(m, p0, p1, outline, holes=(), thick=0.05, z0=0.0, battens=True, every=0.4):
@@ -382,10 +398,13 @@ def ranger_cabin():
         for dx in (-0.48, 0.48):
             town.box(m, (0.05, 0.22, 0.43), at=(tx + dx, ty + dy, F + 0.215), look='C')
     m.hull((1.4, 0.8, 0.8), at=(tx, ty, F + 0.4))
-    mtn.book(m, (tx - 0.2, ty + 0.05, F + 0.785), size=(0.22, 0.3, 0.03), turn=-6.0, cover='oxide', open_=True)
-    m.socket('PostLog', (tx - 0.2, ty + 0.05, F + 0.82), (0.0, 0.0, yaw_facing(0.0, 1.0)))
-    mtn.book(m, (tx + 0.38, ty + 0.12, F + 0.785), size=(0.14, 0.2, 0.03), turn=20.0, cover='black')
-    m.socket('Journal', (tx + 0.38, ty + 0.12, F + 0.82), (0.0, 0.0, yaw_facing(0.0, 1.0)))
+    # The post's log and her journal are their own props now (SM_PostLog, SM_Journal: Art/Models/Props/MissionProps.py),
+    # put on these sockets: on the table top, each turned as the baked books were. Their old books are left unbuilt.
+    sink = unbuilt(m)
+    mtn.book(sink, (tx - 0.2, ty + 0.05, F + 0.785), size=(0.22, 0.3, 0.03), turn=-6.0, cover='oxide', open_=True)
+    m.socket('PostLog', (tx - 0.2, ty + 0.05, F + 0.785), (0.0, 0.0, yaw_facing(0.0, 1.0) - 6.0))
+    mtn.book(sink, (tx + 0.38, ty + 0.12, F + 0.785), size=(0.14, 0.2, 0.03), turn=20.0, cover='black')
+    m.socket('Journal', (tx + 0.38, ty + 0.12, F + 0.785), (0.0, 0.0, yaw_facing(0.0, 1.0) + 20.0))
     town.cylinder(m, (tx + 0.5, ty - 0.2, F + 0.785), (tx + 0.5, ty - 0.2, F + 0.86), 0.06, 0.05, sides=8, look='brass',
                   face=(0.0, -1.0, 0.0))
     town.cylinder(m, (tx + 0.5, ty - 0.2, F + 0.86), (tx + 0.5, ty - 0.2, F + 1.06), 0.04, 0.035, sides=8, look='glow',
@@ -399,8 +418,10 @@ def ranger_cabin():
     for k, x in enumerate((-0.55, -0.4, -0.25)):
         town.cylinder(m, (shx + x, shy, F + 1.47), (shx + x, shy, F + 1.6 + 0.02 * k), 0.045, sides=8, look='iron',
                       face=(0.0, -1.0, 0.0))
-    mtn.book(m, (shx + 0.25, shy, F + 1.47), size=(0.16, 0.22, 0.035), turn=90.0, cover='black')
-    m.socket('CodeBook', (shx + 0.25, shy - 0.1, F + 1.5), (0.0, 0.0, yaw_facing(0.0, -1.0)))
+    # The code book is its own prop now (SM_CodeBook), lying on the shelf at this socket.
+    mtn.book(sink, (shx + 0.25, shy, F + 1.47), size=(0.16, 0.22, 0.035), turn=90.0, cover='black')
+    discard(sink)
+    m.socket('CodeBook', (shx + 0.25, shy - 0.01, F + 1.47), (0.0, 0.0, yaw_facing(0.0, -1.0) - 6.0))
     m.socket('LampOil', (shx + 0.6, shy, F + 1.47), (0.0, 0.0, yaw_facing(0.0, -1.0)))
     # The Rim map on the east wall: a sheet pinned up, the Rim's edge inked down it, six old pins and a fresh one.
     mx, my, mz = CX1 - 0.17, -1.6, F + 1.25

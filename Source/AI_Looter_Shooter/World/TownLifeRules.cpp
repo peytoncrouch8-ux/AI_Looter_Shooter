@@ -103,6 +103,18 @@ FName TownLifeRules::HouseholdForMesh(const FString& MeshName)
 	{
 		return Cottage;
 	}
+	// Ransom's Rest's own homes (Art/Models/Buildings/Homestead.py, 2026-10-13): the five built lived in (lamplit
+	// curtains, smoke: the saltbox, the dogtrot, the gallery house, the dugout, the porch house) are somebody's; the five
+	// built empty (boarded, fallen in) are nobody's. A house whose lights name its household keeps that one.
+	static const TCHAR* const LivedHomes[] = { TEXT("SM_RR_Home_A"), TEXT("SM_RR_Home_B"), TEXT("SM_RR_Home_D"),
+		TEXT("SM_RR_Home_E"), TEXT("SM_RR_Home_H") };
+	for (const TCHAR* Home : LivedHomes)
+	{
+		if (MeshName.Equals(Home, ESearchCase::IgnoreCase))
+		{
+			return Cottage;
+		}
+	}
 	return NAME_None;
 }
 

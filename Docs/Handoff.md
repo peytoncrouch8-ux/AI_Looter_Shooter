@@ -5,6 +5,18 @@ in `CLAUDE.md` ("How we work"); how things are made and fixed is in `Docs/Pipeli
 
 ## Now (2026-10-13, session "Ransom's Rest map expansion")
 
+**Wave 4 integration IN PROGRESS (uncommitted):** all wave-4 agents and the terrain agent are done (terrain checks PASS,
+look sheet 39_Bench sent to the user). Done so far: the four patches applied to layout.json (`Tools/layout_patch.py`,
+new; the patch files are still in `Art/Levels/RansomsRest/patches/`, delete after the build) and area_shape.py's
+FOOTPRINTS/BUILDINGS; C++ compiled (Build.bat, no errors); terrain regenerating with the town patch (--macro --computed);
+build_area.py hooks (mountain, town_rr, both missionprops, windmill fan, canyon falls); W4a's script edits (Amos
+LOAD_STEP 0, Reliquary from step 4, topics from story_texts via `build_area_story.texts_topics`, Hob's Main 4 perches and
+Back Pay perch); bench pines only in build_island_scatter. Next: open the editor, `Tools\models.ps1 -Only
+RansomsRest,Waterfall`, Clamp on T_RansomsRestMacro{SW,SE,NW,NE}, delete stale tiles/MIs, import
+Intermediate/ArtExport_RR_PropFix, create_area_assets, create_story_lines -> create_mission_assets ->
+create_side_mission_assets, build_area.py RansomsRest, scatter, conform_hills + SettleProps, build_impact_surfaces,
+sound bank (4 new fitting cues), bridge_walk + path_probe, runtests, PIE checks, commit.
+
 **The user's ask:** Ransom's Rest grows up the north mountain (the Gilded Lily is behind it; don't build the Lily);
 map order 1 Ransom's Rest, 2 the Lily, 3 Skyreach; the cold open plays as a new game starts (skippable); hold-E is a
 circular ring; the map shows N/E/S/W; player 10% slower; every mission picked up from a giver (board, NPC, artifact)

@@ -287,7 +287,8 @@ class can spread its `.cpp` over a few files named `ClassTopic.cpp`.
 - `Loot/GrenadePickup`: `AGrenadePickup`, grave-salt grenades dropped as loot: the tin (SM_SaltGrenade, oversized) spinning
   under the ammo drops' small white beam, collected by running past it into the player's grenades (up to the three they
   carry; always collected like ammo, what doesn't fit lost, and the sound and "+N Grave Salt" line only when some were
-  added: `CollectInto`); a kill or a chest drops it by `FThrowRules`' odds.
+  added: `CollectInto`); a kill or a chest drops it by `FThrowRules`' odds. The session keeps one lying on the ground
+  (`FSavedGrenadePickup`) with its remaining life, gone when it runs out; never Lost Property's.
 - `Loot/LostLootStore`: `FLostLootStore`, `FLostLootEntry` and `FLostLootArrival`, Lost Property's shelves as plain data: guns
   handed in oldest first with claim tickets, the reason and the map; shelving bought; what the HUD has still to tell. When
   full, the oldest unnamed gun goes out.
@@ -498,7 +499,7 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Creatures/ForemanFuseStick`: `AForemanFuseStick`, the lit, lobbed (or dropped) powder stick and its burst.
 - `Creatures/ForemanRockFall`: `AForemanRockFall`, one marked roof spot: dust and cracks, then the rock, the hurt and the
   splintering.
-- `Creatures/ForemanTimberProp`: `AForemanTimberProp`, the stope's timber cover, cracked, splintered and mended.
+- `Creatures/ForemanTimberProp`: `AForemanTimberProp`, the stope's timber cover (the imported SM_RR_Mine_StopeProp and StopePropBroken), cracked, splintered and mended.
 
 ## Bosses
 - `Bosses/BossComponent`: `UBossComponent`, makes a creature a boss: the fight around it (started by a hit, a player near
@@ -646,7 +647,7 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Story/StoryLine`: `FStoryLine`, one line said aloud: who says it, the words and its seconds (without seconds, a
   reading time for its words).
 - `Story/StoryLineSet.h`: `UStoryLineSet`, lines said together as a data asset (`DA_Lines_<Name>` in `/Game/Data/Story`,
-  made by `Tools/Unreal/create_story_lines.py`: Delia's, the headboards', Hob's, Sexton's deal, Tilly's, Aldana's,
+  made by `Tools/Unreal/create_story_lines.py`, which runs only as a script so other scripts can import it: Delia's, the headboards', Hob's, Sexton's deal, Tilly's, Aldana's,
   Abel's, Amos's).
 - `Story/StoryCondition`: `FStoryCondition`, when something of the story applies (after missions, before others, while
   one is played, from one of its steps and before a later one), read from the campaign record; also story flags set
@@ -762,14 +763,14 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   game instance so it holds through level loads, and the REVENANT title card rising through it.
 
 ## Progression
-- `Progression/XPCurve`: `FXPCurve`, the experience each level takes (exponential), level-ups from a gain, and the
-  maximum level.
+- `Progression/XPCurve`: `FXPCurve`, the experience each level takes (Borderlands 2's curve at three times the scale:
+  180 x (L^2.8 - 1) to reach L; top level 65), level-ups from a gain, and the maximum level.
 - `Progression/ProgressionSettings`: `UProgressionSettings`, the curve's and the level rules' numbers in Project
-  Settings > Game > Progression (`DefaultGame.ini`).
+  Settings > Game > Progression (`DefaultGame.ini`: MaxLevel 65, CurveScale 180, CurvePower 2.8).
 - `Progression/LevelRules`: `FLevelRules`, what a level is worth: enemy health and damage growing 8% of their level 1
-  values a level, kill experience (8% more a level, 15 points less for each level below the player, at least 10%) and
+  values a level, kill experience (XPReward x level^1.2, 15 points less for each level below the player, at least 10%) and
   the player's +8% health a level.
-  Kill experience is 0.37 of the creature's XPReward (`KillXPScale`, the pacing pass: about level 6.9 at the story's end, `Docs/Progression.md`).
+  Kill experience is the whole XPReward at level 1 (`KillXPScale` 1), grown as level^1.2 (`KillXPPower`; `Docs/Progression.md`).
 - `Progression/PlayerProgressData.h`: `FPlayerProgressData`, the player's level, experience, tutorial, kinds met and
   defeat counts, as a session saves them.
 - `Progression/LooterProgressSave.h`: `ULooterProgressSave`, the one progress save from before sessions ("PlayerProgress"
@@ -787,8 +788,8 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   date), autosaves and save holds, Save & Quit, and carrying the old progress save into session 1.
 - `Session/SessionSubsystemWorld.cpp`: what a session keeps of the player and each map's world (where the player
   stands, health, guns, loot on the ground, the gun racks, the wanted posters torn down, the hay bales loaded, the
-  chests opened, the crates and barrels broken, the
-  tutorial's step, and the grenades carried) and putting it back. Ammo and silver go on with the life they had left. Lost
+  chests opened, the chests found but not opened (`FoundChests`), the crates and barrels broken, the
+  tutorial's step, and the grenades carried) and putting it back. Ammo, silver and grenade tins go on with the life they had left. Lost
   Property's shelves too; the guns a save kept lying are handed in at a load, never put back.
 - `Session/SessionSubsystemTravel.cpp`: travel between maps (`TravelToArea`, `TravelToMap`): the world left kept under
   its map, the trip's save, the destination opened with the session, and arriving at the trip's landing (by train
@@ -799,7 +800,7 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Session/SessionSubsystemWords.cpp`: the session picker's words: play time, when saved, and places by area name or
   level file.
 - `Session/SessionSave`: `ULooterSessionSave`, one session's save ("Session1" to "Session3"), version 2: the player, a
-  world per map (`FSavedMapWorld`), the campaign record, Lost Property's shelves (`LostLoot`) and where a trip arrives; the
+  world per map (`FSavedMapWorld`, with its `GrenadePickups` of `FSavedGrenadePickup` and its `FoundChests`), the campaign record, Lost Property's shelves (`LostLoot`) and where a trip arrives; the
   version 1 upgrade and a trip's
   bookkeeping.
 - `Session/CampaignRecord.h`: `FCampaignRecord`, the story so far: missions finished and the one being played, areas
@@ -940,6 +941,13 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   the mission event `Readable.<Id>`.
 - `World/PorchPlate`: `APorchPlate`, Delia's plate: two grave-salt grenades once, the biscuits eaten later, kept by story
   flags.
+- `World/StoryProp`: `AStoryProp`, a model the story shows and hides (shown while any of `ShownWhen` holds, gone while any
+  of `HiddenWhen` does); placed by `Tools/Unreal/build_area_mountain.py` and `build_area_missionprops_mountain.py`.
+- `World/MissionFitting`: `AMissionFitting`, a held-Interact place a mission opens in its step and keeps done after; its
+  model shows once done.
+- `World/LockedDoor`: `ALockedDoor`, a door the story keeps shut (Tilly's cellar door): opens only while its key (a mission
+  item) is carried or once its condition holds; locked, Interact rattles the latch; placed by
+  `Tools/Unreal/build_area_missionprops_valley.py`.
 - `World/WindowShutter`: `AWindowShutter`, one of Main Street's shutters on a false front's Shutter socket (Main 3): open
   flat against the wall until the player comes near, then it slams shut (after a moment of its own) and stays shut;
   shut from the start after Main 3. Once shut, its `Household` (else the nearest house's) is heard through it by the
@@ -979,7 +987,7 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   runtime, drawn by a pool of static mesh components on one actor (at most 40 pieces out, the oldest taken past it);
   it ticks only while a piece is out.
 - `World/TownLifeRules`: `TownLifeRules`, the town's held breath as plain rules: the households of Ransom's Rest (Ransom,
-  Bright, Pruitt, the two cottages) with their sounds, how often a house is heard as the player passes or lingers, the
+  Bright, Pruitt, the two cottages and Ransom's Rest's lived-in homes, SM_RR_Home_A, B, D, E, H) with their sounds, how often a house is heard as the player passes or lingers, the
   pauses and rests, the dog far off, and the mutters at three townsfolk's doors by where the story stands.
 - `World/TownLifeSubsystem`: `UTownLifeSubsystem`, signs of the living in town: the lit houses (`AHouseLights`), their shut
   shutters (`AWindowShutter`) and the townsfolk's doors join as sources of their household; once a second, while any has
@@ -1115,6 +1123,9 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   cracked toll, the lift, a bullet's clang, the raising at a grave, the swipe; `::BellRinger`) and the vigil stones (rising,
   kneeling, the refusal, the iron bell's summons; `::Shrine`, built from `bells.py`'s hand bell made of iron). The Venom
   Spitter's cues (`::Spitter`) are in `recipes/creatures.py`.
+- `Art/Sounds/recipes/fittings.py`: the mountain's mission fittings (AMissionFitting's UseCue): the lift winch's crank
+  seated and ratcheted, the boiler fed and lit, the cable clamp's pin driven home, the mine's manway gate swung open
+  (`LooterSoundCue::Fittings`).
 
 ## Settings
 - `Settings/AudioSettingsSubsystem`: saved Master, Effects, Interface and Music volumes (0-100%), handed to the sound
@@ -1334,7 +1345,8 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `UI/Inventory/MapPlaces`: `MapPlaces`, `FMapPlace`, the names the map writes over each level (from the layouts' plan
   labels; the minor ones only once zoomed in).
 - `UI/Inventory/MapDiscoverySubsystem`: `UMapDiscoverySubsystem`, the chests the player has come near this visit (within the
-  minimap's reach), for the map's pins; a look twice a second.
+  minimap's reach), for the map's pins; a look twice a second. The session keeps the found-but-unopened ones per map
+  (`GetUnopenedFound`, `RestoreFound`); also created in editor preview worlds for tests.
 - `UI/Inventory/LoadoutRules`: `LoadoutRules`, the backpack list's compare and sort rules.
   Verdicts, the backpack's four sorts, the card's stats at first glance and on Inspect, compare arrows, the parts' bonuses, NEW marks.
 - `UI/Inventory/LoadoutParts`: `LoadoutParts`, the inventory pages' layout, colors, vector art, card builders and title
@@ -1470,14 +1482,14 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 
 ## Tests (run with `Tools\runtests.ps1`)
 - `Tests/AnimationTests.cpp`, `AreaTests.cpp`, `BestiaryTests.cpp`, `BossTests.cpp`, `BossCombatTests.cpp` (with `BossTestWorld.h`), `BossShowTests.cpp` (every boss's show: the stagger, camera shake, loot shower, the bar's intro, callouts and last word, the death), `BossShrineTests.cpp` (the vigil stones: only after a first defeat, the five-minute and Save & Quit rules, a lair's boss back on a load, Abel called back with no second scene, the session's record through a save), `CreatureTests.cpp`, `CreatureRankTests.cpp`, `CreatureRankFlashTests.cpp` (the tag's rank-word pop, a pure function of the sting's age), `CreatureBarkTests.cpp` (the Unpaid's barks: the lines by situation and rank, none twice, the board's one at a time with its pauses and rests, the murmur's syllables and contour, the director near the player and out of hearing), `CreatureAnimMotionTests.cpp` (`Looter.Creatures.Anim.*`: the moments `Looter.CastShots` caught going wrong, a spider's death curl and its bite's raised front legs, an Unpaid banking into a turn), `CreatureAnimTests.cpp` (how the creatures move, measured on their poses: the Unpaid's arms keep out of its torso and don't pop, its shroud lifts off rising ground, a slime lies along a slope, a spider's hit jolt), `CreatureSteeringTests.cpp` (the planner and the unstick's rules in a flat world of fences and pens), `CreatureSteeringRulesTests.cpp` (when the unstick acts, the side the planner keeps), `CreatureSteeringPlayTests.cpp` (the looks and the unstick against real geometry in test levels), `CreaturePursuitTests.cpp` (`Looter.Creatures.Pursuit.*`: a hunt kept up until a real reason, the search at the last known spot, the wait at its edge or under a player out of reach, the lock-on radii a fifth bigger, bosses' own rules), `EncounterTests.cpp`, `EncounterPlayTests.cpp` (with `EncounterTestWorld.h`), `EncounterCampTests.cpp` (with `EncounterLayoutReader.h`: Ransom's Rest's camps, patrols and ambushes read from the layout, and when the story lets them on), `EncounterPackTests.cpp` (flanking, breaking off, the rank sting), `EncounterPatrolTests.cpp` (a patrol's walk and file, an ambush sprung by walking in), `InteractionTests.cpp`, `InteractionPropTests.cpp` (with `InteractionTestWorld.h`), `InventoryTests.cpp`, `LoadoutTests.cpp` (the loadout screen's sort, compare, first glance and NEW marks, and the screen), `LevelBandTests.cpp` (with `AreaLevelsLayout.h`: the layout's `gameplay.levels` as an area), `CreatureAreaLevelTests.cpp` (`Looter.Creatures.AreaLevels`: every fight's and encounter's levels by where it stands, the bosses' set levels, never the player's), `LightingTests.cpp`, `HouseLightsTests.cpp` (a house's lamp and windows brighten at dusk through an instance of their own), `TownLifeTests.cpp` (Ransom's Rest's town life: each household's sounds, a first pass against lingering, the pauses between sounds, the townsfolk's doors muttering by the story's point, the dog far off), `LocomotionTests.cpp`, `LocomotionPlayTests.cpp` (with `LocomotionTestWorld.h`), `LocomotionTraversalTests.cpp` (the mantle's and vault's curves, rules and plans without a world), `LocomotionTraversalPlayTests.cpp` (mantle, vault and never-climbed things on the real character), `LocomotionJumpAssistTests.cpp` (coyote time, the jump buffer, step-ups, a wedged player nudged free), `PlayerPaceTests.cpp` (`Looter.Locomotion.Pace*`: the game's pace, every player speed at size times pace, and the chases still holding their odds against it), `LootTests.cpp`, `LootRankTests.cpp`, `RecoveryTests.cpp` (the wounds that close, soul-mote drops by rank), `RecoveryMoteTests.cpp` (with `RecoveryTestWorld.h`: a mote's hook, pull, heal and look), `FeedbackTests.cpp` (`Looter.Feedback.*`: hit-stop and stagger rules, view kicks, the camera shake setting, damage direction, loot fanfare, damage numbers), `MeleeTests.cpp` (the strike's reach, damage, gate, stagger, key and motion), `MeleePlayTests.cpp` (the strike in a test level: the body in front, the knock, sounds by body, a reload cut short), `GrenadeTests.cpp` (`Looter.Grenade.*`: the grave-salt grenade's rules alone: the toss's arc, the bounce and roll, the fuse, the burst's damage and falloff, the count and its save, when a throw can start, its key and its motion), `GrenadePlayTests.cpp` (the grenade in a test level: its flight and fuse, a body bursting it on contact, what the burst reaches, the knock, the count and the save), `PlayerAnimTests.cpp` (with `PlayerAnimTestKit.h`: the climbing pose from a plan, the stance layer on the mannequin's reference pose, the melee jab), `PlayerAnimActionTests.cpp` (the stance layer's grenade throw and the Drover's reload, and the support hand clear of the shooting hand), `PlayerAnimPlayTests.cpp` (with `PlayerAnimPlayKit.h`: the feet's pace against the ground on the real character), `PlayerAnimClimbPlayTests.cpp` (the climbing pose and body clearances played out frame by frame),
-  `MinimapTests.cpp`, `MapTests.cpp` (the map page: its view as plain math, when fast travel may go and why not, the pins gathered from a level, a travel run through its fade, the page driven by its keys), `ProgressRingTests.cpp` (`Looter.UI.ProgressRing.*`: the ring's geometry and pop, the Interact and scene-skip prompts' rings, the compass letters), `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `MissionTrackerTests.cpp` (when the HUD tracker ticks an objective), `MissionTurnInTests.cpp` (a finished mission waiting for its turn-in: ready, giver, rewards, save, automatic, the talk, old saves), `MissionGiverTests.cpp` (`Looter.Missions.Givers.*`: missions picked up from their givers: available, the offers at a giver, accepting, old saves' running missions counting as taken, a talk offering, an artifact read), `MissionGiverViewTests.cpp` (the givers' side on screen: the map's pins, the marks, a notice board's bounties, the offer card), `MissionCompleteBannerTests.cpp` (the mission-complete banner and what is heard), `MissionOptionalTests.cpp` (`Looter.Missions.Optional.*`: an optional objective never holds its step, is kept by the save and pays its bonus), `MissionItemTests.cpp` (`Looter.Missions.Items.*`: mission items carried and dropped by their carrier, counted by the collect objective), `MissionChoiceTests.cpp` (`Looter.Missions.Choice.*`: a turn-in's choice of two, its rewards in place of the mission's, a speaker point opening the card), `MissionPropsTests.cpp` (the mission features' props: `Looter.World.SafeGround.HeightBand`, `Looter.UI.Minimap.Underground`, `Looter.World.PorchPlate`, `Looter.World.Readable`), `ObjectiveHighlightTests.cpp` (`Looter.Missions.Highlight.*`: what each objective lights and never a creature, the targets through a mission's steps and turn-in, the radius with its margin and the fades, a speaker's door lit as a spot of its wall, the material's parameters), `PlayableAreaTests.cpp`, `GroundIgnoreTests.cpp` (the ground traces' ignore list: cached, and it still skips a volume spawned later), `PosterTests.cpp`, `ProgressionTests.cpp`, `ProgressionPacingTests.cpp` (the pacing pass: about level 6.9 at the story's end, each kill at its spot's levels), `RespawnTests.cpp`, `GraveSaveTests.cpp` (`Looter.Grave.Save.*`: the rules for when a walk up marks a grave, the walk-up itself, where a Continue wakes), `GraveMarkedBannerTests.cpp` (`Looter.UI.GraveMarked.*`: the banner's easing and its queue), `RoostTests.cpp` (`Looter.Roost.Rules.*`: the beacon's fade, rise and pulse and its colour kept off the loot's, the crows over the screen in a carry and a death, Hob's words and their round, the minimap's roosts near and on the rim), `RoostPlayTests.cpp` (`Looter.Roost.Play.*`: a roost in a test level: its look and the player's wake-up spot, its beacon dark until found then rising, its crows staying put for a walker and lifting when it is found, found on a walk past with Hob's word the first time, a fast travel's and a death's carry), `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `NewGameTests.cpp` (`Looter.NewGame.*`: a new game's save and the story from its start: the first cast-off recorded, a Common Bullpup in hand, Ransom's Rest first), `LevelReloadTests.cpp` (`Looter.LevelReload.*`: after Save & Quit and Continue, the world's labels show again though a menu hid them in the last level, and ammo and silver go on with the life they had left), `SettingsTests.cpp`, `SettingsPreviewTests.cpp` (the settings menu's live previews: a slider's hold, linger and fade, the field of view driving the first-person camera and the menu stepping aside, the minimap zoom's live copy, Esc cancelling a drag), `MenuNavTests.cpp` (the menus for a controller and the keyboard: the plain rules, the shared focus over real widgets, the settings menu and the main menu driven by keys: focus order, A, B, LB / RB, a slider stepped and held faster, B cancelling a held preview, the focus look only under keys or a gamepad, the prompts by device), `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `HallowedGroundTests.cpp` (Main 4: its steps, Main 3 first, the yard's two waves by count and rank, the bell held, the Reliquary's flash ending its step, Aldana's words and the chapel yard's grave; the Unpaid on boot hill and the north road after it; the placed pieces), `ChapelTests.cpp` (the bell's hold, swing and tolls; Grave Sight's flash and the Reliquary's look timing out; Aldana's topics) with `HallowedGroundTestWorld.h`, `EggSacTests.cpp` (the egg sac's fall, burst and spiders, shootable only in its step; the lantern dark, taken in its step, gone after), `KeepersLanternTests.cpp` (with `KeepersLanternTestWorld.h`; Main 5: its steps, Main 4 first, the floor's spiders, Side 3 after it, the placed pieces), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `SpitterTests.cpp` (`Looter.Creatures.Spitter.*`: the Venom Spitter's rules, the lob's arc and a miss on a moving target, its tell before every spit, its puddle's burn and drying, its weak spots and a spit choked by a shot to the sac, its Ledger page), `SpitterPlayTests.cpp` (the Spitter keeping its distance on a floor: backing away, settling in its band, closing in from far, cornered it bites), `BellRingerTests.cpp` (`Looter.Creatures.BellRinger.*`: the Bell-Ringer's stats and rules, keeping its distance, the tell before every toll, a toll raising one of the Unpaid fallen lately or steadying its pack, a shot to the bell losing the toll, its Ledger page), `DeadMinerTests.cpp` (`Looter.Creatures.DeadMiner.*`: the miners' rules and stats, the lamp budget, the swing, the work, the shift spawner), `ForemanTests.cpp` (`Looter.Creatures.Foreman.*`: the Foreman's rules and stats, his fight, a reset, his engagement), `DeadFriendTests.cpp` (`Looter.Story.DeadFriends.*`: Hiram's and Thaddeus's pose tables and the characters in a test level), `StationTests.cpp`, `StoryTests.cpp`, `StoryFlagConditionTests.cpp` (`Looter.Story.Condition.Flags`; `Looter.Economy.VendorVoice`: a vendor's hatch as a mission giver and turn-in, ahead of the shop's screen), `TutorialTests.cpp` (the reworked first goal, how the tutorial starts and is done, the tracker, the gun rack), `ControlHintTests.cpp` (each hint's trigger and the moment it goes, one at a time, limits and memory), `ControlHintOpeningTests.cpp` (`Looter.Tutorial.Hints.*`: the hints that make the game's whole tutorial: fire, crouch, interact and hold, the Ledger, the missions page, the map, a grenade picked up; none over a conversation; every hint covered), `NoticeBoardTests.cpp` (Skyreach's notice board: postings up once the first goal is done, tracked and turned in for guns, kept by the save; the zone objective counting Web Hollow's spiders and the Wallow's slimes), `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `GravemotherTests.cpp` (her body, charge, brood, pack calls by tag,
+  `MinimapTests.cpp`, `MapTests.cpp` (the map page: its view as plain math, when fast travel may go and why not, the pins gathered from a level, a travel run through its fade, the page driven by its keys), `ProgressRingTests.cpp` (`Looter.UI.ProgressRing.*`: the ring's geometry and pop, the Interact and scene-skip prompts' rings, the compass letters), `MissionTests.cpp`, `MissionRunnerTests.cpp` (with `MissionTestWorld.h`), `MissionTrackerTests.cpp` (when the HUD tracker ticks an objective), `MissionTurnInTests.cpp` (a finished mission waiting for its turn-in: ready, giver, rewards, save, automatic, the talk, old saves), `MissionGiverTests.cpp` (`Looter.Missions.Givers.*`: missions picked up from their givers: available, the offers at a giver, accepting, old saves' running missions counting as taken, a talk offering, an artifact read), `MissionGiverViewTests.cpp` (the givers' side on screen: the map's pins, the marks, a notice board's bounties, the offer card), `MissionCompleteBannerTests.cpp` (the mission-complete banner and what is heard), `MissionOptionalTests.cpp` (`Looter.Missions.Optional.*`: an optional objective never holds its step, is kept by the save and pays its bonus), `MissionItemTests.cpp` (`Looter.Missions.Items.*`: mission items carried and dropped by their carrier, counted by the collect objective), `MissionChoiceTests.cpp` (`Looter.Missions.Choice.*`: a turn-in's choice of two, its rewards in place of the mission's, a speaker point opening the card), `MissionPropsTests.cpp` (the mission features' props: `Looter.World.SafeGround.HeightBand`, `Looter.UI.Minimap.Underground`, `Looter.World.PorchPlate`, `Looter.World.Readable`), `MountainPropsTests.cpp` (`Looter.World.StoryProp.Rule`, `.Level`, `Looter.World.MissionFitting`: the story's props shown and hidden by their conditions, a fitting held open and kept done), `ValleyTownTests.cpp` (`Looter.World.LockedDoor`, `Looter.World.TownLife.HomesKit`: the cellar door's key and latch, the lived-in homes as households), `ObjectiveHighlightTests.cpp` (`Looter.Missions.Highlight.*`: what each objective lights and never a creature, the targets through a mission's steps and turn-in, the radius with its margin and the fades, a speaker's door lit as a spot of its wall, the material's parameters), `PlayableAreaTests.cpp`, `GroundIgnoreTests.cpp` (the ground traces' ignore list: cached, and it still skips a volume spawned later), `PosterTests.cpp`, `ProgressionTests.cpp`, `ProgressionPacingTests.cpp` (the pacing pass: the story alone about level 5.5, everything once about 6.8, each kill at its spot's levels; Ransom's Rest's two paths on paper in `PacingPaths.h`), `RespawnTests.cpp`, `GraveSaveTests.cpp` (`Looter.Grave.Save.*`: the rules for when a walk up marks a grave, the walk-up itself, where a Continue wakes), `GraveMarkedBannerTests.cpp` (`Looter.UI.GraveMarked.*`: the banner's easing and its queue), `RoostTests.cpp` (`Looter.Roost.Rules.*`: the beacon's fade, rise and pulse and its colour kept off the loot's, the crows over the screen in a carry and a death, Hob's words and their round, the minimap's roosts near and on the rim), `RoostPlayTests.cpp` (`Looter.Roost.Play.*`: a roost in a test level: its look and the player's wake-up spot, its beacon dark until found then rising, its crows staying put for a walker and lifting when it is found, found on a walk past with Hob's word the first time, a fast travel's and a death's carry), `SceneTests.cpp`, `ColdOpenTests.cpp` (the timeline's waits, the gang's skiff's course, the claw-out, the cold open on the first arrival only), `SessionTests.cpp`, `NewGameTests.cpp` (`Looter.NewGame.*`: a new game's save and the story from its start: the first cast-off recorded, a Common Bullpup in hand, Ransom's Rest first), `LevelReloadTests.cpp` (`Looter.LevelReload.*`: after Save & Quit and Continue, the world's labels show again though a menu hid them in the last level, and ammo and silver go on with the life they had left), `GrenadeSaveTests.cpp` (`Looter.Loot.Grenades.Saved`: a grenade tin lying on the ground kept by the session with its remaining life), `FoundChestsSaveTests.cpp` (`Looter.Map.FoundChests.Saved`: the chests found but not opened kept per map), `SettingsTests.cpp`, `SettingsPreviewTests.cpp` (the settings menu's live previews: a slider's hold, linger and fade, the field of view driving the first-person camera and the menu stepping aside, the minimap zoom's live copy, Esc cancelling a drag), `MenuNavTests.cpp` (the menus for a controller and the keyboard: the plain rules, the shared focus over real widgets, the settings menu and the main menu driven by keys: focus order, A, B, LB / RB, a slider stepped and held faster, B cancelling a held preview, the focus look only under keys or a gamepad, the prompts by device), `SevenDaysTests.cpp` (Main 1's steps and reward, the headboards', Delia's and Hob's lines), `TalkBusinessTests.cpp` (Main 2: its steps, Main 1 first and its reward, the nest's spiders, Sexton shown by the story and his deal, the placed pieces), `LedgerTests.cpp` (the Ledger's step, the story-character page type, the seven names with their whereabouts blank), `ColdWelcomeTests.cpp` (Main 3: its steps, Main 2 first and its reward, the gate's fight by count and rank, Tilly's topics, the shutters, the placed pieces), `HallowedGroundTests.cpp` (Main 4: its steps, Main 3 first, the yard's two waves by count and rank, the bell held, the Reliquary's flash ending its step, Aldana's words and the chapel yard's grave; the Unpaid on boot hill and the north road after it; the placed pieces), `ChapelTests.cpp` (the bell's hold, swing and tolls; Grave Sight's flash and the Reliquary's look timing out; Aldana's topics) with `HallowedGroundTestWorld.h`, `EggSacTests.cpp` (the egg sac's fall, burst and spiders, shootable only in its step; the lantern dark, taken in its step, gone after), `KeepersLanternTests.cpp` (with `KeepersLanternTestWorld.h`; Main 5: its steps, Main 4 first, the floor's spiders, Side 3 after it, the placed pieces), `SkiffJettyTests.cpp`, `SlimeTests.cpp`, `SpitterTests.cpp` (`Looter.Creatures.Spitter.*`: the Venom Spitter's rules, the lob's arc and a miss on a moving target, its tell before every spit, its puddle's burn and drying, its weak spots and a spit choked by a shot to the sac, its Ledger page), `SpitterPlayTests.cpp` (the Spitter keeping its distance on a floor: backing away, settling in its band, closing in from far, cornered it bites), `BellRingerTests.cpp` (`Looter.Creatures.BellRinger.*`: the Bell-Ringer's stats and rules, keeping its distance, the tell before every toll, a toll raising one of the Unpaid fallen lately or steadying its pack, a shot to the bell losing the toll, its Ledger page), `DeadMinerTests.cpp` (`Looter.Creatures.DeadMiner.*`: the miners' rules and stats, the lamp budget, the swing, the work, the shift spawner), `ForemanTests.cpp` (`Looter.Creatures.Foreman.*`: the Foreman's rules and stats, his fight, a reset, his engagement), `DeadFriendTests.cpp` (`Looter.Story.DeadFriends.*`: Hiram's and Thaddeus's pose tables and the characters in a test level), `StationTests.cpp`, `StoryTests.cpp`, `StoryFlagConditionTests.cpp` (`Looter.Story.Condition.Flags`; `Looter.Economy.VendorVoice`: a vendor's hatch as a mission giver and turn-in, ahead of the shop's screen), `TutorialTests.cpp` (the reworked first goal, how the tutorial starts and is done, the tracker, the gun rack), `ControlHintTests.cpp` (each hint's trigger and the moment it goes, one at a time, limits and memory), `ControlHintOpeningTests.cpp` (`Looter.Tutorial.Hints.*`: the hints that make the game's whole tutorial: fire, crouch, interact and hold, the Ledger, the missions page, the map, a grenade picked up; none over a conversation; every hint covered), `NoticeBoardTests.cpp` (Skyreach's notice board: postings up once the first goal is done, tracked and turned in for guns, kept by the save; the zone objective counting Web Hollow's spiders and the Wallow's slimes), `UnpaidTests.cpp`, `UnpaidMotionTests.cpp`, `GravemotherTests.cpp` (her body, charge, brood, pack calls by tag,
   loot), `GravemotherFightTests.cpp` (her boss fight: phases and pace, the roar that starts it, her brood as adds, the quake, the spit, her reel, her fury's crack, standing down), `GravemotherSideTests.cpp` (her return after 20 minutes of play, her lair and where it puts her: room for her body, her den's floor, her brood in it; Side 3), `UnfinishedBusinessTests.cpp` (with `UnfinishedBusinessTestWorld.h`: Side 2 end to end, the bales counted from the world and kept by the save, the hands by count and rank, the placed pieces, its fences and wall counted as the dressing's instances on the layout's lines), `AmosTests.cpp` (his pose table, every bone posed in the game against it, topics by the story, the rail, the seat on the rail, ticking only while he moves, his Ledger page), `RangerCachesTests.cpp` (step 26: a chest's wheel and lid, its loot and odds per kind, once only, kept open by the save; the caches and the Strongbox as Ransom's Rest is built), `LootContainersTests.cpp` (the lootable world's containers: a coffin pried and a grave dug with a hold, a mailbox and a footlocker opened with a tap, each one's loot and the way it opens, kept open by the save, and where `build_area_loot.py` put them in the two levels), `BreakableTests.cpp` (the crates and barrels: one strike breaks each, a round never does, the pieces thrown, landing and shrinking from a capped pool, the ammo and mote odds counted, never a gun, kept broken by the save), `RansomsRestLevelTests.cpp` (every respawn grave, player start, encounter spot and tour view inside the playable boundary), `AbelTests.cpp`, `AbelFightTests.cpp` (with `AbelTestWorld.h`: Abel's pose table, rules, body, phases, lanterns, reset, fog wall, the Gravewind and a fall, the kneel and the scene), `AbelShowTests.cpp` (his entrance, stagger on a knee, shots from the fog, barrage in the wind, loot waiting for the scene), `GravewindTests.cpp` (with `GravewindTestWorld.h`: Main 6 end to end, Pa on his board, the dusk scenery, the level as built), `TrainTests.cpp` (the train's assembly and rolling wheels, cold until Main 7, its two shots, which trips go by train), `OreLiftTests.cpp` (`Looter.OreLift.*`: the lift's motion and rules, a ride both ways, the call), `OreLiftRideTests.cpp` (with `OreLiftTestWorld.h`: closed until its step, the autosave held through a ride, a death mid-ride), `WatchFireTests.cpp` (`Looter.WatchFire.Lit`, `Looter.FarSignalLight.*`: the watch fire lit by a hold and kept, the far light's Morse and the story showing it), `InteriorVisibilityTests.cpp` (`Looter.InteriorVisibility.Views`: an interior hidden from outside and the outside from inside), `LanternLeansTests.cpp` (with `LanternLeansTestWorld.h`: Main 7's steps after Main 6, Delia's hand-off once, the board read opening the Lily, Ned's page, the flame's lean), `LanternLeansPlacedTests.cpp` (the Lily's area and the board's "isn't open yet"; Main 7's placed pieces), `HeirloomRewardTests.cpp` (reward guns coming up on the player's side of a giver's window or fence, tossed and landing as loot; Heirloom exactly once whatever order Delia's door, a save and the turn-in come in), `WeaponTests.cpp`, `WeaponTriggerTests.cpp` (`Looter.Weapons.Trigger.*`: spammed clicks queue nothing late: the buffer's rule over random clicking, then the pump, the Drover and the rifle with a gun's cooldown stepped by hand), `ImpactSurfaceTests.cpp` (`Looter.Impact.Surface.*`: material names as whole words, tags, the trim sheet's strips, the ground from a macro cell, a baked surface map, each surface's cue, real traces in a test level), `BulletMarkTests.cpp` (`Looter.BulletMarks.*`: every surface but water has a look of its own, sized to the gun, a decal's placement for a square or a grazing shot, the pool's slots, cap and early fade, marks from real shots with a volley's cap and none on what moves), `AmmoCollectTests.cpp` (`Looter.Loot.AmmoCollect`, `.GrenadeCollect`: a drop is always collected, partly added or silently spent when the pool is full), `LostLootTests.cpp` (`Looter.LostLoot.Rules`, `.Shelves`: Lost Property's rules and shelves without a level), `LostLootPlayTests.cpp` (`.GroundLife`, `.Leaving`, `.QuitAndLoad`, `.OldSaves`, `.Claim`: the ground's five minutes, the hand-in on leaving, the shelves through a quit and load, an old save reading as none, a claim), `LostLootScreenTests.cpp` (`.Screen`: Lost Property's screen), `NamedWeaponTests.cpp` (named guns: the
   fixed-quality rules, Heirloom's asset and label, its save, the mission reward),
   `RevolverTests.cpp` (the Drover: its definition against the rifle's and the shotgun's, its parts and keys, the cylinder's swing and turn, the reload's choreography and sounds, its kick, nicknames and the arms holding it out), `WeaponPartsTests.cpp`, `WeaponNotchesTests.cpp`, `WeaponCursesTests.cpp`, `WeaponPartSwapTests.cpp` (the gun
   ideas' rules), `GunIdeasPlayTests.cpp` (the gun ideas in play: notches counted, curses' shots and health, the tally
   and beam), `GunsmithBenchTests.cpp` (`Looter.Weapons.Bench.*`: scrap, fit, the box saved, its cap, named guns, the
   bench's interaction, the screen's lists), `EconomyTests.cpp` (`Looter.Economy.*`: the amounts' growth with level, the drop odds by rank and container, the prices, the gun of the day's odds, a mission's purse, the balance of what the world gives against what the vendors ask), `EconomyPlayTests.cpp` (the economy in a test level: the wallet, a pickup flying to the player, buying and selling through the trades, the gun of the day's clock, a vendor open or shut by its story and a mission's purse paid in, the session's save and an old save reading as none), `AudioTests.cpp` (`Looter.Audio.*`: a missing cue silent, variation,
-  concurrency settings, the volumes saved, surfaces, the bank covering every cue), `AudioDirectorTests.cpp` (`Looter.Audio.Director.*` and `.Ambience.*`: the score's combat timeout, moods and ducking, bar lines and rules; the ambience's beds, sweeteners and emitter paths; the slider classes), `FaunaTests.cpp` (with `FaunaTestWorld.h`: the fauna's rules for fear, gunfire, culling, motion and bounce), `FaunaPlayTests.cpp` (a flock scattering, hearing gunfire, leaving, passable, aerial), `FaunaSwarmTests.cpp` (insect caps and zones, tumbleweeds, the on/off switch), `FaunaLevelTests.cpp` (each built level's ambient life: inside the playable boundary, clear of Hob's perches, nothing inside a building or rock, counts within the budget), `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
+  concurrency settings, the volumes saved, surfaces, the bank covering every cue), `AudioDirectorTests.cpp` (`Looter.Audio.Director.*` and `.Ambience.*`: the score's combat timeout, moods and ducking, bar lines and rules; the ambience's beds, sweeteners and emitter paths; the slider classes), `FaunaTests.cpp` (with `FaunaTestWorld.h`: the fauna's rules for fear, gunfire, culling, motion and bounce), `FaunaPlayTests.cpp` (a flock scattering, hearing gunfire, leaving, passable, aerial), `FaunaSwarmTests.cpp` (insect caps and zones, tumbleweeds, the on/off switch), `FaunaLevelTests.cpp` (each built level's ambient life: inside the playable boundary, clear of Hob's perches, nothing inside a building or rock, counts within the budget, Ransom's Rest's buildings counted), `WorldTests.cpp`: the `Looter.*` automation tests, one file per area.
 
 ## LooterEditor (editor-only module; nothing here ships)
 - `LooterEditor.Build.cs`: module dependencies (GeometryScript editor functions, asset tools, FBX import, JSON).
@@ -1511,7 +1523,8 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Art/Levels/area_shape.py`: `Area`, an area's shape from `Art/Levels/<Area>/layout.json` (`TutorialIsland` is the
   island fixture, `TerrainTest` the grounded one, `RansomsRest` the first campaign area): map square and raster sizes,
   features as lists by type, the height raster and water surface; `layout_sha1()`, the layout's fingerprint without its
-  build-only `level` and `gameplay` blocks.
+  build-only `level` and `gameplay` blocks. Its `FOOTPRINTS` and `BUILDINGS` tables now include Ransom's Rest's own homes,
+  fronts, workshop, barn, coal stage, well and outhouse.
 - `Art/Levels/area_math.py`: noise, rasters over the map square, curves and distance fields.
 - `Art/Levels/area_region.py`: the grounded setting: the regional height field around the core (valley floor and its
   benches, ridges and their saddles, an escarpment and its canyon), the core's edge, the playable boundary and the seam
@@ -1568,6 +1581,9 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Art/Levels/area_model.py`: the Blender side (tile, underside, water, ring, canyon wall and backdrop objects and
   their materials; the backdrop's tints, darker near and paler far, and its UV 1 `Depth`); `Art/Models/Terrain/<Area>.py`
   wrappers call it.
+- `Art/Models/Terrain/Waterfall.py`: the scripted waterfall models for `M_Waterfall`: Waterfall and WaterfallMist (the
+  tutorial island's creek off the rim) and, now, WaterfallTall (a 115 m fall down a canyon wall, stretched to its drop by
+  the level) and WaterfallFootMist (spray where a tall fall lands).
 - `Tools/Unreal/build_area.py`: `AreaBuild`, builds an area's level (`build_area.py <Area>
   [gameplay|environment|beyond|cliffs|dressing]`), with what lies past the boundary tagged Beyond (a grounded area's ring, canyon
   wall, backdrop and far trees, the last as `AInstancedScenery`; an island's sky islands), and the boundary's rock pieces
@@ -1587,6 +1603,10 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   between the story's fights (`build_area_camps.py`) and Ransom's Rest's town life (`build_area_townlife.py`), the vendors
   (`build_area_vendors.py`), Lost Property's window (`build_area_lostloot.py`) and the vigil stones
   (`build_area_shrines.py`); the lootable world (`build_area_loot.py`) goes in before the fauna, in the full build and the `dressing` mode.
+  The whole build also calls `build_area_mountain.py` (after the models) and `build_area_town_rr.py` (after the effects);
+  the gameplay pass calls `build_area_missionprops_mountain.py` (after the story) and `build_area_missionprops_valley.py`
+  (after the posters); a waterfall marked `canyon` gets SM_WaterfallTall stretched to its drop plus SM_WaterfallFootMist
+  at its foot.
 - `Tools/Unreal/build_area_panels.py`: a pit's wall dressed with the narrow cliff panels and the seam wedge
   (CliffPanel_A/B/C, CliffSeam_A) in place of a cliff group's faces, for `build_area.py` (`level.cliffs.panels`;
   the Sink's wall): a run along the pit's outline between its gaps and its ramp, each panel leaning with the wall
@@ -1662,8 +1682,9 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Tools/Unreal/build_decal_materials.py`: the decals' materials: `T_Posters_BC` from the art (or its stand-in),
   `M_PosterDecal` (deferred decal: an atlas cell, a hard 0.5 edge, Tint, Roughness), `M_PosterScrap` (the falling
   scrap: masked, two-sided, a dithered fade from custom primitive data) and their instances.
-  `Tools/Unreal/create_side_mission_assets.py`: the side missions' data assets (`DA_Mission_Side1`, made once its
-  prerequisite Main 3 exists; `DA_Mission_Side2`, once Main 4 does; `DA_Mission_Side3`, once Main 5 does).
+  `Tools/Unreal/create_side_mission_assets.py`: the side missions' data assets: all nine (Side1-3, CaldersCaches,
+  OldFare, KnockingBelow, DeadLift, LastWatch, BackPay), each made once its prerequisite exists (`DA_Mission_Side1` once
+  Main 3 does, `DA_Mission_Side2` once Main 4 does, `DA_Mission_Side3` once Main 5 does).
   `Tools/Unreal/build_area_den.py`: Side 3's pieces for `build_area_story.py`: the Gravemother's lair (after Main 5) at
   the den's mouth and the den's place (`Place_Den`, no longer a mission's goal: Side 3's first step is done on entering the
   Sink, by `Place_SinkFloor`), from Den Rock's sockets, else the layout; the den's dressing (bones,
@@ -1676,7 +1697,8 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   Ransom Farm's barn).
 - `Tools/Unreal/build_area_shrines.py`: the vigil stones (`ABossShrine`) for `build_area.py`'s gameplay pass or on their own:
   derived from the arenas (the Sink's ramp head for the Gravemother, outside the Keeper's Gate for Abel), off the boss's
-  ground, on level walkable ground clear of the layout's roads, ramps, obstacles and rocks.
+  ground, on level walkable ground clear of the layout's roads, ramps, obstacles and rocks; the Foreman's stone is anchored
+  from `gameplay.mountain.foremanStone`.
 - `Tools/Unreal/build_area_vendors.py`: the vendors (`AVendor`) for `build_area.py`'s gameplay pass, after the town's life
   (or on its own): derived from the built level at a shop's door, 0.95 m out from the store's lamp socket, facing out.
   Ransom's Rest: Pruitt's General Store on Main Street (`Vendor_Pruitt`, open after Main 3); Skyreach: the practice store
@@ -1699,7 +1721,8 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   `build_area_caches.py`; Side 2's from `build_area_whitlock.py`;
   Main 6's from `build_area_deck.py`; Main 7's from `build_area_depot.py`; the ore lift, watch fire and far light from
   `build_area_lift.py`; and Hob with his perches through Main 7
-  (on the town gate's SOCKET_Perch for Main 3).
+  (on the town gate's SOCKET_Perch for Main 3). `texts_topics()` gives a speaker's topics from `story_texts.TOPICS`
+  (Tilly, Hob, Aldana, Amos and the lift tube use it); Hob's Back Pay perch is on the Providence's tag board.
 - `Tools/Unreal/build_area_sink.py`: Main 5's pieces for `build_area_story.py`: the Sink's floor (blocks and coffins, in
   the Sink's own dusty granite), its web cards (shadows off; corner mats at the walls' feet, the floor's mats in dusty
   silk, orb webs only across a gap between two solid things; the pit wall's talus, build_area_talus, clear of the
@@ -1728,9 +1751,34 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Tools/Unreal/build_area_lift.py`: the ore lift (`AOreLift`), its bell pulls, the lift head's speaking tube, the watch fire
   and the far light for `build_area_story.py` (Ransom's Rest only), placed from the layout and the art's sockets, with
   greybox stand-ins for models not yet in, in `Gameplay/Lift`.
+- `Tools/Unreal/build_area_mountain.py`: the mountain's static pass for `build_area.py` (Ransom's Rest, after `models()`): the
+  mine through `build_area_mine.py`, the portal at the mine's origin, the tag-board tags, the tracks and ore tramway,
+  Calder's board and the HeavyOutside tags.
+- `Tools/Unreal/build_area_mine.py`: the Providence's mine for `build_area_mountain.py`: its frame and pieces from
+  `Art/Models/Mine/Mine.layout.json`, the shell, lanterns and lights, the timber props, rubble, `AInteriorVisibility` and
+  the Underground boxes.
+- `Tools/Unreal/build_area_missionprops_mountain.py`: the mountain's gameplay pass for `build_area.py` (after the story,
+  before the shrines): the places, Hiram, Dead Lift's fittings and Ruth's cabin props; calls `build_area_providence.py` and
+  `build_area_fights_mountain.py`.
+- `Tools/Unreal/build_area_providence.py`: Back Pay's props and `hob_spots` (Hob's perches at the mine mouth), for
+  `build_area_missionprops_mountain.py`.
+- `Tools/Unreal/build_area_fights_mountain.py`: the mountain's encounters from `gameplay.encounters.fights`, for
+  `build_area_missionprops_mountain.py`.
+- `Tools/Unreal/build_area_town_rr.py`: Ransom's Rest's valley pieces for `build_area.py` (after the effects): Keeper's Bridge
+  grounded bank to bank on stone piers, the depot's, workshop's and barn's lamps, the second chimneys' smoke, the
+  windmill's own wheel, the back lots' no-tree boxes and Tilly's cellar (Underground, checked).
+- `Tools/Unreal/build_area_missionprops_valley.py`: the valley's mission pieces for `build_area.py`'s gameplay pass (after the
+  posters), on the buildings' sockets: Mr. Sloane's door and window, Fenn's coffin with its lid and fare (story props), the
+  DepotWaiting and TillyCellar fights, the locked cellar door (`ALockedDoor`), the cold room door, Thaddeus, the readables
+  and items, the artifacts, the porch plate, the places and Main Street's height band.
+- `Tools/Unreal/story_texts.py`: the missions' words on things in the level, as data for the placing scripts: readables
+  (`READABLES`, `apply_readable`, `READABLE_MODELS`), the porch plate, artifacts, mission items' places and when, each
+  speaker point's topics and mutters (`TOPICS`), Hob's new perches, the mission fights' active_when (`ENCOUNTERS`) and
+  `condition()`.
 - `Tools/Unreal/build_area_whitlock.py`: Side 2's pieces for `build_area_story.py`: Amos at his fence (in the first
   span past his gate, from `build_area_dressing`'s plan: `run_head`, `span_heights`), his six bales and their stack by
-  the barn, the hired hands' fight in the barn yard; Whitlock Fields' fences, wall and round bales are
+  the barn, the hired hands' fight in the barn yard (the hands' spawner at the new barn); the new barn's `BaleStack`;
+  Whitlock Fields' fences, wall and round bales are
   `build_area_dressing.py`'s.
 - `Tools/amos_poses.py`: writes `Story/AmosPoseData.inl` from Amos.py's exported poses; run it again after they
   change.
@@ -1755,7 +1803,7 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   sparrows on Skyreach, hawks and swallows in the air), insect zones (butterflies, dragonflies, fireflies at dusk, flies),
   tumbleweed lanes and dust devil spots on open ground running downwind, and washing on every laundry line's back line;
   all clear of Hob's perches and inside the playable area, from seeded streams so a rebuild places the same, in the
-  area's `Fauna` folder.
+  area's `Fauna` folder; Ransom's Rest's buildings are known by their `SM_RR_` prefixes.
 - `Tools/Unreal/build_area_loot.py`: the lootable world for `build_area.py` (after the dressing and the gameplay pieces
   stand, before the fauna; in its full build and its `dressing` mode; also on its own: `py .../build_area_loot.py
   <Area>`): the dressing's wooden crates and barrels become `ABreakableProp`s where they stood (never one with something
@@ -1767,7 +1815,8 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Tools/Unreal/build_area_townlife.py`: Ransom's Rest's signs of the living for `build_area.py`'s gameplay pass (or on its
   own): `ATownLifeDoor`s just outside the front doors of Pruitt's store and the north and south cottages (folder
   `Gameplay/TownLife`), and each lit house's and the store's shutters given their household for `UTownLifeSubsystem`; only
-  a level whose layout has Ellis's grave gets any of it.
+  a level whose layout has Ellis's grave gets any of it. Mercer's door is moved, the dugout household and a door spot are
+  added.
 - `Tools/Unreal/create_revolver.py`: the Drover's definition `DA_Revolver` (damage 52 at 140 a minute, six rounds, the
   tightest cone, the kick) made or brought up to date, and put in the default loot table beside the rifle and the
   shotgun; run it before `setup_gun_parts.py` (the parts from `Art/Models/Weapons/Drover.parts.csv`) and
@@ -1784,7 +1833,7 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
   fences; every layer kept off the dressing's pieces (`build_area_dressing.footprints`; a town piece whose model isn't
   imported leaves no box), grass and flowers off its solid ones only; the pond's own reeds and lily pads step aside
   where a town places its own; the area's material swaps (`layout.json` `level.swaps`) on the scattered meshes as override
-  materials.
+  materials. Mountain zones (kinds alpine, outpost, mine, crest, and the benchPines stands) grow pines only.
 - `Tools/Unreal/build_area_dressing.py`: the layout's fence, wall, ruin, graves, cairns and props obstacles dressed from
   the art kit for `build_area.py` (in its full build after `models()`, and with `build_area.py <Area> dressing`): tables
   by obstacle id, sections chained along lines and polygons on the terrain's tiles, gates and road gaps, one
@@ -1810,6 +1859,15 @@ under UI (`UI/Vendor/`), the HUD's readout in `UI/HUD/PlayerHUDWidgetMoney.cpp`.
 - `Tools/terrain_check.ps1`, `.py`: checks an area's layout and computed layout before anything is built (feature rules,
   ramp grades, cliff courses of at most 12 m, the seam band, the boundary and the rock past its closed edges, the far
   trees, open ground).
+- `Tools/terrain_compare.ps1`, `.py`: compares an area's working-tree terrain with HEAD's inside HEAD's playable boundary
+  (heights, baked occlusion and curvature at 1 m; HEAD's build cached; `-Except` names the areas allowed to change; PASS
+  or FAIL); the proof that adding ground elsewhere left the old ground as it was. Headless Blender, nothing written to
+  the repository.
+- `Tools/Blender/terrain_dump.py`: the Blender helper `terrain_compare` runs: builds an area's terrain with the generator
+  in a given repository tree and dumps its rasters (`rasters.npz`).
+- `Tools/layout_patch.py`: applies the layout patches parallel agents hand in (`Art/Levels/<Area>/patches/*.json`: path,
+  op set/merge/append, where, unlessKind/unlessId) to layout.json in place, rewriting only what changed in the file's own
+  style; `--check` writes nothing. Entries for area_shape.py's tables are listed for a hand edit.
 - Main's helpers (`Docs/Pipeline.md`): `Tools/commitlib.py` (a commit with CODEMAP edits applied to HEAD's copy, so other
   uncommitted CODEMAP lines stay out), `Tools/stage_import.ps1` (an export folder's chosen models and their materials
   into `<folder>_Import` for `Looter.ImportModels`), `Tools/winshot.ps1` (a window captured by handle, such as a Save

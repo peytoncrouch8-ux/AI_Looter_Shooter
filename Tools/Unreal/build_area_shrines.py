@@ -15,7 +15,8 @@ ground, derived from the arena as it's built (nothing hand-placed):
     back doesn't start his fight (his deck radius, 14 m), clear of the road, the gate's rocks and the cairns. Abel (the
     placed AAbelKeeper labelled Abel) is called back at his spot.
   - The Foreman (the Providence, Docs/Areas/RansomsRest_Expansion.md): on the surface by the mine's portal, at design metres
-    (80, 224), facing the portal; his fight is in the stope far under the ridge, so the stone is never on his ground. His lair
+    (80, 224) (layout.json gameplay.mountain.foremanStone when it gives one), facing the portal (the mine's origin,
+    gameplay.mountain.mine.origin); his fight is in the stope far under the ridge, so the stone is never on his ground. His lair
     (the spawner whose SpawnerId is Foreman) brings him back: found by its label (Encounter_Foreman) when the build gave it
     one, else by the stone itself at run time (ABossShrine::Lair's "none"). While the Diggings aren't built (no walkable
     ground at the stone's place) he gets no stone (a warning).
@@ -299,24 +300,34 @@ def abel_spot(build):
     return spot, abel
 
 
+def foreman_anchor(build):
+    """The Foreman's stone's anchor and the mouth it faces: layout.json's gameplay.mountain (foremanStone, and the mine's
+    origin, which build_area_mine.py places the mine from), else the design's (FOREMAN_STONE, FOREMAN_PORTAL)."""
+    mountain = build.settings.get('mountain', {})
+    stone = tuple(mountain.get('foremanStone', FOREMAN_STONE)[:2])
+    portal = tuple(mountain.get('mine', {}).get('origin', FOREMAN_PORTAL)[:2])
+    return stone, portal
+
+
 def foreman_spot(build):
     """By the Providence's portal, facing it. Returns (the spot, his lair or None), or (None, None) while the Diggings aren't
     built. His lair is optional: a stone without one finds the spawner whose SpawnerId is Foreman when the game runs."""
-    if ground(*FOREMAN_STONE) is None:
-        build.warn(f"no walkable ground at the Providence's portal ({FOREMAN_STONE[0]:.0f}, {FOREMAN_STONE[1]:.0f}) (the Diggings "
+    stone, portal = foreman_anchor(build)
+    if ground(*stone) is None:
+        build.warn(f"no walkable ground at the Providence's portal ({stone[0]:.0f}, {stone[1]:.0f}) (the Diggings "
                    "aren't built yet): no vigil stone for the Foreman")
         return None, None
     lair = labelled(build, FOREMAN_LABEL)
-    sx, sy = FOREMAN_STONE
-    candidates = [FOREMAN_STONE] + [(sx + math.cos(math.radians(a)) * r, sy + math.sin(math.radians(a)) * r)
-                                    for r in range(150, 760, 100) for a in range(0, 360, 15)]
+    sx, sy = stone
+    candidates = [stone] + [(sx + math.cos(math.radians(a)) * r, sy + math.sin(math.radians(a)) * r)
+                            for r in range(150, 760, 100) for a in range(0, 360, 15)]
 
     def off_fight(x, y, z):
         # His stope lies 40-60 m under the ridge: a stone on the surface is never on his ground.
         return True
 
-    spot = choose(build, 'The Foreman', candidates, FOREMAN_PORTAL, off_fight,
-                  lambda x, y: math.hypot(x - FOREMAN_STONE[0], y - FOREMAN_STONE[1]))
+    spot = choose(build, 'The Foreman', candidates, portal, off_fight,
+                  lambda x, y: math.hypot(x - stone[0], y - stone[1]))
     return spot, lair
 
 

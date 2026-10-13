@@ -12,8 +12,10 @@ fall: the forge is cold, the powder house locked, the portal's doors hang open.
                          its floor), its front (-Y) south: place it with the same transform as the mine's pieces. The
                          clear opening is 3.6 m wide (between the posts) and 2.95 m high (under the caps).
                          SOCKET_TagBoard (the board's face), SOCKET_Mouth (the floor at the mouth), SOCKET_Light.
-  RR_TagBoard_TagsIn     the eleven's brass tags on the IN side's hooks (Back Pay's artifact); RR_TagBoard_TagsOut the same
-                         eleven on OUT's empty hooks (the "pay" ending). Both pivot where the portal does: same transform.
+  RR_TagBoard_TagsIn     the eleven's brass tags on the IN side's hooks, but for No. 7's (J. Odell's), which is Back Pay's
+                         artifact, a prop of its own (SM_MinersTag, Art/Models/Props/MissionProps.py) hung on
+                         SOCKET_MinersTag, its hook's hang point; RR_TagBoard_TagsOut the same eleven on OUT's empty hooks
+                         (the "pay" ending). Both pivot where the portal does: same transform.
   RR_OreBin              a timber ore bin on posts with a top deck at 3.6 m (a grizzly of rails over its mouth), a 6 m
                          trestle north at the deck's height for the track from the portal, the chute and its gate south
                          over the lower track, ore spilt under it. Pivot: the middle of the bin's foot on the lower ground;
@@ -175,10 +177,25 @@ def mine_portal():
     return m.finish(view=(-0.6, -1.0, 0.35))
 
 
-def tags(name, hooks, seed):
+def tags(name, hooks, seed, artifact=None):
+    """The eleven's tags on hooks; artifact: the hook whose tag is a prop of its own (J. Odell's, No. 7: SM_MinersTag in
+    Art/Models/Props/MissionProps.py, Back Pay's artifact). That tag is left unbuilt, built into a stand-in that draws on
+    the same random stream and material slots and is thrown away, so the others come out as they were, and
+    SOCKET_MinersTag marks where it hangs (SM_MinersTag's pivot, the top of its hole), facing out of the board."""
     m = mtn.Model(name, seed=seed)
     sp = board_frame()
     for k, (x, z) in enumerate(hooks[:11]):
+        if k == artifact:
+            sink = mtn.Model('_Unbuilt', seed=0)
+            sink.rng, sink.slots = m.rng, m.slots
+            tag(sink, sp, (x, z + 1.0), seed + k)
+            sink.bm.free()
+            bpy.data.objects.remove(sink._obj)
+            bpy.data.meshes.remove(sink._mesh)
+            # SM_MinersTag's pivot is the top of its hole, 16.7 mm over its disc's middle: this puts its disc exactly where
+            # the baked tag's was, in line with the other ten (each hangs 3.5 cm under its hook's middle, in front).
+            m.socket('MinersTag', tuple(sp.world((x, -0.035, z + 1.0 - 0.035 + 0.0167))), (0.0, 0.0, 25.0))
+            continue
         tag(m, sp, (x, z + 1.0), seed + k)
     return m.finish(Nanite=0, Collision='None')
 
@@ -399,7 +416,7 @@ def smithy():
 
 
 portal = mine_portal()
-tags_in = tags('RR_TagBoard_TagsIn', HOOKS_IN, 8150)
+tags_in = tags('RR_TagBoard_TagsIn', HOOKS_IN, 8150, artifact=6)   # No. 7, J. Odell's: SM_MinersTag
 tags_out = tags('RR_TagBoard_TagsOut', HOOKS_OUT[9:], 8170)
 bin_ = ore_bin()
 powder = powder_house()

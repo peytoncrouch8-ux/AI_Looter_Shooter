@@ -299,15 +299,30 @@ bool FMissionDefinitionsTest::RunTest(const FString& Parameters)
 	}
 
 	// Ransom's Rest's story missions are turned in (the user's call, 2026-10-08), but Main 6, which ends in its own scene
-	// with Pa (his board, the lantern lit and the train's steam follow it finished).
+	// with Pa (his board, the lantern lit and the train's steam follow it finished). Every one but Main 1 is picked up from
+	// a giver (the user's call, 2026-10-13): offered, with its giver's tag and the card's words.
 	const TCHAR* const TurnedIn[] = { TEXT("Main1"), TEXT("Main2"), TEXT("Main3"), TEXT("Main4"), TEXT("Main5"), TEXT("Main7"),
-		TEXT("Side1"), TEXT("Side2") };
+		TEXT("Side1"), TEXT("Side2"), TEXT("Side3"), TEXT("CaldersCaches"), TEXT("OldFare"), TEXT("KnockingBelow"), TEXT("DeadLift"),
+		TEXT("LastWatch"), TEXT("BackPay") };
 	for (const TCHAR* Id : TurnedIn)
 	{
 		if (const UMissionDefinition* Story = FindMissionAsset(Id))
 		{
 			TestTrue(*FString::Printf(TEXT("%s is turned in to someone"), Id), Story->NeedsTurnIn());
 		}
+	}
+	for (const UMissionDefinition* Mission : Missions)
+	{
+		if (Mission->Area == FName(TEXT("RansomsRest")) && Mission->GetMissionId() != FName(TEXT("Main1")))
+		{
+			TestTrue(*FString::Printf(TEXT("%s is picked up from a giver, with the card's words"), *Mission->GetMissionId().ToString()),
+				Mission->IsOffered() && !Mission->Offer.Briefing.IsEmpty());
+		}
+	}
+	if (const UMissionDefinition* BackPay = FindMissionAsset(TEXT("BackPay")))
+	{
+		TestTrue(TEXT("Back Pay ends in a choice of two at the tag board"), BackPay->HasTurnInChoice()
+			&& BackPay->TurnIn.SpeakerTag == FName(TEXT("Speaker_TagBoard")));
 	}
 
 	// The test mission: kill, reach and interact objectives and some experience, started only by hand (never in play).

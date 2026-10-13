@@ -76,13 +76,58 @@ def fbm(x, y, wavelength, seed=0, octaves=3, gain=0.5):
 
 def fbm_raster(grid, wavelength, seed=0, octaves=3, gain=0.5):
     """fbm() over a whole grid, evaluated on a coarser raster (eight samples per wavelength of the finest octave)
-    and resampled: the same field, much faster for long wavelengths."""
+    and resampled: the same field, much faster for long wavelengths. A grid with a lattice (Area: a layout's
+    map.grownFrom, or a window of a split map) takes its coarse raster's points from that lattice instead
+    (_fbm_on_lattice), so it gets the very values the lattice's own square would."""
+    lattice = getattr(grid, 'lattice', None)
+    if lattice is not None:
+        return _fbm_on_lattice(grid, lattice, wavelength, seed, octaves, gain)
     finest = wavelength / 2.03 ** (octaves - 1)
     n = int(min(grid.n, max(64, 2 ** math.ceil(math.log2(2.0 * grid.half * 8.0 / finest)))))
     coarse = Grid(n, grid.half)
     x, y = coarse.mesh()
     field = fbm(x, y, wavelength, seed, octaves, gain).astype(np.float32)
     return field if n == grid.n else resize(field, grid.n, grid.half)
+
+
+def _fbm_on_lattice(grid, lattice, wavelength, seed, octaves, gain):
+    """fbm_raster() over a grid as a square of half side lattice[0] with lattice[1] cells would work it out: its coarse
+    raster's points (where that square puts them, carried on past its edges as far as the grid reaches) and the same
+    bilinear weights. The grid's cells then get the very values the reference square's cells at the same places would,
+    so a map square grown on the same cells (map.grownFrom) keeps its old ground, and a window of a split map agrees
+    with its neighbors where they meet. With as many coarse cells as the reference has cells, the noise is worked out
+    at the grid's own cells, as fbm_raster() does at full size."""
+    ref_half, ref_n = lattice
+    finest = wavelength / 2.03 ** (octaves - 1)
+    n = int(min(ref_n, max(64, 2 ** math.ceil(math.log2(2.0 * ref_half * 8.0 / finest)))))
+    px = 2.0 * ref_half / n
+    cx = grid.c
+    cy = getattr(grid, 'cy', grid.c)
+    if n == ref_n and abs(px - grid.px) < 1e-9:
+        x, y = grid.mesh()
+        return fbm(x, y, wavelength, seed, octaves, gain).astype(np.float32)
+    # The coarse points spanning the grid's cells (and one more each side), at the reference's lattice positions.
+    ki0 = int(math.floor((cx[0] + ref_half) / px - 0.5)) - 1
+    ki1 = int(math.floor((cx[-1] + ref_half) / px - 0.5)) + 2
+    kj0 = int(math.floor((cy[0] + ref_half) / px - 0.5)) - 1
+    kj1 = int(math.floor((cy[-1] + ref_half) / px - 0.5)) + 2
+    xs = -ref_half + (np.arange(ki0, ki1 + 1) + 0.5) * px
+    ys = -ref_half + (np.arange(kj0, kj1 + 1) + 0.5) * px
+    field = fbm(*np.meshgrid(xs, ys, indexing='ij'), wavelength, seed, octaves, gain).astype(np.float32)
+    out = np.empty((len(cx), len(cy)), dtype=np.float32)
+    for a in range(0, len(cx), 256):
+        x, y = np.meshgrid(cx[a:a + 256], cy, indexing='ij')
+        # sample()'s arithmetic, in the reference's index space, shifted to the field's first point.
+        fi = (x + ref_half) / px - 0.5
+        fj = (y + ref_half) / px - 0.5
+        i0, j0 = np.floor(fi).astype(np.int64), np.floor(fj).astype(np.int64)
+        ti, tj = fi - i0, fj - j0
+        i0, j0 = i0 - ki0, j0 - kj0
+        i1, j1 = i0 + 1, j0 + 1
+        top = field[i0, j0] * (1 - tj) + field[i0, j1] * tj
+        bottom = field[i1, j0] * (1 - tj) + field[i1, j1] * tj
+        out[a:a + 256] = top * (1 - ti) + bottom * ti
+    return out
 
 
 # --- Rasters ---
@@ -105,6 +150,47 @@ class Grid:
         a = int(max(0, math.floor((lo + self.half) / self.px)))
         b = int(min(self.n, math.ceil((hi + self.half) / self.px) + 1))
         return a, b
+
+    # Along y (east) a square grid's cells are where they are along x.
+    index_range_y = index_range
+
+
+class Window:
+    """A square window of n x n cells of px meters out of a larger square's grid (a split macro map's quarter): cell
+    (i, j) at x (north) = c[i], y (east) = cy[j], where the whole square's grid has them. It answers what a Grid does
+    (n, px, mesh(), index_range() along x and index_range_y() along y; half is its own half side), and carries the
+    whole square's lattice (half side, cells across), so fbm_raster() gives it the whole square's very noise there and
+    windows agree where they meet."""
+    window = True
+
+    def __init__(self, n, px, x0, y0, lattice):
+        self.n, self.px = n, px
+        self.half = 0.5 * n * px
+        self.x0, self.y0 = x0, y0  # its south and west edges
+        self.c = x0 + (np.arange(n) + 0.5) * px
+        self.cy = y0 + (np.arange(n) + 0.5) * px
+        self.lattice = lattice
+
+    def mesh(self, i0=0, i1=None, j0=0, j1=None):
+        i1 = self.n if i1 is None else i1
+        j1 = self.n if j1 is None else j1
+        return np.meshgrid(self.c[i0:i1], self.cy[j0:j1], indexing='ij')
+
+    def _range(self, origin, lo, hi):
+        a = int(max(0, math.floor((lo - origin) / self.px)))
+        b = int(min(self.n, math.ceil((hi - origin) / self.px) + 1))
+        return a, b
+
+    def index_range(self, lo, hi):
+        return self._range(self.x0, lo, hi)
+
+    def index_range_y(self, lo, hi):
+        return self._range(self.y0, lo, hi)
+
+    def covers(self):
+        """[[X0, Y0], [X1, Y1]] in cm: the square it covers (layout_computed.json's form)."""
+        side = self.n * self.px
+        return [[self.x0 * 100.0, self.y0 * 100.0], [(self.x0 + side) * 100.0, (self.y0 + side) * 100.0]]
 
 
 def sample(raster, x, y, half):
@@ -202,7 +288,7 @@ def polyline_field(grid, poly, margin, closed=False):
     for k in range(len(pts) - 1):
         a, b = pts[k], pts[k + 1]
         i0, i1 = grid.index_range(min(a[0], b[0]) - margin, max(a[0], b[0]) + margin)
-        j0, j1 = grid.index_range(min(a[1], b[1]) - margin, max(a[1], b[1]) + margin)
+        j0, j1 = grid.index_range_y(min(a[1], b[1]) - margin, max(a[1], b[1]) + margin)
         if i0 >= i1 or j0 >= j1:
             continue
         x, y = grid.mesh(i0, i1, j0, j1)
@@ -227,6 +313,8 @@ def polygon_mask(grid, poly):
     mask = np.zeros((grid.n, grid.n), dtype=bool)
     a = np.asarray(poly, dtype=np.float64)
     b = np.roll(a, -1, axis=0)
+    # Where the grid's columns start along y (east): a window's own west edge, else the square's.
+    shift = -grid.y0 if getattr(grid, 'window', False) else grid.half
     for i, x in enumerate(grid.c):
         cross = (a[:, 0] <= x) != (b[:, 0] <= x)
         if not cross.any():
@@ -235,8 +323,8 @@ def polygon_mask(grid, poly):
         t = (x - ea[:, 0]) / (eb[:, 0] - ea[:, 0])
         ys = np.sort(ea[:, 1] + t * (eb[:, 1] - ea[:, 1]))
         for k in range(0, len(ys) - 1, 2):
-            j0 = int(max(0, math.ceil((ys[k] + grid.half) / grid.px - 0.5)))
-            j1 = int(min(grid.n - 1, math.floor((ys[k + 1] + grid.half) / grid.px - 0.5)))
+            j0 = int(max(0, math.ceil((ys[k] + shift) / grid.px - 0.5)))
+            j1 = int(min(grid.n - 1, math.floor((ys[k + 1] + shift) / grid.px - 0.5)))
             if j1 >= j0:
                 mask[i, j0:j1 + 1] = True
     return mask

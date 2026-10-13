@@ -3,10 +3,24 @@
 namespace
 {
 	/**
-	 * No single level ever asks for more than this. It only matters for wild settings (a steep growth over hundreds of
-	 * levels) and keeps every total far inside int64.
+	 * No climb ever asks for more than this in all. It only matters for wild settings (a steep power over hundreds of
+	 * levels) and keeps every total, and a player's XP with a huge gain added, far inside int64.
 	 */
-	constexpr double MaxStepXP = 1e12;
+	constexpr double MaxTotalXP = 1e15;
+}
+
+int64 FXPCurve::TotalXPToReach(int32 Level) const
+{
+	const int32 Reached = FMath::Clamp(Level, 1, FMath::Max(MaxLevel, 1));
+	if (Reached <= 1)
+	{
+		return 0;
+	}
+	// Never flatter than a straight line, never under a point a level: later levels always take at least as long.
+	const double Scale = FMath::Max(CurveScale, 1.0);
+	const double Power = FMath::Max(CurvePower, 1.0);
+	const double Total = Scale * (FMath::Pow(static_cast<double>(Reached), Power) - 1.0);
+	return static_cast<int64>(FMath::RoundToDouble(FMath::Min(Total, MaxTotalXP)));
 }
 
 int64 FXPCurve::XPToNextLevel(int32 Level) const
@@ -15,19 +29,9 @@ int64 FXPCurve::XPToNextLevel(int32 Level) const
 	{
 		return 0;
 	}
-	// A flat or shrinking curve would let late levels come as fast as early ones; never less than one point per level.
-	const double Step = FMath::Max<int64>(BaseXP, 1) * FMath::Pow(FMath::Max(Growth, 1.0), static_cast<double>(FMath::Max(Level, 1) - 1));
-	return static_cast<int64>(FMath::Max(FMath::RoundToDouble(FMath::Min(Step, MaxStepXP)), 1.0));
-}
-
-int64 FXPCurve::TotalXPToReach(int32 Level) const
-{
-	int64 Total = 0;
-	for (int32 From = 1; From < FMath::Min(Level, MaxLevel); ++From)
-	{
-		Total += XPToNextLevel(From);
-	}
-	return Total;
+	// The difference of two rounded totals, so the steps always add up to the totals exactly.
+	const int32 From = FMath::Max(Level, 1);
+	return FMath::Max<int64>(TotalXPToReach(From + 1) - TotalXPToReach(From), 1);
 }
 
 float FXPCurve::LevelProgress(int32 Level, int64 XP) const
@@ -46,7 +50,7 @@ int32 FXPCurve::ApplyXP(int32& Level, int64& XP, int64 Amount) const
 
 	const int32 StartLevel = Level;
 	// Even an absurd amount (a typo in a console command) can't overflow: no climb takes anywhere near this much.
-	XP += FMath::Min<int64>(Amount, static_cast<int64>(MaxStepXP) * 1000);
+	XP += FMath::Min<int64>(Amount, static_cast<int64>(MaxTotalXP));
 	// One step per level crossed: a big reward (or a console command) can cover several at once.
 	for (int64 Needed = XPToNextLevel(Level); Needed > 0 && XP >= Needed; Needed = XPToNextLevel(Level))
 	{

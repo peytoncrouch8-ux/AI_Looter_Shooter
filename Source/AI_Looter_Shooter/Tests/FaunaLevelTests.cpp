@@ -91,9 +91,12 @@ namespace
 				// transform.
 				const USceneComponent* Root = Placed->GetRootComponent();
 				const UStaticMesh* Mesh = Placed->GetStaticMeshComponent() ? Placed->GetStaticMeshComponent()->GetStaticMesh() : nullptr;
+				// Ransom's Rest's own kit (2026-10-13) by its names: the homes, the three fronts, Tilly's workshop, the coal
+				// stage and the well (its depot, barn and outhouse carry the older words already).
 				static const TCHAR* const Buildings[] = { TEXT("Farmhouse"), TEXT("Barn"), TEXT("Cottage"), TEXT("LogCabin"),
 					TEXT("FalseFront"), TEXT("Chapel"), TEXT("Depot"), TEXT("Outhouse"), TEXT("CoffinShed"), TEXT("WaterTower"),
-					TEXT("Woodshed"), TEXT("Lookout") };
+					TEXT("Woodshed"), TEXT("Lookout"), TEXT("RR_Home"), TEXT("RR_Front"), TEXT("RR_Workshop"),
+					TEXT("RR_CoalStage"), TEXT("RR_Well") };
 				bool bBuilding = false;
 				for (const TCHAR* Kind : Buildings)
 				{

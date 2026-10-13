@@ -78,6 +78,27 @@ struct AI_LOOTER_SHOOTER_API FSavedSilverPickup
 	float LifeLeft = 0.f;
 };
 
+/** A grave-salt grenade tin lying in the world (AGrenadePickup). */
+USTRUCT()
+struct AI_LOOTER_SHOOTER_API FSavedGrenadePickup
+{
+	GENERATED_BODY()
+
+	/** How many grenades the tin holds. */
+	UPROPERTY()
+	int32 Amount = 0;
+
+	UPROPERTY()
+	FVector Location = FVector::ZeroVector;
+
+	/**
+	 * Seconds it had left before it would have gone, as an ammo pickup keeps them: put back, the tin goes on with these, and
+	 * vanishes when they run out (0: a whole life).
+	 */
+	UPROPERTY()
+	float LifeLeft = 0.f;
+};
+
 /** What a weapon rack still offered. */
 USTRUCT()
 struct AI_LOOTER_SHOOTER_API FSavedWeaponRack
@@ -99,8 +120,8 @@ struct AI_LOOTER_SHOOTER_API FSavedWeaponRack
 
 /**
  * What a session keeps of one map's world, so each map stays as it was left while the player is somewhere else: loot on
- * the ground, what the gun racks still offered, the wanted posters torn down, the hay bales loaded, the chests opened,
- * the tutorial's step, and when the map's creatures were last promoted and its Legendary monsters last beaten.
+ * the ground (guns, ammo, silver, grenade tins), what the gun racks still offered, the wanted posters torn down, the hay
+ * bales loaded, the chests opened and the ones found, the tutorial's step, and when the map's creatures were last promoted and its Legendary monsters last beaten.
  * Creatures themselves aren't kept: they're all back whenever the map is played.
  */
 USTRUCT()
@@ -158,6 +179,22 @@ struct AI_LOOTER_SHOOTER_API FSavedMapWorld
 	 */
 	UPROPERTY()
 	TArray<FSavedSilverPickup> SilverPickups;
+
+	/**
+	 * Grave-salt grenade tins lying around (AGrenadePickup), kept as ammo and silver are, with the seconds each had left: a
+	 * Save & Quit gives no new life, and a tin whose time runs out is gone. Never Lost Property's (only guns go there). New
+	 * within version 2, as TornPosters: a save from before it reads as none, which is right.
+	 */
+	UPROPERTY()
+	TArray<FSavedGrenadePickup> GrenadePickups;
+
+	/**
+	 * The loot chests the player has found but not opened (AChest::GetSaveKey; UMapDiscoverySubsystem), so their pins on the
+	 * map page survive a Save & Quit and Continue. An opened chest is kept in OpenedChests instead and pinned as looted. New
+	 * within version 2, as TornPosters: a save from before it reads as none found, which is right.
+	 */
+	UPROPERTY()
+	TArray<FName> FoundChests;
 
 	/** The tutorial step on screen, or INDEX_NONE when it wasn't running (on every map but the tutorial's). */
 	UPROPERTY()

@@ -12,8 +12,10 @@
 #include "UObject/ConstructorHelpers.h"
 
 const FName AForemanTimberProp::PropTag(TEXT("TimberProp"));
-const TCHAR* const AForemanTimberProp::ModelPath = TEXT("/Game/Art/Props/SM_RR_MineProp.SM_RR_MineProp");
-const TCHAR* const AForemanTimberProp::StumpPath = TEXT("/Game/Art/Props/SM_RR_MinePropStump.SM_RR_MinePropStump");
+// The mine kit's (Art/Models/Mine/Mine.py, imported to /Game/Art/Mine): the stope's prop, and what his strike leaves of it
+// (the splintered stub, the head board with its top hanging, the middle on the floor).
+const TCHAR* const AForemanTimberProp::ModelPath = TEXT("/Game/Art/Mine/SM_RR_Mine_StopeProp.SM_RR_Mine_StopeProp");
+const TCHAR* const AForemanTimberProp::StumpPath = TEXT("/Game/Art/Mine/SM_RR_Mine_StopePropBroken.SM_RR_Mine_StopePropBroken");
 
 namespace
 {

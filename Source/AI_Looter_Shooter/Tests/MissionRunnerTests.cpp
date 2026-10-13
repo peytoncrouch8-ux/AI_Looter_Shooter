@@ -421,8 +421,8 @@ bool FMissionRewardsTest::RunTest(const FString& Parameters)
 {
 	// A share of a level's experience is worth the same part of a level at any level; a gun's rarity floor raises only.
 	FXPCurve Curve;
-	TestEqual(TEXT("30% of the first level"), MissionRewards::ExperienceFor(0.3f, 1, Curve), static_cast<int64>(30));
-	TestEqual(TEXT("30% of the second level (112)"), MissionRewards::ExperienceFor(0.3f, 2, Curve), static_cast<int64>(34));
+	TestEqual(TEXT("30% of the first level (1,074)"), MissionRewards::ExperienceFor(0.3f, 1, Curve), static_cast<int64>(322));
+	TestEqual(TEXT("30% of the second level (2,647)"), MissionRewards::ExperienceFor(0.3f, 2, Curve), static_cast<int64>(794));
 	TestEqual(TEXT("20% of level 10"), MissionRewards::ExperienceFor(0.2f, 10, Curve),
 		static_cast<int64>(FMath::RoundToDouble(static_cast<double>(Curve.XPToNextLevel(10)) * static_cast<double>(0.2f))));
 	TestEqual(TEXT("No share, no experience"), MissionRewards::ExperienceFor(0.f, 5, Curve), static_cast<int64>(0));

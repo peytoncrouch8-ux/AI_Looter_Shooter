@@ -686,6 +686,23 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* GateLatch = TEXT("World.OreLift.GateLatch");
 	}
 
+	// --- The lift's fittings and the mine's manway gate (2026-10-13: the player's hands on the iron; all 3D, near) ---
+	namespace Fittings
+	{
+		/** The winch's crank handle fitted onto its square shaft and turned (near, ~1.2 s): the socket sliding home, a heavy
+		 *  iron clunk as it seats, then three to five ratchet pawl clicks over a little gear grind. */
+		inline constexpr const TCHAR* Crank = TEXT("World.LiftFitting.Crank");
+		/** The winch boiler fed (near, ~2 s): the fire door swung open (hinge squeal, a clang), coal shoveled in with a gritty
+		 *  rattle, the fire catching with a low whoomp and a short steam hiss. */
+		inline constexpr const TCHAR* Boiler = TEXT("World.LiftFitting.Boiler");
+		/** The cable clamp's iron pin driven home (near, ~1 s): two or three hammer knocks climbing in pitch as it seats, a
+		 *  final ringing clink. */
+		inline constexpr const TCHAR* Pin = TEXT("World.LiftFitting.Pin");
+		/** A rusty iron grate gate opened in a mine passage (near, ~1.7 s): the latch bar lifted with a clack, a long low
+		 *  hinge groan, the bars rattling, ending in a dull knock against rock. */
+		inline constexpr const TCHAR* ManwayGate = TEXT("World.ManwayGate.Open");
+	}
+
 	// --- The watch fire on Calder's Post's tower (2026-10-13, wave 2b: AWatchFire; all 3D) ---
 	namespace WatchFire
 	{

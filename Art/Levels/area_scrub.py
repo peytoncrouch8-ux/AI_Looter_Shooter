@@ -60,9 +60,10 @@ RABBIT_REACH = 80.0     # and the rabbitbrush
 BOUNDARY_ROCK = 5.0     # meters past the boundary kept bare (the rock raised past its closed edges)
 SEAM_FADE = (4.0, 20.0)  # the scrub fades out between these distances (m) inside the core square's edge
 # Zone kinds the flats' scrub keeps out of (the fields, the town, the yards, where people live and are buried, and
-# Ransom's Point's top, the lookout the whole valley is seen from).
+# Ransom's Point's top, the lookout the whole valley is seen from; and up on a hanging valley, its alpine meadow, an
+# outpost's yard and a mine's diggings: no sagebrush up there).
 EXCLUDED = ('town', 'fields', 'orchard', 'home', 'graveyard', 'chapel', 'travel', 'boss_arena', 'lookout', 'pit',
-            'forest', 'range', 'village')
+            'forest', 'range', 'village', 'alpine', 'outpost', 'mine', 'interior')
 CREST_STEP = (10.0, 20.0)  # meters between the crests' junipers
 CREST_YAW = 20.0        # degrees either side of 0: their swept crowns (-Y) point west, downwind
 RIM_JUNIPERS = 2        # per pit, on its rim

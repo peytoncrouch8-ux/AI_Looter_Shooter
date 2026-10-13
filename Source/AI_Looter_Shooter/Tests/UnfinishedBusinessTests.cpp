@@ -236,29 +236,34 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnfinishedBusinessMissionTest, "Looter.Story.U
 
 bool FUnfinishedBusinessMissionTest::RunTest(const FString& Parameters)
 {
-	// Side 2 as its asset has it: after Main 4 on Ransom's Rest; talk to Amos, load six bales (held, counted from the world),
-	// drive off the hands (their encounter cleared: six); turned in to Amos; 40 experience and a guaranteed Epic gun.
+	// Side 2 as its asset has it: offered by Amos at his fence (his meet lines) after Main 4 on Ransom's Rest; load six bales
+	// (held, counted from the world), ask him who's on the road (the twist: his unpaid hands), drive off the hands (their
+	// encounter cleared: six; what he owed them chalked in the barn, optional); turned in to Amos (his thanks: the topic from
+	// step 3); 8 experience and a guaranteed Epic gun. (The flows below play the order it had before the givers: AddStep's.)
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Side2")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Side2.DA_Mission_Side2"));
 		if (TestNotNull(TEXT("DA_Mission_Side2 loads"), Asset))
 		{
-			TestTrue(TEXT("Side2, a side mission starting by itself on Ransom's Rest, after Main4"), Asset->GetMissionId() == SideTwo
-				&& Asset->Kind == EMissionKind::Side && Asset->Start == EMissionStart::Automatic && Asset->Area == FName(TEXT("RansomsRest"))
-				&& Asset->Prerequisites == TArray<FName>({ MainFour }));
+			TestTrue(TEXT("Side2, a side mission Amos offers on Ransom's Rest, after Main4"), Asset->GetMissionId() == SideTwo
+				&& Asset->Kind == EMissionKind::Side && Asset->Start == EMissionStart::Offered
+				&& Asset->Offer.GiverTag == AAmosWhitlock::SpeakerTag && !Asset->Offer.Lines.IsEmpty()
+				&& Asset->Area == FName(TEXT("RansomsRest")) && Asset->Prerequisites == TArray<FName>({ MainFour }));
 			TestEqual(TEXT("Three steps"), Asset->Steps.Num(), SideTwoSteps);
-			const UMissionTalkObjective* Meet = Cast<UMissionTalkObjective>(Asset->GetObjective(0, 0));
-			const UMissionLastingInteractObjective* Load = Cast<UMissionLastingInteractObjective>(Asset->GetObjective(1, 0));
+			const UMissionLastingInteractObjective* Load = Cast<UMissionLastingInteractObjective>(Asset->GetObjective(0, 0));
+			const UMissionTalkObjective* Road = Cast<UMissionTalkObjective>(Asset->GetObjective(1, 0));
 			const UMissionClearObjective* Hands = Cast<UMissionClearObjective>(Asset->GetObjective(2, 0));
-			TestTrue(TEXT("1: talk to Amos at his fence"), Meet && Meet->SpeakerTag == AAmosWhitlock::SpeakerTag);
-			TestTrue(TEXT("2: six hay bales loaded, held, counted from the world"), Load && Load->Count == BaleCount && Load->bHold
+			const UMissionObjective* Chalk = Asset->GetObjective(2, 1);
+			TestTrue(TEXT("1: six hay bales loaded, held, counted from the world"), Load && Load->Count == BaleCount && Load->bHold
 				&& Load->Target.ActorTag == AHayBale::BaleTag);
+			TestTrue(TEXT("2: ask Amos who's on the road"), Road && Road->SpeakerTag == AAmosWhitlock::SpeakerTag);
 			TestTrue(TEXT("3: the hands driven off (their encounter cleared, six)"), Hands && Hands->SpawnerId == HandsId
 				&& Hands->Count == HandsBasic + 1);
-			TestTrue(TEXT("Turned in to Amos (his thanks: the talk that was its fourth step)"), Asset->NeedsTurnIn()
+			TestTrue(TEXT("...and, optional, the wages chalked in the barn"), Chalk && Chalk->bOptional);
+			TestTrue(TEXT("Turned in to Amos (his thanks: the topic from its fourth step)"), Asset->NeedsTurnIn()
 				&& Asset->TurnIn.SpeakerTag == AAmosWhitlock::SpeakerTag);
-			TestTrue(TEXT("Its reward: 40 experience and a guaranteed Epic gun"),
-				Asset->Rewards.Experience == 40 && Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Epic);
+			TestTrue(TEXT("Its reward: 800 experience and a guaranteed Epic gun"),
+				Asset->Rewards.Experience == 800 && Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Epic);
 		}
 	}
 	else
@@ -667,9 +672,13 @@ bool FUnfinishedBusinessPlacedTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("...tagged for the missions"), Amos->ActorHasTag(AAmosWhitlock::SpeakerTag));
 		TestTrue(TEXT("...there from Main 4's finish, on the rail after Side 2"), Amos->ShownWhen.AfterMissions.Contains(MainFour)
 			&& Amos->SitWhen.AfterMissions.Contains(SideTwo));
+		// The bales first (from step 0), the road's talk (from 1), the hands (from 2), his thanks at the turn-in (from 3).
 		TestTrue(TEXT("...his words at each of Side 2's steps"), Amos->SpeakerPoint->Topics.ContainsByPredicate([](const FSpeakerTopic& Topic)
 		{
 			return Topic.When.DuringMission == SideTwo && Topic.When.FromStep == 3 && Topic.LineSet != nullptr;
+		}) && Amos->SpeakerPoint->Topics.ContainsByPredicate([](const FSpeakerTopic& Topic)
+		{
+			return Topic.When.DuringMission == SideTwo && Topic.When.FromStep == 1 && Topic.LineSet != nullptr;
 		}) && Amos->SpeakerPoint->Topics.ContainsByPredicate([](const FSpeakerTopic& Topic)
 		{
 			return Topic.When.DuringMission == SideTwo && Topic.When.FromStep == 0 && Topic.LineSet != nullptr;
@@ -700,9 +709,10 @@ bool FUnfinishedBusinessPlacedTest::RunTest(const FString& Parameters)
 			Stack += InStack(Bale);
 		}
 		Stack /= Bales.Num();
+		// Side 2's first step since Amos offers it (his meet lines are the offer): loaded from step 0.
 		TestFalse(TEXT("...each tagged, loaded once Amos has asked"), Bales.ContainsByPredicate([](const AHayBale* Bale)
 		{
-			return !Bale->ActorHasTag(AHayBale::BaleTag) || Bale->LoadWhen.DuringMission != SideTwo || Bale->LoadWhen.FromStep != 1
+			return !Bale->ActorHasTag(AHayBale::BaleTag) || Bale->LoadWhen.DuringMission != SideTwo || Bale->LoadWhen.FromStep != 0
 				|| !Bale->LoadedWhen.AfterMissions.Contains(SideTwo);
 		}));
 		TestFalse(TEXT("...each with its place in one stack by the barn, out in the field from it"), Bales.ContainsByPredicate([&Stack, &InStack](const AHayBale* Bale)

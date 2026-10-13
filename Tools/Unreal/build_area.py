@@ -115,6 +115,8 @@ BEYOND_PARTS = ('Ring_', 'CanyonWall_', 'Backdrop_')
 # Drops the waterfall model (made for the tutorial island's rim, its strands thinning out 40-58 m down) is shortened
 # for: a falls into a gorge is squashed to fit (cm).
 WATERFALL_LENGTH = 4800.0
+# The drop the tall fall into a canyon is made for (Waterfall.py TALL_DROP); a canyon falls is stretched to its own (cm).
+WATERFALL_TALL = 11500.0
 
 # The way smoke leans (the foliage master's default WindDirection, 1 : 0.35).
 WIND_YAW = 19.0
@@ -407,6 +409,9 @@ class AreaBuild:
         # The story's actors stand on the models placed already (the graves, the lookout, the farmhouse), and so do the
         # posters (on the buildings' walls and the notice board).
         self.story.place(self)
+        # The mountain's mission props, Hiram, its fights and the Foreman's lair (build_area_missionprops_mountain.py),
+        # before the vigil stones: the Foreman's finds his lair.
+        importlib.reload(importlib.import_module('build_area_missionprops_mountain')).place(self)
         # Each boss arena's Vigil Stone, hidden until that boss's first defeat (build_area_shrines.py).
         importlib.reload(importlib.import_module('build_area_shrines')).place(self)
         # The encounters between the story's fights (layout gameplay.encounters): camps with their crates, patrols and
@@ -419,6 +424,9 @@ class AreaBuild:
         # The depot's LOST PROPERTY window, where ground guns are handed in (build_area_lostloot.py).
         importlib.reload(importlib.import_module('build_area_lostloot')).place(self)
         self.posters.place(self)
+        # The valley's mission pieces on the buildings' sockets (build_area_missionprops_valley.py): Mr. Sloane, Fenn's
+        # coffin, the cellar's locked door, Thaddeus, the readables and items, after the posters.
+        importlib.reload(importlib.import_module('build_area_missionprops_valley')).place(self)
 
         # The groups draw from one random stream, in order, so each lands where it did last time.
         rng = random.Random(self.settings.get('seed', 7))
@@ -485,9 +493,11 @@ class AreaBuild:
                                       label=key, folder='Buildings', tags=('Obstacle',))
                 tower = windmill.get_editor_property('tower')
                 tower.set_static_mesh(unreal.load_asset(meshes[name]))
-                if 'WindmillFan' in meshes:
+                # The area's own wheel when level.models names one (Ransom's Rest's RR_WindmillFan).
+                fan_name = self.model_names.get('WindmillFan', 'WindmillFan')
+                if fan_name in meshes:
                     fan = windmill.get_editor_property('fan')
-                    fan.set_static_mesh(unreal.load_asset(meshes['WindmillFan']))
+                    fan.set_static_mesh(unreal.load_asset(meshes[fan_name]))
                     # The socket exists only now that the tower has its mesh.
                     snap = unreal.AttachmentRule.SNAP_TO_TARGET
                     fan.attach_to_component(tower, 'Fan', snap, snap, unreal.AttachmentRule.KEEP_RELATIVE, False)
@@ -985,8 +995,21 @@ class AreaBuild:
         falls = self.layout.get('waterfalls') or ({'waterfall': self.layout['waterfall']}
                                                   if self.layout.get('waterfall') else {})
         for n, (key, fall) in enumerate(falls.items()):
+            if fall.get('canyon'):
+                # Off a hanging valley's lip down the canyon wall (Ransom's Rest's Larkspur Falls): the tall fall, made
+                # for a 115 m drop, stretched in Z to its own; its spray where it lands.
+                if 'WaterfallTall' not in meshes:
+                    self.warn(f'no SM_WaterfallTall yet (falls {key})')
+                    continue
+                drop = fall['location'][2] - fall['dropTo']
+                self.place(unreal.load_asset(meshes['WaterfallTall']), fall['location'], fall['yaw'],
+                           label=f'Waterfall_{key}', folder='Effects', scale=(1.0, 1.0, drop / WATERFALL_TALL))
+                if 'WaterfallFootMist' in meshes and fall.get('foot'):
+                    self.place(unreal.load_asset(meshes['WaterfallFootMist']), fall['foot'], fall['yaw'],
+                               label=f'WaterfallFootMist_{key}', folder='Effects')
+                continue
             if 'Waterfall' not in meshes:
-                break
+                continue
             # The model falls about 48 m; a shorter falls (into a gorge) gets it squashed to its drop.
             drop = fall['location'][2] - fall.get('dropTo', fall['location'][2] - WATERFALL_LENGTH)
             squash = (1.0, 1.0, max(min(drop / WATERFALL_LENGTH, 1.0), 0.15))
@@ -1130,6 +1153,9 @@ class AreaBuild:
         self.far_trees(meshes)
         self.cliffs(meshes)
         self.models(meshes)
+        # The mountain up the ore lift (build_area_mountain.py): the Providence's mine, the portal's tags, the tracks,
+        # Calder's board; after the models, whose sockets it reads.
+        importlib.reload(importlib.import_module('build_area_mountain')).place(self, meshes)
         # Now that the rocks the runs end against (Den Rock) stand too.
         self.panel_cliffs(meshes)
         self.abut_cliffs()
@@ -1138,6 +1164,9 @@ class AreaBuild:
         # The level's own dressing (not the story's): it stands on the terrain, beside the models.
         self.dressing(meshes)
         self.effects(meshes)
+        # The valley's own pieces (build_area_town_rr.py): Keeper's Bridge grounded on its piers, the depot's, workshop's
+        # and barn's lamps, second chimneys, the windmill's wheel, Tilly's cellar marked Underground.
+        importlib.reload(importlib.import_module('build_area_town_rr')).place(self, meshes)
         # The places that make sound (creeks, ponds, falls, the Rim's open edges, pits, Main Street): ambient emitters
         # from the layout (build_area_sound.py; reloaded, as the editor keeps modules between runs).
         importlib.reload(build_area_sound).place(self)

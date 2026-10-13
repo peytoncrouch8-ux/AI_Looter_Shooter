@@ -63,7 +63,7 @@ namespace
 		TEXT("So are you, friend."),
 	};
 	const TCHAR* const WaitingWords = TEXT("The spiders first, friend. I'll keep.");
-	const TCHAR* const HobClimb = TEXT("Someone's waiting on you. Up top, where it happened.");
+	const TCHAR* const HobClimb = TEXT("Up the bluff path, sunshine. Mind the fallen pine. He doesn't like to be kept waiting.");
 	const TCHAR* const HobBlue = TEXT("See the blue on that one? Fed longer on the dark. Hits harder, and its iron's better.");
 
 	FStoryLine Said(const TCHAR* Speaker, const TCHAR* Words, float Seconds = 3.f)
@@ -92,13 +92,20 @@ namespace
 		return Mission;
 	}
 
-	/** Sexton's words as Main 2 is turned in to him (create_mission_assets.py's). */
+	/**
+	 * The words as Main 2 is turned in to Sexton (create_mission_assets.py's): his two, then Ellis asks after Pa's lantern
+	 * and he sends Ellis to Delia, whose offer is Main 3's.
+	 */
 	const TCHAR* const SextonsTurnIn[] = {
 		TEXT("You've read them, then. Good."),
 		TEXT("Seven names, friend. The new moon won't wait."),
+		TEXT("Pa's lantern. Where is it?"),
+		TEXT("I attend deaths, friend, not lost property. Ask your grandmother what he ran out with."),
 	};
+	/** Hob, who offers Main 2 from the porch (the mission's offer). */
+	const FName HobTag(TEXT("Speaker_Hob"));
 
-	/** Main 2 as the mission script makes it, in code: after Main 1, four steps, turned in to Sexton, 30 experience. */
+	/** Main 2 as the mission script makes it, in code (started by itself here; Hob offers it in the game): after Main 1, four steps, turned in to Sexton. */
 	UMissionDefinition* MakeTalkBusiness(UObject* Outer)
 	{
 		UMissionDefinition* Mission = MissionTestWorld::NewMission(Outer, TEXT("Main2"), EMissionKind::Main, EMissionStart::Automatic, Valley);
@@ -118,7 +125,7 @@ namespace
 		{
 			Mission->TurnIn.Lines.Add(FStoryLine::Make(FText::GetEmpty(), FText::FromString(Words)));
 		}
-		Mission->Rewards.Experience = 30;
+		Mission->Rewards.Experience = 550;
 		return Mission;
 	}
 
@@ -193,16 +200,17 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTalkBusinessMissionTest, "Looter.Story.TalkBus
 
 bool FTalkBusinessMissionTest::RunTest(const FString& Parameters)
 {
-	// Main 2 as its asset has it, once the mission script has made it: after Main 1, on Ransom's Rest, the climb (height
-	// counted), the nest cleared (five), Sexton, the Ledger (the step the Ledger's rule names); turned in to Sexton, for 30
-	// experience.
+	// Main 2 as its asset has it, once the mission script has made it: offered by Hob after Main 1, on Ransom's Rest, the
+	// climb (height counted), the nest cleared (five), Sexton (the boards where it happened beside him, optional), the Ledger
+	// (the step the Ledger's rule names); turned in to Sexton, for 550 experience.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main2")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main2.DA_Mission_Main2"));
 		if (TestNotNull(TEXT("DA_Mission_Main2 loads"), Asset))
 		{
-			TestTrue(TEXT("Main2, a main mission starting by itself on Ransom's Rest, after Main1"), Asset->GetMissionId() == MainTwo
-				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Automatic && Asset->Area == FName(TEXT("RansomsRest"))
+			TestTrue(TEXT("Main2, a main mission Hob offers on Ransom's Rest, after Main1"), Asset->GetMissionId() == MainTwo
+				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Offered && Asset->Offer.GiverTag == HobTag
+				&& !Asset->Offer.Lines.IsEmpty() && !Asset->Offer.Briefing.IsEmpty() && Asset->Area == FName(TEXT("RansomsRest"))
 				&& Asset->Prerequisites == TArray<FName>({ MainOne }));
 			TestEqual(TEXT("Four steps"), Asset->Steps.Num(), 4);
 			const UMissionReachObjective* Climb = Cast<UMissionReachObjective>(Asset->GetObjective(0, 0));
@@ -213,11 +221,13 @@ bool FTalkBusinessMissionTest::RunTest(const FString& Parameters)
 				&& !Climb->Place.bIgnoreHeight && Climb->Place.Radius >= 1000.f);
 			TestTrue(TEXT("2: the nest cleared, all five"), Nest && Nest->SpawnerId == NestId && Nest->Count == 5);
 			TestTrue(TEXT("3: talk to Mister Sexton"), Talk && Talk->SpeakerTag == SextonTag);
+			const UMissionObjective* Stains = Asset->GetObjective(2, 1);
+			TestTrue(TEXT("...and, optional, the boards where it happened"), Stains && Stains->bOptional);
 			TestTrue(TEXT("4: open the Ledger, the step the Ledger is handed over on"), Open && Open->Page == EMissionPage::Bestiary
 				&& Ledger::HandedOverStep == 3);
 			TestTrue(TEXT("Turned in to Sexton, with words of its own"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == SextonTag
 				&& Asset->TurnIn.Lines.Num() == static_cast<int32>(UE_ARRAY_COUNT(SextonsTurnIn)) && Asset->TurnIn.Lines[0].Text.ToString() == SextonsTurnIn[0]);
-			TestEqual(TEXT("Its reward: 30 experience"), Asset->Rewards.Experience, 30);
+			TestEqual(TEXT("Its reward: 550 experience"), Asset->Rewards.Experience, 550);
 			TestFalse(TEXT("...and no gun (the Ledger is the other)"), Asset->Rewards.bGun);
 		}
 	}

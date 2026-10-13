@@ -59,9 +59,15 @@ PERCH_MESHES = (
     ('LaundryLine', 'Rail'), ('Signpost', 'Post'), ('LampPost', 'Post'), ('NoticeBoard', 'Rail'), ('Woodshed', 'Roof'),
     ('DeadTree', 'Branch'),
 )
-# Buildings whose ridges and tops birds sit on, by the start of the mesh's name.
+# Buildings whose ridges and tops birds sit on, by the start of the mesh's name. Ransom's Rest's own kit (2026-10-13) by
+# its pieces that stand still: the homes, the fronts, the depot, Tilly's workshop, Amos's barn, the coal stage, the well and
+# the outhouse, and the mountain's lift house and head, watchtower, cabin, lean-to and Diggings sheds; never the lift's cage
+# or cable, the windmill's fan or a door that swings.
 BUILDING_MESHES = ('Barn', 'Farmhouse', 'Cottage', 'LogCabin', 'FalseFront', 'Chapel', 'Depot', 'CoffinShed', 'Outhouse',
-                   'Well', 'WaterTower', 'Woodshed', 'Lookout')
+                   'Well', 'WaterTower', 'Woodshed', 'Lookout',
+                   'RR_Home_', 'RR_Front_', 'RR_Depot', 'RR_Workshop', 'RR_Barn', 'RR_CoalStage', 'RR_Well', 'RR_Outhouse',
+                   'RR_LiftHouse', 'RR_LiftHead', 'RR_Watchtower', 'RR_RangerCabin', 'RR_LeanTo', 'RR_PowderHouse',
+                   'RR_Smithy', 'RR_OreBin')
 # How much each kind of perch draws a flock (crows on graves and dead trees, as the valley is in mourning).
 KIND_WEIGHT = {'Rail': 1.0, 'Post': 1.0, 'Roof': 1.1, 'Branch': 1.4, 'Ground': 0.0}
 GRAVE_WEIGHT = 1.4

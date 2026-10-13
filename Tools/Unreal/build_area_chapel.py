@@ -220,10 +220,11 @@ def place_reliquary(build, chapel):
     else:
         build.warn(f'no {" or ".join(RELIQUARY_MESHES)} yet (Art/Models/Props/Reliquary.py, the art session\'s): the '
                    f'Reliquary stands in plain shapes until it\'s imported and this runs again')
-    # From Main 4's fourth step on (from 0: 3). Set last, so the editor builds it again and shows what play will.
-    reliquary.set_editor_property('look_when', story.condition(during=MAIN4, from_step=3))
+    # From Main 4's fifth step on (from 0: 4; the knock at Aldana's door is the third, the bell the fourth). Set last, so
+    # the editor builds it again and shows what play will.
+    reliquary.set_editor_property('look_when', story.condition(during=MAIN4, from_step=4))
     build.log(f'the smashed Reliquary ({model or "its stand-in"}) on the plinth at ({at.x:.0f}, {at.y:.0f}, {at.z:.0f}), '
-              f'looked at from {MAIN4}\'s fourth step')
+              f'looked at from {MAIN4}\'s fifth step')
 
 
 def place_aldana(build, chapel):
@@ -235,15 +236,12 @@ def place_aldana(build, chapel):
             build.warn('the chapel has no Speaker socket: Father Aldana can\'t be talked to')
         return
     at = door.translation
-    # The first that holds is said: Main 4's last step (from 0: 4), the bell and the Reliquary (2 and 3), after Main 5 (the
-    # lantern found), after Main 4 (the Sink); with none (before Main 4, and while the yard is held), the door stays barred.
+    # The first that holds is said (story_texts.py TOPICS): the bell and the Reliquary (from 0: 3 on), the knock (2), after
+    # Main 5 (the lantern found), after Main 4 (the Sink); his Main 4 words are the turn-in's. With none (before Main 4, and
+    # while the yard is held), the door stays barred.
     story.speaker(build, cls, (at.x, at.y, at.z), door.rotation.rotator().yaw, 'Speaker_Aldana', ALDANA_TAG,
                   name='Father Aldana', reach=story.TALK_REACH, line_set=story.lines(build, 'DA_Lines_AldanaBarred'),
-                  topics=story.topics(build,
-                                      (story.condition(during=MAIN4, from_step=4), 'DA_Lines_AldanaMain4'),
-                                      (story.condition(during=MAIN4, from_step=2), 'DA_Lines_AldanaWaiting'),
-                                      (story.condition(after=[MAIN5]), 'DA_Lines_AldanaAfterMain5'),
-                                      (story.condition(after=[MAIN4]), 'DA_Lines_AldanaAfterMain4')))
+                  topics=story.texts_topics(build, 'Speaker_Aldana'))
     build.log(f'Father Aldana\'s vestry door at ({at.x:.0f}, {at.y:.0f}, {at.z:.0f})')
 
 

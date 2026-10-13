@@ -12,6 +12,7 @@
 #include "Missions/MissionEventObjectives.h"
 #include "Missions/MissionObjective.h"
 #include "Missions/MissionPlaceObjectives.h"
+#include "Missions/MissionPlayerObjectives.h"
 #include "Missions/MissionRewards.h"
 #include "Missions/MissionRunner.h"
 #include "Session/CampaignRecord.h"
@@ -90,8 +91,10 @@ namespace
 	}
 
 	/**
-	 * Main 3 as the mission script makes it, in code (its gun left out: a test level has no loot to drop it in): three
-	 * steps, turned in at Tilly's window (the talk that was its fourth step), 30 experience.
+	 * Main 3's three steps as the mission script makes them, in code (its gun left out: a test level has no loot to drop it
+	 * in), turned in at Tilly's window from the step past the last, where her topic starts: the gate, the shop and her
+	 * window's words. The asset's turn-in lines say the same words as her topic (Looter.Story.ColdWelcome.Mission checks
+	 * the asset).
 	 */
 	UMissionDefinition* MakeColdWelcome(UObject* Outer)
 	{
@@ -197,17 +200,19 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FColdWelcomeMissionTest, "Looter.Story.ColdWelc
 
 bool FColdWelcomeMissionTest::RunTest(const FString& Parameters)
 {
-	// Main 3 as its asset has it: id exactly Main3 (Side 1 opens after it), after Main 2 on Ransom's Rest; the farm road
-	// to the gate, the gate's fight cleared (four), Bright & Daughter; turned in to Tilly at her window; 30 experience and an
-	// Uncommon gun or better.
+	// Main 3 as its asset has it: id exactly Main3 (Side 1 opens after it), offered by Delia after Main 2 on Ransom's Rest;
+	// the farm road to the gate, the gate's fight cleared (four), Bright & Daughter; turned in to Tilly at her window, her
+	// whole talk (the bail out on the sill, Main 6's item now; the box of effects); 1,200 experience and an Uncommon gun or
+	// better.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main3")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main3.DA_Mission_Main3"));
 		if (TestNotNull(TEXT("DA_Mission_Main3 loads"), Asset))
 		{
-			TestTrue(TEXT("Main3, a main mission starting by itself on Ransom's Rest, after Main2"), Asset->GetMissionId() == MainThree
-				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Automatic && Asset->Area == FName(TEXT("RansomsRest"))
-				&& Asset->Prerequisites == TArray<FName>({ MainTwo }));
+			TestTrue(TEXT("Main3, a main mission Delia offers on Ransom's Rest, after Main2"), Asset->GetMissionId() == MainThree
+				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Offered
+				&& Asset->Offer.GiverTag == FName(TEXT("Speaker_Delia")) && !Asset->Offer.Lines.IsEmpty()
+				&& Asset->Area == FName(TEXT("RansomsRest")) && Asset->Prerequisites == TArray<FName>({ MainTwo }));
 			TestEqual(TEXT("Three steps"), Asset->Steps.Num(), 3);
 			const UMissionReachObjective* Road = Cast<UMissionReachObjective>(Asset->GetObjective(0, 0));
 			const UMissionClearObjective* Gate = Cast<UMissionClearObjective>(Asset->GetObjective(1, 0));
@@ -215,8 +220,12 @@ bool FColdWelcomeMissionTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("1: the farm road into town, to the gate"), Road && Road->Place.Actor.ActorTag == GatePlace);
 			TestTrue(TEXT("2: the Unpaid at the gate fought off, all four"), Gate && Gate->SpawnerId == GateId && Gate->Count == 4);
 			TestTrue(TEXT("3: Bright & Daughter found (Tilly's window)"), Shop && Shop->Place.Actor.ActorTag == TillyTag);
-			TestTrue(TEXT("Turned in to Tilly at the window"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == TillyTag);
-			TestEqual(TEXT("Its reward: 30 experience"), Asset->Rewards.Experience, 30);
+			TestTrue(TEXT("...no items of its own: the bail on her sill is Main 6's (Main 3's would vanish at its turn-in)"),
+				Asset->FindItem(TEXT("LanternBail")) == nullptr);
+			TestTrue(TEXT("Turned in to Tilly at the window, her whole talk"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == TillyTag
+				&& Asset->TurnIn.Lines.ContainsByPredicate([](const FStoryLine& Line) { return Line.Text.ToString() == Collar; })
+				&& Asset->TurnIn.Lines.ContainsByPredicate([](const FStoryLine& Line) { return Line.Text.ToString().Contains(TEXT("on the sill")); }));
+			TestEqual(TEXT("Its reward: 1,200 experience"), Asset->Rewards.Experience, 1200);
 			TestTrue(TEXT("...and a gun, Uncommon or better"), Asset->Rewards.bGun && Asset->Rewards.GunRarityFloor == EWeaponRarity::Uncommon);
 			TestTrue(TEXT("...said so on the Missions page"), MissionRewards::Describe(Asset->Rewards).Contains(TEXT("Gun: Uncommon or better")));
 		}

@@ -10,8 +10,8 @@ FXPCurve UProgressionSettings::GetCurve() const
 {
 	FXPCurve Curve;
 	Curve.MaxLevel = MaxLevel;
-	Curve.BaseXP = BaseXP;
-	Curve.Growth = Growth;
+	Curve.CurveScale = CurveScale;
+	Curve.CurvePower = CurvePower;
 	return Curve;
 }
 
@@ -19,7 +19,7 @@ FLevelRules UProgressionSettings::GetLevelRules() const
 {
 	FLevelRules Rules;
 	Rules.KillXPScale = KillXPScale;
-	Rules.KillXPGrowth = KillXPGrowth;
+	Rules.KillXPPower = KillXPPower;
 	Rules.KillXPFalloff = KillXPFalloff;
 	Rules.KillXPFloor = KillXPFloor;
 	Rules.EnemyGrowth = EnemyGrowthPerLevel;

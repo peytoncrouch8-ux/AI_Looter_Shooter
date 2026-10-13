@@ -93,6 +93,14 @@ class Area:
         # The meadow layers' density and reach where an area asks for its own (layout.json scatter.layers: per layer, a
         # candidate spacing in cm and a factor on the shared cull distances); every other area keeps the island's.
         self.layers = layout.get('scatter', {}).get('layers', {})
+        # Up a mountain every tree is a pine (Ransom's Rest's Larkspur Bench, its post, the Diggings, the crest and the
+        # Bench's stands): those zones' boxes, as footprints (x, y, yaw, half along Y, half along X, line).
+        self.pines_only = []
+        for zone in layout.get('zones', []):
+            if zone.get('kind') in PINE_ZONE_KINDS or zone['id'].startswith(PINE_ZONE_PREFIX):
+                xs, ys = [p[0] for p in zone['polygon']], [p[1] for p in zone['polygon']]
+                self.pines_only.append(((min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0, 0.0,
+                                        (max(ys) - min(ys)) / 2.0, (max(xs) - min(xs)) / 2.0, False))
         self.graph = level.get('scatterGraph', f'PCG_{name}Scatter')
         self.volume = level.get('scatterVolume', f'{name}Scatter')
         self.folder = level.get('folder', name)
@@ -197,6 +205,9 @@ def shore_points(data, town=()):
 # level's CullDistanceVolume leaves PCG's components alone: it judges a component by its bounds, and each spawner's
 # component per mesh spans tens of meters or the whole scatter, past the volume's largest culled size (6 m).
 CREASE_PINE_MESHES = (('Pine_A', 1, 0), ('Pine_B', 1, 0))
+# The zones where the tree stands are all pines (layout.json zones: these kinds, and ids starting so).
+PINE_ZONE_KINDS = ('alpine', 'outpost', 'mine', 'crest')
+PINE_ZONE_PREFIX = 'benchPines'
 LARKSPUR_CLUMP_MESHES = (('Larkspur_A', 1, 6000),)
 LARKSPUR_STRIP_MESHES = (('Larkspur_B', 1, 6000),)
 SAGE_MESHES = (('Sagebrush_A', 4, 27000), ('Sagebrush_B', 3, 27000), ('Sagebrush_C', 3, 27000))  # 162 m on Medium
@@ -583,8 +594,23 @@ def build_graph(area, mask, scrub_mask=None):
     # Trees: stands of pines and of broadleaf trees, upright, colliding, shadowed, never culled.
     trees, y = s.layer('Trees', 600.0, 'R', 0.12, flat=0.8, trees=True)
     pines, broadleaf = s.split(trees, y, 2.5, 311.0, 0.5)
-    s.spawn(pines, 'Pines', 11, y - 0.5, [entry(veg('Pine_A'), 1, 0, collide=True, shadow=True, tree=True),
-                                          entry(veg('Pine_B'), 1, 0, collide=True, shadow=True, tree=True)], sink=15.0)
+    pine_entries = [entry(veg('Pine_A'), 1, 0, collide=True, shadow=True, tree=True),
+                    entry(veg('Pine_B'), 1, 0, collide=True, shadow=True, tree=True)]
+    mountain = s.boxes(b, 'Pines only', -5.0, area.pines_only, margin=0.0)
+    if mountain is not None:
+        # Up the mountain the broadleaf draw's points are pines too: they leave the broadleaf and spawn as pines.
+        # The draw's points first: the intersection keeps them (inside a box), not the boxes' own.
+        up, _ = b.node(unreal.PCGIntersectionSettings, 'Broadleaf up the mountain', 10, y + 1.2,
+                       density_function=unreal.PCGIntersectionDensityFunction.MINIMUM)
+        b.link(broadleaf, up)
+        b.link(mountain, up)
+        below, _ = b.node(unreal.PCGDifferenceSettings, 'Broadleaf below it', 10, y + 0.8,
+                          density_function=unreal.PCGDifferenceDensityFunction.BINARY)
+        b.link(broadleaf, below, b_pin='Source')
+        b.link(mountain, below, b_pin='Differences')
+        broadleaf = below
+        s.spawn(up, 'Mountain pines', 11, y + 1.2, pine_entries, sink=15.0)
+    s.spawn(pines, 'Pines', 11, y - 0.5, pine_entries, sink=15.0)
     s.spawn(broadleaf, 'Broadleaf', 11, y + 0.5, [entry(veg(n), w, 0, collide=True, shadow=True, tree=True)
                                                   for n, w in (('Oak_A', 3), ('Oak_B', 3), ('Birch_A', 3),
                                                                ('Birch_B', 2), ('DeadTree_A', 0.4))], sink=15.0)

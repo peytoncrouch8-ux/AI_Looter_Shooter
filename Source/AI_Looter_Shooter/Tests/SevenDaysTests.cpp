@@ -36,6 +36,10 @@ namespace
 	const FName AbelsHeadboard(TEXT("Headboard_Abel"));
 	const FName DeliasDoor(TEXT("Speaker_Delia"));
 	const FName MainOne(TEXT("Main1"));
+	/** The porch plate's jars taken (APorchPlate's TakenFlag, sent as an event): Main 1's fifth step. */
+	const FName PorchTaken(TEXT("PorchPlate.Taken"));
+	/** Ellis's own headboard, read: Main 1's optional (an AReadableProp's event). */
+	const FName EllisReadEvent(TEXT("Readable.HeadboardEllis"));
 
 	/** The words on Abel's headboard, and Delia's at the door (Docs/Story.md: Cold open, 3; Docs/Areas/RansomsRest.md: Main 1). */
 	const TCHAR* AbelsBoard = TEXT("ABEL RANSOM. KEEPER OF SAINT ADA. HE HELD THE DOOR.");
@@ -52,8 +56,8 @@ namespace
 	}
 
 	/**
-	 * Main 1 as the mission script makes it (Tools/Unreal/create_mission_assets.py), in code: four steps, turned in at
-	 * Delia's door (the talk that was its fifth step), 20 experience.
+	 * Main 1 as the mission script makes it (Tools/Unreal/create_mission_assets.py), in code (its optional left out): five
+	 * steps, the porch plate's jars the last, turned in at Delia's door, 450 experience.
 	 */
 	UMissionDefinition* MakeSevenDays(UObject* Outer, const TCHAR* Id, FName Area)
 	{
@@ -64,9 +68,10 @@ namespace
 		UMissionReachObjective* Farmhouse = MissionTestWorld::AddObjective<UMissionReachObjective>(Mission, 3);
 		Farmhouse->Place.Actor.ActorTag = DeliasDoor;
 		Farmhouse->Place.Radius = 900.f;
+		MissionTestWorld::AddObjective<UMissionEventObjective>(Mission, 4)->Event = PorchTaken;
 		Mission->TurnIn.SpeakerTag = DeliasDoor;
 		Mission->TurnIn.GiverName = FText::FromString(TEXT("Delia"));
-		Mission->Rewards.Experience = 20;
+		Mission->Rewards.Experience = 450;
 		return Mission;
 	}
 
@@ -105,9 +110,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSevenDaysMissionTest, "Looter.Story.SevenDays.
 
 bool FSevenDaysMissionTest::RunTest(const FString& Parameters)
 {
-	// Main 1 as its asset has it, once the mission script has made it: the cold open, the claw-out, Abel's headboard, the
-	// farmhouse; turned in at Delia's door (her talk, which was its fifth step); a main mission that starts by itself on
-	// Ransom's Rest, worth 20 experience.
+	// Main 1 as its asset has it, once the mission script has made it: the cold open, the claw-out, Abel's headboard (and
+	// Ellis's own, optional), the farmhouse, the porch plate's jars; turned in at Delia's door with her words (the doc's three
+	// and the plate); a main mission that starts by itself on Ransom's Rest (the one mission no giver offers), worth 450.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main1")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main1.DA_Mission_Main1"));
@@ -116,17 +121,28 @@ bool FSevenDaysMissionTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("Main1, a main mission starting by itself on Ransom's Rest, after nothing"), Asset->GetMissionId() == MainOne
 				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Automatic && Asset->Area == FName(TEXT("RansomsRest"))
 				&& Asset->Prerequisites.IsEmpty());
-			TestEqual(TEXT("Four steps"), Asset->Steps.Num(), 4);
+			TestEqual(TEXT("Five steps"), Asset->Steps.Num(), 5);
 			const UMissionSceneObjective* Opening = Cast<UMissionSceneObjective>(Asset->GetObjective(0, 0));
 			const UMissionSceneObjective* Claw = Cast<UMissionSceneObjective>(Asset->GetObjective(1, 0));
 			const UMissionInteractObjective* Read = Cast<UMissionInteractObjective>(Asset->GetObjective(2, 0));
+			const UMissionEventObjective* Own = Cast<UMissionEventObjective>(Asset->GetObjective(2, 1));
 			const UMissionReachObjective* Go = Cast<UMissionReachObjective>(Asset->GetObjective(3, 0));
+			const UMissionEventObjective* Plate = Cast<UMissionEventObjective>(Asset->GetObjective(4, 0));
 			TestTrue(TEXT("1: the cold open"), Opening && Opening->Scene == ColdOpen::SceneName());
 			TestTrue(TEXT("2: the claw-out"), Claw && Claw->Scene == GraveWake::SceneName());
-			TestTrue(TEXT("3: read Abel's headboard"), Read && Read->Target.ActorTag == AbelsHeadboard);
+			TestTrue(TEXT("3: read Abel's headboard"), Read && Read->Target.ActorTag == AbelsHeadboard && !Read->bOptional);
+			TestTrue(TEXT("...and, optional, Ellis's own"), Own && Own->bOptional && Own->Event == EllisReadEvent);
 			TestTrue(TEXT("4: go up to the farmhouse (Delia's door)"), Go && Go->Place.Actor.ActorTag == DeliasDoor && Go->Place.Radius >= 300.f);
+			TestTrue(TEXT("5: take what's on the porch plate (its step the plate's take_when counts from: 4)"), Plate && Plate->Event == PorchTaken);
 			TestTrue(TEXT("Turned in to Delia at her door"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == DeliasDoor);
-			TestEqual(TEXT("Its reward: 20 experience"), Asset->Rewards.Experience, 20);
+			int32 Next = 0;
+			for (const FStoryLine& Line : Asset->TurnIn.Lines)
+			{
+				Next += Next < static_cast<int32>(UE_ARRAY_COUNT(DeliasWords)) && Line.Text.ToString() == DeliasWords[Next] ? 1 : 0;
+			}
+			TestEqual(TEXT("...her words: the doc's three, in order"), Next, static_cast<int32>(UE_ARRAY_COUNT(DeliasWords)));
+			TestTrue(TEXT("...and the plate"), !Asset->TurnIn.Lines.IsEmpty() && Asset->TurnIn.Lines.Last().Text.ToString().Contains(TEXT("plate")));
+			TestEqual(TEXT("Its reward: 450 experience"), Asset->Rewards.Experience, 450);
 		}
 	}
 	else
@@ -187,7 +203,10 @@ bool FSevenDaysMissionTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Far from the door, still on the way"), Runner->GetStep(TEXT("TestMain1")), 3);
 	Player->SetActorLocation(FVector(0.0, 2400.0, 0.0));
 	Runner->Update(0.2f);
-	TestEqual(TEXT("At the farmhouse: on to Delia (its step past the last)"), Runner->GetStep(TEXT("TestMain1")), 4);
+	TestEqual(TEXT("At the farmhouse: the porch plate"), Runner->GetStep(TEXT("TestMain1")), 4);
+	TestFalse(TEXT("...not ready to turn in yet"), Runner->IsReadyToTurnIn(TEXT("TestMain1")));
+	Runner->NotifyEvent(FMissionEvent::Named(PorchTaken));
+	TestEqual(TEXT("The jars taken: on to Delia (its step past the last)"), Runner->GetStep(TEXT("TestMain1")), 5);
 	TestTrue(TEXT("...ready to turn in to her, not finished"), Runner->IsReadyToTurnIn(TEXT("TestMain1")) && !Campaign.HasCompleted(TEXT("TestMain1")));
 	TestFalse(TEXT("...the family plot still closed"), Grave->IsActive(Campaign));
 
@@ -203,16 +222,21 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSevenDaysLinesTest, "Looter.Story.SevenDays.Li
 
 bool FSevenDaysLinesTest::RunTest(const FString& Parameters)
 {
-	// The words, as the story script writes them into their line sets (when it has): Delia's at the door during Main 1,
+	// The words, as the story script writes them into their line sets (when it has): Delia's at the door during Main 1 (she
+	// sends Ellis to the porch plate first: the doc's three lines are Main 1's turn-in, Looter.Story.SevenDays.Mission),
 	// the two headboards, Hob's landing.
 	if (const UStoryLineSet* Delia = LoadLines(TEXT("DA_Lines_DeliaMain1")))
 	{
-		bool bSame = Delia->Lines.Num() == static_cast<int32>(UE_ARRAY_COUNT(DeliasWords));
-		for (int32 Index = 0; bSame && Index < Delia->Lines.Num(); ++Index)
+		bool bHers = !Delia->Lines.IsEmpty();
+		for (const FStoryLine& Line : Delia->Lines)
 		{
-			bSame = Delia->Lines[Index].Text.ToString() == DeliasWords[Index] && Delia->Lines[Index].Speaker.IsEmpty();
+			bHers &= Line.Speaker.IsEmpty();
 		}
-		TestTrue(TEXT("Delia's Main 1 lines, hers by her door's name"), bSame);
+		TestTrue(TEXT("Delia's lines during Main 1, hers by her door's name"), bHers);
+		TestTrue(TEXT("...sending Ellis to the porch plate"), Delia->Lines.ContainsByPredicate([](const FStoryLine& Line)
+		{
+			return Line.Text.ToString().Contains(TEXT("plate"));
+		}));
 	}
 	else
 	{

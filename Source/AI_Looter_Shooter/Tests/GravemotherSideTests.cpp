@@ -18,6 +18,7 @@
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionEventObjectives.h"
 #include "Missions/MissionPlaceObjectives.h"
+#include "Missions/MissionPlayerObjectives.h"
 #include "Missions/MissionRunner.h"
 #include "Session/CampaignRecord.h"
 #include "Session/SessionSave.h"
@@ -405,8 +406,11 @@ bool FGravemotherMissionTest::RunTest(const FString& Parameters)
 	}
 	const UMissionReachObjective* AssetEnter = Cast<UMissionReachObjective>(Asset->GetObjective(0, 0));
 	const UMissionClearObjective* AssetKill = Cast<UMissionClearObjective>(Asset->GetObjective(1, 0));
+	const UMissionCollectItemObjective* AssetFang = Cast<UMissionCollectItemObjective>(Asset->GetObjective(2, 0));
 	TestTrue(TEXT("Side 3 is a side mission after Main 5 on Ransom's Rest"), Asset->Kind == EMissionKind::Side
-		&& Asset->Prerequisites.Contains(FName(TEXT("Main5"))) && Asset->Area == FName(TEXT("RansomsRest")) && Asset->Steps.Num() == 2);
+		&& Asset->Prerequisites.Contains(FName(TEXT("Main5"))) && Asset->Area == FName(TEXT("RansomsRest")) && Asset->Steps.Num() == 3);
+	TestTrue(TEXT("...offered by Sheriff Odell's bounty on the Rim Rangers' board"), Asset->Start == EMissionStart::Offered
+		&& Asset->Offer.GiverTag == FName(TEXT("NoticeBoard_Rangers")) && !Asset->Offer.Briefing.IsEmpty());
 	// "Find where the Gravemother hungers": the Sink's floor place (Main 5's own marker), 19.5 m measured with its height
 	// (the whole floor and the ramp from about 2 m under the rim, not the rim), its arrow on the ramp head's marker.
 	TestTrue(TEXT("Its first step: enter the Sink, measured with its height"), AssetEnter
@@ -416,9 +420,16 @@ bool FGravemotherMissionTest::RunTest(const FString& Parameters)
 		&& AssetEnter->Waypoint == EMissionWaypoint::Actor && AssetEnter->WaypointActor.ActorTag == FName(TEXT("Place_SinkRim"))
 		&& AssetEnter->Text.ToString() == TEXT("Find where the Gravemother hungers"));
 	TestTrue(TEXT("Its second: her lair cleared"), AssetKill && AssetKill->SpawnerId == Gravemother::LairId);
-	// A hunt nobody asked for: done as she dies, no one to turn it in to.
-	TestTrue(TEXT("Its experience (40), no reward gun, finished by itself"), Asset->Rewards.Experience == 40 && !Asset->Rewards.bGun
-		&& Asset->TurnIn.bAutomatic);
+	// Her fang for the sheriff's bounty: a mission item her body drops the first time she falls (and his badge in her den,
+	// optional), turned in to Mrs. Pruitt at the store's hatch for the town's purse.
+	const FMissionItemInfo* Fang = Asset->FindItem(TEXT("GravemotherFang"));
+	TestTrue(TEXT("Its third: her fang taken, a mission item she drops"), AssetFang && AssetFang->Items.Contains(FName(TEXT("GravemotherFang")))
+		&& Fang && Fang->DroppedBy.ActorClass == AGravemotherCreature::StaticClass());
+	TestTrue(TEXT("...and, optional, the sheriff's badge in her den"), Asset->GetObjective(2, 1) && Asset->GetObjective(2, 1)->bOptional);
+	TestTrue(TEXT("Turned in to Mrs. Pruitt at the store's hatch"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == FName(TEXT("Speaker_Pruitt"))
+		&& !Asset->TurnIn.Lines.IsEmpty());
+	TestTrue(TEXT("Its experience (1,200), the town's purse (80 silver), no reward gun (her loot is her own)"), Asset->Rewards.Experience == 1200
+		&& Asset->Rewards.Silver == 80 && !Asset->Rewards.bGun);
 	return true;
 }
 

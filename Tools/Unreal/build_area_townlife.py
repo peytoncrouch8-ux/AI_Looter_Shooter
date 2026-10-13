@@ -3,12 +3,13 @@ gameplay pass. The town is half empty since the saint went dark, and the half th
 (Docs/Areas/RansomsRest.md: townsfolk are heard, not seen). Only a level whose layout has Ellis's grave gets any of it.
 
 - The townsfolk's doors (ATownLifeDoor, in the Gameplay/TownLife folder, labelled TownLife_<key>): just outside the front
-  doors of the lived-in houses whose people nobody has met (Pruitt's store, the north and south cottages), about head
-  high, facing out. Each names its household; somebody inside mutters a line as the player passes (as a caption) and
-  the house is heard through the door now and then. Delia's and Tilly's doors are their own speaker points already.
+  doors of the lived-in houses whose people nobody has met (Pruitt's store, the Haskett house and the Mercers' porch
+  house: cottageNorth and cottageNorthEast), about head high, facing out. Each names its household; somebody inside
+  mutters a line as the player passes (as a caption) and the house is heard through the door now and then. Delia's and
+  Tilly's doors are their own speaker points already.
 - Who lives in each lit house (AHouseLights, placed by build_area.py's house_lights as Lights_<key>): its Household, so
-  the house is heard through its walls (Delia alone at the farmhouse, Tilly at her work, the Pruitts, the two cottages'
-  families). The dark cottages have no lights and nobody in them.
+  the house is heard through its walls (Delia alone at the farmhouse, Tilly at her work, the Pruitts, the two Main
+  Street families, the dugout on boot hill). The dark houses have no lights and nobody in them.
 - The store's shutters (AWindowShutter, build_area_story.py's Shutter_<L|R><n>): the Pruitts', heard through once shut.
 
 From build_area.py's gameplay(), after the story's actors (the shutters must stand; the lights stand from effects()):
@@ -26,26 +27,36 @@ import unreal
 CLASSES = '/Script/AI_Looter_Shooter.'
 FOLDER = 'Gameplay/TownLife'
 
-# The townsfolk's doors: the house's placement key, its household (TownLifeRules), and where its door is.
+# The townsfolk's doors: the house's placement key, its household (TownLifeRules), and where its door is. Since the
+# valley's house swap (2026-10-13, patches/town.json): the Haskett house (cottageNorth, the saltbox SM_RR_Home_A) keeps the
+# couple and the old father, and the Mercers, the mother and her child, live in the porch house at the street's east end
+# (cottageNorthEast, SM_RR_Home_H); the south lot (cottageSouth) is the company manager's shut gallery house.
 DOORS = (
     ('store', 'Pruitt'),
     ('cottageNorth', 'CottageNorth'),
-    ('cottageSouth', 'CottageSouth'),
+    ('cottageNorthEast', 'CottageSouth'),
 )
 
-# Who lives in each lit house, by placement key (layout level.lights; the lights are labelled Lights_<key>).
+# Who lives in each lit house, by placement key (layout level.lights; the lights are labelled Lights_<key>). The dugout on
+# boot hill's south slope (SM_RR_Home_E) has somebody in it too: heard, never met, with no door that mutters.
 HOUSEHOLDS = {
     'farmhouse': 'Ransom',
     'undertaker': 'Bright',
     'store': 'Pruitt',
     'cottageNorth': 'CottageNorth',
-    'cottageSouth': 'CottageSouth',
+    'cottageNorthEast': 'CottageSouth',
+    'dugout': 'Cottage',
 }
 
 # The settler's cottage's front door in the model's own frame (Art/Models/Buildings/Cottage.py, Cottage_Ransom: the front
 # wall 3.2 m out along the model's front, which is Unreal's +X, the door's middle 1.01 m to its left, which is +Y), a
 # little out on the stoop and about head high (cm).
 COTTAGE_DOOR = unreal.Vector(345.0, 101.0, 150.0)
+# Ransom's Rest's own homes (SM_RR_Home_A-J, Art/Models/Buildings/Homestead.py) stand on their front door: the pivot is
+# the doorway's middle on the front wall's outer face at the ground, so the door's spot is a little out from it, over the
+# step, about head high (cm).
+HOME_DOOR = unreal.Vector(60.0, 0.0, 150.0)
+HOME_PREFIX = 'SM_RR_Home_'
 # Pruitt's store: its lamp (SOCKET_Light) hangs behind the double doors in the facade's middle, 0.65 m in from the front
 # and 2.25 m over the floor (FalseFronts.py SHOP_LAMP): the door's spot is 1.25 m out from it and 0.75 m lower (cm).
 STORE_OUT = 125.0
@@ -75,7 +86,9 @@ def door_spot(house, key):
         lamp = mesh.get_socket_transform('Light', unreal.RelativeTransformSpace.RTS_WORLD).translation
         ahead = house.get_actor_forward_vector()
         return unreal.Vector(lamp.x + ahead.x * STORE_OUT, lamp.y + ahead.y * STORE_OUT, lamp.z - STORE_DOWN), yaw
-    return unreal.MathLibrary.transform_location(house.get_actor_transform(), COTTAGE_DOOR), yaw
+    mesh = house.static_mesh_component.static_mesh if house.static_mesh_component else None
+    door = HOME_DOOR if mesh is not None and mesh.get_name().startswith(HOME_PREFIX) else COTTAGE_DOOR
+    return unreal.MathLibrary.transform_location(house.get_actor_transform(), door), yaw
 
 
 def place_doors(build, found):

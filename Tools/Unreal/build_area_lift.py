@@ -269,8 +269,9 @@ def place_speaking_tube(build, cls, head, top):
             build.warn(f'{head.get_actor_label()} has no SpeakingTube socket: the tube stands beside the bell pull')
         at = unreal.MathLibrary.transform_location(top, unreal.Vector(0.0, BELL_SIDE + TUBE_SIDE, BELL_UP))
         yaw = top.rotation.rotator().yaw
+    # Dead Lift's turn-in, then Hiram's word after it (story_texts.py TOPICS).
     story.speaker(build, cls, (at.x, at.y, at.z), yaw, 'SpeakingTube_LiftHead', TUBE_TAG, name='Hiram Coyle',
-                  prompt='Speak into the tube', reach=TUBE_REACH)
+                  prompt='Speak into the tube', reach=TUBE_REACH, topics=story.texts_topics(build, TUBE_TAG))
     build.log(f'the speaking tube at the lift head ({at.x:.0f}, {at.y:.0f}, {at.z:.0f}), tagged {TUBE_TAG}')
 
 

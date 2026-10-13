@@ -25,36 +25,43 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FXPCurveTest, "Looter.Progression.Curve",
 
 bool FXPCurveTest::RunTest(const FString& Parameters)
 {
-	// The game's rules (the user's, 2026-09-30): level 1 to 2 takes 100 XP, each level-up takes more than the last by a
-	// constant factor (exponential, not linear), and the top level is 70.
+	// The game's rules (the user's, 2026-10-13: "make it take more XP to level up", Borderlands' way, the top level 65):
+	// reaching level L takes 180 x (L^2.8 - 1) in all, Borderlands 2's curve (60 x (L^2.8 - 1)) three times over. Each
+	// level-up takes more than the last, by more each time.
 	const FXPCurve Curve = GetDefault<UProgressionSettings>()->GetCurve();
-	TestEqual(TEXT("Max level"), Curve.MaxLevel, 70);
-	TestEqual(TEXT("Level 1 to 2"), Curve.XPToNextLevel(1), int64(100));
-	TestTrue(TEXT("Growth over 1"), Curve.Growth > 1.0);
-
+	TestEqual(TEXT("Max level"), Curve.MaxLevel, 65);
+	TestEqual(TEXT("Level 1 to 2"), Curve.XPToNextLevel(1), int64(1074));
+	TestEqual(TEXT("Total to level 10"), Curve.TotalXPToReach(10), int64(113392));
+	TestEqual(TEXT("Total to level 65, the top"), Curve.TotalXPToReach(65), int64(21449949));
+	for (int32 Level = 2; Level <= Curve.MaxLevel; ++Level)
+	{
+		// Three times Borderlands 2's total at every level, give or take the rounding of both.
+		const double Borderlands = FMath::RoundToDouble(60.0 * (FMath::Pow(static_cast<double>(Level), 2.8) - 1.0));
+		TestTrue(FString::Printf(TEXT("Level %d: three times Borderlands 2's experience"), Level),
+			FMath::Abs(static_cast<double>(Curve.TotalXPToReach(Level)) - 3.0 * Borderlands) <= 2.0);
+	}
 	for (int32 Level = 1; Level + 1 < Curve.MaxLevel; ++Level)
 	{
 		const int64 Step = Curve.XPToNextLevel(Level);
 		const int64 Next = Curve.XPToNextLevel(Level + 1);
 		TestTrue(FString::Printf(TEXT("Level %d takes more than level %d"), Level + 1, Level), Next > Step);
-		// Each step is the last one times the growth, give or take the rounding of both.
-		TestTrue(FString::Printf(TEXT("Level %d grows by the factor"), Level + 1),
-			FMath::Abs(static_cast<double>(Next) - Step * Curve.Growth) <= 0.5 + 0.5 * Curve.Growth);
+		TestEqual(FString::Printf(TEXT("Level %d's step adds up to the totals"), Level), Curve.TotalXPToReach(Level) + Step,
+			Curve.TotalXPToReach(Level + 1));
 	}
-	// Exponential, not linear: the increase itself keeps growing.
+	// Steeper than linear: the increase itself keeps growing.
 	TestTrue(TEXT("Increases grow"), Curve.XPToNextLevel(60) - Curve.XPToNextLevel(59) > Curve.XPToNextLevel(2) - Curve.XPToNextLevel(1));
 
-	TestEqual(TEXT("Nothing past the max level"), Curve.XPToNextLevel(70), int64(0));
-	TestEqual(TEXT("Nothing past the max level (above)"), Curve.XPToNextLevel(71), int64(0));
+	TestEqual(TEXT("Nothing past the max level"), Curve.XPToNextLevel(65), int64(0));
+	TestEqual(TEXT("Nothing past the max level (above)"), Curve.XPToNextLevel(66), int64(0));
 	TestEqual(TEXT("Total to level 1"), Curve.TotalXPToReach(1), int64(0));
-	TestEqual(TEXT("Total to level 2"), Curve.TotalXPToReach(2), int64(100));
+	TestEqual(TEXT("Total to level 2"), Curve.TotalXPToReach(2), int64(1074));
 	TestEqual(TEXT("Total to level 3"), Curve.TotalXPToReach(3), Curve.XPToNextLevel(1) + Curve.XPToNextLevel(2));
-	TestEqual(TEXT("Total stops at the max level"), Curve.TotalXPToReach(80), Curve.TotalXPToReach(70));
-	TestEqual(TEXT("Bar is full at the max level"), Curve.LevelProgress(70, 0), 1.f);
-	TestEqual(TEXT("Bar is half full"), Curve.LevelProgress(1, 50), 0.5f);
+	TestEqual(TEXT("Total stops at the max level"), Curve.TotalXPToReach(80), Curve.TotalXPToReach(65));
+	TestEqual(TEXT("Bar is full at the max level"), Curve.LevelProgress(65, 0), 1.f);
+	TestEqual(TEXT("Bar is half full"), Curve.LevelProgress(1, 537), 0.5f);
 
 	// The table, for tuning.
-	for (const int32 Level : { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 50, 69 })
+	for (const int32 Level : { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 50, 64 })
 	{
 		AddInfo(FString::Printf(TEXT("Level %d -> %d: %lld XP (total to reach %d: %lld)"), Level, Level + 1, Curve.XPToNextLevel(Level),
 			Level + 1, Curve.TotalXPToReach(Level + 1)));
@@ -68,14 +75,14 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FXPGainTest, "Looter.Progression.Gain",
 
 bool FXPGainTest::RunTest(const FString& Parameters)
 {
-	const FXPCurve Curve;  // the shipped defaults: 100 base, 1.12 growth, 70 levels
+	const FXPCurve Curve;  // the shipped defaults: 180 x (L^2.8 - 1), 65 levels
 	int32 Level = 1;
 	int64 XP = 0;
 
-	TestEqual(TEXT("Half a level: no level-up"), Curve.ApplyXP(Level, XP, 50), 0);
+	TestEqual(TEXT("Half a level: no level-up"), Curve.ApplyXP(Level, XP, 537), 0);
 	TestEqual(TEXT("Half a level: level"), Level, 1);
-	TestEqual(TEXT("Half a level: XP"), XP, int64(50));
-	TestEqual(TEXT("Exactly to level 2"), Curve.ApplyXP(Level, XP, 50), 1);
+	TestEqual(TEXT("Half a level: XP"), XP, int64(537));
+	TestEqual(TEXT("Exactly to level 2"), Curve.ApplyXP(Level, XP, 537), 1);
 	TestEqual(TEXT("Exactly to level 2: level"), Level, 2);
 	TestEqual(TEXT("Exactly to level 2: XP"), XP, int64(0));
 	TestEqual(TEXT("Nothing for nothing"), Curve.ApplyXP(Level, XP, 0), 0);
@@ -91,29 +98,36 @@ bool FXPGainTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Big gain: remainder"), XP, int64(17));
 
 	// The top level: the climb ends and experience stops counting.
-	Level = 69;
+	Level = 64;
 	XP = 0;
-	TestEqual(TEXT("To the max level"), Curve.ApplyXP(Level, XP, Curve.XPToNextLevel(69) * 3), 1);
-	TestEqual(TEXT("Max level reached"), Level, 70);
+	TestEqual(TEXT("To the max level"), Curve.ApplyXP(Level, XP, Curve.XPToNextLevel(64) * 3), 1);
+	TestEqual(TEXT("Max level reached"), Level, 65);
 	TestEqual(TEXT("No XP at the max level"), XP, int64(0));
 	TestEqual(TEXT("No more levels"), Curve.ApplyXP(Level, XP, 1000000), 0);
-	TestEqual(TEXT("Still the max level"), Level, 70);
+	TestEqual(TEXT("Still the max level"), Level, 65);
 	TestEqual(TEXT("Still no XP"), XP, int64(0));
 	Level = 1;
 	XP = 0;
-	TestEqual(TEXT("Everything at once"), Curve.ApplyXP(Level, XP, TNumericLimits<int64>::Max()), 69);
-	TestEqual(TEXT("Everything at once: level"), Level, 70);
+	TestEqual(TEXT("Everything at once"), Curve.ApplyXP(Level, XP, TNumericLimits<int64>::Max()), 64);
+	TestEqual(TEXT("Everything at once: level"), Level, 65);
 
-	// Saves from an older curve keep their level, inside the current rules.
+	// Saves from an older curve keep their level, inside the current rules (Docs/Progression.md: a player saved on the
+	// old curve, 100 XP for level 2 and up to 70, keeps their level and the XP they had into it, now a smaller part of a
+	// bigger bar; one past 65 comes back to 65).
+	Level = 6;
+	XP = 150;
+	Curve.Clamp(Level, XP);
+	TestEqual(TEXT("An old save's level 6 stays level 6"), Level, 6);
+	TestEqual(TEXT("...with its XP into the level"), XP, int64(150));
 	Level = 0;
 	XP = -5;
 	Curve.Clamp(Level, XP);
 	TestEqual(TEXT("Level below 1"), Level, 1);
 	TestEqual(TEXT("Negative XP"), XP, int64(0));
-	Level = 99;
+	Level = 70;
 	XP = 500;
 	Curve.Clamp(Level, XP);
-	TestEqual(TEXT("Level above the max"), Level, 70);
+	TestEqual(TEXT("Level above the max (an old save at 70)"), Level, 65);
 	TestEqual(TEXT("XP at the max level"), XP, int64(0));
 	Level = 3;
 	XP = 100000;
@@ -168,8 +182,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKillXPTest, "Looter.Progression.KillXP",
 bool FKillXPTest::RunTest(const FString& Parameters)
 {
 	// Level 1 creatures are worth 10 (their XPReward); a kill gives its share of that (the progression settings' kill scale:
-	// 0.37 as shipped, so 4 rounded, tuned with the turn-ins for Ransom's Rest's story to end about level 6-7,
-	// Docs/Progression.md).
+	// 1 as shipped, so 10, a Borderlands early kill; the user's call of 2026-10-13, tuned with the turn-ins and the curve for
+	// Ransom's Rest's story alone to end about level 5.5 and everything there about 6.8, Docs/Progression.md).
 	// Target dummies are for practice and give none.
 	const ASpiderCreature* Spider = GetDefault<ASpiderCreature>();
 	const FLevelRules GameRules = UPlayerProgressionSubsystem::GetLevelRules();
@@ -177,48 +191,57 @@ bool FKillXPTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Spider XP reward"), Spider->XPReward, 10);
 	TestEqual(TEXT("Killing a level 1 spider at level 1: its share of 10"), UPlayerProgressionSubsystem::KillXP(Spider, 1),
 		FMath::Max<int64>(1, FMath::RoundToInt64(10.0 * GameRules.KillXPScale)));
-	TestEqual(TEXT("The shipped kill scale: 4 for a level 1 Basic kill"), FLevelRules().KillXP(10, 1, 1), int64(4));
+	TestEqual(TEXT("The shipped kill rules: 10 for a level 1 Basic kill"), FLevelRules().KillXP(10, 1, 1), int64(10));
+	TestEqual(TEXT("...69 for a level 5 one"), FLevelRules().KillXP(10, 5, 5), int64(69));
+	TestEqual(TEXT("...and 2,066 for Abel (a Boss's 200 at his level 7)"), FLevelRules().KillXP(200, 7, 7), int64(2066));
 	TestEqual(TEXT("Killing a dummy"), UPlayerProgressionSubsystem::KillXP(GetDefault<ATargetDummy>(), 1), int64(0));
 	TestEqual(TEXT("Killing nothing"), UPlayerProgressionSubsystem::KillXP(nullptr, 1), int64(0));
 
-	// The formula (Docs/Story.md, "Kill XP"), at the full XPReward (its own rules, so tuning the settings can't move
-	// these): 10 x 1.08^(level - 1), rounded.
+	// The formula (Docs/Progression.md, "Kills"), at the full XPReward (its own rules, so tuning the settings can't move
+	// these): 10 x level^1.2, rounded.
 	FLevelRules Rules;
 	Rules.KillXPScale = 1.0;
-	TestEqual(TEXT("A level 2 kill (10.8)"), Rules.KillXP(10, 2, 2), int64(11));
-	TestEqual(TEXT("A level 5 kill (13.6)"), Rules.KillXP(10, 5, 5), int64(14));
-	TestEqual(TEXT("A level 10 kill (19.99)"), Rules.KillXP(10, 10, 10), int64(20));
-	TestEqual(TEXT("A level 20 kill (43.2)"), Rules.KillXP(10, 20, 20), int64(43));
-	TestEqual(TEXT("A level 50 kill (433.7)"), Rules.KillXP(10, 50, 50), int64(434));
+	Rules.KillXPPower = 1.2;
+	TestEqual(TEXT("A level 2 kill (22.97)"), Rules.KillXP(10, 2, 2), int64(23));
+	TestEqual(TEXT("A level 5 kill (68.99)"), Rules.KillXP(10, 5, 5), int64(69));
+	TestEqual(TEXT("A level 10 kill (158.5)"), Rules.KillXP(10, 10, 10), int64(158));
+	TestEqual(TEXT("A level 20 kill (364.1)"), Rules.KillXP(10, 20, 20), int64(364));
+	TestEqual(TEXT("A level 50 kill (1,093.4)"), Rules.KillXP(10, 50, 50), int64(1093));
 
 	// The falloff: 15 points of the kill for each level the creature is below the player, never under 10%.
 	TestNearlyEqual(TEXT("At the player's level: all of it"), Rules.KillXPShare(9, 9), 1.0, 1e-9);
 	TestNearlyEqual(TEXT("One level below: 85%"), Rules.KillXPShare(5, 6), 0.85, 1e-9);
 	TestNearlyEqual(TEXT("Six levels below: the 10% floor"), Rules.KillXPShare(5, 11), 0.1, 1e-9);
 	TestNearlyEqual(TEXT("Forty below: still 10%"), Rules.KillXPShare(20, 60), 0.1, 1e-9);
-	TestEqual(TEXT("A level 5 kill one level below (11.6)"), Rules.KillXP(10, 5, 6), int64(12));
-	TestEqual(TEXT("Two below (9.5)"), Rules.KillXP(10, 5, 7), int64(10));
-	TestEqual(TEXT("Three below (7.5)"), Rules.KillXP(10, 5, 8), int64(7));
-	TestEqual(TEXT("Six below (1.4)"), Rules.KillXP(10, 5, 11), int64(1));
-	TestEqual(TEXT("A level 20 kill forty below (4.3)"), Rules.KillXP(10, 20, 60), int64(4));
-	TestEqual(TEXT("Above the player: its level's growth, no more (14.7)"), Rules.KillXP(10, 6, 5), int64(15));
-	TestEqual(TEXT("Any kill that's worth something gives at least 1"), Rules.KillXP(1, 1, 70), int64(1));
+	TestEqual(TEXT("A level 5 kill one level below (58.6)"), Rules.KillXP(10, 5, 6), int64(59));
+	TestEqual(TEXT("Two below (48.3)"), Rules.KillXP(10, 5, 7), int64(48));
+	TestEqual(TEXT("Three below (37.9)"), Rules.KillXP(10, 5, 8), int64(38));
+	TestEqual(TEXT("Six below (6.9)"), Rules.KillXP(10, 5, 11), int64(7));
+	TestEqual(TEXT("A level 20 kill forty below (36.4)"), Rules.KillXP(10, 20, 60), int64(36));
+	TestEqual(TEXT("Above the player: its level's growth, no more (85.9)"), Rules.KillXP(10, 6, 5), int64(86));
+	TestEqual(TEXT("Any kill that's worth something gives at least 1"), Rules.KillXP(1, 1, 65), int64(1));
 	TestEqual(TEXT("Nothing from nothing"), Rules.KillXP(0, 30, 1), int64(0));
 
-	// Kills per level at the player's level grow slowly, since the curve grows 12% a level and the kill 8%: twice level 1's
-	// count at level 20, six times it at 50 (at the full XPReward 10, 20 and 60; at the shipped scale about 27, 54 and 162).
+	// Kills per level at the player's level grow slowly, since the curve's steps grow about as level^1.8 and the kill as
+	// level^1.2: about 107 Basic kills for level 1, three times that at level 20, five times at 50 (about 600 at 60). The
+	// turn-ins carry most of a level, as in Borderlands, and every level takes at least as many kills as the one before.
 	const FXPCurve Curve;
 	const FLevelRules Shipped;
 	auto KillsFor = [&Curve, &Shipped](int32 Level)
 	{
-		return static_cast<double>(Curve.XPToNextLevel(Level)) / (10.0 * Shipped.KillXPScale * FMath::Pow(Shipped.KillXPGrowth, Level - 1.0));
+		return static_cast<double>(Curve.XPToNextLevel(Level))
+			/ (10.0 * Shipped.KillXPScale * FMath::Pow(static_cast<double>(Level), Shipped.KillXPPower));
 	};
-	TestTrue(FString::Printf(TEXT("Level 1 takes about 27 kills (%.1f)"), KillsFor(1)), FMath::Abs(KillsFor(1) - 27.0) <= 2.5);
-	for (const TPair<int32, double>& Expected : { TPair<int32, double>(20, 2.0), TPair<int32, double>(50, 6.0) })
+	TestTrue(FString::Printf(TEXT("Level 1 takes about 107 kills (%.1f)"), KillsFor(1)), FMath::Abs(KillsFor(1) - 107.0) <= 5.0);
+	for (const TPair<int32, double>& Expected : { TPair<int32, double>(20, 3.0), TPair<int32, double>(50, 5.0) })
 	{
 		const double Times = KillsFor(Expected.Key) / KillsFor(1);
 		TestTrue(FString::Printf(TEXT("Level %d takes about %.0f times level 1's kills (%.2f)"), Expected.Key, Expected.Value, Times),
 			FMath::Abs(Times - Expected.Value) <= Expected.Value * 0.1);
+	}
+	for (int32 Level = 1; Level + 1 < Curve.MaxLevel; ++Level)
+	{
+		TestTrue(FString::Printf(TEXT("Level %d takes at least level %d's kills"), Level + 1, Level), KillsFor(Level + 1) >= KillsFor(Level));
 	}
 
 	// A ranked creature's XPReward has its rank's multiplier in it already: the kill counts the rank once.
@@ -256,7 +279,7 @@ bool FLevelHealthTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Level 1: the health the character was made with"), Rules.PlayerHealthScale(1), 1.f);
 	TestNearlyEqual(TEXT("Level 2: +8%"), Rules.PlayerHealthScale(2), 1.08f, 1e-5f);
 	TestNearlyEqual(TEXT("Level 10: +72%"), Rules.PlayerHealthScale(10), 1.72f, 1e-5f);
-	TestNearlyEqual(TEXT("Level 70: x6.52"), Rules.PlayerHealthScale(70), 6.52f, 1e-4f);
+	TestNearlyEqual(TEXT("Level 65, the top: x6.12"), Rules.PlayerHealthScale(65), 6.12f, 1e-4f);
 	TestNearlyEqual(TEXT("The player's health keeps pace with an enemy's damage"), Rules.PlayerHealthScale(37), Rules.EnemyScale(37), 1e-5f);
 
 	// On a health component (a training dummy's: 500, its class's), from the authored value every time.
@@ -300,6 +323,6 @@ bool FLevelHealthTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-// Ransom's Rest's pacing (the story ending about level 6-7) is ProgressionPacingTests.cpp's.
+// Ransom's Rest's pacing (the story alone ending about level 5.5, everything about 6.8) is ProgressionPacingTests.cpp's.
 
 #endif

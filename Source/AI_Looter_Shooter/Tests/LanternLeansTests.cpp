@@ -107,24 +107,29 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLanternLeansMissionTest, "Looter.Story.Lantern
 
 bool FLanternLeansMissionTest::RunTest(const FString& Parameters)
 {
-	// Main 7 as its asset has it: id exactly Main7, after Main 6 on Ransom's Rest, starting by itself; Delia's door; turned
-	// in to Tilly at her window on the way to the depot; 45 experience, the Lily opened, Heirloom handed over in the story
+	// Main 7 as its asset has it: id exactly Main7, after Main 6 on Ransom's Rest, offered by Pa on his board (the flows
+	// below still start it by itself, as it was); Delia's door (the porch plate's biscuits eaten beside it, optional); turned
+	// in to Tilly at her window on the way to the depot; 4,600 experience, the Lily opened, Heirloom handed over in the story
 	// rather than dropped.
 	if (FPackageName::DoesPackageExist(TEXT("/Game/Data/Missions/DA_Mission_Main7")))
 	{
 		const UMissionDefinition* Asset = LoadObject<UMissionDefinition>(nullptr, TEXT("/Game/Data/Missions/DA_Mission_Main7.DA_Mission_Main7"));
 		if (TestNotNull(TEXT("DA_Mission_Main7 loads"), Asset))
 		{
-			TestTrue(TEXT("Main7, a main mission starting by itself on Ransom's Rest, after Main6"), Asset->GetMissionId() == MainSeven
-				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Automatic && Asset->Area == FName(TEXT("RansomsRest"))
-				&& Asset->Prerequisites == TArray<FName>({ MainSix }));
+			TestTrue(TEXT("Main7, a main mission Pa offers on Ransom's Rest, after Main6"), Asset->GetMissionId() == MainSeven
+				&& Asset->Kind == EMissionKind::Main && Asset->Start == EMissionStart::Offered
+				&& Asset->Offer.GiverTag == FName(TEXT("Speaker_Abel")) && !Asset->Offer.Lines.IsEmpty()
+				&& Asset->Area == FName(TEXT("RansomsRest")) && Asset->Prerequisites == TArray<FName>({ MainSix }));
 			TestEqual(TEXT("Its title"), Asset->Title.ToString(), FString(TEXT("The Lantern Leans")));
 			TestEqual(TEXT("One step"), Asset->Steps.Num(), MainSevenSteps);
 			const UMissionTalkObjective* Home = Cast<UMissionTalkObjective>(Asset->GetObjective(0, 0));
+			const UMissionEventObjective* Plate = Cast<UMissionEventObjective>(Asset->GetObjective(0, 1));
 			TestTrue(TEXT("1: home to Delia, at her screen door"), Home && Home->SpeakerTag == DeliasDoor);
+			TestTrue(TEXT("...and, optional, the porch plate's biscuits eaten"), Plate && Plate->bOptional
+				&& Plate->Event == FName(TEXT("PorchPlate.Eaten")));
 			TestTrue(TEXT("Turned in to Tilly at her window"), Asset->NeedsTurnIn() && Asset->TurnIn.SpeakerTag == TillysWindow);
 			const FMissionRewards& Rewards = Asset->Rewards;
-			TestTrue(TEXT("Its reward: 45 experience and the Lily opened"), Rewards.Experience == 45
+			TestTrue(TEXT("Its reward: 4,600 experience and the Lily opened"), Rewards.Experience == 4600
 				&& Rewards.UnlockAreas == TArray<FName>({ LilyId }));
 			TestTrue(TEXT("...and Heirloom, handed over by Delia, never dropped"), Rewards.NamedGun == HeirloomId && Rewards.bNamedGunByHand && !Rewards.bGun);
 		}

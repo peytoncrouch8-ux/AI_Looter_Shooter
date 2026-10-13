@@ -7,7 +7,10 @@ wrapper that calls main('<Area>'). It builds:
   line up when placed at the origin. Material <Area>Macro (master Terrain): UV 0 maps the map square onto the macro
   color map T_<Area>Macro_BC (on the tutorial island U = (Y + 10240) / 20480, V = (X + 10240) / 20480, Unreal cm;
   layout_computed.json macroMap), UV 1 is world meters (U = Y / 100, V = X / 100) for the detail textures, and vertex
-  color alpha is baked ambient occlusion (RGB white).
+  color alpha is baked ambient occlusion (RGB white). A split macro map (map.macroSplit) lays the tiles over the map
+  square in step with its windows: each tile wears its window's material <Area>Macro<SW|SE|NW|NE> (texture set of the
+  same name), UV 0 over that window's square; the top's triangles keep to one side of the windows' edges. mesh.holes
+  leaves the top open where an interior goes into the ground (a mine's mouth).
 - <Area>_Underside_<n>: the rock under the rim (RockCliff), in four sectors (island setting).
 - <Area>_Water: the ponds' and creeks' surface (material Water, master Water; UV 0 in world meters).
 - Grounded (area_beyond.py): <Area>_Ring_<n>, the surround ring in sectors (material <Area>RingMacro, master Terrain,
@@ -120,13 +123,16 @@ def ring_macro_path(area):
     return os.path.join(REPO, *area.ring_macro_texture.split('/'))
 
 
-def macro_material(area, ring=False):
-    """The top's material (or the ring's): M_Terrain's macro map and detail sets. Its Blender nodes preview what
-    M_Terrain does."""
-    name = area.name + ('RingMacro' if ring else 'Macro')
+def macro_material(area, ring=False, suffix=''):
+    """The top's material (or the ring's, or a split macro map's window's: suffix, its texture set <Area>Macro<suffix>):
+    M_Terrain's macro map and detail sets. Its Blender nodes preview what M_Terrain does."""
+    name = area.name + ('RingMacro' if ring else 'Macro' + suffix)
     # The map this run painted (--save-to puts it elsewhere), else the repository's.
-    texture = getattr(area, 'painted', {}).get('ring' if ring else 'core') or (
-        ring_macro_path(area) if ring else macro_path(area))
+    painted = getattr(area, 'painted', {}).get('ring' if ring else 'core')
+    if isinstance(painted, dict):
+        painted = painted.get(suffix)
+    texture = painted or (ring_macro_path(area) if ring else
+                          os.path.join(REPO, *area.macro_texture_of(suffix).split('/')))
     mat = bpy.data.materials.get(name) or bpy.data.materials.new(name)
     mat.use_nodes = True
     nodes, links = mat.node_tree.nodes, mat.node_tree.links
@@ -272,12 +278,20 @@ def build_top(area):
     colors = np.column_stack([np.ones((len(verts), 3)), np.clip(ao, 0.0, 1.0)])
     macro_uv = np.column_stack([(verts[:, 1] + area.half), (verts[:, 0] + area.half)]) / (2.0 * area.half)
     detail_uv = np.column_stack([verts[:, 1], verts[:, 0]])
-    mat = macro_material(area)
+    windows = area.macro_windows()
+    split = len(windows) > 1
+    mat = None if split else macro_material(area)
 
-    # Tiles: a grid over the top's extent, each triangle going with the tile its center falls in.
+    # Tiles: a grid over the top's extent, each triangle going with the tile its center falls in. A split macro map
+    # (map.macroSplit) lays the grid over the whole map square instead, so its windows' edges are tiles' edges and
+    # each tile wears one window's map.
     count = settings.get('tiles', TILES)
     prefix = area.name + '_Tile_'
     lo, hi = verts[:, :2].min(axis=0), verts[:, :2].max(axis=0)
+    if split:
+        lo, hi = np.full(2, -area.half), np.full(2, area.half)
+        if count % int(round(len(windows) ** 0.5)):
+            raise ValueError(f"{area.path}: mesh.tiles {count} must be a multiple of the macro map's split")
     center = verts[tris].mean(axis=1)
     ti = np.minimum(((center[:, 0] - lo[0]) / (hi[0] - lo[0]) * count).astype(int), count - 1)
     tj = np.minimum(((center[:, 1] - lo[1]) / (hi[1] - lo[1]) * count).astype(int), count - 1)
@@ -289,8 +303,19 @@ def build_top(area):
                 continue
             used, inverse = np.unique(chosen.ravel(), return_inverse=True)
             local = inverse.reshape(-1, 3)
-            obj = make_object(f'{prefix}{i}_{j}', verts[used], local, mat,
-                              uvs={'UVMap': macro_uv[used], 'UVDetail': detail_uv[used]},
+            tile_mat, uv0 = mat, macro_uv[used]
+            if split:
+                # The window under the tile's middle, and UV 0 over its square.
+                mid = np.array([lo[0] + (i + 0.5) * (hi[0] - lo[0]) / count,
+                                lo[1] + (j + 0.5) * (hi[1] - lo[1]) / count])
+                suffix, grid = next((s, g) for s, g in windows
+                                    if g.x0 <= mid[0] < g.x0 + g.n * g.px and g.y0 <= mid[1] < g.y0 + g.n * g.px)
+                side = grid.n * grid.px
+                tile_mat = macro_material(area, suffix=suffix)
+                v = verts[used]
+                uv0 = np.column_stack([(v[:, 1] - grid.y0) / side, (v[:, 0] - grid.x0) / side])
+            obj = make_object(f'{prefix}{i}_{j}', verts[used], local, tile_mat,
+                              uvs={'UVMap': uv0, 'UVDetail': detail_uv[used]},
                               normals=normals[used], colors=colors[used])
             tiles.append((obj.name, len(local)))
     log('terrain: tiles ' + ', '.join(f'{n[len(prefix):]} {c}' for n, c in tiles))
@@ -482,6 +507,9 @@ def report_grounded(area, tiles, made, numbers):
         f"{numbers['core_geometric_p95']:.2f} and {numbers['ring_geometric_p95']:.2f} for 95% of the seam (the most "
         f"at x {numbers['worst'][0]:.1f}, y {numbers['worst'][1]:.1f} m)")
     for kind, budget in BUDGETS.items():
+        if kind == 'core':
+            # A grown core may be given more (mesh.triangles: Ransom's Rest's mountain, 190k on its 512 m square).
+            budget = max(budget, int(area.layout.get('mesh', {}).get('triangles', 0)))
         ok = totals.get(kind, 0) <= budget
         passed &= ok
         log(f'check: {kind} {totals.get(kind, 0)} triangles of {budget} - {"PASS" if ok else "FAIL"}')
@@ -518,16 +546,27 @@ def main(name=None):
         import area_macro
         import area_scatter
         out = save_to or os.path.dirname(macro_path(area))
-        area.painted = {'core': os.path.join(out, os.path.basename(area.macro_texture))}
+        windows = [suffix for suffix, _ in area.macro_windows()]
+        if len(windows) > 1:
+            # A split macro map: each window its own texture set's folder (all in save_to when given).
+            area.painted = {'core': {s: (os.path.join(save_to, os.path.basename(area.macro_texture_of(s))) if save_to
+                                         else os.path.join(REPO, *area.macro_texture_of(s).split('/')))
+                                     for s in windows}}
+        else:
+            area.painted = {'core': os.path.join(out, os.path.basename(area.macro_texture))}
         if area.setting == 'grounded':
             # The ring's map first: the core's blends into it across the seam band.
             ring_out = save_to or os.path.dirname(ring_macro_path(area))
             area.painted['ring'] = os.path.join(ring_out, os.path.basename(area.ring_macro_texture))
             area_macro.paint_ring(area, area.painted['ring'], previews, log=log)
             macro_material(area, ring=True)
-        area_macro.paint(area, area.painted['core'], previews, log=log)
+        if len(windows) > 1:
+            area_macro.paint_windows(area, area.painted['core'], previews, log=log)
+        else:
+            area_macro.paint(area, area.painted['core'], previews, log=log)
         area_scatter.paint(area, os.path.join(out, os.path.basename(area.scatter_texture)), previews, log=log)
-        macro_material(area)  # now with the texture
+        for suffix in windows:
+            macro_material(area, suffix=suffix)  # now with the texture
     if args.preview:
         import area_preview
         area_preview.render_all(area, previews, log=log)

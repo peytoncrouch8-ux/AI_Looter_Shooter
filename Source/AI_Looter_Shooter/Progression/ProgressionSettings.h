@@ -20,36 +20,39 @@ class AI_LOOTER_SHOOTER_API UProgressionSettings : public UDeveloperSettings
 public:
 	UProgressionSettings();
 
-	/** The highest level a player can reach; experience stops counting there. */
+	/** The highest level a player can reach; experience stops counting there (65: the campaign's top, the user's call). */
 	UPROPERTY(Config, EditAnywhere, Category = "Experience", meta = (ClampMin = "2", ClampMax = "500"))
 	int32 MaxLevel = FXPCurve::DefaultMaxLevel;
 
-	/** Experience to go from level 1 to level 2. */
-	UPROPERTY(Config, EditAnywhere, Category = "Experience", meta = (ClampMin = "1"))
-	int64 BaseXP = FXPCurve::DefaultBaseXP;
-
 	/**
-	 * Each level-up takes this many times the experience of the one before (1.12 = 12% more). With 100 base XP and 70
-	 * levels, 1.12 makes the whole climb about 2.07 million XP; 1.10 about 0.72 million, 1.15 about 10.3 million.
+	 * Reaching level L takes CurveScale x (L^CurvePower - 1) experience in all. Borderlands 2's curve is 60 x (L^2.8 - 1);
+	 * 180 is three times it: 1,074 XP for level 2, about 21.4 million for level 65.
 	 */
-	UPROPERTY(Config, EditAnywhere, Category = "Experience", meta = (ClampMin = "1.01", ClampMax = "2.0"))
-	double Growth = FXPCurve::DefaultGrowth;
+	UPROPERTY(Config, EditAnywhere, Category = "Experience", meta = (ClampMin = "1", ClampMax = "100000"))
+	double CurveScale = FXPCurve::DefaultCurveScale;
 
 	/**
-	 * The share of a creature's XPReward a kill gives (0.37: a level 1 Basic creature, XPReward 10, gives 4). Tuned with the
-	 * missions' turn-in rewards so Ransom's Rest's story ends about level 6-7: Docs/Progression.md has the count, and
-	 * Looter.Progression.Pacing checks it.
+	 * How steeply later levels grow (Borderlands 2's 2.8). Higher makes the late levels take far longer than the early
+	 * ones; Looter.XP.Table prints the curve.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Experience", meta = (ClampMin = "1.0", ClampMax = "5.0"))
+	double CurvePower = FXPCurve::DefaultCurvePower;
+
+	/**
+	 * The share of a creature's XPReward a kill gives at its level 1 (1: a level 1 Basic creature, XPReward 10, gives 10).
+	 * Tuned with the missions' turn-in rewards so Ransom's Rest's story alone ends about level 5.5 and everything there
+	 * about 6.8: Docs/Progression.md has the count, and Looter.Progression.Pacing checks it.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Kills", meta = (ClampMin = "0.0", ClampMax = "5.0"))
 	double KillXPScale = FLevelRules::DefaultKillXPScale;
 
 	/**
-	 * A kill's experience grows by this factor with each level of the enemy: a level 1 creature gives its share of its
-	 * XPReward, and 1.08 makes a level 20 one worth 4.3 times that. Below the level curve's growth, so kills per level rise
-	 * slowly; Looter.XP.Table prints them.
+	 * A kill's experience grows as the enemy's level to this power: 1.2 makes a level 5 Basic creature worth 6.9 times a
+	 * level 1 one, level 60 136 times. Below the curve's own growth, so the kills a level takes rise slowly; Looter.XP.Table
+	 * prints them.
 	 */
-	UPROPERTY(Config, EditAnywhere, Category = "Kills", meta = (ClampMin = "1.0", ClampMax = "2.0"))
-	double KillXPGrowth = FLevelRules::DefaultKillXPGrowth;
+	UPROPERTY(Config, EditAnywhere, Category = "Kills", meta = (ClampMin = "0.0", ClampMax = "3.0"))
+	double KillXPPower = FLevelRules::DefaultKillXPPower;
 
 	/** The share of a kill's experience lost for each level the enemy is below the player (0.15: 85% one level below). */
 	UPROPERTY(Config, EditAnywhere, Category = "Kills", meta = (ClampMin = "0", ClampMax = "1"))

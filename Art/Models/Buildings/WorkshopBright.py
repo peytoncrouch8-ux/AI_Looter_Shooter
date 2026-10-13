@@ -5,7 +5,8 @@
                       (standing open): weathered board and batten, black trim, a shake roof open inside to its boards and
                       tie beams. Inside, 9.7 x 6.7 m: two coffin benches (a coffin half made on one), lumber racks, his
                       tool wall, a box stove, a finished coffin with the brass handles Tilly put on it, the measuring hook
-                      (his tape and the cellar key hang on it), the orders slate (four names chalked, a fifth struck
+                      (the cellar key, SM_CellarKey, hangs on it at SOCKET_MeasuringHook) and his tape reel on a nail
+                      beside it, the orders slate (four names chalked, a fifth struck
                       through in another hand: T. BRIGHT. PINE. NO BRASS.), a lamp; in the back corner a boarded stair
                       enclosure with the cellar door, a little bench beside it with his box on it.
                       Down a stone stair that turns back on itself (19 risers), the cellar: 12 x 8 m inside, six bays of
@@ -407,21 +408,38 @@ def workshop():
     town.box(m, (0.2, 0.03, 0.18), at=(sx0, sy0 - 0.225, BASE + 0.5), look='iron')
     town.cylinder(m, (sx0, sy0, BASE + 0.69), (sx0, sy0, BASE + 1.6), 0.07, sides=8, look='iron', caps=(False, False))
     m.hull((0.66, 0.46, 0.72), at=(sx0, sy0, BASE + 0.36))
-    # By the cellar door, on the east wall: the measuring hook (his tape coiled on it, the cellar key), the orders slate.
+    # By the cellar door, on the east wall: the measuring hook (the cellar key hangs on it: SM_CellarKey, a prop of its own
+    # in Art/Models/Props/MissionProps.py, by its cord loop at SOCKET_MeasuringHook), his tape reel on a nail beside it, the
+    # orders slate.
     rw = kit.wall_space((XI1, ey0), (XI1, YI0), BASE)          # the east wall's inside in the room: s = ey0 - y
     hook_s, hook_z = 0.5, 1.62
     town.box(m, (0.08, 0.03, 0.12), at=(hook_s, -0.015, hook_z), look='C', space=rw)
     town.board(m, (hook_s, -0.04, hook_z + 0.02), (hook_s, -0.1, hook_z - 0.02), 0.012, 0.012, look='brass', space=rw,
                face=(1.0, 0.0, 0.0))
-    town.cylinder(m, (hook_s, -0.075, hook_z - 0.16), (hook_s, -0.115, hook_z - 0.16), 0.075, sides=10, look='brass',
+    # The tape reel hung on its own nail 19 cm along the wall, clear of the key (it hung under the hook, where the key's
+    # 18 cm would pass through it).
+    reel_s = hook_s + 0.19
+    town.cylinder(m, (reel_s, -0.012, hook_z - 0.13), (reel_s, -0.052, hook_z - 0.13), 0.075, sides=10, look='brass',
                   space=rw)
-    town.board(m, (hook_s + 0.02, -0.07, hook_z - 0.2), (hook_s + 0.05, -0.07, hook_z - 0.55), 0.016, 0.003,
+    town.board(m, (reel_s + 0.02, -0.057, hook_z - 0.17), (reel_s + 0.05, -0.057, hook_z - 0.52), 0.016, 0.003,
                look='band_G', space=rw)
-    town.box(m, (0.014, 0.006, 0.11), at=(hook_s - 0.03, -0.11, hook_z - 0.08), rot=(0.0, 12.0, 0.0), look='iron',
+    # The baked key is left unbuilt (built into a stand-in drawing on the same random stream and material slots, then
+    # thrown away), so everything after it comes out as it did.
+    sink = rr.Building('_Unbuilt', seed=0)
+    sink.rng, sink.slots = m.rng, m.slots
+    town.box(sink, (0.014, 0.006, 0.11), at=(hook_s - 0.03, -0.11, hook_z - 0.08), rot=(0.0, 12.0, 0.0), look='iron',
              space=rw)
-    town.lathe(m, [(0.0, 0.0), (0.022, 0.0), (0.022, 0.006), (0.0, 0.006)], at=(hook_s - 0.04, -0.11, hook_z),
+    town.lathe(sink, [(0.0, 0.0), (0.022, 0.0), (0.022, 0.006), (0.0, 0.006)], at=(hook_s - 0.04, -0.11, hook_z),
                sides=6, look='iron', space=rw, axis=Matrix.Rotation(math.radians(90.0), 4, 'X'))
-    m.socket('MeasuringHook', rw.world((hook_s, -0.08, hook_z - 0.05)), rr.rot_to((-1.0, 0.0)))
+    sink.bm.free()
+    kit.bpy.data.objects.remove(sink._obj)
+    kit.bpy.data.meshes.remove(sink._mesh)
+    # The reel's nail, on a random stream of its own (the model's goes on as before).
+    stream, m.rng = m.rng, kit.random.Random(8111)
+    town.box(m, (0.012, 0.06, 0.012), at=(reel_s, -0.03, hook_z - 0.05), look='iron', space=rw)
+    m.rng = stream
+    # The key's cord loop rests on the hook's top near its tip: the key hangs from there, its face to the room.
+    m.socket('MeasuringHook', rw.world((hook_s, -0.088, hook_z - 0.006)), rr.rot_to((-1.0, 0.0)))
     s0, s1, z0, z1 = 1.0, 2.0, 1.15, 1.85
     town.box(m, (s1 - s0, 0.02, z1 - z0), at=((s0 + s1) * 0.5, -0.01, (z0 + z1) * 0.5), look='black', space=rw,
              drop=('+y',))

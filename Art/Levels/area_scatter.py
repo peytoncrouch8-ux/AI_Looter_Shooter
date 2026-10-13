@@ -176,6 +176,9 @@ def paint(area, out_path, preview_dir=None, log=print):
 
     drifts = _ss(0.3, 0.65, 0.5 + 0.5 * fbm_raster(grid, 26.0, seed=203, octaves=3))
     flowers = drifts * _ss(0.35, 0.8, grass) * (1.0 - 0.8 * forest)
+    # More flowers by zone kind (the layout's scatter "blooms": {kind: times}: an alpine meadow's larkspur drifts).
+    for kind, more in area.layout.get('scatter', {}).get('blooms', {}).items():
+        flowers = flowers * (1.0 + (more - 1.0) * _zones(area, grid, kind, 6.0))
 
     rim = (1.0 - _ss(0.5, 2.5, inside)) * land  # island setting
     if area.setting == 'grounded':

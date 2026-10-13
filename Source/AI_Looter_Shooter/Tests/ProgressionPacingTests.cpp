@@ -3,12 +3,9 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Areas/AreaDefinition.h"
-#include "Bosses/AbelKeeper.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRank.h"
 #include "Creatures/CreatureRankSettings.h"
-#include "Creatures/SpiderCreature.h"
-#include "Creatures/UnpaidCreature.h"
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -21,96 +18,25 @@
 #include "Serialization/JsonSerializer.h"
 #include "Tests/AreaLevelsLayout.h"
 #include "Tests/EncounterLayoutReader.h"
+#include "Tests/PacingPaths.h"
 #include "UObject/Package.h"
 #include "UObject/TopLevelAssetPath.h"
 
-// Ransom's Rest's pacing (Docs/Progression.md, the user's call of 2026-10-08): a player who fights every fight on the main
-// path, does both side missions and kills a few roaming creatures ends the story (Main 7 turned in) about level 6-7, not
-// 9-10. Experience comes only from kills and turned-in missions. This plays that path on paper from the same data the game
-// uses: the mission assets' rewards, the creatures' own XPReward, the rank settings, the creatures' levels where each fight
-// stands (layout.json gameplay.levels: its zones and the bosses' set levels, never the player's, since 2026-10-12) and
-// Ransom's Rest's promotion odds, the progression settings' curve and kill rules; the kills on the way are the documented
-// budget below (the counts the level's scripts place, Docs/Progression.md) and the encounters between the fights, read
-// from the layout (gameplay.encounters: camps, patrols, ambushes, each counted by its budget). An edit that moves the end
-// out of 6-7 fails here.
+// Ransom's Rest's pacing (Docs/Progression.md; the user's levels of 2026-10-13): the story alone (every main mission turned
+// in, the fights on its way, the roaming dead once) ends about level 5.5, and everything there (every side mission too, the
+// mountain, the Gravemother, every optional camp once) about 6.8. Experience comes only from kills and turned-in missions.
+// This plays both paths (PacingPaths.h) on paper from the same data the game uses: the mission assets' rewards, the
+// creatures' own XPReward, the rank settings, the creatures' levels where each fight stands (layout.json gameplay.levels: its
+// zones and the set levels, never the player's) and Ransom's Rest's promotion odds, the progression settings' curve and kill
+// rules. The kills on the way are the documented budget and the encounters between the fights, read from the layout
+// (gameplay.encounters: camps, patrols, ambushes, each counted by its budget). A fight the layout doesn't name yet (the
+// mountain's, placed by their own scripts) stands where the design puts it. An edit that moves either end out of its band
+// fails here.
+
+using namespace PacingPaths;
 
 namespace
 {
-	/** How a kill's rank comes about: fixed (a scripted fight's Basic or Restless, Abel's Boss), or the area's promotion odds. */
-	enum class EPathRank : uint8
-	{
-		Basic,
-		Restless,
-		/** Rolled as a placed or spawned creature is on Ransom's Rest: 8% Restless, 2% Gravebound. */
-		AreaRolled,
-		/** The creature's own starting rank (Abel's Boss). */
-		Own,
-	};
-
-	struct FPathKills
-	{
-		const ACreatureBase* Creature = nullptr;
-		EPathRank Rank = EPathRank::Basic;
-		int32 Count = 0;
-		/** Where the fight stands: a story fight's id in the layout ("BluffNest") or a layout zone ("sink"). */
-		FString Where;
-		/** Where Where is (found from the layout), or an encounter's middle: its levels are this spot's. */
-		FVector Spot = FVector::ZeroVector;
-	};
-
-	/** One stop on the story: a mission turned in (with the kills on the way to it), or kills alone (no mission). */
-	struct FPathStop
-	{
-		FString Label;
-		FName MissionId;
-		TArray<FPathKills> Kills;
-		/** The mission's experience as Docs/Progression.md lists it (used when its asset isn't made). */
-		int32 PlannedXP = 0;
-	};
-
-	/** The roaming stop's label: the layout's roaming encounters join its kills. */
-	const TCHAR* RoamingLabel = TEXT("Roaming: boot hill, the north road, the west road");
-
-	/** The documented budget: what's killed in each fight on the way, in the order a player meets them. */
-	TArray<FPathStop> RansomsRestPath()
-	{
-		const ACreatureBase* Spider = GetDefault<ASpiderCreature>();
-		const ACreatureBase* Unpaid = GetDefault<AUnpaidCreature>();
-		const ACreatureBase* Abel = GetDefault<AAbelKeeper>();
-		TArray<FPathStop> Path;
-		// Main 1: no fights.
-		Path.Add({ TEXT("Main 1, Seven Days"), TEXT("Main1"), {}, 20 });
-		// The bluff nest: four spiders and a Restless one (build_area_story.py, BluffNest).
-		Path.Add({ TEXT("Main 2, Shall We Talk Business?"), TEXT("Main2"),
-			{ { Spider, EPathRank::Basic, 4, TEXT("BluffNest") }, { Spider, EPathRank::Restless, 1, TEXT("BluffNest") } }, 30 });
-		// The town gate: three Unpaid and a Restless one (TownGate).
-		Path.Add({ TEXT("Main 3, Cold Welcome"), TEXT("Main3"),
-			{ { Unpaid, EPathRank::Basic, 3, TEXT("TownGate") }, { Unpaid, EPathRank::Restless, 1, TEXT("TownGate") } }, 30 });
-		// The posters: no fights.
-		Path.Add({ TEXT("Side 1, Wanted: Already Dead"), TEXT("Side1"), {}, 35 });
-		// The chapel yard: twelve Unpaid in two waves and a Restless one (build_area_chapel.py, ChapelYard).
-		Path.Add({ TEXT("Main 4, Hallowed Ground"), TEXT("Main4"),
-			{ { Unpaid, EPathRank::Basic, 12, TEXT("ChapelYard") }, { Unpaid, EPathRank::Restless, 1, TEXT("ChapelYard") } }, 40 });
-		// Amos's old hands: five Unpaid and a Restless one (build_area_whitlock.py, WhitlockHands).
-		Path.Add({ TEXT("Side 2, Unfinished Business"), TEXT("Side2"),
-			{ { Unpaid, EPathRank::Basic, 5, TEXT("WhitlockHands") }, { Unpaid, EPathRank::Restless, 1, TEXT("WhitlockHands") } }, 40 });
-		// A few roaming creatures: boot hill's and the north road's Unpaid, three each, once (build_area_chapel.py, after
-		// Main 4; they're back on every level load, which is what takes a player on to level 7). The layout's roaming
-		// encounters (the west road's walkers) join them.
-		Path.Add({ RoamingLabel, NAME_None,
-			{ { Unpaid, EPathRank::AreaRolled, 3, TEXT("BootHill") }, { Unpaid, EPathRank::AreaRolled, 3, TEXT("NorthRoad") } }, 0 });
-		// The Sink: its floor's four spiders and the egg sacs' six (build_area_sink.py, SinkFloor; two to a sac).
-		Path.Add({ TEXT("Main 5, The Keeper's Lantern"), TEXT("Main5"),
-			{ { Spider, EPathRank::AreaRolled, 4, TEXT("sink") }, { Spider, EPathRank::Basic, 6, TEXT("sink") } }, 40 });
-		// The deck: about twelve of Abel's adds in a 3-4 minute fight (phase 1's two every 25 s, phase 2's two waves of four),
-		// then Abel.
-		Path.Add({ TEXT("Main 6, The Gravewind"), TEXT("Main6"),
-			{ { Unpaid, EPathRank::Basic, 12, TEXT("Abel") }, { Abel, EPathRank::Own, 1, TEXT("Abel") } }, 45 });
-		// Main 7: no fights.
-		Path.Add({ TEXT("Main 7, The Lantern Leans"), TEXT("Main7"), {}, 45 });
-		return Path;
-	}
-
 	/** One encounter between the fights, as the layout counts it (layout.json gameplay.encounters). */
 	struct FLayoutEncounter
 	{
@@ -184,7 +110,8 @@ namespace
 
 	/**
 	 * Finds where each kill stands (FPathKills::Spot): its camp's, patrol's or ambush's middle, a story fight's ground or a
-	 * layout zone, by the name in Where. False (with the test's errors) when one isn't in the layout.
+	 * layout zone, by the name in Where; else the design's spot when it has one (a fight its own script places, not named in
+	 * the layout yet). False (with the test's errors) when it has none.
 	 */
 	bool PlaceKills(FAutomationTestBase& Test, const EncounterLayout::FAreaLayout& Layout, TArray<FPathKills>& Kills)
 	{
@@ -197,13 +124,28 @@ namespace
 			{
 				Each.Spot = AreaLevelsLayout::EncounterSpot(*Encounter);
 			}
-			else
+			else if (!AreaLevelsLayout::FindPlace(Layout, Each.Where, Each.Spot))
 			{
-				bAllPlaced &= Test.TestTrue(FString::Printf(TEXT("%s is a place in the layout"), *Each.Where),
-					AreaLevelsLayout::FindPlace(Layout, Each.Where, Each.Spot));
+				if (Each.bPlanned)
+				{
+					Each.Spot = FVector(Each.Planned.X, Each.Planned.Y, 0.0);
+				}
+				else
+				{
+					bAllPlaced &= Test.TestTrue(FString::Printf(TEXT("%s is a place in the layout"), *Each.Where), false);
+				}
 			}
 		}
 		return bAllPlaced;
+	}
+
+	/** Whether Id is one of the path's own fights (the layout's entry of the same id isn't counted twice). */
+	bool IsPathFight(const TArray<FPathStop>& Path, const FString& Id)
+	{
+		return Path.ContainsByPredicate([&Id](const FPathStop& Stop)
+		{
+			return Stop.Kills.ContainsByPredicate([&Id](const FPathKills& Kills) { return Kills.Where == Id; });
+		});
 	}
 
 	/** The path with the layout's encounters of these budgets added, each before the fights of the stop it's counted before. */
@@ -215,7 +157,7 @@ namespace
 			TArray<FPathKills> OnTheWay;
 			for (const FLayoutEncounter& Each : Encounters)
 			{
-				if (!Budgets.Contains(Each.Budget))
+				if (!Budgets.Contains(Each.Budget) || IsPathFight(Path, Each.Id))
 				{
 					continue;
 				}
@@ -231,15 +173,33 @@ namespace
 		return Made;
 	}
 
-	/**
-	 * A kill's experience on average for a player at PlayerLevel, over its rank's odds and the levels where it stands (its
-	 * kind's set level, or its zone's levels, each as likely): the player's level only takes its share off a kill below it.
-	 */
-	double ExpectedKillXP(const ACreatureBase& Creature, EPathRank PathRank, const FVector& Spot, int32 PlayerLevel, const UAreaDefinition& Area,
-		const FLevelRules& Rules)
+	/** The levels a kill's creature is rolled between: kept by its spawner, its kind's set level, else its spot's zone's. */
+	void LevelsOf(const FPathKills& Kills, const UAreaDefinition& Area, int32& OutLowest, int32& OutHighest)
 	{
+		if (Kills.KeptLowest > 0)
+		{
+			OutLowest = Kills.KeptLowest;
+			OutHighest = FMath::Max(Kills.KeptHighest, Kills.KeptLowest);
+		}
+		else if (const int32 Set = Area.FindKindLevel(Kills.Creature->GetClass()))
+		{
+			OutLowest = OutHighest = Set;
+		}
+		else
+		{
+			Area.GetLevelsAt(Kills.Spot, OutLowest, OutHighest);
+		}
+	}
+
+	/**
+	 * A kill's experience on average for a player at PlayerLevel, over its rank's odds and the levels where it stands (each
+	 * as likely): the player's level only takes its share off a kill below it.
+	 */
+	double ExpectedKillXP(const FPathKills& Kills, int32 PlayerLevel, const UAreaDefinition& Area, const FLevelRules& Rules)
+	{
+		const ACreatureBase& Creature = *Kills.Creature;
 		TArray<TPair<ECreatureRank, double>, TInlineAllocator<3>> Odds;
-		switch (PathRank)
+		switch (Kills.Rank)
 		{
 		case EPathRank::Basic:
 			Odds.Add({ ECreatureRank::Basic, 1.0 });
@@ -261,17 +221,9 @@ namespace
 			break;
 		}
 		}
-		// Its own levels as the area gives them (UAreaDefinition::PickLevel): a boss's set level, else its spot's, evenly.
 		int32 Lowest = 1;
 		int32 Highest = 1;
-		if (const int32 Set = Area.FindKindLevel(Creature.GetClass()))
-		{
-			Lowest = Highest = Set;
-		}
-		else
-		{
-			Area.GetLevelsAt(Spot, Lowest, Highest);
-		}
+		LevelsOf(Kills, Area, Lowest, Highest);
 		double XP = 0.0;
 		for (const TPair<ECreatureRank, double>& Each : Odds)
 		{
@@ -335,8 +287,7 @@ namespace
 				}
 				for (int32 Each = 0; Each < Group.Count; ++Each)
 				{
-					const double XP = ExpectedKillXP(*Group.Creature, Group.Rank, Group.Spot, FMath::FloorToInt32(LevelOf(Curve, Result.Total)), Area,
-						Rules);
+					const double XP = ExpectedKillXP(Group, FMath::FloorToInt32(LevelOf(Curve, Result.Total)), Area, Rules);
 					StopKillXP += XP;
 					Result.Total += XP;
 					++StopKills;
@@ -421,14 +372,16 @@ bool FXPPacingTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	int32 MainAdded = 0;
-	int32 RoamingAdded = 0;
-	int32 OptionalAdded = 0;
-	TArray<FPathStop> Story = RansomsRestPath();
+	const FPathCast Foes = MakeCast();
+	TArray<FPathStop> Story = StoryPath(Foes);
+	TArray<FPathStop> Everything = EverythingPath(Foes);
 	bool bPlaced = true;
-	for (FPathStop& Stop : Story)
+	for (TArray<FPathStop>* Path : { &Story, &Everything })
 	{
-		bPlaced &= PlaceKills(*this, Layout, Stop.Kills);
+		for (FPathStop& Stop : *Path)
+		{
+			bPlaced &= PlaceKills(*this, Layout, Stop.Kills);
+		}
 	}
 	for (FLayoutEncounter& Each : Encounters)
 	{
@@ -438,25 +391,43 @@ bool FXPPacingTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
+	int32 MainAdded = 0;
+	int32 RoamingAdded = 0;
+	int32 OptionalAdded = 0;
 	for (const FLayoutEncounter& Each : Encounters)
 	{
+		if (IsPathFight(Everything, Each.Id))
+		{
+			// A mission's own fight the layout lists too: counted once, as the path's.
+			continue;
+		}
 		int32 Count = 0;
 		for (const FPathKills& Kills : Each.Kills)
 		{
 			Count += Kills.Count;
 		}
-		const bool bKnownStop = Story.ContainsByPredicate([&Each](const FPathStop& Stop) { return !Stop.MissionId.IsNone() && Stop.MissionId == Each.CountedBefore; });
+		const bool bKnownStop = Everything.ContainsByPredicate([&Each](const FPathStop& Stop) { return !Stop.MissionId.IsNone() && Stop.MissionId == Each.CountedBefore; });
+		const bool bOnTheStory = Story.ContainsByPredicate([&Each](const FPathStop& Stop) { return !Stop.MissionId.IsNone() && Stop.MissionId == Each.CountedBefore; });
 		TestTrue(FString::Printf(TEXT("%s is counted before a stop on the path (%s)"), *Each.Id, *Each.CountedBefore.ToString()),
 			Each.Budget == TEXT("roaming") || bKnownStop);
 		TestTrue(FString::Printf(TEXT("%s's budget is main, roaming or optional (%s)"), *Each.Id, *Each.Budget),
 			Each.Budget == TEXT("main") || Each.Budget == TEXT("roaming") || Each.Budget == TEXT("optional"));
-		(Each.Budget == TEXT("main") ? MainAdded : Each.Budget == TEXT("roaming") ? RoamingAdded : OptionalAdded) += Count;
+		if (Each.Budget == TEXT("main"))
+		{
+			// The user's budget is the main path's (the story's); a side mission's own way is its own.
+			MainAdded += bOnTheStory ? Count : 0;
+		}
+		else
+		{
+			(Each.Budget == TEXT("roaming") ? RoamingAdded : OptionalAdded) += Count;
+		}
 	}
 	AddInfo(FString::Printf(TEXT("Between the fights: %d kills on the main path, %d roaming, %d optional."), MainAdded, RoamingAdded, OptionalAdded));
 	TestTrue(FString::Printf(TEXT("No more than about 15 more kills on the main path (%d)"), MainAdded), MainAdded <= 15);
 
-	// The missions' rewards, from their assets where they're made.
+	// The story alone: the main missions' rewards, from their assets where they're made.
 	const TArray<UMissionDefinition*> Missions = UMissionDefinition::LoadAll();
+	AddInfo(TEXT("The story alone:"));
 	const FPathResult Played = PlayPath(*this, WithEncounters(Story, Encounters, { TEXT("main"), TEXT("roaming") }), Missions, *Area, Curve, Rules,
 		/*bReport*/ true);
 	if (!Played.bValid)
@@ -464,30 +435,35 @@ bool FXPPacingTest::RunTest(const FString& Parameters)
 		return false;
 	}
 	const double Reached = LevelOf(Curve, Played.Total);
-	AddInfo(FString::Printf(TEXT("The story ends at level %.2f after %d kills: %.0f XP from kills, %.0f from missions, %.0f in all (level 6 at %lld, 7 at %lld)."),
-		Reached, Played.Kills, Played.FromKills, Played.FromMissions, Played.Total, Curve.TotalXPToReach(6), Curve.TotalXPToReach(7)));
-	TestTrue(FString::Printf(TEXT("Ransom's Rest's story ends in level 6 (%.2f)"), Reached), Reached >= 6.0 && Reached < 7.0);
-	TestTrue(FString::Printf(TEXT("...about 790 XP (%.0f)"), Played.Total), FMath::Abs(Played.Total - 790.0) <= 60.0);
-	TestTrue(FString::Printf(TEXT("...and level 6 even without the roaming kills (%.2f)"), LevelOf(Curve, Played.WithoutRoaming)),
-		LevelOf(Curve, Played.WithoutRoaming) >= 6.0);
-	TestTrue(TEXT("Most of a turn-in's worth is the mission's, not a kill's: the missions give at least a third"), Played.FromMissions >= Played.Total / 3.0);
+	AddInfo(FString::Printf(TEXT("The story ends at level %.2f after %d kills: %.0f XP from kills, %.0f from missions, %.0f in all (level 5 at %lld, 6 at %lld)."),
+		Reached, Played.Kills, Played.FromKills, Played.FromMissions, Played.Total, Curve.TotalXPToReach(5), Curve.TotalXPToReach(6)));
+	TestTrue(FString::Printf(TEXT("Ransom's Rest's story alone ends about level 5.5 (%.2f, 5.3 to 5.8)"), Reached), Reached >= 5.3 && Reached <= 5.8);
+	TestTrue(FString::Printf(TEXT("...and level 5 even without the roaming kills (%.2f)"), LevelOf(Curve, Played.WithoutRoaming)),
+		LevelOf(Curve, Played.WithoutRoaming) >= 5.0);
+	TestTrue(TEXT("Most of a level's worth is the turn-ins', not the kills': the missions give at least two thirds"),
+		Played.FromMissions >= Played.Total * 2.0 / 3.0);
 
-	// An explorer who also clears every optional camp, patrol and ambush once ends about level 7, not 8.
-	const FPathResult Explored = PlayPath(*this, WithEncounters(Story, Encounters, { TEXT("main"), TEXT("roaming"), TEXT("optional") }), Missions,
-		*Area, Curve, Rules, /*bReport*/ false);
+	// Everything once: every mission (the valley's side missions, the Gravemother, the mountain's three), every optional
+	// camp, patrol and ambush, the roaming dead once.
+	AddInfo(TEXT("Everything:"));
+	const FPathResult Explored = PlayPath(*this, WithEncounters(Everything, Encounters, { TEXT("main"), TEXT("roaming"), TEXT("optional") }),
+		Missions, *Area, Curve, Rules, /*bReport*/ true);
 	const double Explorer = LevelOf(Curve, Explored.Total);
-	AddInfo(FString::Printf(TEXT("An explorer who clears everything once: level %.2f, %.0f XP after %d kills."), Explorer, Explored.Total, Explored.Kills));
-	TestTrue(FString::Printf(TEXT("...an explorer ends about level 7 (%.2f, under 7.75)"), Explorer), Explored.bValid && Explorer < 7.75);
+	AddInfo(FString::Printf(TEXT("Everything once ends at level %.2f after %d kills: %.0f XP from kills, %.0f from missions, %.0f in all (level 7 at %lld)."),
+		Explorer, Explored.Kills, Explored.FromKills, Explored.FromMissions, Explored.Total, Curve.TotalXPToReach(7)));
+	TestTrue(FString::Printf(TEXT("...and everything once about level 6.8 (%.2f, 6.6 to 7.0)"), Explorer), Explored.bValid && Explorer >= 6.6 && Explorer <= 7.0);
 
 	// The bluff's spiders stay level 1-2 whoever comes: a player back there at the story's end (level 7) gets a share of what
-	// a level 1 player gets, as the kill rules take it off a creature below the player.
-	FVector Bluff = FVector::ZeroVector;
-	if (TestTrue(TEXT("The bluff's nest is in the layout"), AreaLevelsLayout::FindPlace(Layout, TEXT("BluffNest"), Bluff)))
+	// a level 1 player gets, as the kill rules take it off a creature below the player (at the full XPReward, so the shipped
+	// scale's rounding to a whole point can't hide the share).
+	FPathKills Spider = MakeKills(Foes.Spider, EPathRank::Basic, 1, TEXT("BluffNest"));
+	if (TestTrue(TEXT("The bluff's nest is in the layout"), AreaLevelsLayout::FindPlace(Layout, TEXT("BluffNest"), Spider.Spot)))
 	{
-		const ACreatureBase* Spider = GetDefault<ASpiderCreature>();
-		const double Fresh = ExpectedKillXP(*Spider, EPathRank::Basic, Bluff, 1, *Area, Rules);
-		const double Strong = ExpectedKillXP(*Spider, EPathRank::Basic, Bluff, 7, *Area, Rules);
-		TestTrue(FString::Printf(TEXT("A bluff spider: %.1f XP to a level 1 player, %.1f to a level 7 one (under half)"), Fresh, Strong),
+		FLevelRules Full = Rules;
+		Full.KillXPScale = 1.0;
+		const double Fresh = ExpectedKillXP(Spider, 1, *Area, Full);
+		const double Strong = ExpectedKillXP(Spider, 7, *Area, Full);
+		TestTrue(FString::Printf(TEXT("A bluff spider's full worth: %.1f to a level 1 player, %.1f to a level 7 one (under half)"), Fresh, Strong),
 			Strong < Fresh * 0.5);
 	}
 

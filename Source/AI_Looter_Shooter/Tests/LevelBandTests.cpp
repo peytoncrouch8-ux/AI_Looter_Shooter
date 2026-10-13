@@ -343,8 +343,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAreaBandsAssetsTest, "Looter.Areas.Bands",
 bool FAreaBandsAssetsTest::RunTest(const FString& Parameters)
 {
 	// The project's areas as Tools/Unreal/create_area_assets.py writes them from the layouts' gameplay.levels: Ransom's
-	// Rest's creatures are levels 1-6 before their ranks, by zone, its boss and Legendary monster at set levels, with 8% and
-	// 2% promotions; Skyreach's creatures are level 1 and never promoted.
+	// Rest's creatures are levels 1-6 before their ranks by zone (its band 1-7 since the mountain: Abel and the Foreman at 7
+	// with their ranks), its boss and Legendary monsters at set levels, with 8% and 2% promotions; Skyreach's creatures are
+	// level 1 and never promoted.
 	const UAreaDefinition* Skyreach = UAreaDefinition::FindByName(TEXT("Skyreach"));
 	const UAreaDefinition* RansomsRest = UAreaDefinition::FindByName(TEXT("RansomsRest"));
 	if (!Skyreach || !RansomsRest || !Skyreach->HasLevelBand() || !RansomsRest->HasLevelBand())

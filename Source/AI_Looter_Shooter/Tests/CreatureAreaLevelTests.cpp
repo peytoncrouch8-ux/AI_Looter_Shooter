@@ -9,6 +9,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/ForemanCreature.h"
 #include "Creatures/GravemotherCreature.h"
 #include "Creatures/SpiderCreature.h"
 #include "Creatures/UnpaidCreature.h"
@@ -69,7 +70,15 @@ bool FCreatureAreaLevelsTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	TestTrue(TEXT("Ransom's Rest's creatures are levels 1 to 6 before their ranks"), Rest->MinLevel == 1 && Rest->GetBandTop() == 6);
+	// The band the station board shows: 1 to 7 since the mountain (2026-10-13), Abel and the Foreman at 7 with their ranks;
+	// no zone above 6 before ranks.
+	TestTrue(TEXT("Ransom's Rest's band is levels 1 to 7"), Rest->MinLevel == 1 && Rest->GetBandTop() == 7);
+	bool bZonesToSix = true;
+	for (const FAreaLevelZone& Zone : Rest->LevelZones)
+	{
+		bZonesToSix &= Zone.GetTop() <= 6;
+	}
+	TestTrue(TEXT("...and no zone's creatures above 6 before their ranks"), bZonesToSix);
 
 	// The story's fights, where they stand: 1-2 near the start, 2-4 round the town and the fields, 4-6 from the Sink on.
 	const FPlannedLevels Story[] = {
@@ -115,7 +124,22 @@ bool FCreatureAreaLevelsTest::RunTest(const FString& Parameters)
 		{ TEXT("WestRoad"), 4, 5, TEXT("the west road's walkers") },
 		{ TEXT("QuarryTrack"), 5, 6, TEXT("the quarry track's spiders") },
 		{ TEXT("Churchyard"), 3, 4, TEXT("the churchyard's risen dead") },
-		{ TEXT("Webwood"), 5, 6, TEXT("the Webwood's drop") } };
+		{ TEXT("Webwood"), 5, 6, TEXT("the Webwood's drop") },
+		// The new side missions' and the mountain's (2026-10-13), should the layout list them among its encounters: the
+		// depot's waiting room and Tilly's cellar in the valley (the cellar's spawner keeps its own 3-4), the mountain 5-6.
+		{ TEXT("DepotWaiting"), 2, 3, TEXT("the depot's waiting room (The Old Fare)") },
+		{ TEXT("TillyCellar"), 2, 3, TEXT("Tilly's cellar's ground (Knocking Below; its spawner keeps 3-4)") },
+		{ TEXT("QuarryCrew"), 5, 6, TEXT("the lift crew on the quarry floor (Dead Lift)") },
+		{ TEXT("AbeHaskett"), 5, 6, TEXT("Abe Haskett with the clamp pin (Dead Lift)") },
+		{ TEXT("RaisingSteam"), 5, 6, TEXT("the quarry held while she raises steam (Dead Lift)") },
+		{ TEXT("CrestPatrol"), 5, 6, TEXT("the crest path's spiders") },
+		{ TEXT("CalderPost"), 5, 6, TEXT("Calder's Post's yard (The Last Watch)") },
+		{ TEXT("Watch"), 5, 6, TEXT("the watch at Calder's Post (The Last Watch)") },
+		{ TEXT("DinnerPail"), 5, 6, TEXT("the Dinner Pail camp on the Bench") },
+		{ TEXT("SpoilAmbush"), 5, 6, TEXT("the spoil heap's ambush at the Diggings") },
+		{ TEXT("MineUpper"), 5, 6, TEXT("the Providence's upper gallery (Back Pay)") },
+		{ TEXT("MineLower"), 5, 6, TEXT("the Providence's lower drift (Back Pay)") },
+		{ TEXT("Foreman"), 5, 6, TEXT("the stope's shift, round the Foreman (Back Pay)") } };
 	for (const EncounterLayout::FAreaEncounter& Encounter : Layout.Encounters)
 	{
 		const FPlannedLevels* Planned = Algo::FindByPredicate(Between, [&Encounter](const FPlannedLevels& Each) { return Encounter.Id == Each.Place; });
@@ -153,6 +177,35 @@ bool FCreatureAreaLevelsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...the Gravemother over the Sink's creatures"), StoryLevels.Contains(TEXT("sink")) && Gravemother > StoryLevels[TEXT("sink")].Value);
 	TestTrue(TEXT("...Abel over his adds"), StoryLevels.Contains(TEXT("Abel")) && Abel > StoryLevels[TEXT("Abel")].Value);
 	TestTrue(TEXT("...and over the Gravemother: the second boss above the first"), Abel > Gravemother);
+	// The Foreman (Back Pay, the Providence's Legendary monster): 5 and Soulfed's two, level 7, level with Abel (the user's
+	// call, 2026-10-13), over the mountain's 5-6.
+	const int32 ForemanLevel = Rest->FindKindLevel(AForemanCreature::StaticClass()) + SoulfedOffset;
+	TestEqual(TEXT("The Foreman is level 7"), ForemanLevel, 7);
+	TestTrue(TEXT("...level with Abel"), ForemanLevel == Abel);
+
+	// The mountain's fights where the design puts them (Docs/Areas/RansomsRest_Expansion.md section 6, layout cm): all 5-6
+	// (the user's call), the quarry bowl, the crest, Calder's Post, the Bench, the Diggings and the Providence.
+	struct FMountainSpot
+	{
+		const TCHAR* What;
+		double X;
+		double Y;
+	};
+	const FMountainSpot Mountain[] = {
+		{ TEXT("the lift crew on the quarry floor"), 10800.0, 2000.0 },
+		{ TEXT("the crest path"), 14200.0, 1500.0 },
+		{ TEXT("Calder's Post's yard"), 16800.0, -6000.0 },
+		{ TEXT("the Dinner Pail camp on the Bench"), 17000.0, -500.0 },
+		{ TEXT("the Diggings' spoil heap"), 20500.0, 8000.0 },
+		{ TEXT("the Providence's upper gallery"), 26800.0, 7400.0 },
+		{ TEXT("the Providence's stope"), 33000.0, 7400.0 } };
+	for (const FMountainSpot& Each : Mountain)
+	{
+		int32 Lowest = 0;
+		int32 Highest = 0;
+		Rest->GetLevelsAt(FVector(Each.X, Each.Y, 0.0), Lowest, Highest);
+		TestTrue(FString::Printf(TEXT("%s: levels 5-6 (%d-%d)"), Each.What, Lowest, Highest), Lowest == 5 && Highest == 6);
+	}
 	bool bAbelHighest = true;
 	for (const FAreaLevelZone& Zone : Rest->LevelZones)
 	{

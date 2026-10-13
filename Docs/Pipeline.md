@@ -74,6 +74,10 @@ where the work stands.
 - **Agents** write code or scripts on disjoint files. They never build, open Unreal or touch git. They report the files
   they changed, what Main must run, the CODEMAP lines, the tests affected, and the risks they couldn't check. When an
   agent needs editor numbers, it writes a read-only probe (`Saved\<short>.py`) and Main runs it.
+- **Layout patches** (2026-10-13): while one agent owns an area's `layout.json` (the terrain agent), the others write
+  `Art/Levels/<Area>/patches/<name>.json` (path, op set/merge/append, where {id}, unlessKind, comment; entries marked
+  `file` are area_shape.py tables, edited by hand). Main applies them with `Tools/layout_patch.py <Area>` (keeps the
+  file's formatting; `--check` first), deletes the patch files, and regenerates the terrain if they touch the ground.
 - **The art session** (a separate session) models in Blender (`Art/Models/**`), never commits and never opens Unreal.
   It exports into `Intermediate\ArtExport_<Family>`, then messages Main with the files, triangle counts, pivots and
   sockets. Main imports and commits, and sends back in-game shots to check.
@@ -129,6 +133,16 @@ where the work stands.
   far trees, scrub points, boundary.
   - `Tools\terrain_identity.ps1 -Area <Area>` checks the generator still rebuilds an area byte for byte. Run it after
     any generator change, once the change is committed (it compares with HEAD).
+  - `Tools\terrain_compare.ps1 -Area <Area> [-Except <json>]` proves a grown or edited area kept its old ground: heights,
+    AO and curvature inside HEAD's boundary, outside the `-Except` areas meant to change (Ransom's Rest's mountain:
+    max 0.82 cm). Run: `blender -b --factory-startup --python Art/Models/Terrain/<Area>.py -- --macro --computed`
+    (~35 min at 512 m, 6.8 GB; `--preview` adds the look-sheet renders), then `Tools\models.ps1 -Only <Area>`.
+  - **Fitting terrain to art** (the mountain, 2026-10-13): `pad` with `exact` (a hard edge and a flat top where a model's
+    floor must meet the ground), `mesh.holes` (open the ground over a stair or an adit's mouth), `boundary.interiors`
+    (splice an interior's tongue into the play area), closed-boundary stretches where no rock dressing may stand,
+    `map.grownFrom` (grow the square without changing the old ground), `map.macroSplit` (four 4096 macro windows).
+  - **After re-gridding the core** (a grown square), delete the old tile assets that the new export doesn't overwrite
+    (`SM_<Area>_Tile_*`) and their actors: `build_area.py` places every tile mesh it finds.
 - **In the editor:** `Tools/Unreal/build_area.py <Area> [mode]`. With no mode it does the full build. The modes:
   - `gameplay`: the story pieces and creatures (`build_area_story.py` and its `build_area_<place>.py` scripts);
   - `environment`: the light, sky and fog;
@@ -149,6 +163,8 @@ where the work stands.
     1.5 m (2026-10-08: nine faces on the bluff path and the Sink ramp sank 25-100 cm, no gaps under the lip).
 - **Scatter** (PCG): `Tools/Unreal/build_island_scatter.py <Area>`.
   - It re-imports changed masks by their MD5, then generates. Wait for the instance count to settle, then save.
+  - Zones of kinds alpine, outpost, mine and crest, and `benchPines*` stands, grow pines only (PCG Intersection: one
+    `In` pin, density MINIMUM or MULTIPLY; there is no BINARY).
   - It keeps off the dressing's footprints and wears the area's material swaps.
   - Run `dressing` before the scatter when fences or graves move.
 - **Materials per area:**
@@ -255,6 +271,10 @@ where the work stands.
 - **Seating props:** after placing props or changing terrain, run `Tools/Unreal/conform_hills.py` (terrain changes
   only: it fits the hills' rims under the ground), then `Looter.SettleProps` (`selected` for the selection), and save.
   It seats every prop so no edge hovers, leaning low, wide ones with the slope.
+  - **Not after a full `build_area.py` run** (2026-10-13): the build already stands everything on the new ground, and
+    SettleProps re-seats every mesh within 6 m of the ground: it tipped the mine portal 15°, dropped Keeper's Bridge
+    2.8 m into the wash and lifted the lift head 1.5 m. `TRANSACTION UNDO` in the console took it back. Use it only on a
+    selection, for props placed by hand.
 - **Lvl_Skyreach's meadow:** grass and flowers come from the `Meadow` PCG volume (`/Game/Environment/PCG/PCG_Meadow`),
   which raycasts onto `Ground` actors and avoids `Obstacle` ones. After changing terrain, select it, press Generate and
   save. Ground cover never collides (a placed static mesh actor takes its mesh's collision unless

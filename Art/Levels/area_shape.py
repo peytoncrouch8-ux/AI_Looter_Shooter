@@ -3,10 +3,15 @@
 Area(path).build() fills one height raster over the area's map square (the layout's "map": half the square's side and
 the cell size of each raster, 10 cm for the heights on the tutorial island) in this order, each step working on the
 result of the one before: base noise and hills, ridges and scarps, plateaus and mesas and their cliffs, pits, pads,
-building footprints, knobs, ponds, creek valleys, roads, ramps, creek channels, dry gullies, the gorges below falls,
-easing unplanned banks, and last the rim rolling over the island's edge (or, grounded, the rock past the playable
-boundary's closed edges (area_boundary.py) and the seam band). It keeps what the macro painter and the mesh builder
-need: the heights, the water surface, the outline, and the curves of the roads, creeks, gullies and ramps.
+building footprints, knobs, ponds, creek valleys, roads, ramps, flights of steps, creek channels, dry gullies, the
+gorges below falls, easing unplanned banks, and last the rim rolling over the island's edge (or, grounded, the rock past
+the playable boundary's closed edges (area_boundary.py) and the seam band). It keeps what the macro painter and the mesh
+builder need: the heights, the water surface, the outline, and the curves of the roads, creeks, gullies and ramps.
+
+A map may grow (map.grownFrom: the half side, cm, of the square it grew from, on the same shape cells): the noise
+rasters and the core's outline along the escarpment's lip are then worked out as the old square had them, so the
+ground inside the old square comes out as it was (Tools/terrain_compare.py proves it). map.caps raises a raster's
+largest size; map.macroSplit cuts the macro map into windows, each its own texture (macro_windows()).
 
 Features are lists by type (FEATURE_TYPES), in layout order, each with its id: area.plateaus (mesas too), area.pits,
 area.ramps, area.ponds, area.creeks, area.spines (ridge features), area.scarps, area.knobs, area.gullies,
@@ -30,13 +35,14 @@ import numpy as np
 import area_boundary
 from area_features import (GORGE_STREAM, GORGE_WALL, PAD_BANK_REACH, FeatureSteps, ramp_drop_sides,
                            seam_conflicts)
-from area_math import (Grid, arc_length, blur, catmull_rom, cells, fbm, fbm_raster, gauss_smooth_1d, normals_of,
-                       points_in_polygon, polygon_area, polyline_field, raster_size, resample, resize, sample,
-                       signed_distance, smax, smin, smoothstep)
+from area_math import (Grid, Window, arc_length, blur, catmull_rom, cells, fbm, fbm_raster, gauss_smooth_1d,
+                       normals_of, points_in_polygon, polygon_area, polyline_field, raster_size, resample, resize,
+                       sample, signed_distance, smax, smin, smoothstep)
 from area_region import SEAM_STEP, Region, boundary, seam_weight
 
 LEVELS = os.path.dirname(os.path.abspath(__file__))
-FEATURE_TYPES = ('hill', 'plateau', 'pad', 'pond', 'creek', 'mesa', 'pit', 'ridge', 'scarp', 'knob', 'gully')
+FEATURE_TYPES = ('hill', 'plateau', 'pad', 'pond', 'creek', 'mesa', 'pit', 'ridge', 'scarp', 'knob', 'gully',
+                 'steps')
 SETTINGS = ('island', 'grounded')
 # The rasters, by the name layout.json's map.cells uses: the cell size (cm) when the layout gives none, the largest
 # size (cells across), and whether it's a texture (a power of two, so Unreal can mip and stream it). A 400 m square
@@ -59,6 +65,18 @@ FOOTPRINTS = {
     'Lookout': (4.0, 3.0), 'Chapel': (8.5, 4.0), 'WaterTower': (3.0, 2.0), 'CoffinShed': (2.5, 2.0),
     'FalseFront_Undertaker': (6.5, 3.0), 'FalseFront_Saloon': (7.0, 3.0), 'FalseFront_Store': (7.0, 3.0),
     'FalseFront_Sheriff': (5.5, 3.0),
+    # Ransom's Rest's mountain (Docs/Areas/RansomsRest_Expansion.md, section 6): each stands on a level pad of the
+    # layout's (the quarry's floor, the lift head's shoulder, Calder's Post's yard, the Diggings), wider than this, so
+    # placing it there changes nothing. The lift's tower and the mine's portal stand on a slope and in a band: none.
+    'RR_LiftHouse': (5.5, 3.0), 'RR_LiftHead': (3.0, 2.0), 'RR_Watchtower': (2.8, 2.0), 'RR_RangerCabin': (4.5, 2.5),
+    'RR_LeanTo': (3.0, 2.0), 'RR_OreBin': (4.5, 2.5), 'RR_PowderHouse': (3.0, 2.0), 'RR_Smithy': (4.5, 2.5),
+    # Ransom's Rest's own homes and fronts (section 9), centred on their pivots (the front doors), each about two thirds
+    # of the way to its farthest back corner. The hotel, the workshop and Amos's barn stand on pads instead; the dugout
+    # levels only its doorstep (its mound is dug into the slope).
+    'RR_Home_A': (6.0, 3.0), 'RR_Home_B': (7.0, 3.0), 'RR_Home_C': (5.0, 3.0), 'RR_Home_D': (6.0, 3.0),
+    'RR_Home_E': (2.5, 2.0), 'RR_Home_F': (6.0, 3.0), 'RR_Home_G': (5.5, 3.0), 'RR_Home_H': (6.5, 3.0),
+    'RR_Home_I': (6.5, 3.0), 'RR_Home_J': (4.0, 2.5), 'RR_Front_Assay': (8.0, 3.0), 'RR_Front_Barber': (8.0, 3.0),
+    'RR_CoalStage': (3.5, 2.0), 'RR_Well': (2.5, 2.5), 'RR_Outhouse': (2.0, 3.0),
 }
 # Buildings' sizes (length along the front, width) in meters: the worn ground around and in front of each (the macro
 # map) and the breaks they make in open ground (area_open.py).
@@ -66,10 +84,19 @@ BUILDINGS = {
     'Farmhouse': (9.0, 11.0), 'Barn': (12.0, 9.0), 'LogCabin': (6.5, 8.0), 'Cottage': (6.5, 8.0),
     'Outhouse': (1.3, 1.3), 'Well': (1.8, 1.8), 'Windmill': (3.0, 3.0), 'LookoutTower': (4.0, 4.0),
     'GunRack': (0.6, 2.0),
-    'Lookout': (6.6, 6.6), 'Chapel': (14.4, 9.6), 'Depot': (6.0, 10.0), 'WaterTower': (4.0, 4.0),
+    'Lookout': (6.6, 6.6), 'Chapel': (14.4, 9.6), 'Depot': (8.0, 14.0), 'WaterTower': (4.0, 4.0),
     'CoffinShed': (2.4, 3.2), 'FalseFront_Undertaker': (12.0, 7.0), 'FalseFront_Saloon': (14.0, 8.4),
     'FalseFront_Store': (13.0, 9.4), 'FalseFront_Sheriff': (10.0, 6.6),
     'Locomotive_B': (8.8, 2.8), 'PassengerCar': (12.3, 2.9), 'HearseCar': (10.3, 2.9),
+    'RR_LiftHouse': (8.0, 10.0), 'RR_LiftTower': (3.9, 3.4), 'RR_LiftHead': (4.0, 5.7), 'RR_Watchtower': (4.0, 4.0),
+    'RR_RangerCabin': (6.0, 8.0), 'RR_LeanTo': (4.0, 6.0), 'RR_MinePortal': (3.0, 7.0), 'RR_OreBin': (6.0, 8.0),
+    'RR_PowderHouse': (4.0, 5.0), 'RR_Smithy': (6.0, 8.0),
+    # The Rest's own (their pivots are their front doors, so the trampled ground lies in front of the door).
+    'RR_Home_A': (6.4, 7.2), 'RR_Home_B': (7.1, 11.4), 'RR_Home_C': (11.4, 3.9), 'RR_Home_D': (7.4, 8.0),
+    'RR_Home_E': (8.6, 12.0), 'RR_Home_F': (5.8, 8.8), 'RR_Home_G': (4.4, 7.3), 'RR_Home_H': (8.8, 8.8),
+    'RR_Home_I': (7.8, 8.0), 'RR_Home_J': (4.9, 4.2), 'RR_Front_Assay': (9.6, 7.2), 'RR_Front_Hotel': (15.7, 10.3),
+    'RR_Front_Barber': (9.3, 6.1), 'RR_Workshop_Bright': (8.2, 12.5), 'RR_Barn_Whitlock': (9.5, 15.8),
+    'RR_CoalStage': (5.4, 5.1), 'RR_Well': (1.8, 1.8), 'RR_Outhouse': (1.4, 1.5),
 }
 ROAD_STYLE = {  # how deep a road is carved and how wide its soft shoulders are (m), by kind
     'dirt': dict(carve=0.12, shoulder=2.2),
@@ -86,6 +113,21 @@ POND_SHORE_SLOPE = 0.16
 def to_m(points):
     """Layout centimeters [[X, Y], ...] to layout meters (N, 2)."""
     return np.asarray(points, dtype=np.float64) / 100.0
+
+
+def _inner_run(loop, half):
+    """A closed loop's one run of points strictly inside the square of half side half (the lip's stretch of an outline
+    whose other points lie on the square's edge), in loop order; None when there's no single such run."""
+    inside = np.max(np.abs(loop), axis=1) < half - 1e-6
+    if not inside.any() or inside.all():
+        return None
+    start = int(np.nonzero(~inside)[0][-1]) + 1
+    loop, inside = np.roll(loop, -start, axis=0), np.roll(inside, -start)
+    k0 = int(np.argmax(inside))
+    k1 = k0 + int(np.argmax(~inside[k0:])) if (~inside[k0:]).any() else len(loop)
+    if inside[k1:].any():
+        return None
+    return loop[k0:k1]
 
 
 def layout_path(name):
@@ -124,6 +166,9 @@ class Area(FeatureSteps):
         self.island = self.layout.get('island', {})
         self._map_square()
         self.grid = Grid(self.sizes['shape'], self.half)
+        if self.grown_from is not None:
+            # The noise rasters take their points from the square the map grew from (area_math._fbm_on_lattice).
+            self.grid.lattice = (self.grown_from['half'], self.grown_from['shape'])
         unknown = [f['id'] for f in self.layout['features'] if f['type'] not in FEATURE_TYPES]
         if unknown:
             raise ValueError(f"{self.path}: features of no known type ({', '.join(FEATURE_TYPES)}): "
@@ -142,9 +187,34 @@ class Area(FeatureSteps):
         self.half_cm = square['half']
         self.half = self.half_cm / 100.0
         wanted = square.get('cells', {})
+        # A layout may raise a raster's cap ("caps": {raster: cells}): a grown square keeps its 20 cm curvature and
+        # occlusion on more cells than the default 2048.
+        caps = square.get('caps', {})
+        unknown = sorted(set(caps) - set(RASTERS))
+        if unknown:
+            raise ValueError(f"{self.path}: map.caps names no raster: {', '.join(unknown)}")
         self.sizes = {}
         for raster, (cell, cap, texture) in RASTERS.items():
-            self.sizes[raster] = raster_size(2.0 * self.half_cm, float(wanted.get(raster, cell)), cap, texture)
+            self.sizes[raster] = raster_size(2.0 * self.half_cm, float(wanted.get(raster, cell)),
+                                             int(caps.get(raster, cap)), texture)
+        self.grown_from = self._grown_from(square, wanted)
+
+    def _grown_from(self, square, wanted):
+        """A grown map square (layout.json map.grownFrom: the half side, cm, of the square it grew from, the same cells
+        on the same grid): that square's half side (m) and shape raster size, which the noise rasters and the core's
+        outline along the escarpment's lip are worked out on, so everything inside the old square comes out as it did.
+        None for a map that never grew. The heights' cells must line up exactly."""
+        if 'grownFrom' not in square:
+            return None
+        ref_cm = float(square['grownFrom'])
+        cell = float(wanted.get('shape', RASTERS['shape'][0]))
+        ref_n = raster_size(2.0 * ref_cm, cell, RASTERS['shape'][1], RASTERS['shape'][2])
+        px, ref_px = 2.0 * self.half_cm / self.sizes['shape'], 2.0 * ref_cm / ref_n
+        offset = (self.half_cm - ref_cm) / px
+        if ref_cm >= self.half_cm or abs(px - ref_px) > 1e-9 or abs(offset - round(offset)) > 1e-9:
+            raise ValueError(f'{self.path}: map.grownFrom {ref_cm:g} cm must be a smaller square on the same shape '
+                             f'cells ({ref_px:g} cm there against {px:g} cm here, {offset:g} cells apart)')
+        return {'half': ref_cm / 100.0, 'shape': ref_n}
 
     def cell(self, raster):
         """The size (m) of one cell of a raster over the map square."""
@@ -160,6 +230,29 @@ class Area(FeatureSteps):
     def macro_texture(self):
         """The macro color map, relative to the repository (Art/Textures/<Area>Macro, its texture set)."""
         return f'Art/Textures/{self.name}Macro/T_{self.name}Macro_BC.png'
+
+    def macro_texture_of(self, suffix):
+        """A macro map's texture, relative to the repository: the whole map's (suffix '') or a split map's window's
+        (its own texture set, <Area>Macro<suffix>)."""
+        name = f'{self.name}Macro{suffix}'
+        return f'Art/Textures/{name}/T_{name}_BC.png'
+
+    def macro_windows(self):
+        """The macro map's pieces, [(suffix, grid)]: the map square at the macro size ('', a Grid), unless the layout
+        splits it (map.macroSplit: s cuts it into s x s windows of the macro size / s cells across, area_math.Window,
+        each its own texture set for the tiles over it; s = 2 names them SW, SE, NW, NE). A split map keeps fine
+        pixels over a large square at the size one texture may have."""
+        split = int(self.layout.get('map', {}).get('macroSplit', 1))
+        n = self.sizes['macro']
+        if split <= 1:
+            return [('', Grid(n, self.half))]
+        if n % split:
+            raise ValueError(f'{self.path}: map.macroSplit {split} must divide the macro map\'s {n} cells')
+        m, px = n // split, 2.0 * self.half / n
+        names = {(0, 0): 'SW', (0, 1): 'SE', (1, 0): 'NW', (1, 1): 'NE'} if split == 2 else {}
+        return [(names.get((i, j), f'{i}{j}'),
+                 Window(m, px, -self.half + i * m * px, -self.half + j * m * px, (self.half, n)))
+                for i in range(split) for j in range(split)]
 
     @property
     def scatter_texture(self):
@@ -228,6 +321,7 @@ class Area(FeatureSteps):
         h = self._creek_valleys(x, y, h)
         h = self._roads(h)
         h = self._ramps(h)
+        h = self._steps(h)
         h = self._creeks(h)
         h = self._gullies(h)
         h = self._gorges(h)
@@ -253,6 +347,8 @@ class Area(FeatureSteps):
         self.region.build_fields(log)
         self.core_polygon, self.core_on_lip = self.region.core_outline()
         self.outline = resample(self.core_polygon, 0.5, closed=True)
+        if self.grown_from is not None and self.core_on_lip.any():
+            self.outline = self._grown_outline()
         self.edge = -signed_distance(self.grid, self.outline, 14.0)  # meters inside the core's edge
         self.inside = self.edge > 0.0
         self.boundary, self.open_edges = boundary(self)
@@ -262,6 +358,27 @@ class Area(FeatureSteps):
             self.play_edge = self.edge
         self.h_region = self.region.raster(self.grid)
         self.dl = self.region.lip_distance(self.grid) if self.region.lip is not None else None
+
+    def _grown_outline(self):
+        """The core's outline on a grown map square (map.grownFrom): where it runs along the escarpment's lip inside the
+        old square, the very points the old square's outline had there (its 0.5 m resampling started where the lip
+        crossed the old square's edge, so the new square's would fall elsewhere along the lip and move the distance
+        inside the edge, area.edge, by a centimeter or two); the rest as the new square's own."""
+        ref = self.grown_from['half']
+        ref_poly, _ = self.region.core_outline(ref)
+        old = _inner_run(resample(ref_poly, 0.5, closed=True), ref)
+        loop = self.outline
+        inside = np.max(np.abs(loop), axis=1) < ref - 1e-6
+        if old is None or not inside.any() or inside.all():
+            return loop
+        # Turn the loop so the run inside the old square doesn't wrap past its start, then splice the old points in.
+        start = int(np.nonzero(~inside)[0][-1]) + 1
+        loop, inside = np.roll(loop, -start, axis=0), np.roll(inside, -start)
+        k0 = int(np.argmax(inside))
+        k1 = k0 + int(np.argmax(~inside[k0:])) if (~inside[k0:]).any() else len(loop)
+        if np.linalg.norm(old[0] - loop[k0]) > np.linalg.norm(old[-1] - loop[k0]):
+            old = old[::-1]
+        return np.vstack([loop[:k0], old, loop[k1:]])
 
     def _seam(self, h):
         """The seam band: the core's own shape fades into the regional field toward the square's edge, where the core
@@ -402,7 +519,9 @@ class Area(FeatureSteps):
         """Each pad: a rounded rectangle ("center", "size", "yaw") made level at "height" (cm, absolute), blending
         into the ground around it over 3 m (a small pad) or 12 m. Optional: "corner", the corners' radius as a share of
         the shorter half side (0.35); "grade" [north, east], a gentle tilt (m of rise per m; a hillside graveyard); and
-        "bank" {slope, round, toe, reach}, a graded edge instead of the blend (_pad_bank)."""
+        "bank" {slope, round, toe, reach}, a graded edge instead of the blend (_pad_bank); "exact": its edge where the
+        layout draws it and its top flat, without the wander and the micro relief every other pad has (a mine's portal
+        is fitted to it)."""
         self.pad_weight = np.zeros(h.shape, dtype=np.float32)
         wobble = 0.9 * fbm_raster(self.grid, 9.0, seed=15)
         micro = 0.05 * fbm_raster(self.grid, 5.0, seed=16)
@@ -415,15 +534,18 @@ class Area(FeatureSteps):
             corner = min(sx, sy) * f.get('corner', 0.35)
             qx, qy = np.abs(lx) - (sx - corner), np.abs(ly) - (sy - corner)
             sd = np.hypot(np.maximum(qx, 0.0), np.maximum(qy, 0.0)) + np.minimum(np.maximum(qx, qy), 0.0) - corner
-            top = f['height'] / 100.0 + micro
+            # "exact" takes the micro relief off too: a model's floor meets the pad's top to the centimeter.
+            top = f['height'] / 100.0 + (0.0 if f.get('exact') else micro)
             if 'grade' in f:
                 gx, gy = f['grade']
                 top = top + gx * (x - cx) + gy * (y - cy)
+            # "exact": the edge where the layout draws it, without the wander (a model fitted to it: a mine's portal).
+            edge = sd if f.get('exact') else sd + wobble
             if 'bank' in f:
-                h, w = self._pad_bank(f['bank'], h, sd + wobble, top)
+                h, w = self._pad_bank(f['bank'], h, edge, top)
             else:
                 blend = 3.0 if min(sx, sy) < 6.0 else 12.0
-                w = 1.0 - smoothstep(-1.0, blend, sd + wobble)
+                w = 1.0 - smoothstep(-1.0, blend, edge)
                 h = h + (top - h) * w
             self.pad_weight = np.maximum(self.pad_weight, w)
         return h
@@ -558,7 +680,9 @@ class Area(FeatureSteps):
             cx, cy = np.asarray(f['center']) / 100.0
             rx, ry = np.asarray(f['radii']) / 100.0
             level = f['waterLevel'] / 100.0
-            bottom = -f['depth'] / 100.0
+            # Its bed's lowest point: "bottom" (cm, a height like waterLevel: a tarn up on a hanging valley), else
+            # "depth" below the island's meadow level (0).
+            bottom = f['bottom'] / 100.0 if 'bottom' in f else -f['depth'] / 100.0
             dx, dy = x - cx, y - cy
             rho = np.hypot(dx / rx, dy / ry) * (1.0 + 0.07 * fbm_raster(self.grid, 7.0, seed=21))
             phi = np.arctan2(dy, dx)
@@ -624,6 +748,14 @@ class Area(FeatureSteps):
             if pond is None and self.setting == 'grounded':
                 # A spring: the water follows the ground down from where it rises, always falling.
                 ground = sample(h, pts[:, 0], pts[:, 1], self.half)
+                if f.get('waterfallAtEnd'):
+                    # Past the core's edge (a stream running over the escarpment's lip) the ground holds its level to
+                    # the end, as a gully's bed does: the canyon's drop beyond mustn't pull the water down before it.
+                    on_core = sample(self.edge, pts[:, 0], pts[:, 1], self.half) > 0.5
+                    if on_core.any() and not on_core.all():
+                        last = int(np.nonzero(on_core)[0][-1])
+                        ground = ground.copy()
+                        ground[last + 1:] = ground[last]
                 water = np.minimum.accumulate(gauss_smooth_1d(ground, 12.0) - 0.55 - 0.004 * s)
                 water = water - 0.035 * np.maximum(s - (s_lip - 9.0), 0.0)
             else:
@@ -678,6 +810,17 @@ class Area(FeatureSteps):
     def resized(self, raster, n):
         """A raster over the map square resampled to n x n."""
         return resize(raster, n, self.half)
+
+    def onto(self, raster, grid):
+        """A raster over the map square resampled onto a grid: the square at its size (as resized()), or a window of
+        it (area_math.Window: a split macro map's quarter)."""
+        if not getattr(grid, 'window', False):
+            return resize(raster, grid.n, self.half)
+        out = np.empty((grid.n, grid.n), dtype=np.float32)
+        for a in range(0, grid.n, 256):
+            x, y = grid.mesh(a, min(grid.n, a + 256))
+            out[a:a + 256] = sample(raster, x, y, self.half)
+        return out
 
     def height(self, x, y):
         """Terrain height (m) at layout-meter points."""
