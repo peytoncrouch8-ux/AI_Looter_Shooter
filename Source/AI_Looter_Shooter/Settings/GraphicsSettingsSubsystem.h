@@ -105,7 +105,7 @@ public:
 
 	/**
 	 * What a preset sets besides the engine's scalability level (0 = Low ... 3 = Epic): console variable -> value.
-	 * Lumen only on High and Epic, TSR only on Epic (TAA below), and no Nanite below High.
+	 * Lumen and TSR only on Epic (TAA below), no Nanite below High; High reflects in screen space.
 	 */
 	static TMap<FString, int32> QualitySettings(EGraphicsQuality Quality);
 

@@ -24,8 +24,8 @@ namespace
 		{
 		case EGraphicsQuality::Low:    return TEXT("Fastest: no Lumen or Nanite, simple shadows, thinner grass.");
 		case EGraphicsQuality::Medium: return TEXT("120 fps at 1080p on a Radeon RX 580, the minimum spec.");
-		case EGraphicsQuality::High:   return TEXT("Lumen lighting and Nanite detail.");
-		case EGraphicsQuality::Epic:   return TEXT("Everything at its best, with TSR anti-aliasing.");
+		case EGraphicsQuality::High:   return TEXT("Nanite detail, sharp shadows, screen-space reflections.");
+		case EGraphicsQuality::Epic:   return TEXT("Lumen lighting and everything at its best, with TSR. For strong graphics cards.");
 		}
 		return TEXT("");
 	}

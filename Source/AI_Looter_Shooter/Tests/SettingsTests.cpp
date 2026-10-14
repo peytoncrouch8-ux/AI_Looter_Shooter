@@ -17,21 +17,23 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FQualityPresetsTest, "Looter.Settings.QualityPr
 
 bool FQualityPresetsTest::RunTest(const FString& Parameters)
 {
-	// The rules the presets were measured with (Docs/Performance.md): Lumen only on High and Epic, TSR only on Epic
-	// (TAA below), and no Nanite below High, which the reference card pays about 2.5 ms for. Below High, shadows are
-	// cascades rather than virtual shadow maps, and there is no screen-space or distance field occlusion.
+	// The rules the presets were measured with (Docs/Performance.md): Lumen and TSR only on Epic (TAA below), no Nanite
+	// below High, which the reference card pays about 2.5 ms for; High reflects in screen space (2026-10-14: Lumen held
+	// Epic at 22-28 fps there, High without it 53-71). Below High, shadows are cascades rather than virtual shadow maps,
+	// and there is no screen-space or distance field occlusion; distance field occlusion only on Epic.
 	for (const EGraphicsQuality Quality : { EGraphicsQuality::Low, EGraphicsQuality::Medium, EGraphicsQuality::High, EGraphicsQuality::Epic })
 	{
 		const FString Name = UGraphicsSettingsSubsystem::QualityName(Quality);
 		const TMap<FString, int32> Settings = UGraphicsSettingsSubsystem::QualitySettings(Quality);
 		const bool bHighOrEpic = Quality == EGraphicsQuality::High || Quality == EGraphicsQuality::Epic;
-		TestEqual(Name + TEXT(" Lumen lighting"), Settings.FindRef(TEXT("r.DynamicGlobalIlluminationMethod")), bHighOrEpic ? 1 : 0);
-		TestEqual(Name + TEXT(" Lumen reflections"), Settings.FindRef(TEXT("r.ReflectionMethod")), bHighOrEpic ? 1 : 0);
-		TestEqual(Name + TEXT(" anti-aliasing"), Settings.FindRef(TEXT("r.AntiAliasingMethod")), Quality == EGraphicsQuality::Epic ? 4 : 2);
+		const bool bEpic = Quality == EGraphicsQuality::Epic;
+		TestEqual(Name + TEXT(" Lumen lighting"), Settings.FindRef(TEXT("r.DynamicGlobalIlluminationMethod")), bEpic ? 1 : 0);
+		TestEqual(Name + TEXT(" reflections"), Settings.FindRef(TEXT("r.ReflectionMethod")), bEpic ? 1 : (bHighOrEpic ? 2 : 0));
+		TestEqual(Name + TEXT(" anti-aliasing"), Settings.FindRef(TEXT("r.AntiAliasingMethod")), bEpic ? 4 : 2);
 		TestEqual(Name + TEXT(" Nanite"), Settings.FindRef(TEXT("r.Nanite")), bHighOrEpic ? 1 : 0);
 		TestEqual(Name + TEXT(" virtual shadow maps"), Settings.FindRef(TEXT("r.Shadow.Virtual.Enable")), bHighOrEpic ? 1 : 0);
 		TestEqual(Name + TEXT(" SSAO"), Settings.FindRef(TEXT("r.AmbientOcclusionLevels")), bHighOrEpic ? -1 : 0);
-		TestEqual(Name + TEXT(" distance field AO"), Settings.FindRef(TEXT("r.DistanceFieldAO")), bHighOrEpic ? 1 : 0);
+		TestEqual(Name + TEXT(" distance field AO"), Settings.FindRef(TEXT("r.DistanceFieldAO")), bEpic ? 1 : 0);
 	}
 
 	// A fresh install starts on the minimum spec, without motion blur, with the minimap and the FPS counter showing.

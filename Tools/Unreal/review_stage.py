@@ -35,8 +35,8 @@ QUALITY = {
                    'r.Shadow.Virtual.Enable': 0, 'r.Shadow.CSM.MaxCascades': 2, 'r.Shadow.MaxCSMResolution': 1536,
                    'r.Velocity.EnableVertexDeformation': 0,
                    'r.AmbientOcclusionLevels': 0, 'r.DistanceFieldAO': 0}),
-    'High': (2, {'r.DynamicGlobalIlluminationMethod': 1, 'r.ReflectionMethod': 1, 'r.Nanite': 1,
-                 'r.Shadow.Virtual.Enable': 1, 'r.AmbientOcclusionLevels': -1, 'r.DistanceFieldAO': 1}),
+    'High': (2, {'r.DynamicGlobalIlluminationMethod': 0, 'r.ReflectionMethod': 2, 'r.Nanite': 1,
+                 'r.Shadow.Virtual.Enable': 1, 'r.AmbientOcclusionLevels': -1, 'r.DistanceFieldAO': 0}),
 }
 
 actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)

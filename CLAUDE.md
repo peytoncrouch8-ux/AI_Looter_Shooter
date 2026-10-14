@@ -119,4 +119,4 @@ keep it short; details go in the pipeline.
   set); `Looter.Bestiary.Entries` checks them.
 - Volumes answer world-static queries: a trace for real geometry uses `LooterWorld::StaticGeometryParams`.
 - **Performance target:** 120 fps (8.3 ms), 1080p Medium, reference PC (RX 580, i7-8700, 16 GB), heaviest view.
-  Lumen and Nanite are High/Epic only: everything must look right on the Nanite fallback.
+  Nanite is High/Epic only, Lumen Epic only: everything must look right on the Nanite fallback without Lumen.

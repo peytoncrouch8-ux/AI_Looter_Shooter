@@ -21,9 +21,11 @@ namespace
 		int32 Values[4];
 	};
 	const FQualityVariable QualityVariables[] = {
-		// Lumen lighting and reflections. Even with its lighting off, Lumen's upkeep costs over 2 ms.
-		{ TEXT("r.DynamicGlobalIlluminationMethod"), { 0, 0, 1, 1 } },
-		{ TEXT("r.ReflectionMethod"), { 0, 0, 1, 1 } },
+		// Lumen lighting and reflections, Epic only. Even with its lighting off, Lumen's upkeep costs over 2 ms; on the
+		// reference card Lumen holds Epic at 22-28 fps, where High without it holds 53-71 (2026-10-14), so High is the
+		// middle step: Nanite and virtual shadows with screen-space reflections (2).
+		{ TEXT("r.DynamicGlobalIlluminationMethod"), { 0, 0, 0, 1 } },
+		{ TEXT("r.ReflectionMethod"), { 0, 0, 2, 1 } },
 		// TSR costs about 5 ms at 1080p; TAA about half a millisecond.
 		{ TEXT("r.AntiAliasingMethod"), { 2, 2, 2, 4 } },
 		// Nanite costs about 2.5 ms; without it every mesh draws its fallback.
@@ -38,9 +40,10 @@ namespace
 		// without them. 2 is the engine's default.
 		{ TEXT("r.Velocity.EnableVertexDeformation"), { 0, 0, 2, 2 } },
 		// Screen-space and distance field ambient occlusion cost Medium 1.7 and 0.7 ms. The textured art bakes its
-		// occlusion into the meshes instead; High and Epic get Lumen's.
+		// occlusion into the meshes instead; High gets screen-space occlusion, Epic Lumen's and the distance fields'
+		// (they need the global distance field, which High doesn't otherwise keep).
 		{ TEXT("r.AmbientOcclusionLevels"), { 0, 0, -1, -1 } },
-		{ TEXT("r.DistanceFieldAO"), { 0, 0, 1, 1 } },
+		{ TEXT("r.DistanceFieldAO"), { 0, 0, 0, 1 } },
 	};
 
 	/** Looter.Quality Low|Medium|High|Epic: sets and saves the preset, as the settings menu does (handy for perf runs). */

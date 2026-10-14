@@ -1,7 +1,7 @@
 # Performance history
 
 **Target:** 120 fps (8.3 ms) at 1080p on the Medium preset, at the heaviest view, on the reference PC (Radeon RX 580, Core i7-8700,
-16 GB). It was 60 fps until 2026-09-30. Lumen and Nanite are for High and Epic only, so everything must look right on the Nanite
+16 GB). It was 60 fps until 2026-09-30. Nanite is for High and Epic only and Lumen for Epic only, so everything must look right on the Nanite
 fallback. Per-pass budgets: `Docs/TutorialIsland.md`. How to measure: `Docs/Pipeline.md`, "Performance".
 
 Measured with `Tools\perf.ps1`: standalone game window, CSV profiler, first frames (loading) skipped; times are averages in ms.
@@ -10,16 +10,29 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 
 ## Rules
 
-- Presets Low, Medium, High, Epic = the engine's scalability level + Lumen + anti-aliasing method + Nanite. Lumen only on High and
-  Epic; TSR only on Epic (TAA otherwise); Nanite off below High (it costs the RX 580 about 2.5 ms). All presets render at full
-  resolution (the engine's own Medium renders at 71%). A fresh install starts on Medium.
+- Presets Low, Medium, High, Epic = the engine's scalability level + Lumen + anti-aliasing method + Nanite. Lumen, TSR and
+  distance field AO only on Epic (TAA otherwise); High = Nanite + virtual shadow maps + SSAO + screen-space reflections; Nanite
+  off below High (it costs the RX 580 about 2.5 ms). All presets render at full resolution (the engine's own Medium renders at
+  71%). A fresh install starts on Medium.
+- Small instanced scatter (meshes under 1.5 m radius) stays out of Lumen and the distance fields (`ULumenScatterSubsystem`):
+  Ransom's Rest's ~66k grass/flower/pebble instances made Lumen's surface cache recapture ~6,900 tiny cards
+  (`LumenSceneUpdate` 400+ ms, frames of 1.3 s alternating with normal ones, even standing still).
+- Presets on Ransom's Rest, RX 580, 10 heavy views (2026-10-14, after the fix): Low 4.8-7.9 ms, Medium 6.1-8.1, High 14.2-19.7
+  (51-70 fps), Epic 35.6-44.7 (22-28 fps, Lumen's steady cost: screen probe gather ~13 ms, scene lighting ~6). Before: High
+  21-657 ms, Epic 37-714 ms. Medium is GPU-bound (frame = GPU + ~1.4 ms; the render thread's 5 ms "EventWait/Visibility" is
+  waiting on occlusion results: HZB occlusion removes it but costs the GPU more, frame slower).
+- Medium's GPU at the heaviest views (Farm, PointOverValley, Aerial; 6.3-6.8 ms): base pass 1.7-1.9, prepass 0.75-0.9, post 0.6,
+  unaccounted 0.55, TAA 0.47, shadow depths 0.35-0.52, lights 0.34, reflection environment 0.3-0.4, translucency 0.2. What
+  groups cost (hidden, frame): scatter 0.3-0.9 ms, cliffs 0.4-0.5 (204 pieces, already merged into ~40 draws by the engine's
+  dynamic instancing: their cost is triangles; 25% fallback already), buildings 0.1-0.2 (240-370 draws), dressing and cliff
+  life 0-0.3 each. `foliage.DensityScale` changes nothing at runtime (PCG scatter applies it when generated).
 - Hardware ray tracing off. Substrate off (same frame time, fewer shaders to compile).
 - The outline (0.18 ms) and the clouds (0.4 ms) are cheap enough for every preset; the outline needs no optimizing.
 - Medium for 120 fps (2026-09-30): cascaded shadows, no SSAO/DFAO, motion blur off by default.
 - Every PCG scatter instance scales with `foliage.DensityScale`, for the presets.
 - Volumetric clouds were the big cost on the island (9.5 ms with the engine's layer, 2 ms thinned); the sky dome costs almost
   nothing.
-- Preset costs on the old sky-island scene (2026-09-29): Low 7.4 ms, Medium 12.3, High 22.0, Epic 38.1.
+- Preset costs on the old sky-island scene (2026-09-29, Lumen on High then): Low 7.4 ms, Medium 12.3, High 22.0, Epic 38.1.
 
 ## Current reference numbers (Medium, 1080p)
 

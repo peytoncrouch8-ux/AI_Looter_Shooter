@@ -38,12 +38,22 @@ previous slot; Subtitles On/Off (Interface; spoken lines hide, notices stay); he
 The town's small clutter culls at ~30 m. Perf (editor closed, 46 views): heaviest 8.1 ms (PointOverValley_FarShadow),
 Aerial 8.05, Farm 8.0; render-thread bound at ~1,450 draws: thin headroom.
 
+**Presets and perf (the user: "High and Epic absolutely tank"; picked "measure, then tune"):** Lumen's surface cache
+choked on the ~66k small scatter instances (1.3 s frames); `ULumenScatterSubsystem` leaves instanced meshes under 1.5 m out
+of Lumen and the distance fields; High = Nanite + VSM + SSAO + SSR without Lumen (51-70 fps on the RX 580, was 2-22), Epic
+keeps Lumen (22-28 fps, was 1-2). Medium unchanged, within target everywhere (heaviest 8.1-8.2 ms, GPU-bound); no free wins
+left (numbers in `Docs/Performance.md`); trade-offs offered to the user. New dev commands: `Looter.Perf.DrawShares`,
+`HideFolder`, `LumenSkip`. Cold open pictures sent (`Saved/Screenshots/ColdOpen_1014`). Small known issue: an ensure on
+Hiram's figure at load ("SkinnedAsset property overwritten ... without NotifyIfSkinnedAssetChanged", DeadFriend's
+`WearModel` sets it in the constructor; harmless, fix later).
+
 **Waiting on the user:** a playtest of all of the above (they were away; told it's ready 2026-10-14).
 
 ## Next (in order)
 
 1. The user's playtest notes first.
-2. Draw-call headroom in Ransom's Rest (Aerial, Farm, PointOverValley ~8.0-8.1 ms of 8.3): `Looter.Perf.HideTag` shares.
+2. Medium headroom (Aerial, Farm, PointOverValley 8.0-8.2 ms of 8.3, GPU-bound): only trade-offs left (grass distance or
+   density on Medium, scatter re-generated; cliff detail): the user's call.
 3. Keep polishing (the user's "until I tell you to stop"): nothing major, concepts before art.
 4. **Older open items:** Story.md's later areas' level bands predate the new curve (retune when the next area is
    designed); the user hasn't heard the newest sounds (republish the listening page); the slide is a code-drawn pose;

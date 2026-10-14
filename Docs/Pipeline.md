@@ -502,7 +502,17 @@ Rules that saved time:
   - `Tools\tour.ps1` for every view;
   - `Tools\perf.ps1 -Label ... -Exec "Looter.Quality Medium" -Map <map>`, which appends a row to `Docs/Performance.md`.
 - Per pass: `perf.ps1 -GpuStats -Exec "Looter.Quality Medium,Looter.Tour <views.json> noshots" -Frames 16000 -Skip 0 -NoRecord`, then
-  `Tools\perfviews.ps1 <csv>`. Pass the views file: without it, `Looter.Tour` walks the tutorial island's list.
+  `Tools\perfviews.ps1 <csv>`. Pass the views file: without it, `Looter.Tour` walks the tutorial island's list. `-Pattern
+  'Exclusive/RenderThread'` lists the render thread's work.
+- What a group costs: a view file of its own under `Saved/` (any path under the project) with each view twice, once with
+  `"exec": ["Looter.Perf.HideFolder RansomsRest/<folder> 1"]`, `"after": [... 0]`; `Looter.Perf.DrawShares <view>` in a view's
+  `after` lists what it drew by outliner folder and mesh (`Saved/Tour/DrawShares.csv`); `ProfileGPU` in `after` dumps one
+  frame's passes to the log (the frame as the tour leaves: can miss spikes; use the CSV capture for those);
+  `r.LumenScene.DumpStats 2` dumps Lumen's scene (cards, objects, surface cache).
+- A view measured right after a jump includes the renderer's catch-up: list a view twice (`<name>_Stay`, same place) to time
+  it standing still.
+- Lesson (2026-10-14): `Looter.Quality` in a tour or perf run saves the preset to the project's `Saved/SaveGames`, the same file
+  the user's game reads: end every batch of runs on Medium (or the user's own preset).
 
 ## Tests
 
@@ -641,6 +651,10 @@ Each line: bug (date). Cause. Fix.
 - The ore bin's trestle end stood 3.1 m over the Diggings yard (2026-10-13). Cause: its model wants a 3.6 m step. Fix:
   `oreBinBay`, an exact pad at +54 cut into the yard's south edge. Lesson: a model with a built-in step gets the step as a
   pad in the terrain, not a placement Z (sinking it buries the model).
+- High and Epic "absolutely tanked" (the user, 2026-10-14): 1-22 fps with 1.3 s frames on the RX 580. Cause: Lumen's
+  surface cache kept recapturing the ~66k small scatter instances' cards (`LumenSceneUpdate`). Fix: `ULumenScatterSubsystem`
+  leaves instanced meshes under 1.5 m out of Lumen and the distance fields; High drops Lumen (the user's pick: a middle step
+  on their card). See `Docs/Performance.md`.
 - The mouse wheel changed guns the wrong way (the user, 2026-10-14). Cause: wheel up was the next slot (2 -> 3), but the
   HUD's column puts slot 1 on top, so up went down the column. Fix: `KeyBindingSubsystem` defaults: wheel up = previous.
 - The crosshair showed while aiming down sights (2026-10-14). Fix: it fades out while aiming in every view
