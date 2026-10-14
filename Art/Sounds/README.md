@@ -183,6 +183,9 @@ Tools\sounds.ps1 -CheckOnly          only the mix and the check
 - A cue that opens on something slow (a rub, a creak, a whoosh) starts with the small physical touch that begins it (the
   fingertips on the paper, the rope going taut, the valve lever's clank), or the check calls it late; a stamp that must
   land on a card's slam (0.12 s) is led by the hand's swish (`givers.swish`, already moving at the first sample).
+- A crackle that thins to a few grains a second flags `CLICK` in its quiet tail (each lone grain stands over 12x the local
+  level, since "quiet" is measured against the cue's loudest sample): keep the grain rate's floor high (the Spitter's
+  sizzle: 1500 a second) and let the hiss bed under it last as long as the fizz.
 - A loop made of loud, sparse events (an engine's chuffs) puts its seam in a lull between two of them: the seam check
   compares the join's jump with the median step, which the quiet between events keeps small.
 - Mix a loop's layers by loudness (`analysis.loudness_max`, `orelift._lv`), not by peak: a creak's peak says little about

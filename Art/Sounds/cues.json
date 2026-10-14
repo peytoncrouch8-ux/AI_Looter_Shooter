@@ -1637,7 +1637,7 @@
       "Creature_Spitter_Sizzle_02.wav",
       "Creature_Spitter_Sizzle_03.wav"
     ],
-    "volume_db": -18.0,
+    "volume_db": -16.5,
     "pitch_jitter": 0.05,
     "class": "Effects",
     "attenuation": "Creature",

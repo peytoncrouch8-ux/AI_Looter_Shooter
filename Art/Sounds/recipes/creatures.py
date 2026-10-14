@@ -752,14 +752,16 @@ def spitter_splat(v, r):
 def spitter_sizzle(v, r):
     # A puddle as it lands (about 2 s): venom eating at the ground, a fine fizzing crackle thinning out, an airy hiss over
     # it, a low simmer under it, and bubbles popping slower and slower as it settles. Kept off the ear's sharpest band.
+    # The fizz never thins below 1500 grains a second and the hiss under it lasts as long as the fizz: a few lone grains
+    # in the quiet tail would each stand out of it like a click (the check found 4-20 of them).
     dur = 2.2
     n = ns(dur)
     t = times(n)
     env = (1.0 - np.exp(-t / 0.01)) * np.exp(-t / 0.7)
-    sizzle = G.grit(dur, child(r, 'sizzle'), 4500.0 * np.exp(-t / 0.5) + 250.0, 4000.0, 10000.0, 2.0, 4)
+    sizzle = G.grit(dur, child(r, 'sizzle'), 4500.0 * np.exp(-t / 0.5) + 1500.0, 4000.0, 10000.0, 2.0, 4)
     sizzle = normalize(sizzle) * env
     hiss = F.filt(N.white(n, child(r, 'hiss')), F.hp(5000.0, 0.7), F.lp(11000.0, 0.7), extend=False)
-    hiss = normalize(hiss * kit.turbulence(n, child(r, 'ht'), 120.0, 0.7)) * (1.0 - np.exp(-t / 0.01)) * np.exp(-t / 0.35)
+    hiss = normalize(hiss * kit.turbulence(n, child(r, 'ht'), 120.0, 0.7)) * (1.0 - np.exp(-t / 0.01)) * np.exp(-t / 0.8)
     simmer = N.band(n, child(r, 'simmer'), 250.0, 900.0) * kit.turbulence(n, child(r, 'st'), 40.0, 0.8)
     simmer = normalize(simmer) * env
     pops = _bubbles(dur * 0.8, child(r, 'pops'), lambda u: 30.0 * np.exp(-u / 0.5) + 3.0, 600.0, 2200.0, decay=1.2)

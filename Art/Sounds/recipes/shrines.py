@@ -6,8 +6,8 @@ dying fast, its pairs split wider by a rougher casting, a little of the metal's 
 small: combustion's breath (bosses.py's flame, kept low and soft), torn by flicker, a wick's crackle. Stone grinding up
 through earth is a rough low judder with grit in it, clods pattering off.
 
-- Rise (3D): the stone grinding up out of the ground, rising a little in pitch as it comes, dirt and clods falling off it,
-  a settling thud, then the candles catching with a soft breath of flame.
+- Rise (3D): the stone's crown knocking the crust of earth, then grinding up out of the ground, rising a little in pitch as
+  it comes, dirt and clods falling off it, a settling thud, then the candles catching with a soft breath of flame.
 - Activate (3D, near): kneeling at it, its menu opening: the candle flames gusting up and settling, a low hum in the stone,
   the bell's clapper stirring once against its side.
 - Unavailable (2D, the player's own): the call refused: the clapper caught in a hand, a dull choked knock and a short
@@ -60,13 +60,17 @@ def _grind(dur, r, f0=60.0, f1=150.0):
 @cue('World.Shrine.Rise', variations=2, att='Creature', cls='Effects', jitter=0.03, conc=1, level=-9.0)
 def shrine_rise(v, r):
     # The stone comes up out of the grave dirt (2.6 s), dirt and clods falling off it all the way; it settles with a thud;
-    # the candles catch.
+    # the candles catch. It starts on the stone's crown knocking the crust of earth (a dull thump and a crumble of dirt):
+    # the grind swells in over 0.3 s, so alone it reaches the check's floor 21-24 ms late.
     dur = 2.6
     grind = _grind(dur, child(r, 'grind'), 58.0 * jitter(r, 1, 0.06), 150.0 * jitter(r, 1, 0.06))
     clods = _debris(dur, child(r, 'clods'), 16, 0.15, dur - 0.4, 700.0, 3200.0)
     settle = kit.noise_thump(0.5, child(r, 'settle'), 200.0, 55.0, 0.22)
     catch = _candles(0.9, child(r, 'catch'), 0.12)
-    x = layers((grind, 0.0, 0.0), (clods, 0.0, -12.0), (settle, dur - 0.12, -3.0), (catch, dur + 0.05, -11.0))
+    crust = kit.noise_thump(0.14, child(r, 'crust'), 300.0, 90.0, 0.05, 1.1, None, 0.0004)
+    crumble = kit.grit_burst(0.09, child(r, 'crumble'), 2500.0, 300.0, 2400.0, 0.04, 0.0008)
+    x = layers((grind, 0.0, 0.0), (clods, 0.0, -12.0), (settle, dur - 0.12, -3.0), (catch, dur + 0.05, -11.0),
+               (crust, 0.0, -20.0), (crumble, 0.0, -24.0))
     x = F.filt(x, F.hp(40.0), F.peak(3200.0, -3.0, 0.8), extend=False)
     return _outside(x, r, -16.0)
 
