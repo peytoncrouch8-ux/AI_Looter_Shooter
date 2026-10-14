@@ -236,10 +236,12 @@ class AI_LOOTER_SHOOTER_API ULooterSessionSave : public USaveGame
 public:
 	/**
 	 * 1: the first sessions, with one world (the level the session was in).
-	 * 2: a world per map (Worlds), the campaign record (Campaign) and where a trip arrives (ArrivalTag). A version 1
-	 *    save is brought up to date as it's read (Upgrade), before anything can save it again.
+	 * 2: a world per map (Worlds), the campaign record (Campaign) and where a trip arrives (ArrivalTag).
+	 * 3: the same fields; the campaign record is on 2026-10-13's missions (CampaignStepMigration: Main 4's steps, the side
+	 *    missions that used to start by themselves). An older save is brought up to date as it's read (Upgrade), before
+	 *    anything can save it again.
 	 */
-	static constexpr int32 CurrentVersion = 2;
+	static constexpr int32 CurrentVersion = 3;
 
 	/** Every version 1 session was played on the tutorial island: a version 1 world with no map is filed under it. */
 	static constexpr const TCHAR* Version1Map = TEXT("/Game/Maps/Lvl_TutorialIsland");
@@ -382,8 +384,9 @@ public:
 
 	/**
 	 * Brings a save just read up to CurrentVersion: version 1's world is filed under the map it was saved in (the
-	 * tutorial island when it has none). Guns, ammo, health, progress and the player's spot don't move. A save written by
-	 * a newer game is left as it is. Returns the version it was read as.
+	 * tutorial island when it has none); version 2's campaign record is moved onto 2026-10-13's missions when it was written
+	 * before them (CampaignStepMigration::Upgrade). Guns, ammo, health, progress and the player's spot don't move. A save
+	 * written by a newer game is left as it is. Returns the version it was read as.
 	 */
 	int32 Upgrade();
 

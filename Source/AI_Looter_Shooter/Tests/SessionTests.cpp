@@ -216,7 +216,7 @@ bool FSessionUpgradeTest::RunTest(const FString& Parameters)
 {
 	// A version 1 session as the first sessions wrote it: one world (the level it was saved in), the player and their
 	// guns. Only fields version 1 had are set, so its bytes are what version 1 wrote. Read as the game reads a session,
-	// it comes up to version 2 with that world filed under its map, and nothing else moves.
+	// it comes up to the current version with that world filed under its map, and nothing else moves.
 	UWeaponDefinition* Rifle = LoadRifle();
 	if (!TestNotNull(TEXT("Rifle definition"), Rifle))
 	{
@@ -265,7 +265,7 @@ bool FSessionUpgradeTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The story hasn't begun"), !Upgraded->Campaign.bFirstCastOff && Upgraded->Campaign.CompletedMissions.IsEmpty()
 		&& Upgraded->Campaign.OpenedAreas.IsEmpty());
 
-	// Saved again it's a version 2 save: read back the same, and not upgraded twice.
+	// Saved again it's a current save: read back the same, and not upgraded twice.
 	const ULooterSessionSave* Again = WriteAndRead(Upgraded);
 	if (TestNotNull(TEXT("Read again"), Again))
 	{

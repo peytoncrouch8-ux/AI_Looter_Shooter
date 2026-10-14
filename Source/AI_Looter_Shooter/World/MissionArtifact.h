@@ -73,9 +73,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Artifact")
 	bool bTakeOnAccept = true;
 
-	/** How far from the player's eyes it can be picked up (cm). */
+	/**
+	 * How far from the player's eyes it can be picked up (cm): a notice board's 3 m. Beyond its use, the reach weighs in the
+	 * Interact key's choice (InteractionFocus::ScoreOf: distance counts against a candidate as a share of its reach), so a
+	 * card laid over a paper (Ruth's note on the Rangers' board, the gate's poster) must reach farther than the paper's 2.5 m
+	 * (the player's own reach) to win the focus over it wherever on the paper the player looks.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Artifact", meta = (ClampMin = "0", Units = "cm"))
-	float Reach = 250.f;
+	float Reach = 300.f;
 
 protected:
 	virtual void BeginPlay() override;

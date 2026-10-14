@@ -16,14 +16,16 @@ Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
   The valley, after Main 3:
   DA_Mission_Side1  "Wanted: Already Dead", offered by the poster on the town gate (Artifact_PosterGate): 0 six of the
                     seven wanted posters torn down (held; counted from the world, so the ones torn before count), 1 Ruth
-                    Calder's note on the Rim Rangers' board read (the AWantedPoster tagged CalderNote) + optional the
-                    sheriff's daybook (OdellDaybook). Turned in to Tilly: she wrote ALREADY. 400 XP, a Rare gun, her purse
-                    (50).
-  DA_Mission_CaldersCaches "Calder's Caches", offered by Ruth's note (Artifact_CalderNote): 0 the three caches' tags
+                    Calder's note on the Rim Rangers' board read (anything tagged CalderNote: the AWantedPoster, or the
+                    card over it while it offers Calder's Caches) + optional the sheriff's daybook (OdellDaybook). Turned
+                    in to Tilly: she wrote ALREADY. 400 XP, a Rare gun, her purse (50).
+  DA_Mission_CaldersCaches "Calder's Caches", offered by Ruth's note (Artifact_CalderNote, pinned on the Rangers' board:
+                    the board's screen offers it too): 0 the three caches' tags
                     (items CacheTag1-3, shown from Main 1 on, so the bluff path's can be taken in Main 2) + optional the
                     three caches opened (counted from the world), 1 the gang's strongbox in the sheriff's lockup opened
                     (counted from the world), 2 the Deacon's slip in it read (DeaconsSlip). Turned in at the Rangers' board
-                    (NoticeBoard_Rangers). 250 XP, 30 silver.
+                    (NoticeBoard_Rangers): the tags on Calder's tally, Hob's word, her fourth cache up the mountain. 250
+                    XP, 30 silver.
   DA_Mission_OldFare "The Old Fare", offered by Mr. Sloane through his upstairs door (Speaker_Agent): 0 the depot's waiting
                     room cleared (DepotWaiting, 5), 1 the baggage room (Place_BaggageRoom), 2 Fenn's coffin looked at
                     (FennCoffin, a tap: its words DA_Lines_FennLook), 3 Mr. Sloane asked about the coins (his talk: the
@@ -65,8 +67,9 @@ Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
                     cleared (CalderPost, 5), 1 lamp oil in Ruth's cabin (item LampOil) + optional her journal
                     (RuthJournal), 2 the watch fire lit (WatchFire, held: AWatchFire's LightStep 2), 3 the post kept for 45 s
                     (Place_CalderPost; Watch), 4 the far light's answer read with Ruth's code book (CodeBook: the far light
-                    shows from step 4) + optional the post's log signed (PostLog). Turned in at the post's board. 1,300 XP,
-                    60 silver (and Calder's fourth cache in the cabin opens, the placing script's).
+                    shows from step 4) + optional the post's log signed (PostLog). Turned in at the post's board (Ellis's
+                    and Hob's words). 1,300 XP, 60 silver (and Calder's fourth cache in the cabin opens, the placing
+                    script's).
   DA_Mission_BackPay "Back Pay", offered by No. 7's tag on the Providence's tag board (Artifact_MinersTag): 0 into the
                     Providence (Place_UpperGallery, height counted), 1 the upper gallery cleared (MineUpper, 5), 2 the
                     Foreman's payroll book read (PayrollBook) + optional the chalk on the wall (ChalkTally), 3 the lower
@@ -329,9 +332,10 @@ def offer(giver_tag='', giver='', lines=(), briefing=''):
 
 def turn_in(automatic=False, speaker='', giver='', lines=(), choices=(), question=''):
     """FMissionTurnIn, as create_mission_assets.py makes it: the giver's speaker tag and name (anyone at a speaker point: a
-    door, a coffin, a speaking tube, a tag board; or a notice board, which turns it in through its screen and says
-    nothing), what they say as it's turned in (none: their own lines there), and none or two choice()s (or dicts of its
-    fields) with the card's question; automatic: it finishes by itself after its last objective."""
+    door, a coffin, a speaking tube, a tag board; or a notice board, which turns it in through its screen and says the
+    lines as captions once the screen closes, a line naming no speaker shown as written), what they say as it's turned in
+    (none: their own lines there), and none or two choice()s (or dicts of its fields) with the card's question; automatic:
+    it finishes by itself after its last objective."""
     if len(choices) not in (0, 2):
         raise RuntimeError(f'a turn-in takes no choices or two, not {len(choices)}: nothing was changed')
     made = unreal.MissionTurnIn()
@@ -350,11 +354,13 @@ def turn_in(automatic=False, speaker='', giver='', lines=(), choices=(), questio
 
 def side1_steps(asset):
     """Tear down the posters (any 6 of the 7, held), then read Calder's note on the Rangers' board (the sheriff's daybook
-    in the office beside it, if Ellis looks). The arrows find their own: the nearest poster still up, then the note."""
+    in the office beside it, if Ellis looks). The arrows find their own: the nearest poster still up, then the note. The
+    note is anything tagged CalderNote, not only the paper (AWantedPoster): while Calder's Caches is on offer the card laid
+    over the paper (Artifact_CalderNote, tagged CalderNote too) takes the key, and reading it there counts."""
     return [
         step(interact(asset, 'Tear down your wanted posters around town and on the farms.', WANTED_TAG, 'WantedPoster',
                       count=6, hold=True, lasting=True, short='Tear down your wanted posters')),
-        step(interact(asset, "Read the note on the Rim Rangers' board by the sheriff's office.", NOTE_TAG, 'WantedPoster',
+        step(interact(asset, "Read the note on the Rim Rangers' board by the sheriff's office.", NOTE_TAG,
                       short="Read the note on the Rangers' board"),
              read_objective(asset, "Look round the sheriff's office: the daybook on his desk.", 'OdellDaybook',
                             optional=True, short="Read the sheriff's daybook")),
@@ -557,10 +563,12 @@ MISSIONS = [
                 dict(item_id='CacheTag3', name="Ranger's tag: the bluff path",
                      line="A Rim Rangers' brass tag from the cache where the Ransom kid used to go to sulk.",
                      mesh=PROPS + 'SM_CacheTag')],
-         # Pinned on Calder's tally at the board, Ranger fashion (a board turns it in through its screen and says
-         # nothing: Hob's word is for when it does).
+         # Pinned on Calder's tally at the board, Ranger fashion: turned in through the board's screen, whose words play
+         # as it closes (ANoticeBoard::TurnIn). Her note's last line points up the mountain, to Dead Lift.
          turn_in=dict(speaker=RANGERS_BOARD, giver="the Rangers' board", lines=[
+             (ELLIS, "Three tags on Calder's tally. Ranger fashion."),
              (HOB, "Three tags for the Rangers. She'll still hang you, sunshine."),
+             (ELLIS, "Her fourth's up at the Larkspur post. If that old lift ever runs again."),
          ]),
          rewards=dict(experience=250, silver=30),
          expect=[['MissionCollectItemObjective', 'MissionLastingInteractObjective'], 'MissionLastingInteractObjective',
@@ -710,10 +718,12 @@ MISSIONS = [
          items=[dict(item_id='LampOil', name='Lamp oil',
                      line="A can of Ruth Calder's lamp oil, for the watch fire on the tower.",
                      mesh=PROPS + 'SM_LampOil')],
-         # Signed off at the post's board (it says nothing; Hob's word is for when it does). Calder's fourth cache, the
-         # Supply Crate in the cabin, opens with it (the placing script's).
+         # Signed off at the post's board: its words play as the board's screen closes (ANoticeBoard::TurnIn). Calder's
+         # fourth cache, the Supply Crate in the cabin, opens with it (the placing script's).
          turn_in=dict(speaker=POST_BOARD, giver="the post's board", lines=[
+             (ELLIS, "Post held, Captain. Wherever you're riding."),
              (HOB, "Larkspur stands, sunshine. On a dead outlaw's word."),
+             (HOB, "And her fourth cache in the cabin's open. Help yourself. She'd hate that."),
          ]),
          rewards=dict(experience=1300, silver=60),
          expect=['MissionClearObjective', ['MissionCollectItemObjective', 'MissionEventObjective'], 'MissionInteractObjective',

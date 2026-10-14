@@ -32,8 +32,9 @@ struct FMissionRewards;
  *  - one done is stamped done; one not up yet is faint, with the board's note (Skyreach's: bring a gun first);
  *  - one up for the taking (a bounty board's job: the board offers it) shows its ! and "[E] Take a look": the offer card
  *    opens over the board (ALooterHUD::OpenMissionOffer), which has the keys until it closes; the board shows it taken;
- *  - one offered by someone else and only turned in here (Calder's Caches, from Ruth's note) says "Offered elsewhere" and
- *    where it's picked up.
+ *  - one picked up from a note pinned on the board's face (Calder's Caches, from Ruth's note on the Rangers' board) is up for
+ *    the taking the same way, its card opened from the note, and says "Ruth Calder's note, pinned to this board";
+ *  - one offered by someone else and only turned in here says "Offered elsewhere" and where it's picked up.
  * Every card is a stop of an FMenuNavigator: W / S, the arrows, the D-pad or the left stick choose one (the kit's focus
  * look on it while keys drive), E (or wherever Interact is bound), Enter, Space or A act on it, Esc or B close. Under the
  * mouse a card lights as it's pointed at; a click chooses a card, a click on the chosen one (or a double click) acts on
@@ -139,7 +140,10 @@ private:
 	 * with where; tracked already; turned in to someone else; done; not posted yet).
 	 */
 	void SayWhyNot(int32 Index);
-	/** Where a job offered by someone else is picked up ("Ruth's note, at Calder's Post"), as the Missions page says it. */
+	/**
+	 * Where a job offered by someone else is picked up ("Ruth's note, at Calder's Post"), as the Missions page says it; one
+	 * whose note is pinned on this board says so ("Ruth Calder's note, pinned to this board").
+	 */
 	FText WhereToTake(const FNoticeBoardPosting& Posting) const;
 	/** The runner finished a mission: a turn-in here keeps what it gave, for its card. */
 	void HandleMissionCompleted(const UMissionDefinition& Mission, const FMissionRewardsGiven& Given);

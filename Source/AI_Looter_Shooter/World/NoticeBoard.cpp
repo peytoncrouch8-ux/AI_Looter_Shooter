@@ -7,6 +7,8 @@
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionObjective.h"
 #include "Missions/MissionRunner.h"
+#include "Story/CaptionSubsystem.h"
+#include "Story/StoryLine.h"
 #include "UI/HUD/LooterHUD.h"
 #include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
@@ -20,6 +22,12 @@ namespace
 	/** The face's box: as wide and tall as SM_NoticeBoard's face, a few cm deep, just behind the point read from. */
 	const FVector FaceExtent(3.0, 78.0, 48.0);
 	constexpr double FaceBehindPoint = 5.0;
+
+	/**
+	 * How far in front of or behind the face's box a thing may stand and still be pinned on it (cm): a hand's breadth. Ruth's
+	 * note's card stands 1.5 cm proud of the paper (build_area_missionprops_valley.py's CARD_PROUD), the paper on the face.
+	 */
+	constexpr double PinDepth = 10.0;
 
 	ENoticePosting StateOf(const UMissionRunner& Runner, const UMissionDefinition& Mission)
 	{
@@ -191,10 +199,63 @@ bool ANoticeBoard::Offers(const UMissionDefinition& Mission) const
 	return Mission.IsOffered() && ActorHasTag(Mission.Offer.GiverTag);
 }
 
+bool ANoticeBoard::IsOnFace(const FVector& Point) const
+{
+	// In the board's own frame, against the face's box (its middle as OnConstruction puts it).
+	const FVector Local = GetActorTransform().InverseTransformPosition(Point);
+	const FVector Middle = FaceOffset - FVector(FaceBehindPoint + FaceExtent.X, 0.0, 0.0);
+	return FMath::Abs(Local.Y - Middle.Y) <= FaceExtent.Y && FMath::Abs(Local.Z - Middle.Z) <= FaceExtent.Z
+		&& FMath::Abs(Local.X - Middle.X) <= FaceExtent.X + PinDepth;
+}
+
+TArray<AActor*> ANoticeBoard::GatherPinned() const
+{
+	TArray<AActor*> Pinned;
+	// Only the level's interactables: a giver is one (an artifact registers while it's shown and leaves once taken).
+	const UInteractionSubsystem* Registry = UInteractionSubsystem::Get(this);
+	if (!Registry)
+	{
+		return Pinned;
+	}
+	for (const TWeakObjectPtr<AActor>& Entry : Registry->GetInteractables())
+	{
+		AActor* Thing = Entry.Get();
+		const IInteractable* Interactable = Cast<IInteractable>(Thing);
+		if (!Interactable || Thing == this || Thing->IsHidden() || Thing->IsActorBeingDestroyed())
+		{
+			continue;
+		}
+		if (IsOnFace(Interactable->GetInteractionLocation().Get(Thing->GetActorLocation())))
+		{
+			Pinned.Add(Thing);
+		}
+	}
+	return Pinned;
+}
+
+AActor* ANoticeBoard::PinnedGiverAmong(const TArray<AActor*>& Pinned, const UMissionDefinition& Mission) const
+{
+	if (!Mission.IsOffered() || Offers(Mission))
+	{
+		return nullptr;
+	}
+	AActor* const* Found = Pinned.FindByPredicate([&Mission](const AActor* Thing) { return Thing->ActorHasTag(Mission.Offer.GiverTag); });
+	return Found ? *Found : nullptr;
+}
+
+AActor* ANoticeBoard::FindPinnedGiver(const UMissionDefinition& Mission) const
+{
+	// The face is looked over only for a mission something else offers.
+	return Mission.IsOffered() && !Offers(Mission) ? PinnedGiverAmong(GatherPinned(), Mission) : nullptr;
+}
+
 TArray<FNoticeBoardPosting> ANoticeBoard::GatherPostings(const UMissionRunner& Runner) const
 {
 	TArray<FNoticeBoardPosting> Found;
 	const FName Tracked = Runner.GetTrackedMission();
+	// What's pinned on the face, looked for once: a job picked up from a note hanging here is taken here too (the
+	// play-through's Calder's Caches card said "picked up elsewhere: Ruth Calder's note, at Main Street" under that very note).
+	const TArray<AActor*> Pinned = GatherPinned();
 	auto Pin = [&](const UMissionDefinition& Mission, ENoticePosting State)
 	{
 		const FName MissionId = Mission.GetMissionId();
@@ -204,6 +265,11 @@ TArray<FNoticeBoardPosting> ANoticeBoard::GatherPostings(const UMissionRunner& R
 		Posting.State = State;
 		Posting.bTurnedInHere = Gives(Mission);
 		Posting.bOfferedHere = Offers(Mission);
+		if (!Posting.bOfferedHere)
+		{
+			Posting.PinnedGiver = PinnedGiverAmong(Pinned, Mission);
+			Posting.bOfferedHere = Posting.PinnedGiver.IsValid();
+		}
 		Posting.bTracked = State != ENoticePosting::Done && Tracked == MissionId;
 		if (State == ENoticePosting::Open)
 		{
@@ -239,7 +305,8 @@ TArray<FNoticeBoardPosting> ANoticeBoard::GatherPostings(const UMissionRunner& R
 	TArray<TPair<const UMissionDefinition*, ENoticePosting>> Tagged;
 	for (const UMissionDefinition* Mission : Runner.GetDefinitions())
 	{
-		if (!Mission || Postings.Contains(Mission->GetMissionId()) || (!Offers(*Mission) && !Gives(*Mission)))
+		if (!Mission || Postings.Contains(Mission->GetMissionId())
+			|| (!Offers(*Mission) && !Gives(*Mission) && !PinnedGiverAmong(Pinned, *Mission)))
 		{
 			continue;
 		}
@@ -267,8 +334,24 @@ bool ANoticeBoard::TurnIn(UMissionRunner& Runner, FName MissionId) const
 	{
 		return false;
 	}
-	UE_LOG(LogLooter, Log, TEXT("%s: %s turned in at the board."), *GetActorNameOrLabel(), *MissionId.ToString());
-	return Runner.TurnIn(MissionId);
+	// Its words, copied before the runner lets the mission go.
+	const TArray<FStoryLine> Said = Mission->TurnIn.Lines;
+	if (!Runner.TurnIn(MissionId))
+	{
+		return false;
+	}
+	// Its moment, as a giver's talk has one (the play-through's board turn-ins said nothing): the tags pinned on Calder's
+	// tally, Hob's remark. They wait under the board's screen (captions hold under a menu) and play as it closes. A board has
+	// no voice of its own: a line naming nobody is shown as it's written.
+	if (!Said.IsEmpty())
+	{
+		if (UCaptionSubsystem* Captions = UCaptionSubsystem::Get(this))
+		{
+			Captions->Play(Said, ECaptionPlay::Interrupt);
+		}
+	}
+	UE_LOG(LogLooter, Log, TEXT("%s: %s turned in at the board (%d lines said)."), *GetActorNameOrLabel(), *MissionId.ToString(), Said.Num());
+	return true;
 }
 
 bool ANoticeBoard::Track(UMissionRunner& Runner, FName MissionId) const

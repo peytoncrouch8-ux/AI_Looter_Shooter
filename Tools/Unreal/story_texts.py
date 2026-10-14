@@ -185,7 +185,8 @@ ARTIFACTS = {
     # tap reads the poster first; then it tears like the others and counts.
     'Artifact_PosterGate': dict(title='Your wanted poster', prompt='Read the poster', text='', model='',
                                 take_on_accept=False),
-    # Calder's Caches: Ruth Calder's note, pinned on the Rim Rangers' board by the sheriff's office.
+    # Calder's Caches: Ruth Calder's note, pinned on the Rim Rangers' board by the sheriff's office (tagged CalderNote too,
+    # so a read through it is Side 1's "read the note"; the board's screen offers the job from it as well).
     'Artifact_CalderNote': dict(title="Ruth Calder's note", prompt='Read the note', text='', model='', take_on_accept=False),
     # Back Pay: No. 7's brass tag on the IN side of the Providence's tag board (SM_RR_TagBoard_TagsIn). Its card opens
     # on "No. 7. J. ODELL. IN.", the mission's briefing's first words.
@@ -336,8 +337,9 @@ MUTTERS = {
     # (Mr. Sloane's word about the coal is his window's topic during Dead Lift now: DA_Lines_AgentWindowCoal.)
     # Hiram from the winch house as the lift crew rise (Dead Lift's first step).
     'Speaker_Hiram': [(dict(during='DeadLift', before_step=1), 'DA_Lines_HiramCrew')],
-    # The Haskett house on Main Street once the lift runs (a town-life household's mutter).
-    'Haskett': [(dict(after=['DeadLift']), 'DA_Lines_HaskettLift')],
+    # (The Haskett house's "...That's the lift. Abe always said he'd hear her run." once Dead Lift is done is a town-life
+    # door's mutter: World/TownLifeRules.cpp's News, the CottageNorth household, which ATownLifeDoor says by itself. No
+    # speaker point carries it, so it isn't listed here; DA_Lines_HaskettLift holds the same words.)
 }
 
 PERCHES = {

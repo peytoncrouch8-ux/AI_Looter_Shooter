@@ -12,8 +12,8 @@ Main 1:
 - Hob's roosts (2026-10-13, wave 3: they replaced the respawn graves as the one save, respawn and fast-travel point):
   build_area_roosts.py places every one from the layout's gameplay.roosts, the farm's (FamilyPlot) outside the family
   plot's east gate first; the cold open's grave wake stays a scene of its own.
-- The two headboards to read (ASpeakerPoint tagged Headboard_Ellis and Headboard_Abel: "Read", from 2.5 m) at the graves'
-  Interact sockets.
+- The two headboards to read ("Read", from 2.5 m) at the graves' Interact sockets: Abel's an ASpeakerPoint tagged
+  Headboard_Abel, Ellis's own an AReadableProp HeadboardEllis tagged Headboard_Ellis (Main 1's optional reads it).
 - Grandma Delia's screen door (ASpeakerPoint tagged Speaker_Delia) on the farmhouse's front door, and her house's screen
   door and plate (build_area_farm.py).
 Main 2:
@@ -327,11 +327,16 @@ def place_family_plot(build):
 
 
 def place_headboards(build, grave_ellis):
-    cls = actor_class('SpeakerPoint')
-    if cls is None:
-        return
-    for kind, tag, line_set in (('Grave_Ellis', 'Headboard_Ellis', 'DA_Lines_HeadboardEllis'),
-                                ('Grave_Abel', 'Headboard_Abel', 'DA_Lines_HeadboardAbel')):
+    """The two headboards to read, at their graves' Interact sockets. Abel's is a speaker point (Headboard_Abel: his
+    carving and Hob's frost said as captions; Main 1's step "Read the headboard beside yours" is an Interact on it).
+    Ellis's own is a readable (AReadableProp HeadboardEllis, tagged Headboard_Ellis too: the carving on the reading card,
+    then Ellis's and Hob's words, story_texts.py READABLES), so Main 1's optional "Read your own headboard" counts it
+    (its Readable.HeadboardEllis event); as a speaker point it sent no such event and the optional could never be done."""
+    import story_texts
+    texts = importlib.reload(story_texts)
+    point_cls = actor_class('SpeakerPoint')
+    readable_cls = actor_class('ReadableProp')
+    for kind, tag in (('Grave_Ellis', 'Headboard_Ellis'), ('Grave_Abel', 'Headboard_Abel')):
         grave = grave_ellis if kind == 'Grave_Ellis' else placed(build, kind)
         face = socket(grave, 'Interact') if grave else None
         if face is None:
@@ -339,9 +344,19 @@ def place_headboards(build, grave_ellis):
                 build.warn(f'{kind} has no Interact socket: its headboard can\'t be read')
             continue
         at = face.translation
-        speaker(build, cls, (at.x, at.y, at.z), face.rotation.rotator().yaw, tag, tag, prompt='Read', reach=READ_REACH,
-                line_set=lines(build, line_set))
-    build.log('the headboards, to read')
+        yaw = face.rotation.rotator().yaw
+        if kind == 'Grave_Ellis':
+            if readable_cls is None:
+                build.warn('no ReadableProp class (build the game module first): Ellis\'s headboard can\'t be read')
+                continue
+            board = build.place(readable_cls, (at.x, at.y, at.z), yaw, label=tag, folder='Gameplay',
+                                tags=(tag, 'Readable', 'Readable_HeadboardEllis'))
+            texts.apply_readable(board, 'HeadboardEllis')
+            board.set_editor_property('reach', READ_REACH)
+        elif point_cls is not None:
+            speaker(build, point_cls, (at.x, at.y, at.z), yaw, tag, tag, prompt='Read', reach=READ_REACH,
+                    line_set=lines(build, 'DA_Lines_HeadboardAbel'))
+    build.log('the headboards, to read (Ellis\'s a readable for Main 1\'s optional)')
 
 
 # ---------------------------------------------------------------------------

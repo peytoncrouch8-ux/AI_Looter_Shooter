@@ -1,6 +1,7 @@
 // ULooterSessionSave: bringing older saves up to date, each map's world, and a trip's bookkeeping.
 
 #include "Session/SessionSave.h"
+#include "Session/CampaignStepMigration.h"
 
 int32 ULooterSessionSave::Upgrade()
 {
@@ -9,6 +10,14 @@ int32 ULooterSessionSave::Upgrade()
 	{
 		// Up to date, or written by a newer game: left as it is.
 		return ReadVersion;
+	}
+
+	// Version 2's campaign record may predate 2026-10-13's missions (Main 4's knock went in before its bell, the side
+	// missions came to be offered): moved onto today's, by when it was written. Version 1 had no record to move; a save that
+	// says nothing of its version (0) isn't one a session wrote.
+	if (ReadVersion == 2)
+	{
+		CampaignStepMigration::Upgrade(Campaign, Saved);
 	}
 
 	// Before version 2 a session kept one world: the level it was saved in, which Map names. It becomes that map's world.

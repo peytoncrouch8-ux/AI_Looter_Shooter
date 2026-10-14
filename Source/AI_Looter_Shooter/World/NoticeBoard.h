@@ -34,8 +34,13 @@ struct AI_LOOTER_SHOOTER_API FNoticeBoardPosting
 	ENoticePosting State = ENoticePosting::Locked;
 	/** It's turned in here (its giver is this board), rather than finishing by itself. */
 	bool bTurnedInHere = false;
-	/** It's picked up here (the board offers it), as a bounty board's jobs are. */
+	/** It's picked up here (the board offers it, or what offers it is pinned on its face), as a bounty board's jobs are. */
 	bool bOfferedHere = false;
+	/**
+	 * What it's picked up from when that is pinned on this board's face rather than the board itself (Ruth Calder's note on
+	 * the Rangers' board, an AMissionArtifact): taking it here opens the offer card from that note. Unset otherwise.
+	 */
+	TWeakObjectPtr<AActor> PinnedGiver;
 	/** The tracked mission: the minimap and the HUD's tracker follow it. */
 	bool bTracked = false;
 	/** Its current objective's count ("3 / 6") while it's open and counts several; empty otherwise. */
@@ -59,8 +64,13 @@ struct AI_LOOTER_SHOOTER_API FNoticeBoardPosting
  * Any town's board is a bounty board too (2026-10-13: every mission is picked up from a giver): the missions offered by a
  * tag it carries (FMissionOffer::GiverTag: NoticeBoard_Rangers) are pinned up with its Postings while they're offered,
  * under way, ready or done, and choosing one up for the taking opens the offer card over the board's screen
- * (ALooterHUD::OpenMissionOffer); a ! floats over the board while one is. Placed on any layout by
- * Tools/Unreal/build_area_board.py (gameplay.boards), with its own tags, title and postings.
+ * (ALooterHUD::OpenMissionOffer); a ! floats over the board while one is. A job picked up from something pinned on its face
+ * (Ruth Calder's note on the Rangers' board: an AMissionArtifact laid over the paper) is up for the taking here too, its
+ * card opened from that note (FindPinnedGiver). Placed on any layout by Tools/Unreal/build_area_board.py
+ * (gameplay.boards), with its own tags, title and postings.
+ *
+ * A turn-in here has its moment as a giver's has: the mission's turn-in words (FMissionTurnIn::Lines: the tags pinned on
+ * Calder's tally, Hob's remark) play as captions, waiting under the board's screen until it closes.
  *
  * Its Face is a thin box over the board's face that only the Visibility channel sees, so the Interact key's line finds
  * it there; nothing else (shots, walking, the camera) notices it. It never ticks.
@@ -110,7 +120,24 @@ public:
 	/** Mission is picked up here: its offer names a giver tag this board carries. */
 	bool Offers(const UMissionDefinition& Mission) const;
 
-	/** Turns in a posting given here that's ready: finished, with its rewards at the player's feet. False otherwise. */
+	/**
+	 * What Mission is picked up from when that is pinned on this board's face (an interactable carrying its offer's giver
+	 * tag, shown, lying on the face: Ruth Calder's note on the Rangers' board), else null. A mission this board offers by its
+	 * own tag has none: the board is its giver.
+	 */
+	AActor* FindPinnedGiver(const UMissionDefinition& Mission) const;
+
+	/**
+	 * Point lies on the board's face: within its width and height, and no more than a hand's breadth in front of or behind
+	 * its surface (a card laid over a note stands a centimetre or two proud; something on the ground before the board isn't
+	 * pinned on it).
+	 */
+	bool IsOnFace(const FVector& Point) const;
+
+	/**
+	 * Turns in a posting given here that's ready: finished, with its rewards at the player's feet, and its turn-in words said
+	 * (they wait under the board's screen). False otherwise.
+	 */
 	bool TurnIn(UMissionRunner& Runner, FName MissionId) const;
 
 	/** Has the minimap and the tracker follow a running posting. False when it isn't running. */
@@ -165,4 +192,11 @@ protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+private:
+	/** The level's interactables pinned on its face (shown, other than itself): looked for once per gathering. */
+	TArray<AActor*> GatherPinned() const;
+
+	/** Of Pinned, the one Mission is picked up from (it carries the offer's giver tag), unless the board offers it itself. */
+	AActor* PinnedGiverAmong(const TArray<AActor*>& Pinned, const UMissionDefinition& Mission) const;
 };

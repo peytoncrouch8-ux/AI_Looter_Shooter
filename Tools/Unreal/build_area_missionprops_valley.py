@@ -29,14 +29,16 @@ Knocking Below, at Tilly's workshop (SM_RR_Workshop_Bright): the workshop door's
   cellar's fight (AEncounterSpawner TillyCellar: three Unpaid and a Restless one by the coffins, level 3, its ground the
   cellar alone), the cold room's door (AInteractableProp ColdRoomDoor on SOCKET_ColdRoomDoor), Thaddeus Bright at his bench
   (AThaddeusBright on SOCKET_ThaddeusBench, Speaker_Thaddeus) and his tape on the bench (ThaddeusTape, after his talk).
-Calder's Caches: Ruth's note on the Rangers' board offers it (AMissionArtifact Artifact_CalderNote over the note's paper),
-  a cache tag by each of the three caches (CacheTag1 the windmill's, 2 the Sink rim's, 3 the bluff path's) and the
+Calder's Caches: Ruth's note on the Rangers' board offers it (AMissionArtifact Artifact_CalderNote over the note's paper,
+  tagged CalderNote too: it wins the key's focus over the paper while it offers, and the board's screen offers the job
+  from it as well, being pinned on its face), a cache tag by each of the three caches (CacheTag1 the windmill's, 2 the Sink
+  rim's, 3 the bluff path's) and the
   Deacon's slip by the gang's Strongbox (DeaconsSlip). The board itself (NoticeBoard_Rangers) is build_area_board.py's,
   from the layout's gameplay.boards.
 Side 1: the town gate's poster offers it (AMissionArtifact Artifact_PosterGate over the poster's paper); the sheriff's
   daybook on his desk (OdellDaybook).
 Main 1: Delia's porch plate (APorchPlate on the farmhouse's SOCKET_Plate, in place of the plain plate build_area_farm.py
-  stands there). Main 2: the boards where it happened (LookoutStains, by Sexton's seat). Main 3: Pa's lantern bail on
+  stands there). Main 2: the boards where it happened (LookoutStains, on the lookout's stained boards, with the stain's decal). Main 3: Pa's lantern bail on
   Tilly's sill (LanternBail, after Main 3). Main 4: the keepers' roll in the nave (KeepersRoll). Main 5 and Side 3: the
   sheriff's hat by the den's mouth (SheriffHat, on the den dressing's hat) and his badge in the den (SheriffBadge).
   Main 6: Keeper's Bridge's place (Place_KeepersBridge, on the grounded deck: build_area_town_rr.py).
@@ -198,8 +200,14 @@ TAPE_AT = (60.0, 40.0)
 # the middle of its back's bottom edge (MissionProps.py): its foot 0.96 m up, so the painted names sit at eye height.
 ROLL_AT = (381.0, 195.0, 96.0)
 ROLL_SNAP = 120.0
-# The boards where it happened: from Sexton's seat (the lookout's SOCKET_Sit), this far into the deck.
-STAINS_IN = 170.0
+# The boards where it happened: the stain the lookout's model bakes into its deck (Art/Models/Buildings/Lookout.py's STAIN,
+# right of the deck's middle), found from Sexton's seat (its SOCKET_Sit, facing into the deck): this far forward and to
+# the seat's right (cm). The readable and the stain's decal (MI_LookoutStain: Tools/Unreal/build_stain_decal.py) lie there.
+STAIN_AT = (157.5, 234.3)
+STAIN_DECAL = '/Game/Art/Materials/MI_LookoutStain'
+# The decal's box, half extents (cm): 12 down through the boards' tops and up off them, and the maps' 1.5 m square
+# (Art/Textures/LookoutStain/make_lookout_stain.py's SPAN_M).
+STAIN_DECAL_SIZE = (12.0, 75.0, 75.0)
 # The den (Den Rock's SOCKET_DenMouth frame, DenDressing.placement.json): the dressing's hat on the coffin lid, and the
 # badge in the webbing by the larder.
 DEN_HAT = (71.0, -351.0, 14.0)
@@ -210,8 +218,11 @@ SILL_OUT = 18.0
 # A cache tag lies in front of its crate (cm).
 TAG_OUT = 70.0
 # A mission artifact over a poster's paper: its invisible card this far proud of the paper (cm), so the Interact key's line
-# meets it first while it has a mission to offer.
+# meets it first while it has a mission to offer, and this much wider than the paper on every side (cm), so a line from the
+# side can't slip past the card's edge onto the paper's. Its reach (AMissionArtifact's 3 m, over the paper's 2.5 m) settles
+# the rest: the card wins the focus wherever on the paper the player looks (Looter.Missions.BoardNote.Focus).
 CARD_PROUD = 1.5
+CARD_MARGIN = 2.0
 # The place markers about the player's middle over their spot (cm).
 MARKER_UP = 90.0
 # Main Street's safe ground covers the street from a little under it to its roofs (cm): never Tilly's cellar.
@@ -347,7 +358,10 @@ class Steps:
         if kind == 'talk':
             return name == 'MissionTalkObjective' and str(self.prop(objective, 'speaker_tag')) == key
         if kind == 'interact':
-            return name == 'MissionInteractObjective' and self.filter_tag(self.prop(objective, 'target')) == key
+            # A lasting one too (UMissionLastingInteractObjective: what stays used in the world, the gang's strongbox): it
+            # was missed, so Calder's Caches' strongbox step fell back to the design's.
+            return (name in ('MissionInteractObjective', 'MissionLastingInteractObjective')
+                    and self.filter_tag(self.prop(objective, 'target')) == key)
         if kind == 'collect':
             items = self.prop(objective, 'items') or []
             return name == 'MissionCollectItemObjective' and key in [str(each) for each in items]
@@ -373,10 +387,17 @@ class Steps:
 
     def find(self, mission_id, kind, key, default):
         """The first step asking for it, else default (logged)."""
-        found = self.find_all(mission_id, kind, key)
-        if found:
-            return found[0]
-        self.build.log(f'{mission_id}: no step asks to {kind} {key} in its data yet: the design\'s step {default} is used')
+        return self.find_any(mission_id, ((kind, key),), default)
+
+    def find_any(self, mission_id, asks, default):
+        """The first step asking for any of asks ((kind, key) pairs, in the order tried: Main 1's plate is its
+        PorchPlate.Taken event in the data, an Interact on the plate in the design), else default (logged)."""
+        for kind, key in asks:
+            found = self.find_all(mission_id, kind, key)
+            if found:
+                return found[0]
+        wanted = ' or '.join(f'{kind} {key}' for kind, key in asks)
+        self.build.log(f'{mission_id}: no step asks to {wanted} in its data yet: the design\'s step {default} is used')
         return default
 
 
@@ -790,16 +811,32 @@ def place_chapel_roll(build, meshes, found):
 
 
 def place_lookout_stains(build, meshes, found):
+    """The boards where it happened (Main 2's optional): the readable on the lookout's stained boards, and the old stain's
+    decal soaked into them (always there, whatever the missions)."""
     lookout = found.get('lookout')
     seat = socket(lookout, 'Sit') if lookout is not None else None
     if seat is None:
         build.warn('no lookout or its SOCKET_Sit: no stains to look at')
         return
-    ahead = seat.rotation.rotator().get_forward_vector()
-    spot = seat.translation + ahead * STAINS_IN
+    turn = seat.rotation.rotator()
+    spot = seat.translation + turn.get_forward_vector() * STAIN_AT[0] + turn.get_right_vector() * STAIN_AT[1]
     deck = onto(lookout, spot.x, spot.y, seat.translation.z + 100.0, seat.translation.z - 200.0)
-    readable(build, meshes, 'LookoutStains', deck if deck is not None else spot, seat.rotation.rotator().yaw,
+    readable(build, meshes, 'LookoutStains', deck if deck is not None else spot, turn.yaw,
              shown_when=story.condition(during=MAIN2))
+    if deck is None:
+        build.warn('nothing of the lookout under its stain: no decal on the boards')
+        return
+    if not unreal.EditorAssetLibrary.does_asset_exist(STAIN_DECAL):
+        build.warn('no MI_LookoutStain yet (build_stain_decal.py): the boards keep only the model\'s darker boards')
+        return
+    # Projected straight down (the decal's X), the maps' U (the decal's Z) along the boards: the seat's right.
+    decal = put(build, unreal.DecalActor, deck, turn.yaw, 'LookoutStain_Decal', tags=('LookoutStain',))
+    decal.set_actor_rotation(unreal.MathLibrary.make_rot_from_xz(unreal.Vector(0.0, 0.0, -1.0), turn.get_right_vector()),
+                             False)
+    stain = decal.get_editor_property('decal')
+    stain.set_editor_property('decal_material', unreal.load_asset(STAIN_DECAL))
+    stain.set_editor_property('decal_size', unreal.Vector(*STAIN_DECAL_SIZE))
+    build.log(f'the old stain on the lookout\'s boards at ({deck.x:.0f}, {deck.y:.0f}, {deck.z:.0f})')
 
 
 def place_den_relics(build, meshes, found):
@@ -840,7 +877,9 @@ def place_porch_plate(build, meshes, steps, found):
     plain = found.get('Farmhouse_Plate')
     if plain is not None:
         actors.destroy_actor(plain)
-    take_step = steps.find(MAIN1, 'interact', 'PorchPlate', steps.find(MAIN1, 'event', 'PorchPlate.Taken', 4))
+    # The data's step is the jars taken (the plate's PorchPlate.Taken event, which Looter.Story.SevenDays.Mission checks); an
+    # Interact on the plate would do as well.
+    take_step = steps.find_any(MAIN1, (('event', 'PorchPlate.Taken'), ('interact', 'PorchPlate')), 4)
     plate = put(build, cls, at.translation, at.rotation.rotator().yaw, 'PorchPlate_Delia', tags=('PorchPlate', 'Obstacle'))
     plate.set_actor_rotation(at.rotation.rotator(), False)
     for part, names in (('plate', ('PorchPlate_Plate', 'PorchPlate')), ('jars', ('PorchPlate_Jars',)),
@@ -884,15 +923,17 @@ def place_cache_tags(build, meshes, found):
              prompt="Take Calder's tag")
 
 
-def place_artifact(build, poster, tag, title, prompt):
-    """A mission artifact over a poster's paper: an invisible card the Interact key's line meets while it offers."""
+def place_artifact(build, poster, tag, title, prompt, extra_tags=()):
+    """A mission artifact over a poster's paper: an invisible card the Interact key's line meets while it offers. extra_tags:
+    what else reading it counts as (Ruth's note's card is CalderNote too, so Side 1's "read the note" counts a read through
+    the card while it offers Calder's Caches)."""
     cls = actor_class('MissionArtifact')
     if cls is None:
         build.warn('no MissionArtifact class (build the game module first): no ' + tag)
         return
     frame = poster.get_actor_transform()
     at = frame.transform_location(unreal.Vector(CARD_PROUD, 0.0, 0.0))
-    made = put(build, cls, at, poster.get_actor_rotation().yaw, tag, tags=(tag,))
+    made = put(build, cls, at, poster.get_actor_rotation().yaw, tag, tags=(tag,) + tuple(extra_tags))
     made.set_actor_rotation(poster.get_actor_rotation(), False)
     made.set_editor_property('title', unreal.Text(title))
     made.set_editor_property('prompt', unreal.Text(prompt))
@@ -904,9 +945,10 @@ def place_artifact(build, poster, tag, title, prompt):
         extent = poster.get_editor_property('hitbox').get_scaled_box_extent()
     except Exception:
         pass
-    card.set_relative_scale3d(unreal.Vector(0.01, max(extent.y, 8.0) * 2.0 / 100.0, max(extent.z, 8.0) * 2.0 / 100.0))
+    card.set_relative_scale3d(unreal.Vector(0.01, (max(extent.y, 8.0) + CARD_MARGIN) * 2.0 / 100.0,
+                                            (max(extent.z, 8.0) + CARD_MARGIN) * 2.0 / 100.0))
     card.set_editor_property('hidden_in_game', True)
-    build.log(f'{tag} over {poster.get_actor_label()}')
+    build.log(f'{tag} over {poster.get_actor_label()}{" (also " + ", ".join(extra_tags) + ")" if extra_tags else ""}')
 
 
 def place_artifacts(build, found):
@@ -917,7 +959,9 @@ def place_artifacts(build, found):
     else:
         build.warn('no posterGate (gameplay.posters): no Artifact_PosterGate for Side 1')
     if note is not None:
-        place_artifact(build, note, 'Artifact_CalderNote', "Ruth Calder's note", 'Read the note')
+        # Tagged as the note too (AWantedPoster::NoteTag): while it offers Calder's Caches it wins the key's focus over the
+        # paper under it, so reading it there is Side 1's "read the note" as well.
+        place_artifact(build, note, 'Artifact_CalderNote', "Ruth Calder's note", 'Read the note', extra_tags=('CalderNote',))
     else:
         build.warn('no calderNote (gameplay.posters): no Artifact_CalderNote for Calder\'s Caches')
 

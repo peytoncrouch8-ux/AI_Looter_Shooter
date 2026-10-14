@@ -219,9 +219,10 @@ UWidget* UNoticeBoardWidget::MakeCard(int32 Index)
 		Notice->SetWrapTextAt(NoticeWrap);
 		Info->AddChildToVerticalBox(Notice)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
 	}
-	if (Mission && Posting.State == ENoticePosting::Offered && !Posting.bOfferedHere)
+	if (Mission && Posting.State == ENoticePosting::Offered && (!Posting.bOfferedHere || Posting.PinnedGiver.IsValid()))
 	{
-		// Where it is picked up ("Ruth's note, at Calder's Post"), since this board only takes it in.
+		// Where it is picked up: "Ruth's note, at Calder's Post" when this board only takes it in; "Ruth Calder's note,
+		// pinned to this board" when that note hangs here (taken here all the same).
 		UTextBlock* Where = MakeText(WidgetTree, WhereToTake(Posting).ToString(), 11, Color::CyanText());
 		Where->SetWrapTextAt(NoticeWrap);
 		Info->AddChildToVerticalBox(Where)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
@@ -313,9 +314,11 @@ void UNoticeBoardWidget::Act(int32 Index)
 
 	if (Posting.State == ENoticePosting::Offered)
 	{
-		// A job to take: the offer card over the board, which comes back as it closes (HandleOfferClosed).
+		// A job to take: the offer card over the board, which comes back as it closes (HandleOfferClosed). One picked up from
+		// a note pinned here opens from the note (its card reads "Found: Ruth Calder's note"), else from the board.
 		ALooterHUD* HUD = OwningHUD.Get();
-		if (!HUD || !Posting.Mission || !HUD->OpenMissionOffer(Posting.Mission, Board.Get()))
+		AActor* Giver = Posting.PinnedGiver.IsValid() ? Posting.PinnedGiver.Get() : Board.Get();
+		if (!HUD || !Posting.Mission || !HUD->OpenMissionOffer(Posting.Mission, Giver))
 		{
 			LooterSound::Play2D(this, LooterSoundCue::Denied);
 		}
@@ -365,6 +368,11 @@ FText UNoticeBoardWidget::WhereToTake(const FNoticeBoardPosting& Posting) const
 	if (!Posting.Mission)
 	{
 		return FText::GetEmpty();
+	}
+	// Pinned on this very board (Ruth's note on the Rangers' board): here, not at the street the map names round it.
+	if (const AActor* Pinned = Posting.PinnedGiver.Get())
+	{
+		return FText::Format(LOCTEXT("PinnedHere", "{0}, pinned to this board"), FMissionOfferCard::GiverNameOf(*Posting.Mission, Pinned));
 	}
 	// As the Missions page says it: its giver's kind and name, and the place on the map nearest them.
 	const UMissionRunner* Runner = GetRunner();

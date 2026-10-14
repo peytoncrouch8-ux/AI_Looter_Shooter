@@ -164,19 +164,43 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTownLifeMuttersTest, "Looter.World.TownLife.Mu
 bool FTownLifeMuttersTest::RunTest(const FString& Parameters)
 {
 	// Each townsfolk's door mutters lines for where the story is: afraid of the corpse, then the gate won (Main 3), the
-	// bell rung (Main 4), Abel at rest (Main 6).
+	// bell rung (Main 4), Abel at rest (Main 6). The Haskett house (CottageNorth) hears the ore lift run once Dead Lift is
+	// done (the design's mutter): that line first, then the stage's, whichever stage it comes in.
+	const FName Haskett(TEXT("CottageNorth"));
+	const FName DeadLift(TEXT("DeadLift"));
+	const FString LiftLine(TEXT("...That's the lift. Abe always said he'd hear her run."));
 	int32 Total = 0;
-	for (const FName Household : { Pruitt, FName(TEXT("CottageNorth")), CottageSouth })
+	for (const FName Household : { Pruitt, Haskett, CottageSouth })
 	{
+		const bool bHaskett = Household == Haskett;
 		const TArray<FSpeakerTopic> Topics = TownLifeRules::MutterTopicsFor(Household);
-		if (!TestEqual(FString::Printf(TEXT("%s: four parts of the story"), *Household.ToString()), Topics.Num(), 4))
+		// Four parts of the story; the Haskett house has the lift's news twice more: with the bell, and with Abel at rest.
+		if (!TestEqual(FString::Printf(TEXT("%s: its parts of the story"), *Household.ToString()), Topics.Num(), bHaskett ? 6 : 4))
 		{
 			continue;
 		}
-		TestTrue(TEXT("Latest first: after Main 6"), Topics[0].When.AfterMissions.Contains(FName(TEXT("Main6"))));
-		TestTrue(TEXT("...then after Main 4"), Topics[1].When.AfterMissions.Contains(FName(TEXT("Main4"))));
-		TestTrue(TEXT("...then after Main 3"), Topics[2].When.AfterMissions.Contains(FName(TEXT("Main3"))));
-		TestTrue(TEXT("...and the town afraid, always"), Topics[3].When.IsEmpty());
+		const int32 Abel = bHaskett ? 1 : 0;
+		const int32 Bell = bHaskett ? 3 : 1;
+		const int32 Gate = Topics.Num() - 2;
+		const int32 Afraid = Topics.Num() - 1;
+		TestTrue(TEXT("Latest first: after Main 6"), Topics[Abel].When.AfterMissions == TArray<FName>{ FName(TEXT("Main6")) });
+		TestTrue(TEXT("...then after Main 4"), Topics[Bell].When.AfterMissions == TArray<FName>{ FName(TEXT("Main4")) });
+		TestTrue(TEXT("...then after Main 3"), Topics[Gate].When.AfterMissions.Contains(FName(TEXT("Main3"))));
+		TestTrue(TEXT("...and the town afraid, always"), Topics[Afraid].When.IsEmpty());
+		auto Opens = [&Topics](int32 Index, const FString& Words)
+		{
+			return Topics.IsValidIndex(Index) && !Topics[Index].Lines.IsEmpty() && Topics[Index].Lines[0].Text.ToString() == Words;
+		};
+		if (bHaskett)
+		{
+			TestTrue(TEXT("Haskett: the lift and Abel, after Dead Lift and Main 6"), Topics[0].When.AfterMissions.Contains(DeadLift)
+				&& Topics[0].When.AfterMissions.Contains(FName(TEXT("Main6"))) && Opens(0, LiftLine)
+				&& Topics[0].Lines.Num() == Topics[Abel].Lines.Num() + 1);
+			TestTrue(TEXT("...the lift and the bell, after Dead Lift and Main 4"), Topics[2].When.AfterMissions.Contains(DeadLift)
+				&& Topics[2].When.AfterMissions.Contains(FName(TEXT("Main4"))) && Opens(2, LiftLine)
+				&& Topics[2].Lines.Num() == Topics[Bell].Lines.Num() + 1);
+			TestEqual(TEXT("...said by Abe's father"), Topics[0].Lines[0].Speaker.ToString(), FString(TEXT("An old man, inside")));
+		}
 		for (const FSpeakerTopic& Topic : Topics)
 		{
 			for (const FStoryLine& Line : Topic.Lines)
@@ -200,14 +224,21 @@ bool FTownLifeMuttersTest::RunTest(const FString& Parameters)
 			return int32(INDEX_NONE);
 		};
 		FCampaignRecord Campaign;
-		TestEqual(TEXT("Before the gate: afraid"), SaidNow(Campaign), 3);
+		TestEqual(TEXT("Before the gate: afraid"), SaidNow(Campaign), Afraid);
 		Campaign.Complete(TEXT("Main3"));
-		TestEqual(TEXT("After Main 3: the gate won"), SaidNow(Campaign), 2);
+		TestEqual(TEXT("After Main 3: the gate won"), SaidNow(Campaign), Gate);
 		Campaign.Complete(TEXT("Main4"));
-		TestEqual(TEXT("After Main 4: the bell"), SaidNow(Campaign), 1);
+		TestEqual(TEXT("After Main 4: the bell"), SaidNow(Campaign), Bell);
 		Campaign.Complete(TEXT("Main5"));
+		FCampaignRecord AbelFirst = Campaign;
+		Campaign.Complete(DeadLift);
+		TestEqual(TEXT("The lift running before Main 6: the Haskett house hears it, the others the bell still"), SaidNow(Campaign),
+			bHaskett ? 2 : Bell);
 		Campaign.Complete(TEXT("Main6"));
-		TestEqual(TEXT("After Main 6: Abel at rest"), SaidNow(Campaign), 0);
+		TestEqual(TEXT("After Main 6: Abel at rest (with the lift's news at the Haskett house)"), SaidNow(Campaign), 0);
+		AbelFirst.Complete(TEXT("Main6"));
+		TestEqual(TEXT("Main 6 with the lift still dead: Abel at rest, no news"), SaidNow(AbelFirst), Abel);
+		TestFalse(TEXT("...and nowhere the lift's line before it runs"), Opens(SaidNow(AbelFirst), LiftLine));
 	}
 	TestTrue(TEXT("About a dozen lines or more"), Total >= 12);
 	TestTrue(TEXT("Nobody mutters from a house with no lines (Delia's, Tilly's: their own speaker points)"),

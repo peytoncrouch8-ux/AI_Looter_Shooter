@@ -17,6 +17,7 @@ namespace
 	const FName Main3(TEXT("Main3"));
 	const FName Main4(TEXT("Main4"));
 	const FName Main6(TEXT("Main6"));
+	const FName DeadLift(TEXT("DeadLift"));
 
 	/** How far the story has come for a mutter: the town afraid, then the gate won, the bell rung, Abel at rest. */
 	enum class EStage : uint8
@@ -57,6 +58,28 @@ namespace
 		{ CottageSouth, EStage::GateWon, TEXT("A child, inside"), TEXT("It's fighting the bad ones, Mama. I watched.") },
 		{ CottageSouth, EStage::BellRung, TEXT("A child, inside"), TEXT("Did the bell send them home, Mama?") },
 		{ CottageSouth, EStage::AbelAtRest, TEXT("A child, inside"), TEXT("I waved at it, Mama. It waved back.") },
+	};
+
+	/**
+	 * News a household hears whatever stage the story is at, once the mission that makes it is done: muttered first, then
+	 * that stage's lines (a topic of both). Earliest is the first stage it can come in (the lift runs only after Main 5, so
+	 * never before the bell).
+	 */
+	struct FNews
+	{
+		FName Household;
+		FName After;
+		EStage Earliest;
+		const TCHAR* Speaker;
+		const TCHAR* Text;
+	};
+
+	// The Haskett house on Main Street (CottageNorth, the saltbox, since the valley's house swap: build_area_townlife.py):
+	// Abe Haskett, the old man's son, was the lift's brakeman and went down the hill in the fall. Once Dead Lift has the ore
+	// lift running again, its whistle carries across the valley, and his father hears it (Docs/Areas/RansomsRest_Expansion.md,
+	// Dead Lift's turn-in).
+	const FNews News[] = {
+		{ CottageNorth, DeadLift, EStage::BellRung, TEXT("An old man, inside"), TEXT("...That's the lift. Abe always said he'd hear her run.") },
 	};
 
 	TArray<TownLifeRules::FHousehold> MakeHouseholds()
@@ -157,20 +180,40 @@ TArray<FSpeakerTopic> TownLifeRules::MutterTopicsFor(FName Household)
 	TArray<FSpeakerTopic> Topics;
 	for (const auto& Stage : Stages)
 	{
-		FSpeakerTopic Topic;
-		if (!Stage.After.IsNone())
-		{
-			Topic.When.AfterMissions.Add(Stage.After);
-		}
+		TArray<FStoryLine> StageLines;
 		for (const FMutter& Mutter : Mutters)
 		{
 			if (Mutter.Household == Household && Mutter.Stage == Stage.Stage)
 			{
-				Topic.Lines.Add(FStoryLine::Make(FText::FromString(Mutter.Speaker), FText::FromString(Mutter.Text)));
+				StageLines.Add(FStoryLine::Make(FText::FromString(Mutter.Speaker), FText::FromString(Mutter.Text)));
 			}
 		}
-		if (!Topic.Lines.IsEmpty())
+		// The household's news first, at each stage it can come in: its line, then the stage's (a door says one topic, a
+		// line at a time, so the news joins the stage rather than hiding it).
+		for (const FNews& Each : News)
 		{
+			if (Each.Household != Household || Stage.Stage < Each.Earliest)
+			{
+				continue;
+			}
+			FSpeakerTopic WithNews;
+			if (!Stage.After.IsNone())
+			{
+				WithNews.When.AfterMissions.Add(Stage.After);
+			}
+			WithNews.When.AfterMissions.Add(Each.After);
+			WithNews.Lines.Add(FStoryLine::Make(FText::FromString(Each.Speaker), FText::FromString(Each.Text)));
+			WithNews.Lines.Append(StageLines);
+			Topics.Add(MoveTemp(WithNews));
+		}
+		if (!StageLines.IsEmpty())
+		{
+			FSpeakerTopic Topic;
+			if (!Stage.After.IsNone())
+			{
+				Topic.When.AfterMissions.Add(Stage.After);
+			}
+			Topic.Lines = MoveTemp(StageLines);
 			Topics.Add(MoveTemp(Topic));
 		}
 	}

@@ -18,7 +18,8 @@ class AActor;
  *  - Ransom: Grandma Delia's farmhouse. She lives alone and won't open the door: a creak, the latch, an old woman's cough.
  *  - Bright: Bright & Daughter, Tilly's shop. Tilly alone, at her work: a saw and a hammer, a creak, the latch.
  *  - Pruitt: Pruitt's General Store, the storekeeper's family: hushed voices, a cough, a hush, a creak, the latch.
- *  - CottageNorth: a couple and an old father: voices, the old man's cough, a creak, the latch.
+ *  - CottageNorth: the Haskett house, a couple and an old father (his son Abe, the ore lift's brakeman, died in the fall):
+ *    voices, the old man's cough, a creak, the latch.
  *  - CottageSouth: a mother and her small child: a music box, a hush, a few words, a creak, the latch.
  *  - Cottage: any other lived-in cottage: voices, a cough, a creak, the latch.
  */
@@ -53,7 +54,12 @@ namespace TownLifeRules
 	/** Whether a cue is a voice (its pitch follows the household's), rather than a thing (a latch, a board, a saw). */
 	AI_LOOTER_SHOOTER_API bool IsVoice(FName Cue);
 
-	/** What the townsfolk behind a household's door mutter, by the story: the first topic that holds is said, a line at a time. */
+	/**
+	 * What the townsfolk behind a household's door mutter, by the story: the first topic that holds is said, a line at a
+	 * time. Latest first: Abel at rest (after Main 6), the bell rung (Main 4), the gate won (Main 3), afraid. A household's
+	 * news comes before the stage's lines in a topic of both, at each stage it can come in (the Haskett house, CottageNorth:
+	 * the ore lift heard running after Dead Lift).
+	 */
 	AI_LOOTER_SHOOTER_API TArray<FSpeakerTopic> MutterTopicsFor(FName Household);
 
 	/** Seconds between looks round the player; how near a house is heard (cm); how near the dog's house must be at least and at most. */
