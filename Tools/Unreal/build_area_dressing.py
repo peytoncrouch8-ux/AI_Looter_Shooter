@@ -178,6 +178,35 @@ PIECES = {
     'NoticeBoard_Town': ((220, 99, 268), 'middle', WALL_CULL),     # Skyreach's: the same board, NOTICES on its header
     'TownMemorial': ((130, 104, 178), 'middle', WALL_CULL),
     'Wheelbarrow': ((72, 183, 74), 'middle', SMALL_CULL),
+    # Main Street's walks and awnings (Boardwalk.py, VillageProps.py), placed by Ransom's Rest's town.json (make_town.py).
+    'Awning_4m': ((20, 20, 360), 'middle', FENCE_CULL),
+    'Awning_Post': ((20, 20, 277), 'middle', FENCE_CULL),
+    'Boardwalk_2m': ((200, 303, 50), 'middle', FENCE_CULL),
+    'Boardwalk_4m': ((400, 303, 50), 'middle', FENCE_CULL),
+    'Boardwalk_Steps': ((40, 302, 37), 'middle', FENCE_CULL),
+    # The frontier clutter (FrontierClutter.py, look sheet 42, the user's yes 2026-10-14): porches, yards, Main Street.
+    'BottleCrate': ((84, 44, 30), 'middle', SMALL_CULL),
+    'BroomBucket': ((70, 45, 122), 'middle', SMALL_CULL),
+    'Buckboard': ((164, 450, 140), 'middle', FENCE_CULL),
+    'Bunting': ((600, 5, 60), 'middle', FENCE_CULL),
+    'ChickenCoop': ((248, 228, 150), 'middle', FENCE_CULL),
+    'ChoppingBlock': ((100, 100, 75), 'middle', SMALL_CULL),
+    'FlourSacks': ((146, 134, 86), 'middle', SMALL_CULL),
+    'FlowerBox': ((94, 23, 45), 'middle', FENCE_CULL),
+    'HandPump': ((126, 154, 145), 'middle', SMALL_CULL),
+    'Horseshoe': ((14, 2, 14), 'middle', FENCE_CULL),
+    'KitchenGarden': ((316, 228, 175), 'middle', FENCE_CULL),
+    'MilkCans': ((74, 74, 62), 'middle', SMALL_CULL),
+    'PorchChair': ((48, 45, 98), 'middle', SMALL_CULL),
+    'PorchLantern': ((18, 34, 45), 'middle', FENCE_CULL),
+    'RockingChair': ((54, 108, 110), 'middle', SMALL_CULL),
+    'RockingChair_Shawl': ((54, 108, 112), 'middle', SMALL_CULL),
+    'SignBoard_Barber': ((4, 88, 48), 'middle', FENCE_CULL),
+    'SignBoard_Hotel': ((4, 88, 48), 'middle', FENCE_CULL),
+    'SignBoard_Pruitts': ((4, 88, 48), 'middle', FENCE_CULL),
+    'SignBracket': ((6, 96, 62), 'middle', FENCE_CULL),
+    'Spittoon': ((26, 26, 18), 'middle', SMALL_CULL),
+    'Washtub': ((80, 80, 60), 'middle', SMALL_CULL),
     # Rocks (Rocks.py, Outcrops.py); an outcrop is a landmark, never culled.
     'Rock_A': ((94, 82, 47), 'middle', SMALL_CULL),
     'Rock_B': ((68, 65, 34), 'middle', SMALL_CULL),
@@ -211,8 +240,13 @@ PIECES = {
 # sac's trailing strands, the tors' masses off their pivots (MeshBounds' middles); FOOTPRINT_RIGHT likewise to its right.
 FOOTPRINT_AHEAD = {'Woodshed': 21.0, 'LumberStack': 28.0, 'LeanTo': 6.0,
                    'TownMemorial': 14.0, 'EggSac_Burst': 32.0, 'Bush_B': 14.0,
-                   'Outcrop_TorA': 15.0, 'Outcrop_TorB': 48.0, 'Outcrop_TorC': -19.0}
-FOOTPRINT_RIGHT = {'EggSac_Burst': -16.0, 'Outcrop_TorA': 33.0, 'Outcrop_TorC': 65.0, 'Outcrop_TorD': 66.0}
+                   'Outcrop_TorA': 15.0, 'Outcrop_TorB': 48.0, 'Outcrop_TorC': -19.0,
+                   'Awning_4m': 162.0, 'Awning_Post': 162.0, 'BroomBucket': 22.0, 'FlourSacks': 5.0, 'FlowerBox': 12.0,
+                   'HandPump': -14.0, 'MilkCans': 11.0, 'PorchLantern': 17.0, 'RockingChair': -7.0,
+                   'RockingChair_Shawl': -7.0, 'SignBracket': 48.0}
+FOOTPRINT_RIGHT = {'EggSac_Burst': -16.0, 'Outcrop_TorA': 33.0, 'Outcrop_TorC': 65.0, 'Outcrop_TorD': 66.0,
+                   'Boardwalk_2m': -100.0, 'Boardwalk_4m': -200.0, 'Boardwalk_Steps': -16.0, 'FlourSacks': -17.0,
+                   'KitchenGarden': 8.0}
 
 # The fence and wall kits: the section and its length (cm), the broken and fallen sections, the piece that closes a run,
 # the iron fence's heavy corner post, the gate unit that fills a gate's gap (gate_clear: its way through, from and to
@@ -2152,6 +2186,54 @@ def prop_flags(build, actor, mesh, solid, town):
         actor.get_editor_property('instances').set_editor_property('component_tags', [unreal.Name('Tree')])
 
 
+def place_town_lights(build, ground):
+    """The town's lamps (town.json's lights: a street lamp's or porch lantern's SOCKET_Light, as an offset in its piece's
+    frame): an AHouseLights at each placed piece, dark by day and lit at dusk (its candelas), its reach kept small; the
+    class tags its lamp Flicker, so ULightFlickerSubsystem breathes it near the player. A piece left out (dropped, or its
+    model not approved yet) gets none. In the Dressing folder, so a dressing build replaces them."""
+    town, _ = load_town(build.source)
+    lights = (town or {}).get('lights') or []
+    if not lights:
+        return
+    cls = unreal.load_class(None, CLASSES + 'HouseLights')
+    if cls is None:
+        build.warn("no HouseLights class (build the game module first): the town's street lamps stay dark")
+        return
+    entries = {e.get('id'): e for e in town.get('pieces', [])}
+    water = pond_levels(build.source)
+    made = {}
+
+    def piece_of(pid):
+        if pid in made:
+            return made[pid]
+        entry = entries.get(pid)
+        piece = town_piece(entry, 'town:lights', water, []) if entry else None
+        if piece is not None and entry.get('hangFrom'):
+            host = piece_of(entry['hangFrom'])
+            if host is not None:
+                piece.extra = dict(piece.extra or {}, host=host)
+        made[pid] = piece
+        return piece
+
+    count = 0
+    for light in lights:
+        piece = piece_of(light.get('piece'))
+        if piece is None:
+            continue
+        (x, y, z), _, _ = town_pose(piece, ground)
+        ox, oy, oz = light.get('offset', (0.0, 0.0, 0.0))
+        yaw = math.radians(piece.yaw)
+        at = (x + ox * math.cos(yaw) - oy * math.sin(yaw), y + ox * math.sin(yaw) + oy * math.cos(yaw), z + oz)
+        actor = build.place(cls, at, piece.yaw, label=f'TownLight_{light["piece"]}', folder=f'{FOLDER}/Lights', tags=(TAG,))
+        actor.set_editor_property('day_lamp', float(light.get('day', 0.0)))
+        actor.set_editor_property('dusk_lamp', float(light.get('dusk', 6.0)))
+        lamp = actor.get_editor_property('lamp')
+        lamp.set_editor_property('intensity', float(light.get('day', 0.0)))
+        lamp.set_editor_property('attenuation_radius', float(light.get('reach', 500.0)))
+        count += 1
+    build.log(f'dressing: {count} town lamps lit at dusk (of {len(lights)} in town.json)')
+
+
 def place(build, meshes):
     """The dressing for build's layout: one AInstancedProps per mesh (two where some of its pieces are passable and
     some solid) in the Dressing folder, and any ruin whose placement is gone; logs what each obstacle and the town's
@@ -2192,6 +2274,7 @@ def place(build, meshes):
         # Its own actor: its bounds are its own, so it's tagged Obstacle like build_area.py's placements.
         build.place(unreal.load_asset(meshes[model]), (x, y, ground(x, y)), yaw, label=f'{owner}_{model}',
                     folder=FOLDER, tags=(TAG, 'Obstacle'))
+    place_town_lights(build, ground)
     for oid, note in plan.notes.items():
         build.log(f'dressing {oid}: {note}')
     if ground.missed:

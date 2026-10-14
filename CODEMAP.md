@@ -491,6 +491,8 @@ The `Looter.*` automation tests, one file per area, in `Source/AI_Looter_Shooter
 - `Art/Textures/LookoutStain/make_lookout_stain.py`: the old stain on the lookout's deck (`T_LookoutStain_BC`, `_N`, `_ORM`) for `MI_LookoutStain`.
 - `Tools/Unreal/build_area_roosts.py`: Hob's roosts from `layout.json` `gameplay.roosts` (nudged up to 6 m off solids, tagged Obstacle and Roost); called by `build_area_story.py`.
 - `Tools/Blender/looter_homes.py`, `looter_rr_town.py`, `town_sheet.py`: Ransom's Rest buildings (`Homestead.py`: ten homes, well, privy, windpump; `FrontsRR.py`, `DepotRR.py`, `WorkshopBright.py`, `BarnWhitlock.py`) and the look sheet.
+- `Tools/Blender/looter_clutter.py`, `clutter_sheet.py`: the frontier clutter (`Art/Models/Props/FrontierClutter.py`: porch, yard and Main Street props) and look sheet 42.
+- `Art/Levels/RansomsRest/make_town.py`: Ransom's Rest's town dressing town.json (vignettes in each building's frame, checks with nudge or drop, approved clutter, dusk lights, animal spots; reads `Saved/RRTownProbe.json`).
 - `Tools/Blender/looter_mountain.py`, `looter_mine.py`, `mountain_sheet.py`: mountain models (`OreLift.py`, `CalderPost.py`, `Diggings.py`, `Props/Tramway.py`, `Mine/Mine.py` with `Mine.layout.json`); watertight mine rock, look sheet.
 - `Tools/Blender/roost_sheet.py`: Hob's roost renders and look sheet, run by `Art/Models/Props/HobRoost.py --preview` into `LookSheets/41_Roost.jpg`.
 - `Tools/Blender/looter_ghosts.py`, `looter_miners.py`, `looter_friends.py`, `miners_sheet.py`: Providence's dead (SK_DeadMiner, SK_Foreman, SK_Hiram, SK_Thaddeus; `Art/Models/Creatures/*.py`): ghost toolkit, miners' lamp and pick, friendly dead's faces/rigs (Unpaid.py and Amos.py run as libraries up to their build lines).
