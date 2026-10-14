@@ -22,7 +22,10 @@ The pivot follows the homes kit (looter_homes): the middle of the yard doors' op
 the ground (z = 0); the workshop's floor is 0.30 over it, the cellar's floor 3.30 under it (the vaults' tops 0.40 under
 the ground, the cold room's 0.60). The cellar reaches past the workshop's walls (under the yard in front of the doors,
 under the ground at the west end and behind): the WORKSHOP: lines give every extent from the pivot, and the rectangle
-where the terrain must open over the stairwell (or sink below -3.6 m).
+where the terrain must open over the stairwell (or sink below -3.6 m). The vaults are one-sided, so a closed stone box
+stands over each vaulted room (its lid 0.45 m under the ground, 0.7 over the cold room) and hulls fill the vaults' corners
+up to the slabs over their crowns: no view out to the sky or up into the workshop. None of the cellar's collision rises
+above the ground outside the workshop's walls.
 
 Sockets: WorkshopDoor (outside the doors at the foot of the step), MeasuringHook, OrdersSlate, CellarDoor and ColdRoomDoor
 (RR_CellarDoor's hinges), ThaddeusBox (his box on the bench by the cellar door), CellarFloor (the cellar's floor at the
@@ -65,6 +68,7 @@ CELLAR_DOOR = (3.7, 4.8)                     # the enclosure's door (x), in its 
 COLD = (-7.15, -3.15, 3.75, 7.75)            # the cold room inside
 COLD_DOOR = (-5.7, -4.6)
 COLD_CROWN = CF + 2.4
+LID, COLD_LID = ZC + 0.25, COLD_CROWN + 0.2  # the stone lids over the vaults (0.45 and 0.7 under the ground)
 R_RISE, R_RUN = (BASE - CF) / 19, 0.26
 F1 = (3.81, XI1)                             # flight 1 (the workshop down to the half landing) across x
 F2 = (2.6, 3.69)                             # flight 2 (the landing down to the cellar)
@@ -227,6 +231,44 @@ def rack(m, frame, length=2.3, levels=(0.06, 0.72), coffins=2, coffin_len=1.95):
                   head=0.3 if small else 0.44, depth=0.28 if small else 0.36, lid='on',
                   look='woodcream' if k else 'planks')
     m.hull((length, 0.74, 1.4), at=(0.0, 0.0, 0.7), space=frame)
+
+
+# --- Over the vaults ---
+
+def box_wall(m, p0, p1, foot, top, facing, notch=None):
+    """A wall of the stone box over a vaulted room: a one-sided face on the plan line p0 -> p1 up to top, toward facing.
+    foot is its foot's height, or a function of the distance along the line (a foot riding over an arch); notch
+    (a, b, head): a doorway cut up into its foot from a to b along the line, up to head."""
+    p0, p1 = Vector((p0[0], p0[1], 0.0)), Vector((p1[0], p1[1], 0.0))
+    length = (p1 - p0).length
+    along = (p1 - p0).normalized()
+    if callable(foot):
+        line = [(length * i / 8, foot(length * i / 8)) for i in range(9)]
+    else:
+        line = [(0.0, foot)]
+        if notch:
+            a, b, head = notch
+            line += [(a, foot), (a, head), (b, head), (b, foot)]
+        line.append((length, foot))
+    rr.polygon(m, [(p0.x + along.x * s, p0.y + along.y * s, z) for s, z in line + [(length, top), (0.0, top)]], STONE,
+               'stone', facing=facing)
+
+
+def corner_hulls(m, x0, x1, y0, y1, reach=1.5, top=ZC + 0.12):
+    """Collision over a groin-vaulted bay's corners, where its vault comes down to the springing (past reach from a corner
+    it's over the slab across the crowns' underside): from the vault up into that slab, so neither a jump by a wall nor
+    the camera rises past it. Three hulls a corner (a square round the corner, then the bands either side of its
+    diagonal), each under the vault by at most 8 cm (its chord), so the dead still stand in the corners."""
+    half = (x1 - x0) * 0.5
+    mid = reach * 0.5
+    z0, z1, z2 = (vault_z(u - half, half) for u in (0.0, mid, reach))
+    pieces = (((0.0, 0.0, z0), (mid, 0.0, z1), (0.0, mid, z1), (mid, mid, z1)),
+              ((mid, 0.0, z1), (reach, 0.0, z2), (reach, reach, z2), (mid, mid, z1)),
+              ((0.0, mid, z1), (0.0, reach, z2), (reach, reach, z2), (mid, mid, z1)))
+    for cx, sx in ((x0, 1.0), (x1, -1.0)):
+        for cy, sy in ((y0, 1.0), (y1, -1.0)):
+            for piece in pieces:
+                m.hull_points([(cx + sx * u, cy + sy * v, z) for u, v, low in piece for z in (low, top)])
 
 
 # --- The workshop ---
@@ -447,7 +489,7 @@ def workshop():
         town.board(m, (s0 - 0.04, -0.02, z), (s1 + 0.04, -0.02, z), 0.04, 0.03, look='C', space=rw)
     for s in (s0 - 0.02, s1 + 0.02):
         town.board(m, (s, -0.02, z0), (s, -0.02, z1), 0.04, 0.03, look='C', space=rw)
-    lines = ['ORDERS', 'DOLAN  PINE  6FT', 'AVERY  PINE  5FT 5', 'PIKE  PINE  5FT 10', 'KESSLER  OAK  5FT 2']
+    lines = ['ORDERS', 'DOLAN  PINE  6FT', 'AVERY  PINE  5FT 5', 'PECK  PINE  5FT 10', 'LOCKETT  OAK  5FT 2']
     rr.chalk(m, rw, lines, (s0 + 0.06, -0.0215, z1 - 0.07), height=0.045, tol=0.06, gap=1.75)
     last = z1 - 0.07 - 5 * 0.045 * 1.75
     widths = rr.chalk(m, rw, ['T. BRIGHT.  PINE.  NO BRASS.'], (s0 + 0.06, -0.0215, last), height=0.042, tol=0.06,
@@ -588,6 +630,35 @@ def workshop():
     m.socket('ThaddeusBench', (bx, by - 0.85, CF), rr.rot_to((0.0, 1.0)))
     m.section('cold room')
 
+    # --- A closed stone box over each vaulted room (the cellar's five bays, the cold room), under the ground: a lid over
+    # the crowns, and walls 2 cm behind the rooms' walls from under the springing up to it. The vaults are one-sided, seen
+    # from below: a view that rose past one (a jump by a wall, the third-person camera) looked out through it at the sky
+    # and the grass over the cold room (the terrain is one-sided too) and up into the workshop. From inside, the vaults
+    # and walls hide the box; round the stairwell (open up to the workshop) its walls stand on the ring arches, inside the
+    # ribs. Built after everything else, so the rest keeps its mapping. ---
+    foot = ZS - 0.1
+    west, east, south, north = CX[0] - 0.02, CX[3] + 0.02, CY[0] - 0.02, CY[2] + 0.02
+    well_x, well_y = CX[2] - 0.01, CY[1] - 0.01                 # the stairwell's sides, on the vaults' side
+    rr.flat_cells(m, west, east, south, north, LID, holes=[(well_x, east + 1.0, well_y, north + 1.0)], uv=STONE,
+                  mat='stone', up=False, every=0)
+    box_wall(m, (west, north), (west, south), foot, LID, (1.0, 0.0, 0.0))
+    box_wall(m, (west, south), (east, south), foot, LID, (0.0, 1.0, 0.0))
+    box_wall(m, (east, south), (east, well_y), foot, LID, (-1.0, 0.0, 0.0))
+    box_wall(m, (west, north), (well_x, north), foot, LID, (0.0, -1.0, 0.0),
+             notch=(COLD_DOOR[0] - west, COLD_DOOR[1] - west, CF + 2.1))
+    box_wall(m, (well_x, well_y), (east, well_y), lambda s: vault_z(well_x + s - (CX[2] + CX[3]) * 0.5) + 0.1, LID,
+             (0.0, -1.0, 0.0))
+    box_wall(m, (well_x, well_y), (well_x, north), lambda s: vault_z(well_y + s - (CY[1] + CY[2]) * 0.5) + 0.1, LID,
+             (-1.0, 0.0, 0.0))
+    w0, w1, n0, n1 = cx0 - 0.02, cx1 + 0.02, cy0 - 0.02, cy1 + 0.02
+    rr.flat_cells(m, w0, w1, n0, n1, COLD_LID, uv=STONE, mat='stone', up=False, every=0)
+    box_wall(m, (w0, n1), (w0, n0), foot, COLD_LID, (1.0, 0.0, 0.0))
+    box_wall(m, (w1, n0), (w1, n1), foot, COLD_LID, (-1.0, 0.0, 0.0))
+    box_wall(m, (w0, n1), (w1, n1), foot, COLD_LID, (0.0, -1.0, 0.0))
+    box_wall(m, (w0, n0), (w1, n0), foot, COLD_LID, (0.0, 1.0, 0.0),
+             notch=(COLD_DOOR[0] - w0, COLD_DOOR[1] - w0, CF + 2.1))
+    m.section('stone box over the vaults')
+
     # --- Collision: the workshop (walls round the yard doors, the floor round the hole, the enclosure round its door, the
     # roof), the stair, the cellar and the cold room. ---
     fx0, fx1 = DOOR
@@ -611,22 +682,40 @@ def workshop():
     m.hull_points([(x, y, z) for x in SPINE for y, z in ((HOLE[2] + 0.05, CF), (LAND_Y, CF)) + tuple(spine_top)])
     m.hull_points([(x, y, z) for x in (par - ENC, par) for y, z in ((FOOT2 - 0.3, CF), (YI1, CF)) + tuple(ptop)])
     m.hull((CX[3] - CX[0] + 0.8, CY[2] - CY[0] + 0.8, 0.3), at=((CX[0] + CX[3]) * 0.5, (CY[0] + CY[2]) * 0.5, CF - 0.15))
-    for x in (CX[0] - WALL_C * 0.5, CX[3] + WALL_C * 0.5):
-        m.hull((WALL_C, CY[2] - CY[0] + 2.0 * WALL_C, BASE - CF), at=(x, (CY[0] + CY[2]) * 0.5, (BASE + CF) * 0.5))
-    m.hull((CX[3] - CX[0], WALL_C, ZC - CF + 0.3), at=((CX[0] + CX[3]) * 0.5, CY[0] - WALL_C * 0.5,
-                                                       (ZC + CF + 0.3) * 0.5))
-    for a, b in ((CX[0], COLD_DOOR[0]), (COLD_DOOR[1], CX[3])):
-        m.hull((b - a, WALL_C, BASE - CF), at=((a + b) * 0.5, CY[2] + WALL_C * 0.5, (BASE + CF) * 0.5))
-    m.hull((COLD_DOOR[1] - COLD_DOOR[0], WALL_C, ZC + 0.3 - (CF + 2.1)),
-           at=((COLD_DOOR[0] + COLD_DOOR[1]) * 0.5, CY[2] + WALL_C * 0.5, (CF + 2.1 + ZC + 0.3) * 0.5))
+    # The cellar's walls stop at the top of the slab over the vaults (ZC + 0.3, under the ground): up to the workshop's
+    # floor they stood 0.3 m out of the ground beyond its walls (an unseen kerb along the west end and behind). Round the
+    # stairwell they still rise to the floor, inside the workshop's walls.
+    cap = ZC + 0.3
+    m.hull((WALL_C, CY[2] - CY[0] + 2.0 * WALL_C, cap - CF), at=(CX[0] - WALL_C * 0.5, (CY[0] + CY[2]) * 0.5,
+                                                                 (cap + CF) * 0.5))
+    m.hull((WALL_C, CY[1] - CY[0] + WALL_C, cap - CF), at=(CX[3] + WALL_C * 0.5, (CY[0] - WALL_C + CY[1]) * 0.5,
+                                                           (cap + CF) * 0.5))
+    m.hull((X1 - CX[3], Y1 - CY[1], BASE - CF), at=((CX[3] + X1) * 0.5, (CY[1] + Y1) * 0.5, (BASE + CF) * 0.5))
+    m.hull((CX[3] - CX[0], WALL_C, cap - CF), at=((CX[0] + CX[3]) * 0.5, CY[0] - WALL_C * 0.5, (cap + CF) * 0.5))
+    for a, b in ((CX[0], COLD_DOOR[0]), (COLD_DOOR[1], CX[2])):
+        m.hull((b - a, WALL_C, cap - CF), at=((a + b) * 0.5, CY[2] + WALL_C * 0.5, (cap + CF) * 0.5))
+    m.hull((CX[3] - CX[2], Y1 - CY[2], BASE - CF), at=((CX[2] + CX[3]) * 0.5, (CY[2] + Y1) * 0.5, (BASE + CF) * 0.5))
+    m.hull((COLD_DOOR[1] - COLD_DOOR[0], WALL_C, cap - (CF + 2.1)),
+           at=((COLD_DOOR[0] + COLD_DOOR[1]) * 0.5, CY[2] + WALL_C * 0.5, (CF + 2.1 + cap) * 0.5))
+    # The slab over the vaults' crowns (its underside 5.5 cm under them), and the vaults' corners up into it.
     for (x0, x1), (y0, y1) in (((CX[0], CX[2]), (CY[0], CY[2])), ((CX[2], CX[3]), (CY[0], CY[1]))):
         m.hull((x1 - x0, y1 - y0, 0.35), at=((x0 + x1) * 0.5, (y0 + y1) * 0.5, ZC + 0.12))
+    for (x0, x1), (y0, y1) in (((CX[0], CX[1]), (CY[0], CY[1])), ((CX[1], CX[2]), (CY[0], CY[1])),
+                               ((CX[2], CX[3]), (CY[0], CY[1])), ((CX[0], CX[1]), (CY[1], CY[2])),
+                               ((CX[1], CX[2]), (CY[1], CY[2]))):
+        corner_hulls(m, x0, x1, y0, y1)
     m.hull((cx1 - cx0 + 0.8, cy1 - cy0 + 0.4, 0.3), at=(ccen, (cy0 + cy1) * 0.5 + 0.2, CF - 0.15))
     for x in (cx0 - WALL_C * 0.5, cx1 + WALL_C * 0.5):
         m.hull((WALL_C, cy1 - cy0 + WALL_C, COLD_CROWN - CF + 0.3), at=(x, (cy0 + cy1) * 0.5 + 0.2,
                                                                          (COLD_CROWN + CF + 0.3) * 0.5))
     m.hull((cx1 - cx0, WALL_C, COLD_CROWN - CF + 0.3), at=(ccen, cy1 + WALL_C * 0.5, (COLD_CROWN + CF + 0.3) * 0.5))
     m.hull((cx1 - cx0, cy1 - cy0, 0.3), at=(ccen, (cy0 + cy1) * 0.5, COLD_CROWN + 0.1))
+    # The cold room's barrel vault from each side wall up into its slab (past 0.5 m from the middle it's over the slab's
+    # underside): three slices a side, each under the vault by at most 1.2 cm.
+    for side in (-1.0, 1.0):
+        for ta, tb in ((chalf, 1.5), (1.5, 1.0), (1.0, 0.5)):
+            m.hull_points([(ccen + side * t, y, z) for t in (ta, tb) for y in (cy0, cy1)
+                           for z in (arch_z(t, chalf, crise, ZS), COLD_CROWN + 0.1)])
 
     px, py = PIVOT
     m.rooms += [

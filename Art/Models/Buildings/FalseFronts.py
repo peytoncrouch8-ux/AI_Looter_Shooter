@@ -24,7 +24,8 @@ shutters that slam as Ellis walks by.
                          door hung with black crepe, under a wooden false front lettered SHERIFF with a star. The door
                          stands open on a walk-in front office (sheriff_office(); Side 1, the gang's Strongbox is here):
                          plaster walls, a board floor at the walk's height, the desk with its lamp lit (SOCKET_Light),
-                         the chair knocked over, an empty gun rack, a barred cell door standing open on a dark cell.
+                         the chair knocked over, an empty gun rack, a barred cell door standing open on a dark cell
+                         the player walks into (Dead Lift: the winch crank and Odell's report on its bunk).
                          SOCKET_Strongbox is the Strongbox's spot on the floor against the partition, facing the door;
                          SOCKET_Decal and SOCKET_Decal_2 are bare plaster for wanted posters. SOCKET_Smoke tops the
                          (cold) stovepipe.
@@ -1098,6 +1099,13 @@ CELL_DOOR = (-1.95, 0.9, 2.1)   # the cell door in the partition: its hinge side
 DOOR_LEAF = frozenset(range(9)) | {10, 12, 13}
 
 
+def cell_plan(y_p):
+    """The cell behind the partition (y_p its office face): its inside x0, x1 (0.25 m past the doorway's jambs), y0, y1
+    (behind the partition's 0.12 m, 1.1 m deep) and its height over the floor."""
+    cx, cw, _ = CELL_DOOR
+    return cx - 0.25, cx + cw + 0.25, y_p + 0.12, y_p + 1.22, 2.4
+
+
 def wall_face(m, space, outline, holes, uv, mat='trim'):
     """A wall's face alone, holes and all (the office's plaster, inside walls nobody sees from behind): outline (x, z)
     counterclockwise seen from the front in space, which faces -Y there."""
@@ -1148,7 +1156,7 @@ def sheriff_office(m, x_in, y_in, y_p):
 
     # The cell: stone sides and floor round the moved panes, a plank bunk against the back; its door open.
     stone = Trim('D', world=True)
-    c0, c1, cy0, cy1, ctop = cx - 0.25, cx + cw + 0.25, y_p + 0.12, y_p + 1.22, 2.4
+    c0, c1, cy0, cy1, ctop = cell_plan(y_p)
     quad(m, None, (c0, cy0, BASE), (0.0, 1.0, 0.0), up, cy1 - cy0, ctop, 1, 1, stone, 'trim')
     quad(m, None, (c1, cy1, BASE), (0.0, -1.0, 0.0), up, cy1 - cy0, ctop, 1, 1, stone, 'trim')
     quad(m, None, (c0, cy0, BASE), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), c1 - c0, cy1 - cy0, 1, 1, stone, 'trim')
@@ -1215,6 +1223,20 @@ def sheriff_office(m, x_in, y_in, y_p):
            6, Tile('Polymer'), 'crepe', None, turn=Matrix.Rotation(math.radians(-78.0), 4, 'X'))
     m.section('office: rack, bills, hat')
     return dict(light=light, desk=(dx, dy, dz), cell_door=cell_door)
+
+
+def cell_inside(m, y_p):
+    """What the cell shows to whoever walks into it (Dead Lift: the winch crank and Odell's report lie on its bunk): the
+    partition's back round the doorway in the stone of the cell's sides (the office's plaster faces only the office, so
+    the office showed through it from inside), and two legs under the bunk's front edge (it stood on nothing)."""
+    cx, cw, ch = CELL_DOOR
+    c0, c1, cy0, cy1, ctop = cell_plan(y_p)
+    back = kit.wall_space((c1, cy0), (c0, cy0), BASE)       # its face toward +y, into the cell
+    wall_face(m, back, [(0.0, -0.02), (c1 - c0, -0.02), (c1 - c0, ctop), (0.0, ctop)],
+              [kit.rect(c1 - cx - cw, 0.0, cw, ch)], Trim('D', world=True))
+    for x in (c0 + 0.16, c1 - 0.16):
+        town.box(m, (0.06, 0.06, 0.42), at=(x, cy1 - 0.46, BASE + 0.21), look='C', drop=('-z', '+z'))
+    m.section('office: inside the cell')
 
 
 def sheriff():
@@ -1348,6 +1370,9 @@ def sheriff():
     # The office, built last on a stream of its own (the rest stays as it was), and what the game hangs on it.
     with m.own(305):
         office = sheriff_office(m, X_IN, Y_IN, Y_P)
+    # The cell's inside, on a stream of its own after the office (the office stays as it was).
+    with m.own(306):
+        cell_inside(m, Y_P)
     m.socket('Light', office['light'])
     m.socket('Strongbox', (STRONGBOX[0], Y_P - STRONGBOX[1], BASE))
     m.socket('Decal', (2.2, Y_P - 0.001, BASE + 1.6))
@@ -1356,7 +1381,8 @@ def sheriff():
 
     # Collision: the office walkable, its floor at the walk's height on out through the doorway (1 x 2.25 m clear),
     # the front wall either side and over the door, the side walls, the ceiling, the desk and the open cell door; the
-    # rest of the building solid behind the partition.
+    # cell walkable too (Dead Lift's winch crank and Odell's report lie on its bunk: a solid block behind the partition
+    # once kept the player out and hid them from Interact); the rest of the building solid round and behind it.
     mid = (Y_IN + Y_P) * 0.5
     m.hull((2.0 * X_IN, OFFICE_DEPTH, BASE), at=(0.0, mid, BASE * 0.5))
     m.hull((DOOR.w, STONE_T, BASE), at=(X0 + DOOR.x + DOOR.w * 0.5, Y0 + STONE_T * 0.5, BASE * 0.5))
@@ -1368,7 +1394,21 @@ def sheriff():
         m.hull((X1 + 0.05 - X_IN, OFFICE_DEPTH, EAVE), at=(s * (X_IN + X1 + 0.05) * 0.5, mid, EAVE * 0.5))
     ceiling = BASE + OFFICE_CEILING
     m.hull((2.0 * X_IN, OFFICE_DEPTH, EAVE - ceiling), at=(0.0, mid, (EAVE + ceiling) * 0.5))
-    m.hull((WS + 0.1, Y1 - Y_P, EAVE), at=(0.0, (Y_P + Y1) * 0.5, EAVE * 0.5))
+    # The cell (1.4 x 1.1 m, 2.4 m high, through a 0.9 x 2.1 m doorway): its floor at the office's on in from the
+    # doorway, the partition either side of the doorway and over it, its ceiling, the bunk (from the floor up to its top,
+    # 8 cm shy of its front edge: 0.67 m clear in front of it for the player's 0.58 m); the building solid either side of
+    # it and behind it.
+    c0, c1, cy0, cy1, ctop = cell_plan(Y_P)
+    cx, cw, ch = CELL_DOOR
+    m.hull((c1 - c0, cy1 - Y_P, BASE), at=((c0 + c1) * 0.5, (Y_P + cy1) * 0.5, BASE * 0.5))
+    for a, b in ((c0, cx), (cx + cw, c1)):
+        m.hull((b - a, cy0 - Y_P, EAVE), at=((a + b) * 0.5, (Y_P + cy0) * 0.5, EAVE * 0.5))
+    m.hull((cw, cy0 - Y_P, EAVE - BASE - ch), at=(cx + cw * 0.5, (Y_P + cy0) * 0.5, (EAVE + BASE + ch) * 0.5))
+    m.hull((c1 - c0, cy1 - cy0, EAVE - BASE - ctop), at=((c0 + c1) * 0.5, (cy0 + cy1) * 0.5, (EAVE + BASE + ctop) * 0.5))
+    m.hull((c1 - c0 - 0.2, 0.42, 0.48), at=((c0 + c1) * 0.5, cy1 - 0.21, BASE + 0.24))
+    for a, b in ((X0 - 0.05, c0), (c1, X1 + 0.05)):
+        m.hull((b - a, cy1 - Y_P, EAVE), at=((a + b) * 0.5, (Y_P + cy1) * 0.5, EAVE * 0.5))
+    m.hull((WS + 0.1, Y1 - cy1, EAVE), at=(0.0, (cy1 + Y1) * 0.5, EAVE * 0.5))
     dx, dy, dz = office['desk']
     m.hull((1.36, 0.7, dz - BASE), at=(dx, dy, (dz + BASE) * 0.5))
     m.hull((CELL_DOOR[1], 0.05, CELL_DOOR[2]), at=(CELL_DOOR[1] * 0.5, 0.0, CELL_DOOR[2] * 0.5),

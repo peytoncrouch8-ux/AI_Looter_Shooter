@@ -87,7 +87,7 @@ READABLES = {
     # Knocking Below, optional: the coffin orders on the slate by the workshop door (OrdersSlate socket).
     'OrdersSlate': dict(
         title='Coffin orders', heading='Chalk on the slate by the workshop door', prompt='Read',
-        text=('MERCER, J. PINE.\nHASKETT, R. PINE.\nPELL, A. PINE.\nSTRAND, M. PINE, SMALL.\n\n'
+        text=('DOLAN. PINE. 6 FT.\nAVERY. PINE. 5 FT 5.\nPECK. PINE. 5 FT 10.\nLOCKETT. OAK. 5 FT 2.\n\n'
               'Struck through, in another hand:\nT. BRIGHT. PINE. NO BRASS.'),
         lines=[(HOB, 'Wrote his own order, did he. And she put brass on it anyway.')]),
     # The Old Fare, optional: the agent's desk in the ticket office (SM_RR_Depot's AgentDesk socket).
@@ -180,7 +180,9 @@ PORCH_PLATE = dict(
 # ---------------------------------------------------------------------------
 
 ARTIFACTS = {
-    # Side 1: the poster on the town gate's south post (a handbill, beside the tearable posterGate decal).
+    # Side 1: the poster on the town gate's south post (a handbill, laid over the posterGate decal). The decal can't be torn
+    # until Side 1 is taken (AWantedPoster::IsAwaitingOffer finds this card over it by itself, no property to set), so a
+    # tap reads the poster first; then it tears like the others and counts.
     'Artifact_PosterGate': dict(title='Your wanted poster', prompt='Read the poster', text='', model='',
                                 take_on_accept=False),
     # Calder's Caches: Ruth Calder's note, pinned on the Rim Rangers' board by the sheriff's office.
