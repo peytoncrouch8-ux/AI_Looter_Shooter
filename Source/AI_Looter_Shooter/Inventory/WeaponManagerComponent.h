@@ -200,6 +200,14 @@ public:
 	/** Empties it without dropping anything: the guns are gone, and the backpack, the ammo and the parts box. */
 	void ClearInventory();
 
+	// --- Guns never vanish unseen (WeaponManagerWatch.cpp; the vanished guns of 2026-10-14) ---
+
+	/**
+	 * A gun ends play destroyed (AWeaponBase::EndPlay). One still in the slots that this didn't destroy itself was taken
+	 * from the player some other way: a warning names it, with the callstack, and its slot is let go.
+	 */
+	void NoteGunDestroyed(AWeaponBase& Gun);
+
 	// --- The gunsmith's bench: the parts box, scrapping and fitting (WeaponManagerBench.cpp) ---
 
 	/** The most parts the box holds: scrapping stops there until parts are fitted or thrown out. */
@@ -414,9 +422,27 @@ private:
 	/** Attaches a weapon that just joined the slots where it's held, put away until it's taken in hand. */
 	void AttachHolstered(AWeaponBase* Weapon);
 
-	/** Takes a weapon out of the equip slots (fixing up the active slot) without destroying it. */
-	AWeaponBase* RemoveFromSlots(int32 SlotIndex);
+	/**
+	 * Takes a weapon out of the equip slots (fixing up the active slot) without destroying it. bHolster false: the one in
+	 * hand isn't put away first (a gun already being destroyed).
+	 */
+	AWeaponBase* RemoveFromSlots(int32 SlotIndex, bool bHolster = true);
 	void SendMessage(const FString& Message);
+
+	/** Destroys a gun it carries or carried: only these go quietly (NoteGunDestroyed). */
+	void ReleaseGun(AWeaponBase* Gun);
+
+	/** After a change the player asked for (a drop, a sale, a load, a clear): when it left them no gun, a log line says how. */
+	void NoteGunsGone(int32 CarriedBefore, const TCHAR* Path) const;
+
+	/** Guns lost on a path that should never lose one: a warning naming the path and why, and the C++ callstack. */
+	void WarnGunsLost(int32 Lost, const TCHAR* Path, const FString& Why) const;
+
+	/** As it ends play: guns carried that go with it anywhere but the end of the level or of play are a loss, said aloud. */
+	void ReportEndPlay(EEndPlayReason::Type EndPlayReason) const;
+
+	/** Empties everything (ClearInventory, a load's RestoreInventory) without a word. */
+	void EmptyInventory();
 
 	/** How many guns are in the equip slots. */
 	int32 NumEquipped() const;
@@ -451,4 +477,10 @@ private:
 
 	int32 ActiveSlot = INDEX_NONE;
 	bool bThirdPersonHold = false;
+
+	/** While it destroys a gun itself (ReleaseGun): that one's end isn't a loss. */
+	bool bReleasingGun = false;
+
+	/** A local player has held it: its guns are the player's, whose pawn should never be destroyed mid-play. */
+	bool bHeldByPlayer = false;
 };

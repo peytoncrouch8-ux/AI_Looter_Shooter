@@ -26,7 +26,7 @@ bool UWeaponManagerComponent::TryPickup(AWeaponBase* Pickup)
 	{
 		Backpack.Add(Pickup->GetInstanceForStorage());
 		SendMessage(FString::Printf(TEXT("%s sent to backpack"), *Pickup->GetDisplayName().ToString()));
-		Pickup->Destroy();
+		ReleaseGun(Pickup);
 		OnInventoryChanged.Broadcast();
 		return true;
 	}
@@ -69,7 +69,7 @@ bool UWeaponManagerComponent::EquipPickup(AWeaponBase* Pickup)
 		{
 			Outgoing->OnHolstered();
 			Backpack.Add(Outgoing->GetInstanceForStorage());
-			Outgoing->Destroy();
+			ReleaseGun(Outgoing);
 			SendMessage(FString::Printf(TEXT("%s sent to backpack"), *OutgoingName));
 		}
 		else

@@ -33,9 +33,10 @@ void UWeaponManagerComponent::SaveInventory(FWeaponInventorySave& OutSave) const
 void UWeaponManagerComponent::RestoreInventory(const FWeaponInventorySave& Save)
 {
 	// Whatever it was given as play began (its starting weapons) makes way for what the session had.
-	ClearInventory();
+	const int32 Before = NumCarriedGuns();
+	EmptyInventory();
 
-	// Guns whose kind no longer exists (their data asset gone) can't come back.
+	// Guns whose kind no longer exists (their data asset gone) can't come back; the warning below counts them.
 	for (const FWeaponInstanceData& Instance : Save.Equipped)
 	{
 		if (Instance.Definition && Weapons.Num() < MaxWeapons)
@@ -50,6 +51,10 @@ void UWeaponManagerComponent::RestoreInventory(const FWeaponInventorySave& Save)
 			Backpack.Add(Instance);
 		}
 	}
+	const int32 Saved = Save.Equipped.Num() + Save.Backpack.Num();
+	WarnGunsLost(Saved - NumCarriedGuns(), TEXT("RestoreInventory (a load)"),
+		FString::Printf(TEXT("%d of the save's %d guns didn't come back (their kind is gone, or there was no room)"), Saved - NumCarriedGuns(), Saved));
+	NoteGunsGone(Before, TEXT("a load whose save carries none: RestoreInventory"));
 	for (int32 Type = 0; Type < LooterAmmo::NumTypes && Type < Save.Ammo.Num(); ++Type)
 	{
 		const EAmmoType AmmoType = static_cast<EAmmoType>(Type);
@@ -83,6 +88,13 @@ void UWeaponManagerComponent::RestoreInventory(const FWeaponInventorySave& Save)
 
 void UWeaponManagerComponent::ClearInventory()
 {
+	const int32 Before = NumCarriedGuns();
+	EmptyInventory();
+	NoteGunsGone(Before, TEXT("emptied on request: ClearInventory"));
+}
+
+void UWeaponManagerComponent::EmptyInventory()
+{
 	StopFire();
 	AWeaponBase* InHand = GetActiveWeapon();
 	if (InHand)
@@ -99,10 +111,7 @@ void UWeaponManagerComponent::ClearInventory()
 	}
 	for (AWeaponBase* Weapon : Gone)
 	{
-		if (IsValid(Weapon))
-		{
-			Weapon->Destroy();
-		}
+		ReleaseGun(Weapon);
 	}
 	Backpack.Reset();
 	PartsBox.Reset();

@@ -101,12 +101,11 @@ void UWeaponManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		Pawn->ReceiveControllerChangedDelegate.RemoveDynamic(this, &UWeaponManagerComponent::HandleControllerChanged);
 	}
 
+	// The guns go with it: said aloud unless the level or play is ending (a rebuilt pawn once took them unseen).
+	ReportEndPlay(EndPlayReason);
 	for (AWeaponBase* Weapon : Weapons)
 	{
-		if (IsValid(Weapon))
-		{
-			Weapon->Destroy();
-		}
+		ReleaseGun(Weapon);
 	}
 	Weapons.Reset();
 
@@ -162,6 +161,8 @@ void UWeaponManagerComponent::SetupInput(AController* Controller)
 	{
 		return;
 	}
+	// Remembered past an unpossess: the pawn is destroyed after its controller lets go (ReportEndPlay).
+	bHeldByPlayer = bHeldByPlayer || (Controller && Controller->IsLocalPlayerController());
 
 	if (FireAction)
 	{

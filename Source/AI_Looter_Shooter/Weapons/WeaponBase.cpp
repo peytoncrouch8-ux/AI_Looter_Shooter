@@ -185,9 +185,14 @@ void AWeaponBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		World->GetTimerManager().ClearAllTimersForObject(this);
 	}
-	// A gun destroyed in its holder's hand takes its curse's hold on their health with it.
+	// A gun destroyed in its holder's hand takes its curse's hold on their health with it; one still carried that its holder
+	// didn't destroy itself is a gun lost, which the holder says aloud.
 	if (EndPlayReason == EEndPlayReason::Destroyed)
 	{
+		if (UWeaponManagerComponent* Holder = GetHolderInventory())
+		{
+			Holder->NoteGunDestroyed(*this);
+		}
 		WeaponCurseEffects::RefreshHolder(GetOwner(), this);
 	}
 	Super::EndPlay(EndPlayReason);

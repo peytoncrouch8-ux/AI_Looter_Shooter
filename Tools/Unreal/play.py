@@ -18,7 +18,11 @@ Usage: Tools\\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/play.py <com
   ammo                                            fills every ammo pool
   guns                                            the gun in hand and every slot
   lookat <tag|name>                               turns the view onto an actor from where the player stands
-  what [yaw offset] [pitch offset]                what the view's middle meets: actor, label, component, mesh"""
+  what [yaw offset] [pitch offset]                what the view's middle meets: actor, label, component, mesh
+
+Never set_editor_property on anything in the play session (2026-10-14): a changed value fires the editor's change notices,
+and a component's notice reruns its actor's construction script. On the player that rebuilt every Blueprint component, the
+weapon manager among them: all guns, the backpack and the ammo vanished, twice. Call the game's own functions instead."""
 import math
 import sys
 
@@ -74,13 +78,30 @@ def player(world):
     return pawn, controller
 
 
+def carried(pawn):
+    """The player's weapon manager and the guns it carries (slots and backpack), to see that a move kept them."""
+    manager = pawn.get_component_by_class(unreal.WeaponManagerComponent)
+    if manager is None:
+        return None, 0
+    return manager, len([w for w in manager.get_weapons() if w]) + len(manager.get_backpack())
+
+
 def place(world, pawn, controller, spot, look_at=None, yaw=None, pitch=0.0):
+    before = carried(pawn)
     capsule = pawn.get_component_by_class(unreal.CapsuleComponent)
     half = capsule.get_scaled_capsule_half_height() if capsule else 80.0
     pawn.set_actor_location(unreal.Vector(spot.x, spot.y, spot.z + half + 5.0), False, True)
     movement = pawn.get_component_by_class(unreal.CharacterMovementComponent)
     if movement:
-        movement.set_editor_property('velocity', unreal.Vector(0, 0, 0))
+        # Stopped dead, a hit's knock-back and launch with it, through the game's own calls: never set_editor_property
+        # (see the top: on a moving player it rebuilt the pawn and took every gun).
+        movement.stop_movement_immediately()
+        movement.clear_accumulated_forces()
+    # The same component keeps the same Python wrapper (they're cached per object), so a rebuilt one isn't the same.
+    after = carried(pawn)
+    if before[0] is not None and (after[0] is not before[0] or after[1] < before[1]):
+        say(f'WARNING the move lost guns: {before[1]} carried before, {after[1]} after'
+            f'{"; the weapon manager is a new one (the pawn was rebuilt)" if after[0] is not before[0] else ""}')
     if look_at is not None:
         eye = unreal.Vector(spot.x, spot.y, spot.z + half * 1.75)
         d = look_at - eye
@@ -353,7 +374,8 @@ def guns(world):
     manager = pawn.get_component_by_class(unreal.WeaponManagerComponent)
     held = manager.get_active_weapon() if manager else None
     names = [w.get_name() if w else 'None' for w in manager.get_weapons()] if manager else []
-    say(f'guns: in hand {held.get_name() if held else "none"}; slots {names}')
+    say(f'guns: in hand {held.get_name() if held else "none"}; slots {names}; '
+        f'backpack {len(manager.get_backpack()) if manager else 0}')
 
 
 def look_at(world, word):

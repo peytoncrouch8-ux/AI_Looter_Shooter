@@ -131,7 +131,7 @@ bool UWeaponManagerComponent::ScrapGun(const FCarriedGun& Gun, FName KeepSlot)
 	else if (AWeaponBase* Weapon = RemoveFromSlots(Gun.Index))
 	{
 		// In hand, the next gun in the slots is taken in hand (RemoveFromSlots).
-		Weapon->Destroy();
+		ReleaseGun(Weapon);
 	}
 	UE_LOG(LogLooter, Log, TEXT("Bench: scrapped a %s %s (seed %d), kept %s; %d parts in the box."), *StaticEnum<EWeaponRarity>()->GetNameStringByValue(static_cast<int64>(Instance.Rarity)),
 		Instance.Definition ? *Instance.Definition->GetName() : TEXT("gun"), Instance.Seed, *DescribePart(*Kept), PartsBox.Num());
@@ -233,10 +233,7 @@ bool UWeaponManagerComponent::ReplaceEquipped(int32 SlotIndex, const FWeaponInst
 		Incoming->OnEquipped(Cast<APawn>(GetOwner()), HoldParent, HoldSocket, HoldOffset);
 		OnActiveWeaponChanged.Broadcast(Incoming, Outgoing);
 	}
-	if (IsValid(Outgoing))
-	{
-		Outgoing->Destroy();
-	}
+	ReleaseGun(Outgoing);
 	return true;
 }
 

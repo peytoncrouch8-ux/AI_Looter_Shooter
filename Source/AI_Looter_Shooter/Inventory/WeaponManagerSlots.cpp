@@ -68,7 +68,7 @@ AWeaponBase* UWeaponManagerComponent::GiveWeapon(const FWeaponInstanceData& Inst
 	AWeaponBase* Weapon = UWeaponRollLibrary::SpawnWeapon(this, Instance, Owner ? Owner->GetActorTransform() : FTransform::Identity);
 	if (Weapon && !AddWeapon(Weapon))
 	{
-		Weapon->Destroy();
+		ReleaseGun(Weapon);
 		return nullptr;
 	}
 	return Weapon;
@@ -100,16 +100,18 @@ void UWeaponManagerComponent::PreviousWeapon()
 
 AWeaponBase* UWeaponManagerComponent::DropActiveWeapon()
 {
+	const int32 Before = NumCarriedGuns();
 	AWeaponBase* Weapon = RemoveFromSlots(ActiveSlot);
 	if (Weapon)
 	{
 		Weapon->OnDropped();
 		TossWeaponAway(Weapon);
 	}
+	NoteGunsGone(Before, TEXT("the gun in hand dropped: DropActiveWeapon"));
 	return Weapon;
 }
 
-AWeaponBase* UWeaponManagerComponent::RemoveFromSlots(int32 SlotIndex)
+AWeaponBase* UWeaponManagerComponent::RemoveFromSlots(int32 SlotIndex, bool bHolster)
 {
 	if (!Weapons.IsValidIndex(SlotIndex))
 	{
@@ -118,7 +120,7 @@ AWeaponBase* UWeaponManagerComponent::RemoveFromSlots(int32 SlotIndex)
 
 	AWeaponBase* Weapon = Weapons[SlotIndex];
 	const bool bWasActive = SlotIndex == ActiveSlot;
-	if (bWasActive && Weapon)
+	if (bWasActive && Weapon && bHolster)
 	{
 		Weapon->OnHolstered();
 	}
@@ -147,6 +149,7 @@ AWeaponBase* UWeaponManagerComponent::RemoveFromSlots(int32 SlotIndex)
 
 bool UWeaponManagerComponent::DropSlot(int32 SlotIndex)
 {
+	const int32 Before = NumCarriedGuns();
 	AWeaponBase* Weapon = RemoveFromSlots(SlotIndex);
 	if (!Weapon)
 	{
@@ -154,6 +157,7 @@ bool UWeaponManagerComponent::DropSlot(int32 SlotIndex)
 	}
 	Weapon->OnDropped();
 	TossWeaponAway(Weapon);
+	NoteGunsGone(Before, TEXT("a slot's gun dropped: DropSlot"));
 	return true;
 }
 
@@ -171,7 +175,7 @@ bool UWeaponManagerComponent::StashSlot(int32 SlotIndex)
 
 	AWeaponBase* Weapon = RemoveFromSlots(SlotIndex);
 	Backpack.Add(Weapon->GetInstanceForStorage());
-	Weapon->Destroy();
+	ReleaseGun(Weapon);
 	OnInventoryChanged.Broadcast();
 	return true;
 }
@@ -183,6 +187,7 @@ bool UWeaponManagerComponent::EquipFromBackpack(int32 BackpackIndex)
 		return false;
 	}
 
+	const int32 Before = NumCarriedGuns();
 	const FWeaponInstanceData Incoming = Backpack[BackpackIndex];
 	Backpack.RemoveAt(BackpackIndex);
 
@@ -192,7 +197,7 @@ bool UWeaponManagerComponent::EquipFromBackpack(int32 BackpackIndex)
 		const int32 Slot = FMath::Max(ActiveSlot, 0);
 		AWeaponBase* Outgoing = RemoveFromSlots(Slot);
 		Backpack.Insert(Outgoing->GetInstanceForStorage(), BackpackIndex);
-		Outgoing->Destroy();
+		ReleaseGun(Outgoing);
 	}
 
 	AWeaponBase* Weapon = GiveWeapon(Incoming);
@@ -201,6 +206,8 @@ bool UWeaponManagerComponent::EquipFromBackpack(int32 BackpackIndex)
 		EquipSlot(Weapons.IndexOfByKey(Weapon));
 	}
 	OnInventoryChanged.Broadcast();
+	// A move between the backpack and the slots never loses a gun (only one that couldn't be made would).
+	WarnGunsLost(Before - NumCarriedGuns(), TEXT("EquipFromBackpack"), TEXT("the backpack's gun couldn't be made"));
 	return Weapon != nullptr;
 }
 
@@ -211,6 +218,7 @@ bool UWeaponManagerComponent::DropFromBackpack(int32 BackpackIndex)
 		return false;
 	}
 
+	const int32 Before = NumCarriedGuns();
 	const FWeaponInstanceData Instance = Backpack[BackpackIndex];
 	Backpack.RemoveAt(BackpackIndex);
 
@@ -220,6 +228,7 @@ bool UWeaponManagerComponent::DropFromBackpack(int32 BackpackIndex)
 		TossWeaponAway(Weapon);
 	}
 	OnInventoryChanged.Broadcast();
+	NoteGunsGone(Before, TEXT("a backpack gun dropped: DropFromBackpack"));
 	return true;
 }
 
@@ -264,7 +273,7 @@ bool UWeaponManagerComponent::SwapSlotWithBackpack(int32 SlotIndex, int32 Backpa
 	{
 		Outgoing->OnHolstered();
 		Backpack[BackpackIndex] = Outgoing->GetInstanceForStorage();
-		Outgoing->Destroy();
+		ReleaseGun(Outgoing);
 	}
 	else
 	{
