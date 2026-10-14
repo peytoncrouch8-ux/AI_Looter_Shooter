@@ -4,6 +4,7 @@
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRunner.h"
 #include "Missions/MissionTargets.h"
+#include "Missions/MissionText.h"
 #include "UI/HUD/LooterHUD.h"
 #include "Weapons/WeaponBase.h"
 #include "World/MissionItem.h"
@@ -159,7 +160,7 @@ FString UMissionCollectItemObjective::DescribeRule() const
 	const FMissionItemInfo* First = Mission && Items.Num() == 1 ? Mission->FindItem(Items[0]) : nullptr;
 	if (First && !First->Name.IsEmpty())
 	{
-		return TEXT("Find ") + First->Name.ToString();
+		return TEXT("Find ") + MissionText::InSentence(First->Name.ToString());
 	}
 	return Items.Num() == 1 ? FString::Printf(TEXT("Find %s"), *FName::NameToDisplayString(Items[0].ToString(), false))
 		: FString::Printf(TEXT("Collect %d things"), GetRequired());

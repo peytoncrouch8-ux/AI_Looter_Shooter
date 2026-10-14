@@ -9,6 +9,7 @@
 #include "Inventory/WeaponManagerComponent.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRunner.h"
+#include "Missions/MissionText.h"
 #include "UI/Style/MissionMarkIcons.h"
 #include "World/LightBeam.h"
 #include "World/WorldQueries.h"
@@ -274,7 +275,8 @@ FInteractionOptions AMissionItem::GetInteractionOptions(const UInteractionCompon
 	Options.bUsable = bShownNow && !IsFalling();
 	Options.bTap = true;
 	Options.bHold = false;
-	Options.TapPrompt = Prompt.IsEmpty() ? FText::Format(LOCTEXT("TakePrompt", "Take {0}"), GetItemName()) : Prompt;
+	// Its name after the verb as in a sentence: "Take the clamp pin", though the data writes it as a title ("The clamp pin").
+	Options.TapPrompt = Prompt.IsEmpty() ? FText::Format(LOCTEXT("TakePrompt", "Take {0}"), MissionText::InSentence(GetItemName())) : Prompt;
 	Options.Reach = Reach;
 	return Options;
 }

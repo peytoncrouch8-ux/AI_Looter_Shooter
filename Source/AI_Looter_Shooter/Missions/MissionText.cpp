@@ -59,3 +59,27 @@ FString MissionText::KeyName(const UWorld* World, FName Action)
 {
 	return Action.IsNone() ? FString() : ActionKeyName(FindKeyBindings(World), Action.ToString());
 }
+
+FString MissionText::InSentence(const FString& Name)
+{
+	// Only the article as a word of its own ("Theodore's watch" stays as it is), and only with words after it.
+	static const TCHAR* const Articles[] = { TEXT("The "), TEXT("An "), TEXT("A ") };
+	for (const TCHAR* Article : Articles)
+	{
+		if (Name.StartsWith(Article, ESearchCase::CaseSensitive) && Name.Len() > FCString::Strlen(Article))
+		{
+			FString Lowered = Name;
+			Lowered[0] = FChar::ToLower(Lowered[0]);
+			return Lowered;
+		}
+	}
+	return Name;
+}
+
+FText MissionText::InSentence(const FText& Name)
+{
+	const FString Words = Name.ToString();
+	const FString Lowered = InSentence(Words);
+	// Unchanged, the name keeps its own text (and its translation).
+	return Lowered.Equals(Words, ESearchCase::CaseSensitive) ? Name : FText::FromString(Lowered);
+}

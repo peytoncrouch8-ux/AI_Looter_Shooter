@@ -19,4 +19,12 @@ namespace MissionText
 	 * ("W A S D"). Without a player to ask, the action's own name ("Reload"), as ResolveKeys does.
 	 */
 	FString KeyName(const UWorld* World, FName Action);
+
+	/**
+	 * A name as it reads inside a sentence, after a verb ("Take {0}", "Find {0}"): the data writes a mission item's name as a
+	 * title ("The clamp pin", "A miner's tag", for the Missions page's Carried list), so a leading The, A or An is
+	 * lower-cased ("Take the clamp pin"); the rest is kept as written ("the Gravemother's fang" keeps her capital).
+	 */
+	FString InSentence(const FString& Name);
+	FText InSentence(const FText& Name);
 }

@@ -1,14 +1,16 @@
 // UNoticeBoardWidget: the posting cards (title, notice, count, reward, what can be done here) and acting on one: turning it
-// in or tracking it.
+// in, tracking it or taking it (the offer card).
 
 #include "UI/World/NoticeBoardWidget.h"
 #include "Audio/LooterSound.h"
+#include "Economy/EconomyRules.h"
 #include "Missions/MissionDefinition.h"
 #include "Missions/MissionRewards.h"
 #include "Missions/MissionRunner.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Style/LooterButton.h"
+#include "UI/Style/LooterUIFocus.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/MissionMarkIcons.h"
 #include "Weapons/WeaponDefinition.h"
@@ -48,30 +50,74 @@ namespace
 	{
 		return Rewards.GunKind && !Rewards.GunKind->DisplayName.IsEmpty() ? Rewards.GunKind->DisplayName : FText::GetEmpty();
 	}
+
+	/**
+	 * The rewards in a few words each, from the same numbers the offer card lists (FMissionOfferCard::Make): the experience,
+	 * the purse (the rewards' own, else the giver's kept by PurseId), the gun with its floor, the named gun, the areas opened.
+	 */
+	TArray<FText> RewardParts(const FMissionRewards& Rewards, FName PurseId)
+	{
+		TArray<FText> Parts;
+		if (Rewards.Experience > 0)
+		{
+			Parts.Add(FText::Format(LOCTEXT("PartXP", "+{0} XP"), FText::AsNumber(Rewards.Experience)));
+		}
+		else if (Rewards.ExperienceShare > 0.f)
+		{
+			Parts.Add(FText::Format(LOCTEXT("PartXPShare", "+{0}% of a level"), FText::AsNumber(FMath::RoundToInt32(Rewards.ExperienceShare * 100.f))));
+		}
+		if (const int32 Purse = MissionRewards::PurseOf(Rewards, PurseId); Purse > 0)
+		{
+			Parts.Add(FText::Format(LOCTEXT("PartSilver", "+{0} silver"), FText::FromString(LooterEconomy::Format(Purse))));
+		}
+		if (Rewards.bGun)
+		{
+			const FText Kind = GunKindName(Rewards);
+			const FText Gun = Kind.IsEmpty() ? LOCTEXT("AGun", "a gun") : Kind;
+			Parts.Add(Rewards.GunRarityFloor != EWeaponRarity::Common
+				? FText::Format(LOCTEXT("PartGunFloor", "{0}, {1} or better"), Gun, RarityName(Rewards.GunRarityFloor)) : Gun);
+		}
+		if (!Rewards.NamedGun.IsNone())
+		{
+			Parts.Add(MissionRewards::NamedGunName(Rewards));
+		}
+		for (const FName AreaId : Rewards.UnlockAreas)
+		{
+			Parts.Add(FText::Format(LOCTEXT("PartArea", "the way to {0}"), MissionRewards::AreaName(AreaId)));
+		}
+		return Parts;
+	}
+
+	/** "Reward: +1,300 XP · +60 silver"; with nothing, the practice line for a practice posting, else nothing at all. */
+	FText JoinReward(const TArray<FText>& Parts, bool bPractice)
+	{
+		if (Parts.IsEmpty())
+		{
+			// Skyreach's practice postings give nothing: they're done for the practice. A story job giving nothing says nothing.
+			return bPractice ? LOCTEXT("RewardNone", "No reward: it's practice") : FText::GetEmpty();
+		}
+		return FText::Format(LOCTEXT("RewardList", "Reward: {0}"), FText::Join(LOCTEXT("RewardSeparator", " · "), Parts));
+	}
 }
 
 // ---------------------------------------------------------------------------
 // Words
 // ---------------------------------------------------------------------------
 
-FText UNoticeBoardWidget::DescribeReward(const FMissionRewards& Rewards)
+FText UNoticeBoardWidget::DescribeReward(const FMissionRewards& Rewards, FName PurseId, bool bPractice)
 {
-	if (Rewards.bGun)
+	return JoinReward(RewardParts(Rewards, PurseId), bPractice);
+}
+
+FText UNoticeBoardWidget::DescribeReward(const UMissionDefinition& Mission)
+{
+	// The purse by the mission's own id, as its offer card finds it; a choice at the turn-in said as the card says it.
+	TArray<FText> Parts = RewardParts(Mission.Rewards, Mission.GetMissionId());
+	if (Mission.HasTurnInChoice())
 	{
-		const FText Kind = GunKindName(Rewards);
-		const FText Gun = Kind.IsEmpty() ? LOCTEXT("AGun", "a gun") : Kind;
-		if (Rewards.GunRarityFloor != EWeaponRarity::Common)
-		{
-			return FText::Format(LOCTEXT("RewardFloor", "Reward: {0}, {1} or better"), Gun, RarityName(Rewards.GunRarityFloor));
-		}
-		return FText::Format(LOCTEXT("RewardGun", "Reward: {0}"), Gun);
+		Parts.Add(LOCTEXT("PartChoice", "your call at the end"));
 	}
-	if (!Rewards.NamedGun.IsNone())
-	{
-		return FText::Format(LOCTEXT("RewardNamed", "Reward: {0}"), MissionRewards::NamedGunName(Rewards));
-	}
-	// Skyreach gives no experience: a posting without a gun is done for the practice.
-	return LOCTEXT("RewardNone", "No reward: it's practice");
+	return JoinReward(Parts, Mission.Kind == EMissionKind::Tutorial);
 }
 
 FText UNoticeBoardWidget::DescribeGiven(const FMissionRewards& Rewards, const FMissionRewardsGiven& Given)
@@ -172,12 +218,17 @@ UWidget* UNoticeBoardWidget::MakeCard(int32 Index)
 	}
 	if (Mission)
 	{
+		// What it gave once turned in here, else what it pays (the offer card's numbers); a story job paying nothing says
+		// nothing rather than calling itself practice.
 		const FMissionRewardsGiven* Given = GivenHere.Find(Posting.MissionId);
 		const FText Gave = Given ? DescribeGiven(Mission->Rewards, *Given) : FText::GetEmpty();
-		UTextBlock* Reward = Gave.IsEmpty()
-			? MakeText(WidgetTree, DescribeReward(Mission->Rewards).ToString(), 10, Color::TextDim(), true, 150)
-			: MakeText(WidgetTree, Gave.ToString(), 11, Given->GunColor, true, 100);
-		Info->AddChildToVerticalBox(Reward)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+		const FText Pays = Gave.IsEmpty() ? DescribeReward(*Mission) : FText::GetEmpty();
+		UTextBlock* Reward = !Gave.IsEmpty() ? MakeText(WidgetTree, Gave.ToString(), 11, Given->GunColor, true, 100)
+			: !Pays.IsEmpty() ? MakeText(WidgetTree, Pays.ToString(), 10, Color::TextDim(), true, 150) : nullptr;
+		if (Reward)
+		{
+			Info->AddChildToVerticalBox(Reward)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+		}
 	}
 	UHorizontalBoxSlot* InfoSlot = Row->AddChildToHorizontalBox(Info);
 	InfoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -188,18 +239,23 @@ UWidget* UNoticeBoardWidget::MakeCard(int32 Index)
 	UVerticalBox* Side = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	UVerticalBoxSlot* StateSlot = Side->AddChildToVerticalBox(MakeText(WidgetTree, StateWord(Posting).ToString(), 11, StateColor(Posting), true, 120));
 	StateSlot->SetHorizontalAlignment(HAlign_Right);
+	FCard& Card = Cards[Index];
 	if (CanAct(Index))
 	{
 		const bool bTurnIn = Posting.State == ENoticePosting::Ready;
 		const FText Does = bTurnIn ? LOCTEXT("ActTurnIn", "Turn in") : bOffered ? LOCTEXT("ActTake", "Take a look") : LOCTEXT("ActTrack", "Track");
-		UVerticalBoxSlot* KeySlot = Side->AddChildToVerticalBox(LoadoutParts::MakeKeyHint(WidgetTree, TEXT("E"), Does.ToString(),
-			bTurnIn || bOffered));
+		UWidget* Hint = LoadoutParts::MakeKeyHint(WidgetTree, ActKeyName(), Does.ToString(), bTurnIn || bOffered);
+		// Its keycap's words follow the device (E, a pad's A): the first text in the hint is the cap's.
+		UWidgetTree::ForWidgetAndChildren(Hint, [&Card](UWidget* Each)
+		{
+			Card.KeyText = Card.KeyText ? Card.KeyText : Cast<UTextBlock>(Each);
+		});
+		UVerticalBoxSlot* KeySlot = Side->AddChildToVerticalBox(Hint);
 		KeySlot->SetHorizontalAlignment(HAlign_Right);
 		KeySlot->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
 	}
 	Row->AddChildToHorizontalBox(MakeSized(WidgetTree, Side, SideWidth))->SetVerticalAlignment(VAlign_Center);
 
-	FCard& Card = Cards[Index];
 	UOverlay* CardBox = LoadoutParts::MakeCard(WidgetTree, Row, FMargin(10.f, 10.f, 14.f, 10.f), 1.5f, Card.Fill, Card.Line);
 	USizeBox* Sized = MakeSized(WidgetTree, CardBox, 0.f);
 	Sized->SetMinDesiredHeight(CardMinHeight);
@@ -208,10 +264,15 @@ UWidget* UNoticeBoardWidget::MakeCard(int32 Index)
 		// Done, locked or already tracked: nothing to press.
 		return Sized;
 	}
+	// The kit's focus look (an orange frame, a lit edge, a faint wash), under the card's words: lit while keys drive the board.
+	Card.Focus = AddFocusFrame(CardBox);
 	ULooterButton* Button = WidgetTree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
 	Button->SetupContent(Sized, ActionCard, Index, EButtonKind::Bare);
+	// A row is clicked as the button goes down, as a list's rows are: the press alone chooses it (or acts on the chosen one),
+	// never lost for want of a hover or a release over the same card (a press and release only count over a button Slate
+	// saw the pointer enter, which a pointer brought straight onto it and pressed hasn't).
+	Button->SetClickMethod(EButtonClickMethod::MouseDown);
 	Button->OnButtonClicked.BindUObject(this, &UNoticeBoardWidget::HandleButton);
-	Button->OnButtonHovered.BindUObject(this, &UNoticeBoardWidget::HandleHovered);
 	Card.Button = Button;
 	return Button;
 }

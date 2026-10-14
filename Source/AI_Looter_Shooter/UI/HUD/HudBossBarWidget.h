@@ -26,7 +26,8 @@ class UWidget;
  *  - every hit flashes the fill toward white a moment; a big one (2% and more) jolts the bar sideways
  *  - a callout takes the line a moment in orange ("STAGGERED"); the boss's death leaves it there ("DEFEATED")
  * UBossComponent adds it to the viewport for its fight and drives it; it fades in and out, and steps aside while a menu
- * is open. Only the track is a background (it fades with the UI transparency setting); the metal, fill and text stay.
+ * is open or the player is far from the fight (SetArena). Only the track is a background (it fades with the UI
+ * transparency setting); the metal, fill and text stay.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UHudBossBarWidget : public UUserWidget
@@ -58,6 +59,15 @@ public:
 	/** Fades it in, or out (it stays in the viewport, collapsed). */
 	void SetShown(bool bInShown);
 	bool IsShown() const { return bWanted; }
+
+	/**
+	 * Where its fight is: the bar steps aside (fades out) while the player is farther than Reach (cm) from Center, so a bar
+	 * left up (a fight walked or travelled away from) never shows across the map. Reach 0: anywhere.
+	 */
+	void SetArena(const FVector& InCenter, float InReach);
+
+	/** Someone at Viewer is near enough the arena at Center to see its bar (Reach 0: anywhere). */
+	static bool IsNearArena(const FVector& Viewer, const FVector& Center, float Reach);
 
 	/** The boss's title, spelled out under the bar as it sweeps in ("Brood of the Sink"); empty: none. */
 	void SetTitle(const FText& InTitle);
@@ -126,6 +136,8 @@ private:
 	void TickMotion(float DeltaSeconds);
 	/** The inventory or the pause menu is up, or the game is paused: the bar steps aside. */
 	bool IsMenuOpen() const;
+	/** The player is near enough its fight to see it (SetArena), or there's no player to ask. */
+	bool IsViewerNearArena() const;
 
 	UPROPERTY(Transient) TObjectPtr<UWidget> Cluster;
 	/** The gem's face, tinted the rank's color, and the level's number on it. */
@@ -180,6 +192,9 @@ private:
 
 	bool bWanted = false;
 	float Opacity = 0.f;
+	/** Its fight's spot and how near the player must be to see the bar (0: anywhere). */
+	FVector ArenaCenter = FVector::ZeroVector;
+	float ArenaReach = 0.f;
 	/** Drawn widths, and how many cuts sit on the lit part, so it only repaints what moved. */
 	float ShownFillWidth = -1.f;
 	float ShownChipWidth = -1.f;

@@ -125,6 +125,8 @@ void UBossComponent::ShowBar()
 	const FText ShownName = !BossName.IsEmpty() ? BossName : (Creature ? Creature->DisplayName : FText::GetEmpty());
 	const ECreatureRank Rank = Creature ? Creature->GetRank() : ECreatureRank::Boss;
 	Bar->SetBoss(ShownName, Creature ? Creature->Level : 1, UCreatureRankSettings::Get(Rank).Color, GetPhaseShares());
+	// Shown near its fight only: a bar left up (its last moment after a win) never follows the player across the map.
+	Bar->SetArena(Spot, BarReach);
 	Bar->SetShown(true);
 	UpdateBar();
 }

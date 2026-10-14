@@ -127,6 +127,18 @@ void UBossComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 	TickFight(DeltaTime);
 }
 
+void UBossComponent::SetComponentTickEnabled(bool bEnabled)
+{
+	Super::SetComponentTickEnabled(bEnabled);
+	// The beaten bar's last moment is counted down by the tick (TickFight). Abel's boss is switched off as he sits on his
+	// board (AAbelKeeper::SetPresent), which a console kill or a vigil stone's rematch reaches inside that moment: the bar
+	// stayed up for good, all over the map. Nothing would take it away now, so it goes.
+	if (!bEnabled && !bFighting && bBarWanted)
+	{
+		HideBar();
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Starting, starting over, winning
 // ---------------------------------------------------------------------------

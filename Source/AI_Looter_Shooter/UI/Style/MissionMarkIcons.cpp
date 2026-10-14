@@ -18,7 +18,8 @@ namespace
 		}
 		if (bClosed)
 		{
-			Points.Add(Points[0]);
+			// A copy: TArray asserts when it adds a reference to its own element (the add may reallocate).
+			Points.Add(FVector2D(Points[0]));
 		}
 		return Points;
 	}

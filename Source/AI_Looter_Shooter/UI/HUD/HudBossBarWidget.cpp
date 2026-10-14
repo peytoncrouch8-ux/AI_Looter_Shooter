@@ -1,9 +1,11 @@
 #include "UI/HUD/HudBossBarWidget.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 
 using namespace LooterUI;
@@ -179,6 +181,36 @@ void UHudBossBarWidget::SetShown(bool bInShown)
 	bWanted = bInShown;
 }
 
+void UHudBossBarWidget::SetArena(const FVector& InCenter, float InReach)
+{
+	ArenaCenter = InCenter;
+	ArenaReach = FMath::Max(InReach, 0.f);
+}
+
+bool UHudBossBarWidget::IsNearArena(const FVector& Viewer, const FVector& Center, float Reach)
+{
+	return Reach <= 0.f || FVector::DistSquared(Viewer, Center) <= FMath::Square(static_cast<double>(Reach));
+}
+
+bool UHudBossBarWidget::IsViewerNearArena() const
+{
+	if (ArenaReach <= 0.f)
+	{
+		return true;
+	}
+	// The player's body (in a scene too, where it's held); without one, the camera; with neither, nothing to say it's far.
+	const APlayerController* Player = GetOwningPlayer();
+	if (!Player)
+	{
+		return true;
+	}
+	if (const APawn* Pawn = Player->GetPawn())
+	{
+		return IsNearArena(Pawn->GetActorLocation(), ArenaCenter, ArenaReach);
+	}
+	return !Player->PlayerCameraManager || IsNearArena(Player->PlayerCameraManager->GetCameraLocation(), ArenaCenter, ArenaReach);
+}
+
 // ---------------------------------------------------------------------------
 // Painting
 // ---------------------------------------------------------------------------
@@ -191,8 +223,8 @@ void UHudBossBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 		return;
 	}
 
-	// In while its fight is on and nothing covers the game; out otherwise.
-	const float Target = bWanted && !IsMenuOpen() ? 1.f : 0.f;
+	// In while its fight is on, nothing covers the game and the player is near it; out otherwise.
+	const float Target = bWanted && !IsMenuOpen() && IsViewerNearArena() ? 1.f : 0.f;
 	if (Opacity != Target)
 	{
 		Opacity = FMath::FInterpConstantTo(Opacity, Target, InDeltaTime, 1.f / BossFadeSeconds);

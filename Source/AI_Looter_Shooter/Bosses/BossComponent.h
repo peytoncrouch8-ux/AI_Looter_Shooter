@@ -63,6 +63,12 @@ public:
 
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+	/**
+	 * Its tick switched off with its bar still up after its fight (Abel sat on his board, out of the story, as his kneel
+	 * ends) takes the bar away at once: the tick that would count its last moment down won't run again.
+	 */
+	virtual void SetComponentTickEnabled(bool bEnabled) override;
+
 	// --- What the fight is ---
 
 	/** The campaign's name for it ("Abel"): beating it is recorded once (FCampaignRecord::RecordBossDefeat). None: not recorded. */
@@ -267,6 +273,11 @@ public:
 
 	/** After a win the empty bar stays this long (seconds) before it fades. */
 	static constexpr float BarHideDelay = 3.f;
+	/**
+	 * The bar shows only while the player is this near (cm) the fight's spot: well past any arena (a leash's 25 m) and any
+	 * line a fight is fought along, so a bar left up never shows across the map (a fast travel, a walk away).
+	 */
+	static constexpr float BarReach = 10000.f;
 	/** The player must be this far (cm) inside the wall's line for it to close behind them. */
 	static constexpr float SealMargin = 150.f;
 	/** Adds rise only on the boss's own level of ground: no more than this (cm) above or below its feet. */
