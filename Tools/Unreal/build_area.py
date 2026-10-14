@@ -49,6 +49,7 @@ import build_area_benches  # noqa: E402
 import build_area_board  # noqa: E402
 import build_area_bounds  # noqa: E402
 import build_area_environment  # noqa: E402
+import build_area_keepout  # noqa: E402
 import build_area_posters  # noqa: E402
 import build_area_sound  # noqa: E402
 import build_area_story  # noqa: E402
@@ -97,6 +98,15 @@ ABUT_EMBED = 150.0
 ABUT_REACH = 800.0
 ABUT_WIDEST = 2.0
 ABUT_HEIGHTS = (0.3, 0.6, 0.9)     # shares of the piece's height the rock is looked for at
+# A point of a group level.cliffs.walled names gets its faces only where the terrain has the wall they dress: level
+# traces from WALL_FRONT in front of it at a third and two thirds of the wall's height must meet the terrain no more
+# than WALL_REACH behind it (WALL_SEEK: how far behind they look; cm). A real band's wall is met within a metre of its
+# point (the point is half the band's width in from its foot); the East Shoulder's band, dressed along its foot's
+# straight run-on south of Larkspur Bench where the terrain has no shoulder (an onFloor ridge stands only on its floor),
+# stood as 6 m slabs on open ground down the valley's east side, across the line and through the depot (2026-10-14).
+WALL_FRONT = 800.0
+WALL_REACH = 250.0
+WALL_SEEK = 1500.0
 # Cliff groups whose pieces are varied. The boundary's rock (area_boundary.rock_faces) runs on for hundreds of meters
 # at much the same height, where the closest fit is the same piece at the same height every few meters and the wall
 # reads as a kit. Each of its pieces draws on its own seed, so a rebuild places it the same: every other one is
@@ -263,6 +273,32 @@ def wall_lean(tiles, x, y, bottom, height, yaw):
             ceiling = share
             break
     return lean, foot, ceiling
+
+
+def wall_span(point):
+    """A cliff point's wall: (x, y, its bottom, its height, the way it faces), a hanging cliff's (the rim, the lip) from
+    the foot of its drop."""
+    x, y, z = point['location']
+    if 'drop' in point:
+        return x, y, z - point['drop'], point['drop'], point['yaw']
+    return x, y, z, point.get('height', point.get('top', z) - z), point['yaw']
+
+
+def wall_behind(tiles, x, y, bottom, height, yaw):
+    """How far behind a cliff point (cm; negative: in front of it) the terrain's wall is met, by level traces from
+    WALL_FRONT out of its open side at a third and at two thirds of its height: the farther of the two, or None where
+    either meets nothing within WALL_SEEK behind it (level.cliffs.walled)."""
+    out_x, out_y = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    farthest = None
+    for share in (1.0 / 3.0, 2.0 / 3.0):
+        z = bottom + share * height
+        hit = terrain_hit(tiles, unreal.Vector(x + out_x * WALL_FRONT, y + out_y * WALL_FRONT, z),
+                          unreal.Vector(x - out_x * WALL_SEEK, y - out_y * WALL_SEEK, z))
+        if hit is None:
+            return None
+        behind = (x - hit.x) * out_x + (y - hit.y) * out_y
+        farthest = behind if farthest is None else max(farthest, behind)
+    return farthest
 
 
 def ground_height(x, y, default):
@@ -653,7 +689,10 @@ class AreaBuild:
         terrain's wall behind it (wall_lean: measured with traces) from that wall's real foot, and no top ends inside
         the wall's rounded lip (the share wall_lean finds; a group's level.cliffs.leanTop spreads its tops under it);
         a group named in level.cliffs.leanProud stands its faces that far in front of the wall. A group named in
-        level.cliffs.panels (the Sink's pit wall) gets no faces: panel_cliffs() dresses it with narrow panels."""
+        level.cliffs.panels (the Sink's pit wall) gets no faces: panel_cliffs() dresses it with narrow panels. A point
+        of a group named in level.cliffs.walled (or every group's, with true) gets no faces where the terrain has no
+        wall behind it to dress (wall_behind, WALL_REACH): the generator dresses a ridge's band along its foot's whole
+        line, and an onFloor ridge's terrain stands only on its floor."""
         pieces = []
         front_of = {}
         for name in CLIFF_PIECES:
@@ -679,13 +718,16 @@ class AreaBuild:
         # Sink's walls: brought 50 cm out, their pieces showed through the terrain's noise as scattered fragments).
         lean_top = self.cliff_look.get('leanTop')
         lean_proud = self.cliff_look.get('leanProud')
-        tiles = terrain_tiles(self.tag) if leaning else []
+        # The groups whose faces stand only where the terrain's wall is there to dress (level.cliffs.walled: groups, or
+        # true for every group).
+        walled = self.cliff_look.get('walled', [])
+        tiles = terrain_tiles(self.tag) if leaning or walled else []
         # The groups build_area_panels dresses with its narrow panels instead (level.cliffs.panels, once their pieces
         # are imported); panel_cliffs() lays them once the rocks their seams meet stand.
         self.panelled = importlib.reload(build_area_panels).ready(self, meshes)
         walkways = importlib.reload(build_area_walkways)
         corridors = walkways.ramp_corridors(self.source)
-        placed = left_out = ends_held = squashed = 0
+        placed = left_out = ends_held = squashed = unwalled = 0
         for group, points in self.layout.get('cliffs', {}).items():
             for i, point in enumerate(points):
                 kind = point.get('kind')
@@ -701,14 +743,24 @@ class AreaBuild:
                             rng.uniform(0.0, 0.25)
                         rng.uniform(-4.0, 4.0)
                     continue
-                x, y, z = point['location']
-                if 'drop' in point:
-                    bottom, height = z - point['drop'], point['drop']
-                else:
-                    bottom, height = z, point.get('height', point.get('top', z) - z)
+                x, y, bottom, height, _ = wall_span(point)
                 # A wall taller than the kit's tallest piece comes in stacked courses, bottom first, each standing on
                 # its own foot; the top one reaches just over the wall, the others a little up behind the next.
                 courses = point.get('courses') or [{'location': (x, y, bottom), 'height': height}]
+                if tiles and (walled is True or group in walled):
+                    behind = wall_behind(tiles, x, y, bottom, height, point['yaw'])
+                    if behind is None or behind > WALL_REACH:
+                        # A wall the terrain doesn't have: its faces would stand on open ground as slabs. The shared
+                        # draws are still made, so the groups after it keep theirs.
+                        for _ in courses:
+                            for _ in pieces:
+                                rng.uniform(0.0, 0.25)
+                            rng.uniform(-4.0, 4.0)
+                        found = f'none within {WALL_SEEK:.0f} cm' if behind is None else f'met {behind:.0f} cm back'
+                        self.log(f'Cliff_{group}_{i + 1:02d} left out: no terrain wall behind it ({found}; '
+                                 'level.cliffs.walled)')
+                        unwalled += 1
+                        continue
                 # Neighbours along the wall set the width (the points run along it in order).
                 gaps = [math.dist(point['location'][:2], points[j]['location'][:2]) for j in (i - 1, i + 1)
                         if 0 <= j < len(points)]
@@ -788,7 +840,8 @@ class AreaBuild:
                     placed += 1
         self.log(f'placed {placed} cliff pieces' + (f' ({left_out} left out for gaps)' if left_out else '')
                  + (f'; {squashed} too low for a face left out' if squashed else '')
-                 + (f'; {ends_held} run ends kept off a ramp\'s walkway' if ends_held else ''))
+                 + (f'; {ends_held} run ends kept off a ramp\'s walkway' if ends_held else '')
+                 + (f'; {unwalled} points with no terrain wall behind them left out' if unwalled else ''))
 
     def panel_cliffs(self, meshes):
         """The walls level.cliffs.panels names dressed with the narrow cliff panels and the seam wedge in place of
@@ -805,6 +858,14 @@ class AreaBuild:
         cut, left = importlib.reload(build_area_platforms).keep_under(self)
         if cut or left:
             self.log(f'{cut} cliff pieces cut down and {left} left out under the platforms over them (level.cliffs.under)')
+
+    def keep_out_of_buildings(self):
+        """The cliff pieces and outcrops kept out of the buildings players walk into (level.cliffs.keepOut) once both
+        stand, last of the cliffs' steps (build_area_keepout.py; reloaded, as the editor keeps modules between runs)."""
+        moved, left = importlib.reload(build_area_keepout).keep_out(self)
+        if moved or left:
+            self.log(f'{moved} cliff pieces moved and {left} left out of the buildings players walk into '
+                     '(level.cliffs.keepOut)')
 
     def clear_walkways(self):
         """The ramps' walkways kept open for a player once the cliffs stand (build_area_walkways.py; reloaded, as the
@@ -1131,6 +1192,7 @@ class AreaBuild:
             self.abut_cliffs()
             self.clear_walkways()
             self.keep_under_platforms()
+            self.keep_out_of_buildings()
             self.swap_materials()
             levels.save_current_level()
             self.log('cliffs placed and saved')
@@ -1161,6 +1223,7 @@ class AreaBuild:
         self.abut_cliffs()
         self.clear_walkways()
         self.keep_under_platforms()
+        self.keep_out_of_buildings()
         # The level's own dressing (not the story's): it stands on the terrain, beside the models.
         self.dressing(meshes)
         self.effects(meshes)

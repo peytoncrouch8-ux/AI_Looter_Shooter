@@ -2693,7 +2693,29 @@
           "talus": { "models": [["Rock_C", 3, [2.2, 3.2]], ["Rock_D", 2, [3.6, 5.0]]], "every": [150, 250], "heights": [20, 40, 60, 80, 100, 130, 160, 200, 250], "out": [-10, 20], "bury": [0.3, 0.45], "clear": 50,
                      "front": { "models": [["Rock_D", 1, [2.0, 3.0]], ["Rock_C", 1, [1.2, 1.8]]], "deep": 30, "ahead": [0, 30], "bury": [0.3, 0.45] } }
         }
-      }
+      },
+      "walled": ["eastShoulder"],
+      "keepOut": [
+        "depot",
+        "coalStage",
+        "workshop",
+        "sheriff",
+        "store",
+        "saloon",
+        "undertaker",
+        "chapel",
+        "farmhouse",
+        "whitlockBarn",
+        "liftHouse",
+        "liftTower",
+        "liftHead",
+        "watchtower",
+        "rangerCabin",
+        "leanTo",
+        "oreBin",
+        "powderHouse",
+        "smithy"
+      ]
     },
     "materials": {
       "MI_RockCliff_Ransom": { "parent": "MI_RockCliff", "vectors": { "Tint": [0.66,0.58,0.5], "MossColor": [0.3,0.27,0.17] }, "scalars": { "MossAmount": 0.12 } },

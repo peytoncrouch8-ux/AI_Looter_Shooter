@@ -142,7 +142,7 @@ READABLES = {
     'WagesChalk': ("Chalked inside the barn door", "In Amos Whitlock's hand",
                    "OWED\n\nMERRITT   14.00\nMERRITT   14.00\nTANNER    11.50", say(), "Read", ()),
     'OrdersSlate': ("Coffin orders", "Chalked on the workshop's slate",
-                    "MERCER, J.   PINE\nCOBB, H.   PINE. BRASS\nDOYLE, R.   OAK\nWINSLOW, E.   PINE\n\n"
+                    "DOLAN   PINE   6FT\nAVERY   PINE   5FT 5\nPECK   PINE   5FT 10\nLOCKETT   OAK   5FT 2\n\n"
                     "Under them, struck through in another hand: T. BRIGHT. PINE. NO BRASS.",
                     say((HOB, "Wrote his own order, did he. And she put brass on it anyway.")), "Read", ()),
     'AgentDesk': ("A gambling marker", "In the agent's desk",
