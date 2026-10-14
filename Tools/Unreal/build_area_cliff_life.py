@@ -41,10 +41,12 @@ the reference:
   degrees; none where they stray 45 cm from it or it slopes past 28 degrees). _B where the foot is a notch (its middle 30
   cm deeper than its ends), else drawn among those whose spread allows (FANS). Slabs 3-5.5 m out from a foot (`out`), on
   ground that strays less than 35 cm under them, any turn, a `chance` per foot.
-- Overhangs (SwallowNests_A/B): level casts every 15 cm up columns 40 cm apart, from `least` cm over the ground; where the
-  face just above stands 15 cm further out, a cast up from 6 cm off the face meets a ceiling (normal Z < -0.6) within
-  0.6 m, still overhead 25 cm further out; a level cast 3 cm under it finds the back wall. A corner takes SwallowNests_A
-  (or _B 5 cm out of it), a ceiling alone _B.
+- Overhangs (SwallowNests: the swallows' own clusters, Art/Models/Creatures/Swallow.py, with a SOCKET_Nest per mouth for
+  the swallows build_area_animals.py puts at them): level casts every 15 cm up columns 40 cm apart, from `least` cm over
+  the ground; where the face just above stands 15 cm further out, a cast up from 6 cm off the face meets a ceiling
+  (normal Z < -0.6) within 0.6 m, still overhead 25 cm further out; a level cast 3 cm under it finds the back wall. The
+  cluster's pivot (its back top edge) goes in that corner, on the ceiling; with no back wall found, on the ceiling over
+  the face's line. The kit's own SwallowNests_A/B are no longer placed: a layout naming them gets SwallowNests.
 - Stains (decals): under lips every `every` cm (varnish cells 0-4 and the wash 6), seeps under ledges (5: the cell's seep
   line, a quarter down, 10 cm under the ledge) and whitewash under each nest (7: its top 15 cm under the ceiling). The
   decal's X into the face, its Y up (the cell's top row at the decal's top), its top 5 cm under the lip; width and height
@@ -106,7 +108,7 @@ KIT = {
     'LedgeGrass_A': ('ledges', False, False), 'LedgeGrass_B': ('ledges', False, False),
     'CliffJuniper_B': ('ledges', True, True),
     'CliffJuniper_A': ('cracks', True, True), 'CliffJuniper_C': ('cracks', True, True),
-    'SwallowNests_A': ('nests', False, False), 'SwallowNests_B': ('nests', False, False),
+    'SwallowNests': ('nests', False, False),
     'ScreeFan_A': ('fans', True, True), 'ScreeFan_B': ('fans', True, True), 'ScreeFan_C': ('fans', True, True),
     'FallenSlab_A': ('slabs', True, True), 'FallenSlab_B': ('slabs', True, True),
 }
@@ -145,7 +147,7 @@ DEFAULTS = {
                'meshes': {'LedgeSage_A': 3, 'LedgeSage_B': 2, 'LedgeGrass_A': 3, 'LedgeGrass_B': 2,
                           'CliffJuniper_B': 1.5, 'CliffJuniper_C': 1}},
     'nests': {'spacing': 2500.0, 'cap': 12, 'perPiece': 1, 'cull': 7000.0, 'least': 300.0, 'scale': [0.9, 1.1],
-              'meshes': {'SwallowNests_A': 2, 'SwallowNests_B': 1}},
+              'meshes': {'SwallowNests': 1}},
     'fans': {'spacing': 1000.0, 'cap': 50, 'perPiece': 1, 'cull': 20000.0, 'step': 100.0, 'scale': [0.9, 1.1],
              'tilt': 12.0, 'meshes': {'ScreeFan_A': 3, 'ScreeFan_B': 1, 'ScreeFan_C': 2}},
     'slabs': {'spacing': 3500.0, 'cap': 12, 'perPiece': 1, 'cull': 25000.0, 'out': [300.0, 550.0], 'chance': 0.35,
@@ -1126,21 +1128,18 @@ class Survey:
         return [spot for spot in found if spot is not None]
 
     def nest_spot(self, side, s, d, top, corner, at, ground):
+        # One model: the swallows' SwallowNests (its mouths are the swallows' sockets), whatever a layout's meshes still
+        # name (the kit's old SwallowNests_A/B), its back on the wall in the corner, its top on the ceiling.
         spec = self.spec['nests']
         rnd = draw(self.spec, 'nest', (at[0], at[1], top))
-        weights = dict(spec['meshes']) if corner is not None else {'SwallowNests_B': 1.0}
-        mesh = weighted(rnd, {m: w for m, w in weights.items() if m in ('SwallowNests_A', 'SwallowNests_B')})
-        if mesh is None:
-            return None
         if corner is None:
-            pivot = (at[0], at[1], top)
-        elif mesh == 'SwallowNests_A':
-            pivot = (corner.point[0], corner.point[1], top)
-        else:
-            q = add(corner.point, mul(side.f, 5.0))
+            # No back wall under the ceiling: on the face's line (6 cm back from where the up cast began).
+            q = add(at, mul(side.f, -6.0))
             pivot = (q[0], q[1], top)
+        else:
+            pivot = (corner.point[0], corner.point[1], top)
         size = rnd.uniform(*spec['scale'])
-        return Spot('nests', mesh, pivot, side.yaw, side, scale=(size, size, size),
+        return Spot('nests', 'SwallowNests', pivot, side.yaw, side, scale=(size, size, size),
                     info={'ceiling': top, 'height': top - ground, 'why': 'in a corner' if corner is not None else
                           'under a ceiling'})
 

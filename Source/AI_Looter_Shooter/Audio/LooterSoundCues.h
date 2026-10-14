@@ -323,6 +323,21 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* ClothFlap = TEXT("World.Fauna.Cloth.Flap");
 	}
 
+	// --- The town's small animals (World/ChickenYard, World/BarnCat; Art/Sounds/recipes/animals.py), all 3D ---
+	namespace Animals
+	{
+		/** A hen's contented "buk-buk-buk": two to four short, low, throaty pulses (about 15 m, two at once). */
+		inline constexpr const TCHAR* ChickenCluck = TEXT("Creature.Chicken.Cluck");
+		/** The yard scattering: ragged alarm squawks over a flurry of wingbeats, about 1.4 s. */
+		inline constexpr const TCHAR* ChickenSquawk = TEXT("Creature.Chicken.Squawk");
+		/** The rooster's crow in four parts, about 1.8 s plus the town's echo (about 60 m, one at a time). */
+		inline constexpr const TCHAR* ChickenCrow = TEXT("Creature.Chicken.Crow");
+		/** A barn cat's rare meow: "mi-aou", a short "mew" or a rolled "mrow". */
+		inline constexpr const TCHAR* CatMeow = TEXT("Creature.Cat.Meow");
+		/** The cat's hiss at a player running up to it: a spat start, breath through the teeth, a throat growl. */
+		inline constexpr const TCHAR* CatHiss = TEXT("Creature.Cat.Hiss");
+	}
+
 	// --- Music (UMusicDirectorSubsystem; Art/Sounds/recipes/music.py; bars and tempos in MusicRules) ---
 	/** The exploration themes (32 bars of 6/8 in D at 75), and the combat layer laid over either (16 bars on a D pedal). */
 	inline constexpr const TCHAR* MusicSkyreachExplore = TEXT("Music.Skyreach.Explore");
