@@ -1,14 +1,10 @@
 #include "Combat/BulletSubsystem.h"
 #include "AI_Looter_Shooter.h"
-#include "Audio/LooterSound.h"
 #include "Combat/CombatRules.h"
 #include "Combat/CriticalSpotTarget.h"
-#include "Combat/HealthComponent.h"
 #include "Combat/LooterDamageTypes.h"
-#include "Creatures/CreatureBase.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
-#include "World/BreakableKinds.h"
 #include "Camera/PlayerCameraManager.h"
 #include "CoreGlobals.h"
 #include "Components/PrimitiveComponent.h"
@@ -19,26 +15,11 @@
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraFunctionLibrary.h"
 
+// UBulletSubsystem: firing, flight, damage and tracers. How a hit looks and sounds (surfaces, creatures' splashes,
+// ricochets, marks) is in BulletSubsystemImpacts.cpp.
+
 namespace
 {
-	/**
-	 * Impacts of one sound closer together than this (seconds and cm) make one: a shotgun's nine pellets on a wall are one
-	 * crack, and a long burst into the dirt doesn't stack a sound per round. A blast across two surfaces sounds both.
-	 */
-	constexpr double ImpactSoundGap = 0.05;
-	constexpr float ImpactSoundMerge = 250.f;
-
-	/**
-	 * A ricochet's whine: on a hit off stone, gravel or metal that met the surface at less than about 25 degrees (the
-	 * cosine between the shot and the surface's normal under this), on about half of them, never two within the gap.
-	 */
-	constexpr float RicochetSquare = 0.42f;
-	constexpr float RicochetChance = 0.5f;
-	constexpr double RicochetGap = 0.35;
-
-	/** How many volleys' mark counts are kept: pellets of one blast land within a frame or two of each other. */
-	constexpr int32 VolleysKept = 4;
-
 	/** Tracer glow strength (the material multiplies the color by it). */
 	constexpr float TracerGlow = 30.f;
 	/** Instant (hitscan) shots flash a thinner beam along their whole path for a frame. */
@@ -50,6 +31,29 @@ namespace
 	constexpr float MinTracerAngularWidth = 0.0024f;
 	/** Streaks are at least as long as the bullet flies in this long (seconds), like motion blur. */
 	constexpr float TracerStreakTime = 0.035f;
+	/**
+	 * The tracer's hot head: the round itself, a short stretch at the front of the streak (a share of it, at most so many
+	 * cm), wider, brighter and whiter than the glow behind it.
+	 */
+	constexpr float TracerHeadShare = 0.18f;
+	constexpr float TracerHeadMax = 60.f;
+	constexpr float TracerHeadWidth = 1.35f;
+	constexpr float TracerHeadGlow = 1.6f;
+	constexpr float TracerHeadWhite = 0.55f;
+	const FLinearColor TracerHeadHeat(1.f, 0.95f, 0.85f);
+
+	/**
+	 * The smoke thread behind a tracer: laid from a meter and a half out (clear of the eye) to ThreadEnd, in pieces of at
+	 * most ThreadPiece cm that overlap a little; only the first ThreadPellets of a volley (a shotgun's nine would be a fog).
+	 */
+	constexpr float ThreadStart = 150.f;
+	constexpr float ThreadEnd = 1800.f;
+	constexpr float ThreadPiece = 150.f;
+	constexpr float ThreadFadeIn = 300.f;
+	constexpr float ThreadWidth = 2.5f;
+	constexpr float ThreadOpacity = 0.12f;
+	constexpr float ThreadLife = 0.45f;
+	constexpr int32 ThreadPellets = 2;
 
 	TAutoConsoleVariable<bool> CVarDebugTracers(TEXT("Looter.Bullets.DebugDraw"), false,
 		TEXT("Draw every bullet's tracer as a debug line (and its impact point)."));
@@ -76,6 +80,7 @@ void UBulletSubsystem::Deinitialize()
 	{
 		Effects.Shutdown();
 		Marks.Shutdown();
+		Brass.Shutdown();
 	}
 	Super::Deinitialize();
 }
@@ -83,97 +88,6 @@ void UBulletSubsystem::Deinitialize()
 int32 UBulletSubsystem::NumBulletsInFlight() const
 {
 	return Bullets.FilterByPredicate([](const FBullet& Bullet) { return !Bullet.bSpent; }).Num();
-}
-
-EImpactSurface UBulletSubsystem::SurfaceOf(const AActor* Actor)
-{
-	if (Cast<ACreatureBase>(Actor))
-	{
-		return EImpactSurface::Flesh;
-	}
-	// A crate or a barrel has health but is wood: a shot splinters it, it doesn't ring like a plated target.
-	if (Actor && Actor->ActorHasTag(FName(LooterBreakables::Tag)))
-	{
-		return EImpactSurface::World;
-	}
-	if (Actor && Actor->FindComponentByClass<UHealthComponent>())
-	{
-		return EImpactSurface::Target;
-	}
-	return EImpactSurface::World;
-}
-
-FName UBulletSubsystem::ImpactCueOf(const FHitResult& Hit, EImpactSurface Surface)
-{
-	if (Surface == EImpactSurface::Flesh)
-	{
-		return NAME_None;
-	}
-	if (Surface == EImpactSurface::Target)
-	{
-		// The training dummies are plated: they ring.
-		return LooterSoundCue::ImpactMetal;
-	}
-	// What the world is made of there (ImpactSurface): tags, the trim sheet's strip, the terrain's map, the material's name.
-	return ImpactSurface::PlayableCue(Hit.GetComponent(), ImpactSurface::Of(Hit));
-}
-
-void UBulletSubsystem::PlayImpactSound(const FHitResult& Hit, EImpactSurface Surface, EImpactMaterial Material, const FVector& ShotDirection)
-{
-	const UWorld* World = GetWorld();
-	if (!World || Surface == EImpactSurface::Flesh)
-	{
-		return;
-	}
-	const FName Cue = Surface == EImpactSurface::Target ? FName(LooterSoundCue::ImpactMetal) : ImpactSurface::PlayableCue(this, Material);
-	const double Now = World->GetTimeSeconds();
-	if (Cue == LastImpactCue && Now - LastImpactSoundTime < ImpactSoundGap
-		&& FVector::DistSquared(Hit.ImpactPoint, LastImpactSoundAt) < FMath::Square(ImpactSoundMerge))
-	{
-		return;
-	}
-	LastImpactCue = Cue;
-	LastImpactSoundTime = Now;
-	LastImpactSoundAt = Hit.ImpactPoint;
-	LooterSound::PlayAt(this, Cue, Hit.ImpactPoint);
-
-	// A round that glanced off stone or metal whines away: the gunfight's ricochets.
-	if (Surface == EImpactSurface::World && ImpactSurface::Ricochets(Material) && Now - LastRicochetTime >= RicochetGap)
-	{
-		const float Square = static_cast<float>(FVector::DotProduct(-ShotDirection.GetSafeNormal(), Hit.ImpactNormal));
-		if (Square < RicochetSquare && FMath::FRand() < RicochetChance)
-		{
-			LastRicochetTime = Now;
-			LooterSound::PlayAt(this, LooterSoundCue::Impact::Ricochet, Hit.ImpactPoint);
-		}
-	}
-}
-
-void UBulletSubsystem::LeaveMark(const FBullet& Bullet, const FHitResult& Hit, EImpactMaterial Material)
-{
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-	// One mark a pellet, but at most MarksPerVolley from one blast.
-	int32 Entry = VolleyMarks.IndexOfByPredicate([&Bullet](const FVolleyMarks& Each) { return Each.Volley == Bullet.Volley; });
-	if (Entry == INDEX_NONE)
-	{
-		if (VolleyMarks.Num() >= VolleysKept)
-		{
-			VolleyMarks.RemoveAt(0, 1, EAllowShrinking::No);
-		}
-		Entry = VolleyMarks.Add({ Bullet.Volley, 0 });
-	}
-	if (VolleyMarks[Entry].Count >= FBulletMarks::MarksPerVolley)
-	{
-		return;
-	}
-	if (Marks.Add(*World, Hit, Bullet.Shot.Direction, Material, Bullet.MarkScale, FMath::FRand()))
-	{
-		++VolleyMarks[Entry].Count;
-	}
 }
 
 FVector UBulletSubsystem::TracerPoint(const FBulletShot& Shot, float Distance)
@@ -188,6 +102,7 @@ void UBulletSubsystem::Fire(const FBulletShot& Shot)
 	if (GFrameCounter != LastFireFrame || Shot.Weapon != LastFireWeapon || Shot.Shooter != LastFireShooter)
 	{
 		++VolleyCount;
+		VolleyPellets = 0;
 		LastFireFrame = GFrameCounter;
 		LastFireWeapon = Shot.Weapon;
 		LastFireShooter = Shot.Shooter;
@@ -201,11 +116,18 @@ void UBulletSubsystem::Fire(const FBulletShot& Shot)
 	Bullet.Position = Shot.Start;
 	Bullet.Volley = VolleyCount;
 	Bullet.MarkScale = FBulletMarks::GunScale(Definition ? Definition->Kind : EWeaponKind::None);
+	Bullet.bThread = VolleyPellets++ < ThreadPellets;
 	if (Shot.Speed <= 0.f)
 	{
 		// Instant: the whole flight happens now (the tracer still flashes along it this frame).
 		Advance(Bullet, 0.f);
 	}
+}
+
+void UBulletSubsystem::EjectCasing(const FCasingLaunch& Launch)
+{
+	Brass.Initialize(GetWorld());
+	Brass.Eject(Launch);
 }
 
 void UBulletSubsystem::Tick(float DeltaTime)
@@ -221,7 +143,8 @@ void UBulletSubsystem::Tick(float DeltaTime)
 		}
 	}
 
-	if (Bullets.IsEmpty() && Effects.IsIdle())
+	// Nothing flying, nothing drawn and no brass about: most of the game, at no cost.
+	if (Bullets.IsEmpty() && Effects.IsIdle() && Brass.IsIdle())
 	{
 		return;
 	}
@@ -229,10 +152,15 @@ void UBulletSubsystem::Tick(float DeltaTime)
 	const FVector Camera = GetCameraLocation();
 	for (FBullet& Bullet : Bullets)
 	{
+		LayThread(Bullet);
 		DrawTracer(Bullet, Camera);
 		Bullet.bDrawn = true;
 	}
 	Effects.Tick(DeltaTime, Camera);
+	if (!Brass.IsIdle())
+	{
+		Brass.Tick(DeltaTime, Camera);
+	}
 }
 
 void UBulletSubsystem::Advance(FBullet& Bullet, float DeltaSeconds)
@@ -303,25 +231,19 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 		LooterCombat::MaxHitDamage(Shot.Damage), Roll, bCritical ? FMath::Max(Shot.CritMultiplier, 1.f) : 1.f, Damage,
 		bCritical ? TEXT(" CRIT") : TEXT(""));
 
-	// Looks, sound and the mark first: the damage below may kill the target. The world shows what it's made of.
+	// Looks, sound and the mark first: the damage below may kill the target. The world shows what it's made of; a glancing
+	// round off stone or metal may go off (seen and heard).
 	const EImpactMaterial Material = Surface == EImpactSurface::World ? ImpactSurface::Of(Hit) : EImpactMaterial::Unknown;
+	const bool bRicochet = Surface == EImpactSurface::World && RollRicochet(Hit, Material, Shot.Direction);
 	if (UNiagaraSystem* ImpactFX = Shot.ImpactFX.Get())
 	{
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ImpactFX, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
 	}
 	else
 	{
-		Effects.Initialize(GetWorld());
-		if (Surface == EImpactSurface::World)
-		{
-			Effects.SpawnSurfaceImpact(Hit.ImpactPoint, Hit.ImpactNormal, Shot.Direction, Material, Bullet.MarkScale, bCritical);
-		}
-		else
-		{
-			Effects.SpawnImpact(Hit.ImpactPoint, Hit.ImpactNormal, Shot.Direction, Surface, bCritical);
-		}
+		ShowHit(Bullet, Hit, Surface, Material, bCritical, bRicochet);
 	}
-	PlayImpactSound(Hit, Surface, Material, Shot.Direction);
+	PlayImpactSound(Hit, Surface, Material, bRicochet);
 	if (Surface == EImpactSurface::World)
 	{
 		LeaveMark(Bullet, Hit, Material);
@@ -345,6 +267,30 @@ void UBulletSubsystem::ResolveHit(const FBullet& Bullet, const FHitResult& Hit)
 		Weapon->NotifyBulletHit(Hit, Damage, bCritical);
 	}
 	OnBulletHit.Broadcast(Hit, Damage, bCritical);
+}
+
+void UBulletSubsystem::LayThread(FBullet& Bullet)
+{
+	if (!Bullet.bThread)
+	{
+		return;
+	}
+	// From clear of the eye out to its end, as far as the bullet has got: a soft line in overlapping pieces, fading in over
+	// its first meters so it never starts in a hard edge at the gun.
+	const FBulletShot& Shot = Bullet.Shot;
+	const float End = FMath::Min(Bullet.Traveled, ThreadEnd);
+	float From = FMath::Max(Bullet.ThreadLaid, ThreadStart);
+	while (From < End - 1.f)
+	{
+		const float To = FMath::Min(From + ThreadPiece, End);
+		const float Overlap = (To - From) * 0.25f;
+		const FVector Tail = TracerPoint(Shot, FMath::Max(From - Overlap, ThreadStart));
+		const FVector Head = TracerPoint(Shot, FMath::Min(To + Overlap, Bullet.Traveled));
+		const float FadeIn = FMath::Clamp((From - ThreadStart) / ThreadFadeIn, 0.25f, 1.f);
+		Effects.AddThread(Tail, Head, ThreadWidth, ThreadOpacity * FadeIn, ThreadLife * FMath::FRandRange(0.85f, 1.15f));
+		From = To;
+	}
+	Bullet.ThreadLaid = FMath::Max(Bullet.ThreadLaid, End);
 }
 
 void UBulletSubsystem::DrawTracer(const FBullet& Bullet, const FVector& Camera)
@@ -378,6 +324,16 @@ void UBulletSubsystem::DrawTracer(const FBullet& Bullet, const FVector& Camera)
 		Width = FMath::Max(Width, FVector::Dist(Camera, Head) * MinTracerAngularWidth);
 	}
 	Effects.AddStreak(From, Head, Width, Shot.TracerColor, TracerGlow);
+
+	// Its hot head: the round itself, white-hot at the front of the streak.
+	const FVector Along = Head - From;
+	const float Length = Along.Size();
+	if (Length > 1.f)
+	{
+		const float HeadLength = FMath::Min(Length * TracerHeadShare, TracerHeadMax);
+		Effects.AddStreak(Head - Along * (HeadLength / Length), Head, Width * TracerHeadWidth,
+			FMath::Lerp(Shot.TracerColor, TracerHeadHeat, TracerHeadWhite), TracerGlow * TracerHeadGlow);
+	}
 
 	if (CVarDebugTracers.GetValueOnGameThread())
 	{

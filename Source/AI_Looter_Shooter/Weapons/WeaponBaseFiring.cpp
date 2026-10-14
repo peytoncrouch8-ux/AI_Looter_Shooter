@@ -148,6 +148,8 @@ void AWeaponBase::HandleFiring()
 		FireShot();
 	}
 	CurrentMagazine = FMath::Max(CurrentMagazine - Plan.Rounds, 0);
+	// A six-gun keeps its empties (a dud's too) until a reload tips them out.
+	SpentInCylinder = FMath::Min(SpentInCylinder + Plan.Rounds, Instance.Stats.MagazineSize);
 	LastFireTime = GetWorld()->GetTimeSeconds();
 	// A revolver's cylinder turns the next round under the hammer (a dud's too), as the gun settles from the kick.
 	if (bUsingModel && Model->GetCylinderChambers() > 0)
@@ -247,6 +249,9 @@ void AWeaponBase::FireShot()
 		PlayMuzzleFlash();
 	}
 	PlayCue(WeaponSounds::Fire(Definition->Kind), Definition->FireSound);
+	// What a shot leaves: its brass, and heat in the barrel that smokes once firing stops.
+	EjectAfterShot();
+	NoteShotHeat();
 }
 
 void AWeaponBase::Misfire()
@@ -303,14 +308,18 @@ FWeaponRecoilProfile AWeaponBase::GetRecoilProfile() const
 
 FVector AWeaponBase::GetVisibleMuzzleLocation() const
 {
-	const FVector Muzzle = GetMuzzleLocation();
+	return GetVisibleLocation(GetMuzzleLocation());
+}
+
+FVector AWeaponBase::GetVisibleLocation(const FVector& WorldLocation) const
+{
 	const UCameraComponent* Camera = UPlayerViewComponent::FindFirstPersonCamera(GetOwner());
 	if (!Camera || !IsDrawnFirstPerson())
 	{
-		return Muzzle;
+		return WorldLocation;
 	}
-	// First-person guns are drawn with their own field of view and pulled in toward the camera: find where the muzzle
-	// actually shows, the way the renderer does.
+	// First-person guns are drawn with their own field of view and pulled in toward the camera: find where the point
+	// actually shows, the way the renderer does (the muzzle's flash and tracers, the port's brass).
 	FMinimalViewInfo View;
 	View.Location = Camera->GetComponentLocation();
 	View.Rotation = Camera->GetComponentRotation();
@@ -318,7 +327,7 @@ FVector AWeaponBase::GetVisibleMuzzleLocation() const
 	View.FirstPersonFOV = Camera->bEnableFirstPersonFieldOfView ? Camera->FirstPersonFieldOfView : Camera->FieldOfView;
 	View.FirstPersonScale = Camera->bEnableFirstPersonScale ? Camera->FirstPersonScale : 1.f;
 	View.bUseFirstPersonParameters = Camera->bEnableFirstPersonFieldOfView || Camera->bEnableFirstPersonScale;
-	return View.bUseFirstPersonParameters ? View.TransformWorldToFirstPerson(Muzzle, false) : Muzzle;
+	return View.bUseFirstPersonParameters ? View.TransformWorldToFirstPerson(WorldLocation, false) : WorldLocation;
 }
 
 // ---------------------------------------------------------------------------

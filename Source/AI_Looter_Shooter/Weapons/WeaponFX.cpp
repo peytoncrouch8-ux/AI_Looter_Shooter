@@ -7,6 +7,9 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 
+// FWeaponFX's setup and the guns' own spawns (a hit's sparks and splash, a scene's gunfire). WeaponFXDraw.cpp moves and
+// draws every particle.
+
 namespace
 {
 	const TCHAR* GlowMaterialPath = TEXT("/Game/Weapons/FX/M_FX_Glow.M_FX_Glow");
@@ -18,7 +21,6 @@ namespace
 	constexpr int32 GlowFloats = 5;  // R, G, B, intensity, shape (0 = streak, 1 = round)
 	constexpr int32 SmokeFloats = 4; // R, G, B, opacity
 	constexpr int32 MaxParticles = 900;
-	constexpr float Gravity = 980.f;
 
 	// Palette (linear). Glows are multiplied by their intensity, so they only need a hue.
 	const FLinearColor SparkColor(1.f, 0.5f, 0.16f);
@@ -58,81 +60,6 @@ namespace
 		Instance->SetScalarParameterValue(TEXT("Variation"), 0.08f);
 		Instance->SetScalarParameterValue(TEXT("Glow"), Glow);
 		return Instance;
-	}
-
-	/** Any unit vector at right angles to Direction. */
-	FVector AnyPerpendicular(const FVector& Direction)
-	{
-		const FVector Other = FMath::Abs(Direction.Z) < 0.9f ? FVector::UpVector : FVector::ForwardVector;
-		return FVector::CrossProduct(Direction, Other).GetSafeNormal();
-	}
-
-	/** A quad along Tail -> Head, turned about that line to face the camera. The engine plane is 100 x 100 in XY, facing +Z. */
-	FTransform StreakTransform(const FVector& Tail, const FVector& Head, float Width, const FVector& Camera)
-	{
-		const FVector Axis = Head - Tail;
-		const float Length = Axis.Size();
-		const FVector Direction = Length > UE_KINDA_SMALL_NUMBER ? Axis / Length : FVector::ForwardVector;
-		const FVector Middle = (Tail + Head) * 0.5f;
-		const FVector ToCamera = Camera - Middle;
-		FVector Facing = ToCamera - Direction * FVector::DotProduct(ToCamera, Direction);
-		if (!Facing.Normalize())
-		{
-			Facing = AnyPerpendicular(Direction);
-		}
-		const FQuat Rotation = FRotationMatrix::MakeFromXZ(Direction, Facing).ToQuat();
-		return FTransform(Rotation, Middle, FVector(FMath::Max(Length, 0.1f) / 100.f, Width / 100.f, 1.f));
-	}
-
-	/** A round quad facing the camera. */
-	FTransform SpriteTransform(const FVector& Location, float Size, float Roll, const FVector& Camera)
-	{
-		FVector Facing = Camera - Location;
-		if (!Facing.Normalize())
-		{
-			Facing = FVector::UpVector;
-		}
-		const FQuat Rotation = FRotationMatrix::MakeFromZ(Facing).ToQuat() * FQuat(FVector::UpVector, Roll);
-		return FTransform(Rotation, Location, FVector(Size / 100.f, Size / 100.f, 1.f));
-	}
-
-	/** Replaces a component's instances with these (moved in place when the count is unchanged). */
-	void Draw(UInstancedStaticMeshComponent* Instances, const TArray<FTransform>& Transforms, const TArray<float>& CustomData)
-	{
-		if (!Instances)
-		{
-			return;
-		}
-		bool bCountChanged = false;
-		if (Instances->GetInstanceCount() != Transforms.Num())
-		{
-			bCountChanged = true;
-			Instances->ClearInstances();
-			if (Transforms.Num() > 0)
-			{
-				Instances->AddInstances(Transforms, /*bShouldReturnIndices*/ false, /*bWorldSpace*/ true, /*bUpdateNavigation*/ false);
-			}
-		}
-		else if (Transforms.Num() > 0)
-		{
-			Instances->BatchUpdateInstancesTransforms(0, Transforms, /*bWorldSpace*/ true, /*bMarkRenderStateDirty*/ false, /*bTeleport*/ true);
-		}
-		if (Transforms.Num() > 0 && CustomData.Num() == Transforms.Num() * Instances->NumCustomDataFloats)
-		{
-			Instances->SetCustomData(0, Transforms.Num() - 1, CustomData, false);
-		}
-		// Moved instances need no render state rebuild: the instance data tracks its own changes and sends them at the end of the
-		// frame (FPrimitiveInstanceDataManager), and rebuilding the proxy every frame while any particle lives was the cost. A
-		// changed count (a spark born or gone) still takes the full refresh.
-		if (bCountChanged)
-		{
-			Instances->MarkRenderStateDirty();
-		}
-	}
-
-	void AddGlowData(TArray<float>& Data, const FLinearColor& Color, float Intensity, float Shape)
-	{
-		Data.Append({ Color.R, Color.G, Color.B, Intensity, Shape });
 	}
 }
 
@@ -190,6 +117,7 @@ void FWeaponFX::Shutdown()
 	BitSets.Reset();
 	Particles.Reset();
 	Streaks.Reset();
+	SpawnFloor.Reset();
 }
 
 uint8 FWeaponFX::BitSetFor(bool bRound, const FLinearColor& Color, float Glow)
@@ -252,6 +180,12 @@ FWeaponFX::FParticle& FWeaponFX::AddParticle(EParticle Type, const FVector& Loca
 	Particle.Velocity = Velocity;
 	Particle.Life = FMath::Max(Life, 0.01f);
 	Particle.Roll = Random.FRandRange(0.f, 2.f * UE_PI);
+	// An impact with ground under it: what it throws lands there (sparks skitter, chunks bounce and lie, drops splat).
+	if (SpawnFloor.IsSet() && (Type == EParticle::Spark || Type == EParticle::Chip || Type == EParticle::Droplet || Type == EParticle::Bit))
+	{
+		Particle.bFloor = true;
+		Particle.Floor = SpawnFloor.GetValue();
+	}
 	return Particle;
 }
 
@@ -382,128 +316,4 @@ void FWeaponFX::SpawnFlash(const FVector& Location, const FVector& Direction, fl
 	Puff.EndSize = 60.f * Size;
 	Puff.Gravity = -0.03f;
 	Puff.Drag = 2.5f;
-}
-
-// ---------------------------------------------------------------------------
-// Simulation and drawing
-// ---------------------------------------------------------------------------
-
-void FWeaponFX::Tick(float DeltaSeconds, const FVector& CameraLocation)
-{
-	const float Dt = FMath::Clamp(DeltaSeconds, 0.f, 0.1f);
-	for (int32 Index = Particles.Num() - 1; Index >= 0; --Index)
-	{
-		FParticle& Particle = Particles[Index];
-		Particle.Age += Dt;
-		if (Particle.Age >= Particle.Life)
-		{
-			Particles.RemoveAtSwap(Index, 1, EAllowShrinking::No);
-			continue;
-		}
-		Particle.Velocity += FVector(0.f, 0.f, -Gravity * Particle.Gravity * Dt);
-		Particle.Velocity *= FMath::Exp(-Particle.Drag * Dt);
-		Particle.Location += Particle.Velocity * Dt;
-		if (!Particle.Spin.IsNearlyZero())
-		{
-			const float Angle = Particle.Spin.Size() * Dt;
-			Particle.Rotation = FQuat(Particle.Spin.GetSafeNormal(), Angle) * Particle.Rotation;
-		}
-	}
-	Redraw(CameraLocation);
-	Streaks.Reset();
-}
-
-void FWeaponFX::Redraw(const FVector& Camera)
-{
-	TArray<FTransform> GlowTransforms, SmokeTransforms, ChipTransforms, DropTransforms;
-	TArray<float> GlowData, SmokeData;
-	TArray<TArray<FTransform>, TInlineAllocator<MaxBitSets>> BitTransforms;
-	BitTransforms.SetNum(BitSets.Num());
-
-	for (const FStreak& Streak : Streaks)
-	{
-		GlowTransforms.Add(StreakTransform(Streak.Tail, Streak.Head, Streak.Width, Camera));
-		AddGlowData(GlowData, Streak.Color, Streak.Intensity, 0.f);
-	}
-
-	for (const FParticle& Particle : Particles)
-	{
-		const float T = Particle.Age / Particle.Life;
-		switch (Particle.Type)
-		{
-		case EParticle::Spark:
-		{
-			// A short streak trailing behind the spark, fading as it cools.
-			const float Length = FMath::Clamp(Particle.Velocity.Size() * 0.025f, 3.f, 40.f);
-			const FVector Tail = Particle.Location - Particle.Velocity.GetSafeNormal() * Length;
-			GlowTransforms.Add(StreakTransform(Tail, Particle.Location, Particle.StartSize, Camera));
-			AddGlowData(GlowData, Particle.Color, Particle.Intensity * FMath::Pow(1.f - T, 1.5f), 0.f);
-			break;
-		}
-		case EParticle::Flash:
-		{
-			const float Size = FMath::Lerp(Particle.StartSize, Particle.EndSize, FMath::Sqrt(T));
-			GlowTransforms.Add(SpriteTransform(Particle.Location, Size, Particle.Roll, Camera));
-			AddGlowData(GlowData, Particle.Color, Particle.Intensity * FMath::Square(1.f - T), 1.f);
-			break;
-		}
-		case EParticle::Smoke:
-		{
-			const float Size = FMath::Lerp(Particle.StartSize, Particle.EndSize, 1.f - FMath::Square(1.f - T));
-			SmokeTransforms.Add(SpriteTransform(Particle.Location, Size, Particle.Roll, Camera));
-			// Thinned as the camera gets into it: a puff drifting past the eye (a slide's dust) would otherwise fill the view.
-			const float Near = FMath::Clamp((static_cast<float>(FVector::Dist(Particle.Location, Camera)) - Size * 0.25f) / 40.f, 0.f, 1.f);
-			const float Opacity = Particle.Intensity * FMath::Pow(1.f - T, 1.5f) * FMath::Clamp(T * 12.f, 0.f, 1.f) * Near;
-			SmokeData.Append({ Particle.Color.R, Particle.Color.G, Particle.Color.B, Opacity });
-			break;
-		}
-		case EParticle::Chip:
-		case EParticle::Droplet:
-		{
-			// Shrink away over the last fifth of their life. The engine cube and sphere are 100 across.
-			const float Size = Particle.StartSize * FMath::Clamp((1.f - T) * 5.f, 0.f, 1.f) / 100.f;
-			const FVector Scale = Particle.Type == EParticle::Droplet ? FVector(Size * 1.3f, Size, Size) : FVector(Size, Size * 0.7f, Size * 0.5f);
-			// Droplets stretch along their flight.
-			const FQuat Rotation = Particle.Type == EParticle::Droplet && !Particle.Velocity.IsNearlyZero()
-				? FRotationMatrix::MakeFromX(Particle.Velocity).ToQuat() : Particle.Rotation;
-			(Particle.Type == EParticle::Chip ? ChipTransforms : DropTransforms).Add(FTransform(Rotation, Particle.Location, Scale));
-			break;
-		}
-		case EParticle::Bit:
-		{
-			if (!BitTransforms.IsValidIndex(Particle.BitSet))
-			{
-				break;
-			}
-			// Round bits (gel, water) stretch along their flight like droplets; splinters (wood, straw) are long and thin; the
-			// rest are thin plates (chitin, chips of paint and glass). Splinters and plates tumble.
-			const float Size = Particle.StartSize * FMath::Clamp((1.f - T) * 5.f, 0.f, 1.f) / 100.f;
-			const EBitShape Shape = BitSets[Particle.BitSet].Shape;
-			const bool bRound = Shape == EBitShape::Round;
-			const FVector Scale = bRound ? FVector(Size * 1.35f, Size, Size * 0.9f)
-				: (Shape == EBitShape::Splinter ? FVector(Size * 2.4f, Size * 0.3f, Size * 0.22f) : FVector(Size, Size * 0.8f, Size * 0.28f));
-			const FQuat Rotation = bRound && !Particle.Velocity.IsNearlyZero() ? FRotationMatrix::MakeFromX(Particle.Velocity).ToQuat() : Particle.Rotation;
-			BitTransforms[Particle.BitSet].Add(FTransform(Rotation, Particle.Location, Scale));
-			break;
-		}
-		}
-	}
-
-	bool bAnything = !GlowTransforms.IsEmpty() || !SmokeTransforms.IsEmpty() || !ChipTransforms.IsEmpty() || !DropTransforms.IsEmpty();
-	for (const TArray<FTransform>& Set : BitTransforms)
-	{
-		bAnything |= !Set.IsEmpty();
-	}
-	if (bAnything || bDrawnAnything)
-	{
-		Draw(Glows.Get(), GlowTransforms, GlowData);
-		Draw(Smoke.Get(), SmokeTransforms, SmokeData);
-		Draw(Chips.Get(), ChipTransforms, {});
-		Draw(Droplets.Get(), DropTransforms, {});
-		for (int32 Index = 0; Index < BitSets.Num(); ++Index)
-		{
-			Draw(BitSets[Index].Instances.Get(), BitTransforms[Index], {});
-		}
-	}
-	bDrawnAnything = bAnything;
 }

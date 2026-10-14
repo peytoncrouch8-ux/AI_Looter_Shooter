@@ -31,7 +31,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnWeaponHit, const FHitResult&, 
  * A single rolled weapon. Fires real bullets (UBulletSubsystem) and supports semi/full-auto/burst and multi-pellet shots.
  * Aims from the owning pawn's view point, so it works for both players and AI. Each shot flashes at the muzzle and
  * kicks (the holder's view and animation read the recoil profile), and every shot, reload step, draw and dry click
- * plays its sound cue (LooterSound) on the gun.
+ * plays its sound cue (LooterSound) on the gun. Its brass flies (a rifle's case each shot, a shotgun's hull as it's
+ * pumped, a revolver's empties on a reload: FWeaponBrass), and a barrel made hot by a burst or a heavy shot smokes a
+ * moment once firing stops.
  * When unowned it acts as a loot pickup: it spins, glows in its rarity color, and shows a label.
  *
  * It counts its kills as notches (WeaponBaseNotches.cpp; WeaponNotches has the rules), and a cursed iron's drawbacks act
@@ -161,6 +163,28 @@ public:
 	/** The muzzle where the player sees it: first-person guns are drawn with their own field of view and scale. */
 	FVector GetVisibleMuzzleLocation() const;
 
+	/** A point on the gun (world) where the player sees it: moved as a first-person gun is drawn; as it is in third person. */
+	FVector GetVisibleLocation(const FVector& WorldLocation) const;
+
+	/**
+	 * Where its spent cases leave (the ejection port, as the player sees it: the visible gun's in first person) and which
+	 * way they're flung (out to the gun's right, up and a little back). False for a gun that throws none from a port (a
+	 * revolver keeps its empties until a reload) or isn't built from parts. WeaponBaseBrass.cpp.
+	 */
+	bool GetEjectPort(FVector& OutLocation, FVector& OutDirection) const;
+
+	/** How long after a shot a pump gun's hull flies out (it's pumped out): a share of the time between its shots. */
+	float GetHullDelay() const;
+
+	/** Rounds fired since the cylinder was last emptied: the empties a revolver's reload tips out. */
+	int32 GetSpentInCylinder() const { return SpentInCylinder; }
+
+	/** How hot the barrel is now (0 cold; each shot heats it, it cools by itself): over WispHeat it smokes once firing stops. */
+	float GetMuzzleHeat() const;
+
+	/** Whether a wisp of smoke is curling from the muzzle now. */
+	bool IsMuzzleSmoking() const { return SmokeTimeLeft > 0.f; }
+
 	/** A bullet from this weapon hit something (the bullet system calls this when it lands). Broadcasts OnHit. */
 	void NotifyBulletHit(const FHitResult& Hit, float Damage, bool bCritical);
 
@@ -232,7 +256,7 @@ public:
 	bool bDrawDebugTraces = false;
 
 	/** Only ticks while it has something to animate: the magazine, pump or cylinder during a reload, a revolver's cylinder
-	 *  turning after a shot, or the muzzle flash. */
+	 *  turning after a shot, the muzzle flash, a hull waiting to be pumped out, or the smoke curling from a hot muzzle. */
 	virtual void Tick(float DeltaSeconds) override;
 
 protected:
@@ -304,6 +328,20 @@ private:
 	void SetupMuzzleFlash();
 	void PlayMuzzleFlash();
 	void UpdateMuzzleFlash(float DeltaSeconds);
+	// WeaponBaseBrass.cpp: spent cases.
+	/** A shot's brass: a rifle's case flicked out now, a shotgun's hull once it's pumped (GetHullDelay), none from a revolver. */
+	void EjectAfterShot();
+	/** One case out of the ejection port. */
+	void EjectCasing();
+	/** The revolver's rod punched: its spent empties tumble out of the chambers' backs. */
+	void DumpEmpties();
+	/** Counts down to a pumped hull. */
+	void UpdateBrass(float DeltaSeconds);
+	// WeaponBaseSmoke.cpp: the hot muzzle's smoke.
+	/** A shot heats the barrel; once firing stops a hot one smokes. */
+	void NoteShotHeat();
+	void UpdateMuzzleSmoke(float DeltaSeconds);
+	void StopMuzzleSmoke();
 	/** Ticks only while there's something to animate. */
 	void RefreshTick();
 	void BroadcastAmmo();
@@ -342,6 +380,22 @@ private:
 	float FlashStrength = 1.f;
 	/** Full glow of each muzzle flash quad, which fades with the flash. */
 	TArray<float, TInlineAllocator<8>> FlashGlow;
+
+	/** Seconds until a pumped hull flies out (negative: none waiting). */
+	float PendingEjectSeconds = -1.f;
+	/** Rounds fired since a revolver's cylinder was last emptied (its next reload's empties). */
+	int32 SpentInCylinder = 0;
+
+	/** The barrel's heat as of HeatTime (it cools by itself). */
+	float MuzzleHeat = 0.f;
+	double HeatTime = -1000.0;
+	/** Seconds after the last shot until the gun looks whether it's hot enough to smoke (negative: not waiting). */
+	float WispCheckSeconds = -1.f;
+	/** The wisp now: seconds left of it, how long it lasts, how thick, and its puffs' clock. */
+	float SmokeTimeLeft = 0.f;
+	float SmokeLength = 0.f;
+	float SmokeStrength = 0.f;
+	float SmokePuffIn = 0.f;
 
 	/** The curses' rolls (Unlucky's misfires): a stream of its own, seeded afresh for each gun. */
 	FRandomStream ShotRolls;

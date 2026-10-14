@@ -3,11 +3,13 @@
 #include "CoreMinimal.h"
 #include "CollisionQueryParams.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "Weapons/NearMiss.h"
 #include "EnemyProjectileSubsystem.generated.h"
 
 class AActor;
 class ACharacter;
 class AController;
+class APawn;
 class UInstancedStaticMeshComponent;
 
 /** One enemy pellet as it leaves the shooter: everything it needs to fly and to hurt, copied (the shooter may be gone). */
@@ -27,10 +29,15 @@ struct FEnemyShot
 	/** Who fired it (never hurt by it) and who gets the blame for its damage. */
 	TWeakObjectPtr<AActor> Shooter;
 	TWeakObjectPtr<AController> Instigator;
+	/** How it sounds going by the player's head (NearMiss): by default by who fired it (venom hisses, buckshot whizzes). */
+	ENearMissSound FlyBySound = ENearMissSound::Auto;
 };
 
 /** A pellet hit a player (its damage has been dealt): who, whose pellet, how much. */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnEnemyShotHit, AActor* /*Victim*/, AActor* /*Shooter*/, float /*Damage*/);
+
+/** A pellet went by a player's head without hitting them (heard once a pellet): who heard it, whose it was, where it came nearest. */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnEnemyShotNearMiss, APawn* /*Listener*/, AActor* /*Shooter*/, const FVector& /*Nearest*/);
 
 /**
  * Pellets that creatures fire (a boss's spectral buckshot): slow, glowing balls that fly straight, stop on the world and
@@ -45,6 +52,9 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnEnemyShotHit, AActor* /*Victim*/, AAct
  * They're drawn as emissive spheres on one instanced mesh per color (M_StylizedSurface's glow, opaque: no translucency),
  * stretched a little along their flight. A volley's tell is a glow swelling at the shooter's muzzle (ShowCharge), and a
  * pellet that hits the world swells and is gone.
+ *
+ * A pellet that misses the player by a little is heard going by, once (NearMiss: Abel's buckshot whizzes past the ear,
+ * the Gravemother's spit hisses), where it came nearest; a volley passing together is one sound.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UEnemyProjectileSubsystem : public UTickableWorldSubsystem
@@ -94,6 +104,9 @@ public:
 	/** A pellet hit a player. */
 	FOnEnemyShotHit OnShotHit;
 
+	/** A pellet went by a player's head (its sound plays: NearMiss). */
+	FOnEnemyShotNearMiss OnNearMiss;
+
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UEnemyProjectileSubsystem, STATGROUP_Tickables); }
 	virtual void Deinitialize() override;
@@ -109,6 +122,8 @@ private:
 		float Traveled = 0.f;
 		/** Hit something, flew its range or was put out: removed at the next update. */
 		bool bSpent = false;
+		/** It has been heard going by the player (once a pellet). */
+		bool bNearMissed = false;
 	};
 
 	struct FCharge
@@ -135,6 +150,8 @@ private:
 
 	/** Moves pellet Index on by DeltaSeconds; hurts the player it reaches (last, after the pellet's own bookkeeping). */
 	void Advance(int32 Index, float DeltaSeconds, const TArray<TWeakObjectPtr<ACharacter>>& Victims, const FCollisionQueryParams& WorldQuery);
+	/** Pellet Index went From -> Reach this update without hitting anyone: heard if it went by a player's head (once). */
+	void NoteFlyBy(int32 Index, const FVector& From, const FVector& Reach);
 	/** Everyone a pellet could hurt this update: living characters that aren't creatures. */
 	TArray<TWeakObjectPtr<ACharacter>> GatherVictims() const;
 	/** The world stops pellets, but not volumes (their brushes), the playable area's walls or the scatter they hold back. */
@@ -147,6 +164,8 @@ private:
 	TArray<FPellet> Pellets;
 	TArray<FCharge> Charges;
 	TArray<FPop> Pops;
+	/** When a fly-by was last heard (NearMiss::SoundGap apart). */
+	double LastNearMissSound = -1000.0;
 
 	/** A transient actor holding the instanced meshes, one per color (keyed by the color as bytes). */
 	TWeakObjectPtr<AActor> DrawActor;

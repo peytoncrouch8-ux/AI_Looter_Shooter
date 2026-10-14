@@ -93,16 +93,26 @@ void AWeaponBase::Reload()
 
 void AWeaponBase::PlayReloadSteps(float Progress)
 {
-	if (Progress <= ReloadSoundProgress || (Instance.Definition && Instance.Definition->ReloadSound))
+	if (Progress <= ReloadSoundProgress)
 	{
 		return;
 	}
+	// A definition's own reload sound plays whole, in place of the steps' cues (the steps still happen).
+	const bool bOwnSound = Instance.Definition && Instance.Definition->ReloadSound;
 	// Each step as the motion reaches it (LooterReload choreographs both), so the clicks land on the hands at any reload time.
 	for (const FReloadStepAt& Step : LooterReload::Steps(GetReloadPart()))
 	{
 		if (Step.Progress > ReloadSoundProgress && Step.Progress <= Progress)
 		{
-			PlayCue(WeaponSounds::ReloadStep(Step.Step));
+			if (!bOwnSound)
+			{
+				PlayCue(WeaponSounds::ReloadStep(Step.Step));
+			}
+			// The rod's punch: the empties tumble out of the cylinder.
+			if (Step.Step == EReloadStep::Eject)
+			{
+				DumpEmpties();
+			}
 		}
 	}
 	ReloadSoundProgress = Progress;

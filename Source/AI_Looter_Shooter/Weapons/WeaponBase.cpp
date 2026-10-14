@@ -125,6 +125,8 @@ void AWeaponBase::InitializeFromInstance(const FWeaponInstanceData& InInstance)
 	Instance.Stats = UWeaponRollLibrary::ComputeInstanceStats(Instance);
 
 	CurrentMagazine = Instance.SavedMagazine >= 0 ? FMath::Min(Instance.SavedMagazine, Instance.Stats.MagazineSize) : Instance.Stats.MagazineSize;
+	// A six-gun taken up part-fired has that many empties in its cylinder for its next reload to tip out.
+	SpentInCylinder = FMath::Max(Instance.Stats.MagazineSize - CurrentMagazine, 0);
 	bAmmoInitialized = true;
 
 	ApplyDefinitionVisuals();
@@ -166,13 +168,16 @@ void AWeaponBase::Tick(float DeltaSeconds)
 	UpdateMuzzleFlash(DeltaSeconds);
 	Model->UpdateCylinder(DeltaSeconds);
 	UpdateBeamGutter();
+	UpdateBrass(DeltaSeconds);
+	UpdateMuzzleSmoke(DeltaSeconds);
 	RefreshTick();
 }
 
 void AWeaponBase::RefreshTick()
 {
 	const bool bAnimatingReload = bReloading && GetReloadPart() != EWeaponReloadPart::None;
-	const bool bWanted = bAnimatingReload || FlashTimeLeft > 0.f || IsBeamGuttering() || Model->IsCylinderTurning();
+	const bool bAfterShot = PendingEjectSeconds >= 0.f || WispCheckSeconds >= 0.f || SmokeTimeLeft > 0.f;
+	const bool bWanted = bAnimatingReload || FlashTimeLeft > 0.f || IsBeamGuttering() || Model->IsCylinderTurning() || bAfterShot;
 	if (IsActorTickEnabled() != bWanted)
 	{
 		SetActorTickEnabled(bWanted);
@@ -301,6 +306,9 @@ void AWeaponBase::OnHolstered()
 	FlashTimeLeft = 0.f;
 	MuzzleFlash->SetVisibility(false);
 	MuzzleLight->SetVisibility(false);
+	// Put away: no hull pumped out of a gun on the back, no smoke from one in the holster.
+	PendingEjectSeconds = -1.f;
+	StopMuzzleSmoke();
 	RefreshTick();
 	SetActorHiddenInGame(true);
 	// Out of the hand (the manager may not have moved on yet): the holder's max health is the next gun's, or their own.

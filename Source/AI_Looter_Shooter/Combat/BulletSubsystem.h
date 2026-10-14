@@ -5,6 +5,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "Weapons/BulletMarks.h"
 #include "Weapons/ImpactSurface.h"
+#include "Weapons/WeaponBrass.h"
 #include "Weapons/WeaponFX.h"
 #include "Weapons/WeaponTypes.h"
 #include "BulletSubsystem.generated.h"
@@ -58,9 +59,14 @@ struct FBulletShot
  * so shots still land exactly on the crosshair.
  *
  * Where it lands, the world shows what it hit (ImpactSurface finds the surface: dirt, grass, gravel, stone, wood, metal,
- * glass, water...): its own puff (FWeaponFX::SpawnSurfaceImpact), its own sound (ImpactCueOf, with a ricochet's whine on
- * some glancing hits off stone and metal) and a mark that fades away (FBulletMarks, at most MarksPerVolley from one
- * shotgun blast). Creatures splash and cry their own hit, training dummies spark and ring, as before.
+ * glass, water...): its own puff (FWeaponFX::SpawnSurfaceImpact; the chunks it throws land on the ground under the hit
+ * and lie a moment), its own sound (ImpactCueOf), and a mark that fades away (FBulletMarks, at most MarksPerVolley from
+ * one shotgun blast). Some glancing hits off stone and metal ricochet: a white-hot spark and a short tracer off at the
+ * bounce (FWeaponFX::SpawnRicochet), and the whine. Creatures splash what they spill (CreatureBlood: ichor, gel, embers)
+ * and cry their own hit, training dummies spark and ring, as before (BulletSubsystemImpacts.cpp).
+ *
+ * The tracer has a hot head, and the first pellets of a shot leave a faint smoke thread behind them for a moment. The
+ * guns' spent brass lives here too (FWeaponBrass: AWeaponBase ejects it), ticked with the rest while any lies about.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UBulletSubsystem : public UTickableWorldSubsystem
@@ -77,6 +83,12 @@ public:
 
 	/** The marks bullets leave on the world. */
 	FBulletMarks& GetMarks() { return Marks; }
+
+	/** The guns' spent brass lying about. */
+	FWeaponBrass& GetBrass() { return Brass; }
+
+	/** A gun throws out a spent case (AWeaponBase: its port, or a revolver's empties on a reload). */
+	void EjectCasing(const FCasingLaunch& Launch);
 
 	/** How a hit on this actor looks: creatures splash, anything else with health sparks, the world sparks and dusts. */
 	static EImpactSurface SurfaceOf(const AActor* Actor);
@@ -118,6 +130,9 @@ private:
 		/** Hit something or flew its full range: drawn one last time, then removed. */
 		bool bSpent = false;
 		bool bDrawn = false;
+		/** One of its volley's first pellets: it leaves a smoke thread, laid as far as ThreadLaid (cm along its flight). */
+		bool bThread = false;
+		float ThreadLaid = 0.f;
 	};
 
 	/** How many marks one volley has left so far. */
@@ -129,14 +144,23 @@ private:
 
 	void Advance(FBullet& Bullet, float DeltaSeconds);
 	void ResolveHit(const FBullet& Bullet, const FHitResult& Hit);
-	void PlayImpactSound(const FHitResult& Hit, EImpactSurface Surface, EImpactMaterial Material, const FVector& ShotDirection);
+	// BulletSubsystemImpacts.cpp: how a hit looks and sounds.
+	/** A glancing hit off stone, gravel or metal that goes off (about half of those under RicochetSquare). */
+	static bool RollRicochet(const FHitResult& Hit, EImpactMaterial Material, const FVector& ShotDirection);
+	void ShowHit(const FBullet& Bullet, const FHitResult& Hit, EImpactSurface Surface, EImpactMaterial Material, bool bCritical, bool bRicochet);
+	/** The ground the chunks of a world hit land on: the surface itself if it's floor, else what's below the hit. */
+	bool FindDebrisFloor(const FBullet& Bullet, const FHitResult& Hit, FPlane& OutFloor);
+	void PlayImpactSound(const FHitResult& Hit, EImpactSurface Surface, EImpactMaterial Material, bool bRicochet);
 	void LeaveMark(const FBullet& Bullet, const FHitResult& Hit, EImpactMaterial Material);
+	/** Lays the smoke thread behind a bullet as far as it has flown (its first meters only). */
+	void LayThread(FBullet& Bullet);
 	void DrawTracer(const FBullet& Bullet, const FVector& Camera);
 	FVector GetCameraLocation() const;
 
 	TArray<FBullet> Bullets;
 	FWeaponFX Effects;
 	FBulletMarks Marks;
+	FWeaponBrass Brass;
 
 	/** The last impact sound, so a shotgun's pellets landing together on one surface make one crack rather than nine. */
 	double LastImpactSoundTime = -1000.0;
@@ -144,11 +168,21 @@ private:
 	FName LastImpactCue;
 	/** The last ricochet's whine (never two at once). */
 	double LastRicochetTime = -1000.0;
+	/** Ricochets shown from the latest volley (a blast's pellets show two at most). */
+	int32 RicochetLookVolley = 0;
+	int32 RicochetLooks = 0;
+	/** The last look down for a wall hit's floor: a blast's pellets on one wall share it. */
+	int32 FloorVolley = 0;
+	FVector FloorAt = FVector::ZeroVector;
+	FPlane LastFloor = FPlane(0.0, 0.0, 1.0, 0.0);
+	bool bLastFloor = false;
 
 	/** Shots fired in one frame by one gun are one volley (a shotgun's pellets). */
 	uint64 LastFireFrame = TNumericLimits<uint64>::Max();
 	TWeakObjectPtr<AWeaponBase> LastFireWeapon;
 	TWeakObjectPtr<AActor> LastFireShooter;
 	int32 VolleyCount = 0;
+	/** Pellets fired so far in the latest volley (its first ones leave smoke threads). */
+	int32 VolleyPellets = 0;
 	TArray<FVolleyMarks, TInlineAllocator<4>> VolleyMarks;
 };

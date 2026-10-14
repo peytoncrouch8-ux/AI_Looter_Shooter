@@ -1,7 +1,8 @@
 #include "Weapons/WeaponFX.h"
+#include "Templates/UnrealTemplate.h"
 
 // FWeaponFX's bullet hits on the world, in the look of what was struck (UBulletSubsystem finds the surface with
-// ImpactSurface). Spawning only; WeaponFX.cpp moves and draws every particle.
+// ImpactSurface). Spawning only; WeaponFXDraw.cpp moves and draws every particle.
 
 namespace
 {
@@ -49,8 +50,10 @@ FWeaponFX::FParticle& FWeaponFX::AddBit(uint8 Set, const FVector& Location, cons
 }
 
 void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Normal, const FVector& ShotDirection, EImpactMaterial Material,
-	float Scale, bool bCritical)
+	float Scale, bool bCritical, const FPlane* Floor)
 {
+	// What it throws lands on the ground under the hit, when it has one (AddParticle gives it to the chunks and sparks).
+	TGuardValue<TOptional<FPlane>> FloorDuringSpawn(SpawnFloor, Floor ? TOptional<FPlane>(*Floor) : TOptional<FPlane>());
 	if (Material == EImpactMaterial::Unknown)
 	{
 		// Nothing says what it is: the old sparks, dust and chips.

@@ -12,11 +12,12 @@
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/Volume.h"
 #include "Kismet/GameplayStatics.h"
 
-// UEnemyProjectileSubsystem: firing, the rules of who a pellet hurts, and its flight. Drawing is in
-// EnemyProjectileSubsystemDraw.cpp.
+// UEnemyProjectileSubsystem: firing, the rules of who a pellet hurts, its flight and its fly-by past the player's head.
+// Drawing is in EnemyProjectileSubsystemDraw.cpp.
 
 bool UEnemyProjectileSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
@@ -283,6 +284,13 @@ void UEnemyProjectileSubsystem::Advance(int32 Index, float DeltaSeconds, const T
 		}
 	}
 
+	if (!Victim)
+	{
+		// It missed everyone: heard if it went by a player's head. Before the bookkeeping below, which holds the pellet by
+		// reference: the sound's listeners may fire.
+		NoteFlyBy(Index, From, Reach);
+	}
+
 	FPellet& Pellet = Pellets[Index];
 	if (Victim)
 	{
@@ -308,6 +316,32 @@ void UEnemyProjectileSubsystem::Advance(int32 Index, float DeltaSeconds, const T
 	Pellet.Position = To;
 	Pellet.Traveled += Step;
 	Pellet.bSpent = Pellet.Traveled >= Shot.Range - UE_KINDA_SMALL_NUMBER;
+}
+
+void UEnemyProjectileSubsystem::NoteFlyBy(int32 Index, const FVector& From, const FVector& Reach)
+{
+	UWorld* World = GetWorld();
+	if (!World || Pellets[Index].bNearMissed || Pellets[Index].Shot.FlyBySound == ENearMissSound::None)
+	{
+		return;
+	}
+	// A copy: the broadcast below can run code that fires or puts out pellets.
+	const FEnemyShot Shot = Pellets[Index].Shot;
+	FVector Nearest;
+	APawn* Listener = NearMiss::FindPassed(*World, From, Reach, Pellets[Index].Traveled, Shot.Shooter.Get(), Nearest);
+	if (!Listener)
+	{
+		return;
+	}
+	Pellets[Index].bNearMissed = true;
+	// A volley going by together is one whiz, not five.
+	const double Now = World->GetTimeSeconds();
+	if (Now - LastNearMissSound >= NearMiss::SoundGap)
+	{
+		LastNearMissSound = Now;
+		NearMiss::Play(this, Shot.FlyBySound, Shot.Shooter.Get(), Nearest);
+	}
+	OnNearMiss.Broadcast(Listener, Shot.Shooter.Get(), Nearest);
 }
 
 TArray<TWeakObjectPtr<ACharacter>> UEnemyProjectileSubsystem::GatherVictims() const

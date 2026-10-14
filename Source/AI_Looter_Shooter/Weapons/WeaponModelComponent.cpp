@@ -133,6 +133,7 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 	FindSocket(TEXT("Muzzle"), Muzzle);
 	FindSocket(TEXT("Grip"), Grip);
 	FindSocket(TEXT("Foregrip"), Foregrip);
+	bHasEject = FindSocket(TEXT("Eject"), Eject);
 	FindAimPoint();
 	ChooseNotchPart(StockPart, BodyPart);
 	ShowNotches(Instance);
@@ -184,6 +185,8 @@ void UWeaponModelComponent::Clear()
 	Muzzle = FVector::ZeroVector;
 	Grip = FVector::ZeroVector;
 	Foregrip = FVector::ZeroVector;
+	Eject = FVector::ZeroVector;
+	bHasEject = false;
 }
 
 void UWeaponModelComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
@@ -218,6 +221,30 @@ FVector UWeaponModelComponent::GetCenter() const
 		}
 	}
 	return Box.IsValid ? Box.GetCenter() : FVector::ZeroVector;
+}
+
+bool UWeaponModelComponent::GetChamberRears(TArray<FVector>& OutLocations, FVector& OutBack) const
+{
+	OutLocations.Reset();
+	const int32 Chambers = GetCylinderChambers();
+	if (Chambers <= 0)
+	{
+		return false;
+	}
+	// The chambers ring the cylinder's axis (its X, through its origin) a little over half its radius out, and open at its
+	// back face. The radius from its right and top, which the crane and the rod (low on its left, out in front) don't reach.
+	const UStaticMesh* Mesh = ReloadPartMesh->GetStaticMesh();
+	const FBox Box = Mesh ? Mesh->GetBoundingBox() : FBox(FVector(-2.0), FVector(2.0));
+	const double Radius = FMath::Max(FMath::Min(Box.Max.Y, Box.Max.Z), 0.5);
+	const double Ring = Radius * 0.58;
+	const FTransform& Cylinder = ReloadPartMesh->GetComponentTransform();
+	for (int32 Chamber = 0; Chamber < Chambers; ++Chamber)
+	{
+		const double Angle = 2.0 * UE_DOUBLE_PI * Chamber / Chambers;
+		OutLocations.Add(Cylinder.TransformPosition(FVector(Box.Min.X - 0.3, FMath::Cos(Angle) * Ring, FMath::Sin(Angle) * Ring)));
+	}
+	OutBack = Cylinder.TransformVectorNoScale(-FVector::ForwardVector);
+	return true;
 }
 
 void UWeaponModelComponent::SetReloadTravel(float Travel, bool bShow)

@@ -44,6 +44,19 @@ public:
 	/** The middle of the gun's parts, in its space. */
 	FVector GetCenter() const;
 
+	/** The ejection port its spent cases leave from, in its space, when a part marks it (SOCKET_Eject); false if none does. */
+	bool GetEject(FVector& OutLocation) const
+	{
+		OutLocation = Eject;
+		return bHasEject;
+	}
+
+	/**
+	 * A revolver's chambers where they open at the back of its cylinder, in the world as the cylinder is now (swung out,
+	 * turned), and the way out of them (OutBack: the cylinder's back): where its empties tumble from. False without one.
+	 */
+	bool GetChamberRears(TArray<FVector>& OutLocations, FVector& OutBack) const;
+
 	EWeaponReloadPart GetReloadPart() const { return ReloadPartMesh ? ReloadPart : EWeaponReloadPart::None; }
 
 	/**
@@ -172,5 +185,7 @@ private:
 	FVector Grip = FVector::ZeroVector;
 	FVector Foregrip = FVector::ZeroVector;
 	FVector AimPoint = FVector::ZeroVector;
+	FVector Eject = FVector::ZeroVector;
+	bool bHasEject = false;
 	EFirstPersonPrimitiveType FirstPersonType = EFirstPersonPrimitiveType::None;
 };

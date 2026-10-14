@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Weapons/CreatureBlood.h"
 #include "Weapons/ImpactSurface.h"
 
 class AActor;
@@ -14,7 +15,7 @@ enum class EImpactSurface : uint8
 	World,
 	/** Hard targets such as the training dummies: a burst of sparks and a flash. */
 	Target,
-	/** Creatures: a splash of ichor. */
+	/** Creatures: a splash of what they spill (SpawnCreatureHit; SpawnImpact's is the spiders' ichor). */
 	Flesh
 };
 
@@ -37,7 +38,9 @@ enum class EDeathBurst : uint8
  * quads turned to face the camera), so there are no particle assets to author. The look comes from two small materials,
  * M_FX_Glow (additive) and M_FX_Smoke (translucent), which read each instance's color and strength from its custom data;
  * chunks are lit surfaces, one component per color (BitSetFor). WeaponFXWorld.cpp holds the effects that aren't a
- * gun's (grave dirt, the slide's dust and grit, the death bursts).
+ * gun's (grave dirt, the slide's dust and grit, the death bursts); WeaponFXImpacts.cpp the world's hits by surface,
+ * WeaponFXCreatures.cpp the creatures' by what they spill, WeaponFXShots.cpp the shot's own (ricochets, the muzzle's
+ * smoke, the tracer's smoke thread), WeaponFXDraw.cpp the moving and drawing.
  */
 class AI_LOOTER_SHOOTER_API FWeaponFX
 {
@@ -58,9 +61,38 @@ public:
 	 * and sawdust, metal a shower of hot sparks, sheet metal sparks and paint flakes, glass glinting shards, water a splash
 	 * and mist, cloth lint, hay straws, bone pale chips. Scale sizes it to the gun (a shotgun's pellet is smaller and
 	 * throws less); a critical hit adds its pop as SpawnImpact's does.
+	 *
+	 * Given the Floor under the hit (the surface itself on the ground, what's under a wall's hit), the chunks thrown land
+	 * on it: they bounce, skitter and lie there a moment or two before they shrink away; drops splat and are gone.
 	 */
 	void SpawnSurfaceImpact(const FVector& Location, const FVector& Normal, const FVector& ShotDirection, EImpactMaterial Material,
-		float Scale, bool bCritical);
+		float Scale, bool bCritical, const FPlane* Floor = nullptr);
+
+	/**
+	 * A bullet's hit on a creature in what it spills (WeaponFXCreatures.cpp; ECreatureBlood): a spider's ichor (SpawnImpact's
+	 * Flesh), the Gravemother's thick dark ichor, a slime's gel in its Tint, an Unpaid's embers in its coal's color with a
+	 * breath of grave dust, a dead miner's embers with rock dust and chips. Scale sizes it to the gun as SpawnSurfaceImpact.
+	 */
+	void SpawnCreatureHit(const FVector& Location, const FVector& Normal, const FVector& ShotDirection, ECreatureBlood Blood,
+		const FLinearColor& Tint, float Scale, bool bCritical);
+
+	/**
+	 * A round glancing off (WeaponFXShots.cpp): a white-hot spark where it struck and a short tracer flung off along
+	 * Direction (the shot's bounce), with a few sparks. Looks only: nothing flies on.
+	 */
+	void SpawnRicochet(const FVector& Location, const FVector& Direction, float Scale);
+
+	/**
+	 * One breath of a hot muzzle's smoke (AWeaponBase's wisp after a burst or a heavy shot): a small, faint puff drifting
+	 * at Velocity, rising slowly and spreading as it thins.
+	 */
+	void SpawnWisp(const FVector& Location, const FVector& Velocity, float Opacity, float StartSize, float EndSize, float Life);
+
+	/**
+	 * A length of the faint smoke thread a tracer leaves behind it (UBulletSubsystem): a soft line from Tail to Head,
+	 * widening from Width as it thins out over Life.
+	 */
+	void AddThread(const FVector& Tail, const FVector& Head, float Width, float Opacity, float Life);
 
 	/**
 	 * A shot's flash in the open, with no gun model to wear one (a scene's gunfire): a hot core, a wider burst a hair
@@ -100,9 +132,18 @@ public:
 	/** Live particles (for tests and the particle cap). */
 	int32 NumParticles() const { return Particles.Num(); }
 
+	/** Chunks lying where they landed on an impact's floor (tests). */
+	int32 NumResting() const;
+
+	/** How far the lowest chunk with a floor is above it (cm; negative: sunk into it). 0 with none (tests). */
+	float LowestOverFloor() const;
+
 private:
-	/** Bit: a lit chunk of a color of its own (chitin, gel), drawn on its BitSet's component. */
-	enum class EParticle : uint8 { Spark, Flash, Smoke, Chip, Droplet, Bit };
+	/**
+	 * Bit: a lit chunk of a color of its own (chitin, gel), drawn on its BitSet's component. Streak: a glowing line flying
+	 * on, growing to its length (a ricochet's tracer). Thread: a still line of smoke (a tracer's smoke thread).
+	 */
+	enum class EParticle : uint8 { Spark, Flash, Smoke, Chip, Droplet, Bit, Streak, Thread };
 
 	struct FParticle
 	{
@@ -126,6 +167,13 @@ private:
 		float Roll = 0.f;
 		/** A Bit's set (BitSets). */
 		uint8 BitSet = 0;
+		/** It has a floor to land on (Floor): it bounces off it, and lies on it once spent (bResting). */
+		bool bFloor = false;
+		bool bResting = false;
+		uint8 Bounces = 0;
+		FPlane Floor = FPlane(0.0, 0.0, 1.0, 0.0);
+		/** A Thread's half length along its line. */
+		FVector Extent = FVector::ZeroVector;
 	};
 
 	/** How a set's chunks are drawn: thin plates (chitin, chips of paint or glass), round drops (gel, water), long splinters (wood, straw). */
@@ -139,10 +187,10 @@ private:
 		EBitShape Shape = EBitShape::Plate;
 	};
 	/**
-	 * Kept to a few (a component each, empty and free while unused): the creatures' chitin and gel, and the world's
-	 * impacts' clods, splinters, shards and drops. Past it, a new color shares the last set's.
+	 * Kept to a few (a component each, empty and free while unused): the creatures' chitin, gel and dark ichor, the grave
+	 * dirt, and the world's impacts' clods, splinters, shards and drops. Past it, a new color shares the last set's.
 	 */
-	static constexpr int32 MaxBitSets = 16;
+	static constexpr int32 MaxBitSets = 20;
 
 	struct FStreak
 	{
@@ -154,6 +202,8 @@ private:
 	};
 
 	FParticle& AddParticle(EParticle Type, const FVector& Location, const FVector& Velocity, float Life);
+	/** A chunk crossing its floor: a bounce, a skitter, then it lies still a moment (drops splat and are gone). WeaponFXDraw.cpp. */
+	void LandOnFloor(FParticle& Particle);
 	void Redraw(const FVector& CameraLocation);
 	/** The set for chunks of this Color (round: spheres, else cubes) with Glow, made the first time it's asked for. */
 	uint8 BitSetFor(bool bRound, const FLinearColor& Color, float Glow);
@@ -171,6 +221,8 @@ private:
 
 	TArray<FParticle> Particles;
 	TArray<FStreak> Streaks;
+	/** While an impact with a floor spawns (SpawnSurfaceImpact), the floor its chunks are given. */
+	TOptional<FPlane> SpawnFloor;
 	/** Instances drawn last frame, so an emptied component gets cleared exactly once. */
 	bool bDrawnAnything = false;
 	FRandomStream Random{ 0x5eed };

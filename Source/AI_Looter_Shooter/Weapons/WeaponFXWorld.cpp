@@ -1,7 +1,7 @@
 #include "Weapons/WeaponFX.h"
 
 // FWeaponFX's effects that aren't a gun's: grave dirt (the wake-up's claws), the slide's dust and grit, and a creature's
-// death burst (a spider's shell, a slime's splat, an Unpaid's soul-light). Spawning only; WeaponFX.cpp moves and draws
+// death burst (a spider's shell, a slime's splat, an Unpaid's soul-light). Spawning only; WeaponFXDraw.cpp moves and draws
 // every particle.
 
 namespace
