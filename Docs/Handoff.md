@@ -3,7 +3,43 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
-## Now (end of session "Ransom's Rest map expansion", 2026-10-13)
+## Now (session "Play-through", 2026-10-14, in progress)
+
+**Played** all 16 Ransom's Rest missions in PIE (Main 1-7, every side, Dead Lift's ride, Back Pay's choice, Abel by
+`Looter.Boss.Kill`), Keeper's Bridge both ways (clean), the watchtower's six flights (climbable), the manway (walkable),
+fast travel (works). New tools: `Tools/Unreal/play.py` (goto/at/find/press/fight/kill/lookat/what/guns/ammo in PIE; `press`
+feeds input actions, no window focus) and `Tools\playstep.ps1` (one step: move, keys, focus, missions, screenshot;
+`-Button ACCEPT` clicks a game menu's button). `Tools/Unreal/reach_probe.py` (walkability flood fill) is unreliable
+inside thick collision hulls: don't trust a NOT reached.
+
+**Bugs found** (fix in this order; ✔ = fixed in code, not built yet):
+1. ✔ Knocking Below: the cellar's dead spawned on the yard above (encounter home and spots looked for from 3-5 m up,
+   above the vault's collision). Fix in `EncounterGroundProbe` (`FindRoofOver`), wander goals too; test
+   `Looter.Encounters.Cellar`. Needs build + tests; DepotWaiting's spots change too (play-check them).
+2. Dead Lift blocker: the winch crank on the bunk in the sheriff's cell (1234,1032,120) can't be reached: the player
+   stops at the cell doorway, collision fills the cell (SM_FalseFront_Sheriff, `FalseFronts.py` ~1091-1260; placement
+   `build_area_missionprops_valley.py` CELL_CRANK/CELL_REPORT). Odell's report likely too.
+3. Depot: cliff pieces `Cliff_eastShoulder_23`/`_24` (SM_CliffFace_B) stand inside the depot: the LOST PROPERTY window
+   (670,11915) can't be reached, the agent's desk (1182,11845) is inside the rock (The Old Fare's optional), rock shows
+   in the baggage room and by the stair. The cliff build must keep out of enterable buildings.
+4. Tilly's cellar: the cold room (Thaddeus, -3115,5702,-281) has no ceiling past the workshop's footprint: sky and grass
+   seen from inside (terrain is culled from below). `WorkshopBright.py` needs a roof over the cellar's rooms.
+5. The player's guns vanished twice (all slots empty, no log line, not on the ground): 05.21-05.22 (Sink, after the egg
+   sacs) and 05.55-05.59 (mine drift, at the barricade). Not reproduced on purpose yet; `Saved/watch_guns.py` logs the
+   frame they change (WATCHGUNS).
+6. Notice boards show "NO REWARD: IT'S PRACTICE" under real postings (Rangers' board, Calder's Post); a click on an
+   unselected posting does nothing (only W/S select).
+7. Abel's boss bar ("HE KNEELS") stays on the HUD after his defeat, all over the map (seen after `Looter.Boss.Kill`).
+8. Side 1: the gate poster's hold-to-tear takes focus over its offer (Read the poster): a tap does nothing, the offer
+   shows only once the poster is torn.
+9. The orange objective highlight paints Mister Sexton as a solid orange figure (doors get a soft glow).
+10. Ledger: the Brown Spider's place line still says the tutorial island.
+11. The depot's Unpaid hit the player through the stair door (melee without a line check?).
+12. Small: prompts "Take The clamp pin" / "Take The Gravemother's fang"; Side 3's "Find where the Gravemother hungers"
+    has no full stop; Supply Crates open on a tap while Calder's Caches says hold; the orders slate's "KESSLER OAK"
+    clashes with Barrels Kessler; Knocking Below's slate optional vanishes once the key (beside it) is taken.
+
+## Before (end of session "Ransom's Rest map expansion", 2026-10-13)
 
 **State:** all built, placed in Lvl_RansomsRest, 589/589 tests, committed and pushed (1ae1d99). Nobody has played the
 new content yet. The editor may be open on Lvl_RansomsRest, dirty from the tests: reopen it clean
