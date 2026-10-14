@@ -61,7 +61,7 @@ Hiram's figure at load ("SkinnedAsset property overwritten ... without NotifyIfS
    gives the East Shoulder's face ground ~748 m^2 inside the boundary where the ridge doesn't stand (Stage Gap's depot
    side; changes the macro maps: needs the user's eye).
 
-**On hold (the user's calls):** the Gilded Lily; Skyreach's own house kit; no style work unless asked.
+**On hold (the user's calls):** the Gilded Lily (when it starts: a World Partition map, Pipeline "Making a level"); Skyreach's own house kit; no style work unless asked.
 
 ## Sessions
 

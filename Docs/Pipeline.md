@@ -160,6 +160,11 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
 
 ## Making a level (grounded areas)
 
+- The next new level (the Gilded Lily) starts as a World Partition map (the user, 2026-10-14), so the engine's HLOD
+  (simplified stand-ins for far groups: the town, cliff belts) comes with it. Ransom's Rest stays a plain map: converting it
+  means one file per actor and rechecking every build script, the minimap, tours and tests (1-2 days, risky), and HLOD would
+  win only ~0.3-0.6 ms in its wide views (hiding every building saved 0.1-0.2 ms, every cliff 0.4-0.5). Check the build
+  scripts (`build_area*.py`), `open_clean.py`, the minimap bake and `Looter.Perf.HideFolder` against World Partition first.
 - Data: `Art/Levels/<Area>/layout.json` (hand-written: features, roads, zones, obstacles, placements, the `level` block, gameplay).
   `views.json` holds the tour viewpoints.
 - Generator (Blender, headless): the `Art/Levels/area_*.py` modules build the terrain tiles, ring, canyon wall and backdrop, and
