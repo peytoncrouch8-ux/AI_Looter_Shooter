@@ -433,6 +433,7 @@ FTransform UWeaponManagerComponent::GetFirstPersonHold(const AWeaponBase* Weapon
 		// family's hold comes from WeaponHipHold (raised so both hands show). Aiming still slerps to the sight line
 		// (PlayerLocomotionViewModel), so its SOCKET_Aim lands as every gun's does.
 		const UWeaponDefinition* Definition = Weapon->GetInstance().Definition.Get();
+		const EWeaponKind Kind = Definition ? Definition->Kind : EWeaponKind::None;
 		FVector Grip = FVector::ZeroVector;
 		FRotator Turn = FRotator::ZeroRotator;
 		if (Definition && !Definition->FirstPersonGrip.IsZero())
@@ -440,13 +441,14 @@ FTransform UWeaponManagerComponent::GetFirstPersonHold(const AWeaponBase* Weapon
 			Grip = Definition->FirstPersonGrip;
 			Turn = Definition->FirstPersonRotation;
 		}
-		else if (!WeaponHipHold::For(Definition ? Definition->Kind : EWeaponKind::None, Grip, Turn))
+		else if (!WeaponHipHold::For(Kind, Grip, Turn))
 		{
 			Hold.AddToTranslation(Hold.TransformVector(AttachGrip - Weapon->GetGripPoint()));
 			return Hold;
 		}
-		Hold.SetRotation(Hold.GetRotation() * Turn.Quaternion());
-		Hold.SetTranslation(Grip + WeaponHipHold::TuningNudge() - Hold.TransformVector(Weapon->GetGripPoint()));
+		// Development builds: the Looter.HipHold.* console variables' nudges (nothing in shipping).
+		Hold.SetRotation(Hold.GetRotation() * (Turn + WeaponHipHold::TuningTurn(Kind)).Quaternion());
+		Hold.SetTranslation(Grip + WeaponHipHold::TuningNudge(Kind) - Hold.TransformVector(Weapon->GetGripPoint()));
 	}
 	return Hold;
 }

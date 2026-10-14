@@ -15,8 +15,10 @@ struct FGunHands
 	/** The trigger hand on SOCKET_Grip. */
 	FVector GripHandle = FVector::UpVector;
 	FVector GripPalm = FVector(0.f, -1.f, 0.f);
-	/** Degrees the knuckles tip down toward the handle's foot (the handle then crosses the palm on a slant). */
+	/** Degrees the knuckles tip down toward the handle's foot (the handle then crosses the palm on a slant; less: up). */
 	float GripTilt = 0.f;
+	/** A last turn of the hand in its own frame (roll about the knuckles' line, pitch about the palm's facing, yaw about the third). */
+	FRotator GripTurn = FRotator::ZeroRotator;
 	FVector GripForearm = FVector(-0.8f, 0.35f, -0.45f);
 	FVector GripHold = FVector::ZeroVector;
 	/** The trigger finger's three joints (degrees): how far this gun's trigger sits from its grip sets how bent it is. */
@@ -26,6 +28,7 @@ struct FGunHands
 	FVector ForeHandle = FVector::ForwardVector;
 	FVector ForePalm = FVector(0.f, 0.3f, 1.f);
 	float ForeTilt = 0.f;
+	FRotator ForeTurn = FRotator::ZeroRotator;
 	FVector ForeForearm = FVector(-0.45f, -0.5f, -0.75f);
 	FVector ForeHold = FVector::ZeroVector;
 	EHandGrip ForeGrip = EHandGrip::Forend;
@@ -43,6 +46,14 @@ namespace FirstPersonHandsGrips
 {
 	/** The hold for a gun kind (None: the rifle's). */
 	AI_LOOTER_SHOOTER_API const FGunHands& For(EWeaponKind Kind);
+
+	/**
+	 * The hold as the hands use it: For's, with (development builds only) the Looter.Hands.* tuning console variables on
+	 * it for the kind Looter.Hands.Kind picks (0 every gun, 1 rifle, 2 shotgun, 3 revolver): Trigger/Support PalmRoll,
+	 * PalmPitch, PalmYaw (degrees, the hand's own turn), ForearmYaw, ForearmPitch (degrees, the forearm's way swung in the
+	 * gun's frame), HoldAhead, HoldRight, HoldUp (cm of the modeled gun). Looter.Hands.Dump prints the numbers to bake.
+	 */
+	AI_LOOTER_SHOOTER_API FGunHands Tuned(EWeaponKind Kind);
 
 	/** The trigger hand round the grip, index finger at the trigger (camera space). */
 	AI_LOOTER_SHOOTER_API FHandPlacement OnGrip(const FHandsGun& Gun);

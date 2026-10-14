@@ -20,16 +20,29 @@ namespace
 	// in the middle of the view and stretched the forearms; 6 ahead, 7 right and 7 down from it sits each gun low on the
 	// right with the support glove on its fore-end and both hands in view.
 	const FHipHold HipHolds[] = {
-		// The Bullpup: its grip low on the right, the handguard rising toward the middle, the muzzle 8 degrees down.
-		{ EWeaponKind::Rifle, FVector(50.f, 23.f, -23.5f), FRotator(-8.f, -4.f, -5.f) },
-		// The Ranchhand: its long forend reaches further in; its grip is on the stock behind the receiver.
-		{ EWeaponKind::Shotgun, FVector(50.f, 22.5f, -23.f), FRotator(-7.f, -3.f, -5.f) },
+		// The Bullpup: its grip low on the right, level as it always was (the user: the 8 degree muzzle-down tilt read as
+		// tipped forward, 2026-10-14).
+		{ EWeaponKind::Rifle, FVector(50.f, 23.f, -23.5f), FRotator::ZeroRotator },
+		// The Ranchhand: its long forend reaches further in; its grip is on the stock behind the receiver. Level too (its 7
+		// degree tilt read as the rifle's did).
+		{ EWeaponKind::Shotgun, FVector(50.f, 22.5f, -23.f), FRotator(0.f, -3.f, -5.f) },
 	};
 
 #if !UE_BUILD_SHIPPING
-	TAutoConsoleVariable<float> CVarHipAhead(TEXT("Looter.HipHold.Ahead"), 0.f, TEXT("Moves every first-person hip hold ahead (cm; tuning only)."));
-	TAutoConsoleVariable<float> CVarHipRight(TEXT("Looter.HipHold.Right"), 0.f, TEXT("Moves every first-person hip hold right (cm; tuning only)."));
-	TAutoConsoleVariable<float> CVarHipUp(TEXT("Looter.HipHold.Up"), 0.f, TEXT("Moves every first-person hip hold up (cm; tuning only)."));
+	TAutoConsoleVariable<int32> CVarHipKind(TEXT("Looter.HipHold.Kind"), 0,
+		TEXT("Which gun the Looter.HipHold.* nudges move: 0 every gun, 1 rifle, 2 shotgun, 3 revolver (tuning only)."));
+	TAutoConsoleVariable<float> CVarHipAhead(TEXT("Looter.HipHold.Ahead"), 0.f, TEXT("Moves the first-person hip hold ahead (cm; tuning only)."));
+	TAutoConsoleVariable<float> CVarHipRight(TEXT("Looter.HipHold.Right"), 0.f, TEXT("Moves the first-person hip hold right (cm; tuning only)."));
+	TAutoConsoleVariable<float> CVarHipUp(TEXT("Looter.HipHold.Up"), 0.f, TEXT("Moves the first-person hip hold up (cm; tuning only)."));
+	TAutoConsoleVariable<float> CVarHipPitch(TEXT("Looter.HipHold.Pitch"), 0.f, TEXT("Turns the first-person hip hold muzzle up (degrees; tuning only)."));
+	TAutoConsoleVariable<float> CVarHipYaw(TEXT("Looter.HipHold.Yaw"), 0.f, TEXT("Turns the first-person hip hold muzzle right (degrees; tuning only)."));
+	TAutoConsoleVariable<float> CVarHipRoll(TEXT("Looter.HipHold.Roll"), 0.f, TEXT("Rolls the first-person hip hold (degrees; tuning only)."));
+
+	bool TunesKind(EWeaponKind Kind)
+	{
+		const int32 Wanted = CVarHipKind.GetValueOnGameThread();
+		return Wanted == 0 || Wanted == static_cast<int32>(Kind);
+	}
 #endif
 }
 
@@ -47,11 +60,24 @@ bool WeaponHipHold::For(EWeaponKind Kind, FVector& OutGrip, FRotator& OutTurn)
 	return false;
 }
 
-FVector WeaponHipHold::TuningNudge()
+FVector WeaponHipHold::TuningNudge(EWeaponKind Kind)
 {
 #if !UE_BUILD_SHIPPING
-	return FVector(CVarHipAhead.GetValueOnGameThread(), CVarHipRight.GetValueOnGameThread(), CVarHipUp.GetValueOnGameThread());
-#else
-	return FVector::ZeroVector;
+	if (TunesKind(Kind))
+	{
+		return FVector(CVarHipAhead.GetValueOnGameThread(), CVarHipRight.GetValueOnGameThread(), CVarHipUp.GetValueOnGameThread());
+	}
 #endif
+	return FVector::ZeroVector;
+}
+
+FRotator WeaponHipHold::TuningTurn(EWeaponKind Kind)
+{
+#if !UE_BUILD_SHIPPING
+	if (TunesKind(Kind))
+	{
+		return FRotator(CVarHipPitch.GetValueOnGameThread(), CVarHipYaw.GetValueOnGameThread(), CVarHipRoll.GetValueOnGameThread());
+	}
+#endif
+	return FRotator::ZeroRotator;
 }
