@@ -427,7 +427,7 @@ Console commands, by file.
 - `Dev/HudShotDevCommands.cpp`: `Looter.HudShots [quit]`, photographs the HUD through its states into `Saved/Screenshots/HudShots/<NN>_<state>.png` (`Tools/hudshots.ps1`); `HudShotScene` holds the states.
 - `Dev/CastShotDevCommands.cpp`, `Dev/CastShotRun`, `Dev/CastShotScene`, `Dev/CastShotProbe`: `Looter.CastShots`, every creature/character photographed in its states from three angles plus `numbers.csv` (feet, limbs, sliding, pops, overlaps; "!" past what a player notices) (`Tools/castshots.ps1`). `CastShotRun.cpp` steps/clock; `CastShotRunNumbers.cpp` the numbers; `CastShotScene.cpp` the cast; `CastShotSceneSpots.cpp` finds ground; `CastShotProbe` measures.
 - `Dev/MenuShotDevCommands.cpp`, `Dev/MenuShotScene`: `Looter.MenuShots [quit]`, inventory through its states (`Tools/menushots.ps1 [-Label]`).
-- `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: frame times and screenshots from each viewpoint (`Tools/tour.ps1`); a view's `exec`/`after` commands measure hidden groups by difference.
+- `Dev/ViewTour`: `UViewTourSubsystem`, `Looter.Tour`: frame times and screenshots from each viewpoint (`Tools/tour.ps1`); a view's `exec`/`after` commands measure hidden groups by difference; an interior's view gives `top` (where the ground search starts, under its ceiling).
 
 ## Tests (run with `Tools\runtests.ps1`)
 The `Looter.*` automation tests, one file per area, in `Source/AI_Looter_Shooter/Tests/`. `WorldTests.cpp` is the world's.

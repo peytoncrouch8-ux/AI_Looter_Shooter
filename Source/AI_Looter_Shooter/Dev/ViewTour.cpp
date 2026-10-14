@@ -132,9 +132,13 @@ bool UViewTourSubsystem::Start(const FString& ViewsFile, bool bInShots, bool bIn
 		Stop.Name = View->GetStringField(TEXT("name"));
 		const double X = View->GetNumberField(TEXT("x"));
 		const double Y = View->GetNumberField(TEXT("y"));
-		// The height is above the ground there: find the ground with a trace that skips volumes.
+		// The height is above the ground there: find the ground with a trace that skips volumes. An interior's view (a mine
+		// gallery, a waiting room, a tower's deck) gives "top", a world height under its ceiling, so the trace starts there and
+		// finds its floor instead of the roof or the mountain over it.
+		double Top = 100000.0;
+		View->TryGetNumberField(TEXT("top"), Top);
 		FHitResult Hit;
-		const bool bGround = World->LineTraceSingleByChannel(Hit, FVector(X, Y, 100000.0), FVector(X, Y, -100000.0), ECC_Visibility,
+		const bool bGround = World->LineTraceSingleByChannel(Hit, FVector(X, Y, Top), FVector(X, Y, -100000.0), ECC_Visibility,
 			LooterWorld::StaticGeometryParams(World, TEXT("ViewTour")));
 		Stop.Location = FVector(X, Y, (bGround ? Hit.ImpactPoint.Z : 0.0) + View->GetNumberField(TEXT("height")));
 		Stop.Rotation = FRotator(View->GetNumberField(TEXT("pitch")), View->GetNumberField(TEXT("yaw")), 0.0);

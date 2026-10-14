@@ -23,6 +23,11 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 
 ## Current reference numbers (Medium, 1080p)
 
+- Ransom's Rest after the mountain (2026-10-14, 75708bb): all 37 views at 128-206 fps, the heaviest 7.8 ms (Farm,
+  PointOverValley_FarShadow, Aerial_Dusk), spawn 7.7 ms (GPU 6.4, render thread 7.7: render-thread bound, ~1,250-1,450 draws
+  in the valley's open views, up from ~1,000). New views: DepotWaiting 6.9, WatchtowerValley 7.2 (taken from the yard below the deck: the view stood off it), LiftHeadBench 7.0,
+  MineGallery 6.1 (13 lights, 26 lanterns: fine), MineDrift 5.4, MineStope 5.2. Hitches (worst frame ~30 ms) at MineDrift and
+  Aerial_Dusk only. Margin to 8.3 ms is ~0.5 ms: new dressing must come instanced (draw calls are the cost).
 - Ransom's Rest (2026-10-08): all 28 views at 149-216 fps (6.7 ms at the heaviest); spawn 6.3 ms; base pass 1.1-1.2 ms, prepass
   0.5-0.7, shadows at most 0.5; no single art asset is a real cost.
 - Skyreach with Crossroads Town round 1 (2026-10-08): 160-226 fps at every view (heaviest, above the town, 6.3 ms).
@@ -36,3 +41,4 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-07 | RR deck at dusk, Abel and 10 adds hunting (plan view 13, Looter.Abel.Perf 10), Medium | a64961d | 1920x1080 | 5.5 | 182 | 6.1 | 5.0 | 5.4 | 1.7 | 4.4 | 395 | 285509 | 1.73 |
 | 2026-10-09 | Polish waves 1-2 (fauna, ambience, feedback), Skyreach | 38331af | 1920x1080 | 6.1 | 164 | 6.9 | 4.1 | 6.0 | 1.7 | 4.9 | 663 | 665050 | 1.27 |
 | 2026-10-09 | Polish waves 1-2 (late-summer land, grass 40-50 m, fauna, camps), Ransom's Rest | 38331af | 1920x1080 | 6.8 | 147 | 7.4 | 3.7 | 6.8 | 1.6 | 5.5 | 1001 | 1075257 | 2.44 |
+| 2026-10-14 | RR after the mountain expansion and the play-through fixes, spawn | 75708bb | 1920x1080 | 7.7 | 130 | 8.2 | 3.4 | 7.7 | 1.6 | 6.4 | 1375 | 1714813 | 2.55 |
