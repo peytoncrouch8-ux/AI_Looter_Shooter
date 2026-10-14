@@ -8,7 +8,7 @@ the tutorial island `/Game/Maps/Lvl_TutorialIsland` (menu backdrop; `Docs/Tutori
 
 Read first: `Docs/Handoff.md` (state, next steps), `Docs/Pipeline.md` (tools, workflows, lessons, bug fixes),
 `CODEMAP.md` (every source file, one line each). As needed: `Docs/Plan.md`, `Docs/Performance.md`, `Docs/Story.md`,
-`Docs/Progression.md`, `Docs/Areas/`. History and background (`Docs/Archive`, `Docs/Art`, `Docs/Handoffs`,
+`Docs/Progression.md`, `Docs/Areas/`; `Docs/Release.md` only when preparing a release. History and background (`Docs/Archive`, `Docs/Art`, `Docs/Handoffs`,
 `Docs/Polish`, `*Concepts.md`, `*_Review.md`): only when pointed to. This file rides with every request and every agent:
 keep it short; details go in the pipeline.
 
