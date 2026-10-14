@@ -1,0 +1,324 @@
+#include "Player/FirstPersonHandsComponent.h"
+#include "AI_Looter_Shooter.h"
+#include "Inventory/WeaponManagerComponent.h"
+#include "Player/FirstPersonHandsGrips.h"
+#include "Player/FirstPersonHandsMotion.h"
+#include "Player/PlayerLocomotionComponent.h"
+#include "Player/PlayerThrowComponent.h"
+#include "Player/PlayerViewComponent.h"
+#include "UI/HUD/LooterHUD.h"
+#include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponDefinition.h"
+#include "Weapons/WeaponModelComponent.h"
+#include "Camera/CameraComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/CollisionProfile.h"
+#include "Engine/SkeletalMesh.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
+#include "Misc/PackageName.h"
+
+// UFirstPersonHandsComponent: the arms' mesh and where it sits, when the hands show, and each frame the gun read off as
+// it is, the hands placed on it (FirstPersonHandsGrips, FirstPersonHandsMotion) and the arms posed to them.
+
+namespace
+{
+	const FName MagazineSocket(TEXT("Magazine"));
+
+	TAutoConsoleVariable<int32> CVarHandsStandIn(
+		TEXT("Looter.Hands.StandIn"),
+		0,
+		TEXT("1 shows the first-person hands on the template body's arms while SK_FP_Arms isn't imported (testing only)."));
+
+	/** A mesh the component names, if its package is in this build (SK_FP_Arms waits for its import; no warning meanwhile). */
+	USkeletalMesh* LoadIfMade(const TSoftObjectPtr<USkeletalMesh>& Asset)
+	{
+		if (Asset.IsNull())
+		{
+			return nullptr;
+		}
+		if (USkeletalMesh* Loaded = Asset.Get())
+		{
+			return Loaded;
+		}
+		return FPackageName::DoesPackageExist(Asset.ToSoftObjectPath().GetLongPackageName()) ? Asset.LoadSynchronous() : nullptr;
+	}
+
+	/** A socket on any of the model's parts (the latest that has it), in the model's own space. */
+	bool FindPartSocket(const UWeaponModelComponent& Model, FName Socket, FVector& OutLocation)
+	{
+		const TArray<TObjectPtr<UStaticMeshComponent>>& Parts = Model.GetParts();
+		for (int32 Index = Parts.Num() - 1; Index >= 0; --Index)
+		{
+			const UStaticMeshComponent* Part = Parts[Index];
+			if (Part && Part->DoesSocketExist(Socket))
+			{
+				OutLocation = Model.GetComponentTransform().InverseTransformPosition(Part->GetSocketLocation(Socket));
+				return true;
+			}
+		}
+		return false;
+	}
+}
+
+UFirstPersonHandsComponent::UFirstPersonHandsComponent()
+{
+	// After everything that places the gun this frame: the locomotion's view model (TG_PrePhysics), a strike's or a throw's
+	// pose on it (TG_DuringPhysics) and the gun's own reload parts (its actor, TG_PrePhysics).
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bStartWithTickEnabled = true;
+	PrimaryComponentTick.TickGroup = TG_PostPhysics;
+	// The bones change only when the hands are posed (which marks them dirty), never by themselves.
+	VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
+
+	SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+	SetGenerateOverlapEvents(false);
+	SetCanEverAffectNavigation(false);
+	// Arms floating at the eye would throw a floating shadow on the world; the body's own shadow is the player's.
+	SetCastShadow(false);
+	bReceivesDecals = false;
+
+	ArmsMesh = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(TEXT("/Game/Art/Characters/SK_FP_Arms.SK_FP_Arms")));
+	StandInMesh = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple")));
+}
+
+void UFirstPersonHandsComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	SetVisibility(false);
+	bShowing = false;
+
+	AActor* Owner = GetOwner();
+	UCameraComponent* Eye = UPlayerViewComponent::FindFirstPersonCamera(Owner);
+	if (!Eye)
+	{
+		UE_LOG(LogLooter, Log, TEXT("%s: no first-person camera, so no first-person hands."), *GetName());
+		SetComponentTickEnabled(false);
+		return;
+	}
+	Camera = Eye;
+	AttachToComponent(Eye, FAttachmentTransformRules::KeepRelativeTransform);
+	if (!LoadArms())
+	{
+		UE_LOG(LogLooter, Log, TEXT("%s: no arms mesh with both arms' bones, so no first-person hands."), *GetName());
+		SetComponentTickEnabled(false);
+		return;
+	}
+
+	// Drawn like the gun in hand: the view model's own field of view and scale, never clipping a wall, only for its owner.
+	SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::FirstPerson);
+	SetOnlyOwnerSee(true);
+
+	View = Owner->FindComponentByClass<UPlayerViewComponent>();
+	Weapons = Owner->FindComponentByClass<UWeaponManagerComponent>();
+	Throw = UPlayerThrowComponent::Find(Owner);
+	// Its tick group already follows the locomotion's; said here too, so a move of either keeps the order.
+	if (UPlayerLocomotionComponent* Locomotion = Owner->FindComponentByClass<UPlayerLocomotionComponent>())
+	{
+		AddTickPrerequisiteComponent(Locomotion);
+	}
+}
+
+bool UFirstPersonHandsComponent::LoadArms()
+{
+	USkeletalMesh* Arms = LoadIfMade(ArmsMesh);
+	bStandIn = Arms == nullptr;
+	if (!Arms)
+	{
+		Arms = LoadIfMade(StandInMesh);
+	}
+	if (!Arms || !Rig.Bind(Arms, bStandIn))
+	{
+		return false;
+	}
+	SetSkinnedAssetAndUpdate(Arms);
+
+	// SK_FP_Arms is made with its root at the eye, facing ahead. The stand-in, a whole body facing its own +Y, is turned
+	// to face the camera's ahead and set so its shoulders sit under and just behind the eye.
+	FTransform Placement = FTransform::Identity;
+	if (bStandIn)
+	{
+		const FQuat Facing = FRotationMatrix::MakeFromXZ(Rig.GetForward(), Rig.GetUp()).ToQuat().Inverse();
+		Placement = FTransform(Facing, StandInShoulders - Facing.RotateVector(Rig.GetShoulderMiddle()));
+	}
+	SetRelativeTransform(Placement);
+	return true;
+}
+
+void UFirstPersonHandsComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	// Posed first, so the mesh's own tick refreshes the bones from this frame's pose (once: it does whenever they're dirty).
+	PoseHands(DeltaTime);
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+}
+
+void UFirstPersonHandsComponent::UpdateHands(float DeltaTime)
+{
+	if (PoseHands(DeltaTime))
+	{
+		RefreshBoneTransforms();
+	}
+}
+
+bool UFirstPersonHandsComponent::PoseHands(float DeltaTime)
+{
+	const float Dt = FMath::Clamp(DeltaTime, 0.f, 0.1f);
+	FHandsGun Gun;
+	if (!Rig.IsBound() || !FindGun(Dt, Gun))
+	{
+		Show(false);
+		bHaveSupport = false;
+		CatchUp = 0.f;
+		SupportJob = EHandsSupportJob::Foregrip;
+		return false;
+	}
+
+	const int32 Left = FirstPersonHands::Index(EFirstPersonHand::Left);
+	const int32 Right = FirstPersonHands::Index(EFirstPersonHand::Right);
+	Targets[Right] = FirstPersonHandsGrips::OnGrip(Gun);
+	Targets[Left] = PlaceSupportHand(Gun, Dt);
+
+	// Into the mesh's own space (the stand-in is turned and set back on the camera) and posed.
+	const FTransform CameraToMesh = GetRelativeTransform().Inverse();
+	FHandsRigTargets RigTargets;
+	RigTargets.Hands[Left] = Targets[Left].Moved(CameraToMesh);
+	RigTargets.Hands[Right] = Targets[Right].Moved(CameraToMesh);
+	RigTargets.ElbowLean[Left] = CameraToMesh.TransformVectorNoScale(LeftElbowLean);
+	RigTargets.ElbowLean[Right] = CameraToMesh.TransformVectorNoScale(RightElbowLean);
+	Rig.Pose(RigTargets, BoneSpaceTransforms, PosedSpace);
+	MarkRefreshTransformDirty();
+	// Shown only once posed, so no frame ever shows the mesh's rest pose.
+	Show(true);
+	return true;
+}
+
+bool UFirstPersonHandsComponent::FindGun(float DeltaTime, FHandsGun& OutGun)
+{
+	const APawn* Owner = Cast<APawn>(GetOwner());
+	const UPlayerViewComponent* PlayerView = View.Get();
+	const UWeaponManagerComponent* Manager = Weapons.Get();
+	const UCameraComponent* Eye = Camera.Get();
+	const AWeaponBase* Weapon = Manager ? Manager->GetActiveWeapon() : nullptr;
+	// The hands are the first-person gun's: none in third person (the body's own hands hold it there) or without a gun
+	// drawn on the camera.
+	if (!Owner || !PlayerView || !Eye || !Weapon || !PlayerView->IsFirstPerson() || Manager->IsThirdPersonHold() || Weapon->IsHidden()
+		|| Weapon->GetAttachParentActor() != Owner)
+	{
+		MenuOpenSeconds = 0.f;
+		return false;
+	}
+	// A menu lowers the gun out of view (PlayerLocomotionViewModel.cpp): the hands go down with it, then go.
+	const APlayerController* Player = Cast<APlayerController>(Owner->GetController());
+	const ALooterHUD* Hud = Player ? Player->GetHUD<ALooterHUD>() : nullptr;
+	MenuOpenSeconds = Hud && Hud->IsMenuOpen() ? MenuOpenSeconds + DeltaTime : 0.f;
+	if (MenuOpenSeconds > MenuHideSeconds)
+	{
+		return false;
+	}
+	DescribeGun(*Weapon, Eye->GetComponentTransform(), OutGun);
+	return true;
+}
+
+void UFirstPersonHandsComponent::DescribeGun(const AWeaponBase& Weapon, const FTransform& CameraWorld, FHandsGun& OutGun) const
+{
+	// The visible model, not the gun's root: a strike or a throw turns the model off its hold, and the hands go with it.
+	const UWeaponModelComponent* Model = Weapon.FindComponentByClass<UWeaponModelComponent>();
+	const bool bModel = Model && Model->IsAssembled();
+	const FTransform GunWorld = bModel ? Model->GetComponentTransform() : Weapon.GetActorTransform();
+	OutGun.ToCamera = GunWorld.GetRelativeTransform(CameraWorld);
+	const UWeaponDefinition* Definition = Weapon.GetInstance().Definition.Get();
+	OutGun.Kind = Definition ? Definition->Kind : EWeaponKind::None;
+	// A gun not built from parts has no grip socket: the weapon manager lines such a gun's hold up on AttachGrip.
+	const UWeaponManagerComponent* Manager = Weapons.Get();
+	OutGun.Grip = bModel && !Model->GetGrip().IsZero() ? Model->GetGrip() : (Manager ? Manager->AttachGrip : FVector::ZeroVector);
+	OutGun.Foregrip = Weapon.GetForegripPoint();
+	OutGun.ReloadPart = Weapon.GetReloadPart();
+	OutGun.ReloadProgress = Weapon.GetReloadProgress();
+	if (OutGun.ReloadProgress < 0.f || !bModel)
+	{
+		return;
+	}
+	if (OutGun.ReloadPart == EWeaponReloadPart::Magazine)
+	{
+		OutGun.bHasMagazineSeat = FindPartSocket(*Model, MagazineSocket, OutGun.MagazineSeat);
+	}
+	else if (OutGun.ReloadPart == EWeaponReloadPart::Cylinder)
+	{
+		// The cylinder as the gun's model has swung it this frame (the gun ticks before the hands): its chambers' backs
+		// ring its axis at its rear face.
+		TArray<FVector> Rears;
+		FVector Back;
+		if (Model->GetChamberRears(Rears, Back) && !Rears.IsEmpty())
+		{
+			FVector Middle = FVector::ZeroVector;
+			for (const FVector& Rear : Rears)
+			{
+				Middle += Rear;
+			}
+			OutGun.CylinderRear = GunWorld.InverseTransformPosition(Middle / Rears.Num());
+			OutGun.CylinderAxis = -GunWorld.InverseTransformVectorNoScale(Back).GetSafeNormal(UE_SMALL_NUMBER, -FVector::ForwardVector);
+			OutGun.bHasCylinder = true;
+		}
+	}
+}
+
+FHandPlacement UFirstPersonHandsComponent::PlaceSupportHand(const FHandsGun& Gun, float DeltaTime)
+{
+	const FHandPlacement OnGun = FirstPersonHandsGrips::OnForegrip(Gun);
+	const UPlayerThrowComponent* Thrower = Throw.Get();
+	EHandsSupportJob Job = EHandsSupportJob::Foregrip;
+	FHandPlacement Wanted = OnGun;
+	if (Thrower && Thrower->IsThrowing())
+	{
+		Job = EHandsSupportJob::Throw;
+		Wanted = FirstPersonHandsMotion::SupportInThrow(OnGun, Thrower->GetThrowTime());
+	}
+	else if (Gun.ReloadProgress >= 0.f)
+	{
+		Job = EHandsSupportJob::Reload;
+		Wanted = FirstPersonHandsMotion::SupportInReload(Gun);
+	}
+
+	// Every job starts from the foregrip and ends on it, but one can be cut short: a strike or a throw stops a reload, a
+	// swap ends one. The hand eases over from where it was on the gun instead of jumping.
+	if (bHaveSupport && Job != SupportJob && SupportJob != EHandsSupportJob::Foregrip)
+	{
+		CatchUpFrom = SupportOnGun;
+		CatchUp = 1.f;
+	}
+	SupportJob = Job;
+	if (CatchUp > 0.f)
+	{
+		CatchUp = FMath::Max(CatchUp - DeltaTime / JobCatchUpSeconds, 0.f);
+		Wanted = FHandPlacement::Blend(Wanted, CatchUpFrom.Moved(Gun.ToCamera), FMath::SmoothStep(0.f, 1.f, CatchUp));
+	}
+	SupportOnGun = Wanted.Moved(Gun.ToCamera.Inverse());
+	bHaveSupport = true;
+	return Wanted;
+}
+
+void UFirstPersonHandsComponent::Show(bool bShow)
+{
+	// The template body's arms stand in only for testing: until SK_FP_Arms is approved and imported, the game shows no
+	// placeholder art unless Looter.Hands.StandIn asks. Hidden in game, so the hands still pose and IsVisible still says
+	// whether they would show.
+	SetHiddenInGame(bStandIn && CVarHandsStandIn.GetValueOnGameThread() == 0);
+	if (bShowing != bShow)
+	{
+		bShowing = bShow;
+		SetVisibility(bShow);
+	}
+}
+
+FVector UFirstPersonHandsComponent::GetHoldPoint(EFirstPersonHand Hand) const
+{
+	const int32 Bone = Rig.GetHandBone(Hand);
+	return Rig.IsBound() && Bone != INDEX_NONE ? GetBoneTransform(Bone).TransformPosition(Rig.GetHoldLocal(Hand)) : FVector::ZeroVector;
+}
+
+FVector UFirstPersonHandsComponent::GetTargetHoldPoint(EFirstPersonHand Hand) const
+{
+	const UCameraComponent* Eye = Camera.Get();
+	return Eye ? Eye->GetComponentTransform().TransformPosition(Targets[FirstPersonHands::Index(Hand)].Hold) : FVector::ZeroVector;
+}

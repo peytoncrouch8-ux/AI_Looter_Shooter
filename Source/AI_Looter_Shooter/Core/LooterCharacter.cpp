@@ -8,6 +8,7 @@
 #include "InputActionValue.h"
 #include "Interaction/InteractionComponent.h"
 #include "Player/Animation/HandJarComponent.h"
+#include "Player/FirstPersonHandsComponent.h"
 #include "Player/PlayerFootfallComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
@@ -55,6 +56,9 @@ ALooterCharacter::ALooterCharacter()
 	// The jar in the throwing hand, which the third-person body otherwise lobbed with an empty fist.
 	HandJar = CreateDefaultSubobject<UHandJarComponent>(TEXT("HandJar"));
 	HandJar->SetupAttachment(GetMesh(), UHandJarComponent::HandSocket());
+	// The first-person arms on the gun. The camera is the Blueprint's, so it waits on the capsule until play moves it there.
+	Hands = CreateDefaultSubobject<UFirstPersonHandsComponent>(TEXT("FirstPersonHands"));
+	Hands->SetupAttachment(GetCapsuleComponent());
 }
 
 void ALooterCharacter::OnJumped_Implementation()

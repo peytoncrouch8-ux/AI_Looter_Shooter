@@ -4,6 +4,7 @@
 #include "GameFramework/Character.h"
 #include "LooterCharacter.generated.h"
 
+class UFirstPersonHandsComponent;
 class UHandJarComponent;
 class UInputAction;
 class UInteractionComponent;
@@ -59,6 +60,10 @@ protected:
 	/** The jar seen in the body's left hand through a throw's wind-up, in third person (on the hand's grip socket). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UHandJarComponent> HandJar;
+
+	/** The first-person arms on the gun in hand (moved onto the first-person camera at play; posed by code). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UFirstPersonHandsComponent> Hands;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> MoveAction;
