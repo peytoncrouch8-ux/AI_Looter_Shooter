@@ -47,6 +47,19 @@ left (numbers in `Docs/Performance.md`); trade-offs offered to the user. New dev
 Hiram's figure at load ("SkinnedAsset property overwritten ... without NotifyIfSkinnedAssetChanged", DeadFriend's
 `WearModel` sets it in the constructor; harmless, fix later).
 
+**The user's next four (2026-10-14, no optimization now):** 1 spider deaths more dramatic, legs curl UNDER the body
+(not to the sides or above); 2 better water and waterfalls (concept `Saved/Concepts/Water/water_concept.png` approved,
+CLEAR TEAL water); 3 the gun looks goofy running in third person (F5); 4 hands on the gun in first person like
+Borderlands: FULL (Ellis's gloves and duster sleeves, support hand does reloads and carries the jar; look sheet
+`Saved/Concepts/Hands/fp_arms_sheet.png` to the user before import). Ellis's own third-person body (today Unreal's white
+template mannequin; design in `Art/Backlog/Characters/Ellis.py`): LATER. The user asked for the full water plan "with
+room to adjust and add tasks later". DONE, 681/681 tests, committed (22c2a81..3906e79): spider deaths, third-person carry,
+water (materials, meshes, falls, splash rings; tuned once), hands CODE (stand-in hidden). In flight: H1 (SK_FP_Arms model
++ look sheet, `Art/Models/Characters/FPArms.py`, `Tools/Blender/fp_arms_sheet.py`, `Art/Textures/FPArms*`: uncommitted,
+its own). Next: send the user the arms sheet; on approval import SK_FP_Arms (`Tools\models.ps1 -Only FPArms`) and tune the
+hold table in PIE (hip, ADS, sprint, each reload, throw); then the user playtests. Contracts: session scratchpad
+(`contract_anim.md`, `contract_water.md`, `contract_hands.md`).
+
 **Waiting on the user:** a playtest of all of the above (they were away; told it's ready 2026-10-14).
 
 ## Next (in order)

@@ -47,6 +47,10 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
     (no shimmer: a distortion pass costs too much); tracers with a hot head and a smoke thread; visible ricochets (at most 2 a
     volley); impact chunks land on the hit's floor; each creature splashes its own (`ECreatureBlood`); enemy shots passing within
     1.5 m of the player's head whiz or hiss once (`NearMiss`).
+  - Spider deaths (the user, 2026-10-14: more dramatic, legs curled UNDER the body): `SpiderCreatureDeath.cpp` throe
+    (rear, kicks) 0-0.4 s, drop on the cry's knock with a bounce + `Creature.Spider.Thud` + dust, legs folded under back to
+    front by 1.15 s, shudder before the sink; timing scales by sqrt(size). Watch any death on cue: `Looter.SpawnCreature`,
+    `slomo 0.25`, `Looter.KillNearest`, grab frames, `slomo 1`.
   - Creatures react (2026-10-14, `UCreatureReactComponent`): a notice beat once a hunt (0.42-0.62 s by seed; none when hurt,
     a boss, or called by the pack), the M_FX_HitFlash overlay on a hit, deaths that linger (spiders 10 s with twitches, slimes
     splat, the Unpaid crumble to ash), rising entrances when seen within 60 m, idle dice, footfall dust (level budget 40/s).
@@ -74,6 +78,22 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   death or load mid-ride finds it there). `Looter.Lift.*`.
 - Look: stylized realism; the user rejected faceted low-poly. Golden-hour palettes on Ransom's Rest (ochre, olive, sandstone),
   late summer. Loot colours (rarity orange, teal, gold) stay off the world.
+- Third person (2026-10-14, `LooterStancePoseCarry`): low-ready after 0.8 s moving without aim/fire (~19 deg down), aim or
+  fire snaps back in 0.12 s; sprint = chest carry, both hands turning with the gun (long foregrips drawn in), revolver low
+  at the side one-handed; the upper body keeps ~44% of the jog's bounce. The player's body is still the template
+  mannequin (Ellis's own body: later, the user's call).
+- First-person hands (2026-10-14, `UFirstPersonHandsComponent`, the user's pick: full, like Borderlands): arms on the
+  camera posed after the gun each frame; per-kind hold table in `FirstPersonHandsGrips` (where tuning happens); the support
+  hand follows reload parts and carries the jar. Uses `/Game/Art/Characters/SK_FP_Arms` as soon as it exists (root at the
+  eye, +X ahead, mannequin bone names, elbows slightly bent at rest, ideally `HandGrip_L/R` sockets); until then the
+  template's arms stand in, hidden in game unless `Looter.Hands.StandIn 1`. Look sheet before import:
+  `Saved/Concepts/Hands/fp_arms_sheet.png` (`Art/Models/Characters/FPArms.py`, `Tools/Blender/fp_arms_sheet.py`).
+- Water (2026-10-14, the user's concept, clear teal): water meshes carry vertex R shore, G depth, B/A flow (layout x, y);
+  `M_Water` reads them (opaque, lit, 3 taps; defaults tuned: RippleScale 0.2, RippleStrength 0.3, Roughness 0.12, SkyTint
+  0.35, DepthPower 0.6, shallow #43918A, deep #184A54); `M_Waterfall` streaks in world metres; `M_WaterMist` (Opacity 0.35,
+  Brightness 1.6). Rebuild only the water: `$env:LOOTER_TERRAIN_ONLY='water'; Tools\models.ps1 -Only <Areas>`, then
+  `build_area.py <Area> water` (re-places the falls in `Effects/Falls`). terrain_identity differs only in `<Area>_Water`
+  until committed. Splash rings and wake: `FWaterRings`.
 - Player numbers (2026-10-13): 0.85 of the mannequin's size and 0.9 pace on top (the user: "pace of play is super fast"): walk
   459, sprint 711, crouch 230, slide 783 cm/s; eye about 140 cm; jump 103.5 cm. A slide comes out of sprint plus crouch. Chasing
   creatures scale with `LooterPlayerSize::MoveScale` (size and pace); slimes don't.
@@ -713,3 +733,7 @@ Each line: bug (date). Cause. Fix.
     wait 5 s, run again (up to 5 tries). They run on Blender's Python (`C:/Program Files/Blender Foundation/Blender
     4.4/4.4/python/bin/python.exe`); `python` here is the Microsoft Store stub.
   - Starting a build without checking whether the user was playing (step 1 of the loop).
+  - Keys sent with input.ps1 right after console.ps1 typed into the editor's console box (its autocomplete list stayed
+    open over the view): click into the game view first (`clickat 0.5 0.45`; it fires one shot) before keys.
+  - A floating Content Browser (opened by a script's import) takes the keyboard from PIE: close it with
+    `Tools\closemsglog.ps1 -Title "Content Browser"` before input.
