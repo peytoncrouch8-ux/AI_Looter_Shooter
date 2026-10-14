@@ -235,7 +235,7 @@ Silver, the living's coin (`Docs/Progression.md`, "Economy"); grave gold stays r
 - `Story/StoryLine`: `FStoryLine`, one spoken line (speaker, words, seconds).
 - `Story/StoryLineSet.h`: `UStoryLineSet`, lines as data asset (`DA_Lines_<Name>` in `/Game/Data/Story`, from `Tools/Unreal/create_story_lines.py`, script-only so others can import it).
 - `Story/StoryCondition`: `FStoryCondition`, when story things apply (missions, steps, `WithFlags`, `WithoutFlags`), read from the campaign record.
-- `Story/CaptionQueue`: `FCaptionQueue`, caption rules apart from the world. `Story/CaptionSubsystem`: `UCaptionSubsystem`, level captions (interrupt or queue, log, wait under menus).
+- `Story/CaptionQueue`: `FCaptionQueue`, caption rules apart from the world. `Story/CaptionSubsystem`: `UCaptionSubsystem`, level captions (interrupt or queue, log, wait under menus); Subtitles off hides lines with a speaker (`GetCurrentShown`; notices stay).
 - `Story/SpeakerPointComponent`: `USpeakerPointComponent`, `FSpeakerTopic`: someone talking to the player (Talk tap: captions + Talk event; turns in ready missions); muttering (`Mutters`, `Mutter`, `CanMutter`, `bTalkable`), missions-only (`bMissionsOnly`, `HasMissionBusiness`, `QueueChoice`). `SpeakerPointComponentOffers.cpp` offer card.
 - `Story/SpeakerPoint`: `ASpeakerPoint`, a voice through a door/window (Delia's screen door, Tilly's window).
 - `Story/StoryCharacter`: `AStoryCharacter`, non-hostile placeholder body posed by code, speaker point, shown by story state.
@@ -362,7 +362,7 @@ Silver, the living's coin (`Docs/Progression.md`, "Economy"); grave gold stays r
 ## Settings
 - `Settings/AudioSettingsSubsystem`: Master, Effects, Interface, Music volumes (0-100%).
 - `Settings/KeyBindingSubsystem`: rebinding, global actions (Map key M, D-pad down) and character actions (slots 1-3, Melee V/right stick click, Grenade G/right bumper; Drop weapon moved to X).
-- `Settings/GraphicsSettingsSubsystem`: display options (quality preset, motion blur, first-person FOV, UI transparency, minimap on/off/size/zoom, FPS counter, control hints), `Looter.Quality`, `Looter.FieldOfView`.
+- `Settings/GraphicsSettingsSubsystem`: display options (quality preset, motion blur, first-person FOV, UI transparency, minimap on/off/size/zoom, FPS counter, control hints, subtitles: `Looter.Subtitles on|off`), `Looter.Quality`, `Looter.FieldOfView`.
 - `Settings/ControlSettingsSubsystem`: look sensitivity (0.1x-3x; scales mouse/stick turns, sight slowing, scene free look), camera shake (0-100%).
 
 ## UI
@@ -383,8 +383,8 @@ Silver, the living's coin (`Docs/Progression.md`, "Economy"); grave gold stays r
 - `UI/HUD/HudPortraitWidget`: portrait in the frame's diamond window (blinks, breathes, hit reactions, low-health pulse, level-up flare).
 - `UI/HUD/HudLevelUpBannerWidget`: level-up banner. `UI/HUD/HudScreenEdgeWidget`: red screen edges (hit flash, low-health pulse). `UI/HUD/HudMagazineWidget`: magazine gauge. `UI/HUD/HudFrameRateWidget`: FPS counter.
 - `UI/HUD/HudMinimapWidget`: round heading-up minimap in gunmetal bezel with compass letters, area name, waypoint or compass arrow; markers hostiles first (`SplitMarkers`). `HudMinimapWidgetFrame.cpp` bezel/ticks/letters; `HudMinimapWidgetRules.cpp` rules (range, zoom, `PlaceWaypoint`); settings menu preview (`SetPreview`, `SetPreviewZoom`); `HudMinimapWidgetUnderground.cpp` UNDERGROUND plate (Underground tag); `HudMinimapWidgetRoosts.cpp` `PlaceRoosts`. `UI/HUD/MinimapCompass`: `MinimapCompass`, letter placement on bezel and map frame.
-- `UI/HUD/HudControlHintWidget`: `UHudControlHintWidget`, the contextual hint line above the mission tracker (`UControlHintSubsystem` decides).
-- `UI/HUD/HudMissionTrackerWidget`: `UHudMissionTrackerWidget`, tracked mission on the left; ticks done objectives (`DecideChange`), 'Turn in to <who>', tutorial closing line. `HudMissionTrackerWidgetLayout.cpp`, `HudMissionTrackerWidgetSound.cpp`, `HudMissionTrackerWidgetPaint.cpp`, `HudMissionTrackerWidgetOptional.cpp`.
+- `UI/HUD/HudControlHintWidget`: `UHudControlHintWidget`, the contextual hint line high in the left column (`UControlHintSubsystem` decides).
+- `UI/HUD/HudMissionTrackerWidget`: `UHudMissionTrackerWidget`, tracked mission top-right under the minimap, right-aligned to its column (`TopFor`, `RightInset`, `MaxWidth`); step circles and the objective's ring, checked once done (`ObjectiveMark`, `StepMark`); steps aside for the loot card (`IsMakingWay`); 'Turn in to <who>', tutorial closing line (`DecideChange`). `HudMissionTrackerWidgetLayout.cpp`, `HudMissionTrackerWidgetMotion.cpp` (placement, covering, fade/slide/pop), `HudMissionTrackerWidgetPaint.cpp`, `HudMissionTrackerWidgetOptional.cpp`, `HudMissionTrackerWidgetSound.cpp`. `UI/HUD/HudMissionTrackerShapes`: `EHudTrackerMark`, `HudTrackerShapes` (marks, medal, keycap). `UI/HUD/HudXpGainWidget`: "+N XP" after the XP bar's numbers. `UI/HUD/HudNotchTallyWidget`: the gun's notches before its name (inked tally in its tier's colour, count). `PlayerHUDWidgetCrosshair.cpp`: crosshair hidden while aiming in any view.
 - `UI/HUD/HudMissionCompleteWidget`: `UHudMissionCompleteWidget`, mission-complete banner (takes turns with level-up); `HudMissionCompleteWidgetLayout.cpp`.
 - `UI/HUD/HudWeaponSlotsWidget`: weapon slots column (rarity arc, Inked icons, key tabs, ammo icons); `HudWeaponSlotsWidgetPictures.cpp`. `UI/HUD/HudGrenadeWidget`: `UHudGrenadeWidget`, grenade count above the slots.
 - `UI/HUD/HudBossBarWidget`: `UHudBossBarWidget`, boss bar (rank gem, phase cuts, phase name); steps aside far from its fight (`SetArena`). `HudBossBarWidgetLayout.cpp`, `HudBossBarWidgetMotion.cpp` (intro, hit flash, phase flash, callouts, death word).

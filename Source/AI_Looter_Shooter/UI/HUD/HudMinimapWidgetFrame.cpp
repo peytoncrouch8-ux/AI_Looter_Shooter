@@ -61,6 +61,12 @@ namespace
 	constexpr int32 PlaceSpacing = 167;
 	constexpr float AreaTextSize = 10.5f;
 	constexpr int32 AreaSpacing = 333;
+	/**
+	 * The place's line as Slate sets it (15 px floating type, its outline included), for what hangs under the map
+	 * (FrameBottom). The area's smaller line under it shows only once the game names places within an area, which it
+	 * doesn't yet: when it does, add its line here.
+	 */
+	constexpr float PlaceLineHeight = 26.f;
 	/** Until the level's area is found, it's looked for again this often (the file's name shows meanwhile). */
 	constexpr float PlaceRetrySeconds = 0.5f;
 
@@ -221,6 +227,14 @@ namespace
 		}();
 		return Picture;
 	}
+}
+
+float UHudMinimapWidget::FrameBottom(float MapScale)
+{
+	// As ScaleFrame places the place's lines: under the bezel's outer edge by PlaceGap, then the place's line. The compass
+	// letters ride the bezel's middle, inside that.
+	const float MapRadius = Diameter * MapScale * 0.5f;
+	return MapRadius + FrameBezelOuter * MapScale + PlaceGap + PlaceLineHeight;
 }
 
 void UHudMinimapWidget::BuildFrame(UCanvasPanel* Layer)

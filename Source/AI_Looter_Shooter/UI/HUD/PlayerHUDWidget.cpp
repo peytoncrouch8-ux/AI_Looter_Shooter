@@ -5,6 +5,7 @@
 #include "UI/HUD/HudPickupFeedWidget.h"
 #include "UI/HUD/HudMagazineWidget.h"
 #include "UI/HUD/HudMissionCompleteWidget.h"
+#include "UI/HUD/HudNotchTallyWidget.h"
 #include "UI/HUD/HudPlayerFrameWidget.h"
 #include "UI/HUD/HudWeaponSlotsWidget.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -39,14 +40,6 @@ namespace
 	constexpr float IdleOpacity = 0.6f;
 	/** Seconds a cluster stays fully visible after something happens in it. */
 	constexpr float ActivityHold = 3.f;
-	/**
-	 * How far the gun is raised toward the sight (GetAimAlpha) when the crosshair is gone: it fades out over the first
-	 * part of the raise, so it never shows beside the sight's own reticle.
-	 */
-	constexpr float CrosshairGoneAtAim = 0.6f;
-	/** Each shot kicks the crosshair out to this size, settling back over CrosshairKickTime seconds (easing out). */
-	constexpr float CrosshairKickScale = 1.45f;
-	constexpr float CrosshairKickTime = 0.16f;
 
 	/** What the status line beside the fire mode says. */
 	enum class EHudWeaponStatus : uint8
@@ -205,7 +198,15 @@ void UPlayerHUDWidget::UpdateWeaponCluster(UWeaponManagerComponent* Manager, flo
 	MagazineGauge->SetMagazine(Magazine, MagazineSize, Reserve, bReloading, ReloadProgress, bSwitchedWeapon, Pulse, DeltaTime);
 	UpdateWeaponStatus(bReloading, Magazine, Reserve, Pulse);
 
-	// The gun's name in its rarity's color, the gem after it and the fire mode only change with the gun in hand.
+	// The gun's notches before its name: a kill with it pops the count and brings the column forward; its name is set
+	// again, as a milestone can give it a nickname.
+	if (NotchTally && NotchTally->Update(Active->GetInstance().Kills, bSwitchedWeapon, DeltaTime))
+	{
+		WeaponActivity = ActivityHold;
+		bWeaponTextStale = true;
+	}
+
+	// The gun's name in its rarity's color, the gem before it and the fire mode only change with the gun in hand.
 	if (bWeaponTextStale)
 	{
 		bWeaponTextStale = false;
@@ -275,45 +276,7 @@ void UPlayerHUDWidget::UpdatePlayerFrame(UHealthComponent* Health, float DeltaTi
 	}
 }
 
-void UPlayerHUDWidget::UpdateCrosshair(const AWeaponBase* Active, float DeltaTime)
-{
-	// The gap tracks the weapon's accuracy: tight for rifles, wide for shotguns, tighter still when crouched.
-	const float Spread = Active ? Active->GetEffectiveSpread() : 1.f;
-	const float Wanted = FMath::Clamp(22.f + Spread * 7.f, 24.f, 80.f);
-	if (!FMath::IsNearlyEqual(Wanted, CrosshairSize, 0.25f))
-	{
-		CrosshairSize = CrosshairSize <= 0.f ? Wanted : FMath::FInterpTo(CrosshairSize, Wanted, DeltaTime, 10.f);
-		CrosshairBox->SetWidthOverride(CrosshairSize);
-		CrosshairBox->SetHeightOverride(CrosshairSize);
-	}
-
-	// Each shot kicks it out and it settles back, so every shot is felt where the eyes are. The frame of the shot shows
-	// the full kick.
-	if (bCrosshairKicking)
-	{
-		const float Settled = FMath::Min(CrosshairKickAge / CrosshairKickTime, 1.f);
-		const float Kick = 1.f - FMath::InterpEaseOut(0.f, 1.f, Settled, 2.f);
-		CrosshairBox->SetRenderScale(FVector2D(1.f + (CrosshairKickScale - 1.f) * Kick));
-		CrosshairKickAge += DeltaTime;
-		bCrosshairKicking = Settled < 1.f;
-	}
-
-	// No aiming while the gun is down in the sprint pose, and no crosshair when the camera faces the character.
-	const AActor* Holder = Active ? Active->GetOwner() : nullptr;
-	const UPlayerLocomotionComponent* Locomotion = Holder ? Holder->FindComponentByClass<UPlayerLocomotionComponent>() : nullptr;
-	const UPlayerViewComponent* View = Holder ? Holder->FindComponentByClass<UPlayerViewComponent>() : nullptr;
-	const bool bFacingCamera = View && View->GetViewMode() == EPlayerViewMode::ThirdPersonFront;
-	// Looking through the sight in first person, the sight's reticle is the aim point: the crosshair fades as the gun
-	// comes up and returns as it's lowered, so only one shows. Third-person aiming only zooms (no sight is seen), so the
-	// crosshair stays there.
-	const float SightAim = View && View->IsFirstPerson() ? View->GetAimAlpha() : 0.f;
-	const float SightFade = FMath::Clamp(1.f - SightAim / CrosshairGoneAtAim, 0.f, 1.f);
-	const float Opacity = bFacingCamera ? 0.f : (1.f - (Locomotion ? Locomotion->GetSprintAlpha() : 0.f)) * SightFade;
-	if (!FMath::IsNearlyEqual(CrosshairBox->GetRenderOpacity(), Opacity, 0.01f))
-	{
-		CrosshairBox->SetRenderOpacity(Opacity);
-	}
-}
+// The crosshair (UpdateCrosshair, when it shows, the shot's kick): PlayerHUDWidgetCrosshair.cpp.
 
 void UPlayerHUDWidget::HandleMeleeHit(const FHitResult& Hit, float Damage, bool bCritical)
 {
@@ -429,12 +392,6 @@ void UPlayerHUDWidget::HandleHit(const FHitResult& Hit, float Damage, bool bCrit
 		}
 	}
 	HitMarker->SetVisibility(ESlateVisibility::HitTestInvisible);
-}
-
-void UPlayerHUDWidget::HandleFired()
-{
-	CrosshairKickAge = 0.f;
-	bCrosshairKicking = true;
 }
 
 void UPlayerHUDWidget::HandleReloadStarted(float Duration)

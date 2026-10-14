@@ -34,20 +34,23 @@ namespace
 	/** The health fill's bands (the top 36% light, the bottom 28% dark), its lit top line and its light leading edge. */
 	constexpr float HighBandBottom = TrackTop + TrackHeight * 0.36f;
 	constexpr float LowBandTop = TrackBottom - TrackHeight * 0.28f;
-	constexpr float FillLitLine = 0.85f;
-	constexpr float LeadEdgeWidth = 1.7f;
+	constexpr float FillLitLine = 0.85f * BarScale;
+	constexpr float LeadEdgeWidth = 1.7f * BarScale;
 	/** The hatch: lines falling to the right at 45 degrees, 1.2 px across and 5.1 px apart square to them, black at 13%. */
 	constexpr float FillHatchGap = 5.1f;
 	constexpr float FillHatchWidth = 1.2f;
 	constexpr float FillHatchOpacity = 0.13f;
-	/** The quarter cuts, and the orange "]" over the far end: 11.9 x 32.3 from just past the end, its arms 4.25 thick. */
-	constexpr float QuarterCutWidth = 2.55f;
-	constexpr float ClampRight = HealthLength + 5.95f;
-	constexpr float ClampLeft = ClampRight - 11.9f;
-	constexpr float ClampTop = -4.25f;
-	constexpr float ClampBottom = ClampTop + 32.3f;
-	constexpr float ClampArm = 4.25f;
-	constexpr float ClampReach = 7.65f;
+	/**
+	 * The quarter cuts, and the orange "]" over the far end: 11.9 x 32.3 from just past the end, its arms 4.25 thick (the
+	 * spec's, grown with the bar).
+	 */
+	constexpr float QuarterCutWidth = 2.55f * BarScale;
+	constexpr float ClampRight = HealthLength + 5.95f * BarScale;
+	constexpr float ClampLeft = ClampRight - 11.9f * BarScale;
+	constexpr float ClampTop = -4.25f * BarScale;
+	constexpr float ClampBottom = ClampTop + 32.3f * BarScale;
+	constexpr float ClampArm = 4.25f * BarScale;
+	constexpr float ClampReach = 7.65f * BarScale;
 
 	FVector2D Medal(float X, float Y)
 	{

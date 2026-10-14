@@ -289,6 +289,13 @@ TSharedRef<SWidget> USettingsMenuWidget::RebuildWidget()
 		AddRow(NavChoices(HintsRow, { ShowHints, HideHints }), 4.f);
 		HintsOn = ShowHints;
 		HintsOff = HideHints;
+		// The words of every spoken line, the captions low on the screen and a creature's over its head; the lines still play.
+		ULooterButton* ShowSubtitles = nullptr;
+		ULooterButton* HideSubtitles = nullptr;
+		UWidget* SubtitlesRow = MakeToggleRow(TEXT("Subtitles"), TEXT("On"), TEXT("Off"), ActionSubtitlesOn, ActionSubtitlesOff, 0, false, ShowSubtitles, HideSubtitles);
+		AddRow(NavChoices(SubtitlesRow, { ShowSubtitles, HideSubtitles }), 4.f);
+		SubtitlesOn = ShowSubtitles;
+		SubtitlesOff = HideSubtitles;
 
 		AddRow(NavSection(MakeSection(WidgetTree, TEXT("Controls"))), 18.f);
 		// Mouse and stick alike; a zoomed sight still slows the turn by its zoom on top of it.
@@ -392,27 +399,20 @@ void USettingsMenuWidget::RefreshGraphics()
 	}
 	// Giving a slider its saved value fires its change event: not a move, so nothing previews.
 	TGuardValue<bool> Refreshing(bRefreshingSliders, true);
-	const bool bBlur = Graphics->IsMotionBlurEnabled();
-	MotionBlurOn->SetHighlighted(bBlur);
-	MotionBlurOff->SetHighlighted(!bBlur);
-	if (MinimapOn && MinimapOff)
+	// A two-way switch lights the side that is the setting.
+	auto ShowSwitch = [](ULooterButton* OnSide, ULooterButton* OffSide, bool bOn)
 	{
-		const bool bMinimap = Graphics->IsMinimapShown();
-		MinimapOn->SetHighlighted(bMinimap);
-		MinimapOff->SetHighlighted(!bMinimap);
-	}
-	if (FrameRateOn && FrameRateOff)
-	{
-		const bool bFrameRate = Graphics->IsFrameRateShown();
-		FrameRateOn->SetHighlighted(bFrameRate);
-		FrameRateOff->SetHighlighted(!bFrameRate);
-	}
-	if (HintsOn && HintsOff)
-	{
-		const bool bHints = Graphics->AreControlHintsShown();
-		HintsOn->SetHighlighted(bHints);
-		HintsOff->SetHighlighted(!bHints);
-	}
+		if (OnSide && OffSide)
+		{
+			OnSide->SetHighlighted(bOn);
+			OffSide->SetHighlighted(!bOn);
+		}
+	};
+	ShowSwitch(MotionBlurOn, MotionBlurOff, Graphics->IsMotionBlurEnabled());
+	ShowSwitch(MinimapOn, MinimapOff, Graphics->IsMinimapShown());
+	ShowSwitch(FrameRateOn, FrameRateOff, Graphics->IsFrameRateShown());
+	ShowSwitch(HintsOn, HintsOff, Graphics->AreControlHintsShown());
+	ShowSwitch(SubtitlesOn, SubtitlesOff, Graphics->AreSubtitlesShown());
 	for (int32 Index = 0; Index < QualityButtons.Num(); ++Index)
 	{
 		QualityButtons[Index]->SetHighlighted(static_cast<int32>(Graphics->GetQuality()) == Index);

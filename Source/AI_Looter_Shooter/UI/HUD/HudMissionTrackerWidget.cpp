@@ -1,49 +1,32 @@
-// UHudMissionTrackerWidget: following the tracked mission, the closing line, painting what it shows, and its motion.
-// Its widgets and pictures are built in HudMissionTrackerWidgetLayout.cpp.
+// UHudMissionTrackerWidget: following the tracked mission and the closing line. Its widgets are built in
+// HudMissionTrackerWidgetLayout.cpp, where it stands and how it moves is HudMissionTrackerWidgetMotion.cpp's.
 
 #include "UI/HUD/HudMissionTrackerWidget.h"
-#include "UI/HUD/LooterHUD.h"
-#include "UI/Style/LooterUIStyle.h"
-#include "Scenes/SceneSubsystem.h"
-#include "Components/Image.h"
-#include "Components/TextBlock.h"
-#include "Components/Widget.h"
 #include "Engine/World.h"
-#include "GameFramework/PlayerController.h"
-
-using namespace LooterUI;
-
-namespace
-{
-	/** Seconds for the whole tracker to fade in or out. */
-	constexpr float TrackerFadeSeconds = 0.35f;
-	/** The next objective slides in from this far left, fading in over SlideSeconds (the mockup's). */
-	constexpr float SlideDistance = 14.f;
-	constexpr float SlideSeconds = 0.45f;
-	/** A new count pops to this size, white, and settles over PopSeconds. */
-	constexpr float PopScale = 1.35f;
-	constexpr float PopSeconds = 0.3f;
-
-	/** Fast at first, settling gently, like the mockup's CSS ease-out. */
-	float TrackerEaseOut(float Share)
-	{
-		const float Remaining = 1.f - FMath::Clamp(Share, 0.f, 1.f);
-		return 1.f - Remaining * Remaining;
-	}
-}
 
 void UHudMissionTrackerWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	// It never takes the mouse: it sits over the inventory on the step done there.
 	SetVisibility(ESlateVisibility::HitTestInvisible);
+	BindMissions();
+	bRefreshPending = true;
+}
+
+void UHudMissionTrackerWidget::BindMissions()
+{
 	UWorld* World = GetWorld();
 	UMissionSubsystem* Subsystem = World ? World->GetSubsystem<UMissionSubsystem>() : nullptr;
-	if (Subsystem && !ChangedHandle.IsValid())
+	if (!Subsystem || Missions.Get() == Subsystem)
 	{
-		Missions = Subsystem;
-		ChangedHandle = Subsystem->OnMissionsChanged.AddUObject(this, &UHudMissionTrackerWidget::HandleMissionsChanged);
+		return;
 	}
+	if (UMissionSubsystem* Old = Missions.Get())
+	{
+		Old->OnMissionsChanged.Remove(ChangedHandle);
+	}
+	Missions = Subsystem;
+	ChangedHandle = Subsystem->OnMissionsChanged.AddUObject(this, &UHudMissionTrackerWidget::HandleMissionsChanged);
 	bRefreshPending = true;
 }
 
@@ -67,25 +50,37 @@ void UHudMissionTrackerWidget::HandleMissionsChanged()
 void UHudMissionTrackerWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	Advance(InDeltaTime);
+}
+
+void UHudMissionTrackerWidget::Advance(float DeltaSeconds)
+{
 	if (!Block)
 	{
 		return;
 	}
+	// Made before the world's missions were (or in a test): it listens as soon as they're there.
+	if (!Missions.IsValid())
+	{
+		BindMissions();
+	}
+	UpdatePlacement();
 	// A done objective or the closing line holds the tracker until it has shown its time; changes wait for it.
 	if (bRefreshPending && (Phase == EPhase::Idle || Phase == EPhase::Showing))
 	{
 		Refresh();
 	}
-	// Time under a menu doesn't count, so the tick or the closing line still shows once the menu closes.
-	if ((Phase == EPhase::Finishing || Phase == EPhase::Closing) && !IsCovered())
+	// Time under a menu doesn't count, so the check or the closing line still shows once the menu closes.
+	const bool bCovered = IsCovered();
+	if ((Phase == EPhase::Finishing || Phase == EPhase::Closing) && !bCovered)
 	{
-		HoldLeft -= InDeltaTime;
+		HoldLeft -= DeltaSeconds;
 		if (HoldLeft <= 0.f)
 		{
 			EndHold();
 		}
 	}
-	Animate(InDeltaTime, Phase != EPhase::Idle && !IsCovered());
+	Animate(DeltaSeconds, Phase != EPhase::Idle && !bCovered);
 }
 
 // ---------------------------------------------------------------------------
@@ -279,13 +274,15 @@ void UHudMissionTrackerWidget::BeginFinish(bool bStepDone, bool bMissionEnded)
 		Shown.Progress = Shown.Required;
 	}
 	PaintObjective();
+	// The check pops in over where the ring was.
+	StartCheckPop();
 	if (bCountLands && !Shown.bCountIsTime)
 	{
 		StartPop();
 	}
 	if (bStepDone)
 	{
-		PaintSteps(Shown.Step + 1, INDEX_NONE, Shown.StepCount, Shown.Step + 1);
+		PaintSteps(Shown.Step + 1, INDEX_NONE, Shown.StepCount, Shown.Step + 1, /*bPopChecks*/ true);
 	}
 	PlayFinishSound(bStepDone, bMissionEnded);
 }
@@ -364,89 +361,6 @@ void UHudMissionTrackerWidget::ClearClosingLine()
 	}
 }
 
-bool UHudMissionTrackerWidget::IsCovered() const
-{
-	const APlayerController* Player = GetOwningPlayer();
-	const ALooterHUD* LooterHUD = Player ? Cast<ALooterHUD>(Player->GetHUD()) : nullptr;
-	if (LooterHUD && LooterHUD->IsMenuOpen())
-	{
-		// An objective done in the inventory (the tutorial's last step) keeps the tracker up over it, so the player sees it
-		// tick; every other menu covers it, the closing line's too.
-		const bool bOverInventory = LooterHUD->IsInventoryOpen() && !LooterHUD->IsStationBoardOpen() && Shown.bOverInventory
-			&& (Phase == EPhase::Showing || Phase == EPhase::Finishing);
-		if (!bOverInventory)
-		{
-			return true;
-		}
-	}
-	// A scene that holds the player (the skiff ride) puts the gameplay HUD away, and the tracker with it.
-	if (USceneSubsystem::HidesGameplayHUD(this))
-	{
-		return true;
-	}
-	// The pause menu pauses the game.
-	const UWorld* World = GetWorld();
-	return World && World->IsPaused();
-}
-
-// Painting what's shown (the title, the step bar, the objective, the hint): HudMissionTrackerWidgetPaint.cpp; the optional
-// objectives under them: HudMissionTrackerWidgetOptional.cpp.
-
-// ---------------------------------------------------------------------------
-// Motion
-// ---------------------------------------------------------------------------
-
-void UHudMissionTrackerWidget::Animate(float DeltaTime, bool bVisible)
-{
-	const float Target = bVisible ? 1.f : 0.f;
-	if (BlockOpacity != Target)
-	{
-		BlockOpacity = FMath::Clamp(BlockOpacity + (bVisible ? 1.f : -1.f) * DeltaTime / TrackerFadeSeconds, 0.f, 1.f);
-		Block->SetRenderOpacity(BlockOpacity);
-		Block->SetVisibility(BlockOpacity > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-	}
-	if (SlideAge < SlideSeconds)
-	{
-		SlideAge = FMath::Min(SlideAge + DeltaTime, SlideSeconds);
-		ApplySlide(SlideAge / SlideSeconds);
-	}
-	if (PopAge < PopSeconds)
-	{
-		PopAge = FMath::Min(PopAge + DeltaTime, PopSeconds);
-		ApplyPop(PopAge / PopSeconds);
-	}
-	AnimateOptionals(DeltaTime);
-}
-
-void UHudMissionTrackerWidget::StartSlide()
-{
-	// The first frame already shows it at the start of its slide, so the new words never flash in place.
-	SlideAge = 0.f;
-	ApplySlide(0.f);
-}
-
-void UHudMissionTrackerWidget::StartPop()
-{
-	PopAge = 0.f;
-	ApplyPop(0.f);
-}
-
-void UHudMissionTrackerWidget::ApplySlide(float DoneShare)
-{
-	if (Objective)
-	{
-		const float Eased = TrackerEaseOut(DoneShare);
-		Objective->SetRenderTranslation(FVector2D(-SlideDistance * (1.f - Eased), 0.f));
-		Objective->SetRenderOpacity(Eased);
-	}
-}
-
-void UHudMissionTrackerWidget::ApplyPop(float DoneShare)
-{
-	if (CountText)
-	{
-		const float Eased = TrackerEaseOut(DoneShare);
-		CountText->SetRenderScale(FVector2D(FMath::Lerp(PopScale, 1.f, Eased)));
-		CountText->SetColorAndOpacity(FSlateColor(FMath::Lerp(FLinearColor::White, Color::CyanText(), Eased)));
-	}
-}
+// Where it stands and how it moves (IsCovered, the placement, the fade, the slide, the pop): HudMissionTrackerWidgetMotion.cpp.
+// Painting what's shown (the title, the step circles, the objective, the hint): HudMissionTrackerWidgetPaint.cpp; the
+// optional objectives under them: HudMissionTrackerWidgetOptional.cpp.

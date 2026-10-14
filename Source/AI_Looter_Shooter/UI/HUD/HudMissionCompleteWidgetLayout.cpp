@@ -23,7 +23,7 @@ namespace
 	constexpr float MedalArt = 80.f;
 	constexpr float MedalDrop = -72.f;
 	constexpr float CompletePixelsPerUnit = 2.f;
-	/** The tracker's medal (HudMissionTrackerWidgetLayout.cpp) at 2.25 times its size: ink rim, gunmetal ring, glass, star. */
+	/** The tracker's medal (HudMissionTrackerShapes.cpp) at 2.25 times its size: ink rim, gunmetal ring, glass, star. */
 	constexpr float MedalRim = 36.f;
 	constexpr float MedalRing = 32.8f;
 	constexpr float MedalGlass = 27.f;

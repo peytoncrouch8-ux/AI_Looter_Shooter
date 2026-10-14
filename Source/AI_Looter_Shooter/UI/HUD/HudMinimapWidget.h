@@ -90,6 +90,12 @@ public:
 	static constexpr float BezelReach = 9.f;
 
 	/**
+	 * How far below the widget's box top (the map's top edge) its frame reaches at MapScale (1 = Diameter): the bezel with
+	 * the compass letters riding it, then the place's name under it. The mission tracker hangs under it.
+	 */
+	static float FrameBottom(float MapScale);
+
+	/**
 	 * Where a waypoint at WorldDelta from the player shows on a map that turns with the view (ViewYaw up): itself when it
 	 * is within InsideRadius pixels of the center, else on a circle RimRadius pixels out, in its direction.
 	 */

@@ -137,6 +137,9 @@ public:
 	/** The inventory, the station board, the bench's screen, a notice board, a vendor or the pause menu is up (the gameplay HUD is hidden). */
 	bool IsMenuOpen() const;
 
+	/** The gameplay HUD (null before BeginPlay, and for a controller that isn't local): the mission tracker keeps clear of its loot card. */
+	UPlayerHUDWidget* GetHUDWidget() const { return HUDWidget; }
+
 	/** The HUD of the local player behind Player (their pawn or controller), or null. */
 	static ALooterHUD* FindFor(const AActor* Player);
 
@@ -196,8 +199,8 @@ private:
 	TObjectPtr<UHudCaptionWidget> CaptionWidget;
 
 	/**
-	 * The tracked mission on the left: a viewport widget of its own over the inventory's pages, so it can stay up on a step
-	 * done in the inventory (it steps aside under every other menu by itself).
+	 * The tracked mission under the minimap: a viewport widget of its own over the inventory's pages, so it can stay up on a
+	 * step done in the inventory (it steps aside under every other menu by itself).
 	 */
 	UPROPERTY(Transient)
 	TObjectPtr<UHudMissionTrackerWidget> MissionTracker;

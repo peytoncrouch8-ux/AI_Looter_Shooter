@@ -1,8 +1,11 @@
-// UHudMissionTrackerWidget's widgets and pictures: the medal, the title, the step bar, the route line, the objective row
-// and the key hint, placed as the mockup (Docs/HudMockup/NewHud.dc.html) has them. How the tracker follows the tracked
-// mission and paints what it shows is in HudMissionTrackerWidget.cpp.
+// UHudMissionTrackerWidget's widgets: under the minimap, right-aligned to its column (the user's call, 2026-10-14). Its lines
+// end at a column of marks under the medal: the title ends in the medal, the step circles and their "4 / 6" sit under the
+// title, the objective's line ends in its circle, the key hint and the optional objectives under it. The pictures are
+// HudMissionTrackerShapes.cpp's; how the tracker follows the tracked mission is in HudMissionTrackerWidget.cpp.
 
 #include "UI/HUD/HudMissionTrackerWidget.h"
+#include "UI/HUD/HudMinimapWidget.h"
+#include "UI/HUD/HudMissionTrackerShapes.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
@@ -24,86 +27,47 @@ using namespace LooterUI;
 
 namespace
 {
-	// --- Where things sit in the block: 1080p pixels from its top-left, which is (Left, Top) on screen ---
-	// Text is placed by the middle of its line in the mockup (its CSS line box), so it sits right whatever height Slate
-	// gives a line of the font.
+	// --- The column: 1080p pixels ---
 
-	/** The block's own box: room for a long objective wrapped over two lines (nothing is clipped to it). */
-	constexpr float BlockWidth = 720.f;
-	constexpr float BlockHeight = 160.f;
+	/** The marks' column on the right (as wide as the medal, so every mark centres under it), and the gap before it. */
+	constexpr float MarkColumn = HudTrackerShapes::MedalBox;
+	constexpr float TextGap = 10.f;
+	/** The text's right edge, in from the block's: everything that isn't a mark lines up on it. */
+	constexpr float TextRight = MarkColumn + TextGap;
 
-	/** The medal's box; the medal is 32 px across, centred in it, at (53, 303) on screen. */
-	constexpr float MedalBox = 34.f;
-	/** The route line's box, from the block's corner: the line runs from under the medal to the objective row. */
-	constexpr float RouteWidth = 48.f;
-	constexpr float RouteHeight = 70.f;
+	/** The step row under the title: this far down, the circles this far apart, "4 / 6" this far after them. */
+	constexpr float StepTop = 1.f;
+	constexpr float StepSpacing = 4.f;
+	constexpr float StepCountGap = 8.f;
 
-	/** The title, from x 80 on screen, its line's middle at y 295 (a 24 px line from 283). */
-	constexpr float TitleX = 44.f;
-	constexpr float TitleMiddle = 9.f;
-
-	/** The step bar: 208 x 10 from (83, 310) on screen, its ink edge outside that, the sections 2 px inside it. */
-	constexpr float BarX = 47.f;
-	constexpr float BarY = 24.f;
-	constexpr float BarWidth = 208.f;
-	constexpr float BarHeight = 10.f;
-	constexpr float BarEdge = 1.5f;
-	constexpr float BarInset = 2.f;
-	constexpr float SectionGap = 3.f;
-	/** Leaning like every HUD bar: the top leans right (the mockup's skewX(-16deg)). */
-	constexpr float BarSlant = -16.f;
-
-	/** "4 / 6" after the bar, from x 298 on screen, its line's middle at y 313 (a 16 px line from 305). */
-	constexpr float StepX = 262.f;
-	constexpr float StepMiddle = 27.f;
-
+	/** The objective row this far under the step row; its count this far after its line. */
+	constexpr float ObjectiveTop = 6.f;
+	constexpr float CountGap = 9.f;
 	/**
-	 * The objective row from x 82 on screen, its first line's middle at y 344, where the route line turns in to it: the
-	 * chevron, then the line and the count, 9 px apart. A long line wraps downward.
+	 * A long line (a mission without a short one) wraps rather than run across the screen: room for the line, its count
+	 * ("12 s / 30 s" is the longest) and the column, inside MaxWidth.
 	 */
-	constexpr float ObjectiveX = 46.f;
-	constexpr float ObjectiveMiddle = 58.f;
-	constexpr float MarkSize = 16.f;
-	/** The tick's thick dark stroke reaches a little past the chevron's box, so it's drawn in a larger box round it. */
-	constexpr float TickBox = 20.f;
-	constexpr float RowGap = 9.f;
-	/** A long line (a mission without a short one) wraps rather than run across the screen. */
-	constexpr float LineWrap = 560.f;
+	constexpr float CountRoom = 120.f;
+	constexpr float LineWrap = UHudMissionTrackerWidget::MaxWidth - TextRight - CountGap - CountRoom;
 
-	/** The key hint, from x 107 on screen, 25 px in from the row, its 26 px line's middle at y 375 under a one-line row. */
-	constexpr float HintIndent = 25.f;
-	constexpr float HintMiddle = 89.f;
+	/** The key hint under the row: its line's height and the gap above it. */
+	constexpr float HintGap = 4.f;
 	constexpr float HintLine = 26.f;
-	/** The keycap: 22 px high and at least as wide, the key 4 px from its sides, the words 10 px after it. */
-	constexpr float KeycapSize = 22.f;
+	/** The keycap's key 4 px from its sides, the words 10 px after it. */
 	constexpr float KeycapPadding = 4.f;
 	constexpr float KeycapGap = 10.f;
-	/** Its top-right and bottom-left corners are cut this far, inside a cyan edge this wide. */
-	constexpr float KeycapCut = 6.f;
-	constexpr float KeycapEdge = 1.4f;
-	/**
-	 * Its ends stay as drawn while its middle stretches to the key's width: each end is this many pixels wide (the cut
-	 * corner and the round joins fit inside, the middle is a plain run of edge). Slate draws a Box brush's end at
-	 * TextureWidth x Margin pixels showing the same share of the texture, so an end is only the size it was drawn at when
-	 * one texel is one pixel: the keycap's pictures are made at 1x (KeycapPixelsPerUnit), not at the 2x of the others.
-	 */
-	constexpr float KeycapEndWidth = 8.f;
-	constexpr float KeycapPixelsPerUnit = 1.f;
 
 	// --- Type: the mockup's sizes, as every HUD widget sets them; letter spacing in thousandths of an em ---
 
 	constexpr int32 TitleSize = 17;
 	constexpr int32 TitleSpacing = 94;   // 1.6 px at 17
 	constexpr int32 StepSize = 12;
-	constexpr int32 StepSpacing = 125;   // 1.5 px at 12
+	constexpr int32 StepLetterSpacing = 125;   // 1.5 px at 12
 	constexpr int32 LineSize = 18;
 	constexpr int32 KeySize = 13;
 	constexpr int32 HintSize = 14;
 
-	/** The pictures are drawn at twice the size they show at, so they stay crisp (the keycap's are the exception: see KeycapEndWidth). */
-	constexpr float TrackerPixelsPerUnit = 2.f;
-
-	/** How tall Slate sets one line of Font (its tallest characters and its outline), to line things up on its middle. */
+	/** How tall Slate sets one line of Font (its tallest characters and its outline), to centre a mark on a line's middle. */
 	float TrackerLineHeight(const FSlateFontInfo& Font)
 	{
 		if (FSlateApplication::IsInitialized())
@@ -118,194 +82,30 @@ namespace
 		return Font.Size * 1.75f;
 	}
 
-	// --- The pictures (view-box units are the pixels they show at) ---
-
-	/** A circle as a polygon, clockwise on screen from the right. */
-	TArray<FVector2D> TrackerCircle(const FVector2D& Center, float Radius)
+	/** A mark's picture, centred in its own box size (its pops scale it about its middle). */
+	UImage* MakeMark(UWidgetTree* Tree, EHudTrackerMark Mark)
 	{
-		constexpr int32 Points = 72;
-		TArray<FVector2D> Circle;
-		Circle.Reserve(Points + 1);
-		for (int32 Index = 0; Index < Points; ++Index)
-		{
-			const float Angle = 2.f * UE_PI * static_cast<float>(Index) / static_cast<float>(Points);
-			Circle.Add(Center + FVector2D(FMath::Cos(Angle), FMath::Sin(Angle)) * Radius);
-		}
-		return Circle;
+		UImage* Image = MakeImage(Tree, HudTrackerShapes::MarkBrush(Mark));
+		Image->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+		return Image;
 	}
 
-	/** The polyline closed on itself, for a stroke round a shape. */
-	TArray<FVector2D> TrackerClosed(TArray<FVector2D> Points)
+	/** Content centred in an overlay (the marks over one another in their column). */
+	void CentreInOverlay(UOverlay* Overlay, UWidget* Content)
 	{
-		// A copy first: adding an element of the array to itself could read it after the array has moved.
-		const FVector2D First = Points[0];
-		Points.Add(First);
-		return Points;
+		UOverlaySlot* ContentSlot = Overlay->AddChildToOverlay(Content);
+		ContentSlot->SetHorizontalAlignment(HAlign_Center);
+		ContentSlot->SetVerticalAlignment(VAlign_Center);
 	}
+}
 
-	FPaintLayer TrackerFill(TArray<TArray<FVector2D>> Fills, const FLinearColor& LayerColor, float Opacity = 1.f)
+float UHudMissionTrackerWidget::TopFor(float MinimapScale, bool bMinimapShown)
+{
+	if (!bMinimapShown)
 	{
-		FPaintLayer Layer;
-		Layer.Fills = MoveTemp(Fills);
-		Layer.Color = LayerColor;
-		Layer.Opacity = Opacity;
-		return Layer;
+		return UHudMinimapWidget::Margin;
 	}
-
-	FPaintLayer TrackerStroke(TArray<FVector2D> Line, float Width, const FLinearColor& LayerColor, float Opacity = 1.f)
-	{
-		FPaintLayer Layer;
-		Layer.Strokes.Add(MoveTemp(Line));
-		Layer.StrokeWidth = Width;
-		Layer.Color = LayerColor;
-		Layer.Opacity = Opacity;
-		return Layer;
-	}
-
-	FVector2D TrackerMedalCenter()
-	{
-		return FVector2D(MedalBox * 0.5f, MedalBox * 0.5f);
-	}
-
-	/**
-	 * The medal's metal: an ink rim and a gunmetal ring lit from the top. Both are rings, open where the glass is, so the
-	 * glass alone fades with the UI transparency setting.
-	 */
-	FPaintedIcon MakeMedalMetal()
-	{
-		const FVector2D Center = TrackerMedalCenter();
-		FPaintedIcon Icon;
-		Icon.ViewBox = FVector2D(MedalBox, MedalBox);
-		Icon.Layers.Add(TrackerFill({ TrackerCircle(Center, 16.f), TrackerCircle(Center, 12.f) }, Color::Ink()));
-		FPaintLayer Ring = TrackerFill({ TrackerCircle(Center, 14.6f), TrackerCircle(Center, 12.f) }, Color::BarMetalHi());
-		Ring.GradientTo = Color::BarMetalLow();
-		Ring.GradientStart = Center - FVector2D(0.f, 14.6f);
-		Ring.GradientEnd = Center + FVector2D(0.f, 14.6f);
-		Icon.Layers.Add(Ring);
-		return Icon;
-	}
-
-	/** The dark glass inside the ring: a background. */
-	FPaintedIcon MakeMedalGlass()
-	{
-		FPaintedIcon Icon;
-		Icon.ViewBox = FVector2D(MedalBox, MedalBox);
-		Icon.Layers.Add(TrackerFill({ TrackerCircle(TrackerMedalCenter(), 12.f) }, Color::ScreenBg().CopyWithNewOpacity(0.9f)));
-		return Icon;
-	}
-
-	/**
-	 * The cyan hairline inside the ring and the ranger's star: orange, five points 10.4 px out with inner corners 4.5 px
-	 * in, a 1.5 px ink edge and a light line along its upper-left edges.
-	 */
-	FPaintedIcon MakeMedalStar()
-	{
-		const FVector2D Center = TrackerMedalCenter();
-		FPaintedIcon Icon;
-		Icon.ViewBox = FVector2D(MedalBox, MedalBox);
-		Icon.Layers.Add(TrackerStroke(TrackerClosed(TrackerCircle(Center, 12.4f)), 1.f, Color::Hairline(), 0.6f));
-		TArray<FVector2D> Star;
-		for (int32 Index = 0; Index < 10; ++Index)
-		{
-			const float Angle = FMath::DegreesToRadians(-90.f + 36.f * static_cast<float>(Index));
-			const float Radius = Index % 2 == 0 ? 10.4f : 4.5f;
-			Star.Add(Center + FVector2D(FMath::Cos(Angle), FMath::Sin(Angle)) * Radius);
-		}
-		Icon.Layers.Add(TrackerFill({ Star }, Color::Accent()));
-		Icon.Layers.Add(TrackerStroke(TrackerClosed(Star), 1.5f, Color::Ink()));
-		Icon.Layers.Add(TrackerStroke({ Center + FVector2D(-7.6f, -2.6f), Center + FVector2D(-2.1f, -2.9f), Center + FVector2D(0.f, -8.1f) },
-			1.f, FLinearColor::White, 0.55f));
-		return Icon;
-	}
-
-	/** The route: down from under the medal and right to 8 px short of the objective, cyan over a soft dark line. */
-	FPaintedIcon MakeRoute()
-	{
-		const TArray<FVector2D> Route = { FVector2D(17.f, 35.f), FVector2D(17.f, 58.f), FVector2D(38.f, 58.f) };
-		FPaintedIcon Icon;
-		Icon.ViewBox = FVector2D(RouteWidth, RouteHeight);
-		Icon.Layers.Add(TrackerStroke(Route, 3.f, Color::Ink(), 0.45f));
-		Icon.Layers.Add(TrackerStroke(Route, 1.2f, Color::Hairline(), 0.8f));
-		return Icon;
-	}
-
-	/** The objective's chevron: orange, with a 1.6 px ink edge. */
-	FPaintedIcon MakeChevron()
-	{
-		const TArray<FVector2D> Chevron = { FVector2D(2.f, 1.5f), FVector2D(8.f, 1.5f), FVector2D(14.5f, 8.f), FVector2D(8.f, 14.5f),
-			FVector2D(2.f, 14.5f), FVector2D(8.5f, 8.f) };
-		FPaintedIcon Icon;
-		Icon.ViewBox = FVector2D(MarkSize, MarkSize);
-		Icon.Layers.Add(TrackerFill({ Chevron }, Color::Accent()));
-		Icon.Layers.Add(TrackerStroke(TrackerClosed(Chevron), 1.6f, Color::Ink()));
-		return Icon;
-	}
-
-	/** The tick that replaces it once done: cyan over a thick dark line, in a box 2 px larger all round. */
-	FPaintedIcon MakeTick()
-	{
-		const float Shift = (TickBox - MarkSize) * 0.5f;
-		const TArray<FVector2D> Tick = { FVector2D(2.5f + Shift, 8.5f + Shift), FVector2D(6.5f + Shift, 12.5f + Shift), FVector2D(14.f + Shift, 4.f + Shift) };
-		FPaintedIcon Icon;
-		Icon.ViewBox = FVector2D(TickBox, TickBox);
-		Icon.Layers.Add(TrackerStroke(Tick, 5.f, Color::Ink()));
-		Icon.Layers.Add(TrackerStroke(Tick, 2.4f, Color::Hairline()));
-		return Icon;
-	}
-
-	/** The keycap's outline with its top-right and bottom-left corners cut, Inset in from its box. */
-	TArray<FVector2D> KeycapOutline(float Inset)
-	{
-		// Each cut moves in along its diagonal, so its ends sit where the inset edges meet it, a little further along.
-		const float Low = Inset;
-		const float High = KeycapSize - Inset;
-		const float CutInset = KeycapCut + Inset * (UE_SQRT_2 - 1.f);
-		return { FVector2D(Low, Low), FVector2D(KeycapSize - CutInset, Low), FVector2D(High, CutInset), FVector2D(High, High),
-			FVector2D(CutInset, High), FVector2D(Low, KeycapSize - CutInset) };
-	}
-
-	/** The keycap's plate, dark blue from the top down: a background. */
-	FPaintedIcon MakeKeycapPlate()
-	{
-		FPaintedIcon Icon;
-		Icon.ViewBox = FVector2D(KeycapSize, KeycapSize);
-		FPaintLayer Plate = TrackerFill({ KeycapOutline(0.f) }, Color::KeycapTop());
-		Plate.GradientTo = Color::KeycapBottom();
-		Plate.GradientStart = FVector2D(KeycapSize * 0.5f, 0.f);
-		Plate.GradientEnd = FVector2D(KeycapSize * 0.5f, KeycapSize);
-		Icon.Layers.Add(Plate);
-		return Icon;
-	}
-
-	/** The keycap's cyan edge, just inside its outline. */
-	FPaintedIcon MakeKeycapEdge()
-	{
-		FPaintedIcon Icon;
-		Icon.ViewBox = FVector2D(KeycapSize, KeycapSize);
-		Icon.Layers.Add(TrackerStroke(TrackerClosed(KeycapOutline(KeycapEdge * 0.5f)), KeycapEdge, Color::Hairline()));
-		return Icon;
-	}
-
-	const FPaintedIcon& MedalMetalIcon() { static const FPaintedIcon Icon = MakeMedalMetal(); return Icon; }
-	const FPaintedIcon& MedalGlassIcon() { static const FPaintedIcon Icon = MakeMedalGlass(); return Icon; }
-	const FPaintedIcon& MedalStarIcon() { static const FPaintedIcon Icon = MakeMedalStar(); return Icon; }
-	const FPaintedIcon& RouteIcon() { static const FPaintedIcon Icon = MakeRoute(); return Icon; }
-	const FPaintedIcon& TrackerChevronIcon() { static const FPaintedIcon Icon = MakeChevron(); return Icon; }
-	const FPaintedIcon& TrackerTickIcon() { static const FPaintedIcon Icon = MakeTick(); return Icon; }
-	const FPaintedIcon& KeycapPlateIcon() { static const FPaintedIcon Icon = MakeKeycapPlate(); return Icon; }
-	const FPaintedIcon& KeycapEdgeIcon() { static const FPaintedIcon Icon = MakeKeycapEdge(); return Icon; }
-
-	/**
-	 * A keycap picture drawn as a box: its ends as drawn, its middle stretched to the key's width. The picture's texture is
-	 * KeycapSize texels across (1x), so the margin share below is KeycapEndWidth texels and KeycapEndWidth pixels at once.
-	 */
-	FSlateBrush KeycapBrush(FName Name, const FPaintedIcon& Icon)
-	{
-		FSlateBrush Brush = PaintedIconBrush(Name, Icon, KeycapPixelsPerUnit, FVector2D(KeycapSize, KeycapSize));
-		Brush.DrawAs = ESlateBrushDrawType::Box;
-		Brush.Margin = FMargin(KeycapEndWidth / KeycapSize, 0.f);
-		return Brush;
-	}
+	return UHudMinimapWidget::Margin + UHudMinimapWidget::FrameBottom(MinimapScale) + TopGap;
 }
 
 TSharedRef<SWidget> UHudMissionTrackerWidget::RebuildWidget()
@@ -323,90 +123,67 @@ void UHudMissionTrackerWidget::BuildTree()
 	Root->SetVisibility(ESlateVisibility::HitTestInvisible);
 	WidgetTree->RootWidget = Root;
 
-	// The block, at (Left, Top): everything in it placed as the mockup places it, pictures by their corner, text by its line.
-	UCanvasPanel* Layers = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
-	UCanvasPanelSlot* BlockSlot = Root->AddChildToCanvas(Layers);
-	BlockSlot->SetAnchors(FAnchors(0.f, 0.f));
-	BlockSlot->SetPosition(FVector2D(Left, Top));
-	BlockSlot->SetSize(FVector2D(BlockWidth, BlockHeight));
+	// The block hangs from its top-right corner under the minimap; UpdatePlacement moves it with the minimap's size.
+	UVerticalBox* Layers = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	BlockSlot = Root->AddChildToCanvas(Layers);
+	BlockSlot->SetAnchors(FAnchors(1.f, 0.f));
+	BlockSlot->SetAlignment(FVector2D(1.f, 0.f));
+	BlockSlot->SetAutoSize(true);
+	PlacedTop = TopFor(1.f, true);
+	BlockSlot->SetPosition(FVector2D(-RightInset, PlacedTop));
 	Layers->SetRenderOpacity(0.f);
 	Layers->SetVisibility(ESlateVisibility::Collapsed);
 	Block = Layers;
 
-	auto Place = [Layers](UWidget* Child, float X, float Y, const FVector2D& Size = FVector2D::ZeroVector)
+	// Each line hugs the right, ending at the text's edge (TextRight in from the block's) or, for a mark, in the column.
+	auto AddRight = [Layers](UWidget* Child, float Top, float Right)
 	{
-		UCanvasPanelSlot* ChildSlot = Layers->AddChildToCanvas(Child);
-		ChildSlot->SetPosition(FVector2D(X, Y));
-		if (Size.IsZero())
-		{
-			ChildSlot->SetAutoSize(true);
-		}
-		else
-		{
-			ChildSlot->SetSize(Size);
-		}
-	};
-	// A line of text by its left end and the middle of its line.
-	auto PlaceLine = [Layers](UWidget* Child, float X, float Middle)
-	{
-		UCanvasPanelSlot* ChildSlot = Layers->AddChildToCanvas(Child);
-		ChildSlot->SetAlignment(FVector2D(0.f, 0.5f));
-		ChildSlot->SetPosition(FVector2D(X, Middle));
-		ChildSlot->SetAutoSize(true);
+		UVerticalBoxSlot* ChildSlot = Layers->AddChildToVerticalBox(Child);
+		ChildSlot->SetHorizontalAlignment(HAlign_Right);
+		ChildSlot->SetPadding(FMargin(0.f, Top, Right, 0.f));
 	};
 
-	// Back to front: the route line, the medal (metal, glass, star), the title, the step bar and its number, the objective.
-	const FVector2D RouteSize(RouteWidth, RouteHeight);
-	Place(MakeImage(WidgetTree, PaintedIconBrush(TEXT("HudTrackerRoute"), RouteIcon(), TrackerPixelsPerUnit, RouteSize)), 0.f, 0.f, RouteSize);
-	const FVector2D MedalSize(MedalBox, MedalBox);
-	Place(MakeImage(WidgetTree, PaintedIconBrush(TEXT("HudTrackerMedalMetal"), MedalMetalIcon(), TrackerPixelsPerUnit, MedalSize)), 0.f, 0.f, MedalSize);
-	UImage* Glass = MakeImage(WidgetTree, PaintedIconBrush(TEXT("HudTrackerMedalGlass"), MedalGlassIcon(), TrackerPixelsPerUnit, MedalSize));
-	MarkBackground(Glass);
-	Place(Glass, 0.f, 0.f, MedalSize);
-	Place(MakeImage(WidgetTree, PaintedIconBrush(TEXT("HudTrackerMedalStar"), MedalStarIcon(), TrackerPixelsPerUnit, MedalSize)), 0.f, 0.f, MedalSize);
+	// The title, ending in the medal: its metal, its glass (a background) and the star.
+	{
+		UHorizontalBox* TitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		TitleText = MakeFloatingText(WidgetTree, TitleSize, FLinearColor::White, TitleSpacing, ETextJustify::Right);
+		TitleText->SetWrapTextAt(UHudMissionTrackerWidget::MaxWidth - TextRight);
+		TitleRow->AddChildToHorizontalBox(TitleText)->SetVerticalAlignment(VAlign_Center);
+		UOverlay* Medal = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		Medal->AddChildToOverlay(MakeImage(WidgetTree, HudTrackerShapes::MedalMetalBrush()));
+		UImage* Glass = MakeImage(WidgetTree, HudTrackerShapes::MedalGlassBrush());
+		MarkBackground(Glass);
+		Medal->AddChildToOverlay(Glass);
+		Medal->AddChildToOverlay(MakeImage(WidgetTree, HudTrackerShapes::MedalStarBrush()));
+		UHorizontalBoxSlot* MedalSlot = TitleRow->AddChildToHorizontalBox(MakeSized(WidgetTree, Medal, MarkColumn, MarkColumn));
+		MedalSlot->SetVerticalAlignment(VAlign_Center);
+		MedalSlot->SetPadding(FMargin(TextGap, 0.f, 0.f, 0.f));
+		AddRight(TitleRow, 0.f, 0.f);
+	}
 
-	TitleText = MakeFloatingText(WidgetTree, TitleSize, FLinearColor::White, TitleSpacing);
-	PlaceLine(TitleText, TitleX, TitleMiddle);
+	// Under the title, ending at the text's edge: the step circles (EnsureSteps makes them), then "4 / 6".
+	{
+		UHorizontalBox* Steps = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		StepCircles = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		Steps->AddChildToHorizontalBox(StepCircles)->SetVerticalAlignment(VAlign_Center);
+		StepText = MakeFloatingText(WidgetTree, StepSize, Color::TextDim(), StepLetterSpacing, ETextJustify::Right);
+		UHorizontalBoxSlot* CountSlot = Steps->AddChildToHorizontalBox(StepText);
+		CountSlot->SetVerticalAlignment(VAlign_Center);
+		CountSlot->SetPadding(FMargin(StepCountGap, 0.f, 0.f, 0.f));
+		Steps->SetVisibility(ESlateVisibility::Collapsed);
+		StepRow = Steps;
+		AddRight(Steps, StepTop, TextRight);
+	}
 
-	// The step bar, back to front: the dark track (a background), its ink edge, and the sections (EnsureSections).
-	UOverlay* Bar = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-	UImage* Track = MakeImage(WidgetTree, RectBrush(Color::Track().CopyWithNewOpacity(0.8f)));
-	MarkBackground(Track);
-	FillOverlaySlot(Bar->AddChildToOverlay(Track), FMargin(BarEdge));
-	FillOverlaySlot(Bar->AddChildToOverlay(MakeImage(WidgetTree, RectBrush(FLinearColor::Transparent, Color::Ink(), BarEdge))));
-	SectionRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	FillOverlaySlot(Bar->AddChildToOverlay(SectionRow), FMargin(BarEdge + BarInset));
-	const FVector2D BarSize(BarWidth + BarEdge * 2.f, BarHeight + BarEdge * 2.f);
-	USizeBox* BarBox = MakeSized(WidgetTree, Bar, BarSize.X, BarSize.Y);
-	BarBox->SetRenderShear(FVector2D(BarSlant, 0.f));
-	Place(BarBox, BarX - BarEdge, BarY - BarEdge, BarSize);
-	StepBar = BarBox;
-
-	StepText = MakeFloatingText(WidgetTree, StepSize, Color::TextDim(), StepSpacing);
-	PlaceLine(StepText, StepX, StepMiddle);
-
-	// The objective row: the chevron (or the tick in its place) on the first line's middle, the short line, the count,
-	// all on the first line (a long line wraps downward). A canvas holds the mark, so the tick's wider stroke can reach
-	// past the chevron's box.
-	LineText = MakeFloatingText(WidgetTree, LineSize, FLinearColor::White);
+	// The objective row: the short line (a long one wraps, its lines right-aligned), its count, and its circle in the
+	// column, centred on the first line's middle; the check lies over the ring, shown once done.
+	LineText = MakeFloatingText(WidgetTree, LineSize, FLinearColor::White, 0, ETextJustify::Right);
+	LineWrapCounted = LineWrap;
+	LineWrapAlone = LineWrap + CountGap + CountRoom;
 	LineText->SetWrapTextAt(LineWrap);
 	const float RowLine = TrackerLineHeight(LineText->GetFont());
 	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	UCanvasPanel* Mark = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
-	Chevron = MakeImage(WidgetTree, PaintedIconBrush(TEXT("HudTrackerChevron"), TrackerChevronIcon(), TrackerPixelsPerUnit, FVector2D(MarkSize, MarkSize)));
-	Mark->AddChildToCanvas(Chevron)->SetSize(FVector2D(MarkSize, MarkSize));
-	TickMark = MakeImage(WidgetTree, PaintedIconBrush(TEXT("HudTrackerTick"), TrackerTickIcon(), TrackerPixelsPerUnit, FVector2D(TickBox, TickBox)));
-	TickMark->SetVisibility(ESlateVisibility::Collapsed);
-	UCanvasPanelSlot* TickSlot = Mark->AddChildToCanvas(TickMark);
-	TickSlot->SetPosition(FVector2D((MarkSize - TickBox) * 0.5f, (MarkSize - TickBox) * 0.5f));
-	TickSlot->SetSize(FVector2D(TickBox, TickBox));
-	UHorizontalBoxSlot* MarkSlot = Row->AddChildToHorizontalBox(MakeSized(WidgetTree, Mark, MarkSize, MarkSize));
-	MarkSlot->SetVerticalAlignment(VAlign_Top);
-	MarkSlot->SetPadding(FMargin(0.f, FMath::Max(0.f, (RowLine - MarkSize) * 0.5f), 0.f, 0.f));
-
-	UHorizontalBoxSlot* LineSlot = Row->AddChildToHorizontalBox(LineText);
-	LineSlot->SetVerticalAlignment(VAlign_Top);
-	LineSlot->SetPadding(FMargin(RowGap, 0.f, 0.f, 0.f));
+	Row->AddChildToHorizontalBox(LineText)->SetVerticalAlignment(VAlign_Top);
 
 	// The count pops from its middle.
 	CountText = MakeFloatingText(WidgetTree, LineSize, Color::CyanText());
@@ -414,22 +191,34 @@ void UHudMissionTrackerWidget::BuildTree()
 	CountText->SetVisibility(ESlateVisibility::Collapsed);
 	UHorizontalBoxSlot* CountSlot = Row->AddChildToHorizontalBox(CountText);
 	CountSlot->SetVerticalAlignment(VAlign_Top);
-	CountSlot->SetPadding(FMargin(RowGap, 0.f, 0.f, 0.f));
+	CountSlot->SetPadding(FMargin(CountGap, 0.f, 0.f, 0.f));
 
-	// The key hint: the keycap (its plate a background, its cyan edge and key solid), then what the key does.
+	UOverlay* Mark = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+	ObjectiveRing = MakeMark(WidgetTree, EHudTrackerMark::Objective);
+	CentreInOverlay(Mark, ObjectiveRing);
+	ObjectiveCheck = MakeMark(WidgetTree, EHudTrackerMark::ObjectiveDone);
+	ObjectiveCheck->SetVisibility(ESlateVisibility::Collapsed);
+	CentreInOverlay(Mark, ObjectiveCheck);
+	UHorizontalBoxSlot* MarkSlot = Row->AddChildToHorizontalBox(MakeSized(WidgetTree, Mark, MarkColumn, FMath::Max(RowLine,
+		static_cast<float>(HudTrackerShapes::MarkSize(EHudTrackerMark::ObjectiveDone).Y))));
+	MarkSlot->SetVerticalAlignment(VAlign_Top);
+	MarkSlot->SetPadding(FMargin(TextGap, 0.f, 0.f, 0.f));
+
+	// The key hint: the keycap (its plate a background, its cyan edge and key solid), then what the key does, ending at
+	// the text's edge.
 	UOverlay* Keycap = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-	UImage* Plate = MakeImage(WidgetTree, KeycapBrush(TEXT("HudTrackerKeycapPlate"), KeycapPlateIcon()));
+	UImage* Plate = MakeImage(WidgetTree, HudTrackerShapes::KeycapPlateBrush());
 	MarkBackground(Plate);
 	FillOverlaySlot(Keycap->AddChildToOverlay(Plate));
-	FillOverlaySlot(Keycap->AddChildToOverlay(MakeImage(WidgetTree, KeycapBrush(TEXT("HudTrackerKeycapEdge"), KeycapEdgeIcon()))));
+	FillOverlaySlot(Keycap->AddChildToOverlay(MakeImage(WidgetTree, HudTrackerShapes::KeycapEdgeBrush())));
 	KeyText = MakeFloatingText(WidgetTree, KeySize, FLinearColor::White);
 	UOverlaySlot* KeySlot = Keycap->AddChildToOverlay(KeyText);
 	KeySlot->SetHorizontalAlignment(HAlign_Center);
 	KeySlot->SetVerticalAlignment(VAlign_Center);
 	KeySlot->SetPadding(FMargin(KeycapPadding, 0.f));
 	USizeBox* KeycapBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-	KeycapBox->SetHeightOverride(KeycapSize);
-	KeycapBox->SetMinDesiredWidth(KeycapSize);
+	KeycapBox->SetHeightOverride(HudTrackerShapes::KeycapSize);
+	KeycapBox->SetMinDesiredWidth(HudTrackerShapes::KeycapSize);
 	KeycapBox->AddChild(Keycap);
 
 	UHorizontalBox* HintRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -444,39 +233,28 @@ void UHudMissionTrackerWidget::BuildTree()
 	HintBox->SetVisibility(ESlateVisibility::Collapsed);
 	Hint = HintBox;
 
-	// The row and the hint under it slide in together; the hint moves down when a long line wraps. The row's first line
-	// sits on ObjectiveMiddle, the hint's on HintMiddle under a one-line row.
-	const float RowTop = ObjectiveMiddle - RowLine * 0.5f;
-	const float HintDrop = FMath::Max(0.f, HintMiddle - HintLine * 0.5f - (RowTop + RowLine));
+	// The row, the hint and the step's optional objectives (HudMissionTrackerWidgetOptional.cpp) slide in together.
 	UVerticalBox* Lower = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	Lower->AddChildToVerticalBox(Row)->SetHorizontalAlignment(HAlign_Left);
+	Lower->AddChildToVerticalBox(Row)->SetHorizontalAlignment(HAlign_Right);
 	UVerticalBoxSlot* HintSlot = Lower->AddChildToVerticalBox(HintBox);
-	HintSlot->SetHorizontalAlignment(HAlign_Left);
-	HintSlot->SetPadding(FMargin(HintIndent, HintDrop, 0.f, 0.f));
-	// The step's optional objectives under them, dimmed (HudMissionTrackerWidgetOptional.cpp).
-	Lower->AddChildToVerticalBox(BuildOptionals())->SetHorizontalAlignment(HAlign_Left);
-	Place(Lower, ObjectiveX, RowTop);
+	HintSlot->SetHorizontalAlignment(HAlign_Right);
+	HintSlot->SetPadding(FMargin(0.f, HintGap, TextRight, 0.f));
+	Lower->AddChildToVerticalBox(BuildOptionals())->SetHorizontalAlignment(HAlign_Right);
 	Objective = Lower;
-
-	StepBar->SetVisibility(ESlateVisibility::Collapsed);
-	StepText->SetVisibility(ESlateVisibility::Collapsed);
+	AddRight(Lower, ObjectiveTop, 0.f);
 }
 
-void UHudMissionTrackerWidget::EnsureSections(int32 Count)
+void UHudMissionTrackerWidget::EnsureSteps(int32 Count)
 {
-	while (SectionRow && Sections.Num() < Count)
+	while (StepCircles && StepImages.Num() < Count)
 	{
-		// A section: two flat halves, light over dark, tinted by PaintSteps.
-		UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-		UImage* Upper = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
-		UImage* Lower = MakeImage(WidgetTree, RectBrush(FLinearColor::White));
-		Section->AddChildToVerticalBox(Upper)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		Section->AddChildToVerticalBox(Lower)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		UHorizontalBoxSlot* SectionSlot = SectionRow->AddChildToHorizontalBox(Section);
-		SectionSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		SectionSlot->SetPadding(FMargin(Sections.IsEmpty() ? 0.f : SectionGap, 0.f, 0.f, 0.f));
-		Sections.Add(Section);
-		SectionUppers.Add(Upper);
-		SectionLowers.Add(Lower);
+		// A circle, its picture set by PaintSteps; it pops about its middle when it's checked.
+		UImage* Circle = MakeMark(WidgetTree, EHudTrackerMark::StepToCome);
+		UHorizontalBoxSlot* CircleSlot = StepCircles->AddChildToHorizontalBox(Circle);
+		CircleSlot->SetVerticalAlignment(VAlign_Center);
+		CircleSlot->SetPadding(FMargin(StepImages.IsEmpty() ? 0.f : StepSpacing, 0.f, 0.f, 0.f));
+		StepImages.Add(Circle);
+		StepMarks.Add(EHudTrackerMark::StepToCome);
+		StepPopAges.Add(1000.f);
 	}
 }

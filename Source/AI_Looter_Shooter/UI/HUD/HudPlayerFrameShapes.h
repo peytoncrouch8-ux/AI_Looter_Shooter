@@ -6,9 +6,10 @@
 
 /**
  * The player frame's bar measurements and drawing helpers, shared by UHudPlayerFrameWidget's pictures
- * (HudPlayerFrameWidgetPictures.cpp) and its bars' slanted stretches (HudPlayerFrameWidgetStretches.cpp); nothing else
- * uses them. The bars are measured in pixels at 1080p from their box's top-left before the lean (the frame's HealthBarX/Y
- * and XPBarX/Y), from Docs/Handoffs/CloudIslandConcepts_2026-10-05.md, "The player frame".
+ * (HudPlayerFrameWidgetPictures.cpp), its bars' slanted stretches (HudPlayerFrameWidgetStretches.cpp) and its layout (the
+ * numbers placed on the bars); the HUD tests read them too. The bars are measured in pixels at 1080p from their box's
+ * top-left before the lean (the frame's HealthBarX/Y and XPBarX/Y), from Docs/Handoffs/CloudIslandConcepts_2026-10-05.md,
+ * "The player frame", grown by BarScale.
  */
 namespace HudFrameShapes
 {
@@ -17,52 +18,62 @@ namespace HudFrameShapes
 	/** Every HUD bar leans 16 degrees: a point this many pixels further up sits this many times as far right (tan 16°). */
 	constexpr float LeanPerPixel = 0.28674539f;
 
+	/**
+	 * The health and experience bars are this much bigger than the spec drew them, both longer and thicker (the user's call,
+	 * 2026-10-14: "a 25% increase in each way"); their measures below are the spec's times this.
+	 */
+	constexpr float BarScale = 1.25f;
+
 	// --- The health bar ---
-	constexpr float HealthLength = 459.f;
-	constexpr float HealthThickness = 27.f;
+	constexpr float HealthLength = 459.f * BarScale;
+	constexpr float HealthThickness = 27.f * BarScale;
 	constexpr float HealthMid = HealthThickness * 0.5f;
-	constexpr float HealthRim = 1.7f;
-	/** The track: inset 3.4 px in the bezel, and starting 34 px in, so an empty bar still begins at the medallion's edge. */
-	constexpr float TrackLeft = HealthRim + 34.f;
-	constexpr float TrackRight = HealthLength - HealthRim - 3.4f;
-	constexpr float TrackTop = HealthRim + 3.4f;
+	constexpr float HealthRim = 1.7f * BarScale;
+	constexpr float TrackInset = 3.4f * BarScale;
+	/**
+	 * The track: inset in the bezel, and starting where the medallion's edge crosses the bar's middle (30 px in from the
+	 * bar's box, with the bar where the frame puts it), so an empty bar still begins at the medallion's edge.
+	 */
+	constexpr float TrackLeft = HealthRim + 30.f;
+	constexpr float TrackRight = HealthLength - HealthRim - TrackInset;
+	constexpr float TrackTop = HealthRim + TrackInset;
 	constexpr float TrackBottom = HealthThickness - TrackTop;
 	constexpr float TrackHeight = TrackBottom - TrackTop;
 	/** Half the lean across the track's height: a stretch's end is cut this far left of its level, its top this far right. */
 	constexpr float TrackHalfLean = TrackHeight * 0.5f * LeanPerPixel;
 	/** The bar's pictures' box, round the bar with room for the lean, the clamp and the shadow; the track's narrower one. */
-	constexpr float HealthBoxLeft = -8.f;
-	constexpr float HealthBoxTop = -8.f;
-	constexpr float HealthBoxWidth = 484.f;
-	constexpr float HealthBoxHeight = 44.f;
-	constexpr float TrackBoxTop = 4.f;
-	constexpr float TrackBoxHeight = 19.f;
+	constexpr float HealthBoxLeft = -9.f;
+	constexpr float HealthBoxTop = -9.f;
+	constexpr float HealthBoxWidth = HealthLength + 30.f;
+	constexpr float HealthBoxHeight = 50.f;
+	constexpr float TrackBoxTop = 5.f;
+	constexpr float TrackBoxHeight = 24.f;
 	/** An end piece's box round its cut (at 0), and how far its colors reach back over the body so no seam shows. */
 	constexpr float HealthCapLeft = -4.f;
 	constexpr float HealthCapWidth = 12.f;
 	constexpr float HealthCapOverlap = 1.f;
 	/** The heal's shine: about a third of a full bar long, as tall as the track. */
-	constexpr float ShineLength = 110.f;
+	constexpr float ShineLength = 110.f * BarScale;
 
 	// --- The experience bar ---
-	constexpr float XPLength = 326.4f;
-	constexpr float XPThickness = 13.6f;
+	constexpr float XPLength = 326.4f * BarScale;
+	constexpr float XPThickness = 13.6f * BarScale;
 	constexpr float XPMid = XPThickness * 0.5f;
-	constexpr float XPEdgeWidth = 1.275f;
-	/** Ten sections, a tenth of the level each, inside a 1.7 px border and 2.55 px apart. */
-	constexpr float SectionInset = 1.7f;
+	constexpr float XPEdgeWidth = 1.275f * BarScale;
+	/** Ten sections, a tenth of the level each, inside a border and a little apart (the spec's 1.7 and 2.55 px, scaled). */
+	constexpr float SectionInset = 1.7f * BarScale;
 	constexpr float SectionTop = SectionInset;
 	constexpr float SectionBottom = XPThickness - SectionInset;
 	constexpr int32 SectionCount = 10;
-	constexpr float XPSectionGap = 2.55f;
+	constexpr float XPSectionGap = 2.55f * BarScale;
 	constexpr float SectionLength = (XPLength - SectionInset * 2.f - XPSectionGap * (SectionCount - 1)) / SectionCount;
 	constexpr float SectionHalfLean = (SectionBottom - SectionTop) * 0.5f * LeanPerPixel;
-	constexpr float XPBoxLeft = -8.f;
-	constexpr float XPBoxTop = -5.f;
-	constexpr float XPBoxWidth = 344.f;
-	constexpr float XPBoxHeight = 24.f;
+	constexpr float XPBoxLeft = -9.f;
+	constexpr float XPBoxTop = -6.f;
+	constexpr float XPBoxWidth = XPLength + 22.f;
+	constexpr float XPBoxHeight = 30.f;
 	constexpr float SectionBoxTop = 1.f;
-	constexpr float SectionBoxHeight = 12.f;
+	constexpr float SectionBoxHeight = 15.f;
 	constexpr float XPCapLeft = -3.f;
 	constexpr float XPCapWidth = 8.f;
 	/** Half a pixel: the frame often rests faded, and a wider overlap would show there as a denser line. */

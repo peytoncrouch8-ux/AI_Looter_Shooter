@@ -119,6 +119,10 @@ public:
 	/** The aim key is down (or toggled on) with a gun in hand; sprinting gives way to it. */
 	bool WantsToAim() const { return bAimWanted; }
 
+	/** The aim key (bound to the player's input; public so the tests can press it): held, or a toggle when so bound. */
+	void HandleAimPressed();
+	void HandleAimReleased();
+
 	/** Spread is multiplied by this: 1 from the hip, AimSpreadMultiplier through the sight. */
 	float GetAimSpreadMultiplier() const;
 
@@ -198,8 +202,6 @@ private:
 
 	UFUNCTION()
 	void HandleOwnerDamaged(float Damage, bool bCritical, FVector HitLocation, AController* InstigatedBy, AActor* DamageCauser);
-	void HandleAimPressed();
-	void HandleAimReleased();
 	/** Raises or lowers the gun toward the sight. */
 	void UpdateAim(float DeltaTime);
 	/** Advances the recoil and adds its aim kick to the view. */

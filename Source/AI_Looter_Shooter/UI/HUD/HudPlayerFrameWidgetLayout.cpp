@@ -1,9 +1,12 @@
 // UHudPlayerFrameWidget's widget tree: every picture, stretch and number in one canvas, back to front, placed by the
-// spec's 1080p numbers. The pictures are drawn in HudPlayerFrameWidgetPictures.cpp, the bars' stretches painted in
-// HudPlayerFrameWidgetStretches.cpp; health is in HudPlayerFrameWidget.cpp, experience in HudPlayerFrameWidgetXP.cpp.
+// spec's 1080p numbers (the bars' grown by HudFrameShapes::BarScale). The pictures are drawn in
+// HudPlayerFrameWidgetPictures.cpp, the bars' stretches painted in HudPlayerFrameWidgetStretches.cpp; health is in
+// HudPlayerFrameWidget.cpp, experience in HudPlayerFrameWidgetXP.cpp.
 
 #include "UI/HUD/HudPlayerFrameWidget.h"
+#include "UI/HUD/HudPlayerFrameShapes.h"
 #include "UI/HUD/HudPortraitWidget.h"
+#include "UI/HUD/HudXpGainWidget.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
@@ -18,11 +21,14 @@ using namespace LooterUI;
 
 namespace
 {
-	// Spots on the 1080p screen (the mockup's, scaled with the frame), and type sizes.
+	// Spots on the 1080p screen (the mockup's, moved with the bars as they grew), and type sizes.
 
-	/** The health number, centred on the track: the health in white, then "/ 100" smaller and dimmer. */
-	constexpr float HealthNumberX = 376.f;
-	constexpr float HealthNumberY = 953.5f;
+	/**
+	 * The health number, centred on the track and on the bar's middle: the health in white, then "/ 100" smaller and
+	 * dimmer (a pixel right of the track's middle, as the spec had it).
+	 */
+	constexpr float HealthNumberX = UHudPlayerFrameWidget::HealthBarX + (HudFrameShapes::TrackLeft + HudFrameShapes::TrackRight) * 0.5f + 1.f;
+	constexpr float HealthNumberY = UHudPlayerFrameWidget::HealthBarY + HudFrameShapes::HealthMid;
 	constexpr int32 HealthValueSize = 18;
 	constexpr int32 HealthMaxSize = 12;
 	constexpr float HealthMaxGap = 3.4f;
@@ -31,19 +37,16 @@ namespace
 	 * descent grows with its size.
 	 */
 	constexpr float HealthMaxLift = 2.f;
-	/** The heal's "+30", near the bar's end (its middle at this height when it starts to rise). */
-	constexpr float HealFloatX = 547.f;
-	constexpr float HealFloatY = 946.5f;
+	/** The heal's "+30", near the bar's end (its middle this far over the bar's middle when it starts to rise). */
+	constexpr float HealFloatX = UHudPlayerFrameWidget::HealthBarX + HudFrameShapes::HealthLength - 42.f * HudFrameShapes::BarScale;
+	constexpr float HealFloatY = HealthNumberY - 7.f;
 	constexpr int32 HealFloatSize = 15;
-	/** "1,240 / 2,000 XP" after the experience bar, from x 518 (its middle at this height), and "+160 XP" over it. */
-	constexpr float XPNumbersX = 518.f;
-	constexpr float XPNumbersY = 997.f;
+	/** "1,240 / 2,000 XP" after the experience bar (UHudPlayerFrameWidget::XPNumbersX, Y), then the "+160 XP". */
 	constexpr int32 XPValueSize = 13;
 	constexpr int32 XPMaxSize = 10;
 	constexpr float XPMaxGap = 2.5f;
 	constexpr float XPMaxLift = 1.f;
-	constexpr float XPFloatY = 978.f;
-	constexpr int32 XPFloatSize = 12;
+	constexpr float XPGainGap = 10.f;
 	/** The level in the gem, in ink. */
 	constexpr int32 LevelSize = 15;
 
@@ -116,12 +119,17 @@ TSharedRef<SWidget> UHudPlayerFrameWidget::RebuildWidget()
 		AddStretch(Canvas, EHudFrameStretch::XPGlow, FLinearColor::White);
 		AddStretch(Canvas, EHudFrameStretch::XPBefore, FLinearColor::White);
 
+		// The numbers, then the "+160 XP" on their line (the user's call, 2026-10-14: experience by the bar as well as at the
+		// kill). Both centre on the line, and the "+XP" keeps its place while hidden, so the numbers never move.
 		XPValue = MakeFloatingText(WidgetTree, XPValueSize, Color::Text());
 		XPMax = MakeFloatingText(WidgetTree, XPMaxSize, Color::TextDim());
-		Place(MakeNumberPair(WidgetTree, XPValue, XPMax, XPMaxGap, XPMaxLift), InFrame(XPNumbersX, XPNumbersY), FVector2D(0.f, 0.5f));
-		XPFloat = MakeFloatingText(WidgetTree, XPFloatSize, Color::CyanText());
-		XPFloat->SetVisibility(ESlateVisibility::Hidden);
-		Place(XPFloat, InFrame(XPNumbersX, XPFloatY), FVector2D(0.f, 0.5f));
+		UHorizontalBox* XPLine = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		XPLine->AddChildToHorizontalBox(MakeNumberPair(WidgetTree, XPValue, XPMax, XPMaxGap, XPMaxLift))->SetVerticalAlignment(VAlign_Center);
+		XPGain = WidgetTree->ConstructWidget<UHudXpGainWidget>(UHudXpGainWidget::StaticClass());
+		UHorizontalBoxSlot* GainSlot = XPLine->AddChildToHorizontalBox(XPGain);
+		GainSlot->SetVerticalAlignment(VAlign_Center);
+		GainSlot->SetPadding(FMargin(XPGainGap, 0.f, 0.f, 0.f));
+		Place(XPLine, InFrame(XPNumbersX, XPNumbersY), FVector2D(0.f, 0.5f));
 
 		// The medallion over the bars' ends: the horn and bezel, the portrait in the window, then the window's edges and
 		// the clamps over the portrait's rim.

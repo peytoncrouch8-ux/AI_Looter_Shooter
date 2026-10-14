@@ -68,6 +68,13 @@ public:
 	 */
 	UPROPERTY()
 	bool bShowControlHints = true;
+
+	/**
+	 * The words of spoken lines on screen (the captions low on the screen, a creature's words over its head). Saves from
+	 * before the option existed load with them on.
+	 */
+	UPROPERTY()
+	bool bShowSubtitles = true;
 };
 
 /**
@@ -77,7 +84,8 @@ public:
  * scalability changes and post process volumes can't switch it back on behind the player's back. UI transparency
  * fades every UI's panel backgrounds (see LooterUI::SetBackgroundOpacity), live. The HUD reads the minimap size
  * and zoom every frame, and whether to show the frame rate twice a second; the player's view (UPlayerViewComponent)
- * reads the first-person field of view every frame.
+ * reads the first-person field of view every frame; the caption widget (UHudCaptionWidget) reads the subtitles switch every
+ * frame and hands it to the level's captions (UCaptionSubsystem), so a change shows at once.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UGraphicsSettingsSubsystem : public ULocalPlayerSubsystem
@@ -160,6 +168,19 @@ public:
 	/** The contextual control hints (UControlHintSubsystem reads it at every look: off, the hint on show goes at once). */
 	bool AreControlHintsShown() const;
 	void SetControlHintsShown(bool bShown);
+
+	/**
+	 * The subtitles: the words of every spoken line, the captions low on the screen and the words a creature says over its
+	 * head. Off, the lines still play (their timing, their sounds, whatever waits on them to finish) and only their words are
+	 * left undrawn. Lines with no speaker (notices, remarks, a time card), prompts, mission text, readables' pages, offer
+	 * cards and banners are not subtitles and stay. On by default.
+	 * The caption widget follows it within a frame, a line on screen included.
+	 */
+	bool AreSubtitlesShown() const;
+	void SetSubtitlesShown(bool bShown);
+
+	/** A save's subtitles switch: on without a save (and for saves from before it existed). */
+	static bool SubtitlesOf(const ULooterGraphicsSave* Save);
 
 	void SaveSettings() const;
 

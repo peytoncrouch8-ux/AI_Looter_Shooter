@@ -13,6 +13,12 @@ struct FStoryLine;
  * accent color over their words in the HUD's white, both floating outlined text with no panel, like the rest of the
  * gameplay HUD. Each line fades in and out as the caption queue times it. While a menu covers the game (or it's paused)
  * the captions step aside and the queue waits, so no line plays on unseen. ALooterHUD adds it.
+ *
+ * It is also where the Subtitles setting meets the captions: every frame it hands the player's switch (the settings menu's
+ * Interface row) to the caption subsystem, and with subtitles off it draws no speaker's words. The queue is left alone, so
+ * the lines play out on their clock unseen (what waits on a conversation still waits); a line on screen goes the moment
+ * the switch does, and comes back if the switch does while the line is still being said. A line with no speaker (a notice,
+ * a remark, the cold open's time card) is no subtitle and shows with the switch either way.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UHudCaptionWidget : public UUserWidget
@@ -28,6 +34,15 @@ public:
 
 	/** The words' bottom sits this far over the screen's bottom: clear of the experience bar and the gain over it. */
 	static constexpr float BottomGap = 118.f;
+
+	/** A frame of the captions: the tick does this every frame; tests step it (the caption queue's own clock is the subsystem's). */
+	void Advance(float DeltaSeconds);
+
+	/** Some words are on screen now (a line is being said, subtitles are on and no menu covers it). */
+	bool AreWordsShown() const;
+
+	/** The words of the line shown last (empty before any). */
+	FText GetShownWords() const;
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;

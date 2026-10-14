@@ -10,9 +10,12 @@
 #include "Components/Image.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
+#include "Components/Widget.h"
+#include "Layout/Geometry.h"
 
 // What the interact key would do to the thing looked at: the loot comparison card for loot (the weapon, stat by stat
-// against the one in hand, and how to take it), the interaction prompt under the crosshair for anything else.
+// against the one in hand, and how to take it), the interaction prompt under the crosshair for anything else; and where
+// the card stands on screen, so the mission tracker can keep clear of it.
 
 using namespace LooterUI;
 
@@ -134,4 +137,22 @@ void UPlayerHUDWidget::UpdatePickupCard(UWeaponManagerComponent* Manager, const 
 	LooterUI::SetHoldKeyLabel(PickupHoldKey, Key);
 	LooterUI::UpdateHoldKeyCap(PickupHoldRing, PickupHoldKey, Hold, DeltaTime);
 	PickupHoldBar->SetVisibility(Hold > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+}
+
+bool UPlayerHUDWidget::GetLootCardBounds(FVector2D& OutMin, FVector2D& OutMax) const
+{
+	if (!PickupCard || PickupCard->GetVisibility() == ESlateVisibility::Collapsed)
+	{
+		return false;
+	}
+	// Laid out a frame after it's shown: until then its geometry has no size, and there's nothing to keep clear of yet.
+	const FGeometry& CardGeometry = PickupCard->GetCachedGeometry();
+	const FVector2D CardSize = CardGeometry.GetAbsoluteSize();
+	if (CardSize.X <= 0.f || CardSize.Y <= 0.f)
+	{
+		return false;
+	}
+	OutMin = CardGeometry.GetAbsolutePosition();
+	OutMax = OutMin + CardSize;
+	return true;
 }

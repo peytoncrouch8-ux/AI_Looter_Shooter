@@ -35,8 +35,9 @@ UControlHintSubsystem* UControlHintSubsystem::Get(const UObject* WorldContextObj
 bool UControlHintSubsystem::IsSomeoneTalking(const UWorld* World)
 {
 	// A line on screen, held under a menu or not: the hints never sit over a conversation (the user's rule for the opening).
+	// With subtitles off the words of someone speaking aren't drawn, so there is nothing for a hint to sit over.
 	const UCaptionSubsystem* Captions = World ? World->GetSubsystem<UCaptionSubsystem>() : nullptr;
-	return Captions && Captions->GetCurrent() != nullptr;
+	return Captions && Captions->GetCurrentShown() != nullptr;
 }
 
 bool UControlHintSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const

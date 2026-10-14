@@ -292,9 +292,11 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	Offset.Y += LookSway.X * 0.35f;
 	Offset.Z += LookSway.Y * 0.25f;
 
-	Offset += SprintPoseOffset * Sprint + CrouchPoseOffset * Crouch + ClimbPoseOffset * TraversalAlpha;
-	Rotation += SprintPoseRotation * Sprint + ClimbPoseRotation * TraversalAlpha;
-	Rotation.Roll += CrouchPoseRoll * Crouch;
+	// The stance poses: how the gun is carried at the hip in a sprint, a crouch or a climb. Kept apart from the motion, as
+	// aiming takes them out entirely (below).
+	const FVector StanceOffset = SprintPoseOffset * Sprint + CrouchPoseOffset * Crouch + ClimbPoseOffset * TraversalAlpha;
+	FRotator StanceRotation = SprintPoseRotation * Sprint + ClimbPoseRotation * TraversalAlpha;
+	StanceRotation.Roll += CrouchPoseRoll * Crouch;
 
 	Offset.Z += KickOffset;
 	Rotation.Pitch += KickOffset * 0.8f;
@@ -348,11 +350,29 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 		Offset *= Settle;
 		Rotation *= Settle;
 	}
+	// Raised to the eye, the gun is shouldered the same way in every stance: the stance poses go out entirely. Settled like
+	// the motion, they left 15% of a crouch's cant and drop on the sight (the user, 2026-10-14: crouched, the aim was off),
+	// and the first-person render magnifies any distance from the line of sight (6 mm once put a reticle 50 px low).
+	Offset += StanceOffset * (1.f - Aim);
+	Rotation += StanceRotation * (1.f - Aim);
 
 	FQuat FinalRotation = Rotation.Quaternion() * Hold.GetRotation();
 	// The stance poses turn the gun around (roughly) its grip, wherever this gun has it.
 	const FVector Pivot = (Weapon->GetGripPoint().IsZero() ? Manager->AttachGrip : Weapon->GetGripPoint()) + GripPivotFromGrip;
 	FVector FinalLocation = Hold.GetLocation() + Offset + Hold.GetRotation().RotateVector(Pivot) - FinalRotation.RotateVector(Pivot);
+
+	// Shots fly along the line of sight (the crosshair), so through the sight its aim point must sit on that line whatever
+	// still moves the gun (the bob and sway a walk leaves, a jump's or a landing's kick, a shot's flip, the eye easing into
+	// a crouch or a slide). What moves it off is taken back, by the share the gun is raised: fully up, the sight never
+	// leaves the line, and the motion shows as the gun tipping about its sight (and sliding along the line, a shot's
+	// push-back) rather than the sight wandering off the shots. An open menu still lowers the gun out of view.
+	if (const float Lock = Aim * (1.f - Menu); Lock > 0.f)
+	{
+		const FVector Sight = Weapon->GetAimPoint() * Hold.GetScale3D();
+		const FVector Held = Hold.GetLocation() + Hold.GetRotation().RotateVector(Sight);
+		const FVector Drift = FinalLocation + FinalRotation.RotateVector(Sight) - Held;
+		FinalLocation -= FVector(0.f, Drift.Y, Drift.Z) * Lock;
+	}
 
 	// The slide's tipped view (UpdateCamera) takes the gun with it, turning about the line of sight so a sight stays on it.
 	if (!FMath::IsNearlyZero(AppliedViewRoll))

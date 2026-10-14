@@ -229,6 +229,22 @@ void USettingsMenuWidget::HandleButton(ULooterButton* Button)
 		SetKeyboardFocus();
 		return;
 	}
+	if (Button->Action == ActionSubtitlesOn || Button->Action == ActionSubtitlesOff)
+	{
+		StopListening();
+		if (UGraphicsSettingsSubsystem* Graphics = GetGraphics())
+		{
+			// The caption widget follows the setting within a frame; a line on screen when the game resumes goes or stays at once.
+			const bool bSubtitles = Button->Action == ActionSubtitlesOn;
+			Graphics->SetSubtitlesShown(bSubtitles);
+			SetStatus(bSubtitles ? TEXT("Subtitles on: spoken lines show their words.") : TEXT("Subtitles off: spoken lines show no words."),
+				LooterUI::Color::TextDim());
+		}
+		RefreshGraphics();
+		RefreshKeyLabels();
+		SetKeyboardFocus();
+		return;
+	}
 
 	if (Button->Action == ActionRebind)
 	{

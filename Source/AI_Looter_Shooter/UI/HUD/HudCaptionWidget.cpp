@@ -1,4 +1,5 @@
 #include "UI/HUD/HudCaptionWidget.h"
+#include "Settings/GraphicsSettingsSubsystem.h"
 #include "Story/CaptionSubsystem.h"
 #include "Story/StoryLine.h"
 #include "UI/HUD/LooterHUD.h"
@@ -9,6 +10,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 
@@ -73,6 +75,11 @@ void UHudCaptionWidget::NativeDestruct()
 void UHudCaptionWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	Advance(InDeltaTime);
+}
+
+void UHudCaptionWidget::Advance(float DeltaSeconds)
+{
 	if (!CaptionBox)
 	{
 		return;
@@ -86,21 +93,46 @@ void UHudCaptionWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 		Captions->SetHeld(bCovered);
 	}
 
-	const FCaptionEntry* Current = Captions ? Captions->GetCurrent() : nullptr;
-	if (Current && Current->Serial != ShownSerial)
+	// The Subtitles setting goes to the captions, where whatever else draws a line's words (a creature's) reads it too. A
+	// widget with no player to ask (a test) leaves the captions' switch as it was set.
+	if (Captions)
 	{
-		ShownSerial = Current->Serial;
-		ShowLine(Current->Line);
+		const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
+		const UGraphicsSettingsSubsystem* Settings = LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
+		if (Settings)
+		{
+			Captions->SetSubtitlesShown(Settings->AreSubtitlesShown());
+		}
 	}
 
-	Presence = FMath::FInterpConstantTo(Presence, bCovered ? 0.f : 1.f, InDeltaTime, 1.f / PresenceFadeSeconds);
-	const float Opacity = Current ? Captions->GetAlpha() * Presence : 0.f;
+	// Subtitles off: someone's line plays out in the queue all the same, and only its words go undrawn. Nothing is set while
+	// it plays, so the switch turned on again mid-line puts that line up from where it is. A line with no speaker (a notice,
+	// a remark, a time card) is no subtitle and shows either way.
+	const FCaptionEntry* Words = Captions ? Captions->GetCurrentShown() : nullptr;
+	if (Words && Words->Serial != ShownSerial)
+	{
+		ShownSerial = Words->Serial;
+		ShowLine(Words->Line);
+	}
+
+	Presence = FMath::FInterpConstantTo(Presence, bCovered ? 0.f : 1.f, DeltaSeconds, 1.f / PresenceFadeSeconds);
+	const float Opacity = Words ? Captions->GetAlpha() * Presence : 0.f;
 	if (Opacity != ShownOpacity)
 	{
 		ShownOpacity = Opacity;
 		CaptionBox->SetRenderOpacity(Opacity);
 		CaptionBox->SetVisibility(Opacity > 0.f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
+}
+
+bool UHudCaptionWidget::AreWordsShown() const
+{
+	return CaptionBox && CaptionBox->GetVisibility() != ESlateVisibility::Collapsed;
+}
+
+FText UHudCaptionWidget::GetShownWords() const
+{
+	return WordsText ? WordsText->GetText() : FText::GetEmpty();
 }
 
 void UHudCaptionWidget::ShowLine(const FStoryLine& Line)

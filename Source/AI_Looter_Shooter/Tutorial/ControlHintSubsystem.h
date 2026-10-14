@@ -60,7 +60,7 @@ public:
 
 	static UControlHintSubsystem* Get(const UObject* WorldContextObject);
 
-	/** Someone is talking in World: a caption is on screen (UCaptionSubsystem). The hints wait, and the widget steps aside. */
+	/** Someone is talking in World: a caption is on screen (UCaptionSubsystem; with subtitles off none is). The hints wait, and the widget steps aside. */
 	static bool IsSomeoneTalking(const UWorld* World);
 
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;

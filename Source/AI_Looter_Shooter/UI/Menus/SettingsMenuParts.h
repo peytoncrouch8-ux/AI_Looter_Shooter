@@ -21,6 +21,8 @@ namespace SettingsMenu
 	inline const FName ActionFrameRateOff(TEXT("FrameRateOff"));
 	inline const FName ActionHintsOn(TEXT("HintsOn"));
 	inline const FName ActionHintsOff(TEXT("HintsOff"));
+	inline const FName ActionSubtitlesOn(TEXT("SubtitlesOn"));
+	inline const FName ActionSubtitlesOff(TEXT("SubtitlesOff"));
 	inline const FName ActionHoldMode(TEXT("HoldMode"));
 	inline const FName ActionToggleMode(TEXT("ToggleMode"));
 

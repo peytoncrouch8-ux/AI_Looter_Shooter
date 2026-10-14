@@ -4,6 +4,7 @@
 
 #include "UI/HUD/HudPlayerFrameWidget.h"
 #include "UI/HUD/HudPortraitWidget.h"
+#include "UI/HUD/HudXpGainWidget.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Components/Image.h"
@@ -24,8 +25,6 @@ namespace
 	constexpr float XPGainFadeSeconds = 0.675f;
 	/** Over the part the fill has already covered the white is a little thinner, so the fill catching up still reads. */
 	constexpr float XPGlowStrength = 0.8f;
-	/** The "+160 XP" floats this long. */
-	constexpr float XPFloatSeconds = 1.4f;
 	/** The gem flashes white and fades over this long; its ring spreads to this size over this long, fading. */
 	constexpr float GemFlashSeconds = 0.9f;
 	constexpr float GemFlashStrength = 0.75f;
@@ -92,18 +91,14 @@ void UHudPlayerFrameWidget::HandleLevelUp(int32 NewLevel)
 
 void UHudPlayerFrameWidget::HandleXPChanged(int64 Gained, EXPSource Source)
 {
-	if (!XPFloat)
+	if (!XPGain)
 	{
 		return;
 	}
-	// Several kills in quick succession add up into one "+XP".
+	// "+XP" by the bar (the kill shows its own at the kill): several kills in quick succession add up into one.
 	if (Gained > 0)
 	{
-		ShownGain = XPFloatTime > 0.f ? ShownGain + Gained : Gained;
-		XPFloat->SetText(FText::FromString(FString::Printf(TEXT("+%s XP"), *FormatXP(ShownGain))));
-		XPFloat->SetVisibility(ESlateVisibility::HitTestInvisible);
-		XPFloatTime = XPFloatSeconds;
-		PaintFloat(XPFloat, 0.f, XPFloatSeconds);
+		XPGain->AddGain(Gained);
 	}
 	Activity = ActivityHoldSeconds;
 
@@ -231,22 +226,12 @@ void UHudPlayerFrameWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 
 bool UHudPlayerFrameWidget::TickXPEffects(float DeltaTime)
 {
-	if (!XPFloat || !GemFlash || !GemRing)
+	if (!XPGain || !GemFlash || !GemRing)
 	{
 		return false;
 	}
-	if (XPFloatTime > 0.f)
-	{
-		XPFloatTime -= DeltaTime;
-		if (XPFloatTime <= 0.f)
-		{
-			XPFloat->SetVisibility(ESlateVisibility::Hidden);
-		}
-		else
-		{
-			PaintFloat(XPFloat, XPFloatSeconds - XPFloatTime, XPFloatSeconds);
-		}
-	}
+	// The "+XP" waits beside the bar while it's still filling up to the gain, then fades.
+	XPGain->Advance(DeltaTime, ShownProgress < TargetProgress);
 	if (GemFlashTime > 0.f)
 	{
 		// Bright at once, settling quickly.
@@ -269,7 +254,7 @@ bool UHudPlayerFrameWidget::TickXPEffects(float DeltaTime)
 			GemRing->SetVisibility(ESlateVisibility::Hidden);
 		}
 	}
-	return XPFloatTime > 0.f || GemFlashTime > 0.f || RingTime > 0.f;
+	return XPGain->IsShowing() || GemFlashTime > 0.f || RingTime > 0.f;
 }
 
 void UHudPlayerFrameWidget::ShowProgress(bool bCelebrate)

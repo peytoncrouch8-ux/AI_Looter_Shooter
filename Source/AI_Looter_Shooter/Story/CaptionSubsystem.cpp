@@ -63,6 +63,17 @@ void UCaptionSubsystem::SetHeld(bool bInHeld)
 	bHeld = bInHeld;
 }
 
+void UCaptionSubsystem::SetSubtitlesShown(bool bShown)
+{
+	bSubtitlesShown = bShown;
+}
+
+const FCaptionEntry* UCaptionSubsystem::GetCurrentShown() const
+{
+	const FCaptionEntry* Current = Queue.GetCurrent();
+	return Current && (bSubtitlesShown || !IsSubtitle(Current->Line)) ? Current : nullptr;
+}
+
 void UCaptionSubsystem::Update(float DeltaSeconds)
 {
 	if (bHeld)

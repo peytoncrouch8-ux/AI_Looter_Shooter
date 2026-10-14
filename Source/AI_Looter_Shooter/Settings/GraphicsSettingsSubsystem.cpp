@@ -91,6 +91,27 @@ namespace
 		TEXT("Looter.FieldOfView"),
 		TEXT("Sets and saves the first-person field of view in degrees: Looter.FieldOfView 70-110"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SetFieldOfViewCommand));
+
+	/** Looter.Subtitles on|off: sets and saves the subtitles switch, as the settings menu's row does. */
+	void SetSubtitlesCommand(const TArray<FString>& Args, UWorld* World)
+	{
+		ULocalPlayer* Player = World ? World->GetFirstLocalPlayerFromController() : nullptr;
+		UGraphicsSettingsSubsystem* Graphics = Player ? Player->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
+		const bool bOn = Args.Num() == 1 && Args[0].Equals(TEXT("on"), ESearchCase::IgnoreCase);
+		const bool bOff = Args.Num() == 1 && Args[0].Equals(TEXT("off"), ESearchCase::IgnoreCase);
+		if (!Graphics || (!bOn && !bOff))
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Usage (in a game): Looter.Subtitles on|off"));
+			return;
+		}
+		Graphics->SetSubtitlesShown(bOn);
+		UE_LOG(LogLooter, Display, TEXT("Subtitles %s."), bOn ? TEXT("on") : TEXT("off"));
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs SetSubtitlesCommandRegistration(
+		TEXT("Looter.Subtitles"),
+		TEXT("Sets and saves the subtitles switch: Looter.Subtitles on|off"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SetSubtitlesCommand));
 }
 
 void UGraphicsSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -346,6 +367,27 @@ void UGraphicsSettingsSubsystem::SetControlHintsShown(bool bShown)
 	}
 	SaveData->bShowControlHints = bShown;
 	SaveSettings();
+}
+
+bool UGraphicsSettingsSubsystem::SubtitlesOf(const ULooterGraphicsSave* Save)
+{
+	return !Save || Save->bShowSubtitles;
+}
+
+bool UGraphicsSettingsSubsystem::AreSubtitlesShown() const
+{
+	return SubtitlesOf(SaveData);
+}
+
+void UGraphicsSettingsSubsystem::SetSubtitlesShown(bool bShown)
+{
+	if (!SaveData || SaveData->bShowSubtitles == bShown)
+	{
+		return;
+	}
+	SaveData->bShowSubtitles = bShown;
+	SaveSettings();
+	UE_LOG(LogLooter, Log, TEXT("Subtitles %s"), bShown ? TEXT("on") : TEXT("off"));
 }
 
 void UGraphicsSettingsSubsystem::SaveSettings() const

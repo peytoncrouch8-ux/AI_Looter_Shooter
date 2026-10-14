@@ -10,8 +10,8 @@ class UTextBlock;
 class UWidget;
 
 /**
- * The contextual control hint (UControlHintSubsystem decides which, FControlHintRules when): one line in the left column,
- * above the mission tracker, in the tracker's own key-hint style: the bound key as a keycap, then what it does, floating
+ * The contextual control hint (UControlHintSubsystem decides which, FControlHintRules when): one line high in the left
+ * column, in the mission tracker's own key-hint style: the bound key as a keycap, then what it does, floating
  * outlined text with no panel (only the keycap's plate is a background, which the UI transparency setting fades). It
  * slides in; when the player uses the control its words turn cyan and the keycap pops before it fades, and an unheeded
  * one simply fades. It steps aside under every menu, under a scene that puts the HUD away, while someone talks (a caption
@@ -27,7 +27,7 @@ public:
 	/** Just over the gameplay HUD (0), under the mission tracker (22), the inventory's pages and every menu. */
 	static constexpr int32 ViewportZOrder = 1;
 
-	/** Its line's left end and middle, in 1080p pixels from the screen's top-left: the tracker's column, 36 px above its medal. */
+	/** Its line's left end and middle, in 1080p pixels from the screen's top-left: in from the edge as far as the minimap is. */
 	static constexpr float Left = 36.f;
 	static constexpr float Middle = 250.f;
 

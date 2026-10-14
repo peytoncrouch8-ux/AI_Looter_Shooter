@@ -62,8 +62,10 @@ void UKeyBindingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	AddBinding(MeleeBindingId(), TEXT("Melee"), TEXT("Combat"), CharacterContext, MeleeAction, DefaultMeleeKey());
 	AddBinding(GrenadeBindingId(), TEXT("Grenade"), TEXT("Combat"), CharacterContext, GrenadeAction, DefaultGrenadeKey());
 	AddBinding(TEXT("Reload"), TEXT("Reload"), TEXT("Combat"), WeaponContext, Reload, EKeys::R);
-	AddBinding(TEXT("NextWeapon"), TEXT("Next weapon"), TEXT("Combat"), WeaponContext, Next, EKeys::MouseScrollUp);
-	AddBinding(TEXT("PreviousWeapon"), TEXT("Previous weapon"), TEXT("Combat"), WeaponContext, Previous, EKeys::MouseScrollDown);
+	// The wheel moves along the HUD's slot column (slot 1 on top): up to the slot above, down to the one below (the user,
+	// 2026-10-14: up went down). The asset maps them the other way round; the player's copy gets these keys.
+	AddBinding(TEXT("NextWeapon"), TEXT("Next weapon"), TEXT("Combat"), WeaponContext, Next, EKeys::MouseScrollDown, false, EKeys::MouseScrollUp);
+	AddBinding(TEXT("PreviousWeapon"), TEXT("Previous weapon"), TEXT("Combat"), WeaponContext, Previous, EKeys::MouseScrollUp, false, EKeys::MouseScrollDown);
 	for (int32 SlotIndex = 0; SlotIndex < WeaponSlotActions.Num(); ++SlotIndex)
 	{
 		AddBinding(WeaponSlotBindingId(SlotIndex), *FString::Printf(TEXT("Weapon slot %d"), SlotIndex + 1), TEXT("Combat"), WeaponSlotContext,

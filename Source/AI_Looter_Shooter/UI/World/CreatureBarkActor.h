@@ -11,6 +11,7 @@ class UWidgetComponent;
  * The words of the bark being said, floating over its speaker (UCreatureVoiceDirector spawns one per level and reuses it,
  * so there is never more than one bark on screen): a screen-space UCreatureBarkWidget that follows the speaker's tag
  * (where its name and bar float; its head where it has none), fades in, holds and fades out. It ticks only while it shows.
+ * The words are a subtitle: with the Subtitles setting off they are not drawn, though the bark goes on all the same.
  */
 UCLASS(NotPlaceable, Transient)
 class AI_LOOTER_SHOOTER_API ACreatureBarkActor : public AActor
@@ -32,6 +33,12 @@ public:
 	void Advance(float DeltaSeconds);
 
 	bool IsShowing() const { return bShowing; }
+
+	/**
+	 * The words are on screen: showing, and the Subtitles setting (UCaptionSubsystem::AreSubtitlesShown) is on. Off, a bark is
+	 * still showing in every other sense (its murmur, its place on the board, its clock) and its words are not drawn.
+	 */
+	bool AreWordsDrawn() const;
 	const FText& GetLine() const { return Line; }
 	AActor* GetSpeaker() const { return Speaker.Get(); }
 	bool IsMuttered() const { return bMuttered; }

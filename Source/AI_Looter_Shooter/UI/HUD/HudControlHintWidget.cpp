@@ -31,7 +31,7 @@ namespace
 	const FName HintCue(TEXT("UI.Hint"));
 	const FName HintDoneCue(TEXT("UI.HintDone"));
 
-	// --- The keycap, measured as the mission tracker's (HudMissionTrackerWidgetLayout.cpp), so the two read as one kit ---
+	// --- The keycap, measured as the mission tracker's (HudMissionTrackerShapes.cpp), so the two read as one kit ---
 
 	/** 22 px high and at least as wide, the key 4 px from its sides, the words 10 px after it. */
 	constexpr float KeycapSize = 22.f;

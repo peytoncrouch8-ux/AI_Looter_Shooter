@@ -7,6 +7,7 @@
 
 class UCanvasPanel;
 class UHudPortraitWidget;
+class UHudXpGainWidget;
 class UImage;
 class UTextBlock;
 class UWidget;
@@ -68,7 +69,9 @@ enum class EHudFrameStretch : uint8
  *  - heal: the fill rises with a pale green shine sweeping along it, "+30" rises at the bar's end
  *  - regeneration (the wounds that close): the fill rises smoothly as health comes back, a softer shine sweeps along
  *    it every so often, and one "+N" rises when the run has filled the bar
- *  - experience: the stretch just earned shows white, holds and fades as the bar catches up; "+160 XP" rises
+ *  - experience: the stretch just earned shows white, holds and fades as the bar catches up; "+160 XP" pops in after the
+ *    bar's numbers, adding up quick kills, holds while the bar fills and fades (UHudXpGainWidget; the kill's own "+XP"
+ *    floats up at the kill: UXpPopupSubsystem)
  *  - level-up: once the bar gets there the gem flashes, a ring spreads out of it, the portrait's eyes flare, and
  *    OnLevelUp tells the HUD to show the banner
  *  - full health and nothing happening: the whole frame steps back to the HUD's idle opacity
@@ -85,8 +88,11 @@ class AI_LOOTER_SHOOTER_API UHudPlayerFrameWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	/** Its box: from the screen's left edge to past the XP numbers, and from above the medallion down to the screen's bottom. */
-	static constexpr float Width = 700.f;
+	/**
+	 * Its box: from the screen's left edge to past the XP numbers and the "+XP" after them, and from above the medallion down
+	 * to the screen's bottom.
+	 */
+	static constexpr float Width = 900.f;
 	static constexpr float Height = 210.f;
 
 	/** At or under this share of the maximum, health reads as low; the low-health beat's length (the screen edges share both). */
@@ -107,19 +113,32 @@ public:
 
 	// Where the parts sit: the spec's numbers, in pixels on a 1080p screen from its top-left (the box ends at its bottom).
 	static constexpr float ScreenBottom = 1080.f;
-	/** The medallion's centre and the level gem's. */
+	/** The medallion's centre and the level gem's, and how far each reaches to its tips (the bezel's, the gem's). */
 	static constexpr float MedallionX = 113.f;
 	static constexpr float MedallionY = 974.f;
+	static constexpr float MedallionReach = 73.1f;
 	static constexpr float GemX = 161.f;
 	static constexpr float GemY = 999.f;
-	/** The health and experience bars' boxes start here (their top-left before the lean). */
+	static constexpr float GemReach = 18.7f;
+	/**
+	 * The health and experience bars' boxes start here (their top-left before the lean). Bars 25% bigger (the user's call,
+	 * 2026-10-14; HudFrameShapes::BarScale): the health bar grew upward from the bottom it had (967), out of the
+	 * medallion's upper-right edge as before; the experience bar keeps its middle level with the gem's right tip, still
+	 * clear of it.
+	 */
 	static constexpr float HealthBarX = 130.f;
-	static constexpr float HealthBarY = 940.f;
+	static constexpr float HealthBarY = 933.f;
 	static constexpr float XPBarX = 185.f;
-	static constexpr float XPBarY = 994.f;
+	static constexpr float XPBarY = 992.f;
+	/** "1,240 / 2,000 XP" after the experience bar, from here (its line's middle at XPNumbersY), and the "+XP" after them. */
+	static constexpr float XPNumbersX = 600.f;
+	static constexpr float XPNumbersY = 997.f;
 
 	/** A spot on the 1080p screen in the frame's box. */
 	static FVector2D InFrame(float ScreenX, float ScreenY) { return FVector2D(ScreenX, ScreenY - (ScreenBottom - Height)); }
+
+	/** The "+XP" after the experience bar's numbers, for the tests; null before the frame is built. */
+	UHudXpGainWidget* GetXPGain() const { return XPGain; }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -138,7 +157,7 @@ private:
 	static constexpr float ShineSeconds = 0.75f;
 	static constexpr float HealFloatSeconds = 1.2f;
 
-	/** Floats Text (a "+30" or "+160 XP") Age into its life of Duration: in quickly, rising, fading out. */
+	/** Floats Text (a heal's "+30") Age into its life of Duration: in quickly, rising, fading out. */
 	static void PaintFloat(UTextBlock* Text, float Age, float Duration);
 
 	// --- Pictures (HudPlayerFrameWidgetPictures.cpp) and stretches (HudPlayerFrameWidgetStretches.cpp) ---
@@ -192,7 +211,7 @@ private:
 	void ShowProgress(bool bCelebrate = true);
 	void SetShownLevel(int32 Level, bool bCelebrate);
 	void UpdateXPText();
-	/** Moves the floating "+160 XP", the gem's flash and its ring; false once none of them is running. */
+	/** Moves the "+160 XP" (holding while the bar fills), the gem's flash and its ring; false once none of them is running. */
 	bool TickXPEffects(float DeltaTime);
 
 	/** The root canvas: the idle fade. */
@@ -206,10 +225,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> HealthValue;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> HealthMax;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> HealFloat;
-	/** "1,240" and "/ 2,000 XP" after the experience bar ("MAX" alone at the top level), and the "+160 XP" over them. */
+	/** "1,240" and "/ 2,000 XP" after the experience bar ("MAX" alone at the top level), and the "+160 XP" after them. */
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> XPValue;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> XPMax;
-	UPROPERTY(Transient) TObjectPtr<UTextBlock> XPFloat;
+	UPROPERTY(Transient) TObjectPtr<UHudXpGainWidget> XPGain;
 	/** Per stretch (EHudFrameStretch): its cropped body, and its end piece moved along to the level. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> StretchBodies;
 	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> StretchCaps;
@@ -276,9 +295,6 @@ private:
 	float GainAlpha = 0.f;
 	float GainAge = 0.f;
 	float GainFade = 0.f;
-	/** The "+160 XP" still floating, and what it says. */
-	float XPFloatTime = 0.f;
-	int64 ShownGain = 0;
 	/** Seconds left of the gem's level-up flash and of its spreading ring. */
 	float GemFlashTime = 0.f;
 	float RingTime = 0.f;

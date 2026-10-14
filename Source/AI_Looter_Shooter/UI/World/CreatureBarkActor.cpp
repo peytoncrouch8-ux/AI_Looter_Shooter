@@ -1,5 +1,6 @@
 #include "UI/World/CreatureBarkActor.h"
 #include "UI/World/CreatureBarkWidget.h"
+#include "Story/CaptionSubsystem.h"
 #include "Components/WidgetComponent.h"
 
 namespace
@@ -72,8 +73,8 @@ void ACreatureBarkActor::Show(AActor* InSpeaker, const FText& InLine, float InSe
 		}
 	}
 	SetActorLocation(AnchorNow());
-	Widget->SetVisibility(true);
 	SetActorTickEnabled(true);
+	// Advance puts the words up unless the Subtitles setting is off.
 	Advance(0.f);
 }
 
@@ -104,6 +105,14 @@ void ACreatureBarkActor::Advance(float DeltaSeconds)
 		Hide();
 		return;
 	}
+	// The words are a subtitle of the murmur: with Subtitles off the bark is still said (its sound, its place on the board,
+	// this clock) and only the drawing stops. Checked each frame, so the setting changed mid-bark shows at once.
+	const UCaptionSubsystem* Captions = UCaptionSubsystem::Get(this);
+	const bool bDrawn = !Captions || Captions->AreSubtitlesShown();
+	if (Widget->GetVisibleFlag() != bDrawn)
+	{
+		Widget->SetVisibility(bDrawn);
+	}
 	// Kept as it goes, so words whose speaker is gone mid-line stay where it was last.
 	LastSpot = AnchorNow();
 	SetActorLocation(LastSpot);
@@ -111,6 +120,11 @@ void ACreatureBarkActor::Advance(float DeltaSeconds)
 	{
 		Words->SetRenderOpacity(AlphaAt(Age, Seconds));
 	}
+}
+
+bool ACreatureBarkActor::AreWordsDrawn() const
+{
+	return bShowing && Widget && Widget->GetVisibleFlag();
 }
 
 FVector ACreatureBarkActor::AnchorNow() const

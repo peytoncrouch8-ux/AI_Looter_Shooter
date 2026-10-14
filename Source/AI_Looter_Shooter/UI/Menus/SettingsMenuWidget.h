@@ -336,6 +336,9 @@ private:
 	/** The contextual control hints' switch. */
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> HintsOn;
 	UPROPERTY(Transient) TObjectPtr<ULooterButton> HintsOff;
+	/** The subtitles' switch (the spoken lines' words on screen). */
+	UPROPERTY(Transient) TObjectPtr<ULooterButton> SubtitlesOn;
+	UPROPERTY(Transient) TObjectPtr<ULooterButton> SubtitlesOff;
 	UPROPERTY(Transient) TObjectPtr<USlider> TransparencySlider;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TransparencyValue;
 	UPROPERTY(Transient) TObjectPtr<USlider> MinimapSlider;

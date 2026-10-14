@@ -8,6 +8,7 @@
 #include "UI/HUD/HudMagazineWidget.h"
 #include "UI/HUD/HudMinimapWidget.h"
 #include "UI/HUD/HudMissionCompleteWidget.h"
+#include "UI/HUD/HudNotchTallyWidget.h"
 #include "UI/HUD/HudPickupFeedWidget.h"
 #include "UI/HUD/HudPlayerFrameWidget.h"
 #include "UI/HUD/HudScreenEdgeWidget.h"
@@ -68,6 +69,8 @@ namespace
 	constexpr float GemSize = 14.f;
 	constexpr float GemEdgeSize = 18.5f;
 	constexpr float GemGap = 6.f;
+	/** The gun's notches stand this far before the gem (UHudNotchTallyWidget collapses itself, gap and all, at none). */
+	constexpr float NotchGap = 10.f;
 
 	/** Where the level-up banner's gem centres, down from the top's middle: the mockup puts the banner's top at 170 and its
 	 *  180 px gem box at the top of it, which keeps the gem clear of the boss bar. */
@@ -154,19 +157,20 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			ArcsSlot->SetAutoSize(false);
 		}
 
-		// Crosshair: four thin ticks with a center dot; the gap follows the weapon's spread, and each shot kicks it out.
+		// Crosshair: four thin ticks round a centre dot; the gap follows the weapon's spread, and each shot kicks it out. The
+		// dot is its own piece: through a third-person aim it stays as the aim point when the ticks have gone.
 		{
 			// 4px ticks with a 1px dark edge leave a 2px white core that reads on any background.
 			UOverlay* Ticks = MakeTicks(WidgetTree, 9.f, 4.f);
-			UWidget* Dot = MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(FLinearColor(1.f, 1.f, 1.f, 0.8f))), 3.f, 3.f);
-			UOverlaySlot* DotSlot = Ticks->AddChildToOverlay(Dot);
-			DotSlot->SetHorizontalAlignment(HAlign_Center);
-			DotSlot->SetVerticalAlignment(VAlign_Center);
-
 			CrosshairBox = MakeSized(WidgetTree, Ticks, 20.f, 20.f);
 			// The kick grows it about its middle.
 			CrosshairBox->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
 			PlaceOnCanvas(Root, CrosshairBox, Center, FVector2D(0.5f, 0.5f), FVector2D::ZeroVector);
+
+			// White at full strength: its opacity (UpdateCrosshair) sets how soft it is.
+			CrosshairDot = MakeSized(WidgetTree, MakeImage(WidgetTree, RectBrush(FLinearColor::White)), 3.f, 3.f);
+			CrosshairDot->SetRenderOpacity(0.8f);
+			PlaceOnCanvas(Root, CrosshairDot, Center, FVector2D(0.5f, 0.5f), FVector2D::ZeroVector);
 		}
 
 		// Hit marker: the same ticks turned 45 degrees into an X.
@@ -228,8 +232,14 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 			ModeRow->AddChildToHorizontalBox(FireModeText)->SetVerticalAlignment(VAlign_Center);
 			AddRight(MakeSized(WidgetTree, ModeRow, 0.f, ModeLineHeight), LineGap);
 
-			// The rarity gem, then the gun's name in its rarity's color, shrinking to fit when it's long, at the edge.
+			// The gun's notches (a tally mark and the count, once it has any), the rarity gem, then the gun's name in its
+			// rarity's color, shrinking to fit when it's long, at the edge. The notches grow the row leftward, never pushing
+			// the name off the edge.
 			UHorizontalBox* NameRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			NotchTally = WidgetTree->ConstructWidget<UHudNotchTallyWidget>(UHudNotchTallyWidget::StaticClass());
+			UHorizontalBoxSlot* NotchSlot = NameRow->AddChildToHorizontalBox(NotchTally);
+			NotchSlot->SetVerticalAlignment(VAlign_Center);
+			NotchSlot->SetPadding(FMargin(0.f, 0.f, NotchGap, 0.f));
 			UOverlay* Gem = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
 			UOverlaySlot* GemEdgeSlot = Gem->AddChildToOverlay(MakeImage(WidgetTree,
 				IconBrush(TEXT("HudRarityGem"), GemIcon(), 2.f, FVector2D(GemEdgeSize, GemEdgeSize), Color::Ink())));

@@ -13,6 +13,7 @@ class UHudPickupFeedWidget;
 class UHudLevelUpBannerWidget;
 class UHudMagazineWidget;
 class UHudMissionCompleteWidget;
+class UHudNotchTallyWidget;
 class UHudPlayerFrameWidget;
 class UHudWeaponSlotsWidget;
 class UImage;
@@ -39,18 +40,21 @@ enum class ESilverChange : uint8;
  *    icon on its left (UHudWeaponSlotsWidget), and on their right the magazine as a cartridge standing tip up, which
  *    drains from the tip as the gun fires, fills with reload progress and holds the rounds and reserve by its base
  *    (UHudMagazineWidget); under them, right-aligned, the status ("RELOADING") and fire mode on one line, and the gun's
- *    name in its rarity's colour ending in a small rarity gem
- *  - top-right: the minimap (UHudMinimapWidget)
+ *    name in its rarity's colour after a small rarity gem, with the gun's notches before the gem once it has any (a tally
+ *    mark and the count, popping on each kill with it: UHudNotchTallyWidget)
+ *  - top-right: the minimap (UHudMinimapWidget); under it the mission tracker (UHudMissionTrackerWidget, a viewport widget
+ *    of its own that ALooterHUD makes, which steps aside while the loot card would cover it: GetLootCardBounds)
  *  - top-left: the frame rate (UHudFrameRateWidget)
  *  - top-centre, its gem 260 px down: the level-up banner (UHudLevelUpBannerWidget), when the frame's experience bar levels up;
  *    in the same place, taking turns with it, the mission-complete banner (UHudMissionCompleteWidget) as a mission is turned in;
  *    a little higher, the "GRAVE MARKED" banner (UHudGraveMarkedWidget) when the player walks up to a respawn grave for the first time
  *  - left of the crosshair: the ammo pickup feed (UHudPickupFeedWidget)
  *  - bottom-centre: nothing, on purpose
- *  - centre: thin tick crosshair sized by the weapon's spread, kicking out on every shot (it fades out while aiming
- *    through a sight in first person, where the sight's reticle is the aim point), diagonal hit marker (orange on a
- *    crit; on a kill red, bigger and held longer), and round it the red arcs pointing to where hits came from
- *    (UHudDamageIndicatorWidget)
+ *  - centre: thin tick crosshair sized by the weapon's spread, kicking out on every shot, round a centre dot (the ticks
+ *    fade out while aiming down the sights, with any gun in any view, and come back as the gun comes down: the user's
+ *    call, 2026-10-14; the dot goes too in first person, where the sight's reticle is the aim point, and stays as the aim
+ *    point in third person, where no sight is seen), diagonal hit marker (orange on a crit; on a kill red, bigger and
+ *    held longer), and round it the red arcs pointing to where hits came from (UHudDamageIndicatorWidget)
  *  - under the crosshair: what the Interact key does to the thing looked at (UHudInteractPromptWidget), for everything
  *    but loot, which has the comparison card (right-middle); lower, the message plate (the weapon manager's messages)
  *  - behind everything: the screen edges' red flash on a hit and pulse at low health (UHudScreenEdgeWidget)
@@ -72,6 +76,36 @@ public:
 
 	/** The grave banner, for the tests; null before the HUD is built. */
 	UHudGraveMarkedWidget* GetGraveBanner() const { return GraveBanner; }
+
+	/** The notches beside the gun's name, for the tests; null before the HUD is built. */
+	UHudNotchTallyWidget* GetNotchTally() const { return NotchTally; }
+
+	/** The gun's name, for the tests; null before the HUD is built. */
+	UTextBlock* GetWeaponNameText() const { return WeaponName; }
+
+	/**
+	 * The loot comparison card's rectangle on the desktop (absolute pixels, as Slate lays it out) while it's up; false while
+	 * it's away or not laid out yet. The mission tracker steps aside where it would overlap.
+	 */
+	bool GetLootCardBounds(FVector2D& OutMin, FVector2D& OutMax) const;
+
+	/**
+	 * How far the gun is raised toward the sight (UPlayerViewComponent::GetAimAlpha, eased) when the crosshair is gone: it
+	 * fades out over the first part of the raise, so it never shows beside the sight's own reticle.
+	 */
+	static constexpr float CrosshairGoneAtAim = 0.6f;
+
+	/**
+	 * How solid the crosshair's ticks are: gone while aiming down the sights (fading out over the raise and back as the gun
+	 * comes down, with any gun in any view), while sprinting (the gun is down) and facing the camera (the front view).
+	 */
+	static float CrosshairOpacity(float AimAlpha, float SprintAlpha, bool bFacingCamera);
+
+	/**
+	 * The centre dot's: as the ticks in first person, where the sight's reticle takes over; through a third-person aim, which
+	 * only zooms and shows no sight, it stays as the aim point.
+	 */
+	static float AimDotOpacity(float AimAlpha, float SprintAlpha, bool bFacingCamera, bool bFirstPerson);
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -147,6 +181,8 @@ private:
 
 	// Crosshair and hit marker
 	UPROPERTY(Transient) TObjectPtr<USizeBox> CrosshairBox;
+	/** The centre dot, apart from the ticks: it stays through a third-person aim (AimDotOpacity) and doesn't kick. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> CrosshairDot;
 	UPROPERTY(Transient) TObjectPtr<UWidget> HitMarker;
 	UPROPERTY(Transient) TArray<TObjectPtr<UImage>> HitMarkerTicks;
 
@@ -174,8 +210,10 @@ private:
 	static constexpr float NameMaxWidth = 300.f;
 	/** Sets the gun's name, smaller when it's too long, so it always ends at the cluster's right edge. */
 	void FitWeaponName(const FString& Name);
-	/** The small diamond after the gun's name, in its rarity's colour. */
+	/** The small diamond before the gun's name, in its rarity's colour. */
 	UPROPERTY(Transient) TObjectPtr<UImage> RarityGem;
+	/** The gun's notches before the gem (the user's call, 2026-10-14): collapsed for a gun with none. */
+	UPROPERTY(Transient) TObjectPtr<UHudNotchTallyWidget> NotchTally;
 
 	// Loot card and messages
 	UPROPERTY(Transient) TObjectPtr<UWidget> PickupCard;
