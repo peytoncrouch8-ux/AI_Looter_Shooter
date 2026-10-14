@@ -109,6 +109,24 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
 6. Commit and push each working step on its own. The message says why and ends with the co-author line. To commit part of a shared
    file (CODEMAP), stage edits on HEAD's copy (`Tools\commitlib.py`).
 
+## Play checks (playing a level through in PIE, 2026-10-14)
+
+- Start: `Tools\pie.ps1 -Map RansomsRest` (Looter.PlayLevel: a new game, no session, nothing saved; Main 1 starts at step 3
+  with no gun: `Looter.GiveWeapon Rifle Common 1`, then `play.py ammo`; `God` keeps the player up).
+- `Tools\playstep.ps1` runs one step: `-Py "<play.py command>"`, `-Cmd "<console>"`, `-Keys` (input.ps1 steps),
+  `-Button ACCEPT|CLOSE|...` (a game menu's button: found in the Slate tree, clicked with the real mouse), `-Focus`
+  (what Interact would use), `-List` (open missions and the guns), `-Shot <name>` (half-size grab).
+- `Tools/Unreal/play.py`: `goto <tag|label> [cm] [yaw]` (stands in front of it on the floor, looking at its meshes),
+  `at x y z [yaw]`, `find <word>`, `where`, `look`, `lookat <tag>`, `what [yaw] [pitch]` (what the view's middle meets),
+  `press <Interact|Fire|Jump|Reload|Move> [seconds] [x] [y]` (feeds the input action itself: no focus needed; Move's y is
+  forward), `fight [s] [m]` (aims at creatures in sight, pulses Fire, keeps ammo full), `kill [m]`, `ammo`, `guns`.
+- Lessons: the console box takes keyboard focus, and only a left click gives the game viewport focus back (it fires a held
+  gun), so use `press` for game actions and real keys only for menus (Tab, number keys). Offer and turn-in cards and the
+  notice boards take mouse clicks, not injected actions. Teleports skip a roost's find (walk the last 15 m) and give hits
+  time to knock the view off a target: check `-Focus` before pressing.
+- Probes for walkability: `Tools/Unreal/reach_probe.py` misreads floors inside thick hulls (stairs, the watchtower);
+  walking it with `press Move` legs and `where` is the reliable check.
+
 ## Making a level (grounded areas)
 
 - Data: `Art/Levels/<Area>/layout.json` (hand-written: features, roads, zones, obstacles, placements, the `level` block, gameplay).
@@ -140,6 +158,11 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   - `under` caps cliff tops under a platform (`build_area_platforms.py`; the burial deck).
   - `panels` is a run of narrow panels along a pit's curve (`build_area_panels.py`), with `talus` at their feet
     (`build_area_talus.py`).
+  - `walled` (groups, or true): a point gets no faces unless the terrain's wall stands within 2.5 m behind it (2026-10-14:
+    an `onFloor` ridge's band ran on past its floor, and 31 East Shoulder slabs stood on the valley floor, through the
+    depot and across the rail line). `keepOut` (placement keys): no cliff piece, panel or outcrop stands inside those
+    buildings (`build_area_keepout.py`: moved back into its wall, cut under a floor, slid along its run, else left out;
+    each logged). Check with `Tools/Unreal/cliff_in_buildings.py <Area>` (read-only, `CLIFFIN` lines).
   - Every ramp's walkway is cleared of cliff pieces (`build_area_walkways.py`): a player capsule is tested down its middle. A ramp's
     own wall moves back into its cut; a ledge's outer face (under the path) sinks until it clears, at most 1.5 m (2026-10-08: nine
     faces on the bluff path and the Sink ramp sank 25-100 cm, no gaps under the lip).
@@ -509,6 +532,21 @@ Each line: bug (date). Cause. Fix.
   minutes kept every drop round the fights (a log: 59 to 260 ammo pickups over six loads). Fix: hostiles get markers first
   (`SplitMarkers`, `Looter.UI.Minimap.MarkerPool`); the session keeps each pickup's time left (`LifeLeft`,
   `Looter.LevelReload.LootLife`).
+
+- Tilly's cellar's dead spawned on the yard over it (2026-10-14 play-through). Cause: an encounter's home was looked for
+  from 3 m over the spawner (over the vault's collision) and its spots from a step and a metre over home. Fix: both from
+  under any roof over the spawner (`FEncounterGroundProbe::FindRoofOver`), wander goals too; `Looter.Encounters.Cellar`.
+- 32 cliff slabs stood in a line on the valley floor, through the depot and over the rail line (2026-10-14). Cause: an
+  `onFloor` ridge's band ran on past its floor. Fix: `level.cliffs.walled` and `keepOut` (above). Generator side (scale
+  the band by the floor's weight) not done: needs a `--computed` run.
+- Dead Lift's crank couldn't be reached (2026-10-14). Cause: the sheriff's cell was one solid collision box. Fix: hulls
+  for the cell's floor, walls, ceiling and bunk. Lesson: a model's hulls must leave every room a mission sends the
+  player into open; walk it in PIE.
+- Abel's beaten boss bar stayed on screen for good (2026-10-14). Cause: its 3 s hide counted down in the boss
+  component's tick, which seating him on his board turns off. Fix: a tick turned off hides the bar; a bar steps aside
+  100 m from its fight.
+- Every notice board posting read NO REWARD: IT'S PRACTICE (2026-10-14). Cause: the line only knew gun rewards. Fix:
+  the mission's own reward summary.
 
 ## What worked, and what didn't
 

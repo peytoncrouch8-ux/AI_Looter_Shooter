@@ -3,7 +3,7 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
-## Now (session "Play-through", 2026-10-14, in progress)
+## Now (session "Play-through", 2026-10-14)
 
 **Played** all 16 Ransom's Rest missions in PIE (Main 1-7, every side, Dead Lift's ride, Back Pay's choice, Abel by
 `Looter.Boss.Kill`), Keeper's Bridge both ways (clean), the watchtower's six flights (climbable), the manway (walkable),
@@ -12,32 +12,31 @@ feeds input actions, no window focus) and `Tools\playstep.ps1` (one step: move, 
 `-Button ACCEPT` clicks a game menu's button). `Tools/Unreal/reach_probe.py` (walkability flood fill) is unreliable
 inside thick collision hulls: don't trust a NOT reached.
 
-**Bugs found** (fix in this order; ✔ = fixed in code, not built yet):
-1. ✔ Knocking Below: the cellar's dead spawned on the yard above (encounter home and spots looked for from 3-5 m up,
-   above the vault's collision). Fix in `EncounterGroundProbe` (`FindRoofOver`), wander goals too; test
-   `Looter.Encounters.Cellar`. Needs build + tests; DepotWaiting's spots change too (play-check them).
-2. Dead Lift blocker: the winch crank on the bunk in the sheriff's cell (1234,1032,120) can't be reached: the player
-   stops at the cell doorway, collision fills the cell (SM_FalseFront_Sheriff, `FalseFronts.py` ~1091-1260; placement
-   `build_area_missionprops_valley.py` CELL_CRANK/CELL_REPORT). Odell's report likely too.
-3. Depot: cliff pieces `Cliff_eastShoulder_23`/`_24` (SM_CliffFace_B) stand inside the depot: the LOST PROPERTY window
-   (670,11915) can't be reached, the agent's desk (1182,11845) is inside the rock (The Old Fare's optional), rock shows
-   in the baggage room and by the stair. The cliff build must keep out of enterable buildings.
-4. Tilly's cellar: the cold room (Thaddeus, -3115,5702,-281) has no ceiling past the workshop's footprint: sky and grass
-   seen from inside (terrain is culled from below). `WorkshopBright.py` needs a roof over the cellar's rooms.
-5. The player's guns vanished twice (all slots empty, no log line, not on the ground): 05.21-05.22 (Sink, after the egg
-   sacs) and 05.55-05.59 (mine drift, at the barricade). Not reproduced on purpose yet; `Saved/watch_guns.py` logs the
-   frame they change (WATCHGUNS).
-6. Notice boards show "NO REWARD: IT'S PRACTICE" under real postings (Rangers' board, Calder's Post); a click on an
-   unselected posting does nothing (only W/S select).
-7. Abel's boss bar ("HE KNEELS") stays on the HUD after his defeat, all over the map (seen after `Looter.Boss.Kill`).
-8. Side 1: the gate poster's hold-to-tear takes focus over its offer (Read the poster): a tap does nothing, the offer
-   shows only once the poster is torn.
-9. The orange objective highlight paints Mister Sexton as a solid orange figure (doors get a soft glow).
-10. Ledger: the Brown Spider's place line still says the tutorial island.
-11. The depot's Unpaid hit the player through the stair door (melee without a line check?).
-12. Small: prompts "Take The clamp pin" / "Take The Gravemother's fang"; Side 3's "Find where the Gravemother hungers"
-    has no full stop; Supply Crates open on a tap while Calder's Caches says hold; the orders slate's "KESSLER OAK"
-    clashes with Barrels Kessler; Knocking Below's slate optional vanishes once the key (beside it) is taken.
+**Fixed, built, 596/596 tests, play-checked, pushed** (2df6c23..78afa23):
+- Knocking Below: the cellar's dead spawned on the yard above (`EncounterGroundProbe::FindRoofOver`). Checked: they
+  stand on the cellar floor. DepotWaiting's spots changed with it (one still wandered out the back: fine).
+- Creature melee needs a clear line (hit through the depot's stair door, the Foreman through his barricade).
+- Dead Lift blocker: the sheriff's cell was one solid hull; now walkable, crank and report taken/read in play.
+- Depot: 32 East Shoulder cliff slabs stood in a line on the valley floor (through the depot, over the rail line):
+  `level.cliffs.walled` drops them, `keepOut` keeps rock out of buildings. LOST PROPERTY window and agent's desk
+  reachable in play. The cliff stairs down to the Mooring Ledge were blocked by 4 faces (`cliffStairs` in `keepOut`):
+  walked top to ledge.
+- Tilly's cellar: closed over (no sky from the cold room, checked).
+- Boards: real reward lines; every card takes a click (one picked up elsewhere says where). Abel's bar leaves (checked
+  after the scene); "Take the clamp pin"; Side 1's gate poster reads before it tears (checked); mission texts; Ledger
+  place lines; orders slate names (DOLAN, AVERY, PECK, LOCKETT).
+
+**Still open:**
+1. The player's guns vanished twice (all slots empty, no log line, not on the ground): 05.21-05.22 (Sink, after the egg
+   sacs) and 05.55-05.59 (mine drift, at the barricade). Not reproduced; `Saved/watch_guns.py` (a Python tick watcher,
+   per play session) logs the frame they change (WATCHGUNS). Ask the user if they've ever lost their guns.
+2. The orange objective highlight paints Mister Sexton as a solid orange figure (doors get a soft glow).
+3. After two full test runs in one editor, PIE crawled at 1-3 fps (interiors dark) and the tests' Message Log window
+   pops over the viewport: restart the editor after tests before playing.
+4. Calder's note on the Rangers' board may win focus over its card (`Artifact_CalderNote`); the board says where it's
+   picked up ("Ruth Calder's note, at Main Street", though the note hangs on that board).
+5. Generator: an `onFloor` ridge's cliff band runs past its floor (`area_cliffs.ridge_bands`); `walled` hides it. A real
+   fix needs a `--computed` run (~35 min) and `terrain_identity`.
 
 ## Before (end of session "Ransom's Rest map expansion", 2026-10-13)
 
@@ -75,12 +74,8 @@ new content yet. The editor may be open on Lvl_RansomsRest, dirty from the tests
 
 ## Next (in order)
 
-1. **Play it through in PIE** (`Tools\pie.ps1`; never while the user plays): Main 1-7 from their givers; Dead Lift (the
-   clamp pin's fitting is 4.2 m up the winch gantry: check it's reachable from the landing; the bottom landing near the
-   quarry's back wall), the ride; Calder's Post and The Last Watch; Back Pay in the mine (`Looter.Interior.Status`, sky
-   or sun leaking in on Medium, `Looter.Encounter.Wave Foreman force`, the manway gate swinging into the passage,
-   `Looter.Story.Flag BackPay.Paid` moves the tags to OUT); Tilly's cellar (key, locked door, stair, fight, Thaddeus);
-   the depot (The Old Fare, Fenn's coffin, Lost Property); the roosts; the bridge. Fix what breaks.
+1. **Ask the user to play** Ransom's Rest's new content (the play-through above is done and its bugs fixed); then the
+   "Still open" list.
 2. **Perf** with the editor closed (`Tools\perf.ps1`, `Tools\tour.ps1` on Lvl_RansomsRest): the watchtower view, the
    mine's gallery (13 lights, 26 lanterns), the depot fight (7 unshadowed lamps), the four 4096 macro textures.
 3. **Known small gaps:** the ore bin's trestle stands 0.5 m over the ground (the Diggings yard wants a 3.6 m step, has
