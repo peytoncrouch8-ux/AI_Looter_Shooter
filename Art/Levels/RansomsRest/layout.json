@@ -2679,17 +2679,18 @@
       "cottageSouth": { "dark": true },
       "cottageNorthEast": { "lamp": [3,16], "reach": 400 },
       "cottageSouthWest": { "dark": true },
-      "dugout": { "lamp": [2,9], "reach": 300 }
+      "dugout": { "lamp": [2,9], "reach": 300 },
+      "sheriff": { "lamp": [1.5,6.0], "reach": 300 }
     },
-    "smoke": ["farmhouse","store","undertaker","cottageNorth","cottageNorthEast","dugout","depot","locomotive"],
+    "smoke": ["farmhouse","store","undertaker","cottageNorth","cottageNorthEast","dugout","depot","locomotive","workshop"],
     "cliffs": {
       "varied": ["boundaryFoot","eastRidge","hogback","larkspurEast","escarpment","bluffPath","ransomsPoint","coffinRock","theSink","sinkRamp","theNose","millGorge"],
       "top": [0.72,1.12],
       "gaps": 0.1,
-      "solid": ["theSink","sinkRamp"],
-      "lean": ["theSink","sinkRamp"],
-      "leanTop": { "sinkRamp": [0.85,1.0] },
-      "leanProud": { "sinkRamp": 50 },
+      "solid": ["theSink","sinkRamp","bluffPath","ransomsPoint","coffinRock","theNose"],
+      "lean": ["theSink","sinkRamp","bluffPath","ransomsPoint","coffinRock","theNose"],
+      "leanTop": { "sinkRamp": [0.85,1.0], "bluffPath": [0.85,1.0] },
+      "leanProud": { "sinkRamp": 50, "bluffPath": 60, "ransomsPoint": 60, "coffinRock": 60, "theNose": 60 },
       "abut": { "sinkRamp": ["denRock"] },
       "under": ["burialDeck"],
       "panels": {
@@ -2706,7 +2707,7 @@
                      "front": { "models": [["Rock_D", 1, [2.0, 3.0]], ["Rock_C", 1, [1.2, 1.8]]], "deep": 30, "ahead": [0, 30], "bury": [0.3, 0.45] } }
         }
       },
-      "walled": ["eastShoulder"],
+      "walled": ["eastShoulder","theNose","coffinRock"],
       "keepOut": [
         "depot",
         "coalStage",
@@ -2728,7 +2729,17 @@
         "powderHouse",
         "smithy",
         "cliffStairs"
-      ]
+      ],
+      "overlap": { "ransomsPoint": 400, "coffinRock": 400, "bluffPath": 350, "sinkRamp": 350 },
+      "outcrops": {
+        "stoneTooth2": { "piece": "HoodooA" },
+        "stoneTooth3": { "piece": "FinB" },
+        "stoneTooth4": { "piece": "HoodooB" },
+        "benchGraniteF": { "piece": "HoodooB" },
+        "benchGraniteI": { "piece": "HoodooA" },
+        "benchGraniteK": { "piece": "TorC" },
+        "benchGraniteH": { "piece": "Slab" }
+      }
     },
     "materials": {
       "MI_RockCliff_Ransom": { "parent": "MI_RockCliff", "vectors": { "Tint": [0.66,0.58,0.5], "MossColor": [0.3,0.27,0.17] }, "scalars": { "MossAmount": 0.12 } },
@@ -2749,11 +2760,20 @@
           "SteepFull": 55,
           "SteepDetail": 1.15,
           "SteepNormalStrength": 0.6,
-          "StrataWarp": 1.5,
+          "StrataWarp": 0.6,
           "StrataWave": 45,
-          "SteepVariation": 0.6
+          "SteepVariation": 0.6,
+          "SteepRock": 1,
+          "SteepMacroKeep": 0.35,
+          "SteepMacroMean": 0.125,
+          "SteepAOLift": 0.5,
+          "SteepSharp": 1.6,
+          "SteepBreakup": 0.6,
+          "SteepPull": 0.4,
+          "StrataSmooth": 4,
+          "StrataFlat": 0.85
         },
-        "vectors": { "SteepTint": [0.8,0.74,0.68] }
+        "vectors": { "SteepTint": [0.8,0.74,0.68], "SteepRockTint": [0.66,0.58,0.5], "SteepBeds": [1.7,0.1,0.3,0.07] }
       },
       "MI_RansomsRestMacroSE_Steep": {
         "parent": "MI_RansomsRestMacroSE",
@@ -2762,11 +2782,20 @@
           "SteepFull": 55,
           "SteepDetail": 1.15,
           "SteepNormalStrength": 0.6,
-          "StrataWarp": 1.5,
+          "StrataWarp": 0.6,
           "StrataWave": 45,
-          "SteepVariation": 0.6
+          "SteepVariation": 0.6,
+          "SteepRock": 1,
+          "SteepMacroKeep": 0.35,
+          "SteepMacroMean": 0.125,
+          "SteepAOLift": 0.5,
+          "SteepSharp": 1.6,
+          "SteepBreakup": 0.6,
+          "SteepPull": 0.4,
+          "StrataSmooth": 4,
+          "StrataFlat": 0.85
         },
-        "vectors": { "SteepTint": [0.8,0.74,0.68] }
+        "vectors": { "SteepTint": [0.8,0.74,0.68], "SteepRockTint": [0.66,0.58,0.5], "SteepBeds": [1.7,0.1,0.3,0.07] }
       },
       "MI_RansomsRestMacroNW_Steep": {
         "parent": "MI_RansomsRestMacroNW",
@@ -2775,11 +2804,20 @@
           "SteepFull": 55,
           "SteepDetail": 1.15,
           "SteepNormalStrength": 0.6,
-          "StrataWarp": 1.5,
+          "StrataWarp": 0.6,
           "StrataWave": 45,
-          "SteepVariation": 0.6
+          "SteepVariation": 0.6,
+          "SteepRock": 1,
+          "SteepMacroKeep": 0.35,
+          "SteepMacroMean": 0.125,
+          "SteepAOLift": 0.5,
+          "SteepSharp": 1.6,
+          "SteepBreakup": 0.6,
+          "SteepPull": 0.4,
+          "StrataSmooth": 4,
+          "StrataFlat": 0.85
         },
-        "vectors": { "SteepTint": [0.8,0.74,0.68] }
+        "vectors": { "SteepTint": [0.8,0.74,0.68], "SteepRockTint": [0.66,0.58,0.5], "SteepBeds": [1.7,0.1,0.3,0.07] }
       },
       "MI_RansomsRestMacroNE_Steep": {
         "parent": "MI_RansomsRestMacroNE",
@@ -2788,11 +2826,20 @@
           "SteepFull": 55,
           "SteepDetail": 1.15,
           "SteepNormalStrength": 0.6,
-          "StrataWarp": 1.5,
+          "StrataWarp": 0.6,
           "StrataWave": 45,
-          "SteepVariation": 0.6
+          "SteepVariation": 0.6,
+          "SteepRock": 1,
+          "SteepMacroKeep": 0.35,
+          "SteepMacroMean": 0.125,
+          "SteepAOLift": 0.5,
+          "SteepSharp": 1.6,
+          "SteepBreakup": 0.6,
+          "SteepPull": 0.4,
+          "StrataSmooth": 4,
+          "StrataFlat": 0.85
         },
-        "vectors": { "SteepTint": [0.8,0.74,0.68] }
+        "vectors": { "SteepTint": [0.8,0.74,0.68], "SteepRockTint": [0.66,0.58,0.5], "SteepBeds": [1.7,0.1,0.3,0.07] }
       }
     },
     "swaps": {
@@ -2847,7 +2894,69 @@
           "post": { "exposureBias": 0.5 }
         }
       }
-    }
+    },
+    "cliffLife": {
+      "seed": 43,
+      "reach": 6000,
+      "pathBias": 3.0,
+      "pathReach": 4000,
+      "drapes": {
+        "spacing": 600,
+        "cap": 70,
+        "perPiece": 2,
+        "cull": 20000,
+        "scale": [0.7,1.2],
+        "meshes": { "LipDrape_A": 3, "LipDrape_B": 2, "LipDrape_C": 2 }
+      },
+      "cracks": {
+        "spacing": 900,
+        "cap": 36,
+        "perPiece": 1,
+        "cull": 25000,
+        "meshes": { "CliffJuniper_A": 2, "CliffJuniper_C": 1 }
+      },
+      "ledges": {
+        "spacing": 260,
+        "cap": 150,
+        "perPiece": 4,
+        "cull": 12000,
+        "meshes": {
+          "LedgeSage_A": 3,
+          "LedgeSage_B": 2,
+          "LedgeGrass_A": 3,
+          "LedgeGrass_B": 2,
+          "CliffJuniper_B": 1.5,
+          "CliffJuniper_C": 1
+        }
+      },
+      "nests": {
+        "spacing": 2500,
+        "cap": 12,
+        "perPiece": 1,
+        "cull": 7000,
+        "least": 300,
+        "meshes": { "SwallowNests_A": 2, "SwallowNests_B": 1 }
+      },
+      "fans": {
+        "spacing": 1000,
+        "cap": 50,
+        "perPiece": 1,
+        "cull": 20000,
+        "tilt": 12,
+        "meshes": { "ScreeFan_A": 3, "ScreeFan_B": 1, "ScreeFan_C": 2 }
+      },
+      "slabs": {
+        "spacing": 3500,
+        "cap": 12,
+        "perPiece": 1,
+        "cull": 25000,
+        "chance": 0.35,
+        "meshes": { "FallenSlab_A": 1, "FallenSlab_B": 1 }
+      },
+      "stains": { "cap": 70, "perPiece": 3, "gap": 120, "every": 120, "fadeScreenSize": 0.02, "sortOrder": -1 },
+      "keepOff": { "road": 150, "ramp": 200, "obstacle": 150, "building": 150, "gameplay": 400, "placement": 300 }
+    },
+    "town": "town.json"
   },
   "gameplay": {
     "about": "No director: the story's encounters (Docs/Areas/RansomsRest.md, \"Encounters stay on one level of ground\") are placed with their missions by build_area_story.py and its build_area_<place>.py scripts, and what happens between them is encounters below (build_area_camps.py). The story's first arrival (spawnLanding) is a player start of its own beside the level's start by Ellis's grave; the depot's station carries Landing_Depot (build_area_travel.py).",

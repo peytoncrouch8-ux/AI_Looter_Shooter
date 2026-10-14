@@ -104,6 +104,8 @@ class Area:
         self.graph = level.get('scatterGraph', f'PCG_{name}Scatter')
         self.volume = level.get('scatterVolume', f'{name}Scatter')
         self.folder = level.get('folder', name)
+        # The cliff life's fans and fallen slabs (build_area_cliff_life.py) keep the grass off them too.
+        self.dressing += importlib.reload(importlib.import_module('build_area_cliff_life')).footprints(self.folder)
 
 
 def import_mask(area, mask_file=None):
