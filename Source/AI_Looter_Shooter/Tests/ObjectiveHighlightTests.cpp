@@ -13,11 +13,15 @@
 #include "Missions/ObjectiveHighlightSubsystem.h"
 #include "Missions/ObjectiveHighlightTargets.h"
 #include "Session/CampaignRecord.h"
+#include "Story/MisterSexton.h"
 #include "Story/SpeakerPoint.h"
 #include "Story/SpeakerPointComponent.h"
 #include "Tests/MissionTestWorld.h"
+#include "Weapons/WeaponBase.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"
@@ -28,7 +32,8 @@
 
 // The tracked objective's orange highlight (UObjectiveHighlightSubsystem, the user's ask of 2026-10-13): what an objective
 // lights (never a fight's creatures), when (within the radius, with a margin as it lets go, eased in and out), on which
-// meshes (whole, or a spot of what a speaker talks through), and its material as the code drives it.
+// meshes (whole, a spot of what a speaker talks through, or a character's figure look), and its material as the code
+// drives it.
 
 using namespace MissionTestWorld;
 
@@ -41,6 +46,25 @@ namespace
 	const FName TestGiverTag(TEXT("Speaker_HLGiver"));
 	const FName TestCrateTag(TEXT("HL_Crate"));
 	const FName TestDoorTag(TEXT("Speaker_HLDoor"));
+	const FName TestFigureTag(TEXT("HL_Figure"));
+
+	/** A plain actor shown as a skinned figure (the engine's skeletal cube): what a training dummy or an NPC is to the highlight. */
+	AActor* SpawnSkinnedFigure(UWorld* World, const FVector& Where, FName Tag)
+	{
+		USkeletalMesh* Cube = LoadObject<USkeletalMesh>(nullptr, TEXT("/Engine/EngineMeshes/SkeletalCube.SkeletalCube"));
+		AActor* Figure = Cube ? World->SpawnActor<AActor>() : nullptr;
+		if (!Figure)
+		{
+			return nullptr;
+		}
+		USkeletalMeshComponent* Mesh = NewObject<USkeletalMeshComponent>(Figure, TEXT("Figure"));
+		Figure->SetRootComponent(Mesh);
+		Mesh->SetSkeletalMeshAsset(Cube);
+		Mesh->RegisterComponent();
+		Figure->SetActorLocation(Where);
+		Figure->Tags.Add(Tag);
+		return Figure;
+	}
 
 	/** A box of the engine's cube, Size cm, solid to queries (a wall, a crate, a floor). */
 	AStaticMeshActor* SpawnHighlightBlock(UWorld* World, const FVector& Center, const FVector& Size, FName Tag = NAME_None)
@@ -392,6 +416,73 @@ bool FObjectiveHighlightSpotTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FObjectiveHighlightFigureTest, "Looter.Missions.Highlight.Figure",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FObjectiveHighlightFigureTest::RunTest(const FString& Parameters)
+{
+	// A character wears the rim alone, its own look showing through (Sexton read as a solid orange figure, 2026-10-14);
+	// things keep their fill.
+	using Highlighter = UObjectiveHighlightSubsystem;
+	FCampaignRecord Campaign;
+	FTestWorldWrapper TestLevel;
+	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = TestLevel.GetTestWorld();
+	UMissionRunner* Runner = World->GetSubsystem<UMissionRunner>();
+	Highlighter* Highlights = World->GetSubsystem<Highlighter>();
+	AActor* Figure = SpawnSkinnedFigure(World, FVector(400.0, 0.0, 100.0), TestFigureTag);
+	AStaticMeshActor* Crate = SpawnHighlightBlock(World, FVector(0.0, 400.0, 50.0), FVector(50.0), TestCrateTag);
+	AMisterSexton* Sexton = World->SpawnActor<AMisterSexton>(FVector(-400.0, 0.0, 0.0), FRotator::ZeroRotator);
+	AActor* Player = SpawnMarker(World, FVector::ZeroVector);
+	if (!Runner || !Highlights || !Figure || !Crate || !Sexton || !Player)
+	{
+		AddError(TEXT("The test level isn't whole (the skinned figure needs /Engine/EngineMeshes/SkeletalCube)."));
+		return false;
+	}
+
+	// Who is a character.
+	TestTrue(TEXT("A skinned figure is a character"), Highlighter::IsFigure(*Figure));
+	TestTrue(TEXT("Sexton, a posed static model with no rig, is a character"), Highlighter::IsFigure(*Sexton));
+	TestFalse(TEXT("A crate is not"), Highlighter::IsFigure(*Crate));
+	TestFalse(TEXT("Nor a gun, skinned or not"), Highlighter::IsFigure(*GetDefault<AWeaponBase>()));
+	TArray<FObjectiveHighlightMesh> Meshes;
+	Highlighter::PickMeshes(*Sexton, Highlighter::FocusOf(*Sexton), Meshes);
+	const UStaticMeshComponent* SextonBody = Sexton->Body.Get();
+	TestTrue(TEXT("Sexton's body wears the figure look"), Meshes.ContainsByPredicate([SextonBody](const FObjectiveHighlightMesh& Each)
+		{ return Each.Component.Get() == SextonBody && Each.Fit == EObjectiveHighlightFit::Figure; }));
+	TestFalse(TEXT("...and nothing of his a thing's look"), Meshes.ContainsByPredicate([](const FObjectiveHighlightMesh& Each)
+		{ return Each.Fit == EObjectiveHighlightFit::Whole; }));
+
+	// Through the highlight: the figure and a crate beside it, both the objective's.
+	UMissionDefinition* Mission = NewMission(CreatePackage(nullptr), TEXT("TestFigure"), EMissionKind::Side, EMissionStart::Automatic, NAME_None);
+	AddObjective<UMissionInteractObjective>(Mission, 0)->Target.ActorTag = TestFigureTag;
+	AddObjective<UMissionInteractObjective>(Mission, 0)->Target.ActorTag = TestCrateTag;
+	Runner->BeginForTesting({ Mission }, Campaign, Player);
+	Runner->Update(0.f);
+	Highlights->Refresh();
+	Highlights->Advance(Highlighter::FadeInSeconds);
+	const FObjectiveHighlight* LitFigure = Highlights->FindHighlight(Figure);
+	const FObjectiveHighlight* LitCrate = Highlights->FindHighlight(Crate);
+	TestTrue(TEXT("The skinned figure is lit, as a figure"), LitFigure && LitFigure->Meshes.Num() == 1
+		&& LitFigure->Meshes[0].Fit == EObjectiveHighlightFit::Figure);
+	TestTrue(TEXT("The crate beside it, whole"), LitCrate && LitCrate->Meshes.Num() == 1 && LitCrate->Meshes[0].Fit == EObjectiveHighlightFit::Whole);
+	UMeshComponent* FigureMesh = LitFigure && LitFigure->Meshes.Num() == 1 ? LitFigure->Meshes[0].Component.Get() : nullptr;
+	if (FigureMesh && LitCrate && Highlights->HasMaterial())
+	{
+		TestTrue(TEXT("The figure wears the figure look"), LitFigure->FigureLook && FigureMesh->GetOverlayMaterial() == LitFigure->FigureLook);
+		TestEqual(TEXT("...the character's look on"), ReadScalar(LitFigure->FigureLook, TEXT("Figure")), 1.f);
+		TestEqual(TEXT("...on all of it (no spot)"), ReadScalar(LitFigure->FigureLook, TEXT("MaskRadius")), 0.f);
+		TestEqual(TEXT("...at full strength"), ReadScalar(LitFigure->FigureLook, TEXT("Strength")), 1.f, 0.001f);
+		TestEqual(TEXT("The crate keeps a thing's look"), ReadScalar(LitCrate->WholeLook, TEXT("Figure")), 0.f);
+	}
+	Highlights->ClearAll();
+	TestTrue(TEXT("Cleared: the figure as it was"), FigureMesh && FigureMesh->GetOverlayMaterial() == nullptr);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FObjectiveHighlightMaterialTest, "Looter.Missions.Highlight.Material",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
@@ -414,6 +505,18 @@ bool FObjectiveHighlightMaterialTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...and its Color"), Look->GetVectorParameterValue(FName(TEXT("Color")), ColorValue));
 	TestTrue(TEXT("...orange by default"), ColorValue.R > ColorValue.G && ColorValue.G > ColorValue.B);
 	TestTrue(TEXT("...and a spot's MaskCenter"), Look->GetVectorParameterValue(FName(TEXT("MaskCenter")), ColorValue));
+	TestTrue(TEXT("...and the character's look, off by default"),
+		Look->GetScalarParameterValue(FName(TEXT("Figure")), ScalarValue) && ScalarValue == 0.f);
+	float Fill = 0.f;
+	float FigureFill = 1.f;
+	float RimPower = 0.f;
+	float FigureRimPower = 0.f;
+	const bool bTuned = Look->GetScalarParameterValue(FName(TEXT("FillOpacity")), Fill)
+		&& Look->GetScalarParameterValue(FName(TEXT("FigureFillOpacity")), FigureFill)
+		&& Look->GetScalarParameterValue(FName(TEXT("RimPower")), RimPower)
+		&& Look->GetScalarParameterValue(FName(TEXT("FigureRimPower")), FigureRimPower);
+	TestTrue(TEXT("A character's body nearly clear (a thing's fill is not), its rim tighter"), bTuned && FigureFill <= 0.05f
+		&& FigureFill < Fill && FigureRimPower > RimPower);
 	return true;
 }
 

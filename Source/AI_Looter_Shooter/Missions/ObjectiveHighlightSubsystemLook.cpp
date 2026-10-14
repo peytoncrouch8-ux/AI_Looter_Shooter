@@ -1,11 +1,14 @@
 // UObjectiveHighlightSubsystem: the highlight on the lit things' meshes. Each lit mesh wears an instance of
 // M_ObjectiveHighlight as its overlay (UMeshComponent::SetOverlayMaterial: the mesh drawn once more, translucent, on top),
-// the whole of it or a spot round the thing's point of use; picking which meshes wear it; taking it off again as they were.
+// the whole of it, a spot round the thing's point of use, or a character's rim; picking which meshes wear it; taking it off
+// again as they were.
 
 #include "Missions/ObjectiveHighlightSubsystem.h"
 #include "AI_Looter_Shooter.h"
 #include "Interaction/Interactable.h"
+#include "Story/StoryCharacter.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "Weapons/WeaponBase.h"
 #include "CollisionQueryParams.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/MeshComponent.h"
@@ -26,6 +29,8 @@ namespace
 	const FName HighlightColorParam(TEXT("Color"));
 	const FName HighlightMaskCenterParam(TEXT("MaskCenter"));
 	const FName HighlightMaskRadiusParam(TEXT("MaskRadius"));
+	/** 1: a character's look (the rim alone, its body all but clear); 0: a thing's (a soft fill and a rim). */
+	const FName HighlightFigureParam(TEXT("Figure"));
 	/** Walkable terrain carries it for the minimap: the ground never lights, even as a spot. */
 	const FName HighlightGroundTag(TEXT("Ground"));
 
@@ -64,10 +69,10 @@ namespace
 	/**
 	 * Mesh can wear the overlay: shown, a real model, never instanced scatter, and solid. An overlay covers every triangle
 	 * whatever the surface lets through, so see-through surfaces (glass, a beam, a glow) never wear it, and masked ones only
-	 * on a character (bCharacter: its body and hat are masked for a ghost's fade); anywhere else masked means cards, leaves
+	 * on a character (bFigure: its body and hat are masked for a ghost's fade); anywhere else masked means cards, leaves
 	 * and webs, whose whole quads would light up.
 	 */
-	bool CanWear(const UMeshComponent& Mesh, bool bCharacter)
+	bool CanWear(const UMeshComponent& Mesh, bool bFigure)
 	{
 		if (!Mesh.IsRegistered() || !Mesh.IsVisible() || Mesh.IsA<UInstancedStaticMeshComponent>())
 		{
@@ -100,7 +105,7 @@ namespace
 		{
 			const UMaterialInterface* Surface = Mesh.GetMaterial(Slot);
 			const EBlendMode Blend = Surface ? Surface->GetBlendMode() : BLEND_Opaque;
-			if (Blend == BLEND_Masked ? !bCharacter : Blend != BLEND_Opaque)
+			if (Blend == BLEND_Masked ? !bFigure : Blend != BLEND_Opaque)
 			{
 				return false;
 			}
@@ -108,9 +113,17 @@ namespace
 		return true;
 	}
 
+	/** The highlight's instance for a fit (each fit has its own: a spot's mask, a figure's look). */
+	UMaterialInstanceDynamic*& LookSlot(FObjectiveHighlight& Highlight, EObjectiveHighlightFit Fit)
+	{
+		return Fit == EObjectiveHighlightFit::Spot ? Highlight.SpotLook
+			: Fit == EObjectiveHighlightFit::Figure ? Highlight.FigureLook : Highlight.WholeLook;
+	}
+
 	UMaterialInstanceDynamic* LookFor(const FObjectiveHighlight& Highlight, const FObjectiveHighlightMesh& Mesh)
 	{
-		return Mesh.Fit == EObjectiveHighlightFit::Whole ? Highlight.WholeLook : Highlight.SpotLook;
+		return Mesh.Fit == EObjectiveHighlightFit::Spot ? Highlight.SpotLook
+			: Mesh.Fit == EObjectiveHighlightFit::Figure ? Highlight.FigureLook : Highlight.WholeLook;
 	}
 }
 
@@ -118,21 +131,38 @@ namespace
 // Which meshes
 // ---------------------------------------------------------------------------
 
+bool UObjectiveHighlightSubsystem::IsFigure(const AActor& Actor)
+{
+	// The story's people and Hob, whatever their body is made of: Sexton is a posed static model, Amos a posed skinned one.
+	if (Actor.IsA<AStoryCharacter>())
+	{
+		return true;
+	}
+	// A gun lying about is a prop, even one drawn skinned.
+	if (Actor.IsA<AWeaponBase>())
+	{
+		return false;
+	}
+	TInlineComponentArray<USkinnedMeshComponent*> Skinned(&Actor);
+	return Skinned.ContainsByPredicate([](const USkinnedMeshComponent* Mesh) { return Mesh && Mesh->GetSkinnedAsset(); });
+}
+
 void UObjectiveHighlightSubsystem::PickMeshes(const AActor& Actor, const FVector& Focus, TArray<FObjectiveHighlightMesh>& Out)
 {
 	Out.Reset();
 	TInlineComponentArray<UMeshComponent*> Own(&Actor);
-	const bool bCharacter = Own.ContainsByPredicate([](const UMeshComponent* Mesh) { return Mesh && Mesh->IsA<USkinnedMeshComponent>(); });
+	// A character wears the rim alone (the figure look): a fill dark clothes can't take reads as a solid orange figure.
+	const bool bFigure = IsFigure(Actor);
 	FBox Whole(ForceInit);
 	for (UMeshComponent* Mesh : Own)
 	{
-		if (!Mesh || Out.Num() >= MaxMeshes || !CanWear(*Mesh, bCharacter))
+		if (!Mesh || Out.Num() >= MaxMeshes || !CanWear(*Mesh, bFigure))
 		{
 			continue;
 		}
 		if (Mesh->Bounds.SphereRadius <= LargeMeshRadius)
 		{
-			Out.Add({ Mesh, EObjectiveHighlightFit::Whole });
+			Out.Add({ Mesh, bFigure ? EObjectiveHighlightFit::Figure : EObjectiveHighlightFit::Whole });
 			Whole += Mesh->Bounds.GetBox();
 		}
 		else if (Mesh->Bounds.SphereRadius <= MaxSpotMeshRadius
@@ -195,10 +225,10 @@ void UObjectiveHighlightSubsystem::Light(FObjectiveHighlight& Highlight)
 	}
 	for (const FObjectiveHighlightMesh& Mesh : Highlight.Meshes)
 	{
-		UMaterialInstanceDynamic*& Look = Mesh.Fit == EObjectiveHighlightFit::Whole ? Highlight.WholeLook : Highlight.SpotLook;
+		UMaterialInstanceDynamic*& Look = LookSlot(Highlight, Mesh.Fit);
 		if (!Look)
 		{
-			Look = TakeLook(Mesh.Fit == EObjectiveHighlightFit::Spot ? SpotRadius : 0.f);
+			Look = TakeLook(Mesh.Fit);
 		}
 	}
 	ShowStrength(Highlight);
@@ -231,6 +261,7 @@ void UObjectiveHighlightSubsystem::Unlight(FObjectiveHighlight& Highlight)
 	Highlight.Meshes.Reset();
 	ReturnLook(Highlight.WholeLook);
 	ReturnLook(Highlight.SpotLook);
+	ReturnLook(Highlight.FigureLook);
 	Highlight.bLit = false;
 }
 
@@ -271,9 +302,12 @@ void UObjectiveHighlightSubsystem::ApplyTo(FObjectiveHighlightMesh& Mesh, UMater
 void UObjectiveHighlightSubsystem::ShowStrength(FObjectiveHighlight& Highlight) const
 {
 	const float Shown = ShownStrength(Highlight.Strength);
-	if (Highlight.WholeLook)
+	for (UMaterialInstanceDynamic* Look : { Highlight.WholeLook, Highlight.FigureLook })
 	{
-		Highlight.WholeLook->SetScalarParameterValue(HighlightStrengthParam, Shown);
+		if (Look)
+		{
+			Look->SetScalarParameterValue(HighlightStrengthParam, Shown);
+		}
 	}
 	if (Highlight.SpotLook)
 	{
@@ -288,7 +322,7 @@ void UObjectiveHighlightSubsystem::ShowStrength(FObjectiveHighlight& Highlight) 
 // The material and its instances
 // ---------------------------------------------------------------------------
 
-UMaterialInstanceDynamic* UObjectiveHighlightSubsystem::TakeLook(float MaskRadius)
+UMaterialInstanceDynamic* UObjectiveHighlightSubsystem::TakeLook(EObjectiveHighlightFit Fit)
 {
 	UMaterialInstanceDynamic* Look = FreeLooks.IsEmpty() ? nullptr : FreeLooks.Pop();
 	if (!Look)
@@ -303,8 +337,10 @@ UMaterialInstanceDynamic* UObjectiveHighlightSubsystem::TakeLook(float MaskRadiu
 		// The tracker's orange, so the world's highlight and the HUD's line read as one.
 		Look->SetVectorParameterValue(HighlightColorParam, LooterUI::Color::Accent());
 	}
-	// MaskRadius 0 lights the whole mesh; over 0, a spot that big round MaskCenter.
-	Look->SetScalarParameterValue(HighlightMaskRadiusParam, MaskRadius);
+	// Set every time, as the pool's instances go round all three fits. MaskRadius 0 lights the whole mesh; over 0, a spot
+	// that big round MaskCenter. Figure 1 is a character's look (a material older than the figure look ignores it).
+	Look->SetScalarParameterValue(HighlightMaskRadiusParam, Fit == EObjectiveHighlightFit::Spot ? SpotRadius : 0.f);
+	Look->SetScalarParameterValue(HighlightFigureParam, Fit == EObjectiveHighlightFit::Figure ? 1.f : 0.f);
 	Look->SetScalarParameterValue(HighlightStrengthParam, 0.f);
 	return Look;
 }

@@ -11,11 +11,15 @@ class UMeshComponent;
 class UMissionRunner;
 class UMissionSubsystem;
 
-/** How a mesh wears the highlight: all of it, or a spot of it round the thing's point of use (a door in a house's mesh). */
+/**
+ * How a mesh wears the highlight: all of it, a spot of it round the thing's point of use (a door in a house's mesh), or all
+ * of a character as a rim (Figure: its body all but clear, so its own look shows through; IsFigure says who).
+ */
 enum class EObjectiveHighlightFit : uint8
 {
 	Whole,
 	Spot,
+	Figure,
 };
 
 /** One mesh wearing a highlight, and what was changed on it so the highlight is seen. */
@@ -44,9 +48,10 @@ struct FObjectiveHighlight
 	/** Its meshes were picked and given the highlight. */
 	bool bLit = false;
 	TArray<FObjectiveHighlightMesh> Meshes;
-	/** Its instances of the highlight material, whole and spot; pooled (UObjectiveHighlightSubsystem::Looks keeps them). */
+	/** Its instances of the highlight material, one per fit; pooled (UObjectiveHighlightSubsystem::Looks keeps them). */
 	UMaterialInstanceDynamic* WholeLook = nullptr;
 	UMaterialInstanceDynamic* SpotLook = nullptr;
+	UMaterialInstanceDynamic* FigureLook = nullptr;
 };
 
 /**
@@ -55,7 +60,9 @@ struct FObjectiveHighlight
  * thing to use, the person or door to talk to, an egg sac to shoot, a readable, the giver once it waits to be turned in;
  * ObjectiveHighlightTargets has the rules, and never lights a creature), those things glow in the game's orange
  * (LooterUI::Color::Accent, the tracker's): a soft fill and a brighter rim, breathing slowly, easing in and out, gone when
- * the objective is done, the mission untracked, the player out of range or a scene playing.
+ * the objective is done, the mission untracked, the player out of range or a scene playing. A character (a story character,
+ * a training dummy) wears only the rim, held tight to its outline, its body all but clear: under even a fifth of orange,
+ * Sexton's near-black coat and shadowed face read as a solid orange figure (fixed 2026-10-14).
  *
  * The look is an overlay material (M_ObjectiveHighlight, Tools/Unreal/build_highlight_material.py) put on the lit things'
  * own meshes: each is drawn once more, translucent, only while it's lit, so it costs nothing anywhere else and needs no
@@ -150,11 +157,18 @@ public:
 	static FVector FocusOf(const AActor& Actor);
 
 	/**
-	 * The meshes Actor lights, and how (ObjectiveHighlightSubsystemLook.cpp): its own small opaque meshes whole; its big
-	 * ones as a spot round Focus; and for a thing used at a point away from them (or with no mesh of its own), what's there
-	 * as a spot. Never a see-through mesh (glass, a beam), a leafy card, instanced scatter, or the ground.
+	 * The meshes Actor lights, and how (ObjectiveHighlightSubsystemLook.cpp): its own small opaque meshes whole (a
+	 * character's as a figure); its big ones as a spot round Focus; and for a thing used at a point away from them (or with
+	 * no mesh of its own), what's there as a spot. Never a see-through mesh (glass, a beam), a leafy card, instanced scatter,
+	 * or the ground.
 	 */
 	static void PickMeshes(const AActor& Actor, const FVector& Focus, TArray<FObjectiveHighlightMesh>& Out);
+
+	/**
+	 * Actor is a character, so its meshes wear the figure look: a story character whatever its body (Sexton is a posed
+	 * static model with no rig), or anything else shown as a skinned figure (a training dummy). Never a gun, even a skinned one.
+	 */
+	static bool IsFigure(const AActor& Actor);
 
 private:
 	/** The level's mission runner while it plays missions, else null. */
@@ -181,7 +195,8 @@ private:
 	/** Its strength (and a spot's middle) into its instances. */
 	void ShowStrength(FObjectiveHighlight& Highlight) const;
 	void ApplyTo(FObjectiveHighlightMesh& Mesh, UMaterialInstanceDynamic* Look) const;
-	UMaterialInstanceDynamic* TakeLook(float MaskRadius);
+	/** An instance from the pool (or a new one), set for Fit: a spot's radius, the figure look on or off, strength 0. */
+	UMaterialInstanceDynamic* TakeLook(EObjectiveHighlightFit Fit);
 	void ReturnLook(UMaterialInstanceDynamic*& Look);
 	UMaterialInterface* LoadMaterial();
 

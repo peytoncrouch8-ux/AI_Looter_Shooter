@@ -222,7 +222,7 @@ Silver, the living's coin (`Docs/Progression.md`, "Economy"); grave gold stays r
 - `Missions/MissionText`: `MissionText::ResolveKeys` (`{Action}` as bound key), `KeyName`, `InSentence` (a name after a verb: "Take the clamp pin").
 - `Missions/MissionFeatureCommands.cpp`: `Looter.Mission.Items`, `.GiveItem`, `.Choose`, `.Optional`, `Looter.Story.Flag`.
 - `Missions/ObjectiveHighlightTargets`: `ObjectiveHighlightTargets`: what the tracked objective lights (`FilterFor`, `CanLight`: never a pawn or hidden/dead/used-up thing).
-- `Missions/ObjectiveHighlightSubsystem`: `UObjectiveHighlightSubsystem`, orange highlight (2026-10-13) within `Looter.Highlight.Radius` (13 m) via overlay `M_ObjectiveHighlight` (`Tools/Unreal/build_highlight_material.py`); `ObjectiveHighlightSubsystemLook.cpp` picks meshes. `Looter.Highlight.List`, `.Enabled`.
+- `Missions/ObjectiveHighlightSubsystem`: `UObjectiveHighlightSubsystem`, orange highlight (2026-10-13) within `Looter.Highlight.Radius` (13 m) via overlay `M_ObjectiveHighlight` (`Tools/Unreal/build_highlight_material.py`); `ObjectiveHighlightSubsystemLook.cpp` picks meshes (whole, spot, or figure: `IsFigure` characters wear the rim alone). `Looter.Highlight.List`, `.Enabled`.
 
 ## Story
 - `Story/StoryLine`: `FStoryLine`, one spoken line (speaker, words, seconds).
@@ -478,7 +478,7 @@ The `Looter.*` automation tests, one file per area, in `Source/AI_Looter_Shooter
 - `Tools/Unreal/build_area_environment.py`: light, sky, fog: tutorial island afternoon by default or the layout's `level.environment`; the level's lighting states (`ALightingStates`: Day plus `level.environment.states` such as Dusk).
 - `Tools/Unreal/lighting_collection.py`: `MPC_Lighting` (`BackdropTint`, `CloudTint`, fog colors), made by `build_world_materials.py` before `M_Backdrop`.
 - `Tools/Unreal/build_world_materials.py`: textured masters (`M_World`, `M_Gun`, `M_WorldFoliage`, `M_Terrain`, `M_Water`, sky and backdrop), island style switches (off by default; Sunbleached on `M_World`, `M_WorldFoliage`, `M_Terrain`, `M_SkyClouds`), `M_SunbleachedPost`. `M_Terrain` ground layers (`GROUND_WEIGHTS`, `TERRAIN_CODE`, `GROUND_DEFAULTS`): grass, matted thatch `GroundThatch`, stony `GroundStony`, damp soil, each normalized by its own mean. Also `M_BulletMark` (deferred decal; atlas cell by decal colour).
-- `Tools/Unreal/build_highlight_material.py`: `M_ObjectiveHighlight` (unlit translucent overlay: fill, Fresnel rim, pulse, Strength, MaskCenter/MaskRadius spot).
+- `Tools/Unreal/build_highlight_material.py`: `M_ObjectiveHighlight` (unlit translucent overlay: fill, Fresnel rim, pulse, Strength, MaskCenter/MaskRadius spot, Figure = characters' rim-only look).
 - `Tools/Unreal/build_impact_surfaces.py`: bakes terrain surface maps and trim-sheet collision UVs for `Weapons/ImpactSurface`; rerun after macro, scatter or trim-sheet changes.
 - `Art/Textures/BulletMarks/make_bullet_marks.py`: bullet marks atlas (`T_BulletMarks_BC`, `_N`, `_ORM`) for `M_BulletMark`.
 - `Tools/Unreal/build_area_roosts.py`: Hob's roosts from `layout.json` `gameplay.roosts` (nudged up to 6 m off solids, tagged Obstacle and Roost); called by `build_area_story.py`.

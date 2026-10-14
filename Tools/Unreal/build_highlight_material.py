@@ -11,10 +11,14 @@
                   the normal, so it never loses the depth test to its own mesh. Nothing in it needs Lumen or Nanite: it looks
                   the same on Medium (every mesh's Nanite fallback) as on Epic (where the code shows a lit mesh's fallback,
                   since Nanite draws no overlay).
+                  Figure 1 is a character's look (the code sets it on a story character's or a skinned figure's meshes):
+                  the rim alone, held tighter, the body all but clear (FigureFillOpacity, FigureRimOpacity,
+                  FigureRimPower in place of the fill and rim's), so the character's own look shows through. A thing's fill
+                  over Sexton's near-black coat and shadowed face read as a solid orange figure (2026-10-14).
 
-The code sets Color (LooterUI::Color::Accent, the mission tracker's orange), Strength, MaskCenter and MaskRadius; the rest
-are the look's tuning, at these defaults. Used on static, skinned (the story characters' posed figures), morphing and spline
-meshes, so a packaged game never swaps it for the default material.
+The code sets Color (LooterUI::Color::Accent, the mission tracker's orange), Strength, MaskCenter, MaskRadius and Figure;
+the rest are the look's tuning, at these defaults. Used on static, skinned (the story characters' posed figures), morphing
+and spline meshes, so a packaged game never swaps it for the default material.
 
 It never touches another asset: the master's graph is rebuilt in place (instances stay linked), and an asset at its path
 that isn't a material is left alone. It reuses build_world_materials.py's graph helpers (without running that module's
@@ -47,12 +51,18 @@ DEFAULTS = {
     'MaskRadius': 0.0,     # cm; 0: the whole mesh (the code sets a spot's)
     'MaskSoftness': 0.45,  # the outer part of the spot's radius that fades
     'Push': 0.4,           # cm along the normal
+    # A character's look (Figure 1, the code sets it): over a dark coat even a fifth of orange reads as paint, and a
+    # figure's folds turn edge-on all over it, so its fill is all but gone and its rim hugs the outline.
+    'Figure': 0.0,               # 0: a thing's look, 1: a character's
+    'FigureFillOpacity': 0.03,   # its body, facing the eye: nearly clear
+    'FigureRimOpacity': 0.85,    # its outline: a plain orange line
+    'FigureRimPower': 3.0,       # tighter than a thing's rim (higher: a thinner line, and its folds catch less)
 }
 
 SHARED = """// The rim: where the surface turns from the eye it glows most, so the thing's outline stands out; facing the eye it keeps
-// a soft fill, so it reads as lit rather than painted over.
+// a soft fill, so it reads as lit rather than painted over. A character (Figure 1) keeps a tighter rim.
 float Facing = saturate(dot(normalize(Normal), normalize(CameraVector)));
-float Rim = pow(1.0 - Facing, RimPower);
+float Rim = pow(1.0 - Facing, lerp(RimPower, FigureRimPower, Figure));
 // A slow breath between 1 - PulseDepth and 1.
 float Pulse = 1.0 - PulseDepth * (0.5 + 0.5 * sin(Time * PulseSpeed * 6.2831853));
 // A spot: only within MaskRadius of MaskCenter (a door in a house's mesh), softening over its outer MaskSoftness.
@@ -63,7 +73,10 @@ if (MaskRadius > 0.0)
     Mask = 1.0 - smoothstep(MaskRadius - Edge, MaskRadius, length(WorldPos - MaskCenter));
 }
 """
-OPACITY = SHARED + 'return saturate((FillOpacity + RimOpacity * Rim) * Pulse * Mask * Strength);'
+OPACITY = SHARED + """// A character's body all but clear, so its own look shows through; its rim a plain line.
+float Fill = lerp(FillOpacity, FigureFillOpacity, Figure);
+float RimShare = lerp(RimOpacity, FigureRimOpacity, Figure);
+return saturate((Fill + RimShare * Rim) * Pulse * Mask * Strength);"""
 COLOR = SHARED + 'return Color * Glow * lerp(1.0, RimGlow, Rim);'
 
 
@@ -126,8 +139,10 @@ def build():
     s = {key: g.scalar(key, value, -1700, -100 + 60 * i) for i, (key, value) in enumerate(DEFAULTS.items())}
     shared = [('Normal', normal, ''), ('CameraVector', camera, ''), ('WorldPos', world, ''), ('Time', time, ''),
               ('MaskCenter', center, ''), ('MaskRadius', s['MaskRadius'], ''), ('MaskSoftness', s['MaskSoftness'], ''),
-              ('RimPower', s['RimPower'], ''), ('PulseSpeed', s['PulseSpeed'], ''), ('PulseDepth', s['PulseDepth'], '')]
-    opacity = g.custom(OPACITY, shared + [(key, s[key], '') for key in ('FillOpacity', 'RimOpacity', 'Strength')],
+              ('RimPower', s['RimPower'], ''), ('PulseSpeed', s['PulseSpeed'], ''), ('PulseDepth', s['PulseDepth'], ''),
+              ('Figure', s['Figure'], ''), ('FigureRimPower', s['FigureRimPower'], '')]
+    opacity = g.custom(OPACITY, shared + [(key, s[key], '') for key in ('FillOpacity', 'RimOpacity', 'FigureFillOpacity',
+                                                                        'FigureRimOpacity', 'Strength')],
                        unreal.CustomMaterialOutputType.CMOT_FLOAT1, -800, 200, 'Highlight opacity')
     emissive = g.custom(COLOR, shared + [('Color', color, ''), ('Glow', s['Glow'], ''), ('RimGlow', s['RimGlow'], '')],
                         unreal.CustomMaterialOutputType.CMOT_FLOAT3, -800, -200, 'Highlight color')
@@ -138,7 +153,7 @@ def build():
     W.finish(mat, usages())
     scalars = sorted(str(n) for n in MEL.get_scalar_parameter_names(mat))
     vectors = sorted(str(n) for n in MEL.get_vector_parameter_names(mat))
-    for needed in ('Strength', 'MaskRadius'):
+    for needed in ('Strength', 'MaskRadius', 'Figure'):
         if needed not in scalars:
             raise RuntimeError(f'{NAME} has no scalar {needed}: the code could not drive it')
     for needed in ('Color', 'MaskCenter'):

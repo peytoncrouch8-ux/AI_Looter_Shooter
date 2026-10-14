@@ -420,16 +420,18 @@ namespace
 			const FObjectiveHighlight* Lit = Highlighter->FindHighlight(Target);
 			const double Distance = Player.IsSet() ? FVector::Dist(UObjectiveHighlightSubsystem::FocusOf(*Target), *Player) : -100.0;
 			int32 Spots = 0;
+			int32 Figures = 0;
 			if (Lit)
 			{
 				for (const FObjectiveHighlightMesh& Mesh : Lit->Meshes)
 				{
 					Spots += Mesh.Fit == EObjectiveHighlightFit::Spot ? 1 : 0;
+					Figures += Mesh.Fit == EObjectiveHighlightFit::Figure ? 1 : 0;
 				}
 			}
 			UE_LOG(LogLooter, Display, TEXT("  %s at %.1f m: %s"), *Target->GetActorNameOrLabel(), Distance / 100.0,
-				Lit ? *FString::Printf(TEXT("strength %.2f%s, %d mesh(es) whole, %d as a spot"), Lit->Strength,
-					Lit->bWanted ? TEXT("") : TEXT(" (fading)"), Lit->Meshes.Num() - Spots, Spots) : TEXT("not lit"));
+				Lit ? *FString::Printf(TEXT("strength %.2f%s, %d mesh(es) whole, %d as a spot, %d as a figure"), Lit->Strength,
+					Lit->bWanted ? TEXT("") : TEXT(" (fading)"), Lit->Meshes.Num() - Spots - Figures, Spots, Figures) : TEXT("not lit"));
 		}
 	}
 
