@@ -347,6 +347,9 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* SpiderEmerge = TEXT("Creature.Spider.Emerge");
 		/** A dead spider's leg twitching: a faint dry chitin tick. */
 		inline constexpr const TCHAR* SpiderTwitch = TEXT("Creature.Spider.Twitch");
+		/** A dying spider's body slamming down at the end of its throe, on its death cry's knock (ASpiderCreature::LandDeadBody):
+		 *  a soft, heavy thud into dirt with the shell's hollow chitin clack, legs knocking down round it, grit thrown up. */
+		inline constexpr const TCHAR* SpiderThud = TEXT("Creature.Spider.Thud");
 		/** A slime shivering as it senses you: a fast wet tremble with tiny pops. */
 		inline constexpr const TCHAR* SlimeNotice = TEXT("Creature.Slime.Notice");
 		/** A bubble rising through gel: a soft gloop and a small pop. */

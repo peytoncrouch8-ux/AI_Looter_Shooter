@@ -11,8 +11,9 @@
  * The body is SK_Spider, made in Blender (Art/Models/Creatures/Spider.py), and its physics asset holds a hit zone
  * around every part: shots report the bone they hit. The motion is all code: the eight legs are two-bone IK chains
  * driven by a stepping gait (two tetrapod groups taking turns, feet planted on the ground, steps triggered by distance
- * from each foot's rest spot and led by velocity). Attacks rear up and lunge, hits make it flinch, and death folds the legs
- * in, knees up and out, tips under the body (SpiderCreatureLegs.cpp). The legs' layout and lengths are read from the
+ * from each foot's rest spot and led by velocity). Attacks rear up and lunge, hits make it flinch, and death is a short
+ * throe (it rears, legs kicking), a hard drop with one bounce, then every leg folded under the body, knees low and drawn
+ * in, tips under the thorax and abdomen (SpiderCreatureDeath.cpp). The legs' layout and lengths are read from the
  * skeleton (SpiderCreatureRig.cpp).
  *
  * At any size (GetSizeScale: a 0.45x spiderling, a 1.8x giant) the pose is the full-size spider's, scaled: the body frame
@@ -91,19 +92,34 @@ private:
 		FVector HeldVelocity = FVector::ZeroVector;
 		/** How far the knee spreads out past KneePole now (eased toward WantedKneeSpread). */
 		float KneeSpread = 0.f;
-		/** The foot as last posed (world: where the IK put it), and where it was as the spider died (its curl starts there). */
+		/** The foot as last posed (world: where the IK put it), and where it was as the spider died (its throe starts there). */
 		FVector PosedFoot = FVector::ZeroVector;
 		FVector DeathFoot = FVector::ZeroVector;
+		/** Dead (SpiderCreatureDeath.cpp): the ground under its foot as it died (world), and its foot against the body's frame then (size 1). */
+		FVector DeathGround = FVector::ZeroVector;
+		FVector DeathLocal = FVector::ZeroVector;
+		/** Its dead pose's knee and foot, in the body's frame at size 1. */
+		FVector DeadKnee = FVector::ZeroVector;
+		FVector DeadFoot = FVector::ZeroVector;
+		/** Its own death's timing, by its dice (a full-size death's seconds): when its curl and its kicks start, how fast it kicks. */
+		float CurlStart = 0.3f;
+		float FlailStart = 0.f;
+		float FlailHz = 6.f;
 	};
 
 public:
 	/**
-	 * How long the death curl takes, and the body's sinking onto the folded legs with it (seconds; a bigger spider's takes as
-	 * long). A foot travels about 1.7 m from where it stood to under the body: in 0.55 s the knees moved 14 cm a frame.
+	 * Its death (SpiderCreatureDeath.cpp), in a full-size spider's seconds; a bigger one's runs slower by the square root of
+	 * its size (DeathTimeScale), as its death cry plays lower and slower, so the body lands on the cry's knock at any size.
+	 * The body hits the ground at DropSeconds, every leg is folded under it by CurledSeconds, and it lies DeadRide over the
+	 * ground (cm at size 1), propped on its folded legs.
 	 */
-	static constexpr float CurlSeconds = 0.8f;
-	/** Dead, the thorax lies this high over the ground (cm at size 1), propped on its folded legs. */
-	static constexpr float DeadRide = 32.f;
+	static constexpr float DropSeconds = 0.42f;
+	static constexpr float CurledSeconds = 1.2f;
+	static constexpr float DeadRide = 46.f;
+	/** Its last shudder, just before it sinks (s): it ends as the sink starts, at its corpse time. */
+	static constexpr float ShudderSeconds = 0.12f;
+	static float DeathTimeScale(float Size) { return FMath::Sqrt(FMath::Max(Size, 0.1f)); }
 
 private:
 	/** A bone the code turns about its resting position, in the body's frame. */
@@ -127,21 +143,13 @@ private:
 	void PlantLegs();
 	void AnimateBody(float DeltaSeconds);
 	void AnimateLegs(float DeltaSeconds);
-	// --- The legs' held and dying poses, and the knee's spread (SpiderCreatureLegs.cpp) ---
+	// --- The legs' held poses and the knee's spread (SpiderCreatureLegs.cpp) ---
 	/**
 	 * Two-bone IK: places the knee so both segments keep their length, bending toward Pole. Unreachable targets are clamped
 	 * along the hip-to-target line.
 	 */
 	static void SolveTwoBone(const FVector& Hip, const FVector& Target, float Upper, float Lower, const FVector& Pole, FVector& OutKnee,
 		FVector& OutFoot);
-	/**
-	 * Dead (Time: seconds since), one leg folds from where its foot was as it died to lying crumpled at its side, knee up and
-	 * out, tip tucked under the body: its foot eases along in the world and its knee's bend turns with it, so nothing snaps.
-	 * Kick moves its foot's target (a last twitch, world). Returns the knee, the foot and the pole the bones are laid by (world).
-	 */
-	void CurlDeadLeg(const FLeg& Leg, float Time, const FVector& Kick, FVector& OutKnee, FVector& OutFoot, FVector& OutPole) const;
-	/** Records where each foot is as the spider dies, for its curl to start from. */
-	void RecordDeathPose();
 	/**
 	 * A front leg the attack holds moves toward Target on a critically damped spring (Omega: 1/s), in short even steps: it
 	 * starts from rest and eases in, where a plain chase leapt off the ground at full speed.
@@ -165,6 +173,31 @@ private:
 
 	/** How far (cm, full size) a foot may get from its spot before its group steps it back: farther at speed. */
 	static float StepThresholdAt(float Speed);
+
+	// --- Its death (SpiderCreatureDeath.cpp) ---
+	/** As it dies: its body and each foot as they are (the throe starts there), its legs' timing by its dice, its dead pose. */
+	void RecordDeathPose();
+	/**
+	 * Its dead body (Time: seconds since it died) over GroundZ (world): the throe's rear, the drop and its bounce, lying still,
+	 * its last shudder and the sink. Worked out from the time, so it lands on its cry's knock at any frame rate.
+	 */
+	void DeadBody(float Time, float GroundZ, float& OutZ, float& OutPitch, float& OutRoll, float& OutFang) const;
+	/** Dead, the abdomen's tilt on top of the body's (degrees of its pitch): lifted with the rear, slammed down by the drop. */
+	float DeadAbdomenTilt(float Time) const;
+	/** How much of its breathing a dead body still shows (1 as it dies, gone a moment on). */
+	float DeathBreath(float Time) const;
+	/**
+	 * One dead leg (Index into Legs; Hip, Outward and Up in the world now; Pole its bones' roll): its throe's kicks, then its
+	 * curl under the body, its last twitch or two and its shudder. Returns its knee and foot (world).
+	 */
+	void PoseDeadLeg(const FLeg& Leg, int32 Index, float Time, const FVector& Hip, const FVector& Outward, const FVector& Up,
+		const FVector& Pole, FVector& OutKnee, FVector& OutFoot) const;
+	/** A leg's dead pose in the body's frame at size 1: knee low on the ground, tip folded back under the body. */
+	static void DeadPose(const FLeg& Leg, FVector& OutKnee, FVector& OutFoot);
+	/** Its last shudder now (0 to 1, a swell and fade over ShudderSeconds before the sink), and none outside it. */
+	float DeathShudder(float Time) const;
+	/** The body hitting the ground: its thud and a puff of dust from under it. */
+	void LandDeadBody();
 
 	// --- Reactions and idle life (SpiderCreatureReact.cpp) ---
 	/** Its idle acts, its entrance's climb and its death's twitches move on. */
@@ -237,4 +270,12 @@ private:
 	FVector HurtTiltVelocity = FVector::ZeroVector;
 	float AbdomenKick = 0.f;
 	float FangOpen = 0.f;
+	/** The bite's lunge now (cm, along its facing): a death mid-lunge eases it off rather than snapping back. */
+	float LungeNow = 0.f;
+	/** Its body as it died (height over the ground in cm at size 1, pitch, roll, lunge), and which side it slumps to. */
+	float DeathHeight = 62.f;
+	float DeathPitch = 0.f;
+	float DeathRoll = 0.f;
+	float DeathLunge = 0.f;
+	float DeadRollSide = 1.f;
 };

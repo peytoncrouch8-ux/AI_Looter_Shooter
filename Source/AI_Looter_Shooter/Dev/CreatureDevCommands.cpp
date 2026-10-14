@@ -23,8 +23,10 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/DamageType.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "Kismet/GameplayStatics.h"
 
 namespace
 {
@@ -89,6 +91,49 @@ namespace
 		TEXT("Looter.CreatureHealth <health> [<health> ...]: sets every creature's maximum health and heals it, nearest first, ")
 		TEXT("going through the values in turn (to compare their health bars). Until the level reloads."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&SetCreatureHealth));
+
+	/**
+	 * Looter.KillNearest [count]: kills the nearest living creatures as the player's kill, to watch deaths on cue (a shot
+	 * at a charging creature often misses; Looter.Boss.Kill is only for bosses). Pairs with `slomo` for a slow look.
+	 */
+	void KillNearest(const TArray<FString>& Args, UWorld* World)
+	{
+		UWorld* GameWorld = FindGameWorld(World);
+		APlayerController* Controller = GameWorld ? GameWorld->GetFirstPlayerController() : nullptr;
+		APawn* Pawn = Controller ? Controller->GetPawn() : nullptr;
+		if (!Pawn)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("Looter.KillNearest: start the game first."));
+			return;
+		}
+		TArray<ACreatureBase*> Living;
+		for (TActorIterator<ACreatureBase> It(GameWorld); It; ++It)
+		{
+			if (!It->IsDead())
+			{
+				Living.Add(*It);
+			}
+		}
+		const FVector From = Pawn->GetActorLocation();
+		Living.Sort([&From](const ACreatureBase& A, const ACreatureBase& B)
+		{
+			return FVector::DistSquared(A.GetActorLocation(), From) < FVector::DistSquared(B.GetActorLocation(), From);
+		});
+		const int32 Count = FMath::Min(Args.Num() > 0 ? FMath::Max(FCString::Atoi(*Args[0]), 1) : 1, Living.Num());
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			const UHealthComponent* Health = Living[Index]->FindComponentByClass<UHealthComponent>();
+			UGameplayStatics::ApplyDamage(Living[Index], (Health ? Health->GetMaxHealth() : 1000.f) * 10.f, Controller, Pawn,
+				UDamageType::StaticClass());
+			UE_LOG(LogLooter, Log, TEXT("Looter.KillNearest: killed %s (%.0f m away)."), *Living[Index]->GetName(),
+				FVector::Dist(Living[Index]->GetActorLocation(), From) / 100.f);
+		}
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs KillNearestCommand(
+		TEXT("Looter.KillNearest"),
+		TEXT("Looter.KillNearest [count]: kills the nearest living creatures (1 by default) as the player's kill, to watch deaths on cue."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&KillNearest));
 
 	/** A kind of creature a command names: its class, and whether it's a spiderling (the brown spider as the Gravemother's brood). */
 	struct FCreatureKind

@@ -234,7 +234,8 @@ bool FCreatureReactCorpsesTest::RunTest(const FString& Parameters)
 		Dead.Add(Kind.Name, Creature);
 	}
 
-	// The spider lies still, curled, through its time, then sinks away.
+	// The spider's throe and curl are over by 1.5 s (Looter.Creatures.Anim.SpiderDeathCurl has them): it lies still on its
+	// folded legs through its time, shudders once, then sinks away.
 	if (ACreatureBase* const* Found = Dead.Find(TEXT("Spider")))
 	{
 		ACreatureBase* Spider = *Found;
@@ -246,6 +247,10 @@ bool FCreatureReactCorpsesTest::RunTest(const FString& Parameters)
 		{
 			ReactRun(*Spider, 1.5f);
 			const double Curled = Spider->GetBonePose()[0].Transform.GetLocation().Z;
+			// The pose's space has its origin on the ground under the thorax: the body's height over the ground.
+			const double Ride = ASpiderCreature::DeadRide * Spider->GetSizeScale();
+			TestTrue(FString::Printf(TEXT("Spider: by 1.5 s it lies on its folded legs (%.1f cm up, its dead ride %.0f)"), Curled, Ride),
+				FMath::Abs(Curled - Ride) < 3.0);
 			ReactRun(*Spider, Spider->CorpseTime - 1.8f);
 			const double Late = Spider->GetBonePose()[0].Transform.GetLocation().Z;
 			TestTrue(FString::Printf(TEXT("Spider: still lying there near its time's end (%.1f cm from curled)"), Late - Curled),

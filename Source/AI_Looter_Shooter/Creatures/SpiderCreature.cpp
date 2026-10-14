@@ -191,17 +191,10 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 	}
 	else if (CurrentState == ECreatureState::Dead)
 	{
-		// Collapse onto its folding legs, then sink out of sight after the corpse time (a big body sinks as much faster as it
-		// is bigger, so it's gone by the time it's hidden). It keeps the ground's slope, slumped a little nose down and over.
-		const float Collapse = FMath::Clamp(Time / CurlSeconds, 0.f, 1.f);
-		TargetZ = FMath::Lerp(TargetZ, GroundZ + DeadRide * Scale, Collapse);
-		TargetPitch = GroundPitch - 5.f * Collapse;
-		TargetRoll = GroundRoll + 10.f * Collapse;
-		TargetFang = 25.f;
-		if (Time > CorpseTime)
-		{
-			TargetZ -= (Time - CorpseTime) * 45.f * Scale;
-		}
+		// Its throe, the drop onto its folding legs and the bounce, lying still on the ground's slope, its last shudder and
+		// the sink (SpiderCreatureDeath.cpp). A lunge it died in eases off over the rear.
+		DeadBody(Time, GroundZ, TargetZ, TargetPitch, TargetRoll, TargetFang);
+		Lunge = DeathLunge * (1.f - FMath::SmoothStep(0.f, 0.25f * DeathTimeScale(Scale), Time));
 	}
 	else
 	{
@@ -218,9 +211,21 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 		FangOpen = TargetFang;
 		bBodyInitialized = true;
 	}
-	BodyZ = FMath::FInterpTo(BodyZ, TargetZ, DeltaSeconds, CurrentState == ECreatureState::Dead ? 6.f : 10.f);
-	BodyPitch = FMath::FInterpTo(BodyPitch, TargetPitch, DeltaSeconds, 8.f);
-	BodyRoll = FMath::FInterpTo(BodyRoll, TargetRoll, DeltaSeconds, 8.f);
+	if (CurrentState == ECreatureState::Dead)
+	{
+		// Dead, the body follows its death's own curves, which start where it was as it died: nothing to smooth, and the drop
+		// lands on its moment rather than easing in late.
+		BodyZ = TargetZ;
+		BodyPitch = TargetPitch;
+		BodyRoll = TargetRoll;
+	}
+	else
+	{
+		BodyZ = FMath::FInterpTo(BodyZ, TargetZ, DeltaSeconds, 10.f);
+		BodyPitch = FMath::FInterpTo(BodyPitch, TargetPitch, DeltaSeconds, 8.f);
+		BodyRoll = FMath::FInterpTo(BodyRoll, TargetRoll, DeltaSeconds, 8.f);
+		LungeNow = Lunge;
+	}
 	FangOpen = FMath::FInterpTo(FangOpen, TargetFang, DeltaSeconds, 14.f);
 	// The hit's jolt follows its fading kick on a stiff spring: no one-frame jump.
 	const float SpringSeconds = FMath::Min(DeltaSeconds, 0.5f);
@@ -250,9 +255,13 @@ void ASpiderCreature::AnimateBody(float DeltaSeconds)
 	BodyFrame = FTransform(Yaw * FRotator(BodyPitch + HurtTilt.X, 0.f, BodyRoll + HurtTilt.Y).Quaternion(), Location, FVector(Scale));
 	SetBone(SpiderBones::Body, BodyInFrame, BodyFrame);
 
-	// Abdomen: slow breathing sway plus a jolt when hit.
-	const float Breath = FMath::Sin(AnimTime * 1.7f);
-	PosePivot(SpiderBones::Abdomen, Abdomen, FRotator(Breath * 2.5f + AbdomenKick, FMath::Sin(AnimTime * 0.9f) * 2.f, 0.f),
+	// Abdomen: slow breathing sway plus a jolt when hit. Dead, the breath goes out of it, and the throe lifts it and the drop
+	// slams it down (SpiderCreatureDeath.cpp).
+	const bool bDead = CurrentState == ECreatureState::Dead;
+	const float Breathing = bDead ? DeathBreath(Time) : 1.f;
+	const float Breath = FMath::Sin(AnimTime * 1.7f) * Breathing;
+	const float DeadTilt = bDead ? DeadAbdomenTilt(Time) : 0.f;
+	PosePivot(SpiderBones::Abdomen, Abdomen, FRotator(Breath * 2.5f + AbdomenKick + DeadTilt, FMath::Sin(AnimTime * 0.9f) * 2.f * Breathing, 0.f),
 		FVector(1.f, 1.f + Breath * 0.015f, 1.f + Breath * 0.02f));
 
 	PosePivot(SpiderBones::FangLeft, FangLeft, FRotator(FangOpen * 0.4f, -FangOpen, 0.f), FVector::OneVector);
@@ -382,9 +391,10 @@ void ASpiderCreature::AnimateLegs(float DeltaSeconds)
 
 		if (CurrentState == ECreatureState::Dead)
 		{
-			// The legs fold in from where they were, knees up and out, tips under the body (SpiderCreatureLegs.cpp), and
-			// once curled, a leg or two twitches its last (SpiderCreatureReact.cpp).
-			CurlDeadLeg(Leg, Time, DeathTwitch(Index, Time, Outward, Up), Knee, Foot, Pole);
+			// Its throe's kicks, then the curl under the body, knees low and drawn in, tips under the thorax and abdomen; once
+			// curled, a leg or two twitches its last (SpiderCreatureDeath.cpp). The bones keep the walking legs' roll.
+			Pole = KneePole(Up, Outward) + Outward * Leg.KneeSpread;
+			PoseDeadLeg(Leg, Index, Time, Hip, Outward, Up, Pole, Knee, Foot);
 			Leg.Foot = Foot;
 			Leg.bStepping = false;
 		}

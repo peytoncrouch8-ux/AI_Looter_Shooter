@@ -8,6 +8,9 @@ these are the small moments between their big cues.
   for a hold (quicker, then slower), the shell knocking free, grit pattering down.
 - Creature.Spider.Twitch (quiet, 0.15 s): a dead spider's curled leg twitching: one faint dry tick of chitin and a smaller
   one as the joint settles. Heard often near a fallen nest, so it stays soft and off the 2-5 kHz band.
+- Creature.Spider.Thud (0.5 s, 4 takes, each a little heavier): a dying spider's body slamming down at the end of its throe,
+  on its death cry's knock: the weight arriving (a low thump, a dark thud of air), the shell's hollow chitin clack (the
+  thorax, then the abdomen a beat later), the legs knocking down round it, dust and grit and a few clods pattering back.
 - Creature.Slime.Notice (0.4 s): the jelly shivering as it senses you: a wet shudder (the surface noise swinging through a
   resonance, fast), tiny pops, a small bloop.
 - Creature.Slime.Bubble (quiet, 0.3 s): a bubble rising through gel: a soft gloop that climbs, a smaller one behind it, the
@@ -104,6 +107,41 @@ def spider_twitch(v, r):
     x = layers((tick(child(r, 't1'), r.uniform(650.0, 900.0), 0.025), 0.0, 0.0),
                (tick(child(r, 't2'), r.uniform(600.0, 800.0), 0.06), gap, -9.0 - 3.0 * r.random()))
     return F.filt(x, F.hp(250.0, 0.7), F.peak(3300.0, -5.0, 0.8), F.highshelf(7000.0, -4.0), extend=False)
+
+
+@cue('Creature.Spider.Thud', variations=4, att='Creature', jitter=0.05, conc=3, level=-10.0)
+def spider_thud(v, r):
+    # A dying spider's body slamming down at the end of its throe (the game plays it on its death cry's knock): the weight
+    # arriving (a low thump falling away, a dark thud of air), the shell's hollow chitin clack as the thorax and then the
+    # abdomen strike, a dry tick of chitin on it, the legs knocking down round it, a puff of dust and grit and a few clods
+    # pattering back. Soft at the top: it lands under the cry, and a fallen nest hears it often. Each take a little heavier.
+    size = jitter(r, 1.0, 0.06) * (0.92, 1.0, 1.06, 1.12)[v]
+    mass = kit.thump(80.0 / size, 38.0, 0.45, 0.22, attack=0.0015, drive_db=2.0)
+    body = kit.noise_thump(0.4, child(r, 'body'), 500.0 / size, 70.0, 0.17, 1.1, 0.06, 0.001)
+    ground = kit.noise_thump(0.1, child(r, 'ground'), 950.0, 160.0, 0.03, 1.0, 0.02, 0.0008)
+    core = layers((mass, 0.0, 0.0), (body, 0.0, -3.0), (ground, 0.0, -9.0))
+    thorax = kit.thunk(560.0 * jitter(r, 1, 0.08) / size, child(r, 'thorax'), 0.04, 0.0004, 6, 0.12)
+    abdomen = kit.thunk(380.0 * jitter(r, 1, 0.08) / size, child(r, 'abdomen'), 0.05, 0.0006, 6, 0.1)
+    tick = normalize(M.strike(M.parts(900.0, 2600.0, child(r, 'tick'), 4, 0.012, 0.005, 0.4), M.hammer(0.00012), 0.035), 0.0)
+    shell = layers((thorax, 0.0, 0.0), (tick, 0.001, -6.0), (abdomen, 0.012 + 0.012 * r.random(), -3.0))
+
+    def leg(rr, i):
+        return kit.thunk(rr.uniform(700.0, 1200.0), child(rr, 'leg', i), 0.012, 0.00015, 3, 0.1) * rr.uniform(0.5, 1.0)
+
+    def clod(rr, i):
+        return kit.thunk(rr.uniform(450.0, 1400.0), child(rr, 'clod', i), 0.012, 0.0008, 4, 0.15) * rr.uniform(0.4, 1.0)
+    legs = normalize(G.rattle(0.25, child(r, 'legs'), 4 + int(r.integers(0, 3)), 0.14, leg, 0.02, 0.8), 0.0)
+    clods = normalize(G.rattle(0.3, child(r, 'clods'), 4 + int(r.integers(0, 3)), 0.22, clod, 0.05, 0.8), 0.0)
+    dust = kit.burst(0.35, child(r, 'dust'), 0.15, lo=160.0, hi=1400.0, color=-3.0, attack=0.002)
+    grit = kit.grit_burst(0.28, child(r, 'grit'), 5000.0, 500.0, 2800.0, 0.14)
+
+    # The shell, legs and dirt are set against the thud's loudest 10 ms, so they're heard through the weight.
+    def lv(sig, rel_db):
+        return kit.set_level(sig, core, rel_db, 0.01)
+    x = layers((core, 0.0, 0.0), (lv(shell, -5.0), 0.002, 0.0), (lv(legs, -14.0), 0.0, 0.0), (lv(dust, -13.0), 0.003, 0.0),
+               (lv(grit, -16.0), 0.004, 0.0), (lv(clods, -17.0), 0.0, 0.0))
+    x = F.filt(x, F.highshelf(5000.0, -4.0), F.peak(3300.0, -3.0, 0.8), F.hp(30.0), extend=False)
+    return _outside(x, r, -22.0, 0.05, 0.12, 0.3)
 
 
 # --- Slimes -------------------------------------------------------------------------------------------------------------

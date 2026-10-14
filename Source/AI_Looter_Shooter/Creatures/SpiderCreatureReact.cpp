@@ -1,9 +1,10 @@
 // ASpiderCreature's reactions (the 2026-10-14 polish, "creatures that react"), over the gait SpiderCreature.cpp walks: a hit's
-// jolt and its tilt away from the shot, its death (the legs' curl, then a last twitch or two before the body lies still and
-// sinks), coming back, the notice beat (it rears with its front legs up and its fangs flared, hissing), its entrance in a
-// player's view (climbing out of the dirt), idle life while it stands (a front leg tapped, the front legs groomed at its
-// fangs, each spider on its own dice) and the dust its feet kick up running. Moved here with the reactions it had, to keep
-// SpiderCreature.cpp under the size guide.
+// jolt and its tilt away from the shot, its death's moments (the throe, drop and curl are SpiderCreatureDeath.cpp's; here the
+// drop's thud, a last twitch or two before the body lies still, the shudder before it sinks), coming back, the notice beat
+// (it rears with its front legs up and its fangs flared, hissing), its entrance in a player's view (climbing out of the
+// dirt), idle life while it stands (a front leg tapped, the front legs groomed at its fangs, each spider on its own dice)
+// and the dust its feet kick up running. Moved here with the reactions it had, to keep SpiderCreature.cpp under the size
+// guide.
 
 #include "Creatures/SpiderCreature.h"
 #include "Audio/CreatureVoiceComponent.h"
@@ -37,9 +38,13 @@ namespace
 	/** Where a groom draws the front feet: before the fangs (the body's frame at size 1: ahead, out to each side, below the thorax). */
 	const FVector GroomSpot(60.f, 14.f, -18.f);
 
-	/** Its death's two twitches: when (s after it dies, both after the curl), each this long, the foot kicked this far (cm at size 1). */
+	/**
+	 * Its death's two twitches: when (a full-size death's seconds after it dies, both after the curl: a bigger one's come as
+	 * much later as its death runs slower), each this long, the foot kicked this far (cm at size 1).
+	 */
 	constexpr float FirstTwitch[2] = { 1.5f, 1.9f };
 	constexpr float SecondTwitch[2] = { 2.4f, 3.2f };
+	static_assert(FirstTwitch[0] > ASpiderCreature::CurledSeconds, "a twitch comes once the legs are curled");
 	constexpr float TwitchSeconds = 0.26f;
 	constexpr float TwitchReach = 11.f;
 	/** After its last twitch it lies still this long before its pose stops being worked out. */
@@ -85,13 +90,15 @@ void ASpiderCreature::OnHurt(bool bCritical, const FVector& HitLocation)
 
 void ASpiderCreature::OnDied()
 {
+	// Its throe starts from its body and each foot as they are now (a foot mid-step is set down), each leg on its own dice
+	// (SpiderCreatureDeath.cpp); then the gait lets go of them. Before the climb out of the dirt is cut short: its height
+	// folds into the body's.
+	RecordDeathPose();
 	for (FLeg& Leg : Legs)
 	{
 		Leg.bStepping = false;
 	}
 	SteppingGroup = INDEX_NONE;
-	// The curl starts from where each foot is now.
-	RecordDeathPose();
 	IdleAct = EIdleAct::None;
 	IdleWeight = 0.f;
 	EmergeTime = -1.f;
@@ -100,8 +107,9 @@ void ASpiderCreature::OnDied()
 	{
 		FRandomStream& Dice = Reacts->GetRandom();
 		const int32 Count = FMath::Max(Legs.Num(), 1);
-		TwitchAt[0] = Dice.FRandRange(FirstTwitch[0], FirstTwitch[1]);
-		TwitchAt[1] = Dice.FRandRange(SecondTwitch[0], SecondTwitch[1]);
+		const float Slower = DeathTimeScale(GetSizeScale());
+		TwitchAt[0] = Dice.FRandRange(FirstTwitch[0], FirstTwitch[1]) * Slower;
+		TwitchAt[1] = Dice.FRandRange(SecondTwitch[0], SecondTwitch[1]) * Slower;
 		TwitchLeg[0] = Dice.RandRange(0, Count - 1);
 		TwitchLeg[1] = (TwitchLeg[0] + Dice.RandRange(2, 6)) % Count;
 	}
@@ -173,8 +181,9 @@ void ASpiderCreature::SetHitVolumesEnabled(bool bEnabled)
 
 bool ASpiderCreature::IsCorpseSettled() const
 {
+	// Still from after its last twitch until its last shudder, just before it sinks.
 	const float Time = GetStateTime();
-	return IsDead() && Time > FMath::Max(TwitchAt[0], TwitchAt[1]) + TwitchSeconds + CorpseSettleSeconds && Time < CorpseTime;
+	return IsDead() && Time > FMath::Max(TwitchAt[0], TwitchAt[1]) + TwitchSeconds + CorpseSettleSeconds && Time < CorpseTime - ShudderSeconds;
 }
 
 // ---------------------------------------------------------------------------
@@ -239,8 +248,14 @@ void ASpiderCreature::TickReactions(float DeltaSeconds)
 	UCreatureReactComponent* Reacts = GetReact();
 	if (IsDead())
 	{
-		// Each twitch jolts the abdomen too, with a faint dry tick of chitin.
+		// The body hits the ground on its death cry's knock: a thud and a puff of dust (SpiderCreatureDeath.cpp).
 		const float Time = GetStateTime();
+		const float Lands = DropSeconds * DeathTimeScale(GetSizeScale());
+		if (Time >= Lands && Time - DeltaSeconds < Lands)
+		{
+			LandDeadBody();
+		}
+		// Each twitch jolts the abdomen too, with a faint dry tick of chitin; its last shudder has a fainter one.
 		for (const float At : TwitchAt)
 		{
 			if (Time >= At && Time - DeltaSeconds < At)
@@ -248,6 +263,11 @@ void ASpiderCreature::TickReactions(float DeltaSeconds)
 				AbdomenKick = 5.f;
 				Voice->Play(FName(CreatureReactCue::SpiderTwitch), 0.5f);
 			}
+		}
+		const float Shudders = CorpseTime - ShudderSeconds;
+		if (Time >= Shudders && Time - DeltaSeconds < Shudders)
+		{
+			Voice->Play(FName(CreatureReactCue::SpiderTwitch), 0.35f);
 		}
 		return;
 	}

@@ -4473,6 +4473,21 @@
     "space": "3D",
     "max_concurrent": 2
   },
+  "Creature.Spider.Thud": {
+    "files": [
+      "Creature_Spider_Thud_01.wav",
+      "Creature_Spider_Thud_02.wav",
+      "Creature_Spider_Thud_03.wav",
+      "Creature_Spider_Thud_04.wav"
+    ],
+    "volume_db": -8.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
   "Creature.Slime.Notice": {
     "files": [
       "Creature_Slime_Notice_01.wav",
