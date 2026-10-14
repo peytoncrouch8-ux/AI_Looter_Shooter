@@ -13,7 +13,8 @@ the origin; its yaw less 180 the frame's turn), else the design's spot.
 
 What it places (in the area's Mountain/Mine folder, so the whole build or build_area_mountain.py on its own replaces it):
 - Every piece of the table as a static mesh actor tagged Interior_Providence (never Obstacle: the scatter and the minimap
-  would read the mine's bounds as a building on the Bench over it), the rock pieces (adit, gallery, office, decline,
+  would read the mine's bounds as a building on the Bench over it), but the adit's own (before ADIT_SEEN_TO), which stay
+  drawn from outside so the mouth shows a tunnel, and its lanterns' bodies (their lights stay the interior's), the rock pieces (adit, gallery, office, decline,
   drift, stope, manway, the fall), the timber sets and pillars, the barricade, the winch, the track and the ore cars; the
   Shell hidden in game, casting its shadow (the sun stays out while the outside is hidden). Not the six stope props (the
   Foreman's AForemanTimberProp stands at each, SOCKET_Prop_1..6, its models the kit's StopeProp and StopePropBroken; the
@@ -28,6 +29,9 @@ What it places (in the area's Mountain/Mine folder, so the whole build or build_
 - AInteriorVisibility at the origin: its Interior box the adit past the mouth, its Portal box the mouth, the rooms as its
   AdditionalInside; it hides Interior_Providence outside and HeavyOutside_Providence inside (build_area_mountain.py tags
   the Bench's buildings).
+- Mine_MouthVeil: a black unlit card across the adit's far end, tagged MouthVeil_Providence: shown only while the view is
+  outside, when the rooms past it are hidden (2026-10-14: from the Diggings' yard the mouth showed the sky and the far side
+  of the mountain through the hidden rooms).
 - One trigger box per room tagged Underground (no collision), past the portal's brow, for the minimap's UNDERGROUND plate.
 Every missing model, socket or class is warned of and left out; nothing here fails the build.
 """
@@ -46,6 +50,7 @@ FOLDER = 'Mountain/Mine'
 # The tags the game's code finds things by (World/InteriorVisibility.h, Creatures/ForemanFight.h, HudMinimapWidget).
 INSIDE_TAG = 'Interior_Providence'
 OUTSIDE_TAG = 'HeavyOutside_Providence'
+VEIL_TAG = 'MouthVeil_Providence'
 UNDERGROUND_TAG = 'Underground'
 LANTERN_TAG = 'StopeLantern'
 GLOW_TAG = 'LanternGlow'
@@ -87,6 +92,13 @@ PROP_WIDTH = 48.0
 # The interior: the mouth's box (mine metres: min, max), where both sides show; the rooms count from where it ends.
 PORTAL_BOX = ((-5.0, -6.0, -1.0), (5.0, 6.0, 6.0))
 INSIDE_FROM_Y = 6.0
+# The adit's pieces and lanterns before this (mine y) stay drawn from outside: the mouth shows a dark tunnel. The veil
+# stands just past them, before the gallery opens (y 30), across the whole bore (the rock's noise reaches 0.42 m in).
+ADIT_SEEN_TO = 29.0
+VEIL_AT_Y = 29.2
+VEIL_SIZE = (7.0, 0.02, 5.0)
+VEIL_FROM_Z = -0.6
+VEIL_MATERIAL = '/Engine/EngineDebugMaterials/BlackUnlitMaterial'
 # The minimap's underground starts under the portal's brow, past the mouth (mine y).
 UNDERGROUND_FROM_Y = 0.5
 
@@ -260,8 +272,8 @@ def place_pieces(build, mine, layout, meshes, timber_cls, story_cls):
         if name == TAGS_PIECE:
             place_barricade_tags(build, mine, story_cls, mesh, at, yaw, label)
             continue
-        actor = build.place(mesh, at, mine.turn(yaw), label=label, folder=FOLDER,
-                            tags=() if name == SHELL_PIECE else (INSIDE_TAG,))
+        seen = name == SHELL_PIECE or piece.get('mine_m', (0.0, 99.0))[1] < ADIT_SEEN_TO
+        actor = build.place(mesh, at, mine.turn(yaw), label=label, folder=FOLDER, tags=() if seen else (INSIDE_TAG,))
         turned(actor, pitch, mine.turn(yaw), roll)
         if name == SHELL_PIECE:
             # Never seen and never touched, only its shadow: the sun stays out of the rooms while the ridge over them is
@@ -392,7 +404,8 @@ def place_lanterns(build, mine, layout, meshes):
         label = f'Mine_Lantern_{piece}_{n}'
         body = dark if stope and dark is not None else lit
         if body is not None:
-            actor = build.place(body, at, yaw, label=label, folder=FOLDER, tags=(INSIDE_TAG,))
+            # The adit's lanterns show from outside, their glass glowing down the dark tunnel; their lights don't.
+            actor = build.place(body, at, yaw, label=label, folder=FOLDER, tags=() if piece == 'Adit' else (INSIDE_TAG,))
             actor.set_actor_enable_collision(False)
             actor.static_mesh_component.set_editor_property('cast_shadow', False)
             counts['lanterns'] += 1
@@ -452,6 +465,7 @@ def place_interior(build, mine, layout):
     actor = build.place(cls, mine.origin, mine.yaw, label='InteriorVisibility_Providence', folder=FOLDER)
     actor.set_editor_property('inside_tag', unreal.Name(INSIDE_TAG))
     actor.set_editor_property('outside_tag', unreal.Name(OUTSIDE_TAG))
+    actor.set_editor_property('veil_tag', unreal.Name(VEIL_TAG))
     for prop, (lo, hi) in (('interior', adit), ('portal', PORTAL_BOX)):
         (x0, y0, z0), (x1, y1, z1) = mine.local_box(lo, hi)
         box = actor.get_editor_property(prop)
@@ -461,6 +475,23 @@ def place_interior(build, mine, layout):
                                                     if name != 'adit'])
     build.log(f'the interior\'s visibility at the mouth: the adit and {len(rooms) - 1} rooms inside, the mouth both ways '
               f'({INSIDE_TAG} hidden outside, {OUTSIDE_TAG} inside)')
+
+
+def place_veil(build, mine):
+    """The black card across the adit's far end, shown only while the view is outside (AInteriorVisibility's VeilTag)."""
+    material = unreal.load_asset(VEIL_MATERIAL) if unreal.EditorAssetLibrary.does_asset_exist(VEIL_MATERIAL) else None
+    if material is None:
+        build.warn(f'no {VEIL_MATERIAL}: no veil in the adit (the mouth shows through the hidden rooms)')
+        return
+    width, depth, height = VEIL_SIZE
+    at = mine.at(0.0, VEIL_AT_Y, VEIL_FROM_Z + height * 0.5)
+    card = build.place(unreal.load_asset(ENGINE_CUBE), at, mine.turn(0.0), label='Mine_MouthVeil', folder=FOLDER,
+                       tags=(VEIL_TAG,), scale=(depth, width, height))
+    part = card.static_mesh_component
+    part.set_material(0, material)
+    part.set_editor_property('cast_shadow', False)
+    card.set_actor_enable_collision(False)
+    build.log(f'the veil across the adit at mine y {VEIL_AT_Y} (shown outside only)')
 
 
 def place_underground(build, mine, layout):
@@ -499,6 +530,7 @@ def place(build, meshes):
     place_rubble(build, mine, layout)
     place_lanterns(build, mine, layout, meshes)
     place_interior(build, mine, layout)
+    place_veil(build, mine)
     place_underground(build, mine, layout)
     x, y, z = mine.origin
     build.log(f'the Providence at ({x:.0f}, {y:.0f}, {z:.0f}), turned {mine.yaw:.1f}')

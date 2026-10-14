@@ -172,6 +172,7 @@ void AInteriorVisibility::GatherActors()
 {
 	InsideActors.Reset();
 	OutsideActors.Reset();
+	VeilActors.Reset();
 	UWorld* World = GetWorld();
 	if (!World)
 	{
@@ -192,6 +193,10 @@ void AInteriorVisibility::GatherActors()
 		{
 			OutsideActors.Add(Each);
 		}
+		if (!VeilTag.IsNone() && Each->ActorHasTag(VeilTag))
+		{
+			VeilActors.Add(Each);
+		}
 	}
 }
 
@@ -199,20 +204,25 @@ void AInteriorVisibility::ApplyView(EInteriorView NewView)
 {
 	View = NewView;
 	bApplied = true;
-	const TArray<TWeakObjectPtr<AActor>>* Hide = nullptr;
+	TArray<TWeakObjectPtr<AActor>> Hide;
 	if (NewView == EInteriorView::Outside && bHideInsideWhenOutside)
 	{
-		Hide = &InsideActors;
+		Hide.Append(InsideActors);
 	}
 	else if (NewView == EInteriorView::Inside && bHideOutsideWhenInside)
 	{
-		Hide = &OutsideActors;
+		Hide.Append(OutsideActors);
+	}
+	// The veil only stands while the rooms past it are hidden.
+	if (NewView != EInteriorView::Outside)
+	{
+		Hide.Append(VeilActors);
 	}
 	// What it hid that should show now shows again; nothing else is touched.
 	for (int32 Index = HiddenByMe.Num() - 1; Index >= 0; --Index)
 	{
 		AActor* Hidden = HiddenByMe[Index].Get();
-		if (!Hidden || !Hide || !HasActor(*Hide, Hidden))
+		if (!Hidden || !HasActor(Hide, Hidden))
 		{
 			if (Hidden)
 			{
@@ -222,16 +232,13 @@ void AInteriorVisibility::ApplyView(EInteriorView NewView)
 		}
 	}
 	// What should hide and shows now hides, and is remembered as its own to show again.
-	if (Hide)
+	for (const TWeakObjectPtr<AActor>& Each : Hide)
 	{
-		for (const TWeakObjectPtr<AActor>& Each : *Hide)
+		AActor* Shown = Each.Get();
+		if (Shown && !Shown->IsHidden() && !HasActor(HiddenByMe, Shown))
 		{
-			AActor* Shown = Each.Get();
-			if (Shown && !Shown->IsHidden() && !HasActor(HiddenByMe, Shown))
-			{
-				Shown->SetActorHiddenInGame(true);
-				HiddenByMe.Add(Shown);
-			}
+			Shown->SetActorHiddenInGame(true);
+			HiddenByMe.Add(Shown);
 		}
 	}
 	UE_LOG(LogLooter, Verbose, TEXT("%s: the view is %s; %d hidden."), *GetActorNameOrLabel(), ViewName(View), CountHidden());

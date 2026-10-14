@@ -74,6 +74,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Interior")
 	FName OutsideTag = TEXT("HeavyOutside_Providence");
 
+	/**
+	 * Shown only while the view is outside: the black veil at the far end of the adit, which stays drawn from outside so the
+	 * mouth reads as a dark tunnel. Without it the hidden rooms past the adit let the sky and the far side of the mountain
+	 * show through the mouth (2026-10-14). At the portal and inside it hides, so the lit gallery shows past it.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Interior")
+	FName VeilTag = TEXT("MouthVeil_Providence");
+
 	UPROPERTY(EditAnywhere, Category = "Interior")
 	bool bHideInsideWhenOutside = true;
 
@@ -108,6 +116,7 @@ private:
 	bool bApplied = false;
 	TArray<TWeakObjectPtr<AActor>> InsideActors;
 	TArray<TWeakObjectPtr<AActor>> OutsideActors;
+	TArray<TWeakObjectPtr<AActor>> VeilActors;
 	/** What it hid itself, to show again (and nothing else). */
 	TArray<TWeakObjectPtr<AActor>> HiddenByMe;
 	FTimerHandle PollTimer;

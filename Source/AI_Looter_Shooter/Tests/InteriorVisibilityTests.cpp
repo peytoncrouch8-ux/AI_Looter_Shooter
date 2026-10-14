@@ -34,7 +34,9 @@ bool FInteriorVisibilityViewsTest::RunTest(const FString& Parameters)
 	AActor* StoryHidden = MissionTestWorld::SpawnMarker(World, FVector(400.0, 0.0, 0.0), Inside);
 	AActor* Pines = MissionTestWorld::SpawnMarker(World, FVector(-6000.0, 0.0, 0.0), Outside);
 	AActor* Diggings = MissionTestWorld::SpawnMarker(World, FVector(-8000.0, 2000.0, 0.0), Outside);
-	if (!Gallery || !Stope || !StoryHidden || !Pines || !Diggings)
+	// The black veil at the adit's far end: only while the rooms past it are hidden.
+	AActor* Veil = MissionTestWorld::SpawnMarker(World, FVector(-1000.0, 0.0, 0.0), Mine->VeilTag);
+	if (!Gallery || !Stope || !StoryHidden || !Pines || !Diggings || !Veil)
 	{
 		return false;
 	}
@@ -45,18 +47,20 @@ bool FInteriorVisibilityViewsTest::RunTest(const FString& Parameters)
 	Mine->DispatchBeginPlay();
 	TestTrue(TEXT("It begins outside"), Mine->GetView() == EInteriorView::Outside);
 	TestTrue(TEXT("...the mine's pieces hidden, the outside shown"), !Shows(Gallery) && !Shows(Stope) && Shows(Pines) && Shows(Diggings));
+	TestTrue(TEXT("...the veil stands in the adit"), Shows(Veil));
 	TestEqual(TEXT("...two hidden by it (the story's own isn't its)"), Mine->CountHidden(), 2);
 
 	// At the mouth: both.
 	Mine->UpdateFor(FVector(-1700.0, 0.0, 0.0));
 	TestTrue(TEXT("At the portal"), Mine->GetView() == EInteriorView::Portal);
-	TestTrue(TEXT("...everything shows"), Shows(Gallery) && Shows(Stope) && Shows(Pines) && Shows(Diggings) && Mine->CountHidden() == 0);
+	TestTrue(TEXT("...everything shows but the veil"), Shows(Gallery) && Shows(Stope) && Shows(Pines) && Shows(Diggings) && !Shows(Veil)
+		&& Mine->CountHidden() == 1);
 	TestFalse(TEXT("...but what the story hides stays hidden"), Shows(StoryHidden));
 
 	// In the gallery: the outside goes.
 	Mine->UpdateFor(FVector(200.0, 0.0, 0.0));
 	TestTrue(TEXT("Inside"), Mine->GetView() == EInteriorView::Inside);
-	TestTrue(TEXT("...the outside hidden, the mine shown"), Shows(Gallery) && Shows(Stope) && !Shows(Pines) && !Shows(Diggings));
+	TestTrue(TEXT("...the outside hidden, the mine shown"), Shows(Gallery) && Shows(Stope) && !Shows(Pines) && !Shows(Diggings) && !Shows(Veil));
 	TestFalse(TEXT("...the story's piece still hidden"), Shows(StoryHidden));
 
 	// A step past the rooms' east face keeps the view (the margin), several don't; the side room counts as inside.
@@ -66,7 +70,7 @@ bool FInteriorVisibilityViewsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("In the side room: inside"), Mine->GetView() == EInteriorView::Inside);
 	Mine->UpdateFor(FVector(2400.0, 0.0, 0.0));
 	TestTrue(TEXT("Well past the face, outside the side room: outside"), Mine->GetView() == EInteriorView::Outside);
-	TestTrue(TEXT("...the mine hidden again, the outside back"), !Shows(Gallery) && !Shows(Stope) && Shows(Pines) && Shows(Diggings));
+	TestTrue(TEXT("...the mine hidden again, the outside back"), !Shows(Gallery) && !Shows(Stope) && Shows(Pines) && Shows(Diggings) && Shows(Veil));
 
 	// Coming back from outside, the face itself is the line: the margin only keeps a view that is inside.
 	Mine->UpdateFor(FVector(1500.0 + 0.5 * Mine->Margin, 0.0, 0.0));
