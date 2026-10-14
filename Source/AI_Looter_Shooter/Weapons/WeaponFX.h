@@ -1,8 +1,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Player/DustLight.h"
 #include "Weapons/CreatureBlood.h"
 #include "Weapons/ImpactSurface.h"
+#include "Weapons/WaterRings.h"
 
 class AActor;
 class UInstancedStaticMeshComponent;
@@ -60,7 +62,8 @@ public:
 	 * clods, grass bits of green, sand a pale spray, gravel and stone grit, chips and a few sparks, wood pale splinters
 	 * and sawdust, metal a shower of hot sparks, sheet metal sparks and paint flakes, glass glinting shards, water a splash
 	 * and mist, cloth lint, hay straws, bone pale chips. Scale sizes it to the gun (a shotgun's pellet is smaller and
-	 * throws less); a critical hit adds its pop as SpawnImpact's does.
+	 * throws less); a critical hit adds its pop as SpawnImpact's does. A hit on water also leaves rings spreading over the
+	 * surface (SpawnWaterRings: two for a shot, one for a pellet or a footstep).
 	 *
 	 * Given the Floor under the hit (the surface itself on the ground, what's under a wall's hit), the chunks thrown land
 	 * on it: they bounce, skitter and lie there a moment or two before they shrink away; drops splat and are gone.
@@ -75,6 +78,21 @@ public:
 	 */
 	void SpawnCreatureHit(const FVector& Location, const FVector& Normal, const FVector& ShotDirection, ECreatureBlood Blood,
 		const FLinearColor& Tint, float Scale, bool bCritical);
+
+	/**
+	 * Rings spreading over water from Location (WeaponFXImpacts.cpp; the rules and the pool are FWaterRings): Normal is the
+	 * surface's (nothing on a waterfall's face, which doesn't lie flat), Size the hit's as SpawnSurfaceImpact's Scale (a
+	 * rifle shot 1 leaves two concentric rings, a pellet or a wading step one), Light the light the foam is shown in
+	 * (nullptr: the effects look it up, a trace toward the sun at most every second or so). Returns the rings made.
+	 */
+	int32 SpawnWaterRings(const FVector& Location, const FVector& Normal, float Size, const FLinearColor* Light = nullptr);
+
+	/**
+	 * One V of a wake at Location on water (Normal its surface): two arms trailing back from Direction, the way a body
+	 * walking through it goes, at Speed cm/s, for a body of Scale. True if made (not on a surface that isn't flat).
+	 */
+	bool SpawnWake(const FVector& Location, const FVector& Normal, const FVector& Direction, float Speed, float Scale,
+		const FLinearColor* Light = nullptr);
 
 	/**
 	 * A round glancing off (WeaponFXShots.cpp): a white-hot spark where it struck and a short tracer flung off along
@@ -131,6 +149,10 @@ public:
 
 	/** Live particles (for tests and the particle cap). */
 	int32 NumParticles() const { return Particles.Num(); }
+
+	/** Rings and wakes on the water now (tests). */
+	int32 NumWaterRings() const { return WaterRings.NumRings(); }
+	int32 NumWakes() const { return WaterRings.NumWakes(); }
 
 	/** Chunks lying where they landed on an impact's floor (tests). */
 	int32 NumResting() const;
@@ -210,6 +232,8 @@ private:
 	uint8 BitSetFor(EBitShape Shape, const FLinearColor& Color, float Glow);
 	/** One lit chunk of a set thrown from Location: tumbling, falling, shrinking away at the end of its life. */
 	FParticle& AddBit(uint8 Set, const FVector& Location, const FVector& Velocity, float Size, float Life);
+	/** The water foam's colour in the light at Where: the foam's albedo times the sun's or sky's (FDustLight), looked up again every WaterLightSeconds. */
+	FLinearColor WaterTint(const FVector& Where);
 
 	TWeakObjectPtr<AActor> Owner;
 	TWeakObjectPtr<UInstancedStaticMeshComponent> Glows;
@@ -221,6 +245,12 @@ private:
 
 	TArray<FParticle> Particles;
 	TArray<FStreak> Streaks;
+	/** The rings and wakes on the water, drawn with the smoke (WaterRings.h), and the light their foam is shown in. */
+	FWaterRings WaterRings;
+	FDustLight WaterDustLight;
+	FLinearColor WaterLight = FLinearColor::White;
+	double WaterLightAt = -1.0e9;
+	static constexpr double WaterLightSeconds = 1.0;
 	/** While an impact with a floor spawns (SpawnSurfaceImpact), the floor its chunks are given. */
 	TOptional<FPlane> SpawnFloor;
 	/** Instances drawn last frame, so an emptied component gets cleared exactly once. */

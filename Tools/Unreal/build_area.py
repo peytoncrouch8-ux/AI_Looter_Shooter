@@ -1,4 +1,4 @@
-"""Builds an area's level from its layout: build_area.py <Area> [gameplay|environment|beyond|cliffs|dressing].
+"""Builds an area's level from its layout: build_area.py <Area> [gameplay|environment|beyond|cliffs|dressing|water].
 
 Art/Models/Terrain/<Area>.py turns Art/Levels/<Area>/layout.json into the terrain and into layout_computed.json: where
 every building, cliff piece, road, the bridge and the water go, at the built terrain's heights. This script places all
@@ -12,8 +12,9 @@ Everything it places carries the area's tag (IslandBuild on the tutorial island)
 (Island). Building again replaces those actors, so actors placed by hand survive; with "gameplay" it only places the
 gameplay actors again, with "environment" only the light, sky and fog, with "beyond" only what lies past the
 boundary (sky islands, a grounded area's ring, canyon wall, backdrop and far trees), with "cliffs" only the cliff
-faces and outcrops, and with "dressing" only the obstacles' dressing (build_area_dressing.py: fences, walls, grave rows,
-cairns and yard props, instanced). Models that aren't imported yet are skipped with a warning. The level is saved last.
+faces and outcrops, with "dressing" only the obstacles' dressing (build_area_dressing.py: fences, walls, grave rows,
+cairns and yard props, instanced), and with "water" only the waterfalls and their feet (Effects/Falls). Models that
+aren't imported yet are skipped with a warning. The level is saved last.
 An area can swap in models of its own (level.models), add models only the build places (level.props), choose which chimneys smoke
 (level.smoke), vary its cliffs (level.cliffs) and wear its own instances of shared materials (level.materials and
 level.swaps: Ransom's Rest's rock).
@@ -130,11 +131,26 @@ VARY_SWAP = (0.8, 1.25)
 LONE_REACH = 1500.0
 # What lies past a grounded area's core: its terrain parts by name, none of them Ground.
 BEYOND_PARTS = ('Ring_', 'CanyonWall_', 'Backdrop_')
-# Drops the waterfall model (made for the tutorial island's rim, its strands thinning out 40-58 m down) is shortened
-# for: a falls into a gorge is squashed to fit (cm).
-WATERFALL_LENGTH = 4800.0
+# The waterfall model (Waterfall.py, made for the tutorial island's rim, its strands thinning out 40-58 m down) stands
+# unscaled at every lip: a falls into a gorge (Mill Falls, 14 m) lets the gorge's floor hide the rest. Squashed in Z to
+# its drop, its bend over the lip lay flat across the creek, the white plank of the water concept (2026-10-14). It throws
+# the water off the lip at WATERFALL_V0 (cm/s), so a falls of drop d lands WATERFALL_V0 * sqrt(2 d / g) out, where its
+# foot's foam and spray go, on the gorge's stream: GORGE_STREAM over the lowest ground across the floor there
+# (Art/Levels/area_mesh.py lays the stream so; area_features.GORGE_STREAM, cm).
+WATERFALL_V0 = 220.0
+GRAVITY = 981.0
+GORGE_STREAM = 25.0
 # The drop the tall fall into a canyon is made for (Waterfall.py TALL_DROP); a canyon falls is stretched to its own (cm).
 WATERFALL_TALL = 11500.0
+# A fall's foot: SM_WaterfallFootFoam (3 m across its radius) scaled to the fall, and SM_WaterfallFootMist (made for the
+# tall fall's 115 m) scaled by the drop over FOOT_MIST_DROP (cm), between FOOT_MIST_SCALE's bounds. A canyon falls lands
+# in SM_WaterfallPool (8 m across its radius, flat, its rim curving 0.5 m down), POOL_LIFT (cm) over the floor at its
+# foot: the canyon's floor has no collision to trace, and its rim tucks under the uneven ground round it.
+FOOT_FOAM = {'gorge': 1.0, 'canyon': 2.3}
+FOOT_MIST_DROP = 11500.0
+FOOT_MIST_SCALE = (0.35, 1.0)
+POOL_LIFT = 20.0
+FALLS_FOLDER = 'Effects/Falls'
 
 # The way smoke leans (the foliage master's default WindDirection, 1 : 0.35).
 WIND_YAW = 19.0
@@ -1108,36 +1124,10 @@ class AreaBuild:
             self.log(f'{len(boxes)} no-tree boxes for the town')
 
     def effects(self, meshes):
-        """The waterfall off the creek's lip, and smoke from the chimneys (the buildings' Smoke sockets), leaning
-        downwind: every one, or with level.smoke only those buildings' (placement keys: the lived-in houses of a
-        mourning town). Each waits for its model."""
-        falls = self.layout.get('waterfalls') or ({'waterfall': self.layout['waterfall']}
-                                                  if self.layout.get('waterfall') else {})
-        for n, (key, fall) in enumerate(falls.items()):
-            if fall.get('canyon'):
-                # Off a hanging valley's lip down the canyon wall (Ransom's Rest's Larkspur Falls): the tall fall, made
-                # for a 115 m drop, stretched in Z to its own; its spray where it lands.
-                if 'WaterfallTall' not in meshes:
-                    self.warn(f'no SM_WaterfallTall yet (falls {key})')
-                    continue
-                drop = fall['location'][2] - fall['dropTo']
-                self.place(unreal.load_asset(meshes['WaterfallTall']), fall['location'], fall['yaw'],
-                           label=f'Waterfall_{key}', folder='Effects', scale=(1.0, 1.0, drop / WATERFALL_TALL))
-                if 'WaterfallFootMist' in meshes and fall.get('foot'):
-                    self.place(unreal.load_asset(meshes['WaterfallFootMist']), fall['foot'], fall['yaw'],
-                               label=f'WaterfallFootMist_{key}', folder='Effects')
-                continue
-            if 'Waterfall' not in meshes:
-                continue
-            # The model falls about 48 m; a shorter falls (into a gorge) gets it squashed to its drop.
-            drop = fall['location'][2] - fall.get('dropTo', fall['location'][2] - WATERFALL_LENGTH)
-            squash = (1.0, 1.0, max(min(drop / WATERFALL_LENGTH, 1.0), 0.15))
-            label = 'Waterfall' if n == 0 else f'Waterfall_{key}'
-            self.place(unreal.load_asset(meshes['Waterfall']), fall['location'], fall['yaw'], label=label,
-                       folder='Effects', scale=squash if squash[2] < 1.0 else None)
-            if 'WaterfallMist' in meshes:
-                self.place(unreal.load_asset(meshes['WaterfallMist']), fall['location'], fall['yaw'],
-                           label=label.replace('Waterfall', 'WaterfallMist'), folder='Effects')
+        """The waterfalls (falls()), and smoke from the chimneys (the buildings' Smoke sockets), leaning downwind:
+        every one, or with level.smoke only those buildings' (placement keys: the lived-in houses of a mourning
+        town). Each waits for its model."""
+        self.falls(meshes)
         if 'SmokePlume' not in meshes:
             self.warn('no SM_SmokePlume yet')
             return
@@ -1160,6 +1150,96 @@ class AreaBuild:
                 count += 1
         self.log(f'placed {count} chimney smoke plumes')
         self.house_lights()
+
+    def falls(self, meshes):
+        """Every waterfall (layout_computed.json waterfalls, else the older single waterfall) in Effects/Falls, each
+        piece waiting for its model (Art/Models/Terrain/Waterfall.py):
+        - off a lip into the sky or a gorge: SM_Waterfall unscaled at the lip (the creek's water surface, turned to its
+          flow) with SM_WaterfallMist; a gorge's falls (Mill Falls) gets its foot where the water lands, on the gorge's
+          stream (gorge_foot()): SM_WaterfallFootFoam and SM_WaterfallFootMist (fall_foot());
+        - off a hanging valley's lip down a canyon wall ("canyon": Larkspur Falls): SM_WaterfallTall stretched in Z to
+          its drop, and at its foot SM_WaterfallPool, the foam and the foot's spray.
+        The tutorial island's falls into the sky has no foot."""
+        falls = self.layout.get('waterfalls') or ({'waterfall': self.layout['waterfall']}
+                                                  if self.layout.get('waterfall') else {})
+        tiles = None
+        placed = 0
+        for n, (key, fall) in enumerate(falls.items()):
+            x, y, z = fall['location']
+            yaw = fall['yaw']
+            if fall.get('canyon'):
+                if 'WaterfallTall' not in meshes:
+                    self.warn(f'no SM_WaterfallTall yet (falls {key})')
+                    continue
+                drop = z - fall['dropTo']
+                self.place(unreal.load_asset(meshes['WaterfallTall']), fall['location'], yaw, label=f'Waterfall_{key}',
+                           folder=FALLS_FOLDER, scale=(1.0, 1.0, drop / WATERFALL_TALL))
+                placed += 1
+                if fall.get('foot'):
+                    fx, fy, fz = fall['foot']
+                    placed += self.fall_foot(meshes, key, (fx, fy, fz + POOL_LIFT), yaw, drop, 'canyon')
+                continue
+            if 'Waterfall' not in meshes:
+                self.warn(f'no SM_Waterfall yet (falls {key})')
+                continue
+            label = 'Waterfall' if n == 0 else f'Waterfall_{key}'
+            self.place(unreal.load_asset(meshes['Waterfall']), fall['location'], yaw, label=label, folder=FALLS_FOLDER)
+            placed += 1
+            if 'WaterfallMist' in meshes:
+                self.place(unreal.load_asset(meshes['WaterfallMist']), fall['location'], yaw,
+                           label=label.replace('Waterfall', 'WaterfallMist'), folder=FALLS_FOLDER)
+                placed += 1
+            if fall.get('gorge') and 'dropTo' in fall:
+                if tiles is None:
+                    tiles = terrain_tiles(self.tag)
+                foot = self.gorge_foot(tiles, key, fall)
+                placed += self.fall_foot(meshes, key, foot, yaw, z - foot[2], 'gorge')
+        if falls:
+            self.log(f'placed {placed} waterfall pieces for {len(falls)} falls')
+
+    def gorge_foot(self, tiles, key, fall):
+        """Where a falls into a gorge lands (cm): WATERFALL_V0 * sqrt(2 drop / g) out from its lip along its flow, on
+        the gorge's stream: GORGE_STREAM over the lowest of three traces onto the terrain's tiles across the floor
+        there, a meter apart (worked out twice, the second time with the drop the first found). The layout's dropTo
+        (the floor the gorge was carved to, plus the stream) where the traces find no ground."""
+        x, y, z = fall['location']
+        a = math.radians(fall['yaw'])
+        dx, dy = math.cos(a), math.sin(a)
+        water = fall['dropTo']
+        for _ in range(2):
+            out = WATERFALL_V0 * math.sqrt(2.0 * max(z - water, 0.0) / GRAVITY)
+            fx, fy = x + dx * out, y + dy * out
+            hits = [terrain_hit(tiles, unreal.Vector(fx - dy * s, fy + dx * s, z + 100.0),
+                                unreal.Vector(fx - dy * s, fy + dx * s, fall['dropTo'] - 2000.0))
+                    for s in (-100.0, 0.0, 100.0)]
+            heights = [h.z for h in hits if h is not None]
+            if not heights:
+                self.warn(f'falls {key}: no ground found where it lands; its foot stands at dropTo')
+                break
+            water = min(heights) + GORGE_STREAM
+        self.log(f'falls {key} lands {out / 100.0:.2f} m out, its foot on the water at {water / 100.0:.2f} m '
+                 f'(dropTo {fall["dropTo"] / 100.0:.2f} m)')
+        return fx, fy, water
+
+    def fall_foot(self, meshes, key, at, yaw, drop, kind):
+        """A fall's foot at `at` (cm, on the water's surface): a canyon falls' plunge pool, the churning foam
+        (FOOT_FOAM by kind: 'gorge' or 'canyon') and the spray, scaled by the drop (cm). Returns the pieces placed."""
+        placed = 0
+        pieces = (['WaterfallPool'] if kind == 'canyon' else []) + ['WaterfallFootFoam', 'WaterfallFootMist']
+        for name in pieces:
+            if name not in meshes:
+                self.warn(f'no SM_{name} yet (falls {key})')
+                continue
+            scale = None
+            if name == 'WaterfallFootFoam':
+                scale = (FOOT_FOAM[kind], FOOT_FOAM[kind], 1.0)
+            elif name == 'WaterfallFootMist':
+                s = min(max(drop / FOOT_MIST_DROP, FOOT_MIST_SCALE[0]), FOOT_MIST_SCALE[1])
+                scale = (s, s, s) if s != 1.0 else None
+            self.place(unreal.load_asset(meshes[name]), at, yaw, label=f'{name}_{key}', folder=FALLS_FOLDER,
+                       scale=scale)
+            placed += 1
+        return placed
 
     def house_lights(self):
         """The lived-in houses' lights (level.lights, by placement key): AHouseLights on each one's SOCKET_Light, its lamp
@@ -1208,8 +1288,9 @@ class AreaBuild:
     def run(self, mode=None):
         """Builds the whole level, or with mode "gameplay" only the gameplay actors, with "environment" only the light,
         sky and fog, with "beyond" only what lies past the boundary (a grounded area's ring, canyon wall and
-        backdrop; an island's sky islands), with "cliffs" only the cliff faces and the outcrops, or with "dressing"
-        only the obstacles' fences, walls, graves, cairns and yard props (build_area_dressing.py)."""
+        backdrop; an island's sky islands), with "cliffs" only the cliff faces and the outcrops, with "dressing" only
+        the obstacles' fences, walls, graves, cairns and yard props (build_area_dressing.py), or with "water" only the
+        waterfalls and their feet (falls())."""
         with open(self.computed_path) as f:
             self.layout = json.load(f)
         # Reloaded, as the editor keeps modules between runs, so an edited one takes effect.
@@ -1256,6 +1337,20 @@ class AreaBuild:
             self.swap_materials()
             levels.save_current_level()
             self.log('cliffs placed and saved')
+            return
+        if mode == 'water':
+            # The waterfalls alone (Effects/Falls), after their models change; the terrain's water mesh updates in place
+            # when it's imported. Falls placed before they had a folder of their own stood in Effects with the smoke.
+            self.open_level(FALLS_FOLDER)
+            old = [a for a in actors.get_all_level_actors() if unreal.Name(self.tag) in a.tags
+                   and str(a.get_folder_path()) == f'{self.folder}/Effects'
+                   and str(a.get_actor_label()).startswith('Waterfall')]
+            if old:
+                actors.destroy_actors(old)
+                self.log(f'removed {len(old)} waterfall pieces from before Effects/Falls')
+            self.falls(mesh_index())
+            levels.save_current_level()
+            self.log('waterfalls placed and saved')
             return
         if mode == 'dressing':
             # On the terrain's tiles, which stand already; in the area's look (the cairns' granite).
@@ -1321,8 +1416,8 @@ def run(name, only_gameplay=False, mode=None):
 
 if __name__ == '__main__':
     args = sys.argv[1:]
-    modes = ('gameplay', 'environment', 'beyond', 'cliffs', 'dressing')
+    modes = ('gameplay', 'environment', 'beyond', 'cliffs', 'dressing', 'water')
     if not args or args[0] in modes:
-        raise SystemExit('usage: build_area.py <Area> [gameplay|environment|beyond|cliffs|dressing] (the area is a '
-                         'folder under Art/Levels)')
+        raise SystemExit('usage: build_area.py <Area> [gameplay|environment|beyond|cliffs|dressing|water] (the area is '
+                         'a folder under Art/Levels)')
     run(args[0], mode=next((a for a in args[1:] if a in modes), None))

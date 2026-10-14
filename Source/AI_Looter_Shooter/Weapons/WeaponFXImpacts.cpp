@@ -1,8 +1,11 @@
 #include "Weapons/WeaponFX.h"
+#include "Engine/World.h"
+#include "GameFramework/Actor.h"
 #include "Templates/UnrealTemplate.h"
 
 // FWeaponFX's bullet hits on the world, in the look of what was struck (UBulletSubsystem finds the surface with
-// ImpactSurface). Spawning only; WeaponFXDraw.cpp moves and draws every particle.
+// ImpactSurface), and the rings and wakes a hit or a step leaves on water (the pool and its rules are WaterRings.h).
+// Spawning only; WeaponFXDraw.cpp moves and draws every particle.
 
 namespace
 {
@@ -209,7 +212,8 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 	}
 	case EImpactMaterial::Water:
 	{
-		// A splash: a column of drops straight up, a crown thrown out round it, and mist.
+		// A splash: a column of drops straight up, a crown thrown out round it, and mist; and rings spreading over the water.
+		SpawnWaterRings(Location, Up, Size);
 		const uint8 Drops = BitSetFor(EBitShape::Round, ImpactDropColor, 0.15f);
 		for (int32 Index = 0; Index < Many(4); ++Index)
 		{
@@ -245,4 +249,50 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 		// Critical hits get a bright pop on top, whatever they hit.
 		Flash(ImpactCritColor, 28.f, 26.f, 60.f, 0.1f);
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Water: rings and wakes
+// ---------------------------------------------------------------------------
+
+FLinearColor FWeaponFX::WaterTint(const FVector& Where)
+{
+	const AActor* Actor = Owner.Get();
+	const UWorld* World = Actor ? Actor->GetWorld() : nullptr;
+	if (!World)
+	{
+		return FWaterRings::FoamAlbedo() * 1.2f;
+	}
+	// The sun's trace is the cost: once a second is plenty for the light on a creek.
+	const double Now = World->GetTimeSeconds();
+	if (Now - WaterLightAt >= WaterLightSeconds || Now < WaterLightAt)
+	{
+		WaterLight = WaterDustLight.At(*World, Where + FVector(0.0, 0.0, 40.0), *Actor);
+		WaterLightAt = Now;
+	}
+	return FWaterRings::FoamAlbedo() * WaterLight;
+}
+
+int32 FWeaponFX::SpawnWaterRings(const FVector& Location, const FVector& Normal, float Size, const FLinearColor* Light)
+{
+	const FVector Up = Normal.IsNearlyZero() ? FVector::UpVector : Normal.GetSafeNormal();
+	if (!FWaterRings::LiesFlat(Up))
+	{
+		return 0;
+	}
+	const FLinearColor Color = Light ? FWaterRings::FoamAlbedo() * *Light : WaterTint(Location);
+	// Just over the surface, so the dashes never sink into it.
+	return WaterRings.AddRings(Location + Up * 1.5, Up, Size, FWaterRings::RingsFor(Size), Color);
+}
+
+bool FWeaponFX::SpawnWake(const FVector& Location, const FVector& Normal, const FVector& Direction, float Speed, float Scale,
+	const FLinearColor* Light)
+{
+	const FVector Up = Normal.IsNearlyZero() ? FVector::UpVector : Normal.GetSafeNormal();
+	if (!FWaterRings::LiesFlat(Up))
+	{
+		return false;
+	}
+	const FLinearColor Color = Light ? FWaterRings::FoamAlbedo() * *Light : WaterTint(Location);
+	return WaterRings.AddWake(Location + Up * 1.5, Up, Direction, Speed, Scale, Color);
 }

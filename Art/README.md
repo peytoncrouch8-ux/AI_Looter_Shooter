@@ -59,7 +59,7 @@ The textured style (`Docs/TutorialIsland.md`) names a master material, with thes
 
 | Property | Meaning |
 |---|---|
-| `Master` | `World` (opaque), `WorldFoliage` (masked, two-sided, wind), `Terrain`, `Water`, or the effects `Waterfall` and `Smoke` (translucent, scrolling; vertex color A is opacity, R foam) |
+| `Master` | `World` (opaque), `WorldFoliage` (masked, two-sided, wind), `Terrain`, `Water`, or the effects `Waterfall`, `WaterMist` and `Smoke` (translucent, scrolling; vertex color A is opacity, R foam). Water and falls: see below |
 | `TextureSet` | the folder `Art/Textures/<set>` holding `T_<set>_BC.png` (color), `_N.png` (DirectX normal map), `_ORM.png` (occlusion, roughness, metallic). For `Terrain`, the set's color map is the island's macro map |
 | `DetailSets` | `Terrain` only: `'GroundGrass,RockCliff'`, the tiled detail sets for grass/soil and rock |
 | `Tint` | `'#RRGGBB'`, multiplies the color (default white) |
@@ -70,6 +70,12 @@ The textured style (`Docs/TutorialIsland.md`) names a master material, with thes
   (built by `Tools/Unreal/build_world_materials.py`).
 - Vertex color alpha is baked ambient occlusion; on foliage, R is the wind sway weight and G a phase offset. These
   models export their vertex colors linear.
+- Water (linear vertex colors; UV 0 in world meters): `Water` R shore closeness (1 at the waterline, 0 from 1.5 m in),
+  G depth share (0 at the waterline, 1 at 1 m deep or the bed's deepest), B and A the flow along layout x and y packed
+  `0.5 + 0.5 * flow` (0.5, 0.5 still); `Waterfall` R foam (where it breaks), A opacity, UV 0 U across a ribbon (0..1) and V
+  meters along the flow (the level may stretch the model in Z: the material takes that back out); `WaterMist` A soft opacity, UV 0 0..1 over each card (billows grow
+  from its middle). Their textures (`T_WaterNormal`, `T_WaterFoam`, `T_WaterStreaks`) are script-made by
+  `Art/Textures/Water/make_water_textures.py`; `build_world_materials.py` imports them.
 
 ## Rigged models (skeletal meshes)
 

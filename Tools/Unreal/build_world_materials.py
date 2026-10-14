@@ -37,14 +37,25 @@
   M_SkyClouds     unlit, translucent: painted clouds on a sky dome (Coverage, Softness, Scale, wind), each lit from
                   the sun's side (the sky atmosphere's sun): a warm LitColor where it thins toward the sun, a cool
                   ShadeColor where it thickens, darker cores against the sun and thin edges glowing near it.
-  M_Waterfall,    unlit, translucent effects scrolling the macro noise: a falling water sheet's foam streaks, and
-  M_Smoke         chimney smoke. Vertex color A is opacity (R foam on the waterfall).
+  M_Smoke         unlit, translucent effect scrolling the macro noise: chimney smoke. Vertex color A is opacity.
+  M_Waterfall     unlit, translucent, two-sided falling water (the water contract of 2026-10-14): three copies of
+                  T_WaterStreaks falling at different scales and speeds in world meters (UV 0: U across a ribbon, V meters
+                  along the flow; the level's stretch in Z taken back out), see-through gaps and ragged edges cut from
+                  them by the vertex alpha (A), a darker body (WaterColor) white only where vertex R says it breaks
+                  (FoamColor), DepthFade where it meets the pool or the rock, times MPC_Lighting's CloudTint.
+  M_WaterMist     unlit, translucent, two-sided spray at a fall's foot and lip: the macro noise billowing outward from
+                  BillowOrigin on each card's UV 0, inside the card's soft vertex alpha (A), fading edge-on, near the
+                  camera and against what's behind it, brighter toward the sun, times CloudTint.
   M_GravewindWisp, unlit, translucent, two-sided: the Gravewind's cards at Gravewind Point (Art/Models/Props/
   M_CanyonFog     Gravewind.py): world-scale noise streaks (the wisps off the Rim) or billows (the fog banks in the
                   canyon) panned along UV1, fading edge-on, against what's behind, near the camera and (wisps) far off;
                   lilac turning warm toward the sun, times MPC_Lighting's CloudTint; a sway from vertex G.
-  M_Water         opaque, cheap: a dark color (the sky's reflection does the rest), glossy, procedural ripples on
-                  UV 0 in meters.
+  M_Water         opaque, lit, cheap (two T_WaterNormal taps, one T_WaterFoam tap): the creeks and ponds, from the water
+                  mesh's vertex colors (R shore closeness, G depth share, B and A the flow packed 0..1) and UV 0 in
+                  meters: teal shallows (ShallowColor) deepening to blue-green (WaterColor), ripples flowing downstream
+                  (a two-phase flow map; still water drifts), the sky's tint toward grazing angles (SkyColor), a broken,
+                  lapping foam line at the shore (FoamColor); the sun's glints from its low roughness. Lit like the
+                  bank, so dusk dims it. A mesh without vertex colors reads as still water with no shore.
   M_Gel           lit translucent gel (the slime): Tint, mostly clear facing the eye (Opacity) and denser at grazing
                   edges (EdgeOpacity), a faint inner glow, and a sun highlight worked out in the material (the sky
                   atmosphere's sun direction), so the cheapest translucent lighting does. Casts a solid shadow.
@@ -1129,27 +1140,186 @@ def build_terrain():
     return mat
 
 
-WATER_CODE = """// Four waves at odd angles and lengths (meters), over a slowly warped surface, so no grid lines up.
-float2 Q = UV + 0.35 * float2(sin(UV.y * 0.9 + Time * 0.30), sin(UV.x * 0.7 - Time * 0.25));
-float2 D1 = float2(0.80, 0.60), D2 = float2(-0.45, 0.89), D3 = float2(0.95, -0.31), D4 = float2(-0.71, -0.71);
-float2 G = D1 * cos(dot(Q, D1) * 2.73 + Time * 1.3) * 0.050
-         + D2 * cos(dot(Q, D2) * 4.49 + Time * 1.7) * 0.035
-         + D3 * cos(dot(Q, D3) * 6.98 + Time * 2.2) * 0.025
-         + D4 * cos(dot(Q, D4) * 11.4 + Time * 2.9) * 0.015;
-return normalize(float3(-G.x, -G.y, 1.0));"""
+# --- Water (the shared water contract, 2026-10-14: clear teal water, falling water, spray) ---
+
+WATER_TEXTURES = 'C:/Dev/AI_Looter_Shooter/Art/Textures/Water'
+
+
+def srgb(value):
+    """0xRRGGBB (the contract's palette, sRGB) as a linear color parameter's four numbers."""
+    def channel(byte):
+        c = byte / 255.0
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    return (channel((value >> 16) & 255), channel((value >> 8) & 255), channel(value & 255), 1.0)
+
+
+# The contract's palette: shallow teal, deep blue-green, foam, the falling water's body; and the sky the water tints
+# toward at grazing angles (a pale blue, lit as the water is).
+WATER_SHALLOW, WATER_DEEP, WATER_FOAM, FALL_BODY, WATER_SKY = 0x43918A, 0x184A54, 0xEEF5F2, 0x6F9FA3, 0xA8CCD8
+# The water mesh's flow (vertex B, A unpacked to -1..1) into UV 0's axes: x' = dot(flow, (X, Y)), y' = dot(flow, (Z, W)).
+# The mesh packs the flow in layout meters (x north, y east; Art/Levels/area_mesh.py); its UVMap is (east, north) and the
+# FBX import flips V, so UV 0 is (east, -north): x' = y, y' = -x.
+WATER_FLOW_AXES = (0.0, 1.0, -1.0, 0.0)
+
+
+def water_texture(name):
+    """One of the water's textures (Art/Textures/Water/make_water_textures.py writes them) at /Game/Art/Textures/Water,
+    imported again whenever its PNG changes: T_WaterNormal a normal map; T_WaterFoam and T_WaterStreaks linear greyscale
+    kept uncompressed (a byte a texel: block compression would band the soft thresholds the materials cut). They tile, so
+    they wrap. None while the PNG is missing."""
+    import os
+    file = f'{WATER_TEXTURES}/{name}.png'
+    if not os.path.isfile(file):
+        return None
+    path = f'/Game/Art/Textures/Water/{name}'
+    texture = import_texture(file, path, 'N' if name == 'T_WaterNormal' else 'M')
+    if name != 'T_WaterNormal':
+        texture.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_GRAYSCALE)
+        unreal.EditorAssetLibrary.save_loaded_asset(texture)
+    return texture
+
+
+def water_maps(owner, names):
+    """The water textures a master needs, or None (logged) while any is missing: a stand-in would draw flat water."""
+    maps = {name: water_texture(name) for name in names}
+    missing = [name for name, texture in maps.items() if texture is None]
+    if missing:
+        unreal.log_error(f'{owner} not built: {", ".join(missing)} missing from {WATER_TEXTURES}; run Tools\\artrun.ps1 '
+                         '-Script Art\\Textures\\Water\\make_water_textures.py first')
+        return None
+    return maps
+
+
+def map_object(g, name, texture, sampler, x, y):
+    """A texture object parameter for a Custom node to sample (the node gets <pin> and <pin>Sampler)."""
+    return g.node(unreal.MaterialExpressionTextureObjectParameter, x, y, parameter_name=name, texture=texture,
+                  sampler_type=sampler)
+
+
+def tangent_to_world(g, source, x, y):
+    """A tangent-space vector in world space (the Transform node), or the vector as it is should the node's settings not
+    take: the water is level, so its tangent-space normal is close to the world's anyway."""
+    try:
+        node = g.node(unreal.MaterialExpressionTransform, x, y,
+                      transform_source_type=unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_TANGENT,
+                      transform_type=unreal.MaterialVectorCoordTransform.TRANSFORM_WORLD)
+    except Exception as error:  # noqa: BLE001 - the fallback is close enough for a level surface
+        unreal.log_warning(f'tangent-to-world transform not made ({error}); the Fresnel reads the tangent-space normal')
+        return source
+    g.link(source, '', node, '')
+    return node
+
+
+# The water mesh's vertex colours, shared by M_Water's foam and ripples (see M_Water in the docstring).
+WATER_COMMON = """// A mesh without colours reads white: R and G both 1, which a real water mesh never has (G is 0 at the waterline), is
+// taken as still water with no shore.
+float Legacy = step(1.98, Col.r + Col.g);
+float Shore = Col.r * (1.0 - Legacy);
+// The flow, unpacked and turned into UV 0's axes (FlowAxes), past a dead zone for 8-bit stillness (0.5 is stored 0.502).
+float2 Packed = float2(Col.b, FlowY) * 2.0 - 1.0;
+float2 Flow = float2(dot(Packed, FlowAxes.xy), dot(Packed, FlowAxes.zw)) * (1.0 - Legacy);
+Flow *= saturate(length(Flow) * 20.0 - 0.5);
+// A slow phase across the surface (UV 0 is meters), so the flow's cycles and the foam's lapping never beat in step.
+float Jitter = frac(0.5 + 0.25 * sin(UV.x * 0.71 + 1.7 * sin(UV.y * 0.53)) + 0.25 * sin(UV.y * 0.83 + 1.9 * sin(UV.x * 0.47)));
+"""
+# The shore's foam: a band FoamReach of the shore ramp wide (R runs from 1 at the waterline to 0 1.5 m in), breathing
+# in and out as if lapping, broken up by T_WaterFoam (flattened: a cut c keeps 1 - c of it): fullest at the waterline,
+# flecks at its inner edge, drifting and wobbling a little.
+WATER_FOAM_CODE = WATER_COMMON + """float Lap = sin((Time * LapSpeed + Jitter) * 6.28318);
+float Reach = FoamReach * (1.0 + 0.2 * Lap);
+float T = saturate((Shore - 1.0 + Reach) / max(Reach, 0.01));
+float2 Drift = frac(float2(0.6, -0.8) * (Time * FoamDrift * FoamScale));
+float2 Wobble = 0.05 * float2(sin(Time * 0.7 + UV.y * 1.3), sin(Time * 0.53 + UV.x * 1.1));
+float N = Texture2DSample(Tex, TexSampler, UV * FoamScale + Drift + Wobble).r;
+float Cut = 1.0 - T * FoamCover;
+return smoothstep(Cut, Cut + FoamSoft, N) * (0.4 + 0.6 * T) * FoamOpacity * step(0.001, T);"""
+# Two taps of T_WaterNormal (one tile on 1 / RippleScale meters). Flowing water: both slide downstream (FlowSpeed m/s
+# at full flow), each over one cycle (FlowCycle a second), half a cycle apart, each faded out as it jumps back: a flow
+# map, so the ripples flow on forever without a creek's bends stretching them. Still water: both stay, drifting slowly
+# against each other (IdleSpeed m/s). The second tap is turned 37 degrees and 1.37 times finer, so the two never line
+# up; its normal is turned back. The blend keeps their contrast (an even mix of two unrelated maps is flatter than
+# either); running water ripples a little more, foam flattens them.
+WATER_RIPPLES = WATER_COMMON + """float PhaseA = frac(Time * FlowCycle + Jitter);
+float PhaseB = frac(PhaseA + 0.5);
+float Moving = saturate(length(Flow) * 3.0);
+float W = lerp(0.5, 1.0 - abs(1.0 - 2.0 * PhaseA), Moving);
+float Period = 1.0 / max(FlowCycle, 0.01);
+float2 QA = UV - Flow * (FlowSpeed * Period * (PhaseA - 0.5));
+float2 QB = UV - Flow * (FlowSpeed * Period * (PhaseB - 0.5));
+float2 IdleA = frac(float2(0.8, 0.6) * (Time * IdleSpeed * RippleScale));
+float2 IdleB = frac(float2(-0.6, -0.8) * (Time * IdleSpeed * RippleScale * 1.37));
+float2 RB = float2(0.8 * QB.x - 0.6 * QB.y, 0.6 * QB.x + 0.8 * QB.y);
+float2 NA = Texture2DSample(Tex, TexSampler, QA * RippleScale + IdleA).rg * 2.0 - 1.0;
+float2 NR = Texture2DSample(Tex, TexSampler, RB * (RippleScale * 1.37) + float2(0.37, 0.61) + IdleB).rg * 2.0 - 1.0;
+float2 NB = float2(0.8 * NR.x + 0.6 * NR.y, -0.6 * NR.x + 0.8 * NR.y);
+float2 XY = (NA * W + NB * (1.0 - W)) * rsqrt(W * W + (1.0 - W) * (1.0 - W));
+XY *= RippleStrength * (1.0 + 0.5 * Moving) * (1.0 - 0.7 * Foam);
+return normalize(float3(XY, 1.0));"""
+# Teal shallows deepening to blue-green (G, eased by DepthPower), the sky's tint growing toward grazing angles (Schlick's
+# Fresnel for water, from the rippled normal: SkyTint of it; the sky light's own reflection adds the rest), foam over it.
+# A lit base colour: the sun, the shadows and dusk light it as they light the bank.
+WATER_COLOR = """float Legacy = step(1.98, Col.r + Col.g);
+float Depth = lerp(Col.g, 1.0, Legacy);
+float3 C = lerp(ShallowColor, WaterColor, pow(saturate(Depth), DepthPower));
+float F = 0.02 + 0.98 * pow(1.0 - saturate(dot(normalize(Normal), CameraVector)), 5.0);
+C = lerp(C, SkyColor, saturate(F * SkyTint));
+return lerp(C, FoamColor, Foam);"""
 
 
 def build_water():
+    """M_Water: the creeks and ponds (see the docstring). Opaque and lit; three texture taps and a little arithmetic, so
+    a view full of water costs Medium about what the same ground would. The sun's glints are the lighting's own specular
+    off the ripples (Roughness), which shadows put out as they should."""
+    maps = water_maps('M_Water', ('T_WaterNormal', 'T_WaterFoam'))
+    if maps is None:
+        return None
     mat = material('M_Water')
+    mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_OPAQUE)
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
     g = Graph(mat)
-    g.out(g.vector('WaterColor', (0.012, 0.032, 0.03, 1.0), -600, -200), '', unreal.MaterialProperty.MP_BASE_COLOR)
-    coords = g.node(unreal.MaterialExpressionTextureCoordinate, -1000, 200, coordinate_index=0)
-    uv = g.mul(coords, '', g.scalar('RippleScale', 1.0, -1000, 320), '', -800, 200)
-    ripples = g.custom(WATER_CODE, [('UV', uv, ''), ('Time', g.node(unreal.MaterialExpressionTime, -800, 400), '')],
-                       unreal.CustomMaterialOutputType.CMOT_FLOAT3, -500, 200, 'Ripples')
+    vertex = g.node(unreal.MaterialExpressionVertexColor, -1700, -100)
+    common = [
+        ('UV', g.node(unreal.MaterialExpressionTextureCoordinate, -1700, -250, coordinate_index=0), ''),
+        ('Time', g.node(unreal.MaterialExpressionTime, -1700, -175), ''),
+        # The vertex color's plain output is RGB only: its alpha comes in on a pin of its own.
+        ('Col', vertex, ''), ('FlowY', vertex, 'A'),
+        ('FlowAxes', g.vector('FlowAxes', WATER_FLOW_AXES, -1700, 50), 'RGBA'),
+    ]
+
+    def scalars(values, x, y):
+        return [(name, g.scalar(name, value, x, y + 60 * i), '') for i, (name, value) in enumerate(values)]
+    foam = g.custom(WATER_FOAM_CODE, common + [
+        ('Tex', map_object(g, 'FoamMap', maps['T_WaterFoam'], unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_GRAYSCALE,
+                           -1700, 200), ''),
+    ] + scalars((('FoamScale', 0.4), ('FoamReach', 0.35), ('FoamCover', 0.7), ('FoamSoft', 0.25),
+                 ('FoamOpacity', 0.9), ('LapSpeed', 0.12), ('FoamDrift', 0.03)), -2000, 200),
+        unreal.CustomMaterialOutputType.CMOT_FLOAT1, -1200, 200, 'Shore foam')
+    ripples = g.custom(WATER_RIPPLES, common + [
+        ('Tex', map_object(g, 'RippleMap', maps['T_WaterNormal'], unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL,
+                           -1700, 700), ''),
+        ('Foam', foam, ''),
+    ] + scalars((('RippleScale', 0.2), ('RippleStrength', 0.3), ('FlowSpeed', 0.8), ('FlowCycle', 0.5),
+                 ('IdleSpeed', 0.05)), -2000, 700),
+        unreal.CustomMaterialOutputType.CMOT_FLOAT3, -900, 600, 'Ripples')
     g.out(ripples, '', unreal.MaterialProperty.MP_NORMAL)
-    g.out(g.scalar('Roughness', 0.1, -600, 500), '', unreal.MaterialProperty.MP_ROUGHNESS)
-    g.out(g.scalar('Specular', 0.5, -600, 600), '', unreal.MaterialProperty.MP_SPECULAR)
+    color = g.custom(WATER_COLOR, [
+        ('Col', vertex, ''), ('Foam', foam, ''),
+        ('Normal', tangent_to_world(g, ripples, -600, 450), ''),
+        ('CameraVector', g.node(unreal.MaterialExpressionCameraVectorWS, -600, 350), ''),
+        ('ShallowColor', g.vector('ShallowColor', srgb(WATER_SHALLOW), -900, -500), ''),
+        ('WaterColor', g.vector('WaterColor', srgb(WATER_DEEP), -900, -420), ''),
+        ('FoamColor', g.vector('FoamColor', srgb(WATER_FOAM), -900, -340), ''),
+        ('SkyColor', g.vector('SkyColor', srgb(WATER_SKY), -900, -260), ''),
+        ('SkyTint', g.scalar('SkyTint', 0.35, -900, -180), ''),
+        ('DepthPower', g.scalar('DepthPower', 0.6, -900, -120), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, -200, 'Water color')
+    g.out(color, '', unreal.MaterialProperty.MP_BASE_COLOR)
+    rough = g.node(unreal.MaterialExpressionLinearInterpolate, -300, 300)
+    g.link(g.scalar('Roughness', 0.12, -600, 250), '', rough, 'A')
+    g.link(g.scalar('FoamRoughness', 0.55, -600, 300), '', rough, 'B')
+    g.link(foam, '', rough, 'Alpha')
+    g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
+    g.out(g.scalar('Specular', 0.5, -600, 550), '', unreal.MaterialProperty.MP_SPECULAR)
     # Water meshes aren't Nanite, and the Nanite permutation of this material doesn't compile on SM6.
     finish(mat, [])
     return mat
@@ -1313,16 +1483,8 @@ def build_sky_clouds():
     return mat
 
 
-# Effects: unlit and translucent, scrolling the macro noise. Their models carry the shape in vertex colors (A opacity,
-# R foam) and UV 0 (V along the flow, in meters for the waterfall, 0..1 up the cards for smoke).
-FALL_STREAKS = """float2 P = float2(UV.x * 4.0, UV.y * 0.06 - Time * Speed);
-float Streak = Texture2DSample(Noise, NoiseSampler, P).r * 0.65
-             + Texture2DSample(Noise, NoiseSampler, P * float2(2.7, 1.9) + 0.31).r * 0.35;
-"""
-FALL_COLOR = FALL_STREAKS + """float Foam = saturate(VertexColor.r + (Streak - 0.45) * 1.4);
-return lerp(WaterColor, FoamColor, Foam);"""
-FALL_OPACITY = FALL_STREAKS + """return saturate(Alpha * (0.35 + Streak * 1.1)) * Opacity;"""
-
+# Effects: unlit and translucent, scrolling the macro noise. Their models carry the shape in vertex colors (A opacity)
+# and UV 0 (0..1 up the cards for smoke).
 SMOKE_NOISE = """float2 P = float2(UV.x * 0.8, UV.y * 0.5 - Time * Speed);
 float Puff = Texture2DSample(Noise, NoiseSampler, P).r * 0.7
            + Texture2DSample(Noise, NoiseSampler, P * 2.3 + 0.57).r * 0.3;
@@ -1471,16 +1633,181 @@ def effect(name, inputs_extra, color_code, color_inputs, opacity_code, opacity_i
     return mat
 
 
+# Falling water (M_Waterfall), shared by its colour and opacity. Meters along the flow in the world: UV 0's V is the
+# mesh's own meters along it, and the level stretches a fall in Z (a short fall's model squashed to its drop, a tall
+# one to the canyon's), so that stretch is taken back out of the falling part: DepthW is how far below the lip (the
+# pivot) a point is in the world, DepthW / ScaleZ in the mesh. Three copies of T_WaterStreaks fall at different scales
+# and speeds (Speed m/s for the broadest, Length meters a repeat, Across repeats over a ribbon), so the sheet never
+# repeats in step: S1 the ropes of water, S2 and S3 the finer threads. Where the vertex foam (R) is low, smooth water
+# rolling over the lip, the streaks stay faint and whole.
+FALL_LAYERS = """float ScaleZ = max(length(ZAxis), 0.05);
+float DepthW = (ObjectPos.z - WorldPos.z) * 0.01;
+float Along = UV.y + DepthW * (1.0 - 1.0 / ScaleZ);
+float L2 = Length * 0.61;
+float L3 = Length * 0.37;
+float S1 = Texture2DSample(Tex, TexSampler, float2(UV.x * Across, Along / Length - frac(Time * Speed / Length))).r;
+float S2 = Texture2DSample(Tex, TexSampler, float2(UV.x * Across * 1.73 + 0.37, Along / L2 - frac(Time * Speed * 1.35 / L2))).r;
+float S3 = Texture2DSample(Tex, TexSampler, float2(UV.x * Across * 2.91 + 0.71, Along / L3 - frac(Time * Speed * 1.8 / L3))).r;
+float Break = smoothstep(0.25, 0.75, Foam);
+float Streak = 0.5 + (S1 * 0.5 + S2 * 0.3 + S3 * 0.2 - 0.5) * (0.45 + 0.55 * Break);
+"""
+# A darker body, lighter in its ropes, white only where it breaks: R lowers the cut on the fine threads (FoamAmount of
+# it), so a breaking strand whitens in streaks, never all at once. Unlit, at the brightness a lit surface of its colour
+# shows in the sun (Brightness), dimmed at dusk by the lighting state's cloud tint as the smoke is.
+FALL_COLOR = FALL_LAYERS + """float Fine = S2 * 0.6 + S3 * 0.4;
+float WhiteCut = 1.0 - Foam * FoamAmount;
+float White = smoothstep(WhiteCut, WhiteCut + FoamSoft, Fine);
+float3 Water = WaterColor * (0.8 + 0.4 * S1);
+return lerp(Water, FoamColor, White) * Brightness * CloudTint;"""
+# See-through gaps (a cut on the streaks: GapCalm of the sheet open on the lip, GapBreak once it breaks) and ragged
+# edges: where the mesh thins the sheet (alpha toward its edges and its frayed foot) the cut rises toward CutMax, so
+# only the densest streaks stay. It fades where a ribbon turns edge-on (crossed ribbons would show as lines; EdgeFade)
+# and where it meets what's behind it (Fade, the depth fade: the pool, the rock, the creek under the lip).
+FALL_OPACITY = FALL_LAYERS + """float Gap = lerp(GapCalm, GapBreak, Break);
+float Cut = lerp(Gap, CutMax, 1.0 - saturate(Alpha));
+float Keep = smoothstep(Cut - Soft, Cut + Soft, Streak);
+float Dense = Keep * lerp(Body, 1.0, Streak);
+float EdgeOn = lerp(1.0 - EdgeFade, 1.0, saturate(abs(dot(normalize(Normal), CameraVector)) * 3.0));
+return saturate(Dense * saturate(Alpha * 3.0) * EdgeOn * Opacity) * Fade;"""
+
+
+def water_effect(name):
+    """An unlit, translucent, two-sided master, emptied for its graph."""
+    mat = material(name)
+    mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_TRANSLUCENT)
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
+    mat.set_editor_property('two_sided', True)
+    return mat
+
+
+def object_z_axis(g, x, y):
+    """The object's own up axis in the world (its length is the level's Z scale), or straight up (no stretch known)
+    should the Transform node's settings not take."""
+    up = g.node(unreal.MaterialExpressionConstant3Vector, x, y, constant=unreal.LinearColor(0.0, 0.0, 1.0, 1.0))
+    try:
+        node = g.node(unreal.MaterialExpressionTransform, x + 250, y,
+                      transform_source_type=unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_LOCAL,
+                      transform_type=unreal.MaterialVectorCoordTransform.TRANSFORM_WORLD)
+    except Exception as error:  # noqa: BLE001 - unstretched falls look the same without it
+        unreal.log_warning(f'local-to-world transform not made ({error}); M_Waterfall ignores the level\'s Z stretch')
+        return up
+    g.link(up, '', node, '')
+    return node
+
+
+def depth_fade(g, distance, x, y):
+    """0 where the surface touches what's behind it, 1 from distance cm on."""
+    fade = g.node(unreal.MaterialExpressionDepthFade, x, y)
+    g.link(distance, '', fade, 'FadeDistance')
+    return fade
+
+
 def build_waterfall():
-    """M_Waterfall: foam streaks falling down a water sheet (Speed in sheet-V units a second)."""
-    return effect('M_Waterfall',
-                  [('Speed', lambda g: g.scalar('Speed', 0.5, -900, 200))],
-                  FALL_COLOR,
-                  # Unlit, so as bright as the sunlit scene around it (the clouds are about 3).
-                  [('WaterColor', lambda g: g.vector('WaterColor', (1.1, 1.45, 1.6, 1.0), -900, 300)),
-                   ('FoamColor', lambda g: g.vector('FoamColor', (3.2, 3.3, 3.4, 1.0), -900, 400))],
-                  FALL_OPACITY,
-                  [('Opacity', lambda g: g.scalar('Opacity', 0.85, -900, 500))])
+    """M_Waterfall: falling water (FALL_LAYERS). Three streak taps on each covered pixel; the sheets are thin, so even a
+    fall filling the view stays inside the contract's budget."""
+    maps = water_maps('M_Waterfall', ('T_WaterStreaks',))
+    if maps is None:
+        return None
+    mat = water_effect('M_Waterfall')
+    g = Graph(mat)
+    vertex = g.node(unreal.MaterialExpressionVertexColor, -1500, -100)
+    shared = [
+        ('UV', g.node(unreal.MaterialExpressionTextureCoordinate, -1500, -250, coordinate_index=0), ''),
+        ('Foam', vertex, 'R'),
+        ('Tex', map_object(g, 'StreakMap', maps['T_WaterStreaks'],
+                           unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_GRAYSCALE, -1500, 50), ''),
+        ('Time', g.node(unreal.MaterialExpressionTime, -1500, 200), ''),
+        ('WorldPos', g.node(unreal.MaterialExpressionWorldPosition, -1500, 300,
+                            world_position_shader_offset=unreal.WorldPositionIncludedOffsets.WPT_EXCLUDE_ALL_SHADER_OFFSETS), ''),
+        ('ObjectPos', g.node(unreal.MaterialExpressionObjectPositionWS, -1500, 400), ''),
+        ('ZAxis', object_z_axis(g, -1800, 500), ''),
+        ('Speed', g.scalar('Speed', 6.0, -1500, 600), ''),
+        ('Length', g.scalar('Length', 12.0, -1500, 660), ''),
+        ('Across', g.scalar('Across', 1.0, -1500, 720), ''),
+    ]
+    color = g.custom(FALL_COLOR, shared + [
+        ('WaterColor', g.vector('WaterColor', srgb(FALL_BODY), -1100, -500), ''),
+        ('FoamColor', g.vector('FoamColor', srgb(WATER_FOAM), -1100, -420), ''),
+        ('FoamAmount', g.scalar('FoamAmount', 0.5, -1100, -340), ''),
+        ('FoamSoft', g.scalar('FoamSoft', 0.15, -1100, -280), ''),
+        ('Brightness', g.scalar('Brightness', 2.5, -1100, -220), ''),
+        ('CloudTint', lighting_tint(g, 'CloudTint', -1500, -400), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -600, -200, 'M_Waterfall color')
+    opacity = g.custom(FALL_OPACITY, shared + [
+        ('Alpha', vertex, 'A'),
+        ('Normal', g.node(unreal.MaterialExpressionVertexNormalWS, -1100, 250), ''),
+        ('CameraVector', g.node(unreal.MaterialExpressionCameraVectorWS, -1100, 320), ''),
+        ('Fade', depth_fade(g, g.scalar('DepthFadeDistance', 60.0, -1400, 900), -1100, 900), ''),
+    ] + [(name, g.scalar(name, value, -1100, 400 + 60 * i), '') for i, (name, value) in enumerate((
+        ('GapCalm', 0.12), ('GapBreak', 0.3), ('CutMax', 0.82), ('Soft', 0.08), ('Body', 0.55), ('EdgeFade', 0.6),
+        ('Opacity', 0.9)))],
+        unreal.CustomMaterialOutputType.CMOT_FLOAT1, -600, 300, 'M_Waterfall opacity')
+    g.out(color, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    g.out(opacity, '', unreal.MaterialProperty.MP_OPACITY)
+    finish(mat, [])
+    return mat
+
+
+# Spray (M_WaterMist): billows rolling outward from BillowOrigin (UV 0, 0..1 over each card): two copies of the macro
+# noise growing outward, each over one cycle (BillowRate a second), half a cycle apart, faded out as it starts again
+# from a new part of the noise, so the spray billows out forever without stretching or repeating in step. The blend
+# keeps the contrast of either copy.
+MIST_OPACITY = """float2 C = (UV - BillowOrigin.xy) * BillowScale;
+float PA = frac(Time * BillowRate);
+float PB = frac(PA + 0.5);
+float W = 1.0 - abs(1.0 - 2.0 * PA);
+float2 SeedA = frac(floor(Time * BillowRate) * float2(0.37, 0.61));
+float2 SeedB = frac(floor(Time * BillowRate + 0.5) * float2(0.53, 0.19));
+float NA = Texture2DSample(Noise, NoiseSampler, C / (1.0 + PA * Grow) + SeedA).r;
+float NB = Texture2DSample(Noise, NoiseSampler, C / (1.0 + PB * Grow) + SeedB).r;
+float Puff = 0.5 + (NA * W + NB * (1.0 - W) - 0.5) * rsqrt(W * W + (1.0 - W) * (1.0 - W));
+// Soft billows inside the card's own soft alpha (vertex A), never quite empty (Floor); fading where a card turns
+// edge-on, near the camera (walking through spray doesn't white out the view) and where it meets what's behind it.
+float Shape = smoothstep(PuffLow, PuffHigh, Puff);
+float EdgeOn = saturate(abs(dot(normalize(Normal), CameraVector)) * 2.5);
+float Near = saturate((length(WorldPos - CameraPos) - NearStart) / max(NearEnd - NearStart, 1.0));
+return saturate(Alpha * lerp(Floor, 1.0, Shape) * EdgeOn * Near * Opacity) * Fade;"""
+# Spray white, much brighter toward the sun (light scattered forward through it), unlit at the scene's brightness and
+# dimmed at dusk by the cloud tint.
+MIST_COLOR = """float Toward = pow(saturate(dot(-CameraVector, normalize(SunDirection + 1e-5))), 4.0);
+return MistColor * Brightness * (1.0 + SunGlow * Toward) * CloudTint;"""
+
+
+def build_water_mist():
+    """M_WaterMist: the spray at a fall's foot and lip (MIST_OPACITY): two macro-noise taps a pixel, soft and faint, so
+    it billows outward rather than falling like the old cards. Instanced usage too, so pooled cards (FX) may wear it."""
+    mat = water_effect('M_WaterMist')
+    g = Graph(mat)
+    vertex = g.node(unreal.MaterialExpressionVertexColor, -1500, -100)
+    camera = g.node(unreal.MaterialExpressionCameraVectorWS, -1500, 0)
+    opacity = g.custom(MIST_OPACITY, [
+        ('UV', g.node(unreal.MaterialExpressionTextureCoordinate, -1500, -250, coordinate_index=0), ''),
+        ('Alpha', vertex, 'A'),
+        ('Noise', g.node(unreal.MaterialExpressionTextureObjectParameter, -1500, 100, parameter_name='Noise',
+                         texture=import_mask(MACRO_NOISE_FILE, MACRO_NOISE)), ''),
+        ('Time', g.node(unreal.MaterialExpressionTime, -1500, 200), ''),
+        ('Normal', g.node(unreal.MaterialExpressionVertexNormalWS, -1500, 300), ''),
+        ('CameraVector', camera, ''),
+        ('WorldPos', g.node(unreal.MaterialExpressionWorldPosition, -1500, 400), ''),
+        ('CameraPos', g.node(unreal.MaterialExpressionCameraPositionWS, -1500, 500), ''),
+        ('BillowOrigin', g.vector('BillowOrigin', (0.5, 0.5, 0.0, 0.0), -1100, 0), ''),
+        ('Fade', depth_fade(g, g.scalar('DepthFadeDistance', 150.0, -1400, 1100), -1100, 1100), ''),
+    ] + [(name, g.scalar(name, value, -1100, 100 + 60 * i), '') for i, (name, value) in enumerate((
+        ('BillowScale', 0.8), ('BillowRate', 0.15), ('Grow', 1.0), ('PuffLow', 0.25), ('PuffHigh', 0.85),
+        ('Floor', 0.2), ('NearStart', 60.0), ('NearEnd', 300.0), ('Opacity', 0.35)))],
+        unreal.CustomMaterialOutputType.CMOT_FLOAT1, -600, 300, 'M_WaterMist opacity')
+    color = g.custom(MIST_COLOR, [
+        ('CameraVector', camera, ''),
+        ('SunDirection', g.node(unreal.MaterialExpressionSkyAtmosphereLightDirection, -1100, -400), ''),
+        ('MistColor', g.vector('MistColor', srgb(WATER_FOAM), -1100, -300), ''),
+        ('Brightness', g.scalar('Brightness', 1.6, -1100, -240), ''),
+        ('SunGlow', g.scalar('SunGlow', 0.8, -1100, -180), ''),
+        ('CloudTint', lighting_tint(g, 'CloudTint', -1500, -400), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -600, -200, 'M_WaterMist color')
+    g.out(color, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    g.out(opacity, '', unreal.MaterialProperty.MP_OPACITY)
+    finish(mat, [unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES])
+    return mat
 
 
 # A gust leans a plume downwind, more the higher up it (MPC_Wind; the object's height rather than UV.y, whose direction on
@@ -1759,7 +2086,8 @@ def build_bullet_mark():
 BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'M_Gun': lambda: build_gun(DEFAULT_ORM),
             'M_WorldFoliage': lambda: build_foliage(DEFAULT_ORM),
             'M_Terrain': build_terrain, 'M_Water': build_water, 'M_SkyClouds': build_sky_clouds,
-            'M_Waterfall': build_waterfall, 'M_Smoke': build_smoke, 'M_Glass': build_glass, 'M_Gel': build_gel,
+            'M_Waterfall': build_waterfall, 'M_WaterMist': build_water_mist, 'M_Smoke': build_smoke,
+            'M_Glass': build_glass, 'M_Gel': build_gel,
             'M_Backdrop': build_backdrop, 'M_GravewindWisp': build_gravewind_wisp, 'M_CanyonFog': build_canyon_fog,
             'M_SunbleachedPost': build_sunbleached_post, 'M_BulletMark': build_bullet_mark}
 wanted = [name for name in sys.argv[1:] if name in BUILDERS] or list(BUILDERS)

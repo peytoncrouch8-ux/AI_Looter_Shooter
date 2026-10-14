@@ -8,6 +8,7 @@
 #include "PlayerFootfallComponent.generated.h"
 
 class UPlayerLocomotionComponent;
+class UPrimitiveComponent;
 
 /** The sound cues the feet's dust brings (Art/Sounds/cues.json gives each its sounds; with none a cue plays nothing). */
 namespace FootfallCue
@@ -25,8 +26,13 @@ namespace FootfallCue
  * water answers), lit by the light where it is (FDustLight). The slide has its own (FSlideDust). Seen in third person
  * and at the edge of the first-person view; capped by FFootfallDust's budget.
  *
- * ALooterCharacter makes it. It hears the landings (the character's LandedDelegate) and ticks for the sprint's stride
- * alone: a few numbers a frame, and one short trace per puffing step.
+ * Wading (the water concept's point 5, FWaterRings): on foot at any pace above a creep, a step in water leaves a ring
+ * spreading over the surface (the footsteps' stride, alternate feet; a sprint's splash brings its own) and the walk trails a
+ * small V wake every few steps' length. On foot, water is looked for five times a second (one short trace); once found, only
+ * the water's own mesh is traced (ten times a second), so a wet walk costs next to nothing.
+ *
+ * ALooterCharacter makes it. It hears the landings (the character's LandedDelegate) and ticks for the stride: a few
+ * numbers a frame, and a few short traces a second.
  */
 UCLASS(ClassGroup = (Looter), meta = (BlueprintSpawnableComponent))
 class AI_LOOTER_SHOOTER_API UPlayerFootfallComponent : public UActorComponent
@@ -73,9 +79,28 @@ private:
 	/** Sprinting on the ground now (not sliding, climbing or creeping). */
 	bool IsSprinting(float& OutSpeed) const;
 
+	/** Wading: finds the water under a walking body, and leaves its step rings and wake (WaterRings.h). */
+	void TickWading(float DeltaTime);
+	/** One trace for water over and under the feet; true (and the water remembered) if the first thing found is a water surface. */
+	bool LookForWater(const FVector& Feet);
+	/** Remembers the water a hit found, or with none forgets it. */
+	void NoteWater(const FHitResult* WaterHit);
+
 	FFootfallDust Dust;
 	FDustLight Light;
 	TWeakObjectPtr<UPlayerLocomotionComponent> Locomotion;
+	/** The water the feet are in (its mesh), the surface point under them and its up; the stride, look and wake counters. */
+	TWeakObjectPtr<UPrimitiveComponent> WaterBody;
+	FVector WaterPoint = FVector::ZeroVector;
+	FVector WaterUp = FVector::UpVector;
+	float WadeStride = 0.f;
+	float WadeRecheck = 0.f;
+	float WakeTravel = 0.f;
+	int32 WadeSteps = 0;
+	/** When the last splash was thrown, and the foam's light (looked up twice a second). */
+	double LastSplashTime = -1.0e9;
+	FLinearColor WadeLit = FLinearColor::White;
+	double WadeLitAt = -1.0e9;
 	/** Ground left to cover before the next sprinting step (cm), steps taken, and when the budget was last refilled. */
 	float StrideLeft = 0.f;
 	int32 Steps = 0;

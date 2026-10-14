@@ -8,15 +8,18 @@ in layout meters (x north, y east, z up); area_model.py turns them into Blender 
 - terrain_ao(): ambient occlusion from the height raster (valleys, cliff feet and the creek's insides go dark); past
   the rim is open sky, past a grounded core's edge the regional field.
 - underside(): the rock below the rim (island setting): a wall under the top's edge, a tapering mass and hanging spires.
-- water(): the ponds' and creeks' surface.
+- water(): the ponds', creeks' and gorge streams' surface, with its vertex colours for M_Water (shore, depth, flow).
 """
 import math
 
 import numpy as np
 from mathutils import Vector
 from mathutils.geometry import delaunay_2d_cdt
+from mathutils.kdtree import KDTree
 
-from area_math import Grid, blur, cells, gradient_noise, points_in_polygon, polygon_mask, resample, sample
+from area_features import GORGE_STREAM
+from area_math import (Grid, blur, cells, gauss_smooth_1d, gradient_noise, points_in_polygon, polygon_mask,
+                       polyline_field, resample, sample, smoothstep)
 
 LEVELS = (1.2, 0.6, 0.3)  # quadtree cell sizes (m): the spacing of the top's vertices
 # A grounded core is larger and much of it lies past the playable boundary (the ridges' slopes, the seam band): there
@@ -508,11 +511,28 @@ def _spires(verts, tris, rng, seed, count=7):
 
 # --- Water ---
 
+SHORE_REACH = 1.5   # m: a vertex's shore share (R) falls from 1 at the waterline to 0 this far in
+DEEP_AT = 1.0       # m of water that counts as deep (G 1); a shallower bed is deep at its own deepest...
+DEEP_NEAR = 6.0     # ...within this many meters
+BANK_SLOW = 0.55    # a stream's flow at its banks, against 1 mid-stream (the flow's length in B and A)
+STREAM_WIDE = 1.5   # m past a gorge's floor (its half width) its stream is laid, so its edge meets the walls
+BED_STEP = 0.5      # m along a gorge between its bed's samples
+
+
 def water(area, spacing=0.6):
-    """The water surface (layout meters): the ponds and the creeks down to their lips, reaching a little under the
-    banks. Returns vertices (N, 3) and triangles."""
-    surface = area.water_surface()
+    """The water surface (layout meters): the ponds, the creeks down to their lips and the gorges' streams, reaching a
+    little under the banks. Returns vertices (N, 3), triangles and vertex colours (N, 4; linear values M_Water reads as
+    they are): R how near the shore (1 at the waterline and under the banks, 0 from SHORE_REACH in), G the depth share
+    (0 at the waterline, 1 at DEEP_AT m of water or where a shallower bed is deepest within DEEP_NEAR m), B and A the
+    flow along layout x (north, the UVs' V) and y (east, the UVs' U), packed as 0.5 + 0.5 * flow: 0.5, 0.5 is still
+    water (ponds and pools); a creek or a gorge's stream flows along its course, fading in as it leaves its pond, the
+    flow's length its speed share (1 mid-stream, BANK_SLOW at the banks)."""
+    surface, streams, walled = _gorge_streams(area, area.water_surface())
+    # The water reaches 35 cm up under its banks; 3 m up a gorge's cliff walls, whose 35 cm lie closer than a lattice
+    # step (its last vertices stood short of the wall's foot, the water's edge in the air).
     wet = np.isfinite(surface) & (surface > area.h - 0.35) & area.inside
+    if walled is not None:
+        wet |= walled & np.isfinite(surface) & (surface > area.h - 3.0) & area.inside
     # Points on a jittered lattice where it's wet, plus the lip across the creek at the rim.
     n = int(2.0 * area.half / spacing)
     lattice = Grid(n, area.half)
@@ -535,7 +555,135 @@ def water(area, spacing=0.6):
     tris = tris[(longest < spacing * 2.2) & inside]
     z = area.at(extend_nan(surface, cells(2.0, area.grid.px)), px, py)
     used, inverse = np.unique(tris.ravel(), return_inverse=True)
-    return np.column_stack([px, py, np.nan_to_num(z, nan=0.0)])[used], inverse.reshape(-1, 3)
+    verts = np.column_stack([px, py, np.nan_to_num(z, nan=0.0)])[used]
+    return verts, inverse.reshape(-1, 3), _water_colors(area, surface, verts, streams)
+
+
+def _gorge_streams(area, surface):
+    """The gorges' streams laid on the beds the terrain really has. water_surface() stands a gorge's stream GORGE_STREAM
+    over the floor the gorge was carved to, falling along it; but the shaping after the carve can leave the floor
+    elsewhere (Mill Gorge's lies flat, about half a meter under its carve, for its first 10 m), and the stream stood up
+    to 37 cm over that floor with its edge in the air (the raised disc of water at Mill Falls' foot), then sank under
+    it. Here each stream lies GORGE_STREAM over the lowest ground across its floor's middle, smoothed over a meter or
+    two, never climbing downstream and never under its bed (its level before the falls' face, where the ground first
+    comes near the carve's floor, is the face's foot's), and reaches STREAM_WIDE past the floor's edge, so its edge
+    always runs into the walls and the face under the ground. Only the water mesh uses this: the maps and the top keep
+    water_surface()'s, so they build as before.
+    Returns the surface (a copy when a gorge changed it), per gorge (gorge, distance raster, along raster), and the
+    cells the gorges' streams were laid on (None without gorges)."""
+    gorges = getattr(area, 'gorges', [])
+    if not gorges:
+        return surface, [], None
+    out = surface.copy()
+    walled = np.zeros(surface.shape, dtype=bool)
+    c = area.grid.c
+    streams = []
+    for g in gorges:
+        dist, along, _ = polyline_field(area.grid, g['pts'], g['half'] + STREAM_WIDE)
+        ii, jj = np.nonzero(np.isfinite(dist))
+        lip, direction = g['lip'], g['direction']
+        past = ((c[ii] - lip[0]) * direction[0] + (c[jj] - lip[1]) * direction[1]) > 0.2
+        ii, jj = ii[past], jj[past]
+        a = along[ii, jj]
+        count = int(g['s'][-1] / BED_STEP) + 1
+        k = np.minimum((a / BED_STEP).astype(np.int64), count - 1)
+        middle = dist[ii, jj] < 0.5 * g['half']
+        bed = np.full(count, np.inf)
+        np.minimum.at(bed, k[middle], area.h[ii[middle], jj[middle]])
+        centers = (np.arange(count) + 0.5) * BED_STEP
+        # Ground far over the carve's floor is the falls' face (the gorge's head wall), not its bed.
+        found = np.isfinite(bed) & (bed < np.interp(centers, g['s'], g['floor']) + 1.0)
+        if not found.any():
+            continue
+        bed = np.interp(centers, centers[found], bed[found])
+        bed = gauss_smooth_1d(bed, 1.0 / BED_STEP)
+        level = np.maximum(np.minimum.accumulate(bed + GORGE_STREAM), bed + 0.08)
+        out[ii, jj] = np.interp(a, centers, level)
+        walled[ii, jj] = True
+        streams.append((g, dist, along))
+    return out, streams, walled
+
+
+def _water_colors(area, surface, verts, streams):
+    """The water's vertex colours (see water())."""
+    x, y, z = verts[:, 0], verts[:, 1], verts[:, 2]
+    depth = z - area.height(x, y)
+    # R: the distance to the nearest waterline point (marching squares on the heights, 25 cm apart).
+    shore = waterline_points(area, surface)
+    to_shore = np.full(len(verts), 1e3)
+    if len(shore):
+        tree = KDTree(len(shore))
+        for i, (sx, sy) in enumerate(shore):
+            tree.insert((float(sx), float(sy), 0.0), i)
+        tree.balance()
+        to_shore = np.array([tree.find((float(a), float(b), 0.0))[2] for a, b in zip(x, y)])
+    to_shore = np.where(depth <= 0.0, 0.0, to_shore)  # under a bank: at the shore
+    r = np.clip(1.0 - to_shore / SHORE_REACH, 0.0, 1.0)
+    # G: the depth over the deepest bed nearby (at most DEEP_AT).
+    deep = np.clip(_deepest_near(area, surface, x, y), 0.05, DEEP_AT)
+    g = np.clip(depth / deep, 0.0, 1.0)
+    # B, A: the flow, slower at the banks.
+    flow = _flow(area, x, y, streams) * (BANK_SLOW + (1.0 - BANK_SLOW) * smoothstep(0.0, 1.0, to_shore))[:, None]
+    return np.column_stack([r, g, 0.5 + 0.5 * flow[:, 0], 0.5 + 0.5 * flow[:, 1]]).astype(np.float32)
+
+
+def _deepest_near(area, surface, x, y):
+    """At each point, the deepest water within about DEEP_NEAR m (m): the depths pooled into meter cells (their
+    deepest), spread by DEEP_NEAR, read at the nearest cell."""
+    n, px = area.h.shape[0], area.grid.px
+    # Inside the core only: a creek's surface runs a meter on past its lip, over the drop.
+    depth = np.where(np.isfinite(surface) & area.inside, surface - area.h, 0.0)
+    depth = np.maximum(depth, 0.0).astype(np.float32)
+    f = cells(1.0, px)
+    m = -(-n // f)
+    padded = np.zeros((m * f, m * f), dtype=np.float32)
+    padded[:n, :n] = depth
+    pooled = padded.reshape(m, f, m, f).max(axis=(1, 3))
+    reach = int(math.ceil(DEEP_NEAR / (f * px)))
+    for axis in (0, 1):
+        edged = np.pad(pooled, [(reach, reach) if a == axis else (0, 0) for a in (0, 1)])
+        spread = pooled.copy()
+        for shift in range(2 * reach + 1):
+            np.maximum(spread, np.take(edged, np.arange(shift, shift + m), axis=axis), out=spread)
+        pooled = spread
+    i = np.clip(((x + area.half) / px / f).astype(np.int64), 0, m - 1)
+    j = np.clip(((y + area.half) / px / f).astype(np.int64), 0, m - 1)
+    return pooled[i, j]
+
+
+def _course_tangent(pts, s, at):
+    """The unit direction of travel along a polyline (points pts, arc lengths s) at arc lengths at."""
+    d = np.gradient(pts, axis=0)
+    d /= np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
+    t = np.column_stack([np.interp(at, s, d[:, 0]), np.interp(at, s, d[:, 1])])
+    return t / np.maximum(np.linalg.norm(t, axis=1, keepdims=True), 1e-9)
+
+
+def _flow(area, x, y, streams):
+    """The water's flow at points (N, 2; layout x, y): along the nearest creek's course (its own water: within reach
+    of its line, down to its lip), fading in from 3 m inside its pond to 2 m past where it leaves it; along a gorge's
+    stream past its lip; still elsewhere (the ponds)."""
+    n = area.h.shape[0]
+    i = np.clip(np.floor((x + area.half) / area.grid.px).astype(np.int64), 0, n - 1)
+    j = np.clip(np.floor((y + area.half) / area.grid.px).astype(np.int64), 0, n - 1)
+    flow = np.zeros((len(x), 2))
+    nearest = np.full(len(x), np.inf)
+    for c in area.creeks:
+        d, a = c['dist'][i, j], c['along'][i, j]
+        on = np.isfinite(d) & (d < 3.6) & (a <= c['s_lip'] + 1.0) & (d < nearest)
+        if not on.any():
+            continue
+        calm = smoothstep(c['s_exit'] - 3.0, c['s_exit'] + 2.0, a[on]) if c['s_exit'] > 0.0 else 1.0
+        flow[on] = _course_tangent(c['pts'], c['s'], a[on]) * np.reshape(calm, (-1, 1))
+        nearest[on] = d[on]
+    for g, dist, along in streams:
+        d = dist[i, j]
+        lip, direction = g['lip'], g['direction']
+        on = np.isfinite(d) & (((x - lip[0]) * direction[0] + (y - lip[1]) * direction[1]) > 0.2) & (d < nearest)
+        if on.any():
+            flow[on] = _course_tangent(g['pts'], g['s'], along[i, j][on])
+            nearest[on] = d[on]
+    return flow
 
 
 def extend_nan(raster, steps):

@@ -97,6 +97,7 @@ namespace
 void FWeaponFX::Tick(float DeltaSeconds, const FVector& CameraLocation)
 {
 	const float Dt = FMath::Clamp(DeltaSeconds, 0.f, 0.1f);
+	WaterRings.Tick(Dt);
 	for (int32 Index = Particles.Num() - 1; Index >= 0; --Index)
 	{
 		FParticle& Particle = Particles[Index];
@@ -309,6 +310,9 @@ void FWeaponFX::Redraw(const FVector& Camera)
 		}
 		}
 	}
+
+	// Rings and wakes on the water: flat dashes of the same soft smoke quad (WaterRings.h).
+	WaterRings.Draw(Camera, SmokeTransforms, SmokeData);
 
 	bool bAnything = !GlowTransforms.IsEmpty() || !SmokeTransforms.IsEmpty() || !ChipTransforms.IsEmpty() || !DropTransforms.IsEmpty();
 	for (const TArray<FTransform>& Set : BitTransforms)

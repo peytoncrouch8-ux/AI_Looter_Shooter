@@ -94,7 +94,8 @@ int32 FFootfallDust::Throw(FWeaponFX& Effects, EFootfall Kind, EImpactMaterial S
 	const FVector Up = Spot.Up.IsNearlyZero() ? FVector::UpVector : Spot.Up.GetSafeNormal();
 	if (Splashes(Surface))
 	{
-		// Water: a splash and its mist (the water hit's look, small), a hard landing's bigger.
+		// Water: a splash and its mist (the water hit's look, small), a hard landing's bigger. The hit brings its rings too
+		// (FWaterRings, from its own budget): one for a step, two for a hard landing.
 		if (Budget < SplashCost)
 		{
 			return 0;

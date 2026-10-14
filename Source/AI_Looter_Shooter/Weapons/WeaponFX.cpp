@@ -117,6 +117,7 @@ void FWeaponFX::Shutdown()
 	BitSets.Reset();
 	Particles.Reset();
 	Streaks.Reset();
+	WaterRings.Reset();
 	SpawnFloor.Reset();
 }
 
@@ -156,7 +157,7 @@ uint8 FWeaponFX::BitSetFor(EBitShape Shape, const FLinearColor& Color, float Glo
 
 bool FWeaponFX::IsIdle() const
 {
-	return Particles.IsEmpty() && Streaks.IsEmpty() && !bDrawnAnything;
+	return Particles.IsEmpty() && Streaks.IsEmpty() && WaterRings.IsEmpty() && !bDrawnAnything;
 }
 
 // ---------------------------------------------------------------------------

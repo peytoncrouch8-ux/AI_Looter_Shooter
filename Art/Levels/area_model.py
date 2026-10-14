@@ -12,7 +12,8 @@ wrapper that calls main('<Area>'). It builds:
   same name), UV 0 over that window's square; the top's triangles keep to one side of the windows' edges. mesh.holes
   leaves the top open where an interior goes into the ground (a mine's mouth).
 - <Area>_Underside_<n>: the rock under the rim (RockCliff), in four sectors (island setting).
-- <Area>_Water: the ponds' and creeks' surface (material Water, master Water; UV 0 in world meters).
+- <Area>_Water: the ponds', creeks' and gorge streams' surface (material Water, master Water; UV 0 in world meters;
+  vertex colours R shore, G depth, B and A flow: area_mesh.water()).
 - Grounded (area_beyond.py): <Area>_Ring_<n>, the surround ring in sectors (material <Area>RingMacro, master Terrain,
   UV 0 over the ring's square onto T_<Area>RingMacro_BC; the upland's sectors collide, the canyon's don't);
   <Area>_CanyonWall_<n>, the generated wall under the escarpment's lip (RockCliff, no collision); <Area>_Backdrop_<n>,
@@ -22,7 +23,7 @@ wrapper that calls main('<Area>'). It builds:
   triangles against its budget.
 
     blender -b --factory-startup --python Art/Models/Terrain/<Area>.py -- [--macro] [--computed] [--preview]
-                                                                         [--save-to DIR]
+                                                                         [--save-to DIR] [--water-only]
     blender -b --factory-startup --python Art/Levels/area_model.py -- --layout PATH [the same flags]
 
   --macro     paints the macro color map and the PCG scatter mask (T_<Area>Scatter_BC: tree, grass, flower and
@@ -32,6 +33,10 @@ wrapper that calls main('<Area>'). It builds:
   --save-to   writes all of that into DIR instead (layout_computed.json, the two maps, previews/) and leaves the
               repository alone: Tools/terrain_identity.py and dry runs use it
   --layout    builds this layout instead of the area's own (a scratch copy, say)
+  --water-only  builds the heights and then only <Area>_Water (the other flags ignored); the environment variable
+              LOOTER_TERRAIN_ONLY=water does the same for a run that can't pass flags:
+                $env:LOOTER_TERRAIN_ONLY = 'water'; Tools\models.ps1 -Only <Area>; Remove-Item Env:LOOTER_TERRAIN_ONLY
+              exports and imports SM_<Area>_Water alone.
 models.ps1 runs a wrapper without flags: the meshes only. The log ends with the build's time and peak memory.
 """
 import argparse
@@ -96,7 +101,7 @@ def options():
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
     # No abbreviations: models.ps1 passes the exporter's own --out, which must not pass for --save-to.
     parser = argparse.ArgumentParser(allow_abbrev=False)
-    for flag in ('--macro', '--computed', '--preview'):
+    for flag in ('--macro', '--computed', '--preview', '--water-only'):
         parser.add_argument(flag, action='store_true')
     parser.add_argument('--save-to', default='')
     parser.add_argument('--layout', default='')
@@ -221,13 +226,37 @@ def _detail_preview(nodes, links, color, select):
 
 
 def water_material():
-    """A flat blue placeholder; in Unreal the instance's parent is M_Water."""
+    """The water's material; in Unreal the instance's parent is M_Water. Its Blender nodes only preview what M_Water
+    does with the vertex colours (area_mesh.water()): shallow teal deepening to blue-green by G, a pale shore line by R.
+    The palette is the water contract's (2026-10-14): shallow #4FA39A, deep #1D5560, foam #EEF5F2."""
     mat = bpy.data.materials.get('Water') or bpy.data.materials.new('Water')
     mat.use_nodes = True
-    bsdf = next(n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
-    bsdf.inputs['Base Color'].default_value = lt.hex_color(0x2f5b63)
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    nodes.clear()
+    out = nodes.new('ShaderNodeOutputMaterial')
+    bsdf = nodes.new('ShaderNodeBsdfPrincipled')
     bsdf.inputs['Roughness'].default_value = 0.08
-    mat.diffuse_color = lt.hex_color(0x2f5b63)
+    links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
+    col = nodes.new('ShaderNodeVertexColor')
+    col.layer_name = 'Col'
+    split = nodes.new('ShaderNodeSeparateColor')
+    links.new(col.outputs['Color'], split.inputs['Color'])
+    depth = nodes.new('ShaderNodeMix')
+    depth.data_type = 'RGBA'
+    sock(depth.inputs, 'A_Color').default_value = lt.hex_color(0x4fa39a)
+    sock(depth.inputs, 'B_Color').default_value = lt.hex_color(0x1d5560)
+    links.new(split.outputs['Green'], sock(depth.inputs, 'Factor_Float'))
+    shore = nodes.new('ShaderNodeMath')
+    shore.operation = 'MULTIPLY'
+    shore.inputs[1].default_value = 0.5
+    links.new(split.outputs['Red'], shore.inputs[0])
+    foam = nodes.new('ShaderNodeMix')
+    foam.data_type = 'RGBA'
+    links.new(sock(depth.outputs, 'Result_Color'), sock(foam.inputs, 'A_Color'))
+    sock(foam.inputs, 'B_Color').default_value = lt.hex_color(0xeef5f2)
+    links.new(shore.outputs['Value'], sock(foam.inputs, 'Factor_Float'))
+    links.new(sock(foam.outputs, 'Result_Color'), bsdf.inputs['Base Color'])
+    mat.diffuse_color = lt.hex_color(0x2f6f73)
     mat['Master'] = 'Water'
     mat['Kind'] = 'Surface'
     return mat
@@ -380,7 +409,7 @@ def _underside_ao(obj, rim_drop, depth, top=0.0):
 
 
 def build_water(area):
-    verts, tris = area_mesh.water(area)
+    verts, tris, colors = area_mesh.water(area)
     uv = np.column_stack([verts[:, 1], verts[:, 0]])
     normals = np.tile([0.0, 0.0, 1.0], (len(verts), 1))
     obj = make_object(area.name + '_Water', verts, tris, water_material(), uvs={'UVMap': uv}, normals=normals)
@@ -393,7 +422,17 @@ def build_water(area):
     if np.mean(np.cross(b - a, c - a)[:, 2]) < 0.0:
         obj.data.flip_normals()
         obj.data.normals_split_custom_set_from_vertices(normals.tolist())
-    log(f'terrain: water {len(tris)} triangles')
+    # The colours (shore, depth, flow) are numbers M_Water reads as they are: written through the linear API, which is
+    # what the exporter reads back for a textured master (colors_type LINEAR), per corner from each corner's vertex.
+    mesh = obj.data
+    loop_vertex = np.empty(len(mesh.loops), dtype=np.int64)
+    mesh.loops.foreach_get('vertex_index', loop_vertex)
+    col = mesh.color_attributes.new('Col', 'BYTE_COLOR', 'CORNER')
+    col.data.foreach_set('color', colors[loop_vertex].astype(np.float32).ravel())
+    mesh.color_attributes.active_color = col
+    shallow = float(np.mean(colors[:, 1] < 0.5))
+    log(f'terrain: water {len(tris)} triangles; {shallow * 100.0:.0f}% of its vertices shallow (G < 0.5), '
+        f'{float(np.mean(np.hypot(colors[:, 2] - 0.5, colors[:, 3] - 0.5) > 0.05)) * 100.0:.0f}% flowing')
     return obj
 
 
@@ -526,6 +565,14 @@ def main(name=None):
     log(f"terrain: {area.name}, a {2.0 * area.half:g} m square: " +
         ', '.join(f'{raster} {n} ({area.cell(raster) * 100.0:.3g} cm)' for raster, n in area.sizes.items()))
     area.build(log=log)
+    if args.water_only or os.environ.get('LOOTER_TERRAIN_ONLY', '').lower() == 'water':
+        # The water alone (its shape needs the whole height raster, nothing after it): models.ps1 then exports and
+        # imports SM_<Area>_Water only. The other flags are ignored.
+        build_water(area)
+        memory = peak_memory_mb()
+        log(f'terrain: water only, done in {time.time() - STARTED:.0f} s' +
+            (f', peak memory {memory[0]:.0f} MB (working set)' if memory else ''))
+        return area
     verts, tris, ring, tiles = build_top(area)
     underside = build_underside(area, verts[ring]) if area.setting == 'island' else []
     build_water(area)

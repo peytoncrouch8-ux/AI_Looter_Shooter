@@ -32,7 +32,8 @@ struct FFootfallSpot
 /**
  * The dust the player's feet throw up (concept F, "your feet"), by the surface under them (ImpactSurface, its 13): dirt
  * and sand a full brown or pale puff, gravel a grey one with grit, grass a little, hay a little straw dust, stone and bone
- * a wisp on a landing only, wood, metal, glass and cloth nothing; water a splash (FWeaponFX's water hit, small). A
+ * a wisp on a landing only, wood, metal, glass and cloth nothing; water a splash (FWeaponFX's water hit, small, with the
+ * rings it leaves: one for a step, two for a hard landing; the wading's own rings and wake are the component's). A
  * sprinting step throws a couple of puffs back off the heel; a landing a ring of them spreading out over the ground
  * (seen at the edge of the first-person view as it reaches past the feet), more and wider the harder it was, with grit
  * thrown out of it. Drawn by FWeaponFX's pooled, instanced puffs and chips (the bullet subsystem's): no draws of its own.
