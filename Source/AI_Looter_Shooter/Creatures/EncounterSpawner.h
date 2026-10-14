@@ -38,7 +38,9 @@ enum class EEncounterState : uint8
  *  - groups (FEncounterGroup): any creature class, how many, their ranks (the area's promotions, chances of their own, or
  *    one rank: "4, one of them Restless" is three of a group and one of a Restless group), level and size;
  *  - where they stand: spots round it within SpawnRadius, or its SpawnPoints. A spot whose ground is more than
- *    MaxGroundStep above or below the spawner's is skipped, so no group is split by a change of level; so are spots in a
+ *    MaxGroundStep above or below the spawner's is skipped, so no group is split by a change of level (under a roof, such
+ *    as Tilly's cellar's vault, only ground under it is looked for: the yard over a cellar is another storey, though less
+ *    than a step up); so are spots in a
  *    safe zone that's on, outside the playable area, off its hunting ground, on top of an obstacle (the floor inside the
  *    obstacle it stands in, such as the den in Den Rock, is ground), with no room at all (in a building's hull, a rock, a
  *    tree), or too near the player. Spots with room for the largest body its groups bring come first; with too few of

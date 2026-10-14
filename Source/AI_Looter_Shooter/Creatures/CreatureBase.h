@@ -514,6 +514,8 @@ private:
 	void FaceToward(const FVector& Point, float DeltaSeconds);
 	bool PickWanderGoal();
 	void SnapToGround();
+	/** How far over From (cm, up to Above) a look down for the ground may start: just under a roof over From, never over it. */
+	float LookAboveUnderRoof(const FVector& From, float Above) const;
 	void Respawn();
 	void UpdateHealthBar(float DeltaSeconds);
 

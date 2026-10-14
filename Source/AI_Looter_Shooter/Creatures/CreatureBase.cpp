@@ -10,6 +10,7 @@
 #include "Loot/LootDropComponent.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/World/CreatureHealthBarWidget.h"
+#include "World/WorldQueries.h"
 #include "AIController.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -24,6 +25,36 @@
 namespace
 {
 	constexpr float PerceptionInterval = 0.2f;
+
+	/**
+	 * Nothing solid stands between a creature and its victim: a strike through a wall, a shut door or the eleven's
+	 * barricade never lands (the 2026-10-14 play-through: the depot's dead hit the player through the stair door, the
+	 * Foreman through his barricade). The world's solid shapes only, as grave salt's sight: volumes are skipped
+	 * (StaticGeometryParams), and bodies and loot aren't world-static, so another creature never shields the victim.
+	 */
+	bool IsStrikeClear(const ACreatureBase& Creature, const APawn& Victim)
+	{
+		const UWorld* World = Creature.GetWorld();
+		if (!World)
+		{
+			return true;
+		}
+		FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("CreatureStrike"), &Creature, false);
+		Params.AddIgnoredActor(&Victim);
+		const FCollisionObjectQueryParams Solid(ECC_WorldStatic);
+		const FVector From = Creature.GetActorLocation();
+		// The victim's middle, or else its feet: a spider biting at a player stood on a rock's lip reaches the boots
+		// over the edge even when the line to the chest crosses the rock.
+		const float Half = Victim.GetSimpleCollisionHalfHeight();
+		for (const FVector& To : { Victim.GetActorLocation(), Victim.GetActorLocation() - FVector(0.f, 0.f, Half * 0.7f) })
+		{
+			if (!World->LineTraceTestByObjectType(From, To, Solid, Params))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 }
 
 ACreatureBase::ACreatureBase()
@@ -386,7 +417,7 @@ void ACreatureBase::Strike()
 		// Up and down, a small creature still reaches a player standing over it, as a full-size one does.
 		const bool bInReach = ToVictim.Size2D() <= GetStrikeReach() && FMath::Abs(static_cast<float>(ToVictim.Z)) < GetStrikeHeight();
 		const bool bInFront = FVector::DotProduct(GetActorForwardVector(), ToVictim.GetSafeNormal2D()) > 0.4f;
-		if (bInReach && bInFront)
+		if (bInReach && bInFront && IsStrikeClear(*this, *Victim))
 		{
 			HitWithAttack(Victim, ToVictim.GetSafeNormal2D());
 			bConnected = true;

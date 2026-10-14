@@ -34,9 +34,15 @@ TArray<FVector> AEncounterSpawner::ChooseSpawnSpots(int32 Wanted, const APawn* P
 	const FEncounterBody Largest = EncounterRules::LargestBody(Groups, FindArea());
 	FEncounterGroundProbe Probe(World, this, TEXT("EncounterSpot"), Largest, MaxGroundStep);
 	// With no ground anywhere near the spawner (a test level), its creatures stand level with it. A lair on a rock's floor
-	// (her den is carved in Den Rock, tagged Obstacle) makes that rock's floor ground for its creatures, under its roof.
+	// (her den is carved in Den Rock, tagged Obstacle) makes that rock's floor ground for its creatures, under its roof. One
+	// under a roof (Tilly's cellar) finds its own floor, and its spots' ground under that roof, never the yard over it.
 	Probe.FindHome(Here, HomeLookAbove, HomeLookBelow);
 	const double HomeZ = Probe.GetHomeZ();
+	if (Probe.HasRoof())
+	{
+		UE_LOG(LogLooter, Verbose, TEXT("Encounter %s: its ground at %.0f has a roof %.0f cm over it; its spots' ground is looked for under it."),
+			*GetSpawnerId().ToString(), HomeZ, Probe.GetRoofZ() - HomeZ);
+	}
 
 	TArray<FVector> Points;
 	for (const FVector& Local : SpawnPoints)

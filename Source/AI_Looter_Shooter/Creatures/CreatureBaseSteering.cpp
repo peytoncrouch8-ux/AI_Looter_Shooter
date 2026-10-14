@@ -187,11 +187,14 @@ bool ACreatureBase::PickWanderGoal()
 		WanderGoal = Pack->GetRoamAnchor();
 		return true;
 	}
+	// Its goals' ground is looked for from no higher than a roof over its home: in Tilly's cellar a look from 3 m over its
+	// middle found the workshop's floor and the yard over the vault.
+	const float Above = LookAboveUnderRoof(Home.GetLocation(), 300.f);
 	for (int32 Attempt = 0; Attempt < 6; ++Attempt)
 	{
 		const FVector2D Offset = FMath::RandPointInCircle(WanderRadius);
 		FVector Ground;
-		if (Offset.Size() > 150.f * SizeScale && FindGround(Home.GetLocation() + FVector(Offset, 0.f), 300.f, 600.f, Ground))
+		if (Offset.Size() > 150.f * SizeScale && FindGround(Home.GetLocation() + FVector(Offset, 0.f), Above, 600.f, Ground))
 		{
 			WanderGoal = Ground;
 			return true;
@@ -219,20 +222,25 @@ void ACreatureBase::SnapToGround()
 	const float HalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 	const FVector Middle = GetActorLocation();
 	// It looks down from over its head, so one placed a little into the ground still finds the surface; but never from
-	// above a roof over it. In the Gravemother's den the ceiling is lower than that: a look from inside a rock's hull
-	// finds the rock right there (a trace starting inside a convex reports a hit at its start), one from over the roof its
-	// top, and either put her in the ceiling.
-	float Above = HalfHeight + 150.f;
-	const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(GetWorld(), TEXT("CreatureRoof"), this);
-	FHitResult Roof;
-	if (GetWorld()->LineTraceSingleByObjectType(Roof, Middle, Middle + FVector(0.f, 0.f, Above), FCollisionObjectQueryParams(ECC_WorldStatic),
-		Params) && !Roof.bStartPenetrating)
-	{
-		Above = FMath::Max(Roof.Distance - 1.f, 0.f);
-	}
+	// above a roof over it. In the Gravemother's den the ceiling is lower than that.
+	const float Above = LookAboveUnderRoof(Middle, HalfHeight + 150.f);
 	FVector Ground;
 	if (FindGround(Middle, Above, 1500.f, Ground))
 	{
 		SetActorLocation(Ground + FVector(0.f, 0.f, HalfHeight + 2.f), false, nullptr, ETeleportType::TeleportPhysics);
 	}
+}
+
+float ACreatureBase::LookAboveUnderRoof(const FVector& From, float Above) const
+{
+	// A look from inside a rock's hull finds the rock right there (a trace starting inside a convex reports a hit at its
+	// start), one from over a roof its top: either puts it in the ceiling, or on the floor over it.
+	const FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(GetWorld(), TEXT("CreatureRoof"), this);
+	FHitResult Roof;
+	if (GetWorld()->LineTraceSingleByObjectType(Roof, From, From + FVector(0.f, 0.f, Above), FCollisionObjectQueryParams(ECC_WorldStatic),
+		Params) && !Roof.bStartPenetrating)
+	{
+		return FMath::Max(Roof.Distance - 1.f, 0.f);
+	}
+	return Above;
 }

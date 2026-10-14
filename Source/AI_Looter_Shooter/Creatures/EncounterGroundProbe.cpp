@@ -32,6 +32,9 @@ namespace
 
 	/** The roof is looked for from this far over the ground (cm): clear of the floor's own collision. */
 	constexpr double RoofLookFrom = 10.0;
+
+	/** A look for the ground under a roof starts this far (cm) under the roof's underside: clear of its collision. */
+	constexpr double UnderRoofGap = 1.0;
 }
 
 FEncounterGroundProbe::FEncounterGroundProbe(const UWorld* InWorld, const AActor* Ignored, FName TraceTag, const FEncounterBody& InBody,
@@ -52,19 +55,60 @@ bool FEncounterGroundProbe::FindHome(const FVector& From, double Above, double B
 {
 	HomeZ = From.Z;
 	bHasGround = false;
+	bHasRoof = false;
 	HomeObstacle = nullptr;
+	if (!World)
+	{
+		return false;
+	}
+	// Never from over a roof over it. Tilly's cellar's floor is 3.3 m under the yard and its vaults' collision 2.9 m over
+	// the floor at its top: a look from 3 m over a spawner on that floor found the vault's top, and the cellar's dead took
+	// the yard over it for their level (the play-through of 2026-10-14).
+	double LookFrom = From.Z + Above;
+	double OverFrom = 0.0;
+	if (FindRoofOver(From, LookFrom, OverFrom))
+	{
+		LookFrom = OverFrom - UnderRoofGap;
+	}
 	FHitResult Hit;
-	if (World && World->LineTraceSingleByObjectType(Hit, From + FVector(0.0, 0.0, Above), From - FVector(0.0, 0.0, Below),
+	if (!World->LineTraceSingleByObjectType(Hit, FVector(From.X, From.Y, LookFrom), From - FVector(0.0, 0.0, Below),
 		FCollisionObjectQueryParams(ECC_WorldStatic), GroundParams))
 	{
-		bHasGround = true;
-		HomeZ = Hit.ImpactPoint.Z;
-		const AActor* Under = Hit.GetActor();
-		// What home stands on, or else what roofs it: at the den's lip the Sink's floor and the den's (Den Rock's) lie within
-		// a few centimetres of each other, so the lair may find either under it, but the rock's arch is over it either way.
-		HomeObstacle = Under && Under->ActorHasTag(StandingObstacleTag) ? Under : FindObstacleOver(Hit.ImpactPoint);
+		return false;
 	}
-	return bHasGround;
+	bHasGround = true;
+	HomeZ = Hit.ImpactPoint.Z;
+	const AActor* Under = Hit.GetActor();
+	// What home stands on, or else what roofs it: at the den's lip the Sink's floor and the den's (Den Rock's) lie within
+	// a few centimetres of each other, so the lair may find either under it, but the rock's arch is over it either way.
+	HomeObstacle = Under && Under->ActorHasTag(StandingObstacleTag) ? Under : FindObstacleOver(Hit.ImpactPoint);
+	// A roof over home lower than a spot's ground is ever looked for from (the cellar's vault): the spots are looked for
+	// under it (Look). Out in the open there's none, and every spot is looked for as it always was.
+	bHasRoof = FindRoofOver(Hit.ImpactPoint, HomeZ + Reach, RoofZ);
+	return true;
+}
+
+bool FEncounterGroundProbe::FindRoofOver(const FVector& Point, double TopZ, double& OutZ) const
+{
+	const FVector From = Point + FVector(0.0, 0.0, RoofLookFrom);
+	if (!World || TopZ <= From.Z)
+	{
+		return false;
+	}
+	// Every surface over it, nearest first. One the look starts inside isn't over it (a spawner sunk a little into a floor's
+	// slab, a rock's hull): the next one is.
+	TArray<FHitResult> Over;
+	World->LineTraceMultiByObjectType(Over, From, FVector(Point.X, Point.Y, TopZ), FCollisionObjectQueryParams(ECC_WorldStatic),
+		GroundParams);
+	for (const FHitResult& Each : Over)
+	{
+		if (!Each.bStartPenetrating)
+		{
+			OutZ = Each.ImpactPoint.Z;
+			return true;
+		}
+	}
+	return false;
 }
 
 const AActor* FEncounterGroundProbe::FindObstacleOver(const FVector& Point) const
@@ -95,9 +139,12 @@ FEncounterGroundHit FEncounterGroundProbe::Look(const FVector& Spot) const
 		Found.Point = FVector(Spot.X, Spot.Y, HomeZ);
 		return Found;
 	}
-	// The ground within reach of home's level: one more than a step up or down isn't found at all.
+	// The ground within reach of home's level: one more than a step up or down isn't found at all. Under a roof, from under
+	// it: over Tilly's cellar the workshop's floor and the yard are 3.3 to 3.6 m up, less than a step, but another storey
+	// (and out in the open, where home has no roof, every spot is looked for as it always was).
+	const double Top = bHasRoof ? FMath::Min(HomeZ + Reach, RoofZ - UnderRoofGap) : HomeZ + Reach;
 	FHitResult Hit;
-	if (!World->LineTraceSingleByObjectType(Hit, FVector(Spot.X, Spot.Y, HomeZ + Reach), FVector(Spot.X, Spot.Y, HomeZ - Reach),
+	if (!World->LineTraceSingleByObjectType(Hit, FVector(Spot.X, Spot.Y, Top), FVector(Spot.X, Spot.Y, HomeZ - Reach),
 		FCollisionObjectQueryParams(ECC_WorldStatic), GroundParams))
 	{
 		return Found;

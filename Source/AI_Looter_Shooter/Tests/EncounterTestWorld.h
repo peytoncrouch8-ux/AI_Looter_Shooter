@@ -2,8 +2,8 @@
 
 // What the encounter tests build in their test levels: spawners and safe zones begun as play begins them, and the
 // player's stand-in, made the level's player for its encounters (a test level has no player controller). A test level's
-// traces find no ground, so a spawner's creatures stand level with it, and its timer never runs: the tests move it on
-// with UpdateEncounter.
+// traces find no ground (unless the test builds some: SpawnBlocks), so a spawner's creatures stand level with it, and its
+// timer never runs: the tests move it on with UpdateEncounter.
 
 #include "CoreMinimal.h"
 
@@ -15,8 +15,13 @@
 #include "Creatures/EncounterSubsystem.h"
 #include "Tests/BossTestWorld.h"
 #include "World/SafeGround.h"
+#include "Components/BoxComponent.h"
+#include "Components/SceneComponent.h"
+#include "Engine/EngineTypes.h"
 #include "Engine/World.h"
+#include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
+#include "Math/Box.h"
 #include "Templates/Function.h"
 
 namespace EncounterTestWorld
@@ -56,6 +61,38 @@ namespace EncounterTestWorld
 		Spawner->DispatchBeginPlay();
 		Spawner->SetRandomSeed(20261006);
 		return Spawner;
+	}
+
+	/**
+	 * Solid ground for a test level, which otherwise has none: blocking world-static boxes (each from its Min to its Max,
+	 * world cm) as one actor, tagged Tag (Obstacle for a building or a rock, as the level's carry it for the minimap).
+	 */
+	inline AActor* SpawnBlocks(UWorld* World, const TArray<FBox>& Boxes, FName Tag = NAME_None)
+	{
+		AActor* Blocks = World->SpawnActor<AActor>();
+		if (!Blocks)
+		{
+			return nullptr;
+		}
+		USceneComponent* Root = NewObject<USceneComponent>(Blocks, TEXT("Root"));
+		Blocks->SetRootComponent(Root);
+		Root->RegisterComponent();
+		for (const FBox& Each : Boxes)
+		{
+			UBoxComponent* Box = NewObject<UBoxComponent>(Blocks);
+			Box->SetBoxExtent(Each.GetExtent());
+			Box->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			Box->SetCollisionObjectType(ECC_WorldStatic);
+			Box->SetCollisionResponseToAllChannels(ECR_Block);
+			Box->SetupAttachment(Root);
+			Box->SetRelativeLocation(Each.GetCenter());
+			Box->RegisterComponent();
+		}
+		if (!Tag.IsNone())
+		{
+			Blocks->Tags.Add(Tag);
+		}
+		return Blocks;
 	}
 
 	/** A square safe zone HalfSize (cm) round Center, set up by Setup (its condition), begun. */
