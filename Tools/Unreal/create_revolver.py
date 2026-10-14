@@ -1,4 +1,4 @@
-"""Makes (or brings up to date) the Drover revolver's definition, /Game/Weapons/Data/DA_Revolver, and puts it in the default
+"""Makes (or brings up to date) the revolver's definition (shown as "Revolver"; "Drover" in its parts and files), /Game/Weapons/Data/DA_Revolver, and puts it in the default
 loot table beside the rifle and the shotgun. Run it in the open editor once the C++ with EWeaponKind::Revolver is built,
 before Tools/Unreal/setup_gun_parts.py (which fills its parts from Art/Models/Weapons/Drover.parts.csv):
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/create_revolver.py"
@@ -45,7 +45,8 @@ def run():
     if not hasattr(unreal.WeaponKind, 'REVOLVER') or not hasattr(unreal.WeaponReloadPart, 'CYLINDER'):
         raise RuntimeError('unreal.WeaponKind.REVOLVER is missing: build the C++ with the revolver first; nothing was changed')
     gun, created = definition()
-    gun.set_editor_property('display_name', unreal.Text('Drover'))
+    # The user's call (2026-10-14): the pistol is called the Revolver in game (Drover stays its parts' and files' name).
+    gun.set_editor_property('display_name', unreal.Text('Revolver'))
     gun.set_editor_property('kind', unreal.WeaponKind.REVOLVER)
     gun.set_editor_property('fire_mode', unreal.WeaponFireMode.SEMI_AUTO)
     gun.set_editor_property('ammo_type', unreal.AmmoType.PISTOL)
