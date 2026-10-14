@@ -12,8 +12,11 @@
 #include "Story/CaptionSubsystem.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
+#include "Misc/PackageName.h"
+#include "UObject/ConstructorHelpers.h"
 
 #define LOCTEXT_NAMESPACE "PorchPlate"
 
@@ -21,6 +24,39 @@ const FName APorchPlate::PlateTag(TEXT("PorchPlate"));
 
 namespace
 {
+	/**
+	 * Farmhouse.py's three pieces, each modelled round the porch stool's SOCKET_Plate, so the three at one transform make the
+	 * whole plate: what stays (the plate on its napkin, the fork, the cup), the jars and the biscuits. The defaults, so a
+	 * plate placed without the build (a test, the console, a level saved before the split) shows them too; the build script
+	 * may set others. /Game/Art/Buildings is always cooked (DefaultGame.ini), and the constructor's finder refers to them.
+	 */
+	const TCHAR* PlatePath = TEXT("/Game/Art/Buildings/SM_PorchPlate.SM_PorchPlate");
+	const TCHAR* JarsPath = TEXT("/Game/Art/Buildings/SM_PorchPlate_Jars.SM_PorchPlate_Jars");
+	const TCHAR* BiscuitsPath = TEXT("/Game/Art/Buildings/SM_PorchPlate_Biscuits.SM_PorchPlate_Biscuits");
+
+	/** An asset found only once it's in this checkout, so the class works, and its tests run, without it. In a constructor. */
+	template <typename T>
+	T* FindIfMade(const TCHAR* ObjectPath)
+	{
+		if (!FPackageName::DoesPackageExist(FPackageName::ObjectPathToPackageName(FString(ObjectPath))))
+		{
+			return nullptr;
+		}
+		ConstructorHelpers::FObjectFinder<T> Finder(ObjectPath);
+		return Finder.Object;
+	}
+
+	/** A piece shown, or gone (taken, eaten): hidden, and out of the Interact key's line with it. */
+	void ShowPiece(UStaticMeshComponent* Piece, bool bShown)
+	{
+		if (!Piece)
+		{
+			return;
+		}
+		Piece->SetVisibility(bShown);
+		Piece->SetCollisionEnabled(bShown ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+	}
+
 	/** A small prop's collision: the Interact key's line finds it, nothing else does. */
 	void SetupPiece(UStaticMeshComponent* Piece, bool bFoundByInteract)
 	{
@@ -56,15 +92,22 @@ APorchPlate::APorchPlate()
 	Root->SetMobility(EComponentMobility::Movable);
 	RootComponent = Root;
 
+	static UStaticMesh* const PlateModel = FindIfMade<UStaticMesh>(PlatePath);
+	static UStaticMesh* const JarsModel = FindIfMade<UStaticMesh>(JarsPath);
+	static UStaticMesh* const BiscuitsModel = FindIfMade<UStaticMesh>(BiscuitsPath);
+
 	Plate = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Plate"));
 	Plate->SetupAttachment(Root);
 	SetupPiece(Plate, /*bFoundByInteract*/ true);
+	Plate->SetStaticMesh(PlateModel);
 	Jars = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Jars"));
 	Jars->SetupAttachment(Root);
 	SetupPiece(Jars, /*bFoundByInteract*/ true);
+	Jars->SetStaticMesh(JarsModel);
 	Biscuits = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Biscuits"));
 	Biscuits->SetupAttachment(Root);
 	SetupPiece(Biscuits, /*bFoundByInteract*/ true);
+	Biscuits->SetStaticMesh(BiscuitsModel);
 
 	TakePrompt = LOCTEXT("TakePrompt", "Take the jars");
 	EatPrompt = LOCTEXT("EatPrompt", "Eat the biscuits");
@@ -151,14 +194,10 @@ bool APorchPlate::IsUsedUp() const
 
 void APorchPlate::RefreshLook()
 {
-	if (Jars)
-	{
-		Jars->SetVisibility(!IsTaken());
-	}
-	if (Biscuits)
-	{
-		Biscuits->SetVisibility(!IsEaten());
-	}
+	// Each piece its own model at the plate's one transform: the jars go once taken, the biscuits once eaten, and the plate
+	// with its napkin, fork and cup stays.
+	ShowPiece(Jars, !IsTaken());
+	ShowPiece(Biscuits, !IsEaten());
 }
 
 // ---------------------------------------------------------------------------

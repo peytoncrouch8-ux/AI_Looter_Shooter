@@ -19,12 +19,14 @@ class UStaticMeshComponent;
  * Interact eats them, Delia answers through the door (EatLines) and the missions hear PorchPlate.Eaten.
  *
  * Both are kept by the campaign's story flags (TakenFlag, EatenFlag: the same names as the events), so the jars and the
- * biscuits stay gone in every later session. Its three models (plate, jars, biscuits) are set by the build script (stand-ins
- * until the art exists: nothing shows but the prompt). Tagged PorchPlate. Never ticks.
+ * biscuits stay gone in every later session. Its three models are Art/Models/Buildings/Farmhouse.py's SM_PorchPlate (what
+ * stays: the plate on its napkin, the fork, the cup), SM_PorchPlate_Jars and SM_PorchPlate_Biscuits, each modelled round the
+ * stool's SOCKET_Plate, so all three sit at the actor's own transform; they're the defaults (found by path in
+ * /Game/Art/Buildings, nothing until imported), and each gone piece is hidden. Tagged PorchPlate. Never ticks.
  *
- * From a build script (Python):
- *     plate = actors.spawn_actor_from_class(unreal.PorchPlate, porch_table_top)
- *     plate.plate.set_static_mesh(unreal.load_asset('/Game/Art/Props/SM_PorchPlate'))   # jars, biscuits the same
+ * From a build script (Python; the models are the defaults, set only to change them):
+ *     plate = actors.spawn_actor_from_class(unreal.PorchPlate, porch_stool_seat)
+ *     plate.plate.set_static_mesh(unreal.load_asset('/Game/Art/Buildings/SM_PorchPlate'))   # jars, biscuits the same
  *     plate.set_editor_property('take_lines', [story_line("Delia's slip", "SALT FOR THE ROAD. THEY DON'T CARE FOR IT. — D.")])
  *     plate.set_editor_property('take_when', during('Main1', from_step=4))
  *     plate.set_editor_property('eat_when', during('Main7'))
@@ -68,15 +70,15 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<USceneComponent> Root;
 
-	/** The tin plate: what the Interact key's line finds. */
+	/** What stays: the tin plate on its napkin, the fork, the cup (SM_PorchPlate). Where the Interact key's prompt sits. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> Plate;
 
-	/** The two jars of grave salt, gone once taken. */
+	/** The two jars of grave salt and Delia's slip (SM_PorchPlate_Jars), gone once taken. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> Jars;
 
-	/** The biscuits, gone once eaten. */
+	/** The biscuits on the plate (SM_PorchPlate_Biscuits), gone once eaten. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> Biscuits;
 

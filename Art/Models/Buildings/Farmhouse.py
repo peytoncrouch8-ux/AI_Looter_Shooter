@@ -37,9 +37,13 @@ The file also makes Ransom Farm's farmhouse on Ransom's Rest (Docs/Areas/Ransoms
                      across, V up). Its pivot is its hinge line at its foot and its front
                      faces -Y: hung on SOCKET_ScreenDoor it sits closed, and a turn about its Z swings it open (out
                      toward the porch: +25 degrees of yaw in Unreal, -25 about Blender's Z). No collision, no Nanite.
-  PorchPlate         the plate Delia sets out: a checked cloth over a plate of food (the cloth takes the plate's shape;
-                     the plate never shows), a fork beside it and a tin cup. Its pivot is the middle of its foot; it
-                     sits on SOCKET_Plate. No collision, no Nanite.
+  PorchPlate         the plate Delia sets out (Main 1's porch plate, APorchPlate), in three models with one pivot, the
+  PorchPlate_Jars    middle of the stool's seat under them (SOCKET_Plate), so the three placed at one transform make
+  PorchPlate_Biscuits the whole and the game hides each piece once it's gone: PorchPlate is what stays (an enamelled tin
+                     plate on a gingham napkin, a fork beside it, a tin cup); PorchPlate_Jars her two jars of grave salt
+                     (clear glass, a round of faded red cloth tied over each mouth with twine, her slip on a tag hung
+                     from the front one's knot), taken in Main 1; PorchPlate_Biscuits three cold biscuits on the plate, eaten in Main
+                     7's optional. No collision, no Nanite.
 
 Parts the lived-in house leaves out (the boards over its windows, the shutters as they hung, the closed door, the loose
 board) are still built, into a sink that draws from the house's random stream, so everything the two houses share
@@ -602,9 +606,11 @@ def open_door(m, space, o, depth, angle=90.0):
         m.box((0.065, 0.006, 0.085), at=(x0 - 0.035, -0.038, SCREEN_FOOT + z), uv=Trim('H3', fit=True), space=space)
 
 
-def lathe(m, profile, at=(0.0, 0.0, 0.0), sides=8, uv=None, mat='trim', space=None, axis=None, smooth=True):
+def lathe(m, profile, at=(0.0, 0.0, 0.0), sides=8, uv=None, mat='trim', space=None, axis=None, smooth=True,
+          shape=None):
     """A turned part around a vertical axis through at: profile [(radius, z), ...] in order (a radius of 0 closes an
-    end). axis (a matrix) turns it. Corners that should stay sharp are separate calls."""
+    end). axis (a matrix) turns it; shape (a function of a point about its own axis, after the mapping) reshapes it.
+    Corners that should stay sharp are separate calls."""
     tb = kit._new_bmesh()
     rings = []
     for r, z in profile:
@@ -630,7 +636,7 @@ def lathe(m, profile, at=(0.0, 0.0, 0.0), sides=8, uv=None, mat='trim', space=No
                 pass
     bmesh.ops.recalc_face_normals(tb, faces=tb.faces[:])
     matrix = Matrix.Translation(Vector(at)) @ (axis if axis is not None else Matrix.Identity(4))
-    m.emit(tb, uv, mat, matrix, space, smooth=smooth)
+    m.emit(tb, uv, mat, matrix, space, shape=shape, smooth=smooth)
 
 
 def tube(m, points, radius, sides=4, uv=None, mat='trim', space=None):
@@ -1031,7 +1037,91 @@ def screen_door():
     return s.finish(preview=False, Nanite=0, LODs='50,25', Collision='None')
 
 
-# --- SM_PorchPlate ---
+# --- SM_PorchPlate, SM_PorchPlate_Jars, SM_PorchPlate_Biscuits ---
+
+# Where the pieces stand on the stool's seat (0.46 x 0.32 m round SOCKET_Plate, the pivot of all three; -Y toward the
+# porch steps): the plate on its napkin left of the middle, the fork on its left, the cup behind on the right and the
+# jars in front of the cup, every piece clear of the others so each can go on its own.
+PLATE_AT = (-0.045, 0.01)
+NAPKIN_TURN = 12.0                    # degrees about Z
+PLATE_BASE = 0.0025                   # the plate's foot, on the napkin
+PLATE_FLOOR = PLATE_BASE + 0.0028     # the top of its floor, where the biscuits sit
+# The jars: each one's middle on the seat, its turn (degrees; the first one's knot and slip face the steps) and how high
+# its salt comes (m).
+JARS = (((0.13, -0.115), 8.0, 0.062), ((0.19, -0.055), 30.0, 0.055))
+# The jar's glass about its axis ((radius, height) m from the middle of its foot): a thick foot, straight sides, a
+# shoulder up to a short neck and the lip the cloth is tied under, closed over the top under the cloth.
+JAR_GLASS = [(0.0, 0.0), (0.026, 0.0), (0.0295, 0.0025), (0.031, 0.008), (0.031, 0.06), (0.0295, 0.067),
+             (0.024, 0.0745), (0.0215, 0.0775), (0.0215, 0.0835), (0.0235, 0.085), (0.0235, 0.0885), (0.0205, 0.0892),
+             (0.0, 0.0892)]
+# The cloth over its mouth as a section from the middle of its top out to its hem ((radius, height) m): over the lip,
+# gathered in under the twine (point CAP_GATHER), the hem flaring over the shoulder in folds.
+CAP = [(0.0, 0.0907), (0.0215, 0.0905), (0.0252, 0.0893), (0.0263, 0.0868), (0.0258, 0.0845), (0.0234, 0.082),
+       (0.0247, 0.0796), (0.0273, 0.0773), (0.0293, 0.0752)]
+CAP_GATHER = 5
+CAP_SIDES = 20
+TWINE_Z, TWINE_R = 0.082, 0.0015
+# Each cap's stretch of the faded red paint strip (H2) along U: clean ones, as the napkin's red checks (RED_U).
+CAP_U = (2.33, 2.49)
+# The biscuits on the plate: bearing (degrees) and distance from the plate's middle (m), radius (m), turn (degrees).
+BISCUITS = ((95.0, 0.036, 0.0305, 15.0), (215.0, 0.037, 0.0295, 70.0), (335.0, 0.035, 0.031, 140.0))
+# A biscuit's section ((share of its radius, height) m): its pale sides from the foot up to where the crust starts
+# (BISCUIT_CRUST), then the domed golden top.
+BISCUIT = [(0.9, 0.0), (0.985, 0.0025), (1.0, 0.009), (1.012, 0.016), (0.985, 0.0225), (0.93, 0.0275), (0.78, 0.0315),
+           (0.52, 0.0338), (0.24, 0.0349)]
+BISCUIT_TOP, BISCUIT_CRUST, BISCUIT_SIDES = 0.0352, 4, 14
+
+
+def jar_glass():
+    """JarGlass: the jars' glass on the Glass master (M_Glass: unlit, translucent), as the guns' lenses: nearly clear
+    face on (Opacity), so the salt shows white through it, and denser toward the edges (EdgeOpacity) in a dark bottle
+    green, which reads as glass without reflections. Dark, since an unlit tint glows the same by night. Its nodes only
+    preview it."""
+    tint, opacity = 0x44564C, 0.1
+    mat = kit.bpy.data.materials.get('JarGlass') or kit.bpy.data.materials.new('JarGlass')
+    mat.use_nodes = True
+    rgba = lm.hex_color(tint)
+    bsdf = next(node for node in mat.node_tree.nodes if node.type == 'BSDF_PRINCIPLED')
+    bsdf.inputs['Base Color'].default_value = rgba
+    bsdf.inputs['Roughness'].default_value = 0.05
+    bsdf.inputs['Alpha'].default_value = opacity
+    mat.diffuse_color = rgba[:3] + [opacity]
+    if hasattr(mat, 'surface_render_method'):
+        mat.surface_render_method = 'BLENDED'
+    for key in [k for k in mat.keys() if not k.startswith('_')]:
+        del mat[key]
+    mat['Master'] = 'Glass'
+    mat['Tint'] = '#{:06X}'.format(tint)
+    mat['Opacity'] = opacity
+    mat['EdgeOpacity'] = 0.8
+    mat['RimBrightness'] = 1.0
+    return mat
+
+
+# The plate's own materials, by key. The salt, the twine, the slip and its ink are the grave-salt grenade's materials
+# (Art/Models/Throwables/SaltGrenade.py: its salt crust, fuse cord, label paper and ink) with the same names and tints,
+# so they share its instances: change them there too. The biscuits are Polymer's fine stipple tinted, its sheen taken
+# down to baked dough's (M_World's RoughnessOffset and Specular): a golden-brown crust over paler sides.
+PLATE_MATERIALS = {
+    'jarglass': jar_glass,
+    'salt': lambda: lt.material('Polymer', name='SaltCrystal', tint=0xf2eee4),
+    'twine': lambda: lt.material('Polymer', name='SaltFuse', tint=0x6e5536),
+    'slip': lambda: lt.material('Polymer', name='SaltLabel', tint=0xe8dcc0),
+    'ink': lambda: lt.material('Polymer', name='SaltLabelInk', tint=0x3b2b22),
+    'crust': lambda: lt.material('Polymer', name='BiscuitCrust', tint=0xb57a42, RoughnessOffset=0.25, Specular=0.25),
+    'dough': lambda: lt.material('Polymer', name='BiscuitDough', tint=0xe2c89a, RoughnessOffset=0.3, Specular=0.2),
+}
+
+
+class PlateModel(kit.Model):
+    """A kit Model that also knows the porch plate's materials (PLATE_MATERIALS)."""
+
+    def slot(self, key):
+        if key not in self.slots:
+            make = PLATE_MATERIALS.get(key)
+            self.slots[key] = (len(self.slots), make() if make else kit._material(key))
+        return self.slots[key][0]
+
 
 class Checks:
     """A cloth laid out flat on a grid of square cells from (x0, y0): each cell its own patch of the trim sheet at world
@@ -1058,37 +1148,39 @@ class Checks:
 
 
 def porch_plate():
-    """SM_PorchPlate (see the module's docstring): built around its pivot, the middle of its foot."""
-    p = kit.Model('PorchPlate', seed=79)
+    """SM_PorchPlate (see the module's docstring): what stays on the seat once the jars are taken and the biscuits
+    eaten, built round SOCKET_Plate (the pivot) as the jars and the biscuits are."""
+    p = PlateModel('PorchPlate', seed=79)
     rng = p.rng
     tin = Tile('MetalRust')
-    plate = (-0.02, 0.0)
-    # The cloth over the plate: a check of six by six cells laid flat, then draped over a mound of food and the plate's
-    # rim (12 cm out) down onto the seat all round. The plate itself is never seen, so it isn't built: under a drape
-    # this coarse, its rim came through the cloth between the grid's points.
-    n, half = 6, 0.15
-    cell = 2.0 * half / n
+    # The napkin under the plate: five gingham checks of 5 cm each way, laid flat on the seat and cut two faces to a
+    # check, so it lies flat under the plate's foot (6.8 cm out); past it the cloth ripples a little and its edges curl
+    # up a touch.
+    n, half = 10, 0.125
+    step = 2.0 * half / n
     tb = kit._new_bmesh()
-    grid = [[tb.verts.new((-half + cell * i, -half + cell * j, 0.0)) for i in range(n + 1)] for j in range(n + 1)]
+    grid = [[tb.verts.new((-half + step * i, -half + step * j, 0.0)) for i in range(n + 1)] for j in range(n + 1)]
     for j in range(n):
         for i in range(n):
             tb.faces.new((grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]))
-    ripple = [rng.uniform(0.0, 6.28) for _ in range(3)]
+    ripple = [rng.uniform(0.0, 6.28) for _ in range(2)]
 
-    def drape(co):
-        r = math.hypot(co.x, co.y)
-        if r < 0.06:
-            z = 0.06 - 4.5 * r * r
-        elif r < 0.122:
-            z = 0.0438 + (r - 0.06) / 0.062 * (0.027 - 0.0438)
-        else:
-            z = max(0.004, 0.027 - (r - 0.122) * 0.95)
-        z += 0.003 * math.sin(co.x * 41.0 + ripple[0]) * math.sin(co.y * 37.0 + ripple[1]) * min(1.0, r / 0.08)
+    def lie(co):
+        out = min(1.0, max(0.0, (math.hypot(co.x, co.y) - 0.075) / 0.04))
+        z = 0.0018 + 0.0014 * out * (0.5 + 0.5 * math.sin(co.x * 53.0 + ripple[0]) * math.sin(co.y * 47.0 + ripple[1]))
+        z += 0.0016 * max(0.0, (max(abs(co.x), abs(co.y)) - (half - 0.02)) / 0.02)
         return Vector((co.x, co.y, z))
-    p.emit(tb, Checks(-half, -half, cell), 'trim', place((plate[0], plate[1], 0.0), (0.0, 0.0, 12.0)), smooth=True,
-           shape=drape)
-    # A three-tined fork lying beside it (iron, H3) along its left edge, and a tin cup to the right of it, both on the
-    # seat clear of the cloth (whose edges ripple on the seat).
+    p.emit(tb, Checks(-half, -half, 0.05), 'trim', place((PLATE_AT[0], PLATE_AT[1], 0.0), (0.0, 0.0, NAPKIN_TURN)),
+           smooth=True, shape=lie)
+    # The plate: enamelled tin (MetalRust's pale enamel and rust, the cup's and the pail's), a flat floor, a shallow
+    # sloped well and a rolled rim, 22 cm across. Mapped from above without turning each face's grain to its long side
+    # (the floor's thin wedges would each turn their own way and seam the enamel in a star).
+    b = PLATE_BASE
+    lathe(p, [(0.0, b), (0.068, b), (0.104, b + 0.0145), (0.1095, b + 0.0172), (0.1115, b + 0.0192), (0.109, b + 0.021),
+              (0.104, b + 0.0195), (0.071, PLATE_FLOOR), (0.0, PLATE_FLOOR)],
+          at=(PLATE_AT[0], PLATE_AT[1], 0.0), sides=20, uv=Tile('MetalRust', along=None), mat='metal')
+    # A three-tined fork lying on the seat left of the napkin (iron, H3), and a tin cup behind on the right, as they
+    # always lay.
     fork = [(-0.009, 0.0), (0.009, 0.0), (0.008, 0.1), (0.013, 0.125), (0.013, 0.185), (0.0085, 0.185), (0.0075, 0.138),
             (0.0025, 0.138), (0.002, 0.185), (-0.002, 0.185), (-0.0025, 0.138), (-0.0075, 0.138), (-0.0085, 0.185),
             (-0.013, 0.185), (-0.013, 0.125), (-0.008, 0.1)]
@@ -1103,6 +1195,167 @@ def porch_plate():
                                                             (0.039, 0.02))]
     tube(p, handle, 0.0035, uv=tin, mat='metal')
     return p.finish(preview=False, Nanite=0, LODs='50,25', Collision='None')
+
+
+class FlatCloth:
+    """A round of cloth as laid out flat (the part as built, before it's draped), mapped at world scale onto the trim
+    sheet's faded red paint strip (H2) from a clean stretch u0, its middle reach in from the stretch's start."""
+
+    def __init__(self, u0, reach):
+        self.u0, self.reach = u0, reach
+
+    def apply(self, obj, rng):
+        mesh = obj.data
+        uv = mesh.uv_layers.active.data
+        scale = lt.TRIM_DENSITY / lt.TRIM_SIZE
+        v_lo = lt.TRIM_STRIPS['H2'][0] + 0.03 * scale
+        for loop in mesh.loops:
+            co = mesh.vertices[loop.vertex_index].co
+            uv[loop.index].uv = ((self.u0 + self.reach + co.x) * scale, v_lo + (self.reach + co.y) * scale)
+
+
+def jar_cap(m, frame, u0):
+    """The cloth tied over a jar's mouth (frame: the jar's placement): a round of red cloth laid flat, then draped over
+    the top and the lip along CAP, gathered in under the twine and falling over the shoulder in a few soft folds."""
+    path = [Vector(p) for p in CAP]
+    lengths = [0.0]
+    for a, b in zip(path, path[1:]):
+        lengths.append(lengths[-1] + (b - a).length)
+    reach, gather = lengths[-1], lengths[CAP_GATHER]
+    # A ring at each corner of the section, the flat top cut in three.
+    rings = [lengths[1] / 3.0, lengths[1] * 2.0 / 3.0] + lengths[1:]
+    tb = kit._new_bmesh()
+    middle = tb.verts.new((0.0, 0.0, 0.0))
+    turns = [2.0 * math.pi * k / CAP_SIDES for k in range(CAP_SIDES)]
+    loops = [[tb.verts.new((rho * math.cos(t), rho * math.sin(t), 0.0)) for t in turns] for rho in rings]
+    for k in range(CAP_SIDES):
+        k1 = (k + 1) % CAP_SIDES
+        tb.faces.new((middle, loops[0][k], loops[0][k1]))
+        for inner, outer in zip(loops, loops[1:]):
+            tb.faces.new((inner[k], outer[k], outer[k1], inner[k1]))
+    folds = [m.rng.uniform(0.0, 2.0 * math.pi) for _ in range(3)]
+
+    def drape(co):
+        rho = math.hypot(co.x, co.y)
+        a = math.atan2(co.y, co.x)
+        k = 0
+        while k < len(lengths) - 2 and lengths[k + 1] < rho - 1e-9:
+            k += 1
+        t = min(1.0, max(0.0, (rho - lengths[k]) / max(lengths[k + 1] - lengths[k], 1e-9)))
+        on = path[k].lerp(path[k + 1], t)
+        hang = max(0.0, (rho - gather) / (reach - gather))
+        r = on.x + hang * (0.0024 * math.sin(5.0 * a + folds[0]) + 0.0009 * math.sin(3.0 * a + folds[1]))
+        z = on.y + hang * 0.0012 * math.sin(4.0 * a + folds[2])
+        return Vector((r * math.cos(a), r * math.sin(a), z))
+    m.emit(tb, FlatCloth(u0, reach), 'trim', frame, smooth=True, shape=drape)
+
+
+def jar_twine(m, space, slip):
+    """The twine round a jar's cloth under the lip, tied in a bow on the jar's front (-Y) with its two ends hanging
+    clear of the folds; with slip, Delia's slip on a paper tag hung from the knot on a loop of the same twine, in front
+    of the jar's body, three lines of her hand on its face. Parts are kept a square millimetre a face and up: the kit's
+    triangulation takes smaller ones for slivers."""
+    cord = Tile('Polymer')
+    r = CAP[CAP_GATHER][0] + TWINE_R + 0.0003
+    ring = [Vector((r * math.cos(a), r * math.sin(a), TWINE_Z))
+            for a in (math.radians(-90.0 + 360.0 * k / 16) for k in range(17))]
+    tube(m, ring, TWINE_R, uv=cord, mat='twine', space=space)
+    knot = Vector((0.0, -r - 0.001, TWINE_Z))
+    m.box((0.004, 0.003, 0.0035), at=knot, uv=cord, mat='twine', space=space)
+    for s in (-1.0, 1.0):
+        bow = [knot, knot + Vector((s * 0.004, -0.003, 0.003)), knot + Vector((s * 0.008, -0.002, 0.0015)),
+               knot + Vector((s * 0.006, -0.0015, -0.0012)), knot]
+        tube(m, bow, TWINE_R * 0.9, uv=cord, mat='twine', space=space)
+        tube(m, [knot, knot + Vector((s * 0.0015, -0.0065, -0.005)), knot + Vector((s * 0.003, -0.0095, -0.013))],
+             TWINE_R * 0.9, uv=cord, mat='twine', space=space)
+    if not slip:
+        return
+    top = Vector((0.0015, -0.0345, 0.0665))
+    tube(m, [knot, knot + Vector((0.001, -0.0075, -0.006)), top], TWINE_R * 0.7, uv=cord, mat='twine', space=space)
+    # The tag: card 0.6 mm thick with its top corners clipped, hanging a little askew from its loop; 3 mm off the glass.
+    tag = Space(space.matrix @ Matrix.Translation(top) @ Matrix.Rotation(math.radians(5.0), 4, 'Y'))
+    outline = [(-0.014, -0.024), (0.014, -0.024), (0.014, -0.004), (0.008, 0.0), (-0.008, 0.0), (-0.014, -0.004)]
+    m.emit(kit._prism([outline], 0.0006), Tile('Polymer'), 'slip', None, tag)
+    # Her three lines (the last one short: "— D."), each a stroke of ink a hair proud of the card, slanting a little.
+    for z, x0, x1, slant in ((-0.0075, -0.0105, 0.0095, 0.03), (-0.0122, -0.0105, 0.0105, -0.02),
+                             (-0.0172, -0.001, 0.009, 0.04)):
+        stroke = kit._new_bmesh()
+        corners = [stroke.verts.new((x, -0.00015, z + dz + slant * x)) for x, dz in ((x0, -0.0005), (x1, -0.0005),
+                                                                                    (x1, 0.0005), (x0, 0.0005))]
+        face = stroke.faces.new(corners)
+        face.normal_update()
+        if face.normal.y > 0.0:
+            face.normal_flip()
+        m.emit(stroke, Tile('Polymer'), 'ink', None, tag)
+
+
+def porch_jars():
+    """SM_PorchPlate_Jars (see the module's docstring), built round SOCKET_Plate as the plate is (JARS): clear glass
+    filled with the salt, each top heaped a little, a round of red cloth tied over each mouth with twine, and on the
+    first one's knot her slip (SALT FOR THE ROAD. THEY DON'T CARE FOR IT. — D.: the game captions it as they're
+    taken)."""
+    m = PlateModel('PorchPlate_Jars', seed=83)
+    for index, ((x, y), turn, fill) in enumerate(JARS):
+        turned = Matrix.Rotation(math.radians(turn), 4, 'Z')
+        frame = Matrix.Translation((x, y, 0.0)) @ turned
+        lathe(m, JAR_GLASS, at=(x, y, 0.0), sides=16, uv=Tile('Polymer'), mat='jarglass', axis=turned)
+        heap = [m.rng.uniform(0.0, 2.0 * math.pi) for _ in range(2)]
+
+        def heaped(co, fill=fill, heap=heap):
+            if co.z > fill - 0.001:
+                a = math.atan2(co.y, co.x)
+                co.z += 0.0008 * math.sin(2.0 * a + heap[0]) + 0.0005 * math.sin(3.0 * a + heap[1])
+            return co
+        lathe(m, [(0.0, 0.0032), (0.0286, 0.0032), (0.0289, 0.03), (0.0288, fill - 0.004), (0.0262, fill - 0.0005),
+                  (0.0195, fill + 0.0012), (0.0, fill + 0.002)], at=(x, y, 0.0), sides=16, uv=Tile('Polymer'),
+              mat='salt', axis=turned, shape=heaped)
+        jar_cap(m, frame, CAP_U[index])
+        jar_twine(m, Space(frame), slip=index == 0)
+    return m.finish(preview=False, Nanite=0, LODs='50,25', Collision='None')
+
+
+def biscuit(m, at, radius, turn):
+    """One biscuit standing on the plate at at (the middle of its foot): BISCUIT's section turned about its axis,
+    lumped round its sides and over its top (each its own), its sides dough and its top crust, the two emitted apart so
+    the crust's edge keeps a crease."""
+    rng = m.rng
+    rise = rng.uniform(0.94, 1.06)
+    lumps = [(k, rng.uniform(0.25, 1.0) / k, rng.uniform(0.0, 2.0 * math.pi)) for k in (2, 3, 4, 5)]
+    bumps = [(k, rng.uniform(0.0, 2.0 * math.pi)) for k in (3, 5)]
+    last = len(BISCUIT) - 1
+
+    def point(index, side):
+        share, z = BISCUIT[index]
+        t = 2.0 * math.pi * side / BISCUIT_SIDES
+        r = radius * share * (1.0 + 0.035 * sum(w * math.sin(k * t + phase) for k, w, phase in lumps))
+        dome = max(0.0, (index - BISCUIT_CRUST) / (last - BISCUIT_CRUST))
+        z = z * rise + 0.0012 * dome * sum(math.sin(k * t + phase) for k, phase in bumps)
+        return (r * math.cos(t), r * math.sin(t), z)
+    frame = place(at, (0.0, 0.0, turn))
+    for mat, indices in (('dough', range(0, BISCUIT_CRUST + 1)), ('crust', range(BISCUIT_CRUST, last + 1))):
+        tb = kit._new_bmesh()
+        rings = [[tb.verts.new(point(i, side)) for side in range(BISCUIT_SIDES)] for i in indices]
+        end = tb.verts.new((0.0, 0.0, 0.0) if mat == 'dough' else (0.0, 0.0, BISCUIT_TOP * rise))
+        for side in range(BISCUIT_SIDES):
+            s1 = (side + 1) % BISCUIT_SIDES
+            for lower, upper in zip(rings, rings[1:]):
+                tb.faces.new((lower[side], lower[s1], upper[s1], upper[side]))
+            if mat == 'dough':
+                tb.faces.new((end, rings[0][s1], rings[0][side]))
+            else:
+                tb.faces.new((rings[-1][side], rings[-1][s1], end))
+        m.emit(tb, Tile('Polymer'), mat, frame, smooth=True)
+
+
+def porch_biscuits():
+    """SM_PorchPlate_Biscuits (see the module's docstring): three cold biscuits standing on the plate's floor (BISCUITS),
+    built round SOCKET_Plate as the plate is: risen a little lopsided, golden-brown domed tops over pale sides."""
+    m = PlateModel('PorchPlate_Biscuits', seed=89)
+    for bearing, out, radius, turn in BISCUITS:
+        a = math.radians(bearing)
+        biscuit(m, (PLATE_AT[0] + out * math.cos(a), PLATE_AT[1] + out * math.sin(a), PLATE_FLOOR - 0.0003), radius,
+                turn)
+    return m.finish(preview=False, Nanite=0, LODs='50,25', Collision='None')
 
 
 # --- The look sheet (--preview) ---
@@ -1310,7 +1563,7 @@ def side_by_side(paths, labels, out):
     lt._log(f'farmhouse: {out}')
 
 
-def previews(house, ransom, door, dish):
+def previews(house, ransom, door, dishes):
     """The lived-in house's look sheet in Saved/ArtPreviews/RansomsRest/Farmhouse/, in the level's light (its golden
     late afternoon, the low sun behind the house, as the posters paint it; the game's Dusk state for the dusk shot):
       Farmhouse_BeforeAfter  the derelict house and Delia's side by side, front three-quarter from 12 m
@@ -1318,19 +1571,21 @@ def previews(house, ransom, door, dish):
       Farmhouse_ScreenClose  the screen's wire weave from 1 m, at the game's pixel size
       Farmhouse_Dusk         Delia's house at dusk: the lamps up and the front windows' Glow raised (WINDOW_GLOW_DUSK)
       Farmhouse_Handoff      the screen door swung 25 degrees open, as for Heirloom
-      Farmhouse_Props        the screen door and the plate on their own
-    The props hang on the house's sockets, and both lamps have the point light the level puts at a SOCKET_Light."""
+      Farmhouse_Props        the screen door and the plate on their own: whole, the jars taken, the biscuits eaten too
+    The props hang on the house's sockets (dishes: the plate, the jars and the biscuits, all on SOCKET_Plate), and both
+    lamps have the point light the level puts at a SOCKET_Light."""
     bpy = kit.bpy
     os.makedirs(PREVIEW_DIR, exist_ok=True)
     scene, sun = stage()
     bpy.context.view_layer.update()
     sockets = {c.name.split('.')[0][len('SOCKET_'):]: c for c in ransom.children if c.name.startswith('SOCKET_')}
     screen = mount(door, sockets['ScreenDoor'])
-    plate = mount(dish, sockets['Plate'])
+    plates = [mount(dish, sockets['Plate']) for dish in dishes]
     lamps = [lamp(scene, sockets[name].matrix_world.translation, power)
              for name, power in zip(('Light', 'Light_Porch'), LAMPS_DAY)]
-    delia = [ransom, screen, plate] + lamps
-    door.hide_render = dish.hide_render = True
+    delia = [ransom, screen] + plates + lamps
+    for prop in [door] + list(dishes):
+        prop.hide_render = True
     golden = sky('_Golden', GOLDEN_SKY, GOLDEN_SUN, GOLDEN_GLOWS)
     light(scene, sun, GOLDEN_SUN, 4.4, (1.0, 0.8, 0.56), golden)
     panes = bpy.data.materials['WindowGlow']
@@ -1368,15 +1623,23 @@ def previews(house, ransom, door, dish):
     shoot(scene, os.path.join(PREVIEW_DIR, 'Farmhouse_Dusk.png'), (-7.6, -11.2, 2.3), (0.3, -1.3, 2.5), 28.0,
           (1920, 1080), exposure=0.2)
     lit(dusk=False)
-    # The props on their own, away from the house, in the golden light.
+    # The props on their own, away from the house, in the golden light: the plate whole, then as the game shows it with
+    # the jars taken (Main 1), then with the biscuits eaten too (Main 7).
     show(delia, False)
-    door.hide_render = dish.hide_render = False
-    door.location, dish.location = (40.0, 0.0, 0.0), (44.0, 0.0, 0.0)
+    show([door] + list(dishes), True)
+    door.location = (40.0, 0.0, 0.0)
+    for dish in dishes:
+        dish.location = (44.0, 0.0, 0.0)
     light(scene, sun, GOLDEN_SUN, 4.4, (1.0, 0.8, 0.56), golden)
-    shots = [os.path.join(PREVIEW_DIR, f'_{k}.png') for k in ('screen', 'plate')]
+    shots = [os.path.join(PREVIEW_DIR, f'_{k}.png') for k in ('screen', 'plate', 'taken', 'eaten')]
     shoot(scene, shots[0], (41.9, -3.0, 1.55), (40.45, 0.0, 1.05), 35.0, (900, 1100), exposure=SHADE_EXPOSURE)
-    shoot(scene, shots[1], (44.36, -0.5, 0.4), (43.99, 0.0, 0.035), 50.0, (900, 1100), exposure=SHADE_EXPOSURE)
-    side_by_side(shots, ['SCREEN DOOR', 'PORCH PLATE'], os.path.join(PREVIEW_DIR, 'Farmhouse_Props.png'))
+    plate_view = ((44.42, -0.62, 0.48), (44.0, -0.01, 0.04), 42.0, (900, 1100))
+    shoot(scene, shots[1], *plate_view, exposure=SHADE_EXPOSURE)
+    for shot, gone in zip(shots[2:], dishes[1:]):
+        gone.hide_render = True
+        shoot(scene, shot, *plate_view, exposure=SHADE_EXPOSURE)
+    side_by_side(shots, ['SCREEN DOOR', 'PORCH PLATE', 'JARS TAKEN', 'BISCUITS EATEN'],
+                 os.path.join(PREVIEW_DIR, 'Farmhouse_Props.png'))
 
 
 # --- The models ---
@@ -1386,6 +1649,6 @@ if __name__ != '__overview__':            # the buildings' overview shows the tu
     ransom = farmhouse('Farmhouse_Ransom', lived_in=True)
     write_screen_weave()
     door = screen_door()
-    dish = porch_plate()
+    dishes = [porch_plate(), porch_jars(), porch_biscuits()]
     if lt.want_preview():
-        previews(house, ransom, door, dish)
+        previews(house, ransom, door, dishes)
