@@ -2935,7 +2935,7 @@
         "perPiece": 1,
         "cull": 7000,
         "least": 300,
-        "meshes": { "SwallowNests_A": 2, "SwallowNests_B": 1 }
+        "meshes": { "SwallowNests": 1 }
       },
       "fans": {
         "spacing": 1000,
@@ -3468,84 +3468,18 @@
     },
     "roosts": [
       {
-        "id": "FamilyPlot",
-        "name": "Ransom Farm",
-        "at": [-3454,-7437],
-        "yaw": 95,
-        "note": "outside the family plot's east gate by the farm path: found as Ellis leaves the plot"
-      },
-      {
-        "id": "MainStreet",
-        "name": "Main Street",
-        "at": [0,3050],
-        "yaw": 90,
-        "onRoad": true,
-        "note": "the street's middle, 6.5 m east of the memorial"
-      },
-      {
-        "id": "ChapelYard",
-        "name": "Chapel of Saint Ada",
-        "at": [5250,-700],
-        "yaw": 120,
-        "openAfter": "Main4",
-        "note": "the knoll's forecourt east of the churchyard gate"
-      },
-      {
         "id": "Depot",
         "name": "The Depot",
         "at": [750,10250],
         "yaw": 135,
-        "note": "the yard road's end at the platform's west end"
-      },
-      {
-        "id": "KeepersGrave",
-        "name": "Keeper's Crossroads",
-        "at": [900,-11000],
-        "yaw": -81,
-        "openAfter": "Main5",
-        "note": "the crossroads, facing the Keeper's Gate"
-      },
-      {
-        "id": "WhitlockFields",
-        "name": "Whitlock Fields",
-        "at": [-5100,4650],
-        "yaw": -150,
-        "note": "by the barn yard's north-east corner and the fields path"
-      },
-      {
-        "id": "SinkRim",
-        "name": "The Sink",
-        "at": [3300,4300],
-        "yaw": 59,
-        "note": "the south-west rim by the fence's end, short of the ramp head"
-      },
-      {
-        "id": "OldQuarry",
-        "name": "Old Quarry",
-        "at": [9500,3000],
-        "yaw": 0,
-        "note": "the quarry's mouth where the track comes in"
-      },
-      {
-        "id": "LiftHead",
-        "name": "Lift Head",
-        "at": [14700,1850],
-        "yaw": 180,
-        "note": "the crest, where the crest path and the Bench trail part"
+        "note": "the yard road's end at the platform's west end: the train station's roost"
       },
       {
         "id": "CaldersPost",
         "name": "Calder's Post",
         "at": [16350,-5300],
         "yaw": -100,
-        "note": "the post's yard entrance from the Bench trail"
-      },
-      {
-        "id": "Diggings",
-        "name": "The Diggings",
-        "at": [21300,5700],
-        "yaw": 45,
-        "note": "between the miners' plot and the ore bin, facing the mine"
+        "note": "the post's yard entrance from the Bench trail: the mountain's roost"
       }
     ],
     "boards": [

@@ -30,10 +30,26 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   - Fast travel and deaths: Hob's crows carry the player across the screen (`URoostCarrySubsystem`, `UHudCrowVeilWidget`); Hob
     speaks at every death.
   - The actor is still `ARespawnMarker` (save ids unchanged). Placed from `layout.json` `gameplay.roosts` by
-    `Tools/Unreal/build_area_roosts.py`. `Looter.Grave.List`, `Looter.Grave.Mark <id> | forget <id|all>`.
+    `Tools/Unreal/build_area_roosts.py` (run alone it replaces every roost in the level). `Looter.Grave.List`,
+    `Looter.Grave.Mark <id> | forget <id|all>`.
+  - TWO a map at most (the user, 2026-10-14; `MOST_PER_MAP`): Ransom's Rest's are the Depot (train station) and Calder's Post
+    (mountain); the other nine were removed, not kept for saves.
+  - A death wakes at the roost last found on the map (never the nearest), before any at the level's own start (RR: the
+    family plot's PlayerStart), Hob's crows carrying Ellis either way on a map with roosts. Arriving by fast travel finds
+    the roost too (`MarkOnArrival`). Continue wakes at the same roost, before any where saved. One lookup:
+    `ARespawnMarker::FindLastFound` (`LastGraves`, else the newest `MarkedGraves` still standing: an old save naming a gone
+    roost loads onto one that stands; no migration).
 - Impacts and bullet marks: a hit's surface (13: dirt, grass, gravel, sand, stone, wood, metal, sheet metal, glass, water, cloth,
   hay, bone) comes from tags, then the trim sheet's strip under the hit (collision UVs), the terrain's baked surface map,
   material-name words; no physical surface types. Each has its sound, puff and mark; glancing hits ricochet.
+  - Guns' after-shot (2026-10-14): brass (`FWeaponBrass`: last 60, 20 s + 1.2 s sink, SOCKET_Eject or a per-kind port on the
+    visible gun; the revolver tips its empties at the reload's Eject step; `Weapon.Casing.*` by surface); a hot barrel's wisp
+    (no shimmer: a distortion pass costs too much); tracers with a hot head and a smoke thread; visible ricochets (at most 2 a
+    volley); impact chunks land on the hit's floor; each creature splashes its own (`ECreatureBlood`); enemy shots passing within
+    1.5 m of the player's head whiz or hiss once (`NearMiss`).
+  - Creatures react (2026-10-14, `UCreatureReactComponent`): a notice beat once a hunt (0.42-0.62 s by seed; none when hurt,
+    a boss, or called by the pack), the M_FX_HitFlash overlay on a hit, deaths that linger (spiders 10 s with twitches, slimes
+    splat, the Unpaid crumble to ash), rising entrances when seen within 60 m, idle dice, footfall dust (level budget 40/s).
   - Marks are pooled DBuffer decals (`Looter.BulletMarks.Max/.Hold/.Fade`, 64, 20 s + 15 s fade); atlas script-made
     (`Art/Textures/BulletMarks/make_bullet_marks.py`).
   - Re-run `Tools/Unreal/build_impact_surfaces.py` after a macro map, scatter map or new trim-sheet model changes.
@@ -176,6 +192,19 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   - Every ramp's walkway is cleared of cliff pieces (`build_area_walkways.py`): a player capsule is tested down its middle. A ramp's
     own wall moves back into its cut; a ledge's outer face (under the path) sinks until it clears, at most 1.5 m (2026-10-08: nine
     faces on the bluff path and the Sink ramp sank 25-100 cm, no gaps under the lip).
+  - The review's rules (2026-10-14, the user: "fix any discrepancies or odd shapes"): no gap isolates a piece and no piece stands
+    alone (`LONE_REACH` 15 m: its neighbours all left out, it goes too); no piece beside its own mirror (`VARY_SWAP`: the second of
+    two identical takes another fitting kit piece); `level.cliffs.overlap` (cm, all or per group) widens a run's pieces;
+    `level.cliffs.outcrops` {knob: {piece, height, yaw}} gives a knob another outcrop (benchGraniteH wears the narrow Slab: the
+    reworked TorD stood on the Bench trail). Probe: `Saved/cliff_cover.py` (bare and buried shares per run). Photograph runs with
+    `Tools/cliff_views.py` + `tour.ps1`.
+  - The steep terrain reads as the kit's sandstone (M_Terrain's `SteepRock`, `SteepBeds`, `SteepAOLift`, `SteepSharp/Breakup/Pull`,
+    `StrataSmooth/Flat`, all off by default; Ransom's Rest's four core `*_Steep` MIs turn them on; keep `SteepRockTint` equal to
+    MI_RockCliff_Ransom's Tint). Preview without Unreal: `ground_preview.py walls`.
+  - Cliff life (`build_area_cliff_life.py`, in the full build after gameplay and in the `cliffs` mode; `level.cliffLife`): drapes on
+    lips, ledge plants, crack junipers, scree fans and fallen slabs at feet, the swallows' nests (SM_SwallowNests) under overhangs,
+    stain decals (`MI_CliffStain`, the cell picked by the decal colour's R) on faces seen from the play area; caps per kind (RR: 285
+    instances, 70 stains). `footprints()` keeps the scatter's grass off the fans and slabs.
 - Scatter (PCG): `Tools/Unreal/build_island_scatter.py <Area>`.
   - Re-imports changed masks by MD5, then generates. Wait for the instance count to settle, then save.
   - Zones of kinds alpine, outpost, mine and crest, and `benchPines*` stands, grow pines only (PCG Intersection: one `In` pin,
@@ -229,6 +258,22 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   and dead limbs (crows 15 m clear of Hob), insect zones from flowers, orchards and water, tumbleweed lanes, dust devil spots,
   washing on laundry lines. Derived from the built level: re-run after dressing changes. `UFaunaSubsystem` updates it (nothing ticks
   on its own); `Looter.Fauna 0/1`, `Looter.Fauna.Stats`.
+- The small animals (`build_area_animals.py`, after the fauna in the full build, or on its own; look sheet 44): chicken yards and the
+  porch cat from town.json's `spots` (pens from the picket yard and the coop's run, the cat's exit and hide point traced under its
+  porch, or `hide`/`exit` on the spot), cliff swallows at the placed SM_SwallowNests (one flock per cluster group). Code-posed from
+  pose tables (`Tools/animal_poses.py` writes `World/*PoseData.inl` from `Intermediate/AnimalsModel/*_poses.json`, which the
+  models' scripts write: rerun both after a pose change). They're fauna: `Looter.Fauna 0/1`, `.Scare`.
+- Air, light and life with nothing placed (concept C, 2026-10-14): lights tagged `Flicker` breathe near the player
+  (`ULightFlickerSubsystem`; AHouseLights' lamps by default, the mine's and keeper's lanterns, the town's lamps); lit windows
+  (homes' `SOCKET_Window_<n>`) play a passing shadow or a curtain now and then (`UWindowLifeSubsystem`, never a face); motes, pollen,
+  leaves and moths round the camera (`UAmbientAirSubsystem`: trees, lamps and underground boxes scanned at start and at each
+  lighting switch; pollen follows the terrain's surface map); a gust every 40-120 s (`UGustSubsystem`, MPC_Wind read by
+  M_WorldFoliage and M_Smoke) bows plants, leans smoke, flaps washing, spins the windmill, rolls dust. Hung things swing on
+  `USwingComponent` (put it at the pivot, attach the mesh). `Looter.Flicker`, `Looter.WindowLife`, `Looter.Air`, `Looter.Gust`.
+- A town's dressing on Ransom's Rest: `Art/Levels/RansomsRest/make_town.py` writes town.json (vignettes per building, in its
+  frame; `APPROVED` names the new clutter that goes in; `Saved/rr_town_probe.py` first, for real ground and spots), placed by
+  the dressing like Crossroads Town's; the town's lamps light at dusk (`place_town_lights`). New town meshes need PIECES and
+  FOOTPRINT entries in `build_area_dressing.py` (make_town.py prints them).
 - Ambient sound emitters (`build_area_sound.py`, in the full build): creeks, ponds, falls, open edges, Main Street.
 - The lootable world (`build_area_loot.py`, 2026-10-09): runs in the full build and the `dressing` mode, after the dressing and
   gameplay pieces stand and before the fauna; on its own, `Tools\console.ps1 "py

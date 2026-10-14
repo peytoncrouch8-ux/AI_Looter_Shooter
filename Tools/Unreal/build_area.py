@@ -1306,6 +1306,9 @@ class AreaBuild:
         # The ambient life (birds, insects, tumbleweeds, washing; build_area_fauna.py), derived from everything placed
         # above and kept inside the playable area the bounds just set.
         importlib.reload(importlib.import_module('build_area_fauna')).place(self)
+        # The small animals (build_area_animals.py): the chicken yards and the porch cat from town.json's spots, the cliff
+        # swallows at the nests the cliff life placed.
+        importlib.reload(importlib.import_module('build_area_animals')).place(self)
         self.swap_materials()
         sky_light.recapture_sky()
         levels.save_current_level()
