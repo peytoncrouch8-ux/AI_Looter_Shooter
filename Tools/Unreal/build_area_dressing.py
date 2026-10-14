@@ -82,6 +82,10 @@ TAG = 'Dressing'
 
 # How far (cm) each kind of piece is drawn (AInstancedProps.CullDistance, by instance; Medium draws to 60% of it).
 SMALL_CULL = 12000.0   # yard props, graves, cairns: about 70 m on Medium
+# The frontier clutter's small pieces (a spittoon, a horseshoe, milk cans: under a metre): about 30 m on Medium. Ransom's
+# Rest is render-thread bound (2026-10-14: the town's dressing cost 130-220 draws in its views), and past that they're a
+# few pixels; they cast no shadow either (CLUTTER_SHADOWLESS).
+CLUTTER_CULL = 5000.0
 FENCE_CULL = 16000.0   # fence sections and posts: a line reads further than a crate
 WALL_CULL = 25000.0    # stone walls, the big pieces
 TREE_CULL = 0.0        # trees: never (a tree's silhouette is what tells a place from afar)
@@ -185,28 +189,28 @@ PIECES = {
     'Boardwalk_4m': ((400, 303, 50), 'middle', FENCE_CULL),
     'Boardwalk_Steps': ((40, 302, 37), 'middle', FENCE_CULL),
     # The frontier clutter (FrontierClutter.py, look sheet 42, the user's yes 2026-10-14): porches, yards, Main Street.
-    'BottleCrate': ((84, 44, 30), 'middle', SMALL_CULL),
-    'BroomBucket': ((70, 45, 122), 'middle', SMALL_CULL),
+    'BottleCrate': ((84, 44, 30), 'middle', CLUTTER_CULL),
+    'BroomBucket': ((70, 45, 122), 'middle', CLUTTER_CULL),
     'Buckboard': ((164, 450, 140), 'middle', FENCE_CULL),
     'Bunting': ((600, 5, 60), 'middle', FENCE_CULL),
     'ChickenCoop': ((248, 228, 150), 'middle', FENCE_CULL),
-    'ChoppingBlock': ((100, 100, 75), 'middle', SMALL_CULL),
-    'FlourSacks': ((146, 134, 86), 'middle', SMALL_CULL),
-    'FlowerBox': ((94, 23, 45), 'middle', FENCE_CULL),
+    'ChoppingBlock': ((100, 100, 75), 'middle', CLUTTER_CULL),
+    'FlourSacks': ((146, 134, 86), 'middle', CLUTTER_CULL),
+    'FlowerBox': ((94, 23, 45), 'middle', CLUTTER_CULL),
     'HandPump': ((126, 154, 145), 'middle', SMALL_CULL),
-    'Horseshoe': ((14, 2, 14), 'middle', FENCE_CULL),
+    'Horseshoe': ((14, 2, 14), 'middle', CLUTTER_CULL),
     'KitchenGarden': ((316, 228, 175), 'middle', FENCE_CULL),
-    'MilkCans': ((74, 74, 62), 'middle', SMALL_CULL),
-    'PorchChair': ((48, 45, 98), 'middle', SMALL_CULL),
-    'PorchLantern': ((18, 34, 45), 'middle', FENCE_CULL),
-    'RockingChair': ((54, 108, 110), 'middle', SMALL_CULL),
-    'RockingChair_Shawl': ((54, 108, 112), 'middle', SMALL_CULL),
+    'MilkCans': ((74, 74, 62), 'middle', CLUTTER_CULL),
+    'PorchChair': ((48, 45, 98), 'middle', CLUTTER_CULL),
+    'PorchLantern': ((18, 34, 45), 'middle', CLUTTER_CULL),
+    'RockingChair': ((54, 108, 110), 'middle', CLUTTER_CULL),
+    'RockingChair_Shawl': ((54, 108, 112), 'middle', CLUTTER_CULL),
     'SignBoard_Barber': ((4, 88, 48), 'middle', FENCE_CULL),
     'SignBoard_Hotel': ((4, 88, 48), 'middle', FENCE_CULL),
     'SignBoard_Pruitts': ((4, 88, 48), 'middle', FENCE_CULL),
     'SignBracket': ((6, 96, 62), 'middle', FENCE_CULL),
-    'Spittoon': ((26, 26, 18), 'middle', SMALL_CULL),
-    'Washtub': ((80, 80, 60), 'middle', SMALL_CULL),
+    'Spittoon': ((26, 26, 18), 'middle', CLUTTER_CULL),
+    'Washtub': ((80, 80, 60), 'middle', CLUTTER_CULL),
     # Rocks (Rocks.py, Outcrops.py); an outcrop is a landmark, never culled.
     'Rock_A': ((94, 82, 47), 'middle', SMALL_CULL),
     'Rock_B': ((68, 65, 34), 'middle', SMALL_CULL),
@@ -581,6 +585,7 @@ WATER_LIFT = 1.0
 PASSABLE = ('Bush_', 'Reeds_', 'LilyPads_', 'Flowers_', 'Web_', 'Cocoon_', 'EggSac_')
 # Cards that cast no shadow (the art's rule for the webs; the scatter's reeds and pads cast none either).
 SHADOWLESS = ('Web_', 'Reeds_', 'LilyPads_', 'Flowers_')
+CLUTTER_SHADOWLESS = ('Spittoon', 'Horseshoe', 'BottleCrate', 'BroomBucket', 'MilkCans', 'FlowerBox', 'PorchLantern')
 # A town piece's footprint lets the scatter's grass and flowers grow up to it, as a fence's does (only the woody and
 # rocky layers keep off it): plants, and the laundry's line between its posts.
 GRASS_UNDER = ('Bush_', 'Reeds_', 'Flowers_', 'LaundryLine')
@@ -2178,7 +2183,7 @@ def prop_flags(build, actor, mesh, solid, town):
     try:
         if not solid:
             actor.set_editor_property('solid', False)
-        if mesh.startswith(SHADOWLESS):
+        if mesh.startswith(SHADOWLESS) or mesh in CLUTTER_SHADOWLESS:
             actor.set_editor_property('cast_shadows', False)
     except Exception as error:
         build.warn(f'Dressing_{mesh}: {error} (build the game module first): it stays solid and shadowed')
