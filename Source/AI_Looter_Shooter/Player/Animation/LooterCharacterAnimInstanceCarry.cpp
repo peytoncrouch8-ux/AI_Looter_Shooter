@@ -1,9 +1,11 @@
 #include "Player/Animation/LooterCharacterAnimInstance.h"
+#include "Inventory/WeaponManagerComponent.h"
 #include "Player/Animation/LooterClimbPose.h"
 #include "Player/Animation/LooterStancePoseCarry.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
 #include "Player/PlayerViewComponent.h"
+#include "Player/WeaponSwapMotion.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
 #include "GameFramework/Pawn.h"
@@ -43,4 +45,8 @@ void ULooterCharacterAnimInstance::RefreshCarry(float DeltaSeconds, const AWeapo
 	Carry.LowReady = ReadyClock.GetAlpha() * Free;
 	Carry.Sprint = (Loco ? Loco->GetSprintAlpha() : 0.f) * Free;
 	Carry.bShortGun = Definition && Definition->HoldReach > 0.f;
+	// A swap: the arm lowers the gun in hand to the side out of the way and raises the next, on the swap's own clock (the
+	// first-person view's, WeaponSwapMotion), so the change reads from behind as well.
+	const UWeaponManagerComponent* Manager = WeaponManager.Get();
+	Carry.Swap = Weapon && Manager ? WeaponSwapMotion::BodyShare(Manager->GetGunLowered()) * Free : 0.f;
 }

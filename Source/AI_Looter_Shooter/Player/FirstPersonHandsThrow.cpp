@@ -11,8 +11,8 @@ namespace
 	/** The tin's middle above its foot, its pivot (PlayerThrowMotion.cpp's), and its radius (SaltGrenade.py's R_BODY). */
 	constexpr float JarMiddleUp = 5.f;
 	constexpr float JarRadius = 3.75f;
-	/** The hand's grip point sits this far off its palm (the mannequin's HandGrip). */
-	constexpr float HoldOffPalm = 2.f;
+	/** The throwing arm's forearm, leaving the wrist down, back and out to the left (camera space), as the jar comes up. */
+	const FVector JarForearm(-0.35f, -0.55f, -0.75f);
 	/** Off the gun and round the jar in this long (seconds), while it's still rising out of sight under the view. */
 	constexpr float GrabSeconds = 0.05f;
 	/** After the release: the hand carries on along the throw, opening (camera space, cm), over this long. */
@@ -39,7 +39,9 @@ FHandPlacement FirstPersonHandsMotion::OnJar(float ThrowTime)
 	// axis runs pinky to index, the fuse standing up out of the fist. A left hand's knuckles are then palm cross that.
 	const FVector Palm = Turn.RotateVector(FVector(0.35f, 1.f, 0.f)).GetSafeNormal();
 	const FVector Fingers = FVector::CrossProduct(Palm, JarUp);
-	return FHandPlacement::Make(Middle - Palm * (JarRadius - HoldOffPalm), Fingers, Palm, FHandFingers::Of(EHandGrip::Wrap));
+	// The palm on the tin's side: the grip point sits GripOffPalm off it, nearly on the tin's axis.
+	return FHandPlacement::Make(Middle - Palm * (JarRadius - FirstPersonHands::GripOffPalm), Fingers, Palm, FHandFingers::Of(EHandGrip::Wrap),
+		JarForearm);
 }
 
 FHandPlacement FirstPersonHandsMotion::SupportInThrow(const FHandPlacement& OnGun, float ThrowTime)

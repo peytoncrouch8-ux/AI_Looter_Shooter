@@ -34,6 +34,17 @@ public:
 
 	bool IsAssembled() const { return !Parts.IsEmpty(); }
 
+	/**
+	 * How much bigger than modeled a gun kind is drawn (the user's call, 2026-10-14: the rifle and the shotgun 10%, the
+	 * six-gun 20%), everywhere its model shows. The parts hang at this scale inside the component, so every point it gives
+	 * in its space (grip, foregrip, aim, muzzle, ejection port) and a reload part's travel come out at it too; whoever holds
+	 * the component never scales it.
+	 */
+	static float ScaleFor(EWeaponKind Kind);
+
+	/** The scale this gun was built at (ScaleFor its kind; 1 before it's built). */
+	float GetModelScale() const { return ModelScale; }
+
 	/** Key points in the gun's space. */
 	FVector GetMuzzle() const { return Muzzle; }
 	FVector GetGrip() const { return Grip; }
@@ -170,6 +181,9 @@ private:
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> Paints;
 
 	EWeaponReloadPart ReloadPart = EWeaponReloadPart::None;
+
+	/** The scale the parts were hung at (ScaleFor the definition's kind). */
+	float ModelScale = 1.f;
 
 	/** A revolver's cylinder: its chambers, its crane's hinge (its own space), its swing (degrees) and its turn (chambers). */
 	int32 CylinderChambers = 0;

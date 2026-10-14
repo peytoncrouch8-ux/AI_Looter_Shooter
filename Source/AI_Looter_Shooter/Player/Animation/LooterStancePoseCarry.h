@@ -19,12 +19,20 @@ struct FLooterCarry
 	float Sprint = 0.f;
 	/** A short gun (a six-gun, held out by its definition's HoldReach): one-handed at the side in a sprint, not across the chest. */
 	bool bShortGun = false;
+	/**
+	 * How far a swap has the gun lowered (0-1, WeaponSwapMotion::BodyShare): the arm hanging at the side, muzzle to the ground,
+	 * the other hand let go. The guns change places at the bottom; the next comes up the same way.
+	 */
+	float Swap = 0.f;
 
-	/** How far the gun is from shouldered, both carries together (0: at the crosshair, 1: fully carried). */
-	float Weight() const { return 1.f - (1.f - FMath::Clamp(LowReady, 0.f, 1.f)) * (1.f - FMath::Clamp(Sprint, 0.f, 1.f)); }
+	/** How far the gun is from shouldered, every carry together (0: at the crosshair, 1: fully carried). */
+	float Weight() const
+	{
+		return 1.f - (1.f - FMath::Clamp(LowReady, 0.f, 1.f)) * (1.f - FMath::Clamp(Sprint, 0.f, 1.f)) * (1.f - FMath::Clamp(Swap, 0.f, 1.f));
+	}
 
-	/** How far the support hand has let go of the gun (a six-gun in a sprint; its arm swings with the run instead). */
-	float OneHanded() const { return bShortGun ? FMath::Clamp(Sprint, 0.f, 1.f) : 0.f; }
+	/** How far the support hand has let go of the gun (a six-gun in a sprint, any gun in a swap; its arm swings with the run instead). */
+	float OneHanded() const { return FMath::Max(bShortGun ? FMath::Clamp(Sprint, 0.f, 1.f) : 0.f, FMath::Clamp(Swap, 0.f, 1.f)); }
 };
 
 /**
@@ -115,10 +123,13 @@ namespace LooterCarry
 	 */
 	FRotator SprintHold(float Yaw, bool bShortGun);
 
+	/** A swap's lowered gun, in the frame Yaw is in: hanging at the side, muzzle to the ground a little ahead and out. */
+	FRotator SwapHold(float Yaw, bool bShortGun);
+
 	/**
-	 * The gun as carried: Aiming (shouldered at the crosshair, any kick in it) turned down to the low-ready and on to the
-	 * sprint's carry by Carry's shares. Yaw is the facing's, in Aiming's frame. The sprint's carry doesn't follow the aim's
-	 * pitch (the torso doesn't either in a sprint).
+	 * The gun as carried: Aiming (shouldered at the crosshair, any kick in it) turned down to the low-ready, on to the
+	 * sprint's carry and down to a swap's by Carry's shares. Yaw is the facing's, in Aiming's frame. The sprint's carry
+	 * doesn't follow the aim's pitch (the torso doesn't either in a sprint), nor does a swap's.
 	 */
 	FQuat CarriedGun(const FQuat& Aiming, float Yaw, const FLooterCarry& Carry);
 }

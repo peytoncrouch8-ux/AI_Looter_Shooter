@@ -2,6 +2,7 @@
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
+#include "Weapons/WeaponHipHold.h"
 #include "Affixes/WeaponRollLibrary.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "AI_Looter_Shooter.h"
@@ -74,29 +75,7 @@ AWeaponBase* UWeaponManagerComponent::GiveWeapon(const FWeaponInstanceData& Inst
 	return Weapon;
 }
 
-void UWeaponManagerComponent::EquipSlot(int32 SlotIndex)
-{
-	if (Weapons.IsValidIndex(SlotIndex) && SlotIndex != ActiveSlot)
-	{
-		SetActiveSlot(SlotIndex);
-	}
-}
-
-void UWeaponManagerComponent::NextWeapon()
-{
-	if (Weapons.Num() > 1)
-	{
-		EquipSlot((ActiveSlot + 1) % Weapons.Num());
-	}
-}
-
-void UWeaponManagerComponent::PreviousWeapon()
-{
-	if (Weapons.Num() > 1)
-	{
-		EquipSlot((ActiveSlot - 1 + Weapons.Num()) % Weapons.Num());
-	}
-}
+// EquipSlot, NextWeapon and PreviousWeapon are with the swap that shows them (WeaponManagerSwap.cpp).
 
 AWeaponBase* UWeaponManagerComponent::DropActiveWeapon()
 {
@@ -120,6 +99,8 @@ AWeaponBase* UWeaponManagerComponent::RemoveFromSlots(int32 SlotIndex, bool bHol
 
 	AWeaponBase* Weapon = Weapons[SlotIndex];
 	const bool bWasActive = SlotIndex == ActiveSlot;
+	// The gun in hand going mid-swap (dropped as it went down): the one the swap was bringing up comes up in its place.
+	AWeaponBase* Heading = bWasActive ? SwapTarget.Get() : nullptr;
 	if (bWasActive && Weapon && bHolster)
 	{
 		Weapon->OnHolstered();
@@ -131,10 +112,12 @@ AWeaponBase* UWeaponManagerComponent::RemoveFromSlots(int32 SlotIndex, bool bHol
 		ActiveSlot = INDEX_NONE;
 		if (Weapons.Num() > 0)
 		{
-			SetActiveSlot(FMath::Min(SlotIndex, Weapons.Num() - 1));
+			const int32 HeadingSlot = Heading ? Weapons.IndexOfByKey(Heading) : INDEX_NONE;
+			SetActiveSlot(HeadingSlot != INDEX_NONE ? HeadingSlot : FMath::Min(SlotIndex, Weapons.Num() - 1));
 		}
 		else
 		{
+			StopSwap();
 			OnActiveWeaponChanged.Broadcast(nullptr, Weapon);
 		}
 	}
@@ -351,6 +334,9 @@ void UWeaponManagerComponent::SendMessage(const FString& Message)
 
 void UWeaponManagerComponent::SetActiveSlot(int32 NewSlot)
 {
+	// Any swap under way ends here, with the change it was heading for or one that took its place; putting the old gun away
+	// lets go of the swap's lock on it.
+	StopSwap();
 	AWeaponBase* OldWeapon = GetActiveWeapon();
 	if (OldWeapon)
 	{
@@ -443,16 +429,24 @@ FTransform UWeaponManagerComponent::GetFirstPersonHold(const AWeaponBase* Weapon
 	if (Weapon && !Weapon->GetGripPoint().IsZero())
 	{
 		// A gun with a hip hold of its own (the Drover: raised and canted in on the right, where a long gun's hold would
-		// sink its short frame low with its grip off the screen's bottom) puts its grip there, turned its way. Aiming
-		// still slerps to the sight line (PlayerLocomotionViewModel), so its SOCKET_Aim lands as every gun's does.
+		// sink its short frame low with its grip off the screen's bottom) puts its grip there, turned its way; a gun
+		// family's hold comes from WeaponHipHold (raised so both hands show). Aiming still slerps to the sight line
+		// (PlayerLocomotionViewModel), so its SOCKET_Aim lands as every gun's does.
 		const UWeaponDefinition* Definition = Weapon->GetInstance().Definition.Get();
+		FVector Grip = FVector::ZeroVector;
+		FRotator Turn = FRotator::ZeroRotator;
 		if (Definition && !Definition->FirstPersonGrip.IsZero())
 		{
-			Hold.SetRotation(Hold.GetRotation() * Definition->FirstPersonRotation.Quaternion());
-			Hold.SetTranslation(Definition->FirstPersonGrip - Hold.TransformVector(Weapon->GetGripPoint()));
+			Grip = Definition->FirstPersonGrip;
+			Turn = Definition->FirstPersonRotation;
+		}
+		else if (!WeaponHipHold::For(Definition ? Definition->Kind : EWeaponKind::None, Grip, Turn))
+		{
+			Hold.AddToTranslation(Hold.TransformVector(AttachGrip - Weapon->GetGripPoint()));
 			return Hold;
 		}
-		Hold.AddToTranslation(Hold.TransformVector(AttachGrip - Weapon->GetGripPoint()));
+		Hold.SetRotation(Hold.GetRotation() * Turn.Quaternion());
+		Hold.SetTranslation(Grip + WeaponHipHold::TuningNudge() - Hold.TransformVector(Weapon->GetGripPoint()));
 	}
 	return Hold;
 }

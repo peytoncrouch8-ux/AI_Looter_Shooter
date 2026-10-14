@@ -18,6 +18,7 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 	}
 	const FWeaponLook Look = WeaponParts::Pick(Instance);
 	const float Wear = WeaponParts::Wear(Instance);
+	ModelScale = ScaleFor(Definition->Kind);
 
 	// The parts share their materials; the ones this gun colors become one dynamic instance each, shared by every part.
 	TMap<FName, UMaterialInterface*> Painted;
@@ -88,6 +89,11 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 		Part->SetCanEverAffectNavigation(false);
 		Part->SetFirstPersonPrimitiveType(FirstPersonType);
 		Part->SetupAttachment(Parent, Parent == this ? NAME_None : Slot.Socket);
+		// The gun's size: set on the parts hung from the gun's origin (the body), and every part on their sockets follows.
+		if (Parent == this)
+		{
+			Part->SetRelativeScale3D(FVector(ModelScale));
+		}
 		// How battered this gun is, for the gun master's scuffs and grime (custom primitive data: no material copies).
 		Part->SetCustomPrimitiveDataFloat(WeaponParts::WearDataIndex, Wear);
 		const TArray<FName> MaterialSlots = Part->GetMaterialSlotNames();
@@ -140,6 +146,20 @@ bool UWeaponModelComponent::Assemble(const FWeaponInstanceData& Instance)
 	return !Parts.IsEmpty();
 }
 
+float UWeaponModelComponent::ScaleFor(EWeaponKind Kind)
+{
+	switch (Kind)
+	{
+	case EWeaponKind::Rifle:
+	case EWeaponKind::Shotgun:
+		return 1.1f;
+	case EWeaponKind::Revolver:
+		return 1.2f;
+	default:
+		return 1.f;
+	}
+}
+
 void UWeaponModelComponent::FindAimPoint()
 {
 	// The sight's own line of sight (its SOCKET_Aim: the dot, the optic's center, the notch of the irons) when it has one.
@@ -177,6 +197,7 @@ void UWeaponModelComponent::Clear()
 	NotchPart = nullptr;
 	AimPoint = FVector::ZeroVector;
 	ReloadPart = EWeaponReloadPart::None;
+	ModelScale = 1.f;
 	CylinderChambers = 0;
 	CranePivot = FVector::ZeroVector;
 	CylinderSwing = 0.f;

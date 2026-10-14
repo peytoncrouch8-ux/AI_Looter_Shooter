@@ -11,19 +11,20 @@ struct FHandsRigTargets
 {
 	/** Each hand's placement (by FirstPersonHands::Index). */
 	FHandPlacement Hands[2];
-	/** Where each elbow leans, on top of trailing back from its hand: down and out, off the view (cm). */
-	FVector ElbowLean[2] = { FVector::ZeroVector, FVector::ZeroVector };
+	/** Each hand's usual way out of the wrist for its forearm (back, out and down), where a placement doesn't give one. */
+	FVector DefaultForearm[2] = { FVector(-0.5, -0.5, -0.7), FVector(-0.7, 0.45, -0.55) };
 };
 
 /**
  * The first-person arms' skeleton posed by code, as plain math (no component, so the tests pose the mannequin's rest
- * pose with it): each hand's grip point and frame put on its placement, the arm solved to it (two-bone IK, the elbow
- * hinging the way its rest pose bends, the forearm taking most of the wrist's twist), the fingers curled.
+ * pose with it): each hand's grip point and frame put on its placement, the forearm leaving the wrist the way the
+ * placement says (two-bone IK, the elbow hinging the way its rest pose bends, the forearm taking most of the wrist's
+ * twist), the fingers curled from straight. Works from the bones' places only, never their axes (an import turns those).
  *
  * Bones by the mannequin's names: clavicle, upperarm, lowerarm, hand _l/_r and thumb/index/middle/ring/pinky _01.._03.
- * A hand's grip point is the mesh's HandGrip_L / HandGrip_R socket where it has one (the mannequin's, the third-person
- * guns' too), else a spot worked out from the hand's bones. A hand whose arm can't reach (view-model guns sit far out)
- * brings its shoulder forward along the reach, off the view; the arms are only ever seen from the elbow down.
+ * A hand's grip point is the mesh's HandGrip_L / HandGrip_R socket where it has one (the mannequin's), else SK_FP_Arms's
+ * spot worked out from the hand's bones (FirstPersonHands::GripOffPalm). A hand whose elbow the upper arm can't reach
+ * (view-model guns sit far out) brings its shoulder to it, off the view; the arms are only ever seen from the elbow down.
  *
  * bArmsOnly (the mannequin stand-in): every bone that isn't an arm's (the body, the head, the legs) collapses to a point
  * between the shoulders, so only the arms show.
@@ -56,6 +57,18 @@ public:
 	/** A finger joint's bone (INDEX_NONE where the skeleton has none). */
 	int32 GetFingerBone(EFirstPersonHand Hand, int32 Finger, int32 Joint) const;
 
+	/** At rest: a hand's grip point and palm facing (component space), and how bent a finger joint is (degrees). */
+	FVector GetRestHoldPoint(EFirstPersonHand Hand) const
+	{
+		const FArm& Arm = Arms[FirstPersonHands::Index(Hand)];
+		return bBound ? RestSpace[Arm.Hand].TransformPosition(Arm.HoldLocal) : FVector::ZeroVector;
+	}
+	FVector GetRestPalm(EFirstPersonHand Hand) const { return Arms[FirstPersonHands::Index(Hand)].HandFrame.GetAxisY(); }
+	float GetRestCurl(EFirstPersonHand Hand, int32 Finger, int32 Joint) const
+	{
+		return bBound ? Arms[FirstPersonHands::Index(Hand)].RestCurls[FMath::Clamp(Finger, 0, FHandFingers::Count - 1)][FMath::Clamp(Joint, 0, FHandFingers::Joints - 1)] : 0.f;
+	}
+
 	/** Where a hand's grip point is, and which way its knuckles and palm face, in a posed component space. */
 	FVector HoldPointIn(EFirstPersonHand Hand, const TArray<FTransform>& Space) const;
 	FVector FingersDirIn(EFirstPersonHand Hand, const TArray<FTransform>& Space) const;
@@ -64,14 +77,12 @@ public:
 	/** A bone squeezed to nothing (bArmsOnly). */
 	bool IsCollapsed(int32 Bone) const { return Kept.IsValidIndex(Bone) && !Kept[Bone]; }
 
-	/** A target this share of the arm's length away is reached by the arm alone; past it the shoulder comes forward. */
-	static constexpr float ReachShare = 0.97f;
-	/** The furthest a shoulder comes forward for a far hand (cm): a shotgun's pump is the longest reach, about 45. */
-	static constexpr float MaxShoulderShift = 60.f;
-	/** What's still short after that is made up by stretching the arm this much at most (it's under a sleeve). */
-	static constexpr float MaxStretch = 1.05f;
-	/** The elbow trails back from the hand by this much (cm, along the knuckles' line), then leans as it's told. */
-	static constexpr float ElbowTrail = 20.f;
+	/**
+	 * The furthest a shoulder comes forward for a far hand (cm): a shotgun's pump is the longest reach, about 65 (more with
+	 * smaller arms). The arms never stretch (a stretched sleeve shows), so a hand further out than this falls short of its
+	 * spot.
+	 */
+	static constexpr float MaxShoulderShift = 90.f;
 	/** The share of the wrist's twist the forearm takes (the rest stays at the wrist, as a real forearm turns). */
 	static constexpr float ForearmTwistShare = 0.6f;
 	/** How small a collapsed bone is (zero would lose the arms parented to it). */
@@ -97,6 +108,8 @@ private:
 		/** Each finger joint's bone, and the axis it curls about toward the palm, in that bone's own space. */
 		int32 Fingers[FHandFingers::Count][FHandFingers::Joints];
 		FVector CurlAxes[FHandFingers::Count][FHandFingers::Joints];
+		/** How bent each joint already is at rest (degrees): the curls asked for are from straight. */
+		float RestCurls[FHandFingers::Count][FHandFingers::Joints];
 	};
 
 	/** Finds an arm's four bones; false without them. */
@@ -107,7 +120,7 @@ private:
 	void BindHand(FArm& Arm, EFirstPersonHand Side, const FReferenceSkeleton& Skeleton, const USkeletalMesh& Mesh);
 
 	/** Solves one arm to its placement: the clavicle, upper arm, forearm and hand, in component space. */
-	void SolveArm(const FArm& Arm, const FHandPlacement& Target, const FVector& ElbowLean, TArray<int32, TInlineAllocator<8>>& OutBones,
+	void SolveArm(const FArm& Arm, const FHandPlacement& Target, const FVector& DefaultForearm, TArray<int32, TInlineAllocator<8>>& OutBones,
 		TArray<FTransform, TInlineAllocator<8>>& OutSpaces) const;
 
 	/** A finger joint's transform against its parent, curled as the hand's placement says (FirstPersonHandsFingers.cpp). */

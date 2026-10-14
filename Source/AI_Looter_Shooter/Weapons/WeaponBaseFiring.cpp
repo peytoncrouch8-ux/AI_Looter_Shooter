@@ -363,7 +363,8 @@ void AWeaponBase::SetupMuzzleFlash()
 	MuzzleFlash->SetNumCustomDataFloats(5);
 
 	// The engine plane is 100 x 100 in XY, facing +Z.
-	const float Scale = Definition->MuzzleFlashScale;
+	// A gun drawn bigger than modeled (UWeaponModelComponent::ScaleFor) flashes as much bigger.
+	const float Scale = Definition->MuzzleFlashScale * (bUsingModel ? Model->GetModelScale() : 1.f);
 	FlashGlow.Reset();
 	auto AddQuad = [this](const FTransform& Transform, const FLinearColor& Color, float Glow, float Shape)
 	{

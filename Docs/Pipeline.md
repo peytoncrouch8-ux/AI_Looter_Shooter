@@ -84,10 +84,19 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   mannequin (Ellis's own body: later, the user's call).
 - First-person hands (2026-10-14, `UFirstPersonHandsComponent`, the user's pick: full, like Borderlands): arms on the
   camera posed after the gun each frame; per-kind hold table in `FirstPersonHandsGrips` (where tuning happens); the support
-  hand follows reload parts and carries the jar. Uses `/Game/Art/Characters/SK_FP_Arms` as soon as it exists (root at the
-  eye, +X ahead, mannequin bone names, elbows slightly bent at rest, ideally `HandGrip_L/R` sockets); until then the
-  template's arms stand in, hidden in game unless `Looter.Hands.StandIn 1`. Look sheet before import:
-  `Saved/Concepts/Hands/fp_arms_sheet.png` (`Art/Models/Characters/FPArms.py`, `Tools/Blender/fp_arms_sheet.py`).
+  hand follows reload parts and carries the jar. SK_FP_Arms (approved 2026-10-14; `Art/Models/Characters/FPArms.py`,
+  sheet `Saved/Concepts/Hands/fp_arms_sheet.png`) at `ArmsScale` 0.88 (the user: hands looked big). The rig reads bone
+  positions only (the import turns bone axes). Hip holds (`Weapons/WeaponHipHold.cpp`; the revolver's in
+  `create_revolver.py`): grip cm ahead/right/up, rifle 50, 23, -23.5; shotgun 50, 22.5, -23; revolver 50, 22, -21 (the
+  user's Borderlands framing: low right, both gloves in view; `Looter.Player.Hands.OnGun` keeps the grip points inside
+  0.85 of the half-frame). Tune live in PIE: `Looter.HipHold.Ahead/Right/Up`, `Looter.Hands.Scale`.
+- Gun sizes (the user, 2026-10-14): drawn bigger than modelled, everywhere: rifle and shotgun 1.1, revolver 1.2
+  (`UWeaponModelComponent::ScaleFor`; sockets scale with it). The pistol shows as "Revolver" (DA_Revolver's display name;
+  Drover stays its parts' and files' name).
+- Swaps (2026-10-14, `Player/WeaponSwapMotion`, `Inventory/WeaponManagerSwap.cpp`): the gun in hand drops and tips out
+  of view (~0.19-0.24 s by handling, `Weapon.Holster` / `Weapon.Revolver.Holster`), the guns change out of sight, the
+  next comes up with an overshoot and settle; a second press mid-holster retargets; no sights while swapping;
+  `Looter.Swap.Motion 0` turns it off. Third person: the right arm lowers the gun, the left lets go.
 - Water (2026-10-14, the user's concept, clear teal): water meshes carry vertex R shore, G depth, B/A flow (layout x, y);
   `M_Water` reads them (opaque, lit, 3 taps; defaults tuned: RippleScale 0.2, RippleStrength 0.3, Roughness 0.12, SkyTint
   0.35, DepthPower 0.6, shallow #43918A, deep #184A54); `M_Waterfall` streaks in world metres; `M_WaterMist` (Opacity 0.35,
@@ -735,5 +744,7 @@ Each line: bug (date). Cause. Fix.
   - Starting a build without checking whether the user was playing (step 1 of the loop).
   - Keys sent with input.ps1 right after console.ps1 typed into the editor's console box (its autocomplete list stayed
     open over the view): click into the game view first (`clickat 0.5 0.45`; it fires one shot) before keys.
+  - Every console.ps1 command leaves the editor's console box focused: click into the game (`clickat`) before each
+    burst of keys, or the keys type into the box. Watch short motions (swaps, reloads, deaths) at `slomo 0.2`.
   - A floating Content Browser (opened by a script's import) takes the keyboard from PIE: close it with
     `Tools\closemsglog.ps1 -Title "Content Browser"` before input.

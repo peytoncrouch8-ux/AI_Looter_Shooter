@@ -110,6 +110,12 @@ FRotator LooterCarry::SprintHold(float Yaw, bool bShortGun)
 	return bShortGun ? FRotator(-70.f, Yaw + 4.f, 0.f) : FRotator(-20.f, Yaw - 35.f, -10.f);
 }
 
+FRotator LooterCarry::SwapHold(float Yaw, bool bShortGun)
+{
+	// A long gun angles further ahead and out than the six-gun, its longer barrel clear of the leg it hangs beside.
+	return bShortGun ? FRotator(-75.f, Yaw + 6.f, 0.f) : FRotator(-62.f, Yaw + 14.f, 0.f);
+}
+
 FQuat LooterCarry::CarriedGun(const FQuat& Aiming, float Yaw, const FLooterCarry& Carry)
 {
 	FQuat Held = Aiming;
@@ -120,6 +126,10 @@ FQuat LooterCarry::CarriedGun(const FQuat& Aiming, float Yaw, const FLooterCarry
 	if (Carry.Sprint > 0.f)
 	{
 		Held = FQuat::Slerp(Held, SprintHold(Yaw, Carry.bShortGun).Quaternion(), FMath::Min(Carry.Sprint, 1.f));
+	}
+	if (Carry.Swap > 0.f)
+	{
+		Held = FQuat::Slerp(Held, SwapHold(Yaw, Carry.bShortGun).Quaternion(), FMath::Min(Carry.Swap, 1.f));
 	}
 	return Held;
 }
@@ -161,12 +171,12 @@ FQuat LooterStancePoseDetail::ApplyCarry(FCSPose<FCompactPose>& Pose, const FBon
 	const FQuat HandRotation = (HandTurn * Wrist.GetRotation()).GetNormalized();
 
 	// Where the wrist goes: lowered and drawn in a little for the low-ready; in a sprint low on the chest (a six-gun's low at
-	// the side), from the shoulder as the run leans it.
+	// the side), from the shoulder as the run leans it; in a swap low at the side whatever the gun, the arm hanging.
 	const FVector Lowered = WristAt - Up * LooterCarry::LowDrop - Forward * LooterCarry::LowBack - Right * LooterCarry::LowIn;
-	const FVector Carried = Shoulder.GetLocation() + (Carry.bShortGun
-		? Forward * LooterCarry::SideAhead + Right * LooterCarry::SideOut - Up * LooterCarry::SideDown
-		: Forward * LooterCarry::ChestAhead - Right * LooterCarry::ChestIn - Up * LooterCarry::ChestDown);
-	FVector Target = FMath::Lerp(FMath::Lerp(WristAt, Lowered, Low), Carried, Sprint);
+	const FVector AtSide = Shoulder.GetLocation() + Forward * LooterCarry::SideAhead + Right * LooterCarry::SideOut - Up * LooterCarry::SideDown;
+	const FVector Carried = Carry.bShortGun ? AtSide
+		: Shoulder.GetLocation() + Forward * LooterCarry::ChestAhead - Right * LooterCarry::ChestIn - Up * LooterCarry::ChestDown;
+	FVector Target = FMath::Lerp(FMath::Lerp(FMath::Lerp(WristAt, Lowered, Low), Carried, Sprint), AtSide, FMath::Clamp(Carry.Swap, 0.f, 1.f));
 
 	// Both hands on it: the gun is drawn in toward the left shoulder until its foregrip, where the turned left palm will hold
 	// it, is within that arm's comfortable reach. A shouldered hold that already has it further off (a shotgun's pump, far

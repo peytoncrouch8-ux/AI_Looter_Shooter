@@ -4,22 +4,29 @@
 #include "Player/FirstPersonHandsTypes.h"
 
 /**
- * One gun kind's hold, in the gun's own space (X to the muzzle, Y right, Z up; cm), read off the models in
- * Art/Models/Weapons/<Gun>.py: where each hand sits on the gun, which way its palm and fingers go, and the spots a
- * reload works. The sockets carry positions only, so the turns live here (no gun is re-exported for them).
+ * One gun kind's hold, in the modeled gun's own space (X to the muzzle, Y right, Z up; cm; the gun is drawn bigger,
+ * FHandsGun::Scale, and these offsets grow with it), read off the models in Art/Models/Weapons/<Gun>.py and the approved
+ * look sheet's poses (Tools/Blender/fp_arms_sheet.py). A hand is put on a handle: the way its index and thumb lie along it,
+ * the way its palm faces, a tilt of the handle across the palm, where its forearm leaves the wrist, and its grip point's
+ * offset from the gun's socket.
  */
 struct FGunHands
 {
-	/** The trigger hand on SOCKET_Grip: up the grip (pinky to index), out of its palm into the grip, its grip point off the socket. */
-	FVector GripIndexUp = FVector::UpVector;
+	/** The trigger hand on SOCKET_Grip. */
+	FVector GripHandle = FVector::UpVector;
 	FVector GripPalm = FVector(0.f, -1.f, 0.f);
+	/** Degrees the knuckles tip down toward the handle's foot (the handle then crosses the palm on a slant). */
+	float GripTilt = 0.f;
+	FVector GripForearm = FVector(-0.8f, 0.35f, -0.45f);
 	FVector GripHold = FVector::ZeroVector;
 	/** The trigger finger's three joints (degrees): how far this gun's trigger sits from its grip sets how bent it is. */
 	float TriggerCurl[FHandFingers::Joints] = { 30.f, 50.f, 25.f };
 
-	/** The support hand on SOCKET_Foregrip: wrist to knuckles, out of its palm, its grip point off the socket, its fingers. */
-	FVector ForeFingers = FVector(0.5f, 0.85f, 0.1f);
-	FVector ForePalm = FVector(0.f, 0.25f, 1.f);
+	/** The support hand on SOCKET_Foregrip. */
+	FVector ForeHandle = FVector::ForwardVector;
+	FVector ForePalm = FVector(0.f, 0.3f, 1.f);
+	float ForeTilt = 0.f;
+	FVector ForeForearm = FVector(-0.45f, -0.5f, -0.75f);
 	FVector ForeHold = FVector::ZeroVector;
 	EHandGrip ForeGrip = EHandGrip::Forend;
 
@@ -42,11 +49,18 @@ namespace FirstPersonHandsGrips
 
 	/**
 	 * The support hand on the foregrip (camera space): under a rifle's handguard, round a shotgun's pump (PumpBack: how
-	 * far the pump is racked, cm), or round a six-gun's shooting hand.
+	 * far the pump is racked, cm of the modeled gun), or round a six-gun's shooting hand.
 	 */
 	AI_LOOTER_SHOOTER_API FHandPlacement OnForegrip(const FHandsGun& Gun, float PumpBack = 0.f);
 
 	/** A placement given in the gun's own space, in camera space. */
 	AI_LOOTER_SHOOTER_API FHandPlacement InGun(const FHandsGun& Gun, const FVector& Hold, const FVector& FingersDir, const FVector& PalmDir,
-		const FHandFingers& Fingers);
+		const FHandFingers& Fingers, const FVector& Forearm);
+
+	/**
+	 * A hand on a handle (gun space): its index-and-thumb side along Handle, its palm facing Palm (made square to the
+	 * handle), the handle slanted across the palm by Tilt degrees. Gives the knuckles' way and the palm's.
+	 */
+	AI_LOOTER_SHOOTER_API void OnHandle(EFirstPersonHand Hand, const FVector& Handle, const FVector& Palm, float Tilt, FVector& OutFingers,
+		FVector& OutPalm);
 }

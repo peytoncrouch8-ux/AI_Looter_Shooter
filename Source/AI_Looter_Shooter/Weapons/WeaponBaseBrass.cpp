@@ -67,7 +67,8 @@ bool AWeaponBase::GetEjectPort(FVector& OutLocation, FVector& OutDirection) cons
 	FVector Port;
 	if (!Model->GetEject(Port))
 	{
-		Port = Casing == ECasingKind::Hull ? BrassShotgunPort : BrassRiflePort;
+		// The fallbacks are the modeled guns' ports: at the size the gun is drawn (UWeaponModelComponent::ScaleFor).
+		Port = (Casing == ECasingKind::Hull ? BrassShotgunPort : BrassRiflePort) * Model->GetModelScale();
 	}
 	// The visible gun's port (in first person the gun is drawn with its own field of view): the cases come out of the gun
 	// the player sees.

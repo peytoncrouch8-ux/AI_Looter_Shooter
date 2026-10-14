@@ -1,5 +1,6 @@
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerViewComponent.h"
+#include "Player/WeaponSwapMotion.h"
 #include "UI/HUD/LooterHUD.h"
 #include "Weapons/ReloadMotion.h"
 #include "Weapons/WeaponBase.h"
@@ -17,8 +18,9 @@
 
 namespace
 {
-	// View-model tuning (camera space: X forward, Y right, Z up; cm and degrees).
-	const FVector SprintPoseOffset(-4.f, -5.f, -7.f);
+	// View-model tuning (camera space: X forward, Y right, Z up; cm and degrees). The hip hold was raised (WeaponHipHold),
+	// so the sprint, menu and climb poses drop it further than they used to, to read as low as before.
+	const FVector SprintPoseOffset(-4.f, -5.f, -10.f);
 	const FRotator SprintPoseRotation(-12.f, -32.f, -22.f);
 	const FVector CrouchPoseOffset(-1.f, -1.5f, -1.f);
 	constexpr float CrouchPoseRoll = -6.f;
@@ -29,9 +31,7 @@ namespace
 	constexpr float SprintStepLength = 250.f;
 	constexpr float KickStiffness = 170.f;
 	constexpr float KickDamping = 18.f;
-	/** Where a freshly drawn gun starts, low and tipped, before it comes up over its ready time. */
-	const FVector DrawPoseOffset(-3.f, 2.f, -16.f);
-	const FRotator DrawPoseRotation(-35.f, 8.f, 18.f);
+	// A swap's and a draw's pose: WeaponSwapMotion.
 	/**
 	 * Aiming: how far in front of the eye the sight's aim point sits. The point goes exactly on the line of sight: the
 	 * first-person render (its own field of view and scale) moves anything off the camera's axis, so only points on
@@ -41,7 +41,7 @@ namespace
 	/** How much of the walking bob and look sway aiming takes out. */
 	constexpr float AimSteadiness = 0.85f;
 	/** While the inventory or pause menu is open the gun is lowered out of view, so it doesn't show through the panels. */
-	const FVector MenuPoseOffset(-4.f, 3.f, -30.f);
+	const FVector MenuPoseOffset(-4.f, 3.f, -37.f);
 	const FRotator MenuPoseRotation(-30.f, 0.f, 10.f);
 	constexpr float MenuBlendTime = 0.2f;
 	/** A slide sits the eye this much lower than a crouch (full-size cm): about seated on the ground. */
@@ -77,7 +77,7 @@ namespace
 	 * The climbing pose (a mantle, or 0.6 of it in a vault): the gun drops and turns in, out of the hands' way, so the
 	 * climb reads without an animation and the muzzle never pokes into the ledge.
 	 */
-	const FVector ClimbPoseOffset(-3.f, 2.f, -9.f);
+	const FVector ClimbPoseOffset(-3.f, 2.f, -12.f);
 	const FRotator ClimbPoseRotation(-14.f, 8.f, 14.f);
 }
 
@@ -332,14 +332,18 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	Offset += MenuPoseOffset * Menu;
 	Rotation += MenuPoseRotation * Menu;
 
-	// A freshly drawn gun comes up from below over its ready time (quicker with better handling).
-	const float Ready = FMath::InterpEaseOut(0.f, 1.f, Weapon->GetReadyAlpha(), 2.f);
-	Offset += DrawPoseOffset * (1.f - Ready);
-	Rotation += DrawPoseRotation * (1.f - Ready);
+	// A swap (WeaponSwapMotion, on the weapon manager's clock): the gun in hand drops and tips away out of view, and the
+	// next swings up into place, a touch past its hold, and settles over its ready time (quicker with better handling); a
+	// gun taken in hand any other way comes up the same way. Added last (below), whole: aiming never steadies it away.
+	FVector SwapOffset;
+	FRotator SwapRotation;
+	const float Lowered = Manager->GetGunLowered();
+	WeaponSwapMotion::ViewPose(WeaponSwapMotion::KindOf(Weapon), Lowered, SwapOffset, SwapRotation);
 
 	// Aiming: the hold moves from the hip to straight in front of the eye, with the sight's aim point on the line of
-	// sight; walking bob and look sway mostly settle so the sight stays on target.
-	const float Aim = PlayerView.IsValid() ? PlayerView->GetAimAlpha() : 0.f;
+	// sight; walking bob and look sway mostly settle so the sight stays on target. A gun going down for a swap leaves the
+	// eye with it (and one coming up rises into the aim).
+	const float Aim = (PlayerView.IsValid() ? PlayerView->GetAimAlpha() : 0.f) * (1.f - FMath::Clamp(Lowered, 0.f, 1.f));
 	FTransform Hold = Manager->GetFirstPersonHold(Weapon);
 	if (Aim > 0.f)
 	{
@@ -355,6 +359,8 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	// and the first-person render magnifies any distance from the line of sight (6 mm once put a reticle 50 px low).
 	Offset += StanceOffset * (1.f - Aim);
 	Rotation += StanceRotation * (1.f - Aim);
+	Offset += SwapOffset;
+	Rotation += SwapRotation;
 
 	FQuat FinalRotation = Rotation.Quaternion() * Hold.GetRotation();
 	// The stance poses turn the gun around (roughly) its grip, wherever this gun has it.

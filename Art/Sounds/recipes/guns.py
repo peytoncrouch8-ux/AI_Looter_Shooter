@@ -1,5 +1,5 @@
 """The guns: the bullpup rifle, the Ranchhand pump shotgun and the Drover revolver firing, dry fire, the cursed misfire,
-the reload steps, taking a gun in hand and raising the sights.
+the reload steps, taking a gun in hand, putting it away as a swap begins, and raising the sights.
 
 A shot is modelled the way a real one reaches a close microphone, not built from drum-machine parts (a swept sine
 kick and smooth noise read as fake):
@@ -582,3 +582,39 @@ def revolver_equip(v, r):
     t2 = t1 + 0.07 + 0.015 * r.random()
     return layers((snap, 0.0, -14.0), (leather, 0.0, -12.0), (swish, 0.0, -10.0), (grip, t_grip, -4.0),
                   (slap, t_grip, -8.0), (_loud(first), t1, -9.0), (second, t2, -2.0))
+
+
+# --- Putting a gun away as a swap begins (2026-10-14) ------------------------------------------------------------------
+# Played the moment the swap key goes down (Inventory/WeaponManagerSwap.cpp), while the gun drops out of view for about a
+# fifth of a second; the next gun's draw (Weapon.Equip, Weapon.Revolver.Equip) follows as it comes up. Quieter than the
+# draw, so the pair reads as one movement: away, then up.
+
+@cue('Weapon.Holster', variations=3, att='Near', jitter=0.04, conc=2, level=-16.0)
+def holster(v, r):
+    # A long gun swung down onto the back: the sling's swivel ticking at once (so the swap answers the key with no lag),
+    # the sleeve and sling swishing, the hardware jingling, then the gun settling against the back: a padded knock, the
+    # receiver's steel ticking under it.
+    catch = kit.metal_click(child(r, 'catch'), 1800.0, 5200.0, 0.025, 0.00015, 4, -16.0)
+    swish = kit.cloth(0.24, child(r, 'cloth'), 260.0, 2400.0, 140.0, 0.15, 0.55)
+    jing = kit.jingle(0.2, child(r, 'jingle'), 2 + int(r.integers(0, 3)), 2000.0, 6500.0, 0.035, 0.07, 0.02)
+    settle = kit.thunk(220.0 * jitter(r, 1, 0.08), child(r, 'settle'), 0.07, 0.002)
+    pat = kit.burst(0.035, child(r, 'pat'), 0.014, lo=180.0, hi=2000.0)
+    steel = kit.metal_click(child(r, 'steel'), 1300.0, 4200.0, 0.03, 0.0002, 4, -14.0)
+    t = 0.15 + 0.03 * r.random()
+    return layers((catch, 0.0, -16.0), (swish, 0.0, -4.0), (jing, 0.04, -16.0), (settle, t, -5.0), (pat, t, -10.0),
+                  (steel, t + 0.004, -14.0))
+
+
+@cue('Weapon.Revolver.Holster', variations=3, att='Near', jitter=0.04, conc=2, level=-16.0)
+def revolver_holster(v, r):
+    # The six-gun dropped back in its holster: the hammer let down under the thumb (a soft click at once), the sleeve's
+    # swish, the barrel sliding into the leather (dark, falling as it goes in), then the gun seating with a dull leather thock.
+    let_down = kit.metal_click(child(r, 'hammer'), 1500.0, 4600.0, 0.02, 0.0001, 4, -12.0)
+    swish = kit.cloth(0.14, child(r, 'cloth'), 300.0, 2600.0, 120.0, 0.2, 0.5)
+    leather = kit.scrape(0.12, child(r, 'leather'), 520.0, 300.0, 4.0, 0.8, (1.0, 1.7, 2.6), 0.2, 0.6, 1800.0, -30.0)
+    leather = _loud(F.filt(leather, F.lp(2600.0, 0.7), extend=False))
+    seat = kit.thunk(300.0 * jitter(r, 1, 0.08), child(r, 'seat'), 0.05, 0.0015)
+    slap = kit.burst(0.03, child(r, 'slap'), 0.012, lo=200.0, hi=2200.0)
+    t = 0.13 + 0.03 * r.random()
+    return layers((_loud(let_down), 0.0, -10.0), (swish, 0.0, -10.0), (leather, 0.05, -10.0), (seat, t, -3.0),
+                  (slap, t, -9.0))

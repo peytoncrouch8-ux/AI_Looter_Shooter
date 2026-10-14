@@ -43,6 +43,11 @@ struct FLooterStanceInput
 	FQuat WeaponRotation = FQuat::Identity;
 	/** How far out along its barrel the hands push the held gun (cm; its definition's HoldReach): a six-gun at arm's length. */
 	float HoldReach = 0.f;
+	/**
+	 * How much bigger than modeled the held gun is drawn (UWeaponModelComponent::ScaleFor): the grip points above already
+	 * are; spots the stance layer keeps as numbers off the gun's model (the six-gun's cylinder) are scaled by it.
+	 */
+	float WeaponScale = 1.f;
 
 	/**
 	 * Carried rather than shouldered (LooterStancePoseCarry.h): how far, and the gun's turn with no kick in it, where the

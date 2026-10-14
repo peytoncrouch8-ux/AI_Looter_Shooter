@@ -32,7 +32,9 @@ void UPlayerViewComponent::UpdateAim(float DeltaTime)
 	const UWeaponManagerComponent* Manager = WeaponManager.Get();
 	const AWeaponBase* Weapon = Manager ? Manager->GetActiveWeapon() : nullptr;
 	const bool bSprinting = Locomotion.IsValid() && Locomotion->GetSprintAlpha() > 0.5f;
-	const bool bCanAim = Weapon && !Weapon->IsReloading() && !bSprinting && Mode != EPlayerViewMode::ThirdPersonFront;
+	// No sights on a gun going down or coming up in a swap.
+	const bool bCanAim = Weapon && !Weapon->IsReloading() && !bSprinting && !Manager->IsSwapping()
+		&& Mode != EPlayerViewMode::ThirdPersonFront;
 	if (!Weapon)
 	{
 		bAimWanted = false;

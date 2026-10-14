@@ -188,7 +188,8 @@ void LooterStancePoseDetail::ApplyCylinderReloadHand(FCSPose<FCompactPose>& Pose
 	// The gun's grip is in the right hand, the gun turned as the view holds it for the reload: the spot on it is here.
 	const FVector Up = FVector::UpVector;
 	const FVector Grip = (Stance.HoldSocketLocal * Pose.GetComponentSpaceTransform(HoldBone)).GetLocation();
-	const FVector OnGun = Grip + Stance.WeaponRotation.RotateVector(Reload.OnGun);
+	// The choreography's spots are the modeled six-gun's; the gun is drawn bigger than modeled.
+	const FVector OnGun = Grip + Stance.WeaponRotation.RotateVector(Reload.OnGun * Stance.WeaponScale);
 	const FVector Pouch = Pose.GetComponentSpaceTransform(Pelvis).GetLocation() + Forward * PouchAhead - Right * PouchOut + Up * PouchUp;
 	const FVector Palm = FMath::Lerp(OnGun, Pouch, Reload.Pouch);
 

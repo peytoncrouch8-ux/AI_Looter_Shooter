@@ -52,9 +52,19 @@ namespace FirstPersonHands
 	{
 		return FRotationMatrix::MakeFromXY(XAxis, YAxis).ToQuat();
 	}
+
+	/**
+	 * The hand's grip point (the middle of a 4 cm handle in the closed fist) off its palm, and past the palm's middle toward
+	 * the knuckles (cm, SK_FP_Arms's: Intermediate/FPArms/FPArms_rig.json's GripPoint). Hand sizes, never the gun's.
+	 */
+	inline constexpr float GripOffPalm = 3.6f;
+	inline constexpr float GripPastPalm = 2.2f;
 }
 
-/** Each finger's three joints, bent toward the palm (degrees): thumb, index, middle, ring, pinky; from the knuckle out. */
+/**
+ * Each finger's three joints bent toward the palm from straight (degrees): thumb, index, middle, ring, pinky; from the
+ * knuckle out. Absolute: the rig takes off the bend the mesh is made with (SK_FP_Arms rests a little curled).
+ */
 struct AI_LOOTER_SHOOTER_API FHandFingers
 {
 	static constexpr int32 Count = 5;
@@ -71,17 +81,20 @@ struct AI_LOOTER_SHOOTER_API FHandFingers
 };
 
 /**
- * Where one hand goes, in whatever space its maker works in: the middle of what it holds (the hand's grip point, the
- * mannequin's HandGrip socket), how it's turned (its frame: X from the wrist to the knuckles, Y out of the palm toward
- * what it holds) and how its fingers close.
+ * Where one hand goes, in whatever space its maker works in: the middle of what it holds (the hand's grip point), how
+ * it's turned (its frame: X from the wrist to the knuckles, Y out of the palm toward what it holds), which way its forearm
+ * leaves the wrist (the elbow is put that way, so the wrist stays nearly straight; zero: the hand's usual way), and how
+ * its fingers close.
  */
 struct AI_LOOTER_SHOOTER_API FHandPlacement
 {
 	FVector Hold = FVector::ZeroVector;
 	FQuat Turn = FQuat::Identity;
+	FVector Forearm = FVector::ZeroVector;
 	FHandFingers Fingers;
 
-	static FHandPlacement Make(const FVector& InHold, const FVector& FingersDir, const FVector& PalmDir, const FHandFingers& InFingers);
+	static FHandPlacement Make(const FVector& InHold, const FVector& FingersDir, const FVector& PalmDir, const FHandFingers& InFingers,
+		const FVector& InForearm = FVector::ZeroVector);
 
 	/** Alpha of the way from From to To: the grip point along a line, the turn on the shortest arc, the fingers by their curls. */
 	static FHandPlacement Blend(const FHandPlacement& From, const FHandPlacement& To, float Alpha);
@@ -106,6 +119,11 @@ struct AI_LOOTER_SHOOTER_API FHandsGun
 	EWeaponReloadPart ReloadPart = EWeaponReloadPart::None;
 	/** 0..1 through a reload, or -1 when it isn't reloading (AWeaponBase::GetReloadProgress). */
 	float ReloadProgress = -1.f;
+	/**
+	 * How much bigger than modeled the gun is drawn (UWeaponModelComponent::ScaleFor). The sockets below already are; the
+	 * hands' own numbers off the gun (FGunHands, the reload spots) are the modeled gun's and are scaled by it.
+	 */
+	float Scale = 1.f;
 
 	/** SOCKET_Grip and SOCKET_Foregrip, in the gun's space. */
 	FVector Grip = FVector::ZeroVector;

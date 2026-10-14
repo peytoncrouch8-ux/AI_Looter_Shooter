@@ -260,6 +260,34 @@
     "space": "3D",
     "max_concurrent": 2
   },
+  "Weapon.Holster": {
+    "files": [
+      "Weapon_Holster_01.wav",
+      "Weapon_Holster_02.wav",
+      "Weapon_Holster_03.wav"
+    ],
+    "volume_db": -16.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Weapon.Revolver.Holster": {
+    "files": [
+      "Weapon_Revolver_Holster_01.wav",
+      "Weapon_Revolver_Holster_02.wav",
+      "Weapon_Revolver_Holster_03.wav"
+    ],
+    "volume_db": -15.0,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
   "Impact.World": {
     "files": [
       "Impact_World_01.wav",

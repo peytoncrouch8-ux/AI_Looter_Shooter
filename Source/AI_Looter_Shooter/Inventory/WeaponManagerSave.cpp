@@ -96,6 +96,8 @@ void UWeaponManagerComponent::ClearInventory()
 void UWeaponManagerComponent::EmptyInventory()
 {
 	StopFire();
+	// A swap under way ends with the guns (the one in hand is put away just below, which lets go of its lock).
+	StopSwap();
 	AWeaponBase* InHand = GetActiveWeapon();
 	if (InHand)
 	{

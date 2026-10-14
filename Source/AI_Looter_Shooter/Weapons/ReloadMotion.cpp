@@ -167,8 +167,10 @@ void LooterReload::ViewModelPose(EWeaponReloadPart Part, float Progress, FVector
 	const float Pose = Window(Progress, 0.f, PoseIn, PoseOut, 1.f);
 	if (Part == EWeaponReloadPart::Magazine)
 	{
-		OutOffset = FVector(-1.f, -6.f, 3.5f) * Pose;
-		OutRotation = FRotator(10.f, -14.f, 34.f) * Pose;
+		// The Bullpup's magazine is behind and under its grip, under the hip hold's view: the gun comes well up and in, its
+		// muzzle level (tipped up, the magazine end went down out of the frame), so the support hand's work on it shows.
+		OutOffset = FVector(-1.f, -7.f, 8.f) * Pose;
+		OutRotation = FRotator(2.f, -14.f, 30.f) * Pose;
 
 		// A tug as the old magazine comes free, a slap as the new one seats, then a yank on the charging handle.
 		const float Tug = Pulse(Progress, (MagOutStart + MagOutEnd) * 0.5f, 0.05f);

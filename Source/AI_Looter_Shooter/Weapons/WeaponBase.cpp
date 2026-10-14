@@ -467,6 +467,11 @@ FVector AWeaponBase::GetForegripPoint() const
 	return bUsingModel ? Model->GetForegrip() : FVector(30.f, 0.f, -3.f);
 }
 
+float AWeaponBase::GetModelScale() const
+{
+	return bUsingModel ? Model->GetModelScale() : 1.f;
+}
+
 EWeaponReloadPart AWeaponBase::GetReloadPart() const
 {
 	return bUsingModel ? Model->GetReloadPart() : EWeaponReloadPart::None;

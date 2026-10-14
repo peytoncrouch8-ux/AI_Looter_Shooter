@@ -101,6 +101,8 @@ void UWeaponManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		Pawn->ReceiveControllerChangedDelegate.RemoveDynamic(this, &UWeaponManagerComponent::HandleControllerChanged);
 	}
 
+	// A swap under way goes with it (its timer would wake on guns already gone).
+	StopSwap();
 	// The guns go with it: said aloud unless the level or play is ending (a rebuilt pawn once took them unseen).
 	ReportEndPlay(EndPlayReason);
 	for (AWeaponBase* Weapon : Weapons)
@@ -118,6 +120,12 @@ void UWeaponManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void UWeaponManagerComponent::StartFire()
 {
+	// Mid-swap the gun in hand is on its way out of view (locked too): a press then is for the next gun, pressed again once
+	// it's up (its first shot waits for its draw).
+	if (IsSwapping())
+	{
+		return;
+	}
 	if (AWeaponBase* Weapon = GetActiveWeapon())
 	{
 		Weapon->StartFire();
@@ -134,6 +142,11 @@ void UWeaponManagerComponent::StopFire()
 
 void UWeaponManagerComponent::Reload()
 {
+	// No reload of a gun being put away.
+	if (IsSwapping())
+	{
+		return;
+	}
 	if (AWeaponBase* Weapon = GetActiveWeapon())
 	{
 		Weapon->Reload();

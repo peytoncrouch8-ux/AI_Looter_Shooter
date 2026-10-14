@@ -36,6 +36,12 @@ namespace WeaponSounds
 		return Kind == EWeaponKind::Revolver ? FName(LooterSoundCue::Revolver::Equip) : FName(LooterSoundCue::Equip);
 	}
 
+	/** Put away as a swap begins (the weapon manager): a six-gun back into its holster; long guns swung onto the back. */
+	inline FName Holster(EWeaponKind Kind)
+	{
+		return Kind == EWeaponKind::Revolver ? FName(LooterSoundCue::Revolver::Holster) : FName(LooterSoundCue::Holster);
+	}
+
 	/** The sound of a reload's step. */
 	inline FName ReloadStep(EReloadStep Step)
 	{

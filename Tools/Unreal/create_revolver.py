@@ -79,11 +79,13 @@ def run():
     gun.set_editor_property('muzzle_flash_scale', 1.35)
     # Held out at arm's length in the third person (the stance layer).
     gun.set_editor_property('hold_reach', 14.0)
-    # Its own first-person hip hold (the hold's space, cm: X ahead, Y right, Z up; the long guns' grip sits at 50, 20,
-    # -26): its grip a little nearer and higher, so the frame and cylinder show bottom-right (the cylinder about 1300, 760
-    # on a 1920 x 1080 screen) and the grip ends just above the bottom edge (about 1035); canted 8 degrees in toward the
-    # middle, the barrel toed in to meet the crosshair at about 9 m. Aiming still puts SOCKET_Aim on the line of sight.
-    gun.set_editor_property('first_person_grip', unreal.Vector(46.7, 19.6, -18.3))
+    # Its own first-person hip hold (the hold's space, cm: X ahead, Y right, Z up; the long guns' are in
+    # Source/AI_Looter_Shooter/Weapons/WeaponHipHold.cpp): raised and brought in (the user's call, 2026-10-14: both
+    # gloves in view, the support hand's reload work too), the gun drawn 20% bigger than modeled
+    # (UWeaponModelComponent::ScaleFor); canted 8 degrees in toward the middle, the barrel toed in to meet the crosshair at
+    # about 9 m. Aiming still puts SOCKET_Aim on the line of sight. Tuned in game with the long guns (6 ahead, 7 right,
+    # 7 down from the first raise, the hands at 0.88).
+    gun.set_editor_property('first_person_grip', unreal.Vector(50.0, 22.0, -21.0))
     gun.set_editor_property('first_person_rotation', unreal.Rotator(roll=-8.0, pitch=0.7, yaw=-1.2))
 
     if not unreal.EditorAssetLibrary.save_loaded_asset(gun, only_if_is_dirty=False):

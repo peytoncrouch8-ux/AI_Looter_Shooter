@@ -72,12 +72,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hands")
 	FVector StandInShoulders = FVector(-2.f, 0.f, -24.f);
 
-	/** Where each elbow leans off its hand (camera space, cm): down and out, under the view. Left, then right. */
+	/**
+	 * Each hand's usual way out of the wrist for its forearm (camera space), where a placement doesn't say (the guns'
+	 * holds do: FGunHands): back, out and down, so the arms come up from under the view. Left, then right.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hands")
-	FVector LeftElbowLean = FVector(0.f, -12.f, -30.f);
+	FVector LeftForearm = FVector(-0.5f, -0.5f, -0.7f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hands")
-	FVector RightElbowLean = FVector(0.f, 12.f, -30.f);
+	FVector RightForearm = FVector(-0.7f, 0.45f, -0.55f);
+
+	/**
+	 * The arms' size against the guns (1: Ellis's own, as the look sheet showed them). Smaller arms still hold the guns
+	 * where they did: every spot is the same, the grip contact exact. Looter.Hands.Scale overrides it while tuning.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hands", meta = (ClampMin = "0.6", ClampMax = "1.3"))
+	float ArmsScale = 0.88f;
 
 	/** Seconds a menu is up before the hands go (the gun lowers out of view over 0.2 s first). */
 	static constexpr float MenuHideSeconds = 0.25f;
@@ -91,6 +101,12 @@ protected:
 private:
 	/** The arms' mesh (SK_FP_Arms, else the stand-in), the rig bound to it, and where it sits on the camera. */
 	bool LoadArms();
+
+	/** Sets the arms on the camera at Scale: SK_FP_Arms as made (its root is the eye), the stand-in turned and set back. */
+	void PlaceOnCamera(float Scale);
+
+	/** The arms' size now: ArmsScale, or Looter.Hands.Scale while it's set. */
+	float GetWantedScale() const;
 
 	/** Places the hands and writes the arms' pose, its bones marked to refresh; false (and hidden) when they don't show. */
 	bool PoseHands(float DeltaTime);

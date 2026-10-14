@@ -54,11 +54,12 @@ Borderlands: FULL (Ellis's gloves and duster sleeves, support hand does reloads 
 `Saved/Concepts/Hands/fp_arms_sheet.png` to the user before import). Ellis's own third-person body (today Unreal's white
 template mannequin; design in `Art/Backlog/Characters/Ellis.py`): LATER. The user asked for the full water plan "with
 room to adjust and add tasks later". DONE, 681/681 tests, committed (22c2a81..3906e79): spider deaths, third-person carry,
-water (materials, meshes, falls, splash rings; tuned once), hands CODE (stand-in hidden). In flight: H1 (SK_FP_Arms model
-+ look sheet, `Art/Models/Characters/FPArms.py`, `Tools/Blender/fp_arms_sheet.py`, `Art/Textures/FPArms*`: uncommitted,
-its own). Next: send the user the arms sheet; on approval import SK_FP_Arms (`Tools\models.ps1 -Only FPArms`) and tune the
-hold table in PIE (hip, ADS, sprint, each reload, throw); then the user playtests. Contracts: session scratchpad
-(`contract_anim.md`, `contract_water.md`, `contract_hands.md`).
+water (materials, meshes, falls, splash rings; tuned once), hands CODE. Then the user approved the arms (98dbdb2) and
+asked: guns raised so both gloves show; guns bigger (rifle, shotgun +10%, revolver +20%); the pistol named "Revolver"
+(2e5a425); swap animations; hands smaller if they still look odd. All built and tuned in PIE (holds 6 ahead, 7 right,
+7 down from the first raise, hands at 0.88); see Pipeline "First-person hands", "Gun sizes", "Swaps". Not seen in PIE:
+the reload hand paths (tests cover them) and ADS with the hands. Next: the user playtests; then their notes. Known
+leftovers: `WeaponManagerComponent.h` is 543 lines (split it), Hiram's ensure (below).
 
 **Waiting on the user:** a playtest of all of the above (they were away; told it's ready 2026-10-14).
 

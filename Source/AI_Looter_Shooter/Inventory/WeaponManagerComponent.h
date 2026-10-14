@@ -4,6 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "Interaction/InteractionSource.h"
 #include "Player/PawnInputBinding.h"
+#include "Player/WeaponSwapMotion.h"
 #include "Weapons/AmmoTypes.h"
 #include "Weapons/WeaponPartSwap.h"
 #include "Weapons/WeaponTypes.h"
@@ -97,14 +98,42 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapons")
 	AWeaponBase* GiveWeapon(const FWeaponInstanceData& Instance);
 
+	/**
+	 * Takes a slot's gun in hand (number keys, wheel, pickups, inventory). In a local player's view the gun in hand goes down
+	 * first and the change happens out of sight (a swap); elsewhere at once. The in-hand gun's own slot calls a swap off.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Weapons")
 	void EquipSlot(int32 SlotIndex);
 
+	/** The next slot's gun in hand, counting on from the one a swap is bringing up (two turns of the wheel go two guns on). */
 	UFUNCTION(BlueprintCallable, Category = "Weapons")
 	void NextWeapon();
 
 	UFUNCTION(BlueprintCallable, Category = "Weapons")
 	void PreviousWeapon();
+
+	// --- Swaps (WeaponManagerSwap.cpp; WeaponSwapMotion has their look) ---
+
+	/**
+	 * A swap is under way: the gun in hand on its way out of view (or, called off, back up). It neither fires nor reloads
+	 * meanwhile, and stays the active weapon until the change, so the HUD, the hands and the body follow the gun seen.
+	 */
+	bool IsSwapping() const { return SwapClock.IsRunning(); }
+
+	/** The slot whose gun a swap brings up once the one in hand is down; INDEX_NONE without one (or bringing up loot). */
+	int32 GetSwapTargetSlot() const;
+
+	/**
+	 * How far the gun in hand is from its hold now (WeaponSwapMotion): 0 up, 1 out of view, below 0 a draw's overshoot; a
+	 * swap's holster while one runs, else the gun's own draw. The first-person view poses the gun by it, the body its arm.
+	 */
+	float GetGunLowered() const;
+
+	/** Moves a swap on to the world's time now: the change once the gun is down, the end of one called off. Its timer calls it. */
+	void UpdateSwap();
+
+	/** Tests: swaps play out in any world, held by anyone (else only a local player's, in play, with no menu open). */
+	bool bSwapMotionAnywhere = false;
 
 	/** Drops the active weapon in front of the owner and returns it. */
 	UFUNCTION(BlueprintCallable, Category = "Weapons")
@@ -452,6 +481,34 @@ private:
 	 * that one was in hand. False (nothing changed) when the gun can't be made.
 	 */
 	bool ReplaceEquipped(int32 SlotIndex, const FWeaponInstanceData& Instance);
+
+	// --- Swaps (WeaponManagerSwap.cpp) ---
+
+	/** Whether a change of gun plays out as a swap: a local player's, in play, a gun in hand and in view, no menu open. */
+	bool ShouldAnimateSwap() const;
+	/** Sends the gun in hand down, locked, to bring up Target (a slot's gun) or Pickup (loot); one going down only retargets. */
+	void BeginSwap(AWeaponBase* Target, AWeaponBase* Pickup);
+	/** The gun in hand is down: the change, out of sight; or, what it was for gone, back up. */
+	void FinishHolster();
+	/** Called off: the gun in hand comes back up from wherever it got to. */
+	void CallOffSwap();
+	/** Back up after a swap called off: free to fire again, and a reload the swap cut short starts over. */
+	void FinishRaise();
+	/** Forgets a swap under way (the caller puts the gun in hand away or takes another, which lets go of its lock). */
+	void StopSwap();
+	/** A swap's sound, on the body: the gun going away may be gone before its sound is. */
+	void PlaySwapCue(FName Cue) const;
+	/** The slot the wheel counts on from: the one a swap is bringing up, else the one in hand. */
+	int32 GetHeadingSlot() const;
+	/** Loot taken in hand at once: a free slot, else in place of the gun in hand (EquipPickup's change, without a swap). */
+	void PutLootInHand(AWeaponBase* Pickup);
+
+	/** The swap under way: the holster's clock, what it brings up, and whether it locked the gun in hand itself. */
+	FWeaponSwapClock SwapClock;
+	TWeakObjectPtr<AWeaponBase> SwapTarget;
+	TWeakObjectPtr<AWeaponBase> SwapPickup;
+	bool bSwapLocked = false;
+	FTimerHandle SwapTimer;
 
 	UPROPERTY(Transient)
 	TArray<FWeaponInstanceData> Backpack;

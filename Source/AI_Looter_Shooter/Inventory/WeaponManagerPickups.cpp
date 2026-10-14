@@ -47,6 +47,11 @@ bool UWeaponManagerComponent::EquipPickup(AWeaponBase* Pickup)
 	{
 		return false;
 	}
+	// Already coming: the gun in hand is on its way down for it.
+	if (SwapPickup.Get() == Pickup && SwapClock.IsLowering())
+	{
+		return true;
+	}
 
 	// A free slot takes it, the same as a tap.
 	if (Weapons.Num() < MaxWeapons)
@@ -57,6 +62,29 @@ bool UWeaponManagerComponent::EquipPickup(AWeaponBase* Pickup)
 		}
 		EquipSlot(Weapons.IndexOfByKey(Pickup));
 		return true;
+	}
+
+	// Every slot full: in view, the gun in hand goes down first and they change places out of sight (FinishHolster). With
+	// the backpack full too, the old gun is thrown down at once instead: its toss shows it going.
+	if (Backpack.Num() < BackpackCapacity && ShouldAnimateSwap())
+	{
+		BeginSwap(nullptr, Pickup);
+		return true;
+	}
+	PutLootInHand(Pickup);
+	return true;
+}
+
+void UWeaponManagerComponent::PutLootInHand(AWeaponBase* Pickup)
+{
+	if (Weapons.Num() < MaxWeapons)
+	{
+		// (A slot freed while the gun in hand went down for it.)
+		if (AddWeapon(Pickup) && Weapons.IndexOfByKey(Pickup) != ActiveSlot)
+		{
+			SetActiveSlot(Weapons.IndexOfByKey(Pickup));
+		}
+		return;
 	}
 
 	// Every slot is full: it takes the slot in use, and the weapon that was in it goes to the backpack, or onto the
@@ -84,7 +112,6 @@ bool UWeaponManagerComponent::EquipPickup(AWeaponBase* Pickup)
 	ActiveSlot = INDEX_NONE; // the weapon that was in hand is gone; SetActiveSlot takes out the new one
 	SetActiveSlot(Slot);
 	OnInventoryChanged.Broadcast();
-	return true;
 }
 
 // ---------------------------------------------------------------------------

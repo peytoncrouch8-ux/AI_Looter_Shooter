@@ -8,7 +8,10 @@
 #include "Player/PlayerThrowMotion.h"
 #include "Player/PlayerThrowRules.h"
 #include "Weapons/ReloadMotion.h"
+#include "Weapons/WeaponModelComponent.h"
+#include "AnimationRuntime.h"
 #include "Engine/SkeletalMesh.h"
+#include "ReferenceSkeleton.h"
 
 // The first-person hands as plain math: the rig on the mannequin's rest pose (hands reach their spots, far ones too, the
 // fingers curl into the palm, the body squeezed away), each reload's support-hand path (on the part it works at the
@@ -48,6 +51,12 @@ namespace
 			Gun.bHasMagazineSeat = true;
 			break;
 		}
+		// Drawn bigger than modeled, as the game draws it: its sockets with it.
+		Gun.Scale = UWeaponModelComponent::ScaleFor(Kind);
+		Gun.Grip *= Gun.Scale;
+		Gun.Foregrip *= Gun.Scale;
+		Gun.MagazineSeat *= Gun.Scale;
+		Gun.CylinderRear *= Gun.Scale;
 		return Gun;
 	}
 
@@ -119,8 +128,9 @@ bool FFirstPersonHandsRigTest::RunTest(const FString& Parameters)
 			FHandFingers::Of(EHandGrip::Trigger));
 		Targets.Hands[Left] = FHandPlacement::Make(Chest + Ahead * (Case.Out + 15.0) - Rig.GetUp() * 12.0, Rightward, Rig.GetUp(),
 			FHandFingers::Of(EHandGrip::Forend));
-		Targets.ElbowLean[Left] = -Rightward * 12.0 - Rig.GetUp() * 30.0;
-		Targets.ElbowLean[Right] = Rightward * 12.0 - Rig.GetUp() * 30.0;
+		// The forearms leave the wrists back, out and down (in the mannequin's own frame).
+		Targets.DefaultForearm[Left] = (-Ahead * 0.5 - Rightward * 0.5 - Rig.GetUp() * 0.7).GetSafeNormal();
+		Targets.DefaultForearm[Right] = (-Ahead * 0.7 + Rightward * 0.45 - Rig.GetUp() * 0.55).GetSafeNormal();
 		TArray<FTransform> Local;
 		TArray<FTransform> Space;
 		Rig.Pose(Targets, Local, Space);
@@ -175,6 +185,76 @@ bool FFirstPersonHandsRigTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The stand-in's head is squeezed away"), Head != INDEX_NONE && Rig.IsCollapsed(Head)
 		&& GripSpace[Head].GetScale3D().X < 0.01);
 	TestFalse(TEXT("...its hands aren't"), Rig.IsCollapsed(Rig.GetHandBone(EFirstPersonHand::Left)) || Rig.IsCollapsed(Rig.GetHandBone(EFirstPersonHand::Right)));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFirstPersonHandsArmsTest, "Looter.Player.Hands.Arms",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FFirstPersonHandsArmsTest::RunTest(const FString& Parameters)
+{
+	// SK_FP_Arms read as its maker measured it (Intermediate/FPArms/FPArms_rig.json, Unreal component space; the import
+	// turns the bones' axes, so the rig reads places only), then posed on a hip hold's spots: both hands on them, each
+	// forearm leaving its wrist the way it's asked (the wrist straight), the arms never stretched.
+	const USkeletalMesh* Arms = LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Art/Characters/SK_FP_Arms.SK_FP_Arms"));
+	FFirstPersonHandsRig Rig;
+	if (!TestNotNull(TEXT("SK_FP_Arms"), Arms) || !TestTrue(TEXT("The rig binds to it"), Rig.Bind(Arms, false)))
+	{
+		return false;
+	}
+	TestTrue(TEXT("It faces ahead (+X)"), Rig.GetForward().Equals(FVector::ForwardVector, 0.02));
+	TestTrue(FString::Printf(TEXT("The right palm faces in, as made (%s)"), *Rig.GetRestPalm(EFirstPersonHand::Right).ToCompactString()),
+		Rig.GetRestPalm(EFirstPersonHand::Right).Equals(FVector(-0.214, -0.958, -0.189), 0.05));
+	TestTrue(TEXT("...the left its mirror"), Rig.GetRestPalm(EFirstPersonHand::Left).Equals(FVector(-0.214, 0.958, -0.189), 0.05));
+	const float GripOff = static_cast<float>(FVector::Dist(Rig.GetRestHoldPoint(EFirstPersonHand::Right), FVector(35.07, 11.335, -32.539)));
+	TestTrue(FString::Printf(TEXT("The right grip point where its maker put it (%.2f cm off)"), GripOff), GripOff <= 0.6f);
+	const float Knuckle = Rig.GetRestCurl(EFirstPersonHand::Right, 2, 0);
+	const float Middle = Rig.GetRestCurl(EFirstPersonHand::Right, 2, 1);
+	TestTrue(FString::Printf(TEXT("Its fingers rest a little curled (middle finger %.0f, %.0f degrees)"), Knuckle, Middle),
+		Knuckle > 8.f && Knuckle < 25.f && Middle > 12.f && Middle < 28.f);
+
+	// The Bullpup's hip hold's spots (camera space, the eye at the origin, as SK_FP_Arms is made).
+	const FReferenceSkeleton& Skeleton = Arms->GetRefSkeleton();
+	FHandsRigTargets Targets;
+	const int32 Left = FirstPersonHands::Index(EFirstPersonHand::Left);
+	const int32 Right = FirstPersonHands::Index(EFirstPersonHand::Right);
+	Targets.Hands[Right] = FHandPlacement::Make(FVector(44.0, 16.5, -16.5), FVector(1.0, 0.0, -0.2), FVector(0.1, -1.0, 0.0),
+		FHandFingers::Of(EHandGrip::Trigger), FVector(-0.8, 0.35, -0.45));
+	Targets.Hands[Left] = FHandPlacement::Make(FVector(68.0, 14.0, -10.0), FVector(0.0, 1.0, -0.2), FVector(0.0, 0.3, 1.0),
+		FHandFingers::Of(EHandGrip::Forend), FVector(-0.45, -0.5, -0.75));
+	TArray<FTransform> Local;
+	TArray<FTransform> Space;
+	Rig.Pose(Targets, Local, Space);
+	const TCHAR* const Sides[2] = { TEXT("l"), TEXT("r") };
+	for (const EFirstPersonHand Hand : { EFirstPersonHand::Left, EFirstPersonHand::Right })
+	{
+		const int32 Side = FirstPersonHands::Index(Hand);
+		const FHandPlacement& Wanted = Targets.Hands[Side];
+		const float Off = static_cast<float>(FVector::Dist(Rig.HoldPointIn(Hand, Space), Wanted.Hold));
+		TestTrue(FString::Printf(TEXT("Hand %s on its spot (%.2f cm off)"), Sides[Side], Off), Off <= HandsTestNear);
+		const int32 Elbow = Skeleton.FindBoneIndex(FName(*FString::Printf(TEXT("lowerarm_%s"), Sides[Side])));
+		const int32 Upper = Skeleton.FindBoneIndex(FName(*FString::Printf(TEXT("upperarm_%s"), Sides[Side])));
+		const int32 Wrist = Rig.GetHandBone(Hand);
+		if (!TestTrue(TEXT("Its arm's bones"), Elbow != INDEX_NONE && Upper != INDEX_NONE && Wrist != INDEX_NONE))
+		{
+			continue;
+		}
+		const FVector Forearm = (Space[Elbow].GetLocation() - Space[Wrist].GetLocation()).GetSafeNormal();
+		TestTrue(FString::Printf(TEXT("Hand %s: its forearm leaves the wrist as asked (%.2f)"), Sides[Side], FVector::DotProduct(Forearm, Wanted.Forearm)),
+			FVector::DotProduct(Forearm, Wanted.Forearm) > 0.9);
+		const double UpperLength = FVector::Dist(Space[Upper].GetLocation(), Space[Elbow].GetLocation());
+		const double RestUpper = FVector::Dist(FAnimationRuntime::GetComponentSpaceTransformRefPose(Skeleton, Upper).GetLocation(),
+			FAnimationRuntime::GetComponentSpaceTransformRefPose(Skeleton, Elbow).GetLocation());
+		TestTrue(FString::Printf(TEXT("Hand %s: the arm isn't stretched"), Sides[Side]), FMath::IsNearlyEqual(UpperLength, RestUpper, 0.05));
+		// The shoulder (where the sleeve ends) is out of the view (90 degrees, 16:9: under the bottom edge, 0.5625 cm down per
+		// cm ahead, or behind the eye), the elbow down at the bottom edge or under it.
+		const FVector ShoulderAt = Space[Upper].GetLocation();
+		const FVector ElbowAt = Space[Elbow].GetLocation();
+		TestTrue(FString::Printf(TEXT("Hand %s: the shoulder is out of the view (%s)"), Sides[Side], *ShoulderAt.ToCompactString()),
+			ShoulderAt.X <= 0.0 || ShoulderAt.Z / ShoulderAt.X < -0.5625);
+		TestTrue(FString::Printf(TEXT("Hand %s: the elbow is low (%s)"), Sides[Side], *ElbowAt.ToCompactString()),
+			ElbowAt.X <= 0.0 || ElbowAt.Z / ElbowAt.X < -0.5);
+	}
 	return true;
 }
 

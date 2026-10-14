@@ -88,6 +88,7 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 	StanceInput.WeaponForegrip = Weapon ? Weapon->GetForegripPoint() : FVector::ZeroVector;
 	const UWeaponDefinition* HeldDefinition = Weapon ? Weapon->GetInstance().Definition.Get() : nullptr;
 	StanceInput.HoldReach = HeldDefinition ? HeldDefinition->HoldReach : 0.f;
+	StanceInput.WeaponScale = Weapon ? Weapon->GetModelScale() : 1.f;
 
 	// The hand socket the gun hangs from (the same one the weapon manager attaches to in third person).
 	const FName HoldSocket = WeaponManager.IsValid() ? WeaponManager->ThirdPersonAttachSocket : NAME_None;

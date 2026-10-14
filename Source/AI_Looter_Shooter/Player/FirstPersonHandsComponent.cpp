@@ -31,6 +31,11 @@ namespace
 		0,
 		TEXT("1 shows the first-person hands on the template body's arms while SK_FP_Arms isn't imported (testing only)."));
 
+	TAutoConsoleVariable<float> CVarHandsScale(
+		TEXT("Looter.Hands.Scale"),
+		0.f,
+		TEXT("The first-person arms' size against the guns while tuning (0: the component's ArmsScale)."));
+
 	/** A mesh the component names, if its package is in this build (SK_FP_Arms waits for its import; no warning meanwhile). */
 	USkeletalMesh* LoadIfMade(const TSoftObjectPtr<USkeletalMesh>& Asset)
 	{
@@ -133,17 +138,30 @@ bool UFirstPersonHandsComponent::LoadArms()
 		return false;
 	}
 	SetSkinnedAssetAndUpdate(Arms);
+	// The arms touch nothing (the mesh's physics asset would give them bodies): they're drawn, nothing more.
+	SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	PlaceOnCamera(GetWantedScale());
+	return true;
+}
 
-	// SK_FP_Arms is made with its root at the eye, facing ahead. The stand-in, a whole body facing its own +Y, is turned
-	// to face the camera's ahead and set so its shoulders sit under and just behind the eye.
-	FTransform Placement = FTransform::Identity;
+void UFirstPersonHandsComponent::PlaceOnCamera(float Scale)
+{
+	// SK_FP_Arms is made with its root at the eye, facing ahead: sized about the eye. The stand-in, a whole body facing its
+	// own +Y, is turned to face the camera's ahead and set so its shoulders sit under and just behind the eye.
+	FTransform Placement(FQuat::Identity, FVector::ZeroVector, FVector(Scale));
 	if (bStandIn)
 	{
 		const FQuat Facing = FRotationMatrix::MakeFromXZ(Rig.GetForward(), Rig.GetUp()).ToQuat().Inverse();
-		Placement = FTransform(Facing, StandInShoulders - Facing.RotateVector(Rig.GetShoulderMiddle()));
+		Placement.SetRotation(Facing);
+		Placement.SetTranslation(StandInShoulders - Facing.RotateVector(Rig.GetShoulderMiddle()) * Scale);
 	}
 	SetRelativeTransform(Placement);
-	return true;
+}
+
+float UFirstPersonHandsComponent::GetWantedScale() const
+{
+	const float Tuning = CVarHandsScale.GetValueOnGameThread();
+	return FMath::Clamp(Tuning > 0.f ? Tuning : ArmsScale, 0.5f, 1.5f);
 }
 
 void UFirstPersonHandsComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -179,13 +197,19 @@ bool UFirstPersonHandsComponent::PoseHands(float DeltaTime)
 	Targets[Right] = FirstPersonHandsGrips::OnGrip(Gun);
 	Targets[Left] = PlaceSupportHand(Gun, Dt);
 
-	// Into the mesh's own space (the stand-in is turned and set back on the camera) and posed.
+	// The arms' size (a smaller hand holds the same spots: they're scaled into the mesh's space with it), then into the
+	// mesh's own space (the stand-in is turned and set back on the camera) and posed.
+	const float Scale = GetWantedScale();
+	if (!FMath::IsNearlyEqual(static_cast<float>(GetRelativeScale3D().X), Scale, 1.e-3f))
+	{
+		PlaceOnCamera(Scale);
+	}
 	const FTransform CameraToMesh = GetRelativeTransform().Inverse();
 	FHandsRigTargets RigTargets;
 	RigTargets.Hands[Left] = Targets[Left].Moved(CameraToMesh);
 	RigTargets.Hands[Right] = Targets[Right].Moved(CameraToMesh);
-	RigTargets.ElbowLean[Left] = CameraToMesh.TransformVectorNoScale(LeftElbowLean);
-	RigTargets.ElbowLean[Right] = CameraToMesh.TransformVectorNoScale(RightElbowLean);
+	RigTargets.DefaultForearm[Left] = CameraToMesh.TransformVectorNoScale(LeftForearm).GetSafeNormal();
+	RigTargets.DefaultForearm[Right] = CameraToMesh.TransformVectorNoScale(RightForearm).GetSafeNormal();
 	Rig.Pose(RigTargets, BoneSpaceTransforms, PosedSpace);
 	MarkRefreshTransformDirty();
 	// Shown only once posed, so no frame ever shows the mesh's rest pose.
@@ -232,7 +256,10 @@ void UFirstPersonHandsComponent::DescribeGun(const AWeaponBase& Weapon, const FT
 	// A gun not built from parts has no grip socket: the weapon manager lines such a gun's hold up on AttachGrip.
 	const UWeaponManagerComponent* Manager = Weapons.Get();
 	OutGun.Grip = bModel && !Model->GetGrip().IsZero() ? Model->GetGrip() : (Manager ? Manager->AttachGrip : FVector::ZeroVector);
-	OutGun.Foregrip = Weapon.GetForegripPoint();
+	OutGun.Foregrip = bModel ? Model->GetForegrip() : Weapon.GetForegripPoint();
+	// Drawn bigger than modeled (UWeaponModelComponent::ScaleFor): the sockets already are, the hands' own numbers off the
+	// gun follow it.
+	OutGun.Scale = Weapon.GetModelScale();
 	OutGun.ReloadPart = Weapon.GetReloadPart();
 	OutGun.ReloadProgress = Weapon.GetReloadProgress();
 	if (OutGun.ReloadProgress < 0.f || !bModel)

@@ -25,6 +25,8 @@ namespace LooterSoundCue
 	inline constexpr const TCHAR* ShotgunPump = TEXT("Weapon.Shotgun.Pump");
 	/** A gun taken in hand. */
 	inline constexpr const TCHAR* Equip = TEXT("Weapon.Equip");
+	/** A long gun put away as a swap begins: the sleeve and sling swishing, the hardware's jingle, the gun settling on the back. */
+	inline constexpr const TCHAR* Holster = TEXT("Weapon.Holster");
 	/** Raising the sights (right mouse). */
 	inline constexpr const TCHAR* AimIn = TEXT("Weapon.AimIn");
 	/** A bullet meeting the world: ground and stone; wood; metal; water. */
@@ -87,6 +89,8 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* CylinderIn = TEXT("Weapon.Revolver.CylinderIn");
 		/** Drawn from the holster: leather, the grip in the palm, the hammer thumbed back. */
 		inline constexpr const TCHAR* Equip = TEXT("Weapon.Revolver.Equip");
+		/** Put back in the holster as a swap begins: the hammer let down, the barrel into the leather, the gun seated. */
+		inline constexpr const TCHAR* Holster = TEXT("Weapon.Revolver.Holster");
 	}
 
 	// --- The player's own feedback (2D) ---

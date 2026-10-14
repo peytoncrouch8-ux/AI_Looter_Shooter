@@ -31,6 +31,7 @@ bool FFirstPersonHandsRig::FindArm(FArm& Arm, EFirstPersonHand Side, const FRefe
 		{
 			Arm.Fingers[Finger][Joint] = INDEX_NONE;
 			Arm.CurlAxes[Finger][Joint] = FVector::RightVector;
+			Arm.RestCurls[Finger][Joint] = 0.f;
 		}
 	}
 	return Arm.UpperArm != INDEX_NONE && Arm.LowerArm != INDEX_NONE && Arm.Hand != INDEX_NONE;
@@ -144,7 +145,7 @@ bool FFirstPersonHandsRig::Bind(const USkeletalMesh* Mesh, bool bArmsOnly)
 	return true;
 }
 
-void FFirstPersonHandsRig::SolveArm(const FArm& Arm, const FHandPlacement& Target, const FVector& ElbowLean,
+void FFirstPersonHandsRig::SolveArm(const FArm& Arm, const FHandPlacement& Target, const FVector& DefaultForearm,
 	TArray<int32, TInlineAllocator<8>>& OutBones, TArray<FTransform, TInlineAllocator<8>>& OutSpaces) const
 {
 	using FirstPersonHands::Frame;
@@ -156,23 +157,27 @@ void FFirstPersonHandsRig::SolveArm(const FArm& Arm, const FHandPlacement& Targe
 	const FQuat HandTurn = (Target.Turn * Arm.HandFrame.Inverse() * HandRest.GetRotation()).GetNormalized();
 	const FVector Wrist = Target.Hold - HandTurn.RotateVector(Arm.HoldLocal * HandRest.GetScale3D());
 
-	// A view-model gun is held further out than a real arm reaches from a real shoulder (the long guns' grip sits half a
-	// metre ahead of the eye, a pump nearly a metre): past the arm's reach the whole arm comes forward along it. The
-	// shoulder stays far under the view's bottom edge, and only the forearm and hand are ever seen.
+	// The elbow goes where the forearm leaves the wrist the way the placement says (back, out and down: the wrist stays
+	// nearly straight, the arm comes up from under the view). A view-model gun is held further out than a real arm reaches
+	// from a real shoulder (the long guns' grip sits half a metre ahead of the eye, a pump nearly a metre): when that elbow
+	// is out of the upper arm's reach the shoulder comes to it, far under the view's bottom edge. Only the forearm and
+	// hand are ever seen, and the arm never stretches (a stretched sleeve shows).
+	const FVector ForearmWay = (Target.Forearm.IsNearlyZero() ? DefaultForearm : Target.Forearm).GetSafeNormal(UE_SMALL_NUMBER, -Target.GetFingersDir());
+	const FVector WantedElbow = Wrist + ForearmWay * Arm.LowerLength;
 	const FVector RestShoulder = UpperRest.GetLocation();
-	const FVector ToWrist = Wrist - RestShoulder;
-	const double Distance = ToWrist.Size();
-	const double Reach = (Arm.UpperLength + Arm.LowerLength) * ReachShare;
-	const FVector Shift = Distance > Reach ? ToWrist / Distance * FMath::Min(Distance - Reach, static_cast<double>(MaxShoulderShift)) : FVector::ZeroVector;
+	const FVector FromElbow = RestShoulder - WantedElbow;
+	const double UpperReach = FromElbow.Size();
+	FVector Shift = FVector::ZeroVector;
+	if (UpperReach > Arm.UpperLength)
+	{
+		Shift = (WantedElbow + FromElbow / UpperReach * Arm.UpperLength - RestShoulder).GetClampedToMaxSize(MaxShoulderShift);
+	}
 	const FVector Shoulder = RestShoulder + Shift;
-
-	// The elbow trails back from the hand along its knuckles' line, so the forearm lines up with the hand (no broken
-	// wrist), and leans down and out of the view as the caller says.
-	const FVector ElbowHint = Wrist - Target.GetFingersDir() * ElbowTrail + ElbowLean;
 	FVector Elbow;
 	FVector End;
-	AnimationCore::SolveTwoBoneIK(Shoulder, LowerRest.GetLocation() + Shift, HandRest.GetLocation() + Shift, ElbowHint, Wrist, Elbow, End,
-		Arm.UpperLength, Arm.LowerLength, /*bAllowStretching*/ true, /*StartStretchRatio*/ 1.0, /*MaxStretchScale*/ MaxStretch);
+	AnimationCore::SolveTwoBoneIK(Shoulder, LowerRest.GetLocation() + Shift, HandRest.GetLocation() + Shift, WantedElbow, Wrist, Elbow, End,
+		Arm.UpperLength, Arm.LowerLength, /*bAllowStretching*/ false, /*StartStretchRatio*/ 1.0, /*MaxStretchScale*/ 1.0);
+	const FVector& ElbowHint = WantedElbow;
 
 	// Each bone turned so it points where the solve puts it and its hinge lies across the arm's new bend: the elbow then
 	// only ever bends about its own hinge, the way the skin was made to, whatever the reach.
@@ -224,7 +229,7 @@ void FFirstPersonHandsRig::Pose(const FHandsRigTargets& Targets, TArray<FTransfo
 	TArray<FTransform, TInlineAllocator<8>> PlacedSpaces;
 	for (int32 Side = 0; Side < 2; ++Side)
 	{
-		SolveArm(Arms[Side], Targets.Hands[Side], Targets.ElbowLean[Side], PlacedBones, PlacedSpaces);
+		SolveArm(Arms[Side], Targets.Hands[Side], Targets.DefaultForearm[Side], PlacedBones, PlacedSpaces);
 	}
 
 	// Parents first: the arms' solved bones as they are, every other bone at rest under its parent (the fingers curled),

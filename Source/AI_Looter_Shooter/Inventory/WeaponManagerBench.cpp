@@ -216,6 +216,11 @@ bool UWeaponManagerComponent::ReplaceEquipped(int32 SlotIndex, const FWeaponInst
 	}
 	AWeaponBase* Outgoing = Weapons[SlotIndex];
 	const bool bInHand = SlotIndex == ActiveSlot;
+	if (bInHand)
+	{
+		// A swap under way ends: the gun in hand is rebuilt in place (put away below, which lets go of the swap's lock).
+		StopSwap();
+	}
 	if (IsValid(Outgoing))
 	{
 		Outgoing->OnHolstered();

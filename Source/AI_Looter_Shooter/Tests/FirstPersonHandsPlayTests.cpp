@@ -5,6 +5,7 @@
 #include "Affixes/WeaponRollLibrary.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Player/FirstPersonHandsComponent.h"
+#include "Player/FirstPersonHandsGrips.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerViewComponent.h"
 #include "Tests/LocomotionTestWorld.h"
@@ -26,9 +27,10 @@ using namespace LocomotionTestWorld;
 
 namespace
 {
-	/** How near a hand's grip point must be to where it was sent (cm), and how far its spot may sit off the gun's socket. */
+	/** How near a hand's grip point must be to where it was sent (cm). */
 	constexpr float HandsPlayOnSpot = 1.f;
-	constexpr float HandsPlayOffSocket = 3.5f;
+	/** At the hip both grip points sit within this share of the frame's half-width and half-height from its middle. */
+	constexpr float HandsPlayInFrame = 0.85f;
 	/** Frames for a sight to come all the way up (a slow gun takes under half a second). */
 	constexpr int32 HandsPlayRaiseFrames = 40;
 
@@ -68,33 +70,50 @@ namespace
 		Player.Hands->UpdateHands(Frame);
 	}
 
-	/** Each hand on its spot, and each spot on the gun's grip or foregrip socket as the gun is this frame. */
-	void HandsPlayCheck(FAutomationTestBase& Test, const FHandsPlayPlayer& Player, const FString& Name)
+	/**
+	 * Each hand on its spot, and each spot on the gun's grip or foregrip socket (and the hold table's offset from it) as the
+	 * gun is this frame. bOnScreen: both hands in the view model's frame too (its field of view, 16:9), clear of its edges.
+	 */
+	void HandsPlayCheck(FAutomationTestBase& Test, const FHandsPlayPlayer& Player, const FString& Name, bool bOnScreen)
 	{
 		const UWeaponModelComponent* Model = Player.Gun->FindComponentByClass<UWeaponModelComponent>();
-		if (!Test.TestTrue(FString::Printf(TEXT("%s: the gun is built from its parts"), *Name), Model && Model->IsAssembled()))
+		const UCameraComponent* Camera = CameraOf(Player.Locomotion);
+		if (!Test.TestTrue(FString::Printf(TEXT("%s: the gun is built from its parts"), *Name), Model && Model->IsAssembled() && Camera))
 		{
 			return;
 		}
 		const FTransform GunNow = Model->GetComponentTransform();
+		const FGunHands& Hold = FirstPersonHandsGrips::For(Player.Gun->GetInstance().Definition->Kind);
+		const float Scale = Model->GetModelScale();
 		struct FHandsPlaySide
 		{
 			EFirstPersonHand Hand;
 			const TCHAR* Which;
-			FVector Socket;
+			FVector Spot;
 		};
 		const FHandsPlaySide Sides[] = {
-			{ EFirstPersonHand::Right, TEXT("right hand on the grip"), GunNow.TransformPosition(Model->GetGrip()) },
-			{ EFirstPersonHand::Left, TEXT("left hand on the foregrip"), GunNow.TransformPosition(Model->GetForegrip()) },
+			{ EFirstPersonHand::Right, TEXT("right hand on the grip"), GunNow.TransformPosition(Model->GetGrip() + Hold.GripHold * Scale) },
+			{ EFirstPersonHand::Left, TEXT("left hand on the foregrip"), GunNow.TransformPosition(Model->GetForegrip() + Hold.ForeHold * Scale) },
 		};
+		// The view model's frame: its own field of view across, 16:9 (the setting widens the world, never it).
+		const float HalfWide = FMath::Tan(FMath::DegreesToRadians(Camera->FirstPersonFieldOfView > 1.f ? Camera->FirstPersonFieldOfView : Camera->FieldOfView) * 0.5f);
+		const float HalfHigh = HalfWide * 9.f / 16.f;
 		for (const FHandsPlaySide& Side : Sides)
 		{
 			const FVector Target = Player.Hands->GetTargetHoldPoint(Side.Hand);
-			const float OnSpot = static_cast<float>(FVector::Dist(Player.Hands->GetHoldPoint(Side.Hand), Target));
-			const float OffSocket = static_cast<float>(FVector::Dist(Target, Side.Socket));
+			const FVector Held = Player.Hands->GetHoldPoint(Side.Hand);
+			const float OnSpot = static_cast<float>(FVector::Dist(Held, Target));
+			const float OffSpot = static_cast<float>(FVector::Dist(Target, Side.Spot));
 			Test.TestTrue(FString::Printf(TEXT("%s: %s (%.2f cm from its spot)"), *Name, Side.Which, OnSpot), OnSpot <= HandsPlayOnSpot);
-			Test.TestTrue(FString::Printf(TEXT("%s: ...its spot on the gun as it is this frame (%.2f cm off the socket)"), *Name, OffSocket),
-				OffSocket <= HandsPlayOffSocket);
+			Test.TestTrue(FString::Printf(TEXT("%s: ...its spot on the gun as it is this frame (%.2f cm off)"), *Name, OffSpot), OffSpot <= 0.1f);
+			if (bOnScreen)
+			{
+				const FVector InView = Camera->GetComponentTransform().InverseTransformPosition(Held);
+				const float Across = InView.X > 1.0 ? static_cast<float>(InView.Y / InView.X) / HalfWide : 9.f;
+				const float Down = InView.X > 1.0 ? static_cast<float>(InView.Z / InView.X) / HalfHigh : 9.f;
+				Test.TestTrue(FString::Printf(TEXT("%s: %s in view (%.2f across, %.2f up, of the frame's half)"), *Name, Side.Which, Across, Down),
+					FMath::Abs(Across) <= HandsPlayInFrame && FMath::Abs(Down) <= HandsPlayInFrame);
+			}
 		}
 	}
 }
@@ -152,7 +171,7 @@ bool FFirstPersonHandsOnGunTest::RunTest(const FString& Parameters)
 			HandsPlayFrame(Player);
 		}
 		TestTrue(FString::Printf(TEXT("%s: the hands show in first person with a gun"), Guns[Index].Name), Player.Hands->IsShowingHands());
-		HandsPlayCheck(*this, Player, FString::Printf(TEXT("%s from the hip"), Guns[Index].Name));
+		HandsPlayCheck(*this, Player, FString::Printf(TEXT("%s from the hip"), Guns[Index].Name), true);
 
 		Player.View->HandleAimPressed();
 		for (int32 Frames = 0; Frames < HandsPlayRaiseFrames; ++Frames)
@@ -160,7 +179,7 @@ bool FFirstPersonHandsOnGunTest::RunTest(const FString& Parameters)
 			HandsPlayFrame(Player);
 		}
 		TestTrue(FString::Printf(TEXT("%s: the sight came up"), Guns[Index].Name), Player.View->GetAimAlpha() >= 1.f);
-		HandsPlayCheck(*this, Player, FString::Printf(TEXT("%s through the sight"), Guns[Index].Name));
+		HandsPlayCheck(*this, Player, FString::Printf(TEXT("%s through the sight"), Guns[Index].Name), false);
 		Player.View->HandleAimReleased();
 	}
 	return true;

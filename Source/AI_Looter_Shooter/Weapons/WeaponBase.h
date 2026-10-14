@@ -82,6 +82,9 @@ public:
 
 	/** Where the left hand holds the gun, in the weapon's own space. */
 	FVector GetForegripPoint() const;
+
+	/** How much bigger than modeled its kind is drawn (UWeaponModelComponent::ScaleFor); 1 for a gun not built from parts. */
+	float GetModelScale() const;
 	void OnHolstered();
 	void OnDropped();
 
