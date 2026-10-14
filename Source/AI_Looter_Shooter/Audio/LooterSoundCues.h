@@ -423,6 +423,26 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* Workshop = TEXT("World.TownLife.Workshop");
 	}
 
+	// --- Gusts on Ransom's Rest (UGustSubsystem; Art/Sounds/recipes/gusts.py): the wind passing and what it knocks loose ---
+	namespace Gust
+	{
+		/** 2D, one at a time: wind swelling past grass and boards, up in about a second and falling away over three to five
+		 *  (the code sets volume 0.45-1 by the gust's strength, pitch +-6%). */
+		inline constexpr const TCHAR* Pass = TEXT("World.Gust.Pass");
+		/** 3D (about 35 m, two at once): a loose shutter slammed two or three times with its slats chattering, or a hanging
+		 *  sign's chain clinking and its bracket creaking. */
+		inline constexpr const TCHAR* Rattle = TEXT("World.Gust.Rattle");
+	}
+
+	// --- Lit windows (UWindowLifeSubsystem; Art/Sounds/recipes/windows.py): the living behind the glass, 3D, to about 15 m ---
+	namespace Window
+	{
+		/** Somebody crossing a room behind a lit window: five or six muffled footfalls on a plank floor, a board creaking. */
+		inline constexpr const TCHAR* Steps = TEXT("World.Window.Steps");
+		/** A curtain drawn on its rod behind the glass: cloth swishing and the rings sliding and ticking. */
+		inline constexpr const TCHAR* Curtain = TEXT("World.Window.Curtain");
+	}
+
 	// --- The economy (ASilverPickup, the vendors' screen UVendorWidget; Art/Sounds/recipes/economy.py): silver found,
 	//     a purchase, a sale and a refusal at the counter, all 2D (the player's own) ---
 	namespace Economy

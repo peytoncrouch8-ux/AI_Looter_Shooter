@@ -37,6 +37,8 @@ Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__in
   watchfire (the tower's brazier); miners (the dead miners, Thaddeus, Hiram; its rock-gallery space is shared); foreman
   (the Foreman's fight, fuses and roof); roosts (Hob's roosts: found, the loop near one, the crows' carry and the death
   drag); fittings (the mountain's mission fittings: the lift's crank, boiler and clamp pin, the manway gate).
+- windows (a lit window's life heard from the street: footsteps across the room, a curtain drawn; shares voices' wall);
+  gusts (the wind passing, 2D, and what it knocks loose: a shutter slammed, a sign's chains and bracket).
 
 ## Render
 
@@ -151,6 +153,13 @@ Tools\sounds.ps1 -CheckOnly          only the mix and the check
   vigil stones' iron bell (`recipes/shrines.py`) is this bell made duller and shorter.
 - **The Venom Spitter** (2026-10-12, `recipes/creatures.py`): the tell is the cue the player learns to move on, so
   `Creature.Spitter.Tell` rises clearly to its end, 0.9 s long, the tell's length in the game.
+- **Windows and gusts** (2026-10-14, `recipes/windows.py`, `recipes/gusts.py`): `World.Window.Steps` is a plank's dull knock (a
+  boot's contact is milliseconds long), the joists' hollow and a lighter toe, low-passed through `voices._wall`; the
+  curtain's rings tick over a cloth bed and are heard through a pane (`_glass`: the room's box, then the top off). The
+  gust (`World.Gust.Pass`, 2D stereo, played at 0.45-1 volume by strength) is a swell whose hiss filter follows its own
+  envelope and tops out near 2.8 kHz (`World.Gust.*` is in check.py's frequent list), board edge tones whose pitch follows
+  the wind's strength, and a pan across the ears. `World.Gust.Rattle`: a shutter's knocks with louvre chatter, or a sign's
+  iron links (modes kept under 3.8 kHz) and a slow bracket creak.
 - **Struck things** are modal: a set of decaying sines whose frequencies follow the object's physics (free bars, plates,
   wood, shells, cast bells), struck by a force pulse as long as the contact (hard steel ~0.1 ms, a heel several ms).
 - **Friction** (scrapes, creaks, stridulation) is stick-slip: trains of tiny slips rung through the thing's resonances.

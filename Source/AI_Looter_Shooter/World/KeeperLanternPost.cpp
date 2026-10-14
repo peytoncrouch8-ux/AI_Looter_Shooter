@@ -102,6 +102,8 @@ namespace
 		Light->SetAttenuationRadius(LightRadius);
 		Light->SetLightColor(LanternWarm);
 		Light->SetVisibility(false);
+		// A flame: ULightFlickerSubsystem breathes it while the player is near.
+		Light->ComponentTags.Add(TEXT("Flicker"));
 		return Light;
 	}
 }

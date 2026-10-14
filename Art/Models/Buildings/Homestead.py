@@ -53,9 +53,11 @@ grey-green and orange too, so stovepipes and hoops are black iron (IronBlack).
 Every home is a scripted model (Art/README.md) built with Tools/Blender/looter_homes.py (on looter_buildings and
 looter_town): the house trim sheet and the shared tileables and tints (no new texture sets or tints), the lived-in
 houses' lamplit panes on WindowGlow (Farmhouse.py's material: the level's AHouseLights raises its Glow at dusk and lights
-a lamp at SOCKET_Light, a metre behind the front windows; the empty houses have neither), SOCKET_Smoke on every chimney
-or stovepipe (SOCKET_Smoke_2 on a second chimney), convex UCX_ hulls, baked AO, and Nanite's fallback keeping every
-triangle (the buildings' rule).
+a lamp at SOCKET_Light, a metre behind the front windows; the empty houses have neither), SOCKET_Window_<n> on each
+lamplit pane of a lived-in home (the pane's outer face, its middle, front out through the glass: UWindowLifeSubsystem
+shows somebody at home there, a shadow crossing, a curtain twitching; numbered in build order), SOCKET_Smoke on every
+chimney or stovepipe (SOCKET_Smoke_2 on a second chimney), convex UCX_ hulls, baked AO, and Nanite's fallback keeping
+every triangle (the buildings' rule).
 
 The pivot is the front door at ground level: the middle of the doorway on the front wall's outer face, the ground there
 z = 0 (foundations and piers reach 0.35 m below it). The front faces -Y (+X in Unreal). Each home's report line
@@ -169,7 +171,7 @@ def roof_z(eave_z, wall_y, y, pitch):
 # --- RR_Home_A: the saltbox ---
 
 def home_a():
-    m = homes.Home('RR_Home_A', seed=501, lived=True)
+    m = homes.Home('RR_Home_A', seed=501, lived=True, window_sockets=True)
     X0, X1, Y0, Y1 = -3.6, 3.6, -3.2, 3.2
     BASE = 0.5                       # the floor, on the fieldstone foundation
     FRONT_H, BACK_H = 4.9, 2.9       # floor to wall plate: two storeys at the front, one at the back
@@ -288,7 +290,7 @@ def hewn_wall(m, space, length, top, items, parity, course=0.3, log_h=0.25, dept
 
 
 def home_b():
-    m = homes.Home('RR_Home_B', seed=502, lived=True)
+    m = homes.Home('RR_Home_B', seed=502, lived=True, window_sockets=True)
     PEN, TROT, D = 4.4, 2.6, 5.0
     LX0, LX1 = -TROT * 0.5 - PEN, -TROT * 0.5
     RX0, RX1 = TROT * 0.5, TROT * 0.5 + PEN
@@ -513,7 +515,7 @@ def home_c():
 # --- RR_Home_D: the gallery house ---
 
 def home_d():
-    m = homes.Home('RR_Home_D', seed=504, lived=True)
+    m = homes.Home('RR_Home_D', seed=504, lived=True, window_sockets=True)
     X0, X1, Y0, Y1 = -4.0, 4.0, -2.7, 2.7
     BASE, STOREY, PITCH = 0.55, 2.8, 30.0
     WALL = STOREY * 2.0
@@ -620,7 +622,7 @@ def mound_z(x, y, top=2.42, xo=5.6, yo=8.2, k=0.8):
 
 
 def home_e():
-    m = homes.Home('RR_Home_E', seed=505, lived=True)
+    m = homes.Home('RR_Home_E', seed=505, lived=True, window_sockets=True)
     rng = m.rng
     XF = 2.4                         # the front wall's half width
     FRONT = 2.18                     # its height, under the sod's lip
@@ -962,7 +964,7 @@ def home_g():
 # --- RR_Home_H: the porch house ---
 
 def home_h():
-    m = homes.Home('RR_Home_H', seed=508, lived=True)
+    m = homes.Home('RR_Home_H', seed=508, lived=True, window_sockets=True)
     X0, X1, Y0, Y1 = -3.4, 3.4, -3.4, 3.4
     BASE, WALL, PITCH = 0.5, 3.05, 33.0
     EAVE = BASE + WALL

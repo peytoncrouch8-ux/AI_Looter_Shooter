@@ -365,6 +365,8 @@ def lantern_light(build, at, yaw, label, tags, settings):
     where = (at[0] + forward.x * LIGHT_OUT, at[1] + forward.y * LIGHT_OUT, at[2] + LIGHT_UP)
     actor = build.place(unreal.PointLight, where, yaw, label=label, folder=FOLDER, tags=tags)
     light = actor.get_editor_property('point_light_component')
+    # A flame: ULightFlickerSubsystem breathes it while the player is near.
+    light.set_editor_property('component_tags', [unreal.Name('Flicker')])
     light.set_mobility(unreal.ComponentMobility.MOVABLE)
     light.set_editor_property('intensity_units', unreal.LightUnits.CANDELAS)
     light.set_editor_property('intensity', float(settings['candela']))

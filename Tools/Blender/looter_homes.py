@@ -75,13 +75,27 @@ def args():
 class Home(town.Model):
     """A town Model for a house: the town's finishes plus WindowGlow ('windowglow') and GroundDirt ('dirt'). lived marks a
     lived-in house (lamplit windows, SOCKET_Light). glazing(key) puts every pane built meanwhile (the trim sheet's glass,
-    H4) on that material. finish(pivot) moves the model so pivot (x, y on the ground) is its origin."""
+    H4) on that material. finish(pivot) moves the model so pivot (x, y on the ground) is its origin. window_sockets puts
+    SOCKET_Window_<n> on each lamplit pane (window_socket(): the game's window life plays there); off, nothing changes."""
 
-    def __init__(self, name, seed, lived=False):
+    def __init__(self, name, seed, lived=False, window_sockets=False):
         super().__init__(name, seed)
         self.lived = lived
         self.glass = None
         self.report = {}
+        self.window_sockets = window_sockets
+        self.windows = 0
+
+    def window_socket(self, space, at):
+        """SOCKET_Window_<n> (from 1, in build order) at a lamplit pane's face, its middle (at, in space), turned as the
+        wall is: its front (Unreal's +X) out through the glass, its top up. UWindowLifeSubsystem plays someone at home
+        there (a shadow crossing behind the glass, a curtain twitching) on a card of its own; nothing is built for it, so
+        the mesh stays exactly as it was. Only on a model made with window_sockets."""
+        if not self.window_sockets:
+            return
+        self.windows += 1
+        rotation = [math.degrees(a) for a in space.matrix.to_euler()]
+        self.socket(f'Window_{self.windows}', space.world(at), rotation)
 
     def slot(self, key):
         if key not in self.slots:
@@ -367,6 +381,9 @@ def sash(m, space, o, depth, out=0.0):
     glass_y = depth * 0.55
     m.box((w, 0.02, h), at=(x0 + w * 0.5, glass_y, z0 + h * 0.5), uv=Trim('H4', fit=True),
           mat='windowglow' if lit else 'trim', space=space, drop=town.GLASS)
+    if lit and hasattr(m, 'window_socket'):
+        # The pane's outer face (the glass is 2 cm thick about glass_y), its middle: the window life's card goes there.
+        m.window_socket(space, (x0 + w * 0.5, glass_y - 0.01, z0 + h * 0.5))
     bar_y = glass_y - 0.03
     stile = 0.045
     for x in (x0 + stile * 0.5, x0 + w - stile * 0.5):

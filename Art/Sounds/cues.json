@@ -4273,5 +4273,63 @@
     "loop": false,
     "space": "3D",
     "max_concurrent": 1
+  },
+  "World.Window.Steps": {
+    "files": [
+      "World_Window_Steps_01.wav",
+      "World_Window_Steps_02.wav",
+      "World_Window_Steps_03.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.04,
+    "class": "Ambience",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Window.Curtain": {
+    "files": [
+      "World_Window_Curtain_01.wav",
+      "World_Window_Curtain_02.wav",
+      "World_Window_Curtain_03.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.05,
+    "class": "Ambience",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "World.Gust.Pass": {
+    "files": [
+      "World_Gust_Pass_01.wav",
+      "World_Gust_Pass_02.wav",
+      "World_Gust_Pass_03.wav",
+      "World_Gust_Pass_04.wav"
+    ],
+    "volume_db": -23.0,
+    "pitch_jitter": 0.06,
+    "class": "Ambience",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "World.Gust.Rattle": {
+    "files": [
+      "World_Gust_Rattle_01.wav",
+      "World_Gust_Rattle_02.wav",
+      "World_Gust_Rattle_03.wav",
+      "World_Gust_Rattle_04.wav"
+    ],
+    "volume_db": -9.0,
+    "pitch_jitter": 0.06,
+    "class": "Ambience",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
   }
 }

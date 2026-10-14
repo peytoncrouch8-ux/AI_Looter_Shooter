@@ -29,7 +29,11 @@
                   bands darker or redder (SteepVariation), and the rock's layers rise and fall along it (StrataWarp
                   meters over StrataWave), so a long bluff wears the area's colors and no ruled stripes. Its relief comes from the rock's normal map laid on from the same sides, at
                   SteepNormalStrength (0: none, as on the island; SteepNormalGreen flips its green if the cracks read
-                  inverted).
+                  inverted). Ransom's Rest's (2026-10-14; each off by default): SteepRock makes the faces the cliff
+                  kit's own rock (the side-laid map's colour in SteepRockTint, a little macro light and dark, beds by height:
+                  SteepBeds), SteepAOLift lifts their baked occlusion, SteepSharp, SteepBreakup and SteepPull move
+                  their foot off the terrain's triangles onto the rock's layers and the macro's painted rock, and
+                  StrataSmooth and StrataFlat keep the layers' bend long and low. No texture samples beyond the old.
   M_SkyClouds     unlit, translucent: painted clouds on a sky dome (Coverage, Softness, Scale, wind), each lit from
                   the sun's side (the sky atmosphere's sun): a warm LitColor where it thins toward the sun, a cool
                   ShadeColor where it thickens, darker cores against the sun and thin edges glowing near it.
@@ -214,6 +218,17 @@ def lighting_tint(g, name, x, y):
     rgb = g.node(unreal.MaterialExpressionComponentMask, x + 300, y, r=True, g=True, b=True, a=False)
     g.link(state, '', rgb, '')
     return rgb
+
+
+def wind_param(g, name, x, y):
+    """A gust parameter UGustSubsystem writes (MPC_Wind: GustStrength, 0 between gusts; GustDirection, its way in xy).
+    wind_collection.py makes the collection first, as lighting_tint's does."""
+    import importlib
+    import os
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    import wind_collection
+    collection = importlib.reload(wind_collection).collection()
+    return g.node(unreal.MaterialExpressionCollectionParameter, x, y, collection=collection, parameter_name=name)
 
 
 def finish(mat, usages):
@@ -604,7 +619,14 @@ def build_gun(orm_default):
 WIND_CODE = """float Phase = VertexColor.g * 6.2831 + InstanceRandom * 6.2831;
 float Sway = sin(Time * Speed + Phase) * 0.7 + sin(Time * Speed * 2.37 + Phase * 1.7) * 0.3;
 float2 Dir = normalize(Direction.xy + float2(0.0001, 0.0));
-return float3(Dir * Sway * Strength * VertexColor.r, 0.0);"""
+// A gust (UGustSubsystem, MPC_Wind; 0 between gusts): the plants bow downwind and sway harder as its front rolls over
+// them, a band about 25 m long passing at 5 m/s.
+float2 GDir = normalize(GustDirection.xy + float2(0.0001, 0.0));
+float Front = 0.5 + 0.5 * sin(dot(WorldPos.xy, GDir) * 0.0025 - Time * 1.25);
+float G = GustStrength * lerp(0.55, 1.0, Front);
+float Flutter = sin(Time * Speed * 3.1 + Phase * 2.3);
+float2 Push = Dir * Sway * (1.0 + G * GustSway) + GDir * G * (GustBow + Flutter * GustFlutter);
+return float3(Push * Strength * VertexColor.r, 0.0);"""
 
 
 # A share of the plants (VariationAmount; 0 for all but an area's own instances) wear TintVariation instead of Tint: the
@@ -652,6 +674,13 @@ def build_foliage(orm_default):
         ('Direction', g.vector('WindDirection', (1.0, 0.35, 0.0, 0.0), -800, 1000), ''),
         ('Strength', g.scalar('WindStrength', 6.0, -800, 1100), ''),
         ('Speed', g.scalar('WindSpeed', 1.3, -800, 1200), ''),
+        ('GustStrength', wind_param(g, 'GustStrength', -800, 1300), ''),
+        ('GustDirection', wind_param(g, 'GustDirection', -800, 1400), ''),
+        ('WorldPos', g.node(unreal.MaterialExpressionWorldPosition, -800, 1500,
+                            world_position_shader_offset=unreal.WorldPositionIncludedOffsets.WPT_EXCLUDE_ALL_SHADER_OFFSETS), ''),
+        ('GustBow', g.scalar('GustBow', 1.6, -800, 1600), ''),
+        ('GustSway', g.scalar('GustSway', 1.5, -800, 1700), ''),
+        ('GustFlutter', g.scalar('GustFlutter', 0.8, -800, 1800), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -400, 900, 'Wind')
     g.out(wind, '', unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET)
     # Foliage is never Nanite (it has LODs instead), and the Nanite permutation of this material doesn't compile on SM6.
@@ -751,8 +780,40 @@ float SideLuma = dot(Side, float3(0.299, 0.587, 0.114));
 // (0 unless an area sets it) makes some bands darker and others redder, by a large noise read mostly by height.
 float B = (Band - 0.5) * 2.0 * SteepVariation;
 float3 Banding = (1.0 - 0.5 * max(-B, 0.0)) * lerp(float3(1.0, 1.0, 1.0), float3(1.1, 0.9, 0.78), max(B, 0.0));
-Color = lerp(Color, Macro * SteepTint * Banding * lerp(1.0, SideLuma / max(RockMean, 0.05), SteepDetail), Steep);
-return Color * lerp(1.0, Occlusion, DiffuseAO);"""
+float3 OldSteep = Macro * SteepTint * Banding * lerp(1.0, SideLuma / max(RockMean, 0.05), SteepDetail);
+// SteepRock (0 unless an area sets it; Ransom's Rest, 2026-10-14): the face is the cliff kit's own rock instead, so a
+// wall the kit leaves bare reads as the same sandstone as the pieces on it rather than dark mud: the side-laid rock
+// map's own colour in the area's cliff tint (SteepRockTint: the kit's MI Tint), keeping a little of the macro map's light and
+// dark (SteepMacroKeep, around SteepMacroMean, the macro's mean on its rock), in beds by height (SteepBeds: x a bed's
+// height in metres, y how much lighter or darker each is, z a soft parting's darkening, w its width as a share of the
+// bed), counted up the face from the side-laid V, so they bend with the rock map's own layers.
+float2 BedV = float2(SideUVX.y, SideUVY.y) / (max(RockScale, 0.01) * max(SteepBeds.x, 0.1));
+float2 BedI = floor(BedV);
+float2 BedT = BedV - BedI;
+float2 H0 = frac(sin(BedI * 12.9898 + 4.1) * 43758.5453);
+float2 H1 = frac(sin((BedI + 1.0) * 12.9898 + 4.1) * 43758.5453);
+float2 Bs = lerp(H0, H1, smoothstep(0.85, 1.0, BedT));
+float2 Parting = (1.0 - smoothstep(0.0, max(SteepBeds.w, 0.01), BedT)) * step(0.45, H0);
+float2 BedShade = (1.0 + (Bs - 0.5) * 2.0 * SteepBeds.y) * (1.0 - SteepBeds.z * Parting);
+float BedS = Bs.x * Facing.x + Bs.y * Facing.y;
+float3 Beds = (BedShade.x * Facing.x + BedShade.y * Facing.y) * (1.0 + (BedS - 0.5) * float3(0.06, 0.0, -0.06));
+float MacroVar = lerp(1.0, clamp(Lm / max(SteepMacroMean, 0.01), 0.7, 1.35), SteepMacroKeep);
+float3 KitSteep = Side * SteepRockTint * MacroVar * Banding * Beds;
+Color = lerp(Color, lerp(OldSteep, KitSteep, SteepRock), Steep);
+// SteepAOLift (0 unless an area sets it): a steep face's baked occlusion counts the sky its own angle hides, which the
+// sky light's shading already leaves out, so shaded walls went black; on the faces it's lifted toward 1 (the material's
+// ambient occlusion output takes the same lift).
+float Occ = lerp(Occlusion, 1.0, Steep * SteepAOLift);
+return Color * lerp(1.0, Occ, DiffuseAO);"""
+# The edge between the ground and a steep face (SteepEdge): the steepness from the vertex normals, sharpened (Sharp)
+# and moved by the side-laid rock's light and dark (Breakup) and by the macro map's alpha, painted from the true slope
+# (Pull), so the face's foot follows the rock's layers and the painted rock instead of the terrain's triangles (the
+# vertex normals made a saw-toothed foot under every bluff). Sharp 1, Breakup 0 and Pull 0 (the master's defaults) give
+# the steepness unchanged.
+STEEP_EDGE_CODE = """float2 Facing = pow(abs(normalize(Normal).xy), 4.0);
+Facing /= max(Facing.x + Facing.y, 1e-4);
+float H = saturate(dot(RockX * Facing.x + RockY * Facing.y, float3(0.299, 0.587, 0.114)) / max(RockTrue, 0.05) * 0.5);
+return saturate((Steep - 0.5) * Sharp + 0.5 + (H - 0.5) * Breakup + (Select - 0.5) * Pull);"""
 # The ground's detail normal: the layers' normals by the same weights, flattened under leaves and where it's damp (wet
 # soil is smooth), and the rock's where it's rock. The caller fades it on steep faces, as before.
 GROUND_NORMAL_CODE = GROUND_WEIGHTS + """float3 N = Wt.x * GrassN + Wt.y * ThatchN + Wt.z * StonyN;
@@ -803,13 +864,30 @@ return normalize(FromX * Facing.x + FromY * Facing.y);"""
 # The rock map laid on from one side (A: world X or Y, across the face) in world meters times Scale, its layers lifted
 # and dropped a little along the face (two long, low waves, and a slight lean), so they never run dead level for long.
 # StrataWarp (meters; 0 on the island) bends them further by the macro noise over StrataWave meters, so the layers
-# undulate, pinch and thicken instead of ruling a whole face.
+# undulate, pinch and thicken instead of ruling a whole face. StrataSmooth (a mip of the noise; 0 by default) and
+# StrataFlat (the share of its change up the face taken out; 0 by default) keep that bend long and low: from the noise's
+# finest mip, at twice its rate up the face, a 1.5 m bend turned the layers round the noise's blobs, and Ransom's Rest's
+# bare walls read as wood grain (2026-10-14).
 SIDE_UV_CODE = """float W = sin(A * 0.0011 + 1.3) * 0.14 + sin(A * 0.0037 + P.z * 0.0007) * 0.05 + A * 0.00002;
-float N = Texture2DSampleLevel(Noise, NoiseSampler, float2(A, P.z * 2.0) * 0.01 / max(Wave, 1.0), 0).r;
+float N = Texture2DSampleLevel(Noise, NoiseSampler, float2(A, P.z * 2.0 * (1.0 - Flat)) * 0.01 / max(Wave, 1.0),
+                               Smooth).r;
 W += (N - 0.5) * 2.0 * Warp * Scale;
 return float2(A * Scale * 0.01, -P.z * Scale * 0.01 + W);"""
 # How steep the ground is, from 0 (gentler than SteepStart degrees) to 1 (steeper than SteepFull).
 STEEP_CODE = 'return 1.0 - smoothstep(cos(radians(Full)), cos(radians(Start)), normalize(Normal).z);'
+# The steep faces' parameters as the master sets them (TERRAIN_CODE, STEEP_EDGE_CODE and SIDE_UV_CODE say what each
+# is); an area's instance may change any. Tools/Blender/ground_preview.py reads this table too (its walls), and takes
+# STEEP_ADDED at these values for the look before 2026-10-14.
+STEEP_DEFAULTS = {
+    'RockScale': 0.25, 'RockMeanLuma': 0.35, 'DiffuseAO': 0.45,
+    'SteepStart': 50.0, 'SteepFull': 65.0, 'SteepDetail': 0.75, 'SteepTint': (1.0, 1.0, 1.0),
+    'SteepVariation': 0.0, 'SteepNormalStrength': 0.0, 'SteepNormalGreen': 1.0,
+    'StrataWarp': 0.0, 'StrataWave': 45.0, 'StrataSmooth': 0.0, 'StrataFlat': 0.0,
+    'SteepRock': 0.0, 'SteepRockTint': (1.0, 1.0, 1.0), 'SteepMacroKeep': 0.0, 'SteepMacroMean': 0.125,
+    'SteepBeds': (1.7, 0.0, 0.0, 0.07), 'SteepAOLift': 0.0, 'SteepSharp': 1.0, 'SteepBreakup': 0.0, 'SteepPull': 0.0,
+}
+STEEP_ADDED = ('StrataSmooth', 'StrataFlat', 'SteepRock', 'SteepRockTint', 'SteepMacroKeep', 'SteepMacroMean',
+               'SteepBeds', 'SteepAOLift', 'SteepSharp', 'SteepBreakup', 'SteepPull')
 
 TEXTURES = 'C:/Dev/AI_Looter_Shooter/Art/Textures'
 # GroundGrass's and RockCliff's mean linear color and luma, measured from their color maps (2026-10-12): every terrain
@@ -884,6 +962,12 @@ def shared_wrap(sample):
     return sample
 
 
+def steep_vector(name):
+    """A vector of STEEP_DEFAULTS as a vector parameter's four numbers."""
+    value = tuple(float(v) for v in STEEP_DEFAULTS[name])
+    return value + (1.0,) * (4 - len(value))
+
+
 def build_terrain():
     mat = material('M_Terrain')
     g = Graph(mat)
@@ -891,7 +975,7 @@ def build_terrain():
     macro = g.texture('MacroMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, WHITE, macro_uv, -1400, -300)
     detail_coords = g.node(unreal.MaterialExpressionTextureCoordinate, -2000, 200, coordinate_index=1)
     grass_uv = g.mul(detail_coords, '', g.scalar('GrassScale', 0.5, -2000, 320), '', -1800, 200)
-    rock_scale = g.scalar('RockScale', 0.25, -2000, 520)
+    rock_scale = g.scalar('RockScale', STEEP_DEFAULTS['RockScale'], -2000, 520)
     rock_uv = g.mul(detail_coords, '', rock_scale, '', -1800, 450)
     grass = g.texture('GrassBaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, WHITE, grass_uv, -1400, 0)
     grass_n = g.texture('GrassNormalMap', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, FLAT_NORMAL, grass_uv, -1400, 250)
@@ -902,10 +986,13 @@ def build_terrain():
     vertex_normal = g.node(unreal.MaterialExpressionVertexNormalWS, -2400, 1500)
     noise = g.node(unreal.MaterialExpressionTextureObjectParameter, -2400, 1100, parameter_name='StrataNoise',
                    texture=import_mask(MACRO_NOISE_FILE, MACRO_NOISE))
-    warp, wave = g.scalar('StrataWarp', 0.0, -2400, 1000), g.scalar('StrataWave', 45.0, -2400, 900)
+    warp = g.scalar('StrataWarp', STEEP_DEFAULTS['StrataWarp'], -2400, 1000)
+    wave = g.scalar('StrataWave', STEEP_DEFAULTS['StrataWave'], -2400, 900)
+    smooth = g.scalar('StrataSmooth', STEEP_DEFAULTS['StrataSmooth'], -2600, 1000)
+    flat = g.scalar('StrataFlat', STEEP_DEFAULTS['StrataFlat'], -2600, 900)
     side_uvs = [g.custom(f'float A = {axis};\n' + SIDE_UV_CODE,
                          [('P', world, ''), ('Scale', rock_scale, ''), ('Noise', noise, ''), ('Warp', warp, ''),
-                          ('Wave', wave, '')],
+                          ('Wave', wave, ''), ('Smooth', smooth, ''), ('Flat', flat, '')],
                          unreal.CustomMaterialOutputType.CMOT_FLOAT2, -2000, y, f'Rock UV from the {name} side')
                 for axis, name, y in (('P.y', 'X', 1300), ('P.x', 'Y', 1450))]
     # The bands' darkness: the macro noise over about 120 m along the ground and 25 m up, so it changes layer to layer.
@@ -914,11 +1001,21 @@ def build_terrain():
                     unreal.CustomMaterialOutputType.CMOT_FLOAT1, -2000, 1600, 'Band darkness noise')
     rock_x = g.texture('RockBaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, WHITE, side_uvs[0], -1400, 1300)
     rock_y = g.texture('RockBaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, WHITE, side_uvs[1], -1400, 1550)
-    steep = g.custom(STEEP_CODE, [
+    steep_raw = g.custom(STEEP_CODE, [
         ('Normal', vertex_normal, ''),
-        ('Start', g.scalar('SteepStart', 50.0, -2000, 1650), ''),
-        ('Full', g.scalar('SteepFull', 65.0, -2000, 1750), ''),
+        ('Start', g.scalar('SteepStart', STEEP_DEFAULTS['SteepStart'], -2000, 1650), ''),
+        ('Full', g.scalar('SteepFull', STEEP_DEFAULTS['SteepFull'], -2000, 1750), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -1400, 1800, 'Steepness')
+    # The face's edge (STEEP_EDGE_CODE): what every steep blend below uses; with the master's defaults it is the
+    # steepness unchanged.
+    rock_true = sparam(g, 'Ground', 'RockTrueLuma', ROCK_TRUE_LUMA, -1300, -940)
+    steep = g.custom(STEEP_EDGE_CODE, [
+        ('Steep', steep_raw, ''), ('Normal', vertex_normal, ''), ('RockX', rock_x, 'RGB'), ('RockY', rock_y, 'RGB'),
+        ('RockTrue', rock_true, ''), ('Select', macro, 'A'),
+        ('Sharp', g.scalar('SteepSharp', STEEP_DEFAULTS['SteepSharp'], -1700, 1950), ''),
+        ('Breakup', g.scalar('SteepBreakup', STEEP_DEFAULTS['SteepBreakup'], -1700, 2000), ''),
+        ('Pull', g.scalar('SteepPull', STEEP_DEFAULTS['SteepPull'], -1700, 2050), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -1200, 1850, 'Steep face edge')
     vc = g.node(unreal.MaterialExpressionVertexColor, -1400, 1000)
     # The ground layers (GROUND_WEIGHTS): GroundNoise over GroundNoiseTile meters, the thatch and the stony ground on
     # UV 1 at their own repeats, slid apart by the noise's drift. They're the master's own textures (no instance sets
@@ -949,7 +1046,8 @@ def build_terrain():
                                     ground_texture('GroundStony', 'N'), layer_uvs['Stony'], -2000, -400))
     # The Ground group's parameters: GROUND_DEFAULTS says what each number is.
     grass_mean = g.scalar('GrassMeanLuma', 0.3, -1000, 900)
-    rock_mean = g.scalar('RockMeanLuma', 0.35, -1000, 1000)
+    rock_mean = g.scalar('RockMeanLuma', STEEP_DEFAULTS['RockMeanLuma'], -1000, 1000)
+    ao_lift = g.scalar('SteepAOLift', STEEP_DEFAULTS['SteepAOLift'], -1000, 1850)
     weights = [
         ('Macro', macro, 'RGB'), ('Select', macro, 'A'), ('Noise', ground_noise, 'RGBA'), ('Occlusion', vc, 'A'),
         ('Depth', g.node(unreal.MaterialExpressionPixelDepth, -1300, -1100), ''),
@@ -964,15 +1062,24 @@ def build_terrain():
     color = g.custom(TERRAIN_CODE, weights + [
         ('Rock', rock, 'RGB'), ('GrassMean', grass_mean, ''), ('RockMean', rock_mean, ''),
         ('Strength', g.scalar('DetailStrength', 0.6, -1000, 1100), ''),
-        ('RockTrue', sparam(g, ground, 'RockTrueLuma', ROCK_TRUE_LUMA, -1300, -940), ''),
+        ('RockTrue', rock_true, ''),
         ('ThatchStats', svector(g, ground, 'ThatchStats', layer_stats('GroundThatch'), -1300, -880), 'RGBA'),
         ('Layers', svector(g, ground, 'GroundLayers', GROUND_DEFAULTS['GroundLayers'], -1300, -820), 'RGBA'),
         ('LeafTint', svector(g, ground, 'LeafTint', GROUND_DEFAULTS['LeafTint'], -1300, -760), ''),
-        ('DiffuseAO', g.scalar('DiffuseAO', 0.45, -1000, 1200), ''),
+        ('DiffuseAO', g.scalar('DiffuseAO', STEEP_DEFAULTS['DiffuseAO'], -1000, 1200), ''),
         ('RockX', rock_x, 'RGB'), ('RockY', rock_y, 'RGB'), ('Normal', vertex_normal, ''), ('Steep', steep, ''),
-        ('SteepDetail', g.scalar('SteepDetail', 0.75, -1000, 1300), ''),
-        ('SteepTint', g.vector('SteepTint', (1.0, 1.0, 1.0, 1.0), -1000, 1400), ''),
-        ('Band', band, ''), ('SteepVariation', g.scalar('SteepVariation', 0.0, -1000, 1500), ''),
+        ('SteepDetail', g.scalar('SteepDetail', STEEP_DEFAULTS['SteepDetail'], -1000, 1300), ''),
+        ('SteepTint', g.vector('SteepTint', steep_vector('SteepTint'), -1000, 1400), ''),
+        ('Band', band, ''),
+        ('SteepVariation', g.scalar('SteepVariation', STEEP_DEFAULTS['SteepVariation'], -1000, 1500), ''),
+        # The cliff kit's rock on steep faces (SteepRock; TERRAIN_CODE says what each is), off by default.
+        ('SideUVX', side_uvs[0], ''), ('SideUVY', side_uvs[1], ''), ('RockScale', rock_scale, ''),
+        ('SteepRock', g.scalar('SteepRock', STEEP_DEFAULTS['SteepRock'], -1000, 1600), ''),
+        ('SteepRockTint', g.vector('SteepRockTint', steep_vector('SteepRockTint'), -1000, 1650), ''),
+        ('SteepMacroKeep', g.scalar('SteepMacroKeep', STEEP_DEFAULTS['SteepMacroKeep'], -1000, 1700), ''),
+        ('SteepMacroMean', g.scalar('SteepMacroMean', STEEP_DEFAULTS['SteepMacroMean'], -1000, 1750), ''),
+        ('SteepBeds', g.vector('SteepBeds', steep_vector('SteepBeds'), -1000, 1800), 'RGBA'),
+        ('SteepAOLift', ao_lift, ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -600, 0, 'TerrainColor')
     # Sunbleached (its switch, off by default): the ground graded toward sun-baked sand and shaded lavender, and its
     # light as emissive: the sheen toward the sun and the glitter, a faint rim, bounce and glow.
@@ -996,7 +1103,7 @@ def build_terrain():
     rock_ny = g.texture('RockNormalMap', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, FLAT_NORMAL, side_uvs[1], -1400, 2150)
     side_world = g.custom(SIDE_NORMAL_CODE, [
         ('NX', rock_nx, 'RGB'), ('NY', rock_ny, 'RGB'), ('Normal', vertex_normal, ''),
-        ('Green', g.scalar('SteepNormalGreen', 1.0, -1000, 2300), ''),
+        ('Green', g.scalar('SteepNormalGreen', STEEP_DEFAULTS['SteepNormalGreen'], -1000, 2300), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -1000, 2000, 'Side-laid rock normal (world)')
     side_tangent = g.node(unreal.MaterialExpressionTransform, -700, 2000,
                           transform_source_type=unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_WORLD,
@@ -1006,13 +1113,18 @@ def build_terrain():
     g.link(flatten, '', relief, 'A')
     g.link(side_tangent, '', relief, 'B')
     g.link(g.custom('return Steep * Strength;', [
-        ('Steep', steep, ''), ('Strength', g.scalar('SteepNormalStrength', 0.0, -700, 2200), ''),
+        ('Steep', steep, ''),
+        ('Strength', g.scalar('SteepNormalStrength', STEEP_DEFAULTS['SteepNormalStrength'], -700, 2200), ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -700, 2300, 'Steep relief'), '', relief, 'Alpha')
     g.out(relief, '', unreal.MaterialProperty.MP_NORMAL)
     rough = g.custom(GROUND_ROUGHNESS_CODE, weights + [('Steep', steep, '')],
                      unreal.CustomMaterialOutputType.CMOT_FLOAT1, -900, 950, 'Ground roughness')
     g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
-    g.out(vc, 'A', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
+    # The baked occlusion, lifted on steep faces by SteepAOLift as TERRAIN_CODE lifts it (0 by default: unchanged).
+    ambient = g.custom('return lerp(Occlusion, 1.0, Steep * Lift);', [
+        ('Occlusion', vc, 'A'), ('Steep', steep, ''), ('Lift', ao_lift, ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -600, 1100, 'Ambient occlusion')
+    g.out(ambient, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
     finish(mat, [unreal.MaterialUsage.MATUSAGE_NANITE])
     return mat
 
@@ -1371,17 +1483,38 @@ def build_waterfall():
                   [('Opacity', lambda g: g.scalar('Opacity', 0.85, -900, 500))])
 
 
+# A gust leans a plume downwind, more the higher up it (MPC_Wind; the object's height rather than UV.y, whose direction on
+# the cards is ambiguous). The dust devils share M_Smoke and lean too.
+SMOKE_LEAN = """float H = saturate((WorldPos.z - ObjectPos.z) / max(Height, 1.0));
+float2 GDir = normalize(GustDirection.xy + float2(0.0001, 0.0));
+float Bend = GustStrength * GustLean * H * H;
+return float3(GDir * Bend, -Bend * 0.25);"""
+
+
 def build_smoke():
     """M_Smoke: soft chimney smoke drifting up its cards. A light grey rather than white, and fainter: against a deep
     afternoon sky a white plume over 1 read as bright streaks, not smoke. Unlit, so it follows the clouds' lighting tint
-    (MPC_Lighting's CloudTint, white by day) and dims at dusk with them."""
-    return effect('M_Smoke',
+    (MPC_Lighting's CloudTint, white by day) and dims at dusk with them; a gust leans it (SMOKE_LEAN)."""
+    mat = effect('M_Smoke',
                   [('Speed', lambda g: g.scalar('Speed', 0.12, -900, 200))],
                   'return SmokeColor * CloudTint;',
                   [('SmokeColor', lambda g: g.vector('SmokeColor', (0.78, 0.79, 0.82, 1.0), -900, 300)),
                    ('CloudTint', lambda g: lighting_tint(g, 'CloudTint', -900, 500))],
                   SMOKE_OPACITY,
                   [('Opacity', lambda g: g.scalar('Opacity', 0.28, -900, 400))])
+    g = Graph(mat)
+    lean = g.custom(SMOKE_LEAN, [
+        ('WorldPos', g.node(unreal.MaterialExpressionWorldPosition, -900, 700,
+                            world_position_shader_offset=unreal.WorldPositionIncludedOffsets.WPT_EXCLUDE_ALL_SHADER_OFFSETS), ''),
+        ('ObjectPos', g.node(unreal.MaterialExpressionObjectPositionWS, -900, 800), ''),
+        ('GustStrength', wind_param(g, 'GustStrength', -900, 900), ''),
+        ('GustDirection', wind_param(g, 'GustDirection', -900, 1000), ''),
+        ('Height', g.scalar('PlumeHeight', 800.0, -900, 1100), ''),
+        ('GustLean', g.scalar('GustLean', 250.0, -900, 1200), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -400, 800, 'Gust lean')
+    g.out(lean, '', unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET)
+    finish(mat, [])
+    return mat
 
 
 # The Gravewind's cards (Art/Models/Props/Gravewind.py): UV1 in meters (X across, Y along: root to tail, bottom to top),
