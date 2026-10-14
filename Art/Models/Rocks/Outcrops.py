@@ -2,27 +2,36 @@
 cliff kit's layered rock (RockCliff, moss on up-facing rock). A scripted model (see Art/README.md); built as solids with
 Tools/Blender/looter_outcrops.py.
 
-  piece            use (Docs/Areas/RansomsRest.md)
-  Outcrop_TorA     squat and blocky, 4.5 m: the Rimrock, the Keeper's Gate's south rock, ridge feet; at 0.65 the
-                   bluff-top rocks (3 m)
-  Outcrop_TorB     tall and split, 9.8 m: the Keeper's Gate's north rock (at 0.7), Hearse Rock's head
-  Outcrop_TorC     a leaning stack, 7 m: the Rimrock, Hearse Rock, ridge feet
-  Outcrop_TorD     a broken slab pile, 4.6 m: slabs tipped like books against a stub: the Rimrock's gaps, the Tumble
-  Outcrop_Spine    a 12 m rock spine, 5.8 m high: the Rimrock (one per piece), Hearse Rock, ridge feet
-  Outcrop_Slab     a leaning slab, 7.5 m, 14 degrees off upright: the Three Widows (three, turned)
-  Outcrop_Fin      a rock fin, 9 m, its crest stepping down to one end: the Stone Teeth (a row, turned and scaled)
+  piece            use (Docs/Areas/RansomsRest.md; level.cliffs.outcrops gives a knob another piece)
+  Outcrop_TorA     a rounded tor, 4.6 m: three worn pillows of the beds, undercut: the Rimrock, the bench; at 0.65
+                   the bluff top's 3 m cover rocks
+  Outcrop_TorB     a split tor, 9.8 m: two pillars, one cleft, a cap rock: the Keeper's Gate's north rock (at 0.7),
+                   Hearse Rock's head, the bench
+  Outcrop_TorC     a leaning stack, 7 m, its top overhanging: the bench
+  Outcrop_TorD     a split tor, 4.6 m: a block broken along one joint, its outer half slumped away: the Keeper's Gate's
+                   south rock, the Rimrock's north rock, the bench's cover
+  Outcrop_Spine    a 12 m whaleback, 5.8 m high, its crest rising and falling: the Rimrock, Hearse Rock, the bench
+  Outcrop_Slab     a leaning monolith, 7.5 m, 14 degrees off upright: the Three Widows (three, turned), the bench
+  Outcrop_Fin      a rock fin, 9 m, its crest stepping down to both ends: a Stone Tooth
+  Outcrop_FinB     a thicker fin, 7.6 m, two summits and a window: a Stone Tooth
+  Outcrop_HoodooA  a hoodoo, 8.4 m, under a cap rock: a Stone Tooth, the bench
+  Outcrop_HoodooB  twin hoodoos, 6.2 m, each capped: a Stone Tooth, the bench
   DenRock          the dome on the Sink's east rim, its face the Sink's wall with the den at its foot (see den_rock)
   FarRock_A..D     low-poly rocks (about 170 triangles) for the ridges past the boundary
 
-Rocks are horizontal beds (thick massive beds and thin soft partings, the cliff kit's) split by vertical joints into
-columns that stand out or back through every bed, worn round at the edges, more on top; tops step and break. Each kit
-piece is finished on all sides, so any turn works, and reaches 0.9 m below its pivot (on the ground, in the middle of
-the footprint) to seat on a slope. Nanite sources of 7-11k triangles with a Fallback bringing each to 2-3k. Collision:
-convex column hulls whose sides bridge the beds' ledges, so the only faces a player could stand on are the tops, out of
-reach (a jump reaches about 1 m); fallen blocks big enough to matter get a hull of their own.
+The kit (reworked 2026-10-14, the cliff review: the first kit's prisms between straight joints read as stacked boxes
+with regular slits, its slab pile as dominoes; look sheet 45) is weathered sandstone: rounded bodies of the beds (Body:
+a column or a fin, its girth set by height, its crest along it; Loaf: a pillow of rock) fused into one mass, the soft
+beds washed back into undercuts and necks (partings), caps of harder rock, a few clefts, wind hollows (tafoni) and rain
+flutes, rounded blocks fallen at the foot. Den Rock keeps the first kit's beds and columns (and its own outside, fused).
+Each kit piece is finished on all sides, so any turn works, and reaches 0.9 m below its pivot (on the ground, in the
+middle of the footprint) to seat on a slope. Nanite sources of 7-11k triangles with a Fallback bringing each to 2-3k.
+Collision: convex column hulls round each mass, so the only faces a player could stand on are the tops, out of reach
+(a jump reaches about 1 m; the lowest is TorD's at 2.3 m); fallen blocks big enough to matter get a hull of their own.
 
 Args after '--' naming builders (TorA, Spine, DenRock, FarRocks, ...) build only those, for quick looks.
 """
+import json
 import math
 import os
 import random
@@ -37,42 +46,10 @@ SINK = 0.9
 ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 
 
-# --- Building blocks of a layered rock ---
-
-def joints(rnd, angle, spacing, extent, wander=4.0, start=0.7):
-    """A set of parallel vertical joints across a plan of half size `extent`: (normal, offset) pairs."""
-    lines = []
-    c = -extent + rnd.uniform(*spacing) * start
-    while c < extent - 0.6:
-        a = math.radians(angle + rnd.uniform(-wander, wander))
-        lines.append(((math.cos(a), math.sin(a)), c))
-        c += rnd.uniform(*spacing)
-    return lines
-
+# --- Helpers (Den Rock's too) ---
 
 def centroid(poly):
     return sum(p[0] for p in poly) / len(poly), sum(p[1] for p in poly) / len(poly)
-
-
-class Columns:
-    """The columns between a rock's joints: each keeps its own standing-out (or back), top step and lean through every
-    bed it crosses, as the cliff kit's columns do."""
-
-    def __init__(self, rnd, lines, stand=0.3, step=(0.0, 0.0)):
-        self.rnd, self.lines, self.stand, self.step = rnd, lines, stand, step
-        self.table = {}
-
-    def get(self, poly):
-        cx, cy = centroid(poly)
-        key = tuple(n[0] * cx + n[1] * cy > c for n, c in self.lines)
-        if key not in self.table:
-            rnd = self.rnd
-            roll = rnd.random()
-            out = (rnd.uniform(-self.stand, -self.stand * 0.4) if roll < 0.3 else
-                   rnd.uniform(self.stand * 0.3, self.stand) if roll < 0.55 else rnd.uniform(-0.25, 0.25) * self.stand)
-            self.table[key] = dict(out=out, step=rnd.uniform(*self.step),
-                                   tilt=(rnd.uniform(-2.5, 2.5), rnd.uniform(-2.5, 2.5)))
-        return self.table[key]
 
 
 def min_width(poly):
@@ -97,61 +74,6 @@ def facets(rnd, count, height):
     return out
 
 
-def on_line(a, b, lines, tolerance=1e-4):
-    """True when the side a-b lies on one of the lines (n, c): n . p = c."""
-    for n, c in lines:
-        if abs(n[0] * a[0] + n[1] * a[1] - c) < tolerance and abs(n[0] * b[0] + n[1] * b[1] - c) < tolerance:
-            return True
-    return False
-
-
-def bed(rock, rnd, plan, z0, z1, columns, cuts=(), gap=0.18, top=(0.0, 0.0), drop=0.0, chamfers=0.5, r_side=0.1,
-        r_top=0.3, r_bottom=0.08, taper=0.0, blend=0.22, overlap=0.2, tilt=1.0, keep=None, skip=(), step=False,
-        shave=(0, 1, 1, 2, 2, 3), narrow=0.8, fixed=(), lean=(0.0, 0.0)):
-    """One bed of a stack: its plan cut into blocks by the joints in cuts (open by gap; a joint that would leave a
-    sliver narrower than `narrow` dies out there instead). Each block's outer sides move out or back with its column
-    (its joint sides, and sides on the `fixed` lines (n, c), stay put, so joints keep their width); its top is raised
-    or lowered within top (plus its column's step: only ever for the top bed, step=True, so nothing is left hanging);
-    a few facets shave its faces (counts drawn from shave); drop is the chance a block has fallen out. Blocks reach
-    overlap down into the bed below and lean with their column (tilt scales it) plus lean (degrees about X, Y), so
-    beds fuse; partings go inside beds (rock.parting), never at their boundaries. Returns the blocks."""
-    cells = [lo.ccw(plan)]
-    lines = list(fixed)
-    for n, c in cuts:
-        parts = []
-        for poly in cells:
-            pieces = lo.split(poly, n, c, gap)
-            good = [p for p in pieces if len(p) >= 3 and abs(lo.area2d(p)) > 0.3 and min_width(p) > narrow]
-            empty = [p for p in pieces if len(p) < 3 or abs(lo.area2d(p)) < 1e-3]
-            if len(good) == 2 or (len(good) == 1 and len(empty) == 1):
-                parts.extend(lo.ccw(p) for p in good)
-            else:
-                parts.append(poly)
-        cells = parts
-        lines += [(n, c - gap * 0.5), ((-n[0], -n[1]), -c - gap * 0.5)]
-    blocks = []
-    for i, poly in enumerate(cells):
-        if i in skip or (keep is not None and i not in keep) or (keep is None and rnd.random() < drop):
-            continue
-        column = columns.get(poly)
-        out = column['out'] + rnd.uniform(-0.06, 0.06)
-        moves = [0.0 if on_line(a, b, lines) else out for a, b in zip(poly, poly[1:] + poly[:1])]
-        poly = lo.chamfer(lo.offset_edges(poly, moves), rnd, chamfers, (0.1, 0.4))
-        if len(poly) < 3 or abs(lo.area2d(poly)) < 0.2:
-            continue
-        cx, cy = centroid(poly)
-        local = [(x - cx, y - cy) for x, y in poly]
-        tip = (column['tilt'][0] * tilt + rnd.uniform(-0.8, 0.8) + lean[0],
-               column['tilt'][1] * tilt + rnd.uniform(-0.8, 0.8) + lean[1])
-        bottom = z0 - (overlap if z0 > -rock.sink + 0.05 else 0.0)
-        height_top = z1 + (column['step'] if step else 0.0) + rnd.uniform(*top)
-        cut = facets(rnd, rnd.choice(shave), height_top - bottom)
-        blocks.append(rock.add(lo.Block(local, bottom, height_top, center=(cx, cy), tilt=tip, r_side=r_side,
-                                        r_top=r_top * rnd.uniform(0.75, 1.25), r_bottom=r_bottom, taper=taper,
-                                        blend=blend, facets=cut)))
-    return blocks
-
-
 def foot(rock, x, y, angle, z=0.35, reach=14.0):
     """How far from (x, y) along angle (degrees) the rock's outer side stands at height z (0 if there is none): found
     coming in from outside, so an open joint at (x, y) doesn't stop it."""
@@ -166,24 +88,6 @@ def corners(block):
     """A block's corner points in the rock's space (for a hull of its own)."""
     h = block.z1 - block.z0
     return np.array([(px, py, pz) for px, py in block.poly for pz in (0.0, h)]) @ block.matrix.T + block.origin
-
-
-def talus(rock, rnd, spots, center=(0.0, 0.0)):
-    """Blocks fallen at the foot: (angle, size) each, leaning on the side, half buried, tipped. Returns the big ones'
-    hull points (the player steps over the small ones)."""
-    hulls = []
-    for angle, size in spots:
-        r = foot(rock, center[0], center[1], angle)
-        a = math.radians(angle)
-        x, y = center[0] + (r + size * 0.18) * math.cos(a), center[1] + (r + size * 0.18) * math.sin(a)
-        poly = lo.chamfer(lo.rect(size * 0.5, size * rnd.uniform(0.36, 0.46)), rnd, 0.8, (0.06, size * 0.2))
-        h = size * rnd.uniform(0.55, 0.75)
-        block = rock.add(lo.Block(poly, -h * 0.4, h * 0.6, center=(x, y), yaw=rnd.uniform(0.0, 360.0),
-                                  tilt=(rnd.uniform(-25.0, 25.0), rnd.uniform(-25.0, 25.0)), r_side=size * 0.12,
-                                  r_top=size * 0.16, r_bottom=size * 0.08, blend=0.1))
-        if size >= 0.9:
-            hulls.append(corners(block))
-    return hulls
 
 
 def chip(rock, rnd, center, angle, z, size):
@@ -225,227 +129,438 @@ def frames_of(blocks, rnd):
     return frames
 
 
+# --- Weathered forms (the kit since the cliff review, 2026-10-14) ---
+#
+# The first kit (2026-10-02) stacked the beds as prisms cut by straight joints, so its tors read as stacked boxes with
+# regular vertical slits, and its slab pile as dominoes (the user's look sheet 3; the cliff review's K_ views). Sandstone
+# out in the weather wears round instead: its hard beds stand out as rounded ledges and caps, its soft beds wash back
+# into undercuts and necks, joints open into a few deep clefts rather than a grid, and wind scoops hollows (tafoni) in
+# the soft faces. So the kit is now built from rounded bodies: Body (a column of the beds, its girth set by height: necks,
+# bulges, caps; or a fin, its crest set along it) and Loaf (a pillow of rock), fused (lo.Rock's smooth union), with the
+# soft beds as deep partings and the hollows as Loaf cuts.
+
+class Body:
+    """A rounded column of the beds, seen from every side: a plan ellipse of radii rx, ry, sized up its height by profile
+    [(z, scale), ...] (smoothed over smooth metres: necks, bulges, a flared foot), its middle drifting by drift
+    [(z, dx, dy), ...] (a lean), its outline wandering by lobes [(count, amp, phase, twist), ...] (a lobe's phase turns by
+    twist radians a metre up), flat-bottomed at z0 and topped at z1 (or along its length by crest [(x, z), ...], a fin's)
+    with the top rounded over r_top. In its own frame turned by yaw and tilt (degrees, about the point (center, z0)). A
+    lo.Rock block: lo, hi, blend, matrix, origin, dist."""
+
+    def __init__(self, rx, ry, z0, z1, profile, center=(0.0, 0.0), yaw=0.0, tilt=(0.0, 0.0), drift=(), lobes=(),
+                 crest=None, r_top=0.45, r_bottom=0.1, blend=0.35, smooth=0.35):
+        self.rx, self.ry, self.z0, self.z1 = float(rx), float(ry), float(z0), float(z1)
+        top = max(z1, max(z for _, z in crest)) if crest else z1
+        self.zs = np.linspace(z0 - 1.0, top + 1.0, 400)
+        step = self.zs[1] - self.zs[0]
+        k = max(1, int(round(smooth / step)))
+
+        def table(knots, column):
+            values = np.interp(self.zs, [p[0] for p in knots], [p[column] for p in knots])
+            padded = np.pad(values, k, mode='edge')
+            return np.convolve(padded, np.ones(2 * k + 1) / (2 * k + 1), mode='valid')
+        self.s = table(profile, 1)
+        self.ds = np.gradient(self.s, self.zs)
+        drift = list(drift) or [(z0, 0.0, 0.0)]
+        self.dx, self.dy = table(drift, 1), table(drift, 2)
+        self.lobes = [tuple(map(float, lobe)) for lobe in lobes]
+        if crest:
+            xs = np.linspace(crest[0][0], crest[-1][0], 200)
+            tops = np.interp(xs, [c[0] for c in crest], [c[1] for c in crest])
+            kc = 4
+            tops = np.convolve(np.pad(tops, kc, mode='edge'), np.ones(2 * kc + 1) / (2 * kc + 1), mode='valid')
+            self.crest = (xs, tops)
+        else:
+            self.crest = None
+        self.r_top, self.r_bottom, self.blend = r_top, r_bottom, blend
+        self.origin = np.array([center[0], center[1], z0], np.float64)
+        self.matrix = lo.rotation(yaw, tilt)
+        reach = float(self.s.max()) * (1.0 + sum(abs(a) for _, a, _, _ in self.lobes))
+        ex = self.rx * reach + float(np.abs(self.dx).max())
+        ey = self.ry * reach + float(np.abs(self.dy).max())
+        local = np.array([(x, y, z) for x in (-ex, ex) for y in (-ey, ey) for z in (-0.2, top - z0 + 0.2)])
+        world = local @ self.matrix.T + self.origin
+        margin = max(r_top, r_bottom, blend) + 0.35
+        self.lo = world.min(axis=0) - margin
+        self.hi = world.max(axis=0) + margin
+
+    def dist(self, P):
+        L = (P - self.origin) @ self.matrix
+        z = L[:, 2] + self.z0
+        s = np.interp(z, self.zs, self.s)
+        ds = np.interp(z, self.zs, self.ds)
+        x = L[:, 0] - np.interp(z, self.zs, self.dx)
+        y = L[:, 1] - np.interp(z, self.zs, self.dy)
+        u, v = x / self.rx, y / self.ry
+        rho = np.sqrt(u * u + v * v)
+        theta = np.arctan2(v, u)
+        lobe = np.ones_like(rho)
+        for count, amp, phase, twist in self.lobes:
+            lobe = lobe + amp * np.cos(count * theta + phase + twist * z)
+        m = min(self.rx, self.ry)
+        # Metres across its short axis, the girth's change up the height taken out (an underestimate elsewhere).
+        side = (rho - s * lobe) * m / np.sqrt(1.0 + (m * ds) ** 2)
+        top = self.z1 if self.crest is None else np.interp(L[:, 0], *self.crest)
+        d = lo.smax(side, z - top, self.r_top)
+        return lo.smax(d, self.z0 - z, self.r_bottom)
+
+
+class Loaf:
+    """A pillow of rock: a superellipsoid of half sizes a, b, c (exponent n: 2 an ellipsoid, 4 a rounded box) about
+    center, turned by yaw and tilt. A lo.Rock block (or a cut: a hollow)."""
+
+    def __init__(self, a, b, c, center=(0.0, 0.0, 0.0), yaw=0.0, tilt=(0.0, 0.0), n=3.0, blend=0.3):
+        self.a, self.b, self.c, self.n = float(a), float(b), float(c), float(n)
+        self.origin = np.array(center, np.float64)
+        self.matrix = lo.rotation(yaw, tilt)
+        self.blend = blend
+        local = np.array([(x, y, z) for x in (-a, a) for y in (-b, b) for z in (-c, c)])
+        world = local @ self.matrix.T + self.origin
+        margin = blend + 0.35
+        self.lo = world.min(axis=0) - margin
+        self.hi = world.max(axis=0) + margin
+        # For corners() and hulls: the box it fills, in its frame (z from its bottom).
+        self.poly = lo.rect(a, b)
+        self.z0, self.z1 = -c, c
+
+    def dist(self, P):
+        L = (P - self.origin) @ self.matrix
+        q = (np.abs(L[:, 0] / self.a) ** self.n + np.abs(L[:, 1] / self.b) ** self.n
+             + np.abs(L[:, 2] / self.c) ** self.n) ** (1.0 / self.n)
+        return (q - 1.0) * min(self.a, self.b, self.c)
+
+
+def loaf_corners(loaf, shrink=0.85):
+    """A loaf's box corners in the rock's space, a little in (for a hull of its own)."""
+    a, b, c = loaf.a * shrink, loaf.b * shrink, loaf.c * shrink
+    local = np.array([(x, y, z) for x in (-a, a) for y in (-b, b) for z in (-c, c)])
+    return local @ loaf.matrix.T + loaf.origin
+
+
+def weathered(seed, sink=SINK, **extra):
+    """The kit's solid: lo.Rock with sandstone's weathering (lumps, rain runnels, a gentle warp so no outline is
+    drawn with a compass)."""
+    options = dict(lumps=(0.26, 2.6), detail=(0.065, 1.0), grain=(0.024, 0.42), rain=0.05, warp=(0.35, 4.5), fold=0.12)
+    options.update(extra)
+    return lo.Rock(seed=seed, sink=sink, **options)
+
+
+def boulders(rock, rnd, spots, center=(0.0, 0.0), z=0.0):
+    """Rounded blocks fallen at the foot: (angle, distance past the rock's side, size) each, half buried and tipped.
+    Returns the big ones' hull points (the player steps over the small ones)."""
+    hulls = []
+    for angle, out, size in spots:
+        r = foot(rock, center[0], center[1], angle, z + 0.3)
+        a = math.radians(angle)
+        x, y = center[0] + (r + out + size * 0.3) * math.cos(a), center[1] + (r + out + size * 0.3) * math.sin(a)
+        loaf = Loaf(size * 0.55, size * rnd.uniform(0.38, 0.48), size * rnd.uniform(0.3, 0.38),
+                    center=(x, y, z + size * 0.08), yaw=rnd.uniform(0.0, 180.0),
+                    tilt=(rnd.uniform(-18.0, 18.0), rnd.uniform(-18.0, 18.0)), n=rnd.uniform(2.4, 3.2), blend=0.12)
+        rock.add(loaf)
+        if size >= 0.9:
+            hulls.append(loaf_corners(loaf))
+    return hulls
+
+
+def hollow(rock, rnd, center, angle, z, size, depth=0.5):
+    """A tafoni hollow: a rounded scoop size across (metres) into the side facing angle (degrees) at height z, depth
+    into it, its roof overhanging (the soft rock under a hard bed goes first)."""
+    r = foot(rock, center[0], center[1], angle, z)
+    if r < 0.3:
+        lo.log(f'hollow at {angle} degrees, {z} m: no rock there')
+        return
+    a = math.radians(angle)
+    x, y = center[0] + (r + depth * 0.2) * math.cos(a), center[1] + (r + depth * 0.2) * math.sin(a)
+    rock.cut(Loaf(size * 0.5, depth, size * rnd.uniform(0.3, 0.4), center=(x, y, z), yaw=angle + 90.0,
+                  tilt=(rnd.uniform(-8.0, 8.0), 0.0), n=2.3, blend=0.12))
+
+
+def lobes(rnd, count=3):
+    """A body's outline wandering: a few lobes of their own phase and twist."""
+    return [(k, rnd.uniform(0.03, 0.07), rnd.uniform(0.0, 6.28), rnd.uniform(-0.25, 0.25))
+            for k in range(2, 2 + count)]
+
+
 # --- The kit ---
 
 def tor_a():
-    """Squat and blocky, 4.6 m: a wide base bed, a middle bed set in, a thin soft bed and a cap broken into blocks of
-    different heights, one of them fallen to the foot."""
-    rnd = random.Random(4101)
-    rock = lo.Rock(seed=4101, sink=SINK, lumps=(0.22, 3.2), detail=(0.07, 1.1))
-    plan = lo.chamfer(lo.rect(3.8, 3.05), rnd, 0.9, (0.5, 1.3))
-    set_a = joints(rnd, 16.0, (1.6, 3.0), 3.8)
-    set_b = joints(rnd, 104.0, (1.9, 3.2), 3.2)
-    columns = Columns(rnd, set_a + set_b, stand=0.4, step=(-0.6, 0.25))
-    bed(rock, rnd, plan, -SINK, 1.55, columns, cuts=set_a[1:3] + set_b[:1], top=(0.0, 0.35), taper=0.03, tilt=0.3,
-        r_top=0.24)
-    middle = lo.offset(lo.transform2d(plan, 4.0, (0.4, -0.25)), -0.2)
-    bed(rock, rnd, middle, 1.55, 2.95, columns, cuts=set_a + set_b[:1], top=(0.0, 0.2), taper=-0.03)
-    rock.parting(1.95, depth=0.3, width=0.12)
-    thin = lo.offset(lo.transform2d(plan, 2.0, (0.15, 0.0)), -0.6)
-    bed(rock, rnd, thin, 2.95, 3.38, columns, cuts=set_a + set_b, r_top=0.12, r_bottom=0.08, blend=0.15, tilt=0.5,
-        overlap=0.12)
-    cap = lo.offset(lo.transform2d(plan, -3.0, (-0.3, 0.3)), -0.45)
-    bed(rock, rnd, cap, 3.38, 4.45, columns, cuts=set_a + set_b, top=(-0.15, 0.15), drop=0.15, r_top=0.26,
-        taper=-0.05, tilt=1.6, overlap=0.12, step=True)
-    chip(rock, rnd, (0.0, 0.0), 300.0, 4.1, 0.9)
-    chip(rock, rnd, (0.0, 0.0), 75.0, 2.7, 0.8)
-    face_crack(rock, (0.0, 0.0), 250.0, 1.0, 38.0, length=2.6)
-    face_crack(rock, (0.0, 0.0), 20.0, 2.3, -48.0, length=2.2)
-    extra = talus(rock, rnd, [(205.0, 1.4), (226.0, 0.6), (38.0, 0.8)])
-    obj = lo.build('Outcrop_TorA', rock, cell=0.07, source=9000, fallback=30, uv_seed=11)
-    lo.column_hulls(obj, [(-1.9, -1.2), (1.6, -1.4), (-1.4, 1.5), (1.9, 1.3)], extra=extra)
+    """A rounded tor, 4.6 m: three pillows of the beds, each set back and turned on the one below, worn round; the soft
+    beds between them washed back into overhangs with hollows under them, one cleft down its side (no grid of joints).
+    The Rimrock's and the bench's tors, and (at 0.65) the bluff top's 3 m cover rocks: steep and solid all round."""
+    rnd = random.Random(5101)
+    rock = weathered(5101)
+    rock.add(Loaf(3.5, 2.85, 1.75, center=(0.0, 0.0, 0.55), yaw=6.0, n=3.4, blend=0.3))
+    rock.add(Loaf(1.9, 1.7, 1.3, center=(2.35, 1.0, 0.45), yaw=34.0, n=3.0, blend=0.45))          # a buttress
+    rock.add(Loaf(2.75, 2.25, 1.15, center=(0.35, -0.25, 2.65), yaw=-9.0, tilt=(2.0, -3.0), n=3.2, blend=0.3))
+    rock.add(Loaf(1.55, 1.35, 0.72, center=(-0.6, 0.3, 3.9), yaw=21.0, tilt=(-4.0, 3.0), n=3.0, blend=0.22))
+    rock.parting(1.55, depth=0.42, width=0.26, fade=0.2)
+    rock.parting(3.35, depth=0.3, width=0.2, fade=0.0)
+    rock.parting(0.55, depth=0.16, width=0.12, fade=-0.2)
+    for angle, z, size in ((205.0, 1.75, 1.3), (300.0, 1.7, 0.9), (60.0, 3.2, 0.8)):
+        hollow(rock, rnd, (0.0, 0.0), angle, z, size, depth=0.45)
+    face_crack(rock, (0.0, 0.0), 250.0, 2.0, 70.0, length=3.4, width=0.14, depth=0.5, shift=0.06)
+    extra = boulders(rock, rnd, [(215.0, 0.2, 1.3), (232.0, 0.9, 0.55), (40.0, 0.3, 0.8), (130.0, 0.1, 0.5)])
+    obj = build('Outcrop_TorA', rock, cell=0.07, source=9000, fallback=30, uv_seed=11)
+    lo.column_hulls(obj, [(-1.9, -1.1), (1.7, -1.3), (-1.3, 1.4), (2.2, 1.2)], extra=extra)
+    return obj
+
+
+def flutes(rnd, count=9):
+    """Rain flutes: fine vertical ribs down a column (a lobe of high count, barely turning)."""
+    return [(count, rnd.uniform(0.02, 0.03), rnd.uniform(0.0, 6.28), rnd.uniform(-0.03, 0.03))]
+
+
+def drop_crumbs(obj, smallest=0.35):
+    """Removes loose bits of the mesh under smallest metres across: the weathering can pinch a crumb off a thin top.
+    The fallen boulders, bigger, stay. Faces are walked in index order (sequences, never sets), so it repeats."""
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.faces.ensure_lookup_table()
+    seen = [False] * len(bm.faces)
+    doomed = []
+    for face in bm.faces:
+        if seen[face.index]:
+            continue
+        seen[face.index] = True
+        stack, part = [face], []
+        while stack:
+            f = stack.pop()
+            part.append(f)
+            for edge in f.edges:
+                for g in edge.link_faces:
+                    if not seen[g.index]:
+                        seen[g.index] = True
+                        stack.append(g)
+        points = np.array([v.co[:] for f in part for v in f.verts])
+        if np.linalg.norm(points.max(axis=0) - points.min(axis=0)) < smallest:
+            doomed.extend(part)
+    if doomed:
+        bmesh.ops.delete(bm, geom=doomed, context='FACES')
+        lo.log(f'{obj.name}: {len(doomed)} faces of loose crumbs removed')
+    bm.to_mesh(obj.data)
+    bm.free()
+    lo.refresh(obj)
+
+
+def build(name, rock, **options):
+    """lo.build, then the crumbs dropped."""
+    obj = lo.build(name, rock, **options)
+    drop_crumbs(obj)
     return obj
 
 
 def tor_b():
-    """Tall and split, 9.8 m: two pillars on a shared base, parted by an open joint that widens upward; the shorter
-    pillar's top broken off."""
-    rnd = random.Random(4202)
-    rock = lo.Rock(seed=4202, sink=SINK, lumps=(0.2, 3.0), detail=(0.07, 1.1))
-    plan = lo.chamfer(lo.rect(2.75, 2.2), rnd, 0.9, (0.35, 0.9))
-    a = math.radians(7.0)
-    n = (math.cos(a), math.sin(a))
-    set_b = joints(rnd, 97.0, (1.5, 2.4), 2.2)
-    columns = Columns(rnd, [(n, 0.05)] + set_b, stand=0.28, step=(-0.35, 0.1))
-    bed(rock, rnd, plan, -SINK, 2.3, columns, cuts=set_b[:1], gap=0.16, top=(0.0, 0.3), taper=0.035, tilt=0.2,
-        r_top=0.2)
-    rock.parting(1.1, depth=0.2, width=0.1, fade=-0.2)
-    levels = [(2.3, 4.4), (4.4, 6.4), (6.4, 8.2), (8.2, 9.8)]
-    for k, (z0, z1) in enumerate(levels):
-        gap = 0.18 + 0.08 * (z0 - 2.3)
-        p = lo.offset(lo.transform2d(plan, rnd.uniform(-3.0, 3.0), (rnd.uniform(-0.12, 0.12), rnd.uniform(-0.1, 0.1))),
-                      -0.1 * (k + 1))
-        west, east = lo.split(p, n, 0.05, gap)
-        part = 0.05 * (z0 - 2.3)            # the pillars part as they rise
-        west = lo.transform2d(west, 0.0, (-n[0] * part, -n[1] * part))
-        east = lo.transform2d(east, 0.0, (n[0] * part, n[1] * part))
-        w_line = [(n, 0.05 - gap * 0.5 - part)]
-        e_line = [((-n[0], -n[1]), -(0.05 + gap * 0.5 + part))]
-        last = k == len(levels) - 1
-        cuts = set_b[k % 2:k % 2 + 1]
-        if not last:
-            bed(rock, rnd, west, z0, z1 + (0.35 if k == 2 else 0.0), columns, cuts=cuts, gap=0.16, top=(0.0, 0.12),
-                tilt=0.6, r_top=0.3 if k == 2 else 0.22, step=k == 2, fixed=w_line, lean=(0.0, -0.8 * k))
-        bed(rock, rnd, east, z0, z1, columns, cuts=[] if last else cuts, gap=0.16, top=(0.0, 0.12), tilt=0.6,
-            r_top=0.36 if last else 0.22, taper=0.04 if last else 0.0, step=last, fixed=e_line, lean=(0.0, 0.6 * k))
-    rock.parting(5.3, depth=0.26, width=0.11)
-    rock.parting(7.5, depth=0.2, width=0.1, fade=-0.1)
-    chip(rock, rnd, (-1.3, 0.0), 160.0, 8.3, 1.1)
-    chip(rock, rnd, (1.3, 0.0), 20.0, 6.0, 0.8)
-    face_crack(rock, (0.0, 0.0), 265.0, 3.2, 42.0, length=2.4)
-    face_crack(rock, (0.0, 0.0), 85.0, 5.0, -35.0, length=2.0)
-    extra = talus(rock, rnd, [(100.0, 1.3), (118.0, 0.55), (282.0, 0.9), (300.0, 0.5)])
-    obj = lo.build('Outcrop_TorB', rock, cell=0.07, source=10000, fallback=28, uv_seed=12)
-    lo.column_hulls(obj, [(-1.35 * n[0], -1.35 * n[1]), (1.45 * n[0], 1.45 * n[1])], extra=extra)
+    """A split tor, 9.8 m: two pillars on one worn base, parted by a single cleft that opens upward; their girth swells
+    and narrows a little with the beds, the taller one under a cap rock that overhangs it, the shorter one broken off
+    and rounded. The Keeper's Gate's north rock, the bench's tall tors, Hearse Rock's head."""
+    rnd = random.Random(5202)
+    rock = weathered(5202)
+    rock.add(Loaf(2.9, 2.35, 1.5, center=(0.0, 0.0, 0.35), yaw=8.0, n=3.2, blend=0.35))
+    rock.add(Body(1.3, 1.5, -0.5, 9.0, [(-0.5, 1.2), (1.6, 1.06), (2.8, 0.9), (4.4, 0.97), (5.9, 0.86), (7.3, 0.9),
+                                        (8.3, 0.8), (9.0, 0.74)],
+                  center=(-1.2, 0.1), drift=[(0.0, 0.0, 0.0), (4.5, -0.1, 0.15), (9.0, -0.4, 0.2)],
+                  lobes=lobes(rnd) + flutes(rnd), r_top=0.4, blend=0.4))
+    # The shorter pillar broken off at a slant, its top falling away from the cleft (a dome read as a capsule).
+    rock.add(Body(1.15, 1.3, -0.5, 7.4, [(-0.5, 1.2), (1.4, 1.04), (2.7, 0.9), (4.2, 0.98), (5.6, 0.88), (6.6, 0.9),
+                                         (7.6, 0.86)],
+                  center=(1.25, -0.15), drift=[(0.0, 0.0, 0.0), (7.4, 0.45, -0.1)], lobes=lobes(rnd) + flutes(rnd),
+                  crest=[(-1.6, 7.7), (-0.4, 7.5), (0.6, 6.9), (1.6, 6.3)], r_top=0.3, blend=0.4))
+    rock.add(Loaf(1.55, 1.7, 0.55, center=(-1.55, 0.35, 9.3), yaw=14.0, tilt=(5.0, -6.0), n=3.6, blend=0.14))
+    for z, depth, width in ((2.75, 0.24, 0.3), (5.9, 0.14, 0.32), (8.4, 0.12, 0.2), (1.3, 0.1, 0.12)):
+        rock.parting(z, depth=depth, width=width, fade=0.1)
+    hollow(rock, rnd, (-1.2, 0.0), 150.0, 3.6, 1.0, depth=0.4)
+    hollow(rock, rnd, (1.25, 0.0), 330.0, 4.9, 0.8, depth=0.35)
+    extra = boulders(rock, rnd, [(100.0, 0.3, 1.25), (118.0, 1.1, 0.5), (282.0, 0.2, 0.9), (300.0, 0.9, 0.45)])
+    obj = build('Outcrop_TorB', rock, cell=0.07, source=10000, fallback=28, uv_seed=12)
+    lo.column_hulls(obj, [(-1.35, 0.0), (1.45, 0.0)], extra=extra)
     return obj
 
 
 def tor_c():
-    """A leaning stack, 7 m: thick slabs each set over a little further the same way and turned a little, the top one
-    overhanging, worn round where they meet."""
-    rnd = random.Random(4303)
-    rock = lo.Rock(seed=4303, sink=SINK, lumps=(0.2, 3.0), detail=(0.07, 1.1))
-    plan = lo.chamfer(lo.rect(2.6, 2.15), rnd, 0.9, (0.45, 1.0))
-    lean = math.radians(165.0)
-    set_b = joints(rnd, 112.0, (1.9, 2.8), 2.2)
-    columns = Columns(rnd, set_b, stand=0.22, step=(-0.25, 0.15))
-    levels = [(-SINK, 1.9, 0.0, 0.0, 0.0, 1.0), (1.9, 3.3, 0.62, 0.12, 9.0, 0.9),
-              (3.3, 5.3, 1.32, 0.34, -4.0, 1.0), (5.3, 6.9, 2.1, 0.02, 8.0, 0.82)]
-    for k, (z0, z1, shift, inset, yaw, size) in enumerate(levels):
-        p = lo.offset(lo.transform2d(plan, yaw, (shift * math.cos(lean), shift * math.sin(lean)), size), -inset)
-        tip = 2.6 * k                       # each slab tipped a little more the way the stack leans
-        bed(rock, rnd, p, z0, z1, columns, cuts=set_b[:1] if k == 2 else [], gap=0.14, top=(0.0, 0.08), r_top=0.34,
-            r_bottom=0.0 if k == 0 else 0.24, blend=0.1, overlap=0.05, tilt=0.8, taper=0.03 if k == 0 else -0.03,
-            step=k == len(levels) - 1, lean=(-tip * math.sin(lean), tip * math.cos(lean)))
-    rock.parting(0.85, depth=0.22, width=0.1, fade=-0.15)
-    rock.parting(2.6, depth=0.2, width=0.09, fade=-0.1)
-    rock.parting(4.4, depth=0.18, width=0.09, fade=-0.2)
-    chip(rock, rnd, (0.0, 0.0), 340.0, 6.4, 0.9)
-    face_crack(rock, (0.0, 0.0), 240.0, 0.9, 30.0, length=2.6)
-    extra = talus(rock, rnd, [(165.0, 1.2), (190.0, 0.5), (330.0, 0.8), (60.0, 0.6)])
-    obj = lo.build('Outcrop_TorC', rock, cell=0.07, source=9000, fallback=30, uv_seed=13)
+    """A leaning stack, 7 m: a column of the beds leaning as it rises, its hard beds rounded ledges over washed-back soft
+    ones, the top overhanging; a short stump fused at its foot."""
+    rnd = random.Random(5303)
+    rock = weathered(5303)
+    rock.add(Body(1.85, 1.55, -0.9, 6.9, [(-0.9, 1.18), (1.0, 1.0), (2.0, 0.86), (3.1, 0.97), (4.1, 0.88), (5.2, 1.0),
+                                          (6.1, 0.9), (6.9, 0.96)],
+                  center=(0.3, 0.0), drift=[(0.0, 0.0, 0.0), (3.0, -0.45, 0.1), (6.9, -1.55, 0.35)],
+                  lobes=lobes(rnd) + flutes(rnd, 8), r_top=0.55, blend=0.35))
+    rock.add(Body(1.2, 1.05, -0.9, 2.3, [(-0.9, 1.15), (1.2, 0.95), (2.3, 0.85)], center=(1.95, 0.9),
+                  lobes=lobes(rnd, 2), r_top=0.7, blend=0.5))
+    for z, depth, width in ((2.0, 0.26, 0.3), (4.1, 0.2, 0.28), (6.1, 0.16, 0.22)):
+        rock.parting(z, depth=depth, width=width, fade=0.1)
+    hollow(rock, rnd, (0.0, 0.0), 210.0, 3.4, 0.9, depth=0.35)
+    face_crack(rock, (0.0, 0.0), 20.0, 1.2, 64.0, length=2.6, width=0.12, depth=0.4)
+    extra = boulders(rock, rnd, [(165.0, 0.3, 1.2), (190.0, 1.0, 0.5), (330.0, 0.2, 0.8), (60.0, 0.6, 0.55)])
+    obj = build('Outcrop_TorC', rock, cell=0.07, source=9000, fallback=30, uv_seed=13)
     for z_range in ((-SINK, 3.8), (3.1, 5.6), (4.8, 7.6)):
         lo.column_hulls(obj, [(0.0, 0.0)], z_range=z_range)
     lo.column_hulls(obj, [], extra=extra)
     return obj
 
 
-def tipped(rock, rnd, base, thickness, width, length, lean, yaw=0.0, cut=2):
-    """A slab of the beds standing on its foot at base (x, y), leaning `lean` degrees from upright toward -X."""
-    return rock.add(lo.Block(lo.chamfer(lo.rect(thickness * 0.5, width * 0.5), rnd, 0.9, (0.12, 0.4)), -SINK,
-                             length - SINK, center=base, yaw=yaw, tilt=(rnd.uniform(-2.0, 2.0), -lean), r_side=0.1,
-                             r_top=0.22, r_bottom=0.05, taper=0.02, blend=0.12, facets=facets(rnd, cut, length)))
-
-
 def tor_d():
-    """A broken slab pile, 4.7 m: slabs split off the beds that tipped over like books on a shelf, each leaning on
-    the next against a stub that stayed standing, the last one at 36 degrees off upright, with chunks at the foot."""
-    rnd = random.Random(4404)
-    rock = lo.Rock(seed=4404, sink=SINK, lumps=(0.16, 2.6), detail=(0.06, 1.0), rain=0.02, warp=(0.22, 4.0))
-    stop = rock.add(lo.Block(lo.chamfer(lo.rect(1.0, 1.65), rnd, 0.9, (0.25, 0.6)), -SINK, 3.2, center=(-2.75, 0.1),
-                             yaw=8.0, r_side=0.12, r_top=0.3, r_bottom=0.05, taper=0.03, blend=0.12,
-                             facets=facets(rnd, 2, 4.1)))
-    slabs = [tipped(rock, rnd, (-1.3, 0.0), 1.0, 3.6, 5.6, 8.0, 4.0),
-             tipped(rock, rnd, (0.6, 0.25), 0.95, 3.2, 4.9, 22.0, -5.0),
-             tipped(rock, rnd, (2.3, -0.15), 0.9, 3.0, 4.3, 36.0, 7.0)]
-    chip(rock, rnd, (-2.0, 0.0), 90.0, 4.0, 0.8)
-    chip(rock, rnd, (0.0, 0.25), 270.0, 3.1, 0.7)
-    face_crack(rock, (-2.75, 0.1), 270.0, 1.4, 30.0, length=2.0)
-    extra = talus(rock, rnd, [(0.0, 1.0), (25.0, 0.55), (300.0, 0.7), (150.0, 0.6), (205.0, 0.8)])
-    parts = [stop] + slabs
+    """A split tor, 4.6 m: a rounded block of the beds broken in two along one joint, the outer half slumped 14 degrees
+    away from the other, so the cleft between them opens upward; its beds tip with it, rounded blocks at its foot. Low
+    and solid: the Keeper's Gate's south rock (the lookout sees the deck over it), the Rimrock's north rock, the bench's
+    cover. (The first kit's TorD was three slabs tipped like dominoes against a stub.)"""
+    rnd = random.Random(5404)
+    rock = weathered(5404, warp=(0.3, 4.0))
+    standing = [rock.add(Loaf(1.75, 2.4, 1.85, center=(-1.5, 0.0, 1.0), yaw=4.0, n=3.3, blend=0.3)),
+                rock.add(Loaf(1.35, 1.95, 0.85, center=(-1.65, 0.15, 3.35), yaw=-6.0, tilt=(3.0, -2.0), n=3.0,
+                              blend=0.25))]
+    slumped = [rock.add(Loaf(1.6, 2.3, 1.75, center=(1.6, 0.05, 0.85), yaw=-5.0, tilt=(-3.0, 14.0), n=3.3,
+                             blend=0.3)),
+               rock.add(Loaf(1.15, 1.7, 0.72, center=(2.2, 0.0, 2.95), yaw=9.0, tilt=(-3.0, 16.0), n=3.0, blend=0.25))]
+    rock.parting(2.75, depth=0.22, width=0.24, fade=0.1)
+    rock.parting(0.6, depth=0.12, width=0.12, fade=-0.1)
+    hollow(rock, rnd, (-1.5, 0.0), 180.0, 1.6, 1.0, depth=0.4)
+    hollow(rock, rnd, (1.6, 0.0), 300.0, 1.2, 0.8, depth=0.35)
+    face_crack(rock, (1.6, 0.0), 0.0, 1.8, 58.0, length=2.4, width=0.1, depth=0.35)
+    extra = boulders(rock, rnd, [(0.0, 0.3, 1.0), (25.0, 1.0, 0.55), (300.0, 0.4, 0.7), (150.0, 0.2, 0.6),
+                                 (205.0, 0.3, 0.85)], z=0.0)
+    parts = standing + slumped
     frames = frames_of(parts + rock.blocks[len(parts):], rnd)
-    obj = lo.build('Outcrop_TorD', rock, cell=0.065, source=9500, fallback=30, uv_seed=14, frames=frames)
-    lo.block_hulls(obj, rock, [[block] for block in parts])
+    obj = build('Outcrop_TorD', rock, cell=0.065, source=9500, fallback=30, uv_seed=14, frames=frames)
+    lo.block_hulls(obj, rock, [standing, slumped])
     lo.column_hulls(obj, [], extra=extra)
     return obj
 
 
 def spine():
-    """A 12 m rock spine: a long ridge of beds set in toward a stepped, broken crest, cut across by joints into
-    columns of different heights, its ends stepping down."""
-    rnd = random.Random(4505)
-    rock = lo.Rock(seed=4505, sink=SINK, lumps=(0.24, 3.4), detail=(0.07, 1.15))
-    base = lo.hull2d([(-6.2, -0.9), (-5.6, -1.9), (-2.5, -2.25), (2.0, -2.15), (5.4, -1.7), (6.2, -0.6), (6.0, 0.9),
-                      (4.8, 1.95), (1.2, 2.2), (-3.0, 2.1), (-5.5, 1.5)])
-    set_a = joints(rnd, 4.0, (1.5, 2.8), 6.2, wander=9.0, start=0.6)
-    set_b = [((0.0, 1.0), 0.25)]
-    columns = Columns(rnd, set_a + set_b, stand=0.38, step=(-1.1, 0.3))
-    beds = [(-SINK, 1.7, 1.0, 0.0, set_a[1::2]), (1.7, 3.1, 0.94, 0.35, set_a),
-            (3.1, 4.3, 0.85, 0.72, set_a + set_b), (4.3, 5.5, 0.73, 1.0, set_a + set_b)]
-    for k, (z0, z1, length, inset, cuts) in enumerate(beds):
-        p = [(x * length, y) for x, y in base]
-        p = lo.offset(lo.transform2d(p, rnd.uniform(-2.0, 2.0), (rnd.uniform(-0.6, 0.6), rnd.uniform(-0.15, 0.15))),
-                      -inset)
-        last = k == len(beds) - 1
-        bed(rock, rnd, p, z0, z1, columns, cuts=cuts, top=(-0.1, 0.1) if last else (0.0, 0.25),
-            taper=0.03 if k == 0 else -0.02, tilt=0.3 if k == 0 else 1.0, r_top=0.3 if last else 0.24, step=last)
-    rock.parting(0.8, depth=0.22, width=0.1, fade=-0.1)
-    rock.parting(2.4, depth=0.32, width=0.12)
-    rock.parting(3.75, depth=0.2, width=0.09, fade=-0.25)
-    chip(rock, rnd, (1.0, 0.0), 95.0, 4.9, 1.0)
-    face_crack(rock, (-1.0, 0.0), 270.0, 1.2, 35.0, length=3.0)
-    face_crack(rock, (2.5, 0.0), 90.0, 2.0, -40.0, length=2.4)
-    extra = talus(rock, rnd, [(250.0, 1.3), (262.0, 0.5), (75.0, 1.0), (98.0, 0.6), (180.0, 0.8)])
-    obj = lo.build('Outcrop_Spine', rock, cell=0.075, source=11000, fallback=25, uv_seed=15)
+    """A rock spine, 12 m long and 5.8 m high: a whaleback of the beds whose crest rises and falls (a saddle, a high
+    knob, a long fall to its ends), a soft bed washed back along its foot into an overhang, hollows in its sides."""
+    rnd = random.Random(5505)
+    rock = weathered(5505)
+    rock.add(Body(6.2, 2.05, -0.9, 5.8, [(-0.9, 1.06), (1.2, 1.0), (2.0, 0.9), (3.0, 0.94), (4.0, 0.84), (4.9, 0.74),
+                                         (5.8, 0.56)],
+                  crest=[(-6.6, 1.6), (-5.4, 3.4), (-3.6, 4.9), (-2.0, 5.1), (-0.9, 4.3), (0.6, 5.8), (2.2, 5.6),
+                         (3.8, 4.4), (5.3, 3.5), (6.6, 1.5)],
+                  drift=[(0.0, 0.0, 0.0), (5.8, 0.0, 0.3)], lobes=lobes(rnd), r_top=0.55, blend=0.35))
+    rock.add(Body(1.2, 1.1, -0.9, 5.9, [(-0.9, 1.15), (2.0, 0.92), (3.4, 0.86), (4.6, 0.9), (5.9, 0.72)],
+                  center=(1.1, 0.2), lobes=lobes(rnd, 2) + flutes(rnd, 7), r_top=0.6, blend=0.6))
+    for z, depth, width in ((2.0, 0.34, 0.32), (3.4, 0.14, 0.24), (4.6, 0.12, 0.18)):
+        rock.parting(z, depth=depth, width=width, fade=0.1)
+    for x, angle, z, size in ((-3.0, 270.0, 2.6, 1.1), (2.6, 270.0, 3.2, 0.9), (-1.0, 90.0, 2.2, 1.2),
+                              (3.8, 90.0, 1.4, 0.8)):
+        hollow(rock, rnd, (x, 0.0), angle, z, size, depth=0.4)
+    extra = boulders(rock, rnd, [(250.0, 0.3, 1.3), (262.0, 1.2, 0.5), (75.0, 0.3, 1.0), (98.0, 1.0, 0.6),
+                                 (180.0, 0.2, 0.8)], center=(0.0, 0.0))
+    obj = build('Outcrop_Spine', rock, cell=0.075, source=11000, fallback=25, uv_seed=15)
     lo.column_hulls(obj, [(-4.6, 0.0), (-1.6, 0.0), (1.5, 0.0), (4.6, 0.0)], extra=extra)
     return obj
 
 
 def slab():
-    """A leaning slab for the Three Widows, 7 m: a buttress of the cliff's beds stood on end, narrowing to a bowed
-    head, leaning 13 degrees back. Built upright and mapped, then leaned, so its beds lean with it."""
-    rnd = random.Random(4606)
-    rock = lo.Rock(seed=4606, sink=1.7, lumps=(0.18, 2.8), detail=(0.06, 1.0))
-    plan = lo.chamfer(lo.rect(1.8, 0.82), rnd, 0.9, (0.2, 0.5))
-    columns = Columns(rnd, [], stand=0.0)
-    levels = [(-1.7, 1.9, 0.0, 0.0), (1.9, 3.6, -0.06, 0.1), (3.6, 5.2, 0.04, 0.16), (5.2, 6.5, -0.1, 0.24)]
-    for k, (z0, z1, shift, inset) in enumerate(levels):
-        p = lo.offset(lo.transform2d(plan, rnd.uniform(-2.0, 2.0), (shift, 0.0)), -inset)
-        bed(rock, rnd, p, z0, z1, columns, top=(0.0, 0.15), taper=0.015, tilt=0.4, r_top=0.26, shave=(1, 2, 2, 3))
-    head = lo.chamfer(lo.rect(1.05, 0.62, -0.28, 0.06), rnd, 1.0, (0.2, 0.35))
-    rock.add(lo.Block(head, 6.3, 7.45, tilt=(0.0, 5.0), r_side=0.22, r_top=0.5, r_bottom=0.1, taper=0.06, blend=0.3))
-    rock.parting(4.35, depth=0.2, width=0.1, fade=-0.15)
-    rock.parting(1.1, depth=0.16, width=0.08, fade=-0.2)
-    face_crack(rock, (0.0, 0.0), 270.0, 2.6, 34.0, length=2.4)
-    face_crack(rock, (0.0, 0.0), 90.0, 4.8, -28.0, length=2.0)
-    chip(rock, rnd, (0.0, 0.0), 0.0, 5.9, 0.7)
+    """A leaning monolith, 7.5 m, 14 degrees off upright (the Three Widows: three, turned): one tapering slab of the
+    beds, flared at its foot, a little waisted at a soft bed, its shoulders falling to a rounded, hooded head. Built
+    upright and mapped, then leaned, so its beds lean with it."""
+    rnd = random.Random(5606)
+    rock = weathered(5606, sink=1.7)
+    rock.add(Body(1.75, 0.88, -1.7, 6.9, [(-1.7, 1.12), (0.4, 1.0), (1.6, 0.9), (3.0, 0.96), (4.3, 0.9), (5.3, 0.78),
+                                          (6.1, 0.7), (6.9, 0.5)],
+                  drift=[(0.0, 0.0, 0.0), (6.9, -0.2, 0.0)], lobes=lobes(rnd) + flutes(rnd, 7), r_top=0.85,
+                  blend=0.3))
+    rock.add(Loaf(1.0, 0.72, 0.6, center=(-0.25, -0.1, 6.25), yaw=-8.0, tilt=(-6.0, 4.0), n=2.8, blend=0.45))
+    for z, depth, width in ((1.6, 0.2, 0.3), (5.3, 0.14, 0.24), (3.1, 0.08, 0.1)):
+        rock.parting(z, depth=depth, width=width, fade=0.15)
+    hollow(rock, rnd, (0.0, 0.0), 270.0, 2.2, 0.9, depth=0.3)
     lean = lo.Matrix.Rotation(math.radians(-14.0), 4, 'X')
-    obj = lo.build('Outcrop_Slab', rock, cell=0.06, source=7000, fallback=30, uv_seed=16, matrix=lean)
+    obj = build('Outcrop_Slab', rock, cell=0.06, source=7000, fallback=30, uv_seed=16, matrix=lean)
     for z_range in ((-2.0, 3.0), (2.4, 5.4), (4.8, 7.6)):
         lo.column_hulls(obj, [(0.0, 0.0)], z_range=z_range)
     return obj
 
 
+def fin_body(rnd, length, height, thick, crest, profile):
+    return Body(length * 0.5, thick, -SINK, height, profile, crest=crest,
+                drift=[(0.0, 0.0, 0.0), (height, rnd.uniform(-0.3, 0.3), rnd.uniform(-0.25, 0.25))],
+                lobes=lobes(rnd) + flutes(rnd, 11), r_top=0.38, blend=0.35)
+
+
 def fin():
-    """A rock fin for the Stone Teeth, 9 m: a thin wall of beds, thick at the foot and thin at the top, its crest
-    stepping down from its tall end, cut across by joints."""
-    rnd = random.Random(4707)
-    rock = lo.Rock(seed=4707, sink=SINK, lumps=(0.2, 3.0), detail=(0.065, 1.05))
-    base = lo.hull2d([(-3.4, -0.5), (-2.9, -1.15), (0.0, -1.25), (2.9, -1.0), (3.4, -0.3), (3.3, 0.5), (2.6, 1.1),
-                      (-0.4, 1.25), (-3.0, 1.0)])
-    set_a = joints(rnd, 3.0, (1.3, 2.2), 3.4, wander=10.0, start=0.8)
-    columns = Columns(rnd, set_a, stand=0.22, step=(-0.6, 0.15))
-    levels = [(-SINK, 2.0, (-3.7, 3.7), 0.0), (2.0, 3.7, (-3.6, 3.5), 0.12), (3.7, 5.4, (-3.5, 3.0), 0.22),
-              (5.4, 6.9, (-3.4, 2.2), 0.32), (6.9, 8.1, (-3.25, 1.1), 0.4), (8.1, 9.0, (-3.0, -0.2), 0.46)]
-    for k, (z0, z1, (x0, x1), inset) in enumerate(levels):
-        span = x1 - x0
-        p = [(x0 + (x + 3.4) / 6.8 * span, y) for x, y in base]
-        p = lo.offset(lo.transform2d(p, rnd.uniform(-1.5, 1.5), (0.0, rnd.uniform(-0.08, 0.08))), -inset)
-        last = k == len(levels) - 1
-        cuts = set_a[::2] if k in (0, 2) else set_a if k != 1 else set_a[1::2]
-        bed(rock, rnd, p, z0, z1, columns, cuts=cuts, gap=0.16, top=(0.0, 0.18) if not last else (-0.1, 0.1),
-            taper=0.02 if k == 0 else 0.0, tilt=0.3 if k == 0 else 0.8, r_top=0.32 if k >= 4 else 0.22,
-            step=last)
-    rock.parting(1.15, depth=0.2, width=0.09, fade=-0.1)
-    rock.parting(4.55, depth=0.3, width=0.11)
-    rock.parting(7.6, depth=0.18, width=0.08, fade=-0.2)
-    chip(rock, rnd, (1.0, 0.0), 0.0, 5.1, 0.9)
-    chip(rock, rnd, (-1.5, 0.0), 180.0, 8.4, 0.7)
-    face_crack(rock, (0.0, 0.0), 270.0, 2.8, 40.0, length=2.6)
-    face_crack(rock, (0.0, 0.0), 90.0, 5.8, -45.0, length=2.2)
-    extra = talus(rock, rnd, [(280.0, 0.9), (300.0, 0.45), (95.0, 0.7), (10.0, 0.6)])
-    obj = lo.build('Outcrop_Fin', rock, cell=0.065, source=8000, fallback=30, uv_seed=17)
+    """A rock fin, 9 m (the Stone Teeth): a thin wall of the beds, thick at its foot, its crest rising to a high point
+    off its middle and falling in rounded steps to both ends; a soft bed washed back along its foot, hollows."""
+    rnd = random.Random(5707)
+    rock = weathered(5707)
+    rock.add(fin_body(rnd, 7.4, 9.0, 1.0,
+                      [(-3.9, 3.0), (-3.2, 4.6), (-2.5, 6.6), (-1.6, 7.6), (-0.9, 8.3), (-0.2, 9.0), (0.5, 8.7),
+                       (1.1, 7.6), (1.8, 7.0), (2.6, 6.3), (3.2, 4.6), (3.9, 2.6)],
+                      [(-0.9, 1.12), (1.2, 1.0), (2.2, 0.9), (3.4, 0.95), (4.8, 0.86), (5.8, 0.8), (6.8, 0.82),
+                       (7.8, 0.68), (9.0, 0.52)]))
+    for z, depth, width in ((2.2, 0.28, 0.3), (5.8, 0.14, 0.26), (7.8, 0.12, 0.18), (1.0, 0.08, 0.1)):
+        rock.parting(z, depth=depth, width=width, fade=0.1)
+    for x, angle, z, size in ((-1.6, 270.0, 3.6, 1.1), (1.4, 270.0, 1.6, 0.8), (0.2, 90.0, 4.4, 1.0)):
+        hollow(rock, rnd, (x, 0.0), angle, z, size, depth=0.32)
+    extra = boulders(rock, rnd, [(280.0, 0.3, 0.9), (300.0, 0.9, 0.45), (95.0, 0.3, 0.7), (10.0, 0.4, 0.6)])
+    obj = build('Outcrop_Fin', rock, cell=0.065, source=8000, fallback=30, uv_seed=17)
     lo.column_hulls(obj, [(-2.4, 0.0), (0.0, 0.0), (2.4, 0.0)], extra=extra)
+    return obj
+
+
+def fin_b():
+    """A broken fin, 7.6 m (one of the Stone Teeth): shorter and thicker, two summits with a saddle between, and a
+    window worn through it under the saddle."""
+    rnd = random.Random(5808)
+    rock = weathered(5808)
+    rock.add(fin_body(rnd, 6.6, 7.6, 1.2,
+                      [(-3.6, 2.6), (-2.8, 5.6), (-1.9, 7.2), (-1.0, 6.9), (0.1, 5.4), (0.9, 6.1), (1.8, 7.6),
+                       (2.6, 6.8), (3.6, 3.0)],
+                      [(-0.9, 1.12), (1.0, 1.0), (1.9, 0.88), (3.0, 0.96), (4.2, 0.88), (5.2, 0.8), (6.4, 0.84),
+                       (7.6, 0.62)]))
+    rock.cut(Loaf(0.85, 2.2, 1.05, center=(-0.35, 0.0, 3.55), yaw=0.0, tilt=(0.0, 8.0), n=2.2, blend=0.3))
+    for z, depth, width in ((1.9, 0.28, 0.3), (5.2, 0.14, 0.24), (0.8, 0.08, 0.1)):
+        rock.parting(z, depth=depth, width=width, fade=0.1)
+    hollow(rock, rnd, (1.7, 0.0), 270.0, 2.4, 0.9, depth=0.32)
+    hollow(rock, rnd, (-2.2, 0.0), 90.0, 3.0, 0.8, depth=0.3)
+    extra = boulders(rock, rnd, [(260.0, 0.3, 1.0), (75.0, 0.4, 0.75), (190.0, 0.3, 0.5)])
+    obj = build('Outcrop_FinB', rock, cell=0.065, source=8000, fallback=30, uv_seed=18)
+    lo.column_hulls(obj, [(-2.2, 0.0), (2.0, 0.0)], extra=extra)
+    return obj
+
+
+def hoodoo_a():
+    """A hoodoo, 8.4 m: a column of the beds on a broad, flared foot, tapering as it rises, pinched at two soft beds and
+    thinnest under a cap rock that overhangs it a little off its middle; rain flutes down it."""
+    rnd = random.Random(5909)
+    rock = weathered(5909)
+    rock.add(Body(1.45, 1.25, -0.9, 7.35, [(-0.9, 1.8), (0.2, 1.42), (1.2, 1.1), (2.4, 0.9), (3.3, 0.94), (4.4, 0.8),
+                                           (5.4, 0.82), (6.3, 0.7), (6.9, 0.56), (7.35, 0.5)],
+                  drift=[(0.0, 0.0, 0.0), (2.5, 0.2, 0.1), (5.0, -0.05, 0.0), (7.35, 0.3, -0.15)],
+                  lobes=lobes(rnd) + [(1, 0.06, 1.0, 0.3)] + flutes(rnd, 9), r_top=0.3, blend=0.3))
+    rock.add(Loaf(1.45, 1.3, 0.55, center=(0.45, -0.25, 7.75), yaw=17.0, tilt=(3.0, -5.0), n=3.6, blend=0.14))
+    for z, depth, width in ((2.4, 0.12, 0.36), (4.4, 0.16, 0.36), (6.9, 0.14, 0.22), (0.9, 0.08, 0.12)):
+        rock.parting(z, depth=depth, width=width, fade=0.2)
+    hollow(rock, rnd, (0.0, 0.0), 230.0, 1.2, 0.9, depth=0.35)
+    extra = boulders(rock, rnd, [(140.0, 0.4, 1.1), (160.0, 1.3, 0.5), (320.0, 0.3, 0.7), (40.0, 0.8, 0.5)])
+    obj = build('Outcrop_HoodooA', rock, cell=0.06, source=8000, fallback=30, uv_seed=19)
+    lo.column_hulls(obj, [(0.0, 0.0)], z_range=(-SINK, 7.2))
+    lo.column_hulls(obj, [(0.45, -0.25)], z_range=(6.9, 8.6), extra=extra)
+    return obj
+
+
+def hoodoo_b():
+    """Twin hoodoos, 6.2 m: a tall and a short column rising together from one worn foot, each under its own cap rock
+    (the short one's tipped), a soft bed pinching both at the same height."""
+    rnd = random.Random(6010)
+    rock = weathered(6010)
+    rock.add(Loaf(2.6, 1.9, 1.15, center=(0.3, 0.0, 0.0), yaw=-12.0, n=3.0, blend=0.45))
+    rock.add(Body(1.25, 1.1, -0.5, 5.4, [(-0.5, 1.3), (1.4, 1.04), (2.5, 0.84), (3.4, 0.9), (4.4, 0.76), (5.0, 0.64),
+                                         (5.4, 0.58)],
+                  center=(-0.75, 0.1), drift=[(0.0, 0.0, 0.0), (5.4, -0.2, 0.1)], lobes=lobes(rnd) + flutes(rnd, 8),
+                  r_top=0.3, blend=0.4))
+    rock.add(Loaf(1.25, 1.1, 0.48, center=(-0.95, 0.15, 5.75), yaw=-25.0, tilt=(-4.0, 3.0), n=3.4, blend=0.14))
+    rock.add(Body(1.1, 1.0, -0.5, 3.9, [(-0.5, 1.25), (1.3, 1.02), (2.5, 0.86), (3.3, 0.8), (3.9, 0.72)],
+                  center=(1.45, -0.2), drift=[(0.0, 0.0, 0.0), (3.9, 0.25, -0.1)], lobes=lobes(rnd) + flutes(rnd, 7),
+                  r_top=0.3, blend=0.4))
+    rock.add(Loaf(0.95, 0.85, 0.36, center=(1.75, -0.3, 4.1), yaw=30.0, tilt=(6.0, 9.0), n=3.4, blend=0.12))
+    for z, depth, width in ((2.5, 0.2, 0.34), (4.4, 0.14, 0.24), (1.0, 0.08, 0.1)):
+        rock.parting(z, depth=depth, width=width, fade=0.2)
+    extra = boulders(rock, rnd, [(250.0, 0.3, 0.9), (80.0, 0.4, 0.6), (180.0, 0.6, 0.45)])
+    obj = build('Outcrop_HoodooB', rock, cell=0.06, source=8000, fallback=30, uv_seed=20)
+    lo.column_hulls(obj, [(-0.8, 0.1), (1.45, -0.2)], z_range=(-SINK, 5.5))
+    lo.column_hulls(obj, [(-0.95, 0.15)], z_range=(5.2, 6.4), extra=extra)
     return obj
 
 
@@ -1282,6 +1397,9 @@ KIT = {
     'Spine': spine,
     'Slab': slab,
     'Fin': fin,
+    'FinB': fin_b,
+    'HoodooA': hoodoo_a,
+    'HoodooB': hoodoo_b,
 }
 DEN = {'DenRock': den_rock}
 FAR = {'FarRocks': far_rocks}
@@ -1421,8 +1539,21 @@ if lt.want_preview():
         path = lt.preview_path('RansomsRest/Rocks', 'FarRocks')
         overview([[(m, 0.0) for m in far]], path, gap=1.5, view=(-0.5, -1.6, 0.45), fit=0.8)
         overview([[(m, 0.0) for m in far]], path.replace('.png', '_B.png'), gap=1.5, view=(0.6, 1.6, 0.35), fit=0.8)
+    by = {m.name: m for m in models}
+    kit = [f'Outcrop_{n}' for n in KIT]
+    if all(n in by for n in kit):
+        # The kit at one scale, for the look sheet (Tools/Blender/rocks_sheet.py), and its numbers.
+        rows = [[(by[f'Outcrop_{n}'], 0.0) for n in ('TorA', 'TorD', 'TorC', 'HoodooB', 'Slab')],
+                [(by[f'Outcrop_{n}'], 0.0) for n in ('Spine', 'TorB', 'HoodooA', 'Fin', 'FinB')]]
+        overview(rows, lt.preview_path('RansomsRest/Rocks', 'Rocks_kit'), gap=2.5, view=(-0.2, -1.6, 0.5), fit=0.7)
+        report = {}
+        for n in kit:
+            v = lo.vertices(by[n])
+            report[n] = dict(triangles=lo.triangles(by[n]), size=[round(float(x), 2) for x in v.max(axis=0) - v.min(axis=0)],
+                             hulls=len([c for c in by[n].children if c.name.startswith('UCX_')]))
+        with open(lt.preview_path('RansomsRest/Rocks', 'Outcrops_report').replace('.png', '.json'), 'w') as f:
+            json.dump(report, f, indent=1)
     if not [a for a in ARGS if a in ALL]:
-        by = {m.name: m for m in models}
         rows = [[(by[n], 0.0) for n in ('FarRock_A', 'FarRock_B', 'FarRock_C', 'FarRock_D', 'Outcrop_Slab',
                                         'Outcrop_TorD')],
                 [(by[n], 0.0) for n in ('Outcrop_TorA', 'Outcrop_TorC', 'Outcrop_Fin', 'Outcrop_Spine')],

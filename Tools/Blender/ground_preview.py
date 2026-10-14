@@ -7,7 +7,20 @@ at eye height, looking a little down, in a low golden sun. Before (the old grass
 
 Writes Saved/ArtPreviews/Terrain/Ground_<Area>_<View>.png. Only the ground: it's flat, without grass, props or shadows,
 and the terrain's baked occlusion is 1 (so the hollows' damp doesn't show); textures are filtered with mips and 4x
-anisotropy. What it's for: judging the layers' mix, contrast and repeats before an editor run."""
+anisotropy. What it's for: judging the layers' mix, contrast and repeats before an editor run.
+
+Steep faces (TERRAIN_CODE's steep part, STEEP_EDGE_CODE, SIDE_UV_CODE; 2026-10-14):
+
+    Tools\\artrun.ps1 -Script Tools\\Blender\\ground_preview.py -ScriptArgs walls[,RansomsRest:bluffPath:16,...]
+
+renders a cliff point's wall (layout_computed.json cliffs) as its K_ cliff review view sees it (Saved/TourViews/
+make_cliff_views.py): a plane leaning back 10 degrees from the point's foot to its height over flat ground, the macro
+map under it, the area's *_Steep instance's numbers (layout.json level.materials, with the patches waiting in
+Art/Levels/<Area>/patches applied on top). Left: before (the instance's numbers without the steep parameters added
+2026-10-14); right: after. Top row in the low sun, bottom row shaded (sky light only). A 5 m panel of the cliff kit's
+rock (RockCliff in the area's kit tint, MI_RockCliff_<Area>) stands in front of the wall's left third for comparison.
+Writes Saved/ArtPreviews/Terrain/Wall_<Area>_<group>_<index>.png. The wall's baked occlusion is a guess (0.62 at its
+foot to 0.85 at its top), no shadows but the bottom row's."""
 import ast
 import json
 import math
@@ -93,7 +106,7 @@ def sample(levels, u, v):
     dvx, dvy = np.gradient(tv, axis=1), np.gradient(tv, axis=0)
     lx, ly = np.hypot(dux, dvx), np.hypot(duy, dvy)
     major, minor = np.maximum(lx, ly), np.maximum(np.minimum(lx, ly), 1e-6)
-    lod = np.clip(np.log2(np.maximum(major / np.minimum(np.ceil(major / minor), 4.0), 1e-6)), 0.0, len(levels) - 1.0)
+    lod = np.clip(np.log2(np.maximum(major / np.clip(np.ceil(major / minor), 1.0, 4.0), 1e-6)), 0.0, len(levels) - 1.0)
     out = np.zeros(u.shape + (levels[0].shape[2],), np.float32)
     base = np.floor(lod).astype(np.int64)
     for level in np.unique(base):
@@ -281,18 +294,269 @@ def render(C, area, view_name, tex):
           f'{luma(before)[ground].mean():.4f}, after {luma(after)[ground].mean():.4f}', flush=True)
 
 
+# --- Steep faces (the walls) ---
+
+WALLS = ('RansomsRest:bluffPath:16', 'RansomsRest:theNose:0', 'RansomsRest:coffinRock:4', 'RansomsRest:ransomsPoint:0',
+         'RansomsRest:sinkRamp:9')
+WALL_W, WALL_H = 960, 540
+WALL_LEAN = 10.0        # degrees the previewed wall leans back
+KIT_DENSITY = 180.0     # px per metre of RockCliff on the cliff kit (Cliffs.py DENSITY)
+
+
+def sample_level(levels, u, v, level):
+    """Bilinear at one mip (Texture2DSampleLevel), tiling: u, v in repeats."""
+    level = int(min(max(round(level), 0), len(levels) - 1))
+    a = levels[level]
+    size = a.shape[0]
+    return bilinear(a, u * size - 0.5, v * size - 0.5)
+
+
+def steep_numbers(C, area, window_material):
+    """The area's *_Steep instance's numbers over the master's (STEEP_DEFAULTS): (before, after). After: layout.json with
+    the patches waiting in Art/Levels/<Area>/patches applied; before: layout.json alone, without the parameters added
+    2026-10-14."""
+    sys.path.insert(0, os.path.join(REPO, 'Tools'))
+    import layout_patch
+    with open(os.path.join(REPO, 'Art', 'Levels', area, 'layout.json'), encoding='utf-8') as f:
+        data = json.load(f)
+
+    def numbers(spec):
+        values = dict(C['STEEP_DEFAULTS'])
+        values.update(spec.get('scalars', {}))
+        values.update(spec.get('vectors', {}))
+        return values
+    name = f'MI_{window_material}_Steep'
+    before = numbers(data.get('level', {}).get('materials', {}).get(name, {}))
+    before.update({k: C['STEEP_DEFAULTS'][k] for k in C['STEEP_ADDED']})
+    folder = os.path.join(REPO, 'Art', 'Levels', area, 'patches')
+    for patch in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+        if patch.endswith('.json'):
+            with open(os.path.join(folder, patch), encoding='utf-8') as f:
+                entries = [e for e in json.load(f) if e['path'].startswith('level.materials') and not e.get('file')]
+            layout_patch.apply_patch(data, patch, entries, lambda text: None)
+    return before, numbers(data.get('level', {}).get('materials', {}).get(name, {}))
+
+
+def side_uv(A, Pz, n, noise):
+    """SIDE_UV_CODE: the rock map laid on from one side; A and Pz in cm."""
+    W = np.sin(A * 0.0011 + 1.3) * 0.14 + np.sin(A * 0.0037 + Pz * 0.0007) * 0.05 + A * 0.00002
+    wave = max(n['StrataWave'], 1.0)
+    N = sample_level(noise, A * 0.01 / wave, Pz * 2.0 * (1.0 - n['StrataFlat']) * 0.01 / wave, n['StrataSmooth'])[..., 0]
+    W = W + (N - 0.5) * 2.0 * n['StrataWarp'] * n['RockScale']
+    return A * n['RockScale'] * 0.01, -Pz * n['RockScale'] * 0.01 + W
+
+
+def steep_color(C, n, P, normal, macro, select, occlusion, steep_raw, tex):
+    """TERRAIN_CODE's steep face and STEEP_EDGE_CODE for world points P (cm) on faces with world normals `normal`:
+    (color with the face blended in by the edge, the edge, the ambient occlusion output)."""
+    ux, vx = side_uv(P[..., 1], P[..., 2], n, tex['StrataNoise'])
+    uy, vy = side_uv(P[..., 0], P[..., 2], n, tex['StrataNoise'])
+    rock_x = sample(tex['RockBC'], ux, vx)[..., :3]
+    rock_y = sample(tex['RockBC'], uy, vy)[..., :3]
+    facing = np.abs(normal[..., :2]) ** 4.0
+    facing /= np.maximum(facing.sum(-1, keepdims=True), 1e-4)
+    fx, fy = facing[..., 0:1], facing[..., 1:2]
+    side = rock_x * fx + rock_y * fy
+    side_luma = luma(side)
+    # STEEP_EDGE_CODE
+    h = np.clip(side_luma / max(C['ROCK_TRUE_LUMA'], 0.05) * 0.5, 0.0, 1.0)
+    steep = np.clip((steep_raw - 0.5) * n['SteepSharp'] + 0.5 + (h - 0.5) * n['SteepBreakup']
+                    + (select - 0.5) * n['SteepPull'], 0.0, 1.0)
+    band = sample_level(tex['StrataNoise'], (P[..., 0] + P[..., 1]) / 12000.0, P[..., 2] / 2500.0, 0)[..., 0]
+    b = (band - 0.5) * 2.0 * n['SteepVariation']
+    banding = (1.0 - 0.5 * np.maximum(-b, 0.0))[..., None] * (
+        1.0 + (np.array([1.1, 0.9, 0.78], np.float32) - 1.0) * np.maximum(b, 0.0)[..., None])
+    tint = np.array(n['SteepTint'][:3], np.float32)
+    old = macro * tint * banding * (1.0 + (side_luma / max(n['RockMeanLuma'], 0.05) - 1.0) * n['SteepDetail'])[..., None]
+    beds = np.array(n['SteepBeds'], np.float32)
+    bed_v = np.stack([vx, vy], -1) / (max(n['RockScale'], 0.01) * max(beds[0], 0.1))
+    bed_i = np.floor(bed_v)
+    bed_t = bed_v - bed_i
+    h0 = np.mod(np.sin(bed_i * 12.9898 + 4.1) * 43758.5453, 1.0)
+    h1 = np.mod(np.sin((bed_i + 1.0) * 12.9898 + 4.1) * 43758.5453, 1.0)
+    bs = h0 + (h1 - h0) * ss(0.85, 1.0, bed_t)
+    parting = (1.0 - ss(0.0, max(beds[3], 0.01), bed_t)) * (h0 >= 0.45)
+    shade = (1.0 + (bs - 0.5) * 2.0 * beds[1]) * (1.0 - beds[2] * parting)
+    bed_s = bs[..., 0:1] * fx + bs[..., 1:2] * fy
+    bed_mul = (shade[..., 0:1] * fx + shade[..., 1:2] * fy) * (1.0 + (bed_s - 0.5) * np.array([0.06, 0.0, -0.06], np.float32))
+    macro_var = 1.0 + (np.clip(luma(macro) / max(n['SteepMacroMean'], 0.01), 0.7, 1.35) - 1.0) * n['SteepMacroKeep']
+    kit = side * np.array(n['SteepRockTint'][:3], np.float32) * macro_var[..., None] * banding * bed_mul
+    face = old + (kit - old) * n['SteepRock']
+    occ = occlusion + (1.0 - occlusion) * steep * n['SteepAOLift']
+    # SIDE_NORMAL_CODE, lerped in by SteepNormalStrength (in the world here: the wall's own frame is its normal).
+    nx = sample(tex['RockN'], ux, vx)[..., :3] * 2.0 - 1.0
+    ny = sample(tex['RockN'], uy, vy)[..., :3] * 2.0 - 1.0
+    sx, sy = np.where(normal[..., 0:1] >= 0.0, 1.0, -1.0), np.where(normal[..., 1:2] >= 0.0, 1.0, -1.0)
+    green = n['SteepNormalGreen']
+    from_x = np.concatenate([nx[..., 2:3] * sx, nx[..., 0:1], nx[..., 1:2] * green], -1)
+    from_y = np.concatenate([ny[..., 0:1], ny[..., 2:3] * sy, ny[..., 1:2] * green], -1)
+    relief = from_x * fx + from_y * fy
+    relief /= np.maximum(np.linalg.norm(relief, axis=-1, keepdims=True), 1e-6)
+    k = (steep * n['SteepNormalStrength'])[..., None]
+    lit_normal = normal + (relief - normal) * k
+    lit_normal /= np.maximum(np.linalg.norm(lit_normal, axis=-1, keepdims=True), 1e-6)
+    return face, steep, occ, lit_normal
+
+
+def light(albedo, normal, occlusion, sun_dir, sun_color, sky_color, sky_mask):
+    """Sun (zero for the shaded row) and sky (times the ambient occlusion), ACES-fitted and sRGB-encoded."""
+    ndl = np.clip(normal @ sun_dir, 0.0, 1.0)
+    lit = ndl[..., None] * np.array(sun_color, np.float32) + (
+        (0.55 + 0.45 * normal[..., 2:3]) * np.array(sky_color, np.float32) * occlusion[..., None])
+    c = albedo * lit
+    c = np.clip((c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14), 0.0, 1.0)
+    c = np.where(sky_mask[..., None], np.array([0.62, 0.74, 0.9], np.float32) ** 2.2, c)
+    return np.where(c <= 0.0031308, c * 12.92, 1.055 * np.power(np.maximum(c, 1e-6), 1.0 / 2.4) - 0.055)
+
+
+def wall(C, item, tex):
+    """One cliff point's wall, before and after, sunlit and shaded (see the docstring)."""
+    area, group, index = item.split(':')
+    with open(os.path.join(REPO, 'Art', 'Levels', area, 'layout_computed.json')) as f:
+        computed = json.load(f)
+    point = computed['cliffs'][group][int(index)]
+    fx_, fy_, fz_ = (v / 100.0 for v in point['location'])
+    height = max(point.get('height', point.get('drop', 6.0)) / 100.0, 2.0)
+    yaw = math.radians(point['yaw'])
+    out = np.array([math.cos(yaw), math.sin(yaw), 0.0], np.float32)
+    along = np.array([-math.sin(yaw), math.cos(yaw), 0.0], np.float32)
+    up = np.array([0.0, 0.0, 1.0], np.float32)
+    foot = np.array([fx_, fy_, fz_], np.float32)
+    lean = math.radians(WALL_LEAN)
+    n_wall = out * math.cos(lean) + up * math.sin(lean)
+    # The K_ view (make_cliff_views.py): stood out along the point's yaw, looking back at the face.
+    d = min(35.0, max(13.0, height * 1.4))
+    pitch = math.radians(max(-12.0, min(30.0, math.degrees(math.atan2(height * 0.45 - 1.7, d)))))
+    eye = foot + out * d + up * 1.7
+    forward = -out * math.cos(pitch) + up * math.sin(pitch)
+    right = np.cross(forward, up)
+    right /= np.linalg.norm(right)
+    cam_up = np.cross(right, forward)
+    f = (WALL_W * 0.5) / math.tan(math.radians(80.0) * 0.5)
+    jj, ii = np.meshgrid(np.arange(WALL_W, dtype=np.float32), np.arange(WALL_H, dtype=np.float32))
+    ray = (forward + ((jj - WALL_W * 0.5 + 0.5) / f)[..., None] * right
+           - ((ii - WALL_H * 0.5 + 0.5) / f)[..., None] * cam_up)
+    ray /= np.linalg.norm(ray, axis=-1, keepdims=True)
+    inf = np.float32(1e9)
+    # The wall's plane, the ground in front, the top behind, and the kit panel standing 0.8 m out over its left third.
+    t_wall = ((foot - eye) @ n_wall) / np.where(np.abs(ray @ n_wall) > 1e-6, ray @ n_wall, 1e-6)
+    p_wall = eye + t_wall[..., None] * ray
+    rise = p_wall[..., 2] - fz_
+    t_wall = np.where((t_wall > 0) & (rise >= 0.0) & (rise <= height), t_wall, inf)
+    t_ground = (fz_ - eye[2]) / np.where(ray[..., 2] < -1e-6, ray[..., 2], -1e-6)
+    s_ground = (eye + t_ground[..., None] * ray - foot) @ out
+    t_ground = np.where((ray[..., 2] < -1e-6) & (s_ground >= 0.0), t_ground, inf)
+    t_top = (fz_ + height - eye[2]) / np.where(np.abs(ray[..., 2]) > 1e-6, ray[..., 2], 1e-6)
+    s_top = (eye + t_top[..., None] * ray - foot) @ out
+    t_top = np.where((t_top > 0) & (s_top <= -height * math.tan(lean)), t_top, inf)
+    panel_at = foot + out * 0.8
+    t_panel = ((panel_at - eye) @ out) / np.where(np.abs(ray @ out) > 1e-6, ray @ out, 1e-6)
+    p_panel = eye + t_panel[..., None] * ray
+    a_panel = (p_panel - foot) @ along
+    z_panel = p_panel[..., 2] - fz_
+    t_panel = np.where((t_panel > 0) & (a_panel >= 2.0) & (a_panel <= 7.0) & (z_panel >= 0.0)
+                       & (z_panel <= height * 0.92), t_panel, inf)
+    hit = np.stack([t_wall, t_ground, t_top, t_panel], -1)
+    hit = np.where(hit > 400.0, inf, hit)      # grazing rays: past 400 m it's sky
+    which = np.argmin(hit, -1)
+    t = hit.min(-1)
+    sky = t >= inf
+    P = eye + np.where(sky, 0.0, t)[..., None] * ray            # metres
+    Pc = P * 100.0
+    # The macro map under each point (its window), as UV 0 lays it on.
+    win = next(w for w in computed['macroMap'].get('windows', [computed['macroMap']])
+               if w['covers'][0][0] <= point['location'][0] < w['covers'][1][0]
+               and w['covers'][0][1] <= point['location'][1] < w['covers'][1][1])
+    path = os.path.join(REPO, *win['texture'].split('/'))
+    if path not in tex:
+        tex[path] = load(path, True)
+    macro_map = tex[path]
+    (x0, y0), (x1, y1) = win['covers']
+    size = macro_map.shape[0]
+    m = bilinear(macro_map, (Pc[..., 1] - y0) / (y1 - y0) * size - 0.5, (x1 - Pc[..., 0]) / (x1 - x0) * size - 0.5,
+                 wrap=False)
+    macro, select = m[..., :3], m[..., 3]
+    normal = np.where((which == 0)[..., None], n_wall, np.where((which == 3)[..., None], out, up))
+    steep_raw = (which == 0).astype(np.float32)
+    s_out = (P - foot) @ out
+    occlusion = np.where(which == 0, 0.62 + 0.23 * np.clip((P[..., 2] - fz_) / height, 0.0, 1.0),
+                         np.where(which == 1, 0.65 + 0.2 * ss(0.0, 4.0, s_out), 0.85)).astype(np.float32)
+    # The ground and the top: GROUND_WEIGHTS and TERRAIN_CODE's ground (flat, as render()).
+    D = C['GROUND_DEFAULTS']
+    u1, v1 = Pc[..., 1] / 100.0, -Pc[..., 0] / 100.0
+    noise = sample(tex['Noise'], u1 / D['GroundNoiseTile'], v1 / D['GroundNoiseTile'])
+    slide = (noise[..., 3] - 0.5) * 2.0 * D['GroundWarp']
+    s = D['ThatchScale']
+    thatch = sample(tex['ThatchBC'], u1 * s + slide * s, v1 * s + slide * s)
+    s = D['StonyScale']
+    stony = sample(tex['StonyBC'], u1 * s - slide * s + 0.37, v1 * s - slide * s + 0.61)
+    grass = sample(tex['GrassBC'], u1 * 0.5, v1 * 0.5)
+    rock = sample(tex['RockBC'], u1 * 0.25, v1 * 0.25)
+    flat_n = np.zeros(macro.shape, np.float32)
+    ground, _, _, _, _ = ground_after(C, macro, select, noise, occlusion, t * 100.0, grass, thatch, stony, rock,
+                                      flat_n, flat_n, flat_n, flat_n)
+    # The kit panel: RockCliff at the kit's density in the kit's tint, its occlusion 0.85 at DiffuseAO 0.4.
+    kit_tint = np.array([0.66, 0.58, 0.5], np.float32)
+    for name, spec in data_materials(area).items():
+        if spec.get('parent') == 'MI_RockCliff':
+            kit_tint = np.array(spec.get('vectors', {}).get('Tint', kit_tint)[:3], np.float32)
+    on_panel = which == 3          # off it, a_panel and z_panel run off to where a ray grazes the panel's plane
+    ku = np.where(on_panel, a_panel, 0.0) * KIT_DENSITY / 1024.0
+    kv = -np.where(on_panel, z_panel, 0.0) * KIT_DENSITY / 1024.0
+    kit = sample(tex['RockBC'], ku, kv)[..., :3] * kit_tint * (1.0 + (0.85 - 1.0) * 0.4)
+    kn = sample(tex['RockN'], ku, kv)[..., :3] * 2.0 - 1.0
+    kit_normal = out * kn[..., 2:3] + along * kn[..., 0:1] + up * kn[..., 1:2]
+    kit_normal /= np.maximum(np.linalg.norm(kit_normal, axis=-1, keepdims=True), 1e-6)
+    sun_az, sun_el = math.radians(247.5), math.radians(15.0)
+    sun = np.array([math.cos(sun_el) * math.cos(sun_az), math.cos(sun_el) * math.sin(sun_az), math.sin(sun_el)],
+                   np.float32)
+    rows = []
+    numbers = steep_numbers(C, area, win['material'])
+    for sun_color in ((3.4, 2.2, 1.12), (0.0, 0.0, 0.0)):
+        row = []
+        for n in numbers:
+            face, steep, occ, lit_normal = steep_color(C, n, Pc, normal, macro, select, occlusion,
+                                                        np.where(which == 0, steep_raw, 0.0), tex)
+            # TERRAIN_CODE's last line (ground_after leaves it out): the occlusion, lifted on the face, darkens the colour.
+            albedo = (ground + (face - ground) * steep[..., None]) * (1.0 + (occ - 1.0) * n['DiffuseAO'])[..., None]
+            albedo = np.where((which == 3)[..., None], kit, albedo)
+            nrm = np.where((which == 3)[..., None], kit_normal, np.where((which == 0)[..., None], lit_normal, normal))
+            ao = np.where(which == 3, 0.85, occ)
+            row.append(light(albedo, nrm, ao, sun, sun_color, (0.32, 0.34, 0.4), sky))
+            wall_px = which == 0
+            print(f'LOOTER wall {item} {"sun" if sun_color[0] else "shade"} {"before" if n is numbers[0] else "after"}: '
+                  f'wall albedo luma {luma(albedo)[wall_px].mean():.3f}, kit panel {luma(kit)[which == 3].mean():.3f}',
+                  flush=True)
+        rows.append(np.concatenate([row[0], np.ones((WALL_H, 6, 3), np.float32), row[1]], 1))
+    os.makedirs(OUT, exist_ok=True)
+    path = os.path.join(OUT, f'Wall_{area}_{group}_{index}.png')
+    write_png(path, np.concatenate([rows[0], np.ones((6, rows[0].shape[1], 3), np.float32), rows[1]], 0))
+    print(f'LOOTER: {path}', flush=True)
+
+
+def data_materials(area):
+    with open(os.path.join(REPO, 'Art', 'Levels', area, 'layout.json'), encoding='utf-8') as f:
+        return json.load(f).get('level', {}).get('materials', {})
+
+
 def main():
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
     wanted = [a for arg in argv for a in arg.split(',') if a] or list(VIEWS)
+    walls = 'walls' in wanted
+    if walls:
+        wanted = [w for w in wanted if w != 'walls'] or list(WALLS)
     C = material_constants()
     tex = {}
     for key, set_name, kind, srgb in (('GrassBC', 'GroundGrass', 'BC', True), ('GrassN', 'GroundGrass', 'N', False),
                                       ('RockBC', 'RockCliff', 'BC', True), ('RockN', 'RockCliff', 'N', False),
                                       ('ThatchBC', 'GroundThatch', 'BC', True), ('ThatchN', 'GroundThatch', 'N', False),
                                       ('StonyBC', 'GroundStony', 'BC', True), ('StonyN', 'GroundStony', 'N', False),
-                                      ('Noise', 'GroundNoise', 'M', False)):
+                                      ('Noise', 'GroundNoise', 'M', False), ('StrataNoise', 'MacroNoise', 'M', False)):
         tex[key] = mips(load(os.path.join(TEXTURES, set_name, f'T_{set_name}_{kind}.png'), srgb))
     for item in wanted:
+        if walls:
+            wall(C, item, tex)
+            continue
         area, view = item.split(':', 1)
         render(C, area, view, tex)
 

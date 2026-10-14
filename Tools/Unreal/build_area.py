@@ -120,6 +120,14 @@ VARIED_CLIFFS = ('boundaryFoot',)
 VARY_SINK = (50.0, 200.0)     # cm a piece sinks below its foot
 VARY_STRETCH = (0.85, 1.15)   # height scales a piece is picked for, when the kit has one that fits
 VARY_TURN = 8.0               # degrees either way; at a run's free end only the way that swings it back into the wall
+# A varied piece the same as its neighbour's, every other one mirrored, stood one end's column beside its own mirror
+# image: the same grooved pillar twice side by side down the boundary's long runs (the cliff review, 2026-10-14). The
+# second takes another kit piece that fits within VARY_SWAP; where none does, it keeps its neighbour's side out.
+VARY_SWAP = (0.8, 1.25)
+# A piece whose neighbours along its run (points within LONE_REACH, cm) were all left out (gaps, no wall behind, too low)
+# is left out too: alone on a bare wall it read as a fragment hanging in it. A point with no neighbour that near (a
+# run of one, the Nose's) keeps its piece.
+LONE_REACH = 1500.0
 # What lies past a grounded area's core: its terrain parts by name, none of them Ground.
 BEYOND_PARTS = ('Ring_', 'CanyonWall_', 'Backdrop_')
 # Drops the waterfall model (made for the tutorial island's rim, its strands thinning out 40-58 m down) is shortened
@@ -149,9 +157,10 @@ def component(actor, cls):
     return actor.get_component_by_class(cls)
 
 
-def cliff_width(gap, piece_width):
-    """A cliff piece's width scale: wide enough to overlap its neighbours (gap: to the nearest, cm), within reason."""
-    return min(max((gap + CLIFF_OVERLAP) / piece_width, 0.75), 1.6)
+def cliff_width(gap, piece_width, overlap=CLIFF_OVERLAP):
+    """A cliff piece's width scale: wide enough to overlap its neighbours (gap: to the nearest, cm) by overlap (a
+    group's level.cliffs.overlap, else CLIFF_OVERLAP), within reason."""
+    return min(max((gap + overlap) / piece_width, 0.75), 1.6)
 
 
 def free_ends(points, i, width):
@@ -177,13 +186,15 @@ def per_group(value, group):
     return value.get(group) if isinstance(value, dict) else value
 
 
-def varied_piece(pieces, group, points, i, k, course, last, gap, top=None, cap=None):
+def varied_piece(pieces, group, points, i, k, course, last, gap, top=None, cap=None, overlap=CLIFF_OVERLAP,
+                 previous=None):
     """Course k of a varied group's point i (VARIED_CLIFFS): (mesh, its height and width, the height it's scaled to
     reach from its sunk pivot, how far it sinks, its turn, -1.0 when mirrored), all drawn from the piece's own seed. With
     top (the least and most share of the wall), the top course reaches its own share of the wall. With cap (the share
     of the course its top may reach and still end under the wall's rounded lip), a share drawn between the cap and the
     wall's top comes down to the cap, so no top ends inside the lip; one over the wall's top keeps its place, standing
-    on the ground past the rim."""
+    on the ground past the rim. previous: the same course's piece at point i - 1 as (mesh, mirror), if one stands
+    there; this one never repeats it mirrored (VARY_SWAP)."""
     rnd = random.Random(f'{group} {i} {k}')
     sink = rnd.uniform(*VARY_SINK)
     share = rnd.uniform(*top) if top and last else 1.0
@@ -194,9 +205,19 @@ def varied_piece(pieces, group, points, i, k, course, last, gap, top=None, cap=N
     # either way, with chance in it, so a long wall mixes the kit's pieces where their heights allow.
     fits = [p for p in pieces if VARY_STRETCH[0] <= reach / p[1] <= VARY_STRETCH[1]] or pieces
     mesh, piece_height, piece_width = min(fits, key=lambda p: abs(math.log(reach / p[1]))
-                                          + abs(math.log(cliff_width(gap, p[2]))) + rnd.uniform(0.0, 0.35))
+                                          + abs(math.log(cliff_width(gap, p[2], overlap))) + rnd.uniform(0.0, 0.35))
+    mirror = -1.0 if (i + k) % 2 else 1.0
+    if previous is not None and previous[0] == mesh:
+        # Its neighbour's piece again: another that fits within VARY_SWAP (no draws, so the seeds' turns stay), else
+        # the same piece the same way out as its neighbour, so no column stands beside its own mirror image.
+        others = [p for p in pieces if p[0] != mesh and VARY_SWAP[0] <= reach / p[1] <= VARY_SWAP[1]]
+        if others:
+            mesh, piece_height, piece_width = min(others, key=lambda p: abs(math.log(reach / p[1]))
+                                                  + abs(math.log(cliff_width(gap, p[2], overlap))))
+        else:
+            mirror = previous[1]
     turn = rnd.uniform(-VARY_TURN, VARY_TURN)
-    ends = free_ends(points, i, cliff_width(gap, piece_width) * piece_width)
+    ends = free_ends(points, i, cliff_width(gap, piece_width, overlap) * piece_width)
     if ends is None:
         turn = 0.0  # a lone piece: turned either way, one end would swing out
     elif ends:
@@ -204,16 +225,20 @@ def varied_piece(pieces, group, points, i, k, course, last, gap, top=None, cap=N
         # show from the open side.
         (ex, ey), yaw = ends[0], math.radians(points[i]['yaw'])
         turn = -math.copysign(abs(turn), ex * math.sin(yaw) - ey * math.cos(yaw))
-    return mesh, piece_height, piece_width, reach, sink, turn, (-1.0 if (i + k) % 2 else 1.0)
-
+    return mesh, piece_height, piece_width, reach, sink, turn, mirror
 
 
 def cliff_gap(group, i, count, share):
-    """Whether a varied group's point i is left out (level.cliffs.gaps): drawn from its own seed, never a run's first or
-    last point, nor the one after a gap."""
-    def drawn(j):
-        return 0 < j < count - 1 and random.Random(f'{group} {j} gap').random() < share
-    return share > 0.0 and drawn(i) and not drawn(i - 1)
+    """Whether a varied group's point i is left out (level.cliffs.gaps): drawn from its own seed, never one of a run's
+    first two or last two points, nor within two points after another gap, so a gap never leaves a piece alone between
+    it and another gap or a run's end (2026-10-14: the bluff path's points 14 and 16 left 15 hanging on a bare wall)."""
+    if share <= 0.0:
+        return False
+    gaps = []
+    for j in range(i + 1):
+        drawn = 1 < j < count - 2 and random.Random(f'{group} {j} gap').random() < share
+        gaps.append(drawn and not any(gaps[max(j - 2, 0):j]))
+    return gaps[i]
 
 
 def terrain_tiles(tag):
@@ -692,7 +717,9 @@ class AreaBuild:
         level.cliffs.panels (the Sink's pit wall) gets no faces: panel_cliffs() dresses it with narrow panels. A point
         of a group named in level.cliffs.walled (or every group's, with true) gets no faces where the terrain has no
         wall behind it to dress (wall_behind, WALL_REACH): the generator dresses a ridge's band along its foot's whole
-        line, and an onFloor ridge's terrain stands only on its floor."""
+        line, and an onFloor ridge's terrain stands only on its floor. level.cliffs.overlap (cm, for every group or by
+        group) widens a run's pieces to overlap more than CLIFF_OVERLAP. A varied piece never repeats its neighbour's
+        piece mirrored (VARY_SWAP), and a piece whose neighbours were all left out goes too (LONE_REACH)."""
         pieces = []
         front_of = {}
         for name in CLIFF_PIECES:
@@ -727,8 +754,13 @@ class AreaBuild:
         self.panelled = importlib.reload(build_area_panels).ready(self, meshes)
         walkways = importlib.reload(build_area_walkways)
         corridors = walkways.ramp_corridors(self.source)
-        placed = left_out = ends_held = squashed = unwalled = 0
+        placed = left_out = ends_held = squashed = unwalled = lone = 0
         for group, points in self.layout.get('cliffs', {}).items():
+            # How far neighbours overlap (level.cliffs.overlap: cm, for every group or by group), the pieces standing
+            # at each point, and each course's last piece (its point, mesh and side out), for varied_piece.
+            overlap = per_group(self.cliff_look.get('overlap'), group) or CLIFF_OVERLAP
+            stood = {}
+            previous = {}
             for i, point in enumerate(points):
                 kind = point.get('kind')
                 if kind == 'bank':
@@ -800,9 +832,10 @@ class AreaBuild:
                         cap = None
                         if leans and last and own_top is None and ceiling < 1.0:
                             cap = (bottom + ceiling * height - cz - CLIFF_OVERTOP) / max(course['height'], 1.0)
+                        before = previous.get(k)
                         mesh, piece_height, piece_width, reach, sink, turn, mirror = varied_piece(
                             pieces, group, points, i, k, course, last, gap, own_top if own_top is not None else top,
-                            cap)
+                            cap, overlap, before[1:] if before and before[0] == i - 1 else None)
                     if proud is not None:
                         # The piece's own face (CLIFF_FRONT) stands leanProud in front of the wall it leans with, its
                         # pivot, sunk under the foot, moved out by as far as the lean carries the face back over the
@@ -814,7 +847,7 @@ class AreaBuild:
                     else:
                         inset = CLIFF_INSET + foot + math.tan(math.radians(lean)) * (cz - bottom)
                     inward = (-math.cos(math.radians(yaw)) * inset, -math.sin(math.radians(yaw)) * inset)
-                    width = cliff_width(gap, piece_width)
+                    width = cliff_width(gap, piece_width, overlap)
                     # A run's end piece is widened to overlap its one neighbour, which carries its free end out as far
                     # again. Where that end reaches onto a ramp's walkway it gives the stretch back on that side: the
                     # tutorial island's plateau edge ended in a piece stood across the foot of the ramp to the lookout.
@@ -837,11 +870,29 @@ class AreaBuild:
                     if lean > 0.0:
                         # Pitched up its top tilts back, away from its face (+X, out of the wall), into the slope.
                         piece.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=lean, yaw=yaw + turn), False)
+                    stood.setdefault(i, []).append(piece)
+                    previous[k] = (i, mesh, mirror)
                     placed += 1
+            # No piece alone on a bare wall (LONE_REACH): one whose neighbours along the run were all left out (gaps,
+            # no wall behind them, too low for a face) goes too. Judged on the run as placed, then removed.
+            alone = []
+            for i in stood:
+                near = [j for j in (i - 1, i + 1) if 0 <= j < len(points)
+                        and points[j].get('kind') not in ('bank', 'outcrop')
+                        and math.dist(points[i]['location'][:2], points[j]['location'][:2]) <= LONE_REACH]
+                if near and not any(j in stood for j in near):
+                    alone.append(i)
+            for i in alone:
+                for piece in stood.pop(i):
+                    actors.destroy_actor(piece)
+                    placed -= 1
+                self.log(f'Cliff_{group}_{i + 1:02d} left out: alone on a bare wall, its neighbours left out')
+                lone += 1
         self.log(f'placed {placed} cliff pieces' + (f' ({left_out} left out for gaps)' if left_out else '')
                  + (f'; {squashed} too low for a face left out' if squashed else '')
                  + (f'; {ends_held} run ends kept off a ramp\'s walkway' if ends_held else '')
-                 + (f'; {unwalled} points with no terrain wall behind them left out' if unwalled else ''))
+                 + (f'; {unwalled} points with no terrain wall behind them left out' if unwalled else '')
+                 + (f'; {lone} left alone by their neighbours left out' if lone else ''))
 
     def panel_cliffs(self, meshes):
         """The walls level.cliffs.panels names dressed with the narrow cliff panels and the seam wedge in place of
@@ -1012,15 +1063,22 @@ class AreaBuild:
 
     def outcrop(self, meshes, group, point):
         """A knob's freestanding rock: the outcrop kit's piece (Art/Models/Rocks/Outcrops.py), scaled to the height
-        the layout asks for, on the knob's level seat. Waits for the kit's import."""
-        name = 'Outcrop_' + point.get('piece', 'TorA')
+        the layout asks for, on the knob's level seat. Waits for the kit's import. level.cliffs.outcrops may give a
+        knob another piece, height (cm) or yaw ({group: {"piece": ..., "height": ..., "yaw": ...}}) without the
+        terrain's generator run that a knob's rock in its feature needs; until that piece is imported the knob keeps
+        its own (with a warning)."""
+        spec = dict(point, **self.cliff_look.get('outcrops', {}).get(group, {}))
+        name = 'Outcrop_' + spec.get('piece', 'TorA')
+        if name not in meshes and spec.get('piece') != point.get('piece'):
+            self.warn(f'no SM_{name} yet (level.cliffs.outcrops, knob {group}): its own {point.get("piece", "TorA")}')
+            spec, name = point, 'Outcrop_' + point.get('piece', 'TorA')
         if name not in meshes:
             self.warn(f'no SM_{name} yet (knob {group})')
             return 0
         mesh = unreal.load_asset(meshes[name])
         box = mesh.get_bounding_box()
-        scale = point['height'] / max(box.max.z, 1.0)
-        self.place(mesh, point['location'], point.get('yaw', 0.0), label=f'Outcrop_{group}', folder='Outcrops',
+        scale = spec['height'] / max(box.max.z, 1.0)
+        self.place(mesh, spec['location'], spec.get('yaw', 0.0), label=f'Outcrop_{group}', folder='Outcrops',
                    scale=(scale, scale, scale), tags=('Obstacle',))
         return 1
 
@@ -1184,7 +1242,7 @@ class AreaBuild:
             return
         if mode == 'cliffs':
             # The cliff faces and the outcrops (cliffs() places both), in the area's look.
-            self.open_level(('Cliffs', 'Outcrops'))
+            self.open_level(('Cliffs', 'Outcrops', 'CliffLife'))
             meshes = mesh_index()
             self.cliffs(meshes)
             # The models stand from the whole build (Den Rock among them).
@@ -1193,6 +1251,8 @@ class AreaBuild:
             self.clear_walkways()
             self.keep_under_platforms()
             self.keep_out_of_buildings()
+            # The cliff life on the rock just placed (build_area_cliff_life.py: drapes, ledge plants, scree, stains).
+            importlib.reload(importlib.import_module('build_area_cliff_life')).place(self, meshes)
             self.swap_materials()
             levels.save_current_level()
             self.log('cliffs placed and saved')
@@ -1235,6 +1295,9 @@ class AreaBuild:
         importlib.reload(build_area_sound).place(self)
         self.no_tree_zones()
         self.gameplay(meshes)
+        # The cliff life (build_area_cliff_life.py: drapes, ledge plants, crack junipers, scree fans, slabs, nests, stains),
+        # once the cliffs, buildings and gameplay pieces it keeps off all stand.
+        importlib.reload(importlib.import_module('build_area_cliff_life')).place(self, meshes)
         # The lootable world (breakable crates and barrels, graves, coffins, mailboxes; build_area_loot.py) reads the dressing
         # and the gameplay actors that stand now, and goes before the fauna, whose perches are the dressing's instances.
         importlib.reload(importlib.import_module('build_area_loot')).place(self)
