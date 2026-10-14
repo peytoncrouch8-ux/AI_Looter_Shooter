@@ -117,6 +117,84 @@ def land(v, r):
     return F.filt(x, F.highshelf(6000.0, -3.0), extend=False)
 
 
+def _clods(dur, r, count, start, lo, hi):
+    """Clods of soil thrown up and pattering back: dull little knocks, fewer and fainter."""
+    def grain(rr, i):
+        return kit.thunk(rr.uniform(lo, hi), rr, 0.012, 0.0008, 4, 0.15) * rr.uniform(0.4, 1.0)
+    return normalize(G.rattle(dur, r, count, dur - start, grain, start, 0.82), 0.0)
+
+
+@cue('Player.Land.Hard', variations=3, att='Near', jitter=0.05, conc=2, level=-11.5)
+def land_hard(v, r):
+    # Layered under Player.Land on a hard landing (the game plays it at 0.7-1 volume): the body's whole weight arriving,
+    # not the boots. A low thump falling away (the mass), a dark thud of air with a long tail (the ground and the air
+    # taking it), the knees giving a beat later, a puff of dust, and clods and grit thrown up and pattering back. No gear
+    # and no breath: Player.Land has them.
+    size = jitter(r, 1.0, 0.1)
+    mass = kit.thump(84.0 * size, 36.0, 0.6, 0.34, attack=0.0015, drive_db=2.0)
+    body = kit.noise_thump(0.5, child(r, 'body'), 520.0 * size, 62.0, 0.25, 1.1, 0.07, 0.001)
+    ground = kit.noise_thump(0.12, child(r, 'ground'), 1000.0, 150.0, 0.035, 1.0, 0.02, 0.0008)
+    knees = kit.noise_thump(0.2, child(r, 'knees'), 420.0, 80.0, 0.08, 1.0, 0.05, 0.002)
+    core = layers((mass, 0.0, 0.0), (body, 0.0, -3.0), (ground, 0.0, -9.0),
+                  (knees, 0.06 + 0.03 * r.random(), -8.0))
+    # The dirt is a little scatter, but it has to be heard through the weight: its levels are set against the thud's
+    # loudest 10 ms, and the clods keep clear of the end, where the thud's tail has to be the last thing.
+    dust = kit.burst(0.4, child(r, 'dust'), 0.17, lo=160.0, hi=1400.0, color=-3.0, attack=0.002)
+    grit = kit.grit_burst(0.3, child(r, 'grit'), 5500.0, 500.0, 2800.0, 0.16)
+    clods = _clods(0.3, child(r, 'clods'), 5 + int(r.integers(0, 4)), 0.05, 450.0, 1500.0)
+    x = layers((core, 0.0, 0.0), (kit.set_level(dust, core, -12.0, 0.01), 0.003, 0.0),
+               (kit.set_level(grit, core, -14.0, 0.01), 0.004, 0.0), (kit.set_level(clods, core, -15.0, 0.01), 0.0, 0.0))
+    return F.filt(x, F.highshelf(5000.0, -4.0), F.peak(3300.0, -3.0, 0.8), F.hp(28.0), extend=False)
+
+
+def _slosh(dur, r, lo, hi, rate0, rate1):
+    """Water surging round a shin and settling back: low wet noise rising and falling in slow waves."""
+    n = ns(dur)
+    x = N.band(n, r, lo, hi) * kit.turbulence(n, child(r, 'turb'), 90.0, 0.6)
+    waves = 0.5 - 0.5 * np.cos(2.0 * np.pi * O.phase(O.expsweep(rate0, rate1, dur, 1.0, n=n), n))
+    return normalize(x * (0.3 + 0.7 * waves) * E.perc(dur, 0.012, dur * 0.45), 0.0)
+
+
+@cue('Player.Splash', variations=4, att='Near', jitter=0.06, conc=3, level=-11.5)
+def splash(v, r):
+    # A boot or a body coming down in shallow water (landings at 0.6-1 volume, sprint steps at 0.5, over and over down a
+    # creek): a soft pat as the sole flattens the surface (no click), the dull step on the bed under it, the cavity it
+    # opens ringing and closing as a low bloop, a few bubbles, the crown of water thrown up and falling back (a wide
+    # rush rolled off above 3 kHz), the slosh round the shin, drops pattering back and the ripples' slow fade. Each take
+    # is a little bigger than the last (lower bloop, longer rush) so a run of steps never repeats.
+    size = (0.9, 1.0, 1.1, 1.2)[v] * jitter(r, 1.0, 0.05)
+    pat = kit.burst(0.06, child(r, 'pat'), 0.022, lo=220.0, hi=3000.0, color=-3.0, attack=0.0015)
+    step = kit.noise_thump(0.14, child(r, 'step'), 650.0, 110.0, 0.05, 1.0, 0.03, 0.001)
+    bloop = O.sine(O.expsweep(170.0 / size, 400.0 / size, 0.1, 0.8)) * E.perc(0.1, 0.004, 0.06)
+    hit = layers((pat, 0.0, 0.0), (step, 0.0, -4.0), (normalize(bloop, 0.0), 0.006, -4.0))
+    bubbles = np.zeros(1)
+    for i in range(2 + int(r.integers(0, 3))):
+        bubbles = layers(bubbles, (kit.bubble(r.uniform(450.0, 1300.0) / size, r, 0.15), r.uniform(0.006, 0.07),
+                                   r.uniform(-8.0, 0.0)))
+    cd = 0.32 + 0.04 * size
+    n = ns(cd)
+    crown = N.shaped(n, child(r, 'crown'), -3.0, 350.0, 4500.0) * kit.turbulence(n, child(r, 'ct'), 110.0, 0.75)
+    crown = F.filt(crown * E.perc(cd, 0.02, 0.17), F.lp(3800.0, 0.7), extend=False)
+    wash = _slosh(0.5, child(r, 'wash'), 130.0 / size, 900.0, 7.0, 3.5)
+    drops = np.zeros(1)
+    for t in N.times_poisson(0.26, child(r, 'drops'), lambda tt: 38.0 * np.exp(-tt / 0.13), 0.05):
+        drops = layers(drops, (kit.bubble(r.uniform(700.0, 2000.0), r, 0.12), t, r.uniform(-8.0, 0.0) - 45.0 * t))
+    # The ripples are the last thing in it: their slow fade is what ends the cue (a drop's ring falls 60 dB in 15 ms and
+    # would leave it looking cut off).
+    rn = ns(0.9)
+    ripple = N.band(rn, child(r, 'ripple'), 300.0, 1600.0) * (0.4 + 0.6 * np.abs(N.smooth_random(rn, child(r, 'lap'), 26.0)))
+    ripple = ripple * E.perc(0.9, 0.03, 0.55)
+    x = layers((hit, 0.0, 0.0), (kit.set_level(bubbles, hit, -8.0, 0.01), 0.004, 0.0),
+               (kit.set_level(crown, hit, -6.0, 0.01), 0.008, 0.0), (kit.set_level(wash, hit, -11.0, 0.01), 0.02, 0.0),
+               (kit.set_level(drops, hit, -17.0, 0.01), 0.0, 0.0), (kit.set_level(ripple, hit, -18.0, 0.01), 0.05, 0.0))
+    body = F.filt(x, F.peak(3300.0, -2.0, 0.8), F.highshelf(5500.0, -4.0), F.hp(55.0), extend=False)
+    # A faint sizzle of spray above the touchy band, so the water isn't muffled; the filters above keep it quiet.
+    sn = ns(0.2)
+    spray = N.band(sn, child(r, 'spray'), 5200.0, 9500.0) * kit.turbulence(sn, child(r, 'sp'), 150.0, 0.7)
+    spray = spray * E.perc(0.2, 0.012, 0.1)
+    return layers((body, 0.0, 0.0), (kit.set_level(spray, body, -22.0, 0.01), 0.012, 0.0))
+
+
 @cue('Player.Hurt', variations=4, space='2D', cls='Effects', jitter=0.03, conc=2, level=-8.0)
 def hurt(v, r):
     # Felt more than heard: a muffled blow in the body, a sharp sting, a caught breath, and the cold flicker of

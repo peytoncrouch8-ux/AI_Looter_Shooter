@@ -212,12 +212,30 @@ bool FRoostCrowsTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("The player walking up doesn't scare them"), Birds->IsFlushed());
 
 	// Found: they lift off as its light catches...
+	const double LiftedAt = Now;
 	Birds->Lift(Spot);
 	FaunaTestWorld::Run(*Birds, 1.f, Now, Standing);
 	TestTrue(TEXT("Found: the crows lift off"), Birds->IsFlushed() && Birds->CountPerched() < Count);
-	// ...and settle again within a few seconds, the player still there.
-	FaunaTestWorld::Run(*Birds, 14.f, Now, Standing);
-	TestTrue(FString::Printf(TEXT("...and settle again (%d of %d perched)"), Birds->CountPerched(), Count), !Birds->IsFlushed() && Birds->CountPerched() == Count);
+	// ...and settle again within a few seconds, the player still there: the moment they're all down is measured. Settled,
+	// a crow hops to a free perch now and then (9-20 s on, the flock's settled life), so one may be between perches later.
+	double SettledAt = -1.0;
+	for (int32 Step = 0; Step < 14 * 30; ++Step)
+	{
+		FaunaTestWorld::Run(*Birds, FaunaTestWorld::Frame, Now, Standing);
+		if (SettledAt < 0.0 && !Birds->IsFlushed() && Birds->CountPerched() == Count)
+		{
+			SettledAt = Now;
+		}
+	}
+	TestTrue(FString::Printf(TEXT("...and settle again within a few seconds (all down %.1f s after the lift)"), SettledAt - LiftedAt),
+		SettledAt >= 0.0 && SettledAt - LiftedAt < 10.0);
+	int32 Down = 0;
+	for (const FFaunaBird& Bird : Birds->GetBirds())
+	{
+		Down += Bird.State == EFaunaBirdState::Perched || Bird.State == EFaunaBirdState::Hopping ? 1 : 0;
+	}
+	TestTrue(FString::Printf(TEXT("...and stay settled (%d of %d perched or hopping between perches)"), Down, Count),
+		!Birds->IsFlushed() && Down == Count);
 
 	// The roost going takes its crows with it.
 	Roost->Destroy();

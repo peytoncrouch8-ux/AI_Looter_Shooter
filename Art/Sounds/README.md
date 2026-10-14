@@ -21,7 +21,7 @@ Saved/SoundCheck/        the check's output (not in git): index.html, <Cue>.png,
 Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__init__.py`'s `GROUPS` or it never renders):
 - guns; impacts (also a cue per surface: dirt, grass, gravel, sand, stone, sheet metal, glass, cloth, hay, bone; and the
   ricochet layered on glancing hits); feedback; ui; loot (and the bench, the soul-motes); player (and the melee strike,
-  the mantle and vault); creatures (and the rank sting, the ambushes' entrances); world.
+  the mantle and vault, a hard landing's thud, the splash in water); creatures (and the rank sting, the ambushes' entrances); world.
 - fauna (the ambient birds, insects, tumbleweeds, dust devils, washing); bosses (the boss fights' stings and voices);
   ambience (beds by area and light, sweeteners); music (the score: themes, combat and boss layers, stingers).
 - voices (the Unpaid's murmured barks, the idle calls, the living heard through walls); throwables (the grave-salt
@@ -39,6 +39,13 @@ Groups (`recipes/<group>.py`; a new group's file must be listed in `recipes/__in
   drag); fittings (the mountain's mission fittings: the lift's crank, boiler and clamp pin, the manway gate).
 - windows (a lit window's life heard from the street: footsteps across the room, a curtain drawn; shares voices' wall);
   gusts (the wind passing, 2D, and what it knocks loose: a shutter slammed, a sign's chains and bracket).
+- animals (the town's small animals: a hen's cluck and alarm squawk, the rooster's crow, the barn cat's meow and hiss;
+  imports the fauna's wings and outdoor wash).
+- reactions (creatures noticing and stirring: the spider's notice, emerging from the ground and a dead one's twitch; the
+  slime's notice, a rising bubble and swelling up from a puddle; the Unpaid's notice and breaking into ash; the dead
+  miner's and the Bell-Ringer's notice; imports the kinds' helpers from creatures, miners and bells).
+- brass (spent casings by surface: stone, wood, metal, dirt, water, a shotgun hull; and the fly-bys: a bullet's whiz-crack
+  past the ear, a venom glob's hiss).
 
 ## Render
 
@@ -160,6 +167,31 @@ Tools\sounds.ps1 -CheckOnly          only the mix and the check
   envelope and tops out near 2.8 kHz (`World.Gust.*` is in check.py's frequent list), board edge tones whose pitch follows
   the wind's strength, and a pan across the ears. `World.Gust.Rattle`: a shutter's knocks with louvre chatter, or a sign's
   iron links (modes kept under 3.8 kHz) and a slow bracket creak.
+- **The town's animals** (2026-10-14, `recipes/animals.py`): the chickens' calls are `lib/voice.py` voices with the tract
+  scaled small (`shift` 1.1-1.4) and two sources a hair apart (the syrinx's two membranes: the beating gives the reedy
+  edge). The vocal-tract cascade dies off fast above 2 kHz, so a hen's call gets a band of chaos noise (the cluck) or a high
+  shelf (squawk, crow) to put the top back. The cluck (the one heard all day, in check.py's frequent list) is vocal-fry
+  pulses on a soft crop thump with its 2-5 kHz share at 5-11%. The crow is four parts (a short 'cock', a higher 'a', a long
+  climbing 'doodle', a long falling 'doo' that crossfades to a rough, driven voice at its end) thrown back by the town's
+  slap-backs. The cat's meow is one voice (shift 1.55) with a lowpass opening on a nasal hum and a vowel glide; the hiss is
+  three sinking noise resonances over a rough ~100 Hz growl.
+- **Spent brass** (2026-10-14, `recipes/brass.py`): a case is a thin brass tube, so its rings are near-harmonic bending modes
+  at 5-7 kHz over a muted lower note; it bounces by the restitution rule (each hit softer by e, each gap shorter by e), and
+  the surface adds the rest (stone's dry knock, a hollow board, a sheet's low note, dirt's thud, water's bubble plip, a
+  hull's tube clack, brass-head clink and slowing roll). Rings are kept above 5 kHz so a burst's worth of casings stays off
+  the 2-5 kHz band (`Weapon.Casing.*` and `Weapon.NearMiss.*` are in check.py's frequent list; presence share 1-12% for the
+  casings, 7-21% for the fly-bys). Only the three attenuation classes exist (Gun, Creature, Near): the casings and fly-bys use
+  Near (about 15 m); a 5 m class would need `ATTENUATIONS` in `build_sound_bank.py`.
+- **Footfall cues** (2026-10-14, `recipes/player.py`; the game plays them from `FootfallCue` in
+  `Player/PlayerFootfallComponent.h`): `Player.Land.Hard` (3 takes, 0.35 s) goes under `Player.Land` on a hard landing: a sine
+  thump falling from 84 to 36 Hz, a long dark noise thud, the knees giving a beat later (about 87% of its power in 60-250 Hz)
+  and a little dirt (dust, grit, a few clods) set 12-15 dB under the thud's loudest 10 ms so it is heard through the weight;
+  it keeps no gear and no breath, which `Player.Land` has. `Player.Splash` (4 takes, 0.5 s; in check.py's frequent list) is a
+  boot or body in shallow water: a soft pat (1.5 ms attack, no click), the dull step on the bed, a low bloop and bubbles, a
+  crown of water that dies in about 0.15 s, the shin's slosh, drops pattering back and a ripple fade that ends it; each take
+  a little bigger than the last (a lower bloop); 2-5 kHz share 4-8%, a faint 5-9 kHz spray sizzle on top so it isn't dull.
+  Mix: `Player.Splash` volume_db -9.5 (a landing at full volume sits with `Player.Land`'s -9; a sprint step at 0.5 is 1 dB
+  under a dirt footstep's -14.5); `Player.Land.Hard` -11.5.
 - **Struck things** are modal: a set of decaying sines whose frequencies follow the object's physics (free bars, plates,
   wood, shells, cast bells), struck by a force pulse as long as the contact (hard steel ~0.1 ms, a heel several ms).
 - **Friction** (scrapes, creaks, stridulation) is stick-slip: trains of tiny slips rung through the thing's resonances.
@@ -195,6 +227,15 @@ Tools\sounds.ps1 -CheckOnly          only the mix and the check
 - A crackle that thins to a few grains a second flags `CLICK` in its quiet tail (each lone grain stands over 12x the local
   level, since "quiet" is measured against the cue's loudest sample): keep the grain rate's floor high (the Spitter's
   sizzle: 1500 a second) and let the hiss bed under it last as long as the fizz.
+- CUT TAIL measures the last 10 ms against the peak, so a cue that ends on something falling 60 dB in under about 35 ms
+  (a bubble, a lone tick, a short thump) always flags: the last 10 ms still holds the decay's first 30 dB. End every
+  short cue on a slower decay (a ripple's fade, a wobble, a shell's hollow ringing 50 ms, a soft hush of rolling), and
+  start the fast event earlier.
+- A very short quiet cue has little loudness (it is measured over 200 ms), so its `level` against the rifle is reached by
+  a high `volume_db`: keep `level` low enough that the written `volume_db` stays at or under 0, or the whole set shifts
+  down to make room (casings: level -16 to -27 gives volume -14 to -21).
+- Noise layers mixed by peak (`normalize`) bury a soft thump under them: a flare, a breath or a crumple normalised to peak 1
+  has several times the thump's energy. Mix them with `kit.set_level(layer, thump, rel_db, 0.01)` (Unpaid.Notice, Ash).
 - A loop made of loud, sparse events (an engine's chuffs) puts its seam in a lull between two of them: the seam check
   compares the join's jump with the median step, which the quiet between events keeps small.
 - Mix a loop's layers by loudness (`analysis.loudness_max`, `orelift._lv`), not by peak: a creak's peak says little about

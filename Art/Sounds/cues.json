@@ -1077,6 +1077,35 @@
     "space": "3D",
     "max_concurrent": 2
   },
+  "Player.Land.Hard": {
+    "files": [
+      "Player_Land_Hard_01.wav",
+      "Player_Land_Hard_02.wav",
+      "Player_Land_Hard_03.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Player.Splash": {
+    "files": [
+      "Player_Splash_01.wav",
+      "Player_Splash_02.wav",
+      "Player_Splash_03.wav",
+      "Player_Splash_04.wav"
+    ],
+    "volume_db": -9.5,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
   "Player.Hurt": {
     "files": [
       "Player_Hurt_01.wav",
@@ -4328,6 +4357,349 @@
     "pitch_jitter": 0.06,
     "class": "Ambience",
     "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Chicken.Cluck": {
+    "files": [
+      "Creature_Chicken_Cluck_01.wav",
+      "Creature_Chicken_Cluck_02.wav",
+      "Creature_Chicken_Cluck_03.wav",
+      "Creature_Chicken_Cluck_04.wav"
+    ],
+    "volume_db": -19.0,
+    "pitch_jitter": 0.05,
+    "class": "Ambience",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Chicken.Squawk": {
+    "files": [
+      "Creature_Chicken_Squawk_01.wav",
+      "Creature_Chicken_Squawk_02.wav",
+      "Creature_Chicken_Squawk_03.wav",
+      "Creature_Chicken_Squawk_04.wav"
+    ],
+    "volume_db": -18.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Chicken.Crow": {
+    "files": [
+      "Creature_Chicken_Crow_01.wav",
+      "Creature_Chicken_Crow_02.wav",
+      "Creature_Chicken_Crow_03.wav"
+    ],
+    "volume_db": -16.0,
+    "pitch_jitter": 0.03,
+    "class": "Ambience",
+    "attenuation": "Gun",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Creature.Cat.Meow": {
+    "files": [
+      "Creature_Cat_Meow_01.wav",
+      "Creature_Cat_Meow_02.wav",
+      "Creature_Cat_Meow_03.wav"
+    ],
+    "volume_db": -22.0,
+    "pitch_jitter": 0.05,
+    "class": "Ambience",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Creature.Cat.Hiss": {
+    "files": [
+      "Creature_Cat_Hiss_01.wav",
+      "Creature_Cat_Hiss_02.wav"
+    ],
+    "volume_db": -19.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 1
+  },
+  "Creature.Spider.Notice": {
+    "files": [
+      "Creature_Spider_Notice_01.wav",
+      "Creature_Spider_Notice_02.wav",
+      "Creature_Spider_Notice_03.wav"
+    ],
+    "volume_db": -12.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Spider.Emerge": {
+    "files": [
+      "Creature_Spider_Emerge_01.wav",
+      "Creature_Spider_Emerge_02.wav"
+    ],
+    "volume_db": -6.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Spider.Twitch": {
+    "files": [
+      "Creature_Spider_Twitch_01.wav",
+      "Creature_Spider_Twitch_02.wav",
+      "Creature_Spider_Twitch_03.wav"
+    ],
+    "volume_db": -16.5,
+    "pitch_jitter": 0.08,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Creature.Slime.Notice": {
+    "files": [
+      "Creature_Slime_Notice_01.wav",
+      "Creature_Slime_Notice_02.wav",
+      "Creature_Slime_Notice_03.wav"
+    ],
+    "volume_db": -11.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Slime.Bubble": {
+    "files": [
+      "Creature_Slime_Bubble_01.wav",
+      "Creature_Slime_Bubble_02.wav",
+      "Creature_Slime_Bubble_03.wav",
+      "Creature_Slime_Bubble_04.wav"
+    ],
+    "volume_db": -19.0,
+    "pitch_jitter": 0.08,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Slime.Swell": {
+    "files": [
+      "Creature_Slime_Swell_01.wav",
+      "Creature_Slime_Swell_02.wav"
+    ],
+    "volume_db": -12.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Unpaid.Notice": {
+    "files": [
+      "Creature_Unpaid_Notice_01.wav",
+      "Creature_Unpaid_Notice_02.wav",
+      "Creature_Unpaid_Notice_03.wav"
+    ],
+    "volume_db": -11.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.Unpaid.Ash": {
+    "files": [
+      "Creature_Unpaid_Ash_01.wav",
+      "Creature_Unpaid_Ash_02.wav"
+    ],
+    "volume_db": -11.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.DeadMiner.Notice": {
+    "files": [
+      "Creature_DeadMiner_Notice_01.wav",
+      "Creature_DeadMiner_Notice_02.wav",
+      "Creature_DeadMiner_Notice_03.wav"
+    ],
+    "volume_db": -13.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Creature.BellRinger.Notice": {
+    "files": [
+      "Creature_BellRinger_Notice_01.wav",
+      "Creature_BellRinger_Notice_02.wav"
+    ],
+    "volume_db": -15.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "Creature",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Weapon.Casing.Stone": {
+    "files": [
+      "Weapon_Casing_Stone_01.wav",
+      "Weapon_Casing_Stone_02.wav",
+      "Weapon_Casing_Stone_03.wav",
+      "Weapon_Casing_Stone_04.wav",
+      "Weapon_Casing_Stone_05.wav",
+      "Weapon_Casing_Stone_06.wav",
+      "Weapon_Casing_Stone_07.wav",
+      "Weapon_Casing_Stone_08.wav"
+    ],
+    "volume_db": -16.5,
+    "pitch_jitter": 0.07,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Weapon.Casing.Wood": {
+    "files": [
+      "Weapon_Casing_Wood_01.wav",
+      "Weapon_Casing_Wood_02.wav",
+      "Weapon_Casing_Wood_03.wav",
+      "Weapon_Casing_Wood_04.wav",
+      "Weapon_Casing_Wood_05.wav",
+      "Weapon_Casing_Wood_06.wav"
+    ],
+    "volume_db": -15.5,
+    "pitch_jitter": 0.07,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Weapon.Casing.Metal": {
+    "files": [
+      "Weapon_Casing_Metal_01.wav",
+      "Weapon_Casing_Metal_02.wav",
+      "Weapon_Casing_Metal_03.wav",
+      "Weapon_Casing_Metal_04.wav",
+      "Weapon_Casing_Metal_05.wav",
+      "Weapon_Casing_Metal_06.wav"
+    ],
+    "volume_db": -19.0,
+    "pitch_jitter": 0.06,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 4
+  },
+  "Weapon.Casing.Dirt": {
+    "files": [
+      "Weapon_Casing_Dirt_01.wav",
+      "Weapon_Casing_Dirt_02.wav",
+      "Weapon_Casing_Dirt_03.wav",
+      "Weapon_Casing_Dirt_04.wav",
+      "Weapon_Casing_Dirt_05.wav",
+      "Weapon_Casing_Dirt_06.wav"
+    ],
+    "volume_db": -21.0,
+    "pitch_jitter": 0.08,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Weapon.Casing.Water": {
+    "files": [
+      "Weapon_Casing_Water_01.wav",
+      "Weapon_Casing_Water_02.wav",
+      "Weapon_Casing_Water_03.wav",
+      "Weapon_Casing_Water_04.wav"
+    ],
+    "volume_db": -17.5,
+    "pitch_jitter": 0.08,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 2
+  },
+  "Weapon.Casing.Hull": {
+    "files": [
+      "Weapon_Casing_Hull_01.wav",
+      "Weapon_Casing_Hull_02.wav",
+      "Weapon_Casing_Hull_03.wav",
+      "Weapon_Casing_Hull_04.wav",
+      "Weapon_Casing_Hull_05.wav",
+      "Weapon_Casing_Hull_06.wav"
+    ],
+    "volume_db": -14.0,
+    "pitch_jitter": 0.07,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Weapon.NearMiss.Whiz": {
+    "files": [
+      "Weapon_NearMiss_Whiz_01.wav",
+      "Weapon_NearMiss_Whiz_02.wav",
+      "Weapon_NearMiss_Whiz_03.wav",
+      "Weapon_NearMiss_Whiz_04.wav",
+      "Weapon_NearMiss_Whiz_05.wav",
+      "Weapon_NearMiss_Whiz_06.wav"
+    ],
+    "volume_db": -8.5,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Near",
+    "loop": false,
+    "space": "3D",
+    "max_concurrent": 3
+  },
+  "Weapon.NearMiss.Hiss": {
+    "files": [
+      "Weapon_NearMiss_Hiss_01.wav",
+      "Weapon_NearMiss_Hiss_02.wav",
+      "Weapon_NearMiss_Hiss_03.wav",
+      "Weapon_NearMiss_Hiss_04.wav",
+      "Weapon_NearMiss_Hiss_05.wav"
+    ],
+    "volume_db": -15.0,
+    "pitch_jitter": 0.05,
+    "class": "Effects",
+    "attenuation": "Near",
     "loop": false,
     "space": "3D",
     "max_concurrent": 2

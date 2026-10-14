@@ -338,6 +338,66 @@ namespace LooterSoundCue
 		inline constexpr const TCHAR* CatHiss = TEXT("Creature.Cat.Hiss");
 	}
 
+	// --- Creature reactions (2026-10-14; Art/Sounds/recipes/reactions.py): 3D, through the creature's own voice ---
+	namespace React
+	{
+		/** A spider rearing at the sight of you: forelegs tapping, chitin scraping, a dry hiss. */
+		inline constexpr const TCHAR* SpiderNotice = TEXT("Creature.Spider.Notice");
+		/** A spider coming up out of the ground: soil splitting, legs scrabbling for a hold. */
+		inline constexpr const TCHAR* SpiderEmerge = TEXT("Creature.Spider.Emerge");
+		/** A dead spider's leg twitching: a faint dry chitin tick. */
+		inline constexpr const TCHAR* SpiderTwitch = TEXT("Creature.Spider.Twitch");
+		/** A slime shivering as it senses you: a fast wet tremble with tiny pops. */
+		inline constexpr const TCHAR* SlimeNotice = TEXT("Creature.Slime.Notice");
+		/** A bubble rising through gel: a soft gloop and a small pop. */
+		inline constexpr const TCHAR* SlimeBubble = TEXT("Creature.Slime.Bubble");
+		/** A slime drawing itself up out of a puddle: a wet suck, then the plop. */
+		inline constexpr const TCHAR* SlimeSwell = TEXT("Creature.Slime.Swell");
+		/** An Unpaid's coal flaring as it spots you: an ember whoomph and a breath drawn in. */
+		inline constexpr const TCHAR* UnpaidNotice = TEXT("Creature.Unpaid.Notice");
+		/** An Unpaid breaking into ash: a puff, a dry papery crumble, flakes ticking, a soft hiss. */
+		inline constexpr const TCHAR* UnpaidAsh = TEXT("Creature.Unpaid.Ash");
+		/** A dead miner looking up from its work: iron dragged on stone and a gravelly grunt. */
+		inline constexpr const TCHAR* DeadMinerNotice = TEXT("Creature.DeadMiner.Notice");
+		/** The Bell-Ringer noticing you: one muffled clapper knock on the bronze hand bell. */
+		inline constexpr const TCHAR* BellRingerNotice = TEXT("Creature.BellRinger.Notice");
+	}
+
+	// --- Spent brass by surface (FWeaponBrass; Art/Sounds/recipes/brass.py): 3D where the case lands, about 15 m, mixed low ---
+	namespace Casing
+	{
+		/** A case into dirt, grass or sand: a dull muffled tick. */
+		inline constexpr const TCHAR* Dirt = TEXT("Weapon.Casing.Dirt");
+		/** Brass on rock or gravel: a bright high tink-tink with quick bounces. */
+		inline constexpr const TCHAR* Stone = TEXT("Weapon.Casing.Stone");
+		/** Brass on boards: a hollow woody tock, then a softer tick. */
+		inline constexpr const TCHAR* Wood = TEXT("Weapon.Casing.Wood");
+		/** Brass on steel or tin: a clear ringing ting with a short shimmer. */
+		inline constexpr const TCHAR* Metal = TEXT("Weapon.Casing.Metal");
+		/** A case into water: a tiny plip. */
+		inline constexpr const TCHAR* Water = TEXT("Weapon.Casing.Water");
+		/** A paper shotgun hull on hard ground: a hollow low clack, a brass-head clink, a short roll. */
+		inline constexpr const TCHAR* Hull = TEXT("Weapon.Casing.Hull");
+	}
+
+	// --- Fly-bys (NearMiss::Play, at the shot's closest point to the head; Art/Sounds/recipes/brass.py) ---
+	namespace FlyBy
+	{
+		/** A bullet past the ear: a sharp crack and a whine falling in pitch. */
+		inline constexpr const TCHAR* Whiz = TEXT("Weapon.NearMiss.Whiz");
+		/** A venom glob rushing past: a wet sputtering hiss, pitch falling. */
+		inline constexpr const TCHAR* Hiss = TEXT("Weapon.NearMiss.Hiss");
+	}
+
+	// --- The player's feet (UPlayerFootfallComponent's FootfallCue; Art/Sounds/recipes): 3D at the feet ---
+	namespace Footfall
+	{
+		/** A hard landing's heavy low thud with a little dirt scatter, under Player.Land. */
+		inline constexpr const TCHAR* LandHard = TEXT("Player.Land.Hard");
+		/** A foot or a body coming down in shallow water. */
+		inline constexpr const TCHAR* Splash = TEXT("Player.Splash");
+	}
+
 	// --- Music (UMusicDirectorSubsystem; Art/Sounds/recipes/music.py; bars and tempos in MusicRules) ---
 	/** The exploration themes (32 bars of 6/8 in D at 75), and the combat layer laid over either (16 bars on a D pedal). */
 	inline constexpr const TCHAR* MusicSkyreachExplore = TEXT("Music.Skyreach.Explore");
