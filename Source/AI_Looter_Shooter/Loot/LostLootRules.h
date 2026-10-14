@@ -36,7 +36,7 @@ namespace LostLootRules
 	/** How many guns the shelves hold with Upgrades bought: 30, 40, ... 80. */
 	AI_LOOTER_SHOOTER_API int32 Capacity(int32 Upgrades);
 
-	/** The next upgrade's price at level 1 after Upgrades bought (150, 300, 500, 800, 1,200); 0 when all five are bought. */
+	/** The next upgrade's price at level 1 after Upgrades bought (300, 600, 1,000, 1,600, 2,400); 0 when all five are bought. */
 	AI_LOOTER_SHOOTER_API int32 UpgradeBasePrice(int32 Upgrades);
 
 	/** The next upgrade's price for a player at PlayerLevel: the base grown as the vendors' prices grow; 0 when none is left. */

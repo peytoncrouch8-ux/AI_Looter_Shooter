@@ -53,7 +53,7 @@ bool FLostLootRulesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Five upgrades"), LostLootRules::MaxUpgrades, 5);
 
 	// Prices rise, and grow with the player's level as the vendors' do; nothing after the fifth.
-	const int32 Bases[] = { 150, 300, 500, 800, 1200 };
+	const int32 Bases[] = { 300, 600, 1000, 1600, 2400 };
 	int32 Last = 0;
 	for (int32 Upgrades = 0; Upgrades < LostLootRules::MaxUpgrades; ++Upgrades)
 	{
@@ -66,7 +66,7 @@ bool FLostLootRulesTest::RunTest(const FString& Parameters)
 		TestFalse(FString::Printf(TEXT("Upgrade %d has a name"), Number), LostLootRules::UpgradeName(Upgrades).IsEmpty());
 		Last = Bases[Upgrades];
 	}
-	TestEqual(TEXT("At level 4 the first is a gun of the day's worth"), LostLootRules::UpgradePrice(0, 4), 186);
+	TestEqual(TEXT("At level 4 the first costs about two guns of the day"), LostLootRules::UpgradePrice(0, 4), 372);
 	TestEqual(TEXT("None after the fifth"), LostLootRules::UpgradePrice(LostLootRules::MaxUpgrades, 4), 0);
 	TestTrue(TEXT("...and no name"), LostLootRules::UpgradeName(LostLootRules::MaxUpgrades).IsEmpty());
 

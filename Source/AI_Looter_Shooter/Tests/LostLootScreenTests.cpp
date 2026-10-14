@@ -79,7 +79,7 @@ bool FLostLootScreenTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("The count"), View.Count, FString(TEXT("3 / 30")));
 	TestTrue(TEXT("The oldest is next to go, the shelves not full"), View.NextToGo == 1 && !View.bFull);
 	TestTrue(TEXT("E claims"), !View.Prompts.IsEmpty() && View.Prompts[0] == TEXT("E: Claim"));
-	TestEqual(TEXT("The first shelving's price"), View.UpgradePrice, 150);
+	TestEqual(TEXT("The first shelving's price"), View.UpgradePrice, 300);
 
 	// W / S choose, stopping at the ends.
 	Screen->HandleKey(EKeys::S);
@@ -118,9 +118,9 @@ bool FLostLootScreenTest::RunTest(const FString& Parameters)
 	Screen->HandleKey(EKeys::U);
 	Screen->HandleKey(EKeys::E);
 	View = Screen->GetView();
-	TestTrue(TEXT("U then E: bought for 150, room for 40"), !View.bConfirmOpen && LostLoot->GetCapacity() == 40 && Wallet->GetSilver() == 850
+	TestTrue(TEXT("U then E: bought for 300, room for 40"), !View.bConfirmOpen && LostLoot->GetCapacity() == 40 && Wallet->GetSilver() == 700
 		&& View.Count == TEXT("1 / 40"));
-	TestEqual(TEXT("...the next shelving dearer"), View.UpgradePrice, 300);
+	TestEqual(TEXT("...the next shelving dearer"), View.UpgradePrice, 600);
 
 	// Not enough silver: refused at once, no confirm.
 	Wallet->SetSilver(10);

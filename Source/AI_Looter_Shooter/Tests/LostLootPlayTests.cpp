@@ -427,17 +427,17 @@ bool FLostLootClaimTest::RunTest(const FString& Parameters)
 	Wallet->SetSilver(100);
 	TestTrue(TEXT("Not enough silver: nothing bought, nothing paid"), LostLootRules::BuyUpgrade(*Wallet, Store, 1).Result == LostLootRules::EUpgrade::NotEnoughSilver
 		&& Wallet->GetSilver() == 100 && Store.Upgrades == 0);
-	Wallet->SetSilver(5000);
+	Wallet->SetSilver(6000);
 	const LostLootRules::FUpgradeResult First = LostLootRules::BuyUpgrade(*Wallet, Store, 1);
-	TestTrue(TEXT("The first: 150 paid, room for 40"), First.Result == LostLootRules::EUpgrade::Done && First.Silver == 150 && First.Capacity == 40
-		&& Wallet->GetSilver() == 4850);
+	TestTrue(TEXT("The first: 300 paid, room for 40"), First.Result == LostLootRules::EUpgrade::Done && First.Silver == 300 && First.Capacity == 40
+		&& Wallet->GetSilver() == 5700);
 	for (int32 More = 0; More < 4; ++More)
 	{
 		LostLootRules::BuyUpgrade(*Wallet, Store, 1);
 	}
-	TestTrue(TEXT("All five: room for 80, 2,950 paid in all"), Store.GetCapacity() == 80 && Wallet->GetSilver() == 5000 - 2950);
+	TestTrue(TEXT("All five: room for 80, 5,900 paid in all"), Store.GetCapacity() == 80 && Wallet->GetSilver() == 6000 - 5900);
 	TestTrue(TEXT("A sixth: none left, nothing paid"), LostLootRules::BuyUpgrade(*Wallet, Store, 1).Result == LostLootRules::EUpgrade::AtMost
-		&& Wallet->GetSilver() == 2050);
+		&& Wallet->GetSilver() == 100);
 
 	// A named gun waits on the shelves as itself, and a turn-in can take that very gun back off them.
 	UNamedWeaponDefinition* Heirloom = NewObject<UNamedWeaponDefinition>(GetTransientPackage());

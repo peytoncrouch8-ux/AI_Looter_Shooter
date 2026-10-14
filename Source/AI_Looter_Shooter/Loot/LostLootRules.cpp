@@ -15,10 +15,11 @@ namespace
 {
 	/**
 	 * Each upgrade's price at level 1, in the order they're bought. A playthrough of Ransom's Rest earns about 1,270
-	 * (Looter.Economy.Balance), so the first two are within its reach beside the supplies and a gun of the day or two; the
-	 * rest are for the areas after it, as the shelves fill with a campaign's guns.
+	 * (Looter.Economy.Balance), so the first is within its reach beside the supplies; the rest are goals for the areas after
+	 * it, which pay more, as the shelves fill with a campaign's guns (the user's call, 2026-10-14: dearer, since the world
+	 * grows and earns more; twice the first prices).
 	 */
-	constexpr int32 UpgradeBases[] = { 150, 300, 500, 800, 1200 };
+	constexpr int32 UpgradeBases[] = { 300, 600, 1000, 1600, 2400 };
 	static_assert(UE_ARRAY_COUNT(UpgradeBases) == LostLootRules::MaxUpgrades, "One price per upgrade");
 }
 
