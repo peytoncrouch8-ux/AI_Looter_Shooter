@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Player/Animation/LooterClimbPose.h"
+#include "Player/Animation/LooterStancePoseCarry.h"
 
 class UAnimSequenceBase;
 
@@ -42,6 +43,15 @@ struct FLooterStanceInput
 	FQuat WeaponRotation = FQuat::Identity;
 	/** How far out along its barrel the hands push the held gun (cm; its definition's HoldReach): a six-gun at arm's length. */
 	float HoldReach = 0.f;
+
+	/**
+	 * Carried rather than shouldered (LooterStancePoseCarry.h): how far, and the gun's turn with no kick in it, where the
+	 * hands hold it: shouldered along the aim (AimRotation), and as carried now (CarryRotation; the aim's when not carried).
+	 * Component space. The hands turn from the one to the other, so the gun keeps its place in them.
+	 */
+	FLooterCarry Carry;
+	FQuat AimRotation = FQuat::Identity;
+	FQuat CarryRotation = FQuat::Identity;
 
 	/** The gun's recoil right now: how far it has kicked back toward the shooter (cm) and flipped up (degrees). */
 	float RecoilBack = 0.f;

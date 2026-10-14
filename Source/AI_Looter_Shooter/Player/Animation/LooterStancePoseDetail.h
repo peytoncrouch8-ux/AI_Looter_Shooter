@@ -72,8 +72,22 @@ namespace LooterStancePoseDetail
 	void ApplyMeleeJab(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Forward,
 		const FVector& Right);
 
-	/** The left hand solved onto the held gun's foregrip, and let go of during a reload. */
-	void ApplyLeftHandOnForegrip(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Right);
+	/**
+	 * The gun carried rather than shouldered (Stance.Carry; LooterStancePoseCarry.cpp): the right hand lowered to the
+	 * low-ready, or moved to the sprint's carry (across the chest; a six-gun low at the side), turned with the gun so the gun
+	 * keeps its place in the palm, and drawn in until the gun's foregrip is in the left arm's reach. ChestTurn is how far the
+	 * stance has turned the chest from the graph's pose (its lean and aim). Returns the hands' turn, which the left hand
+	 * takes too (its palm turns with the gun); identity when the gun is shouldered.
+	 */
+	FQuat ApplyCarry(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FQuat& ChestTurn,
+		const FVector& Forward, const FVector& Right);
+
+	/**
+	 * The left hand solved onto the held gun's foregrip, its palm turned by PalmTurn (the carry's, ApplyCarry); let go of
+	 * during a reload and for a six-gun carried one-handed in a sprint.
+	 */
+	void ApplyLeftHandOnForegrip(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Right,
+		const FQuat& PalmTurn);
 
 	/**
 	 * The left palm (the mannequin's HandGrip_L point, where a held thing sits) from the hand_l bone, in that bone's space:

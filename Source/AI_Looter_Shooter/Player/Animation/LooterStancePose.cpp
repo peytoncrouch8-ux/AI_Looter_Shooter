@@ -10,8 +10,9 @@
 using namespace LooterStancePoseDetail;
 
 // The stance pose's body: lean, aim, crouch and slide. The weapon's part (a short gun held out, recoil, a melee strike's
-// jab, the left hand on the foregrip) is in LooterStancePoseWeapon.cpp, the mantle's and vault's in LooterStancePoseClimb.cpp,
-// a grenade throw's in LooterStancePoseThrow.cpp and a revolver's reload in LooterStancePoseReload.cpp.
+// jab, the left hand on the foregrip) is in LooterStancePoseWeapon.cpp, the gun carried low or in a sprint in
+// LooterStancePoseCarry.cpp, the mantle's and vault's in LooterStancePoseClimb.cpp, a grenade throw's in
+// LooterStancePoseThrow.cpp and a revolver's reload in LooterStancePoseReload.cpp.
 
 bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Stance)
 {
@@ -44,6 +45,8 @@ bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Sta
 
 	FCSPose<FCompactPose> Pose;
 	Pose.InitPose(Output);
+	// The chest as the graph left it: a carried gun's hands turn from where the stance's lean and aim then take it.
+	const FQuat ChestBefore = Spine[2].IsValid() ? Pose.GetComponentSpaceTransform(Spine[2]).GetRotation() : FQuat::Identity;
 
 	const FVector Up = FVector::UpVector;
 	const FVector Forward = Stance.Forward;
@@ -139,6 +142,15 @@ bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Sta
 		ApplyHoldReach(Pose, Bones, Stance, Right);
 	}
 
+	// Carried rather than shouldered: lowered at ease, across the chest in a sprint (a six-gun low at the side), the hands
+	// turning with the gun; the strike, the throw, the kick and the left hand below all start from there.
+	FQuat PalmTurn = FQuat::Identity;
+	if (Stance.bHandOnForegrip && Stance.Carry.Weight() > UE_KINDA_SMALL_NUMBER)
+	{
+		const FQuat ChestTurn = Spine[2].IsValid() ? Pose.GetComponentSpaceTransform(Spine[2]).GetRotation() * ChestBefore.Inverse() : FQuat::Identity;
+		PalmTurn = ApplyCarry(Pose, Bones, Stance, ChestTurn, Forward, Right);
+	}
+
 	// A melee strike drives the right hand (and the gun in it) forward; the left hand finds the foregrip after it.
 	if (!FMath::IsNearlyZero(Stance.MeleeJab))
 	{
@@ -168,7 +180,7 @@ bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Sta
 		{
 			ApplyRecoil(Pose, Bones, Stance, Right);
 		}
-		ApplyLeftHandOnForegrip(Pose, Bones, Stance, Right);
+		ApplyLeftHandOnForegrip(Pose, Bones, Stance, Right, PalmTurn);
 	}
 
 	// The left hand's own work, off the foregrip: the revolver's cylinder, then the throw (which cuts any reload short).

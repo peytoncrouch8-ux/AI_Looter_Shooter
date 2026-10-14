@@ -1,5 +1,7 @@
 #include "Player/PlayerViewComponent.h"
+#include "Player/Animation/LooterCharacterAnimInstance.h"
 #include "Player/Animation/LooterClimbPose.h"
+#include "Player/Animation/LooterStancePoseCarry.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Settings/GraphicsSettingsSubsystem.h"
 #include "Weapons/WeaponBase.h"
@@ -53,6 +55,22 @@ namespace
 		const ULocalPlayer* LocalPlayer = OwnerController ? OwnerController->GetLocalPlayer() : nullptr;
 		const UGraphicsSettingsSubsystem* Graphics = LocalPlayer ? LocalPlayer->GetSubsystem<UGraphicsSettingsSubsystem>() : nullptr;
 		return Graphics ? Graphics->GetFirstPersonFieldOfView() : Fallback;
+	}
+
+	/**
+	 * How the third-person body carries its gun right now: its animation's say (it turns the hands by the same carry), or,
+	 * for a body animated some other way, only the sprint's carry across the chest.
+	 */
+	FLooterCarry CarryOf(const ACharacter* Owner, const UPlayerLocomotionComponent* Loco)
+	{
+		const USkeletalMeshComponent* Body = Owner ? Owner->GetMesh() : nullptr;
+		if (const ULooterCharacterAnimInstance* Anim = Body ? Cast<ULooterCharacterAnimInstance>(Body->GetAnimInstance()) : nullptr)
+		{
+			return Anim->GetCarry();
+		}
+		FLooterCarry Carry;
+		Carry.Sprint = Loco ? Loco->GetSprintAlpha() : 0.f;
+		return Carry;
 	}
 
 	/** Unzoomed narrowed by a sight's magnification (2x shows half as wide), Aim of the way to the eye. */
@@ -212,13 +230,10 @@ FQuat UPlayerViewComponent::GetHeldWeaponRotation() const
 		Aiming = FQuat::Slerp(Aiming, Aiming * FRotator(-20.f, 15.f, 45.f).Quaternion(), Reload);
 	}
 
-	// Sprinting swings the gun down across the chest (muzzle low and to the left), like the first-person sprint pose.
-	const float Sprint = Locomotion.IsValid() ? Locomotion->GetSprintAlpha() : 0.f;
-	FQuat Held = Aiming;
-	if (Sprint > 0.f)
-	{
-		Held = FQuat::Slerp(Aiming, FRotator(-35.f, Aim.Yaw - 50.f, 25.f).Quaternion(), Sprint);
-	}
+	// Carried rather than shouldered: lowered to a low-ready on the move at ease, across the chest in a sprint (a six-gun low
+	// at the side). The body's animation says how far, and turns its hands by the same turn, so the gun keeps its place in
+	// them (LooterStancePoseCarry.h).
+	FQuat Held = LooterCarry::CarriedGun(Aiming, Aim.Yaw, CarryOf(Character.Get(), Locomotion.Get()));
 	// A mantle or vault carries it up and out to the right while the hands reach for the ledge. Held along the aim it
 	// pointed into the ledge the body climbs; swung low across the chest like a sprint, it ran through the leading left
 	// knee coming up. (A vault's pose alpha tops out at its share: that's a full carry.)

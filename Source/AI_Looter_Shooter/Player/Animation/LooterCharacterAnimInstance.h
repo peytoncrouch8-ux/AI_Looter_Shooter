@@ -8,6 +8,7 @@
 #include "Player/TraversalRules.h"
 #include "LooterCharacterAnimInstance.generated.h"
 
+class AWeaponBase;
 class FNumericProperty;
 class UPlayerLocomotionComponent;
 class UPlayerMeleeComponent;
@@ -29,10 +30,13 @@ protected:
 	virtual bool Evaluate_WithRoot(FPoseContext& Output, FAnimNode_Base* InRootNode) override;
 
 private:
-	void ApplyUpperBodyPose(FPoseContext& Output) const;
+	void ApplyUpperBodyPose(FPoseContext& Output);
 	void ApplyReloadOverlay(FPoseContext& Output) const;
 
 	FLooterStanceInput Stance;
+	/** The held upper body's ride on the hips, the run's bounce mostly smoothed out, and the seconds it has to catch up. */
+	FLooterBobFilter Bob;
+	float BobSeconds = 0.f;
 };
 
 /**
@@ -128,6 +132,12 @@ public:
 	const FLooterStanceInput& GetStanceInput() const { return StanceInput; }
 
 	/**
+	 * How the gun in the body's hands is carried right now (LooterStancePoseCarry.h): the view turns the third-person gun by
+	 * it (UPlayerViewComponent::GetHeldWeaponRotation) as the stance layer turns the hands, so the two always agree.
+	 */
+	const FLooterCarry& GetCarry() const { return Carry; }
+
+	/**
 	 * For a character shown without a pawn (the loadout screen's stand-in): hold a gun as if standing still and aiming
 	 * level, left hand on its foregrip. Grip and foregrip are in the gun's own space; the gun sits in HoldSocket and points
 	 * the way the character faces (Facing, world space).
@@ -164,7 +174,15 @@ private:
 	/** A mantle or vault starts: the obstacle's top over the feet, which the hands reach for. */
 	void HandleTraversalStarted(ETraversalKind Kind, float TopOverFeet);
 
+	/**
+	 * Works out how the gun is carried (LooterCharacterAnimInstanceCarry.cpp): the low-ready's clock, the sprint's share,
+	 * both giving way to a reload and a climb. Before the held gun's rotation is read, which depends on it.
+	 */
+	void RefreshCarry(float DeltaSeconds, const AWeaponBase* Weapon);
+
 	FLooterStanceInput StanceInput;
+	FLooterCarry Carry;
+	FLooterReadyClock ReadyClock;
 	TOptional<FStandaloneHold> StandaloneHold;
 	float UpperBodyTime = 0.f;
 	/** The mesh's scale against the full-size body, read on the game thread each update. */

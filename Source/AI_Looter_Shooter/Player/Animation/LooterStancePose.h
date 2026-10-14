@@ -58,6 +58,8 @@ struct FLooterCylinderReload
  *    (the rifle animations were made for a different gun); a short gun (HoldReach) is first pushed out along its barrel
  *    by the right arm, and its foregrip is on its grip, so both hands hold it out like a pistol, the support hand
  *    wrapped round the shooting hand's fingers
+ *  - carried (LooterStancePoseCarry.h): on the move at ease the gun drops to a low-ready, in a sprint it's carried across
+ *    the chest (a six-gun low at the side in one hand); the hands turn with the gun, so it keeps its place in them
  *  - recoil: each shot rocks the chest back and lets the right arm give, so the gun (in that hand) jumps back and the
  *    left hand rides along on the foregrip
  *  - melee: the strike's jab twists the chest into the blow and drives the right hand (the gun's stock, or a fist) forward

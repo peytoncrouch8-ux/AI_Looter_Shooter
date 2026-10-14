@@ -1,6 +1,7 @@
 #include "Player/Animation/LooterCharacterAnimInstance.h"
 #include "AI_Looter_Shooter.h"
 #include "Player/Animation/LooterStancePose.h"
+#include "Player/Animation/LooterStancePoseCarry.h"
 #include "Player/Animation/LooterStancePoseDetail.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
@@ -75,6 +76,10 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 	{
 		View = Pawn->FindComponentByClass<UPlayerViewComponent>();
 	}
+	if (!Melee.IsValid() && Pawn)
+	{
+		Melee = Pawn->FindComponentByClass<UPlayerMeleeComponent>();
+	}
 	StanceInput.bAimWithTorso = bHoldsWeapon && Pawn;
 	// The player's aim is where they face, whichever way the camera looks; sprinting carries the gun low instead.
 	const float AimPitch = View.IsValid() ? View->GetAimRotation().Pitch : (Pawn ? FRotator::NormalizeAxis(Pawn->GetBaseAimRotation().Pitch) : 0.f);
@@ -89,16 +94,23 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 	StanceInput.HoldBone = Mesh && Weapon ? Mesh->GetSocketBoneName(HoldSocket) : NAME_None;
 	StanceInput.bHandOnForegrip = Weapon && StanceInput.HoldBone != NAME_None && Mesh->DoesSocketExist(HoldSocket);
 	StanceInput.HoldSocketLocal = StanceInput.bHandOnForegrip ? Mesh->GetSocketTransform(HoldSocket, RTS_ParentBoneSpace) : FTransform::Identity;
+
+	// Carried rather than shouldered (lowered at ease, across the chest in a sprint): worked out first, as the view turns the
+	// held gun by it. The hands turn from the gun along the aim (no kick: the kick turns the gun in the hands) to the gun as
+	// carried, the same turn the view gives the gun.
+	RefreshCarry(DeltaSeconds, Weapon);
+	const FQuat ToMesh = Mesh ? Mesh->GetComponentQuat().Inverse() : FQuat::Identity;
+	const FRotator Aim = View.IsValid() ? View->GetAimRotation() : (Pawn ? Pawn->GetActorRotation() : FRotator::ZeroRotator);
+	StanceInput.Carry = Carry;
+	StanceInput.AimRotation = ToMesh * Aim.Quaternion();
+	StanceInput.CarryRotation = ToMesh * LooterCarry::CarriedGun(Aim.Quaternion(), Aim.Yaw, Carry);
+
 	const FQuat WeaponWorld = View.IsValid() ? View->GetHeldWeaponRotation() : (Pawn ? Pawn->GetActorQuat() : FQuat::Identity);
 	StanceInput.WeaponRotation = Mesh ? Mesh->GetComponentQuat().Inverse() * WeaponWorld : FQuat::Identity;
 	StanceInput.RecoilBack = Weapon && View.IsValid() ? View->GetKickBack() : 0.f;
 	StanceInput.RecoilPitch = Weapon && View.IsValid() ? View->GetKickRotation().Pitch : 0.f;
 
 	// A melee strike jabs the body (the stock or a fist) as the first-person view swings, on the strike's own clock.
-	if (!Melee.IsValid() && Pawn)
-	{
-		Melee = Pawn->FindComponentByClass<UPlayerMeleeComponent>();
-	}
 	StanceInput.MeleeJab = Melee.IsValid() && Melee->IsSwinging() ? LooterStancePose::MeleeJab(Melee->GetSwingTime()) : 0.f;
 
 	// A grenade throw tosses with the left hand on the throw's own clock (the first-person jar and gun follow it too).
@@ -122,6 +134,9 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 		StanceInput.bHandOnForegrip = StanceInput.HoldBone != NAME_None && Mesh->DoesSocketExist(Hold.Socket);
 		StanceInput.HoldSocketLocal = StanceInput.bHandOnForegrip ? Mesh->GetSocketTransform(Hold.Socket, RTS_ParentBoneSpace) : FTransform::Identity;
 		StanceInput.WeaponRotation = Mesh->GetComponentQuat().Inverse() * Hold.Facing;
+		StanceInput.Carry = FLooterCarry();
+		StanceInput.AimRotation = StanceInput.WeaponRotation;
+		StanceInput.CarryRotation = StanceInput.WeaponRotation;
 	}
 
 	// Reloads play the reload animation on the upper body, stretched to the weapon's actual reload time. A revolver's
@@ -210,6 +225,8 @@ void FLooterCharacterAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance,
 	ULooterCharacterAnimInstance* Instance = CastChecked<ULooterCharacterAnimInstance>(InAnimInstance);
 	Instance->RefreshStanceInput(DeltaSeconds);
 	Stance = Instance->GetStanceInput();
+	// The upper body's smoothing catches up by the time since it last ran (an update skipped adds its time to the next).
+	BobSeconds += DeltaSeconds;
 }
 
 bool FLooterCharacterAnimInstanceProxy::Evaluate_WithRoot(FPoseContext& Output, FAnimNode_Base* InRootNode)
@@ -232,13 +249,22 @@ bool FLooterCharacterAnimInstanceProxy::Evaluate_WithRoot(FPoseContext& Output, 
 	return true;
 }
 
-void FLooterCharacterAnimInstanceProxy::ApplyUpperBodyPose(FPoseContext& Output) const
+void FLooterCharacterAnimInstanceProxy::ApplyUpperBodyPose(FPoseContext& Output)
 {
 	const FBoneContainer& Bones = Output.Pose.GetBoneContainer();
 	const FCompactPoseBoneIndex UpperBodyRoot = FindBone(Bones, TEXT("spine_01"));
 	if (!UpperBodyRoot.IsValid())
 	{
 		return;
+	}
+
+	// A six-gun carried in one hand in a sprint lets the other arm swing as the run's own clip swings it.
+	const float FreeArm = Stance.Carry.OneHanded();
+	const FCompactPoseBoneIndex FreeShoulder = FreeArm > UE_KINDA_SMALL_NUMBER ? FindBone(Bones, TEXT("clavicle_l")) : FCompactPoseBoneIndex();
+	FCompactPose Running;
+	if (FreeShoulder.IsValid())
+	{
+		Running.CopyBonesFrom(Output.Pose);
 	}
 
 	FCompactPose HeldPose;
@@ -254,20 +280,27 @@ void FLooterCharacterAnimInstanceProxy::ApplyUpperBodyPose(FPoseContext& Output)
 	HeldInMesh.InitPose(HeldPose);
 	const FQuat SpineInMesh = HeldInMesh.GetComponentSpaceTransform(UpperBodyRoot).GetRotation();
 
-	// The spine and everything above it take the held pose...
+	// The spine and everything above it take the held pose (but a free arm's swing)...
 	for (const FCompactPoseBoneIndex Bone : Output.Pose.ForEachBoneIndex())
 	{
 		if (Bone == UpperBodyRoot || Bones.BoneIsChildOf(Bone, UpperBodyRoot))
 		{
 			Output.Pose[Bone] = HeldPose[Bone];
+			if (FreeShoulder.IsValid() && (Bone == FreeShoulder || Bones.BoneIsChildOf(Bone, FreeShoulder)))
+			{
+				Output.Pose[Bone].BlendWith(Running[Bone], FreeArm);
+			}
 		}
 	}
 
-	// ...with the base of the spine held in mesh space, so the chest and gun ride the steps without rocking with the hips.
+	// ...with the base of the spine held in mesh space, so the chest and gun ride the steps without rocking with the hips,
+	// and without the full bounce of the run's hips under them either (a share is kept, so the body still looks alive).
 	FCSPose<FCompactPose> Pose;
 	Pose.InitPose(Output.Pose);
 	FTransform Spine = Pose.GetComponentSpaceTransform(UpperBodyRoot);
 	Spine.SetRotation(SpineInMesh);
+	Spine.SetLocation(Bob.Update(Spine.GetLocation(), BobSeconds));
+	BobSeconds = 0.f;
 	SetBone(Pose, UpperBodyRoot, Spine);
 	FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(MoveTemp(Pose), Output.Pose);
 }

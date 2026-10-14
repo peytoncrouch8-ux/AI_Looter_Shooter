@@ -185,7 +185,8 @@ void LooterStancePoseDetail::ApplyRecoil(FCSPose<FCompactPose>& Pose, const FBon
 	Pose.LocalBlendCSBoneTransforms(MakeArrayView(Chain), 1.f);
 }
 
-void LooterStancePoseDetail::ApplyLeftHandOnForegrip(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Right)
+void LooterStancePoseDetail::ApplyLeftHandOnForegrip(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FVector& Right,
+	const FQuat& PalmTurn)
 {
 	const FCompactPoseBoneIndex HoldBone = FindBone(Bones, *Stance.HoldBone.ToString());
 	const FCompactPoseBoneIndex UpperArm = FindBone(Bones, TEXT("upperarm_l"));
@@ -212,17 +213,22 @@ void LooterStancePoseDetail::ApplyLeftHandOnForegrip(FCSPose<FCompactPose>& Pose
 	FTransform Elbow = Pose.GetComponentSpaceTransform(LowerArm);
 	FTransform Wrist = Pose.GetComponentSpaceTransform(Hand);
 
-	// Aim the palm (the mannequin's HandGrip_L point) at the foregrip, keeping the animation's hand orientation.
-	const FQuat HandRotation = Wrist.GetRotation();
+	// Aim the palm (the mannequin's HandGrip_L point) at the foregrip, keeping the animation's hand orientation; a carried
+	// gun turns it, so the palm keeps its place on the gun (ApplyCarry).
+	const FQuat HandRotation = (PalmTurn * Wrist.GetRotation()).GetNormalized();
 	const FVector WristTarget = Foregrip - HandRotation.RotateVector(LeftPalmFromWrist());
-	// Keep the elbow bending down and out, the way it already is.
-	const FVector ElbowHint = Elbow.GetLocation() - FVector::UpVector * 20.f + Right * -10.f;
+	// Keep the elbow bending down and out, the way it already is. Carried, it goes where the forearm turned with the palm
+	// would put it, so the wrist doesn't bend away from the gun.
+	const FVector UsualHint = Elbow.GetLocation() - FVector::UpVector * 20.f + Right * -10.f;
+	const FVector TurnedHint = WristTarget - PalmTurn.RotateVector(Wrist.GetLocation() - Elbow.GetLocation());
+	const FVector ElbowHint = FMath::Lerp(UsualHint, TurnedHint, Stance.Carry.Weight());
 
 	AnimationCore::SolveTwoBoneIK(Shoulder, Elbow, Wrist, ElbowHint, WristTarget,
 		/*bAllowStretching*/ false, /*StartStretchRatio*/ 1.0, /*MaxStretchScale*/ 1.0);
 	Wrist.SetRotation(HandRotation);
 
-	// During a reload the left hand is busy (the magazine, or a revolver's cylinder), so it lets go of the foregrip.
+	// During a reload the left hand is busy (the magazine, or a revolver's cylinder), so it lets go of the foregrip; a
+	// six-gun carried in one hand in a sprint lets go too, the arm swinging with the run (ULooterCharacterAnimInstance).
 	const FBoneTransform Chain[] = { FBoneTransform(UpperArm, Shoulder), FBoneTransform(LowerArm, Elbow), FBoneTransform(Hand, Wrist) };
-	Pose.LocalBlendCSBoneTransforms(MakeArrayView(Chain), 1.f - Stance.ReloadWeight);
+	Pose.LocalBlendCSBoneTransforms(MakeArrayView(Chain), (1.f - Stance.ReloadWeight) * (1.f - Stance.Carry.OneHanded()));
 }
