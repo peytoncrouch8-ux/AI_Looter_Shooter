@@ -89,7 +89,11 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   positions only (the import turns bone axes). Hip holds (`Weapons/WeaponHipHold.cpp`; the revolver's in
   `create_revolver.py`): grip cm ahead/right/up, rifle 50, 23, -23.5; shotgun 50, 22.5, -23; revolver 50, 22, -21 (the
   user's Borderlands framing: low right, both gloves in view; `Looter.Player.Hands.OnGun` keeps the grip points inside
-  0.85 of the half-frame). Tune live in PIE: `Looter.HipHold.Ahead/Right/Up`, `Looter.Hands.Scale`.
+  0.85 of the half-frame). Long guns level (no muzzle-down tilt: the user, "the AR is tilted forward"). Support hand palm
+  up under the fore-end, forearms from below so the sleeve's cut end stays under the frame (`ForeForearm` in
+  `FirstPersonHandsGrips.cpp`). Tune live in PIE: `Looter.HipHold.Kind/Ahead/Right/Up/Pitch/Yaw/Roll`,
+  `Looter.Hands.Kind`, `Looter.Hands.Support*/Trigger*` (palm roll/pitch/yaw, forearm yaw/pitch, hold), `Looter.Hands.Scale`;
+  `Looter.Hands.Dump` prints paste-ready table lines.
 - Gun sizes (the user, 2026-10-14): drawn bigger than modelled, everywhere: rifle and shotgun 1.1, revolver 1.2
   (`UWeaponModelComponent::ScaleFor`; sockets scale with it). The pistol shows as "Revolver" (DA_Revolver's display name;
   Drover stays its parts' and files' name).
