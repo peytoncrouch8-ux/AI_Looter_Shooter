@@ -31,12 +31,14 @@ struct FMissionRewards;
  *  - one open and not tracked shows "[E] Track": the minimap and the HUD's tracker follow it;
  *  - one done is stamped done; one not up yet is faint, with the board's note (Skyreach's: bring a gun first);
  *  - one up for the taking (a bounty board's job: the board offers it) shows its ! and "[E] Take a look": the offer card
- *    opens over the board (ALooterHUD::OpenMissionOffer), which has the keys until it closes; the board shows it taken.
- * The cards that can be acted on are the stops of an FMenuNavigator: W / S, the arrows, the D-pad or the left stick choose
- * one (the kit's focus look on it while keys drive), E (or wherever Interact is bound), Enter, Space or A act on it, Esc
- * or B close. Under the mouse a card lights as it's pointed at; a click chooses a card, a click on the chosen one (or a
- * double click) acts on it, as the keys do. The prompts at the bottom name the device's keys. Every background it paints
- * follows the UI transparency setting (MarkBackground).
+ *    opens over the board (ALooterHUD::OpenMissionOffer), which has the keys until it closes; the board shows it taken;
+ *  - one offered by someone else and only turned in here (Calder's Caches, from Ruth's note) says "Offered elsewhere" and
+ *    where it's picked up.
+ * Every card is a stop of an FMenuNavigator: W / S, the arrows, the D-pad or the left stick choose one (the kit's focus
+ * look on it while keys drive), E (or wherever Interact is bound), Enter, Space or A act on it, Esc or B close. Under the
+ * mouse a card lights as it's pointed at; a click chooses a card, a click on the chosen one (or a double click) acts on
+ * it, as the keys do. One that can't be acted on here says why on the status line. The prompts at the bottom name the
+ * device's keys. Every background it paints follows the UI transparency setting (MarkBackground).
  *
  * NoticeBoardWidget.cpp builds it and opens and closes it; NoticeBoardWidgetCards.cpp makes the posting cards and acts on
  * them; NoticeBoardWidgetInput.cpp is its keys, stick, mouse and focus.
@@ -56,12 +58,13 @@ public:
 	/** The postings shown, in order. */
 	const TArray<FNoticeBoardPosting>& GetPostings() const { return Postings; }
 
-	/** The card chosen now (what E acts on), or INDEX_NONE when none can be acted on. */
+	/** The card chosen now (what E acts on), or INDEX_NONE on an empty board. */
 	int32 GetSelected() const { return Selected; }
 
 	/**
 	 * A click on card Index, as the mouse gives it: a card not chosen yet is chosen (as W and S choose); the chosen one is
-	 * acted on, as E acts (so a double click does both). False for a card that can't be acted on here.
+	 * acted on, as E acts (so a double click does both), or says why it can't be here (SayWhyNot). False when nothing was
+	 * chosen or done (no such card, or the chosen one can't be acted on here).
 	 */
 	bool ClickCard(int32 Index);
 
@@ -99,7 +102,7 @@ protected:
 	virtual void NativeOnFocusLost(const FFocusEvent& InFocusEvent) override;
 
 private:
-	/** A card's button (none for one that can't be acted on) and the parts that restyle as it's chosen or pointed at. */
+	/** A card's button (every card has one) and the parts that restyle as it's chosen or pointed at. */
 	struct FCard
 	{
 		ULooterButton* Button = nullptr;
@@ -127,10 +130,17 @@ private:
 	/** The card's state on its right: its word and colour ("Open  3 / 6", "Ready to turn in", "Done"). */
 	FText StateWord(const FNoticeBoardPosting& Posting) const;
 	FLinearColor StateColor(const FNoticeBoardPosting& Posting) const;
-	/** Card Index can be acted on here: turned in (ready, given here), tracked (open, not tracked yet) or taken (offered). */
+	/** Card Index can be acted on here: turned in (ready, given here), tracked (open, not tracked yet) or taken (offered here). */
 	bool CanAct(int32 Index) const;
 	/** Turns in, tracks or offers card Index (the offer card over the board). */
 	void Act(int32 Index);
+	/**
+	 * Card Index was pressed but can't be acted on here: the denied sound and why on the status line (picked up elsewhere,
+	 * with where; tracked already; turned in to someone else; done; not posted yet).
+	 */
+	void SayWhyNot(int32 Index);
+	/** Where a job offered by someone else is picked up ("Ruth's note, at Calder's Post"), as the Missions page says it. */
+	FText WhereToTake(const FNoticeBoardPosting& Posting) const;
 	/** The runner finished a mission: a turn-in here keeps what it gave, for its card. */
 	void HandleMissionCompleted(const UMissionDefinition& Mission, const FMissionRewardsGiven& Given);
 
@@ -176,6 +186,8 @@ private:
 	int32 Selected = INDEX_NONE;
 	/** The card under the mouse (its hover look), or INDEX_NONE. */
 	int32 Hovered = INDEX_NONE;
+	/** A key is pressing the chosen card through the navigator (rather than a click), for the log. */
+	bool bKeyPress = false;
 
 	FMenuNavigator Nav;
 	FVector2D NavStick = FVector2D::ZeroVector;

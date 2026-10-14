@@ -132,13 +132,19 @@ bool FNoticeBoardClicksTest::RunTest(const FString& Parameters)
 	UPackage* Scratch = CreatePackage(nullptr);
 	const TArray<UMissionDefinition*> Jobs = { MakeJob(Scratch, TEXT("TestJobA")), MakeJob(Scratch, TEXT("TestJobB")),
 		MakeJob(Scratch, TEXT("TestJobC")) };
-	Runner->BeginForTesting(Jobs, Campaign, Player);
+	// Calder's Caches' kind: offered by a note found elsewhere, only turned in at this board (the play-through's card that
+	// took no click: it had no button, being nothing this board can act on before it's taken).
+	UMissionDefinition* NoteJob = NewMission(Scratch, TEXT("TestNoteJob"), EMissionKind::Side, EMissionStart::Offered, NAME_None);
+	AddObjective<UMissionEventObjective>(NoteJob, 0)->Event = TEXT("Test.Never");
+	NoteJob->Offer.GiverTag = TEXT("Artifact_TestNote");
+	NoteJob->TurnIn.SpeakerTag = BoardTag;
+	Runner->BeginForTesting({ Jobs[0], Jobs[1], Jobs[2], NoteJob }, Campaign, Player);
 	Runner->Update(0.f);
 	for (const UMissionDefinition* Job : Jobs)
 	{
 		Runner->AcceptMission(Job->GetMissionId());
 	}
-	// All three under way and none followed: each card can be tracked from the board (acted on without a HUD).
+	// The three jobs under way and none followed: each card can be tracked from the board (acted on without a HUD).
 	Runner->TrackMission(NAME_None);
 
 	UNoticeBoardWidget* Screen = CreateWidget<UNoticeBoardWidget>(World, UNoticeBoardWidget::StaticClass());
@@ -148,29 +154,43 @@ bool FNoticeBoardClicksTest::RunTest(const FString& Parameters)
 	}
 	Screen->Open(nullptr, Board);
 	Screen->TakeWidget();
-	if (!TestEqual(TEXT("Three jobs under way on the board"), Screen->GetPostings().Num(), 3))
+	if (!TestEqual(TEXT("Three jobs under way and one offered elsewhere on the board"), Screen->GetPostings().Num(), 4))
 	{
 		return false;
 	}
-	TestEqual(TEXT("The first card is chosen as it opens"), Screen->GetSelected(), 0);
-	TestTrue(TEXT("Each card says what its job pays"), ScreenSays(*Screen, TEXT("REWARD: +100 XP")));
+	const FName NoteId = NoteJob->GetMissionId();
+	const int32 Note = IndexOf(Screen->GetPostings(), NoteId);
+	TestTrue(TEXT("The note's job is pinned up as offered, not here"), Note != INDEX_NONE
+		&& Screen->GetPostings()[Note].State == ENoticePosting::Offered && !Screen->GetPostings()[Note].bOfferedHere);
+	TestEqual(TEXT("The first job that can be acted on is chosen as it opens"), Screen->GetSelected(), IndexOf(Screen->GetPostings(), Jobs[0]->GetMissionId()));
+	TestTrue(TEXT("Each job's card says what it pays"), ScreenSays(*Screen, TEXT("REWARD: +100 XP")));
 	TestFalse(TEXT("...and none calls a real job practice"), ScreenSays(*Screen, TEXT("PRACTICE")));
+	TestTrue(TEXT("The note's card says it's offered elsewhere"), ScreenSays(*Screen, TEXT("OFFERED ELSEWHERE")));
+
+	// A card that can't be acted on here is chosen by a click all the same; the next click says why, and takes nothing.
+	TestTrue(TEXT("A click on the note's card chooses it"), Screen->ClickCard(Note) && Screen->GetSelected() == Note);
+	TestFalse(TEXT("...a second click can't take it here"), Screen->ClickCard(Note));
+	TestFalse(TEXT("...it isn't taken"), Runner->IsRunning(NoteId));
+	TestTrue(TEXT("...and the board says where it's picked up"), ScreenSays(*Screen, TEXT("is picked up elsewhere")));
 
 	// A click on a card not chosen chooses it (as S would), and does nothing more yet.
-	const FName ThirdId = Screen->GetPostings()[2].MissionId;
-	TestTrue(TEXT("A click on another card chooses it"), Screen->ClickCard(2) && Screen->GetSelected() == 2);
+	const FName ThirdId = Jobs[2]->GetMissionId();
+	const int32 Third = IndexOf(Screen->GetPostings(), ThirdId);
+	TestTrue(TEXT("A click on another card chooses it"), Screen->ClickCard(Third) && Screen->GetSelected() == Third);
 	TestTrue(TEXT("...and acts on nothing yet"), Runner->GetTrackedMission().IsNone());
 	// A click on the chosen card acts on it, as E does.
-	TestTrue(TEXT("A click on the chosen card acts on it: tracked"), Screen->ClickCard(2) && Runner->GetTrackedMission() == ThirdId);
+	TestTrue(TEXT("A click on the chosen card acts on it: tracked"), Screen->ClickCard(Third) && Runner->GetTrackedMission() == ThirdId);
 	const int32 Tracked = IndexOf(Screen->GetPostings(), ThirdId);
-	TestFalse(TEXT("Tracked now, its card can't be acted on"), Screen->ClickCard(Tracked));
-	TestTrue(TEXT("...and the choice moved to one that can"), Screen->GetSelected() != Tracked && Screen->GetSelected() != INDEX_NONE);
+	TestTrue(TEXT("...and the choice moved on to one that can be acted on"), Screen->GetSelected() == IndexOf(Screen->GetPostings(), Jobs[0]->GetMissionId()));
+	TestTrue(TEXT("Tracked now, its card is still chosen by a click"), Screen->ClickCard(Tracked) && Screen->GetSelected() == Tracked);
+	TestFalse(TEXT("...but can't be acted on again"), Screen->ClickCard(Tracked));
+	TestTrue(TEXT("...and the board says why"), ScreenSays(*Screen, TEXT("is tracked already")));
 
 	// A double click (two clicks) on a card not chosen: chosen, then acted on.
-	const int32 Other = Screen->GetSelected() == 0 ? 1 : 0;
-	const FName OtherId = Screen->GetPostings()[Other].MissionId;
-	TestTrue(TEXT("A double click on a card not chosen: chosen, then tracked"), Screen->ClickCard(Other) && Screen->ClickCard(Other)
-		&& Runner->GetTrackedMission() == OtherId);
+	const FName SecondId = Jobs[1]->GetMissionId();
+	const int32 Second = IndexOf(Screen->GetPostings(), SecondId);
+	TestTrue(TEXT("A double click on a card not chosen: chosen, then tracked"), Screen->ClickCard(Second) && Screen->ClickCard(Second)
+		&& Runner->GetTrackedMission() == SecondId);
 	TestFalse(TEXT("A card that isn't there: nothing"), Screen->ClickCard(7));
 	return true;
 }

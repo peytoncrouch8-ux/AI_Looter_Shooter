@@ -13,6 +13,7 @@
 #include "UI/Style/LooterUIFocus.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "UI/Style/MissionMarkIcons.h"
+#include "UI/World/MissionOfferWidget.h"
 #include "Weapons/WeaponDefinition.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/HorizontalBox.h"
@@ -142,7 +143,8 @@ FText UNoticeBoardWidget::StateWord(const FNoticeBoardPosting& Posting) const
 	case ENoticePosting::Locked:
 		return LOCTEXT("StateLocked", "Not posted yet");
 	case ENoticePosting::Offered:
-		return LOCTEXT("StateOffered", "Up for the taking");
+		// A job only turned in here (Calder's Caches: Ruth's note offers it) is up for the taking, but not on this board.
+		return Posting.bOfferedHere ? LOCTEXT("StateOffered", "Up for the taking") : LOCTEXT("StateOfferedElsewhere", "Offered elsewhere");
 	case ENoticePosting::Open:
 	{
 		const FText Word = Posting.bTracked ? LOCTEXT("StateTracked", "Tracked") : LOCTEXT("StateOpen", "Open");
@@ -161,7 +163,8 @@ FLinearColor UNoticeBoardWidget::StateColor(const FNoticeBoardPosting& Posting) 
 	switch (Posting.State)
 	{
 	case ENoticePosting::Locked: return Color::TextDim();
-	case ENoticePosting::Offered: return MissionMarkIcons::Color(Posting.Mission && Posting.Mission->Kind == EMissionKind::Main);
+	case ENoticePosting::Offered:
+		return Posting.bOfferedHere ? MissionMarkIcons::Color(Posting.Mission && Posting.Mission->Kind == EMissionKind::Main) : Color::TextDim();
 	case ENoticePosting::Open:   return Posting.bTracked ? Color::Accent() : Color::CyanText();
 	case ENoticePosting::Ready:  return Color::Accent();
 	case ENoticePosting::Done:   return Color::Better();
@@ -180,9 +183,9 @@ UWidget* UNoticeBoardWidget::MakeCard(int32 Index)
 	const bool bFaint = Posting.State == ENoticePosting::Done || Posting.State == ENoticePosting::Locked;
 	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 
-	// A strip down the left side: orange to turn in, gold or white for a job to take, cyan while open, faint once done or
-	// while locked.
-	const bool bOffered = Posting.State == ENoticePosting::Offered;
+	// A strip down the left side: orange to turn in, gold or white for a job to take here, cyan while open, faint once done
+	// or while locked. A job offered by someone else (only turned in here) has no mark: it can't be taken here.
+	const bool bOffered = Posting.State == ENoticePosting::Offered && Posting.bOfferedHere;
 	const bool bMain = Mission && Mission->Kind == EMissionKind::Main;
 	const FLinearColor Strip = Posting.State == ENoticePosting::Ready ? Color::Accent() : bOffered ? MissionMarkIcons::Color(bMain)
 		: bFaint ? Color::RowLine() : Color::Title();
@@ -215,6 +218,13 @@ UWidget* UNoticeBoardWidget::MakeCard(int32 Index)
 		UTextBlock* Notice = MakeText(WidgetTree, Mission->Summary.ToString(), 12, bFaint ? Color::TextDim() : Color::Text());
 		Notice->SetWrapTextAt(NoticeWrap);
 		Info->AddChildToVerticalBox(Notice)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
+	}
+	if (Mission && Posting.State == ENoticePosting::Offered && !Posting.bOfferedHere)
+	{
+		// Where it is picked up ("Ruth's note, at Calder's Post"), since this board only takes it in.
+		UTextBlock* Where = MakeText(WidgetTree, WhereToTake(Posting).ToString(), 11, Color::CyanText());
+		Where->SetWrapTextAt(NoticeWrap);
+		Info->AddChildToVerticalBox(Where)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
 	}
 	if (Mission)
 	{
@@ -259,18 +269,14 @@ UWidget* UNoticeBoardWidget::MakeCard(int32 Index)
 	UOverlay* CardBox = LoadoutParts::MakeCard(WidgetTree, Row, FMargin(10.f, 10.f, 14.f, 10.f), 1.5f, Card.Fill, Card.Line);
 	USizeBox* Sized = MakeSized(WidgetTree, CardBox, 0.f);
 	Sized->SetMinDesiredHeight(CardMinHeight);
-	if (!CanAct(Index))
-	{
-		// Done, locked or already tracked: nothing to press.
-		return Sized;
-	}
-	// The kit's focus look (an orange frame, a lit edge, a faint wash), under the card's words: lit while keys drive the board.
+	// Every card is a button and can be chosen (a click, W and S): one that can't be acted on here (offered elsewhere,
+	// tracked already, done, locked) says why when it's pressed, rather than ignoring the click (SayWhyNot). The kit's
+	// focus look (an orange frame, a lit edge, a faint wash) sits under the card's words: lit while keys drive the board.
 	Card.Focus = AddFocusFrame(CardBox);
 	ULooterButton* Button = WidgetTree->ConstructWidget<ULooterButton>(ULooterButton::StaticClass());
 	Button->SetupContent(Sized, ActionCard, Index, EButtonKind::Bare);
 	// A row is clicked as the button goes down, as a list's rows are: the press alone chooses it (or acts on the chosen one),
-	// never lost for want of a hover or a release over the same card (a press and release only count over a button Slate
-	// saw the pointer enter, which a pointer brought straight onto it and pressed hasn't).
+	// with no release over the same card to wait for.
 	Button->SetClickMethod(EButtonClickMethod::MouseDown);
 	Button->OnButtonClicked.BindUObject(this, &UNoticeBoardWidget::HandleButton);
 	Card.Button = Button;
@@ -352,6 +358,53 @@ void UNoticeBoardWidget::Act(int32 Index)
 	From->Track(*Runner, Posting.MissionId);
 	Refresh();
 	SetStatus(FText::Format(LOCTEXT("Tracking", "Tracking {0}."), Title), Color::Title());
+}
+
+FText UNoticeBoardWidget::WhereToTake(const FNoticeBoardPosting& Posting) const
+{
+	if (!Posting.Mission)
+	{
+		return FText::GetEmpty();
+	}
+	// As the Missions page says it: its giver's kind and name, and the place on the map nearest them.
+	const UMissionRunner* Runner = GetRunner();
+	const AActor* Giver = Runner ? Runner->FindOfferGiverActor(*Posting.Mission) : nullptr;
+	return FMissionOfferCard::WhereToGet(*Posting.Mission, Giver, GetWorld(), FText::GetEmpty());
+}
+
+void UNoticeBoardWidget::SayWhyNot(int32 Index)
+{
+	LooterSound::Play2D(this, LooterSoundCue::Denied);
+	if (!Postings.IsValidIndex(Index))
+	{
+		return;
+	}
+	const FNoticeBoardPosting& Posting = Postings[Index];
+	const FText Title = Posting.Mission ? Posting.Mission->Title : FText::FromName(Posting.MissionId);
+	FText Why;
+	switch (Posting.State)
+	{
+	case ENoticePosting::Offered:
+		Why = FText::Format(LOCTEXT("WhyElsewhere", "{0} is picked up elsewhere: {1}."), Title, WhereToTake(Posting));
+		break;
+	case ENoticePosting::Open:
+		Why = FText::Format(LOCTEXT("WhyTracked", "{0} is tracked already."), Title);
+		break;
+	case ENoticePosting::Ready:
+		Why = Posting.Mission ? FText::Format(LOCTEXT("WhyTurnInElsewhere", "{0} is turned in to {1}."), Title, Posting.Mission->GetGiverName())
+			: FText::GetEmpty();
+		break;
+	case ENoticePosting::Done:
+		Why = FText::Format(LOCTEXT("WhyDone", "{0} is done."), Title);
+		break;
+	case ENoticePosting::Locked:
+	{
+		const ANoticeBoard* From = Board.Get();
+		Why = From && !From->LockedNote.IsEmpty() ? From->LockedNote : FText::Format(LOCTEXT("WhyLocked", "{0} isn't posted yet."), Title);
+		break;
+	}
+	}
+	SetStatus(Why, Color::TextDim());
 }
 
 void UNoticeBoardWidget::HandleMissionCompleted(const UMissionDefinition& Mission, const FMissionRewardsGiven& Given)

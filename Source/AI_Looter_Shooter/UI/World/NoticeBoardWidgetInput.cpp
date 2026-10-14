@@ -1,9 +1,10 @@
-// UNoticeBoardWidget for the keyboard, a controller and the mouse: the cards that can be acted on are an FMenuNavigator's
-// stops (W / S, the arrows, the D-pad or the stick choose; E, Enter, Space or A act; Esc or B close), a click chooses a
-// card and a click on the chosen one acts on it, the mouse over a card lights it, and the prompts name the device's keys
-// (LooterUIFocus.h, MenuNav.h, MenuNavigator.h).
+// UNoticeBoardWidget for the keyboard, a controller and the mouse: every card is an FMenuNavigator's stop (W / S, the
+// arrows, the D-pad or the stick choose; E, Enter, Space or A act; Esc or B close), a click chooses a card and a click on
+// the chosen one acts on it (or says why it can't be here), the mouse over a card lights it, and the prompts name the
+// device's keys (LooterUIFocus.h, MenuNav.h, MenuNavigator.h). Each press on a card is logged (Verbose).
 
 #include "UI/World/NoticeBoardWidget.h"
+#include "AI_Looter_Shooter.h"
 #include "Audio/LooterSound.h"
 #include "Settings/KeyBindingSubsystem.h"
 #include "UI/HUD/LooterHUD.h"
@@ -36,7 +37,7 @@ int32 UNoticeBoardWidget::CardOf(const UWidget* Widget) const
 
 void UNoticeBoardWidget::Select(int32 Index)
 {
-	if (!CanAct(Index) || Index == Selected)
+	if (!Postings.IsValidIndex(Index) || Index == Selected)
 	{
 		return;
 	}
@@ -51,7 +52,7 @@ void UNoticeBoardWidget::Select(int32 Index)
 
 void UNoticeBoardWidget::Step(int32 Direction)
 {
-	// Past the done and locked cards (they're no stops) to the next that can be acted on, round the ends.
+	// To the next card, round the ends.
 	if (Direction == 0 || Nav.MoveVertical(Direction) != EMenuNavResult::Moved)
 	{
 		return;
@@ -67,16 +68,29 @@ void UNoticeBoardWidget::Step(int32 Direction)
 
 bool UNoticeBoardWidget::ClickCard(int32 Index)
 {
-	if (!CanAct(Index))
+	if (!Postings.IsValidIndex(Index))
 	{
+		UE_LOG(LogLooter, Verbose, TEXT("Notice board: a press on card %d, which isn't there."), Index);
 		return false;
 	}
+	const TCHAR* By = bKeyPress ? TEXT("key") : TEXT("click");
+	const FString Id = Postings[Index].MissionId.ToString();
 	if (Index != Selected)
 	{
 		// The first click chooses it, as W and S would; the next (or a double click's second) acts on it.
 		Select(Index);
+		UE_LOG(LogLooter, Verbose, TEXT("Notice board: card %d (%s) got a %s: chosen."), Index, *Id, By);
 		return true;
 	}
+	if (!CanAct(Index))
+	{
+		UE_LOG(LogLooter, Verbose, TEXT("Notice board: card %d (%s) got a %s: chosen, but nothing can be done with it here (%s)."), Index,
+			*Id, By, *StateWord(Postings[Index]).ToString());
+		SayWhyNot(Index);
+		return false;
+	}
+	// Logged before acting: acting reads the postings again.
+	UE_LOG(LogLooter, Verbose, TEXT("Notice board: card %d (%s) got a %s: acted on (%s)."), Index, *Id, By, *StateWord(Postings[Index]).ToString());
 	Act(Index);
 	return true;
 }
@@ -228,11 +242,8 @@ void UNoticeBoardWidget::HandleButton(ULooterButton* Button)
 		Close();
 		return;
 	}
-	// A click on a card, or the navigator's press of the chosen one (E and the rest): choose it, or act on it.
-	if (!ClickCard(Button->Index))
-	{
-		LooterSound::Play2D(this, LooterSoundCue::Denied);
-	}
+	// A click on a card, or the navigator's press of the chosen one (E and the rest): choose it, act on it, or say why not.
+	ClickCard(Button->Index);
 	// A click handed the keyboard to the game viewport (LooterButton): the board takes it back, unless the offer card it just
 	// opened is over it now, which keeps the keys until it closes (then ALooterHUD::CloseMissionOffer gives them back).
 	const ALooterHUD* HUD = OwningHUD.Get();
@@ -289,9 +300,13 @@ FReply UNoticeBoardWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FK
 		NoteKey(Key);
 		// The Interact key that read the board may still be held and repeating: only a fresh press acts. The navigator
 		// presses the chosen card's button, so a key and a click take the one way (HandleButton).
-		if (!InKeyEvent.IsRepeat() && Nav.Activate() == EMenuNavResult::None)
+		if (!InKeyEvent.IsRepeat())
 		{
-			LooterSound::Play2D(this, LooterSoundCue::Denied);
+			TGuardValue<bool> ByKey(bKeyPress, true);
+			if (Nav.Activate() == EMenuNavResult::None)
+			{
+				LooterSound::Play2D(this, LooterSoundCue::Denied);
+			}
 		}
 		return FReply::Handled();
 	}

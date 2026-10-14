@@ -38,38 +38,38 @@ namespace
 	}
 
 	/**
-	 * A card's fill and edge by what it is: a chosen one lit orange, one under the mouse brighter (the kit's buttons
-	 * brighten as they're pointed at), a done or locked one faint.
+	 * A card's fill and edge by what it is: a chosen one lit orange (a done or locked one more faintly), one under the
+	 * mouse brighter (the kit's buttons brighten as they're pointed at), a done or locked one faint.
 	 */
 	FLinearColor CardFill(const FNoticeBoardPosting& Posting, bool bChosen, bool bHovered)
 	{
+		if (bChosen)
+		{
+			return IsFaint(Posting) ? Color::Accent() * FLinearColor(1.f, 1.f, 1.f, 0.12f) : Hex(255, 159, 28, 64);
+		}
 		if (IsFaint(Posting))
 		{
 			return Hex(7, 26, 40, 110);
-		}
-		if (bChosen)
-		{
-			return Hex(255, 159, 28, 64);
 		}
 		return bHovered ? Color::Tile() : Color::Row();
 	}
 
 	FLinearColor CardLine(const FNoticeBoardPosting& Posting, bool bChosen, bool bHovered)
 	{
+		if (bChosen)
+		{
+			return IsFaint(Posting) ? Color::AccentDark() : Color::Accent();
+		}
+		if (bHovered)
+		{
+			return IsFaint(Posting) ? Color::RowLine() : Color::TileLine();
+		}
 		if (IsFaint(Posting))
 		{
 			return Hex(90, 200, 255, 46);
 		}
-		if (bChosen)
-		{
-			return Color::Accent();
-		}
-		if (bHovered)
-		{
-			return Color::TileLine();
-		}
-		// A job up for the taking is edged in its mark's colour, gold or white, as its ! is.
-		if (Posting.State == ENoticePosting::Offered)
+		// A job up for the taking here is edged in its mark's colour, gold or white, as its ! is.
+		if (Posting.State == ENoticePosting::Offered && Posting.bOfferedHere)
 		{
 			const bool bMain = Posting.Mission && Posting.Mission->Kind == EMissionKind::Main;
 			return MissionMarkIcons::Color(bMain) * FLinearColor(1.f, 1.f, 1.f, 0.55f);
@@ -271,6 +271,11 @@ void UNoticeBoardWidget::BuildPanel()
 	{
 		Selected = CanAct(Index) ? Index : INDEX_NONE;
 	}
+	// Nothing to do here: the first card, to read (every card can be chosen).
+	if (Selected == INDEX_NONE && !Postings.IsEmpty())
+	{
+		Selected = 0;
+	}
 	RebuildNav();
 	// The focus look, the keycaps and the prompts for the device last used; every card's look.
 	RefreshNavLook();
@@ -287,7 +292,6 @@ void UNoticeBoardWidget::Restyle()
 	{
 		const FCard& Card = Cards[Index];
 		const bool bChosen = Index == Selected;
-		// Only a card that can be acted on lights under the mouse: the rest have nothing to click.
 		const bool bHovered = Index == Hovered && Card.Button != nullptr;
 		if (Card.Fill)
 		{
