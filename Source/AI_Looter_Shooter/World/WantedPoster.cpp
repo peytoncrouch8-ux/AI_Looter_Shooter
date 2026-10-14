@@ -4,8 +4,11 @@
 #include "AI_Looter_Shooter.h"
 #include "Interaction/InteractionComponent.h"
 #include "Interaction/InteractionSubsystem.h"
+#include "Missions/MissionDefinition.h"
+#include "Missions/MissionRunner.h"
 #include "Story/CaptionSubsystem.h"
 #include "World/MinimapSubsystem.h"
+#include "World/MissionArtifact.h"
 #include "Components/BoxComponent.h"
 #include "Components/DecalComponent.h"
 #include "Components/SceneComponent.h"
@@ -41,6 +44,12 @@ namespace
 	/** The box the Interact key's line finds: 1 cm thick, a hair proud of the surface (cm). */
 	constexpr double BoxHalfThickness = 0.5;
 	constexpr double BoxGap = 0.2;
+
+	/**
+	 * How near a mission artifact must lie to count as laid over this paper (cm): the build scripts put it 1.5 cm in front
+	 * of the paper's origin (build_area_missionprops_valley.py's CARD_PROUD); a hand's width is room for any layout drift.
+	 */
+	constexpr double OfferSeatReach = 8.0;
 
 	/**
 	 * An asset made after this code (build_decal_materials.py's), found only once it exists, so the class works, and its
@@ -191,6 +200,7 @@ void AWantedPoster::BeginPlay()
 	Super::BeginPlay();
 	RefreshTags();
 	RefreshLook();
+	FindOfferSeat();
 	if (UInteractionSubsystem* Registry = UInteractionSubsystem::Get(this))
 	{
 		Registry->Register(this);
@@ -322,8 +332,9 @@ FInteractionOptions AWantedPoster::GetInteractionOptions(const UInteractionCompo
 		Options.TapPrompt = ReadPrompt;
 		return Options;
 	}
-	// Only a hold: a poster isn't torn by brushing the key on the way past.
-	Options.bUsable = CanTear();
+	// Only a hold: a poster isn't torn by brushing the key on the way past. And not at all while it is the seat of an offer
+	// still to be taken: then the artifact over it is what the key finds, and the poster is read first.
+	Options.bUsable = CanTear() && !IsAwaitingOffer();
 	Options.bTap = false;
 	Options.bHold = true;
 	Options.HoldSeconds = TearHoldSeconds;
@@ -337,7 +348,7 @@ bool AWantedPoster::Interact(UInteractionComponent& User, bool bHeld)
 	{
 		return !bHeld && Read(User.GetOwner());
 	}
-	return bHeld && Tear(User.GetOwner());
+	return bHeld && !IsAwaitingOffer() && Tear(User.GetOwner());
 }
 
 TOptional<FVector> AWantedPoster::GetInteractionLocation() const
@@ -360,6 +371,58 @@ bool AWantedPoster::IsBeingRead() const
 {
 	const UCaptionSubsystem* Captions = UCaptionSubsystem::Get(this);
 	return Captions && Conversation != 0 && Captions->IsPlaying(Conversation);
+}
+
+void AWantedPoster::FindOfferSeat()
+{
+	OfferSeat.Reset();
+	// Only a wanted poster has a tear to hold back; Calder's note is never torn.
+	const UWorld* World = GetWorld();
+	if (!World || Variant != EWantedPosterVariant::Wanted)
+	{
+		return;
+	}
+	// The nearest artifact within reach of the paper's origin.
+	double NearestSquared = FMath::Square(OfferSeatReach);
+	for (TActorIterator<AMissionArtifact> It(World); It; ++It)
+	{
+		const double DistanceSquared = FVector::DistSquared(It->GetActorLocation(), GetActorLocation());
+		if (DistanceSquared <= NearestSquared)
+		{
+			NearestSquared = DistanceSquared;
+			OfferSeat = *It;
+		}
+	}
+	if (const AActor* Seat = OfferSeat.Get())
+	{
+		UE_LOG(LogLooter, Log, TEXT("%s: %s lies over it, so it is read before it is torn (until the mission it offers is taken)."),
+			*GetActorNameOrLabel(), *Seat->GetActorNameOrLabel());
+	}
+}
+
+bool AWantedPoster::IsAwaitingOffer() const
+{
+	const AActor* Seat = OfferSeat.Get();
+	const UMissionRunner* Runner = Seat ? UMissionRunner::Get(this) : nullptr;
+	if (!Runner)
+	{
+		return false;
+	}
+	// A mission the artifact offers (its tag is the mission's giver tag) that isn't taken or finished, whether or not what
+	// comes before it is done: the poster stays unteared from the start, so it never hangs torn under an offer.
+	for (const UMissionDefinition* Mission : Runner->GetDefinitions())
+	{
+		if (!Mission || !Mission->IsOffered() || !Seat->ActorHasTag(Mission->Offer.GiverTag))
+		{
+			continue;
+		}
+		const FName MissionId = Mission->GetMissionId();
+		if (!Runner->IsAccepted(MissionId) && !Runner->IsCompleted(MissionId))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 // ---------------------------------------------------------------------------

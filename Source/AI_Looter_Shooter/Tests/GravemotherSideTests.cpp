@@ -418,7 +418,7 @@ bool FGravemotherMissionTest::RunTest(const FString& Parameters)
 		&& FMath::IsNearlyEqual(AssetEnter->Place.Radius, 1950.f, 1.f));
 	TestTrue(TEXT("...with its arrow on the ramp head, and the words the user asked for"), AssetEnter
 		&& AssetEnter->Waypoint == EMissionWaypoint::Actor && AssetEnter->WaypointActor.ActorTag == FName(TEXT("Place_SinkRim"))
-		&& AssetEnter->Text.ToString() == TEXT("Find where the Gravemother hungers"));
+		&& AssetEnter->Text.ToString() == TEXT("Find where the Gravemother hungers."));
 	TestTrue(TEXT("Its second: her lair cleared"), AssetKill && AssetKill->SpawnerId == Gravemother::LairId);
 	// Her fang for the sheriff's bounty: a mission item her body drops the first time she falls (and his badge in her den,
 	// optional), turned in to Mrs. Pruitt at the store's hatch for the town's purse.

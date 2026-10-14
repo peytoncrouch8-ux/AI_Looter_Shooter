@@ -93,6 +93,10 @@ struct AI_LOOTER_SHOOTER_API FWantedPosterAtlas
  * lasting objective (UMissionLastingInteractObjective) counts the torn posters it finds, so a reload loses nothing.
  * Calder's note is never torn; a tap reads it (NoteLines as captions).
  *
+ * A wanted poster can also be the seat of an offer: the town gate's poster has a mission artifact (AMissionArtifact,
+ * "Read the poster", which offers Side 1) laid over its paper. Until that mission is taken the poster is read, not torn:
+ * it offers no hold, so the Interact key's focus passes to the artifact (see IsAwaitingOffer).
+ *
  * Tagged for missions by its variant (WantedTag or NoteTag), and Obstacle like other props.
  */
 UCLASS(Config = Game)
@@ -159,6 +163,16 @@ public:
 	/** Calder's note, its last reading over. */
 	UFUNCTION(BlueprintPure, Category = "Poster")
 	bool CanRead() const;
+
+	/**
+	 * A mission artifact lies over this paper (the build scripts lay one 1.5 cm in front of it; found as play begins) and a
+	 * mission it offers is neither taken nor finished yet: the poster is for reading first, so it isn't torn (the Interact
+	 * key's focus would land on its hold and hide the offer behind it). True from the start, before the mission can even be
+	 * offered; false once the mission is accepted or done, for a poster with no artifact, and for Calder's note. Only the Interact key heeds it:
+	 * Tear() itself still works (the console, a test).
+	 */
+	UFUNCTION(BlueprintPure, Category = "Poster")
+	bool IsAwaitingOffer() const;
 
 	/** Its lines are on screen or still to come. */
 	bool IsBeingRead() const;
@@ -248,6 +262,9 @@ private:
 	/** Puts the decal (its cell, size and spot) and the box as they should be now. */
 	void RefreshLook();
 
+	/** Looks for the mission artifact lying over this paper, as play begins (every placed actor exists by then). */
+	void FindOfferSeat();
+
 	/** The decal's own instance of DecalMaterial (or MI_PosterDecal), made once and kept. Null without the material. */
 	UMaterialInstanceDynamic* FindOrMakeDecalMaterial();
 
@@ -266,6 +283,9 @@ private:
 	TObjectPtr<UStaticMeshComponent> Scrap;
 
 	bool bTorn = false;
+
+	/** The mission artifact lying over the paper, if there is one: its tag is the giver tag of the mission it offers. */
+	TWeakObjectPtr<AActor> OfferSeat;
 
 	/** The falling scrap: how long it has fallen, where it came off, and how it was thrown (drift, flutter, tumble). */
 	float ScrapAge = 0.f;

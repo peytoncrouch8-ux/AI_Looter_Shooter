@@ -38,8 +38,9 @@ Tools/Unreal/story_texts.py (ITEMS, READABLES, TOPICS, ENCOUNTERS).
                     he owed, chalked in the barn (WagesChalk). Turned in to Amos (his thanks, the topic from step 3). 800
                     XP, an Epic gun, his purse (60).
   DA_Mission_KnockingBelow "Knocking Below", offered by Tilly: 0 the workshop door in the undertaker's yard
-                    (Place_WorkshopDoor), 1 the cellar key (item CellarKey) + optional the coffin orders (OrdersSlate),
-                    2 down into the cellar (Place_CellarFloor, height counted), 3 the cellar's dead quieted (TillyCellar,
+                    (Place_WorkshopDoor), 1 the cellar key (item CellarKey), 2 down into the cellar (Place_CellarFloor,
+                    height counted) + optional the coffin orders (OrdersSlate: by the cellar door, beside the key's hook,
+                    so not on the key's step), 3 the cellar's dead quieted (TillyCellar,
                     4), 4 the cold room's door (ColdRoomDoor), 5 Thaddeus at his bench (Speaker_Thaddeus: his words
                     DA_Lines_ThaddeusTalk), 6 his tape (item ThaddeusTape, shown from step 6). Turned in to Tilly. 800 XP,
                     a Rare gun, 40 silver.
@@ -368,10 +369,12 @@ def caches_steps(asset):
     return [
         step(collect_items(asset, "Find Calder's three caches and take the Ranger's tag from each.",
                            ['CacheTag1', 'CacheTag2', 'CacheTag3'], short="Take the tags from Calder's caches"),
-             interact(asset, "Open Calder's three caches: hold {Interact}.", CACHE_TAG, 'Chest', count=3, hold=True,
-                      lasting=True, optional=True, short="Open Calder's caches")),
+             # Supply Crates and the Strongbox open on a tap (AChest: HoldSeconds is only the coffin's and the grave's), so
+             # neither the words nor the objective say hold (2026-10-14; the play-through read "hold [E]" on a tap).
+             interact(asset, "Open Calder's three caches.", CACHE_TAG, 'Chest', count=3, lasting=True, optional=True,
+                      short="Open Calder's caches")),
         step(interact(asset, "Open the gang's strongbox in the sheriff's lockup. You know the combination.", STRONGBOX_TAG,
-                      'Chest', hold=True, lasting=True, short="Open the gang's strongbox")),
+                      'Chest', lasting=True, short="Open the gang's strongbox")),
         step(read_objective(asset, 'Read the slip folded in with the banknotes.', 'DeaconsSlip',
                             short='Read the slip in the strongbox')),
     ]
@@ -410,16 +413,18 @@ def side2_steps(asset):
 
 
 def knocking_steps(asset):
-    """Round to the workshop, the key on Thaddeus's hook (his coffin orders on the slate, if Ellis reads them), down into
-    the cellar, its dead quieted, the cold room's door, Thaddeus at his bench, his tape for Tilly."""
+    """Round to the workshop, the key on Thaddeus's hook, down into the cellar (the coffin orders on the slate by the cellar
+    door, if Ellis reads them), its dead quieted, the cold room's door, Thaddeus at his bench, his tape for Tilly. The slate
+    hangs beside the key's hook, so its optional can't sit on the key's step (an optional ends with its step, and a player
+    who takes the key first would lose it at once); it's on the step through the cellar door, which the slate is by."""
     return [
         step(reach(asset, 'Go round to the workshop door in the undertaker\'s yard.', 'Place_WorkshopDoor', 400.0,
                    short='Go round to the workshop')),
-        step(collect_items(asset, 'Find the cellar key.', ['CellarKey']),
-             read_objective(asset, 'Read the coffin orders on the slate.', 'OrdersSlate', optional=True)),
+        step(collect_items(asset, 'Find the cellar key.', ['CellarKey'])),
         # Height counted, and under the 3.6 m between the workshop's floor and the cellar's, so standing over it upstairs
         # isn't down.
-        step(reach(asset, 'Go down into the cellar.', 'Place_CellarFloor', 350.0, ignore_height=False)),
+        step(reach(asset, 'Go down into the cellar.', 'Place_CellarFloor', 350.0, ignore_height=False),
+             read_objective(asset, 'Read the coffin orders on the slate.', 'OrdersSlate', optional=True)),
         step(clear(asset, 'Quiet the dead in the cellar.', 'TillyCellar', 4)),
         step(interact(asset, "Find what's still knocking: open the cold room.", 'ColdRoomDoor',
                       short="Find what's still knocking")),
@@ -442,8 +447,9 @@ def side3_steps(asset):
     sink.set_editor_property('radius', SINK_REACH)
     sink.set_editor_property('ignore_height', False)
     return [
-        # The user's own words, to the letter (Looter.Story.Gravemother checks them).
-        step(objective(asset, unreal.MissionReachObjective, 'Find where the Gravemother hungers', show_count=False,
+        # The user's own words, with the full stop every objective ends with (2026-10-14; Looter.Story.Gravemother.Mission
+        # checks them).
+        step(objective(asset, unreal.MissionReachObjective, 'Find where the Gravemother hungers.', show_count=False,
                        place=sink, waypoint=unreal.MissionWaypoint.ACTOR, waypoint_actor=actor_filter(tag=SINK_RIM_TAG))),
         step(clear(asset, 'Kill the Gravemother.', GRAVEMOTHER_LAIR, 1, show_count=False)),
         step(collect_items(asset, 'Take her fang.', ['GravemotherFang']),
@@ -632,7 +638,7 @@ MISSIONS = [
              ('', "There's a box of his under the counter. It's yours. Don't make me look at it."),
          ]),
          rewards=dict(experience=800, gun=True, gun_rarity_floor='RARE', silver=40),
-         expect=['MissionReachObjective', ['MissionCollectItemObjective', 'MissionEventObjective'], 'MissionReachObjective',
+         expect=['MissionReachObjective', 'MissionCollectItemObjective', ['MissionReachObjective', 'MissionEventObjective'],
                  'MissionClearObjective', 'MissionInteractObjective', 'MissionTalkObjective', 'MissionCollectItemObjective']),
 
     # --- After Main 5 ---

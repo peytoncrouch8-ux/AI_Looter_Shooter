@@ -1,7 +1,9 @@
 """Makes (or brings up to date) bestiary pages (UBestiaryEntry, Bestiary/BestiaryEntry.h) in /Game/Data/Bestiary: the
 pages the Ledger shows. Run it in the open editor once the C++ with each page's actor class is built:
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/create_bestiary_pages.py [Unpaid Sexton ...]"
-With no names it makes every page below. It prints a BESTIARY line per page and "BESTIARY done". Running it again writes
+With no names it makes every page below, and writes the places of the older, hand-made pages (OLDER_HABITATS: the brown
+spider, the meadow slime and the training dummy; their other fields are the assets' own). It prints a BESTIARY line per page
+and "BESTIARY done". Running it again writes
 these fields again (name, section, kind, description, habitat, notes, page type, the Ledger's flags and conditions, actor
 class, stand model and what it wears on its bones, its turn when given, order) and leaves the others as they are; other pages are never touched.
 
@@ -502,6 +504,36 @@ PAGES = {
 }
 
 
+# Pages made by hand before this script, whose words, numbers and models are the assets' own: only where they are found
+# is written here. They read "Tutorial Island: ..." until 2026-10-14; the map order is Ransom's Rest first now (spiders nest
+# on Ransom's Point at the top of the bluff path, in the Sink and on the mountain's crest; the slimes are Mill Creek's,
+# above Mill Falls), Skyreach (the old tutorial island) third, and the dummies stand only there (Docs/Areas/RansomsRest.md
+# "Encounters stay on one level of ground", RansomsRest_Expansion.md section 6). Written again as they are, so a rerun
+# changes nothing.
+OLDER_HABITATS = {
+    'BrownSpider': ('DA_Bestiary_BrownSpider',
+                    "Ransom's Rest: Ransom's Point at the top of the bluff path, the Sink, the quarry track and the "
+                    "mountain's crest"),
+    'MeadowSlime': ('DA_Bestiary_MeadowSlime', "Ransom's Rest: Mill Creek's bottom, above Mill Falls"),
+    'TrainingDummy': ('DA_Bestiary_TrainingDummy', 'Skyreach: the meadow under the windmill'),
+}
+
+
+def fix_older_habitat(key):
+    """Writes the whereabouts of one of the older pages (OLDER_HABITATS); False when it isn't there."""
+    asset_name, habitat = OLDER_HABITATS[key]
+    path = f'{FOLDER}/{asset_name}'
+    asset = unreal.load_asset(path) if unreal.EditorAssetLibrary.does_asset_exist(path) else None
+    if asset is None:
+        unreal.log_warning(f'BESTIARY {path} is not there: its place is left alone')
+        return False
+    asset.set_editor_property('habitat', unreal.Text(habitat))
+    if not unreal.EditorAssetLibrary.save_loaded_asset(asset, only_if_is_dirty=False):
+        raise RuntimeError(f'{path} could not be saved')
+    unreal.log(f'BESTIARY {path} updated: found at "{habitat}"')
+    return True
+
+
 def entry_class():
     cls = getattr(unreal, 'BestiaryEntry', None)
     if cls is None or getattr(unreal, 'BestiaryPage', None) is None:
@@ -618,8 +650,13 @@ def setup(spec, cls):
 
 def run():
     cls = entry_class()
-    wanted = [name for name in sys.argv[1:] if name in PAGES] or list(PAGES)
+    # No names: every page below and the older pages' places. Names: only those (PAGES' keys or OLDER_HABITATS').
+    asked = [name for name in sys.argv[1:] if name in PAGES or name in OLDER_HABITATS]
+    wanted = [name for name in asked if name in PAGES] or ([] if asked else list(PAGES))
+    older = [name for name in asked if name in OLDER_HABITATS] or ([] if asked else list(OLDER_HABITATS))
     waiting = [key for key in wanted if not setup(PAGES[key], cls)]
+    for key in older:
+        fix_older_habitat(key)
     if waiting:
         unreal.log(f"BESTIARY done; waiting for their models: {', '.join(waiting)}")
     else:
