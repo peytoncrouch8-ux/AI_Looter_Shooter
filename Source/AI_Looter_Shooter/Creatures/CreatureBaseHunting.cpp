@@ -38,6 +38,7 @@ ACreatureBase::EHuntCheck ACreatureBase::CheckHunt(const APawn* Pawn) const
 	return HuntingGround.Contains(Where, Home.GetLocation()) ? EHuntCheck::Huntable : EHuntCheck::OffGround;
 }
 
+/** A scene plays or holds the player: nothing but a boss hunts them meanwhile. */
 bool ACreatureBase::IsSceneHoldingPlayer() const
 {
 	// Asked five times a second by every creature looking about: straight to the level, no lookups.

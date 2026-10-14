@@ -45,6 +45,12 @@ void ACreatureBase::GetFootprintInWorld(FVector& OutFront, FVector& OutBack, flo
 	OutRadius = Footprint.Radius * SizeScale;
 }
 
+/**
+ * Visits every creature in the level, itself and dead ones included (the caller skips what it doesn't want): the encounters'
+ * list of the level's creatures (UEncounterSubsystem: placed ones from the start of play, spawned ones as they appear), or
+ * every actor where a level has no such list. Spacing looks ten times a second and a shotgun blast calls the pack eight times
+ * in a frame, so walking every actor in the level each time cost too much.
+ */
 void ACreatureBase::ForEachCreature(TFunctionRef<void(ACreatureBase&)> Visit) const
 {
 	UWorld* World = GetWorld();

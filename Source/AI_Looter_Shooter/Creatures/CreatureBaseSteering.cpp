@@ -130,6 +130,7 @@ bool ACreatureBase::IsStuck(float Speed) const
 	return GetVelocity().Size2D() < Speed * 0.15f;
 }
 
+/** Its way this update toward Goal, Desired already bent round its pack (the planner, from the probe's looks). */
 FVector ACreatureBase::ChooseDirection(const FVector& Desired, const FVector& Goal, float Speed)
 {
 	// One set of queries for the update (the ground's ignore list gathered once), shared by every look the planner takes.
@@ -231,6 +232,7 @@ void ACreatureBase::SnapToGround()
 	}
 }
 
+/** How far over From (cm, up to Above) a look down for the ground may start: just under a roof over From, never over it. */
 float ACreatureBase::LookAboveUnderRoof(const FVector& From, float Above) const
 {
 	// A look from inside a rock's hull finds the rock right there (a trace starting inside a convex reports a hit at its

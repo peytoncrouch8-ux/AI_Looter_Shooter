@@ -14,10 +14,11 @@ class UBossComponent;
  * plays what fits, crossfading on the pieces' bar lines (MusicRules: their bars and tempos, music.py's):
  *  - Calm: the area's exploration theme, two or three times through, then a rest of 40-90 s for the world's own sound,
  *    then again (in the main menu, with no player, it plays on).
- *  - Combat, while any creature hunts the local player and for a few seconds after the last lets go: the combat layer
- *    comes in on the theme's next bar line (at once, alone, if the theme was resting) and the theme dips under it; it
+ *  - Combat, while any creature is at the local player (chasing or attacking: ACreatureBase::IsFightingWith, as fast travel
+ *    asks it; one that lost them and only searches doesn't count) and for a few seconds after the last lets go: the combat
+ *    layer comes in on the theme's next bar line (at once, alone, if the theme was resting) and the theme dips under it; it
  *    leaves over two bars from a bar line. A fight that ran a while and killed something ends on the victory sting.
- *  - Boss, while a boss's fight runs (UBossComponent::IsFighting) or a Soulfed monster hunts the player: the phase sting
+ *  - Boss, while a boss's fight runs (UBossComponent::IsFighting) or a Soulfed monster is after the player: the phase sting
  *    hits, and Abel's theme (an Unpaid boss) or the Gravemother's starts on its hit; each later phase hits the sting
  *    again over the theme; a win plays the victory sting and the area's theme returns after it.
  *  - A creature of high rank (Gravebound, Soulfed) coming for the player the first time plays the elite sting.
@@ -59,6 +60,7 @@ private:
 	/** What it saw on its last look round (MusicDirectorSenses.cpp). */
 	struct FSenses
 	{
+		/** Creatures in a fight with the player (ACreatureBase::IsFightingWith): chasing or attacking, not searching. */
 		int32 Hunters = 0;
 		bool bBossFight = false;
 		EBossTheme Theme = EBossTheme::Keeper;

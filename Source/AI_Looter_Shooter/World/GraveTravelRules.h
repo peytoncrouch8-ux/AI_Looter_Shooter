@@ -14,7 +14,7 @@ enum class EGraveTravelBlock : uint8
 	Scene,
 	/** A boss's fight is on. */
 	BossFight,
-	/** Something is hunting the player. */
+	/** Something is coming at the player (chasing or attacking; a creature only searching for them doesn't count). */
 	Hunted,
 	/** A trip to another level, or a fast travel, is already under way. */
 	Travelling,
@@ -31,7 +31,7 @@ struct AI_LOOTER_SHOOTER_API FGraveTravelSenses
 	bool bDying = false;
 	bool bInScene = false;
 	bool bBossFight = false;
-	/** Creatures alive with the player as their target. */
+	/** Creatures in a fight with the player: chasing or attacking (ACreatureBase::IsFightingWith), not searching for them. */
 	int32 Hunters = 0;
 	bool bTravelling = false;
 };

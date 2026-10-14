@@ -49,6 +49,7 @@ void ACreatureBase::TickUnstick(float DeltaSeconds, const FVector& Goal, float S
 	}
 }
 
+/** Starts a glide to the nearest free spot; false when there's none. */
 bool ACreatureBase::NudgeFree(bool bHung)
 {
 	const FCreatureSteerProbe Probe(*this);
@@ -69,6 +70,7 @@ bool ACreatureBase::NudgeFree(bool bHung)
 	return true;
 }
 
+/** Moves a glide free on; true while it glides (its steering waits). */
 bool ACreatureBase::TickNudge(float DeltaSeconds)
 {
 	if (!Unstick.IsGliding())

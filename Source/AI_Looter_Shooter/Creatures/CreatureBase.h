@@ -8,6 +8,7 @@
 #include "Creatures/CreaturePursuit.h"
 #include "Creatures/CreatureRank.h"
 #include "Creatures/CreatureSteerPlanner.h"
+#include "Creatures/CreatureTypes.h"
 #include "Creatures/CreatureUnstick.h"
 #include "Creatures/CreatureUpdateRate.h"
 #include "Creatures/HuntingGround.h"
@@ -22,35 +23,17 @@ class ULootDropComponent;
 class ULootTable;
 class UWidgetComponent;
 
-UENUM(BlueprintType)
-enum class ECreatureState : uint8
-{
-	Idle,     // standing around near home
-	Wander,   // strolling to a random spot near home
-	Chase,    // closing in on its target
-	Attack,   // wind-up, strike, recovery
-	Return,   // gave up its hunt, walking home
-	Search,   // still after its target but not chasing: tracking where it lost them, sniffing there, or watching from its edge
-	Dead
-};
-
 /**
- * Shared brain and life cycle for hostile creatures: senses the player, chases, telegraphs and lands melee
- * attacks, dies (dropping loot), and respawns at home. Movement is local steering that avoids obstacles and
- * never walks off an island edge, so it needs no navmesh. Subclasses provide the body and animation through
- * the On* hooks. The mesh's physics asset holds the hit zones, and critical spots are data (CriticalSpotBones) matched
- * against the bone a shot hit. Distant creatures update less often, and stop posing their bodies while off screen
- * (UpdateRate); ones busy with a player always update every frame.
+ * Shared brain and life cycle for hostile creatures: senses the player, chases, telegraphs and lands melee attacks, dies
+ * (dropping loot), and respawns at home. Movement is local steering that avoids obstacles and never walks off an island
+ * edge, so it needs no navmesh. Subclasses provide the body and animation through the On* hooks. The mesh's physics asset
+ * holds the hit zones; critical spots are data (CriticalSpotBones) matched against the bone a shot hit. Distant creatures
+ * update less often and stop posing off screen (UpdateRate); ones busy with a player always update every frame.
  *
- * Each creature has a rank (ECreatureRank: its tag's word and color, size, stats, loot and pack call) and a size
- * (BodyScale times its rank's): the whole actor is scaled, so the capsule, the model, its hit zones and the health bar
- * follow, and every distance the code works in (attack reach, steering probes, the subclass's gait or hops) is multiplied
- * by GetSizeScale(). CreatureBaseRank.cpp holds the rank, level and size, and which creatures come back after a death;
- * the area being played gives a creature its level and may promote it (UAreaRulesSubsystem). CreatureBaseHunting.cpp says
- * whom it hunts: a living player on its HuntingGround and out of every safe zone that's on (ASafeGround).
- * CreatureBasePursuit.cpp keeps a hunt going until there's a real reason to stop (FCreaturePursuit): out of sight it goes
- * where it lost them and sniffs round (Search), where it can't get to them it waits watching, and it gives up only for a
- * reason (the player dead or gone, sheltered, in a scene, lost for long, or out of its reach past its patience).
+ * Each creature has a rank (ECreatureRank: tag word and color, size, stats, loot, pack call) and a size (BodyScale times its
+ * rank's): the whole actor is scaled, so every distance the code works in (attack reach, steering probes, the subclass's gait
+ * or hops) is multiplied by GetSizeScale(). Each topic has its own CreatureBase<Topic>.cpp (CODEMAP.md); the small types it
+ * hands out are in CreatureTypes.h.
  */
 UCLASS(Abstract)
 class AI_LOOTER_SHOOTER_API ACreatureBase : public ACharacter, public ICriticalSpotTarget
@@ -71,16 +54,21 @@ public:
 	/** The pawn it's after, if any. */
 	APawn* GetTarget() const { return Target.Get(); }
 
+	/**
+	 * In a fight with Pawn: alive, after them, and chasing or attacking. One that lost them and only tracks, sniffs or prowls
+	 * (Search) is not. Fast travel and the combat music both ask this, so they can't drift apart (CreatureBasePursuit.cpp).
+	 */
+	bool IsFightingWith(const APawn* Pawn) const;
+	/** The state half of it: Chase and Attack. */
+	static bool IsFightState(ECreatureState CreatureState);
+
 	UFUNCTION(BlueprintPure, Category = "Creature")
 	bool IsDead() const { return State == ECreatureState::Dead; }
 
 	/** This frame's pose of the bones the code moves (component space), for UCreaturePoseAnimInstance. */
 	const TArray<FCreatureBonePose>& GetBonePose() const { return BonePose; }
 
-	/**
-	 * Turns on Attacker as if it had been hurt by it (its pack heard the fight): one off its ground it goes to its edge to
-	 * watch. Already after them, it knows where they are again (a search becomes the hunt); after someone else, nothing.
-	 */
+	/** As if Attacker had hurt it (its pack heard): off its ground it watches from its edge; already after them, a search becomes the hunt; after someone else, nothing. */
 	void AlertTo(APawn* Attacker);
 
 	/** How its hunt is going (CreatureBasePursuit.cpp): its step, its last known spot, why it gave up; for tests and tools. */
@@ -94,17 +82,11 @@ public:
 
 	// --- Boss fights (UBossComponent; CreatureBaseRank.cpp) ---
 
-	/**
-	 * Holds it back from fighting (a boss under a spell, withdrawn to its spot): while passive it hunts nobody, lets go of
-	 * whoever it was after and walks home, and neither hits nor pack calls set it on anyone. Off: it notices players again.
-	 */
+	/** Holds it back from fighting (a boss under a spell, withdrawn): passive, it hunts nobody, lets go and walks home, and no hit or pack call sets it on anyone. */
 	void SetPassive(bool bInPassive);
 	bool IsPassive() const { return bPassive; }
 
-	/**
-	 * Puts it back at its spot as a boss fight's reset wants it: alive at full health, calm, nobody targeted, at its rank and
-	 * level (unlike a respawn, nothing is rolled again).
-	 */
+	/** Puts it back at its spot as a boss fight's reset wants it: alive at full health, calm, nobody targeted, at its rank and level (nothing rolled again). */
 	void ResetToHome();
 
 	/** Where it stands when calm: its spot as play began (a boss fight's arena centers on it). */
@@ -114,7 +96,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Creature")
 	bool bShowsHealthTag = true;
 
-	// --- Rank, level and size (CreatureBaseRank.cpp) ---
+	// --- Rank, level and size (CreatureBaseRank.cpp; the area being played gives the level and may promote: UAreaRulesSubsystem) ---
 
 	/** Its rank now: StartingRank, or a promotion, which lasts until it dies. */
 	UFUNCTION(BlueprintPure, Category = "Creature|Rank")
@@ -122,8 +104,7 @@ public:
 
 	/**
 	 * Promotes (or demotes) it until it dies: its tag, size, health, damage, experience, level, loot table and pack call
-	 * follow the rank (UCreatureRankSettings), and a hurt creature keeps its share of health. Before play starts, this is
-	 * the rank it starts with.
+	 * follow the rank (UCreatureRankSettings), a hurt creature keeping its share of health. Before play, the rank it starts with.
 	 */
 	void SetRank(ECreatureRank NewRank);
 
@@ -156,20 +137,7 @@ public:
 	float GetStrikeReach() const;
 
 	/** What its steering looks ahead with (FCreatureSteerProbe), at its size. */
-	struct FSteerProbes
-	{
-		/** A capsule this wide (radius) swept this far ahead finds what's in its way. */
-		float SweepLength = 0.f;
-		float SweepRadius = 0.f;
-		/** It looks for ground this far ahead, at most this far below its middle: it never walks off a higher drop. */
-		float LedgeDistance = 0.f;
-		float LedgeDrop = 0.f;
-		/** The swept capsule's half height, and its middle against the body's: from a little off the ground to under its top. */
-		float SweepHalfHeight = 0.f;
-		float SweepLift = 0.f;
-		/** The highest step it walks up: anything lower isn't in its way. */
-		float StepHeight = 0.f;
-	};
+	using FSteerProbes = FCreatureProbeSizes;
 	FSteerProbes GetSteerProbes() const;
 
 	/** Its steering's look along Direction (flat) for up to Distance (CreatureBaseSteering.cpp); public for the tests. */
@@ -184,34 +152,14 @@ public:
 	/** Its movement was stopped by something: kept as a felt wall when its looks missed it (CreatureBaseSteering.cpp). */
 	virtual void MoveBlockedBy(const FHitResult& Impact) override;
 
-	/**
-	 * The ground its body covers from above, at size 1: a flat capsule along its facing from Front to Back (cm from its middle)
-	 * and Radius wide, which other creatures keep clear of (CreatureBaseSpacing.cpp). The capsule's circle by default.
-	 */
-	struct FFootprint
-	{
-		float Front = 0.f;
-		float Back = 0.f;
-		float Radius = 0.f;
-	};
+	/** The ground its body covers from above, at size 1, which other creatures keep clear of (CreatureBaseSpacing.cpp). */
+	using FFootprint = FCreatureFootprint;
 	virtual FFootprint GetFootprint() const;
 	/** Its footprint now, at its size: its line's two ends (world) and its radius. */
 	void GetFootprintInWorld(FVector& OutFront, FVector& OutBack, float& OutRadius) const;
 
 	/** How a creature spawned in play (by a spawner, an egg sac or a command) starts. */
-	struct FRuntimeSpawn
-	{
-		ECreatureRank Rank = ECreatureRank::Basic;
-		/**
-		 * Its level before its rank's, kept whatever the area's band. 0: as a placed creature's, from the levels where it stands
-		 * in its area (UAreaDefinition), or the class's where the area has none.
-		 */
-		int32 Level = 0;
-		/** Its BodyScale; 0 keeps the class's. */
-		float BodyScale = 0.f;
-		/** Its health against its class's, before its level and rank multiply it (the test boss is twelve spiders tough). */
-		float HealthScale = 1.f;
-	};
+	using FRuntimeSpawn = FCreatureRuntimeSpawn;
 
 	/**
 	 * Spawns a creature in play, standing on Feet (the ground) and facing Yaw. Only placed creatures come back: this one is
@@ -253,10 +201,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Progression", meta = (ClampMin = "0"))
 	int32 XPReward = 10;
 
-	/**
-	 * The rank it starts with, and comes back as after a death (a promotion lasts one life). A Legendary monster or a boss
-	 * doesn't come back on its own (UCreatureRankSettings).
-	 */
+	/** The rank it starts with and comes back as (a promotion lasts one life). A Legendary monster or a boss doesn't come back on its own (UCreatureRankSettings). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Rank", meta = (DisplayName = "Rank"))
 	ECreatureRank StartingRank = ECreatureRank::Basic;
 
@@ -289,10 +234,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Senses", meta = (ClampMin = "0"))
 	float AggroRadius = 3120.f;
 
-	/**
-	 * When it's hurt, every creature of its pack (PackTag) within this distance turns on the attacker too (0 = only itself).
-	 * Its rank can call farther (GetPackCallRadius).
-	 */
+	/** When it's hurt, every creature of its pack (PackTag) within this distance turns on the attacker too (0 = only itself); its rank can call farther (GetPackCallRadius). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Creature|Senses", meta = (ClampMin = "0"))
 	float PackAlertRadius = 0.f;
 
@@ -373,24 +315,17 @@ protected:
 
 	/**
 	 * Its body is posed again after a spell frozen far away out of view (IsPoseFrozen), during which it kept moving: set it
-	 * up where it stands now, changing as little of the pose it was last drawn in as possible (a quick turn can show it).
-	 * Subclasses skip their pose work while it's frozen.
+	 * up where it stands now, changing as little of the pose it was last drawn in as possible. Subclasses skip pose work while frozen.
 	 */
 	virtual void OnPoseThawed() {}
 
 	/** Its size changed in play (a promotion, or SetBodyScale): put the body's pose back under it at the new size. */
 	virtual void OnSizeChanged() {}
 
-	/**
-	 * Its rank was applied (as play begins, on a promotion, on coming back), after its stats and size: the subclass's own
-	 * rank traits follow (the Unpaid's coal color, a Restless one's quicker lunge).
-	 */
+	/** Its rank was applied (play begins, a promotion, coming back), after its stats and size: the subclass's own rank traits follow (the Unpaid's coal color). */
 	virtual void OnRankChanged() {}
 
-	/**
-	 * The attack lands, AttackWindup into it: bites whatever is in reach in front (and calls OnAttackStrike). A creature
-	 * whose attack works differently (the slime's leap) overrides it.
-	 */
+	/** The attack lands, AttackWindup into it: bites whatever is in reach in front (and calls OnAttackStrike). The slime's leap overrides it. */
 	virtual void Strike();
 
 	/** Deals one attack's damage to Victim (rolled like a weapon hit) and shoves it along Push, both times Strength (a charge's 2). */
@@ -414,10 +349,7 @@ protected:
 	/** Whether it keeps turning to its target through a wind-up: a charge that has taken its aim holds it (the Gravemother's). */
 	virtual bool TracksTargetInWindup() const { return true; }
 
-	/**
-	 * A player it may hunt: a living character on its HuntingGround and out of every safe zone that's on
-	 * (CreatureBaseHunting.cpp). A target in a safe zone ends the hunt; one off its ground is watched from its edge a while.
-	 */
+	/** A player it may hunt: alive, on its HuntingGround, out of every safe zone that's on (CreatureBaseHunting.cpp). Off its ground: watched from the edge. */
 	bool IsValidTarget(const APawn* Pawn) const;
 
 	/** Seconds spent in the current state; drives attack and death animation. */
@@ -464,35 +396,20 @@ private:
 	/** How far up or down its strike lands (at its size, at least size 1's). */
 	float GetStrikeHeight() const { return 220.f * FMath::Max(SizeScale, 1.f); }
 
-	// --- Whom it hunts (CreatureBaseHunting.cpp) ---
-	enum class EHuntCheck : uint8
-	{
-		Huntable,
-		/** Not a living player character (dead, a creature, nothing). */
-		NotPrey,
-		/** Alive and out of every safe zone, but off its hunting ground. */
-		OffGround,
-		/** In a safe zone that's on. */
-		Sheltered,
-	};
+	// Each of these is documented at its definition, in the topic's CreatureBase<Topic>.cpp.
+
+	// --- Whom it hunts (CreatureBaseHunting.cpp): a living player on its HuntingGround, out of every safe zone that's on (ASafeGround) ---
+	using EHuntCheck = ECreatureHuntCheck;
 	EHuntCheck CheckHunt(const APawn* Pawn) const;
-	/** A scene plays or holds the player: nothing but a boss hunts them meanwhile. */
 	bool IsSceneHoldingPlayer() const;
 
-	// --- Its hunt going on (CreatureBasePursuit.cpp; FCreaturePursuit has the rules) ---
-	/** A boss (Boss rank, or a creature a boss fight is built round) keeps its fight's own rules: no search, no prowl. */
+	// --- Its hunt going on (CreatureBasePursuit.cpp; FCreaturePursuit has the rules): kept up until a real reason to stop ---
 	bool KeepsBossRules() const;
-	/** Sets it on Prey, a new hunt (one off its ground is watched from its edge). */
 	void BeginHunt(APawn* Prey);
-	/** A hit (bHit) or a pack's call from Prey: a new hunt, or word of where its target is. True when it newly turned on them. */
 	bool TakeUpHunt(APawn* Prey, bool bHit);
-	/** Its look at its target (every perception, Interval apart): the hunt goes on, turns to a search or a wait, or ends. */
 	void UpdatePursuit(float Interval);
-	/** The hunt is over (its pursuit says why): it lets go and walks home, calmly. */
 	void GiveUpHunt();
-	/** An attack played out: after its target again, or as its pursuit says if they're out of its hunt. */
 	void ResumeHunt();
-	/** Between chasing and searching: one hunt, so its way round what's in the way carries on (SetState starts it afresh). */
 	void SetHuntState(ECreatureState NewState);
 	void TickSearch(float DeltaSeconds);
 	void TickSniff(float DeltaSeconds);
@@ -500,80 +417,46 @@ private:
 
 	// --- Steering (CreatureBaseSteering.cpp) ---
 	void MoveToward(const FVector& Goal, float Speed, float DeltaSeconds);
-	/** Its way this update toward Goal, Desired already bent round its pack (the planner, from the probe's looks). */
 	FVector ChooseDirection(const FVector& Desired, const FVector& Goal, float Speed);
 	FCreatureSteerPlanner::FRequest MakeSteerRequest(const FVector& Goal, const FVector& Desired, float Speed) const;
 	bool IsDirectionClear(const FVector& Direction) const;
+	float LookAboveUnderRoof(const FVector& From, float Above) const;
 
 	// --- Getting free when it's stuck (CreatureBaseUnstick.cpp; FCreatureUnstick has the rules) ---
 	void TickUnstick(float DeltaSeconds, const FVector& Goal, float Speed);
-	/** Moves a glide free on; true while it glides (its steering waits). */
 	bool TickNudge(float DeltaSeconds);
-	/** Starts a glide to the nearest free spot; false when there's none. */
 	bool NudgeFree(bool bHung);
 	void FaceToward(const FVector& Point, float DeltaSeconds);
 	bool PickWanderGoal();
 	void SnapToGround();
-	/** How far over From (cm, up to Above) a look down for the ground may start: just under a roof over From, never over it. */
-	float LookAboveUnderRoof(const FVector& From, float Above) const;
 	void Respawn();
 	void UpdateHealthBar(float DeltaSeconds);
 
 	// --- Room between creatures (CreatureBaseSpacing.cpp): the crowd's push, bending its way, a shuffle aside standing ---
-	/**
-	 * Visits every creature in the level, itself and dead ones included (the caller skips what it doesn't want): the
-	 * encounters' list of the level's creatures (UEncounterSubsystem: placed ones from the start of play, spawned ones as
-	 * they appear), or every actor where a level has no such list. Spacing looks ten times a second and a shotgun blast
-	 * calls the pack eight times in a frame, so walking every actor in the level each time cost too much.
-	 */
 	void ForEachCreature(TFunctionRef<void(ACreatureBase&)> Visit) const;
 	FVector SpacingPushNow() const;
 	FVector SpacedDirection(const FVector& Desired);
 	void KeepSpacing(float DeltaSeconds);
 
 	// --- Rank, level and size (CreatureBaseRank.cpp) ---
-	/**
-	 * As play begins: a promotion its area may give a placed Basic creature for this arrival, a level from the area's band
-	 * (or the one it was placed or spawned at), and the stats, loot and size of both.
-	 */
 	void BeginRankAndLevel();
-	/** Coming back: as its StartingRank (a promotion lasts one life), at a level its area rolls again for the player's now. */
 	void RespawnRankAndLevel();
-	/** The rank it begins play with: StartingRank, or for a placed Basic creature its area's promotion this arrival. */
 	ECreatureRank RollArrivalRank() const;
-	/** Its own level before its rank's: from where it stands in its area, or GivenLevel (no band, or spawned at one). */
 	int32 RollOwnLevel(ECreatureRank Rank) const;
-	/** Takes Rank with OwnLevel plus the rank's levels, and applies them (ApplyRank). */
 	void TakeRankAndLevel(ECreatureRank Rank, int32 OwnLevel);
-	/** Applies CurrentRank: stats from the base ones, loot table, and size. */
 	void ApplyRank();
-	/** Health, damage and experience from the base ones: grown for its level, then times its rank's multipliers. */
 	void ApplyStats();
-	/** Scales the actor to BodyScale times its rank's size, its feet staying put, and what the scale doesn't reach. */
 	void ApplySize();
-	/** Keeps what the class or the level gave it, once, before any rank changes it. */
 	void CaptureBaseStats();
 
 	// --- Update rate (CreatureBaseUpdateRate.cpp) ---
 	void TickUpdateRate(float DeltaSeconds);
-	/** Picks the update rate for where it is and what it's doing, and applies it. */
 	void RefreshUpdateRate();
-	/** Picks the rate again at once if it's updating slowly or frozen (it just got busy with a player). */
 	void WakeUpdateRate();
 	void ApplyUpdateInterval(float Interval);
 	void SetPoseFrozen(bool bFrozen);
 
-	/** How the local players see it, for picking its update rate. */
-	struct FViewerMeasure
-	{
-		/**
-		 * Distance (cm) to the nearest local player's pawn or camera, divided by the camera's zoom when it's in that camera's
-		 * zoomed view (a scope shows it that much nearer); the largest float when there is no player.
-		 */
-		float Distance = TNumericLimits<float>::Max();
-		/** In a local player's view, or drawn on screen lately. Behind a wall or a rock still counts. */
-		bool bOnScreen = false;
-	};
+	using FViewerMeasure = FCreatureViewerMeasure;
 	FViewerMeasure MeasureViewers() const;
 
 	UFUNCTION()

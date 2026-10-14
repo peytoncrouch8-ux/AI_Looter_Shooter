@@ -15,10 +15,11 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGraveTravelled, APawn* /*Player*/, const
  * 2026-10-13: Hob's crows carry Ellis): a flock pours across the screen under a rush of wings until it's black
  * (URoostCarrySubsystem; the camera fades under the crows), the player is put at the roost as a death's wake-up puts them
  * (on its spot, facing its arrow), and the crows burst away as the world comes back, the roost's own crows scattering off
- * it round the player (ARespawnMarker::Welcome). Never in a fight (a creature hunting the player), a scene or a boss's
- * fight, nor while a trip is under way (GraveTravelRules). The autosave waits through the carry; the travel saves nothing
- * of its own: where the player stands goes into the session as it always does. Roosts open as they're found or with the
- * story (ARespawnMarker), so the session already keeps which ones the player may travel to.
+ * it round the player (ARespawnMarker::Welcome). Never in a fight (a creature chasing or attacking the player; one only
+ * searching for them doesn't count), a scene or a boss's fight, nor while a trip is under way (GraveTravelRules). The
+ * autosave waits through the carry; the travel saves nothing of its own: where the player stands goes into the session as
+ * it always does. Roosts open as they're found or with the story (ARespawnMarker), so the session already keeps which
+ * ones the player may travel to.
  *
  * The carry runs on the subsystem's own clock (Advance, from its tick; it pauses with the game), not a timer: a timer set
  * before the timer manager has ticked that frame only starts on its next tick, which a test level never gives it.

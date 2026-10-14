@@ -33,15 +33,28 @@ bool ACreatureBase::CanReachHeight(float Rise) const
 	return FMath::Abs(Rise) < GetStrikeHeight();
 }
 
+/** A boss (Boss rank, or a creature a boss fight is built round) keeps its fight's own rules: no search, no prowl. */
 bool ACreatureBase::KeepsBossRules() const
 {
 	return CurrentRank == ECreatureRank::Boss || FindComponentByClass<UBossComponent>() != nullptr;
+}
+
+bool ACreatureBase::IsFightState(ECreatureState CreatureState)
+{
+	// Search (tracking where it lost them, sniffing there, watching from its edge) is a hunt but no fight: nothing is coming at them.
+	return CreatureState == ECreatureState::Chase || CreatureState == ECreatureState::Attack;
+}
+
+bool ACreatureBase::IsFightingWith(const APawn* Pawn) const
+{
+	return Pawn && Target.Get() == Pawn && IsFightState(State);
 }
 
 // ---------------------------------------------------------------------------
 // Taking up a hunt
 // ---------------------------------------------------------------------------
 
+/** Sets it on Prey, a new hunt (one off its ground is watched from its edge). */
 void ACreatureBase::BeginHunt(APawn* Prey)
 {
 	Target = Prey;
@@ -57,6 +70,7 @@ void ACreatureBase::BeginHunt(APawn* Prey)
 	}
 }
 
+/** A hit (bHit) or a pack's call from Prey: a new hunt, or word of where its target is. True when it newly turned on them. */
 bool ACreatureBase::TakeUpHunt(APawn* Prey, bool bHit)
 {
 	if (bPassive || State == ECreatureState::Dead || !Prey)
@@ -113,6 +127,7 @@ bool ACreatureBase::TakeUpHunt(APawn* Prey, bool bHit)
 // Its looks while it hunts
 // ---------------------------------------------------------------------------
 
+/** Its look at its target (every perception, Interval apart): the hunt goes on, turns to a search or a wait, or ends. */
 void ACreatureBase::UpdatePursuit(float Interval)
 {
 	APawn* Prey = Target.Get();
@@ -194,6 +209,7 @@ void ACreatureBase::UpdatePursuit(float Interval)
 	}
 }
 
+/** The hunt is over (its pursuit says why): it lets go and walks home, calmly. */
 void ACreatureBase::GiveUpHunt()
 {
 	APawn* Prey = Target.Get();
@@ -209,6 +225,7 @@ void ACreatureBase::GiveUpHunt()
 	SetState(ECreatureState::Return);
 }
 
+/** An attack played out: after its target again, or as its pursuit says if they're out of its hunt. */
 void ACreatureBase::ResumeHunt()
 {
 	APawn* Prey = Target.Get();
@@ -228,6 +245,7 @@ void ACreatureBase::ResumeHunt()
 	UpdatePursuit(0.f);
 }
 
+/** Between chasing and searching: one hunt, so its way round what's in the way carries on (SetState starts it afresh). */
 void ACreatureBase::SetHuntState(ECreatureState NewState)
 {
 	const float KeptStuck = StuckTime;

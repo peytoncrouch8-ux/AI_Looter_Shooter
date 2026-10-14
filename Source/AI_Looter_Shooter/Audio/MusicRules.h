@@ -36,9 +36,9 @@ struct FMusicPiece
 };
 
 /**
- * Whether the player is being hunted, as the music hears it: a fight starts the moment a creature turns on them and
- * goes on for CalmAfter seconds after the last one lets go, so a creature losing sight for a moment doesn't drop the
- * music out and bring it straight back.
+ * Whether the player is being fought, as the music hears it: a fight starts the moment a creature comes at them (chasing or
+ * attacking; one that lost them and only searches is no fight, ACreatureBase::IsFightingWith) and goes on for CalmAfter
+ * seconds after the last one stops, so a creature losing sight for a moment doesn't drop the music out and bring it straight back.
  */
 struct AI_LOOTER_SHOOTER_API FCombatMemory
 {

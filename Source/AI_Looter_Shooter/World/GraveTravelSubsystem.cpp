@@ -107,7 +107,8 @@ FGraveTravelSenses UGraveTravelSubsystem::Sense(const APawn* Player) const
 			{
 				Senses.bBossFight |= Boss->IsFighting();
 			}
-			if (Senses.bHasPlayer && Creature->GetTarget() == Player)
+			// A creature coming at the player, not one that lost them and is only searching (the combat music asks the same).
+			if (Senses.bHasPlayer && Creature->IsFightingWith(Player))
 			{
 				++Senses.Hunters;
 			}

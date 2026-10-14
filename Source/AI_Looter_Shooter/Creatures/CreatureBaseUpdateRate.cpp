@@ -34,6 +34,7 @@ void ACreatureBase::TickUpdateRate(float DeltaSeconds)
 	}
 }
 
+/** Picks the rate again at once if it's updating slowly or frozen (it just got busy with a player). */
 void ACreatureBase::WakeUpdateRate()
 {
 	if (UpdateInterval > 0.f || bPoseFrozen)
@@ -42,6 +43,7 @@ void ACreatureBase::WakeUpdateRate()
 	}
 }
 
+/** Picks the update rate for where it is and what it's doing, and applies it. */
 void ACreatureBase::RefreshUpdateRate()
 {
 	UpdateRateCheckTime = UpdateRate.CheckInterval;

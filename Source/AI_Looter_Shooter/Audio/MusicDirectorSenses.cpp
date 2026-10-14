@@ -1,4 +1,4 @@
-// UMusicDirectorSubsystem's looking round: who hunts the local player, whether a boss's fight runs, the fight's kills,
+// UMusicDirectorSubsystem's looking round: who fights the local player, whether a boss's fight runs, the fight's kills,
 // the elites' stings, and the boss's phases and win.
 
 #include "Audio/MusicDirectorSubsystem.h"
@@ -40,17 +40,20 @@ UMusicDirectorSubsystem::FSenses UMusicDirectorSubsystem::Sense() const
 				Seen.BossFoe = Creature;
 			}
 		}
-		if (Player && Creature->GetTarget() == Player)
+		// A fight is a creature coming at the player: one that lost them and only searches, sniffs or prowls doesn't hold the
+		// combat music up. The same question fast travel asks (ACreatureBase::IsFightingWith).
+		if (Creature->IsFightingWith(Player))
 		{
 			++Seen.Hunters;
 			Seen.HunterList.Add(Creature);
-			// A Soulfed monster with a lair (the Gravemother) is a boss's fight, bar or no bar.
-			if (Creature->GetRank() == ECreatureRank::Legendary && !Seen.bBossFight)
-			{
-				Seen.bBossFight = true;
-				Seen.Theme = MusicRules::ThemeFor(bUnpaid);
-				Seen.BossFoe = Creature;
-			}
+		}
+		// A Soulfed monster with a lair (the Gravemother) is a boss's fight, bar or no bar, for as long as it is after the
+		// player, searching too: its boss theme (and the phase sting that opens it) must not come and go with every lost sight.
+		if (Player && Creature->GetTarget() == Player && Creature->GetRank() == ECreatureRank::Legendary && !Seen.bBossFight)
+		{
+			Seen.bBossFight = true;
+			Seen.Theme = MusicRules::ThemeFor(bUnpaid);
+			Seen.BossFoe = Creature;
 		}
 	}
 	return Seen;

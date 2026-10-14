@@ -15,6 +15,7 @@
 // Rank and level
 // ---------------------------------------------------------------------------
 
+/** As play begins: a promotion its area may give a placed Basic creature this arrival, a level from the area's band (or the one it was placed or spawned at), and their stats, loot and size. */
 void ACreatureBase::BeginRankAndLevel()
 {
 	// The level it was placed or spawned at is its own until its area says otherwise (and where the area has no band).
@@ -23,11 +24,13 @@ void ACreatureBase::BeginRankAndLevel()
 	TakeRankAndLevel(ArrivalRank, RollOwnLevel(ArrivalRank));
 }
 
+/** Coming back: as its StartingRank (a promotion lasts one life), at a level its area rolls again for the player's now. */
 void ACreatureBase::RespawnRankAndLevel()
 {
 	TakeRankAndLevel(StartingRank, RollOwnLevel(StartingRank));
 }
 
+/** The rank it begins play with: StartingRank, or for a placed Basic creature its area's promotion this arrival. */
 ECreatureRank ACreatureBase::RollArrivalRank() const
 {
 	// Only placed Basic creatures are promoted on arrival: a placed rank is the level designer's, and spawners roll their own.
@@ -39,12 +42,14 @@ ECreatureRank ACreatureBase::RollArrivalRank() const
 	return Rules ? Rules->RollPromotion() : StartingRank;
 }
 
+/** Its own level before its rank's: from where it stands in its area, or GivenLevel (no band, or spawned at one). */
 int32 ACreatureBase::RollOwnLevel(ECreatureRank Rank) const
 {
 	UAreaRulesSubsystem* Rules = !bKeepsGivenLevel && GetWorld() ? GetWorld()->GetSubsystem<UAreaRulesSubsystem>() : nullptr;
 	return Rules ? Rules->RollLevelFor(*this, GivenLevel) : GivenLevel;
 }
 
+/** Takes Rank with OwnLevel plus the rank's levels, and applies them (ApplyRank). */
 void ACreatureBase::TakeRankAndLevel(ECreatureRank Rank, int32 OwnLevel)
 {
 	CurrentRank = Rank;
@@ -82,6 +87,7 @@ void ACreatureBase::SetLevel(int32 NewLevel)
 	}
 }
 
+/** Keeps what the class or the level gave it, once, before any rank changes it. */
 void ACreatureBase::CaptureBaseStats()
 {
 	if (bBaseCaptured)
@@ -96,6 +102,7 @@ void ACreatureBase::CaptureBaseStats()
 	BaseStepHeight = GetCharacterMovement()->MaxStepHeight;
 }
 
+/** Health, damage and experience from the base ones: grown for its level, then times its rank's multipliers. */
 void ACreatureBase::ApplyStats()
 {
 	const FCreatureRankInfo& Info = UCreatureRankSettings::Get(CurrentRank);
@@ -116,6 +123,7 @@ void ACreatureBase::ApplyStats()
 	XPReward = FMath::Max(0, FMath::RoundToInt32(BaseXPReward * Info.XPMultiplier));
 }
 
+/** Applies CurrentRank: stats from the base ones, loot table, and size. */
 void ACreatureBase::ApplyRank()
 {
 	CaptureBaseStats();
@@ -139,6 +147,7 @@ void ACreatureBase::SetBodyScale(float NewBodyScale)
 	ApplySize();
 }
 
+/** Scales the actor to BodyScale times its rank's size, its feet staying put, and what the scale doesn't reach. */
 void ACreatureBase::ApplySize()
 {
 	CaptureBaseStats();
