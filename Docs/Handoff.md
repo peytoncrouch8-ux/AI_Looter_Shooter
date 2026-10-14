@@ -22,19 +22,22 @@ inside the interiors (`top`), `runtests.ps1` reopens clean and closes the Messag
 warning was the reimport's first build, not the model. Perf (editor closed, 37 views): 128-206 fps, heaviest 7.8 ms,
 render-thread bound at ~1,400 draws (`Docs/Performance.md`).
 
+**World polish done, 620/620 tests, pushed** (ff25b07..80c68ad): concept C (lamps flicker, window life, ambient air,
+gusts), the cliff and rock review (steep terrain wears the kit's sandstone, no floating fragments or mirrored repeats,
+outcrops reworked: look sheet 45), cliff life (look sheet 43: 273 pieces, 70 stains), the town (look sheet 42 + the
+village kit: 655 instances, 12 dusk lamps), the regenerated terrain (band fix, ore bin bay) and a full rebuild + scatter;
+path_probe clean. Look sheets 42-45 approved (44 animals: "slightly more realistic", no need to show).
+
 **In flight when this was written:**
-- The Ransom's Rest generator run (`--macro --computed`) for the band fix and the ore bin bay; then `models.ps1 -Only
-  RansomsRest`, a FULL `build_area.py RansomsRest` (it also places the mine's veil, the stain decal, the headboard
-  readable, the note's card), `build_island_scatter.py RansomsRest`, probes (`Saved/bench_oaks.py`,
-  `Saved/missions_c_probe.py`, `cliff_in_buildings.py`, `path_probe.py`), the H agent's `computed_diff.py` (scratchpad)
-  against HEAD's layout_computed.json, save, commit the level and the new terrain.
-- Polish, world first (concept boards A-F approved, PNGs in `Saved/Concepts/Polish/`; memory `polish-alive`): look sheets
-  42 Frontier clutter, 43 Cliff life, 44 Small animals (hens, rooster, cat, swallows), 45 Rocks reworked (outcrops) go to
-  the user for approval before import; code agents on lamp flicker + window life (curtains, passing shadows) and ambient
-  air + gusts (`UGustSubsystem`, `USwingComponent`); the town dressing (`Art/Levels/RansomsRest/make_town.py` -> town.json,
-  existing kit now, new kit deferred until approved); the cliff review (steep terrain reads as sandstone, gaps filled, no
-  floating fragments, varied repeats). Contract: the session's scratchpad `contract_polish.md`.
-- The cliff review's evidence: `Tools/cliff_views.py` writes a view per cliff point (play side only) for `tour.ps1`.
+- Two crow stations per map (the user's call): `T` agent's code (RespawnMarker*, GraveTravel*, PlayerVitals, Session
+  Continue, RoostRules lines) is in the working tree, NOT built: build, apply `patches/two_roosts.json`, run
+  `build_area_roosts.py RansomsRest` (removes the nine), rerun the scatter (bare patches where they stood), tests
+  (`Looter.Roost.Wake.*`, `Looter.Roost.Placed.TwoAMap`), PIE check (die before/after finding the Depot), docs
+  (Pipeline "Hob's roosts", RansomsRest*.md, Story.md:315).
+- Agents: A1 animals realism (Blender), A2 animals code (`build_area_animals.py`, nests in `build_area_cliff_life.py`
+  switch to SM_SwallowNests), D creatures react, E guns and hits. Contracts in the session scratchpad
+  (`contract_polish.md`, `contract_combat.md`). Whitewash stains stand without nests until A2's nests are placed.
+- F rewards (level-up burst, XP popups, footstep dust, pickups pull) not started (after T, it touches Player/).
 
 ## Next (in order)
 
