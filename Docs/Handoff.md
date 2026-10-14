@@ -52,8 +52,8 @@ Hiram's figure at load ("SkinnedAsset property overwritten ... without NotifyIfS
 ## Next (in order)
 
 1. The user's playtest notes first.
-2. Medium headroom (Aerial, Farm, PointOverValley 8.0-8.2 ms of 8.3, GPU-bound): only trade-offs left (grass distance or
-   density on Medium, scatter re-generated; cliff detail): the user's call.
+2. Medium headroom (Aerial, Farm, PointOverValley 8.0-8.2 ms of 8.3, GPU-bound): only trade-offs left; the user said
+   leave Medium as it is (2026-10-14). New additions must save their own cost first.
 3. Keep polishing (the user's "until I tell you to stop"): nothing major, concepts before art.
 4. **Older open items:** Story.md's later areas' level bands predate the new curve (retune when the next area is
    designed); the user hasn't heard the newest sounds (republish the listening page); the slide is a code-drawn pose;
