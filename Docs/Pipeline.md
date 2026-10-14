@@ -39,7 +39,9 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   - Re-run `Tools/Unreal/build_impact_surfaces.py` after a macro map, scatter map or new trim-sheet model changes.
 - Objective highlight: within 13 m, what the tracked mission's current objective is about (optional ones too, the giver once it
   waits; never a fight's creatures) glows orange as an overlay on its meshes (a spot of a building round a door).
-  `M_ObjectiveHighlight` from `build_highlight_material.py`; `Looter.Highlight.List`.
+  `M_ObjectiveHighlight` from `build_highlight_material.py`; `Looter.Highlight.List`. A character (a story character or a
+  skinned figure, never a gun; `IsFigure`) wears the figure look: rim only, body all but clear (`Figure` 1; tune the
+  script's `Figure*` defaults). A thing's 20% fill turned Sexton's near-black coat solid orange (fixed 2026-10-14).
 - Holds: every hold-to-use shows the kit's round ring (`SLooterProgressRing`, `LooterUI::MakeHoldKeyCap`).
 - Lost Loot (the user's call, 2026-10-13, so ground guns don't pile up and cost frame time): a gun on the ground lasts 5 minutes
   (not while the player stands within 6 m), then goes to the depot's LOST PROPERTY window. Leaving a map or quitting sends every
@@ -101,10 +103,11 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
    `Tools\editorwindows.ps1`, capture it with PrintWindow, read its list, choose Don't Save unless those assets were meant to change.
 3. Scripts: run the asset scripts the change needs through `Tools\console.ps1 "py <absolute path>"`. Keep the command under about
    200 characters, or it's dropped. Each `build_area.py` mode saves the level itself.
-4. Tests: `Tools\runtests.ps1`, all green; `-Filter Looter.<Group>` runs a subset. Tests leave the level dirty: reopen it clean
-   afterwards (`Tools/Unreal/open_clean.py`), or closing the editor can save the tests' leftovers into the level (happened once:
-   restored from git).
-5. Look: `Tools\tour.ps1 -Map <map> -Views <json>`. Scratch view lists go in `Saved/TourViews/`; screenshots land in
+4. Tests: `Tools\runtests.ps1`, all green; `-Filter Looter.<Group>` runs a subset. Tests leave the level dirty: the runner reopens it
+   clean afterwards (`Tools/Unreal/open_clean.py`; closing the editor once saved the tests' leftovers into the level) and closes
+   the Message Log. `-Restart` also restarts the editor: after two full runs PIE crawled at 1-3 fps (2026-10-14).
+5. Look: `Tools\tour.ps1 -Map <map> -Views <json>` (an interior's view gives `top`, a world height under its ceiling where the
+   ground search starts; `Tools/cliff_views.py <Area>` writes a view per cliff point). Scratch view lists go in `Saved/TourViews/`; screenshots land in
    `Saved\Screenshots\Tour`. Read every screenshot before calling a visual change done.
 6. Commit and push each working step on its own. The message says why and ends with the co-author line. To commit part of a shared
    file (CODEMAP), stage edits on HEAD's copy (`Tools\commitlib.py`).
@@ -124,6 +127,11 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   gun), so use `press` for game actions and real keys only for menus (Tab, number keys). Offer and turn-in cards and the
   notice boards take mouse clicks, not injected actions. Teleports skip a roost's find (walk the last 15 m) and give hits
   time to knock the view off a target: check `-Focus` before pressing.
+- Never `set_editor_property` on a play session's objects, and never edit the PIE pawn's components in the Details
+  panel: a changed value's notice reruns the actor's construction script (`ConsolidatedPostEditChange` ->
+  `RerunConstructionScripts`; no PIE guard in 5.8). On a moving player that rebuilt BP_LooterCharacter's Blueprint
+  components and the weapon manager came back empty (2026-10-14, twice: the play-through's vanished guns). play.py stops
+  the player with `stop_movement_immediately`/`clear_accumulated_forces`; the game warns `Guns: ... lost ...`.
 - Probes for walkability: `Tools/Unreal/reach_probe.py` misreads floors inside thick hulls (stairs, the watchtower);
   walking it with `press Move` legs and `where` is the reliable check.
 
@@ -162,14 +170,17 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
     an `onFloor` ridge's band ran on past its floor, and 31 East Shoulder slabs stood on the valley floor, through the
     depot and across the rail line). `keepOut` (placement keys): no cliff piece, panel or outcrop stands inside those
     buildings (`build_area_keepout.py`: moved back into its wall, cut under a floor, slid along its run, else left out;
-    each logged). Check with `Tools/Unreal/cliff_in_buildings.py <Area>` (read-only, `CLIFFIN` lines).
+    each logged). Check with `Tools/Unreal/cliff_in_buildings.py <Area>` (read-only, `CLIFFIN` lines). Since 2026-10-14
+    the generator writes an onFloor ridge's band only where its floors stand under its top (`Region.band_height` x
+    `floor_weight`: eastShoulder 32 -> 1 point); `walled` stays as a guard.
   - Every ramp's walkway is cleared of cliff pieces (`build_area_walkways.py`): a player capsule is tested down its middle. A ramp's
     own wall moves back into its cut; a ledge's outer face (under the path) sinks until it clears, at most 1.5 m (2026-10-08: nine
     faces on the bluff path and the Sink ramp sank 25-100 cm, no gaps under the lip).
 - Scatter (PCG): `Tools/Unreal/build_island_scatter.py <Area>`.
   - Re-imports changed masks by MD5, then generates. Wait for the instance count to settle, then save.
   - Zones of kinds alpine, outpost, mine and crest, and `benchPines*` stands, grow pines only (PCG Intersection: one `In` pin,
-    density MINIMUM or MULTIPLY; there is no BINARY).
+    density MINIMUM or MULTIPLY; there is no BINARY), stands and lone meadow trees alike; the boxes reach 5 m past the zones
+    (`PINE_ZONE_MARGIN`, over the mask's 4 m forest fade: a lone oak stood on the Bench until 2026-10-14).
   - Keeps off the dressing's footprints and wears the area's material swaps. Run `dressing` before the scatter when fences or graves
     move.
 - Materials per area: `level.materials` makes area instances of shared MIs; `level.swaps` puts them on everything the build placed,
@@ -330,6 +341,13 @@ Rules that saved time:
 - Faces without UV area give tangent warnings; `Tools/Blender/tangentcheck.py` predicts them.
 - Terrain meshes keep 100% Nanite fallback. Medium draws the fallback and collision is cooked from it.
 - A variant of a model (Farmhouse_Ransom) goes in the same script, with the original exported byte-identical.
+- A prop whose pieces the game hides is several models on one pivot in the same script (the porch plate: plate, jars,
+  biscuits).
+- The kit's `_triangulate` collapses triangles under 1 mm^2: build tiny details (ink, cards) as single faces of at least
+  1 mm^2 a triangle. Map round, flat parts with `Tile(set, along=None)` (the default turns each face's grain to its long side:
+  a star of seams on a lathe's floor).
+- Tangent warnings logged by a reimport's first build come from Unreal's default fallback, not the model
+  (SM_RR_RangerCabin, 2026-10-13); `tangentcheck --log` labels them.
 
 ## Island styles (Style Lab looks on the tutorial island, 2026-10-08)
 
@@ -378,7 +396,8 @@ Rules that saved time:
     frequent-cue 2-5 kHz check), `lostloot`, `missions`, `orelift`, `watchfire`, `miners` (the dead miners; Hiram's and Thaddeus's
     sounds), `foreman`. Stamps on the cards land 0.11 s in, on the cards' slam.
   - Lessons (`Art/Sounds/README.md`): start soft cues on a small physical touch (the check flags a late start); put a loop's seam in a
-    lull between events; mix loop layers by loudness, not peak.
+    lull between events; mix loop layers by loudness, not peak. CLICK compares spikes with the local level 30 dB under the
+    cue's peak: a crackle thinning to a few grains a second flags in its tail (keep its rate floor high: Spitter Sizzle 1500/s).
 - For the user: the listening page is an Artifact with the WAVs as its files (<https://claude.ai/artifact/VDmyrPmAsxiNa6boNuqKxa>);
   republish it from the session's scratchpad copy after a render.
 - Lesson: setting a USoundClass's `child_classes` all at once parents only the first new child; add them one at a time
@@ -537,8 +556,8 @@ Each line: bug (date). Cause. Fix.
   from 3 m over the spawner (over the vault's collision) and its spots from a step and a metre over home. Fix: both from
   under any roof over the spawner (`FEncounterGroundProbe::FindRoofOver`), wander goals too; `Looter.Encounters.Cellar`.
 - 32 cliff slabs stood in a line on the valley floor, through the depot and over the rail line (2026-10-14). Cause: an
-  `onFloor` ridge's band ran on past its floor. Fix: `level.cliffs.walled` and `keepOut` (above). Generator side (scale
-  the band by the floor's weight) not done: needs a `--computed` run.
+  `onFloor` ridge's band ran on past its floor. Fix: `level.cliffs.walled` and `keepOut` (above); generator side done
+  the same day (`Region.band_height` x `floor_weight`).
 - Dead Lift's crank couldn't be reached (2026-10-14). Cause: the sheriff's cell was one solid collision box. Fix: hulls
   for the cell's floor, walls, ceiling and bunk. Lesson: a model's hulls must leave every room a mission sends the
   player into open; walk it in PIE.
@@ -547,6 +566,26 @@ Each line: bug (date). Cause. Fix.
   100 m from its fight.
 - Every notice board posting read NO REWARD: IT'S PRACTICE (2026-10-14). Cause: the line only knew gun rewards. Fix:
   the mission's own reward summary.
+- The player's guns vanished twice in the play-through (2026-10-14). Cause: play.py's teleport (see Play checks). Fix: the
+  tool; the game warns whenever guns go from some to none outside the player's own drop, sale, clear or load
+  (`Inventory/WeaponManagerWatch.cpp`, `Looter.Inventory.GunsLostAloud`).
+- From the Diggings' yard the mine's mouth showed daylight and floating trees (2026-10-14). Cause: outside, every mine
+  piece was hidden, so the mouth looked through the terrain's hole. Fix: the adit's first 29 m stay drawn from outside and
+  a black card across its far end (`AInteriorVisibility::VeilTag`) shows only while the view is outside.
+- Ruth Calder's note's card lost the Interact key to the paper under it (2026-10-14). Cause: `InteractionFocus::ScoreOf`
+  scores distance as a share of reach; both 250, the paper 0.7 cm nearer. Fix: artifact reach 3 m, the card 2 cm wider,
+  tagged CalderNote so Side 1 counts through it; the board offers a job pinned on its face ("pinned to this board").
+- Board turn-ins said nothing; Ellis's headboard was a speaker point (Main 1's optional never counted); the valley props
+  script skipped lasting-interact steps (2026-10-14). Fixes: `ANoticeBoard::TurnIn` plays the turn-in lines; the headboard
+  is an `AReadableProp`; the step finder counts `MissionLastingInteractObjective`.
+- Save version 3 (2026-10-14): a step-list change under live saves needs an entry in `CampaignStepMigration`'s
+  `MovedSteps` and a cutoff time (Main 4: old 0-4 -> 0,1,3,4,5; sides that had started by themselves count as taken).
+- A searching creature blocked fast travel and held the combat music (2026-10-14). Cause: both asked whether its target
+  was the player. Fix: `ACreatureBase::IsFightingWith` (Chase or Attack); a lair Legendary's boss mood still follows
+  'after the player'.
+- The ore bin's trestle end stood 3.1 m over the Diggings yard (2026-10-13). Cause: its model wants a 3.6 m step. Fix:
+  `oreBinBay`, an exact pad at +54 cut into the yard's south edge. Lesson: a model with a built-in step gets the step as a
+  pad in the terrain, not a placement Z (sinking it buries the model).
 
 ## What worked, and what didn't
 

@@ -113,13 +113,13 @@ The gang's leader and Ellis's mentor, almost a father. He was a preacher thrown 
 
 ## Enemies and creatures
 
-- **The Unpaid**: the restless dead of the robbed towns. They are pale shapes in the clothes they died in, fading below the waist into a trailing shroud, with a dull red coal where the heart should be. They drift, phase through walls and shriek. Ellis sees them clearly; the living barely do. **Dead miners** (2026-10-13) are a kind of the Unpaid in the Providence mine: miners' gear, head lamps, picks.
+- **The Unpaid**: the restless dead of the robbed towns. They are pale shapes in the clothes they died in, fading below the waist into a trailing shroud, with a dull red coal where the heart should be. They drift, phase through walls and shriek. Ellis sees them clearly; the living barely do. **Dead miners** (2026-10-13) are a kind of the Unpaid in the Providence mine: miners' gear, head lamps, picks. **The Bell-Ringer** (2026-10-12) is the chapel's old ringer, an Unpaid who tolls a bronze hand bell to rally the dead and hangs back behind them (`Docs/Areas/RansomsRest.md`).
 - **Ranks**: some creatures and dead have fed longer on the dark. Ellis sees it as soul-light, on the living and the dead: the Restless glow blue, the Gravebound purple, the Soulfed and the named horrors orange. An Unpaid's coal burns in the same color. Brighter souls hit harder and are likelier to carry soul-forged iron, which is why a legendary can drop from anything but comes far more often from Rares, Epics, Legendaries and bosses (rules: *Enemy ranks and legendary drops*).
 - **Each outlaw's following**, the living, slowly going Hollow: Ned's card sharps and bouncers, Ira's dust riders, Constance's flock of zealots, Barrels's furnace men, Lena's spotters, Tobias's quarry crew. One rig set, seven costumes.
 - **Bounty hunters**: there's a price on the walking corpse, and the living come to claim it in Act II.
 - **The Mourners**: Sexton's servants from the end of Act II, murders of crows that fold into figures in black.
 - **Creatures**, drawn to the dead:
-  - Meadow Wolf spiders nest in graveyards and hoard anything a saint has touched: the Rest's chapel yard, the bluff and the Sink. The Gravemother is the legendary spider of Ransom's Rest, with a side mission of her own.
+  - Meadow Wolf spiders nest in graveyards and hoard anything a saint has touched: the Rest's chapel yard, the bluff and the Sink. The Gravemother is the legendary spider of Ransom's Rest, with a side mission of her own. **Venom Spitters** (2026-10-12) are a thin-legged, olive spider kind that hangs back and spits from a glowing venom sac.
   - Meadow slimes live in the creek on Ransom's Rest as plain wildlife.
   - MossBacks in Saint Agnes Mire.
   - Ember Tarantulas in Furnace Hollow's slag.

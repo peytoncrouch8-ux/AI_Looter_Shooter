@@ -347,5 +347,5 @@ Steady supplies (ten boxes of ammo, six jars of salt) cost about 375; what's lef
 Rare guns of the day** (186 and 397 at level 4). A Legendary (2,100 at level 6) costs more than the whole playthrough
 earns, and a Basic kill is worth under a box of ammo: drops stay about the guns. An explorer (the mountain, the bounty,
 every container and camp) earns about 2,000, and 400 more with the payroll kept. The test holds the normal play between
-1,000 and 1,800 and the guns of the day to "a few"; Lost Property's shelving upgrades (150 to 1,200) are what the
+1,000 and 1,800 and the guns of the day to "a few"; Lost Property's shelving upgrades (300 to 2,400 since 2026-10-14, the user's call: dearer as the world grows) are what the
 explorer's silver is for.

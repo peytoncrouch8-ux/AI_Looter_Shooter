@@ -56,7 +56,7 @@ The user's calls (2026-10-13):
   empty homes.
 - **Pace:** the player is 10% slower; the main path grows from about 60 to about 75 minutes (section 2).
 - **Lost Loot** (the user's add): ground guns despawn after 5 min into the depot's LOST PROPERTY window; oldest out when
-  full; all guns. Built: 30 slots, +10 per upgrade for 150/300/500/800/1200 silver.
+  full; all guns. Built: 30 slots, +10 per upgrade for 300/600/1000/1600/2400 silver (doubled 2026-10-14, the user's call).
 
 ## 2. The mission flow
 
