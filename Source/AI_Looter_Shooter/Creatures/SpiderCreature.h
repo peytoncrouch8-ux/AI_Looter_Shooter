@@ -41,8 +41,16 @@ public:
 	 */
 	static constexpr float FootSearchAbove = 60.f;
 
+	/** Climbing out of the dirt as it comes into the world in view (PlayEntrance) takes this long (s). */
+	static constexpr float EmergeSeconds = 0.8f;
+
+	/** Its idle life now (SpiderCreatureReact.cpp): a front leg tapped, the front legs groomed at its fangs. For the tests and tools. */
+	enum class EIdleAct : uint8 { None, Tap, Groom };
+	EIdleAct GetIdleAct() const { return IdleAct; }
+
 protected:
 	virtual void BeginPlay() override;
+	// --- Hits, death, coming back, the notice beat, its entrance (SpiderCreatureReact.cpp) ---
 	virtual void OnAttackStarted() override;
 	virtual void OnHurt(bool bCritical, const FVector& HitLocation) override;
 	virtual void OnDied() override;
@@ -50,6 +58,8 @@ protected:
 	virtual void OnPoseThawed() override;
 	virtual void OnSizeChanged() override;
 	virtual void SetHitVolumesEnabled(bool bEnabled) override;
+	virtual void OnNoticed() override;
+	virtual void PlayEntrance() override;
 
 private:
 	struct FLeg
@@ -127,9 +137,9 @@ private:
 	/**
 	 * Dead (Time: seconds since), one leg folds from where its foot was as it died to lying crumpled at its side, knee up and
 	 * out, tip tucked under the body: its foot eases along in the world and its knee's bend turns with it, so nothing snaps.
-	 * Returns the knee, the foot and the pole the bones are laid by (world).
+	 * Kick moves its foot's target (a last twitch, world). Returns the knee, the foot and the pole the bones are laid by (world).
 	 */
-	void CurlDeadLeg(const FLeg& Leg, float Time, FVector& OutKnee, FVector& OutFoot, FVector& OutPole) const;
+	void CurlDeadLeg(const FLeg& Leg, float Time, const FVector& Kick, FVector& OutKnee, FVector& OutFoot, FVector& OutPole) const;
 	/** Records where each foot is as the spider dies, for its curl to start from. */
 	void RecordDeathPose();
 	/**
@@ -152,6 +162,41 @@ private:
 	 * stands on puts the ground there, so feet up a slope land on it rather than inside it.
 	 */
 	FVector GroundUnder(const FVector& Point) const;
+
+	/** How far (cm, full size) a foot may get from its spot before its group steps it back: farther at speed. */
+	static float StepThresholdAt(float Speed);
+
+	// --- Reactions and idle life (SpiderCreatureReact.cpp) ---
+	/** Its idle acts, its entrance's climb and its death's twitches move on. */
+	void TickReactions(float DeltaSeconds);
+	/** The notice beat's rear (higher, nose up, fangs flared) and a groom's nod and chewing, on the body's targets. */
+	void ReactBody(float& TargetZ, float& TargetPitch, float& TargetFang) const;
+	/** Where a leg's foot is posed off its planted spot now (world): a front leg raised for the notice, tapped or groomed with. */
+	FVector ReactFootOffset(const FLeg& Leg, const FTransform& Body) const;
+	/** A dead leg's last twitch now (world offset of its foot), or none. */
+	FVector DeathTwitch(int32 LegIndex, float Time, const FVector& Outward, const FVector& Up) const;
+	/** A foot landed from a step at Speed: running, it kicks up a puff (every other landing). */
+	void NoteFootLanded(const FLeg& Leg, float Speed);
+	/** How far under its stance the body is as it climbs out of the dirt (cm, negative), 0 once out. */
+	float EmergeDrop() const;
+	/** Dead, its twitches over and its sink not yet begun: its pose is still, and isn't worked out again. */
+	bool IsCorpseSettled() const;
+
+	EIdleAct IdleAct = EIdleAct::None;
+	float IdleActTime = 0.f;
+	/** Its idle act's hold on the legs (eased off at once if it's disturbed), the next act's wait, and the side tapping. */
+	float IdleWeight = 0.f;
+	float NextIdleAct = 4.f;
+	bool bIdleClockSet = false;
+	float IdleSide = 1.f;
+	/** How much of the notice beat's pose it shows (eased after the beat's own curve). */
+	float NoticePose = 0.f;
+	/** Seconds into its climb out of the dirt (below 0: not climbing). */
+	float EmergeTime = -1.f;
+	/** Its death's two last twitches: when (s after death) and which leg. */
+	float TwitchAt[2] = { 1.6f, 2.6f };
+	int32 TwitchLeg[2] = { 0, 5 };
+	int32 FootfallsLanded = 0;
 
 	TArray<FLeg> Legs;
 	/** The gait group whose turn it is to step (INDEX_NONE while all feet are down), and the group that stepped last. */
@@ -186,6 +231,10 @@ private:
 	float HurtHold = 0.f;
 	FVector HurtOffset = FVector::ZeroVector;
 	FVector HurtVelocity = FVector::ZeroVector;
+	/** A hit's tilt away from the shot (X pitch, Y roll, degrees), on the jolt's spring. */
+	FVector HurtTiltKick = FVector::ZeroVector;
+	FVector HurtTilt = FVector::ZeroVector;
+	FVector HurtTiltVelocity = FVector::ZeroVector;
 	float AbdomenKick = 0.f;
 	float FangOpen = 0.f;
 };

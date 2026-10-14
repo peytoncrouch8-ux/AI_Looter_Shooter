@@ -182,6 +182,8 @@ void ACreatureBase::UpdatePursuit(float Interval)
 		if (State == ECreatureState::Search)
 		{
 			SetHuntState(ECreatureState::Chase);
+			// Seen again: a search that never came to a chase (it watched from its edge) has its notice beat now.
+			BeginNotice(ECreatureState::Search);
 		}
 		else if (State != ECreatureState::Chase && State != ECreatureState::Attack)
 		{

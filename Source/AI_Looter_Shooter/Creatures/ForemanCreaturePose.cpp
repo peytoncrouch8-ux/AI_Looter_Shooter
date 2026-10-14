@@ -171,4 +171,6 @@ void AForemanCreature::UpdateDeathLook(float DeltaSeconds)
 	Heat = FMath::Lerp(-0.25f, -1.f, Fading);
 	const float Gutter = 0.55f + 0.45f * FMath::Abs(FMath::Sin(DeathTime * 7.3f) * FMath::Sin(DeathTime * 2.1f));
 	LampBrightness = Foreman::OwnLampBrightness * Gutter * (1.f - Fading);
+	// As he fades, he breaks into drifting ash as his dead do (cosmetic: his kneel and his last word are his fight's show).
+	ShedDeathAsh(DeltaSeconds);
 }

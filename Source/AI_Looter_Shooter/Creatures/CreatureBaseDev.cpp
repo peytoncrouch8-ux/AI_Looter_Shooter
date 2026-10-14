@@ -26,3 +26,33 @@ void ACreatureBase::DevPutInState(ECreatureState NewState, APawn* InTarget, cons
 	}
 	UE_LOG(LogLooter, Verbose, TEXT("%s: put in %s for a developer tool."), *GetName(), *UEnum::GetValueAsString(NewState));
 }
+
+void ACreatureBase::DevPlayEntrance()
+{
+	// Its kind's entrance on cue, seen or not (Looter.CastShots photographs it).
+	if (!IsDead())
+	{
+		PlayEntrance();
+	}
+}
+
+void ACreatureBase::DevSight(APawn* Seen)
+{
+	if (!Seen || State == ECreatureState::Dead)
+	{
+		return;
+	}
+	// As its senses would: a first sight begins a hunt; a search that sees its prey again is a chase again. Either may
+	// bring its notice beat (CreatureBaseReact.cpp).
+	const ECreatureState Before = State;
+	if (!Target.IsValid())
+	{
+		BeginHunt(Seen);
+		BeginNotice(Before);
+	}
+	else if (Target.Get() == Seen && State == ECreatureState::Search)
+	{
+		SetHuntState(ECreatureState::Chase);
+		BeginNotice(Before);
+	}
+}

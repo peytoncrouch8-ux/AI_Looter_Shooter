@@ -29,7 +29,8 @@ void ABellRingerCreature::TickStance(float DeltaSeconds)
 {
 	SinceBackOff = FMath::Min(SinceBackOff + DeltaSeconds, 1000.f);
 	const APawn* Victim = GetTarget();
-	if (!Victim || Act != EAct::None || IsPhasing() || GetCreatureState() != ECreatureState::Chase)
+	// In its notice beat it stands, its bell knocking, before it keeps its distance.
+	if (!Victim || Act != EAct::None || IsPhasing() || GetCreatureState() != ECreatureState::Chase || IsNoticing())
 	{
 		StopBackingOff();
 		Stance = EBellRingerStance::Hold;

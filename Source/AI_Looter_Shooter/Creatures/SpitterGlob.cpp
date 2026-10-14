@@ -5,6 +5,7 @@
 #include "Combat/CombatRules.h"
 #include "Combat/EnemyProjectileSubsystem.h"
 #include "Combat/EnemyShotDamageType.h"
+#include "Weapons/NearMiss.h"
 #include "Weapons/WeaponFX.h"
 #include "World/PlayableArea.h"
 #include "Components/BrushComponent.h"
@@ -212,6 +213,12 @@ void ASpitterGlob::Fly(float DeltaSeconds)
 			Victim = Character;
 			VictimTime = Time;
 		}
+	}
+	if (!Victim)
+	{
+		// Missing the player by a little, it hisses past their head (once).
+		NearMiss::HearFlyBy(*World, From, Reach, static_cast<float>(FVector::Dist(Spec.Start, From)), Spec.Spitter.Get(),
+			ENearMissSound::Hiss, bHeardFlyBy);
 	}
 
 	Velocity = NewVelocity;

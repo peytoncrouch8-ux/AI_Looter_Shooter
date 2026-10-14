@@ -293,6 +293,12 @@ protected:
 	/** A creature it just spawned, before it's set on the player (bHuntOnSpawn): an ambush's entrance (rising, dropping). */
 	virtual void OnCreatureSpawned(ACreatureBase& Creature) {}
 
+	/**
+	 * Whether its creatures arrive their own way (OnCreatureSpawned: an ambush's rising or dropping). Otherwise one that
+	 * appears where a player can see it comes its kind's way (ACreatureBase::PlayEntranceIfSeen) rather than popping in.
+	 */
+	virtual bool HasOwnEntrance() const { return false; }
+
 	/** Moves its pack on by DeltaSeconds at each look while it's on (waiting or engaged): a patrol's walk. */
 	virtual void UpdatePack(float DeltaSeconds) {}
 

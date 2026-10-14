@@ -98,7 +98,7 @@ void ASpiderCreature::RecordDeathPose()
 	}
 }
 
-void ASpiderCreature::CurlDeadLeg(const FLeg& Leg, float Time, FVector& OutKnee, FVector& OutFoot, FVector& OutPole) const
+void ASpiderCreature::CurlDeadLeg(const FLeg& Leg, float Time, const FVector& Kick, FVector& OutKnee, FVector& OutFoot, FVector& OutPole) const
 {
 	const float Scale = GetSizeScale();
 
@@ -146,5 +146,6 @@ void ASpiderCreature::CurlDeadLeg(const FLeg& Leg, float Time, FVector& OutKnee,
 	const double Round = FloorRounding * Scale * FMath::Sin(UE_PI * Alpha);
 	CurlTarget.Z += 0.5 * (Under + FMath::Sqrt(Under * Under + Round * Round));
 	const FVector Bend = FMath::Lerp(OutPole.GetSafeNormal(), BodyFrame.TransformVectorNoScale(BendDead), Alpha);
-	SolveTwoBone(HipWorld, CurlTarget, Leg.FemurLength * Scale, Leg.TibiaLength * Scale, Bend, OutKnee, OutFoot);
+	// A last twitch (Kick, world: eased in and out, after the curl) moves the foot's target only; its bend stays the curl's.
+	SolveTwoBone(HipWorld, CurlTarget + Kick, Leg.FemurLength * Scale, Leg.TibiaLength * Scale, Bend, OutKnee, OutFoot);
 }

@@ -9,6 +9,7 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/BellRingerGraves.h"
 #include "Creatures/BellRingerRing.h"
+#include "Creatures/CreatureReactRules.h"
 #include "Player/PlayerSize.h"
 #include "AnimationRuntime.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -113,6 +114,8 @@ ABellRingerCreature::ABellRingerCreature()
 	GetHat()->SetStaticMesh(nullptr);
 	GetHat()->SetVisibility(false);
 	Voice->BarkKind = BarkKind;
+	// Its notice beat: its bell's clapper knocks once as it turns on whoever it has seen.
+	NoticeCue = CreatureReactCue::BellRingerNotice;
 
 	USkeletalMeshComponent* Body = GetMesh();
 	const USkeletalMesh* Model = Body->GetSkeletalMeshAsset();

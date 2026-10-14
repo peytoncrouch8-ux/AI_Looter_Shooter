@@ -45,6 +45,7 @@ void ASpiderCreature::PlantLegs()
 	SteppingGroup = INDEX_NONE;
 	bBodyInitialized = false;
 	HurtKick = HurtOffset = HurtVelocity = FVector::ZeroVector;
+	HurtTiltKick = HurtTilt = HurtTiltVelocity = FVector::ZeroVector;
 	HurtHold = 0.f;
 }
 

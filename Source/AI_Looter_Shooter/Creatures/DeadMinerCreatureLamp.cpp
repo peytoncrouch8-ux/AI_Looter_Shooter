@@ -114,6 +114,11 @@ bool ADeadMinerCreature::IsLampHit(const FVector& Point) const
 
 float ADeadMinerCreature::WantedLampFlare() const
 {
+	// Its notice beat: the lamp flares as its coal does, as it turns on whoever it has seen.
+	if (IsNoticing())
+	{
+		return 0.5f * GetNoticeStrength();
+	}
 	// Through the swing's wind-up, swelling to the blow; nothing in a broken swing or a reel.
 	if (GetCreatureState() != ECreatureState::Attack || bSwingBroken || Act == EAct::Reel || GetStateTime() >= AttackWindup)
 	{

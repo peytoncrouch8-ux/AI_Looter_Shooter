@@ -63,6 +63,7 @@ public:
 protected:
 	virtual bool CheckApproach() override;
 	virtual void OnCreatureSpawned(ACreatureBase& Creature) override;
+	virtual bool HasOwnEntrance() const override { return Entrance != EAmbushEntrance::Appear; }
 
 private:
 	/** Drops a creature from above its feet: lifted as far as there's room, falling. */

@@ -37,11 +37,6 @@ namespace
 		return TurnBy(FVector::UpVector, Degrees);
 	}
 
-	float Ease(float Alpha)
-	{
-		return FMath::InterpEaseInOut(0.f, 1.f, FMath::Clamp(Alpha, 0.f, 1.f), 2.f);
-	}
-
 	/** The strips run out of phase with the shroud between them, and with each other (radians). */
 	constexpr float ChainPhases[3] = { 0.f, 2.2f, -2.2f };
 
@@ -54,9 +49,18 @@ namespace
 
 	/** How quickly its bank follows its turn (1/s): a full bank builds over about a quarter of a second. */
 	constexpr float BankRate = 8.f;
-	/** How far it looks round at its target before its body has to turn (degrees). */
-	constexpr float LookYawLimit = 60.f;
-	constexpr float LookPitchLimit = 35.f;
+
+	/**
+	 * Its crumple as it dies (Crumple, 0 to 1; not a boss's): the hips sink this far (cm) and the trunk folds forward this
+	 * much at the hips, waist and head (degrees), on top of the Unpaid's slump (Death).
+	 */
+	constexpr float CrumpleSink = 60.f;
+	constexpr float CrumpleHips = 35.f;
+	constexpr float CrumpleWaist = 12.f;
+	constexpr float CrumpleHead = 20.f;
+	/** Its look snaps round this much quicker in its notice beat (1/s) than its usual turn of the head. */
+	constexpr float LookRate = 5.f;
+	constexpr float NoticeLookRate = 14.f;
 
 	/** The most the shroud lifts off a slope rising behind it (degrees): the steepest ground it drifts over. */
 	constexpr float MaxShroudLift = 40.f;
@@ -256,86 +260,8 @@ bool AUnpaidCreature::SetupRig()
 }
 
 // ---------------------------------------------------------------------------
-// The pose
+// The pose (what each moment asks of it, PoseTargets: UnpaidCreatureMoods.cpp)
 // ---------------------------------------------------------------------------
-
-AUnpaidCreature::FPoseChannels AUnpaidCreature::PoseTargets(float Speed, float Time) const
-{
-	FPoseChannels Goal;
-	const float Moving = FMath::Min(Speed, 1.f);
-	// Drifting or hanging still: a little hunched, leaning into its drift, the jaw slack and twitching now and then.
-	Goal.Lean = 4.f + 10.f * Moving;
-	Goal.Jaw = 6.f + 2.5f * FMath::Pow(FMath::Max(FMath::Sin(Time * 0.9f), 0.f), 4.f) * FMath::Sin(Time * 11.f);
-	Goal.Curl = 25.f;
-	Goal.Splay = 4.f;
-
-	const float InState = GetStateTime();
-	switch (GetCreatureState())
-	{
-	case ECreatureState::Chase:
-		// Hungry: thrust forward, mouth open, the arms up and clawing at the air (UnpaidCreatureArms.cpp).
-		Goal.Lean = 6.f + 16.f * Moving;
-		Goal.Jaw = 12.f;
-		Goal.Curl = 30.f;
-		Goal.Splay = 8.f;
-		Goal.Hunt = 1.f;
-		break;
-
-	case ECreatureState::Attack:
-		if (InState < AttackWindup)
-		{
-			// The shriek: it rears back with its arms flung wide and its fingers splayed, the jaw dropping as far as it goes.
-			const float Rise = Ease(InState / FMath::Max(AttackWindup, 0.01f));
-			Goal.Rear = Rise;
-			Goal.Spread = Rise;
-			Goal.Lean = -8.f * Rise;
-			Goal.Jaw = FMath::Lerp(12.f, JawOpenDegrees, Rise);
-			Goal.Curl = -5.f;
-			Goal.Splay = 18.f;
-		}
-		else
-		{
-			// The lunge: thrown forward, arms reaching long and clawing, the shroud snapped straight; the recovery eases back.
-			const float After = (InState - AttackWindup) / FMath::Max(AttackRecovery, 0.01f);
-			const float Reach = bLunging ? 1.f : 1.f - Ease((After - 0.3f) / 0.7f);
-			Goal.Reach = Reach;
-			Goal.Spread = 0.15f * Reach;
-			Goal.Lean = 6.f + 22.f * Reach;
-			Goal.Jaw = FMath::Lerp(12.f, JawOpenDegrees * 0.75f, Reach);
-			Goal.Curl = FMath::Lerp(30.f, 48.f, Reach);
-			Goal.Splay = 12.f * Reach;
-			Goal.Snap = bLunging ? 1.f : 0.f;
-		}
-		break;
-
-	case ECreatureState::Dead:
-		// It slumps as it goes: head down, arms hanging, hands curled, the jaw fallen open.
-		Goal.Death = 1.f;
-		Goal.Lean = 35.f;
-		Goal.Jaw = 25.f;
-		Goal.Curl = 50.f;
-		Goal.Splay = 0.f;
-		break;
-
-	default:
-		break;
-	}
-
-	// It looks at whoever it's after, as far as its neck turns; otherwise it looks about, slowly.
-	if (const APawn* Victim = GetTarget(); Victim && !IsDead())
-	{
-		const FVector Eye = GetActorLocation() + FVector(0.f, 0.f, 0.7f * GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
-		const FVector To = FRotator(0.0, GetActorRotation().Yaw, 0.0).UnrotateVector(Victim->GetActorLocation() + FVector(0.f, 0.f, 60.f) - Eye);
-		Goal.LookYaw = FMath::Clamp(static_cast<float>(FMath::RadiansToDegrees(FMath::Atan2(To.Y, To.X))), -LookYawLimit, LookYawLimit);
-		Goal.LookPitch = FMath::Clamp(static_cast<float>(FMath::RadiansToDegrees(FMath::Atan2(To.Z, To.Size2D()))), -LookPitchLimit, LookPitchLimit);
-	}
-	else if (!IsDead())
-	{
-		Goal.LookYaw = 25.f * FMath::Sin(Time * 0.35f);
-		Goal.LookPitch = -5.f + 4.f * FMath::Sin(Time * 0.23f);
-	}
-	return Goal;
-}
 
 void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 {
@@ -373,11 +299,16 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 		Follow(Pose.Jaw, Goal.Jaw, Rate);
 		Follow(Pose.Curl, Goal.Curl, Rate);
 		Follow(Pose.Splay, Goal.Splay, Rate);
-		// The head turns, it doesn't snap; the strips fly straight with the lunge at once and drift back after it.
-		Follow(Pose.LookYaw, Goal.LookYaw, 5.f);
-		Follow(Pose.LookPitch, Goal.LookPitch, 5.f);
+		// The head turns, it doesn't snap (but in its notice beat, when it has just seen them); the strips fly straight with
+		// the lunge at once and drift back after it.
+		const float Look = IsNoticing() ? NoticeLookRate : LookRate;
+		Follow(Pose.LookYaw, Goal.LookYaw, Look);
+		Follow(Pose.LookPitch, Goal.LookPitch, Look);
 		Follow(Pose.Snap, Goal.Snap, Goal.Snap > Pose.Snap ? 25.f : 4.f);
 		Follow(Pose.Death, Goal.Death, 3.f);
+		// Dying, it crumples, quicker than it slumps; calm, it sways slowly where it hangs.
+		Follow(Pose.Crumple, Goal.Crumple, 4.5f);
+		Follow(Pose.Sway, Goal.Sway, 2.f);
 		// The arms come up as the hunt starts, not at once; the shriek's own channels take over quickly.
 		Follow(Pose.Hunt, Goal.Hunt, GetCreatureState() == ECreatureState::Attack ? Rate : 4.f);
 	}
@@ -397,14 +328,16 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 	{
 		FPosedBone& Pelvis = Bones[PelvisBone];
 		const float Bob = BobHeight * FMath::Sin(2.f * UE_PI * BobHz * Time) * (1.f - 0.5f * Moving) * Alive;
-		Pelvis.Own = PitchBy(0.4f * Pose.Lean + FlinchBack) * RollBy(-Bank - FlinchSide);
-		Pelvis.Shift = FVector(0.f, 0.f, Bob - 4.f * Pose.Reach - 25.f * Pose.Death) + FlinchAway * (6.f * Flinch);
+		// Rising out of the ground it comes up from under it (RiseDrop); crumpling it sinks and folds over.
+		Pelvis.Own = PitchBy(0.4f * Pose.Lean + FlinchBack + CrumpleHips * Pose.Crumple) * RollBy(-Bank - FlinchSide + Pose.Sway);
+		Pelvis.Shift = FVector(0.f, 0.f, Bob - 4.f * Pose.Reach - 25.f * Pose.Death - CrumpleSink * Pose.Crumple + RiseDrop())
+			+ FlinchAway * (6.f * Flinch);
 	}
 	if (SpineBone != INDEX_NONE)
 	{
 		// The shriek's rear bends mostly at the waist: the chest folding back over it presses the armpits into the waist
 		// (all at the chest it did badly, an even split still 2-3 cm). The same 8 degrees back in all.
-		Bones[SpineBone].Own = PitchBy(0.3f * Pose.Lean + 1.5f * FMath::Sin(Time * 1.9f) - 6.f * Pose.Rear);
+		Bones[SpineBone].Own = PitchBy(0.3f * Pose.Lean + 1.5f * FMath::Sin(Time * 1.9f) - 6.f * Pose.Rear + CrumpleWaist * Pose.Crumple);
 	}
 	if (ChestBone != INDEX_NONE)
 	{
@@ -423,7 +356,8 @@ void AUnpaidCreature::AnimateBody(float DeltaSeconds)
 	if (HeadBone != INDEX_NONE)
 	{
 		Bones[HeadBone].Own = YawBy(0.6f * Pose.LookYaw)
-			* PitchBy(-0.6f * Pose.LookPitch - 0.35f * Pose.Lean - 15.f * Pose.Rear + 8.f * Pose.Reach + 30.f * Pose.Death);
+			* PitchBy(-0.6f * Pose.LookPitch - 0.35f * Pose.Lean - 15.f * Pose.Rear + 8.f * Pose.Reach + 30.f * Pose.Death
+				+ CrumpleHead * Pose.Crumple);
 	}
 	if (JawBone != INDEX_NONE)
 	{

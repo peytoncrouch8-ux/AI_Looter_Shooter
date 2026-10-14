@@ -46,16 +46,18 @@ namespace
 	constexpr float LandSquash = 0.6f;
 	constexpr float TelegraphSquash = 0.55f;
 	constexpr float LeapLandSquash = 0.45f;
-	constexpr float HurtSquash = 0.82f;
 	constexpr float IdleWobble = 0.04f;
 	constexpr float IdleWobbleHz = 1.2f;
 	// The squash and the core's springs are SlimeCreatureBody.cpp's.
 
-	// Death: it flattens into a puddle, lies there for the creature's CorpseTime, then dries up.
+	// Death: it splats into a puddle (spreading past it and settling back: SplatBulge), lies there for the creature's
+	// CorpseTime, then dries up.
 	constexpr float FlattenTime = 0.4f;
 	constexpr float PuddleHeight = 0.15f;
 	constexpr float PuddleWidth = 1.6f;
 	constexpr float DryUpTime = 0.8f;
+	constexpr float SplatBulge = 0.28f;
+	constexpr float SplatSeconds = 0.55f;
 
 	/** A scale along the mesh's axes, as the bone's own (its rest rotation maps its axes onto the mesh's). */
 	FVector BoneScale(const FQuat& Rotation, const FVector& MeshScale)
@@ -95,7 +97,8 @@ ASlimeCreature::ASlimeCreature()
 	AttackWindup = 0.5f;
 	AttackRecovery = 1.4f;
 	AttackCooldown = 1.6f;
-	CorpseTime = 2.5f;
+	// Its puddle lies a good while before it dries up (the polish's "deaths with weight").
+	CorpseTime = 8.f;
 	HealthBarHeight = 75.f;
 	// A hurt slime's call reaches every slime near it (PackAlertRadius), whatever its class.
 	PackTag = TEXT("Slime");
@@ -197,6 +200,8 @@ void ASlimeCreature::Tick(float DeltaSeconds)
 	{
 		TickHops(Wanted, DeltaSeconds);
 	}
+	// Its jelly's lean and bubbles, its swell into the world (SlimeCreatureReact.cpp).
+	TickReactions(DeltaSeconds);
 	// Far away out of view it hops on unposed (OnPoseThawed settles its springs again).
 	if (!IsPoseFrozen())
 	{
@@ -275,6 +280,8 @@ void ASlimeCreature::Landed(const FHitResult& Hit)
 	HopTime = 0.f;
 	CoreVelocity += FVector(0.f, 0.f, 110.f);
 	Voice->Play(LooterSoundCue::SlimeHop, bLeaping ? 1.f : (GetTarget() ? 0.8f : 0.5f));
+	// A hunting hop's landing kicks up a ring of dust (SlimeCreatureReact.cpp).
+	NoteLanding();
 
 	if (bLeaping)
 	{
@@ -338,70 +345,12 @@ void ASlimeCreature::Strike()
 	OnAttackStrike(false);
 }
 
-// ---------------------------------------------------------------------------
-// Hits, death and respawn
-// ---------------------------------------------------------------------------
-
-void ASlimeCreature::OnHurt(bool bCritical, const FVector& HitLocation)
-{
-	if (IsDead())
-	{
-		return;
-	}
-	// A squash and a wobble; the core jiggles away from the hit (harder on a crit).
-	if (Hop == EHop::Ground && !bTelegraph && !Squash.IsRamping())
-	{
-		Squash.Ramp(HurtSquash, 0.05f);
-	}
-	const FVector Away = GetActorTransform().InverseTransformVector(GetActorLocation() - HitLocation).GetSafeNormal();
-	CoreVelocity += (Away + FMath::VRand() * 0.5f) * (bCritical ? 220.f : 130.f);
-}
-
-void ASlimeCreature::OnDied()
-{
-	Hop = EHop::Ground;
-	bLeaping = false;
-	bTelegraph = false;
-	// Death stops all movement, mid-hop too: drop it onto the ground so the puddle lies there, not in the air.
-	FVector Ground;
-	if (FindGround(GetActorLocation(), 0.f, 1000.f, Ground))
-	{
-		SetActorLocation(Ground + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight()), false, nullptr,
-			ETeleportType::TeleportPhysics);
-	}
-}
+// Hits, death, coming back, the notice beat, its entrance and idle life: SlimeCreatureReact.cpp.
 
 bool ASlimeCreature::CanStartAttack() const
 {
 	// Leaps start from the ground, never mid-hop.
 	return Hop == EHop::Ground && GetCharacterMovement()->IsMovingOnGround();
-}
-
-void ASlimeCreature::OnRespawned()
-{
-	Hop = EHop::Ground;
-	HopTime = 0.f;
-	BlockedHops = 0;
-	Squash = FSquashSpring();
-	CoreOffset = CoreVelocity = FVector::ZeroVector;
-	AnimateBody(0.f);
-}
-
-void ASlimeCreature::OnPoseThawed()
-{
-	// The springs stood still while it hopped on unposed, but every hop still kicked the core and started a squash. Carry on
-	// from the shape it was last drawn in, with the springs at rest, so it doesn't pop if it's in view: the squashes and
-	// kicks of hops long over are dropped, and the springs ease it back to shape. (It's never frozen mid-attack, so no
-	// telegraph squash is lost.)
-	Squash.Velocity = 0.f;
-	Squash.RampTime = Squash.RampLength = 0.f;
-	CoreVelocity = FVector::ZeroVector;
-	AnimateBody(0.f);
-}
-
-void ASlimeCreature::SetHitVolumesEnabled(bool bEnabled)
-{
-	GetMesh()->SetCollisionEnabled(bEnabled ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
 }
 
 // ---------------------------------------------------------------------------
@@ -424,6 +373,10 @@ void ASlimeCreature::AnimateBody(float DeltaSeconds)
 		const float Flat = FMath::InterpEaseOut(0.f, 1.f, FMath::Min(Time / FlattenTime, 1.f), 2.f);
 		const float Dry = FMath::Clamp((Time - FlattenTime - CorpseTime) / DryUpTime, 0.f, 1.f);
 		Shape = FMath::Lerp(SquashScale(Squash.Value), FVector(PuddleWidth, PuddleWidth, PuddleHeight), Flat) * FMath::Max(1.f - Dry, 0.01f);
+		// The splat: the gel spreads out past its puddle and draws back to it, in the first half second.
+		const float Spread = 1.f + SplatBulge * FMath::Sin(UE_PI * FMath::Min(Time / SplatSeconds, 1.f));
+		Shape.X *= Spread;
+		Shape.Y *= Spread;
 		Shape.Z = FMath::Max(Shape.Z, 0.01f);
 	}
 	else
@@ -439,7 +392,8 @@ void ASlimeCreature::AnimateBody(float DeltaSeconds)
 		}
 		else if (!bTelegraph)
 		{
-			Squash.Target = 1.f + IdleWobble * FMath::Sin(2.f * UE_PI * IdleWobbleHz * AnimTime + IdlePhase);
+			// The slow wobble at rest, and the notice beat's low, shuddering squash (SlimeCreatureReact.cpp).
+			Squash.Target = 1.f + IdleWobble * FMath::Sin(2.f * UE_PI * IdleWobbleHz * AnimTime + IdlePhase) + ReactSquash();
 		}
 		StepSprings(Squash, CoreOffset, CoreVelocity, DeltaSeconds);
 		Shape = SquashScale(Squash.Value);
@@ -454,9 +408,11 @@ void ASlimeCreature::AnimateBody(float DeltaSeconds)
 	const FVector Seat(0.f, 0.f, -GroundDrop);
 	const FVector CoreScale = FMath::Lerp(FVector::OneVector, Shape, 0.5f);
 	const FVector CoreLocation = CoreRest.GetLocation() * Shape + CoreOffset;
+	// Its jelly's lean on top of the ground's tilt: away from a hit, swaying at rest (SlimeCreatureReact.cpp).
+	const FQuat Tilt = GroundTilt * ReactLean();
 	BonePose.SetNum(2);
-	BonePose[0] = { BodyBone, FTransform(GroundTilt * BodyRest.GetRotation(), Seat + GroundTilt.RotateVector(BodyRest.GetLocation()),
+	BonePose[0] = { BodyBone, FTransform(Tilt * BodyRest.GetRotation(), Seat + Tilt.RotateVector(BodyRest.GetLocation()),
 		BoneScale(BodyRest.GetRotation(), Shape)) };
-	BonePose[1] = { CoreBone, FTransform(GroundTilt * CoreRest.GetRotation(), Seat + GroundTilt.RotateVector(CoreLocation),
+	BonePose[1] = { CoreBone, FTransform(Tilt * CoreRest.GetRotation(), Seat + Tilt.RotateVector(CoreLocation),
 		BoneScale(CoreRest.GetRotation(), CoreScale)) };
 }

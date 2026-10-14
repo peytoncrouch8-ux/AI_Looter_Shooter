@@ -88,17 +88,23 @@ public:
 	const FQuat& GetGroundTilt() const { return GroundTilt; }
 	float GetGroundDrop() const { return GroundDrop; }
 
+	/** Its jelly's lean now (degrees: X forward, Y to its right): away from a hit, swaying at rest. For the tests and tools. */
+	FVector2D GetLean() const { return Lean; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnAttackStarted() override;
 	virtual void Strike() override;
+	virtual bool IsStuck(float Speed) const override;
+	virtual bool CanStartAttack() const override;
+	// --- Hits, death, coming back, the notice beat, its entrance (SlimeCreatureReact.cpp) ---
 	virtual void OnHurt(bool bCritical, const FVector& HitLocation) override;
 	virtual void OnDied() override;
 	virtual void OnRespawned() override;
 	virtual void OnPoseThawed() override;
 	virtual void SetHitVolumesEnabled(bool bEnabled) override;
-	virtual bool IsStuck(float Speed) const override;
-	virtual bool CanStartAttack() const override;
+	virtual void OnNoticed() override;
+	virtual void PlayEntrance() override;
 
 private:
 	enum class EHop : uint8
@@ -117,6 +123,27 @@ private:
 	 * seat toward it; in the air, back upright over the capsule's foot (SlimeCreatureBody.cpp).
 	 */
 	void FitToGround(float DeltaSeconds);
+
+	// --- Reactions and idle life (SlimeCreatureReact.cpp) ---
+	/** Its lean's spring, its idle bubbles and sway move on. */
+	void TickReactions(float DeltaSeconds);
+	/** What its notice beat does to the squash's rest: down low, shuddering. */
+	float ReactSquash() const;
+	/** Its lean as a turn about its foot (the mesh's space). */
+	FQuat ReactLean() const;
+	/** It landed from a hop: a hunting hop or a leap kicks up a ring of dust. */
+	void NoteLanding();
+
+	/** Its lean (degrees), the kick a hit gives it, and the spring's speed. */
+	FVector2D Lean = FVector2D::ZeroVector;
+	FVector2D LeanKick = FVector2D::ZeroVector;
+	FVector2D LeanSpeed = FVector2D::ZeroVector;
+	/** Seconds to its next bubble rising through it, while it rests. */
+	float NextBubble = 3.f;
+	bool bBubbleClockSet = false;
+	/** Its notice beat's shudder: seconds to the next kick of its squash, and which way it goes. */
+	float ShudderClock = 0.f;
+	float ShudderSign = 1.f;
 
 	FName BodyBone = TEXT("body");
 	FName CoreBone = TEXT("core");

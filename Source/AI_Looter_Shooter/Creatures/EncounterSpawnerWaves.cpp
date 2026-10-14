@@ -264,8 +264,13 @@ ACreatureBase* AEncounterSpawner::SpawnOne(const FOwedCreature& Entry, const FVe
 	{
 		Encounters->TrackCreature(Creature);
 	}
-	// Its kind of encounter's own entrance (an ambush's dead rising, its spiders dropping), before it comes for anyone.
+	// Its kind of encounter's own entrance (an ambush's dead rising, its spiders dropping), before it comes for anyone; else,
+	// in a player's view, its kind's own (the dead rising through the dirt, a spider climbing out of it), never a pop.
 	OnCreatureSpawned(*Creature);
+	if (!HasOwnEntrance())
+	{
+		Creature->PlayEntranceIfSeen();
+	}
 	if (bHuntOnSpawn && Player)
 	{
 		// Refused, as any call is, when the player isn't on its hunting ground or is in a safe zone.

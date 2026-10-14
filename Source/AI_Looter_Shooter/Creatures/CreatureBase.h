@@ -17,6 +17,7 @@
 
 class UCreatureHitReactionComponent;
 class UCreaturePackComponent;
+class UCreatureReactComponent;
 class UCreatureVoiceComponent;
 class UHealthComponent;
 class ULootDropComponent;
@@ -79,6 +80,24 @@ public:
 
 	/** Developer tools and tests only (Looter.CastShots; CreatureBaseDev.cpp): its brain put in NewState now, after InTarget or toward Goal. */
 	void DevPutInState(ECreatureState NewState, APawn* InTarget = nullptr, const FVector& Goal = FVector::ZeroVector);
+
+	/** Developer tools and tests only: its senses find Seen now, as its own eyes would (a new hunt, its notice beat and all). */
+	void DevSight(APawn* Seen);
+	/** Developer tools only: its kind's entrance (rising, climbing out, swelling up) now, seen or not. */
+	void DevPlayEntrance();
+
+	// --- Reactions (CreatureBaseReact.cpp; UCreatureReactComponent) ---
+
+	/** In its notice beat: it has just spotted its prey and shows it, facing them, before it comes (FCreatureNotice). */
+	bool IsNoticing() const;
+	/** How much of its notice pose shows now (0 to 1, eased in and out). */
+	float GetNoticeStrength() const;
+	/** Its notice beat, hit flash, dust and ash, and its dice for idle life. */
+	UCreatureReactComponent* GetReact() const { return React; }
+	/** A boss, or a creature a boss fight is built round: its fight's rules (no notice beat; its death is its show's). */
+	bool IsBossCreature() const { return KeepsBossRules(); }
+	/** Comes into the world its kind's way (the dead rise, a spider climbs out of the dirt, a slime swells) if a player can see it. */
+	bool PlayEntranceIfSeen();
 
 	// --- Boss fights (UBossComponent; CreatureBaseRank.cpp) ---
 
@@ -325,6 +344,13 @@ protected:
 	/** Its rank was applied (play begins, a promotion, coming back), after its stats and size: the subclass's own rank traits follow (the Unpaid's coal color). */
 	virtual void OnRankChanged() {}
 
+	/** Its notice beat begins (the brain holds it, facing its prey): its kind's sound and the start of its pose. */
+	virtual void OnNoticed() {}
+	/** Its kind's entrance as it comes into the world in a player's view (PlayEntranceIfSeen); none by default. */
+	virtual void PlayEntrance() {}
+	/** Holds its brain this long (an entrance), as a stagger does: it stands, its state's clock held. */
+	void HoldBrain(float Seconds) { BrainHold = FMath::Max(BrainHold, Seconds); }
+
 	/** The attack lands, AttackWindup into it: bites whatever is in reach in front (and calls OnAttackStrike). The slime's leap overrides it. */
 	virtual void Strike();
 
@@ -378,6 +404,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UCreaturePackComponent> Pack;
 
+	/** Its reactions: the notice beat, the hit flash, footfall dust and ash (its frame moves it on). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UCreatureReactComponent> React;
+
 	/** Height above the capsule center where the health bar floats, at size 1 (it rises with the scaled actor). */
 	float HealthBarHeight = 130.f;
 
@@ -414,6 +444,10 @@ private:
 	void TickSearch(float DeltaSeconds);
 	void TickSniff(float DeltaSeconds);
 	void TickProwl(float DeltaSeconds, const APawn& Prey);
+
+	// --- Its notice beat (CreatureBaseReact.cpp) ---
+	void BeginNotice(ECreatureState From);
+	bool HoldForNotice(const APawn& Prey, float DeltaSeconds);
 
 	// --- Steering (CreatureBaseSteering.cpp) ---
 	void MoveToward(const FVector& Goal, float Speed, float DeltaSeconds);
@@ -478,6 +512,8 @@ private:
 	bool bStruck = false;
 	/** Held back from fighting (SetPassive). */
 	bool bPassive = false;
+	/** Seconds its brain stays held for an entrance (HoldBrain). */
+	float BrainHold = 0.f;
 
 	// Steering
 	FVector SteerDirection = FVector::ZeroVector;

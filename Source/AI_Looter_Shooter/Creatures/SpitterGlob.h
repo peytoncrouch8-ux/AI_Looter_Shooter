@@ -111,6 +111,8 @@ private:
 	/** Seconds to its next puff of vapour. */
 	float PuffIn = 0.f;
 	bool bLanded = false;
+	/** It has hissed past the player's head already (NearMiss: once a glob). */
+	bool bHeardFlyBy = false;
 	FVector LandedAt = FVector::ZeroVector;
 	TWeakObjectPtr<AActor> DirectVictim;
 	TWeakObjectPtr<ASpitterPuddle> Puddle;

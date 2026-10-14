@@ -4,6 +4,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
+#include "GameFramework/Pawn.h"
+#include "Kismet/GameplayStatics.h"
 #include "Misc/PackageName.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -14,6 +16,10 @@ const FName AMisterSexton::SpeakerSocket(TEXT("Speaker"));
 
 namespace
 {
+	/** His breath shows to a player this near (cm): then he ticks every frame; farther, every FarTickSeconds. */
+	constexpr float BreathSeenWithin = 2500.f;
+	constexpr float FarTickSeconds = 0.25f;
+
 	/** An asset by path when it's in this checkout, else null (as Hob finds his model). */
 	template <typename T>
 	T* FindIfMade(const TCHAR* ObjectPath)
@@ -29,10 +35,11 @@ namespace
 
 AMisterSexton::AMisterSexton()
 {
-	// Nothing of him moves: a look a few times a second is enough to see whether he may go.
-	PrimaryActorTick.TickInterval = 0.25f;
+	// Far off, a look a few times a second is enough to see whether he may go; near, his breath ticks every frame (Tick).
+	PrimaryActorTick.TickInterval = FarTickSeconds;
 
-	// A posed idle only (Docs/Areas/RansomsRest.md, NPCs): he doesn't turn to whoever talks to him, nor breathe.
+	// A posed idle (Docs/Areas/RansomsRest.md, NPCs): he doesn't turn to whoever talks to him (one posed mesh: no head of its
+	// own to turn), and his breath is a swell of his body about his seat (UpdatePose), not the story character's bob.
 	TurnSpeed = 0.f;
 	BreathHeight = 0.f;
 	SpeakerPoint->SpeakerName = NSLOCTEXT("LooterStory", "SextonName", "Mister Sexton");
@@ -109,6 +116,37 @@ void AMisterSexton::Tick(float DeltaSeconds)
 	{
 		RefreshShown();
 	}
+	// His breath is smooth only for a player near enough to see it: every frame then, a few times a second otherwise.
+	const APawn* Player = UGameplayStatics::GetPlayerPawn(this, 0);
+	const bool bClose = Body && Player && Body->WasRecentlyRendered(SeenSeconds)
+		&& FVector::DistSquared(Player->GetActorLocation(), GetActorLocation()) <= FMath::Square(BreathSeenWithin);
+	const float Wanted = bClose ? 0.f : FarTickSeconds;
+	if (!FMath::IsNearlyEqual(PrimaryActorTick.TickInterval, Wanted))
+	{
+		SetActorTickInterval(Wanted);
+	}
+}
+
+void AMisterSexton::UpdatePose(float DeltaSeconds)
+{
+	// The story character's first: his body where it was placed (he never turns: TurnSpeed 0; nor bobs: BreathHeight 0).
+	Super::UpdatePose(DeltaSeconds);
+	if (!Body)
+	{
+		return;
+	}
+	if (!bSeatedScaleCaptured)
+	{
+		bSeatedScaleCaptured = true;
+		SeatedScale = Body->GetRelativeScale3D();
+	}
+	// A slow breath in and out: his body swells a little about his seat (its pivot), most in his height, so his chest and
+	// head rise and settle while he stays sat on the rail. One posed mesh, no rig: this is all of him that can move.
+	BreathClock = FMath::Fmod(BreathClock + DeltaSeconds, BreathSecondsSeated);
+	const float Breath = 0.5f * (1.f - FMath::Cos(2.f * UE_PI * BreathClock / BreathSecondsSeated));
+	const float Swell = BreathSwell * Breath;
+	BreathScale = FVector(1.f + Swell / 3.f, 1.f + Swell / 3.f, 1.f + Swell);
+	Body->SetRelativeScale3D(SeatedScale * BreathScale);
 }
 
 bool AMisterSexton::IsWatched() const

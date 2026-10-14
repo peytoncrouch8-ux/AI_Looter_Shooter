@@ -6,6 +6,8 @@
 #include "Combat/HealthComponent.h"
 #include "Creatures/CreaturePoseAnimInstance.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/CreatureReactComponent.h"
+#include "Creatures/CreatureReactRules.h"
 #include "Player/PlayerSize.h"
 #include "AnimationRuntime.h"
 #include "Components/CapsuleComponent.h"
@@ -28,9 +30,12 @@ namespace
 	/** Its hit zones turn off once it's this far faded: a shot passes through what's mostly gone. */
 	constexpr float GoneEnoughToMiss = 0.6f;
 
-	/** Dying: it slumps for a moment, then dissolves over this long while its coal goes out. */
-	constexpr float DeathFadeDelay = 0.35f;
-	constexpr float DeathFadeSeconds = 1.f;
+	/**
+	 * Dying: it slumps and crumples for a moment (the pose's Crumple), then breaks up into drifting ash over this long while
+	 * its coal goes out (ShedDeathAsh: UnpaidCreatureMoods.cpp).
+	 */
+	constexpr float DeathFadeDelay = 0.9f;
+	constexpr float DeathFadeSeconds = 1.5f;
 
 	/** A crit makes the coal flare this much, easing off at this rate. */
 	constexpr float CritFlare = 0.8f;
@@ -89,7 +94,9 @@ AUnpaidCreature::AUnpaidCreature()
 	AttackWindup = 0.6f;
 	AttackRecovery = 0.7f;
 	AttackCooldown = 1.3f;
-	CorpseTime = 1.f;
+	// It crumples and breaks up into ash (DeathFadeDelay, DeathFadeSeconds) before its body is taken away.
+	CorpseTime = 2.6f;
+	NoticeCue = CreatureReactCue::UnpaidNotice;
 	HealthBarHeight = 115.f;
 	BasicCoalColor = FLinearColor::FromSRGBColor(FColor(0xB0, 0x2A, 0x18));
 	Traits = UnpaidRules::RankTraits(ECreatureRank::Basic);
@@ -367,6 +374,8 @@ void AUnpaidCreature::Tick(float DeltaSeconds)
 			ConsumeMovementInputVector();
 		}
 	}
+	// Its rise out of the ground, its glances, its coal flaring as it notices, its shroud's dust (UnpaidCreatureMoods.cpp).
+	TickReactions(DeltaSeconds);
 	if (bRigReady && !IsPoseFrozen())
 	{
 		AnimateBody(DeltaSeconds);
@@ -376,9 +385,10 @@ void AUnpaidCreature::Tick(float DeltaSeconds)
 
 void AUnpaidCreature::UpdateDeathLook(float DeltaSeconds)
 {
-	// It slumps, then dissolves while its coal goes out.
+	// It slumps and crumples, then breaks up into drifting ash while its coal goes out.
 	PhaseAmount = FMath::Clamp((DeathTime - DeathFadeDelay) / DeathFadeSeconds, 0.f, 1.f);
 	Heat = -PhaseAmount;
+	ShedDeathAsh(DeltaSeconds);
 }
 
 void AUnpaidCreature::RiseIn()
@@ -387,11 +397,17 @@ void AUnpaidCreature::RiseIn()
 	{
 		return;
 	}
-	// The end of a phase-step without its start: gone, and fading back in where it stands.
+	// The end of a phase-step without its start: gone, and fading back in where it stands, as it comes up out of the ground
+	// clawing (RiseTime: the pose's RiseDrop and PoseTargets), the dirt thrown up round it.
 	PhaseState = EPhaseState::In;
 	PhaseTime = 0.f;
 	PhaseAmount = 1.f;
+	RiseTime = 0.f;
 	ApplyLook(true);
+	if (UCreatureReactComponent* Reacts = GetReact())
+	{
+		Reacts->ThrowGraveDirt(GetActorLocation() - FVector(0.0, 0.0, GetCapsuleComponent()->GetScaledCapsuleHalfHeight()), GetSizeScale(), 0.9f);
+	}
 }
 
 void AUnpaidCreature::OnHurt(bool bCritical, const FVector& HitLocation)
@@ -424,6 +440,9 @@ void AUnpaidCreature::OnDied()
 	PhaseState = EPhaseState::None;
 	PhaseTime = 0.f;
 	DeathTime = 0.f;
+	RiseTime = -1.f;
+	GlanceYaw = 0.f;
+	AshOwed = -1.f;
 	ResetProgress();
 }
 
@@ -433,6 +452,9 @@ void AUnpaidCreature::OnRespawned()
 	PhaseAmount = 0.f;
 	Heat = 0.f;
 	DeathTime = 0.f;
+	RiseTime = -1.f;
+	GlanceYaw = 0.f;
+	GlanceLeft = 0.f;
 	bLunging = false;
 	SinceLastStep = 1000.f;
 	ResetProgress();

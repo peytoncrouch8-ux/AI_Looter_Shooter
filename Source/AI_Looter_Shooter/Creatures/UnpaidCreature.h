@@ -115,9 +115,12 @@ public:
 
 	/**
 	 * Fades it in where it stands, as the end of a phase-step does (its shroud's ends first, shot through until it's mostly
-	 * there): an add rising through the boards (Abel's). Nothing while it's dead.
+	 * there), coming up out of the ground (RiseSeconds) clawing, dirt thrown up: an add rising through the boards (Abel's), an
+	 * ambush's dead, one a toll raises. Nothing while it's dead.
 	 */
 	void RiseIn();
+	static constexpr float RiseSeconds = 0.9f;
+	bool IsRising() const { return RiseTime >= 0.f; }
 
 	// --- Settings ---
 
@@ -215,6 +218,13 @@ protected:
 	virtual void OnRankChanged() override;
 	virtual void SetHitVolumesEnabled(bool bEnabled) override;
 	virtual bool CanStartAttack() const override;
+	// --- The notice beat, its entrance, its ash (UnpaidCreatureMoods.cpp) ---
+	virtual void OnNoticed() override;
+	virtual void PlayEntrance() override;
+	/** Ash motes off its body while it dissolves dying (PhaseAmount between 0 and 1). */
+	void ShedDeathAsh(float DeltaSeconds);
+	/** Its notice beat's sound: the Unpaid's coal flaring; its kinds' own (a miner's pick lowered, the Bell-Ringer's bell). */
+	FName NoticeCue;
 
 	// --- For a body built on the Unpaid's rig (Abel, the Keeper: Bosses/AbelKeeper.h) ---
 
@@ -344,6 +354,9 @@ private:
 		float Death = 0.f;
 		/** Hunting (0 to 1): its arms come up and claw at the air in turn while it chases. */
 		float Hunt = 0.f;
+		/** Dying, crumpling to the ground (0 to 1; not a boss); calm, its slow sway where it hangs (degrees of roll). */
+		float Crumple = 0.f;
+		float Sway = 0.f;
 	};
 
 	/** One arm's lag behind the body's moves, on a spring: degrees swung back and out from the body, and their speeds. */
@@ -381,8 +394,12 @@ private:
 	bool SetupRig();
 	/** Works out this frame's pose and hands it to the animation (GetBonePose). */
 	void AnimateBody(float DeltaSeconds);
-	/** Where each channel heads now, from what the brain is doing (Speed: its drift against its chase speed; Time: its clock). */
+	/** Where each channel heads now, from what the brain is doing (Speed: its drift against its chase speed; Time: its clock). UnpaidCreatureMoods.cpp. */
 	FPoseChannels PoseTargets(float Speed, float Time) const;
+	/** Its rise, glances, notice flare and the dust its shroud drags (UnpaidCreatureMoods.cpp). */
+	void TickReactions(float DeltaSeconds);
+	/** How far under its hang it is as it rises out of the ground (cm, negative), 0 once up. */
+	float RiseDrop() const;
 	/** Works the bones' poses out from their turns, parents first. */
 	void SolvePose();
 
@@ -449,6 +466,15 @@ private:
 
 	/** How far the shroud lifts (degrees) off ground that rises behind it, eased. */
 	float ShroudLift = 0.f;
+
+	// Reactions: seconds into its rise (below 0: not rising), a glance's turn and time left, the next glance, the shroud's
+	// next puff of dust, ash owed from earlier frames.
+	float RiseTime = -1.f;
+	float GlanceYaw = 0.f;
+	float GlanceLeft = 0.f;
+	float NextGlance = -1.f;
+	float ShroudDustClock = 0.f;
+	float AshOwed = -1.f;
 
 	// Rank
 	FUnpaidRankTraits Traits;

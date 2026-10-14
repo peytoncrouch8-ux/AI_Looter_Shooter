@@ -8,6 +8,7 @@
 #include "Audio/LooterSound.h"
 #include "Combat/BulletSubsystem.h"
 #include "Combat/HealthComponent.h"
+#include "Creatures/CreatureReactRules.h"
 #include "Player/PlayerSize.h"
 #include "Weapons/WeaponFX.h"
 #include "AnimationRuntime.h"
@@ -140,6 +141,8 @@ ADeadMinerCreature::ADeadMinerCreature()
 	PhaseStep.FarBehind = 1800.f;
 	PhaseStep.Cooldown = 5.f;
 	Voice->BarkKind = BarkKind;
+	// Its notice beat: the pick lowered from the rock with a grunt (DeadMinerCreaturePose.cpp's arms).
+	NoticeCue = CreatureReactCue::DeadMinerNotice;
 
 	// Its own body once the art drops it in (the Unpaid's skeleton and rig), else the Unpaid's. Its outfits: the model's own
 	// is A, and B and C go on its body's slot (DeadMiner_A, its hat's too); on the Unpaid's body all three do, never the

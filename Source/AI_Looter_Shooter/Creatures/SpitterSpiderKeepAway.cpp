@@ -25,7 +25,8 @@ namespace
 void ASpitterSpider::TickKeepAway(float DeltaSeconds)
 {
 	const APawn* Victim = GetTarget();
-	const bool bHunting = Victim && !IsDead() && GetCreatureState() == ECreatureState::Chase && !GetPack()->IsRetreating();
+	// In its notice beat it rears where it is first (CreatureBaseReact.cpp), before it keeps its distance.
+	const bool bHunting = Victim && !IsDead() && GetCreatureState() == ECreatureState::Chase && !GetPack()->IsRetreating() && !IsNoticing();
 	const float Distance = Victim ? static_cast<float>(FVector::Dist2D(GetActorLocation(), Victim->GetActorLocation())) : TNumericLimits<float>::Max();
 	const float Hold = GetAttackRange() * 0.75f;
 	if (!bHunting || Distance > Hold)

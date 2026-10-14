@@ -7,6 +7,7 @@
 #include "Creatures/CreatureHitReactionComponent.h"
 #include "Creatures/CreaturePackComponent.h"
 #include "Creatures/CreatureRankSettings.h"
+#include "Creatures/CreatureReactComponent.h"
 #include "Loot/LootDropComponent.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/World/CreatureHealthBarWidget.h"
@@ -25,36 +26,6 @@
 namespace
 {
 	constexpr float PerceptionInterval = 0.2f;
-
-	/**
-	 * Nothing solid stands between a creature and its victim: a strike through a wall, a shut door or the eleven's
-	 * barricade never lands (the 2026-10-14 play-through: the depot's dead hit the player through the stair door, the
-	 * Foreman through his barricade). The world's solid shapes only, as grave salt's sight: volumes are skipped
-	 * (StaticGeometryParams), and bodies and loot aren't world-static, so another creature never shields the victim.
-	 */
-	bool IsStrikeClear(const ACreatureBase& Creature, const APawn& Victim)
-	{
-		const UWorld* World = Creature.GetWorld();
-		if (!World)
-		{
-			return true;
-		}
-		FCollisionQueryParams Params = LooterWorld::StaticGeometryParams(World, TEXT("CreatureStrike"), &Creature, false);
-		Params.AddIgnoredActor(&Victim);
-		const FCollisionObjectQueryParams Solid(ECC_WorldStatic);
-		const FVector From = Creature.GetActorLocation();
-		// The victim's middle, or else its feet: a spider biting at a player stood on a rock's lip reaches the boots
-		// over the edge even when the line to the chest crosses the rock.
-		const float Half = Victim.GetSimpleCollisionHalfHeight();
-		for (const FVector& To : { Victim.GetActorLocation(), Victim.GetActorLocation() - FVector(0.f, 0.f, Half * 0.7f) })
-		{
-			if (!World->LineTraceTestByObjectType(From, To, Solid, Params))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
 }
 
 ACreatureBase::ACreatureBase()
@@ -83,6 +54,7 @@ ACreatureBase::ACreatureBase()
 	Voice = CreateDefaultSubobject<UCreatureVoiceComponent>(TEXT("Voice"));
 	HitReaction = CreateDefaultSubobject<UCreatureHitReactionComponent>(TEXT("HitReaction"));
 	Pack = CreateDefaultSubobject<UCreaturePackComponent>(TEXT("Pack"));
+	React = CreateDefaultSubobject<UCreatureReactComponent>(TEXT("React"));
 
 	HealthBar = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBar"));
 	HealthBar->SetupAttachment(GetCapsuleComponent());
@@ -162,6 +134,8 @@ void ACreatureBase::Tick(float DeltaSeconds)
 
 	// First, so the subclass knows whether to pose its body this update.
 	TickUpdateRate(DeltaSeconds);
+	// Its notice beat and hit flash, on its own clock (a hit-stop holds them), before the brain asks whether it's noticing.
+	React->Advance(DeltaSeconds);
 	TickBrain(DeltaSeconds);
 	// Standing still, it shuffles out of a neighbour's footprint (moving, its steering keeps clear: CreatureBaseSpacing.cpp).
 	KeepSpacing(DeltaSeconds);
@@ -182,6 +156,8 @@ void ACreatureBase::SetState(ECreatureState NewState)
 	// Heard as it turns on a player, and at an attack's wind-up (its tell); a ranked one's sting, and its pack's flank.
 	Voice->HandleStateChanged(OldState, NewState);
 	Pack->HandleStateChanged(OldState, NewState);
+	// A hunt over (calm, home, dead) ends its notice beat, and the next hunt may have one (CreatureBaseReact.cpp).
+	React->HandleStateChanged(OldState, NewState);
 
 	// Hunting, searching and attacking always run every frame, wherever it is.
 	if (NewState == ECreatureState::Chase || NewState == ECreatureState::Attack || NewState == ECreatureState::Search)
@@ -210,6 +186,13 @@ void ACreatureBase::TickBrain(float DeltaSeconds)
 	// Staggered by a heavy hit: its brain waits with its state's clock held, so a wind-up holds rather than lands.
 	if (HitReaction->IsStaggered())
 	{
+		StateTime -= DeltaSeconds;
+		return;
+	}
+	// Coming into the world (rising, climbing out of the dirt: HoldBrain): it stands until it's out, its clock held too.
+	if (BrainHold > 0.f)
+	{
+		BrainHold -= DeltaSeconds;
 		StateTime -= DeltaSeconds;
 		return;
 	}
@@ -260,6 +243,11 @@ void ACreatureBase::TickBrain(float DeltaSeconds)
 		if (!Victim)
 		{
 			SetState(ECreatureState::Return);
+			break;
+		}
+		// Its notice beat: it has just seen them, and shows it facing them before it comes (CreatureBaseReact.cpp).
+		if (HoldForNotice(*Victim, DeltaSeconds))
+		{
 			break;
 		}
 		const float Distance = FVector::Dist2D(GetActorLocation(), Victim->GetActorLocation());
@@ -340,7 +328,10 @@ void ACreatureBase::UpdatePerception()
 
 	if (APawn* Seen = FindVisibleTarget())
 	{
+		const ECreatureState Before = State;
 		BeginHunt(Seen);
+		// Its own eyes found them: a beat to show it before it comes (a hit or a pack's call has none).
+		BeginNotice(Before);
 		// Being hunted counts as meeting it: its bestiary page opens.
 		UPlayerProgressionSubsystem::RecordEncounter(Seen->GetController(), this);
 	}
@@ -378,68 +369,6 @@ bool ACreatureBase::HasLineOfSight(const AActor* Other) const
 	const FVector Eye = GetActorLocation() + FVector(0.f, 0.f, 40.f * SizeScale);
 	const FVector TargetPoint = Other->GetActorLocation() + FVector(0.f, 0.f, 50.f);
 	return !GetWorld()->LineTraceSingleByChannel(Hit, Eye, TargetPoint, ECC_Visibility, Params) || Hit.GetActor() == Other;
-}
-
-// ---------------------------------------------------------------------------
-// Attack
-// ---------------------------------------------------------------------------
-
-void ACreatureBase::TickAttack(float DeltaSeconds)
-{
-	APawn* Victim = Target.Get();
-	if (Victim && StateTime < AttackWindup && TracksTargetInWindup())
-	{
-		// Track the target through the wind-up; commit to the direction once the strike starts (or once a charge has
-		// taken its aim).
-		FaceToward(Victim->GetActorLocation(), DeltaSeconds);
-	}
-
-	if (!bStruck && StateTime >= AttackWindup)
-	{
-		bStruck = true;
-		Strike();
-	}
-
-	if (StateTime >= AttackWindup + AttackRecovery)
-	{
-		CooldownRemaining = AttackCooldown;
-		ResumeHunt();
-	}
-}
-
-void ACreatureBase::Strike()
-{
-	bool bConnected = false;
-	APawn* Victim = Target.Get();
-	if (IsValidTarget(Victim))
-	{
-		const FVector ToVictim = Victim->GetActorLocation() - GetActorLocation();
-		// Up and down, a small creature still reaches a player standing over it, as a full-size one does.
-		const bool bInReach = ToVictim.Size2D() <= GetStrikeReach() && FMath::Abs(static_cast<float>(ToVictim.Z)) < GetStrikeHeight();
-		const bool bInFront = FVector::DotProduct(GetActorForwardVector(), ToVictim.GetSafeNormal2D()) > 0.4f;
-		if (bInReach && bInFront && IsStrikeClear(*this, *Victim))
-		{
-			HitWithAttack(Victim, ToVictim.GetSafeNormal2D());
-			bConnected = true;
-		}
-	}
-	// The lunge is purely visual (the subclass animates it); a physical shove would push the creature into
-	// and past a target standing in melee range.
-	OnAttackStrike(bConnected);
-}
-
-void ACreatureBase::HitWithAttack(APawn* Victim, const FVector& Push, float Strength)
-{
-	// Attacks roll in the same damage range as player weapons.
-	const float Hardness = FMath::Max(Strength, 0.f);
-	const float Damage = LooterCombat::RollHitDamage(AttackDamage * Hardness, false);
-	UGameplayStatics::ApplyDamage(Victim, Damage, GetController(), this, UCreatureAttackDamageType::StaticClass());
-	UE_LOG(LogLooter, Verbose, TEXT("%s hit %s for %.1f"), *GetName(), *GetNameSafe(Victim), Damage);
-	// Shove the victim back so the hit is felt, not just read on the health bar.
-	if (ACharacter* VictimCharacter = Cast<ACharacter>(Victim))
-	{
-		VictimCharacter->LaunchCharacter((Push * 450.f + FVector(0.f, 0.f, 180.f)) * Hardness, true, false);
-	}
 }
 
 // ---------------------------------------------------------------------------
@@ -496,4 +425,6 @@ void ACreatureBase::Respawn()
 	Pack->ResetLife();
 	Pursuit = FCreaturePursuit();
 	OnRespawned();
+	// Back in view, it comes its kind's way (rising, climbing out, swelling up) rather than popping in.
+	PlayEntranceIfSeen();
 }

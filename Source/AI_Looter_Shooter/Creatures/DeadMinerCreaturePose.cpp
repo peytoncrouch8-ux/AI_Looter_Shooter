@@ -196,6 +196,15 @@ void ADeadMinerCreature::WantedArms(FMinerArms& Out) const
 	default:
 		break;
 	}
+	if (IsNoticing())
+	{
+		// Its notice beat: it stops its work and straightens, the pick brought down from the rock into both hands, its head
+		// up and turned to whoever it has seen (the Unpaid's look snaps round meanwhile).
+		Set(Out, HuntUpperR, HuntForeR, HuntUpperL, HuntForeL, EaseCalm);
+		Out.Bow = -5.f;
+		Out.HeadPitch = -10.f;
+		return;
+	}
 	if (GetTarget())
 	{
 		Set(Out, HuntUpperR, HuntForeR, HuntUpperL, HuntForeL, EaseRaise);

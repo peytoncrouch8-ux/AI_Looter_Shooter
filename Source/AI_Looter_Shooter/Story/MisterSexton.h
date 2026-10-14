@@ -13,9 +13,11 @@ class UStaticMeshComponent;
  * on the Lookout's SOCKET_Sit, facing into the deck (Tools/Unreal/build_area_story.py); his model's pivot is that seat.
  *
  * A story character, not a creature: shown by his story condition (during Main 2), talked to at his chin
- * (SOCKET_Speaker), where his captions come from; his topics hold the deal. A posed idle only: he never turns to whoever
- * talks to him and never breathes. His hull stops the player's body and finds the Interact key's line, but shots and
- * pellets pass through him: he can't be hurt, and a missed spider never ricochets off him.
+ * (SOCKET_Speaker), where his captions come from; his topics hold the deal. A posed idle (his model is one posed mesh, no
+ * rig and no head of its own: he can't turn his head to whoever talks to him, and his body doesn't turn on its seat): he
+ * breathes, slowly, his whole body swelling and settling a little about his seat (UpdatePose), only while a player is near
+ * enough to see it. His hull stops the player's body and finds the Interact key's line, but shots and pellets pass through
+ * him: he can't be hurt, and a missed spider never ricochets off him.
  *
  * When the story is done with him he doesn't vanish under the player's eyes: while he's still talking or in view he
  * stays, and he's gone the next time nobody looks (he attends every death; he doesn't linger after one). In a checkout
@@ -33,6 +35,16 @@ public:
 	virtual void RefreshShown() override;
 
 	virtual void Tick(float DeltaSeconds) override;
+
+	/** His breath: his body swells and settles about his seat (a scale, as he has no rig), as the story character's breathes. */
+	virtual void UpdatePose(float DeltaSeconds) override;
+
+	/** How much his body swells with a breath (a share of his height; his width a third of it), and how long a breath takes. */
+	static constexpr float BreathSwell = 0.008f;
+	static constexpr float BreathSecondsSeated = 4.6f;
+
+	/** The scale his breath has his body at now, against his seated scale (for the tests). */
+	FVector GetBreathScale() const { return BreathScale; }
 
 	/** The story is done with him, and he waits for the player to look away (and his lines to end) to go. */
 	bool IsLeaving() const { return bLeaving; }
@@ -61,4 +73,10 @@ private:
 	bool bLeaving = false;
 	/** His play has begun: as the level begins he's simply where the story has him, watched or not. */
 	bool bBegun = false;
+
+	/** His body's scale as seated (his model's, or the placeholder's), his breath's clock and its scale on it now. */
+	FVector SeatedScale = FVector::OneVector;
+	bool bSeatedScaleCaptured = false;
+	float BreathClock = 0.f;
+	FVector BreathScale = FVector::OneVector;
 };

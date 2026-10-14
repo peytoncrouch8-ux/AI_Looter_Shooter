@@ -90,6 +90,11 @@ void AAmbushSpawner::OnCreatureSpawned(ACreatureBase& Creature)
 		{
 			Unpaid->RiseIn();
 		}
+		else
+		{
+			// Not one of the dead: out of the ground its kind's way (a spider climbing out of the dirt), if it's seen.
+			Creature.PlayEntranceIfSeen();
+		}
 		LooterSound::PlayAt(this, RiseCue, Creature.GetActorLocation());
 		break;
 
