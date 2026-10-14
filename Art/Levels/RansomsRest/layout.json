@@ -923,6 +923,18 @@
       "note": "the miners' plot (50, 214)"
     },
     {
+      "id": "oreBinBay",
+      "type": "pad",
+      "center": [20200,6200],
+      "size": [900,600],
+      "yaw": 0,
+      "corner": 0.15,
+      "height": 5400,
+      "exact": true,
+      "bank": { "slope": 45, "round": 60, "toe": 60, "reach": 700 },
+      "note": "the ore bin's bay (+54 m, 2026-10-14): cut 3.6 m into the yard's south edge, open to the south where the Bench falls away; the bin's foot on its floor, its trestle (deck 3.6 m up, SOCKET_TrackTop) spans the bay's north face onto the yard (+57.6), and the lower tramway leaves south from under the chute. After the yard's pads, so none fills it"
+    },
+    {
       "id": "spoilHeap",
       "type": "hill",
       "center": [19600,10200],
@@ -1199,8 +1211,8 @@
       "id": "oreTramway",
       "kind": "rail",
       "width": 300,
-      "path": [[20200,6200],[19000,5600],[17500,4700],[16000,3800],[15000,3100],[14750,2800]],
-      "note": "the ore tramway's bed from the ore bin to the lift head, narrow gauge"
+      "path": [[20060,6200],[19000,5600],[17500,4700],[16000,3800],[15000,3100],[14750,2800]],
+      "note": "the ore tramway's bed from the ore bin to the lift head, narrow gauge; it starts under the bin's chute (SOCKET_TrackBottom, 3.4 m south of the bin), where build_area_mountain.py lays it from"
     },
     {
       "id": "crestPath",

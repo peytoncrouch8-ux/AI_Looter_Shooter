@@ -435,10 +435,26 @@ class Region:
         """How far (m) the ridges' feet are pushed into the ridge at a point (the band's foot is that far back)."""
         return 1.2 * fbm(x, y, 16.0, seed=304, octaves=2) + 0.3 * fbm(x, y, 4.0, seed=305)
 
-    def band_height(self, r, x, y):
-        """A ridge's cliff band's height (m) at a point on its foot, as heights() builds it."""
+    def band_height(self, r, x, y, top=None):
+        """A ridge's cliff band's height (m) at a point on its foot, as heights() builds it. A ridge on the floors
+        (onFloor) stands only as far as they reach (heights() adds it times their weight), so its band is as high as the
+        floors' weight under the band's top lets it be (top: that point, meters; else the foot): none where its foot
+        runs on past a floor's end (the East Shoulder's ran out over the valley floor, through the depot and over the
+        rail line, until 2026-10-14)."""
         fade = 1.0 - smoothstep(BAND_FADE[0], BAND_FADE[1], self.core_half - max(abs(x), abs(y)))
-        return float(r['band'] * (1.0 + 0.2 * fbm(x, y, 14.0, seed=303, octaves=2)) * fade)
+        band = float(r['band'] * (1.0 + 0.2 * fbm(x, y, 14.0, seed=303, octaves=2)) * fade)
+        if r['on_floor']:
+            band *= self.floor_weight(*((x, y) if top is None else top))
+        return band
+
+    def floor_weight(self, x, y):
+        """How far a point stands on the floors (region.floors): 1 inside one, easing to 0 over its blend past it (the
+        most of any floor; 1 everywhere without floors), the weight heights() raises the onFloor ridges by."""
+        if not self.floors:
+            return 1.0
+        w = max(float(sample(self.fields[f'floorw{k}'], x, y, self.half)) for k in range(len(self.floors)))
+        # Inside a floor every cell is 1, but a bilinear sample can come out a hair off it: a band there stays as it was.
+        return 1.0 if w > 1.0 - 1e-6 else max(w, 0.0)
 
     def raster(self, grid, chunk=256):
         """R over another grid (the core's), row block by row block."""

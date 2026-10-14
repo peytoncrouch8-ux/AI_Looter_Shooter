@@ -241,8 +241,8 @@ def gorge_walls(area, g):
 
 def ridge_bands(area, r):
     """A regional ridge's cliff band along its foot, where the foot is inside the core and the band stands, facing
-    the valley. The band's height is the one the regional field gives it (the slope above it is steep too, but bare),
-    and its foot is where the field's wobble puts it."""
+    the valley. The band's height is the one the regional field gives it (the slope above it is steep too, but bare;
+    a ridge on the floors has none past them), and its foot is where the field's wobble puts it."""
     region = area.region
     pts = r['foot']
     s = arc_length(pts)
@@ -256,7 +256,7 @@ def ridge_bands(area, r):
         t = _tangent(pts, k)
         into = r['side'] * np.array([-t[1], t[0]])  # toward the ridge
         foot = p - into * float(region.wobble(*p))
-        band = region.band_height(r, *foot)
+        band = region.band_height(r, *foot, top=foot + into * r['band_width'])
         if band < MIN_FACE:
             continue
         zb = float(area.height(*(foot - into * 0.6)))

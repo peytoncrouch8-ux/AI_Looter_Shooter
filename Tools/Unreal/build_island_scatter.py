@@ -208,6 +208,11 @@ CREASE_PINE_MESHES = (('Pine_A', 1, 0), ('Pine_B', 1, 0))
 # The zones where the tree stands are all pines (layout.json zones: these kinds, and ids starting so).
 PINE_ZONE_KINDS = ('alpine', 'outpost', 'mine', 'crest')
 PINE_ZONE_PREFIX = 'benchPines'
+# How far (cm) the pines-only boxes reach past those zones' bounds: the scatter mask's forest fades out over 4 m past a
+# zone's edge (Art/Levels/area_scatter.py _zones), and a broadleaf drawn on that fade stood alone as an oak on Larkspur
+# Bench, past benchPinesWest (2026-10-14). 5 m takes in every tree the mask allows north of the valley, and no box
+# reaches the valley (the lowest, the crest's, stops at layout X 128 m).
+PINE_ZONE_MARGIN = 500.0
 LARKSPUR_CLUMP_MESHES = (('Larkspur_A', 1, 6000),)
 LARKSPUR_STRIP_MESHES = (('Larkspur_B', 1, 6000),)
 SAGE_MESHES = (('Sagebrush_A', 4, 27000), ('Sagebrush_B', 3, 27000), ('Sagebrush_C', 3, 27000))  # 162 m on Medium
@@ -545,6 +550,20 @@ class Scatter:
         b.link(noise, low)
         return high, low
 
+    def up_the_mountain(self, source, boxes, title, y):
+        """A draw's points split at the boxes of the zones that grow pines only (Area.pines_only): those inside a box,
+        and the rest. The draw's points go in first: the intersection keeps them (inside a box), not the boxes' own."""
+        b = self.b
+        up, _ = b.node(unreal.PCGIntersectionSettings, f'{title} up the mountain', 10, y + 1.2,
+                       density_function=unreal.PCGIntersectionDensityFunction.MINIMUM)
+        b.link(source, up)
+        b.link(boxes, up)
+        below, _ = b.node(unreal.PCGDifferenceSettings, f'{title} below it', 10, y + 0.8,
+                          density_function=unreal.PCGDifferenceDensityFunction.BINARY)
+        b.link(source, below, b_pin='Source')
+        b.link(boxes, below, b_pin='Differences')
+        return up, below
+
     def spawn(self, source, title, x, y, entries, scale=(0.85, 1.2), upright=True, fit=None, sink=0.0,
               yaw=(0.0, 360.0)):
         """Heading (yaw in degrees, and for ground cover the slope), size, and the instanced meshes."""
@@ -596,19 +615,10 @@ def build_graph(area, mask, scrub_mask=None):
     pines, broadleaf = s.split(trees, y, 2.5, 311.0, 0.5)
     pine_entries = [entry(veg('Pine_A'), 1, 0, collide=True, shadow=True, tree=True),
                     entry(veg('Pine_B'), 1, 0, collide=True, shadow=True, tree=True)]
-    mountain = s.boxes(b, 'Pines only', -5.0, area.pines_only, margin=0.0)
+    mountain = s.boxes(b, 'Pines only', -5.0, area.pines_only, margin=PINE_ZONE_MARGIN)
     if mountain is not None:
         # Up the mountain the broadleaf draw's points are pines too: they leave the broadleaf and spawn as pines.
-        # The draw's points first: the intersection keeps them (inside a box), not the boxes' own.
-        up, _ = b.node(unreal.PCGIntersectionSettings, 'Broadleaf up the mountain', 10, y + 1.2,
-                       density_function=unreal.PCGIntersectionDensityFunction.MINIMUM)
-        b.link(broadleaf, up)
-        b.link(mountain, up)
-        below, _ = b.node(unreal.PCGDifferenceSettings, 'Broadleaf below it', 10, y + 0.8,
-                          density_function=unreal.PCGDifferenceDensityFunction.BINARY)
-        b.link(broadleaf, below, b_pin='Source')
-        b.link(mountain, below, b_pin='Differences')
-        broadleaf = below
+        up, broadleaf = s.up_the_mountain(broadleaf, mountain, 'Broadleaf', y)
         s.spawn(up, 'Mountain pines', 11, y + 1.2, pine_entries, sink=15.0)
     s.spawn(pines, 'Pines', 11, y - 0.5, pine_entries, sink=15.0)
     s.spawn(broadleaf, 'Broadleaf', 11, y + 0.5, [entry(veg(n), w, 0, collide=True, shadow=True, tree=True)
@@ -619,6 +629,11 @@ def build_graph(area, mask, scrub_mask=None):
     meadow, y = s.layer('Meadow trees', 1300.0, 'G', 0.8, flat=0.85, trees=True)
     lone = [(veg(n, False), w) for n, w in (('Oak_A', 3), ('Oak_B', 3), ('Birch_A', 2), ('Birch_B', 1), ('Pine_A', 1),
                                             ('Oak_C', 3))]
+    if mountain is not None:
+        # Up the mountain a lone tree is a pine too (the Bench's grass stays under this layer's keep today, so none
+        # grows there yet; a greener mask must not bring oaks up).
+        up, meadow = s.up_the_mountain(meadow, mountain, 'Meadow trees', y)
+        s.spawn(up, 'Meadow pines', 11, y + 1.2, pine_entries, scale=(0.9, 1.25), sink=15.0)
     s.spawn(meadow, 'Meadow trees', 11, y, [entry(m, w, 0, collide=True, shadow=True, tree=True) for m, w in lone if m],
             scale=(0.9, 1.25), sink=15.0)
 
