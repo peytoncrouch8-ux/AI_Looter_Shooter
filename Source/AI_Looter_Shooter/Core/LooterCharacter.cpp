@@ -8,6 +8,7 @@
 #include "InputActionValue.h"
 #include "Interaction/InteractionComponent.h"
 #include "Player/Animation/HandJarComponent.h"
+#include "Player/PlayerFootfallComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
 #include "Player/PlayerSize.h"
@@ -48,6 +49,7 @@ ALooterCharacter::ALooterCharacter()
 	// Made in C++ so every character has it without touching the Blueprint; the weapon manager offers it the loot.
 	Interaction = CreateDefaultSubobject<UInteractionComponent>(TEXT("Interaction"));
 	Sounds = CreateDefaultSubobject<UPlayerSoundComponent>(TEXT("Sounds"));
+	Footfalls = CreateDefaultSubobject<UPlayerFootfallComponent>(TEXT("Footfalls"));
 	Melee = CreateDefaultSubobject<UPlayerMeleeComponent>(TEXT("Melee"));
 	Throw = CreateDefaultSubobject<UPlayerThrowComponent>(TEXT("Throw"));
 	// The jar in the throwing hand, which the third-person body otherwise lobbed with an empty fist.

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Loot/PickupPull.h"
 #include "SilverPickup.generated.h"
 
 class APawn;
@@ -18,9 +19,11 @@ class UStaticMeshComponent;
  * ammo does.
  *
  * It comes to the player, Borderlands' way: once it has landed (or after CollectDelay), a living player whose body comes
- * within MagnetRadius pulls it in, faster and faster, and it's theirs as it reaches them: the world's wallet takes its
- * silver (UWalletSubsystem), a bright coin chime plays (Loot.Silver.Pickup) and the HUD's readout flashes "+N". It
- * ticks only while it's pulled; a timer looks for the player a few times a second meanwhile. Despawns after LifeSeconds.
+ * within MagnetRadius, along a clear line (never through a wall: PickupPull), pulls it in, faster and faster, tossed in
+ * a low arc with a glint as it sets off and a faint trail (FPickupFlight), and it's theirs as it reaches them: the
+ * world's wallet takes its silver (UWalletSubsystem), a bright coin chime plays (Loot.Silver.Pickup) and the HUD's
+ * readout flashes "+N". A wall coming between them on the way drops it where it is to wait again. It ticks only while
+ * it's pulled; a timer looks for the player a few times a second meanwhile. Despawns after LifeSeconds.
  * The session keeps one lying on the ground (FSavedMapWorld::SilverPickups).
  *
  * Its motion is Advance, which the tick calls with the player; a test level, which doesn't tick, calls it directly.
@@ -77,6 +80,9 @@ public:
 	static constexpr float PullAcceleration = 3600.f;
 	static constexpr float PullMaxSpeed = 2800.f;
 
+	/** On its way it looks this often that nothing has come between it and the player (s). */
+	static constexpr float LineCheckSeconds = 0.1f;
+
 	/** The pile shows this much bigger than coins are, so it reads in the grass (about 13 cm across). */
 	static constexpr float ModelScale = 1.6f;
 
@@ -91,8 +97,11 @@ private:
 	/** The nearest living player's pawn, or null. */
 	APawn* FindPlayerPawn() const;
 
-	/** Starts its pull: the toss stops, and it ticks until it's collected. */
-	void StartPull();
+	/** Starts its pull toward Player: the toss stops, and it ticks until it's collected. */
+	void StartPull(const APawn& Player);
+
+	/** Lets go of a pull (the player fell, or a wall came between): it drops where it is and waits again. */
+	void Drop();
 
 	UFUNCTION()
 	void HandleTossStopped(const FHitResult& ImpactResult);
@@ -115,7 +124,9 @@ private:
 
 	int32 Amount = 0;
 	float Age = 0.f;
-	float PullSpeed = 0.f;
+	/** The pull's path, and how soon it looks again that nothing has come between it and the player (s). */
+	FPickupFlight Flight;
+	float LineCheckIn = 0.f;
 	bool bPulled = false;
 	bool bCollected = false;
 	FTimerHandle LookTimer;

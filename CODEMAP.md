@@ -13,10 +13,11 @@ may spread its `.cpp` over files named `ClassTopic.cpp`. Tunings and step-by-ste
 - `Core/LooterMenuGameMode`: `ALooterMenuGameMode`, main menu mode (`?game=Menu`): no character, menu over the level.
 - `Core/LooterMenuPlayerController`: `ALooterMenuPlayerController`, menu camera circling the island.
 - `Core/LooterPlayerController`: `ALooterPlayerController`, always-on input contexts, view look limits.
-- `Core/LooterCharacter`: `ALooterCharacter`, the player: move, look (sensitivity), jump, interaction; actor scaled to `Player/PlayerSize.h`; owns `UPlayerSoundComponent`, `UPlayerMeleeComponent`, `UPlayerThrowComponent`, `UHandJarComponent`. Data-only child `/Game/Player/BP_LooterCharacter`. Steps up lips to 45 cm; keys don't steer in a mantle or vault.
+- `Core/LooterCharacter`: `ALooterCharacter`, the player: move, look (sensitivity), jump, interaction; actor scaled to `Player/PlayerSize.h`; owns `UPlayerSoundComponent`, `UPlayerFootfallComponent`, `UPlayerMeleeComponent`, `UPlayerThrowComponent`, `UHandJarComponent`. Data-only child `/Game/Player/BP_LooterCharacter`. Steps up lips to 45 cm; keys don't steer in a mantle or vault.
 
 ## Player
 - `Player/PlayerLocomotionComponent`: sprint, crouch, slide and their first-person motion; eye eases on `FViewEase` (`RefreshBodyTransform`, `StandUpNow`: the engine's crouch leaves the body transform stale); no sprint with a Cold iron. Split: `PlayerLocomotionViewModel.cpp` eye and camera-held gun (poses, bob, sway, kicks); `PlayerLocomotionSlide.cpp` slide and jump key; `PlayerLocomotionTraversal.cpp` mantle, vault, ledge catch (`FTraversalProbe` finds, `FPlayerTraversal` plans, custom movement mode; `Looter.DebugTraversal`); `PlayerLocomotionJumpAssist.cpp` coyote time, jump buffer, unwedging.
+- `Player/PlayerFootfallComponent`: `UPlayerFootfallComponent` (ALooterCharacter makes it), dust from sprint steps and landings by surface, splashes, a hard landing's thud (`Player.Land.Hard`, `Player.Splash`). `Player/FootfallDust`: `FFootfallDust`, `EFootfall`, `FFootfallSpot` (amounts by surface, budget). `Player/DustLight`: `FDustLight`.
 - `Player/PlayerTraversal`: `FPlayerTraversal`, a mantle's, vault's or unstick's whole path. `Player/TraversalCurve.h` (`FTraversalCurve`), `Player/TraversalRules.h` (`ETraversalKind`, `LooterTraversal`: heights, reaches, coyote, buffer, `NoClimb` tag), `Player/TraversalProbe` (+ `TraversalProbeChecks.cpp`: never-climbed things, free spots), `Player/TraversalBodyQuery` (capsule channel).
 - `Player/ViewEase.h`: `FViewEase`, minimum-jerk easing that re-plans from speed and acceleration.
 - `Player/SlideDust`: `FSlideDust`, slide dust/grit through `FWeaponFX` by ground and light.
@@ -121,7 +122,8 @@ may spread its `.cpp` over files named `ClassTopic.cpp`. Tunings and step-by-ste
 - `Loot/SoulMotePickup`: `ASoulMotePickup`, soul-mote that heals a hurt player.
 - `Loot/LootTossComponent`: `ULootTossComponent`, pops loot out, lands, settles.
 - `Loot/WeaponRack`: `AWeaponRack`, weapon as loot plus ammo; restocks while the player has no gun (tutorial's first rifle).
-- `Loot/AmmoPickup`: `AAmmoPickup`, spinning 3D ammo icon (`Art/Models/Loot/Ammo.py`) under a white beam, collected by running past (`CollectRadius`); `CollectInto` takes what fits, "+N" line only when rounds added.
+- `Loot/AmmoPickup`: `AAmmoPickup`, spinning 3D ammo icon (`Art/Models/Loot/Ammo.py`) under a white beam, collected by running past (`CollectRadius`); `CollectInto` takes what fits, "+N" line only when rounds added; rounds that went in fly the last metre (`UPickupPullSubsystem`).
+- `Loot/PickupPull`: `PickupPull` (`CanPull`, `HasClearLine`, `TargetOf`, glint and trail through FWeaponFX streaks), `FPickupFlight`. `Loot/PickupPullSubsystem`: `UPickupPullSubsystem`, ammo's last metre: a pooled copy of the bundle flies into the player after it counted (in reach and in line, 6 at most).
 - `Loot/Chest`: `AChest`, `EChestKind`, `EChestState`, `FChestKindInfo`: chests opened once (Ranger caches, Supply Crates, Strongbox, Coffin, Grave, Mailbox, Footlocker); models from `Art/Models/Loot/Chests.py` (SOCKET_Lid, SOCKET_Wheel) or `Art/Models/Props/Lootables.py`; session keeps opened ones by id (`FSavedMapWorld::OpenedChests`). `ChestLoot.cpp` what it gives (SOCKET_Loot), `ChestKinds.cpp` per-kind table (`FChestKindInfo::Get`), `ChestOpening.cpp` opening motion.
 - `Loot/GrenadePickup`: `AGrenadePickup`, grenade tin as loot (SM_SaltGrenade), `CollectInto`; session keeps one on the ground (`FSavedGrenadePickup`); never Lost Property's.
 - `Loot/LostLootStore`: `FLostLootStore`, `FLostLootEntry`, `FLostLootArrival`: Lost Property shelves as plain data (tickets, oldest first, shelving bought).
@@ -136,7 +138,7 @@ Silver, the living's coin (`Docs/Progression.md`, "Economy"); grave gold stays r
 - `Economy/VendorOffer`: `FVendorOffer`, gun of the day (player's level, Uncommon+, never cursed, same at every vendor; next on level-up or `OfferDaySeconds`).
 - `Economy/VendorTrade`: `VendorTrade`, trades apart from the screen (ammo box, grave salt jar, gun of the day; buy backpack guns, `SellAllJunk`, `ToggleJunk`), all-or-nothing through the wallet (`EVendorTrade`).
 - `Economy/Vendor`: `AVendor`, shop door tagged Vendor: Interact opens `ALooterHUD::OpenVendor` once `OpenWhen` allows (Pruitt's General Store after Main 3; Skyreach practice store always); placed by `Tools/Unreal/build_area_vendors.py`. Carries a `Voice` (`USpeakerPointComponent`, missions-only; `VoiceName`, `VoiceTag`): with a mission to offer/turn in, Interact talks first.
-- `Economy/SilverPickup`: `ASilverPickup`, coin pile (`SM_SilverCoins` from `Art/Models/Loot/Coins.py`, disc until imported), `MagnetRadius`, `LifeSeconds`; session keeps one on the ground.
+- `Economy/SilverPickup`: `ASilverPickup`, coin pile (`SM_SilverCoins` from `Art/Models/Loot/Coins.py`, disc until imported), `MagnetRadius`, `LifeSeconds`; session keeps one on the ground; pulled only along a clear line, arcs with a glint, drops if a wall comes between.
 - `Economy/SilverDrops`: `SilverDrops`: `DropForKill`, `RollForContainer`, `DropForBreakable`, `Spill`; drops where guns do (practice areas never farm money).
 
 ## Creatures
@@ -269,7 +271,8 @@ Silver, the living's coin (`Docs/Progression.md`, "Economy"); grave gold stays r
 - `Progression/ProgressionSettings`: `UProgressionSettings` (Project Settings > Game > Progression; `DefaultGame.ini`: MaxLevel 65, CurveScale 180, CurvePower 2.8).
 - `Progression/LevelRules`: `FLevelRules`: enemy health/damage +8% of level 1 per level, kill XP (XPReward x level^1.2: `KillXPScale` 1, `KillXPPower`; falloff 15 points per level below player, min 10%), player +8% health per level (`Docs/Progression.md`).
 - `Progression/PlayerProgressData.h`: `FPlayerProgressData`. `Progression/LooterProgressSave.h`: `ULooterProgressSave`, pre-session save ("PlayerProgress"), read once into session 1.
-- `Progression/PlayerProgressionSubsystem`: `UPlayerProgressionSubsystem`: level, XP, level-ups, kill XP, kinds met and defeated (by exact class); practice-area kills give no XP; a kill with XP notches the killing gun (`CreditKillWeapon`).
+- `Progression/PlayerProgressionSubsystem`: `UPlayerProgressionSubsystem`: level, XP, level-ups, kill XP, kinds met and defeated (by exact class); practice-area kills give no XP; a kill with XP notches the killing gun (`CreditKillWeapon`); `OnKillXP` (the kill's "+N XP").
+- `Progression/LevelUpBurstSubsystem`: `ULevelUpBurstSubsystem`, the level-up in the world: a ring of light along the ground and rising embers (FWeaponFX streaks); played by the level-up banner, once per level.
 
 ## Session
 - `Session/SessionSubsystem.h`, `Session/SessionSubsystem.cpp`: `USessionSubsystem`, three save sessions: menu summaries, play (`StartNewGame`), delete, read/upgrade saves, autosave and holds, Save & Quit, old-progress carry into session 1.
@@ -410,6 +413,7 @@ Silver, the living's coin (`Docs/Progression.md`, "Economy"); grave gold stays r
 - `UI/World/MissionOfferWidget`: `UMissionOfferWidget`, `FMissionOfferCard`, `EMissionCardMode` (Offer, Choice, Read), `FMissionChoiceCard`; card has Accept / Not now and the ACCEPTED stamp. `MissionOfferWidgetCard.cpp`, `MissionOfferWidgetInput.cpp`, `MissionOfferWidgetMotion.cpp`, `MissionOfferWidgetChoice.cpp`, `MissionOfferWidgetRead.cpp`.
 - `UI/World/GiverMarkSubsystem`: `UGiverMarkSubsystem`, `FGiverMark`: givers' marks (the user's call 2026-10-13: ? to pick up, ! to turn in), NewOffer chime. `UI/World/GiverMarkActor`, `UI/World/GiverMarkWidget`: floating mark.
 - `UI/World/DamageNumberActor`, `UI/World/DamageNumberWidget`: floating damage numbers (crits big, white-hot).
+- `UI/World/XpPopupActor`, `XpPopupWidget`, `XpPopupSubsystem`: "+N XP" at kills (`OnKillXP`) and big on turn-ins (`ShowMission`); pooled (8), hidden with the damage numbers.
 - `UI/World/StationBoardWidget`: `UStationBoardWidget`; `StationBoardWidgetConfirm.cpp` confirm and trip.
 - `UI/World/BossShrineWidget`: `UBossShrineWidget`, vigil stone menu (`OpenFor`, closes if the player walks off).
 - `UI/World/LostLootWidget`: `ULostLootWidget`, Lost Property screen. `LostLootWidgetOpen.cpp`, `LostLootWidgetRows.cpp`, `LostLootWidgetCard.cpp`, `LostLootWidgetActions.cpp`, `LostLootWidgetInput.cpp`.

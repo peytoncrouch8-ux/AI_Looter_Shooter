@@ -40,6 +40,11 @@ namespace
 	constexpr float RestSpin = 110.f;
 	constexpr float PulledSpin = 900.f;
 
+	/** The glint as it's pulled: cool silver-white, a little over the pile's size, a hair above it. */
+	const FLinearColor SilverGlintColor(0.85f, 0.93f, 1.f);
+	constexpr float PullGlintSize = 28.f;
+	constexpr double PullGlintLift = 4.0;
+
 	/** The stand-in disc, until the model's imported: 13 cm across and 3 cm high at the pile's size. */
 	const FVector DiscSize(13.0, 13.0, 3.0);
 
@@ -193,10 +198,11 @@ void ASilverPickup::Tick(float DeltaSeconds)
 	Advance(DeltaSeconds, FindPlayerPawn());
 }
 
-void ASilverPickup::StartPull()
+void ASilverPickup::StartPull(const APawn& Player)
 {
 	bPulled = true;
-	PullSpeed = PullStartSpeed;
+	Flight.Start(GetActorLocation(), PickupPull::TargetOf(Player), PullStartSpeed);
+	LineCheckIn = LineCheckSeconds;
 	// It flies by itself from here: the toss lets go of it, the beam goes out, the coins spin up.
 	TossMovement->StopMovementImmediately();
 	TossMovement->Deactivate();
@@ -206,6 +212,18 @@ void ASilverPickup::StartPull()
 	SetActorTickEnabled(true);
 }
 
+void ASilverPickup::Drop()
+{
+	bPulled = false;
+	Flight = FPickupFlight();
+	SetActorTickEnabled(false);
+	Beam->SetVisibility(true);
+	Spin->RotationRate = FRotator(0.f, RestSpin, 0.f);
+	TossMovement->Activate(true);
+	Toss(FVector::ZeroVector);
+	GetWorldTimerManager().SetTimer(LookTimer, this, &ASilverPickup::LookForPlayer, LookInterval, true, LookInterval);
+}
+
 bool ASilverPickup::Advance(float DeltaSeconds, APawn* Player)
 {
 	if (bCollected || IsActorBeingDestroyed())
@@ -213,49 +231,50 @@ bool ASilverPickup::Advance(float DeltaSeconds, APawn* Player)
 		return false;
 	}
 	Age += DeltaSeconds;
+	UWorld* World = GetWorld();
 	const UHealthComponent* Health = Player ? Player->FindComponentByClass<UHealthComponent>() : nullptr;
-	const bool bAlive = Player && !(Health && Health->IsDead());
+	const bool bAlive = Player && World && !(Health && Health->IsDead());
 
 	if (!bPulled)
 	{
-		if (!bAlive || Age < CollectDelay || ASoulMotePickup::DistanceToBody(GetActorLocation(), *Player) > MagnetRadius)
+		// Near enough, and nothing solid between: a pile behind a wall waits for the player to come round it.
+		if (!bAlive || Age < CollectDelay || !PickupPull::CanPull(*World, GetActorLocation(), *Player, MagnetRadius, this))
 		{
 			return false;
 		}
-		StartPull();
+		StartPull(*Player);
 	}
 	if (!bAlive)
 	{
 		// The player fell before it reached them: it drops where it is and waits again.
-		bPulled = false;
-		SetActorTickEnabled(false);
-		Beam->SetVisibility(true);
-		Spin->RotationRate = FRotator(0.f, RestSpin, 0.f);
-		TossMovement->Activate(true);
-		Toss(FVector::ZeroVector);
-		GetWorldTimerManager().SetTimer(LookTimer, this, &ASilverPickup::LookForPlayer, LookInterval, true, LookInterval);
+		Drop();
 		return false;
 	}
+	// A wall come between them on the way (the player ducked round a corner): it drops there, never through it.
+	LineCheckIn -= DeltaSeconds;
+	if (LineCheckIn <= 0.f)
+	{
+		LineCheckIn = LineCheckSeconds;
+		if (!PickupPull::HasClearLine(*World, GetActorLocation(), *Player, this))
+		{
+			Drop();
+			return false;
+		}
+	}
 
-	// Faster and faster, straight for the player's middle; theirs once it's at their body.
-	PullSpeed = FMath::Min(PullSpeed + PullAcceleration * DeltaSeconds, PullMaxSpeed);
-	const FVector Here = GetActorLocation();
-	const FVector Target = Player->GetActorLocation();
-	const FVector ToTarget = Target - Here;
-	const double Distance = ToTarget.Size();
-	const double Step = static_cast<double>(PullSpeed) * DeltaSeconds;
-	if (Distance <= KINDA_SMALL_NUMBER || Step >= Distance || ASoulMotePickup::DistanceToBody(Here, *Player) <= CollectDistance)
+	// Faster and faster for the player's middle, tossed in a low arc; theirs once it's at their body.
+	const FVector Shown = GetActorLocation();
+	const bool bArrived = Flight.Step(DeltaSeconds, PickupPull::TargetOf(*Player), PullAcceleration, PullMaxSpeed);
+	if (bArrived || ASoulMotePickup::DistanceToBody(Flight.GetBase(), *Player) <= CollectDistance)
 	{
 		Collect();
 		return true;
 	}
-	const FVector Next = Here + ToTarget / Distance * Step;
+	const FVector Next = Flight.GetLocation();
 	SetActorLocation(Next, false, nullptr, ETeleportType::TeleportPhysics);
-	if (ASoulMotePickup::DistanceToBody(Next, *Player) <= CollectDistance)
-	{
-		Collect();
-		return true;
-	}
+	// A glint as it sets off, the coins catching the light, and a faint trail behind it.
+	PickupPull::DrawGlint(*World, Next + FVector(0.0, 0.0, PullGlintLift), PickupPull::GlintAt(Flight.GetAge()), PullGlintSize, SilverGlintColor);
+	PickupPull::DrawTrail(*World, Shown, Next, 1.f - 0.6f * Flight.GetProgress(), SilverGlintColor);
 	return false;
 }
 

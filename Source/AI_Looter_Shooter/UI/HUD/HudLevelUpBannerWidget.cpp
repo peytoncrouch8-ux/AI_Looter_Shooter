@@ -1,6 +1,7 @@
 #include "UI/HUD/HudLevelUpBannerWidget.h"
 #include "Audio/LooterSound.h"
 #include "Progression/LevelRules.h"
+#include "Progression/LevelUpBurstSubsystem.h"
 #include "Progression/PlayerProgressionSubsystem.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Blueprint/WidgetTree.h"
@@ -190,6 +191,11 @@ void UHudLevelUpBannerWidget::Show(int32 NewLevel)
 	PaintShow();
 	// With the banner, which waits for the experience bar to get there, so the fanfare and the gem's flare land together.
 	LooterSound::Play2D(this, LooterSoundCue::LevelUp);
+	// And in the world with them: a ring of light bursting out along the ground round the player, embers rising.
+	if (ULevelUpBurstSubsystem* Burst = ULevelUpBurstSubsystem::Get(this))
+	{
+		Burst->Play(GetOwningPlayerPawn(), NewLevel);
+	}
 }
 
 void UHudLevelUpBannerWidget::ApplyTexts()

@@ -207,7 +207,14 @@ void UPlayerProgressionSubsystem::AwardKill(const AController* Killer, const AAc
 	const int64 XP = KillXP(Victim, Progression->GetLevel());
 	if (XP > 0)
 	{
+		// At the top level nothing is added, so nothing floats up at the kill either.
+		const bool bAdds = !Progression->IsMaxLevel();
 		Progression->AddXP(XP, EXPSource::Kill);
+		if (bAdds)
+		{
+			// Where it was earned, for the "+XP" at the kill.
+			Progression->OnKillXP.Broadcast(XP, Victim);
+		}
 	}
 	// The notch rides on the same kill: the save the defeat asked for keeps it.
 	CreditKillWeapon(Victim, Progression->GetLevel());

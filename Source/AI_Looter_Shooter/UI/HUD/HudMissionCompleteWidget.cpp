@@ -9,6 +9,7 @@
 #include "UI/HUD/HudLevelUpBannerWidget.h"
 #include "UI/HUD/LooterHUD.h"
 #include "UI/Style/LooterUIStyle.h"
+#include "UI/World/XpPopupSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
@@ -212,6 +213,14 @@ void UHudMissionCompleteWidget::StartNext()
 	Time = 0.f;
 	ApplyTexts();
 	LooterSound::Play2D(this, LooterSoundCue::MissionComplete);
+	// The experience floats up big near the player as the rewards line comes in (UXpPopupSubsystem).
+	if (Shown.Given.Experience > 0)
+	{
+		if (UXpPopupSubsystem* Popups = UXpPopupSubsystem::Get(this))
+		{
+			Popups->ShowMission(Shown.Given.Experience, GetOwningPlayer(), RewardsInFrom);
+		}
+	}
 }
 
 void UHudMissionCompleteWidget::EndShow()

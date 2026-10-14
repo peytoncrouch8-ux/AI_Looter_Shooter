@@ -11,7 +11,9 @@ class UWidget;
  * The level-up banner near the top of the screen (Docs/Handoffs/CloudIslandConcepts_2026-10-05.md, "Level up"): the new
  * level in a 92 px cyan gem with a soft glow and eight orange rays behind it, "LEVEL UP" in orange between fading cyan
  * rules under it, and the level's reward ("MAX HEALTH +8%", from the progression settings). It pops in, holds and fades
- * over 2.8 s; a new level-up restarts it. Its box is centred on the gem, so placing the box's middle places the gem.
+ * over 2.8 s; a new level-up restarts it. As it pops in, the world shows it too: a ring of light bursts out along the
+ * ground round the player and embers rise (ULevelUpBurstSubsystem). Its box is centred on the gem, so placing the box's
+ * middle places the gem.
  * Nothing in it is a background; it costs nothing while hidden.
  */
 UCLASS()

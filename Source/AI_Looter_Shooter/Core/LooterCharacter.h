@@ -7,6 +7,7 @@
 class UHandJarComponent;
 class UInputAction;
 class UInteractionComponent;
+class UPlayerFootfallComponent;
 class UPlayerMeleeComponent;
 class UPlayerSoundComponent;
 class UPlayerThrowComponent;
@@ -42,6 +43,10 @@ protected:
 	/** Its own sounds: footsteps by surface, the jump and landing, hurt, death and the low-health heartbeat. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UPlayerSoundComponent> Sounds;
+
+	/** The dust its feet throw up: sprinting steps, landings (a thud on a hard one), splashes in water. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UPlayerFootfallComponent> Footfalls;
 
 	/** The Melee key's quick strike: the gun's stock, or a fist with no gun in hand (made here, not in the Blueprint). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")

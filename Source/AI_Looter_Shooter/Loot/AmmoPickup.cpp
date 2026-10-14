@@ -1,5 +1,6 @@
 #include "Loot/AmmoPickup.h"
 #include "Loot/LootTossComponent.h"
+#include "Loot/PickupPullSubsystem.h"
 #include "Audio/LooterSound.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "World/LightBeam.h"
@@ -24,6 +25,9 @@ namespace
 	constexpr float AmmoBeamHeight = 150.f;
 	constexpr float AmmoBeamRadius = 4.f;
 	constexpr float AmmoBeamGlow = 1.2f;
+
+	/** The glint as the bundle flies in: the brass catching the light. */
+	const FLinearColor AmmoGlintColor(1.f, 0.85f, 0.6f);
 
 	/**
 	 * Every ammo beam looks the same, so they all share one material instance rather than each drop making its own (a long
@@ -203,6 +207,12 @@ int32 AAmmoPickup::CollectInto(UWeaponManagerComponent& Inventory)
 		// neither: the player is told only of ammo they actually got.
 		Inventory.OnAmmoPickedUp.Broadcast(AmmoType, Taken);
 		LooterSound::PlayAt(this, LooterSoundCue::AmmoPickup, GetActorLocation());
+		// Its last metre: a copy of the bundle flies on into the player with a glint (UPickupPullSubsystem), looks only:
+		// it counted just now, as it always has. Never through a wall, and not for a body out of reach of it.
+		if (UPickupPullSubsystem* Pull = UPickupPullSubsystem::Get(this))
+		{
+			Pull->FlyIn(Model->GetStaticMesh(), Model->GetComponentTransform(), Cast<APawn>(Inventory.GetOwner()), this, AmmoGlintColor);
+		}
 	}
 	UE_LOG(LogLooter, Verbose, TEXT("%s: %d %s collected, %d added (now %d / %d)"), *GetName(), Amount, LooterAmmo::GetInfo(AmmoType).Name, Taken,
 		Inventory.GetAmmo(AmmoType), Inventory.GetMaxAmmo(AmmoType));

@@ -23,6 +23,9 @@ class UWeaponManagerComponent;
  * quietly, with no "full" message. The rounds themselves tell the classes apart (brass rifle rounds, oxblood shells,
  * long sniper rounds...), never colors, which belong to rarity: hence the plain white beam, shorter and fainter than
  * any gun's. Despawns after a while.
+ *
+ * Rounds that went in fly the last metre: the pickup goes at once as it counts, and a copy of the bundle flies on into the
+ * player with a glint (UPickupPullSubsystem; never through a wall), so it reads as coming to them, not vanishing.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AAmmoPickup : public AActor
