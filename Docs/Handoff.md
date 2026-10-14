@@ -28,24 +28,23 @@ outcrops reworked: look sheet 45), cliff life (look sheet 43: 273 pieces, 70 sta
 village kit: 655 instances, 12 dusk lamps), the regenerated terrain (band fix, ore bin bay) and a full rebuild + scatter;
 path_probe clean. Look sheets 42-45 approved (44 animals: "slightly more realistic", no need to show).
 
-**In flight when this was written:**
-- Two crow stations per map (the user's call): `T` agent's code (RespawnMarker*, GraveTravel*, PlayerVitals, Session
-  Continue, RoostRules lines) is in the working tree, NOT built: build, apply `patches/two_roosts.json`, run
-  `build_area_roosts.py RansomsRest` (removes the nine), rerun the scatter (bare patches where they stood), tests
-  (`Looter.Roost.Wake.*`, `Looter.Roost.Placed.TwoAMap`), PIE check (die before/after finding the Depot), docs
-  (Pipeline "Hob's roosts", RansomsRest*.md, Story.md:315).
-- Agents: A1 animals realism (Blender), A2 animals code (`build_area_animals.py`, nests in `build_area_cliff_life.py`
-  switch to SM_SwallowNests), D creatures react, E guns and hits. Contracts in the session scratchpad
-  (`contract_polish.md`, `contract_combat.md`). Whitewash stains stand without nests until A2's nests are placed.
-- F rewards (level-up burst, XP popups, footstep dust, pickups pull) not started (after T, it touches Player/).
+**Combat, animals, roosts, rewards and the user's list done, 666/666 tests, pushed** (baabab1..fc7363a): two crow
+stations a map (the Depot, Calder's Post; a death wakes at the last one found; the other nine removed); D creatures
+react, E guns that feel physical, small animals (hens + rooster in two yards, a barn cat, cliff swallows at their
+nests), F rewards (level-up burst, XP popups, footfall dust, pickups pull), their 99 sounds (334 cues). The user's seven
+items (2026-10-14): tracker under the minimap with check circles; "+N XP" by the kill and by the XP bar; the gun's
+notches before its name; no crosshair in ADS (third person keeps a centre dot); crouched ADS aligned; the wheel up =
+previous slot; Subtitles On/Off (Interface; spoken lines hide, notices stay); health and XP bars 25% longer and thicker.
+The town's small clutter culls at ~30 m. Perf (editor closed, 46 views): heaviest 8.1 ms (PointOverValley_FarShadow),
+Aerial 8.05, Farm 8.0; render-thread bound at ~1,450 draws: thin headroom.
+
+**Waiting on the user:** a playtest of all of the above (they were away; told it's ready 2026-10-14).
 
 ## Next (in order)
 
-1. Finish the in-flight work above; show the user each look sheet; build what they approve; re-shoot the cliff views.
-2. Then combat polish (approved): D creatures that react (notice beat, own blood + hit flash, weightier deaths, rising
-   spawns, idle life, footfall dust), E guns (brass, smoke, chips, ricochets, near-miss whiz, tracers), F rewards
-   (level-up burst, XP popups, footstep dust, pickups pull).
-3. Ask the user to play when a wave lands; perf after each wave (new dressing instanced).
+1. The user's playtest notes first.
+2. Draw-call headroom in Ransom's Rest (Aerial, Farm, PointOverValley ~8.0-8.1 ms of 8.3): `Looter.Perf.HideTag` shares.
+3. Keep polishing (the user's "until I tell you to stop"): nothing major, concepts before art.
 4. **Older open items:** Story.md's later areas' level bands predate the new curve (retune when the next area is
    designed); the user hasn't heard the newest sounds (republish the listening page); the slide is a code-drawn pose;
    from the cloud handoff, the ember powers and heroes aren't built (major: only if the user asks); `area_faces.fields`

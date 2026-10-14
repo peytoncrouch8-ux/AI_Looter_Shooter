@@ -59,6 +59,13 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   skinned figure, never a gun; `IsFigure`) wears the figure look: rim only, body all but clear (`Figure` 1; tune the
   script's `Figure*` defaults). A thing's 20% fill turned Sexton's near-black coat solid orange (fixed 2026-10-14).
 - Holds: every hold-to-use shows the kit's round ring (`SLooterProgressRing`, `LooterUI::MakeHoldKeyCap`).
+- HUD (the user's list, 2026-10-14): the mission tracker sits under the minimap, right-aligned (`TopFor`, `RightInset` 36,
+  `MaxWidth` 540: clear of the boss bar's 380 px either side of the middle); steps and the objective are circles, checked
+  once done; a line without a count takes the count's room before wrapping. A kill's XP floats by the kill (`XpPopup*`) and
+  as "+N XP" after the XP bar's numbers. The gun's notches (inked tally in its tier's colour, count) sit before its name.
+  Health and XP bars 25% longer and thicker (`HudFrameShapes::BarScale`). Subtitles On/Off in Interface
+  (`Looter.Subtitles`): off hides lines with a speaker (barks too); notices stay. The game has no voice acting, so off
+  means NPC talk isn't shown at all.
 - Lost Loot (the user's call, 2026-10-13, so ground guns don't pile up and cost frame time): a gun on the ground lasts 5 minutes
   (not while the player stands within 6 m), then goes to the depot's LOST PROPERTY window. Leaving a map or quitting sends every
   ground gun there; a load never puts one back. 30 spaces, +10 per upgrade (five, bought with silver); the oldest unnamed gun goes
@@ -440,6 +447,9 @@ Rules that saved time:
   - 2026-10-13 (69 cues): `givers`, `graves` (a grave marked as the save point), `holds` (the hold ring's completion, kept in the
     frequent-cue 2-5 kHz check), `lostloot`, `missions`, `orelift`, `watchfire`, `miners` (the dead miners; Hiram's and Thaddeus's
     sounds), `foreman`. Stamps on the cards land 0.11 s in, on the cards' slam.
+  - 2026-10-14 (334 cues in all): `animals` (`::Animals`), `gusts` (`::Gust`), `windows` (`::Window`), `reactions`
+    (`::React`: notice, emerge, twitch, bubble, swell, ash), `brass` (`::Casing` by surface, `::FlyBy` whiz and venom hiss);
+    `player` adds `Player.Land.Hard`, `Player.Splash` (`::Footfall`).
   - Lessons (`Art/Sounds/README.md`): start soft cues on a small physical touch (the check flags a late start); put a loop's seam in a
     lull between events; mix loop layers by loudness, not peak. CLICK compares spikes with the local level 30 dB under the
     cue's peak: a crackle thinning to a few grains a second flags in its tail (keep its rate floor high: Spitter Sizzle 1500/s).
@@ -631,6 +641,14 @@ Each line: bug (date). Cause. Fix.
 - The ore bin's trestle end stood 3.1 m over the Diggings yard (2026-10-13). Cause: its model wants a 3.6 m step. Fix:
   `oreBinBay`, an exact pad at +54 cut into the yard's south edge. Lesson: a model with a built-in step gets the step as a
   pad in the terrain, not a placement Z (sinking it buries the model).
+- The mouse wheel changed guns the wrong way (the user, 2026-10-14). Cause: wheel up was the next slot (2 -> 3), but the
+  HUD's column puts slot 1 on top, so up went down the column. Fix: `KeyBindingSubsystem` defaults: wheel up = previous.
+- The crosshair showed while aiming down sights (2026-10-14). Fix: it fades out while aiming in every view
+  (`PlayerHUDWidgetCrosshair.cpp`); third person keeps a centre dot (no sight to look through).
+- Crouched, the sight sat off the line of fire (2026-10-14). Cause: the crouch's stance pose only settled to 15% under the
+  sight. Fix: stance poses fade out with the aim and the sight's aim point is held on the line of sight
+  (`Looter.Weapons.Aim.CrouchAligned`; its test needed `SpawnPlayerCameraManager`: a test level skips
+  `PostInitializeComponents`, where a controller makes its camera manager).
 
 ## What worked, and what didn't
 
@@ -672,5 +690,7 @@ Each line: bug (date). Cause. Fix.
   - A file-scope name in a test (`const FName Extra`) that an engine header also uses: C4459 fails the build.
   - A foreground build or test run longer than the tool's 10 minutes is killed with no log: run them in the background.
   - Chaining `git add -u && ... ; git commit`: when `git add` failed on the transient "Permission denied", the commit still ran with
-    whatever was staged. Stage, check, then commit.
+    whatever was staged. Stage, check, then commit. Commit scripts (`Tools/commitlib.py`) run in a retry loop: `git reset -q`,
+    wait 5 s, run again (up to 5 tries). They run on Blender's Python (`C:/Program Files/Blender Foundation/Blender
+    4.4/4.4/python/bin/python.exe`); `python` here is the Microsoft Store stub.
   - Starting a build without checking whether the user was playing (step 1 of the loop).

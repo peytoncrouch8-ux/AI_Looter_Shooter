@@ -87,8 +87,8 @@ keep it short; details go in the pipeline.
 - Every UI is C++ with the `LooterUI` kit (`UI/Style/LooterUIStyle.h`), "Concept C": dark glass panels, orange accents,
   cyan lines, Chakra Petch. Colors only from `LooterUI::Color` (or `LooterUI::Hex` inside it).
 - Gameplay HUD has no backing panels: floating outlined text, slim slanted bars, gunmetal metalwork. Pieces: player
-  frame (portrait in a medallion, health bar, level gem, experience bar) bottom-left; mission tracker left; weapon
-  column with upright cartridge bottom-right; bezelled minimap top-right. `Tools\hudshots.ps1` photographs it at 1080p
+  frame (portrait in a medallion, health bar, level gem, experience bar) bottom-left; weapon column with upright
+  cartridge bottom-right; bezelled minimap top-right, the mission tracker under it. `Tools\hudshots.ps1` photographs it at 1080p
   through its states. Mockup CSS px are used as Slate font sizes as they are (the user's call: in game text is a third
   bigger than in mockups).
 - Every background a widget paints calls `LooterUI::MarkBackground` (the UI transparency setting fades it). Text,

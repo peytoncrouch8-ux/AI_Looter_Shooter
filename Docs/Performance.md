@@ -23,6 +23,9 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 
 ## Current reference numbers (Medium, 1080p)
 
+- Ransom's Rest after the polish (2026-10-14, fc7363a: cliff life, town dressing with its clutter culled at ~30 m, animals,
+  combat FX): 46 views, the heaviest 8.1 ms (PointOverValley_FarShadow 1,574 draws), Aerial 8.05, Aerial_Dusk 8.05, Farm
+  8.0, PointOverValley 7.7; render thread = frame, GPU 6.8 at most. Margin ~0.2 ms: the next dressing must save draws first.
 - Ransom's Rest after the mountain (2026-10-14, 75708bb): all 37 views at 128-206 fps, the heaviest 7.8 ms (Farm,
   PointOverValley_FarShadow, Aerial_Dusk), spawn 7.7 ms (GPU 6.4, render thread 7.7: render-thread bound, ~1,250-1,450 draws
   in the valley's open views, up from ~1,000). New views: DepotWaiting 6.9, WatchtowerValley 7.2 (taken from the yard below the deck: the view stood off it), LiftHeadBench 7.0,
