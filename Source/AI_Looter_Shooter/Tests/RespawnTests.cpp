@@ -9,6 +9,7 @@
 #include "Session/SessionSave.h"
 #include "Session/SessionSubsystem.h"
 #include "Tests/MissionTestWorld.h"
+#include "World/GraveMarkRules.h"
 #include "World/RespawnMarker.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerStart.h"
@@ -52,14 +53,15 @@ namespace
 	}
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRespawnNearestGraveTest, "Looter.Respawn.NearestGrave",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRespawnOpeningTest, "Looter.Respawn.Opening",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
-bool FRespawnNearestGraveTest::RunTest(const FString& Parameters)
+bool FRespawnOpeningTest::RunTest(const FString& Parameters)
 {
-	// Where a death wakes the player: the open grave nearest where they fell, standing on it and facing its way; with none
-	// open, the level's own start. Never a trip's landing: not a grave tagged as one, nor a landing's player start. A grave
-	// opens from the start, with its mission's finish, or by the record; one whose mission finishes in play is recorded.
+	// What opens a roost (fast travel goes to open ones): the start, its mission's finish, or the record; one whose mission
+	// finishes in play is recorded then, one finished before the level began as play begins. Opening is not finding: a death
+	// wakes only at the roost last found (the user's rule, 2026-10-14; RoostWakeTests.cpp), never at one only opened, and
+	// with none found at the level's own start, not a jetty's nearer landing.
 	FCampaignRecord Campaign;
 	FTestWorldWrapper TestLevel;
 	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
@@ -68,7 +70,7 @@ bool FRespawnNearestGraveTest::RunTest(const FString& Parameters)
 	}
 	UWorld* World = TestLevel.GetTestWorld();
 
-	// The family plot opens with Main 1 and the chapel yard with Main 4; boot hill is open from the start; a grave on the
+	// The family plot opens with Main 1 and the chapel yard with Main 4; boot hill is open from the start; a roost on the
 	// depot's platform is open but tagged a trip's landing. The level's own start is far off; a jetty's start is nearer.
 	ARespawnMarker* FamilyPlot = PlaceGrave(World, TEXT("FamilyPlot"), FVector(2000.0, 0.0, 0.0), 90.0, false, TEXT("TestMain1"));
 	ARespawnMarker* ChapelYard = PlaceGrave(World, TEXT("ChapelYard"), FVector(500.0, 0.0, 0.0), 0.0, false, TEXT("TestMain4"));
@@ -76,47 +78,24 @@ bool FRespawnNearestGraveTest::RunTest(const FString& Parameters)
 	ARespawnMarker* Platform = PlaceGrave(World, TEXT("Platform"), FVector(300.0, 0.0, 0.0), 0.0, true);
 	APlayerStart* LevelStart = PlaceStart(World, FVector(0.0, 5000.0, 100.0), 45.0);
 	APlayerStart* Jetty = PlaceStart(World, FVector(100.0, 0.0, 100.0), 0.0, TEXT("Landing_Jetty"));
-	if (!TestTrue(TEXT("Graves and starts placed"), FamilyPlot && ChapelYard && BootHill && Platform && LevelStart && Jetty))
+	if (!TestTrue(TEXT("Roosts and starts placed"), FamilyPlot && ChapelYard && BootHill && Platform && LevelStart && Jetty))
 	{
 		return false;
 	}
 	Platform->Tags.Add(FName(TEXT("Landing_Depot")));
-	auto WakeAt = [World](const FVector& FellAt, const FCampaignRecord* Record)
-	{
-		return ARespawnMarker::ChooseWakeSpot(World, FellAt, Record);
-	};
-	const FVector Fell = FVector::ZeroVector;
 
-	FRespawnWakeSpot Spot = WakeAt(Fell, &Campaign);
-	TestTrue(TEXT("Only boot hill is open (the platform is a landing): there"), Spot.Grave == BootHill && !Spot.Start);
-	TestTrue(TEXT("Standing on it"), Spot.Location.Equals(BootHill->GetActorLocation()));
-
+	TestTrue(TEXT("Boot hill: open from the start"), BootHill->IsActive(Campaign) && BootHill->DescribeState(Campaign) == TEXT("open from the start"));
+	TestFalse(TEXT("The family plot waits for Main 1"), FamilyPlot->IsActive(Campaign));
 	Campaign.Complete(TEXT("TestMain1"));
-	Spot = WakeAt(Fell, &Campaign);
-	TestTrue(TEXT("Main 1 finished: the family plot, nearer"), Spot.Grave == FamilyPlot);
-	TestTrue(TEXT("Facing its way, level"), FMath::IsNearlyEqual(Spot.Facing.Yaw, 90.0, 0.01) && Spot.Facing.Pitch == 0.0 && Spot.Facing.Roll == 0.0);
+	TestTrue(TEXT("Main 1 finished: the family plot is open"), FamilyPlot->IsActive(Campaign));
+	TestTrue(TEXT("Recorded open (the console): the chapel yard"), Campaign.ActivateRespawn(TEXT("ChapelYard")) && ChapelYard->IsActive(Campaign));
+	FRespawnWakeSpot Spot = ARespawnMarker::ChooseWakeSpot(World, &Campaign);
+	TestTrue(TEXT("Three open, none found: a death wakes at the level's start"), !Spot.Grave && Spot.Start == LevelStart);
+	TestTrue(TEXT("...not the jetty's nearer landing, facing the start's way"), Spot.Location.Equals(LevelStart->GetActorLocation())
+		&& FMath::IsNearlyEqual(Spot.Facing.Yaw, 45.0, 0.01));
+	TestTrue(TEXT("No story at all: the level's start too"), ARespawnMarker::ChooseWakeSpot(World, nullptr).Start == LevelStart);
 
-	TestTrue(TEXT("Recorded open (the console): the chapel yard, nearer still"), Campaign.ActivateRespawn(TEXT("ChapelYard"))
-		&& WakeAt(Fell, &Campaign).Grave == ChapelYard);
-	TestTrue(TEXT("Fallen far to the west: boot hill"), WakeAt(FVector(-2600.0, 0.0, 0.0), &Campaign).Grave == BootHill);
-	TestTrue(TEXT("Fallen on the platform: never there, the nearest other"), WakeAt(FVector(300.0, 0.0, 0.0), &Campaign).Grave == ChapelYard);
-	// Measured through the air: a grave up on a bluff overhead is nearer on the map but farther than one along the flat.
-	ARespawnMarker* Bluff = PlaceGrave(World, TEXT("Bluff"), FVector(-300.0, 0.0, 2000.0), 0.0, true);
-	TestTrue(TEXT("The bluff's grave overhead is farther than the chapel yard"), Bluff && WakeAt(Fell, &Campaign).Grave == ChapelYard);
-	if (Bluff)
-	{
-		Bluff->Destroy();
-	}
-
-	// Nothing open: the level's own start (where its middle goes, facing its way), not the jetty's nearer one.
-	FCampaignRecord NewGame;
-	BootHill->bStartActive = false;
-	Spot = WakeAt(Fell, &NewGame);
-	TestTrue(TEXT("No grave open: the level's start"), !Spot.Grave && Spot.Start == LevelStart);
-	TestTrue(TEXT("...there, facing its way"), Spot.Location.Equals(LevelStart->GetActorLocation()) && FMath::IsNearlyEqual(Spot.Facing.Yaw, 45.0, 0.01));
-	TestTrue(TEXT("No story at all: the level's start too"), WakeAt(Fell, nullptr).Start == LevelStart);
-
-	// In play, a grave opens as its mission finishes and the record keeps it; one whose mission was finished before the
+	// In play, a roost opens as its mission finishes and the record keeps it; one whose mission was finished before the
 	// level began is recorded as play begins.
 	FCampaignRecord Played;
 	Played.Complete(TEXT("TestMain1"));
@@ -143,7 +122,7 @@ bool FRespawnNearestGraveTest::RunTest(const FString& Parameters)
 	Runner->Update(0.f);
 	Runner->NotifyEvent(FMissionEvent::Named(TEXT("Bell.Rung")));
 	TestTrue(TEXT("Main 4 finished: the chapel yard is recorded open"), Played.HasCompleted(TEXT("TestMain4")) && Played.IsRespawnActive(TEXT("ChapelYard")));
-	TestTrue(TEXT("...and is where a death nearby wakes"), WakeAt(Fell, &Played).Grave == ChapelYard);
+	TestFalse(TEXT("...open, not found: no death wakes there"), ARespawnMarker::ChooseWakeSpot(World, &Played).Grave == ChapelYard);
 	return true;
 }
 
@@ -152,8 +131,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRespawnSavedActivationTest, "Looter.Respawn.Sa
 
 bool FRespawnSavedActivationTest::RunTest(const FString& Parameters)
 {
-	// Graves opened stay open: through the session's save format and back, through a trip's save to its destination, and
-	// in a level played after loading, where a grave the record opened is where a death wakes.
+	// Roosts opened and found stay so: through the session's save format and back, through a trip's save to its
+	// destination, and in a level played after loading, where the roost the record found is where a death wakes.
 	ULooterSessionSave* Save = NewObject<ULooterSessionSave>();
 	Save->Version = ULooterSessionSave::CurrentVersion;
 	Save->Map = TEXT("/Game/Maps/Lvl_TutorialIsland");
@@ -161,6 +140,8 @@ bool FRespawnSavedActivationTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A grave opens once"), Story.ActivateRespawn(TEXT("FamilyPlot")) && !Story.ActivateRespawn(TEXT("FamilyPlot")));
 	TestFalse(TEXT("No name: nothing opens"), Story.ActivateRespawn(NAME_None));
 	Story.ActivateRespawn(TEXT("ChapelYard"));
+	// The chapel yard found too (walked up to): its area's save point. A test level is no area's, so it's kept under none.
+	GraveMarkRules::Record(Story, NAME_None, TEXT("ChapelYard"));
 	TestTrue(TEXT("A new game has none open"), GetDefault<ULooterSessionSave>()->Campaign.ActiveRespawns.IsEmpty());
 
 	ULooterSessionSave* Loaded = WriteAndRead(Save);
@@ -182,7 +163,10 @@ bool FRespawnSavedActivationTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("Arrived with the graves open"), Arrived->Campaign.IsRespawnActive(TEXT("FamilyPlot")) && Arrived->Campaign.IsRespawnActive(TEXT("ChapelYard")));
 
-	// Played after loading: the chapel yard (opened only by the record) is where a death wakes, past a nearer closed grave.
+	TestTrue(TEXT("...and the chapel yard found, the save point"), Arrived->Campaign.MarkedGraves.Contains(FName(TEXT("ChapelYard")))
+		&& Arrived->Campaign.GetLastGrave(NAME_None) == FName(TEXT("ChapelYard")));
+
+	// Played after loading: the chapel yard (opened by the record, found) is where a death wakes, past a nearer closed roost.
 	FTestWorldWrapper TestLevel;
 	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -191,12 +175,12 @@ bool FRespawnSavedActivationTest::RunTest(const FString& Parameters)
 	UWorld* World = TestLevel.GetTestWorld();
 	ARespawnMarker* ChapelYard = PlaceGrave(World, TEXT("ChapelYard"), FVector(4000.0, 0.0, 0.0), 0.0, false, TEXT("TestMain4"));
 	ARespawnMarker* BootHill = PlaceGrave(World, TEXT("BootHill"), FVector(1000.0, 0.0, 0.0), 0.0, false, TEXT("TestMain9"));
-	if (!TestTrue(TEXT("Graves placed"), ChapelYard && BootHill))
+	if (!TestTrue(TEXT("Roosts placed"), ChapelYard && BootHill))
 	{
 		return false;
 	}
-	TestTrue(TEXT("The loaded record's grave is where a death wakes"),
-		ARespawnMarker::ChooseWakeSpot(World, FVector::ZeroVector, &Arrived->Campaign).Grave == ChapelYard);
+	TestTrue(TEXT("The loaded record's roost is where a death wakes"),
+		ARespawnMarker::ChooseWakeSpot(World, &Arrived->Campaign).Grave == ChapelYard);
 	return true;
 }
 

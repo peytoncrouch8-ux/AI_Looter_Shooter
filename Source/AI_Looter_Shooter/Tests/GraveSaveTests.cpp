@@ -333,8 +333,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGraveSaveContinueTest, "Looter.Grave.Save.Cont
 
 bool FGraveSaveContinueTest::RunTest(const FString& Parameters)
 {
-	// Where a Continue wakes the player: the area's last marked grave, else the open grave nearest where they were saved, else
-	// where they were saved; never on a trip's arrival. A death is unchanged: the nearest open grave.
+	// Where a Continue wakes the player: the area's last found roost when it stands here open (FindLastFound), else where
+	// they were saved (never an open roost nearest it: the user's rule, 2026-10-14, is the last touched); never on a trip's
+	// arrival. A death wakes at the same roost.
 	FCampaignRecord Played;
 	FTestWorldWrapper TestLevel;
 	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
@@ -355,35 +356,26 @@ bool FGraveSaveContinueTest::RunTest(const FString& Parameters)
 	Platform->Tags.Add(FName(TEXT("Landing_Depot")));
 	Runner->BeginForTesting({}, Played, Stand, Valley);
 	const FVector SavedNearChapel(5000.0, 0.0, 100.0);
-	auto Wake = [&](const FCampaignRecord& Record) { return ARespawnMarker::ChooseContinueGrave(World, SavedNearChapel, Record, Valley); };
+	auto Wake = [&](const FCampaignRecord& Record) { return ARespawnMarker::FindLastFound(World, Record, Valley); };
 
 	FCampaignRecord Record;
-	TestTrue(TEXT("Nothing marked: the open grave nearest where they were saved (not the landing)"), Wake(Record) == ChapelYard);
+	TestNull(TEXT("Nothing found: no roost, though the chapel yard stands open near where they were saved"), Wake(Record));
 	Record.SetLastGrave(Valley, TEXT("FamilyPlot"));
-	TestTrue(TEXT("The family plot marked last: there, though the chapel yard is nearer"), Wake(Record) == FamilyPlot);
+	TestTrue(TEXT("The family plot found last: there, though the chapel yard is nearer"), Wake(Record) == FamilyPlot);
 	Record.SetLastGrave(Valley, TEXT("Shut"));
-	TestTrue(TEXT("The last marked is closed: the nearest open one"), Wake(Record) == ChapelYard);
+	TestNull(TEXT("The last found is closed: none (nothing else found)"), Wake(Record));
 	Record.SetLastGrave(Valley, TEXT("Platform"));
-	TestTrue(TEXT("The last marked is a trip's landing: never; the nearest open one"), Wake(Record) == ChapelYard);
+	TestNull(TEXT("The last found is a trip's landing: never"), Wake(Record));
 	Record.SetLastGrave(Valley, TEXT("Gone"));
-	TestTrue(TEXT("The last marked isn't in this level: the nearest open one"), Wake(Record) == ChapelYard);
-	Record.SetLastGrave(Valley, NAME_None);
+	TestNull(TEXT("The last found isn't in this level: none"), Wake(Record));
 	Record.LastGraves.Reset();
 	Record.SetLastGrave(TEXT("TestElsewhere"), TEXT("FamilyPlot"));
-	TestTrue(TEXT("Another area's save point doesn't count"), Wake(Record) == ChapelYard);
+	TestNull(TEXT("Another area's save point doesn't count"), Wake(Record));
 	Record.SetLastGrave(Valley, TEXT("FamilyPlot"));
 
-	// A death is unchanged: the nearest open grave, whatever was marked last.
-	TestTrue(TEXT("A death near the chapel yard wakes there, not at the save point"),
-		ARespawnMarker::ChooseWakeSpot(World, FVector(5500.0, 0.0, 0.0), &Record).Grave == ChapelYard);
-
-	// No grave open and none marked: they stand where they were saved.
-	FamilyPlot->bStartActive = false;
-	ChapelYard->bStartActive = false;
-	FCampaignRecord Fresh;
-	TestTrue(TEXT("No grave open: none (they stand where they were saved)"), ARespawnMarker::ChooseContinueGrave(World, SavedNearChapel, Fresh, Valley) == nullptr);
-	FamilyPlot->bStartActive = true;
-	ChapelYard->bStartActive = true;
+	// A death wakes at the same roost, wherever they fell (never the nearest open one).
+	TestTrue(TEXT("A death near the chapel yard wakes at the save point, the family plot"),
+		ARespawnMarker::ChooseWakeSpot(World, &Record).Grave == FamilyPlot);
 
 	// The session loading: the player is put at the save point, facing its arrow, on its ground.
 	ACharacter* Pawn = World->SpawnActor<ACharacter>(FVector(111.0, 222.0, 100.0), FRotator::ZeroRotator);
@@ -408,22 +400,12 @@ bool FGraveSaveContinueTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Continue: standing on the save point's spot"), Pawn->GetActorLocation().Equals(Expected, 1.0));
 	TestTrue(TEXT("...facing its arrow"), FMath::IsNearlyEqual(FRotator::NormalizeAxis(Pawn->GetActorRotation().Yaw), 90.0, 0.5));
 
-	// A save with nothing marked: the open grave nearest where they stood.
+	// A save with nothing found (roosts open all the same): where they stood, looking the way they looked.
 	Pawn->SetActorLocation(FVector(111.0, 222.0, 100.0));
 	Save->Campaign.LastGraves.Reset();
 	USessionSubsystem::RestoreWorld(World, *Save);
-	const FVector Nearest = GraveTravelRules::ArrivalLocation(ChapelYard->GetActorLocation(), Pawn->GetDefaultHalfHeight());
-	TestTrue(TEXT("Nothing marked: the chapel yard, nearest where they were saved"), Pawn->GetActorLocation().Equals(Nearest, 1.0));
-	TestTrue(TEXT("...facing its arrow"), FMath::IsNearlyEqual(FRotator::NormalizeAxis(Pawn->GetActorRotation().Yaw), 180.0, 0.5));
-
-	// A level with no grave open: where they stood, looking the way they looked.
-	FamilyPlot->bStartActive = false;
-	ChapelYard->bStartActive = false;
-	Pawn->SetActorLocation(FVector(111.0, 222.0, 100.0));
-	USessionSubsystem::RestoreWorld(World, *Save);
-	TestTrue(TEXT("No grave open: where they were saved"), Pawn->GetActorLocation().Equals(SavedNearChapel, 1.0));
+	TestTrue(TEXT("Nothing found: where they were saved, not the open roost nearest it"), Pawn->GetActorLocation().Equals(SavedNearChapel, 1.0));
 	TestTrue(TEXT("...with the view they had"), Controller->GetControlRotation().Equals(FRotator(10.0, 45.0, 0.0), 0.5));
-	FamilyPlot->bStartActive = true;
 
 	// A trip's arrival has no saved spot: the player stays where the trip put them (its landing), whatever was marked.
 	Save->bHasPlayerSpot = false;

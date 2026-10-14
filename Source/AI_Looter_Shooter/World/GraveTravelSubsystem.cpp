@@ -205,6 +205,10 @@ void UGraveTravelSubsystem::Arrive()
 		MoveToGrave(*Player, *Grave);
 		UE_LOG(LogLooter, Log, TEXT("Fast travel: set down at the roost %s"), *Grave->GetMarkerId().ToString());
 		EndTravel(Player);
+		// Arriving touches the roost, as walking up does: it is the save point now, where a death wakes the player (the
+		// user's rule, 2026-10-14). After the saves are let go, so its save-soon is kept. The travel holds the roost as the
+		// map hands it (const); being found is the roost's own state, as its Welcome's bell is.
+		const_cast<ARespawnMarker*>(Grave)->MarkOnArrival(Player);
 		// The roost's own crows burst off round the player as the screen's crows tear away, and Hob has his word.
 		Grave->Welcome(ERoostArrival::Travel, Player);
 		OnTravelled.Broadcast(Player, *Grave);

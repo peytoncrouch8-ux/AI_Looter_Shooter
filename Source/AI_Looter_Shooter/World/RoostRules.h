@@ -8,7 +8,7 @@ enum class ERoostArrival : uint8
 {
 	/** Fast travel: carried from another roost. */
 	Travel,
-	/** A death: dragged back to the nearest roost. */
+	/** A death: dragged back to the roost last found. */
 	Death,
 };
 

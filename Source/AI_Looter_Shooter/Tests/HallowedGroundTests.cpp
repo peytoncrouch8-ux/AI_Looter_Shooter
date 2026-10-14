@@ -358,8 +358,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHallowedGroundPlacedTest, "Looter.Story.Hallow
 bool FHallowedGroundPlacedTest::RunTest(const FString& Parameters)
 {
 	// Ransom's Rest as built (build_area_chapel.py): the chapel's place, the yard's fight, the bell with its bell up in the
-	// belfry, the Reliquary on its plinth, Aldana's door, the chapel yard's grave after Main 4, the Unpaid on boot hill and
-	// the north road after it, and Hob's perches at the chapel.
+	// belfry, the Reliquary on its plinth, Aldana's door, the Unpaid on boot hill and the north road after Main 4, and Hob's
+	// perches at the chapel. (The chapel yard's roost went with the cut to two a map, 2026-10-14: Looter.Roost.Placed.TwoAMap.)
 	const ULevel* Level = LoadRansomsRest(*this);
 	if (!Level)
 	{
@@ -371,7 +371,6 @@ bool FHallowedGroundPlacedTest::RunTest(const FString& Parameters)
 	const AChapelBell* Bell = nullptr;
 	const AChapelReliquary* Reliquary = nullptr;
 	const ASpeakerPoint* Aldana = nullptr;
-	const ARespawnMarker* Grave = nullptr;
 	const AHobBird* Hob = nullptr;
 	bool bPlace = false;
 	for (const AActor* Actor : Level->Actors)
@@ -391,10 +390,6 @@ bool FHallowedGroundPlacedTest::RunTest(const FString& Parameters)
 		if (const ASpeakerPoint* Point = Cast<ASpeakerPoint>(Actor); Point && Point->ActorHasTag(AldanaTag))
 		{
 			Aldana = Point;
-		}
-		if (const ARespawnMarker* Marker = Cast<ARespawnMarker>(Actor); Marker && Marker->MarkerId == YardGrave)
-		{
-			Grave = Marker;
 		}
 		Hob = Hob ? Hob : Cast<AHobBird>(Actor);
 		bPlace |= Actor->ActorHasTag(ChapelPlace);
@@ -446,10 +441,6 @@ bool FHallowedGroundPlacedTest::RunTest(const FString& Parameters)
 		{
 			return Topic.When.DuringMission == MainFour && Topic.When.FromStep == 3 && Topic.LineSet != nullptr;
 		}));
-	}
-	if (TestNotNull(TEXT("The chapel yard's respawn grave"), Grave))
-	{
-		TestTrue(TEXT("...open after Main 4"), Grave->ActiveAfterMission == MainFour && !Grave->bStartActive);
 	}
 	for (const AEncounterSpawner* Stretch : { Hill, Road })
 	{

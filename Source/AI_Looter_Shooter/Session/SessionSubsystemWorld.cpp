@@ -397,16 +397,16 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 	{
 		if (Save.HasPlayerSpotOn(MapPackage))
 		{
-			// Borderlands' way: a Continue wakes at the grave the player last marked in this area (a save point), else at the
-			// open grave nearest where they stood, else where they stood (a level with no graves: Skyreach).
-			const ARespawnMarker* Grave = ARespawnMarker::ChooseContinueGrave(World, Save.PlayerLocation, Save.Campaign,
-				ARespawnMarker::FindAreaId(World));
+			// Borderlands' way: a Continue wakes at the roost the player last found in this area (the save point, where a
+			// death wakes too; a save naming a roost this level no longer has takes the newest found still standing), else
+			// where they stood (none found here yet, or a level with no roosts: Skyreach). Never an open roost they never
+			// walked up to: the user's rule (2026-10-14) is the last touched, not the nearest.
+			const ARespawnMarker* Grave = ARespawnMarker::FindLastFound(World, Save.Campaign, ARespawnMarker::FindAreaId(World));
 			if (Grave)
 			{
-				// On the grave's spot, facing its arrow, level, as a death's wake-up and a fast travel put them.
+				// On the roost's spot, facing its arrow, level, as a death's wake-up and a fast travel put them.
 				UGraveTravelSubsystem::MoveToGrave(*Pawn, *Grave);
-				UE_LOG(LogLooter, Log, TEXT("Session continued at the grave %s (%s)"), *Grave->GetMarkerId().ToString(),
-					Grave->IsSavePoint(Save.Campaign, ARespawnMarker::FindAreaId(World)) ? TEXT("the save point") : TEXT("the open grave nearest where it was saved"));
+				UE_LOG(LogLooter, Log, TEXT("Session continued at the roost %s (the last found here)"), *Grave->GetMarkerId().ToString());
 			}
 			else
 			{

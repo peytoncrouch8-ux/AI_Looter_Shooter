@@ -60,14 +60,16 @@ namespace
 	/** Where a wake spot is, for people. */
 	FString DescribeWake(const FRespawnWakeSpot& Spot)
 	{
+		const TCHAR* How = Spot.bByCrows ? TEXT(", carried by Hob's crows") : TEXT(", the plain fade");
 		if (Spot.Grave)
 		{
-			return FString::Printf(TEXT("at the grave %s"), *Spot.Grave->GetMarkerId().ToString());
+			return FString::Printf(TEXT("at the roost %s (the last found here)%s"), *Spot.Grave->GetMarkerId().ToString(), How);
 		}
-		return Spot.Start ? FString(TEXT("at the level's start")) : FString(TEXT("where the player fell (no grave open, no start)"));
+		return Spot.Start ? FString::Printf(TEXT("at the level's start (no roost found here yet)%s"), How)
+			: FString(TEXT("where the player fell (no roost found, no start)"));
 	}
 
-	/** Looter.Respawn.List: every grave in the level, open or not and why, how far, and where a death here wakes. */
+	/** Looter.Respawn.List: every roost in the level, open or not and why, how far, and where a death wakes. */
 	void ListGraves(const TArray<FString>& Args, UWorld* World)
 	{
 		const TCHAR* Command = TEXT("Looter.Respawn.List");
@@ -79,7 +81,7 @@ namespace
 		}
 		const APawn* Pawn = FindPlayerPawn(GameWorld);
 		const FVector Here = Pawn ? Pawn->GetActorLocation() : FVector::ZeroVector;
-		const FRespawnWakeSpot Spot = ARespawnMarker::ChooseWakeSpot(GameWorld, Here, Campaign);
+		const FRespawnWakeSpot Spot = ARespawnMarker::ChooseWakeSpot(GameWorld, Campaign);
 		int32 Count = 0;
 		for (TActorIterator<ARespawnMarker> It(GameWorld); It; ++It)
 		{
@@ -87,10 +89,10 @@ namespace
 			UE_LOG(LogLooter, Log, TEXT("  %-16s %-36s %6.0f m%s%s"), *Grave->GetMarkerId().ToString(), *Grave->DescribeState(*Campaign),
 				FVector::Dist(Grave->GetActorLocation(), Here) / 100.0,
 				AreaLandings::IsLanding(Grave) ? TEXT("  (a trip's landing: never woken at)") : TEXT(""),
-				Spot.Grave == Grave ? TEXT("  <- a death here wakes here") : TEXT(""));
+				Spot.Grave == Grave ? TEXT("  <- a death wakes here") : TEXT(""));
 			++Count;
 		}
-		UE_LOG(LogLooter, Log, TEXT("%s: %d graves in this level; opened in the record [%s]; a death here wakes %s."), Command, Count,
+		UE_LOG(LogLooter, Log, TEXT("%s: %d roosts in this level; opened in the record [%s]; a death wakes %s."), Command, Count,
 			*FString::JoinBy(Campaign->ActiveRespawns, TEXT(", "), [](const FName& Id) { return Id.ToString(); }), *DescribeWake(Spot));
 	}
 
@@ -174,7 +176,7 @@ namespace
 			Grave->bStartActive ? TEXT("open") : TEXT("closed: Looter.Respawn.Activate opens it"));
 	}
 
-	/** Looter.Respawn.Die: the player dies where they stand, to try waking at the nearest open grave. */
+	/** Looter.Respawn.Die: the player dies where they stand, to try waking at the roost last found (or the level's start). */
 	void KillPlayer(const TArray<FString>& Args, UWorld* World)
 	{
 		const TCHAR* Command = TEXT("Looter.Respawn.Die");
@@ -187,7 +189,7 @@ namespace
 			return;
 		}
 		const FCampaignRecord* Campaign = FindCampaign(GameWorld, Command);
-		const FRespawnWakeSpot Spot = ARespawnMarker::ChooseWakeSpot(GameWorld, Pawn->GetActorLocation(), Campaign);
+		const FRespawnWakeSpot Spot = ARespawnMarker::ChooseWakeSpot(GameWorld, Campaign);
 		// Through the engine's damage, as a hit kills: everything that hears of a death does (the fade, a boss's reset).
 		UGameplayStatics::ApplyDamage(Pawn, Health->GetHealth() + Health->GetMaxHealth(), nullptr, nullptr, UDamageType::StaticClass());
 		if (Health->IsDead())
@@ -202,7 +204,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs ListGravesCommand(
 		TEXT("Looter.Respawn.List"),
-		TEXT("Looter.Respawn.List: every respawn grave in the level, open or closed and why, how far away, and where a death here wakes."),
+		TEXT("Looter.Respawn.List: every roost in the level, open or closed and why, how far away, and where a death wakes (the roost last found)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ListGraves));
 
 	FAutoConsoleCommandWithWorldAndArgs ActivateGravesCommand(
@@ -218,7 +220,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs KillPlayerCommand(
 		TEXT("Looter.Respawn.Die"),
-		TEXT("Looter.Respawn.Die: the player dies where they stand, to try waking at the nearest open grave."),
+		TEXT("Looter.Respawn.Die: the player dies where they stand, to try waking at the roost last found (or the level's start before any)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&KillPlayer));
 }
 

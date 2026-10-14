@@ -19,7 +19,7 @@ class UStaticMesh;
 class UStaticMeshComponent;
 struct FCampaignRecord;
 
-/** Where a death or a Continue wakes the player (ARespawnMarker::ChooseWakeSpot): a roost, or the level's own start. */
+/** Where a death wakes the player (ARespawnMarker::ChooseWakeSpot): the roost last found, or the level's own start. */
 struct AI_LOOTER_SHOOTER_API FRespawnWakeSpot
 {
 	/** A roost's spot on the ground (the player stands on it), or a player start's (the middle of the player goes there). */
@@ -31,16 +31,22 @@ struct AI_LOOTER_SHOOTER_API FRespawnWakeSpot
 	/** The roost they wake at; null at the level's start. (Named for the graves the roosts replaced.) */
 	const ARespawnMarker* Grave = nullptr;
 
-	/** The level's start they wake at when no roost is open; null at a roost. */
+	/** The level's start they wake at when no roost has been found here yet; null at a roost. */
 	const AActor* Start = nullptr;
 
-	/** Somewhere was found (a level with neither a roost open nor a start of its own has nowhere). */
+	/**
+	 * Hob's crows carry them there: always to a roost, and to the level's start on a map with roosts while a story is played
+	 * (a death before the first roost is found). A map without roosts (Skyreach) keeps the plain fade.
+	 */
+	bool bByCrows = false;
+
+	/** Somewhere was found (a level with neither a roost found nor a start of its own has nowhere). */
 	bool IsSet() const { return Grave || Start; }
 };
 
 /**
- * One of Hob's roosts (the user's call, 2026-10-13): the one save, respawn and fast-travel point on every map, the same
- * everywhere: the Crow's Mast (the user's pick from look sheet 41: a mast on a cairn, its yard cockbilled, crosstrees, a
+ * One of Hob's roosts (the user's call, 2026-10-13; two a map since 2026-10-14, Ransom's Rest's the Depot and Calder's
+ * Post): the one save, respawn and fast-travel point on every map, the same everywhere: the Crow's Mast (the user's pick from look sheet 41: a mast on a cairn, its yard cockbilled, crosstrees, a
  * stork's nest round the topmast, a fire basket on top, an old bell, the crow's-foot mark burnt in a board; SM_HobRoost, its
  * bell SM_HobRoostBell; a greybox stand-in until they're imported), Hob's crows on its perches and, once found, circling its
  * beacon (ARoostCrows), and the beacon itself, a flame in the basket under a tall column of light in the roost's one colour
@@ -57,11 +63,13 @@ struct AI_LOOTER_SHOOTER_API FRespawnWakeSpot
  * Found (marked): walking up to it (alive, outside a scene, within MarkRadius with a clear line to the roost) marks it. The
  * first time: the beacon's column shoots up out of the basket, the bell rings and swings, the crows lift off and settle and
  * a few take to circling the beacon (RoostMark::Found), the ROOST FOUND banner, the session saved soon, and it opens (if the
- * story hadn't) and becomes its area's save point (FCampaignRecord::LastGraves, where Continue wakes). The first roost of a
- * story, Hob explains them. Walking up to one found before, when another is the save point, makes it the save point again
- * with a quieter sound, a tap of the bell and a pulse up its column. Open (fast travel goes there, a death may wake there):
- * from the start (bStartActive), with its mission's finish (ActiveAfterMission), recorded open, or found. Its crows carry
- * Ellis to it (Welcome).
+ * story hadn't) and becomes its area's save point (FCampaignRecord::LastGraves). The first roost of a story, Hob explains
+ * them. Walking up to one found before, when another is the save point, makes it the save point again with a quieter sound,
+ * a tap of the bell and a pulse up its column; so does arriving at it by fast travel (MarkOnArrival). The save point, the
+ * roost last found here (FindLastFound), is where a death wakes the player and where Continue does (the user's rule,
+ * 2026-10-14: never the nearest); before any is found a death wakes at the level's own start. Open (fast travel goes
+ * there): from the start (bStartActive), with its mission's finish (ActiveAfterMission), recorded open, or found. Its crows
+ * carry Ellis to it (Welcome).
  *
  * Cheap: it checks the player a few times a second on a timer, never every frame (one distance while they're far); its
  * crows are updated by the fauna's subsystem; the beacon ticks only for its show or a near camera; the actor ticks only for
@@ -175,14 +183,16 @@ public:
 	/** Why it's open ("open from the start", "open: Main1 finished", "opened"), or "closed", for logs and the console. */
 	FString DescribeState(const FCampaignRecord& Campaign) const;
 
-	/** The open roost nearest From in World, never one that is also a trip's landing; null when none is open. */
-	static ARespawnMarker* FindNearestActive(const UWorld* World, const FVector& From, const FCampaignRecord& Campaign);
-
 	/**
-	 * Where a death at DeathLocation wakes the player: the nearest open roost, else the level's own start, never a trip's
-	 * landing. Without a campaign (no story to have opened anything) only the start. Unset when the level has neither.
+	 * Where a death wakes the player (the user's rule, 2026-10-14): at the roost they last found on this map (walked up to,
+	 * or arrived at by fast travel: FindLastFound), wherever they fell; with none found yet, the level's own start (Ransom's
+	 * Rest's: Ellis's family plot), never a trip's landing. Without a campaign (no story) only the start. Unset when the
+	 * level has neither.
 	 */
-	static FRespawnWakeSpot ChooseWakeSpot(const UWorld* World, const FVector& DeathLocation, const FCampaignRecord* Campaign);
+	static FRespawnWakeSpot ChooseWakeSpot(const UWorld* World, const FCampaignRecord* Campaign);
+
+	/** World has a roost of its own (one that isn't a trip's landing): Hob's crows work there. */
+	static bool HasRoosts(const UWorld* World);
 
 	// --- Found and the save point (RespawnMarkerSave.cpp) ---
 
@@ -193,11 +203,12 @@ public:
 	static FName FindAreaId(const UWorld* World);
 
 	/**
-	 * The roost a Continue wakes the player at: the last one found in Area when it's here and open, else the open roost
-	 * nearest SavedLocation, else null (they stand where they were saved). Never a trip's landing.
+	 * Area's save point as it stands in World: the roost the player last found there (FCampaignRecord::LastGraves) when it
+	 * is here and open; else the latest found (MarkedGraves, newest first) still standing here and open, which takes over
+	 * for a save naming a roost the level no longer has (the cut to two a map, 2026-10-14) or a find taken back; else null.
+	 * Never a trip's landing, never one only opened and not found. A death wakes here, and so does Continue.
 	 */
-	static const ARespawnMarker* ChooseContinueGrave(const UWorld* World, const FVector& SavedLocation, const FCampaignRecord& Campaign,
-		FName Area);
+	static const ARespawnMarker* FindLastFound(const UWorld* World, const FCampaignRecord& Campaign, FName Area);
 
 	/** The mission whose finish lets a walk find it: MarkAfterMission, else ActiveAfterMission, else None. */
 	FName GetMarkGate() const;
@@ -211,7 +222,7 @@ public:
 	/** The same in the story being played here; without a story, open from the start. */
 	bool IsFound() const;
 
-	/** It is Area's save point: the last roost found there, where Continue wakes. */
+	/** It is Area's save point (FindLastFound): where a death and a Continue wake the player. */
 	bool IsSavePoint(const FCampaignRecord& Campaign, FName Area) const;
 
 	/** It is the save point of the story being played here (the map page's "Save point"). False without a story. */
@@ -232,6 +243,14 @@ public:
 	 * (distance, sight, story, scene) for the console; a dead or missing player never finds it.
 	 */
 	EGraveMark TryMark(AActor* Player, bool bForce = false);
+
+	/**
+	 * Hob's crows have just set Player down here by fast travel (UGraveTravelSubsystem): arriving counts as walking up, so it
+	 * becomes the save point. One never found before (the story opened it) is found, show and all; one found before becomes
+	 * the save point quietly (the crows' Welcome is its show) and the session is saved soon. The walk's own rules hold but
+	 * for the distance and the line (they stand on its spot): no find for a landing, a dead player or a closed story gate.
+	 */
+	EGraveMark MarkOnArrival(AActor* Player);
 
 	// --- Its look and its crows (RespawnMarkerRoost.cpp) ---
 

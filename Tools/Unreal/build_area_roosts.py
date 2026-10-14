@@ -1,23 +1,27 @@
 """Hob's roosts (World/RespawnMarker: ARespawnMarker), from the layout's gameplay.roosts, for build_area.py's gameplay pass
 (build_area_story.py calls it, where the family plot's grave marker was placed), or on their own in the open level:
   Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_area_roosts.py RansomsRest"
-which replaces only the roosts a build placed before, and saves the level.
+which replaces every roost in the level (the build's and any placed by hand; a trip's landing marker stays) with the
+layout's, and saves the level: run twice, it leaves the same ones.
 
 The user's call (2026-10-13): Hob's crow roosts replace the respawn graves as the one save, respawn and fast-travel point on
 every map, at landmarks and roads (the graves were "in odd locations"); the roost is the Crow's Mast (look sheet 41, design
-B: SM_HobRoost, its bell SM_HobRoostBell). Each roost comes from one entry of gameplay.roosts (level cm, X north, Y east, as
-every layout point is):
-  { "id": "MainStreet", "name": "Main Street", "at": [0, 3050], "yaw": 90, "onRoad": true,
+B: SM_HobRoost, its bell SM_HobRoostBell). The user's call (2026-10-14): two a map at most (MOST_PER_MAP; Ransom's Rest's
+the Depot by the train station and Calder's Post up the mountain), the others removed, not kept for old saves (the game
+reads a save naming a gone roost as its newest find still standing: ARespawnMarker::FindLastFound). A death wakes the
+player at the roost they last found, before any at the level's own start. Each roost comes from one entry of
+gameplay.roosts (level cm, X north, Y east, as every layout point is):
+  { "id": "Depot", "name": "The Depot", "at": [750, 10250], "yaw": 135, "onRoad": false,
     "openAfter": "Main4", "markAfter": "Main3", "startOpen": false, "note": "..." }
-  - id: its MarkerId, the save data's name. A roost that replaced a grave keeps the grave's id (FamilyPlot, ChapelYard,
-    KeepersGrave) so old saves' marked graves are found roosts; never change an id once a session may have saved it.
+  - id: its MarkerId, the save data's name; never change an id once a session may have saved it (the roosts that
+    replaced graves kept the graves' ids, so old saves' marked graves were found roosts).
   - name: what the map and the ROOST FOUND banner call it.
   - at: where the mast stands; yaw: the way the player faces on waking there (degrees: 0 north, 90 east). The player's spot
     (the actor) is the model's Wake socket from the mast (FALLBACK_WAKE before the model is imported, the same numbers as
     World/RoostKit.h): 1.7 m out in front of the mast, facing away from it, so face the yaw out over the land.
   - openAfter (ActiveAfterMission), markAfter (MarkAfterMission), startOpen (bStartActive): optional; without them a roost
     opens when it's found, any time.
-  - onRoad: the mast may stand in a road (Main Street's, beside the town memorial); every other keeps off roads.
+  - onRoad: the mast may stand in a road (as Main Street's did, beside the town memorial); every other keeps off roads.
 Each spot is checked: inside the playable boundary; the mast and the player's spot on walkable ground (tagged Ground) level
 enough under the cairn and the feet; clear of the layout's roads, obstacles, placements, the stand-ins' boxes, pits and rock
 knobs; nothing solid already standing at either (the dressing's fences and props, the story's pieces). A spot that fails is
@@ -42,6 +46,9 @@ CLASSES = '/Script/AI_Looter_Shooter.'
 FOLDER = 'Gameplay/Roosts'
 ROOST_TAG = 'Roost'
 OBSTACLE_TAG = 'Obstacle'
+
+# The user's rule (2026-10-14): two roosts a map at most; a layout with more places its first two and warns.
+MOST_PER_MAP = 2
 
 # The models (Art/Models/Props/HobRoost.py: the Crow's Mast and its bell); a roost without them stands as the C++ greybox.
 ROOST_MESH = '/Game/Art/Props/SM_HobRoost'
@@ -295,10 +302,15 @@ def choose(build, found, entry, wake):
 # ---------------------------------------------------------------------------
 
 def place(build):
-    """Every roost of the layout's gameplay.roosts, in the Gameplay/Roosts folder (a gameplay build clears it first)."""
+    """Every roost of the layout's gameplay.roosts, in the Gameplay/Roosts folder (a gameplay build clears it first); two at
+    most (MOST_PER_MAP)."""
     entries = build.settings.get('roosts', [])
     if not entries:
         return
+    if len(entries) > MOST_PER_MAP:
+        left_out = ', '.join(entry.get('id', '?') for entry in entries[MOST_PER_MAP:])
+        build.warn(f'gameplay.roosts has {len(entries)} roosts; the user allows {MOST_PER_MAP} a map: {left_out} left out')
+        entries = entries[:MOST_PER_MAP]
     cls = unreal.load_class(None, CLASSES + 'RespawnMarker')
     if cls is None:
         build.warn('no RespawnMarker class (build the game module first): the roosts are left out')
@@ -343,7 +355,7 @@ def place(build):
 
 
 def run(area):
-    """The roosts again in the area's open level, on their own: the ones a build placed before go first."""
+    """The roosts again in the area's open level, on their own: every roost there before goes first."""
     sys.path.append(HERE)
     import build_area
     build = importlib.reload(build_area).AreaBuild(area)
@@ -355,11 +367,16 @@ def run(area):
     cls = unreal.load_class(None, CLASSES + 'RespawnMarker')
     if cls is None:
         raise RuntimeError('no RespawnMarker class: build the game module first')
-    # Every roost the build placed (and the graves' markers before them, the same class), wherever they stood.
-    old = [a for a in actors.get_all_level_actors() if a.get_class() == cls and unreal.Name(build.tag) in a.tags]
+    # Every roost in the level goes, the build's (and the graves' markers before them, the same class) and any placed by
+    # hand, wherever they stood; the layout's are placed again below. Run twice, it leaves the same two (the cut to two a
+    # map, 2026-10-14, removes the rest on its first run). A trip's landing tagged on a marker (Landing_...) is the travel's,
+    # never a roost: it stays.
+    old = [a for a in actors.get_all_level_actors()
+           if a.get_class() == cls and not any(str(tag).startswith('Landing_') for tag in a.tags)]
     if old:
+        names = ', '.join(sorted(str(a.get_editor_property('marker_id')) for a in old))
         actors.destroy_actors(old)
-        build.log(f'removed the {len(old)} roosts (and graves) placed before')
+        build.log(f'removed the {len(old)} roosts placed before ({names})')
     place(build)
     levels.save_current_level()
 

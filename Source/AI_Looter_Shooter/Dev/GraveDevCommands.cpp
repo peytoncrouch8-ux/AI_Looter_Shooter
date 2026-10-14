@@ -79,8 +79,13 @@ namespace
 				Block == EGraveMarkBlock::None ? TEXT("marks it") : *GraveMarkRules::Describe(Block));
 			++Count;
 		}
-		UE_LOG(LogLooter, Log, TEXT("%s: %d graves in this level (area %s); the save point is %s."), Command, Count, *Area.ToString(),
-			Campaign.GetLastGrave(Area).IsNone() ? TEXT("none yet") : *Campaign.GetLastGrave(Area).ToString());
+		// The save point as the level stands (where a death and Continue wake), and the record's own when it names another.
+		const ARespawnMarker* SavePoint = ARespawnMarker::FindLastFound(GameWorld, Campaign, Area);
+		const FName Recorded = Campaign.GetLastGrave(Area);
+		UE_LOG(LogLooter, Log, TEXT("%s: %d roosts in this level (area %s); the save point is %s%s."), Command, Count, *Area.ToString(),
+			SavePoint ? *SavePoint->GetMarkerId().ToString() : TEXT("none yet (a death wakes at the level's start)"),
+			!Recorded.IsNone() && (!SavePoint || SavePoint->GetMarkerId() != Recorded)
+				? *FString::Printf(TEXT(" (the record still names %s: gone from this level, or closed)"), *Recorded.ToString()) : TEXT(""));
 	}
 
 	/**

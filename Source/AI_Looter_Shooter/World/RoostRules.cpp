@@ -21,7 +21,7 @@ namespace
 		case 6:  return LOCTEXT("Death6", "The worms can wait. Seven embers can't.");
 		case 7:  return LOCTEXT("Death7", "Shake it off. You've been deader than that.");
 		case 8:  return LOCTEXT("Death8", "Saw that one coming three fence posts off. Next time, so will you.");
-		case 9:  return LOCTEXT("Death9", "Back at the roost, all your bits attached. Mostly.");
+		case 9:  return LOCTEXT("Death9", "Back on your feet, all your bits attached. Mostly.");
 		case 10: return LOCTEXT("Death10", "If you're going to keep dying, die nearer a roost. My lads' wings are tired.");
 		default: return LOCTEXT("Death11", "Easy. Breathe. Well, pretend to.");
 		}
@@ -90,12 +90,12 @@ namespace RoostRules
 
 	FStoryLine FirstDeathLine()
 	{
-		return HobSays(LOCTEXT("FirstDeath", "Told you, sunshine. You can't stay dead with the debt unpaid. Wherever you drop, my crows drag you home to the nearest roost."));
+		return HobSays(LOCTEXT("FirstDeath", "Told you, sunshine. You can't stay dead with the debt unpaid. Wherever you drop, my crows drag you home."));
 	}
 
 	FStoryLine FirstRoostLine()
 	{
-		return HobSays(LOCTEXT("FirstRoost", "That post's one of mine. Find my roosts and my crows'll carry you between them. Drop dead, and they'll fetch you back to the nearest."));
+		return HobSays(LOCTEXT("FirstRoost", "That post's one of mine. Find my roosts and my crows'll carry you between them. Drop dead, and they'll fetch you back to the last one you touched."));
 	}
 
 	FStoryLine FirstTravelLine()

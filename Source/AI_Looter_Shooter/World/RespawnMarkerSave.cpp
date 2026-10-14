@@ -1,4 +1,5 @@
-// ARespawnMarker as a save point: walking up to a roost finds it, the last one found in each area is where Continue wakes.
+// ARespawnMarker as a save point: walking up to a roost (or arriving at it by fast travel) finds it, and the last one found
+// in each area is where a death and a Continue wake the player.
 
 #include "World/RespawnMarker.h"
 #include "AI_Looter_Shooter.h"
@@ -41,7 +42,7 @@ namespace
 }
 
 // ---------------------------------------------------------------------------
-// Where a Continue wakes
+// The save point: where a death and a Continue wake
 // ---------------------------------------------------------------------------
 
 ARespawnMarker* ARespawnMarker::FindById(const UWorld* World, FName Id)
@@ -76,17 +77,32 @@ FName ARespawnMarker::FindAreaId(const UWorld* World)
 	return Area ? Area->GetAreaId() : NAME_None;
 }
 
-const ARespawnMarker* ARespawnMarker::ChooseContinueGrave(const UWorld* World, const FVector& SavedLocation, const FCampaignRecord& Campaign,
-	FName Area)
+const ARespawnMarker* ARespawnMarker::FindLastFound(const UWorld* World, const FCampaignRecord& Campaign, FName Area)
 {
-	// The roost the player last found here, when it's in this level and open (a level rebuilt without it falls through).
-	const ARespawnMarker* Marked = FindById(World, Campaign.GetLastGrave(Area));
-	if (Marked && !AreaLandings::IsLanding(Marked) && Marked->IsActive(Campaign))
+	// A trip's landing is where trips arrive, never a save point; a roost the story keeps shut is no place to wake.
+	auto Usable = [&Campaign](const ARespawnMarker* Marker)
 	{
-		return Marked;
+		return Marker && !AreaLandings::IsLanding(Marker) && Marker->IsActive(Campaign);
+	};
+	// The roost the player last found here, when it's in this level and open.
+	const ARespawnMarker* Last = FindById(World, Campaign.GetLastGrave(Area));
+	if (Usable(Last))
+	{
+		return Last;
 	}
-	// None found (a save from before save points, or a death before the first): the open roost nearest where they stood.
-	return FindNearestActive(World, SavedLocation, Campaign);
+	// The record names a roost this level no longer has (a save from before the user cut every map to two roosts,
+	// 2026-10-14: its MainStreet or SinkRim), or the console took the last find back: the newest find still standing here.
+	// MarkedGraves keeps every area's in the order first found; only this level's are here to be found. No save is
+	// rewritten for it: the next walk up to a roost (or a fast travel to one) records it as the save point.
+	for (int32 Index = Campaign.MarkedGraves.Num() - 1; Index >= 0; --Index)
+	{
+		const ARespawnMarker* Found = FindById(World, Campaign.MarkedGraves[Index]);
+		if (Usable(Found))
+		{
+			return Found;
+		}
+	}
+	return nullptr;
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +132,9 @@ bool ARespawnMarker::IsFound() const
 
 bool ARespawnMarker::IsSavePoint(const FCampaignRecord& Campaign, FName Area) const
 {
-	return GraveMarkRules::IsSavePoint(Campaign, Area, GetMarkerId());
+	// As the level stands (FindLastFound), not only as the record names it: a save naming a roost this level no longer has
+	// shows the one a death would wake at as the save point.
+	return FindLastFound(GetWorld(), Campaign, Area) == this;
 }
 
 bool ARespawnMarker::IsSavePoint() const
@@ -283,6 +301,44 @@ EGraveMark ARespawnMarker::TryMark(AActor* Player, bool bForce)
 	Announce(Result, Player);
 	UE_LOG(LogLooter, Log, TEXT("Roost %s: %s, now the save point of %s."), *GetMarkerId().ToString(),
 		Result == EGraveMark::First ? TEXT("found") : TEXT("found again"), *FindAreaId(GetWorld()).ToString());
+	return Result;
+}
+
+EGraveMark ARespawnMarker::MarkOnArrival(AActor* Player)
+{
+	UMissionRunner* Runner = UMissionRunner::Get(this);
+	if (!Runner || !Runner->IsActive() || !IsValid(Player))
+	{
+		return EGraveMark::None;
+	}
+	// Arriving is walking up to it (the user's rule: a death wakes at the roost last touched, and a ride there touches it):
+	// the walk's rules hold, but for the distance, the line and the travel itself (they stand on its spot as it ends).
+	FGraveMarkSenses Senses = GatherSenses(Player);
+	Senses.Distance = 0.0;
+	Senses.bClearLine = true;
+	Senses.bTravelling = false;
+	if (GraveMarkRules::Check(Senses) != EGraveMarkBlock::None)
+	{
+		return EGraveMark::None;
+	}
+	FCampaignRecord& Campaign = Runner->GetCampaign();
+	if (!IsMarked(Campaign))
+	{
+		// Never walked up to (the story opened it): its first find, column, banner and Hob's word, as a walk gives it.
+		return TryMark(Player, /*bForce*/ true);
+	}
+	// Found before: the save point moves here with no bell of its own (the crows bursting off round the player are the show,
+	// Welcome), saved soon as a walk-up's find is.
+	const EGraveMark Result = GraveMarkRules::Record(Campaign, FindAreaId(GetWorld()), GetMarkerId());
+	if (Result != EGraveMark::None)
+	{
+		if (USessionSubsystem* Sessions = USessionSubsystem::Get(this))
+		{
+			Sessions->SaveSoon();
+		}
+		UE_LOG(LogLooter, Log, TEXT("Roost %s: arrived at by fast travel, now the save point of %s."), *GetMarkerId().ToString(),
+			*FindAreaId(GetWorld()).ToString());
+	}
 	return Result;
 }
 

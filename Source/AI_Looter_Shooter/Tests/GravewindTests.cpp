@@ -267,7 +267,8 @@ bool FGravewindPlacedTest::RunTest(const FString& Parameters)
 {
 	// Ransom's Rest as built (Tools/Unreal/build_area_deck.py): Abel on the deck facing the sunset, its three lantern posts
 	// (one the keeper's), the eight biers, his board, the fog wall across the Keeper's Gate pointed to by his boss, the story's
-	// dusk, Gravewind Point's place, the keeper's grave, and Hob's perches in Main 6.
+	// dusk, Gravewind Point's place, and Hob's perches in Main 6. (The keeper's crossroads roost went with the cut to two a
+	// map, 2026-10-14: Looter.Roost.Placed.TwoAMap.)
 	if (!FPackageName::DoesPackageExist(TEXT("/Game/Maps/Lvl_RansomsRest")))
 	{
 		AddInfo(TEXT("Lvl_RansomsRest isn't built: skipped."));
@@ -283,7 +284,6 @@ bool FGravewindPlacedTest::RunTest(const FString& Parameters)
 	const AAbelOnBoard* OnBoard = nullptr;
 	const AStoryLighting* StoryLight = nullptr;
 	const AHobBird* Hob = nullptr;
-	const ARespawnMarker* Grave = nullptr;
 	TArray<const AKeeperLanternPost*> Posts;
 	int32 Biers = 0;
 	int32 BiersLit = 0;
@@ -303,10 +303,6 @@ bool FGravewindPlacedTest::RunTest(const FString& Parameters)
 		if (const AKeeperLanternPost* Post = Cast<AKeeperLanternPost>(Actor))
 		{
 			Posts.Add(Post);
-		}
-		if (const ARespawnMarker* Marker = Cast<ARespawnMarker>(Actor); Marker && Marker->GetMarkerId() == KeepersGrave)
-		{
-			Grave = Marker;
 		}
 		if (const AStaticMeshActor* Placed = Cast<AStaticMeshActor>(Actor))
 		{
@@ -361,10 +357,6 @@ bool FGravewindPlacedTest::RunTest(const FString& Parameters)
 		{
 			return Rule.When.DuringMission == MainSix && Rule.State == Dusk;
 		}));
-	}
-	if (TestNotNull(TEXT("The keeper's grave"), Grave))
-	{
-		TestEqual(TEXT("...open once Main 5 is done"), Grave->ActiveAfterMission, MainFive);
 	}
 	TestTrue(TEXT("Gravewind Point's place"), bPoint);
 	if (TestNotNull(TEXT("Hob"), Hob))

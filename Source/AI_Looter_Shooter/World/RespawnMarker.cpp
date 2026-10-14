@@ -292,49 +292,44 @@ FString ARespawnMarker::DescribeState(const FCampaignRecord& Campaign) const
 // Where a death wakes the player
 // ---------------------------------------------------------------------------
 
-ARespawnMarker* ARespawnMarker::FindNearestActive(const UWorld* World, const FVector& From, const FCampaignRecord& Campaign)
+bool ARespawnMarker::HasRoosts(const UWorld* World)
 {
 	if (!World)
 	{
-		return nullptr;
+		return false;
 	}
-	ARespawnMarker* Nearest = nullptr;
-	double NearestDistance = TNumericLimits<double>::Max();
 	for (TActorIterator<ARespawnMarker> It(World); It; ++It)
 	{
-		ARespawnMarker* Marker = *It;
-		// A marker that is also a landing is where trips arrive: the dead never wake there.
-		if (!Marker || Marker->IsActorBeingDestroyed() || AreaLandings::IsLanding(Marker) || !Marker->IsActive(Campaign))
+		// A marker that is also a landing is where trips arrive, not one of Hob's.
+		if (*It && !It->IsActorBeingDestroyed() && !AreaLandings::IsLanding(*It))
 		{
-			continue;
-		}
-		// Measured through the air, height and all: a roost up on the knoll is farther from the Sink's floor than its map
-		// distance says.
-		const double Distance = FVector::DistSquared(Marker->GetActorLocation(), From);
-		if (!Nearest || Distance < NearestDistance)
-		{
-			Nearest = Marker;
-			NearestDistance = Distance;
+			return true;
 		}
 	}
-	return Nearest;
+	return false;
 }
 
-FRespawnWakeSpot ARespawnMarker::ChooseWakeSpot(const UWorld* World, const FVector& DeathLocation, const FCampaignRecord* Campaign)
+FRespawnWakeSpot ARespawnMarker::ChooseWakeSpot(const UWorld* World, const FCampaignRecord* Campaign)
 {
 	FRespawnWakeSpot Spot;
 	if (!World)
 	{
 		return Spot;
 	}
+	// The user's rule (2026-10-14, with two roosts a map): the roost they last found here, wherever they fell. The nearest
+	// open one is never asked for: with two a map, the nearest could be one they had never walked up to.
 	if (Campaign)
 	{
-		if (const ARespawnMarker* Grave = FindNearestActive(World, DeathLocation, *Campaign))
+		if (const ARespawnMarker* Last = FindLastFound(World, *Campaign, FindAreaId(World)))
 		{
-			return Grave->GetWakeSpot();
+			Spot = Last->GetWakeSpot();
+			Spot.bByCrows = true;
+			return Spot;
 		}
 	}
-	// No roost open: the level's own start, never a trip's landing (a depot's or a jetty's player start).
+	// None found yet (a new game before its first roost, a story never played here): the level's own start, where the
+	// game begins (Ransom's Rest's is Ellis's family plot, the story's first wake-up), on its ground and inside the level;
+	// never a trip's landing (a depot's or a jetty's player start).
 	for (TActorIterator<APlayerStart> It(World); It; ++It)
 	{
 		const APlayerStart* Start = *It;
@@ -347,5 +342,8 @@ FRespawnWakeSpot ARespawnMarker::ChooseWakeSpot(const UWorld* World, const FVect
 		Spot.Facing = FRotator(0.0, Start->GetActorRotation().Yaw, 0.0);
 		break;
 	}
+	// Hob's crows still drag Ellis there on a map that has his roosts (his word comes at every death in the story); a map
+	// with none (Skyreach) keeps its plain fade.
+	Spot.bByCrows = Spot.Start && Campaign && HasRoosts(World);
 	return Spot;
 }

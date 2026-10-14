@@ -1,5 +1,7 @@
 #include "Combat/PlayerVitalsSubsystem.h"
 #include "AI_Looter_Shooter.h"
+#include "Audio/LooterSound.h"
+#include "Audio/LooterSoundCues.h"
 #include "Combat/HealthComponent.h"
 #include "Missions/MissionRunner.h"
 #include "Scenes/SceneSubsystem.h"
@@ -71,14 +73,13 @@ void UPlayerVitalsSubsystem::Tick(float DeltaTime)
 			UE_LOG(LogLooter, Log, TEXT("Player died; respawning in %.1fs"), RespawnDelay);
 			Vitals.bDying = true;
 			Vitals.DeathTime = 0.f;
-			Vitals.DeathLocation = Character->GetActorLocation();
 			Vitals.Wounds.Reset();
 			PC->SetIgnoreMoveInput(true);
 			PC->SetIgnoreLookInput(true);
-			// Where they'll wake decides how they go: to a roost, Hob's crows gather round the dying and drag them back (the
-			// screen goes slower to black under the crows, URoostCarrySubsystem); with none, the plain fade.
+			// Where they'll wake decides how they go: on a map with roosts, Hob's crows gather round the dying and drag them
+			// back (the screen goes slower to black under the crows, URoostCarrySubsystem); elsewhere, the plain fade.
 			const UMissionRunner* Runner = UMissionRunner::Get(this);
-			Vitals.bByCrows = ARespawnMarker::ChooseWakeSpot(GetWorld(), Vitals.DeathLocation, Runner ? &Runner->GetCampaign() : nullptr).Grave != nullptr;
+			Vitals.bByCrows = ARespawnMarker::ChooseWakeSpot(GetWorld(), Runner ? &Runner->GetCampaign() : nullptr).bByCrows;
 			if (PC->PlayerCameraManager)
 			{
 				PC->PlayerCameraManager->StartCameraFade(Vitals.bByCrows ? 0.25f : 0.4f, 1.f, RespawnDelay * (Vitals.bByCrows ? CrowsCover : 0.6f),
@@ -118,12 +119,13 @@ void UPlayerVitalsSubsystem::Respawn(APlayerController* PC, FPlayerVitals& Vital
 		return;
 	}
 
-	// The open roost nearest where they fell, standing on it and facing its way; with none open, the level's own start.
-	// Never a trip's landing. The story's roosts come from the session's campaign record.
+	// The roost they last found on this map (the user's rule, 2026-10-14: wherever they fell, never the nearest), standing
+	// on it and facing its way; with none found yet, the level's own start. Never a trip's landing. The story's finds come
+	// from the session's campaign record.
 	FVector Location = Character->GetActorLocation();
 	FRotator Rotation = Character->GetActorRotation();
 	const UMissionRunner* Runner = UMissionRunner::Get(this);
-	const FRespawnWakeSpot Spot = ARespawnMarker::ChooseWakeSpot(GetWorld(), Vitals.DeathLocation, Runner ? &Runner->GetCampaign() : nullptr);
+	const FRespawnWakeSpot Spot = ARespawnMarker::ChooseWakeSpot(GetWorld(), Runner ? &Runner->GetCampaign() : nullptr);
 	if (Spot.IsSet())
 	{
 		Location = Spot.Location;
@@ -135,8 +137,8 @@ void UPlayerVitalsSubsystem::Respawn(APlayerController* PC, FPlayerVitals& Vital
 			Location.Z += Character->GetDefaultHalfHeight();
 		}
 	}
-	UE_LOG(LogLooter, Log, TEXT("Player wakes %s"), Spot.Grave ? *FString::Printf(TEXT("at the roost %s"), *Spot.Grave->GetMarkerId().ToString())
-		: Spot.Start ? TEXT("at the level's start") : TEXT("where they fell (the level has no start of its own)"));
+	UE_LOG(LogLooter, Log, TEXT("Player wakes %s"), Spot.Grave ? *FString::Printf(TEXT("at the roost %s (the last found here)"), *Spot.Grave->GetMarkerId().ToString())
+		: Spot.Start ? TEXT("at the level's start (no roost found here yet)") : TEXT("where they fell (the level has no start of its own)"));
 
 	Character->TeleportTo(Location, Rotation, false, true);
 	PC->SetControlRotation(Rotation);
@@ -145,10 +147,11 @@ void UPlayerVitalsSubsystem::Respawn(APlayerController* PC, FPlayerVitals& Vital
 	PC->ResetIgnoreLookInput();
 	if (PC->PlayerCameraManager)
 	{
-		// At a roost the world comes back as the crows burst off the screen; elsewhere, the plain fade.
-		PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, Spot.Grave ? FRoostVeil::RevealSeconds : 0.8f, FLinearColor(0.12f, 0.f, 0.f), false, false);
+		// Carried by the crows, the world comes back as they burst off the screen; elsewhere, the plain fade.
+		PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, Spot.bByCrows ? FRoostVeil::RevealSeconds : 0.8f, FLinearColor(0.12f, 0.f, 0.f), false, false);
 	}
-	if (URoostCarrySubsystem* Carry = URoostCarrySubsystem::Get(this))
+	URoostCarrySubsystem* Carry = URoostCarrySubsystem::Get(this);
+	if (Carry)
 	{
 		Carry->Reveal();
 	}
@@ -156,6 +159,16 @@ void UPlayerVitalsSubsystem::Respawn(APlayerController* PC, FPlayerVitals& Vital
 	{
 		// The crows that dragged them burst off the roost round them, and Hob has his word.
 		Spot.Grave->Welcome(ERoostArrival::Death, Character);
+	}
+	else if (Spot.bByCrows)
+	{
+		// No roost found yet: the crows drop Ellis at the level's start (the family plot) all the same, with the flock bursting
+		// off them and Hob's word, as at a roost.
+		LooterSound::PlayAt(this, LooterSoundCue::RoostMark::DeathWake, Location);
+		if (Carry)
+		{
+			Carry->SayOnArrival(ERoostArrival::Death);
+		}
 	}
 
 	Vitals.bDying = false;

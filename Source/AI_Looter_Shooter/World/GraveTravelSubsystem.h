@@ -17,9 +17,9 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGraveTravelled, APawn* /*Player*/, const
  * (on its spot, facing its arrow), and the crows burst away as the world comes back, the roost's own crows scattering off
  * it round the player (ARespawnMarker::Welcome). Never in a fight (a creature chasing or attacking the player; one only
  * searching for them doesn't count), a scene or a boss's fight, nor while a trip is under way (GraveTravelRules). The
- * autosave waits through the carry; the travel saves nothing of its own: where the player stands goes into the session as
- * it always does. Roosts open as they're found or with the story (ARespawnMarker), so the session already keeps which
- * ones the player may travel to.
+ * autosave waits through the carry. Arriving touches the roost as walking up does (ARespawnMarker::MarkOnArrival): it
+ * becomes the save point, where a death wakes the player, and the session is saved soon. Roosts open as they're found or
+ * with the story (ARespawnMarker), so the session already keeps which ones the player may travel to.
  *
  * The carry runs on the subsystem's own clock (Advance, from its tick; it pauses with the game), not a timer: a timer set
  * before the timer manager has ticked that frame only starts on its next tick, which a test level never gives it.

@@ -11,7 +11,7 @@ class UHudCrowVeilWidget;
 
 /**
  * Hob's crows carrying Ellis (the user's call, 2026-10-13): a fast travel between roosts and a death's drag back to the
- * nearest one, as the player sees and hears it. It plays the crows over the screen (FRoostVeil, drawn by UHudCrowVeilWidget
+ * roost last found (or, before any, the level's start: ARespawnMarker::ChooseWakeSpot), as the player sees and hears it. It plays the crows over the screen (FRoostVeil, drawn by UHudCrowVeilWidget
  * over the local player's view, made the first time a carry plays), their sounds, and Hob's word as they set Ellis down.
  *  - Fast travel (UGraveTravelSubsystem): BeginTravel as the screen goes, the flock pouring up across it under the rush of
  *    wings (RoostMark::CarryOut); Reveal once the player stands at the roost, the crows bursting away.
@@ -40,7 +40,7 @@ public:
 	void BeginTravel(APlayerController* Viewer, float CoverSeconds);
 
 	/**
-	 * A death headed for a roost: crows gather round the dying, then drag the screen black by CoverSeconds. A carry already
+	 * A death on a map with roosts: crows gather round the dying, then drag the screen black by CoverSeconds. A carry already
 	 * covering (killed in a fast travel's black) stays covered.
 	 */
 	void BeginDeath(APlayerController* Viewer, float CoverSeconds);

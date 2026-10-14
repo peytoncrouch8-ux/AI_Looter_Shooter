@@ -9,12 +9,13 @@
 class APlayerController;
 
 /**
- * Player-side consequences of taking damage: a red flash when hurt, and on death a respawn with full health at the open
- * Hob's roost nearest where they fell (ARespawnMarker), or else at the level's own start, never at a trip's landing. To a
- * roost, Hob's crows gather round the dying at the screen's edges and drag them back (URoostCarrySubsystem), bursting
- * away at the wake-up with Hob's word; elsewhere (Skyreach, outside the story), the plain fade. It also gives health back:
- * the revenant's wounds close on their own after a while without being hurt (FWoundsClose), by the numbers in Recovery.
- * Works for any player character with a HealthComponent.
+ * Player-side consequences of taking damage: a red flash when hurt, and on death a respawn with full health at the Hob's
+ * roost the player last found on this map, wherever they fell (the user's rule, 2026-10-14; ARespawnMarker::ChooseWakeSpot),
+ * or, with none found yet, at the level's own start, never at a trip's landing. On a map with roosts, Hob's crows gather
+ * round the dying at the screen's edges and drag them back (URoostCarrySubsystem), bursting away at the wake-up with Hob's
+ * word; elsewhere (Skyreach, outside the story), the plain fade. It also gives health back: the revenant's wounds close on
+ * their own after a while without being hurt (FWoundsClose), by the numbers in Recovery. Works for any player character
+ * with a HealthComponent.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UPlayerVitalsSubsystem : public UTickableWorldSubsystem
@@ -44,18 +45,16 @@ public:
 	bool IsRegenerating(const APlayerController* PC) const;
 
 private:
-	/** A death headed for a roost goes black by this share of RespawnDelay, under the crows (the rest held black). */
+	/** A death carried by the crows goes black by this share of RespawnDelay, under them (the rest held black). */
 	static constexpr float CrowsCover = 0.85f;
 
 	struct FPlayerVitals
 	{
 		float LastHealth = -1.f;
 		bool bDying = false;
-		/** Hob's crows are dragging them to a roost (else the plain fade). */
+		/** Hob's crows are dragging them back (to a roost, or the level's start on a map with roosts; else the plain fade). */
 		bool bByCrows = false;
 		float DeathTime = 0.f;
-		/** Where they fell: they wake at the open roost nearest it. */
-		FVector DeathLocation = FVector::ZeroVector;
 		/** The wait since the last hurt and the run of healing after it. */
 		FWoundsClose Wounds;
 	};
