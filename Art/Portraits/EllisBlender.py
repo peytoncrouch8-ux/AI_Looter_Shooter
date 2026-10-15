@@ -69,14 +69,14 @@ OPTIONS = {
 		"coat": {"cape": False, "collar": "low", "lapels": True, "under": "leathervest", "bandolier": True, "pin": "lapel",
 			"cloth": ((0.16, 0.115, 0.08), (0.40, 0.31, 0.22)), "frost": 0.0, "vee": 0.05},
 		"world": (0.20, 0.15, 0.12), "cam": (2.12, -0.012),
-		"lights": [("Key", (-0.72, -0.62, 0.22), 30.0, (1.0, 0.76, 0.52), 0.55), ("Rim", (1.25, 1.1, 0.45), 95.0, (0.45, 0.85, 1.0), 0.8),
+		"lights": [("Key", (-0.92, -0.38, 0.26), 30.0, (1.0, 0.76, 0.52), 0.5), ("Rim", (1.25, 1.1, 0.45), 95.0, (0.45, 0.85, 1.0), 0.8),
 			("Bounce", (0.25, -0.9, -0.65), 6.0, (1.0, 0.6, 0.4), 1.2)]},
 	"C": {"label": "Dressed for the Grave", "yaw": 24.0, "pitch": 5.0, "lids": (0.022, 0.012, 0.35), "hat": "none", "bandana": "none",
 		"hair": "full", "eyes": "iris", "skin": (0.70, 0.66, 0.68), "glow": (0.25, 0.85, 1.0),
 		"coat": {"cape": False, "collar": "low", "lapels": True, "under": "shirt", "bandolier": False, "pin": None, "tie": True,
 			"flower": True, "cloth": ((0.03, 0.03, 0.035), (0.11, 0.105, 0.115)), "frost": 1.0, "vee": 0.03},
 		"world": (0.07, 0.09, 0.13), "cam": (1.98, -0.04),
-		"lights": [("Key", (0.78, -0.50, 0.32), 30.0, (0.72, 0.84, 1.0), 0.5), ("Rim", (-1.25, 1.0, 0.25), 80.0, (1.0, 0.58, 0.28), 0.6),
+		"lights": [("Key", (0.85, -0.42, 0.32), 19.0, (0.74, 0.84, 1.0), 0.5), ("Rim", (-1.25, 1.0, 0.25), 80.0, (1.0, 0.58, 0.28), 0.6),
 			("Fill", (-0.9, -1.6, -0.3), 8.0, (0.5, 0.6, 1.0), 1.5)]},
 }
 
@@ -209,16 +209,16 @@ def eye_material(opt):
 		glow = lin(opt["glow"])
 		if opt["eyes"] == "slit":
 			el[0].position, el[0].color = 0.55, (*[c * 0.35 for c in glow], 1)
-			el[1].position, el[1].color = 0.97, (0.85, 1.0, 1.0, 1)
+			el[1].position, el[1].color = 0.97, (*[min(1.0, c * 1.3) for c in glow], 1)
 			e = el.new(0.78); e.color = (*glow, 1)
-			strength = 4.0
+			strength = 3.0
 		else:
 			el[0].position, el[0].color = 0.80, (0.035, 0.04, 0.045, 1)        # sclera: dim, it's lit by the scene
 			el[1].position, el[1].color = 0.99, (*[min(1.0, c * 1.25) for c in glow], 1)
 			e = el.new(0.83); e.color = (*[c * 0.25 for c in glow], 1)        # dark limbal ring
 			e = el.new(0.88); e.color = (*[c * 0.8 for c in glow], 1)
 			e = el.new(0.955); e.color = (*[c * 0.35 for c in glow], 1)       # the pupil, darker, with a hot core
-			strength = 1.9
+			strength = 1.5
 		nt.links.new(zr.outputs[0], ramp.inputs[0])
 		em = nt.nodes.new("ShaderNodeEmission")
 		em.inputs["Strength"].default_value = strength

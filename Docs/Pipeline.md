@@ -477,7 +477,7 @@ docstring and `OPTIONS`).
   Motifs: Saint Ada's sun-ring, crow feathers, bandolier segments, Pa's lantern, Sexton's ledger, the headboard "ELLIS RANSOM"
   over crossed revolvers, barbed wire.
 - What didn't work: busts sculpted as signed-distance shapes and marched in WebGL (the first try; a clay, CG look the user
-  passed on for Blender).
+  passed on for Blender). Removed; the code is in commit 7ed66a0 (`Art/Portraits/*.glsl`).
 
 ## Island styles (Style Lab looks on the tutorial island, 2026-10-08)
 

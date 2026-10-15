@@ -1,8 +1,8 @@
-// Turns a marched bust into a painted portrait, in the page render.js opens.
+// Turns a rendered bust into a painted portrait, in the page render.js opens.
 // paintPortrait({ passes, size, frame, windowSvg, opts }) -> PNG data URL.
-//   passes   data URLs from the march: [colour+coverage, glow/depth/id, normal], at size * supersampling
+//   passes   data URLs: [colour + coverage, aux (R glow mask, B material id / 16)] from EllisBlender.py
 //   frame    Frame.svg text (drawn over everything), windowSvg the window the painting is clipped to
-//   opts     the scene's // PAINT line: background colours, spark and dust colours, glow colour
+//   opts     the option's "# PAINT" line: background colours, spark and dust colours, glow colour
 //
 // The painting is a stroke painter after Hertzmann's "Painterly Rendering with Curved Brush Strokes of
 // Multiple Sizes" (1998): big strokes first, then smaller ones only where the canvas still differs from
@@ -108,7 +108,7 @@ async function paintPortrait({ passes, size, frame, windowSvg, opts }) {
 	// ---- the strokes
 	const can = mk(); const cc = ctx(can);
 	cc.filter = `blur(${10 * k}px)`; cc.drawImage(ref, 0, 0); cc.filter = 'none';
-	const layers = [{ r: 14, len: 9, T: 26, a: 0.85 }, { r: 7, len: 8, T: 22, a: 0.85 }, { r: 3.5, len: 6, T: 20, a: 0.8 }, { r: 1.8, len: 5, T: 22, a: 0.7 }];
+	const layers = [{ r: 18, len: 10, T: 24, a: 0.85 }, { r: 9, len: 9, T: 20, a: 0.85 }, { r: 4.5, len: 7, T: 18, a: 0.8 }, { r: 2.2, len: 5, T: 20, a: 0.7 }];
 	for (const L of layers) {
 		const R = Math.max(1, L.r * k);
 		const blurred = mk(); const blc = ctx(blurred);
@@ -175,10 +175,11 @@ async function paintPortrait({ passes, size, frame, windowSvg, opts }) {
 	const focus = new Float32Array(N);
 	for (let i = 0; i < N; i++) {
 		const id = Math.round(auxD[i * 4 + 2] / 255 * 16), cov = bustD[i * 4 + 3] / 255;
-		let f = 0.12;
-		if (id === 1 || id === 2) f = 0.62;          // skin, eyes
-		else if (id === 5 || id === 9) f = 0.30;     // bandana, hair
-		else if (id === 8 || id === 11 || id === 4) f = 0.45; // brass, lead, leather details
+		let f = 0.08;
+		if (id === 1 || id === 2) f = 0.66;          // skin, eyes: the painter tightens the face
+		else if (id === 5 || id === 9) f = 0.28;     // bandana, hair
+		else if (id === 8 || id === 11 || id === 4 || id === 12) f = 0.45; // brass, lead, leather, linen details
+		else if (id === 6 || id === 3) f = 0.10;     // coat and hat stay loose
 		focus[i] = f * cov + Math.min(0.35, gmag[i] / 400);
 	}
 	const fb = boxBlur(focus, Math.max(1, Math.round(4 * k)));
@@ -191,13 +192,16 @@ async function paintPortrait({ passes, size, frame, windowSvg, opts }) {
 	// ---- glow: the eyes (and anything else marked) bloom
 	const glow = mk(); const glc = ctx(glow);
 	const gD = glc.createImageData(S, S);
+	// The bloom takes the glow's own colour (cyan), half from the render, so a white-hot core still glows cyan.
+	const gc = hex(o.glow);
 	for (let i = 0; i < N; i++) {
 		const m = auxD[i * 4] / 255 * (bustD[i * 4 + 3] / 255);
-		gD.data[i * 4] = bustD[i * 4] * m; gD.data[i * 4 + 1] = bustD[i * 4 + 1] * m; gD.data[i * 4 + 2] = bustD[i * 4 + 2] * m; gD.data[i * 4 + 3] = 255;
+		for (let c = 0; c < 3; c++) gD.data[i * 4 + c] = (bustD[i * 4 + c] * 0.4 + gc[c] * 0.6) * m;
+		gD.data[i * 4 + 3] = 255;
 	}
 	glc.putImageData(gD, 0, 0);
 	cc.globalCompositeOperation = 'lighter';
-	for (const [r, a] of [[3, 0.9], [10, 0.7], [28, 0.55], [70, 0.35]]) {
+	for (const [r, a] of [[2, 0.55], [7, 0.5], [20, 0.4], [55, 0.28]]) {
 		cc.globalAlpha = a; cc.filter = `blur(${r * k}px)`; cc.drawImage(glow, 0, 0);
 	}
 	cc.filter = 'none'; cc.globalAlpha = 1;
@@ -223,7 +227,22 @@ async function paintPortrait({ passes, size, frame, windowSvg, opts }) {
 	}
 	cc.globalCompositeOperation = 'source-over';
 
-	// ---- grade: vignette and a fine canvas grain
+	// ---- grade: warm lights, cool shadows, a gentle S-curve and a little more colour
+	const gd = cc.getImageData(0, 0, S, S);
+	const G = gd.data;
+	for (let i = 0; i < N * 4; i += 4) {
+		let r = G[i] / 255, g = G[i + 1] / 255, b = G[i + 2] / 255;
+		const l = 0.3 * r + 0.59 * g + 0.11 * b;
+		const sh = Math.max(0, 1 - l * 2.2), hi = Math.max(0, l * 1.6 - 0.6);
+		r *= 1 - 0.06 * sh + 0.07 * hi; g *= 1 - 0.01 * sh + 0.02 * hi; b *= 1 + 0.10 * sh - 0.06 * hi;
+		const l2 = 0.3 * r + 0.59 * g + 0.11 * b;
+		r = l2 + (r - l2) * 1.14; g = l2 + (g - l2) * 1.14; b = l2 + (b - l2) * 1.14;
+		const curve = x => { x = Math.min(1, Math.max(0, x)); return x + 0.18 * x * (1 - x) * (2 * x - 1); };
+		G[i] = curve(r) * 255; G[i + 1] = curve(g) * 255; G[i + 2] = curve(b) * 255;
+	}
+	cc.putImageData(gd, 0, 0);
+
+	// ---- vignette and a fine canvas grain
 	const vg = cc.createRadialGradient(S * 0.5, S * 0.42, S * 0.25, S * 0.5, S * 0.5, S * 0.75);
 	vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.55)');
 	cc.fillStyle = vg; cc.fillRect(0, 0, S, S);
