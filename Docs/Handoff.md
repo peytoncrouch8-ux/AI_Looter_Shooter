@@ -12,10 +12,16 @@ cupping the pump with a new `EHandGrip::Pump`, the thumb along the pump (the use
 for the support hand's finger and thumb curl; `play.py equip <n>`. Many other files are still over ~500 lines
 (`CreatureBase.h` 562, `BossShrine.cpp` 568, `LooterUIStyle.cpp` 765, `LooterSoundCues.h` 847, several tests).
 
-**In progress (the user, 2026-10-15):** Ellis (SK_Ellis, from the cloud branch below, merged) becomes the player's body
-in place of the white mannequin. The user's calls: fetch MakeHuman's base.obj (CC0) here; "retarget live": the mannequin
-stays as an invisible animated driver (today's animations and C++ pose layer unchanged) and Ellis copies its pose
-each frame through a Manny-to-Ellis IK retargeter, hands pinned so guns stay in them.
+**Ellis is the player's body (the user's ask mid-session, done: 116316b, fdd3894):** the cloud branch merged (ffb56c2),
+SK_Ellis built and baked here, imported; the mannequin stays the animated body, hidden, and Ellis copies it through
+RTG_MannyToEllis (Pipeline, "Character models", "Ellis as the player's body"). The user's calls: MakeHuman's base.obj
+fetched here; "retarget live" (not every clip retargeted onto him). Checked in PIE: third person from behind, standing
+and running; front view aiming the rifle and the revolver (hands on the guns); first person (he's invisible to the
+player). Tests 687/687; RR spawn 7.5 ms on Medium (was 7.7). The user saw the first two shots; not yet played.
+
+**Waiting on the user:** a playtest of Ellis and the shotgun's new hold. Open choices for them: his holster keeps its
+revolver while the revolver is in hand (one mesh; hide it with its own material slot?); the first-person arms
+(SK_FP_Arms) are lighter than his duster and gloves (match them to him?); the spin viewer artifact predates the bake here.
 
 ## Before that (session "Ellis 3D model", 2026-10-15, cloud; branch `claude/ellis-3d-character-model-tvwr9z`, merged)
 
@@ -82,7 +88,7 @@ cover the paths) and the hands while aiming down sights.
 
 ## Next (in order)
 
-1. The user's playtest notes first (hands, guns, swaps, water, spiders; the shotgun's new hold).
+1. The user's playtest notes first (Ellis in third person, the shotgun's new hold, hands, guns, swaps, water, spiders).
 2. Small leftovers: the revolver reads tipped up at the hip (perspective; tilting it up looked worse); the rifle's and
    revolver's support hands weren't looked at again after the shotgun's rework (same kind of check if the user asks).
 3. Keep polishing until the user says stop: nothing major, concepts before art, ask with tap-to-answer choices.
