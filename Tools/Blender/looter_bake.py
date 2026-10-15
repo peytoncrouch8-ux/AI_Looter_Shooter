@@ -131,7 +131,7 @@ def _pixels(img):
     return a.reshape(img.size[1], img.size[0], 4)
 
 
-def bake_set(set_name, objects, size=2048, samples=1, ao_samples=48, ao_distance=0.1, margin=12, out_dir=None):
+def bake_set(set_name, objects, size=2048, samples=1, ao_samples=32, ao_distance=0.1, margin=12, out_dir=None):
     """Bakes the looks on objects into the set's three PNGs. Returns {'BC', 'N', 'ORM': path, 'images': {...}} with
     the baked Blender images kept (COLOR, ROUGH, METAL, NORMAL as OpenGL, AO) for previews and glTF."""
     out_dir = out_dir or os.path.join(lt.TEXTURE_DIR, set_name)
@@ -150,8 +150,10 @@ def bake_set(set_name, objects, size=2048, samples=1, ao_samples=48, ao_distance
     for ob in objects:
         ob.data.uv_layers.active = ob.data.uv_layers['UVMap']
     images = {}
-    # occlusion first: the looks' grime reads it instead of tracing its own rays
-    img = _image(f'{set_name}_AO', size, 'Non-Color')
+    # occlusion first: the looks' grime reads it instead of tracing its own rays. It is soft, so it bakes at a quarter
+    # of the set's size (the rays are nearly all of a set's bake time) and is scaled up into the ORM.
+    ao_size = max(512, size // 4)
+    img = _image(f'{set_name}_AO', ao_size, 'Non-Color')
     for m in mats:
         _target(m, img)
     sc.cycles.samples = ao_samples
@@ -204,7 +206,8 @@ def bake_set(set_name, objects, size=2048, samples=1, ao_samples=48, ao_distance
     n[..., 1] = 1.0 - n[..., 1]
     paths['N'] = lt.texture_path(set_name, 'N')
     _save(n, paths['N'], 'Non-Color')
-    orm = np.stack([_pixels(images['AO'])[..., 0], _pixels(images['ROUGH'])[..., 0], _pixels(images['METAL'])[..., 0],
+    ao = _resize(_pixels(images['AO'])[..., 0], size)
+    orm = np.stack([ao, _pixels(images['ROUGH'])[..., 0], _pixels(images['METAL'])[..., 0],
                     np.ones((size, size), dtype=np.float32)], -1)
     paths['ORM'] = lt.texture_path(set_name, 'ORM')
     _save(orm, paths['ORM'], 'Non-Color')
@@ -258,6 +261,19 @@ def _use_baked_ao(mat, img):
             for ln in list(out.links):
                 nt.links.new(tex.outputs['Color'], ln.to_socket)
         nt.nodes.remove(nd)
+
+
+def _resize(a, size):
+    """A square single-channel image scaled to size by bilinear interpolation (numpy only)."""
+    n = a.shape[0]
+    if n == size:
+        return a
+    x = (np.arange(size) + 0.5) * n / size - 0.5
+    i0 = np.clip(np.floor(x).astype(int), 0, n - 1)
+    i1 = np.clip(i0 + 1, 0, n - 1)
+    f = np.clip(x - i0, 0.0, 1.0)
+    rows = a[i0] * (1 - f)[:, None] + a[i1] * f[:, None]
+    return rows[:, i0] * (1 - f)[None, :] + rows[:, i1] * f[None, :]
 
 
 def _from_pixels(name, px, colorspace):
