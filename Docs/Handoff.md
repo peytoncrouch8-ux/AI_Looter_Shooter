@@ -19,9 +19,17 @@ fetched here; "retarget live" (not every clip retargeted onto him). Checked in P
 and running; front view aiming the rifle and the revolver (hands on the guns); first person (he's invisible to the
 player). Tests 687/687; RR spawn 7.5 ms on Medium (was 7.7). The user saw the first two shots; not yet played.
 
-**Waiting on the user:** a playtest of Ellis and the shotgun's new hold. Open choices for them: his holster keeps its
-revolver while the revolver is in hand (one mesh; hide it with its own material slot?); the first-person arms
-(SK_FP_Arms) are lighter than his duster and gloves (match them to him?); the spin viewer artifact predates the bake here.
+**Ellis quality loop (the user, 2026-10-15: "it looks plastic, stiff and unlike a real fps character. Improve it until
+I tell you stop and run all decisions by me"):** the user's picks: holster empty only while the revolver is drawn;
+first-person gloves and sleeves match him; all four rounds (materials, coat and hair that move, pose and hands, remodel
+the silhouette); budget raised to ~35k triangles. Done: round 1 materials (approved; 3512eba), the holster, FP arms matched
+(17e2348), round 2 (39683fe, b26dbf0): swing bones + springs, the hat tipping back when aiming plus a 12% smaller brim
+(the user's "both"), hands 15% thicker, the coat and cape looser, the bandana off his neck, facing +Y (the fingers now
+auto aligned: no claws). Tests 693/693. Shots sent; the user hasn't played round 2.
+**Next in the loop (ask first, tap-to-answer):** the pose round (idle weight shift, stance) and the silhouette remodel
+(budget ~35k): seen on the way: the shirt pokes through the waistcoat in jagged patches below the bandana; the cape is
+full at the front corners; when the front skirt swings past ~35 degrees a slot shows the boot top. Also open: the spin
+viewer artifact predates the bake here.
 
 ## Before that (session "Ellis 3D model", 2026-10-15, cloud; branch `claude/ellis-3d-character-model-tvwr9z`, merged)
 
