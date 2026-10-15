@@ -12,9 +12,13 @@ spec). Boots to hat:
     clipped to the belt at the right hip, still burning
   - dark wool trousers tucked into tall stovepipe boots with stacked heels
 Rig: the UE5 mannequin's 63 deform bones on MakeHuman's joints (Tools/Blender/looter_human.py), every part weighted from
-MakeHuman's own skin weights, so the game's mannequin animations drive it through an IK retargeter.
+MakeHuman's own skin weights, so the game's mannequin animations drive it through an IK retargeter; 31 swing bones
+the game's springs move (swing_layout: the duster's skirt, the cape, the bandana's point, the back hair, the lantern);
+and `hat`, which the game tips back while aiming. Built facing -Y, exported turned to face -X: +Y in Unreal, as the
+mannequin (face_like_mannequin).
 
     blender -b --factory-startup --python Art/Models/Characters/Ellis.py -- [--preview] [--glb <path>] [--no-bake]
+    ... -- --rig-check      no bake: the swing bones at rest and bent, in clay, into Saved/Concepts/EllisSwing
 """
 import math
 import os
@@ -54,6 +58,8 @@ SIM = '--no-sim' not in ARGS        # the duster and cape settle by cloth simula
 DRAPE_FILE = os.path.join(HERE, 'Ellis.drape.json')
 SIDE_SEAM = 1.83                     # the duster's side seams, radians round from the front (about 105 degrees)
 VENT_TOP = 0.80
+COAT_EASE = (0.016, 0.010)           # the duster's ease off the body (m): from the chest down, and more from the hips
+CAPE_EASE = 0.010                    # the cape's stand-off from the shoulders and back (m)
 
 
 def log(message):
@@ -377,10 +383,33 @@ def build_boots(fig):
     return [ob, sole_ob]
 
 
+GLOVE_GIRTH = 1.15      # the gloves' girth over the bare hand's (the user, 2026-10-15: the hands read thin and clawed)
+
+
+def thicken_hand(fig, verts, used):
+    """Glove points pushed away from the bones under them by GLOVE_GIRTH: each point's offset from each of its
+    skinning bones, square to that bone (girth, not length: fingertips don't grow), blended by its skin weights, so
+    the palm thickens and the fingers fill out with no seam between them."""
+    W = fig.Wv[used]
+    out = np.zeros_like(verts)
+    for j, bone in enumerate(fig.names):
+        w = W[:, j]
+        if not (w > 1e-4).any():
+            continue
+        h, t = fig.sk[bone][0], fig.sk[bone][1]
+        d = gm.unit(t - h)
+        q = verts - h
+        perp = q - np.outer(q @ d, d)
+        out += w[:, None] * perp
+    return verts + (GLOVE_GIRTH - 1.0) * out
+
+
 def build_gloves(fig, sleeves):
-    """Tan roper gloves: the hands' own shell, and a flared gauntlet cuff over each sleeve end with a brass concho."""
+    """Tan roper gloves: the hands' own shell, filled out (thicken_hand), and a flared gauntlet cuff over each sleeve
+    end with a brass concho."""
     keep = fig.w_hand > 0.45
     piece, used = gm.shell(fig.wv, fig.faces, fig.fuv, fig.face_mask(keep), 0.0022, iters=1)
+    piece.verts = thicken_hand(fig, piece.verts, used)
     glove = gm.mesh('Gloves', piece, slot('Gloves'))
     tree = gm.bvh_objects([sleeves])
     parts = [glove]
@@ -388,7 +417,10 @@ def build_gloves(fig, sleeves):
         e, w = fig.sk[f'lowerarm_{s}'][0], fig.sk[f'lowerarm_{s}'][1]
         axis = gm.unit(w - e)
         path = np.array([w + axis * (0.012 - 0.115 * t) for t in np.linspace(0, 1, 9)])
-        rad = np.array([[0.037 + 0.030 * t ** 1.3, 0.031 + 0.026 * t ** 1.3] for t in np.linspace(0, 1, 9)])
+        # the cuff's mouth grows with the glove it closes over (GLOVE_GIRTH at the wrist, less up the flare)
+        grow = lambda t: 1.0 + (GLOVE_GIRTH - 1.0) * (1.0 - 0.6 * t)
+        rad = np.array([[(0.037 + 0.030 * t ** 1.3) * grow(t), (0.031 + 0.026 * t ** 1.3) * grow(t)]
+                        for t in np.linspace(0, 1, 9)])
         pc = gm.tube(path, rad, n=28, up=(0.0, -1.0, 0.0))
         pc.verts = gm.clear(pc.verts, tree, 0.004, 0.06)
         cuff = gm.mesh(f'Gauntlet_{s}', pc, slot('Gloves'))
@@ -398,7 +430,9 @@ def build_gloves(fig, sleeves):
         out = gm.unit(out - axis * (out @ axis))
         mid = w - axis * 0.075
         hit = tree.ray_cast(Vector(mid + out * 0.2), Vector(-out), 0.4)
-        at = (np.array(hit[0]) if hit[0] is not None else mid + out * 0.05) + out * 0.012
+        tc = (0.075 + 0.012) / 0.115                             # the concho's place along the cuff
+        swell = (0.034 + 0.028 * tc ** 1.3) * (grow(tc) - 1.0)   # how much the cuff grew there
+        at = (np.array(hit[0]) if hit[0] is not None else mid + out * 0.05) + out * (0.012 + swell)
         bm = bmesh.new()
         bmesh.ops.create_cone(bm, cap_ends=True, segments=20, radius1=0.011, radius2=0.008, depth=0.004)
         me = bpy.data.meshes.new(f'Concho_{s}')
@@ -514,9 +548,12 @@ def build_duster(fig, under_pts, clear_obs=()):
     n_z, n_t = 46, 104
     fine = np.linspace(-math.pi, math.pi, 720, endpoint=False)
     hip = 0.95
-    # simulated, the skirt starts fuller than it hangs: the spare cloth is what falls into folds
-    flare_amt = 0.10 if SIM else 0.07
-    flare = lambda th, v: flare_amt * gm.smoothstep(0.42, 1.0, v) ** 1.3 * (0.55 + 0.45 * np.abs(np.sin(th)))
+    # simulated, the skirt starts fuller than it hangs: the spare cloth is what falls into folds. The ease and the
+    # fuller skirt: the user found the coat hugging him (2026-10-15): it stands off the chest and the hips now, from
+    # under the collar down (the collar and the cape's top, fitted to the coat's top, keep their size)
+    flare_amt = 0.13 if SIM else 0.09
+    ease = lambda v: COAT_EASE[0] * gm.smoothstep(0.02, 0.18, v) + COAT_EASE[1] * gm.smoothstep(0.30, 0.50, v)
+    flare = lambda th, v: ease(v) + flare_amt * gm.smoothstep(0.42, 1.0, v) ** 1.3 * (0.55 + 0.45 * np.abs(np.sin(th)))
     X, Y, Z, R = gm.drape(under_pts, fig.centre, FWD, fine, lambda th: top, lambda th: HEM, n_z, 0.016,
                           hb=math.radians(7.0), zb=0.01, smooth=(10, 3), wrap=True, flare=flare)
     zs = Z[:, 0]
@@ -636,13 +673,15 @@ def build_cape(fig, under_pts):
     bot = lambda t: sz - 0.13 - 0.035 * abs(math.sin(t)) + 0.012 * math.sin(t * 7.0)
     X, Y, Z, R = gm.drape(under_pts, neck[:2], FWD, th, top, bot, 24, 0.026, hb=math.radians(7), zb=0.012, smooth=(4, 3))
     v = np.linspace(0, 1, Z.shape[0])[:, None]
-    # flutes of uneven depth and spacing (frequencies that never line up), deepening toward the hem
+    # flutes of uneven depth and spacing (frequencies that never line up), deepening toward the hem; standing off the
+    # shoulders and back from under the collar down, flaring at the hem (looser: the user, 2026-10-15)
     rng = np.random.default_rng(5)
     ph = rng.random(6) * 6.28
     T = th[None, :]
-    flute = 0.024 * v ** 1.4 + v ** 1.1 * (0.011 * np.sin(T * 7.0 + ph[0] + 0.8 * np.sin(v * 3 + ph[1]))
-                                           + 0.008 * np.sin(T * 11.3 + ph[2] + 0.6 * np.sin(v * 2 + ph[3]))
-                                           + 0.004 * np.sin(T * 19.7 + ph[4] + v * 4)) \
+    flute = CAPE_EASE * gm.smoothstep(0.0, 0.4, v) + 0.040 * v ** 1.4 \
+        + v ** 1.1 * (0.011 * np.sin(T * 7.0 + ph[0] + 0.8 * np.sin(v * 3 + ph[1]))
+                      + 0.008 * np.sin(T * 11.3 + ph[2] + 0.6 * np.sin(v * 2 + ph[3]))
+                      + 0.004 * np.sin(T * 19.7 + ph[4] + v * 4)) \
         + 0.004 * v * np.sin(T * 31.0 + ph[5] + v * 6)
     dx, dy = gm.radial(th[None, :], FWD)
     piece = gm.grid(X + flute * dx, Y + flute * dy, Z)
@@ -683,6 +722,9 @@ def build_collar(fig, top_r):
 
 # ----------------------------------------------------------------------------------------- hat, hair and bandana
 
+BRIM_REACH = 0.88       # the brim's reach past the crown, of the portrait's
+
+
 def build_hat(fig):
     """The portrait's cattleman (EllisBlender.build_hat: tapered creased crown, brim curled at the sides, a leather
     band), worn low, moved into the figure's space and given its thickness."""
@@ -694,6 +736,16 @@ def build_hat(fig):
         fig.to_portrait(ob)
         ob.data.transform(ob.matrix_world)
         ob.matrix_world = Matrix.Identity(4)
+    # the brim reaches a little less far past the crown than the portrait's (the user, 2026-10-15: "slightly smaller,
+    # not super small"): each spoke, from its root at the crown (EllisBlender's first ring of 96) out, shortened, so
+    # the curl keeps its shape
+    brim = next(o for o in parts if o.name.startswith('HatBrim'))
+    co = gm._object_coords(brim)
+    assert len(co) % 96 == 0, 'EllisBlender.build_hat\'s brim: rings of 96 points expected'
+    co = co.reshape(-1, 96, 3)
+    co = co[:1] + (co - co[:1]) * BRIM_REACH
+    brim.data.vertices.foreach_set('co', co.reshape(-1).astype(np.float32))
+    brim.data.update()
     band = next(o for o in parts if o.name.startswith('HatBand'))
     HAT['band_z'] = float(gm._object_coords(band)[:, 2].min())
     for ob in parts:
@@ -1048,6 +1100,7 @@ def build_lantern(fig, under_obs):
     flame.data.materials.append(slot('LanternGlow'))
     parts.append(flame)
     fig.lantern = c
+    fig.lantern_hook = top + n * 0.004                  # where it hangs from the belt (lantern_01's head)
     return parts
 
 
@@ -1191,6 +1244,19 @@ def make_lows(fig, highs, hair_under):
             new = gm.clear(co, tree, 0.003, 0.02)
             ob.data.vertices.foreach_set('co', new.astype(np.float32).ravel())
             ob.data.update()
+    # below the chin the bandana stands a finger's width (1 cm) off the neck's skin, the face mask above it as it was:
+    # it shares the skin's weights there, so a turned head keeps the gap (2026-10-15: it had cut through the neck)
+    chin = fig.eye_z - 0.10
+    tree = gm.bvh_objects(by('Ellis'))
+    for ob in by('Bandana'):
+        co = gm._object_coords(ob)
+        gap = 0.003 + 0.007 * gm.smoothstep(chin + 0.02, chin, co[:, 2])
+        for k, p in enumerate(co):
+            loc, nrm, _i, _d = tree.find_nearest(Vector(tuple(p)), 0.03)
+            if loc is not None and (Vector(tuple(p)) - loc).dot(nrm) < gap[k]:
+                co[k] = np.array(loc + nrm * float(gap[k]))
+        ob.data.vertices.foreach_set('co', co.astype(np.float32).ravel())
+        ob.data.update()
     return lows
 
 
@@ -1274,9 +1340,9 @@ def weights(fig, ob):
     if name.startswith(('Eye_', 'Hat', 'Hair')):
         return rigid_w(fig, n, {'head': 1.0})
     if name.startswith('Bandana'):
-        chin = fig.eye_z - 0.10
-        t = gm.smoothstep(chin, chin - 0.14, P[:, 2])
-        return rigid_w(fig, n, {'head': 1.0 - t, 'neck_01': t * 0.4, 'spine_05': t * 0.6})
+        # the skin's own weights where it lies (the user saw it cut through the neck as the head turned, 2026-10-15):
+        # over the nose, mouth and chin the head; round the neck head, neck_02, neck_01 going down, the knot too
+        return fig.b.weights_at(P)[1]
     if name.startswith(('Collar', 'SunPin')):
         t = gm.smoothstep(fig.neck[2] - 0.03, fig.neck[2] + 0.1, P[:, 2])
         return rigid_w(fig, n, {'spine_05': 1.0 - 0.5 * t, 'neck_01': 0.5 * t})
@@ -1322,12 +1388,317 @@ def weights(fig, ob):
     return fig.b.weights_at(P)[1]
 
 
+# ------------------------------------------------------------------------------- swing bones (the game's springs)
+
+# The game swings these after the retarget (Player/Animation/BodySwing: springs, no cloth simulation; the user found
+# Ellis "stiff", 2026-10-15): the duster's skirt, the shoulder cape, the bandana's point, the back hair, Pa's lantern.
+# Names and parents are the C++'s contract, found by name: <chain>_01 at the root and on down the cloth, a bone's head at
+# its joint and its tail at the next one's, the last tail at the cloth's end. Each bone's Z axis points out of the cloth.
+# A side's chains, at their share of its arc from the front edge (0) round to the back's middle (1):
+SKIRT_CHAINS = (('f', 1 / 6), ('s', 1 / 2), ('b', 5 / 6))
+CAPE_CHAINS = (('f', 0.25), ('b', 0.75))
+SKIRT_TOP = 0.91         # the skirt's own weights start here (above, the duster's blend into the torso's), its chains below
+# The bib's chain hangs from the neck, not the head (the contract said head): on the head it swung 2 cm out through the
+# collar when the head turned or tilted onto the stock; from neck_02 the bib keeps inside the collar's opening while the
+# mask turns with the face (rig_check's head tests, 2026-10-15)
+BANDANA_PARENT = 'neck_02'
+
+
+def round_angle(P, centre):
+    """Angles of points round a vertical axis at centre (radians: 0 the front, + toward the figure's left)."""
+    f, l = gm.frame2d(FWD)
+    rel = np.atleast_2d(P)[:, :2] - centre
+    return np.arctan2(rel @ l, rel @ f)
+
+
+def on_surface(tree, centre, ang, z):
+    """The outermost point of a garment (tree) at angle ang round centre and height z: a ray from outside, inward
+    (through a gap between locks of hair, the nearest ray either side that hits, turned back onto ang)."""
+    ex, ey = gm.radial(np.float64(ang), FWD)
+    for d in np.radians((0, 2, -2, 4, -4, 6, -6, 9, -9, 12, -12, 16, -16, 20, -20)):
+        dx, dy = gm.radial(np.float64(ang + d), FWD)
+        hit = tree.ray_cast(Vector((centre[0] + dx, centre[1] + dy, z)), Vector((-dx, -dy, 0.0)), 1.0)
+        if hit[0] is not None:
+            r = math.hypot(hit[0].x - centre[0], hit[0].y - centre[1])
+            return np.array([centre[0] + ex * r, centre[1] + ey * r, hit[0].z])
+    raise ValueError(f'no garment at {math.degrees(ang):.0f} degrees, {z:.3f} m')
+
+
+def front_edge(co, edges, centre, z, side):
+    """How far round from the front (radians, on side +1 left / -1 right) a garment starts at height z: its edges'
+    crossings of that height nearest the front. (Edges, not vertices: the game mesh is too sparse to slice by points.)"""
+    a, b = co[edges[:, 0]], co[edges[:, 1]]
+    da, db = a[:, 2] - z, b[:, 2] - z
+    cut = (da * db <= 0.0) & (da != db)
+    p = a[cut] + (b[cut] - a[cut]) * (da[cut] / (da[cut] - db[cut]))[:, None]
+    ang = round_angle(p, centre) * side
+    return float(ang[ang > 0].min())
+
+
+def hem_point(co, centre, ang, width=math.radians(6)):
+    """A garment's hem at angle ang: its lowest point within width of it, turned onto ang."""
+    near = co[np.abs((round_angle(co, centre) - ang + math.pi) % (2 * math.pi) - math.pi) < width]
+    p = near[np.argmin(near[:, 2])]
+    r = math.hypot(p[0] - centre[0], p[1] - centre[1])
+    ex, ey = gm.radial(np.float64(ang), FWD)
+    return np.array([centre[0] + ex * r, centre[1] + ey * r, p[2]])
+
+
+def mesh_arrays(ob):
+    ed = np.empty(len(ob.data.edges) * 2, dtype=np.int64)
+    ob.data.edges.foreach_get('vertices', ed)
+    return gm._object_coords(ob), ed.reshape(-1, 2)
+
+
+def swing_layout(fig, parts):
+    """The swing chains placed on the built game parts: [{name, parent, part, side, centre, joints}], joints the
+    bones' heads and then the last one's tail."""
+    by = {o.name.split('.')[0]: o for o in parts}
+    sk = fig.sk
+    chains = []
+
+    def chain(name, parent, part, side, centre, joints):
+        chains.append(dict(name=name, parent=parent, part=part, side=side, centre=np.asarray(centre)[:2],
+                           joints=np.array(joints)))
+
+    # the skirt round the coat's own axis: from the belt line, mid-thigh and the knee down to the hem
+    co, ed = mesh_arrays(by['Duster'])
+    tree = gm.bvh_objects([by['Duster']])
+    knee = (sk['calf_l'][0][2] + sk['calf_r'][0][2]) * 0.5
+    mid_thigh = ((sk['thigh_l'][0][2] + sk['thigh_r'][0][2]) * 0.5 + knee) * 0.5
+    for side, s in ((1, 'l'), (-1, 'r')):
+        heights = (float(belt_height(side * math.pi / 2)), mid_thigh, knee, HEM + 0.03)
+        edge = [front_edge(co, ed, fig.centre, z, side) for z in heights]
+        for key, u in SKIRT_CHAINS:
+            a = [side * (e + u * (math.pi - e)) for e in edge]
+            joints = [on_surface(tree, fig.centre, a[0], float(belt_height(a[0])))]
+            joints += [on_surface(tree, fig.centre, a[k], heights[k]) for k in (1, 2)]
+            joints.append(hem_point(co, fig.centre, a[3]))
+            chain(f'skirt_{key}{s}', 'pelvis', 'Duster', side, fig.centre, joints)
+    # the cape round the neck: from the shoulder line down to its hem (it hangs at fixed angles: the drape's columns)
+    co, ed = mesh_arrays(by['Cape'])
+    tree = gm.bvh_objects([by['Cape']])
+    centre = fig.neck[:2]
+    for side, s in ((1, 'l'), (-1, 'r')):
+        e = front_edge(co, ed, centre, fig.shoulder_z, side)
+        for key, u in CAPE_CHAINS:
+            a = side * (e + u * (math.pi - e))
+            hem = hem_point(co, centre, a)
+            joints = [on_surface(tree, centre, a, z) for z in (fig.shoulder_z, (fig.shoulder_z + hem[2]) * 0.5)]
+            chain(f'cape_{key}{s}', 'spine_05', 'Cape', side, centre, joints + [hem])
+    # the bandana's point: down the middle of its bib from under the chin to the point
+    co, _ = mesh_arrays(by['Bandana'])
+    tree = gm.bvh_objects([by['Bandana']])
+    mid = (fig.eyes[0] + fig.eyes[1]) * 0.5
+    centre = mid[:2] - FWD * 0.085 * fig.b.scale            # build_bandana's axis
+    tip = co[np.argmin(co[:, 2])]
+    chin = fig.eye_z - 0.10
+    joints = [on_surface(tree, centre, 0.0, z) for z in (chin, (chin + tip[2]) * 0.5)] + [tip]
+    chain('bandana', BANDANA_PARENT, 'Bandana', 0, centre, joints)
+    # the back hair: from where it falls free of the skull (a quarter of the way from the back of the head's bulge down
+    # to the nape's hollow, which is inside the turned-up collar: there it hardly showed) to its ends
+    co, _ = mesh_arrays(by['Hair'])
+    tree = gm.bvh_objects([by['Hair']])
+    centre = sk['head'][0][:2]
+    wv = fig.wv[fig.b.used]
+    back = wv[(np.abs(wv[:, 0]) < 0.03) & (wv[:, 1] > centre[1]) & (wv[:, 2] > 1.5) & (wv[:, 2] < 1.85)]
+    zs = np.array([z for z in np.arange(1.52, 1.84, 0.01) if (np.abs(back[:, 2] - z) < 0.01).any()])
+    y = np.array([back[np.abs(back[:, 2] - z) < 0.01, 1].max() for z in zs])
+    occiput = zs[np.argmax(y)]
+    nape = zs[zs < occiput][np.argmin(y[zs < occiput])]
+    top = occiput + (nape - occiput) * 0.25
+    ends = hem_point(co, centre, math.pi, math.radians(20))
+    chain('hair', 'head', 'Hair', 0, centre, [on_surface(tree, centre, math.pi, z) for z in (top, (top + ends[2]) * 0.5)] + [ends])
+    # Pa's lantern swings from its hook on the belt
+    chain('lantern', 'thigh_r', 'Lantern', 0, fig.centre, [fig.lantern_hook, fig.lantern])
+    for c in chains:
+        j = c['joints']
+        log(f'swing {c["name"]}: ' + ' > '.join(f'({p[0] * 100:.1f}, {p[1] * 100:.1f}, {p[2] * 100:.1f})' for p in j) + ' cm')
+    return chains
+
+
+def swing_bones(chains):
+    """(name, head, tail, parent, chain) of every swing bone, in order."""
+    out = []
+    for c in chains:
+        j = c['joints']
+        n = len(j) - 1
+        for k in range(n):
+            name = f'{c["name"]}_{k + 1:02d}'
+            out.append((name, j[k], j[k + 1], c['parent'] if k == 0 else f'{c["name"]}_{k:02d}', c))
+    return out
+
+
+def add_swing_bones(arm, chains):
+    """The swing bones on the armature (deforming, as the mannequin's: unconnected, their Z axes out of the cloth).
+    Returns their names in order."""
+    bk.select([arm], arm)
+    bpy.ops.object.mode_set(mode='EDIT')
+    edit = arm.data.edit_bones
+    bones = swing_bones(chains)
+    for name, h, t, parent, c in bones:
+        e = edit.new(name)
+        e.head, e.tail = Vector(h), Vector(t)
+        out = np.array([h[0] - c['centre'][0], h[1] - c['centre'][1], 0.0])
+        e.align_roll(Vector(tuple(gm.unit(out))))
+        e.use_connect = False
+        e.use_deform = True
+        e.parent = edit[parent]
+    bpy.ops.object.mode_set(mode='OBJECT')
+    return [b[0] for b in bones]
+
+
+def soft_top4(W):
+    """Four influences a vertex without seams: the fifth-largest weight comes off the top four (a bone fades out of a
+    vertex as a fifth overtakes it, where a plain top four drops it at once: a kink in the cloth), then normalised."""
+    W = np.asarray(W, dtype=np.float64).copy()
+    if W.shape[1] > 4:
+        fifth = np.sort(W, axis=1)[:, -5][:, None]
+        W = np.where(W > fifth, W - fifth, 0.0)
+    s = W.sum(axis=1, keepdims=True)
+    return np.where(s > 1e-9, W / np.maximum(s, 1e-9), 0.0)
+
+
+def along(z, zs):
+    """Shares of a chain's bones down it (n, bones): each holds from its head to the next joint, then hands over to
+    the next bone smoothly along that one's length (a smoothstep: no kink where the hand-over starts or ends)."""
+    out = np.zeros((len(z), len(zs) - 1))
+    out[:, 0] = 1.0
+    for k in range(1, len(zs) - 1):
+        moved = out[:, k - 1] * gm.smoothstep(zs[k], zs[k + 1], z)
+        out[:, k - 1] -= moved
+        out[:, k] += moved
+    return out
+
+
+def ring_weights(P, chains):
+    """Each vertex's shares of the chains round a garment (n, chains): between the two nearest, the front edge's way
+    all to the first, across the back's middle from each side's last into the other's. (The duster's vent doesn't
+    part: its two edges are joined by a strip of narrow faces to the hem, which would stretch into a web.)"""
+    n = len(P)
+    out = np.zeros((n, len(chains)))
+    centre = chains[0]['centre']
+    ang = round_angle(P, centre)
+    side = np.where(ang >= 0.0, 1.0, -1.0)
+    for s in (1.0, -1.0):
+        sel = side == s
+        if not sel.any():
+            continue
+        own = [i for i, c in enumerate(chains) if c['side'] == s]
+        other = [i for i, c in enumerate(chains) if c['side'] == -s][-1]
+        th = ang[sel] * s
+        th = np.where(th < 0.0, th + 2 * math.pi, th)          # round from the front edge on this side, past the back
+        z = P[sel, 2]
+
+        def at(i):
+            j = chains[i]['joints']
+            a = round_angle(j, centre) * chains[i]['side']
+            return np.interp(z, j[::-1, 2], a[::-1])
+        knots = np.stack([at(i) for i in own] + [2 * math.pi - at(other)], 1)
+        w = np.zeros((int(sel.sum()), knots.shape[1]))
+        w[:, 0] = th <= knots[:, 0]
+        for i in range(knots.shape[1] - 1):
+            lo, hi = knots[:, i], knots[:, i + 1]
+            inside = (th > lo) & (th <= hi)
+            t = np.clip((th - lo) / np.maximum(hi - lo, 1e-6), 0.0, 1.0)
+            w[inside, i] += 1.0 - t[inside]
+            w[inside, i + 1] += t[inside]
+        w[:, -1] += th > knots[:, -1]
+        sub = np.zeros((int(sel.sum()), len(chains)))
+        for k, i in enumerate(own + [other]):
+            sub[:, i] += w[:, k]
+        out[sel] = sub
+    return out
+
+
+def swing_weights(fig, ob, W):
+    """ob's weights with the swing bones' columns after the mannequin's: the part's own weights (weights()) give way
+    to its chains down the cloth, each chain's bones handing over in turn. The skirt: today's to the belt, all chains
+    from mid-thigh (four influences: past there a vertex already shares two chains' two bones); the cape the same from
+    the shoulder line to halfway down; the bandana's bib from under the chin, the back hair from where it leaves the
+    skull; the lantern rigid on lantern_01."""
+    chains = fig.swing
+    bones = swing_bones(chains)
+    col = {b[0]: i for i, b in enumerate(bones)}
+    P = np.array([v.co[:] for v in ob.data.vertices])
+    n = len(P)
+    C = np.zeros((n, len(bones)))
+    f = np.zeros(n)
+    name = ob.name
+
+    def spread(share, c, top):
+        """Adds chain c's bones for vertices sharing it by share (n,); returns its body-to-chain ramp (n,)."""
+        j = c['joints']
+        a = along(P[:, 2], j[:, 2])
+        for k in range(a.shape[1]):
+            C[:, col[f'{c["name"]}_{k + 1:02d}']] += share * a[:, k]
+        return share * gm.smoothstep(top, j[1, 2], P[:, 2])
+
+    part = [c for c in chains if name.startswith(c['part']) and not name.startswith('BandanaKnot')]
+    if name.startswith('Lantern'):
+        C[:, col['lantern_01']] = 1.0
+        f[:] = 1.0
+    elif name.startswith(('Duster', 'Cape')) and part:
+        share = ring_weights(P, part)
+        for i, c in enumerate(part):
+            f += spread(share[:, i], c, SKIRT_TOP if name.startswith('Duster') else c['joints'][0, 2])
+    elif name.startswith(('Bandana', 'Hair')) and part:
+        c = part[0]
+        ang = np.abs(round_angle(P, c['centre']))
+        if name.startswith('Bandana'):
+            share = gm.smoothstep(math.radians(55), math.radians(25), ang)     # the bib, not the wrap round the jaw
+        else:
+            share = gm.smoothstep(math.radians(70), math.radians(130), ang)    # the back, not the temples
+        f = spread(share, c, c['joints'][0, 2])
+    if not f.any():
+        return np.concatenate([W, C], 1)
+    # the swing bones' shares come out of the part's own: f of the vertex is chains, the rest as before
+    C = C / np.maximum(C.sum(1, keepdims=True), 1e-9) * f[:, None]
+    return soft_top4(np.concatenate([W * (1.0 - f)[:, None], C], 1))
+
+
+def hat_bone(parts):
+    """The hat's bone (the game tips the hat back on it while aiming, the brim's front up, so it clears the rifle's
+    scope): from the back of the band, where it meets the back of the crown, at the band's middle height, to the front
+    of the band."""
+    band = np.concatenate([gm._object_coords(o) for o in parts if o.name.startswith('HatBand')])
+    c = band.mean(0)
+    ang = round_angle(band, c[:2])
+    return band[np.abs(ang) > math.radians(165)].mean(0), band[np.abs(ang) < math.radians(15)].mean(0)
+
+
+def add_hat_bone(arm, head, tail):
+    bk.select([arm], arm)
+    bpy.ops.object.mode_set(mode='EDIT')
+    e = arm.data.edit_bones.new('hat')
+    e.head, e.tail = Vector(head), Vector(tail)
+    e.align_roll(Vector((0.0, 0.0, 1.0)))              # Z up, X the head's left-right axis (+X tips the front up)
+    e.use_connect, e.use_deform = False, True
+    e.parent = arm.data.edit_bones['head']
+    bpy.ops.object.mode_set(mode='OBJECT')
+    return 'hat'
+
+
 def rig(fig, objects):
-    """Weights every part, joins them into one mesh 'Ellis' (SK_Ellis in Unreal) under the mannequin armature."""
+    """Weights every part, joins them into one mesh 'Ellis' (SK_Ellis in Unreal) under the mannequin armature, the
+    swing bones and the hat's bone."""
     arm = fig.b.armature('Ellis_Rig')
+    fig.swing = swing_layout(fig, objects)
+    fig.hat = hat_bone(objects)
+    log(f'hat bone: ({fig.hat[0][0] * 100:.1f}, {fig.hat[0][1] * 100:.1f}, {fig.hat[0][2] * 100:.1f}) > '
+        f'({fig.hat[1][0] * 100:.1f}, {fig.hat[1][1] * 100:.1f}, {fig.hat[1][2] * 100:.1f}) cm')
+    names = fig.names + add_swing_bones(arm, fig.swing) + [add_hat_bone(arm, *fig.hat)]
+    fig.rig_names = names
+    # the parts rig_check measures against each other (the tipped brim, the turned head's bandana), at rest with
+    # their weights
+    fig.rest = {}
     for ob in objects:
-        W = weights(fig, ob)
-        for j, bone in enumerate(fig.names):
+        W = swing_weights(fig, ob, weights(fig, ob))
+        hat = np.full((len(W), 1), 1.0 if ob.name.startswith('Hat') else 0.0)   # crown, brim and band: all on the hat
+        W = np.concatenate([W * (1.0 - hat), hat], 1)
+        if ob.name in ('HatBrim', 'Hair', 'Collar', 'Bandana', 'BandanaKnot', 'Ellis'):
+            fig.rest[ob.name] = (gm._object_coords(ob), [list(p.vertices) for p in ob.data.polygons], W)
+        for j, bone in enumerate(names):
             col = W[:, j]
             nz = np.nonzero(col > 1e-4)[0]
             if not len(nz):
@@ -1485,6 +1856,265 @@ def export_glb(skin, arm, path, lantern, posed=True):
     log(f'wrote {path} ({os.path.getsize(path) / 1e6:.1f} MB)')
 
 
+# --rig-check: the swing bones at rest and bent, in clay (Workbench), into Saved/Concepts/EllisSwing. Each test turns
+# bones toward a direction: the chain's root by the angle, each bone after it a third as much again (cloth curls).
+FWD3, BACK3, LEFT3, UP3 = (0.0, -1.0, 0.0), (0.0, 1.0, 0.0), (1.0, 0.0, 0.0), (0.0, 0.0, 1.0)
+HAT_TIP = 20.0           # the most the game tips the hat back while aiming (degrees, brim front up)
+SWING_TESTS = (
+    ('skirt_fl', (('skirt_fl', FWD3, 35.0),), 'skirt', ('front', 'side')),
+    ('skirt_bl', (('skirt_bl', BACK3, 35.0),), 'skirt', ('front', 'side', 'back')),
+    ('cape_bl', (('cape_bl', BACK3, 25.0),), 'upper', ('front', 'side', 'back')),
+    ('bandana', (('bandana', LEFT3, 30.0),), 'upper', ('front', 'side')),
+    ('lantern', (('lantern', FWD3, 30.0),), 'hips', ('front', 'rside')),
+    ('hat_tip', (('hat', UP3, HAT_TIP),), 'head', ('front', 'side')),
+)
+CHECK_SHOTS = dict(SHOTS, skirt=(0.66, 2.7, 0.15), head=(1.70, 1.1, 0.10), neck=(1.56, 1.2, 0.05))
+CHECK_VIEWS = {'front': 0.0, 'side': 90.0, 'back': 180.0, 'rside': -90.0}
+CHAIN_COLOURS = {'skirt_fl': (1.0, 0.45, 0.05), 'skirt_sl': (0.95, 0.85, 0.1), 'skirt_bl': (0.9, 0.15, 0.1),
+                 'skirt_fr': (0.1, 0.55, 1.0), 'skirt_sr': (0.1, 0.85, 0.75), 'skirt_br': (0.45, 0.25, 0.95),
+                 'cape_fl': (1.0, 0.45, 0.05), 'cape_bl': (0.9, 0.15, 0.1), 'cape_fr': (0.1, 0.55, 1.0),
+                 'cape_br': (0.45, 0.25, 0.95), 'bandana': (0.95, 0.85, 0.1), 'hair': (0.2, 0.9, 0.3),
+                 'lantern': (0.95, 0.85, 0.1)}
+
+
+def swing_markers(arm, chains):
+    """A bead at each swing bone's head and a rod to its tail, riding the bone, coloured by chain."""
+    obs = []
+    for name, h, t, parent, c in swing_bones(chains):
+        bm = bmesh.new()
+        bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=8, radius=0.009, matrix=Matrix.Translation(Vector(h)))
+        d = Vector(t) - Vector(h)
+        rod = Matrix.LocRotScale((Vector(h) + Vector(t)) * 0.5, Vector((0.0, 0.0, 1.0)).rotation_difference(d), None)
+        bmesh.ops.create_cone(bm, cap_ends=True, segments=8, radius1=0.004, radius2=0.002, depth=d.length, matrix=rod)
+        if name.endswith(f'_{len(c["joints"]) - 1:02d}'):
+            bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=6, radius=0.006, matrix=Matrix.Translation(Vector(t)))
+        me = bpy.data.meshes.new('_Swing_' + name)
+        bm.to_mesh(me)
+        bm.free()
+        ob = bpy.data.objects.new('_Swing_' + name, me)
+        bpy.context.scene.collection.objects.link(ob)
+        ob.vertex_groups.new(name=name).add(list(range(len(me.vertices))), 1.0, 'REPLACE')
+        ob.modifiers.new('Armature', 'ARMATURE').object = arm
+        ob.color = (*CHAIN_COLOURS[c['name']], 1.0)
+        obs.append(ob)
+    return obs
+
+
+def swing_pose(arm, chains, moves):
+    """Turns each named chain (or lone bone: the hat) toward a world direction: the root by deg, every later bone a
+    third of it again (each in its rest frame, so a child bends on its parent)."""
+    from mathutils import Quaternion
+    for pb in arm.pose.bones:
+        pb.rotation_mode = 'QUATERNION'
+        pb.rotation_quaternion = (1.0, 0.0, 0.0, 0.0)
+    for chain_name, toward, deg in moves:
+        names = [b[0] for b in swing_bones(chains) if b[4]['name'] == chain_name] or [chain_name]
+        for k, name in enumerate(names):
+            b = arm.data.bones[name]
+            axis = (b.tail_local - b.head_local).normalized().cross(Vector(toward))
+            local = b.matrix_local.to_3x3().inverted() @ axis
+            arm.pose.bones[name].rotation_quaternion = Quaternion(local.normalized(), math.radians(deg if k == 0 else deg / 3))
+    bpy.context.view_layer.update()
+
+
+def hat_contact(fig, deg):
+    """How deep the brim, the hat tipped deg on its bone (front up), reaches into the hair and the collar: their
+    points that end up inside the brim, or above it from under it, and how far above its underside (cm)."""
+    from mathutils.bvhtree import BVHTree
+    co, faces, _ = fig.rest['HatBrim']
+    h, t = fig.hat
+    axis = gm.unit(np.cross(gm.unit(t - h), (0.0, 0.0, 1.0)))
+    R = np.array(Matrix.Rotation(math.radians(deg), 3, Vector(tuple(axis))))
+    trees = [BVHTree.FromPolygons([tuple(p) for p in c], faces) for c in (co, (co - h) @ R.T + h)]
+
+    def hits(tree, p, d):
+        out, o, d = [], Vector(tuple(p)), Vector(d)
+        for _ in range(8):
+            loc = tree.ray_cast(o, d, 0.3)[0]
+            if loc is None:
+                break
+            out.append(loc.z)
+            o = loc + d * 1e-5
+        return out
+    report = []
+    for part in ('Hair', 'Collar'):
+        deep = []
+        for p in fig.rest[part][0]:
+            up0, up1 = hits(trees[0], p, (0, 0, 1)), hits(trees[1], p, (0, 0, 1))
+            down = hits(trees[1], p, (0, 0, -1))
+            if len(up1) % 2 == 1 and down:                            # inside the brim
+                deep.append(p[2] - down[0])
+            elif up0 and not up1 and len(down) >= 2:                  # the brim came down past it
+                deep.append(p[2] - down[1])
+        report.append(f'{part.lower()}: {len(deep)} of {len(fig.rest[part][0])} points, deepest '
+                      f'{max(deep, default=0.0) * 100:.1f} cm')
+    return '; '.join(report)
+
+
+# The head turned on its own, the neck and the collar staying (aiming tilts it onto the stock): the bandana's band must
+# keep off the neck's skin and the bandana stay inside the collar. (name, a world axis through the head's joint, degrees)
+HEAD_TESTS = (('yaw_l', (0.0, 0.0, 1.0), 35.0), ('yaw_r', (0.0, 0.0, 1.0), -35.0), ('roll', (0.0, 1.0, 0.0), -20.0),
+              ('pitch', (1.0, 0.0, 0.0), 20.0))
+
+
+def head_pose(arm, axis, deg):
+    from mathutils import Quaternion
+    for pb in arm.pose.bones:
+        pb.rotation_mode = 'QUATERNION'
+        pb.rotation_quaternion = (1.0, 0.0, 0.0, 0.0)
+    b = arm.data.bones['head']
+    local = b.matrix_local.to_3x3().inverted() @ Vector(axis)
+    arm.pose.bones['head'].rotation_quaternion = Quaternion(local.normalized(), math.radians(deg))
+    bpy.context.view_layer.update()
+
+
+def bandana_fit(fig, arm, axis, deg):
+    """With the head turned deg about axis (and every bone under it): how close the bandana comes to the neck's skin
+    below the chin (cm, negative through it; and how many points are through), and how far it pokes out past the
+    collar (points, cm). The armature's blend skinning, from the weights rig() kept."""
+    from mathutils.bvhtree import BVHTree
+    sub = np.array([n == 'head' or any(p.name == 'head' for p in arm.data.bones[n].parent_recursive)
+                    for n in fig.rig_names])
+    R = np.array(Matrix.Rotation(math.radians(deg), 3, Vector(axis)))
+    pivot = fig.sk['head'][0]
+
+    def posed(name):
+        co, faces, W = fig.rest[name]
+        w = W[:, sub].sum(1)[:, None]
+        return co + w * ((co - pivot) @ R.T + pivot - co), faces
+    skin, sf = posed('Ellis')
+    tree = BVHTree.FromPolygons([tuple(p) for p in skin], sf)
+    band = np.concatenate([posed('Bandana')[0], posed('BandanaKnot')[0]])
+    # out from the neck's axis (neck_01 to the head's joint) through each point below the chin: where the skin is
+    # crossed against where the bandana is
+    a, b = fig.sk['neck_01'][0], fig.sk['head'][0]
+    gaps = []
+    for p in band[band[:, 2] < fig.eye_z - 0.10]:
+        c = a + (b - a) * float(np.clip((p[2] - a[2]) / (b[2] - a[2]), 0.0, 1.0))
+        o = Vector((c[0], c[1], p[2]))
+        d = Vector(tuple(p)) - o
+        hit = tree.ray_cast(o, d.normalized(), 0.3) if d.length > 1e-6 else (None,)
+        if hit[0] is not None:
+            gaps.append(d.length - hit[3])
+    gaps = np.array(gaps)
+    collar, cf = posed('Collar')
+    ctree = BVHTree.FromPolygons([tuple(p) for p in collar], cf)
+    out = []
+    for p in band[(band[:, 2] > collar[:, 2].min()) & (band[:, 2] < collar[:, 2].max())]:
+        o = Vector((fig.neck[0], fig.neck[1], p[2]))
+        d = Vector(tuple(p)) - o
+        hit = ctree.ray_cast(o, d.normalized(), d.length)
+        if hit[0] is not None:
+            out.append(d.length - hit[3])
+    return gaps.min() * 100, int((gaps < 0).sum()), len(out), max(out, default=0.0) * 100
+
+
+def rig_check(fig, arm, skin):
+    """The swing bones on the rigged game mesh, without the bake: rest (bones drawn, then each vertex coloured by
+    its chains' shares) and the SWING_TESTS bends, front and side."""
+    out = os.path.join(REPO, 'Saved', 'Concepts', 'EllisSwing')
+    os.makedirs(out, exist_ok=True)
+    sc = bpy.context.scene
+    sc.render.engine = 'BLENDER_WORKBENCH'
+    sc.render.resolution_x, sc.render.resolution_y = 720, 960
+    sc.display.render_aa = '8'
+    sh = sc.display.shading
+    sh.light = 'STUDIO'
+    sh.color_type = 'OBJECT'
+    sh.show_cavity = True
+    sh.cavity_type = 'WORLD'
+    sh.show_object_outline = False
+    sh.show_specular_highlight = False
+    world = bpy.data.worlds.get('Preview') or bpy.data.worlds.new('Preview')
+    world.color = (0.30, 0.33, 0.38)
+    sc.world = world
+    skin.color = (0.62, 0.58, 0.53, 1.0)
+    markers = swing_markers(arm, fig.swing)
+    cam = bpy.data.objects.new('CheckCam', bpy.data.cameras.new('CheckCam'))
+    cam.data.lens = 70
+    sc.collection.objects.link(cam)
+    sc.camera = cam
+    written = []
+
+    def shoot(tag, aim, views):
+        for v in views:
+            a = math.radians(CHECK_VIEWS[v])
+            target = Vector((0.0, 0.0, aim[0]))
+            cam.location = target + Vector((math.sin(a) * aim[1], -math.cos(a) * aim[1], aim[2]))
+            cam.rotation_euler = (target - cam.location).to_track_quat('-Z', 'Y').to_euler()
+            sc.render.filepath = os.path.join(out, f'{tag}_{v}.png')
+            bpy.ops.render.render(write_still=True)
+            written.append(sc.render.filepath)
+
+    swing_pose(arm, fig.swing, ())
+    shoot('rest', CHECK_SHOTS['full'], ('front', 'side', 'back'))
+    shoot('rest_upper', CHECK_SHOTS['upper'], ('front', 'side', 'back'))
+    # each vertex coloured by its swing bones' shares (chain hue, darker down the chain), the body's share grey
+    names = [g.name for g in skin.vertex_groups]
+    W = np.zeros((len(skin.data.vertices), len(names)))
+    for v in skin.data.vertices:
+        for g in v.groups:
+            W[v.index, g.group] = g.weight
+    tint = np.zeros((len(names), 3))
+    for j, nm in enumerate(names):
+        chain = nm[:-3] if nm[-3:-2] == '_' and nm[-2:].isdigit() and nm[:-3] in CHAIN_COLOURS else None
+        tint[j] = np.array(CHAIN_COLOURS[chain]) * (1.0 - 0.25 * (int(nm[-2:]) - 1)) if chain else (0.6, 0.6, 0.6)
+    # in numbers: influences a vertex, the sums, and the biggest step in a swing bone's weight along an edge (a seam)
+    swing_cols = [j for j, nm in enumerate(names) if nm not in fig.names]
+    ed = np.empty(len(skin.data.edges) * 2, dtype=np.int64)
+    skin.data.edges.foreach_get('vertices', ed)
+    ed = ed.reshape(-1, 2)
+    step = np.abs(W[ed[:, 0]][:, swing_cols] - W[ed[:, 1]][:, swing_cols]).max(1)
+    length = np.linalg.norm(gm._object_coords(skin)[ed[:, 0]] - gm._object_coords(skin)[ed[:, 1]], axis=1)
+    worst = np.argsort(-step / np.maximum(length, 0.01))[:3]
+    log(f'rig check: at most {int((W > 0).sum(1).max())} influences a vertex, sums {W.sum(1).min():.3f}..{W.sum(1).max():.3f}; '
+        f'steepest swing weight steps ' + ', '.join(f'{step[e]:.2f} over {length[e] * 100:.1f} cm at '
+                                                     f'{tuple(np.round(gm._object_coords(skin)[ed[e, 0]] * 100, 1))}' for e in worst))
+    attr = skin.data.color_attributes.new('SwingShares', 'FLOAT_COLOR', 'POINT')
+    rgb = W @ tint / np.maximum(W.sum(1, keepdims=True), 1e-9)
+    attr.data.foreach_set('color', np.concatenate([rgb, np.ones((len(rgb), 1))], 1).astype(np.float32).ravel())
+    skin.data.color_attributes.active_color = attr
+    sh.color_type = 'VERTEX'
+    for m in markers:
+        m.hide_render = True
+    shoot('shares', CHECK_SHOTS['full'], ('front', 'side', 'back'))
+    shoot('shares_upper', CHECK_SHOTS['upper'], ('front', 'side', 'back'))
+    sh.color_type = 'OBJECT'
+    for m in markers:
+        m.hide_render = False
+    for tag, moves, shot, views in SWING_TESTS:
+        swing_pose(arm, fig.swing, moves)
+        shoot(tag, CHECK_SHOTS[shot], views)
+    swing_pose(arm, fig.swing, ())
+    log(f'rig check: the hat tipped {HAT_TIP:.0f} degrees, the brim reaches into the {hat_contact(fig, HAT_TIP)}')
+    for tag, axis, deg in (('rest', (0.0, 0.0, 1.0), 0.0),) + HEAD_TESTS:
+        gap, through, past, most = bandana_fit(fig, arm, axis, deg)
+        log(f'rig check: head {tag}: the bandana below the chin clears the neck\'s skin by {gap:.1f} cm at least '
+            f'({through} points through it); {past} points out past the collar ({most:.1f} cm at most)')
+        if deg:
+            head_pose(arm, axis, deg)
+            shoot(f'bandana_{tag}', CHECK_SHOTS['neck'], ('front', 'side'))
+    head_pose(arm, (0.0, 0.0, 1.0), 0.0)
+    log(f'rig check: {len(written)} renders in {out}')
+
+
+def face_like_mannequin(arm, skin):
+    """The finished figure turned a quarter about Z into its data (bones' rest, vertices; the hit zones' places), the
+    last thing before the export: in Unreal SK_Ellis then faces +Y with his left side at +X, as SKM_Manny_Simple does
+    (the exporter maps Blender's -Y to Unreal's +X and +X to -Y, so here he faces -X). Facing +X, the IK retargeter
+    couldn't line his fingers and arms up with the mannequin's (the user saw clawed hands, 2026-10-15)."""
+    turn = Matrix.Rotation(math.radians(-90.0), 4, 'Z')
+    bk.select([arm], arm)
+    arm.data.transform(turn)
+    skin.data.transform(turn)
+    for ob in arm.children:
+        if ob is not skin:
+            ob.matrix_world = turn @ ob.matrix_world
+    bpy.context.view_layer.update()
+    toe = arm.data.bones['ball_l'].head_local - arm.data.bones['foot_l'].head_local
+    log(f'turned to face -X here (+Y in Unreal): foot_l to ball_l {tuple(round(c, 3) for c in toe.normalized())}')
+
+
 def settle(fig, duster, colliders):
     """The duster's skirt falls into its folds: Blender's cloth over the body, the trousers, the waistcoat and the
     belt, the coat held above the hips (looter_garments.simulate, kept in Ellis.drape.json). Stiff canvas: bending 12
@@ -1571,7 +2201,8 @@ def main():
     parts = make_lows(fig, highs, [skin, collar, cape, bandana[0]])
     log(f'game mesh: {sum(len(p.data.polygons) for p in parts)} faces before thickness')
     prepare_uvs(parts)
-    baked = None if '--stats' in ARGS else bake_all(parts, highs, int(arg_value('--size', 2048)))
+    check = '--stats' in ARGS or '--rig-check' in ARGS        # no bake: triangle counts, or the swing bones' check
+    baked = None if check else bake_all(parts, highs, int(arg_value('--size', 2048)))
     # the detailed parts have done their work: the game parts take their names
     for ob in highs:
         me = ob.data
@@ -1590,6 +2221,9 @@ def main():
         log(f'{"total":16s} {sum(tris.values()):7d}')
         return
     arm, skin = rig(fig, parts)
+    if '--rig-check' in ARGS:
+        rig_check(fig, arm, skin)
+        return
     if '--glb' in ARGS:
         viewer_materials(skin, baked)
         export_glb(skin, arm, os.path.abspath(arg_value('--glb')), fig.lantern)
@@ -1602,6 +2236,7 @@ def main():
             pb.rotation_quaternion = (1.0, 0.0, 0.0, 0.0)
         log('preview written')
     game_materials(skin)
+    face_like_mannequin(arm, skin)
     log('ready to export')
 
 
