@@ -117,7 +117,7 @@ LIMBS = (('thigh_l', 'calf_l', 14.0), ('calf_l', 'foot_l', 10.0), ('thigh_r', 'c
 CLEARANCE_SHARE = 0.95
 # BodySwingRing: the skirt's chains in order round the body (the open front not joined); the cloth between neighbours
 # kept off the limbs too, on what's shown only, moving a level's two points at most RING_PUSH (m) a frame
-SKIRT_RING = ('skirt_fl', 'skirt_sl', 'skirt_bl', 'skirt_bm', 'skirt_br', 'skirt_sr', 'skirt_fr')
+SKIRT_RING = ('skirt_fl', 'skirt_sl', 'skirt_bl', 'skirt_bli', 'skirt_bm', 'skirt_bri', 'skirt_br', 'skirt_sr', 'skirt_fr')
 RING_PUSH = 0.12
 TWIST_SHARES = (('lowerarm_twist_01', 0.5), ('lowerarm_twist_02', 0.9), ('hand', 1.0))   # the twist each takes (the game's)
 LONE_BONE = 0.18                     # a one-bone chain's length (the lantern's)
@@ -128,6 +128,7 @@ FLOOR_CLEARANCE = 0.02               # no point under the ground at his feet (th
 GATHER_REACH = 1.0 / 3.0             # a chain's last point lies on the floor at most this share of its length out
 SPRINGS = {'skirt': (7.0, 0.08), 'cape': (12.0, 0.05), 'bandana': (9.0, 0.05), 'hair': (9.0, 0.05), 'lantern': (2.0, 1.0)}
 CAPE_FOLLOW = {'f': 0.6, 'b': 0.4}
+BULK = {'lantern': 0.025}     # a thick thing keeps this much more than a limb's cap (m; its body's thickness)
 
 
 def _closest(p, a, b):
@@ -323,11 +324,13 @@ def settle_swing(arm, chain_bones, steps=None, stages=12, reach=0.01):
     bones = arm.data.bones
     rest_limbs = [(bones[a].head_local, bones[b].head_local, m / 100.0) for a, b, m in LIMBS]
     tips = {chain: _rest_tips(arm, names) for chain, names in chain_bones.items()}
-    clear = {chain: [[min((t - _closest(t, a, c)).length * CLEARANCE_SHARE, m) for a, c, m in rest_limbs]
+    bulk = lambda chain: BULK.get(chain.split('_')[0], 0.0)
+    clear = {chain: [[min((t - _closest(t, a, c)).length * CLEARANCE_SHARE, m + bulk(chain)) for a, c, m in rest_limbs]
                      for t in tips[chain]] for chain in chain_bones}
     # and each bone, head to tip, its rest distance from each limb (segment to segment), as BodySwing's Bind
     gap = lambda q: (q[0] - q[1]).length
-    bone_clear = {chain: [[min(gap(_segments(bones[n].head_local, t, a, c)) * CLEARANCE_SHARE, m) for a, c, m in rest_limbs]
+    bone_clear = {chain: [[min(gap(_segments(bones[n].head_local, t, a, c)) * CLEARANCE_SHARE, m + bulk(chain))
+                           for a, c, m in rest_limbs]
                           for n, t in zip(names, tips[chain])] for chain, names in chain_bones.items()}
     floor = arm.matrix_world.translation.z + FLOOR_CLEARANCE
     # each chain's way out of the body (Bind's Outward): level, from the pelvis to where the chain ends, turning with

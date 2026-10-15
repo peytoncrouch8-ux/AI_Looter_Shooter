@@ -317,17 +317,17 @@ bool FBodySwingEllisTest::RunTest(const FString& Parameters)
 	}
 	FBodySwing Swing;
 	Swing.Bind(Ellis->GetRefSkeleton());
-	TestEqual(TEXT("14 swing chains: 7 skirt (one down the back's vent), 4 cape, the bandana, the hair, the lantern"), Swing.NumChains(), 14);
+	TestEqual(TEXT("16 swing chains: 9 skirt (five across the back), 4 cape, the bandana, the hair, the lantern"), Swing.NumChains(), 16);
 	// Each ends in an unweighted `<chain>_end` where its cloth ends (the springs' last tip; a guess fell short of the hem).
-	const TCHAR* const ChainNames[] = { TEXT("skirt_fl"), TEXT("skirt_sl"), TEXT("skirt_bl"), TEXT("skirt_bm"), TEXT("skirt_br"),
-		TEXT("skirt_sr"), TEXT("skirt_fr"), TEXT("cape_fl"), TEXT("cape_bl"), TEXT("cape_br"), TEXT("cape_fr"), TEXT("bandana"),
-		TEXT("hair"), TEXT("lantern") };
+	const TCHAR* const ChainNames[] = { TEXT("skirt_fl"), TEXT("skirt_sl"), TEXT("skirt_bl"), TEXT("skirt_bli"), TEXT("skirt_bm"),
+		TEXT("skirt_bri"), TEXT("skirt_br"), TEXT("skirt_sr"), TEXT("skirt_fr"), TEXT("cape_fl"), TEXT("cape_bl"), TEXT("cape_br"),
+		TEXT("cape_fr"), TEXT("bandana"), TEXT("hair"), TEXT("lantern") };
 	for (const TCHAR* Chain : ChainNames)
 	{
 		TestTrue(FString::Printf(TEXT("%s ends in %s_end"), Chain, Chain),
 			Ellis->GetRefSkeleton().FindBoneIndex(FName(*FString::Printf(TEXT("%s_end"), Chain))) != INDEX_NONE);
 	}
-	TestEqual(TEXT("The cloth between the 7 skirt chains keeps off the legs: 6 pairs round the coat (its front open)"), Swing.NumRingPairs(), 6);
+	TestEqual(TEXT("The cloth between the 9 skirt chains keeps off the legs: 8 pairs round the coat (its front open)"), Swing.NumRingPairs(), 8);
 	FBodyForearmTwist Twist;
 	Twist.Bind(Ellis->GetRefSkeleton());
 	TestEqual(TEXT("Two twist bones down each forearm roll it with the hand (the wrists tore open without)"), Twist.NumTwistBones(), 4);

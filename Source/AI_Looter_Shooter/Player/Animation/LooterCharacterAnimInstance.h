@@ -185,6 +185,9 @@ private:
 	FLooterReadyClock ReadyClock;
 	TOptional<FStandaloneHold> StandaloneHold;
 	float UpperBodyTime = 0.f;
+	/** How far into the weary idle (standing still unarmed; not yet eased) and the idle's own clock. */
+	float IdleAlpha = 0.f;
+	float IdleTime = 0.f;
 	/** The mesh's scale against the full-size body, read on the game thread each update. */
 	float BodyScale = 1.f;
 	/** The Blueprint's ground speed variable (GroundSpeedVariable), if it has one, and the value last written to it. */

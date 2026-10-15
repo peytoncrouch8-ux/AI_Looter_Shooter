@@ -85,6 +85,12 @@ bool LooterStancePose::Apply(FCompactPose& Output, const FLooterStanceInput& Sta
 		}
 	}
 
+	// Standing still unarmed: the weary idle (it fades out as a step, a crouch or a gun comes in).
+	if (Stance.IdleAlpha > UE_KINDA_SMALL_NUMBER)
+	{
+		ApplyIdle(Pose, Bones, Stance, Legs, Pelvis, Forward, Right);
+	}
+
 	if (Crouch > UE_KINDA_SMALL_NUMBER || Slide > UE_KINDA_SMALL_NUMBER)
 	{
 		// Hips drop until the head reaches the crouched head height (the capsule's top minus clearance); a slide sits them

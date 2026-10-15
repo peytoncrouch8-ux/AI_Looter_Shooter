@@ -19,6 +19,11 @@ struct AI_LOOTER_SHOOTER_API FBodySwingSettings
 	float Damping = 4.f;
 	/** Gravity's share (1 full). Its animated pose already hangs, so a small share, but for a pendulum's. */
 	float Gravity = 0.05f;
+	/**
+	 * How thick the thing is round its line (cm): more room kept from the limbs than cloth gets (the lantern's 4.3 cm body
+	 * sank 1.5 cm into the crouched thigh while its line kept clear).
+	 */
+	float Bulk = 0.f;
 };
 
 /** A limb the swinging points keep clear of: a segment between two points (component space) and the distance kept. */
@@ -176,6 +181,9 @@ private:
 		FBoneReference Follow;
 		float FollowWeight = 0.f;
 		TArray<FVector> TipInFollow;
+		/** The followed bone on the chain's first bone, eased (the cape takes up the arm's slow moves, not a run's swing). */
+		FTransform FollowEased = FTransform::Identity;
+		bool bFollowStarted = false;
 		FBodySwingPoints Sim;
 
 		/** This frame's: whether the pose has the chain, its bones' indices and animated transforms, its anchor (world). */

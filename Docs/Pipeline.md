@@ -80,8 +80,18 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   late summer. Loot colours (rarity orange, teal, gold) stay off the world.
 - Third person (2026-10-14, `LooterStancePoseCarry`): low-ready after 0.8 s moving without aim/fire (~19 deg down), aim or
   fire snaps back in 0.12 s; sprint = chest carry, both hands turning with the gun (long foregrips drawn in), revolver low
-  at the side one-handed; the upper body keeps ~44% of the jog's bounce. The player's body is still the template
-  mannequin (Ellis's own body: later, the user's call).
+  at the side one-handed; the upper body keeps ~44% of the jog's bounce. The mannequin is animated hidden; Ellis wears
+  its pose (2026-10-15, "Character models", "Ellis as the player's body").
+- The idle (2026-10-15, the user's picks: "Weary revenant" with breathing, glances around and hand fidgets; the armed
+  stance kept; `LooterStancePoseIdle.cpp`, on the mannequin before the crouch, so Ellis copies it): standing still
+  (under 10 cm/s, grounded, not crouched, sprinting, sliding or climbing) and unarmed it eases in over 1.2 s, out over
+  0.25 s. Its own clock (`DescribeIdle`, the same moment always the same idle): the weight from leg to leg (18 s round,
+  held near each end; the hips 2.5 cm over the standing leg, the free hip 3 degrees down, the chest 2 back, the legs
+  solved back onto the planted feet), weary (chest 4 degrees forward, shoulders rounded 5, neck 7 down, head 2 back up),
+  a breath every 4.2 s (chest 0.8, shoulders 1.3), a glance aside in about three of four 10 s spells (18-35 degrees,
+  neck 40%), a finger flex now and then (22 degrees a joint toward the palm), the right thumb in the belt for 5-9 s in
+  about two of three 24 s spells (the wrist 15 out, 12 ahead, 8 up from the hips; fingers down, palm to the body).
+  First person is unaffected (the arms ride the capsule). Tests `Looter.PlayerAnim.Idle.*`.
 - First-person hands (2026-10-14, `UFirstPersonHandsComponent`, the user's pick: full, like Borderlands): arms on the
   camera posed after the gun each frame; per-kind hold table in `FirstPersonHandsGrips` (where tuning happens); the support
   hand follows reload parts and carries the jar. SK_FP_Arms (approved 2026-10-14; `Art/Models/Characters/FPArms.py`,
@@ -563,7 +573,8 @@ Ellis.py:
   (draped over the arms let down to the game's idle, `IDLE_ARM` 10 degrees off the body, then carried back up into the
   bind pose by each point's share of its upper arm, kept as 'ArmFollow' and weighted to the upper arm: draped over the
   bind pose's A, its sides stood out like wings and fins once the arms came down; its front corners flare less),
-  holster, lantern (hung from a `BeltHook` piece out from the belt; clear of the thigh from fount to cap), the
+  holster, lantern (hung from a `BeltHook` piece out from the belt; clear of the thigh from fount to cap, 4.3 cm and 3.3 more:
+  with 1.7 a crouch's level thigh, under the hook it rides, pressed 1.5 cm into it), the
   simulation (the belt, cartridges and bullets as colliders), collar and pin (the throat's points splay half as far:
   more and the flap with the pin jutted like a box), gloves (`thicken_hand`: `GLOVE_GIRTH` 1.15, each point pushed off its
   skinning bones square to them, blended by its weights: fuller palm and fingers, no longer; the user: thin, clawed
@@ -572,12 +583,19 @@ Ellis.py:
   flaring `CUFF_FLARE` 1.8 cm, 3 read as a bell; the sleeve stops `SLEEVE_END` 3 cm up inside it, gathered in under it to
   `SLEEVE_TUCK` 1.2 cm off the arm. The user, 2026-10-15: "his wrists are either invisible or don't match the gloves":
   the game mesh has no wrist, so between the glove's edge and a mouth held open by the loose sleeve's end you saw
-  through him, and the coat's colour; fitted angle by angle the mouth stood out in a lobe at the thumb's root), hat
+  through him, and the coat's colour; fitted angle by angle the mouth stood out in a lobe at the thumb's root; its lip
+  rolled out `CUFF_LIP` 3 mm: cut square, a turned and bent hand met it in a sharp notch), hat
   (EllisBlender.build_hat moved into the figure's space; the brim's reach past the crown `BRIM_REACH` 0.88, each spoke
   shortened toward its root so the curl keeps its shape),
-  bandana (inside the collar: draped over skin, waistcoat and shirt; its point down the chest), hair (two layers of locks with
-  rounded backs round the back of the head, `EllisBlender.grow` over head, collar, cape and bandana; a hair-coloured scalp
-  under them), then 'Seams' on the sewn pieces; the game mesh (below), its UVs, the bake from the detailed parts (then
+  bandana (inside the collar: draped over skin, waistcoat and shirt; its point down the chest), hair (locks grown with
+  `EllisBlender.grow` over head, collar, cape and bandana; a hair-coloured scalp under them; the user, 2026-10-15: "Hair
+  looks like ribbons": flat strips thickened 1.2 mm read as paper fringes. Each lock a closed tube (`lock_piece`),
+  lens-shaped (`LOCK_DEPTH` 0.36 of its width, the inner half flatter; 0.55 read as dreadlocks), tapering to half its
+  width, ending in a thin flat edge (half as wide, a fifth as deep; a cone read as a sharpened pencil); the outer layer's
+  34 locks let a clump part from one side from `SPLIT` half way down; the inner 30 are whole and two sides fewer.
+  `HAIR_LOW` (the game's: 6 rows, 6 sides, clumps 4) and `HAIR` (the bake's: the same locks at 12 rows, 10/8 sides, so
+  each lock's strands bake onto itself) share every lock; no sheet thickness), then 'Seams' on the sewn pieces; the game
+  mesh (below), its UVs, the bake from the detailed parts (then
   deleted), thickness, weights, one joined mesh `Ellis`.
 - The coat: option C, the user's pick (2026-10-15), is the build: squarer shoulders and a pointed back on the cape, a
   deeper crown crease and harder brim curl on the hat, the duster to the ankle (`HEM` 0.24; it hangs 0.20-0.23 m).
@@ -601,14 +619,19 @@ Ellis.py:
   thighs (side by x) as looter_heroes' skirts; the cape half its nearest body point, half spine_05 and the clavicles; collar
   spine_05 to neck_01 by height; bandana the skin's own weights where it lies (head over nose, mouth and chin; head,
   neck_02, neck_01 down the neck; the knot too; the user saw it cut through the neck when the head turned, 2026-10-15), its
-  bib onto its chain; hair, eyes head; hat crown, brim and band 100% `hat`; belt pelvis (+spine_01); holster and revolver
-  pelvis to thigh_l down the pouch (30 % thigh on the belt, 85 % below: rigid at 35 % a stride put the thigh 5 cm through
-  it); the cape spine_05 and the clavicles, its chains, and its 'ArmFollow' share on the upper arm; `BeltHook` pelvis to
-  thigh_r along it; lantern all on lantern_01; gauntlets lowerarm to hand; gloves from the hand's faces; then
-  (`twist_weights`) on the sleeves, gauntlets, conchos and the glove's cuff the lowerarm and hand weight shared over
-  lowerarm, lowerarm_twist_01 (half way down), lowerarm_twist_02 (90%) and the hand by how far down the forearm a point is
-  (the game turns each twist bone by its share of the hand's twist: a gun's grip turns the left hand ~100 degrees, the
-  right ~32; unturned, the glove tore off the gauntlet), past the wrist all the hand's (the wrist's own blend there
+  bib onto its chain; hair, eyes head; hat crown, brim and band 100% `hat`; belt pelvis (+spine_01); the holster's skirt
+  pelvis over the belt to thigh_l down the pouch, the pouch and its loops all thigh_l, the gun rigid at `HOLSTER_GUN` 60 %
+  thigh_l (round 5: blended from the belt down the pouch, the crouch's thigh sank 3.6 cm into it; the gun all thigh, a
+  stride swung its grip, in front of the hip joint, 4.5 cm into his belly; all hips, a crouch's thigh rose 5 cm into it;
+  at 60 % 0.9 and 1.1 cm); the cape spine_05 and the clavicles, its chains, and its 'ArmFollow' share on the upper arm;
+  `BeltHook` pelvis to thigh_r along it; lantern all on lantern_01 (it stays on thigh_r: on pelvis a crouch's thigh rose
+  5 cm into it);
+  gauntlets lowerarm to hand; gloves from the hand's faces; then (`twist_weights`) on the sleeves, gauntlets, conchos and
+  the glove's cuff the lowerarm and hand weight shared by how far down the forearm a point is: the hand's share coming in
+  over `WRIST_BEND` 0.78-1.25 of the forearm (it brings the bend; over its last tenth a turned, bent hand creased the
+  gauntlet's lip), the rest over lowerarm, lowerarm_twist_01 (half way down) and lowerarm_twist_02 (90%) (the game turns
+  each twist bone by its share of the hand's twist: a gun's grip turns the left hand ~100 degrees, the right ~32;
+  unturned, the glove tore off the gauntlet); past the wrist the forearm's share is the hand's (the wrist's own blend there
   candy-wrapped the turned glove). Hit zones:
   head, trunk, skirt round the hips, each limb, hands, feet. LODs 50 % and 25 %.
 - Swing bones (`swing_layout`, placed from the built game mesh; the game's springs, Player/Animation/BodySwing, move them):
@@ -616,17 +639,19 @@ Ellis.py:
   edge to the back's middle, b straight behind the knee: at 5/6, by the vent, a stride's back leg slid it aside and the
   knee came out through the ankle-length coat; joints at the belt line, mid-thigh 74 cm, the knee 53 cm, the hem 21 cm)
   and skirt_bm_01..03 down the middle of the back over the vent (the same heights; without it a stride's back shin came
-  through between the two b chains), cape_{fl,bl,fr,br}_01..02 on
+  through between the two b chains), skirt_bli and skirt_bri (`INNER_AT` a fifth of the way from each b to bm: there
+  the stride's back shin carries them with b; halfway 35 points of it came through, a third 31, a fifth none),
+  cape_{fl,bl,fr,br}_01..02 on
   spine_05 (1/4 and 3/4 of the cape's arc, from the shoulder line 143 cm), bandana_01..02 on neck_02 (under the chin to the
   point), hair_01..02 on head (from 168 cm, a quarter of the way from the skull's bulge to the nape, which is inside the
   collar, to the ends), lantern_01 on thigh_r (from the bail's top on the hook's end, right above the lantern, to the
-  fount: from the hook's belt end the springs' gravity swung it 6 cm into the thigh). 34 bones in 14 chains; each one's
+  fount: from the hook's belt end the springs' gravity swung it 6 cm into the thigh). 40 bones in 16 chains; each one's
   head at its joint, its Z out of the cloth; and each chain's `<chain>_end`, an unweighted leaf (deforming, so the FBX
   keeps it; 2 cm on along the last bone) with its head where the cloth ends: an FBX bone has no tail, and BodySwing
   guessed the last tip as long as the bone before (the skirt's at mid-shin, the hem 11 cm past it, which then went
   through the ground in a crouch). Weights: today's down to 0.91 m on the skirt (the shoulder line on the cape), all chains from
   mid-thigh (halfway on the cape): past there a vertex already shares two chains' two bones (4 influences); round the body
-  between the two nearest chains at the vertex's height; across the back each side's b hands over to skirt_bm (the cape:
+  between the two nearest chains at the vertex's height; across the back each side's b, bi and then skirt_bm (the cape:
   its two b's to each other; the vent never opens: the cloth simulation's notes); down a chain
   each bone hands over to the next along that one's length by a smoothstep. `soft_top4`: the fifth-largest weight comes
   off the top four (plain top four drops a bone at once: a kink). The bandana's chain was on head (the contract): it swung
@@ -639,7 +664,7 @@ Ellis.py:
   the hit zones a quarter about Z (into the data) to face -X, so SK_Ellis faces +Y in Unreal with his left at +X, as
   SKM_Manny_Simple (facing +X, the retargeter couldn't line his fingers and arms up: the clawed hands). An exported FBX
   read back gives the file's own axes; Unreal flips Y, so Unreal = (x, -y, z) of those.
-- The game mesh, 34.2k triangles (the user's call, 2026-10-15: up to 35k; at 20.6k it read coarse): the detailed build
+- The game mesh, 34.9k triangles (the user's call, 2026-10-15: up to 35k; at 20.6k it read coarse): the detailed build
   (~108k) is only the bake source. `make_lows()` copies each part and decimates it by its `LOW` share (Blender's Decimate,
   collapse), spending where the silhouette and close-ups need it (face, hands, collar, brim, coat edges, boots; small hard
   parts whole: reduced, the gun, holster and lantern shredded into shards); the face spares the eyes and the cloth
@@ -647,13 +672,15 @@ Ellis.py:
   collapses only what its group weights); `unflip()` turns back the faces Decimate flipped (against the detailed part and
   their neighbours) and dissolves its slivers: Unreal culls a face's back, so each was a hole (the waistcoat's "black
   holes", 116 in the old boots' toes, the duster's back); the shirt keeps only what shows in the waistcoat's V (bent, the rest
-  came through); the bandana's back, hidden under collar and hair, goes; the hair is built again with 80 narrower locks
-  (`HAIR_LOW`; 44 wide ones read as slabs; each lock's sideways direction carried along it, or a lock running straight
-  out twisted into a hook; tips end in blunt clumps, not needles); reduced layers are pushed back outside the reduced
+  came through); the bandana's back, hidden under collar and hair, goes; the hair is built again, coarser (`HAIR_LOW`, the
+  same locks: before round 5, 80 ribbons; 44 wide ones read as slabs; each lock's sideways direction carried along it, or
+  a lock running straight out twisted into a hook); reduced layers are pushed back outside the reduced
   layers under them (a reduced sleeve cut through its reduced gauntlet; the coat over the cartridges and bullets too);
   below the chin the bandana stands 1 cm off the neck's skin (the mask above, 3 mm). The copies take each part's
   transform (the eyes, buttons, pin and conchos are placed by their object, not their mesh: copies without it fell to the
-  floor). Biggest shares: hair 4.6k, duster 3.4k, face 2.6k, boots 2.5k (LOW 0.18 of the fused 14k), gloves 2.3k, cape 2.0k, bandana 2.0k. `--stats`
+  floor). Biggest shares: hair 5.8k, duster 3.4k, face 2.6k, boots 2.5k (LOW 0.18 of the fused 14k), gloves 2.3k, cape
+  2.0k, bandana 2.0k (round 5 paid for the hair's locks with the waistcoat's buttons at 0.35, the bullets 0.25 and the
+  lantern's wire 0.4). `--stats`
   prints the triangles per part (no bake). Leather looks keep their grain at 280/m (900-1100 aliased at the bake's ~1000
   px/m into a fuzz that read as suede and fur).
 - `--audit <tag>` (`Tools/Blender/ellis_audit.py` on `looter_audit.py`; neither is in the bake's digest): the baked look in
@@ -681,7 +708,7 @@ Ellis.py:
   fetched when missing: `Art/ThirdParty/MakeHuman/fetch.py` (the PC has no system Python: run it with Blender's,
   `C:\Program Files\Blender Foundation\Blender 4.4\4.4\python\bin\python.exe -I`). Export beside the editor:
   `Tools\artrun.ps1 -Export Ellis -Family Ellis`, then `Looter.ImportModels <that folder>`: `/Game/Art/Characters/SK_Ellis`
-  (117 bones with the root: 63 mannequin, 4 forearm twist, 34 swing, 14 `_end` leaves, hat; 3 LODs, Nanite off for the eye glow, 185.5 cm to the hat's top),
+  (125 bones with the root: 63 mannequin, 4 forearm twist, 40 swing, 16 `_end` leaves, hat; 3 LODs, Nanite off for the eye glow, 185.5 cm to the hat's top),
   `MI_Ellis*`, `PA_Ellis`.
 - Run: `blender -b --factory-startup --python Art/Models/Characters/Ellis.py -- [--size 1024] [--glb <path>] [--preview]
   [--shots full+upper+hips+feet] [--shape] [--sim-only] [--selfx] [--no-sim] [--rebake] [--rig-check] [--audit <tag>]
@@ -736,7 +763,7 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
   is the gun in hand, UBodyFigureComponent hides that slot on every LOD (ShowMaterialSection), the user's "empty only while
   drawn".
 - Swing (the user's "coat and hair that move", 2026-10-15; `FBodySwing`, after the retarget in UBodyRetargetAnimInstance):
-  each swing chain (Ellis.py's 34 swing bones, 14 chains) is a string of points in world space, so they lag and swing as he moves: a
+  each swing chain (Ellis.py's 40 swing bones, 16 chains) is a string of points in world space, so they lag and swing as he moves: a
   spring toward the animated pose (an acceleration with its stiffness as a natural frequency, damped; Verlet), a small share
   of gravity (the pose already hangs; the lantern full, a pendulum), each point its length from the one before, out of the
   limbs. Limb clearance needs no radii: a point keeps 95% of its rest distance from each limb segment (thighs, calves,
@@ -748,7 +775,9 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
   back (Ellis.py's audit, 2026-10-15). Nothing rises over what it hangs from (`KeepUnder`: level at most). A floor: no
   point under the component's origin + 2 cm (the mannequin's root stays on the ground, crouched too); a point under it
   swings up about the one above onto it, keeping its lean (`KeepAbove`), so a crouch lays the hem on the ground (it sank
-  ~11 cm); a grounded point rests (no speed: kept, it flipped a gathered hem over its head). Hand and forearm limbs: at
+  ~11 cm); a grounded point rests (no speed: kept, it flipped a gathered hem over its head). A thick thing keeps more
+  room (`FBodySwingSettings::Bulk`, added to the clearance caps): the lantern 2.5 (its 4.3 cm body sank 1.5 cm into the
+  crouched thigh while its line kept clear). Hand and forearm limbs: at
   idle the hands sank 2.5 cm into the coat's sides; the boots' feet (foot to ball, 8 cm): the hem went through a toe.
   The ring (`BodySwingRing.cpp`; the user, 2026-10-15: "cape still clips through the boots and shins"): the cloth
   between neighbouring skirt chains (fl-sl-bl-bm-br-sr-fr; the open front not joined) keeps off the limbs too, at the
@@ -774,7 +803,9 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
   flung a chain right over the thigh); three loose links are a chaotic triple pendulum (test frame rates on the skirt).
 - The cape hangs from spine_05 through its chains, so it kept the arms-out shape it was modelled over (wings in front):
   its corners' targets also ride the upper arms (front 60%, back 40%: `CapeFollowFront/Back`), so it drapes as the arms
-  hang and lifts as a gun comes up.
+  hang and lifts as a gun comes up. The arm they ride is eased on the cape's own bone (`FollowEaseSeconds` 0.35): riding
+  it directly, the corners flapped up at the shoulders with a sprint's arm swing (the user, 2026-10-15); a held raise
+  comes through whole, a run's swing (about 1.5 a second) at about a third.
 - The forearms (the user, 2026-10-15: "His wrists are either invisible or don't match the gloves"): the retarget rolls
   his hand about the forearm (left about 100 degrees onto a foregrip or the revolver, right about 32; the bend only
   10-20) and nothing rolled the forearm, so the gauntlet stayed put while the glove turned and the wrist tore open (no

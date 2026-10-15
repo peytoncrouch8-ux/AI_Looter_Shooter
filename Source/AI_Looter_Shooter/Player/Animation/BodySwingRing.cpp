@@ -6,8 +6,8 @@
 namespace
 {
 	/** The coat's skirt chains in order round the body, front left to front right (its open front isn't joined). */
-	const TCHAR* const SkirtRing[] = { TEXT("skirt_fl"), TEXT("skirt_sl"), TEXT("skirt_bl"), TEXT("skirt_bm"), TEXT("skirt_br"),
-		TEXT("skirt_sr"), TEXT("skirt_fr") };
+	const TCHAR* const SkirtRing[] = { TEXT("skirt_fl"), TEXT("skirt_sl"), TEXT("skirt_bl"), TEXT("skirt_bli"), TEXT("skirt_bm"),
+		TEXT("skirt_bri"), TEXT("skirt_br"), TEXT("skirt_sr"), TEXT("skirt_fr") };
 
 	/**
 	 * The most the cloth between two chains moves a point in a frame (cm, full size): a limb coming through can't fling it

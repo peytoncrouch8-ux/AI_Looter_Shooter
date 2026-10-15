@@ -53,6 +53,12 @@ namespace
 	constexpr float CapeFollowFront = 0.6f;
 	constexpr float CapeFollowBack = 0.4f;
 
+	/**
+	 * How slowly the cape's corners take up the arm (s, the time to most of the way): a sprint's arm swing (about 1.5 a
+	 * second) comes through at about a third, a gun raised and held all of it.
+	 */
+	constexpr float FollowEaseSeconds = 0.35f;
+
 	/** The name's chain ("skirt_fl" of "skirt_fl_02") and place in it (2), or false when it isn't a swing bone. */
 	bool ParseSwingBone(const FString& Name, FString& OutChain, int32& OutIndex)
 	{
@@ -114,6 +120,8 @@ FBodySwingSettings FBodySwing::SettingsFor(const FString& ChainName)
 		Settings.Stiffness = 2.f;
 		Settings.Damping = 1.2f;
 		Settings.Gravity = 1.f;
+		// Its glass and cage round the wire: 4.3 cm across, half of it each side, and a little.
+		Settings.Bulk = 2.5f;
 	}
 	return Settings;
 }
@@ -229,12 +237,14 @@ void FBodySwing::Bind(const FReferenceSkeleton& Skeleton)
 			for (const FLimbRest& Limb : LimbRests)
 			{
 				const double Distance = FVector::Dist(Tip, FMath::ClosestPointOnSegment(Tip, Limb.A, Limb.B));
-				Chain.Clearances.Add(FMath::Min(static_cast<float>(Distance) * ClearanceShare, Limb.MaxClearance));
+				// A thick thing (the lantern) may keep more than cloth does, its body's thickness more.
+				const float Cap = Limb.MaxClearance + Chain.Settings.Bulk;
+				Chain.Clearances.Add(FMath::Min(static_cast<float>(Distance) * ClearanceShare, Cap));
 				FVector OnBone;
 				FVector OnLimb;
 				FMath::SegmentDistToSegmentSafe(Head, Tip, Limb.A, Limb.B, OnBone, OnLimb);
 				const double BoneDistance = FVector::Dist(OnBone, OnLimb);
-				Chain.BoneClearances.Add(FMath::Min(static_cast<float>(BoneDistance) * ClearanceShare, Limb.MaxClearance));
+				Chain.BoneClearances.Add(FMath::Min(static_cast<float>(BoneDistance) * ClearanceShare, Cap));
 			}
 		}
 		// Its way out of the body: level, from the body's middle (the pelvis) to where it ends.
@@ -329,6 +339,26 @@ void FBodySwing::Apply(FCSPose<FCompactPose>& Pose, const FTransform& ComponentT
 		TArray<FVector, TInlineAllocator<4>> Targets;
 		TArray<float, TInlineAllocator<4>> Lengths;
 		const FCompactPoseBoneIndex FollowIndex = Chain.FollowWeight > 0.f ? Chain.Follow.GetCompactPoseIndex(Bones) : FCompactPoseBoneIndex(INDEX_NONE);
+		FTransform Follow = FTransform::Identity;
+		if (FollowIndex.IsValid())
+		{
+			// The arm as the chain's own bone carries it, eased: a gun coming up lifts the cape, a sprint's quick arm
+			// swing mostly doesn't (riding the arm itself, the corners flapped up at the shoulders as he ran).
+			const FTransform& Carrier = Pose.GetComponentSpaceTransform(Indices[0]);
+			const FTransform ArmOnCarrier = Pose.GetComponentSpaceTransform(FollowIndex).GetRelativeTransform(Carrier);
+			if (!Chain.bFollowStarted)
+			{
+				Chain.FollowEased = ArmOnCarrier;
+				Chain.bFollowStarted = true;
+			}
+			else
+			{
+				const float Ease = 1.f - FMath::Exp(-FMath::Max(DeltaSeconds, 0.f) / FollowEaseSeconds);
+				Chain.FollowEased.SetRotation(FQuat::Slerp(Chain.FollowEased.GetRotation(), ArmOnCarrier.GetRotation(), Ease).GetNormalized());
+				Chain.FollowEased.SetLocation(FMath::Lerp(Chain.FollowEased.GetLocation(), ArmOnCarrier.GetLocation(), static_cast<double>(Ease)));
+			}
+			Follow = Chain.FollowEased * Carrier;
+		}
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
 			const FTransform& InComponent = Pose.GetComponentSpaceTransform(Indices[Index]);
@@ -336,7 +366,7 @@ void FBodySwing::Apply(FCSPose<FCompactPose>& Pose, const FTransform& ComponentT
 			FVector Target = InComponent.TransformPosition(Chain.TipInBone[Index]);
 			if (FollowIndex.IsValid())
 			{
-				const FVector Riding = Pose.GetComponentSpaceTransform(FollowIndex).TransformPosition(Chain.TipInFollow[Index]);
+				const FVector Riding = Follow.TransformPosition(Chain.TipInFollow[Index]);
 				Target = FMath::Lerp(Target, Riding, static_cast<double>(Chain.FollowWeight));
 			}
 			Targets.Add(ComponentToWorld.TransformPosition(Target));

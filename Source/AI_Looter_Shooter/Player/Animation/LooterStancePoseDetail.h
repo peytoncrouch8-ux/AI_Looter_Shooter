@@ -123,6 +123,14 @@ namespace LooterStancePoseDetail
 	void ApplyCylinderReloadGun(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance,
 		const FLooterCylinderReload& Reload, const FVector& Forward, const FVector& Right);
 
+	/**
+	 * The weary idle (Stance.IdleAlpha, LooterStancePoseIdle.cpp): the posture, the weight shift with the legs solved back
+	 * onto the planted feet, the breath, a glance, the fingers and the thumb in the belt. Before the crouch (it fades out as
+	 * a crouch comes in).
+	 */
+	void ApplyIdle(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance, const FLegBones (&Legs)[2],
+		FCompactPoseBoneIndex Pelvis, const FVector& Forward, const FVector& Right);
+
 	/** A revolver's reload, the left hand's part: on the cylinder, the rod, the belt; blended in by the reload's weight. */
 	void ApplyCylinderReloadHand(FCSPose<FCompactPose>& Pose, const FBoneContainer& Bones, const FLooterStanceInput& Stance,
 		const FLooterCylinderReload& Reload, const FVector& Forward, const FVector& Right);

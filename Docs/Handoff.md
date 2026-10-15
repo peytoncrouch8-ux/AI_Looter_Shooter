@@ -57,7 +57,20 @@ the ones I like." Four sheets made and sent (`Art/Backlog/Creatures/GravemotherF
 by `GravemotherFightSheets.ps1`): A Bone Mother (brood riding her, milk spit, grave plough), B Vigil (chapel candles as
 her phase meter, corpse-lights, a procession of ghost-flames), C Shroud (ivory and oxblood, burial silk, net shot,
 drag-lines, egg sacs), D Barrow (the bold one: a headstone shell, grave clods, a furrow charge that leaves cover,
-unearthed spiderlings). Next: the user picks (or mixes); nothing goes into the game before that.
+unearthed spiderlings). **The user picked D, Barrow (2026-10-15)**, to build after the Ellis work they asked for first.
+
+**The user's next picks (2026-10-15, tap answers):** "Both 1 and 2": Ellis's leftovers (all four: the shin through the
+coat's back, the cape lifting when sprinting, the hair reading as ribbons, the crouch's holster and lantern) and the pose
+and idle round. Idle: **"Weary revenant"** with **breathing, glances around, hand fidget** (not the hat touch); the armed
+stance **kept as it is**. Built: the idle (LooterStancePoseIdle.cpp; Pipeline, "The idle"), the cape's corners following
+an eased arm (BodySwing, `FollowEaseSeconds`), the ring order for two new back chains, the lantern's `Bulk` (2.5 cm
+more room off the limbs); round 5 in Ellis.py: `skirt_bli`/`skirt_bri` (a fifth of the way from each back chain to bm;
+the stride's shin through the coat 28 points -> 0), hair as closed lens-shaped locks in two layers (5.8k triangles; still a
+little chunky up close from the back), the holster pouch on the left thigh (crouch contact 3.6 -> 2.2 cm; the gun now
+grazes the trousers 0.9 cm in a stride), the gauntlet lip rolled out; 125 bones, 34.9k triangles. Checked in PIE: idle,
+sprint from behind, hair, crouch front and right side. Shots sent. Tests 698/698.
+**Next:** the user's notes on round 5; then the Gravemother, Barrow (D) as the real fight (concepts first done: model,
+projectile, charge, FX, sounds; ask the user the open calls with tap-to-answer choices).
 
 ## Before that (session "Ellis 3D model", 2026-10-15, cloud; branch `claude/ellis-3d-character-model-tvwr9z`, merged)
 

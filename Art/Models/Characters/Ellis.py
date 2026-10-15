@@ -12,10 +12,11 @@ spec). Boots to hat:
     clipped to the belt at the right hip, still burning
   - dark wool trousers tucked into tall stovepipe boots with stacked heels
 Rig: the UE5 mannequin's 63 deform bones on MakeHuman's joints (Tools/Blender/looter_human.py), every part weighted from
-MakeHuman's own skin weights, so the game's mannequin animations drive it through an IK retargeter; 31 swing bones
-the game's springs move (swing_layout: the duster's skirt, the cape, the bandana's point, the back hair, the lantern);
-and `hat`, which the game tips back while aiming. Built facing -Y, exported turned to face -X: +Y in Unreal, as the
-mannequin (face_like_mannequin).
+MakeHuman's own skin weights, so the game's mannequin animations drive it through an IK retargeter; the forearms'
+lowerarm_twist_01/02 (the game turns them by the hand's twist); 40 swing bones in 16 chains the game's springs move
+(swing_layout: the duster's skirt, the cape, the bandana's point, the back hair, the lantern), each chain ending in an
+unweighted <chain>_end; and `hat`, which the game tips back while aiming. Built facing -Y, exported turned to face -X:
++Y in Unreal, as the mannequin (face_like_mannequin).
 
     blender -b --factory-startup --python Art/Models/Characters/Ellis.py -- [--preview] [--glb <path>] [--no-bake]
     ... -- --rig-check      no bake: the swing bones at rest and bent, in clay, into Saved/Concepts/EllisSwing
@@ -520,6 +521,7 @@ CUFF_FLARE = (0.018, 0.015)   # how far the gauntlet's cuff flares from the wris
 GLOVE_CUFF = 0.06       # the glove runs this far up the forearm inside the gauntlet (m): the game mesh has no wrist
                         # under them, and between the glove's edge and the gauntlet's mouth you saw through him
 CUFF_ROOM = 0.004       # the gauntlet's room over the glove inside it (m): it gaped 1.5-2 cm front and back
+CUFF_LIP = 0.003        # the mouth's lip rolled out this much (m): cut square, a turned and bent hand met it in a sharp notch
 SLEEVE_END = 0.03       # the sleeve stops this far up the forearm, inside the gauntlet (m): at 1.2 cm its end showed in
                         # the gauntlet's mouth, the coat's colour at his wrist
 SLEEVE_TUCK = 0.012     # how close the sleeve's end lies on the forearm, gathered under the gauntlet (m; its clear of the body)
@@ -598,6 +600,7 @@ def build_gloves(fig, sleeves):
         fit = 1.0 / np.sqrt((np.cos(ang)[None] / axes[:, :1]) ** 2 + (np.sin(ang)[None] / axes[:, 1:]) ** 2)
         flare = np.outer(steps ** 1.3, CUFF_FLARE[0] * np.cos(ang) ** 2 + CUFF_FLARE[1] * np.sin(ang) ** 2)
         r = fit + CUFF_ROOM + flare
+        r[0] += CUFF_LIP                                        # a rolled lip: the glove meets it under its edge
         pc = gm.tube(path, np.ones((len(steps), 2)), n=len(ang), up=(0.0, -1.0, 0.0), shape=lambda i, _a: r[i])
         pc.verts = gm.clear(pc.verts, tree, 0.004, 0.06)
         cuff = gm.mesh(f'Gauntlet_{s}', pc, slot('Gloves'))
@@ -1128,15 +1131,97 @@ def bake_transform(ob):
     ob.matrix_world = Matrix.Identity(4)
 
 
-HAIR = dict(layers=((70, 0.003, 0.040, 0.0), (56, 0.008, 0.032, 0.05)), per=2, steps=10, locks=4)
-# the game's: twice the locks it had and narrower (6-7 cm wide, 44 of them, they read as flat dark slabs, 2026-10-15)
-HAIR_LOW = dict(layers=((46, 0.003, 0.048, 0.0), (34, 0.009, 0.042, 0.05)), per=1, steps=7, locks=3)
+# The hair in locks with body (the user, 2026-10-15: "Hair looks like ribbons": flat strips, thickened 1.2 mm, read as
+# paper fringes): each lock a closed tube, lens-shaped (rounder on its outer side), tapering to half its width and a
+# blunt end; from SPLIT down a clump parts from the side of each outer lock; the inner layer, whole and two sides fewer,
+# lies under the outer. The detailed hair (the bake's source) is the same locks finer, so the strands bake onto their
+# own lock. layers: (locks, lift off the scalp, width, how much lower it starts, splits); ring: the outer locks' sides
+# and their clumps' (the inner, two fewer)
+HAIR = dict(layers=((30, 0.003, 0.040, 0.0, False), (34, 0.010, 0.046, 0.05, True)), per=1, steps=12, locks=3,
+            ring=(10, 8))
+HAIR_LOW = dict(layers=((30, 0.003, 0.040, 0.0, False), (34, 0.010, 0.046, 0.05, True)), per=1, steps=6, locks=3,
+                ring=(6, 4))
+SPLIT = 0.5             # where down an outer lock its clump parts
+LOCK_DEPTH = 0.36       # a lock's thickness over its width (its outer side round, its inner flatter; at 0.55 dreadlocks)
 
 
-def build_hair(fig, under_obs, layers, per, steps, locks, name='Hair'):
-    """Collar-length dark hair falling from under the hat in clumps (the portrait's strands, EllisBlender.grow,
-    draped over the head, the collar and the cape), each clump per tapered locks of steps segments; locks over the
-    left brow. HAIR builds the detailed hair the game's is baked from; HAIR_LOW the game's (fewer, wider locks)."""
+def lock_frames(st, head_c):
+    """Along a lock's path: its tangent, sideways and outward (from the head) directions, the sideways one carried
+    along it (where a lock runs straight out from the head, the brow lock to the temple, the cross product vanished
+    and flipped, and the lock twisted into a hook)."""
+    tang = gm.unit(np.gradient(st, axis=0))
+    out0 = gm.unit(st - head_c)
+    side = np.cross(tang, out0)
+    for i in range(len(st)):
+        if np.linalg.norm(side[i]) < 0.3 and i > 0:
+            side[i] = side[i - 1]
+        side[i] = gm.unit(side[i])
+        if i > 0 and side[i] @ side[i - 1] < 0.0:
+            side[i] = -side[i]
+    out = gm.unit(np.cross(side, tang))
+    out = np.where(((out * out0).sum(1) < 0.0)[:, None], -out, out)
+    return tang, side, out
+
+
+def tube_piece(centres, side, out, width, depth, k, cap0=True, tip=None):
+    """A closed lens-section tube through centres (rows), width across side and depth along out (the inner half
+    flatter), k sides; capped at the root, and at tip ending in a thin flat edge (half as wide, a fifth as deep: a
+    cone there read as a sharpened pencil, the locks as dreadlocks)."""
+    if tip is not None:
+        centres, side, out = np.vstack([centres, tip]), np.vstack([side, side[-1:]]), np.vstack([out, out[-1:]])
+        width, depth = np.append(width, width[-1] * 0.55), np.append(depth, depth[-1] * 0.2)
+    phi = np.linspace(0.0, 2 * math.pi, k, endpoint=False)
+    c, s = np.cos(phi), np.sin(phi)
+    s = np.where(s > 0.0, s, s * 0.6)
+    R = (centres[:, None] + side[:, None] * (width[:, None, None] * 0.5 * c[None, :, None])
+         + out[:, None] * (depth[:, None, None] * 0.5 * s[None, :, None]))
+    # faces out: the columns' turn against the rows' run decides which way gm.grid faces them
+    probe = np.cross(R[1, 0] - R[0, 0], R[0, 1] - R[0, 0])
+    if probe @ (R[0, 0] - centres[0]) < 0.0:
+        R = R[:, ::-1]
+    piece = gm.grid(R[..., 0], R[..., 1], R[..., 2], wrap=True)
+    verts, faces, uv = list(piece.verts), piece.faces, piece.uv
+    ends = [(0, centres[0], True)] if cap0 else []
+    ends.append((len(R) - 1, centres[-1], False))
+    for row, point, first in ends:
+        ci = len(verts)
+        verts.append(point)
+        for j in range(k):
+            a_, b_ = row * k + j, row * k + (j + 1) % k
+            faces.append([b_, a_, ci] if first else [a_, b_, ci])
+            uv += [(0.0, 0.0), (0.004, 0.0), (0.002, -0.004)]
+    return gm.Piece(np.array(verts), faces, uv)
+
+
+def lock_piece(st, w, splits, ring, head_c, side_sign=1.0):
+    """One lock: a tube tapering to half its width and a blunt, rounded end; a splitting one also lets a clump part
+    from its side at SPLIT (side_sign which side), narrower, falling a little away, its end blunt too. (Two clumps out
+    of a capped lock showed the cap as a flat cut, and needle ends curled into claws.)"""
+    st = np.asarray(st)
+    n = len(st)
+    t = np.linspace(0.0, 1.0, n)
+    tang, side, out = lock_frames(st, head_c)
+    width = w * (1.0 - 0.5 * t ** 1.3) + 0.001
+    k = ring[0] if splits else max(4, ring[0] - 2)
+    piece = tube_piece(st[:-1], side[:-1], out[:-1], width[:-1], width[:-1] * LOCK_DEPTH, k,
+                       tip=st[-2] + (st[-1] - st[-2]) * 0.6)
+    if not splits:
+        return piece
+    i_s = max(1, int(round(SPLIT * (n - 1))))
+    u = (t[i_s:] - t[i_s]) / max(1.0 - t[i_s], 1e-6)
+    ws = width[i_s]
+    # the clump starts inside the lock's side and parts from it as it falls
+    cs = st[i_s:] + side[i_s:] * (side_sign * ws * (0.18 + 0.32 * u))[:, None] + out[i_s:] * (0.003 * u)[:, None]
+    wc = ws * 0.5 * (1.0 - 0.45 * u) + 0.001
+    return piece + tube_piece(cs[:-1], side[i_s:-1], out[i_s:-1], wc[:-1], wc[:-1] * 0.5, ring[1], cap0=False,
+                              tip=cs[-2] + (cs[-1] - cs[-2]) * 0.6)
+
+
+def build_hair(fig, under_obs, layers, per, steps, locks, ring, name='Hair'):
+    """Collar-length dark hair falling from under the hat in locks (the portrait's strands, EllisBlender.grow, draped
+    over the head, the collar and the cape): an inner layer of whole locks and an outer one parting into clumps
+    (lock_piece); locks over the left brow. HAIR builds the detailed hair the game's is baked from; HAIR_LOW the game's
+    (the same locks, coarser)."""
     tree = gm.bvh_objects(under_obs)
     rng = np.random.default_rng(7)
     hf = fig.hf
@@ -1147,9 +1232,9 @@ def build_hair(fig, under_obs, layers, per, steps, locks, name='Hair'):
     centre = np.array([0.0, band_y, cz])
     head_c = fig.head_point(np.array([0.0, band_y - 0.3, cz]))
     paths = []
-    # two layers of clumps round the head under the band, skipping the forehead: the inner close to the scalp, the
+    # two layers of locks round the head under the band, skipping the forehead: the inner close to the scalp, the
     # outer a little lower and looser, so no scalp shows between them
-    for layer, (count, lift, width, drop) in enumerate(layers):
+    for layer, (count, lift, width, drop, splits) in enumerate(layers):
         for c in range(count):
             # round the back from the left temple to the right one (0 is the face): the forehead stays bare
             deg = 46.0 + 268.0 * (c + rng.random() * 0.8) / count
@@ -1163,7 +1248,7 @@ def build_hair(fig, under_obs, layers, per, steps, locks, name='Hair'):
                 rr = base + rng.normal(size=3) * 0.006
                 st = eb.grow(tree, Vector(tuple(rr)), Vector((0, 0, -1)), L * (0.8 + 0.3 * rng.random()), steps, rng,
                              0.3 + 0.3 * rng.random(), lift + 0.003 + 0.005 * rng.random())
-                paths.append((st, width * (0.8 + 0.4 * rng.random())))
+                paths.append((st, width * (0.8 + 0.4 * rng.random()), splits))
     # the lock out from under the brim over the left brow, to the temple
     for k in range(locks):
         f = k * 4.0 / locks
@@ -1171,34 +1256,14 @@ def build_hair(fig, under_obs, layers, per, steps, locks, name='Hair'):
         root = fig.head_point(r)
         tip = fig.head_point(np.array([0.48 + 0.03 * f, band_y - 0.36 + 0.03 * f, hv[:, 2].max() - 0.02]))
         d = Vector(tuple(tip - root))
-        st = eb.grow(tree, Vector(tuple(root)), d.normalized(), d.length, min(6, steps), rng, 0.25, 0.004)
-        paths.append((st, 0.016 * 4.0 / locks ** 0.5 / 2.0))
+        st = eb.grow(tree, Vector(tuple(root)), d.normalized(), d.length, steps, rng, 0.25, 0.004)
+        paths.append((st, 0.016 * 4.0 / locks ** 0.5 / 2.0, True))
     piece = None
-    for st, w in paths:
-        st = np.asarray(st)
-        t = np.linspace(0, 1, len(st))
-        tang = gm.unit(np.gradient(st, axis=0))
-        # the lock's sideways direction carried along it: where a lock runs straight out from the head (the brow
-        # lock to the temple) the cross product with "out" vanishes and flipped, and the ribbon twisted into a hook
-        out0 = gm.unit(st - head_c)
-        side = np.cross(tang, out0)
-        for i in range(len(st)):
-            if np.linalg.norm(side[i]) < 0.3 and i > 0:
-                side[i] = side[i - 1]
-            side[i] = gm.unit(side[i])
-            if i > 0 and side[i] @ side[i - 1] < 0.0:
-                side[i] = -side[i]
-        out = gm.unit(np.cross(side, tang))
-        out = np.where(((out * out0).sum(1) < 0.0)[:, None], -out, out)
-        # tapering to a blunt clump's end (to a needle point the locks read as flat slabs with spikes, 2026-10-15)
-        width = w * (1.0 - 0.8 * t) ** 1.3 + 0.0008
-        # a lock, not a paper strip: its middle stands out from its edges, so it has a rounded back
-        mid = st + out * (width * 0.28)[:, None]
-        rows = np.stack([st - side * (width * 0.5)[:, None], mid, st + side * (width * 0.5)[:, None]], 1)
-        rib = gm.grid(rows[..., 0], rows[..., 1], rows[..., 2])
-        piece = rib if piece is None else piece + rib
+    for i, (st, w, splits) in enumerate(paths):
+        lock = lock_piece(st, w, splits, ring, head_c, 1.0 if i % 2 else -1.0)
+        piece = lock if piece is None else piece + lock
     ob = gm.mesh(name, piece, slot('Hair'))
-    log(f'{name}: {len(paths)} locks')
+    log(f'{name}: {len(paths)} locks, {sum(len(f) - 2 for f in piece.faces)} triangles')
     return ob
 
 
@@ -1365,7 +1430,8 @@ def build_lantern(fig, under_obs):
     top = p - up * 0.032
     c = top + n * 0.05 - np.array([0, 0, 0.19])
     # keep the lantern off the thigh, fount to cap (its middle alone left the fount 2.6 cm into the thigh, 2026-10-15):
-    # its 4.3 cm radius and 1.7 cm more
+    # its 4.3 cm radius and 3.3 cm more (with 1.7 cm a crouch's level thigh, under the hook it rides on, pressed 1.5 cm
+    # into it: the game's springs keep the lantern its rest distance off the thigh)
     for _ in range(10):
         worst = None
         for h in (0.0, 0.035, 0.07, 0.105, 0.14):
@@ -1375,9 +1441,9 @@ def build_lantern(fig, under_obs):
                 d = (q - hit[0]).dot(hit[1])
                 if worst is None or d < worst[0]:
                     worst = (d, np.array(hit[1]))
-        if worst is None or worst[0] > 0.059:
+        if worst is None or worst[0] > 0.075:
             break
-        c = c + worst[1] * (0.06 - worst[0])
+        c = c + worst[1] * (0.076 - worst[0])
         c[2] = top[2] - 0.19
     parts = []
     parts.append(lathe('LanternFount', [(0.0, 0.0), (0.040, 0.0), (0.043, 0.006), (0.043, 0.022), (0.036, 0.03)], c,
@@ -1474,7 +1540,7 @@ def preview(objects, path, views=(('front', 0.0), ('three', 35.0), ('side', 90.0
 SMART_UV = ('Eye_', 'Soles', 'HatCrown', 'HatBrim', 'HatBand', 'VestButton', 'Concho', 'SunPin', 'BandanaKnot',
             'Cartridges', 'Bullets', 'Buckle', 'Holster', 'HolsterLoop', 'Revolver', 'Lantern', 'Gauntlet')
 # Sheets given thickness after the bake (m); the inner side shares the outer side's UVs.
-THICK = {'Duster': 0.004, 'Cape': 0.004, 'Collar': 0.005, 'Bandana': 0.0015, 'Hair': 0.0012, 'Belt': 0.005,
+THICK = {'Duster': 0.004, 'Cape': 0.004, 'Collar': 0.005, 'Bandana': 0.0015, 'Belt': 0.005,
          'BeltLoops': 0.003, 'HolsterSkirt': 0.004, 'HatBrim': 0.0055, 'HatBand': 0.0015, 'Gauntlet_l': 0.003,
          'Gauntlet_r': 0.003, 'HolsterLoop': 0.002}
 # Hidden insides stay single-sided: the waistcoat, shirt and trousers under the coat, the sleeves inside the gauntlets,
@@ -1486,10 +1552,10 @@ THICK = {'Duster': 0.004, 'Cape': 0.004, 'Collar': 0.005, 'Bandana': 0.0015, 'Ha
 # the boots; small hard parts (gun, holster, lantern, pin) whole: reduced, they shredded. Its looks, folds and creases
 # are baked from the detailed parts (looter_bake, sources). The hair is built again with fewer locks (HAIR_LOW).
 LOW = {'Ellis': 0.30, 'Eye': 0.30, 'Trousers': 0.42, 'Boots': 0.18, 'Soles': 0.7, 'Vest': 0.40, 'Shirt': 0.4,
-       'VestButton': 0.6, 'Duster': 0.15, 'Sleeves': 0.45, 'Cape': 0.18, 'Collar': 0.55, 'SunPin': 1.0, 'Gloves': 0.36,
+       'VestButton': 0.35, 'Duster': 0.15, 'Sleeves': 0.45, 'Cape': 0.18, 'Collar': 0.55, 'SunPin': 1.0, 'Gloves': 0.36,
        'Gauntlet': 0.55, 'Concho': 1.0, 'HatCrown': 0.12, 'HatBrim': 0.20, 'HatBand': 0.4, 'Bandana': 0.20,
-       'BandanaKnot': 0.6, 'Belt': 0.45, 'BeltLoops': 0.4, 'Cartridges': 0.5, 'Bullets': 0.4, 'Buckle': 1.0,
-       'HolsterSkirt': 1.0, 'Holster': 1.0, 'HolsterLoop': 1.0, 'Revolver': 1.0, 'LanternWire': 0.6, 'Lantern': 1.0,
+       'BandanaKnot': 0.6, 'Belt': 0.45, 'BeltLoops': 0.4, 'Cartridges': 0.5, 'Bullets': 0.25, 'Buckle': 1.0,
+       'HolsterSkirt': 1.0, 'Holster': 1.0, 'HolsterLoop': 1.0, 'Revolver': 1.0, 'LanternWire': 0.4, 'Lantern': 1.0,
        'BeltHook': 1.0}
 # Cloth whose open edges (fronts, hems, the brim's rim) Decimate must not chew: a band this wide along them is spared
 EDGE_KEEP = {'Duster': 0.012, 'Cape': 0.012, 'Collar': 0.010, 'Bandana': 0.010, 'HatBrim': 0.010}
@@ -1704,6 +1770,9 @@ def thicken(objects):
             gm.solidify(ob, t, offset=0.0 if ob.name.startswith('HatBrim') else 1.0, rim=not ob.name.startswith('Hair'))
 
 
+HOLSTER_GUN = 0.6       # the holstered gun's share of the left thigh's turn (rigid; the pouch takes all of it)
+
+
 def rigid_w(fig, n, parts):
     return hu.blend(fig.names, n, parts)
 
@@ -1747,11 +1816,19 @@ def weights(fig, ob):
         return rigid_w(fig, n, {'pelvis': 1.0 - t, 'thigh_r': t})
     if name.startswith(('Belt', 'Cartridges', 'Bullets', 'Buckle')):
         return rigid_w(fig, n, {'pelvis': 0.85, 'spine_01': 0.15})
-    if name.startswith(('Holster', 'Revolver')):
-        # on the belt it rides the hips; down the pouch more and more the thigh it hangs against (rigid at 35 % thigh,
-        # a stride put the thigh 5 cm through it)
-        t = 0.3 + 0.55 * gm.smoothstep(0.96, 0.86, P[:, 2])
+    if name.startswith('HolsterSkirt'):
+        # the flap over the belt rides the hips; down along the pouch it goes with the pouch (below)
+        t = gm.smoothstep(0.95, 0.88, P[:, 2])
         return rigid_w(fig, n, {'pelvis': 1.0 - t, 'thigh_l': t})
+    if name.startswith('Revolver'):
+        # the gun whole, mostly with the pouch: on the thigh entirely a stride swung its grip (in front of the hip
+        # joint) 4.5 cm into his belly; with the hips, a crouch's thigh rose 5 cm into it
+        return rigid_w(fig, n, {'pelvis': 1.0 - HOLSTER_GUN, 'thigh_l': HOLSTER_GUN})
+    if name.startswith('Holster'):
+        # the pouch and its loops whole on the thigh they hang against, as a loop holster swings on its skirt (blended
+        # from the belt down the pouch, the thigh sank 3.6 cm into it crouching; at 35 % a stride put the thigh 5 cm
+        # through it)
+        return rigid_w(fig, n, {'thigh_l': 1.0})
     if name.startswith('Lantern'):
         return rigid_w(fig, n, {'pelvis': 0.6, 'thigh_r': 0.4})
     if name.startswith(('Gauntlet', 'Concho')):
@@ -1788,7 +1865,11 @@ def weights(fig, ob):
 # straight behind the knee, so a stride's back leg pushes it back (at 5/6, by the vent, it slid aside and the knee came
 # out through the coat once the coat reached the ankle, 2026-10-15); and skirt_bm down the middle of the back over the
 # vent, the panel between the back chains shared with it (without it the back shin came through between them):
-SKIRT_CHAINS = (('f', 1 / 6), ('s', 1 / 2), ('b', None))
+# skirt_bli and skirt_bri halfway between each back chain and skirt_bm (round 5: a full stride's back shin still came
+# through the panel between br and bm, 28 points). Names: skirt_<key's first letter><side><the rest>.
+SKIRT_CHAINS = (('f', 1 / 6), ('s', 1 / 2), ('b', None), ('bi', 'inner'))
+INNER_AT = 0.2          # the inner back chains' place from the back chain (0) to skirt_bm (1): near the back one the
+                        # stride's back shin carries them both (halfway 35 points through, a third 31, a fifth none)
 CAPE_CHAINS = (('f', 0.25), ('b', 0.75))
 SKIRT_TOP = 0.91         # the skirt's own weights start here (above, the duster's blend into the torso's), its chains below
 # The bib's chain hangs from the neck, not the head (the contract said head): on the head it swung 2 cm out through the
@@ -1864,11 +1945,14 @@ def swing_layout(fig, parts):
         edge = [front_edge(co, ed, fig.centre, z, side) for z in heights]
         behind = float(round_angle(np.array([sk[f'calf_{s}'][0][0], fig.centre[1] + 0.18]), fig.centre)[0])
         for key, u in SKIRT_CHAINS:
-            a = [side * (e + u * (math.pi - e)) for e in edge] if u is not None else [behind] * 4
+            if u == 'inner':
+                a = [behind + (side * math.pi - behind) * INNER_AT] * 4
+            else:
+                a = [side * (e + u * (math.pi - e)) for e in edge] if u is not None else [behind] * 4
             joints = [on_surface(tree, fig.centre, a[0], float(belt_height(a[0])))]
             joints += [on_surface(tree, fig.centre, a[k], heights[k]) for k in (1, 2)]
             joints.append(hem_point(co, fig.centre, a[3]))
-            chain(f'skirt_{key}{s}', 'pelvis', 'Duster', side, fig.centre, joints)
+            chain(f'skirt_{key[0]}{s}{key[1:]}', 'pelvis', 'Duster', side, fig.centre, joints)
     # down the middle of the back, over the vent (side 0: ring_weights hands each side's back chain over to it)
     joints = [on_surface(tree, fig.centre, math.pi, z) for z in (float(belt_height(math.pi)), mid_thigh, knee)]
     chain('skirt_bm', 'pelvis', 'Duster', 0, fig.centre, joints + [hem_point(co, fig.centre, math.pi)])
@@ -2122,17 +2206,22 @@ def add_twist_bones(arm):
     return names
 
 
+WRIST_BEND = (0.78, 1.25)   # down the forearm (its share) the hand's bend comes in over, round the wrist: taken
+                            # over the last tenth, the turned and bent hand creased the gauntlet's lip by the thumb
+
+
 def twist_weights(fig, ob, W, names):
     """The forearm's turn spread down it: on the sleeves, gauntlets, conchos and the glove's cuff each vertex's
-    lowerarm and hand weight shared over lowerarm, the twist bones and the hand by how far down the forearm it is (the
-    twist each takes: 0, 0.5, 0.9, 1), so a twist grows from the elbow to the wrist. Just past it (the hand's heel, the
-    gauntlet's lip) the forearm's share goes to the hand (the wrist's own blend there candy-wrapped the twisted glove);
-    the fingers keep theirs."""
+    lowerarm and hand weight shared by how far down the forearm it is: the hand's share coming in over WRIST_BEND (it
+    brings the bend), the rest over lowerarm and the twist bones (the twist each takes: 0, 0.5, 0.9), so a twist grows
+    from the elbow to the wrist and the bend eases in round it. Past the wrist (the hand's heel, the gauntlet's lip)
+    the forearm's share is the hand's (the wrist's own blend there candy-wrapped the twisted glove); the fingers keep
+    theirs."""
     if not ob.name.startswith(('Sleeves', 'Gauntlet', 'Concho', 'Gloves')):
         return W
     P = gm._object_coords(ob)
     col = {n: i for i, n in enumerate(names)}
-    knots = np.array([0.0] + [f for _, f in TWIST] + [1.0])
+    knots = np.array([0.0] + [f for _, f in TWIST])
     for s in 'lr':
         cols = [col[f'lowerarm_{s}']] + [col[f'{n}_{s}'] for n, _ in TWIST] + [col[f'hand_{s}']]
         total = W[:, cols[0]] + W[:, cols[-1]]
@@ -2140,8 +2229,10 @@ def twist_weights(fig, ob, W, names):
         sel = (total > 1e-4) & (t < 1.2)
         if not sel.any():
             continue
-        tt = np.clip(t[sel], 0.0, 1.0)
-        share = np.stack([np.interp(tt, knots, np.eye(len(knots))[k]) for k in range(len(knots))], 1)
+        hand = gm.smoothstep(WRIST_BEND[0], WRIST_BEND[1], t[sel])
+        tt = np.clip(t[sel], 0.0, knots[-1])
+        arm = np.stack([np.interp(tt, knots, np.eye(len(knots))[k]) for k in range(len(knots))], 1)
+        share = np.concatenate([arm * (1.0 - hand)[:, None], hand[:, None]], 1)
         W[np.ix_(np.nonzero(sel)[0], cols)] = total[sel, None] * share
     return soft_top4(W)
 
@@ -2342,7 +2433,8 @@ CHAIN_COLOURS = {'skirt_fl': (1.0, 0.45, 0.05), 'skirt_sl': (0.95, 0.85, 0.1), '
                  'skirt_fr': (0.1, 0.55, 1.0), 'skirt_sr': (0.1, 0.85, 0.75), 'skirt_br': (0.45, 0.25, 0.95),
                  'cape_fl': (1.0, 0.45, 0.05), 'cape_bl': (0.9, 0.15, 0.1), 'cape_fr': (0.1, 0.55, 1.0),
                  'cape_br': (0.45, 0.25, 0.95), 'bandana': (0.95, 0.85, 0.1), 'hair': (0.2, 0.9, 0.3),
-                 'lantern': (0.95, 0.85, 0.1), 'skirt_bm': (0.85, 0.85, 0.85)}
+                 'lantern': (0.95, 0.85, 0.1), 'skirt_bm': (0.85, 0.85, 0.85), 'skirt_bli': (0.75, 0.3, 0.4),
+                 'skirt_bri': (0.3, 0.4, 0.8)}
 
 
 def swing_markers(arm, chains):

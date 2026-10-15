@@ -45,6 +45,27 @@ struct FLooterCylinderReload
 };
 
 /**
+ * Standing still unarmed, the weary revenant's idle at one moment (LooterStancePose::DescribeIdle; the user's picks,
+ * 2026-10-15: "Weary revenant", with breathing, glances around and hand fidgets; the armed stance kept). Each a share or
+ * an angle; the stance layer turns them into bones (LooterStancePoseIdle.cpp).
+ */
+struct FLooterIdleStance
+{
+	/** Which leg takes his weight, -1 the left to 1 the right: he leans on one a while, then the other. */
+	float WeightShift = 0.f;
+	/** The breath, 0 out to 1 in. */
+	float Breath = 0.f;
+	/** A look off to the side and back (degrees: + to his right, + up). */
+	float GlanceYaw = 0.f;
+	float GlancePitch = 0.f;
+	/** Each hand's fingers flexing a little more (0-1). */
+	float FlexLeft = 0.f;
+	float FlexRight = 0.f;
+	/** The right thumb hooked in the gun belt (0 the arm hanging, 1 the hand on the belt). */
+	float ThumbHook = 0.f;
+};
+
+/**
  * The procedural stance pose, layered on whatever the Anim Blueprint's graph produced (ULooterCharacterAnimInstance
  * calls it from the animation thread). A free function on a plain pose so the tests can run it on the mannequin's
  * reference pose, bone by bone, without a world:
@@ -68,6 +89,9 @@ struct FLooterCylinderReload
  *  - a revolver's reload: no animation; the gun comes in, the left hand rides the cylinder out, punches the ejector rod,
  *    fetches a speedloader from the belt and pushes it in, and bats the cylinder home as the gun hand flicks
  *    (LooterStancePoseReload.cpp), on the gun's own reload steps (Weapons/ReloadMotion)
+ *  - standing still unarmed (Stance.IdleAlpha): the weary idle; shoulders a little forward, head a little low, his
+ *    weight shifting from leg to leg, breathing, now and then a glance aside, fingers flexing, the right thumb hooked in
+ *    the belt a while (LooterStancePoseIdle.cpp)
  */
 namespace LooterStancePose
 {
@@ -101,4 +125,11 @@ namespace LooterStancePose
 	 * Art/Models/Weapons/Drover.py's layout.
 	 */
 	FVector CylinderCenter(float SwingDegrees);
+
+	/**
+	 * The idle Time seconds in (its own clock, running on): the weight shift (about 9 s a side and back), the breath
+	 * (about 4 s), a glance in most 10-second spells, a finger flex now and then, the thumb in the belt a few seconds in
+	 * some 24-second spells. The same Time always gives the same idle (spells drawn from a hash of their number).
+	 */
+	FLooterIdleStance DescribeIdle(float Time);
 }

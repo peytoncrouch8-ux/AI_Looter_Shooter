@@ -17,9 +17,19 @@
 #include "BonePose.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PawnMovementComponent.h"
 #include "UObject/UnrealType.h"
 
 using namespace LooterStancePoseDetail;
+
+namespace
+{
+	/** Slower than this (cm/s) he's standing still (the idle eases in). */
+	constexpr float IdleMaxSpeed = 10.f;
+	/** The weary idle easing in once he's still, and out as he moves (s). */
+	constexpr float IdleEaseInSeconds = 1.2f;
+	constexpr float IdleEaseOutSeconds = 0.25f;
+}
 
 // ---------------------------------------------------------------------------
 // Game thread
@@ -65,6 +75,16 @@ void ULooterCharacterAnimInstance::RefreshStanceInput(float DeltaSeconds)
 		StanceInput.Forward = Forward.IsNearlyZero() ? FVector::YAxisVector : Forward;
 	}
 	RefreshClimbInput();
+
+	// Standing still unarmed, the weary idle eases in (over about a second), and out the moment he moves, crouches, jumps
+	// or draws. Its clock runs on, so it picks up wherever its spells are.
+	const UPawnMovementComponent* Movement = Pawn ? Pawn->GetMovementComponent() : nullptr;
+	const bool bStill = Pawn && !bHoldsWeapon && Pawn->GetVelocity().Size2D() < IdleMaxSpeed && CrouchAlpha < 0.05f
+		&& SprintAlpha < 0.05f && SlideAlpha < 0.05f && !StanceInput.Climb.IsActive() && !(Movement && Movement->IsFalling());
+	IdleAlpha = FMath::FInterpConstantTo(IdleAlpha, bStill ? 1.f : 0.f, DeltaSeconds, bStill ? 1.f / IdleEaseInSeconds : 1.f / IdleEaseOutSeconds);
+	IdleTime += DeltaSeconds;
+	StanceInput.IdleAlpha = FMath::SmoothStep(0.f, 1.f, IdleAlpha);
+	StanceInput.IdleTime = IdleTime;
 
 	// Armed: aim the torso with the view and put the left hand on the gun actually held.
 	if (!WeaponManager.IsValid() && Pawn)

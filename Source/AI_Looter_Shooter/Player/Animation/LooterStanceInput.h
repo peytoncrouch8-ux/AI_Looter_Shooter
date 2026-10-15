@@ -78,6 +78,10 @@ struct FLooterStanceInput
 	 */
 	float CylinderReload = -1.f;
 
+	/** Standing still unarmed: how far into the weary idle (eased, 0-1), and the idle's own clock (LooterStancePose::DescribeIdle). */
+	float IdleAlpha = 0.f;
+	float IdleTime = 0.f;
+
 	/** Upper-body pose held over the locomotion (armed): the animation and where in its loop we are. */
 	const UAnimSequenceBase* UpperBodyPose = nullptr;
 	float UpperBodyTime = 0.f;
@@ -94,6 +98,6 @@ struct FLooterStanceInput
 	{
 		return CrouchAlpha > UE_KINDA_SMALL_NUMBER || SprintAlpha > UE_KINDA_SMALL_NUMBER || SlideAlpha > UE_KINDA_SMALL_NUMBER
 			|| Climb.IsActive() || bAimWithTorso || bHandOnForegrip || ReloadWeight > UE_KINDA_SMALL_NUMBER || UpperBodyPose
-			|| !FMath::IsNearlyZero(MeleeJab) || ThrowTime > 0.f;
+			|| !FMath::IsNearlyZero(MeleeJab) || ThrowTime > 0.f || IdleAlpha > UE_KINDA_SMALL_NUMBER;
 	}
 };
