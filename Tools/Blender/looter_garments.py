@@ -363,3 +363,111 @@ def solidify(ob, thickness, offset=1.0, rim=True):
     m.use_even_offset = False
     m.use_quality_normals = False
     apply_modifiers(ob)
+
+
+# --------------------------------------------------------------------------------------------- cloth simulation
+
+def _object_coords(ob):
+    co = np.empty(len(ob.data.vertices) * 3, dtype=np.float64)
+    ob.data.vertices.foreach_get('co', co)
+    return co.reshape(-1, 3)
+
+
+def simulate(objects, pins, colliders, cache_file, frames=80, stiff=(30.0, 30.0, 12.0, 6.0), mass=0.35,
+             self_collision=True, note=''):
+    """Lets cloth settle: the objects (meshes in world space, untransformed) become one cloth, pinned by pins (one
+    weight array per object: 1 holds a vertex where it is, 0 lets it fall), falling onto the colliders (Blender's
+    collision). Each object's vertices are moved to where the cloth came to rest.
+
+    The result is kept in cache_file (JSON beside the model) under a digest of everything it depends on (the starting
+    cloth, the pins, the colliders, the settings), so an export runs the simulation only when one of them changed.
+    Returns True if it simulated."""
+    import hashlib
+    import json
+    import os
+    settings = (frames, tuple(stiff), mass, self_collision)
+    h = hashlib.sha1(repr(settings).encode())
+    starts = [_object_coords(o) for o in objects]
+    for co, w in zip(starts, pins):
+        h.update(np.round(co, 4).tobytes())
+        h.update(np.round(np.asarray(w, dtype=np.float64), 3).tobytes())
+    for c in colliders:
+        h.update(np.round(object_points(c), 4).tobytes())
+    key = h.hexdigest()[:16]
+    if os.path.exists(cache_file):
+        with open(cache_file, encoding='utf-8') as f:
+            data = json.load(f)
+        if data.get('digest') == key and [len(s) for s in starts] == [len(p) for p in data['objects']]:
+            for ob, pts in zip(objects, data['objects']):
+                ob.data.vertices.foreach_set('co', np.asarray(pts, dtype=np.float32).ravel())
+                ob.data.update()
+            return False
+    # one cloth of all the objects, so they collide with each other through self-collision
+    bm = bmesh.new()
+    offsets = []
+    for ob in objects:
+        offsets.append(len(bm.verts))
+        tmp = bmesh.new()
+        tmp.from_mesh(ob.data)
+        me = bpy.data.meshes.new('_tmp')
+        tmp.to_mesh(me)
+        tmp.free()
+        bm.from_mesh(me)
+        bpy.data.meshes.remove(me)
+    mesh = bpy.data.meshes.new('_cloth')
+    bm.to_mesh(mesh)
+    bm.free()
+    cloth_ob = bpy.data.objects.new('_cloth', mesh)
+    bpy.context.scene.collection.objects.link(cloth_ob)
+    group = cloth_ob.vertex_groups.new(name='pin')
+    for off, w in zip(offsets, pins):
+        w = np.asarray(w, dtype=np.float64)
+        for i in np.nonzero(w > 1e-3)[0]:
+            group.add([int(off + i)], float(min(w[i], 1.0)), 'REPLACE')
+    for c in colliders:
+        m = c.modifiers.new('Collision', 'COLLISION')
+        c.collision.thickness_outer = 0.006
+        c.collision.thickness_inner = 0.01
+        c.collision.cloth_friction = 6.0
+        c.collision.damping = 0.2
+    cm = cloth_ob.modifiers.new('Cloth', 'CLOTH')
+    st = cm.settings
+    st.quality, st.mass, st.air_damping = 7, mass, 2.0
+    st.tension_stiffness, st.compression_stiffness, st.shear_stiffness, st.bending_stiffness = stiff
+    st.tension_damping = st.compression_damping = st.shear_damping = 6.0
+    st.bending_damping = 1.0
+    st.vertex_group_mass = 'pin'
+    st.pin_stiffness = 1.0
+    cs = cm.collision_settings
+    cs.use_collision, cs.distance_min, cs.collision_quality = True, 0.006, 4
+    cs.use_self_collision, cs.self_distance_min, cs.self_friction = self_collision, 0.005, 5.0
+    cm.point_cache.frame_start, cm.point_cache.frame_end = 1, frames
+    scene = bpy.context.scene
+    scene.frame_start, scene.frame_end = 1, frames
+    for f in range(1, frames + 1):
+        scene.frame_set(f)
+    dg = bpy.context.evaluated_depsgraph_get()
+    ev = cloth_ob.evaluated_get(dg)
+    settled = ev.to_mesh()
+    co = np.empty(len(settled.vertices) * 3, dtype=np.float64)
+    settled.vertices.foreach_get('co', co)
+    co = co.reshape(-1, 3)
+    ev.to_mesh_clear()
+    scene.frame_set(1)
+    bpy.data.objects.remove(cloth_ob)
+    bpy.data.meshes.remove(mesh)
+    for c in colliders:
+        for m in list(c.modifiers):
+            if m.type == 'COLLISION':
+                c.modifiers.remove(m)
+    out = []
+    for ob, off, s in zip(objects, offsets, starts):
+        pts = co[off:off + len(s)]
+        ob.data.vertices.foreach_set('co', pts.astype(np.float32).ravel())
+        ob.data.update()
+        out.append(np.round(pts, 5).tolist())
+    with open(cache_file, 'w', encoding='utf-8', newline='\n') as f:
+        json.dump({'about': note or 'A cloth simulation\'s settled points, kept so exports do not run it again.',
+                   'digest': key, 'objects': out}, f, separators=(',', ':'))
+        f.write('\n')
+    return True

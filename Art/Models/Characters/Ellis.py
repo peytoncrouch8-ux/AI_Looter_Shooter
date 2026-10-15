@@ -50,6 +50,10 @@ HEM = 0.36               # the duster's hem (m above the ground): just below mid
 BOOT_TOP = 0.49          # the stovepipe boots' tops
 WAIST = 1.02             # the trousers' and the waistcoat's waistline
 FWD = np.array([0.0, -1.0])
+SIM = '--no-sim' not in ARGS        # the duster and cape settle by cloth simulation (cached in Ellis.drape.json)
+DRAPE_FILE = os.path.join(HERE, 'Ellis.drape.json')
+SIDE_SEAM = 1.83                     # the duster's side seams, radians round from the front (about 105 degrees)
+VENT_TOP = 0.80
 
 
 def log(message):
@@ -120,6 +124,7 @@ class Figure:
 # ------------------------------------------------------------------------------------------------------------ looks
 
 SLOTS = {}
+HAT = {}                             # the hat band's height, for the felt's sweat stain
 
 
 def slot(key):
@@ -135,15 +140,16 @@ LOOKS = {
     'Skin': lambda n: lk.skin(n, OPT['skin']),
     'Scalp': lambda n: lk.scalp(n, (0.07, 0.06, 0.055)),
     'EyeGlow': lambda n: lk.glow(n, OPT['glow'], 6.0),
-    'Felt': lambda n: lk.felt(n, (0.11, 0.095, 0.085), (0.30, 0.255, 0.21)),
+    'Felt': lambda n: lk.felt(n, (0.11, 0.095, 0.085), (0.30, 0.255, 0.21), band_z=HAT.get('band_z')),
     'HatBand': lambda n: lk.leather(n, (0.14, 0.08, 0.05), dust_amt=0.2, dust_height=0.001),
     'Hair': lambda n: lk.hair(n, (0.035, 0.028, 0.025), (0.13, 0.10, 0.085)),
     'Bandana': lambda n: lk.bandana(n, (0.52, 0.06, 0.05), (0.66, 0.17, 0.12)),
     'Duster': lambda n: lk.oilskin(n, OPT['coat']['cloth'][0], OPT['coat']['cloth'][1], hem=HEM),
     'Vest': lambda n: lk.brocade(n, (0.045, 0.045, 0.05), (0.12, 0.115, 0.115)),
-    'Shirt': lambda n: lk.linen(n, (0.66, 0.64, 0.58)),
+    'Shirt': lambda n: lk.linen(n, (0.42, 0.46, 0.50)),
     'Trousers': lambda n: lk.wool(n, (0.19, 0.18, 0.19)),
-    'Boots': lambda n: lk.leather(n, (0.20, 0.12, 0.075), grain=900.0, dust_amt=0.75, dust_height=0.24),
+    'Boots': lambda n: lk.leather(n, (0.20, 0.12, 0.075), grain=900.0, dust_amt=0.75, dust_height=0.24, mud=0.8,
+                                  boot=(-0.205, 0.0215)),
     'Soles': lambda n: lk.stacked(n, (0.12, 0.08, 0.055)),
     'Gloves': lambda n: lk.leather(n, (0.60, 0.44, 0.29), grain=1100.0, dust_amt=0.25, dust_height=0.001,
                                    scuff=(0.68, 0.53, 0.38), rough=(0.5, 0.75)),
@@ -216,6 +222,19 @@ def build_trousers(fig):
     inside = gm.smoothstep(BOOT_TOP + 0.01, BOOT_TOP - 0.02, z)    # tucked in: tighter than the boot's shaft
     off = (0.009 + 0.010 * loose + 0.007 * blouse) * (1.0 - inside) + 0.010 * inside
     piece, used = gm.shell(fig.wv, fig.faces, fig.fuv, fig.face_mask(keep), off, iters=14)
+    # creases: bunched rings behind the knee and above the boot tops, a few drag lines down from the seat
+    v = piece.verts
+    nrm = gm.vertex_normals(v, piece.faces)
+    for s_ in 'lr':
+        knee = fig.sk[f'calf_{s_}'][0]
+        side = (v[:, 0] * knee[0]) > 0
+        dz = v[:, 2] - knee[2]
+        behind = gm.smoothstep(knee[1] - 0.02, knee[1] + 0.05, v[:, 1])
+        ring = np.sin(dz * 160.0 + v[:, 0] * 40.0) * np.exp(-(dz / 0.06) ** 2) * (0.35 + 0.65 * behind)
+        tuck = np.sin(v[:, 2] * 210.0 + np.arctan2(v[:, 1] - knee[1], v[:, 0] - knee[0]) * 3.0) * \
+            gm.smoothstep(BOOT_TOP + 0.13, BOOT_TOP + 0.03, v[:, 2]) * gm.smoothstep(BOOT_TOP - 0.01, BOOT_TOP + 0.03, v[:, 2])
+        v[side] += nrm[side] * (0.004 * ring[side] + 0.004 * tuck[side])[:, None]
+    piece.verts = v
     ob = gm.mesh('Trousers', piece, slot('Trousers'))
     return ob
 
@@ -321,6 +340,15 @@ def build_boots(fig):
                 faces.append([a_, b_, cidx] if row == 0 else [b_, a_, cidx])
                 uv += [(0.0, 0.0), (0.01, 0.0), (0.005, 0.01)]
         soles.append(gm.Piece(np.array(verts), faces, uv))
+    # creases across the instep and round the ankle where the leather folds as the foot bends
+    nrm = gm.vertex_normals(v, piece.faces)
+    for s_ in 'lr':
+        ankle = fig.sk[f'foot_{s_}'][0]
+        side = (v[:, 0] * ankle[0]) > 0
+        front = gm.smoothstep(ankle[1] + 0.01, ankle[1] - 0.04, v[:, 1])
+        band = gm.smoothstep(0.06, 0.09, v[:, 2]) * gm.smoothstep(0.20, 0.14, v[:, 2])
+        crease = -np.abs(np.sin((v[:, 2] - 0.08) * 150.0 + v[:, 0] * 30.0)) ** 3
+        v[side] += nrm[side] * (0.003 * crease * band * (0.4 + 0.6 * front))[side][:, None]
     piece.verts = v
     # the shaft's top: level, dipping 3 cm at the front and back (stovepipes)
     edge = gm.boundary(piece.faces, len(v))
@@ -442,8 +470,8 @@ def build_sleeves(fig, under):
         d = gm.unit(w - el)
         t = (v - el) @ d
         ring = np.cos(t / 0.055 * 2 * math.pi + 0.8 * np.sin(np.arctan2(v[:, 2] - el[2], v[:, 1] - el[1]) * 2)) * 0.5 + 0.5
-        bunch = gm.smoothstep(0.12, 0.2, t) * 0.006 * ring
-        crook = np.exp(-(t / 0.05) ** 2) * 0.004 * np.sin(t * 90)
+        bunch = gm.smoothstep(0.10, 0.2, t) * 0.010 * ring ** 2
+        crook = np.exp(-(t / 0.06) ** 2) * 0.007 * np.sin(t * 90)
         v[side] += nrm[side] * (bunch[side] + crook[side])[:, None]
     piece.verts = v
     tree = gm.bvh_objects(under)
@@ -469,14 +497,16 @@ def build_duster(fig, under_pts, clear_obs=()):
     n_z, n_t = 46, 104
     fine = np.linspace(-math.pi, math.pi, 720, endpoint=False)
     hip = 0.95
-    flare = lambda th, v: 0.07 * gm.smoothstep(0.42, 1.0, v) ** 1.3 * (0.55 + 0.45 * np.abs(np.sin(th)))
+    # simulated, the skirt starts fuller than it hangs: the spare cloth is what falls into folds
+    flare_amt = 0.13 if SIM else 0.07
+    flare = lambda th, v: flare_amt * gm.smoothstep(0.42, 1.0, v) ** 1.3 * (0.55 + 0.45 * np.abs(np.sin(th)))
     X, Y, Z, R = gm.drape(under_pts, fig.centre, FWD, fine, lambda th: top, lambda th: HEM, n_z, 0.016,
                           hb=math.radians(7.0), zb=0.01, smooth=(10, 3), wrap=True, flare=flare)
     zs = Z[:, 0]
     # columns per row from the left front edge round the back to the right front edge, one extra at the back for the
     # vent's two edges
     rows = []
-    vent_top = 0.80
+    vent_top = VENT_TOP
     ph = rng.random(8) * 6.28
     for j, z in enumerate(zs):
         r_front = np.interp(0.0, fine, R[j], period=2 * math.pi)
@@ -490,7 +520,7 @@ def build_duster(fig, under_pts, clear_obs=()):
         v = (top - z) / (top - HEM)
         below = gm.smoothstep(hip + 0.05, HEM, z)
         # broad, irregular folds (frequencies that never line up), deepening toward the hem
-        fold = 0.026 * below ** 1.3 * (0.45 * np.sin(th * 4.0 + ph[0] + 0.7 * np.sin(v * 2.0 + ph[1]))
+        fold = (0.010 if SIM else 0.026) * below ** 1.3 * (0.45 * np.sin(th * 4.0 + ph[0] + 0.7 * np.sin(v * 2.0 + ph[1]))
                                        + 0.35 * np.sin(th * 7.3 + ph[2] + 0.9 * np.sin(v * 2.6 + ph[3]))
                                        + 0.20 * np.sin(th * 12.7 + ph[4] + v * 1.5))
         fold += 0.005 * gm.smoothstep(1.2, 1.0, z) * gm.smoothstep(0.8, 1.0, z) * np.sin(th * 9.1 + ph[5])
@@ -527,7 +557,51 @@ def build_duster(fig, under_pts, clear_obs=()):
     bmesh.ops.remove_doubles(bm, verts=[v for p in pairs for v in p], dist=1e-5)
     bm.to_mesh(ob.data)
     bm.free()
+    # the sewn seams: up the middle of the back above the vent, and down each side
+    co = gm._object_coords(ob)
+    rel = co[:, :2] - fig.centre
+    f, l = gm.frame2d(FWD)
+    ang = np.arctan2(rel @ l, rel @ f)
+    rad = np.linalg.norm(rel, axis=1)
+    wrap = lambda a: np.abs((a + math.pi) % (2 * math.pi) - math.pi)
+    back = np.where(co[:, 2] > vent_top - 0.01, wrap(ang - math.pi) * rad, 1.0)
+    sides = np.minimum(wrap(ang - SIDE_SEAM), wrap(ang + SIDE_SEAM)) * rad
+    set_seams(ob, np.minimum(back, sides))
     return ob
+
+
+def set_seams(ob, seam_dist=None):
+    """The 'Seams' colour attribute the looks sew from (looter_looks.construction): R how close each vertex is to
+    an open edge, G to a sewn seam (seam_dist, metres per vertex), both 1 there and 0 from 10 cm."""
+    from mathutils import kdtree
+    me = ob.data
+    co = gm._object_coords(ob)
+    count = {}
+    for p in me.polygons:
+        vs = list(p.vertices)
+        for k in range(len(vs)):
+            key = (min(vs[k], vs[(k + 1) % len(vs)]), max(vs[k], vs[(k + 1) % len(vs)]))
+            count[key] = count.get(key, 0) + 1
+    rim = sorted({v for key, c in count.items() if c == 1 for v in key})
+    d_edge = np.full(len(co), 1.0)
+    if rim:
+        # the edge as a dense chain of points, so the distance is to the edge itself, not its vertices
+        pts = []
+        for (a, b), c in count.items():
+            if c == 1:
+                for t in np.linspace(0.0, 1.0, 6):
+                    pts.append(co[a] * (1 - t) + co[b] * t)
+        tree = kdtree.KDTree(len(pts))
+        for i, q in enumerate(pts):
+            tree.insert(q, i)
+        tree.balance()
+        d_edge = np.array([tree.find(q)[2] for q in co])
+    col = np.ones((len(co), 4), dtype=np.float32)
+    col[:, 0] = 1.0 - np.clip(d_edge / 0.1, 0.0, 1.0)
+    col[:, 1] = 0.0 if seam_dist is None else 1.0 - np.clip(np.asarray(seam_dist) / 0.1, 0.0, 1.0)
+    col[:, 2] = 0.0
+    attr = me.color_attributes.get('Seams') or me.color_attributes.new('Seams', 'FLOAT_COLOR', 'POINT')
+    attr.data.foreach_set('color', col.ravel())
 
 
 def build_cape(fig, under_pts):
@@ -586,12 +660,14 @@ def build_hat(fig):
     parts = eb.build_hat(fig.b.h, fig.hf, OPT)
     for ob in parts:
         for m in list(ob.modifiers):
-            if m.type == 'SUBSURF':
+            if m.type in ('SUBSURF', 'SOLIDIFY'):
                 ob.modifiers.remove(m)
         fig.to_portrait(ob)
-        gm.apply_modifiers(ob, keep=())
         ob.data.transform(ob.matrix_world)
         ob.matrix_world = Matrix.Identity(4)
+    band = next(o for o in parts if o.name.startswith('HatBand'))
+    HAT['band_z'] = float(gm._object_coords(band)[:, 2].min())
+    for ob in parts:
         ob.data.materials.clear()
         ob.data.materials.append(slot('HatBand' if ob.name.startswith('HatBand') else 'Felt'))
         uv_cylinder(ob)
@@ -636,10 +712,11 @@ def build_bandana(fig, under_obs):
         return bridge - 0.055 - (a - span) / (math.pi - span) * 0.05
 
     def bot(t):
+        # a triangle's point down the chest, the sides wrapping the jaw and neck under the collar
         a = abs(t)
         if a < span:
-            return top(t) - (0.27 - 0.14 * (a / span) ** 1.3) * s
-        return top(t) - (0.11 - 0.07 * min(1.0, (a - span) / 0.5)) * s
+            return top(t) - (0.095 + 0.165 * max(0.0, 1.0 - a / 0.8) ** 1.25) * s
+        return top(t) - (0.095 - 0.055 * min(1.0, (a - span) / 0.5)) * s
 
     X, Y, Z, R = gm.drape(pts, centre, FWD, th, top, bot, 26, 0.004, hb=math.radians(3.0), zb=0.008, smooth=(2, 2), wrap=True)
     n_z = Z.shape[0]
@@ -702,7 +779,7 @@ def build_hair(fig, under_obs):
             if abs(math.degrees(ang)) < 46:
                 continue
             back = min(1.0, abs(math.degrees(ang)) / 150.0)
-            L = (0.11 + 0.09 * back ** 1.5) * s * (0.85 + 0.3 * rng.random()) - drop * 0.1
+            L = (0.10 + 0.04 * back ** 1.5) * s * (0.85 + 0.3 * rng.random()) - drop * 0.1
             r = centre + np.array([math.sin(ang) * 0.7, rng.normal() * 0.03 - drop, math.cos(ang) * 0.9])
             hit = tree.find_nearest(Vector(tuple(fig.head_point(r))))
             base = np.array(hit[0]) + np.array(hit[1]) * lift
@@ -727,7 +804,10 @@ def build_hair(fig, under_obs):
         out = gm.unit(st - head_c)
         side = gm.unit(np.cross(tang, out))
         width = w * (1.0 - t) ** 0.6 + 0.002
-        rib = gm.strip(st, side, width, out)
+        # a lock, not a paper strip: its middle stands out from its edges, so it has a rounded back
+        mid = st + out * (width * 0.28)[:, None]
+        rows = np.stack([st - side * (width * 0.5)[:, None], mid, st + side * (width * 0.5)[:, None]], 1)
+        rib = gm.grid(rows[..., 0], rows[..., 1], rows[..., 2])
         piece = rib if piece is None else piece + rib
     ob = gm.mesh('Hair', piece, slot('Hair'))
     log(f'hair: {len(paths)} ribbons')
@@ -1291,6 +1371,20 @@ def export_glb(skin, arm, path, lantern, posed=True):
     log(f'wrote {path} ({os.path.getsize(path) / 1e6:.1f} MB)')
 
 
+def settle(fig, duster, cape, colliders):
+    """The duster's skirt and the cape fall into their folds: Blender's cloth over the body, the trousers, belt,
+    holster and lantern, the coat held above the hips and the cape round the collar (looter_garments.simulate, kept
+    in Ellis.drape.json)."""
+    zd = gm._object_coords(duster)[:, 2]
+    zc = gm._object_coords(cape)[:, 2]
+    pins = [gm.smoothstep(0.92, 1.08, zd), gm.smoothstep(fig.shoulder_z - 0.05, fig.neck[2] - 0.02, zc)]
+    t0 = time.time()
+    ran = gm.simulate([duster, cape], pins, colliders, DRAPE_FILE, frames=80, stiff=(40.0, 40.0, 15.0, 4.0), mass=0.3,
+                      note='The settled duster and cape of Ellis (Art/Models/Characters/Ellis.py writes it: the cloth '
+                           'simulation\'s result for the digest of its inputs).')
+    log(f'cloth: {"simulated" if ran else "kept from Ellis.drape.json"} ({time.time() - t0:.0f} s)')
+
+
 def fetch_makehuman():
     """MakeHuman's base mesh is not in git (an .obj would go to LFS): fetch it on a fresh clone."""
     if not os.path.exists(os.path.join(mh.DATA, '3dobjs', 'base.obj')):
@@ -1321,6 +1415,11 @@ def main():
     log('duster, sleeves')
     cape_pts = np.concatenate([under[under[:, 2] > fig.shoulder_z - 0.25], gm.object_points(duster), gm.object_points(sleeves)])
     cape, top_r = build_cape(fig, cape_pts)
+    holster = build_holster(fig, [trousers])
+    lantern = build_lantern(fig, [trousers])
+    log('belt, holster, lantern')
+    if SIM:
+        settle(fig, duster, cape, [body_ob, trousers, vest, sleeves] + boots + belt + holster + lantern)
     collar, pin = build_collar(fig, top_r)
     gloves = build_gloves(fig, sleeves)
     log('cape, collar, gloves')
@@ -1328,9 +1427,9 @@ def main():
     bandana = build_bandana(fig, [skin, vest, shirt])
     hair = build_hair(fig, [skin, collar, cape, bandana[0]])
     log('hat, bandana, hair')
-    holster = build_holster(fig, [trousers])
-    lantern = build_lantern(fig, [trousers, duster])
-    log('belt, holster, lantern')
+    for ob in [cape, collar, bandana[0], vest, shirt] + belt[:2] + holster[:1] + hat[2:] + boots[:1] + \
+            [g for g in gloves if g.name.startswith('Gauntlet')]:
+        set_seams(ob)
     bpy.data.objects.remove(body_ob)
     out = os.path.join(REPO, 'Saved', 'ArtPreviews', 'Characters', 'Ellis')
     os.makedirs(out, exist_ok=True)
