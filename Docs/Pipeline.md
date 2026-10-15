@@ -738,8 +738,16 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
   point under the component's origin + 2 cm (the mannequin's root stays on the ground, crouched too); a point under it
   swings up about the one above onto it, keeping its lean (`KeepAbove`), so a crouch lays the hem on the ground (it sank
   ~11 cm); a grounded point rests (no speed: kept, it flipped a gathered hem over its head). Hand and forearm limbs: at
-  idle the hands sank 2.5 cm into the coat's sides. Checked in PIE 2026-10-15: back standing, walking, sprinting;
-  crouched front and back (drapes round the knees). `play.py press Crouch` toggles crouch (the game's setting). Measured
+  idle the hands sank 2.5 cm into the coat's sides; the boots' feet (foot to ball, 8 cm): the hem went through a toe.
+  The ring (`BodySwingRing.cpp`; the user, 2026-10-15: "cape still clips through the boots and shins"): the cloth
+  between neighbouring skirt chains (fl-sl-bl-bm-br-sr-fr; the open front not joined) keeps off the limbs too, at the
+  midpoint of each level's two points and the middle of the patch down to them (rest distance x 0.95, capped), on the
+  shown points only: the push is level, shared by nearness (the nearer point takes more; both taking all of it folded a
+  corner another push had already moved right over), at most 12 cm a point. Audit: the stride's shin through the coat
+  34 -> 28 points (what's left: the inner back of the right shin between bm and br with the leg far back). Checked in
+  PIE 2026-10-15: back standing, walking, sprinting; crouched front and back (drapes round the knees).
+  `play.py press Crouch` toggles crouch (the game's setting); `Looter.ThirdPerson.FrontYaw <deg>` turns the front view
+  round him (90 his left side, 270 his right) for inspection. Measured
   in Ellis.py's audit (its copy in step, round4b -> round4c): square to both bone and limb the push went sideways when
   they shared a plane (the stride's back panel slid round the shin's side), so it goes the chain's way out of the body
   (`Outward`), square to the limb and the bone; the extrapolated last tip let the hem 11 cm past it through the ground,
@@ -756,6 +764,12 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
 - The cape hangs from spine_05 through its chains, so it kept the arms-out shape it was modelled over (wings in front):
   its corners' targets also ride the upper arms (front 60%, back 40%: `CapeFollowFront/Back`), so it drapes as the arms
   hang and lifts as a gun comes up.
+- The forearms (the user, 2026-10-15: "His wrists are either invisible or don't match the gloves"): the retarget rolls
+  his hand about the forearm (left about 100 degrees onto a foregrip or the revolver, right about 32; the bend only
+  10-20) and nothing rolled the forearm, so the gauntlet stayed put while the glove turned and the wrist tore open (no
+  wrist geometry under them). `FBodyForearmTwist` turns each `lowerarm_twist*` bone under a lowerarm by its place down
+  the forearm (0 elbow, 1 wrist) times the hand's twist from rest (swing-twist about the forearm axis), before the swing.
+  Ellis.py: twist bones and weights spread along the forearm, the glove's cuff run up into the gauntlet.
 - The hat (the user, 2026-10-15: in third-person aiming the brim covered the scope; also the brim 12% smaller in Ellis.py):
   `FBodyHatTip` turns the `hat` bone brim-up about the head's left-right axis as a sight comes up (UPlayerViewComponent's
   aim alpha, eased; 18 degrees at full aim), about the back of the band.

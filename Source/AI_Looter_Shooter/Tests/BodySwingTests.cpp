@@ -2,6 +2,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Player/Animation/BodyForearmTwist.h"
 #include "Player/Animation/BodyHatTip.h"
 #include "Player/Animation/BodySwing.h"
 #include "Engine/SkeletalMesh.h"
@@ -196,6 +197,19 @@ bool FBodySwingBoneTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("Shin %.0f cm in: the cloth goes out round its back (x %.1f, y %.1f)"), Inside, Sim.Points[1].X, Sim.Points[1].Y),
 			Sim.Points[1].X > 0.0 && FMath::Abs(Sim.Points[1].Y) < 1.0);
 	}
+
+	// A place on the cloth between two chains (the ring): pushed straight off a limb it's near, out the body's side of
+	// one that has come through it, left alone when clear.
+	FBodySwingCapsule Shin;
+	Shin.A = FVector(0.0, -30.0, 50.0);
+	Shin.B = FVector(0.0, 30.0, 50.0);
+	Shin.Radius = 6.f;
+	const FVector Outward(1.0, 0.0, 0.0);
+	TestTrue(TEXT("Clear: left alone"), FBodySwingPoints::PushPlaceOut(FVector(8.0, 0.0, 50.0), Shin, Outward).IsNearlyZero());
+	TestTrue(TEXT("Near, outside: pushed out to its clearance"),
+		FBodySwingPoints::PushPlaceOut(FVector(4.0, 0.0, 50.0), Shin, Outward).Equals(FVector(2.0, 0.0, 0.0), 0.01));
+	TestTrue(TEXT("Come through (inside): out across the limb"),
+		FBodySwingPoints::PushPlaceOut(FVector(-3.0, 0.0, 50.0), Shin, Outward).Equals(FVector(9.0, 0.0, 0.0), 0.01));
 	return true;
 }
 
@@ -271,6 +285,25 @@ bool FBodySwingHatTipTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBodySwingForearmTwistTest, "Looter.Player.BodySwing.ForearmTwist",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FBodySwingForearmTwistTest::RunTest(const FString& Parameters)
+{
+	// A hand's turn split into its roll about the forearm (which the forearm's twist bones share) and the rest (the
+	// wrist's bend, which they don't): the left hand rolls about 100 degrees onto a foregrip.
+	const FVector Axis = FVector::ForwardVector;
+	const float Roll = FMath::DegreesToRadians(100.f);
+	const FQuat Twist(Axis, Roll);
+	const FQuat Bend(FVector::UpVector, FMath::DegreesToRadians(25.f));
+	TestNearlyEqual(TEXT("A pure roll is all twist"), FBodyForearmTwist::TwistAbout(Twist, Axis), Roll, 1e-3f);
+	TestNearlyEqual(TEXT("...the other way round too"), FBodyForearmTwist::TwistAbout(Twist.Inverse(), Axis), -Roll, 1e-3f);
+	TestNearlyEqual(TEXT("A bend of the wrist is none"), FBodyForearmTwist::TwistAbout(Bend, Axis), 0.f, 1e-3f);
+	TestNearlyEqual(TEXT("A bent, rolled hand: the roll"), FBodyForearmTwist::TwistAbout(Bend * Twist, Axis), Roll, 1e-3f);
+	TestNearlyEqual(TEXT("The same turn as its negative quaternion"), FBodyForearmTwist::TwistAbout(Twist * -1.0, Axis), Roll, 1e-3f);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBodySwingEllisTest, "Looter.Player.BodySwing.Ellis",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
@@ -294,6 +327,7 @@ bool FBodySwingEllisTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("%s ends in %s_end"), Chain, Chain),
 			Ellis->GetRefSkeleton().FindBoneIndex(FName(*FString::Printf(TEXT("%s_end"), Chain))) != INDEX_NONE);
 	}
+	TestEqual(TEXT("The cloth between the 7 skirt chains keeps off the legs: 6 pairs round the coat (its front open)"), Swing.NumRingPairs(), 6);
 	FBodyHatTip Tip;
 	Tip.Bind(Ellis->GetRefSkeleton());
 	TestTrue(TEXT("A hat bone to tip"), Tip.HasHat());

@@ -53,12 +53,22 @@ bool FBodyRetargetAnimInstanceProxy::Evaluate_WithRoot(FPoseContext& Output, FAn
 		{
 			HatTip.Bind(RefSkeleton);
 		}
+		if (!ForearmTwist.IsBoundTo(RefSkeleton))
+		{
+			ForearmTwist.Bind(RefSkeleton);
+		}
+		const bool bTwist = ForearmTwist.NumTwistBones() > 0;
 		const bool bSwing = Swing.NumChains() > 0 && CVarBodySwing.GetValueOnAnyThread() != 0;
 		const bool bTip = HatTip.HasHat() && FBodyHatTip::DegreesFor(Aim) > UE_KINDA_SMALL_NUMBER;
-		if (bSwing || bTip)
+		if (bTwist || bSwing || bTip)
 		{
 			FCSPose<FCompactPose> Pose;
 			Pose.InitPose(Output.Pose);
+			// The forearms first: the swing keeps the coat off them as they are.
+			if (bTwist)
+			{
+				ForearmTwist.Apply(Pose);
+			}
 			if (bSwing)
 			{
 				Swing.Apply(Pose, GetComponentTransform(), SwingSeconds);

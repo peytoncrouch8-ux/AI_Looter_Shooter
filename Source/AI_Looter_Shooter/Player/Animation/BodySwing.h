@@ -97,6 +97,12 @@ struct AI_LOOTER_SHOOTER_API FBodySwingPoints
 		const FVector& Outward = FVector::ZeroVector);
 
 	/**
+	 * How far to move a place on the cloth (S) to keep Capsule.Radius from the limb: straight away from it, or out
+	 * Outward's side (square to the limb) when the limb has come through. Zero when clear.
+	 */
+	static FVector PushPlaceOut(const FVector& S, const FBodySwingCapsule& Capsule, const FVector& Outward);
+
+	/**
 	 * Tip (Length from Head) kept no higher than Head: hanging things never rise over what they hang from (a crouch's
 	 * thigh once swung a coat flap up to his shoulder).
 	 */
@@ -128,6 +134,12 @@ struct AI_LOOTER_SHOOTER_API FBodySwing
 
 	/** Chain kind's settings, by its name's prefix (skirt, cape, bandana, hair, lantern): the tuning table. */
 	static FBodySwingSettings SettingsFor(const FString& ChainName);
+
+	/** Neighbouring skirt chains whose cloth between them keeps off the limbs too (the coat's ring). */
+	int32 NumRingPairs() const { return Ring.Num(); }
+
+	/** The cloth at rest keeps this share of its distance from a limb (a little give, so it isn't shoved at rest). */
+	static constexpr float ClearanceShare = 0.95f;
 
 private:
 	struct FLimb
@@ -165,12 +177,41 @@ private:
 		float FollowWeight = 0.f;
 		TArray<FVector> TipInFollow;
 		FBodySwingPoints Sim;
+
+		/** This frame's: whether the pose has the chain, its bones' indices and animated transforms, its anchor (world). */
+		bool bLive = false;
+		TArray<FCompactPoseBoneIndex> Indices;
+		TArray<FTransform> Animated;
+		FVector Anchor = FVector::ZeroVector;
+	};
+
+	/**
+	 * Two neighbouring skirt chains (round the coat, not across its open front): the cloth between them keeps off the
+	 * limbs too. Without it a shin slipped between two chains' points and showed through the coat in a stride.
+	 */
+	struct FRingPair
+	{
+		int32 A = INDEX_NONE;
+		int32 B = INDEX_NONE;
+		/**
+		 * Per level and limb, what the cloth keeps from the limb (rest distance x ClearanceShare, at most the limb's):
+		 * halfway between the two chains' points (Mid) and in the middle of the patch down to them from the level above
+		 * (Center).
+		 */
+		TArray<float> MidClearances;
+		TArray<float> CenterClearances;
 	};
 
 	void InitBoneReferences(const FBoneContainer& Bones);
+	/** The ring's pairs and their clearances, from the rest pose (Rest: Skeleton's, component space) and the limbs at rest. */
+	void BindRing(const FReferenceSkeleton& Skeleton, TConstArrayView<FTransform> Rest, TConstArrayView<FVector> LimbA,
+		TConstArrayView<FVector> LimbB, TConstArrayView<float> LimbMax);
+	/** The cloth between neighbouring skirt chains pushed off the limbs (this frame's shown points; world space). */
+	void ApplyRing(TConstArrayView<FBodySwingCapsule> LimbsNow, double Scale);
 
 	TArray<FChain> Chains;
 	TArray<FLimb> Limbs;
+	TArray<FRingPair> Ring;
 	/** The skeleton bound to (its bone count and first name, to notice another mesh) and the bone container's serial. */
 	int32 BoundBoneCount = 0;
 	FName BoundFirstBone;

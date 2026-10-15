@@ -4,6 +4,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "AnimNodes/AnimNode_RetargetPoseFromMesh.h"
+#include "Player/Animation/BodyForearmTwist.h"
 #include "Player/Animation/BodyHatTip.h"
 #include "Player/Animation/BodySwing.h"
 #include "BodyRetargetAnimInstance.generated.h"
@@ -12,8 +13,8 @@
  * The engine's Retarget Pose From Mesh node as the whole graph of a native anim instance (no Anim Blueprint): it copies
  * the pose of the skeletal mesh its component is attached to (the hidden mannequin) through the component's retargeter.
  * A Blueprint's graph would call the node's game-thread step for it; a native root node's is called here. Then the
- * swing bones (the duster, cape, bandana, hair, lantern: FBodySwing) swing on top, and the hat tips back as a sight
- * comes up (FBodyHatTip).
+ * forearms roll with the hands (FBodyForearmTwist), the swing bones (the duster, cape, bandana, hair, lantern:
+ * FBodySwing) swing on top, and the hat tips back as a sight comes up (FBodyHatTip).
  */
 struct FBodyRetargetAnimInstanceProxy : public FAnimInstanceProxy
 {
@@ -29,6 +30,7 @@ protected:
 private:
 	/** Value-initialized: the node's own counters have no initializers (a Blueprint's nodes start zeroed). */
 	FAnimNode_RetargetPoseFromMesh Retarget{};
+	FBodyForearmTwist ForearmTwist;
 	FBodySwing Swing;
 	/** Time since the swing last ran (an update skipped adds its time to the next). */
 	float SwingSeconds = 0.f;

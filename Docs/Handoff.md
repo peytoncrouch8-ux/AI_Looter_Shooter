@@ -42,11 +42,20 @@ front in it; the cape's corners lift with the arms when sprinting (CapeFollowFro
 close; the crouch's holster and lantern touch the thigh; the collar's turned-up corner reads like a horn from below; FBX
 import warns "Not valid bind pose" (recreated fine); the spin viewer artifact predates the bake here.
 
+**After round 4 (the user's notes, 2026-10-15):** "When crouching should his knee be touching the ground?" answered:
+no, the crouch is a squat on both feet (code pose, LooterStancePose); the idle stance's right foot is back so that knee
+comes down to about 20 cm (the left 34). "cape still clips through the boots and shins": foot limbs and the ring
+(Pipeline, "Swing"). "His wrists are either invisible or don't match the gloves": forearm twist bones + FBodyForearmTwist
+(Pipeline, "The forearms"); the model's part is with the Blender helper (round 4g).
+
 **The Gravemother fight concepts (the user, mid-session 2026-10-15):** "generate a sprite sheet for the grave mother
 boss ... projectiles, the spiders ground charge, the spider itself, attack particles, etc. ... give it some character and
 feel like a real boss fight. Just generate 3 to 5 concept arts for now, we will turn them into game assets once I choose
-the ones I like." An art agent renders them in Blender (`Art/Backlog/Creatures/GravemotherFightConcepts.py`, sheets in
-`Saved/Concepts/Gravemother/`). Next: the user picks; nothing goes into the game before that.
+the ones I like." Four sheets made and sent (`Art/Backlog/Creatures/GravemotherFightConcepts.py`, sheets in `Saved/Concepts/Gravemother/`
+by `GravemotherFightSheets.ps1`): A Bone Mother (brood riding her, milk spit, grave plough), B Vigil (chapel candles as
+her phase meter, corpse-lights, a procession of ghost-flames), C Shroud (ivory and oxblood, burial silk, net shot,
+drag-lines, egg sacs), D Barrow (the bold one: a headstone shell, grave clods, a furrow charge that leaves cover,
+unearthed spiderlings). Next: the user picks (or mixes); nothing goes into the game before that.
 
 ## Before that (session "Ellis 3D model", 2026-10-15, cloud; branch `claude/ellis-3d-character-model-tvwr9z`, merged)
 
