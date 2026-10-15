@@ -35,6 +35,9 @@ namespace
 		{ TEXT("spine_03"), TEXT("spine_05"), 18.f }, { TEXT("spine_05"), TEXT("neck_01"), 15.f },
 		{ TEXT("neck_01"), TEXT("head"), 9.f },
 		{ TEXT("upperarm_l"), TEXT("lowerarm_l"), 9.f }, { TEXT("upperarm_r"), TEXT("lowerarm_r"), 9.f },
+		// The forearms and hands: at the game's idle they hang against the coat's sides (they sank 2.5 cm into it).
+		{ TEXT("lowerarm_l"), TEXT("hand_l"), 7.f }, { TEXT("lowerarm_r"), TEXT("hand_r"), 7.f },
+		{ TEXT("hand_l"), TEXT("middle_01_l"), 5.f }, { TEXT("hand_r"), TEXT("middle_01_r"), 5.f },
 	};
 
 	/** A rest point keeps this share of its distance from a limb (a little give, so it isn't shoved at rest). */
