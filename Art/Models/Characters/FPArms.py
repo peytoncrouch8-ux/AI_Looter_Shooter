@@ -20,9 +20,11 @@ each finger's curl: turn it toward the palm normal. The look sheet's poser (Tool
 way to put a hand on a gun from these.
 
 The mesh. One skeletal mesh, FP_Arms (SK_FP_Arms), about 8k triangles, two material slots:
-  FPArms_Glove   M_World, texture set FPArmsGlove (2048): both gloves (mirrored UVs) and their gauntlets and conchos
-  FPArms_Duster  M_World, texture set FPArmsDuster (2048): both sleeves
-Both sets are painted by this script for this mesh's UVs (Art/Textures/FPArmsGlove, FPArmsDuster): the glove's seams
+  FPArms_Glove   M_Character, texture set FPArmsGlove (2048): both gloves (mirrored UVs) and their gauntlets and conchos
+  FPArms_Duster  M_CharacterCloth (Ellis's duster's sheen), texture set FPArmsDuster (2048): both sleeves
+Both sets are painted by this script for this mesh's UVs (Art/Textures/FPArmsGlove, FPArmsDuster), in the colours of the
+new third-person Ellis (LEATHER, OILSKIN, GAUNTLET_TONE below: sRGB means measured from his baked sets, 2026-10-15; keep
+them within 3% if his looks change): the glove's seams
 and stitching (in tonal thread: side seams up every finger and round its tip, three stitched cords, the points, on the
 back, the keystone thumb; in pale linen: the gauntlet's hems and side seam), the gauntlet's tooled border and brass
 concho, creases at every joint and across the palm, scuffed knuckles and fingertips, a grip-polished palm, an aniline
@@ -61,7 +63,18 @@ WORK = os.path.join(lt.REPO, 'Intermediate', 'FPArms')
 GLOVE_SET, DUSTER_SET = 'FPArmsGlove', 'FPArmsDuster'
 ATLAS = 2048
 HAND_TRIS = 1950                           # one glove's hand after decimation
-LEATHER, OILSKIN = 0xa47c56, 0x8f7052      # Ellis.py's gloves and coat
+# The colours the first-person arms must match: the new third-person Ellis's gloves and duster sleeves (Art/Models/
+# Characters/Ellis.py's 'Gloves' and 'Duster' looks), measured from his baked sets (Art/Textures/EllisGear, EllisDuster)
+# on 2026-10-15 (sRGB means over the pixels his mesh uses): hand glove (120.9, 90.3, 61.1), gauntlet cuff (117.1, 87.0,
+# 58.2), duster sleeves (66.6, 54.3, 42.2: the faces weighted to the arms; his whole coat, cape and collar is darker,
+# 62.4, 50.1, 38.1, and is not the target: the user's call, "gloves and sleeves match"). LEATHER and OILSKIN are the
+# base tones of the painted sets; paint_glove and paint_duster scale every other leather / oilskin tone by the same
+# per-channel factor (lv, ov below), so the creases, scuffs, wax and wear keep their contrast. GAUNTLET_TONE darkens
+# the cuff alone: Ellis's cuff is a touch darker than his hand, where the painted cuff (no creases, tooled border,
+# suede inside) came out lighter.
+LEATHER, OILSKIN = 0x7d5f42, 0x5c4b39
+LEATHER_PAINTED, OILSKIN_PAINTED = 0xa47c56, 0x8f7052   # the tones the layers were first mixed around (older Ellis)
+GAUNTLET_TONE = np.array([0.93, 0.91, 0.88])
 
 
 def log(message):
@@ -1142,6 +1155,16 @@ def rgbv(hexv):
     return lt.rgb(hexv).astype(np.float64)
 
 
+def lv(hexv):
+    """A leather tone of the glove, moved with LEATHER (the tones were mixed around LEATHER_PAINTED)."""
+    return rgbv(hexv) * (rgbv(LEATHER) / rgbv(LEATHER_PAINTED))
+
+
+def ov(hexv):
+    """An oilskin tone of the sleeve, moved with OILSKIN (the tones were mixed around OILSKIN_PAINTED)."""
+    return rgbv(hexv) * (rgbv(OILSKIN) / rgbv(OILSKIN_PAINTED))
+
+
 def paint_glove(obj, data):
     """The glove atlas (FPArmsGlove): painted in the hand frame from the glove's own seams, joints and wear."""
     uv, idx, co, nor = mesh_corners(obj)
@@ -1337,19 +1360,20 @@ def paint_glove(obj, data):
     color = color * (1.0 + tone)[:, None]
     color = mixc(color, color * np.array([1.06, 0.98, 0.9]), np.clip(0.5 + big, 0, 1) * 0.5)   # warmer in the clouds
     # sweat and oil darken the palm and the inside of the fingers; sun fades the back
-    color = mixc(color, rgbv(0x86603f), np.clip(0.4 * (N[:, 2] < -0.3) * hand, 0, 1))
-    color = mixc(color, rgbv(0xb58d63), np.clip(0.28 * (N[:, 2] > 0.4) * hand, 0, 1))
+    color = mixc(color, lv(0x86603f), np.clip(0.4 * (N[:, 2] < -0.3) * hand, 0, 1))
+    color = mixc(color, lv(0xb58d63), np.clip(0.28 * (N[:, 2] > 0.4) * hand, 0, 1))
     sc = np.clip(scuff * (0.55 + 0.45 * fbm3(P, 0.004, 11, 2) * 2.0), 0, 1)
-    color = mixc(color, rgbv(0xc6a983), sc * 0.75)
+    color = mixc(color, lv(0xc6a983), sc * 0.75)
     po = np.clip(polish * (0.6 + 0.4 * fbm3(P, 0.008, 17, 2)), 0, 1)
-    color = mixc(color, rgbv(0x74502f), po * 0.55)
+    color = mixc(color, lv(0x74502f), po * 0.55)
     gtone = (gt | gin)
-    color = mixc(color, rgbv(0xa9805a), gtone * 0.35)
-    color = mixc(color, rgbv(0xa38667), gin * 0.85)               # the suede inside
-    color = mixc(color, rgbv(0x4a3222), np.clip(cavity, 0, 1) * 0.6)
-    color = mixc(color, rgbv(0xc9ab84), np.clip(ridges, 0, 1) * 0.3)
+    color = mixc(color, lv(0xa9805a), gtone * 0.35)
+    color = mixc(color, lv(0xa38667), gin * 0.85)               # the suede inside
+    color = mixc(color, lv(0x4a3222), np.clip(cavity, 0, 1) * 0.6)
+    color = mixc(color, lv(0xc9ab84), np.clip(ridges, 0, 1) * 0.3)
+    color = np.where(gtone[:, None], color * GAUNTLET_TONE, color)   # the cuff lands on Ellis's (GAUNTLET_TONE)
     linen = mixc(np.tile(rgbv(0xdccaa2), (n, 1)), rgbv(0x9a8466), np.clip(polish + cavity * 0.3, 0, 1) * 0.6)
-    tcol = mixc(linen, rgbv(0x5a3d27), tonal)
+    tcol = mixc(linen, lv(0x5a3d27), tonal)
     color = mixc(color, tcol, thread)
     # the concho: brass, tarnished in its engraving
     rho, psi = ea, eb
@@ -1418,7 +1442,10 @@ def paint_duster(obj, data):
     lap_t = (fold_at(tg + 0.05, vc) + fold_at(tg - 0.05, vc) - 2 * fold) / (0.05 * rmm / 10) ** 2
     crest = np.clip(-(lap + lap_t) * 0.35, 0, 1)
     valley = np.clip((lap + lap_t) * 0.35, 0, 1)
-    # Ellis's coat colour, waxed: the dressing darkens and warms the cotton; where it's worn off it goes back chalky.
+    # Matches the new Ellis's duster sleeves (Art/Models/Characters/Ellis.py's 'Duster' look, measured from his baked
+    # set on 2026-10-15, the faces weighted to the arms): the coat colour, waxed. The dressing darkens and warms the
+    # cotton; where it's worn off it goes back chalky. OILSKIN is chosen with the 0.84 wax in, so the sleeve's mean
+    # lands on his sleeves'.
     color = np.tile(rgbv(OILSKIN) * 0.84, (size, size, 1))
     height = np.zeros((size, size))
     cavity = np.zeros((size, size))
@@ -1427,18 +1454,18 @@ def paint_duster(obj, data):
     # mottled wax: darker where it's heavy (and glossier), lighter where it's worn
     wax = lt.noise((size, size), 61, 90.0, octaves=3)
     wear = lt.noise((size, size), 63, 40.0, octaves=3)
-    color = mixc(color, rgbv(0x5b4331), np.clip(0.5 + 0.35 * wax, 0, 1) * 0.75)
+    color = mixc(color, ov(0x5b4331), np.clip(0.5 + 0.35 * wax, 0, 1) * 0.75)
     chalk = np.clip(crest * 1.3 + 0.25 * np.clip(wear, 0, 1), 0, 1)
-    color = mixc(color, rgbv(0x9c846a), chalk * 0.55)
-    color = mixc(color, rgbv(0x33251b), valley * 0.6)
+    color = mixc(color, ov(0x9c846a), chalk * 0.55)
+    color = mixc(color, ov(0x33251b), valley * 0.6)
     # the crook of the elbow and the forearm's top rubbed paler
     rub = np.exp(-((v - path.elbow_v) / 5.0) ** 2) * np.clip(np.cos(tg - path.inner_theta - math.pi), 0, 1)
-    color = mixc(color, rgbv(0xa08a70), np.clip(rub * (0.5 + 0.5 * wear), 0, 1) * 0.6)
+    color = mixc(color, ov(0xa08a70), np.clip(rub * (0.5 + 0.5 * wear), 0, 1) * 0.6)
     # crackled wax: thin pale lines, more on the folds
     crk = crinkle_image(size, 67, 3.2)
     crk2 = crinkle_image(size, 69, 7.0, along=2.5)
     lines = np.clip(crk * (0.35 + 0.9 * crest) + crk2 * 0.25, 0, 1)
-    color = mixc(color, rgbv(0xb29a7e), lines * 0.45)
+    color = mixc(color, ov(0xb29a7e), lines * 0.45)
     height -= lines * 0.00016
     # twill weave
     tw = np.sin((cols + rows) * (2 * math.pi / 3.2)) * 0.5 + 0.5
@@ -1463,10 +1490,10 @@ def paint_duster(obj, data):
     # felled seams: the underarm (at the island's edges) and the back of the arm
     seam(np.minimum(u_mm, 2 * math.pi * rmm - u_mm), v_mm, sleeve & (v > path.rim_v - 2.0), rows_=(3.0, 7.0))
     seam((ts - math.pi) * rmm, v_mm, sleeve & (v > path.rim_v - 2.0))
-    color = mixc(color, rgbv(0x4b3a2c), thread * 0.85)
+    color = mixc(color, ov(0x4b3a2c), thread * 0.85)
     height += thread * thread_h * 0.001
-    color = mixc(color, rgbv(0x36281e), np.clip(cavity, 0, 1) * 0.5)
-    color = np.where(lining[..., None], rgbv(0x3a302a) * (1.0 + 0.1 * wax[..., None]), color)
+    color = mixc(color, ov(0x36281e), np.clip(cavity, 0, 1) * 0.5)
+    color = np.where(lining[..., None], ov(0x3a302a) * (1.0 + 0.1 * wax[..., None]), color)
     # inside the gauntlet: darker, it never sees the light
     color *= (0.55 + 0.45 * outside)[..., None]
     rough = 0.72 - 0.08 * wax + 0.16 * chalk + 0.06 * lines + 0.06 * cavity
@@ -1548,8 +1575,9 @@ def build():
     if 'keep-textures' not in ARGV:
         paint_glove(glove, gdata)
         paint_duster(sleeve, sdata)
-    glove_mat = lt.material(GLOVE_SET, name='FPArms_Glove')
-    duster_mat = lt.material(DUSTER_SET, name='FPArms_Duster')
+    # The masters Ellis's own gloves and duster use (his GAME_MATERIALS), so first and third person shade alike.
+    glove_mat = lt.material(GLOVE_SET, name='FPArms_Glove', master='Character')
+    duster_mat = lt.material(DUSTER_SET, name='FPArms_Duster', master='CharacterCloth', FuzzStrength=0.2, FuzzLift=0.08)
     glove.data.materials.append(glove_mat)
     sleeve.data.materials.append(duster_mat)
     # weights, then into the rest pose
