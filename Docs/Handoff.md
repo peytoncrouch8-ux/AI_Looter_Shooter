@@ -25,11 +25,18 @@ first-person gloves and sleeves match him; all four rounds (materials, coat and 
 the silhouette); budget raised to ~35k triangles. Done: round 1 materials (approved; 3512eba), the holster, FP arms matched
 (17e2348), round 2 (39683fe, b26dbf0): swing bones + springs, the hat tipping back when aiming plus a 12% smaller brim
 (the user's "both"), hands 15% thicker, the coat and cape looser, the bandana off his neck, facing +Y (the fingers now
-auto aligned: no claws). Tests 693/693. Shots sent; the user hasn't played round 2.
-**Next in the loop (ask first, tap-to-answer):** the pose round (idle weight shift, stance) and the silhouette remodel
-(budget ~35k): seen on the way: the shirt pokes through the waistcoat in jagged patches below the bandana; the cape is
-full at the front corners; when the front skirt swings past ~35 degrees a slot shows the boot top. Also open: the spin
-viewer artifact predates the bake here.
+auto aligned: no claws). Round 3 (an audit in Blender, `Saved/Concepts/EllisAudit/defects.md`): flipped faces (the
+waistcoat's holes), the cape's wings and fin, gauntlets, collar, lantern hook, holster; hands kept out of the coat
+(f9be3bf). Round 4, the user's picks: **"Apply C in full"** (squarer shoulders, pointed cape back, deeper hat crease, harder
+brim curl, the coat to the ankle), **proper boots** (stovepipe on a real last), **face kept dark**, **the waistcoat as
+cloth** (smooth black wool, brass buttons), **the coat's back hanging straight** (the user: "Back of the cape is deforming
+in between his legs. It should be straight": the cloth simulated over a filler behind the legs, the vent closed). 34.2k
+triangles. The springs now keep the bone between two points off the limbs (a stride's back boot came through the coat)
+and keep the points over the ground (crouched, the hem sank 11 cm). Checked in PIE: back standing, walking, crouched;
+front.
+**Next in the loop (ask first, tap-to-answer):** the pose round (idle weight shift, stance). Still open: the hair reads
+as ribbons up close; the crouch's holster and lantern touch the thigh; the collar's turned-up corner reads like a horn
+from below; FBX import warns "Not valid bind pose" (recreated fine); the spin viewer artifact predates the bake here.
 
 ## Before that (session "Ellis 3D model", 2026-10-15, cloud; branch `claude/ellis-3d-character-model-tvwr9z`, merged)
 

@@ -155,6 +155,69 @@ bool FBodySwingLimbTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBodySwingBoneTest, "Looter.Player.BodySwing.Bones",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FBodySwingBoneTest::RunTest(const FString& Parameters)
+{
+	// A shin swung back across the cloth between two points (a stride's back leg under the coat's back): a level
+	// segment through the middle of the second bone, clear of both its ends' points.
+	const FBodySwingSettings Skirt = FBodySwing::SettingsFor(TEXT("skirt_bl"));
+	const FVector Anchor(0.0, 0.0, 100.0);
+	FBodySwingCapsule Shin;
+	Shin.A = Anchor + FVector(-2.0, -30.0, -SwingTestLength * 1.5);
+	Shin.B = Anchor + FVector(-2.0, 30.0, -SwingTestLength * 1.5);
+	Shin.Radius = 6.f;
+	Shin.BoneRadius = 6.f;
+	TArray<FBodySwingCapsule> Capsules;
+	for (int32 Index = 0; Index < SwingTestCount; ++Index)
+	{
+		Capsules.Add(Shin);
+	}
+	FBodySwingPoints Sim;
+	for (int32 Frame = 0; Frame < 120; ++Frame)
+	{
+		Sim.Step(Anchor, SwingTestTargets(Anchor), SwingTestLengths(), Capsules, Skirt, 1.f / 60.f);
+	}
+	FVector Head = Anchor;
+	for (int32 Index = 0; Index < SwingTestCount; ++Index)
+	{
+		FVector OnBone;
+		FVector OnLimb;
+		FMath::SegmentDistToSegmentSafe(Head, Sim.Points[Index], Shin.A, Shin.B, OnBone, OnLimb);
+		const float Clear = static_cast<float>(FVector::Dist(OnBone, OnLimb));
+		TestTrue(FString::Printf(TEXT("Bone %d stays out of the shin (%.1f cm)"), Index, Clear), Clear > Shin.BoneRadius - 1.5f);
+		Head = Sim.Points[Index];
+	}
+	TestTrue(TEXT("The cloth goes round the shin's back, not through it"), Sim.Points[1].X > 0.0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBodySwingFloorTest, "Looter.Player.BodySwing.Floor",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FBodySwingFloorTest::RunTest(const FString& Parameters)
+{
+	// A crouch: the chain's animated pose reaches 15 cm under the ground; it lies on it instead, its lengths kept.
+	const FBodySwingSettings Skirt = FBodySwing::SettingsFor(TEXT("skirt_bl"));
+	const FVector Anchor(0.0, 0.0, 100.0);
+	const double FloorZ = Anchor.Z - SwingTestLength * SwingTestCount + 15.0;
+	FBodySwingPoints Sim;
+	for (int32 Frame = 0; Frame < 120; ++Frame)
+	{
+		Sim.Step(Anchor, SwingTestTargets(Anchor), SwingTestLengths(), {}, Skirt, 1.f / 60.f, FloorZ);
+	}
+	FVector Head = Anchor;
+	for (int32 Index = 0; Index < SwingTestCount; ++Index)
+	{
+		TestTrue(FString::Printf(TEXT("Point %d over the floor (%.2f cm)"), Index, Sim.Shown[Index].Z - FloorZ), Sim.Shown[Index].Z >= FloorZ - 0.01);
+		TestNearlyEqual(FString::Printf(TEXT("Point %d keeps its length"), Index), static_cast<float>(FVector::Dist(Sim.Shown[Index], Head)),
+			SwingTestLength, 0.05f);
+		Head = Sim.Shown[Index];
+	}
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBodySwingKindsTest, "Looter.Player.BodySwing.Kinds",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 

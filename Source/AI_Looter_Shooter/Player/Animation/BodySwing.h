@@ -26,7 +26,13 @@ struct AI_LOOTER_SHOOTER_API FBodySwingCapsule
 {
 	FVector A = FVector::ZeroVector;
 	FVector B = FVector::ZeroVector;
+	/** Kept between the limb and the point. */
 	float Radius = 0.f;
+	/**
+	 * Kept between the limb and the bone ending at the point (from the point before; 0: the point only). A shin swung
+	 * back in a stride passed between two of the skirt's points and showed through the cloth between them.
+	 */
+	float BoneRadius = 0.f;
 };
 
 /**
@@ -55,12 +61,20 @@ struct AI_LOOTER_SHOOTER_API FBodySwingPoints
 	 * Anchor) and out of the capsules: for each point in turn the same number of limbs, each with that point's own
 	 * clearance as its radius (all in world space; the caller converts). The anchor jumping over 1.5 m starts it over.
 	 * It steps in fixed 1/120 s steps (the leftover carried), so every frame rate swings alike; Shown is what to draw.
+	 * No point goes under FloorZ (world Z: the ground at his feet, so a crouch lays the hem on it).
 	 */
 	void Step(const FVector& Anchor, TConstArrayView<FVector> Targets, TConstArrayView<float> Lengths,
-		TConstArrayView<FBodySwingCapsule> Capsules, const FBodySwingSettings& Settings, float DeltaSeconds);
+		TConstArrayView<FBodySwingCapsule> Capsules, const FBodySwingSettings& Settings, float DeltaSeconds,
+		double FloorZ = TNumericLimits<double>::Lowest());
 
 	/** P pushed out of Capsule to at least its radius from its segment. */
 	static FVector PushOut(const FVector& P, const FBodySwingCapsule& Capsule);
+
+	/** Tip turned about Head so the bone between them keeps Capsule.BoneRadius from the limb (the bone's length kept by the caller). */
+	static FVector PushBoneOut(const FVector& Head, const FVector& Tip, const FBodySwingCapsule& Capsule);
+
+	/** Tip (Length from Head) kept on or over FloorZ: swung up about Head, its lean kept (Lean's when it hangs straight down). */
+	static FVector KeepAbove(const FVector& Head, const FVector& Tip, double Length, double FloorZ, const FVector& Lean);
 };
 
 /**
@@ -101,6 +115,8 @@ private:
 		TArray<float> Lengths;
 		/** Per point and limb: the distance kept from the limb (its rest clearance, at most the limb's MaxClearance). */
 		TArray<float> Clearances;
+		/** Per bone and limb: the same for the bone ending at the point (its nearest at rest). */
+		TArray<float> BoneClearances;
 		/**
 		 * A bone the chain's rest also follows, by FollowWeight (the cape's corners: the upper arm under them; the cape
 		 * hangs from the spine, so without it it kept the arms-out shape it was modelled over), and each tip in its space.

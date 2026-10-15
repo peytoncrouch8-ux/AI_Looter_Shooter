@@ -517,7 +517,9 @@ other heroes too:
   the model's 'Seams' attribute: R closeness to an open edge, G to a sewn seam), `dashes()` (stitches along any line from
   three sines), `stains()`, `splatter()`, dust by height and facing, grime from occlusion, wear from Pointiness (no rays).
   What didn't work: a 380/m twill and 700/m weave aliased into moire at the bake's ~1000 px/m (keep patterns under ~300/m); a
-  dense fine crumple network read as cracked stone or marble, not cloth (cloth creases: few, broad, long, soft).
+  dense fine crumple network read as cracked stone or marble, not cloth (cloth creases: few, broad, long, soft). The
+  waistcoat's brocade (Ellis's alone) is smooth black wool with a faint woven figure (0.12 of the colour, bump 0.04) and
+  broad shallow creases (9/m, bump 0.12): with crinkles it read as leather (the user, 2026-10-15: "as cloth").
 - `Tools/Blender/looter_bake.py`: `pack()` (one atlas per set: islands averaged to one density, packed); `bake_set()`: the
   occlusion on the game parts themselves (Cycles AO bake at a quarter of the set's size, 32 samples, 0.1 m, scaled up into
   the ORM; the detailed parts hidden, or lying on their game parts they shade them black), then colour, roughness and
@@ -534,8 +536,18 @@ and Blender's cloth lets it fall onto the body, trousers, waistcoat and belt, pi
 simulates again only when one of them changes (as MisterSexton.drape.json).
 - Bugs met: the cloth exploded (points metres away) under self-collision because the start mesh crossed itself: `clear()`
   against the waistcoat's armhole edge had folded the coat under the arms (now it clears against the belt only; the drape
-  already rests on the waistcoat). Check with `--selfx` (prints crossing face pairs). The vent's two edges start apart when
-  simulated (built, they overlap), and the lantern and holster are not colliders (they started inside the coat's panel).
+  already rests on the waistcoat). Check with `--selfx` (prints crossing face pairs). The lantern and holster are not
+  colliders (they started inside the coat's panel).
+- The back hangs straight (the user, 2026-10-15: "Back of the cape is deforming in between his legs. It should be
+  straight"): the boots are colliders too (the coat reaches the ankle), and `leg_fill()` adds one only the simulation sees:
+  per height (every 3 cm, the hem - 4 cm to 0.90 m) the convex hull of both legs' slice, 4 mm out, and behind the legs
+  narrowing at most `LEG_FILL_DROP` 0.03 m/m going down (the back falls near plumb from the seat). Its rows must run top
+  down (`gm.grid`'s way) so its faces face out: Blender's cloth collides one-sided by the collider's normals, and inward
+  they pulled the coat through the fill and round each leg like trousers.
+- The vent (closed and straight, the user): simulated, its two edges start together and the cloth falls with them welded
+  (`welded()`: a copy with each pair one vertex, the strip between them dropped), then `lap_vent()` laps them as the built
+  coat's: the left flap's edge 4 mm out and 0.025 rad round over the right's, the right's 0.02 rad under it (`ob['vent']`
+  holds the pairs). Started apart, the flaps fell into each other and tangled, one swept across the other and kicked out.
 - The cape is not simulated: on the shoulders it had nowhere to fall but into itself and crumpled. It stays procedural, with
   flutes of uneven depth and spacing. Bending 4 crumpled the skirt and the vent like linen; 12 gives a duster's broad folds.
 - Looser (the user, 2026-10-15: "hugging his body too much"): `COAT_EASE` 1.6 cm off the body from under the collar to the
@@ -546,16 +558,37 @@ simulates again only when one of them changes (as MisterSexton.drape.json).
   only collapses them above VENT_TOP). Anything that moves its two edges apart stretches that strip into a web.
 
 Ellis.py:
-- Order: body, trousers (knee and boot-top creases), boots (toe box, sole and cuban heel, ankle creases), waistcoat and shirt,
-  belt (before the duster, which drapes over it), duster, sleeves (bunched at the cuff, crescents at the elbow), cape,
-  holster, lantern, the simulation, collar and pin, gloves (`thicken_hand`: `GLOVE_GIRTH` 1.15, each point pushed off its
+- Order: body, trousers (knee and boot-top creases), boots (below), waistcoat and shirt,
+  belt (before the duster, which drapes over it), duster, sleeves (bunched at the cuff, crescents at the elbow), cape
+  (draped over the arms let down to the game's idle, `IDLE_ARM` 10 degrees off the body, then carried back up into the
+  bind pose by each point's share of its upper arm, kept as 'ArmFollow' and weighted to the upper arm: draped over the
+  bind pose's A, its sides stood out like wings and fins once the arms came down; its front corners flare less),
+  holster, lantern (hung from a `BeltHook` piece out from the belt; clear of the thigh from fount to cap), the
+  simulation (the belt, cartridges and bullets as colliders), collar and pin (the throat's points splay half as far:
+  more and the flap with the pin jutted like a box), gloves (`thicken_hand`: `GLOVE_GIRTH` 1.15, each point pushed off its
   skinning bones square to them, blended by its weights: fuller palm and fingers, no longer; the gauntlet's mouth grows to
-  match; the user: thin, clawed hands, 2026-10-15), hat (EllisBlender.build_hat moved into the figure's space; the brim's
-  reach past the crown `BRIM_REACH` 0.88, each spoke shortened toward its root so the curl keeps its shape),
+  match; the user: thin, clawed hands, 2026-10-15; the cuff flares `CUFF_FLARE` 1.8 cm, 3 read as a bell), hat
+  (EllisBlender.build_hat moved into the figure's space; the brim's reach past the crown `BRIM_REACH` 0.88, each spoke
+  shortened toward its root so the curl keeps its shape),
   bandana (inside the collar: draped over skin, waistcoat and shirt; its point down the chest), hair (two layers of locks with
   rounded backs round the back of the head, `EllisBlender.grow` over head, collar, cape and bandana; a hair-coloured scalp
   under them), then 'Seams' on the sewn pieces; the game mesh (below), its UVs, the bake from the detailed parts (then
   deleted), thickness, weights, one joined mesh `Ellis`.
+- The coat: option C, the user's pick (2026-10-15), is the build: squarer shoulders and a pointed back on the cape, a
+  deeper crown crease and harder brim curl on the hat, the duster to the ankle (`HEM` 0.24; it hangs 0.20-0.23 m).
+- Boots (the user, 2026-10-15: "proper boots"; MakeHuman's foot reshaped into a toe box read as a bare foot on a sandal,
+  then a last with the calf's shell standing in it as a slipper with a sock): `boot_shaft()` a closed thick-walled tube,
+  round each 1 cm slice of the leg (cut through its faces: the shin's vertices lie in rings 4-5 cm apart) its convex
+  hull + `BOOT_EASE` 1.2 cm, a quarter rounder, narrowing at most `BOOT_TAPER` 0.08 m/m going down (a stovepipe, not a
+  sock), straight on down from 3 cm over the ankle to the insole, the top at `BOOT_TOP` dipping 3 cm front and back, a
+  `BOOT_WALL` 5 mm wall round a well down to 0.34 m for the trousers; `boot_last()` 46 rounded-rectangle sections (closer
+  at the ends) from the heel to 2.5 cm past the toes, over the foot with 9-10 mm room, a roomy toe box (insole + 4.6 cm),
+  ahead of the ball narrowing at most 0.15 m/m (to the toes' own tips it came to a beak), the toe a quarter ellipsoid on
+  the sole, a little square in plan. Both fused by a voxel remesh (`BOOT_VOXEL` 1.8 mm), the crease where they meet
+  rounded (`fillet()`: vertices within 2.2 cm of both eased toward their neighbours, 60 passes), reduced to `BOOT_TRIS`
+  7000 each; the soles' outline is the fused boot's footprint + 4 mm welt. No UVs (smart-projected for the bake); the look
+  is object space: the toe cap stitched at y -0.19 (5.5 cm behind the tip), the welt at 2.15 cm. The body's feet aren't
+  in the game mesh (its skin is the head and neck).
 - Texture sets (2048): EllisSkin (face and scalp), EllisDuster (coat, sleeves, cape, collar), EllisGarb (hat, hair, bandana,
   waistcoat, shirt, trousers), EllisGear (boots, soles, gloves, belt, holster, revolver, lantern, brass, lead, iron). The eyes
   and the lantern's globe and flame are Glow materials (EllisEyeGlow, EllisLanternGlow).
@@ -563,15 +596,20 @@ Ellis.py:
   thighs (side by x) as looter_heroes' skirts; the cape half its nearest body point, half spine_05 and the clavicles; collar
   spine_05 to neck_01 by height; bandana the skin's own weights where it lies (head over nose, mouth and chin; head,
   neck_02, neck_01 down the neck; the knot too; the user saw it cut through the neck when the head turned, 2026-10-15), its
-  bib onto its chain; hair, eyes head; hat crown, brim and band 100% `hat`; belt pelvis (+spine_01); holster pelvis +
-  thigh_l; lantern all on lantern_01; gauntlets lowerarm to hand; gloves from the hand's faces only. Hit zones: head,
-  trunk, skirt round the hips, each limb, hands, feet. LODs 50 % and 25 %.
+  bib onto its chain; hair, eyes head; hat crown, brim and band 100% `hat`; belt pelvis (+spine_01); holster and revolver
+  pelvis to thigh_l down the pouch (30 % thigh on the belt, 85 % below: rigid at 35 % a stride put the thigh 5 cm through
+  it); the cape spine_05 and the clavicles, its chains, and its 'ArmFollow' share on the upper arm; `BeltHook` pelvis to
+  thigh_r along it; lantern all on lantern_01; gauntlets lowerarm to hand; gloves from the hand's faces only. Hit zones:
+  head, trunk, skirt round the hips, each limb, hands, feet. LODs 50 % and 25 %.
 - Swing bones (`swing_layout`, placed from the built game mesh; the game's springs, Player/Animation/BodySwing, move them):
-  skirt_{fl,sl,bl,fr,sr,br}_01..03 on pelvis (each side's chains at 1/6, 1/2, 5/6 of its arc from the coat's front edge
-  to the back's middle; joints at the belt line, mid-thigh 74 cm, the knee 53 cm, the hem), cape_{fl,bl,fr,br}_01..02 on
+  skirt_{fl,sl,bl,fr,sr,br}_01..03 on pelvis (each side's f and s chains at 1/6 and 1/2 of its arc from the coat's front
+  edge to the back's middle, b straight behind the knee: at 5/6, by the vent, a stride's back leg slid it aside and the
+  knee came out through the ankle-length coat; joints at the belt line, mid-thigh 74 cm, the knee 53 cm, the hem 21 cm;
+  across the back each b keeps the panel to `BACK_BLEND` 0.2 of the way from the middle), cape_{fl,bl,fr,br}_01..02 on
   spine_05 (1/4 and 3/4 of the cape's arc, from the shoulder line 143 cm), bandana_01..02 on neck_02 (under the chin to the
   point), hair_01..02 on head (from 168 cm, a quarter of the way from the skull's bulge to the nape, which is inside the
-  collar, to the ends), lantern_01 on thigh_r (the belt hook to the fount). 31 bones; each one's head at its joint, its Z
+  collar, to the ends), lantern_01 on thigh_r (from the bail's top on the hook's end, right above the lantern, to the
+  fount: from the hook's belt end the springs' gravity swung it 6 cm into the thigh). 31 bones; each one's head at its joint, its Z
   out of the cloth. Weights: today's down to 0.91 m on the skirt (the shoulder line on the cape), all chains from
   mid-thigh (halfway on the cape): past there a vertex already shares two chains' two bones (4 influences); round the body
   between the two nearest chains at the vertex's height, across the back's middle too (the vent never opens: the cloth
@@ -587,15 +625,38 @@ Ellis.py:
   the hit zones a quarter about Z (into the data) to face -X, so SK_Ellis faces +Y in Unreal with his left at +X, as
   SKM_Manny_Simple (facing +X, the retargeter couldn't line his fingers and arms up: the clawed hands). An exported FBX
   read back gives the file's own axes; Unreal flips Y, so Unreal = (x, -y, z) of those.
-- The game mesh, ~20.6k triangles (the user's call, 2026-10-15: Borderlands' 10-20k budget): the detailed build (~108k)
-  is only the bake source. `make_lows()` copies each part and decimates it by its `LOW` share (Blender's Decimate,
-  collapse); the face spares the eyes (a vertex group, inverted: Decimate collapses only what its group weights); the
-  bandana's back, hidden under collar and hair, goes; the hair is built again as fewer, wider locks (`HAIR_LOW`); reduced
-  layers are pushed back outside the reduced layers under them (a reduced sleeve cut through its reduced gauntlet); below
-  the chin the bandana stands 1 cm off the neck's skin (the mask above, 3 mm). The
-  copies take each part's transform (the eyes, buttons, pin and conchos are placed by their object, not their mesh: copies
-  without it fell to the floor). Biggest shares: face 2.6k, duster 1.8k, hair 1.8k, gloves 1.1k, cape 1.1k, boots 1.1k.
-  `--stats` prints the triangles per part (no bake).
+- The game mesh, 34.2k triangles (the user's call, 2026-10-15: up to 35k; at 20.6k it read coarse): the detailed build
+  (~108k) is only the bake source. `make_lows()` copies each part and decimates it by its `LOW` share (Blender's Decimate,
+  collapse), spending where the silhouette and close-ups need it (face, hands, collar, brim, coat edges, boots; small hard
+  parts whole: reduced, the gun, holster and lantern shredded into shards); the face spares the eyes and the cloth
+  (`EDGE_KEEP`: duster, cape, collar, bandana, brim) a band along its open edges (a vertex group, inverted: Decimate
+  collapses only what its group weights); `unflip()` turns back the faces Decimate flipped (against the detailed part and
+  their neighbours) and dissolves its slivers: Unreal culls a face's back, so each was a hole (the waistcoat's "black
+  holes", 116 in the old boots' toes, the duster's back); the shirt keeps only what shows in the waistcoat's V (bent, the rest
+  came through); the bandana's back, hidden under collar and hair, goes; the hair is built again with 80 narrower locks
+  (`HAIR_LOW`; 44 wide ones read as slabs; each lock's sideways direction carried along it, or a lock running straight
+  out twisted into a hook; tips end in blunt clumps, not needles); reduced layers are pushed back outside the reduced
+  layers under them (a reduced sleeve cut through its reduced gauntlet; the coat over the cartridges and bullets too);
+  below the chin the bandana stands 1 cm off the neck's skin (the mask above, 3 mm). The copies take each part's
+  transform (the eyes, buttons, pin and conchos are placed by their object, not their mesh: copies without it fell to the
+  floor). Biggest shares: hair 4.6k, duster 3.4k, face 2.6k, boots 2.5k (LOW 0.18 of the fused 14k), gloves 2.3k, cape 2.0k, bandana 2.0k. `--stats`
+  prints the triangles per part (no bake). Leather looks keep their grain at 280/m (900-1100 aliased at the bake's ~1000
+  px/m into a fuzz that read as suede and fur).
+- `--audit <tag>` (`Tools/Blender/ellis_audit.py` on `looter_audit.py`; neither is in the bake's digest): the baked look in
+  Cycles (sun ~40 degrees and sky; one dusk shot) as an 8-angle turntable at the game's idle and close-ups (face, under
+  the brim, hands, belt, boots front and side, waistcoat, back, collar, hair), the game's poses (`looter_audit.POSES`:
+  idle, aim, stride, crouch) in clay with the swing chains where BodySwing's springs would rest them (`settle_swing`: its
+  constants, limbs, bone push and floor copied, keep in step; its points the game's: an FBX skeleton has no tails, so a chain's last tip is
+  its head plus the bone before, a lone bone's 18 cm down; the pose reached in 12 stages, each point moving at most 1 cm a
+  pass and kept out of the limbs on the way, as the springs follow frame by frame: set straight into a pose, a limb
+  already past a point pushed it out the far side), and every layer checked against the one over it in each pose (`PAIRS`: a point looks out along its normal, turned
+  away from the nearest bone so a thickened part's inner shell counts, and back in; `SOLIDS`: a part inside another; `GROUNDED`: under the ground), into
+  `Saved/Concepts/EllisAudit/<tag>/` with `findings.json`. The 2026-10-15 audit: `EllisAudit/defects.md`.
+- `--option A|B` (`Tools/Blender/ellis_options.py`, off unless asked; the user picked C, now the build, 2026-10-15, and
+  not these): A gear and story (a bandolier over the coat, a satchel at the right hip, spurs, a watch chain, the lantern
+  a third bigger; +2.9k triangles), B the coat itself (lapels, pocket flaps, buckled sleeve straps, a second cape tier, a
+  frayed and patched hem; +3.3k). An option's cloth is cached apart (`Saved/Concepts/EllisOptions/
+  Ellis.drape.<option>.json`); clay views in `Saved/Concepts/EllisOptions/<option>_<view>.png`.
 - Bake cache: `Art/Textures/EllisSkin/bake.digest` holds the digest of the scripts, the size and the Blender version the sets
   were baked from; a run with the same digest reads the PNGs back instead of baking (`--rebake` forces it).
 - The cloud box can't push Git LFS: its PNGs are not committed (`.git/info/exclude` there). The PC baked them on
@@ -607,7 +668,8 @@ Ellis.py:
   (96 bones with the root: 63 mannequin, 31 swing, hat; 3 LODs, Nanite off for the eye glow, 185.5 cm to the hat's top),
   `MI_Ellis*`, `PA_Ellis`.
 - Run: `blender -b --factory-startup --python Art/Models/Characters/Ellis.py -- [--size 1024] [--glb <path>] [--preview]
-  [--shots full+upper+hips+feet] [--shape] [--sim-only] [--selfx] [--no-sim] [--rebake] [--rig-check]`. `--rig-check`
+  [--shots full+upper+hips+feet] [--shape] [--sim-only] [--selfx] [--no-sim] [--rebake] [--rig-check] [--audit <tag>]
+  [--option A|B]`. `--rig-check`
   (no bake, ~15 s): Workbench clay into `Saved/Concepts/EllisSwing/`: the swing bones drawn at rest, `shares_*` (each
   vertex coloured by its chains), `SWING_TESTS` bends, the hat tipped (`hat_tip_*`), `HEAD_TESTS` (the head alone turned
   35 degrees each way, rolled 20, pitched 20: `bandana_*`); and logs at most 4 influences, the steepest weight steps, the
@@ -662,7 +724,18 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
   spring toward the animated pose (an acceleration with its stiffness as a natural frequency, damped; Verlet), a small share
   of gravity (the pose already hangs; the lantern full, a pendulum), each point its length from the one before, out of the
   limbs. Limb clearance needs no radii: a point keeps 95% of its rest distance from each limb segment (thighs, calves,
-  pelvis, spine, neck, upper arms), at most the limb's own (14/10/18/15/9 cm). Tuning table: `FBodySwing::SettingsFor`
+  pelvis, spine, neck, upper arms, forearms, hands), at most the limb's own (14/10/18/15/9/9/7/5 cm). The bone between two
+  points keeps clear too (`BoneRadius`: its nearest rest distance, same 95% and caps; `PushBoneOut` turns the tip out by
+  the overlap over how far down the bone it is, ignored in the bone's top 20%): with points alone a full stride's back
+  shin slid between two of them and the boot showed through the ankle-length coat's lower back (Ellis.py's audit,
+  2026-10-15). A floor: no point under the component's origin + 2 cm (the mannequin's root stays on the ground, crouched
+  too); a point under it swings up about the one above onto it, keeping its lean (`KeepAbove`), so a crouch lays the hem
+  on the ground (it sank ~11 cm). Hand and forearm limbs: at idle the hands sank 2.5 cm into the coat's sides. Measured
+  in Ellis.py's audit (its copy in step): the floor holds the game's chain tips, but a last bone's tip is extrapolated
+  (the skirt's at mid-shin) and the cloth runs 11 cm past it, so crouched the hem still goes 15 cm under; the bone push
+  is square to both bone and limb, sideways when they share a plane, so the stride's back panel slides round the outside
+  of the shin (the boot through it: 53 -> 48 points).
+  Tuning table: `FBodySwing::SettingsFor`
   (skirt 7 rad/s, damping 3.5; cape 12, 5; bandana and hair 9, 3.5; lantern 2, 1.2). `Looter.Body.Swing 0` holds the
   animated pose. Lessons (each found by Looter.Player.BodySwing.* and a Python copy of the step): a nudge of the position
   toward the target each step is a stiffer spring the shorter the step (30 vs 120 fps ended 7.5 cm apart); chains with

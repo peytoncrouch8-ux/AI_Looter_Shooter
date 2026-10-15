@@ -44,6 +44,15 @@ namespace
 	constexpr float ClearanceShare = 0.95f;
 
 	/**
+	 * A bone's nearest place to a limb this close to its head (a share of its length) is left to the point above: turning
+	 * the bone there would swing its tip by many times the overlap.
+	 */
+	constexpr double MinBoneAlong = 0.2;
+
+	/** The swing points keep this far over the ground at his feet (cm): the ankle-length hem sank 11 cm into it crouching. */
+	constexpr float FloorClearance = 2.f;
+
+	/**
 	 * How much of the upper arm's movement the cape's corners take (FChain::FollowWeight): the front ones lie over the
 	 * arms, the back ones over the shoulder blades.
 	 */
@@ -102,8 +111,60 @@ FVector FBodySwingPoints::PushOut(const FVector& P, const FBodySwingCapsule& Cap
 	return Closest + Out * Capsule.Radius;
 }
 
+FVector FBodySwingPoints::PushBoneOut(const FVector& Head, const FVector& Tip, const FBodySwingCapsule& Capsule)
+{
+	if (Capsule.BoneRadius <= 0.f)
+	{
+		return Tip;
+	}
+	FVector OnBone;
+	FVector OnLimb;
+	FMath::SegmentDistToSegmentSafe(Head, Tip, Capsule.A, Capsule.B, OnBone, OnLimb);
+	const FVector Away = OnBone - OnLimb;
+	const double Distance = Away.Size();
+	const double Length = FVector::Dist(Head, Tip);
+	if (Distance >= Capsule.BoneRadius || Length <= UE_KINDA_SMALL_NUMBER)
+	{
+		return Tip;
+	}
+	const double Along = FVector::Dist(Head, OnBone) / Length;
+	if (Along < MinBoneAlong)
+	{
+		return Tip;
+	}
+	// Crossing the limb: out the side the tip is on, square to the limb.
+	FVector Out = Away / FMath::Max(Distance, UE_KINDA_SMALL_NUMBER);
+	if (Distance <= UE_KINDA_SMALL_NUMBER)
+	{
+		const FVector Axis = (Capsule.B - Capsule.A).GetSafeNormal();
+		Out = FVector::VectorPlaneProject(Tip - OnLimb, Axis).GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector);
+	}
+	// The tip moves by the overlap over how far down the bone it is, so the bone's nearest place clears by the overlap.
+	return Tip + Out * ((Capsule.BoneRadius - Distance) / Along);
+}
+
+FVector FBodySwingPoints::KeepAbove(const FVector& Head, const FVector& Tip, double Length, double FloorZ, const FVector& Lean)
+{
+	if (Tip.Z >= FloorZ)
+	{
+		return Tip;
+	}
+	FVector Flat(Tip.X - Head.X, Tip.Y - Head.Y, 0.0);
+	if (!Flat.Normalize())
+	{
+		Flat = FVector(Lean.X, Lean.Y, 0.0);
+		if (!Flat.Normalize())
+		{
+			Flat = FVector::ForwardVector;
+		}
+	}
+	// As low as it can hang, on the floor, out the way it leans (it lies on the ground, not through it).
+	const double Drop = FMath::Clamp(Head.Z - FloorZ, 0.0, Length);
+	return Head + Flat * FMath::Sqrt(Length * Length - Drop * Drop) - FVector(0.0, 0.0, Drop);
+}
+
 void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targets, TConstArrayView<float> Lengths,
-	TConstArrayView<FBodySwingCapsule> Capsules, const FBodySwingSettings& Settings, float DeltaSeconds)
+	TConstArrayView<FBodySwingCapsule> Capsules, const FBodySwingSettings& Settings, float DeltaSeconds, double FloorZ)
 {
 	const int32 Count = Targets.Num();
 	if (!bStarted || Points.Num() != Count || FVector::Dist(Anchor, LastAnchor) > TeleportDistance)
@@ -146,11 +207,14 @@ void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targ
 			const FVector Free = P;
 			for (int32 Limb = 0; Limb < PerPoint; ++Limb)
 			{
-				P = PushOut(P, Capsules[Index * PerPoint + Limb]);
+				const FBodySwingCapsule& Capsule = Capsules[Index * PerPoint + Limb];
+				P = PushOut(P, Capsule);
+				P = PushBoneOut(Head, P, Capsule);
 			}
 			P = Head + (P - Head).GetSafeNormal(UE_SMALL_NUMBER, Rest) * Lengths[Index];
-			// A limb moves the cloth aside without throwing it: the push isn't carried on as speed (it flung a chain
-			// over the thigh it was pushed off).
+			P = KeepAbove(Head, P, Lengths[Index], FloorZ, Rest);
+			// A limb (or the floor) moves the cloth aside without throwing it: the push isn't carried on as speed (it
+			// flung a chain over the thigh it was pushed off).
 			Previous[Index] += P - Free;
 			Points[Index] = P;
 			Head = P;
@@ -170,6 +234,7 @@ void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targ
 		const FVector Between = FMath::Lerp(Previous[Index], Points[Index], static_cast<double>(Blend));
 		const FVector Rest = (Targets[Index] - Head).GetSafeNormal(UE_SMALL_NUMBER, FVector::DownVector);
 		Shown[Index] = Head + (Between - Head).GetSafeNormal(UE_SMALL_NUMBER, Rest) * Lengths[Index];
+		Shown[Index] = KeepAbove(Head, Shown[Index], Lengths[Index], FloorZ, Rest);
 		Head = Shown[Index];
 	}
 }
@@ -313,6 +378,11 @@ void FBodySwing::Bind(const FReferenceSkeleton& Skeleton)
 			{
 				const double Distance = FVector::Dist(Tip, FMath::ClosestPointOnSegment(Tip, Limb.A, Limb.B));
 				Chain.Clearances.Add(FMath::Min(static_cast<float>(Distance) * ClearanceShare, Limb.MaxClearance));
+				FVector OnBone;
+				FVector OnLimb;
+				FMath::SegmentDistToSegmentSafe(Head, Tip, Limb.A, Limb.B, OnBone, OnLimb);
+				const double BoneDistance = FVector::Dist(OnBone, OnLimb);
+				Chain.BoneClearances.Add(FMath::Min(static_cast<float>(BoneDistance) * ClearanceShare, Limb.MaxClearance));
 			}
 		}
 	}
@@ -348,6 +418,8 @@ void FBodySwing::Apply(FCSPose<FCompactPose>& Pose, const FTransform& ComponentT
 		InitBoneReferences(Bones);
 	}
 	const double Scale = ComponentToWorld.GetMaximumAxisScale();
+	// The ground at his feet: the component's origin (the mannequin's root stays on the floor, crouched too).
+	const double FloorZ = ComponentToWorld.GetLocation().Z + FloorClearance * Scale;
 
 	// The limbs as they are this frame (world space).
 	TArray<FBodySwingCapsule, TInlineAllocator<16>> LimbsNow;
@@ -407,11 +479,12 @@ void FBodySwing::Apply(FCSPose<FCompactPose>& Pose, const FTransform& ComponentT
 			{
 				FBodySwingCapsule Capsule = LimbsNow[Limb];
 				Capsule.Radius = Chain.Clearances[Index * LimbsNow.Num() + Limb] * static_cast<float>(Scale);
+				Capsule.BoneRadius = Chain.BoneClearances[Index * LimbsNow.Num() + Limb] * static_cast<float>(Scale);
 				Capsules.Add(Capsule);
 			}
 		}
 		const FVector Anchor = ComponentToWorld.TransformPosition(Animated[0].GetLocation());
-		Chain.Sim.Step(Anchor, Targets, Lengths, Capsules, Chain.Settings, DeltaSeconds);
+		Chain.Sim.Step(Anchor, Targets, Lengths, Capsules, Chain.Settings, DeltaSeconds, FloorZ);
 
 		// Each bone turned from its animated way to the simulated one, its head on the tip before it.
 		FVector Head = Animated[0].GetLocation();

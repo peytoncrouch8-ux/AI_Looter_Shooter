@@ -5,7 +5,7 @@ spec). Boots to hat:
     barefoot, standing 2.5 cm up on boot heels; the eyes narrowed to slits, burning cyan in the brim's shadow
   - a cattleman hat worn low (dust-brown felt, a leather band), collar-length dark hair under it, a lock over the left brow
   - a red bandana pulled up over nose and mouth, knotted at the back of the neck, its bib over the chest
-  - a dust-brown oilskin duster to mid-calf, worn open, a back vent, a fluted shoulder cape, the collar turned up and
+  - a dust-brown oilskin duster to the ankle, worn open, a back vent, a fluted shoulder cape, the collar turned up and
     Saint Ada's sun-ring pin on it (Pa's keeper's badge); over a black waistcoat with brass buttons and a linen shirt
   - tan roper gloves with flared gauntlets and a brass concho (SK_FP_Arms's gloves)
   - a gun belt of brass cartridges with a cross-draw holster on the left hip, the revolver's grip forward; Pa's lantern
@@ -46,16 +46,20 @@ import mh  # noqa: E402
 
 ARGS = [a for arg in (sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []) for a in arg.split(',') if a]
 T0 = time.time()
+# The silhouette options the user didn't pick (Tools/Blender/ellis_options.py: A gear, B the coat; they picked C, now
+# the build itself, 2026-10-15): none unless asked
+OPTION = ARGS[ARGS.index('--option') + 1].upper() if '--option' in ARGS and ARGS.index('--option') + 1 < len(ARGS) else ''
 OPT = eb.OPTIONS['A']
 MACRO = {'gender': 0.5, 'muscle': 0.6, 'weight': 0.42, 'caucasian': 0.7, 'african': 0.15, 'asian': 0.15}
 HEIGHT = 1.77            # barefoot, the top of the head (m)
 LIFT = 0.025             # the boots' heels and soles raise the body this much
-HEM = 0.36               # the duster's hem (m above the ground): just below mid-calf
+HEM = 0.24               # the duster's hem (m above the ground): the ankle (the user's "C", 2026-10-15; it was mid-calf, 0.36)
 BOOT_TOP = 0.49          # the stovepipe boots' tops
 WAIST = 1.02             # the trousers' and the waistcoat's waistline
 FWD = np.array([0.0, -1.0])
 SIM = '--no-sim' not in ARGS        # the duster and cape settle by cloth simulation (cached in Ellis.drape.json)
-DRAPE_FILE = os.path.join(HERE, 'Ellis.drape.json')
+DRAPE_FILE = os.path.join(HERE, 'Ellis.drape.json') if not OPTION else \
+    os.path.join(REPO, 'Saved', 'Concepts', 'EllisOptions', f'Ellis.drape.{OPTION}.json')   # an option's own cloth
 SIDE_SEAM = 1.83                     # the duster's side seams, radians round from the front (about 105 degrees)
 VENT_TOP = 0.80
 COAT_EASE = (0.016, 0.010)           # the duster's ease off the body (m): from the chest down, and more from the hips
@@ -147,19 +151,22 @@ LOOKS = {
     'Scalp': lambda n: lk.scalp(n, (0.07, 0.06, 0.055)),
     'EyeGlow': lambda n: lk.glow(n, OPT['glow'], 6.0),
     'Felt': lambda n: lk.felt(n, (0.11, 0.095, 0.085), (0.30, 0.255, 0.21), band_z=HAT.get('band_z')),
-    'HatBand': lambda n: lk.leather(n, (0.14, 0.08, 0.05), dust_amt=0.2, dust_height=0.001),
+    'HatBand': lambda n: lk.leather(n, (0.14, 0.08, 0.05), grain=280.0, dust_amt=0.2, dust_height=0.001),
     'Hair': lambda n: lk.hair(n, (0.035, 0.028, 0.025), (0.13, 0.10, 0.085)),
     'Bandana': lambda n: lk.bandana(n, (0.52, 0.06, 0.05), (0.66, 0.17, 0.12)),
     'Duster': lambda n: lk.oilskin(n, OPT['coat']['cloth'][0], OPT['coat']['cloth'][1], hem=HEM),
     'Vest': lambda n: lk.brocade(n, (0.045, 0.045, 0.05), (0.12, 0.115, 0.115)),
     'Shirt': lambda n: lk.linen(n, (0.31, 0.33, 0.36)),
     'Trousers': lambda n: lk.wool(n, (0.19, 0.18, 0.19)),
-    'Boots': lambda n: lk.leather(n, (0.20, 0.12, 0.075), grain=900.0, dust_amt=0.3, dust_height=0.10, mud=0.0,
-                                  boot=(-0.205, 0.0215)),
+    # leather grain under the bake's limit (~300/m at ~1000 px/m): at 900-1100/m it aliased into a fuzz that read as
+    # suede and fur from a few metres (the gauntlets, 2026-10-15). The toe cap stitched 5.5 cm behind the toe (its tip
+    # at y -0.244), the welt 5 mm over the sole
+    'Boots': lambda n: lk.leather(n, (0.20, 0.12, 0.075), grain=280.0, dust_amt=0.3, dust_height=0.10, mud=0.0,
+                                  boot=(-0.19, 0.0215)),
     'Soles': lambda n: lk.stacked(n, (0.12, 0.08, 0.055)),
-    'Gloves': lambda n: lk.leather(n, (0.50, 0.36, 0.23), grain=1100.0, dust_amt=0.25, dust_height=0.001,
+    'Gloves': lambda n: lk.leather(n, (0.50, 0.36, 0.23), grain=280.0, dust_amt=0.25, dust_height=0.001,
                                    scuff=(0.68, 0.53, 0.38), rough=(0.5, 0.75)),
-    'Belt': lambda n: lk.leather(n, (0.25, 0.145, 0.085), dust_amt=0.25, dust_height=0.001),
+    'Belt': lambda n: lk.leather(n, (0.25, 0.145, 0.085), grain=280.0, dust_amt=0.25, dust_height=0.001),
     'Brass': lambda n: lk.metal(n, (0.58, 0.42, 0.19), (0.86, 0.68, 0.36)),
     'Lead': lambda n: lk.metal(n, (0.38, 0.37, 0.36), (0.58, 0.56, 0.54), rough=(0.4, 0.6), tarnish=(0.2, 0.2, 0.2)),
     'Iron': lambda n: lk.metal(n, (0.05, 0.055, 0.065), (0.17, 0.18, 0.20), rough=(0.3, 0.55), tarnish=(0.05, 0.04, 0.03)),
@@ -268,62 +275,203 @@ def insole(s):
     return np.interp(s, [-0.2, 0.03, 0.10, 0.17, 0.25], [0.036, 0.036, 0.014, 0.014, 0.019])
 
 
+BOOT_EASE = 0.012        # the shaft's room over the leg (m)
+BOOT_TAPER = 0.08        # how much the shaft may narrow going down (m per m): a stovepipe, nearly straight
+BOOT_WALL = 0.005        # the shaft's leather and lining (m), round the inside the trousers tuck into
+BOOT_VOXEL = 0.0018      # the voxel size the shaft and the foot fuse at (m)
+BOOT_TRIS = 7000         # each detailed boot's triangles (the bake's source; the game mesh keeps LOW['Boots'] of them)
+
+
+def foot_frame(fig, s):
+    """The foot's frame on one side: the ankle, forward along the foot, across it (level)."""
+    ankle, ball = fig.sk[f'foot_{s}'][0], fig.sk[f'ball_{s}'][0]
+    f = gm.unit(np.array([ball[0] - ankle[0], ball[1] - ankle[1], 0.0]))
+    return ankle, f, np.array([-f[1], f[0], 0.0])
+
+
+def hull_radii(hull, dirs):
+    """How far out along each unit direction (k, 2) from the origin a convex polygon round it (counterclockwise
+    points) reaches."""
+    e = np.roll(hull, -1, axis=0) - hull
+    den = dirs[:, 0, None] * e[None, :, 1] - dirs[:, 1, None] * e[None, :, 0]
+    with np.errstate(divide='ignore', invalid='ignore'):
+        t = (hull[None, :, 0] * e[None, :, 1] - hull[None, :, 1] * e[None, :, 0]) / den
+        u = (hull[None, :, 0] * dirs[:, 1, None] - hull[None, :, 1] * dirs[:, 0, None]) / den
+    ok = (np.abs(den) > 1e-12) & (t > 0.0) & (u >= -1e-9) & (u <= 1.0 + 1e-9)
+    return np.where(ok, t, 0.0).max(axis=1)
+
+
+def boot_shaft(fig, s):
+    """A stovepipe's shaft, one closed thick-walled tube: round the leg (its slice's convex hull, with room) from the
+    top down to the insole, narrowing at most BOOT_TAPER going down (straight, not shaped to the ankle as a sock is);
+    its top level, dipping 3 cm at the front and the back; inside, a well the trousers tuck into."""
+    sx = 1.0 if s == 'l' else -1.0
+    ankle, f, lat = foot_frame(fig, s)
+    # the leg's slices cut through its faces (its vertices lie in rings 4-5 cm apart down the shin)
+    ed = {(min(p[k], p[k - 1]), max(p[k], p[k - 1])) for p in fig.faces for k in range(len(p))}
+    ed = np.array(sorted(ed))
+    a, b = fig.wv[ed[:, 0]], fig.wv[ed[:, 1]]
+    keep = (a[:, 0] * sx > 0.0) & (b[:, 0] * sx > 0.0)
+    a, b = a[keep], b[keep]
+
+    def slice_at(z):
+        da, db = a[:, 2] - z, b[:, 2] - z
+        cut = (da * db <= 0.0) & (da != db)
+        return (a[cut] + (b[cut] - a[cut]) * (da[cut] / (da[cut] - db[cut]))[:, None])[:, :2]
+
+    z_lo = ankle[2] + 0.03                  # under this the slice takes in the foot: the tube goes straight on down
+    zs = np.arange(BOOT_TOP + 0.02, z_lo - 1e-6, -0.01)
+    A = np.linspace(-math.pi, math.pi, 56, endpoint=False)
+    D = np.stack(gm.radial(A, FWD), axis=1)
+    hulls = [hull_2d(slice_at(z)) for z in zs]
+    cen = np.array([h.mean(axis=0) for h in hulls])
+    for _ in range(6):
+        cen[1:-1] = 0.25 * cen[:-2] + 0.5 * cen[1:-1] + 0.25 * cen[2:]
+    fit = np.array([hull_radii(h - c, D) for h, c in zip(hulls, cen)])
+    rad = fit + BOOT_EASE
+    rad = np.maximum(0.75 * rad + 0.25 * rad.mean(axis=1, keepdims=True), fit + 0.008)    # rounder than the leg
+    for i in range(1, len(zs)):
+        rad[i] = np.maximum(rad[i], rad[i - 1] - BOOT_TAPER * (zs[i - 1] - zs[i]))
+    up = zs[::-1]
+
+    def ring(z, inset=0.0):
+        """Points round the shaft at heights z (one per angle), inset from its outside."""
+        zc = np.clip(z, up[0], up[-1])
+        c = np.stack([np.interp(zc, up, cen[::-1, k]) for k in (0, 1)], axis=1)
+        r = np.array([np.interp(zc[k], up, rad[::-1, k]) for k in range(len(A))]) - inset
+        return np.c_[c + D * r[:, None], z]
+
+    top = BOOT_TOP - 0.03 * np.cos(A) ** 2
+    bottom = insole(((ring(np.full(len(A), z_lo)) - ankle) @ f)) + 0.001
+    floor = 0.34                             # the well's floor: the trousers end at BOOT_TOP - 0.07
+    rows = [ring(floor + (top - floor) * t, BOOT_WALL) for t in np.linspace(0.0, 1.0, 14)]
+    rows.append(ring(top + 0.0025, BOOT_WALL * 0.5))
+    rows += [ring(top + (bottom - top) * t) for t in np.linspace(0.0, 1.0, 46)]
+    R = np.array(rows)
+    piece = gm.grid(R[..., 0], R[..., 1], R[..., 2], wrap=True)
+    verts, faces, n = list(piece.verts), piece.faces, len(A)
+    for row, up_ in ((0, True), (len(R) - 1, False)):
+        c = len(verts)
+        verts.append(R[row].mean(axis=0))
+        for k in range(n):
+            a_, b_ = row * n + k, row * n + (k + 1) % n
+            faces.append([c, a_, b_] if up_ else [c, b_, a_])
+    return gm.Piece(np.array(verts), faces)
+
+
+def boot_last(fig, s):
+    """A boot's foot on its last: rounded-rectangle sections lofted from the heel to a round toe box 2.5 cm past the
+    toes, each from the insole up over the foot (MakeHuman's foot and toes, measured, with room), closer together at
+    the ends where they round off. Closed; the shaft fuses onto it (build_boots)."""
+    ankle, f, lat = foot_frame(fig, s)
+    sx = 1.0 if s == 'l' else -1.0
+    used = fig.b.used
+    feet = fig.wv[used][(fig.w_foot[used] > 0.3) & (fig.wv[used][:, 0] * sx > 0)]
+    sf, lf, zf = (feet - ankle) @ f, (feet - ankle) @ lat, feet[:, 2]
+    s0, s1 = sf.min() - 0.004, sf.max() + 0.025
+    u = np.linspace(0.0, 1.0, 46)
+    S = s0 + (s1 - s0) * (0.6 * u + 0.4 * (0.5 - 0.5 * np.cos(math.pi * u)))
+    lo, hi, top = np.zeros(len(S)), np.zeros(len(S)), np.zeros(len(S))
+    for i, q in enumerate(S):
+        near = np.abs(sf - q) < 0.01
+        if near.any():
+            lo[i], hi[i], top[i] = lf[near].min() - 0.009, lf[near].max() + 0.009, zf[near].max() + 0.010
+        else:
+            lo[i], hi[i], top[i] = lo[i - 1], hi[i - 1], top[i - 1]
+    sb = sf[zf < 0.05].max()                                  # the toes' front
+    top = np.maximum(top, (insole(S) + 0.046) * gm.smoothstep(sb - 0.10, sb - 0.06, S))   # a roomy toe box
+    # ahead of the ball the box narrows only a little (to the toes' own tips it came to a point)
+    s_ball = (fig.sk[f'ball_{s}'][0] - ankle) @ f
+    for i in range(1, len(S)):
+        if S[i] > s_ball:
+            give = 0.15 * (S[i] - S[i - 1])
+            lo[i], hi[i] = min(lo[i], lo[i - 1] + give), max(hi[i], hi[i - 1] - give)
+    for _ in range(6):
+        for a in (lo, hi, top):
+            a[1:-1] = 0.25 * a[:-2] + 0.5 * a[1:-1] + 0.25 * a[2:]
+    # the toe: a quarter ellipsoid on the sole, a little square in plan, its front curving down to the welt (narrowed
+    # in plan alone it came to a beak); the heel round in plan
+    toe = np.clip((S - (s1 - 0.045)) / 0.045, 0.0, 1.0)
+    heel = np.clip(((s0 + 0.02) - S) / 0.02, 0.0, 1.0)
+    plan = np.clip(1.0 - toe ** 2.5, 0.0, 1.0) ** 0.4 * np.sqrt(np.clip(1.0 - heel ** 2, 0.0, 1.0))
+    mid, half = (lo + hi) * 0.5, (hi - lo) * 0.5 * np.maximum(plan, 0.08)
+    zb = insole(S)
+    zt = zb + (top - zb) * np.maximum(np.sqrt(np.clip(1.0 - toe ** 2, 0.0, 1.0)), 0.08)
+    phi = np.linspace(0.0, 2 * math.pi, 32, endpoint=False)
+    cu, su = np.cos(phi), np.sin(phi)
+    lat_u = np.sign(cu) * np.abs(cu) ** (2.0 / 3.2)
+    up_u = np.where(su >= 0.0, np.abs(su) ** (2.0 / 3.0), -np.abs(su) ** (2.0 / 9.0))
+    R = []
+    for i in range(len(S)):
+        zc, hz = (zb[i] + zt[i]) * 0.5, (zt[i] - zb[i]) * 0.5
+        xy = ankle[None, :2] + f[None, :2] * S[i] + lat[None, :2] * (mid[i] + half[i] * lat_u)[:, None]
+        R.append(np.c_[xy, zc + hz * up_u])
+    R = np.array(R)
+    piece = gm.grid(R[..., 0], R[..., 1], R[..., 2], wrap=True)
+    verts, faces, n = list(piece.verts), piece.faces, len(phi)
+    for row, push in ((0, -0.004), (len(S) - 1, 0.0)):
+        c = len(verts)
+        verts.append(R[row].mean(axis=0) + f * push)          # the heel's end domed, not cut flat
+        for k in range(n):
+            a_, b_ = row * n + k, row * n + (k + 1) % n
+            faces.append([c, a_, b_] if row == 0 else [c, b_, a_])
+    return gm.Piece(np.array(verts), faces)
+
+
+def fillet(ob, near, iters=60, step=0.5):
+    """Rounds the crease where fused solids meet: the vertices near both (near: 0..1 each) eased toward their
+    neighbours' middle (a concave crease fills in)."""
+    me = ob.data
+    co = gm._object_coords(ob)
+    ed = np.empty(len(me.edges) * 2, dtype=np.int64)
+    me.edges.foreach_get('vertices', ed)
+    a, b = ed[0::2], ed[1::2]
+    cnt = np.bincount(a, minlength=len(co)) + np.bincount(b, minlength=len(co))
+    k = (step * near)[:, None]
+    for _ in range(iters):
+        acc = np.stack([np.bincount(a, co[b, j], len(co)) + np.bincount(b, co[a, j], len(co)) for j in range(3)], 1)
+        co += k * (acc / np.maximum(cnt, 1)[:, None] - co)
+    me.vertices.foreach_set('co', co.astype(np.float32).ravel())
+    me.update()
+
+
 def build_boots(fig):
-    """Tall stovepipe boots: the calves and feet pushed out, the toes made one rounded toe box reaching past them, the
-    bottom flattened onto a stacked leather sole with a cuban heel, the tops cut level with a dip front and back."""
-    z = fig.wv[:, 2]
-    top_at = np.full(len(z), BOOT_TOP)
-    for s in 'lr':
-        axis = fig.sk[f'calf_{s}'][1][:2]
-        side = (fig.wv[:, 0] * axis[0]) > 0
-        ang = np.arctan2(fig.wv[side, 0] - axis[0], -(fig.wv[side, 1] - axis[1]))
-        top_at[side] = BOOT_TOP - 0.03 * np.cos(ang) ** 2
-    keep = z < top_at + 0.012
-    off = 0.008 + 0.012 * gm.smoothstep(0.22, BOOT_TOP, z)
-    piece, used = gm.shell(fig.wv, fig.faces, fig.fuv, fig.face_mask(keep), off, iters=3)
-    top_at = top_at[used]
-    v = piece.verts
+    """Tall stovepipe boots: a straight shaft (boot_shaft) and the foot on its last (boot_last) fused into one leather
+    surface (a voxel remesh) and the crease between them rounded, on a stacked leather sole with a welt and a cuban
+    heel. (MakeHuman's own foot reshaped into a toe box kept reading as a bare foot on a sandal, and a last with the
+    calf's shell standing in it as a slipper with a sock, 2026-10-15.)"""
+    shafts = [gm.mesh(f'_Shaft_{s}', boot_shaft(fig, s), slot('Boots')) for s in 'lr']
+    lasts = [gm.mesh(f'_Last_{s}', boot_last(fig, s), slot('Boots')) for s in 'lr']
+    shaft_tree, last_tree = gm.bvh_objects(shafts), gm.bvh_objects(lasts)
+    bk.select(shafts + lasts, shafts[0])
+    bpy.ops.object.join()
+    ob = bpy.context.view_layer.objects.active
+    ob.name = ob.data.name = 'Boots'
+    m = ob.modifiers.new('fuse', 'REMESH')
+    m.mode, m.voxel_size, m.adaptivity = 'VOXEL', BOOT_VOXEL, 0.0
+    gm.apply_modifiers(ob, keep=())
+    # where the shaft meets the foot (near both): rounded into the instep and the heel
+    co = gm._object_coords(ob)
+    gap = np.zeros(len(co))
+    for i, p in enumerate(co):
+        if p[2] < 0.25:
+            v = Vector(tuple(p))
+            gap[i] = max(shaft_tree.find_nearest(v)[3], last_tree.find_nearest(v)[3])
+        else:
+            gap[i] = 1.0
+    fillet(ob, gm.smoothstep(0.022, 0.004, gap))
+    m = ob.modifiers.new('reduce', 'DECIMATE')
+    m.ratio = min(1.0, 2 * BOOT_TRIS / max(1, sum(len(p.vertices) - 2 for p in ob.data.polygons)))
+    gm.apply_modifiers(ob, keep=())
+    ob.data.shade_smooth()
+    # the stacked soles: under each boot's footprint (its points just over the insole), out 4 mm into a welt
+    co = gm._object_coords(ob)
     soles = []
     for s in 'lr':
-        ankle, ball = fig.sk[f'foot_{s}'][0], fig.sk[f'ball_{s}'][0]
-        f = gm.unit(np.array([ball[0] - ankle[0], ball[1] - ankle[1], 0.0]))
-        lat = np.array([-f[1], f[0], 0.0])
-        side = (v[:, 0] * ball[0]) > 0
-        # the toes into one toe box: the forefoot's points moved onto a rounded box (a superellipsoid in the foot's
-        # frame) reaching 2.5 cm past the toes, blended in from just behind the ball
-        c = ball + f * 0.022
-        c[2] = LIFT + 0.026
-        d = v - c
-        along = d @ f
-        sel = side & (along > -0.08) & (v[:, 2] < 0.13)
-        dx, dy, dz = d[sel] @ lat, along[sel], d[sel, 2]
-        ay = np.where(dy > 0, 0.056, 0.07)
-        az = np.where(dz > 0, 0.034, c[2])
-        p = 2.6
-        F = (np.abs(dx / 0.049) ** p + np.abs(dy / ay) ** p + np.abs(dz / az) ** p) ** (1.0 / p)
-        k = gm.smoothstep(-0.075, 0.0, dy)[:, None]          # a long blend: a short one left a ridge round the box
-        toe_w = np.zeros(len(v))
-        toe_w[sel] = gm.smoothstep(-0.08, 0.0, dy) * 0.8
-        # project, relax, project again: the toes' crowded points spread evenly over the box
-        for it in range(8):
-            d = v[sel] - c
-            dx, dy2, dz = d @ lat, d @ f, d[:, 2]
-            ay = np.where(dy2 > 0, 0.056, 0.07)
-            az = np.where(dz > 0, 0.034, c[2])
-            F = (np.abs(dx / 0.049) ** p + np.abs(dy2 / ay) ** p + np.abs(dz / az) ** p) ** (1.0 / p)
-            target = c + d / np.maximum(F, 1e-6)[:, None]
-            v[sel] = v[sel] * (1.0 - k) + target * k
-            if it < 7:
-                v = gm.laplacian(v, piece.faces, 3, weight=toe_w)
-        # down onto the insole: the forefoot lowered, the heel raised onto its stack, the bottom flattened
-        sft = (v - ankle) @ f
-        low = side & (v[:, 2] < 0.15)
-        w = 1.0 - gm.smoothstep(0.03, 0.15, v[low, 2])
-        v[low, 2] += (insole(sft[low]) - (LIFT - 0.008)) * w
-        under = side & (v[:, 2] < insole(sft) + 0.003)
-        v[under, 2] = insole(sft[under])
-        # the sole's outline: the boot's footprint, round the foot's middle, pushed out into a welt
-        foot_pts = v[side & (v[:, 2] < insole(sft) + 0.012)]
+        sx = 1.0 if s == 'l' else -1.0
+        ankle, f, lat = foot_frame(fig, s)
+        side = co[co[:, 0] * sx > 0]
+        foot_pts = side[side[:, 2] < insole((side - ankle) @ f) + 0.008]
         mid = foot_pts[:, :2].mean(axis=0)
         ang = np.linspace(-math.pi, math.pi, 72, endpoint=False)
         rel = foot_pts[:, :2] - mid
@@ -336,7 +484,7 @@ def build_boots(fig):
             out[i] = r[near].max() if near.any() else 0.0
         for _ in range(3):
             out = 0.25 * np.roll(out, 1) + 0.5 * out + 0.25 * np.roll(out, -1)
-        out += 0.005
+        out += 0.004
         ring = np.stack([mid[0] + out * np.cos(ang), mid[1] + out * np.sin(ang)], 1)
         s_ring = (np.c_[ring, np.zeros(len(ring))] - ankle) @ f
         top = insole(s_ring) + 0.002
@@ -356,34 +504,19 @@ def build_boots(fig):
         n = len(ang)
         for row, zc in ((0, top.mean()), (2, 0.0)):
             cidx = len(verts)
-            cz = zc if row == 0 else 0.0
-            verts.append(np.array([mid[0], mid[1], cz]))
+            verts.append(np.array([mid[0], mid[1], zc if row == 0 else 0.0]))
             for i in range(n):
                 a_, b_ = row * n + i, row * n + (i + 1) % n
                 faces.append([a_, b_, cidx] if row == 0 else [b_, a_, cidx])
                 uv += [(0.0, 0.0), (0.01, 0.0), (0.005, 0.01)]
         soles.append(gm.Piece(np.array(verts), faces, uv))
-    # creases across the instep and round the ankle where the leather folds as the foot bends
-    nrm = gm.vertex_normals(v, piece.faces)
-    for s_ in 'lr':
-        ankle = fig.sk[f'foot_{s_}'][0]
-        side = (v[:, 0] * ankle[0]) > 0
-        front = gm.smoothstep(ankle[1] + 0.01, ankle[1] - 0.04, v[:, 1])
-        band = gm.smoothstep(0.06, 0.09, v[:, 2]) * gm.smoothstep(0.20, 0.14, v[:, 2])
-        crease = -np.abs(np.sin((v[:, 2] - 0.08) * 150.0 + v[:, 0] * 30.0)) ** 3
-        v[side] += nrm[side] * (0.003 * crease * band * (0.4 + 0.6 * front))[side][:, None]
-    piece.verts = v
-    # the shaft's top: level, dipping 3 cm at the front and back (stovepipes)
-    edge = gm.boundary(piece.faces, len(v))
-    topv = edge & (v[:, 2] > BOOT_TOP - 0.07)
-    v[topv, 2] = top_at[topv]
-    piece.verts = v
-    ob = gm.mesh('Boots', piece, slot('Boots'))
+        log(f'boot {s}: toe tip at y {float(foot_pts[:, 1].min()):.3f}, heel at y {float(foot_pts[:, 1].max()):.3f}')
     sole_ob = gm.mesh('Soles', soles[0] + soles[1], slot('Soles'))
     return [ob, sole_ob]
 
 
 GLOVE_GIRTH = 1.15      # the gloves' girth over the bare hand's (the user, 2026-10-15: the hands read thin and clawed)
+CUFF_FLARE = (0.018, 0.015)   # how far the gauntlet's cuff flares from the wrist (m, across and front to back)
 
 
 def thicken_hand(fig, verts, used):
@@ -417,9 +550,10 @@ def build_gloves(fig, sleeves):
         e, w = fig.sk[f'lowerarm_{s}'][0], fig.sk[f'lowerarm_{s}'][1]
         axis = gm.unit(w - e)
         path = np.array([w + axis * (0.012 - 0.115 * t) for t in np.linspace(0, 1, 9)])
-        # the cuff's mouth grows with the glove it closes over (GLOVE_GIRTH at the wrist, less up the flare)
+        # the cuff's mouth grows with the glove it closes over (GLOVE_GIRTH at the wrist, less up the flare); a roper's
+        # gauntlet flares 1.8 cm (3 cm read as a bell, 2026-10-15)
         grow = lambda t: 1.0 + (GLOVE_GIRTH - 1.0) * (1.0 - 0.6 * t)
-        rad = np.array([[(0.037 + 0.030 * t ** 1.3) * grow(t), (0.031 + 0.026 * t ** 1.3) * grow(t)]
+        rad = np.array([[(0.037 + CUFF_FLARE[0] * t ** 1.3) * grow(t), (0.031 + CUFF_FLARE[1] * t ** 1.3) * grow(t)]
                         for t in np.linspace(0, 1, 9)])
         pc = gm.tube(path, rad, n=28, up=(0.0, -1.0, 0.0))
         pc.verts = gm.clear(pc.verts, tree, 0.004, 0.06)
@@ -431,7 +565,9 @@ def build_gloves(fig, sleeves):
         mid = w - axis * 0.075
         hit = tree.ray_cast(Vector(mid + out * 0.2), Vector(-out), 0.4)
         tc = (0.075 + 0.012) / 0.115                             # the concho's place along the cuff
-        swell = (0.034 + 0.028 * tc ** 1.3) * (grow(tc) - 1.0)   # how much the cuff grew there
+        swell = (0.034 + 0.5 * sum(CUFF_FLARE) * tc ** 1.3) * (grow(tc) - 1.0)   # how much the cuff grew there
+        # the cuff's flare there came in from 2.8 cm to CUFF_FLARE: the concho follows it in
+        swell -= (0.028 - 0.5 * sum(CUFF_FLARE)) * tc ** 1.3
         at = (np.array(hit[0]) if hit[0] is not None else mid + out * 0.05) + out * (0.012 + swell)
         bm = bmesh.new()
         bmesh.ops.create_cone(bm, cap_ends=True, segments=20, radius1=0.011, radius2=0.008, depth=0.004)
@@ -458,7 +594,8 @@ def build_vest(fig):
     hw = 0.065 * gm.smoothstep(1.27, 1.47, z)
     vee = front & (np.abs(x) < hw)
     keep = torso & (z > WAIST - 0.04) & (z < fig.neck[2] - 0.005) & ~vee
-    vest, _ = gm.shell(fig.wv, fig.faces, fig.fuv, fig.face_mask(keep), 0.0075, iters=6)
+    # smoothed well: cloth over the chest, not the body's own shape (the user: the waistcoat "as cloth", 2026-10-15)
+    vest, _ = gm.shell(fig.wv, fig.faces, fig.fuv, fig.face_mask(keep), 0.0075, iters=14)
     # a clean hem: level round the back, two points at the front either side of the buttons
     vv = vest.verts
     hem = gm.boundary(vest.faces, len(vv)) & (vv[:, 2] < WAIST + 0.03)
@@ -579,17 +716,14 @@ def build_duster(fig, under_pts, clear_obs=()):
                                        + 0.20 * np.sin(th * 12.7 + ph[4] + v * 1.5))
         fold += 0.005 * gm.smoothstep(1.2, 1.0, z) * gm.smoothstep(0.8, 1.0, z) * np.sin(th * 9.1 + ph[5])
         r = r + fold
-        # the vent: built, its edges overlap a little (the left flap over the right); simulated, they start apart
-        # (cloth that starts through itself throws its points away under self-collision) and fall together
-        if z < vent_top:
+        # the vent: built, its edges overlap a little (the left flap over the right); simulated, its edges start
+        # together and the cloth falls welded shut there, lapped afterwards (lap_vent). (Started apart, the flaps
+        # fell into each other and tangled, one swept across the other and kicked out at the back, 2026-10-15.)
+        if z < vent_top and not SIM:
             k = gm.smoothstep(vent_top, vent_top - 0.08, z)
-            if SIM:
-                th[half - 1] -= 0.03 * k
-                th[half] += 0.03 * k
-            else:
-                r[half - 1] += 0.004 * k
-                th[half - 1] += 0.025 * k
-                th[half] -= 0.02 * k
+            r[half - 1] += 0.004 * k
+            th[half - 1] += 0.025 * k
+            th[half] -= 0.02 * k
         rows.append((th, r, z))
     TH = np.array([r[0] for r in rows])
     RR = np.array([r[1] for r in rows])
@@ -610,10 +744,14 @@ def build_duster(fig, under_pts, clear_obs=()):
     bm.verts.ensure_lookup_table()
     half = n_t // 2
     pairs = [(bm.verts[j * n_t + half - 1], bm.verts[j * n_t + half]) for j in range(n_z) if zs[j] >= vent_top]
+    vent = [(bm.verts[j * n_t + half - 1], bm.verts[j * n_t + half]) for j in range(n_z) if zs[j] < vent_top]
     for a, b in pairs:
         mid = (a.co + b.co) * 0.5
         a.co = b.co = mid
     bmesh.ops.remove_doubles(bm, verts=[v for p in pairs for v in p], dist=1e-5)
+    bm.verts.index_update()
+    # the vent's edges below its top (the left flap's, the right's), for the simulation's weld and lap_vent
+    ob['vent'] = [v.index for p in vent for v in p]
     bm.to_mesh(ob.data)
     bm.free()
     # the sewn seams: up the middle of the back above the vent, and down each side
@@ -663,29 +801,120 @@ def set_seams(ob, seam_dist=None):
     attr.data.foreach_set('color', col.ravel())
 
 
-def build_cape(fig, under_pts):
+IDLE_ARM = 10.0         # degrees the game's idle arms hang off the body: the cape is draped over the arms held so
+
+
+def arm_turns(fig):
+    """Per side (+1 left, -1 right): the shoulder joint and the turn (3x3) taking the bind pose's upper arm (about 49
+    degrees below level) down to the game's idle, IDLE_ARM off the body."""
+    out = {}
+    for s, sx in (('l', 1.0), ('r', -1.0)):
+        h, t = fig.sk[f'upperarm_{s}'][0], fig.sk[f'upperarm_{s}'][1]
+        a = math.radians(IDLE_ARM)
+        to = Vector((sx * math.sin(a), -0.04, -math.cos(a))).normalized()
+        out[sx] = (h, np.array(Vector(tuple(gm.unit(t - h))).rotation_difference(to).to_matrix()))
+    return out
+
+
+def arm_share(fig, W, sx):
+    """Each row's weight on one side's arm, the upper arm down (W: rows of fig.names' columns)."""
+    s = 'l' if sx > 0 else 'r'
+    cols = [j for j, n in enumerate(fig.names) if n.endswith('_' + s) and
+            n.split('_')[0] in ('upperarm', 'lowerarm', 'hand', 'thumb', 'index', 'middle', 'ring', 'pinky')]
+    return W[:, cols].sum(1)
+
+
+def arms_down(fig, P, W, back=False):
+    """Points posed with the arms let down to the game's idle (or, back, the other way), each by its arm weights."""
+    out = P.copy()
+    for sx, (h, R) in arm_turns(fig).items():
+        w = arm_share(fig, W, sx)[:, None]
+        turned = (P - h) @ (R if back else R.T) + h
+        out += w * (turned - P)
+    return out
+
+
+def build_cape(fig, body, duster, sleeves, name='Cape', drop=0.13, over=(), top_drop=0.0):
     """The shoulder cape: a bell hung from the collar over the shoulders and the tops of the arms, open at the front,
-    flaring in flutes."""
+    flaring in flutes. Draped over the arms as the game holds them (let down to IDLE_ARM), then carried back up into
+    the bind pose by how much each point rides its upper arm (its 'ArmFollow', which rig() weights to the upper arm):
+    draped over the bind pose's raised arms, it stood out like wings and fins when they came down (2026-10-15).
+    drop: how far below the shoulders it reaches; over: what else it hangs over (option B's second tier)."""
     neck = fig.neck
     sz = fig.shoulder_z
+    used = fig.b.used
+    posed_body = arms_down(fig, fig.wv[used], fig.Wv[used])
+    sl = gm.object_points(sleeves)
+    posed_sleeves = arms_down(fig, sl, fig.b.weights_at(sl)[1])
+    hung = []
+    for o in over:
+        # a cape under this one, let down with the arms as its ArmFollow says
+        p = gm.object_points(o)
+        a = np.zeros(len(p), dtype=np.float32)
+        if 'ArmFollow' in o.data.attributes:
+            o.data.attributes['ArmFollow'].data.foreach_get('value', a)
+        for sx, (h, Rm) in arm_turns(fig).items():
+            sel = (p[:, 0] * sx) >= 0.0
+            p[sel] += a[sel, None] * (((p[sel] - h) @ Rm.T + h) - p[sel])
+        hung.append(p)
+    under_pts = np.concatenate([posed_body[posed_body[:, 2] > sz - 0.25], gm.object_points(duster), posed_sleeves] + hung)
     th = np.linspace(math.radians(26), math.radians(334), 96)
-    top = lambda t: neck[2] - 0.006
-    bot = lambda t: sz - 0.13 - 0.035 * abs(math.sin(t)) + 0.012 * math.sin(t * 7.0)
+    top = lambda t: neck[2] - 0.006 - top_drop
+    # a pointed back, the hem dropping 7 cm to the middle of the back (the user's "C": a sharper outline, 2026-10-15)
+    point = lambda t: 0.07 * max(0.0, -math.cos(t)) ** 3
+    bot = lambda t: sz - drop - 0.035 * abs(math.sin(t)) + 0.012 * math.sin(t * 7.0) - point(t)
     X, Y, Z, R = gm.drape(under_pts, neck[:2], FWD, th, top, bot, 24, 0.026, hb=math.radians(7), zb=0.012, smooth=(4, 3))
     v = np.linspace(0, 1, Z.shape[0])[:, None]
     # flutes of uneven depth and spacing (frequencies that never line up), deepening toward the hem; standing off the
-    # shoulders and back from under the collar down, flaring at the hem (looser: the user, 2026-10-15)
+    # shoulders and back from under the collar down, flaring at the hem (looser: the user, 2026-10-15), less so at the
+    # front corners (they read very full)
     rng = np.random.default_rng(5)
     ph = rng.random(6) * 6.28
     T = th[None, :]
-    flute = CAPE_EASE * gm.smoothstep(0.0, 0.4, v) + 0.040 * v ** 1.4 \
+    corner = gm.smoothstep(0.0, 0.6, np.minimum(T - th[0], th[-1] - T))
+    # broader, squarer shoulders (the cape stands out 2.2 cm more over them; "C")
+    shoulders = 0.022 * gm.smoothstep(0.15, 0.55, v) * np.sin(T) ** 2
+    flute = shoulders + CAPE_EASE * gm.smoothstep(0.0, 0.4, v) + (0.024 + 0.016 * corner) * v ** 1.4 \
         + v ** 1.1 * (0.011 * np.sin(T * 7.0 + ph[0] + 0.8 * np.sin(v * 3 + ph[1]))
                       + 0.008 * np.sin(T * 11.3 + ph[2] + 0.6 * np.sin(v * 2 + ph[3]))
                       + 0.004 * np.sin(T * 19.7 + ph[4] + v * 4)) \
         + 0.004 * v * np.sin(T * 31.0 + ph[5] + v * 6)
     dx, dy = gm.radial(th[None, :], FWD)
     piece = gm.grid(X + flute * dx, Y + flute * dy, Z)
-    return gm.mesh('Cape', piece, slot('Duster')), R[0].max()
+    # how much each point rides its upper arm: the arm's share of the skin nearest it (arms down), smoothed over the
+    # cloth (the nearest skin jumps from arm to chest across the armpit), nothing at the collar
+    from mathutils.bvhtree import BVHTree
+    faces = fig.faces
+    tris = [(f[0], f[k], f[k + 1]) for f in faces for k in range(1, len(f) - 1)]
+    remap = -np.ones(len(fig.wv), dtype=np.int64)
+    remap[used] = np.arange(len(used))
+    tris_u = [tuple(int(remap[i]) for i in t) for t in tris]
+    tree = BVHTree.FromPolygons([tuple(map(float, p)) for p in posed_body], tris_u, all_triangles=True)
+    Wu = fig.Wv[used]
+    share = {sx: arm_share(fig, Wu, sx) for sx in (1.0, -1.0)}
+    P = piece.verts
+    a = np.zeros(len(P))
+    for i, p in enumerate(P):
+        loc, _n, fi, _d = tree.find_nearest(Vector(tuple(p)))
+        if loc is None:
+            continue
+        tri = tris_u[fi]
+        bc = hu.barycentric(np.array(loc), *(posed_body[j] for j in tri))
+        a[i] = sum(bc[k] * share[1.0 if p[0] >= 0.0 else -1.0][tri[k]] for k in range(3))
+    a = a.reshape(Z.shape)
+    for _ in range(8):
+        a = 0.25 * np.concatenate([a[:, :1], a[:, :-1]], 1) + 0.5 * a + 0.25 * np.concatenate([a[:, 1:], a[:, -1:]], 1)
+        a = 0.25 * np.concatenate([a[:1], a[:-1]], 0) + 0.5 * a + 0.25 * np.concatenate([a[1:], a[-1:]], 0)
+    a = (a * gm.smoothstep(0.0, 0.3, v)).ravel()
+    # back up into the bind pose by that share
+    for sx, (h, Rm) in arm_turns(fig).items():
+        sel = (P[:, 0] * sx) >= 0.0
+        P[sel] += a[sel, None] * (((P[sel] - h) @ Rm + h) - P[sel])
+    piece.verts = P
+    ob = gm.mesh(name, piece, slot('Duster'))
+    ob.data.attributes.new('ArmFollow', 'FLOAT', 'POINT').data.foreach_set('value', a.astype(np.float32))
+    log(f'{name}: draped over the arms let down {IDLE_ARM:.0f} degrees off the body; rides the arms up to {a.max():.2f}')
+    return ob, R[0].max()
 
 
 def build_collar(fig, top_r):
@@ -698,12 +927,13 @@ def build_collar(fig, top_r):
         t = j / (rows - 1)
         for a in th:
             back = 0.5 - 0.5 * math.cos(a)
-            # the ends by the throat stand a little taller and splay out into points; the top edge rolls outward
+            # the ends by the throat stand a little taller and splay out a little into points (twice this and the flap
+            # with the pin jutted out like a box, 2026-10-15); the top edge rolls outward
             end = float(gm.smoothstep(math.radians(62), math.radians(30), min(a, 2 * math.pi - a)))
             # soft, worn oilskin: the top edge wavers, the stand ripples a little, a crease where it turns up
-            hgt = 0.062 + 0.058 * back + 0.012 * end + 0.004 * math.sin(a * 5.3 + 1.1) + 0.003 * math.sin(a * 13.7)
+            hgt = 0.062 + 0.058 * back + 0.006 * end + 0.004 * math.sin(a * 5.3 + 1.1) + 0.003 * math.sin(a * 13.7)
             r = (top_r * (0.89 + 0.08 * t + 0.13 * t ** 3) + 0.004 * math.sin(a * 9 + t * 2) + 0.0025 * math.sin(a * 17.3 + t * 4)
-                 - 0.010 * (1 - back) * t + 0.016 * end * t ** 2 - 0.004 * math.exp(-((t - 0.18) / 0.08) ** 2))
+                 - 0.010 * (1 - back) * t + 0.007 * end * t ** 2 - 0.004 * math.exp(-((t - 0.18) / 0.08) ** 2))
             d = math.cos(a) * np.array([0.0, -1.0]) + math.sin(a) * np.array([1.0, 0.0])
             cv.append([neck[0] + d[0] * r, neck[1] + d[1] * r, neck[2] - 0.03 + hgt * t])
     cv = np.array(cv).reshape(rows, -1, 3)[::-1]          # rows from the top down, so the faces look outward
@@ -744,8 +974,19 @@ def build_hat(fig):
     assert len(co) % 96 == 0, 'EllisBlender.build_hat\'s brim: rings of 96 points expected'
     co = co.reshape(-1, 96, 3)
     co = co[:1] + (co - co[:1]) * BRIM_REACH
+    # and a sharper outline ("C", 2026-10-15): the brim's sides curled up harder, the crown's long crease deeper
+    side = np.abs(np.sin(2 * math.pi * np.arange(96) / 96))[None, :]
+    dz = co[..., 2] - co[:1, :, 2]
+    co[..., 2] = co[:1, :, 2] + np.where(dz > 0, dz * (1.0 + 0.9 * side ** 2), dz)
     brim.data.vertices.foreach_set('co', co.reshape(-1).astype(np.float32))
     brim.data.update()
+    crown = next(o for o in parts if o.name.startswith('HatCrown'))
+    cc = gm._object_coords(crown)
+    top_z = cc[:, 2].max()
+    cx = (cc[:, 0].max() + cc[:, 0].min()) * 0.5
+    cc[:, 2] -= 0.012 * np.exp(-((cc[:, 0] - cx) / 0.022) ** 2) * gm.smoothstep(top_z - 0.06, top_z - 0.005, cc[:, 2])
+    crown.data.vertices.foreach_set('co', cc.astype(np.float32).ravel())
+    crown.data.update()
     band = next(o for o in parts if o.name.startswith('HatBand'))
     HAT['band_z'] = float(gm._object_coords(band)[:, 2].min())
     for ob in parts:
@@ -840,7 +1081,8 @@ def bake_transform(ob):
 
 
 HAIR = dict(layers=((70, 0.003, 0.040, 0.0), (56, 0.008, 0.032, 0.05)), per=2, steps=10, locks=4)
-HAIR_LOW = dict(layers=((26, 0.003, 0.072, 0.0), (18, 0.009, 0.062, 0.05)), per=1, steps=5, locks=2)
+# the game's: twice the locks it had and narrower (6-7 cm wide, 44 of them, they read as flat dark slabs, 2026-10-15)
+HAIR_LOW = dict(layers=((46, 0.003, 0.048, 0.0), (34, 0.009, 0.042, 0.05)), per=1, steps=7, locks=3)
 
 
 def build_hair(fig, under_obs, layers, per, steps, locks, name='Hair'):
@@ -888,9 +1130,20 @@ def build_hair(fig, under_obs, layers, per, steps, locks, name='Hair'):
         st = np.asarray(st)
         t = np.linspace(0, 1, len(st))
         tang = gm.unit(np.gradient(st, axis=0))
-        out = gm.unit(st - head_c)
-        side = gm.unit(np.cross(tang, out))
-        width = w * (1.0 - t) ** 1.1 + 0.0006
+        # the lock's sideways direction carried along it: where a lock runs straight out from the head (the brow
+        # lock to the temple) the cross product with "out" vanishes and flipped, and the ribbon twisted into a hook
+        out0 = gm.unit(st - head_c)
+        side = np.cross(tang, out0)
+        for i in range(len(st)):
+            if np.linalg.norm(side[i]) < 0.3 and i > 0:
+                side[i] = side[i - 1]
+            side[i] = gm.unit(side[i])
+            if i > 0 and side[i] @ side[i - 1] < 0.0:
+                side[i] = -side[i]
+        out = gm.unit(np.cross(side, tang))
+        out = np.where(((out * out0).sum(1) < 0.0)[:, None], -out, out)
+        # tapering to a blunt clump's end (to a needle point the locks read as flat slabs with spikes, 2026-10-15)
+        width = w * (1.0 - 0.8 * t) ** 1.3 + 0.0008
         # a lock, not a paper strip: its middle stands out from its edges, so it has a rounded back
         mid = st + out * (width * 0.28)[:, None]
         rows = np.stack([st - side * (width * 0.5)[:, None], mid, st + side * (width * 0.5)[:, None]], 1)
@@ -1063,15 +1316,20 @@ def build_lantern(fig, under_obs):
     tree = gm.bvh_objects(under_obs)
     top = p - up * 0.032
     c = top + n * 0.05 - np.array([0, 0, 0.19])
-    # keep the lantern off the thigh
-    for _ in range(6):
-        hit = tree.find_nearest(Vector(tuple(c + np.array([0, 0, 0.07]))), 0.2)
-        if hit[0] is None:
+    # keep the lantern off the thigh, fount to cap (its middle alone left the fount 2.6 cm into the thigh, 2026-10-15):
+    # its 4.3 cm radius and 1.7 cm more
+    for _ in range(10):
+        worst = None
+        for h in (0.0, 0.035, 0.07, 0.105, 0.14):
+            q = Vector(tuple(c + np.array([0.0, 0.0, h])))
+            hit = tree.find_nearest(q, 0.25)
+            if hit[0] is not None:
+                d = (q - hit[0]).dot(hit[1])
+                if worst is None or d < worst[0]:
+                    worst = (d, np.array(hit[1]))
+        if worst is None or worst[0] > 0.059:
             break
-        d = (Vector(tuple(c + np.array([0, 0, 0.07]))) - hit[0]).dot(hit[1])
-        if d > 0.055:
-            break
-        c = c + np.array(hit[1]) * (0.056 - d)
+        c = c + worst[1] * (0.06 - worst[0])
         c[2] = top[2] - 0.19
     parts = []
     parts.append(lathe('LanternFount', [(0.0, 0.0), (0.040, 0.0), (0.043, 0.006), (0.043, 0.022), (0.036, 0.03)], c,
@@ -1093,14 +1351,18 @@ def build_lantern(fig, under_obs):
         wires = wires + ring
     bail = np.array([c + [0.043 * math.cos(a), 0.0, 0.118 + 0.07 * math.sin(a)] for a in np.linspace(0, math.pi, 15)])
     wires = wires + gm.tube(bail, np.array([0.0022] * 15), n=6)
-    hook = np.array([top + n * 0.004, top + n * 0.03 - up * 0.01, c + [0, 0, 0.188]])
-    wires = wires + gm.tube(hook, np.array([0.003] * 3), n=6)
     parts.append(gm.mesh('LanternWire', wires, slot('Iron')))
+    # the hook out from the belt, its own piece: it stays on the hip (weights()), the lantern swings from its end
+    hook = np.array([top + n * 0.004, top + n * 0.03 - up * 0.01, c + [0, 0, 0.188]])
+    parts.append(gm.mesh('BeltHook', gm.tube(hook, np.array([0.003] * 3), n=6), slot('Iron')))
     flame = lm_ellipsoid('LanternFlame', c + np.array([0, 0, 0.062]), (0.008, 0.008, 0.016), (0, 0, 1), 10, 8)
     flame.data.materials.append(slot('LanternGlow'))
     parts.append(flame)
     fig.lantern = c
-    fig.lantern_hook = top + n * 0.004                  # where it hangs from the belt (lantern_01's head)
+    # lantern_01's head: the bail's top on the hook's end, right above the lantern, so it rests where it hangs (from
+    # the hook's belt end the springs' gravity swung it 6 cm back into the thigh, 2026-10-15)
+    fig.lantern_hook = c + np.array([0.0, 0.0, 0.188])
+    fig.belt_hook = (hook[0], hook[-1])
     return parts
 
 
@@ -1170,14 +1432,19 @@ THICK = {'Duster': 0.004, 'Cape': 0.004, 'Collar': 0.005, 'Bandana': 0.0015, 'Ha
 # Hidden insides stay single-sided: the waistcoat, shirt and trousers under the coat, the sleeves inside the gauntlets,
 # the boots' shafts round the trousers, the crown above the band.
 
-# The game mesh (about 20k triangles, the user's call of 2026-10-15: Borderlands' budget): each detailed part's share of
-# its triangles kept by Blender's Decimate (collapse); 1 keeps a part as it is. Its looks, folds and creases are baked
-# from the detailed parts (looter_bake, sources). The hair is built again with fewer, wider locks (HAIR_LOW).
-LOW = {'Ellis': 0.20, 'Eye': 0.22, 'Trousers': 0.42, 'Boots': 0.22, 'Soles': 0.5, 'Vest': 0.36, 'Shirt': 0.4,
-       'VestButton': 0.25, 'Duster': 0.09, 'Sleeves': 0.42, 'Cape': 0.10, 'Collar': 0.20, 'SunPin': 0.4, 'Gloves': 0.18,
-       'Gauntlet': 0.30, 'Concho': 0.5, 'HatCrown': 0.07, 'HatBrim': 0.09, 'HatBand': 0.3, 'Bandana': 0.13,
-       'BandanaKnot': 0.4, 'Belt': 0.4, 'BeltLoops': 0.35, 'Cartridges': 0.4, 'Bullets': 0.3, 'Buckle': 1.0,
-       'HolsterSkirt': 1.0, 'Holster': 0.6, 'HolsterLoop': 0.5, 'Revolver': 0.8, 'LanternWire': 0.3, 'Lantern': 0.5}
+# The game mesh (about 35k triangles, the user's call of 2026-10-15; it was 20k, Borderlands' budget, and read coarse):
+# each detailed part's share of its triangles kept by Blender's Decimate (collapse); 1 keeps a part as it is. The
+# triangles go where the silhouette and the close-ups need them: face, hands, collar, the brim, the coat's edges and hem,
+# the boots; small hard parts (gun, holster, lantern, pin) whole: reduced, they shredded. Its looks, folds and creases
+# are baked from the detailed parts (looter_bake, sources). The hair is built again with fewer locks (HAIR_LOW).
+LOW = {'Ellis': 0.30, 'Eye': 0.30, 'Trousers': 0.42, 'Boots': 0.18, 'Soles': 0.7, 'Vest': 0.40, 'Shirt': 0.4,
+       'VestButton': 0.6, 'Duster': 0.15, 'Sleeves': 0.45, 'Cape': 0.18, 'Collar': 0.55, 'SunPin': 1.0, 'Gloves': 0.36,
+       'Gauntlet': 0.55, 'Concho': 1.0, 'HatCrown': 0.12, 'HatBrim': 0.20, 'HatBand': 0.4, 'Bandana': 0.20,
+       'BandanaKnot': 0.6, 'Belt': 0.45, 'BeltLoops': 0.4, 'Cartridges': 0.5, 'Bullets': 0.4, 'Buckle': 1.0,
+       'HolsterSkirt': 1.0, 'Holster': 1.0, 'HolsterLoop': 1.0, 'Revolver': 1.0, 'LanternWire': 0.6, 'Lantern': 1.0,
+       'BeltHook': 1.0}
+# Cloth whose open edges (fronts, hems, the brim's rim) Decimate must not chew: a band this wide along them is spared
+EDGE_KEEP = {'Duster': 0.012, 'Cape': 0.012, 'Collar': 0.010, 'Bandana': 0.010, 'HatBrim': 0.010}
 
 
 def low_ratio(name):
@@ -1186,6 +1453,55 @@ def low_ratio(name):
         if key.startswith(k):
             return LOW[k]
     return 1.0
+
+
+def near_open_edge(ob, co, band):
+    """Which vertices lie within band (m) of the mesh's open edges."""
+    from mathutils import kdtree
+    count = {}
+    for p in ob.data.polygons:
+        vs = list(p.vertices)
+        for k in range(len(vs)):
+            e = (min(vs[k], vs[(k + 1) % len(vs)]), max(vs[k], vs[(k + 1) % len(vs)]))
+            count[e] = count.get(e, 0) + 1
+    rim = sorted({v for e, c in count.items() if c == 1 for v in e})
+    if not rim:
+        return np.zeros(len(co), dtype=bool)
+    tree = kdtree.KDTree(len(rim))
+    for i, v in enumerate(rim):
+        tree.insert(co[v], i)
+    tree.balance()
+    return np.array([tree.find(p)[2] < band for p in co])
+
+
+def unflip(low, high):
+    """The faces Decimate turned over (in tight folds) turned back to face as the detailed part does there, and its
+    slivers of no area dissolved: Unreal draws a face from its front only, so each was a hole (the waistcoat's "black
+    holes", the boots' toes, the duster's back; 2026-10-15)."""
+    tree = gm.bvh_objects([high])
+    bm = bmesh.new()
+    bm.from_mesh(low.data)
+    bmesh.ops.dissolve_degenerate(bm, dist=1e-6, edges=bm.edges[:])
+    bm.normal_update()
+    bad = []
+    for f in bm.faces:
+        loc, nrm, _i, _d = tree.find_nearest(f.calc_center_median(), 0.05)
+        if loc is None or f.normal.dot(nrm) >= 0.0:
+            continue
+        # and against its neighbours too (where the detailed cloth folds under itself, as the vent's strip, its nearest
+        # face can be the fold's underside)
+        around = Vector()
+        for e in f.edges:
+            for g in e.link_faces:
+                if g is not f:
+                    around += g.normal * g.calc_area()
+        if around.length == 0.0 or f.normal.dot(around) < 0.0:
+            bad.append(f)
+    if bad:
+        bmesh.ops.reverse_faces(bm, faces=bad)
+    bm.to_mesh(low.data)
+    bm.free()
+    low.data.update()
 
 
 def make_lows(fig, highs, hair_under):
@@ -1208,31 +1524,47 @@ def make_lows(fig, highs, hair_under):
             bmesh.ops.delete(bm, geom=back, context='FACES')
             bm.to_mesh(low.data)
             bm.free()
+        if ob.name.startswith('Shirt'):
+            # only the shirt in the waistcoat's V shows: what lies under the waistcoat goes (bent, it came through)
+            bm = bmesh.new()
+            bm.from_mesh(low.data)
+            hw = lambda z: 0.065 * float(gm.smoothstep(1.27, 1.47, z)) + 0.025
+            hidden = [f for f in bm.faces if (lambda q: q.z < 1.47 and abs(q.x) > hw(q.z))(f.calc_center_median())]
+            bmesh.ops.delete(bm, geom=hidden, context='FACES')
+            bm.to_mesh(low.data)
+            bm.free()
         ratio = low_ratio(ob.name)
         if ratio < 1.0:
             m = low.modifiers.new('decimate', 'DECIMATE')
             m.ratio = ratio
+            co = gm._object_coords(low)
+            spare = np.zeros(len(co), dtype=bool)
             if ob.name == 'Ellis':
-                # the eyes and lids keep their detail: the decimation spares a group weighted round them
-                g = low.vertex_groups.new(name='keep')
-                co = gm._object_coords(low)
+                # the eyes and lids keep their detail
                 d = np.minimum(np.linalg.norm(co - fig.eyes[0], axis=1), np.linalg.norm(co - fig.eyes[1], axis=1))
-                for i in np.nonzero(d < 0.03)[0]:
+                spare = d < 0.03
+            band = EDGE_KEEP.get(ob.name.split('.')[0])
+            if band:
+                spare = near_open_edge(low, co, band)
+            if spare.any():
+                # (Decimate collapses only what its group weights: inverted, the group is the part it spares)
+                g = low.vertex_groups.new(name='keep')
+                for i in np.nonzero(spare)[0]:
                     g.add([int(i)], 1.0, 'REPLACE')
-                # (Decimate collapses only what its group weights: inverted, the eyes are the part it spares)
                 m.vertex_group = 'keep'
                 m.invert_vertex_group = True
                 m.vertex_group_factor = 1.0
             gm.apply_modifiers(low, keep=())
             if 'keep' in low.vertex_groups:
                 low.vertex_groups.remove(low.vertex_groups['keep'])
+            unflip(low, ob)
         lows.append(low)
     hair = build_hair(fig, hair_under, name='Hair_low', **HAIR_LOW)
     lows.append(hair)
     # reduced layers can cut through one another where the detailed ones only just cleared: each outer part is pushed
     # back outside the reduced parts under it
     by = lambda *names: [o for o in lows if o.name.split('.')[0].startswith(names)]
-    for outer, inner in (('Vest', ('Shirt',)), ('Duster', ('Vest', 'Shirt', 'Belt', 'Trousers')),
+    for outer, inner in (('Vest', ('Shirt',)), ('Duster', ('Vest', 'Shirt', 'Belt', 'Cartridges', 'Bullets', 'Trousers')),
                          ('Cape', ('Duster', 'Sleeves')), ('Collar', ('Cape',)), ('Gauntlet', ('Sleeves',)),
                          ('Bandana', ('Shirt', 'Vest', 'Ellis')), ('Boots', ('Trousers',))):
         under = by(*inner)
@@ -1347,10 +1679,9 @@ def weights(fig, ob):
         t = gm.smoothstep(fig.neck[2] - 0.03, fig.neck[2] + 0.1, P[:, 2])
         return rigid_w(fig, n, {'spine_05': 1.0 - 0.5 * t, 'neck_01': 0.5 * t})
     if name.startswith('Cape'):
-        names, near = fig.b.weights_at(P)
+        # on the shoulders: spine_05 and the collarbones (what rides the arms is its 'ArmFollow', in swing_weights)
         side = gm.smoothstep(-0.08, 0.08, P[:, 0])
-        anchor = hu.blend(fig.names, n, {'spine_05': 0.5, 'clavicle_l': 0.5 * side, 'clavicle_r': 0.5 * (1 - side)})
-        return hu.top4(0.45 * near + 0.55 * anchor)
+        return hu.blend(fig.names, n, {'spine_05': 0.5, 'clavicle_l': 0.5 * side, 'clavicle_r': 0.5 * (1 - side)})
     if name.startswith('Duster'):
         torso_faces = [f for f, k in zip(fig.faces, fig.face_mask((fig.w_arm < 0.3) & (fig.w_head < 0.3))) if k]
         names, near = fig.b.weights_at(P, torso_faces)
@@ -1361,10 +1692,18 @@ def weights(fig, ob):
         skirt = hu.blend(fig.names, n, {'pelvis': 1.0 - leg, 'thigh_l': leg * side, 'thigh_r': leg * (1.0 - side)})
         k = gm.smoothstep(hip + 0.06, hip - 0.06, P[:, 2])[:, None]
         return hu.top4((1.0 - k) * near + k * skirt)
+    if name.startswith('BeltHook'):
+        # from the belt (the hips) out to its end, where lantern_01 hangs (on thigh_r): the thigh's by its end
+        a, b = fig.belt_hook
+        t = 0.4 + 0.6 * np.clip(((P - a) @ (b - a)) / max((b - a) @ (b - a), 1e-9), 0.0, 1.0)
+        return rigid_w(fig, n, {'pelvis': 1.0 - t, 'thigh_r': t})
     if name.startswith(('Belt', 'Cartridges', 'Bullets', 'Buckle')):
         return rigid_w(fig, n, {'pelvis': 0.85, 'spine_01': 0.15})
     if name.startswith(('Holster', 'Revolver')):
-        return rigid_w(fig, n, {'pelvis': 0.65, 'thigh_l': 0.35})
+        # on the belt it rides the hips; down the pouch more and more the thigh it hangs against (rigid at 35 % thigh,
+        # a stride put the thigh 5 cm through it)
+        t = 0.3 + 0.55 * gm.smoothstep(0.96, 0.86, P[:, 2])
+        return rigid_w(fig, n, {'pelvis': 1.0 - t, 'thigh_l': t})
     if name.startswith('Lantern'):
         return rigid_w(fig, n, {'pelvis': 0.6, 'thigh_r': 0.4})
     if name.startswith(('Gauntlet', 'Concho')):
@@ -1394,8 +1733,12 @@ def weights(fig, ob):
 # Ellis "stiff", 2026-10-15): the duster's skirt, the shoulder cape, the bandana's point, the back hair, Pa's lantern.
 # Names and parents are the C++'s contract, found by name: <chain>_01 at the root and on down the cloth, a bone's head at
 # its joint and its tail at the next one's, the last tail at the cloth's end. Each bone's Z axis points out of the cloth.
-# A side's chains, at their share of its arc from the front edge (0) round to the back's middle (1):
-SKIRT_CHAINS = (('f', 1 / 6), ('s', 1 / 2), ('b', 5 / 6))
+# A side's chains, at their share of its arc from the front edge (0) round to the back's middle (1); the back one (None)
+# straight behind the knee, so a stride's back leg pushes it back (at 5/6, by the vent, it slid aside and the knee came
+# out through the coat once the coat reached the ankle, 2026-10-15; in a full stride the shin still can: the springs
+# keep points off the limbs, not the cloth between them, and a point slides round a shin swung back under it):
+SKIRT_CHAINS = (('f', 1 / 6), ('s', 1 / 2), ('b', None))
+BACK_BLEND = 0.2         # across the back the two back chains hand over within this share either side of the middle
 CAPE_CHAINS = (('f', 0.25), ('b', 0.75))
 SKIRT_TOP = 0.91         # the skirt's own weights start here (above, the duster's blend into the torso's), its chains below
 # The bib's chain hangs from the neck, not the head (the contract said head): on the head it swung 2 cm out through the
@@ -1469,8 +1812,9 @@ def swing_layout(fig, parts):
     for side, s in ((1, 'l'), (-1, 'r')):
         heights = (float(belt_height(side * math.pi / 2)), mid_thigh, knee, HEM + 0.03)
         edge = [front_edge(co, ed, fig.centre, z, side) for z in heights]
+        behind = float(round_angle(np.array([sk[f'calf_{s}'][0][0], fig.centre[1] + 0.18]), fig.centre)[0])
         for key, u in SKIRT_CHAINS:
-            a = [side * (e + u * (math.pi - e)) for e in edge]
+            a = [side * (e + u * (math.pi - e)) for e in edge] if u is not None else [behind] * 4
             joints = [on_surface(tree, fig.centre, a[0], float(belt_height(a[0])))]
             joints += [on_surface(tree, fig.centre, a[k], heights[k]) for k in (1, 2)]
             joints.append(hem_point(co, fig.centre, a[3]))
@@ -1601,6 +1945,10 @@ def ring_weights(P, chains):
             lo, hi = knots[:, i], knots[:, i + 1]
             inside = (th > lo) & (th <= hi)
             t = np.clip((th - lo) / np.maximum(hi - lo, 1e-6), 0.0, 1.0)
+            if i == knots.shape[1] - 2:
+                # across the back each side's own back chain, behind its leg, keeps the panel to near the middle (a
+                # stride's back leg pushes it back there, not half of it), the vent's edges shared alike
+                t = gm.smoothstep(0.5 - BACK_BLEND, 0.5 + BACK_BLEND, t)
             w[inside, i] += 1.0 - t[inside]
             w[inside, i + 1] += t[inside]
         w[:, -1] += th > knots[:, -1]
@@ -1654,7 +2002,18 @@ def swing_weights(fig, ob, W):
         return np.concatenate([W, C], 1)
     # the swing bones' shares come out of the part's own: f of the vertex is chains, the rest as before
     C = C / np.maximum(C.sum(1, keepdims=True), 1e-9) * f[:, None]
-    return soft_top4(np.concatenate([W * (1.0 - f)[:, None], C], 1))
+    out = soft_top4(np.concatenate([W * (1.0 - f)[:, None], C], 1))
+    if name.startswith('Cape') and 'ArmFollow' in ob.data.attributes:
+        # where the cape lies over an arm it rides the upper arm by its build's share (build_cape), so the game's idle
+        # arms put it back as it was draped
+        a = np.empty(n, dtype=np.float32)
+        ob.data.attributes['ArmFollow'].data.foreach_get('value', a)
+        a = np.clip(a, 0.0, 1.0)[:, None]
+        arm = np.zeros_like(out)
+        arm[P[:, 0] >= 0.0, fig.col['upperarm_l']] = 1.0
+        arm[P[:, 0] < 0.0, fig.col['upperarm_r']] = 1.0
+        out = soft_top4(out * (1.0 - a) + arm * a)
+    return out
 
 
 def hat_bone(parts):
@@ -1696,8 +2055,7 @@ def rig(fig, objects):
         W = swing_weights(fig, ob, weights(fig, ob))
         hat = np.full((len(W), 1), 1.0 if ob.name.startswith('Hat') else 0.0)   # crown, brim and band: all on the hat
         W = np.concatenate([W * (1.0 - hat), hat], 1)
-        if ob.name in ('HatBrim', 'Hair', 'Collar', 'Bandana', 'BandanaKnot', 'Ellis'):
-            fig.rest[ob.name] = (gm._object_coords(ob), [list(p.vertices) for p in ob.data.polygons], W)
+        fig.rest[ob.name] = (gm._object_coords(ob), [list(p.vertices) for p in ob.data.polygons], W)
         for j, bone in enumerate(names):
             col = W[:, j]
             nz = np.nonzero(col > 1e-4)[0]
@@ -1708,8 +2066,9 @@ def rig(fig, objects):
                 g.add([int(i)], float(col[i]), 'REPLACE')
     skin = next(o for o in objects if o.name == 'Ellis')
     for ob in objects:
-        if 'mh_index' in ob.data.attributes:
-            ob.data.attributes.remove(ob.data.attributes['mh_index'])
+        for attr in ('mh_index', 'ArmFollow'):
+            if attr in ob.data.attributes:
+                ob.data.attributes.remove(ob.data.attributes[attr])
     bk.select(objects, skin)
     bpy.ops.object.join()
     skin = bpy.context.view_layer.objects.active
@@ -2115,18 +2474,114 @@ def face_like_mannequin(arm, skin):
     log(f'turned to face -X here (+Y in Unreal): foot_l to ball_l {tuple(round(c, 3) for c in toe.normalized())}')
 
 
+def hull_2d(p):
+    """The convex hull of 2D points, counterclockwise (Andrew's monotone chain)."""
+    p = p[np.lexsort((p[:, 1], p[:, 0]))]
+    cross = lambda o, a, b: (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lower, upper = [], []
+    for q in p:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], q) <= 0:
+            lower.pop()
+        lower.append(q)
+    for q in p[::-1]:
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], q) <= 0:
+            upper.pop()
+        upper.append(q)
+    return np.array(lower[:-1] + upper[:-1])
+
+
+LEG_FILL_DROP = 0.03     # behind the legs the fill narrows at most this going down (m per m): the coat's back hangs
+                         # from the seat almost plumb, as heavy canvas does, clear of a leg stepping back
+
+
+def leg_fill(fig, obs, z0, z1, gap=0.004):
+    """A collider filling between the legs: at each height the convex hull of both legs' slice (obs), so the coat's
+    back hangs straight over the gap instead of falling in between them (the user: "it should be straight",
+    2026-10-15); and behind them dropping straight from the seat (LEG_FILL_DROP), not in along the calves (there a
+    stride's back leg came out through it). Only the simulation sees it."""
+    pts = np.concatenate([gm.object_points(o) for o in obs])
+    c = fig.centre
+    A = np.linspace(-math.pi, math.pi, 64, endpoint=False)
+    D = np.stack(gm.radial(A, FWD), axis=1)
+    back = gm.smoothstep(-0.2, -0.6, np.cos(A))
+    zs, radii = [], []
+    for z in np.arange(z1, z0 - 1e-6, -0.03):
+        sl = pts[np.abs(pts[:, 2] - z) < 0.02][:, :2]
+        if len(sl) >= 3:
+            zs.append(z)
+            radii.append(hull_radii(hull_2d(sl) - c, D) + gap)
+    rings = []
+    run = radii[0]
+    for k, (z, r) in enumerate(zip(zs, radii)):
+        if k:
+            run = np.maximum(r, run - LEG_FILL_DROP * (zs[k - 1] - z))
+        r = r + back * (run - r)
+        rings.append(np.c_[c + D * r[:, None], np.full(len(D), z)])
+    # rows top down (gm.grid's way), so its faces face out: Blender's cloth collides one-sided, by the collider's
+    # normals, and with them inward it pulled the coat in through the fill and round each leg
+    R = np.array(rings)
+    return gm.mesh('_LegFill', gm.grid(R[..., 0], R[..., 1], R[..., 2], wrap=True))
+
+
 def settle(fig, duster, colliders):
     """The duster's skirt falls into its folds: Blender's cloth over the body, the trousers, the waistcoat and the
     belt, the coat held above the hips (looter_garments.simulate, kept in Ellis.drape.json). Stiff canvas: bending 12
     gives the duster's broad folds; at 4 the skirt and the vent crumpled like linen. The cape is not simulated: on the
     shoulders it had nowhere to fall but into itself, and crumpled."""
-    zd = gm._object_coords(duster)[:, 2]
+    vent = np.array(duster['vent'], dtype=np.int64).reshape(-1, 2)
+    cloth, at = welded(duster, vent, '_DusterCloth')
+    zd = gm._object_coords(cloth)[:, 2]
     t0 = time.time()
-    ran = gm.simulate([duster], [gm.smoothstep(0.92, 1.08, zd)], colliders, DRAPE_FILE, frames=int(arg_value('--frames', 90)),
+    ran = gm.simulate([cloth], [gm.smoothstep(0.92, 1.08, zd)], colliders, DRAPE_FILE, frames=int(arg_value('--frames', 90)),
                       stiff=(40.0, 40.0, 15.0, 12.0), mass=0.3, self_collision=True,
                       note='The settled duster of Ellis (Art/Models/Characters/Ellis.py writes it: the cloth '
                            'simulation\'s result for the digest of its inputs).')
+    duster.data.vertices.foreach_set('co', gm._object_coords(cloth)[at].astype(np.float32).ravel())
+    duster.data.update()
+    bpy.data.objects.remove(cloth)
+    lap_vent(fig, duster, vent)
     log(f'cloth: {"simulated" if ran else "kept from Ellis.drape.json"} ({time.time() - t0:.0f} s)')
+
+
+def welded(ob, pairs, name):
+    """A copy of mesh ob with each vertex pair (keep, drop) welded into one, and for each of ob's vertices its vertex
+    in the copy. (The faces between a pair's two columns, the vent's strip, fold away.)"""
+    co = gm._object_coords(ob)
+    to = np.arange(len(co))
+    to[pairs[:, 1]] = pairs[:, 0]
+    keep = np.ones(len(co), dtype=bool)
+    keep[pairs[:, 1]] = False
+    at = (np.cumsum(keep) - 1)[to]
+    faces = []
+    for p in ob.data.polygons:
+        f = [int(at[v]) for v in p.vertices]
+        f = [v for k, v in enumerate(f) if v != f[k - 1]]
+        if len(set(f)) >= 3:
+            faces.append(f)
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(co[keep].tolist(), [], faces)
+    copy = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(copy)
+    return copy, at
+
+
+def lap_vent(fig, duster, vent):
+    """The settled vent's edges, together as the cloth fell, lapped as the built coat's are: the left flap's edge 4 mm
+    out and across the right's, the right's tucked under it (the strip between them folds under)."""
+    co = gm._object_coords(duster)
+    k = gm.smoothstep(VENT_TOP, VENT_TOP - 0.08, co[vent[:, 0], 2])[:, None]
+    for col, out, across in ((0, 0.004, 0.025), (1, 0.0, -0.02)):
+        p = co[vent[:, col]]
+        rel = p[:, :2] - fig.centre
+        r = np.linalg.norm(rel, axis=1)
+        ang = round_angle(p, fig.centre)
+        ex, ey = gm.radial(ang, FWD)
+        tx, ty = gm.radial(ang + math.pi / 2, FWD)
+        p[:, 0] += (ex * out + tx * across * r) * k[:, 0]
+        p[:, 1] += (ey * out + ty * across * r) * k[:, 0]
+        co[vent[:, col]] = p
+    duster.data.vertices.foreach_set('co', co.astype(np.float32).ravel())
+    duster.data.update()
 
 
 def fetch_makehuman():
@@ -2148,7 +2603,6 @@ def main():
     log('trousers, boots, waistcoat')
     body_ob = fig.b.mesh('_Body')
     body_ob.hide_render = True
-    under = gm.object_points(body_ob)
     torso_pts = fig.wv[fig.torso_idx]
     legs = fig.wv[fig.b.used][fig.w_leg[fig.b.used] > 0.3]
     belt = build_belt(fig, [trousers, vest])
@@ -2157,8 +2611,7 @@ def main():
     duster = build_duster(fig, drape_pts, belt)
     sleeves = build_sleeves(fig, [body_ob])
     log('duster, sleeves')
-    cape_pts = np.concatenate([under[under[:, 2] > fig.shoulder_z - 0.25], gm.object_points(duster), gm.object_points(sleeves)])
-    cape, top_r = build_cape(fig, cape_pts)
+    cape, top_r = build_cape(fig, body_ob, duster, sleeves)
     holster = build_holster(fig, [trousers])
     lantern = build_lantern(fig, [trousers])
     log('belt, holster, lantern')
@@ -2173,7 +2626,11 @@ def main():
             log(f'{ob.name}: {len(bad)} crossing face pairs, e.g. {cen}')
         return
     if SIM:
-        settle(fig, duster, [body_ob, trousers, vest] + belt[:2])
+        # the belt with its cartridges and bullets (without them the coat settled through the cartridges at the back),
+        # the boots (the coat reaches the ankle), and the fill between the legs (the back hangs straight over it)
+        fill = leg_fill(fig, [trousers, boots[0]], HEM - 0.04, 0.90)
+        settle(fig, duster, [body_ob, trousers, vest, boots[0], fill] + belt[:4])
+        bpy.data.objects.remove(fill)
         if '--sim-only' in ARGS:
             for ob in (duster, cape):
                 co = gm._object_coords(ob)
@@ -2186,8 +2643,16 @@ def main():
     bandana = build_bandana(fig, [skin, vest, shirt])
     hair = build_hair(fig, [skin, collar, cape, bandana[0]], **HAIR)
     log('hat, bandana, hair')
+    extra = []
+    if OPTION:
+        import ellis_options
+        extra = ellis_options.build(OPTION, sys.modules[__name__], fig, dict(
+            duster=duster, cape=cape, vest=vest, sleeves=sleeves, body=body_ob, buttons=buttons, lantern=lantern))
+        log(f'option {OPTION}: {", ".join(o.name for o in extra) or "its changes to the built pieces"}')
     for ob in [cape, collar, bandana[0], vest, shirt] + belt[:2] + holster[:1] + hat[2:] + boots[:1] + \
-            [g for g in gloves if g.name.startswith('Gauntlet')]:
+            [g for g in gloves if g.name.startswith('Gauntlet')] + \
+            [o for o in extra if o.name.startswith(('Bandolier', 'Satchel', 'Cuff', 'CapeTier', 'DusterLapel',
+                                                    'DusterPocket'))]:
         set_seams(ob)
     bpy.data.objects.remove(body_ob)
     out = os.path.join(REPO, 'Saved', 'ArtPreviews', 'Characters', 'Ellis')
@@ -2223,6 +2688,10 @@ def main():
     arm, skin = rig(fig, parts)
     if '--rig-check' in ARGS:
         rig_check(fig, arm, skin)
+        return
+    if '--audit' in ARGS:
+        import ellis_audit                       # Tools/Blender: the baked look, the game's poses, every layer checked
+        ellis_audit.run(fig, arm, skin, baked, arg_value('--audit', 'after'), viewer_materials, log, REPO)
         return
     if '--glb' in ARGS:
         viewer_materials(skin, baked)

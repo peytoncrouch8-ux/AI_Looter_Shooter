@@ -10,8 +10,9 @@ Usage: Tools\\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/play.py <com
   kill [radius m]                                 kills every living creature within the radius (20 m), as the player's
                                                   shots would, so a Clear objective counts them
   look <yaw> [pitch]                              turns the player's view
-  press <action> [seconds] [x] [y]                feeds IA_<action> (Interact, Fire, Jump, Reload, Move) as a tap, or
-                                                  held for the seconds given; needs no window focus
+  press <action> [seconds] [x] [y]                feeds IA_<action> (Interact, Fire, Jump, Reload, Move; the code-built
+                                                  Crouch, Sprint, Aim too) as a tap, or held for the seconds given;
+                                                  needs no window focus
   fight [seconds] [range m]                       aims at the nearest living creature in sight and holds Fire, for
                                                   the seconds given (20), reloading when nothing is in sight and
                                                   keeping the ammo topped up
@@ -235,6 +236,9 @@ def press(world, name, seconds=0.0, x=1.0, y=0.0):
     if pawn is None:
         return
     action = unreal.load_asset(f'/Game/Input/Actions/IA_{name}')
+    if action is None:
+        # The code-built actions (Crouch, Sprint, Aim, ToggleView: UKeyBindingSubsystem) have no asset.
+        action = next((a for a in unreal.ObjectIterator(unreal.InputAction) if a.get_name() == f'IA_{name}'), None)
     if action is None:
         say(f'press: no input action IA_{name}')
         return

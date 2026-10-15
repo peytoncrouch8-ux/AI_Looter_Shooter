@@ -440,19 +440,20 @@ def wool(name, color, dust_amt=0.5):
 
 
 def brocade(name, color, sheen_color):
-    """The waistcoat: black wool with a faint woven figure that catches the light, creased across the stomach,
-    its edges stitched."""
+    """The waistcoat: smooth black wool with a faint woven figure that catches the light, a few soft creases across
+    the stomach, its edges stitched. (Its creases were a dense network bumped hard and its figure raised: it read as
+    crinkled black leather; the user wanted it "as cloth", 2026-10-15.)"""
     mat, g = new_material(name, 'brocade')
     fig = g.voronoi(160.0, feature='SMOOTH_F1', out='Distance')
     pat = g.ramp(fig, 0.15, 0.35)
-    base = g.mix(g.mul(pat, 0.2), color, sheen_color)
-    creases = ridged(g, 22.0, stretch=(1.0, 1.0, 2.5), width=0.08)
+    base = g.mix(g.mul(pat, 0.12), color, sheen_color)
+    creases = ridged(g, 9.0, stretch=(1.0, 1.0, 2.5), width=0.08)
     base = g.mix(grime(g, 0.5, 0.03), base, tuple(c * 0.4 for c in color))
     base = g.mix(wear(g, 0.5), base, tuple(min(1.0, c * 2.2 + 0.05) for c in color))
     stitches, sewn = construction(g, rows=(0.005,), hem=0.0)
     base = g.mix(g.mul(stitches, 0.5), base, sheen_color)
-    n = g.bump(pat, 0.12, 0.0006)
-    n = g.bump(g.mul(creases, -1.0), 0.4, 0.0015, n)
+    n = g.bump(pat, 0.04, 0.0003)
+    n = g.bump(g.mul(creases, -1.0), 0.12, 0.0008, n)
     n = g.bump(sewn, 0.4, 0.001, n)
     r = g.mixf(pat, 0.65, 0.45)
     g.finish(base, r, 0.0, n, sheen=0.3)
