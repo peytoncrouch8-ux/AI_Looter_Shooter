@@ -46,7 +46,9 @@ import warns "Not valid bind pose" (recreated fine); the spin viewer artifact pr
 no, the crouch is a squat on both feet (code pose, LooterStancePose); the idle stance's right foot is back so that knee
 comes down to about 20 cm (the left 34). "cape still clips through the boots and shins": foot limbs and the ring
 (Pipeline, "Swing"). "His wrists are either invisible or don't match the gloves": forearm twist bones + FBodyForearmTwist
-(Pipeline, "The forearms"); the model's part is with the Blender helper (round 4g).
+(Pipeline, "The forearms"), the glove's cuff up into the gauntlet, the sleeve stopped inside it (round 4g; 117 bones,
+34.3k triangles); checked in PIE, before/after sent. Left: a small crease at the right gauntlet's lip by the thumb when
+the hand is turned and bent.
 
 **The Gravemother fight concepts (the user, mid-session 2026-10-15):** "generate a sprite sheet for the grave mother
 boss ... projectiles, the spiders ground charge, the spider itself, attack particles, etc. ... give it some character and

@@ -23,7 +23,7 @@ SOLIDS = (('Lantern', 'Trousers'), ('Lantern', 'Duster'), ('Holster', 'Trousers'
 # parts that must stay over the ground (z 0: his soles), as BodySwing's floor keeps the swing points (crouched, the
 # ankle-length hem went 11 cm under it before the floor, 2026-10-15)
 GROUNDED = ('Duster', 'Cape', 'Lantern')
-POSES = ('rest', 'idle', 'aim', 'stride', 'crouch')
+POSES = ('rest', 'idle', 'aim', 'stride', 'crouch', 'grip_a', 'grip_b')
 
 
 def parts_named(fig, prefix):

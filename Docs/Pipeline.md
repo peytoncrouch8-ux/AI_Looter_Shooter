@@ -566,8 +566,13 @@ Ellis.py:
   holster, lantern (hung from a `BeltHook` piece out from the belt; clear of the thigh from fount to cap), the
   simulation (the belt, cartridges and bullets as colliders), collar and pin (the throat's points splay half as far:
   more and the flap with the pin jutted like a box), gloves (`thicken_hand`: `GLOVE_GIRTH` 1.15, each point pushed off its
-  skinning bones square to them, blended by its weights: fuller palm and fingers, no longer; the gauntlet's mouth grows to
-  match; the user: thin, clawed hands, 2026-10-15; the cuff flares `CUFF_FLARE` 1.8 cm, 3 read as a bell), hat
+  skinning bones square to them, blended by its weights: fuller palm and fingers, no longer; the user: thin, clawed
+  hands, 2026-10-15; the glove runs `GLOVE_CUFF` 6 cm up the forearm inside the gauntlet; the gauntlet's mouth sits at
+  the wrist, each ring the smallest ellipse round the forearm's axis holding the glove's slice + `CUFF_ROOM` 4 mm,
+  flaring `CUFF_FLARE` 1.8 cm, 3 read as a bell; the sleeve stops `SLEEVE_END` 3 cm up inside it, gathered in under it to
+  `SLEEVE_TUCK` 1.2 cm off the arm. The user, 2026-10-15: "his wrists are either invisible or don't match the gloves":
+  the game mesh has no wrist, so between the glove's edge and a mouth held open by the loose sleeve's end you saw
+  through him, and the coat's colour; fitted angle by angle the mouth stood out in a lobe at the thumb's root), hat
   (EllisBlender.build_hat moved into the figure's space; the brim's reach past the crown `BRIM_REACH` 0.88, each spoke
   shortened toward its root so the curl keeps its shape),
   bandana (inside the collar: draped over skin, waistcoat and shirt; its point down the chest), hair (two layers of locks with
@@ -599,7 +604,12 @@ Ellis.py:
   bib onto its chain; hair, eyes head; hat crown, brim and band 100% `hat`; belt pelvis (+spine_01); holster and revolver
   pelvis to thigh_l down the pouch (30 % thigh on the belt, 85 % below: rigid at 35 % a stride put the thigh 5 cm through
   it); the cape spine_05 and the clavicles, its chains, and its 'ArmFollow' share on the upper arm; `BeltHook` pelvis to
-  thigh_r along it; lantern all on lantern_01; gauntlets lowerarm to hand; gloves from the hand's faces only. Hit zones:
+  thigh_r along it; lantern all on lantern_01; gauntlets lowerarm to hand; gloves from the hand's faces; then
+  (`twist_weights`) on the sleeves, gauntlets, conchos and the glove's cuff the lowerarm and hand weight shared over
+  lowerarm, lowerarm_twist_01 (half way down), lowerarm_twist_02 (90%) and the hand by how far down the forearm a point is
+  (the game turns each twist bone by its share of the hand's twist: a gun's grip turns the left hand ~100 degrees, the
+  right ~32; unturned, the glove tore off the gauntlet), past the wrist all the hand's (the wrist's own blend there
+  candy-wrapped the turned glove). Hit zones:
   head, trunk, skirt round the hips, each limb, hands, feet. LODs 50 % and 25 %.
 - Swing bones (`swing_layout`, placed from the built game mesh; the game's springs, Player/Animation/BodySwing, move them):
   skirt_{fl,sl,bl,fr,sr,br}_01..03 on pelvis (each side's f and s chains at 1/6 and 1/2 of its arc from the coat's front
@@ -649,7 +659,8 @@ Ellis.py:
 - `--audit <tag>` (`Tools/Blender/ellis_audit.py` on `looter_audit.py`; neither is in the bake's digest): the baked look in
   Cycles (sun ~40 degrees and sky; one dusk shot) as an 8-angle turntable at the game's idle and close-ups (face, under
   the brim, hands, belt, boots front and side, waistcoat, back, collar, hair), the game's poses (`looter_audit.POSES`:
-  idle, aim, stride, crouch) in clay with the swing chains where BodySwing's springs would rest them (`settle_swing`: its
+  idle, aim, stride, crouch; grip_a and grip_b, the aiming arms with the hands turned on the forearms as the guns turn
+  them, 100 and 32 degrees each way round, the twist bones by their shares: `('twist', side, degrees, bend)`) in clay with the swing chains where BodySwing's springs would rest them (`settle_swing`: its
   constants, limbs, bone push (top 35% left alone, at most half the bone a pass), nothing over its head, and floor
   copied, keep in step; its points the game's: an FBX skeleton has no tails, so a chain's last tip is
   its head plus the bone before, a lone bone's 18 cm down; the pose reached in 12 stages, each point moving at most 1 cm a
@@ -670,7 +681,7 @@ Ellis.py:
   fetched when missing: `Art/ThirdParty/MakeHuman/fetch.py` (the PC has no system Python: run it with Blender's,
   `C:\Program Files\Blender Foundation\Blender 4.4\4.4\python\bin\python.exe -I`). Export beside the editor:
   `Tools\artrun.ps1 -Export Ellis -Family Ellis`, then `Looter.ImportModels <that folder>`: `/Game/Art/Characters/SK_Ellis`
-  (113 bones with the root: 63 mannequin, 34 swing, 14 `_end` leaves, hat; 3 LODs, Nanite off for the eye glow, 185.5 cm to the hat's top),
+  (117 bones with the root: 63 mannequin, 4 forearm twist, 34 swing, 14 `_end` leaves, hat; 3 LODs, Nanite off for the eye glow, 185.5 cm to the hat's top),
   `MI_Ellis*`, `PA_Ellis`.
 - Run: `blender -b --factory-startup --python Art/Models/Characters/Ellis.py -- [--size 1024] [--glb <path>] [--preview]
   [--shots full+upper+hips+feet] [--shape] [--sim-only] [--selfx] [--no-sim] [--rebake] [--rig-check] [--audit <tag>]

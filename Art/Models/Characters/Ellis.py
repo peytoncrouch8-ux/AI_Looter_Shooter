@@ -517,6 +517,12 @@ def build_boots(fig):
 
 GLOVE_GIRTH = 1.15      # the gloves' girth over the bare hand's (the user, 2026-10-15: the hands read thin and clawed)
 CUFF_FLARE = (0.018, 0.015)   # how far the gauntlet's cuff flares from the wrist (m, across and front to back)
+GLOVE_CUFF = 0.06       # the glove runs this far up the forearm inside the gauntlet (m): the game mesh has no wrist
+                        # under them, and between the glove's edge and the gauntlet's mouth you saw through him
+CUFF_ROOM = 0.004       # the gauntlet's room over the glove inside it (m): it gaped 1.5-2 cm front and back
+SLEEVE_END = 0.03       # the sleeve stops this far up the forearm, inside the gauntlet (m): at 1.2 cm its end showed in
+                        # the gauntlet's mouth, the coat's colour at his wrist
+SLEEVE_TUCK = 0.012     # how close the sleeve's end lies on the forearm, gathered under the gauntlet (m; its clear of the body)
 
 
 def thicken_hand(fig, verts, used):
@@ -537,38 +543,73 @@ def thicken_hand(fig, verts, used):
     return verts + (GLOVE_GIRTH - 1.0) * out
 
 
+def forearm_share(fig, s, P):
+    """How far down the forearm on side s points are (0 the elbow, 1 the wrist; past it, more)."""
+    e, w = fig.sk[f'lowerarm_{s}'][0], fig.sk[f'lowerarm_{s}'][1]
+    length = np.linalg.norm(w - e)
+    return ((P - e) @ ((w - e) / length)) / length
+
+
 def build_gloves(fig, sleeves):
-    """Tan roper gloves: the hands' own shell, filled out (thicken_hand), and a flared gauntlet cuff over each sleeve
-    end with a brass concho."""
+    """Tan roper gloves: the hands' own shell and GLOVE_CUFF up the forearm, filled out (thicken_hand), and a flared
+    gauntlet cuff over each sleeve end, its mouth fitted round the glove (CUFF_ROOM), with a brass concho."""
     keep = fig.w_hand > 0.45
+    for s in 'lr':
+        e, w = fig.sk[f'lowerarm_{s}'][0], fig.sk[f'lowerarm_{s}'][1]
+        fore = fig.Wv[:, fig.col[f'lowerarm_{s}']] + fig.Wv[:, fig.col[f'hand_{s}']]
+        t = forearm_share(fig, s, fig.wv)
+        keep |= (fore > 0.5) & (t > 1.0 - GLOVE_CUFF / np.linalg.norm(w - e)) & (t < 1.2)
     piece, used = gm.shell(fig.wv, fig.faces, fig.fuv, fig.face_mask(keep), 0.0022, iters=1)
     piece.verts = thicken_hand(fig, piece.verts, used)
     glove = gm.mesh('Gloves', piece, slot('Gloves'))
+    gv = piece.verts
     tree = gm.bvh_objects([sleeves])
     parts = [glove]
     for s in 'lr':
         e, w = fig.sk[f'lowerarm_{s}'][0], fig.sk[f'lowerarm_{s}'][1]
         axis = gm.unit(w - e)
-        path = np.array([w + axis * (0.012 - 0.115 * t) for t in np.linspace(0, 1, 9)])
-        # the cuff's mouth grows with the glove it closes over (GLOVE_GIRTH at the wrist, less up the flare); a roper's
-        # gauntlet flares 1.8 cm (3 cm read as a bell, 2026-10-15)
-        grow = lambda t: 1.0 + (GLOVE_GIRTH - 1.0) * (1.0 - 0.6 * t)
-        rad = np.array([[(0.037 + CUFF_FLARE[0] * t ** 1.3) * grow(t), (0.031 + CUFF_FLARE[1] * t ** 1.3) * grow(t)]
-                        for t in np.linspace(0, 1, 9)])
-        pc = gm.tube(path, rad, n=28, up=(0.0, -1.0, 0.0))
+        steps = np.linspace(0, 1, 9)
+        path = np.array([w + axis * (-0.004 - 0.115 * t) for t in steps])       # its mouth at the wrist, round the glove
+        # the tube's frame (gm.tube's: across, then front to back), and the glove inside it, ring by ring: the mouth
+        # fitted round the glove at every angle (the hand's heel at the lip, the glove's cuff further up), then the flare
+        up_t = -axis
+        a = gm.unit(np.cross(up_t, [0.0, -1.0, 0.0]))
+        b = np.cross(up_t, a)
+        mine = gv[((gv - e) @ axis > 0.0) & (np.linalg.norm(np.cross(gv - e, axis), axis=1) < 0.08)
+                  & ((gv[:, 0] > 0) == (s == 'l'))]
+        ang = np.linspace(0, 2 * math.pi, 28, endpoint=False)
+        axes = np.zeros((len(steps), 2))
+        for i, p in enumerate(path):
+            q = mine - p
+            sl = q[np.abs(q @ axis) < 0.008]
+            if not len(sl):
+                axes[i] = axes[i - 1] if i else (0.035, 0.028)
+                continue
+            # the smallest ellipse round the forearm's axis holding the glove's slice (fitted angle by angle, the
+            # thumb's root stood out of the mouth as a pointed lobe)
+            x, y = np.abs(sl @ a), np.abs(sl @ b)
+            best = None
+            for ra in np.linspace(x.max() * 1.001, x.max() * 1.8, 40):
+                rb = float((y / np.sqrt(np.maximum(1.0 - (x / ra) ** 2, 1e-6))).max())
+                if best is None or ra * rb < best[0] * best[1]:
+                    best = (ra, rb)
+            axes[i] = best
+        axes = np.maximum(axes, axes[:1])                       # never in tighter than the mouth
+        fit = 1.0 / np.sqrt((np.cos(ang)[None] / axes[:, :1]) ** 2 + (np.sin(ang)[None] / axes[:, 1:]) ** 2)
+        flare = np.outer(steps ** 1.3, CUFF_FLARE[0] * np.cos(ang) ** 2 + CUFF_FLARE[1] * np.sin(ang) ** 2)
+        r = fit + CUFF_ROOM + flare
+        pc = gm.tube(path, np.ones((len(steps), 2)), n=len(ang), up=(0.0, -1.0, 0.0), shape=lambda i, _a: r[i])
         pc.verts = gm.clear(pc.verts, tree, 0.004, 0.06)
         cuff = gm.mesh(f'Gauntlet_{s}', pc, slot('Gloves'))
         parts.append(cuff)
-        # the concho on the outside of the cuff
+        log(f'gauntlet {s}: mouth {r[0].min() * 100:.1f}-{r[0].max() * 100:.1f} cm round the glove (it was 3.6-4.3)')
+        # the concho on the outside of the cuff, on its surface
         out = gm.unit(np.array([1.0 if s == 'l' else -1.0, 0.0, 0.25]))
         out = gm.unit(out - axis * (out @ axis))
-        mid = w - axis * 0.075
-        hit = tree.ray_cast(Vector(mid + out * 0.2), Vector(-out), 0.4)
-        tc = (0.075 + 0.012) / 0.115                             # the concho's place along the cuff
-        swell = (0.034 + 0.5 * sum(CUFF_FLARE) * tc ** 1.3) * (grow(tc) - 1.0)   # how much the cuff grew there
-        # the cuff's flare there came in from 2.8 cm to CUFF_FLARE: the concho follows it in
-        swell -= (0.028 - 0.5 * sum(CUFF_FLARE)) * tc ** 1.3
-        at = (np.array(hit[0]) if hit[0] is not None else mid + out * 0.05) + out * (0.012 + swell)
+        mid = w - axis * 0.091
+        hit = gm.bvh_objects([cuff]).ray_cast(Vector(mid + out * 0.2), Vector(-out), 0.4)
+        # on the cuff's outside once it's given its thickness (THICK), the cone's 4 mm standing on it
+        at = (np.array(hit[0]) if hit[0] is not None else mid + out * 0.05) + out * (THICK[f'Gauntlet_{s}'] + 0.002)
         bm = bmesh.new()
         bmesh.ops.create_cone(bm, cap_ends=True, segments=20, radius1=0.011, radius2=0.008, depth=0.004)
         me = bpy.data.meshes.new(f'Concho_{s}')
@@ -632,14 +673,14 @@ def build_vest(fig):
 
 def build_sleeves(fig, under):
     """The duster's sleeves: the arms pushed out loose (looser toward the cuff) and smoothed, folded at the elbow and
-    down the forearm, ending at the wrist under the gauntlet."""
+    down the forearm, ending inside the gauntlet (SLEEVE_END)."""
     z = fig.wv[:, 2]
     keep = (fig.w_arm > 0.45) & (fig.w_hand < 0.25)
     for s, sx in (('l', 1.0), ('r', -1.0)):
         w = fig.sk[f'lowerarm_{s}'][1]
         e = fig.sk[f'lowerarm_{s}'][0]
         axis = gm.unit(w - e)
-        beyond = ((fig.wv - w) @ axis) > -0.012
+        beyond = ((fig.wv - w) @ axis) > -SLEEVE_END
         keep &= ~((fig.wv[:, 0] * sx > 0) & beyond)
     sh = fig.sk['upperarm_l'][0]
     along = np.zeros(len(fig.wv))
@@ -648,6 +689,13 @@ def build_sleeves(fig, under):
         t = np.clip(((fig.wv - a) @ gm.unit(w - a)) / np.linalg.norm(w - a), 0, 1)
         along = np.where(fig.wv[:, 0] * sx > 0, t, along)
     off = 0.020 + 0.016 * along
+    # under the gauntlet the sleeve gathers in to the wrist (loose to its end, it held the gauntlet open: its mouth
+    # gaped round the glove and the coat showed at his wrist)
+    for s, sx in (('l', 1.0), ('r', -1.0)):
+        e, w = fig.sk[f'lowerarm_{s}'][0], fig.sk[f'lowerarm_{s}'][1]
+        up = -((fig.wv - w) @ gm.unit(w - e))
+        gather = gm.smoothstep(SLEEVE_END, SLEEVE_END + 0.08, up)
+        off = np.where(fig.wv[:, 0] * sx > 0, SLEEVE_TUCK + (off - SLEEVE_TUCK) * gather, off)
     piece, used = gm.shell(fig.wv, fig.faces, fig.fuv, fig.face_mask(keep), off, iters=18)
     # folds: rings bunched above the cuff, crescents in the crook of the elbow
     v = piece.verts
@@ -2048,15 +2096,65 @@ def add_hat_bone(arm, head, tail):
     return 'hat'
 
 
+# The forearm's twist bones, as the mannequin's (the user, 2026-10-15: his wrists showed through or didn't match the
+# gloves): the game turns each about the forearm by its share down it times the hand's twist (a gun's grip turns the
+# left hand ~100 degrees, the right ~32); without them the glove turned on an unturned gauntlet and sleeve and tore.
+TWIST = (('lowerarm_twist_01', 0.5), ('lowerarm_twist_02', 0.9))
+
+
+def add_twist_bones(arm):
+    """lowerarm_twist_01/02_<s> under lowerarm_<s>, at TWIST's shares down the forearm, along it with its roll."""
+    bk.select([arm], arm)
+    bpy.ops.object.mode_set(mode='EDIT')
+    edit = arm.data.edit_bones
+    names = []
+    for s in 'lr':
+        lo = edit[f'lowerarm_{s}']
+        h, t = lo.head.copy(), lo.tail.copy()
+        for name, f in TWIST:
+            e = edit.new(f'{name}_{s}')
+            e.head, e.tail = h + (t - h) * f, h + (t - h) * min(f + 0.1, 1.0)
+            e.roll = lo.roll
+            e.use_connect, e.use_deform = False, True
+            e.parent = lo
+            names.append(e.name)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    return names
+
+
+def twist_weights(fig, ob, W, names):
+    """The forearm's turn spread down it: on the sleeves, gauntlets, conchos and the glove's cuff each vertex's
+    lowerarm and hand weight shared over lowerarm, the twist bones and the hand by how far down the forearm it is (the
+    twist each takes: 0, 0.5, 0.9, 1), so a twist grows from the elbow to the wrist. Just past it (the hand's heel, the
+    gauntlet's lip) the forearm's share goes to the hand (the wrist's own blend there candy-wrapped the twisted glove);
+    the fingers keep theirs."""
+    if not ob.name.startswith(('Sleeves', 'Gauntlet', 'Concho', 'Gloves')):
+        return W
+    P = gm._object_coords(ob)
+    col = {n: i for i, n in enumerate(names)}
+    knots = np.array([0.0] + [f for _, f in TWIST] + [1.0])
+    for s in 'lr':
+        cols = [col[f'lowerarm_{s}']] + [col[f'{n}_{s}'] for n, _ in TWIST] + [col[f'hand_{s}']]
+        total = W[:, cols[0]] + W[:, cols[-1]]
+        t = forearm_share(fig, s, P)
+        sel = (total > 1e-4) & (t < 1.2)
+        if not sel.any():
+            continue
+        tt = np.clip(t[sel], 0.0, 1.0)
+        share = np.stack([np.interp(tt, knots, np.eye(len(knots))[k]) for k in range(len(knots))], 1)
+        W[np.ix_(np.nonzero(sel)[0], cols)] = total[sel, None] * share
+    return soft_top4(W)
+
+
 def rig(fig, objects):
-    """Weights every part, joins them into one mesh 'Ellis' (SK_Ellis in Unreal) under the mannequin armature, the
-    swing bones and the hat's bone."""
+    """Weights every part, joins them into one mesh 'Ellis' (SK_Ellis in Unreal) under the mannequin armature (with the
+    forearms' twist bones), the swing bones and the hat's bone."""
     arm = fig.b.armature('Ellis_Rig')
     fig.swing = swing_layout(fig, objects)
     fig.hat = hat_bone(objects)
     log(f'hat bone: ({fig.hat[0][0] * 100:.1f}, {fig.hat[0][1] * 100:.1f}, {fig.hat[0][2] * 100:.1f}) > '
         f'({fig.hat[1][0] * 100:.1f}, {fig.hat[1][1] * 100:.1f}, {fig.hat[1][2] * 100:.1f}) cm')
-    names = fig.names + add_swing_bones(arm, fig.swing) + [add_hat_bone(arm, *fig.hat)]
+    names = fig.names + add_swing_bones(arm, fig.swing) + [add_hat_bone(arm, *fig.hat)] + add_twist_bones(arm)
     fig.rig_names = names
     # the parts rig_check measures against each other (the tipped brim, the turned head's bandana), at rest with
     # their weights
@@ -2064,7 +2162,8 @@ def rig(fig, objects):
     for ob in objects:
         W = swing_weights(fig, ob, weights(fig, ob))
         hat = np.full((len(W), 1), 1.0 if ob.name.startswith('Hat') else 0.0)   # crown, brim and band: all on the hat
-        W = np.concatenate([W * (1.0 - hat), hat], 1)
+        W = np.concatenate([W * (1.0 - hat), hat, np.zeros((len(W), len(names) - W.shape[1] - 1))], 1)
+        W = twist_weights(fig, ob, W, names)
         fig.rest[ob.name] = (gm._object_coords(ob), [list(p.vertices) for p in ob.data.polygons], W)
         for j, bone in enumerate(names):
             col = W[:, j]

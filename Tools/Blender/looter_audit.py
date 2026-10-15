@@ -47,6 +47,15 @@ POSES = {
     'crouch': [('move', 'pelvis', (0.0, 0.06, -0.32)), ('turn', 'spine_01', X, 22.0)] + _arms_down(18.0) +
               [('turn', 'thigh_l', X, -80.0), ('turn', 'calf_l', X, 90.0), ('turn', 'foot_l', X, -10.0),
                ('turn', 'thigh_r', X, -75.0), ('turn', 'calf_r', X, 90.0), ('turn', 'foot_r', X, -15.0)],
+    # the hands turned on the forearms as the game's guns turn them (measured in play, 2026-10-15: on a rifle's
+    # foregrip or the revolver the left hand twists ~100 degrees about the forearm, the right ~32, each bent a little
+    # more), the twist bones taking their shares; the arms up as in aim; a and b the two ways round
+    'grip_a': [('turn', 'spine_03', Z, -10.0), ('point', 'upperarm_r', (-0.62, -0.45, -0.25)),
+               ('point', 'lowerarm_r', (0.55, -0.75, 0.25)), ('point', 'upperarm_l', (0.25, -0.8, -0.45)),
+               ('point', 'lowerarm_l', (-0.3, -0.95, 0.1)), ('twist', 'l', 100.0, 30.0), ('twist', 'r', 32.0, 20.0)],
+    'grip_b': [('turn', 'spine_03', Z, -10.0), ('point', 'upperarm_r', (-0.62, -0.45, -0.25)),
+               ('point', 'lowerarm_r', (0.55, -0.75, 0.25)), ('point', 'upperarm_l', (0.25, -0.8, -0.45)),
+               ('point', 'lowerarm_l', (-0.3, -0.95, 0.1)), ('twist', 'l', -100.0, -30.0), ('twist', 'r', -32.0, -20.0)],
 }
 
 
@@ -67,8 +76,8 @@ def pose(arm, steps, amount=1.0):
     the way (turns and moves scaled, a pointed bone turned that share toward its direction)."""
     reset(arm)
     for kind, bone, *args in steps:
-        pb = arm.pose.bones[bone]
-        h = pb.head.copy()
+        pb = arm.pose.bones.get(bone)                  # (a twist step names a side, not a bone)
+        h = pb.head.copy() if pb is not None else None
         if kind == 'turn':
             r = Matrix.Rotation(math.radians(args[1] * amount), 4, Vector(args[0]).normalized())
             _apply(pb, Matrix.Translation(h) @ r @ Matrix.Translation(-h))
@@ -78,6 +87,21 @@ def pose(arm, steps, amount=1.0):
             _apply(pb, Matrix.Translation(h) @ q.to_matrix().to_4x4() @ Matrix.Translation(-h))
         elif kind == 'move':
             _apply(pb, Matrix.Translation(Vector(args[0]) * amount))
+        elif kind == 'twist':
+            # ('twist', side, degrees, bend): the hand turned about the forearm's axis, each lowerarm_twist bone by its
+            # share of the way down (TWIST_SHARES, as the game turns them), then the hand bent about its own X
+            axis = (arm.pose.bones[f'lowerarm_{bone}'].tail - arm.pose.bones[f'lowerarm_{bone}'].head).normalized()
+            for name, share in TWIST_SHARES:
+                tb = arm.pose.bones.get(f'{name}_{bone}')
+                if tb is not None:
+                    h = tb.head.copy()
+                    _apply(tb, Matrix.Translation(h) @ Matrix.Rotation(math.radians(args[0] * share * amount), 4, axis)
+                           @ Matrix.Translation(-h))
+            hand = arm.pose.bones[f'hand_{bone}']
+            side = (hand.matrix.to_3x3() @ Vector((1.0, 0.0, 0.0))).normalized()
+            h = hand.head.copy()
+            _apply(hand, Matrix.Translation(h) @ Matrix.Rotation(math.radians(args[1] * amount), 4, side)
+                   @ Matrix.Translation(-h))
 
 
 # ------------------------------------------------------------------------------------------------- the swing springs
@@ -88,8 +112,14 @@ LIMBS = (('thigh_l', 'calf_l', 14.0), ('calf_l', 'foot_l', 10.0), ('thigh_r', 'c
          ('pelvis', 'spine_01', 18.0), ('spine_01', 'spine_03', 18.0), ('spine_03', 'spine_05', 18.0),
          ('spine_05', 'neck_01', 15.0), ('neck_01', 'head', 9.0), ('upperarm_l', 'lowerarm_l', 9.0),
          ('upperarm_r', 'lowerarm_r', 9.0), ('lowerarm_l', 'hand_l', 7.0), ('lowerarm_r', 'hand_r', 7.0),
-         ('hand_l', 'middle_01_l', 5.0), ('hand_r', 'middle_01_r', 5.0))
+         ('hand_l', 'middle_01_l', 5.0), ('hand_r', 'middle_01_r', 5.0), ('foot_l', 'ball_l', 8.0),
+         ('foot_r', 'ball_r', 8.0))
 CLEARANCE_SHARE = 0.95
+# BodySwingRing: the skirt's chains in order round the body (the open front not joined); the cloth between neighbours
+# kept off the limbs too, on what's shown only, moving a level's two points at most RING_PUSH (m) a frame
+SKIRT_RING = ('skirt_fl', 'skirt_sl', 'skirt_bl', 'skirt_bm', 'skirt_br', 'skirt_sr', 'skirt_fr')
+RING_PUSH = 0.12
+TWIST_SHARES = (('lowerarm_twist_01', 0.5), ('lowerarm_twist_02', 0.9), ('hand', 1.0))   # the twist each takes (the game's)
 LONE_BONE = 0.18                     # a one-bone chain's length (the lantern's)
 MIN_BONE_ALONG = 0.35                # a bone's top 35% isn't pushed off a limb, left to the point above (at 0.2
                                      # crouched thighs swung a coat flap out level with the hip)
@@ -192,6 +222,75 @@ def _keep_above(head, tip, length, floor, lean, reach=None):
     return head + flat.normalized() * min(out, length if reach is None else reach) - Vector((0.0, 0.0, drop))
 
 
+def _push_place_out(s, a, c, r, outward):
+    """BodySwing's PushPlaceOut: how far a place on the cloth moves to keep r from the limb a..c: straight away from
+    it, or, on the limb's line or with the limb come through to the cloth's outer side, out the body's side (outward
+    square to the limb) across it."""
+    q = _closest(s, a, c)
+    away = s - q
+    d = away.length
+    if d >= r:
+        return Vector((0.0, 0.0, 0.0))
+    axis = (c - a).normalized()
+    side = outward - axis * outward.dot(axis)
+    side = side.normalized() if side.length > 1e-8 else None
+    if d > 1e-9 and (side is None or (away / d).dot(side) >= -0.5):
+        return away / d * (r - d)
+    return Vector((0.0, 0.0, 0.0)) if side is None else side * (r + d)
+
+
+def _move_level(points, anchor, level, delta):
+    """BodySwingRing's MoveLevel: points[level] moved by delta, re-hung from the one above at its length, the points
+    below re-hung along their old ways from it at theirs."""
+    lengths = [(points[i] - (points[i - 1] if i > 0 else anchor)).length for i in range(level, len(points))]
+    head = points[level - 1] if level > 0 else anchor
+    way = lambda v: v.normalized() if v.length > 1e-9 else Vector((0.0, 0.0, -1.0))
+    points[level] = head + way(points[level] + delta - head) * lengths[0]
+    for i in range(level + 1, len(points)):
+        points[i] = points[i - 1] + way(points[i] - points[i - 1]) * lengths[i - level]
+
+
+def _ring(arm, chain_bones, tips, shown, anchors, ways, limbs_now):
+    """BodySwingRing's ApplyRing on the shown points: per neighbouring pair of skirt chains and level, the middle of
+    the two points and the middle of the patch above them kept off every limb (each its rest distance x 0.95, capped),
+    the push levelled and shared by nearness (the nearer point more), each point moved by its share, at most RING_PUSH."""
+    bones = arm.data.bones
+    rest_limbs = [(bones[a].head_local, bones[b].head_local, m / 100.0) for a, b, m in LIMBS]
+    order = [c for c in SKIRT_RING if c in chain_bones]
+    for ca, cb in zip(order, order[1:]):
+        rest_a = [bones[chain_bones[ca][0]].head_local] + tips[ca]
+        rest_b = [bones[chain_bones[cb][0]].head_local] + tips[cb]
+        out = (ways[ca] + ways[cb]).normalized()
+        for level in range(min(len(shown[ca]), len(shown[cb]))):
+            mid_rest = (rest_a[level + 1] + rest_b[level + 1]) * 0.5
+            cen_rest = (rest_a[level] + rest_b[level] + rest_a[level + 1] + rest_b[level + 1]) * 0.25
+            above_a = shown[ca][level - 1] if level > 0 else anchors[ca]
+            above_b = shown[cb][level - 1] if level > 0 else anchors[cb]
+            da, db = Vector((0.0, 0.0, 0.0)), Vector((0.0, 0.0, 0.0))
+            for (a, c), (ra, rc, m) in zip(limbs_now, rest_limbs):
+                pa, pb_ = shown[ca][level] + da, shown[cb][level] + db
+                # the nearer point takes more of the push, levelled (both taking all of it folded a corner another limb
+                # had pushed out right over it, and lifted the hem)
+                na, nb = (pa - _closest(pa, a, c)).length, (pb_ - _closest(pb_, a, c)).length
+                share = nb / (na + nb) if na + nb > 1e-9 else 0.5
+
+                def spread(push, corners):
+                    nonlocal da, db
+                    push = Vector((push.x, push.y, 0.0))
+                    da = da + push * (corners * share)
+                    db = db + push * (corners * (1.0 - share))
+                r_mid = min((mid_rest - _closest(mid_rest, ra, rc)).length * CLEARANCE_SHARE, m)
+                r_cen = min((cen_rest - _closest(cen_rest, ra, rc)).length * CLEARANCE_SHARE, m)
+                spread(_push_place_out((pa + pb_) * 0.5, a, c, r_mid, out), 2.0)
+                centre = (above_a + above_b + shown[ca][level] + da + shown[cb][level] + db) * 0.25
+                spread(_push_place_out(centre, a, c, r_cen, out), 4.0)
+            for chain, d in ((ca, da), (cb, db)):
+                if d.length > RING_PUSH:
+                    d = d.normalized() * RING_PUSH
+                if d.length > 1e-4:
+                    _move_level(shown[chain], anchors[chain], level, d)
+
+
 def _rest_tips(arm, names):
     """A chain's bone tips as the game takes them (BodySwing's Bind: an FBX skeleton has no tails): the next bone's
     head, the last bone's its `<chain>_end` leaf's head (where the cloth ends), or without one the last head plus the
@@ -237,7 +336,7 @@ def settle_swing(arm, chain_bones, steps=None, stages=12, reach=0.01):
     outward = {chain: Vector((tips[chain][-1].x - mid.x, tips[chain][-1].y - mid.y, 0.0)).normalized()
                for chain in chain_bones}
     to_pose = lambda pbs, n: pbs[n].matrix @ bones[n].matrix_local.inverted()
-    held = {}
+    held, anchors, ways = {}, {}, {}
     for stage in range(1, stages + 1) if steps is not None else (None,):
         if stage is not None:
             pose(arm, steps, stage / stages)
@@ -280,10 +379,13 @@ def settle_swing(arm, chain_bones, steps=None, stages=12, reach=0.01):
                                     lengths[i] * (GATHER_REACH if i == len(points) - 1 else 1.0))
                     points[i] = p
                     head = p
-            held[chain] = points
+            held[chain], anchors[chain], ways[chain] = points, anchor, way
+    # the cloth between the skirt's chains off the limbs too, on what's shown (not fed back to the springs)
+    shown = {chain: [p.copy() for p in pts] for chain, pts in held.items()}
+    _ring(arm, chain_bones, tips, shown, anchors, ways, now_limbs)
     pbs = arm.pose.bones
     for chain, names in chain_bones.items():
-        for name, tip_rest, p in zip(names, tips[chain], held[chain]):
+        for name, tip_rest, p in zip(names, tips[chain], shown[chain]):
             pb = pbs[name]
             h = pb.head.copy()
             q = (to_pose(pbs, name) @ tip_rest - h).normalized().rotation_difference((p - h).normalized())

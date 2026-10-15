@@ -328,6 +328,9 @@ bool FBodySwingEllisTest::RunTest(const FString& Parameters)
 			Ellis->GetRefSkeleton().FindBoneIndex(FName(*FString::Printf(TEXT("%s_end"), Chain))) != INDEX_NONE);
 	}
 	TestEqual(TEXT("The cloth between the 7 skirt chains keeps off the legs: 6 pairs round the coat (its front open)"), Swing.NumRingPairs(), 6);
+	FBodyForearmTwist Twist;
+	Twist.Bind(Ellis->GetRefSkeleton());
+	TestEqual(TEXT("Two twist bones down each forearm roll it with the hand (the wrists tore open without)"), Twist.NumTwistBones(), 4);
 	FBodyHatTip Tip;
 	Tip.Bind(Ellis->GetRefSkeleton());
 	TestTrue(TEXT("A hat bone to tip"), Tip.HasHat());
