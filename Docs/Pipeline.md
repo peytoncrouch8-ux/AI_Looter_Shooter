@@ -508,11 +508,13 @@ other heroes too:
   What didn't work: a 380/m twill and 700/m weave aliased into moire at the bake's ~1000 px/m (keep patterns under ~300/m); a
   dense fine crumple network read as cracked stone or marble, not cloth (cloth creases: few, broad, long, soft).
 - `Tools/Blender/looter_bake.py`: `pack()` (one atlas per set: islands averaged to one density, packed); `bake_set()`: the
-  occlusion first (Cycles AO bake at a quarter of the set's size, 32 samples, 0.1 m, scaled up into the ORM; it was nearly
-  all of the time), then each look's AO nodes are swapped for that map so colour, roughness and metal bake as emissions at
-  one sample, then the normal (tangent, OpenGL; written green-flipped as DirectX); writes
-  `Art/Textures/<Set>/T_<Set>_BC|N|ORM.png`. `load_set()` reads a set back; `digest()` fingerprints the scripts. The whole
-  model with four 2048 sets bakes in ~7 min on the cloud box's 4 cores (it was ~15 min at 1024 with live AO nodes).
+  occlusion on the game parts themselves (Cycles AO bake at a quarter of the set's size, 32 samples, 0.1 m, scaled up into
+  the ORM; the detailed parts hidden, or lying on their game parts they shade them black), then colour, roughness and
+  metal as emissions at one sample and the normal (tangent, OpenGL; written green-flipped as DirectX), cast from a joined
+  copy of the set's game parts onto the detailed parts (`sources`: selected to active, cage 1.5 cm, reach 4 cm); writes
+  `Art/Textures/<Set>/T_<Set>_BC|N|ORM.png`. `load_set()` reads a set back; `digest()` fingerprints the scripts. ~5 min for
+  four 2048 sets on the cloud box's 4 cores (it was ~15 min at 1024 with ambient-occlusion nodes live in the looks; grime is
+  Pointiness now). Any edit to the scripts changes the digest and bakes again.
 
 The duster's cloth simulation (`settle()`, `looter_garments.simulate()`): the skirt is built fuller than it hangs (flare 0.10)
 and Blender's cloth lets it fall onto the body, trousers, waistcoat and belt, pinned above the hips (smoothstep 0.92-1.08 m),
@@ -532,7 +534,8 @@ Ellis.py:
   holster, lantern, the simulation, collar and pin, gloves, hat (EllisBlender.build_hat moved into the figure's space),
   bandana (inside the collar: draped over skin, waistcoat and shirt; its point down the chest), hair (two layers of locks with
   rounded backs round the back of the head, `EllisBlender.grow` over head, collar, cape and bandana; a hair-coloured scalp
-  under them), then 'Seams' on the sewn pieces, UVs, the bake, thickness, weights, one joined mesh `Ellis`.
+  under them), then 'Seams' on the sewn pieces; the game mesh (below), its UVs, the bake from the detailed parts (then
+  deleted), thickness, weights, one joined mesh `Ellis`.
 - Texture sets (2048): EllisSkin (face and scalp), EllisDuster (coat, sleeves, cape, collar), EllisGarb (hat, hair, bandana,
   waistcoat, shirt, trousers), EllisGear (boots, soles, gloves, belt, holster, revolver, lantern, brass, lead, iron). The eyes
   and the lantern's globe and flame are Glow materials (EllisEyeGlow, EllisLanternGlow).
@@ -540,8 +543,15 @@ Ellis.py:
   thighs (side by x) as looter_heroes' skirts; the cape half its nearest body point, half spine_05 and the clavicles; collar
   spine_05 to neck_01 by height; bandana head, its point toward neck and chest; hat, hair, eyes head; belt pelvis
   (+spine_01); holster pelvis + thigh_l, lantern pelvis + thigh_r (rigid); gauntlets lowerarm to hand; gloves from the
-  hand's faces only. Hit zones: head, trunk, skirt round the hips, each limb, hands, feet. LODs 50 % and 25 %. ~108k
-  triangles at LOD0 (190k before: thinner grids, thickness only where an inside shows, the hat decimated).
+  hand's faces only. Hit zones: head, trunk, skirt round the hips, each limb, hands, feet. LODs 50 % and 25 %.
+- The game mesh, ~20.6k triangles (the user's call, 2026-10-15: Borderlands' 10-20k budget): the detailed build (~108k)
+  is only the bake source. `make_lows()` copies each part and decimates it by its `LOW` share (Blender's Decimate,
+  collapse); the face spares the eyes (a vertex group, inverted: Decimate collapses only what its group weights); the
+  bandana's back, hidden under collar and hair, goes; the hair is built again as fewer, wider locks (`HAIR_LOW`); reduced
+  layers are pushed back outside the reduced layers under them (a reduced sleeve cut through its reduced gauntlet). The
+  copies take each part's transform (the eyes, buttons, pin and conchos are placed by their object, not their mesh: copies
+  without it fell to the floor). Biggest shares: face 2.6k, duster 1.8k, hair 1.8k, gloves 1.1k, cape 1.1k, boots 1.1k.
+  `--stats` prints the triangles per part (no bake).
 - Bake cache: `Art/Textures/EllisSkin/bake.digest` holds the digest of the scripts, the size and the Blender version the sets
   were baked from; a run with the same digest reads the PNGs back instead of baking (`--rebake` forces it).
 - The cloud box can't push Git LFS: its PNGs are not committed (`.git/info/exclude` there). The first `Tools\models.ps1
@@ -550,7 +560,7 @@ Ellis.py:
 - Run: `blender -b --factory-startup --python Art/Models/Characters/Ellis.py -- [--size 1024] [--glb <path>] [--preview]
   [--shots full+upper+hips+feet] [--shape] [--sim-only] [--selfx] [--no-sim] [--rebake]`. `--shape` renders the untextured
   build in clay (the looks unbaked are minutes a frame); `--preview` renders the baked look in the viewer's arms-down pose
-  to `Saved/ArtPreviews/Characters/Ellis/`; `--glb` writes the posed, textured figure (WebP maps, ~8 MB) for the spin viewer.
+  to `Saved/ArtPreviews/Characters/Ellis/`; `--glb` writes the posed, textured figure (WebP maps) for the spin viewer.
 - The spin viewer (`Tools/CharacterViewer/index.html`, three.js 0.160 from jsDelivr, the game's LooterUI look): published as
   an artifact (https://claude.ai/artifact/HJCgTaXnSRbEb5k7SXjdDa). Artifacts serve no .glb (nor model/gltf-binary): convert with
   `Tools/CharacterViewer/glb_to_json.py <glb> <dir> ellis` and publish index.html with ellis.json and the ellis_N.webp maps.

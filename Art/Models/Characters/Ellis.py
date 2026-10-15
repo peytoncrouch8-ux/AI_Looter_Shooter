@@ -1127,6 +1127,8 @@ def make_lows(fig, highs, hair_under):
             continue
         low = bpy.data.objects.new(ob.name + '_low', ob.data.copy())
         bpy.context.scene.collection.objects.link(low)
+        low.matrix_world = ob.matrix_world              # placed parts (eyes, buttons, pin, conchos) keep their place
+        bake_transform(low)
         if ob.name.startswith('Bandana') and not ob.name.startswith('BandanaKnot'):
             mid = (fig.eyes[0] + fig.eyes[1]) * 0.5
             c = mid[:2] - FWD * 0.085 * fig.b.scale
@@ -1152,9 +1154,26 @@ def make_lows(fig, highs, hair_under):
                 m.invert_vertex_group = True
                 m.vertex_group_factor = 1.0
             gm.apply_modifiers(low, keep=())
+            if 'keep' in low.vertex_groups:
+                low.vertex_groups.remove(low.vertex_groups['keep'])
         lows.append(low)
     hair = build_hair(fig, hair_under, name='Hair_low', **HAIR_LOW)
     lows.append(hair)
+    # reduced layers can cut through one another where the detailed ones only just cleared: each outer part is pushed
+    # back outside the reduced parts under it
+    by = lambda *names: [o for o in lows if o.name.split('.')[0].startswith(names)]
+    for outer, inner in (('Vest', ('Shirt',)), ('Duster', ('Vest', 'Shirt', 'Belt', 'Trousers')),
+                         ('Cape', ('Duster', 'Sleeves')), ('Collar', ('Cape',)), ('Gauntlet', ('Sleeves',)),
+                         ('Bandana', ('Shirt', 'Vest', 'Ellis')), ('Boots', ('Trousers',))):
+        under = by(*inner)
+        if not under:
+            continue
+        tree = gm.bvh_objects(under)
+        for ob in by(outer):
+            co = gm._object_coords(ob)
+            new = gm.clear(co, tree, 0.003, 0.02)
+            ob.data.vertices.foreach_set('co', new.astype(np.float32).ravel())
+            ob.data.update()
     return lows
 
 

@@ -13,7 +13,8 @@ portrait; a cloth-simulated duster to mid-calf (back vent, seams, topstitched he
 with the sun-ring pin; waistcoat, work shirt, trousers tucked into stovepipe boots with stacked soles and cuban heels; roper
 gloves with gauntlets and conchos; cartridge belt, Mexican-loop cross-draw holster with the revolver, Pa's lantern burning
 at the right hip; hat, hair, pointed bandana, glowing slit eyes. 63 mannequin bones, four 2048 texture sets baked from
-procedural looks, hit zones, LODs 50/25, ~108k triangles. Helpers `looter_human`, `looter_garments`, `looter_looks`,
+procedural looks, hit zones, LODs 50/25; ~20.6k triangles (the user asked for Borderlands' 10-20k: the ~108k detailed build
+is now only the bake source, its folds and creases baked into the game mesh's maps). Helpers `looter_human`, `looter_garments`, `looter_looks`,
 `looter_bake`. Merged `claude/ellis-portraits` (portraits, MakeHuman assets) into this branch. The spin viewer: an artifact
 page (three.js; Spin, Look at Head/Hands/Belt/Boots, Dusk/Day light) with the posed, textured glTF: https://claude.ai/artifact/HJCgTaXnSRbEb5k7SXjdDa (source `Tools/CharacterViewer/`).
 **Not done (needs the PC):** the textures aren't committed (LFS): `Tools\models.ps1 -Only Ellis` bakes them (minutes), then
@@ -21,7 +22,8 @@ commit `Art/Textures/Ellis*`; the script was run only with Blender 5.2's Python 
 for API differences on the first run); the IK retargeter from the mannequin; SK_Ellis on the player in place of the white
 mannequin (third person); the first-person arms against it (SK_FP_Arms' sleeves are #8f7052, lighter than the model's
 dust-brown oilskin, and its gloves #a47c56 lighter than the model's: the user's eye decides which wins).
-**The user's decisions (keep):** as the portraits session's; Ellis A is the spec; less smooth (folds, creases, seams, wear).
+**The user's decisions (keep):** as the portraits session's; Ellis A is the spec; less smooth (folds, creases, seams, wear);
+a game budget of about 20k triangles (picked from ~20k / ~35k / keep 108k, 2026-10-15).
 **Next:** the user's notes on the viewer; then on the PC: import, retarget, wire SK_Ellis into third person, check the hands;
 then the other four heroes' portraits and models the same way.
 
