@@ -95,7 +95,8 @@ may spread its `.cpp` over files named `ClassTopic.cpp`. Tunings and step-by-ste
 - `Weapons/BulletMarks`: `FBulletMarks`, pooled fading decals where a bullet struck, in the surface's look (cvars: cap, hold, fade).
 
 ## Inventory
-- `Inventory/WeaponManagerComponent.h`: `UWeaponManagerComponent` (weapons, backpack, ammo, parts box), `FCarriedGun`.
+- `Inventory/WeaponManagerComponent.h`: `UWeaponManagerComponent` (weapons, backpack, ammo, parts box).
+- `Inventory/WeaponManagerTypes.h`: its events (`FOnActiveWeaponChanged`, `FOnAmmoPoolChanged`, ...), `FStartingWeapon`, `FCarriedGun`.
 - `Inventory/WeaponManagerComponent.cpp`: lifecycle, ammo pools, firing passthrough, input.
 - `Inventory/WeaponManagerSlots.cpp`: slots and backpack (give, equip, drop, stash, swap, move), where guns are held.
 - `Inventory/WeaponManagerSwap.cpp`: `EquipSlot`, `NextWeapon`, `PreviousWeapon` and the swap: in a local player's view the gun in hand goes down first, locked (`BeginMeleeSwing`: no shots, reload cut), the change out of sight, the next drawn; retarget mid-holster, own key calls it off (`IsSwapping`, `GetSwapTargetSlot`, `GetGunLowered`, `UpdateSwap`; `Looter.Swap.Motion 0/1`); held loot waits for the holster (`PutLootInHand`).
