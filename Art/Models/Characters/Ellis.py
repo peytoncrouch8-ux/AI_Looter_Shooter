@@ -148,7 +148,7 @@ LOOKS = {
     'Vest': lambda n: lk.brocade(n, (0.045, 0.045, 0.05), (0.12, 0.115, 0.115)),
     'Shirt': lambda n: lk.linen(n, (0.31, 0.33, 0.36)),
     'Trousers': lambda n: lk.wool(n, (0.19, 0.18, 0.19)),
-    'Boots': lambda n: lk.leather(n, (0.20, 0.12, 0.075), grain=900.0, dust_amt=0.35, dust_height=0.12, mud=0.4,
+    'Boots': lambda n: lk.leather(n, (0.20, 0.12, 0.075), grain=900.0, dust_amt=0.3, dust_height=0.10, mud=0.0,
                                   boot=(-0.205, 0.0215)),
     'Soles': lambda n: lk.stacked(n, (0.12, 0.08, 0.055)),
     'Gloves': lambda n: lk.leather(n, (0.50, 0.36, 0.23), grain=1100.0, dust_amt=0.25, dust_height=0.001,
