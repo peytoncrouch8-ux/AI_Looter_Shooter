@@ -770,9 +770,14 @@ def bake_transform(ob):
     ob.matrix_world = Matrix.Identity(4)
 
 
-def build_hair(fig, under_obs):
+HAIR = dict(layers=((70, 0.003, 0.040, 0.0), (56, 0.008, 0.032, 0.05)), per=2, steps=10, locks=4)
+HAIR_LOW = dict(layers=((26, 0.003, 0.072, 0.0), (18, 0.009, 0.062, 0.05)), per=1, steps=5, locks=2)
+
+
+def build_hair(fig, under_obs, layers, per, steps, locks, name='Hair'):
     """Collar-length dark hair falling from under the hat in clumps (the portrait's strands, EllisBlender.grow,
-    draped over the head, the collar and the cape), each clump a few tapered ribbons; a lock over the left brow."""
+    draped over the head, the collar and the cape), each clump per tapered locks of steps segments; locks over the
+    left brow. HAIR builds the detailed hair the game's is baked from; HAIR_LOW the game's (fewer, wider locks)."""
     tree = gm.bvh_objects(under_obs)
     rng = np.random.default_rng(7)
     hf = fig.hf
@@ -785,7 +790,7 @@ def build_hair(fig, under_obs):
     paths = []
     # two layers of clumps round the head under the band, skipping the forehead: the inner close to the scalp, the
     # outer a little lower and looser, so no scalp shows between them
-    for layer, (count, lift, width, drop) in enumerate(((70, 0.003, 0.040, 0.0), (56, 0.008, 0.032, 0.05))):
+    for layer, (count, lift, width, drop) in enumerate(layers):
         for c in range(count):
             # round the back from the left temple to the right one (0 is the face): the forehead stays bare
             deg = 46.0 + 268.0 * (c + rng.random() * 0.8) / count
@@ -795,19 +800,20 @@ def build_hair(fig, under_obs):
             r = centre + np.array([math.sin(ang) * 0.7, rng.normal() * 0.03 - drop, math.cos(ang) * 0.9])
             hit = tree.find_nearest(Vector(tuple(fig.head_point(r))))
             base = np.array(hit[0]) + np.array(hit[1]) * lift
-            for k in range(2):
+            for k in range(per):
                 rr = base + rng.normal(size=3) * 0.006
-                st = eb.grow(tree, Vector(tuple(rr)), Vector((0, 0, -1)), L * (0.8 + 0.3 * rng.random()), 10, rng,
+                st = eb.grow(tree, Vector(tuple(rr)), Vector((0, 0, -1)), L * (0.8 + 0.3 * rng.random()), steps, rng,
                              0.3 + 0.3 * rng.random(), lift + 0.003 + 0.005 * rng.random())
                 paths.append((st, width * (0.8 + 0.4 * rng.random())))
     # the lock out from under the brim over the left brow, to the temple
-    for k in range(4):
-        r = np.array([0.30 + 0.04 * k + rng.normal() * 0.01, band_y - 0.02, hv[:, 2].max() - 0.22])
+    for k in range(locks):
+        f = k * 4.0 / locks
+        r = np.array([0.30 + 0.04 * f + rng.normal() * 0.01, band_y - 0.02, hv[:, 2].max() - 0.22])
         root = fig.head_point(r)
-        tip = fig.head_point(np.array([0.48 + 0.03 * k, band_y - 0.36 + 0.03 * k, hv[:, 2].max() - 0.02]))
+        tip = fig.head_point(np.array([0.48 + 0.03 * f, band_y - 0.36 + 0.03 * f, hv[:, 2].max() - 0.02]))
         d = Vector(tuple(tip - root))
-        st = eb.grow(tree, Vector(tuple(root)), d.normalized(), d.length, 6, rng, 0.25, 0.004)
-        paths.append((st, 0.016))
+        st = eb.grow(tree, Vector(tuple(root)), d.normalized(), d.length, min(6, steps), rng, 0.25, 0.004)
+        paths.append((st, 0.016 * 4.0 / locks ** 0.5 / 2.0))
     piece = None
     for st, w in paths:
         st = np.asarray(st)
@@ -821,8 +827,8 @@ def build_hair(fig, under_obs):
         rows = np.stack([st - side * (width * 0.5)[:, None], mid, st + side * (width * 0.5)[:, None]], 1)
         rib = gm.grid(rows[..., 0], rows[..., 1], rows[..., 2])
         piece = rib if piece is None else piece + rib
-    ob = gm.mesh('Hair', piece, slot('Hair'))
-    log(f'hair: {len(paths)} ribbons')
+    ob = gm.mesh(name, piece, slot('Hair'))
+    log(f'{name}: {len(paths)} locks')
     return ob
 
 
@@ -1092,8 +1098,64 @@ THICK = {'Duster': 0.004, 'Cape': 0.004, 'Collar': 0.005, 'Bandana': 0.0015, 'Ha
          'BeltLoops': 0.003, 'HolsterSkirt': 0.004, 'HatBrim': 0.0055, 'HatBand': 0.0015, 'Gauntlet_l': 0.003,
          'Gauntlet_r': 0.003, 'HolsterLoop': 0.002}
 # Hidden insides stay single-sided: the waistcoat, shirt and trousers under the coat, the sleeves inside the gauntlets,
-# the boots' shafts round the trousers, the crown above the band. Decimated after the bake (looks too dense as built).
-DECIMATE = {'HatCrown': 0.35, 'HatBrim': 0.5}
+# the boots' shafts round the trousers, the crown above the band.
+
+# The game mesh (about 20k triangles, the user's call of 2026-10-15: Borderlands' budget): each detailed part's share of
+# its triangles kept by Blender's Decimate (collapse); 1 keeps a part as it is. Its looks, folds and creases are baked
+# from the detailed parts (looter_bake, sources). The hair is built again with fewer, wider locks (HAIR_LOW).
+LOW = {'Ellis': 0.20, 'Eye': 0.22, 'Trousers': 0.42, 'Boots': 0.22, 'Soles': 0.5, 'Vest': 0.36, 'Shirt': 0.4,
+       'VestButton': 0.25, 'Duster': 0.09, 'Sleeves': 0.42, 'Cape': 0.10, 'Collar': 0.20, 'SunPin': 0.4, 'Gloves': 0.18,
+       'Gauntlet': 0.30, 'Concho': 0.5, 'HatCrown': 0.07, 'HatBrim': 0.09, 'HatBand': 0.3, 'Bandana': 0.13,
+       'BandanaKnot': 0.4, 'Belt': 0.4, 'BeltLoops': 0.35, 'Cartridges': 0.4, 'Bullets': 0.3, 'Buckle': 1.0,
+       'HolsterSkirt': 1.0, 'Holster': 0.6, 'HolsterLoop': 0.5, 'Revolver': 0.8, 'LanternWire': 0.3, 'Lantern': 0.5}
+
+
+def low_ratio(name):
+    key = name.split('.')[0]
+    for k in sorted(LOW, key=len, reverse=True):
+        if key.startswith(k):
+            return LOW[k]
+    return 1.0
+
+
+def make_lows(fig, highs, hair_under):
+    """The game mesh: a reduced copy of every detailed part (named <part>_low until the detailed ones go), the eye
+    region of the face kept dense, the bandana's back (under the collar and hair) left out, the hair rebuilt."""
+    lows = []
+    for ob in highs:
+        if ob.name.startswith('Hair'):
+            continue
+        low = bpy.data.objects.new(ob.name + '_low', ob.data.copy())
+        bpy.context.scene.collection.objects.link(low)
+        if ob.name.startswith('Bandana') and not ob.name.startswith('BandanaKnot'):
+            mid = (fig.eyes[0] + fig.eyes[1]) * 0.5
+            c = mid[:2] - FWD * 0.085 * fig.b.scale
+            bm = bmesh.new()
+            bm.from_mesh(low.data)
+            back = [f for f in bm.faces if (lambda q: math.atan2(abs(q.x - c[0]), -(q.y - c[1])))(f.calc_center_median()) > 2.0]
+            bmesh.ops.delete(bm, geom=back, context='FACES')
+            bm.to_mesh(low.data)
+            bm.free()
+        ratio = low_ratio(ob.name)
+        if ratio < 1.0:
+            m = low.modifiers.new('decimate', 'DECIMATE')
+            m.ratio = ratio
+            if ob.name == 'Ellis':
+                # the eyes and lids keep their detail: the decimation spares a group weighted round them
+                g = low.vertex_groups.new(name='keep')
+                co = gm._object_coords(low)
+                d = np.minimum(np.linalg.norm(co - fig.eyes[0], axis=1), np.linalg.norm(co - fig.eyes[1], axis=1))
+                for i in np.nonzero(d < 0.03)[0]:
+                    g.add([int(i)], 1.0, 'REPLACE')
+                # (Decimate collapses only what its group weights: inverted, the eyes are the part it spares)
+                m.vertex_group = 'keep'
+                m.invert_vertex_group = True
+                m.vertex_group_factor = 1.0
+            gm.apply_modifiers(low, keep=())
+        lows.append(low)
+    hair = build_hair(fig, hair_under, name='Hair_low', **HAIR_LOW)
+    lows.append(hair)
+    return lows
 
 
 def look_of(ob):
@@ -1126,23 +1188,25 @@ BAKE_SOURCES = [os.path.abspath(__file__)] + [os.path.join(REPO, *p) for p in (
     ('Tools', 'Blender', 'looter_bake.py'), ('Art', 'Portraits', 'mh.py'), ('Art', 'Portraits', 'EllisBlender.py'))]
 
 
-def bake_all(objects, size):
-    """Packs every texture set's UVs and bakes it. The bake is skipped when the sets on disk were baked from these
-    same scripts at this size (the digest beside them, Art/Textures/EllisSkin/bake.digest; --rebake forces it): the
-    model and its UV packing are deterministic, so the old maps still fit. Returns {set: bake result}."""
+def bake_all(lows, highs, size):
+    """Packs every texture set's UVs on the game mesh and bakes it from the detailed parts. The bake is skipped when the
+    sets on disk were baked from these same scripts at this size (the digest beside them, Art/Textures/EllisSkin/
+    bake.digest; --rebake forces it): the model and its UV packing are deterministic, so the old maps still fit.
+    Returns {set: bake result}."""
     stamp = os.path.join(lt.TEXTURE_DIR, 'EllisSkin', 'bake.digest')
     want = bk.digest(BAKE_SOURCES, f'size={size} blender={bpy.app.version_string}')
     have = open(stamp).read().strip() if os.path.exists(stamp) else ''
     out = {}
     for set_name, keys in TEXTURE_SETS.items():
-        obs = [o for o in objects if look_of(o) in keys]
+        obs = [o for o in lows if look_of(o) in keys]
+        src = [o for o in highs if look_of(o) in keys]
         weights = {o: 1.6 for o in obs if o.name.startswith(('Bandana', 'Gloves'))}
         bk.pack(obs, weights=weights)
         if have == want and '--rebake' not in ARGS:
             out[set_name] = bk.load_set(set_name)
         if out.get(set_name) is None:
-            out[set_name] = bk.bake_set(set_name, obs, size)
-            log(f'baked {set_name} ({len(obs)} parts)')
+            out[set_name] = bk.bake_set(set_name, obs, size, sources=src, hide=highs)
+            log(f'baked {set_name} ({len(obs)} parts from {len(src)})')
         else:
             log(f'{set_name}: kept (baked from these scripts before)')
     os.makedirs(os.path.dirname(stamp), exist_ok=True)
@@ -1153,11 +1217,6 @@ def bake_all(objects, size):
 
 def thicken(objects):
     for ob in objects:
-        ratio = DECIMATE.get(ob.name.split('.')[0])
-        if ratio:
-            m = ob.modifiers.new('decimate', 'DECIMATE')
-            m.ratio = ratio
-            gm.apply_modifiers(ob)
         t = THICK.get(ob.name.split('.')[0])
         if t:
             gm.solidify(ob, t, offset=0.0 if ob.name.startswith('HatBrim') else 1.0, rim=not ob.name.startswith('Hair'))
@@ -1175,8 +1234,7 @@ def weights(fig, ob):
     name = ob.name
     sk = fig.sk
     if name == 'Ellis':
-        idx = np.array([d.value for d in me.attributes['mh_index'].data])
-        return fig.Wv[idx]
+        return fig.b.weights_at(P)[1]         # the decimated skin: its own place on the body
     if name.startswith(('Eye_', 'Hat', 'Hair')):
         return rigid_w(fig, n, {'head': 1.0})
     if name.startswith('Bandana'):
@@ -1457,7 +1515,7 @@ def main():
     log('cape, collar, gloves')
     hat = build_hat(fig)
     bandana = build_bandana(fig, [skin, vest, shirt])
-    hair = build_hair(fig, [skin, collar, cape, bandana[0]])
+    hair = build_hair(fig, [skin, collar, cape, bandana[0]], **HAIR)
     log('hat, bandana, hair')
     for ob in [cape, collar, bandana[0], vest, shirt] + belt[:2] + holster[:1] + hat[2:] + boots[:1] + \
             [g for g in gloves if g.name.startswith('Gauntlet')]:
@@ -1469,9 +1527,19 @@ def main():
         for shot in (arg_value('--shots', 'full')).split('+'):
             preview(None, os.path.join(out, f'Ellis_{shot}'), aim=SHOTS[shot])
         return
-    parts = [o for o in bpy.context.scene.objects if o.type == 'MESH']
+    highs = [o for o in bpy.context.scene.objects if o.type == 'MESH']
+    prepare_uvs([o for o in highs if o.name.startswith('Hair')])
+    parts = make_lows(fig, highs, [skin, collar, cape, bandana[0]])
+    log(f'game mesh: {sum(len(p.data.polygons) for p in parts)} faces before thickness')
     prepare_uvs(parts)
-    baked = bake_all(parts, int(arg_value('--size', 2048)))
+    baked = None if '--stats' in ARGS else bake_all(parts, highs, int(arg_value('--size', 2048)))
+    # the detailed parts have done their work: the game parts take their names
+    for ob in highs:
+        me = ob.data
+        bpy.data.objects.remove(ob)
+        bpy.data.meshes.remove(me)
+    for ob in parts:
+        ob.name = ob.name[:-4] if ob.name.endswith('_low') else ob.name
     thicken(parts)
     if '--stats' in ARGS:
         tris = {}

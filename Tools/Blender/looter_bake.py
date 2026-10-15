@@ -6,8 +6,10 @@ ambient occlusion, G roughness, B metallic), in Art/Textures/<Set>/ (looter_text
     maps = bake_set('EllisGear', objects, 2048)   # bakes every material on them (each must be a look)
 
 Each pass swaps each look's output for an emission of one of its OUT_ reroutes (exact values, no lighting), except the
-normal (Cycles' normal bake of the look's own shading normal) and the occlusion (Cycles' AO bake, which sees every
-object in the scene, so a belt shades the coat under it). Bakes are deterministic for a given Blender build.
+normal (Cycles' normal bake of the look's shading normal) and the occlusion (Cycles' AO bake, which sees every object in
+the scene, so a belt shades the coat under it). With sources, the passes are cast from the game parts onto detailed
+ones (selected to active): a light game mesh wears the detailed model's folds, creases and seams. Bakes are
+deterministic for a given Blender build.
 """
 import hashlib
 import os
@@ -131,17 +133,21 @@ def _pixels(img):
     return a.reshape(img.size[1], img.size[0], 4)
 
 
-def bake_set(set_name, objects, size=2048, samples=1, ao_samples=32, ao_distance=0.1, margin=12, out_dir=None):
-    """Bakes the looks on objects into the set's three PNGs. Returns {'BC', 'N', 'ORM': path, 'images': {...}} with
-    the baked Blender images kept (COLOR, ROUGH, METAL, NORMAL as OpenGL, AO) for previews and glTF."""
-    out_dir = out_dir or os.path.join(lt.TEXTURE_DIR, set_name)
-    os.makedirs(out_dir, exist_ok=True)
+def bake_set(set_name, objects, size=2048, samples=1, ao_samples=32, ao_distance=0.1, margin=12, sources=None, hide=(),
+             cage=0.015, reach=0.04):
+    """Bakes a texture set onto objects (their 'UVMap', packed into one atlas) and writes its three PNGs. Returns
+    {'BC', 'N', 'ORM': path, 'images': {COLOR, ROUGH, METAL, NORMAL (OpenGL), AO, ORM}}.
+
+    sources: the detailed parts the game parts are baked from. Then colour, roughness, metal and normal are cast from
+    each game part (rays from cage metres outside it, reaching reach) onto the sources and read from their looks, so
+    the sources' folds and creases land in the normal map; without sources the objects' own looks are baked. The
+    occlusion is always baked on the objects themselves, with hide (the sources) out of the render so a detailed part
+    lying on its game part doesn't shade it black."""
     sc = bpy.context.scene
     sc.render.engine = 'CYCLES'
     sc.cycles.device = 'CPU'
     bk = sc.render.bake
     bk.margin = margin
-    bk.use_clear = True
     try:
         bk.target = 'IMAGE_TEXTURES'
     except Exception:
@@ -150,8 +156,7 @@ def bake_set(set_name, objects, size=2048, samples=1, ao_samples=32, ao_distance
     for ob in objects:
         ob.data.uv_layers.active = ob.data.uv_layers['UVMap']
     images = {}
-    # occlusion first: the looks' grime reads it instead of tracing its own rays. It is soft, so it bakes at a quarter
-    # of the set's size (the rays are nearly all of a set's bake time) and is scaled up into the ORM.
+    # occlusion: soft, so a quarter of the set's size, scaled up into the ORM (its rays are most of a bake's time)
     ao_size = max(512, size // 4)
     img = _image(f'{set_name}_AO', ao_size, 'Non-Color')
     for m in mats:
@@ -160,48 +165,71 @@ def bake_set(set_name, objects, size=2048, samples=1, ao_samples=32, ao_distance
     if sc.world is None:
         sc.world = bpy.data.worlds.new('BakeWorld')
     sc.world.light_settings.distance = ao_distance
+    was = [(o, o.hide_render) for o in hide]
+    for o in hide:
+        o.hide_render = True
     select(objects)
     t0 = time.time()
     bpy.ops.object.bake(type='AO', margin=margin, use_clear=True)
+    for o, h in was:
+        o.hide_render = h
     images['AO'] = img
-    for m in mats:
-        _use_baked_ao(m, img)
     log(f'{set_name}: occlusion ({time.time() - t0:.0f} s)')
-    for key, reroute, cs in PASSES:
-        img = _image(f'{set_name}_{key}', size, cs)
-        olds = {}
-        for m in mats:
-            _target(m, img)
-            olds[m.name] = _swap_emission(m, reroute)
-        sc.cycles.samples = samples
-        select(objects)
-        t0 = time.time()
-        bpy.ops.object.bake(type='EMIT', margin=margin, use_clear=True)
-        for m in mats:
-            _restore(m, olds[m.name])
-        images[key] = img
-        log(f'{set_name}: {key.lower()} ({time.time() - t0:.0f} s)')
-    img = _image(f'{set_name}_NORMAL', size, 'Non-Color')
-    for m in mats:
-        _target(m, img)
-    sc.cycles.samples = 1
-    select(objects)
-    t0 = time.time()
-    bpy.ops.object.bake(type='NORMAL', normal_space='TANGENT', margin=margin, use_clear=True)
-    images['NORMAL'] = img
-    log(f'{set_name}: normal ({time.time() - t0:.0f} s)')
     for m in mats:
         nd = m.node_tree.nodes.get('BAKE_TARGET')
         if nd is not None:
             m.node_tree.nodes.remove(nd)
-        em = m.node_tree.nodes.get('BAKE_EMIT')
-        if em is not None:
-            m.node_tree.nodes.remove(em)
+    if sources:
+        target = _joined_copy(objects, f'_{set_name}_target')
+        tmat = bpy.data.materials.new('_BakeTarget')
+        tmat.use_nodes = True
+        target.data.materials.clear()
+        target.data.materials.append(tmat)
+        for p in target.data.polygons:
+            p.material_index = 0
+        look_mats = _materials(sources)
+        bake_from = sources
+        active, writes = target, [tmat]
+        kw = dict(use_selected_to_active=True, cage_extrusion=cage, max_ray_distance=reach)
+    else:
+        look_mats, bake_from, active, writes, kw = mats, objects, objects[0], mats, {}
+    for key, reroute, cs in PASSES:
+        img = _image(f'{set_name}_{key}', size, cs)
+        for m in writes:
+            _target(m, img)
+        olds = {m.name: _swap_emission(m, reroute) for m in look_mats}
+        sc.cycles.samples = samples
+        select(bake_from + ([active] if sources else []), active)
+        t0 = time.time()
+        bpy.ops.object.bake(type='EMIT', margin=margin, use_clear=True, **kw)
+        for m in look_mats:
+            _restore(m, olds[m.name])
+        images[key] = img
+        log(f'{set_name}: {key.lower()} ({time.time() - t0:.0f} s)')
+    img = _image(f'{set_name}_NORMAL', size, 'Non-Color')
+    for m in writes:
+        _target(m, img)
+    sc.cycles.samples = 1
+    select(bake_from + ([active] if sources else []), active)
+    t0 = time.time()
+    bpy.ops.object.bake(type='NORMAL', normal_space='TANGENT', margin=margin, use_clear=True, **kw)
+    images['NORMAL'] = img
+    log(f'{set_name}: normal ({time.time() - t0:.0f} s)')
+    for m in set(mats) | set(look_mats):
+        for name in ('BAKE_TARGET', 'BAKE_EMIT'):
+            nd = m.node_tree.nodes.get(name)
+            if nd is not None:
+                m.node_tree.nodes.remove(nd)
+    if sources:
+        me = target.data
+        bpy.data.objects.remove(target)
+        bpy.data.meshes.remove(me)
+        bpy.data.materials.remove(tmat)
     # write the set: colour as it is; normal with green flipped (DirectX); ORM packed
     paths = {}
-    bc = _pixels(images['COLOR'])
+    os.makedirs(os.path.dirname(lt.texture_path(set_name, 'BC')), exist_ok=True)
     paths['BC'] = lt.texture_path(set_name, 'BC')
-    _save(bc, paths['BC'], 'sRGB')
+    _save(_pixels(images['COLOR']), paths['BC'], 'sRGB')
     n = _pixels(images['NORMAL']).copy()
     n[..., 1] = 1.0 - n[..., 1]
     paths['N'] = lt.texture_path(set_name, 'N')
@@ -215,6 +243,22 @@ def bake_set(set_name, objects, size=2048, samples=1, ao_samples=32, ao_distance
     paths['images'] = images
     log(f'{set_name}: written to {os.path.dirname(paths["BC"])}')
     return paths
+
+
+def _joined_copy(objects, name):
+    """One object made of copies of objects (their meshes, UVs and all), to bake onto in one go."""
+    copies = []
+    for ob in objects:
+        c = bpy.data.objects.new(name, ob.data.copy())
+        c.matrix_world = ob.matrix_world
+        bpy.context.scene.collection.objects.link(c)
+        copies.append(c)
+    select(copies, copies[0])
+    if len(copies) > 1:
+        bpy.ops.object.join()
+    out = bpy.context.view_layer.objects.active
+    out.name = name
+    return out
 
 
 def load_set(set_name):
@@ -246,21 +290,6 @@ def digest(paths, extra=''):
         with open(p, 'rb') as f:
             h.update(f.read())
     return h.hexdigest()
-
-
-def _use_baked_ao(mat, img):
-    """Swaps the look's ambient-occlusion nodes for the baked occlusion map (read through 'UVMap')."""
-    nt = mat.node_tree
-    for nd in [n for n in nt.nodes if n.bl_idname == 'ShaderNodeAmbientOcclusion']:
-        tex = nt.nodes.new('ShaderNodeTexImage')
-        tex.image = img
-        uv = nt.nodes.new('ShaderNodeUVMap')
-        uv.uv_map = 'UVMap'
-        nt.links.new(uv.outputs['UV'], tex.inputs['Vector'])
-        for out in nd.outputs:
-            for ln in list(out.links):
-                nt.links.new(tex.outputs['Color'], ln.to_socket)
-        nt.nodes.remove(nd)
 
 
 def _resize(a, size):

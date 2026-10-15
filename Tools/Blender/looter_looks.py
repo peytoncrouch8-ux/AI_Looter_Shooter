@@ -4,8 +4,8 @@ A look is a Blender material whose tree ends in four Reroute nodes the bake read
 (roughness), OUT_METAL (metallic) and OUT_NORMAL (a shading normal with the look's bump), wired into a Principled BSDF
 so the look also renders as it is. Everything is driven by object-space coordinates in metres (the characters' parts
 sit at the origin untransformed, so every part of one material shares one pattern), the surface normal (dust settles
-on what faces up), height above the ground (dirt climbs from the boots), Cycles' ambient-occlusion node (grime in the
-creases; the bake swaps it for a baked map) and Pointiness (wear on edges). A look can also read a UV map by name (hair
+on what faces up), height above the ground (dirt climbs from the boots) and Cycles' Pointiness (grime in the creases,
+wear on the edges; no rays, so a bake needs one sample). A look can also read a UV map by name (hair
 strands run along their ribbons) and the 'Seams' colour attribute the model writes on its cloth and leather: R is how
 close a point is to an open edge (1 at the edge, 0 from 10 cm in), G how close to a sewn seam; construction() draws
 hems, topstitching and seams from it.
@@ -233,10 +233,12 @@ def dust(g, color, amount, height=0.6, up_bias=0.5):
 
 
 def grime(g, amount, distance=0.04):
-    """(factor socket) dirt in the creases: 1 - occlusion, sharpened. Live it's Cycles' AO node; the bake swaps that
-    for the set's baked occlusion map before baking colour (looter_bake), so colour bakes need no rays."""
-    occ = g.ao(distance)
-    return g.mul(g.ramp(occ, 0.95, 0.35), amount, clamp=True)
+    """(factor socket) dirt in the creases: where the surface curves in (Cycles' Pointiness below a half), sharpened.
+    No rays: the looks are baked from the detailed model onto the game mesh, and occlusion is its own map (the ORM's
+    R). distance is kept for the callers; deeper creases simply read darker."""
+    cavity = g.ramp(g.geo().outputs['Pointiness'], 0.497, 0.44)
+    brk = g.ramp(g.noise(30.0, 4.0, 0.6), 0.25, 0.6)
+    return g.mul(g.mul(cavity, brk), amount, clamp=True)
 
 
 def wear(g, amount, edge=0.56):
