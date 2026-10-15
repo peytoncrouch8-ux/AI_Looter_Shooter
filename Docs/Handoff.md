@@ -12,11 +12,16 @@ the Grave, rendered in Blender from MakeHuman's CC0 base, painted and framed; th
 images aren't committed (PNGs go to Git LFS, which the cloud box can't push): remake them with the Pipeline's commands
 (~8 min for all three).
 **The user's decisions (keep):** Blender's `bpy` may be installed in the cloud box; MakeHuman's CC0 assets may be used
-(`Art/ThirdParty/MakeHuman`); the code-only SDF busts were passed over for Blender.
-**Waiting on the user:** which Ellis (A, B, C or a mix) becomes the model.
-**Next:** build Ellis's in-game model from the pick: the MakeHuman base shaped as in `EllisBlender.py`'s `FACE`, the
-clothes as real meshes (cloth sim or sculpt where the drape is too smooth), retopology, rig on the UE mannequin skeleton
-(`Tools/Blender/looter_heroes.py`), materials; then the other four heroes' portraits the same way.
+(`Art/ThirdParty/MakeHuman`); the code-only SDF busts were passed over for Blender; **Ellis is option A, The Revenant**
+(picked 2026-10-15): cattleman hat low, red bandana up, cyan eyes burning as slits in the brim's shadow, collar-length dark
+hair, a dust-brown duster with a fluted shoulder cape and the collar turned up, Saint Ada's sun-ring pin on the collar, a
+black waistcoat with brass buttons.
+**Next:** build Ellis A as the in-game model (`OPTIONS["A"]` and `FACE` in `EllisBlender.py` are the spec): the MakeHuman
+base shaped and posed the same way, the clothes as real meshes (cloth sim or sculpt where the drape is too smooth; the
+full-length duster below the bust), retopology to a game budget, rig on the UE mannequin skeleton
+(`Tools/Blender/looter_heroes.py`, IK-retargeted like the backlog heroes), materials on the textured masters; first-person
+arms (SK_FP_Arms) should match its gloves and sleeves. Then the other four heroes' portraits the same way.
+Branch `claude/ellis-portraits` is pushed, not merged.
 
 ## Before that (end of session "Polish: make it alive", 2026-10-14)
 
