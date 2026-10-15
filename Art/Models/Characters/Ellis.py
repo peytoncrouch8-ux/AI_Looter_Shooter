@@ -1732,13 +1732,15 @@ def weights(fig, ob):
 # The game swings these after the retarget (Player/Animation/BodySwing: springs, no cloth simulation; the user found
 # Ellis "stiff", 2026-10-15): the duster's skirt, the shoulder cape, the bandana's point, the back hair, Pa's lantern.
 # Names and parents are the C++'s contract, found by name: <chain>_01 at the root and on down the cloth, a bone's head at
-# its joint and its tail at the next one's, the last tail at the cloth's end. Each bone's Z axis points out of the cloth.
+# its joint and its tail at the next one's; then <chain>_end, a leaf with no weights, its head where the cloth ends (the
+# hem, the cape's edge, the bandana's point, the hair's ends, the lantern's foot): an FBX bone has no tail, and without
+# it BodySwing guessed the last bone's tip as long as the one before (the skirt's at mid-shin, the hem 11 cm past it,
+# so its floor let the hem through the ground, 2026-10-15). Each bone's Z axis points out of the cloth.
 # A side's chains, at their share of its arc from the front edge (0) round to the back's middle (1); the back one (None)
 # straight behind the knee, so a stride's back leg pushes it back (at 5/6, by the vent, it slid aside and the knee came
-# out through the coat once the coat reached the ankle, 2026-10-15; in a full stride the shin still can: the springs
-# keep points off the limbs, not the cloth between them, and a point slides round a shin swung back under it):
+# out through the coat once the coat reached the ankle, 2026-10-15); and skirt_bm down the middle of the back over the
+# vent, the panel between the back chains shared with it (without it the back shin came through between them):
 SKIRT_CHAINS = (('f', 1 / 6), ('s', 1 / 2), ('b', None))
-BACK_BLEND = 0.2         # across the back the two back chains hand over within this share either side of the middle
 CAPE_CHAINS = (('f', 0.25), ('b', 0.75))
 SKIRT_TOP = 0.91         # the skirt's own weights start here (above, the duster's blend into the torso's), its chains below
 # The bib's chain hangs from the neck, not the head (the contract said head): on the head it swung 2 cm out through the
@@ -1819,6 +1821,9 @@ def swing_layout(fig, parts):
             joints += [on_surface(tree, fig.centre, a[k], heights[k]) for k in (1, 2)]
             joints.append(hem_point(co, fig.centre, a[3]))
             chain(f'skirt_{key}{s}', 'pelvis', 'Duster', side, fig.centre, joints)
+    # down the middle of the back, over the vent (side 0: ring_weights hands each side's back chain over to it)
+    joints = [on_surface(tree, fig.centre, math.pi, z) for z in (float(belt_height(math.pi)), mid_thigh, knee)]
+    chain('skirt_bm', 'pelvis', 'Duster', 0, fig.centre, joints + [hem_point(co, fig.centre, math.pi)])
     # the cape round the neck: from the shoulder line down to its hem (it hangs at fixed angles: the drape's columns)
     co, ed = mesh_arrays(by['Cape'])
     tree = gm.bvh_objects([by['Cape']])
@@ -1873,14 +1878,20 @@ def swing_bones(chains):
     return out
 
 
+END_BONE = 0.02         # a chain's _end leaf's own length (m), on along the last bone (a bone needs a tail)
+
+
 def add_swing_bones(arm, chains):
-    """The swing bones on the armature (deforming, as the mannequin's: unconnected, their Z axes out of the cloth).
-    Returns their names in order."""
+    """The swing bones on the armature (deforming, as the mannequin's: unconnected, their Z axes out of the cloth),
+    and each chain's <chain>_end leaf at the cloth's end (deforming, so the FBX keeps it, but weighted nowhere).
+    Returns the weighted bones' names in order."""
     bk.select([arm], arm)
     bpy.ops.object.mode_set(mode='EDIT')
     edit = arm.data.edit_bones
     bones = swing_bones(chains)
-    for name, h, t, parent, c in bones:
+    ends = [(f'{c["name"]}_end', c['joints'][-1], c['joints'][-1] + gm.unit(c['joints'][-1] - c['joints'][-2]) * END_BONE,
+             f'{c["name"]}_{len(c["joints"]) - 1:02d}', c) for c in chains]
+    for name, h, t, parent, c in bones + ends:
         e = edit.new(name)
         e.head, e.tail = Vector(h), Vector(t)
         out = np.array([h[0] - c['centre'][0], h[1] - c['centre'][1], 0.0])
@@ -1917,43 +1928,42 @@ def along(z, zs):
 
 def ring_weights(P, chains):
     """Each vertex's shares of the chains round a garment (n, chains): between the two nearest, the front edge's way
-    all to the first, across the back's middle from each side's last into the other's. (The duster's vent doesn't
-    part: its two edges are joined by a strip of narrow faces to the hem, which would stretch into a web.)"""
+    all to the first; across the back each side's last hands over to a middle chain (side 0: the skirt's, over the
+    vent) or, without one, to the other side's last. (The duster's vent doesn't part: its two edges are joined by a
+    strip of narrow faces to the hem, which would stretch into a web.)"""
     n = len(P)
     out = np.zeros((n, len(chains)))
     centre = chains[0]['centre']
     ang = round_angle(P, centre)
     side = np.where(ang >= 0.0, 1.0, -1.0)
+    mid = [i for i, c in enumerate(chains) if c['side'] == 0]
     for s in (1.0, -1.0):
         sel = side == s
         if not sel.any():
             continue
         own = [i for i, c in enumerate(chains) if c['side'] == s]
-        other = [i for i, c in enumerate(chains) if c['side'] == -s][-1]
+        last = mid[-1] if mid else [i for i, c in enumerate(chains) if c['side'] == -s][-1]
         th = ang[sel] * s
         th = np.where(th < 0.0, th + 2 * math.pi, th)          # round from the front edge on this side, past the back
         z = P[sel, 2]
 
         def at(i):
             j = chains[i]['joints']
-            a = round_angle(j, centre) * chains[i]['side']
+            a = round_angle(j, centre)
+            a = np.abs(a) if chains[i]['side'] == 0 else a * chains[i]['side']
             return np.interp(z, j[::-1, 2], a[::-1])
-        knots = np.stack([at(i) for i in own] + [2 * math.pi - at(other)], 1)
+        knots = np.stack([at(i) for i in own] + [at(last) if mid else 2 * math.pi - at(last)], 1)
         w = np.zeros((int(sel.sum()), knots.shape[1]))
         w[:, 0] = th <= knots[:, 0]
         for i in range(knots.shape[1] - 1):
             lo, hi = knots[:, i], knots[:, i + 1]
             inside = (th > lo) & (th <= hi)
             t = np.clip((th - lo) / np.maximum(hi - lo, 1e-6), 0.0, 1.0)
-            if i == knots.shape[1] - 2:
-                # across the back each side's own back chain, behind its leg, keeps the panel to near the middle (a
-                # stride's back leg pushes it back there, not half of it), the vent's edges shared alike
-                t = gm.smoothstep(0.5 - BACK_BLEND, 0.5 + BACK_BLEND, t)
             w[inside, i] += 1.0 - t[inside]
             w[inside, i + 1] += t[inside]
         w[:, -1] += th > knots[:, -1]
         sub = np.zeros((int(sel.sum()), len(chains)))
-        for k, i in enumerate(own + [other]):
+        for k, i in enumerate(own + [last]):
             sub[:, i] += w[:, k]
         out[sel] = sub
     return out
@@ -2233,7 +2243,7 @@ CHAIN_COLOURS = {'skirt_fl': (1.0, 0.45, 0.05), 'skirt_sl': (0.95, 0.85, 0.1), '
                  'skirt_fr': (0.1, 0.55, 1.0), 'skirt_sr': (0.1, 0.85, 0.75), 'skirt_br': (0.45, 0.25, 0.95),
                  'cape_fl': (1.0, 0.45, 0.05), 'cape_bl': (0.9, 0.15, 0.1), 'cape_fr': (0.1, 0.55, 1.0),
                  'cape_br': (0.45, 0.25, 0.95), 'bandana': (0.95, 0.85, 0.1), 'hair': (0.2, 0.9, 0.3),
-                 'lantern': (0.95, 0.85, 0.1)}
+                 'lantern': (0.95, 0.85, 0.1), 'skirt_bm': (0.85, 0.85, 0.85)}
 
 
 def swing_markers(arm, chains):

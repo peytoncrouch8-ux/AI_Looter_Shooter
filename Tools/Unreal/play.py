@@ -237,8 +237,14 @@ def press(world, name, seconds=0.0, x=1.0, y=0.0):
         return
     action = unreal.load_asset(f'/Game/Input/Actions/IA_{name}')
     if action is None:
-        # The code-built actions (Crouch, Sprint, Aim, ToggleView: UKeyBindingSubsystem) have no asset.
-        action = next((a for a in unreal.ObjectIterator(unreal.InputAction) if a.get_name() == f'IA_{name}'), None)
+        # The code-built actions (Crouch, Sprint, Aim, ToggleView: UKeyBindingSubsystem) have no asset; this play
+        # session's own (an earlier session's linger until the garbage is collected, and feeding one does nothing).
+        def ours(a):
+            try:
+                return a.get_outer().get_world() == world
+            except Exception:
+                return False
+        action = next((a for a in unreal.ObjectIterator(unreal.InputAction) if a.get_name() == f'IA_{name}' and ours(a)), None)
     if action is None:
         say(f'press: no input action IA_{name}')
         return

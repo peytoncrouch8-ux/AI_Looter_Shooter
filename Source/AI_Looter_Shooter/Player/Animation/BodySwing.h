@@ -97,6 +97,12 @@ struct AI_LOOTER_SHOOTER_API FBodySwingPoints
 		const FVector& Outward = FVector::ZeroVector);
 
 	/**
+	 * Tip (Length from Head) kept no higher than Head: hanging things never rise over what they hang from (a crouch's
+	 * thigh once swung a coat flap up to his shoulder).
+	 */
+	static FVector KeepUnder(const FVector& Head, const FVector& Tip, double Length);
+
+	/**
 	 * Tip (Length from Head) kept on or over FloorZ: under it, it lies on it out the way it leans (Lean's when it hangs
 	 * straight down), at most MaxReach from Head across the ground (so then nearer Head than Length).
 	 */

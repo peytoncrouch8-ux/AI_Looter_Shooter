@@ -31,12 +31,22 @@ waistcoat's holes), the cape's wings and fin, gauntlets, collar, lantern hook, h
 brim curl, the coat to the ankle), **proper boots** (stovepipe on a real last), **face kept dark**, **the waistcoat as
 cloth** (smooth black wool, brass buttons), **the coat's back hanging straight** (the user: "Back of the cape is deforming
 in between his legs. It should be straight": the cloth simulated over a filler behind the legs, the vent closed). 34.2k
-triangles. The springs now keep the bone between two points off the limbs (a stride's back boot came through the coat)
-and keep the points over the ground (crouched, the hem sank 11 cm). Checked in PIE: back standing, walking, crouched;
-front.
-**Next in the loop (ask first, tap-to-answer):** the pose round (idle weight shift, stance). Still open: the hair reads
-as ribbons up close; the crouch's holster and lantern touch the thigh; the collar's turned-up corner reads like a horn
-from below; FBX import warns "Not valid bind pose" (recreated fine); the spin viewer artifact predates the bake here.
+triangles, 113 bones (each swing chain ends in an unweighted `<chain>_end`; a 7th skirt chain `skirt_bm` down the vent).
+The springs: the bone between two points pushed out the body's side of a limb, the points kept over the ground with the
+hem gathering there, nothing rising over what it hangs from (Pipeline, "Swing"). Audit: the stride's boot through the
+coat 53 -> 34 points, the crouch's hem under the ground 11.7 cm -> 4.9 cm. Checked in PIE: back standing, walking,
+sprinting; crouched front and back. Shots sent to the user (round 4 before/after, in game).
+**Next in the loop (ask first, tap-to-answer):** the pose round (idle weight shift, stance). Still open: a full stride
+still shows the shin below the knee through the coat's back (34 points) and the left hand sits 4.9 cm into the coat's
+front in it; the cape's corners lift with the arms when sprinting (CapeFollowFront/Back); the hair reads as ribbons up
+close; the crouch's holster and lantern touch the thigh; the collar's turned-up corner reads like a horn from below; FBX
+import warns "Not valid bind pose" (recreated fine); the spin viewer artifact predates the bake here.
+
+**The Gravemother fight concepts (the user, mid-session 2026-10-15):** "generate a sprite sheet for the grave mother
+boss ... projectiles, the spiders ground charge, the spider itself, attack particles, etc. ... give it some character and
+feel like a real boss fight. Just generate 3 to 5 concept arts for now, we will turn them into game assets once I choose
+the ones I like." An art agent renders them in Blender (`Art/Backlog/Creatures/GravemotherFightConcepts.py`, sheets in
+`Saved/Concepts/Gravemother/`). Next: the user picks; nothing goes into the game before that.
 
 ## Before that (session "Ellis 3D model", 2026-10-15, cloud; branch `claude/ellis-3d-character-model-tvwr9z`, merged)
 

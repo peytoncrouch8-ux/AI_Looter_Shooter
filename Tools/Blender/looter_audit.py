@@ -91,8 +91,11 @@ LIMBS = (('thigh_l', 'calf_l', 14.0), ('calf_l', 'foot_l', 10.0), ('thigh_r', 'c
          ('hand_l', 'middle_01_l', 5.0), ('hand_r', 'middle_01_r', 5.0))
 CLEARANCE_SHARE = 0.95
 LONE_BONE = 0.18                     # a one-bone chain's length (the lantern's)
-MIN_BONE_ALONG = 0.2                 # a bone's first fifth isn't pushed off a limb (its head is held by the one before)
+MIN_BONE_ALONG = 0.35                # a bone's top 35% isn't pushed off a limb, left to the point above (at 0.2
+                                     # crouched thighs swung a coat flap out level with the hip)
+MAX_BONE_PUSH = 0.5                  # a bone push moves its tip at most this share of the bone's length a pass
 FLOOR_CLEARANCE = 0.02               # no point under the ground at his feet (the armature's origin) + this
+GATHER_REACH = 1.0 / 3.0             # a chain's last point lies on the floor at most this share of its length out
 SPRINGS = {'skirt': (7.0, 0.08), 'cape': (12.0, 0.05), 'bandana': (9.0, 0.05), 'hair': (9.0, 0.05), 'lantern': (2.0, 1.0)}
 CAPE_FOLLOW = {'f': 0.6, 'b': 0.4}
 
@@ -127,9 +130,13 @@ def _segments(p1, q1, p2, q2):
     return p1 + d1 * s, p2 + d2 * t
 
 
-def _push_bone_out(head, tip, a, c, r):
+def _push_bone_out(head, tip, a, c, r, outward=None):
     """BodySwing's PushBoneOut: the tip turned about head so the bone keeps r from the limb a..c (not by its first
-    MIN_BONE_ALONG), the tip moving the overlap over how far down the bone the nearest place is."""
+    MIN_BONE_ALONG), the tip moving the overlap over how far down the bone the nearest place is; out the body's side
+    of the limb (outward, the chain's way out of the body, square to the limb and the bone), back across it (r plus
+    the distance) when the limb has come through; with no side, straight away from the limb. (The shortest way apart
+    pointed sideways when bone and limb lay in one front-to-back plane, and a stride's back shin swung the coat's back
+    panel out round its side; away from the limb's line pointed down when the tip was below the shin, 2026-10-15.)"""
     if r <= 0.0:
         return tip
     on_bone, on_limb = _segments(head, tip, a, c)
@@ -140,19 +147,39 @@ def _push_bone_out(head, tip, a, c, r):
     along = (on_bone - head).length / length
     if along < MIN_BONE_ALONG:
         return tip
-    if dist > 1e-9:
+    axis = (c - a).normalized()
+    side = Vector((0.0, 0.0, 0.0)) if outward is None else outward - axis * outward.dot(axis)
+    bone = (tip - head) / length
+    side = side - bone * side.dot(bone)
+    overlap = r - dist
+    if side.length > 1e-8:
+        out = side.normalized()
+        if dist > 1e-9 and (away / dist).dot(out) < -0.5:
+            overlap = r + dist
+    elif dist > 1e-9:
         out = away / dist
     else:
-        axis = (c - a).normalized()
         v = tip - on_limb
         v = v - axis * v.dot(axis)
-        out = v.normalized() if v.length > 1e-9 else Vector(FWD)
-    return tip + out * ((r - dist) / along)
+        out = v.normalized() if v.length > 1e-8 else Vector(FWD)
+    return tip + out * min(overlap / along, length * MAX_BONE_PUSH)
 
 
-def _keep_above(head, tip, length, floor, lean):
+def _keep_under(head, tip, length):
+    """BodySwing's KeepUnder: nothing hanging rises above what it hangs from; a tip over its head goes level with it,
+    out the way it went (straight up has no way: it stays as it is). Crouched thighs had swung a coat flap out level
+    with the hip, once up to the shoulder."""
+    if tip.z <= head.z:
+        return tip
+    flat = Vector((tip.x - head.x, tip.y - head.y, 0.0))
+    return tip if flat.length <= 1e-8 else head + flat.normalized() * length
+
+
+def _keep_above(head, tip, length, floor, lean, reach=None):
     """BodySwing's KeepAbove: a tip under the floor swung up about head onto it, out the way it leans (lean's, the rest
-    direction, when it hangs straight down)."""
+    direction, when it hangs straight down), no further out than reach (a chain's last: GATHER_REACH of its length, so
+    its bone shortens and the hem gathers on the ground). The game also stills a point it finds under the floor (its
+    speed into the ground flipped a gathered hem up over its head); this steady state has no speed to still."""
     if tip.z >= floor:
         return tip
     flat = Vector((tip.x - head.x, tip.y - head.y, 0.0))
@@ -161,17 +188,22 @@ def _keep_above(head, tip, length, floor, lean):
     if flat.length <= 1e-9:
         flat = Vector(FWD)
     drop = min(max(head.z - floor, 0.0), length)
-    return head + flat.normalized() * math.sqrt(max(length * length - drop * drop, 0.0)) - Vector((0.0, 0.0, drop))
+    out = math.sqrt(max(length * length - drop * drop, 0.0))
+    return head + flat.normalized() * min(out, length if reach is None else reach) - Vector((0.0, 0.0, drop))
 
 
 def _rest_tips(arm, names):
     """A chain's bone tips as the game takes them (BodySwing's Bind: an FBX skeleton has no tails): the next bone's
-    head, the last bone's head plus the bone before it, a lone bone's LONE_BONE straight down."""
+    head, the last bone's its `<chain>_end` leaf's head (where the cloth ends), or without one the last head plus the
+    bone before it, a lone bone's LONE_BONE straight down."""
     heads = [arm.data.bones[n].head_local.copy() for n in names]
+    end = arm.data.bones.get(names[0].rsplit('_', 1)[0] + '_end')
     tips = []
     for i, h in enumerate(heads):
         if i + 1 < len(heads):
             tips.append(heads[i + 1].copy())
+        elif end is not None:
+            tips.append(end.head_local.copy())
         elif i > 0:
             tips.append(h + (h - heads[i - 1]))
         else:
@@ -183,7 +215,9 @@ def settle_swing(arm, chain_bones, steps=None, stages=12, reach=0.01):
     """Turns the swing bones where the game's springs would rest them in a pose (BodySwing's steady state: each point
     at its animated place, the cape's corners partly riding the upper arms, sagging by its gravity share over its
     stiffness squared, then each its length from the one before and pushed out of the limbs it kept clear of at
-    rest, its bone too (_push_bone_out), and kept over the floor (_keep_above); the points the game's, _rest_tips). chain_bones: {chain: [bone names in order]}. With steps (the pose's POSES
+    rest, its bone too (_push_bone_out, out the chain's way out of the body), and kept over the floor (_keep_above,
+    the last point gathering); the points the game's, _rest_tips). chain_bones: {chain: [bone names in order]}. With
+    steps (the pose's POSES
     entry) the pose is reached in stages from rest, each point moving at most reach (m) a pass toward its place and
     kept out of the limbs on the way, as the springs follow a move frame by frame (set straight into a pose, a limb
     already past a point would push it out the far side). Without steps, the pose as it is, in one go."""
@@ -197,6 +231,11 @@ def settle_swing(arm, chain_bones, steps=None, stages=12, reach=0.01):
     bone_clear = {chain: [[min(gap(_segments(bones[n].head_local, t, a, c)) * CLEARANCE_SHARE, m) for a, c, m in rest_limbs]
                           for n, t in zip(names, tips[chain])] for chain, names in chain_bones.items()}
     floor = arm.matrix_world.translation.z + FLOOR_CLEARANCE
+    # each chain's way out of the body (Bind's Outward): level, from the pelvis to where the chain ends, turning with
+    # its first bone
+    mid = bones['pelvis'].head_local
+    outward = {chain: Vector((tips[chain][-1].x - mid.x, tips[chain][-1].y - mid.y, 0.0)).normalized()
+               for chain in chain_bones}
     to_pose = lambda pbs, n: pbs[n].matrix @ bones[n].matrix_local.inverted()
     held = {}
     for stage in range(1, stages + 1) if steps is not None else (None,):
@@ -219,6 +258,7 @@ def settle_swing(arm, chain_bones, steps=None, stages=12, reach=0.01):
                 targets.append(tip + Vector((0.0, 0.0, -9.8 * g / (k * k))))
                 lengths.append((tip_rest - bones[name].head_local).length)
             anchor = pbs[names[0]].head.copy()
+            way = (to_pose(pbs, names[0]).to_3x3().normalized() @ outward[chain]).normalized()
             stepping = chain in held
             points = held[chain] if stepping else [t.copy() for t in targets]
             for _ in range(4 if stage is None or stage < stages else 40):
@@ -233,9 +273,11 @@ def settle_swing(arm, chain_bones, steps=None, stages=12, reach=0.01):
                         q = _closest(p, a, c)
                         if (p - q).length < r:
                             p = q + ((p - q).normalized() if (p - q).length > 1e-9 else Vector((0, -1, 0))) * r
-                        p = _push_bone_out(head, p, a, c, rb)
+                        p = _push_bone_out(head, p, a, c, rb, way)
                     p = head + ((p - head).normalized() if (p - head).length > 1e-9 else rest_dir) * lengths[i]
-                    p = _keep_above(head, p, lengths[i], floor, rest_dir)
+                    p = _keep_under(head, p, lengths[i])
+                    p = _keep_above(head, p, lengths[i], floor, rest_dir,
+                                    lengths[i] * (GATHER_REACH if i == len(points) - 1 else 1.0))
                     points[i] = p
                     head = p
             held[chain] = points
@@ -246,6 +288,12 @@ def settle_swing(arm, chain_bones, steps=None, stages=12, reach=0.01):
             h = pb.head.copy()
             q = (to_pose(pbs, name) @ tip_rest - h).normalized().rotation_difference((p - h).normalized())
             _apply(pb, Matrix.Translation(h) @ q.to_matrix().to_4x4() @ Matrix.Translation(-h))
+            # gathered on the floor (its tip nearer than its length): the bone shortened along its length (Blender's
+            # Y; the game's Apply scales the bone's own axis the tip lies along)
+            share = (p - h).length / max((tip_rest - bones[name].head_local).length, 1e-9)
+            if share < 0.995:
+                pb.scale = (1.0, max(share, 0.05), 1.0)
+                bpy.context.view_layer.update()
 
 
 # --------------------------------------------------------------------------------------------- skinning and checks

@@ -604,16 +604,20 @@ Ellis.py:
 - Swing bones (`swing_layout`, placed from the built game mesh; the game's springs, Player/Animation/BodySwing, move them):
   skirt_{fl,sl,bl,fr,sr,br}_01..03 on pelvis (each side's f and s chains at 1/6 and 1/2 of its arc from the coat's front
   edge to the back's middle, b straight behind the knee: at 5/6, by the vent, a stride's back leg slid it aside and the
-  knee came out through the ankle-length coat; joints at the belt line, mid-thigh 74 cm, the knee 53 cm, the hem 21 cm;
-  across the back each b keeps the panel to `BACK_BLEND` 0.2 of the way from the middle), cape_{fl,bl,fr,br}_01..02 on
+  knee came out through the ankle-length coat; joints at the belt line, mid-thigh 74 cm, the knee 53 cm, the hem 21 cm)
+  and skirt_bm_01..03 down the middle of the back over the vent (the same heights; without it a stride's back shin came
+  through between the two b chains), cape_{fl,bl,fr,br}_01..02 on
   spine_05 (1/4 and 3/4 of the cape's arc, from the shoulder line 143 cm), bandana_01..02 on neck_02 (under the chin to the
   point), hair_01..02 on head (from 168 cm, a quarter of the way from the skull's bulge to the nape, which is inside the
   collar, to the ends), lantern_01 on thigh_r (from the bail's top on the hook's end, right above the lantern, to the
-  fount: from the hook's belt end the springs' gravity swung it 6 cm into the thigh). 31 bones; each one's head at its joint, its Z
-  out of the cloth. Weights: today's down to 0.91 m on the skirt (the shoulder line on the cape), all chains from
+  fount: from the hook's belt end the springs' gravity swung it 6 cm into the thigh). 34 bones in 14 chains; each one's
+  head at its joint, its Z out of the cloth; and each chain's `<chain>_end`, an unweighted leaf (deforming, so the FBX
+  keeps it; 2 cm on along the last bone) with its head where the cloth ends: an FBX bone has no tail, and BodySwing
+  guessed the last tip as long as the bone before (the skirt's at mid-shin, the hem 11 cm past it, which then went
+  through the ground in a crouch). Weights: today's down to 0.91 m on the skirt (the shoulder line on the cape), all chains from
   mid-thigh (halfway on the cape): past there a vertex already shares two chains' two bones (4 influences); round the body
-  between the two nearest chains at the vertex's height, across the back's middle too (the vent never opens: the cloth
-  simulation's notes); down a chain
+  between the two nearest chains at the vertex's height; across the back each side's b hands over to skirt_bm (the cape:
+  its two b's to each other; the vent never opens: the cloth simulation's notes); down a chain
   each bone hands over to the next along that one's length by a smoothstep. `soft_top4`: the fifth-largest weight comes
   off the top four (plain top four drops a bone at once: a kink). The bandana's chain was on head (the contract): it swung
   2 cm out through the collar when the head turned or rolled onto the stock; on neck_02 the bib stays inside the
@@ -646,7 +650,8 @@ Ellis.py:
   Cycles (sun ~40 degrees and sky; one dusk shot) as an 8-angle turntable at the game's idle and close-ups (face, under
   the brim, hands, belt, boots front and side, waistcoat, back, collar, hair), the game's poses (`looter_audit.POSES`:
   idle, aim, stride, crouch) in clay with the swing chains where BodySwing's springs would rest them (`settle_swing`: its
-  constants, limbs, bone push and floor copied, keep in step; its points the game's: an FBX skeleton has no tails, so a chain's last tip is
+  constants, limbs, bone push (top 35% left alone, at most half the bone a pass), nothing over its head, and floor
+  copied, keep in step; its points the game's: an FBX skeleton has no tails, so a chain's last tip is
   its head plus the bone before, a lone bone's 18 cm down; the pose reached in 12 stages, each point moving at most 1 cm a
   pass and kept out of the limbs on the way, as the springs follow frame by frame: set straight into a pose, a limb
   already past a point pushed it out the far side), and every layer checked against the one over it in each pose (`PAIRS`: a point looks out along its normal, turned
@@ -665,7 +670,7 @@ Ellis.py:
   fetched when missing: `Art/ThirdParty/MakeHuman/fetch.py` (the PC has no system Python: run it with Blender's,
   `C:\Program Files\Blender Foundation\Blender 4.4\4.4\python\bin\python.exe -I`). Export beside the editor:
   `Tools\artrun.ps1 -Export Ellis -Family Ellis`, then `Looter.ImportModels <that folder>`: `/Game/Art/Characters/SK_Ellis`
-  (96 bones with the root: 63 mannequin, 31 swing, hat; 3 LODs, Nanite off for the eye glow, 185.5 cm to the hat's top),
+  (113 bones with the root: 63 mannequin, 34 swing, 14 `_end` leaves, hat; 3 LODs, Nanite off for the eye glow, 185.5 cm to the hat's top),
   `MI_Ellis*`, `PA_Ellis`.
 - Run: `blender -b --factory-startup --python Art/Models/Characters/Ellis.py -- [--size 1024] [--glb <path>] [--preview]
   [--shots full+upper+hips+feet] [--shape] [--sim-only] [--selfx] [--no-sim] [--rebake] [--rig-check] [--audit <tag>]
@@ -720,21 +725,27 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
   is the gun in hand, UBodyFigureComponent hides that slot on every LOD (ShowMaterialSection), the user's "empty only while
   drawn".
 - Swing (the user's "coat and hair that move", 2026-10-15; `FBodySwing`, after the retarget in UBodyRetargetAnimInstance):
-  each swing chain (Ellis.py's 31 swing bones) is a string of points in world space, so they lag and swing as he moves: a
+  each swing chain (Ellis.py's 34 swing bones, 14 chains) is a string of points in world space, so they lag and swing as he moves: a
   spring toward the animated pose (an acceleration with its stiffness as a natural frequency, damped; Verlet), a small share
   of gravity (the pose already hangs; the lantern full, a pendulum), each point its length from the one before, out of the
   limbs. Limb clearance needs no radii: a point keeps 95% of its rest distance from each limb segment (thighs, calves,
   pelvis, spine, neck, upper arms, forearms, hands), at most the limb's own (14/10/18/15/9/9/7/5 cm). The bone between two
   points keeps clear too (`BoneRadius`: its nearest rest distance, same 95% and caps; `PushBoneOut` turns the tip out by
-  the overlap over how far down the bone it is, ignored in the bone's top 20%): with points alone a full stride's back
-  shin slid between two of them and the boot showed through the ankle-length coat's lower back (Ellis.py's audit,
-  2026-10-15). A floor: no point under the component's origin + 2 cm (the mannequin's root stays on the ground, crouched
-  too); a point under it swings up about the one above onto it, keeping its lean (`KeepAbove`), so a crouch lays the hem
-  on the ground (it sank ~11 cm). Hand and forearm limbs: at idle the hands sank 2.5 cm into the coat's sides. Measured
-  in Ellis.py's audit (its copy in step): the floor holds the game's chain tips, but a last bone's tip is extrapolated
-  (the skirt's at mid-shin) and the cloth runs 11 cm past it, so crouched the hem still goes 15 cm under; the bone push
-  is square to both bone and limb, sideways when they share a plane, so the stride's back panel slides round the outside
-  of the shin (the boot through it: 53 -> 48 points).
+  the overlap over how far down the bone it is, at most half the bone's length a step, ignored in the bone's top 35%: at
+  20% and uncapped a crouch's thighs swung a coat flap out level with the hip, once up to the shoulder): with points
+  alone a full stride's back shin slid between two of them and the boot showed through the ankle-length coat's lower
+  back (Ellis.py's audit, 2026-10-15). Nothing rises over what it hangs from (`KeepUnder`: level at most). A floor: no
+  point under the component's origin + 2 cm (the mannequin's root stays on the ground, crouched too); a point under it
+  swings up about the one above onto it, keeping its lean (`KeepAbove`), so a crouch lays the hem on the ground (it sank
+  ~11 cm); a grounded point rests (no speed: kept, it flipped a gathered hem over its head). Hand and forearm limbs: at
+  idle the hands sank 2.5 cm into the coat's sides. Checked in PIE 2026-10-15: back standing, walking, sprinting;
+  crouched front and back (drapes round the knees). `play.py press Crouch` toggles crouch (the game's setting). Measured
+  in Ellis.py's audit (its copy in step, round4b -> round4c): square to both bone and limb the push went sideways when
+  they shared a plane (the stride's back panel slid round the shin's side), so it goes the chain's way out of the body
+  (`Outward`), square to the limb and the bone; the extrapolated last tip let the hem 11 cm past it through the ground,
+  so each chain ends in a `<chain>_end`, and a last point gathers (at most a third of its length out on the floor, its
+  bone shortened along its length axis); the stride's boot through the coat 48 -> 34 points, the crouch's hem under the
+  ground 278 points 15.0 cm -> 57 points 4.9 cm (the panel between two gathered chains).
   Tuning table: `FBodySwing::SettingsFor`
   (skirt 7 rad/s, damping 3.5; cape 12, 5; bandana and hair 9, 3.5; lantern 2, 1.2). `Looter.Body.Swing 0` holds the
   animated pose. Lessons (each found by Looter.Player.BodySwing.* and a Python copy of the step): a nudge of the position

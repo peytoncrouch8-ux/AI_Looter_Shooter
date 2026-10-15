@@ -45,9 +45,13 @@ namespace
 
 	/**
 	 * A bone's nearest place to a limb this close to its head (a share of its length) is left to the point above: turning
-	 * the bone there would swing its tip by many times the overlap.
+	 * the bone there would swing its tip by many times the overlap (at 0.2, a crouch's thigh across the top of the coat's
+	 * side swung a flap out level with the hip).
 	 */
-	constexpr double MinBoneAlong = 0.2;
+	constexpr double MinBoneAlong = 0.35;
+
+	/** The most a limb turns a bone's tip in one step, a share of its length (about 30 degrees). */
+	constexpr double MaxBonePushShare = 0.5;
 
 	/** The swing points keep this far over the ground at his feet (cm): the ankle-length hem sank 11 cm into it crouching. */
 	constexpr float FloorClearance = 2.f;
@@ -164,8 +168,20 @@ FVector FBodySwingPoints::PushBoneOut(const FVector& Head, const FVector& Tip, c
 		Out = Distance > UE_KINDA_SMALL_NUMBER ? Away / Distance :
 			FVector::VectorPlaneProject(Tip - OnLimb, Axis).GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector);
 	}
-	// The tip moves by the overlap over how far down the bone it is, so the bone's nearest place clears by the overlap.
-	return Tip + Out * (Overlap / Along);
+	// The tip moves by the overlap over how far down the bone it is, so the bone's nearest place clears by the overlap; a
+	// little at a time (the steps after finish it), or a limb coming through flung the cloth round.
+	return Tip + Out * FMath::Min(Overlap / Along, Length * MaxBonePushShare);
+}
+
+FVector FBodySwingPoints::KeepUnder(const FVector& Head, const FVector& Tip, double Length)
+{
+	if (Tip.Z <= Head.Z)
+	{
+		return Tip;
+	}
+	// Level with its head, out the way it went (straight up has no way: then it hangs as it is).
+	const FVector Flat = FVector(Tip.X - Head.X, Tip.Y - Head.Y, 0.0).GetSafeNormal();
+	return Flat.IsZero() ? Tip : Head + Flat * Length;
 }
 
 FVector FBodySwingPoints::KeepAbove(const FVector& Head, const FVector& Tip, double Length, double FloorZ, const FVector& Lean,
@@ -245,6 +261,7 @@ void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targ
 				P = PushBoneOut(Head, P, Capsule, Outward);
 			}
 			P = Head + (P - Head).GetSafeNormal(UE_SMALL_NUMBER, Rest) * Lengths[Index];
+			P = KeepUnder(Head, P, Lengths[Index]);
 			const bool bGrounded = P.Z < Floor.Z;
 			P = KeepAbove(Head, P, Lengths[Index], Floor.Z, Rest, ReachOf(Index));
 			// A limb moves the cloth aside without throwing it: the push isn't carried on as speed (it flung a chain over
@@ -273,6 +290,7 @@ void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targ
 		const FVector Between = FMath::Lerp(Previous[Index], Points[Index], static_cast<double>(Blend));
 		const FVector Rest = (Targets[Index] - Head).GetSafeNormal(UE_SMALL_NUMBER, FVector::DownVector);
 		Shown[Index] = Head + (Between - Head).GetSafeNormal(UE_SMALL_NUMBER, Rest) * Lengths[Index];
+		Shown[Index] = KeepUnder(Head, Shown[Index], Lengths[Index]);
 		Shown[Index] = KeepAbove(Head, Shown[Index], Lengths[Index], Floor.Z, Rest, ReachOf(Index));
 		Head = Shown[Index];
 	}
