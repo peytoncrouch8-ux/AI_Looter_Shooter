@@ -36,7 +36,9 @@ enum class EHandGrip : uint8
 	/** Thumb and index together (a shell, a charging handle), the rest curled. */
 	Pinch,
 	/** A six-gun's support hand, closed round the shooting hand's fingers. */
-	Support
+	Support,
+	/** Wrapped round a shotgun's pump: tighter than a foregrip's cup, the thumb laid along its near side. */
+	Pump
 };
 
 namespace FirstPersonHands

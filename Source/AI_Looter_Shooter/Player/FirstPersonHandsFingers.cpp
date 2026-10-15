@@ -77,6 +77,10 @@ FHandFingers FHandFingers::Of(EHandGrip Grip)
 	}
 	case EHandGrip::Support:
 		return Fist(45.f, 60.f, 40.f, 2.f, 18.f, 5.f, 5.f);
+	case EHandGrip::Pump:
+		// The user (2026-10-15): the forend's cup didn't grab the pump; the fingers close round it, the thumb lies straight
+		// along it (its tip curled in read as a nub).
+		return Fist(55.f, 70.f, 45.f, 3.5f, 20.f, 10.f, 0.f);
 	default:
 		return Fist(5.f, 5.f, 5.f, 0.f, 0.f, 5.f, 5.f);
 	}

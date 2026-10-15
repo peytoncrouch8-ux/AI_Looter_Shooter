@@ -17,6 +17,8 @@ Usage: Tools\\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/play.py <com
                                                   keeping the ammo topped up
   ammo                                            fills every ammo pool
   guns                                            the gun in hand and every slot
+  equip <slot 1-3>                                takes a slot's gun in hand (the number keys don't reach the game
+                                                  through input.ps1)
   lookat <tag|name>                               turns the view onto an actor from where the player stands
   what [yaw offset] [pitch offset]                what the view's middle meets: actor, label, component, mesh
 
@@ -378,6 +380,16 @@ def guns(world):
         f'backpack {len(manager.get_backpack()) if manager else 0}')
 
 
+def equip(world, slot):
+    """Takes slot's gun in hand (1 is the first), as its number key would: a swap plays out."""
+    pawn, _ = player(world)
+    manager = pawn.get_component_by_class(unreal.WeaponManagerComponent) if pawn else None
+    if manager is None:
+        return
+    manager.equip_slot(slot - 1)
+    say(f'equip {slot}: on its way to hand')
+
+
 def look_at(world, word):
     """Turns the view from where the player stands onto the nearest actor tagged or named so (its location)."""
     pawn, controller = player(world)
@@ -428,6 +440,8 @@ def main(args):
         look_at(world, rest[0])
     elif command == 'guns':
         guns(world)
+    elif command == 'equip' and rest:
+        equip(world, int(rest[0]))
     elif command == 'ammo':
         say(f'ammo: {fill_ammo(player(world)[0])} rounds added')
     elif command == 'look' and rest:

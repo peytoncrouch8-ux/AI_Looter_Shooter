@@ -23,9 +23,11 @@ namespace
 		// The Bullpup: its grip low on the right, level as it always was (the user: the 8 degree muzzle-down tilt read as
 		// tipped forward, 2026-10-14).
 		{ EWeaponKind::Rifle, FVector(50.f, 23.f, -23.5f), FRotator::ZeroRotator },
-		// The Ranchhand: its long forend reaches further in; its grip is on the stock behind the receiver. Level too (its 7
-		// degree tilt read as the rifle's did).
-		{ EWeaponKind::Shotgun, FVector(50.f, 22.5f, -23.f), FRotator(0.f, -3.f, -5.f) },
+		// The Ranchhand: its grip is on the stock behind the receiver. Level too (its 7 degree tilt read as the rifle's did).
+		// 20 cm nearer than the rifle (the user, 2026-10-15: "too far forward making the arm look silly"): the stock leaves
+		// the frame past the bottom right, the left arm's reach to the pump is short and its sleeve's end stays under the
+		// frame. The trigger glove sits below the frame there, as a full stock hid it anyway.
+		{ EWeaponKind::Shotgun, FVector(30.f, 22.5f, -23.f), FRotator(0.f, -3.f, -5.f) },
 	};
 
 #if !UE_BUILD_SHIPPING

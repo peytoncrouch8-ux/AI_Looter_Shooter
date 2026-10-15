@@ -72,9 +72,12 @@ namespace
 
 	/**
 	 * Each hand on its spot, and each spot on the gun's grip or foregrip socket (and the hold table's offset from it) as the
-	 * gun is this frame. bOnScreen: both hands in the view model's frame too (its field of view, 16:9), clear of its edges.
+	 * gun is this frame. bOnScreen: both hands in the view model's frame too (its field of view, 16:9), clear of its edges;
+	 * bTriggerOffScreen leaves the trigger hand out of that (the shotgun, held close: its stock goes out past the frame's
+	 * corner and the trigger glove under it, the user's call of 2026-10-15).
 	 */
-	void HandsPlayCheck(FAutomationTestBase& Test, const FHandsPlayPlayer& Player, const FString& Name, bool bOnScreen)
+	void HandsPlayCheck(FAutomationTestBase& Test, const FHandsPlayPlayer& Player, const FString& Name, bool bOnScreen,
+		bool bTriggerOffScreen = false)
 	{
 		const UWeaponModelComponent* Model = Player.Gun->FindComponentByClass<UWeaponModelComponent>();
 		const UCameraComponent* Camera = CameraOf(Player.Locomotion);
@@ -106,7 +109,7 @@ namespace
 			const float OffSpot = static_cast<float>(FVector::Dist(Target, Side.Spot));
 			Test.TestTrue(FString::Printf(TEXT("%s: %s (%.2f cm from its spot)"), *Name, Side.Which, OnSpot), OnSpot <= HandsPlayOnSpot);
 			Test.TestTrue(FString::Printf(TEXT("%s: ...its spot on the gun as it is this frame (%.2f cm off)"), *Name, OffSpot), OffSpot <= 0.1f);
-			if (bOnScreen)
+			if (bOnScreen && !(bTriggerOffScreen && Side.Hand == EFirstPersonHand::Right))
 			{
 				const FVector InView = Camera->GetComponentTransform().InverseTransformPosition(Held);
 				const float Across = InView.X > 1.0 ? static_cast<float>(InView.Y / InView.X) / HalfWide : 9.f;
@@ -139,11 +142,12 @@ bool FFirstPersonHandsOnGunTest::RunTest(const FString& Parameters)
 	{
 		const TCHAR* Name;
 		const TCHAR* Path;
+		bool bTriggerOffScreen;
 	};
 	const FHandsPlayGun Guns[] = {
-		{ TEXT("Bullpup"), TEXT("/Game/Weapons/Data/DA_AssaultRifle.DA_AssaultRifle") },
-		{ TEXT("Ranchhand"), TEXT("/Game/Weapons/Data/DA_PumpShotgun.DA_PumpShotgun") },
-		{ TEXT("Drover"), TEXT("/Game/Weapons/Data/DA_Revolver.DA_Revolver") },
+		{ TEXT("Bullpup"), TEXT("/Game/Weapons/Data/DA_AssaultRifle.DA_AssaultRifle"), false },
+		{ TEXT("Ranchhand"), TEXT("/Game/Weapons/Data/DA_PumpShotgun.DA_PumpShotgun"), true },
+		{ TEXT("Drover"), TEXT("/Game/Weapons/Data/DA_Revolver.DA_Revolver"), false },
 	};
 	FHandsPlayPlayer Players[UE_ARRAY_COUNT(Guns)];
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Guns); ++Index)
@@ -171,7 +175,7 @@ bool FFirstPersonHandsOnGunTest::RunTest(const FString& Parameters)
 			HandsPlayFrame(Player);
 		}
 		TestTrue(FString::Printf(TEXT("%s: the hands show in first person with a gun"), Guns[Index].Name), Player.Hands->IsShowingHands());
-		HandsPlayCheck(*this, Player, FString::Printf(TEXT("%s from the hip"), Guns[Index].Name), true);
+		HandsPlayCheck(*this, Player, FString::Printf(TEXT("%s from the hip"), Guns[Index].Name), true, Guns[Index].bTriggerOffScreen);
 
 		Player.View->HandleAimPressed();
 		for (int32 Frames = 0; Frames < HandsPlayRaiseFrames; ++Frames)

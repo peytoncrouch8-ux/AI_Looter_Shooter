@@ -87,13 +87,23 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   hand follows reload parts and carries the jar. SK_FP_Arms (approved 2026-10-14; `Art/Models/Characters/FPArms.py`,
   sheet `Saved/Concepts/Hands/fp_arms_sheet.png`) at `ArmsScale` 0.88 (the user: hands looked big). The rig reads bone
   positions only (the import turns bone axes). Hip holds (`Weapons/WeaponHipHold.cpp`; the revolver's in
-  `create_revolver.py`): grip cm ahead/right/up, rifle 50, 23, -23.5; shotgun 50, 22.5, -23; revolver 50, 22, -21 (the
+  `create_revolver.py`): grip cm ahead/right/up, rifle 50, 23, -23.5; shotgun 30, 22.5, -23; revolver 50, 22, -21 (the
   user's Borderlands framing: low right, both gloves in view; `Looter.Player.Hands.OnGun` keeps the grip points inside
-  0.85 of the half-frame). Long guns level (no muzzle-down tilt: the user, "the AR is tilted forward"). Support hand palm
-  up under the fore-end, forearms from below so the sleeve's cut end stays under the frame (`ForeForearm` in
-  `FirstPersonHandsGrips.cpp`). Tune live in PIE: `Looter.HipHold.Kind/Ahead/Right/Up/Pitch/Yaw/Roll`,
-  `Looter.Hands.Kind`, `Looter.Hands.Support*/Trigger*` (palm roll/pitch/yaw, forearm yaw/pitch, hold), `Looter.Hands.Scale`;
-  `Looter.Hands.Dump` prints paste-ready table lines.
+  0.85 of the half-frame, but for the shotgun's trigger hand). Long guns level (no muzzle-down tilt: the user, "the AR is
+  tilted forward"). Support hand palm up under the fore-end, forearms from below so the sleeve's cut end (SK_FP_Arms
+  ends at the elbow in a capped cut) stays under the frame (`ForeForearm` in `FirstPersonHandsGrips.cpp`).
+- The shotgun (the user, 2026-10-15): 20 cm nearer than the rifle ("too far forward making the arm look silly"): the
+  stock leaves the frame past the bottom right and the left arm's reach is short. Every full stock hid the trigger glove
+  at the old hold (only the stockless Raider grip showed it), so it sits under the frame now. The left hand cups the pump
+  from the lower left, rolled 20 degrees and turned 45 in its own plane, forearm in line (straight down bent the wrist
+  square: "angles abnormally"), the pump through the grip's middle, `EHandGrip::Pump` curls (fingers closed round it,
+  the thumb straight along its near side: curled, it read as "a nub").
+- Tune hands live in PIE: `Looter.HipHold.Kind/Ahead/Right/Up/Pitch/Yaw/Roll`, `Looter.Hands.Kind`,
+  `Looter.Hands.Support*/Trigger*` (palm roll/pitch/yaw, forearm yaw/pitch, hold), `Looter.Hands.SupportFingerCurl` and
+  `SupportThumbCurl` (every joint, degrees), `Looter.Hands.Scale`; `Looter.Hands.Dump` prints paste-ready table lines.
+  The forearm switches barely move a far hand: past the upper arm's reach the shoulder comes to the elbow (90 cm at
+  most), so move the hold instead. `Looter.GiveWeapon <gun> <rarity> <level> Slot=Key` picks parts; `play.py equip <n>`
+  takes a slot in hand (number keys don't reach the game through input.ps1).
 - Gun sizes (the user, 2026-10-14): drawn bigger than modelled, everywhere: rifle and shotgun 1.1, revolver 1.2
   (`UWeaponModelComponent::ScaleFor`; sockets scale with it). The pistol shows as "Revolver" (DA_Revolver's display name;
   Drover stays its parts' and files' name).
@@ -178,7 +188,8 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
 - `Tools/Unreal/play.py`: `goto <tag|label> [cm] [yaw]` (stands in front of it on the floor, looking at its meshes),
   `at x y z [yaw]`, `find <word>`, `where`, `look`, `lookat <tag>`, `what [yaw] [pitch]` (what the view's middle meets),
   `press <Interact|Fire|Jump|Reload|Move> [seconds] [x] [y]` (feeds the input action itself: no focus needed; Move's y is
-  forward), `fight [s] [m]` (aims at creatures in sight, pulses Fire, keeps ammo full), `kill [m]`, `ammo`, `guns`.
+  forward), `fight [s] [m]` (aims at creatures in sight, pulses Fire, keeps ammo full), `kill [m]`, `ammo`, `guns`,
+  `equip <slot>`.
 - Lessons: the console box takes keyboard focus, and only a left click gives the game viewport focus back (it fires a held
   gun), so use `press` for game actions and real keys only for menus (Tab, number keys). Offer and turn-in cards and the
   notice boards take mouse clicks, not injected actions. Teleports skip a roost's find (walk the last 15 m) and give hits
@@ -701,6 +712,11 @@ Each line: bug (date). Cause. Fix.
   sight. Fix: stance poses fade out with the aim and the sight's aim point is held on the line of sight
   (`Looter.Weapons.Aim.CrouchAligned`; its test needed `SpawnPlayerCameraManager`: a test level skips
   `PostInitializeComponents`, where a controller makes its camera manager).
+- An ensure at editor exit on Hiram's figure ("SkinnedAsset property overwritten ... without a call to
+  NotifyIfSkinnedAssetChanged", 2026-10-14). Cause: six constructors (the dead friends, Amos, Abel on board, Hob, the barn
+  cat, the hens) set a poseable mesh's asset with the bare `SetSkinnedAsset`, which skips the editor's notice; an ensure
+  fires once per session, so only the first showed. Fix: `SetSkinnedAssetAndUpdate(Model, false)` (`SetSkeletalMeshAsset` on
+  a skeletal mesh): it notices, and does nothing more before the component registers. Never the bare setter.
 
 ## What worked, and what didn't
 

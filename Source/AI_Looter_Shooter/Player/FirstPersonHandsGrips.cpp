@@ -65,12 +65,15 @@ namespace
 		Hands.TriggerCurl[2] = 10.f;
 		Hands.ForeHandle = FVector(0.92f, -0.4f, 0.f);
 		Hands.ForePalm = FVector(0.f, 0.1f, 1.f);
-		// Tuned in game (2026-10-14): nearly straight down from the pump, its far-left reach otherwise put the sleeve's cut
-		// end in the frame's corner.
-		Hands.ForeForearm = FVector(-0.05f, -0.04f, -1.f);
-		// The palm on the pump's underside (it's 3 cm deep).
-		Hands.ForeHold = FVector(0.f, 0.5f, 2.f);
-		Hands.ForeGrip = EHandGrip::Forend;
+		// Tuned in game (2026-10-15, the user: the hand angled oddly and didn't grab the pump): the hand rolled 20 degrees
+		// about the pump so it cups it from the lower left, its forearm in line from there (the straight-down forearm bent
+		// the wrist square), the pump through the middle of the grip and the fingers closed round it (EHandGrip::Pump);
+		// turned 45 degrees in its own plane so the thumb lies straight along the pump's near side toward the muzzle
+		// (curled, it read as "a nub").
+		Hands.ForeTurn = FRotator(45.f, 20.f, 0.f);
+		Hands.ForeForearm = FVector(-0.25f, -0.50f, -0.83f);
+		Hands.ForeHold = FVector(0.f, 0.5f, 0.f);
+		Hands.ForeGrip = EHandGrip::Pump;
 		// Under the receiver, between the trigger guard and the magazine tube.
 		Hands.LoadingPort = FVector(15.5f, 0.f, -3.2f);
 		return Hands;
@@ -132,6 +135,10 @@ namespace
 	TAutoConsoleVariable<float> CVarSupportAhead(TEXT("Looter.Hands.SupportHoldAhead"), 0.f, TEXT("Support hand's grip point ahead along the gun (cm)."));
 	TAutoConsoleVariable<float> CVarSupportRight(TEXT("Looter.Hands.SupportHoldRight"), 0.f, TEXT("Support hand's grip point to the gun's right (cm)."));
 	TAutoConsoleVariable<float> CVarSupportUp(TEXT("Looter.Hands.SupportHoldUp"), 0.f, TEXT("Support hand's grip point up the gun (cm)."));
+	TAutoConsoleVariable<float> CVarSupportFingers(TEXT("Looter.Hands.SupportFingerCurl"), 0.f,
+		TEXT("Support hand on the gun: every joint of its four fingers closed this much more (degrees; bake into FHandFingers::Of)."));
+	TAutoConsoleVariable<float> CVarSupportThumb(TEXT("Looter.Hands.SupportThumbCurl"), 0.f,
+		TEXT("Support hand on the gun: its thumb's three joints closed this much more (degrees; bake into FHandFingers::Of)."));
 
 	/** A forearm's way swung by Yaw (to the right) and Pitch (up), in the gun's frame. */
 	FVector SwingForearm(const FVector& Forearm, float Yaw, float Pitch)
@@ -140,6 +147,24 @@ namespace
 		const float SwungPitch = FMath::Clamp(static_cast<float>(Way.Pitch) + Pitch, -89.f, 89.f);
 		const float SwungYaw = static_cast<float>(Way.Yaw) + Yaw;
 		return FRotator(SwungPitch, SwungYaw, 0.f).Vector();
+	}
+
+	/** The support hand's fingers on a gun of Kind with the finger and thumb curl tuning on them. */
+	void NudgeSupportFingers(EWeaponKind Kind, FHandFingers& Fingers)
+	{
+		const int32 Wanted = CVarHandsKind.GetValueOnGameThread();
+		if (Wanted != 0 && Wanted != static_cast<int32>(Kind))
+		{
+			return;
+		}
+		for (int32 Finger = 0; Finger < FHandFingers::Count; ++Finger)
+		{
+			const float More = Finger == FHandFingers::Thumb ? CVarSupportThumb.GetValueOnGameThread() : CVarSupportFingers.GetValueOnGameThread();
+			for (int32 Joint = 0; Joint < FHandFingers::Joints; ++Joint)
+			{
+				Fingers.Curl[Finger][Joint] += More;
+			}
+		}
 	}
 
 	FString HandsDumpVector(const FVector& Vector)
@@ -178,6 +203,8 @@ namespace
 					Kind.Value, *HandsDumpVector(Nudge), *HandsDumpRotator(TurnNudge));
 			}
 		}
+		UE_LOG(LogLooter, Display, TEXT("Support hand's curls (FHandFingers::Of, its gun's ForeGrip): fingers +%.1f, thumb +%.1f degrees on every joint"),
+			CVarSupportFingers.GetValueOnGameThread(), CVarSupportThumb.GetValueOnGameThread());
 		if (const IConsoleVariable* Scale = IConsoleManager::Get().FindConsoleVariable(TEXT("Looter.Hands.Scale")))
 		{
 			UE_LOG(LogLooter, Display, TEXT("Hands' size: Looter.Hands.Scale %.3f (0: the component's ArmsScale)"), Scale->GetFloat());
@@ -272,7 +299,11 @@ FHandPlacement FirstPersonHandsGrips::OnForegrip(const FHandsGun& Gun, float Pum
 	TurnHand(Hands.ForeTurn, Fingers, Palm);
 	// A racked pump slides back along the gun's -X, and the hand round it goes with it.
 	const FVector Hold = Gun.Foregrip + (Hands.ForeHold - FVector(PumpBack, 0.f, 0.f)) * Gun.Scale;
-	return InGun(Gun, Hold, Fingers, Palm, FHandFingers::Of(Hands.ForeGrip), Hands.ForeForearm);
+	FHandFingers Curls = FHandFingers::Of(Hands.ForeGrip);
+#if !UE_BUILD_SHIPPING
+	NudgeSupportFingers(Gun.Kind, Curls);
+#endif
+	return InGun(Gun, Hold, Fingers, Palm, Curls, Hands.ForeForearm);
 }
 
 // ---------------------------------------------------------------------------
