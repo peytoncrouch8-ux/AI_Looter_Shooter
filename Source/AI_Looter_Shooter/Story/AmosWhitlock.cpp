@@ -114,7 +114,7 @@ AAmosWhitlock::AAmosWhitlock()
 
 	Figure = CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("Figure"));
 	Figure->SetupAttachment(Root);
-	Figure->SetSkinnedAsset(Model);
+	Figure->SetSkinnedAssetAndUpdate(Model, false);
 	Figure->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	// A ghost casts no shadow (as every Unpaid). Its bounds grow a little: the lean reaches over the rail, the sit lies
 	// higher and its shroud trails back under it.

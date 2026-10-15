@@ -43,7 +43,7 @@ ABarnCat::ABarnCat()
 	static USkeletalMesh* const Model = FindIfMade<USkeletalMesh>(TEXT("/Game/Art/Creatures/SK_BarnCat.SK_BarnCat"));
 	Figure = CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("Figure"));
 	Figure->SetupAttachment(Root);
-	Figure->SetSkinnedAsset(Model);
+	Figure->SetSkinnedAssetAndUpdate(Model, false);
 	Figure->SetMobility(EComponentMobility::Movable);
 	Figure->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 	Figure->SetCollisionEnabled(ECollisionEnabled::NoCollision);

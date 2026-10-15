@@ -70,7 +70,7 @@ AHobBird::AHobBird()
 		Bird = CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("Bird"));
 		Bird->SetupAttachment(Body);
 		// Only the asset here: its pose is set up as the component registers.
-		Bird->SetSkinnedAsset(Model);
+		Bird->SetSkinnedAssetAndUpdate(Model, false);
 		Bird->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		Bird->SetGenerateOverlapEvents(false);
 		Bird->SetBoundsScale(WingBoundsScale);

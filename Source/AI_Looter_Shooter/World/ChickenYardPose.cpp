@@ -59,7 +59,7 @@ void AChickenYard::MakeFigures()
 		}
 		UPoseableMeshComponent* Figure = NewObject<UPoseableMeshComponent>(this, *FString::Printf(TEXT("Chicken%d"), Index), RF_Transient);
 		// The asset first: the pose is set up as the component registers.
-		Figure->SetSkinnedAsset(Model);
+		Figure->SetSkinnedAssetAndUpdate(Model, false);
 		Figure->SetMobility(EComponentMobility::Movable);
 		Figure->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 		Figure->SetCollisionEnabled(ECollisionEnabled::NoCollision);

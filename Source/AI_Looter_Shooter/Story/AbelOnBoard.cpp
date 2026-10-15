@@ -103,7 +103,7 @@ AAbelOnBoard::AAbelOnBoard()
 
 	Figure = CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("Figure"));
 	Figure->SetupAttachment(Root);
-	Figure->SetSkinnedAsset(Model);
+	Figure->SetSkinnedAssetAndUpdate(Model, false);
 	Figure->SetRelativeScale3D(FVector(BodyScale));
 	Figure->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	// A ghost casts no shadow (as every Unpaid). Its bounds grow a little: the sit lies lower and longer than the rest pose.
