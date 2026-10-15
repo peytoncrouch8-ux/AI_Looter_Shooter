@@ -551,6 +551,11 @@ Ellis.py:
   [--shots full+upper+hips+feet] [--shape] [--sim-only] [--selfx] [--no-sim] [--rebake]`. `--shape` renders the untextured
   build in clay (the looks unbaked are minutes a frame); `--preview` renders the baked look in the viewer's arms-down pose
   to `Saved/ArtPreviews/Characters/Ellis/`; `--glb` writes the posed, textured figure (WebP maps, ~8 MB) for the spin viewer.
+- The spin viewer (`Tools/CharacterViewer/index.html`, three.js 0.160 from jsDelivr, the game's LooterUI look): published as
+  an artifact (https://claude.ai/artifact/HJCgTaXnSRbEb5k7SXjdDa). Artifacts serve no .glb (nor model/gltf-binary): convert with
+  `Tools/CharacterViewer/glb_to_json.py <glb> <dir> ellis` and publish index.html with ellis.json and the ellis_N.webp maps.
+  The page reads the `LanternAnchor` node for its lantern light. Check it locally with Playwright's Chromium
+  (`--use-gl=swiftshader`), the import map pointed at a local three.js.
 
 ## Island styles (Style Lab looks on the tutorial island, 2026-10-08)
 

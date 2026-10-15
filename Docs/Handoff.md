@@ -15,7 +15,7 @@ gloves with gauntlets and conchos; cartridge belt, Mexican-loop cross-draw holst
 at the right hip; hat, hair, pointed bandana, glowing slit eyes. 63 mannequin bones, four 2048 texture sets baked from
 procedural looks, hit zones, LODs 50/25, ~108k triangles. Helpers `looter_human`, `looter_garments`, `looter_looks`,
 `looter_bake`. Merged `claude/ellis-portraits` (portraits, MakeHuman assets) into this branch. The spin viewer: an artifact
-page (three.js; Spin, Look at Head/Hands/Belt/Boots, Dusk/Day light) with the posed, textured glTF (VIEWER_URL).
+page (three.js; Spin, Look at Head/Hands/Belt/Boots, Dusk/Day light) with the posed, textured glTF: https://claude.ai/artifact/HJCgTaXnSRbEb5k7SXjdDa (source `Tools/CharacterViewer/`).
 **Not done (needs the PC):** the textures aren't committed (LFS): `Tools\models.ps1 -Only Ellis` bakes them (minutes), then
 commit `Art/Textures/Ellis*`; the script was run only with Blender 5.2's Python module here, not the PC's Blender (watch
 for API differences on the first run); the IK retargeter from the mannequin; SK_Ellis on the player in place of the white
