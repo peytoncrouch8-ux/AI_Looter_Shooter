@@ -7,6 +7,7 @@
 
 class ACharacter;
 class AWeaponBase;
+class UBodyFigureComponent;
 class UPointLightComponent;
 class UPrimitiveComponent;
 class USceneCaptureComponent2D;
@@ -178,8 +179,13 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Stage")
 	TObjectPtr<USceneComponent> Turntable;
 
+	/** The character's own animated body (the mannequin): hidden under Figure once Ellis is worn. */
 	UPROPERTY(VisibleAnywhere, Category = "Stage")
 	TObjectPtr<USkeletalMeshComponent> Body;
+
+	/** Ellis over the body, as on the player (UBodyFigureComponent). */
+	UPROPERTY(VisibleAnywhere, Category = "Stage")
+	TObjectPtr<UBodyFigureComponent> Figure;
 
 	UPROPERTY(VisibleAnywhere, Category = "Stage")
 	TObjectPtr<USceneCaptureComponent2D> Capture;

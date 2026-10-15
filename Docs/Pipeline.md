@@ -189,7 +189,7 @@ How things get made and fixed here. Update when work finishes (a new way, a bug 
   `at x y z [yaw]`, `find <word>`, `where`, `look`, `lookat <tag>`, `what [yaw] [pitch]` (what the view's middle meets),
   `press <Interact|Fire|Jump|Reload|Move> [seconds] [x] [y]` (feeds the input action itself: no focus needed; Move's y is
   forward), `fight [s] [m]` (aims at creatures in sight, pulses Fire, keeps ammo full), `kill [m]`, `ammo`, `guns`,
-  `equip <slot>`.
+  `equip <slot>`, `view [n]` (F5's cycle), `inventory [close]`.
 - Lessons: the console box takes keyboard focus, and only a left click gives the game viewport focus back (it fires a held
   gun), so use `press` for game actions and real keys only for menus (Tab, number keys). Offer and turn-in cards and the
   notice boards take mouse clicks, not injected actions. Teleports skip a roost's find (walk the last 15 m) and give hits
@@ -565,9 +565,13 @@ Ellis.py:
   `--stats` prints the triangles per part (no bake).
 - Bake cache: `Art/Textures/EllisSkin/bake.digest` holds the digest of the scripts, the size and the Blender version the sets
   were baked from; a run with the same digest reads the PNGs back instead of baking (`--rebake` forces it).
-- The cloud box can't push Git LFS: its PNGs are not committed (`.git/info/exclude` there). The first `Tools\models.ps1
-  -Only Ellis` on the PC bakes them in its own Blender (minutes), then commit `Art/Textures/Ellis*`. MakeHuman's base.obj is
-  fetched by the script itself when missing (`Art/ThirdParty/MakeHuman/fetch.py`).
+- The cloud box can't push Git LFS: its PNGs are not committed (`.git/info/exclude` there). The PC baked them on
+  2026-10-15 with Blender 4.4 (the cloud wrote the scripts against 5.2's module: they ran unchanged; ~25 min for build,
+  simulation and four 2048 sets beside the editor) and they're committed. MakeHuman's base.obj (1.75 MB, gitignored) is
+  fetched when missing: `Art/ThirdParty/MakeHuman/fetch.py` (the PC has no system Python: run it with Blender's,
+  `C:\Program Files\Blender Foundation\Blender 4.4\4.4\python\bin\python.exe -I`). Export beside the editor:
+  `Tools\artrun.ps1 -Export Ellis -Family Ellis`, then `Looter.ImportModels <that folder>`: `/Game/Art/Characters/SK_Ellis`
+  (64 bones with the root, 3 LODs, Nanite off for the eye glow, 185.5 cm to the hat's top), `MI_Ellis*`, `PA_Ellis`.
 - Run: `blender -b --factory-startup --python Art/Models/Characters/Ellis.py -- [--size 1024] [--glb <path>] [--preview]
   [--shots full+upper+hips+feet] [--shape] [--sim-only] [--selfx] [--no-sim] [--rebake]`. `--shape` renders the untextured
   build in clay (the looks unbaked are minutes a frame); `--preview` renders the baked look in the viewer's arms-down pose
@@ -577,6 +581,30 @@ Ellis.py:
   `Tools/CharacterViewer/glb_to_json.py <glb> <dir> ellis` and publish index.html with ellis.json and the ellis_N.webp maps.
   The page reads the `LanternAnchor` node for its lantern light. Check it locally with Playwright's Chromium
   (`--use-gl=swiftshader`), the import map pointed at a local three.js.
+
+Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" over retargeting every clip onto him):
+- The mannequin (`GetMesh()`, SKM_Manny_Simple with ABP_Unarmed/ABP_Rifle and the C++ stance layer) stays the animated
+  body, hidden: guns, hand sockets, the hands' IK, the jar, footsteps and every test still use it. `UBodyFigureComponent`
+  (`Figure` on ALooterCharacter, attached to the mesh) wears SK_Ellis and copies its pose each frame through
+  `RTG_MannyToEllis` with `UBodyRetargetAnimInstance`: the engine's Retarget Pose From Mesh node as a native anim
+  instance's root (`GetCustomRootNode`; its game-thread `PreUpdate` called by the proxy, since only a Blueprint graph calls
+  it for you; the node value-initialized, its counters have no initializers). Ellis ticks after the mannequin (tick
+  prerequisite) so the hands don't lag the guns, and mirrors its first/third-person drawing (`bOwnerNoSee`,
+  `FirstPersonPrimitiveType`) each tick: invisible to the player in first person, his shadow cast. Without SK_Ellis or the
+  retargeter the mannequin shows as before. `ALoadoutStage` wears him too (unused since the redesign).
+- `Tools/Unreal/build_ellis_retarget.py` makes `/Game/Player/Retarget/IK_Manny`, `IK_Ellis` (the engine's auto chains: the
+  same 29 on both, fingers too) and the retargeter: default ops (Pelvis Motion, FK Chains, Run IK Rig, Root Motion, Remap
+  Curves) plus Blend to Source on LeftArm and RightArm (hands go to the mannequin's, the arms reach them by IK: before it
+  his hands missed the rifle). Lessons: SK_Ellis faces +X, the mannequin +Y: the retarget pose turns his root 90 degrees
+  and nothing else, as the engine's auto align compared them unturned and tipped his head ~25 degrees sideways (both
+  rest poses are close enough: arms down, the neck a little forward). The script rebuilds the assets in place: deleting
+  and recreating the retargeter nulled the character's pointer and dirtied BP_LooterCharacter (a Save prompt blocked
+  `launch.ps1 -Build`), and the component then also loads the assets again at play if its pointers are empty.
+- Checking in PIE: `play.py view [n]` cycles first/third/front views (F5); `play.py inventory [close]`; toggling the
+  mannequin back on (its `set_hidden_in_game`) compares poses. Keys from `input.ps1` (Tab, number keys) didn't reach the
+  game on 2026-10-15, so both have play.py steps.
+- Not done: his holster keeps its revolver while the revolver is in hand (one mesh: hiding it needs its own material slot
+  or section); the first-person arms (SK_FP_Arms) are lighter than his duster and gloves (the user's eye decides).
 
 ## Island styles (Style Lab looks on the tutorial island, 2026-10-08)
 

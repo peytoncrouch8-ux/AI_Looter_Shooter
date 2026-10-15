@@ -58,3 +58,4 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-09 | Polish waves 1-2 (fauna, ambience, feedback), Skyreach | 38331af | 1920x1080 | 6.1 | 164 | 6.9 | 4.1 | 6.0 | 1.7 | 4.9 | 663 | 665050 | 1.27 |
 | 2026-10-09 | Polish waves 1-2 (late-summer land, grass 40-50 m, fauna, camps), Ransom's Rest | 38331af | 1920x1080 | 6.8 | 147 | 7.4 | 3.7 | 6.8 | 1.6 | 5.5 | 1001 | 1075257 | 2.44 |
 | 2026-10-14 | RR after the mountain expansion and the play-through fixes, spawn | 75708bb | 1920x1080 | 7.7 | 130 | 8.2 | 3.4 | 7.7 | 1.6 | 6.4 | 1375 | 1714813 | 2.55 |
+| 2026-10-15 | Ellis as the player's body (retarget live), RR spawn | ffb56c2 | 1920x1080 | 7.5 | 134 | 7.9 | 3.6 | 7.4 | 1.6 | 6.2 | 1408 | 1672126 | 2.70 |

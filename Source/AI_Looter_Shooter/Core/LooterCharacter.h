@@ -4,6 +4,7 @@
 #include "GameFramework/Character.h"
 #include "LooterCharacter.generated.h"
 
+class UBodyFigureComponent;
 class UFirstPersonHandsComponent;
 class UHandJarComponent;
 class UInputAction;
@@ -64,6 +65,10 @@ protected:
 	/** The first-person arms on the gun in hand (moved onto the first-person camera at play; posed by code). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UFirstPersonHandsComponent> Hands;
+
+	/** Ellis, the body seen: worn over the mannequin, which stays the animated body, hidden (UBodyFigureComponent). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UBodyFigureComponent> Figure;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> MoveAction;

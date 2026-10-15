@@ -19,6 +19,8 @@ Usage: Tools\\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/play.py <com
   guns                                            the gun in hand and every slot
   equip <slot 1-3>                                takes a slot's gun in hand (the number keys don't reach the game
                                                   through input.ps1)
+  view [times]                                    cycles the view as F5 does (first -> third -> front -> first)
+  inventory [close]                               opens (or closes) the inventory, as Tab does
   lookat <tag|name>                               turns the view onto an actor from where the player stands
   what [yaw offset] [pitch offset]                what the view's middle meets: actor, label, component, mesh
 
@@ -390,6 +392,30 @@ def equip(world, slot):
     say(f'equip {slot}: on its way to hand')
 
 
+def cycle_view(world, times):
+    """Cycles the view as F5 does, times over."""
+    pawn, _ = player(world)
+    view = pawn.get_component_by_class(unreal.PlayerViewComponent) if pawn else None
+    if view is None:
+        return
+    for _ in range(times):
+        view.cycle_view_mode()
+    say(f'view: cycled {times}')
+
+
+def inventory(world, close):
+    """Opens or closes the inventory through the player's HUD, as Tab does."""
+    _, controller = player(world)
+    hud = controller.get_hud() if controller else None
+    if hud is None:
+        return
+    if close:
+        hud.close_inventory()
+    else:
+        hud.open_inventory()
+    say(f'inventory: {"closed" if close else "opened"}')
+
+
 def look_at(world, word):
     """Turns the view from where the player stands onto the nearest actor tagged or named so (its location)."""
     pawn, controller = player(world)
@@ -442,6 +468,10 @@ def main(args):
         guns(world)
     elif command == 'equip' and rest:
         equip(world, int(rest[0]))
+    elif command == 'view':
+        cycle_view(world, int(rest[0]) if rest else 1)
+    elif command == 'inventory':
+        inventory(world, bool(rest) and rest[0].lower() == 'close')
     elif command == 'ammo':
         say(f'ammo: {fill_ammo(player(world)[0])} rounds added')
     elif command == 'look' and rest:

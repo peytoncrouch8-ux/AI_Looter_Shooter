@@ -1,5 +1,6 @@
 #include "UI/Inventory/LoadoutStage.h"
 #include "UI/Inventory/StageStudio.h"
+#include "Player/Animation/BodyFigureComponent.h"
 #include "Player/Animation/LooterCharacterAnimInstance.h"
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/NamedWeaponDefinition.h"
@@ -99,6 +100,12 @@ ALoadoutStage::ALoadoutStage()
 	Body->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 	Body->PrimaryComponentTick.bStartWithTickEnabled = false;
 	StageStudio::SetupPrimitive(Body);
+
+	// Ellis, the player's body, worn over it; he animates only while the stage shows, as the body does.
+	Figure = CreateDefaultSubobject<UBodyFigureComponent>(TEXT("Figure"));
+	Figure->SetupAttachment(Body);
+	Figure->PrimaryComponentTick.bStartWithTickEnabled = false;
+	StageStudio::SetupPrimitive(Figure);
 
 	Capture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("Capture"));
 	Capture->SetupAttachment(Root);
@@ -221,6 +228,7 @@ void ALoadoutStage::SetActive(bool bInActive)
 	bActive = bInActive;
 	SetActorTickEnabled(bActive);
 	Body->SetComponentTickEnabled(bActive);
+	Figure->SetComponentTickEnabled(bActive && Figure->IsWorn());
 	for (UPointLightComponent* Light : { KeyLight.Get(), FillLight.Get(), RimLight.Get() })
 	{
 		Light->SetVisibility(bActive);

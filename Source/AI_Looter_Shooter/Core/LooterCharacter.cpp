@@ -7,6 +7,7 @@
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "Interaction/InteractionComponent.h"
+#include "Player/Animation/BodyFigureComponent.h"
 #include "Player/Animation/HandJarComponent.h"
 #include "Player/FirstPersonHandsComponent.h"
 #include "Player/PlayerFootfallComponent.h"
@@ -59,6 +60,9 @@ ALooterCharacter::ALooterCharacter()
 	// The first-person arms on the gun. The camera is the Blueprint's, so it waits on the capsule until play moves it there.
 	Hands = CreateDefaultSubobject<UFirstPersonHandsComponent>(TEXT("FirstPersonHands"));
 	Hands->SetupAttachment(GetCapsuleComponent());
+	// Ellis over the mannequin, copying its pose (the user, 2026-10-15: his body in place of the white mannequin).
+	Figure = CreateDefaultSubobject<UBodyFigureComponent>(TEXT("Figure"));
+	Figure->SetupAttachment(GetMesh());
 }
 
 void ALooterCharacter::OnJumped_Implementation()

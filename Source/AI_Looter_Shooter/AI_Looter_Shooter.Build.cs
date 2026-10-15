@@ -40,5 +40,8 @@ public class AI_Looter_Shooter : ModuleRules
 
 		// Sessions open the default map and the main menu from the project's map settings (UGameMapsSettings).
 		PrivateDependencyModuleNames.Add("EngineSettings");
+
+		// Ellis's body copies the mannequin's pose through an IK retargeter (UBodyRetargetAnimInstance).
+		PrivateDependencyModuleNames.Add("IKRig");
 	}
 }
