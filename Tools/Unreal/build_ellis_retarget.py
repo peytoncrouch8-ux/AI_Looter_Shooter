@@ -7,12 +7,13 @@ player's animated body, hidden, and Ellis copies its pose every frame through th
 Makes in /Game/Player/Retarget (run again, it sets up the same assets afresh in place: deleting them would null and dirty
 BP_LooterCharacter, whose Ellis component points at the retargeter):
 - IK_Manny: SKM_Manny_Simple's IK rig, its chains and goals made by the engine's own rules for the UE5 mannequin.
-- IK_Ellis: SK_Ellis's (his 63 bones carry the mannequin's names, so the same rules map them: the same 29 chains).
+- IK_Ellis: SK_Ellis's (his 63 mannequin bones carry the mannequin's names, so the same rules map them: the same 29
+  chains; his swing bones and `hat` are in none, the game's code moves them).
 - RTG_MannyToEllis: the retargeter, the default ops plus Blend to Source on both arms (the hands go where the mannequin's
-  are, so the guns in its hand sockets sit in Ellis's), chains mapped by name. Ellis's model faces +X and the mannequin
-  +Y, so his retarget pose turns his root a quarter round; nothing else (the engine's auto align lined his neck and arms
-  up as if he hadn't turned, tipping his head sideways; both rest poses are close enough as they are: arms down at the
-  sides, the neck a little forward). `--align` runs it anyway.
+  are, so the guns in its hand sockets sit in Ellis's), chains mapped by name. His retarget pose: SK_Ellis faces +Y like
+  the mannequin (since 2026-10-15), so the engine's auto align lines every chain up (fingers too); an older SK_Ellis
+  facing +X gets his root turned a quarter round instead (auto align would compare them unturned and tip his head
+  sideways; `--align` runs it anyway).
 """
 import sys
 
@@ -58,6 +59,14 @@ def make_rig(name, mesh):
                       f'{rig_controller.get_retarget_chain_end_bone(chain_name)})')
     say(f'{name}: root {rig_controller.get_retarget_root()}, {len(chains)} chains: {", ".join(chains)}')
     return rig
+
+
+def facing_of(rig):
+    """Which way a rig's character faces at rest: the left foot's toes' way, '+X' or '+Y'."""
+    rig_controller = unreal.IKRigController.get_controller(rig)
+    toes = rig_controller.get_ref_pose_transform_of_bone('ball_l').translation - \
+        rig_controller.get_ref_pose_transform_of_bone('foot_l').translation
+    return '+X' if abs(toes.x) > abs(toes.y) else '+Y'
 
 
 def pin_hands(controller):
@@ -112,16 +121,22 @@ def main():
     ops = [str(controller.get_op_name(i)) for i in range(controller.get_num_retarget_ops())]
     say(f'ops: {", ".join(ops)}')
 
-    # Ellis faces +X, the mannequin +Y: his root turned a quarter round (about Z, X toward Y) to face its way.
-    quarter = unreal.Quat()
-    quarter.set_from_euler(unreal.Vector(0.0, 0.0, 90.0))
     pose = controller.get_current_retarget_pose_name(TARGET)
     controller.reset_retarget_pose(pose, [], TARGET)
-    controller.set_rotation_offset_for_retarget_pose_bone('root', quarter, TARGET)
-    if '--align' in sys.argv:
+    facing = facing_of(ellis_rig)
+    if facing == '+Y':
+        # Facing the mannequin's way: the engine lines his limbs, neck and fingers up along the mannequin's.
         controller.auto_align_all_bones(TARGET, unreal.RetargetAutoAlignMethod.CHAIN_TO_CHAIN)
-    root_turn = controller.get_rotation_offset_for_retarget_pose_bone('root', TARGET).euler()
-    say(f'target root turned {root_turn.z:.1f} degrees')
+        say('target faces +Y as the mannequin does: auto aligned')
+    else:
+        # An older SK_Ellis facing +X: his root turned a quarter round instead (auto align would compare them unturned
+        # and tip his head sideways; --align runs it anyway).
+        quarter = unreal.Quat()
+        quarter.set_from_euler(unreal.Vector(0.0, 0.0, 90.0))
+        controller.set_rotation_offset_for_retarget_pose_bone('root', quarter, TARGET)
+        if '--align' in sys.argv:
+            controller.auto_align_all_bones(TARGET, unreal.RetargetAutoAlignMethod.CHAIN_TO_CHAIN)
+        say(f'target faces {facing}: root turned 90 degrees')
 
     for asset in (manny_rig, ellis_rig, retargeter):
         unreal.EditorAssetLibrary.save_loaded_asset(asset)

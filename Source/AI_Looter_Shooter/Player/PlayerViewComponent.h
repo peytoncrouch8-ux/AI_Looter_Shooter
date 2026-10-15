@@ -119,8 +119,10 @@ public:
 	/** The aim key is down (or toggled on) with a gun in hand; sprinting gives way to it. */
 	bool WantsToAim() const { return bAimWanted; }
 
-	/** The aim key (bound to the player's input; public so the tests can press it): held, or a toggle when so bound. */
+	/** The aim key (bound to the player's input; public so the tests and play checks can press it): held, or a toggle. */
+	UFUNCTION(BlueprintCallable, Category = "View")
 	void HandleAimPressed();
+	UFUNCTION(BlueprintCallable, Category = "View")
 	void HandleAimReleased();
 
 	/** Spread is multiplied by this: 1 from the hip, AimSpreadMultiplier through the sight. */

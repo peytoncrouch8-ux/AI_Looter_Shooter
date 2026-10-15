@@ -21,6 +21,7 @@ Usage: Tools\\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/play.py <com
                                                   through input.ps1)
   view [times]                                    cycles the view as F5 does (first -> third -> front -> first)
   inventory [close]                               opens (or closes) the inventory, as Tab does
+  aim [0]                                         presses the aim key (0 lets it go)
   lookat <tag|name>                               turns the view onto an actor from where the player stands
   what [yaw offset] [pitch offset]                what the view's middle meets: actor, label, component, mesh
 
@@ -403,6 +404,19 @@ def cycle_view(world, times):
     say(f'view: cycled {times}')
 
 
+def aim(world, down):
+    """Presses (or lets go of) the aim key."""
+    pawn, _ = player(world)
+    view = pawn.get_component_by_class(unreal.PlayerViewComponent) if pawn else None
+    if view is None:
+        return
+    if down:
+        view.handle_aim_pressed()
+    else:
+        view.handle_aim_released()
+    say(f'aim: {"pressed" if down else "let go"}')
+
+
 def inventory(world, close):
     """Opens or closes the inventory through the player's HUD, as Tab does."""
     _, controller = player(world)
@@ -472,6 +486,8 @@ def main(args):
         cycle_view(world, int(rest[0]) if rest else 1)
     elif command == 'inventory':
         inventory(world, bool(rest) and rest[0].lower() == 'close')
+    elif command == 'aim':
+        aim(world, not (rest and rest[0] == '0'))
     elif command == 'ammo':
         say(f'ammo: {fill_ammo(player(world)[0])} rounds added')
     elif command == 'look' and rest:

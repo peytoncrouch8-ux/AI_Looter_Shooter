@@ -41,6 +41,8 @@ namespace
 	TAutoConsoleVariable<float> CVarArmLength(TEXT("Looter.ThirdPerson.ArmLength"), -1.f, TEXT("Override the third-person camera distance (cm)."));
 	TAutoConsoleVariable<float> CVarShoulderRight(TEXT("Looter.ThirdPerson.ShoulderRight"), -1.f, TEXT("Override the third-person camera's offset to the right (cm)."));
 	TAutoConsoleVariable<float> CVarShoulderUp(TEXT("Looter.ThirdPerson.ShoulderUp"), -1.f, TEXT("Override the third-person camera's offset upward (cm)."));
+	TAutoConsoleVariable<float> CVarFrontArmLength(TEXT("Looter.ThirdPerson.FrontArmLength"), -1.f,
+		TEXT("Override the front view's camera distance (cm): a close look at the character."));
 
 	float Tuned(const TAutoConsoleVariable<float>& Variable, float Value)
 	{
@@ -115,7 +117,7 @@ void UPlayerViewComponent::UpdateBoom(float DeltaTime)
 		// Front view: the arm points back at the character from where they're looking.
 		const FRotator Control = Owner->GetControlRotation();
 		Boom->SetWorldRotation(FRotator(-FRotator::NormalizeAxis(Control.Pitch), Control.Yaw + 180.f, 0.f));
-		Boom->TargetArmLength = FrontArmLength * Scale * Out;
+		Boom->TargetArmLength = Tuned(CVarFrontArmLength, FrontArmLength) * Scale * Out;
 		Boom->SocketOffset = FVector(0.f, 0.f, 10.f) * Scale * Out;
 	}
 }
