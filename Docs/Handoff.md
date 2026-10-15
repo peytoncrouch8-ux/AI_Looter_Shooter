@@ -3,7 +3,29 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
-## Now (session "Ellis portraits", 2026-10-15, cloud; branch `claude/ellis-portraits`)
+## Now (session "Ellis 3D model", 2026-10-15, cloud; branch `claude/ellis-3d-character-model-tvwr9z`)
+
+**The request:** turn Ellis portrait A into the game's 3D model, realistic enough for the game, textured from boots to head,
+and something the user can spin round. Midway the user: "I'm liking the look so far, but his texturing looks too smooth ...
+More realistic modeling and less smooth looking." (done: cloth-simulated duster, creases, seams, stitching, grain, wear).
+**Built:** `Art/Models/Characters/Ellis.py` -> `SK_Ellis` (Pipeline, "Character models"): MakeHuman's body shaped as the
+portrait; a cloth-simulated duster to mid-calf (back vent, seams, topstitched hems), fluted cape, rolled turned-up collar
+with the sun-ring pin; waistcoat, work shirt, trousers tucked into stovepipe boots with stacked soles and cuban heels; roper
+gloves with gauntlets and conchos; cartridge belt, Mexican-loop cross-draw holster with the revolver, Pa's lantern burning
+at the right hip; hat, hair, pointed bandana, glowing slit eyes. 63 mannequin bones, four 2048 texture sets baked from
+procedural looks, hit zones, LODs 50/25, ~108k triangles. Helpers `looter_human`, `looter_garments`, `looter_looks`,
+`looter_bake`. Merged `claude/ellis-portraits` (portraits, MakeHuman assets) into this branch. The spin viewer: an artifact
+page (three.js; Spin, Look at Head/Hands/Belt/Boots, Dusk/Day light) with the posed, textured glTF (VIEWER_URL).
+**Not done (needs the PC):** the textures aren't committed (LFS): `Tools\models.ps1 -Only Ellis` bakes them (minutes), then
+commit `Art/Textures/Ellis*`; the script was run only with Blender 5.2's Python module here, not the PC's Blender (watch
+for API differences on the first run); the IK retargeter from the mannequin; SK_Ellis on the player in place of the white
+mannequin (third person); the first-person arms against it (SK_FP_Arms' sleeves are #8f7052, lighter than the model's
+dust-brown oilskin, and its gloves #a47c56 lighter than the model's: the user's eye decides which wins).
+**The user's decisions (keep):** as the portraits session's; Ellis A is the spec; less smooth (folds, creases, seams, wear).
+**Next:** the user's notes on the viewer; then on the PC: import, retarget, wire SK_Ellis into third person, check the hands;
+then the other four heroes' portraits and models the same way.
+
+## Before that (session "Ellis portraits", 2026-10-15, cloud; branch `claude/ellis-portraits`, merged into the above)
 
 **The request:** the heroes' models "suck"; first paint portraits like the user's reference (richly framed painted busts),
 pick one, then build the 3D model from it. Ellis only for now, three portraits.
@@ -16,12 +38,7 @@ images aren't committed (PNGs go to Git LFS, which the cloud box can't push): re
 (picked 2026-10-15): cattleman hat low, red bandana up, cyan eyes burning as slits in the brim's shadow, collar-length dark
 hair, a dust-brown duster with a fluted shoulder cape and the collar turned up, Saint Ada's sun-ring pin on the collar, a
 black waistcoat with brass buttons.
-**Next:** build Ellis A as the in-game model (`OPTIONS["A"]` and `FACE` in `EllisBlender.py` are the spec): the MakeHuman
-base shaped and posed the same way, the clothes as real meshes (cloth sim or sculpt where the drape is too smooth; the
-full-length duster below the bust), retopology to a game budget, rig on the UE mannequin skeleton
-(`Tools/Blender/looter_heroes.py`, IK-retargeted like the backlog heroes), materials on the textured masters; first-person
-arms (SK_FP_Arms) should match its gloves and sleeves. Then the other four heroes' portraits the same way.
-Branch `claude/ellis-portraits` is pushed, not merged.
+**Next then:** build Ellis A as the in-game model (done in the session above).
 
 ## Before that (end of session "Polish: make it alive", 2026-10-14)
 

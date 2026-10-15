@@ -479,6 +479,79 @@ docstring and `OPTIONS`).
 - What didn't work: busts sculpted as signed-distance shapes and marched in WebGL (the first try; a clay, CG look the user
   passed on for Blender). Removed; the code is in commit 7ed66a0 (`Art/Portraits/*.glsl`).
 
+## Character models (MakeHuman bodies, simulated and draped clothes, baked looks; Ellis, 2026-10-15)
+
+Why: the portraits pick the look (Ellis A, The Revenant); the game model is built the same way, from MakeHuman's CC0 base,
+as a scripted model: `Art/Models/Characters/Ellis.py` -> `SK_Ellis`. The user wants to spin it (the spin viewer is a glTF
+export of it) and asked for it "less smooth": real folds, creases, seams and wear, not clean shapes. Helpers, for the
+other heroes too:
+- `Tools/Blender/looter_human.py`: `Body` (MakeHuman shaped by macro and face sliders, sized to a height, standing on the
+  origin facing -Y; `lift` raises it onto boot heels). `skeleton()`: the UE5 mannequin's 63 deform bones on MakeHuman's
+  joints (pelvis at the hips' middle; spine_01..05 up MakeHuman's spine, the chest's bone halved; clavicle to the shoulder
+  joint; finger1 is the thumb, metacarpal1..4 index..pinky). `vertex_weights()`: MakeHuman's own skin weights summed onto
+  those bones (spine and hip weights pooled and shared over pelvis..spine_05 by height; every face, eye, jaw and tongue
+  bone to `head`), top four. `weights_at(points, faces)`: a garment point takes the weights of the nearest point on the
+  body (or on chosen faces). Bind pose: MakeHuman's rest (arms about 49 degrees below level, elbows a little bent).
+- `Tools/Blender/looter_garments.py`: `drape()` (cloth round a vertical axis, each column outside the widest point at or above
+  each height; `hb`, the wedge a column looks across: 7 degrees bridges the spine's groove and a row of cartridges, 2 left a
+  dark seam down the coat's back and bullet tips through it); `shell()` (body faces pushed out along their normals,
+  Taubin-smoothed, MakeHuman's UVs kept); `clear()` (pushes points back outside the layers under them); `grid()`, `tube()`,
+  `strip()` (UVs in metres; `tube()` faces outward); `solidify()` (plain offset: Blender's even thickness shot vertices metres
+  away from sharp corners, the soles' edges and the coat's vent); `simulate()` (Blender cloth, cached, below).
+- `Tools/Blender/looter_looks.py`: procedural Cycles looks ending in OUT_COLOR/OUT_ROUGH/OUT_METAL/OUT_NORMAL reroutes:
+  oilskin, felt (a sweat stain from the band), leather (creases that crack, scuffs, pores; boots: a stitched toe cap, the
+  welt's stitches, scalloped rows on the shaft), wool, brocade, linen, bandana, metal (scratches, dents), walnut (checkered),
+  skin (pores, fine wrinkles, veins), scalp, hair, stacked sole, glow. Patterns in object space (metres). Shared touches:
+  `ridged()` crease networks (stretched down the body on hanging cloth), `construction()` (hems, topstitching, seams from
+  the model's 'Seams' attribute: R closeness to an open edge, G to a sewn seam), `dashes()` (stitches along any line from
+  three sines), `stains()`, `splatter()`, dust by height and facing, grime from occlusion, wear from Pointiness (no rays).
+  What didn't work: a 380/m twill and 700/m weave aliased into moire at the bake's ~1000 px/m (keep patterns under ~300/m); a
+  dense fine crumple network read as cracked stone or marble, not cloth (cloth creases: few, broad, long, soft).
+- `Tools/Blender/looter_bake.py`: `pack()` (one atlas per set: islands averaged to one density, packed); `bake_set()`: the
+  occlusion first (Cycles AO bake at a quarter of the set's size, 32 samples, 0.1 m, scaled up into the ORM; it was nearly
+  all of the time), then each look's AO nodes are swapped for that map so colour, roughness and metal bake as emissions at
+  one sample, then the normal (tangent, OpenGL; written green-flipped as DirectX); writes
+  `Art/Textures/<Set>/T_<Set>_BC|N|ORM.png`. `load_set()` reads a set back; `digest()` fingerprints the scripts. The whole
+  model with four 2048 sets bakes in ~7 min on the cloud box's 4 cores (it was ~15 min at 1024 with live AO nodes).
+
+The duster's cloth simulation (`settle()`, `looter_garments.simulate()`): the skirt is built fuller than it hangs (flare 0.10)
+and Blender's cloth lets it fall onto the body, trousers, waistcoat and belt, pinned above the hips (smoothstep 0.92-1.08 m),
+90 frames, stiffness tension/compression 40, shear 15, bending 12, mass 0.3, self-collision on (~50 s). Kept in
+`Art/Models/Characters/Ellis.drape.json` under a digest of the starting cloth, pins, colliders and settings, so an export
+simulates again only when one of them changes (as MisterSexton.drape.json).
+- Bugs met: the cloth exploded (points metres away) under self-collision because the start mesh crossed itself: `clear()`
+  against the waistcoat's armhole edge had folded the coat under the arms (now it clears against the belt only; the drape
+  already rests on the waistcoat). Check with `--selfx` (prints crossing face pairs). The vent's two edges start apart when
+  simulated (built, they overlap), and the lantern and holster are not colliders (they started inside the coat's panel).
+- The cape is not simulated: on the shoulders it had nowhere to fall but into itself and crumpled. It stays procedural, with
+  flutes of uneven depth and spacing. Bending 4 crumpled the skirt and the vent like linen; 12 gives a duster's broad folds.
+
+Ellis.py:
+- Order: body, trousers (knee and boot-top creases), boots (toe box, sole and cuban heel, ankle creases), waistcoat and shirt,
+  belt (before the duster, which drapes over it), duster, sleeves (bunched at the cuff, crescents at the elbow), cape,
+  holster, lantern, the simulation, collar and pin, gloves, hat (EllisBlender.build_hat moved into the figure's space),
+  bandana (inside the collar: draped over skin, waistcoat and shirt; its point down the chest), hair (two layers of locks with
+  rounded backs round the back of the head, `EllisBlender.grow` over head, collar, cape and bandana; a hair-coloured scalp
+  under them), then 'Seams' on the sewn pieces, UVs, the bake, thickness, weights, one joined mesh `Ellis`.
+- Texture sets (2048): EllisSkin (face and scalp), EllisDuster (coat, sleeves, cape, collar), EllisGarb (hat, hair, bandana,
+  waistcoat, shirt, trousers), EllisGear (boots, soles, gloves, belt, holster, revolver, lantern, brass, lead, iron). The eyes
+  and the lantern's globe and flame are Glow materials (EllisEyeGlow, EllisLanternGlow).
+- Skin weights by part (`weights()`): the body's own; the duster above the hips from the torso, its skirt pelvis to the
+  thighs (side by x) as looter_heroes' skirts; the cape half its nearest body point, half spine_05 and the clavicles; collar
+  spine_05 to neck_01 by height; bandana head, its point toward neck and chest; hat, hair, eyes head; belt pelvis
+  (+spine_01); holster pelvis + thigh_l, lantern pelvis + thigh_r (rigid); gauntlets lowerarm to hand; gloves from the
+  hand's faces only. Hit zones: head, trunk, skirt round the hips, each limb, hands, feet. LODs 50 % and 25 %. ~108k
+  triangles at LOD0 (190k before: thinner grids, thickness only where an inside shows, the hat decimated).
+- Bake cache: `Art/Textures/EllisSkin/bake.digest` holds the digest of the scripts, the size and the Blender version the sets
+  were baked from; a run with the same digest reads the PNGs back instead of baking (`--rebake` forces it).
+- The cloud box can't push Git LFS: its PNGs are not committed (`.git/info/exclude` there). The first `Tools\models.ps1
+  -Only Ellis` on the PC bakes them in its own Blender (minutes), then commit `Art/Textures/Ellis*`. MakeHuman's base.obj is
+  fetched by the script itself when missing (`Art/ThirdParty/MakeHuman/fetch.py`).
+- Run: `blender -b --factory-startup --python Art/Models/Characters/Ellis.py -- [--size 1024] [--glb <path>] [--preview]
+  [--shots full+upper+hips+feet] [--shape] [--sim-only] [--selfx] [--no-sim] [--rebake]`. `--shape` renders the untextured
+  build in clay (the looks unbaked are minutes a frame); `--preview` renders the baked look in the viewer's arms-down pose
+  to `Saved/ArtPreviews/Characters/Ellis/`; `--glb` writes the posed, textured figure (WebP maps, ~8 MB) for the spin viewer.
+
 ## Island styles (Style Lab looks on the tutorial island, 2026-10-08)
 
 - The user's call (2026-10-08): "I don't want to change the style." The look stays as it is; no style work unless the user asks.

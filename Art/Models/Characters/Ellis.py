@@ -148,7 +148,7 @@ LOOKS = {
     'Vest': lambda n: lk.brocade(n, (0.045, 0.045, 0.05), (0.12, 0.115, 0.115)),
     'Shirt': lambda n: lk.linen(n, (0.31, 0.33, 0.36)),
     'Trousers': lambda n: lk.wool(n, (0.19, 0.18, 0.19)),
-    'Boots': lambda n: lk.leather(n, (0.20, 0.12, 0.075), grain=900.0, dust_amt=0.75, dust_height=0.24, mud=0.8,
+    'Boots': lambda n: lk.leather(n, (0.20, 0.12, 0.075), grain=900.0, dust_amt=0.35, dust_height=0.12, mud=0.4,
                                   boot=(-0.205, 0.0215)),
     'Soles': lambda n: lk.stacked(n, (0.12, 0.08, 0.055)),
     'Gloves': lambda n: lk.leather(n, (0.50, 0.36, 0.23), grain=1100.0, dust_amt=0.25, dust_height=0.001,
@@ -272,15 +272,15 @@ def build_boots(fig):
         c[2] = LIFT + 0.026
         d = v - c
         along = d @ f
-        sel = side & (along > -0.05) & (v[:, 2] < 0.13)
+        sel = side & (along > -0.08) & (v[:, 2] < 0.13)
         dx, dy, dz = d[sel] @ lat, along[sel], d[sel, 2]
         ay = np.where(dy > 0, 0.056, 0.07)
         az = np.where(dz > 0, 0.034, c[2])
         p = 2.6
         F = (np.abs(dx / 0.049) ** p + np.abs(dy / ay) ** p + np.abs(dz / az) ** p) ** (1.0 / p)
-        k = gm.smoothstep(-0.05, -0.005, dy)[:, None]
+        k = gm.smoothstep(-0.075, 0.0, dy)[:, None]          # a long blend: a short one left a ridge round the box
         toe_w = np.zeros(len(v))
-        toe_w[sel] = gm.smoothstep(-0.06, 0.0, dy) * 0.8
+        toe_w[sel] = gm.smoothstep(-0.08, 0.0, dy) * 0.8
         # project, relax, project again: the toes' crowded points spread evenly over the box
         for it in range(8):
             d = v[sel] - c
