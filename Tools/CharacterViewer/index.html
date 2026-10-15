@@ -1,0 +1,388 @@
+<title>Ellis Ransom Model</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+/* Layout: one full-bleed stage; the name plate floats top-left, the fitting card right (stacked under the stage on a
+   phone), the controls in a strip along the bottom. Colours are the game's LooterUI "Concept C" kit: dark glass,
+   cyan lines, one orange accent. Single dark look on purpose: it is the game's own UI. */
+:root {
+  --ground: #05090e;
+  --glass: rgba(7, 26, 40, 0.86);
+  --plate: #0e2c42;
+  --line: rgba(90, 200, 255, 0.55);
+  --line-faint: rgba(90, 200, 255, 0.18);
+  --title: #bfeaff;
+  --text: #dcefff;
+  --dim: #8fb3cc;
+  --accent: #ff9f1c;
+  --accent-ink: #231400;
+  --display: "Chakra Petch", "Rajdhani", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body {
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--body);
+  overflow: hidden;
+}
+.app {
+  position: relative;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+.stage { position: relative; min-width: 0; min-height: 0; }
+#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+#view:active { cursor: grabbing; }
+.plate {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top, 0px));
+  left: max(16px, env(safe-area-inset-left, 0px));
+  padding: 12px 18px 12px 16px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+  pointer-events: none;
+}
+.plate h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--title);
+  line-height: 1.05;
+}
+.plate p { margin: 4px 0 0; font-family: var(--display); font-weight: 600; font-size: 0.82rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--accent); }
+.loading {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(320px, 70%);
+  display: grid; gap: 8px; text-align: center;
+  font-family: var(--display); letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.8rem; color: var(--dim);
+}
+.meter { height: 6px; background: var(--plate); border: 1px solid var(--line-faint); transform: skewX(-20deg); }
+.meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.2s; }
+.controls {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding-block: 12px max(14px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center;
+  background: linear-gradient(to top, rgba(5, 9, 14, 0.92), rgba(5, 9, 14, 0));
+}
+.group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.group > span {
+  font-family: var(--display); font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim);
+  margin-right: 2px;
+}
+button {
+  font: 600 0.82rem/1 var(--display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+  background: var(--plate);
+  border: 1px solid var(--line-faint);
+  padding: 8px 12px;
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+  cursor: pointer;
+}
+button:hover { border-color: var(--line); color: var(--title); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.hint { font-size: 0.78rem; color: var(--dim); margin-left: auto; }
+.card {
+  min-width: 0;
+  overflow-y: auto;
+  background: var(--glass);
+  border-left: 1px solid var(--line);
+  padding-block: max(18px, env(safe-area-inset-top, 0px)) 18px;
+  padding-left: 18px;
+  padding-right: max(18px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 16px;
+}
+.card h2 {
+  margin: 0; font-family: var(--display); font-weight: 600; font-size: 0.78rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--accent);
+}
+.card p { margin: 0; font-size: 0.88rem; line-height: 1.5; color: var(--dim); }
+.fit { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.fit li {
+  display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 10px;
+  padding: 8px 0; border-top: 1px solid var(--line-faint); font-size: 0.86rem; line-height: 1.4;
+}
+.fit li b { font-family: var(--display); font-weight: 600; font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--title); padding-top: 2px; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stats div { background: var(--plate); border: 1px solid var(--line-faint); padding: 8px 10px; }
+.stats dt { font-family: var(--display); font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.stats dd { margin: 2px 0 0; font-family: var(--display); font-weight: 600; font-size: 1.05rem; color: var(--text); font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) {
+  body { overflow: auto; }
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 78vh auto; height: auto; }
+  .card { border-left: 0; border-top: 1px solid var(--line); padding-block: 18px max(18px, env(safe-area-inset-bottom, 0px));
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .hint { display: none; }
+  .plate h1 { font-size: 1.25rem; }
+}
+@media (prefers-reduced-motion: reduce) { .meter i { transition: none; } }
+</style>
+
+<div class="app">
+  <section class="stage" aria-label="3D view of Ellis">
+    <canvas id="view"></canvas>
+    <div class="plate">
+      <h1>Ellis Ransom</h1>
+      <p>The Revenant</p>
+    </div>
+    <div class="loading" id="loading">
+      <div>Loading model <span id="pct">0%</span></div>
+      <div class="meter"><i id="bar"></i></div>
+    </div>
+    <div class="controls">
+      <div class="group">
+        <button id="spin" type="button" aria-pressed="true">Spin</button>
+        <button id="reset" type="button">Reset</button>
+      </div>
+      <div class="group" role="group" aria-label="Look at">
+        <span>Look at</span>
+        <button type="button" data-focus="full" aria-pressed="true">Full</button>
+        <button type="button" data-focus="head" aria-pressed="false">Head</button>
+        <button type="button" data-focus="hands" aria-pressed="false">Hands</button>
+        <button type="button" data-focus="belt" aria-pressed="false">Belt</button>
+        <button type="button" data-focus="boots" aria-pressed="false">Boots</button>
+      </div>
+      <div class="group" role="group" aria-label="Light">
+        <span>Light</span>
+        <button type="button" data-light="dusk" aria-pressed="true">Dusk</button>
+        <button type="button" data-light="day" aria-pressed="false">Day</button>
+      </div>
+      <div class="hint">Drag to turn · scroll or pinch to zoom · right-drag to move</div>
+    </div>
+  </section>
+  <aside class="card">
+    <div>
+      <h2>Option A, picked 2026-10-15</h2>
+      <p>Shot on Ransom's Point and raised by Mister Sexton to bring the embers home. Built from the portrait, boots to hat,
+        on the UE5 mannequin's skeleton.</p>
+    </div>
+    <ul class="fit">
+      <li><b>Hat</b><span>Dust-brown felt cattleman, worn low, leather band</span></li>
+      <li><b>Face</b><span>Eyes burning cyan in the brim's shadow; collar-length dark hair</span></li>
+      <li><b>Bandana</b><span>Red, printed, pulled up over nose and mouth, knotted behind</span></li>
+      <li><b>Duster</b><span>Waxed canvas to mid-calf, hung by cloth simulation; fluted cape, collar up, back vent, topstitched hems</span></li>
+      <li><b>Pin</b><span>Saint Ada's sun-ring on the collar, Pa's keeper's badge</span></li>
+      <li><b>Under</b><span>Black waistcoat with brass buttons over a faded work shirt</span></li>
+      <li><b>Gloves</b><span>Tan roper gloves, flared gauntlets, brass conchos</span></li>
+      <li><b>Belt</b><span>Brass cartridges in loops, cross-draw holster on the left hip</span></li>
+      <li><b>Lantern</b><span>Pa's lantern clipped at the right hip, still burning</span></li>
+      <li><b>Boots</b><span>Tall stovepipes, stacked cuban heels, trousers tucked in</span></li>
+    </ul>
+    <dl class="stats" id="stats">
+      <div><dt>Height</dt><dd>1.80 m</dd></div>
+      <div><dt>Bones</dt><dd>63</dd></div>
+      <div><dt>Triangles</dt><dd id="tris">…</dd></div>
+      <div><dt>Texture sets</dt><dd>4 × 2048</dd></div>
+    </dl>
+  </aside>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const canvas = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 50);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.minDistance = 0.45;
+controls.maxDistance = 9;
+controls.maxPolarAngle = Math.PI * 0.62;
+controls.autoRotate = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+controls.autoRotateSpeed = 1.4;
+document.getElementById('spin').setAttribute('aria-pressed', String(controls.autoRotate));
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envMap = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+scene.environment = envMap;
+
+// Ground: a dark disc fading out, catching the figure's shadow.
+const groundTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  grad.addColorStop(0, 'rgba(255,255,255,1)'); grad.addColorStop(0.6, 'rgba(255,255,255,0.55)'); grad.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grad; g.fillRect(0, 0, 256, 256);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+const ground = new THREE.Mesh(new THREE.CircleGeometry(1.6, 64),
+  new THREE.MeshStandardMaterial({ color: 0x1a1612, roughness: 0.95, metalness: 0, alphaMap: groundTex, transparent: true }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+const ring = new THREE.Mesh(new THREE.RingGeometry(1.0, 1.006, 128),
+  new THREE.MeshBasicMaterial({ color: 0x5ac8ff, transparent: true, opacity: 0.35 }));
+ring.rotation.x = -Math.PI / 2; ring.position.y = 0.002; scene.add(ring);
+
+// Lights: two looks. Dusk is the portrait's (warm key low from the front left, cyan rim behind, a cold fill);
+// day is a high white sun and a soft sky.
+const key = new THREE.DirectionalLight(0xffffff, 3);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -1.2, right: 1.2, top: 2.2, bottom: -0.3, near: 0.5, far: 12 });
+key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x73d2ff, 2.5); scene.add(rim);
+const fill = new THREE.HemisphereLight(0x8fb3cc, 0x15100c, 0.6); scene.add(fill);
+const lanternLight = new THREE.PointLight(0xffa040, 0, 1.2, 2); scene.add(lanternLight);
+
+const LIGHTS = {
+  dusk: { bg: [0x0b1622, 0x05090e], key: [0xffdcbc, 2.8, [-2.2, 2.4, 2.6]], rim: [0x73d2ff, 2.6, [2.4, 2.6, -2.8]],
+          fill: 0.45, env: 0.35, lantern: 0.35, exposure: 1.05 },
+  day: { bg: [0x9fb6c8, 0x52606d], key: [0xfff3e2, 3.4, [-1.8, 4.5, 2.4]], rim: [0xcfe8ff, 1.0, [2.0, 2.5, -2.5]],
+         fill: 0.9, env: 0.7, lantern: 0.25, exposure: 1.0 },
+};
+let bgTex = null;
+function setLight(name) {
+  const L = LIGHTS[name];
+  key.color.setHex(L.key[0]); key.intensity = L.key[1]; key.position.set(...L.key[2]);
+  rim.color.setHex(L.rim[0]); rim.intensity = L.rim[1]; rim.position.set(...L.rim[2]);
+  fill.intensity = L.fill;
+  scene.environmentIntensity = L.env;
+  if (figure) figure.traverse(o => { if (o.isMesh) [].concat(o.material).forEach(m => { m.envMapIntensity = L.env; }); });
+  lanternLight.intensity = L.lantern;
+  renderer.toneMappingExposure = L.exposure;
+  const c = document.createElement('canvas'); c.width = 4; c.height = 256;
+  const g = c.getContext('2d'); const grad = g.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, '#' + L.bg[0].toString(16).padStart(6, '0'));
+  grad.addColorStop(1, '#' + L.bg[1].toString(16).padStart(6, '0'));
+  g.fillStyle = grad; g.fillRect(0, 0, 4, 256);
+  if (bgTex) bgTex.dispose();
+  bgTex = new THREE.CanvasTexture(c); bgTex.colorSpace = THREE.SRGBColorSpace;
+  scene.background = bgTex;
+  ground.material.color.setHex(name === 'day' ? 0x6b5f52 : 0x1a1612);
+  document.querySelectorAll('[data-light]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.light === name)));
+}
+
+// Camera framings (metres, glTF space: Y up, Ellis faces +Z).
+const FOCUS = {
+  full:  { target: [0, 0.86, 0], dist: 4.9, elev: 0.06 },
+  head:  { target: [0, 1.66, 0], dist: 1.05, elev: 0.02 },
+  hands: { target: [0, 0.95, 0.12], dist: 1.3, elev: 0.04 },
+  belt:  { target: [0, 0.9, 0.08], dist: 1.4, elev: 0.05 },
+  boots: { target: [0, 0.2, 0.04], dist: 1.35, elev: 0.18 },
+};
+let tween = null;
+function focus(name, instant = false) {
+  const F = FOCUS[name];
+  const target = new THREE.Vector3(...F.target);
+  const az = Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z);
+  const dir = new THREE.Vector3(Math.sin(az), F.elev * 3, Math.cos(az)).normalize();
+  const pos = target.clone().addScaledVector(dir, F.dist);
+  document.querySelectorAll('[data-focus]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.focus === name)));
+  if (instant || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    controls.target.copy(target); camera.position.copy(pos); controls.update(); return;
+  }
+  tween = { t: 0, from: [controls.target.clone(), camera.position.clone()], to: [target, pos] };
+}
+
+function resize() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  composer.setSize(r.width, r.height);
+  camera.aspect = r.width / Math.max(r.height, 1);
+  camera.updateProjectionMatrix();
+}
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.55, 0.35, 0.92);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+let figure = null;
+new GLTFLoader().load('ellis.json', gltf => {
+  figure = gltf.scene;
+  let tris = 0;
+  figure.traverse(o => {
+    if (!o.isMesh) return;
+    o.castShadow = true; o.receiveShadow = true;
+    tris += o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3;
+    [].concat(o.material).forEach(m => {
+      if (m.emissiveMap || (m.emissive && m.emissive.getHex() !== 0)) m.emissiveIntensity = Math.max(m.emissiveIntensity, 3);
+      if (m.map) m.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    });
+  });
+  scene.add(figure);
+  const lantern = figure.getObjectByName('LanternAnchor');
+  lanternLight.position.copy(lantern ? lantern.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(-0.2, 0.84, 0.12));
+  document.getElementById('tris').textContent = Math.round(tris).toLocaleString('en-US');
+  document.getElementById('loading').hidden = true;
+  setLight(document.querySelector('[data-light][aria-pressed="true"]').dataset.light);
+}, ev => {
+  if (ev.total) {
+    const p = Math.round(ev.loaded / ev.total * 100);
+    document.getElementById('pct').textContent = p + '%';
+    document.getElementById('bar').style.width = p + '%';
+  }
+}, err => {
+  document.getElementById('loading').firstElementChild.textContent = 'The model file did not load. Reload the page to try again.';
+  console.error(err);
+});
+
+document.getElementById('spin').addEventListener('click', e => {
+  controls.autoRotate = !controls.autoRotate;
+  e.currentTarget.setAttribute('aria-pressed', String(controls.autoRotate));
+});
+document.getElementById('reset').addEventListener('click', () => {
+  camera.position.set(0, 0.86 + 4.9 * 0.18, 4.9); controls.target.set(0, 0.86, 0); focus('full');
+});
+document.querySelectorAll('[data-focus]').forEach(b => b.addEventListener('click', () => focus(b.dataset.focus)));
+document.querySelectorAll('[data-light]').forEach(b => b.addEventListener('click', () => setLight(b.dataset.light)));
+
+camera.position.set(0, 0.86 + 4.9 * 0.18, 4.9);
+controls.target.set(0, 0.86, 0);
+focus('full', true);
+setLight('dusk');
+resize();
+new ResizeObserver(resize).observe(canvas.parentElement);
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (tween) {
+    tween.t = Math.min(1, tween.t + dt / 0.7);
+    const k = tween.t < 0.5 ? 2 * tween.t * tween.t : 1 - Math.pow(-2 * tween.t + 2, 2) / 2;
+    controls.target.lerpVectors(tween.from[0], tween.to[0], k);
+    camera.position.lerpVectors(tween.from[1], tween.to[1], k);
+    if (tween.t >= 1) tween = null;
+  }
+  controls.update();
+  composer.render();
+});
+</script>
