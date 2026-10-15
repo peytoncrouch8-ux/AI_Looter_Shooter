@@ -1,6 +1,9 @@
 #include "Player/Animation/BodyFigureComponent.h"
 #include "AI_Looter_Shooter.h"
 #include "Player/Animation/BodyRetargetAnimInstance.h"
+#include "Inventory/WeaponManagerComponent.h"
+#include "Weapons/WeaponBase.h"
+#include "Weapons/WeaponDefinition.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/SkeletalMesh.h"
 #include "Misc/PackageName.h"
@@ -25,6 +28,8 @@ namespace
 		return Finder.Object;
 	}
 }
+
+const FName UBodyFigureComponent::HolsterGunSlot(TEXT("EllisHolsterGun"));
 
 USkeletalMesh* UBodyFigureComponent::FindFigureMesh()
 {
@@ -124,7 +129,39 @@ void UBodyFigureComponent::Wear()
 void UBodyFigureComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	FollowBody();
+	FollowHolster();
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+}
+
+void UBodyFigureComponent::FollowHolster()
+{
+	if (!bLookedForWeapons)
+	{
+		bLookedForWeapons = true;
+		Weapons = GetOwner() ? GetOwner()->FindComponentByClass<UWeaponManagerComponent>() : nullptr;
+	}
+	const AWeaponBase* InHand = Weapons.IsValid() ? Weapons->GetActiveWeapon() : nullptr;
+	const UWeaponDefinition* Definition = InHand ? InHand->GetInstance().Definition.Get() : nullptr;
+	const bool bShow = !(Definition && Definition->Kind == EWeaponKind::Revolver);
+	if (bShow != bHolsterGunShown)
+	{
+		ShowHolsterGun(bShow);
+	}
+}
+
+void UBodyFigureComponent::ShowHolsterGun(bool bShow)
+{
+	bHolsterGunShown = bShow;
+	const int32 Slot = GetMaterialIndex(HolsterGunSlot);
+	if (Slot == INDEX_NONE || !GetSkinnedAsset())
+	{
+		return;
+	}
+	// By slot on every LOD (no section index: the slot's sections, whichever LOD draws).
+	for (int32 LOD = 0; LOD < GetNumLODs(); ++LOD)
+	{
+		ShowMaterialSection(Slot, INDEX_NONE, bShow, LOD);
+	}
 }
 
 void UBodyFigureComponent::FollowBody()

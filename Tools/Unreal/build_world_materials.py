@@ -2083,7 +2083,134 @@ def build_bullet_mark():
     return mat
 
 
+# --- Characters (the player's Ellis, 2026-10-15: the user found him "plastic" on M_World) ---
+# One baked set feeds several slots: each part kind's slot names its master (Art/Models/Characters/Ellis.py's
+# GAME_MATERIALS). The masters share M_World's maps; what they add:
+#   M_Character       leather, metal, hair, wood: the maps' roughness scaled and offset (RoughnessScale, RoughnessOffset),
+#                     broken up by a fine noise (RoughnessBreakup: no smooth plastic sheen across a whole part),
+#                     NormalStrength, Specular, DiffuseAO (stronger than the world's: the bake's folds read).
+#   M_CharacterCloth  the engine's Cloth shading: a fuzz of fibres lit at grazing angles (its fuzz colour: the base
+#                     colour lightened toward FuzzTint by FuzzLift, times FuzzStrength, 0 none), the same roughness
+#                     controls. (The Cloth amount, Custom Data 0, can't be wired from Python: unwired it's 1, all cloth.)
+#   M_CharacterSkin   Subsurface Profile shading (SP_Skin, the engine's skin defaults): light scattering under the skin
+#                     (SubsurfaceAmount), skin's 2.8% reflectance (Specular 0.35).
+
+CHARACTER_BREAKUP = """// A fine, two-scale noise in UV space: the roughness wanders a little, as real wear and handling leave it.
+float N = Texture2DSample(Noise, NoiseSampler, UV * 7.0).r * 0.6 + Texture2DSample(Noise, NoiseSampler, UV * 23.0 + 0.41).r * 0.4;
+return saturate(Rough * Scale + Offset + (N - 0.5) * Breakup);"""
+
+CHARACTER_NORMAL = """// The map's normal toward flat by Strength (0 flat, 1 as baked, above 1 deeper).
+float3 N = float3(Map.xy * Strength, Map.z);
+return normalize(N);"""
+
+CLOTH_FUZZ = """// Fibres catch the light paler and less saturated than the dyed cloth under them.
+float Luma = dot(Color, float3(0.299, 0.587, 0.114));
+float3 Pale = lerp(Color, float3(Luma, Luma, Luma), 0.35);
+return saturate(lerp(Pale, Tint, Lift) * Strength);"""
+
+
+def macro_noise():
+    """The shared macro noise (T_MacroNoise_M), imported once."""
+    if not unreal.EditorAssetLibrary.does_asset_exist(MACRO_NOISE):
+        task = unreal.AssetImportTask()
+        task.set_editor_property('filename', MACRO_NOISE_FILE)
+        task.set_editor_property('destination_path', '/Game/Art/Textures/MacroNoise')
+        task.set_editor_property('automated', True)
+        task.set_editor_property('save', True)
+        unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+    return MACRO_NOISE
+
+
+def character_surface(g, orm_default, uv_x=-1600):
+    """The maps and the shared outputs of the character masters: base colour (tinted, DiffuseAO), normal (strength),
+    roughness (scale, offset, breakup), metallic, occlusion. Returns (color, bc)."""
+    bc, nrm, orm, vc, ao = textured_inputs(g, orm_default)
+    tint = g.vector('Tint', (1.0, 1.0, 1.0, 1.0), -1100, -500)
+    tinted = g.mul(bc, 'RGB', tint, '', -800, -400)
+    lerp = g.node(unreal.MaterialExpressionLinearInterpolate, -800, -150, const_a=1.0)
+    g.link(ao, '', lerp, 'B')
+    g.link(g.scalar('DiffuseAO', 0.7, -1100, -150), '', lerp, 'Alpha')
+    color = g.mul(tinted, '', lerp, '', -500, -300)
+    noise = g.node(unreal.MaterialExpressionTextureObject, -1100, 900, texture=unreal.load_asset(macro_noise()))
+    coords = g.node(unreal.MaterialExpressionTextureCoordinate, -1100, 1000, coordinate_index=0)
+    rough = g.custom(CHARACTER_BREAKUP, [
+        ('Rough', orm, 'G'), ('Noise', noise, ''), ('UV', coords, ''),
+        ('Scale', g.scalar('RoughnessScale', 1.0, -800, 700), ''),
+        ('Offset', g.scalar('RoughnessOffset', 0.0, -800, 800), ''),
+        ('Breakup', g.scalar('RoughnessBreakup', 0.12, -800, 900), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -400, 600, 'Roughness')
+    normal = g.custom(CHARACTER_NORMAL, [('Map', nrm, 'RGB'), ('Strength', g.scalar('NormalStrength', 1.0, -800, 100), '')],
+                      unreal.CustomMaterialOutputType.CMOT_FLOAT3, -400, 50, 'Normal strength')
+    g.out(normal, '', unreal.MaterialProperty.MP_NORMAL)
+    g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
+    g.out(orm, 'B', unreal.MaterialProperty.MP_METALLIC)
+    g.out(ao, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
+    return color, bc
+
+
+CHARACTER_USAGES = [unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH]
+
+
+def build_character(orm_default):
+    mat = material('M_Character')
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
+    g = Graph(mat)
+    color, _ = character_surface(g, orm_default)
+    g.out(color, '', unreal.MaterialProperty.MP_BASE_COLOR)
+    g.out(g.scalar('Specular', 0.5, -400, -150), '', unreal.MaterialProperty.MP_SPECULAR)
+    finish(mat, CHARACTER_USAGES)
+    return mat
+
+
+def build_character_cloth(orm_default):
+    mat = material('M_CharacterCloth')
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_CLOTH)
+    g = Graph(mat)
+    color, bc = character_surface(g, orm_default)
+    g.out(color, '', unreal.MaterialProperty.MP_BASE_COLOR)
+    g.out(g.scalar('Specular', 0.35, -400, -150), '', unreal.MaterialProperty.MP_SPECULAR)
+    fuzz = g.custom(CLOTH_FUZZ, [
+        ('Color', color, ''),
+        ('Tint', g.vector('FuzzTint', (0.62, 0.58, 0.52, 1.0), -800, -800), ''),
+        ('Lift', g.scalar('FuzzLift', 0.25, -800, -700), ''),
+        ('Strength', g.scalar('FuzzStrength', 1.2, -800, -600), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -400, -700, 'Fuzz colour')
+    # The Cloth shading model reads its fuzz colour from Subsurface Color.
+    g.out(fuzz, '', unreal.MaterialProperty.MP_SUBSURFACE_COLOR)
+    finish(mat, CHARACTER_USAGES)
+    return mat
+
+
+SKIN_PROFILE = '/Game/Art/Materials/Masters/SP_Skin'
+
+
+def skin_profile():
+    """The engine's skin scattering (its profile's defaults are tuned for skin), made once."""
+    if unreal.EditorAssetLibrary.does_asset_exist(SKIN_PROFILE):
+        return unreal.load_asset(SKIN_PROFILE)
+    profile = unreal.AssetToolsHelpers.get_asset_tools().create_asset('SP_Skin', FOLDER, unreal.SubsurfaceProfile,
+                                                                      unreal.SubsurfaceProfileFactory())
+    unreal.EditorAssetLibrary.save_loaded_asset(profile)
+    return profile
+
+
+def build_character_skin(orm_default):
+    mat = material('M_CharacterSkin')
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_SUBSURFACE_PROFILE)
+    mat.set_editor_property('subsurface_profile', skin_profile())
+    g = Graph(mat)
+    color, _ = character_surface(g, orm_default)
+    g.out(color, '', unreal.MaterialProperty.MP_BASE_COLOR)
+    g.out(g.scalar('Specular', 0.35, -400, -150), '', unreal.MaterialProperty.MP_SPECULAR)
+    # Subsurface Profile reads how much light scatters under the skin from Opacity.
+    g.out(g.scalar('SubsurfaceAmount', 1.0, -400, -500), '', unreal.MaterialProperty.MP_OPACITY)
+    finish(mat, CHARACTER_USAGES)
+    return mat
+
+
 BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'M_Gun': lambda: build_gun(DEFAULT_ORM),
+            'M_Character': lambda: build_character(DEFAULT_ORM), 'M_CharacterCloth': lambda: build_character_cloth(DEFAULT_ORM),
+            'M_CharacterSkin': lambda: build_character_skin(DEFAULT_ORM),
             'M_WorldFoliage': lambda: build_foliage(DEFAULT_ORM),
             'M_Terrain': build_terrain, 'M_Water': build_water, 'M_SkyClouds': build_sky_clouds,
             'M_Waterfall': build_waterfall, 'M_WaterMist': build_water_mist, 'M_Smoke': build_smoke,

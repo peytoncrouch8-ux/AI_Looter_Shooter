@@ -5,6 +5,7 @@
 #include "BodyFigureComponent.generated.h"
 
 class UIKRetargeter;
+class UWeaponManagerComponent;
 
 /**
  * The player's own body, Ellis (SK_Ellis, the user's call of 2026-10-15), worn over the mannequin, which stays the
@@ -46,10 +47,26 @@ private:
 	void Wear();
 	/** Drawn as the mannequin would be: hidden to its owner in first person (a world-space stand-in for the shadow). */
 	void FollowBody();
+	/** The holstered revolver shown unless a revolver is the gun in hand (the user: "empty only while drawn"). */
+	void FollowHolster();
+	/** Shows or hides the HolsterGunSlot on every LOD. */
+	void ShowHolsterGun(bool bShow);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UIKRetargeter> Retargeter;
 
 	/** The mannequin this hid, shown again if Ellis goes. */
 	TWeakObjectPtr<USkeletalMeshComponent> HiddenBody;
+
+	/** The owner's guns (the player's), whose gun in hand empties the holster; looked up once. */
+	TWeakObjectPtr<const UWeaponManagerComponent> Weapons;
+	bool bLookedForWeapons = false;
+	/** The holstered revolver as last shown (it starts shown). */
+	bool bHolsterGunShown = true;
+
+public:
+	/** SK_Ellis's slot of the holstered revolver (Art/Models/Characters/Ellis.py's GAME_MATERIALS). */
+	static const FName HolsterGunSlot;
+
+	bool IsHolsterGunShown() const { return bHolsterGunShown; }
 };

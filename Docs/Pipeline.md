@@ -603,8 +603,18 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
 - Checking in PIE: `play.py view [n]` cycles first/third/front views (F5); `play.py inventory [close]`; toggling the
   mannequin back on (its `set_hidden_in_game`) compares poses. Keys from `input.ps1` (Tab, number keys) didn't reach the
   game on 2026-10-15, so both have play.py steps.
-- Not done: his holster keeps its revolver while the revolver is in hand (one mesh: hiding it needs its own material slot
-  or section); the first-person arms (SK_FP_Arms) are lighter than his duster and gloves (the user's eye decides).
+- Materials (the user: "plastic, stiff and unlike a real fps character"; round 1 approved 2026-10-15): Ellis.py's
+  GAME_MATERIALS gives each kind of surface its own slot on a master made for it, several slots sharing one baked set:
+  EllisSkin on M_CharacterSkin (Subsurface Profile, SP_Skin: the engine's skin defaults), EllisDuster and EllisGarbCloth
+  on M_CharacterCloth (the engine's Cloth shading: a fibre sheen at grazing angles), EllisGarbHair, EllisGear and
+  EllisHolsterGun on M_Character. The masters (build_world_materials.py's characters) share M_World's maps plus
+  RoughnessScale/Offset/Breakup (a fine noise: no smooth sheen across a part), NormalStrength, DiffuseAO 0.7. Cloth's sheen
+  is its fuzz colour times FuzzStrength (the Cloth amount pin, Custom Data 0, can't be wired from Python; unwired it's 1):
+  at 1.2 everything went chalk white; tuned in game to 0.2 (oilskin) and 0.3 (wool, linen, felt). Leather and metal stay
+  on default lit.
+- The holster: the holstered revolver has its own looks (GunIron, GunWalnut) and slot (EllisHolsterGun); while a revolver
+  is the gun in hand, UBodyFigureComponent hides that slot on every LOD (ShowMaterialSection), the user's "empty only while
+  drawn".
 
 ## Island styles (Style Lab looks on the tutorial island, 2026-10-08)
 

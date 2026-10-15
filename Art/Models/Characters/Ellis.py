@@ -158,6 +158,10 @@ LOOKS = {
     'Lead': lambda n: lk.metal(n, (0.38, 0.37, 0.36), (0.58, 0.56, 0.54), rough=(0.4, 0.6), tarnish=(0.2, 0.2, 0.2)),
     'Iron': lambda n: lk.metal(n, (0.05, 0.055, 0.065), (0.17, 0.18, 0.20), rough=(0.3, 0.55), tarnish=(0.05, 0.04, 0.03)),
     'Walnut': lambda n: lk.walnut(n),
+    # The holstered revolver's own looks (the same iron and walnut): its own game slot, which the game hides while
+    # the revolver is in hand (the user, 2026-10-15: "empty only while drawn").
+    'GunIron': lambda n: lk.metal(n, (0.05, 0.055, 0.065), (0.17, 0.18, 0.20), rough=(0.3, 0.55), tarnish=(0.05, 0.04, 0.03)),
+    'GunWalnut': lambda n: lk.walnut(n),
     'LanternGlow': lambda n: lk.glow(n, (1.0, 0.62, 0.25), 8.0),
 }
 
@@ -166,9 +170,22 @@ TEXTURE_SETS = {
     'EllisSkin': ('Skin', 'Scalp'),
     'EllisDuster': ('Duster',),
     'EllisGarb': ('Felt', 'HatBand', 'Hair', 'Bandana', 'Vest', 'Shirt', 'Trousers'),
-    'EllisGear': ('Boots', 'Soles', 'Gloves', 'Belt', 'Brass', 'Lead', 'Iron', 'Walnut'),
+    'EllisGear': ('Boots', 'Soles', 'Gloves', 'Belt', 'Brass', 'Lead', 'Iron', 'Walnut', 'GunIron', 'GunWalnut'),
 }
 GLOWS = {'EyeGlow': (0x5AD8FF, 4.0), 'LanternGlow': (0xFFA040, 3.0)}
+
+# The game's material slots: each kind of surface on the master made for it (Tools/Unreal/build_world_materials.py's
+# characters), several slots sharing one baked set (the user found him "plastic" on M_World alone, 2026-10-15). Slot:
+# (master, the looks on it, the master's parameters). Cloth's sheen is FuzzStrength (tuned in game: the oilskin waxed
+# and dull, the garb's wool, linen and felt softer).
+GAME_MATERIALS = {
+    'EllisSkin': ('CharacterSkin', ('Skin', 'Scalp'), {}),
+    'EllisDuster': ('CharacterCloth', ('Duster',), {'FuzzStrength': 0.2, 'FuzzLift': 0.08}),
+    'EllisGarbCloth': ('CharacterCloth', ('Felt', 'Bandana', 'Vest', 'Shirt', 'Trousers'), {'FuzzStrength': 0.3, 'FuzzLift': 0.12}),
+    'EllisGarbHair': ('Character', ('Hair', 'HatBand'), {'Specular': 0.3}),
+    'EllisGear': ('Character', ('Boots', 'Soles', 'Gloves', 'Belt', 'Brass', 'Lead', 'Iron', 'Walnut'), {}),
+    'EllisHolsterGun': ('Character', ('GunIron', 'GunWalnut'), {}),
+}
 
 
 # --------------------------------------------------------------------------------------------------------- the skin
@@ -946,21 +963,21 @@ def build_holster(fig, under_obs):
     # the revolver: the cylinder half out of the throat, the frame and hammer behind it, the grip curving forward
     cyl_c = mouth - a * 0.012 + g * 0.004
     parts.append(gm.mesh('RevolverCylinder', gm.tube(np.array([cyl_c - a * 0.02, cyl_c + a * 0.02]),
-                                                     np.array([0.0185, 0.0185]), n=18, up=n, cap0=True, cap1=True), slot('Iron')))
+                                                     np.array([0.0185, 0.0185]), n=18, up=n, cap0=True, cap1=True), slot('GunIron')))
     back = mouth - a * 0.04 + g * 0.002
     parts.append(gm.mesh('RevolverFrame', gm.tube(np.array([back - a * 0.008, back + a * 0.026]),
                                                   np.array([[0.016, 0.0105], [0.019, 0.0105]]), n=12, up=n, cap0=True, cap1=True),
-                         slot('Iron')))
+                         slot('GunIron')))
     hammer = np.array([back + g * 0.012, back + g * 0.021 - a * 0.012, back + g * 0.022 - a * 0.02])
     parts.append(gm.mesh('RevolverHammer', gm.tube(hammer, np.array([[0.0035, 0.0045], [0.003, 0.004], [0.0035, 0.004]]),
-                                                   n=8, up=n, cap0=True, cap1=True), slot('Iron')))
+                                                   n=8, up=n, cap0=True, cap1=True), slot('GunIron')))
     grip_dir = gm.unit(-g * 0.80 - a * 0.60)
     us = np.linspace(0, 1, 11)
     gp = np.array([back - g * 0.006 + grip_dir * 0.105 * u - g * 0.018 * u * u for u in us])
     # a plow-handle grip: slim at the frame, swelling to the butt, the butt rounded off
     grad = np.array([[0.0135 + 0.007 * u ** 1.5, 0.0118 + 0.0015 * u] for u in us])
     grad[-1] = grad[-2] * 0.55
-    parts.append(gm.mesh('RevolverGrip', gm.tube(gp, grad, n=14, up=n, cap1=True), slot('Walnut')))
+    parts.append(gm.mesh('RevolverGrip', gm.tube(gp, grad, n=14, up=n, cap1=True), slot('GunWalnut')))
     fig.holster = (mouth, a, g, n)
     return parts
 
@@ -1360,10 +1377,13 @@ def hit_zones(fig, arm):
 
 
 def game_materials(skin):
-    """The looks swapped for the game's: one textured material per set (MI_<Set> on M_World), Glow for the glows."""
+    """The looks swapped for the game's: a textured material per GAME_MATERIALS slot (MI_<Slot> on its master, the maps
+    of the set its looks bake into), Glow for the glows."""
     swap = {}
-    for set_name, keys in TEXTURE_SETS.items():
-        mat = lt.material(set_name)
+    for slot_name, (master, keys, params) in GAME_MATERIALS.items():
+        sets = {s for s, ks in TEXTURE_SETS.items() if set(keys) & set(ks)}
+        assert len(sets) == 1, f'{slot_name}: its looks must bake into one set, not {sets}'
+        mat = lt.material(sets.pop(), name=slot_name, master=master, **params)
         for k in keys:
             swap[f'Ellis_{k}'] = mat
     for k, (hex_value, strength) in GLOWS.items():
