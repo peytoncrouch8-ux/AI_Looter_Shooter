@@ -439,6 +439,46 @@ Rules that saved time:
 - Tangent warnings logged by a reimport's first build come from Unreal's default fallback, not the model
   (SM_RR_RangerCabin, 2026-10-13); `tangentcheck --log` labels them.
 
+## Character portraits (painted busts that pick a look before the model, 2026-10-15)
+
+Why: the hero models in `Art/Backlog/Characters/` don't satisfy the user. The new order: a painted bust portrait per option
+(the user's reference: richly framed, painterly character portraits), the user picks, then the 3D model is built from it.
+First: Ellis, options A The Revenant, B Came Home at the Last, C Dressed for the Grave (`Art/Portraits/EllisBlender.py`
+docstring and `OPTIONS`).
+- Tools the user OK'd (2026-10-15): Blender's Python module `bpy` 5.2.2 from PyPI in the cloud box (`python3 -m venv`, `pip
+  install bpy==5.2.2 numpy`; download.blender.org is blocked by the proxy, PyPI isn't), and MakeHuman's assets: base mesh,
+  targets, default rig and weights, CC0 1.0 (`Art/ThirdParty/MakeHuman/LICENSE.ASSETS.md`), fetched by
+  `Art/ThirdParty/MakeHuman/fetch.py` (run it first in a fresh clone: `base.obj` is ignored, an `.obj` would go to Git LFS and
+  the cloud box can't push LFS objects). Never MakeHuman's code (AGPL). Node + Playwright (Chromium) paint and frame.
+- Run: `python Art/Portraits/EllisBlender.py <A|B|C> [--size 1024] [--samples 80] [--out <dir>]` writes `Ellis<X>_color.png`
+  (Cycles, transparent) and `_aux.png` (R glow mask, B material id / 16); `node Art/Portraits/render.js Ellis<X> --passes <dir>`
+  paints and frames it into `Ellis<X>.png`; `node Art/Portraits/sheet.js <dir>` lays the three on `Sheet.png` (labels in Chakra
+  Petch: `git lfs pull --include="Content/UI/Fonts/ChakraPetch-*.ttf"` first in a fresh clone). `<dir>` defaults to
+  `Saved/ArtPreviews/Portraits`. 1024 px at 80 samples: ~2.5 min a bust on 4 CPU cores; 600 px at 32 samples ~22 s for looks.
+- `Art/Portraits/mh.py` (numpy only): the base mesh shaped by macro sliders (gender 0.5 = neither; Ellis is "they") and face
+  modifiers (`FACE` in EllisBlender.py), posed by linear blend skinning with MakeHuman's weights (arms down, head yaw and pitch;
+  `glob[bone]` is each bone's posed 4x4). MakeHuman space: decimetres, +y up, +z out of the face; `to_blender()` converts.
+- Eyes: the eye helpers carry no weights, so they're taken at rest and moved by `glob["head"]`. The helper runs deep into the
+  skull: the ball (radius 1.18 cm) is sized from the helper's front, `EYE_BACK` behind it. Narrowed eyes: `close_lids` slides
+  the lid skin over the ball in the head's frame (the lid bones pulled the lids into the socket instead).
+- Cloth is draped, not simulated (`drape()`): columns round a vertical axis, each ring offset outside the widest point at or
+  above it, so a bandana tents off the nose and a cape hangs off the shoulders. Drape over the clothes underneath too (over the
+  body alone the waistcoat pokes through); the down bandana only over points within 9.8 cm of the neck. Lapels, straps and
+  ties are strips projected onto the clothes from the front (`strip_on`, `bvh_of` takes several objects).
+- Hair and brows are Blender hair curves (`curves_object`): strands drape down the head (`grow`, `grow_combed`) and are pulled
+  together toward the tips in clumps, which reads painterly.
+- Light: per option in `OPTIONS["lights"]`; the key is an area light close to the head, so its falloff leaves the face lit and
+  the shoulders in dusk. Area-light spread keeps the power in a narrower cone (it blew the image out): don't use it.
+- `paint.js` turns the render into a painting (Hertzmann's curved brush strokes in four sizes along the picture's edges, the
+  face and details given part of the crisp render back, bloom from the glow mask, embers, grain), clipped by `Window.svg`
+  under `Frame.svg`. Per-option backgrounds: the `# PAINT <X> {...}` lines in EllisBlender.py.
+- The frame: `node Art/Portraits/frame/gen.js` (with `lib.js`) writes `Frame.svg` and `Window.svg`, deterministic. Window: the
+  square 96..928 with radius-28 notched corners; ornaments reach into it up to 50 px at top and bottom centre, 30 elsewhere.
+  Motifs: Saint Ada's sun-ring, crow feathers, bandolier segments, Pa's lantern, Sexton's ledger, the headboard "ELLIS RANSOM"
+  over crossed revolvers, barbed wire.
+- What didn't work: busts sculpted as signed-distance shapes and marched in WebGL (the first try; a clay, CG look the user
+  passed on for Blender).
+
 ## Island styles (Style Lab looks on the tutorial island, 2026-10-08)
 
 - The user's call (2026-10-08): "I don't want to change the style." The look stays as it is; no style work unless the user asks.

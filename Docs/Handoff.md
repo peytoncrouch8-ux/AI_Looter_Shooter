@@ -3,7 +3,20 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed).
 
-## Now (end of session "Polish: make it alive", 2026-10-14)
+## Now (session "Ellis portraits", 2026-10-15, cloud; branch `claude/ellis-portraits`)
+
+**The request:** the heroes' models "suck"; first paint portraits like the user's reference (richly framed painted busts),
+pick one, then build the 3D model from it. Ellis only for now, three portraits.
+**Built:** `Art/Portraits/` (Pipeline, "Character portraits"): Ellis A The Revenant, B Came Home at the Last, C Dressed for
+the Grave, rendered in Blender from MakeHuman's CC0 base, painted and framed; the frame generator; `sheet.js`.
+**The user's decisions (keep):** Blender's `bpy` may be installed in the cloud box; MakeHuman's CC0 assets may be used
+(`Art/ThirdParty/MakeHuman`); the code-only SDF busts were passed over for Blender.
+**Waiting on the user:** which Ellis (A, B, C or a mix) becomes the model.
+**Next:** build Ellis's in-game model from the pick: the MakeHuman base shaped as in `EllisBlender.py`'s `FACE`, the
+clothes as real meshes (cloth sim or sculpt where the drape is too smooth), retopology, rig on the UE mannequin skeleton
+(`Tools/Blender/looter_heroes.py`), materials; then the other four heroes' portraits the same way.
+
+## Before that (end of session "Polish: make it alive", 2026-10-14)
 
 All committed and pushed (HEAD 8a005cb). Tests 687/687 at 57264b8; after the last hands fix (d0d9d2e) the Player and
 Weapons groups pass. This session's full log: `Docs/Archive/Handoff_history.md` (last section). How each piece works:
