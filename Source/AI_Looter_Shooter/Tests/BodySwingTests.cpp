@@ -161,35 +161,41 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBodySwingBoneTest, "Looter.Player.BodySwing.Bo
 bool FBodySwingBoneTest::RunTest(const FString& Parameters)
 {
 	// A shin swung back across the cloth between two points (a stride's back leg under the coat's back): a level
-	// segment through the middle of the second bone, clear of both its ends' points.
+	// segment through the second bone, clear of both its ends' points; 2 cm inside the cloth, then right through it.
+	// The coat's outside is +X: the cloth goes out round the shin's back, not through it or round its side.
 	const FBodySwingSettings Skirt = FBodySwing::SettingsFor(TEXT("skirt_bl"));
 	const FVector Anchor(0.0, 0.0, 100.0);
-	FBodySwingCapsule Shin;
-	Shin.A = Anchor + FVector(-2.0, -30.0, -SwingTestLength * 1.5);
-	Shin.B = Anchor + FVector(-2.0, 30.0, -SwingTestLength * 1.5);
-	Shin.Radius = 6.f;
-	Shin.BoneRadius = 6.f;
-	TArray<FBodySwingCapsule> Capsules;
-	for (int32 Index = 0; Index < SwingTestCount; ++Index)
+	for (const double Inside : { 2.0, 0.0 })
 	{
-		Capsules.Add(Shin);
+		FBodySwingCapsule Shin;
+		Shin.A = Anchor + FVector(-Inside, -30.0, -SwingTestLength * 1.5);
+		Shin.B = Anchor + FVector(-Inside, 30.0, -SwingTestLength * 1.5);
+		Shin.Radius = 6.f;
+		Shin.BoneRadius = 6.f;
+		TArray<FBodySwingCapsule> Capsules;
+		for (int32 Index = 0; Index < SwingTestCount; ++Index)
+		{
+			Capsules.Add(Shin);
+		}
+		FBodySwingPoints Sim;
+		Sim.Outward = FVector(1.0, 0.0, 0.0);
+		for (int32 Frame = 0; Frame < 120; ++Frame)
+		{
+			Sim.Step(Anchor, SwingTestTargets(Anchor), SwingTestLengths(), Capsules, Skirt, 1.f / 60.f);
+		}
+		FVector Head = Anchor;
+		for (int32 Index = 0; Index < SwingTestCount; ++Index)
+		{
+			FVector OnBone;
+			FVector OnLimb;
+			FMath::SegmentDistToSegmentSafe(Head, Sim.Points[Index], Shin.A, Shin.B, OnBone, OnLimb);
+			const float Clear = static_cast<float>(FVector::Dist(OnBone, OnLimb));
+			TestTrue(FString::Printf(TEXT("Shin %.0f cm in: bone %d stays out of it (%.1f cm)"), Inside, Index, Clear), Clear > Shin.BoneRadius - 1.5f);
+			Head = Sim.Points[Index];
+		}
+		TestTrue(FString::Printf(TEXT("Shin %.0f cm in: the cloth goes out round its back (x %.1f, y %.1f)"), Inside, Sim.Points[1].X, Sim.Points[1].Y),
+			Sim.Points[1].X > 0.0 && FMath::Abs(Sim.Points[1].Y) < 1.0);
 	}
-	FBodySwingPoints Sim;
-	for (int32 Frame = 0; Frame < 120; ++Frame)
-	{
-		Sim.Step(Anchor, SwingTestTargets(Anchor), SwingTestLengths(), Capsules, Skirt, 1.f / 60.f);
-	}
-	FVector Head = Anchor;
-	for (int32 Index = 0; Index < SwingTestCount; ++Index)
-	{
-		FVector OnBone;
-		FVector OnLimb;
-		FMath::SegmentDistToSegmentSafe(Head, Sim.Points[Index], Shin.A, Shin.B, OnBone, OnLimb);
-		const float Clear = static_cast<float>(FVector::Dist(OnBone, OnLimb));
-		TestTrue(FString::Printf(TEXT("Bone %d stays out of the shin (%.1f cm)"), Index, Clear), Clear > Shin.BoneRadius - 1.5f);
-		Head = Sim.Points[Index];
-	}
-	TestTrue(TEXT("The cloth goes round the shin's back, not through it"), Sim.Points[1].X > 0.0);
 	return true;
 }
 
@@ -201,20 +207,38 @@ bool FBodySwingFloorTest::RunTest(const FString& Parameters)
 	// A crouch: the chain's animated pose reaches 15 cm under the ground; it lies on it instead, its lengths kept.
 	const FBodySwingSettings Skirt = FBodySwing::SettingsFor(TEXT("skirt_bl"));
 	const FVector Anchor(0.0, 0.0, 100.0);
-	const double FloorZ = Anchor.Z - SwingTestLength * SwingTestCount + 15.0;
-	FBodySwingPoints Sim;
-	for (int32 Frame = 0; Frame < 120; ++Frame)
+	FBodySwingFloor Floor;
+	Floor.Z = Anchor.Z - SwingTestLength * SwingTestCount + 15.0;
+	auto Run = [&](FBodySwingPoints& Sim)
 	{
-		Sim.Step(Anchor, SwingTestTargets(Anchor), SwingTestLengths(), {}, Skirt, 1.f / 60.f, FloorZ);
-	}
+		for (int32 Frame = 0; Frame < 120; ++Frame)
+		{
+			Sim.Step(Anchor, SwingTestTargets(Anchor), SwingTestLengths(), {}, Skirt, 1.f / 60.f, Floor);
+		}
+	};
+	FBodySwingPoints Rigid;
+	Run(Rigid);
 	FVector Head = Anchor;
 	for (int32 Index = 0; Index < SwingTestCount; ++Index)
 	{
-		TestTrue(FString::Printf(TEXT("Point %d over the floor (%.2f cm)"), Index, Sim.Shown[Index].Z - FloorZ), Sim.Shown[Index].Z >= FloorZ - 0.01);
-		TestNearlyEqual(FString::Printf(TEXT("Point %d keeps its length"), Index), static_cast<float>(FVector::Dist(Sim.Shown[Index], Head)),
+		TestTrue(FString::Printf(TEXT("Point %d over the floor (%.2f cm)"), Index, Rigid.Shown[Index].Z - Floor.Z), Rigid.Shown[Index].Z >= Floor.Z - 0.01);
+		TestNearlyEqual(FString::Printf(TEXT("Point %d keeps its length"), Index), static_cast<float>(FVector::Dist(Rigid.Shown[Index], Head)),
 			SwingTestLength, 0.05f);
-		Head = Sim.Shown[Index];
+		Head = Rigid.Shown[Index];
 	}
+
+	// Gathered: the last point lies on the ground no more than a third of its length out from its head, so its bone is
+	// shorter (the hem bunches up instead of jutting out); the others keep theirs.
+	Floor.LastReach = 1.f / 3.f;
+	FBodySwingPoints Gathered;
+	Run(Gathered);
+	const FVector LastHead = Gathered.Shown[SwingTestCount - 2];
+	const FVector Last = Gathered.Shown.Last();
+	const float Out = static_cast<float>(FVector::Dist2D(Last, LastHead));
+	TestTrue(FString::Printf(TEXT("The last point on the floor (%.2f cm over)"), Last.Z - Floor.Z), Last.Z >= Floor.Z - 0.01 && Last.Z < Floor.Z + 0.5);
+	TestTrue(FString::Printf(TEXT("...a third of its length out at most (%.1f cm)"), Out), Out <= SwingTestLength / 3.f + 0.05f);
+	TestTrue(TEXT("...so its bone is shorter"), FVector::Dist(Last, LastHead) < SwingTestLength - 1.0);
+	TestNearlyEqual(TEXT("The point before keeps its length"), static_cast<float>(FVector::Dist(LastHead, Gathered.Shown[0])), SwingTestLength, 0.05f);
 	return true;
 }
 
