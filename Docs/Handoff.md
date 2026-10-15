@@ -8,7 +8,9 @@ Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.
 **The request:** the heroes' models "suck"; first paint portraits like the user's reference (richly framed painted busts),
 pick one, then build the 3D model from it. Ellis only for now, three portraits.
 **Built:** `Art/Portraits/` (Pipeline, "Character portraits"): Ellis A The Revenant, B Came Home at the Last, C Dressed for
-the Grave, rendered in Blender from MakeHuman's CC0 base, painted and framed; the frame generator; `sheet.js`.
+the Grave, rendered in Blender from MakeHuman's CC0 base, painted and framed; the frame generator; `sheet.js`. The
+images aren't committed (PNGs go to Git LFS, which the cloud box can't push): remake them with the Pipeline's commands
+(~8 min for all three).
 **The user's decisions (keep):** Blender's `bpy` may be installed in the cloud box; MakeHuman's CC0 assets may be used
 (`Art/ThirdParty/MakeHuman`); the code-only SDF busts were passed over for Blender.
 **Waiting on the user:** which Ellis (A, B, C or a mix) becomes the model.

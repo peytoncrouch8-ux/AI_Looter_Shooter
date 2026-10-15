@@ -24,7 +24,7 @@ const font = f => fs.readFileSync(path.join(__dirname, '../../Content/UI/Fonts',
 		}
 		const load = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
 		const ims = await Promise.all(imgs.map(load));
-		const S = 1024, gap = 56, top = 170, bottom = 190;
+		const S = 1024, gap = 56, top = 170, bottom = 220;
 		const c = document.createElement('canvas');
 		c.width = ims.length * S + (ims.length + 1) * gap; c.height = top + S + bottom;
 		const g = c.getContext('2d');
@@ -45,7 +45,13 @@ const font = f => fs.readFileSync(path.join(__dirname, '../../Content/UI/Fonts',
 			g.fillText(`${k}  ·  ${title}`, x + S / 2, top + S + 72);
 			g.letterSpacing = '1px';
 			g.fillStyle = '#c9ced6'; g.font = '30px ChakraRegular';
-			g.fillText(line, x + S / 2, top + S + 128);
+			// wrap the description to the portrait's width
+			const words = line.split(' '), rows = [''];
+			for (const w of words) {
+				const t = rows[rows.length - 1] ? rows[rows.length - 1] + ' ' + w : w;
+				if (g.measureText(t).width > S - 60) rows.push(w); else rows[rows.length - 1] = t;
+			}
+			rows.forEach((r, k) => g.fillText(r, x + S / 2, top + S + 122 + k * 40));
 		});
 		return c.toDataURL('image/png');
 	}, {
