@@ -1473,6 +1473,15 @@ def main():
     prepare_uvs(parts)
     baked = bake_all(parts, int(arg_value('--size', 2048)))
     thicken(parts)
+    if '--stats' in ARGS:
+        tris = {}
+        for ob in parts:
+            key = ob.name.split('.')[0].rstrip('_lr').rstrip('_')
+            tris[key] = tris.get(key, 0) + sum(len(p.vertices) - 2 for p in ob.data.polygons)
+        for k, n in sorted(tris.items(), key=lambda kv: -kv[1]):
+            log(f'{k:16s} {n:7d}')
+        log(f'{"total":16s} {sum(tris.values()):7d}')
+        return
     arm, skin = rig(fig, parts)
     if '--glb' in ARGS:
         viewer_materials(skin, baked)
