@@ -498,7 +498,7 @@ def build_duster(fig, under_pts, clear_obs=()):
     fine = np.linspace(-math.pi, math.pi, 720, endpoint=False)
     hip = 0.95
     # simulated, the skirt starts fuller than it hangs: the spare cloth is what falls into folds
-    flare_amt = 0.13 if SIM else 0.07
+    flare_amt = 0.10 if SIM else 0.07
     flare = lambda th, v: flare_amt * gm.smoothstep(0.42, 1.0, v) ** 1.3 * (0.55 + 0.45 * np.abs(np.sin(th)))
     X, Y, Z, R = gm.drape(under_pts, fig.centre, FWD, fine, lambda th: top, lambda th: HEM, n_z, 0.016,
                           hb=math.radians(7.0), zb=0.01, smooth=(10, 3), wrap=True, flare=flare)
@@ -525,12 +525,17 @@ def build_duster(fig, under_pts, clear_obs=()):
                                        + 0.20 * np.sin(th * 12.7 + ph[4] + v * 1.5))
         fold += 0.005 * gm.smoothstep(1.2, 1.0, z) * gm.smoothstep(0.8, 1.0, z) * np.sin(th * 9.1 + ph[5])
         r = r + fold
-        # the vent's edges overlap a little: the left flap over the right
+        # the vent: built, its edges overlap a little (the left flap over the right); simulated, they start apart
+        # (cloth that starts through itself throws its points away under self-collision) and fall together
         if z < vent_top:
             k = gm.smoothstep(vent_top, vent_top - 0.08, z)
-            r[half - 1] += 0.004 * k
-            th[half - 1] += 0.025 * k
-            th[half] -= 0.02 * k
+            if SIM:
+                th[half - 1] -= 0.03 * k
+                th[half] += 0.03 * k
+            else:
+                r[half - 1] += 0.004 * k
+                th[half - 1] += 0.025 * k
+                th[half] -= 0.02 * k
         rows.append((th, r, z))
     TH = np.array([r[0] for r in rows])
     RR = np.array([r[1] for r in rows])
@@ -614,8 +619,14 @@ def build_cape(fig, under_pts):
     bot = lambda t: sz - 0.13 - 0.035 * abs(math.sin(t)) + 0.012 * math.sin(t * 7.0)
     X, Y, Z, R = gm.drape(under_pts, neck[:2], FWD, th, top, bot, 24, 0.026, hb=math.radians(7), zb=0.012, smooth=(4, 3))
     v = np.linspace(0, 1, Z.shape[0])[:, None]
-    flute = 0.026 * v ** 1.4 + 0.017 * np.sin(th[None, :] * 10 + 0.9 * np.sin(v * 3)) * v ** 1.1 \
-        + 0.005 * np.sin(th[None, :] * 27 + v * 5) * v
+    # flutes of uneven depth and spacing (frequencies that never line up), deepening toward the hem
+    rng = np.random.default_rng(5)
+    ph = rng.random(6) * 6.28
+    T = th[None, :]
+    flute = 0.024 * v ** 1.4 + v ** 1.1 * (0.011 * np.sin(T * 7.0 + ph[0] + 0.8 * np.sin(v * 3 + ph[1]))
+                                           + 0.008 * np.sin(T * 11.3 + ph[2] + 0.6 * np.sin(v * 2 + ph[3]))
+                                           + 0.004 * np.sin(T * 19.7 + ph[4] + v * 4)) \
+        + 0.004 * v * np.sin(T * 31.0 + ph[5] + v * 6)
     dx, dy = gm.radial(th[None, :], FWD)
     piece = gm.grid(X + flute * dx, Y + flute * dy, Z)
     return gm.mesh('Cape', piece, slot('Duster')), R[0].max()
@@ -633,9 +644,10 @@ def build_collar(fig, top_r):
             back = 0.5 - 0.5 * math.cos(a)
             # the ends by the throat stand a little taller and splay out into points; the top edge rolls outward
             end = float(gm.smoothstep(math.radians(62), math.radians(30), min(a, 2 * math.pi - a)))
-            hgt = 0.072 + 0.050 * back + 0.014 * end
-            r = (top_r * (0.89 + 0.10 * t + 0.07 * t ** 3) + 0.004 * math.sin(a * 9 + t * 2)
-                 - 0.010 * (1 - back) * t + 0.016 * end * t ** 2)
+            # soft, worn oilskin: the top edge wavers, the stand ripples a little, a crease where it turns up
+            hgt = 0.062 + 0.058 * back + 0.012 * end + 0.004 * math.sin(a * 5.3 + 1.1) + 0.003 * math.sin(a * 13.7)
+            r = (top_r * (0.89 + 0.08 * t + 0.13 * t ** 3) + 0.004 * math.sin(a * 9 + t * 2) + 0.0025 * math.sin(a * 17.3 + t * 4)
+                 - 0.010 * (1 - back) * t + 0.016 * end * t ** 2 - 0.004 * math.exp(-((t - 0.18) / 0.08) ** 2))
             d = math.cos(a) * np.array([0.0, -1.0]) + math.sin(a) * np.array([1.0, 0.0])
             cv.append([neck[0] + d[0] * r, neck[1] + d[1] * r, neck[2] - 0.03 + hgt * t])
     cv = np.array(cv).reshape(rows, -1, 3)[::-1]          # rows from the top down, so the faces look outward
@@ -773,12 +785,12 @@ def build_hair(fig, under_obs):
     paths = []
     # two layers of clumps round the head under the band, skipping the forehead: the inner close to the scalp, the
     # outer a little lower and looser, so no scalp shows between them
-    for layer, (count, lift, width, drop) in enumerate(((62, 0.005, 0.042, 0.0), (50, 0.012, 0.034, 0.05))):
+    for layer, (count, lift, width, drop) in enumerate(((70, 0.003, 0.040, 0.0), (56, 0.008, 0.032, 0.05))):
         for c in range(count):
-            ang = math.radians(-156 + 312 * (c + rng.random() * 0.8) / count)
-            if abs(math.degrees(ang)) < 46:
-                continue
-            back = min(1.0, abs(math.degrees(ang)) / 150.0)
+            # round the back from the left temple to the right one (0 is the face): the forehead stays bare
+            deg = 46.0 + 268.0 * (c + rng.random() * 0.8) / count
+            ang = math.radians(deg)
+            back = min(1.0, (180.0 - abs(180.0 - deg)) / 150.0)
             L = (0.10 + 0.04 * back ** 1.5) * s * (0.85 + 0.3 * rng.random()) - drop * 0.1
             r = centre + np.array([math.sin(ang) * 0.7, rng.normal() * 0.03 - drop, math.cos(ang) * 0.9])
             hit = tree.find_nearest(Vector(tuple(fig.head_point(r))))
@@ -803,7 +815,7 @@ def build_hair(fig, under_obs):
         tang = gm.unit(np.gradient(st, axis=0))
         out = gm.unit(st - head_c)
         side = gm.unit(np.cross(tang, out))
-        width = w * (1.0 - t) ** 0.6 + 0.002
+        width = w * (1.0 - t) ** 1.1 + 0.0006
         # a lock, not a paper strip: its middle stands out from its edges, so it has a rounded back
         mid = st + out * (width * 0.28)[:, None]
         rows = np.stack([st - side * (width * 0.5)[:, None], mid, st + side * (width * 0.5)[:, None]], 1)
@@ -1048,6 +1060,11 @@ def preview(objects, path, views=(('front', 0.0), ('three', 35.0), ('side', 90.0
         lo = bpy.data.objects.new('Sun', ld)
         sc.collection.objects.link(lo)
         lo.rotation_euler = (math.radians(50), 0.0, math.radians(-35))
+    if '--shape' in ARGS:
+        # shape checks in clay: the looks unbaked are minutes a frame
+        clay = bpy.data.materials.get('_Clay') or bpy.data.materials.new('_Clay')
+        clay.diffuse_color = (0.55, 0.52, 0.48, 1.0)
+        bpy.context.view_layer.material_override = clay
     cd = bpy.data.cameras.new('PreviewCam')
     cd.lens = 70
     cam = bpy.data.objects.new('PreviewCam', cd)
@@ -1371,16 +1388,16 @@ def export_glb(skin, arm, path, lantern, posed=True):
     log(f'wrote {path} ({os.path.getsize(path) / 1e6:.1f} MB)')
 
 
-def settle(fig, duster, cape, colliders):
-    """The duster's skirt and the cape fall into their folds: Blender's cloth over the body, the trousers, belt,
-    holster and lantern, the coat held above the hips and the cape round the collar (looter_garments.simulate, kept
-    in Ellis.drape.json)."""
+def settle(fig, duster, colliders):
+    """The duster's skirt falls into its folds: Blender's cloth over the body, the trousers, the waistcoat and the
+    belt, the coat held above the hips (looter_garments.simulate, kept in Ellis.drape.json). Stiff canvas: bending 12
+    gives the duster's broad folds; at 4 the skirt and the vent crumpled like linen. The cape is not simulated: on the
+    shoulders it had nowhere to fall but into itself, and crumpled."""
     zd = gm._object_coords(duster)[:, 2]
-    zc = gm._object_coords(cape)[:, 2]
-    pins = [gm.smoothstep(0.92, 1.08, zd), gm.smoothstep(fig.shoulder_z - 0.05, fig.neck[2] - 0.02, zc)]
     t0 = time.time()
-    ran = gm.simulate([duster, cape], pins, colliders, DRAPE_FILE, frames=80, stiff=(40.0, 40.0, 15.0, 4.0), mass=0.3,
-                      note='The settled duster and cape of Ellis (Art/Models/Characters/Ellis.py writes it: the cloth '
+    ran = gm.simulate([duster], [gm.smoothstep(0.92, 1.08, zd)], colliders, DRAPE_FILE, frames=int(arg_value('--frames', 90)),
+                      stiff=(40.0, 40.0, 15.0, 12.0), mass=0.3, self_collision=True,
+                      note='The settled duster of Ellis (Art/Models/Characters/Ellis.py writes it: the cloth '
                            'simulation\'s result for the digest of its inputs).')
     log(f'cloth: {"simulated" if ran else "kept from Ellis.drape.json"} ({time.time() - t0:.0f} s)')
 
@@ -1410,7 +1427,7 @@ def main():
     belt = build_belt(fig, [trousers, vest])
     belt_pts = np.concatenate([gm.object_points(o) for o in belt])
     drape_pts = np.concatenate([torso_pts, legs, gm.object_points(vest), gm.object_points(trousers), belt_pts])
-    duster = build_duster(fig, drape_pts, [vest] + belt)
+    duster = build_duster(fig, drape_pts, belt)
     sleeves = build_sleeves(fig, [body_ob])
     log('duster, sleeves')
     cape_pts = np.concatenate([under[under[:, 2] > fig.shoulder_z - 0.25], gm.object_points(duster), gm.object_points(sleeves)])
@@ -1418,8 +1435,23 @@ def main():
     holster = build_holster(fig, [trousers])
     lantern = build_lantern(fig, [trousers])
     log('belt, holster, lantern')
+    if '--selfx' in ARGS:
+        from mathutils.bvhtree import BVHTree
+        for ob in (duster, cape):
+            me = ob.data
+            tree = BVHTree.FromPolygons([v.co[:] for v in me.vertices], [p.vertices[:] for p in me.polygons])
+            polys = [set(p.vertices) for p in me.polygons]
+            bad = [(a, b) for a, b in tree.overlap(tree) if a < b and not (polys[a] & polys[b])]
+            cen = [tuple(round(c, 3) for c in me.polygons[a].center) for a, b in bad[:12]]
+            log(f'{ob.name}: {len(bad)} crossing face pairs, e.g. {cen}')
+        return
     if SIM:
-        settle(fig, duster, cape, [body_ob, trousers, vest, sleeves] + boots + belt + holster + lantern)
+        settle(fig, duster, [body_ob, trousers, vest] + belt[:2])
+        if '--sim-only' in ARGS:
+            for ob in (duster, cape):
+                co = gm._object_coords(ob)
+                log(f'{ob.name}: {co.min(0).round(3)} .. {co.max(0).round(3)}')
+            return
     collar, pin = build_collar(fig, top_r)
     gloves = build_gloves(fig, sleeves)
     log('cape, collar, gloves')
