@@ -723,7 +723,7 @@ def render_aux_glow(path, samples=4):
 	fire bloom, and objects with a "looter_aux_skip" material (the steam) leave the pass."""
 	sc = bpy.context.scene
 	keep = (sc.cycles.samples, sc.cycles.use_denoising, sc.view_settings.view_transform, sc.view_settings.look)
-	sc.cycles.samples, sc.cycles.use_denoising, sc.view_settings.view_transform, sc.view_settings.look = samples, False, "Standard", "None"
+	sc.cycles.samples, sc.cycles.use_denoising, sc.view_settings.view_transform, sc.view_settings.look = samples, False, "Raw", "None"  # Raw as bust.render_aux: Standard sRGB-encoded the ids
 	swaps, hidden = [], [o for o in sc.objects if o.type == "LIGHT"]
 	for ob in sc.objects:
 		for slot in (ob.material_slots if ob.type in ("MESH", "CURVES", "CURVE") else []):

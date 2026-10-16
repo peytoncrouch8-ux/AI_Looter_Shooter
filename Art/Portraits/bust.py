@@ -967,7 +967,9 @@ def render_aux(path, samples=4):
 	keep = (sc.cycles.samples, sc.cycles.use_denoising, sc.view_settings.view_transform, sc.view_settings.look)
 	sc.cycles.samples = samples
 	sc.cycles.use_denoising = False
-	sc.view_settings.view_transform = "Standard"
+	# Raw, not Standard: Standard applies the sRGB curve on the way to the PNG, which turned id / 16 into another id
+	# (skin 1 read back as 4, coat 6 as 10), so paint.js tightened the wrong materials. Raw writes the values as they are.
+	sc.view_settings.view_transform = "Raw"
 	sc.view_settings.look = "None"
 	swaps = []
 	for ob in sc.objects:
@@ -1012,9 +1014,10 @@ def cli_args(argv=None):
 
 
 def run(options, prefix, build):
-	"""A hero script's main: <key> [--size N] [--samples N] [--out dir] [--no-aux] [--blend]. Builds options[key]
-	(the first option without a key) on an empty scene with build(opt) -> (h, eyes), stages it, turns the eyes to the
-	camera and renders <out>/<prefix><key>_color.png and _aux.png (and saves <prefix><key>.blend with --blend)."""
+	"""A hero script's main: <key> [--size N] [--samples N] [--out dir] [--no-aux] [--aux-only] [--blend]. Builds
+	options[key] (the first option without a key) on an empty scene with build(opt) -> (h, eyes), stages it, turns the
+	eyes to the camera and renders <out>/<prefix><key>_color.png and _aux.png (and saves <prefix><key>.blend with
+	--blend). --aux-only redoes just the aux pass (seconds, not minutes) when only paint.js's inputs changed."""
 	args = cli_args()
 	key = args[0] if args and not args[0].startswith("-") else next(iter(options))
 	opt = dict(options[key])
@@ -1030,8 +1033,9 @@ def run(options, prefix, build):
 	point_eyes_at(eyes, cam)
 	print(f"built in {time.time() - t0:.1f} s")
 	t1 = time.time()
-	render(os.path.join(out, f"{prefix}{key}_color.png"))
-	print(f"rendered in {time.time() - t1:.1f} s")
+	if "--aux-only" not in args:
+		render(os.path.join(out, f"{prefix}{key}_color.png"))
+		print(f"rendered in {time.time() - t1:.1f} s")
 	if "--no-aux" not in args:
 		render_aux(os.path.join(out, f"{prefix}{key}_aux.png"))
 	if "--blend" in args:
