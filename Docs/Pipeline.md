@@ -519,6 +519,23 @@ docstring and `OPTIONS`).
 - What didn't work: busts sculpted as signed-distance shapes and marched in WebGL (the first try; a clay, CG look the user
   passed on for Blender). Removed; the code is in commit 7ed66a0 (`Art/Portraits/*.glsl`).
 
+- **The four heroes' round (2026-10-16, the user: "Install Node and Playwright on this PC and paint the four heroes'
+  portraits"):** one agent per hero wrote `Odessa.py`, `Crane.py`, `Gauge.py`, `Pike.py` (three options each, A the
+  signature look, B the death or the ember's mark, C as they were in life; contract `Saved/Portraits/CONTRACT.md`), a
+  FRAME agent grew `Frame_<Hero>.svg` (`frame/gen.js <Hero>`; kits in `frame/heroes.js`, shared drawing in
+  `frame/common.js`; the saga's sun-ring, feathers and ledger stay, the personal motifs and the name plate change) and
+  made `sheet.js --hero <Hero>` read each option's `label` and `line` from the hero script (`Sheet_<Hero>.png`).
+  `Tools\portraits.ps1 <Hero>` runs a hero end to end (1024 px, 80 samples: about 100 s a bust here, paint 10 s).
+  Lessons: the aux pass must save with the **Raw** view transform (Standard's sRGB curve turned id 1 into 4 and 6 into
+  10, so paint.js tightened the wrong materials; every portrait before 2026-10-16 was painted that way);
+  `--aux-only` / `-AuxOnly` redo just that pass; `render.js --script` and `--frame` resolve beside render.js (pass
+  `Odessa.py`, not `Art/Portraits/Odessa.py`); Gauge has no MakeHuman body (primitives, a stand-in head Empty for
+  `stage`, its own `render_aux_glow` reading each material's `looter_glow`); a hero's cyan rim light that also lit the
+  hair went light-linked past it (Odessa's `rim_sparing`); eyes with no glow use the skin id (the aux pass blooms every
+  id-2 pixel). Each hero file carries 100-330 lines of helpers bust.py should absorb (primitives, chains, tubes, shader
+  shorthands, posed arms, `turn`, a stoop, hair tufts, glass/wood ids 14/15): the merge is the next clean-up, renders
+  compared before and after as the split was.
+
 ## Character models (MakeHuman bodies, simulated and draped clothes, baked looks; Ellis, 2026-10-15)
 
 Why: the portraits pick the look (Ellis A, The Revenant); the game model is built the same way, from MakeHuman's CC0 base,

@@ -45,9 +45,13 @@ from, and the paint step runs on Node + Playwright. **The user (2026-10-16 morni
 this PC and paint the four heroes' portraits with the existing portrait pipeline."** Done: Node 22.23.3 (the zip from
 nodejs.org, unpacked to `%LOCALAPPDATA%\Programs\node`, on the user PATH), `npm install` (playwright ^1.64, `package.json`
 at the root, `node_modules/` ignored), `npx playwright install chromium`; Ellis A rendered under Blender 4.4 and painted
-here end to end (d20f275). In flight: the contract `Saved/Portraits/CONTRACT.md` (three options per hero), a refactor
-agent splitting `Art/Portraits/bust.py` out of `EllisBlender.py`, a FRAME agent (per-hero frames, a generic sheet),
-then one agent per hero (`Odessa.py`, `Crane.py`, `Gauge.py`, `Pike.py`); Main renders the finals, paints, sheets.
+here end to end (d20f275). Then (Pipeline "Character portraits", the four heroes' round): `bust.py` split out of
+`EllisBlender.py` (3b30400), per-hero frames and `sheet.js --hero` (68ad752), the four hero scripts (2187ba2 Crane,
+e7917bb Pike, 08a3677 Gauge, 87b0152 Odessa), `Tools\portraits.ps1`, the aux pass's Raw fix (3d0f206: every earlier
+portrait was painted with the ids misread). The four sheets `Saved/ArtPreviews/Portraits/<Hero>/Sheet_<Hero>.png` were
+sent to the user. **Waiting on the user: one pick (A, B or C) per hero**, then each pick becomes a game model the way
+Ellis's did (Pipeline "Character models"). Next clean-up before more hero work: merge the hero scripts' helpers into
+`bust.py` (renders compared before/after), and trim the files under ~600 lines.
 
 ### Decided unattended (2026-10-15 night), for the user's review
 Main's calls (the agents add theirs below):
