@@ -15,8 +15,10 @@ the list of seeds to build in Ransom's Rest (Story.md, "Seeds in Ransom's Rest")
 the *Lily* an airship, the false lighthouse, all three new regions, and **five playable heroes picked before the story
 starts, like BL2**; a non-Ellis pick **takes Ellis's place** (one story for everyone; heroes not picked don't appear;
 Story.md "The heroes"); the pick is built **after the Rest's seeds, before the *Lily***. All calls in. **Next, in
-order:** the seeds in Ransom's Rest (Story.md "Seeds in Ransom's Rest": collectibles, lines, props, a Grave Sight
-look), the hero pick (select screen, four game models, powers, line variants), then the *Lily* as an airship.
+order (the user, revised 2026-10-15 night):** the ember-power system with Ellis's three (Dust Devil, Sundown, Borrowed
+Time; one equipped at a time, all three owned from the start; Story.md "The heroes"), then the hero pick (select
+screen, four game models, their twelve powers, line variants), the Rest's seeds alongside (Story.md "Seeds in Ransom's
+Rest"), then the *Lily* as an airship. Both the powers and the seeds are offered as session cards.
 
 Done this session (the user picked "small leftovers" first): `WeaponManagerComponent.h` split (its events and small
 types in `Inventory/WeaponManagerTypes.h`, 491 lines); the editor-exit ensure on Hiram's figure fixed in all six

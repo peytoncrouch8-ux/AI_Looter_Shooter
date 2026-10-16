@@ -92,8 +92,15 @@ open: the ember in the Deacon's hand flares and dims as he fires.
   Junction, Crane the Mire). **Heroes not picked don't appear** (co-op is where they would meet, later).
 - **Writing rule:** every new shared line is written without "Pa", "Ellis" or "kid"; Ellis's lines are kept as that
   hero's variants. The built Ransom's Rest text is Ellis's and stays; variants are added when the pick is built.
-- **Build order** (the user): after the Rest's seeds, before the *Lily*: the hero select screen, the four game models,
-  their powers, the line variants.
+- **Ember powers** (the user, 2026-10-15): each hero has three (the cloud handoff's fifteen: Ellis Dust Devil, Sundown,
+  Borrowed Time; Odessa Lucky Streak, Fifty-Two Pickup, Double or Nothing; Crane Toll Chain, Grave Ward, Last Rites;
+  Gauge Slag Bomb, Iron Hide, Rail Spike; Pike Spyglass, Tripwire, Long Shot; numbers in
+  `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md`, "Ember powers" and "Five heroes"). **All three are owned from the
+  start and one is equipped at a time**, Borderlands' way: one key in the fight, the other two swapped to in the menu.
+  The outlaws' embers give no powers.
+- **Build order** (the user, revised 2026-10-15): first the ember-power system with Ellis's three, playable on Ransom's
+  Rest (Ellis's model exists); then the hero pick (the select screen, the four game models, their twelve powers, the
+  line variants); the Rest's seeds alongside as an art-and-lines task; then the *Lily*.
 
 ## Antagonist: Mister Sexton
 
@@ -473,7 +480,10 @@ The saga (2026-10-15; the readable bible: https://claude.ai/artifact/Gr66uUTXWze
     Borderlands 2** (the user's own words; not "companions playable later"); (c) **the false lighthouse** as written;
     (d) **keep all three new regions**; (e) a non-Ellis pick **takes Ellis's place**: one story for everyone, Pa
     becomes the Keeper, the Deacon's "kid" is whoever you are, Ellis exists only when picked, heroes not picked don't
-    appear (*The heroes*); (f) the hero pick is built **after the Rest's seeds, before the *Lily***.
+    appear (*The heroes*); (f) the hero pick is built **after the Rest's seeds, before the *Lily*** (revised by 16).
+16. **Ember powers and the first build** (2026-10-15, tap answers): the first build is **the ember-power system with
+    Ellis's three**; the hero pick follows it, the seeds run alongside (revising 15f). **One power equipped at a time**,
+    like Borderlands; **all three owned from the start**, one equipped.
 
 ## Build steps
 
