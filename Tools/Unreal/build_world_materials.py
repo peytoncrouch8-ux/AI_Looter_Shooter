@@ -2094,6 +2094,17 @@ def build_bullet_mark():
 #                     controls. (The Cloth amount, Custom Data 0, can't be wired from Python: unwired it's 1, all cloth.)
 #   M_CharacterSkin   Subsurface Profile shading (SP_Skin, the engine's skin defaults): light scattering under the skin
 #                     (SubsurfaceAmount), skin's 2.8% reflectance (Specular 0.35).
+#   M_CharacterHair   hair cards (Ellis round 6; the atlas from Tools/Blender/ellis_hair.py): masked, two-sided, the
+#                     engine's Hair shading (strands lit along their tangent: a highlight band across the hair, a warm
+#                     second one through it). The colour map's alpha is the strands' coverage, raised as the map mips
+#                     down (MipBoost per level: a coarser level averages strands with their gaps, and the mask thinned
+#                     until the hair went bald a few metres off) and dithered (DitherTemporalAA, clip 0.5: once TAA
+#                     blends, a texel covers as much as its alpha; a hard clip aliased into stair-stepped strands). The
+#                     ORM's blue is each strand's random id, NOT metal: it tips the strand's tangent (TangentJitter) so
+#                     the highlight breaks along the strands. Scatter (the Hair model reads it from the Metallic pin),
+#                     Specular, RoughnessScale/Offset, DiffuseAO, Tint. Backlit (Custom Data 0) can't be wired from
+#                     Python: unwired it is 1. HAIR_SHADING = MSM_DEFAULT_LIT is the fallback if the Hair model looks
+#                     wrong on Medium: the strands' normal map then lights it, back faces on the authored normal.
 
 CHARACTER_BREAKUP = """// A fine, two-scale noise in UV space: the roughness wanders a little, as real wear and handling leave it.
 float N = Texture2DSample(Noise, NoiseSampler, UV * 7.0).r * 0.6 + Texture2DSample(Noise, NoiseSampler, UV * 23.0 + 0.41).r * 0.4;
@@ -2208,9 +2219,85 @@ def build_character_skin(orm_default):
     return mat
 
 
+HAIR_SHADING = unreal.MaterialShadingModel.MSM_HAIR
+
+HAIR_COVERAGE = """// The strands' coverage (the colour map's alpha), raised by the mip level the pixel samples: a coarser level averages
+// strands with the gaps between them, so the mask thinned with distance and the hair went bald a few metres off.
+float2 T = UV * Size;
+float2 Dx = ddx(T);
+float2 Dy = ddy(T);
+float Level = max(0.0, 0.5 * log2(max(max(dot(Dx, Dx), dot(Dy, Dy)), 1e-8)));
+return saturate(Alpha * (1.0 + Level * Boost));"""
+
+HAIR_TANGENT = """// Along the strands (the cards' V runs from root to tip), each strand tipped toward or away from the card by its random
+// id (the ORM's blue): the highlight breaks along the strands instead of one smooth band across a card.
+return normalize(float3(0.0, 1.0, (Id - 0.5) * Jitter));"""
+
+HAIR_ROUGH = 'return saturate(Rough * Scale + Offset);'
+
+
+def build_character_hair(orm_default):
+    mat = material('M_CharacterHair')
+    mat.set_editor_property('blend_mode', unreal.BlendMode.BLEND_MASKED)
+    mat.set_editor_property('two_sided', True)
+    mat.set_editor_property('opacity_mask_clip_value', 0.5)
+    mat.set_editor_property('shading_model', HAIR_SHADING)
+    g = Graph(mat)
+    bc, nrm, orm, vc, ao = textured_inputs(g, orm_default)
+    tinted = g.mul(bc, 'RGB', g.vector('Tint', (1.0, 1.0, 1.0, 1.0), -1100, -500), '', -800, -400)
+    lerp = g.node(unreal.MaterialExpressionLinearInterpolate, -800, -150, const_a=1.0)
+    g.link(ao, '', lerp, 'B')
+    g.link(g.scalar('DiffuseAO', 0.7, -1100, -150), '', lerp, 'Alpha')
+    g.out(g.mul(tinted, '', lerp, '', -500, -300), '', unreal.MaterialProperty.MP_BASE_COLOR)
+    rough = g.custom(HAIR_ROUGH, [
+        ('Rough', orm, 'G'),
+        ('Scale', g.scalar('RoughnessScale', 1.0, -800, 700), ''),
+        ('Offset', g.scalar('RoughnessOffset', 0.0, -800, 800), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -400, 600, 'Roughness')
+    g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
+    g.out(g.scalar('Specular', 0.45, -400, -150), '', unreal.MaterialProperty.MP_SPECULAR)
+    g.out(ao, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
+    coverage = g.custom(HAIR_COVERAGE, [
+        ('Alpha', bc, 'A'),
+        ('UV', g.node(unreal.MaterialExpressionTextureCoordinate, -800, 1100, coordinate_index=0), ''),
+        ('Size', g.scalar('AtlasSize', 2048.0, -800, 1200), ''),
+        ('Boost', g.scalar('MipBoost', 0.35, -800, 1300), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -400, 1100, 'Coverage kept as it mips')
+    # DitherTemporalAA is an engine material function (no expression class of its own): the mask's soft edge dithers over
+    # frames instead of aliasing at the clip. Without it (an engine without the function) the coverage clips as it is.
+    dither_function = unreal.load_asset('/Engine/Functions/Engine_MaterialFunctions02/Utility/DitherTemporalAA.DitherTemporalAA')
+    mask = coverage
+    if dither_function:
+        dither = g.node(unreal.MaterialExpressionMaterialFunctionCall, -100, 1100)
+        dither.set_editor_property('material_function', dither_function)
+        if any(MEL.connect_material_expressions(coverage, '', dither, pin) for pin in ('AlphaThreshold', 'Alpha Threshold', '')):
+            mask = dither
+        else:
+            unreal.log_warning('M_CharacterHair: could not connect the coverage to DitherTemporalAA; the mask clips undithered')
+    else:
+        unreal.log_warning('M_CharacterHair: no DitherTemporalAA function in this engine; the mask clips undithered')
+    g.out(mask, '', unreal.MaterialProperty.MP_OPACITY_MASK)
+    if HAIR_SHADING == unreal.MaterialShadingModel.MSM_HAIR:
+        # the Hair model's Scatter is the Metallic pin; its strand direction the Tangent pin
+        g.out(g.scalar('Scatter', 0.2, -400, 300), '', unreal.MaterialProperty.MP_METALLIC)
+        tangent = g.custom(HAIR_TANGENT, [('Id', orm, 'B'), ('Jitter', g.scalar('TangentJitter', 0.5, -800, 200), '')],
+                           unreal.CustomMaterialOutputType.CMOT_FLOAT3, -400, 150, 'Strand tangent')
+        g.out(tangent, '', unreal.MaterialProperty.MP_TANGENT)
+    else:
+        # lit cards: the strands' normal map, back faces kept on the authored normal (as M_WorldFoliage's leaves)
+        normal = g.custom('return normalize(float3(Map.xy * Strength, Map.z)) * Sign;', [
+            ('Map', nrm, 'RGB'), ('Strength', g.scalar('NormalStrength', 1.0, -800, 100), ''),
+            ('Sign', g.node(unreal.MaterialExpressionTwoSidedSign, -800, 0), ''),
+        ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -400, 50, 'Normal, both sides')
+        g.out(normal, '', unreal.MaterialProperty.MP_NORMAL)
+    finish(mat, CHARACTER_USAGES)
+    return mat
+
+
 BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'M_Gun': lambda: build_gun(DEFAULT_ORM),
             'M_Character': lambda: build_character(DEFAULT_ORM), 'M_CharacterCloth': lambda: build_character_cloth(DEFAULT_ORM),
             'M_CharacterSkin': lambda: build_character_skin(DEFAULT_ORM),
+            'M_CharacterHair': lambda: build_character_hair(DEFAULT_ORM),
             'M_WorldFoliage': lambda: build_foliage(DEFAULT_ORM),
             'M_Terrain': build_terrain, 'M_Water': build_water, 'M_SkyClouds': build_sky_clouds,
             'M_Waterfall': build_waterfall, 'M_WaterMist': build_water_mist, 'M_Smoke': build_smoke,

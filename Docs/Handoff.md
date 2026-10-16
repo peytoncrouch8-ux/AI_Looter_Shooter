@@ -58,6 +58,19 @@ by `GravemotherFightSheets.ps1`): A Bone Mother (brood riding her, milk spit, gr
 her phase meter, corpse-lights, a procession of ghost-flames), C Shroud (ivory and oxblood, burial silk, net shot,
 drag-lines, egg sacs), D Barrow (the bold one: a headstone shell, grave clods, a furrow charge that leaves cover,
 unearthed spiderlings). **The user picked D, Barrow (2026-10-15)**, to build after the Ellis work they asked for first.
+The user's review ask ("Make it better"): the real sprite sheets are made and sent (`Art/Backlog/Creatures/
+GravemotherBarrowSheet.py` + `GravemotherBarrowSheets.ps1`; `Saved/Concepts/Gravemother/Barrow_{Moves,FX,Hero,
+Spiderling}.png`; renders and `BW.json` in `Saved/ArtPreviews/RansomsRest/Concepts/GravemotherBarrow/`): every move
+as 6 timed frames, the FX pieces isolated with alpha and sizes in cm (clod x3 sizes, dust burst cards at 0.1/0.4/1.0 s,
+debris x5, rubble, the heave crack strip + end cap, dust jets, berm segment, mound closed/burst, stone chips, sparks,
+stun stars; plus a landing-shadow decal, a furrow decal, fresh-earth dust #806B55 vs pale floor dust), her turnaround,
+the spiderling (135 x 132 x 57 cm). The headstone is grey granite (#8E8B86), not sandstone (it vanished against the
+Sink's wall). Not numbered yet: her faster run after 33%. Design calls made by Main for it (the user
+hasn't confirmed them; ask if they object): the berms stay 20 s then crumble; the headstone is armour that deflects
+(sparks, chips; no health), cracking off at 33% to bare the Bone abdomen; crits head + the abdomen's soft rear, the
+whole abdomen after 33%; Grave Clod 1.2 s tell, shot in her grip = burst on her + 2 s stun, a 1.5 s lob to 20 m, a
+rubble pile 10 s; Furrow 2 s heave tell then the plough; 4 spiderlings at 66% and 33% from mounds that bulge 1 s
+(shootable).
 
 **The user's next picks (2026-10-15, tap answers):** "Both 1 and 2": Ellis's leftovers (all four: the shin through the
 coat's back, the cape lifting when sprinting, the hair reading as ribbons, the crouch's holster and lantern) and the pose
@@ -69,7 +82,17 @@ the stride's shin through the coat 28 points -> 0), hair as closed lens-shaped l
 little chunky up close from the back), the holster pouch on the left thigh (crouch contact 3.6 -> 2.2 cm; the gun now
 grazes the trousers 0.9 cm in a stride), the gauntlet lip rolled out; 125 bones, 34.9k triangles. Checked in PIE: idle,
 sprint from behind, hair, crouch front and right side. Shots sent. Tests 698/698.
-**Next:** the user's notes on round 5; then the Gravemother, Barrow (D) as the real fight (concepts first done: model,
+**Round 6 (the user on round 5's shots, 2026-10-15: "Cape clippings, hair looks like mud, can see through the
+head/hat, hat doesn't seat on his head properly, don't stop until you get it right"; then "Run multiple agents if you
+need to"):** three Blender agents on one contract (`Saved/Concepts/EllisRound6/CONTRACT.md`): HAT (seat the band on
+the skull, close the crown's inside and the scalp), HAIR (cards with a script-made strand texture, masked; maybe a new
+M_CharacterHair master), CAPE (cape and collar clipping in every pose). Found: every Ellis material is one-sided, so
+a single surface seen from behind vanishes (the crown's inside). In-game evidence: `Saved/Screenshots/Tools/aud_*.png`.
+Main imports, checks in PIE, commits. Then Gravemother. Found on the way (HAT): the game skin was a "crystal":
+`make_lows` spared everything within 3 cm of the eyes, so the skull's back and top collapsed into ~12 triangles (the
+holes); now decimated by region. Leftover for later: BandanaKnot sits inside the neck (mid-neck, not at its back) with
+36 points of the bandana's lower side edge: invisible, wasted triangles; move the knot to the nape or drop it.
+**Next:** the user's notes on round 6; then the Gravemother, Barrow (D) as the real fight (concepts first done: model,
 projectile, charge, FX, sounds; ask the user the open calls with tap-to-answer choices).
 
 ## Before that (session "Ellis 3D model", 2026-10-15, cloud; branch `claude/ellis-3d-character-model-tvwr9z`, merged)
