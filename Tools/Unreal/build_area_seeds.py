@@ -55,6 +55,8 @@ READ_REACH = 250.0
 # A page pinned upright or a letter stood in a slot: the flat model (its face +Z, its long side along X, as the slip's) is
 # turned nose down so its face looks out along its yaw.
 UPRIGHT = -90.0
+# The folded letter's long side (SM_DeaconLetter, 11 x 18 cm): half of it lifts a stood letter clear of a slot's floor.
+LETTER_LENGTH = 18.0
 
 # --- Where things lie (cm; a building's frame is Unreal's: +X its front, +Y its right) ---
 # The sheriff's lockup (build_area_missionprops_valley.py's frame: the cell X 44..154, Y 80..220, the bunk along its back
@@ -377,9 +379,16 @@ def place_post_rack(build, found):
     for name in (f'Slot_{RACK_SLOT}', f'Slot{RACK_SLOT}', 'Letter'):
         if component.does_socket_exist(name):
             slot = component.get_socket_transform(name, unreal.RelativeTransformSpace.RTS_WORLD)
-            letter = readable(build, 'DeaconLetter_Saloon', slot.translation, slot.rotation.rotator().yaw, letter_model)
+            lean = slot.rotation.rotator()
+            # The socket is where a standing letter's bottom middle rests, its +Z up the slot (leaning back a little). The
+            # model lies flat with its pivot at the middle of its footprint, so it stands nose down in its own frame first
+            # (UPRIGHT), then takes the slot's lean, and rises half its length so it doesn't sink into the shelf.
+            up = unreal.MathLibrary.get_up_vector(lean)
+            spot = slot.translation + up * (LETTER_LENGTH * 0.5)
+            letter = readable(build, 'DeaconLetter_Saloon', spot, lean.yaw, letter_model)
             if letter is not None:
-                letter.set_actor_rotation(slot.rotation.rotator(), False)
+                stood = unreal.MathLibrary.compose_rotators(unreal.Rotator(roll=0.0, pitch=UPRIGHT, yaw=0.0), lean)
+                letter.set_actor_rotation(stood, False)
             build.log(f'the post rack on the Gilt Spur, the letter on its SOCKET_{name}')
             return
     # on_wall put the rack's back on the siding at the hit, its middle there: the slot is half its depth out, its share

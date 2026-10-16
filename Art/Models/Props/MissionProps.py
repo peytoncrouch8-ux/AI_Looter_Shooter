@@ -59,6 +59,22 @@ hangs on the hook (CellarKey, MinersTag), the thing hanging plumb below. Sizes a
                     through. Pivot: the middle of its back's bottom edge (hang it on the wall, its bottom about 1 m up),
                     front -Y.
 
+  The seeds (2026-10-16, Saved/Seeds/CONTRACT.md; readables placed by build_area_seeds.py):
+  LedgerPage        a loose leaf of Sexton's ledger, 20 x 32 cm (long side along Y, Unreal's X), lying flat: ruled in
+                    blue, a red header and date and money columns, his copperplate as scrawl ribbons (a heading, ten
+                    entries with dates and sums, a slantwise note in the margin), the far right corner lifted 2.8 cm.
+                    One model for all six pages.
+  DeaconLetter      the Deacon's letter, folded in three and sealed, 11 x 18 cm (long side along Y): the outer flap
+                    over the packet, the address in his hand on it, red wax on the flap's edge. The letter in the
+                    mooring cleft and the one in the saloon's post rack. Pivot of both: the middle of the footprint.
+  PostRack          the saloon's post rack, 60 x 42 x 7.5 cm, pine: eight pigeonholes in two rows behind slats painted
+                    1-8, nailed to the wall; two old letters baked into slots 6 and 8. Sockets Slot_1..Slot_8 (1-4 the
+                    upper row left to right): a standing letter's bottom middle on the slot's floor, +Z up the slot
+                    (leaning back 8 degrees), front out of the rack. Pivot: the middle of its back face.
+  ReachesMap        the depot's wall map, 90 x 60 cm: one sheet with its own texture (MI_ReachesMap, set ReachesMap,
+                    painted by Art/Textures/ReachesMap/make_reaches_map.py), its back and edges SextonLedgerPages, a
+                    bulge between the four brass pins and its bottom edge curling out. Pivot: the middle of its back.
+
   Interactables with their own tag:
   FennCoffin        Josiah Fenn's pine shipping coffin in the depot's baggage room (SM_RR_Depot's SOCKET_BaggageCoffin:
                     its pivot is the middle of its foot, long along X, the head at +X): six-sided, GRAVESEND stencilled
@@ -81,7 +97,8 @@ reduction would eat their tiny relief and lettering).
 Materials: only the shared ones the game already has (MI_<name>), each made exactly as its first family makes it:
 IronBlack, BrassWorn, AmmoCaseBrass (the gold), MailboxTin, PaintBlack, PaintCream, PaintOxide, WoodBlack, WoodCream,
 MourningCrepe, Canvas, RopeHemp, BoneDry, ClothLinen, ClothBlue, ClothRed, SextonLedgerCover (leather),
-SextonLedgerPages (paper) and HouseTrim (turned wooden grips on its beam strip).
+SextonLedgerPages (paper) and HouseTrim (turned wooden grips on its beam strip); WoodPlanks (the post rack's pine) and the
+map's own ReachesMap.
 
     Tools\\artrun.ps1 -Script Art\\Models\\Props\\MissionProps.py -Preview     every model, its render and the sheet
                                       (Saved/ArtPreviews/RansomsRest/MissionProps/, LookSheets/42_MissionProps.jpg);
@@ -143,13 +160,16 @@ MAKERS = {
     'SextonLedgerCover': lambda: lt.material('Polymer', name='SextonLedgerCover', tint=0x6E3226),
     'SextonLedgerPages': lambda: lt.material('Polymer', name='SextonLedgerPages', tint=0xE9DFC6),
     'HouseTrim': lambda: lt.material('HouseTrim'),
+    # The Reaches map's own: its painted sheet (Art/Textures/ReachesMap/make_reaches_map.py) on the World master.
+    'ReachesMap': lambda: lt.material('ReachesMap', name='ReachesMap', master='World'),
 }
 # The texture set each is mapped for.
 SETS = {'IronBlack': 'MetalWorn', 'BrassWorn': 'MetalWorn', 'AmmoCaseBrass': 'MetalWorn', 'MailboxTin': 'MetalWorn',
         'PaintBlack': 'PaintWorn', 'PaintCream': 'PaintWorn', 'PaintOxide': 'PaintWorn', 'WoodBlack': 'WoodPlanks',
         'WoodCream': 'WoodPlanks', 'MourningCrepe': 'Polymer', 'Canvas': 'Polymer', 'RopeHemp': 'Hay',
         'BoneDry': 'Polymer', 'ClothLinen': 'Polymer', 'ClothBlue': 'Polymer', 'ClothRed': 'Polymer',
-        'SextonLedgerCover': 'Polymer', 'SextonLedgerPages': 'Polymer', 'HouseTrim': 'HouseTrim'}
+        'SextonLedgerCover': 'Polymer', 'SextonLedgerPages': 'Polymer', 'HouseTrim': 'HouseTrim',
+        'ReachesMap': 'ReachesMap'}
 # Metal and paint on small things: their wear at a finer scale than on a building (texels per metre).
 FINE = 1280.0
 
@@ -1308,6 +1328,295 @@ def deacons_slip():
                   crumb=0.0006)
 
 
+# --- The seeds (2026-10-16): the Ledger's loose page, the Deacon's letter, the saloon's post rack, the Reaches map ---
+
+def ribbon_on(points, width, normals, name='PaintBlack', density=FINE, seed=0):
+    """ribbon(), but each point with its own normal: ink on a curling sheet."""
+    bm = lp.new_bmesh()
+    pts = [Vector(p) for p in points]
+    left, right = [], []
+    for i, p in enumerate(pts):
+        n = Vector(normals[i]).normalized()
+        t = (pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized()
+        s = t.cross(n).normalized() * (width * 0.5)
+        left.append(bm.verts.new(p - s))
+        right.append(bm.verts.new(p + s))
+    for i in range(len(pts) - 1):
+        f = bm.faces.new((left[i], right[i], right[i + 1], left[i + 1]))
+        f.normal_update()
+        if f.normal.dot(Vector(normals[i])) < 0.0:
+            f.normal_flip()
+    part = lp.mesh_object(bm)
+    return paint(part, name, density=density, seed=seed)
+
+
+def scrawl(rnd, x0, x1, y, h, step=0.002, slant=0.0007, gaps=True):
+    """Copperplate at a distance: words as zigzags of pen strokes along y (2D, x right, y up the page), now and then
+    a loop twice as tall (an ascender) or dropping below (a descender). Returns a list of words, each a list of
+    (x, y) points; every stroke at least step long, so no triangle is under the kit's 1 mm^2."""
+    words = []
+    x = x0
+    while x < x1 - 0.006:
+        end = min(x1, x + rnd.uniform(0.012, 0.032)) if gaps else x1
+        pts, k = [], 0
+        while x <= end:
+            up = k % 2 == 0
+            a = h * 0.4
+            r = rnd.random()
+            if up and r < 0.16:
+                a = h * 0.95
+            elif not up and r < 0.1:
+                a = h * 0.85
+            pts.append((x + (slant if up else -slant), y + (a if up else -a * 0.55) + h * 0.15))
+            x += step
+            k += 1
+        if len(pts) >= 2:
+            words.append(pts)
+        x += rnd.uniform(0.0028, 0.0042)
+    return words
+
+
+def ledger_page():
+    """A loose leaf of Sexton's ledger: ruled in blue, a red header and money columns, his copperplate on it, its far
+    right corner lifted off the surface."""
+    m = Model('LedgerPage', seed=SEED + 500)
+    rnd = random.Random(SEED + 500)
+    W, D = 0.2, 0.32
+
+    def surface(x, y):
+        """The page's top surface over (x, y): flat but for a faint cockle and the far right corner lifting."""
+        s = max(0.0, (x / (W * 0.5) + y / (D * 0.5) - 1.1) / 0.9)
+        lift = 0.028 * s ** 2.2
+        cockle = 0.0005 * math.sin(x * 37.0 + 0.6) * math.sin(y * 23.0 + 1.1)
+        return Vector((x, y, 0.0005 + lift + cockle))
+
+    def normal(x, y):
+        e = 0.002
+        dx = surface(x + e, y) - surface(x - e, y)
+        dy = surface(x, y + e) - surface(x, y - e)
+        return dx.cross(dy).normalized()
+
+    def on(x, y, lift=0.00025):
+        return surface(x, y) + normal(x, y) * lift
+    xs = [W * (k / 8.0 - 0.5) for k in range(9)]
+    ys = [D * (k / 12.0 - 0.5) for k in range(13)]
+    rows = [[surface(x, y) for x in xs] for y in ys]
+    parts = [slab(rows, 0.0003, 'SextonLedgerPages', seed=SEED + 501)]
+
+    def line(points2d, width, name, lift=0.00025, density=FINE, seed=0):
+        pts = [on(x, y, lift) for x, y in points2d]
+        return ribbon_on(pts, width, [normal(x, y) for x, y in points2d], name, density=density, seed=seed)
+
+    def across(x0, x1, n):
+        return [x0 + (x1 - x0) * k / (n - 1) for k in range(n)]
+    # The ruling: blue lines every 9 mm, the red header (doubled) and the date and money columns.
+    for k in range(28):
+        y = 0.112 - 0.009 * k
+        parts.append(line([(x, y) for x in across(-0.096, 0.096, 7)], 0.0007, 'ClothBlue', density=None,
+                          seed=SEED + 502))
+    for y in (0.123, 0.1185):
+        parts.append(line([(x, y) for x in across(-0.096, 0.096, 7)], 0.0009, 'ClothRed', lift=0.0003, density=None,
+                          seed=SEED + 503))
+    for x in (-0.064, 0.05, 0.057):
+        parts.append(line([(x, y) for y in across(0.123, -0.156, 9)], 0.0008, 'ClothRed', lift=0.0003, density=None,
+                          seed=SEED + 504))
+    ink = []
+    # The heading (the saint and the town), bigger, over the header rule.
+    ink += scrawl(rnd, -0.07, 0.02, 0.131, 0.0062, step=0.0024, slant=0.001)
+    # The entries: a date, a line of his hand, a sum in the money column; the last few lines left short.
+    for k in range(10):
+        y = 0.104 - 0.009 * k
+        ink += scrawl(rnd, -0.09, -0.07, y, 0.0036, gaps=False)
+        ink += scrawl(rnd, -0.058, 0.044 - (rnd.uniform(0.0, 0.03) if k % 3 == 2 else 0.0), y, 0.0038)
+        if k % 2 == 0 or k == 9:
+            ink += scrawl(rnd, 0.061, 0.088, y, 0.0036, gaps=False)
+    # The sum, ruled off twice under it.
+    for y in (0.012, 0.0095):
+        parts.append(line([(0.059, y), (0.074, y), (0.09, y)], 0.0008, 'PaintBlack', lift=0.0003))
+    ink += scrawl(rnd, 0.061, 0.09, 0.0025, 0.0042, gaps=False)
+    # The margin's note, written slantwise low on the page, underlined.
+    turn = math.radians(5.0)
+    for k, y in enumerate((-0.11, -0.122, -0.134)):
+        for word in scrawl(rnd, -0.06, 0.035 - 0.02 * k, y, 0.0036):
+            ink.append([(x * math.cos(turn) - (yy + 0.12) * math.sin(turn), (yy + 0.12) * math.cos(turn) +
+                         x * math.sin(turn) - 0.12) for x, yy in word])
+    parts.append(line([(-0.06, -0.152), (-0.02, -0.1505), (0.03, -0.148)], 0.0009, 'PaintBlack', lift=0.0003))
+    for k, word in enumerate(ink):
+        parts.append(line(word, 0.0009, 'PaintBlack', lift=0.0003, seed=SEED + 510 + k % 7))
+    move, lo, hi = settle(parts)
+    m.add_all(parts)
+    m.socket('Interact', tuple(move @ Vector((0.0, 0.0, 0.05))), aim((0.0, -1.0, 0.0)))
+    box_hull(m, lo, hi, least=0.05)
+    return m.done('the middle of its footprint on the surface (lying flat, the far right corner lifted)', ao=0.03,
+                  min_height=0.0002, crumb=0.0006, lods=False)
+
+
+def deacon_letter():
+    """The Deacon's letter, folded in three and sealed: the outer fold's flap over the packet, the address in his hand
+    on it, a blob of red wax on the flap's edge. Pivot: the middle of its footprint, lying flat, the address reading
+    from -Y (its top toward +Y)."""
+    m = Model('DeaconLetter', seed=SEED + 560)
+    rnd = random.Random(SEED + 560)
+    W, D, FLAP = 0.11, 0.18, -0.03
+
+    def packet(x, y):
+        bow = 0.0012 * (1.0 - (2.0 * x / W) ** 2) * (1.0 - 0.6 * (2.0 * y / D) ** 2)
+        return Vector((x, y, 0.0006 + bow))
+
+    def flap(x, y):
+        """The outer fold's flap: over the packet from its top edge down to FLAP, its free edge springing up."""
+        rise = 0.0016 * max(0.0, (0.02 - (y - FLAP)) / 0.02) ** 2
+        return packet(x, y) + Vector((0.0, 0.0, 0.0004 + rise))
+    xs = [W * (k / 4.0 - 0.5) for k in range(5)]
+    ys = [D * (k / 6.0 - 0.5) for k in range(7)]
+    parts = [slab([[packet(x, y) for x in xs] for y in ys], 0.0006, 'SextonLedgerPages', seed=SEED + 561)]
+    fys = [FLAP + (D * 0.5 - FLAP) * k / 5.0 for k in range(6)]
+    fxs = [x * 0.995 for x in xs]
+    parts.append(slab([[flap(x, y) for x in fxs] for y in fys], 0.0003, 'SextonLedgerPages', seed=SEED + 562))
+    # The address: three lines in his hand, the last indented, the town's name underlined.
+    ink = []
+    for k, (x0, x1) in enumerate(((-0.032, 0.03), (-0.022, 0.036), (-0.008, 0.04))):
+        ink += [(w, 0.0007) for w in scrawl(rnd, x0, x1, 0.048 - 0.013 * k, 0.0042)]
+    ink.append(([(-0.006, 0.014), (0.016, 0.0135), (0.04, 0.0145)], 0.0008))
+    for k, (word, width) in enumerate(ink):
+        pts = [flap(x, y) + UP * 0.0003 for x, y in word]
+        parts.append(ribbon(pts, width + 0.0002, UP, seed=SEED + 563 + k % 5))
+    # The wax seal on the flap's edge: a squashed red blob with a stamped ring.
+    seal = blob((0.0, FLAP + 0.002, 0.0028), (0.0095, 0.0085, 0.0018), SEED + 570, 'PaintOxide', segs=10, rings=4,
+                lumpy=0.1, density=FINE)
+    parts.append(seal)
+    ring_pts = [(0.0055 * math.cos(2.0 * math.pi * k / 12), FLAP + 0.002 + 0.005 * math.sin(2.0 * math.pi * k / 12),
+                 0.0047) for k in range(13)]
+    parts.append(ribbon(ring_pts, 0.0011, UP, 'PaintOxide', seed=SEED + 571))
+    move, lo, hi = settle(parts)
+    m.add_all(parts)
+    m.socket('Interact', tuple(move @ Vector((0.0, 0.0, 0.05))), aim((0.0, -1.0, 0.0)))
+    box_hull(m, lo, hi, least=0.05)
+    return m.done('the middle of its footprint on the surface (lying flat, sealed; the address reads from -Y)',
+                  ao=0.03, min_height=0.0002, crumb=0.0006, lods=False)
+
+
+# The post rack's pigeonholes: x of each slot's middle, and the floor each row's letters stand on (z, in the rack's
+# frame: its pivot the middle of its back face, front -Y). Slots 1-4 the upper row left to right, 5-8 the lower.
+RACK_W, RACK_H, RACK_D = 0.6, 0.42, 0.075
+RACK_SLOT_X = (-0.2175, -0.0725, 0.0725, 0.2175)
+RACK_FLOORS = (0.0075, -0.195)
+RACK_LEAN = 8.0                      # degrees a letter leans back against the rack in its slot
+
+
+def rack_slot(floor, x):
+    """SOCKET_Slot_<n>'s place and rotation (DATA's contract): where a standing letter's bottom middle sits on the
+    slot's floor, near the slat; its +Z up the slot (leaning back RACK_LEAN degrees against the rack), its front (-Y)
+    out of the rack."""
+    return (x, -0.056, floor + 0.0004), (-RACK_LEAN, 0.0, 0.0)
+
+
+def post_rack():
+    """The saloon's post rack: a pine box of eight pigeonholes in two rows, a slat across each row's front with the
+    slots' numbers painted on it, nailed to the boarded front. Two old letters nobody came for stand in slots 6 and 8;
+    the readable letter (SM_DeaconLetter) goes in slot 3 at SOCKET_Slot_3 (see rack_slot)."""
+    m = Model('PostRack', seed=SEED + 600)
+    W, H, Dp = RACK_W, RACK_H, RACK_D
+    T = 0.015
+    look = 'planks'
+    # The back: two wide boards on edge.
+    for z in (-H * 0.25, H * 0.25):
+        town.board(m, (-W * 0.5, -T * 0.5, z), (W * 0.5, -T * 0.5, z), H * 0.5 - 0.002, T, look=look,
+                   face=(0.0, -1.0, 0.0), drop=('+y',))
+    # The sides, the top, the bottom and the middle shelf.
+    for sx in (-1.0, 1.0):
+        town.board(m, (sx * (W * 0.5 - T * 0.5), -T - (Dp - T) * 0.5, -H * 0.5),
+                   (sx * (W * 0.5 - T * 0.5), -T - (Dp - T) * 0.5, H * 0.5), Dp - T, T, look=look,
+                   face=(sx, 0.0, 0.0))
+    town.board(m, (-W * 0.5 - 0.008, -Dp * 0.5 - 0.004, H * 0.5 + T * 0.5), (W * 0.5 + 0.008, -Dp * 0.5 - 0.004,
+                                                                            H * 0.5 + T * 0.5),
+               Dp + 0.008, T, look=look, face=(0.0, 0.0, 1.0))
+    for z in (-H * 0.5 + T * 0.5, 0.0):
+        town.board(m, (-W * 0.5 + T, -T - (Dp - T) * 0.5, z), (W * 0.5 - T, -T - (Dp - T) * 0.5, z), Dp - T, T,
+                   look=look, face=(0.0, 0.0, 1.0))
+    # Each row: three dividers and a slat across its front.
+    SH = 0.075
+    for floor in RACK_FLOORS:
+        for x in ((RACK_SLOT_X[0] + RACK_SLOT_X[1]) * 0.5, 0.0, (RACK_SLOT_X[2] + RACK_SLOT_X[3]) * 0.5):
+            town.board(m, (x, -T - (Dp - T) * 0.5, floor), (x, -T - (Dp - T) * 0.5, floor + 0.13), Dp - T - 0.012,
+                       0.01, look=look, face=(1.0, 0.0, 0.0))
+        town.board(m, (-W * 0.5 + T, -Dp + 0.006, floor + SH * 0.5), (W * 0.5 - T, -Dp + 0.006, floor + SH * 0.5),
+                   SH, 0.012, look=look, face=(0.0, -1.0, 0.0))
+    # The slots' numbers, painted black on the slats.
+    for r, floor in enumerate(RACK_FLOORS):
+        for c, x in enumerate(RACK_SLOT_X):
+            letters(m, str(1 + c + 4 * r), (x, -Dp, floor + SH * 0.52), 0.03, (0.0, -1.0, 0.0), UP, look='black',
+                    tol=0.015, lift=0.0005)
+    parts = []
+    # Nailed to the wall through the back, a nail in each corner pigeonhole.
+    for x in (-W * 0.5 + 0.04, W * 0.5 - 0.04):
+        for z in (H * 0.5 - 0.035, -H * 0.5 + 0.05):
+            parts.append(block((0.011, 0.003, 0.011), (x, -T - 0.0012, z), 'IronBlack', density=FINE,
+                               seed=SEED + 601))
+    # Two old letters nobody came for: plain folded packets leaning in slots 6 and 8.
+    for k, slot in enumerate((6, 8)):
+        x = RACK_SLOT_X[(slot - 1) % 4]
+        loc, rot = rack_slot(RACK_FLOORS[(slot - 1) // 4], x)
+        w, d = 0.095 - 0.01 * k, 0.15 + 0.012 * k
+        rows = [[Vector((sx * w * 0.5, -0.0012 - 0.001 * (1.0 - sx * sx) * t, d * t)) for sx in (-1.0, 0.0, 1.0)]
+                for t in (0.0, 0.5, 1.0)]
+        card = slab(rows, 0.0006, 'SextonLedgerPages', down=(0.0, 1.0, 0.0), seed=SEED + 602 + k)
+        turn = Matrix.Rotation(math.radians(rot[0] - 2.0 + 4.0 * k), 4, 'X')
+        transform([card], Matrix.Translation(Vector(loc) + Vector((0.004 - 0.008 * k, 0.0, 0.0))) @ turn)
+        parts.append(card)
+    m.add_all(parts)
+    for r, floor in enumerate(RACK_FLOORS):
+        for c, x in enumerate(RACK_SLOT_X):
+            loc, rot = rack_slot(floor, x)
+            m.socket(f'Slot_{1 + c + 4 * r}', loc, rot)
+    m.hull((W + 0.016, Dp + 0.004, H + T), at=(0.0, -(Dp + 0.004) * 0.5, T * 0.5))
+    return m.done("the middle of its back face (on the wall), front -Y", ao=0.06, ground=False)
+
+
+MAP_W, MAP_H = 0.9, 0.6
+MAP_PINS = ((-0.436, 0.286), (0.436, 0.286), (-0.436, -0.286), (0.436, -0.286))
+
+
+def reaches_map():
+    """The depot's wall map of the Reaches: a paper sheet pinned at its corners (its own texture, MI_ReachesMap), a
+    little proud of the wall between the pins and its bottom edge curling out. Pivot: the middle of its back, on the
+    wall; front -Y, north up."""
+    m = Model('ReachesMap', seed=SEED + 650)
+
+    def front(x, z):
+        """The printed face over (x, z): out from the wall (-y) by its thickness, a bulge between the pins and the
+        bottom edge's curl."""
+        u, v = 2.0 * x / MAP_W, 2.0 * z / MAP_H
+        bulge = 0.0035 * (1.0 - u * u) * (1.0 - v * v)
+        curl = 0.009 * max(0.0, -v) ** 3 * (1.0 - u * u) ** 1.5
+        return Vector((x, -0.0007 - bulge - curl, z))
+    xs = [MAP_W * (k / 10.0 - 0.5) for k in range(11)]
+    zs = [MAP_H * (k / 8.0 - 0.5) for k in range(9)]
+    rows = [[front(x, z) for x in xs] for z in zs]
+    face = sheet(rows, 'SextonLedgerPages', (0.0, -1.0, 0.0))
+    face.data.materials.clear()
+    face.data.materials.append(mat('ReachesMap'))
+    uv = face.data.uv_layers.active.data
+    for poly in face.data.polygons:
+        for li in poly.loop_indices:
+            co = face.data.vertices[face.data.loops[li].vertex_index].co
+            uv[li].uv = (co.x / MAP_W + 0.5, co.z / MAP_H + 0.5)
+    # Its back and edges: plain paper a hair behind the printed face.
+    back = slab([[front(x, z) + Vector((0.0, 0.0002, 0.0)) for x in xs] for z in zs], 0.0005, 'SextonLedgerPages',
+                down=(0.0, 1.0, 0.0), seed=SEED + 651)
+    parts = [face, back]
+    # The four brass pins, domed.
+    for k, (x, z) in enumerate(MAP_PINS):
+        at = front(x, z)
+        pin = lathe([(0.0, 0.0), (0.0062, 0.0), (0.006, 0.0011), (0.005, 0.0024), (0.003, 0.0034), (0.0, 0.0037)], 10,
+                    'BrassWorn', density=FINE, seed=SEED + 652 + k, at=(at.x, at.y + 0.0002, at.z), rot=(90.0, 0.0, 0.0))
+        parts.append(pin)
+    m.add_all(parts)
+    m.socket('Interact', (0.0, -0.06, 0.0), aim((0.0, -1.0, 0.0)))
+    m.hull((MAP_W + 0.01, 0.02, MAP_H + 0.01), at=(0.0, -0.01, 0.0))
+    return m.done("the middle of its back (on the wall), front -Y, north up", ao=0.03, ground=False, lods=False)
+
+
 # --- The coal-oil can ---
 
 def lamp_oil():
@@ -1751,7 +2060,8 @@ BUILDERS = [('LanternBail', lantern_bail), ('WinchCrank', winch_crank), ('CoalSa
             ('SheriffBadge', sheriff_badge), ('SheriffHat', sheriff_hat), ('Journal', journal),
             ('CodeBook', code_book), ('PostLog', post_log), ('PayrollBook', payroll_book),
             ('PayrollChest', payroll_chest), ('LampOil', lamp_oil), ('CacheTag', cache_tag),
-            ('DeaconsSlip', deacons_slip), ('KeepersRoll', keepers_roll)]
+            ('DeaconsSlip', deacons_slip), ('KeepersRoll', keepers_roll), ('LedgerPage', ledger_page),
+            ('DeaconLetter', deacon_letter), ('PostRack', post_rack), ('ReachesMap', reaches_map)]
 
 
 def build():
@@ -1793,6 +2103,10 @@ CAPTIONS = {
     'FennCoffin': "Fenn's coffin, closed: GRAVESEND, FARE PAID",
     'FennCoffin_Open': 'Head lid open, the coins on his eyes',
     'KeepersRoll': 'The roll: ELLIS painted out under ABEL',
+    'LedgerPage': "A loose page of Sexton's ledger, a corner lifted",
+    'DeaconLetter': "The Deacon's letter, folded and sealed",
+    'PostRack': "The saloon's post rack, two old letters in it",
+    'ReachesMap': 'The depot wall map of the Reaches, pinned',
 }
 HANGING = ('CellarKey', 'MinersTag')
 
@@ -1873,6 +2187,12 @@ def previews(built):
                         rot=(90.0, 0.0, 0.0))
             peg.name = '_Peg_' + name
             path = shoot(name, [obj], [back, peg], view=(-0.35, -1.0, 0.18), lens=70.0)
+        elif name in ('PostRack', 'ReachesMap'):
+            obj.location = (0.0, 0.0, 1.5)
+            bpy.context.view_layer.update()
+            wall = _plane('_Wall_' + name, [(-1.0, 0.001, 0.8), (1.0, 0.001, 0.8), (1.0, 0.001, 2.2), (-1.0, 0.001, 2.2)],
+                          'WoodCream', 'WoodPlanks')
+            path = shoot(name, [obj], [wall], view=(-0.3, -1.0, 0.12), lens=45.0, sun=(25.0, 32.0), margin=1.1)
         elif name == 'KeepersRoll':
             obj.location = (0.0, 0.0, 0.95)
             bpy.context.view_layer.update()

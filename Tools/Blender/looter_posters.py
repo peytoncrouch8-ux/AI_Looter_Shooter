@@ -21,7 +21,16 @@ round it so mips don't bleed between cells.
                for the code to tumble down as the poster comes off.
   5 ScrapBack  U 0.50-0.75, V 0.703-0.891  shown 0.250 x 0.188 m: the same piece from behind (mirrored left to right):
                bare paper with the print showing faintly through. Optional, for a two-sided scrap.
-  Free         U 0.75-1.00, V 0.703-1.000 and U 0.25-0.75, V 0.891-1.000.
+  6 Seven      U 0.75-1.00, V 0.703-1.000  shown 0.250 x 0.297 m (2026-10-16, the seeds): the Rangers' poster of the
+               whole gang, a 0.23 x 0.28 m sheet on four nails. THE SEVEN in wood type, OF THE DUNNE GANG, seven inked
+               busts in ovals (four over three, in the Seven's order: the Deacon's preacher hat and collar, Ned's
+               bowler and bow tie, Ira's tall hat and whistle on its cord, Sister Constance's veil, coif and cross,
+               Barrels's flat cap and apron, Lena's spectacles and bun, Tobias's square bulk), each name under its
+               oval, DEAD OR ALIVE in red low left, Capt. R. Calder signed low right. Never torn, so no remnant.
+               The ovals' places in the atlas (for crossing a face out): SEVEN_OVALS_UV, logged on every run.
+  7 SevenCross U 0.25-0.359, V 0.891-1.000  shown 0.109 x 0.109 m: an ink X, two quick strokes, on nothing (alpha 0
+               round the strokes): CORE lays it as a small decal over each paid face.
+  Free         U 0.359-0.75, V 0.891-1.000.
 
 Three options differ only in the poster's portrait, which leaves Ellis's face and gender open (they/them):
   A  type only: a letterpress broadside (ARMED & DANGEROUS, youngest of the gang and its best shot);
@@ -75,9 +84,12 @@ CELLS = {
     'Note': (0, 720, 256, 1024),
     'Scrap': (256, 720, 512, 912),
     'ScrapBack': (512, 720, 768, 912),
+    'Seven': (768, 720, 1024, 1024),
+    'SevenCross': (256, 912, 368, 1024),
 }
 POSTER_MM = (450.0, 680.0)                 # the poster's sheet
 NOTE_MM = (210.0, 280.0)                   # Calder's note
+SEVEN_MM = (230.0, 280.0)                  # the Seven's sheet
 
 rgb = lt.rgb
 smooth = lt.smooth
@@ -1591,6 +1603,276 @@ def note(seed=61):
     return np.clip(color, 0.0, 1.0), np.maximum(mask, heads)
 
 
+# --- The Seven ---
+
+SEVEN_NAILS = [(10.5, 10.0), (219.5, 11.0), (11.5, 270.0), (218.5, 269.0)]
+SEVEN_OVAL = (20.0, 26.0)                   # each bust's oval: half width, half height (mm)
+SEVEN_FIGURE = (1.25, -0.08)                 # the figures drawn this much bigger than the oval's unit, the oval's
+                                             # middle this far below the figures' origin (picture units)
+# The Seven in their order (the poster's CrossedFlags run the same way): the name under the bust, the oval's middle
+# (mm on the sheet), the bust.
+SEVEN = [('DEACON', (37.0, 108.0), 'deacon'), ('NED', (89.0, 108.0), 'ned'), ('IRA', (141.0, 108.0), 'ira'),
+         ('CONSTANCE', (193.0, 108.0), 'constance'), ('BARRELS', (63.0, 188.0), 'barrels'),
+         ('LENA', (115.0, 188.0), 'lena'), ('TOBIAS', (167.0, 188.0), 'tobias')]
+
+
+def seven_ovals_uv():
+    """Each oval's box in the atlas's UV (V = 0 at the top), in the Seven's order: [(name, u0, v0, u1, v1), ...]."""
+    sheet = Sheet('Seven', SEVEN_MM)
+    x0, y0 = CELLS['Seven'][:2]
+    out = []
+    for name, (cx, cy), _ in SEVEN:
+        (a, b), (c, d) = sheet.px([(cx - SEVEN_OVAL[0], cy - SEVEN_OVAL[1]), (cx + SEVEN_OVAL[0], cy + SEVEN_OVAL[1])])
+        out.append((name, round((x0 + a) / ATLAS, 4), round((y0 + b) / ATLAS, 4), round((x0 + c) / ATLAS, 4),
+                    round((y0 + d) / ATLAS, 4)))
+    return out
+
+
+def _bust(cut, kind):
+    """One bust in its oval, cut like a woodblock: level lines behind, the figure in solid black, its tell-tale things
+    (a collar, a whistle, spectacles) cut out in white. Picture units: the oval's half height, y up from its middle."""
+    X, Y = cut.X, cut.Y
+    S = lambda *p, closed=False: spline(np.array(p, np.float64), per=6, closed=closed)
+    E = lambda cx, cy, rx, ry, a0=0.0, a1=360.0: arc(cx, cy, rx, ry, a0, a1, step=12.0)
+    k = SEVEN_OVAL[0] / SEVEN_OVAL[1]
+    oval = E(0.0, SEVEN_FIGURE[1], k / SEVEN_FIGURE[0], 1.0 / SEVEN_FIGURE[0])
+    inside = cut.mask(oval)
+    # The ground: level lines, lighter toward the top, so the black figure stands out.
+    cut.paint(inside, cut.lines(cut.v / 2.4, np.clip(0.3 - 0.1 * Y, 0.16, 0.42)))
+    # Each shape filled on its own (filled together, one turning the other way round would cut a hole in it).
+    union = lambda polys: np.max([cut.mask(p) for p in polys], axis=0)
+    black = lambda *polys: cut.paint(union(polys), 1.0)
+    white = lambda *polys: cut.paint(union(polys), 0.0)
+
+    def lit(cx, cy, rx, ry):
+        """The lit side of a face (the light from the upper left): fine white lines cut into its left part."""
+        face = cut.mask(E(cx, cy, rx, ry)) * (X < cx - 0.25 * rx)
+        cut.paint(face, cut.lines(cut.v / 1.7, 0.45))
+    # A bust's shoulders (half width w at the bottom, sloping to the neck at y0) and its head (an ellipse).
+    def shoulders(w, top, neck=0.17, square=False):
+        if square:
+            return np.array([(-w, -1.2), (-w, top - 0.06), (-w + 0.08, top), (-neck, top + 0.04), (neck, top + 0.04),
+                             (w - 0.08, top), (w, top - 0.06), (w, -1.2)])
+        return np.vstack([[(-w, -1.2)], S((-w, -0.8), (-w * 0.88, top - 0.12), (-w * 0.6, top - 0.02), (-neck, top + 0.05),
+                                          (neck, top + 0.05), (w * 0.6, top - 0.02), (w * 0.88, top - 0.12), (w, -0.8)),
+                          [(w, -1.2)]])
+    if kind == 'deacon':
+        # The preacher: lean, a long face, a flat wide-brimmed preacher's hat with a low round crown, a white collar.
+        black(shoulders(0.66, -0.42), E(0.0, 0.02, 0.2, 0.31), np.array([(-0.1, -0.3), (0.1, -0.3), (0.1, -0.5), (-0.1, -0.5)]))
+        lit(0.0, 0.02, 0.2, 0.31)
+        black(E(0.0, 0.29, 0.62, 0.075))                                   # the brim, flat and wide
+        black(np.vstack([E(0.0, 0.3, 0.27, 0.22, 0.0, 180.0)]))            # the low crown
+        cut.carve(S((-0.6, 0.3), (0.0, 0.33), (0.6, 0.3)), 0.7)            # the brim's edge catching the light
+        white(np.array([(-0.08, -0.36), (0.08, -0.36), (0.06, -0.47), (-0.06, -0.47)]))   # the clerical collar's tab
+        cut.carve(S((-0.17, -0.34), (0.0, -0.38), (0.17, -0.34)), 0.8)
+        for s in (-1.0, 1.0):                                              # the coat's long lapels
+            cut.carve(S((s * 0.16, -0.42), (s * 0.24, -0.7), (s * 0.3, -1.0)), 0.7)
+    elif kind == 'ned':
+        # The gambler: a bowler, a round face, a white shirt front with a black bow tie, a watch chain.
+        black(shoulders(0.7, -0.4), E(0.0, 0.0, 0.22, 0.28))
+        lit(0.0, 0.0, 0.22, 0.28)
+        black(E(0.0, 0.29, 0.22, 0.34, 0.0, 180.0), E(0.0, 0.29, 0.31, 0.05))  # the bowler's tall dome, its short brim
+        for s in (-1.0, 1.0):
+            black(E(s * 0.29, 0.32, 0.05, 0.045))
+        cut.carve(S((-0.21, 0.36), (0.0, 0.345), (0.21, 0.36)), 0.7)       # the band
+        white(np.array([(-0.17, -0.36), (0.17, -0.36), (0.0, -0.95)]))     # the shirt front in the waistcoat's V
+        black(np.array([(-0.15, -0.38), (0.0, -0.44), (0.15, -0.38), (0.15, -0.52), (0.0, -0.46), (-0.15, -0.52)]))
+        cut.carve(S((0.24, -0.72), (0.36, -0.8), (0.48, -0.74)), 0.6)      # the watch chain
+    elif kind == 'ira':
+        # The horse thief: a tall pinched crown and a curled brim, a bandana knotted at the throat, a whistle on a cord.
+        black(shoulders(0.68, -0.42), E(0.0, 0.0, 0.21, 0.28))
+        lit(0.0, 0.0, 0.21, 0.28)
+        # A cattleman's crown, tapering, its top creased deep down the middle (the Montana pinch).
+        black(S((-0.2, 0.3), (-0.19, 0.5), (-0.14, 0.68), (-0.07, 0.66), (0.0, 0.52), (0.07, 0.66), (0.14, 0.68),
+                (0.19, 0.5), (0.2, 0.3), closed=True))
+        black(S((-0.56, 0.44), (-0.46, 0.33), (-0.24, 0.27), (0.0, 0.26), (0.24, 0.27), (0.46, 0.33), (0.56, 0.44),
+                (0.44, 0.37), (0.0, 0.33), (-0.44, 0.37), closed=True))
+        cut.carve(S((-0.2, 0.38), (0.0, 0.37), (0.2, 0.38)), 0.7)          # the hatband
+        # The bandana's knot and its point on the chest (dotted, as the woodcut's bandana is).
+        q, r = X / 0.06, Y / 0.06
+        col = np.round(q)
+        rs = r - 0.5 * (col % 2)
+        dots = (np.hypot(q - col, rs - np.round(rs)) > 0.3).astype(np.float32)
+        cut.paint(cut.mask(np.array([(-0.24, -0.33), (0.24, -0.33), (0.0, -0.58)])), dots)
+        cut.carve(np.array([(-0.24, -0.33), (0.24, -0.33), (0.0, -0.58), (-0.24, -0.33)]), 0.5)
+        # The whistle: a cord from behind the neck down to a little tin whistle on the chest.
+        cut.carve(S((0.22, -0.4), (0.3, -0.52), (0.28, -0.62)), 0.6)
+        white(np.array([(0.2, -0.6), (0.44, -0.62), (0.44, -0.72), (0.2, -0.7)]))
+    elif kind == 'constance':
+        # The sister: a veil falling to the shoulders, a white coif round the face, a white bib with a black cross.
+        black(shoulders(0.7, -0.45))
+        black(S((0.0, 0.48), (0.26, 0.42), (0.36, 0.2), (0.38, -0.1), (0.46, -0.42), (0.6, -0.62), (0.0, -0.66),
+                (-0.6, -0.62), (-0.46, -0.42), (-0.38, -0.1), (-0.36, 0.2), (-0.26, 0.42), closed=True))
+        face = E(0.0, 0.03, 0.2, 0.27)
+        ring = E(0.0, 0.05, 0.25, 0.33)
+        white(ring)
+        black(face)
+        lit(0.0, 0.03, 0.2, 0.27)
+        white(S((-0.26, -0.32), (0.0, -0.36), (0.26, -0.32), (0.22, -0.62), (0.0, -0.7), (-0.22, -0.62), closed=True))
+        black(np.array([(-0.025, -0.4), (0.025, -0.4), (0.025, -0.47), (0.08, -0.47), (0.08, -0.52), (0.025, -0.52),
+                        (0.025, -0.64), (-0.025, -0.64), (-0.025, -0.52), (-0.08, -0.52), (-0.08, -0.47),
+                        (-0.025, -0.47)]))
+    elif kind == 'barrels':
+        # The powder man: stocky, a flat cap with a short bill, mutton chops, a leather apron's bib and straps.
+        black(shoulders(0.76, -0.36, neck=0.22), S((-0.25, 0.22), (-0.27, 0.0), (-0.24, -0.2), (-0.12, -0.32),
+                                                   (0.0, -0.34), (0.12, -0.32), (0.24, -0.2), (0.27, 0.0), (0.25, 0.22),
+                                                   (0.0, 0.3), closed=True))
+        lit(0.0, 0.0, 0.26, 0.3)
+        black(S((-0.27, 0.2), (-0.2, 0.36), (0.0, 0.41), (0.22, 0.37), (0.34, 0.27), (0.42, 0.21), (0.2, 0.22),
+                (0.0, 0.2), closed=True))                               # the flat cap and its bill
+        cut.carve(S((-0.25, 0.21), (0.05, 0.22), (0.4, 0.22)), 0.6)
+        bib = np.array([(-0.3, -0.55), (0.3, -0.55), (0.34, -1.1), (-0.34, -1.1)])
+        cut.paint(cut.mask(bib), cut.lines(cut.u / 2.0, 0.55))          # the apron, a shade lighter
+        cut.carve(np.vstack([bib[:2]]), 0.8)
+        for s in (-1.0, 1.0):                                             # its straps over the shoulders
+            cut.carve(S((s * 0.29, -0.55), (s * 0.3, -0.42), (s * 0.36, -0.33)), 0.8)
+    elif kind == 'lena':
+        # The sniper: slight, her hair up in a bun, round spectacles, a high collar.
+        black(shoulders(0.6, -0.44, neck=0.12), E(0.0, 0.02, 0.19, 0.27), E(0.0, 0.36, 0.11, 0.09),
+              np.array([(-0.07, -0.25), (0.07, -0.25), (0.08, -0.46), (-0.08, -0.46)]))
+        lit(0.0, 0.02, 0.19, 0.27)
+        black(S((-0.2, 0.06), (-0.22, 0.22), (-0.12, 0.31), (0.0, 0.33), (0.12, 0.31), (0.22, 0.22), (0.2, 0.06),
+                closed=True))                                            # the hair, swept up
+        for s in (-1.0, 1.0):                                             # the spectacles
+            cut.carve(E(s * 0.085, 0.04, 0.065, 0.055), 0.7, closed=True)
+        cut.carve(np.array([(-0.02, 0.05), (0.02, 0.05)]), 0.6)
+        for s in (-1.0, 1.0):
+            cut.carve(np.array([(s * 0.15, 0.05), (s * 0.2, 0.07)]), 0.5)
+        cut.carve(S((-0.09, -0.3), (0.0, -0.33), (0.09, -0.3)), 0.6)      # the high collar's edge
+        cut.carve(S((0.0, -0.46), (0.0, -0.75), (0.0, -1.0)), 0.6)        # the buttoned front
+    elif kind == 'tobias':
+        # The strongman: square bulk, shoulders wide as the oval, a small head on a thick neck, no hat.
+        black(shoulders(0.82, -0.3, neck=0.2, square=True), E(0.0, 0.12, 0.2, 0.24),
+              np.array([(-0.2, 0.0), (0.2, 0.0), (0.22, -0.32), (-0.22, -0.32)]))
+        lit(0.0, 0.12, 0.2, 0.24)
+        black(np.array([(-0.2, 0.2), (-0.19, 0.33), (0.19, 0.33), (0.2, 0.2)]))   # the flat-top crop
+        cut.carve(S((-0.2, -0.3), (0.0, -0.4), (0.2, -0.3)), 0.8)          # the shirt's collar
+        for s in (-1.0, 1.0):                                             # braces over the chest
+            cut.carve(np.array([(s * 0.4, -0.3), (s * 0.34, -1.1)]), 0.8)
+    cut.ink = cut.ink * inside
+    cut.stroke(np.vstack([oval, oval[:1]]), 1.1)
+
+
+def seven_paper(sheet, mask, seed):
+    """The Seven's paper: newer than Ellis's poster (it went up after the robberies) but out in the same weather: cream,
+    toned at the edges, a rain run from the top nails, a stain, foxing, folded once to carry. Returns (colour, maps)."""
+    shape = sheet.shape
+    rng = np.random.default_rng(seed)
+    u, v = sheet.grid()
+    W, H = sheet.size
+    edge = np.minimum(np.minimum(u, W - u), np.minimum(v, H - v))
+    big = _noise(shape, seed + 1, 40.0, octaves=2)
+    mid = _noise(shape, seed + 2, 12.0)
+    fine = _noise(shape, seed + 3, 0.6)
+    fibers = 0.55 * _noise(shape, seed + 4, 3.5, 0.45) + 0.55 * _noise(shape, seed + 5, 0.45, 3.5)
+    color = np.ones(shape + (3,), np.float32) * rgb(0xdccdab)
+    color = mix(color, rgb(0xe5dac2), smooth(-0.9, 1.4, 0.6 * big - 0.004 * (v - 120.0)) * smooth(0.0, 25.0, edge) * 0.7)
+    toned = (1.0 - smooth(0.0, 9.0, edge + 4.0 * mid)) * 0.7 + (1.0 - smooth(0.0, 30.0, edge)) * 0.18
+    color = mix(color, rgb(0xbd9e6f), np.clip(toned, 0.0, 1.0))
+    color = color * (1.0 + 0.022 * big + 0.012 * mid + 0.022 * fine + 0.014 * fibers)[..., None]
+    inside, tide = tide_stain(u, v, (204.0, 250.0), 22.0, 1.3, seed + 21, shape)
+    color = multiply(color, inside * 0.45, (0.95, 0.9, 0.78))
+    color = mix(color, rgb(0x9a7b52), np.clip(tide, 0.0, 1.0) * 0.32)
+    for x0, v0, length, k in ((11.0, 16.0, 70.0, 31), (219.0, 17.0, 95.0, 33)):
+        inside, tide = drip(u, v, x0, v0, length, seed + k, width=1.8)
+        color = multiply(color, inside * 0.45, (0.93, 0.88, 0.76))
+        color = mix(color, rgb(0x9a7b52), np.clip(tide, 0.0, 1.0) * 0.28)
+    h, w = shape
+    chance = ((1.0 - smooth(0.0, 35.0, edge)) * 0.7 + 0.3 * smooth(0.6, 1.8, mid) + 0.05) * mask
+    chance = chance.ravel()
+    picks = rng.choice(h * w, size=45, replace=False, p=chance / chance.sum())
+    pts = [(p % w + 0.5, p // w + 0.5) for p in picks]
+    sizes = [float(rng.choice([0.6, 0.9, 1.4], p=[0.55, 0.3, 0.15])) for _ in picks]
+    strengths = [float(rng.uniform(0.25, 0.7)) for _ in picks]
+    cores, halos = spots(shape, rng, pts, sizes, strengths)
+    color = multiply(color, halos * 0.3, rgb(0xc9a070))
+    color = multiply(color, cores * 0.75, rgb(0xa06a3e))
+    shade = np.zeros(shape, np.float32)
+    cracks = np.zeros(shape, np.float32)
+    for p0, p1, k, s in (((-6.0, 146.0), (236.0, 143.0), 41, 0.9), ((116.0, -6.0), (113.0, 286.0), 43, 0.4)):
+        sh, core = crease(u, v, p0, p1, seed + k, s)
+        shade += sh
+        cracks = np.maximum(cracks, core)
+    color = color * (1.0 + 0.09 * np.clip(shade, -1.5, 1.5))[..., None]
+    color = multiply(color, cracks * 0.12, (0.6, 0.52, 0.42))
+    grime = (1.0 - smooth(0.0, 40.0, H - v)) * (0.5 + 0.5 * smooth(-1.0, 1.0, _noise(shape, seed + 60, 5.0)))
+    grime += (1.0 - smooth(0.0, 12.0, v)) * 0.35
+    color = multiply(color, grime * 0.2, rgb(0x8c7a62))
+    maps = dict(fibers=fibers, fine=fine, cracks=cracks)
+    return np.clip(color, 0.0, 1.0), maps
+
+
+def seven(seed=81):
+    """The Rangers' poster of the whole gang (the Seven cell). Returns (color, alpha)."""
+    sheet = Sheet('Seven', SEVEN_MM)
+    shape = sheet.shape
+    rng = np.random.default_rng(seed)
+    W, H = sheet.size
+    top = _edge(sheet, (0.0, 0.0), (W, 0.0), rng, CUT, bumps=[(0.62, 1.4, 4.0)])
+    right = _edge(sheet, (W, 0.0), (W, H), rng, CUT)
+    bottom = _edge(sheet, (W, H), (0.0, H), rng, CUT, bumps=[(0.35, 1.6, 4.0)])
+    left = _edge(sheet, (0.0, H), (0.0, 0.0), rng, CUT, bumps=[(0.7, 1.2, 3.0)])
+    mask = fill([np.concatenate([top[:-1], right[:-1], bottom[:-1], left[:-1]])], shape, ss=4)
+    color, maps = seven_paper(sheet, mask, seed + 1)
+    black, red = Ink(shape), Ink(shape)
+    for inset, thick in ((8.0, 1.8), (11.4, 0.8)):
+        rule(black, sheet, inset - thick * 0.5, W - inset + thick * 0.5, inset, thick, rng)
+        rule(black, sheet, inset - thick * 0.5, W - inset + thick * 0.5, H - inset, thick, rng)
+        for x in (inset, W - inset):
+            type_shape(black, sheet, [rect(x - thick * 0.5, inset, x + thick * 0.5, H - inset)])
+    type_line(black, sheet, rng, 'THE SEVEN', 27.0, W * 0.5, 47.0, width=186.0, wood=True)
+    rule(black, sheet, 24.0, W - 24.0, 54.5, 1.4, rng)
+    rule(black, sheet, 24.0, W - 24.0, 57.6, 0.6, rng)
+    type_line(black, sheet, rng, 'OF THE DUNNE GANG', 8.0, W * 0.5, 70.0, width=128.0)
+    for x in (W * 0.5 - 76.0, W * 0.5 + 76.0):
+        type_shape(black, sheet, [star(x, 66.5, 4.0)])
+    for k, (name, (cx, cy), kind) in enumerate(SEVEN):
+        rx, ry = SEVEN_OVAL
+        unit = ry * SEVEN_FIGURE[0]
+        cut = Cut(sheet, (cx - rx - 1.5, cy - ry - 1.5, cx + rx + 1.5, cy + ry + 1.5),
+                  (cx, cy + SEVEN_FIGURE[1] * unit), unit, ss=3, seed=int(rng.integers(1 << 30)), waver=0.06, swell=0.05)
+        _bust(cut, kind)
+        cut.print(black, wood=0.35)
+        _, natural = set_line(name, 6.2)
+        type_line(black, sheet, rng, name, 6.2, cx, cy + ry + 10.0, width=min(natural, 2.0 * rx + 4.0))
+    rule(black, sheet, 24.0, W - 24.0, 236.0, 0.8, rng)
+    type_line(red, sheet, rng, 'DEAD OR ALIVE', 8.5, 64.0, 256.0, width=92.0, wood=True)
+    a = letterpress(black, maps['fine'], maps['fibers'], seed + 400) * (1.0 - 0.75 * maps['cracks'])
+    color = multiply(color, a, (0.17, 0.145, 0.13))
+    red.cov = np.roll(np.roll(red.cov, 1, axis=1), -1, axis=0)
+    red.wood = np.roll(np.roll(red.wood, 1, axis=1), -1, axis=0)
+    a = letterpress(red, maps['fine'], maps['fibers'], seed + 410, fade=0.85) * (1.0 - 0.75 * maps['cracks'])
+    color = multiply(color, a, (0.74, 0.3, 0.22))
+    # Calder's hand, low right: "Capt." and her signature, in iron-gall ink.
+    hand = Hand(seed + 500, slant=0.16, spacing=0.14, wobble=0.01, jitter=0.8)
+    strokes, _ = hand.line('CAPT.', *sheet.px((126.0, 257.0)), 7.5 * MM, angle=4.0)
+    strokes += signature(*sheet.px((152.0, 259.0)), 13.0 * MM, seed + 540, angle=5.0)
+    cov, pres = draw_strokes(shape, strokes, 1.5, var=0.55)
+    color = multiply(color, cov * (0.82 + 0.18 * np.clip(pres, 0.0, 1.0)), (0.27, 0.19, 0.14))
+    heads = np.zeros(shape, np.float32)
+    for k, (nx, ny) in enumerate(SEVEN_NAILS):
+        paint_nail(color, mask, heads, *sheet.px((nx, ny)), 4.6 * MM, seed + 700 + k, rust=0.6)
+    return np.clip(color, 0.0, 1.0), np.maximum(mask, heads)
+
+
+def seven_cross(seed=91):
+    """The X that crosses out a paid face: two quick strokes of iron-gall ink, heavier where the pen landed, on nothing
+    (the cell's alpha is the ink). Returns (color, alpha)."""
+    x0, y0, x1, y1 = CELLS['SevenCross']
+    shape = (y1 - y0, x1 - x0)
+    rng = np.random.default_rng(seed)
+    strokes = []
+    for (ax, ay), (bx, by), bend in (((15.0, 17.0), (97.0, 95.0), 3.0), ((95.0, 13.0), (17.0, 99.0), -2.5)):
+        mid = ((ax + bx) * 0.5 + bend, (ay + by) * 0.5 - bend)
+        pts = spline(np.array([(ax, ay), mid, (bx, by)]), per=24)
+        strokes.append(hand_stroke(pts, rng, 40.0, wobble=0.01, overshoot=(0.0, 0.04), base=1.05, attack=0.04,
+                                   release=0.3, lift=0.4, start=1.0))
+    cov, pres = draw_strokes(shape, strokes, 7.5, var=0.45, rough=0.08, seed=seed + 1)
+    alpha = np.clip(cov * (0.8 + 0.2 * np.clip(pres, 0.0, 1.0)), 0.0, 1.0)
+    color = np.ones(shape + (3,), np.float32) * np.array((0.2, 0.15, 0.13), np.float32)
+    return color, alpha
+
+
 # --- The atlas ---
 
 def atlas(option):
@@ -1598,7 +1880,8 @@ def atlas(option):
     p = poster(option)
     front = scrap(p)
     cells = {'Poster': (p['color'], p['alpha']), 'Remnant': remnant(p), 'Scrap': front,
-             'ScrapBack': scrap_back(front), 'Note': note()}
+             'ScrapBack': scrap_back(front), 'Note': note(), 'Seven': seven(),
+             'SevenCross': seven_cross()}
     color = np.zeros((ATLAS, ATLAS, 3), np.float32)
     alpha = np.zeros((ATLAS, ATLAS), np.float32)
     for name, (c, a) in cells.items():
@@ -1637,13 +1920,15 @@ def atlas_sheet(rgba, option):
                    (slice(y0, y1), slice(x0, x0 + 1)), (slice(y0, y1), slice(x1 - 1, x1))):
             img[sl] = rgb(0xf2a64a)
         sheet_label(img, str(k + 1), x0 + 5, y0 + 17, 12, color=(0.95, 0.65, 0.29))
-        sheet_label(img, f'{k + 1}  {CELL_NAMES[name]}', 786, 800 + 26 * k, 13, color=(0.78, 0.76, 0.72))
-    sheet_label(img, f'OPTION {option}', 786, 762, 20, color=(0.95, 0.65, 0.29))
+        # The legend in the free strip under the scraps, in two columns.
+        sheet_label(img, f'{k + 1}  {CELL_NAMES[name]}', 480 + 150 * (k // 4), 936 + 22 * (k % 4), 11,
+                    color=(0.78, 0.76, 0.72))
+    sheet_label(img, f'OPTION {option}', 378, 952, 15, color=(0.95, 0.65, 0.29))
     return img
 
 
 CELL_NAMES = {'Poster': 'POSTER', 'Remnant': 'REMNANT', 'Note': "CALDER'S NOTE", 'Scrap': 'SCRAP',
-              'ScrapBack': 'SCRAP, BACK'}
+              'ScrapBack': 'SCRAP, BACK', 'Seven': 'THE SEVEN', 'SevenCross': 'SEVEN X'}
 
 
 def build(option, install=False):
@@ -1653,6 +1938,8 @@ def build(option, install=False):
     lt.write_png(atlas_path(option), rgba)
     lt.write_png(os.path.join(OUT_DIR, f'Atlas_{option}.png'), lt.to8(atlas_sheet(rgba, option)))
     lt._log(f'posters: option {option} -> {atlas_path(option)}')
+    for name, u0, v0, u1, v1 in seven_ovals_uv():
+        lt._log(f'posters: Seven oval {name}: U {u0}-{u1}, V {v0}-{v1}')
     if install:
         lt.write_png(FINAL_PATH, rgba)
         lt._log(f'posters: option {option} installed as {FINAL_PATH}')
