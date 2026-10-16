@@ -1097,7 +1097,7 @@ folder). The pieces:
   outline, names, "DEAD OR ALIVE", Calder's signature) and `SevenCross` (U 0.25-0.359, V 0.891-1: an ink X on alpha).
   After rerendering the atlas run `build_decal_materials.py`.
 - **The road at dusk:** the Gravewind's wisps were already the river of lights at Dusk; added the second light: a
-  steady `AFarSignalLight` due west of `Place_GravewindPoint`, 9 km out, 40 m over the deck boards -10 m, size 5500,
+  steady `AFarSignalLight` due west of `Place_GravewindPoint`, 9 km out, 30 m up, size 5500,
   strength 30, pale cold white, `shown_state Dusk`, `shown_when after Main6`; and Hob's `DA_Lines_HobMain6Point` on his
   after-Main6 bier perch (Ellis sees the light, then *"Don't look at that one, sunshine."*). Not gated on Grave Sight
   (there is still no vision mode: only the Reliquary's flash). `Looter.FarLight 1` shows a far light for a check.

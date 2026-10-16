@@ -118,7 +118,7 @@ for the page, the letter, the post rack and the map; the Seven poster as an atla
   Hollow, the smith), Corliss (the Needles), Gideon (Stoneweight), Ada; robbery dates 3 Mar, 1 Apr, 9 May, 14 Jun, 12
   Jul, 2 Aug, the Rest 21 Aug (its page entered 21 July, "E. Ransom" twice); the saloon letter is the Deacon warning
   Delia (postmarked Halfway Junction, 9 Aug, never collected), the cleft letter to "Kid", never sent; Hob says the Point
-  line on his after-Main6 bier perch; the second light due west of the Point, 9 km out, 40 m up, size 5500, strength 30;
+  line on his after-Main6 bier perch; the second light due west of the Point, 9 km out, 30 m up, size 5500, strength 30;
   the Seven poster at offset [0, -12, 0]; the rack 1.4 m up, 110 cm right of the saloon doors; the lid's lines say
   "prised up at one edge" to match the model. Open: the town pages' "not met" help reads "You two haven't met, friend"
   (a place wording needs C++); Hob's mutters play the town-life voice cue; Sloane's "kid" line left as it was.

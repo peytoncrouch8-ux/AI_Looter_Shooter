@@ -93,6 +93,7 @@ RACK_SLOTS = 8
 # The Reaches map: 1.55 m over the agent's desk socket, on the wall behind the desk (the back wall, 68 cm behind the
 # socket in DepotRR.py), found by a line back from there.
 MAP_UP = 155.0
+MAP_ASIDE = 150.0
 MAP_REACH = 300.0
 MAP_TRACE = 150.0
 # The second light: west (bearing 270: 0 north, 90 east) from Gravewind Point's place, 9 km out, 40 m over the canyon fog
@@ -431,8 +432,10 @@ def place_reaches_map(build, kit, found):
     if desk is None:
         build.warn('no depot with its SOCKET_AgentDesk: no map of the Reaches')
         return
-    forward, _ = flat_axes(station)
-    start = desk.translation + unreal.Vector(0.0, 0.0, MAP_UP)
+    forward, right = flat_axes(station)
+    # Aside along the wall: straight over the desk is the office's window (the map hung over its panes on the first
+    # build); the plaster to the desk's right, toward the ticket window, is bare.
+    start = desk.translation + right * MAP_ASIDE + unreal.Vector(0.0, 0.0, MAP_UP)
     wall = story.onto_host(station, start, start - forward * MAP_TRACE)
     if wall is None:
         build.warn('no wall behind the agent\'s desk: the map hangs where the wall should be')
