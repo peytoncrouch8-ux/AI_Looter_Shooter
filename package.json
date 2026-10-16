@@ -1,0 +1,8 @@
+{
+  "name": "ai_looter_shooter",
+  "private": true,
+  "description": "Node packages for the portrait painter (Art/Portraits/render.js, sheet.js, frame/gen.js): `npm install`, then `npx playwright install chromium`.",
+  "dependencies": {
+    "playwright": "^1.64.1"
+  }
+}
