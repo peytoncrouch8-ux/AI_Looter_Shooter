@@ -24,6 +24,11 @@ struct AI_LOOTER_SHOOTER_API FBodySwingSettings
 	 * sank 1.5 cm into the crouched thigh while its line kept clear).
 	 */
 	float Bulk = 0.f;
+	/**
+	 * May rise as high as its animated target, not only as high as the point it hangs from: the cape's chains ride the
+	 * arms, and held level with their anchors they couldn't follow an arm raised to aim (the arm came up through them).
+	 */
+	bool bRisesToTarget = false;
 };
 
 /** A limb the swinging points keep clear of: a segment between two points (component space) and the distance kept. */
@@ -108,10 +113,10 @@ struct AI_LOOTER_SHOOTER_API FBodySwingPoints
 	static FVector PushPlaceOut(const FVector& S, const FBodySwingCapsule& Capsule, const FVector& Outward);
 
 	/**
-	 * Tip (Length from Head) kept no higher than Head: hanging things never rise over what they hang from (a crouch's
-	 * thigh once swung a coat flap up to his shoulder).
+	 * Tip (Length from Head) kept no higher than CeilingZ (Head's height for hanging cloth: it never rises over what it
+	 * hangs from, a crouch's thigh once swung a coat flap up to his shoulder; a riding chain's target height).
 	 */
-	static FVector KeepUnder(const FVector& Head, const FVector& Tip, double Length);
+	static FVector KeepUnder(const FVector& Head, const FVector& Tip, double Length, double CeilingZ);
 
 	/**
 	 * Tip (Length from Head) kept on or over FloorZ: under it, it lies on it out the way it leans (Lean's when it hangs

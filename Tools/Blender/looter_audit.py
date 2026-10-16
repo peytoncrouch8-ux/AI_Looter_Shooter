@@ -18,7 +18,8 @@ from mathutils.bvhtree import BVHTree
 
 # ------------------------------------------------------------------------------------------------------------ poses
 # Steps applied in order on the posed skeleton (Blender's axes, the figure built facing -Y, its left +X):
-# ('turn', bone, world axis, degrees) about the bone's head; ('point', bone, world direction); ('move', bone, offset m).
+# ('turn', bone, world axis, degrees) about the bone's head; ('point', bone, world direction); ('move', bone, offset m);
+# ('tip', bone, degrees) about the bone's own X; ('twist', side, degrees, bend) the hand on the forearm.
 FWD, BACK, LEFT, UP = (0.0, -1.0, 0.0), (0.0, 1.0, 0.0), (1.0, 0.0, 0.0), (0.0, 0.0, 1.0)
 X, Y, Z = (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)
 
@@ -56,6 +57,38 @@ POSES = {
     'grip_b': [('turn', 'spine_03', Z, -10.0), ('point', 'upperarm_r', (-0.62, -0.45, -0.25)),
                ('point', 'lowerarm_r', (0.55, -0.75, 0.25)), ('point', 'upperarm_l', (0.25, -0.8, -0.45)),
                ('point', 'lowerarm_l', (-0.3, -0.95, 0.1)), ('twist', 'l', -100.0, -30.0), ('twist', 'r', -32.0, -20.0)],
+    # (the cape's audit, ellis_cape_audit.py, round 6) a gun carried low across the body: the upper arms a little
+    # forward, the forearms level
+    'carry': [('point', 'upperarm_r', (-0.25, -0.30, -0.92)), ('point', 'lowerarm_r', (0.45, -0.85, 0.10)),
+              ('point', 'upperarm_l', (0.20, -0.40, -0.90)), ('point', 'lowerarm_l', (-0.45, -0.85, 0.25))],
+    # aimed 35 degrees up: the chest pitched back, the arms higher on it (a world-level arm is raised on a leaning chest)
+    'aim_high': [('turn', 'spine_03', Z, -10.0), ('turn', 'spine_03', X, -15.0),
+                 ('point', 'upperarm_r', (-0.60, -0.50, 0.05)), ('point', 'lowerarm_r', (0.50, -0.70, 0.50)),
+                 ('point', 'upperarm_l', (0.25, -0.85, -0.10)), ('point', 'lowerarm_l', (-0.30, -0.80, 0.50)),
+                 ('turn', 'head', Y, -20.0), ('turn', 'head', X, -10.0), ('tip', 'hat', 18.0)],
+    # aimed 35 degrees down: the chest pitched forward, the arms lower
+    'aim_low': [('turn', 'spine_03', Z, -10.0), ('turn', 'spine_03', X, 15.0),
+                ('point', 'upperarm_r', (-0.55, -0.35, -0.60)), ('point', 'lowerarm_r', (0.50, -0.60, -0.35)),
+                ('point', 'upperarm_l', (0.20, -0.60, -0.75)), ('point', 'lowerarm_l', (-0.30, -0.85, -0.40)),
+                ('turn', 'head', Y, -20.0), ('turn', 'head', X, 25.0), ('tip', 'hat', 18.0)],
+    # crouched and aiming (the chest straighter than the plain crouch's)
+    'crouch_aim': [('move', 'pelvis', (0.0, 0.06, -0.32)), ('turn', 'spine_01', X, 12.0), ('turn', 'spine_03', Z, -10.0),
+                   ('turn', 'thigh_l', X, -80.0), ('turn', 'calf_l', X, 90.0), ('turn', 'foot_l', X, -10.0),
+                   ('turn', 'thigh_r', X, -75.0), ('turn', 'calf_r', X, 90.0), ('turn', 'foot_r', X, -15.0),
+                   ('point', 'upperarm_r', (-0.62, -0.45, -0.25)), ('point', 'lowerarm_r', (0.55, -0.75, 0.25)),
+                   ('point', 'upperarm_l', (0.25, -0.8, -0.45)), ('point', 'lowerarm_l', (-0.3, -0.95, 0.1)),
+                   ('turn', 'head', Y, -20.0), ('turn', 'head', X, 10.0), ('tip', 'hat', 18.0)],
+    # a run's arm swing at its widest, the left arm forward and the right back (the game's cape takes about a third
+    # of a run's swing, FollowEaseSeconds: this is the whole of it)
+    'swing': [('point', 'upperarm_l', (0.12, -0.55, -0.83)), ('point', 'lowerarm_l', (0.10, -0.95, -0.20)),
+              ('point', 'upperarm_r', (-0.12, 0.45, -0.88)), ('point', 'lowerarm_r', (-0.10, 0.10, -0.99))],
+    # the head alone turned 35 degrees, pitched up 25 and down 25 (rig_check's HEAD_TESTS: the collar must clear)
+    'look_l': _arms_down() + [('turn', 'head', Z, 35.0)],
+    'look_r': _arms_down() + [('turn', 'head', Z, -35.0)],
+    'look_up': _arms_down() + [('turn', 'head', X, -25.0)],
+    'look_down': _arms_down() + [('turn', 'head', X, 25.0)],
+    # the head pitched up 20 and turned 35 with the hat tipped 20 (HAT_TIP), the brim's back lowest over the collar
+    'look_up_tip': _arms_down() + [('turn', 'head', X, -20.0), ('turn', 'head', Z, 35.0), ('tip', 'hat', 20.0)],
 }
 
 
@@ -87,6 +120,13 @@ def pose(arm, steps, amount=1.0):
             _apply(pb, Matrix.Translation(h) @ q.to_matrix().to_4x4() @ Matrix.Translation(-h))
         elif kind == 'move':
             _apply(pb, Matrix.Translation(Vector(args[0]) * amount))
+        elif kind == 'tip':
+            # ('tip', bone, degrees): about the bone's own X at its head (the hat's: +X tips the brim's front up, as
+            # FBodyHatTip does while aiming); nothing without the bone
+            if pb is not None:
+                axis = (pb.matrix.to_3x3() @ Vector((1.0, 0.0, 0.0))).normalized()
+                _apply(pb, Matrix.Translation(h) @ Matrix.Rotation(math.radians(args[0] * amount), 4, axis)
+                       @ Matrix.Translation(-h))
         elif kind == 'twist':
             # ('twist', side, degrees, bend): the hand turned about the forearm's axis, each lowerarm_twist bone by its
             # share of the way down (TWIST_SHARES, as the game turns them), then the hand bent about its own X
@@ -127,8 +167,38 @@ MAX_BONE_PUSH = 0.5                  # a bone push moves its tip at most this sh
 FLOOR_CLEARANCE = 0.02               # no point under the ground at his feet (the armature's origin) + this
 GATHER_REACH = 1.0 / 3.0             # a chain's last point lies on the floor at most this share of its length out
 SPRINGS = {'skirt': (7.0, 0.08), 'cape': (12.0, 0.05), 'bandana': (9.0, 0.05), 'hair': (9.0, 0.05), 'lantern': (2.0, 1.0)}
-CAPE_FOLLOW = {'f': 0.6, 'b': 0.4}
-BULK = {'lantern': 0.025}     # a thick thing keeps this much more than a limb's cap (m; its body's thickness)
+BULK = {'lantern': 0.025, 'cape': 0.06}   # a thick thing keeps this much more than a limb's cap (m; its body's
+# thickness); the cape (round 6, PROPOSED: BodySwing's cape Bulk 6 cm): its chains keep their room from the arms, the
+# forearms and the hands too, so a gun's hands and forearms in front of the chest don't come through its front panels
+# Round 6 (the CAPE agent; PROPOSED for BodySwing, which still has round 5's: f 0.6, any other 0.4, from the bind pose's
+# upper arm, the side its name's 7th letter, KeepUnder level with the head): how much of its upper arm's turn each cape
+# chain takes (cape_<key><side>: Ellis.py's CAPE_CHAINS; the side is the name's last letter, l or r; cape_bm, down the
+# middle of the back, rides no arm), the arm taken from where it hangs at the game's idle (`cape_arm_<side>`: the cape
+# is draped over arms hanging so, the bind pose's raised arms go through it), the upper arm's rest for every clearance
+# from there too, and a chain point may rise as high as its target (a cape riding an arm raised to aim; KeepUnder).
+CAPE_FOLLOW = {'f': 0.2, 'a': 1.0, 's': 1.0, 'b': 0.5}
+IDLE_ARM_BONE = 'cape_arm_{}'
+
+
+def cape_follow(chain):
+    """(upper arm bone, share of its turn) a cape chain takes, or None (cape_bm, another chain)."""
+    if not chain.startswith('cape_') or chain[-1] not in 'lr':
+        return None
+    share = CAPE_FOLLOW.get(chain[5:-1], 0.0)
+    return (f'upperarm_{chain[-1]}', share) if share > 0.0 else None
+
+
+def _idle_arm(bones, side):
+    """The upper arm's rest as it hangs at the idle (cape_arm_<side>), or the bind pose's without one."""
+    return bones.get(IDLE_ARM_BONE.format(side)) or bones[f'upperarm_{side}']
+
+
+def _rest_limb(bones, a, b):
+    """A limb's rest segment (from a's head to b's): the upper arm's as it hangs at the idle (_idle_arm)."""
+    if a.startswith('upperarm_'):
+        idle = _idle_arm(bones, a[-1])
+        return idle.head_local.copy(), idle.matrix_local @ (bones[a].matrix_local.inverted() @ bones[b].head_local)
+    return bones[a].head_local, bones[b].head_local
 
 
 def _closest(p, a, b):
@@ -196,14 +266,18 @@ def _push_bone_out(head, tip, a, c, r, outward=None):
     return tip + out * min(overlap / along, length * MAX_BONE_PUSH)
 
 
-def _keep_under(head, tip, length):
-    """BodySwing's KeepUnder: nothing hanging rises above what it hangs from; a tip over its head goes level with it,
-    out the way it went (straight up has no way: it stays as it is). Crouched thighs had swung a coat flap out level
-    with the hip, once up to the shoulder."""
-    if tip.z <= head.z:
+def _keep_under(head, tip, length, target_z=None):
+    """BodySwing's KeepUnder: nothing hanging rises above what it hangs from, or, riding an arm (target_z), above its
+    target (round 6, PROPOSED: a cape riding an arm raised to aim is meant to rise); a tip over that goes level, out
+    the way it went (straight up has no way: it stays as it is). Crouched thighs had swung a coat flap out level with
+    the hip, once up to the shoulder."""
+    rise = 0.0 if target_z is None else min(max(target_z - head.z, 0.0), length)
+    if tip.z <= head.z + rise:
         return tip
     flat = Vector((tip.x - head.x, tip.y - head.y, 0.0))
-    return tip if flat.length <= 1e-8 else head + flat.normalized() * length
+    if flat.length <= 1e-8:
+        return tip
+    return head + flat.normalized() * math.sqrt(max(length * length - rise * rise, 0.0)) + Vector((0.0, 0.0, rise))
 
 
 def _keep_above(head, tip, length, floor, lean, reach=None):
@@ -256,7 +330,7 @@ def _ring(arm, chain_bones, tips, shown, anchors, ways, limbs_now):
     the two points and the middle of the patch above them kept off every limb (each its rest distance x 0.95, capped),
     the push levelled and shared by nearness (the nearer point more), each point moved by its share, at most RING_PUSH."""
     bones = arm.data.bones
-    rest_limbs = [(bones[a].head_local, bones[b].head_local, m / 100.0) for a, b, m in LIMBS]
+    rest_limbs = [(*_rest_limb(bones, a, b), m / 100.0) for a, b, m in LIMBS]
     order = [c for c in SKIRT_RING if c in chain_bones]
     for ca, cb in zip(order, order[1:]):
         rest_a = [bones[chain_bones[ca][0]].head_local] + tips[ca]
@@ -322,7 +396,7 @@ def settle_swing(arm, chain_bones, steps=None, stages=12, reach=0.01):
     kept out of the limbs on the way, as the springs follow a move frame by frame (set straight into a pose, a limb
     already past a point would push it out the far side). Without steps, the pose as it is, in one go."""
     bones = arm.data.bones
-    rest_limbs = [(bones[a].head_local, bones[b].head_local, m / 100.0) for a, b, m in LIMBS]
+    rest_limbs = [(*_rest_limb(bones, a, b), m / 100.0) for a, b, m in LIMBS]
     tips = {chain: _rest_tips(arm, names) for chain, names in chain_bones.items()}
     bulk = lambda chain: BULK.get(chain.split('_')[0], 0.0)
     clear = {chain: [[min((t - _closest(t, a, c)).length * CLEARANCE_SHARE, m + bulk(chain)) for a, c, m in rest_limbs]
@@ -348,10 +422,10 @@ def settle_swing(arm, chain_bones, steps=None, stages=12, reach=0.01):
         now_limbs = [(pbs[a].head.copy(), pbs[b].head.copy()) for a, b, _m in LIMBS]
         for chain, names in chain_bones.items():
             k, g = SPRINGS[chain.split('_')[0]]
-            follow = None
-            if chain.startswith('cape_'):
-                arm_bone = 'upperarm_l' if chain[6] == 'l' else 'upperarm_r'
-                follow = (to_pose(pbs, arm_bone), CAPE_FOLLOW[chain[5]])
+            follow = cape_follow(chain)
+            if follow is not None:
+                # from the arm as it hangs at the idle (_idle_arm), not the bind pose's
+                follow = (pbs[follow[0]].matrix @ _idle_arm(bones, follow[0][-1]).matrix_local.inverted(), follow[1])
             targets, lengths = [], []
             for name, tip_rest in zip(names, tips[chain]):
                 tip = to_pose(pbs, name) @ tip_rest
@@ -377,7 +451,8 @@ def settle_swing(arm, chain_bones, steps=None, stages=12, reach=0.01):
                             p = q + ((p - q).normalized() if (p - q).length > 1e-9 else Vector((0, -1, 0))) * r
                         p = _push_bone_out(head, p, a, c, rb, way)
                     p = head + ((p - head).normalized() if (p - head).length > 1e-9 else rest_dir) * lengths[i]
-                    p = _keep_under(head, p, lengths[i])
+                    # (a chain riding an arm may rise to its target; the rest no higher than its head)
+                    p = _keep_under(head, p, lengths[i], targets[i].z if follow is not None else None)
                     p = _keep_above(head, p, lengths[i], floor, rest_dir,
                                     lengths[i] * (GATHER_REACH if i == len(points) - 1 else 1.0))
                     points[i] = p

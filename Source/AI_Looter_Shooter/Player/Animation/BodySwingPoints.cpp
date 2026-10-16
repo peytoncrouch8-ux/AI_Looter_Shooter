@@ -116,15 +116,20 @@ FVector FBodySwingPoints::PushPlaceOut(const FVector& S, const FBodySwingCapsule
 	return Side.IsZero() ? FVector::ZeroVector : Side * (Capsule.Radius + Distance);
 }
 
-FVector FBodySwingPoints::KeepUnder(const FVector& Head, const FVector& Tip, double Length)
+FVector FBodySwingPoints::KeepUnder(const FVector& Head, const FVector& Tip, double Length, double CeilingZ)
 {
-	if (Tip.Z <= Head.Z)
+	if (Tip.Z <= CeilingZ)
 	{
 		return Tip;
 	}
-	// Level with its head, out the way it went (straight up has no way: then it hangs as it is).
+	// At the ceiling, out the way it went (straight up has no way: then it hangs as it is).
 	const FVector Flat = FVector(Tip.X - Head.X, Tip.Y - Head.Y, 0.0).GetSafeNormal();
-	return Flat.IsZero() ? Tip : Head + Flat * Length;
+	if (Flat.IsZero())
+	{
+		return Tip;
+	}
+	const double Rise = FMath::Clamp(CeilingZ - Head.Z, 0.0, Length);
+	return Head + Flat * FMath::Sqrt(FMath::Max(Length * Length - Rise * Rise, 0.0)) + FVector(0.0, 0.0, Rise);
 }
 
 FVector FBodySwingPoints::KeepAbove(const FVector& Head, const FVector& Tip, double Length, double FloorZ, const FVector& Lean,
@@ -204,7 +209,7 @@ void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targ
 				P = PushBoneOut(Head, P, Capsule, Outward);
 			}
 			P = Head + (P - Head).GetSafeNormal(UE_SMALL_NUMBER, Rest) * Lengths[Index];
-			P = KeepUnder(Head, P, Lengths[Index]);
+			P = KeepUnder(Head, P, Lengths[Index], Settings.bRisesToTarget ? FMath::Max(Head.Z, Targets[Index].Z + Shift.Z) : Head.Z);
 			const bool bGrounded = P.Z < Floor.Z;
 			P = KeepAbove(Head, P, Lengths[Index], Floor.Z, Rest, ReachOf(Index));
 			// A limb moves the cloth aside without throwing it: the push isn't carried on as speed (it flung a chain over
@@ -233,7 +238,7 @@ void FBodySwingPoints::Step(const FVector& Anchor, TConstArrayView<FVector> Targ
 		const FVector Between = FMath::Lerp(Previous[Index], Points[Index], static_cast<double>(Blend));
 		const FVector Rest = (Targets[Index] - Head).GetSafeNormal(UE_SMALL_NUMBER, FVector::DownVector);
 		Shown[Index] = Head + (Between - Head).GetSafeNormal(UE_SMALL_NUMBER, Rest) * Lengths[Index];
-		Shown[Index] = KeepUnder(Head, Shown[Index], Lengths[Index]);
+		Shown[Index] = KeepUnder(Head, Shown[Index], Lengths[Index], Settings.bRisesToTarget ? FMath::Max(Head.Z, Targets[Index].Z) : Head.Z);
 		Shown[Index] = KeepAbove(Head, Shown[Index], Lengths[Index], Floor.Z, Rest, ReachOf(Index));
 		Head = Shown[Index];
 	}

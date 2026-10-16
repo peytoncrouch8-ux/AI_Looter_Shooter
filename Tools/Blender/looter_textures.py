@@ -147,7 +147,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 TEXTURE_DIR = os.path.join(REPO, 'Art', 'Textures')
 PREVIEW_DIR = os.path.join(REPO, 'Saved', 'ArtPreviews')
 
-MASTERS = ('World', 'Gun', 'WorldFoliage', 'Terrain', 'Character', 'CharacterCloth', 'CharacterSkin')
+MASTERS = ('World', 'Gun', 'WorldFoliage', 'Terrain', 'Character', 'CharacterCloth', 'CharacterSkin', 'CharacterHair')
 
 # Every texture set: size in px, the master it's made for, texel density (px per meter), and a placeholder look
 # (sRGB color, roughness, metallic) for materials made before the textures exist.

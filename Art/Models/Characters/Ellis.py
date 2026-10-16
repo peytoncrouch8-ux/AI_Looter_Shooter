@@ -37,6 +37,7 @@ for p in (os.path.join(REPO, 'Tools', 'Blender'), os.path.join(REPO, 'Art', 'Por
     if p not in sys.path:
         sys.path.insert(0, p)
 import EllisBlender as eb  # noqa: E402
+import ellis_hair  # noqa: E402
 import looter_garments as gm  # noqa: E402
 import looter_human as hu  # noqa: E402
 import looter_bake as bk  # noqa: E402
@@ -153,7 +154,7 @@ LOOKS = {
     'EyeGlow': lambda n: lk.glow(n, OPT['glow'], 6.0),
     'Felt': lambda n: lk.felt(n, (0.11, 0.095, 0.085), (0.30, 0.255, 0.21), band_z=HAT.get('band_z')),
     'HatBand': lambda n: lk.leather(n, (0.14, 0.08, 0.05), grain=280.0, dust_amt=0.2, dust_height=0.001),
-    'Hair': lambda n: lk.hair(n, (0.035, 0.028, 0.025), (0.13, 0.10, 0.085)),
+    'Hair': lambda n: ellis_hair.material(n),         # the hair cards' strand atlas (script-made, not baked)
     'Bandana': lambda n: lk.bandana(n, (0.52, 0.06, 0.05), (0.66, 0.17, 0.12)),
     'Duster': lambda n: lk.oilskin(n, OPT['coat']['cloth'][0], OPT['coat']['cloth'][1], hem=HEM),
     'Vest': lambda n: lk.brocade(n, (0.045, 0.045, 0.05), (0.12, 0.115, 0.115)),
@@ -183,9 +184,11 @@ LOOKS = {
 TEXTURE_SETS = {
     'EllisSkin': ('Skin', 'Scalp'),
     'EllisDuster': ('Duster',),
-    'EllisGarb': ('Felt', 'HatBand', 'Hair', 'Bandana', 'Vest', 'Shirt', 'Trousers'),
+    'EllisGarb': ('Felt', 'HatBand', 'Bandana', 'Vest', 'Shirt', 'Trousers'),
     'EllisGear': ('Boots', 'Soles', 'Gloves', 'Belt', 'Brass', 'Lead', 'Iron', 'Walnut', 'GunIron', 'GunWalnut'),
 }
+# Sets made by a script, not baked: the hair cards' strand atlas (Tools/Blender/ellis_hair.py; its UVs are the cards' own)
+MADE_SETS = {'EllisHair': ('Hair',)}
 GLOWS = {'EyeGlow': (0x5AD8FF, 4.0), 'LanternGlow': (0xFFA040, 3.0)}
 
 # The game's material slots: each kind of surface on the master made for it (Tools/Unreal/build_world_materials.py's
@@ -196,7 +199,11 @@ GAME_MATERIALS = {
     'EllisSkin': ('CharacterSkin', ('Skin', 'Scalp'), {}),
     'EllisDuster': ('CharacterCloth', ('Duster',), {'FuzzStrength': 0.2, 'FuzzLift': 0.08}),
     'EllisGarbCloth': ('CharacterCloth', ('Felt', 'Bandana', 'Vest', 'Shirt', 'Trousers'), {'FuzzStrength': 0.3, 'FuzzLift': 0.12}),
-    'EllisGarbHair': ('Character', ('Hair', 'HatBand'), {'Specular': 0.3}),
+    'EllisGarbHair': ('Character', ('HatBand',), {'Specular': 0.3}),
+    # the hair cards: masked (the atlas's alpha, dithered), two-sided, the engine's Hair shading along the strands
+    # Darkened: backlit by the golden sun the Hair shading glowed the atlas's near-black light brown (round 6, in PIE).
+    # A hex tint is sRGB: #C4C4C4 is 0.55 linear on MI_EllisHair's Tint.
+    'EllisHair': ('CharacterHair', ('Hair',), {'tint': '#C4C4C4'}),
     'EllisGear': ('Character', ('Boots', 'Soles', 'Gloves', 'Belt', 'Brass', 'Lead', 'Iron', 'Walnut'), {}),
     'EllisHolsterGun': ('Character', ('GunIron', 'GunWalnut'), {}),
 }
@@ -887,9 +894,14 @@ def arms_down(fig, P, W, back=False):
 
 def build_cape(fig, body, duster, sleeves, name='Cape', drop=0.13, over=(), top_drop=0.0):
     """The shoulder cape: a bell hung from the collar over the shoulders and the tops of the arms, open at the front,
-    flaring in flutes. Draped over the arms as the game holds them (let down to IDLE_ARM), then carried back up into
-    the bind pose by how much each point rides its upper arm (its 'ArmFollow', which rig() weights to the upper arm):
-    draped over the bind pose's raised arms, it stood out like wings and fins when they came down (2026-10-15).
+    flaring in flutes. Draped over the arms as the game holds them (let down to IDLE_ARM). Its top rides what the
+    clothes under it ride (cape_weights: over the shoulder the collarbone and the upper arm, as the sleeve's top),
+    carried up into the bind pose by its share of the upper arm, so the idle puts it back as it was draped; from the
+    shoulder line down its chains (CAPE_CHAINS), which the game's springs take from the arms as they hang at the idle
+    (`cape_arm_<s>`), so in the bind pose the raised arms go through its lower sides, which nothing shows (round 6).
+    Draped over the raised arms it stood out like wings once they came down (2026-10-15); carried up with them whole by
+    a share of the upper arm's turn (round 5's 'ArmFollow'), that share blended the cloth halfway between the chest and
+    an arm raised to aim, and the half-turned cloth sank into the arm it lay on (the clipping the user saw, round 6).
     drop: how far below the shoulders it reaches; over: what else it hangs over (option B's second tier)."""
     neck = fig.neck
     sz = fig.shoulder_z
@@ -899,12 +911,17 @@ def build_cape(fig, body, duster, sleeves, name='Cape', drop=0.13, over=(), top_
     posed_sleeves = arms_down(fig, sl, fig.b.weights_at(sl)[1])
     hung = []
     for o in over:
-        # a cape under this one, let down with the arms as its ArmFollow says
+        # a cape under this one, let down with the arms by its top's share of them (as it was built)
         p = gm.object_points(o)
-        a = np.zeros(len(p), dtype=np.float32)
-        if 'ArmFollow' in o.data.attributes:
-            o.data.attributes['ArmFollow'].data.foreach_get('value', a)
+        chain = np.zeros(len(p), dtype=np.float32)
+        if 'CapeChain' in o.data.attributes:
+            o.data.attributes['CapeChain'].data.foreach_get('value', chain)
         for sx, (h, Rm) in arm_turns(fig).items():
+            a = np.zeros(len(p), dtype=np.float32)
+            name_a = 'CapeW_upperarm_' + ('l' if sx > 0 else 'r')
+            if name_a in o.data.attributes:
+                o.data.attributes[name_a].data.foreach_get('value', a)
+            a = (1.0 - chain) * a
             sel = (p[:, 0] * sx) >= 0.0
             p[sel] += a[sel, None] * (((p[sel] - h) @ Rm.T + h) - p[sel])
         hung.append(p)
@@ -915,6 +932,17 @@ def build_cape(fig, body, duster, sleeves, name='Cape', drop=0.13, over=(), top_
     point = lambda t: 0.07 * max(0.0, -math.cos(t)) ** 3
     bot = lambda t: sz - drop - 0.035 * abs(math.sin(t)) + 0.012 * math.sin(t * 7.0) - point(t)
     X, Y, Z, R = gm.drape(under_pts, neck[:2], FWD, th, top, bot, 24, 0.026, hb=math.radians(7), zb=0.012, smooth=(4, 3))
+    # the drape's smoothing pulled its top in between the square shoulders (from 18 cm out over the sleeve's top to
+    # 9 cm beside the neck in a few degrees): the sleeves' tops came up through it by the collar's foot (round 6). Each
+    # point at least 8 mm outside what's under it, at or above its height, unsmoothed
+    top_r = R[0].max()                  # (the collar is sized by the drape's top as it was: the brim clears it)
+    raw = gm.drape(under_pts, neck[:2], FWD, th, top, bot, 24, 0.008, hb=math.radians(7), zb=0.012, smooth=(0, 0))[3]
+    grow = np.maximum(raw - R, 0.0)
+    if grow.any():
+        f, l = gm.frame2d(FWD)
+        R = R + grow
+        X = neck[0] + R * (np.cos(th)[None, :] * f[0] + np.sin(th)[None, :] * l[0])
+        Y = neck[1] + R * (np.cos(th)[None, :] * f[1] + np.sin(th)[None, :] * l[1])
     v = np.linspace(0, 1, Z.shape[0])[:, None]
     # flutes of uneven depth and spacing (frequencies that never line up), deepening toward the hem; standing off the
     # shoulders and back from under the collar down, flaring at the hem (looser: the user, 2026-10-15), less so at the
@@ -932,68 +960,345 @@ def build_cape(fig, body, duster, sleeves, name='Cape', drop=0.13, over=(), top_
         + 0.004 * v * np.sin(T * 31.0 + ph[5] + v * 6)
     dx, dy = gm.radial(th[None, :], FWD)
     piece = gm.grid(X + flute * dx, Y + flute * dy, Z)
-    # how much each point rides its upper arm: the arm's share of the skin nearest it (arms down), smoothed over the
-    # cloth (the nearest skin jumps from arm to chest across the armpit), nothing at the collar
+    # what each point rides (cape_weights): above the shoulder line what the clothes under it ride (the nearest skin's
+    # weights at the idle: over the shoulder the collarbone and the upper arm, as the sleeve's top), handing over down
+    # to the hem's to the cape's chains, which the game's springs carry from the arms as they hang at the idle
+    P = piece.verts
+    W = idle_skin_weights(fig, posed_body, P)
+    hem_z = np.repeat(Z[-1][None, :], Z.shape[0], 0).ravel()
+    chain = gm.smoothstep(sz, (sz + hem_z) * 0.5, P[:, 2])
+    keep = {}
+    for bone in CAPE_SKIN:
+        keep[bone] = W[:, fig.col[bone]]
+    rest = 1.0 - sum(keep.values())
+    keep['spine_05'] = keep.get('spine_05', 0.0) + rest            # the neck's and the chest's: the collar's bone
+    # the bind pose: each point carried up with its upper arm by its share of it, back to where the game's idle (the
+    # arm turned down by arm_turns, the chains at rest) puts it as it was draped
+    for sx, (h, Rm) in arm_turns(fig).items():
+        s = 'l' if sx > 0 else 'r'
+        sel = (P[:, 0] * sx) >= 0.0
+        a = (1.0 - chain[sel]) * keep[f'upperarm_{s}'][sel]
+        for k in np.nonzero(sel)[0][a > 1e-4]:
+            w = (1.0 - chain[k]) * keep[f'upperarm_{s}'][k]
+            A = np.eye(3) + w * (Rm - np.eye(3))
+            P[k] = np.linalg.solve(A, P[k] - w * (h - Rm @ h))
+    piece.verts = P
+    ob = gm.mesh(name, piece, slot('Duster'))
+    for bone, w in keep.items():
+        ob.data.attributes.new('CapeW_' + bone, 'FLOAT', 'POINT').data.foreach_set('value', np.asarray(w, np.float32))
+    ob.data.attributes.new('CapeChain', 'FLOAT', 'POINT').data.foreach_set('value', chain.astype(np.float32))
+    arm = max(float(keep['upperarm_l'].max()), float(keep['upperarm_r'].max()))
+    log(f'{name}: draped over the arms let down {IDLE_ARM:.0f} degrees off the body (as the game holds them); its top '
+        f'rides the upper arms up to {arm:.2f}; {grow.max() * 100:.1f} cm out at most over what the smoothing let in')
+    return ob, top_r
+
+
+# The bones the cape's top takes from the skin under it (cape_weights); the rest (the neck's, the chest's) is spine_05's
+CAPE_SKIN = ('clavicle_l', 'clavicle_r', 'upperarm_l', 'upperarm_r')
+
+
+def idle_skin_weights(fig, posed, points):
+    """The body's weights (fig.names' columns) at the skin nearest each point, the body posed at the game's idle (posed:
+    fig.wv[used] let down by arms_down)."""
     from mathutils.bvhtree import BVHTree
-    faces = fig.faces
-    tris = [(f[0], f[k], f[k + 1]) for f in faces for k in range(1, len(f) - 1)]
+    used = fig.b.used
     remap = -np.ones(len(fig.wv), dtype=np.int64)
     remap[used] = np.arange(len(used))
-    tris_u = [tuple(int(remap[i]) for i in t) for t in tris]
-    tree = BVHTree.FromPolygons([tuple(map(float, p)) for p in posed_body], tris_u, all_triangles=True)
+    tris = [(remap[f[0]], remap[f[k]], remap[f[k + 1]]) for f in fig.faces for k in range(1, len(f) - 1)]
+    tris = [tuple(int(i) for i in t) for t in tris if min(t) >= 0]
+    tree = BVHTree.FromPolygons([tuple(map(float, p)) for p in posed], tris, all_triangles=True)
     Wu = fig.Wv[used]
-    share = {sx: arm_share(fig, Wu, sx) for sx in (1.0, -1.0)}
-    P = piece.verts
-    a = np.zeros(len(P))
-    for i, p in enumerate(P):
+    out = np.zeros((len(points), Wu.shape[1]))
+    for i, p in enumerate(points):
         loc, _n, fi, _d = tree.find_nearest(Vector(tuple(p)))
         if loc is None:
             continue
-        tri = tris_u[fi]
-        bc = hu.barycentric(np.array(loc), *(posed_body[j] for j in tri))
-        a[i] = sum(bc[k] * share[1.0 if p[0] >= 0.0 else -1.0][tri[k]] for k in range(3))
-    a = a.reshape(Z.shape)
-    for _ in range(8):
-        a = 0.25 * np.concatenate([a[:, :1], a[:, :-1]], 1) + 0.5 * a + 0.25 * np.concatenate([a[:, 1:], a[:, -1:]], 1)
-        a = 0.25 * np.concatenate([a[:1], a[:-1]], 0) + 0.5 * a + 0.25 * np.concatenate([a[1:], a[-1:]], 0)
-    a = (a * gm.smoothstep(0.0, 0.3, v)).ravel()
-    # back up into the bind pose by that share
+        t = tris[fi]
+        bc = hu.barycentric(np.array(loc), *(posed[j] for j in t))
+        out[i] = sum(bc[k] * Wu[t[k]] for k in range(3))
+    return out
+
+
+def cape_weights(fig, ob):
+    """The cape's own weights (fig.names' columns) from its build (build_cape's 'CapeW_<bone>'), before its chains."""
+    n = len(ob.data.vertices)
+    parts = {}
+    for bone in CAPE_SKIN + ('spine_05',):
+        a = np.zeros(n, dtype=np.float32)
+        if 'CapeW_' + bone in ob.data.attributes:
+            ob.data.attributes['CapeW_' + bone].data.foreach_get('value', a)
+        parts[bone] = np.clip(a, 0.0, 1.0)
+    return hu.blend(fig.names, n, parts)
+
+
+def idle_sleeves(fig, sleeves):
+    """The sleeves' points let down to the game's idle (the cape is fitted over them so, not over the bind pose's)."""
+    sl = gm.object_points(sleeves)
+    return arms_down(fig, sl, fig.b.weights_at(sl)[1])
+
+
+def cape_idle(fig, ob, co, back=False):
+    """The cape's points (co, its bind pose) as the game's idle puts them (or, back, from there into the bind pose): its
+    top turned with the upper arms by its share of them (build_cape's 'CapeW_upperarm_<s>', less its chains' 'CapeChain')."""
+    n = len(co)
+    chain = np.zeros(n, dtype=np.float32)
+    if 'CapeChain' in ob.data.attributes:
+        ob.data.attributes['CapeChain'].data.foreach_get('value', chain)
+    out = co.copy()
     for sx, (h, Rm) in arm_turns(fig).items():
-        sel = (P[:, 0] * sx) >= 0.0
-        P[sel] += a[sel, None] * (((P[sel] - h) @ Rm + h) - P[sel])
-    piece.verts = P
-    ob = gm.mesh(name, piece, slot('Duster'))
-    ob.data.attributes.new('ArmFollow', 'FLOAT', 'POINT').data.foreach_set('value', a.astype(np.float32))
-    log(f'{name}: draped over the arms let down {IDLE_ARM:.0f} degrees off the body; rides the arms up to {a.max():.2f}')
-    return ob, R[0].max()
+        a = np.zeros(n, dtype=np.float32)
+        key = 'CapeW_upperarm_' + ('l' if sx > 0 else 'r')
+        if key in ob.data.attributes:
+            ob.data.attributes[key].data.foreach_get('value', a)
+        w = (1.0 - np.clip(chain, 0.0, 1.0)) * np.clip(a, 0.0, 1.0)
+        for k in np.nonzero(w > 1e-4)[0]:
+            A = np.eye(3) + w[k] * (Rm - np.eye(3))
+            t = w[k] * (h - Rm @ h)
+            out[k] = np.linalg.solve(A, co[k] - t) if back else A @ co[k] + t
+    return out
 
 
-def build_collar(fig, top_r):
-    """The duster's collar turned up high round the jaw, highest at the back, open at the throat."""
+def clear_cape(fig, capes, under, sleeves, gap=0.003):
+    """Pushes the reduced cape back outside the reduced coat and the reduced sleeves, all as the game's idle has them
+    (in the bind pose the raised arms go through the cape's lower sides: cleared against those, it stood out like wings;
+    its top, carried up with the arms into the bind pose, cleared there against the sleeves let down, was torn open by
+    the collar's foot, round 6)."""
+    from mathutils.bvhtree import BVHTree
+    trees = [gm.bvh_objects(under)] if under else []
+    for s in sleeves:
+        P = idle_sleeves(fig, s)
+        trees.append(BVHTree.FromPolygons([tuple(map(float, p)) for p in P], [tuple(p.vertices) for p in s.data.polygons]))
+    for ob in capes:
+        co = cape_idle(fig, ob, gm._object_coords(ob))
+        for tree in trees:
+            co = gm.clear(co, tree, gap, 0.03)
+        co = cape_idle(fig, ob, co, back=True)
+        ob.data.vertices.foreach_set('co', co.astype(np.float32).ravel())
+        ob.data.update()
+
+
+def clear_collar(collars, cape, skin, gap=0.003):
+    """Pushes the reduced collar's wall back outside the reduced cape, and its lining (its 'Lining' points) outside the
+    reduced skin of the neck by COLLAR_BAND."""
+    trees = (gm.bvh_objects(cape) if cape else None, gm.bvh_objects(skin) if skin else None)
+    for ob in collars:
+        co = gm._object_coords(ob)
+        k = np.zeros(len(co), dtype=np.float32)
+        if 'Lining' in ob.data.attributes:
+            ob.data.attributes['Lining'].data.foreach_get('value', k)
+        wall, lining = k < 0.5, k >= 0.5
+        if trees[0] is not None and wall.any():
+            co[wall] = gm.clear(co[wall], trees[0], gap, 0.02)
+        if trees[1] is not None:
+            for i in np.nonzero(lining)[0]:
+                # beside the skin only (under its lower edge the nearest point is the edge: pushed off that, the floor
+                # rose up the neck)
+                loc, nrm, _f, _d = trees[1].find_nearest(Vector(tuple(co[i])), 0.02)
+                if loc is not None and abs(co[i][2] - loc.z) < 0.006 and (Vector(tuple(co[i])) - loc).dot(nrm) < COLLAR_BAND:
+                    co[i] = np.array(loc + nrm * COLLAR_BAND)
+        ob.data.vertices.foreach_set('co', co.astype(np.float32).ravel())
+        ob.data.update()
+
+
+def add_cape_arm_bones(fig, arm):
+    """`cape_arm_l` and `cape_arm_r`: unweighted bones under the collarbones, each the upper arm as it hangs at the game's
+    idle (IDLE_ARM; arm_turns), its head on the shoulder joint. The game's springs (BodySwing) take the cape's chains from
+    the arms as these hang: the cape is draped over arms hanging so, and the bind pose's raised arms are not the rest it
+    rides from. Deforming (the FBX keeps it), weighted nowhere."""
+    bk.select([arm], arm)
+    bpy.ops.object.mode_set(mode='EDIT')
+    edit = arm.data.edit_bones
+    names = []
+    for sx, (h, R) in arm_turns(fig).items():
+        s = 'l' if sx > 0 else 'r'
+        up = edit[f'upperarm_{s}']
+        e = edit.new(f'cape_arm_{s}')
+        turn = Matrix.Translation(Vector(tuple(h))) @ Matrix(R.tolist()).to_4x4() @ Matrix.Translation(-Vector(tuple(h)))
+        e.head, e.tail = up.head.copy(), up.tail.copy()
+        e.matrix = turn @ up.matrix
+        e.length = up.length
+        e.use_connect, e.use_deform = False, True
+        e.parent = edit[f'clavicle_{s}']
+        names.append(e.name)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    return names
+
+
+COLLAR_BAND = 0.0025    # the lining's band round the back of the neck stands off the body this much (m; the game's skin
+                        # under it is reduced, the bandana stands 1 cm off below the chin)
+COLLAR_LINING = (85.0, 275.0)   # degrees round from the front (neck_01's axis) the lining covers: the back and sides,
+                                # where the bandana's band is cut from the game mesh (make_lows)
+COLLAR_FLOOR = 0.003    # the lining's floor over neck_01's head (m): over the cape's (with its thickness), the coat's and
+                        # the sleeves' tops inside the collar, which it hides
+
+
+def collar_shape(top_r, a, t):
+    """The collar's wall at angle a (0 the front, + the figure's left) and t (0 its foot, 1 its top edge): (radius from
+    neck_01's axis, height over neck_01's head), m."""
+    back = 0.5 - 0.5 * math.cos(a)
+    # the ends by the throat stand a little taller and splay out a little into points (twice this and the flap with the
+    # pin jutted out like a box, 2026-10-15); the top edge rolls outward, less at the ends (rolled as far as the back's,
+    # the short ends turned out flat like tabs, round 6)
+    end = float(gm.smoothstep(math.radians(62), math.radians(30), min(a, 2 * math.pi - a)))
+    # soft, worn oilskin: the top edge wavers, the stand ripples a little, a crease where it turns up
+    hgt = 0.062 + 0.058 * back + 0.006 * end + 0.004 * math.sin(a * 5.3 + 1.1) + 0.003 * math.sin(a * 13.7)
+    r = (top_r * (0.89 + 0.08 * t + 0.13 * (1.0 - 0.5 * end) * t ** 3) + 0.004 * math.sin(a * 9 + t * 2)
+         + 0.0025 * math.sin(a * 17.3 + t * 4) - 0.010 * (1 - back) * t + 0.004 * end * t ** 2
+         - 0.004 * math.exp(-((t - 0.18) / 0.08) ** 2))
+    return r, -0.03 + hgt * t
+
+
+def collar_lining(fig, skin, wall_r, bandana=()):
+    """The collar's lining (round 6; the game's materials are one-sided: looking down between the neck and the collar,
+    past the neck's skin, which stops under the collar, and the bandana's band, cut at the back, you saw into the neck;
+    beside it the cape's, the coat's and the sleeves' tops showed in a jumble): round the back and sides of the neck
+    (COLLAR_LINING) a band from over the skin's lower edge down to a floor (COLLAR_FLOOR) that runs out to the collar's
+    wall, the band COLLAR_BAND off the body, under the bandana's ends, its knot and the hair; on to the collar's front
+    ends the floor alone, from the bandana out. Rows from the band's top down and then out along the floor, so its
+    faces look out and up."""
+    from mathutils.bvhtree import BVHTree
     neck = fig.neck
-    th = np.linspace(math.radians(28), math.radians(332), 84)
+    tree = BVHTree.FromPolygons([tuple(map(float, p)) for p in fig.wv], [tuple(f) for f in fig.faces])
+    band_tree = gm.bvh_objects(list(bandana)) if bandana else None
+    sk = gm.object_points(skin)
+    rel = sk[:, :2] - neck[:2]
+    ang = np.arctan2(rel[:, 0], -rel[:, 1])
+    rad = np.linalg.norm(rel, axis=1)
+    floor = neck[2] + COLLAR_FLOOR
+
+    def outer_r(t, a, z):
+        # a surface's outermost point along a level ray in toward the neck's axis
+        d = Vector((math.sin(a), -math.cos(a), 0.0))
+        hit = t.ray_cast(Vector((neck[0], neck[1], z)) + d * 0.25, -d, 0.25)
+        return 0.25 - hit[3] if hit[0] is not None else 0.0
+
+    def body_r(a, z):
+        return outer_r(tree, a, z) or 0.04
+
+    def out_to_wall(a, r_in):
+        r_wall = wall_r(a, floor) + 0.003                                  # into the wall's own thickness
+        return [(r_in + (r_wall - r_in) * s, floor) for s in (0.25, 0.6, 1.0)]
+
+    pieces = []
+    # round the back: the band and the floor
+    th = np.radians(np.linspace(COLLAR_LINING[0], COLLAR_LINING[1], 24))
+    rows = []
+    for a in th:
+        # the skin's lower edge here (the game's skin is the head and the neck down to where the collar hides it)
+        near = (np.abs((ang - a + math.pi) % (2 * math.pi) - math.pi) < math.radians(12)) & (rad < 0.11) \
+            & (sk[:, 2] < neck[2] + 0.12)
+        low = sk[near, 2].min() if near.any() else floor
+        top = float(np.clip(low + 0.012, floor + 0.01, neck[2] + 0.07))
+        col = [(body_r(a, z) + COLLAR_BAND, z) for z in np.linspace(top, floor, 4)]
+        rows.append(col + out_to_wall(a, col[-1][0]))
+    pieces.append((th, rows))
+    # either side in front of it, to the collar's ends: the floor from the bandana (or the neck) out
+    for lo, hi in ((COLLAR_OPEN + 1.0, COLLAR_LINING[0]), (COLLAR_LINING[1], 359.0 - COLLAR_OPEN)):
+        th = np.radians(np.linspace(lo, hi, 7))
+        rows = []
+        for a in th:
+            # outside the bandana through the floor's thickness (it flares out going up to the jaw)
+            r_band = max((outer_r(band_tree, a, floor + dz) for dz in (-0.004, 0.0, 0.004, 0.008, 0.012)), default=0.0) \
+                if band_tree else 0.0
+            r_in = max(body_r(a, floor) + COLLAR_BAND, r_band + 0.005)
+            rows.append([(r_in, floor)] + out_to_wall(a, r_in))
+        pieces.append((th, rows))
+    out = None
+    for th, rows in pieces:
+        rows = np.array(rows).transpose(1, 0, 2)                            # (rows, columns, (r, z))
+        dx, dy = np.sin(th)[None, :], -np.cos(th)[None, :]
+        piece = gm.grid(neck[0] + rows[..., 0] * dx, neck[1] + rows[..., 0] * dy, rows[..., 1])
+        out = piece if out is None else out + piece
+    return out
+
+
+COLLAR_OPEN = 28.0      # degrees either side of the front the collar leaves open at the throat
+COLLAR_GAP = 0.012      # the collar's room over the bandana, its knot and the neck (m)
+
+
+def collar_inside(fig, inside):
+    """r(a, z): how far out from neck_01's axis (m) the collar must stand at angle a and height z to clear what's
+    inside it (the bandana and its knot, the neck): their outermost surface there, within a degree's wedge."""
+    from mathutils.bvhtree import BVHTree
+    neck = fig.neck
+    pts = [fig.wv]
+    # the neck and the head only (the shoulders are under the cape, which the collar's foot goes inside)
+    faces = [[list(f) for f, k in zip(fig.faces, fig.face_mask(fig.w_head > 0.2)) if k]]
+    off = len(fig.wv)
+    for o in inside:
+        p = gm.object_points(o)
+        pts.append(p)
+        faces.append([[i + off for i in poly.vertices] for poly in o.data.polygons])
+        off += len(p)
+    tree = BVHTree.FromPolygons([tuple(map(float, q)) for q in np.concatenate(pts)], [f for fs in faces for f in fs])
+
+    def env(a, z):
+        best = 0.0
+        for da in np.radians((-4.0, 0.0, 4.0)):
+            d = Vector((math.sin(a + da), -math.cos(a + da), 0.0))
+            for dz in (-0.006, 0.0, 0.006):
+                hit = tree.ray_cast(Vector((neck[0], neck[1], z + dz)) + d * 0.3, -d, 0.3)
+                if hit[0] is not None:
+                    best = max(best, 0.3 - hit[3])
+        return best
+    return env
+
+
+def build_collar(fig, top_r, skin=None, inside=(), cape=None):
+    """The duster's collar turned up high round the jaw, highest at the back, open at the throat (collar_shape: the
+    brim clears its top edge with the hat tipped and the head turned), kept COLLAR_GAP off what's inside it (inside:
+    the bandana and its knot; the neck), and with the cape its wall no nearer the neck than the cape's top edge (at
+    the game's idle, smoothed) + 1.2 cm: over the square shoulders that edge lies 18-19 cm out, past the collar's foot,
+    and the sleeves' tops showed between them (round 6). With skin, its lining (collar_lining) closes it inside.
+    (Round 6 tried its foot tucked into the cape's top edge, flaring out above the cape to the same top edge: from
+    outside it read as a frilled ruff on a stalk.)"""
+    neck = fig.neck
+    th = np.linspace(math.radians(COLLAR_OPEN), math.radians(360.0 - COLLAR_OPEN), 84)
     rows = 8
+    env = collar_inside(fig, inside) if inside else None
+    ring = None
+    if cape is not None:
+        top = cape_idle(fig, cape, gm._object_coords(cape))[:96]         # its first row: its top edge
+        ra = np.arctan2(top[:, 0] - neck[0], -(top[:, 1] - neck[1])) % (2 * math.pi)
+        order = np.argsort(ra)
+        rr = np.linalg.norm(top[:, :2] - neck[:2], axis=1)[order]
+        # its most over a few degrees either way, smoothed: no lump where the square shoulder's top reaches out
+        for _ in range(5):
+            rr = np.maximum(rr, np.maximum(np.roll(rr, 1), np.roll(rr, -1)))
+        for _ in range(6):
+            rr = 0.25 * np.roll(rr, 1) + 0.5 * rr + 0.25 * np.roll(rr, -1)
+        ring = (ra[order], rr)
     cv = []
     for j in range(rows):
         t = j / (rows - 1)
         for a in th:
-            back = 0.5 - 0.5 * math.cos(a)
-            # the ends by the throat stand a little taller and splay out a little into points (twice this and the flap
-            # with the pin jutted out like a box, 2026-10-15); the top edge rolls outward
-            end = float(gm.smoothstep(math.radians(62), math.radians(30), min(a, 2 * math.pi - a)))
-            # soft, worn oilskin: the top edge wavers, the stand ripples a little, a crease where it turns up
-            hgt = 0.062 + 0.058 * back + 0.006 * end + 0.004 * math.sin(a * 5.3 + 1.1) + 0.003 * math.sin(a * 13.7)
-            r = (top_r * (0.89 + 0.08 * t + 0.13 * t ** 3) + 0.004 * math.sin(a * 9 + t * 2) + 0.0025 * math.sin(a * 17.3 + t * 4)
-                 - 0.010 * (1 - back) * t + 0.007 * end * t ** 2 - 0.004 * math.exp(-((t - 0.18) / 0.08) ** 2))
+            r, z = collar_shape(top_r, a, t)
+            if env is not None:
+                r = max(r, env(a, neck[2] + z) + COLLAR_GAP)
+            if ring is not None:
+                r = max(r, float(np.interp(a, ring[0], ring[1], period=2 * math.pi)) + 0.012)
             d = math.cos(a) * np.array([0.0, -1.0]) + math.sin(a) * np.array([1.0, 0.0])
-            cv.append([neck[0] + d[0] * r, neck[1] + d[1] * r, neck[2] - 0.03 + hgt * t])
+            cv.append([neck[0] + d[0] * r, neck[1] + d[1] * r, neck[2] + z])
     cv = np.array(cv).reshape(rows, -1, 3)[::-1]          # rows from the top down, so the faces look outward
     piece = gm.grid(cv[..., 0], cv[..., 1], cv[..., 2])
+    wall = cv[::-1]                                       # rows from the foot up again
+
+    def wall_r(a, z):
+        # the wall's radius at angle a and height z (m)
+        k = int(np.argmin(np.abs((th - a + math.pi) % (2 * math.pi) - math.pi)))
+        zs, rs = wall[:, k, 2], np.linalg.norm(wall[:, k, :2] - neck[:2], axis=1)
+        return float(np.interp(z, zs, rs))
+    lining = np.zeros(len(piece.verts), dtype=np.float32)
+    if skin is not None:
+        inner = collar_lining(fig, skin, wall_r, inside)
+        lining = np.concatenate([lining, np.ones(len(inner.verts), dtype=np.float32)])
+        piece = piece + inner
     ob = gm.mesh('Collar', piece, slot('Duster'))
+    ob.data.attributes.new('Lining', 'FLOAT', 'POINT').data.foreach_set('value', lining)
     # Saint Ada's sun-ring on the collar's left front
-    a = math.radians(42)
+    a = math.radians(COLLAR_OPEN + 14.0)
     d = np.array([math.sin(a), -math.cos(a)])
-    r = top_r * 0.99 + 0.008
+    r = wall_r(a, neck[2] + 0.018) + 0.008
     pin = eb.sun_pin(Vector((neck[0] + d[0] * r, neck[1] + d[1] * r, neck[2] + 0.018)),
                      Vector((d[0], d[1], 0.15)).normalized())
     pin.data.materials.clear()
@@ -1008,7 +1313,8 @@ BRIM_REACH = 0.88       # the brim's reach past the crown, of the portrait's
 
 def build_hat(fig):
     """The portrait's cattleman (EllisBlender.build_hat: tapered creased crown, brim curled at the sides, a leather
-    band), worn low, moved into the figure's space and given its thickness."""
+    band), moved into the figure's space and seated on the head (ellis_hat.fit); the crown's felt and the brim get
+    their thickness after the bake (THICK)."""
     parts = eb.build_hat(fig.b.h, fig.hf, OPT)
     for ob in parts:
         for m in list(ob.modifiers):
@@ -1038,6 +1344,11 @@ def build_hat(fig):
     cc[:, 2] -= 0.012 * np.exp(-((cc[:, 0] - cx) / 0.022) ** 2) * gm.smoothstep(top_z - 0.06, top_z - 0.005, cc[:, 2])
     crown.data.vertices.foreach_set('co', cc.astype(np.float32).ravel())
     crown.data.update()
+    # seated on the head (Tools/Blender/ellis_hat.py; round 6: it stood 2-3.6 cm off the skull all round, its back 4 cm
+    # over the occipital bump, and the sky showed through under it), with a sweatband inside its foot
+    import ellis_hat
+    parts = ellis_hat.fit(fig, parts)
+    HAT['pivot'] = ellis_hat.pivot(fig, parts)
     band = next(o for o in parts if o.name.startswith('HatBand'))
     HAT['band_z'] = float(gm._object_coords(band)[:, 2].min())
     for ob in parts:
@@ -1131,140 +1442,20 @@ def bake_transform(ob):
     ob.matrix_world = Matrix.Identity(4)
 
 
-# The hair in locks with body (the user, 2026-10-15: "Hair looks like ribbons": flat strips, thickened 1.2 mm, read as
-# paper fringes): each lock a closed tube, lens-shaped (rounder on its outer side), tapering to half its width and a
-# blunt end; from SPLIT down a clump parts from the side of each outer lock; the inner layer, whole and two sides fewer,
-# lies under the outer. The detailed hair (the bake's source) is the same locks finer, so the strands bake onto their
-# own lock. layers: (locks, lift off the scalp, width, how much lower it starts, splits); ring: the outer locks' sides
-# and their clumps' (the inner, two fewer)
-HAIR = dict(layers=((30, 0.003, 0.040, 0.0, False), (34, 0.010, 0.046, 0.05, True)), per=1, steps=12, locks=3,
-            ring=(10, 8))
-HAIR_LOW = dict(layers=((30, 0.003, 0.040, 0.0, False), (34, 0.010, 0.046, 0.05, True)), per=1, steps=6, locks=3,
-                ring=(6, 4))
-SPLIT = 0.5             # where down an outer lock its clump parts
-LOCK_DEPTH = 0.36       # a lock's thickness over its width (its outer side round, its inner flatter; at 0.55 dreadlocks)
+# The hair as hair cards (round 6; the user, 2026-10-15: "hair looks like mud"): layered strips of a script-made strand
+# atlas, roots under the hat band (Tools/Blender/ellis_hair.py: the cards, the atlas, the look renders). Before:
+# 80 ribbons read as ribbons, 44 wide ones as slabs, round 5's closed lens-shaped locks as mud (dark ropes with no
+# shine or strands: the detailed locks baked onto the low ones smeared their strands). The cards are the game's hair
+# as they are (no bake: their UVs are the atlas's), so HAIR and HAIR_LOW build the same.
+HAIR = {}
+HAIR_LOW = {}
 
 
-def lock_frames(st, head_c):
-    """Along a lock's path: its tangent, sideways and outward (from the head) directions, the sideways one carried
-    along it (where a lock runs straight out from the head, the brow lock to the temple, the cross product vanished
-    and flipped, and the lock twisted into a hook)."""
-    tang = gm.unit(np.gradient(st, axis=0))
-    out0 = gm.unit(st - head_c)
-    side = np.cross(tang, out0)
-    for i in range(len(st)):
-        if np.linalg.norm(side[i]) < 0.3 and i > 0:
-            side[i] = side[i - 1]
-        side[i] = gm.unit(side[i])
-        if i > 0 and side[i] @ side[i - 1] < 0.0:
-            side[i] = -side[i]
-    out = gm.unit(np.cross(side, tang))
-    out = np.where(((out * out0).sum(1) < 0.0)[:, None], -out, out)
-    return tang, side, out
-
-
-def tube_piece(centres, side, out, width, depth, k, cap0=True, tip=None):
-    """A closed lens-section tube through centres (rows), width across side and depth along out (the inner half
-    flatter), k sides; capped at the root, and at tip ending in a thin flat edge (half as wide, a fifth as deep: a
-    cone there read as a sharpened pencil, the locks as dreadlocks)."""
-    if tip is not None:
-        centres, side, out = np.vstack([centres, tip]), np.vstack([side, side[-1:]]), np.vstack([out, out[-1:]])
-        width, depth = np.append(width, width[-1] * 0.55), np.append(depth, depth[-1] * 0.2)
-    phi = np.linspace(0.0, 2 * math.pi, k, endpoint=False)
-    c, s = np.cos(phi), np.sin(phi)
-    s = np.where(s > 0.0, s, s * 0.6)
-    R = (centres[:, None] + side[:, None] * (width[:, None, None] * 0.5 * c[None, :, None])
-         + out[:, None] * (depth[:, None, None] * 0.5 * s[None, :, None]))
-    # faces out: the columns' turn against the rows' run decides which way gm.grid faces them
-    probe = np.cross(R[1, 0] - R[0, 0], R[0, 1] - R[0, 0])
-    if probe @ (R[0, 0] - centres[0]) < 0.0:
-        R = R[:, ::-1]
-    piece = gm.grid(R[..., 0], R[..., 1], R[..., 2], wrap=True)
-    verts, faces, uv = list(piece.verts), piece.faces, piece.uv
-    ends = [(0, centres[0], True)] if cap0 else []
-    ends.append((len(R) - 1, centres[-1], False))
-    for row, point, first in ends:
-        ci = len(verts)
-        verts.append(point)
-        for j in range(k):
-            a_, b_ = row * k + j, row * k + (j + 1) % k
-            faces.append([b_, a_, ci] if first else [a_, b_, ci])
-            uv += [(0.0, 0.0), (0.004, 0.0), (0.002, -0.004)]
-    return gm.Piece(np.array(verts), faces, uv)
-
-
-def lock_piece(st, w, splits, ring, head_c, side_sign=1.0):
-    """One lock: a tube tapering to half its width and a blunt, rounded end; a splitting one also lets a clump part
-    from its side at SPLIT (side_sign which side), narrower, falling a little away, its end blunt too. (Two clumps out
-    of a capped lock showed the cap as a flat cut, and needle ends curled into claws.)"""
-    st = np.asarray(st)
-    n = len(st)
-    t = np.linspace(0.0, 1.0, n)
-    tang, side, out = lock_frames(st, head_c)
-    width = w * (1.0 - 0.5 * t ** 1.3) + 0.001
-    k = ring[0] if splits else max(4, ring[0] - 2)
-    piece = tube_piece(st[:-1], side[:-1], out[:-1], width[:-1], width[:-1] * LOCK_DEPTH, k,
-                       tip=st[-2] + (st[-1] - st[-2]) * 0.6)
-    if not splits:
-        return piece
-    i_s = max(1, int(round(SPLIT * (n - 1))))
-    u = (t[i_s:] - t[i_s]) / max(1.0 - t[i_s], 1e-6)
-    ws = width[i_s]
-    # the clump starts inside the lock's side and parts from it as it falls
-    cs = st[i_s:] + side[i_s:] * (side_sign * ws * (0.18 + 0.32 * u))[:, None] + out[i_s:] * (0.003 * u)[:, None]
-    wc = ws * 0.5 * (1.0 - 0.45 * u) + 0.001
-    return piece + tube_piece(cs[:-1], side[i_s:-1], out[i_s:-1], wc[:-1], wc[:-1] * 0.5, ring[1], cap0=False,
-                              tip=cs[-2] + (cs[-1] - cs[-2]) * 0.6)
-
-
-def build_hair(fig, under_obs, layers, per, steps, locks, ring, name='Hair'):
-    """Collar-length dark hair falling from under the hat in locks (the portrait's strands, EllisBlender.grow, draped
-    over the head, the collar and the cape): an inner layer of whole locks and an outer one parting into clumps
-    (lock_piece); locks over the left brow. HAIR builds the detailed hair the game's is baked from; HAIR_LOW the game's
-    (the same locks, coarser)."""
-    tree = gm.bvh_objects(under_obs)
-    rng = np.random.default_rng(7)
-    hf = fig.hf
-    hv = hf['verts']
-    s = fig.b.scale
-    band_y = hf['eye_y'] + 0.47
-    cz = (hv[:, 2].max() + hv[:, 2].min()) * 0.5 - 0.1
-    centre = np.array([0.0, band_y, cz])
-    head_c = fig.head_point(np.array([0.0, band_y - 0.3, cz]))
-    paths = []
-    # two layers of locks round the head under the band, skipping the forehead: the inner close to the scalp, the
-    # outer a little lower and looser, so no scalp shows between them
-    for layer, (count, lift, width, drop, splits) in enumerate(layers):
-        for c in range(count):
-            # round the back from the left temple to the right one (0 is the face): the forehead stays bare
-            deg = 46.0 + 268.0 * (c + rng.random() * 0.8) / count
-            ang = math.radians(deg)
-            back = min(1.0, (180.0 - abs(180.0 - deg)) / 150.0)
-            L = (0.10 + 0.04 * back ** 1.5) * s * (0.85 + 0.3 * rng.random()) - drop * 0.1
-            r = centre + np.array([math.sin(ang) * 0.7, rng.normal() * 0.03 - drop, math.cos(ang) * 0.9])
-            hit = tree.find_nearest(Vector(tuple(fig.head_point(r))))
-            base = np.array(hit[0]) + np.array(hit[1]) * lift
-            for k in range(per):
-                rr = base + rng.normal(size=3) * 0.006
-                st = eb.grow(tree, Vector(tuple(rr)), Vector((0, 0, -1)), L * (0.8 + 0.3 * rng.random()), steps, rng,
-                             0.3 + 0.3 * rng.random(), lift + 0.003 + 0.005 * rng.random())
-                paths.append((st, width * (0.8 + 0.4 * rng.random()), splits))
-    # the lock out from under the brim over the left brow, to the temple
-    for k in range(locks):
-        f = k * 4.0 / locks
-        r = np.array([0.30 + 0.04 * f + rng.normal() * 0.01, band_y - 0.02, hv[:, 2].max() - 0.22])
-        root = fig.head_point(r)
-        tip = fig.head_point(np.array([0.48 + 0.03 * f, band_y - 0.36 + 0.03 * f, hv[:, 2].max() - 0.02]))
-        d = Vector(tuple(tip - root))
-        st = eb.grow(tree, Vector(tuple(root)), d.normalized(), d.length, steps, rng, 0.25, 0.004)
-        paths.append((st, 0.016 * 4.0 / locks ** 0.5 / 2.0, True))
-    piece = None
-    for i, (st, w, splits) in enumerate(paths):
-        lock = lock_piece(st, w, splits, ring, head_c, 1.0 if i % 2 else -1.0)
-        piece = lock if piece is None else piece + lock
-    ob = gm.mesh(name, piece, slot('Hair'))
-    log(f'{name}: {len(paths)} locks, {sum(len(f) - 2 for f in piece.faces)} triangles')
-    return ob
+def build_hair(fig, under_obs, name='Hair', **params):
+    """Collar-length dark hair from under the hat band in cards (ellis_hair.build, its CARDS overridden by params),
+    over the head and bandana, inside the collar and cape; a lock over the left brow; out of the way of the brim as
+    the game tips the hat back on its pivot."""
+    return ellis_hair.build(fig, under_obs, name, slot('Hair'), log, pivot=HAT.get('pivot'), **params)
 
 
 # ------------------------------------------------------------------------------------- the gun belt and what hangs on it
@@ -1542,21 +1733,22 @@ SMART_UV = ('Eye_', 'Soles', 'HatCrown', 'HatBrim', 'HatBand', 'VestButton', 'Co
 # Sheets given thickness after the bake (m); the inner side shares the outer side's UVs.
 THICK = {'Duster': 0.004, 'Cape': 0.004, 'Collar': 0.005, 'Bandana': 0.0015, 'Belt': 0.005,
          'BeltLoops': 0.003, 'HolsterSkirt': 0.004, 'HatBrim': 0.0055, 'HatBand': 0.0015, 'Gauntlet_l': 0.003,
-         'Gauntlet_r': 0.003, 'HolsterLoop': 0.002}
+         'Gauntlet_r': 0.003, 'HolsterLoop': 0.002, 'HatCrown': 0.004}
 # Hidden insides stay single-sided: the waistcoat, shirt and trousers under the coat, the sleeves inside the gauntlets,
-# the boots' shafts round the trousers, the crown above the band.
+# the boots' shafts round the trousers. The crown's felt grows inward (thicken): seen from below or behind its inside
+# shows, and one-sided Unreal culled it (the sky through the hat, round 6).
 
 # The game mesh (about 35k triangles, the user's call of 2026-10-15; it was 20k, Borderlands' budget, and read coarse):
 # each detailed part's share of its triangles kept by Blender's Decimate (collapse); 1 keeps a part as it is. The
 # triangles go where the silhouette and the close-ups need them: face, hands, collar, the brim, the coat's edges and hem,
 # the boots; small hard parts (gun, holster, lantern, pin) whole: reduced, they shredded. Its looks, folds and creases
-# are baked from the detailed parts (looter_bake, sources). The hair is built again with fewer locks (HAIR_LOW).
+# are baked from the detailed parts (looter_bake, sources). The hair cards are built again as they are (HAIR_LOW).
 LOW = {'Ellis': 0.30, 'Eye': 0.30, 'Trousers': 0.42, 'Boots': 0.18, 'Soles': 0.7, 'Vest': 0.40, 'Shirt': 0.4,
        'VestButton': 0.35, 'Duster': 0.15, 'Sleeves': 0.45, 'Cape': 0.18, 'Collar': 0.55, 'SunPin': 1.0, 'Gloves': 0.36,
-       'Gauntlet': 0.55, 'Concho': 1.0, 'HatCrown': 0.12, 'HatBrim': 0.20, 'HatBand': 0.4, 'Bandana': 0.20,
+       'Gauntlet': 0.55, 'Concho': 1.0, 'HatCrown': 0.09, 'HatBrim': 0.20, 'HatBand': 0.4, 'Bandana': 0.20,
        'BandanaKnot': 0.6, 'Belt': 0.45, 'BeltLoops': 0.4, 'Cartridges': 0.5, 'Bullets': 0.25, 'Buckle': 1.0,
        'HolsterSkirt': 1.0, 'Holster': 1.0, 'HolsterLoop': 1.0, 'Revolver': 1.0, 'LanternWire': 0.4, 'Lantern': 1.0,
-       'BeltHook': 1.0}
+       'BeltHook': 1.0, 'HatBandInner': 1.0}
 # Cloth whose open edges (fronts, hems, the brim's rim) Decimate must not chew: a band this wide along them is spared
 EDGE_KEEP = {'Duster': 0.012, 'Cape': 0.012, 'Collar': 0.010, 'Bandana': 0.010, 'HatBrim': 0.010}
 
@@ -1648,15 +1840,18 @@ def make_lows(fig, highs, hair_under):
             bm.to_mesh(low.data)
             bm.free()
         ratio = low_ratio(ob.name)
-        if ratio < 1.0:
+        if ob.name == 'Ellis':
+            # the head region by region (ellis_hat.SKIN_LOW): one ratio with the eyes spared spent it all on the eyes
+            # and left the skull a crystal of a dozen triangles, seen through under the hat (round 6)
+            import ellis_hat
+            before, after = ellis_hat.decimate_skin(fig, low)
+            log(f'skin: {before} -> {after} triangles by region')
+            unflip(low, ob)
+        elif ratio < 1.0:
             m = low.modifiers.new('decimate', 'DECIMATE')
             m.ratio = ratio
             co = gm._object_coords(low)
             spare = np.zeros(len(co), dtype=bool)
-            if ob.name == 'Ellis':
-                # the eyes and lids keep their detail
-                d = np.minimum(np.linalg.norm(co - fig.eyes[0], axis=1), np.linalg.norm(co - fig.eyes[1], axis=1))
-                spare = d < 0.03
             band = EDGE_KEEP.get(ob.name.split('.')[0])
             if band:
                 spare = near_open_edge(low, co, band)
@@ -1683,6 +1878,15 @@ def make_lows(fig, highs, hair_under):
                          ('Bandana', ('Shirt', 'Vest', 'Ellis')), ('Boots', ('Trousers',))):
         under = by(*inner)
         if not under:
+            continue
+        if outer == 'Cape':
+            # over the sleeves as they hang at the idle, as it was draped (build_cape)
+            clear_cape(fig, by('Cape'), by('Duster'), by('Sleeves'))
+            continue
+        if outer == 'Collar':
+            # the wall over the cape; the lining (build_collar) off the reduced skin of the neck instead (cleared off
+            # the cape's top, its floor was flung out past the cape's top edge)
+            clear_collar(by('Collar'), under, by('Ellis'))
             continue
         tree = gm.bvh_objects(under)
         for ob in by(outer):
@@ -1712,16 +1916,9 @@ def look_of(ob):
 
 def prepare_uvs(objects):
     """Every part gets a usable 'UVMap': MakeHuman's on the shells, arc lengths on the drapes, smart projection on
-    small hard parts. The hair keeps its ribbon coordinates as 'Strand' for its look."""
+    small hard parts. (The hair cards' UVs are their atlas's, made with them.)"""
     for ob in objects:
         me = ob.data
-        if ob.name.startswith('Hair'):
-            strand = me.uv_layers.new(name='Strand')
-            src = me.uv_layers['UVMap']
-            uv = np.empty(len(src.data) * 2, dtype=np.float32)
-            src.data.foreach_get('uv', uv)
-            strand.data.foreach_set('uv', uv)
-            me.uv_layers.active = src
         if ob.name.startswith(SMART_UV) or 'UVMap' not in me.uv_layers:
             for layer in list(me.uv_layers):
                 if layer.name != 'Strand':
@@ -1733,7 +1930,9 @@ def prepare_uvs(objects):
 
 BAKE_SOURCES = [os.path.abspath(__file__)] + [os.path.join(REPO, *p) for p in (
     ('Tools', 'Blender', 'looter_human.py'), ('Tools', 'Blender', 'looter_garments.py'), ('Tools', 'Blender', 'looter_looks.py'),
-    ('Tools', 'Blender', 'looter_bake.py'), ('Art', 'Portraits', 'mh.py'), ('Art', 'Portraits', 'EllisBlender.py'))]
+    ('Tools', 'Blender', 'looter_bake.py'), ('Art', 'Portraits', 'mh.py'), ('Art', 'Portraits', 'EllisBlender.py'),
+    ('Tools', 'Blender', 'ellis_hair.py'),           # the hair cards shade the scalp's, neck's and collar's occlusion
+    ('Tools', 'Blender', 'ellis_hat.py'))]           # the hat's fit and the head's reduction shape what's baked
 
 
 def bake_all(lows, highs, size):
@@ -1757,6 +1956,11 @@ def bake_all(lows, highs, size):
             log(f'baked {set_name} ({len(obs)} parts from {len(src)})')
         else:
             log(f'{set_name}: kept (baked from these scripts before)')
+    # the script-made sets (the hair's atlas), made when missing
+    for set_name in MADE_SETS:
+        if not ellis_hair.have_textures():
+            ellis_hair.make_textures(look=False)
+        out[set_name] = bk.load_set(set_name)
     os.makedirs(os.path.dirname(stamp), exist_ok=True)
     with open(stamp, 'w') as f:
         f.write(want + '\n')
@@ -1767,7 +1971,9 @@ def thicken(objects):
     for ob in objects:
         t = THICK.get(ob.name.split('.')[0])
         if t:
-            gm.solidify(ob, t, offset=0.0 if ob.name.startswith('HatBrim') else 1.0, rim=not ob.name.startswith('Hair'))
+            # the brim both ways, the crown's felt inward (its outside is the baked one), the rest outward
+            off = 0.0 if ob.name.startswith('HatBrim') else -1.0 if ob.name.startswith('HatCrown') else 1.0
+            gm.solidify(ob, t, offset=off, rim=not ob.name.startswith('Hair'))
 
 
 HOLSTER_GUN = 0.6       # the holstered gun's share of the left thigh's turn (rigid; the pouch takes all of it)
@@ -1794,11 +2000,20 @@ def weights(fig, ob):
         return fig.b.weights_at(P)[1]
     if name.startswith(('Collar', 'SunPin')):
         t = gm.smoothstep(fig.neck[2] - 0.03, fig.neck[2] + 0.1, P[:, 2])
-        return rigid_w(fig, n, {'spine_05': 1.0 - 0.5 * t, 'neck_01': 0.5 * t})
+        W = rigid_w(fig, n, {'spine_05': 1.0 - 0.5 * t, 'neck_01': 0.5 * t})
+        if 'Lining' in me.attributes:
+            # the lining's band round the neck turns with the skin under it (the neck's bones), handing over across
+            # its floor to the collar's own at the wall
+            k = np.empty(n, dtype=np.float32)
+            me.attributes['Lining'].data.foreach_get('value', k)
+            r = np.linalg.norm(P[:, :2] - fig.neck[:2], axis=1)
+            on_neck = np.clip(k, 0.0, 1.0) * gm.smoothstep(0.11, 0.075, r)
+            W = hu.top4((1.0 - on_neck)[:, None] * W + on_neck[:, None] * fig.b.weights_at(P)[1])
+        return W
     if name.startswith('Cape'):
-        # on the shoulders: spine_05 and the collarbones (what rides the arms is its 'ArmFollow', in swing_weights)
-        side = gm.smoothstep(-0.08, 0.08, P[:, 0])
-        return hu.blend(fig.names, n, {'spine_05': 0.5, 'clavicle_l': 0.5 * side, 'clavicle_r': 0.5 * (1 - side)})
+        # on the shoulders what the clothes under it ride (build_cape: the collarbones and over the shoulder the upper
+        # arm, as the sleeve's top), the rest spine_05; below the shoulder line its chains (swing_weights)
+        return cape_weights(fig, ob)
     if name.startswith('Duster'):
         torso_faces = [f for f, k in zip(fig.faces, fig.face_mask((fig.w_arm < 0.3) & (fig.w_head < 0.3))) if k]
         names, near = fig.b.weights_at(P, torso_faces)
@@ -1870,7 +2085,17 @@ def weights(fig, ob):
 SKIRT_CHAINS = (('f', 1 / 6), ('s', 1 / 2), ('b', None), ('bi', 'inner'))
 INNER_AT = 0.2          # the inner back chains' place from the back chain (0) to skirt_bm (1): near the back one the
                         # stride's back shin carries them both (halfway 35 points through, a third 31, a fifth none)
-CAPE_CHAINS = (('f', 0.25), ('b', 0.75))
+# The cape's, each side from the front edge round to the back (and cape_bm down the middle of the back): (key, where
+# round it: a share of the arc from the front edge to the back's middle, or 'arm' straight out over the shoulder joint;
+# root). Root 'joint': the chain's first bone starts on the shoulder joint, on the collarbone, so its cloth turns about
+# the joint the arm turns about and the game's springs carry it with the arm by a share of the arm's turn (BodySwing's
+# cape follow, from the arm as it hangs at the idle, `cape_arm_<s>`): f the front panel over the chest (hardly), a the
+# front of the shoulder (a raised arm lifts it), s over the arm (nearly all of it), b behind the shoulder. Root
+# 'surface': from the cloth at the shoulder line on spine_05. (Round 5's cloth rode the upper arm itself by a share:
+# blended halfway between the chest and an arm raised to aim, it sank into the arm; with two chains a side, from the
+# shoulder line, a raised arm came up through the cloth between them, round 6.)
+CAPE_CHAINS = (('f', 0.09, 'surface'), ('a', 0.24, 'joint'), ('s', 'arm', 'joint'), ('b', 0.64, 'joint'))
+CAPE_MIDDLE = True       # cape_bm down the middle of the back (the pointed back), from the shoulder line on spine_05
 SKIRT_TOP = 0.91         # the skirt's own weights start here (above, the duster's blend into the torso's), its chains below
 # The bib's chain hangs from the neck, not the head (the contract said head): on the head it swung 2 cm out through the
 # collar when the head turned or tilted onto the stock; from neck_02 the bib keeps inside the collar's opening while the
@@ -1962,11 +2187,20 @@ def swing_layout(fig, parts):
     centre = fig.neck[:2]
     for side, s in ((1, 'l'), (-1, 'r')):
         e = front_edge(co, ed, centre, fig.shoulder_z, side)
-        for key, u in CAPE_CHAINS:
-            a = side * (e + u * (math.pi - e))
+        for key, u, root in CAPE_CHAINS:
+            # 'arm': straight out over the shoulder joint
+            a = float(round_angle(fig.sk[f'upperarm_{s}'][0], centre)[0]) if u == 'arm' else side * (e + u * (math.pi - e))
             hem = hem_point(co, centre, a)
-            joints = [on_surface(tree, centre, a, z) for z in (fig.shoulder_z, (fig.shoulder_z + hem[2]) * 0.5)]
-            chain(f'cape_{key}{s}', 'spine_05', 'Cape', side, centre, joints + [hem])
+            cloth = [on_surface(tree, centre, a, z) for z in (fig.shoulder_z, (fig.shoulder_z + hem[2]) * 0.5)] + [hem]
+            if root == 'joint':
+                chain(f'cape_{key}{s}', f'clavicle_{s}', 'Cape', side, centre, [fig.sk[f'upperarm_{s}'][0]] + cloth[1:])
+            else:
+                chain(f'cape_{key}{s}', 'spine_05', 'Cape', side, centre, cloth)
+            chains[-1]['ring'] = np.array(cloth)              # where its cloth lies round the cape (ring_weights)
+    if CAPE_MIDDLE:
+        hem = hem_point(co, centre, math.pi)
+        chain('cape_bm', 'spine_05', 'Cape', 0, centre,
+              [on_surface(tree, centre, math.pi, z) for z in (fig.shoulder_z, (fig.shoulder_z + hem[2]) * 0.5)] + [hem])
     # the bandana's point: down the middle of its bib from under the chin to the point
     co, _ = mesh_arrays(by['Bandana'])
     tree = gm.bvh_objects([by['Bandana']])
@@ -1979,7 +2213,6 @@ def swing_layout(fig, parts):
     # the back hair: from where it falls free of the skull (a quarter of the way from the back of the head's bulge down
     # to the nape's hollow, which is inside the turned-up collar: there it hardly showed) to its ends
     co, _ = mesh_arrays(by['Hair'])
-    tree = gm.bvh_objects([by['Hair']])
     centre = sk['head'][0][:2]
     wv = fig.wv[fig.b.used]
     back = wv[(np.abs(wv[:, 0]) < 0.03) & (wv[:, 1] > centre[1]) & (wv[:, 2] > 1.5) & (wv[:, 2] < 1.85)]
@@ -1988,8 +2221,8 @@ def swing_layout(fig, parts):
     occiput = zs[np.argmax(y)]
     nape = zs[zs < occiput][np.argmin(y[zs < occiput])]
     top = occiput + (nape - occiput) * 0.25
-    ends = hem_point(co, centre, math.pi, math.radians(20))
-    chain('hair', 'head', 'Hair', 0, centre, [on_surface(tree, centre, math.pi, z) for z in (top, (top + ends[2]) * 0.5)] + [ends])
+    # (the hair cards: at their middle depth, ellis_hair.chain_joints; the outermost card bent the chain 10 cm out)
+    chain('hair', 'head', 'Hair', 0, centre, ellis_hair.chain_joints(co, centre, top))
     # Pa's lantern swings from its hook on the belt
     chain('lantern', 'thigh_r', 'Lantern', 0, fig.centre, [fig.lantern_hook, fig.lantern])
     for c in chains:
@@ -2080,7 +2313,7 @@ def ring_weights(P, chains):
         z = P[sel, 2]
 
         def at(i):
-            j = chains[i]['joints']
+            j = chains[i].get('ring', chains[i]['joints'])     # (a cape chain from the shoulder joint: its cloth's)
             a = round_angle(j, centre)
             a = np.abs(a) if chains[i]['side'] == 0 else a * chains[i]['side']
             return np.interp(z, j[::-1, 2], a[::-1])
@@ -2132,6 +2365,12 @@ def swing_weights(fig, ob, W):
         share = ring_weights(P, part)
         for i, c in enumerate(part):
             f += spread(share[:, i], c, SKIRT_TOP if name.startswith('Duster') else c['joints'][0, 2])
+        if 'CapeChain' in ob.data.attributes:
+            # the cape's hand-over to its chains as its build carried it into the bind pose (build_cape: the share it
+            # left on the upper arm is what the idle turns back)
+            f = np.empty(n, dtype=np.float32)
+            ob.data.attributes['CapeChain'].data.foreach_get('value', f)
+            f = np.clip(f.astype(np.float64), 0.0, 1.0)
     elif name.startswith(('Bandana', 'Hair')) and part:
         c = part[0]
         ang = np.abs(round_angle(P, c['centre']))
@@ -2144,24 +2383,16 @@ def swing_weights(fig, ob, W):
         return np.concatenate([W, C], 1)
     # the swing bones' shares come out of the part's own: f of the vertex is chains, the rest as before
     C = C / np.maximum(C.sum(1, keepdims=True), 1e-9) * f[:, None]
-    out = soft_top4(np.concatenate([W * (1.0 - f)[:, None], C], 1))
-    if name.startswith('Cape') and 'ArmFollow' in ob.data.attributes:
-        # where the cape lies over an arm it rides the upper arm by its build's share (build_cape), so the game's idle
-        # arms put it back as it was draped
-        a = np.empty(n, dtype=np.float32)
-        ob.data.attributes['ArmFollow'].data.foreach_get('value', a)
-        a = np.clip(a, 0.0, 1.0)[:, None]
-        arm = np.zeros_like(out)
-        arm[P[:, 0] >= 0.0, fig.col['upperarm_l']] = 1.0
-        arm[P[:, 0] < 0.0, fig.col['upperarm_r']] = 1.0
-        out = soft_top4(out * (1.0 - a) + arm * a)
-    return out
+    # (the cape rides no upper arm itself: its chains do, as the game's springs take them, each bone turning its cloth
+    # whole; blended between the chest and an arm raised to aim, the cloth sank into the arm, round 6)
+    return soft_top4(np.concatenate([W * (1.0 - f)[:, None], C], 1))
 
 
 def hat_bone(parts):
     """The hat's bone (the game tips the hat back on it while aiming, the brim's front up, so it clears the rifle's
-    scope): from the back of the band, where it meets the back of the crown, at the band's middle height, to the front
-    of the band."""
+    scope): its head the pivot build_hat placed (ellis_hat.pivot), pointing forward in the band's plane."""
+    if 'pivot' in HAT:
+        return HAT['pivot']
     band = np.concatenate([gm._object_coords(o) for o in parts if o.name.startswith('HatBand')])
     c = band.mean(0)
     ang = round_angle(band, c[:2])
@@ -2246,6 +2477,7 @@ def rig(fig, objects):
     log(f'hat bone: ({fig.hat[0][0] * 100:.1f}, {fig.hat[0][1] * 100:.1f}, {fig.hat[0][2] * 100:.1f}) > '
         f'({fig.hat[1][0] * 100:.1f}, {fig.hat[1][1] * 100:.1f}, {fig.hat[1][2] * 100:.1f}) cm')
     names = fig.names + add_swing_bones(arm, fig.swing) + [add_hat_bone(arm, *fig.hat)] + add_twist_bones(arm)
+    add_cape_arm_bones(fig, arm)             # unweighted: where the cape's springs take the arms from
     fig.rig_names = names
     # the parts rig_check measures against each other (the tipped brim, the turned head's bandana), at rest with
     # their weights
@@ -2266,7 +2498,7 @@ def rig(fig, objects):
                 g.add([int(i)], float(col[i]), 'REPLACE')
     skin = next(o for o in objects if o.name == 'Ellis')
     for ob in objects:
-        for attr in ('mh_index', 'ArmFollow'):
+        for attr in ('mh_index', 'ArmFollow', 'CapeChain', 'Lining') + tuple('CapeW_' + b for b in CAPE_SKIN + ('spine_05',)):
             if attr in ob.data.attributes:
                 ob.data.attributes.remove(ob.data.attributes[attr])
     bk.select(objects, skin)
@@ -2311,7 +2543,7 @@ def game_materials(skin):
     of the set its looks bake into), Glow for the glows."""
     swap = {}
     for slot_name, (master, keys, params) in GAME_MATERIALS.items():
-        sets = {s for s, ks in TEXTURE_SETS.items() if set(keys) & set(ks)}
+        sets = {s for s, ks in {**TEXTURE_SETS, **MADE_SETS}.items() if set(keys) & set(ks)}
         assert len(sets) == 1, f'{slot_name}: its looks must bake into one set, not {sets}'
         mat = lt.material(sets.pop(), name=slot_name, master=master, **params)
         for k in keys:
@@ -2360,6 +2592,11 @@ def viewer_materials(skin, baked):
         gn = nt.nodes.new('ShaderNodeGroup')
         gn.node_tree = group
         nt.links.new(sep.outputs[0], gn.inputs['Occlusion'])
+        for k in keys:
+            mats[f'Ellis_{k}'] = mat
+    # the hair's atlas: its alpha cut, its ORM's blue the strands' ids (not metal)
+    for set_name, keys in MADE_SETS.items():
+        mat = ellis_hair.material(f'View_{set_name}')
         for k in keys:
             mats[f'Ellis_{k}'] = mat
     for k in GLOWS:
@@ -2432,7 +2669,9 @@ CHECK_VIEWS = {'front': 0.0, 'side': 90.0, 'back': 180.0, 'rside': -90.0}
 CHAIN_COLOURS = {'skirt_fl': (1.0, 0.45, 0.05), 'skirt_sl': (0.95, 0.85, 0.1), 'skirt_bl': (0.9, 0.15, 0.1),
                  'skirt_fr': (0.1, 0.55, 1.0), 'skirt_sr': (0.1, 0.85, 0.75), 'skirt_br': (0.45, 0.25, 0.95),
                  'cape_fl': (1.0, 0.45, 0.05), 'cape_bl': (0.9, 0.15, 0.1), 'cape_fr': (0.1, 0.55, 1.0),
-                 'cape_br': (0.45, 0.25, 0.95), 'bandana': (0.95, 0.85, 0.1), 'hair': (0.2, 0.9, 0.3),
+                 'cape_br': (0.45, 0.25, 0.95), 'cape_sl': (0.95, 0.85, 0.1), 'cape_sr': (0.1, 0.85, 0.75),
+                 'cape_al': (0.55, 0.9, 0.2), 'cape_ar': (0.2, 0.35, 0.9), 'cape_bm': (0.85, 0.85, 0.85),
+                 'bandana': (0.95, 0.85, 0.1), 'hair': (0.2, 0.9, 0.3),
                  'lantern': (0.95, 0.85, 0.1), 'skirt_bm': (0.85, 0.85, 0.85), 'skirt_bli': (0.75, 0.3, 0.4),
                  'skirt_bri': (0.3, 0.4, 0.8)}
 
@@ -2837,11 +3076,11 @@ def main():
                 co = gm._object_coords(ob)
                 log(f'{ob.name}: {co.min(0).round(3)} .. {co.max(0).round(3)}')
             return
-    collar, pin = build_collar(fig, top_r)
     gloves = build_gloves(fig, sleeves)
     log('cape, collar, gloves')
     hat = build_hat(fig)
     bandana = build_bandana(fig, [skin, vest, shirt])
+    collar, pin = build_collar(fig, top_r, skin, bandana, cape)  # the bandana inside it, on the cape
     hair = build_hair(fig, [skin, collar, cape, bandana[0]], **HAIR)
     log('hat, bandana, hair')
     extra = []

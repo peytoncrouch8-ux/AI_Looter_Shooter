@@ -317,11 +317,16 @@ bool FBodySwingEllisTest::RunTest(const FString& Parameters)
 	}
 	FBodySwing Swing;
 	Swing.Bind(Ellis->GetRefSkeleton());
-	TestEqual(TEXT("16 swing chains: 9 skirt (five across the back), 4 cape, the bandana, the hair, the lantern"), Swing.NumChains(), 16);
+	TestEqual(TEXT("21 swing chains: 9 skirt (five across the back), 9 cape (four a side from the shoulder, one down the back), the bandana, the hair, the lantern"),
+		Swing.NumChains(), 21);
 	// Each ends in an unweighted `<chain>_end` where its cloth ends (the springs' last tip; a guess fell short of the hem).
 	const TCHAR* const ChainNames[] = { TEXT("skirt_fl"), TEXT("skirt_sl"), TEXT("skirt_bl"), TEXT("skirt_bli"), TEXT("skirt_bm"),
-		TEXT("skirt_bri"), TEXT("skirt_br"), TEXT("skirt_sr"), TEXT("skirt_fr"), TEXT("cape_fl"), TEXT("cape_bl"), TEXT("cape_br"),
-		TEXT("cape_fr"), TEXT("bandana"), TEXT("hair"), TEXT("lantern") };
+		TEXT("skirt_bri"), TEXT("skirt_br"), TEXT("skirt_sr"), TEXT("skirt_fr"), TEXT("cape_fl"), TEXT("cape_al"), TEXT("cape_sl"),
+		TEXT("cape_bl"), TEXT("cape_bm"), TEXT("cape_br"), TEXT("cape_sr"), TEXT("cape_ar"), TEXT("cape_fr"), TEXT("bandana"),
+		TEXT("hair"), TEXT("lantern") };
+	// The arms as they hang at the idle, for the cape's rest on them and its clearances (the bind pose's arms are raised).
+	TestTrue(TEXT("cape_arm_l and cape_arm_r"), Ellis->GetRefSkeleton().FindBoneIndex(TEXT("cape_arm_l")) != INDEX_NONE
+		&& Ellis->GetRefSkeleton().FindBoneIndex(TEXT("cape_arm_r")) != INDEX_NONE);
 	for (const TCHAR* Chain : ChainNames)
 	{
 		TestTrue(FString::Printf(TEXT("%s ends in %s_end"), Chain, Chain),

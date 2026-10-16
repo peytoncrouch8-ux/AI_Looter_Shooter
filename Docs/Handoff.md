@@ -88,6 +88,13 @@ need to"):** three Blender agents on one contract (`Saved/Concepts/EllisRound6/C
 the skull, close the crown's inside and the scalp), HAIR (cards with a script-made strand texture, masked; maybe a new
 M_CharacterHair master), CAPE (cape and collar clipping in every pose). Found: every Ellis material is one-sided, so
 a single surface seen from behind vanishes (the crown's inside). In-game evidence: `Saved/Screenshots/Tools/aud_*.png`.
+**Round 6 done (2026-10-15 night):** HAT seated the hat and closed the head (`ellis_hat.py`); HAIR made cards on a
+script-made strand atlas with a new master `M_CharacterHair` (`ellis_hair.py`, `Art/Textures/EllisHair`); CAPE rebuilt
+the cape's weights and chains (9, hung from the shoulder joint, `cape_arm_<side>` idle arms) and lined the collar
+(`ellis_cape_audit.py`), with BodySwing's follow shares, idle-arm rests, rising chains and cape bulk 6 to match
+(Pipeline, "Swing"). 142 bones, 33.2k triangles. Checked in PIE from 20 head/body angles plus carry, aim (5 angles) and
+sprint: no see-through, the hat on the head, hair reads as hair, no cape in the sleeves. The hair glowed light brown
+backlit: MI_EllisHair Tint 0.55 (also in Ellis.py's EllisHair slot so a re-import keeps it). Shots sent.
 Main imports, checks in PIE, commits. Then Gravemother. Found on the way (HAT): the game skin was a "crystal":
 `make_lows` spared everything within 3 cm of the eyes, so the skull's back and top collapsed into ~12 triangles (the
 holes); now decimated by region. Leftover for later: BandanaKnot sits inside the neck (mid-neck, not at its back) with

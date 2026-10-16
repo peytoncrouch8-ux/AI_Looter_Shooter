@@ -570,13 +570,14 @@ simulates again only when one of them changes (as MisterSexton.drape.json).
 Ellis.py:
 - Order: body, trousers (knee and boot-top creases), boots (below), waistcoat and shirt,
   belt (before the duster, which drapes over it), duster, sleeves (bunched at the cuff, crescents at the elbow), cape
-  (draped over the arms let down to the game's idle, `IDLE_ARM` 10 degrees off the body, then carried back up into the
-  bind pose by each point's share of its upper arm, kept as 'ArmFollow' and weighted to the upper arm: draped over the
-  bind pose's A, its sides stood out like wings and fins once the arms came down; its front corners flare less),
+  (draped over the arms let down to the game's idle, `IDLE_ARM` 10 degrees off the body: draped over the bind pose's A,
+  its sides stood out like wings and fins once the arms came down; its front corners flare less; each point at least
+  8 mm outside what's under it, unsmoothed (the drape's smoothing let the sleeves' tops through by the collar's foot);
+  its top carried up into the bind pose by its share of the upper arm (below), cleared off the coat and the sleeves
+  as the idle has them (`clear_cape`, `cape_idle`; round 6)),
   holster, lantern (hung from a `BeltHook` piece out from the belt; clear of the thigh from fount to cap, 4.3 cm and 3.3 more:
   with 1.7 a crouch's level thigh, under the hook it rides, pressed 1.5 cm into it), the
-  simulation (the belt, cartridges and bullets as colliders), collar and pin (the throat's points splay half as far:
-  more and the flap with the pin jutted like a box), gloves (`thicken_hand`: `GLOVE_GIRTH` 1.15, each point pushed off its
+  simulation (the belt, cartridges and bullets as colliders), gloves (`thicken_hand`: `GLOVE_GIRTH` 1.15, each point pushed off its
   skinning bones square to them, blended by its weights: fuller palm and fingers, no longer; the user: thin, clawed
   hands, 2026-10-15; the glove runs `GLOVE_CUFF` 6 cm up the forearm inside the gauntlet; the gauntlet's mouth sits at
   the wrist, each ring the smallest ellipse round the forearm's axis holding the glove's slice + `CUFF_ROOM` 4 mm,
@@ -587,16 +588,47 @@ Ellis.py:
   rolled out `CUFF_LIP` 3 mm: cut square, a turned and bent hand met it in a sharp notch), hat
   (EllisBlender.build_hat moved into the figure's space; the brim's reach past the crown `BRIM_REACH` 0.88, each spoke
   shortened toward its root so the curl keeps its shape),
-  bandana (inside the collar: draped over skin, waistcoat and shirt; its point down the chest), hair (locks grown with
-  `EllisBlender.grow` over head, collar, cape and bandana; a hair-coloured scalp under them; the user, 2026-10-15: "Hair
-  looks like ribbons": flat strips thickened 1.2 mm read as paper fringes. Each lock a closed tube (`lock_piece`),
-  lens-shaped (`LOCK_DEPTH` 0.36 of its width, the inner half flatter; 0.55 read as dreadlocks), tapering to half its
-  width, ending in a thin flat edge (half as wide, a fifth as deep; a cone read as a sharpened pencil); the outer layer's
-  34 locks let a clump part from one side from `SPLIT` half way down; the inner 30 are whole and two sides fewer.
-  `HAIR_LOW` (the game's: 6 rows, 6 sides, clumps 4) and `HAIR` (the bake's: the same locks at 12 rows, 10/8 sides, so
-  each lock's strands bake onto itself) share every lock; no sheet thickness), then 'Seams' on the sewn pieces; the game
-  mesh (below), its UVs, the bake from the detailed parts (then
-  deleted), thickness, weights, one joined mesh `Ellis`.
+  bandana (inside the collar: draped over skin, waistcoat and shirt; its point down the chest), collar and pin (built
+  after the bandana: `COLLAR_GAP` 1.2 cm off the bandana, its knot and the neck, its wall no nearer the neck than the
+  cape's top edge at the idle + 1.2 cm (its most over a few degrees, smoothed: over the square shoulders that edge is
+  18-19 cm out, past the old 16 cm foot, and the sleeves' tops showed between); its top edge as round 5's, the brim's
+  clearance; the front ends roll out half as much (they turned out flat like tabs); the throat's points splay half as
+  far: more and the flap with the pin jutted like a box; its lining, `collar_lining` (the game's one-sided materials:
+  looking down between the neck and the collar you saw past the skin, which stops under the collar, into the neck,
+  and a jumble of the cape's, coat's and sleeves' tops): a band `COLLAR_BAND` 2.5 mm off the body round the back
+  (`COLLAR_LINING` 85-275 degrees, where the bandana's band is cut) from 1.2 cm over the skin's lower edge down to a floor
+  at neck_01's head + `COLLAR_FLOOR` 3 mm, out to the wall, on to the collar's ends from the bandana out; its 'Lining'
+  points turn with the skin's weights near the neck, cleared off the reduced skin (`clear_collar`); round 6 tried the
+  foot tucked into the cape's top flaring out to the same top edge: it read as a frilled ruff on a stalk), hair (cards,
+  below), then
+  'Seams' on the sewn pieces; the game mesh (below), its UVs, the bake from the detailed parts (then deleted), thickness,
+  weights, one joined mesh `Ellis`.
+- Hair cards (round 6, `Tools/Blender/ellis_hair.py`; the user, 2026-10-15: "hair looks like mud"). What failed before:
+  flat ribbons read as slabs; 80 narrow ribbons as ribbons; closed lens-shaped tube locks in two layers as dark ropes
+  and dreadlocks (mud: no shine, no strands; the detailed locks baked onto the low ones smeared the strands). Now layered
+  card strips UV-mapped onto a script-made strand atlas, not baked (the cards are the game's hair as built; `HAIR` and
+  `HAIR_LOW` build the same): from the scalp out a sheet (41 columns round the back from temple to temple: the
+  underlayer, so no skin shows), main (30 cards, 4 cm, dense strips), outer (36, 2.9 cm, shorter and flicked out at the
+  tips: the layered, shaggy cut), wisps (24), fly-aways (12) and the lock across the left brow (3); each card leans round
+  the head by a random sweep (all plumb read as a curtain), arched to the head's curve, 8 rows; custom normals out of
+  the hair's volume (they survive the join and the export's transforms). 2748 triangles (round 5's locks: 5.8k).
+  Roots 1.2 cm up under the hat band (`ellis_hat.band_ring`, the sweatband's inner face), pressed within its room off
+  the scalp (7 mm sides and back, 2 mm forehead; logged: points past it, 0), fuller from a little below the band.
+  Tips: the jaw by the temples, into the turned-up collar round the back (2.2 cm under its rim: collar length). Grown
+  over skin and bandana only; the collar and cape are walls the hair is kept 5 mm inside (as colliders, one-sided, they
+  pushed cards out through the collar). The hat tipped 5-20 degrees on its pivot: card points its brim would sweep are
+  moved in under the crown (rig check: 0 of 2357). The back's swing chain `hair_01..02` on the cards' median depth
+  (`chain_joints`; the outermost card bent it 10 cm out).
+- The hair atlas (`ellis_hair.make_textures`; `Art/Textures/EllisHair/T_EllisHair_BC|N|ORM.png`, 2048): top quarter a
+  sheet tiling across (the underlayer: solid to 70 % of its length, then strands); below, 8 strips 256 px wide, root at
+  the top: 2 dense, 3 clumped, 2 wisps, 1 fly-aways. Strands drawn one by one (numpy, no library art) in clumps and
+  sub-clumps (forked, uneven tips), body strands behind for mass; sRGB root 0.08/0.06/0.047, mid 0.16/0.118/0.09, tip
+  0.185/0.138/0.104 with a little dust (lighter tips read as dyed). BC alpha = coverage (soft-edged: the game dithers it);
+  a strand fades where it reaches its strip's side (clamped there, strands drew the card's edge as a line); N the strands'
+  round profile (DirectX); ORM R occlusion (root, deeper strands), G roughness per strand (~0.41), B each strand's random
+  id, NOT metal (M_CharacterHair tips the tangent by it). Ellis.py: `MADE_SETS` (not baked; made if missing), slot
+  `EllisHair` on `M_CharacterHair`; `--look <tag>` renders the head (Eevee, dithered alpha; `--aniso` Cycles) into
+  `Saved/Concepts/EllisRound6/hair/`.
 - The coat: option C, the user's pick (2026-10-15), is the build: squarer shoulders and a pointed back on the cape, a
   deeper crown crease and harder brim curl on the hat, the duster to the ankle (`HEM` 0.24; it hangs 0.20-0.23 m).
 - Boots (the user, 2026-10-15: "proper boots"; MakeHuman's foot reshaped into a toe box read as a bare foot on a sandal,
@@ -612,18 +644,23 @@ Ellis.py:
   7000 each; the soles' outline is the fused boot's footprint + 4 mm welt. No UVs (smart-projected for the bake); the look
   is object space: the toe cap stitched at y -0.19 (5.5 cm behind the tip), the welt at 2.15 cm. The body's feet aren't
   in the game mesh (its skin is the head and neck).
-- Texture sets (2048): EllisSkin (face and scalp), EllisDuster (coat, sleeves, cape, collar), EllisGarb (hat, hair, bandana,
-  waistcoat, shirt, trousers), EllisGear (boots, soles, gloves, belt, holster, revolver, lantern, brass, lead, iron). The eyes
+- Texture sets (2048): EllisSkin (face and scalp), EllisDuster (coat, sleeves, cape, collar), EllisGarb (hat, bandana,
+  waistcoat, shirt, trousers), EllisHair (script-made, above), EllisGear (boots, soles, gloves, belt, holster, revolver, lantern, brass, lead, iron). The eyes
   and the lantern's globe and flame are Glow materials (EllisEyeGlow, EllisLanternGlow).
 - Skin weights by part (`weights()`): the body's own; the duster above the hips from the torso, its skirt pelvis to the
-  thighs (side by x) as looter_heroes' skirts; the cape half its nearest body point, half spine_05 and the clavicles; collar
-  spine_05 to neck_01 by height; bandana the skin's own weights where it lies (head over nose, mouth and chin; head,
+  thighs (side by x) as looter_heroes' skirts; the cape's top what the clothes under it ride (`cape_weights`: the nearest
+  skin's at the idle, its collarbones and upper arms, the rest spine_05, kept as 'CapeW_<bone>'), handing over to its
+  chains from the shoulder line to halfway down ('CapeChain'), its top carried up into the bind pose by its share of
+  the upper arm (`cape_idle`) so the idle puts it back as draped, nothing riding the upper arm below (round 5's
+  'ArmFollow' carried the whole cape up by a share of the arm: blended halfway between the chest and an arm raised to
+  aim, the cloth sank into the arm, the clipping the user saw; round 6); collar spine_05 to neck_01 by height, its
+  lining's band and floor near the neck the skin's own; bandana the skin's own weights where it lies (head over nose, mouth and chin; head,
   neck_02, neck_01 down the neck; the knot too; the user saw it cut through the neck when the head turned, 2026-10-15), its
   bib onto its chain; hair, eyes head; hat crown, brim and band 100% `hat`; belt pelvis (+spine_01); the holster's skirt
   pelvis over the belt to thigh_l down the pouch, the pouch and its loops all thigh_l, the gun rigid at `HOLSTER_GUN` 60 %
   thigh_l (round 5: blended from the belt down the pouch, the crouch's thigh sank 3.6 cm into it; the gun all thigh, a
   stride swung its grip, in front of the hip joint, 4.5 cm into his belly; all hips, a crouch's thigh rose 5 cm into it;
-  at 60 % 0.9 and 1.1 cm); the cape spine_05 and the clavicles, its chains, and its 'ArmFollow' share on the upper arm;
+  at 60 % 0.9 and 1.1 cm);
   `BeltHook` pelvis to thigh_r along it; lantern all on lantern_01 (it stays on thigh_r: on pelvis a crouch's thigh rose
   5 cm into it);
   gauntlets lowerarm to hand; gloves from the hand's faces; then (`twist_weights`) on the sleeves, gauntlets, conchos and
@@ -641,11 +678,18 @@ Ellis.py:
   and skirt_bm_01..03 down the middle of the back over the vent (the same heights; without it a stride's back shin came
   through between the two b chains), skirt_bli and skirt_bri (`INNER_AT` a fifth of the way from each b to bm: there
   the stride's back shin carries them with b; halfway 35 points of it came through, a third 31, a fifth none),
-  cape_{fl,bl,fr,br}_01..02 on
-  spine_05 (1/4 and 3/4 of the cape's arc, from the shoulder line 143 cm), bandana_01..02 on neck_02 (under the chin to the
+  cape_{f,a,s,b}{l,r}_01..02 and cape_bm_01..02 (`CAPE_CHAINS`, round 6; round 5's two a side, f and b, from the shoulder
+  line, let a raised arm come up through the cloth between them): f the front panel (0.09 of the arc from the front
+  edge, from the cloth at the shoulder line 143 cm on spine_05), a the front of the shoulder (0.24), s straight out
+  over the shoulder joint, b behind it (0.64), these three from the shoulder joint itself on the collarbone (their
+  cloth turns about the joint the arm turns about: the springs' share of the arm's turn, no cloth blended halfway);
+  bm down the middle of the back from the shoulder line on spine_05; ring_weights reads a joint-rooted chain's place
+  round the cape from its cloth points ('ring'); `cape_arm_l/r` (unweighted, under the collarbones: the upper arm as it
+  hangs at the idle, `add_cape_arm_bones`) for the springs to take the cape from; bandana_01..02 on neck_02 (under the chin to the
   point), hair_01..02 on head (from 168 cm, a quarter of the way from the skull's bulge to the nape, which is inside the
-  collar, to the ends), lantern_01 on thigh_r (from the bail's top on the hook's end, right above the lantern, to the
-  fount: from the hook's belt end the springs' gravity swung it 6 cm into the thigh). 40 bones in 16 chains; each one's
+  collar, down the back at the cards' median depth to where most of the back hair ends, on the nape at ~156 cm),
+  lantern_01 on thigh_r (from the bail's top on the hook's end, right above the lantern, to the
+  fount: from the hook's belt end the springs' gravity swung it 6 cm into the thigh). 50 bones in 21 chains; each one's
   head at its joint, its Z out of the cloth; and each chain's `<chain>_end`, an unweighted leaf (deforming, so the FBX
   keeps it; 2 cm on along the last bone) with its head where the cloth ends: an FBX bone has no tail, and BodySwing
   guessed the last tip as long as the bone before (the skirt's at mid-shin, the hem 11 cm past it, which then went
@@ -672,13 +716,12 @@ Ellis.py:
   collapses only what its group weights); `unflip()` turns back the faces Decimate flipped (against the detailed part and
   their neighbours) and dissolves its slivers: Unreal culls a face's back, so each was a hole (the waistcoat's "black
   holes", 116 in the old boots' toes, the duster's back); the shirt keeps only what shows in the waistcoat's V (bent, the rest
-  came through); the bandana's back, hidden under collar and hair, goes; the hair is built again, coarser (`HAIR_LOW`, the
-  same locks: before round 5, 80 ribbons; 44 wide ones read as slabs; each lock's sideways direction carried along it, or
-  a lock running straight out twisted into a hook); reduced layers are pushed back outside the reduced
+  came through); the bandana's back, hidden under collar and hair, goes; the hair cards are built again as they are
+  (`HAIR_LOW`; each card's sideways direction carried along it: a card running straight out twisted into a hook); reduced layers are pushed back outside the reduced
   layers under them (a reduced sleeve cut through its reduced gauntlet; the coat over the cartridges and bullets too);
   below the chin the bandana stands 1 cm off the neck's skin (the mask above, 3 mm). The copies take each part's
   transform (the eyes, buttons, pin and conchos are placed by their object, not their mesh: copies without it fell to the
-  floor). Biggest shares: hair 5.8k, duster 3.4k, face 2.6k, boots 2.5k (LOW 0.18 of the fused 14k), gloves 2.3k, cape
+  floor). Biggest shares (round 5; round 6's hair cards 2.7k): hair 5.8k, duster 3.4k, face 2.6k, boots 2.5k (LOW 0.18 of the fused 14k), gloves 2.3k, cape
   2.0k, bandana 2.0k (round 5 paid for the hair's locks with the waistcoat's buttons at 0.35, the bullets 0.25 and the
   lantern's wire 0.4). `--stats`
   prints the triangles per part (no bake). Leather looks keep their grain at 280/m (900-1100 aliased at the bake's ~1000
@@ -695,6 +738,17 @@ Ellis.py:
   already past a point pushed it out the far side), and every layer checked against the one over it in each pose (`PAIRS`: a point looks out along its normal, turned
   away from the nearest bone so a thickened part's inner shell counts, and back in; `SOLIDS`: a part inside another; `GROUNDED`: under the ground), into
   `Saved/Concepts/EllisAudit/<tag>/` with `findings.json`. The 2026-10-15 audit: `EllisAudit/defects.md`.
+- The cape's and collar's audit (round 6): `Tools\artrun.ps1 -Script Tools\Blender\ellis_cape_audit.py -ScriptArgs
+  --audit,<tag>` builds and rigs Ellis.py WITHOUT the bake (any edit changes the bake's digest; a `--audit` run of
+  Ellis.py itself bakes and writes the texture sets), then 16 poses (`looter_audit.POSES`, round 6 added carry,
+  aim_high, aim_low, crouch_aim, swing, look_l/r/up/down, look_up_tip; `('tip', bone, degrees)` tips the hat as the game
+  does while aiming): crossing faces (BVH overlap) of the cape and collar with every layer, counted apart where out of
+  the collar's ring; points through (PAIRS); cape points inside the sleeves' tubes; the brim's nearest to the collar;
+  close clay views (shoulders, arms, hands, collar; backs culled as Unreal's one-sided materials) and views down into
+  the collar against a magenta sky (magenta between the neck and the collar is a hole), into
+  `Saved/Concepts/EllisRound6/cape/<tag>/`. Env: `CAPE_POSES` (a+b), `CAPE_SHOW` (parts to draw), `CAPE_RENDERS=0`,
+  `CAPE_SWEEP` ('f=0.2,0.3;bulk=4,6': tries the springs' shares and the cape's bulk), `CAPE_SRC` (another version of
+  Ellis.py, e.g. `git show HEAD:...`), `CAPE_MIRROR=r5` (BodySwing as round 5 shipped it).
 - `--option A|B` (`Tools/Blender/ellis_options.py`, off unless asked; the user picked C, now the build, 2026-10-15, and
   not these): A gear and story (a bandolier over the coat, a satchel at the right hip, spurs, a watch chain, the lantern
   a third bigger; +2.9k triangles), B the coat itself (lapels, pocket flaps, buckled sleeve straps, a second cape tier, a
@@ -708,7 +762,7 @@ Ellis.py:
   fetched when missing: `Art/ThirdParty/MakeHuman/fetch.py` (the PC has no system Python: run it with Blender's,
   `C:\Program Files\Blender Foundation\Blender 4.4\4.4\python\bin\python.exe -I`). Export beside the editor:
   `Tools\artrun.ps1 -Export Ellis -Family Ellis`, then `Looter.ImportModels <that folder>`: `/Game/Art/Characters/SK_Ellis`
-  (125 bones with the root: 63 mannequin, 4 forearm twist, 40 swing, 16 `_end` leaves, hat; 3 LODs, Nanite off for the eye glow, 185.5 cm to the hat's top),
+  (142 bones with the root: 63 mannequin, 4 forearm twist, 50 swing, 21 `_end` leaves, 2 `cape_arm`, hat; 3 LODs, Nanite off for the eye glow, 185.5 cm to the hat's top),
   `MI_Ellis*`, `PA_Ellis`.
 - Run: `blender -b --factory-startup --python Art/Models/Characters/Ellis.py -- [--size 1024] [--glb <path>] [--preview]
   [--shots full+upper+hips+feet] [--shape] [--sim-only] [--selfx] [--no-sim] [--rebake] [--rig-check] [--audit <tag>]
@@ -753,8 +807,11 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
 - Materials (the user: "plastic, stiff and unlike a real fps character"; round 1 approved 2026-10-15): Ellis.py's
   GAME_MATERIALS gives each kind of surface its own slot on a master made for it, several slots sharing one baked set:
   EllisSkin on M_CharacterSkin (Subsurface Profile, SP_Skin: the engine's skin defaults), EllisDuster and EllisGarbCloth
-  on M_CharacterCloth (the engine's Cloth shading: a fibre sheen at grazing angles), EllisGarbHair, EllisGear and
-  EllisHolsterGun on M_Character. The masters (build_world_materials.py's characters) share M_World's maps plus
+  on M_CharacterCloth (the engine's Cloth shading: a fibre sheen at grazing angles), EllisGarbHair (the hat band only
+  since round 6), EllisGear and EllisHolsterGun on M_Character, EllisHair on M_CharacterHair (masked, two-sided, the
+  engine's Hair shading along the cards' V; opacity = the atlas's alpha raised per mip level (MipBoost 0.35) through
+  DitherTemporalAA, clip 0.5; Scatter 0.2 on the Metallic pin, Specular 0.45, TangentJitter 0.5 from the ORM's blue;
+  Backlit, Custom Data 0, unwired: 1; `HAIR_SHADING = MSM_DEFAULT_LIT` is its fallback, lit by the strands' normals). The masters (build_world_materials.py's characters) share M_World's maps plus
   RoughnessScale/Offset/Breakup (a fine noise: no smooth sheen across a part), NormalStrength, DiffuseAO 0.7. Cloth's sheen
   is its fuzz colour times FuzzStrength (the Cloth amount pin, Custom Data 0, can't be wired from Python; unwired it's 1):
   at 1.2 everything went chalk white; tuned in game to 0.2 (oilskin) and 0.3 (wool, linen, felt). Leather and metal stay
@@ -805,7 +862,25 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
   its corners' targets also ride the upper arms (front 60%, back 40%: `CapeFollowFront/Back`), so it drapes as the arms
   hang and lifts as a gun comes up. The arm they ride is eased on the cape's own bone (`FollowEaseSeconds` 0.35): riding
   it directly, the corners flapped up at the shoulders with a sprint's arm swing (the user, 2026-10-15); a held raise
-  comes through whole, a run's swing (about 1.5 a second) at about a third.
+  comes through whole, a run's swing (about 1.5 a second) at about a third. Round 6 (the user: "Cape clippings"; the
+  CAPE agent's model notes above): nine cape chains, `cape_<key><side>` with the key's follow share (`CapeFollowShare`:
+  f 0.2 the front, a 1.0 over the arm, s 1.0 the shoulder's side, b 0.5 the back; `cape_bm` follows nothing); the a, s
+  and b chains hang from the shoulder joint on the collarbone, so they turn about the arm's pivot. The bind pose's arms
+  are raised 31 degrees off the idle, so a chain's rest on the arm (`TipInFollow`) and the upper arm's clearance are
+  measured against Ellis.py's unweighted `cape_arm_<side>`, the arm as it hangs at the idle. A chain riding an arm may
+  rise to its target's height (`bRisesToTarget`: `KeepUnder` takes a ceiling; held level with its anchor the cloth
+  couldn't follow an arm raised to aim and the arm came up through it). Cape `Bulk` 6 cm. Audit: cape cut by the
+  sleeves 331 -> 27 face pairs over 16 poses, 0 in every aiming pose.
+  Round 6's model (nine cape chains, `cape_arm_l/r`) needs, in Bind and the step (looter_audit mirrors it, marked
+  PROPOSED; the user saw the cape cut by the arms aiming, carrying, crouching): each cape chain's share of its upper
+  arm's turn by its key, `cape_<key><side>` (the side the name's last letter): f 0.2, a 1.0, s 1.0, b 0.5, cape_bm none;
+  `TipInFollow` from `cape_arm_<side>`'s rest (the arm as it hangs at the idle; the cape is draped over arms hanging
+  so: from the bind pose's raised arm the idle pulled it 31 degrees into the arms), and the upper arm limb's rest
+  segment for every clearance from there too (shoulder joint to the elbow turned with it); a chain point riding an arm
+  may rise as high as its target (KeepUnder held the cape level with its anchor: an arm raised to aim came up through
+  it); the cape's `Bulk` 6 cm (its chains keep their room from the forearms and hands: a gun's hands in front of the
+  chest came through the front panels). Audit (ellis_cape_audit, 16 poses): the cape cut by the sleeves out from
+  under the collar 410 face pairs -> 27, by the gauntlets 12 -> 0.
 - The forearms (the user, 2026-10-15: "His wrists are either invisible or don't match the gloves"): the retarget rolls
   his hand about the forearm (left about 100 degrees onto a foregrip or the revolver, right about 32; the bend only
   10-20) and nothing rolled the forearm, so the gauntlet stayed put while the glove turned and the wrist tore open (no
@@ -815,6 +890,33 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
 - The hat (the user, 2026-10-15: in third-person aiming the brim covered the scope; also the brim 12% smaller in Ellis.py):
   `FBodyHatTip` turns the `hat` bone brim-up about the head's left-right axis as a sight comes up (UPlayerViewComponent's
   aim alpha, eased; 18 degrees at full aim), about the back of the band.
+- The hat seated, the head closed (round 6, the user: "can see through the head/hat, hat doesn't seat on his head
+  properly"; `Tools/Blender/ellis_hat.py`): three causes. The game head was a "crystal": `make_lows` spared everything
+  within 3 cm of the eyes and decimated the rest of the head to 0.30, so the skull's back and top collapsed into ~12
+  triangles with holes (clay renders draw both sides of a face and never showed it; Unreal culls backs). Now
+  `decimate_skin` goes by region (eyelids whole, skull 0.25, skin under the bandana 0.10, visible skin 0.20; eyelids at
+  0.75 tore the slits). The crown was one-sided (culled from below): its felt grows 4 mm inward and a leather sweatband
+  lines the foot. The hat stood 2-3.6 cm off the skull and 4.4 cm too high at the back (tipped 9 degrees forward about
+  the band's middle): `fit` seats the band's foot on a plane from brow + 2 cm to the occipital bump + 1.2 cm (a 4 degree
+  rake; level it lost its menace), 2 mm off the forehead, 7 mm at the sides and back (pressed hair), the crown 8-14%
+  narrower; the pivot 4 cm in and 3 cm down from the band's back (tipped 20 degrees the band lifts at most 1 cm; before
+  3). `band_ring(fig)` gives the hair its line. Check: `artrun -Script Tools/Blender/ellis_hat_check.py -ScriptArgs
+  --rig-check,--tag,<tag>` renders with back faces culled on magenta (`Saved/Concepts/EllisHat/<tag>/`). Lessons: check
+  one-sided holes with back faces culled; sparing a region from one global Decimate ratio starves the rest.
+- The hair's engine side (round 6, the user: "hair looks like mud"; the cards and their script-made atlas: the HAIR notes
+  above, `Tools/Blender/ellis_hair.py`): `M_CharacterHair` (`build_world_materials.py M_CharacterHair`; built before the
+  import, or MI_EllisHair fails) is masked (clip 0.5), two-sided, the engine's Hair shading; base colour from the atlas
+  with a DiffuseAO lerp; coverage from the BC's alpha raised by the mip level sampled (`HAIR_COVERAGE`: a coarser mip
+  averages strands with their gaps, so the mask thinned with distance and the hair went bald a few metres off), through
+  the engine's DitherTemporalAA material function (`/Engine/Functions/Engine_MaterialFunctions02/Utility/
+  DitherTemporalAA`; there is no expression class of that name in Python: a MaterialFunctionCall with its
+  `AlphaThreshold` pin); Scatter on the Metallic pin, a strand tangent jittered by the ORM's blue (each strand's random
+  id, not metal). Without Lumen, if the Hair shading reads wrong, `HAIR_SHADING = MSM_DEFAULT_LIT` lights the cards with
+  the strands' normal map (both sides). After an import check `T_EllisHair_BC` kept its alpha (BC3) and the 50% LOD
+  hasn't collapsed the cards. In the golden backlight the Hair shading glowed the hair light brown: Tint 0.55 (set in
+  Ellis.py's `EllisHair` slot, which the importer writes to MI_EllisHair; a value set only on the MI is lost on
+  re-import). An import that reparents a bone (round 6: cape chains onto the collarbones) logs "Discarding existing
+  LODs" and rebuilds them: check `get_lod_count` is 3 afterwards.
 - Looking at him: `Looter.ThirdPerson.FrontArmLength <cm>` brings the front view close (110-120); `play.py aim [0]`.
 
 ## Island styles (Style Lab looks on the tutorial island, 2026-10-08)

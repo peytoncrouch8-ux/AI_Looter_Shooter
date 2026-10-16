@@ -47,11 +47,23 @@ namespace
 	constexpr double LengthAxisShare = 0.9;
 
 	/**
-	 * How much of the upper arm's movement the cape's corners take (FChain::FollowWeight): the front ones lie over the
-	 * arms, the back ones over the shoulder blades.
+	 * How much of the upper arm's movement a cape chain takes (FChain::FollowWeight), by its key in `cape_<key><side>`
+	 * (Ellis.py, round 6): f the front, over the chest; a over the arm and s at the shoulder's side, which turn about the
+	 * shoulder with it; b the back, over the shoulder blade. `cape_bm`, the middle of the back, follows nothing. Riding an
+	 * arm half-and-half pulled the cloth into the sleeve as the arm rose; these shares with chains hung from the shoulder
+	 * joint keep it on the arm.
 	 */
-	constexpr float CapeFollowFront = 0.6f;
-	constexpr float CapeFollowBack = 0.4f;
+	float CapeFollowShare(TCHAR Key)
+	{
+		switch (Key)
+		{
+		case TEXT('f'): return 0.2f;
+		case TEXT('a'): return 1.f;
+		case TEXT('s'): return 1.f;
+		case TEXT('b'): return 0.5f;
+		default: return 0.f;
+		}
+	}
 
 	/**
 	 * How slowly the cape's corners take up the arm (s, the time to most of the way): a sprint's arm swing (about 1.5 a
@@ -106,6 +118,8 @@ FBodySwingSettings FBodySwing::SettingsFor(const FString& ChainName)
 		Settings.Stiffness = 12.f;
 		Settings.Damping = 5.f;
 		Settings.Gravity = 0.05f;
+		// Fluted and stiff, it stands off the arms further than the coat's cloth does.
+		Settings.Bulk = 6.f;
 	}
 	else if (ChainName.StartsWith(TEXT("bandana")) || ChainName.StartsWith(TEXT("hair")))
 	{
@@ -173,7 +187,19 @@ void FBodySwing::Bind(const FReferenceSkeleton& Skeleton)
 		Limb.From = FBoneReference(Skeleton.GetBoneName(From));
 		Limb.To = FBoneReference(Skeleton.GetBoneName(To));
 		Limb.MaxClearance = Spec.MaxClearance;
-		LimbRests.Add({ Rest[From].GetLocation(), Rest[To].GetLocation(), Spec.MaxClearance });
+		// The upper arm's rest is the bind pose's, raised 31 degrees off the idle: the cape's clearances are measured
+		// against the arm as it hangs at the game's idle (Ellis.py's unweighted `cape_arm_<side>`) when the mesh has it.
+		FVector RestB = Rest[To].GetLocation();
+		const FString FromName = Skeleton.GetBoneName(From).ToString();
+		if (FromName.StartsWith(TEXT("upperarm")))
+		{
+			const int32 IdleArm = Skeleton.FindBoneIndex(FName(*(TEXT("cape_arm") + FromName.RightChop(8))));
+			if (IdleArm != INDEX_NONE)
+			{
+				RestB = Rest[IdleArm].TransformPosition(Rest[From].InverseTransformPosition(Rest[To].GetLocation()));
+			}
+		}
+		LimbRests.Add({ Rest[From].GetLocation(), RestB, Spec.MaxClearance });
 	}
 	const int32 Pelvis = Skeleton.FindBoneIndex(TEXT("pelvis"));
 
@@ -184,20 +210,34 @@ void FBodySwing::Bind(const FReferenceSkeleton& Skeleton)
 		FChain& Chain = Chains.AddDefaulted_GetRef();
 		Chain.Name = Entry.Key;
 		Chain.Settings = SettingsFor(Entry.Key);
-		// The cape's corners ride on the upper arms (cape_fl: front, the figure's left), the front ones more.
+		// The cape's chains ride on the upper arms (`cape_<key><side>`: cape_al, the arm chain on the figure's left), each
+		// by its key's share; its rest on the arm is measured against the arm as it hangs at the idle (`cape_arm_<side>`)
+		// when the mesh has it, else the bind pose's.
 		int32 FollowIndex = INDEX_NONE;
-		if (Chain.Name.StartsWith(TEXT("cape_")) && Chain.Name.Len() >= 7)
+		int32 FollowRest = INDEX_NONE;
+		if (Chain.Name.StartsWith(TEXT("cape_")) && Chain.Name.Len() == 7)
 		{
 			const TCHAR Side = Chain.Name[6];
-			FollowIndex = Skeleton.FindBoneIndex(Side == TEXT('l') ? TEXT("upperarm_l") : TEXT("upperarm_r"));
-			Chain.FollowWeight = Chain.Name[5] == TEXT('f') ? CapeFollowFront : CapeFollowBack;
+			if (Side == TEXT('l') || Side == TEXT('r'))
+			{
+				const FString Suffix = Side == TEXT('l') ? TEXT("_l") : TEXT("_r");
+				FollowIndex = Skeleton.FindBoneIndex(FName(*(TEXT("upperarm") + Suffix)));
+				FollowRest = Skeleton.FindBoneIndex(FName(*(TEXT("cape_arm") + Suffix)));
+				Chain.FollowWeight = CapeFollowShare(Chain.Name[5]);
+			}
 		}
-		if (FollowIndex != INDEX_NONE)
+		if (FollowIndex != INDEX_NONE && Chain.FollowWeight > 0.f)
 		{
 			Chain.Follow = FBoneReference(Skeleton.GetBoneName(FollowIndex));
+			if (FollowRest == INDEX_NONE)
+			{
+				FollowRest = FollowIndex;
+			}
+			Chain.Settings.bRisesToTarget = true;
 		}
 		else
 		{
+			FollowIndex = INDEX_NONE;
 			Chain.FollowWeight = 0.f;
 		}
 		// Where the chain's cloth ends (Ellis.py's unweighted `<chain>_end`): an FBX bone has no tail, and the guess past
@@ -232,7 +272,7 @@ void FBodySwing::Bind(const FReferenceSkeleton& Skeleton)
 			const int32 Axis = FMath::Abs(Along.X) >= LengthAxisShare ? 0 : FMath::Abs(Along.Y) >= LengthAxisShare ? 1 :
 				FMath::Abs(Along.Z) >= LengthAxisShare ? 2 : INDEX_NONE;
 			Chain.LengthAxes.Add(Axis);
-			Chain.TipInFollow.Add(FollowIndex != INDEX_NONE ? Rest[FollowIndex].InverseTransformPosition(Tip) : FVector::ZeroVector);
+			Chain.TipInFollow.Add(FollowIndex != INDEX_NONE ? Rest[FollowRest].InverseTransformPosition(Tip) : FVector::ZeroVector);
 			Chain.Lengths.Add(static_cast<float>(FVector::Dist(Head, Tip)));
 			for (const FLimbRest& Limb : LimbRests)
 			{
