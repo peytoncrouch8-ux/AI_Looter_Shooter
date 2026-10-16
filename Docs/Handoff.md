@@ -41,9 +41,13 @@ read, the cold open's spark. Tests 710/710 (5 new `Looter.Seeds.*`). Perf not re
 Hob's mutters use the town-life voice cue.
 **Where the night stopped / next:** the hero pick (the user's order: select screen, four game models, twelve powers,
 line variants). Its first step by the pipeline ("Character portraits") is a painted bust per hero for the user to pick
-from, and the paint step runs on Node + Playwright, which this PC doesn't have (the user OK'd them only in the cloud
-box). So it waits for the user: install Node here (ask), or run the four heroes' portraits in a cloud session, or go
-straight to models from the cloud handoff's look table. Nothing else is in flight; the editor is open, PIE stopped.
+from, and the paint step runs on Node + Playwright. **The user (2026-10-16 morning): "Install Node and Playwright on
+this PC and paint the four heroes' portraits with the existing portrait pipeline."** Done: Node 22.23.3 (the zip from
+nodejs.org, unpacked to `%LOCALAPPDATA%\Programs\node`, on the user PATH), `npm install` (playwright ^1.64, `package.json`
+at the root, `node_modules/` ignored), `npx playwright install chromium`; Ellis A rendered under Blender 4.4 and painted
+here end to end (d20f275). In flight: the contract `Saved/Portraits/CONTRACT.md` (three options per hero), a refactor
+agent splitting `Art/Portraits/bust.py` out of `EllisBlender.py`, a FRAME agent (per-hero frames, a generic sheet),
+then one agent per hero (`Odessa.py`, `Crane.py`, `Gauge.py`, `Pike.py`); Main renders the finals, paints, sheets.
 
 ### Decided unattended (2026-10-15 night), for the user's review
 Main's calls (the agents add theirs below):

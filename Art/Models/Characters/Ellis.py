@@ -1931,6 +1931,7 @@ def prepare_uvs(objects):
 BAKE_SOURCES = [os.path.abspath(__file__)] + [os.path.join(REPO, *p) for p in (
     ('Tools', 'Blender', 'looter_human.py'), ('Tools', 'Blender', 'looter_garments.py'), ('Tools', 'Blender', 'looter_looks.py'),
     ('Tools', 'Blender', 'looter_bake.py'), ('Art', 'Portraits', 'mh.py'), ('Art', 'Portraits', 'EllisBlender.py'),
+    ('Art', 'Portraits', 'bust.py'),                 # the shared bust code EllisBlender.py's builders call
     ('Tools', 'Blender', 'ellis_hair.py'),           # the hair cards shade the scalp's, neck's and collar's occlusion
     ('Tools', 'Blender', 'ellis_hat.py'))]           # the hat's fit and the head's reduction shape what's baked
 

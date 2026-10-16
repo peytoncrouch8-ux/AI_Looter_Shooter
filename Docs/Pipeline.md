@@ -471,11 +471,30 @@ docstring and `OPTIONS`).
   targets, default rig and weights, CC0 1.0 (`Art/ThirdParty/MakeHuman/LICENSE.ASSETS.md`), fetched by
   `Art/ThirdParty/MakeHuman/fetch.py` (run it first in a fresh clone: `base.obj` is ignored, an `.obj` would go to Git LFS and
   the cloud box can't push LFS objects). Never MakeHuman's code (AGPL). Node + Playwright (Chromium) paint and frame.
-- Run: `python Art/Portraits/EllisBlender.py <A|B|C> [--size 1024] [--samples 80] [--out <dir>]` writes `Ellis<X>_color.png`
-  (Cycles, transparent) and `_aux.png` (R glow mask, B material id / 16); `node Art/Portraits/render.js Ellis<X> --passes <dir>`
+- On this PC (the user, 2026-10-16: "Install Node and Playwright on this PC"): Blender 4.4's own binary runs the bust
+  scripts (no bpy module needed); Node 22 LTS is the official zip from nodejs.org unpacked to `%LOCALAPPDATA%\Programs\node`
+  (no admin; on the user PATH; a new shell sees it, an old one needs the folder prepended), Playwright comes from the
+  root `package.json` (`npm install`, `node_modules/` ignored) and its browser from `npx playwright install chromium`
+  (`%LOCALAPPDATA%\ms-playwright`). Ellis A at 600 px: render 22 s, paint 5 s.
+- Code (2026-10-16): `Art/Portraits/bust.py` is what every hero shares (body, eyes and lids, materials, hair curves and
+  `clump`, drape, shells, strips, props, stage, render, the runner). A hero script `Art/Portraits/<Hero>.py` (Ellis's is
+  `EllisBlender.py`; the other four `Odessa.py`, `Crane.py`, `Gauge.py`, `Pike.py`; the contract of their first round in
+  `Saved/Portraits/CONTRACT.md`, not committed) holds only
+  `FACE`, `MACRO`, `OPTIONS`, its `# PAINT <X>` lines and its costume builders, then `build(opt)` (starts with
+  `build_human(opt, FACE, MACRO, "<Hero>")`, returns `(h, eyes)`) and `bust.run(OPTIONS, "<Hero>", build)`; `EllisBlender.py`
+  is the example, bust.py's docstring lists the option keys the machinery reads (yaw, pitch, lids, skin, eyes, glow, world,
+  cam, lights). Blender 4.4 runs them unchanged.
+- Run: `"C:\Program Files\Blender Foundation\Blender 4.4\blender.exe" -b --factory-startup --python-exit-code 1 --python
+  Art/Portraits/EllisBlender.py -- <A|B|C> [--size 1024] [--samples 80] [--out <dir>] [--no-aux] [--blend]` (the script's
+  arguments after `--`; with the bpy module: `python Art/Portraits/EllisBlender.py <A|B|C> ...`) writes `Ellis<X>_color.png`
+  (Cycles, transparent) and `_aux.png` (R glow mask, B material id / 16); `node Art/Portraits/render.js Ellis<X> --passes <dir>
+  [--script <Hero>Blender.py]` (default EllisBlender.py, where it reads the `# PAINT` line)
   paints and frames it into `Ellis<X>.png`; `node Art/Portraits/sheet.js <dir>` lays the three on `Sheet.png` (labels in Chakra
   Petch: `git lfs pull --include="Content/UI/Fonts/ChakraPetch-*.ttf"` first in a fresh clone). `<dir>` defaults to
-  `Saved/ArtPreviews/Portraits`. 1024 px at 80 samples: ~2.5 min a bust on 4 CPU cores; 600 px at 32 samples ~22 s for looks.
+  `Saved/ArtPreviews/Portraits`. 1024 px at 80 samples: ~2.5 min a bust on 4 CPU cores; 600 px at 32 samples ~22 s for looks;
+  400 px at 8 samples ~8 s on the local PC (Blender 4.4). Not bit-exact: two runs differ by 1/255 in a few dozen pixels (seed 0
+  fixed; bmesh's uv sphere orders its faces differently each run) and a build's float noise depends on the thread count
+  (`-t`). To check a refactor, save `--blend` both ways and compare the scenes, not the pixels.
 - `Art/Portraits/mh.py` (numpy only): the base mesh shaped by macro sliders (gender 0.5 = neither; Ellis is "they") and face
   modifiers (`FACE` in EllisBlender.py), posed by linear blend skinning with MakeHuman's weights (arms down, head yaw and pitch;
   `glob[bone]` is each bone's posed 4x4). MakeHuman space: decimetres, +y up, +z out of the face; `to_blender()` converts.
@@ -492,7 +511,7 @@ docstring and `OPTIONS`).
   the shoulders in dusk. Area-light spread keeps the power in a narrower cone (it blew the image out): don't use it.
 - `paint.js` turns the render into a painting (Hertzmann's curved brush strokes in four sizes along the picture's edges, the
   face and details given part of the crisp render back, bloom from the glow mask, embers, grain), clipped by `Window.svg`
-  under `Frame.svg`. Per-option backgrounds: the `# PAINT <X> {...}` lines in EllisBlender.py.
+  under `Frame.svg`. Per-option backgrounds: the `# PAINT <X> {...}` lines in the hero script (EllisBlender.py).
 - The frame: `node Art/Portraits/frame/gen.js` (with `lib.js`) writes `Frame.svg` and `Window.svg`, deterministic. Window: the
   square 96..928 with radius-28 notched corners; ornaments reach into it up to 50 px at top and bottom centre, 30 elsewhere.
   Motifs: Saint Ada's sun-ring, crow feathers, bandolier segments, Pa's lantern, Sexton's ledger, the headboard "ELLIS RANSOM"

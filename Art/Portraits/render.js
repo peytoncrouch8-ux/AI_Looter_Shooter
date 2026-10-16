@@ -1,11 +1,12 @@
-// Paints and frames a rendered portrait bust (EllisBlender.py's passes) in headless Chromium.
+// Paints and frames a rendered portrait bust (a hero script's passes, bust.py) in headless Chromium.
 //
-//   node Art/Portraits/render.js <Scene> --passes <dir> [--size 1024] [--out <dir>]
+//   node Art/Portraits/render.js <Scene> --passes <dir> [--script EllisBlender.py] [--size 1024] [--out <dir>]
 //
 // Reads <dir>/<Scene>_color.png (the render, transparent background) and <dir>/<Scene>_aux.png (R glow mask,
 // B material id / 16), paints them with paint.js, clips the painting to Window.svg and lays Frame.svg over it:
 // <out>/<Scene>.png (<out> defaults to <dir>). The paint settings are the "# PAINT <X> {...}" line for the
-// scene's option in EllisBlender.py. Playwright comes from the cloud image's global node modules.
+// scene's option (its last character) in the hero script (--script, beside this file unless absolute; default
+// EllisBlender.py). Playwright comes from the cloud image's global node modules.
 const fs = require('fs');
 const path = require('path');
 let playwright;
@@ -23,7 +24,8 @@ fs.mkdirSync(outDir, { recursive: true });
 const read = f => fs.readFileSync(path.join(here, f), 'utf8');
 const dataUrl = f => 'data:image/png;base64,' + fs.readFileSync(path.join(passDir, f)).toString('base64');
 const key = scene.slice(-1);
-const line = read('EllisBlender.py').match(new RegExp('# PAINT ' + key + ' (\\{.*\\})'));
+const script = path.resolve(here, opt('script', 'EllisBlender.py'));
+const line = fs.readFileSync(script, 'utf8').match(new RegExp('# PAINT ' + key + ' (\\{.*\\})'));
 const opts = line ? JSON.parse(line[1]) : {};
 
 (async () => {
