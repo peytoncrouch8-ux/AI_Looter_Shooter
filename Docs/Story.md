@@ -96,8 +96,10 @@ open: the ember in the Deacon's hand flares and dims as he fires.
   Borrowed Time; Odessa Lucky Streak, Fifty-Two Pickup, Double or Nothing; Crane Toll Chain, Grave Ward, Last Rites;
   Gauge Slag Bomb, Iron Hide, Rail Spike; Pike Spyglass, Tripwire, Long Shot; numbers in
   `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md`, "Ember powers" and "Five heroes"). **All three are owned from the
-  start and one is equipped at a time**, Borderlands' way: one key in the fight, the other two swapped to in the menu.
-  The outlaws' embers give no powers.
+  start and one is equipped at a time**, Borderlands' way: one key in the fight (**Q** by default, rebindable in
+  Settings), the other two swapped to on the **powers page, the inventory's second tab** after the Loadout (the Ledger
+  becomes the third); the HUD's power socket sits **beside the weapon column, bottom-right** (the user's calls,
+  2026-10-15 night). The outlaws' embers give no powers.
 - **Build order** (the user, revised 2026-10-15): first the ember-power system with Ellis's three, playable on Ransom's
   Rest (Ellis's model exists); then the hero pick (the select screen, the four game models, their twelve powers, the
   line variants); the Rest's seeds alongside as an art-and-lines task; then the *Lily*.

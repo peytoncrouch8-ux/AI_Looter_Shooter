@@ -18,7 +18,13 @@ Story.md "The heroes"); the pick is built **after the Rest's seeds, before the *
 order (the user, revised 2026-10-15 night):** the ember-power system with Ellis's three (Dust Devil, Sundown, Borrowed
 Time; one equipped at a time, all three owned from the start; Story.md "The heroes"), then the hero pick (select
 screen, four game models, their twelve powers, line variants), the Rest's seeds alongside (Story.md "Seeds in Ransom's
-Rest"), then the *Lily* as an airship. Both the powers and the seeds are offered as session cards.
+Rest"), then the *Lily* as an airship.
+**Overnight run (2026-10-15 night; the user: "Start building. I am going to bed... don't ask anymore until I prompt
+again"):** the user's last calls: power key **Q** (rebindable), the HUD socket **beside the weapon column,
+bottom-right**, the swap UI **its own inventory page as the second tab** (the Ledger third), and after the powers
+**plant the seeds in Ransom's Rest** (looks that need approval are left as look sheets). The powers session is running
+unattended and records its decisions in this file under "Decided unattended"; Main starts the seeds session when it
+ends, also unattended. No questions to the user until they prompt.
 
 Done this session (the user picked "small leftovers" first): `WeaponManagerComponent.h` split (its events and small
 types in `Inventory/WeaponManagerTypes.h`, 491 lines); the editor-exit ensure on Hiram's figure fixed in all six
