@@ -153,4 +153,69 @@ function blurF(id, std, pad = 50) {
 	return `<filter id="${id}" x="-${pad}%" y="-${pad}%" width="${100 + 2 * pad}%" height="${100 + 2 * pad}%"><feGaussianBlur stdDeviation="${std}"/></filter>`;
 }
 
-module.exports = { D2R, R, P, INK, poly, smooth, smoothSeg, curl, bez, resample, tangents, ribbon, taper, swell, circle, ringPath, mirror, both, lin, rad, metal, drop, grit, glow, blurF };
+// ---------- motif helpers for the heroes' frames ----------
+function polyLen(pts) { let L = 0; for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); return L; }
+// Plain card suits, unit height, centred on 0,0 (original shapes: no real deck's art).
+const PIPS = {
+	heart: 'M0 -0.28C0 -0.45 -0.12 -0.5 -0.25 -0.5C-0.42 -0.5 -0.52 -0.36 -0.5 -0.2C-0.48 0 -0.25 0.2 0 0.5C0.25 0.2 0.48 0 0.5 -0.2C0.52 -0.36 0.42 -0.5 0.25 -0.5C0.12 -0.5 0 -0.45 0 -0.28Z',
+	spade: 'M0 0.12C0 0.26 -0.1 0.3 -0.2 0.3C-0.34 0.3 -0.42 0.19 -0.4 0.06C-0.38 -0.1 -0.2 -0.26 0 -0.5C0.2 -0.26 0.38 -0.1 0.4 0.06C0.42 0.19 0.34 0.3 0.2 0.3C0.1 0.3 0 0.26 0 0.12ZM0 0.1Q0.02 0.4 0.17 0.5H-0.17Q-0.02 0.4 0 0.1Z',
+	club: 'M-0.21 -0.25a0.21 0.21 0 1 0 0.42 0a0.21 0.21 0 1 0 -0.42 0ZM-0.44 0.06a0.21 0.21 0 1 0 0.42 0a0.21 0.21 0 1 0 -0.42 0ZM0.02 0.06a0.21 0.21 0 1 0 0.42 0a0.21 0.21 0 1 0 -0.42 0ZM0 -0.05Q0.02 0.4 0.17 0.5H-0.17Q-0.02 0.4 0 -0.05Z',
+	diamond: 'M0 -0.5Q0.1 -0.14 0.36 0Q0.1 0.14 0 0.5Q-0.1 0.14 -0.36 0Q-0.1 -0.14 0 -0.5Z',
+};
+function pip(suit, x, y, s, attrs = '', rot = 0) {
+	return `<path d="${PIPS[suit]}" transform="translate(${R(x)} ${R(y)})${rot ? ` rotate(${rot})` : ''} scale(${R(s * 100) / 100})" ${attrs}/>`;
+}
+// Stadium-shaped ring (a chain link lying flat), centred on 0,0 along +x; fill with evenodd.
+function linkRing(hl, hw, th) {
+	const s = (a, b) => `M${R(-a + b)} ${R(-b)}H${R(a - b)}A${R(b)} ${R(b)} 0 0 1 ${R(a - b)} ${R(b)}H${R(-a + b)}A${R(b)} ${R(b)} 0 0 1 ${R(-a + b)} ${R(-b)}Z`;
+	return s(hl, hw) + s(hl - th, hw - th);
+}
+// Chain along a polyline: links alternate flat (open rings) and edge-on (bars), each overlapping the next.
+function chainLinks(pts, pitch, w, th) {
+	const n = Math.max(1, Math.round(polyLen(pts) / pitch));
+	const q = resample(pts, n + 1);
+	let flat = '', edge = '';
+	const ends = [];
+	for (let i = 0; i < n; i++) {
+		const a = q[i], b = q[i + 1];
+		const c = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], ang = Math.atan2(b[1] - a[1], b[0] - a[0]) / D2R;
+		const hl = Math.hypot(b[0] - a[0], b[1] - a[1]) * 0.5 + th * 1.1;
+		const tf = `transform="translate(${R(c[0])} ${R(c[1])}) rotate(${R(ang)})"`;
+		if (i % 2 === 0) flat += `<path ${tf} d="${linkRing(hl, w / 2, th)}" fill-rule="evenodd"/>`;
+		else edge += `<rect ${tf} x="${R(-hl)}" y="${R(-th * 0.65)}" width="${R(2 * hl)}" height="${R(th * 1.3)}" rx="${R(th * 0.65)}"/>`;
+		ends.push(c);
+	}
+	return { flat, edge, q };
+}
+function starPts(cx, cy, n, r1, r2, rot = -90) {
+	const p = [];
+	for (let i = 0; i < 2 * n; i++) { const a = (rot + i * 180 / n) * D2R, r = i % 2 ? r2 : r1; p.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); }
+	return p;
+}
+// Gear outline with n trapezoid teeth (root radius r, tooth depth d) and an optional bore (fill evenodd).
+function gearPath(cx, cy, r, n, d, bore = 0, rot = 0) {
+	const p = [];
+	for (let i = 0; i < n; i++) {
+		const a0 = (rot + i * 360 / n) * D2R, s = 2 * Math.PI / n;
+		for (const [f, rr] of [[0, r], [0.38, r], [0.5, r + d], [0.78, r + d], [0.9, r]]) p.push([cx + Math.cos(a0 + f * s) * rr, cy + Math.sin(a0 + f * s) * rr]);
+	}
+	let d0 = poly(p);
+	if (bore) d0 += `M${R(cx - bore)} ${R(cy)}A${bore} ${bore} 0 1 0 ${R(cx + bore)} ${R(cy)}A${bore} ${bore} 0 1 0 ${R(cx - bore)} ${R(cy)}Z`;
+	return d0;
+}
+function hexPts(cx, cy, r, rot = 0) { const p = []; for (let i = 0; i < 6; i++) { const a = (rot + i * 60) * D2R; p.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); } return p; }
+// Compass rose: n points (long at the cardinals), each split down its spine into a lit and a shaded half.
+function compassRose(cx, cy, r, n = 8, rot = -90) {
+	let lit = '', dark = '';
+	for (let i = 0; i < n; i++) {
+		const a = (rot + i * 360 / n) * D2R, len = i % 2 ? r * 0.58 : r, w = r * (i % 2 ? 0.12 : 0.16);
+		const tip = [cx + Math.cos(a) * len, cy + Math.sin(a) * len];
+		const l = [cx + Math.cos(a - Math.PI / 2) * w, cy + Math.sin(a - Math.PI / 2) * w], rr = [cx + Math.cos(a + Math.PI / 2) * w, cy + Math.sin(a + Math.PI / 2) * w];
+		lit += el2(poly([[cx, cy], l, tip])); dark += el2(poly([[cx, cy], tip, rr]));
+	}
+	return { lit, dark };
+}
+const el2 = d => `<path d="${d}"/>`;
+
+module.exports = { D2R, R, P, INK, poly, smooth, smoothSeg, curl, bez, resample, tangents, ribbon, taper, swell, circle, ringPath, mirror, both, lin, rad, metal, drop, grit, glow, blurF,
+	polyLen, PIPS, pip, linkRing, chainLinks, starPts, gearPath, hexPts, compassRose };
