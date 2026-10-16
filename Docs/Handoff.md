@@ -30,8 +30,20 @@ session on that turn, so Main builds the powers here, with agents, unattended, r
 `Looter.Embers.State`, the Embers page (three cards, E equips). Tests 705/705 (7 new `Looter.Embers.*`); RR spawn 7.7 ms
 on Medium (was 7.6; +14 draws, the socket). Not yet: the user's own play; the feel of each power (the dash's knock, the
 dusk tint Sundown skipped, Borrowed Time's pay-back) is tuned by numbers in `Tools/Unreal/create_ember_assets.py`.
-**The seeds (next, same night):** contract `Saved/Seeds/CONTRACT.md` (not committed; its content goes to the Pipeline
-once built); three agents (CORE C++ hooks, DATA words and `build_area_seeds.py`, ART props and the Seven poster).
+**The seeds: BUILT (fe2c4df hooks, cc031ac words, 2790b15 props, 4567413 placed, then the map moved).** Pipeline "Seeds
+in Ransom's Rest" has every piece. Checked in PIE: the six pages lie where they should (the lockup page read: the card
+"A PAGE OF THE LEDGER: THE NEEDLES"), the letter in the rack read, the Seven between Ellis's poster and Calder's note,
+the map on the ticket office's wall by the pigeonholes (it first hung over the window: `MAP_ASIDE`), Ruth's page by her
+lamp. Look sheets in `Saved/Concepts/Seeds/`. NOT yet seen in play: Hob's three mutters (town-life clock, within 7 m of
+his perch), Aldana's Ada talk (after Main 4), the second light at dusk after Main 6 (`Looter.FarLight 1` for a look), a
+crossed face (no `Ember.Paid.*` flag is set by anything yet), the Ledger's town pages in the inventory once a page is
+read, the cold open's spark. Tests 710/710 (5 new `Looter.Seeds.*`). Perf not remeasured (a dozen small props).
+Hob's mutters use the town-life voice cue.
+**Where the night stopped / next:** the hero pick (the user's order: select screen, four game models, twelve powers,
+line variants). Its first step by the pipeline ("Character portraits") is a painted bust per hero for the user to pick
+from, and the paint step runs on Node + Playwright, which this PC doesn't have (the user OK'd them only in the cloud
+box). So it waits for the user: install Node here (ask), or run the four heroes' portraits in a cloud session, or go
+straight to models from the cloud handoff's look table. Nothing else is in flight; the editor is open, PIE stopped.
 
 ### Decided unattended (2026-10-15 night), for the user's review
 Main's calls (the agents add theirs below):
