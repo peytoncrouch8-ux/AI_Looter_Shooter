@@ -5,6 +5,7 @@
 #include "LooterCharacter.generated.h"
 
 class UBodyFigureComponent;
+class UEmberComponent;
 class UFirstPersonHandsComponent;
 class UHandJarComponent;
 class UInputAction;
@@ -17,7 +18,7 @@ struct FInputActionValue;
 
 /**
  * The player's character: walking, looking and jumping. Everything else lives in components (view, locomotion,
- * health, weapons, interaction, sounds, melee, grenades). The Blueprint child, BP_LooterCharacter, holds only data: meshes, animation, camera
+ * health, weapons, interaction, sounds, melee, grenades, ember powers). The Blueprint child, BP_LooterCharacter, holds only data: meshes, animation, camera
  * placement and the component settings. The whole character is the full-size mannequin scaled down
  * (Player/PlayerSize.h), and walks at the full-size speed scaled the same, slowed to the game's pace.
  */
@@ -57,6 +58,10 @@ protected:
 	/** The Grenade key's grave-salt grenade: the throw and the count carried (made here, not in the Blueprint). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UPlayerThrowComponent> Throw;
+
+	/** The Ember key's powers: the hero's three, one equipped, their clocks and save (made here, not in the Blueprint). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UEmberComponent> Embers;
 
 	/** The jar seen in the body's left hand through a throw's wind-up, in third person (on the hand's grip socket). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")

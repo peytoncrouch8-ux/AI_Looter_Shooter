@@ -214,7 +214,7 @@ bool FControlHintPagesTest::RunTest(const FString& Parameters)
 	Rules.Update(Asked, 0.1f);
 	TestTrue(TEXT("Main 2 asks for the Ledger: the Ledger hint"), Rules.GetShown() == EControlHint::Ledger);
 	TestEqual(TEXT("Its key: the inventory's"), FControlHintRules::Action(EControlHint::Ledger), FName(TEXT("Inventory")));
-	TestTrue(TEXT("...its words say which page"), FControlHintRules::Words(EControlHint::Ledger).ToString().Contains(TEXT("Then 2")));
+	TestTrue(TEXT("...its words say which page"), FControlHintRules::Words(EControlHint::Ledger).ToString().Contains(TEXT("Then 3")));
 	FControlHintInput OnLedger;
 	OnLedger.bLedgerOpen = true;
 	Rules.Update(OnLedger, 0.1f);

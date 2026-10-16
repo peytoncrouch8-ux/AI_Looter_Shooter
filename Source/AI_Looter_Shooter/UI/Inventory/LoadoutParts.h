@@ -15,6 +15,7 @@ class UTextBlock;
 class UWidget;
 class UWidgetTree;
 struct FGeometry;
+struct FKey;
 
 /**
  * The inventory's shared parts: page layout, colors, vector art and card builders. The loadout screen, the bestiary and
@@ -142,8 +143,15 @@ namespace LoadoutParts
 	 */
 	ULooterButton* MakeKeyHintButton(UWidgetTree* Tree, const FString& Key, const FString& Text, bool bPrimary, int32 Index);
 
+	/** How many pages the inventory has (EInventoryPage), and the tab's words for page Page (the bestiary's reads "Ledger" once given). */
+	inline constexpr int32 NumPages = 5;
+	FString PageTabName(int32 Page, bool bLedger);
+
+	/** The page a number key turns to (One is the first page, EInventoryPage order), or INDEX_NONE for any other key. */
+	int32 PageForNumberKey(const FKey& Key);
+
 	/**
-	 * The inventory's title tabs, one per page in EInventoryPage order (Loadout, Bestiary, Missions, Map): each page's name with
+	 * The inventory's title tabs, one per page in EInventoryPage order (Loadout, Embers, Bestiary, Missions, Map): each page's name with
 	 * its number key after it, the shown page bright over an orange underline, the others dim, all on one hairline. Each
 	 * tab is a button with ActionPage and its page's index; centered at the top of the page.
 	 */

@@ -2,6 +2,7 @@
 #include "AI_Looter_Shooter.h"
 #include "Audio/PlayerSoundComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Embers/EmberComponent.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "InputAction.h"
@@ -54,6 +55,7 @@ ALooterCharacter::ALooterCharacter()
 	Footfalls = CreateDefaultSubobject<UPlayerFootfallComponent>(TEXT("Footfalls"));
 	Melee = CreateDefaultSubobject<UPlayerMeleeComponent>(TEXT("Melee"));
 	Throw = CreateDefaultSubobject<UPlayerThrowComponent>(TEXT("Throw"));
+	Embers = CreateDefaultSubobject<UEmberComponent>(TEXT("Embers"));
 	// The jar in the throwing hand, which the third-person body otherwise lobbed with an empty fist.
 	HandJar = CreateDefaultSubobject<UHandJarComponent>(TEXT("HandJar"));
 	HandJar->SetupAttachment(GetMesh(), UHandJarComponent::HandSocket());

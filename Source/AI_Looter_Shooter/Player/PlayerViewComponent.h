@@ -93,6 +93,13 @@ public:
 	bool IsPreviewingFieldOfView() const { return bFieldOfViewPreview; }
 
 	/**
+	 * Degrees an ember power widens the view by right now (Dust Devil's dash: 14, settling back), on top of sprinting's;
+	 * the power sets it every frame it moves and 0 when it's done. The gun widens with the world, as it does for a sprint.
+	 */
+	void SetPowerFieldOfView(float Degrees) { PowerFieldOfView = Degrees; }
+	float GetPowerFieldOfView() const { return PowerFieldOfView; }
+
+	/**
 	 * Where the character looks and aims: the controller's rotation, which is always the way the character faces.
 	 * Not the camera's rotation: the front-view camera looks back at the character, and anything following it (the held
 	 * gun, the torso's aim) would turn around too.
@@ -252,6 +259,8 @@ private:
 	float PreviewFieldOfViewDegrees = 90.f;
 	/** The camera manager's field of view is locked to the preview's (the game is paused under the menu). */
 	bool bFieldOfViewLocked = false;
+	/** An ember power's widening (SetPowerFieldOfView), degrees. */
+	float PowerFieldOfView = 0.f;
 
 	FWeaponRecoil Recoil;
 	FRandomStream RecoilRandom{ 0x2ec011 };

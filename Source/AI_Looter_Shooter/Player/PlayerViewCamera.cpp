@@ -127,7 +127,8 @@ void UPlayerViewComponent::UpdateBoom(float DeltaTime)
 
 void UPlayerViewComponent::UpdateFieldOfView()
 {
-	const float Offset = Locomotion.IsValid() ? Locomotion->GetFieldOfViewOffset() : 0.f;
+	// Sprinting's widening, and an ember power's on top (Dust Devil's dash).
+	const float Offset = (Locomotion.IsValid() ? Locomotion->GetFieldOfViewOffset() : 0.f) + PowerFieldOfView;
 	UCameraComponent* Active = IsFirstPerson() ? FirstPersonCamera.Get() : ThirdPersonCamera.Get();
 	// First person uses the player's setting, read every frame so a change in the settings menu shows without a restart.
 	// Aiming narrows the view by the sight's magnification (2x shows half as wide) from there, so a sight zooms the same

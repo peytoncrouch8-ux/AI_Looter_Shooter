@@ -13,6 +13,7 @@
 #include "Audio/LooterSound.h"
 #include "Audio/LooterSoundRules.h"
 #include "Combat/HealthComponent.h"
+#include "Embers/EmberComponent.h"
 #include "Interaction/InteractionComponent.h"
 #include "Player/PlayerLocomotionComponent.h"
 #include "Player/PlayerMeleeComponent.h"
@@ -72,6 +73,8 @@ void UPlayerHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 	BindToPawn(Manager);
 	BindThrow(UPlayerThrowComponent::Find(Pawn));
 	UpdateGrenades(InDeltaTime);
+	BindEmbers(UEmberComponent::Find(Pawn));
+	UpdateEmbers(InDeltaTime);
 	UpdateMoney(InDeltaTime);
 	UpdateWeaponCluster(Manager, InDeltaTime);
 	UpdatePlayerFrame(Health, InDeltaTime);

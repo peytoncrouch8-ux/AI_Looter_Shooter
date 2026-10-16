@@ -127,25 +127,14 @@ bool UMapWidget::HandleKey(const FKey& Key)
 	}
 
 	// The other pages.
-	const struct { FKey PageKey; EInventoryPage Page; } PageKeys[] = {
-		{ EKeys::One, EInventoryPage::Loadout },
-		{ EKeys::Two, EInventoryPage::Bestiary },
-		{ EKeys::Three, EInventoryPage::Missions },
-		{ EKeys::Gamepad_LeftShoulder, EInventoryPage::Missions },
-	};
-	for (const auto& PageKey : PageKeys)
+	// Their number keys, or the left shoulder to the page before (the missions); this page's own key does nothing.
+	const int32 PageKey = Key == EKeys::Gamepad_LeftShoulder ? static_cast<int32>(EInventoryPage::Missions) : LoadoutParts::PageForNumberKey(Key);
+	if (PageKey != INDEX_NONE)
 	{
-		if (Key == PageKey.PageKey)
+		if (HUD && PageKey != static_cast<int32>(EInventoryPage::Map))
 		{
-			if (HUD)
-			{
-				HUD->ShowInventoryPage(PageKey.Page);
-			}
-			return true;
+			HUD->ShowInventoryPage(static_cast<EInventoryPage>(PageKey));
 		}
-	}
-	if (Key == EKeys::Four)
-	{
 		return true;
 	}
 

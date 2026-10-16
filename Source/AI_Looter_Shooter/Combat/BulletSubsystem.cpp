@@ -139,7 +139,10 @@ void UBulletSubsystem::Tick(float DeltaTime)
 	{
 		if (!Bullet.bSpent)
 		{
-			Advance(Bullet, DeltaTime);
+			// A bullet flies on its shooter's clock: under Sundown the world crawls (global time dilation) while the player's
+			// own time is put back to full speed (their CustomTimeDilation), and so are their shots.
+			const AActor* Shooter = Bullet.Shot.Shooter.Get();
+			Advance(Bullet, DeltaTime * (Shooter ? FMath::Max(Shooter->CustomTimeDilation, 0.f) : 1.f));
 		}
 	}
 

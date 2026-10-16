@@ -888,14 +888,6 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
   it); the cape's `Bulk` 6 cm (its chains keep their room from the forearms and hands: a gun's hands in front of the
   chest came through the front panels). Audit (ellis_cape_audit, 16 poses): the cape cut by the sleeves out from
   under the collar 410 face pairs -> 27, by the gauntlets 12 -> 0.
-## Ember powers
-
-The heroes' active powers (Docs/Story.md, "The heroes"; the user's calls 2026-10-15: three owned from the start, one
-equipped, Q, the HUD socket by the weapon column, the powers page as the inventory's second tab). The contract the first
-round was built to: the shared headers in `Source/AI_Looter_Shooter/Embers/` (EmberTypes, EmberDefinition, HeroDefinition,
-EmberPower, EmberComponent); ids, colours, cues and file ownership in the round's `Saved/Embers/CONTRACT.md` (not
-committed; its content is in this section once the round lands). The agents' notes follow.
-
 - The forearms (the user, 2026-10-15: "His wrists are either invisible or don't match the gloves"): the retarget rolls
   his hand about the forearm (left about 100 degrees onto a foregrip or the revolver, right about 32; the bend only
   10-20) and nothing rolled the forearm, so the gauntlet stayed put while the glove turned and the wrist tore open (no
@@ -933,6 +925,133 @@ committed; its content is in this section once the round lands). The agents' not
   re-import). An import that reparents a bone (round 6: cape chains onto the collarbones) logs "Discarding existing
   LODs" and rebuilds them: check `get_lod_count` is 3 afterwards.
 - Looking at him: `Looter.ThirdPerson.FrontArmLength <cm>` brings the front view close (110-120); `play.py aim [0]`.
+
+## Ember powers
+
+The heroes' active powers (Docs/Story.md, "The heroes"; the user's calls 2026-10-15: three owned from the start, one
+equipped, Q, the HUD socket by the weapon column, the powers page as the inventory's second tab). The contract the first
+round was built to: the shared headers in `Source/AI_Looter_Shooter/Embers/` (EmberTypes, EmberDefinition, HeroDefinition,
+EmberPower, EmberComponent); ids, colours, cues and file ownership in the round's `Saved/Embers/CONTRACT.md` (not
+committed; its content is in this section once the round lands). The agents' notes follow.
+
+- **Ids (never change: the session saves the equipped one by it):** `DustDevil` (Wind, #e8f6ff), `Sundown` (Dusk,
+  #ffb24d), `BorrowedTime` (Debt, #c9b4ff); hero `Ellis`. Cues: `Ember.DustDevil.Use`, `Ember.Sundown.Start`/`.End`,
+  `Ember.BorrowedTime.Start`/`.Settle`, `Ember.Ready` (off cooldown), `Ember.Denied` (a press that did nothing).
+- **Making a power:** (1) a `UEmberPower` subclass in `Embers/Powers/` (CanActivate, Activate, Tick while it lasts, End
+  with bInterrupted; it leaves the world as it found it, and documents which definition fields it reads); (2) its
+  definition `/Game/Data/Embers/DA_Ember_<Id>` written by `Tools/Unreal/create_ember_assets.py` (POWERS list: id,
+  words, colour as sRGB hex, Inked icon name, cooldown, duration, Damage/Range/Radius/Strength, Extras by name,
+  `power_class` = `/Script/AI_Looter_Shooter.<Class without U>`); (3) its place in the hero's list (HEROES: the first
+  is equipped in a new game). Run the script after the C++ is built (`Tools/console.ps1 "py C:/Dev/AI_Looter_Shooter/
+  Tools/Unreal/create_ember_assets.py"`): it prints `EMBERS ... made/updated` and `EMBERS done`, rewrites every field
+  it names, leaves a missing class empty with a warning (rerun once built).
+- **The component** (`UEmberComponent` "Embers" on ALooterCharacter, like the grenade's "Throw"): the hero is the
+  Blueprint's `HeroDefinition` or `DA_Hero_Ellis`; one power object per owned power, made at BeginPlay (lazily on first
+  use too, so a restore before BeginPlay works). Clocks in its own tick (game time; off while Ready): `CooldownLeft`
+  from the use (through the duration), `ActiveLeft` for the duration; an instant power (duration 0) ends inside its use.
+  The gate's order: NoPower (none equipped, or no class), Dead, Busy (scene, pause, menu, mantle/vault, gun swap, melee
+  strike, grenade throw), Active, Cooldown, then the power's CanActivate (a power answering Cooldown/Active reads as
+  Refused). A denied press plays `Ember.Denied` (not for Dead or Busy) and fires OnDenied. Death or a scene interrupts a
+  running power at the next tick; EndPlay interrupts too. A swap mid-cooldown keeps the wait (held to the new power's
+  cooldown); no swap while one runs.
+- **Damage:** `UEmberDamageType`, applied with the player's controller as instigator and NO causer: AwardKill gives XP
+  through the instigator, `AWeaponBase::FindKillWeapon` finds no gun without a causer (no notch).
+- **The key:** binding `Ember`, "Ember power" under Combat, Q, the left bumper (fixed on pads), in the character context
+  (`UKeyBindingSubsystem::AddEmberAction`, `GetEmberAction`); bound on Started.
+- **The save:** `ULooterSessionSave::bHasEmbers` + `Embers` (`FEmberSave`: equipped id, cooldown left), captured and
+  restored beside the grenades (`SessionSubsystemWorld.cpp`). An older save reads as none captured: the first power,
+  ready; an id the hero no longer owns gives the first; a cooldown is held to the power's own.
+- **Console:** `Looter.Embers.Use [id]` (equips the named one, ends a running one, fires past the cooldown; the body's
+  gate still applies), `Looter.Embers.Equip <id>`, `Looter.Embers.State` (hero, owned with numbers and class, state,
+  clocks, what blocks a press). Tests: `Looter.Embers.Component` (a bare actor in a test world, a probe power
+  `Tests/EmberProbePower.h`, clocks ticked by hand), `Looter.Embers.Keys`.
+- **The HUD socket** (`UHudEmberSocketWidget`, bottom-right LEFT of the weapon slots, its bottom level with the last
+  slot's, 34 px off them: the slots' 12 px gap plus the 22 px the slot in hand reaches left as it lifts). It is NOT in
+  the weapon cluster (which hides with no gun in hand; Q works unarmed): a row of its own on the HUD canvas at the
+  cluster's anchor, the socket then a spacer as wide as the Arms row (slot row 122 + 14 + cartridge 51), lifted over the
+  cluster's two lines (52 px); it takes the cluster's fade while the cluster shows. A change to the slots' or the
+  cartridge's widths must change `ArmsWidth` in PlayerHUDWidgetLayout.cpp too. The slots' 64 px ring
+  (disc a background, rim, gunmetal, hairline; `HudEmberSocketWidgetPictures.cpp`, the slots' radii), the power's Inked
+  icon in a 36 px box, the Ember key's tab under it (grenade-style plate; wider per extra letter, `TabWidthFor`), the
+  power's name (10 px) under that. Ready: the orange ring and a glow in the power's colour beating 0.18-0.6 over 2.4 s.
+  Running: an arc in its colour from 12 o'clock round the gunmetal, shrinking with `GetActiveFraction`, the name in its
+  colour. Cooling: a dark pie (`Color::Track` 0.8) covering the share still to wait, drained clockwise, the seconds
+  (rounded up, never 0) in white 20 px, the icon greyed. The pie is one `MakeLines` stroke as wide as the radius (less
+  1.5 px at the middle, so its inner edge never folds); pie, arc and seconds are drawn in `NativePaint` with the style's
+  opacity, so they fade with the cluster (a `ULoadoutPaintLayer` would not: its painter gets no widget style). Denied
+  Cooldown/Active: a 0.4 s shake (4 px); the rest a 0.35 s dim; no sound (the component plays `Ember.Denied`). Back to
+  Ready (OnStateChanged): a 0.35 s pop (scale 1.18, the ring flashing white). `PlayerHUDWidgetEmbers.cpp` binds the
+  pawn's component each frame like the grenade's; a denied press or a state change brings the column forward.
+- **The powers page** (`UEmbersWidget`, `EInventoryPage::Embers`, the inventory's second tab "Embers"; the Ledger is
+  third): three 440 x 560 cards side by side (nature chip in the power's colour, a 132 px medallion ringed in its colour
+  with the 92 px icon, name, description, cooldown and duration via `SecondsWords`, the state line), the equipped one
+  with an orange EQUIPPED tag and its colour's glow; the chosen card's edge orange. A / D, arrows, D-pad (W / S too)
+  choose; E, Enter, Space, A, the Interact key or a click equips (`EquipIndex`); a refusal while a power runs says
+  "<power> is running: it finishes before you can swap" with `UI.Denied`; an equip plays the loadout's `UI.Equip`; the
+  choice moving plays `UI.Hover` (the cards' own sounds are off). Pages: 1-5 (`LoadoutParts::PageForNumberKey`), the
+  shoulders to the neighbours (loadout's LB stays Move); the inventory key closes, as on every page.
+  `LoadoutParts::NumPages`/`PageTabName` hold the tabs' order and words; the control hints now say "Then 3: the Ledger",
+  "Then 4: your missions". `Looter.MenuShots` has an `embers` step, `Looter.HudShots` an `ember` step
+  (`Looter.Embers.Use`: Dust Devil dashes the player in the picture).
+- **Icons** (`Art/Icons/InkedIcons.py`: `dust_devil`, `sundown`, `borrowed_time`, in the ammo icons' shared box and ink
+  width; `EMBER_ICONS` makes them square): Dust Devil three tapered spiral streaks (`offset_band`) round a ringed eye;
+  Sundown a half sun on a horizon bar, four tapered rays, two bands cut across the sun; Borrowed Time an hourglass
+  between end plates, the lower bulb shaded with a heap and a stream, a slanted ledger rule through the waist with its
+  edges cut so it reads over the glass (posts and a top sand line were dropped: the posts thickened the ink at 30 px,
+  the line made a face). The generator also writes `InkedIconData::Find` (every icon by name), behind
+  `LooterUI::FindInkedIcon`, so a definition's `IconName` finds its icon. Tests: `Looter.Embers.Pages`, `.Socket`.
+- **Dust Devil** (`UEmberDustDevil`; reads Damage, Range, Radius, Extras FlingMin/FlingMax/Dizzy/FovKick, the duration
+  as the dash's time): the dash is laid out first (`PlanDash`, 30 cm steps): each step's ground found by a world-static
+  trace (`LooterWorld::StaticGeometryParams`) within a step's rise plus a 45-degree slope of the step, else it stops at
+  the edge; a capsule sweep (the player's own responses, pawns, physics bodies and destructibles ignored; lifted half a
+  step, radius 0.9) stops it short of walls, the playable area's included; `APlayableArea::Contains` too. Under 1 m:
+  refused. A start high in the air keeps its height and ends falling. Run on the component's Tick (the player's clock):
+  MOVE_None while the capsule is teleported along the path (an even pace blended 0.4 with an ease-out: fastest as it
+  leaves, 0.6 of the mean speed as it arrives), Velocity set to the dash's for the animation, bInvulnerable on (only if
+  it was off), then walking on at 700 cm/s. End(false) runs the rest at once; End(true) stops where it is. Creatures
+  within Radius (flat) and 220 cm of height of the stretch just run, in sight of it (world-static trace), are struck
+  once: damage, then `UCreatureKnockComponent::Knock` along their side of the path (+0.2 of the dash's way), 400-500
+  cm, arc top 110 cm. Felt: `UPlayerViewComponent::SetPowerFieldOfView` (up over 0.07 s, back over 0.45 s after), 80
+  speed lines a second (world streaks 200-650 cm ahead, 70-190 cm round the eye, never low, 0.16-0.24 s), a 16-puff dust
+  ring with grit and five spinning wisps at the start, 9 at the end, a dust puff every 110 cm along the path, per
+  creature a dust burst, grit, `Player.Melee.Hit` and a small view jolt; a lean kick at the start, a dip at the end. What
+  lingers after (the settle, the lines) runs on a next-frame timer chain of its own.
+- **Knocked and dizzy** (`Creatures/CreatureKnockComponent`, a default subobject "Knock" on every `ACreatureBase`;
+  `TickBrain` waits while `HoldsBrain`, as for a stagger): `Knock(Away, Distance, Height, Dizzy)` launches like a hop
+  (`LaunchVelocity`: up for the arc's top, across for the distance in that air time; its speed replaced), the distance
+  times the rank's share (Rare 0.85, Epic 0.7, Legendary 0.45, Boss none) over the square root of its size; the landing
+  must have ground within 110 cm over / 150 cm under its feet (sizes scale it) and inside the playable area, else 0.75,
+  0.5, 0.3 of it, else only dazed. The body cartwheels once over the planned flight (the mesh turned round the
+  capsule's middle from its captured rest transform), lands (LandedDelegate, the floor found, or 2.5 s) with a dust ring,
+  grit and a dull `Player.Melee.Hit`, then reels for the daze (at least 0.2 s): the tumble settles upright over 0.15 s,
+  a 9-degree sway at 1.6 Hz, three gold sparks (FWeaponFX streaks) circling 24 cm out over the head, drawn only within
+  50 m of a view. Death, EndPlay or the end of the daze put the mesh back. Bosses and the dead are never knocked or dazed.
+- **Sundown** (`UEmberSundown`; Strength = the world's speed, Extras Pitch 0.75): `SetGlobalTimeDilation(Strength)`;
+  the player's actors get CustomTimeDilation = 1 / the world's effective dilation: the pawn, everything attached (each
+  Tick, for a gun swapped in), the controller (the look), the camera manager (the kicks) and the HUD actor.
+  `UBulletSubsystem::Tick` advances each bullet by the shooter's CustomTimeDilation, so the player's shots fly at full
+  speed. The component ticks on the pawn, so its 6 s are the player's. `SetGlobalPitchModulation(Pitch, 0.35 s)`, back to
+  1 at the end. Refused while time is already bent (a boss's slow-motion death). End undoes only what is still its own
+  (the world's dilation if still the one it set; each actor's if still the compensation); another slow taken meanwhile is
+  followed (the compensation recomputed each Tick). `AWeaponBase::GetOwnerTimeScale` (the holder's CustomTimeDilation)
+  divides the fire-rate and reload timers' seconds, so a gun in the player's hands fires and reloads at full speed; the
+  melee and throw cooldowns still read world time (short, left as they are).
+- **Borrowed Time** (`UEmberBorrowedTime`; Strength = the share a kill strikes off, Extras PayBackSeconds 3): binds the
+  player's `UHealthComponent::OnDamaged` and `OnHealthChanged` (the last known health tells what a hurt really took) and
+  the progression's `OnKillXP` while it runs. A hurt is healed back inside OnDamaged, before the health component counts
+  a death, so a killing blow is borrowed too; the debt grows by the damage. `NoteKill` strikes the share off (a violet
+  soul-light flare at the one killed). End: death forgives it; otherwise (a debt of 0.5 or more) it's drained evenly
+  over PayBackSeconds with `Drain` (never the last point), on a next-frame timer chain at the player's clock, with
+  `Ember.BorrowedTime.Settle`, a heavy view dip and a 0.25 shake for the pay-back. Violet motes rise round the feet
+  while it runs; a violet puff where each hurt is taken back. The HUD reads `GetDebt`, `GetDebtFraction` (of the most
+  health), `IsSettling`; after End the object is `UEmberComponent::GetPowerFor("BorrowedTime")`.
+- **The powers' sounds** (`Art/Sounds/recipes/embers.py`, group `embers`; all 2D): Dust Devil a two-ear gust, whump,
+  grit and a receding whirl; Sundown a tape-stop chord sinking an octave, a slowed bronze chime, a drone and a heartbeat
+  thud (End: the chord wound back up, a shimmer); Borrowed Time a ledger's cover, a nib, a clock tick and a cold minor
+  chord (Settle: the ledger slammed, three slowing ticks, the chord sinking flat); Ready a breath of flame and a chime;
+  Denied a fizzle and a muted click. Tests: `Looter.Embers.Power.DustDevil`, `.Sundown`, `.BorrowedTime`
+  (`Tests/EmberPowerTests.cpp`: definitions made in the test; the dash stepped by hand; a test level has no game mode,
+  so the damage itself isn't checked there; hurts are broadcast as `AActor::TakeDamage` hands them out).
 
 ## Island styles (Style Lab looks on the tutorial island, 2026-10-08)
 

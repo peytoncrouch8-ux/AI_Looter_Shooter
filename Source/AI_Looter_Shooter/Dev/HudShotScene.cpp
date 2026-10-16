@@ -295,6 +295,12 @@ namespace
 		return nullptr;
 	}
 
+	/** The equipped ember power fired past its cooldown (Looter.Embers.Use): its socket running, or cooling with the seconds. */
+	void HudShotBeginEmber(UWorld& World)
+	{
+		HudShotConsole(World, TEXT("Looter.Embers.Use"));
+	}
+
 	void HudShotBeginBoss(UWorld& World)
 	{
 		// The test boss may reach the player in the seconds this takes: the health holds.
@@ -372,6 +378,7 @@ namespace
 		{ TEXT("reload"),      0.6f, &HudShotBeginReload,          &HudShotReloadHalfway,      nullptr,               1.4f },
 		{ TEXT("empty"),       1.5f, &HudShotBeginEmpty,           nullptr,                    nullptr,               DefaultGapSeconds },
 		{ TEXT("two_guns"),    1.5f, &HudShotBeginTwoGuns,         nullptr,                    nullptr,               DefaultGapSeconds },
+		{ TEXT("ember"),       0.5f, &HudShotBeginEmber,           nullptr,                    nullptr,               DefaultGapSeconds },
 		{ TEXT("boss"),        2.0f, &HudShotBeginBoss,            &HudShotBossBarShown,       &HudShotEndBoss,       DefaultGapSeconds },
 		// The tick, at 0.35 s: the done objective's tick and its step's section cyan. The tracker holds it for DoneHoldSeconds (1.4 s)
 		// from the completion; the next step's picture, 1.6 s after the completion, catches what follows sliding in (the board's

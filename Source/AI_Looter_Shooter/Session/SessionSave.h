@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Economy/VendorOffer.h"
+#include "Embers/EmberTypes.h"
 #include "GameFramework/SaveGame.h"
 #include "Inventory/WeaponInventorySave.h"
 #include "Loot/LostLootStore.h"
@@ -306,6 +307,16 @@ public:
 
 	UPROPERTY()
 	FThrowablesSave Throwables;
+
+	/**
+	 * The ember powers below were captured (UEmberComponent::SaveEmbers: the equipped one and its cooldown left). A save
+	 * from before the powers reads as none captured: the hero's first power equipped, ready.
+	 */
+	UPROPERTY()
+	bool bHasEmbers = false;
+
+	UPROPERTY()
+	FEmberSave Embers;
 
 	/**
 	 * The silver carried (UWalletSubsystem; Docs/Progression.md, "Economy"). New within version 2: a save from before money

@@ -250,7 +250,7 @@ void UMapWidget::RefreshPrompts()
 	Prompts.Add({ TEXT("C"), TEXT("Find me") });
 	Prompts.Add({ TEXT("Drag"), TEXT("Pan") });
 	Prompts.Add({ TEXT("Wheel"), TEXT("Zoom") });
-	Prompts.Add({ TEXT("1-4"), TEXT("Pages") });
+	Prompts.Add({ TEXT("1-5"), TEXT("Pages") });
 	Prompts.Add({ Bindings ? Bindings->GetKey(TEXT("Inventory")).GetDisplayName().ToString() : FString(TEXT("Tab")), TEXT("Close") });
 	for (int32 Index = 0; Index < Prompts.Num(); ++Index)
 	{

@@ -75,8 +75,8 @@ FText FControlHintRules::Words(EControlHint Hint, bool bToggle)
 	case EControlHint::Inventory: return LOCTEXT("Inventory", "Inventory: compare and equip");
 	// After the inventory's keycap, the page's number inside it, as the missions' own words give them
 	// (UMissionOpenPageObjective: "{Inventory}, then 2").
-	case EControlHint::Ledger:    return LOCTEXT("Ledger", "Then 2: the Ledger");
-	case EControlHint::Missions:  return LOCTEXT("Missions", "Then 3: your missions, to choose which to follow");
+	case EControlHint::Ledger:    return LOCTEXT("Ledger", "Then 3: the Ledger");
+	case EControlHint::Missions:  return LOCTEXT("Missions", "Then 4: your missions, to choose which to follow");
 	case EControlHint::Map:       return LOCTEXT("Map", "Map: where you are, and where you're headed");
 	case EControlHint::Bench:     return LOCTEXT("Bench", "Use the bench: two guns of a kind can trade parts");
 	case EControlHint::Count:     break;

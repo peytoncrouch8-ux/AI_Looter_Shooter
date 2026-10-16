@@ -9,6 +9,7 @@ class IGameLayerManager;
 class ULocalPlayer;
 class UBenchWidget;
 class UBestiaryWidget;
+class UEmbersWidget;
 class UHudCaptionWidget;
 class UHudControlHintWidget;
 class UHudMissionTrackerWidget;
@@ -30,6 +31,8 @@ struct FStationBoardWords;
 enum class EInventoryPage : uint8
 {
 	Loadout,
+	/** The hero's ember powers, one to equip (UEmbersWidget; the user's call, 2026-10-15: the second tab). */
+	Embers,
 	Bestiary,
 	Missions,
 	/** The whole level from above, its pins, and fast travel between open respawn graves (UMapWidget). */
@@ -209,15 +212,19 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<ULoadoutWidget> InventoryWidget;
 
-	/** The inventory's second page: every creature, enemy, NPC and friend. */
+	/** The inventory's second page: the hero's three ember powers, the equipped one marked. */
+	UPROPERTY(Transient)
+	TObjectPtr<UEmbersWidget> EmbersWidget;
+
+	/** The inventory's third page: every creature, enemy, NPC and friend (the Bestiary, the Ledger once given). */
 	UPROPERTY(Transient)
 	TObjectPtr<UBestiaryWidget> BestiaryWidget;
 
-	/** The inventory's third page: the missions, active, available and finished. */
+	/** The inventory's fourth page: the missions, active, available and finished. */
 	UPROPERTY(Transient)
 	TObjectPtr<UMissionsWidget> MissionsWidget;
 
-	/** The inventory's fourth page: the map, and fast travel between graves. */
+	/** The inventory's fifth page: the map, and fast travel between graves. */
 	UPROPERTY(Transient)
 	TObjectPtr<UMapWidget> MapWidget;
 

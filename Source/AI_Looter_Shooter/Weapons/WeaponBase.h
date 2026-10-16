@@ -157,6 +157,13 @@ public:
 	 */
 	float GetReadyAlpha() const;
 
+	/**
+	 * How fast the gun's owner lives against the world (its CustomTimeDilation; 1 normally): the fire and reload timers run
+	 * on the world's clock, so under Sundown (the world at a quarter speed, the player at full) they divide by this, or the
+	 * gun cycled and reloaded at the world's crawl while the player moved at full speed.
+	 */
+	float GetOwnerTimeScale() const;
+
 	/** Seconds to bring a gun of Handling 1 up after drawing it. */
 	static constexpr float BaseReadySeconds = 0.35f;
 

@@ -844,4 +844,28 @@ namespace LooterSoundCue
 		 *  single dry croak. */
 		inline constexpr const TCHAR* DeathWake = TEXT("World.Roost.DeathWake");
 	}
+
+	// --- Ember powers (2026-10-15: Embers/Powers/*, UEmberComponent, the HUD's socket; Art/Sounds/recipes/embers.py). The
+	//     player's own, so 2D: Ellis's three (Dust Devil, Sundown, Borrowed Time) and the socket's two ---
+	namespace Ember
+	{
+		/** Dust Devil's dash (2D, ~0.8 s): a gust ripped past both ears from behind, a low whump of air shoved aside, dry
+		 *  grit hissing up off the ground and a little whirlwind spinning away into the distance as it settles. */
+		inline constexpr const TCHAR* DustDevilUse = TEXT("Ember.DustDevil.Use");
+		/** Sundown falling (2D, ~1.6 s): a deep tape-stop groan as the world's sound winds down, a low bell struck once and
+		 *  bending flat, a warm swelling drone under it, the heartbeat-slow thud at its end. */
+		inline constexpr const TCHAR* SundownStart = TEXT("Ember.Sundown.Start");
+		/** Sundown lifting (2D, ~1 s): the groan run backwards, winding up to speed, a bright shimmer as time catches up. */
+		inline constexpr const TCHAR* SundownEnd = TEXT("Ember.Sundown.End");
+		/** Borrowed Time opened (2D, ~1.3 s): a ledger's heavy cover thrown open, a nib scratching a line, a deep clock tick and
+		 *  a cold breathy chord swelling behind it. */
+		inline constexpr const TCHAR* BorrowedTimeStart = TEXT("Ember.BorrowedTime.Start");
+		/** Borrowed Time's debt called in (2D, ~1.4 s): the ledger slammed shut, the clock's tick turned slow and heavy, a low
+		 *  chord sinking flat as the debt is paid in blood. */
+		inline constexpr const TCHAR* BorrowedTimeSettle = TEXT("Ember.BorrowedTime.Settle");
+		/** A power off its cooldown (2D, short and quiet): a warm ember catching, a soft bright chime with a breath of air. */
+		inline constexpr const TCHAR* Ready = TEXT("Ember.Ready");
+		/** The key pressed and nothing happened (2D, short): a dull ember's dry fizzle, a muted wooden click. */
+		inline constexpr const TCHAR* Denied = TEXT("Ember.Denied");
+	}
 }

@@ -191,6 +191,11 @@ namespace
 		MenuShotPress(EKeys::R);
 	}
 
+	void MenuShotBeginEmbers(UWorld& World)
+	{
+		MenuShotShowPage(World, EInventoryPage::Embers);
+	}
+
 	void MenuShotBeginBestiary(UWorld& World)
 	{
 		MenuShotShowPage(World, EInventoryPage::Bestiary);
@@ -264,6 +269,7 @@ namespace
 		{ TEXT("equipped"),     0.2f, &MenuShotBeginEquip,        nullptr,                  nullptr,             1.0f },
 		{ TEXT("swap_target"),  1.0f, &MenuShotBeginSwapTarget,   nullptr,                  nullptr,             DefaultGapSeconds },
 		{ TEXT("sorted"),       0.8f, &MenuShotBeginSort,         nullptr,                  nullptr,             DefaultGapSeconds },
+		{ TEXT("embers"),       1.0f, &MenuShotBeginEmbers,       nullptr,                  nullptr,             DefaultGapSeconds },
 		{ TEXT("bestiary"),     1.5f, &MenuShotBeginBestiary,     nullptr,                  nullptr,             DefaultGapSeconds },
 		{ TEXT("missions"),     1.2f, &MenuShotBeginMissions,     nullptr,                  nullptr,             DefaultGapSeconds },
 		{ TEXT("map"),          1.5f, &MenuShotBeginMap,          nullptr,                  nullptr,             DefaultGapSeconds },

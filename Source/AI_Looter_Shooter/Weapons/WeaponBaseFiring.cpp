@@ -77,7 +77,8 @@ void AWeaponBase::StartFireAt(double Now)
 	// comes just before the gun is ready, and only once (WeaponTrigger::Decide): clicks made earlier are lost, so spamming
 	// never stacks shots that go off after the clicking has stopped.
 	FTimerManager& Timers = GetWorldTimerManager();
-	const double Interval = Instance.Stats.GetSecondsBetweenShots();
+	// In the world's seconds: a shooter living faster than the world (Sundown) cycles the gun in fewer of them.
+	const double Interval = Instance.Stats.GetSecondsBetweenShots() / GetOwnerTimeScale();
 	const double SecondsUntilReady = Interval - (Now - LastFireTime);
 	const WeaponTrigger::EPress Press = WeaponTrigger::Decide(Instance.Definition->FireMode, SecondsUntilReady, Timers.IsTimerActive(FireTimer));
 	if (Press == WeaponTrigger::EPress::Ignore)
@@ -187,7 +188,7 @@ void AWeaponBase::HandleFiring()
 
 	if (bContinue)
 	{
-		GetWorldTimerManager().SetTimer(FireTimer, this, &AWeaponBase::HandleFiring, Instance.Stats.GetSecondsBetweenShots(), false);
+		GetWorldTimerManager().SetTimer(FireTimer, this, &AWeaponBase::HandleFiring, Instance.Stats.GetSecondsBetweenShots() / GetOwnerTimeScale(), false);
 	}
 }
 
@@ -436,6 +437,12 @@ float AWeaponBase::GetEffectiveSpread() const
 	const UPlayerLocomotionComponent* Locomotion = Holder ? Holder->FindComponentByClass<UPlayerLocomotionComponent>() : nullptr;
 	const UPlayerViewComponent* View = Holder ? Holder->FindComponentByClass<UPlayerViewComponent>() : nullptr;
 	return Instance.Stats.Spread * (Locomotion ? Locomotion->GetSpreadMultiplier() : 1.f) * (View ? View->GetAimSpreadMultiplier() : 1.f);
+}
+
+float AWeaponBase::GetOwnerTimeScale() const
+{
+	const AActor* Carrier = GetOwner();
+	return Carrier && Carrier->CustomTimeDilation > UE_KINDA_SMALL_NUMBER ? Carrier->CustomTimeDilation : 1.f;
 }
 
 float AWeaponBase::GetReadyAlpha() const

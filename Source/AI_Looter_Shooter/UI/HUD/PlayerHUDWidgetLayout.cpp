@@ -1,5 +1,6 @@
 #include "UI/HUD/PlayerHUDWidget.h"
 #include "UI/HUD/HudDamageIndicatorWidget.h"
+#include "UI/HUD/HudEmberSocketWidget.h"
 #include "UI/HUD/HudFrameRateWidget.h"
 #include "UI/HUD/HudGraveMarkedWidget.h"
 #include "UI/HUD/HudGrenadeWidget.h"
@@ -54,6 +55,12 @@ namespace
 	constexpr float ClusterBottom = 32.f;
 	/** The cartridge stands this far right of the slots' column. */
 	constexpr float CartridgeGap = 14.f;
+	/**
+	 * The ember socket stands this far left of the slots' column: the slots' own gap (12) plus the 22 px a slot in hand
+	 * reaches further left as it moves over and grows (UHudWeaponSlotsWidget's lift), so the last slot in hand never
+	 * touches the socket.
+	 */
+	constexpr float EmberGap = 34.f;
 	/** The grenade counter sits this far above the column's top (slot 1's circle and the cartridge's tip). */
 	constexpr float GrenadeGap = 10.f;
 	/** The silver readout sits this far above the grenade counter (when there are grenades). */
@@ -62,6 +69,14 @@ namespace
 	constexpr float LineGap = 4.f;
 	constexpr float ModeLineHeight = 20.f;
 	constexpr float NameLineHeight = 24.f;
+	/**
+	 * The Arms row (slots and cartridge) as the ember socket's row reproduces it: its width (a slot row, as
+	 * HudWeaponSlotsWidget.cpp lays it out: ammo icon 20, gap 8, tab, gap 8, circle; then the cartridge's gap and the
+	 * cartridge) and how far its bottom stands above the cluster's (the fire mode's and the name's lines with their gaps).
+	 */
+	constexpr float SlotRowWidth = 20.f + 8.f + UHudWeaponSlotsWidget::TabWidth + 8.f + UHudWeaponSlotsWidget::SlotDiameter;
+	constexpr float ArmsWidth = SlotRowWidth + CartridgeGap + UHudMagazineWidget::Width;
+	constexpr float ArmsLift = LineGap + ModeLineHeight + LineGap + NameLineHeight;
 	/** The status sits this far left of the fire mode, on its line. */
 	constexpr float StatusGap = 12.f;
 	/** The rarity gem before the name: a diamond, tip to tip, over its ink edge (1.6 px wider each side), and the gap after
@@ -261,6 +276,22 @@ TSharedRef<SWidget> UPlayerHUDWidget::RebuildWidget()
 
 			WeaponCluster = Box;
 			PlaceOnCanvas(Root, Box, FAnchors(1.f, 1.f), FVector2D(1.f, 1.f), FVector2D(-ClusterRight, -ClusterBottom));
+		}
+
+		// The equipped ember power's socket (collapsed with none), apart from the weapon cluster, which hides with no gun in
+		// hand: Q works unarmed, so the socket shows armed or not. It stands where the cluster's Arms row would put it, left
+		// of the slots with its bottom level with the last slot's: a spacer as wide as the slots and the cartridge stands in
+		// for them, and it sits above the cluster's two lines (fire mode, gun's name).
+		{
+			UHorizontalBox* EmberRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			EmberRow->SetVisibility(ESlateVisibility::HitTestInvisible);
+			EmberSocket = WidgetTree->ConstructWidget<UHudEmberSocketWidget>(UHudEmberSocketWidget::StaticClass());
+			UHorizontalBoxSlot* EmberSlot = EmberRow->AddChildToHorizontalBox(EmberSocket);
+			EmberSlot->SetVerticalAlignment(VAlign_Bottom);
+			EmberSlot->SetPadding(FMargin(0.f, 0.f, EmberGap, 0.f));
+			EmberRow->AddChildToHorizontalBox(MakeSized(WidgetTree, nullptr, ArmsWidth, 1.f))->SetVerticalAlignment(VAlign_Bottom);
+			EmberArea = EmberRow;
+			PlaceOnCanvas(Root, EmberRow, FAnchors(1.f, 1.f), FVector2D(1.f, 1.f), FVector2D(-ClusterRight, -(ClusterBottom + ArmsLift)));
 		}
 
 		// Right-middle: comparison card for the loot you're looking at.

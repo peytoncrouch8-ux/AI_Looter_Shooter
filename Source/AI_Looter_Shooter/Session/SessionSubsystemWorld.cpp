@@ -7,6 +7,7 @@
 #include "Combat/HealthComponent.h"
 #include "Economy/SilverPickup.h"
 #include "Economy/WalletSubsystem.h"
+#include "Embers/EmberComponent.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Loot/AmmoPickup.h"
 #include "Loot/Chest.h"
@@ -94,6 +95,11 @@ void USessionSubsystem::CaptureWorld(UWorld* World, ULooterSessionSave& Save)
 	{
 		Throw->SaveThrowables(Save.Throwables);
 		Save.bHasThrowables = true;
+	}
+	if (const UEmberComponent* Embers = UEmberComponent::Find(Pawn))
+	{
+		Embers->SaveEmbers(Save.Embers);
+		Save.bHasEmbers = true;
 	}
 	// The purse and the vendors' gun of the day, which live with the level's wallet and travel with the player.
 	if (const UWalletSubsystem* Wallet = UWalletSubsystem::Get(World))
@@ -423,6 +429,14 @@ void USessionSubsystem::RestoreWorld(UWorld* World, const ULooterSessionSave& Sa
 			if (UPlayerThrowComponent* Throw = UPlayerThrowComponent::Find(Pawn))
 			{
 				Throw->RestoreThrowables(Save.Throwables);
+			}
+		}
+		// The equipped ember power and its cooldown left (a save from before the powers keeps the new game's: the first, ready).
+		if (Save.bHasEmbers)
+		{
+			if (UEmberComponent* Embers = UEmberComponent::Find(Pawn))
+			{
+				Embers->RestoreEmbers(Save.Embers);
 			}
 		}
 		if (UWeaponManagerComponent* Manager = Pawn->FindComponentByClass<UWeaponManagerComponent>())

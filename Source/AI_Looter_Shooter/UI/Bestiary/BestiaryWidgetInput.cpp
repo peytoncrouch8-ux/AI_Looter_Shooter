@@ -55,24 +55,19 @@ FReply UBestiaryWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyE
 		Close();
 		return FReply::Handled();
 	}
-	if (Key == EKeys::One || Key == EKeys::Gamepad_LeftShoulder)
+	// The other pages: their number keys, or the shoulders to the pages either side (the ember powers, the missions).
+	const int32 PageKey = Key == EKeys::Gamepad_LeftShoulder ? static_cast<int32>(EInventoryPage::Embers)
+		: Key == EKeys::Gamepad_RightShoulder ? static_cast<int32>(EInventoryPage::Missions)
+		: LoadoutParts::PageForNumberKey(Key);
+	if (PageKey != INDEX_NONE)
 	{
-		GoToLoadout();
-		return FReply::Handled();
-	}
-	if (Key == EKeys::Three || Key == EKeys::Gamepad_RightShoulder)
-	{
-		if (ALooterHUD* HUD = OwningHUD.Get())
+		if (PageKey == static_cast<int32>(EInventoryPage::Loadout))
 		{
-			HUD->ShowInventoryPage(EInventoryPage::Missions);
+			GoToLoadout();
 		}
-		return FReply::Handled();
-	}
-	if (Key == EKeys::Four)
-	{
-		if (ALooterHUD* HUD = OwningHUD.Get())
+		else if (ALooterHUD* HUD = OwningHUD.Get(); HUD && PageKey != static_cast<int32>(EInventoryPage::Bestiary))
 		{
-			HUD->ShowInventoryPage(EInventoryPage::Map);
+			HUD->ShowInventoryPage(static_cast<EInventoryPage>(PageKey));
 		}
 		return FReply::Handled();
 	}

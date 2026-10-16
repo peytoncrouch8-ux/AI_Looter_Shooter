@@ -290,20 +290,104 @@ def grave_salt_grenade():
                 cut_width=1.1)
 
 
+# --- The ember powers (Embers/EmberDefinition.h IconName; the HUD's socket and the powers page), in the ammo icons' box ---
+
+def offset_band(centre, widths):
+    """A tapered band along a polyline: each point pushed out half its width to the left of travel, then back along the
+    right, as one simple polygon (a dust streak, a ray). centre and widths run together."""
+    left, right = [], []
+    for k, (x, y) in enumerate(centre):
+        ax, ay = centre[max(k - 1, 0)]
+        bx, by = centre[min(k + 1, len(centre) - 1)]
+        dx, dy = bx - ax, by - ay
+        length = math.hypot(dx, dy) or 1.0
+        nx, ny = -dy / length, dx / length
+        half = widths[k] / 2
+        left.append((x + nx * half, y + ny * half))
+        right.append((x - nx * half, y - ny * half))
+    return left + list(reversed(right))
+
+
+def dust_devil():
+    """Dust Devil (Ellis's dash, nature Wind): a tight whirl of three dust streaks round a calm eye. Each streak spirals
+    out from near the eye, thickest a third of the way along and thinning to a wisp at its tail, a third of a turn after
+    the one before, so the three nest like a whirlwind seen from above."""
+    cx, cy = 32.0, 32.0
+    shapes = []
+    for k in range(3):
+        start = math.radians(-90 + 120 * k)
+        sweep = math.radians(195)
+        centre, widths = [], []
+        n = 26
+        for i in range(n + 1):
+            t = i / n
+            angle = start + sweep * t
+            radius = 11.0 + 16.5 * t
+            centre.append((cx + radius * math.cos(angle), cy + radius * math.sin(angle)))
+            # A wisp where it leaves the eye, thickest a third of the way out, a wisp again at its tail.
+            u = min(1.0, 0.04 + t * 0.96)
+            widths.append(max(0.9, 6.8 * math.sin(math.pi * u) ** 0.8))
+        shapes.append(offset_band(centre, widths))
+    shapes.append(circle(cx, cy, 5.4, 20))                                                     # the eye
+    holes = [circle(cx, cy, 2.0, 12)]                                                          # its calm middle
+    return Icon('DustDevil', shapes, holes, shade=36, outline=OUTLINE['Ammo'], cut_width=1.1)
+
+
+def sundown():
+    """Sundown (the world slowed, nature Dusk): a half sun sitting on a horizon line with four short rays fanned over it,
+    tapering to points, and two bands cut across the sun's lower half."""
+    cx, horizon = 32.0, 45.0
+    r = 16.5
+    sun = [(cx + r * math.cos(math.radians(a)), horizon - r * math.sin(math.radians(a))) for a in range(0, 181, 9)]
+    shapes = [sun, rect(4.0, 60.0, horizon, horizon + 4.2)]                                    # the sun, the horizon
+    for degrees in (24.0, 67.0, 113.0, 156.0):                                                 # the rays
+        a = math.radians(degrees)
+        ux, uy = math.cos(a), -math.sin(a)
+        centre = [(cx + ux * d, horizon + uy * d) for d in (22.5, 26.0, 29.5)]
+        shapes.append(offset_band(centre, [4.4, 3.0, 1.2]))
+    cuts = [[(cx - 15.4, horizon - 5.5), (cx + 15.4, horizon - 5.5)],
+            [(cx - 13.0, horizon - 10.0), (cx + 13.0, horizon - 10.0)]]                       # the bands on the sun
+    return Icon('Sundown', shapes, cuts=cuts, shade=37, outline=OUTLINE['Ammo'], cut_width=1.1)
+
+
+def borrowed_time():
+    """Borrowed Time (the debt, nature Debt): an hourglass between its two end plates, the sand run down into the lower
+    bulb (shaded, with its heap and the stream falling on it), with a ledger's ruled line struck through it from corner
+    to corner (its edges cut where it crosses the glass, so it reads across it). No posts: at HUD size they only thickened
+    the ink."""
+    cx = 32.0
+    glass_right = quad((42.0, 14.0), (42.5, 26.0), (cx + 1.6, 32.0)) + quad((cx + 1.6, 32.0), (42.5, 38.0), (42.0, 50.0))[1:]
+    glass = glass_right + [(2 * cx - x, y) for x, y in reversed(glass_right)]
+    shapes = [rect(16.0, 48.0, 8.0, 14.0), rect(16.0, 48.0, 50.0, 56.0),                     # the end plates
+              glass]
+    # The ledger line: a slanted rule from low left to high right through the waist.
+    a, b = (6.0, 47.0), (58.0, 17.0)
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    length = math.hypot(dx, dy)
+    nx, ny = -dy / length * 1.9, dx / length * 1.9
+    shapes.append([(a[0] + nx, a[1] + ny), (b[0] + nx, b[1] + ny), (b[0] - nx, b[1] - ny), (a[0] - nx, a[1] - ny)])
+    cuts = [[(a[0] + nx, a[1] + ny), (b[0] + nx, b[1] + ny)], [(a[0] - nx, a[1] - ny), (b[0] - nx, b[1] - ny)],
+            quad((23.5, 48.0), (cx, 40.0), (40.5, 48.0)),                                      # the sand's heap
+            [(cx, 33.5), (cx, 44.0)]]                                                          # its stream
+    return Icon('BorrowedTime', shapes, cuts=cuts, shade=32, outline=OUTLINE['Ammo'], cut_width=1.1)
+
+
 # The ink line's width in each icon's units: guns scale it with their length so every gun's line looks the same
-# when they're drawn the same width; the ammo icons and the grenade share one box and one width.
+# when they're drawn the same width; the ammo icons, the grenade and the ember powers share one box and one width.
 OUTLINE = {'Rifle': 1.72, 'Shotgun': 2.56, 'Revolver': 0.72, 'Ammo': 3.2}
 AMMO_TYPES = ('AssaultRifle', 'Shotgun', 'Pistol', 'SMG', 'Sniper')   # EAmmoType order
+# The ember powers' icons by UEmberDefinition::IconName (the contract's names: the generated functions are named so).
+EMBER_ICONS = ('DustDevil', 'Sundown', 'BorrowedTime')
 
 
 def is_square(icon):
-    """Drawn in the ammo icons' square box (the ammo and the grenade), as against a gun's own wide one."""
-    return icon.name.startswith('Ammo') or icon.name == 'GraveSaltGrenade'
+    """Drawn in the ammo icons' square box (the ammo, the grenade, the ember powers), as against a gun's own wide one."""
+    return icon.name.startswith('Ammo') or icon.name == 'GraveSaltGrenade' or icon.name in EMBER_ICONS
 
 
 def icons():
-    """Every icon, placed in its view box: each gun in its own, the ammo types and the grenade all in one shared box
-    (fitted to the ammo, so the grenade can't move the ammo icons)."""
+    """Every icon, placed in its view box: each gun in its own, the ammo types, the grenade and the ember powers all in
+    one shared box (fitted to the ammo, so the others can't move the ammo icons)."""
     guns = [bullpup().place(), ranchhand().place(), drover().place()]
     rounds = [ammo(kind) for kind in AMMO_TYPES]
     boxes = [r.bounds() for r in rounds]
@@ -311,7 +395,8 @@ def icons():
     side = max(shared[2] - shared[0], shared[3] - shared[1])
     cx, cy = (shared[0] + shared[2]) / 2, (shared[1] + shared[3]) / 2
     square = (cx - side / 2, cy - side / 2, cx + side / 2, cy + side / 2)
-    return guns + [r.place(square) for r in rounds] + [grave_salt_grenade().place(square)]
+    embers = [dust_devil(), sundown(), borrowed_time()]
+    return guns + [r.place(square) for r in rounds] + [grave_salt_grenade().place(square)] + [e.place(square) for e in embers]
 
 
 # --- The rules the game draws by (see the module's docstring), for the reference pictures ---
@@ -417,8 +502,19 @@ def cpp_icon(icon):
             + cpp_list('Cuts', icon.cuts) + '\t\treturn Icon;\n\t}\n')
 
 
+def cpp_find(all_icons):
+    """Every icon by its name, for data that names its icon (UEmberDefinition::IconName; LooterUI::FindInkedIcon)."""
+    rows = ''.join(f'\t\t\tAll.Add(FName(TEXT("{i.name}")), {i.name}());\n' for i in all_icons)
+    return ('\t/** Every icon above by its function\'s name ("DustDevil"), or null: made once, kept for the session. */\n'
+            '\tinline const LooterUI::FInkedIcon* Find(FName Name)\n\t{\n'
+            '\t\tstatic const TMap<FName, LooterUI::FInkedIcon> Icons = []()\n\t\t{\n'
+            '\t\t\tTMap<FName, LooterUI::FInkedIcon> All;\n' + rows +
+            '\t\t\treturn All;\n\t\t}();\n'
+            '\t\treturn Name.IsNone() ? nullptr : Icons.Find(Name);\n\t}\n')
+
+
 def write_cpp(all_icons):
-    body = '\n'.join(cpp_icon(i) for i in all_icons)
+    body = '\n'.join(cpp_icon(i) for i in all_icons) + '\n' + cpp_find(all_icons)
     text = ('// Generated by Art/Icons/InkedIcons.py: change the outlines there and run it again; don\'t edit this file.\n'
             '// The game\'s Inked icons (the user\'s pick, 2026-10-01). What the fields mean and how an icon is drawn are in\n'
             '// that file\'s docstring. Colors: ink #{:02X}{:02X}{:02X}, light #{:02X}{:02X}{:02X}, shade #{:02X}{:02X}{:02X}; '

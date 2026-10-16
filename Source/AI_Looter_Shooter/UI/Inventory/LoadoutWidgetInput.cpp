@@ -411,27 +411,14 @@ bool ULoadoutWidget::HandleKey(const FKey& Key)
 		// gun the cursor isn't on (the pressed index is not the cursor's). Esc and the screen's own key are handled above.
 		return true;
 	}
-	if ((Key == EKeys::Two || Key == EKeys::Gamepad_RightShoulder) && !PickedSlot.IsSet())
+	// The other pages: their number keys (2 the ember powers, 3 the bestiary, 4 the missions, 5 the map), or the right
+	// shoulder to the next (the left one is Move here).
+	const int32 PageKey = Key == EKeys::Gamepad_RightShoulder ? static_cast<int32>(EInventoryPage::Embers) : LoadoutParts::PageForNumberKey(Key);
+	if (PageKey != INDEX_NONE && PageKey != static_cast<int32>(EInventoryPage::Loadout) && !PickedSlot.IsSet())
 	{
 		if (ALooterHUD* HUD = OwningHUD.Get())
 		{
-			HUD->ShowInventoryPage(EInventoryPage::Bestiary);
-		}
-		return true;
-	}
-	if (Key == EKeys::Three && !PickedSlot.IsSet())
-	{
-		if (ALooterHUD* HUD = OwningHUD.Get())
-		{
-			HUD->ShowInventoryPage(EInventoryPage::Missions);
-		}
-		return true;
-	}
-	if (Key == EKeys::Four && !PickedSlot.IsSet())
-	{
-		if (ALooterHUD* HUD = OwningHUD.Get())
-		{
-			HUD->ShowInventoryPage(EInventoryPage::Map);
+			HUD->ShowInventoryPage(static_cast<EInventoryPage>(PageKey));
 		}
 		return true;
 	}

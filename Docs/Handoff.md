@@ -38,6 +38,66 @@ Main's calls (the agents add theirs below):
   paid back over 3 s after it ends, each kill strikes a quarter off; Dust Devil: untouchable for its 0.3 s.
 - The powers page is the inventory's second tab, "Embers"; the Ledger moves to third.
 
+CORE's calls (component, key, save, assets):
+- Cooldowns not in the concepts: Sundown 20 s, Borrowed Time 24 s (Dust Devil keeps the demo's 7 s). Dust Devil runs
+  as a 0.3 s duration (its dash), not instant.
+- A swap mid-cooldown keeps the wait (held to the new power's cooldown), so swapping is never a way round it; no swap
+  while a power runs.
+- The gate also refuses mid melee strike and mid grenade throw (Busy), as the grenade refuses mid strike.
+- A denied press clicks (`Ember.Denied`, half volume) for Cooldown, Active, NoPower and a power's refusal; silent while
+  dead or Busy. The component plays it; the HUD only shakes.
+- Death or a scene starting cuts a running power short (checked each tick: the header had no death handler to bind).
+- `Ember.Ready` plays when a cooldown ends, and when a power ends with its cooldown already over; not after an
+  interruption.
+- `Looter.Embers.Use` fires past the cooldown through the public API (Interrupt, RestoreEmbers with no cooldown, TryUse),
+  so the body's gate (scene, menu, swap) still holds.
+- A power with no class, or an abstract one, gets no object and reads NoPower.
+- The numbers' fields: Dust Devil Damage 15, Range 900 (dash), Radius 260, Extras FlingMin 400, FlingMax 500, Dizzy 1,
+  FovKick 14; Sundown Strength 0.25 (world speed); Borrowed Time Strength 0.25 (share struck off per kill), Extras
+  PayBackSeconds 3.
+- Tests use a probe power class in its own header (`Tests/EmberProbePower.h`): a UCLASS can't live in a .cpp.
+
+UI's calls (HUD socket, powers page, icons):
+- The socket stands 34 px left of the slots (not the slots' 12): a slot in hand lifts 22 px further left and would touch it.
+- (Main's follow-up) The socket stands apart from the weapon cluster, so it shows unarmed too, in the same place (a row
+  of its own with a spacer for the slots and cartridge); it fades with the cluster while the cluster shows.
+- Ready: an orange ring plus a slow glow in the power's colour; running: an arc in its colour shrinking from 12 o'clock;
+  cooling: a dark pie drained clockwise with whole seconds rounded up (never "0"); a pop and white ring flash when ready.
+- The key tab grows with the key's name (22 px for one letter, 8 px per extra letter, up to 80).
+- The page: three big cards side by side (not a list and a details column like the Ledger), since there are only three;
+  clicking a card equips it at once; Space and the Interact key equip as well as E/Enter/A; the choice moving plays
+  `UI.Hover`, an equip the loadout's `UI.Equip` clack, a refusal `UI.Denied` and a line under the cards.
+- Page keys: 1-5 and the shoulders to neighbouring pages on every page (the loadout's LB stays Move, so it has RB only);
+  the inventory key closes, as before (the brief said "Tab cycles pages": Tab is the inventory key, which closes).
+- The control hints' words follow the new numbers ("Then 3: the Ledger", "Then 4: your missions"); the Map's prompt reads
+  "1-5 Pages".
+- Icons: Dust Devil three tapered spiral streaks round a ringed eye; Sundown a half sun on a horizon bar with four
+  tapered rays and two bands; Borrowed Time an hourglass with a slanted ledger rule through it (no frame posts).
+- The colours are the contract's hexes exactly; no `EmberReady` colour (the ready ring is the kit's Accent).
+
+POWERS' calls (the three powers, knocks, sounds):
+- Dust Devil goes the way of the keys held, else the way the body moves (over 1.5 m/s), else the way the player looks;
+  under 1 m of room (a wall, a drop) the press is refused. It follows the ground (walk-sized rises, 45-degree slopes),
+  stops short of walls and drops, never leaves the playable area; from high in the air it dashes level and ends falling.
+- The dash is fastest as it leaves and still quick as it arrives; the player walks on at 7 m/s after it.
+- Creatures behind a wall from the path aren't struck; a fling is shortened (to 0.75, 0.5, 0.3) to land on ground, else
+  the creature only reels. Flings by rank: Rare 85%, Epic 70%, Legendary 45%, a boss none (and no daze).
+- Flung creatures cartwheel once in the air and land upright; dizzy shows as three gold sparks circling the head and a
+  sway; every knock reels at least 0.2 s so the body settles before the brain takes up again.
+- Sundown also keeps the player's controller, camera manager and HUD actor at full speed, re-checks carried guns each
+  frame, pitches the world's audio to 0.75, and is refused while time is already slowed (a boss's slow-motion death).
+  The dusk tint was skipped (no Grave Sight post-process exists; the UI agent owns any vignette).
+- (Main's follow-up, done) Under Sundown the guns fired and reloaded at the world's quarter speed: `AWeaponBase::
+  GetOwnerTimeScale` now divides the fire and reload timers' seconds (`WeaponBaseFiring.cpp`, `WeaponBaseReload.cpp`).
+  The melee and throw cooldowns still read world time (short; left).
+- (Main's fix) The Dust Devil fling is squared to the dash: measured from the nearest path point the way out was a
+  diagonal (the test saw a fling more along the path than off it), so the along-path part is removed first.
+- Borrowed Time adds the full blow to the debt (a killing blow's too), heals back what it really took, and kills only
+  strike the debt while it runs (not during the pay-back); a debt under 0.5 isn't called in; death forgives it; a
+  console use during a pay-back carries the rest into the new ledger.
+- Sounds: the seven ember cues are 2D; Ready and Denied in the Interface class, the powers in Effects; Ready and
+  Sundown.End fade in on purpose. cues.json carries guessed volumes until the render's mix measures them.
+
 Done this session (the user picked "small leftovers" first): `WeaponManagerComponent.h` split (its events and small
 types in `Inventory/WeaponManagerTypes.h`, 491 lines); the editor-exit ensure on Hiram's figure fixed in all six
 poseable-mesh constructors (Pipeline, Bugs); the shotgun reworked with the user watching: held 20 cm nearer, the left hand

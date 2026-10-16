@@ -326,8 +326,9 @@ void UMissionsWidget::RefreshPrompts()
 		Prompts.Add({ TEXT("E"), bTracked ? TEXT("Untrack") : TEXT("Track") });
 	}
 	Prompts.Add({ TEXT("1"), TEXT("Loadout") });
-	Prompts.Add({ TEXT("2"), Ledger::BookName(Ledger::IsOpenIn(this)) });
-	Prompts.Add({ TEXT("4"), TEXT("Map") });
+	Prompts.Add({ TEXT("2"), TEXT("Embers") });
+	Prompts.Add({ TEXT("3"), Ledger::BookName(Ledger::IsOpenIn(this)) });
+	Prompts.Add({ TEXT("5"), TEXT("Map") });
 	Prompts.Add({ Bindings ? Bindings->GetKey(TEXT("Inventory")).GetDisplayName().ToString() : FString(TEXT("Tab")), TEXT("Close") });
 	for (int32 Index = 0; Index < Prompts.Num(); ++Index)
 	{
@@ -377,19 +378,16 @@ FReply UMissionsWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyE
 		Close();
 		return FReply::Handled();
 	}
-	if (Key == EKeys::One)
+	// The other pages: their number keys, or the shoulders to the pages either side (the bestiary, the map).
+	const int32 PageKey = Key == EKeys::Gamepad_LeftShoulder ? static_cast<int32>(EInventoryPage::Bestiary)
+		: Key == EKeys::Gamepad_RightShoulder ? static_cast<int32>(EInventoryPage::Map)
+		: LoadoutParts::PageForNumberKey(Key);
+	if (PageKey != INDEX_NONE)
 	{
-		ShowPage(EInventoryPage::Loadout);
-		return FReply::Handled();
-	}
-	if (Key == EKeys::Two || Key == EKeys::Gamepad_LeftShoulder)
-	{
-		ShowPage(EInventoryPage::Bestiary);
-		return FReply::Handled();
-	}
-	if (Key == EKeys::Four || Key == EKeys::Gamepad_RightShoulder)
-	{
-		ShowPage(EInventoryPage::Map);
+		if (PageKey != static_cast<int32>(EInventoryPage::Missions))
+		{
+			ShowPage(static_cast<EInventoryPage>(PageKey));
+		}
 		return FReply::Handled();
 	}
 	if (Key == EKeys::Up || Key == EKeys::W || Key == EKeys::Gamepad_DPad_Up)

@@ -5,6 +5,7 @@
 #include "Combat/HealthComponent.h"
 #include "Combat/LooterDamageTypes.h"
 #include "Creatures/CreatureHitReactionComponent.h"
+#include "Creatures/CreatureKnockComponent.h"
 #include "Creatures/CreaturePackComponent.h"
 #include "Creatures/CreatureRankSettings.h"
 #include "Creatures/CreatureReactComponent.h"
@@ -55,6 +56,7 @@ ACreatureBase::ACreatureBase()
 	HitReaction = CreateDefaultSubobject<UCreatureHitReactionComponent>(TEXT("HitReaction"));
 	Pack = CreateDefaultSubobject<UCreaturePackComponent>(TEXT("Pack"));
 	React = CreateDefaultSubobject<UCreatureReactComponent>(TEXT("React"));
+	Knock = CreateDefaultSubobject<UCreatureKnockComponent>(TEXT("Knock"));
 
 	HealthBar = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBar"));
 	HealthBar->SetupAttachment(GetCapsuleComponent());
@@ -183,8 +185,9 @@ void ACreatureBase::TickBrain(float DeltaSeconds)
 	{
 		return;
 	}
-	// Staggered by a heavy hit: its brain waits with its state's clock held, so a wind-up holds rather than lands.
-	if (HitReaction->IsStaggered())
+	// Staggered by a heavy hit, or knocked off its feet and reeling (an ember power): its brain waits with its state's
+	// clock held, so a wind-up holds rather than lands.
+	if (HitReaction->IsStaggered() || Knock->HoldsBrain())
 	{
 		StateTime -= DeltaSeconds;
 		return;

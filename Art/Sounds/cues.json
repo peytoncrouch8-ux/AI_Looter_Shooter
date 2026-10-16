@@ -4746,5 +4746,97 @@
     "loop": false,
     "space": "3D",
     "max_concurrent": 2
+  },
+  "Ember.DustDevil.Use": {
+    "files": [
+      "Ember_DustDevil_Use_01.wav",
+      "Ember_DustDevil_Use_02.wav",
+      "Ember_DustDevil_Use_03.wav"
+    ],
+    "volume_db": -15.5,
+    "pitch_jitter": 0.04,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
+  },
+  "Ember.Sundown.Start": {
+    "files": [
+      "Ember_Sundown_Start_01.wav",
+      "Ember_Sundown_Start_02.wav"
+    ],
+    "volume_db": -15.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.Sundown.End": {
+    "files": [
+      "Ember_Sundown_End_01.wav",
+      "Ember_Sundown_End_02.wav"
+    ],
+    "volume_db": -18.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.BorrowedTime.Start": {
+    "files": [
+      "Ember_BorrowedTime_Start_01.wav",
+      "Ember_BorrowedTime_Start_02.wav"
+    ],
+    "volume_db": -17.0,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.BorrowedTime.Settle": {
+    "files": [
+      "Ember_BorrowedTime_Settle_01.wav",
+      "Ember_BorrowedTime_Settle_02.wav"
+    ],
+    "volume_db": -11.5,
+    "pitch_jitter": 0.0,
+    "class": "Effects",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.Ready": {
+    "files": [
+      "Ember_Ready_01.wav",
+      "Ember_Ready_02.wav"
+    ],
+    "volume_db": -24.0,
+    "pitch_jitter": 0.02,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 1
+  },
+  "Ember.Denied": {
+    "files": [
+      "Ember_Denied_01.wav",
+      "Ember_Denied_02.wav"
+    ],
+    "volume_db": -14.0,
+    "pitch_jitter": 0.03,
+    "class": "Interface",
+    "attenuation": "None",
+    "loop": false,
+    "space": "2D",
+    "max_concurrent": 2
   }
 }

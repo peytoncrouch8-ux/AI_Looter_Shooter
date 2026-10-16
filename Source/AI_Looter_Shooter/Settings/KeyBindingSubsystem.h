@@ -49,7 +49,7 @@ public:
  * Player key rebinding without touching input assets. Every mapping context the game uses is swapped
  * for a runtime copy with the player's keys applied; overrides are saved to the "KeyBindings" slot.
  * Also owns the always-on global actions (pause menu, inventory, map), the code-built character actions
- * (sprint, crouch, aim, melee, grenade, toggle camera view) and the number keys that take a weapon slot in hand.
+ * (sprint, crouch, aim, melee, grenade, ember power, toggle camera view) and the number keys that take a weapon slot in hand.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UKeyBindingSubsystem : public ULocalPlayerSubsystem
@@ -87,6 +87,7 @@ public:
 	const UInputAction* GetAimAction() const { return AimAction; }
 	const UInputAction* GetMeleeAction() const { return MeleeAction; }
 	const UInputAction* GetGrenadeAction() const { return GrenadeAction; }
+	const UInputAction* GetEmberAction() const { return EmberAction; }
 	const UInputAction* GetMapAction() const { return MapAction; }
 
 	// --- Map: M, and down on the D-pad on a gamepad (ALooterHUD binds it: the inventory opens on its map page) ---
@@ -146,6 +147,23 @@ public:
 	 */
 	static UInputAction* AddGrenadeAction(UObject* Outer, UInputMappingContext& Context);
 
+	// --- Ember power: Q, and the left bumper on a gamepad (UEmberComponent binds it; the user's call, 2026-10-15) ---
+
+	/** The ember power's rebindable binding: "Ember" ("Ember power" under Combat). */
+	static FName EmberBindingId();
+
+	/** Q: beside the movement keys, kept free for the powers since the grenade took G. */
+	static FKey DefaultEmberKey();
+
+	/** The left bumper, kept for the powers when the grenade took the right one. */
+	static FKey DefaultEmberGamepadKey();
+
+	/**
+	 * Makes the ember action in Outer and maps it in Context to its default keys (DefaultEmberKey, DefaultEmberGamepadKey).
+	 * Static so tests can check the mapping the settings menu rebinds.
+	 */
+	static UInputAction* AddEmberAction(UObject* Outer, UInputMappingContext& Context);
+
 	/**
 	 * Drop weapon's default key: X, since G is the grenade's. The weapon controls asset still maps the action to G; the
 	 * player's copy of it gets this key (the binding finds the asset's mapping by DropWeaponAssetKey).
@@ -153,7 +171,7 @@ public:
 	static FKey DefaultDropWeaponKey();
 	static FKey DropWeaponAssetKey();
 
-	/** The player's copy of the character controls (sprint, crouch, aim, melee, grenade, camera view). Added while the character is possessed. */
+	/** The player's copy of the character controls (sprint, crouch, aim, melee, grenade, ember power, camera view). Added while the character is possessed. */
 	UInputMappingContext* GetCharacterContext() { return GetRuntimeContext(CharacterContext); }
 
 	/** Input priority the character components add GetCharacterContext() with. */
@@ -222,6 +240,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UInputAction> AimAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> MeleeAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> GrenadeAction;
+	UPROPERTY(Transient) TObjectPtr<UInputAction> EmberAction;
 
 	/** The weapon slot keys get their own context: the weapon carrier adds it, whatever the weapon controls asset holds. */
 	UPROPERTY(Transient) TObjectPtr<UInputMappingContext> WeaponSlotContext;

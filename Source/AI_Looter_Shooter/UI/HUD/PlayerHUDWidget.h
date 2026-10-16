@@ -5,7 +5,9 @@
 #include "PlayerHUDWidget.generated.h"
 
 class AWeaponBase;
+class UEmberComponent;
 class UHealthComponent;
+class UHudEmberSocketWidget;
 class UHudGraveMarkedWidget;
 class UHudGrenadeWidget;
 class UHudInteractPromptWidget;
@@ -26,6 +28,8 @@ class UTextBlock;
 class UWalletSubsystem;
 class UWidget;
 class UWeaponManagerComponent;
+enum class EEmberDenied : uint8;
+enum class EEmberState : uint8;
 enum class EGrenadeChange : uint8;
 enum class ESilverChange : uint8;
 
@@ -37,7 +41,8 @@ enum class ESilverChange : uint8;
  *    a find; PlayerHUDWidgetMoney.cpp), then the grave-salt grenades carried over the column (UHudGrenadeWidget: key tab,
  *    the tin's icon, the count and its pips, once the player has grenades), then
  *    the weapon slots in a column, slot 1 on top, each with its key tab and ammo
- *    icon on its left (UHudWeaponSlotsWidget), and on their right the magazine as a cartridge standing tip up, which
+ *    icon on its left (UHudWeaponSlotsWidget), left of them the equipped ember power's socket, bottom-aligned
+ *    (UHudEmberSocketWidget: the Ember key's tab, its icon, its cooldown and run), and on their right the magazine as a cartridge standing tip up, which
  *    drains from the tip as the gun fires, fills with reload progress and holds the rounds and reserve by its base
  *    (UHudMagazineWidget); under them, right-aligned, the status ("RELOADING") and fire mode on one line, and the gun's
  *    name in its rarity's colour after a small rarity gem, with the gun's notches before the gem once it has any (a tally
@@ -82,6 +87,10 @@ public:
 
 	/** The gun's name, for the tests; null before the HUD is built. */
 	UTextBlock* GetWeaponNameText() const { return WeaponName; }
+
+	/** The ember socket and the weapon slots beside it, for the tests; null before the HUD is built. */
+	UHudEmberSocketWidget* GetEmberSocket() const { return EmberSocket; }
+	UHudWeaponSlotsWidget* GetWeaponSlots() const { return WeaponSlots; }
 
 	/**
 	 * The loot comparison card's rectangle on the desktop (absolute pixels, as Slate lays it out) while it's up; false while
@@ -143,6 +152,15 @@ private:
 	/** The grenade counter, frame by frame. */
 	void UpdateGrenades(float DeltaTime);
 
+	/** Follows the pawn's ember component: its denied presses (the socket shakes or dims) and its state (a pop when ready). */
+	void BindEmbers(UEmberComponent* Embers);
+
+	/** The ember socket, frame by frame. */
+	void UpdateEmbers(float DeltaTime);
+
+	void HandleEmberDenied(EEmberDenied Why);
+	void HandleEmberState(EEmberState NewState);
+
 	// --- The silver readout at the top of the weapon column (PlayerHUDWidgetMoney.cpp) ---
 
 	/** Builds it: the coin and the amount in floating type with no panel, and left of them the "+N" of a find. */
@@ -198,6 +216,12 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UWidget> WeaponCluster;
 	/** The grenades carried, over the weapon slots. */
 	UPROPERTY(Transient) TObjectPtr<UHudGrenadeWidget> GrenadeCounter;
+	/**
+	 * The equipped ember power's socket, left of the weapon slots, and its row: apart from the weapon cluster (which hides
+	 * with no gun in hand), so it shows armed or not; it fades with the cluster while the cluster shows.
+	 */
+	UPROPERTY(Transient) TObjectPtr<UHudEmberSocketWidget> EmberSocket;
+	UPROPERTY(Transient) TObjectPtr<UWidget> EmberArea;
 	/** Left of the crosshair: what was just picked up (a grenade found says so here too). */
 	UPROPERTY(Transient) TObjectPtr<UHudPickupFeedWidget> PickupFeed;
 	UPROPERTY(Transient) TObjectPtr<UHudWeaponSlotsWidget> WeaponSlots;
@@ -240,6 +264,9 @@ private:
 	TWeakObjectPtr<UPlayerMeleeComponent> BoundMelee;
 	TWeakObjectPtr<UPlayerThrowComponent> BoundThrow;
 	FDelegateHandle GrenadesChangedHandle;
+	TWeakObjectPtr<UEmberComponent> BoundEmbers;
+	FDelegateHandle EmberDeniedHandle;
+	FDelegateHandle EmberStateHandle;
 	/** The frame the last grenade hit came in: a burst's other hits that frame show the marker without its sound again. */
 	uint64 GrenadeHitFrame = 0;
 	bool bMuteHitSound = false;

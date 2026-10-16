@@ -61,6 +61,7 @@ void UKeyBindingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	AddBinding(TEXT("Aim"), TEXT("Aim down sights"), TEXT("Combat"), CharacterContext, AimAction, EKeys::RightMouseButton, true);
 	AddBinding(MeleeBindingId(), TEXT("Melee"), TEXT("Combat"), CharacterContext, MeleeAction, DefaultMeleeKey());
 	AddBinding(GrenadeBindingId(), TEXT("Grenade"), TEXT("Combat"), CharacterContext, GrenadeAction, DefaultGrenadeKey());
+	AddBinding(EmberBindingId(), TEXT("Ember power"), TEXT("Combat"), CharacterContext, EmberAction, DefaultEmberKey());
 	AddBinding(TEXT("Reload"), TEXT("Reload"), TEXT("Combat"), WeaponContext, Reload, EKeys::R);
 	// The wheel moves along the HUD's slot column (slot 1 on top): up to the slot above, down to the one below (the user,
 	// 2026-10-14: up went down). The asset maps them the other way round; the player's copy gets these keys.
@@ -129,6 +130,7 @@ void UKeyBindingSubsystem::BuildCharacterContext()
 	CharacterContext->MapKey(AimAction, EKeys::Gamepad_LeftTrigger);
 	MeleeAction = AddMeleeAction(this, *CharacterContext);
 	GrenadeAction = AddGrenadeAction(this, *CharacterContext);
+	EmberAction = AddEmberAction(this, *CharacterContext);
 }
 
 FName UKeyBindingSubsystem::MeleeBindingId()
@@ -207,6 +209,30 @@ UInputAction* UKeyBindingSubsystem::AddGrenadeAction(UObject* Outer, UInputMappi
 	UInputAction* Action = NewObject<UInputAction>(Outer, TEXT("IA_Grenade"));
 	Context.MapKey(Action, DefaultGrenadeKey());
 	Context.MapKey(Action, DefaultGrenadeGamepadKey());
+	return Action;
+}
+
+FName UKeyBindingSubsystem::EmberBindingId()
+{
+	return TEXT("Ember");
+}
+
+FKey UKeyBindingSubsystem::DefaultEmberKey()
+{
+	return EKeys::Q;
+}
+
+FKey UKeyBindingSubsystem::DefaultEmberGamepadKey()
+{
+	return EKeys::Gamepad_LeftShoulder;
+}
+
+UInputAction* UKeyBindingSubsystem::AddEmberAction(UObject* Outer, UInputMappingContext& Context)
+{
+	// Built in code like the grenade action: no input asset to keep in step.
+	UInputAction* Action = NewObject<UInputAction>(Outer, TEXT("IA_Ember"));
+	Context.MapKey(Action, DefaultEmberKey());
+	Context.MapKey(Action, DefaultEmberGamepadKey());
 	return Action;
 }
 

@@ -1,4 +1,5 @@
 #include "UI/Style/LooterUIStyle.h"
+#include "UI/Style/InkedIconData.inl"
 #include "World/RoostSettings.h"
 #include "Blueprint/WidgetTree.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
@@ -225,6 +226,11 @@ namespace LooterUI::Color
 	FLinearColor Focus()         { return Hex(255, 186, 72); }
 	FLinearColor FocusOnAccent() { return Hex(255, 246, 228); }
 	FLinearColor FocusWash()     { return Hex(255, 159, 28, 38); }
+
+	// The ember powers: Dust Devil a wind-blown near-white, Sundown a low sun's amber, Borrowed Time a faded ledger violet.
+	FLinearColor EmberDustDevil()    { return Hex(232, 246, 255); }
+	FLinearColor EmberSundown()      { return Hex(255, 178, 77); }
+	FLinearColor EmberBorrowedTime() { return Hex(201, 180, 255); }
 }
 
 // ---------------------------------------------------------------------------
@@ -762,4 +768,10 @@ void LooterUI::StyleScrollBox(UScrollBox* ScrollBox)
 	ScrollBox->SetWidgetBarStyle(Bar);
 	ScrollBox->SetScrollbarThickness(FVector2D(6.f, 6.f));
 	ScrollBox->SetScrollbarPadding(FMargin(8.f, 0.f, 0.f, 0.f));
+}
+
+const LooterUI::FInkedIcon* LooterUI::FindInkedIcon(FName Name)
+{
+	// The generated table (Art/Icons/InkedIcons.py writes it with the icons), so a new icon is found by its name at once.
+	return InkedIconData::Find(Name);
 }

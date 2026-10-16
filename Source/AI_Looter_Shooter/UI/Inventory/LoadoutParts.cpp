@@ -19,6 +19,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Fonts/FontMeasure.h"
+#include "InputCoreTypes.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
 #include "Rendering/SlateRenderer.h"
@@ -337,11 +338,40 @@ namespace LoadoutParts
 		return Hint;
 	}
 
+	FString PageTabName(int32 Page, bool bLedger)
+	{
+		// EInventoryPage order: the loadout, the ember powers (the second tab: the user's call, 2026-10-15), the bestiary
+		// (the Ledger once Sexton has handed it over), the missions, the map.
+		switch (Page)
+		{
+		case 0: return TEXT("Loadout");
+		case 1: return TEXT("Embers");
+		case 2: return Ledger::BookName(bLedger);
+		case 3: return TEXT("Missions");
+		case 4: return TEXT("Map");
+		default: return FString();
+		}
+	}
+
+	int32 PageForNumberKey(const FKey& Key)
+	{
+		const FKey Numbers[] = { EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five };
+		static_assert(UE_ARRAY_COUNT(Numbers) == NumPages, "A number key per inventory page");
+		for (int32 Page = 0; Page < NumPages; ++Page)
+		{
+			if (Key == Numbers[Page])
+			{
+				return Page;
+			}
+		}
+		return INDEX_NONE;
+	}
+
 	void TitlePageTabs(UWidgetTree& Tree, bool bLedger)
 	{
-		// The bestiary's tab is the second (EInventoryPage order); its title is the first text in its button.
-		constexpr int32 BestiaryPage = 1;
-		const FText Title = FText::FromString(FString(Ledger::BookName(bLedger)).ToUpper());
+		// The bestiary's tab is the third (EInventoryPage order); its title is the first text in its button.
+		constexpr int32 BestiaryPage = 2;
+		const FText Title = FText::FromString(PageTabName(BestiaryPage, bLedger).ToUpper());
 		Tree.ForEachWidget([&Title](UWidget* Widget)
 		{
 			ULooterButton* Tab = Cast<ULooterButton>(Widget);
@@ -372,17 +402,16 @@ namespace LoadoutParts
 
 	UWidget* MakePageTabs(UWidgetTree* Tree, int32 ShownPage, TArray<ULooterButton*>& OutTabs)
 	{
-		static const TCHAR* const Pages[] = { TEXT("Loadout"), Ledger::BookName(false), TEXT("Missions"), TEXT("Map") };
 		// A quiet bar rather than framed tabs (2026-10-08 redesign): the page's name is the title, the others wait
 		// dim beside it, and each shows the number key that turns to it.
 		UHorizontalBox* Strip = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		OutTabs.Reset();
-		for (int32 Page = 0; Page < UE_ARRAY_COUNT(Pages); ++Page)
+		for (int32 Page = 0; Page < NumPages; ++Page)
 		{
 			const bool bShown = Page == ShownPage;
 			UHorizontalBox* Head = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			// The page's name comes first in the tab: TitlePageTabs renames the first text it finds (the Ledger).
-			Head->AddChildToHorizontalBox(Label(Tree, Pages[Page], bShown ? 15 : 13, bShown ? Color::Title() : Color::TextDim(), 350))
+			Head->AddChildToHorizontalBox(Label(Tree, PageTabName(Page, false), bShown ? 15 : 13, bShown ? Color::Title() : Color::TextDim(), 350))
 				->SetVerticalAlignment(VAlign_Center);
 			UBorder* Cap = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
 			Cap->SetBrush(RectBrush(Color::Plate(), Color::Hairline() * FLinearColor(1.f, 1.f, 1.f, bShown ? 0.55f : 0.3f), 1.f));

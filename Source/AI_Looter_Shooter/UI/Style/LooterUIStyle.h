@@ -127,6 +127,13 @@ namespace LooterUI
 		FLinearColor FocusOnAccent();
 		/** The faint orange wash over a focused row (a background: it fades with the UI transparency). */
 		FLinearColor FocusWash();
+
+		// --- The ember powers (the contract's colours, 2026-10-15): each power's own, on its HUD socket's arc and glow,
+		// its page's card and its FX (UEmberDefinition::Color is set from these) ---
+
+		FLinearColor EmberDustDevil();
+		FLinearColor EmberSundown();
+		FLinearColor EmberBorrowedTime();
 	}
 
 	enum class EShape : uint8
@@ -231,6 +238,12 @@ namespace LooterUI
 
 	/** The icon as large as fits inside Box (keeping its shape), drawn at twice that size. */
 	FSlateBrush InkedIconBrush(FName Name, const FInkedIcon& Icon, const FVector2D& Box, const FLinearColor& Tint = FLinearColor::White);
+
+	/**
+	 * The Inked icon generated under Name (its InkedIconData function's name: "DustDevil", "GraveSaltGrenade"), or null:
+	 * for data that names its icon (UEmberDefinition::IconName). Kept for the session.
+	 */
+	const FInkedIcon* FindInkedIcon(FName Name);
 
 	/**
 	 * One layer of a painted picture: filled polygons (even-odd together, so a polygon inside another cuts a hole) and/or

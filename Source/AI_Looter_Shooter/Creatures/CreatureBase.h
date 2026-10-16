@@ -16,6 +16,7 @@
 #include "CreatureBase.generated.h"
 
 class UCreatureHitReactionComponent;
+class UCreatureKnockComponent;
 class UCreaturePackComponent;
 class UCreatureReactComponent;
 class UCreatureVoiceComponent;
@@ -94,6 +95,8 @@ public:
 	float GetNoticeStrength() const;
 	/** Its notice beat, hit flash, dust and ash, and its dice for idle life. */
 	UCreatureReactComponent* GetReact() const { return React; }
+	/** Knocked off its feet or reeling (an ember power's fling or daze): its brain waits meanwhile (UCreatureKnockComponent). */
+	UCreatureKnockComponent* GetKnock() const { return Knock; }
 	/** A boss, or a creature a boss fight is built round: its fight's rules (no notice beat; its death is its show's). */
 	bool IsBossCreature() const { return KeepsBossRules(); }
 	/** Comes into the world its kind's way (the dead rise, a spider climbs out of the dirt, a slime swells) if a player can see it. */
@@ -407,6 +410,10 @@ protected:
 	/** Its reactions: the notice beat, the hit flash, footfall dust and ash (its frame moves it on). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UCreatureReactComponent> React;
+
+	/** Knocked through the air and left dizzy (the ember powers): its brain waits as for a stagger (TickBrain). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UCreatureKnockComponent> Knock;
 
 	/** Height above the capsule center where the health bar floats, at size 1 (it rises with the scaled actor). */
 	float HealthBarHeight = 130.f;

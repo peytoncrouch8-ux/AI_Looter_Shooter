@@ -88,7 +88,8 @@ void AWeaponBase::Reload()
 
 	const float Duration = FMath::Max(Instance.Stats.ReloadTime, 0.01f);
 	OnReloadStarted.Broadcast(Duration);
-	GetWorldTimerManager().SetTimer(ReloadTimer, this, &AWeaponBase::FinishReload, Duration, false);
+	// The timer runs on the world's clock: a reloader living faster than the world (Sundown) finishes in fewer of its seconds.
+	GetWorldTimerManager().SetTimer(ReloadTimer, this, &AWeaponBase::FinishReload, Duration / GetOwnerTimeScale(), false);
 }
 
 void AWeaponBase::PlayReloadSteps(float Progress)

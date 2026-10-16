@@ -434,7 +434,8 @@ void UBestiaryWidget::RefreshPrompts()
 	const FPrompt Prompts[] = {
 		{ TEXT("W / S"), TEXT("Browse") },
 		{ TEXT("1"), TEXT("Loadout") },
-		{ TEXT("3"), TEXT("Missions") },
+		{ TEXT("2"), TEXT("Embers") },
+		{ TEXT("4"), TEXT("Missions") },
 		{ Bindings ? Bindings->GetKey(TEXT("Inventory")).GetDisplayName().ToString() : FString(TEXT("Tab")), TEXT("Close") },
 	};
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Prompts); ++Index)

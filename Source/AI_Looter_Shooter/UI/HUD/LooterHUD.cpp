@@ -5,6 +5,7 @@
 #include "Bestiary/Ledger.h"
 #include "UI/Bench/BenchWidget.h"
 #include "UI/Bestiary/BestiaryWidget.h"
+#include "UI/Embers/EmbersWidget.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Inventory/LoadoutWidget.h"
 #include "UI/Inventory/MapWidget.h"
@@ -83,6 +84,7 @@ void ALooterHUD::BeginPlay()
 		ControlHintWidget->AddToViewport(UHudControlHintWidget::ViewportZOrder);
 	}
 	InventoryWidget = CreateWidget<ULoadoutWidget>(PC, ULoadoutWidget::StaticClass());
+	EmbersWidget = CreateWidget<UEmbersWidget>(PC, UEmbersWidget::StaticClass());
 	BestiaryWidget = CreateWidget<UBestiaryWidget>(PC, UBestiaryWidget::StaticClass());
 	MissionsWidget = CreateWidget<UMissionsWidget>(PC, UMissionsWidget::StaticClass());
 	MapWidget = CreateWidget<UMapWidget>(PC, UMapWidget::StaticClass());
@@ -291,6 +293,9 @@ bool ALooterHUD::OpenInventoryPage()
 	Manager->StopFire();
 	switch (InventoryPage)
 	{
+	case EInventoryPage::Embers:
+		EmbersWidget->Open(this);
+		break;
 	case EInventoryPage::Bestiary:
 		BestiaryWidget->Open(this);
 		break;
@@ -323,6 +328,7 @@ UUserWidget* ALooterHUD::GetInventoryPageWidget() const
 {
 	switch (InventoryPage)
 	{
+	case EInventoryPage::Embers:   return EmbersWidget.Get();
 	case EInventoryPage::Bestiary: return BestiaryWidget.Get();
 	case EInventoryPage::Missions: return MissionsWidget.Get();
 	case EInventoryPage::Map:      return MapWidget.Get();
