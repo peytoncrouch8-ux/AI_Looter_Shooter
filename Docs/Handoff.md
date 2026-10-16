@@ -94,7 +94,9 @@ the cape's weights and chains (9, hung from the shoulder joint, `cape_arm_<side>
 (`ellis_cape_audit.py`), with BodySwing's follow shares, idle-arm rests, rising chains and cape bulk 6 to match
 (Pipeline, "Swing"). 142 bones, 33.2k triangles. Checked in PIE from 20 head/body angles plus carry, aim (5 angles) and
 sprint: no see-through, the hat on the head, hair reads as hair, no cape in the sleeves. The hair glowed light brown
-backlit: MI_EllisHair Tint 0.55 (also in Ellis.py's EllisHair slot so a re-import keeps it). Shots sent.
+backlit: MI_EllisHair Tint 0.55 (also in Ellis.py's EllisHair slot so a re-import keeps it). Shots sent. Tests
+698/698; perf at the RR spawn 7.6 ms on Medium (as round 2; game thread 3.7 -> 3.9 ms for the bones and chains, GPU
+unchanged). Committed 0ad1801. Cleanup later: `Saved/Concepts/EllisRound6/cape/wip` (1.7 GB of the agent's trials).
 Main imports, checks in PIE, commits. Then Gravemother. Found on the way (HAT): the game skin was a "crystal":
 `make_lows` spared everything within 3 cm of the eyes, so the skull's back and top collapsed into ~12 triangles (the
 holes); now decimated by region. Leftover for later: BandanaKnot sits inside the neck (mid-neck, not at its back) with

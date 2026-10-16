@@ -60,3 +60,4 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-14 | RR after the mountain expansion and the play-through fixes, spawn | 75708bb | 1920x1080 | 7.7 | 130 | 8.2 | 3.4 | 7.7 | 1.6 | 6.4 | 1375 | 1714813 | 2.55 |
 | 2026-10-15 | Ellis as the player's body (retarget live), RR spawn | ffb56c2 | 1920x1080 | 7.5 | 134 | 7.9 | 3.6 | 7.4 | 1.6 | 6.2 | 1408 | 1672126 | 2.70 |
 | 2026-10-15 | Ellis round 2: swing springs, 96 bones, hat tip, RR spawn | 53d5f22 | 1920x1080 | 7.6 | 131 | 8.1 | 3.7 | 7.6 | 1.6 | 6.4 | 1407 | 1670356 | 2.85 |
+| 2026-10-15 | Ellis round 6: hat seated, hair cards, cape chains, 142 bones, RR spawn | 0ad1801 | 1920x1080 | 7.6 | 131 | 8.2 | 3.9 | 7.6 | 1.6 | 6.4 | 1406 | 1671510 | 2.95 |
