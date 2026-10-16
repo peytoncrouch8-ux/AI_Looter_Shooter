@@ -6,6 +6,12 @@ On Teropa, in the frontier country called the Reaches, the Dunne Gang shot Ellis
 
 The campaign's single canon (`CLAUDE.md` points here), from `Docs/Story/2-Revenant.md` on the stories branch, revised by the user's decisions (*Decisions*). Other docs: the first area `Docs/Areas/RansomsRest.md` (*Ransom's Rest: the first area*); its 2026-10-13 expansion, with every mission's givers, steps and lines, `Docs/Areas/RansomsRest_Expansion.md`; experience and pacing `Docs/Progression.md`. History and superseded text: `Docs/Archive/Story_history.md`.
 
+**The saga (2026-10-15).** The user asked for a long-running Borderlands-like story across many areas ("Why is Ellis
+here? Where does the story go? What's the goal? Who's the final boss? What is the world lore?") and chose: deepen and
+scale Revenant (keep its bones), 15–18 regions, and seed the arc into Ransom's Rest. The readable bible for the user:
+https://claude.ai/artifact/Gr66uUTXWzetBTaHvE9j9Z. Everything it adds is folded in below and marked *(saga)*; the user's
+open calls on it are Decisions 15. Nothing saga goes into the game before those calls.
+
 - **Genre and tone:** Weird West revenge. Dark and mythic, with dry humor (mostly from a crow).
 - **Feels like:** Red Dead's *Undead Nightmare*, Hunt: Showdown, *The Dark Tower*, *Kill Bill*, *The Ballad of Buster Scruggs*.
 - **Themes:** debts and who really owes what; mentors and betrayal; fathers; letting the dead go.
@@ -45,16 +51,17 @@ Staged cheaply on purpose: a camera moved by code, captions, sound and one muzzl
 - **Ransom's Rest** (new): a high valley of late-summer farmland on the Rim. Ridges close it on the north, east and south: Larkspur Ridge, the East Ridge and the Hogback. On the west it ends at a 70 m drop into Gravewind Canyon; past the canyon the empty plains run on to the sunset, so from the valley you can watch the sun go all the way down. The ground is broken: cliff bands at the ridges' feet, rock outcrops and a lone butte in the fields, a dry wash running to the Rim, and the ring of cliffs where the Sink fell in. The place and its town share the name; locals call it “the Rest”.
 - In the Reaches the dead are **given to the wind**. Farm families bury their dead for seven days to say goodbye, with their guns beside them (“buried with their irons”). Then the keeper lays them on a **burial board** on high ground facing west and sits the night beside them by lantern light. At dusk the **Gravewind**, a cold wind that blows only then, runs down off the high ground, lifts their souls and carries them west into the sunset, down **the Sundown Road** (new), toward **the Far Shore**. At dawn the keeper carries the body home to its grave for good, under its headboard. On Ransom's Rest the burial boards stand on Gravewind Point, a promontory of the Rim, where the wind pours off the Rim and out over the canyon at dusk.
 - **The Far Shore is on no map** (new). The Sundown Road leaves the world where the sun goes down and ends at a grey pier on a sea of fog, and the shore lies across the fog. The crossing is long: a soul follows its saint's light for years before it gets there.
-- Every town has a **saint**: its first settler, laid in a granite **Reliquary** banded in gold. The saint's soul stays behind as an **ember** of orange light floating over the lid. The saints are lighthouses: their light shines down the Sundown Road and lays a way across the fog, and a town's dead steer by it all the way to the Far Shore. Nobody touches a Reliquary, ever.
-- **The old fare** (new). Before there were saints, the dead crossed the fog by ferry and paid the ferryman, and families laid a gold coin on each eye of their dead for the fare. When the first settlers became saints and lit the way, the dead stopped needing a ferry, and the custom died out. The old coins still turn up in old graves, and folks call them **grave gold**. The pier at the end of the road is still called **the Toll Gate**.
+- Every town has a **saint**: its first settler, laid in a granite **Reliquary** banded in gold. The saint's soul stays behind as an **ember** of orange light floating over the lid. The saints are lighthouses: their light shines down the Sundown Road and lays a way across the fog, and a town's dead steer by it all the way to the Far Shore. Nobody touches a Reliquary, ever. *(saga)* A saint is a soul that refused to cross: Saint Ada lay down on the first burial board, asked the wind to take her and stayed at the edge of the world so her people would never pay the fare. Every saint is a sacrifice standing watch, and no saint reaches the Far Shore. The towns have forgotten this; Father Aldana tells it (*Seeds in Ransom's Rest*).
+- **The old fare** (new). Before there were saints, the dead crossed the fog by ferry and paid the ferryman, and families laid a gold coin on each eye of their dead for the fare. When the first settlers became saints and lit the way, the dead stopped needing a ferry, and the custom died out. The old coins still turn up in old graves, and folks call them **grave gold**. The pier at the end of the road is still called **the Toll Gate**. *(saga)* The poor who couldn't pay waited on the pier: the first Unpaid. When the saints lit the way the ferry rotted at its mooring and the Ferryman starved. A polite buyer pays well for grave gold today (Skyreach's salvagers sell it).
 - **Keepers** (new). Every saint has a keeper family. They tend the Reliquary, walk the dead to the burial boards by lantern light and sit up with them until dawn. A keeper's lantern is lit from the saint, and its flame leans toward a saint's light wherever that light is carried. On Ransom's Rest the keepers are the Ransoms. A keeper doesn't lie still while his saint is dark.
 - **The Unpaid.** When a saint goes dark, every soul of its town still on the Sundown Road loses the light and drifts home to its own grave. Those are the Unpaid: cold, hungry and angry, and the living near them sicken and go strange. Ransom's Rest went dark seven days ago, and years of its dead have come home.
-- **Dead hands.** No living gun can kill a Hollow, but any gun in a dead hand hurts the dead. The Unpaid know it, and they come for Ellis on sight.
+- **Dead hands.** No living gun can kill a Hollow, but any gun in a dead hand hurts the dead. The Unpaid know it, and they come for Ellis on sight. *(saga)* Prying an ember out of a Hollow takes a dead hand that carries a saint's light: Ellis's, and only Ellis's (*Protagonist*, the spark). Sexton's earlier Revenants (Hob) collected ordinary fares.
 - **The Dunne Gang.** Six months ago the gang, eight outlaws led by a defrocked preacher, was hired by a stranger who paid in grave gold. The job was to rob seven Reliquaries in seven towns across the Reaches and take the embers. In every town they shot the keeper first and smashed his lantern, because a keeper's lantern can find an ember. Seven of the gang ended up carrying one apiece. Ellis never would: something about the embers felt wrong. Each ember changed its carrier. Six of them became **the Hollow**, a saint's power soured inside a living sinner. The Deacon fought his ember, and it's killing him instead. No living hand can kill a Hollow. It takes someone already dead.
 - **The seventh job** was Ransom's Rest, Ellis's home. Ellis guided the gang in by the route in *Cold open*, 1. Ellis balked at the end. Abel came running, Ned shot him, and the Deacon shot Ellis.
 - **What a lantern can't find** (new). A lantern leans toward the nearest saint's light burning in the world. Two things hide an ember from it. An ember paid to Sexton goes into his ledger, past any lantern's reach. And a Hollow who fights his ember holds its light down; only the Deacon fights his.
 - **Getting around** (new; the one place for travel). The railroad carries people, freight and Ellis between the regions of the Reaches (the game's areas). Every region has a station: a depot with a platform; its station board is in *Campaign gating*. Undertakers keep black hearse cars for coffins, hitched behind the passenger car. Some are bound for **Gravesend**, the great necropolis on the Rim's highest cliffs, where the Gravewind blows hardest and where towns with no keeper send their dead. Ellis rides in the hearse car, Tilly's late father's funeral car: the living won't share a car with a corpse. On Ransom's Rest the line comes in through Stage Gap, a rail cut through a saddle in the East Ridge, from the wooded valley beyond, and the depot stands at the east end of town by the undertaker's yard. The train arrives and departs in a short shot, then a fade (step 9). Skiffs, small gas-bag airships, are rare: the Dunne Gang's is an outlaw's airship, bought with Sexton's grave gold, and it comes in where no depot sees it. A skylift from the *Lily*'s north side climbs to Skyreach.
-- **Skyreach, the sky island.** North of the *Lily*'s country one island floats over the hills, and a skylift climbs to it. Nobody on Teropa knows why it floats. (Its story comes with area 3's design: *Skyreach, area 3*.)
+- **Skyreach, the sky island.** North of the *Lily*'s country one island floats over the hills, and a skylift climbs to it. Nobody on Teropa knows why it floats; the player learns in Act I *(saga)*: the Gravewind is born there. It pours up through **the Well**, a hole at the island's heart, and the island rides the updraft, drifting a little further west every year. Crossroads Town grew on it from **sky salvagers** who fish the wind for grave gold the dead let fall. At dusk, through the Well, the Sundown Road itself shows: a river of lanterns walking west, and the dark gaps where seven towns' lights should be (*Skyreach, area 3*).
+- **The Hanging Moon** *(saga)*. Once a season the moon hangs full at dusk and the Gravewind doesn't blow: no soul leaves, and the dead walk the orchards; the towns bar their doors. The endgame's Hanging Moon nights are this.
 
 ## Protagonist: Ellis Ransom
 
@@ -62,7 +69,31 @@ Ellis grew up on the Ransom farm on Ransom's Rest, in the family that kept Saint
 
 Now Ellis is a **Revenant**: cold to the touch, no heartbeat, wounds that close, and eyes that see souls. Ellis wants three things, in the order they admit them: revenge, rest, and to make right what they helped do to the dead of Ransom's Rest, starting with Pa. The arc runs from vengeance to atonement. The story's real question isn't whether Ellis can kill seven Hollow. It's whether Ellis can forgive the one who shot them, and themself.
 
+**The spark** *(saga; the secret until the end of Act II)*: the Deacon's gun carried Saint Ada's ember when it fired, and
+a spark of her lodged in the wound. That is why the lantern can't find Ada's ember (half her light walks around in Ellis;
+the Deacon holding his down is the other half), why Ellis alone can pull embers out of the Hollow, and why Sexton needs
+Ellis specifically. Sexton thinks he made Ellis; he didn't make the part that matters. Ellis is a keeper by blood who
+ran, and the saint came after them. Abel tells it at the boards after the new moon (*Plot*, 10). Seeded in the cold
+open: the ember in the Deacon's hand flares and dims as he fires.
+
 > *“I'm not here to kill you, Ned. You're already dead. I'm here to collect.”*
+
+## The heroes (the pick; saga, the user's calls 2026-10-15)
+
+- Before a new game the player picks one of five, Borderlands' way: **Ellis Ransom** the Revenant, **Odessa Lark** the
+  Cardsharp, **Hollis Crane** the Unpaid, **Gauge** the Iron Hand, **Wendell Pike** the Surveyor. Looks, stories and
+  three powers each: `Docs/Handoffs/CloudIslandConcepts_2026-10-05.md`, "Five heroes" and "Ember powers"; concept
+  models in `Art/Backlog/Characters`. Ellis's game model is SK_Ellis.
+- **One story for everyone** (the user: "You take Ellis's place"). The picked hero is the Revenant Sexton raised in the
+  Ransom plot; missions, areas and bosses are the same for all five. The family story is told in full only as Ellis.
+  For the other four the shared text goes hero-neutral: Pa is **the Keeper** (Abel Ransom), Delia the Keeper's mother,
+  the Deacon's "kid" is whoever you are, the headboard carries the hero's name, Ruth's "the Ransom kid drew" is "the
+  kid drew". Each hero's own death is told in one region's lines (Odessa the *Lily*, Pike Dustwater, Gauge Halfway
+  Junction, Crane the Mire). **Heroes not picked don't appear** (co-op is where they would meet, later).
+- **Writing rule:** every new shared line is written without "Pa", "Ellis" or "kid"; Ellis's lines are kept as that
+  hero's variants. The built Ransom's Rest text is Ellis's and stays; variants are added when the pick is built.
+- **Build order** (the user): after the Rest's seeds, before the *Lily*: the hero select screen, the four game models,
+  their powers, the line variants.
 
 ## Antagonist: Mister Sexton
 
@@ -73,6 +104,14 @@ He was on that railing the night Ellis died. Asked, he doesn't deny it: *“I at
 What he is: before there were saints, the dead crossed the sea of fog at the end of the Sundown Road on his ferry, and each paid the **ferryman** with a gold coin on each eye. When the saints' light laid a way across, nobody needed the ferry. He has been starving at the **Toll Gate**, the pier at the road's end, ever since. He hired the gang. Now he needs a Revenant to pry the embers back out of the Hollow so he can snuff them at the Toll Gate. With every saint dark, every soul in the Reaches would have to pay his toll again, and the ones who can't pay would serve him.
 
 > *“Everyone pays the ferryman, friend. I'm only asking for what's owed.”*
+
+**The second light** *(saga; Decisions 15, the user's call)*: what the first half lets the player believe is that he
+collects the embers to snuff them. What Act II reveals is that he snuffs nothing. At the Toll Gate he is building a
+lighthouse of his own with the stolen embers caged inside it as its lamp: a false light at the end of the world, brighter
+than any saint, so every soul in the Reaches steers to his pier. The ones who can pay cross; the ones who can't serve
+(the Chainman drives them up Hoarfrost Pass in chains). From the top of the Needles at dusk Lena's glass already shows
+two lights where there should be one; from Gravewind Point with Grave Sight, a second light low on the horizon (*Seeds*).
+"Sexton" is a trade name: a sexton digs graves.
 
 ### The Deacon, Ambrose Dunne
 
@@ -110,6 +149,14 @@ The gang's leader and Ellis's mentor, almost a father. He was a preacher thrown 
 | Josiah Fenn (new, 2026-10-13) | A dead peddler in his coffin in the depot's baggage room, bound for Gravesend (The Old Fare) | — |
 | Mrs. Pruitt (new, 2026-10-13) | The storekeeper of Pruitt's General Store, the late Sheriff Odell's sister; heard through the store's hatch | — |
 | Cyrus Teague, the Foreman (new, 2026-10-13) | The Providence silver mine's foreman, dead and digging at the fall; a Legendary monster (Back Pay) | Enemies |
+| Odessa Lark, the Cardsharp *(saga; from the cloud heroes)* | A riverboat gambler who caught Ned dealing seconds and caught his bullet for it; Sexton bought her marker. Her death is told on the *Gilded Lily* | Playable hero (*The heroes*): the Revenant when picked, absent otherwise |
+| Wendell Pike, the Surveyor *(saga)* | Walked every mile the railroad will ever run until the gang left him in a Dustwater ravine | Playable hero |
+| Gauge, the Iron Hand *(saga)* | The railroad's clockwork track-layer, woken in the mail-train wreck at Halfway Junction by a spark of ember sealed in its firebox | Playable hero |
+| Hollis Crane, the Unpaid *(saga)* | A marshal forty years dead, a ferryman's coin over one eye, a toll chain on his shoulder; Sexton promised him a fare. His town is Saint Agnes Mire's | Playable hero |
+| Marguerite Vane *(saga)* | Skyreach's salvage boss, living and going strange, who sells the Well's grave gold to a polite buyer. Skyreach's boss | Enemies (boss) |
+| Marshal Cole Bratton *(saga)* | The bounty king of Halfway Junction, paid in grave gold; his deputies are the first Mourners | Enemies (boss) |
+| The Chainman *(saga)* | A Mourner lord who herds the Unpaid who can't pay up Hoarfrost Pass on a toll chain. Hoarfrost's boss | Enemies (boss) |
+| Maren Oriel *(saga)* | The last keeper standing: old Saint Oriel's granddaughter in her watch-house on Hoarfrost Pass | Friend |
 
 ## Enemies and creatures
 
@@ -131,7 +178,8 @@ The gang's leader and Ellis's mentor, almost a father. He was a preacher thrown 
 
 The user's call (2026-10-13): Skyreach becomes the story's third area.
 - In the game it is `/Game/Maps/Lvl_TutorialIsland`, called Skyreach in its text, with Crossroads Town. It is not the old sky-islands map (`Lvl_Skyreach`), which stays only for reference. It stays the main menu's backdrop.
-- Teropa's one sky island, reached from the north side of the *Gilded Lily* by a skylift. Opens after a mission on the *Lily* (to design); its band, enemies and story wait for its design. Hob comes along.
+- Teropa's one sky island, reached from the north side of the *Gilded Lily* by a skylift. Opens after a mission on the *Lily* (“The Salvage Line”, to design). Hob comes along.
+- Its story *(saga)*: the Gravewind is born in the Well at its heart and the island rides the updraft (*The world*). Crossroads Town is a sky-salvagers' town fishing grave gold from the wind. Marguerite Vane, the salvage boss, has been selling it to a polite buyer; she is the boss, living and going strange, and Sexton's crows gather for the first time. At the Well, with the Keeper's Lantern, Ellis sees the Sundown Road: thousands of lights walking west and seven dark gaps. Band 12–16. Legendary: Downdraft (a shotgun whose blast lifts). Mission name: “What the Wind Carries”.
 - Gone: the tutorial (the controls are taught by hints in Mains 1–3), “Skip the tutorial”, the skiff exit and the cloud match cut, practice trips, 0 XP and ammo-only drops on return visits.
 - Until its rework: `DA_Area_Skyreach` is still marked practice (`UAreaDefinition::bPractice`: no kill XP, no guns after the first cast-off), no station board lists it, `Looter.Travel Skyreach` goes there for testing, and it keeps today's house set, its existing respawn and fall recovery (no roosts, no Hob).
 
@@ -238,48 +286,69 @@ Rarity of each dropped gun at each luck (Common / Uncommon / Rare / Epic / Legen
 | Area | Opens after | Enemy levels | What it is | Enemies | Boss |
 |---|---|---|---|---|---|
 | Ransom's Rest (home and hub) | A new game | 1–7 | Home: a high farm valley on the Rim, over Gravewind Canyon. The farm and family plot, the town and Main Street, the chapel, the Sink, the burial boards; up the ore lift, Larkspur Bench, Calder's Post and the Providence mine | The Unpaid, dead miners, spiders, slimes | Abel Ransom, the Keeper. Legendary monsters: the Gravemother (Side 3) and the Foreman (Back Pay) |
-| The *Gilded Lily* | “The Lantern Leans” (Abel lights the lantern; it leans toward Ned) | 9–15 (may start lower, nearer 7, when it's designed) | A paddle-wheel casino: card rooms, a ballroom, paddle wheels; as written an airship with gondolas over the canyon (airship or riverboat: decision 12) | Card sharps, bouncers, Sky Jumpers | Lucky Ned |
-| Skyreach | A mission on the *Lily* (to design), by its skylift | To set | Teropa's one sky island, with Crossroads Town (*Skyreach, area 3*) | To design | To design |
-| Dustwater Mesa | “The House Always Loses” (Ned's ember paid at the new moon; the lantern swings to Ira) | 14–20 | Wind-scoured mesas and rope bridges; the wind is part of every fight | Dust riders, Bone Hounds | Whistling Ira |
-| Saint Agnes Mire | “Back to Back” (Ruth's ambush and truce outside Dustwater; it ends with Ira's ember paid at the new moon) | 19–26 | Swamp country in the river delta: a mission church, cypress, fog and black water | The flock, the Unpaid, MossBacks | Sister Constance |
-| Furnace Hollow | “And They Shall Rise” (Constance's ember paid) | 25–32 | A smelter town: chimneys, slag rivers, ore carts | Furnace men, Ember Tarantulas | Barrels Kessler |
-| The Needles | “Slag” (Barrels's ember paid) | 31–37 | Stone spires joined by bridges, a sniper's dream | Spotters, Cliff Huntsmen | Lena Okoro |
+| The *Gilded Lily* | “The Lantern Leans” (Abel lights the lantern; it leans toward Ned) | 8–13 | A paddle-wheel casino airship tethered over the canyon's morning cloud at **Highwater Landing** *(saga)*, a rim boomtown where the line ends: card rooms, a ballroom, gondolas, rigging (an airship: the user's call, 2026-10-15, closing decision 12) | Card sharps, bouncers, Sky Jumpers | Lucky Ned (Odessa Lark's own death, played as her) |
+| Skyreach | “The Salvage Line” on the *Lily* (to design), by its skylift | 12–16 | Teropa's one sky island: Crossroads Town, the salvage rigs, the Well where the Gravewind is born (*Skyreach, area 3*) | Sky salvagers going strange, Sky Jumpers, the first Mourners | Marguerite Vane *(saga)* |
+| Dustwater Mesa | “The House Always Loses” (Ned's ember paid at the new moon; the lantern swings to Ira) | 15–20 | Wind-scoured mesas and rope bridges; the wind is part of every fight | Dust riders, Bone Hounds | Whistling Ira (Wendell Pike's ravine, played as him) |
+| Halfway Junction *(saga)* | “Back to Back” (Ruth's truce; it ends with Ira's ember paid) | 19–24 | The hub where every line of the Reaches meets: yards, a roundhouse, a hotel full of bounty hunters, the wreck of the mail train the gang derailed. Its board opens the whole network | Bounty hunters, the Mourners as deputies | Marshal Cole Bratton (legendary Due Process; Gauge's wreck, played as it) |
+| Saint Agnes Mire | “Dead or Alive” (Bratton down; the Junction's board) | 23–29 | Swamp country in the river delta: a mission church, cypress, fog and black water | The flock, the Unpaid, MossBacks | Sister Constance (Hollis Crane's dark town, played as him) |
+| Furnace Hollow | “And They Shall Rise” (Constance's ember paid) | 28–33 | A smelter town: chimneys, slag rivers, ore carts; the town's saint was a smith and her Reliquary is cast iron *(saga)* | Furnace men, Ember Tarantulas | Barrels Kessler |
+| The Needles | “Slag” (Barrels's ember paid) | 32–37 | Stone spires joined by bridges, a sniper's dream; from the top spire at dusk, two lights at the end of the world *(saga)* | Spotters, Cliff Huntsmen | Lena Okoro |
 | Stoneweight Quarry | “Feathers” (Hob's confession after Lena; it ends with Lena's ember paid) | 36–42 | A terraced quarry, cranes, stone blocks hanging over the drop | Quarry crew, bounty hunters | Tobias Grant |
 | Ransom's Rest at the new moon | “The Sixth Ember” (Tobias's ember in Ellis's hand) | 41–42 | The hub at night, grey and cold | The Mourners | None: Sexton's betrayal |
-| Gravesend | “The New Moon” (the lantern finds Saint Ada for the first time) | 42–47 | The great necropolis on the Rim's highest cliffs, where the Gravewind blows hardest and towns with no keeper send their dead in hearse cars on the train: mausoleums, burial boards, bone gardens | The Unpaid, the Mourners | The Hollow Deacon |
-| The Toll Gate | “The Kid Who Came Home” (Saint Ada's ember in Ellis's hand). Reached by stepping off Gravewind Point at dusk and riding the Gravewind west, not by train | 47–50 | The end of the Sundown Road, where it leaves the world: a grey pier on a sea of fog under a sun that never quite sets, with the dead waiting in line. It is on no map of Teropa | Everything Sexton owns | Mister Sexton |
-| Endgame | Finishing the campaign | 50–65 (every band follows the player; open, see *What levels still mean*) | The Ledger's bounties, the Gravesend Deeps, Hanging Moon nights on Ransom's Rest | Everything | Named Hollow bounties with rolled traits |
+| Hoarfrost Pass *(saga)* | “The New Moon” (the lantern finds Saint Ada for the first time) | 42–45 | The climb to Gravesend over the Rim's snowline, where the Gravewind is a blizzard: frozen dead who never reached the road, ice-bound hearses, Maren Oriel's watch-house | The frozen Unpaid, the Mourners, the Chainman's columns | The Chainman (legendary Hobble) |
+| Gravesend | “The Chain” (the Chainman down) | 45–48 | The great necropolis on the Rim's highest cliffs, where the Gravewind blows hardest and towns with no keeper send their dead in hearse cars on the train: mausoleums, burial boards, bone gardens | The Unpaid, the Mourners | The Hollow Deacon |
+| The Sundown Road *(saga)* | “The Kid Who Came Home” (Saint Ada's ember in Ellis's hand). Off Gravewind Point at dusk, riding the Gravewind west, not by train | 48–50 | The road itself: a river of lanterns walking west, the Bone Hounds' crossing, the Chainman's columns, the fog sea's edge, the false lighthouse growing until it fills the sky. Ellis carries the only true light | The Mourner swarms, Bone Hounds | No boss (legendary Lamplighter from the swarms) |
+| The Toll Gate | The road's end | 50 | Where the road leaves the world: a grey pier on a sea of fog under a sun that never quite sets, the ferry rotting at its mooring, the dead in line, the Ferryman's lighthouse with six embers caged in its lamp. On no map of Teropa | Everything Sexton owns | Mister Sexton: six phases, an ember freed in each, the false light failing; then the man himself |
+| Endgame | Finishing the campaign | 50–65 (every band follows the player; open, see *What levels still mean*) | The Ledger's bounties, the Gravesend Deeps, the wreck of the *Gilded Lily*, Hanging Moon nights on Ransom's Rest, the Midnight Stage | Everything | Named Hollow bounties with rolled traits |
 
 ## Plot
 
 ### Act I: Dust to Dust
 
 1. **Ransom's Rest.** The cold open, the grave, Sexton's deal on Ransom's Point about fifteen minutes in, the town, the dark chapel, the lantern in the Sink, and Pa at the burial boards (*Ransom's Rest, the first area*). Abel lights the Keeper's Lantern from the ghost light he carries, and its flame leans north-east, over the ridges, toward Ned.
-2. **The *Gilded Lily*.** Ned Purcell, the man who shot Abel, runs a floating casino where the house always wins. The house loses. His ember goes to Sexton at the new moon on Ransom's Point, and Ellis feels the sun on their skin for the first time since dying. The flame swings toward Dustwater, and never once toward Sexton. Ellis: *“Where'd Ned's go?”* Hob: *“Paid's paid, sunshine.”*
-3. **Dustwater Mesa.** Ira Gale, inside his storm. Dying, he coughs: *“He paid us in grave gold, Ellis. The old kind they used to lay on dead men's eyes.”*
+2. **The *Gilded Lily*.** Ned Purcell, the man who shot Abel, runs a floating casino where the house always wins. The house loses. His ember goes to Sexton at the new moon on Ransom's Point, and Ellis feels the sun on their skin for the first time since dying. The flame swings toward Dustwater, and never once toward Sexton. Ellis: *“Where'd Ned's go?”* Hob: *“Paid's paid, sunshine.”* *(saga)* Played as Odessa Lark, this is where your own death at Ned's table is told.
+2a. **Skyreach** *(saga)*. By skylift from the *Lily*'s north side, between Ned and the new moon. The salvagers' Well, where the wind is born; Marguerite Vane selling grave gold to a polite buyer; the first Mourners. At the Well the Keeper's Lantern shows the Sundown Road: thousands of lights walking west, seven dark gaps. The embers are the way home for everyone.
+3. **Dustwater Mesa.** Ira Gale, inside his storm. Dying, he coughs: *“He paid us in grave gold, Ellis. The old kind they used to lay on dead men's eyes.”* *(saga)* Played as Wendell Pike, the ravine the gang left you in is here.
 4. Ranger Ruth Calder ambushes Ellis outside Dustwater: dead or not, Ellis rode with the Dunne Gang. Then the Unpaid pour out of the dust and the two of them fight back to back. It's an uneasy truce. At the new moon Ruth watches from the bluff path while Ellis pays Ira's ember, and the flame swings toward the Mire.
 
 ### Act II: The Unpaid
 
-5. **Saint Agnes Mire.** Sister Constance raises the dead because she thinks she's helping them, since they can't cross. Before the end she tells Ellis: *“The saints don't hold souls back, child. They light the way. Put them out and the dead can't find the shore. And somebody's waiting at the gate to sell them directions.”*
+4a. **Halfway Junction** *(saga)*. The price on the walking corpse: Marshal Cole Bratton's bounty hunters hold the rail hub, and his deputies are men in black who are crows. Played as Gauge, the wreck of the mail train the gang derailed is where you woke. Bratton down, the Junction's board opens the whole network.
+5. **Saint Agnes Mire.** Sister Constance raises the dead because she thinks she's helping them, since they can't cross. Before the end she tells Ellis: *“The saints don't hold souls back, child. They light the way. Put them out and the dead can't find the shore. And somebody's waiting at the gate to sell them directions.”* *(saga)* Played as Hollis Crane, the drowned mission is your own town, forty years dark, and the coin over your eye is the old fare.
 6. **Furnace Hollow.** Barrels Kessler, burning from the inside out. His foundry is full of the Unpaid of the town he robbed.
-7. **The Needles.** Lena Okoro describes the man who hired them: tall, polite, a stovepipe hat. Abel's line at the boards (*“a tall fella on the rail who never lifted a finger”*) and Sexton's own (*“I attend every death”*) click into place.
+7. **The Needles.** Lena Okoro describes the man who hired them: tall, polite, a stovepipe hat. Abel's line at the boards (*“a tall fella on the rail who never lifted a finger”*) and Sexton's own (*“I attend every death”*) click into place. *(saga)* From the top spire at dusk her glass shows two lights at the end of the world.
 8. Hob confesses. He was a Revenant once, eighty years ago. He paid his debt in full, and Sexton made him a crow. *“Every Revenant he makes ends up with feathers, sunshine. Ask me how I know.”* Lena's ember is paid anyway; Ellis isn't ready to break the deal yet. The flame swings toward the Quarry.
 9. **Stoneweight Quarry.** Tobias Grant doesn't want to fight. He offers his ember if Ellis lets his crew walk. Ellis can accept, but Sexton's Mourners arrive and force the fight anyway.
-10. **The new moon.** Ellis comes to Ransom's Point with the sixth ember and refuses to hand it over. Sexton stops being polite. He takes it, and Ellis dies again. They wake in the family plot beside Pa's frosted grave, greyer and colder than before, with Ransom's Rest gone dark. Sexton now holds six saints. He needs one more: Saint Ada's, in the Deacon's pocket. The Deacon is losing his fight with it, and for the first time the lantern leans toward Gravesend.
+10. **The new moon.** Ellis comes to Ransom's Point with the sixth ember and refuses to hand it over. Sexton stops being polite. He takes it, and Ellis dies again. They wake in the family plot beside Pa's frosted grave, greyer and colder than before, with Ransom's Rest gone dark. Sexton now holds six saints. He needs one more: Saint Ada's, in the Deacon's pocket. The Deacon is losing his fight with it, and for the first time the lantern leans toward Gravesend. *(saga)* Two truths land here. Hob: Sexton snuffs nothing; he is building a lighthouse at the Toll Gate with the embers as its lamp (*Antagonist*, the second light). Abel, at the boards: why Ellis came back when the others didn't last, the spark of Ada in the wound (*Protagonist*). Ellis is a keeper, and the saint came after them.
 
 ### Act III: The Gravewind
 
 11. Ellis, Ruth, Tilly and Hob make a plan: reach the Deacon before Sexton does, keep Saint Ada's ember, and take the other six back at the Toll Gate.
+11a. **Hoarfrost Pass** *(saga)*. The climb to Gravesend through the Gravewind as a blizzard: the frozen dead, ice-bound hearses, Maren Oriel's watch-house (the last keeper standing). The Chainman herds the Unpaid who can't pay up the pass on a toll chain, to Sexton's gate; played as Crane, the chain on your shoulder is one of these.
 12. **Gravesend.** The necropolis, crawling with the Unpaid. The Deacon is dying in a mausoleum, holding Saint Ada's ember to his chest. Ellis and the Deacon finally talk. There are no excuses and no secret reasons, just a coward's confession and a kid who came home, which echoes Ellis's headboard: *“Came home at the last.”* The Mourners attack, and for one fight the Deacon stands beside Ellis again.
 13. **The Hollow Deacon.** He dies, and Sexton climbs into his body. Ellis has to fight their mentor's corpse while his own voice keeps apologizing. When it's over, Saint Ada's ember is in Ellis's hand.
-14. **The Toll Gate.** At dusk Ellis walks out past Pa's board on Gravewind Point. Abel says *“Go on, El. I held the door this long.”* Ellis steps off into the canyon and rides the Gravewind west, down the Sundown Road to where it leaves the world. There is a pier of grey wood on a sea of fog, a lantern, and every unpaid soul in the Reaches standing in line. Sexton at the gate is a towering ferryman made of black cloth and crows, with a long rifle called Toll. Hob flies at his face.
+13a. **The Sundown Road** *(saga)*. At dusk Ellis walks out past Pa's board on Gravewind Point. Abel says *“Go on, El. I held the door this long.”* Ellis steps off into the canyon and rides the Gravewind west, then walks the road itself: a river of lanterns, the Bone Hounds' crossing, the Chainman's columns, the fog sea's edge, and the false lighthouse growing on the horizon until it fills the sky. Ellis carries the only true light.
+14. **The Toll Gate.** Where the road leaves the world: a pier of grey wood on a sea of fog, the ferry rotting at its mooring, a lighthouse with six embers caged in its lamp, and every unpaid soul in the Reaches standing in line. Sexton at the gate is a towering ferryman made of black cloth and crows, with a long rifle called Toll. *(saga)* Six phases, an ember freed in each as the false light fails; then the man himself. Hob flies at his face.
 
 ### Ending
 
 The six embers spill free of Sexton's ledger, and Ellis carries them and Saint Ada's home: seven saints relit, and seven towns whose dead can finally cross. The Gravewind blows, and thousands of souls walk past Ellis onto the light laid across the fog, toward the Far Shore. The Deacon is among them, and he tips his hat. Abel walks past last and just nods. Ellis's debt is paid. They could go too.
 
-They don't. Sexton's ledger, now in Ellis's hand, is full of souls who slipped away while the saints were dark. *“Not yet.”* Hob settles on their shoulder. Grandma Delia sets a plate.
+They don't. Sexton's ledger, now in Ellis's hand, is full of souls who slipped away while the saints were dark. *“Not yet.”* Hob settles on their shoulder. Grandma Delia sets a plate. *(saga)* The epilogue is one shot: the Keeper's Lantern hangs lit on the farm's porch, its flame leaning toward the chapel where Ada burns again, and this time Delia opens the door.
+
+## Seeds in Ransom's Rest (saga, 2026-10-15; the user: plan them)
+
+Small things to plant in the built area so the arc is in view from hour one; none changes a built mission. To build
+once the user's calls (Decisions 15) are in.
+- **The Ledger's loose pages** (collectible): six pages in Sexton's hand (the sheriff's lockup, the depot's baggage room, the vestry, Calder's Post, the mine's tag board, the gang's mooring cleft), each opening a lore page on one of the seven towns. The page for Ransom's Rest is dated a month before the robbery.
+- **The Deacon's letters** (collectible): the strongbox slip exists; add a letter never sent in the mooring cleft (*“Kid. The man who pays us isn't a man.”*) and one in the saloon's post rack, addressed to the Rest, never opened.
+- **The map of the Reaches** (prop + lines): a wall map in the depot's ticket office (the lines, Halfway Junction at their heart, the seven towns); Mr. Sloane names the Junction and Highwater Landing when the line opens.
+- **The Seven, on the wall** (prop): a wanted poster with seven faces on the Rangers' board, Ruth's signature under it; a face crossed out as each ember is paid.
+- **The road at dusk** (look + Grave Sight): after The Gravewind, on Gravewind Point at dusk with Grave Sight: a river of small lights walking west across the canyon, and far off a second light, low and steady. Hob: *“Don't look at that one, sunshine.”*
+- **What Ada gave up** (one talk): Father Aldana after Hallowed Ground, the first keeper's story; the smashed Reliquary's lid, turned over, shows the old toll mark scratched out underneath.
+- **Hob's feathers** (lines): three idle lines that only make sense later: *“Eighty years I've been collecting for him. You'd think he'd pay a man.”* *“Careful what you shake on. His deals have a long tail.”* *“I had hands once. Don't ask.”*
+- **The spark** (look): in the cold open's second shot the ember in the Deacon's hand flares and dims as he fires.
+- **Fenn's fare** (built): The Old Fare already shows grave gold on a dead man's eyes and Ned's marker; keep it exactly as it is.
 
 ## Side quests (samples)
 
@@ -341,6 +410,10 @@ Ransom's Rest's built side missions (Wanted: Already Dead, Calder's Caches, The 
 - Constance's flock rising out of the black water.
 - Fighting the Deacon's body while his voice apologizes.
 - The pier at the end of the Sundown Road, and the dead walking past you to the Far Shore.
+- *(saga)* The Well on Skyreach, and the road seen through it with seven dark gaps.
+- *(saga)* Two lights at the end of the world, through Lena's glass.
+- *(saga)* Walking the Sundown Road in a river of lanterns, the false lighthouse filling the sky.
+- *(saga)* Delia opening the door.
 
 ## Production notes
 
@@ -389,6 +462,18 @@ The six questions the step 2 changes raised (2026-10-01): four approved as propo
 The expansion (2026-10-13; `Docs/Areas/RansomsRest_Expansion.md`, sections 1 and 13, and memory `rr-expansion`):
 
 14. **The map order** (at the top; the *Lily* lies behind the north mountain, and the mountain is optional, not the way to it). **The opening** (*Cold open*, *Skyreach, area 3*). **Givers** for every mission but Main 1, turned in, ? and ! (*The game's systems*, Mission markers). **Hob's roosts** as the save points, replacing the save graves (*The game's systems*, Death and respawn). **The mountain** (*Ransom's Rest, the first area*): the Old Quarry's ore lift opens after Main 5; Back Pay ends in a choice; Thaddeus is in Tilly's cellar; Ruth saw it all; Hiram in person (*Cast*). **Houses:** Ransom's Rest's own house kit, no model used more than twice; Skyreach keeps today's set until its rework. **XP:** the story alone ends about level 5.5, a full clear about 6.8; the Borderlands-like curve with the top level 65 (*What levels still mean*).
+
+The saga (2026-10-15; the readable bible: https://claude.ai/artifact/Gr66uUTXWzetBTaHvE9j9Z):
+
+15. **The user's direction** (tap answers): **deepen and scale Revenant**, keeping its bones; **15–18 regions**; **plan the
+    seeds** in Ransom's Rest. Built from it: the saints as souls who refused to cross; the spark; the second light; the
+    Well; Halfway Junction, Hoarfrost Pass and the Sundown Road as regions; the cloud heroes as companions; the seeds
+    list. **The user's calls (2026-10-15):** (a) the *Lily* is **an airship** over the canyon at Highwater Landing
+    (decision 12 closed); (b) the five heroes are **playable characters chosen before the story starts, like
+    Borderlands 2** (the user's own words; not "companions playable later"); (c) **the false lighthouse** as written;
+    (d) **keep all three new regions**; (e) a non-Ellis pick **takes Ellis's place**: one story for everyone, Pa
+    becomes the Keeper, the Deacon's "kid" is whoever you are, Ellis exists only when picked, heroes not picked don't
+    appear (*The heroes*); (f) the hero pick is built **after the Rest's seeds, before the *Lily***.
 
 ## Build steps
 

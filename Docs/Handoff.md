@@ -5,6 +5,19 @@ Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.
 
 ## Now (session "Small leftovers", 2026-10-15, local)
 
+**The saga (the user, 2026-10-15 night: a long-running Borderlands-like story; "Why is Ellis here? Where does the story
+go? What's the goal? Who's the final boss? What is the world lore?"):** the campaign already existed (Revenant); the user
+chose to deepen and scale it (15–18 regions) and seed it into Ransom's Rest. Written: the bible page for the user
+(https://claude.ai/artifact/Gr66uUTXWzetBTaHvE9j9Z) and the same canon in `Docs/Story.md`, marked *(saga)*: the
+saints as souls who refused to cross, the spark of Ada in Ellis, Sexton's false lighthouse (the Act II turn), the Well on
+Skyreach, three new regions (Halfway Junction, Hoarfrost Pass, the Sundown Road), the cloud heroes as companions, and
+the list of seeds to build in Ransom's Rest (Story.md, "Seeds in Ransom's Rest"). The user's calls (Decisions 15):
+the *Lily* an airship, the false lighthouse, all three new regions, and **five playable heroes picked before the story
+starts, like BL2**; a non-Ellis pick **takes Ellis's place** (one story for everyone; heroes not picked don't appear;
+Story.md "The heroes"); the pick is built **after the Rest's seeds, before the *Lily***. All calls in. **Next, in
+order:** the seeds in Ransom's Rest (Story.md "Seeds in Ransom's Rest": collectibles, lines, props, a Grave Sight
+look), the hero pick (select screen, four game models, powers, line variants), then the *Lily* as an airship.
+
 Done this session (the user picked "small leftovers" first): `WeaponManagerComponent.h` split (its events and small
 types in `Inventory/WeaponManagerTypes.h`, 491 lines); the editor-exit ensure on Hiram's figure fixed in all six
 poseable-mesh constructors (Pipeline, Bugs); the shotgun reworked with the user watching: held 20 cm nearer, the left hand
