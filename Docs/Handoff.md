@@ -22,9 +22,21 @@ Rest"), then the *Lily* as an airship.
 **Overnight run (2026-10-15 night; the user: "Start building. I am going to bed... don't ask anymore until I prompt
 again"):** the user's last calls: power key **Q** (rebindable), the HUD socket **beside the weapon column,
 bottom-right**, the swap UI **its own inventory page as the second tab** (the Ledger third), and after the powers
-**plant the seeds in Ransom's Rest** (looks that need approval are left as look sheets). The powers session is running
-unattended and records its decisions in this file under "Decided unattended"; Main starts the seeds session when it
-ends, also unattended. No questions to the user until they prompt.
+**plant the seeds in Ransom's Rest** (looks that need approval are left as look sheets). The app refused to start a separate
+session on that turn, so Main builds the powers here, with agents, unattended, recording decisions in this file under
+"Decided unattended"; the seeds follow the same way. No questions to the user until they prompt.
+
+### Decided unattended (2026-10-15 night), for the user's review
+Main's calls (the agents add theirs below):
+- The gamepad's ember key is the left shoulder (the grenade took the right bumper; the key-binding code kept the left
+  "for the ember powers to come").
+- The HUD socket stands in the Arms row to the LEFT of the weapon slots (bottom-right corner, beside the column).
+- The session saves the equipped power's id and its cooldown left; a running power isn't saved (a load finds it ended).
+- A new game equips the hero's first power (Dust Devil); the hero defaults to DA_Hero_Ellis when the Blueprint sets none.
+- Powers deal damage through UEmberDamageType; a power's kill gives XP and notches no gun.
+- Sundown: the world at 0.25 speed for 6 s, the player compensated to 1.0 (their bullets too); Borrowed Time: the debt
+  paid back over 3 s after it ends, each kill strikes a quarter off; Dust Devil: untouchable for its 0.3 s.
+- The powers page is the inventory's second tab, "Embers"; the Ledger moves to third.
 
 Done this session (the user picked "small leftovers" first): `WeaponManagerComponent.h` split (its events and small
 types in `Inventory/WeaponManagerTypes.h`, 491 lines); the editor-exit ensure on Hiram's figure fixed in all six

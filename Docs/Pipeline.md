@@ -888,6 +888,14 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
   it); the cape's `Bulk` 6 cm (its chains keep their room from the forearms and hands: a gun's hands in front of the
   chest came through the front panels). Audit (ellis_cape_audit, 16 poses): the cape cut by the sleeves out from
   under the collar 410 face pairs -> 27, by the gauntlets 12 -> 0.
+## Ember powers
+
+The heroes' active powers (Docs/Story.md, "The heroes"; the user's calls 2026-10-15: three owned from the start, one
+equipped, Q, the HUD socket by the weapon column, the powers page as the inventory's second tab). The contract the first
+round was built to: the shared headers in `Source/AI_Looter_Shooter/Embers/` (EmberTypes, EmberDefinition, HeroDefinition,
+EmberPower, EmberComponent); ids, colours, cues and file ownership in the round's `Saved/Embers/CONTRACT.md` (not
+committed; its content is in this section once the round lands). The agents' notes follow.
+
 - The forearms (the user, 2026-10-15: "His wrists are either invisible or don't match the gloves"): the retarget rolls
   his hand about the forearm (left about 100 degrees onto a foregrip or the revolver, right about 32; the bend only
   10-20) and nothing rolled the forearm, so the gauntlet stayed put while the glove turned and the wrist tore open (no
