@@ -37,6 +37,14 @@ struct AI_LOOTER_SHOOTER_API FSpeakerTopic
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Topic")
 	FName Event;
+
+	/**
+	 * A story flag set when this topic is said in a talk (after Event): with the flag in its When's WithoutFlags, a talk said
+	 * once in a story (Aldana's Ada.Told). Not set when a turn-in's or an offer's words were said instead, nor by mutters.
+	 * None: none. Python: the topic dict's sets_flag.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Topic")
+	FName SetsFlag;
 };
 
 /**

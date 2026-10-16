@@ -10,6 +10,7 @@ class UBoxComponent;
 class UDecalComponent;
 class UMaterialInstanceDynamic;
 class UMaterialInterface;
+class UMissionRunner;
 class UStaticMesh;
 class UStaticMeshComponent;
 
@@ -21,6 +22,11 @@ enum class EWantedPosterVariant : uint8
 	Wanted,
 	/** Ranger Calder's note on the Rim Rangers' board: never torn; a tap reads it, its words as captions. */
 	CalderNote,
+	/**
+	 * The Seven, on the Rangers' board (Docs/Story.md, Seeds): the gang's seven faces, Calder's signature under them. Never
+	 * torn and nothing to read (the Interact key passes it by); each face crossed out while its CrossedFlags flag holds.
+	 */
+	Seven,
 };
 
 /** Lines said as the level's TornCount-th wanted poster comes down (Hob's remarks), after whatever is being said. */
@@ -72,6 +78,30 @@ struct AI_LOOTER_SHOOTER_API FWantedPosterAtlas
 	UPROPERTY(EditAnywhere, Category = "Atlas")
 	FVector4 ScrapBack = FVector4(0.5, 0.703125, 0.75, 0.890625);
 
+	/** The Seven: "THE SEVEN" over seven inked busts in two rows, names under them, Calder's signature low right. 0.25 x 0.297 m. */
+	UPROPERTY(EditAnywhere, Category = "Atlas")
+	FVector4 Seven = FVector4(0.75, 0.703125, 1.0, 1.0);
+
+	/**
+	 * The ink X laid over a paid face: a square cell (0.109 m) in the strip under the scrap's cells, drawn on transparent
+	 * paper so only the strokes show. Stretched over each face's rectangle (SevenFaces).
+	 */
+	UPROPERTY(EditAnywhere, Category = "Atlas")
+	FVector4 SevenCross = FVector4(0.25, 0.890625, 0.359375, 1.0);
+
+	/**
+	 * Each face's bust on the Seven, as a share of its cell (U0, V0, U1, V1; 0-1 across the Seven, V = 0 at its top), in
+	 * the gang's order: the Deacon, Lucky Ned, Ira, Sister Constance (the top row, four), Barrels, Lena, Tobias (the
+	 * bottom row, three, centred). The X covers that rectangle: the busts' ovals as looter_posters.py draws them (SEVEN,
+	 * SEVEN_OVAL: 40 x 52 mm ovals on the 230 x 280 mm sheet centred in the cell; its SEVEN_OVALS_UV log gives the same in
+	 * the atlas's UV).
+	 */
+	UPROPERTY(EditAnywhere, Category = "Atlas")
+	TArray<FVector4> SevenFaces = {
+		FVector4(0.108, 0.3046, 0.268, 0.4798), FVector4(0.316, 0.3046, 0.476, 0.4798), FVector4(0.524, 0.3046, 0.684, 0.4798),
+		FVector4(0.732, 0.3046, 0.892, 0.4798), FVector4(0.212, 0.5741, 0.372, 0.7493), FVector4(0.420, 0.5741, 0.580, 0.7493),
+		FVector4(0.628, 0.5741, 0.788, 0.7493) };
+
 	/** A cell's size on a wall (cm): its width and its height. */
 	FVector2D SizeOf(const FVector4& Cell) const;
 };
@@ -97,7 +127,11 @@ struct AI_LOOTER_SHOOTER_API FWantedPosterAtlas
  * "Read the poster", which offers Side 1) laid over its paper. Until that mission is taken the poster is read, not torn:
  * it offers no hold, so the Interact key's focus passes to the artifact (see IsAwaitingOffer).
  *
- * Tagged for missions by its variant (WantedTag or NoteTag), and Obstacle like other props.
+ * The Seven (Docs/Story.md, Seeds) hangs on the same board: the gang's faces, only looked at (no box, no prompt). Each face
+ * is crossed out while its CrossedFlags story flag holds: an X decal of the atlas's SevenCross cell laid over that face's
+ * rectangle (Atlas.SevenFaces), drawn over the paper, made only once a face is paid (WantedPosterSeven.cpp).
+ *
+ * Tagged for missions by its variant (WantedTag, NoteTag or SevenTag), and Obstacle like other props.
  */
 UCLASS(Config = Game)
 class AI_LOOTER_SHOOTER_API AWantedPoster : public AActor, public IInteractable
@@ -105,9 +139,13 @@ class AI_LOOTER_SHOOTER_API AWantedPoster : public AActor, public IInteractable
 	GENERATED_BODY()
 
 public:
-	/** The tags missions find them by: every wanted poster carries the first, Calder's note the second. */
+	/** The tags missions find them by: every wanted poster carries the first, Calder's note the second, the Seven the third. */
 	static const FName WantedTag;
 	static const FName NoteTag;
+	static const FName SevenTag;
+
+	/** The Seven's faces, in the gang's order. */
+	static constexpr int32 SevenCount = 7;
 
 	AWantedPoster();
 
@@ -182,7 +220,18 @@ public:
 	/** Makes it a wanted poster or Calder's note (a script, a test): its tag, look and box follow. */
 	void SetVariant(EWantedPosterVariant NewVariant);
 
-	/** The atlas cell it shows whole: the poster, or the note. Its box and its place on the wall follow this one. */
+	// --- The Seven (WantedPosterSeven.cpp) ---
+
+	/** The Seven's face Face (0 the Deacon .. 6 Tobias) is crossed out by the story now (its CrossedFlags flag holds). */
+	bool IsFaceCrossedNow(int32 Face) const;
+
+	/** The Seven's face Face shows its X now (what the last refresh drew). */
+	bool IsFaceCrossShown(int32 Face) const;
+
+	/** Draws each of the Seven's X as the story stands (the runner's changes call it; so can tests). */
+	void RefreshCrosses();
+
+	/** The atlas cell it shows whole: the poster, the note or the Seven. Its box and its place on the wall follow this one. */
 	FVector4 GetWholeCell() const;
 
 	/** The atlas cell it shows now: the poster or its remnant, or the note. */
@@ -231,6 +280,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Poster|Lines")
 	TArray<FWantedPosterRemark> TearRemarks;
 
+	/**
+	 * The Seven's story flags, one per face in the gang's order (the Deacon, Lucky Ned, Ira, Constance, Barrels, Lena,
+	 * Tobias): a face is crossed out while its flag holds (its ember paid). None: never crossed.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Poster|Seven")
+	TArray<FName> CrossedFlags = {
+		FName(TEXT("Ember.Paid.Deacon")), FName(TEXT("Ember.Paid.Ned")), FName(TEXT("Ember.Paid.Ira")), FName(TEXT("Ember.Paid.Constance")),
+		FName(TEXT("Ember.Paid.Barrels")), FName(TEXT("Ember.Paid.Lena")), FName(TEXT("Ember.Paid.Tobias")) };
+
 	/** How long the torn-off scrap tumbles and fades before it's gone. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Poster|Scrap", meta = (ClampMin = "0.1", Units = "s"))
 	float ScrapSeconds = 1.5f;
@@ -277,6 +335,30 @@ private:
 	void DropScrap();
 	void PoseScrap();
 	void EndScrap();
+
+	// WantedPosterSeven.cpp
+	/** The Seven listens to the story (its X follow the flags); any other paper stops listening. */
+	void BindStory();
+	void UnbindStory();
+	void HandleStoryChanged();
+	/** An X decal over face Face (made the first time one is needed, hidden until crossed). */
+	UDecalComponent* MakeCross(int32 Face);
+	/** Each made X's size and spot over its face, as the Seven's size and Scale stand. */
+	void PlaceCrosses();
+
+	/** The Seven's X, one per face once any is drawn (made in code; none on other papers). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UDecalComponent>> Crosses;
+
+	/** The X's shared material: the decal's material showing SevenCross. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> CrossMaterial;
+
+	TWeakObjectPtr<UMissionRunner> BoundRunner;
+	FDelegateHandle StoryChangedHandle;
+
+	/** The faces the last refresh crossed out, a bit each (drawn when the decal's material exists). */
+	uint8 ShownCrosses = 0;
 
 	/** The scrap tearing off, while it falls (made in code: no mesh asset of its own). */
 	UPROPERTY(Transient)

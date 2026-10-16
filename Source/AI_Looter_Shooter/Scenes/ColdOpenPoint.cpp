@@ -229,6 +229,8 @@ namespace ColdOpenBeats
 			if (Props && !IsSkipping(*State))
 			{
 				Props->Fire(AColdOpenSet::DeaconIndex, EllisEyes(*State));
+				// The spark: the saint in his other hand flares and dims at what he's done (Docs/Story.md, Seeds).
+				Props->FlareEmber();
 				State->KickAt = SceneTime(*State);
 			}
 		});

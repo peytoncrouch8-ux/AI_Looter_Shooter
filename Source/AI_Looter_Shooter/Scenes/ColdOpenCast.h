@@ -72,6 +72,27 @@ public:
 	/** A shot from a gang member's gun hand at Target: the flash, its light on the deck, the shot's sound when there is one. */
 	void Fire(int32 GangIndex, const FVector& Target);
 
+	/**
+	 * The spark: Saint Ada's ember in the Deacon's hand flares as he fires and dims, then eases back to rest
+	 * (EmberFlareAt). The Deacon's shot calls it (ColdOpenPoint.cpp, DeaconFires). ColdOpenCastGlows.cpp.
+	 */
+	void FlareEmber();
+
+	/**
+	 * How bright the ember is against its rest (1), SinceFlare seconds after the spark (negative: none yet): up to 3 over
+	 * 0.15 s, down to 0.35 over 1.2 s, back to 1 over 2 s. Its glow's strength and its light both follow it.
+	 */
+	static float EmberFlareAt(float SinceFlare);
+
+	/** How long the spark lasts, rest to rest (s). */
+	static float GetFlareSeconds();
+
+	/** The ember's brightness against its rest now (1 before any spark). */
+	float GetEmberFlare() const;
+
+	/** The ember glow's strength now (0 while the Point isn't shown). */
+	float GetEmberStrength() const;
+
 	/** Mister Sexton on the far rail, shown or not. */
 	void ShowSexton(bool bShow);
 
@@ -97,7 +118,12 @@ private:
 	void BuildSkiff(const AColdOpenSet& Set);
 	void BuildPoint(const AColdOpenSet& Set);
 
-	/** The ember and the lantern facing the camera, and their lights where they are. */
+	// --- The glows and lights (ColdOpenCastGlows.cpp) ---
+
+	/** The ember's and the lantern's glows, and the ember's, the lantern's and the shots' lights, all hidden. */
+	void BuildGlows(const AColdOpenSet& Set);
+
+	/** The ember and the lantern facing the camera, and their lights where they are (the ember's as bright as its spark). */
 	void UpdateGlows();
 
 	// --- The figures and Sexton (ColdOpenCastFigures.cpp) ---
@@ -196,6 +222,10 @@ private:
 	bool bLanternLoose = false;
 
 	float FlashLeft = 0.f;
+
+	/** The cast's own clock (s, from its first tick), and when on it the ember sparked (negative: not yet). */
+	float GlowClock = 0.f;
+	float FlareAt = -1.f;
 	bool bSkiffShown = false;
 	bool bPointShown = false;
 	bool bSextonShown = false;

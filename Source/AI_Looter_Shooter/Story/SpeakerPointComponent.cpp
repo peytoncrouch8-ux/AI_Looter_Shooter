@@ -230,6 +230,11 @@ bool USpeakerPointComponent::Talk(AActor* Listener)
 		{
 			Runner->NotifyEvent(FMissionEvent::Named(Topics[TopicIndex].Event, Owner));
 		}
+		// Last, so the words already playing are this topic's: a talk given once moves on to the next topic from here.
+		if (Topics.IsValidIndex(TopicIndex) && !Topics[TopicIndex].SetsFlag.IsNone())
+		{
+			Runner->SetFlag(Topics[TopicIndex].SetsFlag);
+		}
 	}
 	// The turn-in came first; what they have next (a mission it opened, or one waiting behind it) is offered once its words
 	// are said, after its own words when it has any. A choice still to make comes before anything else they have.

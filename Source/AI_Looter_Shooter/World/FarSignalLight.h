@@ -10,6 +10,7 @@ class UMaterialInterface;
 class UMissionRunner;
 class UStaticMesh;
 struct FCampaignRecord;
+struct FLightingStateChange;
 
 /**
  * The far answering light (Docs/Areas/RansomsRest_Expansion.md, "The Last Watch", step 5): "Far down the Rim a light winks
@@ -23,6 +24,12 @@ struct FCampaignRecord;
  *
  * Cheap: three crossed round glow cards (M_FX_Glow, one instanced draw, never culled by distance), big enough to be a
  * point of light from the watchtower 3 km off. Hidden, it never ticks; shown, it ticks at 30 a second to key the message.
+ *
+ * Steady (bSteady): no message, only a slow breath (BreathHz, ±BreathDepth), ticking 15 a second: the second light far
+ * west over the fog seen from Gravewind Point at dusk (Docs/Story.md, Seeds: "a second light, low and steady"; placed by
+ * Tools/Unreal/build_area_seeds.py). ShownState gates it by the level's lighting state as ADuskScenery is gated (set:
+ * shown only while ULightingStateSubsystem's state is that one; None: any), on top of the story's ShownWhen/ShownFlag.
+ * From Python: set_editor_property('steady', True), ('shown_state', 'Dusk'), ('shown_when', [...]).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AFarSignalLight : public AActor
@@ -48,13 +55,22 @@ public:
 	/** The pause before the message starts again, in units. */
 	static constexpr int32 RepeatGapUnits = 14;
 
+	/** A steady light's brightness Seconds in: 1 breathing ±Depth at Hz (a lamp's flame behind glass, not a switch). */
+	static float BreathAt(float Seconds, float Hz, float Depth);
+
+	/** A light gated to ShownState may show in the lighting state State (None ShownState: any state, any level). */
+	static bool StateAllows(FName InShownState, FName State);
+
 	// --- The story ---
 
 	/** The story shows it in Campaign: ShownFlag set, or any of ShownWhen. */
 	bool ShouldShow(const FCampaignRecord& Campaign, const UMissionRunner* Runner) const;
 
-	/** Reads the story again (the missions changed). */
+	/** Reads the story again (the missions changed), and shows it if the lighting state allows too. */
 	void RefreshStory();
+
+	/** The level's lighting state is now State (its switches call it; tests may): shown again as story and state allow. */
+	void ApplyLightingState(FName State);
 
 	/** Shown or not, now (the story's state, the console, tests). */
 	void SetShown(bool bInShown);
@@ -63,7 +79,7 @@ public:
 	/** Keys the message on by DeltaSeconds: the tick calls it while shown; tests call it. */
 	void Advance(float DeltaSeconds);
 
-	/** How bright it is now (0 to 1 of Strength). */
+	/** How bright it is now (0 to 1 of Strength; a steady light's breath may reach a little over 1). */
 	float GetKey() const { return LastKey; }
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
@@ -80,9 +96,24 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Signal|Story")
 	FName ShownFlag;
 
-	/** Always shown, whatever the story (to judge its look from the watchtower). */
+	/** Always shown, whatever the story or the light (to judge its look from the watchtower). */
 	UPROPERTY(EditAnywhere, Category = "Signal|Story")
 	bool bAlwaysShown = false;
+
+	/** The lighting state it's seen in (Dusk), as ADuskScenery's: shown only while the level is in it. None: any. */
+	UPROPERTY(EditAnywhere, Category = "Signal|Story")
+	FName ShownState;
+
+	/** Burns steady with a slow breath instead of keying Message. */
+	UPROPERTY(EditAnywhere, Category = "Signal")
+	bool bSteady = false;
+
+	/** A steady light's breath: how fast (Hz) and how deep (a share of Strength either way). */
+	UPROPERTY(EditAnywhere, Category = "Signal", meta = (ClampMin = "0.01", EditCondition = "bSteady"))
+	float BreathHz = 0.5f;
+
+	UPROPERTY(EditAnywhere, Category = "Signal", meta = (ClampMin = "0", ClampMax = "0.5", EditCondition = "bSteady"))
+	float BreathDepth = 0.08f;
 
 	/** What it keys, and the length of a unit (s): a signal lamp's steady hand. */
 	UPROPERTY(EditAnywhere, Category = "Signal")
@@ -119,8 +150,18 @@ private:
 	void ApplyKey(float Key, bool bForce);
 
 	void HandleMissionsChanged();
+	void HandleLightingChanged(const FLightingStateChange& Change);
+
+	/** Shown as the story (last read) and the lighting state allow, or always. */
+	void ApplyGates();
+
+	/** How bright it is Clock seconds in: keyed, or breathing. */
+	float BrightnessNow() const;
 
 	bool bShown = false;
+	bool bStoryShown = false;
+	FName LightingState;
+	FDelegateHandle LightingChangedHandle;
 	float Clock = 0.f;
 	float LastKey = 0.f;
 	TArray<bool> Units;

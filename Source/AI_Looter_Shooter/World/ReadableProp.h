@@ -111,6 +111,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Readable")
 	FStoryCondition ShownWhen;
 
+	/**
+	 * The story flag reading it sets (FCampaignRecord::StoryFlags), after its event: a Ledger page's Ledger.Page.<Town> opens
+	 * the town's page; a letter's Letter.Deacon.<Where>. None: none. Reading it again sets nothing new.
+	 * Python: set_editor_property('sets_flag', 'Ledger.Page.TheNeedles').
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Readable")
+	FName SetsFlag;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

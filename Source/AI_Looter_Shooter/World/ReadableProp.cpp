@@ -210,6 +210,11 @@ bool AReadableProp::Read(AActor* Player)
 	if (UMissionRunner* Runner = UMissionRunner::Get(this))
 	{
 		Runner->NotifyEvent(FMissionEvent::Named(GetReadEvent(), this));
+		// Kept by the story, so what reading it opens (a Ledger page) stays open across saves; SetFlag ignores a flag it holds.
+		if (!SetsFlag.IsNone())
+		{
+			Runner->SetFlag(SetsFlag);
+		}
 	}
 	UE_LOG(LogLooter, Log, TEXT("%s: %s read (%s)."), *GetActorNameOrLabel(), *Title.ToString(), *GetReadEvent().ToString());
 	return true;

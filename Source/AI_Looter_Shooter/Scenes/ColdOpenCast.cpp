@@ -8,9 +8,7 @@
 #include "Weapons/WeaponFX.h"
 #include "World/WorldQueries.h"
 #include "Animation/AnimationAsset.h"
-#include "Camera/PlayerCameraManager.h"
 #include "CollisionQueryParams.h"
-#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Components/SceneComponent.h"
@@ -21,32 +19,13 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshSocket.h"
 #include "Engine/World.h"
-#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
-#include "Math/RotationMatrix.h"
 #include "Misc/PackageName.h"
 #include "Sound/SoundBase.h"
 
 namespace
 {
-	/** The glows: the game's additive glow on camera-facing quads (R, G, B, strength, shape 1 = round). */
-	const TCHAR* GlowMaterialPath = TEXT("/Game/Weapons/FX/M_FX_Glow.M_FX_Glow");
-	const TCHAR* QuadPath = TEXT("/Engine/BasicShapes/Plane.Plane");
-	constexpr int32 GlowFloats = 5;
-	constexpr int32 EmberGlow = 0;
-	constexpr int32 LanternGlowIndex = 1;
-
-	/** Saint Ada's ember: a burning orange light in a gloved hand. Abel's lantern: warm, and smaller in the dark. */
-	const FLinearColor EmberColor(1.f, 0.42f, 0.08f);
-	constexpr float EmberSize = 22.f;
-	constexpr float EmberStrength = 32.f;
-	constexpr float EmberCandelas = 14.f;
-	const FLinearColor LanternColor(1.f, 0.72f, 0.38f);
-	constexpr float LanternSize = 30.f;
-	constexpr float LanternStrength = 26.f;
-	constexpr float LanternCandelas = 22.f;
-
 	/** A shot's flash lights the deck this brightly for this long (candelas, seconds). */
 	constexpr float FlashCandelas = 90.f;
 	constexpr float FlashSeconds = 0.12f;
@@ -62,9 +41,9 @@ namespace
 	/** The mannequin faces its mesh's +Y: a figure facing a yaw turns its mesh this much less. */
 	constexpr float MeshYaw = -90.f;
 
-	/** Ned's gun hand, the Deacon's, and the hand the ember's in. */
+	/** Ned's gun hand, the Deacon's, and the hand the ember's in (Abel's lantern too). */
 	const FName GunHand(TEXT("hand_r"));
-	const FName EmberHand(TEXT("hand_l"));
+	const FName LeftHand(TEXT("hand_l"));
 	const FName HeadBone(TEXT("head"));
 	const FName SpineBone(TEXT("spine_03"));
 
@@ -96,30 +75,6 @@ namespace
 			return Hit.ImpactPoint;
 		}
 		return Where;
-	}
-
-	/** Where the camera is, for the glows to face: the player's, or a point in front of Fallback. */
-	FVector Viewer(const UWorld* World, const FVector& Fallback)
-	{
-		const APlayerController* Controller = World ? World->GetFirstPlayerController() : nullptr;
-		return Controller && Controller->PlayerCameraManager ? Controller->PlayerCameraManager->GetCameraLocation()
-			: Fallback + FVector(500.0, 0.0, 0.0);
-	}
-
-	UPointLightComponent* MakeLight(AActor& Owner, USceneComponent* Parent, const FLinearColor& Color, float Radius)
-	{
-		UPointLightComponent* Light = NewObject<UPointLightComponent>(&Owner, NAME_None, RF_Transient);
-		Light->SetupAttachment(Parent);
-		Light->SetMobility(EComponentMobility::Movable);
-		Light->SetIntensityUnits(ELightUnits::Candelas);
-		Light->SetIntensity(0.f);
-		Light->SetLightColor(Color);
-		Light->SetAttenuationRadius(Radius);
-		// Lanterns and flashes light what's near them; at dusk nothing they could shadow reads anyway.
-		Light->SetCastShadows(false);
-		Light->SetVisibility(false);
-		Light->RegisterComponent();
-		return Light;
 	}
 }
 
@@ -165,25 +120,7 @@ void AColdOpenCast::Build(const AColdOpenSet& Set)
 			*Set.SilhouetteMaterial.ToString());
 	}
 
-	// The ember and the lantern: round glows facing the camera, each with a little light of its own.
-	Glows = NewObject<UInstancedStaticMeshComponent>(this, TEXT("Glows"), RF_Transient);
-	Glows->SetupAttachment(Root);
-	Glows->SetMobility(EComponentMobility::Movable);
-	Glows->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	Glows->SetCastShadow(false);
-	Glows->bReceivesDecals = false;
-	Glows->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, QuadPath));
-	Glows->SetMaterial(0, LoadObject<UMaterialInterface>(nullptr, GlowMaterialPath));
-	Glows->SetNumCustomDataFloats(GlowFloats);
-	Glows->RegisterComponent();
-	for (int32 Index = 0; Index < 2; ++Index)
-	{
-		Glows->AddInstance(FTransform(FQuat::Identity, Set.GetActorLocation(), FVector(0.01)), /*bWorldSpace*/ true);
-	}
-	EmberLight = MakeLight(*this, Root, EmberColor, 380.f);
-	LanternLight = MakeLight(*this, Root, LanternColor, 700.f);
-	FlashLight = MakeLight(*this, Root, FLinearColor(1.f, 0.78f, 0.5f), 1600.f);
-
+	BuildGlows(Set);
 	BuildSkiff(Set);
 	BuildPoint(Set);
 	BuildSexton(Set);
@@ -349,7 +286,7 @@ void AColdOpenCast::DropAbel(float Alpha)
 	if (!bLanternLoose)
 	{
 		bLanternLoose = true;
-		LanternFrom = BoneInWorld(Abel, EmberHand);
+		LanternFrom = BoneInWorld(Abel, LeftHand);
 		LanternAt = LanternFrom;
 	}
 	const float Eased = FMath::Square(FMath::Clamp(Alpha, 0.f, 1.f));
@@ -446,6 +383,8 @@ FVector AColdOpenCast::GetSextonHead() const
 void AColdOpenCast::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	// The cast's own clock: the ember's spark runs on it, so it keeps the scene's pace whatever the world's time does.
+	GlowClock += DeltaSeconds;
 	if (FlashLeft > 0.f && FlashLight)
 	{
 		FlashLeft = FMath::Max(FlashLeft - DeltaSeconds, 0.f);
@@ -453,50 +392,4 @@ void AColdOpenCast::Tick(float DeltaSeconds)
 		FlashLight->SetVisibility(FlashLeft > 0.f);
 	}
 	UpdateGlows();
-}
-
-void AColdOpenCast::UpdateGlows()
-{
-	if (!Glows || Glows->GetInstanceCount() < 2)
-	{
-		return;
-	}
-	// The ember in the Deacon's hand while the Point shows; the lantern in Abel's, then rolling off with its flame dying.
-	const bool bEmber = bPointShown && Gang.IsValidIndex(AColdOpenSet::DeaconIndex);
-	const FVector Ember = bEmber ? BoneInWorld(Gang[AColdOpenSet::DeaconIndex], EmberHand) + FVector(0.0, 0.0, 6.0) : GetActorLocation();
-	const bool bLantern = bPointShown && (bAbelShown || bLanternLoose) && (!bLanternLoose || LanternGlow > 0.f);
-	const FVector Lantern = bLanternLoose ? LanternAt : (Abel ? BoneInWorld(Abel, EmberHand) - FVector(0.0, 0.0, 10.0) : GetActorLocation());
-	const float LanternStrengthNow = bLantern ? (bLanternLoose ? LanternGlow : 1.f) : 0.f;
-
-	const FVector Camera = Viewer(GetWorld(), Ember);
-	auto Facing = [&Camera](const FVector& Where, float Size)
-	{
-		FVector ToCamera = Camera - Where;
-		if (!ToCamera.Normalize())
-		{
-			ToCamera = FVector::UpVector;
-		}
-		// The engine's quad lies in XY facing +Z, 100 across.
-		return FTransform(FRotationMatrix::MakeFromZ(ToCamera).ToQuat(), Where, FVector(Size / 100.0, Size / 100.0, 1.0));
-	};
-	Glows->UpdateInstanceTransform(EmberGlow, Facing(Ember, bEmber ? EmberSize : 0.01f), /*bWorldSpace*/ true, false, /*bTeleport*/ true);
-	Glows->UpdateInstanceTransform(LanternGlowIndex, Facing(Lantern, LanternStrengthNow > 0.f ? LanternSize : 0.01f), true, false, true);
-	const float EmberData[] = { EmberColor.R, EmberColor.G, EmberColor.B, bEmber ? EmberStrength : 0.f, 1.f };
-	const float LanternData[] = { LanternColor.R, LanternColor.G, LanternColor.B, LanternStrength * LanternStrengthNow, 1.f };
-	Glows->SetCustomData(EmberGlow, MakeArrayView(EmberData), false);
-	Glows->SetCustomData(LanternGlowIndex, MakeArrayView(LanternData), false);
-	Glows->MarkRenderStateDirty();
-
-	if (EmberLight)
-	{
-		EmberLight->SetWorldLocation(Ember);
-		EmberLight->SetIntensity(bEmber ? EmberCandelas : 0.f);
-		EmberLight->SetVisibility(bEmber);
-	}
-	if (LanternLight)
-	{
-		LanternLight->SetWorldLocation(Lantern);
-		LanternLight->SetIntensity(LanternCandelas * LanternStrengthNow);
-		LanternLight->SetVisibility(LanternStrengthNow > 0.f);
-	}
 }

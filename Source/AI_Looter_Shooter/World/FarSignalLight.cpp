@@ -1,9 +1,11 @@
-// AFarSignalLight: a far Rangers' post answering by signal lamp, keyed in Morse on a backdrop mesa, shown by the story.
+// AFarSignalLight: a far Rangers' post answering by signal lamp, keyed in Morse on a backdrop mesa, shown by the story;
+// or a light burning steady far off (the second light west over the fog), shown by the story and the dusk.
 
 #include "World/FarSignalLight.h"
 #include "AI_Looter_Shooter.h"
 #include "Missions/MissionRunner.h"
 #include "Session/CampaignRecord.h"
+#include "World/LightingStateSubsystem.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/CollisionProfile.h"
@@ -27,6 +29,9 @@ namespace
 
 	/** Keyed at 30 frames a second: a unit of 0.22 s is about 6 of them, enough for its soft edges. */
 	constexpr float KeyTickSeconds = 1.f / 30.f;
+
+	/** A steady light's slow breath needs far fewer: 15 a second keeps its 2 s swell smooth. */
+	constexpr float SteadyTickSeconds = 1.f / 15.f;
 
 	/** A change of brightness smaller than this isn't worth a render update. */
 	constexpr float KeyStep = 0.02f;
@@ -131,7 +136,15 @@ void AFarSignalLight::BeginPlay()
 		BoundRunner = Runner;
 		MissionsChangedHandle = Runner->OnChanged.AddUObject(this, &AFarSignalLight::HandleMissionsChanged);
 	}
+	// A light seen only at dusk hears the level's light change, as ADuskScenery does (a level without states: None).
+	LightingState = NAME_None;
+	if (ULightingStateSubsystem* Lighting = ULightingStateSubsystem::Get(this))
+	{
+		LightingState = Lighting->GetState();
+		LightingChangedHandle = Lighting->OnChanged.AddUObject(this, &AFarSignalLight::HandleLightingChanged);
+	}
 	// Dark until the story says (the editor's preview may have shown it).
+	bStoryShown = false;
 	bShown = true;
 	SetShown(false);
 	RefreshStory();
@@ -145,6 +158,11 @@ void AFarSignalLight::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	BoundRunner.Reset();
 	MissionsChangedHandle.Reset();
+	if (ULightingStateSubsystem* Lighting = ULightingStateSubsystem::Get(this))
+	{
+		Lighting->OnChanged.Remove(LightingChangedHandle);
+	}
+	LightingChangedHandle.Reset();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -225,6 +243,17 @@ float AFarSignalLight::KeyAt(const TArray<bool>& Keyed, float Seconds, float Uni
 // The story and the look
 // ---------------------------------------------------------------------------
 
+float AFarSignalLight::BreathAt(float Seconds, float Hz, float Depth)
+{
+	return 1.f + Depth * FMath::Sin(UE_TWO_PI * Hz * Seconds);
+}
+
+bool AFarSignalLight::StateAllows(FName InShownState, FName State)
+{
+	// FName equality ignores case, as the console's state names do.
+	return InShownState.IsNone() || (!State.IsNone() && State == InShownState);
+}
+
 bool AFarSignalLight::ShouldShow(const FCampaignRecord& Campaign, const UMissionRunner* Runner) const
 {
 	return Campaign.HasFlag(ShownFlag)
@@ -233,21 +262,34 @@ bool AFarSignalLight::ShouldShow(const FCampaignRecord& Campaign, const UMission
 
 void AFarSignalLight::RefreshStory()
 {
-	if (bAlwaysShown)
-	{
-		SetShown(true);
-		return;
-	}
+	// Without a running story (the editor's preview, a level opened bare) it keeps what it last read.
 	const UMissionRunner* Runner = UMissionRunner::Get(this);
 	if (Runner && Runner->IsActive())
 	{
-		SetShown(ShouldShow(Runner->GetCampaign(), Runner));
+		bStoryShown = ShouldShow(Runner->GetCampaign(), Runner);
 	}
+	ApplyGates();
+}
+
+void AFarSignalLight::ApplyLightingState(FName State)
+{
+	LightingState = State;
+	ApplyGates();
+}
+
+void AFarSignalLight::ApplyGates()
+{
+	SetShown(bAlwaysShown || (bStoryShown && StateAllows(ShownState, LightingState)));
 }
 
 void AFarSignalLight::HandleMissionsChanged()
 {
 	RefreshStory();
+}
+
+void AFarSignalLight::HandleLightingChanged(const FLightingStateChange& Change)
+{
+	ApplyLightingState(Change.To);
 }
 
 void AFarSignalLight::SetShown(bool bInShown)
@@ -263,13 +305,25 @@ void AFarSignalLight::SetShown(bool bInShown)
 	}
 	Clock = 0.f;
 	Card->SetVisibility(bShown && CardMesh != nullptr);
-	ApplyKey(bShown ? KeyAt(Units, Clock, UnitSeconds) : 0.f, /*bForce*/ true);
-	SetActorTickInterval(KeyTickSeconds);
+	ApplyKey(bShown ? BrightnessNow() : 0.f, /*bForce*/ true);
+	SetActorTickInterval(bSteady ? SteadyTickSeconds : KeyTickSeconds);
 	SetActorTickEnabled(bShown);
 	if (bShown)
 	{
-		UE_LOG(LogLooter, Log, TEXT("%s: a far light keys \"%s\"."), *GetActorNameOrLabel(), *Message);
+		if (bSteady)
+		{
+			UE_LOG(LogLooter, Log, TEXT("%s: a far light burns, low and steady."), *GetActorNameOrLabel());
+		}
+		else
+		{
+			UE_LOG(LogLooter, Log, TEXT("%s: a far light keys \"%s\"."), *GetActorNameOrLabel(), *Message);
+		}
 	}
+}
+
+float AFarSignalLight::BrightnessNow() const
+{
+	return bSteady ? BreathAt(Clock, BreathHz, BreathDepth) : KeyAt(Units, Clock, UnitSeconds);
 }
 
 void AFarSignalLight::Advance(float DeltaSeconds)
@@ -279,7 +333,7 @@ void AFarSignalLight::Advance(float DeltaSeconds)
 		return;
 	}
 	Clock += DeltaSeconds;
-	ApplyKey(KeyAt(Units, Clock, UnitSeconds), /*bForce*/ false);
+	ApplyKey(BrightnessNow(), /*bForce*/ false);
 }
 
 void AFarSignalLight::BuildCards()

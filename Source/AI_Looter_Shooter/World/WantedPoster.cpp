@@ -23,6 +23,7 @@
 
 const FName AWantedPoster::WantedTag(TEXT("WantedPoster"));
 const FName AWantedPoster::NoteTag(TEXT("CalderNote"));
+const FName AWantedPoster::SevenTag(TEXT("SevenPoster"));
 
 namespace
 {
@@ -201,6 +202,8 @@ void AWantedPoster::BeginPlay()
 	RefreshTags();
 	RefreshLook();
 	FindOfferSeat();
+	BindStory();
+	RefreshCrosses();
 	if (UInteractionSubsystem* Registry = UInteractionSubsystem::Get(this))
 	{
 		Registry->Register(this);
@@ -213,6 +216,7 @@ void AWantedPoster::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		Registry->Unregister(this);
 	}
+	UnbindStory();
 	EndScrap();
 	Super::EndPlay(EndPlayReason);
 }
@@ -226,17 +230,24 @@ void AWantedPoster::Tick(float DeltaSeconds)
 void AWantedPoster::SetVariant(EWantedPosterVariant NewVariant)
 {
 	Variant = NewVariant;
-	// Calder's note is never down.
+	// Calder's note and the Seven are never down.
 	bTorn = bTorn && Variant == EWantedPosterVariant::Wanted;
 	RefreshTags();
 	RefreshLook();
+	if (HasActorBegunPlay())
+	{
+		BindStory();
+		RefreshCrosses();
+	}
 }
 
 void AWantedPoster::RefreshTags()
 {
 	Tags.Remove(WantedTag);
 	Tags.Remove(NoteTag);
-	Tags.AddUnique(Variant == EWantedPosterVariant::CalderNote ? NoteTag : WantedTag);
+	Tags.Remove(SevenTag);
+	// Only a wanted poster carries WantedTag: Side 1 counts what carries it, and the Seven is never torn.
+	Tags.AddUnique(Variant == EWantedPosterVariant::CalderNote ? NoteTag : Variant == EWantedPosterVariant::Seven ? SevenTag : WantedTag);
 	Tags.AddUnique(MinimapTags::Obstacle);
 }
 
@@ -246,7 +257,15 @@ void AWantedPoster::RefreshTags()
 
 FVector4 AWantedPoster::GetWholeCell() const
 {
-	return Variant == EWantedPosterVariant::CalderNote ? Atlas.Note : Atlas.Poster;
+	switch (Variant)
+	{
+	case EWantedPosterVariant::CalderNote:
+		return Atlas.Note;
+	case EWantedPosterVariant::Seven:
+		return Atlas.Seven;
+	default:
+		return Atlas.Poster;
+	}
 }
 
 FVector4 AWantedPoster::GetShownCell() const
@@ -277,10 +296,12 @@ void AWantedPoster::RefreshLook()
 			static_cast<float>(Shown.Z), static_cast<float>(Shown.W)));
 	}
 
-	// The box over the whole sheet, a hair proud of the surface; down, there's nothing left to use.
+	// The box over the whole sheet, a hair proud of the surface; down, there's nothing left to use. The Seven is only looked
+	// at: no box, so the Interact key's line passes on to whatever is beside it on the board (Calder's note).
 	Hitbox->SetBoxExtent(FVector(BoxHalfThickness, Whole.X * 0.5, Whole.Y * 0.5), /*bUpdateOverlaps*/ false);
 	Hitbox->SetRelativeLocation(FVector(BoxGap + BoxHalfThickness, 0.0, 0.0));
-	Hitbox->SetCollisionEnabled(bTorn ? ECollisionEnabled::NoCollision : ECollisionEnabled::QueryOnly);
+	Hitbox->SetCollisionEnabled(bTorn || Variant == EWantedPosterVariant::Seven ? ECollisionEnabled::NoCollision : ECollisionEnabled::QueryOnly);
+	PlaceCrosses();
 }
 
 UMaterialInstanceDynamic* AWantedPoster::FindOrMakeDecalMaterial()
@@ -324,6 +345,14 @@ FInteractionOptions AWantedPoster::GetInteractionOptions(const UInteractionCompo
 {
 	FInteractionOptions Options;
 	Options.Reach = Reach;
+	if (Variant == EWantedPosterVariant::Seven)
+	{
+		// Only looked at: no tap, no hold.
+		Options.bUsable = false;
+		Options.bTap = false;
+		Options.bHold = false;
+		return Options;
+	}
 	if (Variant == EWantedPosterVariant::CalderNote)
 	{
 		Options.bUsable = CanRead();
@@ -344,6 +373,10 @@ FInteractionOptions AWantedPoster::GetInteractionOptions(const UInteractionCompo
 
 bool AWantedPoster::Interact(UInteractionComponent& User, bool bHeld)
 {
+	if (Variant == EWantedPosterVariant::Seven)
+	{
+		return false;
+	}
 	if (Variant == EWantedPosterVariant::CalderNote)
 	{
 		return !bHeld && Read(User.GetOwner());
