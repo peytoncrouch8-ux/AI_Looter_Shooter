@@ -844,7 +844,14 @@ Ellis as the player's body (the user, 2026-10-15; their pick "retarget live" ove
   34 -> 28 points (what's left: the inner back of the right shin between bm and br with the leg far back). Checked in
   PIE 2026-10-15: back standing, walking, sprinting; crouched front and back (drapes round the knees).
   `play.py press Crouch` toggles crouch (the game's setting); `Looter.ThirdPerson.FrontYaw <deg>` turns the front view
-  round him (90 his left side, 270 his right) for inspection. Measured
+  round him (90 his left side, 270 his right) for inspection. A video for the user (2026-10-15): screen-grab the
+  editor's game viewport at ~15 fps while held inputs run (System.Drawing CopyFromScreen in a loop; the held `press
+  Sprint`/`press Move` sent before the loop), then encode the PNGs with Blender's bundled FFmpeg (`bpy` sequencer,
+  H264 MPEG4, fps/fps_base set to the measured rate); scripts kept in the session scratchpad (`record_run.ps1`,
+  `encode_video.py`), not the repo. Lessons: console commands from a second process don't reach the game while the
+  capture loop holds the window (plan one camera per take); the front view at the default arm length puts the camera
+  inside his head (set `FrontArmLength` ~320 first); start where 40 m of ground lies ahead (a take ran into the barn).
+  Check a frame from each half before sending. Measured
   in Ellis.py's audit (its copy in step, round4b -> round4c): square to both bone and limb the push went sideways when
   they shared a plane (the stride's back panel slid round the shin's side), so it goes the chain's way out of the body
   (`Outward`), square to the limb and the bone; the extrapolated last tip let the hem 11 cm past it through the ground,
