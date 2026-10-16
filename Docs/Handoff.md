@@ -105,6 +105,29 @@ POWERS' calls (the three powers, knocks, sounds):
 - Sounds: the seven ember cues are 2D; Ready and Denied in the Interface class, the powers in Effects; Ready and
   Sundown.End fade in on purpose. cues.json carries guessed volumes until the render's mix measures them.
 
+The seeds (same night; Pipeline "Seeds in Ransom's Rest" has the how). Main's calls: the seven towns = Ransom's Rest,
+Highwater Landing, Dustwater Mesa, Saint Agnes Mire, Furnace Hollow, The Needles, Stoneweight Quarry (six pages on the
+Rest, the Quarry's found later); flags `Ledger.Page.<Town>`, `Letter.Deacon.Cleft/Saloon`, `Ada.Told`; one new model each
+for the page, the letter, the post rack and the map; the Seven poster as an atlas cell. The agents' calls:
+- CORE: the X on a face is a second small decal (`SevenCross` cell), not a material mask; the steady light is a mode of
+  `AFarSignalLight`, not a new class; no StoryLighting change (dusk already holds through Main 6 and 7); the second
+  light isn't gated on Grave Sight (no vision mode exists); a topic's flag is set only when that topic was said; the
+  spark only when the scene isn't skipped.
+- DATA: the town pages are STORY_CHARACTER pages in the NPC section ("???" until found; `Looter.Ledger` wants exactly
+  seven LedgerName pages); the saints Hester (Highwater Landing), Ezra (Dustwater), Agnes (the Mire), Maud (Furnace
+  Hollow, the smith), Corliss (the Needles), Gideon (Stoneweight), Ada; robbery dates 3 Mar, 1 Apr, 9 May, 14 Jun, 12
+  Jul, 2 Aug, the Rest 21 Aug (its page entered 21 July, "E. Ransom" twice); the saloon letter is the Deacon warning
+  Delia (postmarked Halfway Junction, 9 Aug, never collected), the cleft letter to "Kid", never sent; Hob says the Point
+  line on his after-Main6 bier perch; the second light due west of the Point, 9 km out, 40 m up, size 5500, strength 30;
+  the Seven poster at offset [0, -12, 0]; the rack 1.4 m up, 110 cm right of the saloon doors; the lid's lines say
+  "prised up at one edge" to match the model. Open: the town pages' "not met" help reads "You two haven't met, friend"
+  (a place wording needs C++); Hob's mutters play the town-life voice cue; Sloane's "kid" line left as it was.
+- ART: one letter model (sealed, so "never sent" and "unopened" both fit) and one page model for all; the rack has two
+  old letters baked into slots 6 and 8; the map's layout (west line splits for Highwater Landing and Dustwater Mesa
+  then runs to the Rest; north the Needles, north-east the Quarry, east Furnace Hollow with a branch to the Mire) and
+  "W. PIKE, SURVEYOR" (Wendell Pike; drop it if unwanted); poster wording "THE SEVEN / OF THE DUNNE GANG", first names,
+  "DEAD OR ALIVE", "CAPT. R. Calder".
+
 Done this session (the user picked "small leftovers" first): `WeaponManagerComponent.h` split (its events and small
 types in `Inventory/WeaponManagerTypes.h`, 491 lines); the editor-exit ensure on Hiram's figure fixed in all six
 poseable-mesh constructors (Pipeline, Bugs); the shotgun reworked with the user watching: held 20 cm nearer, the left hand
