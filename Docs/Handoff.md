@@ -25,6 +25,13 @@ bottom-right**, the swap UI **its own inventory page as the second tab** (the Le
 **plant the seeds in Ransom's Rest** (looks that need approval are left as look sheets). The app refused to start a separate
 session on that turn, so Main builds the powers here, with agents, unattended, recording decisions in this file under
 "Decided unattended"; the seeds follow the same way. No questions to the user until they prompt.
+**Ember powers round 1: BUILT (89210af, 92cb87e).** Checked in PIE at the Rest's spawn: the socket by the weapon column
+(ready ring, running arc, cooldown pie with the count, the denied shake), each power fired on Q and timed by
+`Looter.Embers.State`, the Embers page (three cards, E equips). Tests 705/705 (7 new `Looter.Embers.*`); RR spawn 7.7 ms
+on Medium (was 7.6; +14 draws, the socket). Not yet: the user's own play; the feel of each power (the dash's knock, the
+dusk tint Sundown skipped, Borrowed Time's pay-back) is tuned by numbers in `Tools/Unreal/create_ember_assets.py`.
+**The seeds (next, same night):** contract `Saved/Seeds/CONTRACT.md` (not committed; its content goes to the Pipeline
+once built); three agents (CORE C++ hooks, DATA words and `build_area_seeds.py`, ART props and the Seven poster).
 
 ### Decided unattended (2026-10-15 night), for the user's review
 Main's calls (the agents add theirs below):

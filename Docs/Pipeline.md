@@ -1153,6 +1153,8 @@ committed; its content is in this section once the round lands). The agents' not
 - Measure with the editor closed and Blender paused (create `Saved\ArtPause.flag`, delete it after):
   - `Tools\tour.ps1` for every view;
   - `Tools\perf.ps1 -Label ... -Exec "Looter.Quality Medium" -Map <map>`, which appends a row to `Docs/Performance.md`.
+    Run it from PowerShell, never through Git Bash: bash rewrites `/Game/Maps/...` into `C:/Program Files/Git/Game/...`
+    and the game waits 15 min on a map it can't load (every `/Game/...` argument to a .ps1 has the same trap).
 - Per pass: `perf.ps1 -GpuStats -Exec "Looter.Quality Medium,Looter.Tour <views.json> noshots" -Frames 16000 -Skip 0 -NoRecord`, then
   `Tools\perfviews.ps1 <csv>`. Pass the views file: without it, `Looter.Tour` walks the tutorial island's list. `-Pattern
   'Exclusive/RenderThread'` lists the render thread's work.
