@@ -504,6 +504,9 @@ class AreaBuild:
         # The valley's mission pieces on the buildings' sockets (build_area_missionprops_valley.py): Mr. Sloane, Fenn's
         # coffin, the cellar's locked door, Thaddeus, the readables and items, after the posters.
         importlib.reload(importlib.import_module('build_area_missionprops_valley')).place(self)
+        # The saga's seeds (build_area_seeds.py): the Ledger's loose pages, the Deacon's letters, the post rack, the
+        # Reliquary's lid, the Reaches map, the second light and the Seven, after the valley's pieces and the posters.
+        importlib.reload(importlib.import_module('build_area_seeds')).place(self)
 
         # The groups draw from one random stream, in order, so each lands where it did last time.
         rng = random.Random(self.settings.get('seed', 7))

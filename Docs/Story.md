@@ -295,14 +295,14 @@ Rarity of each dropped gun at each luck (Common / Uncommon / Rare / Epic / Legen
 | Area | Opens after | Enemy levels | What it is | Enemies | Boss |
 |---|---|---|---|---|---|
 | Ransom's Rest (home and hub) | A new game | 1–7 | Home: a high farm valley on the Rim, over Gravewind Canyon. The farm and family plot, the town and Main Street, the chapel, the Sink, the burial boards; up the ore lift, Larkspur Bench, Calder's Post and the Providence mine | The Unpaid, dead miners, spiders, slimes | Abel Ransom, the Keeper. Legendary monsters: the Gravemother (Side 3) and the Foreman (Back Pay) |
-| The *Gilded Lily* | “The Lantern Leans” (Abel lights the lantern; it leans toward Ned) | 8–13 | A paddle-wheel casino airship tethered over the canyon's morning cloud at **Highwater Landing** *(saga)*, a rim boomtown where the line ends: card rooms, a ballroom, gondolas, rigging (an airship: the user's call, 2026-10-15, closing decision 12) | Card sharps, bouncers, Sky Jumpers | Lucky Ned (Odessa Lark's own death, played as her) |
+| The *Gilded Lily* | “The Lantern Leans” (Abel lights the lantern; it leans toward Ned) | 8–13 | A paddle-wheel casino airship tethered over the canyon's morning cloud at **Highwater Landing** *(saga)*, a rim boomtown where the line ends (its saint **Saint Hester**, who staked the landing): card rooms, a ballroom, gondolas, rigging (an airship: the user's call, 2026-10-15, closing decision 12) | Card sharps, bouncers, Sky Jumpers | Lucky Ned (Odessa Lark's own death, played as her) |
 | Skyreach | “The Salvage Line” on the *Lily* (to design), by its skylift | 12–16 | Teropa's one sky island: Crossroads Town, the salvage rigs, the Well where the Gravewind is born (*Skyreach, area 3*) | Sky salvagers going strange, Sky Jumpers, the first Mourners | Marguerite Vane *(saga)* |
-| Dustwater Mesa | “The House Always Loses” (Ned's ember paid at the new moon; the lantern swings to Ira) | 15–20 | Wind-scoured mesas and rope bridges; the wind is part of every fight | Dust riders, Bone Hounds | Whistling Ira (Wendell Pike's ravine, played as him) |
+| Dustwater Mesa | “The House Always Loses” (Ned's ember paid at the new moon; the lantern swings to Ira) | 15–20 | Wind-scoured mesas and rope bridges; the wind is part of every fight. Its saint **Saint Ezra**, who dug the cistern | Dust riders, Bone Hounds | Whistling Ira (Wendell Pike's ravine, played as him) |
 | Halfway Junction *(saga)* | “Back to Back” (Ruth's truce; it ends with Ira's ember paid) | 19–24 | The hub where every line of the Reaches meets: yards, a roundhouse, a hotel full of bounty hunters, the wreck of the mail train the gang derailed. Its board opens the whole network | Bounty hunters, the Mourners as deputies | Marshal Cole Bratton (legendary Due Process; Gauge's wreck, played as it) |
-| Saint Agnes Mire | “Dead or Alive” (Bratton down; the Junction's board) | 23–29 | Swamp country in the river delta: a mission church, cypress, fog and black water | The flock, the Unpaid, MossBacks | Sister Constance (Hollis Crane's dark town, played as him) |
-| Furnace Hollow | “And They Shall Rise” (Constance's ember paid) | 28–33 | A smelter town: chimneys, slag rivers, ore carts; the town's saint was a smith and her Reliquary is cast iron *(saga)* | Furnace men, Ember Tarantulas | Barrels Kessler |
-| The Needles | “Slag” (Barrels's ember paid) | 32–37 | Stone spires joined by bridges, a sniper's dream; from the top spire at dusk, two lights at the end of the world *(saga)* | Spotters, Cliff Huntsmen | Lena Okoro |
-| Stoneweight Quarry | “Feathers” (Hob's confession after Lena; it ends with Lena's ember paid) | 36–42 | A terraced quarry, cranes, stone blocks hanging over the drop | Quarry crew, bounty hunters | Tobias Grant |
+| Saint Agnes Mire | “Dead or Alive” (Bratton down; the Junction's board) | 23–29 | Swamp country in the river delta: a mission church, cypress, fog and black water. Its saint **Saint Agnes**, who built the mission | The flock, the Unpaid, MossBacks | Sister Constance (Hollis Crane's dark town, played as him) |
+| Furnace Hollow | “And They Shall Rise” (Constance's ember paid) | 28–33 | A smelter town: chimneys, slag rivers, ore carts; the town's saint, **Saint Maud**, was a smith and her Reliquary is cast iron *(saga)* | Furnace men, Ember Tarantulas | Barrels Kessler |
+| The Needles | “Slag” (Barrels's ember paid) | 32–37 | Stone spires joined by bridges, a sniper's dream (its saint **Saint Corliss**, who strung the first bridge); from the top spire at dusk, two lights at the end of the world *(saga)* | Spotters, Cliff Huntsmen | Lena Okoro |
+| Stoneweight Quarry | “Feathers” (Hob's confession after Lena; it ends with Lena's ember paid) | 36–42 | A terraced quarry, cranes, stone blocks hanging over the drop. Its saint **Saint Gideon**, who cut the first terrace | Quarry crew, bounty hunters | Tobias Grant |
 | Ransom's Rest at the new moon | “The Sixth Ember” (Tobias's ember in Ellis's hand) | 41–42 | The hub at night, grey and cold | The Mourners | None: Sexton's betrayal |
 | Hoarfrost Pass *(saga)* | “The New Moon” (the lantern finds Saint Ada for the first time) | 42–45 | The climb to Gravesend over the Rim's snowline, where the Gravewind is a blizzard: frozen dead who never reached the road, ice-bound hearses, Maren Oriel's watch-house | The frozen Unpaid, the Mourners, the Chainman's columns | The Chainman (legendary Hobble) |
 | Gravesend | “The Chain” (the Chainman down) | 45–48 | The great necropolis on the Rim's highest cliffs, where the Gravewind blows hardest and towns with no keeper send their dead in hearse cars on the train: mausoleums, burial boards, bone gardens | The Unpaid, the Mourners | The Hollow Deacon |
@@ -347,15 +347,39 @@ They don't. Sexton's ledger, now in Ellis's hand, is full of souls who slipped a
 
 ## Seeds in Ransom's Rest (saga, 2026-10-15; the user: plan them)
 
-Small things to plant in the built area so the arc is in view from hour one; none changes a built mission. To build
-once the user's calls (Decisions 15) are in.
-- **The Ledger's loose pages** (collectible): six pages in Sexton's hand (the sheriff's lockup, the depot's baggage room, the vestry, Calder's Post, the mine's tag board, the gang's mooring cleft), each opening a lore page on one of the seven towns. The page for Ransom's Rest is dated a month before the robbery.
-- **The Deacon's letters** (collectible): the strongbox slip exists; add a letter never sent in the mooring cleft (*“Kid. The man who pays us isn't a man.”*) and one in the saloon's post rack, addressed to the Rest, never opened.
-- **The map of the Reaches** (prop + lines): a wall map in the depot's ticket office (the lines, Halfway Junction at their heart, the seven towns); Mr. Sloane names the Junction and Highwater Landing when the line opens.
-- **The Seven, on the wall** (prop): a wanted poster with seven faces on the Rangers' board, Ruth's signature under it; a face crossed out as each ember is paid.
-- **The road at dusk** (look + Grave Sight): after The Gravewind, on Gravewind Point at dusk with Grave Sight: a river of small lights walking west across the canyon, and far off a second light, low and steady. Hob: *“Don't look at that one, sunshine.”*
-- **What Ada gave up** (one talk): Father Aldana after Hallowed Ground, the first keeper's story; the smashed Reliquary's lid, turned over, shows the old toll mark scratched out underneath.
-- **Hob's feathers** (lines): three idle lines that only make sense later: *“Eighty years I've been collecting for him. You'd think he'd pay a man.”* *“Careful what you shake on. His deals have a long tail.”* *“I had hands once. Don't ask.”*
+Small things to plant in the built area so the arc is in view from hour one; none changes a built mission. Built
+2026-10-16 (overnight, unattended; placed by `Tools/Unreal/build_area_seeds.py`, words in `Tools/Unreal/story_texts.py`
+READABLES and LEDGER_TOWNS, line sets in `create_story_lines.py`).
+- **The Ledger's loose pages** (collectible; built): six pages in Sexton's hand, each a ledger entry on one robbed town:
+  its saint, the fares its dead crossed free since the saint was lit (owing at two coins the soul), the robbery's date,
+  the carrier, a margin note. Where: the sheriff's lockup (The Needles), the depot's baggage room (Highwater Landing),
+  the vestry door's step (Ransom's Rest), Calder's Post (Dustwater Mesa), the Providence's tag board (Furnace Hollow),
+  the Mooring Ledge (Saint Agnes Mire); Stoneweight Quarry's is found later in the campaign. Reading one sets
+  `Ledger.Page.<Town>` and opens its town's page in the Ledger (NPCs, `DA_Bestiary_Town_<Town>`). The robberies:
+  Highwater Landing 3 March (Ned), Dustwater Mesa 1 April (Ira), Saint Agnes Mire 9 May (Constance), Furnace Hollow
+  14 June (Barrels), the Needles 12 July (Lena), Stoneweight Quarry 2 August (Tobias), Ransom's Rest 21 August at dusk
+  (the Deacon; Ellis woke the 28th). The Rest's page is entered 21 July, a month before, with Ellis's name already in it
+  twice (guide, then "Collector, thereafter: E. Ransom. Engaged from the 28th."); the margin notes hint at the lamp (Furnace
+  Hollow: "Note it for the lamp") and the spire (the Needles: "Keep her off the top spire at dusk").
+- **The Deacon's letters** (collectible; built): the strongbox slip exists; the letter never sent on the Mooring Ledge
+  (*“Kid. The man who pays us isn't a man.”*, then: paid in coin off dead men's eyes; six towns, and he wants yours worst;
+  take your share and ride), and one in the saloon's post rack to Delia, postmarked Halfway Junction 9 August, never
+  opened: his warning to get Abel and the lantern off the Rest before the month was out (a coward's mercy by post, not on
+  the bluff). Flags `Letter.Deacon.Cleft`, `Letter.Deacon.Saloon`.
+- **The map of the Reaches** (prop + lines; built): a wall map over the agent's desk in the depot's ticket office (the
+  lines, Halfway Junction at their heart, the seven towns, "Highwater Landing: end of the line"); Mr. Sloane names
+  Highwater Landing and the Junction at his window after Main 7.
+- **The Seven, on the wall** (prop; built): a wanted poster with seven faces on the Rangers' board, Ruth's signature
+  under it; a face crossed out as each ember is paid (flags `Ember.Paid.<Name>`, set by later missions).
+- **The road at dusk** (look; the light built): after The Gravewind, at dusk, a second light far west, low and steady
+  over the fog (a steady `AFarSignalLight`, 9 km out, shown only at Dusk after Main 6). Hob says *“Don't look at that
+  one, sunshine.”* landing again on the bier beside Pa's as the scene ends. Not built: the river of small lights and Grave
+  Sight (Grave Sight as a vision mode is still a later option).
+- **What Ada gave up** (one talk; built): Father Aldana once after Hallowed Ground (flag `Ada.Told`): the first winter
+  the Rest had no coin for the old fare; Ada lay down on the first board and the wind carried her to the edge of the
+  world, where she stopped and held up her light; no saint crosses. The smashed Reliquary's lid (prised up at one edge
+  in the model) shows the old toll mark, a coin with a line through it, scratched out underneath.
+- **Hob's feathers** (lines; built as his mutters from Main 1's end): *“Eighty years I've been collecting for him. You'd think he'd pay a man.”* *“Careful what you shake on. His deals have a long tail.”* *“I had hands once. Don't ask.”*
 - **The spark** (look): in the cold open's second shot the ember in the Deacon's hand flares and dims as he fires.
 - **Fenn's fare** (built): The Old Fare already shows grave gold on a dead man's eyes and Ned's marker; keep it exactly as it is.
 

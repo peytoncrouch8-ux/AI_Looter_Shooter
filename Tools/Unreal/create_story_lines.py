@@ -40,6 +40,9 @@ The mountain:
              LiftTubeAfter, HaskettLift (the Haskett house's mutter once the lift runs), HobDeadLift
   Last Watch HobLastWatch
   Back Pay   HobBackPay, HobBackPayTags (his perch at the mine's mouth), TagBoardKept (the shift's voice after a kept payroll)
+The Rest's seeds (2026-10-16): HobIdle (Hob's three feathers, his mutters), AldanaAda (What Ada gave up, once after Main 4),
+  HobMain6Point (the road at dusk: his arrival on Pa's neighbour bier after Main 6), and AgentWindowLily's last two lines
+  (the Junction and Highwater Landing).
 """
 import unreal
 
@@ -336,8 +339,11 @@ SETS = {
         ('', "You'll be after coal for Hiram's boiler. The stage is round the side, under the chute."),
         ('', "That's railroad coal, mind. ...Oh, take it. Nothing's running."),
     ],
+    # After Main 7 the line opens (the Rest's seeds: he names the Junction and Highwater Landing, as the wall map does).
     'DA_Lines_AgentWindowLily': [
         ('', "Line's open to the Lily, kid. Your car's coupled."),
+        ('', "Highwater Landing, end of the line. The Lily's tied up there, over the canyon."),
+        ('', "Anywhere else, you change at Halfway Junction. Once somebody clears it."),
     ],
     # Fenn's coffin looked into (the Old Fare's first use of it, and until the coins go back): his eyes bare.
     'DA_Lines_FennLook': [
@@ -489,6 +495,31 @@ SETS = {
     'DA_Lines_TagBoardKept': [
         ('', "Shift's not over."),
         ('', "Pay's Friday. Pay's always Friday."),
+    ],
+
+    # --- The Rest's seeds (Docs/Story.md "Seeds in Ransom's Rest", 2026-10-16) ---
+    # Hob's feathers: his mutters from Main 1's end, one a pass, in this order (the doc's three, word for word).
+    'DA_Lines_HobIdle': [
+        (HOB, "Eighty years I've been collecting for him. You'd think he'd pay a man."),
+        (HOB, "Careful what you shake on. His deals have a long tail."),
+        (HOB, "I had hands once. Don't ask."),
+    ],
+    # What Ada gave up: Father Aldana's one talk after Hallowed Ground (topic sets Ada.Told), the first keeper's story.
+    'DA_Lines_AldanaAda': [
+        ('', "There's a thing the Rest has forgotten. You ought to hear it before you go after her."),
+        ('', "The first winter, nobody on the Rest had coin for the old fare. Their dead lay unpaid."),
+        ('', "Ada lay down on the first board on Gravewind Point and asked the wind to take her. It carried her to the "
+             "edge of the world."),
+        ('', "And there she stopped, and held up her light, so nobody of this valley would pay to cross again."),
+        ('', "She never crossed herself. No saint does. Every one of them is somebody who stayed behind."),
+        (ELLIS, "Sixty years at the edge of the world."),
+        (HOB, "Some debts you pay standing up, sunshine."),
+    ],
+    # The road at dusk: Hob's arrival on the bier beside Pa's once The Gravewind is done (story_texts.PERCHES
+    # gravewindPoint), the second light low over the fog; his word last (the doc's, word for word).
+    'DA_Lines_HobMain6Point': [
+        (ELLIS, "There's a light out past the fog. Low. Steady."),
+        (HOB, "Don't look at that one, sunshine."),
     ],
 }
 

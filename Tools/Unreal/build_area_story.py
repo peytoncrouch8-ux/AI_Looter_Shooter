@@ -67,11 +67,11 @@ Hob (AHobBird, tagged Speaker_Hob), perched near the next thing to do, saying hi
           road's dead tree by the ramp head once the lantern is taken, and there after Main 5.
   Main 6: on the keeper's grave's board for the way to Gravewind Point, on the Keeper's Gate's north rock for the lantern
           and the fight (a word at each, no flight between them), on the bier beside Pa's for the scene, and there after
-          Main 6.
+          Main 6 (landing again as it ends: the second light, "Don't look at that one, sunshine.").
   Main 7: on the keeper's post by the leaning lantern as it begins ("That's Purcell. The Lily's moored out that way."),
           on Tilly's hearse car's roof once Delia has handed Heirloom out, and the station board (a word at each), and
           there after Main 7.
-  Talked to, a line for where things stand.
+  Talked to, a line for where things stand. Passed close, from Main 1's end, his three feathers (story_texts.MUTTERS).
 Their words are line sets in /Game/Data/Story (Tools/Unreal/create_story_lines.py makes them first); a set that's
 missing is left out with a warning, and its speaker says nothing until the sets are made and this runs again.
 """
@@ -195,22 +195,32 @@ def condition(after=(), before=(), during='', from_step=0, before_step=0):
     return made
 
 
-def topic(when, line_set):
+def topic(when, line_set, sets_flag=''):
+    """FSpeakerTopic: when, its line set, and the story flag it sets when said (FSpeakerTopic::SetsFlag; none: none)."""
     made = unreal.SpeakerTopic()
     made.set_editor_property('when', when)
     if line_set:
         made.set_editor_property('line_set', line_set)
+    if sets_flag:
+        # Guarded: a game module built before SetsFlag still takes the topic, only without its flag (then a talk meant to
+        # be given once is given every time until the module is built and this runs again).
+        try:
+            made.set_editor_property('sets_flag', unreal.Name(sets_flag))
+        except Exception as error:
+            unreal.log_warning(f'no SpeakerTopic.sets_flag ({error}): the topic sets no {sets_flag} (build the game module)')
     return made
 
 
 def topics(build, *pairs):
-    """Speaker topics from (condition, line set name) pairs, in order (the first that holds is said), leaving out any
-    whose set isn't made yet: its point then says what comes next for that part of the story."""
+    """Speaker topics from (condition, line set name) pairs, or (condition, line set name, flag it sets) triples, in order
+    (the first that holds is said), leaving out any whose set isn't made yet: its point then says what comes next for that
+    part of the story."""
     made = []
-    for when, name in pairs:
+    for pair in pairs:
+        when, name = pair[0], pair[1]
         line_set = lines(build, name)
         if line_set:
-            made.append(topic(when, line_set))
+            made.append(topic(when, line_set, pair[2] if len(pair) > 2 else ''))
     return made
 
 
@@ -460,10 +470,12 @@ def place_town_gate(build):
 
 
 def texts_topics(build, tag):
-    """A speaker's topics from the missions' data (Tools/Unreal/story_texts.py TOPICS[tag]), in its order."""
+    """A speaker's topics from the missions' data (Tools/Unreal/story_texts.py TOPICS[tag]), in its order, each with the
+    flag it sets when its condition dict carries sets_flag."""
     import story_texts
     texts = importlib.reload(story_texts)
-    return topics(build, *[(texts.condition(when), name) for when, name in texts.TOPICS[tag]['topics']])
+    return topics(build, *[(texts.condition(when), name, (when or {}).get('sets_flag', ''))
+                           for when, name in texts.TOPICS[tag]['topics']])
 
 
 def place_tilly(build, shop):
@@ -692,9 +704,10 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
         perch(spots['keeperPost'], condition(during=MAIN7), 'DA_Lines_HobMain7Lean'),
         # Back Pay's first step, while no main mission holds him: on the Providence's tag board.
         perch(spots['mineMouth'], texts.condition(texts.PERCHES['mineMouth'][0]), texts.PERCHES['mineMouth'][1]),
-        # After each, where the last left him.
+        # After each, where the last left him. After Main 6 he lands again on the bier beside Pa's (the scene's spot, no
+        # flight) with the road at dusk and the second light (story_texts.PERCHES gravewindPoint), until Main 7 is taken.
         perch(spots['hearse'], condition(after=[MAIN7])),
-        perch(spots['deckBier'], condition(after=[MAIN6])),
+        perch(spots['deckBier'], texts.condition(texts.PERCHES['gravewindPoint'][0]), texts.PERCHES['gravewindPoint'][1]),
         perch(spots['roadTree'], condition(after=[MAIN5])),
         perch(spots['lantern'], condition(after=[MAIN4])),
         perch(spots['sign'], condition(after=[MAIN3])),
@@ -703,7 +716,12 @@ def place_hob(build, grave_ellis, lookout, seat, nest, shop, chapel_spots, sink_
     ]
     hob.set_editor_property('perches', [each for each in perches if each is not None])
     # His talk: the missions' data's (story_texts.py TOPICS), the side missions after the main ones.
-    hob.get_editor_property('speaker_point').set_editor_property('topics', texts_topics(build, 'Speaker_Hob'))
+    talk = hob.get_editor_property('speaker_point')
+    talk.set_editor_property('topics', texts_topics(build, 'Speaker_Hob'))
+    # His mutters (story_texts.py MUTTERS: Hob's feathers, one line a pass as the player comes near, in order).
+    mutters = texts.MUTTERS.get('Speaker_Hob', [])
+    if mutters:
+        talk.set_editor_property('mutters', topics(build, *[(texts.condition(when), name) for when, name in mutters]))
     missing = [name for name, spot in spots.items() if spot is None]
     build.log(f'Hob on Ellis\'s headboard at ({x:.0f}, {y:.0f}, {z:.0f}), {len([p for p in perches if p is not None])} perches'
               f'{" (without " + ", ".join(missing) + ")" if missing else ""}')

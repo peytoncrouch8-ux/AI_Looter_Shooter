@@ -46,7 +46,12 @@ are written in his voice (first drafts, for the user to judge).
   DA_Bestiary_Thaddeus    Thaddeus Bright, Friends: as Hiram's, SK_Thaddeus and his spectacles; known after Knocking Below
                           (he's its discovery, not its giver).
   DA_Bestiary_Ned ... _Deacon  the seven names, in Enemies before the Unpaid, in the order the lantern finds them.
+  DA_Bestiary_Town_<Town> the seven robbed towns (TownHighwaterLanding ... TownRansomsRest), NPCs after Aldana: a story
+                          character's page each, its words the loose Ledger page's (story_texts.py LEDGER_TOWNS), open once
+                          that page is read (with_flags Ledger.Page.<Town>).
 """
+import importlib
+import os
 import sys
 
 import unreal
@@ -504,6 +509,42 @@ PAGES = {
 }
 
 
+# The seven towns the gang robbed (the Rest's seeds, 2026-10-16): one page each, its words the loose Ledger page's own
+# (Tools/Unreal/story_texts.py LEDGER_TOWNS, the one place for them). A story character's page in the NPCs, in the
+# Ledger, closed ("???") until its loose page is read (the readable sets Ledger.Page.<Town>): the bestiary has no Places
+# section, and a LEDGER_NAME page would show its words from the start and break Looter.Ledger's seven names. Sorted after
+# Sexton, Delia and Aldana, in the order the lantern finds the names, Ransom's Rest last. Stoneweight Quarry's page lies
+# elsewhere in the campaign, so it stays closed on Ransom's Rest.
+TOWNS_FIRST = 10
+
+
+def town_pages():
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    import story_texts
+    texts = importlib.reload(story_texts)
+    pages = {}
+    for order, (town, page) in enumerate(texts.LEDGER_TOWNS.items()):
+        flag = 'Ledger.Page.' + town
+        pages['Town' + town] = dict(
+            asset='DA_Bestiary_Town_' + town,
+            page='STORY_CHARACTER',
+            name=page['name'],
+            section='NPC',
+            kind=page['saint'] + "'s town",
+            ledger_only=True,
+            known_when=dict(with_flags=[flag]),
+            found_when=dict(with_flags=[flag]),
+            habitat=page['habitat'],
+            description=page['text'],
+            notes=['Found: ' + (page['found'] or 'not yet') + '.', 'Its ember: carried by ' + page['carrier'] + '.'],
+            sort_order=TOWNS_FIRST + order,
+        )
+    return pages
+
+
+PAGES.update(town_pages())
+
+
 # Pages made by hand before this script, whose words, numbers and models are the assets' own: only where they are found
 # is written here. They read "Tutorial Island: ..." until 2026-10-14; the map order is Ransom's Rest first now (spiders nest
 # on Ransom's Point at the top of the bluff path, in the Sink and on the mountain's crest; the slimes are Mill Creek's,
@@ -556,11 +597,14 @@ def load_or_create(asset_name, cls):
     return asset, True
 
 
-def condition(after=(), before=()):
-    """FStoryCondition: after these missions, before those (empty: always, or for found_when, never)."""
+def condition(after=(), before=(), with_flags=(), without_flags=()):
+    """FStoryCondition: after these missions, before those, with and without these story flags (empty: always, or for
+    found_when, never)."""
     made = unreal.StoryCondition()
     made.set_editor_property('after_missions', [unreal.Name(m) for m in after])
     made.set_editor_property('before_missions', [unreal.Name(m) for m in before])
+    made.set_editor_property('with_flags', [unreal.Name(f) for f in with_flags])
+    made.set_editor_property('without_flags', [unreal.Name(f) for f in without_flags])
     return made
 
 

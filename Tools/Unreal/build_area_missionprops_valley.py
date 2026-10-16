@@ -107,7 +107,9 @@ LINES = {
         (SLOANE, "That's railroad coal you're after!"),
         (SLOANE, "...Oh, take it. Nothing's running."))),
     'AgentWindowLily': ('DA_Lines_AgentWindowLily', say(
-        (SLOANE, "Line's open to the Lily, kid. Your car's coupled."))),
+        (SLOANE, "Line's open to the Lily, kid. Your car's coupled."),
+        (SLOANE, "Highwater Landing, end of the line. The Lily's tied up there, over the canyon."),
+        (SLOANE, "Anywhere else, you change at Halfway Junction. Once somebody clears it."))),
     'FennLook': ('DA_Lines_FennLook', say(
         (HOB, "Somebody's been at his fare, sunshine. Rob a dead man's eyes and every soul for a mile hears about it."))),
     'FennCoins': ('DA_Lines_FennCoins', say(

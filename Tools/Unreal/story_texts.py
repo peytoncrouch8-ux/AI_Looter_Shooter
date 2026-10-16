@@ -5,8 +5,13 @@ offers, steps, turn-ins and choices) are Tools/Unreal/create_mission_assets.py's
 line sets the topics below name are Tools/Unreal/create_story_lines.py's.
 
   READABLES   every AReadableProp's words by readable id (its title, heading, text, prompt and the lines said after
-              reading it), and when it's there (shown_when, a condition as below; none: always). apply_readable() copies
-              them onto a placed prop; READABLE_MODELS names the ones that bring a model of their own.
+              reading it), when it's there (shown_when, a condition as below; none: always) and the story flag reading
+              it sets (sets_flag). apply_readable() copies them onto a placed prop; READABLE_MODELS names the ones that
+              bring a model of their own.
+  LEDGER_TOWNS the seven towns the Dunne Gang robbed, one loose Ledger page each (the Rest's seeds, 2026-10-16): the
+              page's words, its saint, where it lies on Ransom's Rest. The six found here are READABLES
+              (LedgerPage_<Town>, placed by build_area_seeds.py); all seven are bestiary pages
+              (create_bestiary_pages.py, open once the page's flag Ledger.Page.<Town> is set).
   PORCH_PLATE the porch plate's (APorchPlate) prompts, the slip read as the jars are taken, Delia's answer as the biscuits
               are eaten, and its two conditions.
   ARTIFACTS   each AMissionArtifact's title, prompt and whether it goes once its mission is taken (its card's words are
@@ -14,7 +19,9 @@ line sets the topics below name are Tools/Unreal/create_story_lines.py's.
   ITEMS       each AMissionItem's mission, where it lies, its prompt and when it's there (the missions' own FMissionItemInfo
               names and Carried lines are in the mission scripts).
   TOPICS      what each speaker point says when, by its actor tag: (condition, line set) pairs, the first that holds is
-              said (build_area_story.topics() takes them as they are once each condition is made with condition()).
+              said (build_area_story.topics() takes them as they are once each condition is made with condition()). A
+              condition dict may carry sets_flag: the story flag the topic sets when it's said (FSpeakerTopic::SetsFlag),
+              so with that flag in its without_flags it's a talk given once (Aldana's Ada.Told).
   MUTTERS     lines a speaker point says unasked as the player passes, with when.
   PERCHES     Hob's new perches' arrival lines (the spot is the placing script's), with when.
   ENCOUNTERS  when each mission fight is on (an encounter spawner's active_when), by its spawner id.
@@ -151,7 +158,164 @@ READABLES = {
         text="Kid's share.\nFor when the kid comes home.\n\n" + DASH + ' A.D.',
         lines=[(ELLIS, 'He kept my share.'),
                (HOB, '...Sentimental, for a man who shot you.')]),
+
+    # --- The Rest's seeds (Docs/Story.md "Seeds in Ransom's Rest"; build_area_seeds.py places them) ---
+    # The Deacon's letter never sent, wedged in the rock by the gang's mooring post (the Story's first line, word for word).
+    'DeaconLetter_Cleft': dict(
+        title="A letter in the Deacon's hand", heading='Folded small, wedged in a crack by the mooring post. Never sent.',
+        prompt='Read', sets_flag='Letter.Deacon.Cleft',
+        text=("Kid. The man who pays us isn't a man.\n"
+              "He paid us in coin off dead men's eyes, and I took it. God help me, I'd take it again.\n"
+              "Six towns now, and he wants yours worst of all. I can't tell you why. I'm afraid I'll find out.\n"
+              "When we're done here, take your share and ride. Don't come looking for me.\n\n" + DASH + ' A.D.'),
+        lines=[(ELLIS, 'Six towns. Then mine.'),
+               (HOB, 'Never sent. Left where you tied up, though. Make of that what you like, sunshine.')]),
+    # The Deacon's letter to Delia in the saloon's post rack, mailed before the robbery and never collected: his warning.
+    'DeaconLetter_Saloon': dict(
+        title='A letter in the post rack', heading='To Mrs. D. Ransom, Ransom Farm. Postmarked Halfway Junction, 9 August. '
+                                                  'Unopened.',
+        prompt='Read', sets_flag='Letter.Deacon.Saloon',
+        text=("Mrs. Ransom,\n\n"
+              "You don't know my hand. You know my name, and you've cause to curse it.\n\n"
+              "Get Abel and his lantern off the Rest before the month is out. Your sister's, anywhere. Don't ask me why. "
+              "I can't put it in a letter.\n\n"
+              "The kid is well. The kid doesn't know, and I'd sooner it stayed that way.\n\n"
+              "Burn this.\n\n" + DASH + ' A. Dunne'),
+        lines=[(ELLIS, 'He tried to warn her.'),
+               (HOB, 'Tried. Then he came anyway. Mind the difference, sunshine.')]),
+    # The smashed Reliquary's lid after Hallowed Ground (no model: the lid prised askew is the Reliquary's own).
+    'ReliquaryLid': dict(
+        title="The Reliquary's lid", heading='Prised up at one edge', prompt='Look', text='',
+        shown_when=dict(after=['Main4']),
+        lines=[(ELLIS, "There's a mark cut on the underside of the lid. Scratched out, a long time ago."),
+               (ELLIS, 'A coin, with a line through it.'),
+               (HOB, 'The old toll mark. Somebody made sure she never paid it. Or anyone after her, sunshine.')]),
+    # The railroad's map on the ticket office's wall over the agent's desk (SM_ReachesMap).
+    'ReachesMap': dict(
+        title='The Reaches', heading='A railroad map, pinned over the agent\'s desk', prompt='Read',
+        text=("THE REACHES. THE RAILROAD AND ITS TOWNS.\n\n"
+              "Every line runs in to HALFWAY JUNCTION, inked heavy at the heart of the sheet.\n\n"
+              "RANSOM'S REST, on the Rim at the west edge.\n"
+              "HIGHWATER LANDING: END OF THE LINE.\n"
+              "DUSTWATER MESA. SAINT AGNES MIRE. FURNACE HOLLOW. THE NEEDLES. STONEWEIGHT QUARRY.\n\n"
+              "Seven towns, each with a little sun inked by its name: a saint."),
+        lines=[(HOB, 'Seven saints and one railroad. Every line runs to the Junction, sunshine. Remember that.')]),
 }
+
+# The seven towns the Dunne Gang robbed, in the order the Keeper's Lantern finds their embers (the seven names' order),
+# Ransom's Rest last (the Deacon's). Each loose page is Sexton's entry on its town: the saint, the fares the town's dead
+# crossed free since the saint was lit (owing at the old fare, a coin on each eye), the robbery, and a note in the margin.
+# The Rest's page is dated a month before its robbery, with the Revenant's name already entered (Ellis's variant: the
+# hero pick changes the name). found: where it lies on Ransom's Rest (None: Stoneweight Quarry's, found later in the
+# campaign). The flag reading it sets opens its bestiary page.
+LEDGER_TOWNS = {
+    'HighwaterLanding': dict(
+        name='Highwater Landing', saint='Saint Hester', carrier='Lucky Ned Purcell',
+        habitat='The Rim, where the railroad ends: the Gilded Lily ties up over the canyon',
+        found="In the depot's baggage room on Ransom's Rest, on a trunk",
+        heading='On a trunk in the baggage room',
+        text=('HIGHWATER LANDING\n'
+              'Saint Hester, who staked the landing. Lit nineteen years since.\n'
+              'Fares carried free since: 1,102 souls.\n'
+              'Owing, at two coins the soul: 2,204.\n\n'
+              'Collected 3 March, by the Dunne Gang. Keeper settled first.\n'
+              'Carried by N. Purcell.\n\n'
+              'In the margin: Purcell will keep it by the cards and call it luck. Let him.'),
+        lines=[(HOB, 'Highwater Landing. End of the line, where the Lily ties up. Purcell\'s luck lives there now, '
+                     'sunshine.')]),
+    'DustwaterMesa': dict(
+        name='Dustwater Mesa', saint='Saint Ezra', carrier='Whistling Ira Gale',
+        habitat='Wind-scoured mesas joined by rope bridges',
+        found="In Ruth Calder's cabin at Calder's Post, on the table",
+        heading="On Ruth's table, under the lamp",
+        text=('DUSTWATER MESA\n'
+              'Saint Ezra, who dug the cistern. Lit seventy years since.\n'
+              'Fares carried free since: 2,951 souls.\n'
+              'Owing, at two coins the soul: 5,902.\n\n'
+              'Collected 1 April, by the Dunne Gang. Keeper settled first.\n'
+              'Carried by I. Gale.\n\n'
+              'In the margin: Gale asked what the coin was. Old money, I told him. True.'),
+        lines=[(ELLIS, 'Two coins the soul.'),
+               (HOB, 'He counts careful. Always has.')]),
+    'SaintAgnesMire': dict(
+        name='Saint Agnes Mire', saint='Saint Agnes', carrier='Sister Constance Holloway',
+        habitat='The river delta: a mission church among the cypress and black water',
+        found="On the ledge by the gang's mooring post, under Ransom's Point",
+        heading='On the ledge by the mooring post',
+        text=('SAINT AGNES MIRE\n'
+              'Saint Agnes, who built the mission. Lit a hundred and four years since.\n'
+              'Fares carried free since: 9,630 souls.\n'
+              'Owing, at two coins the soul: 19,260.\n\n'
+              'Collected 9 May, by the Dunne Gang. Keeper settled first.\n'
+              'Carried by C. Holloway.\n\n'
+              'In the margin: The Sister means to be merciful with it. Mercy keeps the dead close. Useful.'),
+        lines=[(HOB, '"Useful." He does like that word, sunshine.')]),
+    'FurnaceHollow': dict(
+        name='Furnace Hollow', saint='Saint Maud', carrier='Barrels Kessler',
+        habitat='A smelter town of chimneys, slag and ore carts',
+        found="Pinned on the Providence's tag board, under the IN hooks",
+        heading='Pinned on the tag board, under the IN hooks',
+        text=('FURNACE HOLLOW\n'
+              'Saint Maud, the smith. Her Reliquary cast iron, at her asking. Lit fifty years since.\n'
+              'Fares carried free since: 5,412 souls.\n'
+              'Owing, at two coins the soul: 10,824.\n\n'
+              'Collected 14 June, by the Dunne Gang. Keeper settled first.\n'
+              'Carried by B. Kessler.\n\n'
+              'In the margin: Iron holds a light well. Note it for the lamp.'),
+        lines=[(ELLIS, 'What lamp?'),
+               (HOB, "Couldn't say, sunshine. Couldn't say.")]),
+    'TheNeedles': dict(
+        name='The Needles', saint='Saint Corliss', carrier='Lena Okoro',
+        habitat='Stone spires joined by rope bridges',
+        found="On the floor of the sheriff's lockup on Ransom's Rest, by the bunk",
+        heading='On the cell floor, by the bunk',
+        text=('THE NEEDLES\n'
+              'Saint Corliss, who strung the first bridge. Lit thirty-eight years since.\n'
+              'Fares carried free since: 1,480 souls.\n'
+              'Owing, at two coins the soul: 2,960.\n\n'
+              'Collected 12 July, by the Dunne Gang. Keeper settled first.\n'
+              'Carried by L. Okoro.\n\n'
+              'In the margin: Okoro sees too far. Keep her off the top spire at dusk.'),
+        lines=[(ELLIS, 'Why keep her off the spire?'),
+               (HOB, "Some views aren't good for a body, sunshine.")]),
+    'StoneweightQuarry': dict(
+        name='Stoneweight Quarry', saint='Saint Gideon', carrier='Tobias Grant',
+        habitat='A terraced quarry: cranes, and stone hanging over the drop',
+        found=None,
+        heading='',
+        text=('STONEWEIGHT QUARRY\n'
+              'Saint Gideon, who cut the first terrace. Lit fifty-six years since.\n'
+              'Fares carried free since: 4,077 souls.\n'
+              'Owing, at two coins the soul: 8,154.\n\n'
+              'Collected 2 August, by the Dunne Gang. Keeper settled first.\n'
+              'Carried by T. Grant.\n\n'
+              'In the margin: Grant did not want it. He carried it all the same. Carrying is what he is for.'),
+        lines=[]),
+    'RansomsRest': dict(
+        name="Ransom's Rest", saint='Saint Ada', carrier='the Deacon, Ambrose Dunne',
+        habitat='The Rim: a high farm valley over Gravewind Canyon',
+        found="On the step outside the vestry door of the Chapel of Saint Ada",
+        heading='On the step outside the vestry door',
+        text=("RANSOM'S REST\n"
+              'Saint Ada, who lay down on the first board. Lit sixty-one years since.\n'
+              'Fares carried free since: 2,207 souls.\n'
+              'Owing, at two coins the soul: 4,414.\n\n'
+              'To be collected 21 August, at dusk, by the Dunne Gang. Guided in by E. Ransom.\n'
+              'Keeper: A. Ransom. To be settled on the bluff path.\n'
+              'Collector, thereafter: E. Ransom. Engaged from the 28th.\n\n'
+              'Entered 21 July.\n\n'
+              'In the margin: Dunne will keep this one for himself. Allow it. For now.'),
+        lines=[(ELLIS, 'July. He wrote my name in July.'),
+               (HOB, "...Put it away, sunshine. Some accounts don't improve on a second reading.")]),
+}
+
+# The six pages found on Ransom's Rest, as readables (LedgerPage_<Town>): reading one sets Ledger.Page.<Town>.
+for _town, _page in LEDGER_TOWNS.items():
+    if _page['found']:
+        READABLES['LedgerPage_' + _town] = dict(
+            title='A page of the Ledger: ' + _page['name'], heading=_page['heading'], prompt='Read', text=_page['text'],
+            lines=_page['lines'], sets_flag='Ledger.Page.' + _town)
+del _town, _page
 
 # The props' own models (Art/Models/Props/MissionProps.py, imported to /Game/Art/Props/) for the readables that bring one;
 # the rest are read off the dressing they're on (a headboard, a slate, a barn door, a wall, a desk).
@@ -159,7 +323,10 @@ READABLE_MODELS = {
     'KeepersRoll': 'SM_KeepersRoll', 'SheriffHat': 'SM_SheriffHat', 'SheriffBadge': 'SM_SheriffBadge',
     'RuthJournal': 'SM_Journal', 'CodeBook': 'SM_CodeBook', 'PostLog': 'SM_PostLog', 'PayrollBook': 'SM_PayrollBook',
     'DeaconsSlip': 'SM_DeaconsSlip',
+    # The Rest's seeds (the props art's; build_area_seeds.py falls back to SM_DeaconsSlip while one isn't imported).
+    'DeaconLetter_Cleft': 'SM_DeaconLetter', 'DeaconLetter_Saloon': 'SM_DeaconLetter', 'ReachesMap': 'SM_ReachesMap',
 }
+READABLE_MODELS.update({'LedgerPage_' + town: 'SM_LedgerPage' for town, page in LEDGER_TOWNS.items() if page['found']})
 
 # ---------------------------------------------------------------------------
 # The porch plate (APorchPlate, on the farmhouse's porch table)
@@ -253,6 +420,9 @@ TOPICS = {
     'Speaker_Aldana': dict(default='DA_Lines_AldanaBarred', topics=[
         (dict(during='Main4', from_step=3), 'DA_Lines_AldanaBell'),
         (dict(during='Main4', from_step=2), 'DA_Lines_AldanaWaiting'),
+        # What Ada gave up (the Rest's seeds): the first keeper's story, once, after Hallowed Ground; then his words as
+        # before. Above the after-topics, as the first that holds is said.
+        (dict(after=['Main4'], without_flags=['Ada.Told'], sets_flag='Ada.Told'), 'DA_Lines_AldanaAda'),
         (dict(after=['Main5']), 'DA_Lines_AldanaAfterMain5'),
         (dict(after=['Main4']), 'DA_Lines_AldanaAfterMain4'),
     ]),
@@ -337,6 +507,9 @@ MUTTERS = {
     # (Mr. Sloane's word about the coal is his window's topic during Dead Lift now: DA_Lines_AgentWindowCoal.)
     # Hiram from the winch house as the lift crew rise (Dead Lift's first step).
     'Speaker_Hiram': [(dict(during='DeadLift', before_step=1), 'DA_Lines_HiramCrew')],
+    # Hob's feathers (the Rest's seeds): three lines that only make sense later, one a pass as the player comes near him,
+    # in order, from the claw-out's mission on (build_area_story.place_hob).
+    'Speaker_Hob': [(dict(after=['Main1']), 'DA_Lines_HobIdle')],
     # (The Haskett house's "...That's the lift. Abe always said he'd hear her run." once Dead Lift is done is a town-life
     # door's mutter: World/TownLifeRules.cpp's News, the CottageNorth household, which ATownLifeDoor says by itself. No
     # speaker point carries it, so it isn't listed here; DA_Lines_HaskettLift holds the same words.)
@@ -347,6 +520,10 @@ PERCHES = {
     'keepersBridge': (dict(during='Main6', before_step=1), 'DA_Lines_HobMain6Bridge'),
     # On the Providence's tag board as Back Pay begins.
     'mineMouth': (dict(during='BackPay', before_step=1), 'DA_Lines_HobBackPayTags'),
+    # On the bier beside Pa's once The Gravewind is done (the scene's spot: he lands there again with no flight, so this
+    # is said as the scene's words end, still at dusk), until Pa's Main 7 is taken: the road at dusk, the second light low
+    # over the fog (build_area_seeds.py), Hob's word on it last.
+    'gravewindPoint': (dict(after=['Main6']), 'DA_Lines_HobMain6Point'),
 }
 
 # When each mission fight is on (an encounter's active_when): the missions count their kills from the spawner, so a fight
@@ -410,4 +587,12 @@ def apply_readable(prop, readable_id):
     prop.set_editor_property('lines', story_lines(spec.get('lines', ())))
     if spec.get('shown_when'):
         prop.set_editor_property('shown_when', condition(spec['shown_when']))
+    if spec.get('sets_flag'):
+        # AReadableProp::SetsFlag (2026-10-16): set on reading. Guarded, so a game module built before it still places the
+        # readable (it reads, and only the flag is missing).
+        try:
+            prop.set_editor_property('sets_flag', unreal.Name(spec['sets_flag']))
+        except Exception as error:
+            unreal.log_warning(f'{readable_id}: no ReadableProp.sets_flag ({error}): reading it sets no '
+                               f'{spec["sets_flag"]} (build the game module)')
     return prop
