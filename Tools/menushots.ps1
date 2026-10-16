@@ -1,6 +1,6 @@
 # Runs the game standalone on a level, gives the player a realistic loadout and photographs the inventory through its states
 # with Looter.MenuShots (a screenshot WITH the UI at each: the loadout, a backpack gun and its comparison, an upgrade,
-# Inspect, an equip, a swap target, a sort, the ledger, the missions), and prints the pictures' paths. Pictures land in
+# Inspect, an equip, a swap target, a sort, the ember powers, the ledger, the missions), and prints the pictures' paths. Pictures land in
 # Saved\Screenshots\MenuShots\<NN>_<state>.png. The run drives the screen with key presses only, so the same command
 # photographs any version of the inventory (a redesign's before and after).
 # A map named on the command line plays a new game with no session, so nothing is saved.
