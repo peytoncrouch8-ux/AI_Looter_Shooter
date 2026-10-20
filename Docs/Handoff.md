@@ -363,6 +363,13 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   Left as found (Ellis's too): left palm open under the foregrip, the Bullpup reload tips its stock across the face, the
   Ranchhand reload swings the left arm out, the camera ignores hero size (Crane's hat and Gauge's stacks fill the left of
   the aimed view), red patches on Pike's/Crane's/Odessa's skin (skin material), Crane's coat flares wide sprinting.
+- **The user's next pick: "Fix the leftovers"** (2026-10-20), DONE: SKIN (7c0f858: M_CharacterSkin on Preintegrated
+  Skin, the blotches were the Separable SSS filter on Medium/High), HANDS (41e6bb6: the third-person left hand grips the
+  handguard, pump or six-gun hand), CAMERA (per-hero over-the-shoulder camera, tuned; values in Pipeline), and the
+  hero-swap crash in `Wear` (sections shown before InitAnim). 777/777 before the swap fix; hero tests 10/10 after it.
+  The user said skip screenshot capture runs (the editor crashed in python311 ~30 s after them, three times today).
+  **Not done: perf of the Preintegrated Skin** (expected neutral or cheaper: no SSS pass; run perf.ps1 Medium with a hero
+  when the PC is quiet), the camera with the Ranchhand/Drover and Gauge/Pike at 4x. The user is playing in the editor.
   Not yet done: perf with the PC quiet (heroes, powers, the Barrow fight), the Gravemother decals by eye, the Slag Bomb
   pool's look, Rail Spike's end-on line, Crane's hook swinging in motion, the portrait/model shared-helper merges.
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases

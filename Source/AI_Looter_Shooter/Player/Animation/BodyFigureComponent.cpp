@@ -156,18 +156,20 @@ void UBodyFigureComponent::Wear()
 	{
 		Retargeter = NewRetargeter;
 		SetSkinnedAssetAndUpdate(Mesh, false);
+		if (Mesh && Retargeter)
+		{
+			InitAnim(true);
+		}
 		// Hidden sections are kept by index on the component, not the mesh: Ellis's holstered revolver (slot 5, hidden
 		// while a revolver is drawn) hid slot 5 of the next hero worn, Odessa's and Crane's coats. Show every section
-		// of the new mesh; the holster is put right again on the next tick.
+		// of the new mesh; the holster is put right again on the next tick. Only after InitAnim: showing a section
+		// refreshes the bones, and before it the bone arrays were still the old body's (Odessa's 93 against Crane's 145
+		// tripped the engine's bone-count check on a Looter.Hero swap, 2026-10-20).
 		for (int32 LOD = 0; LOD < GetNumLODs(); ++LOD)
 		{
 			ShowAllMaterialSections(LOD);
 		}
 		bHolsterGunShown = true;
-		if (Mesh && Retargeter)
-		{
-			InitAnim(true);
-		}
 	}
 
 	USkeletalMeshComponent* Body = GetBody();

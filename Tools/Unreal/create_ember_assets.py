@@ -181,13 +181,15 @@ THIRD_PERSON_HOLD = {'Ellis': (0.0, 0.0, 0.0), 'Odessa': (0.0, 0.0, -4.5), 'Cran
                      'Gauge': (5.0, 3.0, -8.0), 'Pike': (0.0, 0.0, -6.5)}
 
 # Where the over-the-shoulder camera sits for each body against Ellis's, which it was tuned to (UHeroDefinition::
-# ThirdPersonCamera; cm on the full-size body: extra arm length (+ farther back), extra to the right, extra up). Starting
-# estimates from Saved/Screenshots/HeroGuns/checks/game_camera_aim_all.png (2026-10-20), tuned in play with the
-# Looter.ThirdPerson.* cvars: Crane's hat (head and shoulders ~14 cm up, a wide brim) and Gauge's smokestacks (shoulders
-# ~12 cm wider, stacks on his back) filled the left of the aimed view: Crane up with his head and back and out a little,
-# Gauge out and back. Odessa and Pike, a little smaller than Ellis, come a touch closer and lower with their heads.
-THIRD_PERSON_CAMERA = {'Ellis': (0.0, 0.0, 0.0), 'Odessa': (0.0, 0.0, -3.0), 'Crane': (20.0, 8.0, 16.0),
-                       'Gauge': (35.0, 14.0, 8.0), 'Pike': (-5.0, 0.0, -5.0)}
+# ThirdPersonCamera; cm on the full-size body: extra arm length (+ farther back), extra to the right, extra up). Tuned in
+# play 2026-10-20 (Looter.Hero, a Prism 2x rifle aimed and at the hip, the game's camera, the town street): the one camera
+# was tuned to Ellis, so Crane's hat (head and shoulders ~14 cm up, a wide brim) and Gauge's smokestacks (shoulders ~12 cm
+# wider, stacks on his back) filled the left of the aimed view. Each value puts the hero's silhouette where Ellis's is on the
+# screen, aimed (2x) and at the hip: the top of the hat or stacks at the same height (a quarter of the way down), the head
+# bone within 0.01 of the screen of Ellis's, the footprint the same width. Crane up with his head and back, Gauge back and
+# out (his bulk still reads bigger than Ellis's), Odessa and Pike, a little smaller, closer and lower with their heads.
+THIRD_PERSON_CAMERA = {'Ellis': (0.0, 0.0, 0.0), 'Odessa': (-5.0, 0.0, -3.0), 'Crane': (20.0, 8.0, 16.0),
+                       'Gauge': (45.0, 12.0, 4.0), 'Pike': (-10.0, -4.0, -8.0)}
 
 
 def hero(id, name, role, story, color, powers):

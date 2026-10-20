@@ -1369,6 +1369,15 @@ committed: its names are here). The session keeps the pick; the character takes 
     the rifle animation's and the mannequin's left fingers already rest bent 36-64 degrees, so tests check where the
     fingertips end up (round the gun), not closing against the rest pose; the mannequin's smaller hand closes its outer
     fingers inside the Bullpup's shell, the heroes' lie on its far side. Test `Looter.Anim.Grip.*` (`Tests/StanceGripTests.cpp`).
+  - The camera per hero (2026-10-20): the over-the-shoulder camera was tuned to Ellis, so Crane's hat and Gauge's stacks
+    filled the left of the aimed view. `UHeroDefinition::ThirdPersonCamera` (cm on the full-size body: X extra arm length,
+    + back; Y right; Z up; create_ember_assets.py `THIRD_PERSON_CAMERA`: Ellis 0, Odessa (-5, 0, -3), Crane (20, 8, 16),
+    Gauge (45, 12, 4), Pike (-10, -4, -8)) -> `UBodyFigureComponent::GetCameraOffset` -> `UPlayerViewComponent::
+    UpdateHeroCamera`: added to the arm and shoulder offset over the shoulder only, on top of the `Looter.ThirdPerson.*`
+    overrides, eased at 7/s on a `Looter.Hero` swap (snapped in first person and the front view). Tuned in PIE with a
+    Bullpup, hip and aimed: the hat or stacks at Ellis's height on screen, the head bone within ~0.01 of his; a wall behind
+    and crouch frame as Ellis's. Not checked: the Ranchhand and Drover, Gauge and Pike at 4x. Tests
+    `Looter.Heroes.CameraData`, `.CameraBoom` (`Tests/HeroCameraTests.cpp`).
   - Left as they were, Ellis's too: the Bullpup's reload tips its stock up across the face; the Ranchhand's reload swings
     the left arm out at the side; a flat white card by the Ranchhand's receiver in right-side views (seen, not looked into).
 - Tests: `Looter.Heroes.Definitions`, `.Playable`, `.Save`, `.Screen`, `.Menu`, `.Character` (`Tests/HeroTests.cpp`);
@@ -1778,6 +1787,10 @@ a whole build cycle).
 ## Bugs and how they were fixed
 
 Each line: bug (date). Cause. Fix.
+
+- A `Looter.Hero` swap mid-play (Odessa to Crane) tripped "SK_Crane has incorrect BoneVisibilityStates" (93 against 145)
+  and the engine's bone-count check (2026-10-20). Cause: `UBodyFigureComponent::Wear` showed every material section
+  (which refreshes the bones) before `InitAnim` had sized the bone arrays for the new body. Fix: show them after InitAnim.
 
 - Red-and-green/white blotches on the heroes' bare skin (Pike's hand, Odessa's cheek, Crane's face; 2026-10-20). Cause:
   M_CharacterSkin's Subsurface Profile goes through the Separable SSS filter on Medium/High (BaseScalability's
