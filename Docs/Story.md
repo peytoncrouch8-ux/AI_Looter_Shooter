@@ -277,7 +277,7 @@ The user's rule that Common is the most likely rarity and each tier up is rarer 
 
 - **Defense** takes its share of every hit (bullets, blows, grenades, ember powers: `UHealthComponent`, once); a crit pierces half of it (the user's call). Effective health against a Regular one at the valley's level 4: 2.4, 4.0, 5.5, 7.0 up the tiers (Soulfed about 13.6).
 - **Spawn odds** rise with the area's place in the campaign, read from its creatures' lowest level: 1 (Ransom's Rest) gives the first numbers, 50 and up the late ones, straight between (the Lily, from 9: 8/49 of the way). They roll for placed Basic creatures on arrival and for spawners rolling by area; a roll past a tier's cap of living ones steps down a tier. Areas' `RarePromotionChance`/`EpicPromotionChance` now only switch promotions on (Skyreach off).
-- **Traits** (Gravebound 1, Hallowed 2, Ethereal 3): Fleet, Mending, Warded, Grave-burst, Rallying, Vengeful, Phasing (DESIGN.md has what each does), rolled from a seed of the creature's name in its level and its promotion roll, so a load rebuilds them with nothing saved.
+- **Traits** (Gravebound 1, Hallowed 2, Ethereal 3): Fleet, Mending, Warded, Grave-burst, Rallying, Vengeful, Phasing (Pipeline "Enemy tiers" has what each does), rolled from a seed of the creature's name in its level and its promotion roll, so a load rebuilds them with nothing saved.
 - **Silver** a tier's kill gives: a Regular kill's × its multiplier on average, dropping more often (`LooterEconomy::ScaledKillOdds`); Soulfed and bosses keep their own.
 - **The tag**: word and name both in the tier's colour. Tier-only colours (the user's call): yellow and red are no gun rarity's; blue and purple happen to match the Rare and Epic beams.
 

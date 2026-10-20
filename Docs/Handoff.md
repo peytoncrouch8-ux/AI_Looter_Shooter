@@ -327,6 +327,13 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   tier (needs a save field). Main's calls sent with the merge GO: silver restored for Regular/Restless/Gravebound (CORE
   had cut it), Hallowed 1.6x and Ethereal 2.5x Gravebound's; the Legendary rank's tag to the legendary orange #FF9900
   (Hallowed's #F5C842 was close to its #FFCC00). The ward bar (pale cyan over health) added to the staged tag.
+  **TRAITS + LOOK merged, built and committed (895c9a4), 767/767**; fixed in play: Phasing never fired (melee creatures
+  are always mid-attack: a hard hit now blinks once the attack ends; fences blocked every spot: checks trace 150 cm up),
+  the slime's core never lit (no vertex colour: the shell lights the gel round it), flares and rings softened/lifted.
+  Pipeline "Enemy tiers" has every trait and the look. Perf at the start (inside the safe zone): 8 Regular 7.7, Hallowed
+  7.8, Ethereal 7.8 ms; fighting in town at (0, -1400): 8 Regular 7.6, 8 Hallowed 7.7, 8 Ethereal 7.7 ms (p95 8.2-8.3;
+  Performance.md rows). Not done: bestiary defeats per tier; the dead
+  miner's lamp glow unconfirmed at range; the Fleet wind streaks unconfirmed.
   Not yet done: perf with the PC quiet (heroes, powers, the Barrow fight), the Gravemother decals by eye, the Slag Bomb
   pool's look, Rail Spike's end-on line, Crane's hook swinging in motion, the portrait/model shared-helper merges.
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases

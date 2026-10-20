@@ -1475,10 +1475,12 @@ folder). The pieces:
 - Lessons from style 3: rim terms on alpha-tested leaves speckle unless they read the crown's vertex normal; a screen-space edge pass
   cost the most (+0.8-1.0 ms in all).
 
-## Enemy tiers (the core built 2026-10-20)
+## Enemy tiers (built 2026-10-20)
 
-The design and its numbers: `Saved/Tiers/DESIGN.md` (user-approved), the agents' names `Saved/Tiers/CONTRACT.md`; the
-rules for players: Docs/Story.md, "Enemy ranks and legendary drops".
+The user-approved design, its numbers and the user's calls: Docs/Story.md, "Enemy ranks and legendary drops" (the one
+place; the drafts in `Saved/Tiers/` are history). Built by four agents on one contract: the core, then the traits and the
+look merged together in one build (staged with `git merge-file` against the core's working copy while it built: it saved
+a whole build cycle).
 - **The enum**: `ECreatureRank` keeps Basic 0, Rare 1, Epic 2, Legendary 3, Boss 4 and appends Hallowed 5, Ethereal 6 (levels,
   encounter groups, egg sacs and saves hold the numbers). Never compare ranks with `<`/`>` or index arrays by their numbers:
   `LooterRanks::Order`, `IsAbove`, `IsAtLeast`, `TierIndex`, `IsTier`, `TierBelow` (`Creatures/CreatureRank.h`). A rule per
@@ -1500,8 +1502,33 @@ rules for players: Docs/Story.md, "Enemy ranks and legendary drops".
   and PIE; a runtime spawn uses its UniqueID) hashed with the promotion roll's bits (0 when placed or spawned with its
   rank). Nothing saved: a session keeps no creatures, only `PromotionsRolledAt` (no reroll within 20 min), so no save
   version change (still 3).
-- **Silver**: tiers pay a Regular kill's odds through `LooterEconomy::ScaledKillOdds` (chance `1-(1-c)^m`, the amount grown
-  to keep the average at m times): this cut today's Restless/Gravebound silver (x3.7 / x8.7 a Regular Unpaid's before).
+- **Silver**: Regular, Restless and Gravebound pay exactly what they did before the tiers (an Unpaid on average 2.75 / 10.2 /
+  24, a beast 0.6 / 3.5 / 11.2); `SilverMultiplier` means "times a Gravebound kill" (1 below it): Hallowed 1.6, Ethereal 2.5
+  (Unpaid 38.5 / 60). The first build took it as "times a Regular kill" through `LooterEconomy::ScaledKillOdds` and cut
+  today's silver to a third: a test now pins today's amounts and that silver rises every tier.
+- **Traits** (`Creatures/CreatureTrait*`, every number in `UCreatureTraitSettings`, Project Settings > Game > Creature
+  Traits): Fleet speed x1.25, wind-ups x0.85 with a glint, wind streaks; Mending after 3 s unhit 3%/s with motes and the
+  Mend loop, any hit stops it; Warded a ward of 30% health taking hits first, crits count x2 on it, the breaking hit spills
+  over, a turning cyan cage, WardHit pings, WardBreak with shards and a 0.8 s daze, no regrowth, a pale-cyan bar over the
+  tag's health; Grave-burst a 1 s swell (body grows, a 3 m ring pulsing faster) then 1.5x its attack (x0.6 at the edge) to
+  players in sight, knockback and a jolt; Rallying creatures within 8 m take x0.85 and move x1.1 (once however many),
+  ring, tethers, a pulse every 6 s; Vengeful below 30% enrages for good (x1.25 damage and speed, flare, embers); Phasing
+  on 8% of its health taken within 1 s blinks 4-6 m aside of the shooter (every 4 s at most, to ground it can stand on and
+  they can see; a hard hit mid-attack blinks once the attack ends, up to 1.5 s: melee creatures are nearly always mid-
+  attack). Fit by kind: the Spitter and Bell-Ringer never Fleet or Grave-burst, the Bell-Ringer never Vengeful; every kind
+  can phase. `SetTraits({})` undoes everything. `Looter.Traits.Give <trait...|none>`, `Looter.Traits.Show`.
+- **The look** (`Creatures/CreatureTierLook*`, `CreatureTierFXSubsystem`): a "tier shell" (a leader-posed copy of the body
+  in `M_CreatureTier` from `build_tier_material.py`, one translucent draw a creature; the overlay slot belongs to the hit
+  flash and the bodies' own slots share M_World / FoliagePalette) glowing on the eye patch, the coal, the lamp, round the
+  slime's heart (the imported SK_Slime keeps no vertex colour, and the gel hides the core: the shell lights the gel within
+  50 cm of it), Ethereal's red ghost-rim; the tag's frame and clamps on Hallowed/Ethereal, the word popping on notice, a dim
+  trait line from Gravebound up; notice stings over the rank sting; death shows (pillar 9 m/1.7 s Hallowed, 13 m/2.1 s
+  Ethereal), loot pops 0.15-0.18 s after, the XP popup tinted.
+- **Lessons**: Phasing never blinks in a safe zone (Delia's salt line covers the farm, orchard and family plot: test in
+  town); its wall and sight checks trace 150 cm up (fences and gravestones blocked every spot at foot height); a perf horde
+  at the game's start sits in that safe zone and barely fights: give `Looter.Perf.Horde` a spot in town (`0 -1400 90`).
+  The gun Legendary colour (1.0, 0.6, 0.0) is linear: on screen #FFCB00; the named Legendaries' tags are #FF9900 sRGB now,
+  so they read deeper orange than a legendary gun's beam (Abel's coal reads the Boss colour and turned orange too).
 - **Dev**: `Looter.SpawnCreature <kind> <tier> [count] [chase]` logs the last one's health, defense, bite, XP and traits;
   `Looter.Tier.Hit [damage] [crit]` hits the nearest as the player's shot and logs what defense let through;
   `Looter.Tier.Odds [kills]`; `Looter.Perf.Horde Spider 8 Ethereal`. A test level's creatures take damage only through
