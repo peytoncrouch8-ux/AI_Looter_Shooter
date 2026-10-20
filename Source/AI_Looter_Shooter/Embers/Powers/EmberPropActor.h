@@ -30,7 +30,11 @@ public:
 
 	/** A light Offset over the prop's ground, in Color, Candela bright, reaching Radius cm. */
 	void SetLight(const FLinearColor& Color, float Candela, float Radius, const FVector& Offset);
+	/** The light's brightness now (shown only when the quality allows power lights). */
 	void SetLightIntensity(float Candela);
+
+	/** Whether a power may light the ground: High and Epic only (an extra light costs ~0.3 ms on Medium). */
+	static bool LightsAllowed();
 
 	/** The prop's model loaded (shown); false where the asset isn't in the game (the power still works, drawn without it). */
 	bool HasModel() const;

@@ -62,3 +62,16 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-10-15 | Ellis round 2: swing springs, 96 bones, hat tip, RR spawn | 53d5f22 | 1920x1080 | 7.6 | 131 | 8.1 | 3.7 | 7.6 | 1.6 | 6.4 | 1407 | 1670356 | 2.85 |
 | 2026-10-15 | Ellis round 6: hat seated, hair cards, cape chains, 142 bones, RR spawn | 0ad1801 | 1920x1080 | 7.6 | 131 | 8.2 | 3.9 | 7.6 | 1.6 | 6.4 | 1406 | 1671510 | 2.95 |
 | 2026-10-16 | Ember powers round 1, RR spawn | 92cb87e | 1920x1080 | 7.7 | 130 | 8.2 | 3.8 | 7.7 | 1.6 | 6.4 | 1421 | 1673227 | 2.76 |
+| 2026-10-20 | Heroes: Ellis's body, RR spawn | d09573b8 | 1920x1080 | 7.7 | 130 | 8.2 | 3.9 | 7.7 | 1.6 | 6.4 | 1427 | 1665261 | 3.84 |
+| 2026-10-20 | Heroes: Crane's body, RR spawn | d09573b8 | 1920x1080 | 7.7 | 129 | 8.3 | 3.9 | 7.7 | 1.7 | 6.4 | 1427 | 1665893 | 2.82 |
+| 2026-10-20 | Heroes: Gauge's body, RR spawn | d09573b8 | 1920x1080 | 7.7 | 131 | 8.2 | 3.7 | 7.6 | 1.6 | 6.4 | 1426 | 1663690 | 2.77 |
+| 2026-10-20 | Heroes: Pike's body, RR spawn | d09573b8 | 1920x1080 | 7.7 | 130 | 8.2 | 3.8 | 7.7 | 1.6 | 6.4 | 1429 | 1665078 | 2.80 |
+| 2026-10-20 | Heroes: Odessa's body, RR spawn | d09573b8 | 1920x1080 | 7.7 | 129 | 8.3 | 4.1 | 7.7 | 1.8 | 6.4 | 1428 | 1663670 | 2.81 |
+| 2026-10-20 | Fight baseline: Ellis, 8 spiders, no power, RR spawn | d09573b8 | 1920x1080 | 7.7 | 129 | 8.3 | 4.9 | 7.7 | 1.7 | 6.5 | 1459 | 1760641 | 2.80 |
+| 2026-10-20 | Powers: Gauge Slag Bomb every 8 s, 8 spiders | d09573b8 | 1920x1080 | 7.8 | 128 | 8.5 | 5.3 | 7.8 | 1.8 | 6.5 | 1464 | 1787378 | 2.83 |
+| 2026-10-20 | Powers: Gauge Iron Hide every 6.5 s, 8 spiders | d09573b8 | 1920x1080 | 7.7 | 129 | 8.2 | 4.9 | 7.7 | 1.7 | 6.5 | 1439 | 1739149 | 2.78 |
+| 2026-10-20 | Powers: Odessa Fifty-Two Pickup every 2 s, 8 spiders | d09573b8 | 1920x1080 | 7.8 | 128 | 8.3 | 5.2 | 7.7 | 1.7 | 6.5 | 1516 | 1777962 | 2.99 |
+| 2026-10-20 | Powers: Crane Grave Ward every 8 s, 8 spiders | d09573b8 | 1920x1080 | 8.0 | 126 | 8.5 | 4.9 | 8.0 | 1.7 | 6.7 | 1473 | 1767249 | 2.80 |
+| 2026-10-20 | Powers: Pike Spyglass every 8 s, 8 spiders | d09573b8 | 1920x1080 | 7.8 | 128 | 8.4 | 5.1 | 7.8 | 1.7 | 6.5 | 1481 | 1783767 | 2.78 |
+| 2026-10-20 | Powers: Ellis Sundown every 6.5 s, 8 spiders | d09573b8 | 1920x1080 | 7.7 | 129 | 8.2 | 4.8 | 7.7 | 1.7 | 6.5 | 1471 | 1783713 | 2.83 |
+| 2026-10-20 | Gravemother Barrow fight at the RR spawn (her moves as they come) | d09573b8 | 1920x1080 | 7.7 | 130 | 8.2 | 4.1 | 7.7 | 1.7 | 6.4 | 1446 | 1636166 | 2.82 |

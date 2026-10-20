@@ -1498,6 +1498,12 @@ folder). The pieces:
 - Per pass: `perf.ps1 -GpuStats -Exec "Looter.Quality Medium,Looter.Tour <views.json> noshots" -Frames 16000 -Skip 0 -NoRecord`, then
   `Tools\perfviews.ps1 <csv>`. Pass the views file: without it, `Looter.Tour` walks the tutorial island's list. `-Pattern
   'Exclusive/RenderThread'` lists the render thread's work.
+- Heroes and powers (2026-10-20): `-Exec "Looter.Quality Medium,Looter.Hero <Id>"` wears a hero for the run;
+  `Looter.Perf.Horde Spider 8 Basic` puts a fight in view (the player unhurt); `Looter.Embers.Repeat <id> <seconds>` fires
+  a power again and again past its cooldown (an -Exec runs once, before the capture). An `-Exec` with `ShowFlag.PointLights
+  0` in both runs tells a light's cost from the rest. Found that way: one extra point light while a power lasts costs ~0.3 ms
+  on Medium (GPU lights pass + the render thread's visibility wait), so `AEmberPropActor::LightsAllowed` keeps power lights
+  (Grave Ward's lantern, Slag Bomb's pool) to High and Epic.
 - What a group costs: a view file of its own under `Saved/` (any path under the project) with each view twice, once with
   `"exec": ["Looter.Perf.HideFolder RansomsRest/<folder> 1"]`, `"after": [... 0]`; `Looter.Perf.DrawShares <view>` in a view's
   `after` lists what it drew by outliner folder and mesh (`Saved/Tour/DrawShares.csv`); `ProfileGPU` in `after` dumps one

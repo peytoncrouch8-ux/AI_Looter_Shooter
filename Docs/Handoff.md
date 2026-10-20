@@ -246,6 +246,12 @@ BARROW-CODE reports. First-person arms and line variants start as agents free up
   and pushed (last 6a5c172), 744/744. **The user's call (2026-10-20 morning): the cold open is kept for every hero**
   (Story.md "The heroes"); Main's other four provisional Lines calls stand unless the user says otherwise. Waiting on the
   user: their playtest.
+- **Performance pass (the user's pick, 2026-10-20 morning; Docs/Performance.md rows):** RR spawn on Medium, each hero
+  worn: all five 7.7 ms (129-131 fps; Ellis 7.7 before the heroes). With 8 spiders: baseline 7.7 (p95 8.3); powers
+  repeating: Slag Bomb 7.8, Iron Hide 7.7, Fifty-Two Pickup 7.8, Spyglass 7.8, Sundown 7.7, Grave Ward 8.0 -> **7.8 after
+  power lights went High/Epic only** (`AEmberPropActor::LightsAllowed`; the light was the whole +0.3 ms, proven with
+  `ShowFlag.PointLights 0`). The Gravemother's Barrow fight over 2,400 frames: 7.7 (p95 8.2). New dev command
+  `Looter.Embers.Repeat <id> <seconds>|off`. Not measured: the 37-view tour (nothing changed the world's views).
   Not yet done: perf with the PC quiet (heroes, powers, the Barrow fight), the Gravemother decals by eye, the Slag Bomb
   pool's look, Rail Spike's end-on line, Crane's hook swinging in motion, the portrait/model shared-helper merges.
 - LINES-ART started in its slot: SM_Headboard_<Hero> x5 (epitaph a parameter), a bare keepers' roll, four poster atlases

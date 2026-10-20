@@ -12,6 +12,7 @@
 #include "Embers/HeroDefinition.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "TimerManager.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
@@ -96,6 +97,44 @@ namespace
 		}
 	}
 
+	/** Looter.Embers.Repeat's timer and the world it runs in (one repeat at a time). */
+	FTimerHandle RepeatTimer;
+	TWeakObjectPtr<UWorld> RepeatWorld;
+
+	/**
+	 * Looter.Embers.Repeat <id> <seconds> | off: fires the power now and again every <seconds> (past its cooldown), so a
+	 * performance capture (Tools\perf.ps1 -Exec, which runs once at the start, before the capture) always has one running.
+	 * With no player yet it simply tries again next time.
+	 */
+	void RepeatEmber(const TArray<FString>& Args, UWorld* World)
+	{
+		const TCHAR* Command = TEXT("Looter.Embers.Repeat");
+		if (UWorld* Old = RepeatWorld.Get())
+		{
+			Old->GetTimerManager().ClearTimer(RepeatTimer);
+		}
+		RepeatWorld.Reset();
+		if (Args.Num() == 0 || Args[0].Equals(TEXT("off"), ESearchCase::IgnoreCase))
+		{
+			UE_LOG(LogLooter, Log, TEXT("%s: off."), Command);
+			return;
+		}
+		UWorld* GameWorld = FindGameWorld(World);
+		if (!GameWorld)
+		{
+			UE_LOG(LogLooter, Warning, TEXT("%s: no level being played."), Command);
+			return;
+		}
+		const float Seconds = Args.Num() > 1 ? FMath::Max(0.5f, FCString::Atof(*Args[1])) : 8.f;
+		const TArray<FString> UseArgs{ Args[0] };
+		RepeatWorld = GameWorld;
+		GameWorld->GetTimerManager().SetTimer(RepeatTimer, FTimerDelegate::CreateLambda([UseArgs, GameWorld]()
+		{
+			UseEmber(UseArgs, GameWorld);
+		}), Seconds, true, 0.5f);
+		UE_LOG(LogLooter, Log, TEXT("%s: %s every %.1f s (Looter.Embers.Repeat off stops it)."), Command, *Args[0], Seconds);
+	}
+
 	/** Looter.Embers.Equip <id>: equips an owned power (not while one runs). */
 	void EquipEmber(const TArray<FString>& Args, UWorld* World)
 	{
@@ -167,6 +206,11 @@ namespace
 		TEXT("Looter.Embers.Use [id]: fires the equipped ember power (or the named one, equipped first) past its cooldown; ")
 		TEXT("ids: the hero's own (Looter.Embers.State lists them: DustDevil, LuckyStreak, TollChain, SlagBomb, Spyglass...)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&UseEmber));
+
+	FAutoConsoleCommandWithWorldAndArgs RepeatCommand(
+		TEXT("Looter.Embers.Repeat"),
+		TEXT("Looter.Embers.Repeat <id> <seconds> | off: fires the power now and again every <seconds>, past its cooldown (for perf captures)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&RepeatEmber));
 
 	FAutoConsoleCommandWithWorldAndArgs EquipCommand(
 		TEXT("Looter.Embers.Equip"),

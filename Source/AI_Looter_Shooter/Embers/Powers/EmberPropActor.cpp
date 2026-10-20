@@ -6,6 +6,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "Misc/PackageName.h"
+#include "Scalability.h"
 
 AEmberPropActor::AEmberPropActor()
 {
@@ -96,10 +97,19 @@ void AEmberPropActor::SetLight(const FLinearColor& Color, float Candela, float R
 	SetLightIntensity(Candela);
 }
 
+bool AEmberPropActor::LightsAllowed()
+{
+	// A power's light is a whole extra light while it lasts: Grave Ward's lantern measured +0.3 ms on Medium at the Rest's
+	// spawn (GPU lights pass and the render thread's visibility wait; 2026-10-20), and new additions pay their own way on
+	// Medium (the user's rule). High and Epic light the ground; Low and Medium keep the glass's and the pool's own glow.
+	return Scalability::GetQualityLevels().ShadowQuality >= 2;
+}
+
 void AEmberPropActor::SetLightIntensity(float Candela)
 {
-	Light->SetIntensity(FMath::Max(Candela, 0.f));
-	Light->SetVisibility(Candela > 0.f);
+	const bool bShow = Candela > 0.f && LightsAllowed();
+	Light->SetIntensity(bShow ? Candela : 0.f);
+	Light->SetVisibility(bShow);
 }
 
 void AEmberPropActor::Remove()
