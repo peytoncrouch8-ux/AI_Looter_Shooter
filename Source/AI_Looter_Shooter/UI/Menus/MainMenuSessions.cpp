@@ -1,5 +1,8 @@
 #include "UI/Menus/MainMenuWidget.h"
+#include "Embers/HeroDefinition.h"
 #include "Session/SessionSubsystem.h"
+#include "UI/Menus/HeroSelectParts.h"
+#include "UI/Menus/HeroSelectWidget.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Blueprint/WidgetTree.h"
@@ -28,6 +31,8 @@ namespace
 
 	/** Every card is at least as tall as a saved session's, so the three line up like slots, used or not. */
 	constexpr float CardMinHeight = 140.f;
+	/** A saved session's hero, their face cut from the portrait (60 read small in the editor's viewport). */
+	constexpr float CardFaceSize = 72.f;
 	constexpr float CardActionsWidth = 150.f;
 	constexpr float CardGap = 10.f;
 	constexpr float PopupWidth = 520.f;
@@ -172,11 +177,26 @@ UWidget* UMainMenuWidget::MakeSessionCard(int32 Index, const FSessionSummary& Su
 	UVerticalBox* Info = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	if (bSaved)
 	{
-		// The session, its level (large), the area the player is in (Skyreach, Ransom's Rest) and the guns they carry,
-		// how long it's been played and when it was saved.
+		// Its hero's face, in their colour's hairline (the session keeps its hero for good).
+		const UHeroDefinition* Hero = UHeroDefinition::Load(Summary.HeroId);
+		if (Hero)
+		{
+			UHorizontalBoxSlot* FaceSlot = Line->AddChildToHorizontalBox(HeroSelectParts::MakePortrait(WidgetTree, Hero->LoadPortrait(),
+				FVector2D(CardFaceSize, CardFaceSize), HeroSelectParts::ECrop::Face, false, Hero->Color));
+			FaceSlot->SetVerticalAlignment(VAlign_Center);
+			FaceSlot->SetPadding(FMargin(12.f, 0.f, 0.f, 0.f));
+		}
+		// The session, its level (large), its hero, the area the player is in (Skyreach, Ransom's Rest) and the guns they
+		// carry, how long it's been played and when it was saved.
 		Info->AddChildToVerticalBox(MakeSection(WidgetTree, SessionName(Index)));
 		Info->AddChildToVerticalBox(MakeText(WidgetTree, FString::Printf(TEXT("Level %d"), Summary.Level), 20, Color::Title(), true, 80))
 			->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
+		if (Hero)
+		{
+			UTextBlock* HeroName = MakeFittedText(WidgetTree, Hero->DisplayName.ToString().ToUpper(), 11, Hero->Color);
+			HeroName->SetFont(Font(11, true, 100));
+			Info->AddChildToVerticalBox(HeroName)->SetPadding(FMargin(0.f, 1.f, 0.f, 0.f));
+		}
 		const FString Guns = Capitalized(GunsText(Summary.Weapons));
 		const FString Where = Summary.Place.IsEmpty() ? Guns : FString::Printf(TEXT("%s  ·  %s"), *Summary.Place, *Guns);
 		Info->AddChildToVerticalBox(MakeFittedText(WidgetTree, Where, 11, Color::Text()))->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
@@ -224,7 +244,7 @@ void UMainMenuWidget::HandleSessionButton(ULooterButton* Button)
 {
 	if (Button->Action == ActionPlay)
 	{
-		// A saved session continues; an empty slot starts the story at once (no choice to make: USessionSubsystem::StartNewGame).
+		// A saved session continues as its hero; an empty slot chooses its hero first (StartSession).
 		StartSession(Button->Index);
 	}
 	else if (Button->Action == ActionDelete)
@@ -251,6 +271,13 @@ void UMainMenuWidget::StartSession(int32 Index)
 	if (!Sessions)
 	{
 		SetStatus(TEXT("Sessions can't be read right now."), Color::Worse());
+		return;
+	}
+	// An empty slot's new game begins with the pick of a hero, Borderlands' way (only where the story can start: before
+	// that, PlaySession opens the game's first level as it always did).
+	if (!Sessions->GetSummary(Index).bExists && USessionSubsystem::CanStartStory())
+	{
+		OpenHeroSelect(Index);
 		return;
 	}
 	// The level opens and the menu goes with this world. Until then a second click would start a second trip.
@@ -289,8 +316,10 @@ void UMainMenuWidget::OpenDeleteConfirm(int32 Index)
 
 	UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	const FString Where = Summary.Place.IsEmpty() ? FString() : FString::Printf(TEXT(" in %s"), *Summary.Place);
-	UTextBlock* Body = MakeText(WidgetTree, FString::Printf(TEXT("Everything saved in %s will be deleted for good: level %d%s, %s, %s played."),
-		*SessionLabel, Summary.Level, *Where, *GunsText(Summary.Weapons), *USessionSubsystem::FormatPlayTime(Summary.PlayedSeconds)), 13, Color::Text());
+	const UHeroDefinition* Hero = UHeroDefinition::Load(Summary.HeroId);
+	const FString Who = Hero ? FString::Printf(TEXT("%s, "), *Hero->DisplayName.ToString()) : FString();
+	UTextBlock* Body = MakeText(WidgetTree, FString::Printf(TEXT("Everything saved in %s will be deleted for good: %slevel %d%s, %s, %s played."),
+		*SessionLabel, *Who, Summary.Level, *Where, *GunsText(Summary.Weapons), *USessionSubsystem::FormatPlayTime(Summary.PlayedSeconds)), 13, Color::Text());
 	Body->SetAutoWrapText(true);
 	Content->AddChildToVerticalBox(Body);
 	Content->AddChildToVerticalBox(MakeText(WidgetTree, TEXT("This can't be undone."), 13, Color::Worse()))->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
@@ -353,5 +382,75 @@ void UMainMenuWidget::ConfirmDelete()
 	else
 	{
 		SetStatus(FString::Printf(TEXT("%s couldn't be deleted."), *SessionName(Index)), Color::Worse());
+	}
+}
+
+// ---------------------------------------------------------------------------
+// The hero select
+// ---------------------------------------------------------------------------
+
+void UMainMenuWidget::OpenHeroSelect(int32 Index)
+{
+	if (!HeroSelect)
+	{
+		return;
+	}
+	CloseDeleteConfirm();
+	StopNavHold();
+	// Over the whole screen; the column (and its picker) waits under it for Back.
+	bHeroSelectShown = true;
+	HeroSelect->Open(Index);
+	HeroSelect->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	if (ColumnBox)
+	{
+		ColumnBox->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	SetKeyboardFocus();
+	RefreshNavLook();
+}
+
+void UMainMenuWidget::CloseHeroSelect()
+{
+	if (!bHeroSelectShown)
+	{
+		return;
+	}
+	bHeroSelectShown = false;
+	const int32 Index = HeroSelect ? HeroSelect->GetSlot() : 0;
+	if (HeroSelect)
+	{
+		HeroSelect->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (ColumnBox)
+	{
+		ColumnBox->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+	// Back on the picker, the focus on the New Game it came from.
+	SetStatus(FString(), Color::TextDim());
+	RebuildNavigation(PlayButtons.IsValidIndex(Index) ? PlayButtons[Index].Get() : nullptr);
+	RefreshNavLook();
+	SetKeyboardFocus();
+}
+
+void UMainMenuWidget::HandleHeroConfirmed(int32 SlotIndex, FName HeroId)
+{
+	USessionSubsystem* Sessions = USessionSubsystem::Get(this);
+	if (!Sessions)
+	{
+		if (HeroSelect)
+		{
+			HeroSelect->CancelConfirm(TEXT("Sessions can't be read right now."));
+		}
+		return;
+	}
+	// The level opens and the menu goes with this world: nothing more is pressed meanwhile.
+	bLoading = true;
+	if (!Sessions->StartNewGame(SlotIndex, HeroId))
+	{
+		bLoading = false;
+		if (HeroSelect)
+		{
+			HeroSelect->CancelConfirm(FString::Printf(TEXT("%s couldn't be started."), *SessionName(SlotIndex)));
+		}
 	}
 }

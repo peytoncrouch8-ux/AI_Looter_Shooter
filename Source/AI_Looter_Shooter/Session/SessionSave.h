@@ -319,6 +319,14 @@ public:
 	FEmberSave Embers;
 
 	/**
+	 * The hero this session plays (UHeroDefinition::Id: "Ellis", "Odessa", "Crane", "Gauge", "Pike"), picked on the hero
+	 * select before its new game and kept for good: another hero means another session. New within version 3: a save
+	 * from before the pick has none and reads as Ellis, the only hero there was (GetHeroId), so it needs no upgrade.
+	 */
+	UPROPERTY()
+	FName HeroId;
+
+	/**
 	 * The silver carried (UWalletSubsystem; Docs/Progression.md, "Economy"). New within version 2: a save from before money
 	 * reads as none carried, which is right, so it needs no upgrade.
 	 */
@@ -424,4 +432,7 @@ public:
 
 	/** Guns carried: the equipped ones and the backpack's. */
 	int32 CountGuns() const;
+
+	/** The hero played: HeroId, or Ellis for a save from before the pick (UHeroDefinition::DefaultId). */
+	FName GetHeroId() const;
 };

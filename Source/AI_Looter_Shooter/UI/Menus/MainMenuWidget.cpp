@@ -1,4 +1,5 @@
 #include "UI/Menus/MainMenuWidget.h"
+#include "UI/Menus/HeroSelectWidget.h"
 #include "UI/Menus/MainMenuHUD.h"
 #include "UI/Style/LooterButton.h"
 #include "UI/Style/LooterUIStyle.h"
@@ -79,9 +80,17 @@ TSharedRef<SWidget> UMainMenuWidget::RebuildWidget()
 		Root->SetVisibility(ESlateVisibility::Visible);
 		WidgetTree->RootWidget = Root;
 
-		UOverlaySlot* ColumnSlot = Root->AddChildToOverlay(MakeSized(WidgetTree, MakeColumn(), ColumnWidth));
+		ColumnBox = MakeSized(WidgetTree, MakeColumn(), ColumnWidth);
+		UOverlaySlot* ColumnSlot = Root->AddChildToOverlay(ColumnBox);
 		ColumnSlot->SetHorizontalAlignment(HAlign_Left);
 		ColumnSlot->SetVerticalAlignment(VAlign_Fill);
+
+		// Over the whole screen while an empty slot's New Game chooses its hero (MainMenuSessions.cpp).
+		HeroSelect = WidgetTree->ConstructWidget<UHeroSelectWidget>(UHeroSelectWidget::StaticClass(), TEXT("HeroSelect"));
+		HeroSelect->OnConfirmed.BindUObject(this, &UMainMenuWidget::HandleHeroConfirmed);
+		HeroSelect->OnBack.BindUObject(this, &UMainMenuWidget::CloseHeroSelect);
+		HeroSelect->SetVisibility(ESlateVisibility::Collapsed);
+		FillOverlaySlot(Root->AddChildToOverlay(HeroSelect));
 
 		// On top of everything: the delete confirmation, while it's open.
 		PopupLayer = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("Popup"));
@@ -222,6 +231,15 @@ void UMainMenuWidget::ShowMainButtons()
 {
 	CloseDeleteConfirm();
 	bPickerShown = false;
+	bHeroSelectShown = false;
+	if (HeroSelect)
+	{
+		HeroSelect->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (ColumnBox)
+	{
+		ColumnBox->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
 	if (MainButtons)
 	{
 		MainButtons->SetVisibility(ESlateVisibility::SelfHitTestInvisible);

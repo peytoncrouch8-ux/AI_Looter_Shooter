@@ -1090,6 +1090,61 @@ committed; its content is in this section once the round lands). The agents' not
   (`Tests/EmberPowerTests.cpp`: definitions made in the test; the dash stepped by hand; a test level has no game mode,
   so the damage itself isn't checked there; hurts are broadcast as `AActor::TakeDamage` hands them out).
 
+## The hero pick (the select screen, built 2026-10-19)
+
+Before a new game the player picks one of five (Docs/Story.md "The heroes"; contract `Saved/Heroes/CONTRACT.md`, not
+committed: its names are here). The session keeps the pick; the character takes the hero's body and powers.
+- **Ids (never change, like part keys):** `Ellis`, `Odessa`, `Crane`, `Gauge`, `Pike`, the roster's order
+  (`UHeroDefinition::RosterIds`). Roles: the Revenant, the Cardsharp, the Unpaid, the Iron Hand, the Surveyor. Colours
+  (sRGB): Ellis #5AD8FF, Odessa #D04A68, Crane #B9D98C, Gauge #FFB347, Pike #3FBFAA (data, like an ember's).
+- **Data:** `DA_Hero_<Id>` in `/Game/Data/Embers` (name, role, story, colour, `Portrait` `/Game/UI/Portraits/T_Portrait_<Id>`,
+  `FigureMesh` `/Game/Art/Characters/SK_<Id>`, `Retargeter` `/Game/Player/Retarget/RTG_MannyTo<Id>`, three powers) and the
+  fifteen `DA_Ember_<Id>`, all from `Tools/Unreal/create_ember_assets.py`. The twelve new powers (`LuckyStreak,
+  FiftyTwoPickup, DoubleOrNothing, TollChain, GraveWard, LastRites, SlagBomb, IronHide, RailSpike, Spyglass, Tripwire,
+  LongShot`) are data only: words, nature, colour and starting numbers in the script (the demo's four from the cloud
+  handoff, the rest decided 2026-10-19 as starting points), no class, no icon (`power_class` None leaves the field as it is;
+  name the class there when its code lands). The portrait, mesh and retargeter fields are set by `SetLookPaths` (Python
+  sets a soft pointer only from a loaded object) only once each asset exists: a soft pointer to a missing package failed
+  the editor's asset validation on save (AssetReferenceRestrictions, 2026-10-19). Meanwhile the game finds each by the
+  naming rule (`GetFigureMeshPath` and the rest), so a hero lights up as soon as the model lands; rerun the script after
+  each to fill the fields.
+- **Playable** (`IsPlayable`): the mesh and retargeter load and every power has a class. Only Ellis today; the others show
+  "In the works". `Looter.Hero.Unlock 1` (console variable; never in shipping) lets one be picked anyway: Ellis's body
+  stands in, their powers are owned but can't fire (NoPower).
+- **Portraits:** the user's picks copied to `Art/Portraits/Picks/<Hero>.png` (Ellis A, Crane A, Pike A, Gauge C, Odessa A)
+  and imported by `Tools/Unreal/import_hero_portraits.py` as UI textures (BC7, UI group, no mips, never streamed, clamped).
+  Paintings, so textures (not kit vector art). The screen cuts them by UV region (`HeroSelectParts::ECrop`: whole, face
+  square, eye band), so one texture serves every size. Run order: import, then create_ember_assets.
+- **The save:** `ULooterSessionSave::HeroId` (new within version 3; none reads as Ellis: `GetHeroId`). `StartNewGame(Index,
+  HeroId)` writes it first and refuses a hero that can't be picked (`ApplyNewGameHero`). `PlaySession` on an empty slot (the
+  console's `Looter.Session.Play`) starts Ellis. `FSessionSummary::HeroId` names it on the card.
+- **The hero played:** `USessionSubsystem::GetPlayedHeroId` = the session's, else (no session: Looter.PlayLevel, a level
+  from the editor) `GetNoSessionHeroId`, Ellis unless `Looter.Hero <Id>` set another (kept for the editor run).
+  `FindPlayedHero(context)` is what the character asks: `UEmberComponent` binds it on an `ALooterCharacter` (else the
+  Blueprint's `HeroDefinition`, else Ellis); `UBodyFigureComponent` wears its mesh and retargeter when both load, else
+  Ellis's, and restarts its animation on a change. A holstered gun is any material slot ending in `HolsterGun`.
+  `Looter.Hero <Id>` mid-play (no session only) rebinds the powers and re-wears every body figure in the world;
+  `Looter.Hero` alone lists the roster and what each hero still lacks.
+- **The screen** (`UHeroSelectWidget`, `UI/Menus/HeroSelect*`): an empty slot's New Game opens it over the island, the
+  main menu's column hidden; the main menu hands it every key and its clock. Laid out at 1600 x 900, scaled to fit (like
+  the inventory's pages): header top left (bar, SESSION N · NEW GAME, CHOOSE YOUR HERO, one line), the chosen portrait
+  500 px on the stage (top clear of the header: the frame's fittings touched its line at 520) with a 1080 px glow in the
+  hero's colour (alpha 0.5, breathing; the space is meant for a live 3D stand later), the roster under it (five 176 x 140 cards: eye band, number key, colour strip, name, role; greyed and stamped IN THE
+  WORKS when not playable), the panel on the right (496 x 820: role, name, colour rule, story, EMBER POWERS with three
+  rows: medallion with the Inked icon or the power's glow, name, nature chip, words, cooldown; status line; Back and
+  "Play as <name>", disabled "In the works"). Greyed = the image tinted 0.42 grey under a 42% IconShade wash (Slate has no
+  desaturation without a material).
+- **Keys:** one roster row then Back/Play (`FMenuNavigator`, wrapping). Left/right move and the choice follows; 1-5 and
+  the bumpers choose; A or Enter on a card or Play confirms; B or Esc back to the picker (focus on that New Game). Mouse:
+  click a card to choose, Play to confirm; a card under the mouse lights. Sounds: UI.Hover as the choice moves, UI.Click
+  for a click, UI.Equip + Ember.Ready on confirm, UI.Denied (and the reason on the panel) for a hero in the works,
+  UI.Back. Confirm plays a 0.85 s beat (portrait lifts 3.5%, the glow swells) before `OnConfirmed`; keys are ignored
+  until the level opens or `CancelConfirm` (StartNewGame refused).
+- **Session cards** name their hero: the face cut in a 72 px square with a hairline in their colour, the name in their
+  colour under the level; the delete popup names them too.
+- Tests: `Looter.Heroes.Definitions`, `.Playable`, `.Save`, `.Screen`, `.Menu`, `.Character` (`Tests/HeroTests.cpp`).
+  `.Playable` expects only Ellis while the twelve powers have no code: update it as they land.
+
 ## Seeds in Ransom's Rest (the saga's first clues, built 2026-10-16 overnight)
 
 The list and the words' facts: `Docs/Story.md` "Seeds in Ransom's Rest" (the seven towns' saints in its Areas table).

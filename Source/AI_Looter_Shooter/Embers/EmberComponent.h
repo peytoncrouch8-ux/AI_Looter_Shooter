@@ -19,8 +19,9 @@ struct FEmberContext;
  * UKeyBindingSubsystem::GetEmberAction) fires the equipped one, which runs for its duration and then cools down. The
  * powers page (the inventory's second tab) swaps the equipped one. Made in C++ on ALooterCharacter like the grenade.
  *
- *  - The hero: HeroDefinition, or the default (DA_Hero_Ellis) when the Blueprint sets none. Each owned power gets its
- *    UEmberPower made once (Powers, by the same index as the hero's list).
+ *  - The hero: on the player's character the hero played (the session's pick, USessionSubsystem::FindPlayedHero);
+ *    otherwise HeroDefinition, or the default (DA_Hero_Ellis) when the Blueprint sets none. Each owned power with code
+ *    gets its UEmberPower made once (Powers, by the same index as the hero's list); one still without code can't fire.
  *  - The gate (TryUse): nothing dead, in a scene, behind a menu, mid-mantle, mid-swap, while a power runs or cools down;
  *    then the power's own CanActivate. A denied press tells the HUD why (OnDenied: the socket shakes for Cooldown and
  *    Active, clicks for the rest).
@@ -48,6 +49,13 @@ public:
 	// --- The hero and the powers owned ---
 
 	const UHeroDefinition* GetHero() const { return Hero; }
+
+	/**
+	 * Binds the hero again (Looter.Hero switched it mid-play): a running power is cut short, the new hero's powers are
+	 * made and their first equipped, ready.
+	 */
+	void RebindHero();
+
 	const TArray<TObjectPtr<UEmberDefinition>>& GetOwned() const;
 	int32 NumOwned() const { return GetOwned().Num(); }
 
@@ -102,7 +110,7 @@ public:
 	FOnEmberUsed OnUsed;
 	FOnEmberDenied OnDenied;
 
-	/** The hero whose powers these are (the Blueprint may set it; DefaultHeroPath when none). */
+	/** The hero whose powers these are when the owner isn't the player's character (the Blueprint may set it; DefaultHeroPath when none). */
 	UPROPERTY(EditDefaultsOnly, Category = "Embers")
 	TObjectPtr<UHeroDefinition> HeroDefinition;
 
@@ -118,8 +126,10 @@ private:
 	void SetupInput(AController* Controller);
 	void HandleEmberPressed();
 
-	/** Loads the hero (the Blueprint's or the default) and makes a power object per owned power. */
+	/** Loads the hero (FindHeroToBind) and makes a power object per owned power (EmberComponentHero.cpp). */
 	void BindHero();
+	/** The player's character: the hero played (USessionSubsystem::FindPlayedHero); else the Blueprint's, else Ellis's. */
+	const UHeroDefinition* FindHeroToBind() const;
 	FEmberContext MakeContext() const;
 	void SetState(EEmberState NewState);
 	/** Fires power Index now (the gate already passed, or a console command): starts its clocks. */

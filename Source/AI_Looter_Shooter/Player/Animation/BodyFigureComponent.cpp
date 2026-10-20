@@ -1,6 +1,8 @@
 #include "Player/Animation/BodyFigureComponent.h"
 #include "AI_Looter_Shooter.h"
+#include "Embers/HeroDefinition.h"
 #include "Player/Animation/BodyRetargetAnimInstance.h"
+#include "Session/SessionSubsystem.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Weapons/WeaponBase.h"
 #include "Weapons/WeaponDefinition.h"
@@ -30,6 +32,7 @@ namespace
 }
 
 const FName UBodyFigureComponent::HolsterGunSlot(TEXT("EllisHolsterGun"));
+const TCHAR* const UBodyFigureComponent::HolsterGunSuffix = TEXT("HolsterGun");
 
 USkeletalMesh* UBodyFigureComponent::FindFigureMesh()
 {
@@ -90,34 +93,79 @@ void UBodyFigureComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+void UBodyFigureComponent::PickBody(USkeletalMesh*& OutMesh, UIKRetargeter*& OutRetargeter) const
+{
+	// The hero played (the session's pick, or Looter.Hero's), when both their mesh and their retargeter are in the game.
+	if (const UHeroDefinition* Hero = USessionSubsystem::FindPlayedHero(this))
+	{
+		USkeletalMesh* HeroMesh = Hero->LoadFigureMesh();
+		UIKRetargeter* HeroRetargeter = HeroMesh ? Hero->LoadRetargeter() : nullptr;
+		if (HeroMesh && HeroRetargeter)
+		{
+			OutMesh = HeroMesh;
+			OutRetargeter = HeroRetargeter;
+			return;
+		}
+		if (Hero->Id != UHeroDefinition::DefaultId())
+		{
+			UE_LOG(LogLooter, Log, TEXT("%s: %s's model isn't in the game yet (%s); Ellis's body stands in."), *GetName(), *Hero->Id.ToString(),
+				!HeroMesh ? TEXT("no mesh") : TEXT("no retargeter"));
+		}
+	}
+	// Ellis's: the class's defaults, or looked up again when they were remade since the class was set up
+	// (build_ellis_retarget.py replaces the assets, which leaves the defaults' pointers empty).
+	const UBodyFigureComponent* Defaults = GetDefault<UBodyFigureComponent>();
+	OutMesh = Defaults->GetSkeletalMeshAsset();
+	OutRetargeter = Defaults->Retargeter;
+	if (!OutRetargeter)
+	{
+		OutRetargeter = LoadObject<UIKRetargeter>(nullptr, RetargeterPath, nullptr, LOAD_NoWarn | LOAD_Quiet);
+	}
+	if (!OutMesh)
+	{
+		OutMesh = LoadObject<USkeletalMesh>(nullptr, FigurePath, nullptr, LOAD_NoWarn | LOAD_Quiet);
+	}
+}
+
+void UBodyFigureComponent::WearHero()
+{
+	Wear();
+}
+
 void UBodyFigureComponent::Wear()
 {
-	// Remade since the class was set up (build_ellis_retarget.py replaces the assets, which leaves the defaults' pointers
-	// empty): looked up again, and the animation started over with them.
-	const bool bLate = !Retargeter || !GetSkeletalMeshAsset();
-	if (!Retargeter)
+	// The body for the hero played; a change (another hero, or Ellis's remade) starts the animation over with it.
+	USkeletalMesh* Mesh = nullptr;
+	UIKRetargeter* NewRetargeter = nullptr;
+	PickBody(Mesh, NewRetargeter);
+	if (Mesh != GetSkeletalMeshAsset() || NewRetargeter != Retargeter)
 	{
-		Retargeter = LoadObject<UIKRetargeter>(nullptr, RetargeterPath, nullptr, LOAD_NoWarn | LOAD_Quiet);
-	}
-	if (!GetSkeletalMeshAsset())
-	{
-		SetSkeletalMeshAsset(LoadObject<USkeletalMesh>(nullptr, FigurePath, nullptr, LOAD_NoWarn | LOAD_Quiet));
-	}
-	if (bLate && Retargeter && GetSkeletalMeshAsset())
-	{
-		InitAnim(true);
+		Retargeter = NewRetargeter;
+		SetSkinnedAssetAndUpdate(Mesh, false);
+		// A new mesh shows every section: the holster is put right again on the next tick.
+		bHolsterGunShown = true;
+		if (Mesh && Retargeter)
+		{
+			InitAnim(true);
+		}
 	}
 
 	USkeletalMeshComponent* Body = GetBody();
 	if (!Body || !GetSkeletalMeshAsset() || !Retargeter)
 	{
-		UE_LOG(LogLooter, Log, TEXT("%s: Ellis isn't worn (%s); the mannequin shows."), *GetName(),
+		UE_LOG(LogLooter, Log, TEXT("%s: no hero body is worn (%s); the mannequin shows."), *GetName(),
 			!Body ? TEXT("not on a skeletal mesh") : !GetSkeletalMeshAsset() ? TEXT("SK_Ellis not imported") : TEXT("RTG_MannyToEllis not made"));
+		if (USkeletalMeshComponent* Hidden = HiddenBody.Get())
+		{
+			Hidden->SetHiddenInGame(false);
+			HiddenBody.Reset();
+		}
 		SetHiddenInGame(true);
 		SetComponentTickEnabled(false);
 		return;
 	}
-	// The mannequin animates first; Ellis reads its finished pose the same frame.
+	SetComponentTickEnabled(true);
+	// The mannequin animates first; the hero's body reads its finished pose the same frame.
 	AddTickPrerequisiteComponent(Body);
 	Body->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 	Body->SetHiddenInGame(true);
@@ -149,18 +197,31 @@ void UBodyFigureComponent::FollowHolster()
 	}
 }
 
+bool UBodyFigureComponent::IsHolsterGunSlot(FName SlotName)
+{
+	return SlotName.ToString().EndsWith(HolsterGunSuffix);
+}
+
 void UBodyFigureComponent::ShowHolsterGun(bool bShow)
 {
 	bHolsterGunShown = bShow;
-	const int32 Slot = GetMaterialIndex(HolsterGunSlot);
-	if (Slot == INDEX_NONE || !GetSkinnedAsset())
+	if (!GetSkinnedAsset())
 	{
 		return;
 	}
-	// By slot on every LOD (no section index: the slot's sections, whichever LOD draws).
-	for (int32 LOD = 0; LOD < GetNumLODs(); ++LOD)
+	// Every hero's holstered gun is its own slot ending in HolsterGun (EllisHolsterGun, ...): by slot on every LOD (no
+	// section index: the slot's sections, whichever LOD draws).
+	for (const FName& SlotName : GetMaterialSlotNames())
 	{
-		ShowMaterialSection(Slot, INDEX_NONE, bShow, LOD);
+		const int32 Slot = IsHolsterGunSlot(SlotName) ? GetMaterialIndex(SlotName) : INDEX_NONE;
+		if (Slot == INDEX_NONE)
+		{
+			continue;
+		}
+		for (int32 LOD = 0; LOD < GetNumLODs(); ++LOD)
+		{
+			ShowMaterialSection(Slot, INDEX_NONE, bShow, LOD);
+		}
 	}
 }
 

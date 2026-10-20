@@ -9,6 +9,7 @@
 #include "MainMenuWidget.generated.h"
 
 class AMainMenuHUD;
+class UHeroSelectWidget;
 class UHorizontalBox;
 class ULooterButton;
 class UOverlay;
@@ -20,20 +21,23 @@ struct FSessionSummary;
  * The main menu, drawn over the tutorial island (a camera circles it behind the menu). A tall glass column on the left
  * holds the game's title and the menu; the rest of the screen is left to the island.
  *  - Single Player shows the session picker in place of the main buttons: a card per session (USessionSubsystem) naming
- *    the area it's in (Ransom's Rest, Skyreach), each continued or started from its card, and a saved one deleted after
- *    a confirmation popup. An empty slot's New Game starts the story at once: the cold open on Ransom's Rest, then the
- *    grave, with a Common Bullpup (USessionSubsystem::StartNewGame; the controls are taught there by the hints).
+ *    its hero (their portrait and name) and the area it's in (Ransom's Rest, Skyreach), each continued or started from
+ *    its card, and a saved one deleted after a confirmation popup. An empty slot's New Game opens the hero select
+ *    (UHeroSelectWidget, over the whole screen, this column hidden): confirming a hero starts the story with them (the
+ *    cold open on Ransom's Rest, then the grave, with a Common Bullpup: USessionSubsystem::StartNewGame; the controls
+ *    are taught there by the hints); Back returns to the picker.
  *  - Multiplayer doesn't exist yet: it shows dimmed, with a SOON tag, and does nothing.
  *  - Settings opens the settings menu over this one (AMainMenuHUD owns both).
  *  - Quit Game closes the game.
- * Escape (or B) closes the popup, then goes back from the picker; on the main buttons it does nothing.
+ * Escape (or B) closes the popup, then goes back from the hero select and the picker; on the main buttons it does nothing.
  *
  * A controller or the keyboard drive it all: the D-pad (left stick, arrows, W A S D) moves the focus over the buttons,
  * the session cards' and the popups' (round the ends), A or Enter presses. The focus look and the key hints at the
  * bottom follow the device last used (LooterUIFocus.h).
  *
  * MainMenuWidget.cpp builds the screen and handles its buttons and keys; MainMenuSessions.cpp makes the picker, its
- * session cards and the delete confirmation; MainMenuNav.cpp is the keyboard and controller focus and the key hints.
+ * session cards, the delete confirmation and the way into and out of the hero select; MainMenuNav.cpp is the keyboard
+ * and controller focus and the key hints (handed to the hero select while it shows).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API UMainMenuWidget : public UUserWidget
@@ -64,6 +68,15 @@ public:
 	TArray<MenuNav::FPrompt> GetPrompts() const;
 	bool IsPickerShown() const { return bPickerShown; }
 	bool IsPopupOpen() const { return DeleteIndex != INDEX_NONE; }
+
+	// --- The hero select (MainMenuSessions.cpp) ---
+
+	/** Opens the hero select for session Index's new game, over the whole screen (the column hidden under it). */
+	void OpenHeroSelect(int32 Index);
+	/** Back to the session picker, the focus on that session's New Game. */
+	void CloseHeroSelect();
+	bool IsHeroSelectShown() const { return bHeroSelectShown; }
+	UHeroSelectWidget* GetHeroSelect() const { return HeroSelect; }
 	/** A main button by its action ("SinglePlayer", "Multiplayer", "Settings", "Quit"), for the tests. */
 	ULooterButton* GetMainButton(FName Action) const;
 	ULooterButton* GetPickerBackButton() const;
@@ -131,6 +144,13 @@ private:
 	void OpenDeleteConfirm(int32 Index);
 	void CloseDeleteConfirm();
 	void ConfirmDelete();
+	/** The hero select's pick, after its beat: session SlotIndex's new game starts with HeroId. */
+	void HandleHeroConfirmed(int32 SlotIndex, FName HeroId);
+
+	/** The glass column on the left (hidden while the hero select shows). */
+	UPROPERTY(Transient) TObjectPtr<UWidget> ColumnBox;
+	/** Over the whole screen while an empty slot's New Game chooses its hero; collapsed otherwise. */
+	UPROPERTY(Transient) TObjectPtr<UHeroSelectWidget> HeroSelect;
 
 	/** The main buttons, and the session picker shown in their place. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> MainButtons;
@@ -163,6 +183,7 @@ private:
 	FString ShownPrompts;
 
 	bool bPickerShown = false;
+	bool bHeroSelectShown = false;
 	/** The session the delete confirmation asks about, or INDEX_NONE while it's closed. */
 	int32 DeleteIndex = INDEX_NONE;
 	/** A session's level is opening: the menu goes with this world, so it takes no more clicks or keys. */

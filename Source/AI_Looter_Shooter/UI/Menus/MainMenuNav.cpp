@@ -1,8 +1,9 @@
 // UMainMenuWidget for the keyboard and a controller: the focus over the main buttons, the session cards and the popups
 // (round the ends), A to press, B to step back, and the key hints at the bottom for the device last used
-// (LooterUIFocus.h, MenuNav.h, MenuNavigator.h).
+// (LooterUIFocus.h, MenuNav.h, MenuNavigator.h). While the hero select shows, every key and its clock go to it.
 
 #include "UI/Menus/MainMenuWidget.h"
+#include "UI/Menus/HeroSelectWidget.h"
 #include "UI/Menus/MainMenuHUD.h"
 #include "UI/Inventory/LoadoutParts.h"
 #include "UI/Style/LooterButton.h"
@@ -88,8 +89,8 @@ void UMainMenuWidget::ClosePopupNav()
 
 bool UMainMenuWidget::StepBack()
 {
-	// One step at a time: the popup, then the picker. On the main buttons nothing (the game is left with its own button,
-	// never by a stray key), and nothing while a session's level opens.
+	// One step at a time: the popup, the hero select, then the picker. On the main buttons nothing (the game is left with
+	// its own button, never by a stray key), and nothing while a session's level opens.
 	if (bLoading)
 	{
 		return false;
@@ -97,6 +98,11 @@ bool UMainMenuWidget::StepBack()
 	if (DeleteIndex != INDEX_NONE)
 	{
 		CloseDeleteConfirm();
+		return true;
+	}
+	if (bHeroSelectShown)
+	{
+		CloseHeroSelect();
 		return true;
 	}
 	if (bPickerShown)
@@ -117,6 +123,11 @@ bool UMainMenuWidget::HandleNavKey(const FKey& Key, bool bRepeat)
 	if (const AMainMenuHUD* HUD = GetMenuHUD(); HUD && HUD->IsSettingsOpen())
 	{
 		return false;
+	}
+	// The hero select over the whole screen has its own stops (its B comes back here through CloseHeroSelect).
+	if (bHeroSelectShown && HeroSelect)
+	{
+		return HeroSelect->HandleNavKey(Key, bRepeat) || bLoading;
 	}
 	if (IsBack(Key))
 	{
@@ -172,10 +183,19 @@ bool UMainMenuWidget::HandleNavKey(const FKey& Key, bool bRepeat)
 void UMainMenuWidget::HandleNavKeyUp(const FKey& Key)
 {
 	NavRepeat.Release(Key);
+	if (HeroSelect)
+	{
+		HeroSelect->HandleNavKeyUp(Key);
+	}
 }
 
 void UMainMenuWidget::HandleNavStick(const FVector2D& Stick)
 {
+	if (bHeroSelectShown && HeroSelect)
+	{
+		HeroSelect->HandleNavStick(Stick);
+		return;
+	}
 	const EMove Next = StickMove(Stick, NavStickMove);
 	if (Next == NavStickMove)
 	{
@@ -237,6 +257,11 @@ void UMainMenuWidget::AdvanceNav(float DeltaSeconds)
 		StepNav(NavRepeat.GetMove());
 	}
 	Nav.Tick(DeltaSeconds);
+	// The hero select runs on this menu's clock (its held keys, its stage, its confirm's beat).
+	if (bHeroSelectShown && HeroSelect)
+	{
+		HeroSelect->AdvanceNav(DeltaSeconds);
+	}
 }
 
 void UMainMenuWidget::StopNavHold()
@@ -346,11 +371,19 @@ FCursorReply UMainMenuWidget::NativeOnCursorQuery(const FGeometry& InGeometry, c
 
 UWidget* UMainMenuWidget::GetFocusedWidget() const
 {
+	if (bHeroSelectShown && HeroSelect)
+	{
+		return HeroSelect->GetFocusedWidget();
+	}
 	return Nav.GetFocusedWidget();
 }
 
 bool UMainMenuWidget::IsFocusLookShown() const
 {
+	if (bHeroSelectShown)
+	{
+		return LooterUI::IsMenuFocusShown();
+	}
 	const FMenuNavItem* Here = Nav.GetFocused();
 	return Nav.IsShown() && Here && LooterUI::IsFocusLit(Here->Light.Get());
 }
@@ -360,6 +393,10 @@ void UMainMenuWidget::RefreshNavLook()
 	ShownDevice = LooterUI::GetMenuDevice();
 	bNavLookApplied = true;
 	Nav.SetShown(LooterUI::IsMenuFocusShown());
+	if (bHeroSelectShown && HeroSelect)
+	{
+		HeroSelect->RefreshNavLook();
+	}
 	RefreshFooter();
 }
 
@@ -370,6 +407,11 @@ TArray<FPrompt> UMainMenuWidget::GetPrompts() const
 	if (bLoading)
 	{
 		return Prompts;
+	}
+	// The hero select has its own hints, along its own bottom.
+	if (bHeroSelectShown && HeroSelect)
+	{
+		return HeroSelect->GetPrompts();
 	}
 	const bool bPad = LooterUI::IsMenuGamepad();
 	Prompts.Add(MakePrompt(EPromptKey::Select, bPad, TEXT("Select")));

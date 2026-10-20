@@ -1,5 +1,6 @@
 #include "Session/SessionSubsystem.h"
 #include "AI_Looter_Shooter.h"
+#include "Embers/HeroDefinition.h"
 #include "Progression/LooterProgressSave.h"
 #include "Progression/PlayerProgressData.h"
 #include "Progression/PlayerProgressionSubsystem.h"
@@ -132,6 +133,7 @@ FSessionSummary USessionSubsystem::GetSummary(int32 Index) const
 	// Where Continue goes, by the area's name.
 	Summary.Place = AreaName(ContinueMap(Save->Map));
 	Summary.bTutorialDone = Save->Progress.bTutorialDone;
+	Summary.HeroId = Save->GetHeroId();
 	return Summary;
 }
 
@@ -142,12 +144,12 @@ bool USessionSubsystem::PlaySession(int32 Index)
 	{
 		return false;
 	}
-	// An empty slot starts the story at its first arrival (SessionSubsystemNewGame.cpp); only while the story's first level
-	// isn't in the game does a new game open on the game's first level, as it did before.
+	// An empty slot starts the story as Ellis (the console's way in: the menu picks a hero, then StartNewGame); only while
+	// the story's first level isn't in the game does a new game open on the game's first level.
 	const ULooterSessionSave* Save = LoadSlot(Index);
 	if (!Save && !UGameplayStatics::DoesSaveGameExist(SlotName(Index), 0) && CanStartStory())
 	{
-		return StartNewGame(Index);
+		return StartNewGame(Index, UHeroDefinition::DefaultId());
 	}
 	// It continues in the level it was saved in, when that still exists.
 	const FString Map = ContinueMap(Save ? Save->Map : FString());

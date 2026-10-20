@@ -1,6 +1,7 @@
-// ULooterSessionSave: bringing older saves up to date, each map's world, and a trip's bookkeeping.
+// ULooterSessionSave: bringing older saves up to date, each map's world, a trip's bookkeeping, and the hero played.
 
 #include "Session/SessionSave.h"
+#include "Embers/HeroDefinition.h"
 #include "Session/CampaignStepMigration.h"
 
 int32 ULooterSessionSave::Upgrade()
@@ -81,4 +82,10 @@ void ULooterSessionSave::PrepareTrip(const FString& Destination, FName Landing)
 int32 ULooterSessionSave::CountGuns() const
 {
 	return Inventory.Equipped.Num() + Inventory.Backpack.Num();
+}
+
+FName ULooterSessionSave::GetHeroId() const
+{
+	// Every session saved before the hero pick (2026-10-19) was Ellis's.
+	return HeroId.IsNone() ? UHeroDefinition::DefaultId() : HeroId;
 }

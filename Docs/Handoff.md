@@ -51,11 +51,33 @@ e7917bb Pike, 08a3677 Gauge, 87b0152 Odessa), `Tools\portraits.ps1`, the aux pas
 portrait was painted with the ids misread). The four sheets `Saved/ArtPreviews/Portraits/<Hero>/Sheet_<Hero>.png` were
 sent to the user. (Paused by the user 2026-10-16 to 2026-10-19 21:00 for usage.) **Resumed 2026-10-19:** all four
 repainted with `-AuxOnly` after the Raw fix (that switch had passed Blender `--aux-only` letter by letter, so it
-re-rendered the colour pass too; fixed in `portraits.ps1`), the four sheets looked over and sent. **Waiting on the
-user: one pick (A, B or C) per hero**; each pick becomes a game model the way Ellis's did (Pipeline "Character
-models"). Clean-up before more hero work: merge the hero scripts' helpers into `bust.py` (shared: `tube`, `chain`,
-`turn`, `ramp`, `ball`, `tear`, `point_light`; renders compared before/after) and trim the files under ~600 lines.
-Nothing is scheduled; no agent or job is running; the editor is closed.
+re-rendered the colour pass too; fixed in `portraits.ps1`), the four sheets looked over and sent. **The user's picks
+(2026-10-19): Crane A The Marshal, Pike A The Surveyor, Gauge C Company Iron, Odessa A The Dealer** (Story.md "The
+heroes"). Then the user's calls: **all four game models at once** (four agents) and **the select screen alongside**
+(built now with the painted portraits; models drop in as they land). **Running (2026-10-19 evening):** five agents on
+one contract, `Saved/Heroes/CONTRACT.md` (not committed: read it on resume): CRANE, PIKE, GAUGE, ODESSA each write
+`Art/Models/Characters/<Hero>.py` -> SK_<Hero> (Ellis.py's way; up to 35k triangles; mannequin bones + twist + swing
+chains on the game's prefixes; `<Hero><Set>` texture sets; previews in `Saved/ArtPreviews/Characters/<Hero>/`; export
+test into `Intermediate/ArtExport_<Hero>`), SELECT writes the hero select screen and the data-driven hero
+(`UHeroDefinition` Role/Story/Color/Portrait/FigureMesh/Retargeter/IsPlayable, DA_Hero_* for five, the twelve powers as
+data, `ULooterSessionSave::HeroId`, `StartNewGame(Index, HeroId)`, `Looter.Hero`, tests `Looter.Heroes.*`). Agents
+never commit; Main reviews, imports each model, builds its retargeter, checks in PIE, commits. Blender runs queue two at a
+time through `artrun.ps1` (Saved\BlenderSlots). Not this round: first-person arms per hero, the HUD portrait per hero,
+the twelve powers' code, line variants. **The Gravemother's Barrow fight alongside (the user, 2026-10-19), their calls:
+upgrade in place** (charge -> Furrow, brood -> Unearthed, spit -> Grave Clod; Gravequake, roar, staggers stay), **the
+headstone breakable** (its own health, not plain armour), **the timings kept** (clod tell 1.2 s, shot-in-grip stun 2 s,
+rubble 10 s, furrow tell 2 s, berms 20 s, mounds bulge 1 s), **+25% speed in the last third**. Main's numbers: stone
+health 20% of hers, three states (66%/33% of its health), an early break staggers her but doesn't bring the last third.
+Three more agents on `Saved/Gravemother/CONTRACT.md` (not committed): BARROW-ART (SK_Gravemother on Spider.py's rig,
+the headstone meshes and shards, the fight's earth meshes, FX and decal textures + `build_grave_fight_materials.py`),
+BARROW-SOUND (eleven `Boss.Gravemother.*` cues), BARROW-CODE (phase 1 a plan in `Saved/Gravemother/PLAN.md`; phase 2
+the C++ once SELECT has finished with the editor). BARROW-SOUND done and committed (aed611d, 13 cues; Main still
+imports the bank). BARROW-CODE's plan is in `Saved/Gravemother/PLAN.md`; Main's answers for its phase 2 (send when the
+editor is free): the long stagger = her boss stagger 2.5 s, the clod stun the same at 2 s; burning cracks dropped; the
+clod's burst on her does no damage; **a popped mound gives the spiderling's kill XP**; **a thin stone bar under her
+boss bar** while the stone stands; spiderlings stay the plain spider; tests `Looter.Creatures.Gravemother.*`; small
+additive changes to SpiderCreature, BossComponent, BulletSubsystem approved. Clean-up later: the portrait scripts' shared helpers into `bust.py` (`tube`,
+`chain`, `turn`, `ramp`, `ball`, `tear`, `point_light`), and the hero model scripts' shared machinery out of Ellis.py.
 
 ### Decided unattended (2026-10-15 night), for the user's review
 Main's calls (the agents add theirs below):

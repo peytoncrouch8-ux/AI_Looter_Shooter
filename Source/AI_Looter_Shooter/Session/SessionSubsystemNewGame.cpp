@@ -6,6 +6,7 @@
 #include "Affixes/WeaponRollLibrary.h"
 #include "Areas/AreaDefinition.h"
 #include "Areas/StationBoard.h"
+#include "Embers/HeroDefinition.h"
 #include "Scenes/TransitionScreenSubsystem.h"
 #include "Session/SessionSave.h"
 #include "Weapons/AmmoTypes.h"
@@ -76,7 +77,21 @@ bool USessionSubsystem::ApplyNewGame(ULooterSessionSave& Save, const UAreaDefini
 	return bArmed;
 }
 
-bool USessionSubsystem::StartNewGame(int32 Index)
+bool USessionSubsystem::ApplyNewGameHero(ULooterSessionSave& Save, FName HeroId)
+{
+	// Only a hero the select screen would let through: one in the works plays only by the developers' unlock.
+	const UHeroDefinition* Hero = UHeroDefinition::Load(HeroId);
+	if (!Hero || !Hero->CanBePicked())
+	{
+		UE_LOG(LogLooter, Warning, TEXT("New game: %s %s."), *HeroId.ToString(),
+			Hero ? TEXT("is in the works (Looter.Hero.Unlock 1 lets one be picked)") : TEXT("isn't a hero (no DA_Hero_ asset)"));
+		return false;
+	}
+	Save.HeroId = Hero->Id;
+	return true;
+}
+
+bool USessionSubsystem::StartNewGame(int32 Index, FName HeroId)
 {
 	UWorld* World = GetGameInstance()->GetWorld();
 	if (Index < 0 || Index >= MaxSessions || !World)
@@ -97,6 +112,11 @@ bool USessionSubsystem::StartNewGame(int32 Index)
 
 	ULooterSessionSave* Save = NewSave();
 	Save->Saved = Save->Created;
+	// The hero first: the session keeps them for good, so a refused one starts nothing.
+	if (!ApplyNewGameHero(*Save, HeroId))
+	{
+		return false;
+	}
 	if (!ApplyNewGame(*Save, *First, LoadBullpup()))
 	{
 		UE_LOG(LogLooter, Warning, TEXT("New game: no Bullpup (%s), so session %d starts unarmed."), BullpupPath, Index + 1);
@@ -115,7 +135,7 @@ bool USessionSubsystem::StartNewGame(int32 Index)
 		White->HoldWhite();
 	}
 	const FString Map = First->GetMapPackage();
-	UE_LOG(LogLooter, Log, TEXT("Session %d: new game, the story begins in %s at %s"), Index + 1, *Map,
+	UE_LOG(LogLooter, Log, TEXT("Session %d: new game as %s, the story begins in %s at %s"), Index + 1, *Save->HeroId.ToString(), *Map,
 		*StationBoard::FirstArrivalLanding().ToString());
 	UGameplayStatics::OpenLevel(World, FName(*Map), /*bAbsolute*/ true, FString::Printf(TEXT("Session=%d"), Index + 1));
 	return true;

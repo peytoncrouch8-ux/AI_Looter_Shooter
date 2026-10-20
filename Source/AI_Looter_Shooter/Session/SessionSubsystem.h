@@ -8,6 +8,7 @@
 #include "SessionSubsystem.generated.h"
 
 class UAreaDefinition;
+class UHeroDefinition;
 class ULooterSessionSave;
 class UWeaponDefinition;
 class UWorld;
@@ -41,6 +42,9 @@ struct FSessionSummary
 	FString Place;
 
 	bool bTutorialDone = false;
+
+	/** The hero the session plays (ULooterSessionSave::GetHeroId: Ellis for a save from before the pick). */
+	FName HeroId;
 };
 
 /**
@@ -86,9 +90,9 @@ public:
 	FSessionSummary GetSummary(int32 Index) const;
 
 	/**
-	 * Plays slot Index: continues where it was saved, or starts a new game when it's empty (StartNewGame: the story's
-	 * first arrival, or the game's first level while the story's isn't in the game). Opens its level (on the next frame);
-	 * false when it couldn't start.
+	 * Plays slot Index: continues where it was saved, or starts a new game as Ellis when it's empty (StartNewGame: the
+	 * story's first arrival, or the game's first level while the story's isn't in the game; the main menu asks for a hero
+	 * first and calls StartNewGame itself). Opens its level (on the next frame); false when it couldn't start.
 	 */
 	bool PlaySession(int32 Index);
 
@@ -104,14 +108,21 @@ public:
 	// --- A new game: the story from its start (SessionSubsystemNewGame.cpp) ---
 
 	/**
-	 * A new game in the empty slot Index (the user's call, 2026-10-13: the game starts on the story, Skyreach comes later):
-	 * the story begun (the first cast-off recorded, Skyreach's old tutorial counted done, so a later visit there never sends
-	 * the player through it), a Common Bullpup in hand (the iron Ellis was buried with), and the session opening straight on
-	 * the story's first arrival behind the white: the cold open takes it (skippable like every scene), then the grave.
-	 * Written to the slot first. False when the slot isn't empty or the first area's level isn't in the game
-	 * (CanStartStory).
+	 * A new game in the empty slot Index, played by the hero HeroId (picked on the hero select; the session keeps them for
+	 * good) (the user's call, 2026-10-13: the game starts on the story, Skyreach comes later): the story begun (the first
+	 * cast-off recorded, Skyreach's old tutorial counted done, so a later visit there never sends the player through it), a
+	 * Common Bullpup in hand (the iron the dead are buried with), and the session opening straight on the story's first
+	 * arrival behind the white: the cold open takes it (skippable like every scene), then the grave. Written to the slot
+	 * first. False when the slot isn't empty, the hero can't be picked (ApplyNewGameHero) or the first area's level isn't
+	 * in the game (CanStartStory).
 	 */
-	bool StartNewGame(int32 Index);
+	bool StartNewGame(int32 Index, FName HeroId);
+
+	/**
+	 * Gives a new game's save its hero: HeroId's definition exists and can be picked (playable, or Looter.Hero.Unlock).
+	 * False, the save untouched, otherwise.
+	 */
+	static bool ApplyNewGameHero(ULooterSessionSave& Save, FName HeroId);
 
 	/** A new game can start on the story: its first area and that area's level are in the game. */
 	static bool CanStartStory();
@@ -154,6 +165,27 @@ public:
 
 	/** The story so far of what's being played: the session's, or kept in memory without one. Null on the main menu. */
 	FCampaignRecord* GetCampaign();
+
+	// --- The hero played (SessionSubsystemHero.cpp) ---
+
+	/**
+	 * The hero being played: the session's (ULooterSessionSave::GetHeroId), or with no session the one Looter.Hero set
+	 * (GetNoSessionHeroId: Ellis unless told otherwise).
+	 */
+	FName GetPlayedHeroId() const;
+
+	/** That hero's definition, or Ellis's when it has none (an id with no asset), or null with neither. */
+	const UHeroDefinition* GetPlayedHero() const;
+
+	/**
+	 * The hero for whatever WorldContextObject's world plays, as the character asks as it begins (its body and powers):
+	 * GetPlayedHero, or null with no game instance (a test world), which leaves the caller to its own default.
+	 */
+	static const UHeroDefinition* FindPlayedHero(const UObject* WorldContextObject);
+
+	/** The hero a play with no session plays (Looter.PlayLevel, a level straight from the editor). Kept for the run. */
+	static FName GetNoSessionHeroId();
+	static void SetNoSessionHeroId(FName HeroId);
 
 	// --- Travel (SessionSubsystemTravel.cpp) ---
 
